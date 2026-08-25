@@ -1,19 +1,22 @@
 {
-  "schemaVersion": 3,
-  "kind": "component",
-  "title": "ArrayField",
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
   "args": {
     "fields": []
   },
   "environment": {
     "fixtures": []
   },
+  "kind": "component",
+  "schemaVersion": 4,
   "stories": [
     {
-      "id": "default",
-      "name": "Ordered collection",
-      "harness": "Default",
       "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Default",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
         {
           "kind": "role",
@@ -24,25 +27,18 @@
           "value": "Workspace principles"
         }
       ],
-      "mode": "live"
+      "id": "default",
+      "mode": "live",
+      "name": "Ordered collection"
     },
     {
-      "id": "empty",
-      "name": "Empty invitation",
-      "harness": "Empty",
       "args": {},
-      "interactions": [
-        {
-          "kind": "click",
-          "target": {
-            "role": "button",
-            "name": "Add channel"
-          }
-        },
-        {
-          "kind": "settle"
+      "composition": {
+        "specimen": {
+          "export": "Empty",
+          "module": "./story.tsx"
         }
-      ],
+      },
       "expect": [
         {
           "kind": "role",
@@ -50,11 +46,26 @@
         },
         {
           "kind": "role",
-          "role": "textbox",
-          "name": "Channel"
+          "name": "Channel",
+          "role": "textbox"
         }
       ],
-      "mode": "live"
+      "id": "empty",
+      "interactions": [
+        {
+          "kind": "click",
+          "target": {
+            "name": "Add channel",
+            "role": "button"
+          }
+        },
+        {
+          "kind": "settle"
+        }
+      ],
+      "mode": "live",
+      "name": "Empty invitation"
     }
-  ]
+  ],
+  "title": "ArrayField"
 }

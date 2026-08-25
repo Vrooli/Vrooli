@@ -1,26 +1,24 @@
 {
-  "schemaVersion": 3,
-  "kind": "component",
-  "title": "Markdown Renderer",
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
   "args": {
     "fields": [
       {
-        "path": "content",
-        "label": "Markdown",
+        "default": "# Shared markdown\n\n| State | Value |\n| --- | --- |\n| Ready | yes |\n\n\u003e Keep operator context visible.\n\n```ts\nconst stable = true;\n```",
         "kind": "text",
-        "default": "# Shared markdown\n\n| State | Value |\n| --- | --- |\n| Ready | yes |\n\n> Keep operator context visible.\n\n```ts\nconst stable = true;\n```"
+        "label": "Markdown",
+        "path": "content"
       }
     ]
   },
   "environment": {
     "fixtures": []
   },
+  "kind": "component",
+  "schemaVersion": 4,
   "stories": [
     {
-      "id": "gfm-prose-and-code",
-      "name": "GFM, prose, and code",
       "args": {
-        "content": "# Shared markdown\n\n| State | Value |\n| --- | --- |\n| Ready | yes |\n\n> Keep operator context visible.\n\n```ts\nconst stable = true;\n```"
+        "content": "# Shared markdown\n\n| State | Value |\n| --- | --- |\n| Ready | yes |\n\n\u003e Keep operator context visible.\n\n```ts\nconst stable = true;\n```"
       },
       "expect": [
         {
@@ -40,7 +38,10 @@
           "value": "const stable = true;"
         }
       ],
-      "mode": "pinned"
+      "id": "gfm-prose-and-code",
+      "mode": "pinned",
+      "name": "GFM, prose, and code"
     }
-  ]
+  ],
+  "title": "Markdown Renderer"
 }

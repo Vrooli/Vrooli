@@ -5,13 +5,14 @@
   "asset": {
     "id": "forms.multi-select",
     "name": "MultiSelect",
-    "kind": "component", "surface": "raised",
+    "kind": "component",
+    "surface": "raised",
     "domain": "forms",
     "description": "The multiple-selection field with search, selected-value chips, bulk selection, limits, async options, keyboard removal, and compact overflow that does not resize the field.",
     "targets": [
       "react-vite"
     ],
-    "slot": "primitive",
+    "slot": "ui-primitive",
     "delivery": "adopted",
     "target": {
       "priority": "P1",

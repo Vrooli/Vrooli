@@ -2,6 +2,8 @@
  * @vrooliComponentSource react-component-library:AppShell
  * @deps {"react":"^18"}
  */
+import { translate } from "../../../../hooks/useLocale/versions/1.0.0/useLocale";
+
 import type { ReactNode } from "react";
 
 export interface AppShellProps {
@@ -50,11 +52,11 @@ const appShellStyles = `
 
 function defaultNavigation() {
   return (
-    <nav aria-label="Application navigation">
-      <a href="/" aria-current="page">
-        Workspace
+    <nav aria-label={translate("navigation.app-shell.aria-label.1", "Application navigation")}>
+      <a data-testid="navigation.app-shell" href="/" aria-current="page">
+        {translate("navigation.app-shell.text.3", "Workspace")}
       </a>
-      <a href="/settings">Settings</a>
+      <a data-testid="navigation.app-shell" href="/settings">{translate("navigation.app-shell.text.3", "Settings")}</a>
     </nav>
   );
 }
@@ -63,7 +65,7 @@ export function AppShell({
   navigation,
   header,
   children,
-  title = "Application workspace",
+  title = translate("navigation.app-shell.title.2", "Application workspace"),
   navigationLabel = "Application navigation",
   navigationMode = "rail",
   headerMode = "visible",
@@ -89,10 +91,10 @@ export function AppShell({
       />
       <a
         className="rcl-app-shell-skip"
-        data-testid="app-shell-skip"
+        data-testid="navigation.app-shell"
         href="#app-shell-main"
       >
-        Skip to content
+        {translate("navigation.app-shell.text.4", "Skip to content")}
       </a>
       <div
         data-rcl-app-shell-nav

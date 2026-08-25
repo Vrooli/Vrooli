@@ -10,7 +10,6 @@ import (
 	apidb "github.com/vrooli/api-core/database"
 
 	"react-component-library/internal/adoptions"
-	"react-component-library/internal/components"
 	localdb "react-component-library/internal/database"
 
 	db "github.com/vrooli/api-core/databasetest"
@@ -59,6 +58,25 @@ func TestSQLiteRepository_CreateAndGet(t *testing.T) {
 	require.Equal(t, a.ID, got.ID)
 	require.Equal(t, "swarm-manager", got.Scenario)
 	require.Equal(t, a.Files, got.Files)
+}
+
+func TestSQLiteRepository_ForkMetadataRoundTrips(t *testing.T) {
+	repo, _ := newAdoptionsDB(t)
+	a, err := repo.Create(context.Background(), adoptions.CreateInput{
+		ComponentID: "cmp-fork", Scenario: "target", AdoptedPath: "ui/src/components/Panel.tsx",
+		ForkReason:      "target owns a domain-specific interaction model",
+		ExtensionPoints: []string{"interaction", "aria-label"},
+	})
+	require.NoError(t, err)
+	require.Equal(t, adoptions.ForkStatusDeclared, a.ForkStatus)
+	require.Equal(t, "target owns a domain-specific interaction model", a.ForkReason)
+	require.Equal(t, []string{"interaction", "aria-label"}, a.ExtensionPoints)
+
+	got, err := repo.Get(context.Background(), a.ID)
+	require.NoError(t, err)
+	require.Equal(t, a.ForkStatus, got.ForkStatus)
+	require.Equal(t, a.ForkReason, got.ForkReason)
+	require.Equal(t, a.ExtensionPoints, got.ExtensionPoints)
 }
 
 func TestSQLiteRepository_UpdateAppliedSnapshot(t *testing.T) {
@@ -168,68 +186,6 @@ func TestSQLiteRepository_ListEffectiveReturnsMediatedParent(t *testing.T) {
 	require.Equal(t, "1.0.0", effective[0].SourceVersion)
 	require.Equal(t, created.ID, effective[0].ParentAdoption.ID)
 	require.Equal(t, "drawer", effective[0].ParentAdoption.ComponentID)
-}
-
-func TestEnsureSchemaMigrations_BackfillsUniqueDependencyFileAttribution(t *testing.T) {
-	d := db.NewSQLite(t)
-	ctx := context.Background()
-	require.NoError(t, apidb.EnsureSchemas(ctx, d,
-		apidb.SchemaProviderFunc(localdb.SystemSchema),
-		apidb.SchemaProviderFunc(components.Schema),
-		apidb.SchemaProviderFunc(adoptions.Schema),
-	))
-	_, err := d.ExecContext(ctx, `
-INSERT INTO components (id, library_id, slug, source_path, indexed_at, updated_at) VALUES
-  ('drawer', 'rcl:DrawerShell', 'drawer-shell', 'DrawerShell.tsx', '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z'),
-  ('focus', 'rcl:useFocusTrap', 'use-focus-trap', 'useFocusTrap.ts', '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z');
-INSERT INTO component_versions (id, component_id, library_id, version, status, source_path, content_sha256, indexed_at) VALUES
-  ('drawer-v1', 'drawer', 'rcl:DrawerShell', '1.0.0', 'released', 'DrawerShell.tsx', 'drawer-sha', '2026-01-01T00:00:00Z'),
-  ('focus-v1', 'focus', 'rcl:useFocusTrap', '1.0.0', 'released', 'useFocusTrap.ts', 'focus-sha', '2026-01-01T00:00:00Z');
-INSERT INTO component_version_files (version_id, path, content_sha256, is_entry) VALUES
-  ('drawer-v1', 'DrawerShell.tsx', 'drawer-sha', 1),
-  ('focus-v1', 'useFocusTrap.ts', 'focus-sha', 1);
-INSERT INTO component_asset_dependencies (component_id, library_id, version) VALUES ('drawer', 'rcl:useFocusTrap', '1.0.0');
-INSERT INTO adoption_records (id, component_id, library_id, scenario, adopted_path, adopted_version, created_at) VALUES
-  ('drawer-adoption', 'drawer', 'rcl:DrawerShell', 'target', 'ui/src/components/DrawerShell.tsx', '1.0.0', '2026-01-01T00:00:00Z');
-INSERT INTO adoption_files (adoption_id, library_path, adopted_path) VALUES
-  ('drawer-adoption', 'DrawerShell.tsx', 'ui/src/components/DrawerShell.tsx'),
-  ('drawer-adoption', 'useFocusTrap.ts', 'ui/src/hooks/useFocusTrap.ts');`)
-	require.NoError(t, err)
-
-	require.NoError(t, adoptions.EnsureSchemaMigrations(ctx, d))
-	repo := adoptions.NewSQLiteRepository(d, scheduletest.New(time.Now()))
-	effective, err := repo.ListEffective(ctx, "focus", 10)
-	require.NoError(t, err)
-	require.Len(t, effective, 1)
-	require.True(t, effective[0].Mediated)
-	require.Equal(t, "rcl:useFocusTrap", effective[0].SourceLibraryID)
-}
-
-func TestEnsureSchemaMigrations_RenamesRetiredScenarioInPlace(t *testing.T) {
-	d := db.NewSQLite(t)
-	ctx := context.Background()
-	require.NoError(t, apidb.EnsureSchemas(ctx, d,
-		apidb.SchemaProviderFunc(localdb.SystemSchema),
-		apidb.SchemaProviderFunc(components.Schema),
-		apidb.SchemaProviderFunc(adoptions.Schema),
-	))
-	_, err := d.ExecContext(ctx, `
-INSERT INTO adoption_records
-  (id, component_id, library_id, scenario, adopted_path, adopted_version, created_at)
-VALUES ('retired-scenario-adoption', 'cmp', 'react-component-library:Button', 'cleanup-manager', 'ui/src/components/ui/button.tsx', '1.0.0', '2026-01-01T00:00:00Z')`)
-	require.NoError(t, err)
-
-	require.NoError(t, adoptions.EnsureSchemaMigrations(ctx, d))
-	require.NoError(t, adoptions.EnsureSchemaMigrations(ctx, d), "scenario remap must be boot-idempotent")
-
-	repo := adoptions.NewSQLiteRepository(d, scheduletest.New(time.Now()))
-	current, err := repo.List(ctx, adoptions.ListQuery{Scenario: "storage-manager", Limit: 10})
-	require.NoError(t, err)
-	require.Len(t, current, 1)
-	require.Equal(t, "retired-scenario-adoption", current[0].ID)
-	retired, err := repo.List(ctx, adoptions.ListQuery{Scenario: "cleanup-manager", Limit: 10})
-	require.NoError(t, err)
-	require.Empty(t, retired)
 }
 
 func TestSQLiteRepository_DeleteAndApplyRefresh(t *testing.T) {

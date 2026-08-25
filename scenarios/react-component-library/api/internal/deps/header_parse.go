@@ -3,8 +3,27 @@ package deps
 import (
 	"encoding/json"
 	"fmt"
+	"regexp"
 	"strings"
 )
+
+var sourceDepsHeaderRE = regexp.MustCompile(`(?m)^\s*(?:\*|//)\s*@deps\s+(.+?)\s*$`)
+
+// ParseSourceDeclarations extracts every @deps declaration in a versioned
+// source file. Preview bundles follow relative imports across a version's
+// immutable file set, so the runtime dependency surface is the union of the
+// declarations carried by that closure—not only the entry file.
+func ParseSourceDeclarations(source string) ([]DeclarationFields, error) {
+	var out []DeclarationFields
+	for _, match := range sourceDepsHeaderRE.FindAllStringSubmatch(source, -1) {
+		declarations, err := ParseHeaderField(strings.TrimSpace(match[1]))
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, declarations...)
+	}
+	return out, nil
+}
 
 // ParseHeaderField interprets the raw `@deps` header field value the
 // components indexer captures into Headers["deps"]. Accepted shapes:

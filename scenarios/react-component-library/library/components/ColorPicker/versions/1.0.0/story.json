@@ -1,96 +1,117 @@
 {
-  "schemaVersion": 3,
-  "kind": "component",
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
   "args": {
     "fields": [
       {
-        "path": "value",
+        "default": "#4dabf7",
         "kind": "text",
-        "default": "#4dabf7"
+        "path": "value"
       },
       {
-        "path": "palette",
-        "kind": "array",
         "default": [
           "#4dabf7",
           "#51cf66",
           "#ff6b6b"
-        ]
+        ],
+        "kind": "array",
+        "path": "palette"
       }
     ]
   },
   "environment": {
     "fixtures": []
   },
+  "kind": "component",
+  "schemaVersion": 4,
   "stories": [
     {
-      "id": "palette",
-      "name": "Palette",
-      "harness": "ControlledWithRecents",
-      "description": "A compact palette with transparent and custom-color choices.",
       "args": {
-        "value": "#4dabf7",
         "palette": [
           "#4dabf7",
           "#51cf66",
           "#ff6b6b"
-        ]
+        ],
+        "value": "#4dabf7"
       },
+      "composition": {
+        "specimen": {
+          "export": "ControlledWithRecents",
+          "module": "./story.tsx"
+        }
+      },
+      "description": "A compact palette with transparent and custom-color choices.",
       "expect": [
         {
           "kind": "role",
-          "role": "button",
-          "name": "#4dabf7"
+          "name": "#4dabf7",
+          "role": "button"
         }
       ],
-      "mode": "live"
+      "id": "palette",
+      "mode": "live",
+      "name": "Palette"
     },
     {
-      "id": "controlled-with-recents",
-      "name": "Controlled with recents",
-      "description": "A controlled harness exposes the selected color and records committed choices.",
-      "harness": "ControlledWithRecents",
       "args": {
-        "value": "#4dabf7",
         "palette": [
           "#4dabf7",
           "#51cf66",
           "#ff6b6b"
-        ]
+        ],
+        "value": "#4dabf7"
       },
-      "interactions": [
-        {
-          "kind": "click",
-          "target": {
-            "role": "button",
-            "name": "#51cf66"
-          }
-        },
-        {
-          "kind": "settle"
+      "composition": {
+        "specimen": {
+          "export": "ControlledWithRecents",
+          "module": "./story.tsx"
         }
-      ],
+      },
+      "description": "A controlled harness exposes the selected color and records committed choices.",
       "expect": [
         {
           "kind": "text",
           "value": "Selected: #51cf66"
         }
       ],
-      "mode": "live"
+      "id": "controlled-with-recents",
+      "interactions": [
+        {
+          "kind": "click",
+          "target": {
+            "name": "#51cf66",
+            "role": "button"
+          }
+        },
+        {
+          "kind": "settle"
+        }
+      ],
+      "mode": "live",
+      "name": "Controlled with recents"
     },
     {
-      "id": "recents-commit-on-blur",
-      "name": "Custom color records on blur",
-      "description": "Native picker changes are committed to recents once when the input loses focus.",
-      "harness": "RecentsCommitOnBlur",
       "args": {
-        "value": "#4dabf7",
         "palette": [
           "#4dabf7",
           "#51cf66",
           "#ff6b6b"
-        ]
+        ],
+        "value": "#4dabf7"
       },
+      "composition": {
+        "specimen": {
+          "export": "RecentsCommitOnBlur",
+          "module": "./story.tsx"
+        }
+      },
+      "description": "Native picker changes are committed to recents once when the input loses focus.",
+      "expect": [
+        {
+          "kind": "text",
+          "value": "Recent: #ff6b6b"
+        }
+      ],
+      "id": "recents-commit-on-blur",
       "interactions": [
         {
           "kind": "type",
@@ -109,13 +130,8 @@
           "kind": "settle"
         }
       ],
-      "expect": [
-        {
-          "kind": "text",
-          "value": "Recent: #ff6b6b"
-        }
-      ],
-      "mode": "live"
+      "mode": "live",
+      "name": "Custom color records on blur"
     }
   ]
 }

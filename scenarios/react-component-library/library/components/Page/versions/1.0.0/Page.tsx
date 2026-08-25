@@ -1,4 +1,6 @@
 /** @vrooliComponentSource react-component-library:Page */
+import { translate } from "../../../../hooks/useLocale/versions/1.0.0/useLocale";
+
 import type { ReactNode } from "react";
 
 const pageStyles = `
@@ -28,7 +30,7 @@ export function Page({
       />
       <div data-page-state={state} data-rcl-page>
         {navigation ? (
-          <aside data-rcl-page-navigation aria-label="Page navigation">
+          <aside data-rcl-page-navigation aria-label={translate("navigation.page.aria-label.1", "Page navigation")}>
             {navigation}
           </aside>
         ) : null}

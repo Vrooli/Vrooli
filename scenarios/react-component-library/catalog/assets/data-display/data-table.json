@@ -10,13 +10,14 @@
   "asset": {
     "id": "data-display.data-table",
     "name": "DataTable",
-    "kind": "component", "surface": "raised",
+    "kind": "component",
+    "surface": "raised",
     "domain": "data-display",
     "description": "The controlled data presentation with sorting, filtering, pagination, selection, row actions, column visibility, responsive presentation modes, and server-side operation support.",
     "targets": [
       "react-vite"
     ],
-    "slot": "primitive",
+    "slot": "ui-primitive",
     "delivery": "adopted",
     "target": {
       "priority": "P0",
@@ -36,6 +37,14 @@
       {
         "asset": "feedback.async-boundary",
         "reason": "Loading, empty, partial, error, and offline presentation are delegated."
+      },
+      {
+        "asset": "foundations.class-merge",
+        "reason": "All class composition uses the shared Tailwind conflict resolver."
+      },
+      {
+        "asset": "hooks.use-locale",
+        "reason": "User-facing copy resolves through the adopting host locale bridge."
       }
     ],
     "suggests": [

@@ -5,13 +5,14 @@
   "asset": {
     "id": "ai.message",
     "name": "Message",
-    "kind": "component", "surface": "raised",
+    "kind": "component",
+    "surface": "raised",
     "domain": "ai",
     "description": "The structured conversational item carrying actor, content, status, citations, attachments, tool activity, actions, timestamp, error state, and expandable metadata as one coherent unit.",
     "targets": [
       "react-vite"
     ],
-    "slot": "primitive",
+    "slot": "ui-primitive",
     "delivery": "adopted",
     "target": {
       "priority": "P0",
@@ -35,6 +36,10 @@
       {
         "asset": "primitives.avatar",
         "reason": "Actor identity uses the shared identity visual."
+      },
+      {
+        "asset": "hooks.use-locale",
+        "reason": "User-facing copy resolves through the adopting host locale bridge."
       }
     ],
     "suggests": [

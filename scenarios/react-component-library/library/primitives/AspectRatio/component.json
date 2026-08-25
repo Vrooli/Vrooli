@@ -1,19 +1,33 @@
 {
-  "libraryId": "react-component-library:AspectRatio",
-  "catalogId": "primitives.aspect-ratio",
-  "displayName": "AspectRatio",
-  "description": "A token-backed media frame that reserves space before its content resolves.",
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "primitive",
-  "tags": ["primitive", "layout", "token-bound"],
-  "slot": "ui-primitive",
+  "catalogId": "primitives.aspect-ratio",
   "category": "layout",
   "dependencies": [],
+  "deprecatedVersions": [],
+  "description": "A token-backed media frame that reserves space before its content resolves.",
   "designStyles": [
-    { "styleId": "vrooli-default", "affinity": "native" },
-    { "styleId": "vrooli-command-display", "affinity": "compatible" },
-    { "styleId": "vrooli-conversion-landing", "affinity": "compatible" }
+    {
+      "affinity": "native",
+      "styleId": "vrooli-default"
+    },
+    {
+      "affinity": "compatible",
+      "styleId": "vrooli-command-display"
+    },
+    {
+      "affinity": "compatible",
+      "styleId": "vrooli-conversion-landing"
+    }
   ],
-  "latest": "1.0.0",
+  "displayName": "AspectRatio",
   "draft": "",
-  "deprecatedVersions": []
+  "latest": "1.0.0",
+  "libraryId": "react-component-library:AspectRatio",
+  "slot": "ui-primitive",
+  "tags": [
+    "primitive",
+    "layout",
+    "token-bound"
+  ]
 }

@@ -1,23 +1,21 @@
 {
-  "schemaVersion": 3,
-  "kind": "component",
-  "title": "RelativeTime",
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
   "args": {
     "fields": [
       {
-        "path": "value",
+        "default": "just now",
         "kind": "text",
-        "default": "just now"
+        "path": "value"
       }
     ]
   },
   "environment": {
     "fixtures": []
   },
+  "kind": "component",
+  "schemaVersion": 4,
   "stories": [
     {
-      "id": "default",
-      "name": "Just now",
       "args": {
         "value": "just now"
       },
@@ -27,7 +25,10 @@
           "value": "just now"
         }
       ],
-      "mode": "pinned"
+      "id": "default",
+      "mode": "pinned",
+      "name": "Just now"
     }
-  ]
+  ],
+  "title": "RelativeTime"
 }

@@ -46,6 +46,7 @@ export function InlineCode({
   if (resolution)
     return (
       <a
+        data-testid="primitives.code"
         href={resolution.href}
         data-rcl-inline
         data-entity-ref={resolution.kind === "entity" ? "true" : undefined}
@@ -58,6 +59,7 @@ export function InlineCode({
   if (isFile)
     return (
       <button
+        data-testid="primitives.code"
         type="button"
         data-rcl-inline
         onClick={() => onFileReferenceClick?.(text)}
@@ -74,6 +76,7 @@ export function InlineCode({
       />
       <code className={tokenClass}>{text}</code>
       <button
+        data-testid="primitives.code"
         type="button"
         aria-label={copyLabel}
         onClick={() => void copy(text)}

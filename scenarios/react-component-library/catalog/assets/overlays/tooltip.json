@@ -5,13 +5,14 @@
   "asset": {
     "id": "overlays.tooltip",
     "name": "Tooltip",
-    "kind": "component", "surface": "raised",
+    "kind": "component",
+    "surface": "raised",
     "domain": "overlays",
     "description": "The concise explanatory overlay with hover intent, keyboard activation, an explicit touch policy, shared delay grouping, collision handling, and description rather than label semantics.",
     "targets": [
       "react-vite"
     ],
-    "slot": "primitive",
+    "slot": "ui-primitive",
     "delivery": "adopted",
     "target": {
       "priority": "P0",

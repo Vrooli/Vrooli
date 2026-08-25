@@ -4,6 +4,7 @@
  * @status released
  * @deps {"react":"^18","lucide-react":"^0.424.0"}
  */
+import { cn } from "../../../../foundations/ClassMerge/versions/1.0.0/ClassMerge";
 import { X } from "lucide-react";
 import { type ReactNode, useEffect, useId } from "react";
 import { dialogStyles } from "./styles";
@@ -30,9 +31,6 @@ export interface DialogProps {
   footer?: ReactNode;
   className?: string;
 }
-
-const cn = (...inputs: Array<string | undefined>) =>
-  inputs.filter(Boolean).join(" ");
 
 export function Dialog({
   open,

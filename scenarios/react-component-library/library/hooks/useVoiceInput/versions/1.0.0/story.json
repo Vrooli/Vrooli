@@ -1,26 +1,24 @@
 {
-  "schemaVersion": 3,
-  "kind": "hook",
-  "title": "useVoiceInput",
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
   "args": {
     "fields": [
       {
-        "path": "mode",
-        "label": "Mode",
-        "kind": "enum",
         "default": "always-on",
+        "kind": "enum",
+        "label": "Mode",
         "options": [
           "always-on",
           "timeout"
-        ]
+        ],
+        "path": "mode"
       }
     ]
   },
   "environment": {
     "fixtures": [
       {
-        "key": "voiceInput",
         "adapter": "voice-input",
+        "key": "voiceInput",
         "options": [
           "idle",
           "timeout",
@@ -29,16 +27,23 @@
       }
     ]
   },
+  "kind": "hook",
+  "schemaVersion": 4,
   "stories": [
     {
-      "id": "start-recording",
-      "name": "Always-on fixture enters recording",
       "args": {
         "mode": "always-on"
       },
       "environment": {
         "voiceInput": "idle"
       },
+      "expect": [
+        {
+          "kind": "role",
+          "role": "status"
+        }
+      ],
+      "id": "start-recording",
       "interactions": [
         {
           "kind": "click"
@@ -47,45 +52,45 @@
           "kind": "settle"
         }
       ],
-      "expect": [
-        {
-          "kind": "role",
-          "role": "status"
-        }
-      ],
-      "mode": "pinned"
+      "mode": "pinned",
+      "name": "Always-on fixture enters recording"
     },
     {
-      "id": "timeout",
-      "name": "Timeout fixture returns to idle",
       "args": {
         "mode": "timeout"
       },
       "environment": {
         "voiceInput": "timeout"
       },
-      "interactions": [
-        {
-          "kind": "settle"
-        }
-      ],
       "expect": [
         {
           "kind": "role",
           "role": "status"
         }
       ],
-      "mode": "pinned"
+      "id": "timeout",
+      "interactions": [
+        {
+          "kind": "settle"
+        }
+      ],
+      "mode": "pinned",
+      "name": "Timeout fixture returns to idle"
     },
     {
-      "id": "failure",
-      "name": "Denied media fixture enters an error state",
       "args": {
         "mode": "always-on"
       },
       "environment": {
         "voiceInput": "permission-denied"
       },
+      "expect": [
+        {
+          "kind": "role",
+          "role": "status"
+        }
+      ],
+      "id": "failure",
       "interactions": [
         {
           "kind": "click"
@@ -94,13 +99,9 @@
           "kind": "settle"
         }
       ],
-      "expect": [
-        {
-          "kind": "role",
-          "role": "status"
-        }
-      ],
-      "mode": "pinned"
+      "mode": "pinned",
+      "name": "Denied media fixture enters an error state"
     }
-  ]
+  ],
+  "title": "useVoiceInput"
 }

@@ -1,4 +1,6 @@
 /** @vrooliComponentSource react-component-library:Drawer */
+import { translate } from "../../../../hooks/useLocale/versions/1.0.0/useLocale";
+
 import type { ReactNode } from "react";
 const panel = {
   border: "1px solid var(--color-border, #cbd5e1)",
@@ -27,18 +29,18 @@ export function Drawer({
   return (
     <section
       role="dialog"
-      aria-label="Drawer"
+      aria-label={translate("overlays.drawer.aria-label.1", "Drawer")}
       data-side={side}
       data-presentation={presentation}
       style={{ ...panel, display: "grid", gap: 16 }}
     >
       {children ?? "Drawer content"}
-      <button
+      <button data-testid="overlays.drawer"
         type="button"
         onClick={onClose}
         style={{ minHeight: 44, minWidth: 44 }}
       >
-        Close
+        {translate("overlays.drawer.text.1", "Close")}
       </button>
     </section>
   );

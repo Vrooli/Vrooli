@@ -1,64 +1,75 @@
 {
-  "schemaVersion": 3,
-  "kind": "component",
-  "title": "Canvas frame",
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
   "args": {
     "fields": [
       {
-        "path": "mode",
-        "label": "Mode",
+        "default": "focus",
         "kind": "enum",
+        "label": "Mode",
         "options": [
           "focus",
           "canvas"
         ],
-        "default": "focus"
+        "path": "mode"
       }
     ]
   },
   "environment": {
     "fixtures": []
   },
+  "kind": "component",
+  "schemaVersion": 4,
   "stories": [
     {
-      "id": "default",
-      "name": "Shared substrate",
-      "harness": "Default",
-      "mode": "live",
       "args": {
         "mode": "focus"
+      },
+      "composition": {
+        "specimen": {
+          "export": "Default",
+          "module": "./story.tsx"
+        }
       },
       "expect": [
         {
           "kind": "role",
-          "role": "region",
-          "name": "Preview canvas"
+          "name": "Preview canvas",
+          "role": "region"
         },
         {
           "kind": "text",
           "value": "One specimen"
         }
-      ]
+      ],
+      "id": "default",
+      "mode": "live",
+      "name": "Shared substrate"
     },
     {
-      "id": "canvas",
-      "name": "Spatial canvas",
-      "harness": "Default",
-      "mode": "live",
       "args": {
         "mode": "canvas"
+      },
+      "composition": {
+        "specimen": {
+          "export": "Default",
+          "module": "./story.tsx"
+        }
       },
       "expect": [
         {
           "kind": "role",
-          "role": "region",
-          "name": "Preview canvas"
+          "name": "Preview canvas",
+          "role": "region"
         },
         {
           "kind": "text",
           "value": "Spatial canvas"
         }
-      ]
+      ],
+      "id": "canvas",
+      "mode": "live",
+      "name": "Spatial canvas"
     }
-  ]
+  ],
+  "title": "Canvas frame"
 }

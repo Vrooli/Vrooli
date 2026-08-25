@@ -5,13 +5,14 @@
   "asset": {
     "id": "forms.number-input",
     "name": "NumberInput",
-    "kind": "component", "surface": "raised",
+    "kind": "component",
+    "surface": "raised",
     "domain": "forms",
     "description": "The locale-aware numeric field handling parsing, formatting, constraints, stepping, precision, and the intermediate states that are invalid as numbers but valid as in-progress input.",
     "targets": [
       "react-vite"
     ],
-    "slot": "primitive",
+    "slot": "ui-primitive",
     "delivery": "adopted",
     "target": {
       "priority": "P0",

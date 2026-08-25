@@ -1,4 +1,4 @@
-/** @vrooliComponentSource services.scroll-restoration */
+/** @vrooliComponentSource navigation.scroll-restoration */
 import { useEffect } from "react";
 
 export type ScrollIntent = "restore" | "reset" | "preserve";

@@ -5,13 +5,14 @@
   "asset": {
     "id": "visualization.network-graph",
     "name": "NetworkGraph",
-    "kind": "component", "surface": "raised",
+    "kind": "component",
+    "surface": "raised",
     "domain": "visualization",
     "description": "The lazily loaded graph visualization with pan, zoom, selection, pluggable layout, minimap, a windowing policy, deterministic interaction, and an accessible structural summary.",
     "targets": [
       "react-vite"
     ],
-    "slot": "primitive",
+    "slot": "ui-primitive",
     "delivery": "adopted",
     "target": {
       "priority": "P2",
@@ -31,6 +32,10 @@
       {
         "asset": "manipulation.minimap",
         "reason": "Overview navigation is shared."
+      },
+      {
+        "asset": "hooks.use-locale",
+        "reason": "User-facing copy resolves through the adopting host locale bridge."
       }
     ]
   },

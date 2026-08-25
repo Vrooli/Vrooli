@@ -66,6 +66,26 @@ func (s LocalStatus) Valid() bool {
 	return false
 }
 
+// ForkStatus records the operator's interpretation of local divergence. An
+// explicitly declared fork is a durable product choice; reconverge must never
+// overwrite it or silently reinterpret it as a clean copy.
+type ForkStatus string
+
+const (
+	ForkStatusNone                  ForkStatus = ""
+	ForkStatusDeclared              ForkStatus = "declared-fork"
+	ForkStatusUnintendedDrift       ForkStatus = "unintended-drift"
+	ForkStatusMechanicalTranslation ForkStatus = "mechanical-translation"
+)
+
+func (s ForkStatus) Valid() bool {
+	switch s {
+	case ForkStatusNone, ForkStatusDeclared, ForkStatusUnintendedDrift, ForkStatusMechanicalTranslation:
+		return true
+	}
+	return false
+}
+
 // Adoption is the internal domain shape for an adoption record. The
 // wire/proto type lives at the transport edge; this struct is the only
 // shape internal callers depend on.
@@ -84,6 +104,9 @@ type Adoption struct {
 	CreatedAt             time.Time
 	RefreshedAt           time.Time
 	AppliedAt             time.Time
+	ForkStatus            ForkStatus
+	ForkReason            string
+	ExtensionPoints       []string
 	// DriftBacklogRef is the swarm-manager backlog item ("<kind>/<name>")
 	// filed by Refresh when this adoption first transitioned to
 	// behind/modified. Cleared back to "" when status returns to current
@@ -134,6 +157,8 @@ type CreateInput struct {
 	SourceSHA256          string
 	AdoptedSnapshotSHA256 string
 	IncludeSuggestions    []string
+	ForkReason            string
+	ExtensionPoints       []string
 	Files                 []AdoptionFile
 }
 
@@ -146,6 +171,8 @@ type ApplyInput struct {
 	OverrideValidation bool
 	ReplaceExisting    bool
 	IncludeSuggestions []string
+	ForkReason         string
+	ExtensionPoints    []string
 }
 
 type BatchApplyItem struct {
@@ -157,6 +184,8 @@ type BatchApplyItem struct {
 	OverrideValidation bool
 	ReplaceExisting    bool
 	IncludeSuggestions []string
+	ForkReason         string
+	ExtensionPoints    []string
 }
 
 type BatchApplyInput struct{ Items []BatchApplyItem }
@@ -196,6 +225,8 @@ type PreflightResult struct {
 	Dependency     string
 	StyleFit       string
 	StyleFitDetail string
+	I18n           string
+	Selectors      string
 	Blocking       bool
 }
 
@@ -217,6 +248,8 @@ type AdoptionVerdict struct {
 	Tokens         TokenVerdict
 	Version        components.ComponentVersionStatus
 	Maturity       MaturityVerdict
+	I18n           string
+	Selectors      string
 	Warnings       []string
 }
 
@@ -228,6 +261,9 @@ func (v AdoptionVerdict) Blocking() bool {
 		return true
 	}
 	if v.Maturity.Floor != "" && maturityRank(v.Maturity.Achieved) < maturityRank(v.Maturity.Floor) {
+		return true
+	}
+	if v.I18n == "fail" || v.Selectors == "fail" {
 		return true
 	}
 	return v.Dependency == "block" || v.StyleFit == string(components.DesignAffinityDiscouraged)
@@ -400,6 +436,7 @@ type ReconvergeOutcome struct {
 	LocalStatus          LocalStatus
 	Action               ReconvergeAction
 	Disposition          ReconvergeDisposition
+	ForkStatus           ForkStatus
 	Detail               string
 	Files                []ReconvergeFileOutcome
 }
@@ -498,6 +535,7 @@ type RefreshUpdate struct {
 	ID                   string
 	LibraryVersionStatus LibraryVersionStatus
 	LocalStatus          LocalStatus
+	ForkStatus           ForkStatus
 	StatusDetail         string
 	RefreshedAt          time.Time
 	// DriftBacklogRef is set when Refresh successfully filed a backlog

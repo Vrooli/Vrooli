@@ -6,6 +6,8 @@
  * @tags ["primitive","token-bound","status","accessibility"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
+import { translate } from "../../../../hooks/useLocale/versions/1.0.0/useLocale";
+
 /** @vrooliComponentSource react-component-library:BoundedMeter */
 import type { CSSProperties, HTMLAttributes, ReactNode } from "react";
 import { Stack } from "../../../../primitives/Stack/versions/1.0.0/Stack";
@@ -74,7 +76,7 @@ function finite(value: number | undefined, fallback: number) {
 }
 
 export function BoundedMeter({
-  label = "Value",
+  label = translate("primitives.meter.label.1", "Value"),
   value = 0,
   min = 0,
   max = 100,

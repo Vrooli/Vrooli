@@ -227,7 +227,7 @@ func toProto(report domain.Report) *componenttestsv1.ComponentTestReport {
 		out.Results = append(out.Results, protoResult)
 	}
 	for _, artifact := range report.Artifacts {
-		out.Artifacts = append(out.Artifacts, &componenttestsv1.ComponentTestArtifact{Kind: artifact.Kind, Label: artifact.Label, AssetLibraryId: artifact.AssetLibraryID, Version: artifact.Version, Reference: artifact.Reference})
+		out.Artifacts = append(out.Artifacts, &componenttestsv1.ComponentTestArtifact{Kind: artifact.Kind, Label: artifact.Label, StoryId: artifact.StoryID, AssetLibraryId: artifact.AssetLibraryID, Version: artifact.Version, Reference: artifact.Reference})
 	}
 	return out
 }

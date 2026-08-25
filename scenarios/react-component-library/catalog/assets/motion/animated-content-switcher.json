@@ -5,13 +5,14 @@
   "asset": {
     "id": "motion.animated-content-switcher",
     "name": "AnimatedContentSwitcher",
-    "kind": "component", "surface": "raised",
+    "kind": "component",
+    "surface": "raised",
     "domain": "motion",
     "description": "The state-transition component replacing arbitrary content with direction-aware entry, exit, crossfade, and height adaptation.",
     "targets": [
       "react-vite"
     ],
-    "slot": "primitive",
+    "slot": "ui-primitive",
     "delivery": "adopted",
     "target": {
       "priority": "P1",

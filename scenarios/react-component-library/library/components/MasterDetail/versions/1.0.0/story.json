@@ -1,99 +1,122 @@
 {
-  "schemaVersion": 3,
-  "kind": "component",
-  "title": "MasterDetail",
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
   "args": {
     "fields": []
   },
   "environment": {
     "fixtures": []
   },
+  "kind": "component",
+  "schemaVersion": 4,
   "stories": [
     {
-      "id": "default",
-      "name": "Selected workspace",
-      "harness": "Default",
       "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Default",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
         {
           "kind": "role",
-          "role": "list",
-          "name": "Records"
+          "name": "Records",
+          "role": "list"
         },
         {
           "kind": "role",
-          "role": "heading",
-          "name": "Release brief"
+          "name": "Release brief",
+          "role": "heading"
         },
         {
           "kind": "text",
           "value": "Mara Chen"
         }
       ],
-      "mode": "live"
+      "id": "default",
+      "mode": "live",
+      "name": "Selected workspace"
     },
     {
-      "id": "collection",
-      "name": "Collection anchor",
-      "harness": "Collection",
       "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Collection",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Records",
+          "role": "list"
+        },
+        {
+          "kind": "role",
+          "name": "Release brief",
+          "role": "heading"
+        }
+      ],
+      "id": "collection",
       "interactions": [
         {
           "kind": "click",
           "target": {
-            "role": "button",
-            "name": "Release brief"
+            "name": "Release brief",
+            "role": "button"
           }
         },
         {
           "kind": "settle"
         }
       ],
-      "expect": [
-        {
-          "kind": "role",
-          "role": "list",
-          "name": "Records"
-        },
-        {
-          "kind": "role",
-          "role": "heading",
-          "name": "Release brief"
-        }
-      ],
-      "mode": "live"
+      "mode": "live",
+      "name": "Collection anchor"
     },
     {
-      "id": "loading",
-      "name": "Loading",
-      "harness": "Loading",
       "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Loading",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
         {
           "kind": "text",
           "value": "Loading records"
         }
       ],
-      "mode": "live"
+      "id": "loading",
+      "mode": "live",
+      "name": "Loading"
     },
     {
-      "id": "empty",
-      "name": "Empty",
-      "harness": "Empty",
       "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Empty",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
         {
           "kind": "text",
           "value": "Nothing needs your attention"
         }
       ],
-      "mode": "live"
+      "id": "empty",
+      "mode": "live",
+      "name": "Empty"
     },
     {
-      "id": "partial",
-      "name": "Partial",
-      "harness": "Partial",
       "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Partial",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
         {
           "kind": "text",
@@ -101,17 +124,22 @@
         },
         {
           "kind": "role",
-          "role": "heading",
-          "name": "Design handoff"
+          "name": "Design handoff",
+          "role": "heading"
         }
       ],
-      "mode": "live"
+      "id": "partial",
+      "mode": "live",
+      "name": "Partial"
     },
     {
-      "id": "request-error",
-      "name": "Request error",
-      "harness": "RequestError",
       "args": {},
+      "composition": {
+        "specimen": {
+          "export": "RequestError",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
         {
           "kind": "role",
@@ -122,7 +150,10 @@
           "value": "couldn’t load this collection"
         }
       ],
-      "mode": "live"
+      "id": "request-error",
+      "mode": "live",
+      "name": "Request error"
     }
-  ]
+  ],
+  "title": "MasterDetail"
 }

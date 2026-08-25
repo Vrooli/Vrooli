@@ -1,29 +1,30 @@
 {
-  "libraryId": "react-component-library:Container",
-  "catalogId": "primitives.container",
-  "displayName": "Container",
-  "description": "Container constrains readable content widths without hard-coded dimensions.",
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "primitive",
+  "catalogId": "primitives.container",
+  "dependencies": [],
+  "deprecatedVersions": [],
+  "description": "Container constrains readable content widths without hard-coded dimensions.",
+  "designStyles": [
+    {
+      "affinity": "native",
+      "styleId": "vrooli-default"
+    },
+    {
+      "affinity": "compatible",
+      "styleId": "vrooli-command-display"
+    },
+    {
+      "affinity": "compatible",
+      "styleId": "vrooli-conversion-landing"
+    }
+  ],
+  "displayName": "Container",
+  "draft": "",
+  "latest": "1.1.2",
+  "libraryId": "react-component-library:Container",
   "tags": [
     "primitive",
     "token-bound"
-  ],
-  "latest": "1.1.2",
-  "designStyles": [
-    {
-      "styleId": "vrooli-default",
-      "affinity": "native"
-    },
-    {
-      "styleId": "vrooli-command-display",
-      "affinity": "compatible"
-    },
-    {
-      "styleId": "vrooli-conversion-landing",
-      "affinity": "compatible"
-    }
-  ],
-  "dependencies": [],
-  "draft": "",
-  "deprecatedVersions": []
+  ]
 }

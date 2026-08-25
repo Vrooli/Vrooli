@@ -1,11 +1,21 @@
 {
-  "libraryId": "react-component-library:LiveAnnouncer",
-  "catalogId": "services.live-announcer",
-  "displayName": "Live Announcer",
-  "description": "A single queued live region for status, progress, and result announcements.",
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "service",
-  "tags": ["runtime", "accessibility", "announcement"],
+  "catalogId": "services.live-announcer",
+  "dependencies": [],
+  "description": "A single queued live region for status, progress, and result announcements.",
+  "designStyles": [
+    {
+      "affinity": "native",
+      "styleId": "vrooli-default"
+    }
+  ],
+  "displayName": "Live Announcer",
   "latest": "1.0.0",
-  "designStyles": [{ "styleId": "vrooli-default", "affinity": "native" }],
-  "dependencies": []
+  "libraryId": "react-component-library:LiveAnnouncer",
+  "tags": [
+    "runtime",
+    "accessibility",
+    "announcement"
+  ]
 }

@@ -1,25 +1,23 @@
 {
-  "libraryId": "react-component-library:markdown-renderer",
-  "x-supplementalJustification": "Pre-catalog content renderer retained as a supplemental integration seam until markdown policy is a catalog contract.",
-  "displayName": "Markdown Renderer",
-  "description": "GFM markdown renderer with routed inline-token, file, link, and Mermaid seams.",
-  "tags": ["markdown", "rendering", "gfm"],
-  "entry": "MarkdownRenderer.tsx",
-  "latest": "0.3.2",
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "deprecatedVersions": [],
-  "draft": "",
+  "description": "GFM markdown renderer with routed inline-token, file, link, and Mermaid seams.",
   "designStyles": [
     {
-      "styleId": "vrooli-default",
       "affinity": "native",
-      "reason": "token-native operational-console baseline"
+      "reason": "token-native operational-console baseline",
+      "styleId": "vrooli-default"
     }
   ],
-  "requiredTokens": [
-    "--color-surface-muted",
-    "--color-border",
-    "--color-foreground",
-    "--color-muted-foreground",
-    "--color-accent"
-  ]
+  "displayName": "Markdown Renderer",
+  "draft": "",
+  "entry": "MarkdownRenderer.tsx",
+  "latest": "0.3.2",
+  "libraryId": "react-component-library:markdown-renderer",
+  "tags": [
+    "markdown",
+    "rendering",
+    "gfm"
+  ],
+  "x-supplementalJustification": "Pre-catalog content renderer retained as a supplemental integration seam until markdown policy is a catalog contract."
 }

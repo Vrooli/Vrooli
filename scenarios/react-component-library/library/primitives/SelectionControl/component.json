@@ -1,15 +1,26 @@
 {
-  "libraryId": "react-component-library:SelectionControl",
-  "catalogId": "primitives.selection-control",
-  "displayName": "SelectionControl",
-  "description": "Native checkbox, radio, and switch semantics with a shared token-bound selection surface.",
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "primitive",
-  "tags": ["primitive", "selection", "accessibility", "token-bound"],
-  "slot": "ui-primitive",
+  "catalogId": "primitives.selection-control",
   "category": "foundation",
   "dependencies": [],
-  "designStyles": [{ "styleId": "vrooli-default", "affinity": "native" }],
-  "latest": "1.0.0",
+  "deprecatedVersions": [],
+  "description": "Native checkbox, radio, and switch semantics with a shared token-bound selection surface.",
+  "designStyles": [
+    {
+      "affinity": "native",
+      "styleId": "vrooli-default"
+    }
+  ],
+  "displayName": "SelectionControl",
   "draft": "",
-  "deprecatedVersions": []
+  "latest": "1.0.0",
+  "libraryId": "react-component-library:SelectionControl",
+  "slot": "ui-primitive",
+  "tags": [
+    "primitive",
+    "selection",
+    "accessibility",
+    "token-bound"
+  ]
 }

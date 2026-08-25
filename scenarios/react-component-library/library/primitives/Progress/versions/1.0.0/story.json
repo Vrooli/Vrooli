@@ -1,141 +1,182 @@
 {
-  "schemaVersion": 3,
-  "kind": "component",
-  "title": "Progress",
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
   "args": {
     "fields": []
   },
   "environment": {
     "fixtures": []
   },
+  "kind": "component",
+  "schemaVersion": 4,
   "stories": [
     {
-      "id": "determinate",
-      "name": "Determinate",
-      "harness": "Determinate",
       "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Determinate",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
         {
           "kind": "role",
           "role": "progressbar"
         },
         {
+          "attribute": "aria-valuenow",
           "kind": "attribute",
           "selector": "[role=progressbar]",
-          "attribute": "aria-valuenow",
           "value": "68"
         }
       ],
-      "mode": "live"
+      "id": "determinate",
+      "mode": "live",
+      "name": "Determinate"
     },
     {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Buffered",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "role": "progressbar"
+        }
+      ],
       "id": "buffered",
-      "name": "Buffered",
-      "harness": "Buffered",
+      "mode": "live",
+      "name": "Buffered"
+    },
+    {
       "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Segmented",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
         {
           "kind": "role",
           "role": "progressbar"
         }
       ],
-      "mode": "live"
-    },
-    {
       "id": "segmented",
-      "name": "Segmented",
-      "harness": "Segmented",
-      "args": {},
-      "expect": [
-        {
-          "kind": "role",
-          "role": "progressbar"
-        }
-      ],
-      "mode": "live"
+      "mode": "live",
+      "name": "Segmented"
     },
     {
-      "id": "indeterminate",
-      "name": "Indeterminate",
-      "harness": "Indeterminate",
       "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Indeterminate",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
         {
           "kind": "role",
           "role": "progressbar"
         },
         {
+          "attribute": "aria-label",
           "kind": "attribute",
           "selector": "[role=progressbar]",
-          "attribute": "aria-label",
           "value": "Searching"
         }
       ],
-      "mode": "live"
+      "id": "indeterminate",
+      "mode": "live",
+      "name": "Indeterminate"
     },
     {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Circular",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "role": "progressbar"
+        }
+      ],
       "id": "circular",
-      "name": "Circular",
-      "harness": "Circular",
+      "mode": "live",
+      "name": "Circular"
+    },
+    {
       "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Success",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
         {
           "kind": "role",
           "role": "progressbar"
         }
       ],
-      "mode": "live"
-    },
-    {
       "id": "success",
-      "name": "Success",
-      "harness": "Success",
+      "mode": "live",
+      "name": "Success"
+    },
+    {
       "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Error",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
         {
           "kind": "role",
           "role": "progressbar"
         }
       ],
-      "mode": "live"
-    },
-    {
       "id": "error",
-      "name": "Error",
-      "harness": "Error",
-      "args": {},
-      "expect": [
-        {
-          "kind": "role",
-          "role": "progressbar"
-        }
-      ],
-      "mode": "live"
+      "mode": "live",
+      "name": "Error"
     },
     {
-      "id": "toggle",
-      "name": "Interactive progress",
-      "harness": "ToggleProgress",
       "args": {},
+      "composition": {
+        "specimen": {
+          "export": "ToggleProgress",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
         {
           "kind": "role",
           "role": "progressbar"
         }
       ],
+      "id": "toggle",
       "interactions": [
         {
           "kind": "click",
           "target": {
-            "role": "button",
-            "name": "Advance task"
+            "name": "Advance task",
+            "role": "button"
           }
         },
         {
           "kind": "settle"
         }
       ],
-      "mode": "live"
+      "mode": "live",
+      "name": "Interactive progress"
     }
-  ]
+  ],
+  "title": "Progress"
 }

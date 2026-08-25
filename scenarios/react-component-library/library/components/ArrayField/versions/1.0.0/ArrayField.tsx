@@ -164,7 +164,7 @@ export function ArrayField<
         {items.length === 0 ? (
           <div data-rcl-array-empty role="status">
             <span>{emptyState}</span>
-            <button
+            <button data-testid="forms.array-field"
               type="button"
               data-rcl-array-add
               onClick={add}
@@ -219,7 +219,7 @@ export function ArrayField<
                   data-rcl-array-item-actions
                   aria-label={`Actions for ${listLabel} ${index + 1}`}
                 >
-                  <button
+                  <button data-testid="forms.array-field"
                     type="button"
                     data-rcl-array-action
                     onClick={actions.moveUp}
@@ -228,7 +228,7 @@ export function ArrayField<
                   >
                     ↑
                   </button>
-                  <button
+                  <button data-testid="forms.array-field"
                     type="button"
                     data-rcl-array-action
                     onClick={actions.moveDown}
@@ -237,7 +237,7 @@ export function ArrayField<
                   >
                     ↓
                   </button>
-                  <button
+                  <button data-testid="forms.array-field"
                     type="button"
                     data-rcl-array-action
                     onClick={actions.duplicate}
@@ -246,7 +246,7 @@ export function ArrayField<
                   >
                     ＋
                   </button>
-                  <button
+                  <button data-testid="forms.array-field"
                     type="button"
                     data-rcl-array-action
                     onClick={actions.remove}
@@ -262,7 +262,7 @@ export function ArrayField<
         )}
       </div>
       {items.length > 0 && (
-        <button
+        <button data-testid="forms.array-field"
           type="button"
           data-rcl-array-add
           onClick={add}

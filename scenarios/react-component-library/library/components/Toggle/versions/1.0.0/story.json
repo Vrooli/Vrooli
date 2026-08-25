@@ -1,143 +1,165 @@
 {
-  "schemaVersion": 3,
-  "kind": "component",
-  "title": "Toggle",
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
   "args": {
     "fields": []
   },
   "environment": {
     "fixtures": []
   },
+  "kind": "component",
+  "schemaVersion": 4,
   "stories": [
     {
-      "id": "default",
-      "name": "Off",
-      "harness": "Default",
       "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Default",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
         {
           "kind": "role",
-          "role": "button",
-          "name": "Pin to dashboard"
+          "name": "Pin to dashboard",
+          "role": "button"
         },
         {
+          "attribute": "aria-pressed",
           "kind": "attribute",
           "selector": "[data-rcl-toggle]",
-          "attribute": "aria-pressed",
           "value": "false"
         }
       ],
+      "id": "default",
       "interactions": [
         {
           "kind": "settle"
         }
       ],
-      "mode": "live"
+      "mode": "live",
+      "name": "Off"
     },
     {
-      "id": "interactive",
-      "name": "Controlled",
-      "harness": "Interactive",
       "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Interactive",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
         {
           "kind": "role",
-          "role": "status",
-          "name": "Toggle state"
+          "name": "Toggle state",
+          "role": "status"
         },
         {
           "kind": "text",
           "value": "Focus mode is on."
         }
       ],
+      "id": "interactive",
       "interactions": [
         {
           "kind": "click",
           "target": {
-            "role": "button",
-            "name": "Focus mode"
+            "name": "Focus mode",
+            "role": "button"
           }
         },
         {
           "kind": "settle"
         }
       ],
-      "mode": "live"
+      "mode": "live",
+      "name": "Controlled"
     },
     {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Pressed",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Show grid",
+          "role": "button"
+        }
+      ],
       "id": "pressed",
-      "name": "On",
-      "harness": "Pressed",
-      "args": {},
-      "expect": [
-        {
-          "kind": "role",
-          "role": "button",
-          "name": "Show grid"
-        }
-      ],
       "interactions": [
         {
           "kind": "settle"
         }
       ],
-      "mode": "live"
+      "mode": "live",
+      "name": "On"
     },
     {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Disabled",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Auto-layout",
+          "role": "button"
+        }
+      ],
       "id": "disabled",
-      "name": "Disabled",
-      "harness": "Disabled",
-      "args": {},
-      "expect": [
-        {
-          "kind": "role",
-          "role": "button",
-          "name": "Auto-layout"
-        }
-      ],
       "interactions": [
         {
           "kind": "settle"
         }
       ],
-      "mode": "live"
+      "mode": "live",
+      "name": "Disabled"
     },
     {
-      "id": "shared-controlled",
-      "name": "Shared controlled adapter",
-      "sharedHarness": {
-        "asset": "preview.controlled-state",
-        "version": "1.0.0",
-        "export": "ControlledState",
-        "config": {
-          "title": "A reusable controlled contract",
-          "detail": "The harness owns the controlled loop; Toggle remains the injected subject.",
-          "valueProp": "pressed",
-          "changeProp": "onPressedChange",
-          "initialValue": false
-        }
-      },
       "args": {
-        "children": "Shared controlled toggle",
-        "aria-label": "Shared controlled toggle"
+        "children": "Shared controlled toggle"
+      },
+      "composition": {
+        "harness": {
+          "asset": "preview.controlled-state",
+          "config": {
+            "changeProp": "onPressedChange",
+            "detail": "The harness owns the controlled loop; Toggle remains the injected subject.",
+            "initialValue": false,
+            "title": "A reusable controlled contract",
+            "valueProp": "pressed"
+          },
+          "export": "ControlledState",
+          "version": "1.0.0"
+        }
       },
       "expect": [
         {
           "kind": "role",
-          "role": "button",
-          "name": "Shared controlled toggle"
+          "name": "Shared controlled toggle",
+          "role": "button"
         }
       ],
+      "id": "shared-controlled",
       "interactions": [
         {
           "kind": "click",
           "target": {
-            "role": "button",
-            "name": "Shared controlled toggle"
+            "name": "Shared controlled toggle",
+            "role": "button"
           }
         }
       ],
-      "mode": "live"
+      "mode": "live",
+      "name": "Shared controlled adapter"
     }
-  ]
+  ],
+  "title": "Toggle"
 }

@@ -1,11 +1,26 @@
 {
-  "libraryId": "react-component-library:SearchResults",
-  "catalogId": "data-display.search-results",
-  "displayName": "SearchResults",
-  "description": "A results surface that distinguishes no matches from an empty collection and preserves query context.",
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "component",
-  "tags": ["data-display", "token-bound"],
+  "catalogId": "data-display.search-results",
+  "dependencies": [],
+  "description": "A results surface that distinguishes no matches from an empty collection and preserves query context.",
+  "designStyles": [
+    {
+      "affinity": "native",
+      "styleId": "vrooli-default"
+    }
+  ],
+  "displayName": "SearchResults",
   "latest": "1.0.0",
-  "designStyles": [{ "styleId": "vrooli-default", "affinity": "native" }],
-  "dependencies": []
+  "libraryId": "react-component-library:SearchResults",
+  "tags": [
+    "data-display",
+    "token-bound"
+  ],
+  "requires": [
+    {
+      "libraryId": "react-component-library:useLocale",
+      "version": "1.0.0"
+    }
+  ]
 }

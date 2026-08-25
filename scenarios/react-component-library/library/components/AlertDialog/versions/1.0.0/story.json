@@ -1,71 +1,84 @@
 {
-  "schemaVersion": 3,
-  "kind": "component",
-  "title": "AlertDialog",
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
   "args": {
     "fields": []
   },
   "environment": {
     "fixtures": []
   },
+  "kind": "component",
+  "schemaVersion": 4,
   "stories": [
     {
-      "id": "default",
-      "name": "Destructive confirmation",
-      "harness": "Default",
       "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Default",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
         {
           "kind": "role",
-          "role": "alertdialog",
-          "name": "Remove this workspace?"
+          "name": "Remove this workspace?",
+          "role": "alertdialog"
         },
         {
           "kind": "role",
-          "role": "button",
-          "name": "Remove workspace"
+          "name": "Remove workspace",
+          "role": "button"
         }
       ],
+      "id": "default",
       "interactions": [
         {
           "kind": "settle"
         }
       ],
-      "mode": "live"
+      "mode": "live",
+      "name": "Destructive confirmation"
     },
     {
-      "id": "submitting",
-      "name": "Submitting",
-      "harness": "Submitting",
       "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Submitting",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
         {
           "kind": "role",
-          "role": "alertdialog",
-          "name": "Publish changes?"
+          "name": "Publish changes?",
+          "role": "alertdialog"
         },
         {
           "kind": "text",
           "value": "Working…"
         }
       ],
+      "id": "submitting",
       "interactions": [
         {
           "kind": "settle"
         }
       ],
-      "mode": "live"
+      "mode": "live",
+      "name": "Submitting"
     },
     {
-      "id": "request-error",
-      "name": "Request error",
-      "harness": "RequestError",
       "args": {},
+      "composition": {
+        "specimen": {
+          "export": "RequestError",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
         {
           "kind": "role",
-          "role": "alertdialog",
-          "name": "Publish changes?"
+          "name": "Publish changes?",
+          "role": "alertdialog"
         },
         {
           "kind": "role",
@@ -76,12 +89,15 @@
           "value": "publishing service timed out"
         }
       ],
+      "id": "request-error",
       "interactions": [
         {
           "kind": "settle"
         }
       ],
-      "mode": "live"
+      "mode": "live",
+      "name": "Request error"
     }
-  ]
+  ],
+  "title": "AlertDialog"
 }

@@ -6,6 +6,8 @@
  * @tags ["control","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
+import { translate } from "../../../../hooks/useLocale/versions/1.0.0/useLocale";
+
 /** @vrooliComponentSource react-component-library:ButtonGroup */
 import type { ReactNode } from "react";
 import type { HTMLAttributes } from "react";
@@ -24,7 +26,7 @@ export type ButtonGroupCollapse = "never" | "sm";
 
 export function ButtonGroup({
   children,
-  label = "Actions",
+  label = translate("controls.button-group.label.1", "Actions"),
   align = "start",
   collapse = "sm",
   className,

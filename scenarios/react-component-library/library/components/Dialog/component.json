@@ -1,29 +1,37 @@
 {
-  "libraryId": "react-component-library:Dialog",
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "catalogId": "overlays.dialog",
-  "displayName": "Dialog",
+  "category": "overlays",
+  "deprecatedVersions": [],
   "description": "Accessible modal dialog shell with escape/backdrop dismissal and mobile-safe sizing.",
+  "designStyles": [
+    {
+      "affinity": "native",
+      "styleId": "vrooli-default"
+    },
+    {
+      "affinity": "compatible",
+      "styleId": "vrooli-command-display"
+    },
+    {
+      "affinity": "discouraged",
+      "styleId": "vrooli-conversion-landing"
+    }
+  ],
+  "displayName": "Dialog",
+  "draft": "",
+  "latest": "1.2.0",
+  "libraryId": "react-component-library:Dialog",
+  "slot": "ui-pattern",
   "tags": [
     "overlay",
     "interactive"
   ],
-  "slot": "ui-pattern",
-  "category": "overlays",
-  "designStyles": [
+  "dependencies": [
     {
-      "styleId": "vrooli-default",
-      "affinity": "native"
-    },
-    {
-      "styleId": "vrooli-command-display",
-      "affinity": "compatible"
-    },
-    {
-      "styleId": "vrooli-conversion-landing",
-      "affinity": "discouraged"
+      "kind": "requires",
+      "libraryId": "react-component-library:ClassMerge",
+      "version": "1.0.0"
     }
-  ],
-  "latest": "1.2.0",
-  "draft": "",
-  "deprecatedVersions": []
+  ]
 }

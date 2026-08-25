@@ -1,61 +1,72 @@
 {
-  "schemaVersion": 3,
-  "kind": "component",
-  "title": "MotionPrimitive",
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
   "args": {
     "fields": []
   },
   "environment": {
     "fixtures": []
   },
+  "kind": "component",
+  "schemaVersion": 4,
   "stories": [
     {
-      "id": "default",
-      "name": "Tokenized transition",
-      "harness": "Default",
       "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Default",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
         {
           "kind": "role",
-          "role": "status",
-          "name": "Motion example"
+          "name": "Motion example",
+          "role": "status"
         }
       ],
+      "id": "default",
       "interactions": [
         {
           "kind": "settle"
         }
       ],
-      "mode": "live"
+      "mode": "live",
+      "name": "Tokenized transition"
     },
     {
-      "id": "interactive",
-      "name": "Direct motion value",
-      "harness": "Interactive",
       "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Interactive",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
         {
           "kind": "role",
-          "role": "button",
-          "name": "Hide card"
+          "name": "Hide card",
+          "role": "button"
         },
         {
           "kind": "role",
-          "role": "button",
-          "name": "Set direct value"
+          "name": "Set direct value",
+          "role": "button"
         },
         {
           "kind": "role",
-          "role": "status",
-          "name": "Interactive motion value example"
+          "name": "Interactive motion value example",
+          "role": "status"
         }
       ],
+      "id": "interactive",
       "interactions": [
         {
           "kind": "settle"
         }
       ],
-      "mode": "live"
+      "mode": "live",
+      "name": "Direct motion value"
     }
-  ]
+  ],
+  "title": "MotionPrimitive"
 }

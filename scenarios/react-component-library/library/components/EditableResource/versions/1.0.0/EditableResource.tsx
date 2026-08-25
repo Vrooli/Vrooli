@@ -1,4 +1,6 @@
 /** @vrooliComponentSource patterns.editable-resource */
+import { translate } from "../../../../hooks/useLocale/versions/1.0.0/useLocale";
+
 import {
   useEffect,
   useMemo,
@@ -170,7 +172,7 @@ export function EditableResource<T extends Record<string, unknown>>({
           permissionMessage={permissionMessage}
           actions={
             <div data-rcl-editable-resource-actions>
-              <button
+              <button data-testid="patterns.editable-resource"
                 type="button"
                 onClick={() => setEditing(true)}
                 disabled={
@@ -179,7 +181,7 @@ export function EditableResource<T extends Record<string, unknown>>({
                   status === "permission-denied"
                 }
               >
-                Edit
+                {translate("patterns.editable-resource.text.2", "Edit")}
               </button>
             </div>
           }
@@ -191,21 +193,21 @@ export function EditableResource<T extends Record<string, unknown>>({
                   <strong data-rcl-editable-resource-editor-title>
                     Edit {title}
                   </strong>
-                  <span>Draft changes stay local until you save.</span>
+                  <span>{translate("patterns.editable-resource.text.1", "Draft changes stay local until you save.")}</span>
                 </div>
                 <Form
                   aria-label={`Edit ${title}`}
                   onSubmit={() => void save()}
                   footer={
                     <div data-rcl-editable-resource-actions>
-                      <button
+                      <button data-testid="patterns.editable-resource"
                         type="button"
                         onClick={cancel}
                         disabled={phase === "submitting"}
                       >
-                        Cancel
+                  {translate("patterns.editable-resource.text.3", "Cancel")}
                       </button>
-                      <button type="submit" disabled={phase === "submitting"}>
+                      <button data-testid="patterns.editable-resource" type="submit" disabled={phase === "submitting"}>
                         {phase === "submitting" ? "Saving…" : "Save changes"}
                       </button>
                     </div>

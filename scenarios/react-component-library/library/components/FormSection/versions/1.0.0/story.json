@@ -1,19 +1,22 @@
 {
-  "schemaVersion": 3,
-  "kind": "component",
-  "title": "FormSection",
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
   "args": {
     "fields": []
   },
   "environment": {
     "fixtures": []
   },
+  "kind": "component",
+  "schemaVersion": 4,
   "stories": [
     {
-      "id": "default",
-      "name": "Default",
-      "harness": "Default",
       "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Default",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
         {
           "kind": "text",
@@ -21,17 +24,22 @@
         },
         {
           "kind": "role",
-          "role": "textbox",
-          "name": "Display name"
+          "name": "Display name",
+          "role": "textbox"
         }
       ],
-      "mode": "live"
+      "id": "default",
+      "mode": "live",
+      "name": "Default"
     },
     {
-      "id": "validation",
-      "name": "Validation summary",
-      "harness": "Validation",
       "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Validation",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
         {
           "kind": "role",
@@ -42,25 +50,33 @@
           "value": "2 issues to review"
         }
       ],
-      "mode": "live"
+      "id": "validation",
+      "mode": "live",
+      "name": "Validation summary"
     },
     {
-      "id": "collapsed",
-      "name": "Collapsed",
-      "harness": "Collapsed",
       "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Collapsed",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
         {
           "kind": "role",
-          "role": "button",
-          "name": "Expand Advanced preferences"
+          "name": "Expand Advanced preferences",
+          "role": "button"
         },
         {
           "kind": "text",
           "value": "Collapsed to keep the primary task focused."
         }
       ],
-      "mode": "live"
+      "id": "collapsed",
+      "mode": "live",
+      "name": "Collapsed"
     }
-  ]
+  ],
+  "title": "FormSection"
 }

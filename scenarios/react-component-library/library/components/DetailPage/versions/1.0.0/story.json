@@ -1,28 +1,26 @@
 {
-  "schemaVersion": 3,
-  "kind": "component",
-  "title": "DetailPage",
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
   "args": {
     "fields": []
   },
   "environment": {
     "fixtures": []
   },
+  "kind": "component",
+  "schemaVersion": 4,
   "stories": [
     {
-      "id": "default",
-      "name": "default",
       "args": {
-        "state": "ready",
         "data": {
-          "title": "Alpha",
           "entries": [
             {
-              "term": "Owner",
-              "description": "Platform"
+              "description": "Platform",
+              "term": "Owner"
             }
-          ]
-        }
+          ],
+          "title": "Alpha"
+        },
+        "state": "ready"
       },
       "expect": [
         {
@@ -30,22 +28,22 @@
           "value": "Alpha"
         }
       ],
-      "mode": "pinned"
+      "id": "default",
+      "mode": "pinned",
+      "name": "default"
     },
     {
-      "id": "loading",
-      "name": "loading",
       "args": {
-        "state": "loading",
         "data": {
-          "title": "Alpha",
           "entries": [
             {
-              "term": "Owner",
-              "description": "Platform"
+              "description": "Platform",
+              "term": "Owner"
             }
-          ]
-        }
+          ],
+          "title": "Alpha"
+        },
+        "state": "loading"
       },
       "expect": [
         {
@@ -53,22 +51,22 @@
           "value": "Loading"
         }
       ],
-      "mode": "pinned"
+      "id": "loading",
+      "mode": "pinned",
+      "name": "loading"
     },
     {
-      "id": "refreshing",
-      "name": "refreshing",
       "args": {
-        "state": "refreshing",
         "data": {
-          "title": "Alpha",
           "entries": [
             {
-              "term": "Owner",
-              "description": "Platform"
+              "description": "Platform",
+              "term": "Owner"
             }
-          ]
-        }
+          ],
+          "title": "Alpha"
+        },
+        "state": "refreshing"
       },
       "expect": [
         {
@@ -76,22 +74,22 @@
           "value": "Refreshing"
         }
       ],
-      "mode": "pinned"
+      "id": "refreshing",
+      "mode": "pinned",
+      "name": "refreshing"
     },
     {
-      "id": "stale",
-      "name": "stale",
       "args": {
-        "state": "stale",
         "data": {
-          "title": "Alpha",
           "entries": [
             {
-              "term": "Owner",
-              "description": "Platform"
+              "description": "Platform",
+              "term": "Owner"
             }
-          ]
-        }
+          ],
+          "title": "Alpha"
+        },
+        "state": "stale"
       },
       "expect": [
         {
@@ -99,22 +97,22 @@
           "value": "Showing stale data"
         }
       ],
-      "mode": "pinned"
+      "id": "stale",
+      "mode": "pinned",
+      "name": "stale"
     },
     {
-      "id": "empty",
-      "name": "empty",
       "args": {
-        "state": "empty",
         "data": {
-          "title": "Alpha",
           "entries": [
             {
-              "term": "Owner",
-              "description": "Platform"
+              "description": "Platform",
+              "term": "Owner"
             }
-          ]
-        }
+          ],
+          "title": "Alpha"
+        },
+        "state": "empty"
       },
       "expect": [
         {
@@ -122,22 +120,22 @@
           "value": "Nothing here"
         }
       ],
-      "mode": "pinned"
+      "id": "empty",
+      "mode": "pinned",
+      "name": "empty"
     },
     {
-      "id": "partial-error",
-      "name": "partial-error",
       "args": {
-        "state": "partial-error",
         "data": {
-          "title": "Alpha",
           "entries": [
             {
-              "term": "Owner",
-              "description": "Platform"
+              "description": "Platform",
+              "term": "Owner"
             }
-          ]
-        }
+          ],
+          "title": "Alpha"
+        },
+        "state": "partial-error"
       },
       "expect": [
         {
@@ -145,22 +143,22 @@
           "value": "Some sections need attention"
         }
       ],
-      "mode": "pinned"
+      "id": "partial-error",
+      "mode": "pinned",
+      "name": "partial-error"
     },
     {
-      "id": "fatal-error",
-      "name": "fatal-error",
       "args": {
-        "state": "fatal-error",
         "data": {
-          "title": "Alpha",
           "entries": [
             {
-              "term": "Owner",
-              "description": "Platform"
+              "description": "Platform",
+              "term": "Owner"
             }
-          ]
-        }
+          ],
+          "title": "Alpha"
+        },
+        "state": "fatal-error"
       },
       "expect": [
         {
@@ -168,22 +166,22 @@
           "value": "Unable to load this page"
         }
       ],
-      "mode": "pinned"
+      "id": "fatal-error",
+      "mode": "pinned",
+      "name": "fatal-error"
     },
     {
-      "id": "offline",
-      "name": "offline",
       "args": {
-        "state": "offline",
         "data": {
-          "title": "Alpha",
           "entries": [
             {
-              "term": "Owner",
-              "description": "Platform"
+              "description": "Platform",
+              "term": "Owner"
             }
-          ]
-        }
+          ],
+          "title": "Alpha"
+        },
+        "state": "offline"
       },
       "expect": [
         {
@@ -191,7 +189,10 @@
           "value": "Offline"
         }
       ],
-      "mode": "pinned"
+      "id": "offline",
+      "mode": "pinned",
+      "name": "offline"
     }
-  ]
+  ],
+  "title": "DetailPage"
 }

@@ -1,4 +1,6 @@
 /** @vrooliComponentSource data-display.search-results */
+import { translate } from "../../../../hooks/useLocale/versions/1.0.0/useLocale";
+
 import type { ReactNode } from "react";
 
 export type SearchResultsState =
@@ -52,13 +54,13 @@ export function SearchResults({
   const isNoMatch = items.length > 0 && results.length === 0;
 
   return (
-    <section data-rcl-search-results aria-label="Search results">
+    <section data-rcl-search-results aria-label={translate("data-display.search-results.aria-label.1", "Search results")}>
       <style
         data-rcl-search-results-styles
         dangerouslySetInnerHTML={{ __html: styles }}
       />
       <header data-rcl-search-results-header>
-        <h2 data-rcl-search-results-title>Results</h2>
+        <h2 data-rcl-search-results-title>{translate("data-display.search-results.text.2", "Results")}</h2>
         {state === "default" ? (
           <span data-rcl-search-results-count aria-live="polite">
             {results.length} result{results.length === 1 ? "" : "s"}
@@ -67,25 +69,25 @@ export function SearchResults({
       </header>
       {state === "loading" ? (
         <div data-rcl-search-results-state role="status" aria-live="polite">
-          <strong>Finding matches</strong>
+          <strong>{translate("data-display.search-results.text.3", "Finding matches")}</strong>
           <span>
-            Keeping your search context while the collection responds…
+            {translate("data-display.search-results.text.1", "Keeping your search context while the collection responds…")}
           </span>
         </div>
       ) : state === "error" ? (
         <div data-rcl-search-results-state role="alert">
-          <strong>Results unavailable</strong>
+          <strong>{translate("data-display.search-results.text.4", "Results unavailable")}</strong>
           <span>{errorMessage}</span>
           {onRetry ? (
-            <button type="button" onClick={onRetry}>
-              Try again
+            <button data-testid="data-display.search-results" type="button" onClick={onRetry}>
+              {translate("data-display.search-results.text.2", "Try again")}
             </button>
           ) : null}
         </div>
       ) : state === "offline" ? (
         <div data-rcl-search-results-state role="status" aria-live="polite">
-          <strong>Showing saved results</strong>
-          <span>New matches will appear when the connection returns.</span>
+          <strong>{translate("data-display.search-results.text.5", "Showing saved results")}</strong>
+          <span>{translate("data-display.search-results.text.6", "New matches will appear when the connection returns.")}</span>
         </div>
       ) : results.length === 0 ? (
         <div data-rcl-search-results-state>

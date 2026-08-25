@@ -1,15 +1,11 @@
 {
-  "schemaVersion": 3,
-  "kind": "component",
-  "title": "VoiceInputButton",
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
   "args": {
     "fields": [
       {
-        "path": "state",
-        "label": "State",
-        "kind": "enum",
-        "required": true,
         "default": "idle",
+        "kind": "enum",
+        "label": "State",
         "options": [
           "idle",
           "preparing",
@@ -18,25 +14,25 @@
           "transcribing",
           "unavailable",
           "error"
-        ]
+        ],
+        "path": "state",
+        "required": true
       },
       {
-        "path": "mode",
-        "label": "Mode",
-        "kind": "enum",
-        "required": true,
         "default": "always-on",
+        "kind": "enum",
+        "label": "Mode",
         "options": [
           "always-on",
           "timeout"
-        ]
+        ],
+        "path": "mode",
+        "required": true
       },
       {
-        "path": "size",
-        "label": "Size",
-        "kind": "enum",
-        "required": true,
         "default": "sm",
+        "kind": "enum",
+        "label": "Size",
         "options": [
           "xs",
           "sm",
@@ -44,42 +40,44 @@
           "lg",
           "xl",
           "icon"
-        ]
+        ],
+        "path": "size",
+        "required": true
       },
       {
-        "path": "density",
-        "label": "Density",
-        "kind": "enum",
-        "required": true,
         "default": "comfortable",
+        "kind": "enum",
+        "label": "Density",
         "options": [
           "comfortable",
           "compact"
-        ]
+        ],
+        "path": "density",
+        "required": true
       },
       {
-        "path": "level",
+        "default": 0.65,
+        "kind": "number",
         "label": "Input level",
-        "kind": "number",
-        "minimum": 0,
         "maximum": 1,
-        "default": 0.65
+        "minimum": 0,
+        "path": "level"
       },
       {
-        "path": "timeoutProgress",
-        "label": "Timeout progress",
+        "default": 0.5,
         "kind": "number",
-        "minimum": 0,
+        "label": "Timeout progress",
         "maximum": 1,
-        "default": 0.5
+        "minimum": 0,
+        "path": "timeoutProgress"
       }
     ]
   },
   "environment": {
     "fixtures": [
       {
-        "key": "voiceInput",
         "adapter": "voice-input",
+        "key": "voiceInput",
         "options": [
           "idle",
           "recording",
@@ -88,15 +86,19 @@
       }
     ]
   },
+  "kind": "component",
+  "schemaVersion": 4,
   "stories": [
     {
-      "id": "idle",
-      "name": "Idle",
-      "mode": "live",
-      "harness": "Live",
       "args": {
-        "state": "idle",
-        "size": "sm"
+        "size": "sm",
+        "state": "idle"
+      },
+      "composition": {
+        "specimen": {
+          "export": "Live",
+          "module": "./story.tsx"
+        }
       },
       "environment": {
         "voiceInput": "idle"
@@ -104,245 +106,319 @@
       "expect": [
         {
           "kind": "role",
-          "role": "button",
-          "name": "Start voice input"
+          "name": "Start voice input",
+          "role": "button"
         }
-      ]
+      ],
+      "id": "idle",
+      "mode": "live",
+      "name": "Idle"
     },
     {
-      "id": "preparing",
-      "name": "Preparing",
-      "harness": "Live",
       "args": {
         "state": "preparing"
       },
+      "composition": {
+        "specimen": {
+          "export": "Live",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
         {
           "kind": "role",
-          "role": "button",
-          "name": "Preparing microphone"
+          "name": "Preparing microphone",
+          "role": "button"
         }
       ],
-      "mode": "live"
+      "id": "preparing",
+      "mode": "live",
+      "name": "Preparing"
     },
     {
-      "id": "recording",
-      "name": "Recording",
-      "harness": "Live",
       "args": {
-        "state": "recording",
+        "level": 0.65,
         "mode": "always-on",
-        "level": 0.65
+        "state": "recording"
+      },
+      "composition": {
+        "specimen": {
+          "export": "Live",
+          "module": "./story.tsx"
+        }
       },
       "expect": [
         {
           "kind": "role",
-          "role": "button",
-          "name": "Stop voice input"
+          "name": "Stop voice input",
+          "role": "button"
         }
       ],
-      "mode": "live"
+      "id": "recording",
+      "mode": "live",
+      "name": "Recording"
     },
     {
-      "id": "recovering",
-      "name": "Recovering",
-      "harness": "Live",
       "args": {
-        "state": "recovering",
-        "level": 0.35
+        "level": 0.35,
+        "state": "recovering"
+      },
+      "composition": {
+        "specimen": {
+          "export": "Live",
+          "module": "./story.tsx"
+        }
       },
       "expect": [
         {
           "kind": "role",
-          "role": "button",
-          "name": "Listening for voice input"
+          "name": "Listening for voice input",
+          "role": "button"
         }
       ],
-      "mode": "live"
+      "id": "recovering",
+      "mode": "live",
+      "name": "Recovering"
     },
     {
-      "id": "transcribing",
-      "name": "Transcribing",
-      "harness": "Live",
       "args": {
         "state": "transcribing"
       },
+      "composition": {
+        "specimen": {
+          "export": "Live",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
         {
           "kind": "role",
-          "role": "button",
-          "name": "Transcribing voice input"
+          "name": "Transcribing voice input",
+          "role": "button"
         }
       ],
-      "mode": "live"
+      "id": "transcribing",
+      "mode": "live",
+      "name": "Transcribing"
     },
     {
-      "id": "unavailable",
-      "name": "Unavailable",
-      "harness": "Live",
       "args": {
         "state": "unavailable"
       },
+      "composition": {
+        "specimen": {
+          "export": "Live",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
         {
           "kind": "role",
-          "role": "button",
-          "name": "Voice input unavailable"
+          "name": "Voice input unavailable",
+          "role": "button"
         }
       ],
-      "mode": "live"
+      "id": "unavailable",
+      "mode": "live",
+      "name": "Unavailable"
     },
     {
-      "id": "error",
-      "name": "Error",
-      "harness": "Live",
       "args": {
         "state": "error"
       },
+      "composition": {
+        "specimen": {
+          "export": "Live",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
         {
           "kind": "role",
-          "role": "button",
-          "name": "Voice input error"
+          "name": "Voice input error",
+          "role": "button"
         }
       ],
-      "mode": "live"
+      "id": "error",
+      "mode": "live",
+      "name": "Error"
     },
     {
+      "args": {
+        "mode": "timeout",
+        "state": "recording"
+      },
+      "composition": {
+        "specimen": {
+          "export": "Live",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Stop voice input",
+          "role": "button"
+        }
+      ],
       "id": "timeout",
-      "name": "Timeout recording",
-      "harness": "Live",
+      "mode": "live",
+      "name": "Timeout recording"
+    },
+    {
       "args": {
-        "state": "recording",
-        "mode": "timeout"
+        "size": "xs",
+        "state": "idle"
+      },
+      "composition": {
+        "specimen": {
+          "export": "Live",
+          "module": "./story.tsx"
+        }
       },
       "expect": [
         {
           "kind": "role",
-          "role": "button",
-          "name": "Stop voice input"
+          "name": "Start voice input",
+          "role": "button"
         }
       ],
-      "mode": "live"
-    },
-    {
       "id": "size-xs",
-      "name": "Extra small",
-      "harness": "Live",
+      "mode": "live",
+      "name": "Extra small"
+    },
+    {
       "args": {
-        "state": "idle",
-        "size": "xs"
+        "size": "md",
+        "state": "idle"
+      },
+      "composition": {
+        "specimen": {
+          "export": "Live",
+          "module": "./story.tsx"
+        }
       },
       "expect": [
         {
           "kind": "role",
-          "role": "button",
-          "name": "Start voice input"
+          "name": "Start voice input",
+          "role": "button"
         }
       ],
-      "mode": "live"
-    },
-    {
       "id": "size-md",
-      "name": "Medium",
-      "harness": "Live",
+      "mode": "live",
+      "name": "Medium"
+    },
+    {
       "args": {
-        "state": "idle",
-        "size": "md"
+        "size": "lg",
+        "state": "idle"
+      },
+      "composition": {
+        "specimen": {
+          "export": "Live",
+          "module": "./story.tsx"
+        }
       },
       "expect": [
         {
           "kind": "role",
-          "role": "button",
-          "name": "Start voice input"
+          "name": "Start voice input",
+          "role": "button"
         }
       ],
-      "mode": "live"
-    },
-    {
       "id": "size-lg",
-      "name": "Large",
-      "harness": "Live",
+      "mode": "live",
+      "name": "Large"
+    },
+    {
       "args": {
-        "state": "idle",
-        "size": "lg"
+        "size": "xl",
+        "state": "idle"
+      },
+      "composition": {
+        "specimen": {
+          "export": "Live",
+          "module": "./story.tsx"
+        }
       },
       "expect": [
         {
           "kind": "role",
-          "role": "button",
-          "name": "Start voice input"
+          "name": "Start voice input",
+          "role": "button"
         }
       ],
-      "mode": "live"
-    },
-    {
       "id": "size-xl",
-      "name": "Extra large",
-      "harness": "Live",
+      "mode": "live",
+      "name": "Extra large"
+    },
+    {
       "args": {
-        "state": "idle",
-        "size": "xl"
+        "size": "icon",
+        "state": "idle"
+      },
+      "composition": {
+        "specimen": {
+          "export": "Live",
+          "module": "./story.tsx"
+        }
       },
       "expect": [
         {
           "kind": "role",
-          "role": "button",
-          "name": "Start voice input"
+          "name": "Start voice input",
+          "role": "button"
         }
       ],
-      "mode": "live"
-    },
-    {
       "id": "size-icon",
-      "name": "Icon only",
-      "harness": "Live",
+      "mode": "live",
+      "name": "Icon only"
+    },
+    {
       "args": {
-        "state": "idle",
-        "size": "icon"
+        "density": "comfortable",
+        "state": "idle"
+      },
+      "composition": {
+        "specimen": {
+          "export": "Live",
+          "module": "./story.tsx"
+        }
       },
       "expect": [
         {
           "kind": "role",
-          "role": "button",
-          "name": "Start voice input"
+          "name": "Start voice input",
+          "role": "button"
         }
       ],
-      "mode": "live"
-    },
-    {
       "id": "density-comfortable",
-      "name": "Comfortable density",
-      "harness": "Live",
-      "args": {
-        "state": "idle",
-        "density": "comfortable"
-      },
-      "expect": [
-        {
-          "kind": "role",
-          "role": "button",
-          "name": "Start voice input"
-        }
-      ],
-      "mode": "live"
+      "mode": "live",
+      "name": "Comfortable density"
     },
     {
-      "id": "density-compact",
-      "name": "Compact density",
-      "harness": "Live",
       "args": {
-        "state": "idle",
-        "density": "compact"
+        "density": "compact",
+        "state": "idle"
+      },
+      "composition": {
+        "specimen": {
+          "export": "Live",
+          "module": "./story.tsx"
+        }
       },
       "expect": [
         {
           "kind": "role",
-          "role": "button",
-          "name": "Start voice input"
+          "name": "Start voice input",
+          "role": "button"
         }
       ],
-      "mode": "live"
+      "id": "density-compact",
+      "mode": "live",
+      "name": "Compact density"
     }
-  ]
+  ],
+  "title": "VoiceInputButton"
 }

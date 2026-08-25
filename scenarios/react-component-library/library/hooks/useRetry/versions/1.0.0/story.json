@@ -1,57 +1,68 @@
 {
-  "schemaVersion": 3,
-  "kind": "hook",
-  "title": "useRetry",
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
   "args": {
     "fields": []
   },
   "environment": {
     "fixtures": []
   },
+  "kind": "hook",
+  "schemaVersion": 4,
   "stories": [
     {
-      "id": "default",
-      "name": "Bounded retry",
-      "harness": "Default",
       "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Default",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
         {
           "kind": "role",
-          "role": "button",
-          "name": "Try connection"
+          "name": "Try connection",
+          "role": "button"
         },
         {
           "kind": "role",
           "role": "status"
         }
       ],
+      "id": "default",
       "interactions": [
         {
           "kind": "click",
           "target": {
-            "role": "button",
-            "name": "Try connection"
+            "name": "Try connection",
+            "role": "button"
           }
         },
         {
           "kind": "settle"
         }
       ],
-      "mode": "live"
+      "mode": "live",
+      "name": "Bounded retry"
     },
     {
-      "id": "non-retryable",
-      "name": "Non-retryable failure",
-      "harness": "NonRetryable",
       "args": {},
+      "composition": {
+        "specimen": {
+          "export": "NonRetryable",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
         {
           "kind": "role",
-          "role": "button",
-          "name": "Run classified failure"
+          "name": "Run classified failure",
+          "role": "button"
         }
       ],
-      "mode": "live"
+      "id": "non-retryable",
+      "mode": "live",
+      "name": "Non-retryable failure"
     }
-  ]
+  ],
+  "title": "useRetry"
 }

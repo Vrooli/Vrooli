@@ -1,21 +1,31 @@
 {
-  "libraryId": "react-component-library:AlertDialog",
-  "catalogId": "overlays.alert-dialog",
-  "displayName": "AlertDialog",
-  "description": "A focused confirmation surface for consequential decisions with explicit destructive recovery and resilient focus behavior.",
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "component",
+  "catalogId": "overlays.alert-dialog",
+  "dependencies": [],
+  "description": "A focused confirmation surface for consequential decisions with explicit destructive recovery and resilient focus behavior.",
+  "designStyles": [
+    {
+      "affinity": "native",
+      "styleId": "vrooli-default"
+    },
+    {
+      "affinity": "compatible",
+      "styleId": "vrooli-command-display"
+    },
+    {
+      "affinity": "compatible",
+      "styleId": "vrooli-conversion-landing"
+    }
+  ],
+  "displayName": "AlertDialog",
+  "latest": "1.0.0",
+  "libraryId": "react-component-library:AlertDialog",
   "tags": [
     "overlay",
     "confirmation",
     "destructive",
     "accessibility",
     "token-bound"
-  ],
-  "latest": "1.0.0",
-  "designStyles": [
-    { "styleId": "vrooli-default", "affinity": "native" },
-    { "styleId": "vrooli-command-display", "affinity": "compatible" },
-    { "styleId": "vrooli-conversion-landing", "affinity": "compatible" }
-  ],
-  "dependencies": []
+  ]
 }

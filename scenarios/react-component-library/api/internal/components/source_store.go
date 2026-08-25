@@ -363,7 +363,7 @@ func componentAssetRoot(c Component) string {
 }
 
 const scaffoldStoryJSON = `{
-  "schemaVersion": 1,
+  "schemaVersion": 4,
   "kind": "component",
   "args": { "fields": [] },
   "environment": { "fixtures": [] },

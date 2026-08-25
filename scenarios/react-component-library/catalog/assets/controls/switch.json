@@ -5,13 +5,14 @@
   "asset": {
     "id": "controls.switch",
     "name": "Switch",
-    "kind": "component", "surface": "raised",
+    "kind": "component",
+    "surface": "raised",
     "domain": "controls",
     "description": "The binary settings control with spring-driven thumb motion, label association, loading state for remotely persisted settings, and read-only and disabled treatments.",
     "targets": [
       "react-vite"
     ],
-    "slot": "primitive",
+    "slot": "ui-primitive",
     "delivery": "adopted",
     "target": {
       "priority": "P0",

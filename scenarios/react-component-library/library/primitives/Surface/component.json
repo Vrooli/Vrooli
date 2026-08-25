@@ -1,15 +1,28 @@
 {
-  "libraryId": "react-component-library:Surface",
-  "catalogId": "primitives.surface",
-  "displayName": "Surface",
-  "description": "Surface maps the four elevation levels to the kit's elevation ramps.",
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "primitive",
-  "tags": ["primitive", "token-bound"],
-  "latest": "1.0.0",
+  "catalogId": "primitives.surface",
+  "dependencies": [],
+  "description": "Surface maps the four elevation levels to the kit's elevation ramps.",
   "designStyles": [
-    { "styleId": "vrooli-default", "affinity": "native" },
-    { "styleId": "vrooli-command-display", "affinity": "compatible" },
-    { "styleId": "vrooli-conversion-landing", "affinity": "compatible" }
+    {
+      "affinity": "native",
+      "styleId": "vrooli-default"
+    },
+    {
+      "affinity": "compatible",
+      "styleId": "vrooli-command-display"
+    },
+    {
+      "affinity": "compatible",
+      "styleId": "vrooli-conversion-landing"
+    }
   ],
-  "dependencies": []
+  "displayName": "Surface",
+  "latest": "1.0.0",
+  "libraryId": "react-component-library:Surface",
+  "tags": [
+    "primitive",
+    "token-bound"
+  ]
 }

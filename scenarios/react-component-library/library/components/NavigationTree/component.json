@@ -1,16 +1,27 @@
 {
-  "libraryId": "react-component-library:NavigationTree",
-  "catalogId": "navigation.navigation-tree",
-  "displayName": "NavigationTree",
-  "description": "A hierarchical navigation surface that preserves reading order and keyboard semantics.",
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "component",
-  "tags": ["navigation", "accessibility", "token-bound"],
-  "latest": "1.1.0",
+  "catalogId": "navigation.navigation-tree",
+  "dependencies": [],
+  "description": "A hierarchical navigation surface that preserves reading order and keyboard semantics.",
   "designStyles": [
     {
-      "styleId": "vrooli-default",
-      "affinity": "native"
+      "affinity": "native",
+      "styleId": "vrooli-default"
     }
   ],
-  "dependencies": []
+  "displayName": "NavigationTree",
+  "latest": "1.1.0",
+  "libraryId": "react-component-library:NavigationTree",
+  "tags": [
+    "navigation",
+    "accessibility",
+    "token-bound"
+  ],
+  "requires": [
+    {
+      "libraryId": "react-component-library:useLocale",
+      "version": "1.0.0"
+    }
+  ]
 }

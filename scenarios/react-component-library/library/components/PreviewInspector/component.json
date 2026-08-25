@@ -1,12 +1,28 @@
 {
-  "libraryId": "react-component-library:PreviewInspector",
-  "catalogId": "preview.inspector-drawer",
-  "displayName": "PreviewInspector",
-  "description": "A dismissible slide-over for props, inspector details, and preview events.",
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "component",
-  "tags": ["preview", "overlay", "inspection"],
-  "slot": "ui-pattern",
-  "designStyles": [{ "styleId": "vrooli-default", "affinity": "native" }],
+  "catalogId": "preview.inspector-drawer",
+  "deprecatedVersions": [],
+  "description": "A dismissible slide-over for props, inspector details, and preview events.",
+  "designStyles": [
+    {
+      "affinity": "native",
+      "styleId": "vrooli-default"
+    }
+  ],
+  "displayName": "PreviewInspector",
   "latest": "1.0.0",
-  "deprecatedVersions": []
+  "libraryId": "react-component-library:PreviewInspector",
+  "slot": "ui-pattern",
+  "tags": [
+    "preview",
+    "overlay",
+    "inspection"
+  ],
+  "requires": [
+    {
+      "libraryId": "react-component-library:useLocale",
+      "version": "1.0.0"
+    }
+  ]
 }

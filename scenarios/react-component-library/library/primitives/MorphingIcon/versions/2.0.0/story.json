@@ -1,33 +1,78 @@
 {
-  "schemaVersion": 3,
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
+  "args": {
+    "fields": []
+  },
+  "environment": {
+    "fixtures": []
+  },
   "kind": "component",
-  "title": "MorphingIcon",
-  "args": { "fields": [] },
-  "environment": { "fixtures": [] },
+  "schemaVersion": 4,
   "stories": [
     {
-      "id": "toggle",
-      "name": "Interactive state change",
-      "harness": "ToggleMorphingIcon",
       "args": {},
-      "expect": [{ "kind": "role", "role": "img", "name": "Send" }],
-      "interactions": [
-        { "kind": "click", "target": { "role": "button", "name": "Send message" } },
-        { "kind": "waitFor", "text": "Sent" }
+      "composition": {
+        "specimen": {
+          "export": "ToggleMorphingIcon",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Send",
+          "role": "img"
+        }
       ],
-      "mode": "live"
+      "id": "toggle",
+      "interactions": [
+        {
+          "kind": "click",
+          "target": {
+            "name": "Send message",
+            "role": "button"
+          }
+        },
+        {
+          "kind": "waitFor",
+          "text": "Sent"
+        }
+      ],
+      "mode": "live",
+      "name": "Interactive state change"
     },
     {
-      "id": "copy-button",
-      "name": "Copy to success",
-      "harness": "CopyMorphingIcon",
       "args": {},
-      "expect": [{ "kind": "role", "role": "button", "name": "Copy value" }],
-      "interactions": [
-        { "kind": "click", "target": { "role": "button", "name": "Copy value" } },
-        { "kind": "waitFor", "text": "Copied" }
+      "composition": {
+        "specimen": {
+          "export": "CopyMorphingIcon",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Copy value",
+          "role": "button"
+        }
       ],
-      "mode": "live"
+      "id": "copy-button",
+      "interactions": [
+        {
+          "kind": "click",
+          "target": {
+            "name": "Copy value",
+            "role": "button"
+          }
+        },
+        {
+          "kind": "waitFor",
+          "text": "Copied"
+        }
+      ],
+      "mode": "live",
+      "name": "Copy to success"
     }
-  ]
+  ],
+  "title": "MorphingIcon"
 }

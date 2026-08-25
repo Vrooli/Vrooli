@@ -10,13 +10,14 @@
   "asset": {
     "id": "primitives.scroll-area",
     "name": "ScrollArea",
-    "kind": "primitive", "surface": "base",
+    "kind": "primitive",
+    "surface": "base",
     "domain": "primitives",
     "description": "The accessible scroll container preserving native scrolling and keyboard behavior while offering optional custom indicators and stable layout.",
     "targets": [
       "react-vite"
     ],
-    "slot": "primitive",
+    "slot": "ui-primitive",
     "delivery": "adopted",
     "target": {
       "priority": "P0",
@@ -28,6 +29,10 @@
       {
         "asset": "foundations.tokens",
         "reason": "Every spacing, size, and radius value resolves to a declared ramp rather than a literal."
+      },
+      {
+        "asset": "hooks.use-locale",
+        "reason": "User-facing copy resolves through the adopting host locale bridge."
       }
     ],
     "suggests": [

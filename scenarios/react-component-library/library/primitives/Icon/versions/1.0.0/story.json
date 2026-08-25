@@ -1,14 +1,11 @@
 {
-  "schemaVersion": 3,
-  "kind": "component",
-  "title": "Icon",
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
   "args": {
     "fields": [
       {
-        "path": "name",
-        "label": "Name",
-        "kind": "enum",
         "default": "check",
+        "kind": "enum",
+        "label": "Name",
         "options": [
           "check",
           "close",
@@ -19,26 +16,32 @@
           "plus",
           "arrowStart",
           "arrowEnd"
-        ]
+        ],
+        "path": "name"
       }
     ]
   },
   "environment": {
     "fixtures": []
   },
+  "kind": "component",
+  "schemaVersion": 4,
   "stories": [
     {
-      "id": "name-check",
-      "name": "Check",
-      "harness": "IconShowcase",
       "args": {
         "name": "check"
+      },
+      "composition": {
+        "specimen": {
+          "export": "IconShowcase",
+          "module": "./story.tsx"
+        }
       },
       "expect": [
         {
           "kind": "role",
-          "role": "img",
-          "name": "Check"
+          "name": "Check",
+          "role": "img"
         },
         {
           "kind": "text",
@@ -46,151 +49,194 @@
         },
         {
           "kind": "layout",
-          "selector": "[data-rcl-icon-showcase]",
-          "minWidth": 240,
           "minHeight": 180,
-          "noOverflow": true
+          "minWidth": 240,
+          "noOverflow": true,
+          "selector": "[data-rcl-icon-showcase]"
         }
       ],
-      "mode": "live"
+      "id": "name-check",
+      "mode": "live",
+      "name": "Check"
     },
     {
-      "id": "name-search",
-      "name": "Search",
-      "harness": "IconShowcase",
       "args": {
         "name": "search"
       },
-      "expect": [
-        {
-          "kind": "role",
-          "role": "img",
-          "name": "Search"
-        },
-        {
-          "kind": "attribute",
-          "selector": "[data-icon=search]",
-          "name": "aria-label",
-          "value": "Search"
+      "composition": {
+        "specimen": {
+          "export": "IconShowcase",
+          "module": "./story.tsx"
         }
-      ],
-      "mode": "live"
-    },
-    {
-      "id": "name-arrow-end",
-      "name": "Arrow end",
-      "harness": "IconShowcase",
-      "args": {
-        "name": "arrowEnd"
       },
       "expect": [
         {
           "kind": "role",
-          "role": "img",
-          "name": "Arrow end"
+          "name": "Search",
+          "role": "img"
+        },
+        {
+          "kind": "attribute",
+          "name": "aria-label",
+          "selector": "[data-icon=search]",
+          "value": "Search"
+        }
+      ],
+      "id": "name-search",
+      "mode": "live",
+      "name": "Search"
+    },
+    {
+      "args": {
+        "name": "arrowEnd"
+      },
+      "composition": {
+        "specimen": {
+          "export": "IconShowcase",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Arrow end",
+          "role": "img"
         },
         {
           "kind": "text",
           "value": "Arrow end · named for assistive technology"
         }
       ],
-      "mode": "live"
+      "id": "name-arrow-end",
+      "mode": "live",
+      "name": "Arrow end"
     },
     {
-      "id": "name-close",
-      "name": "Close",
-      "harness": "IconShowcase",
       "args": {
         "name": "close"
       },
+      "composition": {
+        "specimen": {
+          "export": "IconShowcase",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
         {
           "kind": "role",
-          "role": "img",
-          "name": "Close"
+          "name": "Close",
+          "role": "img"
         }
       ],
-      "mode": "live"
+      "id": "name-close",
+      "mode": "live",
+      "name": "Close"
     },
     {
-      "id": "name-chevron-down",
-      "name": "Chevron down",
-      "harness": "IconShowcase",
       "args": {
         "name": "chevronDown"
       },
+      "composition": {
+        "specimen": {
+          "export": "IconShowcase",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
         {
           "kind": "role",
-          "role": "img",
-          "name": "Chevron down"
+          "name": "Chevron down",
+          "role": "img"
         }
       ],
-      "mode": "live"
+      "id": "name-chevron-down",
+      "mode": "live",
+      "name": "Chevron down"
     },
     {
-      "id": "name-chevron-right",
-      "name": "Chevron right",
-      "harness": "IconShowcase",
       "args": {
         "name": "chevronRight"
       },
+      "composition": {
+        "specimen": {
+          "export": "IconShowcase",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
         {
           "kind": "role",
-          "role": "img",
-          "name": "Chevron right"
+          "name": "Chevron right",
+          "role": "img"
         }
       ],
-      "mode": "live"
+      "id": "name-chevron-right",
+      "mode": "live",
+      "name": "Chevron right"
     },
     {
-      "id": "name-menu",
-      "name": "Menu",
-      "harness": "IconShowcase",
       "args": {
         "name": "menu"
       },
+      "composition": {
+        "specimen": {
+          "export": "IconShowcase",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
         {
           "kind": "role",
-          "role": "img",
-          "name": "Menu"
+          "name": "Menu",
+          "role": "img"
         }
       ],
-      "mode": "live"
+      "id": "name-menu",
+      "mode": "live",
+      "name": "Menu"
     },
     {
-      "id": "name-plus",
-      "name": "Plus",
-      "harness": "IconShowcase",
       "args": {
         "name": "plus"
       },
-      "expect": [
-        {
-          "kind": "role",
-          "role": "img",
-          "name": "Plus"
+      "composition": {
+        "specimen": {
+          "export": "IconShowcase",
+          "module": "./story.tsx"
         }
-      ],
-      "mode": "live"
-    },
-    {
-      "id": "name-arrow-start",
-      "name": "Arrow start",
-      "harness": "IconShowcase",
-      "args": {
-        "name": "arrowStart"
       },
       "expect": [
         {
           "kind": "role",
-          "role": "img",
-          "name": "Arrow start"
+          "name": "Plus",
+          "role": "img"
         }
       ],
-      "mode": "live"
+      "id": "name-plus",
+      "mode": "live",
+      "name": "Plus"
+    },
+    {
+      "args": {
+        "name": "arrowStart"
+      },
+      "composition": {
+        "specimen": {
+          "export": "IconShowcase",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Arrow start",
+          "role": "img"
+        }
+      ],
+      "id": "name-arrow-start",
+      "mode": "live",
+      "name": "Arrow start"
     }
-  ]
+  ],
+  "title": "Icon"
 }

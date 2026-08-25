@@ -40,6 +40,10 @@
       {
         "asset": "navigation.nav-link",
         "reason": "Items are shared navigation links with active and pending state."
+      },
+      {
+        "asset": "foundations.class-merge",
+        "reason": "All class composition uses the shared Tailwind conflict resolver."
       }
     ]
   },

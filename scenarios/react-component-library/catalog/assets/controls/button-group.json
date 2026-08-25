@@ -10,13 +10,14 @@
   "asset": {
     "id": "controls.button-group",
     "name": "ButtonGroup",
-    "kind": "component", "surface": "raised",
+    "kind": "component",
+    "surface": "raised",
     "domain": "controls",
     "description": "The coordinated group of related actions sharing borders and focus movement, with responsive collapse into an overflow menu and consistent disabled treatment.",
     "targets": [
       "react-vite"
     ],
-    "slot": "primitive",
+    "slot": "ui-primitive",
     "delivery": "adopted",
     "target": {
       "priority": "P1",
@@ -32,6 +33,10 @@
       {
         "asset": "hooks.use-roving-focus",
         "reason": "Composite widgets expose a single tab stop with arrow-key movement."
+      },
+      {
+        "asset": "hooks.use-locale",
+        "reason": "User-facing copy resolves through the adopting host locale bridge."
       }
     ],
     "suggests": [

@@ -5,13 +5,14 @@
   "asset": {
     "id": "forms.textarea",
     "name": "Textarea",
-    "kind": "component", "surface": "raised",
+    "kind": "component",
+    "surface": "raised",
     "domain": "forms",
     "description": "The multi-line field with automatic resizing, character counting, minimum and maximum rows, validation treatment, and scroll-aware growth that never traps the page scroll.",
     "targets": [
       "react-vite"
     ],
-    "slot": "primitive",
+    "slot": "ui-primitive",
     "delivery": "adopted",
     "target": {
       "priority": "P0",
@@ -35,6 +36,10 @@
       {
         "asset": "hooks.use-element-rect",
         "reason": "Auto-resize measures without forcing layout on every keystroke."
+      },
+      {
+        "asset": "foundations.class-merge",
+        "reason": "All class composition uses the shared Tailwind conflict resolver."
       }
     ]
   },

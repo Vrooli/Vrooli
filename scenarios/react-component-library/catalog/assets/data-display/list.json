@@ -10,13 +10,14 @@
   "asset": {
     "id": "data-display.list",
     "name": "List",
-    "kind": "component", "surface": "raised",
+    "kind": "component",
+    "surface": "raised",
     "domain": "data-display",
     "description": "The semantic collection with sections, item actions, selection, keyboard navigation, loading placeholders, separators, and responsive density.",
     "targets": [
       "react-vite"
     ],
-    "slot": "primitive",
+    "slot": "ui-primitive",
     "delivery": "adopted",
     "target": {
       "priority": "P0",
@@ -36,6 +37,10 @@
       {
         "asset": "primitives.separator",
         "reason": "Row boundaries are separators rather than nested containers."
+      },
+      {
+        "asset": "hooks.use-locale",
+        "reason": "User-facing copy resolves through the adopting host locale bridge."
       }
     ],
     "suggests": [

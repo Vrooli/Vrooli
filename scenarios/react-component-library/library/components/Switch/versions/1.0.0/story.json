@@ -1,51 +1,62 @@
 {
-  "schemaVersion": 3,
-  "kind": "component",
-  "title": "Switch",
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
   "args": {
     "fields": []
   },
   "environment": {
     "fixtures": []
   },
+  "kind": "component",
+  "schemaVersion": 4,
   "stories": [
     {
-      "id": "default",
-      "name": "Off",
-      "harness": "Default",
       "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Default",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
         {
           "kind": "role",
-          "role": "switch",
-          "name": "Quiet hours"
+          "name": "Quiet hours",
+          "role": "switch"
         }
       ],
+      "id": "default",
       "interactions": [
         {
           "kind": "settle"
         }
       ],
-      "mode": "live"
+      "mode": "live",
+      "name": "Off"
     },
     {
-      "id": "enabled",
-      "name": "On",
-      "harness": "Enabled",
       "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Enabled",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
         {
           "kind": "role",
-          "role": "switch",
-          "name": "Automatic updates"
+          "name": "Automatic updates",
+          "role": "switch"
         }
       ],
+      "id": "enabled",
       "interactions": [
         {
           "kind": "settle"
         }
       ],
-      "mode": "live"
+      "mode": "live",
+      "name": "On"
     }
-  ]
+  ],
+  "title": "Switch"
 }

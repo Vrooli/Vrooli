@@ -1,11 +1,22 @@
 {
-  "libraryId": "react-component-library:useHover",
-  "catalogId": "hooks.use-hover",
-  "displayName": "useHover",
-  "description": "A pointer-aware hover-intent hook with entry/exit delay and related-surface handoff.",
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "hook",
-  "tags": ["runtime", "interaction", "pointer", "accessibility"],
+  "catalogId": "hooks.use-hover",
+  "dependencies": [],
+  "description": "A pointer-aware hover-intent hook with entry/exit delay and related-surface handoff.",
+  "designStyles": [
+    {
+      "affinity": "native",
+      "styleId": "vrooli-default"
+    }
+  ],
+  "displayName": "useHover",
   "latest": "1.0.0",
-  "designStyles": [{ "styleId": "vrooli-default", "affinity": "native" }],
-  "dependencies": []
+  "libraryId": "react-component-library:useHover",
+  "tags": [
+    "runtime",
+    "interaction",
+    "pointer",
+    "accessibility"
+  ]
 }

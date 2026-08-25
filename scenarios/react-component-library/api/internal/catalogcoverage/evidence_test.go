@@ -54,6 +54,12 @@ func TestMergedEvidenceTreatsStalePersistedRowsAsAbsent(t *testing.T) {
 	require.NoError(t, os.WriteFile(filepath.Join(versionDir, "Button.tsx"), []byte(`export const Button = () => null;`), 0o644))
 	database := db.NewSQLite(t)
 	require.NoError(t, apidb.EnsureSchemas(context.Background(), database, apidb.SchemaProviderFunc(Schema)))
+	// MergedEvidence runs the immutable released-version gate against the
+	// same domain database used by production. This fixture has no component
+	// index rows, but it still declares the table so the gate is measured
+	// rather than failing while trying to open a legacy database path.
+	_, err := database.ExecContext(context.Background(), `CREATE TABLE component_versions (status TEXT NOT NULL, source_path TEXT NOT NULL, content_sha256 TEXT NOT NULL)`)
+	require.NoError(t, err)
 	store := NewEvidenceStore(database)
 	require.NoError(t, store.Save(context.Background(), []GateEvidence{{AssetID: "controls.button", Target: "react-vite", Gate: "visual", Result: "pass", SourceRevision: "stale"}}))
 	evidence, err := MergedEvidence(context.Background(), root, store)

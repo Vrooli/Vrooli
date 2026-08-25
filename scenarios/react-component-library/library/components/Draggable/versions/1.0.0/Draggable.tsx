@@ -1,4 +1,6 @@
 /** @vrooliComponentSource manipulation.draggable */
+import { translate } from "../../../../hooks/useLocale/versions/1.0.0/useLocale";
+
 import {
   useEffect,
   useMemo,
@@ -72,7 +74,7 @@ export function Draggable({
   bounds = {},
   step = 8,
   disabled = false,
-  label = "Draggable item",
+  label = translate("manipulation.draggable.label.1", "Draggable item"),
   className,
   style,
 }: DraggableProps) {

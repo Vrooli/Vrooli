@@ -5,13 +5,14 @@
   "asset": {
     "id": "ai.token-usage-meter",
     "name": "TokenUsageMeter",
-    "kind": "component", "surface": "raised",
+    "kind": "component",
+    "surface": "raised",
     "domain": "ai",
     "description": "The contextual capacity indicator showing used, estimated, and remaining context with semantic thresholds and explicit uncertainty on the estimated portion.",
     "targets": [
       "react-vite"
     ],
-    "slot": "primitive",
+    "slot": "ui-primitive",
     "delivery": "adopted",
     "target": {
       "priority": "P1",

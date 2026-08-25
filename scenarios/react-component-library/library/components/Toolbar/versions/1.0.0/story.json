@@ -1,86 +1,102 @@
 {
-  "schemaVersion": 3,
-  "kind": "component",
-  "title": "Toolbar",
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
   "args": {
     "fields": []
   },
   "environment": {
     "fixtures": []
   },
+  "kind": "component",
+  "schemaVersion": 4,
   "stories": [
     {
-      "id": "default",
-      "name": "Horizontal",
-      "harness": "Default",
       "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Default",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
         {
           "kind": "role",
-          "role": "toolbar",
-          "name": "Editor toolbar"
+          "name": "Editor toolbar",
+          "role": "toolbar"
         },
         {
           "kind": "role",
-          "role": "button",
-          "name": "Bold"
+          "name": "Bold",
+          "role": "button"
         }
       ],
+      "id": "default",
       "interactions": [
         {
           "kind": "settle"
         }
       ],
-      "mode": "live"
+      "mode": "live",
+      "name": "Horizontal"
     },
     {
-      "id": "interactive",
-      "name": "Interactive",
-      "harness": "Interactive",
       "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Interactive",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
         {
           "kind": "role",
-          "role": "status",
-          "name": "Last toolbar action"
+          "name": "Last toolbar action",
+          "role": "status"
         },
         {
           "kind": "text",
           "value": "Last action: Bold"
         }
       ],
+      "id": "interactive",
       "interactions": [
         {
           "kind": "click",
           "target": {
-            "role": "button",
-            "name": "Bold"
+            "name": "Bold",
+            "role": "button"
           }
         },
         {
           "kind": "settle"
         }
       ],
-      "mode": "live"
+      "mode": "live",
+      "name": "Interactive"
     },
     {
-      "id": "vertical",
-      "name": "Vertical",
-      "harness": "Vertical",
       "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Vertical",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
         {
           "kind": "role",
-          "role": "toolbar",
-          "name": "Editor toolbar"
+          "name": "Editor toolbar",
+          "role": "toolbar"
         }
       ],
+      "id": "vertical",
       "interactions": [
         {
           "kind": "settle"
         }
       ],
-      "mode": "live"
+      "mode": "live",
+      "name": "Vertical"
     }
-  ]
+  ],
+  "title": "Toolbar"
 }

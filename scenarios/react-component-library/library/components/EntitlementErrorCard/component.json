@@ -1,13 +1,23 @@
 {
-  "libraryId": "react-component-library:EntitlementErrorCard",
-  "catalogId": "monetization.entitlement-error-card",
-  "displayName": "EntitlementErrorCard",
-  "description": "Stable paid-surface error presentation.",
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "component",
-  "tags": ["monetization", "errors"],
-  "latest": "1.0.0",
+  "catalogId": "monetization.entitlement-error-card",
+  "description": "Stable paid-surface error presentation.",
   "designStyles": [
-    { "styleId": "vrooli-default", "affinity": "native" },
-    { "styleId": "vrooli-command-display", "affinity": "compatible" }
+    {
+      "affinity": "native",
+      "styleId": "vrooli-default"
+    },
+    {
+      "affinity": "compatible",
+      "styleId": "vrooli-command-display"
+    }
+  ],
+  "displayName": "EntitlementErrorCard",
+  "latest": "1.0.0",
+  "libraryId": "react-component-library:EntitlementErrorCard",
+  "tags": [
+    "monetization",
+    "errors"
   ]
 }

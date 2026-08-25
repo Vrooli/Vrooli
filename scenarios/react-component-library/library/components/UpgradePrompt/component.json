@@ -1,13 +1,23 @@
 {
-  "libraryId": "react-component-library:UpgradePrompt",
-  "catalogId": "monetization.upgrade-prompt",
-  "displayName": "UpgradePrompt",
-  "description": "Hosted upgrade prompt for a gated capability.",
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "component",
-  "tags": ["monetization", "upgrade"],
-  "latest": "1.0.0",
+  "catalogId": "monetization.upgrade-prompt",
+  "description": "Hosted upgrade prompt for a gated capability.",
   "designStyles": [
-    { "styleId": "vrooli-default", "affinity": "native" },
-    { "styleId": "vrooli-command-display", "affinity": "compatible" }
+    {
+      "affinity": "native",
+      "styleId": "vrooli-default"
+    },
+    {
+      "affinity": "compatible",
+      "styleId": "vrooli-command-display"
+    }
+  ],
+  "displayName": "UpgradePrompt",
+  "latest": "1.0.0",
+  "libraryId": "react-component-library:UpgradePrompt",
+  "tags": [
+    "monetization",
+    "upgrade"
   ]
 }

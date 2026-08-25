@@ -1,11 +1,20 @@
 {
-  "libraryId": "react-component-library:ScrollRestoration",
-  "catalogId": "navigation.scroll-restoration",
-  "displayName": "ScrollRestoration",
-  "description": "Scoped runtime service for predictable ScrollRestoration behavior.",
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "service",
-  "tags": ["runtime", "state"],
+  "catalogId": "navigation.scroll-restoration",
+  "dependencies": [],
+  "description": "Scoped runtime service for predictable ScrollRestoration behavior.",
+  "designStyles": [
+    {
+      "affinity": "native",
+      "styleId": "vrooli-default"
+    }
+  ],
+  "displayName": "ScrollRestoration",
   "latest": "1.0.0",
-  "designStyles": [{ "styleId": "vrooli-default", "affinity": "native" }],
-  "dependencies": []
+  "libraryId": "react-component-library:ScrollRestoration",
+  "tags": [
+    "runtime",
+    "state"
+  ]
 }

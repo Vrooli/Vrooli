@@ -5,13 +5,14 @@
   "asset": {
     "id": "ai.message-list",
     "name": "MessageList",
-    "kind": "component", "surface": "raised",
+    "kind": "component",
+    "surface": "raised",
     "domain": "ai",
     "description": "The message collection preserving streaming scroll position, supporting branching, grouping, history loading, a new-message indicator, and stable anchoring while content grows above and below.",
     "targets": [
       "react-vite"
     ],
-    "slot": "primitive",
+    "slot": "ui-primitive",
     "delivery": "adopted",
     "target": {
       "priority": "P0",

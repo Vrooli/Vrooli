@@ -1,4 +1,6 @@
 /** @vrooliComponentSource forms.combobox */
+import { translate } from "../../../../hooks/useLocale/versions/1.0.0/useLocale";
+
 import {
   useId,
   useMemo,
@@ -88,7 +90,7 @@ export function Combobox({
   allowCreate = false,
   description,
   error,
-  placeholder = "Search or choose an option",
+  placeholder = translate("forms.combobox.placeholder.1", "Search or choose an option"),
   emptyText = "No matches yet",
   disabled = false,
   required = false,
@@ -257,7 +259,7 @@ function LocalCombobox({
         {description && <small>{description}</small>}
       </label>
       <div data-rcl-combobox-control>
-        <input
+        <input data-testid="forms.combobox"
           id={inputID}
           name={name}
           data-rcl-combobox-input
@@ -307,7 +309,7 @@ function LocalCombobox({
             aria-label={`${label} options`}
           >
             {filtered.map((option, index) => (
-              <button
+              <button data-testid="forms.combobox"
                 key={option.value}
                 id={optionID(listID, option.value)}
                 type="button"
@@ -334,7 +336,7 @@ function LocalCombobox({
               </button>
             ))}
             {canCreate && (
-              <button
+              <button data-testid="forms.combobox"
                 type="button"
                 data-rcl-combobox-option
                 data-rcl-combobox-create

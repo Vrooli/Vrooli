@@ -1,4 +1,6 @@
 /** @vrooliComponentSource react-component-library:AuditTrail */
+import { translate } from "../../../../hooks/useLocale/versions/1.0.0/useLocale";
+
 const panel = {
   border: "1px solid var(--color-border, #cbd5e1)",
   borderRadius: "var(--radius-panel, .75rem)",
@@ -15,7 +17,7 @@ export function AuditTrail({
 }) {
   return (
     <div
-      aria-label="Audit trail"
+      aria-label={translate("data-display.audit-trail.aria-label.1", "Audit trail")}
       role="list"
       style={{
         display: "grid",

@@ -1,4 +1,6 @@
 /** @vrooliComponentSource forms.calendar */
+import { translate } from "../../../../hooks/useLocale/versions/1.0.0/useLocale";
+
 import { useMemo, useState, type CSSProperties, type RefObject } from "react";
 import { useDirection } from "../../../../hooks/useDirection/versions/1.0.0/useDirection";
 import { useLocale } from "../../../../hooks/useLocale/versions/1.0.0/useLocale";
@@ -100,7 +102,7 @@ export function Calendar({
   maxDate,
   disabledDate,
   firstDayOfWeek = 0,
-  label = "Calendar",
+  label = translate("forms.calendar.label.1", "Calendar"),
   onChange,
   onMonthChange,
   className,
@@ -215,17 +217,17 @@ export function Calendar({
             {mode === "single" ? "Choose a date" : `Choose ${mode}`}
           </span>
         </div>
-        <nav data-rcl-calendar-nav aria-label="Calendar navigation">
-          <button
+        <nav data-rcl-calendar-nav aria-label={translate("forms.calendar.aria-label.2", "Calendar navigation")}>
+          <button data-testid="forms.calendar"
             type="button"
-            aria-label="Previous month"
+            aria-label={translate("forms.calendar.aria-label.3", "Previous month")}
             onClick={() => updateMonth(-1)}
           >
             ‹
           </button>
-          <button
+          <button data-testid="forms.calendar"
             type="button"
-            aria-label="Next month"
+            aria-label={translate("forms.calendar.aria-label.4", "Next month")}
             onClick={() => updateMonth(1)}
           >
             ›
@@ -265,7 +267,7 @@ export function Calendar({
               (range?.end && sameDay(range.end, day)),
           );
           return (
-            <button
+            <button data-testid="forms.calendar"
               key={dateKey(day)}
               ref={refs[index]}
               type="button"

@@ -5,13 +5,14 @@
   "asset": {
     "id": "overlays.floating-toolbar",
     "name": "FloatingToolbar",
-    "kind": "component", "surface": "raised",
+    "kind": "component",
+    "surface": "raised",
     "domain": "overlays",
     "description": "The contextual action bar positioned around a selection or object, with collision handling, keyboard access, overflow, and movement that settles rather than jitters.",
     "targets": [
       "react-vite"
     ],
-    "slot": "primitive",
+    "slot": "ui-primitive",
     "delivery": "adopted",
     "target": {
       "priority": "P2",

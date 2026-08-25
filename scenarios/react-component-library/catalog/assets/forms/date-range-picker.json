@@ -5,13 +5,14 @@
   "asset": {
     "id": "forms.date-range-picker",
     "name": "DateRangePicker",
-    "kind": "component", "surface": "raised",
+    "kind": "component",
+    "surface": "raised",
     "domain": "forms",
     "description": "The range-selection field with start and end semantics, hover preview, presets, constraints, optional comparison ranges, and keyboard operation for both endpoints.",
     "targets": [
       "react-vite"
     ],
-    "slot": "primitive",
+    "slot": "ui-primitive",
     "delivery": "adopted",
     "target": {
       "priority": "P1",

@@ -1,52 +1,68 @@
 {
-  "schemaVersion": 3,
-  "kind": "component",
-  "title": "Stat",
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
   "args": {
     "fields": []
   },
   "environment": {
     "fixtures": []
   },
+  "kind": "component",
+  "schemaVersion": 4,
   "stories": [
     {
-      "id": "default",
-      "name": "Growth metric",
-      "harness": "Default",
       "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Default",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
         {
           "kind": "text",
           "value": "42"
         }
       ],
-      "mode": "live"
+      "id": "default",
+      "mode": "live",
+      "name": "Growth metric"
     },
     {
-      "id": "negative",
-      "name": "Negative trend",
-      "harness": "Negative",
       "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Negative",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
         {
           "kind": "text",
           "value": "-4.8%"
         }
       ],
-      "mode": "live"
+      "id": "negative",
+      "mode": "live",
+      "name": "Negative trend"
     },
     {
-      "id": "loading",
-      "name": "Loading metric",
-      "harness": "Loading",
       "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Loading",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
         {
           "kind": "role",
           "role": "status"
         }
       ],
-      "mode": "live"
+      "id": "loading",
+      "mode": "live",
+      "name": "Loading metric"
     }
-  ]
+  ],
+  "title": "Stat"
 }

@@ -1,19 +1,22 @@
 {
-  "schemaVersion": 3,
-  "kind": "component",
-  "title": "Alert",
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
   "args": {
     "fields": []
   },
   "environment": {
     "fixtures": []
   },
+  "kind": "component",
+  "schemaVersion": 4,
   "stories": [
     {
-      "id": "default",
-      "name": "Dismissible information",
-      "harness": "Default",
       "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Default",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
         {
           "kind": "role",
@@ -24,25 +27,30 @@
           "value": "Message dismissed."
         }
       ],
+      "id": "default",
       "interactions": [
         {
           "kind": "click",
           "target": {
-            "role": "button",
-            "name": "Dismiss message"
+            "name": "Dismiss message",
+            "role": "button"
           }
         },
         {
           "kind": "settle"
         }
       ],
-      "mode": "live"
+      "mode": "live",
+      "name": "Dismissible information"
     },
     {
-      "id": "success",
-      "name": "Success",
-      "harness": "Success",
       "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Success",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
         {
           "kind": "role",
@@ -53,13 +61,18 @@
           "value": "Export ready"
         }
       ],
-      "mode": "live"
+      "id": "success",
+      "mode": "live",
+      "name": "Success"
     },
     {
-      "id": "warning",
-      "name": "Warning with recovery",
-      "harness": "Warning",
       "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Warning",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
         {
           "kind": "role",
@@ -67,17 +80,22 @@
         },
         {
           "kind": "role",
-          "role": "button",
-          "name": "Retry now"
+          "name": "Retry now",
+          "role": "button"
         }
       ],
-      "mode": "live"
+      "id": "warning",
+      "mode": "live",
+      "name": "Warning with recovery"
     },
     {
-      "id": "danger",
-      "name": "Error",
-      "harness": "Danger",
       "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Danger",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
         {
           "kind": "role",
@@ -88,7 +106,10 @@
           "value": "Could not save changes"
         }
       ],
-      "mode": "live"
+      "id": "danger",
+      "mode": "live",
+      "name": "Error"
     }
-  ]
+  ],
+  "title": "Alert"
 }

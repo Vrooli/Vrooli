@@ -1,43 +1,51 @@
 {
-  "schemaVersion": 3,
-  "kind": "component",
-  "title": "ConditionalField",
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
   "args": {
     "fields": []
   },
   "environment": {
     "fixtures": []
   },
+  "kind": "component",
+  "schemaVersion": 4,
   "stories": [
     {
-      "id": "default",
-      "name": "Visible dependency",
-      "harness": "Default",
       "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Default",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
         {
           "kind": "role",
-          "role": "combobox",
-          "name": "Plan"
+          "name": "Plan",
+          "role": "combobox"
         },
         {
           "kind": "role",
-          "role": "textbox",
-          "name": "Billing email"
+          "name": "Billing email",
+          "role": "textbox"
         }
       ],
-      "mode": "live"
+      "id": "default",
+      "mode": "live",
+      "name": "Visible dependency"
     },
     {
-      "id": "reset-on-hide",
-      "name": "Reset on hide",
-      "harness": "ResetOnHide",
       "args": {},
+      "composition": {
+        "specimen": {
+          "export": "ResetOnHide",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
         {
           "kind": "role",
-          "role": "combobox",
-          "name": "Plan"
+          "name": "Plan",
+          "role": "combobox"
         },
         {
           "kind": "role",
@@ -48,19 +56,22 @@
           "value": "Tax details cleared when the plan changes."
         }
       ],
+      "id": "reset-on-hide",
       "interactions": [
         {
           "kind": "click",
           "target": {
-            "role": "button",
-            "name": "Hide tax details"
+            "name": "Hide tax details",
+            "role": "button"
           }
         },
         {
           "kind": "settle"
         }
       ],
-      "mode": "live"
+      "mode": "live",
+      "name": "Reset on hide"
     }
-  ]
+  ],
+  "title": "ConditionalField"
 }

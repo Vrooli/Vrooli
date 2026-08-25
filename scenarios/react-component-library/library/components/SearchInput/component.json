@@ -1,11 +1,27 @@
 {
-  "libraryId": "react-component-library:SearchInput",
-  "catalogId": "forms.search-input",
-  "displayName": "SearchInput",
-  "description": "A token-bound search field with a stable touch target and accessible label for progressive filtering.",
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "component",
-  "tags": ["form", "control", "token-bound"],
+  "catalogId": "forms.search-input",
+  "dependencies": [],
+  "description": "A token-bound search field with a stable touch target and accessible label for progressive filtering.",
+  "designStyles": [
+    {
+      "affinity": "native",
+      "styleId": "vrooli-default"
+    }
+  ],
+  "displayName": "SearchInput",
   "latest": "1.0.0",
-  "designStyles": [{ "styleId": "vrooli-default", "affinity": "native" }],
-  "dependencies": []
+  "libraryId": "react-component-library:SearchInput",
+  "tags": [
+    "form",
+    "control",
+    "token-bound"
+  ],
+  "requires": [
+    {
+      "libraryId": "react-component-library:useLocale",
+      "version": "1.0.0"
+    }
+  ]
 }

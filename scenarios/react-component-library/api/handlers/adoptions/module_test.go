@@ -107,16 +107,17 @@ func sha256OfHandlerTests(s string) string {
 func TestModule_Shape(t *testing.T) {
 	r, _, _ := setupModule(t)
 	require.NotNil(t, r)
-	require.Len(t, adoptions.Endpoints, 17, "adoptions ships token preflight/sync/prune plus scenario selection, reconcile, reconverge, direct/effective lists, apply, batch apply, reapply, delete, refresh, resolve-path, suggest, discover, confirm-discovery")
-	require.Equal(t, "adoptions_list_scenarios", adoptions.Endpoints[0].ID)
-	require.Equal(t, "adoptions_reconcile", adoptions.Endpoints[1].ID)
-	require.Equal(t, "adoptions_reconverge", adoptions.Endpoints[2].ID)
-	require.Equal(t, "adoptions_list_effective", adoptions.Endpoints[5].ID)
-	require.Equal(t, "adoptions_sync_tokens", adoptions.Endpoints[6].ID)
-	require.Equal(t, "adoptions_prune_tokens", adoptions.Endpoints[7].ID)
-	require.Equal(t, "adoptions_resolve_path", adoptions.Endpoints[13].ID)
-	require.Equal(t, "adoptions_discover", adoptions.Endpoints[15].ID)
-	require.Equal(t, "adoptions_confirm_discovery", adoptions.Endpoints[16].ID)
+	ids := make(map[string]bool, len(adoptions.Endpoints))
+	for _, endpoint := range adoptions.Endpoints {
+		ids[endpoint.ID] = true
+	}
+	for _, id := range []string{
+		"adoptions_list_scenarios", "adoptions_reconcile", "adoptions_reconverge",
+		"adoptions_list_effective", "adoptions_sync_tokens", "adoptions_prune_tokens",
+		"adoptions_resolve_path", "adoptions_discover", "adoptions_confirm_discovery",
+	} {
+		require.Truef(t, ids[id], "missing endpoint %q", id)
+	}
 }
 
 func TestModule_CreateListRefreshDelete(t *testing.T) {

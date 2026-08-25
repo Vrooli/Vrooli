@@ -7,7 +7,7 @@ import { EmptyState } from "../components/EmptyState";
 import { StatusBadge } from "../components/StatusBadge";
 import { getCatalogCoverage, listCatalogNextWork, type CoverageReport } from "../api/catalog";
 import { CaptureGrid } from "../../../library/components/CaptureGrid/versions/1.0.0/CaptureGrid";
-import { FindingList } from "../../../library/components/FindingList/versions/1.0.0/FindingList";
+import { FindingList } from "../../../library/components/FindingList/versions/1.0.7/FindingList";
 import { HealthIndicator } from "../../../library/components/HealthIndicator/versions/1.0.0/HealthIndicator";
 import { MetricBreakdown } from "../../../library/components/MetricBreakdown/versions/1.0.0/MetricBreakdown";
 import { NetworkGraph } from "../../../library/components/NetworkGraph/versions/1.0.0/NetworkGraph";

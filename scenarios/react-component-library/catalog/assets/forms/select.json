@@ -10,13 +10,14 @@
   "asset": {
     "id": "forms.select",
     "name": "Select",
-    "kind": "component", "surface": "raised",
+    "kind": "component",
+    "surface": "raised",
     "domain": "forms",
     "description": "The single-selection field with native-like semantics, keyboard navigation, option groups, descriptions, async option loading, and responsive popover or sheet presentation.",
     "targets": [
       "react-vite"
     ],
-    "slot": "primitive",
+    "slot": "ui-primitive",
     "delivery": "adopted",
     "target": {
       "priority": "P0",
@@ -44,6 +45,10 @@
       {
         "asset": "hooks.use-typeahead",
         "reason": "Type-to-select uses normalized localized labels."
+      },
+      {
+        "asset": "foundations.class-merge",
+        "reason": "All class composition uses the shared Tailwind conflict resolver."
       }
     ],
     "suggests": [

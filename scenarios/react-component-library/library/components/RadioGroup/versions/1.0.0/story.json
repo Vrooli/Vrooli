@@ -1,91 +1,107 @@
 {
-  "schemaVersion": 3,
-  "kind": "component",
-  "title": "RadioGroup",
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
   "args": {
     "fields": []
   },
   "environment": {
     "fixtures": []
   },
+  "kind": "component",
+  "schemaVersion": 4,
   "stories": [
     {
-      "id": "default",
-      "name": "Default",
-      "harness": "Default",
       "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Default",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
         {
           "kind": "role",
-          "role": "radiogroup",
-          "name": "Theme"
+          "name": "Theme",
+          "role": "radiogroup"
         },
         {
           "kind": "role",
-          "role": "radio",
-          "name": "Use system setting"
+          "name": "Use system setting",
+          "role": "radio"
         }
       ],
+      "id": "default",
       "interactions": [
         {
           "kind": "settle"
         }
       ],
-      "mode": "live"
+      "mode": "live",
+      "name": "Default"
     },
     {
-      "id": "interactive",
-      "name": "Controlled selection",
-      "harness": "Interactive",
       "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Interactive",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
         {
           "kind": "role",
-          "role": "radio",
-          "name": "Dark"
+          "name": "Dark",
+          "role": "radio"
         },
         {
           "kind": "role",
-          "role": "status",
-          "name": "Selected theme"
+          "name": "Selected theme",
+          "role": "status"
         },
         {
           "kind": "text",
           "value": "Selected: dark"
         }
       ],
+      "id": "interactive",
       "interactions": [
         {
           "kind": "click",
           "target": {
-            "role": "radio",
-            "name": "Dark"
+            "name": "Dark",
+            "role": "radio"
           }
         },
         {
           "kind": "settle"
         }
       ],
-      "mode": "live"
+      "mode": "live",
+      "name": "Controlled selection"
     },
     {
-      "id": "disabled",
-      "name": "Disabled group",
-      "harness": "Disabled",
       "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Disabled",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
         {
           "kind": "role",
-          "role": "radiogroup",
-          "name": "Theme"
+          "name": "Theme",
+          "role": "radiogroup"
         }
       ],
+      "id": "disabled",
       "interactions": [
         {
           "kind": "settle"
         }
       ],
-      "mode": "live"
+      "mode": "live",
+      "name": "Disabled group"
     }
-  ]
+  ],
+  "title": "RadioGroup"
 }

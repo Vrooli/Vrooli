@@ -1,20 +1,40 @@
 {
-  "schemaVersion": 3,
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
+  "args": {
+    "fields": []
+  },
+  "environment": {
+    "fixtures": []
+  },
   "kind": "component",
-  "title": "QuarantineBadge",
-  "args": { "fields": [] },
-  "environment": { "fixtures": [] },
+  "schemaVersion": 4,
   "stories": [
     {
-      "id": "default",
-      "name": "Quarantined",
-      "harness": "QuarantineBadgeStory",
-      "args": { "gate": "visual", "reason": "fixture passed unexpectedly" },
+      "args": {
+        "gate": "visual",
+        "reason": "fixture passed unexpectedly"
+      },
+      "composition": {
+        "harness": {
+          "asset": "preview.direct",
+          "version": "1.0.0",
+          "export": "Direct"
+        }
+      },
       "expect": [
-        { "kind": "text", "value": "Quarantined" },
-        { "kind": "text", "value": "fixture passed unexpectedly" }
+        {
+          "kind": "text",
+          "value": "Quarantined"
+        },
+        {
+          "kind": "text",
+          "value": "fixture passed unexpectedly"
+        }
       ],
-      "mode": "pinned"
+      "id": "default",
+      "mode": "pinned",
+      "name": "Quarantined"
     }
-  ]
+  ],
+  "title": "QuarantineBadge"
 }

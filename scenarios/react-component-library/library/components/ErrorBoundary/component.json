@@ -1,9 +1,31 @@
 {
-  "libraryId": "react-component-library:ErrorBoundary",
-  "catalogId": "feedback.error-boundary",
-  "displayName": "ErrorBoundary",
-  "description": "A recoverable render boundary that preserves product context while exposing honest recovery and safe diagnostics.",
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "component",
+  "catalogId": "feedback.error-boundary",
+  "dependencies": [
+    {
+      "libraryId": "react-component-library:ErrorState",
+      "version": "1.0.0"
+    }
+  ],
+  "description": "A recoverable render boundary that preserves product context while exposing honest recovery and safe diagnostics.",
+  "designStyles": [
+    {
+      "affinity": "native",
+      "styleId": "vrooli-default"
+    },
+    {
+      "affinity": "compatible",
+      "styleId": "vrooli-command-display"
+    },
+    {
+      "affinity": "compatible",
+      "styleId": "vrooli-conversion-landing"
+    }
+  ],
+  "displayName": "ErrorBoundary",
+  "latest": "1.0.0",
+  "libraryId": "react-component-library:ErrorBoundary",
   "tags": [
     "feedback",
     "recovery",
@@ -11,13 +33,10 @@
     "accessibility",
     "token-bound"
   ],
-  "latest": "1.0.0",
-  "designStyles": [
-    { "styleId": "vrooli-default", "affinity": "native" },
-    { "styleId": "vrooli-command-display", "affinity": "compatible" },
-    { "styleId": "vrooli-conversion-landing", "affinity": "compatible" }
-  ],
-  "dependencies": [
-    { "libraryId": "react-component-library:ErrorState", "version": "1.0.0" }
+  "requires": [
+    {
+      "libraryId": "react-component-library:useLocale",
+      "version": "1.0.0"
+    }
   ]
 }

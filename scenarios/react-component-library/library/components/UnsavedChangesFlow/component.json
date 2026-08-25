@@ -1,21 +1,46 @@
 {
-  "libraryId": "react-component-library:UnsavedChangesFlow",
-  "catalogId": "patterns.unsaved-changes-flow",
-  "latest": "1.0.0",
-  "displayName": "UnsavedChangesFlow",
-  "description": "A recoverable unsaved-work workflow that coordinates save, discard, continue, and private-draft preservation.",
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "component",
-  "tags": ["recovery", "forms", "navigation", "accessibility", "token-bound"],
-  "designStyles": [
-    { "styleId": "vrooli-default", "affinity": "native" },
-    { "styleId": "vrooli-command-display", "affinity": "compatible" },
-    { "styleId": "vrooli-conversion-landing", "affinity": "compatible" }
-  ],
+  "catalogId": "patterns.unsaved-changes-flow",
   "dependencies": [
     {
       "libraryId": "react-component-library:DirtyStateGuard",
       "version": "1.0.0"
     },
-    { "libraryId": "react-component-library:AlertDialog", "version": "1.0.0" }
+    {
+      "libraryId": "react-component-library:AlertDialog",
+      "version": "1.0.0"
+    }
+  ],
+  "description": "A recoverable unsaved-work workflow that coordinates save, discard, continue, and private-draft preservation.",
+  "designStyles": [
+    {
+      "affinity": "native",
+      "styleId": "vrooli-default"
+    },
+    {
+      "affinity": "compatible",
+      "styleId": "vrooli-command-display"
+    },
+    {
+      "affinity": "compatible",
+      "styleId": "vrooli-conversion-landing"
+    }
+  ],
+  "displayName": "UnsavedChangesFlow",
+  "latest": "1.0.0",
+  "libraryId": "react-component-library:UnsavedChangesFlow",
+  "tags": [
+    "recovery",
+    "forms",
+    "navigation",
+    "accessibility",
+    "token-bound"
+  ],
+  "requires": [
+    {
+      "libraryId": "react-component-library:useLocale",
+      "version": "1.0.0"
+    }
   ]
 }

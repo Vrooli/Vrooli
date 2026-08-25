@@ -1,11 +1,26 @@
 {
-  "libraryId": "react-component-library:StatCard",
-  "catalogId": "data-display.stat-card",
-  "displayName": "StatCard",
-  "description": "A metric card that composes hierarchy, trend context, and token-backed surface treatment.",
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "component",
-  "tags": ["data-display", "token-bound"],
+  "catalogId": "data-display.stat-card",
+  "dependencies": [],
+  "description": "A metric card that composes hierarchy, trend context, and token-backed surface treatment.",
+  "designStyles": [
+    {
+      "affinity": "native",
+      "styleId": "vrooli-default"
+    }
+  ],
+  "displayName": "StatCard",
   "latest": "1.0.0",
-  "designStyles": [{ "styleId": "vrooli-default", "affinity": "native" }],
-  "dependencies": []
+  "libraryId": "react-component-library:StatCard",
+  "tags": [
+    "data-display",
+    "token-bound"
+  ],
+  "requires": [
+    {
+      "libraryId": "react-component-library:useLocale",
+      "version": "1.0.0"
+    }
+  ]
 }

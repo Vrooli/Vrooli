@@ -1,28 +1,26 @@
 {
-  "schemaVersion": 3,
-  "kind": "component",
-  "title": "Chip",
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
   "args": {
     "fields": [
       {
-        "path": "children",
+        "default": "Filter",
         "kind": "text",
-        "default": "Filter"
+        "path": "children"
       },
       {
-        "path": "selected",
+        "default": false,
         "kind": "boolean",
-        "default": false
+        "path": "selected"
       }
     ]
   },
   "environment": {
     "fixtures": []
   },
+  "kind": "component",
+  "schemaVersion": 4,
   "stories": [
     {
-      "id": "unselected",
-      "name": "Unselected",
       "args": {
         "children": "Filter",
         "selected": false
@@ -30,15 +28,15 @@
       "expect": [
         {
           "kind": "role",
-          "role": "button",
-          "name": "Filter"
+          "name": "Filter",
+          "role": "button"
         }
       ],
-      "mode": "pinned"
+      "id": "unselected",
+      "mode": "pinned",
+      "name": "Unselected"
     },
     {
-      "id": "selected",
-      "name": "Selected",
       "args": {
         "children": "Filter",
         "selected": true
@@ -46,11 +44,14 @@
       "expect": [
         {
           "kind": "role",
-          "role": "button",
-          "name": "Filter"
+          "name": "Filter",
+          "role": "button"
         }
       ],
-      "mode": "pinned"
+      "id": "selected",
+      "mode": "pinned",
+      "name": "Selected"
     }
-  ]
+  ],
+  "title": "Chip"
 }

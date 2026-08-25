@@ -10,13 +10,14 @@
   "asset": {
     "id": "primitives.link",
     "name": "Link",
-    "kind": "primitive", "surface": "base",
+    "kind": "primitive",
+    "surface": "base",
     "domain": "primitives",
     "description": "The router-adaptable link primitive handling external-link treatment, active and pending state, prefetch policy, focus behavior, and disabled semantics.",
     "targets": [
       "react-vite"
     ],
-    "slot": "primitive",
+    "slot": "ui-primitive",
     "delivery": "adopted",
     "target": {
       "priority": "P0",

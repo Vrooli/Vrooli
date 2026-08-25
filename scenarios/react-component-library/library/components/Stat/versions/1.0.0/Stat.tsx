@@ -1,4 +1,6 @@
 /** @vrooliComponentSource react-component-library:Stat */
+import { translate } from "../../../../hooks/useLocale/versions/1.0.0/useLocale";
+
 import type { ReactNode } from "react";
 
 export type StatTrendTone = "positive" | "negative" | "neutral";
@@ -34,7 +36,7 @@ export interface StatProps {
 }
 
 export function Stat({
-  label = "Metric",
+  label = translate("data-display.stat.label.1", "Metric"),
   value = "—",
   trend,
   trendTone = "neutral",
@@ -59,7 +61,7 @@ export function Stat({
         aria-busy={loading || undefined}
       >
         {loading ? (
-          <div data-rcl-stat-skeleton aria-label="Loading metric" role="status">
+          <div data-rcl-stat-skeleton aria-label={translate("data-display.stat.aria-label.2", "Loading metric")} role="status">
             <span />
             <span />
           </div>

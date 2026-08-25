@@ -1,14 +1,25 @@
 {
-  "libraryId": "react-component-library:useFocusTrap",
-  "catalogId": "hooks.use-focus-trap",
-  "displayName": "useFocusTrap",
-  "description": "Reusable focus containment primitive for accessible overlays.",
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "hook",
-  "tags": ["accessibility", "focus", "overlay"],
-  "latest": "1.0.0",
+  "catalogId": "hooks.use-focus-trap",
+  "dependencies": [],
+  "description": "Reusable focus containment primitive for accessible overlays.",
   "designStyles": [
-    { "styleId": "vrooli-default", "affinity": "native" },
-    { "styleId": "vrooli-command-display", "affinity": "compatible" }
+    {
+      "affinity": "native",
+      "styleId": "vrooli-default"
+    },
+    {
+      "affinity": "compatible",
+      "styleId": "vrooli-command-display"
+    }
   ],
-  "dependencies": []
+  "displayName": "useFocusTrap",
+  "latest": "1.0.0",
+  "libraryId": "react-component-library:useFocusTrap",
+  "tags": [
+    "accessibility",
+    "focus",
+    "overlay"
+  ]
 }

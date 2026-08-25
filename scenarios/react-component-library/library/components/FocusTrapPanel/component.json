@@ -1,17 +1,31 @@
 {
-  "libraryId": "react-component-library:FocusTrapPanel",
-  "x-supplementalJustification": "Pre-catalog focus demonstration retained as a supplemental accessibility fixture surface.",
-  "displayName": "FocusTrapPanel",
-  "description": "Small overlay panel demonstrating a pinned reusable focus-trap hook.",
-  "tags": ["overlay", "accessibility", "focus"],
-  "slot": "ui-pattern",
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "category": "overlays",
-  "latest": "1.0.0",
-  "designStyles": [
-    { "styleId": "vrooli-default", "affinity": "native" },
-    { "styleId": "vrooli-command-display", "affinity": "compatible" }
-  ],
   "dependencies": [
-    { "libraryId": "react-component-library:useFocusTrap", "version": "1.0.0" }
-  ]
+    {
+      "libraryId": "react-component-library:useFocusTrap",
+      "version": "1.0.0"
+    }
+  ],
+  "description": "Small overlay panel demonstrating a pinned reusable focus-trap hook.",
+  "designStyles": [
+    {
+      "affinity": "native",
+      "styleId": "vrooli-default"
+    },
+    {
+      "affinity": "compatible",
+      "styleId": "vrooli-command-display"
+    }
+  ],
+  "displayName": "FocusTrapPanel",
+  "latest": "1.0.0",
+  "libraryId": "react-component-library:FocusTrapPanel",
+  "slot": "ui-pattern",
+  "tags": [
+    "overlay",
+    "accessibility",
+    "focus"
+  ],
+  "x-supplementalJustification": "Pre-catalog focus demonstration retained as a supplemental accessibility fixture surface."
 }

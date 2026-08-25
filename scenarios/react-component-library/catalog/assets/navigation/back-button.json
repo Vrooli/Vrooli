@@ -5,13 +5,14 @@
   "asset": {
     "id": "navigation.back-button",
     "name": "BackButton",
-    "kind": "component", "surface": "raised",
+    "kind": "component",
+    "surface": "raised",
     "domain": "navigation",
     "description": "The navigation control using router history when it is valid and a deterministic fallback destination when history is unavailable or would leave the application.",
     "targets": [
       "react-vite"
     ],
-    "slot": "primitive",
+    "slot": "ui-primitive",
     "delivery": "adopted",
     "target": {
       "priority": "P1",

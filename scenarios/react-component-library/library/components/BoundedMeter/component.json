@@ -1,23 +1,30 @@
 {
-  "libraryId": "react-component-library:BoundedMeter",
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "catalogId": "primitives.meter",
-  "displayName": "BoundedMeter",
+  "deprecatedVersions": [],
   "description": "A semantic bounded-value meter shared by score, measurement, and budget components.",
+  "designStyles": [
+    {
+      "affinity": "native",
+      "reason": "token-native operational-console baseline",
+      "styleId": "vrooli-default"
+    }
+  ],
+  "displayName": "BoundedMeter",
+  "draft": "",
+  "entry": "BoundedMeter.tsx",
+  "latest": "1.0.1",
+  "libraryId": "react-component-library:BoundedMeter",
   "tags": [
     "primitive",
     "token-bound",
     "status",
     "accessibility"
   ],
-  "entry": "BoundedMeter.tsx",
-  "latest": "1.0.1",
-  "deprecatedVersions": [],
-  "designStyles": [
+  "requires": [
     {
-      "styleId": "vrooli-default",
-      "affinity": "native",
-      "reason": "token-native operational-console baseline"
+      "libraryId": "react-component-library:useLocale",
+      "version": "1.0.0"
     }
-  ],
-  "draft": ""
+  ]
 }

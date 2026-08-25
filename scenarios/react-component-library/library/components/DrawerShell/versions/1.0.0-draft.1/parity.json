@@ -1,6 +1,0 @@
-{
-  "originFiles": ["DrawerShell.tsx", "useEscapeKey.ts", "useFocusTrap.ts"],
-  "harvestedFiles": ["DrawerShell.tsx", "useEscapeKey.ts", "useFocusTrap.ts"],
-  "findings": null,
-  "acknowledged": false
-}

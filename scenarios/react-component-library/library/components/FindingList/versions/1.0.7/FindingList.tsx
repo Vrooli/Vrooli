@@ -1,4 +1,6 @@
 /** @vrooliComponentSource react-component-library:FindingList */
+import { translate } from "../../../../hooks/useLocale/versions/1.0.0/useLocale";
+
 export interface Finding {
   id: string;
   assetId?: string;
@@ -12,7 +14,7 @@ import { SURFACE_ELEVATIONS } from "../../../../foundations/VisualRecipes/versio
 export function FindingList({ findings = [] }: { findings?: Finding[] }) {
   return (
     <ul
-      aria-label="Gate findings"
+      aria-label={translate("data-display.finding-list.aria-label.1", "Gate findings")}
       className={SURFACE_ELEVATIONS.raised}
       data-rcl-asset="data-display.finding-list"
       data-rcl-version="1.0.7"
@@ -54,7 +56,7 @@ export function FindingList({ findings = [] }: { findings?: Finding[] }) {
           role="status"
           data-bespoke="empty result row preserves list semantics"
         >
-          No findings.
+          {translate("data-display.finding-list.text.1", "No findings.")}
         </li>
       )}
     </ul>

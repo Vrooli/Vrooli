@@ -5,13 +5,14 @@
   "asset": {
     "id": "ai.citation",
     "name": "Citation",
-    "kind": "component", "surface": "raised",
+    "kind": "component",
+    "surface": "raised",
     "domain": "ai",
     "description": "The compact source reference carrying state, confidence or relevance metadata, preview affordance, navigation to source, and grouping when several support one claim.",
     "targets": [
       "react-vite"
     ],
-    "slot": "primitive",
+    "slot": "ui-primitive",
     "delivery": "adopted",
     "target": {
       "priority": "P0",

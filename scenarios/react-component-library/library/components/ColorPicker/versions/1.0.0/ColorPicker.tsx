@@ -108,7 +108,7 @@ export default function ColorPicker({
     <button
       key={suffix}
       type="button"
-      data-testid={`${testIdPrefix}-${suffix}`}
+      data-testid={`forms.color-picker-${suffix}`}
       data-rcl-color-picker-swatch
       data-selected={selected(color)}
       style={{ backgroundColor: color }}
@@ -136,7 +136,7 @@ export default function ColorPicker({
         <div data-rcl-color-picker-row>
           <button
             type="button"
-            data-testid={`${testIdPrefix}-slot-0`}
+            data-testid={`forms.color-picker-slot-0`}
             data-rcl-color-picker-slot
             style={colors[0] ? { backgroundColor: colors[0] } : undefined}
             onClick={() => setActiveSlot(0)}
@@ -147,7 +147,7 @@ export default function ColorPicker({
             <>
               <button
                 type="button"
-                data-testid={`${testIdPrefix}-slot-1`}
+                data-testid={`forms.color-picker-slot-1`}
                 data-rcl-color-picker-slot
                 style={colors[1] ? { backgroundColor: colors[1] } : undefined}
                 onClick={() => setActiveSlot(1)}
@@ -158,7 +158,7 @@ export default function ColorPicker({
               />
               <button
                 type="button"
-                data-testid={`${testIdPrefix}-remove-gradient`}
+                data-testid={`forms.color-picker-remove-gradient`}
                 data-rcl-color-picker-remove
                 onClick={() => {
                   setActiveSlot(0);
@@ -172,7 +172,7 @@ export default function ColorPicker({
           ) : (
             <button
               type="button"
-              data-testid={`${testIdPrefix}-add-gradient`}
+              data-testid={`forms.color-picker-add-gradient`}
               data-rcl-color-picker-add
               onClick={() => setActiveSlot(1)}
             >
@@ -185,7 +185,7 @@ export default function ColorPicker({
       <div data-rcl-color-picker-row>
         <button
           type="button"
-          data-testid={`${testIdPrefix}-transparent`}
+          data-testid={`forms.color-picker-transparent`}
           data-rcl-color-picker-transparent
           data-selected={transparent}
           onClick={() => {
@@ -222,7 +222,7 @@ export default function ColorPicker({
           )}
           <input
             type="color"
-            data-testid={`${testIdPrefix}-custom-input`}
+            data-testid={`forms.color-picker-custom-input`}
             data-rcl-color-picker-input
             value={customColor}
             onChange={(event) => {

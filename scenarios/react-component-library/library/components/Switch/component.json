@@ -1,11 +1,7 @@
 {
-  "libraryId": "react-component-library:Switch",
-  "catalogId": "controls.switch",
-  "displayName": "Switch",
-  "description": "A native checkbox-backed switch with a clear on/off state, supporting context, and reduced-motion-safe thumb transition.",
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "component",
-  "tags": ["controls", "selection", "accessibility", "token-bound"],
-  "slot": "ui-primitive",
+  "catalogId": "controls.switch",
   "category": "controls",
   "dependencies": [
     {
@@ -13,8 +9,23 @@
       "version": "1.0.0"
     }
   ],
-  "designStyles": [{ "styleId": "vrooli-default", "affinity": "native" }],
-  "latest": "1.0.0",
+  "deprecatedVersions": [],
+  "description": "A native checkbox-backed switch with a clear on/off state, supporting context, and reduced-motion-safe thumb transition.",
+  "designStyles": [
+    {
+      "affinity": "native",
+      "styleId": "vrooli-default"
+    }
+  ],
+  "displayName": "Switch",
   "draft": "",
-  "deprecatedVersions": []
+  "latest": "1.0.0",
+  "libraryId": "react-component-library:Switch",
+  "slot": "ui-primitive",
+  "tags": [
+    "controls",
+    "selection",
+    "accessibility",
+    "token-bound"
+  ]
 }

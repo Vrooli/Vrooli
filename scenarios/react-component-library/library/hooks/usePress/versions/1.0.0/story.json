@@ -1,37 +1,43 @@
 {
-  "schemaVersion": 3,
-  "kind": "hook",
-  "title": "Press",
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
   "args": {
     "fields": [
       {
-        "path": "label",
-        "label": "Label",
+        "default": "Press",
         "kind": "text",
-        "required": true,
-        "default": "Press"
+        "label": "Label",
+        "path": "label",
+        "required": true
       }
     ]
   },
   "environment": {
     "fixtures": []
   },
+  "kind": "hook",
+  "schemaVersion": 4,
   "stories": [
     {
-      "id": "default",
-      "name": "Default",
-      "harness": "Default",
       "args": {
         "label": "Press"
+      },
+      "composition": {
+        "specimen": {
+          "export": "Default",
+          "module": "./story.tsx"
+        }
       },
       "expect": [
         {
           "kind": "role",
-          "role": "button",
-          "name": "Press"
+          "name": "Press",
+          "role": "button"
         }
       ],
-      "mode": "live"
+      "id": "default",
+      "mode": "live",
+      "name": "Default"
     }
-  ]
+  ],
+  "title": "Press"
 }

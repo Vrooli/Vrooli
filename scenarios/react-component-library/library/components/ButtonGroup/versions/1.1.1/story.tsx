@@ -1,11 +1,2 @@
-import { Button } from "../../../Button/versions/2.0.0/Button";
-import { ButtonGroup } from "./ButtonGroup";
-
-export function ButtonGroupStory(args: { label?: string }) {
-  return (
-    <ButtonGroup label={args.label ?? "Actions"}>
-      <Button variant="secondary">Save draft</Button>
-      <Button variant="primary">Publish</Button>
-    </ButtonGroup>
-  );
-}
+// ButtonGroup 1.1.1 reuses the verified 1.0.0 specimen contract.
+export { ButtonGroupStory } from "../1.0.0/story";

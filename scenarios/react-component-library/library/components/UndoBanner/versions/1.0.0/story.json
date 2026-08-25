@@ -1,19 +1,22 @@
 {
-  "schemaVersion": 3,
-  "kind": "component",
-  "title": "UndoBanner",
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
   "args": {
     "fields": []
   },
   "environment": {
     "fixtures": []
   },
+  "kind": "component",
+  "schemaVersion": 4,
   "stories": [
     {
-      "id": "default",
-      "name": "Undo available",
-      "harness": "Default",
       "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Default",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
         {
           "kind": "role",
@@ -21,17 +24,22 @@
         },
         {
           "kind": "role",
-          "role": "button",
-          "name": "Undo"
+          "name": "Undo",
+          "role": "button"
         }
       ],
-      "mode": "live"
+      "id": "default",
+      "mode": "live",
+      "name": "Undo available"
     },
     {
-      "id": "submitting",
-      "name": "Rollback in progress",
-      "harness": "Submitting",
       "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Submitting",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
         {
           "kind": "text",
@@ -39,30 +47,40 @@
         },
         {
           "kind": "role",
-          "role": "button",
-          "name": "Restoring…"
+          "name": "Restoring…",
+          "role": "button"
         }
       ],
-      "mode": "live"
+      "id": "submitting",
+      "mode": "live",
+      "name": "Rollback in progress"
     },
     {
-      "id": "success",
-      "name": "Rollback complete",
-      "harness": "Success",
       "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Success",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
         {
           "kind": "text",
           "value": "Project brief restored"
         }
       ],
-      "mode": "live"
+      "id": "success",
+      "mode": "live",
+      "name": "Rollback complete"
     },
     {
-      "id": "request-error",
-      "name": "Rollback failed",
-      "harness": "RequestError",
       "args": {},
+      "composition": {
+        "specimen": {
+          "export": "RequestError",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
         {
           "kind": "role",
@@ -70,36 +88,44 @@
         },
         {
           "kind": "role",
-          "role": "button",
-          "name": "Retry undo"
+          "name": "Retry undo",
+          "role": "button"
         }
       ],
-      "mode": "live"
+      "id": "request-error",
+      "mode": "live",
+      "name": "Rollback failed"
     },
     {
-      "id": "interactive",
-      "name": "Interactive rollback",
-      "harness": "Interactive",
       "args": {},
-      "interactions": [
-        {
-          "kind": "click",
-          "target": {
-            "role": "button",
-            "name": "Undo"
-          }
-        },
-        {
-          "kind": "settle"
+      "composition": {
+        "specimen": {
+          "export": "Interactive",
+          "module": "./story.tsx"
         }
-      ],
+      },
       "expect": [
         {
           "kind": "text",
           "value": "Project brief restored"
         }
       ],
-      "mode": "live"
+      "id": "interactive",
+      "interactions": [
+        {
+          "kind": "click",
+          "target": {
+            "name": "Undo",
+            "role": "button"
+          }
+        },
+        {
+          "kind": "settle"
+        }
+      ],
+      "mode": "live",
+      "name": "Interactive rollback"
     }
-  ]
+  ],
+  "title": "UndoBanner"
 }

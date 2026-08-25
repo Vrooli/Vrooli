@@ -10,13 +10,14 @@
   "asset": {
     "id": "motion.collapsible-region",
     "name": "CollapsibleRegion",
-    "kind": "component", "surface": "raised",
+    "kind": "component",
+    "surface": "raised",
     "domain": "motion",
     "description": "The disclosure region animating dynamic height without clipping artifacts, surviving interruption, and preserving its accessible expanded semantics throughout.",
     "targets": [
       "react-vite"
     ],
-    "slot": "primitive",
+    "slot": "ui-primitive",
     "delivery": "adopted",
     "target": {
       "priority": "P0",

@@ -5,13 +5,14 @@
   "asset": {
     "id": "primitives.section",
     "name": "Section",
-    "kind": "primitive", "surface": "base",
+    "kind": "primitive",
+    "surface": "base",
     "domain": "primitives",
     "description": "The semantic page-section primitive standardizing vertical rhythm, width, background treatment, and the relationship between a section and its heading.",
     "targets": [
       "react-vite"
     ],
-    "slot": "primitive",
+    "slot": "ui-primitive",
     "delivery": "adopted",
     "target": {
       "priority": "P1",

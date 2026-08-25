@@ -32,6 +32,10 @@
       {
         "asset": "navigation.scroll-restoration",
         "reason": "Scroll position is restored or reset per navigation intent."
+      },
+      {
+        "asset": "hooks.use-locale",
+        "reason": "User-facing copy resolves through the adopting host locale bridge."
       }
     ]
   },

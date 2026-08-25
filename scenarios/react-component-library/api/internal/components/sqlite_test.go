@@ -251,11 +251,11 @@ func TestSQLiteRepository_UpsertManifestPersistsStories(t *testing.T) {
 			{Version: "1.0.0", Status: components.VersionStatusReleased, SourcePath: "components/Button/versions/1.0.0/Button.tsx", ContentSHA256: "button"},
 		},
 		Stories: []components.ComponentStory{{
-			Version: "1.0.0", SchemaVersion: 1, Kind: components.StoryKindComponent,
+			Version: "1.0.0", SchemaVersion: 4, Kind: components.StoryKindComponent,
 			ArgsJSON:        `{"fields":[{"path":"tone","kind":"enum"}]}`,
 			EnvironmentJSON: `{"fixtures":[]}`,
 			StoriesJSON:     `[{"id":"primary","name":"Primary","args":{"tone":"primary"}}]`,
-			ContractJSON:    `{"schemaVersion":1,"kind":"component"}`,
+			ContractJSON:    `{"schemaVersion":4,"kind":"component"}`,
 			SourcePath:      "components/Button/versions/1.0.0/story.json",
 		}},
 	})
@@ -284,61 +284,6 @@ func TestSQLiteRepository_UpsertManifestPersistsStories(t *testing.T) {
 	stories, err = repo.ListStories(ctx, components.StoryQuery{ComponentID: c.ID, Version: "1.0.0"})
 	require.NoError(t, err)
 	require.Empty(t, stories, "stories are rebuilt from disk and removed when story.json disappears")
-}
-
-func TestSQLiteRepository_AdditiveCategoryAndReasonMigrationPreservesRows(t *testing.T) {
-	d := db.NewSQLite(t)
-	ctx := context.Background()
-	require.NoError(t, apidb.EnsureSchemas(ctx, d,
-		apidb.SchemaProviderFunc(localdb.SystemSchema),
-		apidb.SchemaProviderFunc(func() string {
-			return `
-CREATE TABLE IF NOT EXISTS components (
-  id TEXT PRIMARY KEY,
-  library_id TEXT NOT NULL UNIQUE,
-  slug TEXT NOT NULL UNIQUE,
-  display_name TEXT NOT NULL DEFAULT '',
-  description TEXT NOT NULL DEFAULT '',
-  slot TEXT NOT NULL DEFAULT '',
-  source_path TEXT NOT NULL,
-  version TEXT NOT NULL DEFAULT '',
-  latest_version TEXT NOT NULL DEFAULT '',
-  draft_version TEXT NOT NULL DEFAULT '',
-  manifest_path TEXT NOT NULL DEFAULT '',
-  tags TEXT NOT NULL DEFAULT '',
-  indexed_at TEXT NOT NULL,
-  updated_at TEXT NOT NULL
-);
-CREATE TABLE IF NOT EXISTS component_design_affinities (
-  component_id TEXT NOT NULL,
-  style_id TEXT NOT NULL,
-  affinity TEXT NOT NULL,
-  PRIMARY KEY (component_id, style_id)
-);`
-		}),
-	))
-	_, err := d.ExecContext(ctx, `
-INSERT INTO components (id, library_id, slug, display_name, slot, source_path, version, latest_version, manifest_path, tags, indexed_at, updated_at)
-VALUES ('component-1', 'lib:Button', 'Button', 'Button', 'ui-primitive', 'Button.tsx', '1.0.0', '1.0.0', 'component.json', '', '2026-05-12T10:00:00Z', '2026-05-12T10:00:00Z');
-INSERT INTO component_design_affinities (component_id, style_id, affinity)
-VALUES ('component-1', 'vrooli-default', 'native');`)
-	require.NoError(t, err)
-
-	require.NoError(t, components.EnsureSchemaMigrations(ctx, d))
-	require.NoError(t, components.EnsureSchemaMigrations(ctx, d), "migration is boot-idempotent")
-
-	require.NoError(t, apidb.EnsureSchemas(ctx, d,
-		apidb.SchemaProviderFunc(localdb.SystemSchema),
-		apidb.SchemaProviderFunc(components.Schema),
-	))
-	repo := components.NewSQLiteRepository(d, scheduletest.New(time.Date(2026, 5, 12, 11, 0, 0, 0, time.UTC)))
-	got, err := repo.GetByLibraryID(ctx, "lib:Button")
-	require.NoError(t, err)
-	require.Equal(t, "lib:Button", got.LibraryID)
-	require.Empty(t, got.Category)
-	require.Equal(t, []components.ComponentDesignAffinity{
-		{StyleID: "vrooli-default", Affinity: components.DesignAffinityNative},
-	}, got.DesignStyles)
 }
 
 func TestSQLiteRepository_GetByLibraryID_NotFound(t *testing.T) {

@@ -1,25 +1,51 @@
 {
-  "schemaVersion": 3,
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
+  "args": {
+    "fields": []
+  },
+  "environment": {
+    "fixtures": []
+  },
   "kind": "component",
-  "title": "NetworkGraph",
-  "args": { "fields": [] },
-  "environment": { "fixtures": [] },
+  "schemaVersion": 4,
   "stories": [
     {
-      "id": "default",
-      "name": "Default",
       "args": {
-        "nodes": [
-          { "id": "catalog", "label": "Catalog", "health": "healthy" },
-          { "id": "asset", "label": "Asset", "health": "degraded" }
+        "edges": [
+          {
+            "from": "catalog",
+            "to": "asset"
+          }
         ],
-        "edges": [{ "from": "catalog", "to": "asset" }]
+        "nodes": [
+          {
+            "health": "healthy",
+            "id": "catalog",
+            "label": "Catalog"
+          },
+          {
+            "health": "degraded",
+            "id": "asset",
+            "label": "Asset"
+          }
+        ]
       },
       "expect": [
-        { "kind": "role", "role": "button", "name": "Catalog, healthy" },
-        { "kind": "role", "role": "button", "name": "Asset, degraded" }
+        {
+          "kind": "role",
+          "name": "Catalog, healthy",
+          "role": "button"
+        },
+        {
+          "kind": "role",
+          "name": "Asset, degraded",
+          "role": "button"
+        }
       ],
-      "mode": "pinned"
+      "id": "default",
+      "mode": "pinned",
+      "name": "Default"
     }
-  ]
+  ],
+  "title": "NetworkGraph"
 }

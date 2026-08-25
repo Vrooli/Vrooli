@@ -34,7 +34,7 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
           data-rcl-select-styles
           dangerouslySetInnerHTML={{ __html: styleSheet }}
         />
-        <select
+        <select data-testid="forms.select"
           ref={ref}
           data-rcl-select="true"
           className={className}

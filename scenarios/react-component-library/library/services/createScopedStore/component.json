@@ -1,11 +1,20 @@
 {
-  "libraryId": "react-component-library:createScopedStore",
-  "catalogId": "services.create-scoped-store",
-  "displayName": "createScopedStore",
-  "description": "Scoped runtime service for predictable createScopedStore behavior.",
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "service",
-  "tags": ["runtime", "state"],
+  "catalogId": "services.create-scoped-store",
+  "dependencies": [],
+  "description": "Scoped runtime service for predictable createScopedStore behavior.",
+  "designStyles": [
+    {
+      "affinity": "native",
+      "styleId": "vrooli-default"
+    }
+  ],
+  "displayName": "createScopedStore",
   "latest": "1.0.0",
-  "designStyles": [{ "styleId": "vrooli-default", "affinity": "native" }],
-  "dependencies": []
+  "libraryId": "react-component-library:createScopedStore",
+  "tags": [
+    "runtime",
+    "state"
+  ]
 }

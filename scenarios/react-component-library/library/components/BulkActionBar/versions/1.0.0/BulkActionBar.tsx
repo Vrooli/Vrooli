@@ -1,4 +1,6 @@
 /** @vrooliComponentSource data-display.bulk-action-bar */
+import { translate } from "../../../../hooks/useLocale/versions/1.0.0/useLocale";
+
 import { useId, useState, type CSSProperties, type ReactNode } from "react";
 import { Button } from "../../../Button/versions/2.0.0/Button";
 import { ButtonGroup } from "../../../ButtonGroup/versions/1.0.0/ButtonGroup";
@@ -215,7 +217,7 @@ export function BulkActionBar({
         </div>
       ) : null}
 
-      <ButtonGroup label="Selection actions" data-rcl-bulk-action-bar-actions>
+      <ButtonGroup label={translate("data-display.bulk-action-bar.label.1", "Selection actions")} data-rcl-bulk-action-bar-actions>
         {resolvedStatus === "success" ? null : (
           <Button
             type="button"

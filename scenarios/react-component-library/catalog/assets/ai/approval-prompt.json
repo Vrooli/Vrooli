@@ -5,13 +5,14 @@
   "asset": {
     "id": "ai.approval-prompt",
     "name": "ApprovalPrompt",
-    "kind": "component", "surface": "raised",
+    "kind": "component",
+    "surface": "raised",
     "domain": "ai",
     "description": "The human-in-the-loop decision surface presenting the proposed action, its target, scope, consequences, alternatives, expiry, and resulting approval state.",
     "targets": [
       "react-vite"
     ],
-    "slot": "primitive",
+    "slot": "ui-primitive",
     "delivery": "adopted",
     "target": {
       "priority": "P0",
@@ -31,6 +32,10 @@
       {
         "asset": "primitives.status-indicator",
         "reason": "Certainty and urgency are expressed on the shared orthogonal axes rather than as one flat variant set."
+      },
+      {
+        "asset": "hooks.use-locale",
+        "reason": "User-facing copy resolves through the adopting host locale bridge."
       }
     ],
     "suggests": [

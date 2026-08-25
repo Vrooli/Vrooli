@@ -1,26 +1,37 @@
 {
-  "libraryId": "react-component-library:Input",
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "catalogId": "forms.input",
-  "displayName": "Input",
-  "description": "Token-bound text input with mobile-safe font sizing and accessible focus styling.",
-  "tags": ["form", "interactive"],
-  "slot": "ui-primitive",
   "category": "forms",
+  "deprecatedVersions": [],
+  "description": "Token-bound text input with mobile-safe font sizing and accessible focus styling.",
   "designStyles": [
     {
-      "styleId": "vrooli-default",
-      "affinity": "native"
+      "affinity": "native",
+      "styleId": "vrooli-default"
     },
     {
-      "styleId": "vrooli-command-display",
-      "affinity": "compatible"
+      "affinity": "compatible",
+      "styleId": "vrooli-command-display"
     },
     {
-      "styleId": "vrooli-conversion-landing",
-      "affinity": "compatible"
+      "affinity": "compatible",
+      "styleId": "vrooli-conversion-landing"
     }
   ],
-  "latest": "1.1.0",
+  "displayName": "Input",
   "draft": "",
-  "deprecatedVersions": []
+  "latest": "1.1.0",
+  "libraryId": "react-component-library:Input",
+  "slot": "ui-primitive",
+  "tags": [
+    "form",
+    "interactive"
+  ],
+  "dependencies": [
+    {
+      "kind": "requires",
+      "libraryId": "react-component-library:ClassMerge",
+      "version": "1.0.0"
+    }
+  ]
 }

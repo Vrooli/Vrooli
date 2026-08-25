@@ -1,11 +1,27 @@
 {
-  "libraryId": "react-component-library:PermissionState",
-  "catalogId": "feedback.permission-state",
-  "displayName": "PermissionState",
-  "description": "A permission-aware state that gives the user a clear next action without exposing unauthorized content.",
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "component",
-  "tags": ["feedback", "accessibility", "token-bound"],
+  "catalogId": "feedback.permission-state",
+  "dependencies": [],
+  "description": "A permission-aware state that gives the user a clear next action without exposing unauthorized content.",
+  "designStyles": [
+    {
+      "affinity": "native",
+      "styleId": "vrooli-default"
+    }
+  ],
+  "displayName": "PermissionState",
   "latest": "1.0.0",
-  "designStyles": [{ "styleId": "vrooli-default", "affinity": "native" }],
-  "dependencies": []
+  "libraryId": "react-component-library:PermissionState",
+  "tags": [
+    "feedback",
+    "accessibility",
+    "token-bound"
+  ],
+  "requires": [
+    {
+      "libraryId": "react-component-library:useLocale",
+      "version": "1.0.0"
+    }
+  ]
 }

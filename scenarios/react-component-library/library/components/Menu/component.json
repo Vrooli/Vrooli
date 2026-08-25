@@ -1,18 +1,7 @@
 {
-  "libraryId": "react-component-library:Menu",
-  "catalogId": "overlays.menu",
-  "displayName": "Menu",
-  "description": "An anchored command menu with roving focus, typeahead, checkbox and radio items, and responsive layering.",
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "component",
-  "latest": "1.1.0",
-  "tags": [
-    "overlay",
-    "menu",
-    "keyboard",
-    "typeahead",
-    "accessibility",
-    "token-bound"
-  ],
+  "catalogId": "overlays.menu",
   "dependencies": [
     {
       "libraryId": "react-component-library:Popover",
@@ -27,18 +16,30 @@
       "version": "1.0.0"
     }
   ],
+  "description": "An anchored command menu with roving focus, typeahead, checkbox and radio items, and responsive layering.",
   "designStyles": [
     {
-      "styleId": "vrooli-default",
-      "affinity": "native"
+      "affinity": "native",
+      "styleId": "vrooli-default"
     },
     {
-      "styleId": "vrooli-command-display",
-      "affinity": "compatible"
+      "affinity": "compatible",
+      "styleId": "vrooli-command-display"
     },
     {
-      "styleId": "vrooli-conversion-landing",
-      "affinity": "compatible"
+      "affinity": "compatible",
+      "styleId": "vrooli-conversion-landing"
     }
+  ],
+  "displayName": "Menu",
+  "latest": "1.1.0",
+  "libraryId": "react-component-library:Menu",
+  "tags": [
+    "overlay",
+    "menu",
+    "keyboard",
+    "typeahead",
+    "accessibility",
+    "token-bound"
   ]
 }

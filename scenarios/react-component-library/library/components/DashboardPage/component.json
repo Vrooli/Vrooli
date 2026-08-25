@@ -1,11 +1,28 @@
 {
-  "libraryId": "react-component-library:DashboardPage",
-  "catalogId": "templates.dashboard-page",
-  "displayName": "DashboardPage",
-  "description": "A metric-first page template with data-source-owned regions and honest asynchronous states.",
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "component",
-  "tags": ["template", "page", "data-source", "token-bound"],
+  "catalogId": "templates.dashboard-page",
+  "dependencies": [],
+  "description": "A metric-first page template with data-source-owned regions and honest asynchronous states.",
+  "designStyles": [
+    {
+      "affinity": "native",
+      "styleId": "vrooli-default"
+    }
+  ],
+  "displayName": "DashboardPage",
   "latest": "1.0.0",
-  "designStyles": [{ "styleId": "vrooli-default", "affinity": "native" }],
-  "dependencies": []
+  "libraryId": "react-component-library:DashboardPage",
+  "tags": [
+    "template",
+    "page",
+    "data-source",
+    "token-bound"
+  ],
+  "requires": [
+    {
+      "libraryId": "react-component-library:useLocale",
+      "version": "1.0.0"
+    }
+  ]
 }

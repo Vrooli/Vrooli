@@ -1,15 +1,37 @@
 {
-  "libraryId": "react-component-library:DirtyStateGuard",
-  "catalogId": "forms.dirty-state-guard",
-  "displayName": "DirtyStateGuard",
-  "description": "Protects meaningful unsaved work with an accessible recovery prompt and an SSR-safe unload guard.",
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "component",
-  "tags": ["forms", "recovery", "accessibility", "navigation", "token-bound"],
-  "latest": "1.0.0",
+  "catalogId": "forms.dirty-state-guard",
+  "dependencies": [],
+  "description": "Protects meaningful unsaved work with an accessible recovery prompt and an SSR-safe unload guard.",
   "designStyles": [
-    { "styleId": "vrooli-default", "affinity": "native" },
-    { "styleId": "vrooli-command-display", "affinity": "compatible" },
-    { "styleId": "vrooli-conversion-landing", "affinity": "compatible" }
+    {
+      "affinity": "native",
+      "styleId": "vrooli-default"
+    },
+    {
+      "affinity": "compatible",
+      "styleId": "vrooli-command-display"
+    },
+    {
+      "affinity": "compatible",
+      "styleId": "vrooli-conversion-landing"
+    }
   ],
-  "dependencies": []
+  "displayName": "DirtyStateGuard",
+  "latest": "1.0.0",
+  "libraryId": "react-component-library:DirtyStateGuard",
+  "tags": [
+    "forms",
+    "recovery",
+    "accessibility",
+    "navigation",
+    "token-bound"
+  ],
+  "requires": [
+    {
+      "libraryId": "react-component-library:useLocale",
+      "version": "1.0.0"
+    }
+  ]
 }

@@ -104,6 +104,7 @@ export function CodeBlock({
       <header className="rcl-code-block__header">
         <span>{languageLabel(language)}</span>
         <button
+          data-testid="data-display.code-block"
           type="button"
           onClick={() => void copy(code)}
           className="rcl-code-block__copy"

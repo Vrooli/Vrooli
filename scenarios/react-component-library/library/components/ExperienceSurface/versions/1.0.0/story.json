@@ -1,60 +1,48 @@
 {
-  "schemaVersion": 3,
-  "kind": "component",
-  "title": "ExperienceSurface",
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
   "args": {
     "fields": [
       {
-        "path": "surfaceId",
+        "default": "results",
+        "kind": "text",
         "label": "Surface Id",
-        "kind": "text",
-        "default": "results"
+        "path": "surfaceId"
       },
       {
-        "path": "state",
+        "default": "ready",
+        "kind": "text",
         "label": "State",
-        "kind": "text",
-        "default": "ready"
+        "path": "state"
       },
       {
-        "path": "children",
-        "label": "Children",
-        "kind": "structured",
         "default": {
-          "$node": "p",
-          "children": [
-            {
-              "$text": "Results are ready"
-            }
-          ]
-        }
+          "$text": "p"
+        },
+        "kind": "structured",
+        "label": "Children",
+        "path": "children"
       },
       {
-        "path": "statusMessage",
-        "label": "Status Message",
+        "default": "Loading results",
         "kind": "text",
-        "default": "Loading results"
+        "label": "Status Message",
+        "path": "statusMessage"
       }
     ]
   },
   "environment": {
     "fixtures": []
   },
+  "kind": "component",
+  "schemaVersion": 4,
   "stories": [
     {
-      "id": "ready",
-      "name": "Ready",
       "args": {
-        "surfaceId": "results",
-        "state": "ready",
         "children": {
-          "$node": "p",
-          "children": [
-            {
-              "$text": "Results are ready"
-            }
-          ]
-        }
+          "$text": "p"
+        },
+        "state": "ready",
+        "surfaceId": "results"
       },
       "expect": [
         {
@@ -62,22 +50,17 @@
           "value": "Results are ready"
         }
       ],
-      "mode": "pinned"
+      "id": "ready",
+      "mode": "pinned",
+      "name": "Ready"
     },
     {
-      "id": "static",
-      "name": "Static",
       "args": {
-        "surfaceId": "guidance",
-        "state": "static",
         "children": {
-          "$node": "p",
-          "children": [
-            {
-              "$text": "Static guidance"
-            }
-          ]
-        }
+          "$text": "p"
+        },
+        "state": "static",
+        "surfaceId": "guidance"
       },
       "expect": [
         {
@@ -85,47 +68,37 @@
           "value": "Static guidance"
         }
       ],
-      "mode": "pinned"
+      "id": "static",
+      "mode": "pinned",
+      "name": "Static"
     },
     {
-      "id": "loading",
-      "name": "Loading",
       "args": {
-        "surfaceId": "results",
+        "children": {
+          "$text": "p"
+        },
         "state": "loading",
         "statusMessage": "Loading results",
-        "children": {
-          "$node": "p",
-          "children": [
-            {
-              "$text": "Loading…"
-            }
-          ]
-        }
+        "surfaceId": "results"
       },
       "expect": [
         {
           "kind": "role",
-          "role": "status",
-          "name": "Loading results"
+          "name": "Loading results",
+          "role": "status"
         }
       ],
-      "mode": "pinned"
+      "id": "loading",
+      "mode": "pinned",
+      "name": "Loading"
     },
     {
-      "id": "empty",
-      "name": "Empty",
       "args": {
-        "surfaceId": "results",
-        "state": "empty",
         "children": {
-          "$node": "p",
-          "children": [
-            {
-              "$text": "No results"
-            }
-          ]
-        }
+          "$text": "p"
+        },
+        "state": "empty",
+        "surfaceId": "results"
       },
       "expect": [
         {
@@ -133,57 +106,50 @@
           "value": "No results"
         }
       ],
-      "mode": "pinned"
+      "id": "empty",
+      "mode": "pinned",
+      "name": "Empty"
     },
     {
-      "id": "partial",
-      "name": "Partial",
       "args": {
-        "surfaceId": "results",
+        "children": {
+          "$text": "p"
+        },
         "state": "partial",
         "statusMessage": "Some results are unavailable",
-        "children": {
-          "$node": "p",
-          "children": [
-            {
-              "$text": "Showing available results"
-            }
-          ]
-        }
+        "surfaceId": "results"
       },
       "expect": [
         {
           "kind": "role",
-          "role": "status",
-          "name": "Some results are unavailable"
+          "name": "Some results are unavailable",
+          "role": "status"
         }
       ],
-      "mode": "pinned"
+      "id": "partial",
+      "mode": "pinned",
+      "name": "Partial"
     },
     {
-      "id": "error",
-      "name": "Error",
       "args": {
-        "surfaceId": "results",
+        "children": {
+          "$text": "p"
+        },
         "state": "error",
         "statusMessage": "Results could not load",
-        "children": {
-          "$node": "p",
-          "children": [
-            {
-              "$text": "Try again"
-            }
-          ]
-        }
+        "surfaceId": "results"
       },
       "expect": [
         {
           "kind": "role",
-          "role": "status",
-          "name": "Results could not load"
+          "name": "Results could not load",
+          "role": "status"
         }
       ],
-      "mode": "pinned"
+      "id": "error",
+      "mode": "pinned",
+      "name": "Error"
     }
-  ]
+  ],
+  "title": "ExperienceSurface"
 }

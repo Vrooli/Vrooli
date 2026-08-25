@@ -1,11 +1,20 @@
 {
-  "libraryId": "react-component-library:useFocusVisible",
-  "catalogId": "hooks.use-focus-visible",
-  "displayName": "useFocusVisible",
-  "description": "Production-ready useFocusVisible hook with SSR-safe lifecycle behavior.",
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "hook",
-  "tags": ["runtime", "accessibility"],
+  "catalogId": "hooks.use-focus-visible",
+  "dependencies": [],
+  "description": "Production-ready useFocusVisible hook with SSR-safe lifecycle behavior.",
+  "designStyles": [
+    {
+      "affinity": "native",
+      "styleId": "vrooli-default"
+    }
+  ],
+  "displayName": "useFocusVisible",
   "latest": "1.0.0",
-  "designStyles": [{ "styleId": "vrooli-default", "affinity": "native" }],
-  "dependencies": []
+  "libraryId": "react-component-library:useFocusVisible",
+  "tags": [
+    "runtime",
+    "accessibility"
+  ]
 }

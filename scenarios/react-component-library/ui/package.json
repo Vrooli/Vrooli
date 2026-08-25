@@ -6,10 +6,11 @@
   "type": "module",
   "scripts": {
     "dev": "vrooli lifecycle protect -- vite",
-    "build": "pnpm strings:gen && pnpm build:preview-kits && vite build",
+    "build": "pnpm type-check && pnpm exec tsc --noEmit && pnpm strings:gen && pnpm build:preview-kits && vite build",
     "build:profile": "pnpm strings:gen && pnpm build:preview-kits && vite build --mode profile",
     "preview": "vite preview",
-    "lint": "eslint .",
+    "lint": "eslint . && pnpm lint:preview-assets",
+    "lint:preview-assets": "cd ../api && ../ui/node_modules/.bin/eslint --config ../ui/eslint.config.js handlers/preview/assets/*.js",
     "lint:catalog": "node scripts/catalog-conformance.mjs lint",
     "lint:fix": "eslint . --fix",
     "format": "prettier --write \"src/**/*.{ts,tsx,css,json}\" \"../library/**/*.{ts,tsx,json,css}\"",

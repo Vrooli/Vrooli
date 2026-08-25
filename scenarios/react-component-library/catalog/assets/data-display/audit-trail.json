@@ -10,13 +10,14 @@
   "asset": {
     "id": "data-display.audit-trail",
     "name": "AuditTrail",
-    "kind": "component", "surface": "raised",
+    "kind": "component",
+    "surface": "raised",
     "domain": "data-display",
     "description": "The structured history distinguishing actor, action, target, result, metadata, and before-and-after state, with filters, pagination, and export.",
     "targets": [
       "react-vite"
     ],
-    "slot": "primitive",
+    "slot": "ui-primitive",
     "delivery": "adopted",
     "target": {
       "priority": "P1",
@@ -32,6 +33,10 @@
       {
         "asset": "data-display.diff-viewer",
         "reason": "Before-and-after state renders through the shared comparison surface."
+      },
+      {
+        "asset": "hooks.use-locale",
+        "reason": "User-facing copy resolves through the adopting host locale bridge."
       }
     ]
   },

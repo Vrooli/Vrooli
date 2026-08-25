@@ -80,6 +80,7 @@ type IndexResult struct {
 	Deleted    int
 	Errors     []error
 	Findings   []IndexFinding
+	Warnings   []string
 	LibraryIDs []string // upserted IDs in walk order — useful for tests
 }
 
@@ -146,6 +147,7 @@ func (idx *Indexer) Run(ctx context.Context) (IndexResult, error) {
 			return nil
 		}
 		result.Findings = append(result.Findings, in.Findings...)
+		result.Warnings = append(result.Warnings, in.Warnings...)
 		keepLibraryIDs[in.Manifest.LibraryID] = struct{}{}
 		comp, err := idx.repo.UpsertManifest(ctx, in)
 		if err != nil {
@@ -248,7 +250,6 @@ type manifestFile struct {
 	// (e.g. {"useFocusTrap.ts": "hook"}). Authoritative over the resolver's
 	// extension heuristic. Applies across all versions of the component.
 	FileSlots          map[string]string        `json:"fileSlots"`
-	RequiredTokens     []string                 `json:"requiredTokens"`
 	Tags               []string                 `json:"tags"`
 	DesignStyles       []manifestDesignAffinity `json:"designStyles"`
 	Latest             string                   `json:"latest"`
@@ -270,10 +271,6 @@ func (idx *Indexer) buildManifestInput(path string) (IndexManifestInput, map[str
 	var mf manifestFile
 	if err := json.Unmarshal(raw, &mf); err != nil {
 		return IndexManifestInput{}, nil, ErrInvalidHeader{SourcePath: path, Field: "component.json", Reason: err.Error()}
-	}
-	manifestRequiredTokens, err := normalizeManifestRequiredTokens(path, mf.RequiredTokens)
-	if err != nil {
-		return IndexManifestInput{}, nil, err
 	}
 	slug := filepath.Base(filepath.Dir(path))
 	assetKind, err := assetKindForManifestPath(path, mf.AssetKind)
@@ -337,6 +334,7 @@ func (idx *Indexer) buildManifestInput(path string) (IndexManifestInput, map[str
 	var versions []ComponentVersion
 	var stories []ComponentStory
 	findings := append([]IndexFinding(nil), staleFindings...)
+	var warnings []string
 	// A promoted component with no declared affinities is catalog-incomplete:
 	// its detail view reads "No design affinities declared" while authored
 	// peers carry 2-3. Surface it as a soft conformance finding (never a hard
@@ -512,12 +510,12 @@ func (idx *Indexer) buildManifestInput(path string) (IndexManifestInput, map[str
 			ContentSHA256:         digestBytes(src),
 			Headers:               headers,
 			Files:                 versionFiles,
-			RequiredTokens:        mergeRequiredTokens(ExtractRequiredTokens(versionFiles), manifestRequiredTokens),
+			RequiredTokens:        ExtractRequiredTokens(versionFiles),
 			RequiredTokenPatterns: ExtractRequiredTokenPatterns(versionFiles),
 			ExperienceContract:    experienceContract,
 			ParityReport:          parity,
 		})
-		story, storyFindings := idx.readVersionStory(filepath.ToSlash(filepath.Join(versionPath, "story.json")), manifest.LibraryID, version, manifest.AssetKind)
+		story, storyFindings, _ := idx.readVersionStory(filepath.ToSlash(filepath.Join(versionPath, "story.json")), manifest.LibraryID, version, manifest.AssetKind)
 		if story != nil {
 			stories = append(stories, *story)
 		}
@@ -547,7 +545,7 @@ func (idx *Indexer) buildManifestInput(path string) (IndexManifestInput, map[str
 			manifest.Satisfies = satisfies
 		}
 	}
-	return IndexManifestInput{Manifest: manifest, Versions: versions, Stories: stories, Headers: latestHeaders, Findings: findings}, latestHeaders, nil
+	return IndexManifestInput{Manifest: manifest, Versions: versions, Stories: stories, Headers: latestHeaders, Findings: findings, Warnings: warnings}, latestHeaders, nil
 }
 
 func (idx *Indexer) catalogPorts(catalogID string) ([]string, []string, bool) {
@@ -579,15 +577,15 @@ func (idx *Indexer) catalogPorts(catalogID string) ([]string, []string, bool) {
 	return nil, nil, false
 }
 
-func (idx *Indexer) readVersionStory(sourcePath, libraryID, version string, assetKind AssetKind) (*ComponentStory, []IndexFinding) {
+func (idx *Indexer) readVersionStory(sourcePath, libraryID, version string, assetKind AssetKind) (*ComponentStory, []IndexFinding, []string) {
 	raw, err := fs.ReadFile(idx.fs, sourcePath)
 	if errors.Is(err, fs.ErrNotExist) {
 		// The complete-catalog conformance audit owns missing-file failures;
 		// indexing remains usable while an author is creating a new version.
-		return nil, nil
+		return nil, nil, nil
 	}
 	if err != nil {
-		return nil, []IndexFinding{invalidStoryFinding(sourcePath, "/", "readable story.json", "", err.Error())}
+		return nil, []IndexFinding{invalidStoryFinding(sourcePath, "/", "readable story.json", "", err.Error())}, nil
 	}
 	contract, diagnostics := ParseStoryContract(raw)
 	if contract == nil || len(storyErrors(diagnostics)) > 0 {
@@ -596,7 +594,7 @@ func (idx *Indexer) readVersionStory(sourcePath, libraryID, version string, asse
 		for _, diagnostic := range errors {
 			findings = append(findings, invalidStoryFinding(sourcePath, diagnostic.Pointer, diagnostic.Rule, "", diagnostic.Detail))
 		}
-		return nil, findings
+		return nil, findings, nil
 	}
 	if registry := idx.storyFrameRegistry(); registry != nil {
 		diagnostics = append(diagnostics, ValidateStoryFrames(contract, registry)...)
@@ -606,37 +604,34 @@ func (idx *Indexer) readVersionStory(sourcePath, libraryID, version string, asse
 			for _, diagnostic := range errors {
 				findings = append(findings, invalidStoryFinding(sourcePath, diagnostic.Pointer, diagnostic.Rule, "", diagnostic.Detail))
 			}
-			return nil, findings
+			return nil, findings, nil
 		}
 	}
 	if AssetKind(contract.Kind) != assetKind {
-		return nil, []IndexFinding{invalidStoryFinding(sourcePath, "/kind", string(assetKind), string(contract.Kind), "story kind must match manifest asset kind")}
+		return nil, []IndexFinding{invalidStoryFinding(sourcePath, "/kind", string(assetKind), string(contract.Kind), "story kind must match manifest asset kind")}, nil
 	}
 	storyPath := filepath.ToSlash(filepath.Join(filepath.Dir(sourcePath), "story.tsx"))
 	storySource, storyErr := fs.ReadFile(idx.fs, storyPath)
 	harnesses := make(map[string]struct{})
 	for _, definition := range contract.Stories {
-		if definition.Harness != "" {
-			harnesses[definition.Harness] = struct{}{}
-		}
-		if composition := EffectiveStoryComposition(contract, &definition); composition != nil && composition.Specimen != nil {
-			harnesses[composition.Specimen.Export] = struct{}{}
+		if definition.Composition != nil && definition.Composition.Specimen != nil {
+			harnesses[definition.Composition.Specimen.Export] = struct{}{}
 		}
 	}
 	if len(harnesses) > 0 && errors.Is(storyErr, fs.ErrNotExist) {
-		return nil, []IndexFinding{{Kind: IndexFindingStoryHarnessMissing, SourcePath: storyPath, Field: "/stories", Detail: "a story references a harness but story.tsx is missing"}}
+		return nil, []IndexFinding{{Kind: IndexFindingStoryHarnessMissing, SourcePath: storyPath, Field: "/stories", Detail: "a story references a specimen but story.tsx is missing"}}, nil
 	}
 	if storyErr != nil && !errors.Is(storyErr, fs.ErrNotExist) {
-		return nil, []IndexFinding{{Kind: IndexFindingStoryHarnessMissing, SourcePath: storyPath, Field: "/stories", Detail: storyErr.Error()}}
+		return nil, []IndexFinding{{Kind: IndexFindingStoryHarnessMissing, SourcePath: storyPath, Field: "/stories", Detail: storyErr.Error()}}, nil
 	}
 	if storyErr == nil {
 		exports := harnessExports(string(storySource))
 		if len(harnesses) == 0 {
-			return nil, []IndexFinding{{Kind: IndexFindingStoryHarnessOrphan, SourcePath: storyPath, Field: "/stories", Detail: "story.tsx exists but no story references a harness export"}}
+			return nil, []IndexFinding{{Kind: IndexFindingStoryHarnessOrphan, SourcePath: storyPath, Field: "/stories", Detail: "story.tsx exists but no story references a specimen export"}}, nil
 		}
 		for harness := range harnesses {
 			if _, found := exports[harness]; !found {
-				return nil, []IndexFinding{{Kind: IndexFindingStoryHarnessExport, SourcePath: storyPath, Field: "/stories/harness", Actual: harness, Detail: "referenced harness export was not found in story.tsx"}}
+				return nil, []IndexFinding{{Kind: IndexFindingStoryHarnessExport, SourcePath: storyPath, Field: "/stories/composition/specimen/export", Actual: harness, Detail: "referenced specimen export was not found in story.tsx"}}, nil
 			}
 		}
 	}
@@ -644,7 +639,7 @@ func (idx *Indexer) readVersionStory(sourcePath, libraryID, version string, asse
 	environment, _ := json.Marshal(contract.Environment)
 	stories, _ := json.Marshal(contract.Stories)
 	normalized, _ := json.Marshal(contract)
-	return &ComponentStory{LibraryID: libraryID, Version: version, SchemaVersion: contract.SchemaVersion, Kind: contract.Kind, Title: contract.Title, ArgsJSON: string(args), EnvironmentJSON: string(environment), StoriesJSON: string(stories), ContractJSON: string(normalized), SourcePath: sourcePath}, nil
+	return &ComponentStory{LibraryID: libraryID, Version: version, SchemaVersion: contract.SchemaVersion, Kind: contract.Kind, Title: contract.Title, ArgsJSON: string(args), EnvironmentJSON: string(environment), StoriesJSON: string(stories), ContractJSON: string(normalized), SourcePath: sourcePath}, nil, nil
 }
 
 func storyErrors(diagnostics []StoryDiagnostic) []StoryDiagnostic {

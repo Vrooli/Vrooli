@@ -7,6 +7,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/sha256"
+	"database/sql"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -297,6 +298,24 @@ func ValidateReleasedVersionImmutable(root string) (Result, error) {
 		return Result{}, fmt.Errorf("open component index: %w", err)
 	}
 	defer db.Close()
+	return ValidateReleasedVersionImmutableWithDB(root, db)
+}
+
+// queryContexter is the smallest database seam needed by the immutable gate.
+// The production catalog coverage path supplies the already-open routed
+// scenario database; the root-only runner above remains useful for isolated
+// calibration fixtures.
+type queryContexter interface {
+	QueryContext(context.Context, string, ...any) (*sql.Rows, error)
+}
+
+// ValidateReleasedVersionImmutableWithDB compares released versions using an
+// already-open scenario database. Runtime callers must use this form so the
+// gate observes the same routed storage and schema as the rest of the API.
+func ValidateReleasedVersionImmutableWithDB(root string, db queryContexter) (Result, error) {
+	if db == nil {
+		return Result{}, fmt.Errorf("component index database is not configured")
+	}
 	rows, err := db.QueryContext(context.Background(), `SELECT v.status, v.source_path, v.content_sha256 FROM component_versions v WHERE v.status = 'released'`)
 	if err != nil {
 		return Result{}, fmt.Errorf("read released version hashes: %w", err)
@@ -457,6 +476,94 @@ func ValidateAPI(root string) (Result, error) {
 		}
 	}
 	return nonEmpty(result, "api"), nil
+}
+
+var (
+	i18nAttributeLiteral    = regexp.MustCompile(`(?m)\b(aria-label|placeholder|title|alt|label|description)\s*=\s*["']([^"'\r\n<>]{1,160})["']`)
+	jsxTextLiteral          = regexp.MustCompile(`>\s*([[:alpha:]][^<>{}\n]{1,160})\s*</[A-Za-z]`)
+	interactiveElementStart = regexp.MustCompile(`<((?:button|a|input|select|textarea))\b`)
+)
+
+// ValidateI18n derives user-facing strings from component source. Literal
+// labels are not a stable adoption contract: the host must supply their
+// translation through the shared locale bridge.
+func ValidateI18n(root string) (Result, error) {
+	return validateActiveSources(root, "i18n", func(asset assetDoc, source string) defect {
+		for _, match := range i18nAttributeLiteral.FindAllStringSubmatch(source, -1) {
+			return defect{
+				Message:     fmt.Sprintf("user-facing %s literal %q is embedded in the library source", match[1], match[2]),
+				Remediation: fmt.Sprintf("Replace the literal with the host locale bridge for key %s.%s. The English fallback belongs in the locale catalog, not in the adopted component source.", asset.Asset.ID, strings.ToLower(match[1])),
+				DocsRef:     "docs/concepts/ARCHITECTURE.md#internationalization",
+			}
+		}
+		if match := jsxTextLiteral.FindStringSubmatch(source); len(match) > 0 && strings.TrimSpace(match[1]) != "" {
+			return defect{
+				Message:     fmt.Sprintf("user-facing JSX text %q is embedded in the library source", strings.TrimSpace(match[1])),
+				Remediation: fmt.Sprintf("Render a translated value from the host locale bridge using a key under %s.", asset.Asset.ID),
+				DocsRef:     "docs/concepts/ARCHITECTURE.md#internationalization",
+			}
+		}
+		return defect{}
+	})
+}
+
+// ValidateSelectorCoverage requires every native interactive element to carry
+// a stable test id rooted at the catalog asset identity. This keeps BAS flows
+// portable after the asset is copied into an adopting scenario.
+func ValidateSelectorCoverage(root string) (Result, error) {
+	return validateActiveSources(root, "selector-coverage", func(asset assetDoc, source string) defect {
+		for _, tag := range interactiveElements(source) {
+			match := interactiveElementStart.FindStringSubmatch(tag)
+			if len(match) == 0 {
+				continue
+			}
+			testID := regexp.MustCompile(`data-testid\s*=`).FindStringIndex(tag)
+			if testID == nil || !strings.Contains(tag, asset.Asset.ID) {
+				return defect{
+					Message:     fmt.Sprintf("interactive <%s> has no data-testid derived from %s", match[1], asset.Asset.ID),
+					Remediation: fmt.Sprintf("Add data-testid=%q or a derived selector rooted at %s to the interactive element.", asset.Asset.ID, asset.Asset.ID),
+					DocsRef:     "docs/concepts/ARCHITECTURE.md#automation-selectors",
+				}
+			}
+		}
+		return defect{}
+	})
+}
+
+func interactiveElements(source string) []string {
+	starts := interactiveElementStart.FindAllStringIndex(source, -1)
+	result := make([]string, 0, len(starts))
+	for _, start := range starts {
+		quote := byte(0)
+		braceDepth := 0
+		for index := start[0]; index < len(source); index++ {
+			char := source[index]
+			if quote != 0 {
+				if char == quote && (index == 0 || source[index-1] != '\\') {
+					quote = 0
+				}
+				continue
+			}
+			if char == '\'' || char == '"' || char == '`' {
+				quote = char
+				continue
+			}
+			switch char {
+			case '{':
+				braceDepth++
+			case '}':
+				if braceDepth > 0 {
+					braceDepth--
+				}
+			case '>':
+				if braceDepth == 0 {
+					result = append(result, source[start[0]:index+1])
+					index = len(source)
+				}
+			}
+		}
+	}
+	return result
 }
 
 // ValidateTypes runs the same catalog conformance command declared by the
@@ -955,9 +1062,11 @@ func ValidateFixtures(root string) (Result, error) {
 }
 
 type fixtureStoryContract struct {
-	Frame struct {
-		Fixture string `json:"fixture"`
-	} `json:"frame"`
+	Composition struct {
+		Fixture struct {
+			Asset string `json:"asset"`
+		} `json:"fixture"`
+	} `json:"composition"`
 	Stories []struct {
 		Expect []struct {
 			Role      string `json:"role"`
@@ -995,7 +1104,7 @@ func fixtureConsumers(root, fixtureID string) (int, error) {
 	}
 	count := 0
 	for _, contract := range contracts {
-		if contract.Frame.Fixture == fixtureID {
+		if contract.Composition.Fixture.Asset == fixtureID {
 			count++
 		}
 	}
@@ -1009,7 +1118,7 @@ func fixtureFailureAssertions(root, fixtureID string) (int, error) {
 	}
 	count := 0
 	for _, contract := range contracts {
-		if contract.Frame.Fixture != fixtureID {
+		if contract.Composition.Fixture.Asset != fixtureID {
 			continue
 		}
 		for _, story := range contract.Stories {

@@ -1,56 +1,69 @@
 {
-  "schemaVersion": 3,
-  "kind": "component",
-  "title": "ConflictResolutionFlow",
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
   "args": {
     "fields": []
   },
   "environment": {
     "fixtures": []
   },
+  "kind": "component",
+  "schemaVersion": 4,
   "stories": [
     {
-      "id": "default",
-      "name": "Conflict choices",
-      "harness": "Default",
       "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Default",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
         {
           "kind": "role",
-          "role": "form",
-          "name": "Conflict resolution form"
+          "name": "Conflict resolution form",
+          "role": "form"
         },
         {
           "kind": "role",
-          "role": "group",
-          "name": "Title resolution"
+          "name": "Title resolution",
+          "role": "group"
         },
         {
           "kind": "role",
-          "role": "button",
-          "name": "Remote version for Title"
+          "name": "Remote version for Title",
+          "role": "button"
         }
       ],
-      "mode": "live"
+      "id": "default",
+      "mode": "live",
+      "name": "Conflict choices"
     },
     {
-      "id": "loading",
-      "name": "Loading comparison",
-      "harness": "Loading",
       "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Loading",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
         {
           "kind": "text",
           "value": "Checking the latest version"
         }
       ],
-      "mode": "live"
+      "id": "loading",
+      "mode": "live",
+      "name": "Loading comparison"
     },
     {
-      "id": "request-error",
-      "name": "Retryable conflict",
-      "harness": "RequestError",
       "args": {},
+      "composition": {
+        "specimen": {
+          "export": "RequestError",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
         {
           "kind": "role",
@@ -61,36 +74,18 @@
           "value": "choices are still here"
         }
       ],
-      "mode": "live"
+      "id": "request-error",
+      "mode": "live",
+      "name": "Retryable conflict"
     },
     {
-      "id": "interactive",
-      "name": "Interactive resolution",
-      "harness": "Interactive",
       "args": {},
-      "interactions": [
-        {
-          "kind": "click",
-          "target": {
-            "role": "button",
-            "name": "Remote version for Title"
-          }
-        },
-        {
-          "kind": "click",
-          "target": {
-            "role": "button",
-            "name": "Save resolved version"
-          }
-        },
-        {
-          "kind": "waitFor",
-          "text": "140"
-        },
-        {
-          "kind": "settle"
+      "composition": {
+        "specimen": {
+          "export": "Interactive",
+          "module": "./story.tsx"
         }
-      ],
+      },
       "expect": [
         {
           "kind": "text",
@@ -101,7 +96,33 @@
           "value": "Conflict resolved and saved"
         }
       ],
-      "mode": "live"
+      "id": "interactive",
+      "interactions": [
+        {
+          "kind": "click",
+          "target": {
+            "name": "Remote version for Title",
+            "role": "button"
+          }
+        },
+        {
+          "kind": "click",
+          "target": {
+            "name": "Save resolved version",
+            "role": "button"
+          }
+        },
+        {
+          "kind": "waitFor",
+          "text": "140"
+        },
+        {
+          "kind": "settle"
+        }
+      ],
+      "mode": "live",
+      "name": "Interactive resolution"
     }
-  ]
+  ],
+  "title": "ConflictResolutionFlow"
 }

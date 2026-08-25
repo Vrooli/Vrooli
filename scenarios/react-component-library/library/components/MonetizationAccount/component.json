@@ -1,25 +1,35 @@
 {
-  "libraryId": "react-component-library:MonetizationAccount",
-  "catalogId": "monetization.account-surface",
-  "displayName": "MonetizationAccount",
-  "description": "Shared account surface primitives for paid scenarios.",
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "component",
-  "tags": ["monetization", "account"],
-  "latest": "1.0.2",
+  "catalogId": "monetization.account-surface",
+  "deprecatedVersions": [],
+  "description": "Shared account surface primitives for paid scenarios.",
   "designStyles": [
     {
-      "styleId": "vrooli-default",
-      "affinity": "native"
+      "affinity": "native",
+      "styleId": "vrooli-default"
     },
     {
-      "styleId": "vrooli-command-display",
-      "affinity": "compatible"
+      "affinity": "compatible",
+      "styleId": "vrooli-command-display"
     },
     {
-      "styleId": "vrooli-conversion-landing",
-      "affinity": "compatible"
+      "affinity": "compatible",
+      "styleId": "vrooli-conversion-landing"
     }
   ],
+  "displayName": "MonetizationAccount",
   "draft": "",
-  "deprecatedVersions": []
+  "latest": "1.0.2",
+  "libraryId": "react-component-library:MonetizationAccount",
+  "tags": [
+    "monetization",
+    "account"
+  ],
+  "requires": [
+    {
+      "libraryId": "react-component-library:useLocale",
+      "version": "1.0.0"
+    }
+  ]
 }

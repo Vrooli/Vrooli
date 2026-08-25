@@ -5,13 +5,14 @@
   "asset": {
     "id": "visualization.chart",
     "name": "Chart",
-    "kind": "component", "surface": "raised",
+    "kind": "component",
+    "surface": "raised",
     "domain": "visualization",
     "description": "The responsive chart framework standardizing axes, legends, tooltips, value formatting, selection, theme integration, keyboard summaries, and every generic data state around a pluggable rendering engine.",
     "targets": [
       "react-vite"
     ],
-    "slot": "primitive",
+    "slot": "ui-primitive",
     "delivery": "adopted",
     "target": {
       "priority": "P0",

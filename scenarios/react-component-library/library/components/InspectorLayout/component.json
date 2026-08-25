@@ -1,16 +1,29 @@
 {
-  "libraryId": "react-component-library:InspectorLayout",
-  "x-supplementalJustification": "Pre-catalog workbench composition retained as a supplemental asset pending promotion into the pattern vocabulary.",
-  "displayName": "Inspector Layout",
-  "description": "A responsive workbench composition that keeps a primary canvas usable while an inspector region reports its lifecycle.",
-  "tags": ["layout", "inspector", "workbench", "experience"],
-  "slot": "ui-pattern",
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "category": "layout",
-  "designStyles": [{ "styleId": "vrooli-default", "affinity": "native" }],
   "dependencies": [
-    { "libraryId": "react-component-library:AsyncPanel", "version": "1.0.0" }
+    {
+      "libraryId": "react-component-library:AsyncPanel",
+      "version": "1.0.0"
+    },
+    {
+      "libraryId": "react-component-library:ClassMerge",
+      "version": "1.0.0"
+    }
   ],
-  "latest": "1.1.0",
+  "deprecatedVersions": [],
+  "description": "A responsive workbench composition that keeps a primary canvas usable while an inspector region reports its lifecycle.",
+  "designStyles": [
+    {
+      "affinity": "native",
+      "styleId": "vrooli-default"
+    }
+  ],
+  "displayName": "Inspector Layout",
   "draft": "",
-  "deprecatedVersions": []
+  "latest": "1.1.0",
+  "libraryId": "react-component-library:InspectorLayout",
+  "slot": "ui-pattern",
+  "tags": ["layout", "inspector", "workbench", "experience"],
+  "x-supplementalJustification": "Pre-catalog workbench composition retained as a supplemental asset pending promotion into the pattern vocabulary."
 }

@@ -1,11 +1,27 @@
 {
-  "libraryId": "react-component-library:Page",
-  "catalogId": "navigation.page",
-  "displayName": "Page",
-  "description": "The route content boundary that owns navigation, focus placement, and generic route state composition.",
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "component",
-  "tags": ["navigation", "layout", "token-bound"],
+  "catalogId": "navigation.page",
+  "dependencies": [],
+  "description": "The route content boundary that owns navigation, focus placement, and generic route state composition.",
+  "designStyles": [
+    {
+      "affinity": "native",
+      "styleId": "vrooli-default"
+    }
+  ],
+  "displayName": "Page",
   "latest": "1.0.0",
-  "designStyles": [{ "styleId": "vrooli-default", "affinity": "native" }],
-  "dependencies": []
+  "libraryId": "react-component-library:Page",
+  "tags": [
+    "navigation",
+    "layout",
+    "token-bound"
+  ],
+  "requires": [
+    {
+      "libraryId": "react-component-library:useLocale",
+      "version": "1.0.0"
+    }
+  ]
 }

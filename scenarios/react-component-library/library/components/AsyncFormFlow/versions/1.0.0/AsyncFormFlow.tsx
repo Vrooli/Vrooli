@@ -1,4 +1,6 @@
 /** @vrooliComponentSource patterns.async-form-flow */
+import { translate } from "../../../../hooks/useLocale/versions/1.0.0/useLocale";
+
 import {
   useEffect,
   useMemo,
@@ -134,8 +136,8 @@ export function AsyncFormFlow<TValues extends FormValues = FormValues>({
   onNavigate,
   destination,
   offline = false,
-  title = "Create or edit",
-  description = "Your work stays in place while we validate, save, and recover from interruptions.",
+  title = translate("patterns.async-form-flow.title.1", "Create or edit"),
+  description = translate("patterns.async-form-flow.description.2", "Your work stays in place while we validate, save, and recover from interruptions."),
   successMessage = "Saved successfully. Your changes are safe.",
   errorMessage = "We could not save this change. Your input is still here; review the details and retry.",
   submitLabel = "Save changes",
@@ -236,12 +238,12 @@ export function AsyncFormFlow<TValues extends FormValues = FormValues>({
       <section className={className} style={style} data-rcl-async-form-flow>
         <header data-rcl-async-form-header>
           <div>
-            <div data-rcl-async-form-kicker>ASYNC WORKFLOW</div>
+            <div data-rcl-async-form-kicker>{translate("patterns.async-form-flow.text.3", "ASYNC WORKFLOW")}</div>
             <div data-rcl-async-form-title>{title}</div>
             <div data-rcl-async-form-description>{description}</div>
           </div>
           {load && (
-            <button
+            <button data-testid="patterns.async-form-flow"
               type="button"
               data-rcl-async-form-refresh
               onClick={runLoad}
@@ -263,18 +265,18 @@ export function AsyncFormFlow<TValues extends FormValues = FormValues>({
             {showEmpty ? (
               <div data-rcl-async-form-empty>
                 <strong data-rcl-async-form-empty-title>
-                  No saved draft yet
+                  {translate("patterns.async-form-flow.text.5", "No saved draft yet")}
                 </strong>
                 <span data-rcl-async-form-empty-copy>
                   Start a fresh version, or retry if you expected an existing
                   draft.
                 </span>
-                <button
+                <button data-testid="patterns.async-form-flow"
                   type="button"
                   data-rcl-async-form-empty-action
                   onClick={() => setLoadState("success")}
                 >
-                  Start fresh
+                  {translate("patterns.async-form-flow.text.6", "Start fresh")}
                 </button>
               </div>
             ) : (
@@ -295,7 +297,7 @@ export function AsyncFormFlow<TValues extends FormValues = FormValues>({
                     </span>
                     <span data-rcl-async-form-submit-copy>
                       <strong data-rcl-async-form-submit-title>
-                        Save needs attention
+                        {translate("patterns.async-form-flow.text.7", "Save needs attention")}
                       </strong>
                       <span>{formError ?? errorMessage}</span>
                     </span>
@@ -311,15 +313,15 @@ export function AsyncFormFlow<TValues extends FormValues = FormValues>({
                       ✓
                     </span>
                     <span data-rcl-async-form-submit-copy>
-                      <strong data-rcl-async-form-submit-title>All set</strong>
+                      <strong data-rcl-async-form-submit-title>{translate("patterns.async-form-flow.text.4", "All set")}</strong>
                       <span>{successMessage}</span>
                       {onNavigate && (
-                        <button
+                        <button data-testid="patterns.async-form-flow"
                           type="button"
                           data-rcl-async-form-next
                           onClick={() => onNavigate(destination)}
                         >
-                          Continue
+                          {translate("patterns.async-form-flow.text.8", "Continue")}
                         </button>
                       )}
                     </span>
@@ -332,22 +334,22 @@ export function AsyncFormFlow<TValues extends FormValues = FormValues>({
                   submitLabel={submitLabel}
                   pendingLabel="Saving…"
                 >
-                  <button
+                  <button data-testid="patterns.async-form-flow"
                     type="button"
                     data-rcl-form-action="cancel"
                     onClick={cancelSubmit}
                     disabled={!submitting}
                   >
-                    Cancel request
+                        {translate("patterns.async-form-flow.text.9", "Cancel request")}
                   </button>
-                  <button
+                  <button data-testid="patterns.async-form-flow"
                     type="reset"
                     data-rcl-form-action="reset"
                     disabled={submitting}
                   >
-                    Reset
+                        {translate("patterns.async-form-flow.text.10", "Reset")}
                   </button>
-                  <button
+                  <button data-testid="patterns.async-form-flow"
                     type="submit"
                     data-rcl-form-action="submit"
                     disabled={submitting}

@@ -1,11 +1,65 @@
 {
-  "schemaVersion": 3,
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
+  "args": {
+    "fields": []
+  },
+  "environment": {
+    "fixtures": []
+  },
   "kind": "component",
-  "title": "OverlayCanvas",
-  "args": { "fields": [] },
-  "environment": { "fixtures": [] },
+  "schemaVersion": 4,
   "stories": [
-    { "id": "default", "name": "Default", "harness": "OverlayCanvasStory", "args": { "subjects": [{ "id": "title", "label": "Heading", "x": 24, "y": 20, "width": 140, "height": 28 }] }, "expect": [{ "kind": "text", "value": "Measured subjects" }], "mode": "pinned" },
-    { "id": "empty", "name": "Empty", "harness": "OverlayCanvasStory", "args": { "subjects": [] }, "expect": [{ "kind": "text", "value": "Select a claim to inspect its subjects." }], "mode": "pinned" }
-  ]
+    {
+      "args": {
+        "subjects": [
+          {
+            "height": 28,
+            "id": "title",
+            "label": "Heading",
+            "width": 140,
+            "x": 24,
+            "y": 20
+          }
+        ]
+      },
+      "composition": {
+        "harness": {
+          "asset": "preview.direct",
+          "version": "1.0.0",
+          "export": "Direct"
+        }
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "Measured subjects"
+        }
+      ],
+      "id": "default",
+      "mode": "pinned",
+      "name": "Default"
+    },
+    {
+      "args": {
+        "subjects": []
+      },
+      "composition": {
+        "harness": {
+          "asset": "preview.direct",
+          "version": "1.0.0",
+          "export": "Direct"
+        }
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "Select a claim to inspect its subjects."
+        }
+      ],
+      "id": "empty",
+      "mode": "pinned",
+      "name": "Empty"
+    }
+  ],
+  "title": "OverlayCanvas"
 }

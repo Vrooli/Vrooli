@@ -5,13 +5,14 @@
   "asset": {
     "id": "overlays.bottom-sheet",
     "name": "BottomSheet",
-    "kind": "component", "surface": "raised",
+    "kind": "component",
+    "surface": "raised",
     "domain": "overlays",
     "description": "The mobile-first drawer with snap points, drag handle, keyboard avoidance, scroll handoff between sheet and content, velocity-aware settling, and accessible non-gesture controls.",
     "targets": [
       "react-vite"
     ],
-    "slot": "primitive",
+    "slot": "ui-primitive",
     "delivery": "adopted",
     "target": {
       "priority": "P0",

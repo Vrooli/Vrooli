@@ -1,49 +1,65 @@
 {
-  "schemaVersion": 3,
-  "kind": "component",
-  "title": "Menu",
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
   "args": {
     "fields": []
   },
   "environment": {
     "fixtures": []
   },
+  "kind": "component",
+  "schemaVersion": 4,
   "stories": [
     {
-      "id": "default",
-      "name": "Command menu",
-      "harness": "Default",
       "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Default",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
         {
           "kind": "role",
-          "role": "menu",
-          "name": "Workspace commands"
+          "name": "Workspace commands",
+          "role": "menu"
         },
         {
           "kind": "role",
-          "role": "menuitemcheckbox",
-          "name": "Show activity"
+          "name": "Show activity",
+          "role": "menuitemcheckbox"
         },
         {
           "kind": "role",
-          "role": "menuitemradio",
-          "name": "Use system theme"
+          "name": "Use system theme",
+          "role": "menuitemradio"
         }
       ],
-      "mode": "live"
+      "id": "default",
+      "mode": "live",
+      "name": "Command menu"
     },
     {
-      "id": "interactive",
-      "name": "Interactive dismissal",
-      "harness": "Interactive",
       "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Interactive",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Workspace menu",
+          "role": "button"
+        }
+      ],
+      "id": "interactive",
       "interactions": [
         {
           "kind": "click",
           "target": {
-            "role": "button",
-            "name": "Workspace menu"
+            "name": "Workspace menu",
+            "role": "button"
           }
         },
         {
@@ -52,16 +68,16 @@
         {
           "kind": "key",
           "target": {
-            "role": "menu",
-            "name": "Workspace commands"
+            "name": "Workspace commands",
+            "role": "menu"
           },
           "text": "ArrowDown"
         },
         {
           "kind": "key",
           "target": {
-            "role": "menu",
-            "name": "Workspace commands"
+            "name": "Workspace commands",
+            "role": "menu"
           },
           "text": "Escape"
         },
@@ -69,14 +85,9 @@
           "kind": "settle"
         }
       ],
-      "expect": [
-        {
-          "kind": "role",
-          "role": "button",
-          "name": "Workspace menu"
-        }
-      ],
-      "mode": "live"
+      "mode": "live",
+      "name": "Interactive dismissal"
     }
-  ]
+  ],
+  "title": "Menu"
 }

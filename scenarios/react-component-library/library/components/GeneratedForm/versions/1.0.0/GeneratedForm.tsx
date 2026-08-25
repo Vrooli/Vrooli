@@ -138,7 +138,7 @@ function InputControl<TValues extends Record<string, unknown>>({
   if (field.type === "checkbox")
     return (
       <label data-rcl-generated-form-checkbox>
-        <input
+        <input data-testid="forms.generated-form"
           type="checkbox"
           checked={Boolean(value)}
           onChange={(event) => setValue(event.target.checked)}
@@ -148,7 +148,7 @@ function InputControl<TValues extends Record<string, unknown>>({
     );
   if (field.type === "select")
     return (
-      <select
+      <select data-testid="forms.generated-form"
         data-rcl-generated-form-control
         value={String(value ?? "")}
         onChange={(event) => setValue(event.target.value)}
@@ -162,14 +162,14 @@ function InputControl<TValues extends Record<string, unknown>>({
     );
   if (field.type === "textarea")
     return (
-      <textarea
+      <textarea data-testid="forms.generated-form"
         data-rcl-generated-form-control
         value={String(value ?? "")}
         onChange={(event) => setValue(event.target.value)}
       />
     );
   return (
-    <input
+    <input data-testid="forms.generated-form"
       data-rcl-generated-form-control
       type={
         field.type === "number"
@@ -224,7 +224,7 @@ function RenderField<TValues extends Record<string, unknown>>({
             index: actions.index,
             setValue: actions.setValue,
           }) ?? (
-            <input
+            <input data-testid="forms.generated-form"
               data-rcl-generated-form-control
               aria-label={`${typeof field.label === "string" ? field.label : "Item"} ${actions.index + 1}`}
               value={displayValue(item)}

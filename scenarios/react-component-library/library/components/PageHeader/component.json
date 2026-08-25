@@ -1,11 +1,26 @@
 {
-  "libraryId": "react-component-library:PageHeader",
-  "catalogId": "navigation.page-header",
-  "displayName": "PageHeader",
-  "description": "A route-level hierarchy header with title, description, and action regions.",
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "component",
-  "tags": ["navigation", "token-bound"],
+  "catalogId": "navigation.page-header",
+  "dependencies": [],
+  "description": "A route-level hierarchy header with title, description, and action regions.",
+  "designStyles": [
+    {
+      "affinity": "native",
+      "styleId": "vrooli-default"
+    }
+  ],
+  "displayName": "PageHeader",
   "latest": "1.0.0",
-  "designStyles": [{ "styleId": "vrooli-default", "affinity": "native" }],
-  "dependencies": []
+  "libraryId": "react-component-library:PageHeader",
+  "tags": [
+    "navigation",
+    "token-bound"
+  ],
+  "requires": [
+    {
+      "libraryId": "react-component-library:useLocale",
+      "version": "1.0.0"
+    }
+  ]
 }

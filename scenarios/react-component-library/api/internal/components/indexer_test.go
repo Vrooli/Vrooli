@@ -135,7 +135,7 @@ export const FocusTrap = () => cycle();`)},
 	require.Equal(t, "focus.ts", version.Files[1].Path)
 }
 
-func TestIndexerMergesManifestTokenContractWithDerivedTokens(t *testing.T) {
+func TestIndexerIgnoresLegacyManifestTokenContractAndUsesDerivedTokens(t *testing.T) {
 	fs := fstest.MapFS{
 		"components/TokenBound/component.json": {Data: []byte(`{"libraryId":"react-component-library:TokenBound","displayName":"Token Bound","entry":"TokenBound.tsx","latest":"1.0.0","deprecatedVersions":[],"requiredTokens":["--tap-target-min","--space-sm","--tap-target-min"]}`)},
 		"components/TokenBound/versions/1.0.0/TokenBound.tsx": {Data: []byte(`/**
@@ -151,16 +151,19 @@ export const TokenBound = () => <button style={{ color: "var(--color-foreground)
 	require.NoError(t, err)
 	version, err := repo.GetVersion(context.Background(), component.ID, "1.0.0")
 	require.NoError(t, err)
-	require.Equal(t, []string{"--color-foreground", "--space-sm", "--tap-target-min"}, version.RequiredTokens)
+	require.Equal(t, []string{"--color-foreground"}, version.RequiredTokens)
 }
 
-func TestIndexerRejectsInvalidManifestTokenContract(t *testing.T) {
+func TestIndexerIgnoresInvalidLegacyManifestTokenContract(t *testing.T) {
 	fs := fstest.MapFS{
-		"components/TokenBound/component.json":                {Data: []byte(`{"libraryId":"react-component-library:TokenBound","displayName":"Token Bound","entry":"TokenBound.tsx","latest":"1.0.0","deprecatedVersions":[],"requiredTokens":["color-foreground"]}`)},
-		"components/TokenBound/versions/1.0.0/TokenBound.tsx": {Data: []byte(`/** @libraryId react-component-library:TokenBound @version 1.0.0 */`)},
+		"components/TokenBound/component.json": {Data: []byte(`{"libraryId":"react-component-library:TokenBound","displayName":"Token Bound","entry":"TokenBound.tsx","latest":"1.0.0","deprecatedVersions":[],"requiredTokens":["color-foreground"]}`)},
+		"components/TokenBound/versions/1.0.0/TokenBound.tsx": {Data: []byte(`/**
+ * @libraryId react-component-library:TokenBound
+ * @version 1.0.0
+ */`)},
 	}
 	_, err := components.NewIndexer(mocks.NewFakeRepository(), ".", fs).IndexManifest(context.Background(), "components/TokenBound/component.json")
-	require.ErrorContains(t, err, "requiredTokens")
+	require.NoError(t, err)
 }
 
 func TestIndexer_RunIndexesHookAsNonRenderableAsset(t *testing.T) {
@@ -412,7 +415,7 @@ func TestIndexer_RunProjectsValidatedStoryContract(t *testing.T) {
 		"components/Button/component.json":            {Data: []byte(manifest("react-component-library:Button", "Button", `[]`))},
 		"components/Button/versions/1.0.0/Button.tsx": {Data: []byte(buttonTSX)},
 		"components/Button/versions/1.0.0/story.json": {Data: []byte(`{
-  "schemaVersion":1,
+  "schemaVersion":4,
   "kind":"component",
   "args":{"fields":[{"path":"tone","kind":"enum","options":["primary","secondary"],"default":"primary"}]},
   "environment":{"fixtures":[]},
@@ -434,11 +437,11 @@ func TestIndexer_RunProjectsValidatedStoryContract(t *testing.T) {
 
 func TestIndexer_RunValidatesStoryHarnessArtifacts(t *testing.T) {
 	const story = `{
-  "schemaVersion": 2,
+  "schemaVersion": 4,
   "kind": "component",
   "args": {"fields": []},
   "environment": {"fixtures": []},
-  "stories": [{"id": "interactive", "name": "Interactive", "harness": "StatefulHarness", "args": {}}]
+  "stories": [{"id": "interactive", "name": "Interactive", "composition": {"specimen": {"module": "./story.tsx", "export": "StatefulHarness"}}, "args": {}}]
 }`
 
 	tests := []struct {
@@ -488,7 +491,7 @@ func TestIndexer_RunFindsOrphanStoryHarnessArtifact(t *testing.T) {
 	fsys := fstest.MapFS{
 		"components/Button/component.json":            {Data: []byte(manifest("react-component-library:Button", "Button", `[]`))},
 		"components/Button/versions/1.0.0/Button.tsx": {Data: []byte(buttonTSX)},
-		"components/Button/versions/1.0.0/story.json": {Data: []byte(`{"schemaVersion":2,"kind":"component","args":{"fields":[]},"environment":{"fixtures":[]},"stories":[{"id":"primary","name":"Primary","args":{}}]}`)},
+		"components/Button/versions/1.0.0/story.json": {Data: []byte(`{"schemaVersion":4,"kind":"component","args":{"fields":[]},"environment":{"fixtures":[]},"stories":[{"id":"primary","name":"Primary","args":{}}]}`)},
 		"components/Button/versions/1.0.0/story.tsx":  {Data: []byte(`export const UnusedHarness = () => null;`)},
 	}
 	res, err := components.NewIndexer(mocks.NewFakeRepository(), ".", fsys).Run(context.Background())

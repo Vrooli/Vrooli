@@ -1,47 +1,50 @@
 {
-  "schemaVersion": 3,
-  "kind": "component",
-  "title": "Presence",
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
   "args": {
     "fields": [
       {
-        "path": "present",
+        "default": true,
+        "kind": "boolean",
         "label": "Present",
-        "kind": "boolean",
-        "default": true
+        "path": "present"
       },
       {
-        "path": "children",
-        "label": "Content",
+        "default": "Ready to continue",
         "kind": "text",
-        "default": "Ready to continue"
+        "label": "Content",
+        "path": "children"
       },
       {
-        "path": "initial",
+        "default": true,
+        "kind": "boolean",
         "label": "Animate initial mount",
-        "kind": "boolean",
-        "default": true
+        "path": "initial"
       },
       {
-        "path": "keepMounted",
-        "label": "Keep exit boundary mounted",
+        "default": false,
         "kind": "boolean",
-        "default": false
+        "label": "Keep exit boundary mounted",
+        "path": "keepMounted"
       }
     ]
   },
   "environment": {
     "fixtures": []
   },
+  "kind": "component",
+  "schemaVersion": 4,
   "stories": [
     {
-      "id": "present",
-      "name": "Entering and entered",
-      "harness": "TogglePresence",
       "args": {
-        "present": true,
         "children": "Ready to continue",
-        "initial": true
+        "initial": true,
+        "present": true
+      },
+      "composition": {
+        "specimen": {
+          "export": "TogglePresence",
+          "module": "./story.tsx"
+        }
       },
       "expect": [
         {
@@ -49,60 +52,71 @@
           "value": "Ready to continue"
         }
       ],
+      "id": "present",
       "interactions": [
         {
           "kind": "settle"
         }
       ],
-      "mode": "live"
+      "mode": "live",
+      "name": "Entering and entered"
     },
     {
-      "id": "absent",
-      "name": "Unmounted after exit",
-      "harness": "TogglePresence",
       "args": {
-        "present": false,
         "children": "Ready to continue",
         "initial": true,
-        "keepMounted": true
+        "keepMounted": true,
+        "present": false
+      },
+      "composition": {
+        "specimen": {
+          "export": "TogglePresence",
+          "module": "./story.tsx"
+        }
       },
       "expect": [
         {
+          "attribute": "data-presence-hidden",
           "kind": "attribute",
           "selector": "[data-rcl-presence]",
-          "attribute": "data-presence-hidden",
           "value": "true"
         }
       ],
+      "id": "absent",
       "interactions": [
         {
           "kind": "settle"
         }
       ],
-      "mode": "live"
+      "mode": "live",
+      "name": "Unmounted after exit"
     },
     {
-      "id": "toggle",
-      "name": "Interruptible toggle",
-      "harness": "TogglePresence",
       "args": {
-        "present": true,
-        "children": "Ready to continue"
+        "children": "Ready to continue",
+        "present": true
+      },
+      "composition": {
+        "specimen": {
+          "export": "TogglePresence",
+          "module": "./story.tsx"
+        }
       },
       "expect": [
         {
+          "attribute": "data-presence-hidden",
           "kind": "attribute",
           "selector": "[data-rcl-presence]",
-          "attribute": "data-presence-hidden",
           "value": "true"
         }
       ],
+      "id": "toggle",
       "interactions": [
         {
           "kind": "click",
           "target": {
-            "role": "button",
-            "name": "Toggle presence"
+            "name": "Toggle presence",
+            "role": "button"
           }
         },
         {
@@ -110,7 +124,9 @@
           "text": "160"
         }
       ],
-      "mode": "live"
+      "mode": "live",
+      "name": "Interruptible toggle"
     }
-  ]
+  ],
+  "title": "Presence"
 }

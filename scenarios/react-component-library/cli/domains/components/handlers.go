@@ -128,6 +128,10 @@ func (h *handlers) index(ctx cliapp.RunContext) error {
 		summary = append(summary, fmt.Sprintf("%d error(s) reported.", len(msg.Errors)))
 		results = append(results, msg.Errors...)
 	}
+	if len(msg.Warnings) > 0 {
+		summary = append(summary, fmt.Sprintf("%d warning(s) reported; warnings do not block indexing.", len(msg.Warnings)))
+		results = append(results, msg.Warnings...)
+	}
 	return cliapp.RenderProtoList(ctx, msg, cliapp.ListReport{
 		Summary:        summary,
 		ResultsHeading: "Library IDs",
@@ -618,7 +622,12 @@ func (h *handlers) stories(ctx cliapp.RunContext) error {
 	for _, story := range resp.Msg.Stories {
 		results = append(results, formatStory(story))
 	}
-	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{Summary: []string{fmt.Sprintf("Found %d story contract(s).", len(resp.Msg.Stories))}, ResultsHeading: "Stories", Results: results})
+	summary := []string{fmt.Sprintf("Found %d story contract(s).", len(resp.Msg.Stories))}
+	if len(resp.Msg.Warnings) > 0 {
+		summary = append(summary, fmt.Sprintf("%d warning(s) reported; warnings do not block indexing.", len(resp.Msg.Warnings)))
+		results = append(results, resp.Msg.Warnings...)
+	}
+	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{Summary: summary, ResultsHeading: "Stories", Results: results})
 }
 
 // contentSet reads <file> from disk (or "-" for stdin) and calls

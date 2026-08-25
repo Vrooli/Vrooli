@@ -1,76 +1,72 @@
 {
-  "schemaVersion": 3,
-  "kind": "component",
-  "title": "Textarea",
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
   "args": {
     "fields": [
       {
-        "path": "placeholder",
+        "default": "Write release notes",
+        "kind": "text",
         "label": "Placeholder",
-        "kind": "text",
-        "default": "Write release notes"
+        "path": "placeholder"
       },
       {
-        "path": "defaultValue",
+        "default": "Improves preview coverage.",
+        "kind": "text",
         "label": "Default Value",
-        "kind": "text",
-        "default": "Improves preview coverage."
+        "path": "defaultValue"
       },
       {
-        "path": "disabled",
-        "label": "Disabled",
+        "default": true,
         "kind": "boolean",
-        "default": true
+        "label": "Disabled",
+        "path": "disabled"
       }
     ]
   },
   "environment": {
     "fixtures": []
   },
+  "kind": "component",
+  "schemaVersion": 4,
   "stories": [
     {
-      "id": "notes",
-      "name": "Notes",
       "args": {
-        "placeholder": "Write release notes",
         "defaultValue": "Improves preview coverage.",
-        "aria-label": "Release notes"
+        "placeholder": "Write release notes"
       },
       "expect": [
         {
           "kind": "role",
-          "role": "textbox",
-          "name": "Release notes"
+          "name": "Release notes",
+          "role": "textbox"
         },
         {
           "kind": "attribute",
-          "selector": "textarea",
           "name": "placeholder",
+          "selector": "textarea",
           "value": "Write release notes"
         }
       ],
-      "mode": "pinned"
+      "id": "notes",
+      "mode": "pinned",
+      "name": "Notes"
     },
     {
-      "id": "empty",
-      "name": "Empty",
       "args": {
-        "placeholder": "Describe the component",
-        "aria-label": "Component description"
+        "placeholder": "Describe the component"
       },
       "expect": [
         {
           "kind": "attribute",
-          "selector": "textarea",
           "name": "placeholder",
+          "selector": "textarea",
           "value": "Describe the component"
         }
       ],
-      "mode": "pinned"
+      "id": "empty",
+      "mode": "pinned",
+      "name": "Empty"
     },
     {
-      "id": "disabled",
-      "name": "Disabled",
       "args": {
         "defaultValue": "Locked by release",
         "disabled": true
@@ -78,8 +74,8 @@
       "expect": [
         {
           "kind": "attribute",
-          "selector": "textarea",
           "name": "disabled",
+          "selector": "textarea",
           "value": ""
         },
         {
@@ -87,7 +83,10 @@
           "value": "Locked by release"
         }
       ],
-      "mode": "pinned"
+      "id": "disabled",
+      "mode": "pinned",
+      "name": "Disabled"
     }
-  ]
+  ],
+  "title": "Textarea"
 }

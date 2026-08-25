@@ -1,10 +1,12 @@
 /** @vrooliComponentSource react-component-library:SearchInput */
+import { translate } from "../../../../hooks/useLocale/versions/1.0.0/useLocale";
+
 import { forwardRef, type InputHTMLAttributes } from "react";
 const muted = { color: "var(--color-muted-foreground, #64748b)" };
 export const SearchInput = forwardRef<
   HTMLInputElement,
   InputHTMLAttributes<HTMLInputElement>
->(function SearchInput({ placeholder = "Search", style, ...props }, ref) {
+>(function SearchInput({ placeholder = translate("forms.search-input.placeholder.1", "Search"), style, ...props }, ref) {
   return (
     <label style={{ display: "grid", gap: 6, width: "min(100%, 360px)" }}>
       <span
@@ -15,9 +17,9 @@ export const SearchInput = forwardRef<
           textTransform: "uppercase",
         }}
       >
-        Search
+        {translate("forms.search-input.text.2", "Search")}
       </span>
-      <input
+      <input data-testid="forms.search-input"
         ref={ref}
         type="search"
         placeholder={placeholder}

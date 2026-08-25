@@ -1,19 +1,22 @@
 {
-  "schemaVersion": 3,
-  "kind": "component",
-  "title": "AttachmentPreview",
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
   "args": {
     "fields": []
   },
   "environment": {
     "fixtures": []
   },
+  "kind": "component",
+  "schemaVersion": 4,
   "stories": [
     {
-      "id": "uploading",
-      "name": "Uploading",
-      "harness": "Uploading",
       "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Uploading",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
         {
           "kind": "role",
@@ -21,35 +24,45 @@
         },
         {
           "kind": "role",
-          "role": "button",
-          "name": "Cancel"
+          "name": "Cancel",
+          "role": "button"
         }
       ],
-      "mode": "live"
+      "id": "uploading",
+      "mode": "live",
+      "name": "Uploading"
     },
     {
-      "id": "success",
-      "name": "Ready",
-      "harness": "Success",
       "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Success",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
         {
           "kind": "role",
-          "role": "button",
-          "name": "Open"
+          "name": "Open",
+          "role": "button"
         },
         {
           "kind": "text",
           "value": "Ready to view"
         }
       ],
-      "mode": "live"
+      "id": "success",
+      "mode": "live",
+      "name": "Ready"
     },
     {
-      "id": "recovery",
-      "name": "Recovery",
-      "harness": "Recovery",
       "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Recovery",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
         {
           "kind": "role",
@@ -57,11 +70,14 @@
         },
         {
           "kind": "role",
-          "role": "button",
-          "name": "Retry upload"
+          "name": "Retry upload",
+          "role": "button"
         }
       ],
-      "mode": "live"
+      "id": "recovery",
+      "mode": "live",
+      "name": "Recovery"
     }
-  ]
+  ],
+  "title": "AttachmentPreview"
 }

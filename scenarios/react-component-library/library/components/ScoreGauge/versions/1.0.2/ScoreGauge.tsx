@@ -6,6 +6,8 @@
  * @tags ["data-display","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
+import { translate } from "../../../../hooks/useLocale/versions/1.0.0/useLocale";
+
 /** @vrooliComponentSource react-component-library:ScoreGauge */
 import { BoundedMeter } from "../../../BoundedMeter/versions/1.0.1/BoundedMeter";
 
@@ -16,7 +18,7 @@ export interface ScoreGaugeProps {
 }
 export function ScoreGauge({
   value = 0,
-  label = "Score",
+  label = translate("data-display.score-gauge.label.1", "Score"),
   threshold = 90,
 }: ScoreGaugeProps) {
   const bounded = Math.max(0, Math.min(100, value));

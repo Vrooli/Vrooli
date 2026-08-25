@@ -48,6 +48,10 @@
       {
         "asset": "hooks.use-media-query",
         "reason": "Presentation selection is a behavioral breakpoint, not a style one."
+      },
+      {
+        "asset": "hooks.use-locale",
+        "reason": "User-facing copy resolves through the adopting host locale bridge."
       }
     ],
     "suggests": [

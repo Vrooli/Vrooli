@@ -67,6 +67,9 @@ func TestBASCaptureExecutorCapturesBoundedStorySheet(t *testing.T) {
 	if !result.Passed || len(result.Artifacts) != 1 {
 		t.Fatalf("unexpected sheet result: %+v", result)
 	}
+	if result.Artifacts[0].Kind != "bas-story-sheet" || result.Artifacts[0].StoryID != "review-sheet:primary,error-retry" {
+		t.Fatalf("sheet artifact identity = %+v", result.Artifacts[0])
+	}
 	if !strings.Contains(request.URL, "stories=primary%2Cerror-retry") || strings.Contains(request.URL, "story=") {
 		t.Fatalf("sheet URL = %q", request.URL)
 	}
@@ -91,5 +94,26 @@ func TestBASArtifactsPreferPrimaryScreenshot(t *testing.T) {
 	}
 	if got := artifacts[0].Reference; got != "/embedded/browser-automation-studio/api/v1/artifacts/primary.png" {
 		t.Fatalf("selected screenshot = %q", got)
+	}
+}
+
+func TestBASArtifactsKeepStorySheetBoundToItsScreenshot(t *testing.T) {
+	artifacts := basArtifacts("rcl:Button", "2.2.0", "review-sheet:primary,error-retry", "http://bas.test", []basArtifact{
+		{Type: "CAPTURE_TYPE_DOM", Reference: "bas-capture://capture/dom"},
+		{Type: "CAPTURE_TYPE_SCREENSHOT", Reference: "bas-capture://capture/screenshot", Primary: true, Metadata: map[string]string{"view_url": "/api/v1/artifacts/sheet.png"}},
+		{Type: "CAPTURE_TYPE_PERFORMANCE", Reference: "bas-capture://capture/performance"},
+	})
+
+	byKind := make(map[string]Artifact, len(artifacts))
+	for _, artifact := range artifacts {
+		byKind[artifact.Kind] = artifact
+	}
+	for _, kind := range []string{"bas-dom", "bas-story-sheet", "bas-performance"} {
+		if _, ok := byKind[kind]; !ok {
+			t.Fatalf("missing %s artifact in %+v", kind, artifacts)
+		}
+	}
+	if got := byKind["bas-story-sheet"].Reference; got != "/embedded/browser-automation-studio/api/v1/artifacts/sheet.png" {
+		t.Fatalf("story sheet reference = %q", got)
 	}
 }

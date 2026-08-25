@@ -5,13 +5,14 @@
   "asset": {
     "id": "navigation.workspace-switcher",
     "name": "WorkspaceSwitcher",
-    "kind": "component", "surface": "raised",
+    "kind": "component",
+    "surface": "raised",
     "domain": "navigation",
     "description": "The searchable workspace selector with recent entries, favourites, creation actions, keyboard navigation, account context, and async loading.",
     "targets": [
       "react-vite"
     ],
-    "slot": "primitive",
+    "slot": "ui-primitive",
     "delivery": "adopted",
     "target": {
       "priority": "P2",

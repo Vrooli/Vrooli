@@ -1,25 +1,22 @@
 {
-  "libraryId": "react-component-library:code-block",
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "catalogId": "data-display.code-block",
-  "displayName": "Code Block",
-  "description": "Code block with language label and copy feedback.",
-  "tags": ["markdown", "code"],
-  "entry": "CodeBlock.tsx",
-  "latest": "0.3.1",
   "deprecatedVersions": [],
-  "draft": "",
+  "description": "Code block with language label and copy feedback.",
   "designStyles": [
     {
-      "styleId": "vrooli-default",
       "affinity": "native",
-      "reason": "token-native operational-console baseline"
+      "reason": "token-native operational-console baseline",
+      "styleId": "vrooli-default"
     }
   ],
-  "requiredTokens": [
-    "--color-surface-muted",
-    "--color-border",
-    "--color-foreground",
-    "--color-muted-foreground",
-    "--color-accent"
+  "displayName": "Code Block",
+  "draft": "",
+  "entry": "CodeBlock.tsx",
+  "latest": "0.3.1",
+  "libraryId": "react-component-library:code-block",
+  "tags": [
+    "markdown",
+    "code"
   ]
 }

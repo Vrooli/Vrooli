@@ -1,10 +1,6 @@
 {
-  "libraryId": "react-component-library:Button",
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "catalogId": "controls.button",
-  "displayName": "Button",
-  "description": "Token-bound accessible action button with variant and size styling.",
-  "tags": ["form", "interactive"],
-  "slot": "ui-primitive",
   "category": "actions",
   "dependencies": [
     {
@@ -16,21 +12,29 @@
       "version": "1.1.0"
     }
   ],
+  "deprecatedVersions": [],
+  "description": "Token-bound accessible action button with variant and size styling.",
   "designStyles": [
     {
-      "styleId": "vrooli-default",
-      "affinity": "native"
+      "affinity": "native",
+      "styleId": "vrooli-default"
     },
     {
-      "styleId": "vrooli-command-display",
-      "affinity": "compatible"
+      "affinity": "compatible",
+      "styleId": "vrooli-command-display"
     },
     {
-      "styleId": "vrooli-conversion-landing",
-      "affinity": "compatible"
+      "affinity": "compatible",
+      "styleId": "vrooli-conversion-landing"
     }
   ],
-  "latest": "2.2.0",
+  "displayName": "Button",
   "draft": "",
-  "deprecatedVersions": []
+  "latest": "2.2.0",
+  "libraryId": "react-component-library:Button",
+  "slot": "ui-primitive",
+  "tags": [
+    "form",
+    "interactive"
+  ]
 }

@@ -1,11 +1,21 @@
 {
-  "libraryId": "react-component-library:CollapsibleRegion",
-  "catalogId": "motion.collapsible-region",
-  "displayName": "CollapsibleRegion",
-  "description": "A disclosure region that preserves accessible semantics while content enters and exits without clipping artifacts.",
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "component",
-  "tags": ["motion", "layout", "token-bound"],
+  "catalogId": "motion.collapsible-region",
+  "dependencies": [],
+  "description": "A disclosure region that preserves accessible semantics while content enters and exits without clipping artifacts.",
+  "designStyles": [
+    {
+      "affinity": "native",
+      "styleId": "vrooli-default"
+    }
+  ],
+  "displayName": "CollapsibleRegion",
   "latest": "1.0.0",
-  "designStyles": [{ "styleId": "vrooli-default", "affinity": "native" }],
-  "dependencies": []
+  "libraryId": "react-component-library:CollapsibleRegion",
+  "tags": [
+    "motion",
+    "layout",
+    "token-bound"
+  ]
 }

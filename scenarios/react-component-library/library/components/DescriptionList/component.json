@@ -1,11 +1,20 @@
 {
-  "libraryId": "react-component-library:DescriptionList",
-  "catalogId": "data-display.description-list",
-  "displayName": "DescriptionList",
-  "description": "A semantic key-value surface for readable resource metadata across narrow and wide layouts.",
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "component",
-  "tags": ["data-display", "token-bound"],
+  "catalogId": "data-display.description-list",
+  "dependencies": [],
+  "description": "A semantic key-value surface for readable resource metadata across narrow and wide layouts.",
+  "designStyles": [
+    {
+      "affinity": "native",
+      "styleId": "vrooli-default"
+    }
+  ],
+  "displayName": "DescriptionList",
   "latest": "1.0.0",
-  "designStyles": [{ "styleId": "vrooli-default", "affinity": "native" }],
-  "dependencies": []
+  "libraryId": "react-component-library:DescriptionList",
+  "tags": [
+    "data-display",
+    "token-bound"
+  ]
 }

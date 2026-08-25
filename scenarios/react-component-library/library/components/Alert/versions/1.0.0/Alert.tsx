@@ -89,7 +89,7 @@ export function Alert({
         {actions && <div data-rcl-alert-actions>{actions}</div>}
       </Stack>
       {dismissible && (
-        <button
+        <button data-testid="feedback.alert"
           type="button"
           data-rcl-alert-close
           aria-label={dismissLabel}

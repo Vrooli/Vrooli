@@ -1,11 +1,64 @@
 {
-  "schemaVersion": 3,
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
+  "args": {
+    "fields": []
+  },
+  "environment": {
+    "fixtures": []
+  },
   "kind": "component",
-  "title": "FindingList",
-  "args": { "fields": [] },
-  "environment": { "fixtures": [] },
+  "schemaVersion": 4,
   "stories": [
-    { "id": "default", "name": "Default", "harness": "FindingListStory", "args": { "findings": [{ "id": "a11y", "assetId": "data-display.score-gauge", "severity": "error", "message": "Missing evidence", "remediation": "Capture the declared viewports." }] }, "expect": [{ "kind": "text", "value": "Missing evidence" }], "mode": "pinned" },
-    { "id": "empty", "name": "Empty", "harness": "FindingListStory", "args": { "findings": [] }, "expect": [{ "kind": "text", "value": "No findings." }], "mode": "pinned" }
-  ]
+    {
+      "args": {
+        "findings": [
+          {
+            "assetId": "data-display.score-gauge",
+            "id": "a11y",
+            "message": "Missing evidence",
+            "remediation": "Capture the declared viewports.",
+            "severity": "error"
+          }
+        ]
+      },
+      "composition": {
+        "harness": {
+          "asset": "preview.direct",
+          "version": "1.0.0",
+          "export": "Direct"
+        }
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "Missing evidence"
+        }
+      ],
+      "id": "default",
+      "mode": "pinned",
+      "name": "Default"
+    },
+    {
+      "args": {
+        "findings": []
+      },
+      "composition": {
+        "harness": {
+          "asset": "preview.direct",
+          "version": "1.0.0",
+          "export": "Direct"
+        }
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "No findings."
+        }
+      ],
+      "id": "empty",
+      "mode": "pinned",
+      "name": "Empty"
+    }
+  ],
+  "title": "FindingList"
 }

@@ -72,9 +72,7 @@ func ValidateComposition(root string) (Result, error) {
 		}
 		result.CompositionScores[asset.Asset.ID] = score
 		values = append(values, score)
-		for _, escape := range escapes {
-			result.BespokeEscapes = append(result.BespokeEscapes, escape)
-		}
+		result.BespokeEscapes = append(result.BespokeEscapes, escapes...)
 		for range missingReasons {
 			result.Findings = append(result.Findings, Finding{
 				Code:        "catalog.composition_bespoke_reason",

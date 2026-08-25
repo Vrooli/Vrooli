@@ -5,13 +5,14 @@
   "asset": {
     "id": "forms.editor-field",
     "name": "EditorField",
-    "kind": "component", "surface": "raised",
+    "kind": "component",
+    "surface": "raised",
     "domain": "forms",
     "description": "The lazily loaded rich text, Markdown, code, or JSON editing field selected through an adapter while sharing labels, errors, loading treatment, autosave, and form integration.",
     "targets": [
       "react-vite"
     ],
-    "slot": "primitive",
+    "slot": "ui-primitive",
     "delivery": "adopted",
     "target": {
       "priority": "P1",

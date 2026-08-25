@@ -1,23 +1,27 @@
 {
-  "libraryId": "react-component-library:ResponsivePanel",
-  "catalogId": "overlays.responsive-panel",
-  "displayName": "ResponsivePanel",
-  "description": "One responsive layered panel contract that preserves open state while moving between desktop and mobile presentations.",
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "component",
-  "tags": ["overlay", "responsive", "token-bound"],
-  "dependencies": [
+  "catalogId": "overlays.responsive-panel",
+  "dependencies": [],
+  "description": "One responsive layered panel contract that preserves open state while moving between desktop and mobile presentations.",
+  "designStyles": [
     {
-      "libraryId": "react-component-library:useControllableState",
-      "version": "1.0.0"
-    },
-    { "libraryId": "react-component-library:useFocusTrap", "version": "1.0.0" },
-    {
-      "libraryId": "react-component-library:useMediaQuery",
-      "version": "1.0.0"
-    },
-    { "libraryId": "react-component-library:useScrollLock", "version": "1.0.0" }
+      "affinity": "native",
+      "styleId": "vrooli-default"
+    }
   ],
+  "displayName": "ResponsivePanel",
   "latest": "1.1.0",
-  "designStyles": [{ "styleId": "vrooli-default", "affinity": "native" }],
-  "dependencies": []
+  "libraryId": "react-component-library:ResponsivePanel",
+  "tags": [
+    "overlay",
+    "responsive",
+    "token-bound"
+  ],
+  "requires": [
+    {
+      "libraryId": "react-component-library:useLocale",
+      "version": "1.0.0"
+    }
+  ]
 }

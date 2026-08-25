@@ -5,13 +5,14 @@
   "asset": {
     "id": "forms.time-picker",
     "name": "TimePicker",
-    "kind": "component", "surface": "raised",
+    "kind": "component",
+    "surface": "raised",
     "domain": "forms",
     "description": "The localized time field with direct entry, selectable increments, optional seconds, timezone context, constraints, and keyboard-friendly adjustment.",
     "targets": [
       "react-vite"
     ],
-    "slot": "primitive",
+    "slot": "ui-primitive",
     "delivery": "adopted",
     "target": {
       "priority": "P1",

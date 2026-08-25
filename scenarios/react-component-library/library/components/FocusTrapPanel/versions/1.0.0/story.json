@@ -1,37 +1,35 @@
 {
-  "schemaVersion": 3,
-  "kind": "component",
-  "title": "FocusTrapPanel",
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
   "args": {
     "fields": [
       {
-        "path": "open",
-        "label": "Open",
+        "default": true,
         "kind": "boolean",
-        "default": true
+        "label": "Open",
+        "path": "open"
       },
       {
-        "path": "children",
-        "label": "Content",
-        "kind": "structured",
         "default": {
           "$text": "Trapped panel content"
-        }
+        },
+        "kind": "structured",
+        "label": "Content",
+        "path": "children"
       }
     ]
   },
   "environment": {
     "fixtures": []
   },
+  "kind": "component",
+  "schemaVersion": 4,
   "stories": [
     {
-      "id": "open",
-      "name": "Open",
       "args": {
-        "open": true,
         "children": {
           "$text": "Trapped panel content"
-        }
+        },
+        "open": true
       },
       "expect": [
         {
@@ -43,16 +41,16 @@
           "value": "Trapped panel content"
         }
       ],
-      "mode": "pinned"
+      "id": "open",
+      "mode": "pinned",
+      "name": "Open"
     },
     {
-      "id": "closed",
-      "name": "Closed",
       "args": {
-        "open": false,
         "children": {
           "$text": "Trapped panel content"
-        }
+        },
+        "open": false
       },
       "expect": [
         {
@@ -60,7 +58,10 @@
           "selector": "[role=dialog]"
         }
       ],
-      "mode": "pinned"
+      "id": "closed",
+      "mode": "pinned",
+      "name": "Closed"
     }
-  ]
+  ],
+  "title": "FocusTrapPanel"
 }

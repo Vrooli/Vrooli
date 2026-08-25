@@ -1,4 +1,6 @@
 /** @vrooliComponentSource ai.message */
+import { translate } from "../../../../hooks/useLocale/versions/1.0.0/useLocale";
+
 import { useId, type CSSProperties, type ReactNode } from "react";
 import {
   Avatar,
@@ -131,8 +133,8 @@ function stateStatus(state: MessageState) {
 
 function AttachmentList({ items }: { items: MessageAttachment[] }) {
   return (
-    <section aria-label="Attachments">
-      <div data-rcl-message-list-title>Attachments</div>
+    <section aria-label={translate("ai.message.aria-label.1", "Attachments")}>
+      <div data-rcl-message-list-title>{translate("ai.message.text.5", "Attachments")}</div>
       <ul data-rcl-message-list>
         {items.map((item) => (
           <li key={item.id} data-rcl-message-attachment>
@@ -141,7 +143,7 @@ function AttachmentList({ items }: { items: MessageAttachment[] }) {
             </span>
             <span data-rcl-message-attachment-copy>
               {item.href ? (
-                <a data-rcl-message-link href={item.href}>
+                <a data-testid="ai.message" data-rcl-message-link href={item.href}>
                   {item.name}
                 </a>
               ) : (
@@ -167,8 +169,8 @@ function AttachmentList({ items }: { items: MessageAttachment[] }) {
 
 function CitationList({ items }: { items: MessageCitation[] }) {
   return (
-    <section aria-label="Citations">
-      <div data-rcl-message-list-title>Sources</div>
+    <section aria-label={translate("ai.message.aria-label.2", "Citations")}>
+      <div data-rcl-message-list-title>{translate("ai.message.text.6", "Sources")}</div>
       <ol data-rcl-message-list>
         {items.map((item, index) => (
           <li key={item.id} data-rcl-message-citation>
@@ -177,7 +179,7 @@ function CitationList({ items }: { items: MessageCitation[] }) {
             </span>
             <span data-rcl-message-citation-copy>
               {item.href ? (
-                <a data-rcl-message-link href={item.href}>
+                <a data-testid="ai.message" data-rcl-message-link href={item.href}>
                   {item.label}
                 </a>
               ) : (
@@ -277,13 +279,13 @@ export function Message({
             id={descriptionId}
             data-rcl-message-state
             role="status"
-            aria-label="Generating response"
+            aria-label={translate("ai.message.aria-label.3", "Generating response")}
           >
             <span data-rcl-message-marker aria-hidden="true">
               ✦
             </span>
             <span data-rcl-message-state-copy>
-              Gathering a considered response…
+              {translate("ai.message.text.1", "Gathering a considered response…")}
             </span>
           </div>
         ) : content !== undefined ? (
@@ -316,7 +318,7 @@ export function Message({
             <span>{errorMessage}</span>
             <div data-rcl-message-error-actions>
               {onRetry ? (
-                <button
+                <button data-testid="ai.message"
                   type="button"
                   data-rcl-message-action
                   data-primary="true"
@@ -332,9 +334,9 @@ export function Message({
       {actions.length > 0 ? (
         <>
           <div data-rcl-message-divider aria-hidden="true" />
-          <div data-rcl-message-actions aria-label="Message actions">
+          <div data-rcl-message-actions aria-label={translate("ai.message.aria-label.4", "Message actions")}>
             {actions.map((action) => (
-              <button
+              <button data-testid="ai.message"
                 key={action.id}
                 type="button"
                 data-rcl-message-action

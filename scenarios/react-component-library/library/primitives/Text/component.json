@@ -1,34 +1,35 @@
 {
-  "libraryId": "react-component-library:Text",
-  "catalogId": "primitives.text",
-  "displayName": "Text",
-  "description": "Text selects one of the eight bundled text styles without free-form font sizing.",
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "primitive",
-  "tags": [
-    "primitive",
-    "token-bound"
-  ],
-  "latest": "1.1.0",
-  "designStyles": [
-    {
-      "styleId": "vrooli-default",
-      "affinity": "native"
-    },
-    {
-      "styleId": "vrooli-command-display",
-      "affinity": "compatible"
-    },
-    {
-      "styleId": "vrooli-conversion-landing",
-      "affinity": "compatible"
-    }
-  ],
+  "catalogId": "primitives.text",
   "dependencies": [
     {
       "libraryId": "react-component-library:Tokens",
       "version": "1.0.0"
     }
   ],
+  "deprecatedVersions": [],
+  "description": "Text selects one of the eight bundled text styles without free-form font sizing.",
+  "designStyles": [
+    {
+      "affinity": "native",
+      "styleId": "vrooli-default"
+    },
+    {
+      "affinity": "compatible",
+      "styleId": "vrooli-command-display"
+    },
+    {
+      "affinity": "compatible",
+      "styleId": "vrooli-conversion-landing"
+    }
+  ],
+  "displayName": "Text",
   "draft": "",
-  "deprecatedVersions": []
+  "latest": "1.1.0",
+  "libraryId": "react-component-library:Text",
+  "tags": [
+    "primitive",
+    "token-bound"
+  ]
 }

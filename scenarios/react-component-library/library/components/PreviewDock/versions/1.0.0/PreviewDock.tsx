@@ -4,11 +4,13 @@
  * @status released
  * @deps {"react":"^18"}
  */
+import { translate } from "../../../../hooks/useLocale/versions/1.0.0/useLocale";
+
 import type { ReactNode } from "react";
 
 export function PreviewDock({
   children,
-  label = "Preview controls",
+  label = translate("preview.preview-dock.label.1", "Preview controls"),
 }: {
   children?: ReactNode;
   label?: string;

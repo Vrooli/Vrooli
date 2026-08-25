@@ -1,87 +1,113 @@
 {
-  "schemaVersion": 3,
-  "kind": "component",
-  "title": "Combobox",
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
   "args": {
     "fields": []
   },
   "environment": {
     "fixtures": []
   },
+  "kind": "component",
+  "schemaVersion": 4,
   "stories": [
     {
-      "id": "default",
-      "name": "Searchable selection",
-      "harness": "Default",
       "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Default",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
         {
           "kind": "role",
-          "role": "combobox",
-          "name": "Workspace team"
+          "name": "Workspace team",
+          "role": "combobox"
         },
         {
           "kind": "text",
           "value": "Design systems"
         }
       ],
-      "mode": "live"
+      "id": "default",
+      "mode": "live",
+      "name": "Searchable selection"
     },
     {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Create",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Add a capability",
+          "role": "combobox"
+        }
+      ],
       "id": "create",
-      "name": "Create a value",
-      "harness": "Create",
+      "mode": "live",
+      "name": "Create a value"
+    },
+    {
       "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Empty",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
         {
           "kind": "role",
-          "role": "combobox",
-          "name": "Add a capability"
+          "name": "Workspace team",
+          "role": "combobox"
         }
       ],
-      "mode": "live"
-    },
-    {
       "id": "empty",
-      "name": "No local matches",
-      "harness": "Empty",
+      "mode": "live",
+      "name": "No local matches"
+    },
+    {
       "args": {},
+      "composition": {
+        "specimen": {
+          "export": "ValidationError",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
         {
           "kind": "role",
-          "role": "combobox",
-          "name": "Workspace team"
+          "name": "Choose the owning team before continuing.",
+          "role": "alert"
         }
       ],
-      "mode": "live"
-    },
-    {
       "id": "validation-error",
-      "name": "Validation error",
-      "harness": "ValidationError",
-      "args": {},
-      "expect": [
-        {
-          "kind": "role",
-          "role": "alert",
-          "name": "Choose the owning team before continuing."
-        }
-      ],
-      "mode": "live"
+      "mode": "live",
+      "name": "Validation error"
     },
     {
-      "id": "request-error",
-      "name": "Remote request error",
-      "harness": "RequestError",
       "args": {},
+      "composition": {
+        "specimen": {
+          "export": "RequestError",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
         {
           "kind": "role",
-          "role": "combobox",
-          "name": "Remote workspace"
+          "name": "Remote workspace",
+          "role": "combobox"
         }
       ],
-      "mode": "live"
+      "id": "request-error",
+      "mode": "live",
+      "name": "Remote request error"
     }
-  ]
+  ],
+  "title": "Combobox"
 }

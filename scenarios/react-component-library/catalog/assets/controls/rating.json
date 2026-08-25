@@ -5,13 +5,14 @@
   "asset": {
     "id": "controls.rating",
     "name": "Rating",
-    "kind": "component", "surface": "raised",
+    "kind": "component",
+    "surface": "raised",
     "domain": "controls",
     "description": "The discrete preference control supporting icons, partial display, hover preview, keyboard entry, read-only presentation, and an accessible value label.",
     "targets": [
       "react-vite"
     ],
-    "slot": "primitive",
+    "slot": "ui-primitive",
     "delivery": "adopted",
     "target": {
       "priority": "P2",

@@ -1,11 +1,20 @@
 {
-  "libraryId": "react-component-library:Table",
-  "catalogId": "data-display.table",
-  "displayName": "Table",
-  "description": "A semantic tabular surface with honest headings and responsive overflow boundaries.",
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "component",
-  "tags": ["data-display", "token-bound"],
+  "catalogId": "data-display.table",
+  "dependencies": [],
+  "description": "A semantic tabular surface with honest headings and responsive overflow boundaries.",
+  "designStyles": [
+    {
+      "affinity": "native",
+      "styleId": "vrooli-default"
+    }
+  ],
+  "displayName": "Table",
   "latest": "1.0.0",
-  "designStyles": [{ "styleId": "vrooli-default", "affinity": "native" }],
-  "dependencies": []
+  "libraryId": "react-component-library:Table",
+  "tags": [
+    "data-display",
+    "token-bound"
+  ]
 }

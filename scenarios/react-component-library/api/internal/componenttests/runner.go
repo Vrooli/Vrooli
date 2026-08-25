@@ -64,7 +64,7 @@ type PerformanceEvidence struct {
 	NodeCount     int       `json:"nodeCount"`
 }
 type Artifact struct {
-	Kind, Label, AssetLibraryID, Version, Reference string
+	Kind, Label, StoryID, AssetLibraryID, Version, Reference string
 }
 type Report struct {
 	ID              string     `json:"id"`

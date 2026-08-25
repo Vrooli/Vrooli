@@ -5,13 +5,14 @@
   "asset": {
     "id": "forms.conditional-field",
     "name": "ConditionalField",
-    "kind": "component", "surface": "raised",
+    "kind": "component",
+    "surface": "raised",
     "domain": "forms",
     "description": "The schema-driven field that appears, disables, resets, or reconfigures itself based on a compiled dependency expression rather than ad hoc conditional rendering.",
     "targets": [
       "react-vite"
     ],
-    "slot": "primitive",
+    "slot": "ui-primitive",
     "delivery": "adopted",
     "target": {
       "priority": "P1",

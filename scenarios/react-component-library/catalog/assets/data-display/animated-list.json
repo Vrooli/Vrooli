@@ -5,13 +5,14 @@
   "asset": {
     "id": "data-display.animated-list",
     "name": "AnimatedList",
-    "kind": "component", "surface": "raised",
+    "kind": "component",
+    "surface": "raised",
     "domain": "data-display",
     "description": "The keyed collection preserving object constancy while items enter, leave, reorder, group, or change size, so a moving row is recognisably the same row.",
     "targets": [
       "react-vite"
     ],
-    "slot": "primitive",
+    "slot": "ui-primitive",
     "delivery": "adopted",
     "target": {
       "priority": "P1",

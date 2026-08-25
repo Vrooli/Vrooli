@@ -5,13 +5,14 @@
   "asset": {
     "id": "manipulation.swipe-action",
     "name": "SwipeAction",
-    "kind": "component", "surface": "raised",
+    "kind": "component",
+    "surface": "raised",
     "domain": "manipulation",
     "description": "The touch-first row interaction revealing contextual actions, with thresholds, velocity, exclusivity between rows, cancellation, and equivalent visible buttons for every action.",
     "targets": [
       "react-vite"
     ],
-    "slot": "primitive",
+    "slot": "ui-primitive",
     "delivery": "adopted",
     "target": {
       "priority": "P1",

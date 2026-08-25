@@ -10,13 +10,14 @@
   "asset": {
     "id": "primitives.stack",
     "name": "Stack",
-    "kind": "primitive", "surface": "base",
+    "kind": "primitive",
+    "surface": "base",
     "domain": "primitives",
     "description": "The vertical layout primitive giving consistent spacing, alignment, optional separators, wrapping, responsive values, and a choice of semantic element.",
     "targets": [
       "react-vite"
     ],
-    "slot": "primitive",
+    "slot": "ui-primitive",
     "delivery": "adopted",
     "target": {
       "priority": "P0",

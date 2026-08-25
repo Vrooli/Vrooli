@@ -1,128 +1,121 @@
 {
-  "schemaVersion": 3,
-  "kind": "component",
-  "title": "DrawerShell",
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
   "args": {
     "fields": [
       {
-        "path": "open",
+        "default": true,
+        "kind": "boolean",
         "label": "Open",
-        "kind": "boolean",
-        "default": true
+        "path": "open"
       },
       {
-        "path": "title",
+        "default": "Component details",
+        "kind": "text",
         "label": "Title",
-        "kind": "text",
-        "default": "Component details"
+        "path": "title"
       },
       {
-        "path": "size",
+        "default": "compact",
+        "kind": "text",
         "label": "Size",
-        "kind": "text",
-        "default": "compact"
+        "path": "size"
       },
       {
-        "path": "avoidKeyboard",
-        "label": "Avoid Keyboard",
+        "default": false,
         "kind": "boolean",
-        "default": false
+        "label": "Avoid Keyboard",
+        "path": "avoidKeyboard"
       },
       {
-        "path": "onClose",
-        "label": "On Close",
-        "kind": "structured",
         "default": {
           "$handler": "close"
-        }
+        },
+        "kind": "structured",
+        "label": "On Close",
+        "path": "onClose"
       },
       {
-        "path": "children",
-        "label": "Children",
-        "kind": "structured",
         "default": {
           "$text": "Drawer body content"
-        }
+        },
+        "kind": "structured",
+        "label": "Children",
+        "path": "children"
       }
     ]
   },
   "environment": {
     "fixtures": []
   },
+  "kind": "component",
+  "schemaVersion": 4,
   "stories": [
     {
-      "id": "full-open",
-      "name": "Full drawer",
       "args": {
-        "open": true,
-        "title": "Component details",
+        "children": {
+          "$text": "Full-page drawer body content"
+        },
         "onClose": {
           "$handler": "close"
         },
-        "children": {
-          "$text": "Full-page drawer body content"
-        }
+        "open": true,
+        "title": "Component details"
       },
       "expect": [
         {
           "kind": "role",
-          "role": "dialog",
-          "name": "Component details"
+          "name": "Component details",
+          "role": "dialog"
         },
         {
           "kind": "text",
           "value": "Full-page drawer body content"
         }
       ],
-      "mode": "pinned"
+      "id": "full-open",
+      "mode": "pinned",
+      "name": "Full drawer"
     },
     {
-      "id": "compact-open",
-      "name": "Compact centered panel",
       "args": {
-        "open": true,
-        "size": "compact",
-        "title": "Appearance",
+        "children": {
+          "$text": "Compact panel content"
+        },
         "onClose": {
           "$handler": "close"
         },
-        "children": {
-          "$text": "Compact panel content"
-        }
+        "open": true,
+        "size": "compact",
+        "title": "Appearance"
       },
       "expect": [
         {
           "kind": "role",
-          "role": "dialog",
-          "name": "Appearance"
+          "name": "Appearance",
+          "role": "dialog"
         },
         {
           "kind": "text",
           "value": "Compact panel content"
         }
       ],
-      "mode": "pinned"
+      "id": "compact-open",
+      "mode": "pinned",
+      "name": "Compact centered panel"
     },
     {
-      "id": "with-header-content",
-      "name": "Header content",
       "args": {
-        "open": true,
-        "title": "Edit prompt",
+        "children": {
+          "$text": "Body with supporting context"
+        },
         "headerExtra": {
-          "$node": "p",
-          "children": [
-            {
-              "$text": "Updated just now"
-            }
-          ]
+          "$text": "p"
         },
         "onClose": {
           "$handler": "close"
         },
-        "children": {
-          "$text": "Body with supporting context"
-        }
+        "open": true,
+        "title": "Edit prompt"
       },
       "expect": [
         {
@@ -134,7 +127,10 @@
           "value": "Body with supporting context"
         }
       ],
-      "mode": "pinned"
+      "id": "with-header-content",
+      "mode": "pinned",
+      "name": "Header content"
     }
-  ]
+  ],
+  "title": "DrawerShell"
 }

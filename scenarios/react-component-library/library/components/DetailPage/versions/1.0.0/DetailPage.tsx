@@ -1,4 +1,6 @@
 /** @vrooliComponentSource react-component-library:DetailPage */
+import { translate } from "../../../../hooks/useLocale/versions/1.0.0/useLocale";
+
 import type { ReactNode } from "react";
 const panel = {
   border: "1px solid var(--color-border, #cbd5e1)",
@@ -22,21 +24,21 @@ function StateView({ state, children }: { state: State; children: ReactNode }) {
   if (state === "loading")
     return (
       <div role="status" style={{ ...panel, textAlign: "center" }}>
-        Loading…
+          {translate("templates.detail-page.text.1", "Loading…")}
       </div>
     );
   if (state === "refreshing")
     return (
       <div role="status" style={panel}>
-        <strong>Refreshing</strong>
+        <strong>{translate("templates.detail-page.text.1", "Refreshing")}</strong>
         {children}
       </div>
     );
-  if (state === "stale") return <div>Showing stale data{children}</div>;
+  if (state === "stale") return <div>{translate("templates.detail-page.text.2", "Showing stale data")}{children}</div>;
   if (state === "empty")
     return (
       <div data-state="empty" style={{ ...panel, textAlign: "center" }}>
-        Nothing here
+        {translate("templates.detail-page.text.3", "Nothing here")}
       </div>
     );
   if (state === "partial-error")
@@ -47,7 +49,7 @@ function StateView({ state, children }: { state: State; children: ReactNode }) {
         role="alert"
         style={{ ...panel, borderColor: "var(--color-danger, #dc2626)" }}
       >
-        Unable to load this page
+        {translate("templates.detail-page.text.4", "Unable to load this page")}
       </div>
     );
   if (state === "offline") return <div role="status">Offline{children}</div>;
@@ -73,7 +75,7 @@ export function DetailPage({
           <h1 style={{ margin: 0, fontSize: 24 }}>
             {data?.title ?? "Resource"}
           </h1>
-          <p style={muted}>A focused view of this resource.</p>
+          <p style={muted}>{translate("templates.detail-page.text.2", "A focused view of this resource.")}</p>
         </header>
         <section data-region="primary" style={panel}>
           {data?.primary ?? "Primary resource content"}

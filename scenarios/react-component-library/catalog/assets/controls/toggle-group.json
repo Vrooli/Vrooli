@@ -5,13 +5,14 @@
   "asset": {
     "id": "controls.toggle-group",
     "name": "ToggleGroup",
-    "kind": "component", "surface": "raised",
+    "kind": "component",
+    "surface": "raised",
     "domain": "controls",
     "description": "The single- or multiple-selection group with roving focus, shared styling, overflow handling, and an animated selection indicator that respects motion policy.",
     "targets": [
       "react-vite"
     ],
-    "slot": "primitive",
+    "slot": "ui-primitive",
     "delivery": "adopted",
     "target": {
       "priority": "P1",

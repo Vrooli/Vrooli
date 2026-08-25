@@ -1,22 +1,40 @@
 {
-  "libraryId": "react-component-library:Toolbar",
-  "catalogId": "controls.toolbar",
-  "displayName": "Toolbar",
-  "description": "A responsive action toolbar with declarative items, roving focus, disabled-item skipping, and shared Button/Toggle interaction grammar.",
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "component",
-  "tags": ["controls", "navigation", "keyboard", "responsive", "token-bound"],
-  "slot": "ui-primitive",
+  "catalogId": "controls.toolbar",
   "category": "controls",
   "dependencies": [
-    { "libraryId": "react-component-library:ControlBase", "version": "1.0.0" },
-    { "libraryId": "react-component-library:Toggle", "version": "1.0.0" },
+    {
+      "libraryId": "react-component-library:ControlBase",
+      "version": "1.0.0"
+    },
+    {
+      "libraryId": "react-component-library:Toggle",
+      "version": "1.0.0"
+    },
     {
       "libraryId": "react-component-library:useRovingFocus",
       "version": "1.0.0"
     }
   ],
-  "designStyles": [{ "styleId": "vrooli-default", "affinity": "native" }],
-  "latest": "1.0.0",
+  "deprecatedVersions": [],
+  "description": "A responsive action toolbar with declarative items, roving focus, disabled-item skipping, and shared Button/Toggle interaction grammar.",
+  "designStyles": [
+    {
+      "affinity": "native",
+      "styleId": "vrooli-default"
+    }
+  ],
+  "displayName": "Toolbar",
   "draft": "",
-  "deprecatedVersions": []
+  "latest": "1.0.0",
+  "libraryId": "react-component-library:Toolbar",
+  "slot": "ui-primitive",
+  "tags": [
+    "controls",
+    "navigation",
+    "keyboard",
+    "responsive",
+    "token-bound"
+  ]
 }

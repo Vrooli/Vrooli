@@ -10,13 +10,14 @@
   "asset": {
     "id": "data-display.timeline",
     "name": "Timeline",
-    "kind": "component", "surface": "raised",
+    "kind": "component",
+    "surface": "raised",
     "domain": "data-display",
     "description": "The chronological event component with date grouping, status markers, expandable detail, loading, pagination, and responsive alignment.",
     "targets": [
       "react-vite"
     ],
-    "slot": "primitive",
+    "slot": "ui-primitive",
     "delivery": "adopted",
     "target": {
       "priority": "P1",
@@ -36,6 +37,10 @@
       {
         "asset": "data-display.list",
         "reason": "Entries use the shared collection semantics."
+      },
+      {
+        "asset": "hooks.use-locale",
+        "reason": "User-facing copy resolves through the adopting host locale bridge."
       }
     ]
   },

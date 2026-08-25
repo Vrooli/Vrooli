@@ -1,4 +1,6 @@
 /** @vrooliComponentSource react-component-library:VerdictSummary */
+import { translate } from "../../../../hooks/useLocale/versions/1.0.0/useLocale";
+
 import { Badge } from "../../../../primitives/Badge/versions/1.0.0/Badge";
 import { Stack } from "../../../../primitives/Stack/versions/1.0.0/Stack";
 import { Text } from "../../../../primitives/Text/versions/1.0.0/Text";
@@ -15,7 +17,7 @@ export function VerdictSummary({
   return (
     <section
       className={SURFACE_ELEVATIONS.raised}
-      aria-label="Verdict summary"
+      aria-label={translate("data-display.verdict-summary.aria-label.1", "Verdict summary")}
       data-rcl-asset="data-display.verdict-summary"
       data-rcl-version="1.0.3"
       data-rcl-stamp="source"
@@ -24,7 +26,7 @@ export function VerdictSummary({
     >
       <Stack gap="xs">
         <Text as="strong" textStyle="label">
-          Verdict census
+          {translate("data-display.verdict-summary.text.1", "Verdict census")}
         </Text>
         <div
           style={{ display: "flex", flexWrap: "wrap", gap: "var(--space-xs)" }}

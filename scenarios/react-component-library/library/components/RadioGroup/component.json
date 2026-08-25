@@ -1,11 +1,7 @@
 {
-  "libraryId": "react-component-library:RadioGroup",
-  "catalogId": "controls.radio-group",
-  "displayName": "RadioGroup",
-  "description": "A native radio group with controlled selection, keyboard-operable options, supporting context, disabled choices, and recoverable errors.",
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "component",
-  "tags": ["controls", "selection", "forms", "accessibility", "token-bound"],
-  "slot": "ui-primitive",
+  "catalogId": "controls.radio-group",
   "category": "controls",
   "dependencies": [
     {
@@ -13,8 +9,24 @@
       "version": "1.0.0"
     }
   ],
-  "designStyles": [{ "styleId": "vrooli-default", "affinity": "native" }],
-  "latest": "1.0.0",
+  "deprecatedVersions": [],
+  "description": "A native radio group with controlled selection, keyboard-operable options, supporting context, disabled choices, and recoverable errors.",
+  "designStyles": [
+    {
+      "affinity": "native",
+      "styleId": "vrooli-default"
+    }
+  ],
+  "displayName": "RadioGroup",
   "draft": "",
-  "deprecatedVersions": []
+  "latest": "1.0.0",
+  "libraryId": "react-component-library:RadioGroup",
+  "slot": "ui-primitive",
+  "tags": [
+    "controls",
+    "selection",
+    "forms",
+    "accessibility",
+    "token-bound"
+  ]
 }

@@ -1,11 +1,26 @@
 {
-  "libraryId": "react-component-library:CaptureGrid",
-  "catalogId": "visualization.capture-grid",
-  "displayName": "CaptureGrid",
-  "description": "A responsive matrix of declared viewport and theme evidence captures.",
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "component",
-  "tags": ["visualization", "token-bound"],
+  "catalogId": "visualization.capture-grid",
+  "dependencies": [],
+  "description": "A responsive matrix of declared viewport and theme evidence captures.",
+  "designStyles": [
+    {
+      "affinity": "native",
+      "styleId": "vrooli-default"
+    }
+  ],
+  "displayName": "CaptureGrid",
   "latest": "1.0.0",
-  "designStyles": [{ "styleId": "vrooli-default", "affinity": "native" }],
-  "dependencies": []
+  "libraryId": "react-component-library:CaptureGrid",
+  "tags": [
+    "visualization",
+    "token-bound"
+  ],
+  "requires": [
+    {
+      "libraryId": "react-component-library:useLocale",
+      "version": "1.0.0"
+    }
+  ]
 }

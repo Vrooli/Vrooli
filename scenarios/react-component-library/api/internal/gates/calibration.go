@@ -86,6 +86,10 @@ func GateRunnerFor(gate string) GateRunner {
 		return ValidateComposition
 	case "composition-contract":
 		return ValidateCompositionContract
+	case "i18n":
+		return ValidateI18n
+	case "selector-coverage":
+		return ValidateSelectorCoverage
 	default:
 		return nil
 	}
@@ -250,7 +254,7 @@ func materializeFixture(root, gate string, fixture CalibrationFixture) (string, 
 	}
 	if fixture.Mutation == "released-hash" {
 		dbPath := filepath.Join(tmp, "scenarios", "react-component-library", "data", "react-component-library.db")
-		if err := createCalibrationDatabase(filepath.Join(root, "scenarios", "react-component-library", "data", "react-component-library.db"), dbPath); err != nil {
+		if err := createCalibrationDatabase(dbPath, fixture); err != nil {
 			cleanup()
 			return "", func() {}, err
 		}
@@ -438,19 +442,7 @@ func copyDataOverlay(source, dest string) error {
 	return nil
 }
 
-func createCalibrationDatabase(sourcePath, targetPath string) error {
-	source, err := openGateDB(context.Background(), sourcePath)
-	if err != nil {
-		return err
-	}
-	defer source.Close()
-	var row struct {
-		id, componentID, libraryID, version, status, sourcePath, content, changelog, indexedAt, releasedAt, createdAt string
-	}
-	err = source.QueryRowContext(context.Background(), `SELECT id, component_id, library_id, version, status, source_path, content, changelog_md, indexed_at, released_at, created_at FROM component_versions WHERE status = 'released' LIMIT 1`).Scan(&row.id, &row.componentID, &row.libraryID, &row.version, &row.status, &row.sourcePath, &row.content, &row.changelog, &row.indexedAt, &row.releasedAt, &row.createdAt)
-	if err != nil {
-		return err
-	}
+func createCalibrationDatabase(targetPath string, fixture CalibrationFixture) error {
 	if err := removeGateDB(targetPath); err != nil {
 		return err
 	}
@@ -462,7 +454,14 @@ func createCalibrationDatabase(sourcePath, targetPath string) error {
 	if _, err := target.ExecContext(context.Background(), `CREATE TABLE component_versions (id TEXT PRIMARY KEY, component_id TEXT NOT NULL, library_id TEXT NOT NULL, version TEXT NOT NULL, status TEXT NOT NULL, source_path TEXT NOT NULL, content TEXT NOT NULL DEFAULT '', content_sha256 TEXT NOT NULL, changelog_md TEXT NOT NULL DEFAULT '', indexed_at TEXT NOT NULL, released_at TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL DEFAULT '', UNIQUE(component_id, version))`); err != nil {
 		return err
 	}
-	_, err = target.ExecContext(context.Background(), `INSERT INTO component_versions(id, component_id, library_id, version, status, source_path, content, content_sha256, changelog_md, indexed_at, released_at, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, row.id, row.componentID, row.libraryID, row.version, row.status, row.sourcePath, row.content, strings.Repeat("0", 64), row.changelog, row.indexedAt, row.releasedAt, row.createdAt)
+	name := calibrationDirectoryName(fixture.AssetID)
+	sourcePath := filepath.ToSlash(filepath.Join("components", name, "versions", "1.0.0", name+filepath.Ext(fixture.Source)))
+	contentPath := filepath.Join(filepath.Dir(filepath.Dir(targetPath)), "library", sourcePath)
+	content, err := os.ReadFile(contentPath)
+	if err != nil {
+		return err
+	}
+	_, err = target.ExecContext(context.Background(), `INSERT INTO component_versions(id, component_id, library_id, version, status, source_path, content, content_sha256, changelog_md, indexed_at, released_at, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, "calibration-version", "calibration-component", name, "1.0.0", "released", sourcePath, string(content), strings.Repeat("0", 64), "", "2026-01-15T12:00:00Z", "2026-01-15T12:00:00Z", "2026-01-15T12:00:00Z")
 	return err
 }
 

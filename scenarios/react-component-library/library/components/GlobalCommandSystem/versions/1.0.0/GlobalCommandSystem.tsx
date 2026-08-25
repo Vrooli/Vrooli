@@ -121,7 +121,7 @@ export function GlobalCommandSystem({
         dangerouslySetInnerHTML={{ __html: styles }}
       />
       {children}
-      <button
+      <button data-testid="patterns.global-command-system"
         type="button"
         data-rcl-global-command-trigger
         aria-haspopup="dialog"

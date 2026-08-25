@@ -46,6 +46,16 @@ func (s *service) Reconverge(ctx context.Context, in ReconvergeInput) (Reconverg
 			LocalStatus:          localStatus,
 			Detail:               detail,
 			Files:                s.reconvergeFileOutcomes(ctx, row),
+			ForkStatus:           row.ForkStatus,
+		}
+		if row.ForkStatus == ForkStatusDeclared {
+			outcome.Action = ReconvergeActionFlaggedModified
+			outcome.Disposition = ReconvergeDispositionLocalFork
+			outcome.Detail = "declared fork: " + row.ForkReason
+			result.LocalFork++
+			result.Flagged++
+			result.Outcomes = append(result.Outcomes, outcome)
+			continue
 		}
 		switch localStatus {
 		case LocalStatusModified:
@@ -61,6 +71,11 @@ func (s *service) Reconverge(ctx context.Context, in ReconvergeInput) (Reconverg
 				result.LocalFork++
 			}
 			outcome.Detail = string(outcome.Disposition)
+			if outcome.Disposition == ReconvergeDispositionTranslationOnly {
+				outcome.ForkStatus = ForkStatusMechanicalTranslation
+			} else {
+				outcome.ForkStatus = ForkStatusUnintendedDrift
+			}
 			result.Flagged++
 		case LocalStatusClean:
 			// Snapshot-based CLEAN is necessary but not sufficient to overwrite:

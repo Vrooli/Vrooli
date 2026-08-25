@@ -1,11 +1,20 @@
 {
-  "libraryId": "react-component-library:useSwipe",
-  "catalogId": "hooks.use-swipe",
-  "displayName": "useSwipe",
-  "description": "Production-ready useSwipe hook with SSR-safe lifecycle behavior.",
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "hook",
-  "tags": ["runtime", "accessibility"],
+  "catalogId": "hooks.use-swipe",
+  "dependencies": [],
+  "description": "Production-ready useSwipe hook with SSR-safe lifecycle behavior.",
+  "designStyles": [
+    {
+      "affinity": "native",
+      "styleId": "vrooli-default"
+    }
+  ],
+  "displayName": "useSwipe",
   "latest": "1.0.0",
-  "designStyles": [{ "styleId": "vrooli-default", "affinity": "native" }],
-  "dependencies": []
+  "libraryId": "react-component-library:useSwipe",
+  "tags": [
+    "runtime",
+    "accessibility"
+  ]
 }

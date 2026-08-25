@@ -1,32 +1,40 @@
 {
-  "schemaVersion": 3,
-  "kind": "component",
-  "title": "AsyncBoundary",
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
   "args": {
     "fields": []
   },
   "environment": {
     "fixtures": []
   },
+  "kind": "component",
+  "schemaVersion": 4,
   "stories": [
     {
-      "id": "default",
-      "name": "Ready content",
-      "harness": "Default",
       "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Default",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
         {
           "kind": "text",
           "value": "Revenue overview"
         }
       ],
-      "mode": "live"
+      "id": "default",
+      "mode": "live",
+      "name": "Ready content"
     },
     {
-      "id": "pending",
-      "name": "Initial loading",
-      "harness": "Pending",
       "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Pending",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
         {
           "kind": "role",
@@ -37,13 +45,18 @@
           "value": "Preparing your workspace"
         }
       ],
-      "mode": "live"
+      "id": "pending",
+      "mode": "live",
+      "name": "Initial loading"
     },
     {
-      "id": "refreshing",
-      "name": "Refreshing in place",
-      "harness": "Refreshing",
       "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Refreshing",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
         {
           "kind": "text",
@@ -54,13 +67,18 @@
           "value": "Revenue overview"
         }
       ],
-      "mode": "live"
+      "id": "refreshing",
+      "mode": "live",
+      "name": "Refreshing in place"
     },
     {
-      "id": "stale",
-      "name": "Stale but useful",
-      "harness": "Stale",
       "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Stale",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
         {
           "kind": "text",
@@ -71,13 +89,18 @@
           "value": "Revenue overview"
         }
       ],
-      "mode": "live"
+      "id": "stale",
+      "mode": "live",
+      "name": "Stale but useful"
     },
     {
-      "id": "partial-error",
-      "name": "Partial failure",
-      "harness": "PartialError",
       "args": {},
+      "composition": {
+        "specimen": {
+          "export": "PartialError",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
         {
           "kind": "text",
@@ -88,13 +111,18 @@
           "value": "Revenue overview"
         }
       ],
-      "mode": "live"
+      "id": "partial-error",
+      "mode": "live",
+      "name": "Partial failure"
     },
     {
-      "id": "offline",
-      "name": "Offline with saved content",
-      "harness": "Offline",
       "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Offline",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
         {
           "kind": "role",
@@ -105,13 +133,18 @@
           "value": "Showing the latest content"
         }
       ],
-      "mode": "live"
+      "id": "offline",
+      "mode": "live",
+      "name": "Offline with saved content"
     },
     {
-      "id": "error-static",
-      "name": "Error with retry",
-      "harness": "Error",
       "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Error",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
         {
           "kind": "role",
@@ -119,36 +152,44 @@
         },
         {
           "kind": "role",
-          "role": "button",
-          "name": "Try again"
+          "name": "Try again",
+          "role": "button"
         }
       ],
-      "mode": "live"
+      "id": "error-static",
+      "mode": "live",
+      "name": "Error with retry"
     },
     {
-      "id": "error",
-      "name": "Recoverable error",
-      "harness": "ErrorRecovery",
       "args": {},
+      "composition": {
+        "specimen": {
+          "export": "ErrorRecovery",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
         {
           "kind": "text",
           "value": "Revenue overview"
         }
       ],
+      "id": "error",
       "interactions": [
         {
           "kind": "click",
           "target": {
-            "role": "button",
-            "name": "Try again"
+            "name": "Try again",
+            "role": "button"
           }
         },
         {
           "kind": "settle"
         }
       ],
-      "mode": "live"
+      "mode": "live",
+      "name": "Recoverable error"
     }
-  ]
+  ],
+  "title": "AsyncBoundary"
 }

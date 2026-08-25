@@ -1,4 +1,6 @@
 /** @vrooliComponentSource patterns.resource-detail */
+import { translate } from "../../../../hooks/useLocale/versions/1.0.0/useLocale";
+
 import type { CSSProperties, ReactNode } from "react";
 import {
   AsyncBoundary,
@@ -77,8 +79,8 @@ const boundaryStatus = (status: ResourceDetailStatus): AsyncBoundaryStatus => {
 };
 
 export function ResourceDetail({
-  title = "Resource",
-  description = "Review identity, metadata, and recent changes in one place.",
+  title = translate("patterns.resource-detail.title.1", "Resource"),
+  description = translate("patterns.resource-detail.description.2", "Review identity, metadata, and recent changes in one place."),
   entries = [],
   history = [],
   status = "default",
@@ -112,13 +114,13 @@ export function ResourceDetail({
             id="rcl-resource-metadata-title"
             data-rcl-resource-detail-section-title
           >
-            Metadata
+            {translate("patterns.resource-detail.text.3", "Metadata")}
           </h2>
           {entries.length ? (
             <DescriptionList entries={entries} />
           ) : (
             <p data-rcl-resource-detail-section-copy>
-              No metadata is available yet.
+              {translate("patterns.resource-detail.text.4", "No metadata is available yet.")}
             </p>
           )}
         </section>
@@ -130,13 +132,13 @@ export function ResourceDetail({
             id="rcl-resource-history-title"
             data-rcl-resource-detail-section-title
           >
-            History
+            {translate("patterns.resource-detail.text.5", "History")}
           </h2>
           {history.length ? (
             <AuditTrail entries={history} />
           ) : (
             <p data-rcl-resource-detail-section-copy>
-              No recorded changes yet.
+              {translate("patterns.resource-detail.text.6", "No recorded changes yet.")}
             </p>
           )}
         </section>

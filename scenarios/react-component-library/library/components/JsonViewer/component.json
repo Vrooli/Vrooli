@@ -1,11 +1,26 @@
 {
-  "libraryId": "react-component-library:JsonViewer",
-  "catalogId": "data-display.json-viewer",
-  "displayName": "JsonViewer",
-  "description": "A bounded structured-data viewer with readable overflow and machine-honest semantics.",
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "component",
-  "tags": ["data-display", "token-bound"],
+  "catalogId": "data-display.json-viewer",
+  "dependencies": [],
+  "description": "A bounded structured-data viewer with readable overflow and machine-honest semantics.",
+  "designStyles": [
+    {
+      "affinity": "native",
+      "styleId": "vrooli-default"
+    }
+  ],
+  "displayName": "JsonViewer",
   "latest": "1.0.0",
-  "designStyles": [{ "styleId": "vrooli-default", "affinity": "native" }],
-  "dependencies": []
+  "libraryId": "react-component-library:JsonViewer",
+  "tags": [
+    "data-display",
+    "token-bound"
+  ],
+  "requires": [
+    {
+      "libraryId": "react-component-library:useLocale",
+      "version": "1.0.0"
+    }
+  ]
 }

@@ -1,17 +1,32 @@
 {
-  "libraryId": "react-component-library:VisualRecipes",
-  "catalogId": "foundations.visual-recipes",
-  "displayName": "Visual Recipes",
-  "description": "Typed class recipes that keep visual variants token-backed and reviewable.",
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "foundation",
-  "tags": ["recipes", "variants", "tokens"],
-  "latest": "1.0.0",
-  "designStyles": [{ "styleId": "vrooli-default", "affinity": "native" }],
+  "catalogId": "foundations.visual-recipes",
   "dependencies": [
     {
+      "kind": "requires",
       "libraryId": "react-component-library:Tokens",
-      "version": "1.0.0",
-      "kind": "requires"
+      "version": "1.0.0"
+    },
+    {
+      "kind": "requires",
+      "libraryId": "react-component-library:ClassMerge",
+      "version": "1.0.0"
     }
+  ],
+  "description": "Typed class recipes that keep visual variants token-backed and reviewable.",
+  "designStyles": [
+    {
+      "affinity": "native",
+      "styleId": "vrooli-default"
+    }
+  ],
+  "displayName": "Visual Recipes",
+  "latest": "1.0.0",
+  "libraryId": "react-component-library:VisualRecipes",
+  "tags": [
+    "recipes",
+    "variants",
+    "tokens"
   ]
 }

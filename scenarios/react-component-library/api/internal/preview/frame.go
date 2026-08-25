@@ -212,10 +212,7 @@ func (s *service) bundleFrame(ctx context.Context, frame *components.StoryFrame)
 	implementation := &implementations[0]
 	version := strings.TrimSpace(frame.Version)
 	if version == "" {
-		// Schema-v3 stories predate immutable frame references. Keep them
-		// renderable during migration, but make the fallback explicit and
-		// deterministic for the current catalog projection.
-		version = implementation.LatestVersion
+		return "", "", "", nil, frameBundleError(frame.Asset, "frame version is required")
 	}
 	if len(implementation.Dependencies) > 0 {
 		if _, err := components.ResolveDependencyClosure(ctx, s.components, implementation.ID, version); err != nil {
@@ -255,7 +252,8 @@ func (s *service) bundleFrame(ctx context.Context, frame *components.StoryFrame)
 func frameRequiresFixture(expects []struct {
 	Capability    string   `json:"capability"`
 	TypeArguments []string `json:"typeArguments"`
-}) bool {
+},
+) bool {
 	for _, expect := range expects {
 		if expect.Capability == "data-source" {
 			return true

@@ -1,19 +1,22 @@
 {
-  "schemaVersion": 3,
-  "kind": "component",
-  "title": "DataTable",
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
   "args": {
     "fields": []
   },
   "environment": {
     "fixtures": []
   },
+  "kind": "component",
+  "schemaVersion": 4,
   "stories": [
     {
-      "id": "default",
-      "name": "Resource collection",
-      "harness": "Default",
       "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Default",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
         {
           "kind": "text",
@@ -24,18 +27,23 @@
           "value": "6 results"
         }
       ],
+      "id": "default",
       "interactions": [
         {
           "kind": "settle"
         }
       ],
-      "mode": "live"
+      "mode": "live",
+      "name": "Resource collection"
     },
     {
-      "id": "refreshing",
-      "name": "Refreshing",
-      "harness": "Refreshing",
       "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Refreshing",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
         {
           "kind": "role",
@@ -46,36 +54,46 @@
           "value": "Checking 6 resources for changes"
         }
       ],
+      "id": "refreshing",
       "interactions": [
         {
           "kind": "settle"
         }
       ],
-      "mode": "live"
+      "mode": "live",
+      "name": "Refreshing"
     },
     {
-      "id": "partial",
-      "name": "Partial degradation",
-      "harness": "Partial",
       "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Partial",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
         {
           "kind": "text",
           "value": "Two resources could not be refreshed"
         }
       ],
+      "id": "partial",
       "interactions": [
         {
           "kind": "settle"
         }
       ],
-      "mode": "live"
+      "mode": "live",
+      "name": "Partial degradation"
     },
     {
-      "id": "empty",
-      "name": "Empty collection",
-      "harness": "Empty",
       "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Empty",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
         {
           "kind": "role",
@@ -86,18 +104,23 @@
           "value": "No resources match"
         }
       ],
+      "id": "empty",
       "interactions": [
         {
           "kind": "settle"
         }
       ],
-      "mode": "live"
+      "mode": "live",
+      "name": "Empty collection"
     },
     {
-      "id": "request-error",
-      "name": "Retry recovery",
-      "harness": "RequestError",
       "args": {},
+      "composition": {
+        "specimen": {
+          "export": "RequestError",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
         {
           "kind": "role",
@@ -105,26 +128,31 @@
         },
         {
           "kind": "role",
-          "role": "button",
-          "name": "Try again"
+          "name": "Try again",
+          "role": "button"
         },
         {
           "kind": "text",
           "value": "filters are still here"
         }
       ],
+      "id": "request-error",
       "interactions": [
         {
           "kind": "settle"
         }
       ],
-      "mode": "live"
+      "mode": "live",
+      "name": "Retry recovery"
     },
     {
-      "id": "permission-denied",
-      "name": "Permission denied",
-      "harness": "PermissionDenied",
       "args": {},
+      "composition": {
+        "specimen": {
+          "export": "PermissionDenied",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
         {
           "kind": "role",
@@ -135,12 +163,15 @@
           "value": "Ask a workspace administrator"
         }
       ],
+      "id": "permission-denied",
       "interactions": [
         {
           "kind": "settle"
         }
       ],
-      "mode": "live"
+      "mode": "live",
+      "name": "Permission denied"
     }
-  ]
+  ],
+  "title": "DataTable"
 }

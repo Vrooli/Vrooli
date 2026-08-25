@@ -10,13 +10,14 @@
   "asset": {
     "id": "forms.search-input",
     "name": "SearchInput",
-    "kind": "component", "surface": "raised",
+    "kind": "component",
+    "surface": "raised",
     "domain": "forms",
     "description": "The search field with debouncing, in-flight cancellation, recent queries, clear action, keyboard shortcut binding, loading feedback, and optional suggestions.",
     "targets": [
       "react-vite"
     ],
-    "slot": "primitive",
+    "slot": "ui-primitive",
     "delivery": "adopted",
     "target": {
       "priority": "P0",
@@ -32,6 +33,10 @@
       {
         "asset": "hooks.use-abortable-task",
         "reason": "Superseded queries are cancelled rather than raced."
+      },
+      {
+        "asset": "hooks.use-locale",
+        "reason": "User-facing copy resolves through the adopting host locale bridge."
       }
     ],
     "suggests": [

@@ -10,13 +10,14 @@
   "asset": {
     "id": "data-display.diff-viewer",
     "name": "DiffViewer",
-    "kind": "component", "surface": "raised",
+    "kind": "component",
+    "surface": "raised",
     "domain": "data-display",
     "description": "The semantic comparison surface for text or structured change, with split and unified modes, syntax highlighting, hunk navigation, comments, selection, and large-file handling.",
     "targets": [
       "react-vite"
     ],
-    "slot": "primitive",
+    "slot": "ui-primitive",
     "delivery": "adopted",
     "target": {
       "priority": "P0",
@@ -28,6 +29,10 @@
       {
         "asset": "primitives.code",
         "reason": "Monospace rendering, overflow, and whitespace preservation are shared."
+      },
+      {
+        "asset": "hooks.use-locale",
+        "reason": "User-facing copy resolves through the adopting host locale bridge."
       }
     ]
   },

@@ -1,17 +1,42 @@
 {
-  "libraryId": "react-component-library:ObjectField",
-  "catalogId": "forms.object-field",
-  "displayName": "ObjectField",
-  "description": "A section-backed nested object field that keeps child values, optionality, collapse, and nested errors together.",
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "component",
-  "tags": ["form", "object", "nested", "validation", "token-bound"],
-  "latest": "1.0.0",
-  "designStyles": [
-    { "styleId": "vrooli-default", "affinity": "native" },
-    { "styleId": "vrooli-command-display", "affinity": "compatible" },
-    { "styleId": "vrooli-conversion-landing", "affinity": "compatible" }
-  ],
+  "catalogId": "forms.object-field",
   "dependencies": [
-    { "libraryId": "react-component-library:FormSection", "version": "1.0.0" }
+    {
+      "libraryId": "react-component-library:FormSection",
+      "version": "1.0.0"
+    }
+  ],
+  "description": "A section-backed nested object field that keeps child values, optionality, collapse, and nested errors together.",
+  "designStyles": [
+    {
+      "affinity": "native",
+      "styleId": "vrooli-default"
+    },
+    {
+      "affinity": "compatible",
+      "styleId": "vrooli-command-display"
+    },
+    {
+      "affinity": "compatible",
+      "styleId": "vrooli-conversion-landing"
+    }
+  ],
+  "displayName": "ObjectField",
+  "latest": "1.0.0",
+  "libraryId": "react-component-library:ObjectField",
+  "tags": [
+    "form",
+    "object",
+    "nested",
+    "validation",
+    "token-bound"
+  ],
+  "requires": [
+    {
+      "libraryId": "react-component-library:useLocale",
+      "version": "1.0.0"
+    }
   ]
 }

@@ -1,38 +1,34 @@
 {
-  "schemaVersion": 3,
-  "kind": "component",
-  "title": "Control Base 1.0",
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
   "args": {
     "fields": [
       {
-        "path": "children",
-        "label": "Children",
-        "kind": "structured",
-        "required": true,
         "default": {
           "$text": "Continue"
         },
-        "format": "renderable-text"
+        "format": "renderable-text",
+        "kind": "structured",
+        "label": "Children",
+        "path": "children",
+        "required": true
       },
       {
-        "path": "variant",
-        "label": "Variant",
-        "kind": "enum",
-        "required": true,
         "default": "primary",
+        "kind": "enum",
+        "label": "Variant",
         "options": [
           "primary",
           "secondary",
           "ghost",
           "danger"
-        ]
+        ],
+        "path": "variant",
+        "required": true
       },
       {
-        "path": "size",
-        "label": "Size",
-        "kind": "enum",
-        "required": true,
         "default": "md",
+        "kind": "enum",
+        "label": "Size",
         "options": [
           "xs",
           "sm",
@@ -40,45 +36,47 @@
           "lg",
           "xl",
           "icon"
-        ]
+        ],
+        "path": "size",
+        "required": true
       },
       {
-        "path": "density",
-        "label": "Density",
-        "kind": "enum",
-        "required": true,
         "default": "comfortable",
+        "kind": "enum",
+        "label": "Density",
         "options": [
           "comfortable",
           "compact"
-        ]
+        ],
+        "path": "density",
+        "required": true
       },
       {
-        "path": "shape",
-        "label": "Shape",
-        "kind": "enum",
-        "required": true,
         "default": "square",
+        "kind": "enum",
+        "label": "Shape",
         "options": [
           "square",
           "pill"
-        ]
+        ],
+        "path": "shape",
+        "required": true
       },
       {
-        "path": "disabled",
-        "label": "Disabled",
+        "default": false,
         "kind": "boolean",
-        "default": false
+        "label": "Disabled",
+        "path": "disabled"
       }
     ]
   },
   "environment": {
     "fixtures": []
   },
+  "kind": "component",
+  "schemaVersion": 4,
   "stories": [
     {
-      "id": "variant-primary",
-      "name": "Primary",
       "args": {
         "children": {
           "$text": "Primary"
@@ -88,15 +86,15 @@
       "expect": [
         {
           "kind": "role",
-          "role": "button",
-          "name": "Primary"
+          "name": "Primary",
+          "role": "button"
         }
       ],
-      "mode": "pinned"
+      "id": "variant-primary",
+      "mode": "pinned",
+      "name": "Primary"
     },
     {
-      "id": "variant-secondary",
-      "name": "Secondary",
       "args": {
         "children": {
           "$text": "Secondary"
@@ -106,15 +104,15 @@
       "expect": [
         {
           "kind": "role",
-          "role": "button",
-          "name": "Secondary"
+          "name": "Secondary",
+          "role": "button"
         }
       ],
-      "mode": "pinned"
+      "id": "variant-secondary",
+      "mode": "pinned",
+      "name": "Secondary"
     },
     {
-      "id": "variant-ghost",
-      "name": "Ghost",
       "args": {
         "children": {
           "$text": "Ghost"
@@ -124,15 +122,15 @@
       "expect": [
         {
           "kind": "role",
-          "role": "button",
-          "name": "Ghost"
+          "name": "Ghost",
+          "role": "button"
         }
       ],
-      "mode": "pinned"
+      "id": "variant-ghost",
+      "mode": "pinned",
+      "name": "Ghost"
     },
     {
-      "id": "variant-danger",
-      "name": "Danger",
       "args": {
         "children": {
           "$text": "Danger"
@@ -142,15 +140,15 @@
       "expect": [
         {
           "kind": "role",
-          "role": "button",
-          "name": "Danger"
+          "name": "Danger",
+          "role": "button"
         }
       ],
-      "mode": "pinned"
+      "id": "variant-danger",
+      "mode": "pinned",
+      "name": "Danger"
     },
     {
-      "id": "size-xs",
-      "name": "Extra small",
       "args": {
         "children": {
           "$text": "XS"
@@ -160,15 +158,15 @@
       "expect": [
         {
           "kind": "role",
-          "role": "button",
-          "name": "XS"
+          "name": "XS",
+          "role": "button"
         }
       ],
-      "mode": "pinned"
+      "id": "size-xs",
+      "mode": "pinned",
+      "name": "Extra small"
     },
     {
-      "id": "size-sm",
-      "name": "Small",
       "args": {
         "children": {
           "$text": "SM"
@@ -178,15 +176,15 @@
       "expect": [
         {
           "kind": "role",
-          "role": "button",
-          "name": "SM"
+          "name": "SM",
+          "role": "button"
         }
       ],
-      "mode": "pinned"
+      "id": "size-sm",
+      "mode": "pinned",
+      "name": "Small"
     },
     {
-      "id": "size-md",
-      "name": "Medium",
       "args": {
         "children": {
           "$text": "MD"
@@ -196,15 +194,15 @@
       "expect": [
         {
           "kind": "role",
-          "role": "button",
-          "name": "MD"
+          "name": "MD",
+          "role": "button"
         }
       ],
-      "mode": "pinned"
+      "id": "size-md",
+      "mode": "pinned",
+      "name": "Medium"
     },
     {
-      "id": "size-lg",
-      "name": "Large",
       "args": {
         "children": {
           "$text": "LG"
@@ -214,15 +212,15 @@
       "expect": [
         {
           "kind": "role",
-          "role": "button",
-          "name": "LG"
+          "name": "LG",
+          "role": "button"
         }
       ],
-      "mode": "pinned"
+      "id": "size-lg",
+      "mode": "pinned",
+      "name": "Large"
     },
     {
-      "id": "size-xl",
-      "name": "Extra large",
       "args": {
         "children": {
           "$text": "XL"
@@ -232,34 +230,33 @@
       "expect": [
         {
           "kind": "role",
-          "role": "button",
-          "name": "XL"
+          "name": "XL",
+          "role": "button"
         }
       ],
-      "mode": "pinned"
+      "id": "size-xl",
+      "mode": "pinned",
+      "name": "Extra large"
     },
     {
-      "id": "size-icon",
-      "name": "Icon floor",
       "args": {
         "children": {
           "$text": "•"
         },
-        "size": "icon",
-        "aria-label": "Icon action"
+        "size": "icon"
       },
       "expect": [
         {
           "kind": "role",
-          "role": "button",
-          "name": "Icon action"
+          "name": "Icon action",
+          "role": "button"
         }
       ],
-      "mode": "pinned"
+      "id": "size-icon",
+      "mode": "pinned",
+      "name": "Icon floor"
     },
     {
-      "id": "density-comfortable",
-      "name": "Comfortable density",
       "args": {
         "children": {
           "$text": "Comfortable"
@@ -269,15 +266,15 @@
       "expect": [
         {
           "kind": "role",
-          "role": "button",
-          "name": "Comfortable"
+          "name": "Comfortable",
+          "role": "button"
         }
       ],
-      "mode": "pinned"
+      "id": "density-comfortable",
+      "mode": "pinned",
+      "name": "Comfortable density"
     },
     {
-      "id": "density-compact",
-      "name": "Compact density",
       "args": {
         "children": {
           "$text": "Compact"
@@ -287,15 +284,15 @@
       "expect": [
         {
           "kind": "role",
-          "role": "button",
-          "name": "Compact"
+          "name": "Compact",
+          "role": "button"
         }
       ],
-      "mode": "pinned"
+      "id": "density-compact",
+      "mode": "pinned",
+      "name": "Compact density"
     },
     {
-      "id": "shape-square",
-      "name": "Square shape",
       "args": {
         "children": {
           "$text": "Square"
@@ -305,15 +302,15 @@
       "expect": [
         {
           "kind": "role",
-          "role": "button",
-          "name": "Square"
+          "name": "Square",
+          "role": "button"
         }
       ],
-      "mode": "pinned"
+      "id": "shape-square",
+      "mode": "pinned",
+      "name": "Square shape"
     },
     {
-      "id": "shape-pill",
-      "name": "Pill shape",
       "args": {
         "children": {
           "$text": "Pill"
@@ -323,11 +320,14 @@
       "expect": [
         {
           "kind": "role",
-          "role": "button",
-          "name": "Pill"
+          "name": "Pill",
+          "role": "button"
         }
       ],
-      "mode": "pinned"
+      "id": "shape-pill",
+      "mode": "pinned",
+      "name": "Pill shape"
     }
-  ]
+  ],
+  "title": "Control Base 1.0"
 }

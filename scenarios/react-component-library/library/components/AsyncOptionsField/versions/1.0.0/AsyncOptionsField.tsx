@@ -1,4 +1,6 @@
 /** @vrooliComponentSource forms.async-options-field */
+import { translate } from "../../../../hooks/useLocale/versions/1.0.0/useLocale";
+
 import {
   useCallback,
   useEffect,
@@ -118,7 +120,7 @@ export function AsyncOptionsField({
   defaultValue = "",
   onChange,
   description,
-  placeholder = "Search or choose an option",
+  placeholder = translate("forms.async-options-field.placeholder.1", "Search or choose an option"),
   emptyText = "No matches yet",
   loadingText = "Finding matches…",
   errorText = "We couldn’t load these options.",
@@ -279,7 +281,7 @@ export function AsyncOptionsField({
         {description && <small id={descriptionID}>{description}</small>}
       </label>
       <div data-rcl-async-options-control>
-        <input
+        <input data-testid="forms.async-options-field"
           id={inputID}
           name={name}
           data-rcl-async-options-input
@@ -330,7 +332,7 @@ export function AsyncOptionsField({
           {status === "error" ? (
             <div data-rcl-async-options-state data-tone="error">
               <span>{errorText}</span>
-              <button
+              <button data-testid="forms.async-options-field"
                 type="button"
                 onClick={() => request(pageRef.current, pageRef.current !== 1)}
               >
@@ -361,7 +363,7 @@ export function AsyncOptionsField({
                         options[position - 1]?.group !== option.group) && (
                         <div data-rcl-async-options-group>{option.group}</div>
                       )}
-                    <button
+                    <button data-testid="forms.async-options-field"
                       id={`${listID}-option-${option.value}`}
                       type="button"
                       role="option"
@@ -392,12 +394,12 @@ export function AsyncOptionsField({
                 );
               })}
               {nextPage !== undefined && (
-                <button
+                <button data-testid="forms.async-options-field"
                   type="button"
                   data-rcl-async-options-more
                   onClick={() => request(nextPage, false)}
                 >
-                  Load more
+                  {translate("forms.async-options-field.text.2", "Load more")}
                 </button>
               )}
             </div>

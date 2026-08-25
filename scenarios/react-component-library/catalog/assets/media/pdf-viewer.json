@@ -5,13 +5,14 @@
   "asset": {
     "id": "media.pdf-viewer",
     "name": "PDFViewer",
-    "kind": "component", "surface": "raised",
+    "kind": "component",
+    "surface": "raised",
     "domain": "media",
     "description": "The lazily loaded document viewer with page windowing, search, zoom, thumbnails, text selection, download, and an accessible text fallback for the rendered pages.",
     "targets": [
       "react-vite"
     ],
-    "slot": "primitive",
+    "slot": "ui-primitive",
     "delivery": "adopted",
     "target": {
       "priority": "P2",

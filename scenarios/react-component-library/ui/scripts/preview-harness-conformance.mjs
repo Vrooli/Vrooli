@@ -124,18 +124,18 @@ function walkStories(directory) {
       continue;
     }
     for (const story of contract.stories ?? []) {
-      if (!story.sharedHarness) continue;
-      if (story.harness) {
+      const ref = story.composition?.harness;
+      if (!ref) continue;
+      if (story.composition?.specimen) {
         fail(
-          `${path.relative(scenarioRoot, entryPath)}#${story.id}: a story cannot declare both harness and sharedHarness`,
+          `${path.relative(scenarioRoot, entryPath)}#${story.id}: a story cannot declare both specimen and composition harness`,
         );
       }
-      const ref = story.sharedHarness;
       const key = `${ref.asset}@${ref.version}:${ref.export}`;
       const family = registrations.get(key);
       if (!family) {
         fail(
-          `${path.relative(scenarioRoot, entryPath)}#${story.id}: shared harness is not registered: ${key}`,
+          `${path.relative(scenarioRoot, entryPath)}#${story.id}: composition harness is not registered: ${key}`,
         );
         continue;
       }
@@ -144,7 +144,7 @@ function walkStories(directory) {
         (ref.config === null || Array.isArray(ref.config) || typeof ref.config !== "object")
       ) {
         fail(
-          `${path.relative(scenarioRoot, entryPath)}#${story.id}: shared harness config must be an object`,
+          `${path.relative(scenarioRoot, entryPath)}#${story.id}: composition harness config must be an object`,
         );
         continue;
       }

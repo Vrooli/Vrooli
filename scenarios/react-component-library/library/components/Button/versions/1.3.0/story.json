@@ -1,143 +1,144 @@
 {
-  "schemaVersion": 3,
-  "kind": "component",
-  "title": "Button 1.3",
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
   "args": {
     "fields": [
       {
-        "path": "children",
-        "label": "Children",
-        "kind": "structured",
-        "required": true,
         "default": {
           "$text": "Save changes"
         },
-        "format": "renderable-text"
+        "format": "renderable-text",
+        "kind": "structured",
+        "label": "Children",
+        "path": "children",
+        "required": true
       },
       {
-        "path": "variant",
-        "label": "Variant",
-        "kind": "enum",
-        "required": true,
         "default": "primary",
+        "kind": "enum",
+        "label": "Variant",
         "options": [
           "primary",
           "secondary",
           "ghost",
           "danger"
-        ]
+        ],
+        "path": "variant",
+        "required": true
       },
       {
-        "path": "size",
-        "label": "Size",
-        "kind": "enum",
-        "required": true,
         "default": "md",
+        "kind": "enum",
+        "label": "Size",
         "options": [
           "xs",
           "sm",
           "md",
           "icon"
-        ]
+        ],
+        "path": "size",
+        "required": true
       },
       {
-        "path": "icon",
-        "label": "Icon",
-        "kind": "structured",
         "default": {
           "$icon": "Save"
-        }
+        },
+        "kind": "structured",
+        "label": "Icon",
+        "path": "icon"
       },
       {
-        "path": "disabled",
-        "label": "Disabled",
+        "default": false,
         "kind": "boolean",
-        "default": false
+        "label": "Disabled",
+        "path": "disabled"
       }
     ]
   },
   "environment": {
     "fixtures": []
   },
+  "kind": "component",
+  "schemaVersion": 4,
   "stories": [
     {
-      "id": "primary-xs",
-      "name": "Primary extra small",
       "args": {
         "children": {
           "$text": "Save"
         },
-        "variant": "primary",
-        "size": "xs"
+        "size": "xs",
+        "variant": "primary"
       },
       "expect": [
         {
           "kind": "role",
-          "role": "button",
-          "name": "Save"
+          "name": "Save",
+          "role": "button"
         }
       ],
-      "mode": "pinned"
+      "id": "primary-xs",
+      "mode": "pinned",
+      "name": "Primary extra small"
     },
     {
-      "id": "secondary-sm",
-      "name": "Secondary small",
       "args": {
         "children": {
           "$text": "Cancel"
         },
-        "variant": "secondary",
-        "size": "sm"
+        "size": "sm",
+        "variant": "secondary"
       },
       "expect": [
         {
           "kind": "role",
-          "role": "button",
-          "name": "Cancel"
+          "name": "Cancel",
+          "role": "button"
         }
       ],
-      "mode": "pinned"
+      "id": "secondary-sm",
+      "mode": "pinned",
+      "name": "Secondary small"
     },
     {
-      "id": "ghost-md",
-      "name": "Ghost medium",
       "args": {
         "children": {
           "$text": "More"
         },
-        "variant": "ghost",
-        "size": "md"
+        "size": "md",
+        "variant": "ghost"
       },
       "expect": [
         {
           "kind": "role",
-          "role": "button",
-          "name": "More"
+          "name": "More",
+          "role": "button"
         }
       ],
-      "mode": "pinned"
+      "id": "ghost-md",
+      "mode": "pinned",
+      "name": "Ghost medium"
     },
     {
-      "id": "danger-icon",
-      "name": "Danger icon",
       "args": {
         "children": {
           "$text": "Delete"
         },
-        "variant": "danger",
-        "size": "icon",
         "icon": {
           "$icon": "Trash2"
-        }
+        },
+        "size": "icon",
+        "variant": "danger"
       },
       "expect": [
         {
           "kind": "role",
-          "role": "button",
-          "name": "Delete"
+          "name": "Delete",
+          "role": "button"
         }
       ],
-      "mode": "pinned"
+      "id": "danger-icon",
+      "mode": "pinned",
+      "name": "Danger icon"
     }
-  ]
+  ],
+  "title": "Button 1.3"
 }

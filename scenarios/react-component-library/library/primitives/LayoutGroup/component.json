@@ -1,15 +1,28 @@
 {
-  "libraryId": "react-component-library:LayoutGroup",
-  "catalogId": "primitives.layout-group",
-  "displayName": "LayoutGroup",
-  "description": "LayoutGroup names a structural ownership boundary for coordinated layout.",
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "primitive",
-  "tags": ["primitive", "token-bound"],
-  "latest": "1.0.0",
+  "catalogId": "motion.layout-group",
+  "dependencies": [],
+  "description": "LayoutGroup names a structural ownership boundary for coordinated layout.",
   "designStyles": [
-    { "styleId": "vrooli-default", "affinity": "native" },
-    { "styleId": "vrooli-command-display", "affinity": "compatible" },
-    { "styleId": "vrooli-conversion-landing", "affinity": "compatible" }
+    {
+      "affinity": "native",
+      "styleId": "vrooli-default"
+    },
+    {
+      "affinity": "compatible",
+      "styleId": "vrooli-command-display"
+    },
+    {
+      "affinity": "compatible",
+      "styleId": "vrooli-conversion-landing"
+    }
   ],
-  "dependencies": []
+  "displayName": "LayoutGroup",
+  "latest": "1.0.0",
+  "libraryId": "react-component-library:LayoutGroup",
+  "tags": [
+    "primitive",
+    "token-bound"
+  ]
 }

@@ -1,45 +1,46 @@
 {
-  "schemaVersion": 3,
-  "kind": "component",
-  "title": "Mermaid Diagram",
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
   "args": {
     "fields": [
       {
-        "path": "code",
-        "label": "Diagram source",
+        "default": "graph TD; A--\u003eB;",
         "kind": "text",
-        "default": "graph TD; A-->B;"
+        "label": "Diagram source",
+        "path": "code"
       }
     ]
   },
   "environment": {
     "fixtures": []
   },
+  "kind": "component",
+  "schemaVersion": 4,
   "stories": [
     {
-      "id": "diagram-and-source-controls",
-      "name": "Diagram controls",
       "args": {
-        "code": "graph TD; A-->B;"
+        "code": "graph TD; A--\u003eB;"
       },
       "expect": [
         {
           "kind": "role",
-          "role": "button",
-          "name": "Diagram"
+          "name": "Diagram",
+          "role": "button"
         },
         {
           "kind": "role",
-          "role": "button",
-          "name": "Source"
+          "name": "Source",
+          "role": "button"
         },
         {
           "kind": "role",
-          "role": "button",
-          "name": "Copy"
+          "name": "Copy",
+          "role": "button"
         }
       ],
-      "mode": "pinned"
+      "id": "diagram-and-source-controls",
+      "mode": "pinned",
+      "name": "Diagram controls"
     }
-  ]
+  ],
+  "title": "Mermaid Diagram"
 }

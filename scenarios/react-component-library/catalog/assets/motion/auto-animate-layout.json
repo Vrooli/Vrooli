@@ -5,13 +5,14 @@
   "asset": {
     "id": "motion.auto-animate-layout",
     "name": "AutoAnimateLayout",
-    "kind": "component", "surface": "raised",
+    "kind": "component",
+    "surface": "raised",
     "domain": "motion",
     "description": "The declarative layout-transition component animating keyed insertion, removal, reordering, and resizing through layout-difference calculation rather than tweened layout properties.",
     "targets": [
       "react-vite"
     ],
-    "slot": "primitive",
+    "slot": "ui-primitive",
     "delivery": "adopted",
     "target": {
       "priority": "P1",
@@ -31,6 +32,10 @@
       {
         "asset": "motion.layout-group",
         "reason": "Layout differences are computed within a coordination boundary."
+      },
+      {
+        "asset": "hooks.use-locale",
+        "reason": "User-facing copy resolves through the adopting host locale bridge."
       }
     ]
   },

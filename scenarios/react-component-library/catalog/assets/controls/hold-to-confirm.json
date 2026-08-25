@@ -5,13 +5,14 @@
   "asset": {
     "id": "controls.hold-to-confirm",
     "name": "HoldToConfirm",
-    "kind": "component", "surface": "raised",
+    "kind": "component",
+    "surface": "raised",
     "domain": "controls",
     "description": "The deliberate-action control requiring sustained activation, showing progress toward commitment, supporting cancellation, and always offering a keyboard-accessible alternative.",
     "targets": [
       "react-vite"
     ],
-    "slot": "primitive",
+    "slot": "ui-primitive",
     "delivery": "adopted",
     "target": {
       "priority": "P2",

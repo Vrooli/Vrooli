@@ -5,13 +5,14 @@
   "asset": {
     "id": "data-display.log-viewer",
     "name": "LogViewer",
-    "kind": "component", "surface": "raised",
+    "kind": "component",
+    "surface": "raised",
     "domain": "data-display",
     "description": "The virtualized streaming log surface with pause and follow, search, severity filters, timestamps, wrapping, selection, and export.",
     "targets": [
       "react-vite"
     ],
-    "slot": "primitive",
+    "slot": "ui-primitive",
     "delivery": "adopted",
     "target": {
       "priority": "P1",

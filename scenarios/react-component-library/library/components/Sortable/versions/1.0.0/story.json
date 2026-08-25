@@ -1,41 +1,71 @@
 {
-  "schemaVersion": 3,
-  "kind": "component",
-  "title": "Sortable",
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
   "args": {
     "fields": []
   },
   "environment": {
     "fixtures": []
   },
+  "kind": "component",
+  "schemaVersion": 4,
   "stories": [
     {
-      "id": "default",
-      "name": "Sortable work",
-      "harness": "Default",
       "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Default",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "Order is an intentional interaction"
+        },
+        {
+          "kind": "role",
+          "name": "Sortable list",
+          "role": "list"
+        },
+        {
+          "kind": "role",
+          "name": "Reorder Research brief",
+          "role": "button"
+        },
+        {
+          "kind": "text",
+          "value": "persistence is optimistic"
+        },
+        {
+          "kind": "attribute",
+          "name": "aria-setsize",
+          "selector": "[data-rcl-sortable-item]",
+          "value": "3"
+        }
+      ],
+      "id": "default",
       "interactions": [
         {
           "kind": "key",
           "target": {
-            "role": "button",
-            "name": "Reorder Research brief"
+            "name": "Reorder Research brief",
+            "role": "button"
           },
           "text": " "
         },
         {
           "kind": "key",
           "target": {
-            "role": "button",
-            "name": "Reorder Research brief"
+            "name": "Reorder Research brief",
+            "role": "button"
           },
           "text": "ArrowDown"
         },
         {
           "kind": "key",
           "target": {
-            "role": "button",
-            "name": "Reorder Research brief"
+            "name": "Reorder Research brief",
+            "role": "button"
           },
           "text": "Enter"
         },
@@ -47,33 +77,9 @@
           "kind": "settle"
         }
       ],
-      "expect": [
-        {
-          "kind": "text",
-          "value": "Order is an intentional interaction"
-        },
-        {
-          "kind": "role",
-          "role": "list",
-          "name": "Sortable list"
-        },
-        {
-          "kind": "role",
-          "role": "button",
-          "name": "Reorder Research brief"
-        },
-        {
-          "kind": "text",
-          "value": "persistence is optimistic"
-        },
-        {
-          "kind": "attribute",
-          "selector": "[data-rcl-sortable-item]",
-          "name": "aria-setsize",
-          "value": "3"
-        }
-      ],
-      "mode": "live"
+      "mode": "live",
+      "name": "Sortable work"
     }
-  ]
+  ],
+  "title": "Sortable"
 }

@@ -5,13 +5,14 @@
   "asset": {
     "id": "feedback.inline-status",
     "name": "InlineStatus",
-    "kind": "component", "surface": "raised",
+    "kind": "component",
+    "surface": "raised",
     "domain": "feedback",
     "description": "The compact status region placed beside the control or content it concerns, covering loading, success, warning, failure, and retry without pulling the user's attention away from their work.",
     "targets": [
       "react-vite"
     ],
-    "slot": "primitive",
+    "slot": "ui-primitive",
     "delivery": "adopted",
     "target": {
       "priority": "P0",

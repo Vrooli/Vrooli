@@ -1,67 +1,68 @@
 {
-  "schemaVersion": 3,
-  "kind": "component",
-  "title": "Badge",
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
   "args": {
     "fields": [
       {
-        "path": "tone",
-        "label": "Tone",
-        "kind": "enum",
         "default": "neutral",
+        "kind": "enum",
+        "label": "Tone",
         "options": [
           "neutral",
           "info",
           "success",
           "warning",
           "danger"
-        ]
+        ],
+        "path": "tone"
       }
     ]
   },
   "environment": {
     "fixtures": []
   },
+  "kind": "component",
+  "schemaVersion": 4,
   "stories": [
     {
-      "id": "tone-neutral",
-      "name": "tone neutral",
       "args": {
         "tone": "neutral"
       },
-      "mode": "pinned"
+      "id": "tone-neutral",
+      "mode": "pinned",
+      "name": "tone neutral"
     },
     {
-      "id": "tone-info",
-      "name": "tone info",
       "args": {
         "tone": "info"
       },
-      "mode": "pinned"
+      "id": "tone-info",
+      "mode": "pinned",
+      "name": "tone info"
     },
     {
-      "id": "tone-success",
-      "name": "tone success",
       "args": {
         "tone": "success"
       },
-      "mode": "pinned"
+      "id": "tone-success",
+      "mode": "pinned",
+      "name": "tone success"
     },
     {
-      "id": "tone-warning",
-      "name": "tone warning",
       "args": {
         "tone": "warning"
       },
-      "mode": "pinned"
+      "id": "tone-warning",
+      "mode": "pinned",
+      "name": "tone warning"
     },
     {
-      "id": "tone-danger",
-      "name": "tone danger",
       "args": {
         "tone": "danger"
       },
-      "mode": "pinned"
+      "id": "tone-danger",
+      "mode": "pinned",
+      "name": "tone danger"
     }
-  ]
+  ],
+  "title": "Badge"
 }

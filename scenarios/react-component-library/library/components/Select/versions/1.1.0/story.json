@@ -1,63 +1,61 @@
 {
-  "schemaVersion": 3,
-  "kind": "component",
-  "title": "Select",
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
   "args": {
     "fields": [
       {
-        "path": "placeholder",
-        "label": "Placeholder",
+        "default": "Choose status",
         "kind": "text",
-        "default": "Choose status"
+        "label": "Placeholder",
+        "path": "placeholder"
       },
       {
-        "path": "options",
-        "label": "Options",
-        "kind": "structured",
         "default": [
           {
-            "value": "current",
-            "label": "Current"
+            "label": "Current",
+            "value": "current"
           },
           {
-            "value": "behind",
-            "label": "Behind"
+            "label": "Behind",
+            "value": "behind"
           }
-        ]
+        ],
+        "kind": "structured",
+        "label": "Options",
+        "path": "options"
       },
       {
-        "path": "defaultValue",
-        "label": "Default Value",
+        "default": "native",
         "kind": "text",
-        "default": "native"
+        "label": "Default Value",
+        "path": "defaultValue"
       },
       {
-        "path": "disabled",
-        "label": "Disabled",
+        "default": true,
         "kind": "boolean",
-        "default": true
+        "label": "Disabled",
+        "path": "disabled"
       }
     ]
   },
   "environment": {
     "fixtures": []
   },
+  "kind": "component",
+  "schemaVersion": 4,
   "stories": [
     {
-      "id": "with-placeholder",
-      "name": "With Placeholder",
       "args": {
-        "placeholder": "Choose status",
         "options": [
           {
-            "value": "current",
-            "label": "Current"
+            "label": "Current",
+            "value": "current"
           },
           {
-            "value": "behind",
-            "label": "Behind"
+            "label": "Behind",
+            "value": "behind"
           }
-        ]
+        ],
+        "placeholder": "Choose status"
       },
       "expect": [
         {
@@ -65,64 +63,67 @@
           "role": "combobox"
         }
       ],
-      "mode": "pinned"
+      "id": "with-placeholder",
+      "mode": "pinned",
+      "name": "With Placeholder"
     },
     {
-      "id": "selected",
-      "name": "Selected",
       "args": {
         "defaultValue": "native",
         "options": [
           {
-            "value": "native",
-            "label": "Native"
+            "label": "Native",
+            "value": "native"
           },
           {
-            "value": "compatible",
-            "label": "Compatible"
+            "label": "Compatible",
+            "value": "compatible"
           }
         ]
       },
       "expect": [
         {
           "kind": "role",
-          "role": "combobox",
-          "name": "native"
+          "name": "native",
+          "role": "combobox"
         }
       ],
-      "mode": "pinned"
+      "id": "selected",
+      "mode": "pinned",
+      "name": "Selected"
     },
     {
-      "id": "disabled",
-      "name": "Disabled",
       "args": {
-        "disabled": true,
         "defaultValue": "locked",
+        "disabled": true,
         "options": [
           {
-            "value": "locked",
-            "label": "Locked"
+            "label": "Locked",
+            "value": "locked"
           },
           {
-            "value": "open",
-            "label": "Open"
+            "label": "Open",
+            "value": "open"
           }
         ]
       },
       "expect": [
         {
           "kind": "attribute",
-          "selector": "select",
           "name": "disabled",
+          "selector": "select",
           "value": ""
         },
         {
           "kind": "role",
-          "role": "combobox",
-          "name": "locked"
+          "name": "locked",
+          "role": "combobox"
         }
       ],
-      "mode": "pinned"
+      "id": "disabled",
+      "mode": "pinned",
+      "name": "Disabled"
     }
-  ]
+  ],
+  "title": "Select"
 }

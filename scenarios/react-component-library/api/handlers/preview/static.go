@@ -2,6 +2,7 @@ package preview
 
 import (
 	"context"
+	"embed"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
@@ -21,6 +22,23 @@ import (
 	internaldeps "react-component-library/internal/deps"
 	internalpreview "react-component-library/internal/preview"
 )
+
+//go:embed assets/harness.js assets/story-sheet.css assets/story-sheet.js
+var previewAssets embed.FS
+
+var (
+	harnessJavaScript    = mustPreviewAsset("assets/harness.js")
+	storySheetCSS        = mustPreviewAsset("assets/story-sheet.css")
+	storySheetJavaScript = mustPreviewAsset("assets/story-sheet.js")
+)
+
+func mustPreviewAsset(name string) string {
+	data, err := previewAssets.ReadFile(name)
+	if err != nil {
+		panic(err)
+	}
+	return string(data)
+}
 
 func base64Encode(s string) string { return base64.StdEncoding.EncodeToString([]byte(s)) }
 
@@ -87,7 +105,12 @@ func (h *HarnessHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		writeHarnessError(w, h.logger, id, err)
 		return
 	}
-	frame := story.Frame
+	var frame *components.StoryFrame
+	var harness *components.StoryHarnessRef
+	if story.Composition != nil {
+		frame = story.Composition.Frame
+		harness = story.Composition.Harness
+	}
 	if strings.EqualFold(strings.TrimSpace(r.URL.Query().Get("frame")), "off") {
 		frame = nil
 	}
@@ -98,7 +121,7 @@ func (h *HarnessHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if composer, ok := h.service.(interface {
 		GetBundleVersionWithFrameAndHarness(context.Context, string, string, *components.StoryFrame, *components.StoryHarnessRef) (internalpreview.Bundle, error)
 	}); ok {
-		bundle, err = composer.GetBundleVersionWithFrameAndHarness(r.Context(), componentID, strings.TrimSpace(r.URL.Query().Get("version")), frame, story.SharedHarness)
+		bundle, err = composer.GetBundleVersionWithFrameAndHarness(r.Context(), componentID, strings.TrimSpace(r.URL.Query().Get("version")), frame, harness)
 	} else {
 		bundle, err = h.service.GetBundleVersionWithFrame(r.Context(), componentID, strings.TrimSpace(r.URL.Query().Get("version")), frame)
 	}
@@ -191,13 +214,12 @@ func (h *HarnessHandler) serveStorySheet(w http.ResponseWriter, r *http.Request,
 	var body strings.Builder
 	body.WriteString(`<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>`)
 	body.WriteString(html.EscapeString(componentLabel + " story review"))
-	body.WriteString(`</title><style>
-:root{color-scheme:light;background:#f8fafc;color:#0f172a;font-family:Inter,ui-sans-serif,system-ui,sans-serif}
-*{box-sizing:border-box}body{margin:0;background:#f8fafc}.story-sheet{display:grid;gap:18px;padding:24px;min-width:0}
-.story-sheet__header{display:grid;gap:4px}.story-sheet__header h1{margin:0;font-size:20px;line-height:1.25}.story-sheet__header p{margin:0;color:#475569;font-size:13px}
-.story-sheet__grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;align-items:start}.story-tile{display:grid;gap:8px;min-width:0}.story-tile h2{margin:0;font-size:13px;line-height:1.3}.story-tile p{margin:0;color:#64748b;font-size:11px;overflow-wrap:anywhere}.story-tile iframe{display:block;width:100%;height:360px;border:1px solid #cbd5e1;border-radius:10px;background:#fff}.story-sheet__footer{margin:0;color:#64748b;font-size:11px}
-@media(max-width:720px){.story-sheet{padding:16px}.story-sheet__grid{grid-template-columns:1fr}.story-tile iframe{height:340px}}
-</style></head><body><main class="story-sheet" data-preview-sheet="story-gallery" data-preview-capture-boundary="component-sheet" data-experience-surface="component-harness" data-experience-state="loading" data-rcl-story-status="pending"><header class="story-sheet__header"><h1>`)
+	body.WriteString(`</title><style>`)
+	body.WriteString(storySheetCSS)
+	body.WriteString(`</style></head><body><main class="story-sheet"`)
+	body.WriteString(` data-preview-sheet="story-gallery" data-preview-capture-boundary="component-sheet"`)
+	body.WriteString(` data-experience-surface="component-harness" data-experience-state="loading"`)
+	body.WriteString(` data-rcl-story-status="pending"><header class="story-sheet__header"><h1>`)
 	body.WriteString(html.EscapeString(componentLabel + " stories"))
 	body.WriteString(`</h1><p data-story-sheet-summary aria-live="polite">Validating `)
 	body.WriteString(fmt.Sprint(len(tiles)))
@@ -219,9 +241,11 @@ func (h *HarnessHandler) serveStorySheet(w http.ResponseWriter, r *http.Request,
 		body.WriteString(html.EscapeString(tile.Source))
 		body.WriteString(`" loading="eager"></iframe></article>`)
 	}
-	body.WriteString(`</section><p class="story-sheet__footer">Source: version-pinned RCL story contracts. Individual story captures remain authoritative.</p><pre id="rcl-story-result" hidden></pre></main><script>
-(function(){const root=document.querySelector('[data-preview-sheet]');const summary=document.querySelector('[data-story-sheet-summary]');const frames=[...document.querySelectorAll('iframe')];const check=()=>{let ready=0,failed=0;for(const frame of frames){try{const doc=frame.contentDocument;const harness=doc&&doc.querySelector('[data-experience-surface="component-harness"]');const state=harness?.getAttribute('data-experience-state');const result=harness?.getAttribute('data-rcl-story-status');if(state==='error'||result==='failed')failed++;if(state==='ready'&&result==='passed')ready++;}catch(_){}}if(failed){root.dataset.experienceState='error';root.dataset.rclStoryStatus='failed';summary.textContent='Validation failed · review the affected specimen for details.';}else if(ready===frames.length&&frames.length>0){root.dataset.experienceState='ready';root.dataset.rclStoryStatus='passed';summary.textContent='Ready · '+frames.length+' labeled story specimens';document.querySelector('#rcl-story-result').textContent=JSON.stringify({passed:true,failures:[],stories:frames.length});}else{root.dataset.experienceState='loading';root.dataset.rclStoryStatus='pending';summary.textContent='Validating '+ready+' of '+frames.length+' story specimens';}};frames.forEach(f=>f.addEventListener('load',()=>setTimeout(check,50)));check();setInterval(check,100);})();
-</script></body></html>`)
+	body.WriteString(`</section><p class="story-sheet__footer">Source: version-pinned RCL story contracts.`)
+	body.WriteString(` Individual story captures remain authoritative.</p>`)
+	body.WriteString(`<pre id="rcl-story-result" hidden></pre></main><script>`)
+	body.WriteString(storySheetJavaScript)
+	body.WriteString(`</script></body></html>`)
 	w.Header().Set("Content-Type", "text/html")
 	w.Header().Set("Cache-Control", "no-store")
 	_, _ = w.Write([]byte(body.String()))
@@ -295,8 +319,7 @@ type harnessStory struct {
 	EnvironmentSchemaJSON string
 	InteractionsJSON      string
 	ExpectJSON            string
-	Harness               string
-	SharedHarness         *components.StoryHarnessRef
+	Composition           *components.StoryComposition
 	Fixture               *components.StoryFixtureRef
 	Frame                 *components.StoryFrame
 	Geometry              *components.StoryGeometry
@@ -325,9 +348,19 @@ func (h *HarnessHandler) resolveStory(r *http.Request, id string) (harnessStory,
 		return harnessStory{}, fmt.Errorf("preview: story contract not found for component %q", id)
 	}
 	for _, projected := range stories {
-		var contract components.StoryContract
-		if err := json.Unmarshal([]byte(projected.ContractJSON), &contract); err != nil {
-			return harnessStory{}, fmt.Errorf("preview: decode indexed story contract: %w", err)
+		contractJSON := []byte(projected.ContractJSON)
+		if reader, ok := h.components.(interface {
+			GetVersionContentAt(context.Context, string, string, string) (components.Content, error)
+		}); ok {
+			content, contentErr := reader.GetVersionContentAt(r.Context(), id, projected.Version, "story.json")
+			if contentErr != nil {
+				return harnessStory{}, fmt.Errorf("preview: read story contract: %w", contentErr)
+			}
+			contractJSON = []byte(content.Body)
+		}
+		contract, diagnostics := components.ParseStoryContract(contractJSON)
+		if contract == nil || len(components.StoryContractErrors(diagnostics)) > 0 {
+			return harnessStory{}, fmt.Errorf("preview: parse story contract: %v", diagnostics)
 		}
 		for _, definition := range contract.Stories {
 			if definition.ID != storyID {
@@ -349,13 +382,24 @@ func (h *HarnessHandler) resolveStory(r *http.Request, id string) (harnessStory,
 			if err != nil {
 				return harnessStory{}, fmt.Errorf("preview: encode story environment: %w", err)
 			}
-			frame := components.EffectiveStoryFrame(&contract, &definition)
-			composition := components.EffectiveStoryComposition(&contract, &definition)
+			composition := definition.Composition
 			var fixture *components.StoryFixtureRef
 			if composition != nil {
 				fixture = composition.Fixture
 			}
-			return harnessStory{Name: definition.ID, Version: projected.Version, DisplayName: definition.Name, Kind: contract.Kind, PropsJSON: string(args), ArgsJSON: projected.ArgsJSON, EnvironmentJSON: string(environment), EnvironmentSchemaJSON: projected.EnvironmentJSON, InteractionsJSON: string(interactions), ExpectJSON: string(expect), Harness: components.EffectiveStoryLocalHarness(&contract, &definition), SharedHarness: components.EffectiveStorySharedHarness(&contract, &definition), Fixture: fixture, Frame: frame, Geometry: definition.Geometry, Mode: definition.Mode, Slot: component.Slot, AssetKind: component.AssetKind, Archetype: resolvePreviewArchetype(component.AssetKind, component.Slot, frame)}, nil
+			var frame *components.StoryFrame
+			if composition != nil {
+				frame = composition.Frame
+			}
+			return harnessStory{
+				Name: definition.ID, Version: projected.Version, DisplayName: definition.Name,
+				Kind: contract.Kind, PropsJSON: string(args), ArgsJSON: projected.ArgsJSON,
+				EnvironmentJSON: string(environment), EnvironmentSchemaJSON: projected.EnvironmentJSON,
+				InteractionsJSON: string(interactions), ExpectJSON: string(expect),
+				Composition: composition, Fixture: fixture, Geometry: definition.Geometry,
+				Mode: definition.Mode, Slot: component.Slot, AssetKind: component.AssetKind,
+				Archetype: resolvePreviewArchetype(component.AssetKind, component.Slot, frame),
+			}, nil
 		}
 	}
 	return harnessStory{}, fmt.Errorf("preview: story %q not found for component %q", storyID, id)
@@ -602,837 +646,45 @@ func renderHarnessHTML(id string, b internalpreview.Bundle, ex harnessStory, des
 	sb.WriteString(`
 <div id="preview-error" hidden></div>
 <pre id="rcl-story-result" hidden></pre>
-<script type="module">
-const componentModuleURL = "data:text/javascript;base64,`)
-	// Embedded module loaded as a data: URL keeps everything on one
-	// request and dodges any need for a second fetch. Base64 is safe
-	// for the full ESM payload including non-ASCII characters.
-	sb.WriteString(base64Encode(b.JS))
-	sb.WriteString(`";
-const storyHarnessModuleURL = "data:text/javascript;base64,`)
-	sb.WriteString(base64Encode(b.HarnessJS))
-	sb.WriteString(`";
-const sharedHarnessModuleURL = "data:text/javascript;base64,`)
-	sb.WriteString(base64Encode(b.SharedHarnessJS))
-	sb.WriteString(`";
-const frameModuleURL = "data:text/javascript;base64,`)
-	sb.WriteString(base64Encode(b.FrameJS))
-	sb.WriteString(`";
-const previewStory = {
-  name: ` + jsString(ex.Name) + `,
-  version: ` + jsString(ex.Version) + `,
-  displayName: ` + jsString(ex.DisplayName) + `,
-	kind: ` + jsString(string(ex.Kind)) + `,
-  props: ` + jsonObjectLiteral(ex.PropsJSON) + `,
-	args: ` + jsonObjectLiteral(ex.ArgsJSON) + `,
-	environment: ` + jsonObjectLiteral(ex.EnvironmentJSON) + `,
-	environmentSchema: ` + jsonObjectLiteral(ex.EnvironmentSchemaJSON) + `,
-	interactions: ` + jsonArrayLiteral(ex.InteractionsJSON) + `,
-  expect: ` + jsonArrayLiteral(ex.ExpectJSON) + `,
-  harness: ` + jsString(ex.Harness) + `,
-  sharedHarness: ` + sharedHarnessJSON(ex.SharedHarness) + `,
-  frame: ` + frameJSON(ex.Frame) + `,
-  geometry: ` + geometryJSON(ex.Geometry) + `,
-  mode: ` + jsString(string(ex.Mode)) + `,
-  slot: ` + jsString(ex.Slot) + `,
-  assetKind: ` + jsString(string(ex.AssetKind)) + `,
-  archetype: ` + jsString(ex.Archetype) + `,
-  fixture: ` + fixtureJSON(ex.Fixture, b.FixtureJSON) + `,
-};
-// Resolved-theme bridge: the host owns the app/system decision and posts
-// {type:"rcl-resolved-theme", theme:"light"|"dark"}. Stamping the root is
-// essential: design-tokens.css deliberately guards its OS media fallback with
-// :not([data-resolved-theme=light]), so a body class cannot override OS dark.
-window.addEventListener("message", (ev) => {
-  const data = ev && ev.data;
-  if (!data || data.type !== "rcl-resolved-theme") return;
-  const theme = data.theme;
-  if (theme !== "light" && theme !== "dark") return;
-  document.documentElement.dataset.resolvedTheme = theme;
-  document.documentElement.style.colorScheme = theme;
-});
-// Theme bridge (req TH-003): the host posts
-// {type:"rcl-theme-apply", themeId:"<id>", tokens:{"--color-primary":"#..."}}
-// and we set each token as a CSS custom property on :root so the
-// component re-styles immediately. Tokens with keys missing the
-// canonical "--" prefix are ignored.
-(() => {
-  let appliedTokens = [];
-  window.addEventListener("message", (ev) => {
-    const data = ev && ev.data;
-    if (!data || data.type !== "rcl-theme-apply") return;
-    const tokens = (data && data.tokens) || {};
-    // Clear tokens from a prior theme so switching never leaves stragglers.
-    for (const key of appliedTokens) {
-      document.documentElement.style.removeProperty(key);
-    }
-    appliedTokens = [];
-    for (const key of Object.keys(tokens)) {
-      if (typeof key !== "string" || !key.startsWith("--")) continue;
-      const val = tokens[key];
-      if (typeof val !== "string") continue;
-      document.documentElement.style.setProperty(key, val);
-      appliedTokens.push(key);
-    }
-    try {
-      parent.postMessage({ type: "rcl-theme-applied", themeId: data.themeId || "" }, "*");
-    } catch (e) {}
-  });
-})();
-// Route isolation: component navigation is part of the specimen, not a
-// request to replace the preview harness with the library application. Keep
-// same-origin links and history updates inside this harness document while
-// preserving a readable hash route for stories that want to observe it.
-(() => {
-  const harnessPath = window.location.pathname;
-  const routeFor = (raw) => {
-    if (raw === undefined || raw === null || raw === "") return null;
-    let resolved;
-    try { resolved = new URL(String(raw), window.location.href); } catch (e) { return null; }
-    if (resolved.origin !== window.location.origin) return null;
-    if (resolved.pathname === harnessPath && resolved.hash.startsWith("#/")) return resolved.pathname + resolved.search + resolved.hash;
-    if (resolved.pathname === harnessPath && !resolved.search && !resolved.hash) return null;
-    return harnessPath + "#" + resolved.pathname + resolved.search + resolved.hash;
-  };
-  const applyRoute = (raw, replace) => {
-    const local = routeFor(raw);
-    if (!local) return false;
-    const method = replace ? "replaceState" : "pushState";
-    window.history[method]({}, "", local);
-    window.dispatchEvent(new PopStateEvent("popstate"));
-    document.documentElement.dataset.previewRoute = local.slice(local.indexOf("#") + 1);
-    return true;
-  };
-  const nativePushState = window.history.pushState.bind(window.history);
-  const nativeReplaceState = window.history.replaceState.bind(window.history);
-  window.history.pushState = (state, title, raw) => {
-    if (routeFor(raw)) {
-      nativePushState(state, title, routeFor(raw));
-      window.dispatchEvent(new PopStateEvent("popstate"));
-      return;
-    }
-    nativePushState(state, title, raw);
-  };
-  window.history.replaceState = (state, title, raw) => {
-    if (routeFor(raw)) {
-      nativeReplaceState(state, title, routeFor(raw));
-      window.dispatchEvent(new PopStateEvent("popstate"));
-      return;
-    }
-    nativeReplaceState(state, title, raw);
-  };
-  document.addEventListener("click", (event) => {
-    if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
-    const anchor = event.target && event.target.closest ? event.target.closest("a[href]") : null;
-    if (!anchor || anchor.target === "_blank" || !applyRoute(anchor.getAttribute("href"), false)) return;
-    event.preventDefault();
-    event.stopPropagation();
-  }, true);
-})();
-// Inspector (req IS-001..003): minimal implementation of the
-// @vrooli/iframe-bridge INSPECT wire protocol. The host sends
-// {v:1,t:"INSPECT",cmd:"START"|"STOP"}; we reply with INSPECT_STATE,
-// INSPECT_HOVER, and INSPECT_RESULT messages whose payload shape
-// matches BridgeInspectHoverPayload / BridgeInspectResultPayload.
-(() => {
-  let active = false;
-  let lastHoverEl = null;
-  const post = (payload) => { try { parent.postMessage(payload, "*"); } catch (e) {} };
-  const truncate = (s, n) => (s && s.length > n) ? s.slice(0, n) + "…" : s || "";
-  const buildSelector = (el) => {
-    if (!el || el.nodeType !== 1) return "";
-    if (el.id) return "#" + el.id;
-    const parts = [el.tagName.toLowerCase()];
-    const cls = (el.className && typeof el.className === "string")
-      ? el.className.trim().split(/\s+/).filter(Boolean).slice(0, 2)
-      : [];
-    for (const c of cls) parts.push("." + c);
-    return parts.join("");
-  };
-  const buildMeta = (el) => {
-    const tag = el.tagName ? el.tagName.toLowerCase() : "";
-    const classes = (el.className && typeof el.className === "string")
-      ? el.className.trim().split(/\s+/).filter(Boolean)
-      : [];
-    const text = (el.textContent || "").trim();
-    return {
-      tag,
-      id: el.id || "",
-      classes,
-      selector: buildSelector(el),
-      label: el.getAttribute ? (el.getAttribute("aria-label") || "") : "",
-      ariaLabel: el.getAttribute ? (el.getAttribute("aria-label") || "") : "",
-      ariaDescription: el.getAttribute ? (el.getAttribute("aria-description") || "") : "",
-      title: el.getAttribute ? (el.getAttribute("title") || "") : "",
-      role: el.getAttribute ? (el.getAttribute("role") || "") : "",
-      text: truncate(text, 500),
-    };
-  };
-  const buildRect = (el) => {
-    const r = el.getBoundingClientRect ? el.getBoundingClientRect() : null;
-    if (!r) return null;
-    return { x: r.x, y: r.y, width: r.width, height: r.height };
-  };
-  const buildAncestors = (el) => {
-    const out = [];
-    let cur = el;
-    let depth = 0;
-    while (cur && cur.nodeType === 1 && depth < 12 && cur !== document.documentElement) {
-      out.push({
-        depth,
-        tag: cur.tagName.toLowerCase(),
-        selector: buildSelector(cur),
-        id: cur.id || "",
-        classes: (cur.className && typeof cur.className === "string")
-          ? cur.className.trim().split(/\s+/).filter(Boolean) : [],
-        rect: buildRect(cur),
-        documentRect: buildRect(cur),
-      });
-      cur = cur.parentElement;
-      depth++;
-    }
-    return out;
-  };
-  const buildPayload = (el) => {
-    if (!el) return null;
-    return {
-      meta: buildMeta(el),
-      rect: buildRect(el),
-      documentRect: buildRect(el),
-      ancestors: buildAncestors(el),
-      selectedAncestorIndex: 0,
-      pointerType: "mouse",
-    };
-  };
-  const onMove = (ev) => {
-    if (!active) return;
-    const el = document.elementFromPoint(ev.clientX, ev.clientY);
-    if (!el || el === lastHoverEl) return;
-    lastHoverEl = el;
-    const payload = buildPayload(el);
-    if (payload) post({ v: 1, t: "INSPECT_HOVER", payload });
-  };
-  const onClick = (ev) => {
-    if (!active) return;
-    ev.preventDefault();
-    ev.stopPropagation();
-    const el = document.elementFromPoint(ev.clientX, ev.clientY);
-    if (!el) return;
-    const payload = buildPayload(el);
-    if (!payload) return;
-    post({ v: 1, t: "INSPECT_RESULT", payload: { ...payload, method: "pointer" } });
-    setActive(false, "complete");
-  };
-  const onKey = (ev) => {
-    if (!active || ev.key !== "Escape") return;
-    ev.preventDefault();
-    setActive(false, "cancel");
-  };
-  function setActive(next, reason) {
-    active = next;
-    if (next) {
-      document.addEventListener("mousemove", onMove, true);
-      document.addEventListener("click", onClick, true);
-      document.addEventListener("keydown", onKey, true);
-      document.body.style.cursor = "crosshair";
-    } else {
-      document.removeEventListener("mousemove", onMove, true);
-      document.removeEventListener("click", onClick, true);
-      document.removeEventListener("keydown", onKey, true);
-      document.body.style.cursor = "";
-      lastHoverEl = null;
-    }
-    post({ v: 1, t: "INSPECT_STATE", active, reason: reason || (next ? "start" : "stop") });
-  }
-  window.addEventListener("message", (ev) => {
-    const d = ev && ev.data;
-    if (!d || d.v !== 1 || d.t !== "INSPECT") return;
-    if (d.cmd === "START") setActive(true, "start");
-    else if (d.cmd === "STOP") setActive(false, "stop");
-  });
-})();
-const errEl = document.getElementById("preview-error");
-const storyResultEl = document.getElementById("rcl-story-result");
-const harnessRoot = document.getElementById("root");
-const performanceEntries = [];
-const longTasks = [];
-let commitCount = 0;
-let rerenderCount = 0;
-let mountMs = 0;
-let mountStartedAt = performance.now();
-const captureParams = new URLSearchParams(window.location.search);
-const captureTheme = captureParams.get("theme");
-const captureMotion = captureParams.get("motion");
-const captureSeed = captureParams.get("seed");
-const captureMode = captureParams.get("runner") === "1" ? "isolated" : "workbench";
-const captureFixtureShape = captureParams.get("fixtureShape") || (String(previewStory.name || "").toLowerCase().includes("failure") ? "failure" : "typical");
-document.documentElement.dataset.rclCaptureMode = captureMode;
-if (captureMotion === "reduce") {
-  document.documentElement.dataset.rclCapture = "deterministic";
-  document.documentElement.style.setProperty("--rcl-capture-motion", "reduced");
-}
-if (captureSeed) {
-  document.documentElement.dataset.rclCaptureSeed = captureSeed;
-  window.__RCL_CAPTURE_SEED__ = captureSeed;
-}
-if (captureTheme === "light" || captureTheme === "dark") {
-  document.documentElement.dataset.resolvedTheme = captureTheme;
-  document.documentElement.style.colorScheme = captureTheme;
-}
-const setHarnessState = (state) => {
-  if (harnessRoot) harnessRoot.dataset.experienceState = state;
-  const requestedTheme = captureTheme;
-  if (harnessRoot && (requestedTheme === "light" || requestedTheme === "dark")) {
-    harnessRoot.dataset.rclTheme = requestedTheme;
-  }
-};
-const showPreviewError = (message) => {
-  setHarnessState("error");
-  errEl.hidden = false;
-  errEl.textContent = message;
-  try {
-    parent.postMessage({ type: "preview-error", id: ` + jsString(id) + `, sha256: ` + jsString(b.SHA256) + `, story: previewStory.name || "", version: previewStory.version || "", message }, "*");
-  } catch (e) {}
-};
-const normalizeText = (value) => String(value || "").replace(/\s+/g, " ").trim();
-const readableText = (node) => {
-  if (!node) return "";
-  if (node.nodeType === Node.TEXT_NODE) return node.nodeValue || "";
-  if (node.nodeType === Node.ELEMENT_NODE && node.getAttribute("aria-hidden") === "true") return "";
-  return Array.from(node.childNodes || []).map(readableText).join(" ");
-};
-const implicitRole = (el) => {
-const tag = (el && el.tagName ? el.tagName.toLowerCase() : "");
-  if (tag === "button") return "button";
-  if (tag === "img") return "img";
-  if (tag === "select") return "combobox";
-  if (tag === "textarea") return "textbox";
-  if (tag === "output") return "status";
-  if (tag === "input") {
-    const type = (el.getAttribute("type") || "text").toLowerCase();
-    if (["button", "submit", "reset"].includes(type)) return "button";
-    if (["search", "text", "email", "password", "url", "tel"].includes(type)) return "textbox";
-  }
-  if (tag === "a" && el.hasAttribute("href")) return "link";
-  if (tag === "main") return "main";
-  if (tag === "form") return "form";
-  if (tag === "table") return "table";
-  if (tag === "nav") return "navigation";
-  if (tag === "aside") return "complementary";
-  if (tag === "section" && el.hasAttribute("aria-label")) return "region";
-  if (/^h[1-6]$/.test(tag)) return "heading";
-  return "";
-};
-const accessibleName = (el) => {
-  const associatedLabel = el.id
-    ? Array.from(document.querySelectorAll("label")).find((candidate) => candidate.htmlFor === el.id)
-    : null;
-  return normalizeText(
-    el.getAttribute("aria-label") ||
-    el.getAttribute("aria-labelledby")?.split(/\s+/).map((id) => readableText(document.getElementById(id))).join(" ") ||
-    el.getAttribute("title") ||
-    readableText(associatedLabel) ||
-    el.value ||
-    readableText(el) ||
-    ""
-  );
-};
-const elementsByRole = (role) => Array.from(document.querySelectorAll("body *"))
-  .filter((el) => (el.getAttribute("role") || implicitRole(el)) === role);
-const assertPreviewExpectations = () => {
-  const failures = [];
-  for (const [index, expectation] of (Array.isArray(previewStory.expect) ? previewStory.expect : []).entries()) {
-    const kind = expectation && expectation.kind;
-    if (kind === "text") {
-      const value = normalizeText(expectation.value);
-      if (value && !normalizeText(document.body.textContent).includes(value)) {
-        failures.push("expect[" + index + "] text " + value + " not found");
-      }
-      continue;
-    }
-    if (kind === "role") {
-      const role = expectation.role;
-      const name = normalizeText(expectation.name);
-      const matches = elementsByRole(role);
-      const ok = matches.some((el) => !name || accessibleName(el).includes(name));
-      if (!ok) failures.push("expect[" + index + "] role " + role + (name ? " named " + name : "") + " not found");
-      continue;
-    }
-    if (kind === "selector") {
-      if (!document.querySelector(expectation.selector || "")) {
-        failures.push("expect[" + index + "] selector " + (expectation.selector || "<empty>") + " not found");
-      }
-      continue;
-    }
-    if (kind === "attribute") {
-      const el = document.querySelector(expectation.selector || "");
-      const attr = expectation.name || "";
-      const actual = el ? el.getAttribute(attr) : null;
-      const expected = expectation.value;
-      if (!el || (expected !== undefined && actual !== String(expected))) {
-        failures.push("expect[" + index + "] attribute " + attr + " expected " + expected + " got " + actual);
-      }
-      continue;
-    }
-    if (kind === "layout") {
-      const el = document.querySelector(expectation.selector || "");
-      if (!el) {
-        failures.push("expect[" + index + "] layout selector " + (expectation.selector || "<empty>") + " not found");
-        continue;
-      }
-      const rect = el.getBoundingClientRect();
-      const checks = [
-        ["width", expectation.minWidth, rect.width >= Number(expectation.minWidth)],
-        ["height", expectation.minHeight, rect.height >= Number(expectation.minHeight)],
-        ["width", expectation.maxWidth, rect.width <= Number(expectation.maxWidth)],
-        ["height", expectation.maxHeight, rect.height <= Number(expectation.maxHeight)],
-      ];
-      for (const [dimension, bound, passed] of checks) {
-        if (bound !== undefined && !passed) {
-          failures.push("expect[" + index + "] layout " + dimension + "=" + Math.round(rect[dimension]) + " violates bound " + bound);
-        }
-      }
-      if (expectation.noOverflow && el.scrollWidth > el.clientWidth + 1) {
-        failures.push("expect[" + index + "] layout overflows horizontally: scrollWidth=" + el.scrollWidth + " clientWidth=" + el.clientWidth);
-      }
-      continue;
-    }
-    failures.push("expect[" + index + "] unsupported kind " + (kind || "<missing>"));
-  }
-  if (failures.length > 0) throw new Error(failures.join("; "));
-};
-const reportStoryResult = (passed, failures) => {
-  performanceEntries.push(...performance.getEntriesByType("measure").map((entry) => ({ name: entry.name, duration: entry.duration })));
-  const result = {
-    passed,
-    failures: Array.isArray(failures) ? failures : [],
-    performance: {
-      mountMs: mountMs || Math.max(0, performance.now() - mountStartedAt),
-      commitCount,
-      rerenderCount,
-      longTasks: [...longTasks],
-      nodeCount: harnessRoot ? harnessRoot.querySelectorAll("*").length : 0,
-      measures: performanceEntries,
-    },
-  };
-  if (harnessRoot) harnessRoot.dataset.rclStoryStatus = passed ? "passed" : "failed";
-  // The DOM mirror is consumed only by the server-owned headless runner; the
-  // normal iframe path continues to receive the typed postMessage below.
-  storyResultEl.textContent = JSON.stringify(result);
-  storyResultEl.hidden = true;
-  parent.postMessage({ type: "rcl-story-result", id: ` + jsString(id) + `, story: previewStory.name || "", version: previewStory.version || "", ...result }, "*");
-};
-const createNodeFactory = (React, Icons, log) => {
-  const resolve = (value) => {
-    if (Array.isArray(value)) return value.map(resolve);
-    if (!value || typeof value !== "object") return value;
-    if (Object.prototype.hasOwnProperty.call(value, "$text")) return String(value.$text ?? "");
-    if (Object.prototype.hasOwnProperty.call(value, "$handler")) {
-      const name = String(value.$handler || "handler");
-      return (...args) => log(name, ...args);
-    }
-    if (Object.prototype.hasOwnProperty.call(value, "$rowKey")) {
-      const field = String(value.$rowKey || "id");
-      return (row, index) => String((row && row[field]) ?? index);
-    }
-    if (Object.prototype.hasOwnProperty.call(value, "$icon")) {
-      const Icon = Icons[String(value.$icon)] || Icons.Circle;
-      return React.createElement(Icon || "span", { "aria-hidden": true, className: value.className || "h-4 w-4" });
-    }
-    if (Object.prototype.hasOwnProperty.call(value, "$node")) {
-      const type = String(value.$node || "span");
-      const props = resolve(value.props || {});
-      const children = resolve(value.children || []);
-      const childValues = Array.isArray(children) ? children : [children];
-      const keyedChildren = childValues.map((child, index) => (
-        React.isValidElement(child) && child.key == null
-          ? React.cloneElement(child, { key: "rcl-" + type + "-" + index })
-          : child
-      ));
-      return React.createElement(type, props, ...keyedChildren);
-    }
-    if (Object.prototype.hasOwnProperty.call(value, "$columns")) {
-      return (Array.isArray(value.$columns) ? value.$columns : []).map((column) => ({
-        id: column.id,
-        header: column.header,
-        className: column.className,
-        accessor: (row) => column.badge
-          ? React.createElement("span", { className: "inline-flex rounded-pill border border-app-border px-2 py-1 text-xs" }, row[column.field])
-          : row[column.field],
-        sortValue: column.sortable ? (row) => row[column.field] : undefined,
-        searchValue: column.searchable ? (row) => String(row[column.field] ?? "") : undefined,
-      }));
-    }
-    if (Object.prototype.hasOwnProperty.call(value, "$filters")) {
-      return (Array.isArray(value.$filters) ? value.$filters : []).map((filter) => ({
-        id: filter.id,
-        label: filter.label,
-        predicate: (row) => row[filter.field] === filter.equals,
-      }));
-    }
-    const out = {};
-    for (const [key, child] of Object.entries(value)) out[key] = resolve(child);
-    return out;
-  };
-  return resolve;
-};
-const isRenderableComponent = (value) => (
-  typeof value === "function" ||
-  (value && typeof value === "object" && typeof value.$$typeof === "symbol")
-);
-try {
-  const [{ createRoot }, Mod, React, Icons, HarnessMod, SharedHarnessMod, FrameMod] = await Promise.all([
-    import("react-dom/client"),
-    import(componentModuleURL),
-    import("react"),
-    import("lucide-react").catch(() => ({})),
-		previewStory.harness ? import(storyHarnessModuleURL) : Promise.resolve({}),
-		previewStory.sharedHarness ? import(sharedHarnessModuleURL) : Promise.resolve({}),
-		previewStory.frame ? import(frameModuleURL) : Promise.resolve({}),
-  ]);
-  const Cmp = isRenderableComponent(Mod.default)
-    ? Mod.default
-    : Mod[Object.keys(Mod).find(k => isRenderableComponent(Mod[k]))] ?? null;
-  const hookEntry = Object.entries(Mod).find(([name, value]) => name.startsWith("use") && typeof value === "function");
-  const Frame = Object.values(FrameMod).find((value) => isRenderableComponent(value));
-	if (previewStory.mode === "live" && !previewStory.harness && !previewStory.sharedHarness) {
-    showPreviewError("preview: live stories must declare an explicit harness");
-  } else if (previewStory.kind === "hook" && !hookEntry) {
-    showPreviewError("preview: hook file exports no callable use* hook");
-  } else if (previewStory.kind !== "hook" && !Cmp) {
-    showPreviewError("preview: component file exports neither a default nor a callable named export");
-  } else {
-    const root = createRoot(document.getElementById("root"));
-    try {
-      const observer = new PerformanceObserver((list) => {
-        for (const entry of list.getEntries()) {
-          if (entry.entryType === "longtask") longTasks.push(entry.duration);
-        }
-      });
-      observer.observe({ type: "longtask", buffered: true });
-    } catch (e) {}
-    const onProfile = (_id, phase, actualDuration) => {
-      commitCount += 1;
-      if (phase === "update") rerenderCount += 1;
-      if (phase === "mount") mountMs += Number(actualDuration) || 0;
-    };
-    const renderElement = (element) => {
-      mountStartedAt = performance.now();
-      root.render(React.createElement(React.Profiler, { id: "story", onRender: onProfile }, element));
-    };
-    const renderSheet = (element, kind) => renderElement(
-      React.createElement(
-        "div",
-        { "data-preview-sheet": kind || "standalone", "data-preview-capture-boundary": "component-sheet" },
-        element,
-      ),
-    );
-    const postPreviewEvent = (name, ...args) => {
-      const sanitize = (value, depth = 0) => {
-        if (depth > 5) return "[depth limit]";
-        if (value === null || typeof value === "string" || typeof value === "boolean") return value;
-        if (typeof value === "number") return Number.isFinite(value) ? value : "[number]";
-        if (Array.isArray(value)) return value.slice(0, 50).map((item) => sanitize(item, depth + 1));
-        if (typeof value === "object") { const out = {}; for (const [key, item] of Object.entries(value).slice(0, 50)) out[key] = sanitize(item, depth + 1); return out; }
-        return "[" + typeof value + "]";
-      };
-      parent.postMessage({ type: "rcl-preview-event", id: ` + jsString(id) + `, story: previewStory.name || "", version: previewStory.version || "", name: String(name), args: args.map((value) => sanitize(value)), ts: Date.now() }, "*");
-    };
-    const resolveProps = createNodeFactory(React, Icons, postPreviewEvent);
-    const valueAtPath = (object, path) => path.split(".").reduce((value, key) => value && typeof value === "object" ? value[key] : undefined, object);
-    const mergeStoryProps = (base, override) => {
-      const result = { ...(base && typeof base === "object" && !Array.isArray(base) ? base : {}) };
-      for (const [key, value] of Object.entries(override || {})) {
-        result[key] = value && typeof value === "object" && !Array.isArray(value) && result[key] && typeof result[key] === "object" && !Array.isArray(result[key])
-          ? mergeStoryProps(result[key], value)
-          : value;
-      }
-      return result;
-    };
-    const validateOverride = (override) => {
-      const fields = Array.isArray(previewStory.args && previewStory.args.fields) ? previewStory.args.fields : [];
-      const merged = mergeStoryProps(previewStory.props, override);
-      const errors = [];
-      for (const field of fields) {
-        if (!field || typeof field.path !== "string") continue;
-        const value = valueAtPath(merged, field.path);
-        if (value === undefined) {
-          if (field.required && field.default === undefined) errors.push({ path: field.path, rule: "required", message: "A value is required." });
-          continue;
-        }
-        if (field.kind === "text" && typeof value !== "string") errors.push({ path: field.path, rule: "text", message: "Must be text." });
-        if (field.kind === "number" && (typeof value !== "number" || !Number.isFinite(value))) errors.push({ path: field.path, rule: "number", message: "Must be a finite number." });
-        if (field.kind === "boolean" && typeof value !== "boolean") errors.push({ path: field.path, rule: "boolean", message: "Must be true or false." });
-        if (field.kind === "enum" && !Array.isArray(field.options)) errors.push({ path: field.path, rule: "schema", message: "Enum options are unavailable." });
-        if (field.kind === "enum" && Array.isArray(field.options) && !field.options.some((option) => JSON.stringify(option) === JSON.stringify(value))) errors.push({ path: field.path, rule: "enum", message: "Must be one of the declared options." });
-        if (typeof field.minimum === "number" && typeof value === "number" && value < field.minimum) errors.push({ path: field.path, rule: "minimum", message: "Below the minimum." });
-        if (typeof field.maximum === "number" && typeof value === "number" && value > field.maximum) errors.push({ path: field.path, rule: "maximum", message: "Above the maximum." });
-        if (typeof field.minLength === "number" && typeof value === "string" && value.length < field.minLength) errors.push({ path: field.path, rule: "minLength", message: "Too short." });
-        if (typeof field.maxLength === "number" && typeof value === "string" && value.length > field.maxLength) errors.push({ path: field.path, rule: "maxLength", message: "Too long." });
-      }
-      return errors;
-    };
-    const hookFixture = (hookProps, environment) => {
-      const [hookName, Hook] = hookEntry;
-      if (hookName === "useEscapeKey") return () => {
-        const [outcome, setOutcome] = React.useState("waiting for Escape");
-        Hook(hookProps.active !== false, () => setOutcome("escaped"));
-        return React.createElement("div", { role: "status", tabIndex: -1, "data-rcl-hook-root": true }, outcome);
-      };
-      if (hookName === "useFocusTrap") return () => {
-        const panelRef = React.useRef(null);
-        Hook(hookProps.active !== false, panelRef);
-        return React.createElement("div", { ref: panelRef, role: "status", tabIndex: -1, "data-rcl-hook-root": true }, React.createElement("button", null, "First"), React.createElement("button", null, "Last"));
-      };
-      if (hookName === "useVoiceInput") return () => {
-        const fixture = environment && environment.voiceInput || "idle";
-        const media = { acquire: () => fixture === "permission-denied" ? Promise.reject(new Error("permission denied")) : Promise.resolve({ stop() {}, onEnded() { return () => {}; } }) };
-        const adapter = { connect: async () => {}, stop: () => {} };
-        const voice = Hook({ adapter, media, mode: hookProps.mode || (fixture === "timeout" ? "timeout" : "always-on"), timeoutMs: 1 });
-		const buttonClass = "min-h-11 min-w-11 rounded-control px-2 py-1";
-		return React.createElement("div", { role: "status", "data-rcl-hook-root": true }, React.createElement("button", { type: "button", className: buttonClass, "data-rcl-hook-action": "start", onClick: () => void voice.start() }, "Start"), React.createElement("button", { type: "button", className: buttonClass, "data-rcl-hook-action": "stop", onClick: () => void voice.stop() }, "Stop"), React.createElement("output", null, voice.state));
-      };
-      if (hookName === "useFileAttach" || hookName === "useClipboard" || hookName === "useNetworkStatus") return () => {
-        const key = hookName === "useFileAttach" ? "fileAttach" : hookName === "useClipboard" ? "clipboard" : "network";
-        const state = environment && environment[key] || "idle";
-        return React.createElement("div", { role: "status", "data-rcl-hook-root": true }, hookName + ": " + state);
-      };
-      throw new Error("preview: no registered fixture for hook " + hookName);
-    };
-    const resolveFixtureContext = (environment) => {
-      const declared = Array.isArray(previewStory.environmentSchema && previewStory.environmentSchema.fixtures) ? previewStory.environmentSchema.fixtures : [];
-      return Object.fromEntries(declared.map((fixture) => [fixture.key, {
-        adapter: fixture.adapter,
-        value: environment && environment[fixture.key] || fixture.options && fixture.options[0] || "idle",
-      }]));
-    };
-    const validateEnvironment = (environment) => {
-      if (!environment || typeof environment !== "object" || Array.isArray(environment)) return ["Environment override must be an object."];
-      const declared = Array.isArray(previewStory.environmentSchema && previewStory.environmentSchema.fixtures) ? previewStory.environmentSchema.fixtures : [];
-      const failures = [];
-      for (const [key, value] of Object.entries(environment)) {
-        const fixture = declared.find((candidate) => candidate && candidate.key === key);
-        if (!fixture) failures.push(key + ": fixture is not declared.");
-        else if (!Array.isArray(fixture.options) || !fixture.options.includes(value)) failures.push(key + ": fixture option is not declared.");
-      }
-      return failures;
-    };
-    const wrapStandalone = (subject) => {
-      const archetype = previewStory.geometry?.archetype || previewStory.archetype || "pattern";
-      if (archetype !== "primitive") {
-        const className = "rcl-preview-stage rcl-preview-stage--" + archetype;
-        return React.createElement("div", { className, "data-preview-stage": "stage", "data-preview-archetype": archetype }, subject);
-      }
-      return previewStory.kind === "component"
-      ? React.createElement(
-        "div",
-        { className: "rcl-preview-specimen", "data-preview-stage": "specimen" },
-        React.createElement(
-          "section",
-          { className: "rcl-preview-well", "aria-label": "Component specimen" },
-          React.createElement("p", { className: "rcl-preview-well__meta", "aria-hidden": "true" }, "Interactive specimen"),
-          React.createElement("div", { className: "rcl-preview-well__content" }, subject),
-        ),
-      )
-      : subject;
-    };
-    const renderPreview = (override, environment = previewStory.environment) => {
-      const safeOverride = override && typeof override === "object" && !Array.isArray(override) ? override : {};
-      const props = resolveProps(mergeStoryProps(previewStory.props, safeOverride));
-      if (Array.isArray(props.children)) props.children = React.Children.toArray(props.children);
-      const fixtures = resolveFixtureContext(environment);
-      const subject = previewStory.sharedHarness
-        ? React.createElement(SharedHarnessMod[previewStory.sharedHarness.export], { subject: Cmp, args: props, config: previewStory.sharedHarness.config || {}, environment, fixtures, log: postPreviewEvent })
-        : previewStory.harness
-        ? React.createElement(HarnessMod[previewStory.harness], { args: props, environment, fixtures, log: postPreviewEvent })
-        : previewStory.kind === "hook" ? React.createElement(hookFixture(props, environment)) : React.createElement(Cmp, props);
-      if (previewStory.frame && Frame) {
-        const fixtureFailure = captureFixtureShape === "failure" && (previewStory.fixture?.dataShapes || []).includes("failure");
-        const fixtureRegion = React.createElement(
-          "section",
-          { "data-frame-region": "fixture", "data-fixture-asset": previewStory.fixture?.asset || "", "data-fixture-shape": captureFixtureShape, className: "rcl-preview-fixture", "aria-label": "Data source fixture" },
-          React.createElement("span", { className: "rcl-preview-fixture__heading" }, fixtureFailure ? "Fixture failure" : "Live data surface"),
-          fixtureFailure
-            ? React.createElement("div", { role: "alert", "data-fixture-state": "failure" }, "Fixture data source failed to load")
-            : React.createElement(React.Fragment, null,
-                React.createElement("strong", null, previewStory.fixture?.asset || "Fixture data"),
-                React.createElement("div", { className: "rcl-preview-fixture__rows", "aria-hidden": "true" },
-                  React.createElement("span", { className: "rcl-preview-fixture__row" }),
-                  React.createElement("span", { className: "rcl-preview-fixture__row" }),
-                  React.createElement("span", { className: "rcl-preview-fixture__row" }),
-                ),
-              ),
-        );
-        const regions = { [previewStory.frame.region]: subject, content: fixtureRegion };
-        // Catalog frames receive both the named regions and the original
-        // region map. Named props keep simple frames such as Page ergonomic;
-        // regions preserves the richer contract for frames that need to
-        // inspect or iterate over all declared regions.
-        renderSheet(React.createElement(Frame, { ...regions, regions, fixture: previewStory.fixture, children: subject, "data-frame-subject": previewStory.frame.asset }), "frame");
-        return;
-      }
-	  if (previewStory.sharedHarness) {
-		const SharedHarness = SharedHarnessMod[previewStory.sharedHarness.export];
-		if (typeof SharedHarness !== "function") throw new Error("preview: shared harness export " + previewStory.sharedHarness.export + " was not found");
-		renderSheet(React.createElement(SharedHarness, { subject: Cmp, args: props, config: previewStory.sharedHarness.config || {}, environment, fixtures: resolveFixtureContext(environment), log: postPreviewEvent }), "shared-harness");
-		return;
-	  }
-	  if (previewStory.harness) {
-        const Harness = HarnessMod[previewStory.harness];
-        if (typeof Harness !== "function") throw new Error("preview: harness export " + previewStory.harness + " was not found");
-		// A local harness owns its own Preview composition. Do not add the
-		// host's legacy specimen well around it: that duplicates the shared
-		// PreviewShowcase when a local harness has adopted the foundation and
-		// still leaves the capture boundary explicit and host-owned.
-		renderSheet(React.createElement(Harness, { args: props, environment, fixtures: resolveFixtureContext(environment), log: postPreviewEvent }), "local-harness");
-        return;
-      }
-      const standaloneSubject = previewStory.kind === "hook"
-        ? React.createElement(hookFixture(props, environment))
-        : React.createElement(Cmp, props);
-      renderSheet(wrapStandalone(standaloneSubject), "standalone");
-    };
-    const locate = (target) => {
-      if (!target || typeof target !== "object") return null;
-      if (typeof target.selector === "string") return document.querySelector(target.selector);
-      if (typeof target.role !== "string") return null;
-      const candidates = Array.from(document.querySelectorAll("body *")).filter((candidate) => (candidate.getAttribute("role") || implicitRole(candidate)) === target.role);
-      const accessibleName = (candidate) => {
-        const labelledBy = candidate.getAttribute("aria-labelledby");
-        if (labelledBy) return labelledBy.split(/\s+/).map((id) => readableText(document.getElementById(id))).join(" ").trim();
-        const associatedLabel = candidate.id
-          ? Array.from(document.querySelectorAll("label")).find((label) => label.htmlFor === candidate.id)
-          : null;
-        return (candidate.getAttribute("aria-label") || candidate.getAttribute("title") || readableText(associatedLabel) || candidate.value || readableText(candidate) || "").trim();
-      };
-      return Array.from(candidates).find((candidate) => typeof target.name !== "string" || accessibleName(candidate) === target.name) || null;
-    };
-    const expectationFailure = (expectation) => {
-      const visible = (node) => !!node && !node.hasAttribute("hidden") && getComputedStyle(node).display !== "none" && getComputedStyle(node).visibility !== "hidden";
-      let node = null;
-      if (expectation.kind === "text") node = Array.from(document.querySelectorAll("body *")).find((candidate) => candidate.textContent && candidate.textContent.includes(expectation.value || ""));
-      else if (expectation.kind === "role") node = locate({ role: expectation.role, name: expectation.name });
-      else node = locate({ selector: expectation.selector });
-	  if (!node && previewStory.kind === "hook" && expectation.kind === "visible") node = document.querySelector("[data-rcl-hook-root]");
-      if (expectation.kind === "notVisible") return visible(node) ? "expected target not to be visible" : "";
-      if (expectation.kind === "visible" || expectation.kind === "text" || expectation.kind === "role") return visible(node) ? "" : "expected target to be visible";
-      if (expectation.kind === "attribute") {
-        const attribute = expectation.attribute || expectation.name || "";
-        if (!node) return "expected attribute value was not found";
-        if (expectation.value === undefined) return node.hasAttribute(attribute) ? "" : "expected attribute value was not found";
-        return node.getAttribute(attribute) === expectation.value ? "" : "expected attribute value was not found";
-      }
-      if (expectation.kind === "count") {
-        if (!expectation.selector) return "count expectation requires a selector";
-        const expected = Number(expectation.value);
-        if (!Number.isInteger(expected) || expected < 0) return "count expectation requires a non-negative integer value";
-        return document.querySelectorAll(expectation.selector).length === expected ? "" : "expected element count was not met";
-      }
-      if (expectation.kind === "layout") {
-        if (!node) return "expected layout target was not found";
-        const rect = node.getBoundingClientRect();
-        if (expectation.minWidth !== undefined && rect.width < Number(expectation.minWidth)) return "expected layout width minimum was not met";
-        if (expectation.minHeight !== undefined && rect.height < Number(expectation.minHeight)) return "expected layout height minimum was not met";
-        if (expectation.maxWidth !== undefined && rect.width > Number(expectation.maxWidth)) return "expected layout width maximum was not met";
-        if (expectation.maxHeight !== undefined && rect.height > Number(expectation.maxHeight)) return "expected layout height maximum was not met";
-        if (expectation.noOverflow && node.scrollWidth > node.clientWidth + 1) return "expected layout target not to overflow horizontally";
-        return "";
-      }
-      return "unsupported expectation";
-    };
-    const runStory = async () => {
-      const failures = [];
-      // React 18 schedules the initial root commit asynchronously. Interactions
-      // must target the mounted specimen, not the scheduling frame following
-      // root.render(); this matters especially for custom stateful harnesses.
-      await new Promise((resolve) => setTimeout(resolve, 50));
-      for (const interaction of previewStory.interactions || []) {
-        let target = locate(interaction.target);
-        if (interaction.kind === "settle") { await new Promise((resolve) => setTimeout(resolve, 20)); continue; }
-		if (interaction.kind === "waitFor") {
-		  const waitText = String(interaction.text || "").trim();
-		  const deadline = Date.now() + 2000;
-		  while (waitText && Date.now() < deadline) {
-		    const visibleText = Array.from(document.querySelectorAll("body *")).some((candidate) => {
-		      const style = getComputedStyle(candidate);
-		      return candidate.textContent?.includes(waitText) && style.display !== "none" && style.visibility !== "hidden";
-		    });
-		    if (visibleText) break;
-		    await new Promise((resolve) => setTimeout(resolve, 20));
-		  }
-		  continue;
-		}
-        if (!target && previewStory.kind === "hook" && interaction.kind === "key") target = window;
-        if (!target && previewStory.kind === "hook" && interaction.kind === "click") target = document.querySelector("[data-rcl-hook-action=start]");
-        if (!target && previewStory.kind === "hook" && interaction.kind === "focus") target = document.querySelector("[data-rcl-hook-root]");
-        if (!target) { failures.push({ kind: "interaction", message: "target not found for " + interaction.kind }); continue; }
-        if (interaction.kind === "click") target.click();
-        else if (interaction.kind === "focus") target.focus();
-        else if (interaction.kind === "blur") target.blur();
-        else if (interaction.kind === "key") target.dispatchEvent(new KeyboardEvent("keydown", { key: interaction.text || "", bubbles: true }));
-        else if (interaction.kind === "type") {
-          const text = interaction.text || "";
-          // Bypass React's controlled-input value tracker before dispatching
-          // the browser events. A plain assignment updates that tracker, so
-          // React can correctly treat the following input/change as a no-op.
-          const setter = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(target), "value")?.set;
-          if (setter) setter.call(target, text);
-          else target.value = text;
-          target.dispatchEvent(new Event("input", { bubbles: true }));
-          target.dispatchEvent(new Event("change", { bubbles: true }));
-        }
-      }
-      // React 18 may defer the commit past the first animation frame. Story
-      // expectations run against the committed specimen, never the scheduling
-      // frame that happened to follow root.render().
-      // A bounded timer is the fallback for headless Chrome, where animation
-      // frames may be throttled even after React has committed the root.
-      await new Promise((resolve) => setTimeout(resolve, 50));
-      for (const expectation of previewStory.expect || []) {
-        const message = expectationFailure(expectation);
-        if (message) failures.push({ kind: "expect", expectation, message });
-      }
-      reportStoryResult(failures.length === 0, failures);
-    };
-    renderPreview({});
-    void runStory().then(() => {
-      setHarnessState("ready");
-      parent.postMessage({ type: "preview-ready", id: ` + jsString(id) + `, sha256: ` + jsString(b.SHA256) + `, story: previewStory.name || "", version: previewStory.version || "" }, "*");
-    }).catch((error) => {
-      showPreviewError("preview: story execution failed - " + (error && error.stack || error));
-    });
-    window.addEventListener("message", (ev) => {
-      const data = ev && ev.data;
-      if (!data || (data.type !== "rcl-preview-props-override" && data.type !== "rcl-preview-props-reset")) return;
-      if (data.componentId !== ` + jsString(id) + ` || (data.story || "") !== (previewStory.name || "") || (data.version || "") !== (previewStory.version || "")) return;
-      if (data.type === "rcl-preview-props-override") {
-        const override = data.props;
-        if (!override || typeof override !== "object" || Array.isArray(override)) {
-          parent.postMessage({ type: "rcl-preview-props-error", id: ` + jsString(id) + `, story: previewStory.name || "", version: previewStory.version || "", message: "Props override must be a JSON object." }, "*");
-          return;
-        }
-		const validationErrors = [...validateOverride(override), ...validateEnvironment(data.environment || previewStory.environment).map((message) => ({ path: "environment", message }))];
-		if (validationErrors.length > 0) {
-		  parent.postMessage({ type: "rcl-preview-props-error", id: ` + jsString(id) + `, story: previewStory.name || "", version: previewStory.version || "", message: validationErrors.map((error) => error.path + ": " + error.message).join(" "), fields: validationErrors }, "*");
-		  return;
-		}
-        renderPreview(override, data.environment || previewStory.environment);
-        parent.postMessage({ type: "rcl-preview-props-applied", id: ` + jsString(id) + `, story: previewStory.name || "", version: previewStory.version || "" }, "*");
-        return;
-      }
-      renderPreview({});
-      parent.postMessage({ type: "rcl-preview-props-reset", id: ` + jsString(id) + `, story: previewStory.name || "", version: previewStory.version || "" }, "*");
-    });
-  }
-} catch (e) {
-  showPreviewError("preview: render failed - " + (e && e.stack || e));
-}
-
-</script>
+<script type="module">`)
+	sb.WriteString(renderHarnessJavaScript(id, b, ex))
+	sb.WriteString(`</script>
 </body>
 </html>
 `)
 	return sb.String()
+}
+
+func renderHarnessJavaScript(id string, b internalpreview.Bundle, ex harnessStory) string {
+	replacements := map[string]string{
+		"__COMPONENT_MODULE_URL__":     jsString("data:text/javascript;base64," + base64Encode(b.JS)),
+		"__STORY_HARNESS_MODULE_URL__": jsString("data:text/javascript;base64," + base64Encode(b.HarnessJS+"\n"+b.CompositionHarnessJS)),
+		"__FRAME_MODULE_URL__":         jsString("data:text/javascript;base64," + base64Encode(b.FrameJS)),
+		"__STORY_NAME__":               jsString(ex.Name),
+		"__STORY_VERSION__":            jsString(ex.Version),
+		"__STORY_DISPLAY_NAME__":       jsString(ex.DisplayName),
+		"__STORY_KIND__":               jsString(string(ex.Kind)),
+		"__STORY_PROPS__":              jsonObjectLiteral(ex.PropsJSON),
+		"__STORY_ARGS__":               jsonObjectLiteral(ex.ArgsJSON),
+		"__STORY_ENVIRONMENT__":        jsonObjectLiteral(ex.EnvironmentJSON),
+		"__STORY_ENVIRONMENT_SCHEMA__": jsonObjectLiteral(ex.EnvironmentSchemaJSON),
+		"__STORY_INTERACTIONS__":       jsonArrayLiteral(ex.InteractionsJSON),
+		"__STORY_EXPECT__":             jsonArrayLiteral(ex.ExpectJSON),
+		"__STORY_COMPOSITION__":        compositionJSON(ex.Composition),
+		"__STORY_GEOMETRY__":           geometryJSON(ex.Geometry),
+		"__STORY_MODE__":               jsString(string(ex.Mode)),
+		"__STORY_SLOT__":               jsString(ex.Slot),
+		"__STORY_ASSET_KIND__":         jsString(string(ex.AssetKind)),
+		"__STORY_ARCHETYPE__":          jsString(ex.Archetype),
+		"__STORY_FIXTURE__":            fixtureJSON(ex.Fixture, b.FixtureJSON),
+		"__PREVIEW_ID__":               jsString(id),
+		"__BUNDLE_SHA256__":            jsString(b.SHA256),
+	}
+	script := harnessJavaScript
+	for placeholder, replacement := range replacements {
+		script = strings.ReplaceAll(script, placeholder, replacement)
+	}
+	return script
 }
 
 func buildImportMapJSON(b internalpreview.Bundle) (string, []string) {
@@ -1451,7 +703,11 @@ func buildImportMapJSON(b internalpreview.Bundle) (string, []string) {
 		}
 		version, ok := internaldeps.ResolveRangeToLatest(d.VersionRange, packageRuntimeCandidatesFor(name))
 		if !ok {
-			warnings = append(warnings, fmt.Sprintf("preview: dependency %q cannot be resolved from declared range %q; package is absent from the governed preview runtime store. Populate with: %s", name, d.VersionRange, previewDependencyPopulateCommand(name, d.VersionRange)))
+			warnings = append(warnings, fmt.Sprintf(
+				"preview: dependency %q cannot be resolved from declared range %q; "+
+					"package is absent from the governed preview runtime store. Populate with: %s",
+				name, d.VersionRange, previewDependencyPopulateCommand(name, d.VersionRange),
+			))
 			continue
 		}
 		imports[name] = packageRuntimeURL(name, version, "", &warnings)
@@ -1583,11 +839,11 @@ func jsonObjectLiteral(raw string) string {
 	return string(normalized)
 }
 
-func frameJSON(frame *components.StoryFrame) string {
-	if frame == nil {
+func compositionJSON(composition *components.StoryComposition) string {
+	if composition == nil {
 		return "null"
 	}
-	raw, err := json.Marshal(frame)
+	raw, err := json.Marshal(composition)
 	if err != nil {
 		return "null"
 	}
@@ -1613,17 +869,6 @@ func fixtureJSON(fixture *components.StoryFixtureRef, base string) string {
 		return "Object.assign(" + baseLiteral + "," + string(raw) + ")"
 	}
 	return "Object.assign(" + baseLiteral + "," + string(raw) + "," + string(payloadJSON) + ")"
-}
-
-func sharedHarnessJSON(harness *components.StoryHarnessRef) string {
-	if harness == nil {
-		return "null"
-	}
-	raw, err := json.Marshal(harness)
-	if err != nil {
-		return "null"
-	}
-	return string(raw)
 }
 
 func geometryJSON(geometry *components.StoryGeometry) string {

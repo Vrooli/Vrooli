@@ -1,11 +1,20 @@
 {
-  "libraryId": "react-component-library:HealthIndicator",
-  "catalogId": "data-display.health-indicator",
-  "displayName": "HealthIndicator",
-  "description": "A semantic health label with score, staleness, and non-color status treatment.",
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "component",
-  "tags": ["data-display", "token-bound"],
+  "catalogId": "data-display.health-indicator",
+  "dependencies": [],
+  "description": "A semantic health label with score, staleness, and non-color status treatment.",
+  "designStyles": [
+    {
+      "affinity": "native",
+      "styleId": "vrooli-default"
+    }
+  ],
+  "displayName": "HealthIndicator",
   "latest": "1.0.0",
-  "designStyles": [{ "styleId": "vrooli-default", "affinity": "native" }],
-  "dependencies": []
+  "libraryId": "react-component-library:HealthIndicator",
+  "tags": [
+    "data-display",
+    "token-bound"
+  ]
 }

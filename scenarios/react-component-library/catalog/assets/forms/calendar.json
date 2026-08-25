@@ -5,13 +5,14 @@
   "asset": {
     "id": "forms.calendar",
     "name": "Calendar",
-    "kind": "component", "surface": "raised",
+    "kind": "component",
+    "surface": "raised",
     "domain": "forms",
     "description": "The reusable calendar surface supporting single, multiple, range, week, and month selection with localization, constraints, keyboard navigation, and virtualized month rendering.",
     "targets": [
       "react-vite"
     ],
-    "slot": "primitive",
+    "slot": "ui-primitive",
     "delivery": "adopted",
     "target": {
       "priority": "P0",

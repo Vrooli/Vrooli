@@ -1,4 +1,6 @@
 /** @vrooliComponentSource patterns.resource-collection */
+import { translate } from "../../../../hooks/useLocale/versions/1.0.0/useLocale";
+
 import { useState, type CSSProperties, type ReactNode } from "react";
 import {
   DataTable,
@@ -216,7 +218,7 @@ export function ResourceCollection<Row>({
       />
       <header data-rcl-resource-collection-header>
         <div data-rcl-resource-collection-heading>
-          <span data-rcl-resource-collection-eyebrow>Resource library</span>
+          <span data-rcl-resource-collection-eyebrow>{translate("patterns.resource-collection.text.1", "Resource library")}</span>
           <h1 data-rcl-resource-collection-title>{title}</h1>
           {description ? (
             <p data-rcl-resource-collection-description>{description}</p>

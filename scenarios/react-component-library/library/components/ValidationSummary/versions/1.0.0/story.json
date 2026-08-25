@@ -1,19 +1,22 @@
 {
-  "schemaVersion": 3,
-  "kind": "component",
-  "title": "ValidationSummary",
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
   "args": {
     "fields": []
   },
   "environment": {
     "fixtures": []
   },
+  "kind": "component",
+  "schemaVersion": 4,
   "stories": [
     {
-      "id": "default",
-      "name": "Field errors",
-      "harness": "Default",
       "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Default",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
         {
           "kind": "role",
@@ -28,13 +31,18 @@
           "value": "Email address"
         }
       ],
-      "mode": "live"
+      "id": "default",
+      "mode": "live",
+      "name": "Field errors"
     },
     {
-      "id": "custom-title",
-      "name": "Custom title",
-      "harness": "CustomTitle",
       "args": {},
+      "composition": {
+        "specimen": {
+          "export": "CustomTitle",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
         {
           "kind": "role",
@@ -45,20 +53,28 @@
           "value": "Almost there"
         }
       ],
-      "mode": "live"
+      "id": "custom-title",
+      "mode": "live",
+      "name": "Custom title"
     },
     {
-      "id": "empty",
-      "name": "No errors",
-      "harness": "Empty",
       "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Empty",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
         {
           "kind": "text",
           "value": "Everything looks good."
         }
       ],
-      "mode": "live"
+      "id": "empty",
+      "mode": "live",
+      "name": "No errors"
     }
-  ]
+  ],
+  "title": "ValidationSummary"
 }

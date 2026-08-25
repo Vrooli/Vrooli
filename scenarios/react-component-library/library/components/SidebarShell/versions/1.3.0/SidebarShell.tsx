@@ -7,6 +7,7 @@
  * @deps {"react":"^18","lucide-react":"^0.424.0","react-component-library:useEscapeKey":"^1.0.0"}
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
+import { cn } from "../../../../foundations/ClassMerge/versions/1.0.0/ClassMerge";
 import { type CSSProperties, type HTMLAttributes, type ReactNode, forwardRef } from "react";
 import { X } from "lucide-react";
 import { useEscapeKey } from "../../../../hooks/useEscapeKey/versions/1.0.0/useEscapeKey";
@@ -28,8 +29,6 @@ export interface SidebarShellProps {
   contentClassName?: string;
   backdropClassName?: string;
 }
-
-const cn = (...inputs: Array<string | undefined>) => inputs.filter(Boolean).join(" ");
 
 export const SidebarShell = forwardRef<HTMLDivElement, SidebarShellProps>(function SidebarShell(
   {
@@ -65,7 +64,7 @@ export const SidebarShell = forwardRef<HTMLDivElement, SidebarShellProps>(functi
       {isDialogOpen ? (
         <button
           type="button"
-          data-testid="sidebar-shell-backdrop"
+          data-testid="navigation.sidebar"
           data-rcl-sidebar-backdrop=""
           data-mode={mode}
           aria-label={closeLabel}
@@ -90,7 +89,7 @@ export const SidebarShell = forwardRef<HTMLDivElement, SidebarShellProps>(functi
             <div className="rcl-sidebar-shell__header-content">{mobileHeader}</div>
             <button
               type="button"
-              data-testid="sidebar-shell-close"
+              data-testid="navigation.sidebar"
               aria-label={closeLabel}
               onClick={onMobileClose}
               className="rcl-sidebar-shell__close"

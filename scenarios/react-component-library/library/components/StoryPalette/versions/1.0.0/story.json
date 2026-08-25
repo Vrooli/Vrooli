@@ -1,40 +1,46 @@
 {
-  "schemaVersion": 3,
-  "kind": "component",
-  "title": "Story palette",
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
   "args": {
     "fields": [
       {
-        "path": "selectedId",
-        "label": "Selected story",
+        "default": "ready",
         "kind": "text",
-        "default": "ready"
+        "label": "Selected story",
+        "path": "selectedId"
       }
     ]
   },
   "environment": {
     "fixtures": []
   },
+  "kind": "component",
+  "schemaVersion": 4,
   "stories": [
     {
-      "id": "default",
-      "name": "Declared stories",
-      "harness": "Default",
-      "mode": "live",
       "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Default",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
         {
           "kind": "role",
-          "role": "navigation",
-          "name": "Preview stories"
+          "name": "Preview stories",
+          "role": "navigation"
         },
         {
           "kind": "attribute",
-          "selector": "button[aria-current=\"true\"]",
           "name": "aria-current",
+          "selector": "button[aria-current=\"true\"]",
           "value": "true"
         }
-      ]
+      ],
+      "id": "default",
+      "mode": "live",
+      "name": "Declared stories"
     }
-  ]
+  ],
+  "title": "Story palette"
 }

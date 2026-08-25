@@ -1,11 +1,20 @@
 {
-  "libraryId": "react-component-library:useReducedMotion",
-  "catalogId": "hooks.use-reduced-motion",
-  "displayName": "useReducedMotion",
-  "description": "Production-ready useReducedMotion hook with SSR-safe lifecycle behavior.",
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "hook",
-  "tags": ["runtime", "accessibility"],
+  "catalogId": "hooks.use-reduced-motion",
+  "dependencies": [],
+  "description": "Production-ready useReducedMotion hook with SSR-safe lifecycle behavior.",
+  "designStyles": [
+    {
+      "affinity": "native",
+      "styleId": "vrooli-default"
+    }
+  ],
+  "displayName": "useReducedMotion",
   "latest": "1.0.0",
-  "designStyles": [{ "styleId": "vrooli-default", "affinity": "native" }],
-  "dependencies": []
+  "libraryId": "react-component-library:useReducedMotion",
+  "tags": [
+    "runtime",
+    "accessibility"
+  ]
 }

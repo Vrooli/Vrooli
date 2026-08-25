@@ -1,1 +1,45 @@
-{"$schema":"../../../../../.vrooli/schemas/catalog-asset.schema.json","kind":"catalog-asset","schemaVersion":"1.0.0","asset":{"id":"visualization.overlay-canvas","name":"OverlayCanvas","kind":"component","surface":"raised","domain":"visualization","description":"A measured subject overlay that names implicated bounds.","targets":["react-vite"],"slot":"primitive","delivery":"adopted","target":{"priority":"P1","maturity":"implemented"}},"dependencies":{"requires":[],"suggests":[]},"requiredCapabilities":["accessible-naming","non-color-status"],"requiredStates":["default","empty"],"qualityGates":["accessibility","surface-discipline","composition"],"rationale":"A claim overlay turns structured measurements into inspectable subjects."}
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "visualization.overlay-canvas",
+    "name": "OverlayCanvas",
+    "kind": "component",
+    "surface": "raised",
+    "domain": "visualization",
+    "description": "A measured subject overlay that names implicated bounds.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "ui-primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P1",
+      "maturity": "implemented"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "hooks.use-locale",
+        "reason": "User-facing copy resolves through the adopting host locale bridge."
+      }
+    ],
+    "suggests": []
+  },
+  "requiredCapabilities": [
+    "accessible-naming",
+    "non-color-status"
+  ],
+  "requiredStates": [
+    "default",
+    "empty"
+  ],
+  "qualityGates": [
+    "accessibility",
+    "surface-discipline",
+    "composition"
+  ],
+  "rationale": "A claim overlay turns structured measurements into inspectable subjects."
+}

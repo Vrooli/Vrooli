@@ -1,59 +1,70 @@
 {
-  "schemaVersion": 3,
-  "kind": "component",
-  "title": "SelectionControl",
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
   "args": {
     "fields": []
   },
   "environment": {
     "fixtures": []
   },
+  "kind": "component",
+  "schemaVersion": 4,
   "stories": [
     {
-      "id": "default",
-      "name": "Checkbox",
-      "harness": "Default",
       "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Default",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
         {
           "kind": "role",
-          "role": "checkbox",
-          "name": "Keep me signed in"
+          "name": "Keep me signed in",
+          "role": "checkbox"
         },
         {
           "kind": "text",
           "value": "private device"
         }
       ],
+      "id": "default",
       "interactions": [
         {
           "kind": "settle"
         }
       ],
-      "mode": "live"
+      "mode": "live",
+      "name": "Checkbox"
     },
     {
-      "id": "states",
-      "name": "Selection states",
-      "harness": "States",
       "args": {},
+      "composition": {
+        "specimen": {
+          "export": "States",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
         {
           "kind": "role",
-          "role": "switch",
-          "name": "Quiet hours"
+          "name": "Quiet hours",
+          "role": "switch"
         },
         {
           "kind": "role",
           "role": "alert"
         }
       ],
+      "id": "states",
       "interactions": [
         {
           "kind": "settle"
         }
       ],
-      "mode": "live"
+      "mode": "live",
+      "name": "Selection states"
     }
-  ]
+  ],
+  "title": "SelectionControl"
 }

@@ -10,13 +10,14 @@
   "asset": {
     "id": "feedback.loading-state",
     "name": "LoadingState",
-    "kind": "component", "surface": "raised",
+    "kind": "component",
+    "surface": "raised",
     "domain": "feedback",
     "description": "The full-region loading composition selecting skeletons, placeholders, or progress based on the expected content structure and the operation's likely duration.",
     "targets": [
       "react-vite"
     ],
-    "slot": "primitive",
+    "slot": "ui-primitive",
     "delivery": "adopted",
     "target": {
       "priority": "P0",
@@ -32,6 +33,10 @@
       {
         "asset": "primitives.spinner",
         "reason": "Indeterminate work uses the shared indicator."
+      },
+      {
+        "asset": "hooks.use-locale",
+        "reason": "User-facing copy resolves through the adopting host locale bridge."
       }
     ]
   },

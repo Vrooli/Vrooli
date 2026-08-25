@@ -1,11 +1,27 @@
 {
-  "libraryId": "react-component-library:Drawer",
-  "catalogId": "overlays.drawer",
-  "displayName": "Drawer",
-  "description": "A layered side surface with predictable dismissal, focus semantics, and token-backed elevation.",
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "component",
-  "tags": ["overlay", "layered", "token-bound"],
+  "catalogId": "overlays.drawer",
+  "dependencies": [],
+  "description": "A layered side surface with predictable dismissal, focus semantics, and token-backed elevation.",
+  "designStyles": [
+    {
+      "affinity": "native",
+      "styleId": "vrooli-default"
+    }
+  ],
+  "displayName": "Drawer",
   "latest": "1.0.0",
-  "designStyles": [{ "styleId": "vrooli-default", "affinity": "native" }],
-  "dependencies": []
+  "libraryId": "react-component-library:Drawer",
+  "tags": [
+    "overlay",
+    "layered",
+    "token-bound"
+  ],
+  "requires": [
+    {
+      "libraryId": "react-component-library:useLocale",
+      "version": "1.0.0"
+    }
+  ]
 }

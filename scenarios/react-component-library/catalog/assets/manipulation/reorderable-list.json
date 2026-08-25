@@ -5,13 +5,14 @@
   "asset": {
     "id": "manipulation.reorderable-list",
     "name": "ReorderableList",
-    "kind": "component", "surface": "raised",
+    "kind": "component",
+    "surface": "raised",
     "domain": "manipulation",
     "description": "The complete list composition with drag handles, keyboard reordering, drop indicators, animated displacement, persistence, position announcements, and optimistic rollback.",
     "targets": [
       "react-vite"
     ],
-    "slot": "primitive",
+    "slot": "ui-primitive",
     "delivery": "adopted",
     "target": {
       "priority": "P1",

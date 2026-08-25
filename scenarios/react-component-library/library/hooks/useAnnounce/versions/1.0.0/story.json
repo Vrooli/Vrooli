@@ -1,26 +1,32 @@
 {
-  "schemaVersion": 3,
-  "kind": "hook",
-  "title": "useAnnounce",
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
   "args": {
     "fields": []
   },
   "environment": {
     "fixtures": []
   },
+  "kind": "hook",
+  "schemaVersion": 4,
   "stories": [
     {
-      "id": "default",
-      "name": "Default",
-      "harness": "Default",
       "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Default",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
         {
           "kind": "role",
           "role": "status"
         }
       ],
-      "mode": "live"
+      "id": "default",
+      "mode": "live",
+      "name": "Default"
     }
-  ]
+  ],
+  "title": "useAnnounce"
 }

@@ -1,11 +1,21 @@
 {
-  "libraryId": "react-component-library:SplitView",
-  "catalogId": "navigation.split-view",
-  "displayName": "SplitView",
-  "description": "A composed navigation workspace that keeps primary and secondary regions meaningful across breakpoints.",
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "component",
-  "tags": ["navigation", "layout", "token-bound"],
+  "catalogId": "navigation.split-view",
+  "dependencies": [],
+  "description": "A composed navigation workspace that keeps primary and secondary regions meaningful across breakpoints.",
+  "designStyles": [
+    {
+      "affinity": "native",
+      "styleId": "vrooli-default"
+    }
+  ],
+  "displayName": "SplitView",
   "latest": "1.0.0",
-  "designStyles": [{ "styleId": "vrooli-default", "affinity": "native" }],
-  "dependencies": []
+  "libraryId": "react-component-library:SplitView",
+  "tags": [
+    "navigation",
+    "layout",
+    "token-bound"
+  ]
 }

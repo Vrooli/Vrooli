@@ -61,6 +61,7 @@ func TestVacuousRungDetectsMissingGate(t *testing.T) {
 	findings := vacuousFindings(root, []assetDoc{{Asset: struct {
 		ID     string `json:"id"`
 		Kind   string `json:"kind"`
+		Slot   string `json:"slot"`
 		Target struct {
 			Maturity string `json:"maturity"`
 		} `json:"target"`

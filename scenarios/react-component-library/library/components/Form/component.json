@@ -1,15 +1,26 @@
 {
-  "libraryId": "react-component-library:Form",
-  "catalogId": "forms.form",
-  "displayName": "Form",
-  "description": "A token-bound form shell that coordinates validation, submission, save state, and accessible status announcements.",
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "component",
-  "tags": ["form", "state", "accessibility", "compound"],
-  "slot": "ui-primitive",
+  "catalogId": "forms.form",
   "category": "forms",
-  "latest": "1.0.0",
-  "draft": "",
+  "dependencies": [],
   "deprecatedVersions": [],
-  "designStyles": [{ "styleId": "vrooli-default", "affinity": "native" }],
-  "dependencies": []
+  "description": "A token-bound form shell that coordinates validation, submission, save state, and accessible status announcements.",
+  "designStyles": [
+    {
+      "affinity": "native",
+      "styleId": "vrooli-default"
+    }
+  ],
+  "displayName": "Form",
+  "draft": "",
+  "latest": "1.0.0",
+  "libraryId": "react-component-library:Form",
+  "slot": "ui-primitive",
+  "tags": [
+    "form",
+    "state",
+    "accessibility",
+    "compound"
+  ]
 }

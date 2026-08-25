@@ -7,6 +7,7 @@
  * @deps {"react":"^18"}
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
+import { cn } from "../../../../foundations/ClassMerge/versions/1.0.0/ClassMerge";
 import {
   useCallback,
   useRef,
@@ -67,9 +68,6 @@ const labels: Record<VoiceInputButtonState, string> = {
   unavailable: "Voice input unavailable",
   error: "Voice input error",
 };
-
-const joinClasses = (...classes: Array<string | undefined | false>) =>
-  classes.filter(Boolean).join(" ");
 
 export function VoiceInputButton({
   state = "idle",
@@ -217,7 +215,7 @@ export function VoiceInputButton({
         size={size}
         density={density}
         variant="secondary"
-        className={joinClasses(
+        className={cn(
           "relative overflow-hidden touch-manipulation",
           stateClassName,
           state === "recording" && mode === "timeout"

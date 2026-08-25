@@ -5,13 +5,14 @@
   "asset": {
     "id": "ai.message-actions",
     "name": "MessageActions",
-    "kind": "component", "surface": "raised",
+    "kind": "component",
+    "surface": "raised",
     "domain": "ai",
     "description": "The contextual action group for copy, retry, edit, branch, rate, cite, save, and share, kept out of the way until relevant without becoming hover-only.",
     "targets": [
       "react-vite"
     ],
-    "slot": "primitive",
+    "slot": "ui-primitive",
     "delivery": "adopted",
     "target": {
       "priority": "P1",

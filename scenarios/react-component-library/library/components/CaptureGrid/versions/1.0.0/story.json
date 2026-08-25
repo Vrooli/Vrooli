@@ -1,1 +1,50 @@
-{"schemaVersion":3,"kind":"component","title":"CaptureGrid","args":{"fields":[]},"environment":{"fixtures":[]},"stories":[{"id":"default","name":"Default","args":{"cells":[{"id":"mobile-light","viewport":"mobile","theme":"light","status":"pass","captureRef":"captures/mobile-light.png"},{"id":"desktop-dark","viewport":"desktop","theme":"dark","status":"missing"}]},"expect":[{"kind":"text","value":"mobile"},{"kind":"text","value":"desktop"},{"kind":"text","value":"missing"}],"mode":"pinned"}]}
+{
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
+  "args": {
+    "fields": []
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "kind": "component",
+  "schemaVersion": 4,
+  "stories": [
+    {
+      "args": {
+        "cells": [
+          {
+            "captureRef": "captures/mobile-light.png",
+            "id": "mobile-light",
+            "status": "pass",
+            "theme": "light",
+            "viewport": "mobile"
+          },
+          {
+            "id": "desktop-dark",
+            "status": "missing",
+            "theme": "dark",
+            "viewport": "desktop"
+          }
+        ]
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "mobile"
+        },
+        {
+          "kind": "text",
+          "value": "desktop"
+        },
+        {
+          "kind": "text",
+          "value": "missing"
+        }
+      ],
+      "id": "default",
+      "mode": "pinned",
+      "name": "Default"
+    }
+  ],
+  "title": "CaptureGrid"
+}

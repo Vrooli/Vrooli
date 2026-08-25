@@ -10,13 +10,14 @@
   "asset": {
     "id": "manipulation.resizable",
     "name": "Resizable",
-    "kind": "component", "surface": "raised",
+    "kind": "component",
+    "surface": "raised",
     "domain": "manipulation",
     "description": "The resize primitive with handles, axis constraints, snapping, keyboard resizing, minimum and maximum sizes, and persisted dimensions.",
     "targets": [
       "react-vite"
     ],
-    "slot": "primitive",
+    "slot": "ui-primitive",
     "delivery": "adopted",
     "target": {
       "priority": "P0",

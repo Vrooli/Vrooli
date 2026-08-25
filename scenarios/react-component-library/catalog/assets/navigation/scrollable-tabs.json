@@ -10,13 +10,14 @@
   "asset": {
     "id": "navigation.scrollable-tabs",
     "name": "ScrollableTabs",
-    "kind": "component", "surface": "raised",
+    "kind": "component",
+    "surface": "raised",
     "domain": "navigation",
     "description": "The tab presentation for constrained widths with edge fades, scroll buttons, automatic reveal of the active tab, touch momentum, and preserved keyboard behavior.",
     "targets": [
       "react-vite"
     ],
-    "slot": "primitive",
+    "slot": "ui-primitive",
     "delivery": "adopted",
     "target": {
       "priority": "P1",

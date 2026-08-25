@@ -1,19 +1,22 @@
 {
-  "schemaVersion": 3,
-  "kind": "component",
-  "title": "VirtualList",
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
   "args": {
     "fields": []
   },
   "environment": {
     "fixtures": []
   },
+  "kind": "component",
+  "schemaVersion": 4,
   "stories": [
     {
-      "id": "default",
-      "name": "Measured activity",
-      "harness": "Default",
       "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Default",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
         {
           "kind": "text",
@@ -24,46 +27,64 @@
           "value": "120 records"
         }
       ],
-      "mode": "live"
+      "id": "default",
+      "mode": "live",
+      "name": "Measured activity"
     },
     {
-      "id": "dense",
-      "name": "Dense command history",
-      "harness": "Dense",
       "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Dense",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
         {
           "kind": "text",
           "value": "Command history"
         }
       ],
-      "mode": "live"
+      "id": "dense",
+      "mode": "live",
+      "name": "Dense command history"
     },
     {
-      "id": "empty",
-      "name": "Empty collection",
-      "harness": "Empty",
       "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Empty",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
         {
           "kind": "text",
           "value": "No activity has arrived"
         }
       ],
-      "mode": "live"
+      "id": "empty",
+      "mode": "live",
+      "name": "Empty collection"
     },
     {
-      "id": "restored-scroll",
-      "name": "Restored reading position",
-      "harness": "RestoredScroll",
       "args": {},
+      "composition": {
+        "specimen": {
+          "export": "RestoredScroll",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
         {
           "kind": "text",
           "value": "Returning here preserves your reading position"
         }
       ],
-      "mode": "live"
+      "id": "restored-scroll",
+      "mode": "live",
+      "name": "Restored reading position"
     }
-  ]
+  ],
+  "title": "VirtualList"
 }

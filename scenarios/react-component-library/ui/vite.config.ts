@@ -9,13 +9,27 @@ const rootDir = dirname(fileURLToPath(import.meta.url));
 const packageAlias = {
   react: resolve(rootDir, "node_modules/react"),
   "lucide-react": resolve(rootDir, "node_modules/lucide-react"),
+  clsx: resolve(rootDir, "node_modules/clsx"),
+  "tailwind-merge": resolve(rootDir, "node_modules/tailwind-merge"),
 };
 const protoRuntimeAliases = [
-  { find: /^@bufbuild\/protobuf\/codegenv2$/, replacement: resolve(rootDir, "node_modules/@bufbuild/protobuf/dist/esm/codegenv2/index.js") },
-  { find: /^@bufbuild\/protobuf\/wkt$/, replacement: resolve(rootDir, "node_modules/@bufbuild/protobuf/dist/esm/wkt/index.js") },
-  { find: /^@bufbuild\/protobuf$/, replacement: resolve(rootDir, "node_modules/@bufbuild/protobuf/dist/esm/index.js") },
+  {
+    find: /^@bufbuild\/protobuf\/codegenv2$/,
+    replacement: resolve(rootDir, "node_modules/@bufbuild/protobuf/dist/esm/codegenv2/index.js"),
+  },
+  {
+    find: /^@bufbuild\/protobuf\/wkt$/,
+    replacement: resolve(rootDir, "node_modules/@bufbuild/protobuf/dist/esm/wkt/index.js"),
+  },
+  {
+    find: /^@bufbuild\/protobuf$/,
+    replacement: resolve(rootDir, "node_modules/@bufbuild/protobuf/dist/esm/index.js"),
+  },
 ];
-const packageAliasEntries = Object.entries(packageAlias).map(([find, replacement]) => ({ find, replacement }));
+const packageAliasEntries = Object.entries(packageAlias).map(([find, replacement]) => ({
+  find,
+  replacement,
+}));
 
 // Mode-aware config. A regular `vite build` ships the lean prod artifact;
 // `vite build --mode profile` produces a perf-build channel for performance
@@ -45,23 +59,28 @@ export default defineConfig(({ mode }): UserConfig => {
 
   return {
     // INTEROP-CRITICAL: Relative asset URLs keep the UI working behind Vrooli tunnels, proxies, and iframe mounts.
-    base: './',
+    base: "./",
     // The stamp must see original TSX, before React's Babel pre-transform. It
     // parses the entry module and adds the marker before Vite hands it to the
     // JSX compiler.
     plugins: [...assetStampPlugins, react(), stringsCodegen()],
     resolve: {
       alias: isProfile
-        ? [...protoRuntimeAliases, ...packageAliasEntries, {
-            find: "react-dom/client",
-            replacement: "react-dom/profiling",
-            // Internal references inside react-dom/client.js do
-            // `require('react-dom')`, which would resolve back to the
-            // stripped-prod bundle. Force them through the profiling entry too.
-          }, {
-            find: "react-dom$",
-            replacement: "react-dom/profiling",
-          }]
+        ? [
+            ...protoRuntimeAliases,
+            ...packageAliasEntries,
+            {
+              find: "react-dom/client",
+              replacement: "react-dom/profiling",
+              // Internal references inside react-dom/client.js do
+              // `require('react-dom')`, which would resolve back to the
+              // stripped-prod bundle. Force them through the profiling entry too.
+            },
+            {
+              find: "react-dom$",
+              replacement: "react-dom/profiling",
+            },
+          ]
         : [...protoRuntimeAliases, ...packageAliasEntries],
     },
     esbuild: isProfile
@@ -71,21 +90,21 @@ export default defineConfig(({ mode }): UserConfig => {
       : undefined,
     test: {
       globals: true,
-      environment: 'jsdom',
-      setupFiles: ['./src/test-setup.ts'],
+      environment: "jsdom",
+      setupFiles: ["./src/test-setup.ts"],
       // Coverage-isolation is a declared runner profile, not a package-script
       // flag; keep the constrained pool portable across local and CI runs.
-      pool: 'forks',
+      pool: "forks",
       poolOptions: { forks: { minForks: 1, maxForks: 1 } },
       coverage: {
-        provider: 'v8',
-        reporter: ['text', 'json-summary', 'json'],
+        provider: "v8",
+        reporter: ["text", "json-summary", "json"],
         reportOnFailure: true,
         // Scope coverage to the source tree. Without `include`, v8 walks every
         // file the bundler touches — config files, eslint plugins, codegen
         // scripts — and pollutes the denominator with files that have no
         // production reason to be tested.
-        include: ['src/**/*.{ts,tsx}'],
+        include: ["src/**/*.{ts,tsx}"],
         // Exclusions cover test scaffolding and codegen only; production
         // source under src/ is exhaustively included so removing a test
         // can never silently shrink the denominator.
@@ -99,18 +118,18 @@ export default defineConfig(({ mode }): UserConfig => {
         // thresholds. The default position is: every new src/ file ships
         // with its own *.test.{ts,tsx} and lands inside the include set.
         exclude: [
-          'src/**/*.test.{ts,tsx}',
-          'src/**/*.spec.{ts,tsx}',
-          'src/**/*.d.ts',
-          'src/main.tsx',
-          'src/test-setup.ts',
-          'src/test-utils/**',
-          'src/consts/strings.generated.ts',
-          'src/i18n/locales/**',
+          "src/**/*.test.{ts,tsx}",
+          "src/**/*.spec.{ts,tsx}",
+          "src/**/*.d.ts",
+          "src/main.tsx",
+          "src/test-setup.ts",
+          "src/test-utils/**",
+          "src/consts/strings.generated.ts",
+          "src/i18n/locales/**",
           // Temporal-flow codegen. Everything under generated/ is
           // emitted by the flow-verifier scenario and verified by the
           // hand-authored thin-test at the feature root.
-          'src/**/generated/**',
+          "src/**/generated/**",
         ],
         // 85% is the floor every canonical-surface file (App.tsx +
         // button/input/textarea + consts + i18n + api/client + lib/utils +
@@ -125,8 +144,8 @@ export default defineConfig(({ mode }): UserConfig => {
           functions: 85,
           branches: 85,
           statements: 85,
-        }
-      }
-    }
+        },
+      },
+    },
   };
 });

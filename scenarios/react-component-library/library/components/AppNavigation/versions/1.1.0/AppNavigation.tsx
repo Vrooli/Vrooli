@@ -2,6 +2,8 @@
  * @vrooliComponentSource react-component-library:AppNavigation
  * @deps {"react":"^18","lucide-react":"^0.424.0"}
  */
+import { translate } from "../../../../hooks/useLocale/versions/1.0.0/useLocale";
+
 import type { ReactNode } from "react";
 import { Home, LayoutGrid, Settings } from "lucide-react";
 
@@ -116,12 +118,12 @@ export function AppNavigation({
             <span>{brand}</span>
           </div>
         ) : null}
-        <nav aria-label="Application navigation">
+        <nav aria-label={translate("navigation.app-navigation.aria-label.1", "Application navigation")}>
           {children ?? (
             <ul data-rcl-app-navigation-list>
               {items.map((item) => (
                 <li key={item.label}>
-                  <a
+                  <a data-testid="navigation.app-navigation"
                     href={item.href ?? "#"}
                     aria-current={item.current ? "page" : undefined}
                   >

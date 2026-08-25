@@ -1,15 +1,31 @@
 {
-  "libraryId": "react-component-library:ComputedField",
-  "catalogId": "forms.computed-field",
-  "displayName": "ComputedField",
-  "description": "A store-driven read-only field that recalculates from affected values and communicates calculated versus edited state.",
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "component",
-  "tags": ["form", "computed", "derived", "accessibility", "token-bound"],
-  "latest": "1.0.0",
+  "catalogId": "forms.computed-field",
+  "dependencies": [],
+  "description": "A store-driven read-only field that recalculates from affected values and communicates calculated versus edited state.",
   "designStyles": [
-    { "styleId": "vrooli-default", "affinity": "native" },
-    { "styleId": "vrooli-command-display", "affinity": "compatible" },
-    { "styleId": "vrooli-conversion-landing", "affinity": "compatible" }
+    {
+      "affinity": "native",
+      "styleId": "vrooli-default"
+    },
+    {
+      "affinity": "compatible",
+      "styleId": "vrooli-command-display"
+    },
+    {
+      "affinity": "compatible",
+      "styleId": "vrooli-conversion-landing"
+    }
   ],
-  "dependencies": []
+  "displayName": "ComputedField",
+  "latest": "1.0.0",
+  "libraryId": "react-component-library:ComputedField",
+  "tags": [
+    "form",
+    "computed",
+    "derived",
+    "accessibility",
+    "token-bound"
+  ]
 }

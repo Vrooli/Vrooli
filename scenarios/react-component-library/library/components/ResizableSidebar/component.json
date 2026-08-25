@@ -1,11 +1,21 @@
 {
-  "libraryId": "react-component-library:ResizableSidebar",
-  "catalogId": "navigation.resizable-sidebar",
-  "displayName": "ResizableSidebar",
-  "description": "A navigation sidebar that preserves a usable minimum while supporting responsive width changes.",
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "component",
-  "tags": ["navigation", "responsive", "token-bound"],
+  "catalogId": "navigation.resizable-sidebar",
+  "dependencies": [],
+  "description": "A navigation sidebar that preserves a usable minimum while supporting responsive width changes.",
+  "designStyles": [
+    {
+      "affinity": "native",
+      "styleId": "vrooli-default"
+    }
+  ],
+  "displayName": "ResizableSidebar",
   "latest": "1.0.0",
-  "designStyles": [{ "styleId": "vrooli-default", "affinity": "native" }],
-  "dependencies": []
+  "libraryId": "react-component-library:ResizableSidebar",
+  "tags": [
+    "navigation",
+    "responsive",
+    "token-bound"
+  ]
 }

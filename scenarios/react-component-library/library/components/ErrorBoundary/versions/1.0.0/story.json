@@ -1,19 +1,22 @@
 {
-  "schemaVersion": 3,
-  "kind": "component",
-  "title": "ErrorBoundary",
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
   "args": {
     "fields": []
   },
   "environment": {
     "fixtures": []
   },
+  "kind": "component",
+  "schemaVersion": 4,
   "stories": [
     {
-      "id": "request-error",
-      "name": "Contained render error",
-      "harness": "RequestError",
       "args": {},
+      "composition": {
+        "specimen": {
+          "export": "RequestError",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
         {
           "kind": "role",
@@ -28,13 +31,18 @@
           "value": "Show technical details"
         }
       ],
-      "mode": "live"
+      "id": "request-error",
+      "mode": "live",
+      "name": "Contained render error"
     },
     {
-      "id": "retry",
-      "name": "Retry",
-      "harness": "Retry",
       "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Retry",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
         {
           "kind": "role",
@@ -42,17 +50,22 @@
         },
         {
           "kind": "role",
-          "role": "button",
-          "name": "Try again"
+          "name": "Try again",
+          "role": "button"
         }
       ],
-      "mode": "live"
+      "id": "retry",
+      "mode": "live",
+      "name": "Retry"
     },
     {
-      "id": "custom-fallback",
-      "name": "Custom fallback",
-      "harness": "CustomFallback",
       "args": {},
+      "composition": {
+        "specimen": {
+          "export": "CustomFallback",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
         {
           "kind": "role",
@@ -63,33 +76,41 @@
           "value": "Workspace panel unavailable"
         }
       ],
-      "mode": "live"
+      "id": "custom-fallback",
+      "mode": "live",
+      "name": "Custom fallback"
     },
     {
-      "id": "interactive",
-      "name": "Interactive retry",
-      "harness": "Retry",
       "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Retry",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Insight module restored",
+          "role": "status"
+        }
+      ],
+      "id": "interactive",
       "interactions": [
         {
           "kind": "click",
           "target": {
-            "role": "button",
-            "name": "Try again"
+            "name": "Try again",
+            "role": "button"
           }
         },
         {
           "kind": "settle"
         }
       ],
-      "expect": [
-        {
-          "kind": "role",
-          "role": "status",
-          "name": "Insight module restored"
-        }
-      ],
-      "mode": "live"
+      "mode": "live",
+      "name": "Interactive retry"
     }
-  ]
+  ],
+  "title": "ErrorBoundary"
 }

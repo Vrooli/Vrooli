@@ -115,6 +115,13 @@ func (r *Repository) sourceReferences(ctx context.Context) (map[string][]Version
 			}
 		}
 	}
+	// The workbench UI is a first-class consumer of library versions, even
+	// though it is not indexed as a library asset. Retention must therefore
+	// protect its pinned relative imports just like imports between library
+	// versions; otherwise a cleanup can leave the UI with a broken module path.
+	if err := r.workbenchSourceReferences(byVersion, versions); err != nil {
+		return nil, err
+	}
 	adoptedRefs, err := r.adoptedSourceReferences(ctx)
 	if err != nil {
 		return nil, err
@@ -123,6 +130,55 @@ func (r *Repository) sourceReferences(ctx context.Context) (map[string][]Version
 		byVersion[key] = appendUniqueReferences(byVersion[key], refs)
 	}
 	return byVersion, nil
+}
+
+func (r *Repository) workbenchSourceReferences(byVersion map[string][]VersionReference, versions []sourceVersion) error {
+	root := filepath.Join(filepath.Dir(r.sourceRoot), "ui")
+	if _, err := os.Stat(root); err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return fmt.Errorf("inspect workbench source root: %w", err)
+	}
+	return filepath.WalkDir(root, func(path string, entry os.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		if entry.IsDir() {
+			if entry.Name() == "node_modules" || entry.Name() == "dist" {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		ext := strings.ToLower(filepath.Ext(path))
+		if ext != ".ts" && ext != ".tsx" && ext != ".js" && ext != ".jsx" {
+			return nil
+		}
+		body, err := os.ReadFile(path)
+		if err != nil {
+			return fmt.Errorf("read workbench source %s: %w", path, err)
+		}
+		for _, match := range sourceImportRE.FindAllStringSubmatch(string(body), -1) {
+			specifier := match[1]
+			if !strings.HasPrefix(specifier, ".") {
+				continue
+			}
+			target := resolveSourceImport(filepath.Dir(path), specifier)
+			for _, targetVersion := range versions {
+				if !pathWithin(targetVersion.directory, target) {
+					continue
+				}
+				key := sourceReferenceKey(targetVersion.libraryID, targetVersion.version)
+				rel, _ := filepath.Rel(filepath.Dir(r.sourceRoot), path)
+				byVersion[key] = appendUniqueReference(byVersion[key], VersionReference{
+					Kind: "workbench-source-import", OwnerPath: filepath.ToSlash(rel),
+					ImportSpecifier: specifier, Evidence: "workbench UI import resolves into a surviving version folder",
+				})
+				break
+			}
+		}
+		return nil
+	})
 }
 
 // adoptedSourceReferences follows relative imports inside files copied into a

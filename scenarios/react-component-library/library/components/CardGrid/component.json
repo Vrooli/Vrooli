@@ -1,19 +1,36 @@
 {
-  "libraryId": "react-component-library:CardGrid",
-  "catalogId": "patterns.card-grid",
-  "displayName": "Card Grid",
-  "description": "A responsive card arrangement that establishes a raised surface context for repeated records.",
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "component",
-  "tags": ["pattern", "layout", "context-aware"],
-  "slot": "ui-pattern",
+  "catalogId": "patterns.card-grid",
   "category": "patterns",
-  "latest": "1.0.0",
-  "designStyles": [
-    { "styleId": "vrooli-default", "affinity": "native" },
-    { "styleId": "vrooli-command-display", "affinity": "compatible" },
-    { "styleId": "vrooli-conversion-landing", "affinity": "compatible" }
-  ],
   "dependencies": [
-    { "libraryId": "react-component-library:Card", "version": "1.1.0" }
+    {
+      "libraryId": "react-component-library:Card",
+      "version": "1.1.0"
+    }
+  ],
+  "description": "A responsive card arrangement that establishes a raised surface context for repeated records.",
+  "designStyles": [
+    {
+      "affinity": "native",
+      "styleId": "vrooli-default"
+    },
+    {
+      "affinity": "compatible",
+      "styleId": "vrooli-command-display"
+    },
+    {
+      "affinity": "compatible",
+      "styleId": "vrooli-conversion-landing"
+    }
+  ],
+  "displayName": "Card Grid",
+  "latest": "1.0.0",
+  "libraryId": "react-component-library:CardGrid",
+  "slot": "ui-pattern",
+  "tags": [
+    "pattern",
+    "layout",
+    "context-aware"
   ]
 }

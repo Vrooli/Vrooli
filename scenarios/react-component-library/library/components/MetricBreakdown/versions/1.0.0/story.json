@@ -1,1 +1,39 @@
-{"schemaVersion":3,"kind":"component","title":"MetricBreakdown","args":{"fields":[]},"environment":{"fixtures":[]},"stories":[{"id":"default","name":"Default","args":{"items":[{"id":"passed","label":"Passed","value":8,"total":10}]},"expect":[{"kind":"text","value":"Passed"},{"kind":"text","value":"8 / 10"}],"mode":"pinned"}]}
+{
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
+  "args": {
+    "fields": []
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "kind": "component",
+  "schemaVersion": 4,
+  "stories": [
+    {
+      "args": {
+        "items": [
+          {
+            "id": "passed",
+            "label": "Passed",
+            "total": 10,
+            "value": 8
+          }
+        ]
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "Passed"
+        },
+        {
+          "kind": "text",
+          "value": "8 / 10"
+        }
+      ],
+      "id": "default",
+      "mode": "pinned",
+      "name": "Default"
+    }
+  ],
+  "title": "MetricBreakdown"
+}

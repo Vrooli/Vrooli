@@ -5,13 +5,14 @@
   "asset": {
     "id": "navigation.step-navigation",
     "name": "StepNavigation",
-    "kind": "component", "surface": "raised",
+    "kind": "component",
+    "surface": "raised",
     "domain": "navigation",
     "description": "The workflow navigation representing completed, current, available, blocked, and errored steps, with optional non-linear movement and accessible progress reporting.",
     "targets": [
       "react-vite"
     ],
-    "slot": "primitive",
+    "slot": "ui-primitive",
     "delivery": "adopted",
     "target": {
       "priority": "P1",

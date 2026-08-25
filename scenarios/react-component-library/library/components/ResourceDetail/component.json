@@ -1,23 +1,52 @@
 {
-  "libraryId": "react-component-library:ResourceDetail",
-  "catalogId": "patterns.resource-detail",
-  "displayName": "ResourceDetail",
-  "description": "A route-safe resource identity, metadata, history, freshness, permission, and recovery composition.",
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "component",
-  "tags": ["pattern", "data-source", "token-bound"],
-  "latest": "1.0.0",
-  "designStyles": [
-    { "styleId": "vrooli-default", "affinity": "native" },
-    { "styleId": "vrooli-command-display", "affinity": "compatible" },
-    { "styleId": "vrooli-conversion-landing", "affinity": "compatible" }
-  ],
+  "catalogId": "patterns.resource-detail",
   "dependencies": [
-    { "libraryId": "react-component-library:PageHeader", "version": "1.0.0" },
+    {
+      "libraryId": "react-component-library:PageHeader",
+      "version": "1.0.0"
+    },
     {
       "libraryId": "react-component-library:DescriptionList",
       "version": "1.0.0"
     },
-    { "libraryId": "react-component-library:AuditTrail", "version": "1.0.0" },
-    { "libraryId": "react-component-library:AsyncBoundary", "version": "1.0.0" }
+    {
+      "libraryId": "react-component-library:AuditTrail",
+      "version": "1.0.0"
+    },
+    {
+      "libraryId": "react-component-library:AsyncBoundary",
+      "version": "1.0.0"
+    }
+  ],
+  "description": "A route-safe resource identity, metadata, history, freshness, permission, and recovery composition.",
+  "designStyles": [
+    {
+      "affinity": "native",
+      "styleId": "vrooli-default"
+    },
+    {
+      "affinity": "compatible",
+      "styleId": "vrooli-command-display"
+    },
+    {
+      "affinity": "compatible",
+      "styleId": "vrooli-conversion-landing"
+    }
+  ],
+  "displayName": "ResourceDetail",
+  "latest": "1.0.0",
+  "libraryId": "react-component-library:ResourceDetail",
+  "tags": [
+    "pattern",
+    "data-source",
+    "token-bound"
+  ],
+  "requires": [
+    {
+      "libraryId": "react-component-library:useLocale",
+      "version": "1.0.0"
+    }
   ]
 }

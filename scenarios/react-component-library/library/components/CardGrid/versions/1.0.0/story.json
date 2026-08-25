@@ -1,33 +1,49 @@
 {
-  "schemaVersion": 3,
-  "kind": "component",
-  "title": "Card Grid",
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
   "args": {
     "fields": [
       {
-        "path": "children",
-        "label": "Children",
-        "kind": "structured",
         "default": [
-          { "$node": "article", "props": { "data-rcl-card": true }, "children": [{ "$text": "Raised record" }] },
-          { "$node": "article", "props": { "data-rcl-card": true }, "children": [{ "$text": "Another record" }] }
-        ]
+          {
+            "$text": "article"
+          },
+          {
+            "$text": "article"
+          }
+        ],
+        "kind": "structured",
+        "label": "Children",
+        "path": "children"
       }
     ]
   },
-  "environment": { "fixtures": [] },
+  "environment": {
+    "fixtures": []
+  },
+  "kind": "component",
+  "schemaVersion": 4,
   "stories": [
     {
-      "id": "raised-records",
-      "name": "Raised records",
       "args": {
         "children": [
-          { "$node": "article", "props": { "data-rcl-card": true }, "children": [{ "$text": "Raised record" }] },
-          { "$node": "article", "props": { "data-rcl-card": true }, "children": [{ "$text": "Another record" }] }
+          {
+            "$text": "article"
+          },
+          {
+            "$text": "article"
+          }
         ]
       },
-      "expect": [{ "kind": "text", "value": "Raised record" }],
-      "mode": "pinned"
+      "expect": [
+        {
+          "kind": "text",
+          "value": "Raised record"
+        }
+      ],
+      "id": "raised-records",
+      "mode": "pinned",
+      "name": "Raised records"
     }
-  ]
+  ],
+  "title": "Card Grid"
 }

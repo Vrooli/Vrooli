@@ -72,14 +72,14 @@ func (e executor) ExecuteStory(_ context.Context, libraryID, version, storyID st
 }
 
 func componentStory(id string) components.StoryContract {
-	return components.StoryContract{SchemaVersion: 1, Kind: components.StoryKindComponent, Args: components.StoryArgsSchema{Fields: []components.StoryField{}}, Environment: components.StoryEnvironment{Fixtures: []components.StoryFixture{}}, Stories: []components.StoryDefinition{{ID: id, Name: id}}}
+	return components.StoryContract{SchemaVersion: 4, Kind: components.StoryKindComponent, Args: components.StoryArgsSchema{Fields: []components.StoryField{}}, Environment: components.StoryEnvironment{Fixtures: []components.StoryFixture{}}, Stories: []components.StoryDefinition{{ID: id, Name: id}}}
 }
 
 func TestRunnerRequiresPinAndReportsEachClosureAsset(t *testing.T) {
 	hook := components.Component{ID: "hook", LibraryID: "rcl:hook", Slug: "hook", AssetKind: components.AssetKindHook}
 	root := components.Component{ID: "root", LibraryID: "rcl:button", Slug: "button", AssetKind: components.AssetKindComponent, Dependencies: []components.AssetDependency{{LibraryID: hook.LibraryID, Version: "1.0.0"}}}
 	reader := assets{root: root, dependency: hook, versions: map[string]components.ComponentVersion{"root@1.0.0": {ComponentID: "root", Version: "1.0.0", Content: "export const Button = () => null", ContentSHA256: "root"}, "hook@1.0.0": {ComponentID: "hook", Version: "1.0.0", Content: "export const useHook = () => null", ContentSHA256: "hook"}}}
-	runner := Runner{Assets: reader, Stories: stories{"root@1.0.0": componentStory("idle"), "hook@1.0.0": {SchemaVersion: 1, Kind: components.StoryKindHook, Args: components.StoryArgsSchema{Fields: []components.StoryField{}}, Environment: components.StoryEnvironment{Fixtures: []components.StoryFixture{}}, Stories: []components.StoryDefinition{{ID: "start", Name: "start"}}}}, Executor: executor{}, Now: func() time.Time { return time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC) }}
+	runner := Runner{Assets: reader, Stories: stories{"root@1.0.0": componentStory("idle"), "hook@1.0.0": {SchemaVersion: 4, Kind: components.StoryKindHook, Args: components.StoryArgsSchema{Fields: []components.StoryField{}}, Environment: components.StoryEnvironment{Fixtures: []components.StoryFixture{}}, Stories: []components.StoryDefinition{{ID: "start", Name: "start"}}}}, Executor: executor{}, Now: func() time.Time { return time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC) }}
 	_, err := runner.Run(context.Background(), Request{ComponentID: "root"})
 	var validation ValidationError
 	require.ErrorAs(t, err, &validation)

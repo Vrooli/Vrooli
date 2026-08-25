@@ -5,13 +5,14 @@
   "asset": {
     "id": "primitives.box",
     "name": "Box",
-    "kind": "primitive", "surface": "base",
+    "kind": "primitive",
+    "surface": "base",
     "domain": "primitives",
     "description": "The token-aware polymorphic layout primitive for the narrow set of cases where no semantic higher-level primitive fits, deliberately unopinionated about everything except which values are legal.",
     "targets": [
       "react-vite"
     ],
-    "slot": "primitive",
+    "slot": "ui-primitive",
     "delivery": "adopted",
     "target": {
       "priority": "P1",

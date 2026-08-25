@@ -27,6 +27,10 @@
       {
         "asset": "overlays.alert-dialog",
         "reason": "The decision is presented through the shared confirmation surface."
+      },
+      {
+        "asset": "hooks.use-locale",
+        "reason": "User-facing copy resolves through the adopting host locale bridge."
       }
     ]
   },

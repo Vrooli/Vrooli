@@ -1,4 +1,6 @@
 /** @vrooliComponentSource react-component-library:Timeline */
+import { translate } from "../../../../hooks/useLocale/versions/1.0.0/useLocale";
+
 const muted = { color: "var(--color-muted-foreground, #64748b)" };
 export function Timeline({
   events = [],
@@ -7,7 +9,7 @@ export function Timeline({
 }) {
   return (
     <ol
-      aria-label="Timeline"
+      aria-label={translate("data-display.timeline.aria-label.1", "Timeline")}
       style={{
         display: "grid",
         gap: 16,

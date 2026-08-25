@@ -1,54 +1,42 @@
 {
-  "schemaVersion": 3,
-  "kind": "component",
-  "title": "WorkspaceHeader",
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
   "args": {
     "fields": [
       {
-        "path": "title",
+        "default": "Component Library",
+        "kind": "text",
         "label": "Title",
-        "kind": "text",
-        "default": "Component Library"
+        "path": "title"
       },
       {
-        "path": "description",
+        "default": "Browse reusable UI assets",
+        "kind": "text",
         "label": "Description",
-        "kind": "text",
-        "default": "Browse reusable UI assets"
+        "path": "description"
       },
       {
-        "path": "primaryAction",
-        "label": "Primary Action",
-        "kind": "structured",
         "default": {
-          "$node": "button",
-          "children": [
-            {
-              "$text": "Add component"
-            }
-          ]
-        }
+          "$text": "button"
+        },
+        "kind": "structured",
+        "label": "Primary Action",
+        "path": "primaryAction"
       }
     ]
   },
   "environment": {
     "fixtures": []
   },
+  "kind": "component",
+  "schemaVersion": 4,
   "stories": [
     {
-      "id": "basic",
-      "name": "Workspace header",
       "args": {
-        "title": "Component Library",
         "description": "Browse reusable UI assets",
         "primaryAction": {
-          "$node": "button",
-          "children": [
-            {
-              "$text": "Add component"
-            }
-          ]
-        }
+          "$text": "button"
+        },
+        "title": "Component Library"
       },
       "expect": [
         {
@@ -56,7 +44,10 @@
           "value": "Component Library"
         }
       ],
-      "mode": "pinned"
+      "id": "basic",
+      "mode": "pinned",
+      "name": "Workspace header"
     }
-  ]
+  ],
+  "title": "WorkspaceHeader"
 }

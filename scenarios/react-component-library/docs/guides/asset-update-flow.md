@@ -21,7 +21,7 @@ adopters.
    `CheckComponentVersion` validates the source, dependencies, story coverage,
    and any attached experience contract (including state-to-story references).
    Then run `react-component-library components index --json`. The indexer derives
-   `requiredTokens[]` and dynamic token families from the version source. A
+   external token requirements and dynamic token families from the version source. A
    hash change to an existing released version is an integrity failure.
 4. Run the catalog vocabulary and ramp-completeness gates, then run the
    version's component tests and the full scenario test suite.
@@ -43,3 +43,20 @@ adopters.
    target collisions are evaluated once.
 9. Record the evidence in the plan/work record: index result, gate results,
    preflight results, refresh/reapply outcomes, and any intentional override.
+
+## Intentional forks and version retention
+
+An adopter may declare a fork at apply time by supplying a reason and the
+extension points that remain owned by the target scenario. The adoption record
+stores `fork_status=declared-fork`; reconvergence reports the fork and never
+overwrites it. A modified copy without that declaration is classified as
+unintended drift until an operator reviews it. Mechanical token or layout
+translation is reported separately and is not treated as a source fork.
+
+Version cleanup is evidence-first. `versions plan-cleanup` produces the
+candidate set and plan hash. Only candidates with no latest/draft role, direct
+or mediated adoption, dependency pin, or source import may be retired. The
+ledger row remains after retirement, and the retained release set is the only
+set checked for released-source immutability. Never add a schema migration or
+compatibility fallback to make cleanup pass: fresh schemas are declared next
+to the code that interprets them.

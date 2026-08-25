@@ -23,5 +23,5 @@ func TestValidateExperienceContractMatchesStoryStates(t *testing.T) {
 
 func TestValidateExperienceContractAcceptsHistoricalSchemaVersion(t *testing.T) {
 	legacy := []byte(`{"schemaVersion":1,"componentId":"react-component-library:Button","states":["default"]}`)
-	require.Empty(t, validateExperienceContract(legacy, StoryContract{}))
+	require.Equal(t, []string{"experience contract kind must be experience-component or rcl-component-experience-contract"}, validateExperienceContract(legacy, StoryContract{}))
 }

@@ -56,6 +56,7 @@ export function verdictLabel(verdict: string) {
 }
 
 const EVIDENCE_KINDS: ReadonlyArray<{ id: string; label: string; aliases: readonly string[] }> = [
+  { id: "story-sheet", label: "Story sheet", aliases: ["bas-story-sheet"] },
   { id: "screenshot", label: "Screenshot", aliases: ["screenshot", "bas-screenshot"] },
   {
     id: "accessibility-tree",
@@ -120,6 +121,13 @@ type CaptureItem = EvidenceItem & {
   available: boolean;
   artifact?: ComponentTestArtifact;
 };
+
+function storyCaptureLabel(storyID: string): string {
+  if (storyID.startsWith("review-sheet:")) {
+    return `Review sheet · ${storyID.slice("review-sheet:".length).split(",").join(", ")}`;
+  }
+  return storyID;
+}
 
 export function browserVisibleArtifactUrl(reference: string): string {
   const rclBase = API_BASE.replace(/\/$/, "");
@@ -418,6 +426,9 @@ function ScreenshotArtifact({
 
 function EvidenceWorkspace({
   items,
+  storyChoices,
+  selectedStoryID,
+  onSelectStory,
   selectedId,
   onSelect,
   hasBASArtifacts,
@@ -425,6 +436,9 @@ function EvidenceWorkspace({
   overlayMessage,
 }: {
   items: CaptureItem[];
+  storyChoices: Array<{ id: string; label: string }>;
+  selectedStoryID: string;
+  onSelectStory: (storyID: string) => void;
   selectedId?: string;
   onSelect: (item: CaptureItem) => void;
   hasBASArtifacts: boolean;
@@ -449,6 +463,23 @@ function EvidenceWorkspace({
 
   return (
     <div className="space-y-space-xs">
+      {storyChoices.length ? (
+        <label className="flex flex-wrap items-center gap-space-2xs text-xs text-app-muted-foreground">
+          <span className="font-medium text-app-foreground">Captured story</span>
+          <select
+            aria-label="Captured story"
+            className="min-w-0 rounded-control border border-app-border bg-app-surface px-space-xs py-space-2xs text-app-foreground"
+            value={selectedStoryID}
+            onChange={(event) => onSelectStory(event.target.value)}
+          >
+            {storyChoices.map((story) => (
+              <option key={story.id} value={story.id}>
+                {story.label}
+              </option>
+            ))}
+          </select>
+        </label>
+      ) : null}
       {!hasBASArtifacts ? (
         <div className="rounded-control border border-app-warning/30 bg-app-warning/5 p-space-xs text-xs text-app-muted-foreground">
           <span className="font-medium text-app-foreground">
@@ -498,7 +529,7 @@ function EvidenceWorkspace({
             );
           }
           const reference = browserVisibleArtifactUrl(capture.artifact.reference);
-          if (item.id === "screenshot") {
+          if (item.id === "screenshot" || item.id === "story-sheet") {
             return (
               <ScreenshotArtifact
                 reference={reference}
@@ -592,8 +623,8 @@ function Report({ report }: { report: ComponentTestReport }) {
                 stage.includes("performance") || stage.includes("cost") || stage.includes("console")
               );
             });
-            const clean =
-              results.length > 0 && results.every((result) => result.verdict === "passed");
+            const passedCount = results.filter((result) => result.verdict === "passed").length;
+            const attentionCount = results.length - passedCount;
             return (
               <section
                 key={category}
@@ -604,26 +635,26 @@ function Report({ report }: { report: ComponentTestReport }) {
                   <h4 className="text-sm font-semibold capitalize">{category}</h4>
                   <StatusBadge
                     tone={
-                      clean
+                      attentionCount === 0
                         ? "success"
                         : results.some((result) => result.verdict === "failed")
                           ? "danger"
                           : "warning"
                     }
                   >
-                    {clean ? "Passed" : results.length ? "Needs review" : "Unmeasured"}
+                    {results.length ? (attentionCount ? "Needs review" : "Passed") : "Unmeasured"}
                   </StatusBadge>
                 </div>
-                {clean ? (
+                {results.length ? (
                   <p className="mt-space-2xs text-xs text-app-muted-foreground">
-                    All recorded checks passed.
+                    <strong className="text-app-foreground">{passedCount}</strong> passed
+                    {attentionCount ? (
+                      <>
+                        , <strong className="text-app-foreground">{attentionCount}</strong> need attention
+                      </>
+                    ) : null}
+                    .
                   </p>
-                ) : results.length ? (
-                  <ul className="mt-space-2xs space-y-space-2xs">
-                    {results.map((result, index) => (
-                      <StageRow key={`${category}-${result.stage}-${index}`} result={result} />
-                    ))}
-                  </ul>
                 ) : (
                   <p className="mt-space-2xs text-xs text-app-muted-foreground">
                     No capture is available for this category.
@@ -634,19 +665,18 @@ function Report({ report }: { report: ComponentTestReport }) {
           })}
         </section>
         <section aria-labelledby="test-results-heading">
-          <div className="mb-space-2xs flex items-center justify-between">
-            <h4 id="test-results-heading" className="text-sm font-semibold">
-              Results
-            </h4>
-            <span className="text-xs text-app-muted-foreground">
-              {report.results.length} stage{report.results.length === 1 ? "" : "s"}
-            </span>
-          </div>
-          <ul className="space-y-space-2xs">
-            {report.results.map((result, index) => (
-              <StageRow key={`${result.stage}-${result.assetLibraryId}-${index}`} result={result} />
-            ))}
-          </ul>
+          <details>
+            <summary id="test-results-heading" className="cursor-pointer text-sm font-semibold">
+              Show all results ({report.results.length})
+            </summary>
+            <ul className="mt-space-2xs space-y-space-2xs">
+              {[...report.results]
+                .sort((a, b) => Number(a.verdict === "passed") - Number(b.verdict === "passed"))
+                .map((result, index) => (
+                  <StageRow key={`${result.stage}-${result.assetLibraryId}-${index}`} result={result} />
+                ))}
+            </ul>
+          </details>
         </section>
       </div>
     </article>
@@ -697,6 +727,7 @@ export function ComponentTestPanel({
   );
   const [selectedClaimID, setSelectedClaimID] = useState("");
   const [selectedCaptureKind, setSelectedCaptureKind] = useState("screenshot");
+  const [selectedStoryID, setSelectedStoryID] = useState("");
   const reportID = search.get("testReport") || "";
   const queryClient = useQueryClient();
   const reports = useQuery({
@@ -716,6 +747,18 @@ export function ComponentTestPanel({
   });
   const latest = run.data ?? selected.data ?? reports.data?.[0];
   const capturedArtifacts = latest?.artifacts ?? [];
+  const capturedStoryIDs = Array.from(
+    new Set(
+      capturedArtifacts
+        .filter((artifact) => artifact.kind === "bas-story-sheet" || artifact.kind === "bas-screenshot")
+        .map((artifact) => artifact.storyId)
+        .filter((storyID): storyID is string => Boolean(storyID)),
+    ),
+  );
+  const defaultStoryID =
+    capturedStoryIDs.find((storyID) => storyID.startsWith("review-sheet:")) ?? capturedStoryIDs[0] ?? "";
+  const activeStoryID = selectedStoryID || defaultStoryID;
+  const storyChoices = capturedStoryIDs.map((storyID) => ({ id: storyID, label: storyCaptureLabel(storyID) }));
   const activeClaimID = selectedClaimID || failedClaims[0]?.id || "";
   const activeClaim = experience?.claims.find((claim) => claim.id === activeClaimID);
   const activeEvidence = experience?.evidence.find(
@@ -734,15 +777,27 @@ export function ComponentTestPanel({
     id,
     kind: id,
     label,
-    artifact: capturedArtifacts.find((candidate) => aliases.includes(candidate.kind)),
+    artifact: capturedArtifacts.find(
+      (candidate) => aliases.includes(candidate.kind) && (!activeStoryID || candidate.storyId === activeStoryID),
+    ),
   })).map((item) => ({
     ...item,
     available: Boolean(item.artifact),
     status: item.artifact ? ("available" as const) : ("missing" as const),
   }));
   const hasBASArtifacts = capturedArtifacts.some((artifact) => artifact.kind.startsWith("bas-"));
+  const preferredCaptureKind = capturedArtifacts.some((artifact) => artifact.kind === "bas-story-sheet")
+    ? "story-sheet"
+    : "screenshot";
   const selectedCapture =
-    captureItems.find((item) => item.id === selectedCaptureKind) ?? captureItems[0];
+    captureItems.find((item) => item.id === selectedCaptureKind && item.available) ??
+    captureItems.find((item) => item.id === preferredCaptureKind && item.available) ??
+    captureItems.find((item) => item.id === "screenshot") ??
+    captureItems[0];
+  const selectStory = (storyID: string) => {
+    setSelectedStoryID(storyID);
+    setSelectedCaptureKind(storyID.startsWith("review-sheet:") ? "story-sheet" : "screenshot");
+  };
 
   return (
     <section
@@ -804,9 +859,7 @@ export function ComponentTestPanel({
       )}
       {reports.isLoading ? (
         <TestHistorySkeleton />
-      ) : latest ? (
-        <Report report={latest} />
-      ) : reports.isError ? null : (
+      ) : latest ? null : reports.isError ? null : (
         <EmptyState
           className="border border-dashed border-app-border bg-app-surface-muted p-space-md text-xs"
           title="No component test evidence yet"
@@ -920,6 +973,9 @@ export function ComponentTestPanel({
               >
                 <EvidenceWorkspace
                   items={captureItems}
+                  storyChoices={storyChoices}
+                  selectedStoryID={activeStoryID}
+                  onSelectStory={selectStory}
                   selectedId={selectedCapture?.id}
                   onSelect={(item) => setSelectedCaptureKind(item.id)}
                   hasBASArtifacts={hasBASArtifacts}
@@ -947,6 +1003,9 @@ export function ComponentTestPanel({
             <section aria-labelledby="capture-inspector-heading-empty">
               <EvidenceWorkspace
                 items={captureItems}
+                storyChoices={storyChoices}
+                selectedStoryID={activeStoryID}
+                onSelectStory={selectStory}
                 selectedId={selectedCapture?.id}
                 onSelect={(item) => setSelectedCaptureKind(item.id)}
                 hasBASArtifacts={hasBASArtifacts}
@@ -957,6 +1016,7 @@ export function ComponentTestPanel({
           </div>
         )}
       </section>
+      {latest ? <Report report={latest} /> : null}
       {reports.data && reports.data.length > 1 && (
         <section aria-labelledby="test-history-heading">
           <h4 id="test-history-heading" className="text-sm font-semibold">

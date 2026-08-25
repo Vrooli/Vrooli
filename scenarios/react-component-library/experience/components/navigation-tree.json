@@ -6,7 +6,7 @@
     "id": "navigation-tree",
     "title": "NavigationTree",
     "purpose": "NavigationTree preserves responsive navigation semantics and token ownership.",
-    "storyRef": "../../library/components/NavigationTree/versions/1.0.0/story.json"
+    "storyRef": "../../library/components/NavigationTree/versions/1.1.0/story.json"
   },
   "states": [
     {

@@ -1,16 +1,35 @@
 {
-  "libraryId": "react-component-library:AsyncBoundary",
-  "catalogId": "feedback.async-boundary",
-  "displayName": "AsyncBoundary",
-  "description": "A stable async state boundary that preserves structure while pending, failed, or retryable content changes.",
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "component",
-  "tags": ["feedback", "async", "token-bound"],
-  "latest": "1.0.0",
-  "designStyles": [{ "styleId": "vrooli-default", "affinity": "native" }],
+  "catalogId": "feedback.async-boundary",
   "dependencies": [
-    { "libraryId": "react-component-library:useAnnounce", "version": "1.0.0" },
+    {
+      "libraryId": "react-component-library:useAnnounce",
+      "version": "1.0.0"
+    },
     {
       "libraryId": "react-component-library:useNetworkStatus",
+      "version": "1.0.0"
+    }
+  ],
+  "description": "A stable async state boundary that preserves structure while pending, failed, or retryable content changes.",
+  "designStyles": [
+    {
+      "affinity": "native",
+      "styleId": "vrooli-default"
+    }
+  ],
+  "displayName": "AsyncBoundary",
+  "latest": "1.0.0",
+  "libraryId": "react-component-library:AsyncBoundary",
+  "tags": [
+    "feedback",
+    "async",
+    "token-bound"
+  ],
+  "requires": [
+    {
+      "libraryId": "react-component-library:useLocale",
       "version": "1.0.0"
     }
   ]

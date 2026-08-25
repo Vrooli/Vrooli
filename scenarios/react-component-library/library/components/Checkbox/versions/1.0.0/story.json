@@ -1,55 +1,66 @@
 {
-  "schemaVersion": 3,
-  "kind": "component",
-  "title": "Checkbox",
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
   "args": {
     "fields": []
   },
   "environment": {
     "fixtures": []
   },
+  "kind": "component",
+  "schemaVersion": 4,
   "stories": [
     {
-      "id": "default",
-      "name": "Default",
-      "harness": "Default",
       "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Default",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
         {
           "kind": "role",
-          "role": "checkbox",
-          "name": "Keep me signed in"
+          "name": "Keep me signed in",
+          "role": "checkbox"
         }
       ],
+      "id": "default",
       "interactions": [
         {
           "kind": "settle"
         }
       ],
-      "mode": "live"
+      "mode": "live",
+      "name": "Default"
     },
     {
-      "id": "invalid",
-      "name": "Invalid",
-      "harness": "Invalid",
       "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Invalid",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
         {
           "kind": "role",
-          "role": "checkbox",
-          "name": "Billing alerts"
+          "name": "Billing alerts",
+          "role": "checkbox"
         },
         {
           "kind": "role",
           "role": "alert"
         }
       ],
+      "id": "invalid",
       "interactions": [
         {
           "kind": "settle"
         }
       ],
-      "mode": "live"
+      "mode": "live",
+      "name": "Invalid"
     }
-  ]
+  ],
+  "title": "Checkbox"
 }

@@ -6,6 +6,8 @@
  * @tags ["data-display","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
+import { translate } from "../../../../hooks/useLocale/versions/1.0.0/useLocale";
+
 /** @vrooliComponentSource react-component-library:MeasurementBar */
 import { BoundedMeter } from "../../../BoundedMeter/versions/1.0.1/BoundedMeter";
 export interface MeasurementBarProps {
@@ -15,7 +17,7 @@ export interface MeasurementBarProps {
   unit?: string;
 }
 export function MeasurementBar({
-  label = "Coverage",
+  label = translate("data-display.measurement-bar.label.1", "Coverage"),
   observed = 72,
   required = 80,
   unit = "%",

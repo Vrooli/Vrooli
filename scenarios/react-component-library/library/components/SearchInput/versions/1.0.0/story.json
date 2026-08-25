@@ -1,28 +1,34 @@
 {
-  "schemaVersion": 3,
-  "kind": "component",
-  "title": "SearchInput",
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
   "args": {
     "fields": [
       {
-        "path": "placeholder",
+        "default": "Search",
         "kind": "text",
-        "default": "Search"
+        "path": "placeholder"
       }
     ]
   },
   "environment": {
     "fixtures": []
   },
+  "kind": "component",
+  "schemaVersion": 4,
   "stories": [
     {
-      "id": "empty",
-      "name": "Empty",
-      "harness": "SearchInputStory",
       "args": {
         "placeholder": "Search"
       },
-      "mode": "live"
+      "composition": {
+        "specimen": {
+          "export": "SearchInputStory",
+          "module": "./story.tsx"
+        }
+      },
+      "id": "empty",
+      "mode": "live",
+      "name": "Empty"
     }
-  ]
+  ],
+  "title": "SearchInput"
 }

@@ -5,13 +5,14 @@
   "asset": {
     "id": "motion.animated-text",
     "name": "AnimatedText",
-    "kind": "component", "surface": "raised",
+    "kind": "component",
+    "surface": "raised",
     "domain": "motion",
     "description": "The text-transition component animating by block, line, word, or character while preserving selectable semantic text and remaining readable under reduced motion.",
     "targets": [
       "react-vite"
     ],
-    "slot": "primitive",
+    "slot": "ui-primitive",
     "delivery": "adopted",
     "target": {
       "priority": "P2",

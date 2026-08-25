@@ -1,101 +1,132 @@
 {
-  "schemaVersion": 3,
-  "kind": "component",
-  "title": "Cartesian charts",
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
   "args": {
     "fields": []
   },
   "environment": {
     "fixtures": []
   },
+  "kind": "component",
+  "schemaVersion": 4,
   "stories": [
     {
-      "id": "default",
-      "name": "Progression chart",
-      "harness": "Default",
       "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Default",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
         {
           "kind": "role",
-          "role": "img",
-          "name": "Progression"
+          "name": "Progression",
+          "role": "img"
         },
         {
           "kind": "role",
           "role": "table"
         }
       ],
-      "mode": "live"
+      "id": "default",
+      "mode": "live",
+      "name": "Progression chart"
     },
     {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Area",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Progression",
+          "role": "img"
+        }
+      ],
       "id": "area",
-      "name": "Area chart",
-      "harness": "Area",
+      "mode": "live",
+      "name": "Area chart"
+    },
+    {
       "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Bar",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
         {
           "kind": "role",
-          "role": "img",
-          "name": "Progression"
+          "name": "Progression",
+          "role": "img"
         }
       ],
-      "mode": "live"
-    },
-    {
       "id": "bar",
-      "name": "Bar chart",
-      "harness": "Bar",
+      "mode": "live",
+      "name": "Bar chart"
+    },
+    {
       "args": {},
+      "composition": {
+        "specimen": {
+          "export": "StackedBar",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
         {
           "kind": "role",
-          "role": "img",
-          "name": "Progression"
+          "name": "Progression",
+          "role": "img"
         }
       ],
-      "mode": "live"
-    },
-    {
       "id": "stacked-bar",
-      "name": "Stacked bar chart",
-      "harness": "StackedBar",
+      "mode": "live",
+      "name": "Stacked bar chart"
+    },
+    {
       "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Scatter",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
         {
           "kind": "role",
-          "role": "img",
-          "name": "Progression"
+          "name": "Progression",
+          "role": "img"
         }
       ],
-      "mode": "live"
-    },
-    {
       "id": "scatter",
-      "name": "Scatter chart",
-      "harness": "Scatter",
-      "args": {},
-      "expect": [
-        {
-          "kind": "role",
-          "role": "img",
-          "name": "Progression"
-        }
-      ],
-      "mode": "live"
+      "mode": "live",
+      "name": "Scatter chart"
     },
     {
-      "id": "histogram",
-      "name": "Histogram",
-      "harness": "Histogram",
       "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Histogram",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
         {
           "kind": "role",
-          "role": "img",
-          "name": "Progression"
+          "name": "Progression",
+          "role": "img"
         }
       ],
-      "mode": "live"
+      "id": "histogram",
+      "mode": "live",
+      "name": "Histogram"
     }
-  ]
+  ],
+  "title": "Cartesian charts"
 }

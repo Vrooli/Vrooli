@@ -5,13 +5,14 @@
   "asset": {
     "id": "overlays.lightbox",
     "name": "Lightbox",
-    "kind": "component", "surface": "raised",
+    "kind": "component",
+    "surface": "raised",
     "domain": "overlays",
     "description": "The immersive media overlay with shared-element entry, keyboard and gesture navigation, zoom, metadata, progressive loading, and focus restoration to the originating thumbnail.",
     "targets": [
       "react-vite"
     ],
-    "slot": "primitive",
+    "slot": "ui-primitive",
     "delivery": "adopted",
     "target": {
       "priority": "P2",

@@ -1,53 +1,61 @@
 {
-  "schemaVersion": 3,
-  "kind": "component",
-  "title": "FilterBar",
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
   "args": {
     "fields": []
   },
   "environment": {
     "fixtures": []
   },
+  "kind": "component",
+  "schemaVersion": 4,
   "stories": [
     {
-      "id": "default",
-      "name": "Default",
-      "harness": "Default",
       "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Default",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
         {
           "kind": "role",
-          "role": "search",
-          "name": "Filter results"
+          "name": "Filter results",
+          "role": "search"
         },
         {
           "kind": "role",
-          "role": "button",
-          "name": "Apply filters"
+          "name": "Apply filters",
+          "role": "button"
         },
         {
           "kind": "role",
-          "role": "button",
-          "name": "Ready · 24"
+          "name": "Ready · 24",
+          "role": "button"
         }
       ],
-      "mode": "live"
+      "id": "default",
+      "mode": "live",
+      "name": "Default"
     },
     {
-      "id": "interactive",
-      "name": "Interactive",
-      "harness": "Interactive",
       "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Interactive",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
         {
           "kind": "role",
-          "role": "search",
-          "name": "Filter results"
+          "name": "Filter results",
+          "role": "search"
         },
         {
           "kind": "role",
-          "role": "button",
-          "name": "Reset"
+          "name": "Reset",
+          "role": "button"
         },
         {
           "kind": "role",
@@ -58,32 +66,55 @@
           "value": "Last applied: No filters applied yet"
         }
       ],
-      "mode": "live"
+      "id": "interactive",
+      "mode": "live",
+      "name": "Interactive"
     },
     {
-      "id": "shared-showcase",
-      "name": "Shared showcase context",
-      "sharedHarness": {
-        "asset": "preview.showcase",
-        "version": "1.0.0",
-        "export": "Showcase",
-        "config": {
-          "title": "Find the signal quickly",
-          "detail": "The shared context frames the FilterBar while the local stories retain its interaction-specific harness."
+      "args": {
+        "defaultActiveFilterIds": [
+          "ready"
+        ],
+        "options": [
+          {
+            "count": 24,
+            "id": "ready",
+            "label": "Ready"
+          },
+          {
+            "count": 7,
+            "id": "review",
+            "label": "Needs review"
+          }
+        ]
+      },
+      "composition": {
+        "harness": {
+          "asset": "preview.showcase",
+          "config": {
+            "detail": "The shared context frames the FilterBar while the local stories retain its interaction-specific harness.",
+            "title": "Find the signal quickly"
+          },
+          "export": "Showcase",
+          "version": "1.0.0"
         }
       },
-      "args": {
-        "options": [
-          { "id": "ready", "label": "Ready", "count": 24 },
-          { "id": "review", "label": "Needs review", "count": 7 }
-        ],
-        "defaultActiveFilterIds": ["ready"]
-      },
       "expect": [
-        { "kind": "role", "role": "search", "name": "Filter results" },
-        { "kind": "role", "role": "button", "name": "Apply filters" }
+        {
+          "kind": "role",
+          "name": "Filter results",
+          "role": "search"
+        },
+        {
+          "kind": "role",
+          "name": "Apply filters",
+          "role": "button"
+        }
       ],
-      "mode": "live"
+      "id": "shared-showcase",
+      "mode": "live",
+      "name": "Shared showcase context"
     }
-  ]
+  ],
+  "title": "FilterBar"
 }

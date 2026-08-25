@@ -1,85 +1,86 @@
 {
-  "schemaVersion": 3,
-  "kind": "component",
-  "title": "Container",
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
   "args": {
     "fields": [
       {
-        "path": "width",
-        "label": "Width",
-        "kind": "enum",
         "default": "content",
+        "kind": "enum",
+        "label": "Width",
         "options": [
           "compact",
           "content",
           "comfortable",
           "wide",
           "full"
-        ]
+        ],
+        "path": "width"
       },
       {
-        "path": "gutter",
-        "label": "Gutter",
-        "kind": "enum",
         "default": "none",
+        "kind": "enum",
+        "label": "Gutter",
         "options": [
           "none",
           "sm",
           "md",
           "lg",
           "responsive"
-        ]
+        ],
+        "path": "gutter"
       }
     ]
   },
   "environment": {
     "fixtures": []
   },
+  "kind": "component",
+  "schemaVersion": 4,
   "stories": [
     {
+      "args": {
+        "gutter": "none",
+        "width": "content"
+      },
       "id": "width-content",
-      "name": "width content",
-      "args": {
-        "width": "content",
-        "gutter": "none"
-      },
-      "mode": "pinned"
+      "mode": "pinned",
+      "name": "width content"
     },
     {
+      "args": {
+        "gutter": "sm",
+        "width": "compact"
+      },
       "id": "width-compact",
-      "name": "width compact",
-      "args": {
-        "width": "compact",
-        "gutter": "sm"
-      },
-      "mode": "pinned"
+      "mode": "pinned",
+      "name": "width compact"
     },
     {
+      "args": {
+        "gutter": "md",
+        "width": "comfortable"
+      },
       "id": "width-comfortable",
-      "name": "width comfortable",
-      "args": {
-        "width": "comfortable",
-        "gutter": "md"
-      },
-      "mode": "pinned"
+      "mode": "pinned",
+      "name": "width comfortable"
     },
     {
+      "args": {
+        "gutter": "lg",
+        "width": "wide"
+      },
       "id": "width-wide",
-      "name": "width wide",
-      "args": {
-        "width": "wide",
-        "gutter": "lg"
-      },
-      "mode": "pinned"
+      "mode": "pinned",
+      "name": "width wide"
     },
     {
-      "id": "width-full",
-      "name": "width full",
       "args": {
-        "width": "full",
-        "gutter": "responsive"
+        "gutter": "responsive",
+        "width": "full"
       },
-      "mode": "pinned"
+      "id": "width-full",
+      "mode": "pinned",
+      "name": "width full"
     }
-  ]
+  ],
+  "title": "Container"
 }

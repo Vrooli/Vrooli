@@ -10,13 +10,14 @@
   "asset": {
     "id": "data-display.stat-card",
     "name": "StatCard",
-    "kind": "component", "surface": "raised",
+    "kind": "component",
+    "surface": "raised",
     "domain": "data-display",
     "description": "The metric surface combining a stat with optional visualization, actions, status, explanation, and responsive layout that keeps the number legible at every width.",
     "targets": [
       "react-vite"
     ],
-    "slot": "primitive",
+    "slot": "ui-primitive",
     "delivery": "adopted",
     "target": {
       "priority": "P1",
@@ -32,6 +33,10 @@
       {
         "asset": "primitives.card",
         "reason": "Framing uses the shared card, which is a genuine object here."
+      },
+      {
+        "asset": "hooks.use-locale",
+        "reason": "User-facing copy resolves through the adopting host locale bridge."
       }
     ],
     "suggests": [

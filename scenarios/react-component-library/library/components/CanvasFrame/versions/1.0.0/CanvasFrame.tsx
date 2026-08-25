@@ -4,12 +4,14 @@
  * @status released
  * @deps {"react":"^18"}
  */
+import { translate } from "../../../../hooks/useLocale/versions/1.0.0/useLocale";
+
 import type { ReactNode } from "react";
 
 export function CanvasFrame({
   children,
   mode = "focus",
-  title = "Preview canvas",
+  title = translate("preview.canvas-frame.title.1", "Preview canvas"),
 }: {
   children?: ReactNode;
   mode?: "focus" | "canvas";

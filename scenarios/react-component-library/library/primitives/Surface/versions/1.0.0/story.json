@@ -1,89 +1,110 @@
 {
-  "schemaVersion": 3,
-  "kind": "component",
-  "title": "Surface",
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
   "args": {
     "fields": [
       {
-        "path": "elevation",
-        "label": "Elevation",
-        "kind": "enum",
         "default": "flat",
+        "kind": "enum",
+        "label": "Elevation",
         "options": [
           "flat",
           "raised",
           "floating",
           "overlay"
-        ]
+        ],
+        "path": "elevation"
       },
       {
-        "path": "variant",
-        "label": "Variant",
-        "kind": "enum",
         "default": "solid",
+        "kind": "enum",
+        "label": "Variant",
         "options": [
           "solid",
           "translucent"
-        ]
+        ],
+        "path": "variant"
       }
     ]
   },
   "environment": {
     "fixtures": []
   },
+  "kind": "component",
+  "schemaVersion": 4,
   "stories": [
     {
-      "id": "elevation-flat",
-      "name": "elevation flat",
       "args": {
         "elevation": "flat",
         "variant": "solid"
       },
-      "mode": "live",
-      "harness": "Specimen",
+      "composition": {
+        "specimen": {
+          "export": "Specimen",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
         {
           "kind": "role",
-          "role": "region",
-          "name": "Component specimen"
+          "name": "Component specimen",
+          "role": "region"
         }
-      ]
+      ],
+      "id": "elevation-flat",
+      "mode": "live",
+      "name": "elevation flat"
     },
     {
-      "id": "elevation-raised",
-      "name": "elevation raised",
       "args": {
         "elevation": "raised",
         "variant": "solid"
       },
+      "composition": {
+        "specimen": {
+          "export": "Specimen",
+          "module": "./story.tsx"
+        }
+      },
+      "id": "elevation-raised",
       "mode": "live",
-      "harness": "Specimen"
+      "name": "elevation raised"
     },
     {
-      "id": "elevation-floating",
-      "name": "elevation floating",
       "args": {
         "elevation": "floating",
         "variant": "translucent"
       },
-      "mode": "live"
-      ,"harness": "Specimen",
+      "composition": {
+        "specimen": {
+          "export": "Specimen",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
         {
           "kind": "text",
           "value": "Translucent surface"
         }
-      ]
+      ],
+      "id": "elevation-floating",
+      "mode": "live",
+      "name": "elevation floating"
     },
     {
-      "id": "elevation-overlay",
-      "name": "elevation overlay",
       "args": {
         "elevation": "overlay",
         "variant": "solid"
       },
+      "composition": {
+        "specimen": {
+          "export": "Specimen",
+          "module": "./story.tsx"
+        }
+      },
+      "id": "elevation-overlay",
       "mode": "live",
-      "harness": "Specimen"
+      "name": "elevation overlay"
     }
-  ]
+  ],
+  "title": "Surface"
 }

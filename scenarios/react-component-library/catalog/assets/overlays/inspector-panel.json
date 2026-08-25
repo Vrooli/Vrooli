@@ -10,13 +10,14 @@
   "asset": {
     "id": "overlays.inspector-panel",
     "name": "InspectorPanel",
-    "kind": "component", "surface": "raised",
+    "kind": "component",
+    "surface": "raised",
     "domain": "overlays",
     "description": "The contextual detail surface with tabs, navigation history, resize persistence, pinning, selection synchronization, and a responsive drawer fallback.",
     "targets": [
       "react-vite"
     ],
-    "slot": "primitive",
+    "slot": "ui-primitive",
     "delivery": "adopted",
     "target": {
       "priority": "P1",
@@ -32,6 +33,10 @@
       {
         "asset": "navigation.tabs",
         "reason": "Section switching uses the shared tab semantics."
+      },
+      {
+        "asset": "hooks.use-locale",
+        "reason": "User-facing copy resolves through the adopting host locale bridge."
       }
     ]
   },

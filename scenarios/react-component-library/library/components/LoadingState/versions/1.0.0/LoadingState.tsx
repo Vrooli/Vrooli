@@ -1,9 +1,11 @@
 /** @vrooliComponentSource react-component-library:LoadingState */
+import { translate } from "../../../../hooks/useLocale/versions/1.0.0/useLocale";
+
 import type { ReactNode } from "react";
 import { AsyncBoundary } from "../../../AsyncBoundary/versions/1.0.0/AsyncBoundary";
 
 export function LoadingState({
-  label = "Loading…",
+  label = translate("feedback.loading-state.label.1", "Loading…"),
   detail,
   children,
 }: {

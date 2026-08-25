@@ -1,24 +1,39 @@
 {
-  "libraryId": "react-component-library:CommandButton",
-  "catalogId": "controls.command-button",
-  "displayName": "CommandButton",
-  "description": "An async-aware action button with stable dimensions, acknowledged progress, recovery, and retry.",
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "component",
-  "tags": ["control", "async", "recovery", "token-bound"],
-  "slot": "ui-primitive",
+  "catalogId": "controls.command-button",
   "category": "actions",
   "dependencies": [
-    { "libraryId": "react-component-library:Button", "version": "2.0.0" },
+    {
+      "libraryId": "react-component-library:Button",
+      "version": "2.0.0"
+    },
     {
       "libraryId": "react-component-library:useAsyncAction",
       "version": "1.0.0"
     }
   ],
+  "deprecatedVersions": [],
+  "description": "An async-aware action button with stable dimensions, acknowledged progress, recovery, and retry.",
   "designStyles": [
-    { "styleId": "vrooli-default", "affinity": "native" },
-    { "styleId": "vrooli-command-display", "affinity": "compatible" }
+    {
+      "affinity": "native",
+      "styleId": "vrooli-default"
+    },
+    {
+      "affinity": "compatible",
+      "styleId": "vrooli-command-display"
+    }
   ],
-  "latest": "1.0.0",
+  "displayName": "CommandButton",
   "draft": "",
-  "deprecatedVersions": []
+  "latest": "1.0.0",
+  "libraryId": "react-component-library:CommandButton",
+  "slot": "ui-primitive",
+  "tags": [
+    "control",
+    "async",
+    "recovery",
+    "token-bound"
+  ]
 }

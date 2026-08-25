@@ -5,13 +5,14 @@
   "asset": {
     "id": "controls.segmented-control",
     "name": "SegmentedControl",
-    "kind": "component", "surface": "raised",
+    "kind": "component",
+    "surface": "raised",
     "domain": "controls",
     "description": "The compact mutually exclusive selector with a shared moving indicator, keyboard navigation, responsive overflow, and icon or text options.",
     "targets": [
       "react-vite"
     ],
-    "slot": "primitive",
+    "slot": "ui-primitive",
     "delivery": "adopted",
     "target": {
       "priority": "P1",

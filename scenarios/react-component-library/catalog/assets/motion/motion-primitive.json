@@ -5,13 +5,14 @@
   "asset": {
     "id": "motion.motion-primitive",
     "name": "MotionPrimitive",
-    "kind": "primitive", "surface": "base",
+    "kind": "primitive",
+    "surface": "base",
     "domain": "motion",
     "description": "The low-level animated element exposing tokenized transitions and continuous motion values without routing frame-by-frame updates through React state.",
     "targets": [
       "react-vite"
     ],
-    "slot": "primitive",
+    "slot": "ui-primitive",
     "delivery": "adopted",
     "target": {
       "priority": "P0",

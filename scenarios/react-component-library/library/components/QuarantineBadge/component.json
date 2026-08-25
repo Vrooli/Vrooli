@@ -1,11 +1,20 @@
 {
-  "libraryId": "react-component-library:QuarantineBadge",
-  "catalogId": "feedback.quarantine-badge",
-  "displayName": "QuarantineBadge",
-  "description": "A visible non-discriminating gate quarantine state.",
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "component",
-  "tags": ["feedback", "token-bound"],
+  "catalogId": "feedback.quarantine-badge",
+  "dependencies": [],
+  "description": "A visible non-discriminating gate quarantine state.",
+  "designStyles": [
+    {
+      "affinity": "native",
+      "styleId": "vrooli-default"
+    }
+  ],
+  "displayName": "QuarantineBadge",
   "latest": "1.0.3",
-  "designStyles": [{ "styleId": "vrooli-default", "affinity": "native" }],
-  "dependencies": []
+  "libraryId": "react-component-library:QuarantineBadge",
+  "tags": [
+    "feedback",
+    "token-bound"
+  ]
 }

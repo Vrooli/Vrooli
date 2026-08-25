@@ -5,13 +5,14 @@
   "asset": {
     "id": "ai.markdown-message",
     "name": "MarkdownMessage",
-    "kind": "component", "surface": "raised",
+    "kind": "component",
+    "surface": "raised",
     "domain": "ai",
     "description": "The safe rich-message renderer with lazily loaded code highlighting, tables, links, citations, task lists, copy affordances, and resilient handling of partial markup during streaming.",
     "targets": [
       "react-vite"
     ],
-    "slot": "primitive",
+    "slot": "ui-primitive",
     "delivery": "adopted",
     "target": {
       "priority": "P0",

@@ -1,29 +1,30 @@
 {
-  "libraryId": "react-component-library:Inline",
-  "catalogId": "primitives.inline",
-  "displayName": "Inline",
-  "description": "Inline lays out content on the inline axis with wrapping and alignment.",
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "primitive",
+  "catalogId": "primitives.inline",
+  "dependencies": [],
+  "deprecatedVersions": [],
+  "description": "Inline lays out content on the inline axis with wrapping and alignment.",
+  "designStyles": [
+    {
+      "affinity": "native",
+      "styleId": "vrooli-default"
+    },
+    {
+      "affinity": "compatible",
+      "styleId": "vrooli-command-display"
+    },
+    {
+      "affinity": "compatible",
+      "styleId": "vrooli-conversion-landing"
+    }
+  ],
+  "displayName": "Inline",
+  "draft": "",
+  "latest": "1.1.0",
+  "libraryId": "react-component-library:Inline",
   "tags": [
     "primitive",
     "token-bound"
-  ],
-  "latest": "1.1.0",
-  "designStyles": [
-    {
-      "styleId": "vrooli-default",
-      "affinity": "native"
-    },
-    {
-      "styleId": "vrooli-command-display",
-      "affinity": "compatible"
-    },
-    {
-      "styleId": "vrooli-conversion-landing",
-      "affinity": "compatible"
-    }
-  ],
-  "dependencies": [],
-  "draft": "",
-  "deprecatedVersions": []
+  ]
 }

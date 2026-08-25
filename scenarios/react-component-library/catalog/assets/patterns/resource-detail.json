@@ -40,6 +40,10 @@
       {
         "asset": "feedback.async-boundary",
         "reason": "Every generic state is delegated to the shared boundary rather than reimplemented per workflow."
+      },
+      {
+        "asset": "hooks.use-locale",
+        "reason": "User-facing copy resolves through the adopting host locale bridge."
       }
     ]
   },

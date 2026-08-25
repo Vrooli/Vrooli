@@ -10,13 +10,14 @@
   "asset": {
     "id": "primitives.heading",
     "name": "Heading",
-    "kind": "primitive", "surface": "base",
+    "kind": "primitive",
+    "surface": "base",
     "domain": "primitives",
     "description": "The heading primitive separating visual scale from semantic document level, so styling decisions never distort the accessible outline.",
     "targets": [
       "react-vite"
     ],
-    "slot": "primitive",
+    "slot": "ui-primitive",
     "delivery": "adopted",
     "target": {
       "priority": "P0",

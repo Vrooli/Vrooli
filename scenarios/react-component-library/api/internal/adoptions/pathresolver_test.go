@@ -327,6 +327,29 @@ func TestResolveVersion_ExplicitSlotWins(t *testing.T) {
 	}
 }
 
+func TestSlotDirCandidatesCoversCatalogSlots(t *testing.T) {
+	t.Parallel()
+	want := map[string]string{
+		"adapter":       "adapters",
+		"fixture":       "fixtures",
+		"hook":          "hooks",
+		"layout-shell":  "layout",
+		"lib-util":      "lib",
+		"page-template": "templates",
+		"pattern":       "patterns",
+		"provider":      "providers",
+		"service":       "services",
+		"theme-token":   "theme",
+		"ui-primitive":  "components/ui",
+	}
+	for slot, dir := range want {
+		candidates := slotDirCandidates(slot)
+		if len(candidates) == 0 || candidates[0] != dir {
+			t.Errorf("slotDirCandidates(%q) = %v, want %q", slot, candidates, dir)
+		}
+	}
+}
+
 // TestResolveVersion_FlatFallback_WhenManifestMissing verifies the resolver
 // reports manifestResolved=false without inventing a framework-specific
 // directory layout.

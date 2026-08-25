@@ -1,15 +1,32 @@
 {
-  "libraryId": "react-component-library:ValidationSummary",
-  "catalogId": "forms.validation-summary",
-  "displayName": "ValidationSummary",
-  "description": "An accessible, keyboard-addressable summary of field validation errors.",
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "component",
-  "tags": ["form", "validation", "accessibility", "recovery"],
-  "slot": "ui-primitive",
+  "catalogId": "forms.validation-summary",
   "category": "forms",
-  "latest": "1.0.0",
-  "draft": "",
+  "dependencies": [],
   "deprecatedVersions": [],
-  "designStyles": [{ "styleId": "vrooli-default", "affinity": "native" }],
-  "dependencies": []
+  "description": "An accessible, keyboard-addressable summary of field validation errors.",
+  "designStyles": [
+    {
+      "affinity": "native",
+      "styleId": "vrooli-default"
+    }
+  ],
+  "displayName": "ValidationSummary",
+  "draft": "",
+  "latest": "1.0.0",
+  "libraryId": "react-component-library:ValidationSummary",
+  "slot": "ui-primitive",
+  "tags": [
+    "form",
+    "validation",
+    "accessibility",
+    "recovery"
+  ],
+  "requires": [
+    {
+      "libraryId": "react-component-library:useLocale",
+      "version": "1.0.0"
+    }
+  ]
 }

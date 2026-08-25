@@ -1,34 +1,35 @@
 {
-  "libraryId": "react-component-library:Heading",
-  "catalogId": "primitives.heading",
-  "displayName": "Heading",
-  "description": "Heading selects semantic heading markup and one of the eight bundled text styles.",
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "primitive",
-  "tags": [
-    "primitive",
-    "token-bound"
-  ],
-  "latest": "1.1.0",
-  "designStyles": [
-    {
-      "styleId": "vrooli-default",
-      "affinity": "native"
-    },
-    {
-      "styleId": "vrooli-command-display",
-      "affinity": "compatible"
-    },
-    {
-      "styleId": "vrooli-conversion-landing",
-      "affinity": "compatible"
-    }
-  ],
+  "catalogId": "primitives.heading",
   "dependencies": [
     {
       "libraryId": "react-component-library:Text",
       "version": "1.1.0"
     }
   ],
+  "deprecatedVersions": [],
+  "description": "Heading selects semantic heading markup and one of the eight bundled text styles.",
+  "designStyles": [
+    {
+      "affinity": "native",
+      "styleId": "vrooli-default"
+    },
+    {
+      "affinity": "compatible",
+      "styleId": "vrooli-command-display"
+    },
+    {
+      "affinity": "compatible",
+      "styleId": "vrooli-conversion-landing"
+    }
+  ],
+  "displayName": "Heading",
   "draft": "",
-  "deprecatedVersions": []
+  "latest": "1.1.0",
+  "libraryId": "react-component-library:Heading",
+  "tags": [
+    "primitive",
+    "token-bound"
+  ]
 }

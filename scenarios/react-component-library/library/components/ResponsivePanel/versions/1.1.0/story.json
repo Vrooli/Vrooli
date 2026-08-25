@@ -1,63 +1,51 @@
 {
-  "schemaVersion": 3,
-  "kind": "component",
-  "title": "ResponsivePanel",
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
   "args": {
     "fields": [
       {
-        "path": "open",
+        "default": true,
         "kind": "boolean",
-        "default": true
+        "path": "open"
       },
       {
-        "path": "title",
+        "default": "Workspace filters",
         "kind": "text",
-        "default": "Workspace filters"
+        "path": "title"
       },
       {
-        "path": "description",
+        "default": "Refine the current view",
         "kind": "text",
-        "default": "Refine the current view"
+        "path": "description"
       },
       {
-        "path": "children",
-        "kind": "structured",
         "default": {
-          "$node": "p",
-          "children": [
-            {
-              "$text": "Choose filters to focus the workspace."
-            }
-          ]
-        }
+          "$text": "p"
+        },
+        "kind": "structured",
+        "path": "children"
       }
     ]
   },
   "environment": {
     "fixtures": []
   },
+  "kind": "component",
+  "schemaVersion": 4,
   "stories": [
     {
-      "id": "open-across-breakpoints",
-      "name": "Open across breakpoints",
       "args": {
-        "open": true,
-        "title": "Workspace filters",
-        "description": "Refine the current view",
         "children": {
-          "$node": "p",
-          "children": [
-            {
-              "$text": "Choose filters to focus the workspace."
-            }
-          ]
-        }
+          "$text": "p"
+        },
+        "description": "Refine the current view",
+        "open": true,
+        "title": "Workspace filters"
       },
       "expect": [
         {
           "kind": "attribute",
-          "selector": "[data-rcl-responsive-panel]",
           "name": "data-open",
+          "selector": "[data-rcl-responsive-panel]",
           "value": "true"
         },
         {
@@ -66,16 +54,19 @@
         },
         {
           "kind": "role",
-          "role": "button",
-          "name": "Close panel"
+          "name": "Close panel",
+          "role": "button"
         }
       ],
+      "id": "open-across-breakpoints",
       "interactions": [
         {
           "kind": "settle"
         }
       ],
-      "mode": "pinned"
+      "mode": "pinned",
+      "name": "Open across breakpoints"
     }
-  ]
+  ],
+  "title": "ResponsivePanel"
 }

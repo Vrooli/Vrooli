@@ -5,13 +5,14 @@
   "asset": {
     "id": "ai.citation-preview",
     "name": "CitationPreview",
-    "kind": "component", "surface": "raised",
+    "kind": "component",
+    "surface": "raised",
     "domain": "ai",
     "description": "The hoverable or selectable source inspection surface showing relevant context around the cited passage while preserving the reader's position in the conversation.",
     "targets": [
       "react-vite"
     ],
-    "slot": "primitive",
+    "slot": "ui-primitive",
     "delivery": "adopted",
     "target": {
       "priority": "P1",

@@ -37,7 +37,7 @@ func (s *sqliteRepository) UpsertBuiltin(ctx context.Context, t Theme) error {
 	return nil
 }
 
-// ReplaceBuiltins migrates the seed registry in place. It deliberately keeps
+// ReplaceBuiltins reconciles the seed registry in place. It deliberately keeps
 // the table and its history-bearing timestamps intact; only superseded seed
 // rows are removed and canonical rows are upserted in one transaction.
 func (s *sqliteRepository) ReplaceBuiltins(ctx context.Context, themes []Theme) error {

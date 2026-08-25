@@ -1,13 +1,32 @@
 {
-  "libraryId": "react-component-library:LoadingState",
-  "catalogId": "feedback.loading-state",
-  "displayName": "LoadingState",
-  "description": "A compact loading state that keeps the promised content geometry stable while work is in progress.",
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "component",
-  "tags": ["feedback", "async", "token-bound"],
-  "latest": "1.0.0",
-  "designStyles": [{ "styleId": "vrooli-default", "affinity": "native" }],
+  "catalogId": "feedback.loading-state",
   "dependencies": [
-    { "libraryId": "react-component-library:AsyncBoundary", "version": "1.0.0" }
+    {
+      "libraryId": "react-component-library:AsyncBoundary",
+      "version": "1.0.0"
+    }
+  ],
+  "description": "A compact loading state that keeps the promised content geometry stable while work is in progress.",
+  "designStyles": [
+    {
+      "affinity": "native",
+      "styleId": "vrooli-default"
+    }
+  ],
+  "displayName": "LoadingState",
+  "latest": "1.0.0",
+  "libraryId": "react-component-library:LoadingState",
+  "tags": [
+    "feedback",
+    "async",
+    "token-bound"
+  ],
+  "requires": [
+    {
+      "libraryId": "react-component-library:useLocale",
+      "version": "1.0.0"
+    }
   ]
 }

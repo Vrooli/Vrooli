@@ -1,18 +1,46 @@
 {
-  "libraryId": "react-component-library:BulkActionBar",
-  "catalogId": "data-display.bulk-action-bar",
-  "displayName": "BulkActionBar",
-  "description": "A contextual selection surface that makes scope, progress, partial failure, and recovery explicit.",
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "component",
-  "tags": ["data-display", "selection", "async", "recovery", "token-bound"],
-  "latest": "1.0.0",
-  "designStyles": [
-    { "styleId": "vrooli-default", "affinity": "native" },
-    { "styleId": "vrooli-command-display", "affinity": "compatible" },
-    { "styleId": "vrooli-conversion-landing", "affinity": "compatible" }
-  ],
+  "catalogId": "data-display.bulk-action-bar",
   "dependencies": [
-    { "libraryId": "react-component-library:Button", "version": "2.0.0" },
-    { "libraryId": "react-component-library:ButtonGroup", "version": "1.0.0" }
+    {
+      "libraryId": "react-component-library:Button",
+      "version": "2.0.0"
+    },
+    {
+      "libraryId": "react-component-library:ButtonGroup",
+      "version": "1.0.0"
+    }
+  ],
+  "description": "A contextual selection surface that makes scope, progress, partial failure, and recovery explicit.",
+  "designStyles": [
+    {
+      "affinity": "native",
+      "styleId": "vrooli-default"
+    },
+    {
+      "affinity": "compatible",
+      "styleId": "vrooli-command-display"
+    },
+    {
+      "affinity": "compatible",
+      "styleId": "vrooli-conversion-landing"
+    }
+  ],
+  "displayName": "BulkActionBar",
+  "latest": "1.0.0",
+  "libraryId": "react-component-library:BulkActionBar",
+  "tags": [
+    "data-display",
+    "selection",
+    "async",
+    "recovery",
+    "token-bound"
+  ],
+  "requires": [
+    {
+      "libraryId": "react-component-library:useLocale",
+      "version": "1.0.0"
+    }
   ]
 }

@@ -1,0 +1,21 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
+  "assetKind": "foundation",
+  "catalogId": "foundations.class-merge",
+  "dependencies": [],
+  "description": "The single class composition primitive used by library assets; Tailwind conflicts resolve in favor of the consumer override.",
+  "designStyles": [
+    {
+      "affinity": "native",
+      "styleId": "vrooli-default"
+    }
+  ],
+  "displayName": "Class Merge",
+  "latest": "1.0.0",
+  "libraryId": "react-component-library:ClassMerge",
+  "tags": [
+    "foundations",
+    "styling",
+    "composition"
+  ]
+}

@@ -5,13 +5,14 @@
   "asset": {
     "id": "overlays.dialog",
     "name": "Dialog",
-    "kind": "component", "surface": "raised",
+    "kind": "component",
+    "surface": "raised",
     "domain": "overlays",
     "description": "The modal or non-modal conversation surface with focus containment, inert background, reference-counted scroll lock, structured regions, async actions, and nested-overlay support.",
     "targets": [
       "react-vite"
     ],
-    "slot": "primitive",
+    "slot": "ui-primitive",
     "delivery": "adopted",
     "target": {
       "priority": "P0",
@@ -51,6 +52,10 @@
       {
         "asset": "hooks.use-controllable-state",
         "reason": "Open state uses the shared controlled and uncontrolled contract."
+      },
+      {
+        "asset": "foundations.class-merge",
+        "reason": "All class composition uses the shared Tailwind conflict resolver."
       }
     ]
   },

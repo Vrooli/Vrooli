@@ -10,13 +10,14 @@
   "asset": {
     "id": "primitives.text",
     "name": "Text",
-    "kind": "primitive", "surface": "base",
+    "kind": "primitive",
+    "surface": "base",
     "domain": "primitives",
     "description": "The semantic typography primitive exposing tokenized text styles with truncation, balancing, muted treatment, numeric alignment, and locale-aware rendering.",
     "targets": [
       "react-vite"
     ],
-    "slot": "primitive",
+    "slot": "ui-primitive",
     "delivery": "adopted",
     "target": {
       "priority": "P0",

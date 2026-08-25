@@ -14,17 +14,14 @@ import (
 // asset's preview inputs, named baselines, fixtures, interactions, and checks.
 // It intentionally contains no executable source or import references.
 type StoryContract struct {
-	SchemaVersion int              `json:"schemaVersion"`
-	Kind          StoryKind        `json:"kind"`
-	Title         string           `json:"title,omitempty"`
-	Args          StoryArgsSchema  `json:"args"`
-	Environment   StoryEnvironment `json:"environment"`
-	Frame         *StoryFrame      `json:"frame,omitempty"`
-	// Composition is the schema-v4, role-explicit form. Frame remains here as
-	// a compatibility field for schema-v3 contracts and is normalized by
-	// EffectiveStoryComposition rather than silently discarded.
-	Composition *StoryComposition `json:"composition,omitempty"`
-	Stories     []StoryDefinition `json:"stories"`
+	SchemaVersion int               `json:"schemaVersion"`
+	Schema        string            `json:"$schema,omitempty"`
+	Kind          StoryKind         `json:"kind"`
+	Title         string            `json:"title,omitempty"`
+	Args          StoryArgsSchema   `json:"args"`
+	Environment   StoryEnvironment  `json:"environment"`
+	Composition   *StoryComposition `json:"composition,omitempty"`
+	Stories       []StoryDefinition `json:"stories"`
 }
 
 type StoryKind string
@@ -85,9 +82,7 @@ type StoryFixture struct {
 // asset and fixture, while the story only chooses the region to fill.
 type StoryFrame struct {
 	Asset string `json:"asset"`
-	// Version pins the frame implementation used by a canonical story. Empty
-	// keeps the schema-v3 migration path for existing stories; the indexer and
-	// preview resolver may report that the story still needs pinning.
+	// Version pins the frame implementation used by a canonical story.
 	Version    string `json:"version,omitempty"`
 	Region     string `json:"region"`
 	Capability string `json:"capability,omitempty"`
@@ -153,20 +148,15 @@ type StoryDefinition struct {
 	ID   string `json:"id"`
 	Name string `json:"name"`
 	// Description is optional specimen context shown by the catalog workbench.
-	Description string    `json:"description,omitempty"`
-	Mode        StoryMode `json:"mode,omitempty"`
-	// Harness selects a named export from the version-local story.tsx file.
-	// It is available only in schemaVersion 2 and later.
-	Harness       string             `json:"harness,omitempty"`
-	SharedHarness *StoryHarnessRef   `json:"sharedHarness,omitempty"`
-	Composition   *StoryComposition  `json:"composition,omitempty"`
-	Frame         *StoryFrame        `json:"frame,omitempty"`
-	Geometry      *StoryGeometry     `json:"geometry,omitempty"`
-	Evidence      *StoryEvidence     `json:"evidence,omitempty"`
-	Args          json.RawMessage    `json:"args"`
-	Environment   map[string]string  `json:"environment,omitempty"`
-	Interactions  []StoryInteraction `json:"interactions,omitempty"`
-	Expect        []StoryExpectation `json:"expect,omitempty"`
+	Description  string             `json:"description,omitempty"`
+	Mode         StoryMode          `json:"mode,omitempty"`
+	Composition  *StoryComposition  `json:"composition,omitempty"`
+	Geometry     *StoryGeometry     `json:"geometry,omitempty"`
+	Evidence     *StoryEvidence     `json:"evidence,omitempty"`
+	Args         json.RawMessage    `json:"args"`
+	Environment  map[string]string  `json:"environment,omitempty"`
+	Interactions []StoryInteraction `json:"interactions,omitempty"`
+	Expect       []StoryExpectation `json:"expect,omitempty"`
 }
 
 // UnmarshalJSON makes the common zero-argument story ergonomic while keeping
@@ -235,8 +225,7 @@ type StoryDiagnostic struct {
 type StoryDiagnosticSeverity string
 
 const (
-	StoryDiagnosticError   StoryDiagnosticSeverity = "error"
-	StoryDiagnosticWarning StoryDiagnosticSeverity = "warning"
+	StoryDiagnosticError StoryDiagnosticSeverity = "error"
 )
 
 // CatalogFrameAsset is the small catalog projection needed to validate a
@@ -262,85 +251,6 @@ type CatalogFrameRegistry interface {
 	LookupCatalogFrameAsset(id string) (CatalogFrameAsset, bool)
 }
 
-// EffectiveStoryFrame applies the story-level override over the file-level
-// declaration. Returning nil is intentional: unframed stories retain the
-// existing direct-render path.
-func EffectiveStoryFrame(contract *StoryContract, story *StoryDefinition) *StoryFrame {
-	if composition := EffectiveStoryComposition(contract, story); composition != nil && composition.Frame != nil {
-		return composition.Frame
-	}
-	if story != nil && story.Frame != nil {
-		return story.Frame
-	}
-	if contract == nil {
-		return nil
-	}
-	return contract.Frame
-}
-
-// EffectiveStoryComposition resolves v4 roles while retaining the v3
-// file/story frame and harness fields as a lossless migration path.
-func EffectiveStoryComposition(contract *StoryContract, story *StoryDefinition) *StoryComposition {
-	var result StoryComposition
-	seen := false
-	if contract != nil && contract.Composition != nil {
-		result = *contract.Composition
-		seen = true
-	}
-	if story != nil && story.Composition != nil {
-		if story.Composition.Specimen != nil {
-			result.Specimen = story.Composition.Specimen
-		}
-		if story.Composition.Harness != nil {
-			result.Harness = story.Composition.Harness
-		}
-		if story.Composition.Fixture != nil {
-			result.Fixture = story.Composition.Fixture
-		}
-		if story.Composition.Frame != nil {
-			result.Frame = story.Composition.Frame
-		}
-		seen = true
-	}
-	if story != nil {
-		if story.Frame != nil {
-			result.Frame = story.Frame
-			seen = true
-		}
-		if story.SharedHarness != nil {
-			result.Harness = story.SharedHarness
-			seen = true
-		}
-	}
-	if !seen {
-		return nil
-	}
-	return &result
-}
-
-// EffectiveStoryLocalHarness returns the local story.tsx export selected by a
-// v4 specimen or a legacy story.harness field. Shared harnesses are returned
-// separately by EffectiveStorySharedHarness.
-func EffectiveStoryLocalHarness(contract *StoryContract, story *StoryDefinition) string {
-	if story != nil && story.Harness != "" {
-		return story.Harness
-	}
-	if composition := EffectiveStoryComposition(contract, story); composition != nil && composition.Specimen != nil {
-		return composition.Specimen.Export
-	}
-	return ""
-}
-
-func EffectiveStorySharedHarness(contract *StoryContract, story *StoryDefinition) *StoryHarnessRef {
-	if story != nil && story.SharedHarness != nil {
-		return story.SharedHarness
-	}
-	if composition := EffectiveStoryComposition(contract, story); composition != nil {
-		return composition.Harness
-	}
-	return nil
-}
-
 func validateStoryCompositionShape(pointer string, composition *StoryComposition) []StoryDiagnostic {
 	if composition == nil {
 		return nil
@@ -358,7 +268,7 @@ func validateStoryCompositionShape(pointer string, composition *StoryComposition
 		diagnostics = append(diagnostics, validateStoryHarnessRef(pointer+"/harness", composition.Harness)...)
 	}
 	if composition.Specimen != nil && composition.Harness != nil {
-		diagnostics = append(diagnostics, storyDiagnostic(pointer, "exclusive_renderer", "a composition must choose either a specimen or a shared harness"))
+		diagnostics = append(diagnostics, storyDiagnostic(pointer, "exclusive_renderer", "a composition must choose either a specimen or a composition harness"))
 	}
 	if composition.Fixture != nil {
 		fixture := composition.Fixture
@@ -390,18 +300,15 @@ func ValidateStoryFrames(contract *StoryContract, registry CatalogFrameRegistry)
 		return nil
 	}
 	var diagnostics []StoryDiagnostic
-	if contract.Frame != nil {
-		diagnostics = append(diagnostics, validateStoryFrame("/frame", contract.Frame, registry)...)
-	}
 	if contract.Composition != nil {
 		diagnostics = append(diagnostics, validateStoryCompositionCatalog("/composition", contract.Composition, registry)...)
 	}
 	for index := range contract.Stories {
-		if contract.Stories[index].Frame != nil {
-			diagnostics = append(diagnostics, validateStoryFrame(fmt.Sprintf("/stories/%d/frame", index), contract.Stories[index].Frame, registry)...)
-		}
 		if contract.Stories[index].Composition != nil {
 			diagnostics = append(diagnostics, validateStoryCompositionCatalog(fmt.Sprintf("/stories/%d/composition", index), contract.Stories[index].Composition, registry)...)
+			if contract.Stories[index].Composition.Frame != nil {
+				diagnostics = append(diagnostics, validateStoryFrame(fmt.Sprintf("/stories/%d/composition/frame", index), contract.Stories[index].Composition.Frame, registry)...)
+			}
 		}
 	}
 	sort.Slice(diagnostics, func(i, j int) bool { return diagnostics[i].Pointer < diagnostics[j].Pointer })
@@ -604,7 +511,6 @@ func ParseStoryContract(raw []byte) (*StoryContract, []StoryDiagnostic) {
 		return nil, []StoryDiagnostic{{Pointer: "/", Rule: "single_document", Detail: "only one JSON document is allowed"}}
 	}
 	diagnostics := ValidateStoryContract(&contract)
-	diagnostics = append(diagnostics, StoryContractWarnings(&contract)...)
 	sort.Slice(diagnostics, func(i, j int) bool {
 		if diagnostics[i].Pointer == diagnostics[j].Pointer {
 			return diagnostics[i].Severity < diagnostics[j].Severity
@@ -614,59 +520,8 @@ func ParseStoryContract(raw []byte) (*StoryContract, []StoryDiagnostic) {
 	return &contract, diagnostics
 }
 
-// StoryContractWarnings identifies migration debt without making a legacy
-// contract unreadable. Raw $node values remain supported during migration, but
-// a named TSX specimen is the preferred representation for rich children.
-func StoryContractWarnings(contract *StoryContract) []StoryDiagnostic {
-	if contract == nil {
-		return nil
-	}
-	var diagnostics []StoryDiagnostic
-	for index, story := range contract.Stories {
-		var value any
-		if json.Unmarshal(story.Args, &value) != nil {
-			continue
-		}
-		if rawNodePointer := firstRawNodePointer(value, fmt.Sprintf("/stories/%d/args", index)); rawNodePointer != "" {
-			diagnostics = append(diagnostics, storyWarning(rawNodePointer, "legacy_raw_node", "raw $node content remains supported for migration; use a named story specimen when the composition is rich"))
-		}
-	}
-	return diagnostics
-}
-
-// StoryContractErrors filters non-blocking migration warnings from the
-// diagnostics returned by ParseStoryContract. Callers that index or execute a
-// contract must reject only these diagnostics; review surfaces may display the
-// warnings alongside the normalized contract.
 func StoryContractErrors(diagnostics []StoryDiagnostic) []StoryDiagnostic {
-	errors := make([]StoryDiagnostic, 0, len(diagnostics))
-	for _, diagnostic := range diagnostics {
-		if diagnostic.Severity == "" || diagnostic.Severity == StoryDiagnosticError {
-			errors = append(errors, diagnostic)
-		}
-	}
-	return errors
-}
-
-func firstRawNodePointer(value any, pointer string) string {
-	switch typed := value.(type) {
-	case []any:
-		for index, item := range typed {
-			if found := firstRawNodePointer(item, fmt.Sprintf("%s/%d", pointer, index)); found != "" {
-				return found
-			}
-		}
-	case map[string]any:
-		for key, item := range typed {
-			if key == "$node" {
-				return pointer + "/$node"
-			}
-			if found := firstRawNodePointer(item, pointer+"/"+key); found != "" {
-				return found
-			}
-		}
-	}
-	return ""
+	return diagnostics
 }
 
 func ValidateStoryContract(contract *StoryContract) []StoryDiagnostic {
@@ -674,8 +529,8 @@ func ValidateStoryContract(contract *StoryContract) []StoryDiagnostic {
 		return []StoryDiagnostic{{Pointer: "/", Rule: "required", Detail: "story contract is required"}}
 	}
 	var diagnostics []StoryDiagnostic
-	if contract.SchemaVersion != 1 && contract.SchemaVersion != 2 && contract.SchemaVersion != 3 && contract.SchemaVersion != 4 {
-		diagnostics = append(diagnostics, storyDiagnostic("/schemaVersion", "supported_version", "schemaVersion must be 1, 2, 3, or 4"))
+	if contract.SchemaVersion != 4 {
+		diagnostics = append(diagnostics, storyDiagnostic("/schemaVersion", "supported_version", "schemaVersion must be 4 for published story contracts"))
 	}
 	if contract.Kind != StoryKindComponent && contract.Kind != StoryKindHook {
 		diagnostics = append(diagnostics, storyDiagnostic("/kind", "asset_kind", "kind must be component or hook"))
@@ -726,16 +581,7 @@ func ValidateStoryContract(contract *StoryContract) []StoryDiagnostic {
 		}
 		fixtureOptions[key] = options
 	}
-	if contract.SchemaVersion < 3 && contract.Frame != nil {
-		diagnostics = append(diagnostics, storyDiagnostic("/frame", "schema_version", "frame requires schemaVersion 3"))
-	}
-	if contract.Frame != nil {
-		diagnostics = append(diagnostics, validateStoryFrameShape("/frame", contract.Frame)...)
-	}
 	if contract.Composition != nil {
-		if contract.SchemaVersion < 4 {
-			diagnostics = append(diagnostics, storyDiagnostic("/composition", "schema_version", "composition requires schemaVersion 4"))
-		}
 		diagnostics = append(diagnostics, validateStoryCompositionShape("/composition", contract.Composition)...)
 	}
 	ids := map[string]struct{}{}
@@ -754,38 +600,11 @@ func ValidateStoryContract(contract *StoryContract) []StoryDiagnostic {
 		if story.Mode != "" && story.Mode != StoryModePinned && story.Mode != StoryModeLive {
 			diagnostics = append(diagnostics, storyDiagnostic(pointer+"/mode", "story_mode", "mode must be pinned or live"))
 		}
-		if contract.SchemaVersion == 1 && (story.Harness != "" || story.Description != "" || story.Frame != nil || story.SharedHarness != nil || story.Composition != nil) {
-			diagnostics = append(diagnostics, storyDiagnostic(pointer, "schema_version", "harness, sharedHarness, description, and frame require a newer schemaVersion"))
-		}
-		if contract.SchemaVersion < 3 && story.SharedHarness != nil {
-			diagnostics = append(diagnostics, storyDiagnostic(pointer+"/sharedHarness", "schema_version", "shared harness requires schemaVersion 3"))
-		}
-		if story.SharedHarness != nil {
-			diagnostics = append(diagnostics, validateStoryHarnessRef(pointer+"/sharedHarness", story.SharedHarness)...)
-		}
 		if story.Composition != nil {
-			if contract.SchemaVersion < 4 {
-				diagnostics = append(diagnostics, storyDiagnostic(pointer+"/composition", "schema_version", "story composition requires schemaVersion 4"))
-			}
 			diagnostics = append(diagnostics, validateStoryCompositionShape(pointer+"/composition", story.Composition)...)
-		}
-		if story.Harness != "" && story.SharedHarness != nil {
-			diagnostics = append(diagnostics, storyDiagnostic(pointer, "exclusive_harness", "a story must choose either a local harness or a shared harness, not both"))
-		}
-		if story.Composition != nil && story.Composition.Harness != nil && (story.Harness != "" || story.SharedHarness != nil) {
-			diagnostics = append(diagnostics, storyDiagnostic(pointer+"/composition/harness", "exclusive_harness", "a story must choose one harness reference"))
-		}
-		if contract.SchemaVersion < 3 && story.Frame != nil {
-			diagnostics = append(diagnostics, storyDiagnostic(pointer+"/frame", "schema_version", "frame requires schemaVersion 3"))
-		}
-		if story.Frame != nil {
-			diagnostics = append(diagnostics, validateStoryFrameShape(pointer+"/frame", story.Frame)...)
 		}
 		if story.Geometry != nil {
 			diagnostics = append(diagnostics, validateStoryGeometry(pointer+"/geometry", story.Geometry)...)
-		}
-		if story.Harness != "" && !validHarnessExport(story.Harness) {
-			diagnostics = append(diagnostics, storyDiagnostic(pointer+"/harness", "javascript_identifier", "harness must be a valid named JavaScript export identifier"))
 		}
 		if story.Composition != nil && story.Composition.Specimen != nil && story.Composition.Specimen.Export == "" {
 			diagnostics = append(diagnostics, storyDiagnostic(pointer+"/composition/specimen/export", "required", "specimen export is required"))
@@ -823,16 +642,16 @@ func validateStoryHarnessRef(pointer string, harness *StoryHarnessRef) []StoryDi
 	}
 	var diagnostics []StoryDiagnostic
 	if !validCatalogAssetID(harness.Asset) || !strings.HasPrefix(harness.Asset, "preview.") {
-		diagnostics = append(diagnostics, storyDiagnostic(pointer+"/asset", "shared_harness_asset", "shared harness asset must use the preview.* asset namespace"))
+		diagnostics = append(diagnostics, storyDiagnostic(pointer+"/asset", "composition_harness_asset", "composition harness asset must use the preview.* asset namespace"))
 	}
 	if !validAssetVersion(harness.Version) {
-		diagnostics = append(diagnostics, storyDiagnostic(pointer+"/version", "shared_harness_version", "shared harness version must be a stable semantic version"))
+		diagnostics = append(diagnostics, storyDiagnostic(pointer+"/version", "composition_harness_version", "composition harness version must be a stable semantic version"))
 	}
 	if !validHarnessExport(harness.Export) {
-		diagnostics = append(diagnostics, storyDiagnostic(pointer+"/export", "shared_harness_export", "shared harness export must be a valid named JavaScript export identifier"))
+		diagnostics = append(diagnostics, storyDiagnostic(pointer+"/export", "composition_harness_export", "composition harness export must be a valid named JavaScript export identifier"))
 	}
 	if len(harness.Config) > 0 && !json.Valid(harness.Config) {
-		diagnostics = append(diagnostics, storyDiagnostic(pointer+"/config", "shared_harness_config", "shared harness config must be valid JSON"))
+		diagnostics = append(diagnostics, storyDiagnostic(pointer+"/config", "composition_harness_config", "composition harness config must be valid JSON"))
 	}
 	return diagnostics
 }
@@ -972,10 +791,6 @@ func validHarnessExport(value string) bool {
 
 func storyDiagnostic(pointer, rule, detail string) StoryDiagnostic {
 	return StoryDiagnostic{Pointer: pointer, Rule: rule, Detail: detail, Severity: StoryDiagnosticError}
-}
-
-func storyWarning(pointer, rule, detail string) StoryDiagnostic {
-	return StoryDiagnostic{Pointer: pointer, Rule: rule, Detail: detail, Severity: StoryDiagnosticWarning}
 }
 
 func allowedInteraction(kind string) bool {

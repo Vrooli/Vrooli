@@ -1,55 +1,75 @@
 {
-  "schemaVersion": 3,
-  "kind": "component",
-  "title": "Draggable",
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
   "args": {
     "fields": []
   },
   "environment": {
     "fixtures": []
   },
+  "kind": "component",
+  "schemaVersion": 4,
   "stories": [
     {
-      "id": "default",
-      "name": "Direct manipulation",
-      "harness": "Default",
       "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Default",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
         {
           "kind": "role",
-          "role": "group",
-          "name": "Project brief"
+          "name": "Project brief",
+          "role": "group"
         }
       ],
-      "mode": "live"
+      "id": "default",
+      "mode": "live",
+      "name": "Direct manipulation"
     },
     {
-      "id": "keyboard",
-      "name": "Keyboard alternative",
-      "harness": "Keyboard",
       "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Keyboard",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Project brief",
+          "role": "group"
+        },
+        {
+          "kind": "text",
+          "value": "Space to pick up"
+        }
+      ],
+      "id": "keyboard",
       "interactions": [
         {
           "kind": "key",
           "target": {
-            "role": "group",
-            "name": "Project brief"
+            "name": "Project brief",
+            "role": "group"
           },
           "text": "Space"
         },
         {
           "kind": "key",
           "target": {
-            "role": "group",
-            "name": "Project brief"
+            "name": "Project brief",
+            "role": "group"
           },
           "text": "ArrowRight"
         },
         {
           "kind": "key",
           "target": {
-            "role": "group",
-            "name": "Project brief"
+            "name": "Project brief",
+            "role": "group"
           },
           "text": "Enter"
         },
@@ -57,46 +77,47 @@
           "kind": "settle"
         }
       ],
+      "mode": "live",
+      "name": "Keyboard alternative"
+    },
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Bounds",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
         {
           "kind": "role",
-          "role": "group",
-          "name": "Project brief"
-        },
-        {
-          "kind": "text",
-          "value": "Space to pick up"
+          "name": "Project brief",
+          "role": "group"
         }
       ],
-      "mode": "live"
-    },
-    {
       "id": "bounds",
-      "name": "Constrained movement",
-      "harness": "Bounds",
-      "args": {},
       "interactions": [
         {
           "kind": "key",
           "target": {
-            "role": "group",
-            "name": "Project brief"
+            "name": "Project brief",
+            "role": "group"
           },
           "text": "Space"
         },
         {
           "kind": "key",
           "target": {
-            "role": "group",
-            "name": "Project brief"
+            "name": "Project brief",
+            "role": "group"
           },
           "text": "ArrowRight"
         },
         {
           "kind": "key",
           "target": {
-            "role": "group",
-            "name": "Project brief"
+            "name": "Project brief",
+            "role": "group"
           },
           "text": "Escape"
         },
@@ -104,28 +125,28 @@
           "kind": "settle"
         }
       ],
-      "expect": [
-        {
-          "kind": "role",
-          "role": "group",
-          "name": "Project brief"
-        }
-      ],
-      "mode": "live"
+      "mode": "live",
+      "name": "Constrained movement"
     },
     {
-      "id": "disabled",
-      "name": "Disabled",
-      "harness": "Disabled",
       "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Disabled",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
         {
           "kind": "role",
-          "role": "group",
-          "name": "Project brief"
+          "name": "Project brief",
+          "role": "group"
         }
       ],
-      "mode": "live"
+      "id": "disabled",
+      "mode": "live",
+      "name": "Disabled"
     }
-  ]
+  ],
+  "title": "Draggable"
 }

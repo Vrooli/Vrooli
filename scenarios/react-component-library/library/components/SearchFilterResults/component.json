@@ -1,24 +1,23 @@
 {
-  "libraryId": "react-component-library:SearchFilterResults",
-  "catalogId": "patterns.search-filter-results",
-  "displayName": "SearchFilterResults",
-  "description": "A URL-ready search and filter composition that separates no-match emptiness from loading and error states.",
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "component",
-  "tags": ["pattern", "data-source", "token-bound"],
-  "slot": "ui-pattern",
+  "catalogId": "patterns.search-filter-results",
   "category": "patterns",
-  "dependencies": [
-    { "libraryId": "react-component-library:FilterBar", "version": "1.0.0" },
+  "dependencies": [],
+  "description": "A URL-ready search and filter composition that separates no-match emptiness from loading and error states.",
+  "designStyles": [
     {
-      "libraryId": "react-component-library:SearchResults",
-      "version": "1.0.0"
-    },
-    {
-      "libraryId": "react-component-library:useAbortableTask",
-      "version": "1.0.0"
+      "affinity": "native",
+      "styleId": "vrooli-default"
     }
   ],
+  "displayName": "SearchFilterResults",
   "latest": "1.0.0",
-  "designStyles": [{ "styleId": "vrooli-default", "affinity": "native" }],
-  "dependencies": []
+  "libraryId": "react-component-library:SearchFilterResults",
+  "slot": "ui-pattern",
+  "tags": [
+    "pattern",
+    "data-source",
+    "token-bound"
+  ]
 }

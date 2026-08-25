@@ -5,13 +5,14 @@
   "asset": {
     "id": "ai.task-graph",
     "name": "TaskGraph",
-    "kind": "component", "surface": "raised",
+    "kind": "component",
+    "surface": "raised",
     "domain": "ai",
     "description": "The dependency-oriented task visualization with status, ownership, expansion, selection, filters, and a list-based alternative that is fully equivalent rather than a degraded fallback.",
     "targets": [
       "react-vite"
     ],
-    "slot": "primitive",
+    "slot": "ui-primitive",
     "delivery": "adopted",
     "target": {
       "priority": "P2",

@@ -1,40 +1,41 @@
 {
-  "schemaVersion": 3,
-  "kind": "component",
-  "title": "Separator",
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
   "args": {
     "fields": [
       {
-        "path": "orientation",
-        "label": "Orientation",
-        "kind": "enum",
         "default": "horizontal",
+        "kind": "enum",
+        "label": "Orientation",
         "options": [
           "horizontal",
           "vertical"
-        ]
+        ],
+        "path": "orientation"
       }
     ]
   },
   "environment": {
     "fixtures": []
   },
+  "kind": "component",
+  "schemaVersion": 4,
   "stories": [
     {
-      "id": "orientation-horizontal",
-      "name": "orientation horizontal",
       "args": {
         "orientation": "horizontal"
       },
-      "mode": "pinned"
+      "id": "orientation-horizontal",
+      "mode": "pinned",
+      "name": "orientation horizontal"
     },
     {
-      "id": "orientation-vertical",
-      "name": "orientation vertical",
       "args": {
         "orientation": "vertical"
       },
-      "mode": "pinned"
+      "id": "orientation-vertical",
+      "mode": "pinned",
+      "name": "orientation vertical"
     }
-  ]
+  ],
+  "title": "Separator"
 }

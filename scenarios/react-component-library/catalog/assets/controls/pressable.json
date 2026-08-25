@@ -10,13 +10,14 @@
   "asset": {
     "id": "controls.pressable",
     "name": "Pressable",
-    "kind": "component", "surface": "raised",
+    "kind": "component",
+    "surface": "raised",
     "domain": "controls",
     "description": "The canonical interaction primitive unifying pointer, touch, and keyboard activation with pressed, hovered, focus-visible, selected, disabled, and busy state exposed as stable data attributes.",
     "targets": [
       "react-vite"
     ],
-    "slot": "primitive",
+    "slot": "ui-primitive",
     "delivery": "adopted",
     "target": {
       "priority": "P0",

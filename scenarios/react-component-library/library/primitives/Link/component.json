@@ -1,15 +1,28 @@
 {
-  "libraryId": "react-component-library:Link",
-  "catalogId": "primitives.link",
-  "displayName": "Link",
-  "description": "Link is the accessible navigation primitive with a stable semantic hook.",
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "primitive",
-  "tags": ["primitive", "token-bound"],
-  "latest": "1.0.0",
+  "catalogId": "primitives.link",
+  "dependencies": [],
+  "description": "Link is the accessible navigation primitive with a stable semantic hook.",
   "designStyles": [
-    { "styleId": "vrooli-default", "affinity": "native" },
-    { "styleId": "vrooli-command-display", "affinity": "compatible" },
-    { "styleId": "vrooli-conversion-landing", "affinity": "compatible" }
+    {
+      "affinity": "native",
+      "styleId": "vrooli-default"
+    },
+    {
+      "affinity": "compatible",
+      "styleId": "vrooli-command-display"
+    },
+    {
+      "affinity": "compatible",
+      "styleId": "vrooli-conversion-landing"
+    }
   ],
-  "dependencies": []
+  "displayName": "Link",
+  "latest": "1.0.0",
+  "libraryId": "react-component-library:Link",
+  "tags": [
+    "primitive",
+    "token-bound"
+  ]
 }

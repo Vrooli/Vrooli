@@ -1,24 +1,22 @@
 {
-  "schemaVersion": 3,
-  "kind": "component",
-  "title": "Inline Code",
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
   "args": {
     "fields": [
       {
-        "path": "children",
-        "label": "Token",
+        "default": "initiative:ship",
         "kind": "text",
-        "default": "initiative:ship"
+        "label": "Token",
+        "path": "children"
       }
     ]
   },
   "environment": {
     "fixtures": []
   },
+  "kind": "component",
+  "schemaVersion": 4,
   "stories": [
     {
-      "id": "unresolved-token",
-      "name": "Unresolved token remains code",
       "args": {
         "children": "initiative:ship"
       },
@@ -28,7 +26,10 @@
           "value": "initiative:ship"
         }
       ],
-      "mode": "pinned"
+      "id": "unresolved-token",
+      "mode": "pinned",
+      "name": "Unresolved token remains code"
     }
-  ]
+  ],
+  "title": "Inline Code"
 }

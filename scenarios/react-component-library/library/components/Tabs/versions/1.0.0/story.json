@@ -1,24 +1,27 @@
 {
-  "schemaVersion": 3,
-  "kind": "component",
-  "title": "Tabs",
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
   "args": {
     "fields": []
   },
   "environment": {
     "fixtures": []
   },
+  "kind": "component",
+  "schemaVersion": 4,
   "stories": [
     {
-      "id": "default",
-      "name": "Default",
-      "harness": "Default",
       "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Default",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
         {
           "kind": "role",
-          "role": "tablist",
-          "name": "Workspace sections"
+          "name": "Workspace sections",
+          "role": "tablist"
         },
         {
           "kind": "role",
@@ -33,42 +36,50 @@
           "value": "Recent activity appears here."
         }
       ],
+      "id": "default",
       "interactions": [
         {
           "kind": "click",
           "target": {
-            "role": "tab",
-            "name": "Activity"
+            "name": "Activity",
+            "role": "tab"
           }
         },
         {
           "kind": "settle"
         }
       ],
-      "mode": "live"
+      "mode": "live",
+      "name": "Default"
     },
     {
-      "id": "long-content",
-      "name": "Long content",
-      "harness": "LongContent",
       "args": {},
+      "composition": {
+        "specimen": {
+          "export": "LongContent",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
         {
           "kind": "role",
-          "role": "tab",
-          "name": "Preferences"
+          "name": "Preferences",
+          "role": "tab"
         },
         {
           "kind": "role",
           "role": "tabpanel"
         }
       ],
+      "id": "long-content",
       "interactions": [
         {
           "kind": "settle"
         }
       ],
-      "mode": "live"
+      "mode": "live",
+      "name": "Long content"
     }
-  ]
+  ],
+  "title": "Tabs"
 }

@@ -1,13 +1,25 @@
 {
-  "libraryId": "react-component-library:WorkspaceHeader",
-  "x-supplementalJustification": "Pre-catalog workspace chrome retained as a supplemental composition pending the navigation vocabulary decision.",
-  "displayName": "Workspace Header",
-  "description": "A responsive page header with navigation, context, and action slots for operational workspaces.",
-  "tags": ["layout", "header", "workspace", "navigation"],
-  "slot": "layout-nav",
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "category": "navigation",
-  "designStyles": [{ "styleId": "vrooli-default", "affinity": "native" }],
-  "latest": "1.0.0",
+  "dependencies": [
+    {
+      "libraryId": "react-component-library:ClassMerge",
+      "version": "1.0.0"
+    }
+  ],
+  "deprecatedVersions": [],
+  "description": "A responsive page header with navigation, context, and action slots for operational workspaces.",
+  "designStyles": [
+    {
+      "affinity": "native",
+      "styleId": "vrooli-default"
+    }
+  ],
+  "displayName": "Workspace Header",
   "draft": "",
-  "deprecatedVersions": []
+  "latest": "1.0.0",
+  "libraryId": "react-component-library:WorkspaceHeader",
+  "slot": "layout-nav",
+  "tags": ["layout", "header", "workspace", "navigation"],
+  "x-supplementalJustification": "Pre-catalog workspace chrome retained as a supplemental composition pending the navigation vocabulary decision."
 }

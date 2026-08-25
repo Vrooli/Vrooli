@@ -1,21 +1,45 @@
 {
-  "libraryId": "react-component-library:AutoAnimateLayout",
-  "catalogId": "motion.auto-animate-layout",
-  "displayName": "AutoAnimateLayout",
-  "description": "A keyed FLIP layout boundary that animates displacement without tweening layout properties.",
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "component",
-  "tags": ["motion", "layout", "reduced-motion", "token-bound"],
-  "latest": "1.0.0",
-  "designStyles": [
-    { "styleId": "vrooli-default", "affinity": "native" },
-    { "styleId": "vrooli-command-display", "affinity": "compatible" },
-    { "styleId": "vrooli-conversion-landing", "affinity": "compatible" }
-  ],
+  "catalogId": "motion.auto-animate-layout",
   "dependencies": [
     {
       "libraryId": "react-component-library:useReducedMotion",
       "version": "1.0.0"
     },
-    { "libraryId": "react-component-library:LayoutGroup", "version": "1.0.0" }
+    {
+      "libraryId": "react-component-library:LayoutGroup",
+      "version": "1.0.0"
+    }
+  ],
+  "description": "A keyed FLIP layout boundary that animates displacement without tweening layout properties.",
+  "designStyles": [
+    {
+      "affinity": "native",
+      "styleId": "vrooli-default"
+    },
+    {
+      "affinity": "compatible",
+      "styleId": "vrooli-command-display"
+    },
+    {
+      "affinity": "compatible",
+      "styleId": "vrooli-conversion-landing"
+    }
+  ],
+  "displayName": "AutoAnimateLayout",
+  "latest": "1.0.0",
+  "libraryId": "react-component-library:AutoAnimateLayout",
+  "tags": [
+    "motion",
+    "layout",
+    "reduced-motion",
+    "token-bound"
+  ],
+  "requires": [
+    {
+      "libraryId": "react-component-library:useLocale",
+      "version": "1.0.0"
+    }
   ]
 }

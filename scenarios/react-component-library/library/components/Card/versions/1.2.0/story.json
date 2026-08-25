@@ -1,67 +1,118 @@
 {
-  "schemaVersion": 4,
-  "kind": "component",
-  "title": "Card",
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
   "args": {
-    "fields": [
-      {
-        "path": "className",
-        "label": "Class Name",
-        "kind": "text",
-        "default": "max-w-sm"
-      }
-    ]
+    "fields": []
   },
   "environment": {
     "fixtures": []
   },
+  "kind": "component",
+  "schemaVersion": 4,
   "stories": [
     {
-      "id": "metric-card",
-      "name": "Metric card with semantic content",
-      "composition": { "specimen": { "module": "./story.tsx", "export": "MetricCard" } },
       "args": {},
-      "expect": [{ "kind": "count", "selector": "[data-rcl-card-metric]", "value": "1" }],
-      "interactions": [{ "kind": "settle" }],
+      "composition": {
+        "specimen": {
+          "export": "MetricCard",
+          "module": "./story.tsx"
+        }
+      },
+      "evidence": {
+        "reviewSet": "card-core",
+        "states": [
+          "ready",
+          "semantic-status"
+        ]
+      },
+      "expect": [
+        {
+          "kind": "count",
+          "selector": "[data-rcl-card-metric]",
+          "value": "1"
+        }
+      ],
+      "id": "metric-card",
+      "interactions": [
+        {
+          "kind": "settle"
+        }
+      ],
       "mode": "live",
-      "evidence": { "reviewSet": "card-core", "states": ["ready", "semantic-status"] }
+      "name": "Metric card with semantic content"
     },
     {
-      "id": "empty-tool",
-      "name": "Empty card state",
-      "composition": { "specimen": { "module": "./story.tsx", "export": "EmptyStateCard" } },
-      "args": { "className": "max-w-sm" },
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "EmptyStateCard",
+          "module": "./story.tsx"
+        }
+      },
+      "evidence": {
+        "reviewSet": "card-empty",
+        "states": [
+          "empty"
+        ]
+      },
       "expect": [
         {
           "kind": "text",
           "value": "No drift detected"
         }
       ],
+      "id": "empty-tool",
       "mode": "live",
-      "evidence": { "reviewSet": "card-empty", "states": ["empty"] }
+      "name": "Empty card state"
     },
     {
-      "id": "long-content",
-      "name": "Long content wraps cleanly",
-      "composition": { "specimen": { "module": "./story.tsx", "export": "LongContentCard" } },
       "args": {},
+      "composition": {
+        "specimen": {
+          "export": "LongContentCard",
+          "module": "./story.tsx"
+        }
+      },
+      "evidence": {
+        "reviewSet": "card-long-content",
+        "states": [
+          "long-content",
+          "wrap"
+        ]
+      },
       "expect": [
         {
           "kind": "text",
           "value": "Review and apply all pending workspace configuration changes"
         }
       ],
+      "id": "long-content",
       "mode": "live",
-      "evidence": { "reviewSet": "card-long-content", "states": ["long-content", "wrap"] }
+      "name": "Long content wraps cleanly"
     },
     {
-      "id": "card-grid-raised",
-      "name": "Card inside raised grid context",
-      "composition": { "specimen": { "module": "./story.tsx", "export": "CardGrid" } },
       "args": {},
-      "expect": [{ "kind": "text", "value": "Adoption health" }],
+      "composition": {
+        "specimen": {
+          "export": "CardGrid",
+          "module": "./story.tsx"
+        }
+      },
+      "evidence": {
+        "reviewSet": "card-context",
+        "states": [
+          "raised-grid"
+        ]
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "Adoption health"
+        }
+      ],
+      "id": "card-grid-raised",
       "mode": "live",
-      "evidence": { "reviewSet": "card-context", "states": ["raised-grid"] }
+      "name": "Card inside raised grid context"
     }
-  ]
+  ],
+  "title": "Card"
 }

@@ -1,46 +1,47 @@
 {
-  "schemaVersion": 3,
-  "kind": "component",
-  "title": "CopyableText",
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
   "args": {
     "fields": [
       {
-        "path": "value",
+        "default": "component-id",
         "kind": "text",
-        "default": "component-id"
+        "path": "value"
       }
     ]
   },
   "environment": {
     "fixtures": []
   },
+  "kind": "component",
+  "schemaVersion": 4,
   "stories": [
     {
-      "id": "ready",
-      "name": "Ready",
       "args": {
         "value": "component-id"
       },
       "expect": [
         {
           "kind": "role",
-          "role": "button",
-          "name": "Copy text"
+          "name": "Copy text",
+          "role": "button"
         }
       ],
+      "id": "ready",
       "interactions": [
         {
           "kind": "click",
           "target": {
-            "role": "button",
-            "name": "Copy text"
+            "name": "Copy text",
+            "role": "button"
           }
         },
         {
           "kind": "settle"
         }
       ],
-      "mode": "pinned"
+      "mode": "pinned",
+      "name": "Ready"
     }
-  ]
+  ],
+  "title": "CopyableText"
 }

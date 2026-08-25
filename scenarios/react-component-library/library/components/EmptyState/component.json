@@ -1,13 +1,6 @@
 {
-  "libraryId": "react-component-library:EmptyState",
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "catalogId": "feedback.empty-state",
-  "displayName": "Empty State",
-  "description": "Compact empty-state panel with icon, copy, and optional action slots.",
-  "tags": [
-    "feedback",
-    "surface"
-  ],
-  "slot": "ui-pattern",
   "category": "feedback",
   "dependencies": [
     {
@@ -37,26 +30,45 @@
     {
       "libraryId": "react-component-library:Text",
       "version": "1.1.0"
-    }
-  ],
-  "designStyles": [
-    {
-      "styleId": "vrooli-default",
-      "affinity": "native"
     },
     {
-      "styleId": "vrooli-command-display",
-      "affinity": "compatible"
-    },
-    {
-      "styleId": "vrooli-conversion-landing",
-      "affinity": "compatible"
+      "kind": "requires",
+      "libraryId": "react-component-library:ClassMerge",
+      "version": "1.0.0"
     }
   ],
-  "latest": "1.7.4",
-  "draft": "",
   "deprecatedVersions": [
     "1.4.0",
     "1.5.0"
+  ],
+  "description": "Compact empty-state panel with icon, copy, and optional action slots.",
+  "designStyles": [
+    {
+      "affinity": "native",
+      "styleId": "vrooli-default"
+    },
+    {
+      "affinity": "compatible",
+      "styleId": "vrooli-command-display"
+    },
+    {
+      "affinity": "compatible",
+      "styleId": "vrooli-conversion-landing"
+    }
+  ],
+  "displayName": "Empty State",
+  "draft": "",
+  "latest": "1.7.4",
+  "libraryId": "react-component-library:EmptyState",
+  "slot": "ui-pattern",
+  "tags": [
+    "feedback",
+    "surface"
+  ],
+  "requires": [
+    {
+      "libraryId": "react-component-library:useLocale",
+      "version": "1.0.0"
+    }
   ]
 }

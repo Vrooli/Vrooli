@@ -5,13 +5,14 @@
   "asset": {
     "id": "primitives.status-indicator",
     "name": "StatusIndicator",
-    "kind": "component", "surface": "raised",
+    "kind": "component",
+    "surface": "raised",
     "domain": "primitives",
     "description": "The compact status component combining icon, text, shape, and animation policy to express certainty and urgency independently rather than as one flat variant set.",
     "targets": [
       "react-vite"
     ],
-    "slot": "primitive",
+    "slot": "ui-primitive",
     "delivery": "adopted",
     "target": {
       "priority": "P0",

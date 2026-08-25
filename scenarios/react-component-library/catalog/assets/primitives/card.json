@@ -9,8 +9,10 @@
     "surface": "raised",
     "domain": "primitives",
     "description": "The structured surface for a genuinely framed object, with header, body, footer, and media regions plus optional selection, press, and loading behavior.",
-    "targets": ["react-vite"],
-    "slot": "primitive",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "ui-primitive",
     "delivery": "adopted",
     "target": {
       "priority": "P0",
@@ -29,6 +31,10 @@
       {
         "asset": "primitives.surface",
         "reason": "A card is a surface with structure; it must not redefine elevation."
+      },
+      {
+        "asset": "foundations.class-merge",
+        "reason": "All class composition uses the shared Tailwind conflict resolver."
       }
     ],
     "suggests": [
@@ -49,11 +55,22 @@
     "dark-parity"
   ],
   "api": {
-    "levels": ["compound", "convenience"],
-    "parts": ["header", "media", "body", "footer"]
+    "levels": [
+      "compound",
+      "convenience"
+    ],
+    "parts": [
+      "header",
+      "media",
+      "body",
+      "footer"
+    ]
   },
   "beauty": {
-    "avoid": ["uniform-card-grid", "card-wrapping-page-sections"]
+    "avoid": [
+      "uniform-card-grid",
+      "card-wrapping-page-sections"
+    ]
   },
   "rationale": "The most over-used asset in any library and the one most responsible for surfaces that look generic. Its catalog entry carries the restraint constraint explicitly so the default is not to reach for it."
 }

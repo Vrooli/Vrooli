@@ -5,13 +5,14 @@
   "asset": {
     "id": "ai.generation-controls",
     "name": "GenerationControls",
-    "kind": "component", "surface": "raised",
+    "kind": "component",
+    "surface": "raised",
     "domain": "ai",
     "description": "The coordinated control set for stop, continue, retry, regenerate, branch, edit, and resume, with accurate availability and honest pending state for each.",
     "targets": [
       "react-vite"
     ],
-    "slot": "primitive",
+    "slot": "ui-primitive",
     "delivery": "adopted",
     "target": {
       "priority": "P0",

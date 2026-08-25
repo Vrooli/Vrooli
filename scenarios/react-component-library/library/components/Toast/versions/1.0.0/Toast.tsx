@@ -1,4 +1,6 @@
 /** @vrooliComponentSource feedback.toast */
+import { translate } from "../../../../hooks/useLocale/versions/1.0.0/useLocale";
+
 import type { CSSProperties } from "react";
 import { Presence } from "../../../../primitives/Presence/versions/1.0.0/Presence";
 import { Surface } from "../../../../primitives/Surface/versions/1.0.0/Surface";
@@ -63,7 +65,7 @@ function ToastItem({
           <span data-rcl-toast-title>{toast.title}</span>
           {toast.message && <span data-rcl-toast-message>{toast.message}</span>}
           {toast.action && (
-            <button
+            <button data-testid="feedback.toast"
               data-rcl-toast-action
               type="button"
               onClick={toast.action.onSelect}
@@ -73,10 +75,10 @@ function ToastItem({
           )}
         </div>
         {toast.dismissible !== false && (
-          <button
+          <button data-testid="feedback.toast"
             data-rcl-toast-close
             type="button"
-            aria-label="Dismiss notification"
+            aria-label={translate("feedback.toast.aria-label.1", "Dismiss notification")}
             onClick={onDismiss}
           >
             ×
@@ -89,7 +91,7 @@ function ToastItem({
 
 export function Toast({
   className,
-  label = "Notifications",
+  label = translate("feedback.toast.label.2", "Notifications"),
   style,
 }: ToastProps) {
   const manager = useToastManager();

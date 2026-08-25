@@ -5,13 +5,14 @@
   "asset": {
     "id": "primitives.avatar",
     "name": "Avatar",
-    "kind": "component", "surface": "raised",
+    "kind": "component",
+    "surface": "raised",
     "domain": "primitives",
     "description": "The identity visual with progressive image loading, deterministic fallback, presence and status treatment, shape options, group behavior, and accessible naming.",
     "targets": [
       "react-vite"
     ],
-    "slot": "primitive",
+    "slot": "ui-primitive",
     "delivery": "adopted",
     "target": {
       "priority": "P1",
@@ -27,6 +28,10 @@
       {
         "asset": "primitives.text",
         "reason": "The initials fallback is a text style, not bespoke typography."
+      },
+      {
+        "asset": "hooks.use-locale",
+        "reason": "User-facing copy resolves through the adopting host locale bridge."
       }
     ]
   },

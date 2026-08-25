@@ -1,11 +1,68 @@
 {
-  "schemaVersion": 3,
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
+  "args": {
+    "fields": []
+  },
+  "environment": {
+    "fixtures": []
+  },
   "kind": "component",
-  "title": "EvidenceCarousel",
-  "args": { "fields": [] },
-  "environment": { "fixtures": [] },
+  "schemaVersion": 4,
   "stories": [
-    { "id": "default", "name": "Default", "harness": "EvidenceCarouselStory", "args": { "items": [{ "id": "shot", "kind": "Screenshot", "status": "available", "reference": "capture-01" }, { "id": "ax", "kind": "AX tree", "status": "missing" }] }, "expect": [{ "kind": "text", "value": "Screenshot" }], "mode": "pinned" },
-    { "id": "empty", "name": "Empty", "harness": "EvidenceCarouselStory", "args": { "items": [] }, "expect": [{ "kind": "text", "value": "No evidence captured." }], "mode": "pinned" }
-  ]
+    {
+      "args": {
+        "items": [
+          {
+            "id": "shot",
+            "kind": "Screenshot",
+            "reference": "capture-01",
+            "status": "available"
+          },
+          {
+            "id": "ax",
+            "kind": "AX tree",
+            "status": "missing"
+          }
+        ]
+      },
+      "composition": {
+        "harness": {
+          "asset": "preview.direct",
+          "version": "1.0.0",
+          "export": "Direct"
+        }
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "Screenshot"
+        }
+      ],
+      "id": "default",
+      "mode": "pinned",
+      "name": "Default"
+    },
+    {
+      "args": {
+        "items": []
+      },
+      "composition": {
+        "harness": {
+          "asset": "preview.direct",
+          "version": "1.0.0",
+          "export": "Direct"
+        }
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "No evidence captured."
+        }
+      ],
+      "id": "empty",
+      "mode": "pinned",
+      "name": "Empty"
+    }
+  ],
+  "title": "EvidenceCarousel"
 }

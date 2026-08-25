@@ -1,71 +1,87 @@
 {
-  "schemaVersion": 3,
-  "kind": "component",
-  "title": "FormActions",
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
   "args": {
     "fields": []
   },
   "environment": {
     "fixtures": []
   },
+  "kind": "component",
+  "schemaVersion": 4,
   "stories": [
     {
-      "id": "default",
-      "name": "Default actions",
-      "harness": "Default",
       "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Default",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
         {
           "kind": "role",
-          "role": "button",
-          "name": "Save changes"
+          "name": "Save changes",
+          "role": "button"
         },
         {
           "kind": "role",
-          "role": "button",
-          "name": "Reset"
+          "name": "Reset",
+          "role": "button"
         }
       ],
-      "mode": "live"
+      "id": "default",
+      "mode": "live",
+      "name": "Default actions"
     },
     {
-      "id": "pending",
-      "name": "Pending actions",
-      "harness": "Pending",
       "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Pending",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
         {
           "kind": "role",
-          "role": "button",
-          "name": "Saving…"
+          "name": "Saving…",
+          "role": "button"
         },
         {
+          "attribute": "disabled",
           "kind": "attribute",
           "selector": "[data-rcl-form-action=submit]",
-          "attribute": "disabled",
           "value": ""
         }
       ],
-      "mode": "live"
+      "id": "pending",
+      "mode": "live",
+      "name": "Pending actions"
     },
     {
-      "id": "compact",
-      "name": "Compact actions",
-      "harness": "Compact",
       "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Compact",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
         {
           "kind": "role",
-          "role": "button",
-          "name": "Continue"
+          "name": "Continue",
+          "role": "button"
         },
         {
           "kind": "role",
-          "role": "button",
-          "name": "Back"
+          "name": "Back",
+          "role": "button"
         }
       ],
-      "mode": "live"
+      "id": "compact",
+      "mode": "live",
+      "name": "Compact actions"
     }
-  ]
+  ],
+  "title": "FormActions"
 }

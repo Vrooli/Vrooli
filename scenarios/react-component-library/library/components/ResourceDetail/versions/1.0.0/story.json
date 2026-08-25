@@ -1,24 +1,27 @@
 {
-  "schemaVersion": 3,
-  "kind": "component",
-  "title": "ResourceDetail",
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
   "args": {
     "fields": []
   },
   "environment": {
     "fixtures": []
   },
+  "kind": "component",
+  "schemaVersion": 4,
   "stories": [
     {
-      "id": "default",
-      "name": "Resource detail",
-      "harness": "Default",
       "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Default",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
         {
           "kind": "role",
-          "role": "heading",
-          "name": "Release brief"
+          "name": "Release brief",
+          "role": "heading"
         },
         {
           "kind": "text",
@@ -26,17 +29,22 @@
         },
         {
           "kind": "role",
-          "role": "list",
-          "name": "Audit trail"
+          "name": "Audit trail",
+          "role": "list"
         }
       ],
-      "mode": "live"
+      "id": "default",
+      "mode": "live",
+      "name": "Resource detail"
     },
     {
-      "id": "refreshing",
-      "name": "Refreshing",
-      "harness": "Refreshing",
       "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Refreshing",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
         {
           "kind": "text",
@@ -47,13 +55,18 @@
           "value": "Release brief"
         }
       ],
-      "mode": "live"
+      "id": "refreshing",
+      "mode": "live",
+      "name": "Refreshing"
     },
     {
-      "id": "partial",
-      "name": "Partial data",
-      "harness": "Partial",
       "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Partial",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
         {
           "kind": "text",
@@ -64,51 +77,69 @@
           "value": "Platform operations"
         }
       ],
-      "mode": "live"
+      "id": "partial",
+      "mode": "live",
+      "name": "Partial data"
     },
     {
-      "id": "empty",
-      "name": "Empty",
-      "harness": "Empty",
       "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Empty",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
         {
           "kind": "text",
           "value": "no detail to show"
         }
       ],
-      "mode": "live"
+      "id": "empty",
+      "mode": "live",
+      "name": "Empty"
     },
     {
-      "id": "request-error",
-      "name": "Request error",
-      "harness": "RequestError",
       "args": {},
+      "composition": {
+        "specimen": {
+          "export": "RequestError",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
         {
           "kind": "role",
-          "role": "button",
-          "name": "Try again"
+          "name": "Try again",
+          "role": "button"
         },
         {
           "kind": "text",
           "value": "could not be refreshed"
         }
       ],
-      "mode": "live"
+      "id": "request-error",
+      "mode": "live",
+      "name": "Request error"
     },
     {
-      "id": "permission-denied",
-      "name": "Permission denied",
-      "harness": "PermissionDenied",
       "args": {},
+      "composition": {
+        "specimen": {
+          "export": "PermissionDenied",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
         {
           "kind": "text",
           "value": "do not have permission"
         }
       ],
-      "mode": "live"
+      "id": "permission-denied",
+      "mode": "live",
+      "name": "Permission denied"
     }
-  ]
+  ],
+  "title": "ResourceDetail"
 }

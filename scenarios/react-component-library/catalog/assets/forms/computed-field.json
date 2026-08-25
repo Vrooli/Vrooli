@@ -5,13 +5,14 @@
   "asset": {
     "id": "forms.computed-field",
     "name": "ComputedField",
-    "kind": "component", "surface": "raised",
+    "kind": "component",
+    "surface": "raised",
     "domain": "forms",
     "description": "The read-only or overridable field whose value derives from other values through the dependency graph, recalculating only the affected nodes rather than the whole form.",
     "targets": [
       "react-vite"
     ],
-    "slot": "primitive",
+    "slot": "ui-primitive",
     "delivery": "adopted",
     "target": {
       "priority": "P1",

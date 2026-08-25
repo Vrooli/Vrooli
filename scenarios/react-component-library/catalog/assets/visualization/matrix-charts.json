@@ -5,13 +5,14 @@
   "asset": {
     "id": "visualization.matrix-charts",
     "name": "MatrixCharts",
-    "kind": "component", "surface": "raised",
+    "kind": "component",
+    "surface": "raised",
     "domain": "visualization",
     "description": "The heatmap and calendar-heatmap family with colour scales, legends, selection, tooltips, explicit missing-value treatment, and keyboard summaries.",
     "targets": [
       "react-vite"
     ],
-    "slot": "primitive",
+    "slot": "ui-primitive",
     "delivery": "adopted",
     "target": {
       "priority": "P1",

@@ -103,6 +103,11 @@ a migration handoff with a planned retirement path back into
 
 ## Work ladder
 
+- Rung: W3 (scenario suite remains baseline-red while the v4 plan surfaces are green)
+- Evidence: W0 comparison passes for the named design-language-foundation and react-component-library-adoption-integrity goals; business-health and requirements validation both pass. The governed run `20260825-030615-63ca5e63` passes 22/24 phases, including `ui-health` and `component-tests`, while `workflow` retains expected-element failures and `experience` retains capture/binding failures.
+- Blocker: No plan-specific implementation blocker identified; the remaining failures are inherited scenario-suite findings and must remain separated from the plan’s baseline-regression criterion.
+- Measured: 2026-08-25.
+
 - Rung: W3 (exploratory feature hardening — Button 2.2.0 and Preview-grid slices)
 - Evidence: On 2026-08-18 Button 2.2.0 was released and indexed with a governed `Icon` path, retained custom-icon compatibility, and corrected decorative-icon semantics. Its first live preview exposed the API stamp scanner treating `forwardRef<HTMLButtonElement, ButtonProps>` as JSX and injecting attributes into the type arguments. A shared `forwardRef` regression fixture passes in both the Go preview transformer and the Vite transformer. On 2026-08-19 the Preview canvas gained case-specific drag grips, keyboard reordering, live case dimensions, and a dedicated focus action. Follow-up operator testing showed card-only drop listeners lost events over iframe content and grid whitespace; canvas-level hit testing plus temporary iframe drag shields now accept the full canvas, render explicit insertion edges, and use the whole card as the drag image. The focused comparison/canvas interaction test and `tsc --noEmit` pass.
 - Follow-up evidence: On 2026-08-19 `EmptyState@1.3.0` was published through the focused authoring flow. Its panel now composes `Card@1.1.0`, its primary action composes `Button@2.2.0`, and the story no longer supplies a raw button fixture. The component-scoped source/dependency/story/preview check passed and the live harness returned HTTP 200. A publish-cleanup defect found during this slice was fixed and covered by a focused test; superseded draft directories are removed only after the replacement release indexes successfully.

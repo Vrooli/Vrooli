@@ -1,15 +1,34 @@
 {
-  "libraryId": "react-component-library:ScrollArea",
-  "catalogId": "primitives.scroll-area",
-  "displayName": "ScrollArea",
-  "description": "ScrollArea provides a keyboard-reachable overflow boundary.",
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "primitive",
-  "tags": ["primitive", "token-bound"],
-  "latest": "1.0.0",
+  "catalogId": "primitives.scroll-area",
+  "dependencies": [],
+  "description": "ScrollArea provides a keyboard-reachable overflow boundary.",
   "designStyles": [
-    { "styleId": "vrooli-default", "affinity": "native" },
-    { "styleId": "vrooli-command-display", "affinity": "compatible" },
-    { "styleId": "vrooli-conversion-landing", "affinity": "compatible" }
+    {
+      "affinity": "native",
+      "styleId": "vrooli-default"
+    },
+    {
+      "affinity": "compatible",
+      "styleId": "vrooli-command-display"
+    },
+    {
+      "affinity": "compatible",
+      "styleId": "vrooli-conversion-landing"
+    }
   ],
-  "dependencies": []
+  "displayName": "ScrollArea",
+  "latest": "1.0.0",
+  "libraryId": "react-component-library:ScrollArea",
+  "tags": [
+    "primitive",
+    "token-bound"
+  ],
+  "requires": [
+    {
+      "libraryId": "react-component-library:useLocale",
+      "version": "1.0.0"
+    }
+  ]
 }

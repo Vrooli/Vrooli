@@ -10,13 +10,14 @@
   "asset": {
     "id": "primitives.code",
     "name": "Code",
-    "kind": "primitive", "surface": "base",
+    "kind": "primitive",
+    "surface": "base",
     "domain": "primitives",
     "description": "The code-text primitive for inline and block snippets with preserved whitespace, overflow affordances, language metadata, and optional lazily loaded highlighting.",
     "targets": [
       "react-vite"
     ],
-    "slot": "primitive",
+    "slot": "ui-primitive",
     "delivery": "adopted",
     "target": {
       "priority": "P1",

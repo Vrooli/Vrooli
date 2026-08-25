@@ -10,13 +10,14 @@
   "asset": {
     "id": "primitives.surface",
     "name": "Surface",
-    "kind": "primitive", "surface": "base",
+    "kind": "primitive",
+    "surface": "base",
     "domain": "primitives",
     "description": "The canonical background and elevation primitive for panels, menus, overlays, and grouped content, pairing surface colour, border, and shadow as one elevation token.",
     "targets": [
       "react-vite"
     ],
-    "slot": "primitive",
+    "slot": "ui-primitive",
     "delivery": "adopted",
     "target": {
       "priority": "P0",

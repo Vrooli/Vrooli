@@ -1,24 +1,27 @@
 {
-  "schemaVersion": 3,
-  "kind": "component",
-  "title": "GeneratedForm",
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
   "args": {
     "fields": []
   },
   "environment": {
     "fixtures": []
   },
+  "kind": "component",
+  "schemaVersion": 4,
   "stories": [
     {
-      "id": "default",
-      "name": "Generated settings",
-      "harness": "Default",
       "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Default",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
         {
           "kind": "role",
-          "role": "form",
-          "name": "Workspace settings"
+          "name": "Workspace settings",
+          "role": "form"
         },
         {
           "kind": "text",
@@ -26,29 +29,22 @@
         },
         {
           "kind": "role",
-          "role": "button",
-          "name": "Save changes"
+          "name": "Save changes",
+          "role": "button"
         }
       ],
-      "mode": "live"
+      "id": "default",
+      "mode": "live",
+      "name": "Generated settings"
     },
     {
-      "id": "validation",
-      "name": "Generated recovery",
-      "harness": "Validation",
-      "interactions": [
-        {
-          "kind": "click",
-          "target": {
-            "role": "button",
-            "name": "Save changes"
-          }
-        },
-        {
-          "kind": "settle"
-        }
-      ],
       "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Validation",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
         {
           "kind": "role",
@@ -59,7 +55,22 @@
           "value": "Billing email"
         }
       ],
-      "mode": "live"
+      "id": "validation",
+      "interactions": [
+        {
+          "kind": "click",
+          "target": {
+            "name": "Save changes",
+            "role": "button"
+          }
+        },
+        {
+          "kind": "settle"
+        }
+      ],
+      "mode": "live",
+      "name": "Generated recovery"
     }
-  ]
+  ],
+  "title": "GeneratedForm"
 }

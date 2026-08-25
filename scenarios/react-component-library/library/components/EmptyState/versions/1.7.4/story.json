@@ -1,51 +1,51 @@
 {
-  "schemaVersion": 3,
-  "kind": "component",
-  "title": "EmptyState",
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
   "args": {
     "fields": [
       {
-        "path": "title",
+        "default": "No components indexed",
+        "kind": "text",
         "label": "Title",
-        "kind": "text",
-        "default": "No components indexed"
+        "path": "title"
       },
       {
-        "path": "description",
+        "default": "Run the indexer to discover catalog source.",
+        "kind": "text",
         "label": "Description",
-        "kind": "text",
-        "default": "Run the indexer to discover catalog source."
+        "path": "description"
       },
       {
-        "path": "icon",
-        "label": "Icon",
-        "kind": "structured",
         "default": {
           "$icon": "PackageSearch"
-        }
+        },
+        "kind": "structured",
+        "label": "Icon",
+        "path": "icon"
       },
       {
-        "path": "actionLabel",
-        "label": "Action label",
+        "default": {
+          "$text": "Create adoption"
+        },
+        "format": "renderable-text",
         "kind": "structured",
-        "default": { "$text": "Create adoption" },
-        "format": "renderable-text"
+        "label": "Action label",
+        "path": "actionLabel"
       }
     ]
   },
   "environment": {
     "fixtures": []
   },
+  "kind": "component",
+  "schemaVersion": 4,
   "stories": [
     {
-      "id": "no-components",
-      "name": "No Components",
       "args": {
-        "title": "No components indexed",
         "description": "Run the indexer to discover catalog source.",
         "icon": {
           "$icon": "PackageSearch"
-        }
+        },
+        "title": "No components indexed"
       },
       "expect": [
         {
@@ -58,28 +58,30 @@
         },
         {
           "kind": "layout",
-          "selector": "[data-rcl-empty-state]",
-          "noOverflow": true
+          "noOverflow": true,
+          "selector": "[data-rcl-empty-state]"
         }
       ],
-      "mode": "pinned"
+      "id": "no-components",
+      "mode": "pinned",
+      "name": "No Components"
     },
     {
-      "id": "with-action",
-      "name": "With Action",
       "args": {
-        "title": "No adoptions yet",
+        "actionLabel": {
+          "$text": "Create adoption"
+        },
         "description": "Record a scenario adoption to track drift.",
         "icon": {
           "$icon": "GitBranch"
         },
-        "actionLabel": { "$text": "Create adoption" }
+        "title": "No adoptions yet"
       },
       "expect": [
         {
           "kind": "role",
-          "role": "button",
-          "name": "Create adoption"
+          "name": "Create adoption",
+          "role": "button"
         },
         {
           "kind": "text",
@@ -87,15 +89,15 @@
         },
         {
           "kind": "layout",
-          "selector": "[data-rcl-empty-state]",
-          "noOverflow": true
+          "noOverflow": true,
+          "selector": "[data-rcl-empty-state]"
         }
       ],
-      "mode": "pinned"
+      "id": "with-action",
+      "mode": "pinned",
+      "name": "With Action"
     },
     {
-      "id": "compact",
-      "name": "Compact",
       "args": {
         "title": "Nothing to review"
       },
@@ -106,11 +108,14 @@
         },
         {
           "kind": "layout",
-          "selector": "[data-rcl-empty-state]",
-          "noOverflow": true
+          "noOverflow": true,
+          "selector": "[data-rcl-empty-state]"
         }
       ],
-      "mode": "pinned"
+      "id": "compact",
+      "mode": "pinned",
+      "name": "Compact"
     }
-  ]
+  ],
+  "title": "EmptyState"
 }

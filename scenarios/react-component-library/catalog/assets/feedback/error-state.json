@@ -10,13 +10,14 @@
   "asset": {
     "id": "feedback.error-state",
     "name": "ErrorState",
-    "kind": "component", "surface": "raised",
+    "kind": "component",
+    "surface": "raised",
     "domain": "feedback",
     "description": "The recoverable failure composition with a plain-language explanation, a diagnostic-detail policy, retry, alternative actions, and support context that leaks nothing sensitive.",
     "targets": [
       "react-vite"
     ],
-    "slot": "primitive",
+    "slot": "ui-primitive",
     "delivery": "adopted",
     "target": {
       "priority": "P0",
@@ -40,6 +41,10 @@
       {
         "asset": "primitives.status-indicator",
         "reason": "Certainty and urgency treatment is shared rather than reinvented per surface."
+      },
+      {
+        "asset": "hooks.use-locale",
+        "reason": "User-facing copy resolves through the adopting host locale bridge."
       }
     ]
   },

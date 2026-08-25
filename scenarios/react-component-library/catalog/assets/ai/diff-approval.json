@@ -5,13 +5,14 @@
   "asset": {
     "id": "ai.diff-approval",
     "name": "DiffApproval",
-    "kind": "component", "surface": "raised",
+    "kind": "component",
+    "surface": "raised",
     "domain": "ai",
     "description": "The review surface for proposed changes with file navigation, semantic diff, comments, partial selection, risk indicators, approval, rejection, and revision requests.",
     "targets": [
       "react-vite"
     ],
-    "slot": "primitive",
+    "slot": "ui-primitive",
     "delivery": "adopted",
     "target": {
       "priority": "P0",

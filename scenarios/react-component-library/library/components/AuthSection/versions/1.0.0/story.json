@@ -1,8 +1,33 @@
 {
-  "schemaVersion": 3,
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
+  "args": {
+    "fields": []
+  },
+  "environment": {
+    "fixtures": []
+  },
   "kind": "component",
-  "title": "AuthSection",
-  "args": { "fields": [] },
-  "environment": { "fixtures": [] },
-  "stories": [{ "id": "signed-out", "name": "Signed out", "harness": "AuthStory", "args": {}, "expect": [{ "kind": "role", "role": "button", "name": "Sign in" }], "mode": "live" }]
+  "schemaVersion": 4,
+  "stories": [
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "AuthStory",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Sign in",
+          "role": "button"
+        }
+      ],
+      "id": "signed-out",
+      "mode": "live",
+      "name": "Signed out"
+    }
+  ],
+  "title": "AuthSection"
 }

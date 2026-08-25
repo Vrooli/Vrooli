@@ -1,135 +1,126 @@
 {
-  "schemaVersion": 3,
-  "kind": "component",
-  "title": "Dialog",
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
   "args": {
     "fields": [
       {
-        "path": "open",
-        "label": "Open",
+        "default": true,
         "kind": "boolean",
-        "default": true
+        "label": "Open",
+        "path": "open"
       },
       {
-        "path": "title",
+        "default": "Archive component",
+        "kind": "text",
         "label": "Title",
-        "kind": "text",
-        "default": "Archive component"
+        "path": "title"
       },
       {
-        "path": "description",
+        "default": "This keeps prior versions available for audit.",
+        "kind": "text",
         "label": "Description",
-        "kind": "text",
-        "default": "This keeps prior versions available for audit."
+        "path": "description"
       },
       {
-        "path": "children",
-        "label": "Children",
-        "kind": "structured",
         "default": {
           "$text": "Archive Button v1.0.0?"
-        }
+        },
+        "kind": "structured",
+        "label": "Children",
+        "path": "children"
       },
       {
-        "path": "footer",
-        "label": "Footer",
-        "kind": "structured",
         "default": {
-          "$node": "button",
-          "props": {
-            "type": "button",
-            "className": "rounded-control bg-app-primary px-3 py-2 text-app-primary-foreground"
-          },
-          "children": [
-            {
-              "$text": "Archive"
-            }
-          ]
-        }
+          "$text": "button"
+        },
+        "kind": "structured",
+        "label": "Footer",
+        "path": "footer"
       },
       {
-        "path": "onClose",
-        "label": "On Close",
-        "kind": "structured",
         "default": {
           "$handler": "close"
-        }
+        },
+        "kind": "structured",
+        "label": "On Close",
+        "path": "onClose"
       },
       {
-        "path": "closeLabel",
-        "label": "Close Label",
+        "default": "Close dialog",
         "kind": "text",
-        "default": "Close dialog"
+        "label": "Close Label",
+        "path": "closeLabel"
       }
     ]
   },
   "environment": {
     "fixtures": []
   },
+  "kind": "component",
+  "schemaVersion": 4,
   "stories": [
     {
-      "id": "confirm-open",
-      "name": "Confirm Open",
       "args": {
-        "open": false,
-        "title": "Archive component",
-        "description": "This keeps prior versions available for audit.",
         "children": {
           "$text": "Archive Button v1.0.0?"
         },
+        "closeLabel": "Close dialog",
+        "description": "This keeps prior versions available for audit.",
         "footer": {
-          "$node": "button",
-          "props": {
-            "type": "button",
-            "className": "rounded-control bg-app-primary px-3 py-2 text-app-primary-foreground"
-          },
-          "children": [
-            {
-              "$text": "Archive"
-            }
-          ]
+          "$text": "button"
         },
         "onClose": {
           "$handler": "close"
         },
-        "closeLabel": "Close dialog"
+        "open": false,
+        "title": "Archive component"
       },
-      "interactions": [
-        {
-          "kind": "click",
-          "target": {
-            "role": "button",
-            "name": "Open dialog"
-          }
+      "composition": {
+        "specimen": {
+          "export": "Interactive",
+          "module": "./story.tsx"
         }
-      ],
+      },
       "expect": [
         {
           "kind": "role",
-          "role": "dialog",
-          "name": "Archive component"
+          "name": "Archive component",
+          "role": "dialog"
         },
         {
           "kind": "text",
           "value": "Archive Button v1.0.0?"
         }
       ],
+      "id": "confirm-open",
+      "interactions": [
+        {
+          "kind": "click",
+          "target": {
+            "name": "Open dialog",
+            "role": "button"
+          }
+        }
+      ],
       "mode": "live",
-      "harness": "Interactive"
+      "name": "Confirm Open"
     },
     {
-      "id": "details-open",
-      "name": "Details open baseline",
       "args": {
-        "open": true,
-        "title": "Component details",
         "children": {
           "$text": "Used by 14 scenarios"
         },
+        "closeLabel": "Close details",
         "onClose": {
           "$handler": "close"
         },
-        "closeLabel": "Close details"
+        "open": true,
+        "title": "Component details"
+      },
+      "composition": {
+        "specimen": {
+          "export": "Interactive",
+          "module": "./story.tsx"
+        }
       },
       "expect": [
         {
@@ -138,72 +129,126 @@
         },
         {
           "kind": "role",
-          "role": "dialog",
-          "name": "Component details"
+          "name": "Component details",
+          "role": "dialog"
         }
       ],
+      "id": "details-open",
       "interactions": [],
       "mode": "live",
-      "harness": "Interactive"
+      "name": "Details open baseline"
     },
     {
-      "id": "minimal-open",
-      "name": "Minimal open dialog",
       "args": {
-        "open": true,
-        "title": "Minimal dialog",
         "children": {
           "$text": "Short confirmation copy"
         },
+        "closeLabel": "Close",
         "onClose": {
           "$handler": "close"
         },
-        "closeLabel": "Close"
+        "open": true,
+        "title": "Minimal dialog"
+      },
+      "composition": {
+        "specimen": {
+          "export": "Interactive",
+          "module": "./story.tsx"
+        }
       },
       "expect": [
         {
           "kind": "role",
-          "role": "dialog",
-          "name": "Minimal dialog"
+          "name": "Minimal dialog",
+          "role": "dialog"
         },
         {
           "kind": "text",
           "value": "Short confirmation copy"
         }
       ],
+      "id": "minimal-open",
       "interactions": [],
       "mode": "live",
-      "harness": "Interactive"
+      "name": "Minimal open dialog"
     },
     {
+      "args": {
+        "children": {
+          "$text": "Used by 14 scenarios"
+        },
+        "closeLabel": "Close details",
+        "onClose": {
+          "$handler": "close"
+        },
+        "open": true,
+        "title": "Component details"
+      },
+      "composition": {
+        "specimen": {
+          "export": "Interactive",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "notVisible",
+          "name": "Component details",
+          "role": "dialog"
+        }
+      ],
       "id": "close-details",
-      "name": "Close button dismisses details",
-      "args": {
-        "open": true,
-        "title": "Component details",
-        "children": { "$text": "Used by 14 scenarios" },
-        "onClose": { "$handler": "close" },
-        "closeLabel": "Close details"
-      },
-      "interactions": [{ "kind": "click", "target": { "role": "button", "name": "Close details" } }],
-      "expect": [{ "kind": "notVisible", "role": "dialog", "name": "Component details" }],
+      "interactions": [
+        {
+          "kind": "click",
+          "target": {
+            "name": "Close details",
+            "role": "button"
+          }
+        }
+      ],
       "mode": "live",
-      "harness": "Interactive"
+      "name": "Close button dismisses details"
     },
     {
-      "id": "escape-close",
-      "name": "Escape dismisses dialog",
       "args": {
+        "children": {
+          "$text": "Short confirmation copy"
+        },
+        "closeLabel": "Close",
+        "onClose": {
+          "$handler": "close"
+        },
         "open": true,
-        "title": "Minimal dialog",
-        "children": { "$text": "Short confirmation copy" },
-        "onClose": { "$handler": "close" },
-        "closeLabel": "Close"
+        "title": "Minimal dialog"
       },
-      "interactions": [{ "kind": "key", "target": { "role": "dialog", "name": "Minimal dialog" }, "text": "Escape" }],
-      "expect": [{ "kind": "notVisible", "role": "dialog", "name": "Minimal dialog" }],
+      "composition": {
+        "specimen": {
+          "export": "Interactive",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "notVisible",
+          "name": "Minimal dialog",
+          "role": "dialog"
+        }
+      ],
+      "id": "escape-close",
+      "interactions": [
+        {
+          "kind": "key",
+          "target": {
+            "name": "Minimal dialog",
+            "role": "dialog"
+          },
+          "text": "Escape"
+        }
+      ],
       "mode": "live",
-      "harness": "Interactive"
+      "name": "Escape dismisses dialog"
     }
-  ]
+  ],
+  "title": "Dialog"
 }

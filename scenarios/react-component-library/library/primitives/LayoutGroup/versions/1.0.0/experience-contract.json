@@ -5,7 +5,7 @@
     "provenance": "react-component-library:LayoutGroup@1.0.0"
   },
   "component": {
-    "id": "primitives.layout-group",
+    "id": "motion.layout-group",
     "title": "LayoutGroup",
     "purpose": "LayoutGroup is a token-bound structural primitive with a bounded public API."
   },

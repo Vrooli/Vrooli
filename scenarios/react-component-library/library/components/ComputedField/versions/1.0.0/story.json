@@ -1,24 +1,27 @@
 {
-  "schemaVersion": 3,
-  "kind": "component",
-  "title": "ComputedField",
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
   "args": {
     "fields": []
   },
   "environment": {
     "fixtures": []
   },
+  "kind": "component",
+  "schemaVersion": 4,
   "stories": [
     {
-      "id": "default",
-      "name": "Calculated value",
-      "harness": "Default",
       "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Default",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
         {
+          "attribute": "aria-label",
           "kind": "attribute",
           "selector": "[data-rcl-computed-output]",
-          "attribute": "aria-label",
           "value": "Estimated total calculated value"
         },
         {
@@ -26,7 +29,10 @@
           "value": "$288.00"
         }
       ],
-      "mode": "live"
+      "id": "default",
+      "mode": "live",
+      "name": "Calculated value"
     }
-  ]
+  ],
+  "title": "ComputedField"
 }

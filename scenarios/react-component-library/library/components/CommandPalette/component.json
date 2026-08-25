@@ -1,17 +1,40 @@
 {
-  "libraryId": "react-component-library:CommandPalette",
-  "catalogId": "overlays.command-palette",
-  "displayName": "CommandPalette",
-  "description": "A focused, keyboard-first command surface with recent actions, grouped search, async recovery, and responsive layering.",
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "component",
-  "tags": ["overlay", "command", "token-bound"],
-  "latest": "1.0.0",
-  "designStyles": [
-    { "styleId": "vrooli-default", "affinity": "native" },
-    { "styleId": "vrooli-command-display", "affinity": "compatible" },
-    { "styleId": "vrooli-conversion-landing", "affinity": "compatible" }
-  ],
+  "catalogId": "overlays.command-palette",
   "dependencies": [
-    { "libraryId": "react-component-library:SearchInput", "version": "1.0.0" }
+    {
+      "libraryId": "react-component-library:SearchInput",
+      "version": "1.0.0"
+    }
+  ],
+  "description": "A focused, keyboard-first command surface with recent actions, grouped search, async recovery, and responsive layering.",
+  "designStyles": [
+    {
+      "affinity": "native",
+      "styleId": "vrooli-default"
+    },
+    {
+      "affinity": "compatible",
+      "styleId": "vrooli-command-display"
+    },
+    {
+      "affinity": "compatible",
+      "styleId": "vrooli-conversion-landing"
+    }
+  ],
+  "displayName": "CommandPalette",
+  "latest": "1.0.0",
+  "libraryId": "react-component-library:CommandPalette",
+  "tags": [
+    "overlay",
+    "command",
+    "token-bound"
+  ],
+  "requires": [
+    {
+      "libraryId": "react-component-library:useLocale",
+      "version": "1.0.0"
+    }
   ]
 }

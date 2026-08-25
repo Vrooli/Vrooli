@@ -214,7 +214,7 @@ function MenuItemBase({
   );
   const active = index === menu.activeIndex;
   return (
-    <button
+    <button data-testid="overlays.menu"
       ref={ref}
       type="button"
       role={role}

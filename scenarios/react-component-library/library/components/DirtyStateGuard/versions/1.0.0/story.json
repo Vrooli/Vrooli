@@ -1,78 +1,89 @@
 {
-  "schemaVersion": 3,
-  "kind": "component",
-  "title": "DirtyStateGuard",
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
   "args": {
     "fields": []
   },
   "environment": {
     "fixtures": []
   },
+  "kind": "component",
+  "schemaVersion": 4,
   "stories": [
     {
-      "id": "default",
-      "name": "Editable draft",
-      "harness": "Default",
       "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Default",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
         {
           "kind": "role",
-          "role": "textbox",
-          "name": "Working title"
+          "name": "Working title",
+          "role": "textbox"
         },
         {
           "kind": "role",
-          "role": "button",
-          "name": "Preview leave protection"
+          "name": "Preview leave protection",
+          "role": "button"
         },
         {
           "kind": "role",
-          "role": "alertdialog",
-          "name": "You have unsaved changes"
+          "name": "You have unsaved changes",
+          "role": "alertdialog"
         }
       ],
+      "id": "default",
       "interactions": [
         {
           "kind": "click",
           "target": {
-            "role": "button",
-            "name": "Preview leave protection"
+            "name": "Preview leave protection",
+            "role": "button"
           }
         },
         {
           "kind": "settle"
         }
       ],
-      "mode": "live"
+      "mode": "live",
+      "name": "Editable draft"
     },
     {
-      "id": "prompt-open",
-      "name": "Unsaved changes prompt",
-      "harness": "PromptOpen",
       "args": {},
+      "composition": {
+        "specimen": {
+          "export": "PromptOpen",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
         {
           "kind": "role",
-          "role": "alertdialog",
-          "name": "You have unsaved changes"
+          "name": "You have unsaved changes",
+          "role": "alertdialog"
         },
         {
           "kind": "role",
-          "role": "button",
-          "name": "Save changes"
+          "name": "Save changes",
+          "role": "button"
         },
         {
           "kind": "role",
-          "role": "button",
-          "name": "Discard changes"
+          "name": "Discard changes",
+          "role": "button"
         },
         {
           "kind": "role",
-          "role": "button",
-          "name": "Keep editing"
+          "name": "Keep editing",
+          "role": "button"
         }
       ],
-      "mode": "live"
+      "id": "prompt-open",
+      "mode": "live",
+      "name": "Unsaved changes prompt"
     }
-  ]
+  ],
+  "title": "DirtyStateGuard"
 }

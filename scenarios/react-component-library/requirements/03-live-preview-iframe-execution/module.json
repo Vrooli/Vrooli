@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "Per-component preview harness that executes real React inside an isolated iframe, wired via @vrooli/iframe-bridge.",
-    "last_validated_at": "2026-08-24T13:42:04-04:00",
+    "last_validated_at": "2026-08-24T22:13:11-04:00",
     "module": "live-preview-iframe-execution",
     "prd_ref": "PRD.md",
     "priority": "P0",

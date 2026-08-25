@@ -5,13 +5,14 @@
   "asset": {
     "id": "patterns.access-gate",
     "name": "AccessGate",
-    "kind": "component", "surface": "raised",
+    "kind": "component",
+    "surface": "raised",
     "domain": "patterns",
     "description": "The combined permission and feature gate handling loading, unavailable, upgrade-required, request-access, read-only, and hidden states without duplicating policy logic per surface.",
     "targets": [
       "react-vite"
     ],
-    "slot": "primitive",
+    "slot": "ui-primitive",
     "delivery": "adopted",
     "target": {
       "priority": "P0",

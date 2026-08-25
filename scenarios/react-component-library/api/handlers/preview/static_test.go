@@ -236,11 +236,11 @@ func TestRenderHarnessHTMLIncludesFrameAndFixtureComposition(t *testing.T) {
 		FixtureJSON: `{"asset":"fixtures.resource-collection"}`,
 		SourcePath:  "components/SidebarShell.tsx",
 		SHA256:      "sha-frame",
-	}, harnessStory{Name: "persistent", Frame: &components.StoryFrame{Asset: "navigation.page", Region: "navigation", Fixture: "fixtures.resource-collection"}}, testPreviewCSS)
+	}, harnessStory{Name: "persistent", Composition: &components.StoryComposition{Frame: &components.StoryFrame{Asset: "navigation.page", Region: "navigation", Fixture: "fixtures.resource-collection"}}}, testPreviewCSS)
 	require.Contains(t, html, `const frameModuleURL`)
-	require.Contains(t, html, `previewStory.frame`)
+	require.Contains(t, html, `previewStory.composition`)
 	require.Contains(t, html, `data-frame-region`)
-	require.Contains(t, html, `const regions = { [previewStory.frame.region]: subject, content: fixtureRegion }`)
+	require.Contains(t, html, `const regions = { [previewStory.composition.frame.region]: subject, content: fixtureRegion }`)
 	require.Contains(t, html, `data-fixture-asset`)
 }
 
@@ -250,11 +250,11 @@ func TestRenderHarnessHTMLRecordsDeclarativeHandlersAndCustomHarnessEvents(t *te
 		HarnessJS:  "export function StatefulHarness() { return null }",
 		SourcePath: "components/Demo.tsx",
 		SHA256:     "sha",
-	}, harnessStory{Name: "interactive", Version: "1.0.0", Harness: "StatefulHarness"}, testPreviewCSS)
+	}, harnessStory{Name: "interactive", Version: "1.0.0", Composition: &components.StoryComposition{Specimen: &components.StorySpecimenRef{Module: "./story.tsx", Export: "StatefulHarness"}}}, testPreviewCSS)
 	require.Contains(t, html, `const createNodeFactory = (React, Icons, log) =>`)
 	require.Contains(t, html, `return (...args) => log(name, ...args);`)
 	require.Contains(t, html, `type: "rcl-preview-event"`)
-	require.Contains(t, html, `React.createElement(Harness, { args: props, environment, fixtures: resolveFixtureContext(environment), log: postPreviewEvent })`)
+	require.Contains(t, html, `React.createElement(Specimen, { args: props, environment, fixtures: resolveFixtureContext(environment), log: postPreviewEvent })`)
 	require.Less(t, strings.Index(html, `const postPreviewEvent =`), strings.Index(html, `const resolveProps = createNodeFactory`))
 }
 

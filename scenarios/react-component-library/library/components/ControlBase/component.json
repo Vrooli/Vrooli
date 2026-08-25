@@ -1,20 +1,30 @@
 {
-  "libraryId": "react-component-library:ControlBase",
-  "x-supplementalJustification": "Shared implementation primitive used by catalog controls; retained separately because it is an internal implementation seam, not a user-facing catalog asset.",
-  "displayName": "Control Base",
-  "description": "Shared semantic control primitive for consistent sizing, density, focus, hover, and disabled behavior.",
-  "tags": ["control", "primitive", "accessibility"],
-  "slot": "ui-primitive",
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "category": "actions",
   "dependencies": [
     {
+      "kind": "requires",
       "libraryId": "react-component-library:VisualRecipes",
-      "version": "1.0.0",
-      "kind": "requires"
+      "version": "1.0.0"
     }
   ],
-  "designStyles": [{ "styleId": "vrooli-default", "affinity": "native" }],
-  "latest": "1.0.0",
+  "deprecatedVersions": [],
+  "description": "Shared semantic control primitive for consistent sizing, density, focus, hover, and disabled behavior.",
+  "designStyles": [
+    {
+      "affinity": "native",
+      "styleId": "vrooli-default"
+    }
+  ],
+  "displayName": "Control Base",
   "draft": "",
-  "deprecatedVersions": []
+  "latest": "1.0.0",
+  "libraryId": "react-component-library:ControlBase",
+  "slot": "ui-primitive",
+  "tags": [
+    "control",
+    "primitive",
+    "accessibility"
+  ],
+  "x-supplementalJustification": "Shared implementation primitive used by catalog controls; retained separately because it is an internal implementation seam, not a user-facing catalog asset."
 }

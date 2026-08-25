@@ -5,13 +5,14 @@
   "asset": {
     "id": "overlays.context-menu",
     "name": "ContextMenu",
-    "kind": "component", "surface": "raised",
+    "kind": "component",
+    "surface": "raised",
     "domain": "overlays",
     "description": "The pointer- or keyboard-invoked menu positioned around an interaction point, with viewport collision handling, nested actions, and awareness of the current selection.",
     "targets": [
       "react-vite"
     ],
-    "slot": "primitive",
+    "slot": "ui-primitive",
     "delivery": "adopted",
     "target": {
       "priority": "P1",

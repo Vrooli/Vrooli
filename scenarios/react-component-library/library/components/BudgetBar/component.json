@@ -1,21 +1,28 @@
 {
-  "libraryId": "react-component-library:BudgetBar",
-  "catalogId": "data-display.budget-bar",
-  "displayName": "BudgetBar",
-  "description": "A runtime budget bar for mount and rerender cost.",
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "component",
+  "catalogId": "data-display.budget-bar",
+  "dependencies": [],
+  "deprecatedVersions": [],
+  "description": "A runtime budget bar for mount and rerender cost.",
+  "designStyles": [
+    {
+      "affinity": "native",
+      "styleId": "vrooli-default"
+    }
+  ],
+  "displayName": "BudgetBar",
+  "draft": "",
+  "latest": "1.0.6",
+  "libraryId": "react-component-library:BudgetBar",
   "tags": [
     "data-display",
     "token-bound"
   ],
-  "latest": "1.0.6",
-  "designStyles": [
+  "requires": [
     {
-      "styleId": "vrooli-default",
-      "affinity": "native"
+      "libraryId": "react-component-library:useLocale",
+      "version": "1.0.0"
     }
-  ],
-  "dependencies": [],
-  "draft": "",
-  "deprecatedVersions": []
+  ]
 }

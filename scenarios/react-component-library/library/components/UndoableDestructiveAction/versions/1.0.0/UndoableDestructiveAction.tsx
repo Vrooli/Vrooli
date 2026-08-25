@@ -1,4 +1,6 @@
 /** @vrooliComponentSource react-component-library:UndoableDestructiveAction */
+import { translate } from "../../../../hooks/useLocale/versions/1.0.0/useLocale";
+
 import { useState, type CSSProperties, type ReactNode } from "react";
 import { UndoBanner } from "../../../UndoBanner/versions/1.0.0/UndoBanner";
 import {
@@ -119,7 +121,7 @@ function ActionContent({
         {children}
         {state === "idle" && (
           <div data-rcl-undoable-action-controls>
-            <button
+            <button data-testid="patterns.undoable-destructive-action"
               data-rcl-undoable-action-button
               type="button"
               onClick={() => void runDelete()}
@@ -136,14 +138,14 @@ function ActionContent({
             aria-busy="true"
           >
             <strong>Removing {itemLabel}…</strong>
-            <span>Keep this page open while the change is saved.</span>
+            <span>{translate("patterns.undoable-destructive-action.text.1", "Keep this page open while the change is saved.")}</span>
           </div>
         )}
         {state === "success" && (
           <div data-rcl-undoable-action-status role="status" aria-live="polite">
             <strong>{resolvedSuccess}</strong>
             <span>
-              The change is complete. A recovery action is visible below.
+              {translate("patterns.undoable-destructive-action.text.1", "The change is complete. A recovery action is visible below.")}
             </span>
           </div>
         )}
@@ -159,7 +161,7 @@ function ActionContent({
                 {resolvedError ?? "The service did not confirm this change."}
               </span>
             </div>
-            <button
+            <button data-testid="patterns.undoable-destructive-action"
               data-rcl-undoable-action-retry
               type="button"
               onClick={() => void runDelete()}

@@ -1,19 +1,22 @@
 {
-  "schemaVersion": 3,
-  "kind": "component",
-  "title": "ErrorState",
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
   "args": {
     "fields": []
   },
   "environment": {
     "fixtures": []
   },
+  "kind": "component",
+  "schemaVersion": 4,
   "stories": [
     {
-      "id": "error",
-      "name": "Retryable sync error",
-      "harness": "Error",
       "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Error",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
         {
           "kind": "role",
@@ -21,11 +24,14 @@
         },
         {
           "kind": "role",
-          "role": "button",
-          "name": "Try again"
+          "name": "Try again",
+          "role": "button"
         }
       ],
-      "mode": "live"
+      "id": "error",
+      "mode": "live",
+      "name": "Retryable sync error"
     }
-  ]
+  ],
+  "title": "ErrorState"
 }

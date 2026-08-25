@@ -318,7 +318,7 @@ func (s *service) BatchApply(ctx context.Context, in BatchApplyInput) (BatchAppl
 				adoptionFiles = append(adoptionFiles, AdoptionFile{LibraryPath: file.Path, AdoptedPath: file.AdoptedPath, SourceSHA256: file.ContentSHA256, AdoptedSnapshotSHA256: adoptedSnapshotHash(unique.body), SourceAssetID: plan.Asset.ID, SourceLibraryID: plan.Asset.LibraryID, SourceVersion: plan.Version.Version})
 			}
 		}
-		inputs = append(inputs, CreateInput{ID: prepared[i].adoptionID, ComponentID: prepared[i].root.ID, LibraryID: prepared[i].root.LibraryID, Scenario: prepared[i].input.Scenario, AdoptedPath: prepared[i].input.AdoptedPath, AdoptedVersion: prepared[i].version.Version, SourceSHA256: prepared[i].version.ContentSHA256, AdoptedSnapshotSHA256: prepared[i].entrySnapshot, IncludeSuggestions: append([]string(nil), prepared[i].input.IncludeSuggestions...), Files: adoptionFiles})
+		inputs = append(inputs, CreateInput{ID: prepared[i].adoptionID, ComponentID: prepared[i].root.ID, LibraryID: prepared[i].root.LibraryID, Scenario: prepared[i].input.Scenario, AdoptedPath: prepared[i].input.AdoptedPath, AdoptedVersion: prepared[i].version.Version, SourceSHA256: prepared[i].version.ContentSHA256, AdoptedSnapshotSHA256: prepared[i].entrySnapshot, IncludeSuggestions: append([]string(nil), prepared[i].input.IncludeSuggestions...), ForkReason: prepared[i].input.ForkReason, ExtensionPoints: append([]string(nil), prepared[i].input.ExtensionPoints...), Files: adoptionFiles})
 	}
 	var created []Adoption
 	var err error
@@ -551,6 +551,13 @@ type MaturityReader interface {
 	Maturity(ctx context.Context, component components.Component, version, scenario string) (MaturityVerdict, error)
 }
 
+// ContractCoverageReader consumes the catalog's persisted contract-gate
+// observations. It keeps i18n and selector evidence on the same adoption
+// preflight projection as maturity without rerunning gates during a write.
+type ContractCoverageReader interface {
+	GateVerdict(ctx context.Context, component components.Component, version, scenario, gate string) (string, error)
+}
+
 // ErrAdoptedFileMissing is the typed sentinel ScenarioFileReader
 // implementations return when the adopted_path does not exist. Refresh
 // translates it to StatusUnknown rather than failing the whole batch.
@@ -573,6 +580,7 @@ type service struct {
 	deps           DependencyValidator
 	styles         StyleFitValidator
 	maturity       MaturityReader
+	coverage       ContractCoverageReader
 	tokens         ScenarioTokenNamespaceReader
 	mappings       ScenarioTokenMappingReader
 	tokenInventory ScenarioTokenInventoryReader
@@ -614,6 +622,12 @@ func SetValidationGates(svc Service, dependency DependencyValidator, style Style
 func SetMaturityReader(svc Service, reader MaturityReader) {
 	if s, ok := svc.(*service); ok {
 		s.maturity = reader
+	}
+}
+
+func SetContractCoverageReader(svc Service, reader ContractCoverageReader) {
+	if s, ok := svc.(*service); ok {
+		s.coverage = reader
 	}
 }
 
@@ -858,7 +872,7 @@ func (s *service) Apply(ctx context.Context, in ApplyInput) (ApplyResult, error)
 			return ApplyResult{}, fmt.Errorf("write component experience contract: %w", err)
 		}
 	}
-	root, err := s.repo.Create(ctx, CreateInput{ID: adoptionID, ComponentID: cmp.ID, LibraryID: cmp.LibraryID, Scenario: in.Scenario, AdoptedPath: in.AdoptedPath, AdoptedVersion: version, SourceSHA256: v.ContentSHA256, AdoptedSnapshotSHA256: entrySnapshot, IncludeSuggestions: append([]string(nil), in.IncludeSuggestions...), Files: adoptionFiles})
+	root, err := s.repo.Create(ctx, CreateInput{ID: adoptionID, ComponentID: cmp.ID, LibraryID: cmp.LibraryID, Scenario: in.Scenario, AdoptedPath: in.AdoptedPath, AdoptedVersion: version, SourceSHA256: v.ContentSHA256, AdoptedSnapshotSHA256: entrySnapshot, IncludeSuggestions: append([]string(nil), in.IncludeSuggestions...), ForkReason: in.ForkReason, ExtensionPoints: append([]string(nil), in.ExtensionPoints...), Files: adoptionFiles})
 	if err != nil {
 		return ApplyResult{}, err
 	}
@@ -902,12 +916,12 @@ func (s *service) Preflight(ctx context.Context, in PreflightInput) (PreflightRe
 	if err != nil {
 		return PreflightResult{}, err
 	}
-	result := PreflightResult{ComponentID: componentID, Scenario: scenario, Version: version, Verdict: readiness, Tokens: tokens, Dependency: readiness.Dependency, StyleFit: readiness.StyleFit, Blocking: readiness.Blocking()}
+	result := PreflightResult{ComponentID: componentID, Scenario: scenario, Version: version, Verdict: readiness, Tokens: tokens, Dependency: readiness.Dependency, StyleFit: readiness.StyleFit, I18n: readiness.I18n, Selectors: readiness.Selectors, Blocking: readiness.Blocking()}
 	return result, nil
 }
 
 func (s *service) adoptionVerdict(ctx context.Context, root components.Component, version components.ComponentVersion, closure components.ClosureReport, scenario string) (AdoptionVerdict, error) {
-	result := AdoptionVerdict{Version: version.Status}
+	result := AdoptionVerdict{Version: version.Status, I18n: "not-measured", Selectors: "not-measured"}
 	if s.deps != nil {
 		verdict, err := s.deps.ValidateAdoption(ctx, root.ID, version.Version, scenario)
 		if err != nil {
@@ -931,6 +945,16 @@ func (s *service) adoptionVerdict(ctx context.Context, root components.Component
 		result.Maturity = maturity
 	}
 	var err error
+	if s.coverage != nil {
+		result.I18n, err = s.coverage.GateVerdict(ctx, root, version.Version, scenario, "i18n")
+		if err != nil {
+			return AdoptionVerdict{}, err
+		}
+		result.Selectors, err = s.coverage.GateVerdict(ctx, root, version.Version, scenario, "selector-coverage")
+		if err != nil {
+			return AdoptionVerdict{}, err
+		}
+	}
 	result.Tokens, err = s.resolveTokenVerdict(ctx, closure, scenario)
 	if err != nil {
 		return AdoptionVerdict{}, err
@@ -1356,6 +1380,10 @@ func (s *service) Refresh(ctx context.Context, componentID string) ([]Adoption, 
 		rows[i].RefreshedAt = now
 		update := RefreshUpdate{
 			ID: row.ID, LibraryVersionStatus: libraryStatus, LocalStatus: localStatus, StatusDetail: detail, RefreshedAt: now,
+		}
+		if row.ForkStatus == ForkStatusNone && localStatus == LocalStatusModified {
+			update.ForkStatus = ForkStatusUnintendedDrift
+			rows[i].ForkStatus = ForkStatusUnintendedDrift
 		}
 		// Drift policy:
 		//   * status flips to behind/modified AND no backlog item filed

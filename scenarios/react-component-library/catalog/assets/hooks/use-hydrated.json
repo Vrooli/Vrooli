@@ -16,7 +16,7 @@
     "targets": [
       "react-vite"
     ],
-    "slot": "reusable-behavior",
+    "slot": "hook",
     "delivery": "template-seeded",
     "target": {
       "priority": "P1",

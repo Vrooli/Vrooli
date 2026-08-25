@@ -1,11 +1,21 @@
 {
-  "libraryId": "react-component-library:Contracts",
-  "catalogId": "foundations.contracts",
-  "displayName": "Contracts",
-  "description": "Shared type contracts for controllable state, density, layers, focus, and async lifecycle.",
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "foundation",
-  "tags": ["contracts", "types", "runtime"],
+  "catalogId": "foundations.contracts",
+  "dependencies": [],
+  "description": "Shared type contracts for controllable state, density, layers, focus, and async lifecycle.",
+  "designStyles": [
+    {
+      "affinity": "native",
+      "styleId": "vrooli-default"
+    }
+  ],
+  "displayName": "Contracts",
   "latest": "1.0.0",
-  "designStyles": [{ "styleId": "vrooli-default", "affinity": "native" }],
-  "dependencies": []
+  "libraryId": "react-component-library:Contracts",
+  "tags": [
+    "contracts",
+    "types",
+    "runtime"
+  ]
 }

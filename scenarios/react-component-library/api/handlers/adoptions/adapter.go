@@ -24,6 +24,9 @@ func domainToProto(a adoptions.Adoption) *adoptionsv1.Adoption {
 		CreatedAt:            timestamppb.New(a.CreatedAt.UTC()),
 		SourceSha256:         a.SourceSHA256,
 		Files:                adoptionFilesToProto(a.Files),
+		ForkStatus:           string(a.ForkStatus),
+		ForkReason:           a.ForkReason,
+		ExtensionPoints:      append([]string(nil), a.ExtensionPoints...),
 	}
 	if !a.RefreshedAt.IsZero() {
 		out.RefreshedAt = timestamppb.New(a.RefreshedAt.UTC())
@@ -59,6 +62,7 @@ func reconvergeOutcomeToProto(o adoptions.ReconvergeOutcome) *adoptionsv1.Reconv
 		Action:               reconvergeActionToProto(o.Action),
 		Detail:               o.Detail,
 		Disposition:          string(o.Disposition),
+		ForkStatus:           string(o.ForkStatus),
 	}
 	for _, file := range o.Files {
 		out.Files = append(out.Files, &adoptionsv1.ReconvergeFileOutcome{

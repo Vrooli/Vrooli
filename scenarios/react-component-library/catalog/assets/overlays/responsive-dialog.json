@@ -5,13 +5,14 @@
   "asset": {
     "id": "overlays.responsive-dialog",
     "name": "ResponsiveDialog",
-    "kind": "component", "surface": "raised",
+    "kind": "component",
+    "surface": "raised",
     "domain": "overlays",
     "description": "The adaptive overlay presenting as a centered dialog on pointer-first desktops and as a sheet or full-height drawer on constrained or touch-first viewports, without losing open state across the change.",
     "targets": [
       "react-vite"
     ],
-    "slot": "primitive",
+    "slot": "ui-primitive",
     "delivery": "adopted",
     "target": {
       "priority": "P0",

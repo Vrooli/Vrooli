@@ -1,4 +1,6 @@
 /** @vrooliComponentSource react-component-library:NavLink */
+import { translate } from "../../../../hooks/useLocale/versions/1.0.0/useLocale";
+
 import type { ReactNode } from "react";
 
 const navLinkStyles = `
@@ -23,7 +25,7 @@ export interface NavLinkProps {
 }
 
 export function NavLink({
-  label = "Home",
+  label = translate("navigation.nav-link.label.1", "Home"),
   current = false,
   href = "/",
   icon,
@@ -35,7 +37,7 @@ export function NavLink({
         data-rcl-nav-link-styles
         dangerouslySetInnerHTML={{ __html: navLinkStyles }}
       />
-      <a
+      <a data-testid="navigation.nav-link"
         href={href}
         aria-current={current ? "page" : undefined}
         data-rcl-nav-link

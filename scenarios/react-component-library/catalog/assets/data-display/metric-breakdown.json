@@ -1,10 +1,46 @@
 {
   "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
-  "kind": "catalog-asset", "schemaVersion": "1.0.0",
-  "asset": {"id": "data-display.metric-breakdown", "name": "MetricBreakdown", "kind": "component", "surface": "raised", "domain": "data-display", "description": "A compact labeled metric list with numerator and denominator context.", "targets": ["react-vite"], "slot": "primitive", "delivery": "adopted", "target": {"priority": "P1", "maturity": "implemented"}},
-  "dependencies": {"requires": [], "suggests": []},
-  "requiredCapabilities": ["accessible-naming", "non-color-status", "dark-parity"],
-  "requiredStates": ["default", "empty", "request-error"],
-  "qualityGates": ["accessibility", "visual"],
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "data-display.metric-breakdown",
+    "name": "MetricBreakdown",
+    "kind": "component",
+    "surface": "raised",
+    "domain": "data-display",
+    "description": "A compact labeled metric list with numerator and denominator context.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "ui-primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P1",
+      "maturity": "implemented"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "hooks.use-locale",
+        "reason": "User-facing copy resolves through the adopting host locale bridge."
+      }
+    ],
+    "suggests": []
+  },
+  "requiredCapabilities": [
+    "accessible-naming",
+    "non-color-status",
+    "dark-parity"
+  ],
+  "requiredStates": [
+    "default",
+    "empty",
+    "request-error"
+  ],
+  "qualityGates": [
+    "accessibility",
+    "visual"
+  ],
   "rationale": "Breakdowns keep the score auditable instead of turning health into an opaque number."
 }

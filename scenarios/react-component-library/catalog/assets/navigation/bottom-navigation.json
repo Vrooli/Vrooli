@@ -36,6 +36,10 @@
       {
         "asset": "primitives.icon",
         "reason": "Glyphs resolve through the registry."
+      },
+      {
+        "asset": "foundations.class-merge",
+        "reason": "All class composition uses the shared Tailwind conflict resolver."
       }
     ]
   },

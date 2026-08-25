@@ -2,9 +2,10 @@
  * @libraryId react-component-library:WorkspaceHeader
  * @version 1.0.0
  * @status released
- * @deps {"react":"^18"}
+ * @deps {"react":"^18","react-component-library:ClassMerge":"1.0.0"}
  */
 import type { ReactNode } from "react";
+import { cn } from "../../../../foundations/ClassMerge/versions/1.0.0/ClassMerge";
 import { workspaceHeaderStyles } from "./styles";
 
 export interface WorkspaceHeaderProps {
@@ -33,7 +34,7 @@ export function WorkspaceHeader({
     <Element
       data-testid="workspace-header"
       data-rcl-workspace-header
-      className={["rcl-workspace-header", className].filter(Boolean).join(" ")}
+      className={cn("rcl-workspace-header", className)}
     >
       <style
         data-rcl-workspace-header-styles

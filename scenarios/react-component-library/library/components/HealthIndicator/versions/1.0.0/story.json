@@ -1,1 +1,50 @@
-{"schemaVersion":3,"kind":"component","title":"HealthIndicator","args":{"fields":[]},"environment":{"fixtures":[]},"stories":[{"id":"default","name":"Default","args":{"state":"healthy","score":96,"stalenessDays":0},"expect":[{"kind":"text","value":"Healthy"},{"kind":"text","value":"96%"}],"mode":"pinned"},{"id":"stale","name":"Stale","args":{"state":"degraded","score":62,"stalenessDays":2.4},"expect":[{"kind":"text","value":"2.4d old"}],"mode":"pinned"}]}
+{
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
+  "args": {
+    "fields": []
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "kind": "component",
+  "schemaVersion": 4,
+  "stories": [
+    {
+      "args": {
+        "score": 96,
+        "stalenessDays": 0,
+        "state": "healthy"
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "Healthy"
+        },
+        {
+          "kind": "text",
+          "value": "96%"
+        }
+      ],
+      "id": "default",
+      "mode": "pinned",
+      "name": "Default"
+    },
+    {
+      "args": {
+        "score": 62,
+        "stalenessDays": 2.4,
+        "state": "degraded"
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "2.4d old"
+        }
+      ],
+      "id": "stale",
+      "mode": "pinned",
+      "name": "Stale"
+    }
+  ],
+  "title": "HealthIndicator"
+}

@@ -1,11 +1,20 @@
 {
-  "libraryId": "react-component-library:CommandRegistry",
-  "catalogId": "services.command-registry",
-  "displayName": "CommandRegistry",
-  "description": "Scoped runtime registry for searchable commands, async execution, recent history, and isolated consumers.",
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "service",
-  "tags": ["runtime", "state"],
+  "catalogId": "services.command-registry",
+  "dependencies": [],
+  "description": "Scoped runtime registry for searchable commands, async execution, recent history, and isolated consumers.",
+  "designStyles": [
+    {
+      "affinity": "native",
+      "styleId": "vrooli-default"
+    }
+  ],
+  "displayName": "CommandRegistry",
   "latest": "1.0.0",
-  "designStyles": [{ "styleId": "vrooli-default", "affinity": "native" }],
-  "dependencies": []
+  "libraryId": "react-component-library:CommandRegistry",
+  "tags": [
+    "runtime",
+    "state"
+  ]
 }

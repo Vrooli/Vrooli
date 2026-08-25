@@ -1,30 +1,28 @@
 {
-  "schemaVersion": 3,
-  "kind": "component",
-  "title": "Code Block",
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
   "args": {
     "fields": [
       {
-        "path": "code",
-        "label": "Code",
+        "default": "const stable = true;",
         "kind": "text",
-        "default": "const stable = true;"
+        "label": "Code",
+        "path": "code"
       },
       {
-        "path": "language",
-        "label": "Language",
+        "default": "typescript",
         "kind": "text",
-        "default": "typescript"
+        "label": "Language",
+        "path": "language"
       }
     ]
   },
   "environment": {
     "fixtures": []
   },
+  "kind": "component",
+  "schemaVersion": 4,
   "stories": [
     {
-      "id": "highlighted-typescript",
-      "name": "Highlighted TypeScript",
       "args": {
         "code": "const stable = true;",
         "language": "typescript"
@@ -36,11 +34,14 @@
         },
         {
           "kind": "role",
-          "role": "button",
-          "name": "Copy"
+          "name": "Copy",
+          "role": "button"
         }
       ],
-      "mode": "pinned"
+      "id": "highlighted-typescript",
+      "mode": "pinned",
+      "name": "Highlighted TypeScript"
     }
-  ]
+  ],
+  "title": "Code Block"
 }

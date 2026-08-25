@@ -5,13 +5,14 @@
   "asset": {
     "id": "manipulation.snap-guides",
     "name": "SnapGuides",
-    "kind": "component", "surface": "raised",
+    "kind": "component",
+    "surface": "raised",
     "domain": "manipulation",
     "description": "The spatial alignment service and overlay computing snap candidates from nearby objects and rendering guides without forcing a full canvas re-render.",
     "targets": [
       "react-vite"
     ],
-    "slot": "primitive",
+    "slot": "ui-primitive",
     "delivery": "adopted",
     "target": {
       "priority": "P2",

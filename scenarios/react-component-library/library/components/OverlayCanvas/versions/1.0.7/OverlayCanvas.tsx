@@ -1,4 +1,6 @@
 /** @vrooliComponentSource react-component-library:OverlayCanvas */
+import { translate } from "../../../../hooks/useLocale/versions/1.0.0/useLocale";
+
 import { Stack } from "../../../../primitives/Stack/versions/1.0.0/Stack";
 import { Text } from "../../../../primitives/Text/versions/1.0.0/Text";
 import {
@@ -24,7 +26,7 @@ export function OverlayCanvas({
   return (
     <section
       className={SURFACE_ELEVATIONS.raised}
-      aria-label="Claim overlay"
+      aria-label={translate("visualization.overlay-canvas.aria-label.1", "Claim overlay")}
       data-rcl-asset="visualization.overlay-canvas"
       data-rcl-version="1.0.7"
       data-rcl-stamp="source"
@@ -33,7 +35,7 @@ export function OverlayCanvas({
     >
       <Stack gap="xs">
         <Text as="strong" textStyle="label">
-          Measured subjects
+          {translate("visualization.overlay-canvas.text.2", "Measured subjects")}
         </Text>
         <div
           role="img"
@@ -62,13 +64,13 @@ export function OverlayCanvas({
           ))}
           {!subjects.length ? <Text tone="muted">{message}</Text> : null}
         </div>
-        <button
+        <button data-testid="visualization.overlay-canvas"
           type="button"
           className={`${CONTROL_VARIANTS.ghost} ${CONTROL_SIZES.md}`}
           data-bespoke="evidence disclosure remains a native action"
           style={{ minHeight: "var(--control-height)" }}
         >
-          Open evidence
+          {translate("visualization.overlay-canvas.text.3", "Open evidence")}
         </button>
       </Stack>
     </section>

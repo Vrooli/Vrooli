@@ -1,45 +1,51 @@
 {
-  "schemaVersion": 3,
-  "kind": "component",
-  "title": "Preview inspector",
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
   "args": {
     "fields": [
       {
-        "path": "title",
-        "label": "Title",
+        "default": "Preview inspector",
         "kind": "text",
-        "default": "Preview inspector"
+        "label": "Title",
+        "path": "title"
       },
       {
-        "path": "open",
-        "label": "Open",
+        "default": true,
         "kind": "boolean",
-        "default": true
+        "label": "Open",
+        "path": "open"
       }
     ]
   },
   "environment": {
     "fixtures": []
   },
+  "kind": "component",
+  "schemaVersion": 4,
   "stories": [
     {
-      "id": "default",
-      "name": "Dismissible inspector",
-      "harness": "Default",
-      "mode": "live",
       "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Default",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
         {
           "kind": "role",
-          "role": "complementary",
-          "name": "Preview inspector"
+          "name": "Preview inspector",
+          "role": "complementary"
         },
         {
           "kind": "role",
-          "role": "button",
-          "name": "Close inspector"
+          "name": "Close inspector",
+          "role": "button"
         }
-      ]
+      ],
+      "id": "default",
+      "mode": "live",
+      "name": "Dismissible inspector"
     }
-  ]
+  ],
+  "title": "Preview inspector"
 }

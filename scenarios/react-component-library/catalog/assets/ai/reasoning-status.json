@@ -5,13 +5,14 @@
   "asset": {
     "id": "ai.reasoning-status",
     "name": "ReasoningStatus",
-    "kind": "component", "surface": "raised",
+    "kind": "component",
+    "surface": "raised",
     "domain": "ai",
     "description": "The restrained activity indicator communicating that the agent is planning, searching, executing, or waiting, without fabricating a narrative of private reasoning.",
     "targets": [
       "react-vite"
     ],
-    "slot": "primitive",
+    "slot": "ui-primitive",
     "delivery": "adopted",
     "target": {
       "priority": "P0",

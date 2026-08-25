@@ -1,83 +1,106 @@
 {
-  "schemaVersion": 3,
-  "kind": "component",
-  "title": "AsyncFormFlow",
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
   "args": {
     "fields": []
   },
   "environment": {
     "fixtures": []
   },
+  "kind": "component",
+  "schemaVersion": 4,
   "stories": [
     {
-      "id": "default",
-      "name": "Create or edit",
-      "harness": "Default",
       "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Default",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
         {
           "kind": "role",
-          "role": "textbox",
-          "name": "Full name"
+          "name": "Full name",
+          "role": "textbox"
         },
         {
           "kind": "role",
-          "role": "button",
-          "name": "Save changes"
+          "name": "Save changes",
+          "role": "button"
         }
       ],
-      "mode": "live"
+      "id": "default",
+      "mode": "live",
+      "name": "Create or edit"
     },
     {
-      "id": "loading",
-      "name": "Initial load",
-      "harness": "Loading",
       "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Loading",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
         {
           "kind": "text",
           "value": "Loading"
         }
       ],
-      "mode": "live"
+      "id": "loading",
+      "mode": "live",
+      "name": "Initial load"
     },
     {
-      "id": "request-error",
-      "name": "Server error mapping",
-      "harness": "RequestError",
       "args": {},
+      "composition": {
+        "specimen": {
+          "export": "RequestError",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
         {
           "kind": "role",
-          "role": "textbox",
-          "name": "Full name"
+          "name": "Full name",
+          "role": "textbox"
         },
         {
           "kind": "role",
-          "role": "button",
-          "name": "Save changes"
+          "name": "Save changes",
+          "role": "button"
         }
       ],
-      "mode": "live"
+      "id": "request-error",
+      "mode": "live",
+      "name": "Server error mapping"
     },
     {
-      "id": "offline",
-      "name": "Offline recovery",
-      "harness": "Offline",
       "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Offline",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
         {
           "kind": "text",
           "value": "You’re offline"
         }
       ],
-      "mode": "live"
+      "id": "offline",
+      "mode": "live",
+      "name": "Offline recovery"
     },
     {
-      "id": "empty",
-      "name": "Empty create state",
-      "harness": "Empty",
       "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Empty",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
         {
           "kind": "text",
@@ -85,67 +108,90 @@
         },
         {
           "kind": "role",
-          "role": "button",
-          "name": "Start fresh"
+          "name": "Start fresh",
+          "role": "button"
         }
       ],
-      "mode": "live"
+      "id": "empty",
+      "mode": "live",
+      "name": "Empty create state"
     },
     {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Partial",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Full name",
+          "role": "textbox"
+        }
+      ],
       "id": "partial",
-      "name": "Partial data",
-      "harness": "Partial",
+      "mode": "live",
+      "name": "Partial data"
+    },
+    {
       "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Submitting",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
         {
           "kind": "role",
-          "role": "textbox",
-          "name": "Full name"
+          "name": "Cancel request",
+          "role": "button"
         }
       ],
-      "mode": "live"
-    },
-    {
       "id": "submitting",
-      "name": "Submission progress",
-      "harness": "Submitting",
+      "mode": "live",
+      "name": "Submission progress"
+    },
+    {
       "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Success",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
         {
           "kind": "role",
-          "role": "button",
-          "name": "Cancel request"
+          "name": "Save changes",
+          "role": "button"
         }
       ],
-      "mode": "live"
-    },
-    {
       "id": "success",
-      "name": "Successful handoff",
-      "harness": "Success",
-      "args": {},
-      "expect": [
-        {
-          "kind": "role",
-          "role": "button",
-          "name": "Save changes"
-        }
-      ],
-      "mode": "live"
+      "mode": "live",
+      "name": "Successful handoff"
     },
     {
-      "id": "retry",
-      "name": "Retry after server error",
-      "harness": "Retry",
       "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Retry",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
         {
           "kind": "role",
-          "role": "button",
-          "name": "Save changes"
+          "name": "Save changes",
+          "role": "button"
         }
       ],
-      "mode": "live"
+      "id": "retry",
+      "mode": "live",
+      "name": "Retry after server error"
     }
-  ]
+  ],
+  "title": "AsyncFormFlow"
 }

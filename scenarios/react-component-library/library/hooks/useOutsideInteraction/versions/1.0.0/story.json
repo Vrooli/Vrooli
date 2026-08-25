@@ -1,56 +1,72 @@
 {
-  "schemaVersion": 3,
-  "kind": "hook",
-  "title": "useOutsideInteraction",
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
   "args": {
     "fields": [
       {
-        "path": "active",
-        "label": "Active",
+        "default": true,
         "kind": "boolean",
-        "default": true
+        "label": "Active",
+        "path": "active"
       }
     ]
   },
   "environment": {
     "fixtures": []
   },
+  "kind": "hook",
+  "schemaVersion": 4,
   "stories": [
     {
-      "id": "pointer",
-      "name": "Outside pointer",
-      "harness": "Default",
       "args": {
         "active": true
       },
+      "composition": {
+        "specimen": {
+          "export": "Default",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Dismissed from outside pointer interaction",
+          "role": "status"
+        }
+      ],
+      "id": "pointer",
       "interactions": [
         {
           "kind": "click",
           "target": {
-            "role": "button",
-            "name": "Outside action"
+            "name": "Outside action",
+            "role": "button"
           }
         },
         {
           "kind": "settle"
         }
       ],
-      "expect": [
-        {
-          "kind": "role",
-          "role": "status",
-          "name": "Dismissed from outside pointer interaction"
-        }
-      ],
-      "mode": "live"
+      "mode": "live",
+      "name": "Outside pointer"
     },
     {
-      "id": "escape",
-      "name": "Escape dismissal",
-      "harness": "Default",
       "args": {
         "active": true
       },
+      "composition": {
+        "specimen": {
+          "export": "Default",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Dismissed with Escape",
+          "role": "status"
+        }
+      ],
+      "id": "escape",
       "interactions": [
         {
           "kind": "key",
@@ -60,14 +76,9 @@
           "kind": "settle"
         }
       ],
-      "expect": [
-        {
-          "kind": "role",
-          "role": "status",
-          "name": "Dismissed with Escape"
-        }
-      ],
-      "mode": "live"
+      "mode": "live",
+      "name": "Escape dismissal"
     }
-  ]
+  ],
+  "title": "useOutsideInteraction"
 }

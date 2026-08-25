@@ -434,6 +434,18 @@ func slotDirCandidates(slotName string) []string {
 	switch slotName {
 	case "ui-primitive":
 		return []string{"components/ui"}
+	case "pattern":
+		return []string{"patterns"}
+	case "page-template":
+		return []string{"templates"}
+	case "service":
+		return []string{"services"}
+	case "adapter":
+		return []string{"adapters"}
+	case "fixture":
+		return []string{"fixtures"}
+	case "provider":
+		return []string{"providers"}
 	case "shared-component":
 		return []string{"components"}
 	case "layout-shell", "layout-nav":

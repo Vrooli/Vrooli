@@ -5,13 +5,14 @@
   "asset": {
     "id": "forms.token-input",
     "name": "TokenInput",
-    "kind": "component", "surface": "raised",
+    "kind": "component",
+    "surface": "raised",
     "domain": "forms",
     "description": "The structured-value field for tags, recipients, filters, and references, with parsing, validation per token, suggestions, inline editing, reordering, and clipboard support.",
     "targets": [
       "react-vite"
     ],
-    "slot": "primitive",
+    "slot": "ui-primitive",
     "delivery": "adopted",
     "target": {
       "priority": "P1",

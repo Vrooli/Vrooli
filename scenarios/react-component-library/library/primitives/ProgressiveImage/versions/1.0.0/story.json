@@ -1,74 +1,90 @@
 {
-  "schemaVersion": 3,
-  "kind": "component",
-  "title": "ProgressiveImage",
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
   "args": {
     "fields": []
   },
   "environment": {
     "fixtures": []
   },
+  "kind": "component",
+  "schemaVersion": 4,
   "stories": [
     {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Default",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Abstract blue-green Aurora workspace landscape",
+          "role": "img"
+        }
+      ],
       "id": "default",
-      "name": "Loaded image",
-      "harness": "Default",
-      "args": {},
-      "expect": [
-        {
-          "kind": "role",
-          "role": "img",
-          "name": "Abstract blue-green Aurora workspace landscape"
-        }
-      ],
       "interactions": [
         {
           "kind": "settle"
         }
       ],
-      "mode": "live"
+      "mode": "live",
+      "name": "Loaded image"
     },
     {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "ResponsiveSources",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Abstract responsive art-directed landscape",
+          "role": "img"
+        }
+      ],
       "id": "responsive-sources",
-      "name": "Responsive sources",
-      "harness": "ResponsiveSources",
-      "args": {},
-      "expect": [
-        {
-          "kind": "role",
-          "role": "img",
-          "name": "Abstract responsive art-directed landscape"
-        }
-      ],
       "interactions": [
         {
           "kind": "settle"
         }
       ],
-      "mode": "live"
+      "mode": "live",
+      "name": "Responsive sources"
     },
     {
-      "id": "error",
-      "name": "Legible error",
-      "harness": "ErrorState",
       "args": {},
+      "composition": {
+        "specimen": {
+          "export": "ErrorState",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
         {
           "kind": "role",
-          "role": "img",
-          "name": "Unavailable workspace preview"
+          "name": "Unavailable workspace preview",
+          "role": "img"
         },
         {
           "kind": "role",
           "role": "alert"
         }
       ],
+      "id": "error",
       "interactions": [
         {
           "kind": "settle"
         }
       ],
-      "mode": "live"
+      "mode": "live",
+      "name": "Legible error"
     }
-  ]
+  ],
+  "title": "ProgressiveImage"
 }

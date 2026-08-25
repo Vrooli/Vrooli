@@ -5,13 +5,14 @@
   "asset": {
     "id": "controls.checkbox",
     "name": "Checkbox",
-    "kind": "component", "surface": "raised",
+    "kind": "component",
+    "surface": "raised",
     "domain": "controls",
     "description": "The binary or indeterminate selection control with animated state marks, validation treatment, group membership, and robust keyboard and screen-reader behavior.",
     "targets": [
       "react-vite"
     ],
-    "slot": "primitive",
+    "slot": "ui-primitive",
     "delivery": "adopted",
     "target": {
       "priority": "P0",

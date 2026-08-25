@@ -5,13 +5,14 @@
   "asset": {
     "id": "primitives.truncate",
     "name": "Truncate",
-    "kind": "primitive", "surface": "base",
+    "kind": "primitive",
+    "surface": "base",
     "domain": "primitives",
     "description": "The text-overflow primitive supporting single-line ellipsis and multi-line clamping while keeping the full value available to assistive technology.",
     "targets": [
       "react-vite"
     ],
-    "slot": "primitive",
+    "slot": "ui-primitive",
     "delivery": "adopted",
     "target": {
       "priority": "P1",

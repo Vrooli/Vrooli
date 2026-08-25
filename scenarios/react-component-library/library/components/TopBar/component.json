@@ -1,11 +1,27 @@
 {
-  "libraryId": "react-component-library:TopBar",
-  "catalogId": "navigation.top-bar",
-  "displayName": "TopBar",
-  "description": "A stable application header region that adapts its navigation affordances by viewport.",
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "component",
-  "tags": ["navigation", "responsive", "token-bound"],
+  "catalogId": "navigation.top-bar",
+  "dependencies": [],
+  "description": "A stable application header region that adapts its navigation affordances by viewport.",
+  "designStyles": [
+    {
+      "affinity": "native",
+      "styleId": "vrooli-default"
+    }
+  ],
+  "displayName": "TopBar",
   "latest": "1.0.0",
-  "designStyles": [{ "styleId": "vrooli-default", "affinity": "native" }],
-  "dependencies": []
+  "libraryId": "react-component-library:TopBar",
+  "tags": [
+    "navigation",
+    "responsive",
+    "token-bound"
+  ],
+  "requires": [
+    {
+      "libraryId": "react-component-library:useLocale",
+      "version": "1.0.0"
+    }
+  ]
 }

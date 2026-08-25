@@ -10,13 +10,14 @@
   "asset": {
     "id": "motion.presence",
     "name": "Presence",
-    "kind": "primitive", "surface": "base",
+    "kind": "primitive",
+    "surface": "base",
     "domain": "motion",
     "description": "The mount and unmount lifecycle primitive letting content animate out before removal, handling interruption, nesting, and reduced-motion collapse.",
     "targets": [
       "react-vite"
     ],
-    "slot": "primitive",
+    "slot": "ui-primitive",
     "delivery": "adopted",
     "target": {
       "priority": "P0",

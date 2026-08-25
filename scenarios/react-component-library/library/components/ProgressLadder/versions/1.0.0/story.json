@@ -1,1 +1,44 @@
-{"schemaVersion":3,"kind":"component","title":"ProgressLadder","args":{"fields":[]},"environment":{"fixtures":[]},"stories":[{"id":"default","name":"Default","args":{"rungs":[{"id":"implemented","label":"Implemented","complete":true},{"id":"verified","label":"Verified","complete":false,"current":true}]},"expect":[{"kind":"text","value":"Implemented"},{"kind":"text","value":"Verified"}],"mode":"pinned"}]}
+{
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
+  "args": {
+    "fields": []
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "kind": "component",
+  "schemaVersion": 4,
+  "stories": [
+    {
+      "args": {
+        "rungs": [
+          {
+            "complete": true,
+            "id": "implemented",
+            "label": "Implemented"
+          },
+          {
+            "complete": false,
+            "current": true,
+            "id": "verified",
+            "label": "Verified"
+          }
+        ]
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "Implemented"
+        },
+        {
+          "kind": "text",
+          "value": "Verified"
+        }
+      ],
+      "id": "default",
+      "mode": "pinned",
+      "name": "Default"
+    }
+  ],
+  "title": "ProgressLadder"
+}

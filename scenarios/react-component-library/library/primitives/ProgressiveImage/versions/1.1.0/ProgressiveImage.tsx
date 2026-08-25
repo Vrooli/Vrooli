@@ -6,6 +6,8 @@
  * @tags ["primitive","media","responsive","accessibility","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
+import { translate } from "../../../../hooks/useLocale/versions/1.0.0/useLocale";
+
 /** @vrooliComponentSource primitives.progressive-image */
 import {
   useEffect,
@@ -105,7 +107,7 @@ export function ProgressiveImage({
           data-visible={state === "loading"}
           aria-hidden={state !== "loading"}
         >
-          {placeholder ?? <span>Loading image…</span>}
+          {placeholder ?? <span>{translate("primitives.progressive-image.text.1", "Loading image…")}</span>}
         </div>
         <picture>
           {sources.map((source) => (
@@ -142,7 +144,7 @@ export function ProgressiveImage({
             <span data-rcl-progressive-image-error-icon aria-hidden="true">
               !
             </span>
-            {errorFallback ?? <span>Image unavailable.</span>}
+            {errorFallback ?? <span>{translate("primitives.progressive-image.text.2", "Image unavailable.")}</span>}
           </div>
         </div>
       </AspectRatio>

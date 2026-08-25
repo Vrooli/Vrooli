@@ -1,15 +1,34 @@
 {
-  "libraryId": "react-component-library:Skeleton",
-  "catalogId": "primitives.skeleton",
-  "displayName": "Skeleton",
-  "description": "Skeleton communicates loading content with a token-backed placeholder.",
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "primitive",
-  "tags": ["primitive", "token-bound"],
-  "latest": "1.0.0",
+  "catalogId": "primitives.skeleton",
+  "dependencies": [],
+  "description": "Skeleton communicates loading content with a token-backed placeholder.",
   "designStyles": [
-    { "styleId": "vrooli-default", "affinity": "native" },
-    { "styleId": "vrooli-command-display", "affinity": "compatible" },
-    { "styleId": "vrooli-conversion-landing", "affinity": "compatible" }
+    {
+      "affinity": "native",
+      "styleId": "vrooli-default"
+    },
+    {
+      "affinity": "compatible",
+      "styleId": "vrooli-command-display"
+    },
+    {
+      "affinity": "compatible",
+      "styleId": "vrooli-conversion-landing"
+    }
   ],
-  "dependencies": []
+  "displayName": "Skeleton",
+  "latest": "1.0.0",
+  "libraryId": "react-component-library:Skeleton",
+  "tags": [
+    "primitive",
+    "token-bound"
+  ],
+  "requires": [
+    {
+      "libraryId": "react-component-library:useLocale",
+      "version": "1.0.0"
+    }
+  ]
 }

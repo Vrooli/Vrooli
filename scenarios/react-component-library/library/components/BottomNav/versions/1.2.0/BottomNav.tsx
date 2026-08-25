@@ -2,10 +2,9 @@
  * @libraryId react-component-library:BottomNav
  * @version 1.2.0
  * @status released
- * @deps {"react":"^18","clsx":"^2.1.1","tailwind-merge":"^2.3.0"}
+ * @deps {"react":"^18"}
  */
-import { clsx, type ClassValue } from "clsx";
-import { twMerge } from "tailwind-merge";
+import { cn } from "../../../../foundations/ClassMerge/versions/1.0.0/ClassMerge";
 import type { MouseEvent, ReactNode } from "react";
 
 export interface BottomNavItem {
@@ -32,8 +31,6 @@ export interface BottomNavProps {
   activeItemClassName?: string;
   inactiveItemClassName?: string;
 }
-
-const cn = (...inputs: ClassValue[]) => twMerge(clsx(inputs));
 
 const baseItemClass =
   "touch-target flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 px-1 py-2 text-xs transition";

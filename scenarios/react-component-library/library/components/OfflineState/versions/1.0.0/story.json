@@ -1,19 +1,22 @@
 {
-  "schemaVersion": 3,
-  "kind": "component",
-  "title": "OfflineState",
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
   "args": {
     "fields": []
   },
   "environment": {
     "fixtures": []
   },
+  "kind": "component",
+  "schemaVersion": 4,
   "stories": [
     {
-      "id": "offline",
-      "name": "Offline snapshot",
-      "harness": "Offline",
       "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Offline",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
         {
           "kind": "role",
@@ -21,15 +24,18 @@
         },
         {
           "kind": "role",
-          "role": "button",
-          "name": "Try again"
+          "name": "Try again",
+          "role": "button"
         },
         {
           "kind": "text",
           "value": "Saved workspace snapshot"
         }
       ],
-      "mode": "live"
+      "id": "offline",
+      "mode": "live",
+      "name": "Offline snapshot"
     }
-  ]
+  ],
+  "title": "OfflineState"
 }

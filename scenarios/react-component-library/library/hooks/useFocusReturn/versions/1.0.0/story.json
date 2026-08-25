@@ -1,21 +1,27 @@
 {
-  "schemaVersion": 3,
-  "kind": "hook",
-  "title": "useFocusReturn",
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
   "args": {
     "fields": []
   },
   "environment": {
     "fixtures": []
   },
+  "kind": "hook",
+  "schemaVersion": 4,
   "stories": [
     {
-      "id": "default",
-      "name": "Default",
-      "harness": "Default",
       "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Default",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [],
-      "mode": "live"
+      "id": "default",
+      "mode": "live",
+      "name": "Default"
     }
-  ]
+  ],
+  "title": "useFocusReturn"
 }

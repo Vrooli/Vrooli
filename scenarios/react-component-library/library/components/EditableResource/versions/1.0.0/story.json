@@ -1,68 +1,94 @@
 {
-  "schemaVersion": 3,
-  "kind": "component",
-  "title": "EditableResource",
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
   "args": {
     "fields": []
   },
   "environment": {
     "fixtures": []
   },
+  "kind": "component",
+  "schemaVersion": 4,
   "stories": [
     {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Default",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Release brief",
+          "role": "heading"
+        },
+        {
+          "kind": "role",
+          "name": "Edit",
+          "role": "button"
+        }
+      ],
       "id": "default",
-      "name": "Editable resource",
-      "harness": "Default",
+      "mode": "live",
+      "name": "Editable resource"
+    },
+    {
       "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Editing",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
         {
           "kind": "role",
-          "role": "heading",
-          "name": "Release brief"
+          "name": "Name",
+          "role": "textbox"
         },
         {
           "kind": "role",
-          "role": "button",
-          "name": "Edit"
+          "name": "Save changes",
+          "role": "button"
+        },
+        {
+          "kind": "role",
+          "name": "Cancel",
+          "role": "button"
         }
       ],
-      "mode": "live"
-    },
-    {
       "id": "editing",
-      "name": "Editing state",
-      "harness": "Editing",
+      "mode": "live",
+      "name": "Editing state"
+    },
+    {
       "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Interactive",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
         {
           "kind": "role",
-          "role": "textbox",
-          "name": "Name"
+          "name": "Release brief v2",
+          "role": "heading"
         },
         {
           "kind": "role",
-          "role": "button",
-          "name": "Save changes"
-        },
-        {
-          "kind": "role",
-          "role": "button",
-          "name": "Cancel"
+          "name": "Edit",
+          "role": "button"
         }
       ],
-      "mode": "live"
-    },
-    {
       "id": "interactive",
-      "name": "Edit and save",
-      "harness": "Interactive",
-      "args": {},
       "interactions": [
         {
           "kind": "click",
           "target": {
-            "role": "button",
-            "name": "Edit"
+            "name": "Edit",
+            "role": "button"
           }
         },
         {
@@ -71,16 +97,16 @@
         {
           "kind": "type",
           "target": {
-            "role": "textbox",
-            "name": "Name"
+            "name": "Name",
+            "role": "textbox"
           },
           "text": "Release brief v2"
         },
         {
           "kind": "click",
           "target": {
-            "role": "button",
-            "name": "Save changes"
+            "name": "Save changes",
+            "role": "button"
           }
         },
         {
@@ -91,19 +117,9 @@
           "kind": "settle"
         }
       ],
-      "expect": [
-        {
-          "kind": "role",
-          "role": "heading",
-          "name": "Release brief v2"
-        },
-        {
-          "kind": "role",
-          "role": "button",
-          "name": "Edit"
-        }
-      ],
-      "mode": "live"
+      "mode": "live",
+      "name": "Edit and save"
     }
-  ]
+  ],
+  "title": "EditableResource"
 }

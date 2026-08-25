@@ -5,13 +5,14 @@
   "asset": {
     "id": "ai.plan-view",
     "name": "PlanView",
-    "kind": "component", "surface": "raised",
+    "kind": "component",
+    "surface": "raised",
     "domain": "ai",
     "description": "The structured plan showing goals, steps, dependencies, status, revisions, blockers, and user-editable checkpoints, with plain-language explanation of why a step is blocked.",
     "targets": [
       "react-vite"
     ],
-    "slot": "primitive",
+    "slot": "ui-primitive",
     "delivery": "adopted",
     "target": {
       "priority": "P1",

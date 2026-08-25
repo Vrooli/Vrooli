@@ -1,208 +1,172 @@
 {
-  "schemaVersion": 3,
-  "kind": "component",
-  "title": "DrawerShell",
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
   "args": {
     "fields": [
       {
-        "path": "open",
-        "label": "Open",
+        "default": true,
         "kind": "boolean",
-        "default": true
+        "label": "Open",
+        "path": "open"
       },
       {
-        "path": "title",
-        "label": "Title",
+        "default": "Component details",
         "kind": "text",
-        "default": "Component details"
+        "label": "Title",
+        "path": "title"
       },
       {
-        "path": "onClose",
-        "label": "On Close",
-        "kind": "structured",
         "default": {
           "$handler": "close"
-        }
+        },
+        "kind": "structured",
+        "label": "On Close",
+        "path": "onClose"
       },
       {
-        "path": "children",
-        "label": "Children",
-        "kind": "structured",
         "default": {
           "$text": "Full-page drawer body content"
-        }
+        },
+        "kind": "structured",
+        "label": "Children",
+        "path": "children"
       },
       {
-        "path": "size",
+        "default": "compact",
+        "kind": "text",
         "label": "Size",
-        "kind": "text",
-        "default": "compact"
+        "path": "size"
       },
       {
-        "path": "headerActions",
+        "default": {
+          "$text": "button"
+        },
+        "kind": "structured",
         "label": "Header Actions",
-        "kind": "structured",
-        "default": {
-          "$node": "button",
-          "props": {
-            "type": "button",
-            "className": "min-h-11 min-w-11 rounded-control px-2 py-1 text-app-primary"
-          },
-          "children": [
-            {
-              "$text": "Save"
-            }
-          ]
-        }
+        "path": "headerActions"
       },
       {
-        "path": "headerExtra",
+        "default": {
+          "$text": "p"
+        },
+        "kind": "structured",
         "label": "Header Extra",
-        "kind": "structured",
-        "default": {
-          "$node": "p",
-          "props": {
-            "className": "mt-1 text-xs text-wc-text-muted"
-          },
-          "children": [
-            {
-              "$text": "Updated 2 minutes ago"
-            }
-          ]
-        }
+        "path": "headerExtra"
       },
       {
-        "path": "avoidKeyboard",
-        "label": "Avoid Keyboard",
+        "default": true,
         "kind": "boolean",
-        "default": true
+        "label": "Avoid Keyboard",
+        "path": "avoidKeyboard"
       },
       {
-        "path": "closeAriaLabel",
-        "label": "Close Aria Label",
+        "default": "Close composer",
         "kind": "text",
-        "default": "Close composer"
+        "label": "Close Aria Label",
+        "path": "closeAriaLabel"
       }
     ]
   },
   "environment": {
     "fixtures": []
   },
+  "kind": "component",
+  "schemaVersion": 4,
   "stories": [
     {
-      "id": "full-open",
-      "name": "Full drawer",
       "args": {
-        "open": true,
-        "title": "Component details",
+        "children": {
+          "$text": "Full-page drawer body content"
+        },
         "onClose": {
           "$handler": "close"
         },
-        "children": {
-          "$text": "Full-page drawer body content"
-        }
+        "open": true,
+        "title": "Component details"
       },
       "expect": [
         {
           "kind": "role",
-          "role": "dialog",
-          "name": "Component details"
+          "name": "Component details",
+          "role": "dialog"
         },
         {
           "kind": "text",
           "value": "Full-page drawer body content"
         }
       ],
-      "mode": "pinned"
+      "id": "full-open",
+      "mode": "pinned",
+      "name": "Full drawer"
     },
     {
-      "id": "compact-open",
-      "name": "Compact drawer",
       "args": {
-        "open": true,
-        "size": "compact",
-        "title": "Appearance",
+        "children": {
+          "$text": "Compact centered panel"
+        },
         "onClose": {
           "$handler": "close"
         },
-        "children": {
-          "$text": "Compact centered panel"
-        }
+        "open": true,
+        "size": "compact",
+        "title": "Appearance"
       },
       "expect": [
         {
           "kind": "role",
-          "role": "dialog",
-          "name": "Appearance"
+          "name": "Appearance",
+          "role": "dialog"
         },
         {
           "kind": "text",
           "value": "Compact centered panel"
         }
       ],
-      "mode": "pinned"
+      "id": "compact-open",
+      "mode": "pinned",
+      "name": "Compact drawer"
     },
     {
-      "id": "with-header-actions",
-      "name": "Header actions",
       "args": {
-        "open": true,
-        "title": "Edit prompt",
+        "children": {
+          "$text": "Body with a header action"
+        },
+        "headerActions": {
+          "$text": "button"
+        },
         "onClose": {
           "$handler": "close"
         },
-        "headerActions": {
-          "$node": "button",
-          "props": {
-            "type": "button",
-            "className": "min-h-11 min-w-11 rounded-control px-2 py-1 text-app-primary"
-          },
-          "children": [
-            {
-              "$text": "Save"
-            }
-          ]
-        },
-        "children": {
-          "$text": "Body with a header action"
-        }
+        "open": true,
+        "title": "Edit prompt"
       },
       "expect": [
         {
           "kind": "role",
-          "role": "button",
-          "name": "Save"
+          "name": "Save",
+          "role": "button"
         },
         {
           "kind": "text",
           "value": "Body with a header action"
         }
       ],
-      "mode": "pinned"
+      "id": "with-header-actions",
+      "mode": "pinned",
+      "name": "Header actions"
     },
     {
-      "id": "with-header-extra",
-      "name": "Header subtitle",
       "args": {
-        "open": true,
-        "title": "Session log",
+        "children": {
+          "$text": "Scrollable log content"
+        },
+        "headerExtra": {
+          "$text": "p"
+        },
         "onClose": {
           "$handler": "close"
         },
-        "headerExtra": {
-          "$node": "p",
-          "props": {
-            "className": "mt-1 text-xs text-wc-text-muted"
-          },
-          "children": [
-            {
-              "$text": "Updated 2 minutes ago"
-            }
-          ]
-        },
-        "children": {
-          "$text": "Scrollable log content"
-        }
+        "open": true,
+        "title": "Session log"
       },
       "expect": [
         {
@@ -214,35 +178,38 @@
           "value": "Scrollable log content"
         }
       ],
-      "mode": "pinned"
+      "id": "with-header-extra",
+      "mode": "pinned",
+      "name": "Header subtitle"
     },
     {
-      "id": "keyboard-aware",
-      "name": "Keyboard-aware composer",
       "args": {
-        "open": true,
-        "title": "Message",
         "avoidKeyboard": true,
+        "children": {
+          "$text": "Composer body lifted above the keyboard"
+        },
         "closeAriaLabel": "Close composer",
         "onClose": {
           "$handler": "close"
         },
-        "children": {
-          "$text": "Composer body lifted above the keyboard"
-        }
+        "open": true,
+        "title": "Message"
       },
       "expect": [
         {
           "kind": "role",
-          "role": "button",
-          "name": "Close composer"
+          "name": "Close composer",
+          "role": "button"
         },
         {
           "kind": "text",
           "value": "Composer body lifted above the keyboard"
         }
       ],
-      "mode": "pinned"
+      "id": "keyboard-aware",
+      "mode": "pinned",
+      "name": "Keyboard-aware composer"
     }
-  ]
+  ],
+  "title": "DrawerShell"
 }

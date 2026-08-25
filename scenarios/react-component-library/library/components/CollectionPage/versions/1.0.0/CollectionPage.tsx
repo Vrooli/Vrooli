@@ -1,4 +1,6 @@
 /** @vrooliComponentSource react-component-library:CollectionPage */
+import { translate } from "../../../../hooks/useLocale/versions/1.0.0/useLocale";
+
 import type { ReactNode } from "react";
 import { useState } from "react";
 
@@ -37,13 +39,13 @@ function StateView({ state, children }: { state: State; children: ReactNode }) {
   if (state === "loading")
     return (
       <div role="status" style={{ ...panel, textAlign: "center" }}>
-        Loading…
+          {translate("templates.collection-page.text.1", "Loading…")}
       </div>
     );
   if (state === "refreshing")
     return (
       <div role="status" style={panel}>
-        <strong>Refreshing</strong>
+        <strong>{translate("templates.collection-page.text.4", "Refreshing")}</strong>
         {children}
       </div>
     );
@@ -51,7 +53,7 @@ function StateView({ state, children }: { state: State; children: ReactNode }) {
     return (
       <div style={{ display: "grid", gap: 12 }}>
         <span style={{ color: "var(--color-primary, #2563eb)" }}>
-          Showing stale data
+          {translate("templates.collection-page.text.2", "Showing stale data")}
         </span>
         {children}
       </div>
@@ -59,7 +61,7 @@ function StateView({ state, children }: { state: State; children: ReactNode }) {
   if (state === "empty")
     return (
       <div data-state="empty" style={{ ...panel, textAlign: "center" }}>
-        Nothing here
+        {translate("templates.collection-page.text.3", "Nothing here")}
       </div>
     );
   if (state === "partial-error")
@@ -70,7 +72,7 @@ function StateView({ state, children }: { state: State; children: ReactNode }) {
         role="alert"
         style={{ ...panel, borderColor: "var(--color-danger, #dc2626)" }}
       >
-        Unable to load this page
+        {translate("templates.collection-page.text.5", "Unable to load this page")}
       </div>
     );
   if (state === "offline") return <div role="status">Offline{children}</div>;
@@ -107,8 +109,8 @@ export function CollectionPage({
       <style>{`.rcl-collection-filter{box-sizing:border-box;display:flex;flex-wrap:wrap}.rcl-collection-filter input{box-sizing:border-box}.rcl-collection-filter button{box-sizing:border-box}@media (max-width:520px){.rcl-collection-filter{flex-direction:column}.rcl-collection-filter input{flex:0 1 auto !important}.rcl-collection-filter button{width:100%}}`}</style>
       <div style={{ display: "grid", gap: 16, minWidth: 0, width: "100%" }}>
         <header>
-          <h1 style={{ margin: 0, fontSize: 24 }}>Collection</h1>
-          <p style={muted}>Browse, filter, and act on your resources.</p>
+          <h1 style={{ margin: 0, fontSize: 24 }}>{translate("templates.collection-page.text.5", "Collection")}</h1>
+          <p style={muted}>{translate("templates.collection-page.text.6", "Browse, filter, and act on your resources.")}</p>
         </header>
         <form
           className="rcl-collection-filter"
@@ -120,9 +122,9 @@ export function CollectionPage({
           }}
           data-collection-page-mode={resolvedMode}
         >
-          <input
-            aria-label="Filter query"
-            placeholder="Search by name or status"
+          <input data-testid="templates.collection-page"
+            aria-label={translate("templates.collection-page.aria-label.1", "Filter query")}
+            placeholder={translate("templates.collection-page.placeholder.2", "Search by name or status")}
             value={resolvedQuery}
             onChange={(event) => updateQuery(event.currentTarget.value)}
             style={{
@@ -135,12 +137,12 @@ export function CollectionPage({
               font: "inherit",
             }}
           />
-          <button type="submit" style={button}>
-            Apply filters
+          <button data-testid="templates.collection-page" type="submit" style={button}>
+          {translate("templates.collection-page.text.6", "Apply filters")}
           </button>
         </form>
         <ul
-          aria-label="Collection results"
+          aria-label={translate("templates.collection-page.aria-label.3", "Collection results")}
           style={{
             ...panel,
             display: "grid",

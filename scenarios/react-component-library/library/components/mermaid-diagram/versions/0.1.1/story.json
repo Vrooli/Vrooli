@@ -1,27 +1,28 @@
 {
-  "schemaVersion": 3,
-  "kind": "component",
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
   "args": {
     "fields": []
   },
   "environment": {
     "fixtures": []
   },
+  "kind": "component",
+  "schemaVersion": 4,
   "stories": [
     {
-      "id": "default",
-      "name": "Default",
       "args": {
-        "code": "graph TD; A-->B;"
+        "code": "graph TD; A--\u003eB;"
       },
       "expect": [
         {
           "kind": "role",
-          "role": "button",
-          "name": "Open"
+          "name": "Open",
+          "role": "button"
         }
       ],
-      "mode": "pinned"
+      "id": "default",
+      "mode": "pinned",
+      "name": "Default"
     }
   ]
 }

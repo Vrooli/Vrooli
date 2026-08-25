@@ -10,13 +10,14 @@
   "asset": {
     "id": "data-display.filter-bar",
     "name": "FilterBar",
-    "kind": "component", "surface": "raised",
+    "kind": "component",
+    "surface": "raised",
     "domain": "data-display",
     "description": "The query-control surface coordinating search, structured filters, active-filter chips, presets, reset, responsive overflow, and URL synchronization.",
     "targets": [
       "react-vite"
     ],
-    "slot": "primitive",
+    "slot": "ui-primitive",
     "delivery": "adopted",
     "target": {
       "priority": "P0",
@@ -36,6 +37,10 @@
       {
         "asset": "primitives.cluster",
         "reason": "Chips wrap without resizing the bar."
+      },
+      {
+        "asset": "hooks.use-locale",
+        "reason": "User-facing copy resolves through the adopting host locale bridge."
       }
     ]
   },

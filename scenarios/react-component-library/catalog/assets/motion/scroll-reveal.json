@@ -5,13 +5,14 @@
   "asset": {
     "id": "motion.scroll-reveal",
     "name": "ScrollReveal",
-    "kind": "component", "surface": "raised",
+    "kind": "component",
+    "surface": "raised",
     "domain": "motion",
     "description": "The viewport-triggered presence component with a restrained replay policy, pooled observation, reduced-motion collapse, and content that remains visible without scripting.",
     "targets": [
       "react-vite"
     ],
-    "slot": "primitive",
+    "slot": "ui-primitive",
     "delivery": "adopted",
     "target": {
       "priority": "P2",

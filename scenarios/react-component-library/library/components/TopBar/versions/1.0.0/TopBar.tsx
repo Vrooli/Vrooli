@@ -1,4 +1,6 @@
 /** @vrooliComponentSource react-component-library:TopBar */
+import { translate } from "../../../../hooks/useLocale/versions/1.0.0/useLocale";
+
 import type { ReactNode } from "react";
 const panel = {
   border: "1px solid var(--color-border, #cbd5e1)",
@@ -24,8 +26,8 @@ export function TopBar({ children }: { children?: ReactNode }) {
     >
       {children ?? (
         <>
-          <strong style={{ fontSize: 18 }}>Application</strong>
-          <span style={{ marginInlineStart: "auto", ...muted }}>Workspace</span>
+          <strong style={{ fontSize: 18 }}>{translate("navigation.top-bar.text.1", "Application")}</strong>
+          <span style={{ marginInlineStart: "auto", ...muted }}>{translate("navigation.top-bar.text.2", "Workspace")}</span>
         </>
       )}
     </header>

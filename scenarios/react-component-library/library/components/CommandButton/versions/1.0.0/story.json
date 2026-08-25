@@ -1,70 +1,86 @@
 {
-  "schemaVersion": 3,
-  "kind": "component",
-  "title": "CommandButton",
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
   "args": {
     "fields": []
   },
   "environment": {
     "fixtures": []
   },
+  "kind": "component",
+  "schemaVersion": 4,
   "stories": [
     {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Default",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Publish changes",
+          "role": "button"
+        }
+      ],
       "id": "default",
-      "name": "Default async command",
-      "harness": "Default",
-      "args": {},
-      "expect": [
-        {
-          "kind": "role",
-          "role": "button",
-          "name": "Publish changes"
-        }
-      ],
       "interactions": [
         {
           "kind": "settle"
         }
       ],
-      "mode": "live"
+      "mode": "live",
+      "name": "Default async command"
     },
     {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "FailureRecovery",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Sync workspace",
+          "role": "button"
+        }
+      ],
       "id": "failure-recovery",
-      "name": "Failure with retry",
-      "harness": "FailureRecovery",
-      "args": {},
-      "expect": [
-        {
-          "kind": "role",
-          "role": "button",
-          "name": "Sync workspace"
-        }
-      ],
       "interactions": [
         {
           "kind": "settle"
         }
       ],
-      "mode": "live"
+      "mode": "live",
+      "name": "Failure with retry"
     },
     {
-      "id": "success",
-      "name": "Success acknowledgement",
-      "harness": "Success",
       "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Success",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
         {
           "kind": "role",
-          "role": "button",
-          "name": "Save preferences"
+          "name": "Save preferences",
+          "role": "button"
         }
       ],
+      "id": "success",
       "interactions": [
         {
           "kind": "settle"
         }
       ],
-      "mode": "live"
+      "mode": "live",
+      "name": "Success acknowledgement"
     }
-  ]
+  ],
+  "title": "CommandButton"
 }

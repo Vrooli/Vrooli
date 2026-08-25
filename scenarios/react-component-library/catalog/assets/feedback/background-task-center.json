@@ -5,13 +5,14 @@
   "asset": {
     "id": "feedback.background-task-center",
     "name": "BackgroundTaskCenter",
-    "kind": "component", "surface": "raised",
+    "kind": "component",
+    "surface": "raised",
     "domain": "feedback",
     "description": "The consolidated view of active and recent long-running operations with progress, status, cancellation, retry, result actions, and history cleanup.",
     "targets": [
       "react-vite"
     ],
-    "slot": "primitive",
+    "slot": "ui-primitive",
     "delivery": "adopted",
     "target": {
       "priority": "P1",

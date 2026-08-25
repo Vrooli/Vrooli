@@ -70,6 +70,7 @@ export interface ListComponentStoriesRequest {
 
 export interface ListComponentStoriesResponse {
   stories: ComponentStory[];
+  warnings?: string[];
 }
 
 export interface PreviewFrameCandidate {

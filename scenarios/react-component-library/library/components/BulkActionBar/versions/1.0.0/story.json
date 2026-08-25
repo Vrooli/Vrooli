@@ -1,19 +1,22 @@
 {
-  "schemaVersion": 3,
-  "kind": "component",
-  "title": "BulkActionBar",
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
   "args": {
     "fields": []
   },
   "environment": {
     "fixtures": []
   },
+  "kind": "component",
+  "schemaVersion": 4,
   "stories": [
     {
-      "id": "default",
-      "name": "Selection actions",
-      "harness": "Default",
       "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Default",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
         {
           "kind": "text",
@@ -21,17 +24,22 @@
         },
         {
           "kind": "role",
-          "role": "button",
-          "name": "Archive selected"
+          "name": "Archive selected",
+          "role": "button"
         }
       ],
-      "mode": "live"
+      "id": "default",
+      "mode": "live",
+      "name": "Selection actions"
     },
     {
-      "id": "submitting",
-      "name": "Submitting",
-      "harness": "Submitting",
       "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Submitting",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
         {
           "kind": "role",
@@ -42,13 +50,18 @@
           "value": "5 of 8"
         }
       ],
-      "mode": "live"
+      "id": "submitting",
+      "mode": "live",
+      "name": "Submitting"
     },
     {
-      "id": "success",
-      "name": "Success",
-      "harness": "Success",
       "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Success",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
         {
           "kind": "role",
@@ -59,13 +72,18 @@
           "value": "Eight records were archived"
         }
       ],
-      "mode": "live"
+      "id": "success",
+      "mode": "live",
+      "name": "Success"
     },
     {
-      "id": "partial",
-      "name": "Partial failure",
-      "harness": "Partial",
       "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Partial",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
         {
           "kind": "role",
@@ -77,17 +95,22 @@
         },
         {
           "kind": "role",
-          "role": "button",
-          "name": "Retry failed items"
+          "name": "Retry failed items",
+          "role": "button"
         }
       ],
-      "mode": "live"
+      "id": "partial",
+      "mode": "live",
+      "name": "Partial failure"
     },
     {
-      "id": "request-error",
-      "name": "Request error",
-      "harness": "RequestError",
       "args": {},
+      "composition": {
+        "specimen": {
+          "export": "RequestError",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
         {
           "kind": "role",
@@ -95,17 +118,22 @@
         },
         {
           "kind": "role",
-          "role": "button",
-          "name": "Retry failed items"
+          "name": "Retry failed items",
+          "role": "button"
         }
       ],
-      "mode": "live"
+      "id": "request-error",
+      "mode": "live",
+      "name": "Request error"
     },
     {
-      "id": "retry",
-      "name": "Retry",
-      "harness": "Retry",
       "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Retry",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
         {
           "kind": "text",
@@ -113,23 +141,39 @@
         },
         {
           "kind": "role",
-          "role": "button",
-          "name": "Retry failed items"
+          "name": "Retry failed items",
+          "role": "button"
         }
       ],
-      "mode": "live"
+      "id": "retry",
+      "mode": "live",
+      "name": "Retry"
     },
     {
-      "id": "interactive",
-      "name": "Interactive lifecycle",
-      "harness": "Interactive",
       "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Interactive",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "role": "status"
+        },
+        {
+          "kind": "text",
+          "value": "Eight records were archived."
+        }
+      ],
+      "id": "interactive",
       "interactions": [
         {
           "kind": "click",
           "target": {
-            "role": "button",
-            "name": "Archive selected"
+            "name": "Archive selected",
+            "role": "button"
           }
         },
         {
@@ -143,17 +187,9 @@
           "kind": "settle"
         }
       ],
-      "expect": [
-        {
-          "kind": "role",
-          "role": "status"
-        },
-        {
-          "kind": "text",
-          "value": "Eight records were archived."
-        }
-      ],
-      "mode": "live"
+      "mode": "live",
+      "name": "Interactive lifecycle"
     }
-  ]
+  ],
+  "title": "BulkActionBar"
 }

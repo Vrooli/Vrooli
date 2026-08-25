@@ -5,13 +5,14 @@
   "asset": {
     "id": "data-display.kanban-board",
     "name": "KanbanBoard",
-    "kind": "component", "surface": "raised",
+    "kind": "component",
+    "surface": "raised",
     "domain": "data-display",
     "description": "The column-based work board with virtualization, keyboard-accessible dragging, swimlanes, collapse, filters, optimistic movement, and conflict recovery.",
     "targets": [
       "react-vite"
     ],
-    "slot": "primitive",
+    "slot": "ui-primitive",
     "delivery": "adopted",
     "target": {
       "priority": "P1",

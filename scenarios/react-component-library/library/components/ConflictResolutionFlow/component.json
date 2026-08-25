@@ -1,9 +1,39 @@
 {
-  "libraryId": "react-component-library:ConflictResolutionFlow",
-  "catalogId": "patterns.conflict-resolution-flow",
-  "displayName": "ConflictResolutionFlow",
-  "description": "A field-level concurrency recovery surface that compares local and remote values, preserves intent, and retries resolution honestly.",
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "component",
+  "catalogId": "patterns.conflict-resolution-flow",
+  "dependencies": [
+    {
+      "libraryId": "react-component-library:DiffViewer",
+      "version": "1.0.0"
+    },
+    {
+      "libraryId": "react-component-library:Form",
+      "version": "1.0.0"
+    },
+    {
+      "libraryId": "react-component-library:useAnnounce",
+      "version": "1.0.0"
+    }
+  ],
+  "description": "A field-level concurrency recovery surface that compares local and remote values, preserves intent, and retries resolution honestly.",
+  "designStyles": [
+    {
+      "affinity": "native",
+      "styleId": "vrooli-default"
+    },
+    {
+      "affinity": "compatible",
+      "styleId": "vrooli-command-display"
+    },
+    {
+      "affinity": "compatible",
+      "styleId": "vrooli-conversion-landing"
+    }
+  ],
+  "displayName": "ConflictResolutionFlow",
+  "latest": "1.0.0",
+  "libraryId": "react-component-library:ConflictResolutionFlow",
   "tags": [
     "patterns",
     "conflict",
@@ -12,15 +42,10 @@
     "accessibility",
     "token-bound"
   ],
-  "latest": "1.0.0",
-  "designStyles": [
-    { "styleId": "vrooli-default", "affinity": "native" },
-    { "styleId": "vrooli-command-display", "affinity": "compatible" },
-    { "styleId": "vrooli-conversion-landing", "affinity": "compatible" }
-  ],
-  "dependencies": [
-    { "libraryId": "react-component-library:DiffViewer", "version": "1.0.0" },
-    { "libraryId": "react-component-library:Form", "version": "1.0.0" },
-    { "libraryId": "react-component-library:useAnnounce", "version": "1.0.0" }
+  "requires": [
+    {
+      "libraryId": "react-component-library:useLocale",
+      "version": "1.0.0"
+    }
   ]
 }

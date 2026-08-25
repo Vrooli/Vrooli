@@ -1,67 +1,80 @@
 {
-  "schemaVersion": 3,
-  "kind": "component",
-  "title": "Chart",
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
   "args": {
     "fields": []
   },
   "environment": {
     "fixtures": []
   },
+  "kind": "component",
+  "schemaVersion": 4,
   "stories": [
     {
-      "id": "default",
-      "name": "Interactive trend",
-      "harness": "Default",
       "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Default",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
         {
           "kind": "role",
-          "role": "img",
-          "name": "Weekly activation"
+          "name": "Weekly activation",
+          "role": "img"
         },
         {
           "kind": "role",
-          "role": "button",
-          "name": "Sat 84"
+          "name": "Sat 84",
+          "role": "button"
         },
         {
           "kind": "role",
           "role": "table"
         }
       ],
+      "id": "default",
       "interactions": [
         {
           "kind": "click",
           "target": {
-            "role": "button",
-            "name": "Thu 76"
+            "name": "Thu 76",
+            "role": "button"
           }
         },
         {
           "kind": "settle"
         }
       ],
-      "mode": "live"
+      "mode": "live",
+      "name": "Interactive trend"
     },
     {
-      "id": "loading",
-      "name": "Loading",
-      "harness": "Loading",
       "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Loading",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
         {
           "kind": "role",
           "role": "status"
         }
       ],
-      "mode": "live"
+      "id": "loading",
+      "mode": "live",
+      "name": "Loading"
     },
     {
-      "id": "empty",
-      "name": "Empty",
-      "harness": "Empty",
       "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Empty",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
         {
           "kind": "role",
@@ -72,13 +85,18 @@
           "value": "Connect a data source"
         }
       ],
-      "mode": "live"
+      "id": "empty",
+      "mode": "live",
+      "name": "Empty"
     },
     {
-      "id": "request-error",
-      "name": "Request error",
-      "harness": "RequestError",
       "args": {},
+      "composition": {
+        "specimen": {
+          "export": "RequestError",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
         {
           "kind": "role",
@@ -86,24 +104,32 @@
         },
         {
           "kind": "role",
-          "role": "button",
-          "name": "Try again"
+          "name": "Try again",
+          "role": "button"
         }
       ],
-      "mode": "live"
+      "id": "request-error",
+      "mode": "live",
+      "name": "Request error"
     },
     {
-      "id": "offline",
-      "name": "Offline",
-      "harness": "Offline",
       "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Offline",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
         {
           "kind": "role",
           "role": "status"
         }
       ],
-      "mode": "live"
+      "id": "offline",
+      "mode": "live",
+      "name": "Offline"
     }
-  ]
+  ],
+  "title": "Chart"
 }

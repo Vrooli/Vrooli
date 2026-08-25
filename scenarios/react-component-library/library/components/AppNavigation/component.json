@@ -1,16 +1,27 @@
 {
-  "libraryId": "react-component-library:AppNavigation",
-  "catalogId": "navigation.app-navigation",
-  "displayName": "AppNavigation",
-  "description": "One composed navigation contract owning sidebar-to-drawer, modal-to-bottom-sheet, and header-to-bottom-navigation transformations.",
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "component",
-  "tags": ["navigation", "responsive", "token-bound"],
-  "latest": "1.1.0",
+  "catalogId": "navigation.app-navigation",
+  "dependencies": [],
+  "description": "One composed navigation contract owning sidebar-to-drawer, modal-to-bottom-sheet, and header-to-bottom-navigation transformations.",
   "designStyles": [
     {
-      "styleId": "vrooli-default",
-      "affinity": "native"
+      "affinity": "native",
+      "styleId": "vrooli-default"
     }
   ],
-  "dependencies": []
+  "displayName": "AppNavigation",
+  "latest": "1.1.0",
+  "libraryId": "react-component-library:AppNavigation",
+  "tags": [
+    "navigation",
+    "responsive",
+    "token-bound"
+  ],
+  "requires": [
+    {
+      "libraryId": "react-component-library:useLocale",
+      "version": "1.0.0"
+    }
+  ]
 }

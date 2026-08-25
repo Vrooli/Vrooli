@@ -1,11 +1,20 @@
 {
-  "libraryId": "react-component-library:ShortcutRegistry",
-  "catalogId": "services.shortcut-registry",
-  "displayName": "ShortcutRegistry",
-  "description": "Scoped collision-aware shortcut registry with priority, scope, platform normalization, and conflict inspection.",
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "service",
-  "tags": ["runtime", "state"],
+  "catalogId": "services.shortcut-registry",
+  "dependencies": [],
+  "description": "Scoped collision-aware shortcut registry with priority, scope, platform normalization, and conflict inspection.",
+  "designStyles": [
+    {
+      "affinity": "native",
+      "styleId": "vrooli-default"
+    }
+  ],
+  "displayName": "ShortcutRegistry",
   "latest": "1.0.0",
-  "designStyles": [{ "styleId": "vrooli-default", "affinity": "native" }],
-  "dependencies": []
+  "libraryId": "react-component-library:ShortcutRegistry",
+  "tags": [
+    "runtime",
+    "state"
+  ]
 }

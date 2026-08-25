@@ -5,13 +5,14 @@
   "asset": {
     "id": "feedback.zero-state",
     "name": "ZeroState",
-    "kind": "component", "surface": "raised",
+    "kind": "component",
+    "surface": "raised",
     "domain": "feedback",
     "description": "The first-use composition that teaches what the surface is for, reduces setup ambiguity, and guides the user to create their first meaningful object.",
     "targets": [
       "react-vite"
     ],
-    "slot": "primitive",
+    "slot": "ui-primitive",
     "delivery": "adopted",
     "target": {
       "priority": "P1",

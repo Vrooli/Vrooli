@@ -1,11 +1,20 @@
 {
-  "libraryId": "react-component-library:useScrollLock",
-  "catalogId": "hooks.use-scroll-lock",
-  "displayName": "useScrollLock",
-  "description": "Production-ready useScrollLock hook with SSR-safe lifecycle behavior.",
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "hook",
-  "tags": ["runtime", "accessibility"],
+  "catalogId": "hooks.use-scroll-lock",
+  "dependencies": [],
+  "description": "Production-ready useScrollLock hook with SSR-safe lifecycle behavior.",
+  "designStyles": [
+    {
+      "affinity": "native",
+      "styleId": "vrooli-default"
+    }
+  ],
+  "displayName": "useScrollLock",
   "latest": "1.0.0",
-  "designStyles": [{ "styleId": "vrooli-default", "affinity": "native" }],
-  "dependencies": []
+  "libraryId": "react-component-library:useScrollLock",
+  "tags": [
+    "runtime",
+    "accessibility"
+  ]
 }

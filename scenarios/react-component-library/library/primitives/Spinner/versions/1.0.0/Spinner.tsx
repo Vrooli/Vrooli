@@ -1,8 +1,10 @@
 /** @vrooliComponentSource primitives.spinner */
+import { translate } from "../../../../hooks/useLocale/versions/1.0.0/useLocale";
+
 import type { HTMLAttributes } from "react";
 
 export function Spinner({
-  label = "Loading",
+  label = translate("primitives.spinner.label.1", "Loading"),
   ...props
 }: HTMLAttributes<HTMLDivElement> & { label?: string }) {
   return (

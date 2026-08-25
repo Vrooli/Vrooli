@@ -10,13 +10,14 @@
   "asset": {
     "id": "manipulation.split-pane",
     "name": "SplitPane",
-    "kind": "component", "surface": "raised",
+    "kind": "component",
+    "surface": "raised",
     "domain": "manipulation",
     "description": "The polished resizable-region component with collapse, double-click reset, persistence, keyboard operation, responsive stacking, and coordination between nested panes.",
     "targets": [
       "react-vite"
     ],
-    "slot": "primitive",
+    "slot": "ui-primitive",
     "delivery": "adopted",
     "target": {
       "priority": "P0",

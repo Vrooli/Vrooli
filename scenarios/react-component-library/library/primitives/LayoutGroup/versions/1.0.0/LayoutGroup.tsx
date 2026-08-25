@@ -1,4 +1,4 @@
-/** @vrooliComponentSource primitives.layout-group */
+/** @vrooliComponentSource motion.layout-group */
 import type { HTMLAttributes } from "react";
 
 export function LayoutGroup({

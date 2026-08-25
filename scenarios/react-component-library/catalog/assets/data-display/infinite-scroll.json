@@ -5,13 +5,14 @@
   "asset": {
     "id": "data-display.infinite-scroll",
     "name": "InfiniteScroll",
-    "kind": "component", "surface": "raised",
+    "kind": "component",
+    "surface": "raised",
     "domain": "data-display",
     "description": "The pagination primitive loading further results near the viewport boundary while preserving restoration, retries, an end state, and an accessible manual alternative.",
     "targets": [
       "react-vite"
     ],
-    "slot": "primitive",
+    "slot": "ui-primitive",
     "delivery": "adopted",
     "target": {
       "priority": "P1",

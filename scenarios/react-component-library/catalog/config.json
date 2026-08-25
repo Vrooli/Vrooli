@@ -203,7 +203,9 @@
         "generator"
       ],
       "blocking": true,
-      "runner": { "react-vite": "pnpm run catalog:check" }
+      "runner": {
+        "react-vite": "pnpm run catalog:check"
+      }
     },
     {
       "id": "api",
@@ -223,7 +225,9 @@
         "navigation"
       ],
       "blocking": true,
-      "runner": { "react-vite": "react-component-library catalog gates api" }
+      "runner": {
+        "react-vite": "react-component-library catalog gates api"
+      }
     },
     {
       "id": "unit",
@@ -242,7 +246,9 @@
         "generator"
       ],
       "blocking": true,
-      "runner": { "react-vite": "react-component-library componenttests run" }
+      "runner": {
+        "react-vite": "react-component-library componenttests run"
+      }
     },
     {
       "id": "interaction",
@@ -257,7 +263,9 @@
         "navigation"
       ],
       "blocking": true,
-      "runner": { "react-vite": "react-component-library componenttests run" }
+      "runner": {
+        "react-vite": "react-component-library componenttests run"
+      }
     },
     {
       "id": "accessibility",
@@ -320,7 +328,9 @@
         "navigation"
       ],
       "blocking": true,
-      "runner": { "react-vite": "react-component-library catalog evidence capture all --all --json" },
+      "runner": {
+        "react-vite": "react-component-library catalog evidence capture all --all --json"
+      },
       "x-experience-claim-types": [
         "single-dominant-action",
         "visible-without-scroll",
@@ -343,8 +353,12 @@
         "navigation"
       ],
       "blocking": true,
-      "runner": { "react-vite": "react-component-library catalog gates rtl" },
-      "x-evidence-kinds": ["bounds"]
+      "runner": {
+        "react-vite": "react-component-library catalog gates rtl"
+      },
+      "x-evidence-kinds": [
+        "bounds"
+      ]
     },
     {
       "id": "reduced-motion",
@@ -362,7 +376,9 @@
       "runner": {
         "react-vite": "react-component-library catalog gates reduced-motion"
       },
-      "x-evidence-kinds": ["computed-style"]
+      "x-evidence-kinds": [
+        "computed-style"
+      ]
     },
     {
       "id": "performance",
@@ -380,7 +396,9 @@
       "runner": {
         "react-vite": "react-component-library catalog gates performance"
       },
-      "x-evidence-kinds": ["performance"]
+      "x-evidence-kinds": [
+        "performance"
+      ]
     },
     {
       "id": "console-clean",
@@ -398,7 +416,9 @@
       "runner": {
         "react-vite": "react-component-library catalog gates console-clean"
       },
-      "x-evidence-kinds": ["console"]
+      "x-evidence-kinds": [
+        "console"
+      ]
     },
     {
       "id": "surface-discipline",
@@ -416,7 +436,9 @@
       "runner": {
         "react-vite": "react-component-library catalog gates surface-discipline"
       },
-      "x-evidence-kinds": ["computed-style"]
+      "x-evidence-kinds": [
+        "computed-style"
+      ]
     },
     {
       "id": "composition",
@@ -496,7 +518,9 @@
       "attribution": "attributable",
       "rung": "verified",
       "description": "The fixture supplies its declared data shapes and includes overflowing text, absent optional fields, at least one RTL string, a failure record where status is modeled, and a volume variant.",
-      "appliesTo": ["fixture"],
+      "appliesTo": [
+        "fixture"
+      ],
       "blocking": true,
       "runner": {
         "react-vite": "react-component-library catalog gates fixture-adversarial"
@@ -507,9 +531,13 @@
       "attribution": "corpus",
       "rung": "verified",
       "description": "Every declared design ramp is present, spacing values stay on the approved grid, contrast pairs meet their floor, and component source does not bypass an available token.",
-      "appliesTo": ["foundation"],
+      "appliesTo": [
+        "foundation"
+      ],
       "blocking": true,
-      "runner": { "react-vite": "react-component-library catalog gates tokens" }
+      "runner": {
+        "react-vite": "react-component-library catalog gates tokens"
+      }
     },
     {
       "id": "conformance",
@@ -533,10 +561,49 @@
       "attribution": "attributable",
       "rung": "verified",
       "description": "Hooks and services clean up listeners and observers, abort superseded work, and access browser capabilities safely during SSR.",
-      "appliesTo": ["runtime-hook", "runtime-service", "adapter", "generator"],
+      "appliesTo": [
+        "runtime-hook",
+        "runtime-service",
+        "adapter",
+        "generator"
+      ],
       "blocking": true,
       "runner": {
         "react-vite": "react-component-library catalog gates lifecycle"
+      }
+    },
+    {
+      "attribution": "attributable",
+      "rung": "implemented",
+      "appliesTo": [
+        "primitive",
+        "component",
+        "pattern",
+        "page-template",
+        "navigation"
+      ],
+      "blocking": true,
+      "id": "i18n",
+      "description": "Requires user-facing library strings to resolve through the host locale bridge.",
+      "runner": {
+        "react-vite": "react-component-library catalog gates i18n"
+      }
+    },
+    {
+      "attribution": "attributable",
+      "rung": "implemented",
+      "appliesTo": [
+        "primitive",
+        "component",
+        "pattern",
+        "page-template",
+        "navigation"
+      ],
+      "blocking": true,
+      "id": "selector-coverage",
+      "description": "Requires native interactive elements to expose selectors rooted at their catalog asset id.",
+      "runner": {
+        "react-vite": "react-component-library catalog gates selector-coverage"
       }
     }
   ],

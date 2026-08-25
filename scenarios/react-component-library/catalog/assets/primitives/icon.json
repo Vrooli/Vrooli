@@ -10,13 +10,14 @@
   "asset": {
     "id": "primitives.icon",
     "name": "Icon",
-    "kind": "primitive", "surface": "base",
+    "kind": "primitive",
+    "surface": "base",
     "domain": "primitives",
     "description": "The normalized icon renderer applying optical sizing, stroke policy, direction-aware flipping, and accessibility treatment for decorative versus meaningful icons.",
     "targets": [
       "react-vite"
     ],
-    "slot": "primitive",
+    "slot": "ui-primitive",
     "delivery": "adopted",
     "target": {
       "priority": "P0",

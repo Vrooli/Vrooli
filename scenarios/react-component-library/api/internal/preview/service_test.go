@@ -255,7 +255,7 @@ func TestService_GetBundleVersionWithFrameRejectsAmbiguousImplementations(t *tes
 	require.Contains(t, err.Error(), "ambiguous react-vite implementations")
 }
 
-func TestService_GetBundleVersionWithSharedHarnessInjectsGenericPreviewAsset(t *testing.T) {
+func TestService_GetBundleVersionWithCompositionHarnessInjectsGenericPreviewAsset(t *testing.T) {
 	comp := &fakeComponentsService{
 		getFn: func(_ context.Context, id string) (components.Component, error) {
 			return components.Component{ID: id, LibraryID: "react-component-library:Skeleton", LatestVersion: "1.0.0"}, nil
@@ -268,8 +268,8 @@ func TestService_GetBundleVersionWithSharedHarnessInjectsGenericPreviewAsset(t *
 	svc := NewServiceWithDepsAtRoot(comp, NewEsbuilder(), nil, repoRoot)
 	bundle, err := svc.(*service).GetBundleVersionWithFrameAndHarness(context.Background(), "subject-id", "1.0.0", nil, &components.StoryHarnessRef{Asset: "preview.showcase", Version: "1.0.0", Export: "Showcase"})
 	require.NoError(t, err)
-	require.Contains(t, bundle.SharedHarnessJS, "data-preview-harness")
-	require.NotContains(t, bundle.SharedHarnessJS, "library/components/")
+	require.Contains(t, bundle.CompositionHarnessJS, "data-preview-harness")
+	require.NotContains(t, bundle.CompositionHarnessJS, "library/components/")
 }
 
 func TestValidateSpecimenSourceRejectsNonDeterministicBrowserAccess(t *testing.T) {
@@ -321,7 +321,7 @@ func TestResolveDeterministicFixtureSupportsNavigationHealthAndRecoveryFamilies(
 	}
 }
 
-func TestService_GetBundleVersionWithSharedHarnessBundlesEveryRegisteredFamily(t *testing.T) {
+func TestService_GetBundleVersionWithCompositionHarnessBundlesEveryRegisteredFamily(t *testing.T) {
 	comp := &fakeComponentsService{
 		getFn: func(_ context.Context, id string) (components.Component, error) {
 			return components.Component{ID: id, LibraryID: "react-component-library:PreviewSubject", LatestVersion: "1.0.0"}, nil
@@ -350,12 +350,12 @@ func TestService_GetBundleVersionWithSharedHarnessBundlesEveryRegisteredFamily(t
 		t.Run(family.asset, func(t *testing.T) {
 			bundle, err := svc.GetBundleVersionWithFrameAndHarness(context.Background(), "subject-id", "1.0.0", nil, &components.StoryHarnessRef{Asset: family.asset, Version: "1.0.0", Export: family.export})
 			require.NoError(t, err)
-			require.Contains(t, bundle.SharedHarnessJS, "data-preview-harness")
+			require.Contains(t, bundle.CompositionHarnessJS, "data-preview-harness")
 		})
 	}
 }
 
-func TestService_GetBundleVersionWithSharedHarnessRejectsUndeclaredConfig(t *testing.T) {
+func TestService_GetBundleVersionWithCompositionHarnessRejectsUndeclaredConfig(t *testing.T) {
 	comp := &fakeComponentsService{
 		getFn: func(_ context.Context, id string) (components.Component, error) {
 			return components.Component{ID: id, LibraryID: "react-component-library:Button", LatestVersion: "1.0.0"}, nil

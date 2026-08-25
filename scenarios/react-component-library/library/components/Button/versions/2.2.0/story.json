@@ -1,114 +1,257 @@
 {
-  "schemaVersion": 3,
-  "kind": "component",
-  "title": "Button 2.2",
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
   "args": {
     "fields": [
       {
-        "path": "children",
-        "label": "Label",
+        "default": {
+          "$text": "Save changes"
+        },
+        "format": "renderable-text",
         "kind": "structured",
-        "required": true,
-        "default": { "$text": "Save changes" },
-        "format": "renderable-text"
+        "label": "Label",
+        "path": "children",
+        "required": true
       },
       {
-        "path": "disabled",
-        "label": "Disabled",
+        "default": false,
         "kind": "boolean",
-        "default": false
+        "label": "Disabled",
+        "path": "disabled"
       }
     ]
   },
-  "environment": { "fixtures": [] },
+  "environment": {
+    "fixtures": []
+  },
+  "kind": "component",
+  "schemaVersion": 4,
   "stories": [
     {
+      "args": {
+        "children": {
+          "$text": "Save changes"
+        },
+        "variant": "primary"
+      },
+      "composition": {
+        "specimen": {
+          "export": "ButtonStory",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Save changes",
+          "role": "button"
+        }
+      ],
       "id": "primary",
-      "name": "Primary",
-      "harness": "ButtonStory",
-      "args": { "children": { "$text": "Save changes" }, "aria-label": "Save changes", "variant": "primary" },
-      "expect": [{ "kind": "role", "role": "button", "name": "Save changes" }],
-      "mode": "live"
+      "mode": "live",
+      "name": "Primary"
     },
     {
-      "id": "start-icon",
-      "name": "Governed start icon",
-      "harness": "ButtonStory",
       "args": {
-        "children": { "$text": "Continue" },
+        "children": {
+          "$text": "Continue"
+        },
         "iconName": "arrowEnd",
         "size": "lg"
       },
-      "expect": [{ "kind": "role", "role": "button", "name": "Continue" }],
-      "mode": "live"
-    },
-    {
-      "id": "disabled-long-label",
-      "name": "Disabled",
-      "harness": "ButtonStory",
-      "args": { "children": { "$text": "Save changes" }, "disabled": true },
-      "expect": [{ "kind": "role", "role": "button", "name": "Save changes" }],
-      "mode": "live"
-    },
-    {
-      "id": "shared-showcase",
-      "name": "Shared showcase harness",
-      "sharedHarness": {
-        "asset": "preview.showcase",
-        "version": "1.0.0",
-        "export": "Showcase",
-        "config": {
-          "title": "Primary action",
-          "detail": "The generic harness supplies context; Button remains the subject."
+      "composition": {
+        "specimen": {
+          "export": "ButtonStory",
+          "module": "./story.tsx"
         }
       },
-      "args": { "children": { "$text": "Save changes" }, "aria-label": "Save changes", "variant": "primary" },
-      "expect": [{ "kind": "role", "role": "button", "name": "Save changes" }],
-      "mode": "live"
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Continue",
+          "role": "button"
+        }
+      ],
+      "id": "start-icon",
+      "mode": "live",
+      "name": "Governed start icon"
     },
     {
+      "args": {
+        "children": {
+          "$text": "Save changes"
+        },
+        "disabled": true
+      },
+      "composition": {
+        "specimen": {
+          "export": "ButtonStory",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Save changes",
+          "role": "button"
+        }
+      ],
+      "id": "disabled-long-label",
+      "mode": "live",
+      "name": "Disabled"
+    },
+    {
+      "args": {
+        "children": {
+          "$text": "Save changes"
+        },
+        "variant": "primary"
+      },
+      "composition": {
+        "harness": {
+          "asset": "preview.showcase",
+          "config": {
+            "detail": "The generic harness supplies context; Button remains the subject.",
+            "title": "Primary action"
+          },
+          "export": "Showcase",
+          "version": "1.0.0"
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Save changes",
+          "role": "button"
+        }
+      ],
+      "id": "shared-showcase",
+      "mode": "live",
+      "name": "Shared showcase harness"
+    },
+    {
+      "args": {
+        "children": {
+          "$text": "Save changes"
+        },
+        "variant": "primary"
+      },
+      "composition": {
+        "specimen": {
+          "export": "AsyncSaveStory",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Save changes",
+          "role": "button"
+        },
+        {
+          "kind": "role",
+          "name": "Saving changes status",
+          "role": "status"
+        },
+        {
+          "kind": "count",
+          "selector": "button",
+          "value": "1"
+        }
+      ],
       "id": "async-save",
-      "name": "Async save pending",
-      "harness": "AsyncSaveStory",
-      "args": { "children": { "$text": "Save changes" }, "aria-label": "Save changes", "variant": "primary" },
-      "expect": [
-        { "kind": "role", "role": "button", "name": "Save changes" },
-        { "kind": "role", "role": "status", "name": "Saving changes status" },
-        { "kind": "count", "selector": "button", "value": "1" }
-      ],
       "interactions": [
-        { "kind": "click", "target": { "role": "button", "name": "Save changes" } },
-        { "kind": "settle" }
+        {
+          "kind": "click",
+          "target": {
+            "name": "Save changes",
+            "role": "button"
+          }
+        },
+        {
+          "kind": "settle"
+        }
       ],
-      "mode": "live"
+      "mode": "live",
+      "name": "Async save pending"
     },
     {
+      "args": {
+        "children": {
+          "$text": "Review and apply all pending workspace configuration changes"
+        }
+      },
+      "composition": {
+        "specimen": {
+          "export": "LongContentStory",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Review and apply all pending workspace configuration changes",
+          "role": "button"
+        },
+        {
+          "kind": "count",
+          "selector": "button",
+          "value": "1"
+        },
+        {
+          "kind": "layout",
+          "noOverflow": true,
+          "selector": "[data-rcl-control]"
+        }
+      ],
       "id": "long-content",
-      "name": "Long content stress",
-      "harness": "LongContentStory",
-      "args": { "children": { "$text": "Review and apply all pending workspace configuration changes" }, "aria-label": "Review and apply all pending workspace configuration changes" },
-      "expect": [
-        { "kind": "role", "role": "button", "name": "Review and apply all pending workspace configuration changes" },
-        { "kind": "count", "selector": "button", "value": "1" },
-        { "kind": "layout", "selector": "[data-rcl-control]", "noOverflow": true }
-      ],
-      "mode": "live"
+      "mode": "live",
+      "name": "Long content stress"
     },
     {
-      "id": "error-retry",
-      "name": "Recoverable save failure",
-      "harness": "ErrorRecoveryStory",
-      "args": { "children": { "$text": "Try again" }, "aria-label": "Try again", "variant": "primary" },
+      "args": {
+        "children": {
+          "$text": "Try again"
+        },
+        "variant": "primary"
+      },
+      "composition": {
+        "specimen": {
+          "export": "ErrorRecoveryStory",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
-        { "kind": "role", "role": "status" },
-        { "kind": "role", "role": "button", "name": "Saved" },
-        { "kind": "count", "selector": "button", "value": "1" }
+        {
+          "kind": "role",
+          "role": "status"
+        },
+        {
+          "kind": "role",
+          "name": "Saved",
+          "role": "button"
+        },
+        {
+          "kind": "count",
+          "selector": "button",
+          "value": "1"
+        }
       ],
+      "id": "error-retry",
       "interactions": [
-        { "kind": "click", "target": { "role": "button", "name": "Try again" } },
-        { "kind": "settle" }
+        {
+          "kind": "click",
+          "target": {
+            "name": "Try again",
+            "role": "button"
+          }
+        },
+        {
+          "kind": "settle"
+        }
       ],
-      "mode": "live"
+      "mode": "live",
+      "name": "Recoverable save failure"
     }
-  ]
+  ],
+  "title": "Button 2.2"
 }

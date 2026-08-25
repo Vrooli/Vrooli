@@ -278,6 +278,7 @@ type IndexManifestInput struct {
 	Stories  []ComponentStory
 	Headers  map[string]string
 	Findings []IndexFinding
+	Warnings []string
 }
 
 type DesignAffinity string

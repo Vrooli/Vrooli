@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"react-component-library/internal/catalogcoverage"
 	"react-component-library/internal/components"
@@ -22,6 +23,40 @@ type CatalogMaturityReader struct {
 
 func NewCatalogMaturityReader(root string, evidence *catalogcoverage.EvidenceStore) *CatalogMaturityReader {
 	return &CatalogMaturityReader{root: root, evidence: evidence}
+}
+
+// CatalogGateReader projects the latest exact-version observation for a
+// contract gate into adoption preflight. Missing or stale observations remain
+// explicitly unmeasured; they never become an accidental pass.
+type CatalogGateReader struct {
+	evidence *catalogcoverage.EvidenceStore
+}
+
+func NewCatalogGateReader(evidence *catalogcoverage.EvidenceStore) *CatalogGateReader {
+	return &CatalogGateReader{evidence: evidence}
+}
+
+func (r *CatalogGateReader) GateVerdict(ctx context.Context, component components.Component, version, scenario, gate string) (string, error) {
+	if r == nil || r.evidence == nil || strings.TrimSpace(component.CatalogID) == "" {
+		return "not-measured", nil
+	}
+	rows, err := r.evidence.List(ctx)
+	if err != nil {
+		return "", err
+	}
+	for _, row := range rows {
+		if row.AssetID != component.CatalogID || row.Gate != gate || row.Version != version {
+			continue
+		}
+		if row.Target != "" && row.Target != "react-vite" && row.Target != scenario {
+			continue
+		}
+		if row.Result == "pass" || row.Result == "fail" || row.Result == "unmeasured" || row.Result == "skipped" {
+			return row.Result, nil
+		}
+		return "not-measured", nil
+	}
+	return "not-measured", nil
 }
 
 func (r *CatalogMaturityReader) Maturity(ctx context.Context, component components.Component, _ string, scenario string) (MaturityVerdict, error) {

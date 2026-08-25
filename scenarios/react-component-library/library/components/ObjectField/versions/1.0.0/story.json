@@ -1,37 +1,45 @@
 {
-  "schemaVersion": 3,
-  "kind": "component",
-  "title": "ObjectField",
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
   "args": {
     "fields": []
   },
   "environment": {
     "fixtures": []
   },
+  "kind": "component",
+  "schemaVersion": 4,
   "stories": [
     {
-      "id": "default",
-      "name": "Nested group",
-      "harness": "Default",
       "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Default",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
         {
           "kind": "role",
-          "role": "textbox",
-          "name": "City"
+          "name": "City",
+          "role": "textbox"
         },
         {
           "kind": "text",
           "value": "Mailing address"
         }
       ],
-      "mode": "live"
+      "id": "default",
+      "mode": "live",
+      "name": "Nested group"
     },
     {
-      "id": "validation",
-      "name": "Group validation",
-      "harness": "Validation",
       "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Validation",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
         {
           "kind": "role",
@@ -42,7 +50,10 @@
           "value": "Add a city before saving."
         }
       ],
-      "mode": "live"
+      "id": "validation",
+      "mode": "live",
+      "name": "Group validation"
     }
-  ]
+  ],
+  "title": "ObjectField"
 }

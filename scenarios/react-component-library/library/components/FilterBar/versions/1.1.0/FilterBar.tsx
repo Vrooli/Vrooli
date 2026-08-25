@@ -6,6 +6,8 @@
  * @tags ["data-display","form","token-bound","responsive","keyboard"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
+import { translate } from "../../../../hooks/useLocale/versions/1.0.0/useLocale";
+
 /** @vrooliComponentSource react-component-library:FilterBar */
 import { useState, type FormEvent } from "react";
 import { Chip } from "../../../Chip/versions/1.0.0/Chip";
@@ -119,20 +121,20 @@ export function FilterBar({
           <div className="rcl-filter-bar__query">
             <SearchInput
               aria-label={queryLabel}
-              placeholder="Search records"
+              placeholder={translate("data-display.filter-bar.placeholder.1", "Search records")}
               value={resolvedQuery}
               onChange={(event) => setQuery(event.target.value)}
               style={{ width: "100%" }}
             />
           </div>
           <div className="rcl-filter-bar__actions">
-            <button
+            <button data-testid="data-display.filter-bar"
               type="submit"
               className="rcl-filter-bar__button rcl-filter-bar__button--primary"
             >
               {applyLabel}
             </button>
-            <button
+            <button data-testid="data-display.filter-bar"
               type="button"
               className="rcl-filter-bar__button rcl-filter-bar__button--quiet"
               onClick={reset}
@@ -143,8 +145,8 @@ export function FilterBar({
         </div>
         {options.length > 0 && (
           <fieldset style={{ border: 0, margin: 0, padding: 0 }}>
-            <legend className="rcl-filter-bar__legend">Filter by status</legend>
-            <Cluster gap="xs" aria-label="Available filters" role="group">
+            <legend className="rcl-filter-bar__legend">{translate("data-display.filter-bar.text.3", "Filter by status")}</legend>
+            <Cluster gap="xs" aria-label={translate("data-display.filter-bar.aria-label.2", "Available filters")} role="group">
               {options.map((option) => (
                 <Chip
                   key={option.id}

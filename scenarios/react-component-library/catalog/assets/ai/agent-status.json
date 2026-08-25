@@ -5,13 +5,14 @@
   "asset": {
     "id": "ai.agent-status",
     "name": "AgentStatus",
-    "kind": "component", "surface": "raised",
+    "kind": "component",
+    "surface": "raised",
     "domain": "ai",
     "description": "The compact agent presence component showing identity, current activity, availability, progress, interruption, error, and completion in one glanceable unit.",
     "targets": [
       "react-vite"
     ],
-    "slot": "primitive",
+    "slot": "ui-primitive",
     "delivery": "adopted",
     "target": {
       "priority": "P0",

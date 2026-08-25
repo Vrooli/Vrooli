@@ -1,13 +1,26 @@
 {
-  "libraryId": "react-component-library:AsyncPanel",
-  "x-supplementalJustification": "Pre-catalog lifecycle composition retained as a supplemental asset; its behavior is covered by the experience-surface contract.",
-  "displayName": "Async Panel",
-  "description": "Composable presentation for an ExperienceSurface lifecycle without prescribing page layout.",
-  "tags": ["experience", "lifecycle", "loading", "empty", "error", "retry"],
-  "slot": "ui-pattern",
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "category": "feedback",
-  "designStyles": [{ "styleId": "vrooli-default", "affinity": "native" }],
-  "latest": "1.0.0",
+  "deprecatedVersions": [],
+  "description": "Composable presentation for an ExperienceSurface lifecycle without prescribing page layout.",
+  "designStyles": [
+    {
+      "affinity": "native",
+      "styleId": "vrooli-default"
+    }
+  ],
+  "displayName": "Async Panel",
   "draft": "",
-  "deprecatedVersions": []
+  "latest": "1.0.0",
+  "libraryId": "react-component-library:AsyncPanel",
+  "slot": "ui-pattern",
+  "tags": [
+    "experience",
+    "lifecycle",
+    "loading",
+    "empty",
+    "error",
+    "retry"
+  ],
+  "x-supplementalJustification": "Pre-catalog lifecycle composition retained as a supplemental asset; its behavior is covered by the experience-surface contract."
 }

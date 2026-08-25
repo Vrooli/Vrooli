@@ -1,4 +1,6 @@
 /** @vrooliComponentSource forms.object-field */
+import { translate } from "../../../../hooks/useLocale/versions/1.0.0/useLocale";
+
 import { useEffect, useState, type CSSProperties, type ReactNode } from "react";
 import { FormSection } from "../../../../components/FormSection/versions/1.0.0/FormSection";
 import type { FormStore } from "../../../../services/FormStore/versions/1.0.0/FormStore";
@@ -114,7 +116,7 @@ export function ObjectField<
             <span data-rcl-object-badge>
               {Object.keys(value).length} values
             </span>
-            {optional && <span>Optional group</span>}
+            {optional && <span>{translate("forms.object-field.text.1", "Optional group")}</span>}
           </span>
         }
       >

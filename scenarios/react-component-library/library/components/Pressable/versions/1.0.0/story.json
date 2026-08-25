@@ -1,63 +1,74 @@
 {
-  "schemaVersion": 3,
-  "kind": "component",
-  "title": "Pressable",
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
   "args": {
     "fields": []
   },
   "environment": {
     "fixtures": []
   },
+  "kind": "component",
+  "schemaVersion": 4,
   "stories": [
     {
-      "id": "ready",
-      "name": "Ready",
-      "harness": "Ready",
       "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Ready",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
         {
           "kind": "role",
-          "role": "button",
-          "name": "Continue"
+          "name": "Continue",
+          "role": "button"
         },
         {
           "kind": "role",
-          "role": "button",
-          "name": "Save draft"
+          "name": "Save draft",
+          "role": "button"
         },
         {
           "kind": "layout",
-          "selector": "[data-rcl-pressable]",
+          "minHeight": 44,
           "minWidth": 44,
-          "minHeight": 44
+          "selector": "[data-rcl-pressable]"
         }
       ],
-      "mode": "live"
+      "id": "ready",
+      "mode": "live",
+      "name": "Ready"
     },
     {
-      "id": "pending",
-      "name": "Pending",
-      "harness": "Pending",
       "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Pending",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
         {
           "kind": "role",
-          "role": "button",
-          "name": "Saving…"
+          "name": "Saving…",
+          "role": "button"
         },
         {
           "kind": "role",
-          "role": "button",
-          "name": "Voice input"
+          "name": "Voice input",
+          "role": "button"
         },
         {
           "kind": "attribute",
-          "selector": "[data-rcl-pressable][data-rcl-pending=\"true\"]",
           "name": "aria-busy",
+          "selector": "[data-rcl-pressable][data-rcl-pending=\"true\"]",
           "value": "true"
         }
       ],
-      "mode": "live"
+      "id": "pending",
+      "mode": "live",
+      "name": "Pending"
     }
-  ]
+  ],
+  "title": "Pressable"
 }

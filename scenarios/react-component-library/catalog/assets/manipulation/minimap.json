@@ -5,13 +5,14 @@
   "asset": {
     "id": "manipulation.minimap",
     "name": "Minimap",
-    "kind": "component", "surface": "raised",
+    "kind": "component",
+    "surface": "raised",
     "domain": "manipulation",
     "description": "The synchronized overview of a larger spatial canvas with viewport bounds, click and drag navigation, selection indicators, and adaptive simplification at small sizes.",
     "targets": [
       "react-vite"
     ],
-    "slot": "primitive",
+    "slot": "ui-primitive",
     "delivery": "adopted",
     "target": {
       "priority": "P2",

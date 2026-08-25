@@ -1,9 +1,47 @@
 {
-  "libraryId": "react-component-library:Sortable",
-  "catalogId": "manipulation.sortable",
-  "displayName": "Sortable",
-  "description": "A keyboard and pointer reorder surface with optimistic persistence, animated displacement, announcements, and rollback.",
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "component",
+  "catalogId": "manipulation.sortable",
+  "dependencies": [
+    {
+      "libraryId": "react-component-library:Draggable",
+      "version": "1.0.0"
+    },
+    {
+      "libraryId": "react-component-library:AutoAnimateLayout",
+      "version": "1.0.0"
+    },
+    {
+      "libraryId": "react-component-library:useOptimisticAction",
+      "version": "1.0.0"
+    },
+    {
+      "libraryId": "react-component-library:useDrag",
+      "version": "1.0.0"
+    },
+    {
+      "libraryId": "react-component-library:useAnnounce",
+      "version": "1.0.0"
+    }
+  ],
+  "description": "A keyboard and pointer reorder surface with optimistic persistence, animated displacement, announcements, and rollback.",
+  "designStyles": [
+    {
+      "affinity": "native",
+      "styleId": "vrooli-default"
+    },
+    {
+      "affinity": "compatible",
+      "styleId": "vrooli-command-display"
+    },
+    {
+      "affinity": "compatible",
+      "styleId": "vrooli-conversion-landing"
+    }
+  ],
+  "displayName": "Sortable",
+  "latest": "1.0.0",
+  "libraryId": "react-component-library:Sortable",
   "tags": [
     "manipulation",
     "sortable",
@@ -13,23 +51,10 @@
     "accessibility",
     "token-bound"
   ],
-  "latest": "1.0.0",
-  "designStyles": [
-    { "styleId": "vrooli-default", "affinity": "native" },
-    { "styleId": "vrooli-command-display", "affinity": "compatible" },
-    { "styleId": "vrooli-conversion-landing", "affinity": "compatible" }
-  ],
-  "dependencies": [
-    { "libraryId": "react-component-library:Draggable", "version": "1.0.0" },
+  "requires": [
     {
-      "libraryId": "react-component-library:AutoAnimateLayout",
+      "libraryId": "react-component-library:useLocale",
       "version": "1.0.0"
-    },
-    {
-      "libraryId": "react-component-library:useOptimisticAction",
-      "version": "1.0.0"
-    },
-    { "libraryId": "react-component-library:useDrag", "version": "1.0.0" },
-    { "libraryId": "react-component-library:useAnnounce", "version": "1.0.0" }
+    }
   ]
 }

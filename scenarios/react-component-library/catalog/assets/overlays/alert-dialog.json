@@ -5,13 +5,14 @@
   "asset": {
     "id": "overlays.alert-dialog",
     "name": "AlertDialog",
-    "kind": "component", "surface": "raised",
+    "kind": "component",
+    "surface": "raised",
     "domain": "overlays",
     "description": "The focused confirmation surface for consequential decisions, explaining impact, separating safe from destructive actions, and resisting accidental dismissal.",
     "targets": [
       "react-vite"
     ],
-    "slot": "primitive",
+    "slot": "ui-primitive",
     "delivery": "adopted",
     "target": {
       "priority": "P0",

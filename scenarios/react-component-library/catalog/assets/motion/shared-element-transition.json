@@ -5,13 +5,14 @@
   "asset": {
     "id": "motion.shared-element-transition",
     "name": "SharedElementTransition",
-    "kind": "component", "surface": "raised",
+    "kind": "component",
+    "surface": "raised",
     "domain": "motion",
     "description": "The transition carrying a stable element between views by coordinating geometry, clipping, content handoff, and interruption, so an object keeps its identity across a navigation.",
     "targets": [
       "react-vite"
     ],
-    "slot": "primitive",
+    "slot": "ui-primitive",
     "delivery": "adopted",
     "target": {
       "priority": "P1",

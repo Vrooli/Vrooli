@@ -1,9 +1,11 @@
 /** @vrooliComponentSource react-component-library:CopyableText */
+import { translate } from "../../../../hooks/useLocale/versions/1.0.0/useLocale";
+
 export function CopyableText({ value }: { value: string }) {
   return (
-    <button
+    <button data-testid="primitives.copyable-text"
       type="button"
-      aria-label="Copy text"
+      aria-label={translate("primitives.copyable-text.aria-label.1", "Copy text")}
       style={{
         minHeight: 44,
         border: "1px solid var(--color-border, #cbd5e1)",

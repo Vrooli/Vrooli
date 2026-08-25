@@ -88,7 +88,7 @@ export function FormSection({
           )}
         </div>
         {collapsible && (
-          <button
+          <button data-testid="forms.form-section"
             type="button"
             data-rcl-form-section-toggle
             aria-expanded={isOpen}

@@ -5,13 +5,14 @@
   "asset": {
     "id": "forms.array-field",
     "name": "ArrayField",
-    "kind": "component", "surface": "raised",
+    "kind": "component",
+    "surface": "raised",
     "domain": "forms",
     "description": "The repeating-field controller for ordered arrays with add, remove, duplicate, reorder, length constraints, nested validation, and optional virtualization for large collections.",
     "targets": [
       "react-vite"
     ],
-    "slot": "primitive",
+    "slot": "ui-primitive",
     "delivery": "adopted",
     "target": {
       "priority": "P1",

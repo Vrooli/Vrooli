@@ -5,13 +5,14 @@
   "asset": {
     "id": "data-display.bulk-action-bar",
     "name": "BulkActionBar",
-    "kind": "component", "surface": "raised",
+    "kind": "component",
+    "surface": "raised",
     "domain": "data-display",
     "description": "The contextual action surface activated by selection, showing counts and scope, guarding destructive operations, and reporting progress, partial failure, and cancellation.",
     "targets": [
       "react-vite"
     ],
-    "slot": "primitive",
+    "slot": "ui-primitive",
     "delivery": "adopted",
     "target": {
       "priority": "P0",
@@ -31,6 +32,10 @@
       {
         "asset": "feedback.task-progress",
         "reason": "Long-running bulk work reports progress through the shared component."
+      },
+      {
+        "asset": "hooks.use-locale",
+        "reason": "User-facing copy resolves through the adopting host locale bridge."
       }
     ]
   },

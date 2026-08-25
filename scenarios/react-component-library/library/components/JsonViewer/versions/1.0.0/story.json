@@ -1,17 +1,15 @@
 {
-  "schemaVersion": 3,
-  "kind": "component",
-  "title": "JsonViewer",
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
   "args": {
     "fields": []
   },
   "environment": {
     "fixtures": []
   },
+  "kind": "component",
+  "schemaVersion": 4,
   "stories": [
     {
-      "id": "default",
-      "name": "Default",
       "args": {
         "value": {
           "state": "ready"
@@ -23,17 +21,20 @@
           "value": "ready"
         }
       ],
-      "mode": "pinned"
+      "id": "default",
+      "mode": "pinned",
+      "name": "Default"
     },
     {
-      "id": "empty",
-      "name": "Empty",
       "args": {
         "value": {
           "state": "ready"
         }
       },
-      "mode": "pinned"
+      "id": "empty",
+      "mode": "pinned",
+      "name": "Empty"
     }
-  ]
+  ],
+  "title": "JsonViewer"
 }

@@ -362,7 +362,7 @@ func writePageManifest(t *testing.T, root string) {
 export const Page = () => null;
 `), 0o600))
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "versions", "1.0.0", "story.json"), []byte(`{
-  "schemaVersion": 3,
+  "schemaVersion": 4,
   "kind": "component",
   "args": {"fields": []},
   "environment": {"fixtures": []},

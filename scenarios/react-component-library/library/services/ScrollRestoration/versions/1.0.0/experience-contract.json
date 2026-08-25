@@ -5,7 +5,7 @@
     "provenance": "react-component-library:ScrollRestoration@1.0.0"
   },
   "component": {
-    "id": "services.scroll-restoration",
+    "id": "navigation.scroll-restoration",
     "title": "Scroll Restoration",
     "purpose": "Route-keyed scroll position restoration with teardown persistence."
   },

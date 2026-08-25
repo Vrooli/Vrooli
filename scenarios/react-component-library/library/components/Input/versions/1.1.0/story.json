@@ -1,98 +1,97 @@
 {
-  "schemaVersion": 3,
-  "kind": "component",
-  "title": "Input",
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
   "args": {
     "fields": [
       {
-        "path": "type",
+        "default": "text",
+        "kind": "text",
         "label": "Type",
-        "kind": "text",
-        "default": "text"
+        "path": "type"
       },
       {
-        "path": "placeholder",
+        "default": "Component name",
+        "kind": "text",
         "label": "Placeholder",
-        "kind": "text",
-        "default": "Component name"
+        "path": "placeholder"
       },
       {
-        "path": "defaultValue",
+        "default": "Button",
+        "kind": "text",
         "label": "Default Value",
-        "kind": "text",
-        "default": "Button"
+        "path": "defaultValue"
       },
       {
-        "path": "disabled",
-        "label": "Disabled",
+        "default": true,
         "kind": "boolean",
-        "default": true
+        "label": "Disabled",
+        "path": "disabled"
       }
     ]
   },
   "environment": {
     "fixtures": []
   },
+  "kind": "component",
+  "schemaVersion": 4,
   "stories": [
     {
-      "id": "text",
-      "name": "Text",
       "args": {
-        "type": "text",
-        "placeholder": "Component name",
         "defaultValue": "Button",
-        "aria-label": "Component name"
+        "placeholder": "Component name",
+        "type": "text"
       },
       "expect": [
         {
           "kind": "role",
-          "role": "textbox",
-          "name": "Component name"
+          "name": "Component name",
+          "role": "textbox"
         },
         {
           "kind": "attribute",
-          "selector": "input",
           "name": "placeholder",
+          "selector": "input",
           "value": "Component name"
         }
       ],
-      "mode": "pinned"
+      "id": "text",
+      "mode": "pinned",
+      "name": "Text"
     },
     {
-      "id": "search",
-      "name": "Search",
       "args": {
-        "type": "search",
-        "placeholder": "Filter components",
         "defaultValue": "status",
-        "aria-label": "Filter components"
+        "placeholder": "Filter components",
+        "type": "search"
       },
       "expect": [
         {
           "kind": "role",
-          "role": "textbox",
-          "name": "Filter components"
+          "name": "Filter components",
+          "role": "textbox"
         }
       ],
-      "mode": "pinned"
+      "id": "search",
+      "mode": "pinned",
+      "name": "Search"
     },
     {
-      "id": "disabled",
-      "name": "Disabled",
       "args": {
-        "type": "text",
         "defaultValue": "Read only",
-        "disabled": true
+        "disabled": true,
+        "type": "text"
       },
       "expect": [
         {
           "kind": "attribute",
-          "selector": "input",
           "name": "disabled",
+          "selector": "input",
           "value": ""
         }
       ],
-      "mode": "pinned"
+      "id": "disabled",
+      "mode": "pinned",
+      "name": "Disabled"
     }
-  ]
+  ],
+  "title": "Input"
 }

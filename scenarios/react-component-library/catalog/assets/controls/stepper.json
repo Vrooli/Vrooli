@@ -5,13 +5,14 @@
   "asset": {
     "id": "controls.stepper",
     "name": "Stepper",
-    "kind": "component", "surface": "raised",
+    "kind": "component",
+    "surface": "raised",
     "domain": "controls",
     "description": "The increment and decrement control combining buttons, direct entry, constraints, press-and-hold acceleration, formatted values, and animated numeric feedback.",
     "targets": [
       "react-vite"
     ],
-    "slot": "primitive",
+    "slot": "ui-primitive",
     "delivery": "adopted",
     "target": {
       "priority": "P1",

@@ -1,79 +1,100 @@
 {
-  "schemaVersion": 3,
-  "kind": "component",
-  "title": "Avatar",
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
   "args": {
     "fields": []
   },
   "environment": {
     "fixtures": []
   },
+  "kind": "component",
+  "schemaVersion": 4,
   "stories": [
     {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Default",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Maya Chen",
+          "role": "img"
+        },
+        {
+          "kind": "role",
+          "name": "Maya Chen is online",
+          "role": "status"
+        }
+      ],
       "id": "default",
-      "name": "Named identity",
-      "harness": "Default",
+      "mode": "live",
+      "name": "Named identity"
+    },
+    {
       "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Loading",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
         {
           "kind": "role",
-          "role": "img",
-          "name": "Maya Chen"
-        },
-        {
-          "kind": "role",
-          "role": "status",
-          "name": "Maya Chen is online"
+          "name": "Maya Chen",
+          "role": "img"
         }
       ],
-      "mode": "live"
-    },
-    {
       "id": "loading",
-      "name": "Loading",
-      "harness": "Loading",
+      "mode": "live",
+      "name": "Loading"
+    },
+    {
       "args": {},
+      "composition": {
+        "specimen": {
+          "export": "RequestError",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
         {
           "kind": "role",
-          "role": "img",
-          "name": "Maya Chen"
+          "name": "Maya Chen",
+          "role": "img"
         }
       ],
-      "mode": "live"
-    },
-    {
       "id": "request-error",
-      "name": "Request error fallback",
-      "harness": "RequestError",
-      "args": {},
-      "expect": [
-        {
-          "kind": "role",
-          "role": "img",
-          "name": "Maya Chen"
-        }
-      ],
-      "mode": "live"
+      "mode": "live",
+      "name": "Request error fallback"
     },
     {
-      "id": "group",
-      "name": "Group overflow",
-      "harness": "Group",
       "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Group",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
         {
           "kind": "role",
-          "role": "group",
-          "name": "Reviewers"
+          "name": "Reviewers",
+          "role": "group"
         },
         {
           "kind": "role",
-          "role": "img",
-          "name": "+1 more people"
+          "name": "+1 more people",
+          "role": "img"
         }
       ],
-      "mode": "live"
+      "id": "group",
+      "mode": "live",
+      "name": "Group overflow"
     }
-  ]
+  ],
+  "title": "Avatar"
 }

@@ -1,19 +1,22 @@
 {
-  "schemaVersion": 3,
-  "kind": "component",
-  "title": "ApprovalPrompt",
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
   "args": {
     "fields": []
   },
   "environment": {
     "fixtures": []
   },
+  "kind": "component",
+  "schemaVersion": 4,
   "stories": [
     {
-      "id": "default",
-      "name": "Scoped approval",
-      "harness": "Default",
       "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Default",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
         {
           "kind": "text",
@@ -21,35 +24,45 @@
         },
         {
           "kind": "role",
-          "role": "button",
-          "name": "Approve publish the release"
+          "name": "Approve publish the release",
+          "role": "button"
         },
         {
           "kind": "text",
           "value": "Expires in 8 minutes"
         }
       ],
-      "mode": "live"
+      "id": "default",
+      "mode": "live",
+      "name": "Scoped approval"
     },
     {
-      "id": "submitting",
-      "name": "Submitting",
-      "harness": "Submitting",
       "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Submitting",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
         {
           "kind": "role",
-          "role": "status",
-          "name": "Awaiting approval"
+          "name": "Awaiting approval",
+          "role": "status"
         }
       ],
-      "mode": "live"
+      "id": "submitting",
+      "mode": "live",
+      "name": "Submitting"
     },
     {
-      "id": "success",
-      "name": "Success",
-      "harness": "Success",
       "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Success",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
         {
           "kind": "text",
@@ -57,17 +70,22 @@
         },
         {
           "kind": "role",
-          "role": "status",
-          "name": "Approved"
+          "name": "Approved",
+          "role": "status"
         }
       ],
-      "mode": "live"
+      "id": "success",
+      "mode": "live",
+      "name": "Success"
     },
     {
-      "id": "request-error",
-      "name": "Request error",
-      "harness": "RequestError",
       "args": {},
+      "composition": {
+        "specimen": {
+          "export": "RequestError",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
         {
           "kind": "role",
@@ -75,17 +93,22 @@
         },
         {
           "kind": "role",
-          "role": "button",
-          "name": "Retry approval"
+          "name": "Retry approval",
+          "role": "button"
         }
       ],
-      "mode": "live"
+      "id": "request-error",
+      "mode": "live",
+      "name": "Request error"
     },
     {
-      "id": "permission-denied",
-      "name": "Permission denied",
-      "harness": "PermissionDenied",
       "args": {},
+      "composition": {
+        "specimen": {
+          "export": "PermissionDenied",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
         {
           "kind": "role",
@@ -93,37 +116,59 @@
         },
         {
           "kind": "role",
-          "role": "button",
-          "name": "Request access"
+          "name": "Request access",
+          "role": "button"
         }
       ],
-      "mode": "live"
+      "id": "permission-denied",
+      "mode": "live",
+      "name": "Permission denied"
     },
     {
-      "id": "retry",
-      "name": "Retry",
-      "harness": "Retry",
       "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Retry",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
         {
           "kind": "role",
-          "role": "button",
-          "name": "Retry approval"
+          "name": "Retry approval",
+          "role": "button"
         }
       ],
-      "mode": "live"
+      "id": "retry",
+      "mode": "live",
+      "name": "Retry"
     },
     {
-      "id": "interactive",
-      "name": "Interactive approval",
-      "harness": "Interactive",
       "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Interactive",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "Approval recorded"
+        },
+        {
+          "kind": "role",
+          "name": "Approved",
+          "role": "status"
+        }
+      ],
+      "id": "interactive",
       "interactions": [
         {
           "kind": "click",
           "target": {
-            "role": "button",
-            "name": "Approve publish the release"
+            "name": "Approve publish the release",
+            "role": "button"
           }
         },
         {
@@ -137,18 +182,9 @@
           "kind": "settle"
         }
       ],
-      "expect": [
-        {
-          "kind": "text",
-          "value": "Approval recorded"
-        },
-        {
-          "kind": "role",
-          "role": "status",
-          "name": "Approved"
-        }
-      ],
-      "mode": "live"
+      "mode": "live",
+      "name": "Interactive approval"
     }
-  ]
+  ],
+  "title": "ApprovalPrompt"
 }

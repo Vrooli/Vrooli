@@ -5,13 +5,14 @@
   "asset": {
     "id": "overlays.full-page-drawer",
     "name": "FullPageDrawer",
-    "kind": "component", "surface": "raised",
+    "kind": "component",
+    "surface": "raised",
     "domain": "overlays",
     "description": "The drawer presentation occupying the full application viewport while retaining source context, navigation continuity, safe areas, and route-compatible dismissal.",
     "targets": [
       "react-vite"
     ],
-    "slot": "primitive",
+    "slot": "ui-primitive",
     "delivery": "adopted",
     "target": {
       "priority": "P2",

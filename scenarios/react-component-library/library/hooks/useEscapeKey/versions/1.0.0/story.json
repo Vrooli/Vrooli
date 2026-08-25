@@ -1,28 +1,38 @@
 {
-  "schemaVersion": 3,
-  "kind": "hook",
-  "title": "useEscapeKey",
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
   "args": {
     "fields": [
       {
-        "path": "active",
-        "label": "Active",
+        "default": true,
         "kind": "boolean",
-        "default": true
+        "label": "Active",
+        "path": "active"
       }
     ]
   },
   "environment": {
     "fixtures": []
   },
+  "kind": "hook",
+  "schemaVersion": 4,
   "stories": [
     {
-      "id": "escape",
-      "name": "Escape action",
-      "harness": "Default",
       "args": {
         "active": true
       },
+      "composition": {
+        "specimen": {
+          "export": "Default",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "escaped"
+        }
+      ],
+      "id": "escape",
       "interactions": [
         {
           "kind": "key",
@@ -32,13 +42,9 @@
           "kind": "settle"
         }
       ],
-      "expect": [
-        {
-          "kind": "text",
-          "value": "escaped"
-        }
-      ],
-      "mode": "live"
+      "mode": "live",
+      "name": "Escape action"
     }
-  ]
+  ],
+  "title": "useEscapeKey"
 }

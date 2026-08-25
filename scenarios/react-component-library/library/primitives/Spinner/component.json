@@ -1,15 +1,34 @@
 {
-  "libraryId": "react-component-library:Spinner",
-  "catalogId": "primitives.spinner",
-  "displayName": "Spinner",
-  "description": "Spinner communicates indeterminate progress with reduced visual chrome.",
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "primitive",
-  "tags": ["primitive", "token-bound"],
-  "latest": "1.0.0",
+  "catalogId": "primitives.spinner",
+  "dependencies": [],
+  "description": "Spinner communicates indeterminate progress with reduced visual chrome.",
   "designStyles": [
-    { "styleId": "vrooli-default", "affinity": "native" },
-    { "styleId": "vrooli-command-display", "affinity": "compatible" },
-    { "styleId": "vrooli-conversion-landing", "affinity": "compatible" }
+    {
+      "affinity": "native",
+      "styleId": "vrooli-default"
+    },
+    {
+      "affinity": "compatible",
+      "styleId": "vrooli-command-display"
+    },
+    {
+      "affinity": "compatible",
+      "styleId": "vrooli-conversion-landing"
+    }
   ],
-  "dependencies": []
+  "displayName": "Spinner",
+  "latest": "1.0.0",
+  "libraryId": "react-component-library:Spinner",
+  "tags": [
+    "primitive",
+    "token-bound"
+  ],
+  "requires": [
+    {
+      "libraryId": "react-component-library:useLocale",
+      "version": "1.0.0"
+    }
+  ]
 }

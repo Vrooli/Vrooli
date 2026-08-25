@@ -27,6 +27,10 @@
       {
         "asset": "services.undo-manager",
         "reason": "Reversal, grouping, and expiry belong to the shared history service."
+      },
+      {
+        "asset": "hooks.use-locale",
+        "reason": "User-facing copy resolves through the adopting host locale bridge."
       }
     ],
     "suggests": [

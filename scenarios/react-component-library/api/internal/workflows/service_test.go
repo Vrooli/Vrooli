@@ -39,7 +39,7 @@ func TestPromotionReadinessRequiresParityExamplesAndCleanOriginReplacement(t *te
 	component, err := componentRepo.UpsertManifest(ctx, components.IndexManifestInput{
 		Manifest: components.ComponentManifest{LibraryID: "react-component-library:DrawerShell", Slug: "drawer-shell", DisplayName: "DrawerShell", LatestVersion: "1.0.0", DraftVersion: "1.0.0-draft.1", Dependencies: []components.AssetDependency{{LibraryID: "react-component-library:useFocusTrap", Version: "1.0.0"}}},
 		Versions: []components.ComponentVersion{{Version: "1.0.0-draft.1", ParityReport: &components.IngestParityReport{OriginFiles: []string{"DrawerShell.tsx", "useFocusTrap.ts"}}}},
-		Stories:  []components.ComponentStory{{Version: "1.0.0-draft.1", SchemaVersion: 1, Kind: components.StoryKindComponent, ContractJSON: `{"schemaVersion":1,"kind":"component","args":{"fields":[]},"environment":{"fixtures":[]},"stories":[{"id":"default","name":"Default","args":{}}]}`}},
+		Stories:  []components.ComponentStory{{Version: "1.0.0-draft.1", SchemaVersion: 4, Kind: components.StoryKindComponent, ContractJSON: `{"schemaVersion":4,"kind":"component","args":{"fields":[]},"environment":{"fixtures":[]},"stories":[{"id":"default","name":"Default","args":{}}]}`}},
 	})
 	require.NoError(t, err)
 	adoptionRepo := adoptionmocks.NewFakeRepository()
@@ -185,20 +185,4 @@ func TestServiceRejectsIncompleteOrUnspecifiedWorkflowRequests(t *testing.T) {
 	require.ErrorContains(t, err, "source_scenario and source_path")
 	_, _, err = svc.Start(context.Background(), StartInput{Kind: KindAdopt, AssetID: "asset", IdempotencyKey: "bad"})
 	require.ErrorContains(t, err, "asset_id and target_scenario")
-}
-
-func TestEnsureSchemaMigrationsPreservesExistingAssistedWorkflowRows(t *testing.T) {
-	database := db.NewSQLite(t)
-	_, err := database.ExecContext(context.Background(), `CREATE TABLE assisted_workflows (id TEXT PRIMARY KEY, status TEXT NOT NULL)`)
-	require.NoError(t, err)
-	_, err = database.ExecContext(context.Background(), `INSERT INTO assisted_workflows (id, status) VALUES ('legacy', 'succeeded')`)
-	require.NoError(t, err)
-
-	require.NoError(t, EnsureSchemaMigrations(context.Background(), database))
-	require.NoError(t, EnsureSchemaMigrations(context.Background(), database), "migration must be boot-idempotent")
-	var executionID string
-	var status string
-	require.NoError(t, database.QueryRowContext(context.Background(), `SELECT agent_manager_execution_id, status FROM assisted_workflows WHERE id='legacy'`).Scan(&executionID, &status))
-	require.Empty(t, executionID)
-	require.Equal(t, "succeeded", status)
 }

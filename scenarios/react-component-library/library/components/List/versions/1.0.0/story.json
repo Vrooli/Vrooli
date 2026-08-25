@@ -1,52 +1,68 @@
 {
-  "schemaVersion": 3,
-  "kind": "component",
-  "title": "List",
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
   "args": {
     "fields": []
   },
   "environment": {
     "fixtures": []
   },
+  "kind": "component",
+  "schemaVersion": 4,
   "stories": [
     {
-      "id": "default",
-      "name": "Activity list",
-      "harness": "Default",
       "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Default",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
         {
           "kind": "text",
           "value": "Deploy completed"
         }
       ],
-      "mode": "live"
+      "id": "default",
+      "mode": "live",
+      "name": "Activity list"
     },
     {
-      "id": "long-content",
-      "name": "Long content",
-      "harness": "LongContent",
       "args": {},
+      "composition": {
+        "specimen": {
+          "export": "LongContent",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
         {
           "kind": "text",
           "value": "A descriptive activity"
         }
       ],
-      "mode": "live"
+      "id": "long-content",
+      "mode": "live",
+      "name": "Long content"
     },
     {
-      "id": "empty",
-      "name": "Empty collection",
-      "harness": "Empty",
       "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Empty",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
         {
           "kind": "role",
           "role": "status"
         }
       ],
-      "mode": "live"
+      "id": "empty",
+      "mode": "live",
+      "name": "Empty collection"
     }
-  ]
+  ],
+  "title": "List"
 }

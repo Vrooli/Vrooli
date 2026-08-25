@@ -2,10 +2,11 @@
  * @libraryId react-component-library:CommandCenterShell
  * @version 1.0.0
  * @status released
- * @deps {"react":"^18"}
+ * @deps {"react":"^18","react-component-library:ClassMerge":"1.0.0"}
  */
 import type { ReactNode } from "react";
 import { AsyncPanel } from "../../../AsyncPanel/versions/1.0.0/AsyncPanel";
+import { cn } from "../../../../foundations/ClassMerge/versions/1.0.0/ClassMerge";
 import type { ExperienceSurfaceState } from "../../../ExperienceSurface/versions/1.0.0/ExperienceSurface";
 import { commandCenterShellStyles } from "./styles";
 
@@ -52,7 +53,7 @@ export function CommandCenterShell({
   return (
     <main
       data-rcl-command-center
-      className={["rcl-command-center", className].filter(Boolean).join(" ")}
+      className={cn("rcl-command-center", className)}
     >
       <style
         data-rcl-command-center-styles

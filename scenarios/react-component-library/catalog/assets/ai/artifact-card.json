@@ -5,13 +5,14 @@
   "asset": {
     "id": "ai.artifact-card",
     "name": "ArtifactCard",
-    "kind": "component", "surface": "raised",
+    "kind": "component",
+    "surface": "raised",
     "domain": "ai",
     "description": "The generated-output component with type-specific preview, version, status, and actions to edit, open, compare, export, download, and inspect provenance.",
     "targets": [
       "react-vite"
     ],
-    "slot": "primitive",
+    "slot": "ui-primitive",
     "delivery": "adopted",
     "target": {
       "priority": "P0",

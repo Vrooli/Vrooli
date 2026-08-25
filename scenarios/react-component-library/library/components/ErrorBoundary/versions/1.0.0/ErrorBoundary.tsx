@@ -1,4 +1,6 @@
 /** @vrooliComponentSource feedback.error-boundary */
+import { translate } from "../../../../hooks/useLocale/versions/1.0.0/useLocale";
+
 import { Component, type ErrorInfo, type ReactNode } from "react";
 import { ErrorState } from "../../../../components/ErrorState/versions/1.0.0/ErrorState";
 
@@ -77,7 +79,7 @@ export class ErrorBoundary extends Component<
         </span>
         {this.props.showDiagnostics ? (
           <details data-rcl-error-boundary-diagnostics>
-            <summary>Show technical details</summary>
+            <summary>{translate("feedback.error-boundary.text.1", "Show technical details")}</summary>
             <code>{error.message || "Unknown render error"}</code>
           </details>
         ) : null}

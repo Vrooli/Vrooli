@@ -129,6 +129,7 @@ type assetDoc struct {
 	Asset struct {
 		ID     string `json:"id"`
 		Kind   string `json:"kind"`
+		Slot   string `json:"slot"`
 		Target struct {
 			Maturity string `json:"maturity"`
 		} `json:"target"`
@@ -187,6 +188,7 @@ func crossRegistryFindings(repoRoot, catalogDir string) []Finding {
 	}
 	var findings []Finding
 	findings = append(findings, domainOrderFindings(repoRoot, catalogDir)...)
+	findings = append(findings, slotVocabularyFindings(repoRoot, docs)...)
 	for _, doc := range docs {
 		if _, err := assetrung.Of(doc.Asset.Kind); err != nil {
 			findings = append(findings, Finding{Code: "catalog.unknown_kind", Severity: "error", Location: doc.Asset.ID, Message: fmt.Sprintf("asset %q has unrecognized kind %q", doc.Asset.ID, doc.Asset.Kind)})
@@ -231,6 +233,42 @@ func crossRegistryFindings(repoRoot, catalogDir string) []Finding {
 	return findings
 }
 
+// slotVocabularyFindings keeps catalog placement declarative. Catalog assets
+// target the template's published UI-manifest vocabulary; a new slot must be
+// added to that manifest before an asset can claim it. This is intentionally a
+// set-containment check, so adding a template slot never requires changing a
+// catalog validator allow-list.
+func slotVocabularyFindings(repoRoot string, docs []assetDoc) []Finding {
+	path := filepath.Join(repoRoot, "templates", "scenarios", "react-vite", "ui", "manifest.json")
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return []Finding{{Code: "catalog.slot_manifest_unreadable", Severity: "error", Location: rel(repoRoot, path), Message: err.Error()}}
+	}
+	var manifest struct {
+		Slots map[string]json.RawMessage `json:"slots"`
+	}
+	if err := json.Unmarshal(data, &manifest); err != nil {
+		return []Finding{{Code: "catalog.slot_manifest_invalid", Severity: "error", Location: rel(repoRoot, path), Message: err.Error()}}
+	}
+	findings := make([]Finding, 0)
+	for _, doc := range docs {
+		slot := strings.TrimSpace(doc.Asset.Slot)
+		if slot == "" {
+			continue
+		}
+		if _, ok := manifest.Slots[slot]; ok {
+			continue
+		}
+		findings = append(findings, Finding{
+			Code:     "catalog.slot_not_in_ui_manifest",
+			Severity: "error",
+			Location: doc.Asset.ID,
+			Message:  fmt.Sprintf("catalog slot %q is not declared by templates/scenarios/react-vite/ui/manifest.json", slot),
+		})
+	}
+	return findings
+}
+
 func loadTemplateTargets(repoRoot string) map[string]bool {
 	out := map[string]bool{}
 	paths, _ := filepath.Glob(filepath.Join(repoRoot, "templates", "scenarios", "*", "ui", "manifest.json"))
@@ -244,15 +282,6 @@ func loadTemplateTargets(repoRoot string) map[string]bool {
 		}
 		if json.Unmarshal(data, &doc) != nil {
 			continue
-		}
-		if len(doc.Targets) == 0 {
-			// v1 templates predate an explicit target field. Their directory
-			// name remains a stable compatibility declaration until v2 migration.
-			name := filepath.Base(filepath.Dir(filepath.Dir(path)))
-			if name == "landing-page-react-vite" {
-				name = "react-vite"
-			}
-			doc.Targets = []string{name}
 		}
 		for _, target := range doc.Targets {
 			out[target] = true

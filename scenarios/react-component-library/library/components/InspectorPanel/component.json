@@ -1,11 +1,27 @@
 {
-  "libraryId": "react-component-library:InspectorPanel",
-  "catalogId": "overlays.inspector-panel",
-  "displayName": "InspectorPanel",
-  "description": "A layered inspection surface that preserves the host context while exposing contextual detail and dismissal.",
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "component",
-  "tags": ["overlay", "layered", "token-bound"],
+  "catalogId": "overlays.inspector-panel",
+  "dependencies": [],
+  "description": "A layered inspection surface that preserves the host context while exposing contextual detail and dismissal.",
+  "designStyles": [
+    {
+      "affinity": "native",
+      "styleId": "vrooli-default"
+    }
+  ],
+  "displayName": "InspectorPanel",
   "latest": "1.0.0",
-  "designStyles": [{ "styleId": "vrooli-default", "affinity": "native" }],
-  "dependencies": []
+  "libraryId": "react-component-library:InspectorPanel",
+  "tags": [
+    "overlay",
+    "layered",
+    "token-bound"
+  ],
+  "requires": [
+    {
+      "libraryId": "react-component-library:useLocale",
+      "version": "1.0.0"
+    }
+  ]
 }

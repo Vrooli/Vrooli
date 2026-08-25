@@ -10,13 +10,14 @@
   "asset": {
     "id": "controls.icon-button",
     "name": "IconButton",
-    "kind": "component", "surface": "raised",
+    "kind": "component",
+    "surface": "raised",
     "domain": "controls",
     "description": "The compact icon-only action with a mandatory accessible name, expanded touch target beyond its visual bounds, tooltip integration, loading state, and optional toggle semantics.",
     "targets": [
       "react-vite"
     ],
-    "slot": "primitive",
+    "slot": "ui-primitive",
     "delivery": "adopted",
     "target": {
       "priority": "P0",

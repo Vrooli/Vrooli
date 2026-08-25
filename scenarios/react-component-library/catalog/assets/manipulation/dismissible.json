@@ -5,13 +5,14 @@
   "asset": {
     "id": "manipulation.dismissible",
     "name": "Dismissible",
-    "kind": "component", "surface": "raised",
+    "kind": "component",
+    "surface": "raised",
     "domain": "manipulation",
     "description": "The gesture-aware transient surface dismissable by drag, swipe, keyboard, explicit control, or programmatic state, with interruption-safe animation and a restore path.",
     "targets": [
       "react-vite"
     ],
-    "slot": "primitive",
+    "slot": "ui-primitive",
     "delivery": "adopted",
     "target": {
       "priority": "P1",

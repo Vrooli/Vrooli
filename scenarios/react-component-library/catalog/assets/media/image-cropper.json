@@ -5,13 +5,14 @@
   "asset": {
     "id": "media.image-cropper",
     "name": "ImageCropper",
-    "kind": "component", "surface": "raised",
+    "kind": "component",
+    "surface": "raised",
     "domain": "media",
     "description": "The lazily loaded image editing surface with aspect constraints, zoom, rotation, safe bounds, keyboard operation, live preview, and output metadata describing the applied transform.",
     "targets": [
       "react-vite"
     ],
-    "slot": "primitive",
+    "slot": "ui-primitive",
     "delivery": "adopted",
     "target": {
       "priority": "P2",

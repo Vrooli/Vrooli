@@ -53,9 +53,11 @@
     "baseUrl": ".",
     "paths": {
       "@/*": ["./src/*"],
+      "clsx": ["./node_modules/clsx/clsx.d.mts"],
       "lucide-react": ["./node_modules/lucide-react/dist/lucide-react.d.ts"],
       "react": ["./node_modules/@types/react/index.d.ts"],
-      "react/jsx-runtime": ["./node_modules/@types/react/jsx-runtime.d.ts"]
+      "react/jsx-runtime": ["./node_modules/@types/react/jsx-runtime.d.ts"],
+      "tailwind-merge": ["./node_modules/tailwind-merge/dist/types.d.ts"]
     }
   },
   "include": [

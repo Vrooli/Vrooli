@@ -5,13 +5,14 @@
   "asset": {
     "id": "forms.validation-summary",
     "name": "ValidationSummary",
-    "kind": "component", "surface": "raised",
+    "kind": "component",
+    "surface": "raised",
     "domain": "forms",
     "description": "The form-level error summary grouping actionable failures, linking to the fields they concern, taking focus at the right moment, and avoiding duplication of every field message.",
     "targets": [
       "react-vite"
     ],
-    "slot": "primitive",
+    "slot": "ui-primitive",
     "delivery": "adopted",
     "target": {
       "priority": "P0",
@@ -27,6 +28,10 @@
       {
         "asset": "hooks.use-announce",
         "reason": "The summary is announced once rather than per field."
+      },
+      {
+        "asset": "hooks.use-locale",
+        "reason": "User-facing copy resolves through the adopting host locale bridge."
       }
     ]
   },

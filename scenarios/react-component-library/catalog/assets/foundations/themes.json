@@ -11,7 +11,7 @@
     "targets": [
       "react-vite"
     ],
-    "slot": "design-tokens",
+    "slot": "theme-token",
     "delivery": "template-seeded",
     "target": {
       "priority": "P0",

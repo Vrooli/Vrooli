@@ -1,4 +1,6 @@
 /** @vrooliComponentSource ai.approval-prompt */
+import { translate } from "../../../../hooks/useLocale/versions/1.0.0/useLocale";
+
 import {
   useEffect,
   useId,
@@ -117,7 +119,7 @@ export function ApprovalPrompt({
   action,
   target,
   scope,
-  title = "Review this action",
+  title = translate("ai.approval-prompt.title.1", "Review this action"),
   description,
   consequences,
   alternatives,
@@ -182,20 +184,20 @@ export function ApprovalPrompt({
     resolvedStatus === "success" ? (
       <Alert
         tone="success"
-        title="Approval recorded"
-        description="The requested action is now authorized within the scope above."
+        title={translate("ai.approval-prompt.title.2", "Approval recorded")}
+        description={translate("ai.approval-prompt.description.3", "The requested action is now authorized within the scope above.")}
       />
     ) : resolvedStatus === "request-error" ? (
       <Alert
         tone="danger"
-        title="Approval could not be recorded"
-        description="Nothing was authorized. You can retry without changing the requested scope."
+        title={translate("ai.approval-prompt.title.4", "Approval could not be recorded")}
+        description={translate("ai.approval-prompt.description.5", "Nothing was authorized. You can retry without changing the requested scope.")}
       />
     ) : resolvedStatus === "permission-denied" ? (
       <Alert
         tone="warning"
-        title="Permission was not granted"
-        description="Your role cannot approve this action. Request access or return to the conversation."
+        title={translate("ai.approval-prompt.title.6", "Permission was not granted")}
+        description={translate("ai.approval-prompt.description.7", "Your role cannot approve this action. Request access or return to the conversation.")}
       />
     ) : null;
 
@@ -224,7 +226,7 @@ export function ApprovalPrompt({
             flexWrap: "wrap",
           }}
         >
-          <span data-rcl-approval-eyebrow>Permission request</span>
+          <span data-rcl-approval-eyebrow>{translate("ai.approval-prompt.text.9", "Permission request")}</span>
           <StatusIndicator
             status={statusSignal(resolvedStatus)}
             label={statusLabel(resolvedStatus)}
@@ -244,15 +246,15 @@ export function ApprovalPrompt({
 
       <dl data-rcl-approval-facts>
         <div data-rcl-approval-fact>
-          <dt>Action</dt>
+          <dt>{translate("ai.approval-prompt.text.10", "Action")}</dt>
           <dd>{action}</dd>
         </div>
         <div data-rcl-approval-fact>
-          <dt>Target</dt>
+          <dt>{translate("ai.approval-prompt.text.11", "Target")}</dt>
           <dd>{target}</dd>
         </div>
         <div data-rcl-approval-fact>
-          <dt>Expiry</dt>
+          <dt>{translate("ai.approval-prompt.text.12", "Expiry")}</dt>
           <dd data-rcl-approval-expiry data-expired={expired || undefined}>
             {expiryText ?? "No expiry set"}
           </dd>
@@ -264,7 +266,7 @@ export function ApprovalPrompt({
           data-rcl-approval-section
           aria-labelledby={`${titleId}-consequences`}
         >
-          <h3 id={`${titleId}-consequences`}>What happens next</h3>
+          <h3 id={`${titleId}-consequences`}>{translate("ai.approval-prompt.text.13", "What happens next")}</h3>
           {typeof consequences === "string" ? (
             <p>{consequences}</p>
           ) : (
@@ -277,7 +279,7 @@ export function ApprovalPrompt({
           data-rcl-approval-section
           aria-labelledby={`${titleId}-alternatives`}
         >
-          <h3 id={`${titleId}-alternatives`}>Alternatives</h3>
+          <h3 id={`${titleId}-alternatives`}>{translate("ai.approval-prompt.text.14", "Alternatives")}</h3>
           {typeof alternatives === "string" ? (
             <p>{alternatives}</p>
           ) : (
@@ -287,7 +289,7 @@ export function ApprovalPrompt({
       ) : null}
 
       <div data-rcl-approval-consent>
-        <span data-rcl-approval-consent-label>Confirm the exact scope</span>
+        <span data-rcl-approval-consent-label>{translate("ai.approval-prompt.text.15", "Confirm the exact scope")}</span>
         <p data-rcl-approval-consent-line>
           Approve <strong>{action}</strong> for <strong>{target}</strong> within{" "}
           <strong>{scope}</strong>.
@@ -297,7 +299,7 @@ export function ApprovalPrompt({
       {stateAlert}
 
       {resolvedStatus !== "success" ? (
-        <ButtonGroup label="Approval actions" data-rcl-approval-actions>
+        <ButtonGroup label={translate("ai.approval-prompt.label.8", "Approval actions")} data-rcl-approval-actions>
           <Button
             variant={
               resolvedStatus === "permission-denied" ? "secondary" : "primary"

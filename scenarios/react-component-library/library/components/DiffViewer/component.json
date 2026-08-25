@@ -1,11 +1,26 @@
 {
-  "libraryId": "react-component-library:DiffViewer",
-  "catalogId": "data-display.diff-viewer",
-  "displayName": "DiffViewer",
-  "description": "A readable before-and-after surface that keeps change direction and context visible.",
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "component",
-  "tags": ["data-display", "token-bound"],
+  "catalogId": "data-display.diff-viewer",
+  "dependencies": [],
+  "description": "A readable before-and-after surface that keeps change direction and context visible.",
+  "designStyles": [
+    {
+      "affinity": "native",
+      "styleId": "vrooli-default"
+    }
+  ],
+  "displayName": "DiffViewer",
   "latest": "1.0.0",
-  "designStyles": [{ "styleId": "vrooli-default", "affinity": "native" }],
-  "dependencies": []
+  "libraryId": "react-component-library:DiffViewer",
+  "tags": [
+    "data-display",
+    "token-bound"
+  ],
+  "requires": [
+    {
+      "libraryId": "react-component-library:useLocale",
+      "version": "1.0.0"
+    }
+  ]
 }

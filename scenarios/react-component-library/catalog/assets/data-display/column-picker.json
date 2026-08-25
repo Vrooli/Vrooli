@@ -5,13 +5,14 @@
   "asset": {
     "id": "data-display.column-picker",
     "name": "ColumnPicker",
-    "kind": "component", "surface": "raised",
+    "kind": "component",
+    "surface": "raised",
     "domain": "data-display",
     "description": "The grid configuration surface for showing, hiding, ordering, pinning, sizing, and resetting columns, with search and full keyboard operation.",
     "targets": [
       "react-vite"
     ],
-    "slot": "primitive",
+    "slot": "ui-primitive",
     "delivery": "adopted",
     "target": {
       "priority": "P1",

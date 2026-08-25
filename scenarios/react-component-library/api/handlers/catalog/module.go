@@ -282,7 +282,7 @@ func (h *handler) RunGate(ctx context.Context, req *connect.Request[catalogv1.Ru
 	}
 	// Severity is the gate's declared blocking flag, not a constant. Reporting
 	// every finding as "error" made the non-blocking gates (graph-reconciled,
-	// forced-colors, documentation, migration) indistinguishable from the
+	// forced-colors, documentation, and release-process gates) indistinguishable from the
 	// blocking ones, so a reader had no way to tell reported drift from a
 	// release-stopping defect.
 	severity := "error"
@@ -509,17 +509,17 @@ func (h *handler) CaptureEvidence(ctx context.Context, req *connect.Request[cata
 		}
 	}
 	type captureRow struct {
-		AssetID     string   `json:"assetId"`
-		Version     string   `json:"version"`
-		StoryID     string   `json:"storyId"`
-		StoryIDs    []string `json:"storyIds,omitempty"`
+		AssetID      string   `json:"assetId"`
+		Version      string   `json:"version"`
+		StoryID      string   `json:"storyId"`
+		StoryIDs     []string `json:"storyIds,omitempty"`
 		ArtifactKind string   `json:"artifactKind,omitempty"`
-		Result      string   `json:"result"`
-		Report      any      `json:"report"`
+		Result       string   `json:"result"`
+		Report       any      `json:"report"`
 	}
 	rows := make([]captureRow, 0)
 	// A bounded --all run writes one durable manifest across requests. Starting
-	// at offset zero intentionally begins a fresh migration; later batches
+	// at offset zero intentionally begins a fresh bounded capture; later batches
 	// merge into the prior manifest so an interrupted run remains inspectable.
 	if req.Msg.GetAll() && req.Msg.GetOffset() > 0 {
 		if prior, readErr := os.ReadFile(filepath.Join(directory, "capture-manifest.json")); readErr == nil {

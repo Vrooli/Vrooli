@@ -10,13 +10,14 @@
   "asset": {
     "id": "primitives.container",
     "name": "Container",
-    "kind": "primitive", "surface": "base",
+    "kind": "primitive",
+    "surface": "base",
     "domain": "primitives",
     "description": "The page-width primitive supplying readable maximum widths, responsive gutters, safe-area handling, and predictable nesting.",
     "targets": [
       "react-vite"
     ],
-    "slot": "primitive",
+    "slot": "ui-primitive",
     "delivery": "adopted",
     "target": {
       "priority": "P0",

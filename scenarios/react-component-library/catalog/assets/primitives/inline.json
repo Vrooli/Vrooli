@@ -10,13 +10,14 @@
   "asset": {
     "id": "primitives.inline",
     "name": "Inline",
-    "kind": "primitive", "surface": "base",
+    "kind": "primitive",
+    "surface": "base",
     "domain": "primitives",
     "description": "The horizontal layout primitive handling wrapping, alignment, distribution, responsive spacing, and bidirectional reading order.",
     "targets": [
       "react-vite"
     ],
-    "slot": "primitive",
+    "slot": "ui-primitive",
     "delivery": "adopted",
     "target": {
       "priority": "P0",

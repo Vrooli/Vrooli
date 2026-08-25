@@ -1,34 +1,35 @@
 {
-  "schemaVersion": 3,
-  "kind": "component",
-  "title": "Drawer",
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
   "args": {
     "fields": [
       {
-        "path": "open",
+        "default": true,
         "kind": "boolean",
-        "default": true
+        "path": "open"
       }
     ]
   },
   "environment": {
     "fixtures": []
   },
+  "kind": "component",
+  "schemaVersion": 4,
   "stories": [
     {
-      "id": "open",
-      "name": "Open",
       "args": {
         "open": true
       },
       "expect": [
         {
           "kind": "role",
-          "role": "dialog",
-          "name": "Drawer"
+          "name": "Drawer",
+          "role": "dialog"
         }
       ],
-      "mode": "pinned"
+      "id": "open",
+      "mode": "pinned",
+      "name": "Open"
     }
-  ]
+  ],
+  "title": "Drawer"
 }

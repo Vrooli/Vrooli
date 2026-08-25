@@ -1,38 +1,46 @@
 {
-  "schemaVersion": 3,
-  "kind": "component",
-  "title": "Calendar",
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
   "args": {
     "fields": []
   },
   "environment": {
     "fixtures": []
   },
+  "kind": "component",
+  "schemaVersion": 4,
   "stories": [
     {
-      "id": "default",
-      "name": "Single date",
-      "harness": "Default",
       "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Default",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
         {
           "kind": "role",
-          "role": "grid",
-          "name": "August 2026"
+          "name": "August 2026",
+          "role": "grid"
         },
         {
           "kind": "role",
-          "role": "gridcell",
-          "name": "Wednesday, August 12, 2026"
+          "name": "Wednesday, August 12, 2026",
+          "role": "gridcell"
         }
       ],
-      "mode": "live"
+      "id": "default",
+      "mode": "live",
+      "name": "Single date"
     },
     {
-      "id": "range",
-      "name": "Date range",
-      "harness": "Range",
       "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Range",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
         {
           "kind": "text",
@@ -40,17 +48,22 @@
         },
         {
           "kind": "role",
-          "role": "gridcell",
-          "name": "Tuesday, August 18, 2026"
+          "name": "Tuesday, August 18, 2026",
+          "role": "gridcell"
         }
       ],
-      "mode": "live"
+      "id": "range",
+      "mode": "live",
+      "name": "Date range"
     },
     {
-      "id": "multiple",
-      "name": "Multiple dates",
-      "harness": "Multiple",
       "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Multiple",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
         {
           "kind": "text",
@@ -58,47 +71,45 @@
         },
         {
           "kind": "role",
-          "role": "grid",
-          "name": "August 2026"
+          "name": "August 2026",
+          "role": "grid"
         }
       ],
-      "mode": "live"
+      "id": "multiple",
+      "mode": "live",
+      "name": "Multiple dates"
     },
     {
-      "id": "constrained",
-      "name": "Constrained",
-      "harness": "Constrained",
       "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Constrained",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
         {
           "kind": "role",
-          "role": "grid",
-          "name": "August 2026"
+          "name": "August 2026",
+          "role": "grid"
         },
         {
           "kind": "text",
           "value": "No date selected"
         }
       ],
-      "mode": "live"
+      "id": "constrained",
+      "mode": "live",
+      "name": "Constrained"
     },
     {
-      "id": "interactive",
-      "name": "Interactive selection",
-      "harness": "Interactive",
       "args": {},
-      "interactions": [
-        {
-          "kind": "click",
-          "target": {
-            "role": "gridcell",
-            "name": "Wednesday, August 12, 2026"
-          }
-        },
-        {
-          "kind": "settle"
+      "composition": {
+        "specimen": {
+          "export": "Interactive",
+          "module": "./story.tsx"
         }
-      ],
+      },
       "expect": [
         {
           "kind": "text",
@@ -109,7 +120,22 @@
           "value": "Wednesday, August 12, 2026"
         }
       ],
-      "mode": "live"
+      "id": "interactive",
+      "interactions": [
+        {
+          "kind": "click",
+          "target": {
+            "name": "Wednesday, August 12, 2026",
+            "role": "gridcell"
+          }
+        },
+        {
+          "kind": "settle"
+        }
+      ],
+      "mode": "live",
+      "name": "Interactive selection"
     }
-  ]
+  ],
+  "title": "Calendar"
 }

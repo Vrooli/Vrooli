@@ -1,21 +1,28 @@
 {
-  "libraryId": "react-component-library:MeasurementBar",
-  "catalogId": "data-display.measurement-bar",
-  "displayName": "MeasurementBar",
-  "description": "A labeled measured-versus-required bar for evidence panels.",
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "component",
+  "catalogId": "data-display.measurement-bar",
+  "dependencies": [],
+  "deprecatedVersions": [],
+  "description": "A labeled measured-versus-required bar for evidence panels.",
+  "designStyles": [
+    {
+      "affinity": "native",
+      "styleId": "vrooli-default"
+    }
+  ],
+  "displayName": "MeasurementBar",
+  "draft": "",
+  "latest": "1.0.6",
+  "libraryId": "react-component-library:MeasurementBar",
   "tags": [
     "data-display",
     "token-bound"
   ],
-  "latest": "1.0.6",
-  "designStyles": [
+  "requires": [
     {
-      "styleId": "vrooli-default",
-      "affinity": "native"
+      "libraryId": "react-component-library:useLocale",
+      "version": "1.0.0"
     }
-  ],
-  "dependencies": [],
-  "draft": "",
-  "deprecatedVersions": []
+  ]
 }

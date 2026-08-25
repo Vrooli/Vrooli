@@ -1,14 +1,11 @@
 {
-  "schemaVersion": 3,
-  "kind": "component",
-  "title": "Heading",
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
   "args": {
     "fields": [
       {
-        "path": "style",
-        "label": "Style",
-        "kind": "enum",
         "default": "heading",
+        "kind": "enum",
+        "label": "Style",
         "options": [
           "display",
           "title",
@@ -18,252 +15,296 @@
           "caption",
           "code",
           "overline"
-        ]
+        ],
+        "path": "style"
       },
       {
-        "path": "level",
-        "label": "Document level",
-        "kind": "number",
         "default": 2,
+        "kind": "number",
+        "label": "Document level",
+        "maximum": 6,
         "minimum": 1,
-        "maximum": 6
+        "path": "level"
       }
     ]
   },
   "environment": {
     "fixtures": []
   },
+  "kind": "component",
+  "schemaVersion": 4,
   "stories": [
     {
-      "id": "semantic-heading",
-      "name": "Semantic heading",
-      "harness": "HeadingShowcase",
       "args": {
-        "style": "heading",
-        "level": 2
+        "level": 2,
+        "style": "heading"
+      },
+      "composition": {
+        "specimen": {
+          "export": "HeadingShowcase",
+          "module": "./story.tsx"
+        }
       },
       "expect": [
         {
           "kind": "role",
-          "role": "heading",
-          "name": "Meaning and visual scale stay independent."
+          "name": "Meaning and visual scale stay independent.",
+          "role": "heading"
         },
         {
+          "attribute": "data-heading-level",
           "kind": "attribute",
           "selector": "[data-heading-level]",
-          "attribute": "data-heading-level",
           "value": "2"
         },
         {
           "kind": "layout",
-          "selector": "[data-rcl-heading-showcase]",
-          "minWidth": 240,
           "minHeight": 160,
-          "noOverflow": true
+          "minWidth": 240,
+          "noOverflow": true,
+          "selector": "[data-rcl-heading-showcase]"
         }
       ],
+      "id": "semantic-heading",
       "interactions": [
         {
           "kind": "settle"
         }
       ],
-      "mode": "live"
+      "mode": "live",
+      "name": "Semantic heading"
     },
     {
-      "id": "display-level",
-      "name": "Display style at level one",
-      "harness": "HeadingShowcase",
       "args": {
-        "style": "display",
-        "level": 1
+        "level": 1,
+        "style": "display"
+      },
+      "composition": {
+        "specimen": {
+          "export": "HeadingShowcase",
+          "module": "./story.tsx"
+        }
       },
       "expect": [
         {
           "kind": "role",
-          "role": "heading",
-          "name": "Meaning and visual scale stay independent."
+          "name": "Meaning and visual scale stay independent.",
+          "role": "heading"
         },
         {
+          "attribute": "data-heading-level",
           "kind": "attribute",
           "selector": "[data-heading-level]",
-          "attribute": "data-heading-level",
           "value": "1"
         }
       ],
+      "id": "display-level",
       "interactions": [
         {
           "kind": "settle"
         }
       ],
-      "mode": "live"
+      "mode": "live",
+      "name": "Display style at level one"
     },
     {
-      "id": "compact-heading",
-      "name": "Compact heading",
-      "harness": "HeadingShowcase",
       "args": {
-        "style": "title",
-        "level": 3
+        "level": 3,
+        "style": "title"
+      },
+      "composition": {
+        "specimen": {
+          "export": "HeadingShowcase",
+          "module": "./story.tsx"
+        }
       },
       "expect": [
         {
           "kind": "role",
-          "role": "heading",
-          "name": "Meaning and visual scale stay independent."
+          "name": "Meaning and visual scale stay independent.",
+          "role": "heading"
         },
         {
+          "attribute": "data-heading-level",
           "kind": "attribute",
           "selector": "[data-heading-level]",
-          "attribute": "data-heading-level",
           "value": "3"
         }
       ],
+      "id": "compact-heading",
       "interactions": [
         {
           "kind": "settle"
         }
       ],
-      "mode": "live"
+      "mode": "live",
+      "name": "Compact heading"
     },
     {
-      "id": "body-style",
-      "name": "Body style",
-      "harness": "HeadingShowcase",
       "args": {
-        "style": "body",
-        "level": 4
+        "level": 4,
+        "style": "body"
+      },
+      "composition": {
+        "specimen": {
+          "export": "HeadingShowcase",
+          "module": "./story.tsx"
+        }
       },
       "expect": [
         {
           "kind": "role",
-          "role": "heading",
-          "name": "Meaning and visual scale stay independent."
+          "name": "Meaning and visual scale stay independent.",
+          "role": "heading"
         },
         {
+          "attribute": "data-heading-level",
           "kind": "attribute",
           "selector": "[data-heading-level]",
-          "attribute": "data-heading-level",
           "value": "4"
         }
       ],
+      "id": "body-style",
       "interactions": [
         {
           "kind": "settle"
         }
       ],
-      "mode": "live"
+      "mode": "live",
+      "name": "Body style"
     },
     {
-      "id": "label-style",
-      "name": "Label style",
-      "harness": "HeadingShowcase",
       "args": {
-        "style": "label",
-        "level": 5
+        "level": 5,
+        "style": "label"
+      },
+      "composition": {
+        "specimen": {
+          "export": "HeadingShowcase",
+          "module": "./story.tsx"
+        }
       },
       "expect": [
         {
           "kind": "role",
-          "role": "heading",
-          "name": "Meaning and visual scale stay independent."
+          "name": "Meaning and visual scale stay independent.",
+          "role": "heading"
         },
         {
+          "attribute": "data-heading-level",
           "kind": "attribute",
           "selector": "[data-heading-level]",
-          "attribute": "data-heading-level",
           "value": "5"
         }
       ],
+      "id": "label-style",
       "interactions": [
         {
           "kind": "settle"
         }
       ],
-      "mode": "live"
+      "mode": "live",
+      "name": "Label style"
     },
     {
-      "id": "caption-style",
-      "name": "Caption style",
-      "harness": "HeadingShowcase",
       "args": {
-        "style": "caption",
-        "level": 6
+        "level": 6,
+        "style": "caption"
+      },
+      "composition": {
+        "specimen": {
+          "export": "HeadingShowcase",
+          "module": "./story.tsx"
+        }
       },
       "expect": [
         {
           "kind": "role",
-          "role": "heading",
-          "name": "Meaning and visual scale stay independent."
+          "name": "Meaning and visual scale stay independent.",
+          "role": "heading"
         },
         {
+          "attribute": "data-heading-level",
           "kind": "attribute",
           "selector": "[data-heading-level]",
-          "attribute": "data-heading-level",
           "value": "6"
         }
       ],
+      "id": "caption-style",
       "interactions": [
         {
           "kind": "settle"
         }
       ],
-      "mode": "live"
+      "mode": "live",
+      "name": "Caption style"
     },
     {
+      "args": {
+        "level": 2,
+        "style": "code"
+      },
+      "composition": {
+        "specimen": {
+          "export": "HeadingShowcase",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Meaning and visual scale stay independent.",
+          "role": "heading"
+        },
+        {
+          "attribute": "data-heading-level",
+          "kind": "attribute",
+          "selector": "[data-heading-level]",
+          "value": "2"
+        }
+      ],
       "id": "code-style",
-      "name": "Code style",
-      "harness": "HeadingShowcase",
-      "args": {
-        "style": "code",
-        "level": 2
-      },
-      "expect": [
-        {
-          "kind": "role",
-          "role": "heading",
-          "name": "Meaning and visual scale stay independent."
-        },
-        {
-          "kind": "attribute",
-          "selector": "[data-heading-level]",
-          "attribute": "data-heading-level",
-          "value": "2"
-        }
-      ],
       "interactions": [
         {
           "kind": "settle"
         }
       ],
-      "mode": "live"
+      "mode": "live",
+      "name": "Code style"
     },
     {
-      "id": "overline-style",
-      "name": "Overline style",
-      "harness": "HeadingShowcase",
       "args": {
-        "style": "overline",
-        "level": 2
+        "level": 2,
+        "style": "overline"
+      },
+      "composition": {
+        "specimen": {
+          "export": "HeadingShowcase",
+          "module": "./story.tsx"
+        }
       },
       "expect": [
         {
           "kind": "role",
-          "role": "heading",
-          "name": "Meaning and visual scale stay independent."
+          "name": "Meaning and visual scale stay independent.",
+          "role": "heading"
         },
         {
+          "attribute": "data-heading-level",
           "kind": "attribute",
           "selector": "[data-heading-level]",
-          "attribute": "data-heading-level",
           "value": "2"
         }
       ],
+      "id": "overline-style",
       "interactions": [
         {
           "kind": "settle"
         }
       ],
-      "mode": "live"
+      "mode": "live",
+      "name": "Overline style"
     }
-  ]
+  ],
+  "title": "Heading"
 }

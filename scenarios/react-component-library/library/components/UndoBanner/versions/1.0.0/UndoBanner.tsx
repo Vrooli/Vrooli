@@ -1,4 +1,6 @@
 /** @vrooliComponentSource feedback.undo-banner */
+import { translate } from "../../../../hooks/useLocale/versions/1.0.0/useLocale";
+
 import { useEffect, useState, type CSSProperties } from "react";
 import { Presence } from "../../../../primitives/Presence/versions/1.0.0/Presence";
 import { Surface } from "../../../../primitives/Surface/versions/1.0.0/Surface";
@@ -111,36 +113,36 @@ function UndoItem({
           <span data-rcl-undo-detail>{detail}</span>
         </div>
         {record.status === "available" && (
-          <button
+          <button data-testid="feedback.undo-banner"
             data-rcl-undo-action
             type="button"
             onClick={() => {
               onUndo();
             }}
           >
-            Undo
+            {translate("feedback.undo-banner.text.1", "Undo")}
           </button>
         )}
         {record.status === "submitting" && (
-          <button data-rcl-undo-action type="button" disabled>
-            Restoring…
+          <button data-testid="feedback.undo-banner" data-rcl-undo-action type="button" disabled>
+            {translate("feedback.undo-banner.text.2", "Restoring…")}
           </button>
         )}
         {record.status === "error" && (
-          <button
+          <button data-testid="feedback.undo-banner"
             data-rcl-undo-action
             type="button"
             onClick={() => {
               onUndo();
             }}
           >
-            Retry undo
+            {translate("feedback.undo-banner.text.3", "Retry undo")}
           </button>
         )}
-        <button
+        <button data-testid="feedback.undo-banner"
           data-rcl-undo-dismiss
           type="button"
-          aria-label="Dismiss undo message"
+          aria-label={translate("feedback.undo-banner.aria-label.1", "Dismiss undo message")}
           onClick={onDismiss}
         >
           ×
@@ -177,7 +179,7 @@ export function UndoBanner({ className, style }: UndoBannerProps) {
         data-rcl-undo-viewport
         className={className}
         style={style}
-        aria-label="Undo messages"
+        aria-label={translate("feedback.undo-banner.aria-label.2", "Undo messages")}
       >
         {visible.map((record) => (
           <UndoItem

@@ -31,6 +31,13 @@ var _ Repository = (*sqliteRepository)(nil)
 
 const timeFormat = time.RFC3339Nano
 
+func forkStatus(reason string) ForkStatus {
+	if strings.TrimSpace(reason) == "" {
+		return ForkStatusNone
+	}
+	return ForkStatusDeclared
+}
+
 func (s *sqliteRepository) Create(ctx context.Context, in CreateInput) (Adoption, error) {
 	if strings.TrimSpace(in.ComponentID) == "" {
 		return Adoption{}, ErrInvalidAdoption{Field: "component_id", Reason: "required"}
@@ -50,12 +57,16 @@ func (s *sqliteRepository) Create(ctx context.Context, in CreateInput) (Adoption
 	if err != nil {
 		return Adoption{}, fmt.Errorf("encode adoption suggestions: %w", err)
 	}
+	extensions, err := json.Marshal(in.ExtensionPoints)
+	if err != nil {
+		return Adoption{}, fmt.Errorf("encode adoption extension points: %w", err)
+	}
 	if _, err := s.db.ExecContext(ctx, `
 INSERT INTO adoption_records
-  (id, component_id, library_id, scenario, adopted_path, adopted_version, source_sha256, adopted_snapshot_sha256, library_version_status, local_status, status_detail, created_at, refreshed_at, applied_at, drift_backlog_ref, suggested_dependencies)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, '', ?, '', ?, '', ?)
+  (id, component_id, library_id, scenario, adopted_path, adopted_version, source_sha256, adopted_snapshot_sha256, library_version_status, local_status, status_detail, created_at, refreshed_at, applied_at, drift_backlog_ref, suggested_dependencies, fork_status, fork_reason, extension_points)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, '', ?, '', ?, '', ?, ?, ?, ?)
 `, id, in.ComponentID, in.LibraryID, in.Scenario, in.AdoptedPath, in.AdoptedVersion, in.SourceSHA256, in.AdoptedSnapshotSHA256,
-		string(LibraryVersionStatusCurrent), string(LocalStatusClean), now.Format(timeFormat), now.Format(timeFormat), string(suggestions)); err != nil {
+		string(LibraryVersionStatusCurrent), string(LocalStatusClean), now.Format(timeFormat), now.Format(timeFormat), string(suggestions), forkStatus(in.ForkReason), strings.TrimSpace(in.ForkReason), string(extensions)); err != nil {
 		return Adoption{}, fmt.Errorf("insert adoption: %w", err)
 	}
 	for _, file := range in.Files {
@@ -98,12 +109,16 @@ func (s *sqliteRepository) CreateBatch(ctx context.Context, inputs []CreateInput
 		if err != nil {
 			return nil, fmt.Errorf("encode batch adoption suggestions: %w", err)
 		}
+		extensions, err := json.Marshal(in.ExtensionPoints)
+		if err != nil {
+			return nil, fmt.Errorf("encode batch adoption extension points: %w", err)
+		}
 		if _, err := tx.ExecContext(ctx, `
 INSERT INTO adoption_records
-  (id, component_id, library_id, scenario, adopted_path, adopted_version, source_sha256, adopted_snapshot_sha256, library_version_status, local_status, status_detail, created_at, refreshed_at, applied_at, drift_backlog_ref, suggested_dependencies)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, '', ?, '', ?, '', ?)
+  (id, component_id, library_id, scenario, adopted_path, adopted_version, source_sha256, adopted_snapshot_sha256, library_version_status, local_status, status_detail, created_at, refreshed_at, applied_at, drift_backlog_ref, suggested_dependencies, fork_status, fork_reason, extension_points)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, '', ?, '', ?, '', ?, ?, ?, ?)
 `, id, in.ComponentID, in.LibraryID, in.Scenario, in.AdoptedPath, in.AdoptedVersion, in.SourceSHA256, in.AdoptedSnapshotSHA256,
-			string(LibraryVersionStatusCurrent), string(LocalStatusClean), now, now, string(suggestions)); err != nil {
+			string(LibraryVersionStatusCurrent), string(LocalStatusClean), now, now, string(suggestions), forkStatus(in.ForkReason), strings.TrimSpace(in.ForkReason), string(extensions)); err != nil {
 			return nil, fmt.Errorf("insert batch adoption %q: %w", id, err)
 		}
 		for _, file := range in.Files {
@@ -242,7 +257,7 @@ func (s *sqliteRepository) List(ctx context.Context, q ListQuery) ([]Adoption, e
 	}
 	args = append(args, limit)
 	rows, err := s.db.QueryContext(ctx, fmt.Sprintf(`
-SELECT id, component_id, library_id, scenario, adopted_path, adopted_version, source_sha256, adopted_snapshot_sha256, library_version_status, local_status, status_detail, created_at, refreshed_at, applied_at, drift_backlog_ref, suggested_dependencies
+SELECT id, component_id, library_id, scenario, adopted_path, adopted_version, source_sha256, adopted_snapshot_sha256, library_version_status, local_status, status_detail, created_at, refreshed_at, applied_at, drift_backlog_ref, suggested_dependencies, fork_status, fork_reason, extension_points
 FROM adoption_records
 %s
 ORDER BY created_at DESC, id ASC
@@ -351,6 +366,11 @@ WHERE id = ?
 		}
 		n, _ := res.RowsAffected()
 		touched += int(n)
+		if u.ForkStatus != ForkStatusNone {
+			if _, err := tx.ExecContext(ctx, `UPDATE adoption_records SET fork_status = ? WHERE id = ?`, string(u.ForkStatus), u.ID); err != nil {
+				return touched, fmt.Errorf("set fork status for %q: %w", u.ID, err)
+			}
+		}
 		// drift_backlog_ref updates ride alongside the row update so we
 		// stay in a single transaction. ClearDriftBacklogRef wins over a
 		// non-empty DriftBacklogRef so callers can be explicit either way.
@@ -372,7 +392,7 @@ WHERE id = ?
 }
 
 const selectAdoptionByIDSQL = `
-SELECT id, component_id, library_id, scenario, adopted_path, adopted_version, source_sha256, adopted_snapshot_sha256, library_version_status, local_status, status_detail, created_at, refreshed_at, applied_at, drift_backlog_ref, suggested_dependencies
+SELECT id, component_id, library_id, scenario, adopted_path, adopted_version, source_sha256, adopted_snapshot_sha256, library_version_status, local_status, status_detail, created_at, refreshed_at, applied_at, drift_backlog_ref, suggested_dependencies, fork_status, fork_reason, extension_points
 FROM adoption_records WHERE id = ?
 `
 
@@ -389,9 +409,11 @@ func scanAdoption(s rowScanner) (Adoption, error) {
 		refreshedRaw     string
 		appliedRaw       string
 		suggestedRaw     string
+		forkStatusRaw    string
+		extensionsRaw    string
 	)
 	if err := s.Scan(&a.ID, &a.ComponentID, &a.LibraryID, &a.Scenario, &a.AdoptedPath, &a.AdoptedVersion,
-		&a.SourceSHA256, &a.AdoptedSnapshotSHA256, &libraryStatusRaw, &localStatusRaw, &a.StatusDetail, &createdRaw, &refreshedRaw, &appliedRaw, &a.DriftBacklogRef, &suggestedRaw); err != nil {
+		&a.SourceSHA256, &a.AdoptedSnapshotSHA256, &libraryStatusRaw, &localStatusRaw, &a.StatusDetail, &createdRaw, &refreshedRaw, &appliedRaw, &a.DriftBacklogRef, &suggestedRaw, &forkStatusRaw, &a.ForkReason, &extensionsRaw); err != nil {
 		return Adoption{}, err
 	}
 	if suggestedRaw != "" {
@@ -399,8 +421,14 @@ func scanAdoption(s rowScanner) (Adoption, error) {
 			return Adoption{}, fmt.Errorf("parse suggested dependencies: %w", err)
 		}
 	}
+	if extensionsRaw != "" {
+		if err := json.Unmarshal([]byte(extensionsRaw), &a.ExtensionPoints); err != nil {
+			return Adoption{}, fmt.Errorf("parse extension points: %w", err)
+		}
+	}
 	a.LibraryVersionStatus = LibraryVersionStatus(libraryStatusRaw)
 	a.LocalStatus = LocalStatus(localStatusRaw)
+	a.ForkStatus = ForkStatus(forkStatusRaw)
 	created, err := time.Parse(timeFormat, createdRaw)
 	if err != nil {
 		return Adoption{}, fmt.Errorf("parse created_at %q: %w", createdRaw, err)

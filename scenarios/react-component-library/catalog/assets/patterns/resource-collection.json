@@ -31,6 +31,10 @@
       {
         "asset": "patterns.search-filter-results",
         "reason": "Query state and URL synchronization are shared."
+      },
+      {
+        "asset": "hooks.use-locale",
+        "reason": "User-facing copy resolves through the adopting host locale bridge."
       }
     ],
     "suggests": [

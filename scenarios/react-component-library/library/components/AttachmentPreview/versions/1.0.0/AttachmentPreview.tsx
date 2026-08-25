@@ -172,7 +172,7 @@ export function AttachmentPreview({
           </span>
           <span data-rcl-attachment-preview-actions>
             {onRetry && (
-              <button
+              <button data-testid="media.attachment-preview"
                 type="button"
                 data-rcl-attachment-preview-action
                 data-primary="true"
@@ -182,7 +182,7 @@ export function AttachmentPreview({
               </button>
             )}
             {onCancel && (
-              <button
+              <button data-testid="media.attachment-preview"
                 type="button"
                 data-rcl-attachment-preview-action
                 onClick={onCancel}
@@ -195,7 +195,7 @@ export function AttachmentPreview({
       )}
       {active && onCancel && (
         <div data-rcl-attachment-preview-actions>
-          <button
+          <button data-testid="media.attachment-preview"
             type="button"
             data-rcl-attachment-preview-action
             onClick={onCancel}

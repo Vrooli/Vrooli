@@ -1,19 +1,16 @@
 {
-  "schemaVersion": 3,
-  "kind": "component",
-  "title": "DashboardPage",
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
   "args": {
     "fields": []
   },
   "environment": {
     "fixtures": []
   },
+  "kind": "component",
+  "schemaVersion": 4,
   "stories": [
     {
-      "id": "default",
-      "name": "default",
       "args": {
-        "state": "ready",
         "data": {
           "metrics": [
             {
@@ -21,7 +18,8 @@
               "value": "42"
             }
           ]
-        }
+        },
+        "state": "ready"
       },
       "expect": [
         {
@@ -29,13 +27,12 @@
           "value": "42"
         }
       ],
-      "mode": "pinned"
+      "id": "default",
+      "mode": "pinned",
+      "name": "default"
     },
     {
-      "id": "loading",
-      "name": "loading",
       "args": {
-        "state": "loading",
         "data": {
           "metrics": [
             {
@@ -43,7 +40,8 @@
               "value": "42"
             }
           ]
-        }
+        },
+        "state": "loading"
       },
       "expect": [
         {
@@ -51,13 +49,12 @@
           "value": "Loading"
         }
       ],
-      "mode": "pinned"
+      "id": "loading",
+      "mode": "pinned",
+      "name": "loading"
     },
     {
-      "id": "refreshing",
-      "name": "refreshing",
       "args": {
-        "state": "refreshing",
         "data": {
           "metrics": [
             {
@@ -65,7 +62,8 @@
               "value": "42"
             }
           ]
-        }
+        },
+        "state": "refreshing"
       },
       "expect": [
         {
@@ -73,13 +71,12 @@
           "value": "Refreshing"
         }
       ],
-      "mode": "pinned"
+      "id": "refreshing",
+      "mode": "pinned",
+      "name": "refreshing"
     },
     {
-      "id": "stale",
-      "name": "stale",
       "args": {
-        "state": "stale",
         "data": {
           "metrics": [
             {
@@ -87,7 +84,8 @@
               "value": "42"
             }
           ]
-        }
+        },
+        "state": "stale"
       },
       "expect": [
         {
@@ -95,13 +93,12 @@
           "value": "Showing stale data"
         }
       ],
-      "mode": "pinned"
+      "id": "stale",
+      "mode": "pinned",
+      "name": "stale"
     },
     {
-      "id": "empty",
-      "name": "empty",
       "args": {
-        "state": "empty",
         "data": {
           "metrics": [
             {
@@ -109,7 +106,8 @@
               "value": "42"
             }
           ]
-        }
+        },
+        "state": "empty"
       },
       "expect": [
         {
@@ -117,13 +115,12 @@
           "value": "Nothing here"
         }
       ],
-      "mode": "pinned"
+      "id": "empty",
+      "mode": "pinned",
+      "name": "empty"
     },
     {
-      "id": "partial-error",
-      "name": "partial-error",
       "args": {
-        "state": "partial-error",
         "data": {
           "metrics": [
             {
@@ -131,7 +128,8 @@
               "value": "42"
             }
           ]
-        }
+        },
+        "state": "partial-error"
       },
       "expect": [
         {
@@ -139,13 +137,12 @@
           "value": "Some sections need attention"
         }
       ],
-      "mode": "pinned"
+      "id": "partial-error",
+      "mode": "pinned",
+      "name": "partial-error"
     },
     {
-      "id": "fatal-error",
-      "name": "fatal-error",
       "args": {
-        "state": "fatal-error",
         "data": {
           "metrics": [
             {
@@ -153,7 +150,8 @@
               "value": "42"
             }
           ]
-        }
+        },
+        "state": "fatal-error"
       },
       "expect": [
         {
@@ -161,13 +159,12 @@
           "value": "Unable to load this page"
         }
       ],
-      "mode": "pinned"
+      "id": "fatal-error",
+      "mode": "pinned",
+      "name": "fatal-error"
     },
     {
-      "id": "offline",
-      "name": "offline",
       "args": {
-        "state": "offline",
         "data": {
           "metrics": [
             {
@@ -175,7 +172,8 @@
               "value": "42"
             }
           ]
-        }
+        },
+        "state": "offline"
       },
       "expect": [
         {
@@ -183,7 +181,10 @@
           "value": "Offline"
         }
       ],
-      "mode": "pinned"
+      "id": "offline",
+      "mode": "pinned",
+      "name": "offline"
     }
-  ]
+  ],
+  "title": "DashboardPage"
 }

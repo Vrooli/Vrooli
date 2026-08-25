@@ -59,7 +59,7 @@ func (s *service) ResolveFromScenario(ctx context.Context, scenario string) (The
 
 func (s *service) EnsureBuiltinsSeeded(ctx context.Context) error {
 	if err := s.repo.ReplaceBuiltins(ctx, builtinThemes()); err != nil {
-		return fmt.Errorf("migrate builtin themes: %w", err)
+		return fmt.Errorf("reconcile builtin themes: %w", err)
 	}
 	return nil
 }

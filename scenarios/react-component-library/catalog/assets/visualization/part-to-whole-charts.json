@@ -5,13 +5,14 @@
   "asset": {
     "id": "visualization.part-to-whole-charts",
     "name": "PartToWholeCharts",
-    "kind": "component", "surface": "raised",
+    "kind": "component",
+    "surface": "raised",
     "domain": "visualization",
     "description": "The donut, segmented, funnel, and proportional family with explicit labelling and safeguards against displays that mislead or become unreadable below a slice threshold.",
     "targets": [
       "react-vite"
     ],
-    "slot": "primitive",
+    "slot": "ui-primitive",
     "delivery": "adopted",
     "target": {
       "priority": "P1",

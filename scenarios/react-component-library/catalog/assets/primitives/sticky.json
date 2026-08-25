@@ -5,13 +5,14 @@
   "asset": {
     "id": "primitives.sticky",
     "name": "Sticky",
-    "kind": "primitive", "surface": "base",
+    "kind": "primitive",
+    "surface": "base",
     "domain": "primitives",
     "description": "The sticky-position primitive handling offsets, safe areas, stacking context, boundary containment, and coordination with scroll shadows.",
     "targets": [
       "react-vite"
     ],
-    "slot": "primitive",
+    "slot": "ui-primitive",
     "delivery": "adopted",
     "target": {
       "priority": "P1",

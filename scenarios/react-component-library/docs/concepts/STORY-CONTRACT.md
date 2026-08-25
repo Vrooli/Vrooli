@@ -1,344 +1,109 @@
-# Story Contract
+# Story Contract v4
 
-`story.json` is the single, versioned preview and test contract for one
-catalog asset version. It replaces `examples.json`, per-example controls, and
-inert setup metadata. A story is a valid instance of an asset's schema; it
-never declares a competing schema.
+`story.json` is the single declarative preview and test contract for one
+catalog asset version. Version 4 is the authored contract: it carries public
+argument definitions, deterministic fixtures, named composition roles, story
+states, interactions, expectations, and evidence intent. Executable preview
+recipes live only in the version-local `story.tsx`.
 
-## Ownership
+## Required shape
 
-| Concern | Owner | May a story change it? |
-|---|---|---|
-| Public input names, types, defaults, validation, labels, and form layout | `args` schema | No |
-| Named visual or behavioural baseline | `stories[].args` | Yes, with valid values only |
-| Provider or adapter dependency | `environment` schema and fixture registry | A story may select a declared fixture |
-| Internal component state | Public controlled/default API or interaction sequence | No direct mutation |
-| Hook state | Hook fixture, action, settle, and observable output | No direct mutation |
-| Render assertions | `expect` vocabulary | Yes, with safe assertions only |
-| Composition context | `frame` block and catalog fixture | Yes, by naming an existing frame, region, and fixture |
-
-This boundary deliberately prevents both per-story controls and arbitrary
-hook/setup execution. The contract is declarative data, not an escape hatch
-for running code in the preview iframe.
-
-## Composition roles and author decision tree
-
-Use the smallest composition that proves the asset's public contract:
-
-1. Start with a direct story when the subject is understandable on its own.
-2. Add a variant story when only public argument values change.
-3. Add a controlled-state story when a public value/callback interaction is
-   the behavior under test.
-4. Add an async or fixture-backed story when deterministic external state is
-   required.
-5. Add a compatible frame when page, navigation, overlay, workspace, or
-   template context materially changes the subject's meaning.
-6. Select a shared harness when the behavior matches a documented reusable
-   harness family and the subject can be injected without a component import.
-7. Keep a local harness only when the behavior is genuinely asset-specific;
-   document the reason and preserve equivalent expectations/interactions.
-
-Frames and harnesses are complementary. A frame answers “where is this
-subject shown?” A harness answers “how is this subject exercised?” A frame can
-contain a direct subject or a harness-rendered subject, and a harness can run
-without a frame. Neither may silently replace the other.
-
-The complete authoring inventory, compatibility matrix, migration ledger, and
-screenshot evidence matrix are maintained in
-[`../guides/asset-preview-composition.md`](../guides/asset-preview-composition.md).
-
-### Realistic story-set quality gate
-
-A story set is not representative because all of its examples look correct.
-Before a story set enters a review set, inspect the public API and include the
-credible states that users can encounter. Depending on the asset, this can
-include long content, disabled or unavailable actions, loading and async
-pending states, failed or empty data, focus and keyboard paths, narrow
-viewports, and recovery after an interaction. Keep an intentional empty state
-when emptiness is the subject under review.
-
-Use a compact harness when context competes with the subject. A harness or
-frame must explain the subject, not add decorative dashboard content. Every
-story in a review set must have an explicit disposition after individual and
-composite inspection: `accepted`, `revise`, `reject`, `intentional-empty`, or
-`deferred`. Automated expectations prove behavior only; they do not prove
-visual usefulness.
-
-Evidence metadata is optional. When a story does not declare `evidence`, Preview
-assigns it to the default `core` review set and infers a state from its stable
-story ID (`loading`, `error`, `empty`, `disabled`, `focus`, or `default`). Use
-`evidence.reviewSet` or `evidence.states` only for an intentional exception or
-a specialized review set. Authors should not repeat the default capture matrix
-in every component contract.
-
-### Raw child-node migration
-
-Legacy `$node` values remain parseable so an existing catalog does not disappear
-during migration. The parser reports a warning with the exact JSON pointer; it
-does not treat the warning as a browser-capture failure. Replace a rich raw
-node with a named export in `story.tsx` when the content has hierarchy,
-multiple governed assets, or behavior that must be reviewed. Keep raw values
-only for small, stable primitive content where a specimen would add no useful
-meaning. The migration record must name the chosen disposition.
-
-## Grammar
-
-Every asset version contains exactly one `story.json`. Schema version 1 remains
-fully supported. Schema version 2 adds optional story captions and a constrained
-code harness seam. Schema version 3 adds declarative composition frames;
-versions 1 and 2 continue to parse unchanged. Schema version 4 adds an
-explicit composition block while the older frame and harness fields remain
-readable during migration.
-
-### Schema version 4: explicit composition roles
-
-Use `composition` when a story needs a named specimen, shared harness, typed
-fixture, or frame. References are exact and immutable:
+Every contract has `schemaVersion: 4`, `kind` (`component` or `hook`), `args`,
+`environment.fixtures`, and at least one named story. Unknown fields are errors.
+The published machine-readable contract is
+`.vrooli/schemas/story-contract.schema.json`.
 
 ```json
 {
+  "$schema": "../../../../.vrooli/schemas/story-contract.schema.json",
   "schemaVersion": 4,
   "kind": "component",
+  "args": { "fields": [{ "path": "tone", "kind": "enum", "options": ["success", "warning"] }] },
+  "environment": { "fixtures": [] },
   "composition": {
-    "specimen": { "module": "./story.tsx", "export": "MetricCardStory" },
+    "specimen": { "module": "./story.tsx", "export": "MetricCard" },
     "fixture": { "asset": "fixtures.resource-collection", "version": "1.0.0", "state": "ready" },
     "frame": { "asset": "navigation.page", "version": "1.0.0", "region": "content", "fixture": "fixtures.user-directory" }
   },
-  "stories": [{ "id": "metric-card", "name": "Metric card", "args": { "label": "Active" } }]
-}
-```
-
-`specimen.module` must be `./story.tsx`; `specimen.export` must be a named
-JavaScript export. A fixture must use the `fixtures.*` namespace and a full
-semantic version. A frame must name a declared region and exact version. A
-story-level composition replaces only the roles it declares. This makes the
-subject, specimen, harness, fixture, and frame visible in the contract and in
-capture metadata instead of hiding them in executable code.
-
-The authoritative fields remain in `story.json`: story identity, public args,
-expectations, interactions, state and evidence intent. `story.tsx` owns only
-the named render recipe. It must not define hidden story identity or hidden
-assertions.
-
-```json
-{
-  "schemaVersion": 3,
-  "kind": "component",
-  "title": "Status Badge",
-  "args": {
-    "fields": [
-      {
-        "path": "tone",
-        "label": "Tone",
-        "kind": "enum",
-        "required": true,
-        "default": "success",
-        "options": ["success", "warning", "info", "danger"]
-      },
-      {
-        "path": "children",
-        "label": "Label",
-        "kind": "text",
-        "required": true,
-        "default": { "$text": "Current" },
-        "format": "renderable-text"
-      }
-    ]
-  },
-  "environment": { "fixtures": [] },
-  "frame": {
-    "asset": "navigation.page",
-    "region": "navigation",
-    "fixture": "fixtures.user-directory"
-  },
-  "stories": [
-    {
-      "id": "success",
-      "name": "Success",
-      "description": "The standard positive status treatment.",
-      "args": { "tone": "success", "children": { "$text": "Current" } },
-      "expect": [{ "kind": "text", "value": "Current" }]
-    }
-  ]
-}
-```
-
-### Schema version 3: preview frames
-
-`frame` may appear at the file level or on an individual story. A story-level
-frame replaces the file-level declaration. `asset` names a catalog asset that
-targets `react-vite`, `region` names one of that asset's declared regions, and
-`fixture` names a catalog asset of kind `fixture`. The indexer rejects unknown
-assets, undeclared regions, non-fixtures, and fixtures that do not satisfy the
-frame's `data-source` type arguments with named diagnostics.
-
-The preview bundles the frame and subject separately into the same isolated
-document. The subject is passed in the selected region; the remaining frame
-regions receive the declared fixture context. A frame is preview composition
-only and is never added to the subject's adoption or dependency closure. The
-reference specimen is `navigation.sidebar` framed by `navigation.page`, so a
-sidebar is judged as it appears in a real page document rather than as an
-orphaned panel.
-
-### Schema versions 2 and 3: captions, custom harnesses, and shared harnesses
-
-`stories[].description` is optional explanatory copy displayed below the
-specimen title and in the story picker. Omit it rather than rendering an empty
-caption.
-
-`stories[].sharedHarness` is available in schema version 3 and optionally
-selects a versioned Preview-only harness from the `preview.*` namespace. It
-contains `asset`, exact `version`, named `export`, and optional JSON `config`.
-The host injects the subject component as `subject`; the harness must not import
-a component-specific production asset.
-The reference implementation and family inventory are maintained in the
-authoring guide. This field is separate from the local `harness` export, which
-continues to resolve from the version-local `story.tsx`.
-
-`stories[].harness` optionally names a JavaScript named export from the one
-version-local `story.tsx` file. Direct exports and named re-exports are both
-accepted; the story indexer validates the exported name without requiring
-preview authors to duplicate a shared harness. The export receives `{ args, log }`, where
-`args` is the fully resolved story props (including workbench knob overrides)
-and `log(name, ...args)` records an event in the workbench. A harness changes
-presentation only: `story.json` remains the sole source of story ids, public
-argument schema, interactions, and expectations. Harness files are preview
-artifacts; catalog ingestion, adoption closures, and source-parity inventories
-exclude them, so demo code never ships to adopters.
-
-```tsx
-export function ControlledWithReadout({ args, log }: StoryHarnessProps) {
-  const [value, setValue] = useState(args.value)
-  return <><ColorPicker {...args} value={value} onChange={(next) => { setValue(next); log("change", next) }} /><output>{value}</output></>
-}
-```
-
-Harness names must be valid non-reserved JavaScript identifiers. Unknown JSON
-fields still fail parsing, including misspelled `description` or `harness`.
-
-For stories without public arguments, omit `args` entirely or write `args: {}`;
-the indexer normalizes both forms to the same stored contract. `args: null` is
-also normalized to an empty object. This keeps the contract strict about value
-types while removing a meaningless schema tax from static stories.
-
-`kind` is either `component` or `hook`. `schemaVersion` is mandatory and is
-the compatibility boundary for the parser. Unknown top-level or field keys are
-errors; a contract cannot silently acquire meaning from a misspelling.
-
-### Argument fields
-
-Fields have one unique dot-separated `path`. Paths address object properties;
-numeric array indexing, prototype names, and empty path segments are forbidden.
-An object field owns its descendant paths. A field is one of `text`, `number`,
-`boolean`, `enum`, `object`, `array`, or `structured`.
-
-* `required` means every story and rendered edit must supply the field unless a
-  `default` is declared.
-* `enum` requires non-empty, unique JSON-scalar `options`.
-* `number` may set inclusive `minimum` and `maximum`; `minimum <= maximum`.
-* `text` may set `minLength`, `maxLength`, and the supported formats
-  `plain-text`, `identifier`, `url`, and `renderable-text`.
-* `object` and `array` define child/item schemas. They are never free-form JSON
-  by default.
-* `structured` is only for the renderer's allowlisted values listed below.
-
-Defaults and story args use the same validation pipeline. Partial form edits
-are merged at the edited paths, validated against the complete effective args,
-and applied only when valid. The last valid render remains visible on error.
-Conditional display uses `visibleWhen: { path, equals }`; it changes form
-visibility only, never validation or the public component API.
-
-### Safe values and explicit rejections
-
-Ordinary values are JSON null, booleans, finite numbers, strings, arrays, and
-plain objects. Renderable structured values are restricted to `$text`, `$node`,
-`$icon`, `$handler`, `$rowKey`, `$columns`, and `$filters`; each has the
-existing preview resolver's fixed data shape. Values containing functions,
-imports, executable source, prototype keys, cyclic data, `NaN`, `Infinity`, or
-an unknown `$` tag are invalid. A diagnostic identifies the source file, JSON
-pointer, field path, rule, and human remediation.
-
-## Components, state, and environments
-
-A component story supplies public props only. For an uncontrolled component,
-stories select a public default and use an interaction such as `click`, `type`,
-`key`, or `focus` to reach real internal state. For a controlled component,
-the component exposes its normal `value`/`open` plus change callback contract;
-the story wrapper owns the small deterministic controlled-state adapter.
-
-External state is not faked by rewriting imported hooks. Instead, an asset
-declares an environment key and fixture ids, and the runtime resolves those ids
-from a server-owned registry. Fixtures are data-only and may expose only the
-adapter/provider inputs documented by that key. Dynamic imports, arbitrary
-providers, production data, storage writes, and network side effects are not
-permitted.
-
-```json
-{
-  "environment": {
-    "fixtures": [
-      {
-        "key": "voiceInput",
-        "adapter": "voice-input",
-        "options": ["idle", "permission-denied", "recording"]
-      }
-    ]
-  },
-  "stories": [{ "id": "denied", "environment": { "voiceInput": "permission-denied" } }]
-}
-```
-
-## Interactions and expectations
-
-Interactions are ordered, identity-scoped and use only `click`, `type`, `key`,
-`focus`, `blur`, `waitFor`, and `settle`. Targets use named selectors or safe
-role/name locators. `waitFor` names visible text that must appear after the
-preceding interaction; the evaluator waits for it with a bounded timeout.
-`settle` waits for the declared deterministic idle signal; timeouts are
-diagnostics, never implicit success. Expectations use `role`, `text`,
-`attribute`, `visible`, or `notVisible`. They cannot execute scripts, inspect
-arbitrary browser state, or create network/storage mutations.
-
-## Hook stories
-
-Hook contracts use `kind: "hook"`; their `args` schema describes only the
-dedicated fixture harness's declared inputs (for example `active` or `mode`),
-not callback, ref, or implementation values. Each story provides valid inputs,
-optionally chooses declared adapter fixtures, runs allowlisted hook actions,
-settles, and asserts observable DOM output. The hook runner mounts a dedicated
-fixture harness; it does not render a fake production component nor mutate hook
-internals. `useVoiceInput` is the canonical provider-backed hook: its story
-selects a deterministic media/transport fixture and observes state after its
-registered start/stop actions.
-
-## Worked stateful example
-
-```json
-{
-  "schemaVersion": 1,
-  "kind": "component",
-  "args": { "fields": [{ "path": "open", "kind": "boolean", "default": false }] },
-  "environment": { "fixtures": [] },
   "stories": [{
-    "id": "open-by-user",
-    "name": "Opened from default state",
-    "args": { "open": false },
-    "interactions": [{ "kind": "click", "target": { "role": "button", "name": "Open" } }, { "kind": "settle" }],
-    "expect": [{ "kind": "role", "role": "dialog" }]
+    "id": "success",
+    "name": "Success",
+    "args": { "tone": "success" },
+    "interactions": [{ "kind": "settle" }],
+    "expect": [{ "kind": "role", "role": "status" }],
+    "evidence": { "reviewSet": "core", "states": ["ready"] }
   }]
 }
 ```
 
-## Migration invariant
+`composition.specimen` is a named export from `./story.tsx`. `composition.harness`
+is a versioned catalog harness with `asset`, `version`, `export`, and optional
+JSON `config`. `composition.fixture` and `composition.frame` are immutable
+catalog references. A story-level composition overrides only the roles it
+declares.
 
-Catalog conformance fails when an eligible version has no valid `story.json`,
-has duplicate story contracts, still contains `examples.json`, declares legacy `controls`
-or `setup`, uses an undeclared environment fixture, or declares an invalid
-frame. This is a greenfield cutover: there is no compatibility reader.
+## Arguments and safe values
 
-## Cross-References
+Each argument field has one unique dot-separated path and one kind: `text`,
+`number`, `boolean`, `enum`, `object`, `array`, or `structured`. Values are
+JSON scalars, arrays, and plain objects. Structured values use only the
+allowlisted renderer tags (`$text`, `$node`, `$icon`, `$handler`, `$rowKey`,
+`$columns`, and `$filters`). Contracts must not use raw `className` values;
+style choices belong to the component token contract. `raw_class_name` and
+`legacy_raw_node` are non-blocking diagnostics with a pointer and replacement
+guidance for authored fixtures that still contain those shapes.
 
+The component API owns naming and accessibility. A bare `aria-*` argument is a
+warning that the component should expose the appropriate naming prop instead.
+
+## Derived requirements
+
+Selector identity and i18n keys are derived data, not authored story or
+manifest declarations. The selector id is the stable catalog asset id and is
+emitted by the selector-coverage derivation alongside its source pointer. The
+i18n gate writes the derived key set to the generated catalog coverage record,
+including the source hash used to detect staleness. A changed source hash
+invalidates the record and requires derivation before adoption.
+
+Token requirements follow the same rule: the indexer derives external CSS
+custom properties from version source. `requiredTokens` is not a manifest
+field.
+
+## Deterministic behavior
+
+Stories provide public props only. Interactions are limited to `click`, `type`,
+`key`, `focus`, `blur`, `waitFor`, and `settle`; targets are selectors or safe
+role/name locators. Fixtures are data-only references resolved by the
+server-owned registry. Expectations use the allowlisted role, text, attribute,
+visibility, layout, and count vocabularies. Contracts cannot execute scripts,
+import arbitrary providers, write storage, or use production network data.
+
+## Diagnostics and authoring
+
+The parser returns errors and warnings together. Errors block indexing and
+execution. Warnings never block and identify authoring debt with a stable rule,
+JSON pointer, and one-line remediation. Current normative warning rules are:
+
+- `legacy_raw_node` → named `composition.specimen` in the local `story.tsx`.
+- `raw_class_name` → component token contract.
+- `aria_prop_workaround` → a real component naming prop/API.
+
+Use `react-component-library components index` or
+`react-component-library components stories` to see the warning count and
+remediation list. The parser accepts only schemaVersion 4; invalid or obsolete
+shapes are corrected in their source contract. The repository contains no
+compatibility parser or post-release story rewrite command.
+
+## Component manifest
+
+`component.json` owns catalog identity, release pointers, dependencies, slot,
+tags, and design-style affinities. Its published schema is
+`.vrooli/schemas/component-manifest.schema.json`. Selector ids, i18n keys, and
+token requirements are generated from source and are never duplicated as
+hand-authored manifest fields.
+
+## Cross-references
+
+- [CODE: api/internal/components/story_contract.go]
 - [CODE: api/internal/components/indexer.go]
-- [CODE: api/handlers/preview/static.go]
-- [DOC: DATA.md]
-- [DOC: FLOWS.md]
+- [DOC: guides/asset-preview-composition.md]

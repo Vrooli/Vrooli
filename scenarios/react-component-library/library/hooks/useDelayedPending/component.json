@@ -1,11 +1,20 @@
 {
-  "libraryId": "react-component-library:useDelayedPending",
-  "catalogId": "hooks.use-delayed-pending",
-  "displayName": "useDelayedPending",
-  "description": "Production-ready useDelayedPending hook with SSR-safe lifecycle behavior.",
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "hook",
-  "tags": ["runtime", "accessibility"],
+  "catalogId": "hooks.use-delayed-pending",
+  "dependencies": [],
+  "description": "Production-ready useDelayedPending hook with SSR-safe lifecycle behavior.",
+  "designStyles": [
+    {
+      "affinity": "native",
+      "styleId": "vrooli-default"
+    }
+  ],
+  "displayName": "useDelayedPending",
   "latest": "1.0.0",
-  "designStyles": [{ "styleId": "vrooli-default", "affinity": "native" }],
-  "dependencies": []
+  "libraryId": "react-component-library:useDelayedPending",
+  "tags": [
+    "runtime",
+    "accessibility"
+  ]
 }

@@ -1,5 +1,5 @@
 // Package preview is the application-layer home for the live-preview
-// pipeline. It is stateless — no SQL, no migrations — so it ships only
+// pipeline. It is stateless — no SQL or schema writes — so it ships only
 // a Service interface plus an esbuild-backed Bundler implementation.
 //
 // The service depends on the components Service for source resolution
@@ -33,8 +33,8 @@ type Bundle struct {
 	// HarnessJS is an optional separately bundled story.tsx module. Keeping it
 	// separate preserves the component entry's export selection and lets a
 	// harness import the version-local component normally.
-	HarnessJS       string
-	SharedHarnessJS string
+	HarnessJS            string
+	CompositionHarnessJS string
 	// FrameJS is the optional catalog frame module used to render a subject in
 	// context. It is kept separate from JS so the subject's adoption closure
 	// never acquires the frame asset.
@@ -123,11 +123,11 @@ func (s *service) GetBundleVersionWithFrameAndHarness(ctx context.Context, id, v
 		frameDeps = resolvedDeps
 	}
 	if harness != nil {
-		shared, sharedErr := s.bundleSharedHarness(ctx, harness)
-		if sharedErr != nil {
-			return Bundle{}, sharedErr
+		compositionHarness, compositionErr := s.bundleCompositionHarness(ctx, harness)
+		if compositionErr != nil {
+			return Bundle{}, compositionErr
 		}
-		bundle.SharedHarnessJS = shared
+		bundle.CompositionHarnessJS = compositionHarness
 	}
 	bundle.Dependencies = appendUniqueDeclarations(bundle.Dependencies, frameDeps)
 	// Include the complete declarative composition in the digest. A capability
@@ -139,39 +139,39 @@ func (s *service) GetBundleVersionWithFrameAndHarness(ctx context.Context, id, v
 		Frame   *components.StoryFrame      `json:"frame,omitempty"`
 		Harness *components.StoryHarnessRef `json:"harness,omitempty"`
 	}{Frame: frame, Harness: harness})
-	bundle.SHA256 = digest(bundle.JS + bundle.HarnessJS + bundle.SharedHarnessJS + bundle.FrameJS + bundle.FixtureJSON + string(composition))
+	bundle.SHA256 = digest(bundle.JS + bundle.HarnessJS + bundle.CompositionHarnessJS + bundle.FrameJS + bundle.FixtureJSON + string(composition))
 	return bundle, nil
 }
 
-type sharedHarnessFamily struct {
+type compositionHarnessFamily struct {
 	ID         string   `json:"id"`
 	Version    string   `json:"version"`
 	Export     string   `json:"export"`
 	ConfigKeys []string `json:"configKeys"`
 }
 
-type sharedHarnessRegistry struct {
-	Families []sharedHarnessFamily `json:"families"`
+type compositionHarnessRegistry struct {
+	Families []compositionHarnessFamily `json:"families"`
 }
 
-func (s *service) bundleSharedHarness(ctx context.Context, harness *components.StoryHarnessRef) (string, error) {
+func (s *service) bundleCompositionHarness(ctx context.Context, harness *components.StoryHarnessRef) (string, error) {
 	if harness == nil || strings.TrimSpace(s.repoRoot) == "" {
-		return "", frameBundleError("sharedHarness", "shared harness repository root is not configured")
+		return "", frameBundleError("composition.harness", "composition harness repository root is not configured")
 	}
 	parts := strings.Split(strings.TrimSpace(harness.Asset), ".")
 	if len(parts) != 2 || parts[0] != "preview" || parts[1] == "" || strings.ContainsAny(harness.Asset+harness.Version+harness.Export, `/\\`) || strings.TrimSpace(harness.Version) == "" || strings.TrimSpace(harness.Export) == "" {
-		return "", frameBundleError(harness.Asset, "invalid shared harness reference")
+		return "", frameBundleError(harness.Asset, "invalid composition harness reference")
 	}
 	manifestPath := filepath.Join(s.repoRoot, "scenarios", "react-component-library", "library", "preview-harnesses", "manifest.json")
 	manifestBytes, manifestErr := os.ReadFile(manifestPath)
 	if manifestErr != nil {
-		return "", frameBundleError(harness.Asset, "shared harness registry was not found")
+		return "", frameBundleError(harness.Asset, "composition harness registry was not found")
 	}
-	var manifest sharedHarnessRegistry
+	var manifest compositionHarnessRegistry
 	if err := json.Unmarshal(manifestBytes, &manifest); err != nil {
-		return "", frameBundleError(harness.Asset, "shared harness registry is invalid")
+		return "", frameBundleError(harness.Asset, "composition harness registry is invalid")
 	}
-	var registered *sharedHarnessFamily
+	var registered *compositionHarnessFamily
 	for index := range manifest.Families {
 		family := &manifest.Families[index]
 		if family.ID == parts[1] && family.Version == harness.Version && family.Export == harness.Export {
@@ -180,9 +180,9 @@ func (s *service) bundleSharedHarness(ctx context.Context, harness *components.S
 		}
 	}
 	if registered == nil {
-		return "", frameBundleError(harness.Asset, "shared harness is not registered at the requested version/export")
+		return "", frameBundleError(harness.Asset, "composition harness is not registered at the requested version/export")
 	}
-	if err := validateSharedHarnessConfig(harness.Config, registered.ConfigKeys); err != nil {
+	if err := validateCompositionHarnessConfig(harness.Config, registered.ConfigKeys); err != nil {
 		return "", frameBundleError(harness.Asset, err.Error())
 	}
 	path := filepath.Join(s.repoRoot, "scenarios", "react-component-library", "library", "preview-harnesses", parts[1], "versions", harness.Version, harness.Export+".tsx")
@@ -193,14 +193,14 @@ func (s *service) bundleSharedHarness(ctx context.Context, harness *components.S
 	}
 	cleanPath, err := filepath.Abs(path)
 	if err != nil || (cleanPath != cleanRoot && !strings.HasPrefix(cleanPath, cleanRoot+string(os.PathSeparator))) {
-		return "", frameBundleError(harness.Asset, "shared harness path escapes configured root")
+		return "", frameBundleError(harness.Asset, "composition harness path escapes configured root")
 	}
 	content, err := os.ReadFile(cleanPath)
 	if err != nil {
-		return "", frameBundleError(harness.Asset, "shared harness implementation was not found")
+		return "", frameBundleError(harness.Asset, "composition harness implementation was not found")
 	}
 	if strings.Contains(string(content), "library/components/") || strings.Contains(string(content), "library/primitives/") || strings.Contains(string(content), "library/hooks/") {
-		return "", frameBundleError(harness.Asset, "shared harness must not import a component-specific library asset")
+		return "", frameBundleError(harness.Asset, "composition harness must not import a component-specific library asset")
 	}
 	// Use the validated absolute path as the bundler source so relative imports
 	// between generic Preview foundations resolve from the harness directory.
@@ -212,13 +212,13 @@ func (s *service) bundleSharedHarness(ctx context.Context, harness *components.S
 	return js, nil
 }
 
-func validateSharedHarnessConfig(raw json.RawMessage, allowed []string) error {
+func validateCompositionHarnessConfig(raw json.RawMessage, allowed []string) error {
 	if len(bytes.TrimSpace(raw)) == 0 || bytes.Equal(bytes.TrimSpace(raw), []byte("null")) {
 		return nil
 	}
 	var config map[string]json.RawMessage
 	if err := json.Unmarshal(raw, &config); err != nil {
-		return fmt.Errorf("shared harness config must be a JSON object")
+		return fmt.Errorf("composition harness config must be a JSON object")
 	}
 	keys := make(map[string]struct{}, len(allowed))
 	for _, key := range allowed {
@@ -226,7 +226,7 @@ func validateSharedHarnessConfig(raw json.RawMessage, allowed []string) error {
 	}
 	for key := range config {
 		if _, ok := keys[key]; !ok {
-			return fmt.Errorf("shared harness config key %q is not declared by the registry", key)
+			return fmt.Errorf("composition harness config key %q is not declared by the registry", key)
 		}
 	}
 	return nil
@@ -258,9 +258,12 @@ func (s *service) GetBundleVersion(ctx context.Context, id, version string) (Bun
 	// remain bundled from the catalog source tree, while this explicit check
 	// prevents previewing a component whose declared hook/component closure is
 	// missing or cyclic.
+	var closure []components.ResolvedAsset
 	if len(asset.Dependencies) > 0 {
-		if _, err := components.ResolveDependencyClosure(ctx, s.components, id, version); err != nil {
-			return Bundle{}, err
+		var closureErr error
+		closure, closureErr = components.ResolveDependencyClosure(ctx, s.components, id, version)
+		if closureErr != nil {
+			return Bundle{}, closureErr
 		}
 	}
 	var (
@@ -284,6 +287,43 @@ func (s *service) GetBundleVersion(ctx context.Context, id, version string) (Bun
 		declarations, err = s.deps.ListForComponentVersion(ctx, id, dependencyVersion)
 		if err != nil {
 			return Bundle{}, err
+		}
+		versionRecord, versionErr := s.components.GetVersion(ctx, id, dependencyVersion)
+		if versionErr != nil {
+			return Bundle{}, versionErr
+		}
+		versionFiles := []components.ComponentVersionFile{}
+		versionFiles = append(versionFiles, versionRecord.Files...)
+		for _, resolved := range closure {
+			versionFiles = append(versionFiles, resolved.Version.Files...)
+		}
+		for _, file := range versionFiles {
+			fields, parseErr := deps.ParseSourceDeclarations(file.Content)
+			if parseErr != nil {
+				return Bundle{}, fmt.Errorf("parse preview dependencies in %s: %w", file.Path, parseErr)
+			}
+			for _, field := range fields {
+				declarations = appendUniqueDeclarations(declarations, []deps.Declaration{{
+					ComponentID:  id,
+					Version:      dependencyVersion,
+					DepName:      field.DepName,
+					VersionRange: field.VersionRange,
+					Kind:         field.Kind,
+				}})
+			}
+		}
+		importedFields, scanErr := s.scanImportedSourceDeclarations(versionFiles, content.SourcePath)
+		if scanErr != nil {
+			return Bundle{}, scanErr
+		}
+		for _, field := range importedFields {
+			declarations = appendUniqueDeclarations(declarations, []deps.Declaration{{
+				ComponentID:  id,
+				Version:      dependencyVersion,
+				DepName:      field.DepName,
+				VersionRange: field.VersionRange,
+				Kind:         field.Kind,
+			}})
 		}
 	}
 	stampVersion := version

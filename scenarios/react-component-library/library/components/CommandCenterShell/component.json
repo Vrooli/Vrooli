@@ -1,13 +1,29 @@
 {
-  "libraryId": "react-component-library:CommandCenterShell",
-  "x-supplementalJustification": "Pre-catalog operational shell retained as a supplemental asset pending promotion into the page-template vocabulary.",
-  "displayName": "Command Center Shell",
-  "description": "A responsive operational-workspace composition with navigation, summary figures, controls, and a lifecycle-aware primary region.",
-  "tags": ["layout", "command-center", "dashboard", "responsive", "experience"],
-  "slot": "ui-pattern",
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "category": "layout",
-  "designStyles": [{ "styleId": "vrooli-default", "affinity": "native" }],
-  "latest": "1.0.0",
+  "dependencies": [
+    {
+      "libraryId": "react-component-library:ClassMerge",
+      "version": "1.0.0"
+    },
+    {
+      "libraryId": "react-component-library:AsyncPanel",
+      "version": "1.0.0"
+    }
+  ],
+  "deprecatedVersions": [],
+  "description": "A responsive operational-workspace composition with navigation, summary figures, controls, and a lifecycle-aware primary region.",
+  "designStyles": [
+    {
+      "affinity": "native",
+      "styleId": "vrooli-default"
+    }
+  ],
+  "displayName": "Command Center Shell",
   "draft": "",
-  "deprecatedVersions": []
+  "latest": "1.0.0",
+  "libraryId": "react-component-library:CommandCenterShell",
+  "slot": "ui-pattern",
+  "tags": ["layout", "command-center", "dashboard", "responsive", "experience"],
+  "x-supplementalJustification": "Pre-catalog operational shell retained as a supplemental asset pending promotion into the page-template vocabulary."
 }

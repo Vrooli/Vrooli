@@ -1,4 +1,6 @@
 /** @vrooliComponentSource react-component-library:DashboardPage */
+import { translate } from "../../../../hooks/useLocale/versions/1.0.0/useLocale";
+
 import type { ReactNode } from "react";
 const panel = {
   border: "1px solid var(--color-border, #cbd5e1)",
@@ -22,21 +24,21 @@ function StateView({ state, children }: { state: State; children: ReactNode }) {
   if (state === "loading")
     return (
       <div role="status" style={{ ...panel, textAlign: "center" }}>
-        Loading…
+          {translate("templates.dashboard-page.text.1", "Loading…")}
       </div>
     );
   if (state === "refreshing")
     return (
       <div role="status" style={panel}>
-        <strong>Refreshing</strong>
+        <strong>{translate("templates.dashboard-page.text.1", "Refreshing")}</strong>
         {children}
       </div>
     );
-  if (state === "stale") return <div>Showing stale data{children}</div>;
+  if (state === "stale") return <div>{translate("templates.dashboard-page.text.2", "Showing stale data")}{children}</div>;
   if (state === "empty")
     return (
       <div data-state="empty" style={{ ...panel, textAlign: "center" }}>
-        Nothing here
+        {translate("templates.dashboard-page.text.3", "Nothing here")}
       </div>
     );
   if (state === "partial-error")
@@ -47,7 +49,7 @@ function StateView({ state, children }: { state: State; children: ReactNode }) {
         role="alert"
         style={{ ...panel, borderColor: "var(--color-danger, #dc2626)" }}
       >
-        Unable to load this page
+        {translate("templates.dashboard-page.text.4", "Unable to load this page")}
       </div>
     );
   if (state === "offline") return <div role="status">Offline{children}</div>;
@@ -68,8 +70,8 @@ export function DashboardPage({
     <StateView state={state}>
       <div style={{ display: "grid", gap: 16 }}>
         <header>
-          <h1 style={{ margin: 0, fontSize: 24 }}>Dashboard</h1>
-          <p style={muted}>A clear view of what needs attention.</p>
+          <h1 style={{ margin: 0, fontSize: 24 }}>{translate("templates.dashboard-page.text.2", "Dashboard")}</h1>
+          <p style={muted}>{translate("templates.dashboard-page.text.3", "A clear view of what needs attention.")}</p>
         </header>
         <section
           data-region="primary-metrics"

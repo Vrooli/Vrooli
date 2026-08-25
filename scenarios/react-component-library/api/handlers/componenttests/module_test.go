@@ -41,7 +41,7 @@ func TestModuleRunsAndListsDurableContractReport(t *testing.T) {
 	require.NoError(t, os.MkdirAll(filepath.Join(root, "components", "Button", "versions", "1.0.0"), 0o755))
 	require.NoError(t, os.WriteFile(filepath.Join(root, "components", "Button", "component.json"), []byte(`{"libraryId":"rcl:Button","displayName":"Button","latest":"1.0.0"}`), 0o644))
 	require.NoError(t, os.WriteFile(filepath.Join(root, "components", "Button", "versions", "1.0.0", "Button.tsx"), []byte("/**\n * @libraryId rcl:Button\n * @version 1.0.0\n */\nexport const Button = () => null;"), 0o644))
-	require.NoError(t, os.WriteFile(filepath.Join(root, "components", "Button", "versions", "1.0.0", "story.json"), []byte(`{"schemaVersion":1,"kind":"component","args":{"fields":[]},"environment":{"fixtures":[]},"stories":[{"id":"idle","name":"Idle","args":{},"expect":[{"kind":"role","role":"button","name":"Button"}]}]}`), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(root, "components", "Button", "versions", "1.0.0", "story.json"), []byte(`{"schemaVersion":4,"kind":"component","args":{"fields":[]},"environment":{"fixtures":[]},"stories":[{"id":"idle","name":"Idle","args":{},"expect":[{"kind":"role","role":"button","name":"Button"}]}]}`), 0o644))
 	assets, repo := components.BuildService(database, schedule.System(), root)
 	router := mux.NewRouter()
 	components.ModuleFromService(assets, repo, root, log.New(io.Discard, "", 0)).Mount(router)

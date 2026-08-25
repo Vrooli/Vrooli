@@ -5,13 +5,14 @@
   "asset": {
     "id": "ai.streaming-text",
     "name": "StreamingText",
-    "kind": "component", "surface": "raised",
+    "kind": "component",
+    "surface": "raised",
     "domain": "ai",
     "description": "The incremental text renderer batching updates to a stable cadence, avoiding excessive reflow, preserving user selection, handling partial markup boundaries, and supporting interruption mid-stream.",
     "targets": [
       "react-vite"
     ],
-    "slot": "primitive",
+    "slot": "ui-primitive",
     "delivery": "adopted",
     "target": {
       "priority": "P0",

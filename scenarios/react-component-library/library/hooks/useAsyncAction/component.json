@@ -1,11 +1,20 @@
 {
-  "libraryId": "react-component-library:useAsyncAction",
-  "catalogId": "hooks.use-async-action",
-  "displayName": "useAsyncAction",
-  "description": "Production-ready useAsyncAction hook with SSR-safe lifecycle behavior.",
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "hook",
-  "tags": ["runtime", "accessibility"],
+  "catalogId": "hooks.use-async-action",
+  "dependencies": [],
+  "description": "Production-ready useAsyncAction hook with SSR-safe lifecycle behavior.",
+  "designStyles": [
+    {
+      "affinity": "native",
+      "styleId": "vrooli-default"
+    }
+  ],
+  "displayName": "useAsyncAction",
   "latest": "1.0.0",
-  "designStyles": [{ "styleId": "vrooli-default", "affinity": "native" }],
-  "dependencies": []
+  "libraryId": "react-component-library:useAsyncAction",
+  "tags": [
+    "runtime",
+    "accessibility"
+  ]
 }

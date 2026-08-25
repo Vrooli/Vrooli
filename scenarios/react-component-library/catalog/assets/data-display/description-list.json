@@ -10,13 +10,14 @@
   "asset": {
     "id": "data-display.description-list",
     "name": "DescriptionList",
-    "kind": "component", "surface": "raised",
+    "kind": "component",
+    "surface": "raised",
     "domain": "data-display",
     "description": "The responsive name-and-value presentation for metadata, adapting between columns, rows, dense summaries, and long values without truncating meaning.",
     "targets": [
       "react-vite"
     ],
-    "slot": "primitive",
+    "slot": "ui-primitive",
     "delivery": "adopted",
     "target": {
       "priority": "P1",

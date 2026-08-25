@@ -1,21 +1,28 @@
 {
-  "libraryId": "react-component-library:ButtonGroup",
-  "catalogId": "controls.button-group",
-  "displayName": "ButtonGroup",
-  "description": "A grouped control surface that preserves touch targets and action spacing across responsive layouts.",
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "component",
+  "catalogId": "controls.button-group",
+  "dependencies": [],
+  "deprecatedVersions": [],
+  "description": "A grouped control surface that preserves touch targets and action spacing across responsive layouts.",
+  "designStyles": [
+    {
+      "affinity": "native",
+      "styleId": "vrooli-default"
+    }
+  ],
+  "displayName": "ButtonGroup",
+  "draft": "",
+  "latest": "1.1.1",
+  "libraryId": "react-component-library:ButtonGroup",
   "tags": [
     "control",
     "token-bound"
   ],
-  "latest": "1.1.1",
-  "designStyles": [
+  "requires": [
     {
-      "styleId": "vrooli-default",
-      "affinity": "native"
+      "libraryId": "react-component-library:useLocale",
+      "version": "1.0.0"
     }
-  ],
-  "dependencies": [],
-  "draft": "",
-  "deprecatedVersions": []
+  ]
 }

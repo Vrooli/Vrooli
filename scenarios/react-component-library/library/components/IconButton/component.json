@@ -1,22 +1,27 @@
 {
-  "libraryId": "react-component-library:IconButton",
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "catalogId": "controls.icon-button",
-  "displayName": "IconButton",
-  "description": "Accessible icon-only action control.",
-  "tags": ["button", "icon", "accessibility"],
-  "designStyles": [
-    {
-      "styleId": "vrooli-default",
-      "affinity": "native"
-    }
-  ],
-  "entry": "IconButton.tsx",
-  "latest": "2.0.0",
   "dependencies": [
     {
       "libraryId": "react-component-library:Pressable",
       "version": "1.0.0"
     }
   ],
-  "deprecatedVersions": []
+  "deprecatedVersions": [],
+  "description": "Accessible icon-only action control.",
+  "designStyles": [
+    {
+      "affinity": "native",
+      "styleId": "vrooli-default"
+    }
+  ],
+  "displayName": "IconButton",
+  "entry": "IconButton.tsx",
+  "latest": "2.0.0",
+  "libraryId": "react-component-library:IconButton",
+  "tags": [
+    "button",
+    "icon",
+    "accessibility"
+  ]
 }

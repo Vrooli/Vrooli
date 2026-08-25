@@ -1,8 +1,32 @@
 {
-  "schemaVersion": 3,
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
+  "args": {
+    "fields": []
+  },
+  "environment": {
+    "fixtures": []
+  },
   "kind": "component",
-  "title": "PendingSyncBadge",
-  "args": { "fields": [] },
-  "environment": { "fixtures": [] },
-  "stories": [{ "id": "pending", "name": "Pending sync", "harness": "PendingStory", "args": {}, "expect": [{ "kind": "role", "role": "status" }], "mode": "live" }]
+  "schemaVersion": 4,
+  "stories": [
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "PendingStory",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "role": "status"
+        }
+      ],
+      "id": "pending",
+      "mode": "live",
+      "name": "Pending sync"
+    }
+  ],
+  "title": "PendingSyncBadge"
 }

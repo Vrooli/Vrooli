@@ -1,17 +1,23 @@
 {
-  "libraryId": "react-component-library:useVoiceInput",
-  "x-supplementalJustification": "Pre-catalog browser capability hook retained as a supplemental runtime seam until the voice port is promoted.",
-  "displayName": "useVoiceInput",
-  "description": "Shared browser PCM voice capture lifecycle bound to a scenario transport.",
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "hook",
-  "tags": ["voice", "microphone", "accessibility", "lifecycle"],
+  "dependencies": [],
+  "description": "Shared browser PCM voice capture lifecycle bound to a scenario transport.",
   "designStyles": [
     {
-      "styleId": "vrooli-default",
       "affinity": "native",
-      "reason": "The hook has no visual surface and is intentionally token-agnostic."
+      "reason": "The hook has no visual surface and is intentionally token-agnostic.",
+      "styleId": "vrooli-default"
     }
   ],
+  "displayName": "useVoiceInput",
   "latest": "3.0.0",
-  "dependencies": []
+  "libraryId": "react-component-library:useVoiceInput",
+  "tags": [
+    "voice",
+    "microphone",
+    "accessibility",
+    "lifecycle"
+  ],
+  "x-supplementalJustification": "Pre-catalog browser capability hook retained as a supplemental runtime seam until the voice port is promoted."
 }

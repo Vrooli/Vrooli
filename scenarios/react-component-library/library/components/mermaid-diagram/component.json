@@ -1,25 +1,22 @@
 {
-  "libraryId": "react-component-library:mermaid-diagram",
-  "x-supplementalJustification": "Pre-catalog diagram renderer retained as a supplemental content integration seam.",
-  "displayName": "Mermaid Diagram",
-  "description": "Mermaid diagram source preview with an expand seam.",
-  "tags": ["markdown", "mermaid"],
-  "entry": "MermaidDiagram.tsx",
-  "latest": "0.3.1",
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "deprecatedVersions": [],
-  "draft": "",
+  "description": "Mermaid diagram source preview with an expand seam.",
   "designStyles": [
     {
-      "styleId": "vrooli-default",
       "affinity": "native",
-      "reason": "token-native operational-console baseline"
+      "reason": "token-native operational-console baseline",
+      "styleId": "vrooli-default"
     }
   ],
-  "requiredTokens": [
-    "--color-surface-muted",
-    "--color-border",
-    "--color-foreground",
-    "--color-muted-foreground",
-    "--color-accent"
-  ]
+  "displayName": "Mermaid Diagram",
+  "draft": "",
+  "entry": "MermaidDiagram.tsx",
+  "latest": "0.3.1",
+  "libraryId": "react-component-library:mermaid-diagram",
+  "tags": [
+    "markdown",
+    "mermaid"
+  ],
+  "x-supplementalJustification": "Pre-catalog diagram renderer retained as a supplemental content integration seam."
 }

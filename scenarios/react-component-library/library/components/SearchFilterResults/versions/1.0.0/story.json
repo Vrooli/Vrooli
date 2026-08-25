@@ -1,47 +1,55 @@
 {
-  "schemaVersion": 3,
-  "kind": "component",
-  "title": "SearchFilterResults",
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
   "args": {
     "fields": []
   },
   "environment": {
     "fixtures": []
   },
+  "kind": "component",
+  "schemaVersion": 4,
   "stories": [
     {
-      "id": "default",
-      "name": "Results",
-      "harness": "Default",
       "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Default",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
         {
           "kind": "role",
-          "role": "search",
-          "name": "Filter results"
+          "name": "Filter results",
+          "role": "search"
         },
         {
           "kind": "role",
-          "role": "heading",
-          "name": "Results"
+          "name": "Results",
+          "role": "heading"
         },
         {
           "kind": "text",
           "value": "3 results"
         }
       ],
+      "id": "default",
       "interactions": [
         {
           "kind": "settle"
         }
       ],
-      "mode": "live"
+      "mode": "live",
+      "name": "Results"
     },
     {
-      "id": "no-match",
-      "name": "No matches",
-      "harness": "NoMatch",
       "args": {},
+      "composition": {
+        "specimen": {
+          "export": "NoMatch",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
         {
           "kind": "text",
@@ -52,18 +60,23 @@
           "value": "No results match this search"
         }
       ],
+      "id": "no-match",
       "interactions": [
         {
           "kind": "settle"
         }
       ],
-      "mode": "live"
+      "mode": "live",
+      "name": "No matches"
     },
     {
-      "id": "empty",
-      "name": "Empty collection",
-      "harness": "Empty",
       "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Empty",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
         {
           "kind": "text",
@@ -74,18 +87,23 @@
           "value": "Nothing has been added yet"
         }
       ],
+      "id": "empty",
       "interactions": [
         {
           "kind": "settle"
         }
       ],
-      "mode": "live"
+      "mode": "live",
+      "name": "Empty collection"
     },
     {
-      "id": "error",
-      "name": "Retry recovery",
-      "harness": "ErrorState",
       "args": {},
+      "composition": {
+        "specimen": {
+          "export": "ErrorState",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
         {
           "kind": "role",
@@ -93,20 +111,23 @@
         },
         {
           "kind": "role",
-          "role": "button",
-          "name": "Try again"
+          "name": "Try again",
+          "role": "button"
         },
         {
           "kind": "text",
           "value": "query is preserved"
         }
       ],
+      "id": "error",
       "interactions": [
         {
           "kind": "settle"
         }
       ],
-      "mode": "live"
+      "mode": "live",
+      "name": "Retry recovery"
     }
-  ]
+  ],
+  "title": "SearchFilterResults"
 }

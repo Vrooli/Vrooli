@@ -27,6 +27,10 @@
       {
         "asset": "hooks.use-media-query",
         "reason": "Drill-in versus adjacency is a behavioral breakpoint."
+      },
+      {
+        "asset": "hooks.use-locale",
+        "reason": "User-facing copy resolves through the adopting host locale bridge."
       }
     ]
   },

@@ -1,4 +1,6 @@
 /** @vrooliComponentSource react-component-library:Chart */
+import { translate } from "../../../../hooks/useLocale/versions/1.0.0/useLocale";
+
 import {
   useId,
   useMemo,
@@ -76,7 +78,7 @@ const defaultFormatter = (value: number, locale: string) =>
 export function Chart({
   data,
   title,
-  description = "Explore the trend and select a point for its exact value.",
+  description = translate("visualization.chart.description.1", "Explore the trend and select a point for its exact value."),
   status = "success",
   presentation = "contained",
   valueFormatter = defaultFormatter,
@@ -137,7 +139,7 @@ export function Chart({
           <div data-rcl-chart-surface data-presentation={presentation}>
             <div data-rcl-chart-header>
               <div data-rcl-chart-heading>
-                <span data-rcl-chart-kicker>Performance overview</span>
+                <span data-rcl-chart-kicker>{translate("visualization.chart.text.3", "Performance overview")}</span>
                 <h2 id={titleId} data-rcl-chart-title>
                   {title}
                 </h2>
@@ -221,10 +223,10 @@ export function Chart({
               <div
                 data-rcl-chart-legend
                 data-rcl-chart-part="legend"
-                aria-label="Chart values"
+                aria-label={translate("visualization.chart.aria-label.2", "Chart values")}
               >
                 {data.map((point) => (
-                  <button
+                  <button data-testid="visualization.chart"
                     key={point.id}
                     type="button"
                     aria-pressed={point.id === selected}
@@ -243,8 +245,8 @@ export function Chart({
               <caption>{title} data</caption>
               <thead>
                 <tr>
-                  <th scope="col">Period</th>
-                  <th scope="col">Value</th>
+                  <th scope="col">{translate("visualization.chart.text.4", "Period")}</th>
+                  <th scope="col">{translate("visualization.chart.text.5", "Value")}</th>
                 </tr>
               </thead>
               <tbody>

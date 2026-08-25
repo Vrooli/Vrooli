@@ -1,15 +1,13 @@
 {
-  "schemaVersion": 3,
-  "kind": "component",
-  "title": "PermissionState",
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
   "args": {},
   "environment": {
     "fixtures": []
   },
+  "kind": "component",
+  "schemaVersion": 4,
   "stories": [
     {
-      "id": "restricted",
-      "name": "Restricted",
       "args": {},
       "expect": [
         {
@@ -17,7 +15,10 @@
           "role": "status"
         }
       ],
-      "mode": "pinned"
+      "id": "restricted",
+      "mode": "pinned",
+      "name": "Restricted"
     }
-  ]
+  ],
+  "title": "PermissionState"
 }

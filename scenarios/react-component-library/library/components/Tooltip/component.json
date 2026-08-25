@@ -1,22 +1,23 @@
 {
-  "libraryId": "react-component-library:Tooltip",
-  "displayName": "Tooltip",
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
+  "deprecatedVersions": [],
   "description": "A concise, accessible explanation attached to a focusable trigger.",
+  "designStyles": [
+    {
+      "affinity": "native",
+      "reason": "token-native operational-console baseline",
+      "styleId": "vrooli-default"
+    }
+  ],
+  "displayName": "Tooltip",
+  "draft": "",
+  "entry": "Tooltip.tsx",
+  "latest": "1.0.1",
+  "libraryId": "react-component-library:Tooltip",
   "tags": [
     "overlay",
     "accessible",
     "interaction",
     "token-bound"
-  ],
-  "entry": "Tooltip.tsx",
-  "latest": "1.0.1",
-  "deprecatedVersions": [],
-  "designStyles": [
-    {
-      "styleId": "vrooli-default",
-      "affinity": "native",
-      "reason": "token-native operational-console baseline"
-    }
-  ],
-  "draft": ""
+  ]
 }

@@ -5,13 +5,14 @@
   "asset": {
     "id": "data-display.faceted-filter",
     "name": "FacetedFilter",
-    "kind": "component", "surface": "raised",
+    "kind": "component",
+    "surface": "raised",
     "domain": "data-display",
     "description": "The filter surface showing available values with counts, search, selected values, exclusions, async loading, and virtualized option lists.",
     "targets": [
       "react-vite"
     ],
-    "slot": "primitive",
+    "slot": "ui-primitive",
     "delivery": "adopted",
     "target": {
       "priority": "P1",

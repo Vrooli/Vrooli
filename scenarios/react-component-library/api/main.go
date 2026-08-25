@@ -164,15 +164,6 @@ func main() {
 	}
 	primaryDB := db.Primary()
 
-	if err := componentsInternal.EnsureSchemaMigrations(context.Background(), primaryDB); err != nil {
-		log.Fatalf("schema migration failed: %v", err)
-	}
-	if err := adoptionsInternal.EnsureSchemaMigrations(context.Background(), primaryDB); err != nil {
-		log.Fatalf("adoption schema migration failed: %v", err)
-	}
-	if err := workflowsInternal.EnsureSchemaMigrations(context.Background(), primaryDB); err != nil {
-		log.Fatalf("assisted workflow schema migration failed: %v", err)
-	}
 	if err := database.EnsureSchemas(context.Background(), primaryDB, modules.AllSchemas()...); err != nil {
 		log.Fatalf("schema initialization failed: %v", err)
 	}
@@ -232,7 +223,9 @@ func main() {
 	depsObserver := &componentsDepsObserver{svc: depsSvc, logger: log.Default()}
 	previewSvc := previewH.BuildServiceAtRoot(componentsSvc, depsSvc, filepath.Dir(scenariosRoot))
 	adoptionsInternal.SetValidationGates(adoptionsSvc, depsSvc, componentsSvc)
-	adoptionsInternal.SetMaturityReader(adoptionsSvc, adoptionsInternal.NewCatalogMaturityReader(filepath.Dir(scenariosRoot), catalogcoverageInternal.NewEvidenceStore(primaryDB)))
+	catalogEvidence := catalogcoverageInternal.NewEvidenceStore(primaryDB)
+	adoptionsInternal.SetMaturityReader(adoptionsSvc, adoptionsInternal.NewCatalogMaturityReader(filepath.Dir(scenariosRoot), catalogEvidence))
+	adoptionsInternal.SetContractCoverageReader(adoptionsSvc, adoptionsInternal.NewCatalogGateReader(catalogEvidence))
 
 	// Wire the themes domain (req 12). Same scenariosRoot as adoptions
 	// + deps so the DESIGN.md reader walks the same tree. Seed the

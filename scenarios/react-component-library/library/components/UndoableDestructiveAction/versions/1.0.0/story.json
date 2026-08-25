@@ -1,37 +1,45 @@
 {
-  "schemaVersion": 3,
-  "kind": "component",
-  "title": "UndoableDestructiveAction",
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
   "args": {
     "fields": []
   },
   "environment": {
     "fixtures": []
   },
+  "kind": "component",
+  "schemaVersion": 4,
   "stories": [
     {
-      "id": "default",
-      "name": "Reversible removal",
-      "harness": "Default",
       "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Default",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
         {
           "kind": "role",
-          "role": "button",
-          "name": "Remove Project brief"
+          "name": "Remove Project brief",
+          "role": "button"
         },
         {
           "kind": "text",
           "value": "You can undo this change"
         }
       ],
-      "mode": "live"
+      "id": "default",
+      "mode": "live",
+      "name": "Reversible removal"
     },
     {
-      "id": "submitting",
-      "name": "Removal in progress",
-      "harness": "Submitting",
       "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Submitting",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
         {
           "kind": "role",
@@ -42,13 +50,18 @@
           "value": "Removing Project brief"
         }
       ],
-      "mode": "live"
+      "id": "submitting",
+      "mode": "live",
+      "name": "Removal in progress"
     },
     {
-      "id": "success",
-      "name": "Removal complete",
-      "harness": "Success",
       "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Success",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
         {
           "kind": "role",
@@ -59,13 +72,18 @@
           "value": "Project brief removed"
         }
       ],
-      "mode": "live"
+      "id": "success",
+      "mode": "live",
+      "name": "Removal complete"
     },
     {
-      "id": "request-error",
-      "name": "Retryable removal error",
-      "harness": "RequestError",
       "args": {},
+      "composition": {
+        "specimen": {
+          "export": "RequestError",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
         {
           "kind": "role",
@@ -73,50 +91,58 @@
         },
         {
           "kind": "role",
-          "role": "button",
-          "name": "Try again"
+          "name": "Try again",
+          "role": "button"
         },
         {
           "kind": "text",
           "value": "workspace service is temporarily unavailable"
         }
       ],
-      "mode": "live"
+      "id": "request-error",
+      "mode": "live",
+      "name": "Retryable removal error"
     },
     {
-      "id": "interactive",
-      "name": "Delete and undo",
-      "harness": "Interactive",
       "args": {},
-      "interactions": [
-        {
-          "kind": "click",
-          "target": {
-            "role": "button",
-            "name": "Remove Project brief"
-          }
-        },
-        {
-          "kind": "settle"
-        },
-        {
-          "kind": "click",
-          "target": {
-            "role": "button",
-            "name": "Undo"
-          }
-        },
-        {
-          "kind": "settle"
+      "composition": {
+        "specimen": {
+          "export": "Interactive",
+          "module": "./story.tsx"
         }
-      ],
+      },
       "expect": [
         {
           "kind": "text",
           "value": "Project brief restored"
         }
       ],
-      "mode": "live"
+      "id": "interactive",
+      "interactions": [
+        {
+          "kind": "click",
+          "target": {
+            "name": "Remove Project brief",
+            "role": "button"
+          }
+        },
+        {
+          "kind": "settle"
+        },
+        {
+          "kind": "click",
+          "target": {
+            "name": "Undo",
+            "role": "button"
+          }
+        },
+        {
+          "kind": "settle"
+        }
+      ],
+      "mode": "live",
+      "name": "Delete and undo"
     }
-  ]
+  ],
+  "title": "UndoableDestructiveAction"
 }

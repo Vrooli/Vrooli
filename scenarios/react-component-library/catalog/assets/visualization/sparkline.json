@@ -5,13 +5,14 @@
   "asset": {
     "id": "visualization.sparkline",
     "name": "Sparkline",
-    "kind": "component", "surface": "raised",
+    "kind": "component",
+    "surface": "raised",
     "domain": "visualization",
     "description": "The compact contextual trend with an accessible summary, highlighted points, threshold markers, explicit missing-data treatment, and stable rendering inside dense rows.",
     "targets": [
       "react-vite"
     ],
-    "slot": "primitive",
+    "slot": "ui-primitive",
     "delivery": "adopted",
     "target": {
       "priority": "P1",

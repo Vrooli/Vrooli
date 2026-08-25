@@ -5,27 +5,49 @@
   "asset": {
     "id": "controls.button",
     "name": "Button",
-    "kind": "component", "surface": "raised",
+    "kind": "component",
+    "surface": "raised",
     "domain": "controls",
     "description": "The primary action control: a labelled, token-bound button that acknowledges activation immediately, expresses intent through semantic variants, and keeps stable dimensions while it moves through pending, success, and failure.",
-    "targets": ["react-vite"],
-    "slot": "primitive",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "ui-primitive",
     "delivery": "adopted",
-    "target": { "priority": "P0", "maturity": "production-ready" }
+    "target": {
+      "priority": "P0",
+      "maturity": "production-ready"
+    }
   },
   "dependencies": {
     "requires": [
-      { "asset": "controls.pressable", "reason": "Owns the unified pointer, touch, keyboard, and focus-visible interaction model so Button does not reimplement activation." }
+      {
+        "asset": "controls.pressable",
+        "reason": "Owns the unified pointer, touch, keyboard, and focus-visible interaction model so Button does not reimplement activation."
+      }
     ],
     "suggests": [
-      { "asset": "primitives.icon", "reason": "Buttons frequently lead with an icon, but a text-only button is complete on its own and should not drag the icon registry into a closure that does not need it." },
-      { "asset": "overlays.tooltip", "reason": "Icon-dense toolbars pair buttons with tooltips, though a labelled button needs no supplementary description." }
+      {
+        "asset": "primitives.icon",
+        "reason": "Buttons frequently lead with an icon, but a text-only button is complete on its own and should not drag the icon registry into a closure that does not need it."
+      },
+      {
+        "asset": "overlays.tooltip",
+        "reason": "Icon-dense toolbars pair buttons with tooltips, though a labelled button needs no supplementary description."
+      }
     ]
   },
   "expects": [
-    { "capability": "design-tokens" },
-    { "capability": "ui-provider" },
-    { "capability": "telemetry-adapter", "optional": true }
+    {
+      "capability": "design-tokens"
+    },
+    {
+      "capability": "ui-provider"
+    },
+    {
+      "capability": "telemetry-adapter",
+      "optional": true
+    }
   ],
   "requiredCapabilities": [
     "accessible-naming",
@@ -42,14 +64,40 @@
     "transition-class-conformance",
     "text-scale-resilience"
   ],
-  "requiredStates": ["default", "loading", "success", "request-error", "retry"],
+  "requiredStates": [
+    "default",
+    "loading",
+    "success",
+    "request-error",
+    "retry"
+  ],
   "api": {
-    "levels": ["convenience"],
+    "levels": [
+      "convenience"
+    ],
     "variants": {
-      "variant": ["primary", "secondary", "ghost", "danger"],
-      "size": ["xs", "sm", "md", "lg", "xl", "icon"],
-      "density": ["comfortable", "compact"],
-      "shape": ["square", "pill"]
+      "variant": [
+        "primary",
+        "secondary",
+        "ghost",
+        "danger"
+      ],
+      "size": [
+        "xs",
+        "sm",
+        "md",
+        "lg",
+        "xl",
+        "icon"
+      ],
+      "density": [
+        "comfortable",
+        "compact"
+      ],
+      "shape": [
+        "square",
+        "pill"
+      ]
     }
   },
   "beauty": {
@@ -57,7 +105,10 @@
       "description": "Pressing a button that starts real work acknowledges on the same frame and holds its exact width through pending, success, and settle, so a row of buttons never shifts while one is working.",
       "required": true
     },
-    "avoid": ["icon-without-accessible-name", "color-without-semantic-purpose"]
+    "avoid": [
+      "icon-without-accessible-name",
+      "color-without-semantic-purpose"
+    ]
   },
   "rationale": "The single most-adopted asset in any library, and the one whose defects propagate furthest. The current implementation fails tap-target-size at mobile, sets border-radius twice across conflicting size and shape maps, and duplicates its class-merging helper into every other component file — all defects that this entry's required capabilities would surface."
 }

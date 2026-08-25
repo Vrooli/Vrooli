@@ -1,4 +1,6 @@
 /** @vrooliComponentSource manipulation.sortable */
+import { translate } from "../../../../hooks/useLocale/versions/1.0.0/useLocale";
+
 import {
   useCallback,
   useEffect,
@@ -79,7 +81,7 @@ export function Sortable<T>({
   items: initialItems,
   renderItem,
   onReorder,
-  label = "Sortable list",
+  label = translate("manipulation.sortable.label.1", "Sortable list"),
   disabled = false,
   className,
   style,
@@ -242,7 +244,7 @@ export function Sortable<T>({
                 aria-posinset={index + 1}
                 aria-setsize={items.length}
               >
-                <button
+                <button data-testid="manipulation.sortable"
                   type="button"
                   data-rcl-sortable-handle
                   aria-label={`Reorder ${item.label ?? item.id}`}

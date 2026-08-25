@@ -6,10 +6,12 @@
  * @tags ["data-display","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
+import { translate } from "../../../../hooks/useLocale/versions/1.0.0/useLocale";
+
 /** @vrooliComponentSource react-component-library:BudgetBar */
 import { BoundedMeter } from "../../../BoundedMeter/versions/1.0.1/BoundedMeter";
 export function BudgetBar({
-  label = "Mount",
+  label = translate("data-display.budget-bar.label.1", "Mount"),
   value = 42,
   budget = 100,
   unit = "ms",

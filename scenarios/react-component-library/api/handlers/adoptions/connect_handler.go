@@ -124,6 +124,8 @@ func (h *connectHandler) PreflightAdoption(ctx context.Context, req *connect.Req
 		VersionStatus:         string(out.Verdict.Version),
 		MaturityRung:          out.Verdict.Maturity.Achieved,
 		MaturityFloor:         out.Verdict.Maturity.Floor,
+		I18NVerdict:           out.I18n,
+		SelectorVerdict:       out.Selectors,
 		Warnings:              out.Verdict.Warnings,
 	}), nil
 }
@@ -154,6 +156,8 @@ func (h *connectHandler) ApplyAdoption(ctx context.Context, req *connect.Request
 		OverrideValidation: req.Msg.OverrideValidation,
 		ReplaceExisting:    req.Msg.ReplaceExisting,
 		IncludeSuggestions: req.Msg.IncludeSuggestions,
+		ForkReason:         req.Msg.ForkReason,
+		ExtensionPoints:    req.Msg.ExtensionPoints,
 	})
 	if err != nil {
 		connectErr := adoptions.ToConnectError(err)
@@ -171,7 +175,7 @@ func (h *connectHandler) BatchApplyAdoptions(ctx context.Context, req *connect.R
 		if item == nil {
 			continue
 		}
-		items = append(items, adoptions.BatchApplyItem{ComponentID: item.ComponentId, Scenario: item.Scenario, AdoptedPath: item.AdoptedPath, Version: item.Version, ConfirmOverwrite: item.ConfirmOverwrite, OverrideValidation: item.OverrideValidation, ReplaceExisting: item.ReplaceExisting, IncludeSuggestions: item.IncludeSuggestions})
+		items = append(items, adoptions.BatchApplyItem{ComponentID: item.ComponentId, Scenario: item.Scenario, AdoptedPath: item.AdoptedPath, Version: item.Version, ConfirmOverwrite: item.ConfirmOverwrite, OverrideValidation: item.OverrideValidation, ReplaceExisting: item.ReplaceExisting, IncludeSuggestions: item.IncludeSuggestions, ForkReason: item.ForkReason, ExtensionPoints: item.ExtensionPoints})
 	}
 	out, err := h.deps.Service.BatchApply(ctx, adoptions.BatchApplyInput{Items: items})
 	if err != nil {

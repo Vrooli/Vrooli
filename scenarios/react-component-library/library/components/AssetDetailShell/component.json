@@ -1,16 +1,29 @@
 {
-  "libraryId": "react-component-library:AssetDetailShell",
-  "x-supplementalJustification": "Pre-catalog operational composition retained as a supplemental asset until the page-template and detail-surface vocabulary is promoted.",
-  "displayName": "Asset Detail Shell",
-  "description": "A responsive asset-detail composition with preview, metadata, and lifecycle-aware supporting activity.",
-  "tags": ["layout", "asset-detail", "preview", "metadata", "experience"],
-  "slot": "ui-pattern",
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "category": "layout",
-  "designStyles": [{ "styleId": "vrooli-default", "affinity": "native" }],
   "dependencies": [
-    { "libraryId": "react-component-library:AsyncPanel", "version": "1.0.0" }
+    {
+      "libraryId": "react-component-library:AsyncPanel",
+      "version": "1.0.0"
+    },
+    {
+      "libraryId": "react-component-library:ClassMerge",
+      "version": "1.0.0"
+    }
   ],
-  "latest": "1.1.0",
+  "deprecatedVersions": [],
+  "description": "A responsive asset-detail composition with preview, metadata, and lifecycle-aware supporting activity.",
+  "designStyles": [
+    {
+      "affinity": "native",
+      "styleId": "vrooli-default"
+    }
+  ],
+  "displayName": "Asset Detail Shell",
   "draft": "",
-  "deprecatedVersions": []
+  "latest": "1.1.0",
+  "libraryId": "react-component-library:AssetDetailShell",
+  "slot": "ui-pattern",
+  "tags": ["layout", "asset-detail", "preview", "metadata", "experience"],
+  "x-supplementalJustification": "Pre-catalog operational composition retained as a supplemental asset until the page-template and detail-surface vocabulary is promoted."
 }

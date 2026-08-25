@@ -5,13 +5,14 @@
   "asset": {
     "id": "manipulation.sortable",
     "name": "Sortable",
-    "kind": "component", "surface": "raised",
+    "kind": "component",
+    "surface": "raised",
     "domain": "manipulation",
     "description": "The reorder controller with collision strategies, animated displacement, keyboard operation, nested containers, optimistic persistence, and rollback when the write fails.",
     "targets": [
       "react-vite"
     ],
-    "slot": "primitive",
+    "slot": "ui-primitive",
     "delivery": "adopted",
     "target": {
       "priority": "P0",
@@ -31,6 +32,10 @@
       {
         "asset": "hooks.use-optimistic-action",
         "reason": "Reordering applies immediately and rolls back deterministically on failure."
+      },
+      {
+        "asset": "hooks.use-locale",
+        "reason": "User-facing copy resolves through the adopting host locale bridge."
       }
     ]
   },

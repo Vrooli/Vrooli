@@ -1,10 +1,48 @@
 {
   "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
-  "kind": "catalog-asset", "schemaVersion": "1.0.0",
-  "asset": {"id": "visualization.capture-grid", "name": "CaptureGrid", "kind": "component", "surface": "raised", "domain": "visualization", "description": "A responsive matrix of declared viewport and theme evidence captures.", "targets": ["react-vite"], "slot": "primitive", "delivery": "adopted", "target": {"priority": "P0", "maturity": "implemented"}},
-  "dependencies": {"requires": [], "suggests": []},
-  "requiredCapabilities": ["accessible-naming", "dark-parity", "content-reflow", "text-scale-resilience"],
-  "requiredStates": ["default", "empty", "request-error"],
-  "qualityGates": ["accessibility", "visual", "responsive"],
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "visualization.capture-grid",
+    "name": "CaptureGrid",
+    "kind": "component",
+    "surface": "raised",
+    "domain": "visualization",
+    "description": "A responsive matrix of declared viewport and theme evidence captures.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "ui-primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P0",
+      "maturity": "implemented"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "hooks.use-locale",
+        "reason": "User-facing copy resolves through the adopting host locale bridge."
+      }
+    ],
+    "suggests": []
+  },
+  "requiredCapabilities": [
+    "accessible-naming",
+    "dark-parity",
+    "content-reflow",
+    "text-scale-resilience"
+  ],
+  "requiredStates": [
+    "default",
+    "empty",
+    "request-error"
+  ],
+  "qualityGates": [
+    "accessibility",
+    "visual",
+    "responsive"
+  ],
   "rationale": "Evidence is a matrix, so the UI must expose every declared viewport and theme rather than imply coverage."
 }

@@ -5,13 +5,14 @@
   "asset": {
     "id": "primitives.badge",
     "name": "Badge",
-    "kind": "primitive", "surface": "base",
+    "kind": "primitive",
+    "surface": "base",
     "domain": "primitives",
     "description": "The compact status or metadata primitive with semantic variants, counters, overflow handling, and meaning carried by more than colour alone.",
     "targets": [
       "react-vite"
     ],
-    "slot": "primitive",
+    "slot": "ui-primitive",
     "delivery": "adopted",
     "target": {
       "priority": "P0",

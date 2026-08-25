@@ -5,13 +5,14 @@
   "asset": {
     "id": "primitives.kbd",
     "name": "Kbd",
-    "kind": "primitive", "surface": "base",
+    "kind": "primitive",
+    "surface": "base",
     "domain": "primitives",
     "description": "The keyboard-key primitive formatting shortcuts consistently per platform while exposing a readable label to assistive technology.",
     "targets": [
       "react-vite"
     ],
-    "slot": "primitive",
+    "slot": "ui-primitive",
     "delivery": "adopted",
     "target": {
       "priority": "P2",

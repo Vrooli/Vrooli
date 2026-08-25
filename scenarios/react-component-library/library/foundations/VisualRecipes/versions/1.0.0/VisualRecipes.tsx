@@ -3,9 +3,10 @@ import {
   COMPONENT_TOKENS,
   SEMANTIC_TOKENS,
 } from "../../../Tokens/versions/1.0.0/Tokens";
+import { cn } from "../../../ClassMerge/versions/1.0.0/ClassMerge";
 
 export const recipe = (...classes: Array<string | false | null | undefined>) =>
-  classes.filter(Boolean).join(" ");
+  cn(classes);
 
 export type MotionTransitionPhase = "interaction" | "enter" | "exit" | "spring";
 

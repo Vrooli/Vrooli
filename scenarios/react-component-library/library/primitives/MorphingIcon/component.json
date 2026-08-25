@@ -1,31 +1,7 @@
 {
-  "libraryId": "react-component-library:MorphingIcon",
-  "catalogId": "motion.morphing-icon",
-  "displayName": "MorphingIcon",
-  "description": "An icon transition that chooses true path morphing when geometry is compatible and a polished fallback when it is not.",
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "primitive",
-  "tags": [
-    "primitive",
-    "motion",
-    "icon",
-    "accessibility",
-    "token-bound"
-  ],
-  "latest": "2.0.9",
-  "designStyles": [
-    {
-      "styleId": "vrooli-default",
-      "affinity": "native"
-    },
-    {
-      "styleId": "vrooli-command-display",
-      "affinity": "compatible"
-    },
-    {
-      "styleId": "vrooli-conversion-landing",
-      "affinity": "compatible"
-    }
-  ],
+  "catalogId": "motion.morphing-icon",
   "dependencies": [
     {
       "libraryId": "react-component-library:useReducedMotion",
@@ -40,8 +16,33 @@
       "version": "1.0.0"
     }
   ],
-  "draft": "",
   "deprecatedVersions": [
     "2.0.8"
+  ],
+  "description": "An icon transition that chooses true path morphing when geometry is compatible and a polished fallback when it is not.",
+  "designStyles": [
+    {
+      "affinity": "native",
+      "styleId": "vrooli-default"
+    },
+    {
+      "affinity": "compatible",
+      "styleId": "vrooli-command-display"
+    },
+    {
+      "affinity": "compatible",
+      "styleId": "vrooli-conversion-landing"
+    }
+  ],
+  "displayName": "MorphingIcon",
+  "draft": "",
+  "latest": "2.0.9",
+  "libraryId": "react-component-library:MorphingIcon",
+  "tags": [
+    "primitive",
+    "motion",
+    "icon",
+    "accessibility",
+    "token-bound"
   ]
 }

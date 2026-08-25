@@ -1,8 +1,32 @@
 {
-  "schemaVersion": 3,
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
+  "args": {
+    "fields": []
+  },
+  "environment": {
+    "fixtures": []
+  },
   "kind": "component",
-  "title": "EntitlementErrorCard",
-  "args": { "fields": [] },
-  "environment": { "fixtures": [] },
-  "stories": [{ "id": "payment-required", "name": "Payment required", "harness": "ErrorStory", "args": {}, "expect": [{ "kind": "role", "role": "alert" }], "mode": "live" }]
+  "schemaVersion": 4,
+  "stories": [
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "ErrorStory",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "role": "alert"
+        }
+      ],
+      "id": "payment-required",
+      "mode": "live",
+      "name": "Payment required"
+    }
+  ],
+  "title": "EntitlementErrorCard"
 }

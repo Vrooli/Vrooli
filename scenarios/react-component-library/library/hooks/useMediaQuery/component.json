@@ -1,11 +1,20 @@
 {
-  "libraryId": "react-component-library:useMediaQuery",
-  "catalogId": "hooks.use-media-query",
-  "displayName": "useMediaQuery",
-  "description": "Production-ready useMediaQuery hook with SSR-safe lifecycle behavior.",
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "hook",
-  "tags": ["runtime", "accessibility"],
+  "catalogId": "hooks.use-media-query",
+  "dependencies": [],
+  "description": "Production-ready useMediaQuery hook with SSR-safe lifecycle behavior.",
+  "designStyles": [
+    {
+      "affinity": "native",
+      "styleId": "vrooli-default"
+    }
+  ],
+  "displayName": "useMediaQuery",
   "latest": "1.0.0",
-  "designStyles": [{ "styleId": "vrooli-default", "affinity": "native" }],
-  "dependencies": []
+  "libraryId": "react-component-library:useMediaQuery",
+  "tags": [
+    "runtime",
+    "accessibility"
+  ]
 }

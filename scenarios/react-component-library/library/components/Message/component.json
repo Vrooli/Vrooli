@@ -1,18 +1,12 @@
 {
-  "libraryId": "react-component-library:Message",
-  "catalogId": "ai.message",
-  "displayName": "Message",
-  "description": "A structured conversational item that keeps identity, content, evidence, activity, recovery, and actions in one readable surface.",
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "component",
-  "tags": ["ai", "conversation", "content", "accessibility", "token-bound"],
-  "latest": "1.0.0",
-  "designStyles": [
-    { "styleId": "vrooli-default", "affinity": "native" },
-    { "styleId": "vrooli-command-display", "affinity": "compatible" },
-    { "styleId": "vrooli-conversion-landing", "affinity": "compatible" }
-  ],
+  "catalogId": "ai.message",
   "dependencies": [
-    { "libraryId": "react-component-library:Text", "version": "1.0.0" },
+    {
+      "libraryId": "react-component-library:Text",
+      "version": "1.0.0"
+    },
     {
       "libraryId": "react-component-library:RelativeTime",
       "version": "1.0.0"
@@ -21,6 +15,40 @@
       "libraryId": "react-component-library:StatusIndicator",
       "version": "1.0.0"
     },
-    { "libraryId": "react-component-library:Avatar", "version": "1.0.0" }
+    {
+      "libraryId": "react-component-library:Avatar",
+      "version": "1.0.0"
+    }
+  ],
+  "description": "A structured conversational item that keeps identity, content, evidence, activity, recovery, and actions in one readable surface.",
+  "designStyles": [
+    {
+      "affinity": "native",
+      "styleId": "vrooli-default"
+    },
+    {
+      "affinity": "compatible",
+      "styleId": "vrooli-command-display"
+    },
+    {
+      "affinity": "compatible",
+      "styleId": "vrooli-conversion-landing"
+    }
+  ],
+  "displayName": "Message",
+  "latest": "1.0.0",
+  "libraryId": "react-component-library:Message",
+  "tags": [
+    "ai",
+    "conversation",
+    "content",
+    "accessibility",
+    "token-bound"
+  ],
+  "requires": [
+    {
+      "libraryId": "react-component-library:useLocale",
+      "version": "1.0.0"
+    }
   ]
 }

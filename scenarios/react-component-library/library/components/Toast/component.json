@@ -1,22 +1,49 @@
 {
-  "libraryId": "react-component-library:Toast",
-  "catalogId": "feedback.toast",
-  "displayName": "Toast",
-  "description": "A transient feedback viewport composed with the shared toast manager, surface, motion, and announcement primitives.",
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "component",
-  "tags": ["feedback", "async", "accessibility", "token-bound"],
-  "slot": "ui-pattern",
+  "catalogId": "feedback.toast",
   "category": "feedback",
   "dependencies": [
-    { "libraryId": "react-component-library:Surface", "version": "1.0.0" },
-    { "libraryId": "react-component-library:Presence", "version": "1.0.0" },
-    { "libraryId": "react-component-library:useAnnounce", "version": "1.0.0" }
+    {
+      "libraryId": "react-component-library:Surface",
+      "version": "1.0.0"
+    },
+    {
+      "libraryId": "react-component-library:Presence",
+      "version": "1.0.0"
+    },
+    {
+      "libraryId": "react-component-library:useAnnounce",
+      "version": "1.0.0"
+    }
   ],
+  "deprecatedVersions": [],
+  "description": "A transient feedback viewport composed with the shared toast manager, surface, motion, and announcement primitives.",
   "designStyles": [
-    { "styleId": "vrooli-default", "affinity": "native" },
-    { "styleId": "vrooli-command-display", "affinity": "compatible" }
+    {
+      "affinity": "native",
+      "styleId": "vrooli-default"
+    },
+    {
+      "affinity": "compatible",
+      "styleId": "vrooli-command-display"
+    }
   ],
-  "latest": "1.0.0",
+  "displayName": "Toast",
   "draft": "",
-  "deprecatedVersions": []
+  "latest": "1.0.0",
+  "libraryId": "react-component-library:Toast",
+  "slot": "ui-pattern",
+  "tags": [
+    "feedback",
+    "async",
+    "accessibility",
+    "token-bound"
+  ],
+  "requires": [
+    {
+      "libraryId": "react-component-library:useLocale",
+      "version": "1.0.0"
+    }
+  ]
 }

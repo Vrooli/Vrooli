@@ -4,6 +4,8 @@
  * @status released
  * @deps {"react":"^18"}
  */
+import { translate } from "../../../../hooks/useLocale/versions/1.0.0/useLocale";
+
 import {
   useCallback,
   useEffect,
@@ -227,7 +229,7 @@ export function ResponsivePanel({
         className={className}
       >
         {isMobile && (
-          <button
+          <button data-testid="overlays.responsive-panel"
             type="button"
             data-rcl-responsive-panel-backdrop
             aria-label={closeLabel}
@@ -252,7 +254,7 @@ export function ResponsivePanel({
               {title ? <h2 id={titleId}>{title}</h2> : null}
               {description ? <p id={descriptionId}>{description}</p> : null}
             </div>
-            <button
+            <button data-testid="overlays.responsive-panel"
               ref={closeRef}
               type="button"
               data-rcl-responsive-panel-close
@@ -263,13 +265,13 @@ export function ResponsivePanel({
             </button>
           </header>
           <div data-rcl-responsive-panel-content className={contentClassName}>
-            {children ?? <p>Panel content</p>}
+            {children ?? <p>{translate("overlays.responsive-panel.text.2", "Panel content")}</p>}
           </div>
           {resizable && !isMobile ? (
-            <input
+            <input data-testid="overlays.responsive-panel"
               type="range"
               data-rcl-responsive-panel-resize
-              aria-label="Resize panel"
+              aria-label={translate("overlays.responsive-panel.aria-label.1", "Resize panel")}
               aria-orientation="vertical"
               min={minimumWidth}
               max={maximumWidth}

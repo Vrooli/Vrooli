@@ -5,13 +5,14 @@
   "asset": {
     "id": "overlays.spotlight",
     "name": "Spotlight",
-    "kind": "component", "surface": "raised",
+    "kind": "component",
+    "surface": "raised",
     "domain": "overlays",
     "description": "The feature-discovery overlay highlighting an anchored target, explaining an action, managing focus, tolerating layout change, and supporting multi-step tours.",
     "targets": [
       "react-vite"
     ],
-    "slot": "primitive",
+    "slot": "ui-primitive",
     "delivery": "adopted",
     "target": {
       "priority": "P2",

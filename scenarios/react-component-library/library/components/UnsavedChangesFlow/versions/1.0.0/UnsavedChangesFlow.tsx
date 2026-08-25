@@ -1,4 +1,6 @@
 /** @vrooliComponentSource react-component-library:UnsavedChangesFlow */
+import { translate } from "../../../../hooks/useLocale/versions/1.0.0/useLocale";
+
 import { useState, type CSSProperties, type ReactNode } from "react";
 import {
   DirtyStateGuard,
@@ -62,8 +64,8 @@ export function UnsavedChangesFlow({
   onLeave,
   onPreserveDraft,
   saveState = "idle",
-  title = "Keep your work before leaving?",
-  description = "You have edits that are not saved yet. Choose how you want to continue.",
+  title = translate("patterns.unsaved-changes-flow.title.1", "Keep your work before leaving?"),
+  description = translate("patterns.unsaved-changes-flow.description.2", "You have edits that are not saved yet. Choose how you want to continue."),
   saveLabel = "Save changes",
   discardLabel = "Discard changes",
   continueLabel = "Keep editing",
@@ -143,7 +145,7 @@ export function UnsavedChangesFlow({
             Keep a recoverable copy and continue deciding without losing your
             work.
           </span>
-          <button
+          <button data-testid="patterns.unsaved-changes-flow"
             type="button"
             style={preserveButton}
             disabled={preserving || prompt.saving}
@@ -157,7 +159,7 @@ export function UnsavedChangesFlow({
           </button>
         </div>
       )}
-      <button
+      <button data-testid="patterns.unsaved-changes-flow"
         type="button"
         data-rcl-unsaved-discard
         disabled={prompt.saving || preserving}

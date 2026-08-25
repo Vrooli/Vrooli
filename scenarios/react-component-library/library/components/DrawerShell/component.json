@@ -1,32 +1,45 @@
 {
-  "libraryId": "react-component-library:DrawerShell",
-  "x-supplementalJustification": "Pre-catalog overlay shell retained as a supplemental implementation seam; the public catalog overlay is the adopted asset.",
-  "displayName": "DrawerShell",
-  "description": "Token-bound, self-contained drawer and modal shell.",
-  "tags": ["overlay", "drawer", "layout", "reviewed", "accessibility"],
-  "slot": "ui-pattern",
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "category": "overlays",
   "dependencies": [
-    { "libraryId": "react-component-library:useFocusTrap", "version": "1.0.0" },
-    { "libraryId": "react-component-library:useEscapeKey", "version": "1.0.0" }
-  ],
-  "designStyles": [
     {
-      "styleId": "vrooli-default",
-      "affinity": "native",
-      "reason": "token-bound surface built entirely on design-system tokens and safe-area variables"
+      "libraryId": "react-component-library:useFocusTrap",
+      "version": "1.0.0"
     },
     {
-      "styleId": "vrooli-command-display",
-      "affinity": "native",
-      "reason": "the primary full-page and compact drawer surface for command and dashboard shells"
-    },
-    {
-      "styleId": "vrooli-conversion-landing",
-      "affinity": "discouraged",
-      "reason": "a full-bleed modal drawer overwhelms marketing and landing layouts"
+      "libraryId": "react-component-library:useEscapeKey",
+      "version": "1.0.0"
     }
   ],
+  "deprecatedVersions": [],
+  "description": "Token-bound, self-contained drawer and modal shell.",
+  "designStyles": [
+    {
+      "affinity": "native",
+      "reason": "token-bound surface built entirely on design-system tokens and safe-area variables",
+      "styleId": "vrooli-default"
+    },
+    {
+      "affinity": "native",
+      "reason": "the primary full-page and compact drawer surface for command and dashboard shells",
+      "styleId": "vrooli-command-display"
+    },
+    {
+      "affinity": "discouraged",
+      "reason": "a full-bleed modal drawer overwhelms marketing and landing layouts",
+      "styleId": "vrooli-conversion-landing"
+    }
+  ],
+  "displayName": "DrawerShell",
   "latest": "1.1.0",
-  "deprecatedVersions": []
+  "libraryId": "react-component-library:DrawerShell",
+  "slot": "ui-pattern",
+  "tags": [
+    "overlay",
+    "drawer",
+    "layout",
+    "reviewed",
+    "accessibility"
+  ],
+  "x-supplementalJustification": "Pre-catalog overlay shell retained as a supplemental implementation seam; the public catalog overlay is the adopted asset."
 }

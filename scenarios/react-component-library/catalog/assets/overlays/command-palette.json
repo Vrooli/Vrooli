@@ -10,13 +10,14 @@
   "asset": {
     "id": "overlays.command-palette",
     "name": "CommandPalette",
-    "kind": "component", "surface": "raised",
+    "kind": "component",
+    "surface": "raised",
     "domain": "overlays",
     "description": "The global or scoped command interface with fuzzy search, recent actions, categories, keyboard navigation, argument collection, async execution, and command history.",
     "targets": [
       "react-vite"
     ],
-    "slot": "primitive",
+    "slot": "ui-primitive",
     "delivery": "adopted",
     "target": {
       "priority": "P0",
@@ -40,6 +41,10 @@
       {
         "asset": "forms.search-input",
         "reason": "Query entry, debouncing, and cancellation are shared."
+      },
+      {
+        "asset": "hooks.use-locale",
+        "reason": "User-facing copy resolves through the adopting host locale bridge."
       }
     ]
   },

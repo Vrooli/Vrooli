@@ -5,13 +5,14 @@
   "asset": {
     "id": "navigation.scroll-spy-navigation",
     "name": "ScrollSpyNavigation",
-    "kind": "component", "surface": "raised",
+    "kind": "component",
+    "surface": "raised",
     "domain": "navigation",
     "description": "The navigation component observing content sections to update the active entry without fighting an explicit navigation the user just performed.",
     "targets": [
       "react-vite"
     ],
-    "slot": "primitive",
+    "slot": "ui-primitive",
     "delivery": "adopted",
     "target": {
       "priority": "P2",

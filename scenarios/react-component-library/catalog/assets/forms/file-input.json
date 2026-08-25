@@ -5,13 +5,14 @@
   "asset": {
     "id": "forms.file-input",
     "name": "FileInput",
-    "kind": "component", "surface": "raised",
+    "kind": "component",
+    "surface": "raised",
     "domain": "forms",
     "description": "The file-selection field with a native fallback, type and size validation, previews, count limits, accessible status, and compatibility with the upload adapter.",
     "targets": [
       "react-vite"
     ],
-    "slot": "primitive",
+    "slot": "ui-primitive",
     "delivery": "adopted",
     "target": {
       "priority": "P1",

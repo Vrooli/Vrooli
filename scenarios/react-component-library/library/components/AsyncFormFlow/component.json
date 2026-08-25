@@ -1,10 +1,43 @@
 {
-  "libraryId": "react-component-library:AsyncFormFlow",
-  "catalogId": "patterns.async-form-flow",
-  "latest": "1.0.0",
-  "displayName": "AsyncFormFlow",
-  "description": "A recoverable create-or-edit workflow with loading, validation, submission, server mapping, offline behavior, and next-step navigation.",
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "component",
+  "catalogId": "patterns.async-form-flow",
+  "dependencies": [
+    {
+      "libraryId": "react-component-library:Form",
+      "version": "1.0.0"
+    },
+    {
+      "libraryId": "react-component-library:FormActions",
+      "version": "1.0.0"
+    },
+    {
+      "libraryId": "react-component-library:ValidationSummary",
+      "version": "1.0.0"
+    },
+    {
+      "libraryId": "react-component-library:AsyncBoundary",
+      "version": "1.0.0"
+    }
+  ],
+  "description": "A recoverable create-or-edit workflow with loading, validation, submission, server mapping, offline behavior, and next-step navigation.",
+  "designStyles": [
+    {
+      "affinity": "native",
+      "styleId": "vrooli-default"
+    },
+    {
+      "affinity": "compatible",
+      "styleId": "vrooli-command-display"
+    },
+    {
+      "affinity": "compatible",
+      "styleId": "vrooli-conversion-landing"
+    }
+  ],
+  "displayName": "AsyncFormFlow",
+  "latest": "1.0.0",
+  "libraryId": "react-component-library:AsyncFormFlow",
   "tags": [
     "forms",
     "async",
@@ -14,18 +47,10 @@
     "responsive",
     "token-bound"
   ],
-  "designStyles": [
-    { "styleId": "vrooli-default", "affinity": "native" },
-    { "styleId": "vrooli-command-display", "affinity": "compatible" },
-    { "styleId": "vrooli-conversion-landing", "affinity": "compatible" }
-  ],
-  "dependencies": [
-    { "libraryId": "react-component-library:Form", "version": "1.0.0" },
-    { "libraryId": "react-component-library:FormActions", "version": "1.0.0" },
+  "requires": [
     {
-      "libraryId": "react-component-library:ValidationSummary",
+      "libraryId": "react-component-library:useLocale",
       "version": "1.0.0"
-    },
-    { "libraryId": "react-component-library:AsyncBoundary", "version": "1.0.0" }
+    }
   ]
 }

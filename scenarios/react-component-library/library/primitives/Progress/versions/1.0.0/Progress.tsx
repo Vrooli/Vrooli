@@ -1,4 +1,6 @@
 /** @vrooliComponentSource primitives.progress */
+import { translate } from "../../../../hooks/useLocale/versions/1.0.0/useLocale";
+
 import type { CSSProperties, HTMLAttributes } from "react";
 import { useReducedMotion } from "../../../../hooks/useReducedMotion/versions/1.0.0/useReducedMotion";
 
@@ -104,7 +106,7 @@ export function Progress({
   segments = 5,
   shape = "linear",
   mode = "determinate",
-  label = "Progress",
+  label = translate("primitives.progress.label.1", "Progress"),
   showValue = true,
   tone = "accent",
   size = "md",

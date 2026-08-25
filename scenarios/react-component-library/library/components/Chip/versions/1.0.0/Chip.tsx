@@ -15,7 +15,7 @@ export function Chip({
   "aria-label": ariaLabel,
 }: ChipProps) {
   return (
-    <button
+    <button data-testid="primitives.chip"
       type="button"
       aria-pressed={selected}
       aria-label={ariaLabel}

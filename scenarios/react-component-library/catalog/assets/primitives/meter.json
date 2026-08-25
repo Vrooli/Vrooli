@@ -5,13 +5,14 @@
   "asset": {
     "id": "primitives.meter",
     "name": "Meter",
-    "kind": "primitive", "surface": "base",
+    "kind": "primitive",
+    "surface": "base",
     "domain": "primitives",
     "description": "The bounded-value visualization for capacity, quota, strength, or health, using semantic thresholds and explicitly not implying task progress.",
     "targets": [
       "react-vite"
     ],
-    "slot": "primitive",
+    "slot": "ui-primitive",
     "delivery": "adopted",
     "target": {
       "priority": "P1",
@@ -23,6 +24,10 @@
       {
         "asset": "foundations.tokens",
         "reason": "Every spacing, size, and radius value resolves to a declared ramp rather than a literal."
+      },
+      {
+        "asset": "hooks.use-locale",
+        "reason": "User-facing copy resolves through the adopting host locale bridge."
       }
     ]
   },

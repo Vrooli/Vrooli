@@ -1,11 +1,28 @@
 {
-  "libraryId": "react-component-library:CollectionPage",
-  "catalogId": "templates.collection-page",
-  "displayName": "CollectionPage",
-  "description": "A collection template with URL-ready filtering, data-source-owned records, and recovery states.",
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "component",
-  "tags": ["template", "page", "data-source", "token-bound"],
+  "catalogId": "templates.collection-page",
+  "dependencies": [],
+  "description": "A collection template with URL-ready filtering, data-source-owned records, and recovery states.",
+  "designStyles": [
+    {
+      "affinity": "native",
+      "styleId": "vrooli-default"
+    }
+  ],
+  "displayName": "CollectionPage",
   "latest": "1.0.0",
-  "designStyles": [{ "styleId": "vrooli-default", "affinity": "native" }],
-  "dependencies": []
+  "libraryId": "react-component-library:CollectionPage",
+  "tags": [
+    "template",
+    "page",
+    "data-source",
+    "token-bound"
+  ],
+  "requires": [
+    {
+      "libraryId": "react-component-library:useLocale",
+      "version": "1.0.0"
+    }
+  ]
 }

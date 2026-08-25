@@ -5,13 +5,14 @@
   "asset": {
     "id": "controls.split-button",
     "name": "SplitButton",
-    "kind": "component", "surface": "raised",
+    "kind": "component",
+    "surface": "raised",
     "domain": "controls",
     "description": "The primary action paired with a related-action menu, sharing loading state, keyboard behavior, focus management, and responsive presentation between both halves.",
     "targets": [
       "react-vite"
     ],
-    "slot": "primitive",
+    "slot": "ui-primitive",
     "delivery": "adopted",
     "target": {
       "priority": "P1",

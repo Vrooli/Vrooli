@@ -1,30 +1,24 @@
 {
-  "schemaVersion": 3,
-  "kind": "component",
-  "title": "TreeView",
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
   "args": {
     "fields": [
       {
-        "path": "label",
+        "default": "Project files",
         "kind": "text",
-        "default": "Project files"
+        "path": "label"
       }
     ]
   },
   "environment": {
     "fixtures": []
   },
+  "kind": "component",
+  "schemaVersion": 4,
   "stories": [
     {
-      "id": "default",
-      "name": "Expanded project",
       "args": {
-        "label": "Project files",
         "items": [
           {
-            "id": "src",
-            "label": "src",
-            "defaultExpanded": true,
             "children": [
               {
                 "id": "app",
@@ -34,85 +28,92 @@
                 "id": "styles",
                 "label": "styles.css"
               }
-            ]
+            ],
+            "defaultExpanded": true,
+            "id": "src",
+            "label": "src"
           },
           {
             "id": "package",
             "label": "package.json"
           }
-        ]
+        ],
+        "label": "Project files"
       },
       "expect": [
         {
           "kind": "role",
-          "role": "tree",
-          "name": "Project files"
+          "name": "Project files",
+          "role": "tree"
         },
         {
           "kind": "role",
-          "role": "treeitem",
-          "name": "src"
+          "name": "src",
+          "role": "treeitem"
         },
         {
           "kind": "role",
-          "role": "treeitem",
-          "name": "App.tsx"
+          "name": "App.tsx",
+          "role": "treeitem"
         }
       ],
-      "mode": "pinned"
+      "id": "default",
+      "mode": "pinned",
+      "name": "Expanded project"
     },
     {
-      "id": "collapsed",
-      "name": "Collapsed folders",
       "args": {
-        "label": "Project files",
         "items": [
           {
-            "id": "src",
-            "label": "src",
             "children": [
               {
                 "id": "app",
                 "label": "App.tsx"
               }
-            ]
+            ],
+            "id": "src",
+            "label": "src"
           }
-        ]
+        ],
+        "label": "Project files"
       },
       "expect": [
         {
           "kind": "role",
-          "role": "tree",
-          "name": "Project files"
+          "name": "Project files",
+          "role": "tree"
         },
         {
           "kind": "attribute",
-          "selector": "[role=treeitem]",
           "name": "aria-expanded",
+          "selector": "[role=treeitem]",
           "value": "false"
         }
       ],
-      "mode": "pinned"
+      "id": "collapsed",
+      "mode": "pinned",
+      "name": "Collapsed folders"
     },
     {
-      "id": "empty",
-      "name": "Empty",
       "args": {
-        "label": "Project files",
-        "items": []
+        "items": [],
+        "label": "Project files"
       },
       "expect": [
         {
           "kind": "role",
-          "role": "tree",
-          "name": "Project files"
+          "name": "Project files",
+          "role": "tree"
         },
         {
           "kind": "role",
           "role": "status"
         }
       ],
-      "mode": "pinned"
+      "id": "empty",
+      "mode": "pinned",
+      "name": "Empty"
     }
-  ]
+  ],
+  "title": "TreeView"
 }

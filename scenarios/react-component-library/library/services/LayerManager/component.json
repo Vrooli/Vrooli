@@ -1,11 +1,20 @@
 {
-  "libraryId": "react-component-library:LayerManager",
-  "catalogId": "services.layer-manager",
-  "displayName": "LayerManager",
-  "description": "Scoped runtime service for predictable LayerManager behavior.",
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "service",
-  "tags": ["runtime", "state"],
+  "catalogId": "services.layer-manager",
+  "dependencies": [],
+  "description": "Scoped runtime service for predictable LayerManager behavior.",
+  "designStyles": [
+    {
+      "affinity": "native",
+      "styleId": "vrooli-default"
+    }
+  ],
+  "displayName": "LayerManager",
   "latest": "1.0.0",
-  "designStyles": [{ "styleId": "vrooli-default", "affinity": "native" }],
-  "dependencies": []
+  "libraryId": "react-component-library:LayerManager",
+  "tags": [
+    "runtime",
+    "state"
+  ]
 }

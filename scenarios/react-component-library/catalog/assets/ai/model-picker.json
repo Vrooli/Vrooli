@@ -5,13 +5,14 @@
   "asset": {
     "id": "ai.model-picker",
     "name": "ModelPicker",
-    "kind": "component", "surface": "raised",
+    "kind": "component",
+    "surface": "raised",
     "domain": "ai",
     "description": "The model selector presenting capability, cost, speed, availability, and context limits in role-oriented terms rather than exposing raw identifiers and parameter counts.",
     "targets": [
       "react-vite"
     ],
-    "slot": "primitive",
+    "slot": "ui-primitive",
     "delivery": "adopted",
     "target": {
       "priority": "P1",

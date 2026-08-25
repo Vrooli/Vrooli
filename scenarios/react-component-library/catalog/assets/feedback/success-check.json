@@ -5,13 +5,14 @@
   "asset": {
     "id": "feedback.success-check",
     "name": "SuccessCheck",
-    "kind": "component", "surface": "raised",
+    "kind": "component",
+    "surface": "raised",
     "domain": "feedback",
     "description": "The compact animated confirmation mark with timing, announcement, and reduced-motion treatment suited to a completed action rather than a celebration.",
     "targets": [
       "react-vite"
     ],
-    "slot": "primitive",
+    "slot": "ui-primitive",
     "delivery": "adopted",
     "target": {
       "priority": "P2",

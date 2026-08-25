@@ -5,13 +5,14 @@
   "asset": {
     "id": "data-display.expandable-row",
     "name": "ExpandableRow",
-    "kind": "component", "surface": "raised",
+    "kind": "component",
+    "surface": "raised",
     "domain": "data-display",
     "description": "The table or list row revealing structured detail while preserving column alignment, focus, selection, virtualization windows, and animated height.",
     "targets": [
       "react-vite"
     ],
-    "slot": "primitive",
+    "slot": "ui-primitive",
     "delivery": "adopted",
     "target": {
       "priority": "P1",

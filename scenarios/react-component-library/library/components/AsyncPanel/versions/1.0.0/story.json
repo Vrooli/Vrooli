@@ -1,70 +1,58 @@
 {
-  "schemaVersion": 3,
-  "kind": "component",
-  "title": "AsyncPanel",
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
   "args": {
     "fields": [
       {
-        "path": "surfaceId",
+        "default": "activity",
+        "kind": "text",
         "label": "Surface Id",
-        "kind": "text",
-        "default": "activity"
+        "path": "surfaceId"
       },
       {
-        "path": "state",
+        "default": "loading",
+        "kind": "text",
         "label": "State",
-        "kind": "text",
-        "default": "loading"
+        "path": "state"
       },
       {
-        "path": "children",
-        "label": "Children",
-        "kind": "structured",
         "default": {
-          "$node": "p",
-          "children": [
-            {
-              "$text": "Recent activity"
-            }
-          ]
-        }
+          "$text": "p"
+        },
+        "kind": "structured",
+        "label": "Children",
+        "path": "children"
       }
     ]
   },
   "environment": {
     "fixtures": []
   },
+  "kind": "component",
+  "schemaVersion": 4,
   "stories": [
     {
-      "id": "loading",
-      "name": "Loading data",
       "args": {
-        "surfaceId": "activity",
-        "state": "loading"
+        "state": "loading",
+        "surfaceId": "activity"
       },
       "expect": [
         {
           "kind": "role",
-          "role": "status",
-          "name": "Loading…"
+          "name": "Loading…",
+          "role": "status"
         }
       ],
-      "mode": "pinned"
+      "id": "loading",
+      "mode": "pinned",
+      "name": "Loading data"
     },
     {
-      "id": "ready",
-      "name": "Ready data",
       "args": {
-        "surfaceId": "activity",
-        "state": "ready",
         "children": {
-          "$node": "p",
-          "children": [
-            {
-              "$text": "Recent activity"
-            }
-          ]
-        }
+          "$text": "p"
+        },
+        "state": "ready",
+        "surfaceId": "activity"
       },
       "expect": [
         {
@@ -72,14 +60,14 @@
           "value": "Recent activity"
         }
       ],
-      "mode": "pinned"
+      "id": "ready",
+      "mode": "pinned",
+      "name": "Ready data"
     },
     {
-      "id": "empty",
-      "name": "Empty result",
       "args": {
-        "surfaceId": "activity",
-        "state": "empty"
+        "state": "empty",
+        "surfaceId": "activity"
       },
       "expect": [
         {
@@ -87,39 +75,42 @@
           "value": "Nothing to show yet."
         }
       ],
-      "mode": "pinned"
+      "id": "empty",
+      "mode": "pinned",
+      "name": "Empty result"
     },
     {
+      "args": {
+        "state": "partial",
+        "surfaceId": "activity"
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Some information is unavailable.",
+          "role": "status"
+        }
+      ],
       "id": "partial",
-      "name": "Partial data",
-      "args": {
-        "surfaceId": "activity",
-        "state": "partial"
-      },
-      "expect": [
-        {
-          "kind": "role",
-          "role": "status",
-          "name": "Some information is unavailable."
-        }
-      ],
-      "mode": "pinned"
+      "mode": "pinned",
+      "name": "Partial data"
     },
     {
-      "id": "error",
-      "name": "Retryable error",
       "args": {
-        "surfaceId": "activity",
-        "state": "error"
+        "state": "error",
+        "surfaceId": "activity"
       },
       "expect": [
         {
           "kind": "role",
-          "role": "status",
-          "name": "This section could not be loaded."
+          "name": "This section could not be loaded.",
+          "role": "status"
         }
       ],
-      "mode": "pinned"
+      "id": "error",
+      "mode": "pinned",
+      "name": "Retryable error"
     }
-  ]
+  ],
+  "title": "AsyncPanel"
 }

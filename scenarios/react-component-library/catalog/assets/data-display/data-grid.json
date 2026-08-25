@@ -5,13 +5,14 @@
   "asset": {
     "id": "data-display.data-grid",
     "name": "DataGrid",
-    "kind": "component", "surface": "raised",
+    "kind": "component",
+    "surface": "raised",
     "domain": "data-display",
     "description": "The high-capability virtualized grid with keyboard cell navigation, inline editing, grouping, pinning, resizing, reordering, selection, and persisted layout.",
     "targets": [
       "react-vite"
     ],
-    "slot": "primitive",
+    "slot": "ui-primitive",
     "delivery": "adopted",
     "target": {
       "priority": "P1",

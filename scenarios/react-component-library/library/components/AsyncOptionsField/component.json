@@ -1,9 +1,35 @@
 {
-  "libraryId": "react-component-library:AsyncOptionsField",
-  "catalogId": "forms.async-options-field",
-  "displayName": "AsyncOptionsField",
-  "description": "A resilient searchable option field with debounced loading, cancellation, retry, pagination, and honest async states.",
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "component",
+  "catalogId": "forms.async-options-field",
+  "dependencies": [
+    {
+      "libraryId": "react-component-library:useAbortableTask",
+      "version": "1.0.0"
+    },
+    {
+      "libraryId": "react-component-library:useRetry",
+      "version": "1.0.0"
+    }
+  ],
+  "description": "A resilient searchable option field with debounced loading, cancellation, retry, pagination, and honest async states.",
+  "designStyles": [
+    {
+      "affinity": "native",
+      "styleId": "vrooli-default"
+    },
+    {
+      "affinity": "compatible",
+      "styleId": "vrooli-command-display"
+    },
+    {
+      "affinity": "compatible",
+      "styleId": "vrooli-conversion-landing"
+    }
+  ],
+  "displayName": "AsyncOptionsField",
+  "latest": "1.0.0",
+  "libraryId": "react-component-library:AsyncOptionsField",
   "tags": [
     "forms",
     "async",
@@ -12,17 +38,10 @@
     "responsive",
     "token-bound"
   ],
-  "latest": "1.0.0",
-  "designStyles": [
-    { "styleId": "vrooli-default", "affinity": "native" },
-    { "styleId": "vrooli-command-display", "affinity": "compatible" },
-    { "styleId": "vrooli-conversion-landing", "affinity": "compatible" }
-  ],
-  "dependencies": [
+  "requires": [
     {
-      "libraryId": "react-component-library:useAbortableTask",
+      "libraryId": "react-component-library:useLocale",
       "version": "1.0.0"
-    },
-    { "libraryId": "react-component-library:useRetry", "version": "1.0.0" }
+    }
   ]
 }

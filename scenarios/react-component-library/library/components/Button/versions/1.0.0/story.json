@@ -1,38 +1,36 @@
 {
-  "schemaVersion": 3,
-  "kind": "component",
-  "title": "Button",
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
   "args": {
     "fields": [
       {
-        "path": "children",
-        "label": "Children",
-        "kind": "structured",
         "default": {
           "$text": "Save changes"
-        }
+        },
+        "kind": "structured",
+        "label": "Children",
+        "path": "children"
       },
       {
-        "path": "variant",
-        "label": "Variant",
+        "default": "primary",
         "kind": "text",
-        "default": "primary"
+        "label": "Variant",
+        "path": "variant"
       },
       {
-        "path": "disabled",
-        "label": "Disabled",
+        "default": true,
         "kind": "boolean",
-        "default": true
+        "label": "Disabled",
+        "path": "disabled"
       }
     ]
   },
   "environment": {
     "fixtures": []
   },
+  "kind": "component",
+  "schemaVersion": 4,
   "stories": [
     {
-      "id": "primary",
-      "name": "Primary",
       "args": {
         "children": {
           "$text": "Save changes"
@@ -46,15 +44,15 @@
         },
         {
           "kind": "role",
-          "role": "button",
-          "name": "Save changes"
+          "name": "Save changes",
+          "role": "button"
         }
       ],
-      "mode": "pinned"
+      "id": "primary",
+      "mode": "pinned",
+      "name": "Primary"
     },
     {
-      "id": "destructive",
-      "name": "Destructive",
       "args": {
         "children": {
           "$text": "Delete record"
@@ -68,21 +66,21 @@
         },
         {
           "kind": "role",
-          "role": "button",
-          "name": "Delete record"
+          "name": "Delete record",
+          "role": "button"
         }
       ],
-      "mode": "pinned"
+      "id": "destructive",
+      "mode": "pinned",
+      "name": "Destructive"
     },
     {
-      "id": "disabled-long-label",
-      "name": "Disabled Long Label",
       "args": {
         "children": {
           "$text": "Sync all queued workspace changes"
         },
-        "variant": "secondary",
-        "disabled": true
+        "disabled": true,
+        "variant": "secondary"
       },
       "expect": [
         {
@@ -91,16 +89,16 @@
         },
         {
           "kind": "attribute",
-          "selector": "button",
           "name": "disabled",
+          "selector": "button",
           "value": ""
         }
       ],
-      "mode": "pinned"
+      "id": "disabled-long-label",
+      "mode": "pinned",
+      "name": "Disabled Long Label"
     },
     {
-      "id": "icon-start",
-      "name": "Icon Start",
       "args": {
         "children": [
           {
@@ -119,11 +117,14 @@
         },
         {
           "kind": "role",
-          "role": "button",
-          "name": "Save draft"
+          "name": "Save draft",
+          "role": "button"
         }
       ],
-      "mode": "pinned"
+      "id": "icon-start",
+      "mode": "pinned",
+      "name": "Icon Start"
     }
-  ]
+  ],
+  "title": "Button"
 }

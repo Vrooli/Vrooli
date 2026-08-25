@@ -5,13 +5,14 @@
   "asset": {
     "id": "navigation.breadcrumbs",
     "name": "Breadcrumbs",
-    "kind": "component", "surface": "raised",
+    "kind": "component",
+    "surface": "raised",
     "domain": "navigation",
     "description": "The hierarchical path component with semantic navigation, responsive collapsing into an overflow menu, current-item treatment, and optional transition direction hints.",
     "targets": [
       "react-vite"
     ],
-    "slot": "primitive",
+    "slot": "ui-primitive",
     "delivery": "adopted",
     "target": {
       "priority": "P1",

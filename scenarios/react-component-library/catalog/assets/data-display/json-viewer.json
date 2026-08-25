@@ -10,13 +10,14 @@
   "asset": {
     "id": "data-display.json-viewer",
     "name": "JSONViewer",
-    "kind": "component", "surface": "raised",
+    "kind": "component",
+    "surface": "raised",
     "domain": "data-display",
     "description": "The structured data viewer with expansion, search, copy, path display, type treatment, truncation, virtualization, and safe handling of large or circular values.",
     "targets": [
       "react-vite"
     ],
-    "slot": "primitive",
+    "slot": "ui-primitive",
     "delivery": "adopted",
     "target": {
       "priority": "P1",
@@ -32,6 +33,10 @@
       {
         "asset": "data-display.tree-view",
         "reason": "Expansion, traversal, and keyboard model are shared."
+      },
+      {
+        "asset": "hooks.use-locale",
+        "reason": "User-facing copy resolves through the adopting host locale bridge."
       }
     ]
   },

@@ -6,8 +6,7 @@ import _ "embed"
 var systemSchemaSQL string
 
 // SystemSchema returns the cross-cutting SQL that doesn't belong to any
-// one domain — postgres extensions, custom types, cross-domain views,
-// the schema_migrations table once brownfield migrations land.
+// one domain — postgres extensions, custom types, and cross-domain views.
 //
 // SQLite-backed scenarios (like the template) ship system.sql empty.
 // Postgres scenarios commonly add `CREATE EXTENSION IF NOT EXISTS

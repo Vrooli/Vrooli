@@ -1,32 +1,27 @@
 {
-  "schemaVersion": 3,
-  "kind": "component",
-  "title": "ResizableSidebar",
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
   "args": {
     "fields": []
+  },
+  "composition": {
+    "frame": {
+      "asset": "navigation.page",
+      "capability": "navigation",
+      "fixture": "fixtures.user-directory",
+      "region": "navigation",
+      "version": "1.0.0"
+    }
   },
   "environment": {
     "fixtures": []
   },
-  "frame": {
-    "asset": "navigation.page",
-    "version": "1.0.0",
-    "region": "navigation",
-    "capability": "navigation",
-    "fixture": "fixtures.user-directory"
-  },
+  "kind": "component",
+  "schemaVersion": 4,
   "stories": [
     {
-      "id": "default",
-      "name": "Default",
       "args": {
         "children": {
-          "$node": "p",
-          "children": [
-            {
-              "$text": "Filters"
-            }
-          ]
+          "$text": "p"
         }
       },
       "expect": [
@@ -35,22 +30,20 @@
           "value": "Filters"
         }
       ],
-      "mode": "pinned"
+      "id": "default",
+      "mode": "pinned",
+      "name": "Default"
     },
     {
-      "id": "long-content",
-      "name": "Long content",
       "args": {
         "children": {
-          "$node": "p",
-          "children": [
-            {
-              "$text": "Filters"
-            }
-          ]
+          "$text": "p"
         }
       },
-      "mode": "pinned"
+      "id": "long-content",
+      "mode": "pinned",
+      "name": "Long content"
     }
-  ]
+  ],
+  "title": "ResizableSidebar"
 }

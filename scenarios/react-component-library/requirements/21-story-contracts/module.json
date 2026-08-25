@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "Single-source story contracts for preview, generated controls, fixtures, and catalog tests.",
-    "last_validated_at": "2026-08-24T13:42:04-04:00",
+    "last_validated_at": "2026-08-24T22:13:11-04:00",
     "module": "story-contracts",
     "prd_ref": "PRD.md",
     "priority": "P0",
@@ -80,7 +80,7 @@
       "prd_ref": "OT-P0-003",
       "category": "conformance",
       "criticality": "P0",
-      "description": "The deterministic conformance report covers every entry in library/story-migration-inventory.json and fails missing story.json, legacy examples.json, controls, setup, invalid values, or undeclared fixtures.",
+      "description": "The deterministic conformance report covers every authored library version and fails missing story.json, obsolete examples.json, controls, setup, invalid values, or undeclared fixtures.",
       "validation": [
         {
           "type": "test",

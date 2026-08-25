@@ -23,6 +23,9 @@ CREATE TABLE IF NOT EXISTS adoption_records (
   created_at      TEXT NOT NULL,
   refreshed_at    TEXT NOT NULL DEFAULT '',
   applied_at      TEXT NOT NULL DEFAULT '',
+  fork_status     TEXT NOT NULL DEFAULT '',
+  fork_reason     TEXT NOT NULL DEFAULT '',
+  extension_points TEXT NOT NULL DEFAULT '[]',
   suggested_dependencies TEXT NOT NULL DEFAULT '',
   -- drift_backlog_ref records the swarm-manager backlog item
   -- (`<kind>/<name>`) filed when this adoption first transitioned to

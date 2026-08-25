@@ -1,4 +1,6 @@
 /** @vrooliComponentSource react-component-library:InspectorPanel */
+import { translate } from "../../../../hooks/useLocale/versions/1.0.0/useLocale";
+
 import type { ReactNode } from "react";
 const panel = {
   border: "1px solid var(--color-border, #cbd5e1)",
@@ -21,12 +23,12 @@ export function InspectorPanel({
   return (
     <section
       role="dialog"
-      aria-label="Inspector"
+      aria-label={translate("overlays.inspector-panel.aria-label.1", "Inspector")}
       style={{ ...panel, display: "grid", gap: 16 }}
     >
       {children ?? "Inspector details"}
-      <button type="button" onClick={onClose}>
-        Close
+      <button data-testid="overlays.inspector-panel" type="button" onClick={onClose}>
+        {translate("overlays.inspector-panel.text.1", "Close")}
       </button>
     </section>
   );

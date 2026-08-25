@@ -1,4 +1,6 @@
 /** @vrooliComponentSource navigation.master-detail */
+import { translate } from "../../../../hooks/useLocale/versions/1.0.0/useLocale";
+
 import {
   useCallback,
   useEffect,
@@ -118,7 +120,7 @@ export function MasterDetail<T>({
   status = "default",
   statusMessage,
   errorMessage = "We couldn’t load this collection. Try again when the connection is available.",
-  label = "Master detail workspace",
+  label = translate("navigation.master-detail.label.1", "Master detail workspace"),
   breakpoint = "(max-width: 52rem)",
   className,
   style,
@@ -158,7 +160,7 @@ export function MasterDetail<T>({
   }, [controlled, onBack]);
 
   const renderMasterItem = (item: MasterDetailItem<T>) => (
-    <button
+    <button data-testid="navigation.master-detail"
       key={item.id}
       type="button"
       data-rcl-master-detail-item
@@ -208,7 +210,7 @@ export function MasterDetail<T>({
         ref={listRef}
         data-rcl-master-detail-list
         role="list"
-        aria-label="Records"
+        aria-label={translate("navigation.master-detail.aria-label.2", "Records")}
       >
         {items.map(renderMasterItem)}
       </div>
@@ -219,7 +221,7 @@ export function MasterDetail<T>({
       <State status={status}>{statusMessage ?? "Loading detail…"}</State>
     ) : status === "request-error" ? (
       <State status="empty">
-        Detail is unavailable until the collection reconnects.
+        {translate("navigation.master-detail.text.1", "Detail is unavailable until the collection reconnects.")}
       </State>
     ) : !selected ? (
       <State status="empty">
@@ -251,8 +253,8 @@ export function MasterDetail<T>({
             </h2>
           </div>
           {compact && selected ? (
-            <button data-rcl-master-detail-back type="button" onClick={back}>
-              Back to list
+            <button data-testid="navigation.master-detail" data-rcl-master-detail-back type="button" onClick={back}>
+              {translate("navigation.master-detail.text.2", "Back to list")}
             </button>
           ) : null}
         </div>
@@ -267,7 +269,7 @@ export function MasterDetail<T>({
   );
 
   const collectionPanel = (
-    <section data-rcl-master-detail-panel aria-label="Record collection">
+    <section data-rcl-master-detail-panel aria-label={translate("navigation.master-detail.aria-label.3", "Record collection")}>
       {masterState}
     </section>
   );
@@ -284,10 +286,10 @@ export function MasterDetail<T>({
         dangerouslySetInnerHTML={{ __html: styles }}
       />
       <header data-rcl-master-detail-header>
-        <span data-rcl-master-detail-kicker>Collection workspace</span>
+        <span data-rcl-master-detail-kicker>{translate("navigation.master-detail.text.4", "Collection workspace")}</span>
         <h1 data-rcl-master-detail-title>{label}</h1>
         <span data-rcl-master-detail-description>
-          Keep the collection in reach while inspecting one record at a time.
+          {translate("navigation.master-detail.text.3", "Keep the collection in reach while inspecting one record at a time.")}
         </span>
       </header>
       {compact && selected ? (

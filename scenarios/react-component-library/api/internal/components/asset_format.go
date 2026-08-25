@@ -5,9 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"os"
-	"path/filepath"
-	"sort"
 	"strings"
 )
 
@@ -42,9 +39,7 @@ func canonicalJSONText(raw string) (string, error) {
 }
 
 // validateExperienceContract checks the common contract vocabulary shared by
-// the current RCL wrapper and the newer experience-component document. Older
-// schemaVersion/componentId contracts are retained as a supported legacy
-// format so historical releases remain readable.
+// the RCL wrapper and the experience-component document.
 func validateExperienceContract(raw []byte, story StoryContract) []string {
 	var document map[string]any
 	if err := json.Unmarshal(raw, &document); err != nil {
@@ -54,8 +49,7 @@ func validateExperienceContract(raw []byte, story StoryContract) []string {
 	if nested, ok := document["contract"].(map[string]any); ok {
 		kind = stringValue(nested["kind"])
 	}
-	legacy := document["schemaVersion"] != nil && document["componentId"] != nil
-	if kind != "experience-component" && kind != "rcl-component-experience-contract" && !legacy {
+	if kind != "experience-component" && kind != "rcl-component-experience-contract" {
 		return []string{"experience contract kind must be experience-component or rcl-component-experience-contract"}
 	}
 
@@ -112,34 +106,4 @@ func validateExperienceContract(raw []byte, story StoryContract) []string {
 func stringValue(value any) string {
 	text, _ := value.(string)
 	return strings.TrimSpace(text)
-}
-
-func formatJSONArtifacts(root string) ([]string, error) {
-	var changed []string
-	err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return err
-		}
-		if info.IsDir() || filepath.Ext(path) != ".json" {
-			return nil
-		}
-		raw, err := os.ReadFile(path)
-		if err != nil {
-			return err
-		}
-		formatted, err := canonicalJSON(raw)
-		if err != nil {
-			return fmt.Errorf("format %s: %w", path, err)
-		}
-		if bytes.Equal(raw, formatted) {
-			return nil
-		}
-		if err := os.WriteFile(path, formatted, info.Mode().Perm()); err != nil {
-			return err
-		}
-		changed = append(changed, filepath.ToSlash(path))
-		return nil
-	})
-	sort.Strings(changed)
-	return changed, err
 }

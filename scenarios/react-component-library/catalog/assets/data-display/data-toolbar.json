@@ -5,13 +5,14 @@
   "asset": {
     "id": "data-display.data-toolbar",
     "name": "DataToolbar",
-    "kind": "component", "surface": "raised",
+    "kind": "component",
+    "surface": "raised",
     "domain": "data-display",
     "description": "The collection action surface holding search, filters, saved views, sort, refresh, export, density, and column controls with responsive overflow.",
     "targets": [
       "react-vite"
     ],
-    "slot": "primitive",
+    "slot": "ui-primitive",
     "delivery": "adopted",
     "target": {
       "priority": "P1",
@@ -27,6 +28,10 @@
       {
         "asset": "data-display.filter-bar",
         "reason": "Query controls are shared."
+      },
+      {
+        "asset": "hooks.use-locale",
+        "reason": "User-facing copy resolves through the adopting host locale bridge."
       }
     ]
   },

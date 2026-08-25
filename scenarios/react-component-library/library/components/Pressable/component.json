@@ -1,16 +1,26 @@
 {
-  "libraryId": "react-component-library:Pressable",
-  "catalogId": "controls.pressable",
-  "displayName": "Pressable",
-  "description": "The shared press contract for controls, with bounded tone, pending, focus, and touch-target behavior.",
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "component",
-  "tags": ["control", "interaction", "token-bound"],
-  "latest": "1.0.0",
-  "designStyles": [{ "styleId": "vrooli-default", "affinity": "native" }],
+  "catalogId": "controls.pressable",
   "dependencies": [
     {
       "libraryId": "react-component-library:ControlBase",
       "version": "1.0.0"
     }
+  ],
+  "description": "The shared press contract for controls, with bounded tone, pending, focus, and touch-target behavior.",
+  "designStyles": [
+    {
+      "affinity": "native",
+      "styleId": "vrooli-default"
+    }
+  ],
+  "displayName": "Pressable",
+  "latest": "1.0.0",
+  "libraryId": "react-component-library:Pressable",
+  "tags": [
+    "control",
+    "interaction",
+    "token-bound"
   ]
 }

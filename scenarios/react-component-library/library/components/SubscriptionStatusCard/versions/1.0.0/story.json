@@ -1,8 +1,27 @@
 {
-  "schemaVersion": 3,
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
+  "args": {
+    "fields": []
+  },
+  "environment": {
+    "fixtures": []
+  },
   "kind": "component",
-  "title": "SubscriptionStatusCard",
-  "args": { "fields": [] },
-  "environment": { "fixtures": [] },
-  "stories": [{ "id": "active", "name": "Active plan", "harness": "StatusStory", "args": {}, "expect": [], "mode": "live" }]
+  "schemaVersion": 4,
+  "stories": [
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "StatusStory",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [],
+      "id": "active",
+      "mode": "live",
+      "name": "Active plan"
+    }
+  ],
+  "title": "SubscriptionStatusCard"
 }

@@ -5,13 +5,14 @@
   "asset": {
     "id": "primitives.grid",
     "name": "Grid",
-    "kind": "primitive", "surface": "base",
+    "kind": "primitive",
+    "surface": "base",
     "domain": "primitives",
     "description": "The responsive grid primitive with tokenized columns, minimum track sizes, named areas, gaps, alignment, and container-aware behavior.",
     "targets": [
       "react-vite"
     ],
-    "slot": "primitive",
+    "slot": "ui-primitive",
     "delivery": "adopted",
     "target": {
       "priority": "P0",

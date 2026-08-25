@@ -1,39 +1,45 @@
 {
-  "schemaVersion": 3,
-  "kind": "component",
-  "title": "Preview dock",
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
   "args": {
     "fields": [
       {
-        "path": "label",
-        "label": "Label",
+        "default": "Preview controls",
         "kind": "text",
-        "default": "Preview controls"
+        "label": "Label",
+        "path": "label"
       }
     ]
   },
   "environment": {
     "fixtures": []
   },
+  "kind": "component",
+  "schemaVersion": 4,
   "stories": [
     {
-      "id": "default",
-      "name": "Overlay controls",
-      "harness": "Default",
-      "mode": "live",
       "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Default",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
         {
           "kind": "role",
-          "role": "toolbar",
-          "name": "Preview controls"
+          "name": "Preview controls",
+          "role": "toolbar"
         },
         {
           "kind": "role",
-          "role": "button",
-          "name": "Focus"
+          "name": "Focus",
+          "role": "button"
         }
-      ]
+      ],
+      "id": "default",
+      "mode": "live",
+      "name": "Overlay controls"
     }
-  ]
+  ],
+  "title": "Preview dock"
 }

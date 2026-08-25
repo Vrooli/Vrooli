@@ -5,13 +5,14 @@
   "asset": {
     "id": "ai.agent-activity-timeline",
     "name": "AgentActivityTimeline",
-    "kind": "component", "surface": "raised",
+    "kind": "component",
+    "surface": "raised",
     "domain": "ai",
     "description": "The chronological view of agent-visible activity including searches, tool calls, checkpoints, approvals, outputs, retries, and failures, with filtering and expansion.",
     "targets": [
       "react-vite"
     ],
-    "slot": "primitive",
+    "slot": "ui-primitive",
     "delivery": "adopted",
     "target": {
       "priority": "P1",

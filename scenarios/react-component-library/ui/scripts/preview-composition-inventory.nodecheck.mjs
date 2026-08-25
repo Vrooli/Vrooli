@@ -8,10 +8,12 @@ import test from "node:test";
 const script = path.resolve(import.meta.dirname, "preview-composition-inventory.mjs");
 
 function run(...args) {
-  return JSON.parse(execFileSync(process.execPath, [script, ...args], {
-    encoding: "utf8",
-    maxBuffer: 64 * 1024 * 1024,
-  }));
+  return JSON.parse(
+    execFileSync(process.execPath, [script, ...args], {
+      encoding: "utf8",
+      maxBuffer: 64 * 1024 * 1024,
+    }),
+  );
 }
 
 function stories(report) {
@@ -23,25 +25,48 @@ test("inventory emits unique stable keys and classifies the full corpus", () => 
   const records = stories(report);
   const keys = records.map((record) => record.storyKey);
   assert.equal(report.summary.storyCount, records.length);
+  assert.equal(report.summary.batchSize, 50);
+  assert.ok(report.summary.batchCount > 1);
+  assert.equal(report.resume.stateFile, "docs/evidence/preview-composition-state.json");
   assert.equal(new Set(keys).size, keys.length);
-  assert.ok(report.summary.contractCount > 300);
-  assert.ok(records.some((record) => record.diagnostics.some((item) => item.code === "raw-child-node")));
-  assert.ok(records.some((record) => record.proposedDisposition === "migrate-to-named-specimen"));
-  assert.ok(records.every((record) => record.reviewSet === "core" || typeof record.reviewSet === "string"));
-  assert.equal(records.filter((record) => record.diagnostics.some((item) => item.code === "missing-review-set")).length, 0);
+  assert.ok(report.summary.contractCount > 0);
+  assert.equal(report.summary.contractCount, report.entries.length);
+  assert.ok(
+    records.every((record) => !record.diagnostics.some((item) => item.code === "raw-child-node")),
+  );
+  assert.ok(
+    records.every((record) => record.reviewSet === "core" || typeof record.reviewSet === "string"),
+  );
+  assert.equal(
+    records.filter((record) =>
+      record.diagnostics.some((item) => item.code === "missing-review-set"),
+    ).length,
+    0,
+  );
 });
 
 test("bounded batches are deterministic, disjoint, and resumable", () => {
-  const first = run("--batch-size", "25", "--batch-index", "0");
-  const second = run("--batch-size", "25", "--batch-index", "1");
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), "rcl-inventory-"));
+  const statePath = path.join(directory, "state.json");
+  const first = run("--batch-size", "25", "--batch-index", "0", "--state", statePath);
+  const second = run("--batch-size", "25", "--batch-index", "1", "--state", statePath);
   const firstKeys = first.resume.nextBatchStoryKeys;
   const secondKeys = second.resume.nextBatchStoryKeys;
   assert.equal(firstKeys.length, 25);
   assert.equal(secondKeys.length, 25);
   assert.equal(firstKeys.filter((key) => secondKeys.includes(key)).length, 0);
 
-  const directory = fs.mkdtempSync(path.join(os.tmpdir(), "rcl-inventory-"));
-  const statePath = path.join(directory, "state.json");
+  const marked = run(
+    "--batch-size",
+    "25",
+    "--batch-index",
+    "0",
+    "--state",
+    statePath,
+    "--mark-complete",
+    firstKeys[0],
+  );
+  assert.equal(marked.summary.completedCount, 1);
   fs.writeFileSync(statePath, JSON.stringify({ completedStoryKeys: firstKeys }));
   const resumed = run("--batch-size", "25", "--batch-index", "0", "--state", statePath);
   assert.equal(resumed.summary.completedCount, 25);

@@ -1,16 +1,15 @@
 {
-  "schemaVersion": 3,
-  "kind": "component",
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
   "args": {
     "fields": []
   },
   "environment": {
     "fixtures": []
   },
+  "kind": "component",
+  "schemaVersion": 4,
   "stories": [
     {
-      "id": "default",
-      "name": "Default",
       "args": {
         "content": "# Markdown renderer"
       },
@@ -20,7 +19,9 @@
           "value": "Markdown renderer"
         }
       ],
-      "mode": "pinned"
+      "id": "default",
+      "mode": "pinned",
+      "name": "Default"
     }
   ]
 }

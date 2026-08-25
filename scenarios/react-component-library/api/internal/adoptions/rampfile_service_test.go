@@ -18,6 +18,12 @@ var testRampTokenRE = regexp.MustCompile(`--[A-Za-z0-9_-]+`)
 
 type rampTokenInventory struct{ files *fakeFiles }
 
+type contractCoverageVerdicts map[string]string
+
+func (r contractCoverageVerdicts) GateVerdict(context.Context, components.Component, string, string, string) (string, error) {
+	return r["default"], nil
+}
+
 func (r rampTokenInventory) TokenNamespace(context.Context, string) (string, error) {
 	return "app", nil
 }
@@ -172,4 +178,18 @@ func TestTokenVerdictBlocksApplyAndRemainsVisibleAfterOverride(t *testing.T) {
 	})
 	require.NoError(t, err)
 	require.Equal(t, []string{"--color-primary"}, preflight.Tokens.Unsatisfied)
+}
+
+func TestPreflightSurfacesContractCoverageVerdicts(t *testing.T) {
+	svc, _ := newRampService(":root { --color-primary: blue; }")
+	coverage := contractCoverageVerdicts{"default": "fail"}
+	adoptions.SetContractCoverageReader(svc, coverage)
+
+	preflight, err := svc.Preflight(context.Background(), adoptions.PreflightInput{
+		ComponentID: "cmp-button", Scenario: "target", Version: "1.0.0",
+	})
+	require.NoError(t, err)
+	require.Equal(t, "fail", preflight.I18n)
+	require.Equal(t, "fail", preflight.Selectors)
+	require.True(t, preflight.Blocking)
 }

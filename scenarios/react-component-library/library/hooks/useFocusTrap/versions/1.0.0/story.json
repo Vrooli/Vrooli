@@ -1,40 +1,46 @@
 {
-  "schemaVersion": 3,
-  "kind": "hook",
-  "title": "useFocusTrap",
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
   "args": {
     "fields": [
       {
-        "path": "active",
-        "label": "Active",
+        "default": true,
         "kind": "boolean",
-        "default": true
+        "label": "Active",
+        "path": "active"
       }
     ]
   },
   "environment": {
     "fixtures": []
   },
+  "kind": "hook",
+  "schemaVersion": 4,
   "stories": [
     {
-      "id": "trap-active",
-      "name": "Focus trap active",
-      "harness": "Default",
       "args": {
         "active": true
       },
-      "interactions": [
-        {
-          "kind": "settle"
+      "composition": {
+        "specimen": {
+          "export": "Default",
+          "module": "./story.tsx"
         }
-      ],
+      },
       "expect": [
         {
           "kind": "role",
           "role": "status"
         }
       ],
-      "mode": "live"
+      "id": "trap-active",
+      "interactions": [
+        {
+          "kind": "settle"
+        }
+      ],
+      "mode": "live",
+      "name": "Focus trap active"
     }
-  ]
+  ],
+  "title": "useFocusTrap"
 }

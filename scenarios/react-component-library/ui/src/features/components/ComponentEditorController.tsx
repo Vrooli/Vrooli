@@ -1063,6 +1063,23 @@ export function ComponentEditorImpl({
         </p>
       )}
 
+      {(storiesQuery.data?.warnings?.length ?? 0) > 0 && (
+        <aside
+          role="status"
+          aria-label="Story contract warnings"
+          className="border-b border-app-warning/30 bg-app-warning/10 px-space-sm py-space-xs text-xs text-app-warning"
+        >
+          <p className="font-medium">
+            {storiesQuery.data?.warnings?.length} story contract warning(s); indexing remains available.
+          </p>
+          <ul className="mt-space-2xs list-disc space-y-space-3xs pl-space-md">
+            {storiesQuery.data?.warnings?.map((warning) => (
+              <li key={warning}>{warning}</li>
+            ))}
+          </ul>
+        </aside>
+      )}
+
       {contentQuery.data && (
         <div className="min-h-0 flex-1">
           {selectedVersion && (

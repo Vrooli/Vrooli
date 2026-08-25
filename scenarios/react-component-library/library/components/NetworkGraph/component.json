@@ -1,11 +1,26 @@
 {
-  "libraryId": "react-component-library:NetworkGraph",
-  "catalogId": "visualization.network-graph",
-  "displayName": "NetworkGraph",
-  "description": "A canvas-rendered dependency graph with a keyboard-accessible node list.",
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "component",
-  "tags": ["visualization", "token-bound"],
+  "catalogId": "visualization.network-graph",
+  "dependencies": [],
+  "description": "A canvas-rendered dependency graph with a keyboard-accessible node list.",
+  "designStyles": [
+    {
+      "affinity": "native",
+      "styleId": "vrooli-default"
+    }
+  ],
+  "displayName": "NetworkGraph",
   "latest": "1.0.0",
-  "designStyles": [{ "styleId": "vrooli-default", "affinity": "native" }],
-  "dependencies": []
+  "libraryId": "react-component-library:NetworkGraph",
+  "tags": [
+    "visualization",
+    "token-bound"
+  ],
+  "requires": [
+    {
+      "libraryId": "react-component-library:useLocale",
+      "version": "1.0.0"
+    }
+  ]
 }

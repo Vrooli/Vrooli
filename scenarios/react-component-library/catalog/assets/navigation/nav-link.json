@@ -10,13 +10,14 @@
   "asset": {
     "id": "navigation.nav-link",
     "name": "NavLink",
-    "kind": "component", "surface": "raised",
+    "kind": "component",
+    "surface": "raised",
     "domain": "navigation",
     "description": "The router-adaptable navigation link with exact or partial active matching, pending state during navigation, prefetch policy, icons, badges, and disabled semantics.",
     "targets": [
       "react-vite"
     ],
-    "slot": "primitive",
+    "slot": "ui-primitive",
     "delivery": "adopted",
     "target": {
       "priority": "P0",
@@ -28,6 +29,10 @@
       {
         "asset": "primitives.link",
         "reason": "Link semantics, focus, and external treatment are shared."
+      },
+      {
+        "asset": "hooks.use-locale",
+        "reason": "User-facing copy resolves through the adopting host locale bridge."
       }
     ]
   },

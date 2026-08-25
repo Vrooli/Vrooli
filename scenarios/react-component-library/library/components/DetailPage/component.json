@@ -1,11 +1,28 @@
 {
-  "libraryId": "react-component-library:DetailPage",
-  "catalogId": "templates.detail-page",
-  "displayName": "DetailPage",
-  "description": "A record detail template with identity, metadata, and data-source-owned content.",
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "component",
-  "tags": ["template", "page", "data-source", "token-bound"],
+  "catalogId": "templates.detail-page",
+  "dependencies": [],
+  "description": "A record detail template with identity, metadata, and data-source-owned content.",
+  "designStyles": [
+    {
+      "affinity": "native",
+      "styleId": "vrooli-default"
+    }
+  ],
+  "displayName": "DetailPage",
   "latest": "1.0.0",
-  "designStyles": [{ "styleId": "vrooli-default", "affinity": "native" }],
-  "dependencies": []
+  "libraryId": "react-component-library:DetailPage",
+  "tags": [
+    "template",
+    "page",
+    "data-source",
+    "token-bound"
+  ],
+  "requires": [
+    {
+      "libraryId": "react-component-library:useLocale",
+      "version": "1.0.0"
+    }
+  ]
 }

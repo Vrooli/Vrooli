@@ -6,6 +6,8 @@
  * @tags ["identity","media","accessibility","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
+import { translate } from "../../../../hooks/useLocale/versions/1.0.0/useLocale";
+
 /** @vrooliComponentSource primitives.avatar */
 import { Children, useMemo, type CSSProperties, type ReactNode } from "react";
 import { ProgressiveImage } from "../../../../primitives/ProgressiveImage/versions/1.1.0/ProgressiveImage";
@@ -148,7 +150,7 @@ export function AvatarGroup({
   children,
   maxVisible,
   overflowLabel = (count) => `+${count} more people`,
-  label = "People",
+  label = translate("primitives.avatar.label.1", "People"),
   className,
 }: AvatarGroupProps) {
   const items = Children.toArray(children);

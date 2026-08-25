@@ -2,8 +2,9 @@
  * @libraryId react-component-library:Card
  * @version 1.1.0
  * @status released
- * @deps {"react":"^18","clsx":"^2.1.1","tailwind-merge":"^2.3.0"}
+ * @deps {"react":"^18"}
  */
+import { cn } from "../../../../foundations/ClassMerge/versions/1.0.0/ClassMerge";
 import type { CSSProperties, HTMLAttributes, ReactNode } from "react";
 import { useSurfaceContext } from "../../../../foundations/Contracts/versions/1.0.0/Contracts";
 import { cardStyles } from "./styles";
@@ -29,9 +30,6 @@ export interface CardDescriptionProps
 export interface CardContentProps extends HTMLAttributes<HTMLDivElement> {
   children: ReactNode;
 }
-
-const cn = (...inputs: Array<string | undefined>) =>
-  inputs.filter(Boolean).join(" ");
 
 export function Card({ children, className, ...props }: CardProps) {
   const { elevation = "flat" } = useSurfaceContext();

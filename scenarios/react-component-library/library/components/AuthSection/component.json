@@ -1,13 +1,23 @@
 {
-  "libraryId": "react-component-library:AuthSection",
-  "catalogId": "monetization.auth-section",
-  "displayName": "AuthSection",
-  "description": "Shared sign-in and sign-out actions.",
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "component",
-  "tags": ["monetization", "auth"],
-  "latest": "1.0.0",
+  "catalogId": "monetization.auth-section",
+  "description": "Shared sign-in and sign-out actions.",
   "designStyles": [
-    { "styleId": "vrooli-default", "affinity": "native" },
-    { "styleId": "vrooli-command-display", "affinity": "compatible" }
+    {
+      "affinity": "native",
+      "styleId": "vrooli-default"
+    },
+    {
+      "affinity": "compatible",
+      "styleId": "vrooli-command-display"
+    }
+  ],
+  "displayName": "AuthSection",
+  "latest": "1.0.0",
+  "libraryId": "react-component-library:AuthSection",
+  "tags": [
+    "monetization",
+    "auth"
   ]
 }

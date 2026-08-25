@@ -1,1 +1,78 @@
-{"schemaVersion":3,"kind":"component","title":"MorphingIcon","args":{"fields":[]},"environment":{"fixtures":[]},"stories":[{"id":"toggle","name":"Interactive state change","harness":"ToggleMorphingIcon","args":{},"expect":[{"kind":"role","role":"img","name":"Sent"}],"interactions":[{"kind":"click","target":{"role":"button","name":"Send message"}},{"kind":"waitFor","text":"Sent"}],"mode":"live"},{"id":"copy-button","name":"Copy to success","harness":"CopyMorphingIcon","args":{},"expect":[{"kind":"role","role":"button","name":"Copied"}],"interactions":[{"kind":"click","target":{"role":"button","name":"Copy value"}},{"kind":"waitFor","text":"Copied"}],"mode":"live"}]}
+{
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
+  "args": {
+    "fields": []
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "kind": "component",
+  "schemaVersion": 4,
+  "stories": [
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "ToggleMorphingIcon",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Sent",
+          "role": "img"
+        }
+      ],
+      "id": "toggle",
+      "interactions": [
+        {
+          "kind": "click",
+          "target": {
+            "name": "Send message",
+            "role": "button"
+          }
+        },
+        {
+          "kind": "waitFor",
+          "text": "Sent"
+        }
+      ],
+      "mode": "live",
+      "name": "Interactive state change"
+    },
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "CopyMorphingIcon",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Copied",
+          "role": "button"
+        }
+      ],
+      "id": "copy-button",
+      "interactions": [
+        {
+          "kind": "click",
+          "target": {
+            "name": "Copy value",
+            "role": "button"
+          }
+        },
+        {
+          "kind": "waitFor",
+          "text": "Copied"
+        }
+      ],
+      "mode": "live",
+      "name": "Copy to success"
+    }
+  ],
+  "title": "MorphingIcon"
+}

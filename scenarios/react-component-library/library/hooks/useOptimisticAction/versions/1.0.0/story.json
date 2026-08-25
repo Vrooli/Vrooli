@@ -1,19 +1,22 @@
 {
-  "schemaVersion": 3,
-  "kind": "hook",
-  "title": "useOptimisticAction",
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
   "args": {
     "fields": []
   },
   "environment": {
     "fixtures": []
   },
+  "kind": "hook",
+  "schemaVersion": 4,
   "stories": [
     {
-      "id": "default",
-      "name": "Optimistic action",
-      "harness": "Default",
       "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Default",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
         {
           "kind": "text",
@@ -21,11 +24,14 @@
         },
         {
           "kind": "role",
-          "role": "status",
-          "name": "idle"
+          "name": "idle",
+          "role": "status"
         }
       ],
-      "mode": "live"
+      "id": "default",
+      "mode": "live",
+      "name": "Optimistic action"
     }
-  ]
+  ],
+  "title": "useOptimisticAction"
 }

@@ -5,13 +5,14 @@
   "asset": {
     "id": "visualization.gauge",
     "name": "Gauge",
-    "kind": "component", "surface": "raised",
+    "kind": "component",
+    "surface": "raised",
     "domain": "visualization",
     "description": "The bounded metric visualization with semantic zones, target markers, animated change, and an accessible textual equivalent that states the value and its zone.",
     "targets": [
       "react-vite"
     ],
-    "slot": "primitive",
+    "slot": "ui-primitive",
     "delivery": "adopted",
     "target": {
       "priority": "P2",

@@ -1,42 +1,38 @@
 {
-  "schemaVersion": 3,
-  "kind": "component",
-  "title": "IconButton 2.0",
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
   "args": {
     "fields": [
       {
-        "path": "aria-label",
-        "label": "Accessible label",
+        "default": "Close panel",
         "kind": "text",
-        "default": "Close panel"
+        "label": "Accessible label",
+        "path": "aria-label"
       },
       {
-        "path": "children",
-        "label": "Icon",
-        "kind": "structured",
         "default": {
           "$icon": "X"
-        }
+        },
+        "kind": "structured",
+        "label": "Icon",
+        "path": "children"
       },
       {
-        "path": "variant",
-        "label": "Variant",
-        "kind": "enum",
-        "required": true,
         "default": "ghost",
+        "kind": "enum",
+        "label": "Variant",
         "options": [
           "primary",
           "secondary",
           "ghost",
           "danger"
-        ]
+        ],
+        "path": "variant",
+        "required": true
       },
       {
-        "path": "size",
-        "label": "Size",
-        "kind": "enum",
-        "required": true,
         "default": "icon",
+        "kind": "enum",
+        "label": "Size",
         "options": [
           "xs",
           "sm",
@@ -44,36 +40,37 @@
           "lg",
           "xl",
           "icon"
-        ]
+        ],
+        "path": "size",
+        "required": true
       },
       {
-        "path": "density",
-        "label": "Density",
-        "kind": "enum",
-        "required": true,
         "default": "comfortable",
+        "kind": "enum",
+        "label": "Density",
         "options": [
           "comfortable",
           "compact"
-        ]
+        ],
+        "path": "density",
+        "required": true
       },
       {
-        "path": "disabled",
-        "label": "Disabled",
+        "default": false,
         "kind": "boolean",
-        "default": false
+        "label": "Disabled",
+        "path": "disabled"
       }
     ]
   },
   "environment": {
     "fixtures": []
   },
+  "kind": "component",
+  "schemaVersion": 4,
   "stories": [
     {
-      "id": "variant-primary",
-      "name": "Primary",
       "args": {
-        "aria-label": "Play",
         "children": {
           "$icon": "Play"
         },
@@ -82,17 +79,16 @@
       "expect": [
         {
           "kind": "role",
-          "role": "button",
-          "name": "Play"
+          "name": "Play",
+          "role": "button"
         }
       ],
-      "mode": "pinned"
+      "id": "variant-primary",
+      "mode": "pinned",
+      "name": "Primary"
     },
     {
-      "id": "variant-secondary",
-      "name": "Secondary",
       "args": {
-        "aria-label": "Settings",
         "children": {
           "$icon": "Settings"
         },
@@ -101,17 +97,16 @@
       "expect": [
         {
           "kind": "role",
-          "role": "button",
-          "name": "Settings"
+          "name": "Settings",
+          "role": "button"
         }
       ],
-      "mode": "pinned"
+      "id": "variant-secondary",
+      "mode": "pinned",
+      "name": "Secondary"
     },
     {
-      "id": "variant-ghost",
-      "name": "Ghost",
       "args": {
-        "aria-label": "Close",
         "children": {
           "$icon": "X"
         },
@@ -120,17 +115,16 @@
       "expect": [
         {
           "kind": "role",
-          "role": "button",
-          "name": "Close"
+          "name": "Close",
+          "role": "button"
         }
       ],
-      "mode": "pinned"
+      "id": "variant-ghost",
+      "mode": "pinned",
+      "name": "Ghost"
     },
     {
-      "id": "variant-danger",
-      "name": "Danger",
       "args": {
-        "aria-label": "Delete",
         "children": {
           "$icon": "Trash2"
         },
@@ -139,17 +133,16 @@
       "expect": [
         {
           "kind": "role",
-          "role": "button",
-          "name": "Delete"
+          "name": "Delete",
+          "role": "button"
         }
       ],
-      "mode": "pinned"
+      "id": "variant-danger",
+      "mode": "pinned",
+      "name": "Danger"
     },
     {
-      "id": "size-xs",
-      "name": "XS",
       "args": {
-        "aria-label": "XS",
         "children": {
           "$icon": "Circle"
         },
@@ -158,17 +151,16 @@
       "expect": [
         {
           "kind": "role",
-          "role": "button",
-          "name": "XS"
+          "name": "XS",
+          "role": "button"
         }
       ],
-      "mode": "pinned"
+      "id": "size-xs",
+      "mode": "pinned",
+      "name": "XS"
     },
     {
-      "id": "size-sm",
-      "name": "SM",
       "args": {
-        "aria-label": "SM",
         "children": {
           "$icon": "Circle"
         },
@@ -177,17 +169,16 @@
       "expect": [
         {
           "kind": "role",
-          "role": "button",
-          "name": "SM"
+          "name": "SM",
+          "role": "button"
         }
       ],
-      "mode": "pinned"
+      "id": "size-sm",
+      "mode": "pinned",
+      "name": "SM"
     },
     {
-      "id": "size-md",
-      "name": "MD",
       "args": {
-        "aria-label": "MD",
         "children": {
           "$icon": "Circle"
         },
@@ -196,17 +187,16 @@
       "expect": [
         {
           "kind": "role",
-          "role": "button",
-          "name": "MD"
+          "name": "MD",
+          "role": "button"
         }
       ],
-      "mode": "pinned"
+      "id": "size-md",
+      "mode": "pinned",
+      "name": "MD"
     },
     {
-      "id": "size-lg",
-      "name": "LG",
       "args": {
-        "aria-label": "LG",
         "children": {
           "$icon": "Circle"
         },
@@ -215,17 +205,16 @@
       "expect": [
         {
           "kind": "role",
-          "role": "button",
-          "name": "LG"
+          "name": "LG",
+          "role": "button"
         }
       ],
-      "mode": "pinned"
+      "id": "size-lg",
+      "mode": "pinned",
+      "name": "LG"
     },
     {
-      "id": "size-xl",
-      "name": "XL",
       "args": {
-        "aria-label": "XL",
         "children": {
           "$icon": "Circle"
         },
@@ -234,17 +223,16 @@
       "expect": [
         {
           "kind": "role",
-          "role": "button",
-          "name": "XL"
+          "name": "XL",
+          "role": "button"
         }
       ],
-      "mode": "pinned"
+      "id": "size-xl",
+      "mode": "pinned",
+      "name": "XL"
     },
     {
-      "id": "size-icon",
-      "name": "Icon",
       "args": {
-        "aria-label": "Icon",
         "children": {
           "$icon": "Circle"
         },
@@ -253,17 +241,16 @@
       "expect": [
         {
           "kind": "role",
-          "role": "button",
-          "name": "Icon"
+          "name": "Icon",
+          "role": "button"
         }
       ],
-      "mode": "pinned"
+      "id": "size-icon",
+      "mode": "pinned",
+      "name": "Icon"
     },
     {
-      "id": "density-comfortable",
-      "name": "Comfortable",
       "args": {
-        "aria-label": "Comfortable",
         "children": {
           "$icon": "Circle"
         },
@@ -272,17 +259,16 @@
       "expect": [
         {
           "kind": "role",
-          "role": "button",
-          "name": "Comfortable"
+          "name": "Comfortable",
+          "role": "button"
         }
       ],
-      "mode": "pinned"
+      "id": "density-comfortable",
+      "mode": "pinned",
+      "name": "Comfortable"
     },
     {
-      "id": "density-compact",
-      "name": "Compact",
       "args": {
-        "aria-label": "Compact",
         "children": {
           "$icon": "Circle"
         },
@@ -291,11 +277,14 @@
       "expect": [
         {
           "kind": "role",
-          "role": "button",
-          "name": "Compact"
+          "name": "Compact",
+          "role": "button"
         }
       ],
-      "mode": "pinned"
+      "id": "density-compact",
+      "mode": "pinned",
+      "name": "Compact"
     }
-  ]
+  ],
+  "title": "IconButton 2.0"
 }

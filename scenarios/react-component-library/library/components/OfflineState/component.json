@@ -1,13 +1,26 @@
 {
-  "libraryId": "react-component-library:OfflineState",
-  "catalogId": "feedback.offline-state",
-  "displayName": "OfflineState",
-  "description": "An actionable offline surface that distinguishes unavailable connectivity from an application failure.",
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "component",
-  "tags": ["feedback", "async", "token-bound"],
-  "latest": "1.0.0",
-  "designStyles": [{ "styleId": "vrooli-default", "affinity": "native" }],
+  "catalogId": "feedback.offline-state",
   "dependencies": [
-    { "libraryId": "react-component-library:AsyncBoundary", "version": "1.0.0" }
+    {
+      "libraryId": "react-component-library:AsyncBoundary",
+      "version": "1.0.0"
+    }
+  ],
+  "description": "An actionable offline surface that distinguishes unavailable connectivity from an application failure.",
+  "designStyles": [
+    {
+      "affinity": "native",
+      "styleId": "vrooli-default"
+    }
+  ],
+  "displayName": "OfflineState",
+  "latest": "1.0.0",
+  "libraryId": "react-component-library:OfflineState",
+  "tags": [
+    "feedback",
+    "async",
+    "token-bound"
   ]
 }

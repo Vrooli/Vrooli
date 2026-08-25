@@ -1,19 +1,22 @@
 {
-  "schemaVersion": 3,
-  "kind": "component",
-  "title": "FilePreview",
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
   "args": {
     "fields": []
   },
   "environment": {
     "fixtures": []
   },
+  "kind": "component",
+  "schemaVersion": 4,
   "stories": [
     {
-      "id": "default",
-      "name": "Ready attachment",
-      "harness": "Default",
       "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Default",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
         {
           "kind": "text",
@@ -21,22 +24,27 @@
         },
         {
           "kind": "role",
-          "role": "button",
-          "name": "Download"
+          "name": "Download",
+          "role": "button"
         }
       ],
+      "id": "default",
       "interactions": [
         {
           "kind": "settle"
         }
       ],
-      "mode": "live"
+      "mode": "live",
+      "name": "Ready attachment"
     },
     {
-      "id": "loading",
-      "name": "Preparing preview",
-      "harness": "Loading",
       "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Loading",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
         {
           "kind": "role",
@@ -47,18 +55,23 @@
           "value": "Scanning for a safe preview"
         }
       ],
+      "id": "loading",
       "interactions": [
         {
           "kind": "settle"
         }
       ],
-      "mode": "live"
+      "mode": "live",
+      "name": "Preparing preview"
     },
     {
-      "id": "request-error",
-      "name": "Typed fallback",
-      "harness": "ErrorState",
       "args": {},
+      "composition": {
+        "specimen": {
+          "export": "ErrorState",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
         {
           "kind": "role",
@@ -69,12 +82,15 @@
           "value": "This format cannot be previewed here"
         }
       ],
+      "id": "request-error",
       "interactions": [
         {
           "kind": "settle"
         }
       ],
-      "mode": "live"
+      "mode": "live",
+      "name": "Typed fallback"
     }
-  ]
+  ],
+  "title": "FilePreview"
 }

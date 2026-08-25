@@ -7,6 +7,8 @@
  * @deps {"react":"^18"}
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
+import { translate } from "../../../../hooks/useLocale/versions/1.0.0/useLocale";
+
 import { useId, type CSSProperties, type ReactNode } from "react";
 import { Button, type ButtonProps } from "../../../Button/versions/2.2.0/Button";
 import { ButtonGroup } from "../../../ButtonGroup/versions/1.1.1/ButtonGroup";
@@ -111,7 +113,7 @@ export function EmptyState({
               <ButtonGroup
                 align="center"
                 collapse="sm"
-                label="Empty state actions"
+                label={translate("feedback.empty-state.label.1", "Empty state actions")}
                 data-rcl-empty-state-action
               >
                 {resolvedAction}

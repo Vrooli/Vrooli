@@ -1,11 +1,20 @@
 {
-  "libraryId": "react-component-library:useAnnounce",
-  "catalogId": "hooks.use-announce",
-  "displayName": "useAnnounce",
-  "description": "Production-ready useAnnounce hook with SSR-safe lifecycle behavior.",
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "hook",
-  "tags": ["runtime", "accessibility"],
+  "catalogId": "hooks.use-announce",
+  "dependencies": [],
+  "description": "Production-ready useAnnounce hook with SSR-safe lifecycle behavior.",
+  "designStyles": [
+    {
+      "affinity": "native",
+      "styleId": "vrooli-default"
+    }
+  ],
+  "displayName": "useAnnounce",
   "latest": "1.0.0",
-  "designStyles": [{ "styleId": "vrooli-default", "affinity": "native" }],
-  "dependencies": []
+  "libraryId": "react-component-library:useAnnounce",
+  "tags": [
+    "runtime",
+    "accessibility"
+  ]
 }

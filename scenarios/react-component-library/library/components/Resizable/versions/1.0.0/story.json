@@ -1,39 +1,40 @@
 {
-  "schemaVersion": 3,
-  "kind": "component",
-  "title": "Resizable",
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
   "args": {
     "fields": [
       {
-        "path": "orientation",
-        "kind": "enum",
         "default": "horizontal",
+        "kind": "enum",
         "options": [
           "horizontal",
           "vertical"
-        ]
+        ],
+        "path": "orientation"
       }
     ]
   },
   "environment": {
     "fixtures": []
   },
+  "kind": "component",
+  "schemaVersion": 4,
   "stories": [
     {
-      "id": "horizontal",
-      "name": "Horizontal",
       "args": {
         "orientation": "horizontal"
       },
-      "mode": "pinned"
+      "id": "horizontal",
+      "mode": "pinned",
+      "name": "Horizontal"
     },
     {
-      "id": "vertical",
-      "name": "Vertical",
       "args": {
         "orientation": "vertical"
       },
-      "mode": "pinned"
+      "id": "vertical",
+      "mode": "pinned",
+      "name": "Vertical"
     }
-  ]
+  ],
+  "title": "Resizable"
 }

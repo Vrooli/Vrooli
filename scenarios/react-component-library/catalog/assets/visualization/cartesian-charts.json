@@ -5,13 +5,14 @@
   "asset": {
     "id": "visualization.cartesian-charts",
     "name": "CartesianCharts",
-    "kind": "component", "surface": "raised",
+    "kind": "component",
+    "surface": "raised",
     "domain": "visualization",
     "description": "The line, area, bar, stacked bar, scatter, and histogram family sharing one data, axis, interaction, animation, and accessibility model.",
     "targets": [
       "react-vite"
     ],
-    "slot": "primitive",
+    "slot": "ui-primitive",
     "delivery": "adopted",
     "target": {
       "priority": "P0",

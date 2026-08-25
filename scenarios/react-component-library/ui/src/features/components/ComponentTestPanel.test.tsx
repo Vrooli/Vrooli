@@ -84,9 +84,9 @@ describe("ComponentTestPanel", () => {
         includeClosure: false,
       }),
     );
-    expect(await screen.findAllByText("Recommended next step:")).toHaveLength(2);
-    expect(screen.getAllByText("fix contract")).toHaveLength(2);
-    expect(screen.getAllByText("Needs attention")).toHaveLength(3);
+    expect(await screen.findAllByText("Recommended next step:")).toHaveLength(1);
+    expect(screen.getAllByText("fix contract")).toHaveLength(1);
+    expect(screen.getAllByText("Needs attention")).toHaveLength(2);
   });
 
   it("provides a deep link for historical durable evidence", async () => {
@@ -142,6 +142,74 @@ describe("ComponentTestPanel", () => {
       screen.getByRole("img", { name: "Captured component screenshot" }).getAttribute("src"),
     ).toContain("/embedded/browser-automation-studio/api/v1/artifacts/capture.png");
     expect(screen.queryByRole("link", { name: /open.*capture/i })).not.toBeInTheDocument();
+  });
+
+  it("defaults to the review sheet, exposes each captured story, and renders results once", async () => {
+    api.listComponentTestReports.mockResolvedValue([
+      {
+        id: "ctr_sheet",
+        verdict: "failed",
+        results: [
+          {
+            stage: "contract_validation",
+            assetLibraryId: "rcl:Button",
+            version: "2.2.0",
+            verdict: "failed",
+            message: "contract failure",
+            remediation: "repair contract",
+          },
+          {
+            stage: "declared_behavior",
+            assetLibraryId: "rcl:Button",
+            version: "2.2.0",
+            verdict: "passed",
+            message: "behavior passed",
+            remediation: "",
+          },
+        ],
+        artifacts: [
+          {
+            kind: "bas-story-sheet",
+            label: "review-sheet:primary,secondary:screenshot",
+            storyId: "review-sheet:primary,secondary",
+            assetLibraryId: "rcl:Button",
+            version: "2.2.0",
+            reference: "http://127.0.0.1:17116/api/v1/artifacts/sheet.png",
+          },
+          {
+            kind: "bas-screenshot",
+            label: "primary:screenshot",
+            storyId: "primary",
+            assetLibraryId: "rcl:Button",
+            version: "2.2.0",
+            reference: "http://127.0.0.1:17116/api/v1/artifacts/primary.png",
+          },
+          {
+            kind: "bas-screenshot",
+            label: "secondary:screenshot",
+            storyId: "secondary",
+            assetLibraryId: "rcl:Button",
+            version: "2.2.0",
+            reference: "http://127.0.0.1:17116/api/v1/artifacts/secondary.png",
+          },
+        ],
+      },
+    ]);
+
+    renderWithProviders(<ComponentTestPanel componentId="button-id" version="2.2.0" />);
+
+    expect(await screen.findByRole("tab", { name: "Story sheet: Captured" })).toBeInTheDocument();
+    expect(screen.getByRole("img", { name: "Captured component screenshot" })).toHaveAttribute(
+      "src",
+      expect.stringContaining("/embedded/browser-automation-studio/api/v1/artifacts/sheet.png"),
+    );
+    const storyPicker = screen.getByRole("combobox", { name: "Captured story" });
+    expect(storyPicker).toHaveValue("review-sheet:primary,secondary");
+    expect(screen.getAllByText("contract failure")).toHaveLength(1);
+
+    fireEvent.change(storyPicker, { target: { value: "secondary" } });
+    expect(storyPicker).toHaveValue("secondary");
+    expect(await screen.findByRole("tab", { name: "Screenshot: Captured" })).toBeInTheDocument();
   });
 
   it("explains when the embedded screenshot artifact cannot be loaded", async () => {

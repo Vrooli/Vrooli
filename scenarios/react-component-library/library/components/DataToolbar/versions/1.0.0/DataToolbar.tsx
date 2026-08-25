@@ -1,4 +1,6 @@
 /** @vrooliComponentSource data-display.data-toolbar */
+import { translate } from "../../../../hooks/useLocale/versions/1.0.0/useLocale";
+
 import { useId, useState, type CSSProperties } from "react";
 import {
   FilterBar,
@@ -212,10 +214,10 @@ export function DataToolbar({
             <div
               data-rcl-data-toolbar-views
               role="group"
-              aria-label="Saved views"
+              aria-label={translate("data-display.data-toolbar.aria-label.1", "Saved views")}
             >
               {views.map((view) => (
-                <button
+                <button data-testid="data-display.data-toolbar"
                   key={view.id}
                   type="button"
                   aria-pressed={resolvedViewId === view.id}
@@ -251,8 +253,8 @@ export function DataToolbar({
         <div data-rcl-data-toolbar-controls>
           {sortOptions.length > 0 ? (
             <span data-rcl-data-toolbar-sort>
-              <label htmlFor={sortControlId}>Sort</label>
-              <select
+              <label htmlFor={sortControlId}>{translate("data-display.data-toolbar.text.3", "Sort")}</label>
+              <select data-testid="data-display.data-toolbar"
                 id={sortControlId}
                 value={resolvedSortId}
                 onChange={(event) => updateSort(event.target.value)}
@@ -268,7 +270,7 @@ export function DataToolbar({
           {toolbarItems.length > 0 ? (
             <Toolbar
               items={toolbarItems}
-              label="Collection actions"
+              label={translate("data-display.data-toolbar.label.2", "Collection actions")}
               size="sm"
             />
           ) : null}

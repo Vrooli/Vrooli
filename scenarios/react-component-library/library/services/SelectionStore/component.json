@@ -1,11 +1,20 @@
 {
-  "libraryId": "react-component-library:SelectionStore",
-  "catalogId": "services.selection-store",
-  "displayName": "SelectionStore",
-  "description": "Scoped runtime service for predictable SelectionStore behavior.",
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "service",
-  "tags": ["runtime", "state"],
+  "catalogId": "services.selection-store",
+  "dependencies": [],
+  "description": "Scoped runtime service for predictable SelectionStore behavior.",
+  "designStyles": [
+    {
+      "affinity": "native",
+      "styleId": "vrooli-default"
+    }
+  ],
+  "displayName": "SelectionStore",
   "latest": "1.0.0",
-  "designStyles": [{ "styleId": "vrooli-default", "affinity": "native" }],
-  "dependencies": []
+  "libraryId": "react-component-library:SelectionStore",
+  "tags": [
+    "runtime",
+    "state"
+  ]
 }

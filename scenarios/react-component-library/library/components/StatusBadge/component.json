@@ -1,17 +1,37 @@
 {
-  "libraryId": "react-component-library:StatusBadge",
-  "x-supplementalJustification": "Pre-catalog status primitive retained as a supplemental asset while the semantic status vocabulary is finalized.",
-  "displayName": "Status Badge",
-  "description": "Semantic status badge with accessible labels and token-bound color roles.",
-  "tags": ["feedback", "status"],
-  "slot": "ui-primitive",
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "category": "feedback",
+  "deprecatedVersions": [],
+  "description": "Semantic status badge with accessible labels and token-bound color roles.",
   "designStyles": [
-    { "styleId": "vrooli-default", "affinity": "native" },
-    { "styleId": "vrooli-command-display", "affinity": "native" },
-    { "styleId": "vrooli-conversion-landing", "affinity": "compatible" }
+    {
+      "affinity": "native",
+      "styleId": "vrooli-default"
+    },
+    {
+      "affinity": "native",
+      "styleId": "vrooli-command-display"
+    },
+    {
+      "affinity": "compatible",
+      "styleId": "vrooli-conversion-landing"
+    }
   ],
-  "latest": "1.2.0",
+  "displayName": "Status Badge",
   "draft": "",
-  "deprecatedVersions": []
+  "latest": "1.2.0",
+  "libraryId": "react-component-library:StatusBadge",
+  "slot": "ui-primitive",
+  "tags": [
+    "feedback",
+    "status"
+  ],
+  "x-supplementalJustification": "Pre-catalog status primitive retained as a supplemental asset while the semantic status vocabulary is finalized.",
+  "dependencies": [
+    {
+      "kind": "requires",
+      "libraryId": "react-component-library:ClassMerge",
+      "version": "1.0.0"
+    }
+  ]
 }

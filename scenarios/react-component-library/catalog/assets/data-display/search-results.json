@@ -10,13 +10,14 @@
   "asset": {
     "id": "data-display.search-results",
     "name": "SearchResults",
-    "kind": "component", "surface": "raised",
+    "kind": "component",
+    "surface": "raised",
     "domain": "data-display",
     "description": "The complete result collection with query context, match highlighting, grouping, ranking metadata, filters, and every generic state including no-matches versus nothing-indexed.",
     "targets": [
       "react-vite"
     ],
-    "slot": "primitive",
+    "slot": "ui-primitive",
     "delivery": "adopted",
     "target": {
       "priority": "P0",
@@ -32,6 +33,10 @@
       {
         "asset": "feedback.async-boundary",
         "reason": "Generic state presentation is delegated."
+      },
+      {
+        "asset": "hooks.use-locale",
+        "reason": "User-facing copy resolves through the adopting host locale bridge."
       }
     ]
   },

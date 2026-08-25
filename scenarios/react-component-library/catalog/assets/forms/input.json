@@ -5,13 +5,14 @@
   "asset": {
     "id": "forms.input",
     "name": "Input",
-    "kind": "component", "surface": "raised",
+    "kind": "component",
+    "surface": "raised",
     "domain": "forms",
     "description": "The single-line field with prefix and suffix slots, clear action, loading affordance, validation treatment, formatting hooks, autofill compatibility, and layout that does not shift between states.",
     "targets": [
       "react-vite"
     ],
-    "slot": "primitive",
+    "slot": "ui-primitive",
     "delivery": "adopted",
     "target": {
       "priority": "P0",
@@ -31,6 +32,10 @@
       {
         "asset": "hooks.use-controllable-state",
         "reason": "Controlled and uncontrolled operation share one contract and one event shape."
+      },
+      {
+        "asset": "foundations.class-merge",
+        "reason": "All class composition uses the shared Tailwind conflict resolver."
       }
     ]
   },

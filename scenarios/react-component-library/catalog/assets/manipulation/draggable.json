@@ -5,13 +5,14 @@
   "asset": {
     "id": "manipulation.draggable",
     "name": "Draggable",
-    "kind": "component", "surface": "raised",
+    "kind": "component",
+    "surface": "raised",
     "domain": "manipulation",
     "description": "The direct-manipulation primitive with pointer capture, keyboard dragging, constraints, drag handles, cancellation, velocity reporting, position announcements, and overlay support.",
     "targets": [
       "react-vite"
     ],
-    "slot": "primitive",
+    "slot": "ui-primitive",
     "delivery": "adopted",
     "target": {
       "priority": "P0",
@@ -31,6 +32,10 @@
       {
         "asset": "services.drag-drop-store",
         "reason": "Active drag and target state live in the shared scoped store."
+      },
+      {
+        "asset": "hooks.use-locale",
+        "reason": "User-facing copy resolves through the adopting host locale bridge."
       }
     ]
   },

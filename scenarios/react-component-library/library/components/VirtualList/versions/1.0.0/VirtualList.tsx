@@ -1,4 +1,6 @@
 /** @vrooliComponentSource data-display.virtual-list */
+import { translate } from "../../../../hooks/useLocale/versions/1.0.0/useLocale";
+
 import {
   useEffect,
   useLayoutEffect,
@@ -61,7 +63,7 @@ export function VirtualList<T>({
   estimateItemHeight = 72,
   overscan = 4,
   height = 360,
-  label = "Virtual list",
+  label = translate("data-display.virtual-list.label.1", "Virtual list"),
   title,
   description,
   empty = "Nothing here yet.",

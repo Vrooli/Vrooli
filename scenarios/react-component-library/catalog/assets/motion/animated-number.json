@@ -5,13 +5,14 @@
   "asset": {
     "id": "motion.animated-number",
     "name": "AnimatedNumber",
-    "kind": "component", "surface": "raised",
+    "kind": "component",
+    "surface": "raised",
     "domain": "motion",
     "description": "The locale-aware numeric transition interpolating values while preserving formatting, handling large jumps sensibly, and announcing only the settled value.",
     "targets": [
       "react-vite"
     ],
-    "slot": "primitive",
+    "slot": "ui-primitive",
     "delivery": "adopted",
     "target": {
       "priority": "P1",

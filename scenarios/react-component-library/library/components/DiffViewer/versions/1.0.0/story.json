@@ -1,20 +1,18 @@
 {
-  "schemaVersion": 3,
-  "kind": "component",
-  "title": "DiffViewer",
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
   "args": {
     "fields": []
   },
   "environment": {
     "fixtures": []
   },
+  "kind": "component",
+  "schemaVersion": 4,
   "stories": [
     {
-      "id": "default",
-      "name": "Default",
       "args": {
-        "before": "old",
-        "after": "new"
+        "after": "new",
+        "before": "old"
       },
       "expect": [
         {
@@ -22,16 +20,19 @@
           "value": "new"
         }
       ],
-      "mode": "pinned"
+      "id": "default",
+      "mode": "pinned",
+      "name": "Default"
     },
     {
-      "id": "empty",
-      "name": "Empty",
       "args": {
-        "before": "old",
-        "after": "new"
+        "after": "new",
+        "before": "old"
       },
-      "mode": "pinned"
+      "id": "empty",
+      "mode": "pinned",
+      "name": "Empty"
     }
-  ]
+  ],
+  "title": "DiffViewer"
 }

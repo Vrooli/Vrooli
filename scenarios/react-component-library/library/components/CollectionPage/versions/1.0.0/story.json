@@ -1,24 +1,22 @@
 {
-  "schemaVersion": 3,
-  "kind": "component",
-  "title": "CollectionPage",
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
   "args": {
     "fields": []
   },
   "environment": {
     "fixtures": []
   },
+  "kind": "component",
+  "schemaVersion": 4,
   "stories": [
     {
-      "id": "default",
-      "name": "default",
       "args": {
-        "state": "ready",
         "data": {
           "items": [
             "Alpha"
           ]
-        }
+        },
+        "state": "ready"
       },
       "expect": [
         {
@@ -26,20 +24,20 @@
           "value": "Alpha"
         }
       ],
-      "mode": "pinned"
+      "id": "default",
+      "mode": "pinned",
+      "name": "default"
     },
     {
-      "id": "controlled-filter",
-      "name": "controlled filter",
       "args": {
-        "state": "ready",
+        "data": {
+          "items": [
+            "Alpha"
+          ]
+        },
         "mode": "controlled",
         "query": "active",
-        "data": {
-          "items": [
-            "Alpha"
-          ]
-        }
+        "state": "ready"
       },
       "expect": [
         {
@@ -47,18 +45,18 @@
           "value": "Alpha"
         }
       ],
-      "mode": "pinned"
+      "id": "controlled-filter",
+      "mode": "pinned",
+      "name": "controlled filter"
     },
     {
-      "id": "loading",
-      "name": "loading",
       "args": {
-        "state": "loading",
         "data": {
           "items": [
             "Alpha"
           ]
-        }
+        },
+        "state": "loading"
       },
       "expect": [
         {
@@ -66,18 +64,18 @@
           "value": "Loading"
         }
       ],
-      "mode": "pinned"
+      "id": "loading",
+      "mode": "pinned",
+      "name": "loading"
     },
     {
-      "id": "refreshing",
-      "name": "refreshing",
       "args": {
-        "state": "refreshing",
         "data": {
           "items": [
             "Alpha"
           ]
-        }
+        },
+        "state": "refreshing"
       },
       "expect": [
         {
@@ -85,18 +83,18 @@
           "value": "Refreshing"
         }
       ],
-      "mode": "pinned"
+      "id": "refreshing",
+      "mode": "pinned",
+      "name": "refreshing"
     },
     {
-      "id": "stale",
-      "name": "stale",
       "args": {
-        "state": "stale",
         "data": {
           "items": [
             "Alpha"
           ]
-        }
+        },
+        "state": "stale"
       },
       "expect": [
         {
@@ -104,18 +102,18 @@
           "value": "Showing stale data"
         }
       ],
-      "mode": "pinned"
+      "id": "stale",
+      "mode": "pinned",
+      "name": "stale"
     },
     {
-      "id": "empty",
-      "name": "empty",
       "args": {
-        "state": "empty",
         "data": {
           "items": [
             "Alpha"
           ]
-        }
+        },
+        "state": "empty"
       },
       "expect": [
         {
@@ -123,18 +121,18 @@
           "value": "Nothing here"
         }
       ],
-      "mode": "pinned"
+      "id": "empty",
+      "mode": "pinned",
+      "name": "empty"
     },
     {
-      "id": "partial-error",
-      "name": "partial-error",
       "args": {
-        "state": "partial-error",
         "data": {
           "items": [
             "Alpha"
           ]
-        }
+        },
+        "state": "partial-error"
       },
       "expect": [
         {
@@ -142,18 +140,18 @@
           "value": "Some sections need attention"
         }
       ],
-      "mode": "pinned"
+      "id": "partial-error",
+      "mode": "pinned",
+      "name": "partial-error"
     },
     {
-      "id": "fatal-error",
-      "name": "fatal-error",
       "args": {
-        "state": "fatal-error",
         "data": {
           "items": [
             "Alpha"
           ]
-        }
+        },
+        "state": "fatal-error"
       },
       "expect": [
         {
@@ -161,18 +159,18 @@
           "value": "Unable to load this page"
         }
       ],
-      "mode": "pinned"
+      "id": "fatal-error",
+      "mode": "pinned",
+      "name": "fatal-error"
     },
     {
-      "id": "offline",
-      "name": "offline",
       "args": {
-        "state": "offline",
         "data": {
           "items": [
             "Alpha"
           ]
-        }
+        },
+        "state": "offline"
       },
       "expect": [
         {
@@ -180,7 +178,10 @@
           "value": "Offline"
         }
       ],
-      "mode": "pinned"
+      "id": "offline",
+      "mode": "pinned",
+      "name": "offline"
     }
-  ]
+  ],
+  "title": "CollectionPage"
 }

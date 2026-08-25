@@ -5,13 +5,14 @@
   "asset": {
     "id": "ai.checkpoint-card",
     "name": "CheckpointCard",
-    "kind": "component", "surface": "raised",
+    "kind": "component",
+    "surface": "raised",
     "domain": "ai",
     "description": "The resumable milestone recording completed work, produced artifacts, captured state, remaining tasks, and the actions to continue or restore from that point.",
     "targets": [
       "react-vite"
     ],
-    "slot": "primitive",
+    "slot": "ui-primitive",
     "delivery": "adopted",
     "target": {
       "priority": "P1",

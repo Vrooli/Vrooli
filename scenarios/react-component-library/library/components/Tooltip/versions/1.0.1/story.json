@@ -1,92 +1,173 @@
 {
-  "schemaVersion": 3,
-  "kind": "component",
-  "title": "Tooltip",
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
   "args": {
     "fields": [
       {
-        "path": "label",
-        "label": "Tooltip label",
+        "default": "More details about this identity",
         "kind": "text",
-        "required": true,
-        "default": "More details about this identity"
+        "label": "Tooltip label",
+        "path": "label",
+        "required": true
       },
       {
-        "path": "placement",
-        "label": "Placement",
-        "kind": "enum",
-        "required": true,
         "default": "top",
-        "options": ["top", "bottom", "start", "end"]
+        "kind": "enum",
+        "label": "Placement",
+        "options": [
+          "top",
+          "bottom",
+          "start",
+          "end"
+        ],
+        "path": "placement",
+        "required": true
       },
       {
-        "path": "delay",
+        "default": 280,
+        "kind": "number",
         "label": "Open delay (ms)",
-        "kind": "number",
-        "minimum": 0,
         "maximum": 2000,
-        "default": 280
+        "minimum": 0,
+        "path": "delay"
       },
       {
-        "path": "closeDelay",
+        "default": 100,
+        "kind": "number",
         "label": "Close delay (ms)",
-        "kind": "number",
-        "minimum": 0,
         "maximum": 2000,
-        "default": 100
+        "minimum": 0,
+        "path": "closeDelay"
       },
       {
-        "path": "defaultOpen",
-        "label": "Open initially",
+        "default": false,
         "kind": "boolean",
-        "default": false
+        "label": "Open initially",
+        "path": "defaultOpen"
       }
     ]
   },
-  "environment": { "fixtures": [] },
+  "environment": {
+    "fixtures": []
+  },
+  "kind": "component",
+  "schemaVersion": 4,
   "stories": [
     {
-      "id": "default",
-      "name": "Default",
-      "harness": "Default",
-      "args": { "label": "More details about this identity", "placement": "top" },
-      "expect": [{ "kind": "role", "role": "button", "name": "Show tooltip" }],
-      "mode": "pinned"
-    },
-    {
-      "id": "open",
-      "name": "Open on focus",
-      "harness": "Open",
-      "args": { "label": "Maya Chen · Online", "defaultOpen": true, "delay": 0 },
+      "args": {
+        "label": "More details about this identity",
+        "placement": "top"
+      },
+      "composition": {
+        "specimen": {
+          "export": "Default",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
-        { "kind": "role", "role": "tooltip", "name": "Maya Chen · Online" },
-        { "kind": "role", "role": "button", "name": "Show tooltip" }
+        {
+          "kind": "role",
+          "name": "Show tooltip",
+          "role": "button"
+        }
       ],
-      "mode": "pinned"
+      "id": "default",
+      "mode": "pinned",
+      "name": "Default"
     },
     {
+      "args": {
+        "defaultOpen": true,
+        "delay": 0,
+        "label": "Maya Chen · Online"
+      },
+      "composition": {
+        "specimen": {
+          "export": "Open",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Maya Chen · Online",
+          "role": "tooltip"
+        },
+        {
+          "kind": "role",
+          "name": "Show tooltip",
+          "role": "button"
+        }
+      ],
+      "id": "open",
+      "mode": "pinned",
+      "name": "Open on focus"
+    },
+    {
+      "args": {
+        "defaultOpen": true,
+        "label": "Placement follows the trigger",
+        "placement": "bottom"
+      },
+      "composition": {
+        "specimen": {
+          "export": "Placements",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "Placement follows the trigger"
+        }
+      ],
       "id": "placements",
-      "name": "Responsive placements",
-      "harness": "Placements",
-      "args": { "label": "Placement follows the trigger", "placement": "bottom", "defaultOpen": true },
-      "expect": [{ "kind": "text", "value": "Placement follows the trigger" }],
-      "mode": "pinned"
+      "mode": "pinned",
+      "name": "Responsive placements"
     },
     {
+      "args": {
+        "defaultOpen": true,
+        "label": "Start placement",
+        "placement": "start"
+      },
+      "composition": {
+        "specimen": {
+          "export": "Placements",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "Start placement"
+        }
+      ],
       "id": "start",
-      "name": "Start placement",
-      "harness": "Placements",
-      "args": { "label": "Start placement", "placement": "start", "defaultOpen": true },
-      "expect": [{ "kind": "text", "value": "Start placement" }],
-      "mode": "pinned"
+      "mode": "pinned",
+      "name": "Start placement"
     },
     {
+      "args": {
+        "defaultOpen": true,
+        "label": "End placement",
+        "placement": "end"
+      },
+      "composition": {
+        "specimen": {
+          "export": "Placements",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "End placement"
+        }
+      ],
       "id": "end",
-      "name": "End placement",
-      "harness": "Placements",
-      "args": { "label": "End placement", "placement": "end", "defaultOpen": true },
-      "expect": [{ "kind": "text", "value": "End placement" }],
-      "mode": "pinned"
+      "mode": "pinned",
+      "name": "End placement"
     }
-  ]
+  ],
+  "title": "Tooltip"
 }

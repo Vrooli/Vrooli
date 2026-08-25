@@ -1,10 +1,35 @@
 {
-  "libraryId": "react-component-library:Draggable",
-  "catalogId": "manipulation.draggable",
-  "latest": "1.0.0",
-  "displayName": "Draggable",
-  "description": "A pointer-capturing and keyboard-operable direct-manipulation primitive with constraints, cancellation, announcements, and overlay-safe positioning.",
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "component",
+  "catalogId": "manipulation.draggable",
+  "dependencies": [
+    {
+      "libraryId": "react-component-library:useDrag",
+      "version": "1.0.0"
+    },
+    {
+      "libraryId": "react-component-library:useAnnounce",
+      "version": "1.0.0"
+    }
+  ],
+  "description": "A pointer-capturing and keyboard-operable direct-manipulation primitive with constraints, cancellation, announcements, and overlay-safe positioning.",
+  "designStyles": [
+    {
+      "affinity": "native",
+      "styleId": "vrooli-default"
+    },
+    {
+      "affinity": "compatible",
+      "styleId": "vrooli-command-display"
+    },
+    {
+      "affinity": "compatible",
+      "styleId": "vrooli-conversion-landing"
+    }
+  ],
+  "displayName": "Draggable",
+  "latest": "1.0.0",
+  "libraryId": "react-component-library:Draggable",
   "tags": [
     "manipulation",
     "drag-drop",
@@ -13,13 +38,10 @@
     "accessibility",
     "token-bound"
   ],
-  "designStyles": [
-    { "styleId": "vrooli-default", "affinity": "native" },
-    { "styleId": "vrooli-command-display", "affinity": "compatible" },
-    { "styleId": "vrooli-conversion-landing", "affinity": "compatible" }
-  ],
-  "dependencies": [
-    { "libraryId": "react-component-library:useDrag", "version": "1.0.0" },
-    { "libraryId": "react-component-library:useAnnounce", "version": "1.0.0" }
+  "requires": [
+    {
+      "libraryId": "react-component-library:useLocale",
+      "version": "1.0.0"
+    }
   ]
 }

@@ -1,25 +1,22 @@
 {
-  "libraryId": "react-component-library:inline-code",
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "catalogId": "primitives.code",
-  "displayName": "Inline Code",
-  "description": "Inline code token renderer with copy affordance.",
-  "tags": ["markdown", "code"],
-  "entry": "InlineCode.tsx",
-  "latest": "0.3.1",
   "deprecatedVersions": [],
-  "draft": "",
+  "description": "Inline code token renderer with copy affordance.",
   "designStyles": [
     {
-      "styleId": "vrooli-default",
       "affinity": "native",
-      "reason": "token-native operational-console baseline"
+      "reason": "token-native operational-console baseline",
+      "styleId": "vrooli-default"
     }
   ],
-  "requiredTokens": [
-    "--color-surface-muted",
-    "--color-border",
-    "--color-foreground",
-    "--color-muted-foreground",
-    "--color-accent"
+  "displayName": "Inline Code",
+  "draft": "",
+  "entry": "InlineCode.tsx",
+  "latest": "0.3.1",
+  "libraryId": "react-component-library:inline-code",
+  "tags": [
+    "markdown",
+    "code"
   ]
 }

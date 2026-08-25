@@ -1,86 +1,36 @@
 {
-  "schemaVersion": 3,
-  "kind": "component",
-  "title": "Card",
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
   "args": {
     "fields": [
       {
-        "path": "children",
-        "label": "Children",
-        "kind": "structured",
         "default": [
           {
-            "$node": "div",
-            "props": {
-              "className": "border-b border-app-border px-4 py-3"
-            },
-            "children": [
-              {
-                "$node": "h3",
-                "children": [
-                  {
-                    "$text": "Adoption health"
-                  }
-                ]
-              }
-            ]
+            "$text": "div"
           },
           {
-            "$node": "div",
-            "props": {
-              "className": "px-4 py-4"
-            },
-            "children": [
-              {
-                "$text": "8 scenarios current"
-              }
-            ]
+            "$text": "div"
           }
-        ]
-      },
-      {
-        "path": "className",
-        "label": "Class Name",
-        "kind": "text",
-        "default": "max-w-sm"
+        ],
+        "kind": "structured",
+        "label": "Children",
+        "path": "children"
       }
     ]
   },
   "environment": {
     "fixtures": []
   },
+  "kind": "component",
+  "schemaVersion": 4,
   "stories": [
     {
-      "id": "metric-card",
-      "name": "Metric Card",
       "args": {
         "children": [
           {
-            "$node": "div",
-            "props": {
-              "className": "border-b border-app-border px-4 py-3"
-            },
-            "children": [
-              {
-                "$node": "h3",
-                "children": [
-                  {
-                    "$text": "Adoption health"
-                  }
-                ]
-              }
-            ]
+            "$text": "div"
           },
           {
-            "$node": "div",
-            "props": {
-              "className": "px-4 py-4"
-            },
-            "children": [
-              {
-                "$text": "8 scenarios current"
-              }
-            ]
+            "$text": "div"
           }
         ]
       },
@@ -94,26 +44,17 @@
           "value": "8 scenarios current"
         }
       ],
-      "mode": "pinned"
+      "id": "metric-card",
+      "mode": "pinned",
+      "name": "Metric Card"
     },
     {
-      "id": "empty-tool",
-      "name": "Empty Tool",
       "args": {
         "children": [
           {
-            "$node": "div",
-            "props": {
-              "className": "px-4 py-4"
-            },
-            "children": [
-              {
-                "$text": "No drift detected"
-              }
-            ]
+            "$text": "div"
           }
-        ],
-        "className": "max-w-sm"
+        ]
       },
       "expect": [
         {
@@ -121,23 +62,15 @@
           "value": "No drift detected"
         }
       ],
-      "mode": "pinned"
+      "id": "empty-tool",
+      "mode": "pinned",
+      "name": "Empty Tool"
     },
     {
-      "id": "compact-record",
-      "name": "Compact Record",
       "args": {
         "children": [
           {
-            "$node": "div",
-            "props": {
-              "className": "px-4 py-3"
-            },
-            "children": [
-              {
-                "$text": "Button / v1.2.0 / native"
-              }
-            ]
+            "$text": "div"
           }
         ]
       },
@@ -147,39 +80,58 @@
           "value": "Button / v1.2.0 / native"
         }
       ],
-      "mode": "pinned"
+      "id": "compact-record",
+      "mode": "pinned",
+      "name": "Compact Record"
     },
     {
+      "args": {
+        "children": [
+          {
+            "$text": "div"
+          }
+        ]
+      },
+      "composition": {
+        "specimen": {
+          "export": "Standalone",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "Standalone surface"
+        }
+      ],
       "id": "standalone-flat",
-      "name": "Standalone flat surface",
-      "args": {
-        "children": [
-          {
-            "$node": "div",
-            "props": { "data-rcl-card-subject": true, "className": "px-4 py-3" },
-            "children": [{ "$text": "Standalone surface" }]
-          }
-        ]
-      },
-      "expect": [{ "kind": "text", "value": "Standalone surface" }],
       "mode": "live",
-      "harness": "Standalone"
+      "name": "Standalone flat surface"
     },
     {
-      "id": "card-grid-raised",
-      "name": "Card inside raised grid context",
       "args": {
         "children": [
           {
-            "$node": "div",
-            "props": { "data-rcl-card-subject": true, "className": "px-4 py-3" },
-            "children": [{ "$text": "Grid surface" }]
+            "$text": "div"
           }
         ]
       },
-      "expect": [{ "kind": "text", "value": "Grid surface" }],
+      "composition": {
+        "specimen": {
+          "export": "CardGrid",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "Grid surface"
+        }
+      ],
+      "id": "card-grid-raised",
       "mode": "live",
-      "harness": "CardGrid"
+      "name": "Card inside raised grid context"
     }
-  ]
+  ],
+  "title": "Card"
 }

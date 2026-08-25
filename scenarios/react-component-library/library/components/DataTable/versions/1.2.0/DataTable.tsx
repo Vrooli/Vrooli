@@ -2,10 +2,9 @@
  * @libraryId react-component-library:DataTable
  * @version 1.2.0
  * @status released
- * @deps {"react":"^18","lucide-react":"^0.424.0","clsx":"^2.1.1","tailwind-merge":"^2.3.0"}
+ * @deps {"react":"^18","lucide-react":"^0.424.0"}
  */
-import { clsx, type ClassValue } from "clsx";
-import { twMerge } from "tailwind-merge";
+import { cn } from "../../../../foundations/ClassMerge/versions/1.0.0/ClassMerge";
 import { ArrowDown, ArrowUp, ChevronsUpDown, Search } from "lucide-react";
 import { isValidElement, type ReactNode, useMemo, useState } from "react";
 
@@ -47,8 +46,6 @@ export interface DataTableProps<Row> {
 }
 
 type SortDirection = "asc" | "desc";
-
-const cn = (...inputs: ClassValue[]) => twMerge(clsx(inputs));
 
 // searchableText recursively extracts the visible text from a rendered accessor
 // node so a column with no explicit searchValue is still searchable by its

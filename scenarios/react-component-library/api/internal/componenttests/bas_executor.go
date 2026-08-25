@@ -305,6 +305,7 @@ func basArtifacts(libraryID, version, storyID, basBaseURL string, artifacts []ba
 		if strings.EqualFold(artifact.Type, "CAPTURE_TYPE_SCREENSHOT") && !artifact.Primary && hasPrimaryScreenshot(artifacts) {
 			continue
 		}
+		kind := strings.ToLower(strings.TrimPrefix(artifact.Type, "CAPTURE_TYPE_"))
 		reference := artifact.Reference
 		if reference == "" {
 			reference = artifact.Path
@@ -312,15 +313,18 @@ func basArtifacts(libraryID, version, storyID, basBaseURL string, artifacts []ba
 		if reference == "" {
 			continue
 		}
+		artifactKind := "bas-" + kind
+		if strings.HasPrefix(storyID, "review-sheet:") && kind == "screenshot" {
+			artifactKind = "bas-story-sheet"
+		}
+		if viewURL := strings.TrimSpace(artifact.Metadata["view_url"]); viewURL != "" {
+			reference = browserVisibleBASArtifactPath(viewURL)
+		}
 		if _, ok := seen[reference]; ok {
 			continue
 		}
 		seen[reference] = struct{}{}
-		kind := strings.ToLower(strings.TrimPrefix(artifact.Type, "CAPTURE_TYPE_"))
-		if viewURL := strings.TrimSpace(artifact.Metadata["view_url"]); viewURL != "" {
-			reference = browserVisibleBASArtifactPath(viewURL)
-		}
-		result = append(result, Artifact{Kind: "bas-" + kind, Label: fmt.Sprintf("%s:%s", storyID, kind), AssetLibraryID: libraryID, Version: version, Reference: reference})
+		result = append(result, Artifact{Kind: artifactKind, Label: fmt.Sprintf("%s:%s", storyID, kind), StoryID: storyID, AssetLibraryID: libraryID, Version: version, Reference: reference})
 	}
 	return result
 }

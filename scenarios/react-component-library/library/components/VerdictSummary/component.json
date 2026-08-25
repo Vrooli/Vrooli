@@ -1,11 +1,26 @@
 {
-  "libraryId": "react-component-library:VerdictSummary",
-  "catalogId": "data-display.verdict-summary",
-  "displayName": "VerdictSummary",
-  "description": "A compact pass, fail, and unmeasured verdict census.",
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "component",
-  "tags": ["data-display", "token-bound"],
+  "catalogId": "data-display.verdict-summary",
+  "dependencies": [],
+  "description": "A compact pass, fail, and unmeasured verdict census.",
+  "designStyles": [
+    {
+      "affinity": "native",
+      "styleId": "vrooli-default"
+    }
+  ],
+  "displayName": "VerdictSummary",
   "latest": "1.0.3",
-  "designStyles": [{ "styleId": "vrooli-default", "affinity": "native" }],
-  "dependencies": []
+  "libraryId": "react-component-library:VerdictSummary",
+  "tags": [
+    "data-display",
+    "token-bound"
+  ],
+  "requires": [
+    {
+      "libraryId": "react-component-library:useLocale",
+      "version": "1.0.0"
+    }
+  ]
 }

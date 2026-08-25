@@ -10,13 +10,14 @@
   "asset": {
     "id": "primitives.skeleton",
     "name": "Skeleton",
-    "kind": "primitive", "surface": "base",
+    "kind": "primitive",
+    "surface": "base",
     "domain": "primitives",
     "description": "The structure-aware loading placeholder that reserves the final layout and can represent text, media, avatars, rows, and custom shapes.",
     "targets": [
       "react-vite"
     ],
-    "slot": "primitive",
+    "slot": "ui-primitive",
     "delivery": "adopted",
     "target": {
       "priority": "P0",
@@ -32,6 +33,10 @@
       {
         "asset": "hooks.use-reduced-motion",
         "reason": "Motion policy is resolved through the shared hook so the preference can be overridden and tested."
+      },
+      {
+        "asset": "hooks.use-locale",
+        "reason": "User-facing copy resolves through the adopting host locale bridge."
       }
     ]
   },

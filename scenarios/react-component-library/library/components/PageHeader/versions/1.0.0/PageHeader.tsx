@@ -1,4 +1,6 @@
 /** @vrooliComponentSource react-component-library:PageHeader */
+import { translate } from "../../../../hooks/useLocale/versions/1.0.0/useLocale";
+
 import type { ReactNode } from "react";
 
 const pageHeaderStyles = `
@@ -11,7 +13,7 @@ const pageHeaderStyles = `
 `;
 
 export function PageHeader({
-  title = "Page",
+  title = translate("navigation.page-header.title.1", "Page"),
   description,
   actions,
 }: {

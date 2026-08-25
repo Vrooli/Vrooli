@@ -4,9 +4,10 @@
  * @description Compact token-bound card primitives for repeated records, focused tools, and modal content.
  * @version 1.2.0
  * @tags ["surface","layout"]
- * @deps {"react":"^18","clsx":"^2.1.1","tailwind-merge":"^2.3.0"}
+ * @deps {"react":"^18"}
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
+import { cn } from "../../../../foundations/ClassMerge/versions/1.0.0/ClassMerge";
 import type { CSSProperties, HTMLAttributes, ReactNode } from "react";
 import { useSurfaceContext } from "../../../../foundations/Contracts/versions/1.0.0/Contracts";
 import { cardStyles } from "./styles";
@@ -32,10 +33,9 @@ export interface CardContentProps extends HTMLAttributes<HTMLDivElement> {
   children: ReactNode;
 }
 
-const cn = (...inputs: Array<string | undefined>) => inputs.filter(Boolean).join(" ");
-
 export function Card({ children, className, ...props }: CardProps) {
   const { elevation = "flat" } = useSurfaceContext();
+  const testId = (props as CardProps & { "data-testid"?: string })["data-testid"];
   const surfaceStyle: CSSProperties = {
     boxShadow: `var(--elev-${elevation})`,
     ...props.style,
@@ -46,7 +46,7 @@ export function Card({ children, className, ...props }: CardProps) {
       data-rcl-card
       data-rcl-surface-elevation={elevation}
       {...props}
-      data-testid={props["data-testid"] ?? "rcl-card"}
+      data-testid={testId ?? "rcl-card"}
       style={surfaceStyle}
     >
       <style data-rcl-card-styles dangerouslySetInnerHTML={{ __html: cardStyles }} />

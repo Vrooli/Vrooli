@@ -5,13 +5,14 @@
   "asset": {
     "id": "motion.rolling-digits",
     "name": "RollingDigits",
-    "kind": "component", "surface": "raised",
+    "kind": "component",
+    "surface": "raised",
     "domain": "motion",
     "description": "The odometer-style numeric component rolling only the digits that changed while holding stable width and announcing the final value once.",
     "targets": [
       "react-vite"
     ],
-    "slot": "primitive",
+    "slot": "ui-primitive",
     "delivery": "adopted",
     "target": {
       "priority": "P2",

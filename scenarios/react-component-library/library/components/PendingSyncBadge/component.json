@@ -1,13 +1,23 @@
 {
-  "libraryId": "react-component-library:PendingSyncBadge",
-  "catalogId": "monetization.pending-sync-badge",
-  "displayName": "PendingSyncBadge",
-  "description": "Durable Class B outbox backlog indicator.",
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "component",
-  "tags": ["monetization", "outbox"],
-  "latest": "1.0.0",
+  "catalogId": "monetization.pending-sync-badge",
+  "description": "Durable Class B outbox backlog indicator.",
   "designStyles": [
-    { "styleId": "vrooli-default", "affinity": "native" },
-    { "styleId": "vrooli-command-display", "affinity": "compatible" }
+    {
+      "affinity": "native",
+      "styleId": "vrooli-default"
+    },
+    {
+      "affinity": "compatible",
+      "styleId": "vrooli-command-display"
+    }
+  ],
+  "displayName": "PendingSyncBadge",
+  "latest": "1.0.0",
+  "libraryId": "react-component-library:PendingSyncBadge",
+  "tags": [
+    "monetization",
+    "outbox"
   ]
 }

@@ -1,11 +1,27 @@
 {
-  "libraryId": "react-component-library:TreeView",
-  "catalogId": "data-display.tree-view",
-  "displayName": "TreeView",
-  "description": "An accessible hierarchical surface with honest tree semantics and bounded nesting.",
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "component",
-  "tags": ["data-display", "accessibility", "token-bound"],
+  "catalogId": "data-display.tree-view",
+  "dependencies": [],
+  "description": "An accessible hierarchical surface with honest tree semantics and bounded nesting.",
+  "designStyles": [
+    {
+      "affinity": "native",
+      "styleId": "vrooli-default"
+    }
+  ],
+  "displayName": "TreeView",
   "latest": "1.0.0",
-  "designStyles": [{ "styleId": "vrooli-default", "affinity": "native" }],
-  "dependencies": []
+  "libraryId": "react-component-library:TreeView",
+  "tags": [
+    "data-display",
+    "accessibility",
+    "token-bound"
+  ],
+  "requires": [
+    {
+      "libraryId": "react-component-library:useLocale",
+      "version": "1.0.0"
+    }
+  ]
 }

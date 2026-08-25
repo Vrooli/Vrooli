@@ -1,31 +1,26 @@
 {
-  "schemaVersion": 3,
-  "kind": "component",
-  "title": "Page",
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
   "args": {
     "fields": []
+  },
+  "composition": {
+    "frame": {
+      "asset": "navigation.app-shell",
+      "fixture": "fixtures.user-directory",
+      "region": "content",
+      "version": "1.0.0"
+    }
   },
   "environment": {
     "fixtures": []
   },
-  "frame": {
-    "asset": "navigation.app-shell",
-    "version": "1.0.0",
-    "region": "content",
-    "fixture": "fixtures.user-directory"
-  },
+  "kind": "component",
+  "schemaVersion": 4,
   "stories": [
     {
-      "id": "default",
-      "name": "Default",
       "args": {
         "children": {
-          "$node": "p",
-          "children": [
-            {
-              "$text": "Page content"
-            }
-          ]
+          "$text": "p"
         }
       },
       "expect": [
@@ -34,22 +29,20 @@
           "value": "Page content"
         }
       ],
-      "mode": "pinned"
+      "id": "default",
+      "mode": "pinned",
+      "name": "Default"
     },
     {
-      "id": "long-content",
-      "name": "Long content",
       "args": {
         "children": {
-          "$node": "p",
-          "children": [
-            {
-              "$text": "Page content"
-            }
-          ]
+          "$text": "p"
         }
       },
-      "mode": "pinned"
+      "id": "long-content",
+      "mode": "pinned",
+      "name": "Long content"
     }
-  ]
+  ],
+  "title": "Page"
 }

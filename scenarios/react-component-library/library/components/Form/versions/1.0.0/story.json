@@ -1,68 +1,84 @@
 {
-  "schemaVersion": 3,
-  "kind": "component",
-  "title": "Form",
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
   "args": {
     "fields": []
   },
   "environment": {
     "fixtures": []
   },
+  "kind": "component",
+  "schemaVersion": 4,
   "stories": [
     {
-      "id": "default",
-      "name": "Default form",
-      "harness": "Default",
       "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Default",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
         {
           "kind": "role",
-          "role": "form",
-          "name": "Workspace settings"
+          "name": "Workspace settings",
+          "role": "form"
         },
         {
           "kind": "role",
           "role": "status"
         }
       ],
-      "mode": "live"
+      "id": "default",
+      "mode": "live",
+      "name": "Default form"
     },
     {
-      "id": "error",
-      "name": "Validation recovery",
-      "harness": "Error",
       "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Error",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
         {
           "kind": "role",
-          "role": "form",
-          "name": "Workspace settings"
+          "name": "Workspace settings",
+          "role": "form"
         },
         {
           "kind": "role",
-          "role": "textbox",
-          "name": "Workspace name"
+          "name": "Workspace name",
+          "role": "textbox"
         }
       ],
-      "mode": "live"
+      "id": "error",
+      "mode": "live",
+      "name": "Validation recovery"
     },
     {
-      "id": "offline",
-      "name": "Offline status",
-      "harness": "Offline",
       "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Offline",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
         {
           "kind": "role",
-          "role": "form",
-          "name": "Offline workspace settings"
+          "name": "Offline workspace settings",
+          "role": "form"
         },
         {
           "kind": "text",
           "value": "Your work is safe"
         }
       ],
-      "mode": "live"
+      "id": "offline",
+      "mode": "live",
+      "name": "Offline status"
     }
-  ]
+  ],
+  "title": "Form"
 }

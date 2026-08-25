@@ -1,114 +1,363 @@
 {
-  "schemaVersion": 3,
-  "kind": "component",
-  "title": "Avatar",
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
   "args": {
     "fields": [
-      { "path": "name", "label": "Name", "kind": "text", "required": true, "default": "Maya Chen", "minLength": 1, "format": "plain-text" },
-      { "path": "size", "label": "Size", "kind": "enum", "default": "lg", "options": ["xs", "sm", "md", "lg", "xl"] },
-      { "path": "shape", "label": "Shape", "kind": "enum", "default": "circle", "options": ["circle", "rounded", "square"] },
-      { "path": "presence", "label": "Presence", "kind": "enum", "default": "online", "options": ["online", "away", "busy", "offline"] },
-      { "path": "presenceLabel", "label": "Presence label", "kind": "text", "format": "plain-text" },
-      { "path": "imageState", "label": "Image state", "kind": "enum", "default": "loaded", "options": ["loading", "loaded", "error"] }
+      {
+        "default": "Maya Chen",
+        "format": "plain-text",
+        "kind": "text",
+        "label": "Name",
+        "minLength": 1,
+        "path": "name",
+        "required": true
+      },
+      {
+        "default": "lg",
+        "kind": "enum",
+        "label": "Size",
+        "options": [
+          "xs",
+          "sm",
+          "md",
+          "lg",
+          "xl"
+        ],
+        "path": "size"
+      },
+      {
+        "default": "circle",
+        "kind": "enum",
+        "label": "Shape",
+        "options": [
+          "circle",
+          "rounded",
+          "square"
+        ],
+        "path": "shape"
+      },
+      {
+        "default": "online",
+        "kind": "enum",
+        "label": "Presence",
+        "options": [
+          "online",
+          "away",
+          "busy",
+          "offline"
+        ],
+        "path": "presence"
+      },
+      {
+        "format": "plain-text",
+        "kind": "text",
+        "label": "Presence label",
+        "path": "presenceLabel"
+      },
+      {
+        "default": "loaded",
+        "kind": "enum",
+        "label": "Image state",
+        "options": [
+          "loading",
+          "loaded",
+          "error"
+        ],
+        "path": "imageState"
+      }
     ]
   },
-  "environment": { "fixtures": [] },
+  "environment": {
+    "fixtures": []
+  },
+  "kind": "component",
+  "schemaVersion": 4,
   "stories": [
     {
-      "id": "default",
-      "name": "Named identity",
+      "args": {
+        "imageState": "loaded",
+        "name": "Maya Chen",
+        "presence": "online",
+        "shape": "circle",
+        "size": "lg"
+      },
+      "composition": {
+        "specimen": {
+          "export": "Default",
+          "module": "./story.tsx"
+        }
+      },
       "description": "A named person with an image, accessible presence, and a calm status treatment.",
-      "harness": "Default",
-      "args": { "name": "Maya Chen", "size": "lg", "shape": "circle", "presence": "online", "imageState": "loaded" },
       "expect": [
-        { "kind": "role", "role": "img", "name": "Maya Chen" },
-        { "kind": "role", "role": "status", "name": "Maya Chen is online" }
+        {
+          "kind": "role",
+          "name": "Maya Chen",
+          "role": "img"
+        },
+        {
+          "kind": "role",
+          "name": "Maya Chen is online",
+          "role": "status"
+        }
       ],
-      "mode": "live"
+      "id": "default",
+      "mode": "live",
+      "name": "Named identity"
     },
     {
-      "id": "identity-details",
-      "name": "Identity details",
+      "args": {
+        "imageState": "loaded",
+        "name": "Maya Chen",
+        "presence": "online",
+        "shape": "circle",
+        "size": "xl"
+      },
+      "composition": {
+        "specimen": {
+          "export": "IdentityDetails",
+          "module": "./story.tsx"
+        }
+      },
       "description": "Tooltip and Popover compose around the identity without adding nested controls or leaking overlay state into Avatar.",
-      "harness": "IdentityDetails",
-      "args": { "name": "Maya Chen", "size": "xl", "shape": "circle", "presence": "online", "imageState": "loaded" },
       "expect": [
-        { "kind": "role", "role": "img", "name": "Maya Chen" },
-        { "kind": "role", "role": "button", "name": "Show details for Maya Chen" },
-        { "kind": "role", "role": "button", "name": "Open profile card" }
+        {
+          "kind": "role",
+          "name": "Maya Chen",
+          "role": "img"
+        },
+        {
+          "kind": "role",
+          "name": "Show details for Maya Chen",
+          "role": "button"
+        },
+        {
+          "kind": "role",
+          "name": "Open profile card",
+          "role": "button"
+        }
       ],
-      "mode": "live"
+      "id": "identity-details",
+      "mode": "live",
+      "name": "Identity details"
     },
     {
-      "id": "presence-cycle",
-      "name": "Presence transition",
+      "args": {
+        "imageState": "loaded",
+        "name": "Maya Chen",
+        "presence": "online",
+        "shape": "circle",
+        "size": "lg"
+      },
+      "composition": {
+        "specimen": {
+          "export": "PresenceCycle",
+          "module": "./story.tsx"
+        }
+      },
       "description": "The status indicator can change without changing the identity surface around it.",
-      "harness": "PresenceCycle",
-      "args": { "name": "Maya Chen", "size": "lg", "shape": "circle", "presence": "online", "imageState": "loaded" },
-      "expect": [{ "kind": "role", "role": "status", "name": "Maya Chen is away" }],
-      "interactions": [{ "kind": "click", "target": { "role": "button", "name": "Cycle status" } }, { "kind": "settle" }],
-      "mode": "live"
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Maya Chen is away",
+          "role": "status"
+        }
+      ],
+      "id": "presence-cycle",
+      "interactions": [
+        {
+          "kind": "click",
+          "target": {
+            "name": "Cycle status",
+            "role": "button"
+          }
+        },
+        {
+          "kind": "settle"
+        }
+      ],
+      "mode": "live",
+      "name": "Presence transition"
     },
     {
-      "id": "loading",
-      "name": "Loading image",
+      "args": {
+        "imageState": "loading",
+        "name": "Maya Chen",
+        "presence": "away",
+        "shape": "circle",
+        "size": "lg"
+      },
+      "composition": {
+        "specimen": {
+          "export": "Loading",
+          "module": "./story.tsx"
+        }
+      },
       "description": "The reserved image frame stays stable while the image is still resolving.",
-      "harness": "Loading",
-      "args": { "name": "Maya Chen", "size": "lg", "shape": "circle", "presence": "away", "imageState": "loading" },
       "expect": [
-        { "kind": "role", "role": "img", "name": "Maya Chen" },
-        { "kind": "attribute", "selector": "[data-rcl-progressive-image]", "attribute": "aria-busy", "value": "true" }
+        {
+          "kind": "role",
+          "name": "Maya Chen",
+          "role": "img"
+        },
+        {
+          "attribute": "aria-busy",
+          "kind": "attribute",
+          "selector": "[data-rcl-progressive-image]",
+          "value": "true"
+        }
       ],
-      "mode": "live"
+      "id": "loading",
+      "mode": "live",
+      "name": "Loading image"
     },
     {
-      "id": "request-error",
-      "name": "Request error fallback",
+      "args": {
+        "imageState": "error",
+        "name": "Maya Chen",
+        "presence": "busy",
+        "shape": "circle",
+        "size": "lg"
+      },
+      "composition": {
+        "specimen": {
+          "export": "RequestError",
+          "module": "./story.tsx"
+        }
+      },
       "description": "A failed image request preserves initials and announces the failure surface.",
-      "harness": "RequestError",
-      "args": { "name": "Maya Chen", "size": "lg", "shape": "circle", "presence": "busy", "imageState": "error" },
-      "expect": [{ "kind": "role", "role": "img", "name": "Maya Chen" }, { "kind": "role", "role": "alert" }],
-      "mode": "live"
-    },
-    {
-      "id": "scale-and-shape",
-      "name": "Scale and shape",
-      "description": "Small and non-circular identities remain legible in dense lists and compact surfaces.",
-      "harness": "Default",
-      "args": { "name": "Ada Lovelace", "size": "xs", "shape": "rounded", "presence": "offline", "imageState": "loaded" },
-      "expect": [{ "kind": "role", "role": "img", "name": "Ada Lovelace" }, { "kind": "role", "role": "status", "name": "Ada Lovelace is offline" }],
-      "mode": "live"
-    },
-    {
-      "id": "compact",
-      "name": "Compact identity",
-      "description": "A small avatar preserves the same semantics when space is constrained.",
-      "harness": "Default",
-      "args": { "name": "Ravi Shah", "size": "sm", "shape": "circle", "presence": "online", "imageState": "loaded" },
-      "expect": [{ "kind": "role", "role": "img", "name": "Ravi Shah" }],
-      "mode": "live"
-    },
-    {
-      "id": "large",
-      "name": "Large identity",
-      "description": "The largest size gives image-led profiles enough presence without changing the API.",
-      "harness": "Default",
-      "args": { "name": "Noah Williams", "size": "xl", "shape": "square", "presence": "offline", "imageState": "loaded" },
-      "expect": [{ "kind": "role", "role": "img", "name": "Noah Williams" }],
-      "mode": "live"
-    },
-    {
-      "id": "group",
-      "name": "Group overflow",
-      "description": "A group keeps the people count and overflow affordance understandable at a glance.",
-      "harness": "Group",
-      "args": { "name": "Maya Chen", "size": "md", "shape": "circle", "presence": "online", "imageState": "loaded" },
       "expect": [
-        { "kind": "role", "role": "group", "name": "Reviewers" },
-        { "kind": "role", "role": "img", "name": "+1 more people" },
-        { "kind": "layout", "selector": "[data-rcl-avatar-group]", "noOverflow": true }
+        {
+          "kind": "role",
+          "name": "Maya Chen",
+          "role": "img"
+        },
+        {
+          "kind": "role",
+          "role": "alert"
+        }
       ],
-      "mode": "live"
+      "id": "request-error",
+      "mode": "live",
+      "name": "Request error fallback"
+    },
+    {
+      "args": {
+        "imageState": "loaded",
+        "name": "Ada Lovelace",
+        "presence": "offline",
+        "shape": "rounded",
+        "size": "xs"
+      },
+      "composition": {
+        "specimen": {
+          "export": "Default",
+          "module": "./story.tsx"
+        }
+      },
+      "description": "Small and non-circular identities remain legible in dense lists and compact surfaces.",
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Ada Lovelace",
+          "role": "img"
+        },
+        {
+          "kind": "role",
+          "name": "Ada Lovelace is offline",
+          "role": "status"
+        }
+      ],
+      "id": "scale-and-shape",
+      "mode": "live",
+      "name": "Scale and shape"
+    },
+    {
+      "args": {
+        "imageState": "loaded",
+        "name": "Ravi Shah",
+        "presence": "online",
+        "shape": "circle",
+        "size": "sm"
+      },
+      "composition": {
+        "specimen": {
+          "export": "Default",
+          "module": "./story.tsx"
+        }
+      },
+      "description": "A small avatar preserves the same semantics when space is constrained.",
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Ravi Shah",
+          "role": "img"
+        }
+      ],
+      "id": "compact",
+      "mode": "live",
+      "name": "Compact identity"
+    },
+    {
+      "args": {
+        "imageState": "loaded",
+        "name": "Noah Williams",
+        "presence": "offline",
+        "shape": "square",
+        "size": "xl"
+      },
+      "composition": {
+        "specimen": {
+          "export": "Default",
+          "module": "./story.tsx"
+        }
+      },
+      "description": "The largest size gives image-led profiles enough presence without changing the API.",
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Noah Williams",
+          "role": "img"
+        }
+      ],
+      "id": "large",
+      "mode": "live",
+      "name": "Large identity"
+    },
+    {
+      "args": {
+        "imageState": "loaded",
+        "name": "Maya Chen",
+        "presence": "online",
+        "shape": "circle",
+        "size": "md"
+      },
+      "composition": {
+        "specimen": {
+          "export": "Group",
+          "module": "./story.tsx"
+        }
+      },
+      "description": "A group keeps the people count and overflow affordance understandable at a glance.",
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Reviewers",
+          "role": "group"
+        },
+        {
+          "kind": "role",
+          "name": "+1 more people",
+          "role": "img"
+        },
+        {
+          "kind": "layout",
+          "noOverflow": true,
+          "selector": "[data-rcl-avatar-group]"
+        }
+      ],
+      "id": "group",
+      "mode": "live",
+      "name": "Group overflow"
     }
-  ]
+  ],
+  "title": "Avatar"
 }

@@ -1,4 +1,6 @@
 /** @vrooliComponentSource forms.validation-summary */
+import { translate } from "../../../../hooks/useLocale/versions/1.0.0/useLocale";
+
 import {
   useEffect,
   useId,
@@ -46,7 +48,7 @@ export function ValidationSummary<
   store,
   errors,
   fieldLabels,
-  title = "Review these fields",
+  title = translate("forms.validation-summary.title.1", "Review these fields"),
   onFocusField,
   className,
   style,
@@ -91,7 +93,7 @@ export function ValidationSummary<
         <ul data-rcl-validation-summary-list>
           {entries.map(([field, message]) => (
             <li key={String(field)}>
-              <a
+              <a data-testid="forms.validation-summary"
                 href={`#${String(field)}`}
                 onClick={() => onFocusField?.(field)}
               >

@@ -21,8 +21,8 @@ interface StoryHarnessProps<TArgs extends Record<string, unknown> = Record<strin
   fixtures?: Record<string, PreviewFixture>;
 }
 
-/** Typed contract for versioned injected-subject shared harnesses. */
-interface SharedHarnessProps<
+/** Typed contract for versioned injected-subject composition harnesses. */
+interface CompositionHarnessProps<
   TArgs extends Record<string, unknown> = Record<string, unknown>,
   TConfig extends Record<string, unknown> = Record<string, unknown>,
 > {

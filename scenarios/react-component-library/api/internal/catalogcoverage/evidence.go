@@ -76,6 +76,16 @@ func NewEvidenceStore(db *sql.DB) *EvidenceStore {
 	return &EvidenceStore{db: db, now: time.Now}
 }
 
+// Database returns the already-open scenario database for gates that need to
+// read a domain-owned table. Keeping this seam on EvidenceStore prevents a
+// gate from reconstructing a path and accidentally bypassing routed storage.
+func (s *EvidenceStore) Database() *sql.DB {
+	if s == nil {
+		return nil
+	}
+	return s.db
+}
+
 func (s *EvidenceStore) ensureMeasurementColumn(ctx context.Context) error {
 	if s == nil || s.db == nil {
 		return fmt.Errorf("catalog evidence store is not configured")
@@ -562,7 +572,11 @@ func versionSourcePaths(versionDir string) []string {
 // MergedEvidence combines fresh persisted browser outcomes with cheap,
 // recomputed catalog gates. Persisted rows are filtered by current revision.
 func MergedEvidence(ctx context.Context, root string, store *EvidenceStore) ([]GateEvidence, error) {
-	computed, err := RecomputeEvidence(root)
+	var runtimeDB *sql.DB
+	if store != nil {
+		runtimeDB = store.Database()
+	}
+	computed, err := recomputeEvidence(root, runtimeDB)
 	if err != nil {
 		return nil, err
 	}
@@ -837,6 +851,10 @@ func latestCaptureVersion(captures map[string]ExperienceCapture, assetID, target
 }
 
 func RecomputeEvidence(root string) ([]GateEvidence, error) {
+	return recomputeEvidence(root, nil)
+}
+
+func recomputeEvidence(root string, runtimeDB *sql.DB) ([]GateEvidence, error) {
 	assets, err := LoadCatalog(filepath.Join(root, "scenarios", "react-component-library", "catalog"))
 	if err != nil {
 		return nil, err
@@ -876,7 +894,11 @@ func RecomputeEvidence(root string) ([]GateEvidence, error) {
 			return nil, err
 		}
 	}
-	if _, statErr := os.Stat(filepath.Join(root, "scenarios", "react-component-library", "data", "react-component-library.db")); statErr == nil {
+	if runtimeDB != nil {
+		if runners["released-version-immutable"], err = gates.ValidateReleasedVersionImmutableWithDB(root, runtimeDB); err != nil {
+			return nil, err
+		}
+	} else if _, statErr := os.Stat(filepath.Join(root, "scenarios", "react-component-library", "data", "react-component-library.db")); statErr == nil {
 		if runners["released-version-immutable"], err = gates.ValidateReleasedVersionImmutable(root); err != nil {
 			return nil, err
 		}

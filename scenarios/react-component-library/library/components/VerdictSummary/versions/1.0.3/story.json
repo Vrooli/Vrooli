@@ -1,29 +1,68 @@
 {
-  "schemaVersion": 3,
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
+  "args": {
+    "fields": []
+  },
+  "environment": {
+    "fixtures": []
+  },
   "kind": "component",
-  "title": "VerdictSummary",
-  "args": { "fields": [] },
-  "environment": { "fixtures": [] },
+  "schemaVersion": 4,
   "stories": [
     {
-      "id": "default",
-      "name": "Default",
-      "harness": "VerdictSummaryStory",
-      "args": { "pass": 28, "fail": 4, "unmeasured": 12 },
+      "args": {
+        "fail": 4,
+        "pass": 28,
+        "unmeasured": 12
+      },
+      "composition": {
+        "harness": {
+          "asset": "preview.direct",
+          "version": "1.0.0",
+          "export": "Direct"
+        }
+      },
       "expect": [
-        { "kind": "text", "value": "28 pass" },
-        { "kind": "text", "value": "4 fail" },
-        { "kind": "text", "value": "12 unmeasured" }
+        {
+          "kind": "text",
+          "value": "28 pass"
+        },
+        {
+          "kind": "text",
+          "value": "4 fail"
+        },
+        {
+          "kind": "text",
+          "value": "12 unmeasured"
+        }
       ],
-      "mode": "pinned"
+      "id": "default",
+      "mode": "pinned",
+      "name": "Default"
     },
     {
+      "args": {
+        "fail": 0,
+        "pass": 0,
+        "unmeasured": 0
+      },
+      "composition": {
+        "harness": {
+          "asset": "preview.direct",
+          "version": "1.0.0",
+          "export": "Direct"
+        }
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "0 unmeasured"
+        }
+      ],
       "id": "empty",
-      "name": "Empty",
-      "harness": "VerdictSummaryStory",
-      "args": { "pass": 0, "fail": 0, "unmeasured": 0 },
-      "expect": [{ "kind": "text", "value": "0 unmeasured" }],
-      "mode": "pinned"
+      "mode": "pinned",
+      "name": "Empty"
     }
-  ]
+  ],
+  "title": "VerdictSummary"
 }

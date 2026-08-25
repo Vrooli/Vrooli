@@ -1,24 +1,27 @@
 {
-  "schemaVersion": 3,
-  "kind": "component",
-  "title": "SplitPane",
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
   "args": {
     "fields": []
   },
   "environment": {
     "fixtures": []
   },
+  "kind": "component",
+  "schemaVersion": 4,
   "stories": [
     {
-      "id": "default",
-      "name": "Two meaningful panes",
-      "harness": "Default",
       "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Default",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
         {
           "kind": "role",
-          "role": "heading",
-          "name": "Keep both decisions in view"
+          "name": "Keep both decisions in view",
+          "role": "heading"
         },
         {
           "kind": "text",
@@ -29,12 +32,15 @@
           "value": "Ready to ship"
         }
       ],
+      "id": "default",
       "interactions": [
         {
           "kind": "settle"
         }
       ],
-      "mode": "live"
+      "mode": "live",
+      "name": "Two meaningful panes"
     }
-  ]
+  ],
+  "title": "SplitPane"
 }

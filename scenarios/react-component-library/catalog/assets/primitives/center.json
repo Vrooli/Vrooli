@@ -5,13 +5,14 @@
   "asset": {
     "id": "primitives.center",
     "name": "Center",
-    "kind": "primitive", "surface": "base",
+    "kind": "primitive",
+    "surface": "base",
     "domain": "primitives",
     "description": "The constrained centering primitive handling intrinsic content, minimum heights, and safe responsive padding for empty and focus states.",
     "targets": [
       "react-vite"
     ],
-    "slot": "primitive",
+    "slot": "ui-primitive",
     "delivery": "adopted",
     "target": {
       "priority": "P1",

@@ -5,13 +5,14 @@
   "asset": {
     "id": "forms.form-section",
     "name": "FormSection",
-    "kind": "component", "surface": "raised",
+    "kind": "component",
+    "surface": "raised",
     "domain": "forms",
     "description": "The semantic grouping component with heading, description, responsive layout, optional collapse, summary, error badge, and compatibility with sticky section navigation.",
     "targets": [
       "react-vite"
     ],
-    "slot": "primitive",
+    "slot": "ui-primitive",
     "delivery": "adopted",
     "target": {
       "priority": "P1",

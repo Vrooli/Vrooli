@@ -1,27 +1,33 @@
 {
-  "schemaVersion": 3,
-  "kind": "component",
-  "title": "MonetizationAccount",
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
   "args": {
     "fields": []
   },
   "environment": {
     "fixtures": []
   },
+  "kind": "component",
+  "schemaVersion": 4,
   "stories": [
     {
-      "id": "account",
-      "name": "Signed-out account",
-      "harness": "AuthSection",
       "args": {},
+      "composition": {
+        "specimen": {
+          "export": "AuthSection",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
         {
           "kind": "role",
-          "role": "button",
-          "name": "Sign in"
+          "name": "Sign in",
+          "role": "button"
         }
       ],
-      "mode": "live"
+      "id": "account",
+      "mode": "live",
+      "name": "Signed-out account"
     }
-  ]
+  ],
+  "title": "MonetizationAccount"
 }

@@ -5,13 +5,14 @@
   "asset": {
     "id": "ai.composer-attachment-tray",
     "name": "ComposerAttachmentTray",
-    "kind": "component", "surface": "raised",
+    "kind": "component",
+    "surface": "raised",
     "domain": "ai",
     "description": "The attachment manager for pending uploads, files, links, images, and contextual records, with progress, errors, cancellation, reordering, and removal per item.",
     "targets": [
       "react-vite"
     ],
-    "slot": "primitive",
+    "slot": "ui-primitive",
     "delivery": "adopted",
     "target": {
       "priority": "P1",

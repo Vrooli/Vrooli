@@ -1,28 +1,31 @@
 {
-  "schemaVersion": 3,
-  "kind": "component",
-  "title": "Skeleton",
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
   "args": {
     "fields": []
   },
   "environment": {
     "fixtures": []
   },
+  "kind": "component",
+  "schemaVersion": 4,
   "stories": [
     {
-      "id": "default",
-      "name": "Default",
-      "sharedHarness": {
-        "asset": "preview.showcase",
-        "version": "1.0.0",
-        "export": "Showcase",
-        "config": {
-          "title": "Loading geometry",
-          "detail": "A reusable primitive specimen with stable visual context."
+      "args": {},
+      "composition": {
+        "harness": {
+          "asset": "preview.showcase",
+          "config": {
+            "detail": "A reusable primitive specimen with stable visual context.",
+            "title": "Loading geometry"
+          },
+          "export": "Showcase",
+          "version": "1.0.0"
         }
       },
-      "args": {},
-      "mode": "pinned"
+      "id": "default",
+      "mode": "pinned",
+      "name": "Default"
     }
-  ]
+  ],
+  "title": "Skeleton"
 }

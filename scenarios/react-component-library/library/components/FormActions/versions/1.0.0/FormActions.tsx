@@ -85,7 +85,7 @@ export function FormActions<
         {children ?? (
           <>
             {cancelLabel && (
-              <button
+              <button data-testid="forms.form-actions"
                 type="button"
                 data-rcl-form-action="cancel"
                 onClick={onCancel}
@@ -95,7 +95,7 @@ export function FormActions<
               </button>
             )}
             {resetLabel && (
-              <button
+              <button data-testid="forms.form-actions"
                 type="reset"
                 data-rcl-form-action="reset"
                 disabled={isDisabled}
@@ -103,7 +103,7 @@ export function FormActions<
                 {resetLabel}
               </button>
             )}
-            <button
+            <button data-testid="forms.form-actions"
               type="submit"
               data-rcl-form-action="submit"
               disabled={isDisabled}

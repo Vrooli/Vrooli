@@ -1,10 +1,31 @@
 {
-  "libraryId": "react-component-library:UndoableDestructiveAction",
-  "catalogId": "patterns.undoable-destructive-action",
-  "latest": "1.0.0",
-  "displayName": "UndoableDestructiveAction",
-  "description": "A forgiving destructive-action pattern that completes reversible removal immediately and exposes a clear undo path.",
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "component",
+  "catalogId": "patterns.undoable-destructive-action",
+  "dependencies": [
+    {
+      "libraryId": "react-component-library:UndoBanner",
+      "version": "1.0.0"
+    }
+  ],
+  "description": "A forgiving destructive-action pattern that completes reversible removal immediately and exposes a clear undo path.",
+  "designStyles": [
+    {
+      "affinity": "native",
+      "styleId": "vrooli-default"
+    },
+    {
+      "affinity": "compatible",
+      "styleId": "vrooli-command-display"
+    },
+    {
+      "affinity": "compatible",
+      "styleId": "vrooli-conversion-landing"
+    }
+  ],
+  "displayName": "UndoableDestructiveAction",
+  "latest": "1.0.0",
+  "libraryId": "react-component-library:UndoableDestructiveAction",
   "tags": [
     "patterns",
     "recovery",
@@ -13,12 +34,10 @@
     "accessibility",
     "token-bound"
   ],
-  "designStyles": [
-    { "styleId": "vrooli-default", "affinity": "native" },
-    { "styleId": "vrooli-command-display", "affinity": "compatible" },
-    { "styleId": "vrooli-conversion-landing", "affinity": "compatible" }
-  ],
-  "dependencies": [
-    { "libraryId": "react-component-library:UndoBanner", "version": "1.0.0" }
+  "requires": [
+    {
+      "libraryId": "react-component-library:useLocale",
+      "version": "1.0.0"
+    }
   ]
 }

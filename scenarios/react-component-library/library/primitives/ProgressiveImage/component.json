@@ -1,17 +1,7 @@
 {
-  "libraryId": "react-component-library:ProgressiveImage",
-  "catalogId": "primitives.progressive-image",
-  "displayName": "ProgressiveImage",
-  "description": "A responsive image surface that reserves space, reveals content gently, and degrades legibly.",
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "primitive",
-  "tags": [
-    "primitive",
-    "media",
-    "responsive",
-    "accessibility",
-    "token-bound"
-  ],
-  "slot": "ui-primitive",
+  "catalogId": "primitives.progressive-image",
   "category": "media",
   "dependencies": [
     {
@@ -19,21 +9,38 @@
       "version": "1.0.0"
     }
   ],
+  "deprecatedVersions": [],
+  "description": "A responsive image surface that reserves space, reveals content gently, and degrades legibly.",
   "designStyles": [
     {
-      "styleId": "vrooli-default",
-      "affinity": "native"
+      "affinity": "native",
+      "styleId": "vrooli-default"
     },
     {
-      "styleId": "vrooli-command-display",
-      "affinity": "compatible"
+      "affinity": "compatible",
+      "styleId": "vrooli-command-display"
     },
     {
-      "styleId": "vrooli-conversion-landing",
-      "affinity": "compatible"
+      "affinity": "compatible",
+      "styleId": "vrooli-conversion-landing"
     }
   ],
-  "latest": "1.1.0",
+  "displayName": "ProgressiveImage",
   "draft": "",
-  "deprecatedVersions": []
+  "latest": "1.1.0",
+  "libraryId": "react-component-library:ProgressiveImage",
+  "slot": "ui-primitive",
+  "tags": [
+    "primitive",
+    "media",
+    "responsive",
+    "accessibility",
+    "token-bound"
+  ],
+  "requires": [
+    {
+      "libraryId": "react-component-library:useLocale",
+      "version": "1.0.0"
+    }
+  ]
 }

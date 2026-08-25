@@ -1,67 +1,50 @@
 {
-  "schemaVersion": 3,
-  "kind": "component",
-  "title": "EmptyState",
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
   "args": {
     "fields": [
       {
-        "path": "title",
+        "default": "No components indexed",
+        "kind": "text",
         "label": "Title",
-        "kind": "text",
-        "default": "No components indexed"
+        "path": "title"
       },
       {
-        "path": "description",
+        "default": "Run the indexer to discover catalog source.",
+        "kind": "text",
         "label": "Description",
-        "kind": "text",
-        "default": "Run the indexer to discover catalog source."
+        "path": "description"
       },
       {
-        "path": "icon",
-        "label": "Icon",
-        "kind": "structured",
         "default": {
           "$icon": "PackageSearch"
-        }
-      },
-      {
-        "path": "action",
-        "label": "Action",
+        },
         "kind": "structured",
-        "default": {
-          "$node": "button",
-          "props": {
-            "type": "button",
-            "className": "rounded-control bg-app-primary px-3 py-2 text-app-primary-foreground"
-          },
-          "children": [
-            {
-              "$text": "Create adoption"
-            }
-          ]
-        }
+        "label": "Icon",
+        "path": "icon"
       },
       {
-        "path": "className",
-        "label": "Class Name",
-        "kind": "text",
-        "default": "max-w-sm"
+        "default": {
+          "$text": "button"
+        },
+        "kind": "structured",
+        "label": "Action",
+        "path": "action"
       }
     ]
   },
   "environment": {
     "fixtures": []
   },
+  "kind": "component",
+  "schemaVersion": 4,
   "stories": [
     {
-      "id": "no-components",
-      "name": "No Components",
       "args": {
-        "title": "No components indexed",
         "description": "Run the indexer to discover catalog source.",
         "icon": {
           "$icon": "PackageSearch"
-        }
+        },
+        "title": "No components indexed"
       },
       "expect": [
         {
@@ -73,49 +56,39 @@
           "value": "Run the indexer"
         }
       ],
-      "mode": "pinned"
+      "id": "no-components",
+      "mode": "pinned",
+      "name": "No Components"
     },
     {
-      "id": "with-action",
-      "name": "With Action",
       "args": {
-        "title": "No adoptions yet",
+        "action": {
+          "$text": "button"
+        },
         "description": "Record a scenario adoption to track drift.",
         "icon": {
           "$icon": "GitBranch"
         },
-        "action": {
-          "$node": "button",
-          "props": {
-            "type": "button",
-            "className": "rounded-control bg-app-primary px-3 py-2 text-app-primary-foreground"
-          },
-          "children": [
-            {
-              "$text": "Create adoption"
-            }
-          ]
-        }
+        "title": "No adoptions yet"
       },
       "expect": [
         {
           "kind": "role",
-          "role": "button",
-          "name": "Create adoption"
+          "name": "Create adoption",
+          "role": "button"
         },
         {
           "kind": "text",
           "value": "No adoptions yet"
         }
       ],
-      "mode": "pinned"
+      "id": "with-action",
+      "mode": "pinned",
+      "name": "With Action"
     },
     {
-      "id": "compact",
-      "name": "Compact",
       "args": {
-        "title": "Nothing to review",
-        "className": "max-w-sm"
+        "title": "Nothing to review"
       },
       "expect": [
         {
@@ -123,7 +96,10 @@
           "value": "Nothing to review"
         }
       ],
-      "mode": "pinned"
+      "id": "compact",
+      "mode": "pinned",
+      "name": "Compact"
     }
-  ]
+  ],
+  "title": "EmptyState"
 }

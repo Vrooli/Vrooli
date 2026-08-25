@@ -6,6 +6,8 @@
  * @tags ["monetization","account"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
+import { translate } from "../../../../hooks/useLocale/versions/1.0.0/useLocale";
+
 export type EntitlementStatus =
   | "active"
   | "trialing"
@@ -72,7 +74,7 @@ export function SubscriptionStatusCard({
   status,
   credits,
   multiplier = 1,
-  label = "credits",
+  label = translate("monetization.account-surface.label.1", "credits"),
 }: {
   plan: string;
   status: EntitlementStatus;
@@ -81,7 +83,7 @@ export function SubscriptionStatusCard({
   label?: string;
 }) {
   return (
-    <section aria-label="Subscription status">
+    <section aria-label={translate("monetization.account-surface.aria-label.2", "Subscription status")}>
       <strong>{plan}</strong>
       <span>{status}</span>
       <span>
@@ -101,7 +103,7 @@ export function AuthSection({
   onSignOut: () => void;
 }) {
   return (
-    <section aria-label="Account">
+    <section aria-label={translate("monetization.account-surface.aria-label.3", "Account")}>
       <button type="button" onClick={signedIn ? onSignOut : onSignIn}>
         {signedIn ? "Sign out" : "Sign in"}
       </button>
@@ -123,7 +125,7 @@ export function UpgradePrompt({
       <p>
         {feature} requires {requiredPlan}.
       </p>
-      <a href={href}>Manage subscription</a>
+      <a href={href}>{translate("monetization.account-surface.text.7", "Manage subscription")}</a>
     </section>
   );
 }
@@ -149,20 +151,20 @@ export function SubscriptionBadge({
     <button
       type="button"
       onClick={onClick}
-      aria-label="Manage subscription"
+      aria-label={translate("monetization.account-surface.aria-label.4", "Manage subscription")}
       className="relative"
     >
       <span>{plan}</span>
       <span>{status}</span>
       <span>{credits} credits</span>
-      {offline ? <span aria-label="offline">cached</span> : null}
+      {offline ? <span aria-label={translate("monetization.account-surface.aria-label.5", "offline")}>{translate("monetization.account-surface.text.8", "cached")}</span> : null}
     </button>
   );
 }
 
 export function EntitlementErrorCard({
   errorType,
-  title = "Subscription access unavailable",
+  title = translate("monetization.account-surface.title.6", "Subscription access unavailable"),
   message = "Subscription access is temporarily unavailable.",
   plan,
   creditsUsed,

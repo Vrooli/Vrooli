@@ -1,4 +1,6 @@
 /** @vrooliComponentSource react-component-library:JsonViewer */
+import { translate } from "../../../../hooks/useLocale/versions/1.0.0/useLocale";
+
 const panel = {
   border: "1px solid var(--color-border, #cbd5e1)",
   borderRadius: "var(--radius-panel, .75rem)",
@@ -10,7 +12,7 @@ const panel = {
 export function JsonViewer({ value = {} }: { value?: unknown }) {
   return (
     <pre
-      aria-label="JSON value"
+      aria-label={translate("data-display.json-viewer.aria-label.1", "JSON value")}
       style={{
         ...panel,
         overflow: "auto",

@@ -10,13 +10,14 @@
   "asset": {
     "id": "navigation.page-header",
     "name": "PageHeader",
-    "kind": "component", "surface": "raised",
+    "kind": "component",
+    "surface": "raised",
     "domain": "navigation",
     "description": "The responsive title region carrying breadcrumbs, description, metadata, primary and overflow actions, optional tabs, and compact behavior as the page scrolls.",
     "targets": [
       "react-vite"
     ],
-    "slot": "primitive",
+    "slot": "ui-primitive",
     "delivery": "adopted",
     "target": {
       "priority": "P0",
@@ -32,6 +33,10 @@
       {
         "asset": "controls.button-group",
         "reason": "Actions collapse into overflow through the shared group."
+      },
+      {
+        "asset": "hooks.use-locale",
+        "reason": "User-facing copy resolves through the adopting host locale bridge."
       }
     ],
     "suggests": [

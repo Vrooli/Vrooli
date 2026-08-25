@@ -1,49 +1,60 @@
 {
-  "schemaVersion": 3,
-  "kind": "component",
-  "title": "AspectRatio",
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
   "args": {
     "fields": []
   },
   "environment": {
     "fixtures": []
   },
+  "kind": "component",
+  "schemaVersion": 4,
   "stories": [
     {
-      "id": "default",
-      "name": "Reserved media frame",
-      "harness": "Default",
       "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Default",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
         {
           "kind": "text",
           "value": "4:3 media frame"
         }
       ],
+      "id": "default",
       "interactions": [
         {
           "kind": "settle"
         }
       ],
-      "mode": "live"
+      "mode": "live",
+      "name": "Reserved media frame"
     },
     {
-      "id": "wide",
-      "name": "Wide frame",
-      "harness": "Wide",
       "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Wide",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
         {
           "kind": "text",
           "value": "21:9 media frame"
         }
       ],
+      "id": "wide",
       "interactions": [
         {
           "kind": "settle"
         }
       ],
-      "mode": "live"
+      "mode": "live",
+      "name": "Wide frame"
     }
-  ]
+  ],
+  "title": "AspectRatio"
 }

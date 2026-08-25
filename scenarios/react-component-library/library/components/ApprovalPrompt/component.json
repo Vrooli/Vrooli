@@ -1,22 +1,53 @@
 {
-  "libraryId": "react-component-library:ApprovalPrompt",
-  "catalogId": "ai.approval-prompt",
-  "displayName": "ApprovalPrompt",
-  "description": "A human-in-the-loop decision surface that makes action scope, consequences, expiry, and recovery explicit.",
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "component",
-  "tags": ["ai", "approval", "permission", "accessibility", "token-bound"],
-  "latest": "1.0.0",
-  "designStyles": [
-    { "styleId": "vrooli-default", "affinity": "native" },
-    { "styleId": "vrooli-command-display", "affinity": "compatible" },
-    { "styleId": "vrooli-conversion-landing", "affinity": "compatible" }
-  ],
+  "catalogId": "ai.approval-prompt",
   "dependencies": [
-    { "libraryId": "react-component-library:Alert", "version": "1.0.0" },
-    { "libraryId": "react-component-library:Button", "version": "2.0.0" },
-    { "libraryId": "react-component-library:ButtonGroup", "version": "1.0.0" },
+    {
+      "libraryId": "react-component-library:Alert",
+      "version": "1.0.0"
+    },
+    {
+      "libraryId": "react-component-library:Button",
+      "version": "2.0.0"
+    },
+    {
+      "libraryId": "react-component-library:ButtonGroup",
+      "version": "1.0.0"
+    },
     {
       "libraryId": "react-component-library:StatusIndicator",
+      "version": "1.0.0"
+    }
+  ],
+  "description": "A human-in-the-loop decision surface that makes action scope, consequences, expiry, and recovery explicit.",
+  "designStyles": [
+    {
+      "affinity": "native",
+      "styleId": "vrooli-default"
+    },
+    {
+      "affinity": "compatible",
+      "styleId": "vrooli-command-display"
+    },
+    {
+      "affinity": "compatible",
+      "styleId": "vrooli-conversion-landing"
+    }
+  ],
+  "displayName": "ApprovalPrompt",
+  "latest": "1.0.0",
+  "libraryId": "react-component-library:ApprovalPrompt",
+  "tags": [
+    "ai",
+    "approval",
+    "permission",
+    "accessibility",
+    "token-bound"
+  ],
+  "requires": [
+    {
+      "libraryId": "react-component-library:useLocale",
       "version": "1.0.0"
     }
   ]

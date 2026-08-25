@@ -1,122 +1,64 @@
 {
-  "schemaVersion": 3,
-  "kind": "component",
-  "title": "AssetDetailShell",
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
   "args": {
     "fields": [
       {
-        "path": "title",
+        "default": "Release artifact",
+        "kind": "text",
         "label": "Title",
-        "kind": "text",
-        "default": "Release artifact"
+        "path": "title"
       },
       {
-        "path": "preview",
+        "default": {
+          "$text": "div"
+        },
+        "kind": "structured",
         "label": "Preview",
-        "kind": "structured",
-        "default": {
-          "$node": "div",
-          "children": [
-            {
-              "$text": "Release artifact preview"
-            }
-          ]
-        }
+        "path": "preview"
       },
       {
-        "path": "metadata",
+        "default": {
+          "$text": "dl"
+        },
+        "kind": "structured",
         "label": "Metadata",
-        "kind": "structured",
-        "default": {
-          "$node": "dl",
-          "children": [
-            {
-              "$node": "dt",
-              "children": [
-                {
-                  "$text": "Version"
-                }
-              ]
-            },
-            {
-              "$node": "dd",
-              "children": [
-                {
-                  "$text": "1.2.0"
-                }
-              ]
-            }
-          ]
-        }
+        "path": "metadata"
       },
       {
-        "path": "activity",
+        "default": {
+          "$text": "p"
+        },
+        "kind": "structured",
         "label": "Activity",
-        "kind": "structured",
-        "default": {
-          "$node": "p",
-          "children": [
-            {
-              "$text": "Validated by 12 checks."
-            }
-          ]
-        }
+        "path": "activity"
       },
       {
-        "path": "activityState",
-        "label": "Activity State",
+        "default": "ready",
         "kind": "text",
-        "default": "ready"
+        "label": "Activity State",
+        "path": "activityState"
       }
     ]
   },
   "environment": {
     "fixtures": []
   },
+  "kind": "component",
+  "schemaVersion": 4,
   "stories": [
     {
-      "id": "ready-detail",
-      "name": "Ready asset detail",
       "args": {
-        "title": "Release artifact",
-        "preview": {
-          "$node": "div",
-          "children": [
-            {
-              "$text": "Release artifact preview"
-            }
-          ]
-        },
-        "metadata": {
-          "$node": "dl",
-          "children": [
-            {
-              "$node": "dt",
-              "children": [
-                {
-                  "$text": "Version"
-                }
-              ]
-            },
-            {
-              "$node": "dd",
-              "children": [
-                {
-                  "$text": "1.2.0"
-                }
-              ]
-            }
-          ]
-        },
         "activity": {
-          "$node": "p",
-          "children": [
-            {
-              "$text": "Validated by 12 checks."
-            }
-          ]
+          "$text": "p"
         },
-        "activitySurfaceId": "asset-activity"
+        "activitySurfaceId": "asset-activity",
+        "metadata": {
+          "$text": "dl"
+        },
+        "preview": {
+          "$text": "div"
+        },
+        "title": "Release artifact"
       },
       "expect": [
         {
@@ -129,167 +71,115 @@
         },
         {
           "kind": "attribute",
-          "selector": "[data-experience-surface=\"asset-activity\"]",
           "name": "data-experience-state",
+          "selector": "[data-experience-surface=\"asset-activity\"]",
           "value": "ready"
         }
       ],
-      "mode": "pinned"
+      "id": "ready-detail",
+      "mode": "pinned",
+      "name": "Ready asset detail"
     },
     {
-      "id": "activity-partial",
-      "name": "Partial activity",
       "args": {
-        "title": "Release artifact",
-        "preview": {
-          "$node": "div",
-          "children": [
-            {
-              "$text": "Artifact preview"
-            }
-          ]
-        },
+        "activityState": "partial",
         "metadata": {
-          "$node": "p",
-          "children": [
-            {
-              "$text": "Version 1.2.0"
-            }
-          ]
+          "$text": "p"
         },
-        "activityState": "partial"
+        "preview": {
+          "$text": "div"
+        },
+        "title": "Release artifact"
       },
       "expect": [
         {
           "kind": "role",
-          "role": "status",
-          "name": "Some information is unavailable."
+          "name": "Some information is unavailable.",
+          "role": "status"
         }
       ],
-      "mode": "pinned"
+      "id": "activity-partial",
+      "mode": "pinned",
+      "name": "Partial activity"
     },
     {
-      "id": "activity-loading",
-      "name": "Loading activity",
       "args": {
-        "title": "Release artifact",
-        "preview": {
-          "$node": "div",
-          "children": [
-            {
-              "$text": "Artifact preview"
-            }
-          ]
-        },
-        "metadata": {
-          "$node": "p",
-          "children": [
-            {
-              "$text": "Version 1.2.0"
-            }
-          ]
+        "activityLoading": {
+          "$text": "p"
         },
         "activityState": "loading",
-        "activityLoading": {
-          "$node": "p",
-          "children": [
-            {
-              "$text": "Loading checks…"
-            }
-          ]
-        }
+        "metadata": {
+          "$text": "p"
+        },
+        "preview": {
+          "$text": "div"
+        },
+        "title": "Release artifact"
       },
       "expect": [
         {
           "kind": "attribute",
-          "selector": "[data-experience-surface=\"asset-activity\"]",
           "name": "data-experience-state",
+          "selector": "[data-experience-surface=\"asset-activity\"]",
           "value": "loading"
         }
       ],
-      "mode": "pinned"
+      "id": "activity-loading",
+      "mode": "pinned",
+      "name": "Loading activity"
     },
     {
-      "id": "activity-empty",
-      "name": "Empty activity",
       "args": {
-        "title": "Release artifact",
-        "preview": {
-          "$node": "div",
-          "children": [
-            {
-              "$text": "Artifact preview"
-            }
-          ]
-        },
-        "metadata": {
-          "$node": "p",
-          "children": [
-            {
-              "$text": "Version 1.2.0"
-            }
-          ]
+        "activityEmpty": {
+          "$text": "p"
         },
         "activityState": "empty",
-        "activityEmpty": {
-          "$node": "p",
-          "children": [
-            {
-              "$text": "No checks yet."
-            }
-          ]
-        }
+        "metadata": {
+          "$text": "p"
+        },
+        "preview": {
+          "$text": "div"
+        },
+        "title": "Release artifact"
       },
       "expect": [
         {
           "kind": "attribute",
-          "selector": "[data-experience-surface=\"asset-activity\"]",
           "name": "data-experience-state",
+          "selector": "[data-experience-surface=\"asset-activity\"]",
           "value": "empty"
         }
       ],
-      "mode": "pinned"
+      "id": "activity-empty",
+      "mode": "pinned",
+      "name": "Empty activity"
     },
     {
-      "id": "activity-error",
-      "name": "Activity error",
       "args": {
-        "title": "Release artifact",
-        "preview": {
-          "$node": "div",
-          "children": [
-            {
-              "$text": "Artifact preview"
-            }
-          ]
-        },
-        "metadata": {
-          "$node": "p",
-          "children": [
-            {
-              "$text": "Version 1.2.0"
-            }
-          ]
+        "activityError": {
+          "$text": "p"
         },
         "activityState": "error",
-        "activityError": {
-          "$node": "p",
-          "children": [
-            {
-              "$text": "Checks could not be loaded."
-            }
-          ]
-        }
+        "metadata": {
+          "$text": "p"
+        },
+        "preview": {
+          "$text": "div"
+        },
+        "title": "Release artifact"
       },
       "expect": [
         {
           "kind": "attribute",
-          "selector": "[data-experience-surface=\"asset-activity\"]",
           "name": "data-experience-state",
+          "selector": "[data-experience-surface=\"asset-activity\"]",
           "value": "error"
         }
       ],
-      "mode": "pinned"
+      "id": "activity-error",
+      "mode": "pinned",
+      "name": "Activity error"
     }
-  ]
+  ],
+  "title": "AssetDetailShell"
 }

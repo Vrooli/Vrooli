@@ -1,67 +1,87 @@
 {
-  "schemaVersion": 3,
-  "kind": "component",
-  "title": "GlobalCommandSystem",
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
   "args": {
     "fields": []
   },
   "environment": {
     "fixtures": []
   },
+  "kind": "component",
+  "schemaVersion": 4,
   "stories": [
     {
-      "id": "default",
-      "name": "Command launcher",
-      "harness": "Default",
       "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Default",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
         {
           "kind": "role",
-          "role": "button",
-          "name": "Open command palette"
+          "name": "Open command palette",
+          "role": "button"
         },
         {
           "kind": "text",
           "value": "One command language, everywhere"
         }
       ],
-      "mode": "live"
+      "id": "default",
+      "mode": "live",
+      "name": "Command launcher"
     },
     {
-      "id": "open-recent",
-      "name": "Open command palette",
-      "harness": "OpenRecent",
       "args": {},
+      "composition": {
+        "specimen": {
+          "export": "OpenRecent",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
         {
           "kind": "role",
-          "role": "dialog",
-          "name": "Command palette"
+          "name": "Command palette",
+          "role": "dialog"
         },
         {
           "kind": "role",
-          "role": "combobox",
-          "name": "Search commands"
+          "name": "Search commands",
+          "role": "combobox"
         },
         {
           "kind": "role",
-          "role": "listbox",
-          "name": "Available commands"
+          "name": "Available commands",
+          "role": "listbox"
         }
       ],
-      "mode": "live"
+      "id": "open-recent",
+      "mode": "live",
+      "name": "Open command palette"
     },
     {
-      "id": "interactive",
-      "name": "Keyboard execution",
-      "harness": "Interactive",
       "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Interactive",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "Ran: Open release brief"
+        }
+      ],
+      "id": "interactive",
       "interactions": [
         {
           "kind": "click",
           "target": {
-            "role": "button",
-            "name": "Open command palette"
+            "name": "Open command palette",
+            "role": "button"
           }
         },
         {
@@ -70,8 +90,8 @@
         {
           "kind": "type",
           "target": {
-            "role": "combobox",
-            "name": "Search commands"
+            "name": "Search commands",
+            "role": "combobox"
           },
           "text": "release"
         },
@@ -81,8 +101,8 @@
         {
           "kind": "key",
           "target": {
-            "role": "combobox",
-            "name": "Search commands"
+            "name": "Search commands",
+            "role": "combobox"
           },
           "text": "Enter"
         },
@@ -90,24 +110,22 @@
           "kind": "settle"
         }
       ],
-      "expect": [
-        {
-          "kind": "text",
-          "value": "Ran: Open release brief"
-        }
-      ],
-      "mode": "live"
+      "mode": "live",
+      "name": "Keyboard execution"
     },
     {
-      "id": "request-error",
-      "name": "Refresh recovery",
-      "harness": "RequestError",
       "args": {},
+      "composition": {
+        "specimen": {
+          "export": "RequestError",
+          "module": "./story.tsx"
+        }
+      },
       "expect": [
         {
           "kind": "role",
-          "role": "dialog",
-          "name": "Command palette"
+          "name": "Command palette",
+          "role": "dialog"
         },
         {
           "kind": "role",
@@ -118,7 +136,10 @@
           "value": "command index could not be refreshed"
         }
       ],
-      "mode": "live"
+      "id": "request-error",
+      "mode": "live",
+      "name": "Refresh recovery"
     }
-  ]
+  ],
+  "title": "GlobalCommandSystem"
 }

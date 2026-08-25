@@ -1,11 +1,21 @@
 {
-  "libraryId": "react-component-library:StatusIndicator",
-  "catalogId": "primitives.status-indicator",
-  "displayName": "StatusIndicator",
-  "description": "A compact live status signal with explicit semantic states and accessible status output.",
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "component",
-  "tags": ["primitive", "feedback", "token-bound"],
+  "catalogId": "primitives.status-indicator",
+  "dependencies": [],
+  "description": "A compact live status signal with explicit semantic states and accessible status output.",
+  "designStyles": [
+    {
+      "affinity": "native",
+      "styleId": "vrooli-default"
+    }
+  ],
+  "displayName": "StatusIndicator",
   "latest": "1.0.0",
-  "designStyles": [{ "styleId": "vrooli-default", "affinity": "native" }],
-  "dependencies": []
+  "libraryId": "react-component-library:StatusIndicator",
+  "tags": [
+    "primitive",
+    "feedback",
+    "token-bound"
+  ]
 }

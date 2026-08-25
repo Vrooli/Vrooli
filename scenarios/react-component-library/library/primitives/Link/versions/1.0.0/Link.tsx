@@ -5,7 +5,7 @@ export const Link = forwardRef<
   HTMLAnchorElement,
   AnchorHTMLAttributes<HTMLAnchorElement>
 >(({ children, style, ...props }, ref) => (
-  <a
+  <a data-testid="primitives.link"
     ref={ref}
     data-link="true"
     style={{

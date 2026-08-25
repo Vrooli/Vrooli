@@ -4,6 +4,8 @@
  * @status released
  * @deps {"react":"^18"}
  */
+import { translate } from "../../../../hooks/useLocale/versions/1.0.0/useLocale";
+
 import type { Dispatch, SetStateAction } from "react";
 
 export type StoryPaletteItem = { id: string; label: string };
@@ -18,7 +20,7 @@ export function StoryPalette({
   onSelect?: Dispatch<SetStateAction<string>> | ((id: string) => void);
 }) {
   return (
-    <nav aria-label="Preview stories" data-story-palette>
+    <nav aria-label={translate("preview.story-palette.aria-label.1", "Preview stories")} data-story-palette>
       <div style={{ display: "flex", gap: "var(--space-3xs)", overflowX: "auto", paddingBlock: "var(--space-3xs)" }}>
         {stories.map((story) => {
           const selected = story.id === selectedId;

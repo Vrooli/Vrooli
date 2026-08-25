@@ -337,7 +337,7 @@ export function PopoverTrigger({
     });
   }
   return (
-    <button
+    <button data-testid="overlays.popover"
       {...sharedProps}
       ref={(element) => { context.triggerRef.current = element; }}
       onClick={(event) => {

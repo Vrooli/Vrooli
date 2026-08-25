@@ -1,11 +1,26 @@
 {
-  "libraryId": "react-component-library:List",
-  "catalogId": "data-display.list",
-  "displayName": "List",
-  "description": "A responsive list surface with stable item rhythm and empty-state composition.",
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "component",
-  "tags": ["data-display", "token-bound"],
+  "catalogId": "data-display.list",
+  "dependencies": [],
+  "description": "A responsive list surface with stable item rhythm and empty-state composition.",
+  "designStyles": [
+    {
+      "affinity": "native",
+      "styleId": "vrooli-default"
+    }
+  ],
+  "displayName": "List",
   "latest": "1.0.0",
-  "designStyles": [{ "styleId": "vrooli-default", "affinity": "native" }],
-  "dependencies": []
+  "libraryId": "react-component-library:List",
+  "tags": [
+    "data-display",
+    "token-bound"
+  ],
+  "requires": [
+    {
+      "libraryId": "react-component-library:useLocale",
+      "version": "1.0.0"
+    }
+  ]
 }

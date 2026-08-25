@@ -593,7 +593,10 @@ func (h *connectHandler) PersistPreviewFrame(ctx context.Context, req *connect.R
 		if contract.Stories[i].ID != req.Msg.StoryId {
 			continue
 		}
-		contract.Stories[i].Frame = &components.StoryFrame{
+		if contract.Stories[i].Composition == nil {
+			contract.Stories[i].Composition = &components.StoryComposition{}
+		}
+		contract.Stories[i].Composition.Frame = &components.StoryFrame{
 			Asset: req.Msg.Asset, Version: req.Msg.FrameVersion, Region: req.Msg.Region,
 			Capability: req.Msg.Capability, Fixture: req.Msg.Fixture,
 		}
@@ -770,6 +773,7 @@ func (h *connectHandler) IndexComponents(ctx context.Context, _ *connect.Request
 		Deleted:    int32(res.Deleted),
 		Errors:     errs,
 		LibraryIds: append([]string(nil), res.LibraryIDs...),
+		Warnings:   append([]string(nil), res.Warnings...),
 	}), nil
 }
 

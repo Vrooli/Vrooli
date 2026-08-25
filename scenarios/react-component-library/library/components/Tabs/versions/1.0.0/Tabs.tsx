@@ -141,7 +141,7 @@ export function Tabs({
                 aria-controls={panels ? `rcl-tab-panel-${index}` : undefined}
                 tabIndex={selected ? 0 : -1}
                 data-index={index}
-                data-testid={itemTestId?.(item.id)}
+                data-testid={itemTestId?.(item.id) ?? "navigation.tabs"}
                 data-rcl-tab-trigger
                 data-rcl-tab
                 onClick={() => {

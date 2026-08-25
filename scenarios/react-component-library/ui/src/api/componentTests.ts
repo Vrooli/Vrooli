@@ -23,6 +23,7 @@ export interface ComponentTestResult {
 export interface ComponentTestArtifact {
   kind: string;
   label: string;
+  storyId: string;
   assetLibraryId: string;
   version: string;
   reference: string;

@@ -5,13 +5,14 @@
   "asset": {
     "id": "data-display.activity-feed",
     "name": "ActivityFeed",
-    "kind": "component", "surface": "raised",
+    "kind": "component",
+    "surface": "raised",
     "domain": "data-display",
     "description": "The human-readable stream of actions with actors, targets, timestamps, grouping, expansion, filters, pagination, and optimistic entries.",
     "targets": [
       "react-vite"
     ],
-    "slot": "primitive",
+    "slot": "ui-primitive",
     "delivery": "adopted",
     "target": {
       "priority": "P1",

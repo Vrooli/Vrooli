@@ -1,12 +1,22 @@
 {
-  "libraryId": "react-component-library:PageFrame",
-  "displayName": "Page Frame",
-  "description": "A route-content boundary that gives navigation and page specimens a real responsive document context.",
-  "tags": ["layout", "navigation", "frame"],
-  "slot": "layout-nav",
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "category": "navigation",
-  "designStyles": [{ "styleId": "vrooli-default", "affinity": "native" }],
-  "latest": "1.0.0",
+  "deprecatedVersions": [],
+  "description": "A route-content boundary that gives navigation and page specimens a real responsive document context.",
+  "designStyles": [
+    {
+      "affinity": "native",
+      "styleId": "vrooli-default"
+    }
+  ],
+  "displayName": "Page Frame",
   "draft": "",
-  "deprecatedVersions": []
+  "latest": "1.0.0",
+  "libraryId": "react-component-library:PageFrame",
+  "slot": "layout-nav",
+  "tags": [
+    "layout",
+    "navigation",
+    "frame"
+  ]
 }

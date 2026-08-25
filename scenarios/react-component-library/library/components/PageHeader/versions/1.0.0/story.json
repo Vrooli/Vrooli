@@ -1,27 +1,27 @@
 {
-  "schemaVersion": 3,
-  "kind": "component",
-  "title": "PageHeader",
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
   "args": {
     "fields": []
+  },
+  "composition": {
+    "frame": {
+      "asset": "navigation.page",
+      "capability": "navigation",
+      "fixture": "fixtures.user-directory",
+      "region": "navigation",
+      "version": "1.0.0"
+    }
   },
   "environment": {
     "fixtures": []
   },
-  "frame": {
-    "asset": "navigation.page",
-    "version": "1.0.0",
-    "region": "navigation",
-    "capability": "navigation",
-    "fixture": "fixtures.user-directory"
-  },
+  "kind": "component",
+  "schemaVersion": 4,
   "stories": [
     {
-      "id": "default",
-      "name": "Default",
       "args": {
-        "title": "Overview",
-        "description": "Workspace"
+        "description": "Workspace",
+        "title": "Overview"
       },
       "expect": [
         {
@@ -29,14 +29,14 @@
           "value": "Overview"
         }
       ],
-      "mode": "pinned"
+      "id": "default",
+      "mode": "pinned",
+      "name": "Default"
     },
     {
-      "id": "fixture-failure",
-      "name": "Fixture failure",
       "args": {
-        "title": "Overview",
-        "description": "Workspace"
+        "description": "Workspace",
+        "title": "Overview"
       },
       "expect": [
         {
@@ -44,16 +44,19 @@
           "role": "alert"
         }
       ],
-      "mode": "pinned"
+      "id": "fixture-failure",
+      "mode": "pinned",
+      "name": "Fixture failure"
     },
     {
-      "id": "long-content",
-      "name": "Long content",
       "args": {
-        "title": "Overview",
-        "description": "Workspace"
+        "description": "Workspace",
+        "title": "Overview"
       },
-      "mode": "pinned"
+      "id": "long-content",
+      "mode": "pinned",
+      "name": "Long content"
     }
-  ]
+  ],
+  "title": "PageHeader"
 }

@@ -5,13 +5,14 @@
   "asset": {
     "id": "primitives.scroll-shadow",
     "name": "ScrollShadow",
-    "kind": "primitive", "surface": "base",
+    "kind": "primitive",
+    "surface": "base",
     "domain": "primitives",
     "description": "The boundary-aware surface effect revealing that scrollable content continues above, below, or to either side of the visible region.",
     "targets": [
       "react-vite"
     ],
-    "slot": "primitive",
+    "slot": "ui-primitive",
     "delivery": "adopted",
     "target": {
       "priority": "P1",

@@ -1,21 +1,19 @@
 {
-  "schemaVersion": 3,
-  "kind": "component",
-  "title": "StatCard",
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
   "args": {
     "fields": []
   },
   "environment": {
     "fixtures": []
   },
+  "kind": "component",
+  "schemaVersion": 4,
   "stories": [
     {
-      "id": "default",
-      "name": "Default",
       "args": {
         "label": "Active",
-        "value": "42",
-        "trend": "Up"
+        "trend": "Up",
+        "value": "42"
       },
       "expect": [
         {
@@ -23,17 +21,20 @@
           "value": "42"
         }
       ],
-      "mode": "pinned"
+      "id": "default",
+      "mode": "pinned",
+      "name": "Default"
     },
     {
-      "id": "empty",
-      "name": "Empty",
       "args": {
         "label": "Active",
-        "value": "42",
-        "trend": "Up"
+        "trend": "Up",
+        "value": "42"
       },
-      "mode": "pinned"
+      "id": "empty",
+      "mode": "pinned",
+      "name": "Empty"
     }
-  ]
+  ],
+  "title": "StatCard"
 }

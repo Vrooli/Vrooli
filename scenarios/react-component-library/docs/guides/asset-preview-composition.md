@@ -38,7 +38,7 @@ own deterministic data or provider behavior.
 | Story identity, args, expectations, interactions | Version-local `story.json` and `concepts/STORY-CONTRACT.md`     | Story parser, indexer, and browser evaluator               |
 | Frame regions and accepted capabilities          | Frame catalog descriptor                                        | Frame registry and compatibility resolver                  |
 | Frame implementation version                     | `story.json` frame `version`                                    | Preview version resolver                                   |
-| Shared harness implementation/export/config      | `story.json` `sharedHarness` and `library/preview-harnesses/**` | Shared harness bundler and path-safety checks              |
+| Versioned harness implementation/export/config   | `story.json` `composition.harness` and `library/preview-harnesses/**` | Harness registry and path-safety checks              |
 | Unique behavior                                  | Version-local `story.tsx`                                       | Named-export validator and Preview runtime                 |
 | Deterministic external state                     | Fixture catalog asset and story environment                     | Fixture registry and frame resolver                        |
 | Production adoption                              | Component source and adoption manifest                          | Adoption closure validator; Preview artifacts are excluded |
@@ -210,7 +210,7 @@ must state the reason, owner, and revisit condition.
 For each story, record one disposition: direct, variant, shared harness, local
 harness, frame, fixture-backed, or intentional exception. Exceptions require a
 reason, owner, missing evidence, and revisit condition. Preserve existing
-expectations and meaningful interactions during migration.
+expectations and meaningful interactions during contract authoring.
 
 Minimum evidence for a reusable frame or harness is:
 

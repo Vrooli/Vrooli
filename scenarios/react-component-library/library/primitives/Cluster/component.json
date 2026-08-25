@@ -1,15 +1,28 @@
 {
-  "libraryId": "react-component-library:Cluster",
-  "catalogId": "primitives.cluster",
-  "displayName": "Cluster",
-  "description": "Cluster groups variable-width items while keeping baseline alignment predictable.",
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "primitive",
-  "tags": ["primitive", "token-bound"],
-  "latest": "1.0.0",
+  "catalogId": "primitives.cluster",
+  "dependencies": [],
+  "description": "Cluster groups variable-width items while keeping baseline alignment predictable.",
   "designStyles": [
-    { "styleId": "vrooli-default", "affinity": "native" },
-    { "styleId": "vrooli-command-display", "affinity": "compatible" },
-    { "styleId": "vrooli-conversion-landing", "affinity": "compatible" }
+    {
+      "affinity": "native",
+      "styleId": "vrooli-default"
+    },
+    {
+      "affinity": "compatible",
+      "styleId": "vrooli-command-display"
+    },
+    {
+      "affinity": "compatible",
+      "styleId": "vrooli-conversion-landing"
+    }
   ],
-  "dependencies": []
+  "displayName": "Cluster",
+  "latest": "1.0.0",
+  "libraryId": "react-component-library:Cluster",
+  "tags": [
+    "primitive",
+    "token-bound"
+  ]
 }

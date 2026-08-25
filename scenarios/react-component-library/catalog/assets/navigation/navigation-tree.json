@@ -16,13 +16,14 @@
   "asset": {
     "id": "navigation.navigation-tree",
     "name": "NavigationTree",
-    "kind": "component", "surface": "raised",
+    "kind": "component",
+    "surface": "raised",
     "domain": "navigation",
     "description": "The hierarchical navigation collection with expansion, selection, keyboard traversal, lazily loaded children, filtering, virtualization, persisted open state, and accessible tree semantics.",
     "targets": [
       "react-vite"
     ],
-    "slot": "primitive",
+    "slot": "ui-primitive",
     "delivery": "adopted",
     "target": {
       "priority": "P1",
@@ -42,6 +43,10 @@
       {
         "asset": "hooks.use-roving-focus",
         "reason": "Composite surfaces expose one tab stop with arrow-key movement."
+      },
+      {
+        "asset": "hooks.use-locale",
+        "reason": "User-facing copy resolves through the adopting host locale bridge."
       }
     ]
   },

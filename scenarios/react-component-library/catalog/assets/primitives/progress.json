@@ -5,13 +5,14 @@
   "asset": {
     "id": "primitives.progress",
     "name": "Progress",
-    "kind": "component", "surface": "raised",
+    "kind": "component",
+    "surface": "raised",
     "domain": "primitives",
     "description": "The progress family covering linear, circular, determinate, indeterminate, buffered, and segmented presentation with accessible value reporting.",
     "targets": [
       "react-vite"
     ],
-    "slot": "primitive",
+    "slot": "ui-primitive",
     "delivery": "adopted",
     "target": {
       "priority": "P0",
@@ -27,6 +28,10 @@
       {
         "asset": "hooks.use-reduced-motion",
         "reason": "Motion policy is resolved through the shared hook so the preference can be overridden and tested."
+      },
+      {
+        "asset": "hooks.use-locale",
+        "reason": "User-facing copy resolves through the adopting host locale bridge."
       }
     ]
   },

@@ -5,13 +5,14 @@
   "asset": {
     "id": "ai.human-input-request",
     "name": "HumanInputRequest",
-    "kind": "component", "surface": "raised",
+    "kind": "component",
+    "surface": "raised",
     "domain": "ai",
     "description": "The structured agent request for missing information, a selection, an approval, or a correction, embedding the appropriate control inline and resuming deterministically once answered.",
     "targets": [
       "react-vite"
     ],
-    "slot": "primitive",
+    "slot": "ui-primitive",
     "delivery": "adopted",
     "target": {
       "priority": "P0",

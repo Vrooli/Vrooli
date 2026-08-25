@@ -5,13 +5,14 @@
   "asset": {
     "id": "ai.tool-execution-card",
     "name": "ToolExecutionCard",
-    "kind": "component", "surface": "raised",
+    "kind": "component",
+    "surface": "raised",
     "domain": "ai",
     "description": "The structured tool operation showing input summary, permission scope, and pending, running, progress, result, failure, retry, and cancellation, with expandable detail on demand.",
     "targets": [
       "react-vite"
     ],
-    "slot": "primitive",
+    "slot": "ui-primitive",
     "delivery": "adopted",
     "target": {
       "priority": "P0",

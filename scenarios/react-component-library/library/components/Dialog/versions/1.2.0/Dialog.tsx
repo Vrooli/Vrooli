@@ -7,6 +7,7 @@
  * @deps {"react":"^18","lucide-react":"^0.424.0"}
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
+import { cn } from "../../../../foundations/ClassMerge/versions/1.0.0/ClassMerge";
 import { X } from "lucide-react";
 import { type ReactNode, useEffect, useId } from "react";
 import { dialogStyles } from "./styles";
@@ -33,8 +34,6 @@ export interface DialogProps {
   footer?: ReactNode;
   className?: string;
 }
-
-const cn = (...inputs: Array<string | undefined>) => inputs.filter(Boolean).join(" ");
 
 export function Dialog({
   open,
@@ -67,7 +66,7 @@ export function Dialog({
   return (
     <div data-rcl-dialog className="rcl-dialog">
       <style data-rcl-dialog-styles dangerouslySetInnerHTML={{ __html: dialogStyles }} />
-      <button
+      <button data-testid="overlays.dialog"
         type="button"
         aria-label={closeLabel}
         className="rcl-dialog__backdrop"
@@ -91,7 +90,7 @@ export function Dialog({
               </p>
             )}
           </div>
-          <button
+          <button data-testid="overlays.dialog"
             type="button"
             aria-label={closeLabel}
             className="rcl-dialog__close"

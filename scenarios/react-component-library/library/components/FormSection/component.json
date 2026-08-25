@@ -1,20 +1,36 @@
 {
-  "libraryId": "react-component-library:FormSection",
-  "catalogId": "forms.form-section",
-  "displayName": "FormSection",
-  "description": "A semantic form grouping with responsive rhythm, optional collapse, summaries, and visible validation counts.",
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "component",
-  "tags": ["form", "layout", "validation", "responsive", "token-bound"],
-  "latest": "1.0.0",
-  "designStyles": [
-    { "styleId": "vrooli-default", "affinity": "native" },
-    { "styleId": "vrooli-command-display", "affinity": "compatible" },
-    { "styleId": "vrooli-conversion-landing", "affinity": "compatible" }
-  ],
+  "catalogId": "forms.form-section",
   "dependencies": [
     {
       "libraryId": "react-component-library:CollapsibleRegion",
       "version": "1.0.0"
     }
+  ],
+  "description": "A semantic form grouping with responsive rhythm, optional collapse, summaries, and visible validation counts.",
+  "designStyles": [
+    {
+      "affinity": "native",
+      "styleId": "vrooli-default"
+    },
+    {
+      "affinity": "compatible",
+      "styleId": "vrooli-command-display"
+    },
+    {
+      "affinity": "compatible",
+      "styleId": "vrooli-conversion-landing"
+    }
+  ],
+  "displayName": "FormSection",
+  "latest": "1.0.0",
+  "libraryId": "react-component-library:FormSection",
+  "tags": [
+    "form",
+    "layout",
+    "validation",
+    "responsive",
+    "token-bound"
   ]
 }

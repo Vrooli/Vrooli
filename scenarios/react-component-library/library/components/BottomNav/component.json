@@ -1,26 +1,38 @@
 {
-  "libraryId": "react-component-library:BottomNav",
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "catalogId": "navigation.bottom-navigation",
-  "displayName": "Bottom Nav",
-  "description": "Mobile-first bottom navigation bar with safe-area spacing, active state styling, and accessible link semantics.",
-  "tags": ["layout", "navigation", "mobile"],
-  "slot": "layout-nav",
   "category": "navigation",
+  "deprecatedVersions": [],
+  "description": "Mobile-first bottom navigation bar with safe-area spacing, active state styling, and accessible link semantics.",
   "designStyles": [
     {
-      "styleId": "vrooli-default",
-      "affinity": "native"
+      "affinity": "native",
+      "styleId": "vrooli-default"
     },
     {
-      "styleId": "vrooli-command-display",
-      "affinity": "compatible"
+      "affinity": "compatible",
+      "styleId": "vrooli-command-display"
     },
     {
-      "styleId": "vrooli-conversion-landing",
-      "affinity": "discouraged"
+      "affinity": "discouraged",
+      "styleId": "vrooli-conversion-landing"
     }
   ],
-  "latest": "1.3.0",
+  "displayName": "Bottom Nav",
   "draft": "",
-  "deprecatedVersions": []
+  "latest": "1.3.0",
+  "libraryId": "react-component-library:BottomNav",
+  "slot": "layout-nav",
+  "tags": [
+    "layout",
+    "navigation",
+    "mobile"
+  ],
+  "dependencies": [
+    {
+      "kind": "requires",
+      "libraryId": "react-component-library:ClassMerge",
+      "version": "1.0.0"
+    }
+  ]
 }
