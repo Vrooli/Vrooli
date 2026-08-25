@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/vrooli/repo-contract-go/repocontracttest"
 )
 
 const testAud = "scenario-authenticator:default"
@@ -159,7 +160,7 @@ func TestExpiredTokenRejected(t *testing.T) {
 // boot-fatal error, not a silent regenerate.
 func TestFatalOnWriteFailure(t *testing.T) {
 	if runtime.GOOS == "windows" {
-		t.Skip("unix permission semantics")
+		repocontracttest.SkipPlatform(t, "unix permission semantics")
 	}
 	// A path under a regular file can never be created as a directory.
 	parent := t.TempDir()

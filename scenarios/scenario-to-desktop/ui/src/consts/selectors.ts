@@ -1,3 +1,5 @@
+import { librarySelectors } from "./selectors.library";
+export { librarySelectors };
 /**
  * Stable UI contract for Browser Automation Studio playbooks.
  *

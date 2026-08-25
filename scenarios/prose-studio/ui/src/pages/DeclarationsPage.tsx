@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Button } from "../components/ui/button";
+import { Button } from "@vrooli/react-component-library/Button/1.2.0";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
 import { selectors } from "../consts/selectors";
 import { SurfaceFrame } from "./VariationPage";

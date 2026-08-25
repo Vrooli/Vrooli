@@ -3,7 +3,7 @@ import { screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import { renderWithProviders } from "../../test-utils";
-import { DataTable, type DataTableColumn } from "./data-table";
+import { DataTable, type DataTableColumn } from "@vrooli/react-component-library/DataTable/1.2.0";
 
 interface Row {
   id: string;

@@ -25,7 +25,7 @@ import {
 import { cn } from "./lib/utils";
 import { RecordsManager } from "./components/scenario-inventory/RecordsManager";
 import { selectors } from "./consts/selectors";
-import { StatusBadge } from "./components/ui/status-badge";
+import { StatusBadge } from "@vrooli/react-component-library/StatusBadge/1.1.0";
 import { ValidationWorkspace } from "./components/validation";
 
 const queryClient = new QueryClient({

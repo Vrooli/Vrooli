@@ -5,6 +5,8 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/vrooli/repo-contract-go/repocontracttest"
 )
 
 func TestManifestValidateRejectsNonLoopbackIPCHost(t *testing.T) {
@@ -441,7 +443,7 @@ func TestResolveBinary(t *testing.T) {
 	// This test is platform-dependent, so just verify it returns something
 	bin, found := m.ResolveBinary(svc)
 	if !found {
-		t.Skip("No binary for current platform, skipping")
+		repocontracttest.SkipPlatform(t, "No binary for current platform, skipping")
 	}
 	if bin.Path == "" {
 		t.Error("ResolveBinary() returned empty path")

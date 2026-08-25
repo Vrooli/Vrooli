@@ -2,11 +2,11 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 
 import { signalsClient, uploadSignalImage } from "../../api/signals";
-import { Button } from "../../components/ui/button";
+import { Button } from "@vrooli/react-component-library/Button/1.2.0";
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
-import { EmptyState } from "../../components/ui/empty-state";
+import { EmptyState } from "@vrooli/react-component-library/EmptyState/1.1.0";
 import { Input } from "../../components/ui/input";
-import { Textarea } from "../../components/ui/textarea";
+import { Textarea } from "@vrooli/react-component-library/Textarea/1.0.0";
 import { selectors } from "../../consts/selectors";
 import { SignalClassificationControl } from "../categories/SignalClassificationControl";
 

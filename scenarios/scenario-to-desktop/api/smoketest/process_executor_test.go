@@ -13,6 +13,8 @@ import (
 
 	"scenario-to-desktop-api/smoketest"
 	"scenario-to-desktop-api/smoketest/mocks"
+
+	"github.com/vrooli/repo-contract-go/repocontracttest"
 )
 
 func TestProcessExecutor_Execute_Success(t *testing.T) {
@@ -39,7 +41,7 @@ func TestProcessExecutor_Execute_Success(t *testing.T) {
 
 func TestProcessExecutor_Execute_CleansDescendantsAfterSuccessfulLeaderExit(t *testing.T) {
 	if runtime.GOOS == "windows" {
-		t.Skip("process-group cleanup is Unix-specific")
+		repocontracttest.SkipPlatform(t, "process-group cleanup is Unix-specific")
 	}
 
 	pidFile := filepath.Join(t.TempDir(), "child.pid")

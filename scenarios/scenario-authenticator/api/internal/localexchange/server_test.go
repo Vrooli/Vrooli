@@ -12,12 +12,13 @@ import (
 	"time"
 
 	"github.com/vrooli/api-core/localprincipal"
+	"github.com/vrooli/repo-contract-go/repocontracttest"
 )
 
 func TestStartInjectsKernelPeerPrincipalOverRealSocket(t *testing.T) {
 	want, err := localprincipal.Current()
 	if errors.Is(err, localprincipal.ErrUnsupported) {
-		t.Skip("platform has no local peer-credential implementation")
+		repocontracttest.SkipPlatform(t, "platform has no local peer-credential implementation")
 	}
 	if err != nil {
 		t.Fatalf("current principal: %v", err)

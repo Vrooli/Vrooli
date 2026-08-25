@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/vrooli/binaryfetch"
@@ -12,14 +13,45 @@ import (
 )
 
 type portabilityToolManifest struct {
-	Name           string            `json:"name"`
-	Platforms      []string          `json:"platforms"`
+	Name           string   `json:"name"`
+	Platforms      []string `json:"platforms"`
+	PlatformStatus map[string]struct {
+		Status string `json:"status"`
+	} `json:"platform_status"`
 	Packages       map[string]string `json:"packages"`
 	DefaultPackage string            `json:"defaultPackage"`
 	Handler        string            `json:"handler"`
 	Manual         bool              `json:"manual"`
 	Source         json.RawMessage   `json:"source"`
 	Acquisition    json.RawMessage   `json:"acquisition"`
+}
+
+// declaredToolPlatforms returns the platforms the tool claims to implement.
+// New tool manifests use platform_status as the canonical declaration and may
+// omit the legacy platforms list. An explicit unsupported status is therefore
+// not an acquisition gap: it says the tool does not claim that host OS.
+func declaredToolPlatforms(manifest portabilityToolManifest) []deployability.HostOS {
+	if len(manifest.Platforms) > 0 {
+		platforms := make([]deployability.HostOS, 0, len(manifest.Platforms))
+		for _, rawOS := range manifest.Platforms {
+			if hostOS, ok := portabilityNormalizeOS(rawOS); ok {
+				platforms = append(platforms, hostOS)
+			}
+		}
+		return platforms
+	}
+
+	platforms := make([]deployability.HostOS, 0, len(manifest.PlatformStatus))
+	for rawOS, declaration := range manifest.PlatformStatus {
+		if strings.EqualFold(strings.TrimSpace(declaration.Status), "unsupported") {
+			continue
+		}
+		if hostOS, ok := portabilityNormalizeOS(rawOS); ok {
+			platforms = append(platforms, hostOS)
+		}
+	}
+	sort.Slice(platforms, func(i, j int) bool { return platforms[i] < platforms[j] })
+	return platforms
 }
 
 // validateToolAcquisitionCoverage validates the repository-wide tool contract
@@ -39,12 +71,7 @@ func validateToolAcquisitionCoverage(repoRoot string) error {
 		if err := json.Unmarshal(data, &manifest); err != nil {
 			return fmt.Errorf("decode tool manifest %q: %w", path, err)
 		}
-		platforms := make([]deployability.HostOS, 0, len(manifest.Platforms))
-		for _, rawOS := range manifest.Platforms {
-			if hostOS, ok := portabilityNormalizeOS(rawOS); ok {
-				platforms = append(platforms, hostOS)
-			}
-		}
+		platforms := declaredToolPlatforms(manifest)
 		source := ""
 		if len(manifest.Source) > 0 && string(manifest.Source) != "null" {
 			var sourceManifest struct {

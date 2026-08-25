@@ -145,6 +145,7 @@ type authoredPlatformCapability struct {
 	Status    string `json:"status"`
 	Mechanism string `json:"mechanism"`
 	Evidence  string `json:"evidence"`
+	Essential bool   `json:"essential"`
 }
 
 // authoredPlatformOverrides reads the two intentionally hand-authored
@@ -186,19 +187,28 @@ func authoredPlatformOverrides(path string) (map[deployability.HostOS]PlatformVe
 		status := "supported"
 		reason := "authored platform_capabilities claims resolve on " + string(hostOS)
 		blocking := ""
+		var unsupported []string
 		for _, item := range claims {
 			switch strings.ToLower(strings.TrimSpace(item.claim.Status)) {
 			case "unsupported":
-				status = "blocked"
-				if blocking == "" {
+				unsupported = append(unsupported, item.name)
+				if item.claim.Essential {
+					status = "blocked"
 					blocking = "capability:" + item.name
-					reason = "authored capability " + item.name + " is unsupported on " + string(hostOS)
 				}
 			case "partial", "experimental", "unqualified", "build-verified":
 				if status == "supported" {
 					status = "degraded"
 					reason = "authored platform_capabilities include an unqualified claim on " + string(hostOS)
 				}
+			}
+		}
+		if len(unsupported) > 0 {
+			if status == "blocked" {
+				reason = "essential authored capabilities unsupported on " + string(hostOS) + ": " + strings.Join(unsupported, ", ")
+			} else {
+				status = "degraded"
+				reason = "non-essential authored capabilities unsupported on " + string(hostOS) + ": " + strings.Join(unsupported, ", ")
 			}
 		}
 		result[hostOS] = PlatformVerdict{HostOS: hostOS, Status: status, Reason: reason, BlockingDependency: blocking, Overridden: true}

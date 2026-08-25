@@ -1,25 +1,4 @@
 {
-  "name": "scenario-to-desktop-ui",
-  "version": "1.0.0",
-  "description": "React + Vite front-end for Scenario to Desktop",
-  "private": true,
-  "type": "module",
-  "scripts": {
-    "start": "vrooli lifecycle protect -- node server.js",
-    "dev": "vrooli lifecycle protect -- vite",
-    "build": "pnpm selector:manifest && vite build",
-    "profile": "pnpm selector:manifest && vite build --mode profile",
-    "build:profile": "pnpm selector:manifest && vite build --mode profile",
-    "preview": "vite preview",
-    "lint": "eslint src --ext ts,tsx",
-    "lint:fix": "eslint src --ext ts,tsx --fix",
-    "type-check": "pnpm selector:manifest && tsc --noEmit",
-    "format": "prettier --write src",
-    "format:check": "prettier --check src",
-    "test": "pnpm selector:manifest && vitest run",
-    "test:coverage": "pnpm selector:manifest && vitest run --coverage",
-    "selector:manifest": "node ./scripts/generate-selector-manifest.mjs"
-  },
   "dependencies": {
     "@bufbuild/protobuf": "^2.10.1",
     "@connectrpc/connect": "^2.1.1",
@@ -32,6 +11,7 @@
     "@vrooli/api-base": "file:../../../packages/api-base",
     "@vrooli/iframe-bridge": "file:../../../packages/iframe-bridge",
     "@vrooli/proto-types": "file:../../../packages/proto/gen/typescript",
+    "@vrooli/react-component-library": "file:../../../packages/react-component-library",
     "axe-core": "4.10.2",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.1",
@@ -44,6 +24,7 @@
     "zod": "^3.23.8",
     "zustand": "^5.0.10"
   },
+  "description": "React + Vite front-end for Scenario to Desktop",
   "devDependencies": {
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^16.1.0",
@@ -69,5 +50,25 @@
     "vite": "^6.4.3",
     "vitest": "^3.2.6"
   },
-  "packageManager": "pnpm@9.12.1"
+  "name": "scenario-to-desktop-ui",
+  "packageManager": "pnpm@9.12.1",
+  "private": true,
+  "scripts": {
+    "build": "pnpm selector:manifest && vite build",
+    "build:profile": "pnpm selector:manifest && vite build --mode profile",
+    "dev": "vrooli lifecycle protect -- vite",
+    "format": "prettier --write src",
+    "format:check": "prettier --check src",
+    "lint": "eslint src --ext ts,tsx",
+    "lint:fix": "eslint src --ext ts,tsx --fix",
+    "preview": "vite preview",
+    "profile": "pnpm selector:manifest && vite build --mode profile",
+    "selector:manifest": "node ./scripts/generate-selector-manifest.mjs",
+    "start": "vrooli lifecycle protect -- node server.js",
+    "test": "pnpm selector:manifest && vitest run",
+    "test:coverage": "pnpm selector:manifest && vitest run --coverage",
+    "type-check": "pnpm selector:manifest && tsc --noEmit"
+  },
+  "type": "module",
+  "version": "1.0.0"
 }

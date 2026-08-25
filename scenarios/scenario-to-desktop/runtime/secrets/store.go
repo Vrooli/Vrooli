@@ -7,7 +7,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/vrooli/vrooli/internal/secrets"
+	"github.com/vrooli/vrooli/internal/credentialauthority"
 	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/manifest"
 	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/strutil"
 )

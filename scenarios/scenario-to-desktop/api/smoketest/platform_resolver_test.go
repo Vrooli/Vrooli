@@ -8,6 +8,8 @@ import (
 
 	"scenario-to-desktop-api/smoketest"
 	"scenario-to-desktop-api/smoketest/mocks"
+
+	"github.com/vrooli/repo-contract-go/repocontracttest"
 )
 
 func TestPlatformResolver_CurrentPlatform(t *testing.T) {
@@ -298,7 +300,7 @@ func TestPlatformResolver_ResolveCommand_UnsupportedPlatform(t *testing.T) {
 
 func TestPlatformResolver_RequiresHeadlessWrapper(t *testing.T) {
 	if runtime.GOOS != "linux" {
-		t.Skip("RequiresHeadlessWrapper tests only run on Linux")
+		repocontracttest.SkipPlatform(t, "RequiresHeadlessWrapper tests only run on Linux")
 	}
 
 	config := smoketest.DefaultConfig()

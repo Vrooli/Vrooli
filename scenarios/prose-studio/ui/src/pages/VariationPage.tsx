@@ -2,9 +2,9 @@ import { useState } from "react";
 import type { ReactNode } from "react";
 import { Input } from "../components/ui/input";
 import { proseApi, type Candidate, type Generation } from "../api/prose";
-import { Button } from "../components/ui/button";
+import { Button } from "@vrooli/react-component-library/Button/1.2.0";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
-import { EmptyState } from "../components/ui/empty-state";
+import { EmptyState } from "@vrooli/react-component-library/EmptyState/1.1.0";
 import { selectors } from "../consts/selectors";
 
 export function VariationPage() {

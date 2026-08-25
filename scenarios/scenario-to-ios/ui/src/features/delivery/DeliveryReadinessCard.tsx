@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../components/ui/card";
-import { StatusBadge } from "../../components/ui/status-badge";
+import { StatusBadge } from "@vrooli/react-component-library/StatusBadge/1.1.0";
 import { selectors } from "../../consts/selectors";
 import { strings } from "../../consts/strings";
 import { useTranslation } from "../../i18n";

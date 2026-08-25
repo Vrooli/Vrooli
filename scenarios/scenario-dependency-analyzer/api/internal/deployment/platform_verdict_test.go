@@ -72,3 +72,29 @@ func TestListPlatformVerdictsAuthoredCapabilityOverridesDependencyDerivation(t *
 		t.Fatalf("linux override = %#v, want supported, overridden, non-derived", got)
 	}
 }
+
+func TestAuthoredUnsupportedCapabilityDegradesUnlessEssential(t *testing.T) {
+	root := t.TempDir()
+	scenariosDir := filepath.Join(root, "scenarios")
+	if err := os.MkdirAll(filepath.Join(scenariosDir, "sample", ".vrooli"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	service := []byte(`{"service":{"name":"sample","platform_capabilities":{"optional-a":{"macos":{"status":"unsupported","mechanism":"fixture"}},"essential-b":{"macos":{"status":"unsupported","mechanism":"fixture","essential":true}},"optional-c":{"macos":{"status":"unsupported","mechanism":"fixture"}}}}}`)
+	if err := os.WriteFile(filepath.Join(scenariosDir, "sample", ".vrooli", "service.json"), service, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	result, err := ListPlatformVerdicts(scenariosDir, "", time.Now())
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, platform := range result[0].Platforms {
+		if platform.HostOS == "macos" {
+			if platform.Status != "blocked" || platform.BlockingDependency != "capability:essential-b" {
+				t.Fatalf("macOS verdict = %#v, want essential capability block", platform)
+			}
+			if platform.Reason != "essential authored capabilities unsupported on macos: essential-b, optional-a, optional-c" {
+				t.Fatalf("macOS reason = %q, want every unsupported capability named", platform.Reason)
+			}
+		}
+	}
+}

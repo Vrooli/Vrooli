@@ -2,8 +2,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 
 import { categoriesClient } from "../../api/categories";
-import { Button } from "../../components/ui/button";
-import { Select } from "../../components/ui/select";
+import { Button } from "@vrooli/react-component-library/Button/1.2.0";
+import { Select } from "@vrooli/react-component-library/Select/1.1.0";
 import { strings } from "../../consts/strings";
 import { useTranslation } from "../../i18n";
 

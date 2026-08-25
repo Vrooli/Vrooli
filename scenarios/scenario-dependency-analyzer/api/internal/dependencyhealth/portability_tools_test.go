@@ -3,9 +3,43 @@ package dependencyhealth
 import (
 	"encoding/json"
 	"path/filepath"
+	"reflect"
 	"runtime"
 	"testing"
+
+	"github.com/vrooli/vrooli/packages/deployability"
 )
+
+func TestDeclaredToolPlatformsUsesCanonicalPlatformStatus(t *testing.T) {
+	got := declaredToolPlatforms(portabilityToolManifest{
+		PlatformStatus: map[string]struct {
+			Status string `json:"status"`
+		}{
+			"linux":   {Status: "unqualified"},
+			"macos":   {Status: "unqualified"},
+			"windows": {Status: "unsupported"},
+		},
+	})
+	want := []deployability.HostOS{deployability.HostOSLinux, deployability.HostOSMacOS}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("declaredToolPlatforms() = %v, want %v", got, want)
+	}
+}
+
+func TestDeclaredToolPlatformsPrefersLegacyApplicabilityList(t *testing.T) {
+	got := declaredToolPlatforms(portabilityToolManifest{
+		Platforms: []string{"macos"},
+		PlatformStatus: map[string]struct {
+			Status string `json:"status"`
+		}{
+			"linux": {Status: "unqualified"},
+		},
+	})
+	want := []deployability.HostOS{deployability.HostOSMacOS}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("declaredToolPlatforms() = %v, want %v", got, want)
+	}
+}
 
 func TestHasAcquisitionTargetsRecognizesGovernedSourceTargets(t *testing.T) {
 	for name, raw := range map[string]string{

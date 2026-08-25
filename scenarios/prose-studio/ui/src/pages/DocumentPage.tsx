@@ -1,9 +1,9 @@
 import { useState } from "react";
 import { Input } from "../components/ui/input";
-import { Button } from "../components/ui/button";
+import { Button } from "@vrooli/react-component-library/Button/1.2.0";
 import { proseApi } from "../api/prose";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
-import { EmptyState } from "../components/ui/empty-state";
+import { EmptyState } from "@vrooli/react-component-library/EmptyState/1.1.0";
 import { selectors } from "../consts/selectors";
 import { SurfaceFrame } from "./VariationPage";
 
