@@ -7,11 +7,6 @@
   },
   "description": "Install the portable emergency watchdog and its native user scheduler entry so setup owns the last line of defense instead of a hand-placed unit",
   "handler": "emergency_watchdog",
-  "platforms": [
-    "linux",
-    "macos",
-    "windows"
-  ],
   "risk": "low",
   "privilege": "user",
   "bundling": "prohibited",
@@ -57,15 +52,15 @@
   "platform_status": {
     "linux": {
       "status": "unqualified",
-      "evidence": "Manifest-declared applicability; no host-sampled qualification recorded."
+      "evidence": null
     },
     "macos": {
       "status": "unqualified",
-      "evidence": "Manifest-declared applicability; no host-sampled qualification recorded."
+      "evidence": null
     },
     "windows": {
       "status": "unqualified",
-      "evidence": "Manifest-declared applicability; no host-sampled qualification recorded."
+      "evidence": null
     }
   }
 }

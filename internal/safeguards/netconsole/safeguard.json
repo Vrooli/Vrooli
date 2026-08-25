@@ -10,7 +10,8 @@
           "macos": null,
           "windows": null
         },
-        "kind": "file",
+      "kind": "file",
+      "regenerable": false,
         "class": "config",
         "sensitive": true,
         "rationale": "The Linux safeguard persists the netconsole module load."
@@ -22,7 +23,8 @@
           "macos": null,
           "windows": null
         },
-        "kind": "file",
+      "kind": "file",
+      "regenerable": false,
         "class": "config",
         "sensitive": true,
         "rationale": "The Linux safeguard persists the operator-supplied netconsole target."
@@ -32,9 +34,6 @@
   },
   "description": "Stream kernel oops/panic output to a remote log collector via the netconsole module",
   "handler": "netconsole",
-  "platforms": [
-    "linux"
-  ],
   "risk": "high",
   "privilege": "elevated",
   "bundling": "prohibited",
@@ -78,7 +77,7 @@
   "platform_status": {
     "linux": {
       "status": "unqualified",
-      "evidence": "Manifest-declared applicability; no host-sampled qualification recorded."
+      "evidence": null
     },
     "macos": {
       "status": "unsupported",

@@ -44,6 +44,28 @@ func TestResolveCapabilityUsesDeclaredPeersAndMechanisms(t *testing.T) {
 	}
 }
 
+func TestResolveCapabilityResolvesControlsOnlyWhenEveryControlIsPresent(t *testing.T) {
+	controls := []CapabilityImplementation{
+		{Name: "autoheal_watchdog", Capability: "process-containment", Role: "control", Platforms: map[HostOS]PlatformDeclaration{HostOSLinux: {Status: string(StatusSupported)}}},
+		{Name: "emergency_watchdog", Capability: "process-containment", Role: "control", Platforms: map[HostOS]PlatformDeclaration{HostOSLinux: {Status: string(StatusSupported)}}},
+		{Name: "host_hardening", Capability: "process-containment", Role: "control", Platforms: map[HostOS]PlatformDeclaration{HostOSLinux: {Status: string(StatusSupported)}}},
+		{Name: "kernel_config", Capability: "process-containment", Role: "control", Platforms: map[HostOS]PlatformDeclaration{HostOSLinux: {Status: string(StatusSupported)}}},
+		{Name: "workspace_sandbox_userns", Capability: "process-containment", Role: "control", Platforms: map[HostOS]PlatformDeclaration{HostOSLinux: {Status: string(StatusSupported)}}},
+	}
+	resolution := ResolveCapability(controls, "process-containment", HostOSLinux)
+	if resolution.Status != CapabilityImplemented || resolution.Qualification != QualificationQualified {
+		t.Fatalf("controls-only capability did not resolve from all controls: %+v", resolution)
+	}
+	if len(resolution.Controls) != len(controls) {
+		t.Fatalf("resolved controls = %v, want %d controls", resolution.Controls, len(controls))
+	}
+	controls[4].Platforms[HostOSLinux] = PlatformDeclaration{Status: string(StatusUnsupported)}
+	resolution = ResolveCapability(controls, "process-containment", HostOSLinux)
+	if resolution.Status != CapabilityControlsIncomplete {
+		t.Fatalf("missing control resolved as %s, want controls_incomplete", resolution.Status)
+	}
+}
+
 func TestResolveCapabilityGivesEveryVocabularyMemberAnExplicitOutcome(t *testing.T) {
 	cases := []struct {
 		name          string

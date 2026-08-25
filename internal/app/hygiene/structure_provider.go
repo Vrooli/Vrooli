@@ -10,6 +10,12 @@ import (
 
 const structureProviderID = "structure-health"
 
+// The hygiene lane asks the authority for the project target only. The full
+// target walk remains available to contract validation, but duplicating that
+// fleet traversal here made a short structural gate depend on unrelated
+// resource and code-facts work.
+const structureProviderBudget = 30 * time.Second
+
 type structureProvider struct {
 	root   string
 	client structureprovider.Client
@@ -17,7 +23,7 @@ type structureProvider struct {
 
 func (p structureProvider) ID() string { return structureProviderID }
 
-func (p structureProvider) Budget() time.Duration { return 10 * time.Second }
+func (p structureProvider) Budget() time.Duration { return structureProviderBudget }
 
 func (p structureProvider) Run(ctx context.Context, _ Request, report *Report) error {
 	if p.client == nil {
@@ -74,24 +80,24 @@ func (p structureProvider) Run(ctx context.Context, _ Request, report *Report) e
 	return nil
 }
 
-// reportUnavailable records a provider-level failure as a report finding rather
-// than an aborting error. Structure Health being unreachable says nothing about
-// plan, dependency, or freshness hygiene, so those providers must still run and
-// their fixes must still apply. The finding is error-severity, so the run still
-// fails; it just fails after doing the work it could do. Mirrors
-// sdaFreshnessProvider.reportUnavailable and plansProvider.reportCanonicalFailure.
+// reportUnavailable records an unguarded contract rather than pretending that
+// the repository failed structural validation. Structure Health being
+// unreachable says nothing about plan, dependency, or freshness hygiene, so
+// those providers must still run and their fixes must still apply. The warning
+// remains visible in the summary, while --fail-on error only fails on actual
+// structural findings.
 func (p structureProvider) reportUnavailable(report *Report, reason string) {
-	message := fmt.Sprintf("structure-health provider unavailable: %s", reason)
+	message := fmt.Sprintf("structure-health contract unguarded: provider unavailable: %s", reason)
 	action := Action{
 		Code:       "inspect_structure_health",
 		Message:    "Inspect the structure-health validation surface and rerun hygiene after correcting the provider failure.",
 		Command:    "vrooli contract validate --json",
 		Fixability: FixabilityGuided,
 	}
-	report.addCheck("repo_contract", false, SeverityError, message)
+	report.addCheck("repo_contract", false, SeverityWarning, message)
 	report.addFinding(Finding{
-		Severity:    SeverityError,
-		Code:        "repo_contract_provider",
+		Severity:    SeverityWarning,
+		Code:        "repo_contract_unguarded",
 		Message:     message,
 		Why:         "Structure Health owns repository structural validation; root hygiene only aggregates the provider result.",
 		Fixability:  FixabilityGuided,
@@ -104,5 +110,5 @@ func (s Service) structureProvider() Provider {
 	if s.StructureProvider != nil {
 		return s.StructureProvider
 	}
-	return structureProvider{root: s.Root, client: structureprovider.NewDefault()}
+	return structureProvider{root: s.Root, client: structureprovider.NewProjectDefault()}
 }

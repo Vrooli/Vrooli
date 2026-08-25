@@ -21,6 +21,7 @@ func stubAll(t *testing.T) (cmds *[]capturedCommand, cmdline *string, debconfInp
 	origCombined := hostreqkit.CombinedOutputFn
 	origInput := hostreqkit.CombinedOutputInputFn
 	origLookPath := hostreqkit.LookPathFn
+	origElevationFacts := hostreqkit.ElevationFactsFn
 	origReadProc := ReadProcCmdlineFn
 	origServiceState := KdumpServiceStateFn
 	origConfigStatus := KdumpConfigStatusFn
@@ -29,6 +30,9 @@ func stubAll(t *testing.T) (cmds *[]capturedCommand, cmdline *string, debconfInp
 	captured := []capturedCommand{}
 	procCmdline := ""
 	inputs := []string{}
+	hostreqkit.ElevationFactsFn = func() hostreqkit.ElevationFacts {
+		return hostreqkit.ElevationFacts{Platform: "linux", CanElevate: true, Mechanism: "test"}
+	}
 
 	// Default: service armed, kdump-config ready, sysrq enabled. Tests that
 	// exercise the unhappy paths override these.
@@ -67,6 +71,7 @@ func stubAll(t *testing.T) (cmds *[]capturedCommand, cmdline *string, debconfInp
 		hostreqkit.CombinedOutputFn = origCombined
 		hostreqkit.CombinedOutputInputFn = origInput
 		hostreqkit.LookPathFn = origLookPath
+		hostreqkit.ElevationFactsFn = origElevationFacts
 		ReadProcCmdlineFn = origReadProc
 		KdumpServiceStateFn = origServiceState
 		KdumpConfigStatusFn = origConfigStatus
@@ -448,6 +453,9 @@ func TestApplyArmsServiceWhenInstalledButDisabled(t *testing.T) {
 		t.Fatalf("Inspect ExecutionState = %q, want Pending", st.ExecutionState)
 	}
 
+	hostreqkit.ElevationFactsFn = func() hostreqkit.ElevationFacts {
+		return hostreqkit.ElevationFacts{Platform: "linux", Elevated: true, CanElevate: true, Mechanism: "test"}
+	}
 	st, err := newHandler().Apply(aptHost(), st, hostreqkit.EnsureOptions{SudoMode: "skip"})
 	if err != nil {
 		t.Fatalf("Apply error: %v", err)

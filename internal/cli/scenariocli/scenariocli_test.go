@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	testkitgo "github.com/vrooli/repo-contract-go/repocontracttest"
 	"github.com/vrooli/vrooli/internal/cliout"
 	"github.com/vrooli/vrooli/internal/lifecycle"
 	"github.com/vrooli/vrooli/internal/orchestrator"
@@ -607,7 +608,7 @@ func TestBuildStatusDetailIncludesHealthError(t *testing.T) {
 
 func TestBuildListPortsFallsBackToEnvironment(t *testing.T) {
 	if runtime.GOOS != "linux" {
-		t.Skip("process environment inspection uses /proc on linux")
+		testkitgo.SkipPlatform(t, "process environment inspection uses /proc on linux")
 	}
 
 	cmd := exec.Command("sleep", "30")

@@ -46,6 +46,7 @@ type ComposeStep struct {
 	Role     string `json:"role"`
 	Kind     string `json:"kind"`
 	Dest     string `json:"dest"`
+	Source   string `json:"source,omitempty"`
 	URL      string `json:"url,omitempty"`
 	SHA256   string `json:"sha256,omitempty"`
 	Archive  string `json:"archive,omitempty"`
@@ -230,6 +231,11 @@ func (s ComposeStep) Validate() error {
 	case "python-wheels":
 		if strings.TrimSpace(s.Lockfile) == "" {
 			return errors.New("python-wheels compose step requires lockfile")
+		}
+	case "local":
+		source := filepath.Clean(filepath.FromSlash(strings.TrimSpace(s.Source)))
+		if source == "." || source == ".." || filepath.IsAbs(s.Source) || strings.HasPrefix(source, ".."+string(filepath.Separator)) {
+			return errors.New("local compose step source must remain under the resource root")
 		}
 	default:
 		return fmt.Errorf("compose step kind %q is invalid", s.Kind)

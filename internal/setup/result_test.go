@@ -78,7 +78,8 @@ func TestSetupTerminalResultPreservesTypedStageValue(t *testing.T) {
 func TestFinalSetupResultConfigurationReadsMarker(t *testing.T) {
 	root, home := t.TempDir(), t.TempDir()
 	base := setupTerminalResult(PhaseFinalize, runtime.Report{}, nil)
-	pending := finalizeSetupResultConfiguration(base, home, root, nil)
+	ready := &SetupReadiness{Status: ReadinessStatusReady, Source: ReadinessSourceInProcess}
+	pending := finalizeSetupResultConfiguration(base, home, root, nil, ready)
 	if !pending.ConfigurationPending || pending.Category != SetupCategoryConfigurationPending {
 		t.Fatalf("pending result = %#v", pending)
 	}
@@ -88,7 +89,7 @@ func TestFinalSetupResultConfigurationReadsMarker(t *testing.T) {
 	if err := projectstate.MarkConfigurationComplete(home, root, "result-selection"); err != nil {
 		t.Fatalf("mark configuration complete: %v", err)
 	}
-	complete := finalizeSetupResultConfiguration(base, home, root, nil)
+	complete := finalizeSetupResultConfiguration(base, home, root, nil, ready)
 	if complete.ConfigurationPending || complete.Category != SetupCategorySuccess {
 		t.Fatalf("complete result = %#v", complete)
 	}
@@ -157,12 +158,18 @@ func TestSetupResultOnboardingFieldIsAdditive(t *testing.T) {
 		Onboarding: &OnboardingResult{Decision: "url", PresentationKind: "remote-shell", URL: "http://127.0.0.1:1234"},
 	}
 	data, err := json.Marshal(payload)
-	if err != nil { t.Fatal(err) }
+	if err != nil {
+		t.Fatal(err)
+	}
 	var old struct {
 		Version string `json:"version"`
-		Status string `json:"status"`
-		Stage string `json:"stage"`
+		Status  string `json:"status"`
+		Stage   string `json:"stage"`
 	}
-	if err := json.Unmarshal(data, &old); err != nil { t.Fatalf("old decoder rejected additive payload: %v", err) }
-	if old.Version != SetupResultVersion || old.Status != SetupStatusSuccess || old.Stage != "complete" { t.Fatalf("old fields = %+v", old) }
+	if err := json.Unmarshal(data, &old); err != nil {
+		t.Fatalf("old decoder rejected additive payload: %v", err)
+	}
+	if old.Version != SetupResultVersion || old.Status != SetupStatusSuccess || old.Stage != "complete" {
+		t.Fatalf("old fields = %+v", old)
+	}
 }

@@ -25,11 +25,6 @@
     "brew": "protobuf",
     "winget": "Google.Protobuf"
   },
-  "platforms": [
-    "linux",
-    "macos",
-    "windows"
-  ],
   "installHint": "Install via the OS package manager (e.g. `apt install protobuf-compiler`, `brew install protobuf`). Vrooli's setup uses the same. v25+ is required so `--python_out` and `--pyi_out` are both built in.",
   "notes": "Used as `protoc_builtin: python` / `protoc_builtin: pyi` in packages/proto/buf.gen.yaml; bytes may vary by minor version, so the proto-codegen byte-stability gate (`make check`) will catch upstream upgrades.",
   "bundling": "host-required",
@@ -38,15 +33,15 @@
   "platform_status": {
     "linux": {
       "status": "unqualified",
-      "evidence": "Manifest-declared applicability; no host-sampled qualification recorded."
+      "evidence": null
     },
     "macos": {
       "status": "unqualified",
-      "evidence": "Manifest-declared applicability; no host-sampled qualification recorded."
+      "evidence": null
     },
     "windows": {
       "status": "unqualified",
-      "evidence": "Manifest-declared applicability; no host-sampled qualification recorded."
+      "evidence": null
     }
   }
 }

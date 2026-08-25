@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	testkitgo "github.com/vrooli/repo-contract-go/repocontracttest"
 	resourcecontrol "github.com/vrooli/vrooli/internal/resources/control"
 	"github.com/vrooli/vrooli/internal/scenario"
 )
@@ -318,7 +319,7 @@ func startCharacterizationRunner(t *testing.T) (*Runner, *bytes.Buffer) {
 // for the three canonical flows: fresh start, already-running reuse, restart.
 func TestCharacterizeStartProgressLines(t *testing.T) {
 	if runtime.GOOS != "linux" {
-		t.Skip("lifecycle process management currently targets linux")
+		testkitgo.SkipPlatform(t, "lifecycle process management currently targets linux")
 	}
 	runner, out := startCharacterizationRunner(t)
 	cleanupRunner(t, runner, "alpha", StopOptions{})
@@ -371,7 +372,7 @@ func TestCharacterizeStartProgressLines(t *testing.T) {
 // before the parent's, and the reuse line on a warm second start.
 func TestCharacterizeDependencyStartProgressLines(t *testing.T) {
 	if runtime.GOOS != "linux" {
-		t.Skip("lifecycle process management currently targets linux")
+		testkitgo.SkipPlatform(t, "lifecycle process management currently targets linux")
 	}
 	root := t.TempDir()
 	home := t.TempDir()

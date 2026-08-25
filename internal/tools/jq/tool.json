@@ -18,26 +18,21 @@
     "brew": "jq"
   },
   "installHint": "Install jq for JSON processing in setup and resource flows",
-  "platforms": [
-    "linux",
-    "macos",
-    "windows"
-  ],
   "bundling": "host-required",
   "capability": "data-query",
   "capability_role": "primary",
   "platform_status": {
     "linux": {
       "status": "unqualified",
-      "evidence": "Manifest-declared applicability; no host-sampled qualification recorded."
+      "evidence": null
     },
     "macos": {
       "status": "unqualified",
-      "evidence": "Manifest-declared applicability; no host-sampled qualification recorded."
+      "evidence": null
     },
     "windows": {
       "status": "unqualified",
-      "evidence": "Manifest-declared applicability; no host-sampled qualification recorded."
+      "evidence": null
     }
   }
 }

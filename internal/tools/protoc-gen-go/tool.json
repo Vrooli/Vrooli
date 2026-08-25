@@ -14,11 +14,6 @@
   ],
   "handler": "protoc_gen_go",
   "version": "v1.36.11",
-  "platforms": [
-    "linux",
-    "macos",
-    "windows"
-  ],
   "installHint": "Installed via `go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.36.11` (requires Go on PATH; binary lands in $GOBIN or $HOME/go/bin which Vrooli's setup symlinks into ~/.local/bin)",
   "notes": "Pinned alongside buf.gen.yaml; bump in lockstep with the proto-codegen byte-stability gate (`make check`).",
   "bundling": "host-required",
@@ -27,15 +22,15 @@
   "platform_status": {
     "linux": {
       "status": "unqualified",
-      "evidence": "Manifest-declared applicability; no host-sampled qualification recorded."
+      "evidence": null
     },
     "macos": {
       "status": "unqualified",
-      "evidence": "Manifest-declared applicability; no host-sampled qualification recorded."
+      "evidence": null
     },
     "windows": {
       "status": "unqualified",
-      "evidence": "Manifest-declared applicability; no host-sampled qualification recorded."
+      "evidence": null
     }
   }
 }

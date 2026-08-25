@@ -56,9 +56,9 @@ func (f fakeStructureClient) Validate(context.Context, string) (contractapp.Vali
 	return contractapp.ValidationOutput{}, f.err
 }
 
-// An unreachable structure-health says nothing about plan hygiene. Before this,
-// the provider returned its transport error, Service.Run aborted on it, and a
-// `--fix-safe --plans` invocation silently performed no plan work at all.
+// An unreachable structure-health says nothing about plan hygiene. It must be
+// visible as an unguarded contract while allowing independent hygiene lanes to
+// continue and --fail-on error to report only actual errors.
 func TestStructureProviderUnavailableStillRunsLaterProviders(t *testing.T) {
 	structure := structureProvider{
 		root:   "/repo",
@@ -77,17 +77,17 @@ func TestStructureProviderUnavailableStillRunsLaterProviders(t *testing.T) {
 	}
 
 	report.finish(SeverityError)
-	if report.Success {
-		t.Fatal("report.Success = true, want false: an unavailable provider must still fail the run")
+	if !report.Success {
+		t.Fatal("report.Success = false, want true: an unavailable provider is unguarded, not an error")
 	}
 	var found bool
 	for _, finding := range report.Findings {
-		if finding.Code == "repo_contract_provider" && finding.Severity == SeverityError {
+		if finding.Code == "repo_contract_unguarded" && finding.Severity == SeverityWarning {
 			found = true
 		}
 	}
 	if !found {
-		t.Fatalf("findings = %#v, want an error-severity repo_contract_provider finding", report.Findings)
+		t.Fatalf("findings = %#v, want a warning-severity repo_contract_unguarded finding", report.Findings)
 	}
 }
 

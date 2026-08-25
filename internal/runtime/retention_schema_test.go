@@ -168,6 +168,17 @@ func TestRetentionAcceptedOnEveryManifestKind(t *testing.T) {
 	}
 }
 
+func TestStorageEntryRequiresExplicitRegenerableIntent(t *testing.T) {
+	schema := compileRepoSchema(t, "common.schema.json#/definitions/storageEntry")
+	if err := schema.Validate(map[string]any{"rung": "owned", "kind": "dir", "class": "data", "regenerable": false}); err != nil {
+		t.Fatalf("explicit durable entry rejected: %v", err)
+	}
+	err := schema.Validate(map[string]any{"rung": "owned", "kind": "dir", "class": "data"})
+	if err == nil || !strings.Contains(strings.ToLower(err.Error()), "regenerable") {
+		t.Fatalf("missing regenerable error = %v, want field name", err)
+	}
+}
+
 // firstValidManifest returns a decoded manifest of the given filename that
 // already validates against schema, so retention assertions layered on top
 // cannot fail for an unrelated pre-existing reason.

@@ -172,7 +172,7 @@ func WithSudo(mode, command string, args []string) (string, []string, error) {
 		case "ask":
 			return "sudo", append([]string{command}, args...), nil
 		case "skip":
-			return "", nil, fmt.Errorf("%w: re-run as `sudo vrooli setup` (or pass --sudo-mode=ask)", ErrSudoSkipped)
+			return "", nil, fmt.Errorf("%w: re-run with `vrooli setup --sudo-mode=ask`", ErrSudoSkipped)
 		case "error":
 			return "", nil, fmt.Errorf("%w: automatic install requires sudo but --sudo-mode=error", ErrSudoUnavailable)
 		default:

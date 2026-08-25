@@ -10,6 +10,8 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/vrooli/repo-contract-go/repocontracttest"
 )
 
 // AI_CHECK: GO_MIGRATION_TEST_QUALITY=5 | LAST: 2026-04-11
@@ -214,7 +216,7 @@ func TestComputeSourceFingerprintForPathsSkipsKnownBuildArtifacts(t *testing.T) 
 
 func TestComputeSourceFingerprintErrorsOnUnreadableFile(t *testing.T) {
 	if runtime.GOOS == "windows" {
-		t.Skip("permissions differ on Windows")
+		repocontracttest.SkipPlatform(t, "permissions differ on Windows")
 	}
 
 	root := t.TempDir()
@@ -1200,6 +1202,37 @@ func TestRebuildAndReexec_SecondCallSkipsRebuildIfFreshlyBuilt(t *testing.T) {
 		t.Fatalf("goBuildFn should not run when embedded matches current; calls=%d", buildCalls)
 	}
 	_ = executable
+}
+
+func TestRebuildAndReexecSkipsWhenSiblingInstalledSidecar(t *testing.T) {
+	_, executable := rebuildTestEnv(t)
+
+	originalFingerprint := Fingerprint
+	t.Cleanup(func() { Fingerprint = originalFingerprint })
+
+	current, err := CurrentFingerprint()
+	if err != nil {
+		t.Fatalf("CurrentFingerprint: %v", err)
+	}
+	if err := WriteSidecarFingerprint(executable, current); err != nil {
+		t.Fatalf("WriteSidecarFingerprint: %v", err)
+	}
+
+	var buildCalls int
+	goBuildFn = func(dir string, args []string) error {
+		buildCalls++
+		writeStubBinaryAt(args)
+		return nil
+	}
+	execFn = func(argv0 string, argv []string, envv []string) error { return nil }
+	Fingerprint = "stale-sibling-process"
+
+	if err := RebuildAndReexec([]string{"scenario", "list"}); err != nil {
+		t.Fatalf("RebuildAndReexec: %v", err)
+	}
+	if buildCalls != 0 {
+		t.Fatalf("goBuildFn should not run when a sibling installed a fresh binary; calls=%d", buildCalls)
+	}
 }
 
 func TestRebuildAndReexec_AtomicRename(t *testing.T) {

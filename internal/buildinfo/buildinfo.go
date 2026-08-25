@@ -566,10 +566,11 @@ func RebuildAndReexec(argv []string) error {
 	defer release()
 
 	// After acquiring the lock, re-check whether a sibling rebuilder already
-	// landed a fresh binary at the same fingerprint. If so, skip the rebuild
-	// and exec straight into the freshly installed binary; this is the
-	// de-duplication that prevents a race-driven loop-guard trip.
-	if strings.TrimSpace(Fingerprint) == currentFingerprint {
+	// landed a fresh binary at the same fingerprint. The sidecar is the shared
+	// on-disk signal; this process's embedded fingerprint may still be stale.
+	// If either signal proves freshness, skip the rebuild and exec straight into
+	// the installed binary.
+	if strings.TrimSpace(Fingerprint) == currentFingerprint || SidecarMatches(executable, currentFingerprint) {
 		execArgs := append([]string{executable}, argv...)
 		return execFn(executable, execArgs, setEnvValue(os.Environ(), RebuildLoopEnvVar, currentFingerprint))
 	}

@@ -12,11 +12,6 @@
   "versionArgs": [
     "-h"
   ],
-  "platforms": [
-    "linux",
-    "macos",
-    "windows"
-  ],
   "installHint": "Optional image-tools upscale/denoise backend; install on demand with `vrooli host install realesrgan-ncnn-vulkan`",
   "bundling": "vendorable",
   "capability": "media-processing",
@@ -80,15 +75,15 @@
   "platform_status": {
     "linux": {
       "status": "unqualified",
-      "evidence": "Manifest-declared applicability; no host-sampled qualification recorded."
+      "evidence": null
     },
     "macos": {
       "status": "unqualified",
-      "evidence": "Manifest-declared applicability; no host-sampled qualification recorded."
+      "evidence": null
     },
     "windows": {
       "status": "unqualified",
-      "evidence": "Manifest-declared applicability; no host-sampled qualification recorded."
+      "evidence": null
     }
   }
 }

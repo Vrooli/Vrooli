@@ -216,3 +216,61 @@ func TestAvailabilityReportsProviderConditions(t *testing.T) {
 		})
 	}
 }
+
+// recoveringStore is unreachable until it is opened, which is what a
+// host-bound encrypted store looks like to a process that started before the
+// operator unlocked it.
+type recoveringStore struct {
+	opened bool
+	probes int
+}
+
+func (s *recoveringStore) Put(string, string, string) error { return s.get() }
+
+func (s *recoveringStore) Get(string, string) (string, error) {
+	return "", s.get()
+}
+
+func (s *recoveringStore) Delete(string, string) error { return s.get() }
+
+func (s *recoveringStore) get() error {
+	s.probes++
+	if s.opened {
+		return fmt.Errorf("%w: probe", securestore.ErrNotFound)
+	}
+	return fmt.Errorf("%w: store is locked", securestore.ErrUnavailable)
+}
+
+// A long-lived process must be able to observe a store that was opened after
+// it started. Without Recheck the first verdict is final for the whole process
+// lifetime, which is the defect that made the onboarding wizard report every
+// credential unsupported hours after a transient store outage.
+func TestRecheckObservesAStoreOpenedAfterTheFirstProbe(t *testing.T) {
+	store := &recoveringStore{}
+	authority, err := NewAuthority(store)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := authority.Availability(); !errors.Is(err, ErrProviderUnavailable) {
+		t.Fatalf("first availability = %v, want ErrProviderUnavailable", err)
+	}
+	store.opened = true
+	if err := authority.Availability(); !errors.Is(err, ErrProviderUnavailable) {
+		t.Fatalf("cached availability = %v, want the cached ErrProviderUnavailable", err)
+	}
+	if store.probes != 1 {
+		t.Fatalf("store probes = %d, want the verdict to be cached after one probe", store.probes)
+	}
+	authority.Recheck()
+	if err := authority.Availability(); err != nil {
+		t.Fatalf("availability after Recheck = %v, want nil", err)
+	}
+	if store.probes != 2 {
+		t.Fatalf("store probes = %d, want exactly one more probe after Recheck", store.probes)
+	}
+}
+
+func TestRecheckOnNilAuthorityIsSafe(t *testing.T) {
+	var authority *Authority
+	authority.Recheck()
+}

@@ -15,12 +15,17 @@ func stubLookups(t *testing.T) func() {
 	origReadFile := hostreqkit.ReadFileFn
 	origCombinedOutput := hostreqkit.CombinedOutputFn
 	origRunCommand := hostreqkit.RunCommandFn
+	origElevationFacts := hostreqkit.ElevationFactsFn
 	origKeyDownload := KeyDownloadFn
+	hostreqkit.ElevationFactsFn = func() hostreqkit.ElevationFacts {
+		return hostreqkit.ElevationFacts{Platform: "linux", Elevated: true, CanElevate: true, Mechanism: "test"}
+	}
 	return func() {
 		hostreqkit.LookPathFn = origLookPath
 		hostreqkit.ReadFileFn = origReadFile
 		hostreqkit.CombinedOutputFn = origCombinedOutput
 		hostreqkit.RunCommandFn = origRunCommand
+		hostreqkit.ElevationFactsFn = origElevationFacts
 		KeyDownloadFn = origKeyDownload
 	}
 }

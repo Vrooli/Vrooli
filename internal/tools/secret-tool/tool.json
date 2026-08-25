@@ -18,16 +18,13 @@
     "apk": "libsecret"
   },
   "installHint": "Install libsecret-tools, then start and unlock a user Secret Service session before starting a shared managed resource.",
-  "platforms": [
-    "linux"
-  ],
   "bundling": "host-required",
   "capability": "credential-storage",
   "capability_role": "peer",
   "platform_status": {
     "linux": {
       "status": "unqualified",
-      "evidence": "Manifest-declared applicability; no host-sampled qualification recorded."
+      "evidence": null
     },
     "macos": {
       "status": "unsupported",

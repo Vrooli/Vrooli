@@ -1328,8 +1328,8 @@ func (app *App) buildScenarioHandlerMap() map[scenariocli.CommandID]rootcli.Hand
 		RunSubprocess: func(ctx *CommandContext, spec scenarioexec.SubprocessSpec) error {
 			return ctx.app.RunScenarioSubprocess(spec)
 		},
-		RemoteScenarioCall: func(ctx *CommandContext, node, scenario string, jsonOutput bool) ([]byte, error) {
-			return ctx.app.remoteScenarioStatus(ctx, node, scenario, jsonOutput)
+		RemoteScenarioCall: func(ctx *CommandContext, node, scenario, command string, args []string, jsonOutput bool) ([]byte, error) {
+			return ctx.app.remoteScenarioCall(ctx, node, scenario, command, args, jsonOutput)
 		},
 		LocateTestGenieCLI: func(ctx *CommandContext) (string, error) {
 			home, err := ctx.HomeDir()

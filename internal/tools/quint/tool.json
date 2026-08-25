@@ -14,11 +14,6 @@
   ],
   "handler": "quint",
   "version": "0.32.0",
-  "platforms": [
-    "linux",
-    "macos",
-    "windows"
-  ],
   "installHint": "Installed via `npm install --prefix ~/.cache/vrooli/formal-tools/quint/node @informalsystems/quint@0.32.0` then symlinked to ~/.local/bin/quint. Requires Node/npm on PATH and Java 17+ for `quint verify`.",
   "notes": "Pinned for deterministic formal-model validation; bump with generated temporal-flow artifacts.",
   "bundling": "host-required",
@@ -27,15 +22,15 @@
   "platform_status": {
     "linux": {
       "status": "unqualified",
-      "evidence": "Manifest-declared applicability; no host-sampled qualification recorded."
+      "evidence": null
     },
     "macos": {
       "status": "unqualified",
-      "evidence": "Manifest-declared applicability; no host-sampled qualification recorded."
+      "evidence": null
     },
     "windows": {
       "status": "unqualified",
-      "evidence": "Manifest-declared applicability; no host-sampled qualification recorded."
+      "evidence": null
     }
   }
 }

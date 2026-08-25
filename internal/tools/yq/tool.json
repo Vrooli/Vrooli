@@ -18,11 +18,6 @@
   },
   "installHint": "Linux installs the pinned Mike Farah yq v4.53.2 release into ~/.vrooli/bin with SHA-256 verification; macOS and Windows fall back to the declared Homebrew and winget packages. apt's yq is a different tool and is intentionally not used.",
   "notes": "Linux release checksums were verified against the official v4.53.2 checksums asset.",
-  "platforms": [
-    "linux",
-    "macos",
-    "windows"
-  ],
   "bundling": "vendorable",
   "capability": "data-query",
   "capability_role": "primary",
@@ -54,15 +49,15 @@
   "platform_status": {
     "linux": {
       "status": "unqualified",
-      "evidence": "Manifest-declared applicability; no host-sampled qualification recorded."
+      "evidence": null
     },
     "macos": {
       "status": "unqualified",
-      "evidence": "Manifest-declared applicability; no host-sampled qualification recorded."
+      "evidence": null
     },
     "windows": {
       "status": "unqualified",
-      "evidence": "Manifest-declared applicability; no host-sampled qualification recorded."
+      "evidence": null
     }
   }
 }

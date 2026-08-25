@@ -7,6 +7,8 @@ import (
 	"runtime"
 	"strings"
 	"testing"
+
+	"github.com/vrooli/repo-contract-go/repocontracttest"
 )
 
 // The macOS Keychain adapter is guarded by `//go:build darwin && cgo`. A
@@ -58,7 +60,7 @@ func TestDistributionCgoSettingRefusesACgolessDarwinRelease(t *testing.T) {
 // but it must be explicit rather than the default.
 func TestDistributionCgoSettingAllowsAnExplicitDegradedDarwinBuild(t *testing.T) {
 	if runtime.GOOS == "darwin" {
-		t.Skip("the degraded path only applies when cross-building darwin from another host")
+		repocontracttest.SkipPlatform(t, "the degraded path only applies when cross-building darwin from another host")
 	}
 	setting, err := distributionCgoSetting(DistributionTarget{OS: "darwin", Arch: "amd64"}, true)
 	if err != nil {

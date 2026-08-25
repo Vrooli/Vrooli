@@ -3,9 +3,6 @@
   "name": "ollama_resource_controls",
   "description": "Verify that the supervised Ollama process carries its OOM priority and keeps an uncapped address space, since an address-space cap breaks CUDA model loads",
   "handler": "ollama_resource_controls",
-  "platforms": [
-    "linux"
-  ],
   "risk": "low",
   "privilege": "user",
   "bundling": "prohibited",
@@ -35,7 +32,7 @@
   "platform_status": {
     "linux": {
       "status": "unqualified",
-      "evidence": "Manifest-declared applicability; no host-sampled qualification recorded."
+      "evidence": null
     },
     "macos": {
       "status": "unsupported",

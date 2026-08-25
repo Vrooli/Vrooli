@@ -10,7 +10,8 @@
           "macos": null,
           "windows": null
         },
-        "kind": "file",
+      "kind": "file",
+      "regenerable": false,
         "class": "config",
         "sensitive": true,
         "rationale": "The Linux safeguard persists the detected AMD EDAC module load."
@@ -20,9 +21,6 @@
   },
   "description": "Load EDAC drivers for memory error reporting on supported chipsets",
   "handler": "edac_modules",
-  "platforms": [
-    "linux"
-  ],
   "risk": "high",
   "privilege": "elevated",
   "bundling": "prohibited",
@@ -52,7 +50,7 @@
   "platform_status": {
     "linux": {
       "status": "unqualified",
-      "evidence": "Manifest-declared applicability; no host-sampled qualification recorded."
+      "evidence": null
     },
     "macos": {
       "status": "unsupported",

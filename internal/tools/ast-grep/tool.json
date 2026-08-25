@@ -17,10 +17,6 @@
     "brew": "ast-grep"
   },
   "installHint": "Install ast-grep from GitHub releases: https://github.com/ast-grep/ast-grep/releases — or via cargo install ast-grep, or npm install -g @ast-grep/cli",
-  "platforms": [
-    "linux",
-    "macos"
-  ],
   "manual": true,
   "bundling": "host-required",
   "capability": "code-analysis",
@@ -28,11 +24,11 @@
   "platform_status": {
     "linux": {
       "status": "unqualified",
-      "evidence": "Manifest-declared applicability; no host-sampled qualification recorded."
+      "evidence": null
     },
     "macos": {
       "status": "unqualified",
-      "evidence": "Manifest-declared applicability; no host-sampled qualification recorded."
+      "evidence": null
     },
     "windows": {
       "status": "unsupported",

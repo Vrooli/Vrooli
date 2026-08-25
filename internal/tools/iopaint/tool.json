@@ -12,11 +12,6 @@
   "versionArgs": [
     "--version"
   ],
-  "platforms": [
-    "linux",
-    "macos",
-    "windows"
-  ],
   "manual": true,
   "installHint": "Python tool — install with `pipx install iopaint` (or `pip install iopaint`). Not a single-binary release, so it is not auto-fetched.",
   "bundling": "host-required",
@@ -25,15 +20,15 @@
   "platform_status": {
     "linux": {
       "status": "unqualified",
-      "evidence": "Manifest-declared applicability; no host-sampled qualification recorded."
+      "evidence": null
     },
     "macos": {
       "status": "unqualified",
-      "evidence": "Manifest-declared applicability; no host-sampled qualification recorded."
+      "evidence": null
     },
     "windows": {
       "status": "unqualified",
-      "evidence": "Manifest-declared applicability; no host-sampled qualification recorded."
+      "evidence": null
     }
   }
 }

@@ -17,16 +17,13 @@
     "apt-get": "openbox"
   },
   "installHint": "Install openbox to provide a lightweight Linux window manager for virtual desktop sessions",
-  "platforms": [
-    "linux"
-  ],
   "bundling": "host-required",
   "capability": "headless-gui",
   "capability_role": "primary",
   "platform_status": {
     "linux": {
       "status": "unqualified",
-      "evidence": "Manifest-declared applicability; no host-sampled qualification recorded."
+      "evidence": null
     },
     "macos": {
       "status": "unsupported",

@@ -12,7 +12,7 @@
         "rationale": "mcelog writes machine-check error records to this host log.",
         "budget": {
           "max_age": "30d",
-          "rationale": "Regenerable storage budget measured and governed on 2026-08-05; age is the reclaim ceiling."
+          "rationale": "Regenerable storage is retained for 30 days and reclaimed by age; the window is the workload retention requirement."
         }
       }
     },
@@ -27,9 +27,6 @@
   ],
   "handler": "mcelog",
   "defaultPackage": "mcelog",
-  "platforms": [
-    "linux"
-  ],
   "installHint": "Install mcelog via your package manager. On modern AMD systems mcelog is often superseded by rasdaemon — that is acceptable; this tool reports ExecutionAlreadyPresent in that case.",
   "bundling": "host-required",
   "capability": "crash-forensics",
@@ -37,7 +34,7 @@
   "platform_status": {
     "linux": {
       "status": "unqualified",
-      "evidence": "Manifest-declared applicability; no host-sampled qualification recorded."
+      "evidence": null
     },
     "macos": {
       "status": "unsupported",

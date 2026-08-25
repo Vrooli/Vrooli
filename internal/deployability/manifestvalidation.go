@@ -50,8 +50,13 @@ func ValidateManifestDeclarations(declarations []ManifestDeclaration, vocabulary
 			return fmt.Errorf("%s: capability manifest %q has invalid capability_role %q", location, item.Name, item.Role)
 		}
 		for _, osName := range sortedKeys(item.Platforms) {
-			if _, err := ParsePlatformStatus(item.Platforms[osName].Status); err != nil {
+			declaration := item.Platforms[osName]
+			status, err := ParsePlatformStatus(declaration.Status)
+			if err != nil {
 				return fmt.Errorf("%s: capability manifest %q declares %s %w", location, item.Name, osName, err)
+			}
+			if status.Qualification().Rank() > QualificationBuildVerified.Rank() && !declaration.Evidence.Complete() {
+				return fmt.Errorf("%s: capability manifest %q declares %s at status %s (qualification %s) without complete structured evidence", location, item.Name, osName, status, status.Qualification())
 			}
 		}
 	}

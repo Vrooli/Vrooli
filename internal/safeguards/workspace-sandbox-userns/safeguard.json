@@ -10,7 +10,8 @@
           "macos": null,
           "windows": null
         },
-        "kind": "file",
+      "kind": "file",
+      "regenerable": false,
         "class": "config",
         "sensitive": true,
         "rationale": "The safeguard writes the Linux AppArmor profile."
@@ -20,9 +21,6 @@
   },
   "description": "Allow workspace-sandbox to enter the AppArmor profile needed for unprivileged user and mount namespace startup",
   "handler": "workspace_sandbox_userns",
-  "platforms": [
-    "linux"
-  ],
   "risk": "medium",
   "verificationCheck": {
     "files": [
@@ -57,7 +55,7 @@
   "platform_status": {
     "linux": {
       "status": "unqualified",
-      "evidence": "Manifest-declared applicability; no host-sampled qualification recorded."
+      "evidence": null
     },
     "macos": {
       "status": "unsupported",

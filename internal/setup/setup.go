@@ -212,15 +212,24 @@ func RunSetupWithOptions(root, home string, opts Options, stdout, stderr io.Writ
 
 func (s *setupService) RunSetupWithOptions(root, home string, opts Options, stdout, stderr io.Writer) (err error) {
 	var terminalReport vrooliruntime.Report
+	var terminalReportErr error
 	var degradedResources []string
 	var onboardingResult *OnboardingResult
+	var readinessVerdict *SetupReadiness
 	statePath := ""
 	if locator, locatorErr := projectstate.NewLocator(home, root); locatorErr == nil {
 		statePath = locator.ActiveSetupPath()
 	}
 	progress := newProgressCoordinator(progressWriter(stderr, stdout), progressOptions{DryRun: opts.DryRun, StatePath: statePath})
 	defer func() {
-		result := finalizeSetupResultConfiguration(setupTerminalResult(progress.CurrentPhase(), terminalReport, err, degradedResources), home, root, err)
+		// Every terminal path carries the verdict, including a dry run and an
+		// early return. Computing it only on the happy path would leave the
+		// most common inspection without the one fact it exists to report.
+		if readinessVerdict == nil && err == nil {
+			verdict := verifySetupReadiness(root, terminalReport, terminalReportErr)
+			readinessVerdict = &verdict
+		}
+		result := finalizeSetupResultConfiguration(setupTerminalResult(progress.CurrentPhase(), terminalReport, err, degradedResources), home, root, err, readinessVerdict)
 		result.Onboarding = onboardingResult
 		if writeErr := writeSetupResult(opts.ResultPath, result); writeErr != nil && err == nil {
 			err = writeErr
@@ -417,28 +426,82 @@ func (s *setupService) RunSetupWithOptions(root, home string, opts Options, stdo
 	if handoffErr != nil {
 		_, _ = fmt.Fprintf(stderr, "[WARN]    Onboarding handoff unavailable: %v\n", handoffErr)
 	}
+	// The verdict is computed after the handoff, so a wizard the operator just
+	// finished is reflected in setup's last word rather than in the next run's.
+	verdict := verifySetupReadiness(root, terminalReport, terminalReportErr)
+	readinessVerdict = &verdict
 	progress.CompletePhase()
 	progress.StartPhase(PhaseCompletion)
 	if len(degradedResources) > 0 {
 		_, _ = fmt.Fprintf(stdout, "[WARN]    Setup completed with degraded optional resources: %s\n", strings.Join(degradedResources, ", "))
-	} else {
-		_, _ = fmt.Fprintln(stdout, "[INFO]    Setup completed successfully.")
 	}
-	_, _ = fmt.Fprintln(stdout, "[INFO]    Bootstrap setup completed; configuration remains pending until onboarding reports completion.")
+	// The last line of a setup run states a verified verdict rather than an
+	// unconditional success. The previous unconditional line was true about the
+	// bootstrap steps and silent about whether the host was actually configured.
+	renderSetupReadinessVerdict(stdout, verdict, configurationAlreadyComplete(home, root))
 	progress.CompletePhase()
 	return nil
 }
 
-func finalizeSetupResultConfiguration(result SetupResult, home, root string, runErr error) SetupResult {
+func renderSetupReadinessVerdict(stdout io.Writer, verdict SetupReadiness, markerPresent bool) {
+	switch {
+	case verdict.Source == ReadinessSourceUnavailable:
+		_, _ = fmt.Fprintf(stdout, "[WARN]    Setup finished; configuration could not be verified: %s\n", verdict.Reason)
+	case !markerPresent:
+		// Configuration is pending by definition here, so the readiness
+		// remediation must not be printed: its ready/degraded wording asserts
+		// that configuration is complete, which directly contradicts the line
+		// above and is how a run ended with "remains pending" immediately
+		// followed by "configuration are complete".
+		_, _ = fmt.Fprintln(stdout, "[INFO]    Bootstrap setup completed; configuration remains pending until onboarding reports completion.")
+		if len(verdict.Blockers) > 0 {
+			_, _ = fmt.Fprintf(stdout, "[ACTION]  Unresolved: %s. Finish configuration in onboarding: `vrooli-onboarding wizard run --interactive`\n", strings.Join(verdict.Blockers, ", "))
+			return
+		}
+		_, _ = fmt.Fprintln(stdout, "[ACTION]  Finish configuration in onboarding: `vrooli-onboarding wizard run --interactive`")
+		return
+	case verdict.Status == ReadinessStatusReady:
+		_, _ = fmt.Fprintln(stdout, "[INFO]    Setup completed; configuration verified ready.")
+	case verdict.Status == ReadinessStatusDegraded:
+		_, _ = fmt.Fprintln(stdout, "[INFO]    Setup completed; configuration verified with optional items unresolved.")
+	default:
+		_, _ = fmt.Fprintf(stdout, "[WARN]    Setup completed, but configuration is not verified: %s\n", strings.Join(verdict.Blockers, ", "))
+	}
+	if verdict.Status != ReadinessStatusReady {
+		_, _ = fmt.Fprintf(stdout, "[ACTION]  %s\n", readinessRemediation(verdict))
+	}
+}
+
+// finalizeSetupResultConfiguration decides setup's last word.
+//
+// A present marker is no longer sufficient on its own. The marker is written by
+// onboarding, and trusting it alone is how a run reported success over a host
+// with a required credential absent and a required safeguard unapplied. When
+// the verdict contradicts the marker, the honest answer is that configuration
+// is pending, and the remediation names the one command that resolves it.
+func finalizeSetupResultConfiguration(result SetupResult, home, root string, runErr error, verdict *SetupReadiness) SetupResult {
 	if runErr != nil {
 		return result
 	}
+	result.Readiness = verdict
 	if configurationAlreadyComplete(home, root) {
 		result.ConfigurationPending = false
-		if result.Status == SetupStatusSuccess {
+		if result.Status != SetupStatusSuccess {
+			return result
+		}
+		if verdict == nil {
 			result.Category = SetupCategorySuccess
 			result.Remediation = "Setup and onboarding configuration are complete."
+			return result
 		}
+		if verdict.Status == ReadinessStatusMissing || verdict.Status == ReadinessStatusUnsupported {
+			result.Category = SetupCategoryConfigurationPending
+			result.ConfigurationPending = true
+			result.Remediation = readinessRemediation(*verdict)
+			return result
+		}
+		result.Category = SetupCategorySuccess
+		result.Remediation = readinessRemediation(*verdict)
 		return result
 	}
 	if result.Status == SetupStatusSuccess || result.Status == SetupStatusDegraded {
@@ -446,6 +509,9 @@ func finalizeSetupResultConfiguration(result SetupResult, home, root string, run
 		if result.Status == SetupStatusSuccess {
 			result.Category = SetupCategoryConfigurationPending
 			result.Remediation = "Bootstrap completed. Continue in vrooli-onboarding to finish configuration."
+			if verdict != nil && len(verdict.Blockers) > 0 {
+				result.Remediation = readinessRemediation(*verdict)
+			}
 		}
 	}
 	return result
@@ -465,6 +531,13 @@ var ownershipMigrationClasses = []string{
 	repocontract.HomeKeyBuild,
 	repocontract.HomeKeyTestRuns,
 	repocontract.HomeKeySecretsEnc,
+	// The state class holds the operator-input queue and the scenario state a
+	// scenario process reads and writes as the operator. An elevated setup run
+	// that writes there leaves a root-owned file the onboarding API cannot
+	// open, and the operator meets it as an opaque server error inside the
+	// flow. Migrating it is what keeps one elevated run from making the
+	// in-flow surface unusable.
+	repocontract.HomeKeyState,
 	"backups",
 	"artifacts",
 }

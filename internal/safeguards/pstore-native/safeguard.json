@@ -10,7 +10,8 @@
           "macos": null,
           "windows": null
         },
-        "kind": "file",
+      "kind": "file",
+      "regenerable": false,
         "class": "config",
         "sensitive": true,
         "rationale": "The safeguard persists the Linux EFI pstore module load."
@@ -22,7 +23,8 @@
           "macos": null,
           "windows": null
         },
-        "kind": "file",
+      "kind": "file",
+      "regenerable": false,
         "class": "config",
         "sensitive": true,
         "rationale": "The safeguard persists the Linux ERST pstore module load."
@@ -32,9 +34,6 @@
   },
   "description": "Activate native kernel pstore backends (efi_pstore / erst) so panic dumps survive resets without modifying GRUB",
   "handler": "pstore_native",
-  "platforms": [
-    "linux"
-  ],
   "risk": "low",
   "privilege": "elevated",
   "bundling": "prohibited",
@@ -64,7 +63,7 @@
   "platform_status": {
     "linux": {
       "status": "unqualified",
-      "evidence": "Manifest-declared applicability; no host-sampled qualification recorded."
+      "evidence": null
     },
     "macos": {
       "status": "unsupported",

@@ -205,6 +205,26 @@ func (a *Authority) Availability() error {
 	return a.availabilityErr
 }
 
+// Recheck discards the cached availability verdict so the next Availability
+// call probes the store again.
+//
+// Caching for the process lifetime is right for a short CLI invocation and
+// wrong for a long-lived server. The onboarding API is started by the control
+// plane and can outlive several store state changes, so without this it would
+// keep reporting the store state it observed at start — a wizard opened hours
+// later would call every credential unsupported because of a lock that has
+// since been opened. Callers invoke this once per request, never once per
+// credential.
+func (a *Authority) Recheck() {
+	if a == nil {
+		return
+	}
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	a.availabilityProbed = false
+	a.availabilityErr = nil
+}
+
 // Provider names the backend for diagnostics. It never performs store I/O.
 func (a *Authority) Provider() string {
 	if a == nil {

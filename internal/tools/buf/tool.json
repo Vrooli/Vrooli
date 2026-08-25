@@ -16,11 +16,6 @@
   "packages": {
     "winget": "Bufbuild.Buf"
   },
-  "platforms": [
-    "linux",
-    "macos",
-    "windows"
-  ],
   "installHint": "Installed from Buf's checksum-verified GitHub release into ~/.vrooli/bin on Linux/macOS (no sudo). Windows uses the declared winget fallback.",
   "notes": "Pinned to 1.37.0 alongside packages/proto codegen. Bump in lockstep with the proto-codegen byte-stability gate (`make check`).",
   "bundling": "vendorable",
@@ -70,15 +65,15 @@
   "platform_status": {
     "linux": {
       "status": "unqualified",
-      "evidence": "Manifest-declared applicability; no host-sampled qualification recorded."
+      "evidence": null
     },
     "macos": {
       "status": "unqualified",
-      "evidence": "Manifest-declared applicability; no host-sampled qualification recorded."
+      "evidence": null
     },
     "windows": {
       "status": "unqualified",
-      "evidence": "Manifest-declared applicability; no host-sampled qualification recorded."
+      "evidence": null
     }
   }
 }

@@ -9,9 +9,6 @@
     "/Query",
     "/?"
   ],
-  "platforms": [
-    "windows"
-  ],
   "manual": true,
   "installHint": "Provided by Windows.",
   "bundling": "host-required",
@@ -30,7 +27,7 @@
     },
     "windows": {
       "status": "unqualified",
-      "evidence": "Manifest-declared applicability; no host-sampled qualification recorded."
+      "evidence": null
     }
   }
 }

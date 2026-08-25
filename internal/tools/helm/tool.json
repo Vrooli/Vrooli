@@ -18,11 +18,6 @@
     "winget": "Helm.Helm"
   },
   "installHint": "Helm is not in standard apt repos. Install via: curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash — or use snap install helm --classic",
-  "platforms": [
-    "linux",
-    "macos",
-    "windows"
-  ],
   "manual": true,
   "notes": "Not yet declared by any scenario — kept for upcoming scenario-to-cloud integration",
   "bundling": "host-required",
@@ -31,15 +26,15 @@
   "platform_status": {
     "linux": {
       "status": "unqualified",
-      "evidence": "Manifest-declared applicability; no host-sampled qualification recorded."
+      "evidence": null
     },
     "macos": {
       "status": "unqualified",
-      "evidence": "Manifest-declared applicability; no host-sampled qualification recorded."
+      "evidence": null
     },
     "windows": {
       "status": "unqualified",
-      "evidence": "Manifest-declared applicability; no host-sampled qualification recorded."
+      "evidence": null
     }
   }
 }

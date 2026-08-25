@@ -61,7 +61,7 @@ func TestRunSetupStatusPrintsGroupedAndDoesNotMutate(t *testing.T) {
 		return vrooliruntime.Report{}, nil
 	}
 	svc.deps.inspectPrivilegeBroker = func() privilegebroker.SetupStatus {
-		return privilegebroker.SetupStatus{Supported: true, Reason: "setup was not elevated", Recovery: "Re-run sudo vrooli setup"}
+		return privilegebroker.SetupStatus{Supported: true, Reason: "setup was not elevated", Recovery: "Re-run `vrooli setup --sudo-mode=ask`"}
 	}
 
 	stdout := &strings.Builder{}

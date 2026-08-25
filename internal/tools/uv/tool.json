@@ -27,11 +27,6 @@
   "versionArgs": [
     "--version"
   ],
-  "platforms": [
-    "linux",
-    "macos",
-    "windows"
-  ],
   "installHint": "Install on demand with `vrooli host install uv` (no sudo — a single static binary into ~/.vrooli/bin). Required for scenarios that provision an isolated Python venv from requirements.lock.",
   "bundling": "vendorable",
   "capability": "package-management",
@@ -99,15 +94,15 @@
   "platform_status": {
     "linux": {
       "status": "unqualified",
-      "evidence": "Manifest-declared applicability; no host-sampled qualification recorded."
+      "evidence": null
     },
     "macos": {
       "status": "unqualified",
-      "evidence": "Manifest-declared applicability; no host-sampled qualification recorded."
+      "evidence": null
     },
     "windows": {
       "status": "unqualified",
-      "evidence": "Manifest-declared applicability; no host-sampled qualification recorded."
+      "evidence": null
     }
   }
 }

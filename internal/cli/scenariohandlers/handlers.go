@@ -25,6 +25,8 @@ import (
 	scenariomodel "github.com/vrooli/vrooli/internal/scenario"
 	"github.com/vrooli/vrooli/internal/scenarioexec"
 	"github.com/vrooli/vrooli/internal/scenarioruntime"
+	cliv1 "github.com/vrooli/vrooli/packages/proto/gen/go/cli/v1"
+	"google.golang.org/protobuf/encoding/protojson"
 )
 
 type HandlerDeps[C any] struct {
@@ -42,10 +44,10 @@ type HandlerDeps[C any] struct {
 	OpenURL            func(C, string) error
 	LaunchDetached     func(C, ...string) error
 	RunSubprocess      func(C, scenarioexec.SubprocessSpec) error
-	// RemoteScenarioCall is intentionally narrow: the parser owns the address
-	// grammar and this seam owns only an explicitly addressed status request.
-	// Local status remains on the existing ScenarioOperations path.
-	RemoteScenarioCall func(C, string, string, bool) ([]byte, error)
+	// RemoteScenarioCall is the one explicit-node dispatch seam. The parser
+	// owns address grammar; this seam owns command forwarding and response
+	// decoding. Local commands remain on their existing service paths.
+	RemoteScenarioCall func(C, string, string, string, []string, bool) ([]byte, error)
 	LocateTestGenieCLI func(C) (string, error)
 	// LocateBusinessHealthCLI resolves the business-health CLI, which owns
 	// the contract-side requirements verbs (validate, report, lint-prd,
@@ -140,15 +142,12 @@ func BuildHandlers[C any](deps HandlerDeps[C]) map[CommandID]rootcli.Handler[C] 
 				if err != nil {
 					return "", StatusResponse{}, err
 				}
-				if node, scenario, variant, splitErr := cliutil.SplitAddress(req.Name); splitErr == nil && node != "" {
-					if deps.RemoteScenarioCall == nil {
-						return "", StatusResponse{}, fmt.Errorf("remote scenario status is not configured")
+				if node, remoteScenario, remote := remoteScenarioAddress(req.Name); remote {
+					payload, callErr := callRemoteScenario(deps, ctx, node, remoteScenario, "scenario status", nil, req.JSON)
+					if callErr != nil {
+						emitLifecycleFailure(deps, ctx, "status", []string{req.Name}, callErr)
+						return format, StatusResponse{}, silentLifecycleError{inner: callErr}
 					}
-					remoteScenario := scenario
-					if variant != "" {
-						remoteScenario += "@" + variant
-					}
-					payload, callErr := deps.RemoteScenarioCall(ctx, node, remoteScenario, req.JSON)
 					return format, StatusResponse{Raw: payload}, callErr
 				}
 				ops, err := deps.ScenarioOperations(ctx)
@@ -171,6 +170,23 @@ func BuildHandlers[C any](deps HandlerDeps[C]) map[CommandID]rootcli.Handler[C] 
 				format, err := deps.OutputFormat(ctx)
 				if err != nil {
 					return "", WaitResponse{}, err
+				}
+				if node, remoteScenario, remote := remoteScenarioAddress(req.Name); remote {
+					args := []string{}
+					if req.TimeoutSeconds > 0 {
+						args = []string{"--timeout", strconv.Itoa(req.TimeoutSeconds)}
+					}
+					payload, callErr := callRemoteScenario(deps, ctx, node, remoteScenario, "scenario wait", args, true)
+					if callErr != nil {
+						emitLifecycleFailure(deps, ctx, "wait", []string{req.Name}, callErr)
+						return format, WaitResponse{}, silentLifecycleError{inner: callErr}
+					}
+					resp, decodeErr := decodeRemoteWait(payload)
+					if decodeErr != nil {
+						emitLifecycleFailure(deps, ctx, "wait", []string{req.Name}, decodeErr)
+						return format, WaitResponse{}, silentLifecycleError{inner: decodeErr}
+					}
+					return format, resp, nil
 				}
 				runner, err := deps.LifecycleRunner(ctx)
 				if err != nil {
@@ -314,6 +330,21 @@ func BuildHandlers[C any](deps HandlerDeps[C]) map[CommandID]rootcli.Handler[C] 
 				"start",
 				func(req StartRequest) []string { return append([]string(nil), req.Names...) },
 				func(ctx C, req StartRequest) (cliout.Format, []LifecycleItemOutput, error) {
+					if node, remoteScenario, remote := remoteStartAddress(req.Names); remote {
+						if len(req.Names) != 1 {
+							return "", nil, fmt.Errorf("remote scenario start accepts exactly one explicitly addressed scenario")
+						}
+						format, callErr := deps.OutputFormat(ctx)
+						if callErr != nil {
+							return "", nil, callErr
+						}
+						payload, callErr := callRemoteScenario(deps, ctx, node, remoteScenario, "scenario start", remoteStartArgs(req.Options, req.OpenAfter, req.TimeoutSeconds), true)
+						if callErr != nil {
+							return format, nil, callErr
+						}
+						items, decodeErr := decodeRemoteLifecycle(payload)
+						return format, items, decodeErr
+					}
 					if req.Options.CustomPath == "" {
 						if err := ensureScenarioCLIs(deps, ctx, req.Names...); err != nil {
 							return "", nil, err
@@ -389,6 +420,18 @@ func BuildHandlers[C any](deps HandlerDeps[C]) map[CommandID]rootcli.Handler[C] 
 				"restart",
 				func(req RestartRequest) []string { return []string{req.Name} },
 				func(ctx C, req RestartRequest) (cliout.Format, []LifecycleItemOutput, error) {
+					if node, remoteScenario, remote := remoteScenarioAddress(req.Name); remote {
+						format, callErr := deps.OutputFormat(ctx)
+						if callErr != nil {
+							return "", nil, callErr
+						}
+						payload, callErr := callRemoteScenario(deps, ctx, node, remoteScenario, "scenario restart", remoteStartArgs(req.Options, req.OpenAfter, req.TimeoutSeconds), true)
+						if callErr != nil {
+							return format, nil, callErr
+						}
+						items, decodeErr := decodeRemoteLifecycle(payload)
+						return format, items, decodeErr
+					}
 					if req.Options.CustomPath == "" {
 						if err := ensureScenarioCLIs(deps, ctx, req.Name); err != nil {
 							return "", nil, err
@@ -419,6 +462,18 @@ func BuildHandlers[C any](deps HandlerDeps[C]) map[CommandID]rootcli.Handler[C] 
 				"stop",
 				func(req StopRequest) []string { return []string{req.Name} },
 				func(ctx C, req StopRequest) (cliout.Format, []LifecycleItemOutput, error) {
+					if node, remoteScenario, remote := remoteScenarioAddress(req.Name); remote {
+						format, callErr := deps.OutputFormat(ctx)
+						if callErr != nil {
+							return "", nil, callErr
+						}
+						payload, callErr := callRemoteScenario(deps, ctx, node, remoteScenario, "scenario stop", nil, true)
+						if callErr != nil {
+							return format, nil, callErr
+						}
+						items, decodeErr := decodeRemoteLifecycle(payload)
+						return format, items, decodeErr
+					}
 					format, err := deps.OutputFormat(ctx)
 					if err != nil {
 						return "", nil, err
@@ -559,6 +614,26 @@ func BuildHandlers[C any](deps HandlerDeps[C]) map[CommandID]rootcli.Handler[C] 
 				if err != nil {
 					return "", PortResponse{}, err
 				}
+				if node, remoteScenario, remote := remoteScenarioAddress(req.ScenarioName); remote {
+					args := []string{}
+					if req.PortName != "" {
+						args = append(args, req.PortName)
+					}
+					if req.Path != "" {
+						args = append(args, "--path", req.Path)
+					}
+					payload, callErr := callRemoteScenario(deps, ctx, node, remoteScenario, "scenario port", args, true)
+					if callErr != nil {
+						emitLifecycleFailure(deps, ctx, "query port", []string{req.ScenarioName}, callErr)
+						return format, PortResponse{}, silentLifecycleError{inner: callErr}
+					}
+					resp, decodeErr := decodeRemotePort(payload, req.PortName)
+					if decodeErr != nil {
+						emitLifecycleFailure(deps, ctx, "query port", []string{req.ScenarioName}, decodeErr)
+						return format, PortResponse{}, silentLifecycleError{inner: decodeErr}
+					}
+					return format, resp, nil
+				}
 				ops, err := deps.ScenarioOperations(ctx)
 				if err != nil {
 					return "", PortResponse{}, err
@@ -613,6 +688,171 @@ func bindGlobal[C any, Req any, Resp any](
 	render func(io.Writer, cliout.Format, Resp) error,
 ) rootcli.Handler[C] {
 	return rootcli.BindGlobalCommand(stdout, parse, run, render)
+}
+
+// remoteScenarioAddress recognizes only an explicit node/name address. Local
+// scenario names deliberately remain on the existing control-plane path.
+func remoteScenarioAddress(name string) (node, scenario string, remote bool) {
+	node, scenario, variant, err := cliutil.SplitAddress(strings.TrimSpace(name))
+	if err != nil || strings.TrimSpace(node) == "" {
+		return "", "", false
+	}
+	scenario = strings.TrimSpace(scenario)
+	if variant != "" {
+		scenario += "@" + variant
+	}
+	return strings.TrimSpace(node), scenario, true
+}
+
+func remoteStartAddress(names []string) (node, scenario string, remote bool) {
+	if len(names) == 0 {
+		return "", "", false
+	}
+	return remoteScenarioAddress(names[0])
+}
+
+func callRemoteScenario[C any](deps HandlerDeps[C], ctx C, node, scenario, command string, args []string, jsonOutput bool) ([]byte, error) {
+	if deps.RemoteScenarioCall == nil {
+		return nil, fmt.Errorf("remote scenario %s is not configured", command)
+	}
+	payload, err := deps.RemoteScenarioCall(ctx, node, scenario, command, args, jsonOutput)
+	if err != nil {
+		return nil, fmt.Errorf("remote %s %s: %w", command, scenario, err)
+	}
+	if len(bytes.TrimSpace(payload)) == 0 {
+		return nil, fmt.Errorf("remote %s %s returned an empty response", command, scenario)
+	}
+	return payload, nil
+}
+
+func remoteStartArgs(options lifecycle.StartOptions, openAfter bool, timeoutSeconds int) []string {
+	args := []string{}
+	if options.CustomPath != "" {
+		args = append(args, "--path", options.CustomPath)
+	}
+	if options.BestEffort {
+		args = append(args, "--best-effort")
+	}
+	if options.CleanStale {
+		args = append(args, "--clean-stale")
+	}
+	if options.ForceSetup {
+		args = append(args, "--force")
+	}
+	if openAfter {
+		args = append(args, "--open")
+	}
+	if timeoutSeconds > 0 {
+		args = append(args, "--timeout", strconv.Itoa(timeoutSeconds))
+	}
+	return args
+}
+
+func decodeRemoteLifecycle(payload []byte) ([]LifecycleItemOutput, error) {
+	var response cliv1.ScenarioLifecycleResponse
+	if err := protojson.Unmarshal(payload, &response); err != nil {
+		return nil, fmt.Errorf("decode remote lifecycle response: %w", err)
+	}
+	items := make([]LifecycleItemOutput, 0, len(response.GetScenarios()))
+	for _, item := range response.GetScenarios() {
+		if item == nil {
+			continue
+		}
+		ports := map[string]int{}
+		for key, port := range item.GetPorts() {
+			ports[key] = int(port)
+		}
+		endpoints := make([]EndpointOutput, 0, len(item.GetEndpoints()))
+		for _, endpoint := range item.GetEndpoints() {
+			if endpoint == nil {
+				continue
+			}
+			endpoints = append(endpoints, EndpointOutput{
+				Name: endpoint.GetName(), Key: endpoint.GetKey(), Description: endpoint.GetDescription(),
+				Port: int(endpoint.GetPort()), URL: endpoint.GetUrl(),
+			})
+		}
+		items = append(items, LifecycleItemOutput{
+			Name: item.GetName(), Status: item.GetStatus(), Health: item.GetHealth(), Ports: ports,
+			Endpoints: endpoints, FailedDependencies: CopyStrings(item.GetFailedDependencies()),
+			FailedResources: CopyStrings(item.GetFailedResources()), Verdict: item.GetVerdict(),
+			Operation: remoteOperationView(item.GetOperation()),
+		})
+	}
+	return items, nil
+}
+
+func decodeRemoteWait(payload []byte) (WaitResponse, error) {
+	var response cliv1.ScenarioWaitResponse
+	if err := protojson.Unmarshal(payload, &response); err != nil {
+		return WaitResponse{}, fmt.Errorf("decode remote wait response: %w", err)
+	}
+	return WaitResponse{
+		Success: response.GetSuccess(), Scenario: response.GetScenario(), Verdict: response.GetVerdict(),
+		ExitCode: int(response.GetExitCode()), Source: response.GetSource(),
+		WaitedSeconds: int(response.GetWaitedSeconds()), Operation: remoteOperationView(response.GetOperation()),
+	}, nil
+}
+
+func decodeRemotePort(payload []byte, portName string) (PortResponse, error) {
+	if strings.TrimSpace(portName) == "" {
+		var response cliv1.ScenarioPortList
+		if err := protojson.Unmarshal(payload, &response); err != nil {
+			return PortResponse{}, fmt.Errorf("decode remote port list response: %w", err)
+		}
+		ports := make([]ListPortOutput, 0, len(response.GetPorts()))
+		for _, port := range response.GetPorts() {
+			if port == nil {
+				continue
+			}
+			ports = append(ports, ListPortOutput{Key: port.GetKey(), Step: port.GetStep(), Port: int(port.GetPort()), ListenerStatus: port.GetListenerStatus()})
+		}
+		return PortResponse{List: &PortListOutput{Success: response.GetSuccess(), Scenario: response.GetScenario(), Ports: ports, Metadata: intMap(response.GetMetadata()), Error: response.GetError()}}, nil
+	}
+	var response cliv1.ScenarioPortSingle
+	if err := protojson.Unmarshal(payload, &response); err != nil {
+		return PortResponse{}, fmt.Errorf("decode remote port response: %w", err)
+	}
+	return PortResponse{Single: &PortSingleOutput{Success: response.GetSuccess(), Scenario: response.GetScenario(), PortName: response.GetPortName(), Step: response.GetStep(), Port: int(response.GetPort()), Error: response.GetError()}}, nil
+}
+
+func intMap(values map[string]int32) map[string]int {
+	out := make(map[string]int, len(values))
+	for key, value := range values {
+		out[key] = int(value)
+	}
+	return out
+}
+
+func remoteOperationView(operation *cliv1.ScenarioStartOperation) *lifecycle.StartOperationView {
+	if operation == nil {
+		return nil
+	}
+	view := &lifecycle.StartOperationView{
+		OperationID: operation.GetOperationId(), Scenario: operation.GetScenario(), Variant: operation.GetVariant(),
+		Operation: operation.GetOperation(), Status: operation.GetStatus(), Verdict: operation.GetVerdict(),
+		Error: operation.GetError(), CurrentStep: operation.GetCurrentStep(), DependencyCurrent: operation.GetDependencyCurrent(),
+		DependencyIndex: int(operation.GetDependencyIndex()), DependencyTotal: int(operation.GetDependencyTotal()),
+		ElapsedSeconds: int(operation.GetElapsedSeconds()), ETAKnown: operation.GetEtaKnown(), ETASeconds: int(operation.GetEtaSeconds()),
+		RecommendedNextCheckSeconds: int(operation.GetRecommendedNextCheckSeconds()), InitiatorPID: int(operation.GetInitiatorPid()),
+	}
+	view.StartedAt, _ = time.Parse(time.RFC3339Nano, operation.GetStartedAt())
+	if finished, err := time.Parse(time.RFC3339Nano, operation.GetFinishedAt()); err == nil && operation.GetFinishedAt() != "" {
+		view.FinishedAt = &finished
+	}
+	view.Steps = make([]scenarioruntime.StartOperationStep, 0, len(operation.GetSteps()))
+	for _, step := range operation.GetSteps() {
+		if step == nil {
+			continue
+		}
+		converted := scenarioruntime.StartOperationStep{Name: step.GetName(), Status: step.GetStatus()}
+		converted.StartedAt, _ = time.Parse(time.RFC3339Nano, step.GetStartedAt())
+		if ended, err := time.Parse(time.RFC3339Nano, step.GetEndedAt()); err == nil && step.GetEndedAt() != "" {
+			converted.EndedAt = &ended
+		}
+		view.Steps = append(view.Steps, converted)
+	}
+	return view
 }
 
 func HealFromSandboxHandlerResponse[C any](deps HandlerDeps[C], ctx C, req HealFromSandboxRequest) (cliout.Format, HealFromSandboxResponse, error) {

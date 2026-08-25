@@ -11,7 +11,8 @@
           "macos": null,
           "windows": "C:/ProgramData/docker"
         },
-        "kind": "dir",
+      "kind": "dir",
+      "regenerable": false,
         "relocation": {
           "config": "daemon.json:data-root",
           "scope": "daemon"
@@ -36,11 +37,6 @@
     "apk": "docker"
   },
   "installHint": "The container-runtime ladder adopts a healthy daemon or DOCKER_HOST, adopts an existing macOS runtime, or installs headless Colima when no provider is present",
-  "platforms": [
-    "linux",
-    "macos",
-    "windows"
-  ],
   "verificationCheck": {
     "command": "docker",
     "args": [
@@ -54,15 +50,15 @@
   "platform_status": {
     "linux": {
       "status": "unqualified",
-      "evidence": "Manifest-declared applicability; no host-sampled qualification recorded."
+      "evidence": null
     },
     "macos": {
       "status": "unqualified",
-      "evidence": "Manifest-declared applicability; no host-sampled qualification recorded."
+      "evidence": null
     },
     "windows": {
       "status": "unqualified",
-      "evidence": "Manifest-declared applicability; no host-sampled qualification recorded."
+      "evidence": null
     }
   }
 }

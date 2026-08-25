@@ -141,3 +141,34 @@ func TestDescriptorTierScopeValidation(t *testing.T) {
 		}
 	}
 }
+
+// [REQ] A signing secret has no external issuer, so the vocabulary has to be
+// able to say "the component mints this" without pretending it derives from
+// another credential.
+func TestGeneratedProvisioningIsValidAndRejectsADerivedSource(t *testing.T) {
+	valid := Descriptor{LogicalID: "vrooli/test", Field: "jwt-secret", Provisioning: ProvisioningGenerated}
+	if err := (Declaration{Descriptors: []Descriptor{valid}}).Validate("test"); err != nil {
+		t.Fatalf("generated descriptor rejected: %v", err)
+	}
+	withSource := Descriptor{LogicalID: "vrooli/test", Field: "jwt-secret", Provisioning: ProvisioningGenerated, DerivedFrom: "other"}
+	if err := (Declaration{Descriptors: []Descriptor{withSource}}).Validate("test"); err == nil {
+		t.Fatal("generated descriptor with derived_from was accepted")
+	}
+}
+
+// OperatorSupplied is the one predicate every surface uses to decide whether to
+// prompt for a value and whether its absence is the operator's problem.
+func TestOperatorSuppliedSeparatesWhatAPersonCanProvide(t *testing.T) {
+	cases := map[string]bool{
+		"":                    true,
+		ProvisioningOperator:  true,
+		ProvisioningDerived:   false,
+		ProvisioningGenerated: false,
+	}
+	for provisioning, want := range cases {
+		got := Descriptor{Provisioning: provisioning}.OperatorSupplied()
+		if got != want {
+			t.Fatalf("OperatorSupplied(%q) = %t, want %t", provisioning, got, want)
+		}
+	}
+}

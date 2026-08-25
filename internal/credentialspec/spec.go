@@ -50,14 +50,45 @@ type Descriptor struct {
 	Label       string `json:"label,omitempty"`
 	Description string `json:"description,omitempty"`
 	ObtainURL   string `json:"obtain_url,omitempty"`
-	// Provisioning identifies who supplies the value. The default is operator;
-	// derived values are written by the declaring component after derived_from
-	// is available and should not be requested from the operator.
+	// Provisioning identifies who supplies the value. The default is operator.
+	//
+	// A derived value is written by the declaring component once derived_from is
+	// available. A generated value is minted by the declaring component out of
+	// nothing — a signing secret has no external source and no place an operator
+	// could go to obtain it, so asking for one is asking a question with no
+	// answer. Neither kind should be requested from the operator, and neither
+	// should block configuration while it is absent, because the operator cannot
+	// supply it.
 	Provisioning string `json:"provisioning,omitempty"`
 	DerivedFrom  string `json:"derived_from,omitempty"`
 	// Tiers limits a descriptor to named deployment tiers. Empty means all
 	// tiers, preserving the ordinary runtime credential declaration.
 	Tiers []string `json:"tiers,omitempty"`
+}
+
+// The provisioning kinds. Compare against these rather than string literals so
+// a new kind is a compile-time question rather than a grep.
+const (
+	// ProvisioningOperator is the default: a person supplies the value.
+	ProvisioningOperator = "operator"
+	// ProvisioningDerived: the declaring component writes it once the credential
+	// named by DerivedFrom is available.
+	ProvisioningDerived = "derived"
+	// ProvisioningGenerated: the declaring component mints it, typically on
+	// first start. There is nowhere for an operator to obtain such a value.
+	ProvisioningGenerated = "generated"
+)
+
+// OperatorSupplied reports whether a person has to provide this value. It is
+// the single predicate every surface should use to decide whether to prompt for
+// a credential, and whether its absence is the operator's problem.
+func (d Descriptor) OperatorSupplied() bool {
+	switch strings.TrimSpace(d.Provisioning) {
+	case ProvisioningDerived, ProvisioningGenerated:
+		return false
+	default:
+		return true
+	}
 }
 
 // ResolvedField returns the field this descriptor addresses, applying the
@@ -118,11 +149,16 @@ func (c Declaration) Validate(owner string) error {
 			return fmt.Errorf("%s credential %s field %q cannot contain a path separator", owner, identity, field)
 		}
 		provisioning := strings.TrimSpace(descriptor.Provisioning)
-		if provisioning != "" && provisioning != "operator" && provisioning != "derived" {
+		if provisioning != "" && provisioning != ProvisioningOperator && provisioning != ProvisioningDerived && provisioning != ProvisioningGenerated {
 			return fmt.Errorf("%s credential %s:%s has invalid provisioning %q", owner, identity, field, provisioning)
 		}
-		if provisioning == "derived" && strings.TrimSpace(descriptor.DerivedFrom) == "" {
+		if provisioning == ProvisioningDerived && strings.TrimSpace(descriptor.DerivedFrom) == "" {
 			return fmt.Errorf("%s credential %s:%s derived provisioning requires derived_from", owner, identity, field)
+		}
+		// A generated value has no source credential by definition. Naming one
+		// would describe a derivation that does not exist.
+		if provisioning == ProvisioningGenerated && strings.TrimSpace(descriptor.DerivedFrom) != "" {
+			return fmt.Errorf("%s credential %s:%s generated provisioning cannot declare derived_from", owner, identity, field)
 		}
 		seenTiers := map[string]struct{}{}
 		for _, tier := range descriptor.Tiers {

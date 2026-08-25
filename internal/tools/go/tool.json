@@ -45,11 +45,6 @@
   "version": "1.25.12",
   "installHint": "Managed as an exact, checksum-verified Go release in ~/.vrooli/opt/go. It is the workspace Go toolchain source of truth; do not substitute an OS package version.",
   "notes": "The root go.mod toolchain directive and GitHub workflows consume this manifest's exact release. The go directive remains the module language/API compatibility floor.",
-  "platforms": [
-    "linux",
-    "macos",
-    "windows"
-  ],
   "bundling": "vendorable",
   "capability": "runtime-language",
   "capability_role": "primary",
@@ -131,15 +126,15 @@
   "platform_status": {
     "linux": {
       "status": "unqualified",
-      "evidence": "Manifest-declared applicability; no host-sampled qualification recorded."
+      "evidence": null
     },
     "macos": {
       "status": "unqualified",
-      "evidence": "Manifest-declared applicability; no host-sampled qualification recorded."
+      "evidence": null
     },
     "windows": {
       "status": "unqualified",
-      "evidence": "Manifest-declared applicability; no host-sampled qualification recorded."
+      "evidence": null
     }
   }
 }

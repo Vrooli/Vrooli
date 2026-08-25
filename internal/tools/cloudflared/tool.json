@@ -18,26 +18,21 @@
     "winget": "Cloudflare.cloudflared"
   },
   "installHint": "Install cloudflared from https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/downloads/",
-  "platforms": [
-    "linux",
-    "macos",
-    "windows"
-  ],
   "bundling": "host-required",
   "capability": "web-proxy",
   "capability_role": "primary",
   "platform_status": {
     "linux": {
       "status": "unqualified",
-      "evidence": "Manifest-declared applicability; no host-sampled qualification recorded."
+      "evidence": null
     },
     "macos": {
       "status": "unqualified",
-      "evidence": "Manifest-declared applicability; no host-sampled qualification recorded."
+      "evidence": null
     },
     "windows": {
       "status": "unqualified",
-      "evidence": "Manifest-declared applicability; no host-sampled qualification recorded."
+      "evidence": null
     }
   }
 }

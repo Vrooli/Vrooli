@@ -10,7 +10,8 @@
           "macos": null,
           "windows": null
         },
-        "kind": "file",
+      "kind": "file",
+      "regenerable": false,
         "class": "config",
         "sensitive": true,
         "rationale": "The safeguard writes Linux remote-session kernel settings."
@@ -22,7 +23,8 @@
           "macos": null,
           "windows": null
         },
-        "kind": "file",
+      "kind": "file",
+      "regenerable": false,
         "class": "config",
         "sensitive": true,
         "rationale": "The safeguard writes a Linux systemd user-service drop-in."
@@ -34,7 +36,8 @@
           "macos": null,
           "windows": null
         },
-        "kind": "file",
+      "kind": "file",
+      "regenerable": false,
         "class": "config",
         "sensitive": true,
         "rationale": "The safeguard writes a Linux logind drop-in."
@@ -46,7 +49,8 @@
           "macos": null,
           "windows": null
         },
-        "kind": "file",
+      "kind": "file",
+      "regenerable": false,
         "class": "config",
         "sensitive": true,
         "rationale": "The safeguard writes a Linux user-slice drop-in."
@@ -58,7 +62,8 @@
           "macos": null,
           "windows": null
         },
-        "kind": "file",
+      "kind": "file",
+      "regenerable": false,
         "class": "config",
         "sensitive": true,
         "rationale": "The safeguard writes a Linux workload slice unit."
@@ -109,7 +114,7 @@
   "platform_status": {
     "linux": {
       "status": "unqualified",
-      "evidence": "Manifest-declared applicability; no host-sampled qualification recorded."
+      "evidence": null
     },
     "macos": {
       "status": "unsupported",

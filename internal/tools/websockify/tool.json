@@ -16,16 +16,13 @@
     "apt-get": "websockify"
   },
   "installHint": "Install websockify to bridge VNC desktop sessions into browser WebSocket endpoints",
-  "platforms": [
-    "linux"
-  ],
   "bundling": "host-required",
   "capability": "remote-desktop",
   "capability_role": "primary",
   "platform_status": {
     "linux": {
       "status": "unqualified",
-      "evidence": "Manifest-declared applicability; no host-sampled qualification recorded."
+      "evidence": null
     },
     "macos": {
       "status": "unsupported",

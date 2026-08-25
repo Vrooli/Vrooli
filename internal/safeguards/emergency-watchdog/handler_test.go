@@ -10,6 +10,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/vrooli/repo-contract-go/repocontracttest"
 	"github.com/vrooli/vrooli/internal/hostreqkit"
 	"github.com/vrooli/vrooli/internal/hostreqspec"
 )
@@ -190,7 +191,7 @@ func TestFailedBuildPreservesPreviousWatchdog(t *testing.T) {
 func sandbox(t *testing.T, s settings, unitsActive bool, cpuAvg10 string) (script, home, logPath string) {
 	t.Helper()
 	if runtime.GOOS != "linux" {
-		t.Skip("the watchdog is a Linux shell script")
+		repocontracttest.SkipPlatform(t, "the watchdog is a Linux shell script")
 	}
 	root := t.TempDir()
 	home = filepath.Join(root, "home")

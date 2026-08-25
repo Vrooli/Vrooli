@@ -6,6 +6,7 @@ import (
 	"go/parser"
 	"go/token"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -284,9 +285,18 @@ func TestEveryAcceleratorCapableDriverVerifiesPlacement(t *testing.T) {
 		"managedServiceDriver.runPrivate": "managed-service",
 	}
 
-	// When each file's call graph is read
+	// When each driver file's call graph is read. The implementation is split
+	// into whole-symbol part files, so do not restrict this contract to the
+	// package entrypoints.
 	callers := map[string]int{}
-	for _, file := range []string{"drivers.go", "drivers_managed_service.go"} {
+	files, err := filepath.Glob("drivers*.go")
+	if err != nil {
+		t.Fatalf("glob driver files: %v", err)
+	}
+	for _, file := range files {
+		if strings.HasSuffix(file, "_test.go") {
+			continue
+		}
 		source, err := os.ReadFile(file)
 		if err != nil {
 			t.Fatalf("read %s: %v", file, err)

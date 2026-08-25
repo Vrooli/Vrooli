@@ -51,14 +51,14 @@ func DefaultInstallerForRepo(executable, repoRoot string) Installer {
 
 func (i Installer) Install(ctx context.Context) (SetupStatus, error) {
 	if runtime.GOOS != "linux" {
-		return SetupStatus{Supported: false, SocketPath: DefaultSocketPath, Reason: "privilege broker is currently supported only on Linux with systemd", Recovery: "Use a supported Linux host, then re-run sudo vrooli setup."}, nil
+		return SetupStatus{Supported: false, SocketPath: DefaultSocketPath, Reason: "privilege broker is currently supported only on Linux with systemd", Recovery: "Use a supported Linux host, then re-run `vrooli setup --sudo-mode=ask`."}, nil
 	}
 	if os.Geteuid() != 0 {
-		return SetupStatus{Supported: true, SocketPath: DefaultSocketPath, Reason: "setup was not elevated", Recovery: "Re-run sudo vrooli setup to install the privilege broker."}, nil
+		return SetupStatus{Supported: true, SocketPath: DefaultSocketPath, Reason: "setup was not elevated", Recovery: "Re-run `vrooli setup --sudo-mode=ask` to install the privilege broker."}, nil
 	}
 	uid, gid, err := invokingIdentity()
 	if err != nil {
-		return SetupStatus{Supported: true, SocketPath: DefaultSocketPath, Reason: err.Error(), Recovery: "Re-run sudo vrooli setup from the owner account that will run Vrooli."}, nil
+		return SetupStatus{Supported: true, SocketPath: DefaultSocketPath, Reason: err.Error(), Recovery: "Re-run `vrooli setup --sudo-mode=ask` from the owner account that will run Vrooli."}, nil
 	}
 	runtimeRoot, err := installedRuntimeHomeRoot(i.RepoRoot, uint32(uid))
 	if err != nil {
@@ -103,7 +103,7 @@ func Inspect() SetupStatus {
 	}
 	conn, err := net.Dial("unix", DefaultSocketPath)
 	if err != nil {
-		return SetupStatus{Supported: true, SocketPath: DefaultSocketPath, Reason: "broker socket is unavailable", Recovery: "Re-run sudo vrooli setup to install or repair the privilege broker."}
+		return SetupStatus{Supported: true, SocketPath: DefaultSocketPath, Reason: "broker socket is unavailable", Recovery: "Re-run `vrooli setup --sudo-mode=ask` to install or repair the privilege broker."}
 	}
 	_ = conn.Close()
 	return SetupStatus{Available: true, Supported: true, SocketPath: DefaultSocketPath}

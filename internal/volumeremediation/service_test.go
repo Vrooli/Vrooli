@@ -435,7 +435,7 @@ func TestWithoutAnyPrivilegedPathTheOperatorIsPointedAtSetup(t *testing.T) {
 	if !errors.As(err, &unsupported) {
 		t.Fatalf("error = %v, want ErrUnsupported", err)
 	}
-	if unsupported.OperatorCommand != "sudo vrooli setup" {
+	if unsupported.OperatorCommand != "vrooli setup --sudo-mode=ask" {
 		t.Fatalf("operator command = %q, want the setup command", unsupported.OperatorCommand)
 	}
 }

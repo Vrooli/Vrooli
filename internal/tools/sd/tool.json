@@ -12,11 +12,6 @@
   "versionArgs": [
     "--help"
   ],
-  "platforms": [
-    "linux",
-    "macos",
-    "windows"
-  ],
   "installHint": "Installs the prebuilt CPU build of stable-diffusion.cpp (sd-cli + libstable-diffusion.so) into ~/.vrooli/opt/sd with a launcher on PATH; runs on any x86_64 host with no GPU required. For GPU-accelerated generation on a GPU host, run `vrooli host install sd-gpu` instead — it supersedes this CPU launcher with a Vulkan (Linux) or CUDA 12 (Windows) build so image-tools runs on the GPU.",
   "bundling": "vendorable",
   "capability": "media-processing",
@@ -64,15 +59,15 @@
   "platform_status": {
     "linux": {
       "status": "unqualified",
-      "evidence": "Manifest-declared applicability; no host-sampled qualification recorded."
+      "evidence": null
     },
     "macos": {
       "status": "unqualified",
-      "evidence": "Manifest-declared applicability; no host-sampled qualification recorded."
+      "evidence": null
     },
     "windows": {
       "status": "unqualified",
-      "evidence": "Manifest-declared applicability; no host-sampled qualification recorded."
+      "evidence": null
     }
   }
 }

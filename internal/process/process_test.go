@@ -4,6 +4,7 @@ import (
 	"errors"
 	"os"
 	"os/exec"
+	osuser "os/user"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -83,7 +84,7 @@ func TestHomeDirFallsBackToUserHomeWhenHOMEUnset(t *testing.T) {
 	t.Setenv("HOME", "")
 
 	got, _ := HomeDir()
-	want, err := os.UserHomeDir()
+	current, err := osuser.Current()
 	if err != nil {
 		if got != "" {
 			t.Fatalf("HomeDir returned value %q alongside error %v", got, err)
@@ -93,8 +94,8 @@ func TestHomeDirFallsBackToUserHomeWhenHOMEUnset(t *testing.T) {
 		}
 		return
 	}
-	if got != want {
-		t.Fatalf("HomeDir = %q, want %q", got, want)
+	if got != current.HomeDir {
+		t.Fatalf("HomeDir = %q, want %q", got, current.HomeDir)
 	}
 }
 
@@ -258,7 +259,7 @@ func TestParseEnvironmentEntriesIgnoresMalformedPairs(t *testing.T) {
 
 func TestReadEnvironmentPortsFromLiveProcessSmoke(t *testing.T) {
 	if runtime.GOOS != "linux" {
-		t.Skip("process environment inspection uses /proc on linux")
+		testkitgo.SkipPlatform(t, "process environment inspection uses /proc on linux")
 	}
 
 	cmd := exec.Command("sleep", "30")

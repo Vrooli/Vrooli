@@ -9,6 +9,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vrooli/vrooli/internal/credentialspec"
+
 	repocontract "github.com/vrooli/repo-contract-go"
 	"github.com/vrooli/vrooli/internal/config"
 	"github.com/vrooli/vrooli/internal/credentialauthority"
@@ -215,7 +217,7 @@ func classifyRecoveryEntries(entries []credentialEntry) ([]string, []credentialE
 func requiredCredentialAbsent(entry credentialEntry) bool {
 	// An unavailable provider cannot prove absence. Only the normal
 	// unconfigured state is a genuine required-but-absent signal.
-	return entry.Required && entry.Provisioning != "derived" && !entry.Configured && entry.State == "unconfigured"
+	return entry.Required && credentialspec.Descriptor{Provisioning: entry.Provisioning}.OperatorSupplied() && !entry.Configured && entry.State == "unconfigured"
 }
 
 func appendRequiredAbsent(status *recoveryStatus, entry credentialEntry) {

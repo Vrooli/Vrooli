@@ -8,9 +8,6 @@
   "versionArgs": [
     "--version"
   ],
-  "platforms": [
-    "linux"
-  ],
   "manual": true,
   "installHint": "Provided by the Linux systemd package.",
   "bundling": "host-required",
@@ -19,7 +16,7 @@
   "platform_status": {
     "linux": {
       "status": "unqualified",
-      "evidence": "Manifest-declared applicability; no host-sampled qualification recorded."
+      "evidence": null
     },
     "macos": {
       "status": "unsupported",

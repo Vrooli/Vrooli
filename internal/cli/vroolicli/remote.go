@@ -28,11 +28,11 @@ type bridgeRelayEnvelope struct {
 	ExitCode int32  `json:"exit_code"`
 }
 
-// remoteScenarioStatus uses the public Bridge CLI surface rather than
-// inventing a second Connect/authentication stack inside the project CLI.
-// The child command remains typed and the node-agent still performs the
-// actual local status lookup after relay admission.
-func (app *App) remoteScenarioStatus(ctx *CommandContext, nodeName, scenario string, jsonOutput bool) ([]byte, error) {
+// remoteScenarioCall uses the public Bridge CLI surface rather than inventing
+// a second Connect/authentication stack inside the project CLI. The child
+// command remains typed and the node-agent performs the actual local scenario
+// operation after relay admission.
+func (app *App) remoteScenarioCall(ctx *CommandContext, nodeName, scenario, command string, args []string, jsonOutput bool) ([]byte, error) {
 	home, err := ctx.HomeDir()
 	if err != nil {
 		return nil, err
@@ -55,18 +55,25 @@ func (app *App) remoteScenarioStatus(ctx *CommandContext, nodeName, scenario str
 		return nil, err
 	}
 
-	args := []string{
+	callArgs := []string{
 		"relay", "call",
 		"--node-id", nodeID,
 		"--scenario", scenario,
-		"--command", "scenario status",
+		"--command", command,
 	}
+	remoteArgs := append([]string(nil), args...)
 	if jsonOutput {
-		args = append(args, "--args", "--json")
+		remoteArgs = append(remoteArgs, "--json")
 	}
-	responseRaw, err := app.runBridgeJSON(ctx, bridgeCLI, args...)
+	if len(remoteArgs) > 0 {
+		// vrooli-bridge's public CLI accepts relay arguments as CSV. Keep the
+		// relay contract in one place so every remotely dispatched scenario
+		// verb gets identical argument handling.
+		callArgs = append(callArgs, "--args", strings.Join(remoteArgs, ","))
+	}
+	responseRaw, err := app.runBridgeJSON(ctx, bridgeCLI, callArgs...)
 	if err != nil {
-		return nil, fmt.Errorf("relay scenario status to %q: %w", nodeName, err)
+		return nil, fmt.Errorf("relay %s to %q: %w", command, nodeName, err)
 	}
 	var envelope bridgeRelayEnvelope
 	if err := json.Unmarshal(responseRaw, &envelope); err != nil {
@@ -76,7 +83,7 @@ func (app *App) remoteScenarioStatus(ctx *CommandContext, nodeName, scenario str
 		if envelope.Reason == "" {
 			envelope.Reason = "relay returned no data"
 		}
-		return nil, fmt.Errorf("remote scenario status failed: outcome=%s exit_code=%d reason=%s", envelope.Outcome, envelope.ExitCode, envelope.Reason)
+		return nil, fmt.Errorf("remote scenario %s failed: outcome=%s exit_code=%d reason=%s", command, envelope.Outcome, envelope.ExitCode, envelope.Reason)
 	}
 	payload, err := base64.StdEncoding.DecodeString(envelope.Data)
 	if err != nil {

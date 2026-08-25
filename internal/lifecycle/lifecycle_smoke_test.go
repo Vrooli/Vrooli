@@ -21,7 +21,7 @@ import (
 
 func TestRunnerStartStopRestart(t *testing.T) {
 	if runtime.GOOS != "linux" {
-		t.Skip("lifecycle process management currently targets linux")
+		testkitgo.SkipPlatform(t, "lifecycle process management currently targets linux")
 	}
 
 	root := t.TempDir()
@@ -105,7 +105,7 @@ func TestRunnerStartStopRestart(t *testing.T) {
 
 func TestSetupNeededDetectsUpdatedSources(t *testing.T) {
 	if runtime.GOOS != "linux" {
-		t.Skip("lifecycle process management currently targets linux")
+		testkitgo.SkipPlatform(t, "lifecycle process management currently targets linux")
 	}
 
 	root := t.TempDir()
@@ -150,7 +150,7 @@ func TestSetupNeededDetectsUpdatedSources(t *testing.T) {
 
 func TestRunnerStartStartsRequiredDependencies(t *testing.T) {
 	if runtime.GOOS != "linux" {
-		t.Skip("lifecycle process management currently targets linux")
+		testkitgo.SkipPlatform(t, "lifecycle process management currently targets linux")
 	}
 
 	root := t.TempDir()
@@ -192,7 +192,7 @@ func TestRunnerStartStartsRequiredDependencies(t *testing.T) {
 
 func TestRunnerStartReusesHealthyDependencyWhenOnlyCLICheckWouldBeStale(t *testing.T) {
 	if runtime.GOOS != "linux" {
-		t.Skip("lifecycle process management currently targets linux")
+		testkitgo.SkipPlatform(t, "lifecycle process management currently targets linux")
 	}
 
 	root := t.TempDir()

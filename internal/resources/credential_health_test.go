@@ -5,9 +5,9 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/vrooli/vrooli/internal/credentialauthority"
 	manifestpkg "github.com/vrooli/vrooli/internal/resources/manifest"
 	"github.com/vrooli/vrooli/internal/resources/securestore"
-	"github.com/vrooli/vrooli/internal/credentialauthority"
 )
 
 type credentialTestStore struct{ values map[string]string }

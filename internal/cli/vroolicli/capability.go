@@ -127,8 +127,9 @@ func renderCapabilityGrid(ctx *CommandContext, jsonOutput bool, grid *portabilit
 	for _, entry := range grid.GetCapabilities() {
 		fmt.Fprintln(ctx.Stdout, entry.GetCapability())
 		for _, platform := range entry.GetPlatforms() {
-			fmt.Fprintf(ctx.Stdout, "  %-7s %-12s %-14s %s\n",
+			fmt.Fprintf(ctx.Stdout, "  %-7s %-7s %-12s %-14s %s\n",
 				enumToken(platform.GetHostOs().String(), "HOST_OS_"),
+				platform.GetArchitecture(),
 				enumToken(platform.GetStatus().String(), "RESOLUTION_STATUS_"),
 				enumToken(platform.GetQualification().String(), "QUALIFICATION_"),
 				firstNonEmpty(platform.GetImplementer(), platform.GetMechanism(), platform.GetReason()))

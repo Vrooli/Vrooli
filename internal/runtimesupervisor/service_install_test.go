@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"runtime"
 	"testing"
+
+	"github.com/vrooli/repo-contract-go/repocontracttest"
 )
 
 // A service unit records an absolute path and keeps running it across restarts
@@ -15,7 +17,7 @@ import (
 // install run from .vrooli/build/vrooli left the unit pointing there.
 func TestExecutablePathPrefersTheInstalledCLIOverTheInstallingBinary(t *testing.T) {
 	if runtime.GOOS == "windows" {
-		t.Skip("permission-bit fixture is POSIX-specific")
+		repocontracttest.SkipPlatform(t, "permission-bit fixture is POSIX-specific")
 	}
 	home := t.TempDir()
 	installed := filepath.Join(home, ".vrooli", "bin", cliBinaryName)
@@ -62,7 +64,7 @@ func TestExecutablePathFallsBackAndReportsNonCanonical(t *testing.T) {
 // treating either as one would pin the unit to something that cannot start.
 func TestExecutablePathIgnoresUnusableCanonicalCandidates(t *testing.T) {
 	if runtime.GOOS == "windows" {
-		t.Skip("permission-bit fixture is POSIX-specific")
+		repocontracttest.SkipPlatform(t, "permission-bit fixture is POSIX-specific")
 	}
 	for name, prepare := range map[string]func(t *testing.T, path string){
 		"directory": func(t *testing.T, path string) {

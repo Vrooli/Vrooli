@@ -28,11 +28,6 @@
   "versionArgs": [
     "--version"
   ],
-  "platforms": [
-    "linux",
-    "macos",
-    "windows"
-  ],
   "installHint": "Installed as a pinned standalone binary into ~/.vrooli/bin (no sudo). Pinned to the workspace packageManager version in pnpm-workspace.yaml — bump both together.",
   "notes": "Pinned to pnpm 10.19.0, matching the root pnpm-workspace.yaml packageManager field. Assets are the official standalone executables from the pnpm GitHub release (raw binaries, no archive). sha256 values were computed from downloaded assets; the linux/amd64 binary was executed and reports 10.19.0.",
   "bundling": "vendorable",
@@ -91,15 +86,15 @@
   "platform_status": {
     "linux": {
       "status": "unqualified",
-      "evidence": "Manifest-declared applicability; no host-sampled qualification recorded."
+      "evidence": null
     },
     "macos": {
       "status": "unqualified",
-      "evidence": "Manifest-declared applicability; no host-sampled qualification recorded."
+      "evidence": null
     },
     "windows": {
       "status": "unqualified",
-      "evidence": "Manifest-declared applicability; no host-sampled qualification recorded."
+      "evidence": null
     }
   }
 }

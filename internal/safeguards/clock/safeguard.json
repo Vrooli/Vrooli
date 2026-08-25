@@ -7,9 +7,6 @@
   },
   "description": "Verify and synchronize system clock accuracy for TLS and authentication",
   "handler": "clock",
-  "platforms": [
-    "linux"
-  ],
   "risk": "medium",
   "privilege": "elevated",
   "bundling": "prohibited",
@@ -39,7 +36,7 @@
   "platform_status": {
     "linux": {
       "status": "unqualified",
-      "evidence": "Manifest-declared applicability; no host-sampled qualification recorded."
+      "evidence": null
     },
     "macos": {
       "status": "unsupported",

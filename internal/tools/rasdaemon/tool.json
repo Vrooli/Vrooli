@@ -12,8 +12,8 @@
         "regenerable": false,
         "rationale": "rasdaemon persists hardware-error events in its SQLite database.",
         "budget": {
-          "max_bytes": "1TiB",
-          "rationale": "Durable data storage budget measured and governed on 2026-08-05; the byte ceiling prevents unbounded growth without permitting automatic deletion."
+          "max_bytes": "1GiB",
+          "rationale": "Durable data storage ceiling is derived from the expected working set and raises an alarm before host capacity is threatened."
         }
       },
       "event_database_wal": {
@@ -25,7 +25,7 @@
         "rationale": "SQLite WAL sidecar counted while rasdaemon is live.",
         "budget": {
           "max_age": "30d",
-          "rationale": "Regenerable storage budget measured and governed on 2026-08-05; age is the reclaim ceiling."
+          "rationale": "Regenerable storage is retained for 30 days and reclaimed by age; the window is the workload retention requirement."
         }
       },
       "event_database_shm": {
@@ -37,7 +37,7 @@
         "rationale": "SQLite shared-memory sidecar counted while rasdaemon is live.",
         "budget": {
           "max_age": "30d",
-          "rationale": "Regenerable storage budget measured and governed on 2026-08-05; age is the reclaim ceiling."
+          "rationale": "Regenerable storage is retained for 30 days and reclaimed by age; the window is the workload retention requirement."
         }
       }
     },
@@ -52,9 +52,6 @@
   ],
   "handler": "rasdaemon",
   "defaultPackage": "rasdaemon",
-  "platforms": [
-    "linux"
-  ],
   "installHint": "Install rasdaemon via your package manager and enable the systemd unit (rasdaemon.service).",
   "bundling": "host-required",
   "capability": "hardware-error-telemetry",
@@ -62,7 +59,7 @@
   "platform_status": {
     "linux": {
       "status": "unqualified",
-      "evidence": "Manifest-declared applicability; no host-sampled qualification recorded."
+      "evidence": null
     },
     "macos": {
       "status": "unsupported",

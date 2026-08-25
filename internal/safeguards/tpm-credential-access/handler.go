@@ -151,7 +151,7 @@ func (h handler) Apply(host hostreqkit.Host, status hostreqkit.ItemStatus, opts 
 			status.ExecutionState = hostreqkit.ExecutionManualActionRequired
 			status.BlockingReason = hostreqkit.BlockingNeedsSudo
 			status.Notes = append(status.Notes, fmt.Sprintf(
-				"granting %s access to %s needs privilege; re-run as `sudo vrooli setup` to finish unattended credential access", account, device))
+				"granting %s access to %s needs privilege; re-run as `vrooli setup --sudo-mode=ask` to finish unattended credential access", account, device))
 			return status, nil
 		}
 		status.ExecutionState = hostreqkit.ExecutionFailed

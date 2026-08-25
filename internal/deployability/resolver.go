@@ -76,7 +76,27 @@ type GPURequirement struct{ MinCUDACompute string }
 type PlatformDeclaration struct {
 	Status    string
 	Mechanism string
-	Evidence  string
+	Evidence  *Evidence
+}
+
+// Evidence identifies the concrete run and host behind a claim above the
+// build-verified rung. It is deliberately structured so a status token cannot
+// masquerade as proof through a free-form sentence.
+type Evidence struct {
+	RunID       string `json:"run_id"`
+	Host        string `json:"host"`
+	OS          string `json:"os"`
+	Arch        string `json:"arch"`
+	Date        string `json:"date"`
+	Surface     string `json:"surface"`
+	ArtifactURI string `json:"artifact_uri"`
+}
+
+func (e *Evidence) Complete() bool {
+	return e != nil && strings.TrimSpace(e.RunID) != "" && strings.TrimSpace(e.Host) != "" &&
+		strings.TrimSpace(e.OS) != "" && strings.TrimSpace(e.Arch) != "" &&
+		strings.TrimSpace(e.Date) != "" && strings.TrimSpace(e.Surface) != "" &&
+		strings.TrimSpace(e.ArtifactURI) != ""
 }
 
 type CapabilityDeclaration struct {

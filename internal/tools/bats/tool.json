@@ -18,21 +18,17 @@
     "brew": "bats-core"
   },
   "installHint": "Install bats for shell-based integration suites",
-  "platforms": [
-    "linux",
-    "macos"
-  ],
   "bundling": "host-required",
   "capability": "test-execution",
   "capability_role": "primary",
   "platform_status": {
     "linux": {
       "status": "unqualified",
-      "evidence": "Manifest-declared applicability; no host-sampled qualification recorded."
+      "evidence": null
     },
     "macos": {
       "status": "unqualified",
-      "evidence": "Manifest-declared applicability; no host-sampled qualification recorded."
+      "evidence": null
     },
     "windows": {
       "status": "unsupported",

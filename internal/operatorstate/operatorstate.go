@@ -48,9 +48,19 @@ type CoreSet struct {
 }
 
 type Completion struct {
-	SelectionDigest              string `json:"selection_digest"`
-	AppliedAt                    string `json:"applied_at"`
-	DegradedContinueAcknowledged bool   `json:"degraded_continue_acknowledged,omitempty"`
+	SelectionDigest string `json:"selection_digest"`
+	AppliedAt       string `json:"applied_at"`
+	// DegradedAcknowledgement records that the operator accepted a specific set
+	// of degraded optional items. It carries the digest of the set that was
+	// acknowledged rather than a bare flag, so an acknowledgement of one gap
+	// cannot authorise completion over a different gap later, and a page reload
+	// cannot silently discard it.
+	DegradedAcknowledgement *DegradedAcknowledgement `json:"degraded_acknowledgement,omitempty"`
+}
+
+type DegradedAcknowledgement struct {
+	ReadinessDigest string `json:"readiness_digest"`
+	AcknowledgedAt  string `json:"acknowledged_at"`
 }
 
 type Session struct {
@@ -223,6 +233,30 @@ func (s *Service) MarkApplied(ctx context.Context, selectionDigest string, at ti
 		"completion": map[string]any{
 			"selection_digest": selectionDigest,
 			"applied_at":       at.UTC().Format(time.RFC3339),
+		},
+	})
+	if err != nil {
+		return Document{}, err
+	}
+	return s.Apply(ctx, patch)
+}
+
+// RecordDegradedAcknowledgement stores the operator's acceptance of one named
+// set of degraded optional items. The digest is computed by the caller from the
+// sorted names of that set.
+func (s *Service) RecordDegradedAcknowledgement(ctx context.Context, readinessDigest string, at time.Time) (Document, error) {
+	if strings.TrimSpace(readinessDigest) == "" {
+		return Document{}, fmt.Errorf("degraded acknowledgement requires a readiness digest")
+	}
+	if at.IsZero() {
+		at = s.cfg.Now()
+	}
+	patch, err := json.Marshal(map[string]any{
+		"completion": map[string]any{
+			"degraded_acknowledgement": map[string]any{
+				"readiness_digest": readinessDigest,
+				"acknowledged_at":  at.UTC().Format(time.RFC3339),
+			},
 		},
 	})
 	if err != nil {

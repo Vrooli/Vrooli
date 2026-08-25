@@ -47,7 +47,15 @@ var (
 )
 
 func HomeDir() (string, error) {
-	return config.HomeDir()
+	home, err := config.HomeDir()
+	// os.UserHomeDir may return the authenticated user's home alongside an
+	// environment-related error. Process paths can safely use that concrete
+	// value, and callers should not receive a misleading error with a usable
+	// home directory.
+	if strings.TrimSpace(home) != "" {
+		return home, nil
+	}
+	return home, err
 }
 
 // ScenarioProcessDir resolves <home>/.vrooli/processes/scenarios/<name> from the

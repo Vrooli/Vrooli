@@ -7,9 +7,6 @@
   },
   "description": "Request removal of the GNOME login-keyring passphrase for an autologin session through the user's graphical keyring prompt. High risk: any process running as that user can then read secrets stored in the keyring.",
   "handler": "login_keyring_unlock",
-  "platforms": [
-    "linux"
-  ],
   "risk": "high",
   "privilege": "elevated",
   "bundling": "prohibited",
@@ -39,7 +36,7 @@
   "platform_status": {
     "linux": {
       "status": "unqualified",
-      "evidence": "Manifest-declared applicability; no host-sampled qualification recorded."
+      "evidence": null
     },
     "macos": {
       "status": "unsupported",

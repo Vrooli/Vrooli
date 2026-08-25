@@ -1031,7 +1031,7 @@ func TestProjectPhase5ResourcesAreManifestNative(t *testing.T) {
 	}
 	// And the driver kinds the fleet is built on each have at least one resource,
 	// so retiring the last one of a kind is a deliberate, visible change.
-	for _, driver := range []string{"managed-service", "compose-service", "docker-service", "external-cli", "cloud-api"} {
+	for _, driver := range []string{"managed-service", "compose-service", "external-cli", "cloud-api"} {
 		if drivers[driver] == 0 {
 			t.Fatalf("no discovered resource uses the %q driver; driver census = %v", driver, drivers)
 		}

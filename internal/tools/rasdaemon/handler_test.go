@@ -20,10 +20,14 @@ func stubAll(t *testing.T) (cmds *[]capturedCommand, units map[string]struct{ En
 	origRun := hostreqkit.RunCommandFn
 	origCombined := hostreqkit.CombinedOutputFn
 	origLookPath := hostreqkit.LookPathFn
+	origElevationFacts := hostreqkit.ElevationFactsFn
 	origUnit := UnitStateFn
 
 	captured := []capturedCommand{}
 	unitMap := map[string]struct{ Enabled, Active bool }{}
+	hostreqkit.ElevationFactsFn = func() hostreqkit.ElevationFacts {
+		return hostreqkit.ElevationFacts{Platform: "linux", Elevated: true, CanElevate: true, Mechanism: "test"}
+	}
 
 	hostreqkit.RunCommandFn = func(name string, args []string, opts hostreqkit.EnsureOptions) error {
 		captured = append(captured, capturedCommand{Name: name, Args: append([]string(nil), args...)})
@@ -48,6 +52,7 @@ func stubAll(t *testing.T) (cmds *[]capturedCommand, units map[string]struct{ En
 		hostreqkit.RunCommandFn = origRun
 		hostreqkit.CombinedOutputFn = origCombined
 		hostreqkit.LookPathFn = origLookPath
+		hostreqkit.ElevationFactsFn = origElevationFacts
 		UnitStateFn = origUnit
 	}
 }

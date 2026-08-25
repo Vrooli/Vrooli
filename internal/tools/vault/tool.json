@@ -28,26 +28,21 @@
     "winget": "Hashicorp.Vault"
   },
   "installHint": "Install the Vault CLI from https://developer.hashicorp.com/vault/install",
-  "platforms": [
-    "linux",
-    "macos",
-    "windows"
-  ],
   "bundling": "host-required",
   "capability": "credential-storage",
   "capability_role": "primary",
   "platform_status": {
     "linux": {
       "status": "unqualified",
-      "evidence": "Manifest-declared applicability; no host-sampled qualification recorded."
+      "evidence": null
     },
     "macos": {
       "status": "unqualified",
-      "evidence": "Manifest-declared applicability; no host-sampled qualification recorded."
+      "evidence": null
     },
     "windows": {
       "status": "unqualified",
-      "evidence": "Manifest-declared applicability; no host-sampled qualification recorded."
+      "evidence": null
     }
   }
 }

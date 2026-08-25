@@ -51,8 +51,9 @@ func AcquisitionSchema() map[string]any {
 								"required": []string{"role", "kind", "dest"},
 								"properties": map[string]any{
 									"role":     map[string]any{"type": "string"},
-									"kind":     map[string]any{"type": "string", "enum": []string{"url", "python-wheels"}},
+									"kind":     map[string]any{"type": "string", "enum": []string{"url", "python-wheels", "local"}},
 									"dest":     map[string]any{"type": "string"},
+									"source":   map[string]any{"type": "string"},
 									"url":      map[string]any{"type": "string", "format": "uri"},
 									"sha256":   map[string]any{"type": "string", "pattern": "^[a-fA-F0-9]{64}$"},
 									"archive":  map[string]any{"enum": []string{"tar.gz", "tar.bz2", "tar.zst", "zip"}, "type": "string"},

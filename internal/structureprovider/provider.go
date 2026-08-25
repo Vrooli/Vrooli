@@ -50,6 +50,10 @@ type Provider struct {
 	ResolveURL URLResolver
 	HTTPClient *http.Client
 	Timeout    time.Duration
+	// ProjectOnly is used by the fast hygiene lane. Full contract validation
+	// still walks every declared target; hygiene only needs the repository
+	// contract authority and must not duplicate the fleet scan.
+	ProjectOnly bool
 }
 
 // NewDefault returns the production provider client.
@@ -58,6 +62,15 @@ func NewDefault() Provider {
 		ResolveURL: discovery.ResolveScenarioURLDefault,
 		Timeout:    DefaultTimeout,
 	}
+}
+
+// NewProjectDefault constructs the bounded hygiene client. It asks the same
+// structure-health authority for the project target while avoiding a second
+// full scenario/resource/package traversal during every hygiene invocation.
+func NewProjectDefault() Provider {
+	p := NewDefault()
+	p.ProjectOnly = true
+	return p
 }
 
 // Validate delegates project:repo validation to structure-health.
@@ -90,6 +103,9 @@ func (p Provider) Validate(ctx context.Context, root string) (contractapp.Valida
 	}
 	client := scenariovalidationconnect.NewScenarioValidationServiceClient(httpClient, baseURL)
 	targets := enumerateTargets(root)
+	if p.ProjectOnly {
+		targets = []validationTarget{{kind: commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_PROJECT, id: TargetID, root: root}}
+	}
 	responses := make([]*scenariovalidationv1.ValidateTargetResponse, len(targets))
 	jobs := make(chan int)
 	workers := 8

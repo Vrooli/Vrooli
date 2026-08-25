@@ -20,10 +20,6 @@
     "apk": "smartmontools"
   },
   "installHint": "Install smartmontools via your package manager. Presence on PATH is not sufficient: smartctl must open the raw block device, so the account running system-monitor also needs raw device access. Where it does not have that access the device graph reports storage wear as unmeasurable with the reason 'permission denied' rather than reporting a healthy drive. Granting that access is a commissioning-time decision made during `vrooli setup`; the scenario never escalates at runtime. Windows is not declared here because smartmontools has no verified governed package identity on that platform; the Windows device graph uses Get-StorageReliabilityCounter instead.",
-  "platforms": [
-    "linux",
-    "macos"
-  ],
   "bundling": "host-required",
   "capability": "hardware-error-telemetry",
   "capability_role": "peer",
@@ -31,11 +27,11 @@
   "platform_status": {
     "linux": {
       "status": "unqualified",
-      "evidence": "Manifest-declared applicability; no host-sampled qualification recorded."
+      "evidence": null
     },
     "macos": {
       "status": "unqualified",
-      "evidence": "Manifest-declared applicability; no host-sampled qualification recorded."
+      "evidence": null
     },
     "windows": {
       "status": "unsupported",

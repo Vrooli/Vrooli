@@ -47,6 +47,10 @@ type SetupResult struct {
 	ConfigurationPending bool              `json:"configuration_pending,omitempty"`
 	DegradedResources    []string          `json:"degraded_resources,omitempty"`
 	Onboarding           *OnboardingResult `json:"onboarding,omitempty"`
+	// Readiness is setup's own verified verdict. It is additive: a consumer
+	// that branches on Version and ignores unknown fields is unaffected, so
+	// SetupResultVersion is deliberately unchanged.
+	Readiness *SetupReadiness `json:"readiness,omitempty"`
 }
 
 type OnboardingResult struct {

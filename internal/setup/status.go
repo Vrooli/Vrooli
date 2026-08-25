@@ -50,6 +50,14 @@ func (s *setupService) runSetupStatus(root, home string, opts Options, stdout io
 		return err
 	}
 	report = vrooliruntime.AnnotateInspectOnly(report, opts.IncludeOptional)
+	verdict := verifySetupReadiness(root, report, nil)
+	if verdict.Source == ReadinessSourceUnavailable {
+		_, _ = fmt.Fprintf(stdout, "[INFO]    Readiness: unverified (%s)\n", verdict.Reason)
+	} else if len(verdict.Blockers) > 0 {
+		_, _ = fmt.Fprintf(stdout, "[INFO]    Readiness: %s (unresolved: %s)\n", verdict.Status, strings.Join(verdict.Blockers, ", "))
+	} else {
+		_, _ = fmt.Fprintf(stdout, "[INFO]    Readiness: %s\n", verdict.Status)
+	}
 	_, _ = fmt.Fprintf(
 		stdout,
 		"[INFO]    Host requirements status (environment=%s)\n",

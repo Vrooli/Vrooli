@@ -143,10 +143,10 @@ func renderGrouped(w io.Writer, report vrooliruntime.Report) {
 	}
 
 	if len(groups.NeedsSudo) > 0 {
-		// Use vrooliInvocation here too so the group header matches the
-		// action block: bare `sudo vrooli setup` post-shim, absolute path
-		// pre-shim. Keeps the suggested command consistent in two places.
-		_, _ = fmt.Fprintf(w, "Needs sudo — re-run with `sudo %s setup` (%d):\n", vrooliInvocation(), len(groups.NeedsSudo))
+		// Use vrooliInvocation here too so the group header matches the action
+		// block. The in-flow command is the one named: it prompts in-process
+		// and leaves the rest of the run unelevated.
+		_, _ = fmt.Fprintf(w, "Needs privilege — re-run with `%s setup --sudo-mode=ask` (%d):\n", vrooliInvocation(), len(groups.NeedsSudo))
 		for _, item := range groups.NeedsSudo {
 			renderGroupedItem(w, "✗", item, true)
 		}
@@ -211,8 +211,8 @@ func renderActionBlock(w io.Writer, groups outcomeGroups) {
 
 	if needsSudo := len(groups.NeedsSudo); needsSudo > 0 {
 		actions = append(actions, action{
-			hint:    fmt.Sprintf("Re-run with sudo to install %d blocked item(s):", needsSudo),
-			command: "sudo " + cmd + " setup",
+			hint:    fmt.Sprintf("Install %d item(s) that need privilege:", needsSudo),
+			command: cmd + " setup --sudo-mode=ask",
 		})
 	}
 	if optional := len(groups.Optional); optional > 0 {

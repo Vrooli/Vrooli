@@ -43,7 +43,7 @@ func (b *BrokerElevated) RepairFilesystem(ctx context.Context, device Device) (s
 
 func (b *BrokerElevated) do(ctx context.Context, action string, device Device) (string, string, error) {
 	if b == nil || b.client == nil {
-		return StatusUnsupported, "", ErrUnsupported{Reason: "privilege broker client is not configured", OperatorCommand: "sudo vrooli setup"}
+		return StatusUnsupported, "", ErrUnsupported{Reason: "privilege broker client is not configured", OperatorCommand: "vrooli setup --sudo-mode=ask"}
 	}
 	result, err := b.client.Do(ctx, privilegebroker.Request{
 		Version:   privilegebroker.ProtocolVersion,

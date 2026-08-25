@@ -43,7 +43,7 @@ func (h handler) Inspect(host hostreqkit.Host, requirement hostreqspec.ResolvedR
 	} else {
 		status.ExecutionState = hostreqkit.ExecutionManualActionRequired
 	}
-	status.Notes = append(status.Notes, "autoheal recovery grant missing at "+sudoersPath+"; run sudo vrooli setup")
+	status.Notes = append(status.Notes, "autoheal recovery grant missing at "+sudoersPath+"; run `vrooli setup --sudo-mode=ask`")
 	return status
 }
 

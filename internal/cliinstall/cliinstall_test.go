@@ -13,8 +13,10 @@ import (
 	"sort"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/vrooli/cli-core/cliutil"
+	platform "github.com/vrooli/platform-go"
 	testkitgo "github.com/vrooli/repo-contract-go/repocontracttest"
 	testresource "github.com/vrooli/vrooli/internal/resources/resourcestest"
 	"github.com/vrooli/vrooli/internal/scenario"
@@ -30,6 +32,53 @@ func mustManager(t *testing.T, root, home string) *Manager {
 		t.Fatalf("NewManager(%q, %q): %v", root, home, err)
 	}
 	return manager
+}
+
+func TestAtomicInstallWaitsForRootRebuildLock(t *testing.T) {
+	root := t.TempDir()
+	source := filepath.Join(root, "source")
+	destination := filepath.Join(root, "vrooli")
+	if err := os.WriteFile(source, []byte("new binary"), 0o755); err != nil {
+		t.Fatalf("write source: %v", err)
+	}
+	if err := os.WriteFile(destination, []byte("old binary"), 0o755); err != nil {
+		t.Fatalf("write destination: %v", err)
+	}
+
+	lockFile, err := os.OpenFile(destination+".lock", os.O_CREATE|os.O_RDWR, 0o644)
+	if err != nil {
+		t.Fatalf("open install lock: %v", err)
+	}
+	release, err := platform.LockFile(lockFile, false)
+	if err != nil {
+		_ = lockFile.Close()
+		t.Fatalf("lock install lock: %v", err)
+	}
+	locked := true
+	t.Cleanup(func() {
+		if locked {
+			release()
+			_ = lockFile.Close()
+		}
+	})
+
+	result := make(chan error, 1)
+	go func() { result <- AtomicInstall(source, destination) }()
+
+	select {
+	case err := <-result:
+		t.Fatalf("AtomicInstall ignored the shared install lock: %v", err)
+	case <-time.After(100 * time.Millisecond):
+	}
+
+	release()
+	locked = false
+	if err := lockFile.Close(); err != nil {
+		t.Fatalf("close install lock: %v", err)
+	}
+	if err := <-result; err != nil {
+		t.Fatalf("AtomicInstall after lock release: %v", err)
+	}
 }
 
 // computeScenarioCLIFingerprint is a test-only helper that exercises the
@@ -661,7 +710,7 @@ func TestComputeResourceCLIFingerprintIncludesManifestForGoModule(t *testing.T) 
 
 func TestInstalledScenarioCLINames(t *testing.T) {
 	if runtime.GOOS == "windows" {
-		t.Skip("exec-bit filtering is unix-only; skipping on windows")
+		testkitgo.SkipPlatform(t, "exec-bit filtering is unix-only; skipping on windows")
 	}
 	home := t.TempDir()
 	binDir := filepath.Join(home, ".vrooli", "bin")

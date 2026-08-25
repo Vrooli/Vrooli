@@ -357,14 +357,23 @@ func applyOCITar(reader *tar.Reader, destDir string) error {
 		path := filepath.Join(destDir, name)
 		switch header.Typeflag {
 		case tar.TypeDir:
-			if err := os.MkdirAll(path, os.FileMode(header.Mode)&0o777); err != nil {
+			// OCI layers are commonly authored with root-only directory modes.
+			// The artifact is extracted into a user-owned store, so preserve the
+			// declared mode while ensuring the extracting owner can traverse it.
+			mode := os.FileMode(header.Mode)&0o777 | 0o700
+			if err := os.MkdirAll(path, mode); err != nil {
 				return err
 			}
 		case tar.TypeReg:
 			if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 				return err
 			}
-			if err := writeReaderMode(reader, path, os.FileMode(header.Mode)&0o777); err != nil {
+			// The extraction process owns the staged artifact. Root-owned images
+			// may mark configuration files 000, which would make verification
+			// fail before the managed-service driver can launch them. Keep the
+			// upstream permission bits and grant the extracting owner read/write.
+			mode := os.FileMode(header.Mode)&0o777 | 0o600
+			if err := writeReaderMode(reader, path, mode); err != nil {
 				return err
 			}
 		case tar.TypeSymlink:

@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"runtime"
 	"testing"
+
+	"github.com/vrooli/repo-contract-go/repocontracttest"
 )
 
 // writeFile is a test helper that writes content to dir/rel, creating parents.
@@ -97,7 +99,7 @@ func TestCopyTree_SkipsExcludedDirsAndFiles(t *testing.T) {
 
 func TestCopyTree_RecreatesSymlinksVerbatim(t *testing.T) {
 	if runtime.GOOS == "windows" {
-		t.Skip("symlink semantics differ on Windows")
+		repocontracttest.SkipPlatform(t, "symlink semantics differ on Windows")
 	}
 	src := t.TempDir()
 	dst := filepath.Join(t.TempDir(), "out")

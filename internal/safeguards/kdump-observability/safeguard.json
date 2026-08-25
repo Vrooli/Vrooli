@@ -16,7 +16,7 @@
         "sensitive": false,
         "rationale": "The safeguard installs the Linux kdump summary collector executable.",
         "budget": {
-          "max_bytes": "1TiB",
+          "max_bytes": "64MiB",
           "rationale": "Durable state storage budget; the byte ceiling prevents unbounded growth without permitting automatic deletion."
         }
       },

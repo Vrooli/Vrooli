@@ -698,3 +698,42 @@ func RunVerificationCheck(vc *VerificationCheck) (bool, string) {
 	}
 	return true, ""
 }
+
+// FileComparison is the outcome of comparing managed content against a file on
+// disk. It exists because FileContentMatches collapses "the file says something
+// else" and "this process may not read the file" into a single false, and the
+// two demand opposite handling: the first is a real drift, the second is an
+// unprivileged probe that must not be reported as drift.
+type FileComparison string
+
+const (
+	// FileComparisonMatch means the file was read and equals the wanted content.
+	FileComparisonMatch FileComparison = "match"
+	// FileComparisonDiffers means the file was read and does not equal it.
+	FileComparisonDiffers FileComparison = "differs"
+	// FileComparisonAbsent means the file does not exist.
+	FileComparisonAbsent FileComparison = "absent"
+	// FileComparisonUnreadable means the file exists but this process may not
+	// read it. Root-owned managed files such as sudoers drop-ins are 0440
+	// root:root by necessity, so every unprivileged inspection lands here.
+	FileComparisonUnreadable FileComparison = "unreadable"
+)
+
+// CompareFileContent reports how path relates to want without conflating an
+// unreadable file with a differing one.
+func CompareFileContent(path, want string) FileComparison {
+	content, err := ReadFileFn(path)
+	if err == nil {
+		if string(content) == want {
+			return FileComparisonMatch
+		}
+		return FileComparisonDiffers
+	}
+	if os.IsNotExist(err) {
+		return FileComparisonAbsent
+	}
+	if os.IsPermission(err) {
+		return FileComparisonUnreadable
+	}
+	return FileComparisonAbsent
+}

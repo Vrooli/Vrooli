@@ -13,6 +13,7 @@ import (
 	"time"
 
 	platform "github.com/vrooli/platform-go"
+	testkitgo "github.com/vrooli/repo-contract-go/repocontracttest"
 	"github.com/vrooli/vrooli/internal/scenarioruntime"
 )
 
@@ -330,7 +331,7 @@ func TestAcquireScenarioLockReportsHolderPID(t *testing.T) {
 // the attacher takes over: it retries the lock and runs the start itself.
 func TestStartTakesOverAbandonedInFlightStart(t *testing.T) {
 	if runtime.GOOS != "linux" {
-		t.Skip("lifecycle process management currently targets linux")
+		testkitgo.SkipPlatform(t, "lifecycle process management currently targets linux")
 	}
 	root := t.TempDir()
 	home := t.TempDir()

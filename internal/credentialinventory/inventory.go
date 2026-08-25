@@ -130,7 +130,12 @@ func Collect(root string) (Result, error) {
 			key := string(identity) + ":" + descriptor.ResolvedField()
 			declared[key] = credentialauthority.RecoveryEntry{Identity: identity, Field: descriptor.ResolvedField()}
 			if gap, missing := gapByKey[key]; missing {
-				if descriptor.Required {
+				// RequiredAbsent is the operator-facing gap list: it drives what
+				// setup and onboarding refuse to complete over. A derived or
+				// generated value is written by its declaring component, so an
+				// operator cannot clear it and blocking on it would name a
+				// problem with no available action.
+				if descriptor.Required && descriptor.OperatorSupplied() {
 					absent[key] = struct{}{}
 				}
 				_ = gap

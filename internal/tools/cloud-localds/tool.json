@@ -16,16 +16,13 @@
     "pacman": "cloud-init"
   },
   "installHint": "Install cloud-image-utils so local-qemu can create a cloud-init seed disk.",
-  "platforms": [
-    "linux"
-  ],
   "bundling": "host-required",
   "capability": "headless-gui",
   "capability_role": "peer",
   "platform_status": {
     "linux": {
       "status": "unqualified",
-      "evidence": "Manifest-declared applicability; no host-sampled qualification recorded."
+      "evidence": null
     },
     "macos": {
       "status": "unsupported",

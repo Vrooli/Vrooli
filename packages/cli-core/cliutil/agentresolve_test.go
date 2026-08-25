@@ -9,6 +9,8 @@ import (
 	"runtime"
 	"strings"
 	"testing"
+
+	"github.com/vrooli/repo-contract-go/repocontracttest"
 )
 
 // writeExecutable creates a runnable stub at dir/name and returns its path.
@@ -23,7 +25,7 @@ func writeExecutable(t *testing.T, dir, name string) string {
 
 func TestResolveAgentBinaryExcludingSkipsSelf(t *testing.T) {
 	if runtime.GOOS == "windows" {
-		t.Skip("executable-bit stubs are not meaningful on windows")
+		repocontracttest.SkipPlatform(t, "executable-bit stubs are not meaningful on windows")
 	}
 	shimDir := t.TempDir()
 	realDir := t.TempDir()
@@ -44,7 +46,7 @@ func TestResolveAgentBinaryExcludingSkipsSelf(t *testing.T) {
 
 func TestResolveAgentBinaryExcludingSkipsSelfReachedByAnotherName(t *testing.T) {
 	if runtime.GOOS == "windows" {
-		t.Skip("symlink stubs are not meaningful on windows")
+		repocontracttest.SkipPlatform(t, "symlink stubs are not meaningful on windows")
 	}
 	shimDir := t.TempDir()
 	linkDir := t.TempDir()
@@ -70,7 +72,7 @@ func TestResolveAgentBinaryExcludingSkipsSelfReachedByAnotherName(t *testing.T) 
 
 func TestResolveAgentBinaryExcludingExplainsShimOnlyPath(t *testing.T) {
 	if runtime.GOOS == "windows" {
-		t.Skip("executable-bit stubs are not meaningful on windows")
+		repocontracttest.SkipPlatform(t, "executable-bit stubs are not meaningful on windows")
 	}
 	shimDir := t.TempDir()
 	shim := writeExecutable(t, shimDir, "codex")
@@ -88,7 +90,7 @@ func TestResolveAgentBinaryExcludingExplainsShimOnlyPath(t *testing.T) {
 
 func TestResolveAgentBinaryExcludingIgnoresDirectories(t *testing.T) {
 	if runtime.GOOS == "windows" {
-		t.Skip("executable-bit stubs are not meaningful on windows")
+		repocontracttest.SkipPlatform(t, "executable-bit stubs are not meaningful on windows")
 	}
 	trapDir := t.TempDir()
 	realDir := t.TempDir()

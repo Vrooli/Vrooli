@@ -221,11 +221,17 @@ func TestRunSetupUsesNativeRuntimeAndMarksComplete(t *testing.T) {
 		"[INFO]    Generating repository packages needed by the control plane...",
 		"[INFO]    Configuring the credential backend...",
 		"[INFO]    Refreshing the bootstrap and selected scenario CLIs...",
-		"[INFO]    Setup completed successfully.",
+		// The completion phase states a verified verdict. The configuration
+		// marker is absent in this fixture, so the honest last word is that
+		// configuration is still pending, not an unconditional success.
+		"[INFO]    Bootstrap setup completed; configuration remains pending until onboarding reports completion.",
 	} {
 		if !strings.Contains(stdout.String(), expected) {
 			t.Fatalf("setup output missing %q:\n%s", expected, stdout.String())
 		}
+	}
+	if strings.Contains(stdout.String(), "Setup completed successfully.") {
+		t.Fatalf("setup still prints an unconditional success line:\n%s", stdout.String())
 	}
 	if runtimeCalls != 1 {
 		t.Fatalf("ensureRequirements calls = %d, want 1", runtimeCalls)

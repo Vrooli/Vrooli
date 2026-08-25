@@ -1,6 +1,7 @@
 package project
 
 import (
+	"context"
 	"io"
 	"os"
 	"path/filepath"
@@ -10,17 +11,67 @@ import (
 
 	testkitgo "github.com/vrooli/repo-contract-go/repocontracttest"
 	"github.com/vrooli/vrooli/internal/hostreqcheck"
+	"github.com/vrooli/vrooli/internal/hostsession"
 	"github.com/vrooli/vrooli/internal/lifecycle"
 	"github.com/vrooli/vrooli/internal/maintenance"
-	"github.com/vrooli/vrooli/internal/process"
-	testprocess "github.com/vrooli/vrooli/internal/process/processtest"
 	manifestpkg "github.com/vrooli/vrooli/internal/resources/manifest"
 	testresource "github.com/vrooli/vrooli/internal/resources/resourcestest"
 	"github.com/vrooli/vrooli/internal/scenario"
 	testscenario "github.com/vrooli/vrooli/internal/scenario/scenariotest"
+	"github.com/vrooli/vrooli/internal/scenarioruntime"
 )
 
 // AI_CHECK: GO_MIGRATION_TEST_QUALITY=3 | LAST: 2026-04-13
+
+func seedRunningScenario(t *testing.T, home, name string) {
+	t.Helper()
+	ctx := context.Background()
+	host, err := hostsession.DefaultProvider{}.Current(ctx, home)
+	if err != nil {
+		t.Fatalf("host session: %v", err)
+	}
+	store, err := scenarioruntime.NewSQLiteStore(ctx, scenarioruntime.Config{HomeDir: home})
+	if err != nil {
+		t.Fatalf("NewSQLiteStore: %v", err)
+	}
+	defer store.Close()
+
+	pid := os.Getpid()
+	instance, err := store.CreateLease(ctx, scenarioruntime.Instance{
+		InstanceID:    "inst-" + name,
+		Scenario:      name,
+		Variant:       scenarioruntime.DefaultVariant,
+		Status:        scenarioruntime.StatusStarting,
+		Phase:         "develop",
+		OwnerKind:     scenarioruntime.OwnerKindLifecycle,
+		OwnerPID:      &pid,
+		StartedAt:     time.Now().Add(-time.Minute).UTC(),
+		WorkingDir:    filepath.Join(home, "scenarios", name),
+		HostBootID:    host.BootID,
+		HostSessionID: host.SessionID,
+	}, scenarioruntime.DefaultHeartbeatTTL)
+	if err != nil {
+		t.Fatalf("CreateLease: %v", err)
+	}
+	instance, err = store.UpdateInstanceStatus(ctx, instance.InstanceID, instance.Generation, scenarioruntime.StatusRunning, "develop")
+	if err != nil {
+		t.Fatalf("UpdateInstanceStatus: %v", err)
+	}
+	if _, err := store.AddProcessRef(ctx, scenarioruntime.ProcessRef{
+		RefID:      "proc-" + name,
+		InstanceID: instance.InstanceID,
+		PID:        &pid,
+		PGID:       &pid,
+		ProcessID:  "vrooli.develop." + name + ".start-api",
+		Step:       "start-api",
+		Command:    "test process",
+		StartedAt:  time.Now().Add(-time.Minute).UTC(),
+		Status:     "running",
+		HostBootID: host.BootID,
+	}); err != nil {
+		t.Fatalf("AddProcessRef: %v", err)
+	}
+}
 
 func TestStatusAggregatesResourcesAndScenarios(t *testing.T) {
 	root := t.TempDir()
@@ -46,15 +97,7 @@ func TestStatusAggregatesResourcesAndScenarios(t *testing.T) {
 		Platforms: manifestpkg.ResourcePlatforms{Linux: "supported"},
 	})
 	testresource.WriteExternalCLIResourceFixture(t, root, "redis", "#!/usr/bin/env bash\nexit 0\n")
-	testprocess.WriteScenarioProcessRecord(t, home, "alpha", "start-api", process.Record{
-		PID:       os.Getpid(),
-		PGID:      os.Getpid(),
-		Scenario:  "alpha",
-		Step:      "start-api",
-		Port:      18081,
-		StartedAt: time.Now().Add(-time.Minute).UTC(),
-		Status:    "running",
-	})
+	seedRunningScenario(t, home, "alpha")
 
 	controller := New(root, home, io.Discard, io.Discard)
 	controller.MaintenanceSnapshotFn = func() (maintenance.ProcessSnapshot, error) {
@@ -367,15 +410,7 @@ func TestStatusSupportsResourceAndScenarioFilters(t *testing.T) {
 		Platforms: manifestpkg.ResourcePlatforms{Linux: "supported"},
 	})
 	testresource.WriteExternalCLIResourceFixture(t, root, "redis", "#!/usr/bin/env bash\nexit 0\n")
-	testprocess.WriteScenarioProcessRecord(t, home, "alpha", "start-api", process.Record{
-		PID:       os.Getpid(),
-		PGID:      os.Getpid(),
-		Scenario:  "alpha",
-		Step:      "start-api",
-		Port:      18081,
-		StartedAt: time.Now().Add(-time.Minute).UTC(),
-		Status:    "running",
-	})
+	seedRunningScenario(t, home, "alpha")
 
 	controller := New(root, home, io.Discard, io.Discard)
 	controller.MaintenanceSnapshotFn = func() (maintenance.ProcessSnapshot, error) {

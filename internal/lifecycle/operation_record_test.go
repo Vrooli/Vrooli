@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	testkitgo "github.com/vrooli/repo-contract-go/repocontracttest"
 	"github.com/vrooli/vrooli/internal/scenarioruntime"
 )
 
@@ -37,7 +38,7 @@ func stepStatuses(op scenarioruntime.StartOperation) map[string]string {
 // succeeded record with done steps, a verdict, and phase-duration history.
 func TestStartWritesOperationRecord(t *testing.T) {
 	if runtime.GOOS != "linux" {
-		t.Skip("lifecycle process management currently targets linux")
+		testkitgo.SkipPlatform(t, "lifecycle process management currently targets linux")
 	}
 	root := t.TempDir()
 	home := t.TempDir()
@@ -191,7 +192,7 @@ func TestStartOperationContextCancellationMarksAbandoned(t *testing.T) {
 // leaves a failed record carrying the error.
 func TestFailedStartWritesFailedOperationRecord(t *testing.T) {
 	if runtime.GOOS != "linux" {
-		t.Skip("lifecycle process management currently targets linux")
+		testkitgo.SkipPlatform(t, "lifecycle process management currently targets linux")
 	}
 	root := t.TempDir()
 	home := t.TempDir()

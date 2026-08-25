@@ -125,22 +125,15 @@ func InspectSafeguardAt(root, name string) (ItemStatus, error) {
 	return inspectRequirement(host, requirement), nil
 }
 
-// ListObservedSafeguardsAt returns the complete, read-only host safeguard
-// observation surface owned by the control plane. Errors for an individual
-// safeguard remain in that safeguard's notes and failed state; one broken
-// probe cannot make the rest of the roster disappear.
-func ListObservedSafeguardsAt(root string, now func() time.Time) ([]hostreqkit.ObservedSafeguard, error) {
-	if strings.TrimSpace(root) == "" {
-		return nil, fmt.Errorf("repository root is required")
-	}
-	if now == nil {
-		now = func() time.Time { return time.Now().UTC() }
-	}
+// safeguardManifests decodes the embedded safeguard catalog. It performs no
+// host probing: the manifests are compiled in, so a caller that needs one
+// safeguard pays only for the JSON, not for thirty inspection handlers.
+func safeguardManifests() ([]hostreqkit.SafeguardManifest, error) {
 	dirs, err := fs.ReadDir(safeguards.Manifests, ".")
 	if err != nil {
 		return nil, fmt.Errorf("read safeguard catalog: %w", err)
 	}
-	result := make([]hostreqkit.ObservedSafeguard, 0, len(dirs))
+	manifests := make([]hostreqkit.SafeguardManifest, 0, len(dirs))
 	for _, dir := range dirs {
 		if !dir.IsDir() {
 			continue
@@ -153,22 +146,104 @@ func ListObservedSafeguardsAt(root string, now func() time.Time) ([]hostreqkit.O
 		if unmarshalErr := json.Unmarshal(data, &manifest); unmarshalErr != nil {
 			return nil, fmt.Errorf("parse safeguard %s: %w", dir.Name(), unmarshalErr)
 		}
-		observedAt := now().UTC()
-		item := hostreqkit.ObservedSafeguard{
-			Name: manifest.Name, Capability: manifest.Capability, CapabilityRole: manifest.CapabilityRole,
-			Platforms: append([]string(nil), manifest.Platforms...), ObservedAt: observedAt,
+		manifests = append(manifests, manifest)
+	}
+	return manifests, nil
+}
+
+// observeSafeguard samples one already-decoded manifest. Both the roster and
+// the focused read go through here so the two can never report a different
+// shape for the same safeguard.
+func observeSafeguard(root string, manifest hostreqkit.SafeguardManifest, observedAt time.Time) hostreqkit.ObservedSafeguard {
+	item := hostreqkit.ObservedSafeguard{
+		Name: manifest.Name, Capability: manifest.Capability, CapabilityRole: manifest.CapabilityRole,
+		Platforms: append([]string(nil), manifest.Platforms...), ObservedAt: observedAt,
+	}
+	status, inspectErr := InspectSafeguardAt(root, manifest.Name)
+	if inspectErr != nil {
+		item.SupportClass = hostreqkit.SupportUnsupported
+		item.ExecutionState = hostreqkit.ExecutionFailed
+		item.Notes = []string{inspectErr.Error()}
+		return item
+	}
+	item.SupportClass = status.SupportClass
+	item.ExecutionState = status.ExecutionState
+	item.Notes = append([]string(nil), status.Notes...)
+	return item
+}
+
+// ObserveSafeguardAt returns the read-only observation for a single named
+// safeguard. It is the focused twin of ListObservedSafeguardsAt, for consumers
+// reporting on one safeguard: sampling the whole roster to answer a question
+// about one member charges that member for every other handler's probe cost.
+//
+// The requirement resolves exactly as InspectSafeguardAt resolves it -- name
+// from the embedded catalog, operator config from root -- so the focused read
+// and the focused apply always agree about what they are looking at, including
+// which configuration the verdict is about. Catalog metadata (capability,
+// platforms) is layered on from the same manifest.
+//
+// A name the catalog does not carry is an error, never an empty observation, so
+// a typo cannot be read as "this safeguard is fine". Like the roster form, it
+// never calls Apply.
+func ObserveSafeguardAt(root, name string, now func() time.Time) (hostreqkit.ObservedSafeguard, error) {
+	if strings.TrimSpace(root) == "" {
+		return hostreqkit.ObservedSafeguard{}, fmt.Errorf("repository root is required")
+	}
+	if now == nil {
+		now = func() time.Time { return time.Now().UTC() }
+	}
+	normalized := strings.ReplaceAll(strings.ToLower(strings.TrimSpace(name)), "-", "_")
+	if normalized == "" {
+		return hostreqkit.ObservedSafeguard{}, fmt.Errorf("safeguard name is required")
+	}
+	status, err := InspectSafeguardAt(root, normalized)
+	if err != nil {
+		return hostreqkit.ObservedSafeguard{}, err
+	}
+	item := hostreqkit.ObservedSafeguardFromStatus(status, now().UTC())
+	item.Name = normalized
+	if manifest, found := catalogSafeguard(normalized); found {
+		item.Capability = manifest.Capability
+		item.CapabilityRole = manifest.CapabilityRole
+		item.Platforms = append([]string(nil), manifest.Platforms...)
+	}
+	return item, nil
+}
+
+// catalogSafeguard finds one embedded manifest by name. It performs no host
+// probing; the manifests are compiled in.
+func catalogSafeguard(name string) (hostreqkit.SafeguardManifest, bool) {
+	manifests, err := safeguardManifests()
+	if err != nil {
+		return hostreqkit.SafeguardManifest{}, false
+	}
+	for _, manifest := range manifests {
+		if manifest.Name == name {
+			return manifest, true
 		}
-		status, inspectErr := InspectSafeguardAt(root, manifest.Name)
-		if inspectErr != nil {
-			item.SupportClass = hostreqkit.SupportUnsupported
-			item.ExecutionState = hostreqkit.ExecutionFailed
-			item.Notes = []string{inspectErr.Error()}
-		} else {
-			item.SupportClass = status.SupportClass
-			item.ExecutionState = status.ExecutionState
-			item.Notes = append([]string(nil), status.Notes...)
-		}
-		result = append(result, item)
+	}
+	return hostreqkit.SafeguardManifest{}, false
+}
+
+// ListObservedSafeguardsAt returns the complete, read-only host safeguard
+// observation surface owned by the control plane. Errors for an individual
+// safeguard remain in that safeguard's notes and failed state; one broken
+// probe cannot make the rest of the roster disappear.
+func ListObservedSafeguardsAt(root string, now func() time.Time) ([]hostreqkit.ObservedSafeguard, error) {
+	if strings.TrimSpace(root) == "" {
+		return nil, fmt.Errorf("repository root is required")
+	}
+	if now == nil {
+		now = func() time.Time { return time.Now().UTC() }
+	}
+	manifests, err := safeguardManifests()
+	if err != nil {
+		return nil, err
+	}
+	result := make([]hostreqkit.ObservedSafeguard, 0, len(manifests))
+	for _, manifest := range manifests {
+		result = append(result, observeSafeguard(root, manifest, now().UTC()))
 	}
 	sort.Slice(result, func(i, j int) bool { return result[i].Name < result[j].Name })
 	return result, nil

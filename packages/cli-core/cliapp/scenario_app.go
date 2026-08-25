@@ -696,3 +696,37 @@ func (a *ScenarioApp) tryAutoStart() error {
 
 	return fmt.Errorf("timeout waiting for API to become available")
 }
+
+// DetectedAPIBase reports the API base of the scenario's currently running
+// process, independent of whatever base this CLI is configured to use. It is
+// empty when no running API can be detected.
+func (a *ScenarioApp) DetectedAPIBase() string {
+	return a.detectedAPIBase()
+}
+
+// RebindToDetectedAPI points this CLI at the scenario's currently running API
+// and reports whether the target changed.
+//
+// A scenario's port is assigned at start, so restarting one moves it, while the
+// CLI keeps using the base it resolved (or the one saved in its config, which
+// DetermineAPIBase deliberately prefers over live detection). For a one-shot
+// command that is the right precedence and a stale base is merely an error with
+// good advice. For a command that stays connected across a restart -- polling a
+// long-running server-owned run, say -- it is fatal: every reconnection attempt
+// goes to a port nothing is listening on any more.
+//
+// The new base is applied in memory only. Rebinding is a recovery for the
+// current invocation, not an opinion about what the operator's saved
+// configuration should be; persisting it would silently rewrite their config as
+// a side effect of a restart that may itself have been temporary.
+func (a *ScenarioApp) RebindToDetectedAPI() bool {
+	detected := strings.TrimRight(strings.TrimSpace(a.detectedAPIBase()), "/")
+	if detected == "" {
+		return false
+	}
+	if strings.TrimRight(strings.TrimSpace(a.APIRootBase()), "/") == detected {
+		return false
+	}
+	a.APIOverride = detected
+	return true
+}

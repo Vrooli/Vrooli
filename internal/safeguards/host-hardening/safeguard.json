@@ -10,7 +10,8 @@
           "macos": null,
           "windows": null
         },
-        "kind": "file",
+      "kind": "file",
+      "regenerable": false,
         "class": "config",
         "sensitive": true,
         "rationale": "The safeguard writes Linux kernel hardening settings."
@@ -22,7 +23,8 @@
           "macos": null,
           "windows": null
         },
-        "kind": "file",
+      "kind": "file",
+      "regenerable": false,
         "class": "config",
         "sensitive": true,
         "rationale": "The safeguard writes the Linux journald rate-limit drop-in."
@@ -32,9 +34,6 @@
   },
   "description": "Make kernel hangs and oopses produce diagnostics: enable sysrq, set hung-task/softlockup/NMI panic, and rate-limit journald so UFW BLOCK floods don't drown panic info",
   "handler": "host_hardening",
-  "platforms": [
-    "linux"
-  ],
   "risk": "high",
   "verificationCheck": {
     "files": [
@@ -100,7 +99,7 @@
   "platform_status": {
     "linux": {
       "status": "unqualified",
-      "evidence": "Manifest-declared applicability; no host-sampled qualification recorded."
+      "evidence": null
     },
     "macos": {
       "status": "unsupported",

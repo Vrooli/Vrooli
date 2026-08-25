@@ -7,7 +7,10 @@ import (
 	platform "github.com/vrooli/platform-go"
 )
 
-func acquireRebuildLock(executable string) (func(), error) {
+// AcquireBinaryInstallLock serializes every replacement of one installed
+// executable. The project installer and the stale self-rebuilder must share
+// this lock or they can replace the same path concurrently.
+func AcquireBinaryInstallLock(executable string) (func(), error) {
 	lockPath := executable + ".lock"
 	f, err := openFileFn(lockPath, os.O_RDWR|os.O_CREATE, 0o644)
 	if err != nil {
@@ -22,4 +25,8 @@ func acquireRebuildLock(executable string) (func(), error) {
 		release()
 		_ = f.Close()
 	}, nil
+}
+
+func acquireRebuildLock(executable string) (func(), error) {
+	return AcquireBinaryInstallLock(executable)
 }

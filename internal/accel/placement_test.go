@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/vrooli/repo-contract-go/repocontracttest"
 	"github.com/vrooli/vrooli/internal/accel"
 	"github.com/vrooli/vrooli/internal/hostinventory"
 )
@@ -211,7 +212,7 @@ func TestVerifyPlacementReportsUnknownRatherThanGuessing(t *testing.T) {
 // Scenario: a metal target on linux is unknown with a named reason.
 func TestVerifyPlacementReportsMetalUnsupportedOffDarwin(t *testing.T) {
 	if runtime.GOOS == "darwin" {
-		t.Skip("this scenario describes the non-darwin build")
+		repocontracttest.SkipPlatform(t, "this scenario describes the non-darwin build")
 	}
 	// Given a host process on a linux host
 	verifier := verifierFor(hostWithNoAccelerator(), nil)

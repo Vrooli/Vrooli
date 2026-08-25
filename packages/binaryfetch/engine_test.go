@@ -106,6 +106,35 @@ func TestFetchOCIExtractsDigestPinnedLayer(t *testing.T) {
 	}
 }
 
+func TestFetchOCIGrantsExtractorAccessToRestrictedImageFiles(t *testing.T) {
+	var layer bytes.Buffer
+	tw := tar.NewWriter(&layer)
+	body := bytes.Repeat([]byte("runtime configuration\n"), 64)
+	if err := tw.WriteHeader(&tar.Header{Name: "etc/runtime.conf", Mode: 0, Size: int64(len(body)), Typeflag: tar.TypeReg}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := tw.Write(body); err != nil {
+		t.Fatal(err)
+	}
+	if err := tw.Close(); err != nil {
+		t.Fatal(err)
+	}
+	digest := sha256hex(layer.Bytes())
+	server := serve(t, layer.Bytes())
+	defer server.Close()
+	optDir := filepath.Join(t.TempDir(), "opt")
+	if _, err := FetchOCI(context.Background(), AcquisitionTarget{Image: server.URL + "/example@sha256:" + digest, BinPath: "etc/runtime.conf"}, optDir, nil); err != nil {
+		t.Fatalf("FetchOCI restricted file: %v", err)
+	}
+	got, err := os.ReadFile(filepath.Join(optDir, "etc", "runtime.conf"))
+	if err != nil {
+		t.Fatalf("read extracted restricted file: %v", err)
+	}
+	if string(got) != string(body) {
+		t.Fatalf("extracted body = %q, want %q", got, body)
+	}
+}
+
 func TestOCIReferenceDefaultsLibraryNamespace(t *testing.T) {
 	base, repository, digest, err := ociReference("library/redis@sha256:" + strings.Repeat("a", 64))
 	if err != nil {

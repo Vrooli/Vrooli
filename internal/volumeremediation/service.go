@@ -238,7 +238,7 @@ func (s *Service) executeElevated(ctx context.Context, req Request, observed Sta
 	if s.elevated == nil || !s.elevated.Available() {
 		return withStatus(result, StatusUnsupported), ErrUnsupported{
 			Reason:          "this host has no udisks2 client and the privilege broker is unavailable",
-			OperatorCommand: "sudo vrooli setup",
+			OperatorCommand: "vrooli setup --sudo-mode=ask",
 		}
 	}
 

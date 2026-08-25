@@ -26,7 +26,7 @@ func TestSanitizeDaemonConfigRemovesInvalidKeyAndPreservesSettings(t *testing.T)
 }`), nil
 	}
 	hostreqkit.LookPathFn = func(name string) (string, error) {
-		if name == "dockerd" {
+		if name == "dockerd" || name == "sudo" {
 			return "/usr/bin/dockerd", nil
 		}
 		return "", os.ErrNotExist
@@ -74,7 +74,7 @@ func TestSanitizeDaemonConfigAppliesWorkloadPolicyWithoutDuplicateExecOpt(t *tes
 		return []byte(`{"exec-opts":["native.cgroupdriver=systemd","log-level=debug"]}`), nil
 	}
 	hostreqkit.LookPathFn = func(name string) (string, error) {
-		if name == "dockerd" {
+		if name == "dockerd" || name == "sudo" {
 			return "/usr/bin/dockerd", nil
 		}
 		return "", os.ErrNotExist
@@ -132,6 +132,12 @@ func stubHostreqkit(t *testing.T) func() {
 	origCombinedOutput := hostreqkit.CombinedOutputFn
 	origRunCommand := hostreqkit.RunCommandFn
 	origWriteTemp := hostreqkit.WriteTempFileFn
+	hostreqkit.LookPathFn = func(name string) (string, error) {
+		if name == "sudo" {
+			return "/usr/bin/sudo", nil
+		}
+		return origLookPath(name)
+	}
 	return func() {
 		hostreqkit.LookPathFn = origLookPath
 		hostreqkit.ReadFileFn = origReadFile

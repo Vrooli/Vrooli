@@ -142,7 +142,7 @@ func TestInspectNonRootRequiresManualSetup(t *testing.T) {
 	if status.ExecutionState != hostreqkit.ExecutionManualActionRequired {
 		t.Fatalf("ExecutionState = %q, want manual action required", status.ExecutionState)
 	}
-	if !strings.Contains(strings.Join(status.Notes, " "), "sudo vrooli setup") {
+	if !strings.Contains(strings.Join(status.Notes, " "), "vrooli setup --sudo-mode=ask") {
 		t.Fatalf("notes should contain concrete setup command: %v", status.Notes)
 	}
 }

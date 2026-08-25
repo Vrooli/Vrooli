@@ -11,8 +11,8 @@
         "regenerable": false,
         "rationale": "Kernel crash dumps are forensic evidence written by kdump-tools after a panic.",
         "budget": {
-          "max_bytes": "1TiB",
-          "rationale": "Durable data storage budget measured and governed on 2026-08-05; the byte ceiling prevents unbounded growth without permitting automatic deletion."
+          "max_bytes": "8GiB",
+          "rationale": "Durable data storage ceiling is derived from the expected working set and raises an alarm before host capacity is threatened."
         }
       }
     },
@@ -27,9 +27,6 @@
   ],
   "handler": "kdump_tools",
   "defaultPackage": "kdump-tools",
-  "platforms": [
-    "linux"
-  ],
   "installHint": "Install kdump-tools and reboot after the crashkernel_reserve safeguard adds the crashkernel= parameter. Without crashkernel reserved, kdump cannot operate.",
   "bundling": "host-required",
   "capability": "crash-forensics",
@@ -37,7 +34,7 @@
   "platform_status": {
     "linux": {
       "status": "unqualified",
-      "evidence": "Manifest-declared applicability; no host-sampled qualification recorded."
+      "evidence": null
     },
     "macos": {
       "status": "unsupported",

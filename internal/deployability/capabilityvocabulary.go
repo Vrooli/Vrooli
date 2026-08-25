@@ -67,6 +67,9 @@ func CheckCapabilitySchemaEnums(root string) error {
 	if err := checkPlatformStatusEnum(filepath.Join(root, ".vrooli", "schemas", "common.schema.json")); err != nil {
 		return err
 	}
+	if err := CheckPlatformStatusSchemaRefs(root); err != nil {
+		return err
+	}
 	if err := CheckCapabilityManifestPlatformStatus(root); err != nil {
 		return err
 	}
@@ -185,8 +188,6 @@ func GenerateCapabilitySchemaEnums(root string) error {
 
 var platformPolicyValues = []string{"no_equivalent_ever", "no_work_required"}
 
-var platformStatusValues = []string{"supported", "build-verified", "experimental", "unqualified", "partial", "unsupported"}
-
 func checkPlatformStatusEnum(path string) error {
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -194,6 +195,7 @@ func checkPlatformStatusEnum(path string) error {
 	}
 	var schema struct {
 		Definitions map[string]struct {
+			Enum       []string `json:"enum"`
 			Properties map[string]struct {
 				Enum []string `json:"enum"`
 			} `json:"properties"`
@@ -202,8 +204,11 @@ func checkPlatformStatusEnum(path string) error {
 	if err := json.Unmarshal(data, &schema); err != nil {
 		return fmt.Errorf("parse %s: %w", path, err)
 	}
-	got := append([]string(nil), schema.Definitions["platformStatus"].Properties["status"].Enum...)
-	want := append([]string(nil), platformStatusValues...)
+	got := append([]string(nil), schema.Definitions["platformStatusToken"].Enum...)
+	want := make([]string, 0, len(PlatformStatuses()))
+	for _, status := range PlatformStatuses() {
+		want = append(want, string(status))
+	}
 	sort.Strings(got)
 	sort.Strings(want)
 	if !sameStrings(got, want) {
@@ -212,8 +217,74 @@ func checkPlatformStatusEnum(path string) error {
 	return nil
 }
 
+// CheckPlatformStatusSchemaRefs keeps all consumer schemas on the one common
+// token definition. A consumer that adds an inline enum is a vocabulary fork,
+// even when its current values happen to match.
+func CheckPlatformStatusSchemaRefs(root string) error {
+	const want = "common.schema.json#/definitions/platformStatusToken"
+	checks := []struct {
+		name string
+		path []string
+	}{
+		{"service.schema.json platformCapability.status", []string{"definitions", "platformCapability", "properties", "status", "$ref"}},
+		{"resource.schema.json platforms.linux", []string{"properties", "platforms", "properties", "linux", "$ref"}},
+		{"resource.schema.json platforms.macos", []string{"properties", "platforms", "properties", "macos", "$ref"}},
+		{"resource.schema.json platforms.windows", []string{"properties", "platforms", "properties", "windows", "$ref"}},
+		{"tool.schema.json platform_status.linux", []string{"properties", "platform_status", "properties", "linux", "$ref"}},
+		{"tool.schema.json platform_status.macos", []string{"properties", "platform_status", "properties", "macos", "$ref"}},
+		{"tool.schema.json platform_status.windows", []string{"properties", "platform_status", "properties", "windows", "$ref"}},
+		{"safeguard.schema.json platform_status.linux", []string{"properties", "platform_status", "properties", "linux", "$ref"}},
+		{"safeguard.schema.json platform_status.macos", []string{"properties", "platform_status", "properties", "macos", "$ref"}},
+		{"safeguard.schema.json platform_status.windows", []string{"properties", "platform_status", "properties", "windows", "$ref"}},
+	}
+	loaded := map[string]map[string]any{}
+	for _, check := range checks {
+		name := strings.SplitN(check.name, " ", 2)[0]
+		if loaded[name] == nil {
+			data, err := os.ReadFile(filepath.Join(root, ".vrooli", "schemas", name))
+			if err != nil {
+				return err
+			}
+			var document map[string]any
+			if err := json.Unmarshal(data, &document); err != nil {
+				return fmt.Errorf("parse %s: %w", name, err)
+			}
+			loaded[name] = document
+		}
+		value, ok := schemaPathValue(loaded[name], check.path...)
+		wantRef := want
+		if strings.HasPrefix(check.name, "tool.schema.json") || strings.HasPrefix(check.name, "safeguard.schema.json") {
+			wantRef = "common.schema.json#/definitions/platformStatus"
+		}
+		if !ok || value != wantRef {
+			return fmt.Errorf("%s drifted: got %q want %q", check.name, value, wantRef)
+		}
+	}
+	return nil
+}
+
+func schemaPathValue(document map[string]any, path ...string) (string, bool) {
+	var current any = document
+	for _, key := range path {
+		object, ok := current.(map[string]any)
+		if !ok {
+			return "", false
+		}
+		current, ok = object[key]
+		if !ok {
+			return "", false
+		}
+	}
+	value, ok := current.(string)
+	return value, ok
+}
+
 func replacePlatformStatusEnum(data []byte) []byte {
-	replacement, _ := json.Marshal(platformStatusValues)
+	values := make([]string, 0, len(PlatformStatuses()))
+	for _, status := range PlatformStatuses() {
+		values = append(values, string(status))
+	}
+	replacement, _ := json.Marshal(values)
 	marker := []byte(`"platformStatus"`)
 	definition := bytes.Index(data, marker)
 	if definition < 0 {
@@ -253,14 +324,8 @@ func checkPlatformPolicyEnums(path string) error {
 	var schema struct {
 		Properties struct {
 			PlatformPolicies struct {
-				AdditionalProperties struct {
-					Properties map[string]struct {
-						Enum []string `json:"enum"`
-					} `json:"properties"`
-					PatternProperties map[string]struct {
-						Enum []string `json:"enum"`
-					} `json:"patternProperties"`
-				} `json:"additionalProperties"`
+				AdditionalProperties json.RawMessage            `json:"additionalProperties"`
+				PatternProperties    map[string]json.RawMessage `json:"patternProperties"`
 			} `json:"platform_policies"`
 		} `json:"properties"`
 	}
@@ -269,18 +334,56 @@ func checkPlatformPolicyEnums(path string) error {
 	}
 	want := append([]string(nil), platformPolicyValues...)
 	sort.Strings(want)
-	for name, property := range schema.Properties.PlatformPolicies.AdditionalProperties.Properties {
-		got := append([]string(nil), property.Enum...)
-		sort.Strings(got)
-		if !sameStrings(got, want) {
-			return fmt.Errorf("%s platform policy %s enum drifted: got %v want %v", path, name, got, want)
+	var checkShape func(name string, raw json.RawMessage) error
+	checkShape = func(name string, raw json.RawMessage) error {
+		var shape struct {
+			Properties map[string]struct {
+				Enum []string `json:"enum"`
+			} `json:"properties"`
+			PatternProperties map[string]struct {
+				Enum []string `json:"enum"`
+			} `json:"patternProperties"`
+			OneOf []json.RawMessage `json:"oneOf"`
 		}
+		if len(raw) == 0 || string(raw) == "false" {
+			return nil
+		}
+		if err := json.Unmarshal(raw, &shape); err != nil {
+			return fmt.Errorf("parse %s platform policy schema %s: %w", path, name, err)
+		}
+		for index, alternative := range shape.OneOf {
+			if err := checkShape(fmt.Sprintf("%s/oneOf/%d", name, index), alternative); err != nil {
+				return err
+			}
+		}
+		for propertyName, property := range shape.Properties {
+			if len(property.Enum) == 0 {
+				continue
+			}
+			got := append([]string(nil), property.Enum...)
+			sort.Strings(got)
+			if !sameStrings(got, want) {
+				return fmt.Errorf("%s platform policy %s enum drifted: got %v want %v", path, propertyName, got, want)
+			}
+		}
+		for propertyName, property := range shape.PatternProperties {
+			if len(property.Enum) == 0 {
+				continue
+			}
+			got := append([]string(nil), property.Enum...)
+			sort.Strings(got)
+			if !sameStrings(got, want) {
+				return fmt.Errorf("%s platform policy %s enum drifted: got %v want %v", path, propertyName, got, want)
+			}
+		}
+		return nil
 	}
-	for name, property := range schema.Properties.PlatformPolicies.AdditionalProperties.PatternProperties {
-		got := append([]string(nil), property.Enum...)
-		sort.Strings(got)
-		if !sameStrings(got, want) {
-			return fmt.Errorf("%s platform policy %s enum drifted: got %v want %v", path, name, got, want)
+	if err := checkShape("additionalProperties", schema.Properties.PlatformPolicies.AdditionalProperties); err != nil {
+		return err
+	}
+	for name, raw := range schema.Properties.PlatformPolicies.PatternProperties {
+		if err := checkShape(name, raw); err != nil {
+			return err
 		}
 	}
 	return nil

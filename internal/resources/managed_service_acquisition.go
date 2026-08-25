@@ -269,6 +269,11 @@ func composeManagedServiceArtifact(ctx context.Context, target binaryfetch.Acqui
 			if output, err := command.CombinedOutput(); err != nil {
 				return fmt.Errorf("uv wheel resolution failed: %w: %s", err, strings.TrimSpace(string(output)))
 			}
+		case "local":
+			source := filepath.Join(resourceRoot, filepath.FromSlash(step.Source))
+			if err := copyManagedComposeSource(source, dest); err != nil {
+				return fmt.Errorf("copy local compose source %q: %w", step.Source, err)
+			}
 		default:
 			return fmt.Errorf("unsupported compose step kind %q", step.Kind)
 		}
@@ -278,6 +283,33 @@ func composeManagedServiceArtifact(ctx context.Context, target binaryfetch.Acqui
 		platformOS = "macos"
 	}
 	return writeManagedComposeManifest(target, artifactRoot, platformOS+"-"+runtime.GOARCH, resourceRoot)
+}
+
+func copyManagedComposeSource(source, destination string) error {
+	info, err := os.Stat(source)
+	if err != nil {
+		return err
+	}
+	if info.IsDir() {
+		return fmt.Errorf("local compose source must be a file")
+	}
+	if err := os.MkdirAll(filepath.Dir(destination), 0o755); err != nil {
+		return err
+	}
+	input, err := os.Open(source)
+	if err != nil {
+		return err
+	}
+	defer input.Close()
+	output, err := os.OpenFile(destination, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0o644)
+	if err != nil {
+		return err
+	}
+	defer output.Close()
+	if _, err := io.Copy(output, input); err != nil {
+		return err
+	}
+	return output.Close()
 }
 
 func flattenManagedComposePrefix(root, prefix string) error {

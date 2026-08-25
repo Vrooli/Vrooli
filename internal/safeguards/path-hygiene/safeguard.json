@@ -7,10 +7,6 @@
   },
   "description": "Keep ~/.vrooli/bin on the interactive PATH exactly once and first, and report duplicate PATH entries or a shadowing vrooli binary",
   "handler": "path_hygiene",
-  "platforms": [
-    "linux",
-    "macos"
-  ],
   "risk": "low",
   "privilege": "user",
   "bundling": "prohibited",
@@ -41,11 +37,11 @@
   "platform_status": {
     "linux": {
       "status": "unqualified",
-      "evidence": "Manifest-declared applicability; no host-sampled qualification recorded."
+      "evidence": null
     },
     "macos": {
       "status": "unqualified",
-      "evidence": "Manifest-declared applicability; no host-sampled qualification recorded."
+      "evidence": null
     },
     "windows": {
       "status": "unsupported",

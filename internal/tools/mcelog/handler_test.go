@@ -24,11 +24,15 @@ func stubAll(t *testing.T) (cmds *[]capturedCommand, units map[string]*unitState
 	origRun := hostreqkit.RunCommandFn
 	origCombined := hostreqkit.CombinedOutputFn
 	origLookPath := hostreqkit.LookPathFn
+	origElevationFacts := hostreqkit.ElevationFactsFn
 	origUnit := UnitStateFn
 	origEDAC := EDACModuleLoadedFn
 
 	captured := []capturedCommand{}
 	unitMap := map[string]*unitState{}
+	hostreqkit.ElevationFactsFn = func() hostreqkit.ElevationFacts {
+		return hostreqkit.ElevationFacts{Platform: "linux", Elevated: true, CanElevate: true, Mechanism: "test"}
+	}
 
 	// Default: EDAC module loaded so existing tests don't need to know about
 	// the cross-check. Tests that exercise the missing-EDAC path override.
@@ -59,6 +63,7 @@ func stubAll(t *testing.T) (cmds *[]capturedCommand, units map[string]*unitState
 		hostreqkit.RunCommandFn = origRun
 		hostreqkit.CombinedOutputFn = origCombined
 		hostreqkit.LookPathFn = origLookPath
+		hostreqkit.ElevationFactsFn = origElevationFacts
 		UnitStateFn = origUnit
 		EDACModuleLoadedFn = origEDAC
 	}

@@ -17,16 +17,13 @@
     "pacman": "qemu-desktop"
   },
   "installHint": "Install QEMU/KVM and ensure /dev/kvm is accessible to the invoking user before creating a disposable VM.",
-  "platforms": [
-    "linux"
-  ],
   "bundling": "host-required",
   "capability": "headless-gui",
   "capability_role": "primary",
   "platform_status": {
     "linux": {
       "status": "unqualified",
-      "evidence": "Manifest-declared applicability; no host-sampled qualification recorded."
+      "evidence": null
     },
     "macos": {
       "status": "unsupported",

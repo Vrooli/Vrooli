@@ -62,6 +62,7 @@ type CapabilityResolution struct {
 	// Qualification is the honesty rung of the winning declaration: how much
 	// real-world proof it carries, independent of whether it resolved.
 	Qualification   Qualification        `json:"qualification"`
+	Evidence        *Evidence            `json:"evidence,omitempty"`
 	Implementer     string               `json:"implementer,omitempty"`
 	Mechanism       string               `json:"mechanism,omitempty"`
 	Reason          string               `json:"reason"`
@@ -168,6 +169,7 @@ func ResolveCapability(implementations []CapabilityImplementation, capability st
 		}
 		result.Implementer = winner.implementation.Name
 		result.Mechanism = strings.TrimSpace(winner.implementation.Platforms[os].Mechanism)
+		result.Evidence = winner.implementation.Platforms[os].Evidence
 		result.Reason = winner.qualification.Reason()
 		result.Controls = sortedNames(controls)
 		result.Absent = absentNames(declarers, resolved)
@@ -177,6 +179,39 @@ func ResolveCapability(implementations []CapabilityImplementation, capability st
 			result.Status = CapabilityControlsIncomplete
 			result.Reason = fmt.Sprintf("provider %q resolves, but required controls are absent: %s", result.Implementer, strings.Join(result.AbsentControls, ", "))
 		}
+		return result
+	}
+	// A controls-only capability is still an implementation when every
+	// required control resolves. Controls are deliberately not promoted to a
+	// provider role just to satisfy this branch: the capability remains owned
+	// by its controls and reports the weakest control qualification.
+	if len(controls) > 0 && countControls(implementations, capability, os) == len(controls) {
+		qualification := QualificationQualified
+		for _, control := range controls {
+			if control.qualification.Rank() < qualification.Rank() {
+				qualification = control.qualification
+			}
+		}
+		result.Status = CapabilityImplemented
+		if qualification == QualificationDegraded {
+			result.Status = CapabilityDegraded
+		}
+		result.Qualification = qualification
+		result.Reason = fmt.Sprintf("all %d control declarers resolve on %s", len(controls), os)
+		result.Controls = sortedNames(controls)
+		result.Absent = absentNames(declarers, resolved)
+		result.AbsentControls, result.AbsentProviders = absentByRole(implementations, capability, os, resolved)
+		result.Declarers = declarerDetails(implementations, capability, os, resolved)
+		return result
+	}
+	if len(controls) > 0 && len(controls) < countControls(implementations, capability, os) {
+		result.Status = CapabilityControlsIncomplete
+		result.Qualification = QualificationUndeclared
+		result.Reason = fmt.Sprintf("%d of %d required control declarers resolve on %s", len(controls), countControls(implementations, capability, os), os)
+		result.Controls = sortedNames(controls)
+		result.Absent = absentNames(declarers, resolved)
+		result.AbsentControls, result.AbsentProviders = absentByRole(implementations, capability, os, resolved)
+		result.Declarers = declarerDetails(implementations, capability, os, resolved)
 		return result
 	}
 	if len(unwired) > 0 {

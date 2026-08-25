@@ -3,11 +3,6 @@
   "name": "coding_agent_shims",
   "description": "Install PATH shims in ~/.vrooli/bin so coding agents started from any shell carry a Vrooli identity. See package doc for why this replaced the bash-only shell functions.",
   "handler": "coding_agent_shims",
-  "platforms": [
-    "linux",
-    "macos",
-    "windows"
-  ],
   "risk": "low",
   "privilege": "user",
   "bundling": "prohibited",
@@ -22,7 +17,8 @@
           "macos": "~/.vrooli/bin",
           "windows": "~/.vrooli/bin"
         },
-        "kind": "dir",
+      "kind": "dir",
+      "regenerable": true,
         "class": "cache",
         "sensitive": false,
         "rationale": "Alias links to vrooli-agent-launcher. Pinned because the directory must stay on PATH ahead of the agents' own install directories for the shims to be reached at all; moving it silently disables attribution. The contents are regenerable — the safeguard recreates every alias from the launcher binary.",
@@ -58,15 +54,15 @@
   "platform_status": {
     "linux": {
       "status": "unqualified",
-      "evidence": "Manifest-declared applicability; no host-sampled qualification recorded."
+      "evidence": null
     },
     "macos": {
       "status": "unqualified",
-      "evidence": "Manifest-declared applicability; no host-sampled qualification recorded."
+      "evidence": null
     },
     "windows": {
       "status": "unqualified",
-      "evidence": "Manifest-declared applicability; no host-sampled qualification recorded."
+      "evidence": null
     }
   }
 }

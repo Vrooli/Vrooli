@@ -19,16 +19,13 @@
     "pacman": "xorg-server-xvfb"
   },
   "installHint": "Install Xvfb to provide a virtual Linux display for desktop smoke tests",
-  "platforms": [
-    "linux"
-  ],
   "bundling": "host-required",
   "capability": "headless-gui",
   "capability_role": "primary",
   "platform_status": {
     "linux": {
       "status": "unqualified",
-      "evidence": "Manifest-declared applicability; no host-sampled qualification recorded."
+      "evidence": null
     },
     "macos": {
       "status": "unsupported",

@@ -12,11 +12,6 @@
   "versionArgs": [
     "--help"
   ],
-  "platforms": [
-    "linux",
-    "macos",
-    "windows"
-  ],
   "requires": {
     "gpu": true,
     "minVramGb": 4
@@ -69,15 +64,15 @@
   "platform_status": {
     "linux": {
       "status": "unqualified",
-      "evidence": "Manifest-declared applicability; no host-sampled qualification recorded."
+      "evidence": null
     },
     "macos": {
       "status": "unqualified",
-      "evidence": "Manifest-declared applicability; no host-sampled qualification recorded."
+      "evidence": null
     },
     "windows": {
       "status": "unqualified",
-      "evidence": "Manifest-declared applicability; no host-sampled qualification recorded."
+      "evidence": null
     }
   }
 }

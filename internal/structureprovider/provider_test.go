@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"sync"
 	"testing"
 
@@ -71,5 +73,32 @@ func TestValidateReturnsExplicitUnavailableError(t *testing.T) {
 	}).Validate(context.Background(), "/repo")
 	if !errors.Is(err, ErrUnavailable) {
 		t.Fatalf("error = %v, want ErrUnavailable", err)
+	}
+}
+
+func TestProjectOnlySkipsFleetTargetTraversal(t *testing.T) {
+	root := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(root, "scenarios", "large-scenario"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(root, "resources", "large-resource"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	service := &fakeValidationService{}
+	_, handler := scenariovalidationconnect.NewScenarioValidationServiceHandler(service)
+	server := httptest.NewServer(handler)
+	defer server.Close()
+
+	_, err := (Provider{
+		ResolveURL:  func(context.Context, string) (string, error) { return server.URL, nil },
+		ProjectOnly: true,
+	}).Validate(context.Background(), root)
+	if err != nil {
+		t.Fatalf("Validate: %v", err)
+	}
+	service.mu.Lock()
+	defer service.mu.Unlock()
+	if len(service.gotTargets) != 1 || service.gotTargets[0].GetKind() != commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_PROJECT {
+		t.Fatalf("targets = %#v, want only project target", service.gotTargets)
 	}
 }

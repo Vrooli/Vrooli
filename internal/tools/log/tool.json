@@ -8,9 +8,6 @@
   "versionArgs": [
     "help"
   ],
-  "platforms": [
-    "macos"
-  ],
   "manual": true,
   "installHint": "Provided by macOS.",
   "bundling": "host-required",
@@ -24,7 +21,7 @@
     },
     "macos": {
       "status": "unqualified",
-      "evidence": "Manifest-declared applicability; no host-sampled qualification recorded."
+      "evidence": null
     },
     "windows": {
       "status": "unsupported",

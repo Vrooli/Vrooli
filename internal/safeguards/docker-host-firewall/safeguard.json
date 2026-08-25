@@ -7,9 +7,6 @@
   },
   "description": "Manage iptables chain for Docker container to host service connectivity",
   "handler": "docker_host_firewall",
-  "platforms": [
-    "linux"
-  ],
   "risk": "medium",
   "verificationCheck": {
     "command": "iptables",
@@ -48,7 +45,7 @@
   "platform_status": {
     "linux": {
       "status": "unqualified",
-      "evidence": "Manifest-declared applicability; no host-sampled qualification recorded."
+      "evidence": null
     },
     "macos": {
       "status": "unsupported",

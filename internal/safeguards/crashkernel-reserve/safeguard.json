@@ -10,7 +10,8 @@
           "macos": null,
           "windows": null
         },
-        "kind": "file",
+      "kind": "file",
+      "regenerable": false,
         "class": "config",
         "sensitive": true,
         "rationale": "The safeguard edits the Linux GRUB configuration and requires an operator reboot."
@@ -20,9 +21,6 @@
   },
   "description": "Reserve memory for the kdump capture kernel via the crashkernel= boot parameter",
   "handler": "crashkernel_reserve",
-  "platforms": [
-    "linux"
-  ],
   "risk": "high",
   "privilege": "elevated",
   "bundling": "prohibited",
@@ -64,7 +62,7 @@
   "platform_status": {
     "linux": {
       "status": "unqualified",
-      "evidence": "Manifest-declared applicability; no host-sampled qualification recorded."
+      "evidence": null
     },
     "macos": {
       "status": "unsupported",

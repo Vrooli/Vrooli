@@ -186,15 +186,21 @@ func TestRenderGroupedSplitsByBlockingReason(t *testing.T) {
 	if !strings.Contains(out, "To finish setup:") {
 		t.Fatalf("missing action block:\n%s", out)
 	}
-	if !strings.Contains(out, "sudo vrooli setup") {
-		t.Fatalf("action block missing sudo command:\n%s", out)
+	// The privilege action names the in-flow command. `sudo vrooli setup` was
+	// never the in-flow answer: it leaves the whole run as root and is outside
+	// the setup-and-onboarding flow the operator is being guided through.
+	if !strings.Contains(out, "vrooli setup --sudo-mode=ask") {
+		t.Fatalf("action block missing the in-flow privilege command:\n%s", out)
+	}
+	if strings.Contains(out, "sudo vrooli setup") {
+		t.Fatalf("action block still instructs an out-of-flow sudo invocation:\n%s", out)
 	}
 	if !strings.Contains(out, "vrooli setup --include-optional") {
 		t.Fatalf("action block missing include-optional command:\n%s", out)
 	}
-	// Needs sudo group has the kdump-tools item, NOT the generic Failed group.
-	if !strings.Contains(out, "Needs sudo") {
-		t.Fatalf("missing Needs sudo group:\n%s", out)
+	// The privilege group has the kdump-tools item, NOT the generic Failed group.
+	if !strings.Contains(out, "Needs privilege") {
+		t.Fatalf("missing privilege group:\n%s", out)
 	}
 	if strings.Contains(out, "Failed (1)") {
 		t.Fatalf("kdump-tools should be in Needs sudo, not Failed:\n%s", out)
@@ -326,8 +332,10 @@ func TestActionBlockUsesAbsolutePathWhenLauncherMissing(t *testing.T) {
 	renderGrouped(&sb, report)
 	out := sb.String()
 
-	if !strings.Contains(out, "sudo "+exePath+" setup") {
-		t.Fatalf("action block should contain absolute-path sudo command:\n%s", out)
+	// Before the launcher shim exists the bare name does not resolve, so the
+	// in-flow command still has to be spelled with the absolute path.
+	if !strings.Contains(out, exePath+" setup --sudo-mode=ask") {
+		t.Fatalf("action block should contain the absolute-path privilege command:\n%s", out)
 	}
 	if !strings.Contains(out, exePath+" setup --include-optional") {
 		t.Fatalf("action block should contain absolute-path include-optional command:\n%s", out)
