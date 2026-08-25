@@ -8,6 +8,8 @@ import (
 	"runtime"
 	"strings"
 	"testing"
+
+	"github.com/vrooli/repo-contract-go/repocontracttest"
 )
 
 // renderForSandbox rewrites the collector's absolute paths to temporary ones and
@@ -72,7 +74,7 @@ type collectorManifest struct {
 func runCollector(t *testing.T, retain int, stamps []string, extra func(src string)) (string, collectorManifest) {
 	t.Helper()
 	if runtime.GOOS != "linux" {
-		t.Skip("collector is a Linux shell script")
+		repocontracttest.SkipPlatform(t, "collector is a Linux shell script")
 	}
 	root := t.TempDir()
 	src := filepath.Join(root, "crash")
@@ -169,7 +171,7 @@ func TestCollectorIgnoresForeignCrashArtifacts(t *testing.T) {
 // without churning the export directory.
 func TestCollectorIsIdempotent(t *testing.T) {
 	if runtime.GOOS != "linux" {
-		t.Skip("collector is a Linux shell script")
+		repocontracttest.SkipPlatform(t, "collector is a Linux shell script")
 	}
 	root := t.TempDir()
 	src := filepath.Join(root, "crash")

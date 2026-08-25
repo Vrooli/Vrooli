@@ -8,8 +8,7 @@
         "kind": "dir",
         "class": "cache",
         "regenerable": true,
-        "rationale": "The Linux compose service bind-mounts its Hugging Face model cache to /models; the resource is unsupported on macOS and Windows.",
-        "subpath": "models",
+        "rationale": "The Linux managed service stages checksum-verified Kyutai model files below the resource data directory; the resource is unsupported on macOS and Windows.",
         "platforms": [
           "linux"
         ],
@@ -21,7 +20,7 @@
     }
   },
   "display_name": "Kyutai STT",
-  "description": "Managed Kyutai streaming speech-to-text service. Wraps the Kyutai delayed-streams-modeling model behind a stable FastAPI + WebSocket contract consumed by the audio-tools scenario.",
+  "description": "Managed Kyutai streaming speech-to-text service. Wraps the Kyutai delayed-streams-modeling model behind a stable FastAPI + WebSocket contract consumed by the audio-tools scenario without a container runtime.",
   "cli": {
     "enabled": true,
     "command": "resource-kyutai-stt",
@@ -59,49 +58,226 @@
       "kind": "go_module"
     }
   },
-  "template": "compose-service",
-  "driver": "compose-service",
+  "template": "managed-service",
+  "driver": "managed-service",
+  "managed_service": {
+    "artifact_role": "managed-service",
+    "provenance_class": "upstream-digest",
+    "provider_policy": {
+      "target_defaults": {
+        "control-plane": "managed-private",
+        "desktop-bundle": "managed-private"
+      },
+      "allowed_modes": [
+        "managed-private",
+        "managed-shared",
+        "attach-only",
+        "remote-vrooli",
+        "managed-discovered"
+      ],
+      "shared_reuse_requires_consent": true,
+      "external_management": "forbidden",
+      "external_access_capabilities": [
+        "read-only",
+        "read-write"
+      ]
+    },
+    "artifact": {
+      "path": "server/kyutai-stt",
+      "version": "2026.08.25",
+      "layout": "dir",
+      "entry_path": "runtime/bin/python",
+      "sha256_by_platform": {
+        "linux-amd64": "3046e77fb85334664053102c08b84ffc7f2678eea10c8088acf3ef369f73268f"
+      },
+      "bundle_artifact": "kyutai-stt_${os}_${arch}"
+    },
+    "acquisition": {
+      "kind": "composed",
+      "license": "MIT; CPython PSF-2.0; Kyutai moshi dependencies and model weights retain their upstream licenses",
+      "provenance": {
+        "kind": "none"
+      },
+      "targets": [
+        {
+          "when": {
+            "os": "linux",
+            "arch": "amd64"
+          },
+          "layout": "dir",
+          "artifact_sha256": "3046e77fb85334664053102c08b84ffc7f2678eea10c8088acf3ef369f73268f",
+          "compose": [
+            {
+              "role": "runtime",
+              "kind": "url",
+              "dest": "runtime",
+              "bin_path": "python",
+              "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20260814/cpython-3.12.14%2B20260814-x86_64-unknown-linux-gnu-install_only.tar.gz",
+              "sha256": "3297691ae34f75fed81ac424e040145fccb0bafe8e581cd5cadbddfa1c0766c0",
+              "archive": "tar.gz"
+            },
+            {
+              "role": "python-wheels",
+              "kind": "python-wheels",
+              "dest": "wheels",
+              "lockfile": "docker/requirements.lock"
+            },
+            {
+              "role": "application",
+              "kind": "local",
+              "dest": "source/server.py",
+              "source": "docker/server.py"
+            }
+          ]
+        },
+        {
+          "when": {
+            "os": "linux",
+            "arch": "arm64"
+          },
+          "unsupported": "Kyutai moshi does not have a qualified Vrooli arm64 wheel and hardware-backed evidence is not available for this target."
+        },
+        {
+          "when": {
+            "os": "macos"
+          },
+          "unsupported": "Kyutai STT requires the qualified Linux CUDA runtime; macOS has no supported native target."
+        },
+        {
+          "when": {
+            "os": "windows"
+          },
+          "unsupported": "Kyutai STT requires the qualified Linux CUDA runtime; Windows has no supported native target."
+        }
+      ]
+    },
+    "data_artifacts": [
+      {
+        "name": "model-config",
+        "path": "kyutai-config.json",
+        "acquisition": {
+          "kind": "url",
+          "license": "Kyutai stt-1b-en_fr model license",
+          "provenance": { "kind": "none" },
+          "targets": [
+            {
+              "url": "https://huggingface.co/kyutai/stt-1b-en_fr/resolve/1c34c6b4f7e9299bb61985f145052ff131005dde/config.json",
+              "sha256": "5e6aee8007000d844152932184fb7c7112d73cb9a4be562a313b6fa2b89a68f9",
+              "layout": "file"
+            }
+          ]
+        }
+      },
+      {
+        "name": "moshi-weights",
+        "path": "kyutai-model.safetensors",
+        "acquisition": {
+          "kind": "url",
+          "license": "Kyutai stt-1b-en_fr model license",
+          "provenance": { "kind": "none" },
+          "targets": [
+            {
+              "url": "https://huggingface.co/kyutai/stt-1b-en_fr/resolve/1c34c6b4f7e9299bb61985f145052ff131005dde/model.safetensors",
+              "sha256": "8f6e244d44baf63c6fa3587d25a4e8d3627ecbafe177cf34a736e697bb725116",
+              "layout": "file"
+            }
+          ]
+        }
+      },
+      {
+        "name": "mimi-weights",
+        "path": "kyutai-mimi.safetensors",
+        "acquisition": {
+          "kind": "url",
+          "license": "Kyutai stt-1b-en_fr model license",
+          "provenance": { "kind": "none" },
+          "targets": [
+            {
+              "url": "https://huggingface.co/kyutai/stt-1b-en_fr/resolve/1c34c6b4f7e9299bb61985f145052ff131005dde/mimi-pytorch-e351c8d8@125.safetensors",
+              "sha256": "09b782f0629851a271227fb9d36db65c041790365f11bbe5d3d59369cf863f50",
+              "layout": "file"
+            }
+          ]
+        }
+      },
+      {
+        "name": "tokenizer",
+        "path": "kyutai-tokenizer_en_fr_audio_8000.model",
+        "acquisition": {
+          "kind": "url",
+          "license": "Kyutai stt-1b-en_fr model license",
+          "provenance": { "kind": "none" },
+          "targets": [
+            {
+              "url": "https://huggingface.co/kyutai/stt-1b-en_fr/resolve/1c34c6b4f7e9299bb61985f145052ff131005dde/tokenizer_en_fr_audio_8000.model",
+              "sha256": "cd87dd5d17169151782ac700280ec057e5d658a9afbe238a048ea5ff318cce69",
+              "layout": "file"
+            }
+          ]
+        }
+      }
+    ],
+    "arguments": [
+      "-m",
+      "uvicorn",
+      "source.server:app",
+      "--host",
+      "127.0.0.1",
+      "--port",
+      "${RESOURCE_PORT_HTTP}"
+    ],
+    "environment": {
+      "PYTHONPATH": "${RESOURCE_ARTIFACT_DIR}/source:${RESOURCE_ARTIFACT_DIR}/wheels",
+      "PYTHONDONTWRITEBYTECODE": "1",
+      "KYUTAI_STT_DEVICE": "cuda",
+      "KYUTAI_STT_CONFIG_PATH": "${RESOURCE_DATA_DIR}/kyutai-config.json",
+      "KYUTAI_STT_MOSHI_WEIGHTS": "${RESOURCE_DATA_DIR}/kyutai-model.safetensors",
+      "KYUTAI_STT_MIMI_WEIGHTS": "${RESOURCE_DATA_DIR}/kyutai-mimi.safetensors",
+      "KYUTAI_STT_TOKENIZER": "${RESOURCE_DATA_DIR}/kyutai-tokenizer_en_fr_audio_8000.model"
+    },
+    "attach_health_path": "/ready",
+    "shutdown": {
+      "signal": "terminate"
+    }
+  },
   "deployment": {
     "profiles": {
       "desktop": {
         "linux": {
           "support": "conditional",
-          "mode": "docker-desktop",
+          "mode": "bundled-service",
           "architectures": [
-            "amd64",
-            "arm64"
+            "amd64"
           ],
-          "requires": [
-            "docker"
-          ],
+          "requires": [],
           "limitations": [
-            "Compose images, storage, and networking remain host-managed."
+            "The composed CPython runtime and wheel tree are checksum-pinned; CUDA remains optional at runtime and must be qualified on the target host."
           ],
           "evidence": [
             "manifest-validation",
-            "docker-preflight"
+            "manifest-validation",
+            "artifact-checksum"
           ]
         },
       "macos": {
         "support": "unsupported",
-        "mode": "docker-desktop",
+        "mode": "bundled-service",
         "limitations": [
-          "Real-time streaming STT requires an NVIDIA CUDA GPU; Docker Desktop on macOS cannot pass through NVIDIA GPUs."
+          "The qualified target is Linux amd64; macOS remains explicitly unsupported until a native runtime and hardware evidence exist."
         ],
-        "reason": "Real-time streaming STT requires an NVIDIA CUDA GPU; Docker Desktop on macOS cannot pass through NVIDIA GPUs, and CPU decode is not real-time."
+        "reason": "The qualified target is Linux amd64; macOS has no supported native target."
         },
       "windows": {
         "support": "unsupported",
-        "mode": "docker-desktop",
+        "mode": "bundled-service",
         "limitations": [
-          "Real-time streaming STT requires an NVIDIA CUDA GPU with linux/amd64 container support; CPU decode is not real-time."
+          "The qualified target is Linux amd64; Windows has no supported native target."
         ],
-        "reason": "Real-time streaming STT requires an NVIDIA CUDA GPU with linux/amd64 container support; CPU decode is not real-time."
+        "reason": "The qualified target is Linux amd64; Windows has no supported native target."
         }
       }
     }
   },
-  "compose_file": "docker/docker-compose.yml",
   "acceleration": {
     "backends": [
       "cuda",
@@ -230,7 +406,7 @@
   },
   "template_version": "2",
   "privilege": "user",
-  "bundling": "host-required",
+  "bundling": "vendorable",
   "hostSafeguards": [
     {
       "name": "nvidia_driver",

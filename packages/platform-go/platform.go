@@ -19,6 +19,11 @@ import (
 // process holding the lock.
 var ErrLockUnavailable = errors.New("platform: lock unavailable")
 
+// ErrUnsupported means the host cannot answer a platform fact through a
+// supported, truthful API. Callers must surface the degradation instead of
+// substituting a plausible value.
+var ErrUnsupported = errors.New("platform: operation is not supported on this platform")
+
 // ProcessOptions describes the lifecycle semantics requested from a command.
 // The build-tagged backend translates it into native process attributes.
 type ProcessOptions struct {
@@ -103,6 +108,14 @@ func IsPIDRunning(pid int) bool { return pidIsAlive(pid) }
 // process exiting — and on a host where short-lived CLIs start work
 // constantly, that is exactly when someone asks who did it.
 func ProcessCommandLine(pid int) (string, error) { return processCommandLine(pid) }
+
+// ProcessWorkingDir returns the live working directory of pid when the host
+// exposes it. Unsupported platforms return ErrUnsupported.
+func ProcessWorkingDir(pid int) (string, error) { return processWorkingDir(pid) }
+
+// ProcessHasChildren reports whether pid currently has child processes.
+// Unsupported platforms return ErrUnsupported.
+func ProcessHasChildren(pid int) (bool, error) { return processHasChildren(pid) }
 
 // ProcessScope returns the operating system's containment identity for pid —
 // on Linux the cgroup path, which outlives the process and identifies the

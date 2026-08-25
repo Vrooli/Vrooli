@@ -111,6 +111,32 @@ func processCommandLine(pid int) (string, error) {
 	return strings.Join(fields, " "), nil
 }
 
+func processWorkingDir(pid int) (string, error) {
+	if pid <= 0 {
+		return "", fmt.Errorf("platform: invalid pid %d", pid)
+	}
+	path, err := os.Readlink("/proc/" + strconv.Itoa(pid) + "/cwd")
+	if err != nil {
+		return "", err
+	}
+	path = strings.TrimSpace(path)
+	if path == "" {
+		return "", fmt.Errorf("platform: pid %d exposes no working directory", pid)
+	}
+	return path, nil
+}
+
+func processHasChildren(pid int) (bool, error) {
+	if pid <= 0 {
+		return false, fmt.Errorf("platform: invalid pid %d", pid)
+	}
+	data, err := os.ReadFile("/proc/" + strconv.Itoa(pid) + "/task/" + strconv.Itoa(pid) + "/children")
+	if err != nil {
+		return false, err
+	}
+	return strings.TrimSpace(string(data)) != "", nil
+}
+
 // processScope returns the unified-hierarchy cgroup path for pid. The v2 line
 // is "0::<path>"; a v1-only host has no single answer, so it reports empty
 // rather than picking a controller arbitrarily.

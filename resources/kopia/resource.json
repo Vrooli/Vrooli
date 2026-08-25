@@ -162,7 +162,7 @@
   },
   "platforms": {
     "linux": "supported",
-    "macos": "supported",
+    "macos": "build-verified",
     "windows": "build-verified"
   },
   "health_checks": [

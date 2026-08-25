@@ -140,5 +140,33 @@ func processCommandLine(pid int) (string, error) {
 	return command, nil
 }
 
+func processWorkingDir(int) (string, error) { return "", ErrUnsupported }
+
+func processHasChildren(pid int) (bool, error) {
+	if pid <= 0 {
+		return false, fmt.Errorf("platform: invalid pid %d", pid)
+	}
+	snapshot, err := windows.CreateToolhelp32Snapshot(windows.TH32CS_SNAPPROCESS, 0)
+	if err != nil {
+		return false, err
+	}
+	defer windows.CloseHandle(snapshot)
+	entry := windows.ProcessEntry32{Size: uint32(unsafe.Sizeof(windows.ProcessEntry32{}))}
+	if err := windows.Process32First(snapshot, &entry); err != nil {
+		return false, err
+	}
+	for {
+		if entry.ParentProcessID == uint32(pid) {
+			return true, nil
+		}
+		if err := windows.Process32Next(snapshot, &entry); err != nil {
+			if errors.Is(err, windows.ERROR_NO_MORE_FILES) {
+				return false, nil
+			}
+			return false, err
+		}
+	}
+}
+
 // processScope reports empty: a Job Object has no stable name to record.
 func processScope(int) (string, error) { return "", nil }

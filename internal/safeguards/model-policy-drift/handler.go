@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	repocontract "github.com/vrooli/repo-contract-go"
 	"github.com/vrooli/vrooli/internal/hostreqkit"
 	"github.com/vrooli/vrooli/internal/hostreqspec"
 )
@@ -231,14 +232,13 @@ func configuredModels(config map[string]any, runner string) (map[string]bool, bo
 
 func repoRoot() string {
 	if root := strings.TrimSpace(os.Getenv("PROJECT_ROOT")); root != "" {
-		return root
-	}
-	dir, _ := os.Getwd()
-	for dir != "" && dir != filepath.Dir(dir) {
-		if _, err := os.Stat(filepath.Join(dir, "resources", "codex", "model-policy.json")); err == nil {
-			return dir
+		if resolved, err := repocontract.FindRepoRootFromPath(root); err == nil {
+			return resolved
 		}
-		dir = filepath.Dir(dir)
+		return filepath.Clean(root)
+	}
+	if root, err := repocontract.ResolveRepoRoot(); err == nil {
+		return root
 	}
 	return "."
 }

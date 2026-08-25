@@ -18,7 +18,7 @@ update the row.
 | | |
 |---|---|
 | **Seam** | The single place 16 kHz contract audio is resampled to the model's native rate. |
-| **Surface** | `docker/server.py::Model.resample_to_model` (uses `julius.resample_frac`, 16000 → `mimi.sample_rate`). |
+| **Surface** | `docker/server.py::Model.resample_to_model` (uses torch linear interpolation, 16000 → `mimi.sample_rate`). |
 | **Why it exists** | The model is format-blind internally; all rate handling is confined to one function so the public contract (16 kHz) never leaks the model's 24 kHz native rate. If a future model changes its native rate, only this function and `model_sample_rate` change. |
 
 ## Manifest-driven lifecycle (`resource.json`)
@@ -27,7 +27,7 @@ update the row.
 |---|---|
 | **Seam** | Declarative contract for ports, env exports, health, GPU overlay, and freshness — consumed by the shared `vrooli resource ...` control plane and the `cli-core` resource app. |
 | **Surface** | `resource.json` (`ports`, `environment_exports`, `health_checks`, `gpu`, `cli.freshness`). |
-| **Why it exists** | Scenarios resolve `KYUTAI_STT_URL` / `KYUTAI_STT_WS_URL` from the manifest's derived exports; never hard-code the port. The GPU overlay (`docker/docker-compose.gpu.yml`) is applied only when the nvidia probe succeeds. |
+| **Why it exists** | Scenarios resolve `KYUTAI_STT_URL` / `KYUTAI_STT_WS_URL` from the manifest's derived exports; never hard-code the port. CUDA placement is observed by the managed-service control plane. |
 
 ## CLI app construction (`cli/main.go::newApp`)
 

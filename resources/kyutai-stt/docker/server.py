@@ -55,6 +55,7 @@ import math
 import os
 import time
 from collections import deque
+from pathlib import Path
 from typing import Awaitable, Callable, Deque, List, Optional
 
 import numpy as np
@@ -69,6 +70,10 @@ INPUT_SAMPLE_RATE = 16000
 # Configuration (env-driven; safe defaults for the bundled 1B model).
 HF_REPO = os.environ.get("KYUTAI_STT_HF_REPO", "kyutai/stt-1b-en_fr")
 DEVICE = os.environ.get("KYUTAI_STT_DEVICE", "cuda")
+MODEL_CONFIG_PATH = os.environ.get("KYUTAI_STT_CONFIG_PATH", "")
+MODEL_MOSHI_WEIGHTS = os.environ.get("KYUTAI_STT_MOSHI_WEIGHTS", "")
+MODEL_MIMI_WEIGHTS = os.environ.get("KYUTAI_STT_MIMI_WEIGHTS", "")
+MODEL_TOKENIZER_PATH = os.environ.get("KYUTAI_STT_TOKENIZER", "")
 
 
 def _enabled(value: str) -> bool:
@@ -296,7 +301,6 @@ class Model:
 
     def load(self) -> None:
         import torch
-        import julius
         from moshi.models import loaders, LMGen
 
         log.info(
@@ -310,7 +314,16 @@ class Model:
             self.device = "cpu"
 
         dtype = torch.bfloat16 if self.device == "cuda" else torch.float32
-        info = loaders.CheckpointInfo.from_hf_repo(self.repo)
+        def local_path(value: str) -> Optional[Path]:
+            return Path(value) if value.strip() else None
+
+        info = loaders.CheckpointInfo.from_hf_repo(
+            self.repo,
+            config_path=local_path(MODEL_CONFIG_PATH),
+            moshi_weights=local_path(MODEL_MOSHI_WEIGHTS),
+            mimi_weights=local_path(MODEL_MIMI_WEIGHTS),
+            tokenizer=local_path(MODEL_TOKENIZER_PATH),
+        )
         mimi = info.get_mimi(device=self.device)
         tokenizer = info.get_text_tokenizer()
         lm = info.get_moshi(device=self.device, dtype=dtype)
@@ -320,7 +333,6 @@ class Model:
         stt_cfg = raw.get("stt_config", {}) or {}
 
         self._torch = torch
-        self._julius = julius
         self._mimi = mimi
         self._tokenizer = tokenizer
         self._lm_gen = lm_gen
@@ -363,9 +375,15 @@ class Model:
         torch = self._torch
         wav = torch.from_numpy(pcm_f32).to(self.device)
         if INPUT_SAMPLE_RATE != self._model_sample_rate:
-            wav = self._julius.resample_frac(
-                wav, INPUT_SAMPLE_RATE, self._model_sample_rate
+            target_samples = round(
+                wav.numel() * self._model_sample_rate / INPUT_SAMPLE_RATE
             )
+            wav = torch.nn.functional.interpolate(
+                wav.reshape(1, 1, -1),
+                size=target_samples,
+                mode="linear",
+                align_corners=False,
+            ).reshape(-1)
         return wav.unsqueeze(0)  # [1, T]
 
 

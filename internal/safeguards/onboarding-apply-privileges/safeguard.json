@@ -3,10 +3,6 @@
   "name": "onboarding_apply_privileges",
   "description": "Install the literal, per-host sudoers grant that lets onboarding apply selected elevated host requirements without a second prompt.",
   "handler": "onboarding_apply_privileges",
-  "platforms": [
-    "linux",
-    "macos"
-  ],
   "risk": "high",
   "privilege": "elevated",
   "bundling": "prohibited",
@@ -21,7 +17,8 @@
           "macos": "/etc/sudoers.d/vrooli-onboarding-apply",
           "windows": null
         },
-        "kind": "file",
+      "kind": "file",
+      "regenerable": false,
         "class": "config",
         "sensitive": true,
         "rationale": "The grant is setup-managed host policy and contains only exact selected control-plane argv."
@@ -58,11 +55,11 @@
   "platform_status": {
     "linux": {
       "status": "unqualified",
-      "evidence": "Manifest-declared applicability; no host-sampled qualification recorded."
+      "evidence": null
     },
     "macos": {
       "status": "unqualified",
-      "evidence": "Manifest-declared applicability; no host-sampled qualification recorded."
+      "evidence": null
     },
     "windows": {
       "status": "unsupported",

@@ -10,7 +10,8 @@
           "macos": null,
           "windows": null
         },
-        "kind": "file",
+      "kind": "file",
+      "regenerable": false,
         "class": "state",
         "sensitive": false,
         "rationale": "The safeguard installs the Linux kdump summary collector executable.",
@@ -26,7 +27,8 @@
           "macos": null,
           "windows": null
         },
-        "kind": "file",
+      "kind": "file",
+      "regenerable": false,
         "class": "config",
         "sensitive": true,
         "rationale": "The safeguard installs the Linux kdump collector service."
@@ -38,7 +40,8 @@
           "macos": null,
           "windows": null
         },
-        "kind": "file",
+      "kind": "file",
+      "regenerable": false,
         "class": "config",
         "sensitive": true,
         "rationale": "The safeguard installs the Linux kdump collector timer."
@@ -48,9 +51,6 @@
   },
   "description": "Export kdump panic summaries into the Vrooli host-observability directory so unprivileged scenarios can report a crash without reading root-only vmcores",
   "handler": "kdump_observability",
-  "platforms": [
-    "linux"
-  ],
   "risk": "medium",
   "config": {
     "type": "object",
@@ -99,7 +99,7 @@
   "platform_status": {
     "linux": {
       "status": "unqualified",
-      "evidence": "Manifest-declared applicability; no host-sampled qualification recorded."
+      "evidence": null
     },
     "macos": {
       "status": "unsupported",

@@ -7,6 +7,8 @@ import (
 	"runtime"
 	"strings"
 	"testing"
+
+	"github.com/vrooli/repo-contract-go/repocontracttest"
 )
 
 func TestIdentityUnsupportedIsTypedOnWindows(t *testing.T) {
@@ -19,7 +21,7 @@ func TestIdentityUnsupportedIsTypedOnWindows(t *testing.T) {
 
 func TestIdentityCommandRejectsEmptyName(t *testing.T) {
 	if runtime.GOOS == "windows" {
-		t.Skip("windows has a typed unsupported result before command validation")
+		repocontracttest.SkipPlatform(t, "windows has a typed unsupported result before command validation")
 	}
 	if err := RunAsInvokingUserInSession(context.Background(), "", nil, IdentityCommandOptions{}); err == nil {
 		t.Fatal("empty command unexpectedly succeeded")
@@ -28,7 +30,7 @@ func TestIdentityCommandRejectsEmptyName(t *testing.T) {
 
 func TestIdentityOutputKeepsCommandOutputSeparate(t *testing.T) {
 	if runtime.GOOS == "windows" {
-		t.Skip("portable command fixture is Unix-specific")
+		repocontracttest.SkipPlatform(t, "portable command fixture is Unix-specific")
 	}
 	output, err := RunAsInvokingUserInSessionOutput(context.Background(), "printf", []string{"%s", "identity-output"}, IdentityCommandOptions{})
 	if err != nil {
@@ -41,7 +43,7 @@ func TestIdentityOutputKeepsCommandOutputSeparate(t *testing.T) {
 
 func TestIdentityInputUsesStdinInsteadOfArguments(t *testing.T) {
 	if runtime.GOOS == "windows" {
-		t.Skip("portable command fixture is Unix-specific")
+		repocontracttest.SkipPlatform(t, "portable command fixture is Unix-specific")
 	}
 	var output bytes.Buffer
 	if err := RunAsInvokingUserInSessionWithInput(context.Background(), "cat", nil, []byte("secret-through-stdin"), IdentityCommandOptions{Stdout: &output}); err != nil {
@@ -54,7 +56,7 @@ func TestIdentityInputUsesStdinInsteadOfArguments(t *testing.T) {
 
 func TestIdentityCommandPreservesWorkingDirectory(t *testing.T) {
 	if runtime.GOOS == "windows" {
-		t.Skip("portable command fixture is Unix-specific")
+		repocontracttest.SkipPlatform(t, "portable command fixture is Unix-specific")
 	}
 	dir := t.TempDir()
 	output, err := RunAsInvokingUserInSessionOutput(context.Background(), "pwd", nil, IdentityCommandOptions{Dir: dir})

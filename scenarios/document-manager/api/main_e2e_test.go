@@ -40,6 +40,8 @@ import (
 	"syscall"
 	"testing"
 	"time"
+
+	"github.com/vrooli/repo-contract-go/repocontracttest"
 )
 
 func TestE2E_BinaryBootsAndServesHealth(t *testing.T) { // [REQ:DOC-P0-016] [REQ:DOC-P0-022]
@@ -47,7 +49,7 @@ func TestE2E_BinaryBootsAndServesHealth(t *testing.T) { // [REQ:DOC-P0-016] [REQ
 		// SIGTERM is not portable to Windows; the e2e test is gated to
 		// Unix-likes. Windows CI (when added) gets a separate variant
 		// that uses os.Process.Kill or sends Ctrl+Break via taskkill.
-		t.Skip("e2e binary boot test relies on SIGTERM; not portable to Windows")
+		repocontracttest.SkipPlatform(t, "e2e binary boot test relies on SIGTERM; not portable to Windows")
 	}
 
 	binary := buildBinary(t)

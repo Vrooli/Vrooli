@@ -1,17 +1,19 @@
 # Operations
 
-`kyutai-stt` is organized as a `compose-service` resource that builds a local
-Docker image from `docker/Dockerfile` (a custom FastAPI + websockets server
-wrapping the Kyutai `moshi` streaming STT stack).
+`kyutai-stt` is organized as a `managed-service` resource. The control plane
+composes a checksum-pinned CPython runtime, governed wheels, and the reviewed
+`docker/server.py` source, then supervises it directly. Docker is not part of
+the supported lifecycle.
 
 ## Architecture Boundary
 
 Keep responsibilities split cleanly:
 
-- `resource.json` owns declarative lifecycle, compose, port, export, and health
-  metadata.
-- `docker/` owns the server image: `Dockerfile`, pinned `requirements.txt`, and
-  `server.py` (the stable streaming contract implementation).
+- `resource.json` owns declarative lifecycle, acquisition, model data, port,
+  export, and health metadata.
+- `docker/server.py` owns the stable streaming contract implementation and
+  `docker/requirements.lock` owns its governed wheel set. The directory name
+  is retained for source compatibility; it does not imply a container runtime.
 - `cli/` owns the binary entrypoint, wiring, and delegated command
   registration. Keep `cli/main.go` thin.
 - `cli/internal/` owns Kyutai STT-specific Go logic that cannot be expressed
@@ -40,14 +42,13 @@ the VRAM headroom against other resident resources.
 CPU execution is possible but **not** real-time and is unsupported for
 production streaming; the resource warns and continues if no GPU is present.
 
-## First-run model download
+## First-run model acquisition
 
-On first start the container downloads model weights from Hugging Face into the
-bind-mounted HF cache (`${RESOURCE_DATA_DIR}/models`, container `/models`).
-This is multi-GB and can take several minutes. The startup timeout in
-`resource.json` (`startup_timeout_seconds: 180`) and the lib wait window
-(`KYUTAI_STT_STARTUP_MAX_WAIT=600`) account for this. Weights persist across
-container recreations because the cache is a host bind mount.
+On install/start the control plane acquires four model files from the pinned
+Hugging Face commit into the resource-owned `${RESOURCE_DATA_DIR}` root. Each file is verified
+by SHA-256 before the service starts. This is multi-GB and can take several
+minutes; the service receives explicit local paths, so model loading is offline
+after acquisition.
 
 The models are public; `KYUTAI_STT_HF_TOKEN` is optional and only needed to
 avoid anonymous download rate limits.
@@ -65,7 +66,7 @@ avoid anonymous download rate limits.
 
 Kyutai is a *delayed-streams* model at 12.5 Hz. A durable `segment` is committed
 on any of three triggers; the two frame-count knobs below are env-configurable
-(set on the container, e.g. via `docker-compose*.yml`).
+(set in the managed-service environment, not by a container overlay).
 
 | Name | Default | Notes |
 |---|---|---|
@@ -121,17 +122,16 @@ It sends 30 seconds of canonical audio as 100 ms WebSocket frames and fails at
 
 ## Operator Checklist
 
-- Keep compose topology, ports, and health checks declared in `resource.json`
-  and `docker/docker-compose*.yml`.
+- Keep lifecycle, acquisition, model digests, ports, and health checks declared
+  in `resource.json`.
 - Keep mutable state (HF cache) in canonical resource storage paths via the
   compose bind mount; never repo-local.
-- Pin Python deps in `docker/requirements.txt` and the base image tag in
-  `docker/Dockerfile`. `torch` ships with the CUDA base image and is
-  intentionally absent from `requirements.txt`.
+- Pin Python deps in `docker/requirements.lock`; the managed composer installs
+  the declared wheels through the control plane's governed dependency path.
 - Prefer shared `vrooli resource ...` lifecycle behavior before adding
   resource-local commands.
 
-The Docker and Vrooli lifecycle checks use `/ready`, not `/health`: the latter
+The Vrooli lifecycle checks use `/ready`, not `/health`: the latter
 only proves that the process is alive, while `/ready` proves model admission is
 safe.
 
@@ -158,6 +158,6 @@ resource-kyutai-stt manage stop
 | Symptom | Likely cause | Action |
 |---|---|---|
 | `/health` 200 but `model_loaded:false` for minutes | first-run weight download | check `resource-kyutai-stt logs`; wait |
-| Container unhealthy, CUDA errors in logs | no nvidia runtime / driver mismatch | confirm `docker info | grep nvidia` and `nvidia-smi` |
+| Service unhealthy, CUDA errors in logs | no NVIDIA driver or device mismatch | confirm `nvidia-smi` and inspect the managed-service log |
 | `error: unsupported sample_rate` on stream | client sent non-16k `start` | send `sample_rate:16000`; resample client-side |
 | OOM on model load | VRAM budget exhausted by other resources | free VRAM or switch to 1B model / lower concurrency |

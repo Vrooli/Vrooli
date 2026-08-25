@@ -43,13 +43,29 @@ func (h handler) Inspect(host hostreqkit.Host, requirement hostreqspec.ResolvedR
 		status.Notes = append(status.Notes, err.Error())
 		return status
 	}
-	if hostreqkit.FileContentMatches(grantPath, content) {
+	switch hostreqkit.CompareFileContent(grantPath, content) {
+	case hostreqkit.FileComparisonMatch:
 		status.Applied = true
 		status.ExecutionState = hostreqkit.ExecutionAlreadyPresent
 		return status
+	case hostreqkit.FileComparisonUnreadable:
+		// A sudoers drop-in is 0440 root:root by necessity — sudo refuses to
+		// read one that is more permissive — so every unprivileged inspection
+		// lands here on a correctly installed grant. Reporting that as missing
+		// made a required item permanently unsatisfiable for `setup status`,
+		// `setup --dry-run`, and the unprivileged onboarding API, which is a
+		// false blocker on a healthy host. The privileged apply path still
+		// reads the file and rewrites it when it has genuinely drifted, so the
+		// stale case is detected exactly where it can also be repaired.
+		status.Applied = true
+		status.ExecutionState = hostreqkit.ExecutionAlreadyPresent
+		status.Notes = append(status.Notes,
+			"onboarding apply grant present at "+grantPath+"; its contents cannot be read without privilege, so this run did not re-verify them against the current selection")
+		return status
+	default:
+		status.Notes = append(status.Notes, "onboarding apply grant missing or stale at "+grantPath+"; run `vrooli setup --sudo-mode=ask`")
+		return status
 	}
-	status.Notes = append(status.Notes, "onboarding apply grant missing or stale at "+grantPath+"; run `sudo vrooli setup`")
-	return status
 }
 
 func (h handler) Apply(host hostreqkit.Host, status hostreqkit.ItemStatus, opts hostreqkit.EnsureOptions) (hostreqkit.ItemStatus, error) {
