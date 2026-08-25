@@ -2,6 +2,10 @@
 
 Web Console delivers a full-fidelity terminal experience in the browser with pane-based workflows, durable sessions, and AI-assisted input generation for authenticated parent scenarios.
 
+## Platform support
+
+Linux is supported (measured on the current host). macOS support is reasoned from source: session working-directory inspection is unavailable, so relative file preview reports an error instead of guessing. Windows is reasoned from source and unsupported because no PTY implementation exists.
+
 ## Scope Status
 
 - This document describes the **target rewrite scope**.

@@ -10,6 +10,8 @@ import {
 } from "@vrooli/proto-types/web-console/v1/errors/errors_pb";
 
 export const API_BASE = resolveApiBase();
+/** HTTP base for legacy REST/WebSocket routes that live below /api/v1. */
+export const API_BASE_WITH_SUFFIX = resolveApiBase({ appendSuffix: true });
 const PROTO_READ_OPTIONS = { ignoreUnknownFields: true } as const;
 
 // transport is the shared Connect-Web transport every domain client

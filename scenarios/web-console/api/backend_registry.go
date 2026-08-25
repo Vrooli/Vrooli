@@ -12,13 +12,15 @@ import (
 // does not depend on.
 func InitDefaultRegistry() *backend.Registry {
 	reg := backend.New()
+	standardAvailable, standardReason := probeStandard()
 
 	reg.Register(backend.Descriptor{
 		ID:              backend.Standard,
 		DisplayName:     "Standard",
 		Description:     "In-memory session. Fast and lightweight, but lost on restart.",
 		SurvivesRestart: false,
-		Available:       true,
+		Available:       standardAvailable,
+		Reason:          standardReason,
 	}, defaultPTYFactory)
 
 	tmuxAvail, tmuxReason := backend.CheckTmuxAvailable()
@@ -32,4 +34,11 @@ func InitDefaultRegistry() *backend.Registry {
 	}, tmuxPTYFactory)
 
 	return reg
+}
+
+func probeStandard() (bool, string) {
+	if !hostSupportsPTY {
+		return false, "no PTY implementation for this platform"
+	}
+	return true, ""
 }

@@ -127,7 +127,18 @@ message JobPush {
   // exits. This is output metadata, never an arbitrary command fragment.
   repeated ArtifactOutput outputs = 6;
 
-  reserved 7 to 15; // env scoping, artifact inputs, queue metadata
+  // Ephemeral credential mappings for exactly this job. The node resolves the
+  // already-consented in-memory value and injects it into the child process
+  // environment; values are never appended to argv or written to job state.
+  repeated CredentialInjection credential_injections = 7;
+
+  reserved 8 to 15; // future env scoping, artifact inputs, queue metadata
+}
+
+message CredentialInjection {
+  string logical_id = 1;
+  string field = 2;
+  string env_name = 3;
 }
 
 // PrivilegedOperation is the closed vocabulary accepted by the separate
@@ -166,6 +177,46 @@ message CleanupCommand {
   string operator_id = 12;
 
   reserved 13 to 31;
+}
+
+message CredentialPush {
+  string grant_id = 1;
+  string node_id = 2;
+  string logical_id = 3;
+  string field = 4;
+  int64 generation = 5;
+  string retention = 6;
+  bytes sealed_value = 7;
+  bytes aad = 8;
+}
+
+message CredentialPurge {
+  string node_id = 1;
+  repeated string addresses = 2;
+}
+
+// CredentialGrant carries metadata-only local consent to a node. It never
+// carries a credential value; the node stores this record before accepting a
+// later CredentialPush for the same address.
+message CredentialGrant {
+  string grant_id = 1;
+  string node_id = 2;
+  string logical_id = 3;
+  string field = 4;
+  string class = 5;
+  string retention = 6;
+  int64 generation = 7;
+  bool revoked = 8;
+}
+
+message CredentialReceipt {
+  string grant_id = 1;
+  string node_id = 2;
+  string logical_id = 3;
+  string field = 4;
+  int64 generation = 5;
+  bool accepted = 6;
+  string reason = 7;
 }
 
 // ArtifactOutput describes one bounded file a typed job is allowed to produce.
@@ -275,6 +326,9 @@ message ServerFrame {
     RelayRequest relay = 8;
     RelayCancel relay_cancel = 9;
     CleanupCommand cleanup = 10;
+    CredentialPush credential_push = 11;
+    CredentialPurge credential_purge = 12;
+    CredentialGrant credential_grant = 13;
   }
 }
 
@@ -313,5 +367,6 @@ message NodeFrame {
     shared.DeliveryAck delivery_ack = 4;
     shared.SessionFrame session = 5;
     shared.RelayResponse relay_response = 6;
+    CredentialReceipt credential_receipt = 7;
   }
 }

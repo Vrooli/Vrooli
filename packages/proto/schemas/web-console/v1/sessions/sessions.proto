@@ -96,11 +96,10 @@ message Session {
   string backend = 6; // "persistent" | "ephemeral"
   bool survives_restart = 7;
   ExpirationPolicy policy = 8;
-  bool busy = 9;
-  bool recovered = 10;
-  SessionOrigin origin = 11;
-  string owner = 12; // free-form provenance tag, e.g. "agent-manager"
-  string display_label = 13; // human-facing label for the sidebar
+	bool recovered = 10;
+	SessionOrigin origin = 11;
+	string owner = 12; // free-form provenance tag, e.g. "agent-manager"
+	string display_label = 13; // human-facing label for the sidebar
   // True when a recovered Claude pane has terminal output but no new tracked
   // conversation event after the recovery grace period.
   bool tracking_degraded = 14;

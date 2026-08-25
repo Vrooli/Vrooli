@@ -1,4 +1,3 @@
-// DOC: docs/concepts/ARCHITECTURE.md#adaptive-chrome
 import { CHROME_PALETTE_TOKEN_NAMES, deriveChromePalette } from "./chromePalette";
 import { isHexColor } from "./paneColor";
 

@@ -70,7 +70,7 @@
         "setup",
         "develop"
       ],
-      "notes": "Web console falls back to the standard PTY backend when tmux is unavailable"
+      "notes": "Web console falls back to the standard PTY backend when tmux is unavailable. Platform support: Linux is supported (measured on the current host); macOS is reasoned from source and runs without live session working-directory inspection, so relative file preview reports an error; Windows is reasoned from source and unsupported because no PTY implementation exists."
     }
   ],
   "lifecycle": {
@@ -168,7 +168,10 @@
       ]
     },
     "source_build": {
-      "kind": "go_module"
+      "kind": "go_module",
+      "env": {
+        "CGO_ENABLED": "0"
+      }
     }
   },
   "components": {
@@ -176,7 +179,10 @@
       "role": "api",
       "build": {
         "kind": "go_module",
-        "dir": "api"
+        "dir": "api",
+        "env": {
+          "CGO_ENABLED": "0"
+        }
       },
       "run": {
         "argv": [

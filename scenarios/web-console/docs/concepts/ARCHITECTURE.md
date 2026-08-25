@@ -7,6 +7,14 @@ It now has two distinct data planes:
 1. Terminal I/O for raw PTY fidelity.
 2. Conversation events for semantic assistant-response features such as auto-TTS, unread counts, and messages view.
 
+Terminal input itself has two lanes. The reliable stdin lane carries operator
+payloads and receives sequence-numbered acknowledgements; the best-effort
+control lane carries synthetic terminal bytes such as recovery gestures and is
+never replayed after reconnect. The stdin lane preserves four source intents:
+`typing`, `bulk_text`, `named_key`, and `control`. `control` is represented on
+the separate control lane, while the other three intents select the appropriate
+PTY or tmux delivery primitive.
+
 ## System Layers
 
 ```
@@ -181,7 +189,7 @@ File preview is a third supporting data plane, separate from terminal I/O and co
 Two transports, by intent:
 
 1. **Metadata + bounded text — Connect-RPC** `FilePreviewService` ([CODE: api/handlers/file_preview]). `Resolve(path)` returns a `PreviewModel`: canonical path, basename, `:line`, classification (`PreviewKind`), MIME type, size, capability flags (`can_preview`/`can_download`/`supports_range`/`text_content_available`), an opaque short-lived `preview_id`, a same-origin `blob_url`, and warnings. `GetTextContent(preview_id)` returns ≤1 MiB UTF-8 for text kinds (markdown/code/text/csv/diff).
-2. **Bytes — REST blob/range** `GET|HEAD /api/v1/sessions/{id}/file-previews/{previewId}/blob` ([CODE: api/file_preview_handlers.go]). A sanctioned REST exception (reason `ops_probe`) because byte-range streaming consumed directly by native `<img>/<video>/<audio>/<iframe>` is browser-native and cannot be a Connect call. Binary/media bytes never travel through Connect.
+2. **Bytes — REST blob/range** `GET|HEAD /api/v1/sessions/{id}/file-previews/{previewId}/blob` ([CODE: api/file_preview_handlers.go]). A sanctioned REST exception (reason `stream_upgrade`) because byte-range streaming consumed directly by native `<img>/<video>/<audio>/<iframe>` is browser-native and cannot be a Connect call. Binary/media bytes never travel through Connect.
 
 Resolution + classification + the preview-id store live in the transport-neutral [CODE: api/internal/filepreview] package (independently unit-tested, reusable). The UI side is registry-based: a viewer state machine ([CODE: ui/src/components/file-preview/useFilePreviewController.ts]) feeds a normalized `PreviewModel` to [CODE: ui/src/components/MessagesFileViewer.tsx], which routes on `kind` through the renderer registry ([CODE: ui/src/components/file-preview/renderers/index.ts]) — one dedicated renderer per kind (markdown, code/text, image/svg, pdf, audio, video, csv, diff, unsupported).
 

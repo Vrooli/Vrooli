@@ -70,6 +70,7 @@ enum NodeKind {
   NODE_KIND_AGENT = 1;
   NODE_KIND_SSH = 2;
   NODE_KIND_ATTACHED = 3;
+  NODE_KIND_CONTROL_PLANE = 4;
 }
 
 // NodeStatus is the node's current state. The persisted dimension is
@@ -197,6 +198,7 @@ message UpdateNodeRequest {
   repeated string capabilities = 4;
   repeated string scopes = 5;
   string revision = 6;
+  NodeKind kind = 7;
 }
 
 message UpdateNodeResponse {

@@ -1,6 +1,6 @@
 // Package policy defines session expiration policy types and evaluation.
 //
-// DOC: docs/concepts/ARCHITECTURE.md#session-policy
+// DOC: docs/concepts/GLOSSARY.md#core-terms
 // [REQ:P1-001a] Expiration Policy Engine
 package policy
 

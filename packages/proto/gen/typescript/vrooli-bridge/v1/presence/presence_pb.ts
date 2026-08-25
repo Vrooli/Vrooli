@@ -6,13 +6,14 @@ import type { GenFile, GenMessage, GenService } from "@bufbuild/protobuf/codegen
 import { fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2";
 import type { CompatibilityStatus, DeliveryAck, Heartbeat, RelayResponse, SessionFrame } from "../shared/shared_pb";
 import { file_vrooli_bridge_v1_shared_shared } from "../shared/shared_pb";
+import { file_vrooli_bridge_v1_channel_channel } from "../channel/channel_pb";
 import type { Message } from "@bufbuild/protobuf";
 
 /**
  * Describes the file vrooli-bridge/v1/presence/presence.proto.
  */
 export const file_vrooli_bridge_v1_presence_presence: GenFile = /*@__PURE__*/
-  fileDesc("Cih2cm9vbGktYnJpZGdlL3YxL3ByZXNlbmNlL3ByZXNlbmNlLnByb3RvEiB2cm9vbGkudnJvb2xpX2JyaWRnZS52MS5wcmVzZW5jZSJWChZSZXBvcnRIZWFydGJlYXRSZXF1ZXN0EjwKCWhlYXJ0YmVhdBgBIAEoCzIpLnZyb29saS52cm9vbGlfYnJpZGdlLnYxLnNoYXJlZC5IZWFydGJlYXQiZQoXUmVwb3J0SGVhcnRiZWF0UmVzcG9uc2USSgoNY29tcGF0aWJpbGl0eRgBIAEoDjIzLnZyb29saS52cm9vbGlfYnJpZGdlLnYxLnNoYXJlZC5Db21wYXRpYmlsaXR5U3RhdHVzIlQKGFJlcG9ydERlbGl2ZXJ5QWNrUmVxdWVzdBI4CgNhY2sYASABKAsyKy52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5zaGFyZWQuRGVsaXZlcnlBY2siLQoZUmVwb3J0RGVsaXZlcnlBY2tSZXNwb25zZRIQCghhY2NlcHRlZBgBIAEoCCJYChlSZXBvcnRTZXNzaW9uRnJhbWVSZXF1ZXN0EjsKBWZyYW1lGAEgASgLMiwudnJvb2xpLnZyb29saV9icmlkZ2UudjEuc2hhcmVkLlNlc3Npb25GcmFtZSIuChpSZXBvcnRTZXNzaW9uRnJhbWVSZXNwb25zZRIQCghhY2NlcHRlZBgBIAEoCCJdChpSZXBvcnRSZWxheVJlc3BvbnNlUmVxdWVzdBI/CghyZXNwb25zZRgBIAEoCzItLnZyb29saS52cm9vbGlfYnJpZGdlLnYxLnNoYXJlZC5SZWxheVJlc3BvbnNlIi8KG1JlcG9ydFJlbGF5UmVzcG9uc2VSZXNwb25zZRIQCghhY2NlcHRlZBgBIAEoCDLQBAoPUHJlc2VuY2VTZXJ2aWNlEoYBCg9SZXBvcnRIZWFydGJlYXQSOC52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5wcmVzZW5jZS5SZXBvcnRIZWFydGJlYXRSZXF1ZXN0GjkudnJvb2xpLnZyb29saV9icmlkZ2UudjEucHJlc2VuY2UuUmVwb3J0SGVhcnRiZWF0UmVzcG9uc2USjAEKEVJlcG9ydERlbGl2ZXJ5QWNrEjoudnJvb2xpLnZyb29saV9icmlkZ2UudjEucHJlc2VuY2UuUmVwb3J0RGVsaXZlcnlBY2tSZXF1ZXN0GjsudnJvb2xpLnZyb29saV9icmlkZ2UudjEucHJlc2VuY2UuUmVwb3J0RGVsaXZlcnlBY2tSZXNwb25zZRKPAQoSUmVwb3J0U2Vzc2lvbkZyYW1lEjsudnJvb2xpLnZyb29saV9icmlkZ2UudjEucHJlc2VuY2UuUmVwb3J0U2Vzc2lvbkZyYW1lUmVxdWVzdBo8LnZyb29saS52cm9vbGlfYnJpZGdlLnYxLnByZXNlbmNlLlJlcG9ydFNlc3Npb25GcmFtZVJlc3BvbnNlEpIBChNSZXBvcnRSZWxheVJlc3BvbnNlEjwudnJvb2xpLnZyb29saV9icmlkZ2UudjEucHJlc2VuY2UuUmVwb3J0UmVsYXlSZXNwb25zZVJlcXVlc3QaPS52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5wcmVzZW5jZS5SZXBvcnRSZWxheVJlc3BvbnNlUmVzcG9uc2VCVlpUZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby92cm9vbGktYnJpZGdlL3YxL3ByZXNlbmNlO3ByZXNlbmNlX3YxYgZwcm90bzM", [file_vrooli_bridge_v1_shared_shared]);
+  fileDesc("Cih2cm9vbGktYnJpZGdlL3YxL3ByZXNlbmNlL3ByZXNlbmNlLnByb3RvEiB2cm9vbGkudnJvb2xpX2JyaWRnZS52MS5wcmVzZW5jZSJWChZSZXBvcnRIZWFydGJlYXRSZXF1ZXN0EjwKCWhlYXJ0YmVhdBgBIAEoCzIpLnZyb29saS52cm9vbGlfYnJpZGdlLnYxLnNoYXJlZC5IZWFydGJlYXQiZQoXUmVwb3J0SGVhcnRiZWF0UmVzcG9uc2USSgoNY29tcGF0aWJpbGl0eRgBIAEoDjIzLnZyb29saS52cm9vbGlfYnJpZGdlLnYxLnNoYXJlZC5Db21wYXRpYmlsaXR5U3RhdHVzIlQKGFJlcG9ydERlbGl2ZXJ5QWNrUmVxdWVzdBI4CgNhY2sYASABKAsyKy52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5zaGFyZWQuRGVsaXZlcnlBY2siLQoZUmVwb3J0RGVsaXZlcnlBY2tSZXNwb25zZRIQCghhY2NlcHRlZBgBIAEoCCJYChlSZXBvcnRTZXNzaW9uRnJhbWVSZXF1ZXN0EjsKBWZyYW1lGAEgASgLMiwudnJvb2xpLnZyb29saV9icmlkZ2UudjEuc2hhcmVkLlNlc3Npb25GcmFtZSIuChpSZXBvcnRTZXNzaW9uRnJhbWVSZXNwb25zZRIQCghhY2NlcHRlZBgBIAEoCCJdChpSZXBvcnRSZWxheVJlc3BvbnNlUmVxdWVzdBI/CghyZXNwb25zZRgBIAEoCzItLnZyb29saS52cm9vbGlfYnJpZGdlLnYxLnNoYXJlZC5SZWxheVJlc3BvbnNlIi8KG1JlcG9ydFJlbGF5UmVzcG9uc2VSZXNwb25zZRIQCghhY2NlcHRlZBgBIAEoCCJmCh5SZXBvcnRDcmVkZW50aWFsUmVjZWlwdFJlcXVlc3QSRAoHcmVjZWlwdBgBIAEoCzIzLnZyb29saS52cm9vbGlfYnJpZGdlLnYxLnByZXNlbmNlLkNyZWRlbnRpYWxSZWNlaXB0Io8BChFDcmVkZW50aWFsUmVjZWlwdBIQCghncmFudF9pZBgBIAEoCRIPCgdub2RlX2lkGAIgASgJEhIKCmxvZ2ljYWxfaWQYAyABKAkSDQoFZmllbGQYBCABKAkSEgoKZ2VuZXJhdGlvbhgFIAEoAxIQCghhY2NlcHRlZBgGIAEoCBIOCgZyZWFzb24YByABKAkiMwofUmVwb3J0Q3JlZGVudGlhbFJlY2VpcHRSZXNwb25zZRIQCghhY2NlcHRlZBgBIAEoCDLxBQoPUHJlc2VuY2VTZXJ2aWNlEoYBCg9SZXBvcnRIZWFydGJlYXQSOC52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5wcmVzZW5jZS5SZXBvcnRIZWFydGJlYXRSZXF1ZXN0GjkudnJvb2xpLnZyb29saV9icmlkZ2UudjEucHJlc2VuY2UuUmVwb3J0SGVhcnRiZWF0UmVzcG9uc2USjAEKEVJlcG9ydERlbGl2ZXJ5QWNrEjoudnJvb2xpLnZyb29saV9icmlkZ2UudjEucHJlc2VuY2UuUmVwb3J0RGVsaXZlcnlBY2tSZXF1ZXN0GjsudnJvb2xpLnZyb29saV9icmlkZ2UudjEucHJlc2VuY2UuUmVwb3J0RGVsaXZlcnlBY2tSZXNwb25zZRKPAQoSUmVwb3J0U2Vzc2lvbkZyYW1lEjsudnJvb2xpLnZyb29saV9icmlkZ2UudjEucHJlc2VuY2UuUmVwb3J0U2Vzc2lvbkZyYW1lUmVxdWVzdBo8LnZyb29saS52cm9vbGlfYnJpZGdlLnYxLnByZXNlbmNlLlJlcG9ydFNlc3Npb25GcmFtZVJlc3BvbnNlEpIBChNSZXBvcnRSZWxheVJlc3BvbnNlEjwudnJvb2xpLnZyb29saV9icmlkZ2UudjEucHJlc2VuY2UuUmVwb3J0UmVsYXlSZXNwb25zZVJlcXVlc3QaPS52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5wcmVzZW5jZS5SZXBvcnRSZWxheVJlc3BvbnNlUmVzcG9uc2USngEKF1JlcG9ydENyZWRlbnRpYWxSZWNlaXB0EkAudnJvb2xpLnZyb29saV9icmlkZ2UudjEucHJlc2VuY2UuUmVwb3J0Q3JlZGVudGlhbFJlY2VpcHRSZXF1ZXN0GkEudnJvb2xpLnZyb29saV9icmlkZ2UudjEucHJlc2VuY2UuUmVwb3J0Q3JlZGVudGlhbFJlY2VpcHRSZXNwb25zZUJWWlRnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL3Zyb29saS1icmlkZ2UvdjEvcHJlc2VuY2U7cHJlc2VuY2VfdjFiBnByb3RvMw", [file_vrooli_bridge_v1_shared_shared, file_vrooli_bridge_v1_channel_channel]);
 
 /**
  * @generated from message vrooli.vrooli_bridge.v1.presence.ReportHeartbeatRequest
@@ -156,6 +157,87 @@ export const ReportRelayResponseResponseSchema: GenMessage<ReportRelayResponseRe
   messageDesc(file_vrooli_bridge_v1_presence_presence, 7);
 
 /**
+ * @generated from message vrooli.vrooli_bridge.v1.presence.ReportCredentialReceiptRequest
+ */
+export type ReportCredentialReceiptRequest = Message<"vrooli.vrooli_bridge.v1.presence.ReportCredentialReceiptRequest"> & {
+  /**
+   * @generated from field: vrooli.vrooli_bridge.v1.presence.CredentialReceipt receipt = 1;
+   */
+  receipt?: CredentialReceipt | undefined;
+};
+
+/**
+ * Describes the message vrooli.vrooli_bridge.v1.presence.ReportCredentialReceiptRequest.
+ * Use `create(ReportCredentialReceiptRequestSchema)` to create a new message.
+ */
+export const ReportCredentialReceiptRequestSchema: GenMessage<ReportCredentialReceiptRequest> = /*@__PURE__*/
+  messageDesc(file_vrooli_bridge_v1_presence_presence, 8);
+
+/**
+ * @generated from message vrooli.vrooli_bridge.v1.presence.CredentialReceipt
+ */
+export type CredentialReceipt = Message<"vrooli.vrooli_bridge.v1.presence.CredentialReceipt"> & {
+  /**
+   * @generated from field: string grant_id = 1;
+   */
+  grantId: string;
+
+  /**
+   * @generated from field: string node_id = 2;
+   */
+  nodeId: string;
+
+  /**
+   * @generated from field: string logical_id = 3;
+   */
+  logicalId: string;
+
+  /**
+   * @generated from field: string field = 4;
+   */
+  field: string;
+
+  /**
+   * @generated from field: int64 generation = 5;
+   */
+  generation: bigint;
+
+  /**
+   * @generated from field: bool accepted = 6;
+   */
+  accepted: boolean;
+
+  /**
+   * @generated from field: string reason = 7;
+   */
+  reason: string;
+};
+
+/**
+ * Describes the message vrooli.vrooli_bridge.v1.presence.CredentialReceipt.
+ * Use `create(CredentialReceiptSchema)` to create a new message.
+ */
+export const CredentialReceiptSchema: GenMessage<CredentialReceipt> = /*@__PURE__*/
+  messageDesc(file_vrooli_bridge_v1_presence_presence, 9);
+
+/**
+ * @generated from message vrooli.vrooli_bridge.v1.presence.ReportCredentialReceiptResponse
+ */
+export type ReportCredentialReceiptResponse = Message<"vrooli.vrooli_bridge.v1.presence.ReportCredentialReceiptResponse"> & {
+  /**
+   * @generated from field: bool accepted = 1;
+   */
+  accepted: boolean;
+};
+
+/**
+ * Describes the message vrooli.vrooli_bridge.v1.presence.ReportCredentialReceiptResponse.
+ * Use `create(ReportCredentialReceiptResponseSchema)` to create a new message.
+ */
+export const ReportCredentialReceiptResponseSchema: GenMessage<ReportCredentialReceiptResponse> = /*@__PURE__*/
+  messageDesc(file_vrooli_bridge_v1_presence_presence, 10);
+
+/**
  * =============================================================================
  * PRESENCE DOMAIN — dial-out heartbeat intake (OT-P0-003)
  * =============================================================================
@@ -222,6 +304,18 @@ export const PresenceService: GenService<{
     methodKind: "unary";
     input: typeof ReportRelayResponseRequestSchema;
     output: typeof ReportRelayResponseResponseSchema;
+  },
+  /**
+   * ReportCredentialReceipt confirms that a grant-governed credential push
+   * was accepted or refused after node-side consent and decryption. The
+   * request carries metadata only; credential values never cross this RPC.
+   *
+   * @generated from rpc vrooli.vrooli_bridge.v1.presence.PresenceService.ReportCredentialReceipt
+   */
+  reportCredentialReceipt: {
+    methodKind: "unary";
+    input: typeof ReportCredentialReceiptRequestSchema;
+    output: typeof ReportCredentialReceiptResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_vrooli_bridge_v1_presence_presence, 0);

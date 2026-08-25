@@ -8,6 +8,7 @@ import { DrawerShell } from "./DrawerShell";
 import { generateAICommand } from "../api/ai";
 import { strings } from "../consts/strings";
 import { toErrorInfo } from "../lib/errors";
+import { writeText } from "../lib/clipboard";
 import { useWorkspaceStore } from "../stores/useWorkspaceStore";
 
 /**
@@ -86,9 +87,7 @@ export default function AiInput({ onExecute }: { onExecute: (command: string) =>
 
   const handleCopy = useCallback(() => {
     if (command) {
-      navigator.clipboard.writeText(command).catch(() => {
-        // clipboard API may not be available in all contexts
-      });
+      void writeText(command);
     }
   }, [command]);
 

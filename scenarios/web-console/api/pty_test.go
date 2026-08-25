@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -15,6 +16,43 @@ import (
 	"web-console/internal/pty"
 	"web-console/internal/ptyfake"
 )
+
+func TestDefaultPTYFactory_HonoursLaunchWorkingDir(t *testing.T) {
+	if runtime.GOOS != "linux" {
+		t.Skip("working-directory process fact is only measured on Linux")
+	}
+	dir := t.TempDir()
+	p, err := defaultPTYFactory(pty.LaunchSpec{Shell: "/bin/sh", Cols: 80, Rows: 24, WorkingDir: dir})
+	if err != nil {
+		t.Fatalf("defaultPTYFactory: %v", err)
+	}
+	defer p.Close()
+	defer p.Kill()
+	real, ok := p.(*realPTY)
+	if !ok {
+		t.Fatalf("factory returned %T, want *realPTY", p)
+	}
+	got, err := real.CurrentDir(context.Background())
+	if err != nil {
+		t.Fatalf("CurrentDir: %v", err)
+	}
+	if filepath.Clean(got) != filepath.Clean(dir) {
+		t.Fatalf("working directory = %q, want %q", got, dir)
+	}
+}
+
+func TestExitCodeOnce_IsSafeAfterProcessExit(t *testing.T) {
+	cmd := exec.Command("/bin/sh", "-c", "exit 7")
+	if err := cmd.Start(); err != nil {
+		t.Fatalf("start: %v", err)
+	}
+	if got := exitCodeOnce(cmd); got != 7 {
+		t.Fatalf("first exit code = %d, want 7", got)
+	}
+	if got := exitCodeOnce(cmd); got != 7 {
+		t.Fatalf("second exit code = %d, want 7", got)
+	}
+}
 
 // --- ensureTermEnv tests ---
 

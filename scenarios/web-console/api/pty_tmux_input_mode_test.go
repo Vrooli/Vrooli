@@ -118,38 +118,6 @@ func waitForPaneContent(t *testing.T, sessionName, want string, within time.Dura
 // which asserts byte-exact delivery across both transports instead of
 // only that the oversized branch returns no error.
 
-// TestIsMouseTrackingSequence covers the classifier used in
-// WriteInput to route mouse events around the send-keys path and
-// directly to the tmux client.
-func TestIsMouseTrackingSequence(t *testing.T) {
-	cases := []struct {
-		name string
-		in   []byte
-		want bool
-	}{
-		{"empty", []byte{}, false},
-		{"plain text", []byte("hello"), false},
-		{"newline", []byte("\n"), false},
-		{"ESC-only", []byte{0x1b}, false},
-		{"incomplete CSI", []byte{0x1b, '['}, false},
-		{"arrow up (CSI A)", []byte{0x1b, '[', 'A'}, false},
-		{"arrow down", []byte{0x1b, '[', 'B'}, false},
-		{"function key CSI 11~", []byte{0x1b, '[', '1', '1', '~'}, false},
-		{"cursor position report", []byte{0x1b, '[', '2', '4', ';', '1', 'R'}, false},
-		{"X10 mouse press", []byte{0x1b, '[', 'M', ' ', '!', '!'}, true},
-		{"SGR wheel-up", []byte{0x1b, '[', '<', '6', '4', ';', '1', ';', '1', 'M'}, true},
-		{"SGR wheel-down release", []byte{0x1b, '[', '<', '6', '5', ';', '1', ';', '1', 'm'}, true},
-		{"SGR drag", []byte{0x1b, '[', '<', '3', '2', ';', '1', '0', ';', '5', 'M'}, true},
-	}
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			if got := isMouseTrackingSequence(tc.in); got != tc.want {
-				t.Errorf("isMouseTrackingSequence(%q) = %v, want %v", tc.in, got, tc.want)
-			}
-		})
-	}
-}
-
 // TestTmuxPTY_MouseWheelPreservesCopyMode is the direct regression
 // test for the "mobile scroll broken" bug. The fix for Bug A
 // (exitModeIfAny before keystroke delivery) accidentally stripped
@@ -193,12 +161,10 @@ func TestTmuxPTY_MouseWheelPreservesCopyMode(t *testing.T) {
 	}
 
 	// SGR-encoded mouse wheel-up event. In the regression, this
-	// would hit exitModeIfAny → send-keys -X cancel, yanking the
-	// user out of copy-mode mid-scroll. With the fix, the event
-	// flows directly to the tmux client via the attach PTY master
-	// and copy-mode is preserved.
+	// is a control-lane write, so it flows directly to the tmux client
+	// via the attach PTY master and copy-mode is preserved.
 	wheelUp := []byte{0x1b, '[', '<', '6', '4', ';', '1', ';', '1', 'M'}
-	if err := p.WriteInput(wheelUp, pty.KindKeystroke); err != nil {
+	if err := p.WriteInput(wheelUp, pty.KindControl); err != nil {
 		t.Fatalf("WriteInput wheel-up: %v", err)
 	}
 

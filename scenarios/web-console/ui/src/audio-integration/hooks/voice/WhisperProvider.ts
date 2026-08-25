@@ -1,4 +1,3 @@
-// DOC: docs/internal/SEAMS.md#voice-input-provider-seam
 //
 // WhisperProvider — HTTP batch transcription provider.
 // Collects all audio locally via MediaRecorder, sends a single POST on stop.

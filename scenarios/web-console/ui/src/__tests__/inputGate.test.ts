@@ -3,7 +3,7 @@ import {
   createInputGate,
   type GateResult,
   type GateTransport,
-  type InputSource,
+  type InputIntent,
   terminalIsInMouseTrackingMode,
 } from "../components/terminal/inputGate";
 
@@ -31,21 +31,18 @@ function makeTransport(initial: { sent: boolean; seq?: number; reason?: "not-rea
   return { transport, sent, queued };
 }
 
-const everySource: InputSource[] = [
-  "xterm",
-  "toolbar-key",
-  "toolbar-submit",
-  "paste",
-  "voice",
-  "upload",
+const everyIntent: Exclude<InputIntent, "control">[] = [
+  "typing",
+  "bulk_text",
+  "named_key",
 ];
 
 describe("TerminalInputGate", () => {
   it("rejects empty input regardless of source", () => {
     const { transport } = makeTransport({ sent: true, seq: 1 });
     const gate = createInputGate({ transport, getTerminal: () => fakeTerminal() });
-    for (const src of everySource) {
-      const res = gate.submit("", src);
+    for (const intent of everyIntent) {
+      const res = gate.submit("", intent);
       expect(res).toEqual({ status: "rejected", reason: "empty" });
     }
   });
@@ -53,14 +50,14 @@ describe("TerminalInputGate", () => {
   it("sends when transport accepts and session is ready", () => {
     const { transport, sent } = makeTransport({ sent: true, seq: 42 });
     const gate = createInputGate({ transport, getTerminal: () => fakeTerminal() });
-    expect(gate.submit("hello", "xterm")).toEqual({ status: "sent", seq: 42 });
+    expect(gate.submit("hello", "typing")).toEqual({ status: "sent", seq: 42 });
     expect(sent).toEqual(["hello"]);
   });
 
   it("queues when transport reports not-ready, preserving reason", () => {
     const { transport, queued } = makeTransport({ sent: false, reason: "not-ready" });
     const gate = createInputGate({ transport, getTerminal: () => fakeTerminal() });
-    const res = gate.submit("hello", "toolbar-submit");
+    const res = gate.submit("hello", "bulk_text");
     expect(res).toEqual({ status: "queued", reason: "not-ready" });
     expect(queued).toEqual(["hello"]);
   });
@@ -68,33 +65,33 @@ describe("TerminalInputGate", () => {
   it("queues when transport reports ws-closed", () => {
     const { transport } = makeTransport({ sent: false, reason: "ws-closed" });
     const gate = createInputGate({ transport, getTerminal: () => fakeTerminal() });
-    expect(gate.submit("x", "xterm")).toEqual({ status: "queued", reason: "ws-closed" });
+    expect(gate.submit("x", "typing")).toEqual({ status: "queued", reason: "ws-closed" });
   });
 
-  it("queues paste payloads when xterm is in mouse-tracking mode", () => {
+  it("queues bulk text when xterm is in mouse-tracking mode", () => {
     const { transport, sent, queued } = makeTransport({ sent: true, seq: 7 });
     const gate = createInputGate({
       transport,
       getTerminal: () => fakeTerminal("buttonEvent" as unknown as FakeMouseMode),
     });
-    const res = gate.submit("pasted text", "paste");
+    const res = gate.submit("pasted text", "bulk_text");
     expect(res).toEqual({ status: "queued", reason: "paused" });
     expect(sent).toEqual([]);
     expect(queued).toEqual(["pasted text"]);
   });
 
-  it("sends non-paste payloads even when xterm is in mouse-tracking mode", () => {
+  it("sends typing and named keys even when xterm is in mouse-tracking mode", () => {
     const { transport, sent } = makeTransport({ sent: true, seq: 7 });
     const gate = createInputGate({
       transport,
       getTerminal: () => fakeTerminal("buttonEvent" as unknown as FakeMouseMode),
     });
-    for (const src of everySource) {
-      if (src === "paste") continue;
-      const res = gate.submit("k", src);
+    for (const intent of everyIntent) {
+      if (intent === "bulk_text") continue;
+      const res = gate.submit("k", intent);
       expect(res.status).toBe("sent");
     }
-    expect(sent).toEqual(["k", "k", "k", "k", "k"]);
+    expect(sent).toEqual(["k", "k"]);
   });
 
   it("queues every source when isPaused returns true", () => {
@@ -104,19 +101,19 @@ describe("TerminalInputGate", () => {
       getTerminal: () => fakeTerminal(),
       isPaused: () => true,
     });
-    for (const src of everySource) {
-      const res = gate.submit("p", src);
+    for (const intent of everyIntent) {
+      const res = gate.submit("p", intent);
       expect(res).toEqual({ status: "queued", reason: "paused" });
     }
-    expect(queued.length).toBe(everySource.length);
+    expect(queued.length).toBe(everyIntent.length);
   });
 
   it("rejects after dispose", () => {
     const { transport } = makeTransport({ sent: true, seq: 1 });
     const gate = createInputGate({ transport, getTerminal: () => fakeTerminal() });
     gate.dispose();
-    for (const src of everySource) {
-      const res = gate.submit("x", src);
+    for (const intent of everyIntent) {
+      const res = gate.submit("x", intent);
       expect(res).toEqual({ status: "rejected", reason: "disposed" });
     }
   });
@@ -136,7 +133,7 @@ describe("TerminalInputGate", () => {
   it("handles a null terminal by allowing paste", () => {
     const { transport, sent } = makeTransport({ sent: true, seq: 1 });
     const gate = createInputGate({ transport, getTerminal: () => null });
-    const res = gate.submit("paste", "paste");
+    const res = gate.submit("paste", "bulk_text");
     expect(res.status).toBe("sent");
     expect(sent).toEqual(["paste"]);
   });
@@ -155,7 +152,7 @@ describe("TerminalInputGate", () => {
       getTerminal: () => fakeTerminal(),
       isPaused: () => true,
     });
-    gate.submit("x", "xterm");
+    gate.submit("x", "typing");
     expect(sendSpy).not.toHaveBeenCalled();
     expect(sent).toEqual([]);
   });
@@ -163,7 +160,7 @@ describe("TerminalInputGate", () => {
   it("returns sent with the seq supplied by transport", () => {
     const { transport } = makeTransport({ sent: true, seq: 999 });
     const gate = createInputGate({ transport, getTerminal: () => fakeTerminal() });
-    const res = gate.submit("x", "xterm") as Extract<GateResult, { status: "sent" }>;
+    const res = gate.submit("x", "typing") as Extract<GateResult, { status: "sent" }>;
     expect(res.status).toBe("sent");
     expect(res.seq).toBe(999);
   });

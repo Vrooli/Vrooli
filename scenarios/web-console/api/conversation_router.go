@@ -20,7 +20,7 @@ import (
 // adapters) depend on a narrow surface instead of the whole Server god
 // object, and lets tests substitute a fake dispatcher.
 //
-// DOC: docs/internal/SEAMS.md#conversation-dispatcher
+// DOC: docs/internal/SEAMS.md#conversation-dispatcher-seam-api
 type ConversationDispatcher interface {
 	AppendAssistant(responseText, sessionID, source string) ConversationAppendResult
 	AppendUser(promptText, sessionID, source string) ConversationAppendResult

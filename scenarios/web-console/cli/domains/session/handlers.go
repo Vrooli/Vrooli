@@ -124,7 +124,6 @@ func (h *handlers) get(ctx cliapp.RunContext) error {
 		fmt.Sprintf("Shell: %s", sess.GetShell()),
 		fmt.Sprintf("Backend: %s", sess.GetBackend()),
 		fmt.Sprintf("Size: %dx%d", sess.GetCols(), sess.GetRows()),
-		fmt.Sprintf("Busy: %t", sess.GetBusy()),
 		fmt.Sprintf("Survives restart: %t", sess.GetSurvivesRestart()),
 	}
 	if t := sess.GetCreatedAt(); t != "" {
@@ -475,8 +474,8 @@ func sessionRows(sessions []*sessionsv1.Session) []string {
 	}
 	rows := make([]string, 0, len(sessions))
 	for _, s := range sessions {
-		row := fmt.Sprintf("%s | shell=%s | backend=%s | %dx%d | busy=%t | origin=%s",
-			support.ShortID(s.GetId()), s.GetShell(), s.GetBackend(), s.GetCols(), s.GetRows(), s.GetBusy(), originString(s.GetOrigin()))
+		row := fmt.Sprintf("%s | shell=%s | backend=%s | %dx%d | origin=%s",
+			support.ShortID(s.GetId()), s.GetShell(), s.GetBackend(), s.GetCols(), s.GetRows(), originString(s.GetOrigin()))
 		if owner := s.GetOwner(); owner != "" {
 			row += " | owner=" + owner
 		}

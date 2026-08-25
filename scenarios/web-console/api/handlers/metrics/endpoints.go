@@ -27,7 +27,6 @@ var Endpoints = []module.EndpointDescriptor{
 				"recovery":                      "RecoveryMetrics",
 				"ai_generations":                "int64",
 				"ai_suggestions":                "int64",
-				"stdin_before_ready_total":      "int64",
 				"voice_skip_verification_total": "int64",
 				"uptime":                        "string",
 			},

@@ -14,7 +14,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file vrooli-bridge/v1/channel/channel.proto.
  */
 export const file_vrooli_bridge_v1_channel_channel: GenFile = /*@__PURE__*/
-  fileDesc("CiZ2cm9vbGktYnJpZGdlL3YxL2NoYW5uZWwvY2hhbm5lbC5wcm90bxIfdnJvb2xpLnZyb29saV9icmlkZ2UudjEuY2hhbm5lbCKfAQoJSGFuZHNoYWtlEhgKEHByb3RvY29sX3ZlcnNpb24YASABKA0SDwoHbm9kZV9pZBgCIAEoCRIVCg1hZ2VudF92ZXJzaW9uGAMgASgJEgoKAm9zGAQgASgJEgwKBGFyY2gYBSABKAkSFAoMY2FwYWJpbGl0aWVzGAYgAygJEhoKEnN1cHBvcnRzX3dlYnNvY2tldBgHIAEoCEoECAgQECK4AQoMSGFuZHNoYWtlQWNrEhAKCGFjY2VwdGVkGAEgASgIEkoKDWNvbXBhdGliaWxpdHkYAiABKA4yMy52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5zaGFyZWQuQ29tcGF0aWJpbGl0eVN0YXR1cxImCh5jb250cm9sX3BsYW5lX3Byb3RvY29sX3ZlcnNpb24YAyABKA0SEgoKc2Vzc2lvbl9pZBgEIAEoCRIOCgZyZWFzb24YBSABKAkiqAEKB0pvYlB1c2gSDgoGcnVuX2lkGAEgASgJEhAKCHNjZW5hcmlvGAIgASgJEgwKBHZlcmIYAyABKAkSDAoEYXJncxgEIAMoCRIXCg90aW1lb3V0X3NlY29uZHMYBSABKAMSQAoHb3V0cHV0cxgGIAMoCzIvLnZyb29saS52cm9vbGlfYnJpZGdlLnYxLmNoYW5uZWwuQXJ0aWZhY3RPdXRwdXRKBAgHEBAitgIKDkNsZWFudXBDb21tYW5kEkcKCW9wZXJhdGlvbhgBIAEoDjI0LnZyb29saS52cm9vbGlfYnJpZGdlLnYxLmNoYW5uZWwuUHJpdmlsZWdlZE9wZXJhdGlvbhINCgVvcF9pZBgCIAEoCRISCgptYWNoaW5lX2lkGAMgASgJEg8KB25vZGVfaWQYBCABKAkSDgoGdGFyZ2V0GAUgASgJEg0KBXNjb3BlGAYgASgJEg8KB3BsYW5faWQYByABKAkSEQoJcGxhbl9oYXNoGAggASgJEhkKEXNlYWxlZF9wYXNzcGhyYXNlGAkgASgMEhIKCmNhcGFiaWxpdHkYCiABKAwSGgoSb3BlcmF0b3JfY29uZmlybWVkGAsgASgIEhMKC29wZXJhdG9yX2lkGAwgASgJSgQIDRAgIloKDkFydGlmYWN0T3V0cHV0EgwKBG5hbWUYASABKAkSEgoKbWVkaWFfdHlwZRgCIAEoCRITCgtvdXRwdXRfZmxhZxgDIAEoCRIRCgltYXhfYnl0ZXMYBCABKAMiWwoQUHJvdmlzaW9uQ29tbWFuZBINCgVvcF9pZBgBIAEoCRIXCg90YXJnZXRfcmV2aXNpb24YAiABKAkSGQoRcm9sbGJhY2tfcmV2aXNpb24YAyABKAlKBAgEEBAiOgoLQ29udHJvbFBpbmcSKwoHc2VudF9hdBgBIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAiMAoIQWJvcnRKb2ISDgoGcnVuX2lkGAEgASgJEg4KBnJlYXNvbhgCIAEoCUoECAMQECKSAQoMUmVsYXlSZXF1ZXN0EhYKDmNvcnJlbGF0aW9uX2lkGAEgASgJEhAKCHNjZW5hcmlvGAIgASgJEg8KB2NvbW1hbmQYAyABKAkSDAoEYXJncxgEIAMoCRIXCg90aW1lb3V0X3NlY29uZHMYBSABKAMSGgoSbWF4X3Jlc3BvbnNlX2J5dGVzGAYgASgESgQIBxAQIjsKC1JlbGF5Q2FuY2VsEhYKDmNvcnJlbGF0aW9uX2lkGAEgASgJEg4KBnJlYXNvbhgCIAEoCUoECAMQECLuBAoLU2VydmVyRnJhbWUSEAoIZnJhbWVfaWQYBiABKAkSPAoDYWNrGAEgASgLMi0udnJvb2xpLnZyb29saV9icmlkZ2UudjEuY2hhbm5lbC5IYW5kc2hha2VBY2tIABI3CgNqb2IYAiABKAsyKC52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5jaGFubmVsLkpvYlB1c2hIABJGCglwcm92aXNpb24YAyABKAsyMS52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5jaGFubmVsLlByb3Zpc2lvbkNvbW1hbmRIABI8CgRwaW5nGAQgASgLMiwudnJvb2xpLnZyb29saV9icmlkZ2UudjEuY2hhbm5lbC5Db250cm9sUGluZ0gAEjoKBWFib3J0GAUgASgLMikudnJvb2xpLnZyb29saV9icmlkZ2UudjEuY2hhbm5lbC5BYm9ydEpvYkgAEj8KB3Nlc3Npb24YByABKAsyLC52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5zaGFyZWQuU2Vzc2lvbkZyYW1lSAASPgoFcmVsYXkYCCABKAsyLS52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5jaGFubmVsLlJlbGF5UmVxdWVzdEgAEkQKDHJlbGF5X2NhbmNlbBgJIAEoCzIsLnZyb29saS52cm9vbGlfYnJpZGdlLnYxLmNoYW5uZWwuUmVsYXlDYW5jZWxIABJCCgdjbGVhbnVwGAogASgLMi8udnJvb2xpLnZyb29saV9icmlkZ2UudjEuY2hhbm5lbC5DbGVhbnVwQ29tbWFuZEgAQgkKB3BheWxvYWQiNQoRU2lnbmVkU2VydmVyRnJhbWUSDQoFZnJhbWUYASABKAwSEQoJc2lnbmF0dXJlGAIgASgMIqUDCglOb2RlRnJhbWUSPwoJaGFuZHNoYWtlGAEgASgLMioudnJvb2xpLnZyb29saV9icmlkZ2UudjEuY2hhbm5lbC5IYW5kc2hha2VIABI+CgloZWFydGJlYXQYAiABKAsyKS52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5zaGFyZWQuSGVhcnRiZWF0SAASPQoJcnVuX2V2ZW50GAMgASgLMigudnJvb2xpLnZyb29saV9icmlkZ2UudjEuc2hhcmVkLlJ1bkV2ZW50SAASQwoMZGVsaXZlcnlfYWNrGAQgASgLMisudnJvb2xpLnZyb29saV9icmlkZ2UudjEuc2hhcmVkLkRlbGl2ZXJ5QWNrSAASPwoHc2Vzc2lvbhgFIAEoCzIsLnZyb29saS52cm9vbGlfYnJpZGdlLnYxLnNoYXJlZC5TZXNzaW9uRnJhbWVIABJHCg5yZWxheV9yZXNwb25zZRgGIAEoCzItLnZyb29saS52cm9vbGlfYnJpZGdlLnYxLnNoYXJlZC5SZWxheVJlc3BvbnNlSABCCQoHcGF5bG9hZCrJAwoTUHJpdmlsZWdlZE9wZXJhdGlvbhIkCiBQUklWSUxFR0VEX09QRVJBVElPTl9VTlNQRUNJRklFRBAAEiIKHlBSSVZJTEVHRURfT1BFUkFUSU9OX1BST1ZJU0lPThABEi8KK1BSSVZJTEVHRURfT1BFUkFUSU9OX0lOVkVOVE9SWV9JTlNUQUxMQVRJT04QAhInCiNQUklWSUxFR0VEX09QRVJBVElPTl9QTEFOX1VOSU5TVEFMTBADEi4KKlBSSVZJTEVHRURfT1BFUkFUSU9OX1BST1ZJU0lPTl9CUkVBS19HTEFTUxAEEjEKLVBSSVZJTEVHRURfT1BFUkFUSU9OX0lTU1VFX0NMRUFOVVBfQ0FQQUJJTElUWRAFEioKJlBSSVZJTEVHRURfT1BFUkFUSU9OX0FQUExZX0ZST1pFTl9QTEFOEAYSJgoiUFJJVklMRUdFRF9PUEVSQVRJT05fVkVSSUZZX1JFU1VMVBAHEisKJ1BSSVZJTEVHRURfT1BFUkFUSU9OX1JPVEFURV9CUkVBS19HTEFTUxAIEioKJlBSSVZJTEVHRURfT1BFUkFUSU9OX1JFU0VUX0JSRUFLX0dMQVNTEAlCVFpSZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby92cm9vbGktYnJpZGdlL3YxL2NoYW5uZWw7Y2hhbm5lbF92MWIGcHJvdG8z", [file_google_protobuf_timestamp, file_vrooli_bridge_v1_shared_shared]);
+  fileDesc("CiZ2cm9vbGktYnJpZGdlL3YxL2NoYW5uZWwvY2hhbm5lbC5wcm90bxIfdnJvb2xpLnZyb29saV9icmlkZ2UudjEuY2hhbm5lbCKfAQoJSGFuZHNoYWtlEhgKEHByb3RvY29sX3ZlcnNpb24YASABKA0SDwoHbm9kZV9pZBgCIAEoCRIVCg1hZ2VudF92ZXJzaW9uGAMgASgJEgoKAm9zGAQgASgJEgwKBGFyY2gYBSABKAkSFAoMY2FwYWJpbGl0aWVzGAYgAygJEhoKEnN1cHBvcnRzX3dlYnNvY2tldBgHIAEoCEoECAgQECK4AQoMSGFuZHNoYWtlQWNrEhAKCGFjY2VwdGVkGAEgASgIEkoKDWNvbXBhdGliaWxpdHkYAiABKA4yMy52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5zaGFyZWQuQ29tcGF0aWJpbGl0eVN0YXR1cxImCh5jb250cm9sX3BsYW5lX3Byb3RvY29sX3ZlcnNpb24YAyABKA0SEgoKc2Vzc2lvbl9pZBgEIAEoCRIOCgZyZWFzb24YBSABKAki/QEKB0pvYlB1c2gSDgoGcnVuX2lkGAEgASgJEhAKCHNjZW5hcmlvGAIgASgJEgwKBHZlcmIYAyABKAkSDAoEYXJncxgEIAMoCRIXCg90aW1lb3V0X3NlY29uZHMYBSABKAMSQAoHb3V0cHV0cxgGIAMoCzIvLnZyb29saS52cm9vbGlfYnJpZGdlLnYxLmNoYW5uZWwuQXJ0aWZhY3RPdXRwdXQSUwoVY3JlZGVudGlhbF9pbmplY3Rpb25zGAcgAygLMjQudnJvb2xpLnZyb29saV9icmlkZ2UudjEuY2hhbm5lbC5DcmVkZW50aWFsSW5qZWN0aW9uSgQICBAQIkoKE0NyZWRlbnRpYWxJbmplY3Rpb24SEgoKbG9naWNhbF9pZBgBIAEoCRINCgVmaWVsZBgCIAEoCRIQCghlbnZfbmFtZRgDIAEoCSK2AgoOQ2xlYW51cENvbW1hbmQSRwoJb3BlcmF0aW9uGAEgASgOMjQudnJvb2xpLnZyb29saV9icmlkZ2UudjEuY2hhbm5lbC5Qcml2aWxlZ2VkT3BlcmF0aW9uEg0KBW9wX2lkGAIgASgJEhIKCm1hY2hpbmVfaWQYAyABKAkSDwoHbm9kZV9pZBgEIAEoCRIOCgZ0YXJnZXQYBSABKAkSDQoFc2NvcGUYBiABKAkSDwoHcGxhbl9pZBgHIAEoCRIRCglwbGFuX2hhc2gYCCABKAkSGQoRc2VhbGVkX3Bhc3NwaHJhc2UYCSABKAwSEgoKY2FwYWJpbGl0eRgKIAEoDBIaChJvcGVyYXRvcl9jb25maXJtZWQYCyABKAgSEwoLb3BlcmF0b3JfaWQYDCABKAlKBAgNECAioAEKDkNyZWRlbnRpYWxQdXNoEhAKCGdyYW50X2lkGAEgASgJEg8KB25vZGVfaWQYAiABKAkSEgoKbG9naWNhbF9pZBgDIAEoCRINCgVmaWVsZBgEIAEoCRISCgpnZW5lcmF0aW9uGAUgASgDEhEKCXJldGVudGlvbhgGIAEoCRIUCgxzZWFsZWRfdmFsdWUYByABKAwSCwoDYWFkGAggASgMIjUKD0NyZWRlbnRpYWxQdXJnZRIPCgdub2RlX2lkGAEgASgJEhEKCWFkZHJlc3NlcxgCIAMoCSKeAQoPQ3JlZGVudGlhbEdyYW50EhAKCGdyYW50X2lkGAEgASgJEg8KB25vZGVfaWQYAiABKAkSEgoKbG9naWNhbF9pZBgDIAEoCRINCgVmaWVsZBgEIAEoCRINCgVjbGFzcxgFIAEoCRIRCglyZXRlbnRpb24YBiABKAkSEgoKZ2VuZXJhdGlvbhgHIAEoAxIPCgdyZXZva2VkGAggASgIIo8BChFDcmVkZW50aWFsUmVjZWlwdBIQCghncmFudF9pZBgBIAEoCRIPCgdub2RlX2lkGAIgASgJEhIKCmxvZ2ljYWxfaWQYAyABKAkSDQoFZmllbGQYBCABKAkSEgoKZ2VuZXJhdGlvbhgFIAEoAxIQCghhY2NlcHRlZBgGIAEoCBIOCgZyZWFzb24YByABKAkiWgoOQXJ0aWZhY3RPdXRwdXQSDAoEbmFtZRgBIAEoCRISCgptZWRpYV90eXBlGAIgASgJEhMKC291dHB1dF9mbGFnGAMgASgJEhEKCW1heF9ieXRlcxgEIAEoAyJbChBQcm92aXNpb25Db21tYW5kEg0KBW9wX2lkGAEgASgJEhcKD3RhcmdldF9yZXZpc2lvbhgCIAEoCRIZChFyb2xsYmFja19yZXZpc2lvbhgDIAEoCUoECAQQECI6CgtDb250cm9sUGluZxIrCgdzZW50X2F0GAEgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCIwCghBYm9ydEpvYhIOCgZydW5faWQYASABKAkSDgoGcmVhc29uGAIgASgJSgQIAxAQIpIBCgxSZWxheVJlcXVlc3QSFgoOY29ycmVsYXRpb25faWQYASABKAkSEAoIc2NlbmFyaW8YAiABKAkSDwoHY29tbWFuZBgDIAEoCRIMCgRhcmdzGAQgAygJEhcKD3RpbWVvdXRfc2Vjb25kcxgFIAEoAxIaChJtYXhfcmVzcG9uc2VfYnl0ZXMYBiABKARKBAgHEBAiOwoLUmVsYXlDYW5jZWwSFgoOY29ycmVsYXRpb25faWQYASABKAkSDgoGcmVhc29uGAIgASgJSgQIAxAQItYGCgtTZXJ2ZXJGcmFtZRIQCghmcmFtZV9pZBgGIAEoCRI8CgNhY2sYASABKAsyLS52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5jaGFubmVsLkhhbmRzaGFrZUFja0gAEjcKA2pvYhgCIAEoCzIoLnZyb29saS52cm9vbGlfYnJpZGdlLnYxLmNoYW5uZWwuSm9iUHVzaEgAEkYKCXByb3Zpc2lvbhgDIAEoCzIxLnZyb29saS52cm9vbGlfYnJpZGdlLnYxLmNoYW5uZWwuUHJvdmlzaW9uQ29tbWFuZEgAEjwKBHBpbmcYBCABKAsyLC52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5jaGFubmVsLkNvbnRyb2xQaW5nSAASOgoFYWJvcnQYBSABKAsyKS52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5jaGFubmVsLkFib3J0Sm9iSAASPwoHc2Vzc2lvbhgHIAEoCzIsLnZyb29saS52cm9vbGlfYnJpZGdlLnYxLnNoYXJlZC5TZXNzaW9uRnJhbWVIABI+CgVyZWxheRgIIAEoCzItLnZyb29saS52cm9vbGlfYnJpZGdlLnYxLmNoYW5uZWwuUmVsYXlSZXF1ZXN0SAASRAoMcmVsYXlfY2FuY2VsGAkgASgLMiwudnJvb2xpLnZyb29saV9icmlkZ2UudjEuY2hhbm5lbC5SZWxheUNhbmNlbEgAEkIKB2NsZWFudXAYCiABKAsyLy52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5jaGFubmVsLkNsZWFudXBDb21tYW5kSAASSgoPY3JlZGVudGlhbF9wdXNoGAsgASgLMi8udnJvb2xpLnZyb29saV9icmlkZ2UudjEuY2hhbm5lbC5DcmVkZW50aWFsUHVzaEgAEkwKEGNyZWRlbnRpYWxfcHVyZ2UYDCABKAsyMC52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5jaGFubmVsLkNyZWRlbnRpYWxQdXJnZUgAEkwKEGNyZWRlbnRpYWxfZ3JhbnQYDSABKAsyMC52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5jaGFubmVsLkNyZWRlbnRpYWxHcmFudEgAQgkKB3BheWxvYWQiNQoRU2lnbmVkU2VydmVyRnJhbWUSDQoFZnJhbWUYASABKAwSEQoJc2lnbmF0dXJlGAIgASgMIvcDCglOb2RlRnJhbWUSPwoJaGFuZHNoYWtlGAEgASgLMioudnJvb2xpLnZyb29saV9icmlkZ2UudjEuY2hhbm5lbC5IYW5kc2hha2VIABI+CgloZWFydGJlYXQYAiABKAsyKS52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5zaGFyZWQuSGVhcnRiZWF0SAASPQoJcnVuX2V2ZW50GAMgASgLMigudnJvb2xpLnZyb29saV9icmlkZ2UudjEuc2hhcmVkLlJ1bkV2ZW50SAASQwoMZGVsaXZlcnlfYWNrGAQgASgLMisudnJvb2xpLnZyb29saV9icmlkZ2UudjEuc2hhcmVkLkRlbGl2ZXJ5QWNrSAASPwoHc2Vzc2lvbhgFIAEoCzIsLnZyb29saS52cm9vbGlfYnJpZGdlLnYxLnNoYXJlZC5TZXNzaW9uRnJhbWVIABJHCg5yZWxheV9yZXNwb25zZRgGIAEoCzItLnZyb29saS52cm9vbGlfYnJpZGdlLnYxLnNoYXJlZC5SZWxheVJlc3BvbnNlSAASUAoSY3JlZGVudGlhbF9yZWNlaXB0GAcgASgLMjIudnJvb2xpLnZyb29saV9icmlkZ2UudjEuY2hhbm5lbC5DcmVkZW50aWFsUmVjZWlwdEgAQgkKB3BheWxvYWQqyQMKE1ByaXZpbGVnZWRPcGVyYXRpb24SJAogUFJJVklMRUdFRF9PUEVSQVRJT05fVU5TUEVDSUZJRUQQABIiCh5QUklWSUxFR0VEX09QRVJBVElPTl9QUk9WSVNJT04QARIvCitQUklWSUxFR0VEX09QRVJBVElPTl9JTlZFTlRPUllfSU5TVEFMTEFUSU9OEAISJwojUFJJVklMRUdFRF9PUEVSQVRJT05fUExBTl9VTklOU1RBTEwQAxIuCipQUklWSUxFR0VEX09QRVJBVElPTl9QUk9WSVNJT05fQlJFQUtfR0xBU1MQBBIxCi1QUklWSUxFR0VEX09QRVJBVElPTl9JU1NVRV9DTEVBTlVQX0NBUEFCSUxJVFkQBRIqCiZQUklWSUxFR0VEX09QRVJBVElPTl9BUFBMWV9GUk9aRU5fUExBThAGEiYKIlBSSVZJTEVHRURfT1BFUkFUSU9OX1ZFUklGWV9SRVNVTFQQBxIrCidQUklWSUxFR0VEX09QRVJBVElPTl9ST1RBVEVfQlJFQUtfR0xBU1MQCBIqCiZQUklWSUxFR0VEX09QRVJBVElPTl9SRVNFVF9CUkVBS19HTEFTUxAJQlRaUmdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vdnJvb2xpLWJyaWRnZS92MS9jaGFubmVsO2NoYW5uZWxfdjFiBnByb3RvMw", [file_google_protobuf_timestamp, file_vrooli_bridge_v1_shared_shared]);
 
 /**
  * Handshake is the first frame a node sends when it opens the channel. It
@@ -193,6 +193,15 @@ export type JobPush = Message<"vrooli.vrooli_bridge.v1.channel.JobPush"> & {
    * @generated from field: repeated vrooli.vrooli_bridge.v1.channel.ArtifactOutput outputs = 6;
    */
   outputs: ArtifactOutput[];
+
+  /**
+   * Ephemeral credential mappings for exactly this job. The node resolves the
+   * already-consented in-memory value and injects it into the child process
+   * environment; values are never appended to argv or written to job state.
+   *
+   * @generated from field: repeated vrooli.vrooli_bridge.v1.channel.CredentialInjection credential_injections = 7;
+   */
+  credentialInjections: CredentialInjection[];
 };
 
 /**
@@ -201,6 +210,33 @@ export type JobPush = Message<"vrooli.vrooli_bridge.v1.channel.JobPush"> & {
  */
 export const JobPushSchema: GenMessage<JobPush> = /*@__PURE__*/
   messageDesc(file_vrooli_bridge_v1_channel_channel, 2);
+
+/**
+ * @generated from message vrooli.vrooli_bridge.v1.channel.CredentialInjection
+ */
+export type CredentialInjection = Message<"vrooli.vrooli_bridge.v1.channel.CredentialInjection"> & {
+  /**
+   * @generated from field: string logical_id = 1;
+   */
+  logicalId: string;
+
+  /**
+   * @generated from field: string field = 2;
+   */
+  field: string;
+
+  /**
+   * @generated from field: string env_name = 3;
+   */
+  envName: string;
+};
+
+/**
+ * Describes the message vrooli.vrooli_bridge.v1.channel.CredentialInjection.
+ * Use `create(CredentialInjectionSchema)` to create a new message.
+ */
+export const CredentialInjectionSchema: GenMessage<CredentialInjection> = /*@__PURE__*/
+  messageDesc(file_vrooli_bridge_v1_channel_channel, 3);
 
 /**
  * CleanupCommand carries one typed request to the privileged helper.  The
@@ -277,7 +313,184 @@ export type CleanupCommand = Message<"vrooli.vrooli_bridge.v1.channel.CleanupCom
  * Use `create(CleanupCommandSchema)` to create a new message.
  */
 export const CleanupCommandSchema: GenMessage<CleanupCommand> = /*@__PURE__*/
-  messageDesc(file_vrooli_bridge_v1_channel_channel, 3);
+  messageDesc(file_vrooli_bridge_v1_channel_channel, 4);
+
+/**
+ * @generated from message vrooli.vrooli_bridge.v1.channel.CredentialPush
+ */
+export type CredentialPush = Message<"vrooli.vrooli_bridge.v1.channel.CredentialPush"> & {
+  /**
+   * @generated from field: string grant_id = 1;
+   */
+  grantId: string;
+
+  /**
+   * @generated from field: string node_id = 2;
+   */
+  nodeId: string;
+
+  /**
+   * @generated from field: string logical_id = 3;
+   */
+  logicalId: string;
+
+  /**
+   * @generated from field: string field = 4;
+   */
+  field: string;
+
+  /**
+   * @generated from field: int64 generation = 5;
+   */
+  generation: bigint;
+
+  /**
+   * @generated from field: string retention = 6;
+   */
+  retention: string;
+
+  /**
+   * @generated from field: bytes sealed_value = 7;
+   */
+  sealedValue: Uint8Array;
+
+  /**
+   * @generated from field: bytes aad = 8;
+   */
+  aad: Uint8Array;
+};
+
+/**
+ * Describes the message vrooli.vrooli_bridge.v1.channel.CredentialPush.
+ * Use `create(CredentialPushSchema)` to create a new message.
+ */
+export const CredentialPushSchema: GenMessage<CredentialPush> = /*@__PURE__*/
+  messageDesc(file_vrooli_bridge_v1_channel_channel, 5);
+
+/**
+ * @generated from message vrooli.vrooli_bridge.v1.channel.CredentialPurge
+ */
+export type CredentialPurge = Message<"vrooli.vrooli_bridge.v1.channel.CredentialPurge"> & {
+  /**
+   * @generated from field: string node_id = 1;
+   */
+  nodeId: string;
+
+  /**
+   * @generated from field: repeated string addresses = 2;
+   */
+  addresses: string[];
+};
+
+/**
+ * Describes the message vrooli.vrooli_bridge.v1.channel.CredentialPurge.
+ * Use `create(CredentialPurgeSchema)` to create a new message.
+ */
+export const CredentialPurgeSchema: GenMessage<CredentialPurge> = /*@__PURE__*/
+  messageDesc(file_vrooli_bridge_v1_channel_channel, 6);
+
+/**
+ * CredentialGrant carries metadata-only local consent to a node. It never
+ * carries a credential value; the node stores this record before accepting a
+ * later CredentialPush for the same address.
+ *
+ * @generated from message vrooli.vrooli_bridge.v1.channel.CredentialGrant
+ */
+export type CredentialGrant = Message<"vrooli.vrooli_bridge.v1.channel.CredentialGrant"> & {
+  /**
+   * @generated from field: string grant_id = 1;
+   */
+  grantId: string;
+
+  /**
+   * @generated from field: string node_id = 2;
+   */
+  nodeId: string;
+
+  /**
+   * @generated from field: string logical_id = 3;
+   */
+  logicalId: string;
+
+  /**
+   * @generated from field: string field = 4;
+   */
+  field: string;
+
+  /**
+   * @generated from field: string class = 5;
+   */
+  class: string;
+
+  /**
+   * @generated from field: string retention = 6;
+   */
+  retention: string;
+
+  /**
+   * @generated from field: int64 generation = 7;
+   */
+  generation: bigint;
+
+  /**
+   * @generated from field: bool revoked = 8;
+   */
+  revoked: boolean;
+};
+
+/**
+ * Describes the message vrooli.vrooli_bridge.v1.channel.CredentialGrant.
+ * Use `create(CredentialGrantSchema)` to create a new message.
+ */
+export const CredentialGrantSchema: GenMessage<CredentialGrant> = /*@__PURE__*/
+  messageDesc(file_vrooli_bridge_v1_channel_channel, 7);
+
+/**
+ * @generated from message vrooli.vrooli_bridge.v1.channel.CredentialReceipt
+ */
+export type CredentialReceipt = Message<"vrooli.vrooli_bridge.v1.channel.CredentialReceipt"> & {
+  /**
+   * @generated from field: string grant_id = 1;
+   */
+  grantId: string;
+
+  /**
+   * @generated from field: string node_id = 2;
+   */
+  nodeId: string;
+
+  /**
+   * @generated from field: string logical_id = 3;
+   */
+  logicalId: string;
+
+  /**
+   * @generated from field: string field = 4;
+   */
+  field: string;
+
+  /**
+   * @generated from field: int64 generation = 5;
+   */
+  generation: bigint;
+
+  /**
+   * @generated from field: bool accepted = 6;
+   */
+  accepted: boolean;
+
+  /**
+   * @generated from field: string reason = 7;
+   */
+  reason: string;
+};
+
+/**
+ * Describes the message vrooli.vrooli_bridge.v1.channel.CredentialReceipt.
+ * Use `create(CredentialReceiptSchema)` to create a new message.
+ */
+export const CredentialReceiptSchema: GenMessage<CredentialReceipt> = /*@__PURE__*/
+  messageDesc(file_vrooli_bridge_v1_channel_channel, 8);
 
 /**
  * ArtifactOutput describes one bounded file a typed job is allowed to produce.
@@ -313,7 +526,7 @@ export type ArtifactOutput = Message<"vrooli.vrooli_bridge.v1.channel.ArtifactOu
  * Use `create(ArtifactOutputSchema)` to create a new message.
  */
 export const ArtifactOutputSchema: GenMessage<ArtifactOutput> = /*@__PURE__*/
-  messageDesc(file_vrooli_bridge_v1_channel_channel, 4);
+  messageDesc(file_vrooli_bridge_v1_channel_channel, 9);
 
 /**
  * ProvisionCommand is the privileged-tier push that brings a node to a target
@@ -353,7 +566,7 @@ export type ProvisionCommand = Message<"vrooli.vrooli_bridge.v1.channel.Provisio
  * Use `create(ProvisionCommandSchema)` to create a new message.
  */
 export const ProvisionCommandSchema: GenMessage<ProvisionCommand> = /*@__PURE__*/
-  messageDesc(file_vrooli_bridge_v1_channel_channel, 5);
+  messageDesc(file_vrooli_bridge_v1_channel_channel, 10);
 
 /**
  * ControlPing is a control-plane → node keepalive so the SSE stream stays warm
@@ -373,7 +586,7 @@ export type ControlPing = Message<"vrooli.vrooli_bridge.v1.channel.ControlPing">
  * Use `create(ControlPingSchema)` to create a new message.
  */
 export const ControlPingSchema: GenMessage<ControlPing> = /*@__PURE__*/
-  messageDesc(file_vrooli_bridge_v1_channel_channel, 6);
+  messageDesc(file_vrooli_bridge_v1_channel_channel, 11);
 
 /**
  * AbortJob is the control-plane → node push that cancels an in-flight run
@@ -407,7 +620,7 @@ export type AbortJob = Message<"vrooli.vrooli_bridge.v1.channel.AbortJob"> & {
  * Use `create(AbortJobSchema)` to create a new message.
  */
 export const AbortJobSchema: GenMessage<AbortJob> = /*@__PURE__*/
-  messageDesc(file_vrooli_bridge_v1_channel_channel, 7);
+  messageDesc(file_vrooli_bridge_v1_channel_channel, 12);
 
 /**
  * RelayRequest is a short-lived, typed request carried over the node's already
@@ -465,7 +678,7 @@ export type RelayRequest = Message<"vrooli.vrooli_bridge.v1.channel.RelayRequest
  * Use `create(RelayRequestSchema)` to create a new message.
  */
 export const RelayRequestSchema: GenMessage<RelayRequest> = /*@__PURE__*/
-  messageDesc(file_vrooli_bridge_v1_channel_channel, 8);
+  messageDesc(file_vrooli_bridge_v1_channel_channel, 13);
 
 /**
  * RelayCancel terminates an in-flight relay request. It is separate from
@@ -490,7 +703,7 @@ export type RelayCancel = Message<"vrooli.vrooli_bridge.v1.channel.RelayCancel">
  * Use `create(RelayCancelSchema)` to create a new message.
  */
 export const RelayCancelSchema: GenMessage<RelayCancel> = /*@__PURE__*/
-  messageDesc(file_vrooli_bridge_v1_channel_channel, 9);
+  messageDesc(file_vrooli_bridge_v1_channel_channel, 14);
 
 /**
  * RunEvent streams a durable run's progress back to the control plane (node →
@@ -568,6 +781,24 @@ export type ServerFrame = Message<"vrooli.vrooli_bridge.v1.channel.ServerFrame">
      */
     value: CleanupCommand;
     case: "cleanup";
+  } | {
+    /**
+     * @generated from field: vrooli.vrooli_bridge.v1.channel.CredentialPush credential_push = 11;
+     */
+    value: CredentialPush;
+    case: "credentialPush";
+  } | {
+    /**
+     * @generated from field: vrooli.vrooli_bridge.v1.channel.CredentialPurge credential_purge = 12;
+     */
+    value: CredentialPurge;
+    case: "credentialPurge";
+  } | {
+    /**
+     * @generated from field: vrooli.vrooli_bridge.v1.channel.CredentialGrant credential_grant = 13;
+     */
+    value: CredentialGrant;
+    case: "credentialGrant";
   } | { case: undefined; value?: undefined };
 };
 
@@ -576,7 +807,7 @@ export type ServerFrame = Message<"vrooli.vrooli_bridge.v1.channel.ServerFrame">
  * Use `create(ServerFrameSchema)` to create a new message.
  */
 export const ServerFrameSchema: GenMessage<ServerFrame> = /*@__PURE__*/
-  messageDesc(file_vrooli_bridge_v1_channel_channel, 10);
+  messageDesc(file_vrooli_bridge_v1_channel_channel, 15);
 
 /**
  * SignedServerFrame is the mutual-auth envelope EVERY control-plane → node push
@@ -618,7 +849,7 @@ export type SignedServerFrame = Message<"vrooli.vrooli_bridge.v1.channel.SignedS
  * Use `create(SignedServerFrameSchema)` to create a new message.
  */
 export const SignedServerFrameSchema: GenMessage<SignedServerFrame> = /*@__PURE__*/
-  messageDesc(file_vrooli_bridge_v1_channel_channel, 11);
+  messageDesc(file_vrooli_bridge_v1_channel_channel, 16);
 
 /**
  * NodeFrame documents the union of node → control-plane actions. In production
@@ -668,6 +899,12 @@ export type NodeFrame = Message<"vrooli.vrooli_bridge.v1.channel.NodeFrame"> & {
      */
     value: RelayResponse;
     case: "relayResponse";
+  } | {
+    /**
+     * @generated from field: vrooli.vrooli_bridge.v1.channel.CredentialReceipt credential_receipt = 7;
+     */
+    value: CredentialReceipt;
+    case: "credentialReceipt";
   } | { case: undefined; value?: undefined };
 };
 
@@ -676,7 +913,7 @@ export type NodeFrame = Message<"vrooli.vrooli_bridge.v1.channel.NodeFrame"> & {
  * Use `create(NodeFrameSchema)` to create a new message.
  */
 export const NodeFrameSchema: GenMessage<NodeFrame> = /*@__PURE__*/
-  messageDesc(file_vrooli_bridge_v1_channel_channel, 12);
+  messageDesc(file_vrooli_bridge_v1_channel_channel, 17);
 
 /**
  * PrivilegedOperation is the closed vocabulary accepted by the separate

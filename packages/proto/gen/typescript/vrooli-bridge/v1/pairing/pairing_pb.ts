@@ -12,7 +12,56 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file vrooli-bridge/v1/pairing/pairing.proto.
  */
 export const file_vrooli_bridge_v1_pairing_pairing: GenFile = /*@__PURE__*/
-  fileDesc("CiZ2cm9vbGktYnJpZGdlL3YxL3BhaXJpbmcvcGFpcmluZy5wcm90bxIfdnJvb2xpLnZyb29saV9icmlkZ2UudjEucGFpcmluZyJMChdJc3N1ZVBhaXJpbmdDb2RlUmVxdWVzdBIMCgRuYW1lGAEgASgJEg4KBnNjb3BlcxgCIAMoCRITCgt0dGxfc2Vjb25kcxgDIAEoAyJ6ChhJc3N1ZVBhaXJpbmdDb2RlUmVzcG9uc2USDAoEY29kZRgBIAEoCRIgChhjb250cm9sX3BsYW5lX3B1YmxpY19rZXkYAiABKAkSLgoKZXhwaXJlc19hdBgDIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAikQEKGFJlZGVlbVBhaXJpbmdDb2RlUmVxdWVzdBIMCgRjb2RlGAEgASgJEhcKD25vZGVfcHVibGljX2tleRgCIAEoCRIMCgRuYW1lGAMgASgJEgoKAm9zGAQgASgJEgwKBGFyY2gYBSABKAkSEAoIZW5kcG9pbnQYBiABKAkSFAoMY2FwYWJpbGl0aWVzGAcgAygJIk4KGVJlZGVlbVBhaXJpbmdDb2RlUmVzcG9uc2USDwoHbm9kZV9pZBgBIAEoCRIgChhjb250cm9sX3BsYW5lX3B1YmxpY19rZXkYAiABKAkigAEKFVJlcXVlc3RQYWlyaW5nUmVxdWVzdBIXCg9ub2RlX3B1YmxpY19rZXkYASABKAkSDAoEbmFtZRgCIAEoCRIKCgJvcxgDIAEoCRIMCgRhcmNoGAQgASgJEhAKCGVuZHBvaW50GAUgASgJEhQKDGNhcGFiaWxpdGllcxgGIAMoCSJzChZSZXF1ZXN0UGFpcmluZ1Jlc3BvbnNlEhIKCnJlcXVlc3RfaWQYASABKAkSRQoGc3RhdHVzGAIgASgOMjUudnJvb2xpLnZyb29saV9icmlkZ2UudjEucGFpcmluZy5QYWlyaW5nUmVxdWVzdFN0YXR1cyJMChVBcHByb3ZlUGFpcmluZ1JlcXVlc3QSEgoKcmVxdWVzdF9pZBgBIAEoCRIPCgdhcHByb3ZlGAIgASgIEg4KBnNjb3BlcxgDIAMoCSJwChZBcHByb3ZlUGFpcmluZ1Jlc3BvbnNlEg8KB25vZGVfaWQYASABKAkSRQoGc3RhdHVzGAIgASgOMjUudnJvb2xpLnZyb29saV9icmlkZ2UudjEucGFpcmluZy5QYWlyaW5nUmVxdWVzdFN0YXR1cyKkAgoOUGFpcmluZ1JlcXVlc3QSCgoCaWQYASABKAkSDAoEbmFtZRgCIAEoCRIKCgJvcxgDIAEoCRIMCgRhcmNoGAQgASgJEhAKCGVuZHBvaW50GAUgASgJEhQKDGNhcGFiaWxpdGllcxgGIAMoCRJFCgZzdGF0dXMYByABKA4yNS52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5wYWlyaW5nLlBhaXJpbmdSZXF1ZXN0U3RhdHVzEi4KCmNyZWF0ZWRfYXQYCCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEi4KCmRlY2lkZWRfYXQYCSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEg8KB25vZGVfaWQYCiABKAkiNQoaTGlzdFBhaXJpbmdSZXF1ZXN0c1JlcXVlc3QSFwoPaW5jbHVkZV9kZWNpZGVkGAEgASgIImAKG0xpc3RQYWlyaW5nUmVxdWVzdHNSZXNwb25zZRJBCghyZXF1ZXN0cxgBIAMoCzIvLnZyb29saS52cm9vbGlfYnJpZGdlLnYxLnBhaXJpbmcuUGFpcmluZ1JlcXVlc3QqrAEKFFBhaXJpbmdSZXF1ZXN0U3RhdHVzEiYKIlBBSVJJTkdfUkVRVUVTVF9TVEFUVVNfVU5TUEVDSUZJRUQQABIiCh5QQUlSSU5HX1JFUVVFU1RfU1RBVFVTX1BFTkRJTkcQARIjCh9QQUlSSU5HX1JFUVVFU1RfU1RBVFVTX0FQUFJPVkVEEAISIwofUEFJUklOR19SRVFVRVNUX1NUQVRVU19SRUpFQ1RFRBADMsIFCg5QYWlyaW5nU2VydmljZRKHAQoQSXNzdWVQYWlyaW5nQ29kZRI4LnZyb29saS52cm9vbGlfYnJpZGdlLnYxLnBhaXJpbmcuSXNzdWVQYWlyaW5nQ29kZVJlcXVlc3QaOS52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5wYWlyaW5nLklzc3VlUGFpcmluZ0NvZGVSZXNwb25zZRKKAQoRUmVkZWVtUGFpcmluZ0NvZGUSOS52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5wYWlyaW5nLlJlZGVlbVBhaXJpbmdDb2RlUmVxdWVzdBo6LnZyb29saS52cm9vbGlfYnJpZGdlLnYxLnBhaXJpbmcuUmVkZWVtUGFpcmluZ0NvZGVSZXNwb25zZRKBAQoOUmVxdWVzdFBhaXJpbmcSNi52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5wYWlyaW5nLlJlcXVlc3RQYWlyaW5nUmVxdWVzdBo3LnZyb29saS52cm9vbGlfYnJpZGdlLnYxLnBhaXJpbmcuUmVxdWVzdFBhaXJpbmdSZXNwb25zZRKBAQoOQXBwcm92ZVBhaXJpbmcSNi52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5wYWlyaW5nLkFwcHJvdmVQYWlyaW5nUmVxdWVzdBo3LnZyb29saS52cm9vbGlfYnJpZGdlLnYxLnBhaXJpbmcuQXBwcm92ZVBhaXJpbmdSZXNwb25zZRKQAQoTTGlzdFBhaXJpbmdSZXF1ZXN0cxI7LnZyb29saS52cm9vbGlfYnJpZGdlLnYxLnBhaXJpbmcuTGlzdFBhaXJpbmdSZXF1ZXN0c1JlcXVlc3QaPC52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5wYWlyaW5nLkxpc3RQYWlyaW5nUmVxdWVzdHNSZXNwb25zZUJUWlJnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL3Zyb29saS1icmlkZ2UvdjEvcGFpcmluZztwYWlyaW5nX3YxYgZwcm90bzM", [file_google_protobuf_timestamp]);
+  fileDesc("CiZ2cm9vbGktYnJpZGdlL3YxL3BhaXJpbmcvcGFpcmluZy5wcm90bxIfdnJvb2xpLnZyb29saV9icmlkZ2UudjEucGFpcmluZyJOChxSZWdpc3RlckVuY3J5cHRpb25LZXlSZXF1ZXN0Eg8KB25vZGVfaWQYASABKAkSHQoVZW5jcnlwdGlvbl9wdWJsaWNfa2V5GAIgASgJIlcKHVJlZ2lzdGVyRW5jcnlwdGlvbktleVJlc3BvbnNlEg8KB25vZGVfaWQYASABKAkSEQoJYWxnb3JpdGhtGAIgASgJEhIKCnJlZ2lzdGVyZWQYAyABKAgiTAoXSXNzdWVQYWlyaW5nQ29kZVJlcXVlc3QSDAoEbmFtZRgBIAEoCRIOCgZzY29wZXMYAiADKAkSEwoLdHRsX3NlY29uZHMYAyABKAMiegoYSXNzdWVQYWlyaW5nQ29kZVJlc3BvbnNlEgwKBGNvZGUYASABKAkSIAoYY29udHJvbF9wbGFuZV9wdWJsaWNfa2V5GAIgASgJEi4KCmV4cGlyZXNfYXQYAyABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wIpEBChhSZWRlZW1QYWlyaW5nQ29kZVJlcXVlc3QSDAoEY29kZRgBIAEoCRIXCg9ub2RlX3B1YmxpY19rZXkYAiABKAkSDAoEbmFtZRgDIAEoCRIKCgJvcxgEIAEoCRIMCgRhcmNoGAUgASgJEhAKCGVuZHBvaW50GAYgASgJEhQKDGNhcGFiaWxpdGllcxgHIAMoCSJOChlSZWRlZW1QYWlyaW5nQ29kZVJlc3BvbnNlEg8KB25vZGVfaWQYASABKAkSIAoYY29udHJvbF9wbGFuZV9wdWJsaWNfa2V5GAIgASgJIoABChVSZXF1ZXN0UGFpcmluZ1JlcXVlc3QSFwoPbm9kZV9wdWJsaWNfa2V5GAEgASgJEgwKBG5hbWUYAiABKAkSCgoCb3MYAyABKAkSDAoEYXJjaBgEIAEoCRIQCghlbmRwb2ludBgFIAEoCRIUCgxjYXBhYmlsaXRpZXMYBiADKAkicwoWUmVxdWVzdFBhaXJpbmdSZXNwb25zZRISCgpyZXF1ZXN0X2lkGAEgASgJEkUKBnN0YXR1cxgCIAEoDjI1LnZyb29saS52cm9vbGlfYnJpZGdlLnYxLnBhaXJpbmcuUGFpcmluZ1JlcXVlc3RTdGF0dXMiTAoVQXBwcm92ZVBhaXJpbmdSZXF1ZXN0EhIKCnJlcXVlc3RfaWQYASABKAkSDwoHYXBwcm92ZRgCIAEoCBIOCgZzY29wZXMYAyADKAkicAoWQXBwcm92ZVBhaXJpbmdSZXNwb25zZRIPCgdub2RlX2lkGAEgASgJEkUKBnN0YXR1cxgCIAEoDjI1LnZyb29saS52cm9vbGlfYnJpZGdlLnYxLnBhaXJpbmcuUGFpcmluZ1JlcXVlc3RTdGF0dXMipAIKDlBhaXJpbmdSZXF1ZXN0EgoKAmlkGAEgASgJEgwKBG5hbWUYAiABKAkSCgoCb3MYAyABKAkSDAoEYXJjaBgEIAEoCRIQCghlbmRwb2ludBgFIAEoCRIUCgxjYXBhYmlsaXRpZXMYBiADKAkSRQoGc3RhdHVzGAcgASgOMjUudnJvb2xpLnZyb29saV9icmlkZ2UudjEucGFpcmluZy5QYWlyaW5nUmVxdWVzdFN0YXR1cxIuCgpjcmVhdGVkX2F0GAggASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIuCgpkZWNpZGVkX2F0GAkgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIPCgdub2RlX2lkGAogASgJIjUKGkxpc3RQYWlyaW5nUmVxdWVzdHNSZXF1ZXN0EhcKD2luY2x1ZGVfZGVjaWRlZBgBIAEoCCJgChtMaXN0UGFpcmluZ1JlcXVlc3RzUmVzcG9uc2USQQoIcmVxdWVzdHMYASADKAsyLy52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5wYWlyaW5nLlBhaXJpbmdSZXF1ZXN0KqwBChRQYWlyaW5nUmVxdWVzdFN0YXR1cxImCiJQQUlSSU5HX1JFUVVFU1RfU1RBVFVTX1VOU1BFQ0lGSUVEEAASIgoeUEFJUklOR19SRVFVRVNUX1NUQVRVU19QRU5ESU5HEAESIwofUEFJUklOR19SRVFVRVNUX1NUQVRVU19BUFBST1ZFRBACEiMKH1BBSVJJTkdfUkVRVUVTVF9TVEFUVVNfUkVKRUNURUQQAzLbBgoOUGFpcmluZ1NlcnZpY2UShwEKEElzc3VlUGFpcmluZ0NvZGUSOC52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5wYWlyaW5nLklzc3VlUGFpcmluZ0NvZGVSZXF1ZXN0GjkudnJvb2xpLnZyb29saV9icmlkZ2UudjEucGFpcmluZy5Jc3N1ZVBhaXJpbmdDb2RlUmVzcG9uc2USigEKEVJlZGVlbVBhaXJpbmdDb2RlEjkudnJvb2xpLnZyb29saV9icmlkZ2UudjEucGFpcmluZy5SZWRlZW1QYWlyaW5nQ29kZVJlcXVlc3QaOi52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5wYWlyaW5nLlJlZGVlbVBhaXJpbmdDb2RlUmVzcG9uc2USgQEKDlJlcXVlc3RQYWlyaW5nEjYudnJvb2xpLnZyb29saV9icmlkZ2UudjEucGFpcmluZy5SZXF1ZXN0UGFpcmluZ1JlcXVlc3QaNy52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5wYWlyaW5nLlJlcXVlc3RQYWlyaW5nUmVzcG9uc2USgQEKDkFwcHJvdmVQYWlyaW5nEjYudnJvb2xpLnZyb29saV9icmlkZ2UudjEucGFpcmluZy5BcHByb3ZlUGFpcmluZ1JlcXVlc3QaNy52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5wYWlyaW5nLkFwcHJvdmVQYWlyaW5nUmVzcG9uc2USkAEKE0xpc3RQYWlyaW5nUmVxdWVzdHMSOy52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5wYWlyaW5nLkxpc3RQYWlyaW5nUmVxdWVzdHNSZXF1ZXN0GjwudnJvb2xpLnZyb29saV9icmlkZ2UudjEucGFpcmluZy5MaXN0UGFpcmluZ1JlcXVlc3RzUmVzcG9uc2USlgEKFVJlZ2lzdGVyRW5jcnlwdGlvbktleRI9LnZyb29saS52cm9vbGlfYnJpZGdlLnYxLnBhaXJpbmcuUmVnaXN0ZXJFbmNyeXB0aW9uS2V5UmVxdWVzdBo+LnZyb29saS52cm9vbGlfYnJpZGdlLnYxLnBhaXJpbmcuUmVnaXN0ZXJFbmNyeXB0aW9uS2V5UmVzcG9uc2VCVFpSZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby92cm9vbGktYnJpZGdlL3YxL3BhaXJpbmc7cGFpcmluZ192MWIGcHJvdG8z", [file_google_protobuf_timestamp]);
+
+/**
+ * @generated from message vrooli.vrooli_bridge.v1.pairing.RegisterEncryptionKeyRequest
+ */
+export type RegisterEncryptionKeyRequest = Message<"vrooli.vrooli_bridge.v1.pairing.RegisterEncryptionKeyRequest"> & {
+  /**
+   * @generated from field: string node_id = 1;
+   */
+  nodeId: string;
+
+  /**
+   * @generated from field: string encryption_public_key = 2;
+   */
+  encryptionPublicKey: string;
+};
+
+/**
+ * Describes the message vrooli.vrooli_bridge.v1.pairing.RegisterEncryptionKeyRequest.
+ * Use `create(RegisterEncryptionKeyRequestSchema)` to create a new message.
+ */
+export const RegisterEncryptionKeyRequestSchema: GenMessage<RegisterEncryptionKeyRequest> = /*@__PURE__*/
+  messageDesc(file_vrooli_bridge_v1_pairing_pairing, 0);
+
+/**
+ * @generated from message vrooli.vrooli_bridge.v1.pairing.RegisterEncryptionKeyResponse
+ */
+export type RegisterEncryptionKeyResponse = Message<"vrooli.vrooli_bridge.v1.pairing.RegisterEncryptionKeyResponse"> & {
+  /**
+   * @generated from field: string node_id = 1;
+   */
+  nodeId: string;
+
+  /**
+   * @generated from field: string algorithm = 2;
+   */
+  algorithm: string;
+
+  /**
+   * @generated from field: bool registered = 3;
+   */
+  registered: boolean;
+};
+
+/**
+ * Describes the message vrooli.vrooli_bridge.v1.pairing.RegisterEncryptionKeyResponse.
+ * Use `create(RegisterEncryptionKeyResponseSchema)` to create a new message.
+ */
+export const RegisterEncryptionKeyResponseSchema: GenMessage<RegisterEncryptionKeyResponse> = /*@__PURE__*/
+  messageDesc(file_vrooli_bridge_v1_pairing_pairing, 1);
 
 /**
  * IssuePairingCodeRequest carries the owner's intent for the node being paired.
@@ -52,7 +101,7 @@ export type IssuePairingCodeRequest = Message<"vrooli.vrooli_bridge.v1.pairing.I
  * Use `create(IssuePairingCodeRequestSchema)` to create a new message.
  */
 export const IssuePairingCodeRequestSchema: GenMessage<IssuePairingCodeRequest> = /*@__PURE__*/
-  messageDesc(file_vrooli_bridge_v1_pairing_pairing, 0);
+  messageDesc(file_vrooli_bridge_v1_pairing_pairing, 2);
 
 /**
  * @generated from message vrooli.vrooli_bridge.v1.pairing.IssuePairingCodeResponse
@@ -87,7 +136,7 @@ export type IssuePairingCodeResponse = Message<"vrooli.vrooli_bridge.v1.pairing.
  * Use `create(IssuePairingCodeResponseSchema)` to create a new message.
  */
 export const IssuePairingCodeResponseSchema: GenMessage<IssuePairingCodeResponse> = /*@__PURE__*/
-  messageDesc(file_vrooli_bridge_v1_pairing_pairing, 1);
+  messageDesc(file_vrooli_bridge_v1_pairing_pairing, 3);
 
 /**
  * RedeemPairingCodeRequest is what the node's bootstrap installer sends.
@@ -144,7 +193,7 @@ export type RedeemPairingCodeRequest = Message<"vrooli.vrooli_bridge.v1.pairing.
  * Use `create(RedeemPairingCodeRequestSchema)` to create a new message.
  */
 export const RedeemPairingCodeRequestSchema: GenMessage<RedeemPairingCodeRequest> = /*@__PURE__*/
-  messageDesc(file_vrooli_bridge_v1_pairing_pairing, 2);
+  messageDesc(file_vrooli_bridge_v1_pairing_pairing, 4);
 
 /**
  * @generated from message vrooli.vrooli_bridge.v1.pairing.RedeemPairingCodeResponse
@@ -172,7 +221,7 @@ export type RedeemPairingCodeResponse = Message<"vrooli.vrooli_bridge.v1.pairing
  * Use `create(RedeemPairingCodeResponseSchema)` to create a new message.
  */
 export const RedeemPairingCodeResponseSchema: GenMessage<RedeemPairingCodeResponse> = /*@__PURE__*/
-  messageDesc(file_vrooli_bridge_v1_pairing_pairing, 3);
+  messageDesc(file_vrooli_bridge_v1_pairing_pairing, 5);
 
 /**
  * RequestPairingRequest is the open, no-code fallback enrollment ask.
@@ -216,7 +265,7 @@ export type RequestPairingRequest = Message<"vrooli.vrooli_bridge.v1.pairing.Req
  * Use `create(RequestPairingRequestSchema)` to create a new message.
  */
 export const RequestPairingRequestSchema: GenMessage<RequestPairingRequest> = /*@__PURE__*/
-  messageDesc(file_vrooli_bridge_v1_pairing_pairing, 4);
+  messageDesc(file_vrooli_bridge_v1_pairing_pairing, 6);
 
 /**
  * @generated from message vrooli.vrooli_bridge.v1.pairing.RequestPairingResponse
@@ -242,7 +291,7 @@ export type RequestPairingResponse = Message<"vrooli.vrooli_bridge.v1.pairing.Re
  * Use `create(RequestPairingResponseSchema)` to create a new message.
  */
 export const RequestPairingResponseSchema: GenMessage<RequestPairingResponse> = /*@__PURE__*/
-  messageDesc(file_vrooli_bridge_v1_pairing_pairing, 5);
+  messageDesc(file_vrooli_bridge_v1_pairing_pairing, 7);
 
 /**
  * ApprovePairingRequest is the owner's decision on a pending request.
@@ -275,7 +324,7 @@ export type ApprovePairingRequest = Message<"vrooli.vrooli_bridge.v1.pairing.App
  * Use `create(ApprovePairingRequestSchema)` to create a new message.
  */
 export const ApprovePairingRequestSchema: GenMessage<ApprovePairingRequest> = /*@__PURE__*/
-  messageDesc(file_vrooli_bridge_v1_pairing_pairing, 6);
+  messageDesc(file_vrooli_bridge_v1_pairing_pairing, 8);
 
 /**
  * @generated from message vrooli.vrooli_bridge.v1.pairing.ApprovePairingResponse
@@ -299,7 +348,7 @@ export type ApprovePairingResponse = Message<"vrooli.vrooli_bridge.v1.pairing.Ap
  * Use `create(ApprovePairingResponseSchema)` to create a new message.
  */
 export const ApprovePairingResponseSchema: GenMessage<ApprovePairingResponse> = /*@__PURE__*/
-  messageDesc(file_vrooli_bridge_v1_pairing_pairing, 7);
+  messageDesc(file_vrooli_bridge_v1_pairing_pairing, 9);
 
 /**
  * PairingRequest is a pending/decided join request surfaced to the owner.
@@ -365,7 +414,7 @@ export type PairingRequest = Message<"vrooli.vrooli_bridge.v1.pairing.PairingReq
  * Use `create(PairingRequestSchema)` to create a new message.
  */
 export const PairingRequestSchema: GenMessage<PairingRequest> = /*@__PURE__*/
-  messageDesc(file_vrooli_bridge_v1_pairing_pairing, 8);
+  messageDesc(file_vrooli_bridge_v1_pairing_pairing, 10);
 
 /**
  * @generated from message vrooli.vrooli_bridge.v1.pairing.ListPairingRequestsRequest
@@ -384,7 +433,7 @@ export type ListPairingRequestsRequest = Message<"vrooli.vrooli_bridge.v1.pairin
  * Use `create(ListPairingRequestsRequestSchema)` to create a new message.
  */
 export const ListPairingRequestsRequestSchema: GenMessage<ListPairingRequestsRequest> = /*@__PURE__*/
-  messageDesc(file_vrooli_bridge_v1_pairing_pairing, 9);
+  messageDesc(file_vrooli_bridge_v1_pairing_pairing, 11);
 
 /**
  * @generated from message vrooli.vrooli_bridge.v1.pairing.ListPairingRequestsResponse
@@ -401,7 +450,7 @@ export type ListPairingRequestsResponse = Message<"vrooli.vrooli_bridge.v1.pairi
  * Use `create(ListPairingRequestsResponseSchema)` to create a new message.
  */
 export const ListPairingRequestsResponseSchema: GenMessage<ListPairingRequestsResponse> = /*@__PURE__*/
-  messageDesc(file_vrooli_bridge_v1_pairing_pairing, 10);
+  messageDesc(file_vrooli_bridge_v1_pairing_pairing, 12);
 
 /**
  * PairingRequestStatus is the lifecycle of a request/approve enrollment.
@@ -508,6 +557,18 @@ export const PairingService: GenService<{
     methodKind: "unary";
     input: typeof ListPairingRequestsRequestSchema;
     output: typeof ListPairingRequestsResponseSchema;
+  },
+  /**
+   * RegisterEncryptionKey adds the node's independently generated X25519
+   * public key. The request is node-authenticated with the existing Ed25519
+   * header proof; the private key never crosses this API.
+   *
+   * @generated from rpc vrooli.vrooli_bridge.v1.pairing.PairingService.RegisterEncryptionKey
+   */
+  registerEncryptionKey: {
+    methodKind: "unary";
+    input: typeof RegisterEncryptionKeyRequestSchema;
+    output: typeof RegisterEncryptionKeyResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_vrooli_bridge_v1_pairing_pairing, 0);

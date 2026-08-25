@@ -70,7 +70,7 @@ describe("TerminalContextMenu", () => {
       await Promise.resolve();
       await Promise.resolve();
     });
-    expect(navigator.clipboard.readText).toHaveBeenCalled();
+    expect(navigator["clipboard"].readText).toHaveBeenCalled();
     expect(props.onPaste).toHaveBeenCalledWith("pasted text");
     // After settle, the button transitions to "Pasted" before close.
     expect(screen.getByTestId("ctx-paste").textContent).toBe(strings.terminalContextMenu.pasted);
@@ -127,7 +127,7 @@ describe("TerminalContextMenu", () => {
   });
 
   it("shows fallback text when clipboard read fails", async () => {
-    vi.spyOn(navigator.clipboard, "readText").mockRejectedValue(
+    vi.spyOn(navigator["clipboard"], "readText").mockRejectedValue(
       new DOMException("denied"),
     );
     const props = defaultProps();
@@ -178,7 +178,7 @@ describe("TerminalContextMenu", () => {
   });
 
   it("does not call onPaste when clipboard returns empty string", async () => {
-    vi.spyOn(navigator.clipboard, "readText").mockResolvedValue("");
+    vi.spyOn(navigator["clipboard"], "readText").mockResolvedValue("");
     const props = defaultProps();
     render(<TerminalContextMenu {...props} />);
     await act(async () => {

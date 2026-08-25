@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 
 import { strings } from "../consts/strings";
 import { basename as pathBasename, pathCrumbs } from "../lib/paths";
+import { writeText } from "../lib/clipboard";
 import { DrawerShell } from "./DrawerShell";
 import { rendererForKind } from "./file-preview/renderers";
 import type { DirectorySort, PreviewState } from "./file-preview/types";
@@ -37,7 +38,7 @@ export default function MessagesFileViewer({
   const [copied, setCopied] = useState(false);
   const copyPath = () => {
     if (!displayPath) return;
-    void navigator.clipboard.writeText(displayPath);
+    void writeText(displayPath);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };

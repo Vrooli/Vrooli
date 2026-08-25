@@ -17,7 +17,7 @@
 // "ansi-responder". The byte-scanner is gone. The seam is the
 // ControlEvent channel, not a global function pointer.
 //
-// DOC: docs/internal/SEAMS.md#ansi-query-responder
+// DOC: docs/internal/SEAMS.md#ansi-strip-seam-api
 
 package session
 

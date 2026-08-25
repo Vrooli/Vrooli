@@ -1,37 +1,17 @@
 package file_preview
 
 import (
+	"os"
 	"testing"
-
-	"github.com/vrooli/cli-core/cliapp"
 )
 
-func TestValidation(t *testing.T) {
-	h := &handlers{}
-
-	t.Run("resolve_requires_session_and_path", func(t *testing.T) {
-		ctx := cliapp.NewTestRunContext(cliapp.TestRunContextOptions{
-			Schema: cliapp.ArgSchema{Flags: []cliapp.Flag{{Name: "session"}, {Name: "path"}}},
-		})
-		err := h.resolve(ctx)
-		if err == nil || err.Error() != "--session and --path are required" {
-			t.Fatalf("expected missing session/path error, got %v", err)
-		}
-	})
-
-	t.Run("text_requires_session_and_preview_id", func(t *testing.T) {
-		ctx := cliapp.NewTestRunContext(cliapp.TestRunContextOptions{
-			Schema: cliapp.ArgSchema{Flags: []cliapp.Flag{{Name: "session"}, {Name: "preview-id"}}},
-		})
-		err := h.text(ctx)
-		if err == nil || err.Error() != "--session and --preview-id are required" {
-			t.Fatalf("expected missing session/preview-id error, got %v", err)
-		}
-	})
-
-	t.Run("kind_label", func(t *testing.T) {
-		if got := kindLabel(1); got != "markdown" {
-			t.Fatalf("kindLabel(MARKDOWN)=%q", got)
-		}
-	})
+func TestRegisterLoadsManifest(t *testing.T) {
+	manifest, err := os.ReadFile("../../manifest.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	group, err := Register(nil, manifest)
+	if err != nil || len(group.Subcommands) == 0 {
+		t.Fatalf("Register() = %#v, %v", group, err)
+	}
 }

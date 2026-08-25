@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import type { ConversationEvent } from "../api/conversation";
 import { strings } from "../consts/strings";
 import { cn } from "../lib/classnames";
+import { writeText } from "../lib/clipboard";
 import { DrawerShell } from "./DrawerShell";
 import {
   buildMessageExport,
@@ -56,7 +57,8 @@ export default function MessageExportDrawer({ open, events, onClose }: MessageEx
 
   const handleCopy = useCallback(async () => {
     try {
-      await navigator.clipboard.writeText(result.text);
+      const clipboard = await writeText(result.text);
+      if (!clipboard.ok) throw new Error(clipboard.reason);
       setCopyState("copied");
       if (copiedTimerRef.current) clearTimeout(copiedTimerRef.current);
       copiedTimerRef.current = setTimeout(() => {

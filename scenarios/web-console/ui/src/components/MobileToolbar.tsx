@@ -1,11 +1,12 @@
 // DOC: docs/reference/configuration.md#mobile-toolbar-keys
-// DOC: docs/internal/SEAMS.md#axis-2-toolbar-keys-p0-007
+// DOC: docs/internal/SEAMS.md#axis-2-toolbar-keys-key-combos-p0-007
 import { useCallback, useDeferredValue, useRef, useState, useEffect, forwardRef, useImperativeHandle } from "react";
 import { Image, Loader2, Maximize2, SendHorizontal, Sparkles } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { TOOLBAR_KEYS, ESC_KEY, TAB_KEY, ENTER_KEY, ARROW_UP, ARROW_DOWN, ARROW_LEFT, ARROW_RIGHT, type ToolbarKey, applyModifiers } from "../consts/toolbar-keys";
 import { strings } from "../consts/strings";
-import type { GateResult, InputSource } from "./terminal/inputGate";
+import type { GateResult, InputIntent } from "./terminal/inputGate";
+import type { InputSettlementCallback } from "../hooks/terminal/useStdinAck";
 import { useWorkspaceStore } from "../stores/useWorkspaceStore";
 import { cn } from "../lib/classnames";
 import KeyComboPicker from "./KeyComboPicker";
@@ -100,6 +101,28 @@ export interface MobileToolbarHandle {
   clearInput: () => void;
 }
 
+export interface MobileToolbarVoiceProps {
+  supported?: boolean;
+  preparing?: boolean;
+  recording?: boolean;
+  persistentMode?: boolean;
+  listening?: boolean;
+  passive?: boolean;
+  transcribing?: boolean;
+  error?: string | null;
+  level?: number;
+  activity?: VoiceActivitySnapshot;
+  partialTranscript?: string;
+  backend?: string;
+  onStart?: (opts?: StartRecordingOpts) => void;
+  onPrepare?: () => void;
+  onStop?: () => void;
+  onExitPassive?: () => void;
+  commandSuggestion?: CommandSuggestion | null;
+  onCommandConfirm?: (suggestion: CommandSuggestion) => void;
+  onCommandDismiss?: (suggestion: CommandSuggestion) => void;
+}
+
 interface MobileToolbarProps {
   /**
    * Callback to inject input into the active terminal via the input
@@ -108,14 +131,16 @@ interface MobileToolbarProps {
    * or `rejected` (empty or disposed). The toolbar uses the result
    * to surface queued/paused states as distinct pill variants.
    */
-  onInput: (data: string, source: InputSource) => GateResult;
+  onInput: (data: string, intent: Exclude<InputIntent, "control">) => GateResult;
   /**
    * Subscribe to per-send settlement callbacks from the active terminal
    * socket. The draft is preserved during "sending" state and only cleared
    * after `ok === true` arrives; on `ok === false` the toolbar surfaces
    * "Send failed — retry" and restores the draft for editing.
    */
-  subscribeInputSettled?: (cb: (seq: number, ok: boolean) => void) => () => void;
+  subscribeInputSettled?: (cb: (seq: number, ok: boolean, reason?: string) => void) => () => void;
+  /** Await settlement for the exact sequence returned by onInput. */
+  awaitSeq?: (seq: number, cb: InputSettlementCallback) => () => void;
   /** Subscribe to pending-queue-changed notifications for the unsent pill. */
   subscribePendingInput?: (cb: () => void) => () => void;
   /** Snapshot the active terminal's pending (unsent) input queue. */
@@ -137,40 +162,12 @@ interface MobileToolbarProps {
   onExpandComposer?: () => void;
   /** Whether the toolbar is visible. */
   visible?: boolean;
-  // Voice input props (optional - hidden when undefined)
-  voiceSupported?: boolean;
-  voicePreparing?: boolean;
-  voiceRecording?: boolean;
-  voicePersistentMode?: boolean;
-  /** True when persistent voice mode is active. */
-  voiceListening?: boolean;
-  /** True when passive wake-word listening currently holds the mic. */
-  voicePassive?: boolean;
-  voiceTranscribing?: boolean;
-  voiceError?: string | null;
-  /** 0–1 audio level for live mic visualization */
-  voiceLevel?: number;
-  voiceActivity?: VoiceActivitySnapshot;
-  /** Live, unsettled dictation text previewed under the caret. */
-  voicePartialTranscript?: string;
-  voiceBackend?: string;
-  onVoiceStart?: (opts?: StartRecordingOpts) => void;
-  onVoicePrepare?: () => void;
-  onVoiceStop?: () => void;
-  /** Exit passive wake-word listening (tapping the passive mic button). */
-  onVoiceExitPassive?: () => void;
-  /** Current voice command suggestion awaiting confirmation. */
-  voiceCommandSuggestion?: CommandSuggestion | null;
-  /** Called when user confirms a voice command suggestion. */
-  onVoiceCommandConfirm?: (suggestion: CommandSuggestion) => void;
-  /** Called when user dismisses a voice command suggestion. */
-  onVoiceCommandDismiss?: (suggestion: CommandSuggestion) => void;
+  /** Voice state and callbacks are grouped to keep the toolbar boundary small. */
+  voice?: MobileToolbarVoiceProps;
   onUploadImage?: () => void;
   /** Open the AI Command modal. Moved here from the floating toolbar on
    *  mobile because it's more accessible in the persistent bottom bar. */
   onOpenAi?: () => void;
-  /** Whether the inline AI suggestion bar is active. Highlights the sparkles button. */
-  aiSuggestActive?: boolean;
   /** Execute a suggestion generated from the local input draft. */
   onAiSuggestExecute?: (command: string) => void;
   /** Whether TTS is currently playing audio on the active pane. */
@@ -186,6 +183,7 @@ interface MobileToolbarProps {
 export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function MobileToolbar({
   onInput,
   subscribeInputSettled,
+  awaitSeq,
   subscribePendingInput,
   getPendingInputSnapshot,
   onFocusTerminal,
@@ -193,28 +191,9 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
   draft: draftProp,
   onExpandComposer,
   visible = true,
-  voiceSupported,
-  voicePreparing,
-  voiceRecording,
-  voicePersistentMode,
-  voiceListening,
-  voicePassive,
-  voiceTranscribing,
-  voiceError,
-  voiceLevel,
-  voiceActivity,
-  voicePartialTranscript,
-  voiceBackend,
-  onVoiceStart,
-  onVoicePrepare,
-  onVoiceStop,
-  onVoiceExitPassive,
-  voiceCommandSuggestion,
-  onVoiceCommandConfirm,
-  onVoiceCommandDismiss,
+  voice,
   onUploadImage,
   onOpenAi,
-  aiSuggestActive,
   onAiSuggestExecute,
   isTtsSpeaking,
   onTtsStop,
@@ -222,6 +201,28 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
   onSwitchToTerminal,
 }, ref) {
   const { t } = useTranslation();
+  const aiSuggestActive = useWorkspaceStore((state) => state.aiSuggestActive);
+  const {
+    supported: voiceSupported,
+    preparing: voicePreparing,
+    recording: voiceRecording,
+    persistentMode: voicePersistentMode,
+    listening: voiceListening,
+    passive: voicePassive,
+    transcribing: voiceTranscribing,
+    error: voiceError,
+    level: voiceLevel,
+    activity: voiceActivity,
+    partialTranscript: voicePartialTranscript,
+    backend: voiceBackend,
+    onStart: onVoiceStart,
+    onPrepare: onVoicePrepare,
+    onStop: onVoiceStop,
+    onExitPassive: onVoiceExitPassive,
+    commandSuggestion: voiceCommandSuggestion,
+    onCommandConfirm: onVoiceCommandConfirm,
+    onCommandDismiss: onVoiceCommandDismiss,
+  } = voice ?? {};
   // Single-source the draft. When Workspace passes a shared draft, the collapsed
   // input and the full-screen composer read/write the same value; the private
   // fallback keeps the toolbar usable standalone (and in unit tests). Both hooks
@@ -359,7 +360,7 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
     (key: ToolbarKey) => {
       const mods = useWorkspaceStore.getState().modifiers;
       const { data, consumed } = applyModifiers(key.input, mods);
-      onInput(data, "toolbar-key");
+      onInput(data, "typing");
       if (consumed) clearModifiers();
       // Re-focus the terminal after sending the key. On mobile, rapid taps can
       // cause the browser to blur the terminal (moving activeElement to body),
@@ -377,20 +378,6 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
    * The subscription auto-unsubscribes after it fires once — subsequent
    * acks from other senders (e.g. xterm direct keystrokes) are ignored.
    */
-  const awaitNextSettlement = useCallback(
-    (onSettle: (ok: boolean) => void) => {
-      if (!subscribeInputSettled) return;
-      settlementUnsubRef.current?.();
-      const unsub = subscribeInputSettled((_seq, ok) => {
-        settlementUnsubRef.current?.();
-        settlementUnsubRef.current = null;
-        onSettle(ok);
-      });
-      settlementUnsubRef.current = unsub;
-    },
-    [subscribeInputSettled],
-  );
-
   const submitCommand = useCallback(() => {
     // When the text box is exactly empty (length 0, NOT whitespace-only),
     // act as an Enter key press. This lets mobile users tap Send twice to
@@ -400,7 +387,7 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
     // submitted verbatim (some programs interpret whitespace input).
     const draftText = draft.getValue();
     if (draftText.length === 0) {
-      onInput(ENTER_KEY.input, "toolbar-key");
+      onInput(ENTER_KEY.input, "typing");
       // Auto-switch to terminal so the user sees the result of pressing Enter
       if (viewMode === "messages") onSwitchToTerminal?.();
       onFocusTerminal?.();
@@ -433,7 +420,7 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
     // sessions, and the clear below must target the session we sent from.
     const sentFrom = draft.getSessionId();
 
-    const result = onInput(dataToSend, "toolbar-submit");
+    const result = onInput(dataToSend, "bulk_text");
 
     if (result.status === "rejected") {
       // "empty" cannot occur here (draft.length > 0 checked above);
@@ -475,8 +462,10 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
       showStatus("failed");
     };
 
-    if (subscribeInputSettled) {
-      awaitNextSettlement((ok) => {
+    if (awaitSeq) {
+      settlementUnsubRef.current?.();
+      settlementUnsubRef.current = awaitSeq(result.seq, (ok) => {
+        settlementUnsubRef.current = null;
         if (ok) finalizeSuccess();
         else finalizeFailure();
       });
@@ -489,7 +478,7 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
     // After submitting a command, focus the terminal so the user can
     // immediately see and interact with the output.
     onFocusTerminal?.();
-  }, [onInput, draft, showStatus, onFocusTerminal, clearModifiers, viewMode, onSwitchToTerminal, subscribeInputSettled, awaitNextSettlement]);
+  }, [onInput, draft, showStatus, onFocusTerminal, clearModifiers, viewMode, onSwitchToTerminal, awaitSeq]);
 
   if (!visible) return null;
 

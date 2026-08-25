@@ -58,6 +58,28 @@ export default tseslint.config(
       // CRITICAL: Detects circular dependencies
       "import/no-cycle": "error",
 
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            {
+              group: [
+                "**/test-utils",
+                "**/test-utils/*",
+                "@/test-utils",
+                "@/test-utils/*",
+                "**/features/*/mocks",
+                "**/features/*/mocks/*",
+                "@/features/*/mocks",
+                "@/features/*/mocks/*",
+              ],
+              message:
+                "Production code must not import from src/test-utils/ or feature mocks; these helpers are test-only.",
+            },
+          ],
+        },
+      ],
+
       // ════════════════════════════════════════════════════════════════════════
       // STANDARD RULES (can be adjusted if needed)
       // ════════════════════════════════════════════════════════════════════════
@@ -71,5 +93,9 @@ export default tseslint.config(
       // Allow unused vars prefixed with underscore
       "@typescript-eslint/no-unused-vars": ["error", { argsIgnorePattern: "^_", varsIgnorePattern: "^_" }],
     },
-  }
+  },
+  {
+    files: ["**/*.test.{ts,tsx}", "**/*.spec.{ts,tsx}", "src/test-setup.ts"],
+    rules: { "no-restricted-imports": "off" },
+  },
 );

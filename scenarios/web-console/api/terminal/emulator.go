@@ -36,8 +36,7 @@ type Emulator struct {
 	parser *parser
 
 	// Control-event surface; lazily allocated by ControlEvents().
-	events        chan ControlEvent
-	droppedEvents uint64
+	events chan ControlEvent
 }
 
 // New returns an Emulator with the provided options. Zero values fall

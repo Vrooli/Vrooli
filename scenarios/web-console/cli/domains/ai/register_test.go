@@ -1,10 +1,22 @@
 package ai
 
 import (
+	"os"
 	"testing"
 
 	"github.com/vrooli/cli-core/cliapp"
 )
+
+func TestRegisterLoadsManifest(t *testing.T) {
+	manifest, err := os.ReadFile("../../manifest.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	group, err := Register(nil, manifest)
+	if err != nil || len(group.Subcommands) == 0 {
+		t.Fatalf("Register() = %#v, %v", group, err)
+	}
+}
 
 // AI commands that mutate config or send prompts all funnel through
 // support.ReadJSONFile with required=true. The error string comes from

@@ -193,7 +193,7 @@ type RunEvent struct {
 	ElapsedSeconds float64                `protobuf:"fixed64,2,opt,name=elapsed_seconds,json=elapsedSeconds,proto3" json:"elapsed_seconds,omitempty"`
 	// run_started / run_completed boundaries.
 	RunId       string `protobuf:"bytes,3,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
-	Scenario    string `protobuf:"bytes,4,opt,name=scenario,proto3" json:"scenario,omitempty"`
+	Target      string `protobuf:"bytes,4,opt,name=target,proto3" json:"target,omitempty"`
 	ArtifactDir string `protobuf:"bytes,5,opt,name=artifact_dir,json=artifactDir,proto3" json:"artifact_dir,omitempty"`
 	Preset      string `protobuf:"bytes,6,opt,name=preset,proto3" json:"preset,omitempty"`
 	// phase-scoped fields.
@@ -218,7 +218,7 @@ type RunEvent struct {
 	// Monotonic per-run cursor. Followers resume with this value in
 	// FollowRunRequest.after_sequence; it is intentionally not evidence.
 	Sequence      uint64               `protobuf:"varint,20,opt,name=sequence,proto3" json:"sequence,omitempty"`
-	Target        *v1.ValidationTarget `protobuf:"bytes,21,opt,name=target,proto3" json:"target,omitempty"`
+	TargetRef     *v1.ValidationTarget `protobuf:"bytes,21,opt,name=target_ref,json=targetRef,proto3" json:"target_ref,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -274,9 +274,9 @@ func (x *RunEvent) GetRunId() string {
 	return ""
 }
 
-func (x *RunEvent) GetScenario() string {
+func (x *RunEvent) GetTarget() string {
 	if x != nil {
-		return x.Scenario
+		return x.Target
 	}
 	return ""
 }
@@ -393,9 +393,9 @@ func (x *RunEvent) GetSequence() uint64 {
 	return 0
 }
 
-func (x *RunEvent) GetTarget() *v1.ValidationTarget {
+func (x *RunEvent) GetTargetRef() *v1.ValidationTarget {
 	if x != nil {
-		return x.Target
+		return x.TargetRef
 	}
 	return nil
 }
@@ -404,7 +404,7 @@ func (x *RunEvent) GetTarget() *v1.ValidationTarget {
 type RunLiveStatus struct {
 	state                     protoimpl.MessageState `protogen:"open.v1"`
 	RunId                     string                 `protobuf:"bytes,1,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
-	Scenario                  string                 `protobuf:"bytes,2,opt,name=scenario,proto3" json:"scenario,omitempty"`
+	Target                    string                 `protobuf:"bytes,2,opt,name=target,proto3" json:"target,omitempty"`
 	Status                    string                 `protobuf:"bytes,3,opt,name=status,proto3" json:"status,omitempty"` // in_progress | passed | failed | aborted
 	ActivePhase               string                 `protobuf:"bytes,4,opt,name=active_phase,json=activePhase,proto3" json:"active_phase,omitempty"`
 	PhaseIndex                int32                  `protobuf:"varint,5,opt,name=phase_index,json=phaseIndex,proto3" json:"phase_index,omitempty"`
@@ -444,7 +444,7 @@ type RunLiveStatus struct {
 	// evidence/presentation details; clients deciding whether to wait must use
 	// this standing rather than infer state from them.
 	Standing      *v1.OperationStanding `protobuf:"bytes,21,opt,name=standing,proto3" json:"standing,omitempty"`
-	Target        *v1.ValidationTarget  `protobuf:"bytes,22,opt,name=target,proto3" json:"target,omitempty"`
+	TargetRef     *v1.ValidationTarget  `protobuf:"bytes,22,opt,name=target_ref,json=targetRef,proto3" json:"target_ref,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -486,9 +486,9 @@ func (x *RunLiveStatus) GetRunId() string {
 	return ""
 }
 
-func (x *RunLiveStatus) GetScenario() string {
+func (x *RunLiveStatus) GetTarget() string {
 	if x != nil {
-		return x.Scenario
+		return x.Target
 	}
 	return ""
 }
@@ -626,16 +626,16 @@ func (x *RunLiveStatus) GetStanding() *v1.OperationStanding {
 	return nil
 }
 
-func (x *RunLiveStatus) GetTarget() *v1.ValidationTarget {
+func (x *RunLiveStatus) GetTargetRef() *v1.ValidationTarget {
 	if x != nil {
-		return x.Target
+		return x.TargetRef
 	}
 	return nil
 }
 
 type StartRunRequest struct {
 	state                  protoimpl.MessageState `protogen:"open.v1"`
-	Scenario               string                 `protobuf:"bytes,1,opt,name=scenario,proto3" json:"scenario,omitempty"`
+	Target                 string                 `protobuf:"bytes,1,opt,name=target,proto3" json:"target,omitempty"`
 	Preset                 string                 `protobuf:"bytes,2,opt,name=preset,proto3" json:"preset,omitempty"`
 	Phases                 []string               `protobuf:"bytes,3,rep,name=phases,proto3" json:"phases,omitempty"`
 	Skip                   []string               `protobuf:"bytes,4,rep,name=skip,proto3" json:"skip,omitempty"`
@@ -656,7 +656,7 @@ type StartRunRequest struct {
 	// callers leave this false and receive shared-scoped provenance when their
 	// declared inputs remain stable.
 	RequireGateQuality bool                 `protobuf:"varint,15,opt,name=require_gate_quality,json=requireGateQuality,proto3" json:"require_gate_quality,omitempty"`
-	Target             *v1.ValidationTarget `protobuf:"bytes,16,opt,name=target,proto3" json:"target,omitempty"`
+	TargetRef          *v1.ValidationTarget `protobuf:"bytes,16,opt,name=target_ref,json=targetRef,proto3" json:"target_ref,omitempty"`
 	unknownFields      protoimpl.UnknownFields
 	sizeCache          protoimpl.SizeCache
 }
@@ -691,9 +691,9 @@ func (*StartRunRequest) Descriptor() ([]byte, []int) {
 	return file_test_genie_v1_runs_runs_proto_rawDescGZIP(), []int{2}
 }
 
-func (x *StartRunRequest) GetScenario() string {
+func (x *StartRunRequest) GetTarget() string {
 	if x != nil {
-		return x.Scenario
+		return x.Target
 	}
 	return ""
 }
@@ -789,17 +789,17 @@ func (x *StartRunRequest) GetRequireGateQuality() bool {
 	return false
 }
 
-func (x *StartRunRequest) GetTarget() *v1.ValidationTarget {
+func (x *StartRunRequest) GetTargetRef() *v1.ValidationTarget {
 	if x != nil {
-		return x.Target
+		return x.TargetRef
 	}
 	return nil
 }
 
 type StartRunResponse struct {
-	state    protoimpl.MessageState `protogen:"open.v1"`
-	RunId    string                 `protobuf:"bytes,1,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
-	Scenario string                 `protobuf:"bytes,2,opt,name=scenario,proto3" json:"scenario,omitempty"`
+	state  protoimpl.MessageState `protogen:"open.v1"`
+	RunId  string                 `protobuf:"bytes,1,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
+	Target string                 `protobuf:"bytes,2,opt,name=target,proto3" json:"target,omitempty"`
 	// estimated_total_seconds is the summed plan-preview estimate; the CLI uses it
 	// to decide whether to follow inline or auto-background. 0 when unknown.
 	EstimatedTotalSeconds int32 `protobuf:"varint,3,opt,name=estimated_total_seconds,json=estimatedTotalSeconds,proto3" json:"estimated_total_seconds,omitempty"`
@@ -809,7 +809,7 @@ type StartRunResponse struct {
 	// starting a second suite. run_id is then the in-flight run's id. The
 	// one-run-per-scenario invariant means identical re-requests are idempotent.
 	Coalesced     bool                 `protobuf:"varint,5,opt,name=coalesced,proto3" json:"coalesced,omitempty"`
-	Target        *v1.ValidationTarget `protobuf:"bytes,6,opt,name=target,proto3" json:"target,omitempty"`
+	TargetRef     *v1.ValidationTarget `protobuf:"bytes,6,opt,name=target_ref,json=targetRef,proto3" json:"target_ref,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -851,9 +851,9 @@ func (x *StartRunResponse) GetRunId() string {
 	return ""
 }
 
-func (x *StartRunResponse) GetScenario() string {
+func (x *StartRunResponse) GetTarget() string {
 	if x != nil {
-		return x.Scenario
+		return x.Target
 	}
 	return ""
 }
@@ -879,9 +879,9 @@ func (x *StartRunResponse) GetCoalesced() bool {
 	return false
 }
 
-func (x *StartRunResponse) GetTarget() *v1.ValidationTarget {
+func (x *StartRunResponse) GetTargetRef() *v1.ValidationTarget {
 	if x != nil {
-		return x.Target
+		return x.TargetRef
 	}
 	return nil
 }
@@ -891,7 +891,7 @@ func (x *StartRunResponse) GetTarget() *v1.ValidationTarget {
 // render wait/abort guidance without parsing error strings.
 type RunBusyInfo struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Scenario      string                 `protobuf:"bytes,1,opt,name=scenario,proto3" json:"scenario,omitempty"`
+	Target        string                 `protobuf:"bytes,1,opt,name=target,proto3" json:"target,omitempty"`
 	RunId         string                 `protobuf:"bytes,2,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
 	Preset        string                 `protobuf:"bytes,3,opt,name=preset,proto3" json:"preset,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -928,9 +928,9 @@ func (*RunBusyInfo) Descriptor() ([]byte, []int) {
 	return file_test_genie_v1_runs_runs_proto_rawDescGZIP(), []int{4}
 }
 
-func (x *RunBusyInfo) GetScenario() string {
+func (x *RunBusyInfo) GetTarget() string {
 	if x != nil {
-		return x.Scenario
+		return x.Target
 	}
 	return ""
 }
@@ -950,9 +950,9 @@ func (x *RunBusyInfo) GetPreset() string {
 }
 
 type FollowRunRequest struct {
-	state    protoimpl.MessageState `protogen:"open.v1"`
-	Scenario string                 `protobuf:"bytes,1,opt,name=scenario,proto3" json:"scenario,omitempty"`
-	RunId    string                 `protobuf:"bytes,2,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
+	state  protoimpl.MessageState `protogen:"open.v1"`
+	Target string                 `protobuf:"bytes,1,opt,name=target,proto3" json:"target,omitempty"`
+	RunId  string                 `protobuf:"bytes,2,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
 	// suppress_heartbeats drops phase_heartbeat keep-alive events from THIS
 	// follower's stream (phase transitions and the terminal run_completed still
 	// flow). It is a per-follower filter, not a global toggle: the server's
@@ -1000,9 +1000,9 @@ func (*FollowRunRequest) Descriptor() ([]byte, []int) {
 	return file_test_genie_v1_runs_runs_proto_rawDescGZIP(), []int{5}
 }
 
-func (x *FollowRunRequest) GetScenario() string {
+func (x *FollowRunRequest) GetTarget() string {
 	if x != nil {
-		return x.Scenario
+		return x.Target
 	}
 	return ""
 }
@@ -1030,7 +1030,7 @@ func (x *FollowRunRequest) GetAfterSequence() uint64 {
 
 type WaitRunRequest struct {
 	state          protoimpl.MessageState `protogen:"open.v1"`
-	Scenario       string                 `protobuf:"bytes,1,opt,name=scenario,proto3" json:"scenario,omitempty"`
+	Target         string                 `protobuf:"bytes,1,opt,name=target,proto3" json:"target,omitempty"`
 	RunId          string                 `protobuf:"bytes,2,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
 	TimeoutSeconds int32                  `protobuf:"varint,3,opt,name=timeout_seconds,json=timeoutSeconds,proto3" json:"timeout_seconds,omitempty"` // 0 = block until terminal
 	unknownFields  protoimpl.UnknownFields
@@ -1067,9 +1067,9 @@ func (*WaitRunRequest) Descriptor() ([]byte, []int) {
 	return file_test_genie_v1_runs_runs_proto_rawDescGZIP(), []int{6}
 }
 
-func (x *WaitRunRequest) GetScenario() string {
+func (x *WaitRunRequest) GetTarget() string {
 	if x != nil {
-		return x.Scenario
+		return x.Target
 	}
 	return ""
 }
@@ -1169,7 +1169,7 @@ func (x *WaitRunResponse) GetDegradedReasons() []string {
 
 type AbortRunRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Scenario      string                 `protobuf:"bytes,1,opt,name=scenario,proto3" json:"scenario,omitempty"`
+	Target        string                 `protobuf:"bytes,1,opt,name=target,proto3" json:"target,omitempty"`
 	RunId         string                 `protobuf:"bytes,2,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -1205,9 +1205,9 @@ func (*AbortRunRequest) Descriptor() ([]byte, []int) {
 	return file_test_genie_v1_runs_runs_proto_rawDescGZIP(), []int{8}
 }
 
-func (x *AbortRunRequest) GetScenario() string {
+func (x *AbortRunRequest) GetTarget() string {
 	if x != nil {
-		return x.Scenario
+		return x.Target
 	}
 	return ""
 }
@@ -1265,7 +1265,7 @@ func (x *AbortRunResponse) GetStatus() *RunLiveStatus {
 
 type GetRunStatusRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Scenario      string                 `protobuf:"bytes,1,opt,name=scenario,proto3" json:"scenario,omitempty"`
+	Target        string                 `protobuf:"bytes,1,opt,name=target,proto3" json:"target,omitempty"`
 	RunId         string                 `protobuf:"bytes,2,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -1301,9 +1301,9 @@ func (*GetRunStatusRequest) Descriptor() ([]byte, []int) {
 	return file_test_genie_v1_runs_runs_proto_rawDescGZIP(), []int{10}
 }
 
-func (x *GetRunStatusRequest) GetScenario() string {
+func (x *GetRunStatusRequest) GetTarget() string {
 	if x != nil {
-		return x.Scenario
+		return x.Target
 	}
 	return ""
 }
@@ -1317,7 +1317,7 @@ func (x *GetRunStatusRequest) GetRunId() string {
 
 type GetCostReportRequest struct {
 	state                protoimpl.MessageState `protogen:"open.v1"`
-	Scenario             string                 `protobuf:"bytes,1,opt,name=scenario,proto3" json:"scenario,omitempty"`
+	Target               string                 `protobuf:"bytes,1,opt,name=target,proto3" json:"target,omitempty"`
 	WindowSeconds        int64                  `protobuf:"varint,2,opt,name=window_seconds,json=windowSeconds,proto3" json:"window_seconds,omitempty"`                        // 0 = 7 days
 	CompareWindowSeconds int64                  `protobuf:"varint,3,opt,name=compare_window_seconds,json=compareWindowSeconds,proto3" json:"compare_window_seconds,omitempty"` // 0 = no comparison
 	// fleet aggregates by PHASE across every scenario instead of reporting one
@@ -1359,9 +1359,9 @@ func (*GetCostReportRequest) Descriptor() ([]byte, []int) {
 	return file_test_genie_v1_runs_runs_proto_rawDescGZIP(), []int{11}
 }
 
-func (x *GetCostReportRequest) GetScenario() string {
+func (x *GetCostReportRequest) GetTarget() string {
 	if x != nil {
-		return x.Scenario
+		return x.Target
 	}
 	return ""
 }
@@ -1389,7 +1389,7 @@ func (x *GetCostReportRequest) GetFleet() bool {
 
 type CostPhaseSummary struct {
 	state                              protoimpl.MessageState `protogen:"open.v1"`
-	Scenario                           string                 `protobuf:"bytes,1,opt,name=scenario,proto3" json:"scenario,omitempty"`
+	Target                             string                 `protobuf:"bytes,1,opt,name=target,proto3" json:"target,omitempty"`
 	Phase                              string                 `protobuf:"bytes,2,opt,name=phase,proto3" json:"phase,omitempty"`
 	SampleCount                        int32                  `protobuf:"varint,3,opt,name=sample_count,json=sampleCount,proto3" json:"sample_count,omitempty"`
 	ReliableSampleCount                int32                  `protobuf:"varint,4,opt,name=reliable_sample_count,json=reliableSampleCount,proto3" json:"reliable_sample_count,omitempty"`
@@ -1468,9 +1468,9 @@ func (*CostPhaseSummary) Descriptor() ([]byte, []int) {
 	return file_test_genie_v1_runs_runs_proto_rawDescGZIP(), []int{12}
 }
 
-func (x *CostPhaseSummary) GetScenario() string {
+func (x *CostPhaseSummary) GetTarget() string {
 	if x != nil {
-		return x.Scenario
+		return x.Target
 	}
 	return ""
 }
@@ -2838,7 +2838,7 @@ func (x *RunDescriptorSnapshot) GetPhases() []*RunPhaseDescriptor {
 type RunInfo struct {
 	state           protoimpl.MessageState `protogen:"open.v1"`
 	RunId           string                 `protobuf:"bytes,1,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
-	Scenario        string                 `protobuf:"bytes,2,opt,name=scenario,proto3" json:"scenario,omitempty"`
+	Target          string                 `protobuf:"bytes,2,opt,name=target,proto3" json:"target,omitempty"`
 	StartedAt       string                 `protobuf:"bytes,3,opt,name=started_at,json=startedAt,proto3" json:"started_at,omitempty"`       // RFC3339
 	CompletedAt     string                 `protobuf:"bytes,4,opt,name=completed_at,json=completedAt,proto3" json:"completed_at,omitempty"` // RFC3339, empty if in-progress
 	Status          string                 `protobuf:"bytes,5,opt,name=status,proto3" json:"status,omitempty"`                              // in_progress | passed | failed | aborted
@@ -2876,13 +2876,13 @@ type RunInfo struct {
 	// whether the terminal behavior result can be compared.
 	EvidenceTier string `protobuf:"bytes,23,opt,name=evidence_tier,json=evidenceTier,proto3" json:"evidence_tier,omitempty"`
 	// Declared source boundary covered by tree_digest. Current implementations
-	// use scenario:<slug>; the string is deliberately additive for future
+	// use target:<kind>:<id>; the string is deliberately additive for future
 	// collection/dependency-closure scopes.
 	SourceScope string `protobuf:"bytes,24,opt,name=source_scope,json=sourceScope,proto3" json:"source_scope,omitempty"`
 	// False means relevant inputs changed while this attempt was executing; the
 	// result is retained for diagnosis but is ineligible for cache reuse.
 	SourceStable  bool                 `protobuf:"varint,25,opt,name=source_stable,json=sourceStable,proto3" json:"source_stable,omitempty"`
-	Target        *v1.ValidationTarget `protobuf:"bytes,26,opt,name=target,proto3" json:"target,omitempty"`
+	TargetRef     *v1.ValidationTarget `protobuf:"bytes,26,opt,name=target_ref,json=targetRef,proto3" json:"target_ref,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2924,9 +2924,9 @@ func (x *RunInfo) GetRunId() string {
 	return ""
 }
 
-func (x *RunInfo) GetScenario() string {
+func (x *RunInfo) GetTarget() string {
 	if x != nil {
-		return x.Scenario
+		return x.Target
 	}
 	return ""
 }
@@ -3092,16 +3092,16 @@ func (x *RunInfo) GetSourceStable() bool {
 	return false
 }
 
-func (x *RunInfo) GetTarget() *v1.ValidationTarget {
+func (x *RunInfo) GetTargetRef() *v1.ValidationTarget {
 	if x != nil {
-		return x.Target
+		return x.TargetRef
 	}
 	return nil
 }
 
 type ListRunsRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Scenario      string                 `protobuf:"bytes,1,opt,name=scenario,proto3" json:"scenario,omitempty"`
+	Target        string                 `protobuf:"bytes,1,opt,name=target,proto3" json:"target,omitempty"`
 	Status        string                 `protobuf:"bytes,2,opt,name=status,proto3" json:"status,omitempty"` // optional filter: passed | failed | ...
 	Limit         int32                  `protobuf:"varint,3,opt,name=limit,proto3" json:"limit,omitempty"`  // 0 = all
 	unknownFields protoimpl.UnknownFields
@@ -3138,9 +3138,9 @@ func (*ListRunsRequest) Descriptor() ([]byte, []int) {
 	return file_test_genie_v1_runs_runs_proto_rawDescGZIP(), []int{25}
 }
 
-func (x *ListRunsRequest) GetScenario() string {
+func (x *ListRunsRequest) GetTarget() string {
 	if x != nil {
-		return x.Scenario
+		return x.Target
 	}
 	return ""
 }
@@ -3205,7 +3205,7 @@ func (x *ListRunsResponse) GetRuns() []*RunInfo {
 
 type GetRunRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Scenario      string                 `protobuf:"bytes,1,opt,name=scenario,proto3" json:"scenario,omitempty"`
+	Target        string                 `protobuf:"bytes,1,opt,name=target,proto3" json:"target,omitempty"`
 	RunId         string                 `protobuf:"bytes,2,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -3241,9 +3241,9 @@ func (*GetRunRequest) Descriptor() ([]byte, []int) {
 	return file_test_genie_v1_runs_runs_proto_rawDescGZIP(), []int{27}
 }
 
-func (x *GetRunRequest) GetScenario() string {
+func (x *GetRunRequest) GetTarget() string {
 	if x != nil {
-		return x.Scenario
+		return x.Target
 	}
 	return ""
 }
@@ -3317,7 +3317,7 @@ func (x *GetRunResponse) GetDegradedReasons() []string {
 
 type DeleteRunRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Scenario      string                 `protobuf:"bytes,1,opt,name=scenario,proto3" json:"scenario,omitempty"`
+	Target        string                 `protobuf:"bytes,1,opt,name=target,proto3" json:"target,omitempty"`
 	RunId         string                 `protobuf:"bytes,2,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
 	Force         bool                   `protobuf:"varint,3,opt,name=force,proto3" json:"force,omitempty"` // required to delete a pinned run
 	unknownFields protoimpl.UnknownFields
@@ -3354,9 +3354,9 @@ func (*DeleteRunRequest) Descriptor() ([]byte, []int) {
 	return file_test_genie_v1_runs_runs_proto_rawDescGZIP(), []int{29}
 }
 
-func (x *DeleteRunRequest) GetScenario() string {
+func (x *DeleteRunRequest) GetTarget() string {
 	if x != nil {
-		return x.Scenario
+		return x.Target
 	}
 	return ""
 }
@@ -3421,7 +3421,7 @@ func (x *DeleteRunResponse) GetDeleted() bool {
 
 type PinRunRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Scenario      string                 `protobuf:"bytes,1,opt,name=scenario,proto3" json:"scenario,omitempty"`
+	Target        string                 `protobuf:"bytes,1,opt,name=target,proto3" json:"target,omitempty"`
 	RunId         string                 `protobuf:"bytes,2,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
 	PinnedBy      string                 `protobuf:"bytes,3,opt,name=pinned_by,json=pinnedBy,proto3" json:"pinned_by,omitempty"` // e.g. "gct:baseline:plan-7c3"
 	Reason        string                 `protobuf:"bytes,4,opt,name=reason,proto3" json:"reason,omitempty"`
@@ -3459,9 +3459,9 @@ func (*PinRunRequest) Descriptor() ([]byte, []int) {
 	return file_test_genie_v1_runs_runs_proto_rawDescGZIP(), []int{31}
 }
 
-func (x *PinRunRequest) GetScenario() string {
+func (x *PinRunRequest) GetTarget() string {
 	if x != nil {
-		return x.Scenario
+		return x.Target
 	}
 	return ""
 }
@@ -3533,7 +3533,7 @@ func (x *PinRunResponse) GetRun() *RunInfo {
 
 type UnpinRunRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Scenario      string                 `protobuf:"bytes,1,opt,name=scenario,proto3" json:"scenario,omitempty"`
+	Target        string                 `protobuf:"bytes,1,opt,name=target,proto3" json:"target,omitempty"`
 	RunId         string                 `protobuf:"bytes,2,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
 	PinnedBy      string                 `protobuf:"bytes,3,opt,name=pinned_by,json=pinnedBy,proto3" json:"pinned_by,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -3570,9 +3570,9 @@ func (*UnpinRunRequest) Descriptor() ([]byte, []int) {
 	return file_test_genie_v1_runs_runs_proto_rawDescGZIP(), []int{33}
 }
 
-func (x *UnpinRunRequest) GetScenario() string {
+func (x *UnpinRunRequest) GetTarget() string {
 	if x != nil {
-		return x.Scenario
+		return x.Target
 	}
 	return ""
 }
@@ -3637,7 +3637,7 @@ func (x *UnpinRunResponse) GetRun() *RunInfo {
 
 type CompareRunsRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Scenario      string                 `protobuf:"bytes,1,opt,name=scenario,proto3" json:"scenario,omitempty"`
+	Target        string                 `protobuf:"bytes,1,opt,name=target,proto3" json:"target,omitempty"`
 	RunIdA        string                 `protobuf:"bytes,2,opt,name=run_id_a,json=runIdA,proto3" json:"run_id_a,omitempty"` // baseline
 	RunIdB        string                 `protobuf:"bytes,3,opt,name=run_id_b,json=runIdB,proto3" json:"run_id_b,omitempty"` // current
 	Phase         string                 `protobuf:"bytes,4,opt,name=phase,proto3" json:"phase,omitempty"`                   // optional: restrict to one phase
@@ -3675,9 +3675,9 @@ func (*CompareRunsRequest) Descriptor() ([]byte, []int) {
 	return file_test_genie_v1_runs_runs_proto_rawDescGZIP(), []int{35}
 }
 
-func (x *CompareRunsRequest) GetScenario() string {
+func (x *CompareRunsRequest) GetTarget() string {
 	if x != nil {
-		return x.Scenario
+		return x.Target
 	}
 	return ""
 }
@@ -4121,8 +4121,8 @@ func (x *CompareRunsResponse) GetDiagnostics() []*ComparisonDiagnostic {
 }
 
 type FindRunRequest struct {
-	state    protoimpl.MessageState `protogen:"open.v1"`
-	Scenario string                 `protobuf:"bytes,1,opt,name=scenario,proto3" json:"scenario,omitempty"`
+	state  protoimpl.MessageState `protogen:"open.v1"`
+	Target string                 `protobuf:"bytes,1,opt,name=target,proto3" json:"target,omitempty"`
 	// All match filters are exact-match and optional (empty = don't constrain):
 	GitSha         string `protobuf:"bytes,2,opt,name=git_sha,json=gitSha,proto3" json:"git_sha,omitempty"`
 	TreeDigest     string `protobuf:"bytes,3,opt,name=tree_digest,json=treeDigest,proto3" json:"tree_digest,omitempty"`
@@ -4178,9 +4178,9 @@ func (*FindRunRequest) Descriptor() ([]byte, []int) {
 	return file_test_genie_v1_runs_runs_proto_rawDescGZIP(), []int{40}
 }
 
-func (x *FindRunRequest) GetScenario() string {
+func (x *FindRunRequest) GetTarget() string {
 	if x != nil {
-		return x.Scenario
+		return x.Target
 	}
 	return ""
 }
@@ -4302,7 +4302,7 @@ func (x *FindRunResponse) GetRun() *RunInfo {
 
 type GetPhaseArtifactRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Scenario      string                 `protobuf:"bytes,1,opt,name=scenario,proto3" json:"scenario,omitempty"`
+	Target        string                 `protobuf:"bytes,1,opt,name=target,proto3" json:"target,omitempty"`
 	RunId         string                 `protobuf:"bytes,2,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
 	Phase         string                 `protobuf:"bytes,3,opt,name=phase,proto3" json:"phase,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -4339,9 +4339,9 @@ func (*GetPhaseArtifactRequest) Descriptor() ([]byte, []int) {
 	return file_test_genie_v1_runs_runs_proto_rawDescGZIP(), []int{42}
 }
 
-func (x *GetPhaseArtifactRequest) GetScenario() string {
+func (x *GetPhaseArtifactRequest) GetTarget() string {
 	if x != nil {
-		return x.Scenario
+		return x.Target
 	}
 	return ""
 }
@@ -4670,10 +4670,10 @@ func (x *ArtifactRef) GetProvenance() ArtifactProvenance {
 }
 
 type ListRunArtifactsRequest struct {
-	state    protoimpl.MessageState `protogen:"open.v1"`
-	Scenario string                 `protobuf:"bytes,1,opt,name=scenario,proto3" json:"scenario,omitempty"`
-	RunId    string                 `protobuf:"bytes,2,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
-	Kinds    []string               `protobuf:"bytes,3,rep,name=kinds,proto3" json:"kinds,omitempty"`
+	state  protoimpl.MessageState `protogen:"open.v1"`
+	Target string                 `protobuf:"bytes,1,opt,name=target,proto3" json:"target,omitempty"`
+	RunId  string                 `protobuf:"bytes,2,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
+	Kinds  []string               `protobuf:"bytes,3,rep,name=kinds,proto3" json:"kinds,omitempty"`
 	// Optional metadata filter. Consumers never need a phase filter to discover
 	// screenshots, workflow recordings, or another evidence kind.
 	ProducingPhase string `protobuf:"bytes,4,opt,name=producing_phase,json=producingPhase,proto3" json:"producing_phase,omitempty"`
@@ -4711,9 +4711,9 @@ func (*ListRunArtifactsRequest) Descriptor() ([]byte, []int) {
 	return file_test_genie_v1_runs_runs_proto_rawDescGZIP(), []int{47}
 }
 
-func (x *ListRunArtifactsRequest) GetScenario() string {
+func (x *ListRunArtifactsRequest) GetTarget() string {
 	if x != nil {
-		return x.Scenario
+		return x.Target
 	}
 	return ""
 }
@@ -4817,7 +4817,7 @@ func (x *ListRunArtifactsResponse) GetDegradedReasons() []string {
 
 type GetRunArtifactRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Scenario      string                 `protobuf:"bytes,1,opt,name=scenario,proto3" json:"scenario,omitempty"`
+	Target        string                 `protobuf:"bytes,1,opt,name=target,proto3" json:"target,omitempty"`
 	RunId         string                 `protobuf:"bytes,2,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
 	ArtifactId    string                 `protobuf:"bytes,3,opt,name=artifact_id,json=artifactId,proto3" json:"artifact_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -4854,9 +4854,9 @@ func (*GetRunArtifactRequest) Descriptor() ([]byte, []int) {
 	return file_test_genie_v1_runs_runs_proto_rawDescGZIP(), []int{49}
 }
 
-func (x *GetRunArtifactRequest) GetScenario() string {
+func (x *GetRunArtifactRequest) GetTarget() string {
 	if x != nil {
-		return x.Scenario
+		return x.Target
 	}
 	return ""
 }
@@ -4928,8 +4928,8 @@ func (x *GetRunArtifactResponse) GetLegacyDiscovered() bool {
 }
 
 type GetRunFindingsRequest struct {
-	state    protoimpl.MessageState `protogen:"open.v1"`
-	Scenario string                 `protobuf:"bytes,1,opt,name=scenario,proto3" json:"scenario,omitempty"`
+	state  protoimpl.MessageState `protogen:"open.v1"`
+	Target string                 `protobuf:"bytes,1,opt,name=target,proto3" json:"target,omitempty"`
 	// run_id selects the run; empty or "latest" resolves to the latest run.
 	RunId         string `protobuf:"bytes,2,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -4966,9 +4966,9 @@ func (*GetRunFindingsRequest) Descriptor() ([]byte, []int) {
 	return file_test_genie_v1_runs_runs_proto_rawDescGZIP(), []int{51}
 }
 
-func (x *GetRunFindingsRequest) GetScenario() string {
+func (x *GetRunFindingsRequest) GetTarget() string {
 	if x != nil {
-		return x.Scenario
+		return x.Target
 	}
 	return ""
 }
@@ -5074,7 +5074,7 @@ func (x *RunFindingsPhase) GetPhasePresentation() *v1.PhasePresentation {
 // stands without re-running the suite.
 type GetRunFindingsResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Scenario      string                 `protobuf:"bytes,1,opt,name=scenario,proto3" json:"scenario,omitempty"`
+	Target        string                 `protobuf:"bytes,1,opt,name=target,proto3" json:"target,omitempty"`
 	RunId         string                 `protobuf:"bytes,2,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
 	Verdict       string                 `protobuf:"bytes,3,opt,name=verdict,proto3" json:"verdict,omitempty"`
 	CompletedAt   string                 `protobuf:"bytes,4,opt,name=completed_at,json=completedAt,proto3" json:"completed_at,omitempty"` // RFC3339
@@ -5113,9 +5113,9 @@ func (*GetRunFindingsResponse) Descriptor() ([]byte, []int) {
 	return file_test_genie_v1_runs_runs_proto_rawDescGZIP(), []int{53}
 }
 
-func (x *GetRunFindingsResponse) GetScenario() string {
+func (x *GetRunFindingsResponse) GetTarget() string {
 	if x != nil {
-		return x.Scenario
+		return x.Target
 	}
 	return ""
 }
@@ -5212,7 +5212,7 @@ func (x *RunVideo) GetSizeBytes() int64 {
 
 type ListRunVideosRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Scenario      string                 `protobuf:"bytes,1,opt,name=scenario,proto3" json:"scenario,omitempty"`
+	Target        string                 `protobuf:"bytes,1,opt,name=target,proto3" json:"target,omitempty"`
 	RunId         string                 `protobuf:"bytes,2,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -5248,9 +5248,9 @@ func (*ListRunVideosRequest) Descriptor() ([]byte, []int) {
 	return file_test_genie_v1_runs_runs_proto_rawDescGZIP(), []int{55}
 }
 
-func (x *ListRunVideosRequest) GetScenario() string {
+func (x *ListRunVideosRequest) GetTarget() string {
 	if x != nil {
-		return x.Scenario
+		return x.Target
 	}
 	return ""
 }
@@ -5392,7 +5392,7 @@ func (x *RunVisual) GetScreenshotSizeBytes() int64 {
 
 type ListRunVisualsRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Scenario      string                 `protobuf:"bytes,1,opt,name=scenario,proto3" json:"scenario,omitempty"`
+	Target        string                 `protobuf:"bytes,1,opt,name=target,proto3" json:"target,omitempty"`
 	RunId         string                 `protobuf:"bytes,2,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -5428,9 +5428,9 @@ func (*ListRunVisualsRequest) Descriptor() ([]byte, []int) {
 	return file_test_genie_v1_runs_runs_proto_rawDescGZIP(), []int{58}
 }
 
-func (x *ListRunVisualsRequest) GetScenario() string {
+func (x *ListRunVisualsRequest) GetTarget() string {
 	if x != nil {
-		return x.Scenario
+		return x.Target
 	}
 	return ""
 }
@@ -5488,7 +5488,7 @@ func (x *ListRunVisualsResponse) GetVisuals() []*RunVisual {
 
 type CompareRunVisualsRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Scenario      string                 `protobuf:"bytes,1,opt,name=scenario,proto3" json:"scenario,omitempty"`
+	Target        string                 `protobuf:"bytes,1,opt,name=target,proto3" json:"target,omitempty"`
 	BaseRunId     string                 `protobuf:"bytes,2,opt,name=base_run_id,json=baseRunId,proto3" json:"base_run_id,omitempty"`
 	CurrentRunId  string                 `protobuf:"bytes,3,opt,name=current_run_id,json=currentRunId,proto3" json:"current_run_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -5525,9 +5525,9 @@ func (*CompareRunVisualsRequest) Descriptor() ([]byte, []int) {
 	return file_test_genie_v1_runs_runs_proto_rawDescGZIP(), []int{60}
 }
 
-func (x *CompareRunVisualsRequest) GetScenario() string {
+func (x *CompareRunVisualsRequest) GetTarget() string {
 	if x != nil {
-		return x.Scenario
+		return x.Target
 	}
 	return ""
 }
@@ -5682,8 +5682,8 @@ func (x *CompareRunVisualsResponse) GetDeltas() []*VisualDelta {
 }
 
 type CheckFreshnessRequest struct {
-	state    protoimpl.MessageState `protogen:"open.v1"`
-	Scenario string                 `protobuf:"bytes,1,opt,name=scenario,proto3" json:"scenario,omitempty"`
+	state  protoimpl.MessageState `protogen:"open.v1"`
+	Target string                 `protobuf:"bytes,1,opt,name=target,proto3" json:"target,omitempty"`
 	// phases to check. Empty = the global required set (test-genie's quick
 	// preset — a code-level SSOT, deliberately NOT per-scenario configurable).
 	Phases        []string `protobuf:"bytes,2,rep,name=phases,proto3" json:"phases,omitempty"`
@@ -5721,9 +5721,9 @@ func (*CheckFreshnessRequest) Descriptor() ([]byte, []int) {
 	return file_test_genie_v1_runs_runs_proto_rawDescGZIP(), []int{63}
 }
 
-func (x *CheckFreshnessRequest) GetScenario() string {
+func (x *CheckFreshnessRequest) GetTarget() string {
 	if x != nil {
-		return x.Scenario
+		return x.Target
 	}
 	return ""
 }
@@ -5810,8 +5810,8 @@ func (x *PhaseFreshness) GetLastRunCompletedAt() string {
 }
 
 type CheckFreshnessResponse struct {
-	state    protoimpl.MessageState `protogen:"open.v1"`
-	Scenario string                 `protobuf:"bytes,1,opt,name=scenario,proto3" json:"scenario,omitempty"`
+	state  protoimpl.MessageState `protogen:"open.v1"`
+	Target string                 `protobuf:"bytes,1,opt,name=target,proto3" json:"target,omitempty"`
 	// tree_digest is the scenario's CURRENT working-tree digest the verdicts
 	// were computed against.
 	TreeDigest string            `protobuf:"bytes,2,opt,name=tree_digest,json=treeDigest,proto3" json:"tree_digest,omitempty"`
@@ -5853,9 +5853,9 @@ func (*CheckFreshnessResponse) Descriptor() ([]byte, []int) {
 	return file_test_genie_v1_runs_runs_proto_rawDescGZIP(), []int{65}
 }
 
-func (x *CheckFreshnessResponse) GetScenario() string {
+func (x *CheckFreshnessResponse) GetTarget() string {
 	if x != nil {
-		return x.Scenario
+		return x.Target
 	}
 	return ""
 }
@@ -6399,7 +6399,7 @@ type FleetAlert struct {
 	state           protoimpl.MessageState `protogen:"open.v1"`
 	Code            string                 `protobuf:"bytes,1,opt,name=code,proto3" json:"code,omitempty"`
 	Severity        string                 `protobuf:"bytes,2,opt,name=severity,proto3" json:"severity,omitempty"` // warning | error
-	Scenario        string                 `protobuf:"bytes,3,opt,name=scenario,proto3" json:"scenario,omitempty"`
+	Target          string                 `protobuf:"bytes,3,opt,name=target,proto3" json:"target,omitempty"`
 	Source          string                 `protobuf:"bytes,4,opt,name=source,proto3" json:"source,omitempty"`
 	Message         string                 `protobuf:"bytes,5,opt,name=message,proto3" json:"message,omitempty"`
 	EvidenceAgeDays float64                `protobuf:"fixed64,6,opt,name=evidence_age_days,json=evidenceAgeDays,proto3" json:"evidence_age_days,omitempty"`
@@ -6454,9 +6454,9 @@ func (x *FleetAlert) GetSeverity() string {
 	return ""
 }
 
-func (x *FleetAlert) GetScenario() string {
+func (x *FleetAlert) GetTarget() string {
 	if x != nil {
-		return x.Scenario
+		return x.Target
 	}
 	return ""
 }
@@ -6507,7 +6507,7 @@ func (x *FleetAlert) GetRollbackPath() string {
 // runs. last_run_at + age_days make staleness explicit per scenario.
 type FleetScenarioHealth struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Scenario      string                 `protobuf:"bytes,1,opt,name=scenario,proto3" json:"scenario,omitempty"`
+	Target        string                 `protobuf:"bytes,1,opt,name=target,proto3" json:"target,omitempty"`
 	Runs          int32                  `protobuf:"varint,2,opt,name=runs,proto3" json:"runs,omitempty"`
 	PassedRuns    int32                  `protobuf:"varint,3,opt,name=passed_runs,json=passedRuns,proto3" json:"passed_runs,omitempty"`
 	FailedRuns    int32                  `protobuf:"varint,4,opt,name=failed_runs,json=failedRuns,proto3" json:"failed_runs,omitempty"`
@@ -6551,9 +6551,9 @@ func (*FleetScenarioHealth) Descriptor() ([]byte, []int) {
 	return file_test_genie_v1_runs_runs_proto_rawDescGZIP(), []int{74}
 }
 
-func (x *FleetScenarioHealth) GetScenario() string {
+func (x *FleetScenarioHealth) GetTarget() string {
 	if x != nil {
-		return x.Scenario
+		return x.Target
 	}
 	return ""
 }
@@ -7753,7 +7753,7 @@ func (x *SecurityFriction) GetTimeToGreen() *DurationStats {
 // ScenarioFailureRate ranks a scenario's failure rate for one phase.
 type ScenarioFailureRate struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Scenario      string                 `protobuf:"bytes,1,opt,name=scenario,proto3" json:"scenario,omitempty"`
+	Target        string                 `protobuf:"bytes,1,opt,name=target,proto3" json:"target,omitempty"`
 	Executed      int32                  `protobuf:"varint,2,opt,name=executed,proto3" json:"executed,omitempty"`
 	Failures      int32                  `protobuf:"varint,3,opt,name=failures,proto3" json:"failures,omitempty"`
 	FailureRate   float64                `protobuf:"fixed64,4,opt,name=failure_rate,json=failureRate,proto3" json:"failure_rate,omitempty"`
@@ -7791,9 +7791,9 @@ func (*ScenarioFailureRate) Descriptor() ([]byte, []int) {
 	return file_test_genie_v1_runs_runs_proto_rawDescGZIP(), []int{88}
 }
 
-func (x *ScenarioFailureRate) GetScenario() string {
+func (x *ScenarioFailureRate) GetTarget() string {
 	if x != nil {
-		return x.Scenario
+		return x.Target
 	}
 	return ""
 }
@@ -8127,12 +8127,12 @@ var File_test_genie_v1_runs_runs_proto protoreflect.FileDescriptor
 
 const file_test_genie_v1_runs_runs_proto_rawDesc = "" +
 	"\n" +
-	"\x1dtest-genie/v1/runs/runs.proto\x12\x19vrooli.test_genie.v1.runs\x1a\x18common/v1/maturity.proto\x1a\x1acommon/v1/operations.proto\x1a!common/v1/validation_target.proto\"\xb4\x06\n" +
+	"\x1dtest-genie/v1/runs/runs.proto\x12\x19vrooli.test_genie.v1.runs\x1a\x18common/v1/maturity.proto\x1a\x1acommon/v1/operations.proto\x1a!common/v1/validation_target.proto\"\xb7\x06\n" +
 	"\bRunEvent\x12\x14\n" +
 	"\x05event\x18\x01 \x01(\tR\x05event\x12'\n" +
 	"\x0felapsed_seconds\x18\x02 \x01(\x01R\x0eelapsedSeconds\x12\x15\n" +
-	"\x06run_id\x18\x03 \x01(\tR\x05runId\x12\x1a\n" +
-	"\bscenario\x18\x04 \x01(\tR\bscenario\x12!\n" +
+	"\x06run_id\x18\x03 \x01(\tR\x05runId\x12\x16\n" +
+	"\x06target\x18\x04 \x01(\tR\x06target\x12!\n" +
 	"\fartifact_dir\x18\x05 \x01(\tR\vartifactDir\x12\x16\n" +
 	"\x06preset\x18\x06 \x01(\tR\x06preset\x12\x14\n" +
 	"\x05phase\x18\a \x01(\tR\x05phase\x12\x1f\n" +
@@ -8151,11 +8151,12 @@ const file_test_genie_v1_runs_runs_proto_rawDesc = "" +
 	"\x11maturity_standing\x18\x11 \x01(\v20.vrooli.test_genie.v1.runs.PhaseMaturityStandingR\x10maturityStanding\x12Z\n" +
 	"\x10findings_summary\x18\x12 \x01(\v2/.vrooli.test_genie.v1.runs.PhaseFindingsSummaryR\x0ffindingsSummary\x12K\n" +
 	"\x12phase_presentation\x18\x13 \x01(\v2\x1c.common.v1.PhasePresentationR\x11phasePresentation\x12\x1a\n" +
-	"\bsequence\x18\x14 \x01(\x04R\bsequence\x123\n" +
-	"\x06target\x18\x15 \x01(\v2\x1b.common.v1.ValidationTargetR\x06target\"\x84\b\n" +
+	"\bsequence\x18\x14 \x01(\x04R\bsequence\x12:\n" +
+	"\n" +
+	"target_ref\x18\x15 \x01(\v2\x1b.common.v1.ValidationTargetR\ttargetRef\"\x87\b\n" +
 	"\rRunLiveStatus\x12\x15\n" +
-	"\x06run_id\x18\x01 \x01(\tR\x05runId\x12\x1a\n" +
-	"\bscenario\x18\x02 \x01(\tR\bscenario\x12\x16\n" +
+	"\x06run_id\x18\x01 \x01(\tR\x05runId\x12\x16\n" +
+	"\x06target\x18\x02 \x01(\tR\x06target\x12\x16\n" +
 	"\x06status\x18\x03 \x01(\tR\x06status\x12!\n" +
 	"\factive_phase\x18\x04 \x01(\tR\vactivePhase\x12\x1f\n" +
 	"\vphase_index\x18\x05 \x01(\x05R\n" +
@@ -8178,10 +8179,11 @@ const file_test_genie_v1_runs_runs_proto_rawDesc = "" +
 	"\x1bterminal_findings_summaries\x18\x12 \x03(\v2/.vrooli.test_genie.v1.runs.PhaseFindingsSummaryR\x19terminalFindingsSummaries\x12)\n" +
 	"\x10degraded_reasons\x18\x13 \x03(\tR\x0fdegradedReasons\x12S\n" +
 	"\x16terminal_presentations\x18\x14 \x03(\v2\x1c.common.v1.PhasePresentationR\x15terminalPresentations\x128\n" +
-	"\bstanding\x18\x15 \x01(\v2\x1c.common.v1.OperationStandingR\bstanding\x123\n" +
-	"\x06target\x18\x16 \x01(\v2\x1b.common.v1.ValidationTargetR\x06target\"\xca\x04\n" +
-	"\x0fStartRunRequest\x12\x1a\n" +
-	"\bscenario\x18\x01 \x01(\tR\bscenario\x12\x16\n" +
+	"\bstanding\x18\x15 \x01(\v2\x1c.common.v1.OperationStandingR\bstanding\x12:\n" +
+	"\n" +
+	"target_ref\x18\x16 \x01(\v2\x1b.common.v1.ValidationTargetR\ttargetRef\"\xcd\x04\n" +
+	"\x0fStartRunRequest\x12\x16\n" +
+	"\x06target\x18\x01 \x01(\tR\x06target\x12\x16\n" +
 	"\x06preset\x18\x02 \x01(\tR\x06preset\x12\x16\n" +
 	"\x06phases\x18\x03 \x03(\tR\x06phases\x12\x12\n" +
 	"\x04skip\x18\x04 \x03(\tR\x04skip\x12\x1b\n" +
@@ -8195,27 +8197,29 @@ const file_test_genie_v1_runs_runs_proto_rawDesc = "" +
 	"\x19logical_scenario_rel_path\x18\f \x01(\tR\x16logicalScenarioRelPath\x12(\n" +
 	"\x10suite_request_id\x18\r \x01(\tR\x0esuiteRequestId\x12'\n" +
 	"\x0fcapture_profile\x18\x0e \x01(\tR\x0ecaptureProfile\x120\n" +
-	"\x14require_gate_quality\x18\x0f \x01(\bR\x12requireGateQuality\x123\n" +
-	"\x06target\x18\x10 \x01(\v2\x1b.common.v1.ValidationTargetR\x06targetJ\x04\b\t\x10\n" +
-	"R\x0fbrowserless_url\"\xed\x01\n" +
+	"\x14require_gate_quality\x18\x0f \x01(\bR\x12requireGateQuality\x12:\n" +
+	"\n" +
+	"target_ref\x18\x10 \x01(\v2\x1b.common.v1.ValidationTargetR\ttargetRefJ\x04\b\t\x10\n" +
+	"R\x0fbrowserless_url\"\xf0\x01\n" +
 	"\x10StartRunResponse\x12\x15\n" +
-	"\x06run_id\x18\x01 \x01(\tR\x05runId\x12\x1a\n" +
-	"\bscenario\x18\x02 \x01(\tR\bscenario\x126\n" +
+	"\x06run_id\x18\x01 \x01(\tR\x05runId\x12\x16\n" +
+	"\x06target\x18\x02 \x01(\tR\x06target\x126\n" +
 	"\x17estimated_total_seconds\x18\x03 \x01(\x05R\x15estimatedTotalSeconds\x12\x1b\n" +
 	"\teta_known\x18\x04 \x01(\bR\betaKnown\x12\x1c\n" +
-	"\tcoalesced\x18\x05 \x01(\bR\tcoalesced\x123\n" +
-	"\x06target\x18\x06 \x01(\v2\x1b.common.v1.ValidationTargetR\x06target\"X\n" +
-	"\vRunBusyInfo\x12\x1a\n" +
-	"\bscenario\x18\x01 \x01(\tR\bscenario\x12\x15\n" +
+	"\tcoalesced\x18\x05 \x01(\bR\tcoalesced\x12:\n" +
+	"\n" +
+	"target_ref\x18\x06 \x01(\v2\x1b.common.v1.ValidationTargetR\ttargetRef\"T\n" +
+	"\vRunBusyInfo\x12\x16\n" +
+	"\x06target\x18\x01 \x01(\tR\x06target\x12\x15\n" +
 	"\x06run_id\x18\x02 \x01(\tR\x05runId\x12\x16\n" +
-	"\x06preset\x18\x03 \x01(\tR\x06preset\"\x9d\x01\n" +
-	"\x10FollowRunRequest\x12\x1a\n" +
-	"\bscenario\x18\x01 \x01(\tR\bscenario\x12\x15\n" +
+	"\x06preset\x18\x03 \x01(\tR\x06preset\"\x99\x01\n" +
+	"\x10FollowRunRequest\x12\x16\n" +
+	"\x06target\x18\x01 \x01(\tR\x06target\x12\x15\n" +
 	"\x06run_id\x18\x02 \x01(\tR\x05runId\x12/\n" +
 	"\x13suppress_heartbeats\x18\x03 \x01(\bR\x12suppressHeartbeats\x12%\n" +
-	"\x0eafter_sequence\x18\x04 \x01(\x04R\rafterSequence\"l\n" +
-	"\x0eWaitRunRequest\x12\x1a\n" +
-	"\bscenario\x18\x01 \x01(\tR\bscenario\x12\x15\n" +
+	"\x0eafter_sequence\x18\x04 \x01(\x04R\rafterSequence\"h\n" +
+	"\x0eWaitRunRequest\x12\x16\n" +
+	"\x06target\x18\x01 \x01(\tR\x06target\x12\x15\n" +
 	"\x06run_id\x18\x02 \x01(\tR\x05runId\x12'\n" +
 	"\x0ftimeout_seconds\x18\x03 \x01(\x05R\x0etimeoutSeconds\"\xab\x02\n" +
 	"\x0fWaitRunResponse\x12@\n" +
@@ -8223,22 +8227,22 @@ const file_test_genie_v1_runs_runs_proto_rawDesc = "" +
 	"\ttimed_out\x18\x02 \x01(\bR\btimedOut\x12E\n" +
 	"\fterminal_run\x18\x03 \x01(\v2\".vrooli.test_genie.v1.runs.RunInfoR\vterminalRun\x12G\n" +
 	" terminal_snapshot_schema_version\x18\x04 \x01(\x05R\x1dterminalSnapshotSchemaVersion\x12)\n" +
-	"\x10degraded_reasons\x18\x05 \x03(\tR\x0fdegradedReasons\"D\n" +
-	"\x0fAbortRunRequest\x12\x1a\n" +
-	"\bscenario\x18\x01 \x01(\tR\bscenario\x12\x15\n" +
+	"\x10degraded_reasons\x18\x05 \x03(\tR\x0fdegradedReasons\"@\n" +
+	"\x0fAbortRunRequest\x12\x16\n" +
+	"\x06target\x18\x01 \x01(\tR\x06target\x12\x15\n" +
 	"\x06run_id\x18\x02 \x01(\tR\x05runId\"T\n" +
 	"\x10AbortRunResponse\x12@\n" +
-	"\x06status\x18\x01 \x01(\v2(.vrooli.test_genie.v1.runs.RunLiveStatusR\x06status\"H\n" +
-	"\x13GetRunStatusRequest\x12\x1a\n" +
-	"\bscenario\x18\x01 \x01(\tR\bscenario\x12\x15\n" +
-	"\x06run_id\x18\x02 \x01(\tR\x05runId\"\xa5\x01\n" +
-	"\x14GetCostReportRequest\x12\x1a\n" +
-	"\bscenario\x18\x01 \x01(\tR\bscenario\x12%\n" +
+	"\x06status\x18\x01 \x01(\v2(.vrooli.test_genie.v1.runs.RunLiveStatusR\x06status\"D\n" +
+	"\x13GetRunStatusRequest\x12\x16\n" +
+	"\x06target\x18\x01 \x01(\tR\x06target\x12\x15\n" +
+	"\x06run_id\x18\x02 \x01(\tR\x05runId\"\xa1\x01\n" +
+	"\x14GetCostReportRequest\x12\x16\n" +
+	"\x06target\x18\x01 \x01(\tR\x06target\x12%\n" +
 	"\x0ewindow_seconds\x18\x02 \x01(\x03R\rwindowSeconds\x124\n" +
 	"\x16compare_window_seconds\x18\x03 \x01(\x03R\x14compareWindowSeconds\x12\x14\n" +
-	"\x05fleet\x18\x04 \x01(\bR\x05fleet\"\x84\x0f\n" +
-	"\x10CostPhaseSummary\x12\x1a\n" +
-	"\bscenario\x18\x01 \x01(\tR\bscenario\x12\x14\n" +
+	"\x05fleet\x18\x04 \x01(\bR\x05fleet\"\x80\x0f\n" +
+	"\x10CostPhaseSummary\x12\x16\n" +
+	"\x06target\x18\x01 \x01(\tR\x06target\x12\x14\n" +
 	"\x05phase\x18\x02 \x01(\tR\x05phase\x12!\n" +
 	"\fsample_count\x18\x03 \x01(\x05R\vsampleCount\x122\n" +
 	"\x15reliable_sample_count\x18\x04 \x01(\x05R\x13reliableSampleCount\x122\n" +
@@ -8389,10 +8393,10 @@ const file_test_genie_v1_runs_runs_proto_rawDesc = "" +
 	"\x15RunDescriptorSnapshot\x12%\n" +
 	"\x0eschema_version\x18\x01 \x01(\x05R\rschemaVersion\x12\x16\n" +
 	"\x06digest\x18\x02 \x01(\tR\x06digest\x12E\n" +
-	"\x06phases\x18\x03 \x03(\v2-.vrooli.test_genie.v1.runs.RunPhaseDescriptorR\x06phases\"\x91\t\n" +
+	"\x06phases\x18\x03 \x03(\v2-.vrooli.test_genie.v1.runs.RunPhaseDescriptorR\x06phases\"\x94\t\n" +
 	"\aRunInfo\x12\x15\n" +
-	"\x06run_id\x18\x01 \x01(\tR\x05runId\x12\x1a\n" +
-	"\bscenario\x18\x02 \x01(\tR\bscenario\x12\x1d\n" +
+	"\x06run_id\x18\x01 \x01(\tR\x05runId\x12\x16\n" +
+	"\x06target\x18\x02 \x01(\tR\x06target\x12\x1d\n" +
 	"\n" +
 	"started_at\x18\x03 \x01(\tR\tstartedAt\x12!\n" +
 	"\fcompleted_at\x18\x04 \x01(\tR\vcompletedAt\x12\x16\n" +
@@ -8419,42 +8423,43 @@ const file_test_genie_v1_runs_runs_proto_rawDesc = "" +
 	"\fgate_quality\x18\x16 \x01(\bR\vgateQuality\x12#\n" +
 	"\revidence_tier\x18\x17 \x01(\tR\fevidenceTier\x12!\n" +
 	"\fsource_scope\x18\x18 \x01(\tR\vsourceScope\x12#\n" +
-	"\rsource_stable\x18\x19 \x01(\bR\fsourceStable\x123\n" +
-	"\x06target\x18\x1a \x01(\v2\x1b.common.v1.ValidationTargetR\x06target\"[\n" +
-	"\x0fListRunsRequest\x12\x1a\n" +
-	"\bscenario\x18\x01 \x01(\tR\bscenario\x12\x16\n" +
+	"\rsource_stable\x18\x19 \x01(\bR\fsourceStable\x12:\n" +
+	"\n" +
+	"target_ref\x18\x1a \x01(\v2\x1b.common.v1.ValidationTargetR\ttargetRef\"W\n" +
+	"\x0fListRunsRequest\x12\x16\n" +
+	"\x06target\x18\x01 \x01(\tR\x06target\x12\x16\n" +
 	"\x06status\x18\x02 \x01(\tR\x06status\x12\x14\n" +
 	"\x05limit\x18\x03 \x01(\x05R\x05limit\"J\n" +
 	"\x10ListRunsResponse\x126\n" +
-	"\x04runs\x18\x01 \x03(\v2\".vrooli.test_genie.v1.runs.RunInfoR\x04runs\"B\n" +
-	"\rGetRunRequest\x12\x1a\n" +
-	"\bscenario\x18\x01 \x01(\tR\bscenario\x12\x15\n" +
+	"\x04runs\x18\x01 \x03(\v2\".vrooli.test_genie.v1.runs.RunInfoR\x04runs\">\n" +
+	"\rGetRunRequest\x12\x16\n" +
+	"\x06target\x18\x01 \x01(\tR\x06target\x12\x15\n" +
 	"\x06run_id\x18\x02 \x01(\tR\x05runId\"\xba\x01\n" +
 	"\x0eGetRunResponse\x124\n" +
 	"\x03run\x18\x01 \x01(\v2\".vrooli.test_genie.v1.runs.RunInfoR\x03run\x12G\n" +
 	" terminal_snapshot_schema_version\x18\x02 \x01(\x05R\x1dterminalSnapshotSchemaVersion\x12)\n" +
-	"\x10degraded_reasons\x18\x03 \x03(\tR\x0fdegradedReasons\"[\n" +
-	"\x10DeleteRunRequest\x12\x1a\n" +
-	"\bscenario\x18\x01 \x01(\tR\bscenario\x12\x15\n" +
+	"\x10degraded_reasons\x18\x03 \x03(\tR\x0fdegradedReasons\"W\n" +
+	"\x10DeleteRunRequest\x12\x16\n" +
+	"\x06target\x18\x01 \x01(\tR\x06target\x12\x15\n" +
 	"\x06run_id\x18\x02 \x01(\tR\x05runId\x12\x14\n" +
 	"\x05force\x18\x03 \x01(\bR\x05force\"-\n" +
 	"\x11DeleteRunResponse\x12\x18\n" +
-	"\adeleted\x18\x01 \x01(\bR\adeleted\"w\n" +
-	"\rPinRunRequest\x12\x1a\n" +
-	"\bscenario\x18\x01 \x01(\tR\bscenario\x12\x15\n" +
+	"\adeleted\x18\x01 \x01(\bR\adeleted\"s\n" +
+	"\rPinRunRequest\x12\x16\n" +
+	"\x06target\x18\x01 \x01(\tR\x06target\x12\x15\n" +
 	"\x06run_id\x18\x02 \x01(\tR\x05runId\x12\x1b\n" +
 	"\tpinned_by\x18\x03 \x01(\tR\bpinnedBy\x12\x16\n" +
 	"\x06reason\x18\x04 \x01(\tR\x06reason\"F\n" +
 	"\x0ePinRunResponse\x124\n" +
-	"\x03run\x18\x01 \x01(\v2\".vrooli.test_genie.v1.runs.RunInfoR\x03run\"a\n" +
-	"\x0fUnpinRunRequest\x12\x1a\n" +
-	"\bscenario\x18\x01 \x01(\tR\bscenario\x12\x15\n" +
+	"\x03run\x18\x01 \x01(\v2\".vrooli.test_genie.v1.runs.RunInfoR\x03run\"]\n" +
+	"\x0fUnpinRunRequest\x12\x16\n" +
+	"\x06target\x18\x01 \x01(\tR\x06target\x12\x15\n" +
 	"\x06run_id\x18\x02 \x01(\tR\x05runId\x12\x1b\n" +
 	"\tpinned_by\x18\x03 \x01(\tR\bpinnedBy\"H\n" +
 	"\x10UnpinRunResponse\x124\n" +
-	"\x03run\x18\x01 \x01(\v2\".vrooli.test_genie.v1.runs.RunInfoR\x03run\"z\n" +
-	"\x12CompareRunsRequest\x12\x1a\n" +
-	"\bscenario\x18\x01 \x01(\tR\bscenario\x12\x18\n" +
+	"\x03run\x18\x01 \x01(\v2\".vrooli.test_genie.v1.runs.RunInfoR\x03run\"v\n" +
+	"\x12CompareRunsRequest\x12\x16\n" +
+	"\x06target\x18\x01 \x01(\tR\x06target\x12\x18\n" +
 	"\brun_id_a\x18\x02 \x01(\tR\x06runIdA\x12\x18\n" +
 	"\brun_id_b\x18\x03 \x01(\tR\x06runIdB\x12\x14\n" +
 	"\x05phase\x18\x04 \x01(\tR\x05phase\"y\n" +
@@ -8499,9 +8504,9 @@ const file_test_genie_v1_runs_runs_proto_rawDesc = "" +
 	"\n" +
 	"provenance\x18\a \x01(\tR\n" +
 	"provenance\x12Q\n" +
-	"\vdiagnostics\x18\b \x03(\v2/.vrooli.test_genie.v1.runs.ComparisonDiagnosticR\vdiagnostics\"\xf2\x02\n" +
-	"\x0eFindRunRequest\x12\x1a\n" +
-	"\bscenario\x18\x01 \x01(\tR\bscenario\x12\x17\n" +
+	"\vdiagnostics\x18\b \x03(\v2/.vrooli.test_genie.v1.runs.ComparisonDiagnosticR\vdiagnostics\"\xee\x02\n" +
+	"\x0eFindRunRequest\x12\x16\n" +
+	"\x06target\x18\x01 \x01(\tR\x06target\x12\x17\n" +
 	"\agit_sha\x18\x02 \x01(\tR\x06gitSha\x12\x1f\n" +
 	"\vtree_digest\x18\x03 \x01(\tR\n" +
 	"treeDigest\x12\x16\n" +
@@ -8515,9 +8520,9 @@ const file_test_genie_v1_runs_runs_proto_rawDesc = "" +
 	" \x01(\bR\x12matchCurrentSource\"]\n" +
 	"\x0fFindRunResponse\x12\x14\n" +
 	"\x05found\x18\x01 \x01(\bR\x05found\x124\n" +
-	"\x03run\x18\x02 \x01(\v2\".vrooli.test_genie.v1.runs.RunInfoR\x03run\"b\n" +
-	"\x17GetPhaseArtifactRequest\x12\x1a\n" +
-	"\bscenario\x18\x01 \x01(\tR\bscenario\x12\x15\n" +
+	"\x03run\x18\x02 \x01(\v2\".vrooli.test_genie.v1.runs.RunInfoR\x03run\"^\n" +
+	"\x17GetPhaseArtifactRequest\x12\x16\n" +
+	"\x06target\x18\x01 \x01(\tR\x06target\x12\x15\n" +
 	"\x06run_id\x18\x02 \x01(\tR\x05runId\x12\x14\n" +
 	"\x05phase\x18\x03 \x01(\tR\x05phase\"W\n" +
 	"\x18GetPhaseArtifactResponse\x12\x18\n" +
@@ -8558,9 +8563,9 @@ const file_test_genie_v1_runs_runs_proto_rawDesc = "" +
 	"provenance\x1a;\n" +
 	"\rMetadataEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\x8b\x01\n" +
-	"\x17ListRunArtifactsRequest\x12\x1a\n" +
-	"\bscenario\x18\x01 \x01(\tR\bscenario\x12\x15\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\x87\x01\n" +
+	"\x17ListRunArtifactsRequest\x12\x16\n" +
+	"\x06target\x18\x01 \x01(\tR\x06target\x12\x15\n" +
 	"\x06run_id\x18\x02 \x01(\tR\x05runId\x12\x14\n" +
 	"\x05kinds\x18\x03 \x03(\tR\x05kinds\x12'\n" +
 	"\x0fproducing_phase\x18\x04 \x01(\tR\x0eproducingPhase\"\xf7\x01\n" +
@@ -8569,17 +8574,17 @@ const file_test_genie_v1_runs_runs_proto_rawDesc = "" +
 	"\x06digest\x18\x02 \x01(\tR\x06digest\x12D\n" +
 	"\tartifacts\x18\x03 \x03(\v2&.vrooli.test_genie.v1.runs.ArtifactRefR\tartifacts\x12+\n" +
 	"\x11legacy_discovered\x18\x04 \x01(\bR\x10legacyDiscovered\x12)\n" +
-	"\x10degraded_reasons\x18\x05 \x03(\tR\x0fdegradedReasons\"k\n" +
-	"\x15GetRunArtifactRequest\x12\x1a\n" +
-	"\bscenario\x18\x01 \x01(\tR\bscenario\x12\x15\n" +
+	"\x10degraded_reasons\x18\x05 \x03(\tR\x0fdegradedReasons\"g\n" +
+	"\x15GetRunArtifactRequest\x12\x16\n" +
+	"\x06target\x18\x01 \x01(\tR\x06target\x12\x15\n" +
 	"\x06run_id\x18\x02 \x01(\tR\x05runId\x12\x1f\n" +
 	"\vartifact_id\x18\x03 \x01(\tR\n" +
 	"artifactId\"\x89\x01\n" +
 	"\x16GetRunArtifactResponse\x12B\n" +
 	"\bartifact\x18\x01 \x01(\v2&.vrooli.test_genie.v1.runs.ArtifactRefR\bartifact\x12+\n" +
-	"\x11legacy_discovered\x18\x02 \x01(\bR\x10legacyDiscovered\"J\n" +
-	"\x15GetRunFindingsRequest\x12\x1a\n" +
-	"\bscenario\x18\x01 \x01(\tR\bscenario\x12\x15\n" +
+	"\x11legacy_discovered\x18\x02 \x01(\bR\x10legacyDiscovered\"F\n" +
+	"\x15GetRunFindingsRequest\x12\x16\n" +
+	"\x06target\x18\x01 \x01(\tR\x06target\x12\x15\n" +
 	"\x06run_id\x18\x02 \x01(\tR\x05runId\"\xed\x02\n" +
 	"\x10RunFindingsPhase\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x16\n" +
@@ -8587,9 +8592,9 @@ const file_test_genie_v1_runs_runs_proto_rawDesc = "" +
 	"\x0efinding_source\x18\x03 \x01(\tR\rfindingSource\x12]\n" +
 	"\x11maturity_standing\x18\x04 \x01(\v20.vrooli.test_genie.v1.runs.PhaseMaturityStandingR\x10maturityStanding\x12Z\n" +
 	"\x10findings_summary\x18\x05 \x01(\v2/.vrooli.test_genie.v1.runs.PhaseFindingsSummaryR\x0ffindingsSummary\x12K\n" +
-	"\x12phase_presentation\x18\x06 \x01(\v2\x1c.common.v1.PhasePresentationR\x11phasePresentation\"\xcd\x01\n" +
-	"\x16GetRunFindingsResponse\x12\x1a\n" +
-	"\bscenario\x18\x01 \x01(\tR\bscenario\x12\x15\n" +
+	"\x12phase_presentation\x18\x06 \x01(\v2\x1c.common.v1.PhasePresentationR\x11phasePresentation\"\xc9\x01\n" +
+	"\x16GetRunFindingsResponse\x12\x16\n" +
+	"\x06target\x18\x01 \x01(\tR\x06target\x12\x15\n" +
 	"\x06run_id\x18\x02 \x01(\tR\x05runId\x12\x18\n" +
 	"\averdict\x18\x03 \x01(\tR\averdict\x12!\n" +
 	"\fcompleted_at\x18\x04 \x01(\tR\vcompletedAt\x12C\n" +
@@ -8598,9 +8603,9 @@ const file_test_genie_v1_runs_runs_proto_rawDesc = "" +
 	"\bworkflow\x18\x01 \x01(\tR\bworkflow\x12\x19\n" +
 	"\brel_path\x18\x02 \x01(\tR\arelPath\x12\x1d\n" +
 	"\n" +
-	"size_bytes\x18\x03 \x01(\x03R\tsizeBytes\"I\n" +
-	"\x14ListRunVideosRequest\x12\x1a\n" +
-	"\bscenario\x18\x01 \x01(\tR\bscenario\x12\x15\n" +
+	"size_bytes\x18\x03 \x01(\x03R\tsizeBytes\"E\n" +
+	"\x14ListRunVideosRequest\x12\x16\n" +
+	"\x06target\x18\x01 \x01(\tR\x06target\x12\x15\n" +
 	"\x06run_id\x18\x02 \x01(\tR\x05runId\"T\n" +
 	"\x15ListRunVideosResponse\x12;\n" +
 	"\x06videos\x18\x01 \x03(\v2#.vrooli.test_genie.v1.runs.RunVideoR\x06videos\"\xbf\x01\n" +
@@ -8609,14 +8614,14 @@ const file_test_genie_v1_runs_runs_proto_rawDesc = "" +
 	"\x05label\x18\x02 \x01(\tR\x05label\x12.\n" +
 	"\x13screenshot_rel_path\x18\x03 \x01(\tR\x11screenshotRelPath\x12$\n" +
 	"\x0evideo_rel_path\x18\x04 \x01(\tR\fvideoRelPath\x122\n" +
-	"\x15screenshot_size_bytes\x18\x05 \x01(\x03R\x13screenshotSizeBytes\"J\n" +
-	"\x15ListRunVisualsRequest\x12\x1a\n" +
-	"\bscenario\x18\x01 \x01(\tR\bscenario\x12\x15\n" +
+	"\x15screenshot_size_bytes\x18\x05 \x01(\x03R\x13screenshotSizeBytes\"F\n" +
+	"\x15ListRunVisualsRequest\x12\x16\n" +
+	"\x06target\x18\x01 \x01(\tR\x06target\x12\x15\n" +
 	"\x06run_id\x18\x02 \x01(\tR\x05runId\"X\n" +
 	"\x16ListRunVisualsResponse\x12>\n" +
-	"\avisuals\x18\x01 \x03(\v2$.vrooli.test_genie.v1.runs.RunVisualR\avisuals\"|\n" +
-	"\x18CompareRunVisualsRequest\x12\x1a\n" +
-	"\bscenario\x18\x01 \x01(\tR\bscenario\x12\x1e\n" +
+	"\avisuals\x18\x01 \x03(\v2$.vrooli.test_genie.v1.runs.RunVisualR\avisuals\"x\n" +
+	"\x18CompareRunVisualsRequest\x12\x16\n" +
+	"\x06target\x18\x01 \x01(\tR\x06target\x12\x1e\n" +
 	"\vbase_run_id\x18\x02 \x01(\tR\tbaseRunId\x12$\n" +
 	"\x0ecurrent_run_id\x18\x03 \x01(\tR\fcurrentRunId\"\xd4\x01\n" +
 	"\vVisualDelta\x12\x12\n" +
@@ -8627,17 +8632,17 @@ const file_test_genie_v1_runs_runs_proto_rawDesc = "" +
 	"\x10base_artifact_id\x18\x05 \x01(\tR\x0ebaseArtifactId\x12.\n" +
 	"\x13current_artifact_id\x18\x06 \x01(\tR\x11currentArtifactId\"[\n" +
 	"\x19CompareRunVisualsResponse\x12>\n" +
-	"\x06deltas\x18\x01 \x03(\v2&.vrooli.test_genie.v1.runs.VisualDeltaR\x06deltas\"K\n" +
-	"\x15CheckFreshnessRequest\x12\x1a\n" +
-	"\bscenario\x18\x01 \x01(\tR\bscenario\x12\x16\n" +
+	"\x06deltas\x18\x01 \x03(\v2&.vrooli.test_genie.v1.runs.VisualDeltaR\x06deltas\"G\n" +
+	"\x15CheckFreshnessRequest\x12\x16\n" +
+	"\x06target\x18\x01 \x01(\tR\x06target\x12\x16\n" +
 	"\x06phases\x18\x02 \x03(\tR\x06phases\"\x91\x01\n" +
 	"\x0ePhaseFreshness\x12\x14\n" +
 	"\x05phase\x18\x01 \x01(\tR\x05phase\x12\x16\n" +
 	"\x06status\x18\x02 \x01(\tR\x06status\x12\x1e\n" +
 	"\vlast_run_id\x18\x03 \x01(\tR\tlastRunId\x121\n" +
-	"\x15last_run_completed_at\x18\x04 \x01(\tR\x12lastRunCompletedAt\"\xc5\x01\n" +
-	"\x16CheckFreshnessResponse\x12\x1a\n" +
-	"\bscenario\x18\x01 \x01(\tR\bscenario\x12\x1f\n" +
+	"\x15last_run_completed_at\x18\x04 \x01(\tR\x12lastRunCompletedAt\"\xc1\x01\n" +
+	"\x16CheckFreshnessResponse\x12\x16\n" +
+	"\x06target\x18\x01 \x01(\tR\x06target\x12\x1f\n" +
 	"\vtree_digest\x18\x02 \x01(\tR\n" +
 	"treeDigest\x12A\n" +
 	"\x06phases\x18\x03 \x03(\v2).vrooli.test_genie.v1.runs.PhaseFreshnessR\x06phases\x12+\n" +
@@ -8683,21 +8688,21 @@ const file_test_genie_v1_runs_runs_proto_rawDesc = "" +
 	"\x06errors\x18\x02 \x01(\x05R\x06errors\x12\x1a\n" +
 	"\bwarnings\x18\x03 \x01(\x05R\bwarnings\x12\x14\n" +
 	"\x05infos\x18\x04 \x01(\x05R\x05infos\x12\x14\n" +
-	"\x05total\x18\x05 \x01(\x05R\x05total\"\x92\x02\n" +
+	"\x05total\x18\x05 \x01(\x05R\x05total\"\x8e\x02\n" +
 	"\n" +
 	"FleetAlert\x12\x12\n" +
 	"\x04code\x18\x01 \x01(\tR\x04code\x12\x1a\n" +
-	"\bseverity\x18\x02 \x01(\tR\bseverity\x12\x1a\n" +
-	"\bscenario\x18\x03 \x01(\tR\bscenario\x12\x16\n" +
+	"\bseverity\x18\x02 \x01(\tR\bseverity\x12\x16\n" +
+	"\x06target\x18\x03 \x01(\tR\x06target\x12\x16\n" +
 	"\x06source\x18\x04 \x01(\tR\x06source\x12\x18\n" +
 	"\amessage\x18\x05 \x01(\tR\amessage\x12*\n" +
 	"\x11evidence_age_days\x18\x06 \x01(\x01R\x0fevidenceAgeDays\x12\x14\n" +
 	"\x05owner\x18\a \x01(\tR\x05owner\x12\x1f\n" +
 	"\vnext_action\x18\b \x01(\tR\n" +
 	"nextAction\x12#\n" +
-	"\rrollback_path\x18\t \x01(\tR\frollbackPath\"\xc4\x02\n" +
-	"\x13FleetScenarioHealth\x12\x1a\n" +
-	"\bscenario\x18\x01 \x01(\tR\bscenario\x12\x12\n" +
+	"\rrollback_path\x18\t \x01(\tR\frollbackPath\"\xc0\x02\n" +
+	"\x13FleetScenarioHealth\x12\x16\n" +
+	"\x06target\x18\x01 \x01(\tR\x06target\x12\x12\n" +
 	"\x04runs\x18\x02 \x01(\x05R\x04runs\x12\x1f\n" +
 	"\vpassed_runs\x18\x03 \x01(\x05R\n" +
 	"passedRuns\x12\x1f\n" +
@@ -8808,9 +8813,9 @@ const file_test_genie_v1_runs_runs_proto_rawDesc = "" +
 	"\x11green_transitions\x18\x02 \x01(\x05R\x10greenTransitions\x12-\n" +
 	"\x12recurring_failures\x18\x03 \x01(\x05R\x11recurringFailures\x121\n" +
 	"\x15time_to_green_samples\x18\x04 \x01(\x05R\x12timeToGreenSamples\x12L\n" +
-	"\rtime_to_green\x18\x05 \x01(\v2(.vrooli.test_genie.v1.runs.DurationStatsR\vtimeToGreen\"\x8c\x01\n" +
-	"\x13ScenarioFailureRate\x12\x1a\n" +
-	"\bscenario\x18\x01 \x01(\tR\bscenario\x12\x1a\n" +
+	"\rtime_to_green\x18\x05 \x01(\v2(.vrooli.test_genie.v1.runs.DurationStatsR\vtimeToGreen\"\x88\x01\n" +
+	"\x13ScenarioFailureRate\x12\x16\n" +
+	"\x06target\x18\x01 \x01(\tR\x06target\x12\x1a\n" +
 	"\bexecuted\x18\x02 \x01(\x05R\bexecuted\x12\x1a\n" +
 	"\bfailures\x18\x03 \x01(\x05R\bfailures\x12!\n" +
 	"\ffailure_rate\x18\x04 \x01(\x01R\vfailureRate\"\xed\x06\n" +
@@ -9007,14 +9012,14 @@ var file_test_genie_v1_runs_runs_proto_depIdxs = []int32{
 	21,  // 0: vrooli.test_genie.v1.runs.RunEvent.maturity_standing:type_name -> vrooli.test_genie.v1.runs.PhaseMaturityStanding
 	19,  // 1: vrooli.test_genie.v1.runs.RunEvent.findings_summary:type_name -> vrooli.test_genie.v1.runs.PhaseFindingsSummary
 	96,  // 2: vrooli.test_genie.v1.runs.RunEvent.phase_presentation:type_name -> common.v1.PhasePresentation
-	97,  // 3: vrooli.test_genie.v1.runs.RunEvent.target:type_name -> common.v1.ValidationTarget
+	97,  // 3: vrooli.test_genie.v1.runs.RunEvent.target_ref:type_name -> common.v1.ValidationTarget
 	21,  // 4: vrooli.test_genie.v1.runs.RunLiveStatus.terminal_standings:type_name -> vrooli.test_genie.v1.runs.PhaseMaturityStanding
 	19,  // 5: vrooli.test_genie.v1.runs.RunLiveStatus.terminal_findings_summaries:type_name -> vrooli.test_genie.v1.runs.PhaseFindingsSummary
 	96,  // 6: vrooli.test_genie.v1.runs.RunLiveStatus.terminal_presentations:type_name -> common.v1.PhasePresentation
 	98,  // 7: vrooli.test_genie.v1.runs.RunLiveStatus.standing:type_name -> common.v1.OperationStanding
-	97,  // 8: vrooli.test_genie.v1.runs.RunLiveStatus.target:type_name -> common.v1.ValidationTarget
-	97,  // 9: vrooli.test_genie.v1.runs.StartRunRequest.target:type_name -> common.v1.ValidationTarget
-	97,  // 10: vrooli.test_genie.v1.runs.StartRunResponse.target:type_name -> common.v1.ValidationTarget
+	97,  // 8: vrooli.test_genie.v1.runs.RunLiveStatus.target_ref:type_name -> common.v1.ValidationTarget
+	97,  // 9: vrooli.test_genie.v1.runs.StartRunRequest.target_ref:type_name -> common.v1.ValidationTarget
+	97,  // 10: vrooli.test_genie.v1.runs.StartRunResponse.target_ref:type_name -> common.v1.ValidationTarget
 	4,   // 11: vrooli.test_genie.v1.runs.WaitRunResponse.status:type_name -> vrooli.test_genie.v1.runs.RunLiveStatus
 	27,  // 12: vrooli.test_genie.v1.runs.WaitRunResponse.terminal_run:type_name -> vrooli.test_genie.v1.runs.RunInfo
 	4,   // 13: vrooli.test_genie.v1.runs.AbortRunResponse.status:type_name -> vrooli.test_genie.v1.runs.RunLiveStatus
@@ -9030,7 +9035,7 @@ var file_test_genie_v1_runs_runs_proto_depIdxs = []int32{
 	17,  // 23: vrooli.test_genie.v1.runs.RunInfo.diagnostics:type_name -> vrooli.test_genie.v1.runs.DiagnosticsInfo
 	18,  // 24: vrooli.test_genie.v1.runs.RunInfo.pins:type_name -> vrooli.test_genie.v1.runs.PinInfo
 	26,  // 25: vrooli.test_genie.v1.runs.RunInfo.descriptor_snapshot:type_name -> vrooli.test_genie.v1.runs.RunDescriptorSnapshot
-	97,  // 26: vrooli.test_genie.v1.runs.RunInfo.target:type_name -> common.v1.ValidationTarget
+	97,  // 26: vrooli.test_genie.v1.runs.RunInfo.target_ref:type_name -> common.v1.ValidationTarget
 	27,  // 27: vrooli.test_genie.v1.runs.ListRunsResponse.runs:type_name -> vrooli.test_genie.v1.runs.RunInfo
 	27,  // 28: vrooli.test_genie.v1.runs.GetRunResponse.run:type_name -> vrooli.test_genie.v1.runs.RunInfo
 	27,  // 29: vrooli.test_genie.v1.runs.PinRunResponse.run:type_name -> vrooli.test_genie.v1.runs.RunInfo

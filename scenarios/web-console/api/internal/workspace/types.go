@@ -3,7 +3,7 @@
 // interface; production wires SQLStore, tests use MemStore.
 //
 // DOC: docs/internal/STORAGE_AUDIT.md
-// DOC: docs/internal/SEAMS.md#workspace-store
+// DOC: docs/internal/SEAMS.md#workspace-store-seam-api-ui
 package workspace
 
 import "time"

@@ -60,14 +60,16 @@ const (
 	// whether the backend accepted the bytes. On Ok=false, Reason
 	// carries a typed error code (see StdinAckReason*).
 	MsgTypeStdinAck = "stdin_ack"
+	// MsgTypeControl carries synthetic terminal bytes such as mouse input.
+	// It deliberately has no sequence number, acknowledgement, or replay.
+	MsgTypeControl = "control"
 )
 
-// StdinKind values discriminate keystroke input from paste payloads on
-// the wire. Must stay in sync with the UI's pty.InputKind / TerminalMessage
-// kind field.
+// StdinIntent values carry the semantic intent chosen by the UI source.
 const (
-	StdinKindKeystroke = "keystroke"
-	StdinKindPaste     = "paste"
+	StdinIntentTyping   = "typing"
+	StdinIntentBulkText = "bulk_text"
+	StdinIntentNamedKey = "named_key"
 )
 
 // StdinAckReason* are the typed reason codes the server emits on
@@ -76,31 +78,20 @@ const (
 	StdinAckReasonTmuxWriteFailed = "tmux_write_failed"
 	StdinAckReasonPTYClosed       = "pty_closed"
 	StdinAckReasonNotReady        = "not_ready"
-	StdinAckReasonInvalidInput    = "invalid_input"
 )
 
 // TerminalMessage is the WebSocket JSON message format.
 type TerminalMessage struct {
-	Type                     string   `json:"type"`
-	Data                     string   `json:"data,omitempty"`
-	Cols                     int      `json:"cols,omitempty"`
-	Rows                     int      `json:"rows,omitempty"`
-	Code                     int      `json:"code,omitempty"`
-	CoalescedFrames          int      `json:"coalesced_frames,omitempty"`
-	EventID                  string   `json:"eventId,omitempty"`
-	Source                   string   `json:"source,omitempty"`
-	Stage                    string   `json:"stage,omitempty"`
-	Backend                  string   `json:"backend,omitempty"`
-	Role                     string   `json:"role,omitempty"`
-	CreatedAt                string   `json:"createdAt,omitempty"`
-	Sequence                 int64    `json:"sequence,omitempty"`
-	SpeechParagraphs         []string `json:"speechParagraphs,omitempty"`
-	OriginalSpeechParagraphs []string `json:"originalSpeechParagraphs,omitempty"`
-	Summarized               bool     `json:"summarized,omitempty"`
-	// SummarizeError carries an auto-summarization failure message when an
-	// async summarize attempt fails. Sent on conversation_event_update so the
-	// UI can surface a persistent banner with retry.
-	SummarizeError string `json:"summarizeError,omitempty"`
+	Type            string `json:"type"`
+	Data            string `json:"data,omitempty"`
+	Cols            int    `json:"cols,omitempty"`
+	Rows            int    `json:"rows,omitempty"`
+	Code            int    `json:"code,omitempty"`
+	CoalescedFrames int    `json:"coalesced_frames,omitempty"`
+	EventID         string `json:"eventId,omitempty"`
+	Source          string `json:"source,omitempty"`
+	Stage           string `json:"stage,omitempty"`
+	Backend         string `json:"backend,omitempty"`
 	// Seq is the client-assigned sequence number for stdin messages; the
 	// server echoes it in the matching stdin_ack. Opaque to the server.
 	Seq int64 `json:"seq,omitempty"`
@@ -111,10 +102,9 @@ type TerminalMessage struct {
 	// in session_ready; clients use it to decide whether a re-enqueued
 	// payload belongs to the current connection (see wsGen write barrier
 	Gen int64 `json:"gen,omitempty"`
-	// Kind discriminates keystroke vs paste on stdin frames. Empty
-	// defaults to keystroke for backward-compatibility-with-nothing (the
-	// UI always sends it explicitly). Values: "keystroke", "paste".
-	Kind string `json:"kind,omitempty"`
+	// Intent carries the semantic stdin intent. Empty or unknown values
+	// default to typing for forward compatibility.
+	Intent string `json:"intent,omitempty"`
 	// Reason is the typed error code populated on stdin_ack frames when
 	// Ok=false (and unset when Ok=true). See StdinAckReason*.
 	Reason       string `json:"reason,omitempty"`
@@ -166,6 +156,18 @@ func (s *Server) handleTerminalWS(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer conn.Close()
+	// Bound half-open connections. The server sends protocol-level pings from
+	// the output forwarder; a client pong proves the peer is still reachable
+	// and extends the read deadline. Application-level JSON pings are not a
+	// substitute because they can be queued behind a stalled browser.
+	resetReadDeadline := func() error {
+		return conn.SetReadDeadline(time.Now().Add(2 * wsPingPeriod))
+	}
+	if err := resetReadDeadline(); err != nil {
+		log.Printf("ws[%s]: failed to set read deadline: %v", sessionID, err)
+		return
+	}
+	conn.SetPongHandler(func(string) error { return resetReadDeadline() })
 
 	// [REQ:P1-004a] Emit connection event
 	s.events.Emit(events.SessionConnected, sessionID, nil)
@@ -316,10 +318,6 @@ func (s *Server) handleTerminalWS(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// sessionReady gates stdin-loss diagnostics: any stdin received before
-	// this flips true means the client skipped waiting for session_ready,
-	// which should be impossible in the current protocol.
-	sessionReady := false
 	writeMu.Lock()
 	if err := conn.WriteJSON(TerminalMessage{Type: MsgTypeSessionReady, Gen: wsGen}); err != nil {
 		writeMu.Unlock()
@@ -327,7 +325,6 @@ func (s *Server) handleTerminalWS(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeMu.Unlock()
-	sessionReady = true
 
 	// Input loop: WebSocket client → PTY stdin / resize / ping-pong.
 	// When this returns, defer cancel() signals the output forwarder to
@@ -343,7 +340,7 @@ func (s *Server) handleTerminalWS(w http.ResponseWriter, r *http.Request) {
 			sendError(decodeErr)
 			continue
 		}
-		res := s.dispatchInputMessage(conn, &writeMu, sess, sub.OutputCh, sessionID, msg, sessionReady)
+		res := s.dispatchInputMessage(conn, &writeMu, sess, sub.OutputCh, sessionID, msg)
 		if res.CloseReason != "" {
 			sendError(res.CloseReason)
 		}

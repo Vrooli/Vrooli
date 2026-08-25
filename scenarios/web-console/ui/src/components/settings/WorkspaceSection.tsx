@@ -8,6 +8,7 @@ import { Button } from "../ui/button";
 import { SettingsCard, SettingsRow, SettingsSectionIntro, SettingsToggle } from "./primitives";
 import LocaleSwitcher from "../LocaleSwitcher";
 import { deviceIdentity, setDeviceLabel } from "../../lib/deviceIdentity";
+import { useSecureContextCapabilities } from "../../hooks/useSecureContextCapabilities";
 
 const STATUS_HINT_KEYS = {
   active: strings.settings.workspaceSection.wakeLockActive,
@@ -36,7 +37,12 @@ export default function WorkspaceSection() {
   const adaptiveChrome = useWorkspaceStore((state) => state.adaptiveChrome);
   const setAdaptiveChrome = useWorkspaceStore((state) => state.setAdaptiveChrome);
   const wakeLockStatus = useWakeLockStatus((s) => s.status);
-	const [deviceLabel, setLocalDeviceLabel] = useState(() => deviceIdentity().label);
+  const capabilities = useSecureContextCapabilities();
+  const unavailableCapabilities = Object.entries(capabilities)
+    .filter(([, state]) => state === "unsupported")
+    .map(([name]) => name)
+    .join(", ");
+  const [deviceLabel, setLocalDeviceLabel] = useState(() => deviceIdentity().label);
 
   const defaultHintKey = strings.settings.workspaceSection.wakeLockDefault;
   const wakeLockHint = keepScreenAwake
@@ -55,6 +61,11 @@ export default function WorkspaceSection() {
       />
 
       <SettingsCard className="space-y-4">
+        {unavailableCapabilities && (
+          <p className="text-xs text-wc-text-secondary" role="status" data-testid="secure-context-capabilities">
+            Browser capabilities unavailable in this context: {unavailableCapabilities}.
+          </p>
+        )}
         <SettingsRow
           label={t(strings.settings.workspaceSection.paneLayoutLabel)}
           hint={t(strings.settings.workspaceSection.paneLayoutHint)}

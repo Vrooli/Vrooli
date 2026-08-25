@@ -7,12 +7,16 @@ from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 DESCRIPTOR: _descriptor.FileDescriptor
 
 class ComposeRequest(_message.Message):
-    __slots__ = ("scenario", "source_revision")
+    __slots__ = ("scenario", "source_revision", "target_cli_manifest", "entitlement_tier")
     SCENARIO_FIELD_NUMBER: _ClassVar[int]
     SOURCE_REVISION_FIELD_NUMBER: _ClassVar[int]
+    TARGET_CLI_MANIFEST_FIELD_NUMBER: _ClassVar[int]
+    ENTITLEMENT_TIER_FIELD_NUMBER: _ClassVar[int]
     scenario: str
     source_revision: str
-    def __init__(self, scenario: _Optional[str] = ..., source_revision: _Optional[str] = ...) -> None: ...
+    target_cli_manifest: str
+    entitlement_tier: str
+    def __init__(self, scenario: _Optional[str] = ..., source_revision: _Optional[str] = ..., target_cli_manifest: _Optional[str] = ..., entitlement_tier: _Optional[str] = ...) -> None: ...
 
 class ComposeResponse(_message.Message):
     __slots__ = ("package", "findings")

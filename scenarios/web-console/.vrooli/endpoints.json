@@ -372,6 +372,26 @@
       }
     },
     {
+      "id": "capabilities_run_action",
+      "path": "/vrooli.web_console.v1.capabilities.CapabilitiesService/RunAction",
+      "method": "POST",
+      "summary": "Run a delegated capability recovery action",
+      "description": "Runs an explicit user-initiated lifecycle action for a declared scenario dependency, then returns a refreshed capability snapshot.",
+      "category": "capabilities",
+      "response": {
+        "type": "object",
+        "properties": {
+          "action_kind": "string",
+          "capabilities": "CapabilityState[]",
+          "capability_id": "string",
+          "message": "string",
+          "status": "string",
+          "success": "boolean",
+          "timestamp": "string"
+        }
+      }
+    },
+    {
       "id": "conversation_get",
       "path": "/vrooli.web_console.v1.conversation.ConversationService/Get",
       "method": "POST",
@@ -421,6 +441,22 @@
           "description": "Missing session_id"
         }
       ]
+    },
+    {
+      "id": "conversation_archived_search",
+      "path": "/vrooli.web_console.v1.conversation.ConversationService/SearchArchived",
+      "method": "POST",
+      "summary": "Search archived conversation messages",
+      "description": "Uses the FTS5 index across deliberate archives, dismissed recovery rows, and crash orphans; live sessions are excluded.",
+      "category": "conversation",
+      "response": {
+        "type": "object",
+        "properties": {
+          "distinct_sessions": "int64",
+          "matches": "[]ArchivedSearchMatch",
+          "total_matches": "int64"
+        }
+      }
     },
     {
       "id": "conversation_event_summarize",
@@ -507,7 +543,7 @@
         {
           "status": 412,
           "code": "failed_precondition",
-          "description": "Referenced path is a directory or otherwise not previewable"
+          "description": "Referenced path is a special file (socket, FIFO, device) or otherwise not previewable"
         }
       ]
     },
@@ -547,6 +583,54 @@
       ]
     },
     {
+      "id": "file_preview_list_directory",
+      "path": "/vrooli.web_console.v1.file_preview.FilePreviewService/ListDirectory",
+      "method": "POST",
+      "summary": "List one page of a resolved directory",
+      "description": "Returns a bounded, sorted page of a directory previously resolved by Resolve, keyed by its opaque preview id. Entries are classified from their extension alone so a page costs no file reads. Pages are capped (1000 max, 200 default) and the scan stops at 50000 entries; size and date sorts are limited to 5000 entries and downgrade to a name sort with a warning above that. The continuation token pins the directory mtime, so a directory that changes mid-walk aborts rather than silently skipping entries.",
+      "category": "file_preview",
+      "response": {
+        "type": "object",
+        "properties": {
+          "effective_sort": "DirectorySort",
+          "entries": "[]DirectoryEntry",
+          "next_page_token": "string",
+          "parent_path": "string",
+          "resolved_path": "string",
+          "total_entries": "int32",
+          "truncated": "bool",
+          "warnings": "[]string"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing session_id/preview_id, or a page token that does not match the requested directory, sort, or filter"
+        },
+        {
+          "status": 403,
+          "code": "permission_denied",
+          "description": "Directory is not readable"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "Unknown/expired preview id or the directory no longer exists"
+        },
+        {
+          "status": 409,
+          "code": "aborted",
+          "description": "Directory changed between pages; the listing must be reloaded"
+        },
+        {
+          "status": 412,
+          "code": "failed_precondition",
+          "description": "Preview id does not name a directory"
+        }
+      ]
+    },
+    {
       "id": "file_preview_blob",
       "path": "/api/v1/sessions/{id}/file-previews/{previewId}/blob",
       "method": "GET",
@@ -571,7 +655,7 @@
         }
       ],
       "rest_exception": {
-        "reason": "ops_probe",
+        "reason": "stream_upgrade",
         "note": "Byte-range blob stream consumed by native browser media elements without a generated client — the same browser-native-transport category as terminal_ws. Connect's wire format cannot express opaque byte streaming with Range. The opaque preview id (never a raw path) is issued by FilePreviewService.Resolve and bound to the session."
       }
     },
@@ -616,7 +700,6 @@
           "reattach": "ReattachMetrics",
           "recovery": "RecoveryMetrics",
           "sessions": "SessionMetrics",
-          "stdin_before_ready_total": "int64",
           "uptime": "string",
           "voice_skip_verification_total": "int64"
         }
@@ -627,8 +710,15 @@
       "path": "/vrooli.web_console.v1.sessions.SessionsService/Create",
       "method": "POST",
       "summary": "Create a terminal session",
-      "description": "Spawns a PTY (ephemeral) or tmux pane (persistent). X-Idempotency-Key replays the cached response for 5 minutes.",
+      "description": "Spawns a local PTY/tmux pane or routes creation to a dispatchable target catalog node. X-Idempotency-Key replays the cached response for 5 minutes.",
       "category": "sessions",
+      "request": {
+        "type": "object",
+        "properties": {
+          "target_id": "string (optional target catalog ID)",
+          "working_dir": "string (optional)"
+        }
+      },
       "response": {
         "type": "object",
         "properties": {
@@ -640,6 +730,16 @@
           "status": 400,
           "code": "invalid_argument",
           "description": "Malformed body or invalid policy"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "Target catalog ID not found"
+        },
+        {
+          "status": 412,
+          "code": "failed_precondition",
+          "description": "Target is not dispatchable"
         },
         {
           "status": 429,
@@ -694,6 +794,21 @@
       ]
     },
     {
+      "id": "sessions_archived_list",
+      "path": "/vrooli.web_console.v1.sessions.SessionsService/ListArchived",
+      "method": "POST",
+      "summary": "List archived sessions",
+      "description": "Returns one newest entry per reopen lineage with pane identity, message count, and restore state.",
+      "category": "sessions",
+      "response": {
+        "type": "object",
+        "properties": {
+          "sessions": "[]ArchivedSession",
+          "total": "integer"
+        }
+      }
+    },
+    {
       "id": "sessions_delete",
       "path": "/vrooli.web_console.v1.sessions.SessionsService/Delete",
       "method": "POST",
@@ -705,6 +820,46 @@
           "status": 400,
           "code": "invalid_argument",
           "description": "Missing id"
+        }
+      ]
+    },
+    {
+      "id": "sessions_archive",
+      "path": "/vrooli.web_console.v1.sessions.SessionsService/Archive",
+      "method": "POST",
+      "summary": "Archive a terminal session",
+      "description": "Stops the live PTY while preserving the session row, workspace identity, transcript, and agent checkpoints.",
+      "category": "sessions",
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing id"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "Session not found"
+        }
+      ]
+    },
+    {
+      "id": "sessions_unarchive",
+      "path": "/vrooli.web_console.v1.sessions.SessionsService/Unarchive",
+      "method": "POST",
+      "summary": "Undo a session archive marker",
+      "description": "Clears archived_at without starting a replacement process or resuming an agent.",
+      "category": "sessions",
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing id"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "Session not found"
         }
       ]
     },
@@ -786,6 +941,22 @@
           "description": "Session limit reached while spawning replacement"
         }
       ]
+    },
+    {
+      "id": "sessions_archive_retention_get",
+      "path": "/vrooli.web_console.v1.sessions.SessionsService/GetArchiveRetention",
+      "method": "POST",
+      "summary": "Inspect archive retention",
+      "description": "Returns the configured bounds and measured transcript/agent-history storage for explicitly archived sessions.",
+      "category": "sessions"
+    },
+    {
+      "id": "sessions_archive_prune",
+      "path": "/vrooli.web_console.v1.sessions.SessionsService/PruneArchive",
+      "method": "POST",
+      "summary": "Preview or apply archive retention",
+      "description": "Dry-run by default. Apply mode prunes agent history first and deletes only old message-less archived transcripts.",
+      "category": "sessions"
     },
     {
       "id": "sessions_policy_get",
@@ -954,6 +1125,76 @@
       }
     },
     {
+      "id": "targets_list",
+      "path": "/vrooli.web_console.v1.targets.TargetCatalogService/List",
+      "method": "POST",
+      "summary": "List terminal locations",
+      "description": "Returns local and remote locations with safe readiness metadata.",
+      "category": "targets",
+      "response": {
+        "type": "object",
+        "properties": {
+          "state": "CatalogState",
+          "targets": "[]Target"
+        }
+      }
+    },
+    {
+      "id": "targets_get",
+      "path": "/vrooli.web_console.v1.targets.TargetCatalogService/Get",
+      "method": "POST",
+      "summary": "Get a terminal location",
+      "description": "Returns one safe target projection by catalog ID.",
+      "category": "targets",
+      "request": {
+        "type": "object",
+        "properties": {
+          "id": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "target": "Target"
+        }
+      },
+      "errors": [
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "Target catalog ID not found"
+        }
+      ]
+    },
+    {
+      "id": "targets_doctor",
+      "path": "/vrooli.web_console.v1.targets.TargetCatalogService/Doctor",
+      "method": "POST",
+      "summary": "Diagnose a terminal location",
+      "description": "Returns readiness facts and a first recovery action for one target.",
+      "category": "targets",
+      "request": {
+        "type": "object",
+        "properties": {
+          "id": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "summary": "string",
+          "target": "Target"
+        }
+      },
+      "errors": [
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "Target catalog ID not found"
+        }
+      ]
+    },
+    {
       "id": "terminal_get_screen",
       "path": "/vrooli.web_console.v1.terminal.TerminalService/GetScreen",
       "method": "POST",
@@ -997,7 +1238,7 @@
       "description": "WebSocket upgrade endpoint for xterm.js. Streams stdin/stdout/resize/keepalive frames between the browser and the per-session PTY (or tmux pane). Migration to Connect server-streaming is deferred to the final streams phase.",
       "category": "terminal",
       "rest_exception": {
-        "reason": "ops_probe",
+        "reason": "stream_upgrade",
         "note": "xterm.js requires a raw WebSocket upgrade — Connect-RPC cannot express that handshake. Stays REST until a Connect server-streaming RPC replaces it."
       }
     },

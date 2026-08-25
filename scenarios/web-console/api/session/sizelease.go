@@ -111,16 +111,3 @@ func (s *Session) SizeLeaseState(client chan []byte) (cols, rows uint16, leader,
 	}
 	return s.Cols, s.Rows, leader, leaderDevice, client != nil && client == s.leaseOwner, len(s.clients)
 }
-
-// Viewers returns non-empty display labels for the connected viewers.
-func (s *Session) Viewers() []string {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	viewers := make([]string, 0, len(s.clients))
-	for _, info := range s.clients {
-		if info.DeviceLabel != "" {
-			viewers = append(viewers, info.DeviceLabel)
-		}
-	}
-	return viewers
-}

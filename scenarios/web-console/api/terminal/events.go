@@ -7,13 +7,11 @@
 // so observers can subscribe without re-parsing the byte stream.
 //
 // Backpressure: the channel is bounded (256 events). When full, the
-// oldest event is dropped and DroppedControlEvents() is incremented.
+// oldest event is dropped.
 // This matches the read-loop's other "best effort" surfaces — the goal
 // is "never block the PTY read," not "deliver every event."
 
 package terminal
-
-import "sync/atomic"
 
 // ControlEventKind enumerates the parsed control events the emulator
 // surfaces. New kinds may be added; consumers should ignore unknown
@@ -59,12 +57,6 @@ func (e *Emulator) ControlEvents() <-chan ControlEvent {
 	return e.events
 }
 
-// DroppedControlEvents returns the running count of control events
-// dropped due to a full buffer.
-func (e *Emulator) DroppedControlEvents() uint64 {
-	return atomic.LoadUint64(&e.droppedEvents)
-}
-
 // emitControlEvent pushes an event onto the channel without blocking.
 // If the buffer is full the oldest event is dropped (drop-oldest) and
 // the drop counter is incremented.
@@ -80,7 +72,6 @@ func (e *Emulator) emitControlEvent(ev ControlEvent) {
 			// Drop the oldest event to make room.
 			select {
 			case <-e.events:
-				atomic.AddUint64(&e.droppedEvents, 1)
 			default:
 				// Buffer emptied between checks; loop and retry the send.
 			}

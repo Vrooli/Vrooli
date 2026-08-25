@@ -11,7 +11,7 @@ describe("sendComboSequence", () => {
     await sendComboSequence(steps, onInput, fakeDelay);
 
     expect(onInput).toHaveBeenCalledTimes(1);
-    expect(onInput).toHaveBeenCalledWith("\x03", "toolbar-key");
+    expect(onInput).toHaveBeenCalledWith("\x03", "named_key");
     expect(fakeDelay).not.toHaveBeenCalled();
   });
 

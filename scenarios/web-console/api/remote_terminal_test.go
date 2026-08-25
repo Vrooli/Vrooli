@@ -253,8 +253,18 @@ func TestRemoteTerminalProxyTranslatesBrowserInputAndBridgeOutput(t *testing.T) 
 	defer conn.Close()
 	// Consume the federated history/size/ready handshake.
 	for i := 0; i < 3; i++ {
-		if _, _, err := conn.ReadMessage(); err != nil {
+		_, raw, err := conn.ReadMessage()
+		if err != nil {
 			t.Fatal(err)
+		}
+		if i == 1 {
+			var size TerminalMessage
+			if err := json.Unmarshal(raw, &size); err != nil {
+				t.Fatal(err)
+			}
+			if size.Type != MsgTypeSizeInfo || !size.HoldsLease {
+				t.Fatalf("remote size_info = %+v, want holdsLease=true", size)
+			}
 		}
 	}
 	if err := conn.WriteJSON(TerminalMessage{Type: MsgTypeStdin, Data: "hello", Seq: 1}); err != nil {

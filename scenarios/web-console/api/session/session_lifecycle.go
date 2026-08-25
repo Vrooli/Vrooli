@@ -312,9 +312,6 @@ func (sm *Manager) reattachSession(ctx context.Context, store sessionstore.Store
 	sm.mu.Lock()
 	sm.sessions[id] = sess
 	sm.mu.Unlock()
-	if sm.onSessionCreate != nil {
-		sm.onSessionCreate(id)
-	}
 
 	sess.startAnsiResponder()
 	go sess.readLoop()
@@ -324,9 +321,6 @@ func (sm *Manager) reattachSession(ctx context.Context, store sessionstore.Store
 		sm.mu.Lock()
 		delete(sm.sessions, sessID)
 		sm.mu.Unlock()
-		if sm.onSessionDelete != nil {
-			sm.onSessionDelete(sessID)
-		}
 		// Persistent sessions: preserve metadata for future recovery.
 		// Standard sessions: delete metadata (they cannot survive).
 		if sm.store != nil && bid != backend.Persistent {
@@ -451,9 +445,6 @@ func (sm *Manager) reattachOrphanedSessions() {
 		}
 		sm.sessions[meta.ID] = sess
 		sm.mu.Unlock()
-		if sm.onSessionCreate != nil {
-			sm.onSessionCreate(meta.ID)
-		}
 
 		sess.startAnsiResponder()
 		go sess.readLoop()
@@ -463,9 +454,6 @@ func (sm *Manager) reattachOrphanedSessions() {
 			sm.mu.Lock()
 			delete(sm.sessions, sessID)
 			sm.mu.Unlock()
-			if sm.onSessionDelete != nil {
-				sm.onSessionDelete(sessID)
-			}
 			if sm.store != nil && bid != backend.Persistent {
 				_ = sm.store.Delete(context.Background(), sessID)
 			}

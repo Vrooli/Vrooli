@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "scenario": "scenario-to-plugin",
-  "input_digest": "sha256:8ff7cb7d9ff2479528f5bc987bbe0c59c4749a2a08ec7c86391764e485acec94",
+  "input_digest": "sha256:c416ee346b251e0625ac496a7910d449f7aa0788c1eb2a48346d0210860e8f99",
   "input_files": [
     "schemas/scenario-to-plugin/v1/attestation/attestation.proto",
     "schemas/scenario-to-plugin/v1/composition/composition.proto",
@@ -25,7 +25,7 @@
   "outputs": {
     "gen/go/scenario-to-plugin/v1/attestation/attestation.pb.go": "sha256:a882584bcb4be5c86fca211fc7d330574e95715a8589938f634baad6e0f70cd4",
     "gen/go/scenario-to-plugin/v1/attestation/attestation_v1connect/attestation.connect.go": "sha256:7e7f60f255cb0309f7d0a41b271b304ec23116fee867560cd617e16135ab8e1e",
-    "gen/go/scenario-to-plugin/v1/composition/composition.pb.go": "sha256:a6a9366d305f83625c14f562a0a7f66079762361be4c17e013f42fc131e452be",
+    "gen/go/scenario-to-plugin/v1/composition/composition.pb.go": "sha256:f7d1a27beb4d020e61e4273d254217d0bccfde823a6bfcfa8a0a8f3ef32e02d3",
     "gen/go/scenario-to-plugin/v1/composition/composition_v1connect/composition.connect.go": "sha256:8f6d8c0ee8151feb53670cea6d6f7c581a0fc331934a6e375c38d027fa5d278e",
     "gen/go/scenario-to-plugin/v1/conformance/conformance.pb.go": "sha256:f1cc7d611cb9a7d97a3642167a0129ef21941d3be8631a0396137662227db570",
     "gen/go/scenario-to-plugin/v1/conformance/conformance_v1connect/conformance.connect.go": "sha256:2b4c6a9d3b0581ef7d378651eed4eeeb40ba0f80d804c0b310189e80e92dad30",
@@ -41,8 +41,8 @@
     "gen/python/scenario_to_plugin/v1/attestation/attestation_pb2.py": "sha256:b42e67e9fb78ab57c992d4bc844ed17d353cec3307d7827a8cc097e8a1789bca",
     "gen/python/scenario_to_plugin/v1/attestation/attestation_pb2.pyi": "sha256:3f14054f027cf9fa4937a191945ed4fe4090429c3c4b13e0b5d2eb10a36161f4",
     "gen/python/scenario_to_plugin/v1/attestation/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-    "gen/python/scenario_to_plugin/v1/composition/composition_pb2.py": "sha256:86b2f560f02c254b99859ab0ea5054706f6a5e537726d5e83d73f1bdbf878c3c",
-    "gen/python/scenario_to_plugin/v1/composition/composition_pb2.pyi": "sha256:da0d20273bf871525972ea5bd6dcdb66852a0b508e5f346d6cbe0817b0c07519",
+    "gen/python/scenario_to_plugin/v1/composition/composition_pb2.py": "sha256:0112c85332e04254e91c8ac284d2d6b008f5fc75f01d19e42b93ef225370ab3e",
+    "gen/python/scenario_to_plugin/v1/composition/composition_pb2.pyi": "sha256:9b80547c7a3e2aa129f599b47c2278bc5d26cc72d909aa926e7ad37d7eefc289",
     "gen/python/scenario_to_plugin/v1/composition/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "gen/python/scenario_to_plugin/v1/conformance/conformance_pb2.py": "sha256:1d233ea93fab992b5a9377251375649316e1584c5162a4ebdbef82bd50de36b8",
     "gen/python/scenario_to_plugin/v1/conformance/conformance_pb2.pyi": "sha256:4d4c4d058b805b17e5a59366fad7a164ea65aa70a1626a45c531ea6effcf0b15",
@@ -63,7 +63,7 @@
     "gen/python/scenario_to_plugin/v1/shared/health_pb2.pyi": "sha256:b9ec00d86e0bdde26187240212eb1746c8be4ebac7b5320be40d8097822a8a04",
     "gen/python/scenario_to_plugin/v1/shared/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "gen/typescript/scenario-to-plugin/v1/attestation/attestation_pb.ts": "sha256:2beb021efd35801864c9acaf1a33f6897a8d0bdcfdaf5c8a84e9d8809b26f37b",
-    "gen/typescript/scenario-to-plugin/v1/composition/composition_pb.ts": "sha256:b6e7d9f736cb781cf67098945d2630dea153890687c67c8052b6dd18bc1ccc0d",
+    "gen/typescript/scenario-to-plugin/v1/composition/composition_pb.ts": "sha256:598e488a93a196d3a9cf7af7bab85e0af4f6e1eef4cf834dc4254004ce380ce0",
     "gen/typescript/scenario-to-plugin/v1/conformance/conformance_pb.ts": "sha256:d386eef6be8510e576b11a9e8e236366461613ea34918637ba37530415824660",
     "gen/typescript/scenario-to-plugin/v1/declaration/declaration_pb.ts": "sha256:3dc8a2b37e30fbe2080b607e6e9e735ab7d64e2dfc6e3da63ccbb7251206e0d3",
     "gen/typescript/scenario-to-plugin/v1/distribution/distribution_pb.ts": "sha256:d80a0eaa5443ce72eb6c6fb8ab8c34f7b6c8ae1479ccd89985fdda7055796dc7",

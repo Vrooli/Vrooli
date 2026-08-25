@@ -70,13 +70,6 @@ type Manager struct {
 	// session package does not know about backend-specific env keys.
 	envForSession func(sessionID string) map[string]string
 
-	// onSessionCreate/onSessionDelete are best-effort lifecycle hooks
-	// called after a session is added to or removed from the active map.
-	// Used by package main to manage the conversation fan-out registry
-	// without coupling the session package to ConversationEvent.
-	onSessionCreate func(sessionID string)
-	onSessionDelete func(sessionID string)
-
 	// Observability: optional metrics and event logger for session lifecycle.
 	metrics *metrics.Metrics
 	events  *events.Logger
@@ -162,15 +155,6 @@ func (sm *Manager) SetUploadDirFunc(fn func() string) { sm.uploadDirFunc = fn }
 // (CODEX_HOME, etc.). Called once at startup by package main.
 func (sm *Manager) SetEnvForSessionFunc(fn func(sessionID string) map[string]string) {
 	sm.envForSession = fn
-}
-
-// SetLifecycleHooks registers callbacks invoked after a session is added to
-// or removed from the active map. Either may be nil. Used by package main to
-// keep the conversation fan-out registry in sync without coupling the session
-// package to ConversationEvent.
-func (sm *Manager) SetLifecycleHooks(onCreate, onDelete func(sessionID string)) {
-	sm.onSessionCreate = onCreate
-	sm.onSessionDelete = onDelete
 }
 
 // SetRegistry sets the backend registry for backend-aware session creation.
@@ -346,10 +330,6 @@ func (sm *Manager) create(ctx context.Context, shell string, cols, rows uint16, 
 	sm.sessions[sess.ID] = sess
 	sm.mu.Unlock()
 
-	if sm.onSessionCreate != nil {
-		sm.onSessionCreate(sess.ID)
-	}
-
 	// Persist metadata if store is configured
 	if sm.store != nil {
 		detached := bid == backend.Persistent
@@ -380,9 +360,6 @@ func (sm *Manager) create(ctx context.Context, shell string, cols, rows uint16, 
 		sm.mu.Lock()
 		delete(sm.sessions, sess.ID)
 		sm.mu.Unlock()
-		if sm.onSessionDelete != nil {
-			sm.onSessionDelete(sess.ID)
-		}
 		// Persistent sessions: ALWAYS preserve metadata so recovery can
 		// re-attach on the next startup. The tmux session survives in its
 		// own systemd scope even when the attach process dies. Deleting
@@ -446,9 +423,6 @@ func (sm *Manager) terminate(ctx context.Context, id string, preserveMetadata bo
 
 	_ = sess.pty.Kill()
 	_ = sess.pty.Close()
-	if sm.onSessionDelete != nil {
-		sm.onSessionDelete(id)
-	}
 	// Clean up persisted metadata
 	if sm.store != nil && !preserveMetadata {
 		_ = sm.store.Delete(ctx, id)

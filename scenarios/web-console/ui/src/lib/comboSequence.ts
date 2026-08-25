@@ -1,5 +1,5 @@
 import type { KeyComboStep } from "../consts/key-combos";
-import type { GateResult, InputSource } from "../components/terminal/inputGate";
+import type { GateResult, InputIntent } from "../components/terminal/inputGate";
 
 /** Injectable delay function — default uses setTimeout; tests can substitute a synchronous fake. */
 export type DelayFn = (ms: number) => Promise<void>;
@@ -15,13 +15,13 @@ const defaultDelay: DelayFn = (ms) =>
  */
 export async function sendComboSequence(
   sequence: KeyComboStep[],
-  onInput: (data: string, source: InputSource) => GateResult,
+  onInput: (data: string, intent: Exclude<InputIntent, "control">) => GateResult,
   delay: DelayFn = defaultDelay,
 ): Promise<void> {
   for (const step of sequence) {
     if (step.delayMs && step.delayMs > 0) {
       await delay(step.delayMs);
     }
-    onInput(step.data, "toolbar-key");
+    onInput(step.data, "named_key");
   }
 }

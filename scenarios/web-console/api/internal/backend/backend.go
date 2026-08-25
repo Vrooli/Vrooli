@@ -5,9 +5,9 @@ package backend
 import (
 	"fmt"
 	"os/exec"
-	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"web-console/internal/pty"
 )
@@ -113,6 +113,17 @@ func (r *Registry) ResolveAuto() ID {
 // CheckTmuxAvailable is a function variable for testing.
 var CheckTmuxAvailable = defaultCheckTmuxAvailable
 
+var (
+	tmuxProbeMu    sync.Mutex
+	tmuxProbeCache = make(map[string]struct {
+		available bool
+		reason    string
+	})
+	tmuxProbeCommand = func(path string, args ...string) error {
+		return exec.Command(path, args...).Run()
+	}
+)
+
 // defaultCheckTmuxAvailable probes for tmux and returns availability + reason.
 func defaultCheckTmuxAvailable() (bool, string) {
 	path, err := exec.LookPath("tmux")
@@ -124,33 +135,51 @@ func defaultCheckTmuxAvailable() (bool, string) {
 		return false, fmt.Sprintf("tmux version check failed: %v", err)
 	}
 	version := strings.TrimSpace(string(out))
-	parts := strings.Fields(version)
-	if len(parts) < 2 {
+	if strings.TrimSpace(version) == "" {
 		return false, fmt.Sprintf("unexpected tmux version output: %q", version)
 	}
-	verStr := parts[1]
-	verStr = strings.TrimPrefix(verStr, "next-")
-	verParts := strings.SplitN(verStr, ".", 2)
-	if len(verParts) < 2 {
-		return true, ""
+
+	tmuxProbeMu.Lock()
+	if cached, ok := tmuxProbeCache[version]; ok {
+		tmuxProbeMu.Unlock()
+		return cached.available, cached.reason
 	}
-	major, err := strconv.Atoi(verParts[0])
-	if err != nil {
-		return false, fmt.Sprintf("cannot parse tmux major version from %q", verStr)
+	tmuxProbeMu.Unlock()
+
+	name := fmt.Sprintf("vrooli-web-console-probe-%d", time.Now().UnixNano())
+	defer func() { _ = tmuxProbeCommand(path, "kill-session", "-t", name) }()
+	if reason := runTmuxProbeCommand(path, "new-session", "-d", "-s", name, "-e", "K=V"); reason != "" {
+		return cacheTmuxProbe(version, false, reason)
 	}
-	minorStr := verParts[1]
-	for i, c := range minorStr {
-		if c < '0' || c > '9' {
-			minorStr = minorStr[:i]
-			break
+	commands := [][]string{
+		{"resize-window", "-t", name, "-x", "80", "-y", "24"},
+		{"set-buffer", "-b", "vrooli-probe-buffer", "probe"},
+		{"paste-buffer", "-p", "-b", "vrooli-probe-buffer", "-t", name},
+		{"send-keys", "-t", name, "-X", "cancel"},
+		{"display-message", "-t", name, "-p", "#{pane_in_mode}"},
+		{"display-message", "-t", name, "-p", "#{pane_dead_status}"},
+	}
+	for _, command := range commands {
+		if reason := runTmuxProbeCommand(path, command...); reason != "" {
+			return cacheTmuxProbe(version, false, reason)
 		}
 	}
-	minor, err := strconv.Atoi(minorStr)
-	if err != nil {
-		return false, fmt.Sprintf("cannot parse tmux minor version from %q", verStr)
+	return cacheTmuxProbe(version, true, "")
+}
+
+func runTmuxProbeCommand(path string, args ...string) string {
+	if err := tmuxProbeCommand(path, args...); err != nil {
+		return fmt.Sprintf("tmux probe missing command %q: %v", strings.Join(args, " "), err)
 	}
-	if major < 2 || (major == 2 && minor < 6) {
-		return false, fmt.Sprintf("tmux %s is too old (minimum 2.6)", verStr)
-	}
-	return true, ""
+	return ""
+}
+
+func cacheTmuxProbe(version string, available bool, reason string) (bool, string) {
+	tmuxProbeMu.Lock()
+	tmuxProbeCache[version] = struct {
+		available bool
+		reason    string
+	}{available: available, reason: reason}
+	tmuxProbeMu.Unlock()
+	return available, reason
 }

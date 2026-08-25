@@ -1,4 +1,3 @@
-// DOC: docs/internal/SEAMS.md#voice-input-provider-seam
 //
 // Barrel re-exports for the voice input module.
 

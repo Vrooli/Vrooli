@@ -28,7 +28,7 @@ describe("useImageUpload", () => {
       await result.current.uploadAndInject(file);
     });
 
-    expect(sendInput).toHaveBeenCalledWith("/tmp/web-console-uploads/sess-1/test.png\n", "upload");
+    expect(sendInput).toHaveBeenCalledWith("/tmp/web-console-uploads/sess-1/test.png\n", "bulk_text");
     expect(result.current.uploading).toBe(false);
     expect(result.current.error).toBeNull();
   });

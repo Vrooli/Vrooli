@@ -212,6 +212,8 @@ const (
 	CapabilitySituation_CAPABILITY_SITUATION_NO_WORK_REQUIRED       CapabilitySituation = 2
 	CapabilitySituation_CAPABILITY_SITUATION_NO_EQUIVALENT_EVER     CapabilitySituation = 3
 	CapabilitySituation_CAPABILITY_SITUATION_REAL_PEER_NOBODY_WIRED CapabilitySituation = 4
+	CapabilitySituation_CAPABILITY_SITUATION_CONTROLS_UNPORTED      CapabilitySituation = 5
+	CapabilitySituation_CAPABILITY_SITUATION_SCOPED_OUT             CapabilitySituation = 6
 )
 
 // Enum value maps for CapabilitySituation.
@@ -222,6 +224,8 @@ var (
 		2: "CAPABILITY_SITUATION_NO_WORK_REQUIRED",
 		3: "CAPABILITY_SITUATION_NO_EQUIVALENT_EVER",
 		4: "CAPABILITY_SITUATION_REAL_PEER_NOBODY_WIRED",
+		5: "CAPABILITY_SITUATION_CONTROLS_UNPORTED",
+		6: "CAPABILITY_SITUATION_SCOPED_OUT",
 	}
 	CapabilitySituation_value = map[string]int32{
 		"CAPABILITY_SITUATION_UNSPECIFIED":            0,
@@ -229,6 +233,8 @@ var (
 		"CAPABILITY_SITUATION_NO_WORK_REQUIRED":       2,
 		"CAPABILITY_SITUATION_NO_EQUIVALENT_EVER":     3,
 		"CAPABILITY_SITUATION_REAL_PEER_NOBODY_WIRED": 4,
+		"CAPABILITY_SITUATION_CONTROLS_UNPORTED":      5,
+		"CAPABILITY_SITUATION_SCOPED_OUT":             6,
 	}
 )
 
@@ -366,6 +372,7 @@ func (DeliveryTier) EnumDescriptor() ([]byte, []int) {
 type PlatformEntry struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	HostOs        HostOS                 `protobuf:"varint,1,opt,name=host_os,json=hostOs,proto3,enum=vrooli.infrastructure_manager.v1.portability.HostOS" json:"host_os,omitempty"`
+	Architecture  string                 `protobuf:"bytes,17,opt,name=architecture,proto3" json:"architecture,omitempty"`
 	Status        ResolutionStatus       `protobuf:"varint,2,opt,name=status,proto3,enum=vrooli.infrastructure_manager.v1.portability.ResolutionStatus" json:"status,omitempty"`
 	Qualification Qualification          `protobuf:"varint,3,opt,name=qualification,proto3,enum=vrooli.infrastructure_manager.v1.portability.Qualification" json:"qualification,omitempty"`
 	Implementer   string                 `protobuf:"bytes,4,opt,name=implementer,proto3" json:"implementer,omitempty"`
@@ -380,6 +387,8 @@ type PlatformEntry struct {
 	HasImplementation bool                  `protobuf:"varint,8,opt,name=has_implementation,json=hasImplementation,proto3" json:"has_implementation,omitempty"`
 	Controls          []string              `protobuf:"bytes,9,rep,name=controls,proto3" json:"controls,omitempty"`
 	Absent            []string              `protobuf:"bytes,10,rep,name=absent,proto3" json:"absent,omitempty"`
+	AbsentControls    []string              `protobuf:"bytes,15,rep,name=absent_controls,json=absentControls,proto3" json:"absent_controls,omitempty"`
+	AbsentProviders   []string              `protobuf:"bytes,16,rep,name=absent_providers,json=absentProviders,proto3" json:"absent_providers,omitempty"`
 	Declarers         []*CapabilityDeclarer `protobuf:"bytes,11,rep,name=declarers,proto3" json:"declarers,omitempty"`
 	// observed_qualification is host evidence, not a replacement for the
 	// declaration qualification above. It is explicit when the current host
@@ -426,6 +435,13 @@ func (x *PlatformEntry) GetHostOs() HostOS {
 		return x.HostOs
 	}
 	return HostOS_HOST_OS_UNSPECIFIED
+}
+
+func (x *PlatformEntry) GetArchitecture() string {
+	if x != nil {
+		return x.Architecture
+	}
+	return ""
 }
 
 func (x *PlatformEntry) GetStatus() ResolutionStatus {
@@ -487,6 +503,20 @@ func (x *PlatformEntry) GetControls() []string {
 func (x *PlatformEntry) GetAbsent() []string {
 	if x != nil {
 		return x.Absent
+	}
+	return nil
+}
+
+func (x *PlatformEntry) GetAbsentControls() []string {
+	if x != nil {
+		return x.AbsentControls
+	}
+	return nil
+}
+
+func (x *PlatformEntry) GetAbsentProviders() []string {
+	if x != nil {
+		return x.AbsentProviders
 	}
 	return nil
 }
@@ -1858,9 +1888,10 @@ var File_infrastructure_manager_v1_portability_portability_proto protoreflect.Fi
 
 const file_infrastructure_manager_v1_portability_portability_proto_rawDesc = "" +
 	"\n" +
-	"7infrastructure-manager/v1/portability/portability.proto\x12,vrooli.infrastructure_manager.v1.portability\x1a\x1fgoogle/protobuf/timestamp.proto\"\x8e\a\n" +
+	"7infrastructure-manager/v1/portability/portability.proto\x12,vrooli.infrastructure_manager.v1.portability\x1a\x1fgoogle/protobuf/timestamp.proto\"\x86\b\n" +
 	"\rPlatformEntry\x12M\n" +
-	"\ahost_os\x18\x01 \x01(\x0e24.vrooli.infrastructure_manager.v1.portability.HostOSR\x06hostOs\x12V\n" +
+	"\ahost_os\x18\x01 \x01(\x0e24.vrooli.infrastructure_manager.v1.portability.HostOSR\x06hostOs\x12\"\n" +
+	"\farchitecture\x18\x11 \x01(\tR\farchitecture\x12V\n" +
 	"\x06status\x18\x02 \x01(\x0e2>.vrooli.infrastructure_manager.v1.portability.ResolutionStatusR\x06status\x12a\n" +
 	"\rqualification\x18\x03 \x01(\x0e2;.vrooli.infrastructure_manager.v1.portability.QualificationR\rqualification\x12 \n" +
 	"\vimplementer\x18\x04 \x01(\tR\vimplementer\x12\x1c\n" +
@@ -1870,7 +1901,9 @@ const file_infrastructure_manager_v1_portability_portability_proto_rawDesc = "" 
 	"\x12has_implementation\x18\b \x01(\bR\x11hasImplementation\x12\x1a\n" +
 	"\bcontrols\x18\t \x03(\tR\bcontrols\x12\x16\n" +
 	"\x06absent\x18\n" +
-	" \x03(\tR\x06absent\x12^\n" +
+	" \x03(\tR\x06absent\x12'\n" +
+	"\x0fabsent_controls\x18\x0f \x03(\tR\x0eabsentControls\x12)\n" +
+	"\x10absent_providers\x18\x10 \x03(\tR\x0fabsentProviders\x12^\n" +
 	"\tdeclarers\x18\v \x03(\v2@.vrooli.infrastructure_manager.v1.portability.CapabilityDeclarerR\tdeclarers\x12r\n" +
 	"\x16observed_qualification\x18\f \x01(\x0e2;.vrooli.infrastructure_manager.v1.portability.QualificationR\x15observedQualification\x12B\n" +
 	"\x1dobserved_qualification_reason\x18\r \x01(\tR\x1bobservedQualificationReason\x12m\n" +
@@ -2010,13 +2043,15 @@ const file_infrastructure_manager_v1_portability_portability_proto_rawDesc = "" 
 	"\x16QUALIFICATION_DEGRADED\x10\x03\x12\x1d\n" +
 	"\x19QUALIFICATION_UNQUALIFIED\x10\x04\x12 \n" +
 	"\x1cQUALIFICATION_BUILD_VERIFIED\x10\x05\x12\x1b\n" +
-	"\x17QUALIFICATION_QUALIFIED\x10\x06*\xef\x01\n" +
+	"\x17QUALIFICATION_QUALIFIED\x10\x06*\xc0\x02\n" +
 	"\x13CapabilitySituation\x12$\n" +
 	" CAPABILITY_SITUATION_UNSPECIFIED\x10\x00\x12)\n" +
 	"%CAPABILITY_SITUATION_BUILT_EVERYWHERE\x10\x01\x12)\n" +
 	"%CAPABILITY_SITUATION_NO_WORK_REQUIRED\x10\x02\x12+\n" +
 	"'CAPABILITY_SITUATION_NO_EQUIVALENT_EVER\x10\x03\x12/\n" +
-	"+CAPABILITY_SITUATION_REAL_PEER_NOBODY_WIRED\x10\x04*e\n" +
+	"+CAPABILITY_SITUATION_REAL_PEER_NOBODY_WIRED\x10\x04\x12*\n" +
+	"&CAPABILITY_SITUATION_CONTROLS_UNPORTED\x10\x05\x12#\n" +
+	"\x1fCAPABILITY_SITUATION_SCOPED_OUT\x10\x06*e\n" +
 	"\aVerdict\x12\x17\n" +
 	"\x13VERDICT_UNSPECIFIED\x10\x00\x12\x14\n" +
 	"\x10VERDICT_ELIGIBLE\x10\x01\x12\x16\n" +

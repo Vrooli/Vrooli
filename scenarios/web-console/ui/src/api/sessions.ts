@@ -1,9 +1,9 @@
 import { createClient } from "@connectrpc/connect";
 import { ArchiveRestoreState, SessionsService, SessionOrigin } from "@vrooli/proto-types/web-console/v1/sessions/sessions_pb";
 import type { Target } from "@vrooli/proto-types/web-console/v1/shared/target_pb";
-import { resolveApiBase, buildWsUrl } from "@vrooli/api-base";
+import { buildWsUrl } from "@vrooli/api-base";
 
-import { transport } from "./client";
+import { API_BASE_WITH_SUFFIX, transport } from "./client";
 import { decodeTarget, type TerminalTarget } from "./targets";
 
 // sessionsClient is the Connect-Web client for SessionsService. Consumers
@@ -50,7 +50,6 @@ export interface SessionInfo {
   backend: BackendID;
   survives_restart: boolean;
   policy: ExpirationPolicy;
-  busy: boolean;
   recovered?: boolean;
   /** Session provenance for sidebar bucketing (see SessionOriginName). */
   origin: SessionOriginName;
@@ -153,7 +152,6 @@ type ProtoSession = {
   backend: string;
   survivesRestart: boolean;
   policy?: { mode: string; duration: string };
-  busy: boolean;
   recovered: boolean;
   origin?: SessionOrigin;
   owner?: string;
@@ -232,7 +230,6 @@ export function decodeSession(s: ProtoSession | undefined): SessionInfo {
       mode: (policy?.mode as PolicyMode) ?? "never",
       ...(policy?.duration ? { duration: policy.duration } : {}),
     },
-    busy: s?.busy ?? false,
     ...(s?.recovered ? { recovered: true } : {}),
     origin: originName(s?.origin),
     owner: s?.owner ?? "",
@@ -496,7 +493,7 @@ export async function updateSessionPolicy(
 // Kept in the sessions domain because the WS endpoint is part of the
 // session lifecycle even though it bypasses Connect-RPC.
 export function buildSessionWsUrl(sessionId: string, device?: { id: string; label: string }): string {
-  const apiBase = resolveApiBase({ appendSuffix: true });
+  const apiBase = API_BASE_WITH_SUFFIX;
   const wsBase = apiBase.startsWith("https://")
     ? `wss://${apiBase.slice("https://".length)}`
     : apiBase.startsWith("http://")

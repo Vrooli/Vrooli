@@ -384,7 +384,7 @@ func (s *Server) handleRemoteTerminalCreate(w http.ResponseWriter, r *http.Reque
 	writeRemoteJSON(w, http.StatusCreated, map[string]any{
 		"id": id, "shell": req.Shell, "created_at": now, "cols": req.Cols, "rows": req.Rows,
 		"backend": "standard", "survives_restart": false, "policy": map[string]any{"mode": "never"},
-		"busy": false, "origin": "remote", "owner": "target:" + target.ID, "display_label": target.Label, "target": target,
+		"origin": "remote", "owner": "target:" + target.ID, "display_label": target.Label, "target": target,
 	})
 }
 
@@ -394,7 +394,7 @@ func (s *Server) handleRemoteTerminalList(w http.ResponseWriter, _ *http.Request
 	for _, current := range s.remoteRegistry().sessions {
 		items = append(items, map[string]any{
 			"id": current.ID, "shell": current.Shell, "created_at": current.CreatedAt, "cols": current.Cols, "rows": current.Rows,
-			"backend": "standard", "survives_restart": false, "policy": map[string]any{"mode": "never"}, "busy": false,
+			"backend": "standard", "survives_restart": false, "policy": map[string]any{"mode": "never"},
 			"origin": "remote", "owner": "target:" + current.Target.ID, "display_label": current.Target.Label, "target": current.Target,
 		})
 	}
@@ -466,7 +466,7 @@ func (s *Server) handleRemoteTerminalWS(w http.ResponseWriter, r *http.Request, 
 	if err := writeClient(TerminalMessage{Type: MsgTypeHistoryEnd}); err != nil {
 		return
 	}
-	if err := writeClient(TerminalMessage{Type: MsgTypeSizeInfo, Cols: remote.Cols, Rows: remote.Rows}); err != nil {
+	if err := writeClient(TerminalMessage{Type: MsgTypeSizeInfo, Cols: remote.Cols, Rows: remote.Rows, HoldsLease: true}); err != nil {
 		return
 	}
 	if err := writeClient(TerminalMessage{Type: MsgTypeSessionReady, Gen: s.nextWSGen.Add(1)}); err != nil {

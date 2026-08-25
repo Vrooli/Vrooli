@@ -72,11 +72,16 @@ func (a *Adapter) SendInput(_ context.Context, sessionID string, in InputRequest
 	case InputVariantText:
 		input = session.InputText(in.Text)
 	case InputVariantKeys:
-		keys := make([]session.Key, len(in.Keys))
-		for i, k := range in.Keys {
-			keys[i] = session.Key{Name: k.Name, Ctrl: k.Ctrl, Alt: k.Alt, Shift: k.Shift}
+		keyMap := DefaultKeyMap{}
+		var raw []byte
+		for _, k := range in.Keys {
+			bytes, ok := keyMap.Bytes(session.Key{Name: k.Name, Ctrl: k.Ctrl, Alt: k.Alt, Shift: k.Shift})
+			if !ok {
+				return 0, fmt.Errorf("unknown key %q: %w", k.Name, ErrInvalidArgument)
+			}
+			raw = append(raw, bytes...)
 		}
-		input = session.InputKeys(keys...)
+		input = session.InputRaw(raw)
 	case InputVariantRaw:
 		input = session.InputRaw(in.Raw)
 	default:
@@ -90,13 +95,14 @@ func (a *Adapter) SendInput(_ context.Context, sessionID string, in InputRequest
 		source = "terminal-rpc"
 	}
 	input = input.WithSource(source)
-	if err := sess.SendInput(input); err != nil {
+	n, err := sess.SendInputCount(input)
+	if err != nil {
 		if isUnknownKeyError(err) {
 			return 0, fmt.Errorf("%v: %w", err, ErrInvalidArgument)
 		}
 		return 0, fmt.Errorf("%v: %w", err, ErrInternal)
 	}
-	return 0, nil
+	return n, nil
 }
 
 func (a *Adapter) WaitIdle(ctx context.Context, sessionID string, quietWindow, timeout time.Duration) (WaitIdleResult, error) {

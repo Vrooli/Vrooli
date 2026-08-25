@@ -7,7 +7,8 @@ import { useWorkspaceStore } from "../stores/useWorkspaceStore";
 import { orderPanesByGroupBlocks } from "../lib/workspaceNavigation";
 import { DEFAULT_COLS, DEFAULT_ROWS, ERROR_AUTO_DISMISS_MS } from "../consts/config";
 import type { TerminalPaneHandle } from "../components/TerminalPane";
-import type { GateResult, InputSource } from "../components/terminal/inputGate";
+import type { GateResult, InputIntent } from "../components/terminal/inputGate";
+import type { InputSettlementCallback, InputSettledListener } from "./terminal/useStdinAck";
 import { ttsPlaybackRegistry } from "../audio-integration";
 
 function newLaunchIdempotencyKey(): string {
@@ -424,12 +425,12 @@ export function useSessionManager() {
   }, []);
 
   const submitToActiveTerminal = useCallback(
-    (data: string, source: InputSource, targetId?: string): GateResult => {
+    (data: string, intent: Exclude<InputIntent, "control">, targetId?: string): GateResult => {
       const target = targetId ?? panes[panes.length - 1]?.session.id;
       if (target) {
         const handle = terminalRefs.current.get(target);
         if (handle) {
-          return handle.submitInput(data, source);
+          return handle.submitInput(data, intent);
         }
       }
       return { status: "rejected", reason: "disposed" };
@@ -438,12 +439,22 @@ export function useSessionManager() {
   );
 
   const subscribeActiveInputSettled = useCallback(
-    (targetId: string | undefined, cb: (seq: number, ok: boolean) => void): () => void => {
+    (targetId: string | undefined, cb: InputSettledListener): () => void => {
       const target = targetId ?? panes[panes.length - 1]?.session.id;
       if (!target) return () => {};
       const handle = terminalRefs.current.get(target);
       if (!handle) return () => {};
       return handle.subscribeInputSettled(cb);
+    },
+    [panes],
+  );
+
+  const awaitActiveInputSeq = useCallback(
+    (targetId: string | undefined, seq: number, cb: InputSettlementCallback): () => void => {
+      const target = targetId ?? panes[panes.length - 1]?.session.id;
+      if (!target) return () => {};
+      const handle = terminalRefs.current.get(target);
+      return handle?.awaitSeq(seq, cb) ?? (() => {});
     },
     [panes],
   );
@@ -468,6 +479,21 @@ export function useSessionManager() {
     },
     [panes],
   );
+
+  const copySelectionOnPane = useCallback(async (sessionId?: string): Promise<boolean> => {
+    const target = sessionId ?? panes[panes.length - 1]?.session.id;
+    return target ? (await terminalRefs.current.get(target)?.copySelection()) ?? false : false;
+  }, [panes]);
+
+  const pasteFromClipboardOnPane = useCallback(async (sessionId?: string): Promise<boolean> => {
+    const target = sessionId ?? panes[panes.length - 1]?.session.id;
+    return target ? (await terminalRefs.current.get(target)?.pasteFromClipboard()) ?? false : false;
+  }, [panes]);
+
+  const scrollTerminalOnPane = useCallback((lines: number, sessionId?: string): void => {
+    const target = sessionId ?? panes[panes.length - 1]?.session.id;
+    if (target) terminalRefs.current.get(target)?.scrollTerminal(lines);
+  }, [panes]);
 
   const focusActiveTerminal = useCallback(
     (targetId?: string) => {
@@ -573,8 +599,12 @@ export function useSessionManager() {
     handleExit,
     submitToActiveTerminal,
     subscribeActiveInputSettled,
+    awaitActiveInputSeq,
     subscribeActivePendingInput,
     getActivePendingInputSnapshot,
+    copySelectionOnPane,
+    pasteFromClipboardOnPane,
+    scrollTerminalOnPane,
     focusActiveTerminal,
     registerTerminalRef,
     stopActiveTts,

@@ -66,9 +66,6 @@ type GetResponse struct {
 	Recovery      *RecoveryMetrics       `protobuf:"bytes,5,opt,name=recovery,proto3" json:"recovery,omitempty"`
 	AiGenerations int64                  `protobuf:"varint,6,opt,name=ai_generations,json=aiGenerations,proto3" json:"ai_generations,omitempty"`
 	AiSuggestions int64                  `protobuf:"varint,7,opt,name=ai_suggestions,json=aiSuggestions,proto3" json:"ai_suggestions,omitempty"`
-	// stdin messages arriving before session_ready. Expected to be 0 in
-	// steady state.
-	StdinBeforeReadyTotal int64 `protobuf:"varint,8,opt,name=stdin_before_ready_total,json=stdinBeforeReadyTotal,proto3" json:"stdin_before_ready_total,omitempty"`
 	// /voice/transcribe requests that bypassed speaker verification.
 	VoiceSkipVerificationTotal int64 `protobuf:"varint,9,opt,name=voice_skip_verification_total,json=voiceSkipVerificationTotal,proto3" json:"voice_skip_verification_total,omitempty"`
 	// Process uptime as a Go time.Duration string (e.g., "3h4m5s").
@@ -152,13 +149,6 @@ func (x *GetResponse) GetAiGenerations() int64 {
 func (x *GetResponse) GetAiSuggestions() int64 {
 	if x != nil {
 		return x.AiSuggestions
-	}
-	return 0
-}
-
-func (x *GetResponse) GetStdinBeforeReadyTotal() int64 {
-	if x != nil {
-		return x.StdinBeforeReadyTotal
 	}
 	return 0
 }
@@ -491,7 +481,7 @@ const file_web_console_v1_metrics_metrics_proto_rawDesc = "" +
 	"\n" +
 	"$web-console/v1/metrics/metrics.proto\x12\x1dvrooli.web_console.v1.metrics\"\f\n" +
 	"\n" +
-	"GetRequest\"\xf1\x04\n" +
+	"GetRequest\"\xb8\x04\n" +
 	"\vGetResponse\x12I\n" +
 	"\bsessions\x18\x01 \x01(\v2-.vrooli.web_console.v1.metrics.SessionMetricsR\bsessions\x12R\n" +
 	"\vconnections\x18\x02 \x01(\v20.vrooli.web_console.v1.metrics.ConnectionMetricsR\vconnections\x12I\n" +
@@ -499,8 +489,7 @@ const file_web_console_v1_metrics_metrics_proto_rawDesc = "" +
 	"\breattach\x18\x04 \x01(\v2..vrooli.web_console.v1.metrics.ReattachMetricsR\breattach\x12J\n" +
 	"\brecovery\x18\x05 \x01(\v2..vrooli.web_console.v1.metrics.RecoveryMetricsR\brecovery\x12%\n" +
 	"\x0eai_generations\x18\x06 \x01(\x03R\raiGenerations\x12%\n" +
-	"\x0eai_suggestions\x18\a \x01(\x03R\raiSuggestions\x127\n" +
-	"\x18stdin_before_ready_total\x18\b \x01(\x03R\x15stdinBeforeReadyTotal\x12A\n" +
+	"\x0eai_suggestions\x18\a \x01(\x03R\raiSuggestions\x12A\n" +
 	"\x1dvoice_skip_verification_total\x18\t \x01(\x03R\x1avoiceSkipVerificationTotal\x12\x16\n" +
 	"\x06uptime\x18\n" +
 	" \x01(\tR\x06uptime\"v\n" +

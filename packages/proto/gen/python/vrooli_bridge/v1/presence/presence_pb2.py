@@ -23,9 +23,10 @@ _sym_db = _symbol_database.Default()
 
 
 from vrooli_bridge.v1.shared import shared_pb2 as vrooli__bridge_dot_v1_dot_shared_dot_shared__pb2
+from vrooli_bridge.v1.channel import channel_pb2 as vrooli__bridge_dot_v1_dot_channel_dot_channel__pb2
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n(vrooli-bridge/v1/presence/presence.proto\x12 vrooli.vrooli_bridge.v1.presence\x1a$vrooli-bridge/v1/shared/shared.proto\"a\n\x16ReportHeartbeatRequest\x12G\n\theartbeat\x18\x01 \x01(\x0b\x32).vrooli.vrooli_bridge.v1.shared.HeartbeatR\theartbeat\"t\n\x17ReportHeartbeatResponse\x12Y\n\rcompatibility\x18\x01 \x01(\x0e\x32\x33.vrooli.vrooli_bridge.v1.shared.CompatibilityStatusR\rcompatibility\"Y\n\x18ReportDeliveryAckRequest\x12=\n\x03\x61\x63k\x18\x01 \x01(\x0b\x32+.vrooli.vrooli_bridge.v1.shared.DeliveryAckR\x03\x61\x63k\"7\n\x19ReportDeliveryAckResponse\x12\x1a\n\x08\x61\x63\x63\x65pted\x18\x01 \x01(\x08R\x08\x61\x63\x63\x65pted\"_\n\x19ReportSessionFrameRequest\x12\x42\n\x05\x66rame\x18\x01 \x01(\x0b\x32,.vrooli.vrooli_bridge.v1.shared.SessionFrameR\x05\x66rame\"8\n\x1aReportSessionFrameResponse\x12\x1a\n\x08\x61\x63\x63\x65pted\x18\x01 \x01(\x08R\x08\x61\x63\x63\x65pted\"g\n\x1aReportRelayResponseRequest\x12I\n\x08response\x18\x01 \x01(\x0b\x32-.vrooli.vrooli_bridge.v1.shared.RelayResponseR\x08response\"9\n\x1bReportRelayResponseResponse\x12\x1a\n\x08\x61\x63\x63\x65pted\x18\x01 \x01(\x08R\x08\x61\x63\x63\x65pted2\xd0\x04\n\x0fPresenceService\x12\x86\x01\n\x0fReportHeartbeat\x12\x38.vrooli.vrooli_bridge.v1.presence.ReportHeartbeatRequest\x1a\x39.vrooli.vrooli_bridge.v1.presence.ReportHeartbeatResponse\x12\x8c\x01\n\x11ReportDeliveryAck\x12:.vrooli.vrooli_bridge.v1.presence.ReportDeliveryAckRequest\x1a;.vrooli.vrooli_bridge.v1.presence.ReportDeliveryAckResponse\x12\x8f\x01\n\x12ReportSessionFrame\x12;.vrooli.vrooli_bridge.v1.presence.ReportSessionFrameRequest\x1a<.vrooli.vrooli_bridge.v1.presence.ReportSessionFrameResponse\x12\x92\x01\n\x13ReportRelayResponse\x12<.vrooli.vrooli_bridge.v1.presence.ReportRelayResponseRequest\x1a=.vrooli.vrooli_bridge.v1.presence.ReportRelayResponseResponseBVZTgithub.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/presence;presence_v1b\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n(vrooli-bridge/v1/presence/presence.proto\x12 vrooli.vrooli_bridge.v1.presence\x1a$vrooli-bridge/v1/shared/shared.proto\x1a&vrooli-bridge/v1/channel/channel.proto\"a\n\x16ReportHeartbeatRequest\x12G\n\theartbeat\x18\x01 \x01(\x0b\x32).vrooli.vrooli_bridge.v1.shared.HeartbeatR\theartbeat\"t\n\x17ReportHeartbeatResponse\x12Y\n\rcompatibility\x18\x01 \x01(\x0e\x32\x33.vrooli.vrooli_bridge.v1.shared.CompatibilityStatusR\rcompatibility\"Y\n\x18ReportDeliveryAckRequest\x12=\n\x03\x61\x63k\x18\x01 \x01(\x0b\x32+.vrooli.vrooli_bridge.v1.shared.DeliveryAckR\x03\x61\x63k\"7\n\x19ReportDeliveryAckResponse\x12\x1a\n\x08\x61\x63\x63\x65pted\x18\x01 \x01(\x08R\x08\x61\x63\x63\x65pted\"_\n\x19ReportSessionFrameRequest\x12\x42\n\x05\x66rame\x18\x01 \x01(\x0b\x32,.vrooli.vrooli_bridge.v1.shared.SessionFrameR\x05\x66rame\"8\n\x1aReportSessionFrameResponse\x12\x1a\n\x08\x61\x63\x63\x65pted\x18\x01 \x01(\x08R\x08\x61\x63\x63\x65pted\"g\n\x1aReportRelayResponseRequest\x12I\n\x08response\x18\x01 \x01(\x0b\x32-.vrooli.vrooli_bridge.v1.shared.RelayResponseR\x08response\"9\n\x1bReportRelayResponseResponse\x12\x1a\n\x08\x61\x63\x63\x65pted\x18\x01 \x01(\x08R\x08\x61\x63\x63\x65pted\"o\n\x1eReportCredentialReceiptRequest\x12M\n\x07receipt\x18\x01 \x01(\x0b\x32\x33.vrooli.vrooli_bridge.v1.presence.CredentialReceiptR\x07receipt\"\xd0\x01\n\x11\x43redentialReceipt\x12\x19\n\x08grant_id\x18\x01 \x01(\tR\x07grantId\x12\x17\n\x07node_id\x18\x02 \x01(\tR\x06nodeId\x12\x1d\n\nlogical_id\x18\x03 \x01(\tR\tlogicalId\x12\x14\n\x05\x66ield\x18\x04 \x01(\tR\x05\x66ield\x12\x1e\n\ngeneration\x18\x05 \x01(\x03R\ngeneration\x12\x1a\n\x08\x61\x63\x63\x65pted\x18\x06 \x01(\x08R\x08\x61\x63\x63\x65pted\x12\x16\n\x06reason\x18\x07 \x01(\tR\x06reason\"=\n\x1fReportCredentialReceiptResponse\x12\x1a\n\x08\x61\x63\x63\x65pted\x18\x01 \x01(\x08R\x08\x61\x63\x63\x65pted2\xf1\x05\n\x0fPresenceService\x12\x86\x01\n\x0fReportHeartbeat\x12\x38.vrooli.vrooli_bridge.v1.presence.ReportHeartbeatRequest\x1a\x39.vrooli.vrooli_bridge.v1.presence.ReportHeartbeatResponse\x12\x8c\x01\n\x11ReportDeliveryAck\x12:.vrooli.vrooli_bridge.v1.presence.ReportDeliveryAckRequest\x1a;.vrooli.vrooli_bridge.v1.presence.ReportDeliveryAckResponse\x12\x8f\x01\n\x12ReportSessionFrame\x12;.vrooli.vrooli_bridge.v1.presence.ReportSessionFrameRequest\x1a<.vrooli.vrooli_bridge.v1.presence.ReportSessionFrameResponse\x12\x92\x01\n\x13ReportRelayResponse\x12<.vrooli.vrooli_bridge.v1.presence.ReportRelayResponseRequest\x1a=.vrooli.vrooli_bridge.v1.presence.ReportRelayResponseResponse\x12\x9e\x01\n\x17ReportCredentialReceipt\x12@.vrooli.vrooli_bridge.v1.presence.ReportCredentialReceiptRequest\x1a\x41.vrooli.vrooli_bridge.v1.presence.ReportCredentialReceiptResponseBVZTgithub.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/presence;presence_v1b\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -33,22 +34,28 @@ _builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'vrooli_bridge.v1.presence.p
 if not _descriptor._USE_C_DESCRIPTORS:
   _globals['DESCRIPTOR']._loaded_options = None
   _globals['DESCRIPTOR']._serialized_options = b'ZTgithub.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/presence;presence_v1'
-  _globals['_REPORTHEARTBEATREQUEST']._serialized_start=116
-  _globals['_REPORTHEARTBEATREQUEST']._serialized_end=213
-  _globals['_REPORTHEARTBEATRESPONSE']._serialized_start=215
-  _globals['_REPORTHEARTBEATRESPONSE']._serialized_end=331
-  _globals['_REPORTDELIVERYACKREQUEST']._serialized_start=333
-  _globals['_REPORTDELIVERYACKREQUEST']._serialized_end=422
-  _globals['_REPORTDELIVERYACKRESPONSE']._serialized_start=424
-  _globals['_REPORTDELIVERYACKRESPONSE']._serialized_end=479
-  _globals['_REPORTSESSIONFRAMEREQUEST']._serialized_start=481
-  _globals['_REPORTSESSIONFRAMEREQUEST']._serialized_end=576
-  _globals['_REPORTSESSIONFRAMERESPONSE']._serialized_start=578
-  _globals['_REPORTSESSIONFRAMERESPONSE']._serialized_end=634
-  _globals['_REPORTRELAYRESPONSEREQUEST']._serialized_start=636
-  _globals['_REPORTRELAYRESPONSEREQUEST']._serialized_end=739
-  _globals['_REPORTRELAYRESPONSERESPONSE']._serialized_start=741
-  _globals['_REPORTRELAYRESPONSERESPONSE']._serialized_end=798
-  _globals['_PRESENCESERVICE']._serialized_start=801
-  _globals['_PRESENCESERVICE']._serialized_end=1393
+  _globals['_REPORTHEARTBEATREQUEST']._serialized_start=156
+  _globals['_REPORTHEARTBEATREQUEST']._serialized_end=253
+  _globals['_REPORTHEARTBEATRESPONSE']._serialized_start=255
+  _globals['_REPORTHEARTBEATRESPONSE']._serialized_end=371
+  _globals['_REPORTDELIVERYACKREQUEST']._serialized_start=373
+  _globals['_REPORTDELIVERYACKREQUEST']._serialized_end=462
+  _globals['_REPORTDELIVERYACKRESPONSE']._serialized_start=464
+  _globals['_REPORTDELIVERYACKRESPONSE']._serialized_end=519
+  _globals['_REPORTSESSIONFRAMEREQUEST']._serialized_start=521
+  _globals['_REPORTSESSIONFRAMEREQUEST']._serialized_end=616
+  _globals['_REPORTSESSIONFRAMERESPONSE']._serialized_start=618
+  _globals['_REPORTSESSIONFRAMERESPONSE']._serialized_end=674
+  _globals['_REPORTRELAYRESPONSEREQUEST']._serialized_start=676
+  _globals['_REPORTRELAYRESPONSEREQUEST']._serialized_end=779
+  _globals['_REPORTRELAYRESPONSERESPONSE']._serialized_start=781
+  _globals['_REPORTRELAYRESPONSERESPONSE']._serialized_end=838
+  _globals['_REPORTCREDENTIALRECEIPTREQUEST']._serialized_start=840
+  _globals['_REPORTCREDENTIALRECEIPTREQUEST']._serialized_end=951
+  _globals['_CREDENTIALRECEIPT']._serialized_start=954
+  _globals['_CREDENTIALRECEIPT']._serialized_end=1162
+  _globals['_REPORTCREDENTIALRECEIPTRESPONSE']._serialized_start=1164
+  _globals['_REPORTCREDENTIALRECEIPTRESPONSE']._serialized_end=1225
+  _globals['_PRESENCESERVICE']._serialized_start=1228
+  _globals['_PRESENCESERVICE']._serialized_end=1981
 # @@protoc_insertion_point(module_scope)

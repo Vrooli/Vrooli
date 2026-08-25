@@ -75,7 +75,7 @@ const {
       onTtsSpeakingChange: undefined as ((speaking: boolean) => void) | undefined,
     },
     hookState: {
-      panes: [{ session: { id: SESSION_ID, shell: "/bin/bash", created_at: "2026-01-01T00:00:00Z", cols: 80, rows: 24, policy: { mode: "never" as const }, busy: false } }],
+      panes: [{ session: { id: SESSION_ID, shell: "/bin/bash", created_at: "2026-01-01T00:00:00Z", cols: 80, rows: 24, policy: { mode: "never" as const } } }],
     },
   };
 });
@@ -153,6 +153,10 @@ vi.mock("../components/TerminalPane", () => ({
     captured.onTtsSpeakingChange = onTtsSpeakingChange;
     useImperativeHandle(ref, () => ({
       submitInput: vi.fn().mockReturnValue({ status: "sent", seq: 1 }),
+      sendControl: vi.fn().mockReturnValue(true),
+      copySelection: vi.fn().mockResolvedValue(true),
+      pasteFromClipboard: vi.fn().mockResolvedValue(true),
+      scrollTerminal: vi.fn(),
       focus: vi.fn(),
       stopTts: vi.fn(),
       speakText: vi.fn(),
@@ -165,6 +169,7 @@ vi.mock("../components/TerminalPane", () => ({
       setTtsMuted: vi.fn(),
       getTtsState: vi.fn().mockReturnValue(null),
       subscribeInputSettled: vi.fn(() => () => {}),
+      awaitSeq: vi.fn(() => () => {}),
       subscribePendingInput: vi.fn(() => () => {}),
       getPendingInputSnapshot: vi.fn(() => []),
     }));

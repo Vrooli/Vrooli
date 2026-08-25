@@ -37,6 +37,11 @@ type InputMeta struct {
 	// bracketed-paste path when the underlying backend supports it.
 	// Maps to pty.KindPaste; otherwise pty.KindKeystroke.
 	IsPaste bool
+	// Kind, when KindSet is true, is the explicit transport intent. It is
+	// used for synthetic control bytes that do not belong to stdin's reliable
+	// text lane.
+	Kind    pty.InputKind
+	KindSet bool
 }
 
 // SessionInput is the typed envelope for client-origin input. Construct
@@ -72,21 +77,24 @@ func InputRaw(b []byte) SessionInput {
 	return SessionInput{kind: variantRaw, raw: cp}
 }
 
-// WithMeta returns a copy of in with InputMeta replaced.
-func (in SessionInput) WithMeta(meta InputMeta) SessionInput {
-	in.meta = meta
-	return in
-}
-
 // WithSource returns a copy of in with Source set on its InputMeta.
 func (in SessionInput) WithSource(source string) SessionInput {
 	in.meta.Source = source
 	return in
 }
 
+// WithKind returns a copy of in with an explicit PTY transport kind.
+func (in SessionInput) WithKind(kind pty.InputKind) SessionInput {
+	in.meta.Kind = kind
+	in.meta.KindSet = true
+	return in
+}
+
 // AsPaste returns a copy of in tagged for bracketed-paste delivery.
 func (in SessionInput) AsPaste() SessionInput {
 	in.meta.IsPaste = true
+	in.meta.Kind = pty.KindPaste
+	in.meta.KindSet = true
 	return in
 }
 
@@ -101,7 +109,7 @@ func (in SessionInput) resolveBytes(km KeyMap) ([]byte, error) {
 		return in.raw, nil
 	case variantKeys:
 		if km == nil {
-			km = DefaultKeyMap{}
+			return nil, fmt.Errorf("key map unavailable")
 		}
 		var buf []byte
 		for _, k := range in.keys {
@@ -119,6 +127,9 @@ func (in SessionInput) resolveBytes(km KeyMap) ([]byte, error) {
 
 // ptyKind returns the pty.InputKind appropriate for this input.
 func (in SessionInput) ptyKind() pty.InputKind {
+	if in.meta.KindSet {
+		return in.meta.Kind
+	}
 	if in.meta.IsPaste {
 		return pty.KindPaste
 	}
@@ -126,95 +137,10 @@ func (in SessionInput) ptyKind() pty.InputKind {
 }
 
 // KeyMap resolves a Key to the bytes that should be written to the PTY.
-// The default map (DefaultKeyMap) handles the standard xterm-ish set;
-// backends may register their own via BackendDescriptor.KeyMap (added
-// in Phase 4) to override or extend.
+// The Connect RPC owns the default programmatic map; the session package
+// keeps this interface so a backend can inject a different map when needed.
 type KeyMap interface {
 	Bytes(k Key) ([]byte, bool)
-}
-
-// DefaultKeyMap is the baseline mapping: standard ASCII control keys,
-// xterm cursor/function keys, and Ctrl+<letter> shorthand. Sufficient
-// for most shells and TUIs; backends with non-standard expectations
-// (e.g. application-mode arrow keys) can layer on top.
-type DefaultKeyMap struct{}
-
-// Bytes implements KeyMap. Lookup is case-insensitive on Name. Returns
-// (nil, false) for unknown keys so callers can surface a clear error.
-func (DefaultKeyMap) Bytes(k Key) ([]byte, bool) {
-	name := strings.ToLower(strings.TrimSpace(k.Name))
-	// Ctrl+<letter> is a special case: any unmodified one-character
-	// name combined with Ctrl maps to the corresponding control byte.
-	if k.Ctrl && !k.Alt && !k.Shift && len(name) == 1 {
-		c := name[0]
-		switch {
-		case c >= 'a' && c <= 'z':
-			return []byte{c - 'a' + 1}, true
-		case c == '@':
-			return []byte{0x00}, true
-		case c == '[':
-			return []byte{0x1b}, true
-		case c == '\\':
-			return []byte{0x1c}, true
-		case c == ']':
-			return []byte{0x1d}, true
-		case c == '^':
-			return []byte{0x1e}, true
-		case c == '_':
-			return []byte{0x1f}, true
-		case c == ' ':
-			return []byte{0x00}, true
-		}
-	}
-	b, ok := defaultKeyBytes[name]
-	if !ok {
-		return nil, false
-	}
-	if k.Alt {
-		out := make([]byte, 0, 1+len(b))
-		out = append(out, 0x1b)
-		out = append(out, b...)
-		return out, true
-	}
-	return b, true
-}
-
-// defaultKeyBytes is the canonical name → bytes table for the default
-// KeyMap. Names are lower-cased for lookup; callers may send any case.
-//
-// Function-key encodings use the xterm "VT220" set (CSI 11~ … CSI 24~)
-// because that matches what most modern terminal emulators emit and
-// what GNU readline / ncurses are wired to recognize.
-var defaultKeyBytes = map[string][]byte{
-	"enter":     {0x0d},
-	"return":    {0x0d},
-	"tab":       {0x09},
-	"backspace": {0x7f},
-	"delete":    []byte("\x1b[3~"),
-	"escape":    {0x1b},
-	"esc":       {0x1b},
-	"space":     {0x20},
-	"up":        []byte("\x1b[A"),
-	"down":      []byte("\x1b[B"),
-	"right":     []byte("\x1b[C"),
-	"left":      []byte("\x1b[D"),
-	"home":      []byte("\x1b[H"),
-	"end":       []byte("\x1b[F"),
-	"pageup":    []byte("\x1b[5~"),
-	"pagedown":  []byte("\x1b[6~"),
-	"insert":    []byte("\x1b[2~"),
-	"f1":        []byte("\x1bOP"),
-	"f2":        []byte("\x1bOQ"),
-	"f3":        []byte("\x1bOR"),
-	"f4":        []byte("\x1bOS"),
-	"f5":        []byte("\x1b[15~"),
-	"f6":        []byte("\x1b[17~"),
-	"f7":        []byte("\x1b[18~"),
-	"f8":        []byte("\x1b[19~"),
-	"f9":        []byte("\x1b[20~"),
-	"f10":       []byte("\x1b[21~"),
-	"f11":       []byte("\x1b[23~"),
-	"f12":       []byte("\x1b[24~"),
 }
 
 func keyDisplay(k Key) string {

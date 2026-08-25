@@ -48,18 +48,20 @@ class ComponentTestEvidence(_message.Message):
     def __init__(self, kind: _Optional[str] = ..., json: _Optional[str] = ...) -> None: ...
 
 class ComponentTestArtifact(_message.Message):
-    __slots__ = ("kind", "label", "asset_library_id", "version", "reference")
+    __slots__ = ("kind", "label", "asset_library_id", "version", "reference", "story_id")
     KIND_FIELD_NUMBER: _ClassVar[int]
     LABEL_FIELD_NUMBER: _ClassVar[int]
     ASSET_LIBRARY_ID_FIELD_NUMBER: _ClassVar[int]
     VERSION_FIELD_NUMBER: _ClassVar[int]
     REFERENCE_FIELD_NUMBER: _ClassVar[int]
+    STORY_ID_FIELD_NUMBER: _ClassVar[int]
     kind: str
     label: str
     asset_library_id: str
     version: str
     reference: str
-    def __init__(self, kind: _Optional[str] = ..., label: _Optional[str] = ..., asset_library_id: _Optional[str] = ..., version: _Optional[str] = ..., reference: _Optional[str] = ...) -> None: ...
+    story_id: str
+    def __init__(self, kind: _Optional[str] = ..., label: _Optional[str] = ..., asset_library_id: _Optional[str] = ..., version: _Optional[str] = ..., reference: _Optional[str] = ..., story_id: _Optional[str] = ...) -> None: ...
 
 class ComponentTestReport(_message.Message):
     __slots__ = ("id", "root_library_id", "root_version", "include_closure", "created_at", "verdict", "results", "artifacts")

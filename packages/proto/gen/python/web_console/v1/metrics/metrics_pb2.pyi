@@ -10,7 +10,7 @@ class GetRequest(_message.Message):
     def __init__(self) -> None: ...
 
 class GetResponse(_message.Message):
-    __slots__ = ("sessions", "connections", "messages", "reattach", "recovery", "ai_generations", "ai_suggestions", "stdin_before_ready_total", "voice_skip_verification_total", "uptime")
+    __slots__ = ("sessions", "connections", "messages", "reattach", "recovery", "ai_generations", "ai_suggestions", "voice_skip_verification_total", "uptime")
     SESSIONS_FIELD_NUMBER: _ClassVar[int]
     CONNECTIONS_FIELD_NUMBER: _ClassVar[int]
     MESSAGES_FIELD_NUMBER: _ClassVar[int]
@@ -18,7 +18,6 @@ class GetResponse(_message.Message):
     RECOVERY_FIELD_NUMBER: _ClassVar[int]
     AI_GENERATIONS_FIELD_NUMBER: _ClassVar[int]
     AI_SUGGESTIONS_FIELD_NUMBER: _ClassVar[int]
-    STDIN_BEFORE_READY_TOTAL_FIELD_NUMBER: _ClassVar[int]
     VOICE_SKIP_VERIFICATION_TOTAL_FIELD_NUMBER: _ClassVar[int]
     UPTIME_FIELD_NUMBER: _ClassVar[int]
     sessions: SessionMetrics
@@ -28,10 +27,9 @@ class GetResponse(_message.Message):
     recovery: RecoveryMetrics
     ai_generations: int
     ai_suggestions: int
-    stdin_before_ready_total: int
     voice_skip_verification_total: int
     uptime: str
-    def __init__(self, sessions: _Optional[_Union[SessionMetrics, _Mapping]] = ..., connections: _Optional[_Union[ConnectionMetrics, _Mapping]] = ..., messages: _Optional[_Union[MessageMetrics, _Mapping]] = ..., reattach: _Optional[_Union[ReattachMetrics, _Mapping]] = ..., recovery: _Optional[_Union[RecoveryMetrics, _Mapping]] = ..., ai_generations: _Optional[int] = ..., ai_suggestions: _Optional[int] = ..., stdin_before_ready_total: _Optional[int] = ..., voice_skip_verification_total: _Optional[int] = ..., uptime: _Optional[str] = ...) -> None: ...
+    def __init__(self, sessions: _Optional[_Union[SessionMetrics, _Mapping]] = ..., connections: _Optional[_Union[ConnectionMetrics, _Mapping]] = ..., messages: _Optional[_Union[MessageMetrics, _Mapping]] = ..., reattach: _Optional[_Union[ReattachMetrics, _Mapping]] = ..., recovery: _Optional[_Union[RecoveryMetrics, _Mapping]] = ..., ai_generations: _Optional[int] = ..., ai_suggestions: _Optional[int] = ..., voice_skip_verification_total: _Optional[int] = ..., uptime: _Optional[str] = ...) -> None: ...
 
 class SessionMetrics(_message.Message):
     __slots__ = ("created", "deleted", "active", "resizes")

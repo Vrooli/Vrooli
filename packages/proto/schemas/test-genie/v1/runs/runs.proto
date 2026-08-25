@@ -147,7 +147,7 @@ message RunEvent {
   double elapsed_seconds = 2;
   // run_started / run_completed boundaries.
   string run_id = 3;
-  string scenario = 4;
+  string target = 4;
   string artifact_dir = 5;
   string preset = 6;
   // phase-scoped fields.
@@ -172,13 +172,13 @@ message RunEvent {
   // Monotonic per-run cursor. Followers resume with this value in
   // FollowRunRequest.after_sequence; it is intentionally not evidence.
   uint64 sequence = 20;
-  common.v1.ValidationTarget target = 21;
+  common.v1.ValidationTarget target_ref = 21;
 }
 
 // RunLiveStatus is a point-in-time snapshot of a run.
 message RunLiveStatus {
   string run_id = 1;
-  string scenario = 2;
+  string target = 2;
   string status = 3; // in_progress | passed | failed | aborted
   string active_phase = 4;
   int32 phase_index = 5;
@@ -218,11 +218,11 @@ message RunLiveStatus {
   // evidence/presentation details; clients deciding whether to wait must use
   // this standing rather than infer state from them.
   common.v1.OperationStanding standing = 21;
-  common.v1.ValidationTarget target = 22;
+  common.v1.ValidationTarget target_ref = 22;
 }
 
 message StartRunRequest {
-  string scenario = 1;
+  string target = 1;
   string preset = 2;
   repeated string phases = 3;
   repeated string skip = 4;
@@ -247,12 +247,12 @@ message StartRunRequest {
   // callers leave this false and receive shared-scoped provenance when their
   // declared inputs remain stable.
   bool require_gate_quality = 15;
-  common.v1.ValidationTarget target = 16;
+  common.v1.ValidationTarget target_ref = 16;
 }
 
 message StartRunResponse {
   string run_id = 1;
-  string scenario = 2;
+  string target = 2;
   // estimated_total_seconds is the summed plan-preview estimate; the CLI uses it
   // to decide whether to follow inline or auto-background. 0 when unknown.
   int32 estimated_total_seconds = 3;
@@ -262,20 +262,20 @@ message StartRunResponse {
   // starting a second suite. run_id is then the in-flight run's id. The
   // one-run-per-scenario invariant means identical re-requests are idempotent.
   bool coalesced = 5;
-  common.v1.ValidationTarget target = 6;
+  common.v1.ValidationTarget target_ref = 6;
 }
 
 // RunBusyInfo describes the in-progress run that caused a divergent StartRun to
 // be rejected (carried in the FailedPrecondition error detail). It lets callers
 // render wait/abort guidance without parsing error strings.
 message RunBusyInfo {
-  string scenario = 1;
+  string target = 1;
   string run_id = 2;
   string preset = 3;
 }
 
 message FollowRunRequest {
-  string scenario = 1;
+  string target = 1;
   string run_id = 2;
   // suppress_heartbeats drops phase_heartbeat keep-alive events from THIS
   // follower's stream (phase transitions and the terminal run_completed still
@@ -293,7 +293,7 @@ message FollowRunRequest {
 }
 
 message WaitRunRequest {
-  string scenario = 1;
+  string target = 1;
   string run_id = 2;
   int32 timeout_seconds = 3; // 0 = block until terminal
 }
@@ -310,7 +310,7 @@ message WaitRunResponse {
 }
 
 message AbortRunRequest {
-  string scenario = 1;
+  string target = 1;
   string run_id = 2;
 }
 
@@ -319,12 +319,12 @@ message AbortRunResponse {
 }
 
 message GetRunStatusRequest {
-  string scenario = 1;
+  string target = 1;
   string run_id = 2;
 }
 
 message GetCostReportRequest {
-  string scenario = 1;
+  string target = 1;
   int64 window_seconds = 2; // 0 = 7 days
   int64 compare_window_seconds = 3; // 0 = no comparison
   // fleet aggregates by PHASE across every scenario instead of reporting one
@@ -335,7 +335,7 @@ message GetCostReportRequest {
 }
 
 message CostPhaseSummary {
-  string scenario = 1;
+  string target = 1;
   string phase = 2;
   int32 sample_count = 3;
   int32 reliable_sample_count = 4;
@@ -527,7 +527,7 @@ message RunDescriptorSnapshot {
 // RunInfo mirrors the run index record.
 message RunInfo {
   string run_id = 1;
-  string scenario = 2;
+  string target = 2;
   string started_at = 3; // RFC3339
   string completed_at = 4; // RFC3339, empty if in-progress
   string status = 5; // in_progress | passed | failed | aborted
@@ -565,17 +565,17 @@ message RunInfo {
   // whether the terminal behavior result can be compared.
   string evidence_tier = 23;
   // Declared source boundary covered by tree_digest. Current implementations
-  // use scenario:<slug>; the string is deliberately additive for future
+  // use target:<kind>:<id>; the string is deliberately additive for future
   // collection/dependency-closure scopes.
   string source_scope = 24;
   // False means relevant inputs changed while this attempt was executing; the
   // result is retained for diagnosis but is ineligible for cache reuse.
   bool source_stable = 25;
-  common.v1.ValidationTarget target = 26;
+  common.v1.ValidationTarget target_ref = 26;
 }
 
 message ListRunsRequest {
-  string scenario = 1;
+  string target = 1;
   string status = 2; // optional filter: passed | failed | ...
   int32 limit = 3; // 0 = all
 }
@@ -585,7 +585,7 @@ message ListRunsResponse {
 }
 
 message GetRunRequest {
-  string scenario = 1;
+  string target = 1;
   string run_id = 2;
 }
 
@@ -596,7 +596,7 @@ message GetRunResponse {
 }
 
 message DeleteRunRequest {
-  string scenario = 1;
+  string target = 1;
   string run_id = 2;
   bool force = 3; // required to delete a pinned run
 }
@@ -606,7 +606,7 @@ message DeleteRunResponse {
 }
 
 message PinRunRequest {
-  string scenario = 1;
+  string target = 1;
   string run_id = 2;
   string pinned_by = 3; // e.g. "gct:baseline:plan-7c3"
   string reason = 4;
@@ -617,7 +617,7 @@ message PinRunResponse {
 }
 
 message UnpinRunRequest {
-  string scenario = 1;
+  string target = 1;
   string run_id = 2;
   string pinned_by = 3;
 }
@@ -627,7 +627,7 @@ message UnpinRunResponse {
 }
 
 message CompareRunsRequest {
-  string scenario = 1;
+  string target = 1;
   string run_id_a = 2; // baseline
   string run_id_b = 3; // current
   string phase = 4; // optional: restrict to one phase
@@ -700,7 +700,7 @@ message CompareRunsResponse {
 }
 
 message FindRunRequest {
-  string scenario = 1;
+  string target = 1;
   // All match filters are exact-match and optional (empty = don't constrain):
   string git_sha = 2;
   string tree_digest = 3;
@@ -730,7 +730,7 @@ message FindRunResponse {
 }
 
 message GetPhaseArtifactRequest {
-  string scenario = 1;
+  string target = 1;
   string run_id = 2;
   string phase = 3;
 }
@@ -784,7 +784,7 @@ message ArtifactRef {
 }
 
 message ListRunArtifactsRequest {
-  string scenario = 1;
+  string target = 1;
   string run_id = 2;
   repeated string kinds = 3;
   // Optional metadata filter. Consumers never need a phase filter to discover
@@ -801,7 +801,7 @@ message ListRunArtifactsResponse {
 }
 
 message GetRunArtifactRequest {
-  string scenario = 1;
+  string target = 1;
   string run_id = 2;
   string artifact_id = 3;
 }
@@ -812,7 +812,7 @@ message GetRunArtifactResponse {
 }
 
 message GetRunFindingsRequest {
-  string scenario = 1;
+  string target = 1;
   // run_id selects the run; empty or "latest" resolves to the latest run.
   string run_id = 2;
 }
@@ -835,7 +835,7 @@ message RunFindingsPhase {
 // durable findings.json artifact so an agent can revisit where each capability
 // stands without re-running the suite.
 message GetRunFindingsResponse {
-  string scenario = 1;
+  string target = 1;
   string run_id = 2;
   string verdict = 3;
   string completed_at = 4; // RFC3339
@@ -851,7 +851,7 @@ message RunVideo {
 }
 
 message ListRunVideosRequest {
-  string scenario = 1;
+  string target = 1;
   string run_id = 2;
 }
 
@@ -876,7 +876,7 @@ message RunVisual {
 }
 
 message ListRunVisualsRequest {
-  string scenario = 1;
+  string target = 1;
   string run_id = 2;
 }
 
@@ -885,7 +885,7 @@ message ListRunVisualsResponse {
 }
 
 message CompareRunVisualsRequest {
-  string scenario = 1;
+  string target = 1;
   string base_run_id = 2;
   string current_run_id = 3;
 }
@@ -911,7 +911,7 @@ message CompareRunVisualsResponse {
 }
 
 message CheckFreshnessRequest {
-  string scenario = 1;
+  string target = 1;
   // phases to check. Empty = the global required set (test-genie's quick
   // preset — a code-level SSOT, deliberately NOT per-scenario configurable).
   repeated string phases = 2;
@@ -930,7 +930,7 @@ message PhaseFreshness {
 }
 
 message CheckFreshnessResponse {
-  string scenario = 1;
+  string target = 1;
   // tree_digest is the scenario's CURRENT working-tree digest the verdicts
   // were computed against.
   string tree_digest = 2;
@@ -1031,7 +1031,7 @@ message FleetFindingQuality {
 message FleetAlert {
   string code = 1;
   string severity = 2; // warning | error
-  string scenario = 3;
+  string target = 3;
   string source = 4;
   string message = 5;
   double evidence_age_days = 6;
@@ -1043,7 +1043,7 @@ message FleetAlert {
 // FleetScenarioHealth is one scenario's rollup over the window, all from stored
 // runs. last_run_at + age_days make staleness explicit per scenario.
 message FleetScenarioHealth {
-  string scenario = 1;
+  string target = 1;
   int32 runs = 2;
   int32 passed_runs = 3;
   int32 failed_runs = 4;
@@ -1225,7 +1225,7 @@ message SecurityFriction {
 
 // ScenarioFailureRate ranks a scenario's failure rate for one phase.
 message ScenarioFailureRate {
-  string scenario = 1;
+  string target = 1;
   int32 executed = 2;
   int32 failures = 3;
   double failure_rate = 4;

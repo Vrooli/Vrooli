@@ -3,7 +3,7 @@ package main
 // terminal_ws_input.go: Client → server input dispatch.
 //
 // This file owns the per-message handling inside the terminal WebSocket
-// input loop: kind-aware stdin dispatch (persistent-mode-safe via
+// input loop: intent-aware stdin dispatch (persistent-mode-safe via
 // PTY.WriteInput), stdin_ack emission with typed reason codes, resize,
 // ping/pong, and conversation_event_ack routing. The main loop glue
 // itself stays in terminal_ws.go so the WebSocket lifecycle is easy to
@@ -19,6 +19,7 @@ import (
 	"sync"
 
 	"web-console/internal/events"
+	"web-console/internal/pty"
 	"web-console/session"
 
 	"github.com/gorilla/websocket"
@@ -46,23 +47,14 @@ func (s *Server) dispatchInputMessage(
 	client chan []byte,
 	sessionID string,
 	msg TerminalMessage,
-	sessionReady bool,
 ) inputDispatchResult {
 	switch msg.Type {
 	case MsgTypeStdin:
 		if !sess.HoldsLease(client) {
 			_ = sess.AcquireLease(client, session.LeaseReasonInput)
 		}
-		if !sessionReady {
-			// Should never happen — the client is required to wait
-			// for session_ready before sending stdin. Log and count
-			// so a future regression is immediately visible on
-			// /metrics.
-			s.metrics.StdinBeforeReadyTotal.Add(1)
-			log.Printf("ws[%s] stdin before session_ready — backend=%s", sessionID, sess.Backend)
-		}
 		in := session.InputText(msg.Data).WithSource("ws")
-		if msg.Kind == StdinKindPaste {
+		if msg.Intent == StdinIntentBulkText {
 			in = in.AsPaste()
 		}
 		writeErr := sess.SendInput(in)
@@ -86,21 +78,18 @@ func (s *Server) dispatchInputMessage(
 		if writeErr != nil {
 			log.Printf("ws[%s]: PTY write failed: %v", sessionID, writeErr)
 			// Only a dead PTY is fatal to the connection. A backend
-			// write that rejects one payload (tmux refusing an
-			// oversized command, a transient tmux error) must not take
-			// the pane down with it: the client already has the
-			// ok=false ack plus a typed Reason and reports the failure
-			// itself.
-			//
-			// This is load-bearing beyond tidiness. Closing here made
-			// such failures self-sustaining — the client re-enqueues
-			// every in-flight payload on close (useStdinAck's
-			// handleClose), reconnects, flushes the same payload, and
-			// gets closed again. One rejected paste became an endless
-			// reconnect loop.
+			// write that rejects one payload must not take the pane down;
+			// the client already has the typed failure acknowledgement.
 			if errors.Is(writeErr, errPTYClosed) {
 				return inputDispatchResult{Close: true, CloseReason: "Terminal process is not accepting input"}
 			}
+		}
+	case MsgTypeControl:
+		// Synthetic terminal bytes are intentionally best-effort. They bypass
+		// the stdin sequence/ack queue and are written directly through the
+		// PTY's control kind so a reconnect cannot replay stale gestures.
+		if err := sess.SendInput(session.InputRaw([]byte(msg.Data)).WithSource("ws-control").WithKind(pty.KindControl)); err != nil {
+			log.Printf("ws[%s]: best-effort control write failed: %v", sessionID, err)
 		}
 	case MsgTypeResize:
 		if msg.Cols > 0 && msg.Rows > 0 {
@@ -154,6 +143,8 @@ func (s *Server) dispatchInputMessage(
 			Backend:   msg.Backend,
 			Message:   msg.Data,
 		})
+	default:
+		// Unknown message types are forward-compatible no-ops.
 	}
 	return inputDispatchResult{}
 }

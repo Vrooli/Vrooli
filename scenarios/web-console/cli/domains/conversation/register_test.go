@@ -1,41 +1,17 @@
 package conversation
 
 import (
+	"os"
 	"testing"
-
-	"github.com/vrooli/cli-core/cliapp"
 )
 
-func TestValidation(t *testing.T) {
-	h := &handlers{}
-
-	t.Run("get_requires_session", func(t *testing.T) {
-		ctx := cliapp.NewTestRunContext(cliapp.TestRunContextOptions{
-			Schema: cliapp.ArgSchema{Flags: []cliapp.Flag{{Name: "session"}, {Name: "since"}}},
-		})
-		err := h.get(ctx)
-		if err == nil || err.Error() != "--session is required" {
-			t.Fatalf("expected missing session error, got %v", err)
-		}
-	})
-
-	t.Run("cursor_set_requires_session", func(t *testing.T) {
-		ctx := cliapp.NewTestRunContext(cliapp.TestRunContextOptions{
-			Schema: cliapp.ArgSchema{Flags: []cliapp.Flag{{Name: "session"}, {Name: "body-file"}}},
-		})
-		err := h.cursorSet(ctx)
-		if err == nil || err.Error() != "--session is required" {
-			t.Fatalf("expected missing session error, got %v", err)
-		}
-	})
-
-	t.Run("summarize_requires_session_and_event", func(t *testing.T) {
-		ctx := cliapp.NewTestRunContext(cliapp.TestRunContextOptions{
-			Schema: cliapp.ArgSchema{Flags: []cliapp.Flag{{Name: "session"}, {Name: "event"}}},
-		})
-		err := h.summarize(ctx)
-		if err == nil || err.Error() != "--session and --event are required" {
-			t.Fatalf("expected missing session/event error, got %v", err)
-		}
-	})
+func TestRegisterLoadsManifest(t *testing.T) {
+	manifest, err := os.ReadFile("../../manifest.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	group, err := Register(nil, manifest)
+	if err != nil || len(group.Subcommands) == 0 {
+		t.Fatalf("Register() = %#v, %v", group, err)
+	}
 }

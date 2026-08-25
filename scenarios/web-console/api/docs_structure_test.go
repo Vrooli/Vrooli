@@ -23,7 +23,8 @@ import (
 const scenarioRoot = "../" // tests run from the api/ directory
 
 type manifestDoc struct {
-	Path string `json:"path"`
+	Path     string `json:"path"`
+	Maturity string `json:"maturity"`
 }
 
 type manifestSection struct {
@@ -52,6 +53,12 @@ func TestDocsManifestResolves(t *testing.T) {
 	docsDir := filepath.Join(scenarioRoot, "docs")
 	for _, sec := range m.Sections {
 		for _, doc := range sec.Documents {
+			// The manifest deliberately records conditional/missing documents so
+			// documentation health can report their maturity. They are not
+			// filesystem obligations until their maturity changes from missing.
+			if doc.Maturity == "missing" {
+				continue
+			}
 			full := filepath.Join(docsDir, doc.Path)
 			if _, err := os.Stat(full); err != nil {
 				t.Errorf("manifest path does not resolve: %s (%v)", doc.Path, err)

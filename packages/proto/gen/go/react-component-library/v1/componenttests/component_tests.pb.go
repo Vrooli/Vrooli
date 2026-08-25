@@ -241,6 +241,7 @@ type ComponentTestArtifact struct {
 	AssetLibraryId string                 `protobuf:"bytes,3,opt,name=asset_library_id,json=assetLibraryId,proto3" json:"asset_library_id,omitempty"`
 	Version        string                 `protobuf:"bytes,4,opt,name=version,proto3" json:"version,omitempty"`
 	Reference      string                 `protobuf:"bytes,5,opt,name=reference,proto3" json:"reference,omitempty"`
+	StoryId        string                 `protobuf:"bytes,6,opt,name=story_id,json=storyId,proto3" json:"story_id,omitempty"`
 	unknownFields  protoimpl.UnknownFields
 	sizeCache      protoimpl.SizeCache
 }
@@ -306,6 +307,13 @@ func (x *ComponentTestArtifact) GetVersion() string {
 func (x *ComponentTestArtifact) GetReference() string {
 	if x != nil {
 		return x.Reference
+	}
+	return ""
+}
+
+func (x *ComponentTestArtifact) GetStoryId() string {
+	if x != nil {
+		return x.StoryId
 	}
 	return ""
 }
@@ -754,13 +762,14 @@ const file_react_component_library_v1_componenttests_component_tests_proto_rawDe
 	"\bevidence\x18\b \x03(\v2G.vrooli.react_component_library.v1.componenttests.ComponentTestEvidenceR\bevidence\"?\n" +
 	"\x15ComponentTestEvidence\x12\x12\n" +
 	"\x04kind\x18\x01 \x01(\tR\x04kind\x12\x12\n" +
-	"\x04json\x18\x02 \x01(\tR\x04json\"\xa3\x01\n" +
+	"\x04json\x18\x02 \x01(\tR\x04json\"\xbe\x01\n" +
 	"\x15ComponentTestArtifact\x12\x12\n" +
 	"\x04kind\x18\x01 \x01(\tR\x04kind\x12\x14\n" +
 	"\x05label\x18\x02 \x01(\tR\x05label\x12(\n" +
 	"\x10asset_library_id\x18\x03 \x01(\tR\x0eassetLibraryId\x12\x18\n" +
 	"\aversion\x18\x04 \x01(\tR\aversion\x12\x1c\n" +
-	"\treference\x18\x05 \x01(\tR\treference\"\xb6\x03\n" +
+	"\treference\x18\x05 \x01(\tR\treference\x12\x19\n" +
+	"\bstory_id\x18\x06 \x01(\tR\astoryId\"\xb6\x03\n" +
 	"\x13ComponentTestReport\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12&\n" +
 	"\x0froot_library_id\x18\x02 \x01(\tR\rrootLibraryId\x12!\n" +

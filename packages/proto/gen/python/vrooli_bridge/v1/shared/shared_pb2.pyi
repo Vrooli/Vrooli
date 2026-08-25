@@ -72,16 +72,18 @@ class HealthSnapshot(_message.Message):
     def __init__(self, toolchain_present: _Optional[bool] = ..., disk_headroom_bytes: _Optional[int] = ..., container_runtime_up: _Optional[bool] = ..., details: _Optional[_Mapping[str, str]] = ..., reported_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
 
 class Heartbeat(_message.Message):
-    __slots__ = ("node_id", "sequence", "health", "sent_at")
+    __slots__ = ("node_id", "sequence", "health", "sent_at", "rejected_credential_pushes")
     NODE_ID_FIELD_NUMBER: _ClassVar[int]
     SEQUENCE_FIELD_NUMBER: _ClassVar[int]
     HEALTH_FIELD_NUMBER: _ClassVar[int]
     SENT_AT_FIELD_NUMBER: _ClassVar[int]
+    REJECTED_CREDENTIAL_PUSHES_FIELD_NUMBER: _ClassVar[int]
     node_id: str
     sequence: int
     health: HealthSnapshot
     sent_at: _timestamp_pb2.Timestamp
-    def __init__(self, node_id: _Optional[str] = ..., sequence: _Optional[int] = ..., health: _Optional[_Union[HealthSnapshot, _Mapping]] = ..., sent_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
+    rejected_credential_pushes: int
+    def __init__(self, node_id: _Optional[str] = ..., sequence: _Optional[int] = ..., health: _Optional[_Union[HealthSnapshot, _Mapping]] = ..., sent_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., rejected_credential_pushes: _Optional[int] = ...) -> None: ...
 
 class RunEvent(_message.Message):
     __slots__ = ("run_id", "kind", "sequence", "log_chunk", "status", "exit_code", "artifact_ref", "emitted_at")

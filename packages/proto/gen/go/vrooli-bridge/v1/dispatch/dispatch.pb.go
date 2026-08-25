@@ -37,10 +37,13 @@ type DispatchJobRequest struct {
 	// Optional device scope for verbs that reach an attached device through the
 	// target host. Bridge stores only the short-lived authorization record; the
 	// device-control scenario remains the authority for lease semantics.
-	DeviceId      string `protobuf:"bytes,6,opt,name=device_id,json=deviceId,proto3" json:"device_id,omitempty"`
-	LeaseToken    string `protobuf:"bytes,7,opt,name=lease_token,json=leaseToken,proto3" json:"lease_token,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	DeviceId   string `protobuf:"bytes,6,opt,name=device_id,json=deviceId,proto3" json:"device_id,omitempty"`
+	LeaseToken string `protobuf:"bytes,7,opt,name=lease_token,json=leaseToken,proto3" json:"lease_token,omitempty"`
+	// Metadata-only mappings for ephemeral credentials. The node validates its
+	// local grant and injects the value into this job's child environment.
+	CredentialInjections []*CredentialInjection `protobuf:"bytes,8,rep,name=credential_injections,json=credentialInjections,proto3" json:"credential_injections,omitempty"`
+	unknownFields        protoimpl.UnknownFields
+	sizeCache            protoimpl.SizeCache
 }
 
 func (x *DispatchJobRequest) Reset() {
@@ -122,6 +125,73 @@ func (x *DispatchJobRequest) GetLeaseToken() string {
 	return ""
 }
 
+func (x *DispatchJobRequest) GetCredentialInjections() []*CredentialInjection {
+	if x != nil {
+		return x.CredentialInjections
+	}
+	return nil
+}
+
+type CredentialInjection struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	LogicalId     string                 `protobuf:"bytes,1,opt,name=logical_id,json=logicalId,proto3" json:"logical_id,omitempty"`
+	Field         string                 `protobuf:"bytes,2,opt,name=field,proto3" json:"field,omitempty"`
+	EnvName       string                 `protobuf:"bytes,3,opt,name=env_name,json=envName,proto3" json:"env_name,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CredentialInjection) Reset() {
+	*x = CredentialInjection{}
+	mi := &file_vrooli_bridge_v1_dispatch_dispatch_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CredentialInjection) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CredentialInjection) ProtoMessage() {}
+
+func (x *CredentialInjection) ProtoReflect() protoreflect.Message {
+	mi := &file_vrooli_bridge_v1_dispatch_dispatch_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CredentialInjection.ProtoReflect.Descriptor instead.
+func (*CredentialInjection) Descriptor() ([]byte, []int) {
+	return file_vrooli_bridge_v1_dispatch_dispatch_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *CredentialInjection) GetLogicalId() string {
+	if x != nil {
+		return x.LogicalId
+	}
+	return ""
+}
+
+func (x *CredentialInjection) GetField() string {
+	if x != nil {
+		return x.Field
+	}
+	return ""
+}
+
+func (x *CredentialInjection) GetEnvName() string {
+	if x != nil {
+		return x.EnvName
+	}
+	return ""
+}
+
 type DispatchJobResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// The server-owned durable run id to wait on / re-attach by. Empty on a
@@ -145,7 +215,7 @@ type DispatchJobResponse struct {
 
 func (x *DispatchJobResponse) Reset() {
 	*x = DispatchJobResponse{}
-	mi := &file_vrooli_bridge_v1_dispatch_dispatch_proto_msgTypes[1]
+	mi := &file_vrooli_bridge_v1_dispatch_dispatch_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -157,7 +227,7 @@ func (x *DispatchJobResponse) String() string {
 func (*DispatchJobResponse) ProtoMessage() {}
 
 func (x *DispatchJobResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_vrooli_bridge_v1_dispatch_dispatch_proto_msgTypes[1]
+	mi := &file_vrooli_bridge_v1_dispatch_dispatch_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -170,7 +240,7 @@ func (x *DispatchJobResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DispatchJobResponse.ProtoReflect.Descriptor instead.
 func (*DispatchJobResponse) Descriptor() ([]byte, []int) {
-	return file_vrooli_bridge_v1_dispatch_dispatch_proto_rawDescGZIP(), []int{1}
+	return file_vrooli_bridge_v1_dispatch_dispatch_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *DispatchJobResponse) GetRunId() string {
@@ -226,7 +296,7 @@ var File_vrooli_bridge_v1_dispatch_dispatch_proto protoreflect.FileDescriptor
 
 const file_vrooli_bridge_v1_dispatch_dispatch_proto_rawDesc = "" +
 	"\n" +
-	"(vrooli-bridge/v1/dispatch/dispatch.proto\x12 vrooli.vrooli_bridge.v1.dispatch\"\xd8\x01\n" +
+	"(vrooli-bridge/v1/dispatch/dispatch.proto\x12 vrooli.vrooli_bridge.v1.dispatch\"\xc4\x02\n" +
 	"\x12DispatchJobRequest\x12\x17\n" +
 	"\anode_id\x18\x01 \x01(\tR\x06nodeId\x12\x1a\n" +
 	"\bscenario\x18\x02 \x01(\tR\bscenario\x12\x12\n" +
@@ -235,7 +305,13 @@ const file_vrooli_bridge_v1_dispatch_dispatch_proto_rawDesc = "" +
 	"\x0ftimeout_seconds\x18\x05 \x01(\x03R\x0etimeoutSeconds\x12\x1b\n" +
 	"\tdevice_id\x18\x06 \x01(\tR\bdeviceId\x12\x1f\n" +
 	"\vlease_token\x18\a \x01(\tR\n" +
-	"leaseToken\"\xba\x01\n" +
+	"leaseToken\x12j\n" +
+	"\x15credential_injections\x18\b \x03(\v25.vrooli.vrooli_bridge.v1.dispatch.CredentialInjectionR\x14credentialInjections\"e\n" +
+	"\x13CredentialInjection\x12\x1d\n" +
+	"\n" +
+	"logical_id\x18\x01 \x01(\tR\tlogicalId\x12\x14\n" +
+	"\x05field\x18\x02 \x01(\tR\x05field\x12\x19\n" +
+	"\benv_name\x18\x03 \x01(\tR\aenvName\"\xba\x01\n" +
 	"\x13DispatchJobResponse\x12\x15\n" +
 	"\x06run_id\x18\x01 \x01(\tR\x05runId\x12\x17\n" +
 	"\adry_run\x18\x02 \x01(\bR\x06dryRun\x12\x17\n" +
@@ -259,19 +335,21 @@ func file_vrooli_bridge_v1_dispatch_dispatch_proto_rawDescGZIP() []byte {
 	return file_vrooli_bridge_v1_dispatch_dispatch_proto_rawDescData
 }
 
-var file_vrooli_bridge_v1_dispatch_dispatch_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
+var file_vrooli_bridge_v1_dispatch_dispatch_proto_msgTypes = make([]protoimpl.MessageInfo, 3)
 var file_vrooli_bridge_v1_dispatch_dispatch_proto_goTypes = []any{
 	(*DispatchJobRequest)(nil),  // 0: vrooli.vrooli_bridge.v1.dispatch.DispatchJobRequest
-	(*DispatchJobResponse)(nil), // 1: vrooli.vrooli_bridge.v1.dispatch.DispatchJobResponse
+	(*CredentialInjection)(nil), // 1: vrooli.vrooli_bridge.v1.dispatch.CredentialInjection
+	(*DispatchJobResponse)(nil), // 2: vrooli.vrooli_bridge.v1.dispatch.DispatchJobResponse
 }
 var file_vrooli_bridge_v1_dispatch_dispatch_proto_depIdxs = []int32{
-	0, // 0: vrooli.vrooli_bridge.v1.dispatch.DispatchService.DispatchJob:input_type -> vrooli.vrooli_bridge.v1.dispatch.DispatchJobRequest
-	1, // 1: vrooli.vrooli_bridge.v1.dispatch.DispatchService.DispatchJob:output_type -> vrooli.vrooli_bridge.v1.dispatch.DispatchJobResponse
-	1, // [1:2] is the sub-list for method output_type
-	0, // [0:1] is the sub-list for method input_type
-	0, // [0:0] is the sub-list for extension type_name
-	0, // [0:0] is the sub-list for extension extendee
-	0, // [0:0] is the sub-list for field type_name
+	1, // 0: vrooli.vrooli_bridge.v1.dispatch.DispatchJobRequest.credential_injections:type_name -> vrooli.vrooli_bridge.v1.dispatch.CredentialInjection
+	0, // 1: vrooli.vrooli_bridge.v1.dispatch.DispatchService.DispatchJob:input_type -> vrooli.vrooli_bridge.v1.dispatch.DispatchJobRequest
+	2, // 2: vrooli.vrooli_bridge.v1.dispatch.DispatchService.DispatchJob:output_type -> vrooli.vrooli_bridge.v1.dispatch.DispatchJobResponse
+	2, // [2:3] is the sub-list for method output_type
+	1, // [1:2] is the sub-list for method input_type
+	1, // [1:1] is the sub-list for extension type_name
+	1, // [1:1] is the sub-list for extension extendee
+	0, // [0:1] is the sub-list for field type_name
 }
 
 func init() { file_vrooli_bridge_v1_dispatch_dispatch_proto_init() }
@@ -285,7 +363,7 @@ func file_vrooli_bridge_v1_dispatch_dispatch_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_vrooli_bridge_v1_dispatch_dispatch_proto_rawDesc), len(file_vrooli_bridge_v1_dispatch_dispatch_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   2,
+			NumMessages:   3,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

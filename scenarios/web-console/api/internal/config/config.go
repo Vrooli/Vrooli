@@ -6,7 +6,9 @@ package config
 import (
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strconv"
 )
 
@@ -165,17 +167,39 @@ func ResolveWorkingDir() string { return resolveWorkingDir() }
 // shell-resolution logic.
 func ResolveShell() string { return resolveShell() }
 
+var ErrShellUnavailable = fmt.Errorf("web-console shell is unavailable")
+
 // resolveShell determines which shell binary to use:
 //
-//	WC_DEFAULT_SHELL  →  $SHELL  →  /bin/sh
+//	WC_DEFAULT_SHELL  →  $SHELL  →  powershell.exe (Windows) or /bin/sh
 func resolveShell() string {
+	shell, err := resolveShellChecked()
+	if err != nil {
+		panic(err)
+	}
+	return shell
+}
+
+func resolveShellChecked() (string, error) {
+	requested := ""
 	if v := os.Getenv("WC_DEFAULT_SHELL"); v != "" {
-		return v
+		requested = v
+	} else if v := os.Getenv("SHELL"); v != "" {
+		requested = v
+	} else if runtime.GOOS == "windows" {
+		requested = "powershell.exe"
+	} else {
+		requested = "/bin/sh"
 	}
-	if v := os.Getenv("SHELL"); v != "" {
-		return v
+	resolved, err := exec.LookPath(requested)
+	if err != nil {
+		return "", fmt.Errorf("%w: %q: %v", ErrShellUnavailable, requested, err)
 	}
-	return "/bin/sh"
+	resolved, err = filepath.Abs(resolved)
+	if err != nil {
+		return "", fmt.Errorf("%w: cannot make %q absolute: %v", ErrShellUnavailable, resolved, err)
+	}
+	return resolved, nil
 }
 
 func validDirectory(path string) bool {

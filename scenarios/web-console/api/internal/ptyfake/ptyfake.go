@@ -22,6 +22,7 @@ type FakePTY struct {
 	Cols          uint16
 	Rows          uint16
 	CurrentDirVal string
+	CurrentDirErr error
 	Killed        bool
 	Closed        bool
 	ExitCodeVal   int
@@ -88,14 +89,15 @@ func (f *FakePTY) ExitCode() int {
 	return f.ExitCodeVal
 }
 
-func (f *FakePTY) HasChildProcess() bool { return false }
-
 // ProbeReady is a no-op on the fake PTY.
 func (f *FakePTY) ProbeReady(_ context.Context) error { return nil }
 
 func (f *FakePTY) CurrentDir(_ context.Context) (string, error) {
 	f.Mu.Lock()
 	defer f.Mu.Unlock()
+	if f.CurrentDirErr != nil {
+		return "", f.CurrentDirErr
+	}
 	if f.CurrentDirVal != "" {
 		return f.CurrentDirVal, nil
 	}

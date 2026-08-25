@@ -1,6 +1,7 @@
 package config
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"testing"
@@ -95,12 +96,12 @@ func TestLoad_InvalidFallback(t *testing.T) {
 }
 
 func TestLoad_ShellOverride(t *testing.T) {
-	t.Setenv("WC_DEFAULT_SHELL", "/usr/bin/fish")
+	t.Setenv("WC_DEFAULT_SHELL", "/bin/bash")
 
 	cfg := Load()
 
-	if cfg.DefaultShell != "/usr/bin/fish" {
-		t.Errorf("DefaultShell: want /usr/bin/fish, got %s", cfg.DefaultShell)
+	if cfg.DefaultShell != "/bin/bash" {
+		t.Errorf("DefaultShell: want /bin/bash, got %s", cfg.DefaultShell)
 	}
 }
 
@@ -115,11 +116,18 @@ func TestEnvInt_Unset(t *testing.T) {
 // [REQ:P0-002a] resolveShell falls back to $SHELL when WC_DEFAULT_SHELL is unset
 func TestResolveShell_FallbackToSHELL(t *testing.T) {
 	t.Setenv("WC_DEFAULT_SHELL", "")
-	t.Setenv("SHELL", "/usr/bin/zsh")
+	t.Setenv("SHELL", "/bin/bash")
 
 	shell := resolveShell()
-	if shell != "/usr/bin/zsh" {
-		t.Errorf("expected /usr/bin/zsh, got %s", shell)
+	if shell != "/bin/bash" {
+		t.Errorf("expected /bin/bash, got %s", shell)
+	}
+}
+
+func TestResolveShell_FailsLoudlyWhenUnresolvable(t *testing.T) {
+	t.Setenv("WC_DEFAULT_SHELL", "/definitely/missing/web-console-shell")
+	if _, err := resolveShellChecked(); err == nil || !errors.Is(err, ErrShellUnavailable) {
+		t.Fatalf("resolveShellChecked error = %v, want ErrShellUnavailable", err)
 	}
 }
 

@@ -1849,6 +1849,7 @@ function TestMicrophoneCard() {
         setDetected(probe.streamingAvailable ? "whisper-stream" : "whisper-http");
         return;
       }
+      setDetected("none");
     } catch {
       setDetected("none");
     }

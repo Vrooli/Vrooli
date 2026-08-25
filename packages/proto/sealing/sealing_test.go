@@ -1,24 +1,18 @@
 package sealing
 
 import (
-	"crypto/ed25519"
+	"crypto/ecdh"
 	"crypto/rand"
 	"testing"
 )
 
 func TestEnvelopeRoundTripAndContextBinding(t *testing.T) {
-	_, nodePrivate, err := ed25519.GenerateKey(rand.Reader)
+	nodePrivate, err := ecdh.X25519().GenerateKey(rand.Reader)
 	if err != nil {
 		t.Fatal(err)
 	}
-	private, err := PrivateKeyFromEd25519Seed(nodePrivate.Seed())
-	if err != nil {
-		t.Fatal(err)
-	}
-	public, err := PublicKeyFromEd25519(nodePrivate.Public().(ed25519.PublicKey))
-	if err != nil {
-		t.Fatal(err)
-	}
+	private := nodePrivate
+	public := nodePrivate.PublicKey().Bytes()
 	aad := Context("machine", "node", "mini.local", "all", "plan-hash", "operation", "operator")
 	envelope, err := Seal(public, []byte("operator passphrase"), aad)
 	if err != nil {
@@ -37,22 +31,16 @@ func TestEnvelopeRoundTripAndContextBinding(t *testing.T) {
 }
 
 func TestEnvelopeRejectsWrongRecipient(t *testing.T) {
-	_, first, err := ed25519.GenerateKey(rand.Reader)
+	first, err := ecdh.X25519().GenerateKey(rand.Reader)
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, second, err := ed25519.GenerateKey(rand.Reader)
+	second, err := ecdh.X25519().GenerateKey(rand.Reader)
 	if err != nil {
 		t.Fatal(err)
 	}
-	firstPrivate, err := PrivateKeyFromEd25519Seed(first.Seed())
-	if err != nil {
-		t.Fatal(err)
-	}
-	secondPublic, err := PublicKeyFromEd25519(second.Public().(ed25519.PublicKey))
-	if err != nil {
-		t.Fatal(err)
-	}
+	firstPrivate := first
+	secondPublic := second.PublicKey().Bytes()
 	envelope, err := Seal(secondPublic, []byte("secret"), []byte("aad"))
 	if err != nil {
 		t.Fatal(err)

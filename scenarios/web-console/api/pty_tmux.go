@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strconv"
 	"strings"
@@ -18,7 +19,6 @@ import (
 	"time"
 
 	"web-console/backends/claude"
-	"web-console/internal/config"
 	"web-console/internal/pty"
 
 	creackpty "github.com/creack/pty/v2"
@@ -27,6 +27,22 @@ import (
 
 // errPTYClosed is returned when I/O is attempted on a closed tmuxPTY.
 var errPTYClosed = errors.New("pty is closed")
+
+var systemdRunProbe = struct {
+	sync.Once
+	available bool
+}{}
+
+func systemdRunUsable() bool {
+	systemdRunProbe.Do(func() {
+		if runtime.GOOS == "linux" {
+			_, err := exec.LookPath("systemd-run")
+			systemdRunProbe.available = err == nil
+		}
+		log.Printf("tmux capability: systemd-run=%t (goos=%s)", systemdRunProbe.available, runtime.GOOS)
+	})
+	return systemdRunProbe.available
+}
 
 // tmuxSessionPrefix distinguishes web console sessions from user tmux sessions.
 const tmuxSessionPrefix = "wc-"
@@ -72,6 +88,9 @@ func (p *tmuxPTY) Read(buf []byte) (int, error) {
 // the root cause of the long-standing "message is lost, Ctrl+C
 // unblocks it" bug.
 //
+//   - pty.KindControl: raw bytes to the attach PTY master. These are
+//     best-effort client controls (mouse tracking today), with no mode
+//     cancellation or replay semantics.
 //   - pty.KindKeystroke: `tmux send-keys -t <session> -l -- <data>`.
 //     The `-l` (literal) flag tells tmux to deliver the bytes to the
 //     active pane's stdin verbatim, bypassing key-name lookup AND
@@ -114,25 +133,18 @@ func (p *tmuxPTY) WriteInput(data []byte, kind pty.InputKind) error {
 		return nil
 	}
 
-	// Mouse-tracking CSI sequences (scroll wheel, click, drag) must
-	// reach the tmux client — not the pane's shell — so tmux can
-	// interpret them (enter copy-mode on wheel-up, select text on
-	// drag, etc.). Bypass the mode-aware send-keys path entirely for
-	// these. This preserves mobile scroll and desktop mouse-select in
-	// tmux-backed sessions. Paste payloads never qualify because the
-	// paste kind is only used for clipboard data, not xterm events.
-	if kind == pty.KindKeystroke && isMouseTrackingSequence(data) {
+	if kind == pty.KindControl {
 		if _, err := ptmx.Write(data); err != nil {
-			return fmt.Errorf("tmux mouse passthrough write: %w", err)
+			return fmt.Errorf("tmux control passthrough write: %w", err)
 		}
 		return nil
 	}
 
 	switch kind {
 	case pty.KindPaste:
-		return p.deliverPaste(sessionName, data)
+		return p.deliverBulkText(sessionName, data)
 	default:
-		return p.deliverKeystroke(sessionName, data)
+		return p.deliverTyping(sessionName, data)
 	}
 }
 
@@ -149,16 +161,6 @@ func (p *tmuxPTY) WriteInput(data []byte, kind pty.InputKind) error {
 // NOT match — data[2] must be 'M' or '<'. URXVT mode is not emitted
 // by xterm.js and is not handled here; if we ever need it we can add
 // a digit-based introducer check.
-func isMouseTrackingSequence(data []byte) bool {
-	if len(data) < 3 {
-		return false
-	}
-	if data[0] != 0x1b || data[1] != '[' {
-		return false
-	}
-	return data[2] == 'M' || data[2] == '<'
-}
-
 // exitModeIfAny ensures the pane is NOT in copy-mode / command-prompt /
 // menu / any tmux mode before subsequent input is delivered. `send-keys
 // -l` and `paste-buffer` both respect the current client mode: if the
@@ -214,12 +216,12 @@ func (p *tmuxPTY) exitModeIfAny(sessionName string) error {
 // as a red test rather than as silently dropped user input.
 const maxKeystrokeArgvBytes = 8 * 1024
 
-// deliverKeystroke sends data via `tmux send-keys -t <target> -l --`.
+// deliverTyping sends data via `tmux send-keys -t <target> -l --`.
 // Payloads too large for a single tmux command fall through to the
 // buffer path. Before delivery, any tmux mode on the pane is cancelled
 // so the bytes reach the running program rather than being interpreted
 // as mode commands.
-func (p *tmuxPTY) deliverKeystroke(sessionName string, data []byte) error {
+func (p *tmuxPTY) deliverTyping(sessionName string, data []byte) error {
 	// Oversized keystroke payloads (a large paste arriving through
 	// xterm's onData, or voice transcription producing very long
 	// text) go through the buffer path.
@@ -246,12 +248,12 @@ func (p *tmuxPTY) deliverKeystroke(sessionName string, data []byte) error {
 // session (rare, but possible under test harness or retry paths).
 var tmuxPasteBufferSeq uint64
 
-// deliverPaste delivers clipboard data that arrived as raw text — the
+// deliverBulkText delivers bulk text that arrived as raw text — the
 // context-menu paste path reads navigator.clipboard directly, so the
 // payload carries no bracketed-paste markers of its own. tmux supplies
 // them, and only when the pane's application has actually requested
 // bracketed paste.
-func (p *tmuxPTY) deliverPaste(sessionName string, data []byte) error {
+func (p *tmuxPTY) deliverBulkText(sessionName string, data []byte) error {
 	return p.deliverBuffer(sessionName, data, true)
 }
 
@@ -408,35 +410,7 @@ func (p *tmuxPTY) ExitCode() int {
 	}
 	// Fall back to the attach process. ProcessState is set after Wait() returns,
 	// so check it first to avoid calling Wait() twice (which panics).
-	if p.cmd.ProcessState != nil {
-		return p.cmd.ProcessState.ExitCode()
-	}
-	if err := p.cmd.Wait(); err != nil {
-		if exitErr, ok := err.(*exec.ExitError); ok {
-			return exitErr.ExitCode()
-		}
-		return -1
-	}
-	return 0
-}
-
-func (p *tmuxPTY) HasChildProcess() bool {
-	// Get the pane PID from tmux
-	out, err := tmuxCmd("display-message", "-t", p.sessionName, "-p", "#{pane_pid}").Output()
-	if err != nil {
-		return false
-	}
-	pidStr := strings.TrimSpace(string(out))
-	pid, err := strconv.Atoi(pidStr)
-	if err != nil || pid <= 0 {
-		return false
-	}
-	childrenPath := fmt.Sprintf("/proc/%d/task/%d/children", pid, pid)
-	data, readErr := os.ReadFile(childrenPath)
-	if readErr != nil {
-		return false
-	}
-	return len(bytes.TrimSpace(data)) > 0
+	return exitCodeOnce(p.cmd)
 }
 
 // buildTmuxNewSessionArgs constructs the argv suffix (everything after
@@ -515,10 +489,7 @@ func tmuxCmdContext(ctx context.Context, args ...string) *exec.Cmd {
 // tmuxPTYFactory creates a tmux-backed PTY for persistent sessions.
 func tmuxPTYFactory(spec pty.LaunchSpec) (pty.PTY, error) {
 	sessionName := tmuxSessionPrefix + spec.SessionID
-	workingDir := config.ResolveWorkingDir()
-	if strings.TrimSpace(spec.WorkingDir) != "" {
-		workingDir = spec.WorkingDir
-	}
+	workingDir := resolveLaunchDir(spec)
 
 	// 1. Create detached tmux session with the target shell.
 	// We use systemd-run --scope to launch the tmux new-session command in
@@ -542,17 +513,18 @@ func tmuxPTYFactory(spec pty.LaunchSpec) (pty.PTY, error) {
 	// first session's attribution vars, breaking conversation tracking.
 	sessionArgs := buildTmuxNewSessionArgs(sessionName, workingDir, spec)
 	socketName := resolveTmuxSocket()
-	createCmd := exec.Command("systemd-run", append([]string{
-		"--user", "--scope", "--unit=" + resolveTmuxScopeName(),
-		"tmux", "-L", socketName,
-	}, sessionArgs...)...)
-	_ = platform.ConfigureCommand(createCmd, platform.ProcessOptions{Detached: true})
-	createCmd.Env = buildSessionEnv(spec)
-	if err := createCmd.Run(); err != nil {
-		// Fallback: if systemd-run fails (e.g., no systemd user session),
-		// create directly. The server will inherit the parent cgroup, but
-		// that's better than failing entirely.
-		log.Printf("tmux: systemd-run scope creation failed, falling back to direct: %v", err)
+	if systemdRunUsable() {
+		createCmd := exec.Command("systemd-run", append([]string{
+			"--user", "--scope", "--unit=" + resolveTmuxScopeName(),
+			"tmux", "-L", socketName,
+		}, sessionArgs...)...)
+		_ = platform.ConfigureCommand(createCmd, platform.ProcessOptions{Detached: true})
+		createCmd.Env = buildSessionEnv(spec)
+		if err := createCmd.Run(); err == nil {
+			goto configureTmuxSession
+		}
+	}
+	{
 		fallbackCmd := tmuxCmd(sessionArgs...)
 		_ = platform.ConfigureCommand(fallbackCmd, platform.ProcessOptions{Detached: true})
 		fallbackCmd.Env = buildSessionEnv(spec)
@@ -561,6 +533,7 @@ func tmuxPTYFactory(spec pty.LaunchSpec) (pty.PTY, error) {
 		}
 	}
 
+configureTmuxSession:
 	// 2. Configure session options
 	applyTmuxOptions(sessionName)
 

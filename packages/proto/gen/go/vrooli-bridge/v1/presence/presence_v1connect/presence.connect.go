@@ -45,6 +45,9 @@ const (
 	// PresenceServiceReportRelayResponseProcedure is the fully-qualified name of the PresenceService's
 	// ReportRelayResponse RPC.
 	PresenceServiceReportRelayResponseProcedure = "/vrooli.vrooli_bridge.v1.presence.PresenceService/ReportRelayResponse"
+	// PresenceServiceReportCredentialReceiptProcedure is the fully-qualified name of the
+	// PresenceService's ReportCredentialReceipt RPC.
+	PresenceServiceReportCredentialReceiptProcedure = "/vrooli.vrooli_bridge.v1.presence.PresenceService/ReportCredentialReceipt"
 )
 
 // PresenceServiceClient is a client for the vrooli.vrooli_bridge.v1.presence.PresenceService
@@ -64,6 +67,10 @@ type PresenceServiceClient interface {
 	// from a node-agent. It is node-facing and authenticated with the same
 	// per-node proof as heartbeat and session frames.
 	ReportRelayResponse(context.Context, *connect.Request[presence.ReportRelayResponseRequest]) (*connect.Response[presence.ReportRelayResponseResponse], error)
+	// ReportCredentialReceipt confirms that a grant-governed credential push
+	// was accepted or refused after node-side consent and decryption. The
+	// request carries metadata only; credential values never cross this RPC.
+	ReportCredentialReceipt(context.Context, *connect.Request[presence.ReportCredentialReceiptRequest]) (*connect.Response[presence.ReportCredentialReceiptResponse], error)
 }
 
 // NewPresenceServiceClient constructs a client for the
@@ -102,15 +109,22 @@ func NewPresenceServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 			connect.WithSchema(presenceServiceMethods.ByName("ReportRelayResponse")),
 			connect.WithClientOptions(opts...),
 		),
+		reportCredentialReceipt: connect.NewClient[presence.ReportCredentialReceiptRequest, presence.ReportCredentialReceiptResponse](
+			httpClient,
+			baseURL+PresenceServiceReportCredentialReceiptProcedure,
+			connect.WithSchema(presenceServiceMethods.ByName("ReportCredentialReceipt")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // presenceServiceClient implements PresenceServiceClient.
 type presenceServiceClient struct {
-	reportHeartbeat     *connect.Client[presence.ReportHeartbeatRequest, presence.ReportHeartbeatResponse]
-	reportDeliveryAck   *connect.Client[presence.ReportDeliveryAckRequest, presence.ReportDeliveryAckResponse]
-	reportSessionFrame  *connect.Client[presence.ReportSessionFrameRequest, presence.ReportSessionFrameResponse]
-	reportRelayResponse *connect.Client[presence.ReportRelayResponseRequest, presence.ReportRelayResponseResponse]
+	reportHeartbeat         *connect.Client[presence.ReportHeartbeatRequest, presence.ReportHeartbeatResponse]
+	reportDeliveryAck       *connect.Client[presence.ReportDeliveryAckRequest, presence.ReportDeliveryAckResponse]
+	reportSessionFrame      *connect.Client[presence.ReportSessionFrameRequest, presence.ReportSessionFrameResponse]
+	reportRelayResponse     *connect.Client[presence.ReportRelayResponseRequest, presence.ReportRelayResponseResponse]
+	reportCredentialReceipt *connect.Client[presence.ReportCredentialReceiptRequest, presence.ReportCredentialReceiptResponse]
 }
 
 // ReportHeartbeat calls vrooli.vrooli_bridge.v1.presence.PresenceService.ReportHeartbeat.
@@ -133,6 +147,12 @@ func (c *presenceServiceClient) ReportRelayResponse(ctx context.Context, req *co
 	return c.reportRelayResponse.CallUnary(ctx, req)
 }
 
+// ReportCredentialReceipt calls
+// vrooli.vrooli_bridge.v1.presence.PresenceService.ReportCredentialReceipt.
+func (c *presenceServiceClient) ReportCredentialReceipt(ctx context.Context, req *connect.Request[presence.ReportCredentialReceiptRequest]) (*connect.Response[presence.ReportCredentialReceiptResponse], error) {
+	return c.reportCredentialReceipt.CallUnary(ctx, req)
+}
+
 // PresenceServiceHandler is an implementation of the
 // vrooli.vrooli_bridge.v1.presence.PresenceService service.
 type PresenceServiceHandler interface {
@@ -150,6 +170,10 @@ type PresenceServiceHandler interface {
 	// from a node-agent. It is node-facing and authenticated with the same
 	// per-node proof as heartbeat and session frames.
 	ReportRelayResponse(context.Context, *connect.Request[presence.ReportRelayResponseRequest]) (*connect.Response[presence.ReportRelayResponseResponse], error)
+	// ReportCredentialReceipt confirms that a grant-governed credential push
+	// was accepted or refused after node-side consent and decryption. The
+	// request carries metadata only; credential values never cross this RPC.
+	ReportCredentialReceipt(context.Context, *connect.Request[presence.ReportCredentialReceiptRequest]) (*connect.Response[presence.ReportCredentialReceiptResponse], error)
 }
 
 // NewPresenceServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -183,6 +207,12 @@ func NewPresenceServiceHandler(svc PresenceServiceHandler, opts ...connect.Handl
 		connect.WithSchema(presenceServiceMethods.ByName("ReportRelayResponse")),
 		connect.WithHandlerOptions(opts...),
 	)
+	presenceServiceReportCredentialReceiptHandler := connect.NewUnaryHandler(
+		PresenceServiceReportCredentialReceiptProcedure,
+		svc.ReportCredentialReceipt,
+		connect.WithSchema(presenceServiceMethods.ByName("ReportCredentialReceipt")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/vrooli.vrooli_bridge.v1.presence.PresenceService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case PresenceServiceReportHeartbeatProcedure:
@@ -193,6 +223,8 @@ func NewPresenceServiceHandler(svc PresenceServiceHandler, opts ...connect.Handl
 			presenceServiceReportSessionFrameHandler.ServeHTTP(w, r)
 		case PresenceServiceReportRelayResponseProcedure:
 			presenceServiceReportRelayResponseHandler.ServeHTTP(w, r)
+		case PresenceServiceReportCredentialReceiptProcedure:
+			presenceServiceReportCredentialReceiptHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -216,4 +248,8 @@ func (UnimplementedPresenceServiceHandler) ReportSessionFrame(context.Context, *
 
 func (UnimplementedPresenceServiceHandler) ReportRelayResponse(context.Context, *connect.Request[presence.ReportRelayResponseRequest]) (*connect.Response[presence.ReportRelayResponseResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.vrooli_bridge.v1.presence.PresenceService.ReportRelayResponse is not implemented"))
+}
+
+func (UnimplementedPresenceServiceHandler) ReportCredentialReceipt(context.Context, *connect.Request[presence.ReportCredentialReceiptRequest]) (*connect.Response[presence.ReportCredentialReceiptResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.vrooli_bridge.v1.presence.PresenceService.ReportCredentialReceipt is not implemented"))
 }

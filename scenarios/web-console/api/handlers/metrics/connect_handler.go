@@ -59,7 +59,6 @@ func (h *connectHandler) Get(ctx context.Context, _ *connect.Request[metricsv1.G
 		},
 		AiGenerations:              snap.AIGenerations,
 		AiSuggestions:              snap.AISuggestions,
-		StdinBeforeReadyTotal:      snap.StdinBeforeReadyTotal,
 		VoiceSkipVerificationTotal: snap.VoiceSkipVerificationTotal,
 		Uptime:                     snap.Uptime,
 	}), nil

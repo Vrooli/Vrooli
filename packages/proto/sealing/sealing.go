@@ -8,14 +8,11 @@ import (
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/ecdh"
-	"crypto/ed25519"
 	"crypto/hmac"
 	"crypto/rand"
 	"crypto/sha256"
-	"crypto/sha512"
 	"errors"
 	"fmt"
-	"math/big"
 	"strings"
 )
 
@@ -25,8 +22,6 @@ const (
 	maxPlaintext  = 64 * 1024
 )
 
-var p25519 = new(big.Int).Sub(new(big.Int).Lsh(big.NewInt(1), 255), big.NewInt(19))
-
 // Context creates the canonical additional-authentication-data binding for a
 // cleanup authorization envelope. Empty fields remain positional so target,
 // operation, and plan substitutions cannot produce the same bytes.
@@ -34,41 +29,21 @@ func Context(machineID, nodeID, target, scope, planHash, operationID, operatorID
 	return []byte(strings.Join([]string{"vrooli-cleanup-context-v1", machineID, nodeID, target, scope, planHash, operationID, operatorID}, "\x00"))
 }
 
-// PrivateKeyFromEd25519Seed derives the X25519 sealing key from the existing
-// node credential seed. The seed never leaves the node. Deriving rather than
-// storing another private key keeps pairing and service installation atomic.
-func PrivateKeyFromEd25519Seed(seed []byte) (*ecdh.PrivateKey, error) {
-	if len(seed) != ed25519.SeedSize {
-		return nil, fmt.Errorf("sealing: Ed25519 seed must be %d bytes", ed25519.SeedSize)
-	}
-	hash := sha512.Sum512(seed)
-	return ecdh.X25519().NewPrivateKey(hash[:32])
+// CredentialContext binds a fleet credential envelope to the exact node,
+// address, and source generation it was created for. A frame cannot be
+// replayed for another node, field, or rotation generation.
+func CredentialContext(nodeID, logicalID, field string, generation int64) []byte {
+	return []byte(strings.Join([]string{"vrooli-credential-context-v1", nodeID, logicalID, field, fmt.Sprint(generation)}, "\x00"))
 }
 
-// PublicKeyFromEd25519 converts the registered node Ed25519 public key to the
-// matching X25519 public key. This is the standard Edwards y to Montgomery u
-// map, with no private material involved on the control plane.
-func PublicKeyFromEd25519(public ed25519.PublicKey) ([]byte, error) {
-	if len(public) != ed25519.PublicKeySize {
-		return nil, fmt.Errorf("sealing: Ed25519 public key must be %d bytes", ed25519.PublicKeySize)
+// PrivateKeyFromRaw loads the independently stored X25519 private key used for
+// envelope decryption. It intentionally accepts only raw X25519 material; no
+// No Ed25519-to-X25519 conversion exists in this package.
+func PrivateKeyFromRaw(raw []byte) (*ecdh.PrivateKey, error) {
+	if len(raw) != publicKeySize {
+		return nil, fmt.Errorf("sealing: X25519 private key must be %d bytes", publicKeySize)
 	}
-	yBytes := append([]byte(nil), public...)
-	yBytes[31] &= 0x7f
-	y := littleInt(yBytes)
-	if y.Cmp(p25519) >= 0 {
-		return nil, errors.New("sealing: invalid Ed25519 public key")
-	}
-	numerator := new(big.Int).Add(big.NewInt(1), y)
-	numerator.Mod(numerator, p25519)
-	denominator := new(big.Int).Sub(big.NewInt(1), y)
-	denominator.Mod(denominator, p25519)
-	inverse := new(big.Int).ModInverse(denominator, p25519)
-	if inverse == nil {
-		return nil, errors.New("sealing: Ed25519 public key has no Montgomery image")
-	}
-	u := new(big.Int).Mul(numerator, inverse)
-	u.Mod(u, p25519)
-	return littleBytes(u, publicKeySize), nil
+	return ecdh.X25519().NewPrivateKey(raw)
 }
 
 // Seal encrypts plaintext to the recipient's X25519 public key. The returned
@@ -177,27 +152,6 @@ func derive(shared, ephemeral, recipient, aad []byte) []byte {
 	_, _ = expander.Write(aad)
 	_, _ = expander.Write([]byte{1})
 	return expander.Sum(nil)
-}
-
-func littleInt(raw []byte) *big.Int {
-	reversed := append([]byte(nil), raw...)
-	reverse(reversed)
-	return new(big.Int).SetBytes(reversed)
-}
-
-func littleBytes(value *big.Int, size int) []byte {
-	raw := value.Bytes()
-	out := make([]byte, size)
-	for i := 0; i < len(raw) && i < size; i++ {
-		out[i] = raw[len(raw)-1-i]
-	}
-	return out
-}
-
-func reverse(raw []byte) {
-	for left, right := 0, len(raw)-1; left < right; left, right = left+1, right-1 {
-		raw[left], raw[right] = raw[right], raw[left]
-	}
 }
 
 func zero(raw []byte) {

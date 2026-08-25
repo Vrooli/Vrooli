@@ -322,17 +322,6 @@ The client is the last hop; its durable guarantees:
 
 ## Testability Seams
 
-### Session Observer Seam (API)
-**File**: `api/session/session_observer.go`
-**Purpose**: Non-client consumers (idle detectors, prompt detectors, ANSI auto-responders, future adapter dispatchers) tap the PTY output stream without growing `readLoop`.
-
-| Component | Production | Test |
-|-----------|-----------|------|
-| `Observer` | Anything implementing `OnFrame(ObserverFrame)` | In-test recorder collecting frames |
-| `Session.RegisterObserver` | Wires the observer into a per-session registry | Same; returns `UnregisterFunc` for cleanup |
-
-**Frame ordering**: observers see frames AFTER they are broadcast to WebSocket clients. Observers must not block (no lock is held while dispatching, but a slow observer slows the read loop).
-
 ### Terminal Screen Read Seam (API)
 **File**: `api/terminal/view.go`
 **Purpose**: Expose the decoded grid (cells, cursor, alt-buffer flag, scrollback count) as plain Go values so programmatic consumers — Connect-RPC, CLI, agents — can inspect the screen without parsing ANSI.
@@ -350,7 +339,7 @@ The client is the last hop; its durable guarantees:
 | Component | Variants |
 |-----------|----------|
 | `InputText`, `InputKeys`, `InputRaw` | Constructors; the value type is opaque to callers |
-| `KeyMap` (interface) | `DefaultKeyMap` resolves Enter/Tab/arrows/F1-F12/Ctrl+&lt;letter&gt;; Phase 4 will let `BackendDescriptor.KeyMap` override per-backend |
+| `KeyMap` (interface) | The terminal Connect handler's `DefaultKeyMap` resolves Enter/Tab/arrows/F1-F12/Ctrl+&lt;letter&gt; for programmatic callers; the WebSocket path encodes keys in the browser |
 | `Session.SendInput` | Resolves bytes via `KeyMap` and calls `applyInput` (the single PTY-write seam) |
 
 ### Terminal Control Event Seam (API)
@@ -360,7 +349,6 @@ The client is the last hop; its durable guarantees:
 | Component | Surface |
 |-----------|---------|
 | `Emulator.ControlEvents()` | Read end of a bounded (256) channel; lazily allocated |
-| `Emulator.DroppedControlEvents()` | Running counter for diagnostics |
 | `Session.startAnsiResponder()` | Spawns the observer goroutine for non-persistent backends |
 | `ansiReplyFor(ControlEvent) []byte` | Pure mapping from event → reply bytes (unit-testable) |
 

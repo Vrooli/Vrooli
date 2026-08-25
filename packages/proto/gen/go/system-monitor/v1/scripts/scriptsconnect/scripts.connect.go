@@ -39,6 +39,9 @@ const (
 	// ScriptsServiceGetScriptProcedure is the fully-qualified name of the ScriptsService's GetScript
 	// RPC.
 	ScriptsServiceGetScriptProcedure = "/vrooli.system_monitor.v1.scripts.ScriptsService/GetScript"
+	// ScriptsServiceUpdateScriptProcedure is the fully-qualified name of the ScriptsService's
+	// UpdateScript RPC.
+	ScriptsServiceUpdateScriptProcedure = "/vrooli.system_monitor.v1.scripts.ScriptsService/UpdateScript"
 	// ScriptsServiceExecuteScriptProcedure is the fully-qualified name of the ScriptsService's
 	// ExecuteScript RPC.
 	ScriptsServiceExecuteScriptProcedure = "/vrooli.system_monitor.v1.scripts.ScriptsService/ExecuteScript"
@@ -50,6 +53,8 @@ type ScriptsServiceClient interface {
 	ListScripts(context.Context, *connect.Request[scripts.ListScriptsRequest]) (*connect.Response[scripts.ListScriptsResponse], error)
 	// GetScript retrieves a specific script.
 	GetScript(context.Context, *connect.Request[scripts.GetScriptRequest]) (*connect.Response[scripts.GetScriptResponse], error)
+	// UpdateScript persists an existing investigation script.
+	UpdateScript(context.Context, *connect.Request[scripts.UpdateScriptRequest]) (*connect.Response[scripts.GetScriptResponse], error)
 	// ExecuteScript executes an investigation script.
 	ExecuteScript(context.Context, *connect.Request[scripts.ExecuteScriptRequest]) (*connect.Response[scripts.ExecuteScriptResponse], error)
 }
@@ -78,6 +83,12 @@ func NewScriptsServiceClient(httpClient connect.HTTPClient, baseURL string, opts
 			connect.WithSchema(scriptsServiceMethods.ByName("GetScript")),
 			connect.WithClientOptions(opts...),
 		),
+		updateScript: connect.NewClient[scripts.UpdateScriptRequest, scripts.GetScriptResponse](
+			httpClient,
+			baseURL+ScriptsServiceUpdateScriptProcedure,
+			connect.WithSchema(scriptsServiceMethods.ByName("UpdateScript")),
+			connect.WithClientOptions(opts...),
+		),
 		executeScript: connect.NewClient[scripts.ExecuteScriptRequest, scripts.ExecuteScriptResponse](
 			httpClient,
 			baseURL+ScriptsServiceExecuteScriptProcedure,
@@ -91,6 +102,7 @@ func NewScriptsServiceClient(httpClient connect.HTTPClient, baseURL string, opts
 type scriptsServiceClient struct {
 	listScripts   *connect.Client[scripts.ListScriptsRequest, scripts.ListScriptsResponse]
 	getScript     *connect.Client[scripts.GetScriptRequest, scripts.GetScriptResponse]
+	updateScript  *connect.Client[scripts.UpdateScriptRequest, scripts.GetScriptResponse]
 	executeScript *connect.Client[scripts.ExecuteScriptRequest, scripts.ExecuteScriptResponse]
 }
 
@@ -102,6 +114,11 @@ func (c *scriptsServiceClient) ListScripts(ctx context.Context, req *connect.Req
 // GetScript calls vrooli.system_monitor.v1.scripts.ScriptsService.GetScript.
 func (c *scriptsServiceClient) GetScript(ctx context.Context, req *connect.Request[scripts.GetScriptRequest]) (*connect.Response[scripts.GetScriptResponse], error) {
 	return c.getScript.CallUnary(ctx, req)
+}
+
+// UpdateScript calls vrooli.system_monitor.v1.scripts.ScriptsService.UpdateScript.
+func (c *scriptsServiceClient) UpdateScript(ctx context.Context, req *connect.Request[scripts.UpdateScriptRequest]) (*connect.Response[scripts.GetScriptResponse], error) {
+	return c.updateScript.CallUnary(ctx, req)
 }
 
 // ExecuteScript calls vrooli.system_monitor.v1.scripts.ScriptsService.ExecuteScript.
@@ -116,6 +133,8 @@ type ScriptsServiceHandler interface {
 	ListScripts(context.Context, *connect.Request[scripts.ListScriptsRequest]) (*connect.Response[scripts.ListScriptsResponse], error)
 	// GetScript retrieves a specific script.
 	GetScript(context.Context, *connect.Request[scripts.GetScriptRequest]) (*connect.Response[scripts.GetScriptResponse], error)
+	// UpdateScript persists an existing investigation script.
+	UpdateScript(context.Context, *connect.Request[scripts.UpdateScriptRequest]) (*connect.Response[scripts.GetScriptResponse], error)
 	// ExecuteScript executes an investigation script.
 	ExecuteScript(context.Context, *connect.Request[scripts.ExecuteScriptRequest]) (*connect.Response[scripts.ExecuteScriptResponse], error)
 }
@@ -139,6 +158,12 @@ func NewScriptsServiceHandler(svc ScriptsServiceHandler, opts ...connect.Handler
 		connect.WithSchema(scriptsServiceMethods.ByName("GetScript")),
 		connect.WithHandlerOptions(opts...),
 	)
+	scriptsServiceUpdateScriptHandler := connect.NewUnaryHandler(
+		ScriptsServiceUpdateScriptProcedure,
+		svc.UpdateScript,
+		connect.WithSchema(scriptsServiceMethods.ByName("UpdateScript")),
+		connect.WithHandlerOptions(opts...),
+	)
 	scriptsServiceExecuteScriptHandler := connect.NewUnaryHandler(
 		ScriptsServiceExecuteScriptProcedure,
 		svc.ExecuteScript,
@@ -151,6 +176,8 @@ func NewScriptsServiceHandler(svc ScriptsServiceHandler, opts ...connect.Handler
 			scriptsServiceListScriptsHandler.ServeHTTP(w, r)
 		case ScriptsServiceGetScriptProcedure:
 			scriptsServiceGetScriptHandler.ServeHTTP(w, r)
+		case ScriptsServiceUpdateScriptProcedure:
+			scriptsServiceUpdateScriptHandler.ServeHTTP(w, r)
 		case ScriptsServiceExecuteScriptProcedure:
 			scriptsServiceExecuteScriptHandler.ServeHTTP(w, r)
 		default:
@@ -168,6 +195,10 @@ func (UnimplementedScriptsServiceHandler) ListScripts(context.Context, *connect.
 
 func (UnimplementedScriptsServiceHandler) GetScript(context.Context, *connect.Request[scripts.GetScriptRequest]) (*connect.Response[scripts.GetScriptResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.system_monitor.v1.scripts.ScriptsService.GetScript is not implemented"))
+}
+
+func (UnimplementedScriptsServiceHandler) UpdateScript(context.Context, *connect.Request[scripts.UpdateScriptRequest]) (*connect.Response[scripts.GetScriptResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.system_monitor.v1.scripts.ScriptsService.UpdateScript is not implemented"))
 }
 
 func (UnimplementedScriptsServiceHandler) ExecuteScript(context.Context, *connect.Request[scripts.ExecuteScriptRequest]) (*connect.Response[scripts.ExecuteScriptResponse], error) {

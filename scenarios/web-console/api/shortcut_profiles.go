@@ -1,6 +1,6 @@
 // DOC: docs/concepts/ARCHITECTURE.md#file-map
 // DOC: docs/internal/STORAGE_AUDIT.md
-// DOC: docs/concepts/GLOSSARY.md#shortcut-profile
+// DOC: docs/concepts/GLOSSARY.md#core-terms
 
 package main
 

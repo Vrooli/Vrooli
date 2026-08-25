@@ -157,6 +157,11 @@ message CaptureRequest {
   // Interaction state requested by the capture matrix. The service preserves
   // this value while constructing the stateful capture flow.
   string interaction_state = 12;
+
+  // Optional CSS selector for the authoritative screenshot boundary. When
+  // set, BAS captures that element as the primary screenshot while keeping
+  // the rest of the evidence in the same browser session.
+  string screenshot_selector = 13;
 }
 
 message CaptureArtifact {

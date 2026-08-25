@@ -568,6 +568,61 @@ func (x *GetScriptResponse) GetContent() string {
 	return ""
 }
 
+// UpdateScriptRequest persists the source of an existing investigation script.
+type UpdateScriptRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Script ID.
+	Id string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	// Complete script body/source code.
+	Content       string `protobuf:"bytes,2,opt,name=content,proto3" json:"content,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UpdateScriptRequest) Reset() {
+	*x = UpdateScriptRequest{}
+	mi := &file_system_monitor_v1_scripts_scripts_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpdateScriptRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpdateScriptRequest) ProtoMessage() {}
+
+func (x *UpdateScriptRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_system_monitor_v1_scripts_scripts_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpdateScriptRequest.ProtoReflect.Descriptor instead.
+func (*UpdateScriptRequest) Descriptor() ([]byte, []int) {
+	return file_system_monitor_v1_scripts_scripts_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *UpdateScriptRequest) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *UpdateScriptRequest) GetContent() string {
+	if x != nil {
+		return x.Content
+	}
+	return ""
+}
+
 // ExecuteScriptRequest triggers execution of a script.
 type ExecuteScriptRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -581,7 +636,7 @@ type ExecuteScriptRequest struct {
 
 func (x *ExecuteScriptRequest) Reset() {
 	*x = ExecuteScriptRequest{}
-	mi := &file_system_monitor_v1_scripts_scripts_proto_msgTypes[6]
+	mi := &file_system_monitor_v1_scripts_scripts_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -593,7 +648,7 @@ func (x *ExecuteScriptRequest) String() string {
 func (*ExecuteScriptRequest) ProtoMessage() {}
 
 func (x *ExecuteScriptRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_system_monitor_v1_scripts_scripts_proto_msgTypes[6]
+	mi := &file_system_monitor_v1_scripts_scripts_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -606,7 +661,7 @@ func (x *ExecuteScriptRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ExecuteScriptRequest.ProtoReflect.Descriptor instead.
 func (*ExecuteScriptRequest) Descriptor() ([]byte, []int) {
-	return file_system_monitor_v1_scripts_scripts_proto_rawDescGZIP(), []int{6}
+	return file_system_monitor_v1_scripts_scripts_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *ExecuteScriptRequest) GetId() string {
@@ -634,7 +689,7 @@ type ExecuteScriptResponse struct {
 
 func (x *ExecuteScriptResponse) Reset() {
 	*x = ExecuteScriptResponse{}
-	mi := &file_system_monitor_v1_scripts_scripts_proto_msgTypes[7]
+	mi := &file_system_monitor_v1_scripts_scripts_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -646,7 +701,7 @@ func (x *ExecuteScriptResponse) String() string {
 func (*ExecuteScriptResponse) ProtoMessage() {}
 
 func (x *ExecuteScriptResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_system_monitor_v1_scripts_scripts_proto_msgTypes[7]
+	mi := &file_system_monitor_v1_scripts_scripts_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -659,7 +714,7 @@ func (x *ExecuteScriptResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ExecuteScriptResponse.ProtoReflect.Descriptor instead.
 func (*ExecuteScriptResponse) Descriptor() ([]byte, []int) {
-	return file_system_monitor_v1_scripts_scripts_proto_rawDescGZIP(), []int{7}
+	return file_system_monitor_v1_scripts_scripts_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *ExecuteScriptResponse) GetExecution() *ScriptExecution {
@@ -718,6 +773,9 @@ const file_system_monitor_v1_scripts_scripts_proto_rawDesc = "" +
 	"\x02id\x18\x01 \x01(\tR\x02id\"|\n" +
 	"\x11GetScriptResponse\x12M\n" +
 	"\x06script\x18\x01 \x01(\v25.vrooli.system_monitor.v1.scripts.InvestigationScriptR\x06script\x12\x18\n" +
+	"\acontent\x18\x02 \x01(\tR\acontent\"?\n" +
+	"\x13UpdateScriptRequest\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x18\n" +
 	"\acontent\x18\x02 \x01(\tR\acontent\"Q\n" +
 	"\x14ExecuteScriptRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1d\n" +
@@ -731,10 +789,11 @@ const file_system_monitor_v1_scripts_scripts_proto_rawDesc = "" +
 	"\x1fSCRIPT_EXECUTION_STATUS_RUNNING\x10\x01\x12%\n" +
 	"!SCRIPT_EXECUTION_STATUS_COMPLETED\x10\x02\x12\"\n" +
 	"\x1eSCRIPT_EXECUTION_STATUS_FAILED\x10\x03\x12#\n" +
-	"\x1fSCRIPT_EXECUTION_STATUS_SKIPPED\x10\x042\x94\x04\n" +
+	"\x1fSCRIPT_EXECUTION_STATUS_SKIPPED\x10\x042\xc1\x05\n" +
 	"\x0eScriptsService\x12\xa2\x01\n" +
 	"\vListScripts\x124.vrooli.system_monitor.v1.scripts.ListScriptsRequest\x1a5.vrooli.system_monitor.v1.scripts.ListScriptsResponse\"&\x82\xd3\xe4\x93\x02 \x12\x1e/api/v1/investigations/scripts\x12\xa1\x01\n" +
-	"\tGetScript\x122.vrooli.system_monitor.v1.scripts.GetScriptRequest\x1a3.vrooli.system_monitor.v1.scripts.GetScriptResponse\"+\x82\xd3\xe4\x93\x02%\x12#/api/v1/investigations/scripts/{id}\x12\xb8\x01\n" +
+	"\tGetScript\x122.vrooli.system_monitor.v1.scripts.GetScriptRequest\x1a3.vrooli.system_monitor.v1.scripts.GetScriptResponse\"+\x82\xd3\xe4\x93\x02%\x12#/api/v1/investigations/scripts/{id}\x12\xaa\x01\n" +
+	"\fUpdateScript\x125.vrooli.system_monitor.v1.scripts.UpdateScriptRequest\x1a3.vrooli.system_monitor.v1.scripts.GetScriptResponse\".\x82\xd3\xe4\x93\x02(:\x01*\x1a#/api/v1/investigations/scripts/{id}\x12\xb8\x01\n" +
 	"\rExecuteScript\x126.vrooli.system_monitor.v1.scripts.ExecuteScriptRequest\x1a7.vrooli.system_monitor.v1.scripts.ExecuteScriptResponse\"6\x82\xd3\xe4\x93\x020:\x01*\"+/api/v1/investigations/scripts/{id}/executeBRZPgithub.com/vrooli/vrooli/packages/proto/gen/go/system-monitor/v1/scripts;scriptsb\x06proto3"
 
 var (
@@ -750,7 +809,7 @@ func file_system_monitor_v1_scripts_scripts_proto_rawDescGZIP() []byte {
 }
 
 var file_system_monitor_v1_scripts_scripts_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_system_monitor_v1_scripts_scripts_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
+var file_system_monitor_v1_scripts_scripts_proto_msgTypes = make([]protoimpl.MessageInfo, 9)
 var file_system_monitor_v1_scripts_scripts_proto_goTypes = []any{
 	(ScriptExecutionStatus)(0),    // 0: vrooli.system_monitor.v1.scripts.ScriptExecutionStatus
 	(*InvestigationScript)(nil),   // 1: vrooli.system_monitor.v1.scripts.InvestigationScript
@@ -759,27 +818,30 @@ var file_system_monitor_v1_scripts_scripts_proto_goTypes = []any{
 	(*ListScriptsResponse)(nil),   // 4: vrooli.system_monitor.v1.scripts.ListScriptsResponse
 	(*GetScriptRequest)(nil),      // 5: vrooli.system_monitor.v1.scripts.GetScriptRequest
 	(*GetScriptResponse)(nil),     // 6: vrooli.system_monitor.v1.scripts.GetScriptResponse
-	(*ExecuteScriptRequest)(nil),  // 7: vrooli.system_monitor.v1.scripts.ExecuteScriptRequest
-	(*ExecuteScriptResponse)(nil), // 8: vrooli.system_monitor.v1.scripts.ExecuteScriptResponse
-	(*timestamppb.Timestamp)(nil), // 9: google.protobuf.Timestamp
+	(*UpdateScriptRequest)(nil),   // 7: vrooli.system_monitor.v1.scripts.UpdateScriptRequest
+	(*ExecuteScriptRequest)(nil),  // 8: vrooli.system_monitor.v1.scripts.ExecuteScriptRequest
+	(*ExecuteScriptResponse)(nil), // 9: vrooli.system_monitor.v1.scripts.ExecuteScriptResponse
+	(*timestamppb.Timestamp)(nil), // 10: google.protobuf.Timestamp
 }
 var file_system_monitor_v1_scripts_scripts_proto_depIdxs = []int32{
-	9,  // 0: vrooli.system_monitor.v1.scripts.InvestigationScript.created_at:type_name -> google.protobuf.Timestamp
-	9,  // 1: vrooli.system_monitor.v1.scripts.InvestigationScript.updated_at:type_name -> google.protobuf.Timestamp
+	10, // 0: vrooli.system_monitor.v1.scripts.InvestigationScript.created_at:type_name -> google.protobuf.Timestamp
+	10, // 1: vrooli.system_monitor.v1.scripts.InvestigationScript.updated_at:type_name -> google.protobuf.Timestamp
 	0,  // 2: vrooli.system_monitor.v1.scripts.ScriptExecution.status:type_name -> vrooli.system_monitor.v1.scripts.ScriptExecutionStatus
-	9,  // 3: vrooli.system_monitor.v1.scripts.ScriptExecution.started_at:type_name -> google.protobuf.Timestamp
-	9,  // 4: vrooli.system_monitor.v1.scripts.ScriptExecution.completed_at:type_name -> google.protobuf.Timestamp
+	10, // 3: vrooli.system_monitor.v1.scripts.ScriptExecution.started_at:type_name -> google.protobuf.Timestamp
+	10, // 4: vrooli.system_monitor.v1.scripts.ScriptExecution.completed_at:type_name -> google.protobuf.Timestamp
 	1,  // 5: vrooli.system_monitor.v1.scripts.ListScriptsResponse.scripts:type_name -> vrooli.system_monitor.v1.scripts.InvestigationScript
 	1,  // 6: vrooli.system_monitor.v1.scripts.GetScriptResponse.script:type_name -> vrooli.system_monitor.v1.scripts.InvestigationScript
 	2,  // 7: vrooli.system_monitor.v1.scripts.ExecuteScriptResponse.execution:type_name -> vrooli.system_monitor.v1.scripts.ScriptExecution
 	3,  // 8: vrooli.system_monitor.v1.scripts.ScriptsService.ListScripts:input_type -> vrooli.system_monitor.v1.scripts.ListScriptsRequest
 	5,  // 9: vrooli.system_monitor.v1.scripts.ScriptsService.GetScript:input_type -> vrooli.system_monitor.v1.scripts.GetScriptRequest
-	7,  // 10: vrooli.system_monitor.v1.scripts.ScriptsService.ExecuteScript:input_type -> vrooli.system_monitor.v1.scripts.ExecuteScriptRequest
-	4,  // 11: vrooli.system_monitor.v1.scripts.ScriptsService.ListScripts:output_type -> vrooli.system_monitor.v1.scripts.ListScriptsResponse
-	6,  // 12: vrooli.system_monitor.v1.scripts.ScriptsService.GetScript:output_type -> vrooli.system_monitor.v1.scripts.GetScriptResponse
-	8,  // 13: vrooli.system_monitor.v1.scripts.ScriptsService.ExecuteScript:output_type -> vrooli.system_monitor.v1.scripts.ExecuteScriptResponse
-	11, // [11:14] is the sub-list for method output_type
-	8,  // [8:11] is the sub-list for method input_type
+	7,  // 10: vrooli.system_monitor.v1.scripts.ScriptsService.UpdateScript:input_type -> vrooli.system_monitor.v1.scripts.UpdateScriptRequest
+	8,  // 11: vrooli.system_monitor.v1.scripts.ScriptsService.ExecuteScript:input_type -> vrooli.system_monitor.v1.scripts.ExecuteScriptRequest
+	4,  // 12: vrooli.system_monitor.v1.scripts.ScriptsService.ListScripts:output_type -> vrooli.system_monitor.v1.scripts.ListScriptsResponse
+	6,  // 13: vrooli.system_monitor.v1.scripts.ScriptsService.GetScript:output_type -> vrooli.system_monitor.v1.scripts.GetScriptResponse
+	6,  // 14: vrooli.system_monitor.v1.scripts.ScriptsService.UpdateScript:output_type -> vrooli.system_monitor.v1.scripts.GetScriptResponse
+	9,  // 15: vrooli.system_monitor.v1.scripts.ScriptsService.ExecuteScript:output_type -> vrooli.system_monitor.v1.scripts.ExecuteScriptResponse
+	12, // [12:16] is the sub-list for method output_type
+	8,  // [8:12] is the sub-list for method input_type
 	8,  // [8:8] is the sub-list for extension type_name
 	8,  // [8:8] is the sub-list for extension extendee
 	0,  // [0:8] is the sub-list for field type_name
@@ -791,14 +853,14 @@ func file_system_monitor_v1_scripts_scripts_proto_init() {
 		return
 	}
 	file_system_monitor_v1_scripts_scripts_proto_msgTypes[1].OneofWrappers = []any{}
-	file_system_monitor_v1_scripts_scripts_proto_msgTypes[6].OneofWrappers = []any{}
+	file_system_monitor_v1_scripts_scripts_proto_msgTypes[7].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_system_monitor_v1_scripts_scripts_proto_rawDesc), len(file_system_monitor_v1_scripts_scripts_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   8,
+			NumMessages:   9,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

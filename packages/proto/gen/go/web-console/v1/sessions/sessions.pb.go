@@ -200,7 +200,6 @@ type Session struct {
 	Backend         string                 `protobuf:"bytes,6,opt,name=backend,proto3" json:"backend,omitempty"` // "persistent" | "ephemeral"
 	SurvivesRestart bool                   `protobuf:"varint,7,opt,name=survives_restart,json=survivesRestart,proto3" json:"survives_restart,omitempty"`
 	Policy          *ExpirationPolicy      `protobuf:"bytes,8,opt,name=policy,proto3" json:"policy,omitempty"`
-	Busy            bool                   `protobuf:"varint,9,opt,name=busy,proto3" json:"busy,omitempty"`
 	Recovered       bool                   `protobuf:"varint,10,opt,name=recovered,proto3" json:"recovered,omitempty"`
 	Origin          SessionOrigin          `protobuf:"varint,11,opt,name=origin,proto3,enum=vrooli.web_console.v1.sessions.SessionOrigin" json:"origin,omitempty"`
 	Owner           string                 `protobuf:"bytes,12,opt,name=owner,proto3" json:"owner,omitempty"`                                   // free-form provenance tag, e.g. "agent-manager"
@@ -299,13 +298,6 @@ func (x *Session) GetPolicy() *ExpirationPolicy {
 		return x.Policy
 	}
 	return nil
-}
-
-func (x *Session) GetBusy() bool {
-	if x != nil {
-		return x.Busy
-	}
-	return false
 }
 
 func (x *Session) GetRecovered() bool {
@@ -2583,7 +2575,7 @@ const file_web_console_v1_sessions_sessions_proto_rawDesc = "" +
 	"&web-console/v1/sessions/sessions.proto\x12\x1evrooli.web_console.v1.sessions\x1a\"web-console/v1/shared/target.proto\"B\n" +
 	"\x10ExpirationPolicy\x12\x12\n" +
 	"\x04mode\x18\x01 \x01(\tR\x04mode\x12\x1a\n" +
-	"\bduration\x18\x02 \x01(\tR\bduration\"\xa4\x04\n" +
+	"\bduration\x18\x02 \x01(\tR\bduration\"\x90\x04\n" +
 	"\aSession\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
 	"\x05shell\x18\x02 \x01(\tR\x05shell\x12\x1d\n" +
@@ -2593,8 +2585,7 @@ const file_web_console_v1_sessions_sessions_proto_rawDesc = "" +
 	"\x04rows\x18\x05 \x01(\x05R\x04rows\x12\x18\n" +
 	"\abackend\x18\x06 \x01(\tR\abackend\x12)\n" +
 	"\x10survives_restart\x18\a \x01(\bR\x0fsurvivesRestart\x12H\n" +
-	"\x06policy\x18\b \x01(\v20.vrooli.web_console.v1.sessions.ExpirationPolicyR\x06policy\x12\x12\n" +
-	"\x04busy\x18\t \x01(\bR\x04busy\x12\x1c\n" +
+	"\x06policy\x18\b \x01(\v20.vrooli.web_console.v1.sessions.ExpirationPolicyR\x06policy\x12\x1c\n" +
 	"\trecovered\x18\n" +
 	" \x01(\bR\trecovered\x12E\n" +
 	"\x06origin\x18\v \x01(\x0e2-.vrooli.web_console.v1.sessions.SessionOriginR\x06origin\x12\x14\n" +

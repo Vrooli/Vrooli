@@ -34,7 +34,7 @@ STRUCTURED_EXTRACTION_MODE_DETERMINISTIC_ONLY: StructuredExtractionMode
 STRUCTURED_EXTRACTION_MODE_CONSTRAINED_FALLBACK: StructuredExtractionMode
 
 class AgentProfile(_message.Message):
-    __slots__ = ("id", "name", "profile_key", "description", "role_ref", "max_turns", "timeout", "allowed_tools", "denied_tools", "tool_restriction_policy", "skip_permission_prompt", "features", "extra_flags", "network_access", "owner_scenario", "source_path", "source_hash", "last_applied_hash", "source_updated_at", "local_override", "sandbox_config", "allowed_paths", "denied_paths", "created_by", "created_at", "updated_at", "effort")
+    __slots__ = ("id", "name", "profile_key", "description", "role_ref", "max_turns", "timeout", "allowed_tools", "denied_tools", "tool_restriction_policy", "skip_permission_prompt", "features", "extra_flags", "network_access", "owner_scenario", "source_path", "source_hash", "last_applied_hash", "source_updated_at", "local_override", "sandbox_config", "allowed_paths", "denied_paths", "created_by", "created_at", "updated_at", "effort", "skill_pack", "skill_experiment_id")
     class ExtraFlagsEntry(_message.Message):
         __slots__ = ("key", "value")
         KEY_FIELD_NUMBER: _ClassVar[int]
@@ -69,6 +69,8 @@ class AgentProfile(_message.Message):
     CREATED_AT_FIELD_NUMBER: _ClassVar[int]
     UPDATED_AT_FIELD_NUMBER: _ClassVar[int]
     EFFORT_FIELD_NUMBER: _ClassVar[int]
+    SKILL_PACK_FIELD_NUMBER: _ClassVar[int]
+    SKILL_EXPERIMENT_ID_FIELD_NUMBER: _ClassVar[int]
     id: str
     name: str
     profile_key: str
@@ -96,7 +98,9 @@ class AgentProfile(_message.Message):
     created_at: _timestamp_pb2.Timestamp
     updated_at: _timestamp_pb2.Timestamp
     effort: str
-    def __init__(self, id: _Optional[str] = ..., name: _Optional[str] = ..., profile_key: _Optional[str] = ..., description: _Optional[str] = ..., role_ref: _Optional[str] = ..., max_turns: _Optional[int] = ..., timeout: _Optional[_Union[datetime.timedelta, _duration_pb2.Duration, _Mapping]] = ..., allowed_tools: _Optional[_Iterable[str]] = ..., denied_tools: _Optional[_Iterable[str]] = ..., tool_restriction_policy: _Optional[str] = ..., skip_permission_prompt: _Optional[bool] = ..., features: _Optional[_Union[_types_pb2.FeatureFlags, _Mapping]] = ..., extra_flags: _Optional[_Mapping[str, _types_pb2.ExtraFlagList]] = ..., network_access: _Optional[_Union[_types_pb2.NetworkAccess, str]] = ..., owner_scenario: _Optional[str] = ..., source_path: _Optional[str] = ..., source_hash: _Optional[str] = ..., last_applied_hash: _Optional[str] = ..., source_updated_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., local_override: _Optional[bool] = ..., sandbox_config: _Optional[_Union[_types_pb2.SandboxConfig, _Mapping]] = ..., allowed_paths: _Optional[_Iterable[str]] = ..., denied_paths: _Optional[_Iterable[str]] = ..., created_by: _Optional[str] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., updated_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., effort: _Optional[str] = ...) -> None: ...
+    skill_pack: _containers.RepeatedScalarFieldContainer[str]
+    skill_experiment_id: str
+    def __init__(self, id: _Optional[str] = ..., name: _Optional[str] = ..., profile_key: _Optional[str] = ..., description: _Optional[str] = ..., role_ref: _Optional[str] = ..., max_turns: _Optional[int] = ..., timeout: _Optional[_Union[datetime.timedelta, _duration_pb2.Duration, _Mapping]] = ..., allowed_tools: _Optional[_Iterable[str]] = ..., denied_tools: _Optional[_Iterable[str]] = ..., tool_restriction_policy: _Optional[str] = ..., skip_permission_prompt: _Optional[bool] = ..., features: _Optional[_Union[_types_pb2.FeatureFlags, _Mapping]] = ..., extra_flags: _Optional[_Mapping[str, _types_pb2.ExtraFlagList]] = ..., network_access: _Optional[_Union[_types_pb2.NetworkAccess, str]] = ..., owner_scenario: _Optional[str] = ..., source_path: _Optional[str] = ..., source_hash: _Optional[str] = ..., last_applied_hash: _Optional[str] = ..., source_updated_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., local_override: _Optional[bool] = ..., sandbox_config: _Optional[_Union[_types_pb2.SandboxConfig, _Mapping]] = ..., allowed_paths: _Optional[_Iterable[str]] = ..., denied_paths: _Optional[_Iterable[str]] = ..., created_by: _Optional[str] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., updated_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., effort: _Optional[str] = ..., skill_pack: _Optional[_Iterable[str]] = ..., skill_experiment_id: _Optional[str] = ...) -> None: ...
 
 class ResultSpec(_message.Message):
     __slots__ = ("version", "kind", "schema", "schema_digest", "classification_values", "extraction_mode", "extraction_role", "schema_repair_attempts")

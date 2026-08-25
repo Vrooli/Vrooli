@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"os"
@@ -9,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	platform "github.com/vrooli/platform-go"
 	"web-console/backends/claude"
 	"web-console/backends/codex"
 	"web-console/backends/grok"
@@ -47,13 +47,7 @@ func (p *realPTY) Kill() error {
 }
 
 func (p *realPTY) ExitCode() int {
-	if err := p.cmd.Wait(); err != nil {
-		if exitErr, ok := err.(*exec.ExitError); ok {
-			return exitErr.ExitCode()
-		}
-		return -1
-	}
-	return 0
+	return exitCodeOnce(p.cmd)
 }
 
 // ProbeReady is a no-op for the standard PTY: pty.StartWithSize has already
@@ -69,28 +63,7 @@ func (p *realPTY) CurrentDir(_ context.Context) (string, error) {
 		}
 		return cwd, nil
 	}
-	linkPath := fmt.Sprintf("/proc/%d/cwd", p.cmd.Process.Pid)
-	cwd, err := os.Readlink(linkPath)
-	if err == nil && cwd != "" {
-		return filepath.Clean(cwd), nil
-	}
-	fallback, absErr := filepath.Abs(config.ResolveWorkingDir())
-	if absErr != nil {
-		return config.ResolveWorkingDir(), nil
-	}
-	return fallback, nil
-}
-
-func (p *realPTY) HasChildProcess() bool {
-	if p.cmd.Process == nil {
-		return false
-	}
-	childrenPath := fmt.Sprintf("/proc/%d/task/%d/children", p.cmd.Process.Pid, p.cmd.Process.Pid)
-	data, err := os.ReadFile(childrenPath)
-	if err != nil {
-		return false
-	}
-	return len(bytes.TrimSpace(data)) > 0
+	return platform.ProcessWorkingDir(p.cmd.Process.Pid)
 }
 
 // defaultPTYFactory starts a real shell process with a PTY.
@@ -100,12 +73,39 @@ func defaultPTYFactory(spec pty.LaunchSpec) (pty.PTY, error) {
 	// This prevents nested session detection when users run `claude` in
 	// web-console terminals, even if the server was started from Claude Code.
 	cmd.Env = applySessionEnv(ensureTermEnv(filterServiceEnv(claude.FilterEnv(os.Environ()))), spec.Env)
-	cmd.Dir = config.ResolveWorkingDir()
+	cmd.Dir = resolveLaunchDir(spec)
 	ptmx, err := creackpty.StartWithSize(cmd, &creackpty.Winsize{Rows: spec.Rows, Cols: spec.Cols})
 	if err != nil {
 		return nil, fmt.Errorf("failed to start PTY: %w", err)
 	}
 	return &realPTY{ptmx: ptmx, cmd: cmd}, nil
+}
+
+// resolveLaunchDir gives both PTY backends the same working-directory rule.
+func resolveLaunchDir(spec pty.LaunchSpec) string {
+	if strings.TrimSpace(spec.WorkingDir) != "" {
+		return spec.WorkingDir
+	}
+	return config.ResolveWorkingDir()
+}
+
+// exitCodeOnce returns an exec.Cmd's exit code without calling Wait twice.
+// ProcessState is populated by Wait, and a second Wait can panic on some Go
+// platforms.
+func exitCodeOnce(cmd *exec.Cmd) int {
+	if cmd == nil {
+		return -1
+	}
+	if cmd.ProcessState != nil {
+		return cmd.ProcessState.ExitCode()
+	}
+	if err := cmd.Wait(); err != nil {
+		if exitErr, ok := err.(*exec.ExitError); ok {
+			return exitErr.ExitCode()
+		}
+		return -1
+	}
+	return 0
 }
 
 // ensureTermEnv guarantees TERM=xterm-256color in the environment slice.

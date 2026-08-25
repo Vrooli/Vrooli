@@ -12,6 +12,7 @@ import { useResizablePanel } from "../hooks/useResizablePanel";
 import { useWorkspaceStore } from "../stores/useWorkspaceStore";
 import { useWorkspaceSync } from "../hooks/useWorkspaceSync";
 import { useGroupActions } from "../hooks/useGroupActions";
+import { useEscapeKey } from "../hooks/useEscapeKey";
 import { Button } from "./ui/button";
 import TabContextMenu from "./TabContextMenu";
 import GroupContextMenu from "./GroupContextMenu";
@@ -272,14 +273,7 @@ export default function SessionSidebar({
     },
   });
 
-  useEffect(() => {
-    if (!mobileOpen) return;
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onCloseMobile();
-    };
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [mobileOpen, onCloseMobile]);
+  useEscapeKey(mobileOpen, onCloseMobile);
 
   const sidebarContent = (
     <>
@@ -690,7 +684,7 @@ export default function SessionSidebar({
           />
           <aside
             data-testid="workspace-sidebar-shell"
-            className="wc-chrome-surface wc-chrome-fg absolute inset-y-0 start-0 flex w-[min(22rem,calc(100vw-2rem))] flex-col border-e border-wc-default pt-[var(--wc-safe-top,0px)] ps-[var(--wc-safe-left,0px)] shadow-xl"
+            className="wc-chrome-surface wc-chrome-fg absolute inset-y-0 start-0 flex w-[min(22rem,calc(100%_-_2rem))] flex-col border-e border-wc-default pt-[var(--wc-safe-top,0px)] ps-[var(--wc-safe-left,0px)] shadow-xl"
           >
             {sidebarContent}
           </aside>

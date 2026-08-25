@@ -1,4 +1,3 @@
-// DOC: docs/internal/SEAMS.md#ai-connect-client-seam
 // Connect-RPC client + wrappers for the AI domain.
 
 import { createClient } from "@connectrpc/connect";

@@ -476,14 +476,19 @@ type Adoption struct {
 	// Local edit drift from the most recent Refresh.
 	LocalStatus LocalStatus `protobuf:"varint,8,opt,name=local_status,json=localStatus,proto3,enum=vrooli.react_component_library.v1.adoptions.LocalStatus" json:"local_status,omitempty"`
 	// Notes attached by Refresh, such as the newer version or missing path.
-	StatusDetail  string                 `protobuf:"bytes,11,opt,name=status_detail,json=statusDetail,proto3" json:"status_detail,omitempty"`
-	CreatedAt     *timestamppb.Timestamp `protobuf:"bytes,9,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
-	RefreshedAt   *timestamppb.Timestamp `protobuf:"bytes,10,opt,name=refreshed_at,json=refreshedAt,proto3" json:"refreshed_at,omitempty"`
-	SourceSha256  string                 `protobuf:"bytes,12,opt,name=source_sha256,json=sourceSha256,proto3" json:"source_sha256,omitempty"`
-	AppliedAt     string                 `protobuf:"bytes,13,opt,name=applied_at,json=appliedAt,proto3" json:"applied_at,omitempty"`
-	Files         []*AdoptionFile        `protobuf:"bytes,14,rep,name=files,proto3" json:"files,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	StatusDetail string                 `protobuf:"bytes,11,opt,name=status_detail,json=statusDetail,proto3" json:"status_detail,omitempty"`
+	CreatedAt    *timestamppb.Timestamp `protobuf:"bytes,9,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	RefreshedAt  *timestamppb.Timestamp `protobuf:"bytes,10,opt,name=refreshed_at,json=refreshedAt,proto3" json:"refreshed_at,omitempty"`
+	SourceSha256 string                 `protobuf:"bytes,12,opt,name=source_sha256,json=sourceSha256,proto3" json:"source_sha256,omitempty"`
+	AppliedAt    string                 `protobuf:"bytes,13,opt,name=applied_at,json=appliedAt,proto3" json:"applied_at,omitempty"`
+	Files        []*AdoptionFile        `protobuf:"bytes,14,rep,name=files,proto3" json:"files,omitempty"`
+	// Explicit fork classification. A declared fork is never overwritten by
+	// reconverge; the reason and extension points make the divergence reviewable.
+	ForkStatus      string   `protobuf:"bytes,15,opt,name=fork_status,json=forkStatus,proto3" json:"fork_status,omitempty"`
+	ForkReason      string   `protobuf:"bytes,16,opt,name=fork_reason,json=forkReason,proto3" json:"fork_reason,omitempty"`
+	ExtensionPoints []string `protobuf:"bytes,17,rep,name=extension_points,json=extensionPoints,proto3" json:"extension_points,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *Adoption) Reset() {
@@ -610,6 +615,27 @@ func (x *Adoption) GetAppliedAt() string {
 func (x *Adoption) GetFiles() []*AdoptionFile {
 	if x != nil {
 		return x.Files
+	}
+	return nil
+}
+
+func (x *Adoption) GetForkStatus() string {
+	if x != nil {
+		return x.ForkStatus
+	}
+	return ""
+}
+
+func (x *Adoption) GetForkReason() string {
+	if x != nil {
+		return x.ForkReason
+	}
+	return ""
+}
+
+func (x *Adoption) GetExtensionPoints() []string {
+	if x != nil {
+		return x.ExtensionPoints
 	}
 	return nil
 }
@@ -1013,6 +1039,8 @@ type ApplyAdoptionRequest struct {
 	ReplaceExisting bool `protobuf:"varint,7,opt,name=replace_existing,json=replaceExisting,proto3" json:"replace_existing,omitempty"`
 	// Optional catalog asset library ids to include from `suggests` edges.
 	IncludeSuggestions []string `protobuf:"bytes,8,rep,name=include_suggestions,json=includeSuggestions,proto3" json:"include_suggestions,omitempty"`
+	ForkReason         string   `protobuf:"bytes,9,opt,name=fork_reason,json=forkReason,proto3" json:"fork_reason,omitempty"`
+	ExtensionPoints    []string `protobuf:"bytes,10,rep,name=extension_points,json=extensionPoints,proto3" json:"extension_points,omitempty"`
 	unknownFields      protoimpl.UnknownFields
 	sizeCache          protoimpl.SizeCache
 }
@@ -1103,6 +1131,20 @@ func (x *ApplyAdoptionRequest) GetIncludeSuggestions() []string {
 	return nil
 }
 
+func (x *ApplyAdoptionRequest) GetForkReason() string {
+	if x != nil {
+		return x.ForkReason
+	}
+	return ""
+}
+
+func (x *ApplyAdoptionRequest) GetExtensionPoints() []string {
+	if x != nil {
+		return x.ExtensionPoints
+	}
+	return nil
+}
+
 type PreflightAdoptionRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	ComponentId   string                 `protobuf:"bytes,1,opt,name=component_id,json=componentId,proto3" json:"component_id,omitempty"`
@@ -1179,8 +1221,12 @@ type PreflightAdoptionResponse struct {
 	MaturityRung          string                 `protobuf:"bytes,12,opt,name=maturity_rung,json=maturityRung,proto3" json:"maturity_rung,omitempty"`
 	MaturityFloor         string                 `protobuf:"bytes,13,opt,name=maturity_floor,json=maturityFloor,proto3" json:"maturity_floor,omitempty"`
 	Warnings              []string               `protobuf:"bytes,14,rep,name=warnings,proto3" json:"warnings,omitempty"`
-	unknownFields         protoimpl.UnknownFields
-	sizeCache             protoimpl.SizeCache
+	// Derived i18n coverage is explicitly reported once its catalog gate is enabled.
+	I18NVerdict string `protobuf:"bytes,15,opt,name=i18n_verdict,json=i18nVerdict,proto3" json:"i18n_verdict,omitempty"`
+	// Derived selector coverage is explicitly reported once its catalog gate is enabled.
+	SelectorVerdict string `protobuf:"bytes,16,opt,name=selector_verdict,json=selectorVerdict,proto3" json:"selector_verdict,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *PreflightAdoptionResponse) Reset() {
@@ -1309,6 +1355,20 @@ func (x *PreflightAdoptionResponse) GetWarnings() []string {
 		return x.Warnings
 	}
 	return nil
+}
+
+func (x *PreflightAdoptionResponse) GetI18NVerdict() string {
+	if x != nil {
+		return x.I18NVerdict
+	}
+	return ""
+}
+
+func (x *PreflightAdoptionResponse) GetSelectorVerdict() string {
+	if x != nil {
+		return x.SelectorVerdict
+	}
+	return ""
 }
 
 type SyncScenarioTokensRequest struct {
@@ -1665,6 +1725,8 @@ type BatchApplyItem struct {
 	OverrideValidation bool                   `protobuf:"varint,6,opt,name=override_validation,json=overrideValidation,proto3" json:"override_validation,omitempty"`
 	ReplaceExisting    bool                   `protobuf:"varint,7,opt,name=replace_existing,json=replaceExisting,proto3" json:"replace_existing,omitempty"`
 	IncludeSuggestions []string               `protobuf:"bytes,8,rep,name=include_suggestions,json=includeSuggestions,proto3" json:"include_suggestions,omitempty"`
+	ForkReason         string                 `protobuf:"bytes,9,opt,name=fork_reason,json=forkReason,proto3" json:"fork_reason,omitempty"`
+	ExtensionPoints    []string               `protobuf:"bytes,10,rep,name=extension_points,json=extensionPoints,proto3" json:"extension_points,omitempty"`
 	unknownFields      protoimpl.UnknownFields
 	sizeCache          protoimpl.SizeCache
 }
@@ -1751,6 +1813,20 @@ func (x *BatchApplyItem) GetReplaceExisting() bool {
 func (x *BatchApplyItem) GetIncludeSuggestions() []string {
 	if x != nil {
 		return x.IncludeSuggestions
+	}
+	return nil
+}
+
+func (x *BatchApplyItem) GetForkReason() string {
+	if x != nil {
+		return x.ForkReason
+	}
+	return ""
+}
+
+func (x *BatchApplyItem) GetExtensionPoints() []string {
+	if x != nil {
+		return x.ExtensionPoints
 	}
 	return nil
 }
@@ -3201,6 +3277,7 @@ type ReconvergeOutcome struct {
 	// Named classification for modified copies: translation_only,
 	// local_addition, local_fork, or token_blocked.
 	Disposition   string `protobuf:"bytes,12,opt,name=disposition,proto3" json:"disposition,omitempty"`
+	ForkStatus    string `protobuf:"bytes,13,opt,name=fork_status,json=forkStatus,proto3" json:"fork_status,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -3315,6 +3392,13 @@ func (x *ReconvergeOutcome) GetFiles() []*ReconvergeFileOutcome {
 func (x *ReconvergeOutcome) GetDisposition() string {
 	if x != nil {
 		return x.Disposition
+	}
+	return ""
+}
+
+func (x *ReconvergeOutcome) GetForkStatus() string {
+	if x != nil {
+		return x.ForkStatus
 	}
 	return ""
 }
@@ -3854,7 +3938,7 @@ const file_react_component_library_v1_adoptions_adoptions_proto_rawDesc = "" +
 	"\tscenarios\x18\x01 \x03(\v2;.vrooli.react_component_library.v1.adoptions.ScenarioOptionR\tscenarios\"G\n" +
 	"\x0eScenarioOption\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12!\n" +
-	"\fdisplay_name\x18\x02 \x01(\tR\vdisplayName\"\xce\x05\n" +
+	"\fdisplay_name\x18\x02 \x01(\tR\vdisplayName\"\xbb\x06\n" +
 	"\bAdoption\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12!\n" +
 	"\fcomponent_id\x18\x02 \x01(\tR\vcomponentId\x12\x1d\n" +
@@ -3873,7 +3957,12 @@ const file_react_component_library_v1_adoptions_adoptions_proto_rawDesc = "" +
 	"\rsource_sha256\x18\f \x01(\tR\fsourceSha256\x12\x1d\n" +
 	"\n" +
 	"applied_at\x18\r \x01(\tR\tappliedAt\x12O\n" +
-	"\x05files\x18\x0e \x03(\v29.vrooli.react_component_library.v1.adoptions.AdoptionFileR\x05files\"\xac\x02\n" +
+	"\x05files\x18\x0e \x03(\v29.vrooli.react_component_library.v1.adoptions.AdoptionFileR\x05files\x12\x1f\n" +
+	"\vfork_status\x18\x0f \x01(\tR\n" +
+	"forkStatus\x12\x1f\n" +
+	"\vfork_reason\x18\x10 \x01(\tR\n" +
+	"forkReason\x12)\n" +
+	"\x10extension_points\x18\x11 \x03(\tR\x0fextensionPoints\"\xac\x02\n" +
 	"\fAdoptionFile\x12!\n" +
 	"\flibrary_path\x18\x01 \x01(\tR\vlibraryPath\x12!\n" +
 	"\fadopted_path\x18\x02 \x01(\tR\vadoptedPath\x12#\n" +
@@ -3898,7 +3987,7 @@ const file_react_component_library_v1_adoptions_adoptions_proto_rawDesc = "" +
 	"\fcomponent_id\x18\x01 \x01(\tR\vcomponentId\x12\x14\n" +
 	"\x05limit\x18\x02 \x01(\x05R\x05limit\"~\n" +
 	"\x1eListEffectiveAdoptionsResponse\x12\\\n" +
-	"\tadoptions\x18\x01 \x03(\v2>.vrooli.react_component_library.v1.adoptions.EffectiveAdoptionR\tadoptions\"\xcc\x02\n" +
+	"\tadoptions\x18\x01 \x03(\v2>.vrooli.react_component_library.v1.adoptions.EffectiveAdoptionR\tadoptions\"\x98\x03\n" +
 	"\x14ApplyAdoptionRequest\x12!\n" +
 	"\fcomponent_id\x18\x01 \x01(\tR\vcomponentId\x12\x1a\n" +
 	"\bscenario\x18\x02 \x01(\tR\bscenario\x12!\n" +
@@ -3907,11 +3996,15 @@ const file_react_component_library_v1_adoptions_adoptions_proto_rawDesc = "" +
 	"\x11confirm_overwrite\x18\x05 \x01(\bR\x10confirmOverwrite\x12/\n" +
 	"\x13override_validation\x18\x06 \x01(\bR\x12overrideValidation\x12)\n" +
 	"\x10replace_existing\x18\a \x01(\bR\x0freplaceExisting\x12/\n" +
-	"\x13include_suggestions\x18\b \x03(\tR\x12includeSuggestions\"s\n" +
+	"\x13include_suggestions\x18\b \x03(\tR\x12includeSuggestions\x12\x1f\n" +
+	"\vfork_reason\x18\t \x01(\tR\n" +
+	"forkReason\x12)\n" +
+	"\x10extension_points\x18\n" +
+	" \x03(\tR\x0fextensionPoints\"s\n" +
 	"\x18PreflightAdoptionRequest\x12!\n" +
 	"\fcomponent_id\x18\x01 \x01(\tR\vcomponentId\x12\x1a\n" +
 	"\bscenario\x18\x02 \x01(\tR\bscenario\x12\x18\n" +
-	"\aversion\x18\x03 \x01(\tR\aversion\"\xa2\x04\n" +
+	"\aversion\x18\x03 \x01(\tR\aversion\"\xf0\x04\n" +
 	"\x19PreflightAdoptionResponse\x12!\n" +
 	"\fcomponent_id\x18\x01 \x01(\tR\vcomponentId\x12\x1a\n" +
 	"\bscenario\x18\x02 \x01(\tR\bscenario\x12\x18\n" +
@@ -3927,7 +4020,9 @@ const file_react_component_library_v1_adoptions_adoptions_proto_rawDesc = "" +
 	"\x0eversion_status\x18\v \x01(\tR\rversionStatus\x12#\n" +
 	"\rmaturity_rung\x18\f \x01(\tR\fmaturityRung\x12%\n" +
 	"\x0ematurity_floor\x18\r \x01(\tR\rmaturityFloor\x12\x1a\n" +
-	"\bwarnings\x18\x0e \x03(\tR\bwarnings\"P\n" +
+	"\bwarnings\x18\x0e \x03(\tR\bwarnings\x12!\n" +
+	"\fi18n_verdict\x18\x0f \x01(\tR\vi18nVerdict\x12)\n" +
+	"\x10selector_verdict\x18\x10 \x01(\tR\x0fselectorVerdict\"P\n" +
 	"\x19SyncScenarioTokensRequest\x12\x1a\n" +
 	"\bscenario\x18\x01 \x01(\tR\bscenario\x12\x17\n" +
 	"\adry_run\x18\x02 \x01(\bR\x06dryRun\"\x88\x01\n" +
@@ -3954,7 +4049,7 @@ const file_react_component_library_v1_adoptions_adoptions_proto_rawDesc = "" +
 	"\x10style_fit_detail\x18\x05 \x01(\tR\x0estyleFitDetail\x12#\n" +
 	"\rcopied_assets\x18\x06 \x03(\tR\fcopiedAssets\x12'\n" +
 	"\x0fsatisfied_ports\x18\a \x03(\tR\x0esatisfiedPorts\x123\n" +
-	"\x15available_suggestions\x18\b \x03(\tR\x14availableSuggestions\"\xc6\x02\n" +
+	"\x15available_suggestions\x18\b \x03(\tR\x14availableSuggestions\"\x92\x03\n" +
 	"\x0eBatchApplyItem\x12!\n" +
 	"\fcomponent_id\x18\x01 \x01(\tR\vcomponentId\x12\x1a\n" +
 	"\bscenario\x18\x02 \x01(\tR\bscenario\x12!\n" +
@@ -3963,7 +4058,11 @@ const file_react_component_library_v1_adoptions_adoptions_proto_rawDesc = "" +
 	"\x11confirm_overwrite\x18\x05 \x01(\bR\x10confirmOverwrite\x12/\n" +
 	"\x13override_validation\x18\x06 \x01(\bR\x12overrideValidation\x12)\n" +
 	"\x10replace_existing\x18\a \x01(\bR\x0freplaceExisting\x12/\n" +
-	"\x13include_suggestions\x18\b \x03(\tR\x12includeSuggestions\"o\n" +
+	"\x13include_suggestions\x18\b \x03(\tR\x12includeSuggestions\x12\x1f\n" +
+	"\vfork_reason\x18\t \x01(\tR\n" +
+	"forkReason\x12)\n" +
+	"\x10extension_points\x18\n" +
+	" \x03(\tR\x0fextensionPoints\"o\n" +
 	"\x1aBatchApplyAdoptionsRequest\x12Q\n" +
 	"\x05items\x18\x01 \x03(\v2;.vrooli.react_component_library.v1.adoptions.BatchApplyItemR\x05items\"\x8a\x03\n" +
 	"\x14BatchApplyItemResult\x12Q\n" +
@@ -4070,7 +4169,7 @@ const file_react_component_library_v1_adoptions_adoptions_proto_rawDesc = "" +
 	"\x15ReconvergeFileOutcome\x12!\n" +
 	"\flibrary_path\x18\x01 \x01(\tR\vlibraryPath\x12!\n" +
 	"\fadopted_path\x18\x02 \x01(\tR\vadoptedPath\x12[\n" +
-	"\flocal_status\x18\x03 \x01(\x0e28.vrooli.react_component_library.v1.adoptions.LocalStatusR\vlocalStatus\"\xa3\x05\n" +
+	"\flocal_status\x18\x03 \x01(\x0e28.vrooli.react_component_library.v1.adoptions.LocalStatusR\vlocalStatus\"\xc4\x05\n" +
 	"\x11ReconvergeOutcome\x12\x1f\n" +
 	"\vadoption_id\x18\x01 \x01(\tR\n" +
 	"adoptionId\x12\x1a\n" +
@@ -4086,7 +4185,9 @@ const file_react_component_library_v1_adoptions_adoptions_proto_rawDesc = "" +
 	"\x06detail\x18\n" +
 	" \x01(\tR\x06detail\x12X\n" +
 	"\x05files\x18\v \x03(\v2B.vrooli.react_component_library.v1.adoptions.ReconvergeFileOutcomeR\x05files\x12 \n" +
-	"\vdisposition\x18\f \x01(\tR\vdisposition\"\xad\x03\n" +
+	"\vdisposition\x18\f \x01(\tR\vdisposition\x12\x1f\n" +
+	"\vfork_status\x18\r \x01(\tR\n" +
+	"forkStatus\"\xad\x03\n" +
 	"\x1bReconvergeAdoptionsResponse\x12\x18\n" +
 	"\ascanned\x18\x01 \x01(\x05R\ascanned\x12\x16\n" +
 	"\x06behind\x18\x02 \x01(\x05R\x06behind\x12\x1c\n" +

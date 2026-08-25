@@ -541,22 +541,28 @@
           "completion": "required"
         },
         {
-          "path": "internal/PROGRESS.md",
-          "docType": "progress",
-          "title": "Progress",
-          "aliases": ["progress-log", "changelog", "handoff-log"],
-          "description": "Lifecycle log — append a row whenever work lands. Current log lives at docs/PROGRESS.md and will move to docs/internal/PROGRESS.md in the doc-health batch.",
+          "path": "internal/ARCHIVED-SESSIONS-UX.md",
+          "docType": "design-note",
+          "title": "Archived Sessions UX",
+          "description": "Historical UX audit and regression notes for archived session browsing",
           "audience": ["developers", "agents"],
-          "canonicalFor": ["change-history", "handoff-log"],
-          "maturity": "missing",
-          "requiredBy": ["generated", "implemented", "validated"],
-          "completion": "required"
+          "maturity": "active",
+          "completion": "optional"
+        },
+        {
+          "path": "internal/INTEROP_AUDIT.md",
+          "docType": "integration-audit",
+          "title": "Interop Audit",
+          "description": "Integration boundary findings and follow-up notes",
+          "audience": ["developers", "agents"],
+          "maturity": "active",
+          "completion": "optional"
         },
         {
           "path": "PROGRESS.md",
           "docType": "progress",
           "title": "Progress Log (current location)",
-          "description": "Active progress log; will move to internal/PROGRESS.md in the doc-health batch",
+          "description": "Active progress log retained at the scenario docs root",
           "audience": ["developers"],
           "maturity": "active",
           "completion": "optional"

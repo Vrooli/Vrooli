@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
-import { resolveApiBase } from "@vrooli/api-base";
 import type { ConversationEvent } from "../api/conversation";
+import { API_BASE_WITH_SUFFIX } from "../api/client";
 import { coerceOriginName, type BackendID, type SessionInfo } from "../api/sessions";
 import { useConversationStore } from "../stores/useConversationStore";
 import { refreshConversationSession } from "./useConversationSession";
@@ -106,7 +106,6 @@ function sessionFromStatusPayload(sessionId: string, p: SessionStatusPayload): S
     backend: (p.backend as BackendID) || "standard",
     survives_restart: p.backend === "persistent",
     policy: { mode: "never" },
-    busy: false,
     ...(p.recovered ? { recovered: true } : {}),
     origin: coerceOriginName(p.origin),
     owner: p.owner ?? "",
@@ -116,8 +115,7 @@ function sessionFromStatusPayload(sessionId: string, p: SessionStatusPayload): S
 
 /** Builds the same-origin SSE endpoint URL (honors proxy/api-base resolution). */
 export function buildEventStreamUrl(): string {
-  const base = resolveApiBase({ appendSuffix: true });
-  return `${base}/events/stream`;
+  return `${API_BASE_WITH_SUFFIX}/events/stream`;
 }
 
 const SEEN_ID_LIMIT = 4096;

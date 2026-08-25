@@ -102,7 +102,7 @@ var Endpoints = []module.EndpointDescriptor{
 		Description: "Serves the file bytes for an opaque, session-bound preview id with HTTP Range support (206/Content-Range/Accept-Ranges, 416 on bad range) and HEAD. Content-Type comes from the resolved metadata; no-store + nosniff. Re-stats the file and returns 409 if it changed since resolve. Consumed directly by native <img>/<video>/<audio>/<iframe>.",
 		Category:    "file_preview",
 		RESTException: &module.RESTException{
-			Reason: module.RESTReasonOpsProbe,
+			Reason: module.RESTReasonStreamUpgrade,
 			Note:   "Byte-range blob stream consumed by native browser media elements without a generated client — the same browser-native-transport category as terminal_ws. Connect's wire format cannot express opaque byte streaming with Range. The opaque preview id (never a raw path) is issued by FilePreviewService.Resolve and bound to the session.",
 		},
 		Errors: []module.ErrorDesc{

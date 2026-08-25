@@ -492,3 +492,83 @@ class DeleteSkillVariantResponse(_message.Message):
     variant_id: str
     deleted: bool
     def __init__(self, skill_id: _Optional[str] = ..., variant_id: _Optional[str] = ..., deleted: _Optional[bool] = ...) -> None: ...
+
+class ImportSkillRequest(_message.Message):
+    __slots__ = ("source_dir", "source_url", "commit", "license", "checksum", "imported_by", "upstream_version", "id")
+    SOURCE_DIR_FIELD_NUMBER: _ClassVar[int]
+    SOURCE_URL_FIELD_NUMBER: _ClassVar[int]
+    COMMIT_FIELD_NUMBER: _ClassVar[int]
+    LICENSE_FIELD_NUMBER: _ClassVar[int]
+    CHECKSUM_FIELD_NUMBER: _ClassVar[int]
+    IMPORTED_BY_FIELD_NUMBER: _ClassVar[int]
+    UPSTREAM_VERSION_FIELD_NUMBER: _ClassVar[int]
+    ID_FIELD_NUMBER: _ClassVar[int]
+    source_dir: str
+    source_url: str
+    commit: str
+    license: str
+    checksum: str
+    imported_by: str
+    upstream_version: str
+    id: str
+    def __init__(self, source_dir: _Optional[str] = ..., source_url: _Optional[str] = ..., commit: _Optional[str] = ..., license: _Optional[str] = ..., checksum: _Optional[str] = ..., imported_by: _Optional[str] = ..., upstream_version: _Optional[str] = ..., id: _Optional[str] = ...) -> None: ...
+
+class ImportSkillResponse(_message.Message):
+    __slots__ = ("id", "pack", "status", "checksum", "review_verdict", "imported_at")
+    ID_FIELD_NUMBER: _ClassVar[int]
+    PACK_FIELD_NUMBER: _ClassVar[int]
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    CHECKSUM_FIELD_NUMBER: _ClassVar[int]
+    REVIEW_VERDICT_FIELD_NUMBER: _ClassVar[int]
+    IMPORTED_AT_FIELD_NUMBER: _ClassVar[int]
+    id: str
+    pack: str
+    status: str
+    checksum: str
+    review_verdict: str
+    imported_at: str
+    def __init__(self, id: _Optional[str] = ..., pack: _Optional[str] = ..., status: _Optional[str] = ..., checksum: _Optional[str] = ..., review_verdict: _Optional[str] = ..., imported_at: _Optional[str] = ...) -> None: ...
+
+class ReviewImportedSkillRequest(_message.Message):
+    __slots__ = ("id", "reviewer", "verdict")
+    ID_FIELD_NUMBER: _ClassVar[int]
+    REVIEWER_FIELD_NUMBER: _ClassVar[int]
+    VERDICT_FIELD_NUMBER: _ClassVar[int]
+    id: str
+    reviewer: str
+    verdict: str
+    def __init__(self, id: _Optional[str] = ..., reviewer: _Optional[str] = ..., verdict: _Optional[str] = ...) -> None: ...
+
+class ReviewImportedSkillResponse(_message.Message):
+    __slots__ = ("id", "status", "verdict", "reviewer", "reviewed_at")
+    ID_FIELD_NUMBER: _ClassVar[int]
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    VERDICT_FIELD_NUMBER: _ClassVar[int]
+    REVIEWER_FIELD_NUMBER: _ClassVar[int]
+    REVIEWED_AT_FIELD_NUMBER: _ClassVar[int]
+    id: str
+    status: str
+    verdict: str
+    reviewer: str
+    reviewed_at: str
+    def __init__(self, id: _Optional[str] = ..., status: _Optional[str] = ..., verdict: _Optional[str] = ..., reviewer: _Optional[str] = ..., reviewed_at: _Optional[str] = ...) -> None: ...
+
+class ReportImportedSkillStalenessRequest(_message.Message):
+    __slots__ = ("id", "upstream_version")
+    ID_FIELD_NUMBER: _ClassVar[int]
+    UPSTREAM_VERSION_FIELD_NUMBER: _ClassVar[int]
+    id: str
+    upstream_version: str
+    def __init__(self, id: _Optional[str] = ..., upstream_version: _Optional[str] = ...) -> None: ...
+
+class ReportImportedSkillStalenessResponse(_message.Message):
+    __slots__ = ("id", "recorded_version", "current_version", "stale")
+    ID_FIELD_NUMBER: _ClassVar[int]
+    RECORDED_VERSION_FIELD_NUMBER: _ClassVar[int]
+    CURRENT_VERSION_FIELD_NUMBER: _ClassVar[int]
+    STALE_FIELD_NUMBER: _ClassVar[int]
+    id: str
+    recorded_version: str
+    current_version: str
+    stale: bool
+    def __init__(self, id: _Optional[str] = ..., recorded_version: _Optional[str] = ..., current_version: _Optional[str] = ..., stale: _Optional[bool] = ...) -> None: ...

@@ -18,19 +18,19 @@ import (
 // --- resolveShell: fallback chain ---
 
 func TestResolveShell_WCDefaultShellTakesPriority(t *testing.T) {
-	t.Setenv("WC_DEFAULT_SHELL", "/usr/bin/fish")
+	t.Setenv("WC_DEFAULT_SHELL", "/bin/bash")
 	t.Setenv("SHELL", "/bin/bash")
 	got := config.ResolveShell()
-	if got != "/usr/bin/fish" {
+	if got != "/bin/bash" {
 		t.Errorf("WC_DEFAULT_SHELL should win, got %s", got)
 	}
 }
 
 func TestResolveShell_FallsBackToSHELL(t *testing.T) {
 	t.Setenv("WC_DEFAULT_SHELL", "")
-	t.Setenv("SHELL", "/bin/zsh")
+	t.Setenv("SHELL", "/bin/bash")
 	got := config.ResolveShell()
-	if got != "/bin/zsh" {
+	if got != "/bin/bash" {
 		t.Errorf("should fall back to $SHELL, got %s", got)
 	}
 }

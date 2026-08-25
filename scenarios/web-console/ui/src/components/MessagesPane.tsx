@@ -22,6 +22,7 @@ import { loadConversationPageContaining, loadOlderConversationPage, refreshConve
 import { useWorkspaceStore } from "../stores/useWorkspaceStore";
 import { useMediaQuery } from "../hooks/useMediaQuery";
 import { useAnchoredPopoverPosition, type FloatingPlacement } from "../hooks/useFloatingPosition";
+import { writeText } from "../lib/clipboard";
 import { getConversationRange, searchConversation, type ConversationEvent, type ConversationSearchMatch } from "../api/conversation";
 import { useFilePreviewController } from "./file-preview/useFilePreviewController";
 import { TERMINAL_FONT_SIZE } from "../consts/config";
@@ -29,6 +30,7 @@ import { cn } from "../lib/classnames";
 import { looksLikeFileReference } from "../lib/fileReferences";
 import { MarkdownRenderer } from "./markdown";
 import { useVirtualList } from "../hooks/useVirtualList";
+import { useReleaseOnElementInteraction } from "../hooks/useKeyboardListeners";
 import MessageJumpList, { type MessageExportSelection } from "./MessageJumpList";
 import { getDerived } from "./MessageJumpList.helpers";
 import MessageExportDrawer from "./MessageExportDrawer";
@@ -561,7 +563,7 @@ export default function MessagesPane({
   // --- Copy ---
   const [copiedEventId, setCopiedEventId] = useState<string | null>(null);
   const handleCopy = useCallback((eventId: string, text: string) => {
-    void navigator.clipboard.writeText(text);
+    void writeText(text);
     setCopiedEventId(eventId);
     setTimeout(() => setCopiedEventId((prev) => (prev === eventId ? null : prev)), 2000);
   }, []);
@@ -738,24 +740,10 @@ export default function MessagesPane({
   // Release the bottom-pin or event-pin as soon as the user scrolls away from
   // it. We do this from a wheel/touchstart listener so synthetic re-scrolls
   // from the totalSize-change effect don't release the pin.
-  useEffect(() => {
-    const el = scrollContainerRef.current;
-    if (!el) return;
-    const release = () => {
-      pinToBottomRef.current = false;
-      pinToEventIdRef.current = null;
-    };
-    el.addEventListener("wheel", release, { passive: true });
-    el.addEventListener("touchstart", release, { passive: true });
-    el.addEventListener("pointerdown", release, { passive: true });
-    el.addEventListener("keydown", release);
-    return () => {
-      el.removeEventListener("wheel", release);
-      el.removeEventListener("touchstart", release);
-      el.removeEventListener("pointerdown", release);
-      el.removeEventListener("keydown", release);
-    };
-  }, []);
+  useReleaseOnElementInteraction(scrollContainerRef, () => {
+    pinToBottomRef.current = false;
+    pinToEventIdRef.current = null;
+  });
 
   // Auto-scroll on new events (when near bottom) or show pill
   useEffect(() => {

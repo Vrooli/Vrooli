@@ -15,7 +15,6 @@ function extSession(id: string, over: Partial<SessionInfo> = {}): SessionInfo {
     backend: "standard",
     survives_restart: false,
     policy: { mode: "never" },
-    busy: false,
     origin: "programmatic",
     owner: "",
     display_label: "",
@@ -498,7 +497,7 @@ describe("useSessionManager", () => {
       await result.current.launchSession({ command: "echo hi" });
     });
 
-    const handle = { submitInput: vi.fn(() => ({ status: "sent" as const, seq: 1 })), focus: vi.fn(), stopTts: vi.fn(), speakText: vi.fn(), speakSequence: vi.fn(), pauseTts: vi.fn(), resumeTts: vi.fn(), seekTts: vi.fn(), setTtsPlaybackRate: vi.fn(), setTtsVolume: vi.fn(), setTtsMuted: vi.fn(), getTtsState: vi.fn(), subscribeInputSettled: vi.fn(() => () => {}), subscribePendingInput: vi.fn(() => () => {}), getPendingInputSnapshot: vi.fn(() => []) };
+const handle = { submitInput: vi.fn(() => ({ status: "sent" as const, seq: 1 })), sendControl: vi.fn(() => true), copySelection: vi.fn(async () => true), pasteFromClipboard: vi.fn(async () => true), scrollTerminal: vi.fn(), focus: vi.fn(), stopTts: vi.fn(), speakText: vi.fn(), speakSequence: vi.fn(), pauseTts: vi.fn(), resumeTts: vi.fn(), seekTts: vi.fn(), setTtsPlaybackRate: vi.fn(), setTtsVolume: vi.fn(), setTtsMuted: vi.fn(), getTtsState: vi.fn(), subscribeInputSettled: vi.fn(() => () => {}), awaitSeq: vi.fn(() => () => {}), subscribePendingInput: vi.fn(() => () => {}), getPendingInputSnapshot: vi.fn(() => []) };
     act(() => {
       result.current.registerTerminalRef("sess-1", handle);
     });

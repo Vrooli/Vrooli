@@ -45,6 +45,8 @@ class CapabilitySituation(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     CAPABILITY_SITUATION_NO_WORK_REQUIRED: _ClassVar[CapabilitySituation]
     CAPABILITY_SITUATION_NO_EQUIVALENT_EVER: _ClassVar[CapabilitySituation]
     CAPABILITY_SITUATION_REAL_PEER_NOBODY_WIRED: _ClassVar[CapabilitySituation]
+    CAPABILITY_SITUATION_CONTROLS_UNPORTED: _ClassVar[CapabilitySituation]
+    CAPABILITY_SITUATION_SCOPED_OUT: _ClassVar[CapabilitySituation]
 
 class Verdict(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -83,6 +85,8 @@ CAPABILITY_SITUATION_BUILT_EVERYWHERE: CapabilitySituation
 CAPABILITY_SITUATION_NO_WORK_REQUIRED: CapabilitySituation
 CAPABILITY_SITUATION_NO_EQUIVALENT_EVER: CapabilitySituation
 CAPABILITY_SITUATION_REAL_PEER_NOBODY_WIRED: CapabilitySituation
+CAPABILITY_SITUATION_CONTROLS_UNPORTED: CapabilitySituation
+CAPABILITY_SITUATION_SCOPED_OUT: CapabilitySituation
 VERDICT_UNSPECIFIED: Verdict
 VERDICT_ELIGIBLE: Verdict
 VERDICT_INELIGIBLE: Verdict
@@ -93,8 +97,9 @@ DELIVERY_TIER_DESKTOP: DeliveryTier
 DELIVERY_TIER_MOBILE: DeliveryTier
 
 class PlatformEntry(_message.Message):
-    __slots__ = ("host_os", "status", "qualification", "implementer", "mechanism", "reason", "qualification_reason", "has_implementation", "controls", "absent", "declarers", "observed_qualification", "observed_qualification_reason", "observed_declarers")
+    __slots__ = ("host_os", "architecture", "status", "qualification", "implementer", "mechanism", "reason", "qualification_reason", "has_implementation", "controls", "absent", "absent_controls", "absent_providers", "declarers", "observed_qualification", "observed_qualification_reason", "observed_declarers")
     HOST_OS_FIELD_NUMBER: _ClassVar[int]
+    ARCHITECTURE_FIELD_NUMBER: _ClassVar[int]
     STATUS_FIELD_NUMBER: _ClassVar[int]
     QUALIFICATION_FIELD_NUMBER: _ClassVar[int]
     IMPLEMENTER_FIELD_NUMBER: _ClassVar[int]
@@ -104,11 +109,14 @@ class PlatformEntry(_message.Message):
     HAS_IMPLEMENTATION_FIELD_NUMBER: _ClassVar[int]
     CONTROLS_FIELD_NUMBER: _ClassVar[int]
     ABSENT_FIELD_NUMBER: _ClassVar[int]
+    ABSENT_CONTROLS_FIELD_NUMBER: _ClassVar[int]
+    ABSENT_PROVIDERS_FIELD_NUMBER: _ClassVar[int]
     DECLARERS_FIELD_NUMBER: _ClassVar[int]
     OBSERVED_QUALIFICATION_FIELD_NUMBER: _ClassVar[int]
     OBSERVED_QUALIFICATION_REASON_FIELD_NUMBER: _ClassVar[int]
     OBSERVED_DECLARERS_FIELD_NUMBER: _ClassVar[int]
     host_os: HostOS
+    architecture: str
     status: ResolutionStatus
     qualification: Qualification
     implementer: str
@@ -118,11 +126,13 @@ class PlatformEntry(_message.Message):
     has_implementation: bool
     controls: _containers.RepeatedScalarFieldContainer[str]
     absent: _containers.RepeatedScalarFieldContainer[str]
+    absent_controls: _containers.RepeatedScalarFieldContainer[str]
+    absent_providers: _containers.RepeatedScalarFieldContainer[str]
     declarers: _containers.RepeatedCompositeFieldContainer[CapabilityDeclarer]
     observed_qualification: Qualification
     observed_qualification_reason: str
     observed_declarers: _containers.RepeatedCompositeFieldContainer[ObservedDeclarer]
-    def __init__(self, host_os: _Optional[_Union[HostOS, str]] = ..., status: _Optional[_Union[ResolutionStatus, str]] = ..., qualification: _Optional[_Union[Qualification, str]] = ..., implementer: _Optional[str] = ..., mechanism: _Optional[str] = ..., reason: _Optional[str] = ..., qualification_reason: _Optional[str] = ..., has_implementation: _Optional[bool] = ..., controls: _Optional[_Iterable[str]] = ..., absent: _Optional[_Iterable[str]] = ..., declarers: _Optional[_Iterable[_Union[CapabilityDeclarer, _Mapping]]] = ..., observed_qualification: _Optional[_Union[Qualification, str]] = ..., observed_qualification_reason: _Optional[str] = ..., observed_declarers: _Optional[_Iterable[_Union[ObservedDeclarer, _Mapping]]] = ...) -> None: ...
+    def __init__(self, host_os: _Optional[_Union[HostOS, str]] = ..., architecture: _Optional[str] = ..., status: _Optional[_Union[ResolutionStatus, str]] = ..., qualification: _Optional[_Union[Qualification, str]] = ..., implementer: _Optional[str] = ..., mechanism: _Optional[str] = ..., reason: _Optional[str] = ..., qualification_reason: _Optional[str] = ..., has_implementation: _Optional[bool] = ..., controls: _Optional[_Iterable[str]] = ..., absent: _Optional[_Iterable[str]] = ..., absent_controls: _Optional[_Iterable[str]] = ..., absent_providers: _Optional[_Iterable[str]] = ..., declarers: _Optional[_Iterable[_Union[CapabilityDeclarer, _Mapping]]] = ..., observed_qualification: _Optional[_Union[Qualification, str]] = ..., observed_qualification_reason: _Optional[str] = ..., observed_declarers: _Optional[_Iterable[_Union[ObservedDeclarer, _Mapping]]] = ...) -> None: ...
 
 class CapabilityDeclarer(_message.Message):
     __slots__ = ("name", "role", "declared_status", "resolved", "reason")

@@ -5,6 +5,7 @@ import FullScreenComposer from "../components/FullScreenComposer";
 import { composeComposerPayload } from "../lib/composerPayload";
 import { useComposerDraft } from "../hooks/useComposerDraft";
 import type { GateResult } from "../components/terminal/inputGate";
+import type { InputSettlementCallback } from "../hooks/terminal/useStdinAck";
 
 type SettledCb = (seq: number, ok: boolean) => void;
 
@@ -23,12 +24,18 @@ function makeSettlement() {
 interface HarnessProps {
   onInput?: (data: string, source: string) => GateResult;
   subscribe?: (cb: SettledCb) => () => void;
+  awaitSeq?: (seq: number, cb: InputSettlementCallback) => () => void;
   initialOpen?: boolean;
 }
 
 function Harness({ onInput = () => ({ status: "sent", seq: 1 }), subscribe, initialOpen = true }: HarnessProps) {
   const draft = useComposerDraft("sess-composer");
   const [open, setOpen] = useState(initialOpen);
+  const settlement = makeSettlement();
+  const awaitSeq = (seq: number, cb: InputSettlementCallback) => {
+    const source = subscribe ?? settlement.subscribe;
+    return source((ackSeq, ok) => { if (ackSeq === seq) cb(ok); });
+  };
   return (
     <>
       <button data-testid="ext-open" onClick={() => setOpen(true)} />
@@ -38,6 +45,7 @@ function Harness({ onInput = () => ({ status: "sent", seq: 1 }), subscribe, init
         draft={draft}
         onInput={onInput as never}
         subscribeInputSettled={subscribe}
+        awaitSeq={awaitSeq}
         onFocusTerminal={vi.fn()}
       />
     </>
@@ -111,7 +119,7 @@ describe("FullScreenComposer", () => {
     fireEvent.change(input, { target: { value: "deploy now" } });
     fireEvent.click(screen.getByTestId("composer-send"));
 
-    expect(onInput).toHaveBeenCalledWith("deploy now", "toolbar-submit");
+    expect(onInput).toHaveBeenCalledWith("deploy now", "bulk_text");
     // Still open + spinner until settlement.
     expect(screen.getByTestId("composer-sending")).toBeTruthy();
     expect(screen.getByTestId("full-screen-composer")).toBeTruthy();

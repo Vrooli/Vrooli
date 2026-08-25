@@ -2721,6 +2721,446 @@ func (x *DeleteSkillVariantResponse) GetDeleted() bool {
 	return false
 }
 
+type ImportSkillRequest struct {
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	SourceDir       string                 `protobuf:"bytes,1,opt,name=source_dir,json=sourceDir,proto3" json:"source_dir,omitempty"`
+	SourceUrl       string                 `protobuf:"bytes,2,opt,name=source_url,json=sourceUrl,proto3" json:"source_url,omitempty"`
+	Commit          string                 `protobuf:"bytes,3,opt,name=commit,proto3" json:"commit,omitempty"`
+	License         string                 `protobuf:"bytes,4,opt,name=license,proto3" json:"license,omitempty"`
+	Checksum        string                 `protobuf:"bytes,5,opt,name=checksum,proto3" json:"checksum,omitempty"`
+	ImportedBy      string                 `protobuf:"bytes,6,opt,name=imported_by,json=importedBy,proto3" json:"imported_by,omitempty"`
+	UpstreamVersion string                 `protobuf:"bytes,7,opt,name=upstream_version,json=upstreamVersion,proto3" json:"upstream_version,omitempty"`
+	Id              string                 `protobuf:"bytes,8,opt,name=id,proto3" json:"id,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *ImportSkillRequest) Reset() {
+	*x = ImportSkillRequest{}
+	mi := &file_prompt_manager_v1_skills_skills_proto_msgTypes[39]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ImportSkillRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ImportSkillRequest) ProtoMessage() {}
+
+func (x *ImportSkillRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_prompt_manager_v1_skills_skills_proto_msgTypes[39]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ImportSkillRequest.ProtoReflect.Descriptor instead.
+func (*ImportSkillRequest) Descriptor() ([]byte, []int) {
+	return file_prompt_manager_v1_skills_skills_proto_rawDescGZIP(), []int{39}
+}
+
+func (x *ImportSkillRequest) GetSourceDir() string {
+	if x != nil {
+		return x.SourceDir
+	}
+	return ""
+}
+
+func (x *ImportSkillRequest) GetSourceUrl() string {
+	if x != nil {
+		return x.SourceUrl
+	}
+	return ""
+}
+
+func (x *ImportSkillRequest) GetCommit() string {
+	if x != nil {
+		return x.Commit
+	}
+	return ""
+}
+
+func (x *ImportSkillRequest) GetLicense() string {
+	if x != nil {
+		return x.License
+	}
+	return ""
+}
+
+func (x *ImportSkillRequest) GetChecksum() string {
+	if x != nil {
+		return x.Checksum
+	}
+	return ""
+}
+
+func (x *ImportSkillRequest) GetImportedBy() string {
+	if x != nil {
+		return x.ImportedBy
+	}
+	return ""
+}
+
+func (x *ImportSkillRequest) GetUpstreamVersion() string {
+	if x != nil {
+		return x.UpstreamVersion
+	}
+	return ""
+}
+
+func (x *ImportSkillRequest) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+type ImportSkillResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Pack          string                 `protobuf:"bytes,2,opt,name=pack,proto3" json:"pack,omitempty"`
+	Status        string                 `protobuf:"bytes,3,opt,name=status,proto3" json:"status,omitempty"`
+	Checksum      string                 `protobuf:"bytes,4,opt,name=checksum,proto3" json:"checksum,omitempty"`
+	ReviewVerdict string                 `protobuf:"bytes,5,opt,name=review_verdict,json=reviewVerdict,proto3" json:"review_verdict,omitempty"`
+	ImportedAt    string                 `protobuf:"bytes,6,opt,name=imported_at,json=importedAt,proto3" json:"imported_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ImportSkillResponse) Reset() {
+	*x = ImportSkillResponse{}
+	mi := &file_prompt_manager_v1_skills_skills_proto_msgTypes[40]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ImportSkillResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ImportSkillResponse) ProtoMessage() {}
+
+func (x *ImportSkillResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_prompt_manager_v1_skills_skills_proto_msgTypes[40]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ImportSkillResponse.ProtoReflect.Descriptor instead.
+func (*ImportSkillResponse) Descriptor() ([]byte, []int) {
+	return file_prompt_manager_v1_skills_skills_proto_rawDescGZIP(), []int{40}
+}
+
+func (x *ImportSkillResponse) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *ImportSkillResponse) GetPack() string {
+	if x != nil {
+		return x.Pack
+	}
+	return ""
+}
+
+func (x *ImportSkillResponse) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+func (x *ImportSkillResponse) GetChecksum() string {
+	if x != nil {
+		return x.Checksum
+	}
+	return ""
+}
+
+func (x *ImportSkillResponse) GetReviewVerdict() string {
+	if x != nil {
+		return x.ReviewVerdict
+	}
+	return ""
+}
+
+func (x *ImportSkillResponse) GetImportedAt() string {
+	if x != nil {
+		return x.ImportedAt
+	}
+	return ""
+}
+
+type ReviewImportedSkillRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Reviewer      string                 `protobuf:"bytes,2,opt,name=reviewer,proto3" json:"reviewer,omitempty"`
+	Verdict       string                 `protobuf:"bytes,3,opt,name=verdict,proto3" json:"verdict,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ReviewImportedSkillRequest) Reset() {
+	*x = ReviewImportedSkillRequest{}
+	mi := &file_prompt_manager_v1_skills_skills_proto_msgTypes[41]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ReviewImportedSkillRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ReviewImportedSkillRequest) ProtoMessage() {}
+
+func (x *ReviewImportedSkillRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_prompt_manager_v1_skills_skills_proto_msgTypes[41]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ReviewImportedSkillRequest.ProtoReflect.Descriptor instead.
+func (*ReviewImportedSkillRequest) Descriptor() ([]byte, []int) {
+	return file_prompt_manager_v1_skills_skills_proto_rawDescGZIP(), []int{41}
+}
+
+func (x *ReviewImportedSkillRequest) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *ReviewImportedSkillRequest) GetReviewer() string {
+	if x != nil {
+		return x.Reviewer
+	}
+	return ""
+}
+
+func (x *ReviewImportedSkillRequest) GetVerdict() string {
+	if x != nil {
+		return x.Verdict
+	}
+	return ""
+}
+
+type ReviewImportedSkillResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Status        string                 `protobuf:"bytes,2,opt,name=status,proto3" json:"status,omitempty"`
+	Verdict       string                 `protobuf:"bytes,3,opt,name=verdict,proto3" json:"verdict,omitempty"`
+	Reviewer      string                 `protobuf:"bytes,4,opt,name=reviewer,proto3" json:"reviewer,omitempty"`
+	ReviewedAt    string                 `protobuf:"bytes,5,opt,name=reviewed_at,json=reviewedAt,proto3" json:"reviewed_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ReviewImportedSkillResponse) Reset() {
+	*x = ReviewImportedSkillResponse{}
+	mi := &file_prompt_manager_v1_skills_skills_proto_msgTypes[42]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ReviewImportedSkillResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ReviewImportedSkillResponse) ProtoMessage() {}
+
+func (x *ReviewImportedSkillResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_prompt_manager_v1_skills_skills_proto_msgTypes[42]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ReviewImportedSkillResponse.ProtoReflect.Descriptor instead.
+func (*ReviewImportedSkillResponse) Descriptor() ([]byte, []int) {
+	return file_prompt_manager_v1_skills_skills_proto_rawDescGZIP(), []int{42}
+}
+
+func (x *ReviewImportedSkillResponse) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *ReviewImportedSkillResponse) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+func (x *ReviewImportedSkillResponse) GetVerdict() string {
+	if x != nil {
+		return x.Verdict
+	}
+	return ""
+}
+
+func (x *ReviewImportedSkillResponse) GetReviewer() string {
+	if x != nil {
+		return x.Reviewer
+	}
+	return ""
+}
+
+func (x *ReviewImportedSkillResponse) GetReviewedAt() string {
+	if x != nil {
+		return x.ReviewedAt
+	}
+	return ""
+}
+
+type ReportImportedSkillStalenessRequest struct {
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	Id              string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	UpstreamVersion string                 `protobuf:"bytes,2,opt,name=upstream_version,json=upstreamVersion,proto3" json:"upstream_version,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *ReportImportedSkillStalenessRequest) Reset() {
+	*x = ReportImportedSkillStalenessRequest{}
+	mi := &file_prompt_manager_v1_skills_skills_proto_msgTypes[43]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ReportImportedSkillStalenessRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ReportImportedSkillStalenessRequest) ProtoMessage() {}
+
+func (x *ReportImportedSkillStalenessRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_prompt_manager_v1_skills_skills_proto_msgTypes[43]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ReportImportedSkillStalenessRequest.ProtoReflect.Descriptor instead.
+func (*ReportImportedSkillStalenessRequest) Descriptor() ([]byte, []int) {
+	return file_prompt_manager_v1_skills_skills_proto_rawDescGZIP(), []int{43}
+}
+
+func (x *ReportImportedSkillStalenessRequest) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *ReportImportedSkillStalenessRequest) GetUpstreamVersion() string {
+	if x != nil {
+		return x.UpstreamVersion
+	}
+	return ""
+}
+
+type ReportImportedSkillStalenessResponse struct {
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	Id              string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	RecordedVersion string                 `protobuf:"bytes,2,opt,name=recorded_version,json=recordedVersion,proto3" json:"recorded_version,omitempty"`
+	CurrentVersion  string                 `protobuf:"bytes,3,opt,name=current_version,json=currentVersion,proto3" json:"current_version,omitempty"`
+	Stale           bool                   `protobuf:"varint,4,opt,name=stale,proto3" json:"stale,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *ReportImportedSkillStalenessResponse) Reset() {
+	*x = ReportImportedSkillStalenessResponse{}
+	mi := &file_prompt_manager_v1_skills_skills_proto_msgTypes[44]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ReportImportedSkillStalenessResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ReportImportedSkillStalenessResponse) ProtoMessage() {}
+
+func (x *ReportImportedSkillStalenessResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_prompt_manager_v1_skills_skills_proto_msgTypes[44]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ReportImportedSkillStalenessResponse.ProtoReflect.Descriptor instead.
+func (*ReportImportedSkillStalenessResponse) Descriptor() ([]byte, []int) {
+	return file_prompt_manager_v1_skills_skills_proto_rawDescGZIP(), []int{44}
+}
+
+func (x *ReportImportedSkillStalenessResponse) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *ReportImportedSkillStalenessResponse) GetRecordedVersion() string {
+	if x != nil {
+		return x.RecordedVersion
+	}
+	return ""
+}
+
+func (x *ReportImportedSkillStalenessResponse) GetCurrentVersion() string {
+	if x != nil {
+		return x.CurrentVersion
+	}
+	return ""
+}
+
+func (x *ReportImportedSkillStalenessResponse) GetStale() bool {
+	if x != nil {
+		return x.Stale
+	}
+	return false
+}
+
 var File_prompt_manager_v1_skills_skills_proto protoreflect.FileDescriptor
 
 const file_prompt_manager_v1_skills_skills_proto_rawDesc = "" +
@@ -2983,7 +3423,46 @@ const file_prompt_manager_v1_skills_skills_proto_rawDesc = "" +
 	"\bskill_id\x18\x01 \x01(\tR\askillId\x12\x1d\n" +
 	"\n" +
 	"variant_id\x18\x02 \x01(\tR\tvariantId\x12\x18\n" +
-	"\adeleted\x18\x03 \x01(\bR\adeleted2\x9c\x10\n" +
+	"\adeleted\x18\x03 \x01(\bR\adeleted\"\xfc\x01\n" +
+	"\x12ImportSkillRequest\x12\x1d\n" +
+	"\n" +
+	"source_dir\x18\x01 \x01(\tR\tsourceDir\x12\x1d\n" +
+	"\n" +
+	"source_url\x18\x02 \x01(\tR\tsourceUrl\x12\x16\n" +
+	"\x06commit\x18\x03 \x01(\tR\x06commit\x12\x18\n" +
+	"\alicense\x18\x04 \x01(\tR\alicense\x12\x1a\n" +
+	"\bchecksum\x18\x05 \x01(\tR\bchecksum\x12\x1f\n" +
+	"\vimported_by\x18\x06 \x01(\tR\n" +
+	"importedBy\x12)\n" +
+	"\x10upstream_version\x18\a \x01(\tR\x0fupstreamVersion\x12\x0e\n" +
+	"\x02id\x18\b \x01(\tR\x02id\"\xb5\x01\n" +
+	"\x13ImportSkillResponse\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
+	"\x04pack\x18\x02 \x01(\tR\x04pack\x12\x16\n" +
+	"\x06status\x18\x03 \x01(\tR\x06status\x12\x1a\n" +
+	"\bchecksum\x18\x04 \x01(\tR\bchecksum\x12%\n" +
+	"\x0ereview_verdict\x18\x05 \x01(\tR\rreviewVerdict\x12\x1f\n" +
+	"\vimported_at\x18\x06 \x01(\tR\n" +
+	"importedAt\"b\n" +
+	"\x1aReviewImportedSkillRequest\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1a\n" +
+	"\breviewer\x18\x02 \x01(\tR\breviewer\x12\x18\n" +
+	"\averdict\x18\x03 \x01(\tR\averdict\"\x9c\x01\n" +
+	"\x1bReviewImportedSkillResponse\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x16\n" +
+	"\x06status\x18\x02 \x01(\tR\x06status\x12\x18\n" +
+	"\averdict\x18\x03 \x01(\tR\averdict\x12\x1a\n" +
+	"\breviewer\x18\x04 \x01(\tR\breviewer\x12\x1f\n" +
+	"\vreviewed_at\x18\x05 \x01(\tR\n" +
+	"reviewedAt\"`\n" +
+	"#ReportImportedSkillStalenessRequest\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12)\n" +
+	"\x10upstream_version\x18\x02 \x01(\tR\x0fupstreamVersion\"\xa0\x01\n" +
+	"$ReportImportedSkillStalenessResponse\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12)\n" +
+	"\x10recorded_version\x18\x02 \x01(\tR\x0frecordedVersion\x12'\n" +
+	"\x0fcurrent_version\x18\x03 \x01(\tR\x0ecurrentVersion\x12\x14\n" +
+	"\x05stale\x18\x04 \x01(\bR\x05stale2\xd7\x13\n" +
 	"\rSkillsService\x12u\n" +
 	"\n" +
 	"ListSkills\x122.vrooli.prompt_manager.v1.skills.ListSkillsRequest\x1a3.vrooli.prompt_manager.v1.skills.ListSkillsResponse\x12o\n" +
@@ -3003,7 +3482,10 @@ const file_prompt_manager_v1_skills_skills_proto_rawDesc = "" +
 	"\x0fGetSkillVariant\x127.vrooli.prompt_manager.v1.skills.GetSkillVariantRequest\x1a8.vrooli.prompt_manager.v1.skills.GetSkillVariantResponse\x12\x8d\x01\n" +
 	"\x12CreateSkillVariant\x12:.vrooli.prompt_manager.v1.skills.CreateSkillVariantRequest\x1a;.vrooli.prompt_manager.v1.skills.CreateSkillVariantResponse\x12\x8d\x01\n" +
 	"\x12UpdateSkillVariant\x12:.vrooli.prompt_manager.v1.skills.UpdateSkillVariantRequest\x1a;.vrooli.prompt_manager.v1.skills.UpdateSkillVariantResponse\x12\x8d\x01\n" +
-	"\x12DeleteSkillVariant\x12:.vrooli.prompt_manager.v1.skills.DeleteSkillVariantRequest\x1a;.vrooli.prompt_manager.v1.skills.DeleteSkillVariantResponseBSZQgithub.com/vrooli/vrooli/packages/proto/gen/go/prompt-manager/v1/skills;skills_v1b\x06proto3"
+	"\x12DeleteSkillVariant\x12:.vrooli.prompt_manager.v1.skills.DeleteSkillVariantRequest\x1a;.vrooli.prompt_manager.v1.skills.DeleteSkillVariantResponse\x12x\n" +
+	"\vImportSkill\x123.vrooli.prompt_manager.v1.skills.ImportSkillRequest\x1a4.vrooli.prompt_manager.v1.skills.ImportSkillResponse\x12\x90\x01\n" +
+	"\x13ReviewImportedSkill\x12;.vrooli.prompt_manager.v1.skills.ReviewImportedSkillRequest\x1a<.vrooli.prompt_manager.v1.skills.ReviewImportedSkillResponse\x12\xab\x01\n" +
+	"\x1cReportImportedSkillStaleness\x12D.vrooli.prompt_manager.v1.skills.ReportImportedSkillStalenessRequest\x1aE.vrooli.prompt_manager.v1.skills.ReportImportedSkillStalenessResponseBSZQgithub.com/vrooli/vrooli/packages/proto/gen/go/prompt-manager/v1/skills;skills_v1b\x06proto3"
 
 var (
 	file_prompt_manager_v1_skills_skills_proto_rawDescOnce sync.Once
@@ -3017,54 +3499,60 @@ func file_prompt_manager_v1_skills_skills_proto_rawDescGZIP() []byte {
 	return file_prompt_manager_v1_skills_skills_proto_rawDescData
 }
 
-var file_prompt_manager_v1_skills_skills_proto_msgTypes = make([]protoimpl.MessageInfo, 40)
+var file_prompt_manager_v1_skills_skills_proto_msgTypes = make([]protoimpl.MessageInfo, 46)
 var file_prompt_manager_v1_skills_skills_proto_goTypes = []any{
-	(*Variable)(nil),                   // 0: vrooli.prompt_manager.v1.skills.Variable
-	(*Skill)(nil),                      // 1: vrooli.prompt_manager.v1.skills.Skill
-	(*ListSkillsRequest)(nil),          // 2: vrooli.prompt_manager.v1.skills.ListSkillsRequest
-	(*ListSkillsResponse)(nil),         // 3: vrooli.prompt_manager.v1.skills.ListSkillsResponse
-	(*GetSkillRequest)(nil),            // 4: vrooli.prompt_manager.v1.skills.GetSkillRequest
-	(*GetSkillResponse)(nil),           // 5: vrooli.prompt_manager.v1.skills.GetSkillResponse
-	(*ReadSkillsRequest)(nil),          // 6: vrooli.prompt_manager.v1.skills.ReadSkillsRequest
-	(*ReadIssue)(nil),                  // 7: vrooli.prompt_manager.v1.skills.ReadIssue
-	(*ReadCandidate)(nil),              // 8: vrooli.prompt_manager.v1.skills.ReadCandidate
-	(*ReadAmbiguous)(nil),              // 9: vrooli.prompt_manager.v1.skills.ReadAmbiguous
-	(*ReadSkillsResponse)(nil),         // 10: vrooli.prompt_manager.v1.skills.ReadSkillsResponse
-	(*CreateSkillRequest)(nil),         // 11: vrooli.prompt_manager.v1.skills.CreateSkillRequest
-	(*CreateSkillResponse)(nil),        // 12: vrooli.prompt_manager.v1.skills.CreateSkillResponse
-	(*UpdateSkillRequest)(nil),         // 13: vrooli.prompt_manager.v1.skills.UpdateSkillRequest
-	(*UpdateSkillResponse)(nil),        // 14: vrooli.prompt_manager.v1.skills.UpdateSkillResponse
-	(*DeleteSkillRequest)(nil),         // 15: vrooli.prompt_manager.v1.skills.DeleteSkillRequest
-	(*DeleteSkillResponse)(nil),        // 16: vrooli.prompt_manager.v1.skills.DeleteSkillResponse
-	(*SyncSkillsRequest)(nil),          // 17: vrooli.prompt_manager.v1.skills.SyncSkillsRequest
-	(*SyncSkillsResponse)(nil),         // 18: vrooli.prompt_manager.v1.skills.SyncSkillsResponse
-	(*RateSkillRequest)(nil),           // 19: vrooli.prompt_manager.v1.skills.RateSkillRequest
-	(*RateSkillResponse)(nil),          // 20: vrooli.prompt_manager.v1.skills.RateSkillResponse
-	(*RecordSkillUsageRequest)(nil),    // 21: vrooli.prompt_manager.v1.skills.RecordSkillUsageRequest
-	(*RecordSkillUsageResponse)(nil),   // 22: vrooli.prompt_manager.v1.skills.RecordSkillUsageResponse
-	(*SkillVersion)(nil),               // 23: vrooli.prompt_manager.v1.skills.SkillVersion
-	(*ListSkillVersionsRequest)(nil),   // 24: vrooli.prompt_manager.v1.skills.ListSkillVersionsRequest
-	(*ListSkillVersionsResponse)(nil),  // 25: vrooli.prompt_manager.v1.skills.ListSkillVersionsResponse
-	(*RevertSkillRequest)(nil),         // 26: vrooli.prompt_manager.v1.skills.RevertSkillRequest
-	(*RevertSkillResponse)(nil),        // 27: vrooli.prompt_manager.v1.skills.RevertSkillResponse
-	(*SkillVariant)(nil),               // 28: vrooli.prompt_manager.v1.skills.SkillVariant
-	(*ListSkillVariantsRequest)(nil),   // 29: vrooli.prompt_manager.v1.skills.ListSkillVariantsRequest
-	(*ListSkillVariantsResponse)(nil),  // 30: vrooli.prompt_manager.v1.skills.ListSkillVariantsResponse
-	(*GetSkillVariantRequest)(nil),     // 31: vrooli.prompt_manager.v1.skills.GetSkillVariantRequest
-	(*GetSkillVariantResponse)(nil),    // 32: vrooli.prompt_manager.v1.skills.GetSkillVariantResponse
-	(*CreateSkillVariantRequest)(nil),  // 33: vrooli.prompt_manager.v1.skills.CreateSkillVariantRequest
-	(*CreateSkillVariantResponse)(nil), // 34: vrooli.prompt_manager.v1.skills.CreateSkillVariantResponse
-	(*UpdateSkillVariantRequest)(nil),  // 35: vrooli.prompt_manager.v1.skills.UpdateSkillVariantRequest
-	(*UpdateSkillVariantResponse)(nil), // 36: vrooli.prompt_manager.v1.skills.UpdateSkillVariantResponse
-	(*DeleteSkillVariantRequest)(nil),  // 37: vrooli.prompt_manager.v1.skills.DeleteSkillVariantRequest
-	(*DeleteSkillVariantResponse)(nil), // 38: vrooli.prompt_manager.v1.skills.DeleteSkillVariantResponse
-	nil,                                // 39: vrooli.prompt_manager.v1.skills.ReadSkillsRequest.VariablesEntry
+	(*Variable)(nil),                             // 0: vrooli.prompt_manager.v1.skills.Variable
+	(*Skill)(nil),                                // 1: vrooli.prompt_manager.v1.skills.Skill
+	(*ListSkillsRequest)(nil),                    // 2: vrooli.prompt_manager.v1.skills.ListSkillsRequest
+	(*ListSkillsResponse)(nil),                   // 3: vrooli.prompt_manager.v1.skills.ListSkillsResponse
+	(*GetSkillRequest)(nil),                      // 4: vrooli.prompt_manager.v1.skills.GetSkillRequest
+	(*GetSkillResponse)(nil),                     // 5: vrooli.prompt_manager.v1.skills.GetSkillResponse
+	(*ReadSkillsRequest)(nil),                    // 6: vrooli.prompt_manager.v1.skills.ReadSkillsRequest
+	(*ReadIssue)(nil),                            // 7: vrooli.prompt_manager.v1.skills.ReadIssue
+	(*ReadCandidate)(nil),                        // 8: vrooli.prompt_manager.v1.skills.ReadCandidate
+	(*ReadAmbiguous)(nil),                        // 9: vrooli.prompt_manager.v1.skills.ReadAmbiguous
+	(*ReadSkillsResponse)(nil),                   // 10: vrooli.prompt_manager.v1.skills.ReadSkillsResponse
+	(*CreateSkillRequest)(nil),                   // 11: vrooli.prompt_manager.v1.skills.CreateSkillRequest
+	(*CreateSkillResponse)(nil),                  // 12: vrooli.prompt_manager.v1.skills.CreateSkillResponse
+	(*UpdateSkillRequest)(nil),                   // 13: vrooli.prompt_manager.v1.skills.UpdateSkillRequest
+	(*UpdateSkillResponse)(nil),                  // 14: vrooli.prompt_manager.v1.skills.UpdateSkillResponse
+	(*DeleteSkillRequest)(nil),                   // 15: vrooli.prompt_manager.v1.skills.DeleteSkillRequest
+	(*DeleteSkillResponse)(nil),                  // 16: vrooli.prompt_manager.v1.skills.DeleteSkillResponse
+	(*SyncSkillsRequest)(nil),                    // 17: vrooli.prompt_manager.v1.skills.SyncSkillsRequest
+	(*SyncSkillsResponse)(nil),                   // 18: vrooli.prompt_manager.v1.skills.SyncSkillsResponse
+	(*RateSkillRequest)(nil),                     // 19: vrooli.prompt_manager.v1.skills.RateSkillRequest
+	(*RateSkillResponse)(nil),                    // 20: vrooli.prompt_manager.v1.skills.RateSkillResponse
+	(*RecordSkillUsageRequest)(nil),              // 21: vrooli.prompt_manager.v1.skills.RecordSkillUsageRequest
+	(*RecordSkillUsageResponse)(nil),             // 22: vrooli.prompt_manager.v1.skills.RecordSkillUsageResponse
+	(*SkillVersion)(nil),                         // 23: vrooli.prompt_manager.v1.skills.SkillVersion
+	(*ListSkillVersionsRequest)(nil),             // 24: vrooli.prompt_manager.v1.skills.ListSkillVersionsRequest
+	(*ListSkillVersionsResponse)(nil),            // 25: vrooli.prompt_manager.v1.skills.ListSkillVersionsResponse
+	(*RevertSkillRequest)(nil),                   // 26: vrooli.prompt_manager.v1.skills.RevertSkillRequest
+	(*RevertSkillResponse)(nil),                  // 27: vrooli.prompt_manager.v1.skills.RevertSkillResponse
+	(*SkillVariant)(nil),                         // 28: vrooli.prompt_manager.v1.skills.SkillVariant
+	(*ListSkillVariantsRequest)(nil),             // 29: vrooli.prompt_manager.v1.skills.ListSkillVariantsRequest
+	(*ListSkillVariantsResponse)(nil),            // 30: vrooli.prompt_manager.v1.skills.ListSkillVariantsResponse
+	(*GetSkillVariantRequest)(nil),               // 31: vrooli.prompt_manager.v1.skills.GetSkillVariantRequest
+	(*GetSkillVariantResponse)(nil),              // 32: vrooli.prompt_manager.v1.skills.GetSkillVariantResponse
+	(*CreateSkillVariantRequest)(nil),            // 33: vrooli.prompt_manager.v1.skills.CreateSkillVariantRequest
+	(*CreateSkillVariantResponse)(nil),           // 34: vrooli.prompt_manager.v1.skills.CreateSkillVariantResponse
+	(*UpdateSkillVariantRequest)(nil),            // 35: vrooli.prompt_manager.v1.skills.UpdateSkillVariantRequest
+	(*UpdateSkillVariantResponse)(nil),           // 36: vrooli.prompt_manager.v1.skills.UpdateSkillVariantResponse
+	(*DeleteSkillVariantRequest)(nil),            // 37: vrooli.prompt_manager.v1.skills.DeleteSkillVariantRequest
+	(*DeleteSkillVariantResponse)(nil),           // 38: vrooli.prompt_manager.v1.skills.DeleteSkillVariantResponse
+	(*ImportSkillRequest)(nil),                   // 39: vrooli.prompt_manager.v1.skills.ImportSkillRequest
+	(*ImportSkillResponse)(nil),                  // 40: vrooli.prompt_manager.v1.skills.ImportSkillResponse
+	(*ReviewImportedSkillRequest)(nil),           // 41: vrooli.prompt_manager.v1.skills.ReviewImportedSkillRequest
+	(*ReviewImportedSkillResponse)(nil),          // 42: vrooli.prompt_manager.v1.skills.ReviewImportedSkillResponse
+	(*ReportImportedSkillStalenessRequest)(nil),  // 43: vrooli.prompt_manager.v1.skills.ReportImportedSkillStalenessRequest
+	(*ReportImportedSkillStalenessResponse)(nil), // 44: vrooli.prompt_manager.v1.skills.ReportImportedSkillStalenessResponse
+	nil, // 45: vrooli.prompt_manager.v1.skills.ReadSkillsRequest.VariablesEntry
 }
 var file_prompt_manager_v1_skills_skills_proto_depIdxs = []int32{
 	0,  // 0: vrooli.prompt_manager.v1.skills.Skill.variables:type_name -> vrooli.prompt_manager.v1.skills.Variable
 	1,  // 1: vrooli.prompt_manager.v1.skills.ListSkillsResponse.skills:type_name -> vrooli.prompt_manager.v1.skills.Skill
 	1,  // 2: vrooli.prompt_manager.v1.skills.GetSkillResponse.skill:type_name -> vrooli.prompt_manager.v1.skills.Skill
-	39, // 3: vrooli.prompt_manager.v1.skills.ReadSkillsRequest.variables:type_name -> vrooli.prompt_manager.v1.skills.ReadSkillsRequest.VariablesEntry
+	45, // 3: vrooli.prompt_manager.v1.skills.ReadSkillsRequest.variables:type_name -> vrooli.prompt_manager.v1.skills.ReadSkillsRequest.VariablesEntry
 	8,  // 4: vrooli.prompt_manager.v1.skills.ReadAmbiguous.candidates:type_name -> vrooli.prompt_manager.v1.skills.ReadCandidate
 	1,  // 5: vrooli.prompt_manager.v1.skills.ReadSkillsResponse.skills:type_name -> vrooli.prompt_manager.v1.skills.Skill
 	7,  // 6: vrooli.prompt_manager.v1.skills.ReadSkillsResponse.missing:type_name -> vrooli.prompt_manager.v1.skills.ReadIssue
@@ -3094,24 +3582,30 @@ var file_prompt_manager_v1_skills_skills_proto_depIdxs = []int32{
 	33, // 30: vrooli.prompt_manager.v1.skills.SkillsService.CreateSkillVariant:input_type -> vrooli.prompt_manager.v1.skills.CreateSkillVariantRequest
 	35, // 31: vrooli.prompt_manager.v1.skills.SkillsService.UpdateSkillVariant:input_type -> vrooli.prompt_manager.v1.skills.UpdateSkillVariantRequest
 	37, // 32: vrooli.prompt_manager.v1.skills.SkillsService.DeleteSkillVariant:input_type -> vrooli.prompt_manager.v1.skills.DeleteSkillVariantRequest
-	3,  // 33: vrooli.prompt_manager.v1.skills.SkillsService.ListSkills:output_type -> vrooli.prompt_manager.v1.skills.ListSkillsResponse
-	5,  // 34: vrooli.prompt_manager.v1.skills.SkillsService.GetSkill:output_type -> vrooli.prompt_manager.v1.skills.GetSkillResponse
-	10, // 35: vrooli.prompt_manager.v1.skills.SkillsService.ReadSkills:output_type -> vrooli.prompt_manager.v1.skills.ReadSkillsResponse
-	12, // 36: vrooli.prompt_manager.v1.skills.SkillsService.CreateSkill:output_type -> vrooli.prompt_manager.v1.skills.CreateSkillResponse
-	14, // 37: vrooli.prompt_manager.v1.skills.SkillsService.UpdateSkill:output_type -> vrooli.prompt_manager.v1.skills.UpdateSkillResponse
-	16, // 38: vrooli.prompt_manager.v1.skills.SkillsService.DeleteSkill:output_type -> vrooli.prompt_manager.v1.skills.DeleteSkillResponse
-	18, // 39: vrooli.prompt_manager.v1.skills.SkillsService.SyncSkills:output_type -> vrooli.prompt_manager.v1.skills.SyncSkillsResponse
-	20, // 40: vrooli.prompt_manager.v1.skills.SkillsService.RateSkill:output_type -> vrooli.prompt_manager.v1.skills.RateSkillResponse
-	22, // 41: vrooli.prompt_manager.v1.skills.SkillsService.RecordSkillUsage:output_type -> vrooli.prompt_manager.v1.skills.RecordSkillUsageResponse
-	25, // 42: vrooli.prompt_manager.v1.skills.SkillsService.ListSkillVersions:output_type -> vrooli.prompt_manager.v1.skills.ListSkillVersionsResponse
-	27, // 43: vrooli.prompt_manager.v1.skills.SkillsService.RevertSkill:output_type -> vrooli.prompt_manager.v1.skills.RevertSkillResponse
-	30, // 44: vrooli.prompt_manager.v1.skills.SkillsService.ListSkillVariants:output_type -> vrooli.prompt_manager.v1.skills.ListSkillVariantsResponse
-	32, // 45: vrooli.prompt_manager.v1.skills.SkillsService.GetSkillVariant:output_type -> vrooli.prompt_manager.v1.skills.GetSkillVariantResponse
-	34, // 46: vrooli.prompt_manager.v1.skills.SkillsService.CreateSkillVariant:output_type -> vrooli.prompt_manager.v1.skills.CreateSkillVariantResponse
-	36, // 47: vrooli.prompt_manager.v1.skills.SkillsService.UpdateSkillVariant:output_type -> vrooli.prompt_manager.v1.skills.UpdateSkillVariantResponse
-	38, // 48: vrooli.prompt_manager.v1.skills.SkillsService.DeleteSkillVariant:output_type -> vrooli.prompt_manager.v1.skills.DeleteSkillVariantResponse
-	33, // [33:49] is the sub-list for method output_type
-	17, // [17:33] is the sub-list for method input_type
+	39, // 33: vrooli.prompt_manager.v1.skills.SkillsService.ImportSkill:input_type -> vrooli.prompt_manager.v1.skills.ImportSkillRequest
+	41, // 34: vrooli.prompt_manager.v1.skills.SkillsService.ReviewImportedSkill:input_type -> vrooli.prompt_manager.v1.skills.ReviewImportedSkillRequest
+	43, // 35: vrooli.prompt_manager.v1.skills.SkillsService.ReportImportedSkillStaleness:input_type -> vrooli.prompt_manager.v1.skills.ReportImportedSkillStalenessRequest
+	3,  // 36: vrooli.prompt_manager.v1.skills.SkillsService.ListSkills:output_type -> vrooli.prompt_manager.v1.skills.ListSkillsResponse
+	5,  // 37: vrooli.prompt_manager.v1.skills.SkillsService.GetSkill:output_type -> vrooli.prompt_manager.v1.skills.GetSkillResponse
+	10, // 38: vrooli.prompt_manager.v1.skills.SkillsService.ReadSkills:output_type -> vrooli.prompt_manager.v1.skills.ReadSkillsResponse
+	12, // 39: vrooli.prompt_manager.v1.skills.SkillsService.CreateSkill:output_type -> vrooli.prompt_manager.v1.skills.CreateSkillResponse
+	14, // 40: vrooli.prompt_manager.v1.skills.SkillsService.UpdateSkill:output_type -> vrooli.prompt_manager.v1.skills.UpdateSkillResponse
+	16, // 41: vrooli.prompt_manager.v1.skills.SkillsService.DeleteSkill:output_type -> vrooli.prompt_manager.v1.skills.DeleteSkillResponse
+	18, // 42: vrooli.prompt_manager.v1.skills.SkillsService.SyncSkills:output_type -> vrooli.prompt_manager.v1.skills.SyncSkillsResponse
+	20, // 43: vrooli.prompt_manager.v1.skills.SkillsService.RateSkill:output_type -> vrooli.prompt_manager.v1.skills.RateSkillResponse
+	22, // 44: vrooli.prompt_manager.v1.skills.SkillsService.RecordSkillUsage:output_type -> vrooli.prompt_manager.v1.skills.RecordSkillUsageResponse
+	25, // 45: vrooli.prompt_manager.v1.skills.SkillsService.ListSkillVersions:output_type -> vrooli.prompt_manager.v1.skills.ListSkillVersionsResponse
+	27, // 46: vrooli.prompt_manager.v1.skills.SkillsService.RevertSkill:output_type -> vrooli.prompt_manager.v1.skills.RevertSkillResponse
+	30, // 47: vrooli.prompt_manager.v1.skills.SkillsService.ListSkillVariants:output_type -> vrooli.prompt_manager.v1.skills.ListSkillVariantsResponse
+	32, // 48: vrooli.prompt_manager.v1.skills.SkillsService.GetSkillVariant:output_type -> vrooli.prompt_manager.v1.skills.GetSkillVariantResponse
+	34, // 49: vrooli.prompt_manager.v1.skills.SkillsService.CreateSkillVariant:output_type -> vrooli.prompt_manager.v1.skills.CreateSkillVariantResponse
+	36, // 50: vrooli.prompt_manager.v1.skills.SkillsService.UpdateSkillVariant:output_type -> vrooli.prompt_manager.v1.skills.UpdateSkillVariantResponse
+	38, // 51: vrooli.prompt_manager.v1.skills.SkillsService.DeleteSkillVariant:output_type -> vrooli.prompt_manager.v1.skills.DeleteSkillVariantResponse
+	40, // 52: vrooli.prompt_manager.v1.skills.SkillsService.ImportSkill:output_type -> vrooli.prompt_manager.v1.skills.ImportSkillResponse
+	42, // 53: vrooli.prompt_manager.v1.skills.SkillsService.ReviewImportedSkill:output_type -> vrooli.prompt_manager.v1.skills.ReviewImportedSkillResponse
+	44, // 54: vrooli.prompt_manager.v1.skills.SkillsService.ReportImportedSkillStaleness:output_type -> vrooli.prompt_manager.v1.skills.ReportImportedSkillStalenessResponse
+	36, // [36:55] is the sub-list for method output_type
+	17, // [17:36] is the sub-list for method input_type
 	17, // [17:17] is the sub-list for extension type_name
 	17, // [17:17] is the sub-list for extension extendee
 	0,  // [0:17] is the sub-list for field type_name
@@ -3134,7 +3628,7 @@ func file_prompt_manager_v1_skills_skills_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_prompt_manager_v1_skills_skills_proto_rawDesc), len(file_prompt_manager_v1_skills_skills_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   40,
+			NumMessages:   46,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

@@ -3,6 +3,7 @@ import { render, act, fireEvent, screen } from "@testing-library/react";
 import { createRef, type RefObject } from "react";
 import MobileToolbar, { type MobileToolbarHandle } from "../components/MobileToolbar";
 import { i18n } from "../i18n";
+import type { InputSettlementCallback } from "../hooks/terminal/useStdinAck";
 
 // Draft persistence wants a stable sessionId — pass a fixed one through props.
 function renderToolbar(overrides: Partial<Parameters<typeof MobileToolbar>[0]> = {}) {
@@ -17,6 +18,11 @@ function renderToolbar(overrides: Partial<Parameters<typeof MobileToolbar>[0]> =
       settledSubs.add(cb);
       return () => settledSubs.delete(cb);
     });
+  const awaitSeq = overrides.awaitSeq ?? vi.fn((_seq: number, cb: InputSettlementCallback) => {
+    const listener = (seq: number, ok: boolean) => cb(ok);
+    settledSubs.add(listener);
+    return () => settledSubs.delete(listener);
+  });
 
   const pendingSubs = new Set<() => void>();
   let snapshot: readonly { data: string; addedAt: number }[] = [];
@@ -37,6 +43,7 @@ function renderToolbar(overrides: Partial<Parameters<typeof MobileToolbar>[0]> =
     <MobileToolbar
       onInput={onInput}
       subscribeInputSettled={subscribeInputSettled}
+      awaitSeq={awaitSeq}
       subscribePendingInput={subscribePendingInput}
       getPendingInputSnapshot={getPendingInputSnapshot}
       activeSessionId={overrides.activeSessionId ?? "sess-1"}
@@ -66,7 +73,7 @@ describe("MobileToolbar — send/ack flow", () => {
     expect(textarea.value).toBe("echo hi");
 
     fireEvent.click(screen.getByTestId("mobile-command-submit"));
-    expect(onInput).toHaveBeenCalledWith("echo hi", "toolbar-submit");
+    expect(onInput).toHaveBeenCalledWith("echo hi", "bulk_text");
     // Draft is kept visible during sending.
     expect(textarea.value).toBe("echo hi");
     expect(screen.getByTestId("send-status-sending")).toBeTruthy();
@@ -153,7 +160,7 @@ describe("MobileToolbar — arrow hold-to-repeat", () => {
       fireEvent.pointerDown(up, { pointerType: "touch", button: 0 });
     });
 
-    expect(onInput).toHaveBeenCalledWith(ARROW_UP_INPUT, "toolbar-key");
+    expect(onInput).toHaveBeenCalledWith(ARROW_UP_INPUT, "typing");
     expect(onInput).toHaveBeenCalledTimes(1);
   });
 
@@ -174,7 +181,7 @@ describe("MobileToolbar — arrow hold-to-repeat", () => {
     expect(onInput).toHaveBeenCalledTimes(4);
     const mock = (onInput as unknown as import("vitest").Mock);
     for (const call of mock.mock.calls) {
-      expect(call).toEqual([ARROW_UP_INPUT, "toolbar-key"]);
+      expect(call).toEqual([ARROW_UP_INPUT, "typing"]);
     }
   });
 
@@ -199,7 +206,7 @@ describe("MobileToolbar — arrow hold-to-repeat", () => {
     });
 
     expect(onInput).toHaveBeenCalledTimes(countAtRelease);
-    expect(mock.mock.calls[0]).toEqual([ARROW_LEFT_INPUT, "toolbar-key"]);
+    expect(mock.mock.calls[0]).toEqual([ARROW_LEFT_INPUT, "typing"]);
   });
 
   it("pointerleave (finger dragged off) stops repeats", () => {
@@ -265,7 +272,7 @@ describe("MobileToolbar — arrow hold-to-repeat", () => {
       fireEvent.click(esc);
     });
     expect(onInput).toHaveBeenCalledTimes(1);
-    expect(onInput).toHaveBeenCalledWith("\x1b", "toolbar-key");
+    expect(onInput).toHaveBeenCalledWith("\x1b", "typing");
   });
 });
 

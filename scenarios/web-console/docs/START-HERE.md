@@ -88,13 +88,12 @@ The orientation glob checks pass trivially.
 
 ### Gate 8 — Progress Handoff  [ ]
 
-Partially complete. `docs/internal/PROBLEMS.md` exists.
-`docs/internal/PROGRESS.md` does **not** — the current progress log
-lives at `docs/PROGRESS.md` (one level up).
+Partially complete. `docs/internal/PROBLEMS.md` exists. The active
+progress log remains at `docs/PROGRESS.md`.
 
-- [ ] Move `docs/PROGRESS.md` to `docs/internal/PROGRESS.md` and update
-      any links. (Scheduled for the documentation-health pass that
-      follows the template-adoption batches.)
+- [ ] Consolidate the progress log into the internal documentation area
+      during the documentation-health pass that follows the template-adoption
+      batches.
 
 ## Template Adoption Status (2026-05-14)
 
@@ -123,7 +122,8 @@ Tracking work on top of the template v1.0.0 contract. See the plan at
 - [ ] **Batch 6 — Documentation health sweep.** Author missing docs
       registered as `maturity: "missing"` in the manifest (`DESIGN.md`,
       `docs/operations/*`, `docs/business/*`, `docs/internal/TESTING.md`,
-      etc.); resolve `docs/PROGRESS.md` → `docs/internal/PROGRESS.md`.
+      etc.); consolidate the progress log into the internal documentation
+      area.
 
 Each open batch is independently mergeable. Do not start batch N+1
 until N is merged and green — this is the lesson from the

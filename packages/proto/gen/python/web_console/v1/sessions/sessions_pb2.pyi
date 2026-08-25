@@ -39,7 +39,7 @@ class ExpirationPolicy(_message.Message):
     def __init__(self, mode: _Optional[str] = ..., duration: _Optional[str] = ...) -> None: ...
 
 class Session(_message.Message):
-    __slots__ = ("id", "shell", "created_at", "cols", "rows", "backend", "survives_restart", "policy", "busy", "recovered", "origin", "owner", "display_label", "tracking_degraded", "target")
+    __slots__ = ("id", "shell", "created_at", "cols", "rows", "backend", "survives_restart", "policy", "recovered", "origin", "owner", "display_label", "tracking_degraded", "target")
     ID_FIELD_NUMBER: _ClassVar[int]
     SHELL_FIELD_NUMBER: _ClassVar[int]
     CREATED_AT_FIELD_NUMBER: _ClassVar[int]
@@ -48,7 +48,6 @@ class Session(_message.Message):
     BACKEND_FIELD_NUMBER: _ClassVar[int]
     SURVIVES_RESTART_FIELD_NUMBER: _ClassVar[int]
     POLICY_FIELD_NUMBER: _ClassVar[int]
-    BUSY_FIELD_NUMBER: _ClassVar[int]
     RECOVERED_FIELD_NUMBER: _ClassVar[int]
     ORIGIN_FIELD_NUMBER: _ClassVar[int]
     OWNER_FIELD_NUMBER: _ClassVar[int]
@@ -63,14 +62,13 @@ class Session(_message.Message):
     backend: str
     survives_restart: bool
     policy: ExpirationPolicy
-    busy: bool
     recovered: bool
     origin: SessionOrigin
     owner: str
     display_label: str
     tracking_degraded: bool
     target: _target_pb2.Target
-    def __init__(self, id: _Optional[str] = ..., shell: _Optional[str] = ..., created_at: _Optional[str] = ..., cols: _Optional[int] = ..., rows: _Optional[int] = ..., backend: _Optional[str] = ..., survives_restart: _Optional[bool] = ..., policy: _Optional[_Union[ExpirationPolicy, _Mapping]] = ..., busy: _Optional[bool] = ..., recovered: _Optional[bool] = ..., origin: _Optional[_Union[SessionOrigin, str]] = ..., owner: _Optional[str] = ..., display_label: _Optional[str] = ..., tracking_degraded: _Optional[bool] = ..., target: _Optional[_Union[_target_pb2.Target, _Mapping]] = ...) -> None: ...
+    def __init__(self, id: _Optional[str] = ..., shell: _Optional[str] = ..., created_at: _Optional[str] = ..., cols: _Optional[int] = ..., rows: _Optional[int] = ..., backend: _Optional[str] = ..., survives_restart: _Optional[bool] = ..., policy: _Optional[_Union[ExpirationPolicy, _Mapping]] = ..., recovered: _Optional[bool] = ..., origin: _Optional[_Union[SessionOrigin, str]] = ..., owner: _Optional[str] = ..., display_label: _Optional[str] = ..., tracking_degraded: _Optional[bool] = ..., target: _Optional[_Union[_target_pb2.Target, _Mapping]] = ...) -> None: ...
 
 class RecoverableSession(_message.Message):
     __slots__ = ("id", "backend", "shell", "cols", "rows", "created_at", "orphaned_at", "last_activity_at", "agent_type", "agent_session_id", "launch_command", "cwd", "last_rollout_path", "recoverable", "not_recoverable_reason", "pane_name", "header_color", "group_name")

@@ -37,7 +37,6 @@ type Snapshot struct {
 
 	AIGenerations              int64
 	AISuggestions              int64
-	StdinBeforeReadyTotal      int64
 	VoiceSkipVerificationTotal int64
 	Uptime                     string
 }

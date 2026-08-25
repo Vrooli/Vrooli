@@ -6,14 +6,14 @@ import { KEY_COMBOS, CATEGORY_ORDER, filterCombos, type KeyCombo } from "../cons
 import { sendComboSequence } from "../lib/comboSequence";
 import { strings } from "../consts/strings";
 import { useWorkspaceStore } from "../stores/useWorkspaceStore";
-import type { GateResult, InputSource } from "./terminal/inputGate";
+import type { GateResult, InputIntent } from "./terminal/inputGate";
 
 interface KeyComboPickerProps {
   /**
    * Callback to inject input into the active terminal via the input
-   * gate. KeyComboPicker always submits as "toolbar-key".
+   * gate. KeyComboPicker always submits as the "named_key" intent.
    */
-  onInput: (data: string, source: InputSource) => GateResult;
+  onInput: (data: string, intent: Exclude<InputIntent, "control">) => GateResult;
   /** Move focus to the active terminal after sending a combo. */
   onFocusTerminal?: () => void;
   /** Override classes on the trigger button so callers can match neighbour button heights. */

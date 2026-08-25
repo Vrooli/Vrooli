@@ -73,7 +73,7 @@ describe("MessagesMermaidViewer", () => {
     ready();
     render(<MessagesMermaidViewer open code={CODE} onClose={vi.fn()} />);
     fireEvent.click(screen.getByLabelText("mermaid.copySource"));
-    expect(navigator.clipboard.writeText).toHaveBeenCalledWith(CODE);
+    expect(navigator["clipboard"].writeText).toHaveBeenCalledWith(CODE);
   });
 
   it("shows the render error with a source fallback and hides zoom controls", () => {

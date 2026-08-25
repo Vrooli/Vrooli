@@ -1,5 +1,5 @@
 // DOC: docs/concepts/ARCHITECTURE.md#system-layers
-// DOC: docs/internal/SEAMS.md#1-entry--presentation
+// DOC: docs/internal/SEAMS.md#1-entry-presentation
 import { useState, useCallback, useEffect, useMemo, useRef, type ChangeEvent } from "react";
 import type { PointerEvent as ReactPointerEvent } from "react";
 import { Loader2, Menu, MessageSquareText, Plus, Settings, TerminalSquare, X } from "lucide-react";
@@ -28,7 +28,7 @@ import {
 } from "../lib/gridLayout";
 import { cn } from "../lib/classnames";
 import { Button } from "./ui/button";
-import type { GateResult, InputSource } from "./terminal/inputGate";
+import type { GateResult, InputIntent } from "./terminal/inputGate";
 import { uploadFile } from "../api/uploads";
 import { fetchCapabilities } from "../api/capabilities";
 import { getSessionDefaults } from "../api/settings";
@@ -47,6 +47,7 @@ import VoiceMicButton from "./VoiceMicButton";
 import { useComposerDraft } from "../hooks/useComposerDraft";
 import { useComposerAttachments } from "../hooks/useComposerAttachments";
 import { useComposerHotkey } from "../hooks/useComposerHotkey";
+import { useWindowKeyDown } from "../hooks/useKeyboardListeners";
 import BannerRegion from "./banners/BannerRegion";
 import { bannerFillClassName, arbitrateBanners } from "./banners/arbitrate";
 import type { MaybeBanner } from "./banners/types";
@@ -173,8 +174,12 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
     handleExit: sessionHandleExit,
     submitToActiveTerminal,
     subscribeActiveInputSettled,
+    awaitActiveInputSeq,
     subscribeActivePendingInput,
     getActivePendingInputSnapshot,
+    copySelectionOnPane,
+    pasteFromClipboardOnPane,
+    scrollTerminalOnPane,
     focusActiveTerminal,
     registerTerminalRef,
     stopActiveTts,
@@ -291,16 +296,12 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
   const closeComposer = useCallback(() => setComposerOpen(false), []);
   // Desktop keyboard shortcut (Ctrl/Cmd+Shift+K) opens the composer.
   useComposerHotkey(openComposer);
-  useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent) => {
-      if ((event.ctrlKey || event.metaKey) && event.shiftKey && event.key.toLocaleLowerCase() === "h") {
-        event.preventDefault();
-        setArchiveDrawerOpen(true);
-      }
-    };
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, []);
+  useWindowKeyDown(true, useCallback((event: KeyboardEvent) => {
+    if ((event.ctrlKey || event.metaKey) && event.shiftKey && event.key.toLocaleLowerCase() === "h") {
+      event.preventDefault();
+      setArchiveDrawerOpen(true);
+    }
+  }, []));
 
   const sendArchivedMessageToComposer = useCallback((text: string) => {
     const target = composerDraft.getSessionId();
@@ -644,8 +645,8 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
   }, [sessionHandleExit]);
 
   const handleSendToTerminal = useCallback(
-    (data: string, source: InputSource): GateResult => {
-      return submitToActiveTerminal(data, source, workspace.activePane ?? undefined);
+    (data: string, intent: Exclude<InputIntent, "control">): GateResult => {
+      return submitToActiveTerminal(data, intent, workspace.activePane ?? undefined);
     },
     [submitToActiveTerminal, workspace.activePane],
   );
@@ -654,6 +655,12 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
     (cb: (seq: number, ok: boolean) => void) =>
       subscribeActiveInputSettled(workspace.activePane ?? undefined, cb),
     [subscribeActiveInputSettled, workspace.activePane],
+  );
+
+  const handleAwaitInputSeq = useCallback(
+    (seq: number, cb: Parameters<NonNullable<React.ComponentProps<typeof MobileToolbar>["awaitSeq"]>>[1]) =>
+      awaitActiveInputSeq(workspace.activePane ?? undefined, seq, cb),
+    [awaitActiveInputSeq, workspace.activePane],
   );
 
   const handleSubscribePendingInput = useCallback(
@@ -735,7 +742,7 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
       // On mobile, inject into the toolbar text box for review before sending
       mobileToolbarRef.current?.appendText(text);
     } else {
-      handleSendToTerminal(text, "voice");
+      handleSendToTerminal(text, "bulk_text");
     }
   }, [composerOpen, composerDraft, isMobile, handleSendToTerminal]);
 
@@ -775,11 +782,14 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
           const active = activeWorkspacePane;
           if (active) void handleRequestClose(active);
         },
-        sendToTerminal: (data: string) => { handleSendToTerminal(data, "voice"); },
+        sendToTerminal: (data: string) => { handleSendToTerminal(data, "bulk_text"); },
+        copySelection: () => { void copySelectionOnPane(activeWorkspacePane ?? undefined); },
+        pasteFromClipboard: () => { void pasteFromClipboardOnPane(activeWorkspacePane ?? undefined); },
+        scrollTerminal: (lines: number) => scrollTerminalOnPane(lines, activeWorkspacePane ?? undefined),
         exitVoiceMode: () => voiceInput.stopRecording(),
       }, suggestion.args);
     });
-  }, [activeWorkspacePane, voiceInput, handleSendToTerminal, handleLaunch, handleRequestClose, setActiveWorkspacePane, workspacePanes]);
+  }, [activeWorkspacePane, voiceInput, handleSendToTerminal, handleLaunch, handleRequestClose, setActiveWorkspacePane, workspacePanes, copySelectionOnPane, pasteFromClipboardOnPane, scrollTerminalOnPane]);
 
   const handleVoiceCommandDismiss = useCallback(() => {
     voiceInput.dismissCommandSuggestion();
@@ -1865,36 +1875,38 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
           visible={needsTouchControls}
           onInput={handleSendToTerminal}
           subscribeInputSettled={handleSubscribeInputSettled}
+          awaitSeq={handleAwaitInputSeq}
           subscribePendingInput={handleSubscribePendingInput}
           getPendingInputSnapshot={handleGetPendingInputSnapshot}
           onFocusTerminal={handleFocusTerminal}
           activeSessionId={workspace.activePane}
           draft={composerDraft}
           onExpandComposer={openComposer}
-          voiceSupported={voiceInput.supported}
-          voicePreparing={voiceInput.isPreparing}
-          voiceRecording={voiceInput.isRecording}
-          voicePersistentMode={workspace.persistentMode}
-          voiceListening={voiceInput.isListening}
-          voicePassive={voiceInput.isPassive}
-          voiceTranscribing={voiceInput.isTranscribing}
-          voiceError={voiceInput.error}
-          voiceLevel={voiceInput.audioLevel}
-          voiceActivity={voiceInput.voiceActivity}
-          voicePartialTranscript={voiceInput.partialTranscript}
-          voiceBackend={voiceInput.backend}
-          onVoicePrepare={voiceInput.prepareRecording}
-          onVoiceStart={handleVoiceStart}
-          onVoiceStop={handleVoiceStop}
-          onVoiceExitPassive={voiceInput.exitPassiveMode}
-          voiceCommandSuggestion={voiceInput.commandSuggestion}
-          onVoiceCommandConfirm={handleVoiceCommandConfirm}
-          onVoiceCommandDismiss={handleVoiceCommandDismiss}
+          voice={{
+            supported: voiceInput.supported,
+            preparing: voiceInput.isPreparing,
+            recording: voiceInput.isRecording,
+            persistentMode: workspace.persistentMode,
+            listening: voiceInput.isListening,
+            passive: voiceInput.isPassive,
+            transcribing: voiceInput.isTranscribing,
+            error: voiceInput.error,
+            level: voiceInput.audioLevel,
+            activity: voiceInput.voiceActivity,
+            partialTranscript: voiceInput.partialTranscript,
+            backend: voiceInput.backend,
+            onPrepare: voiceInput.prepareRecording,
+            onStart: handleVoiceStart,
+            onStop: handleVoiceStop,
+            onExitPassive: voiceInput.exitPassiveMode,
+            commandSuggestion: voiceInput.commandSuggestion,
+            onCommandConfirm: handleVoiceCommandConfirm,
+            onCommandDismiss: handleVoiceCommandDismiss,
+          }}
           onUploadImage={handleMobileUploadImage}
           onOpenAi={() => workspace.setAiSuggestActive(!workspace.aiSuggestActive)}
-          aiSuggestActive={workspace.aiSuggestActive}
           onAiSuggestExecute={(cmd) => {
-            handleSendToTerminal(cmd, "toolbar-submit");
+            handleSendToTerminal(cmd, "bulk_text");
             mobileToolbarRef.current?.clearInput();
             workspace.setAiSuggestActive(false);
           }}
@@ -1922,6 +1934,7 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
         draft={composerDraft}
         onInput={handleSendToTerminal}
         subscribeInputSettled={handleSubscribeInputSettled}
+        awaitSeq={handleAwaitInputSeq}
         onFocusTerminal={handleFocusTerminal}
         interimTranscript={voiceInput.partialTranscript}
         attachments={composerAttachments.attachments}
@@ -1997,7 +2010,7 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
       />
 
       {/* AI Modal */}
-      <AiInput onExecute={(cmd) => { handleSendToTerminal(cmd, "toolbar-submit"); }} />
+      <AiInput onExecute={(cmd) => { handleSendToTerminal(cmd, "bulk_text"); }} />
 
       {/* Permanent deletion remains explicit and confirmation-backed. */}
       <ConfirmDialog

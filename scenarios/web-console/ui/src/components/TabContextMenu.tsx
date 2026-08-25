@@ -2,6 +2,7 @@ import { ArrowDown, ArrowUp, ClipboardCopy, Dot, FolderCog, FolderMinus, FolderP
 import { useTranslation } from "react-i18next";
 import ContextMenuBase, { contextMenuItemClass } from "./ContextMenuBase";
 import { strings } from "../consts/strings";
+import { writeText } from "../lib/clipboard";
 
 interface TabContextMenuProps {
   /** Viewport coordinates where the menu should appear. */
@@ -192,14 +193,7 @@ export default function TabContextMenu({
             }).__wc_terminal_output;
             const data = probe?.[sessionId] ?? "";
             const payload = data || "(empty probe)";
-            if (navigator.clipboard?.writeText) {
-              navigator.clipboard
-                .writeText(payload)
-                .then(() => alert(`Copied ${data.length} chars`))
-                .catch(() => alert("Clipboard denied"));
-            } else {
-              alert("Clipboard unavailable");
-            }
+            void writeText(payload).then((result) => alert(result.ok ? `Copied ${data.length} chars` : `Clipboard ${result.reason}`));
           })
         }
       >

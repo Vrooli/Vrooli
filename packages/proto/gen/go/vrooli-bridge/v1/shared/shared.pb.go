@@ -268,13 +268,14 @@ func (x *HealthSnapshot) GetReportedAt() *timestamppb.Timestamp {
 }
 
 type Heartbeat struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	NodeId        string                 `protobuf:"bytes,1,opt,name=node_id,json=nodeId,proto3" json:"node_id,omitempty"`
-	Sequence      uint64                 `protobuf:"varint,2,opt,name=sequence,proto3" json:"sequence,omitempty"`
-	Health        *HealthSnapshot        `protobuf:"bytes,3,opt,name=health,proto3" json:"health,omitempty"`
-	SentAt        *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=sent_at,json=sentAt,proto3" json:"sent_at,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state                    protoimpl.MessageState `protogen:"open.v1"`
+	NodeId                   string                 `protobuf:"bytes,1,opt,name=node_id,json=nodeId,proto3" json:"node_id,omitempty"`
+	Sequence                 uint64                 `protobuf:"varint,2,opt,name=sequence,proto3" json:"sequence,omitempty"`
+	Health                   *HealthSnapshot        `protobuf:"bytes,3,opt,name=health,proto3" json:"health,omitempty"`
+	SentAt                   *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=sent_at,json=sentAt,proto3" json:"sent_at,omitempty"`
+	RejectedCredentialPushes uint64                 `protobuf:"varint,5,opt,name=rejected_credential_pushes,json=rejectedCredentialPushes,proto3" json:"rejected_credential_pushes,omitempty"`
+	unknownFields            protoimpl.UnknownFields
+	sizeCache                protoimpl.SizeCache
 }
 
 func (x *Heartbeat) Reset() {
@@ -333,6 +334,13 @@ func (x *Heartbeat) GetSentAt() *timestamppb.Timestamp {
 		return x.SentAt
 	}
 	return nil
+}
+
+func (x *Heartbeat) GetRejectedCredentialPushes() uint64 {
+	if x != nil {
+		return x.RejectedCredentialPushes
+	}
+	return 0
 }
 
 type RunEvent struct {
@@ -668,12 +676,13 @@ const file_vrooli_bridge_v1_shared_shared_proto_rawDesc = "" +
 	"reportedAt\x1a:\n" +
 	"\fDetailsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xbd\x01\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xfb\x01\n" +
 	"\tHeartbeat\x12\x17\n" +
 	"\anode_id\x18\x01 \x01(\tR\x06nodeId\x12\x1a\n" +
 	"\bsequence\x18\x02 \x01(\x04R\bsequence\x12F\n" +
 	"\x06health\x18\x03 \x01(\v2..vrooli.vrooli_bridge.v1.shared.HealthSnapshotR\x06health\x123\n" +
-	"\asent_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\x06sentAt\"\xaf\x02\n" +
+	"\asent_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\x06sentAt\x12<\n" +
+	"\x1arejected_credential_pushes\x18\x05 \x01(\x04R\x18rejectedCredentialPushes\"\xaf\x02\n" +
 	"\bRunEvent\x12\x15\n" +
 	"\x06run_id\x18\x01 \x01(\tR\x05runId\x12@\n" +
 	"\x04kind\x18\x02 \x01(\x0e2,.vrooli.vrooli_bridge.v1.shared.RunEventKindR\x04kind\x12\x1a\n" +

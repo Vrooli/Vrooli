@@ -2,7 +2,6 @@ package session
 
 import (
 	"context"
-	"fmt"
 	"sync"
 	"time"
 
@@ -31,7 +30,7 @@ type SubscribeResult struct {
 }
 
 // DOC: docs/concepts/ARCHITECTURE.md#data-flow
-// DOC: docs/internal/SEAMS.md#3-domain--session-lifecycle
+// DOC: docs/internal/SEAMS.md#3-domain-session-lifecycle
 // Session represents a terminal session backed by a PTY process.
 // [REQ:P0-002a] PTY Session Backend
 type Session struct {
@@ -54,8 +53,13 @@ type Session struct {
 	leaseReason     LeaseReason
 	nextClientOrder uint64
 	emu             *terminal.Emulator
-	processExited   bool // set by readLoop when the PTY read returns an error
-	processExitCode int  // exit code from the PTY process (-1 if unknown)
+	// snapshotCache is serialized only when emulator state changes. Subscribe
+	// can then register a client and serve the last replay without walking the
+	// entire scrollback while the PTY read loop holds s.mu.
+	snapshotCache      []byte
+	snapshotCacheDirty bool
+	processExited      bool // set by readLoop when the PTY read returns an error
+	processExitCode    int  // exit code from the PTY process (-1 if unknown)
 
 	// utf8Buf holds an incomplete multi-byte UTF-8 sequence from the previous
 	// PTY read. Prepended to the next read before broadcasting so that
@@ -105,16 +109,9 @@ type Session struct {
 	// metrics is optional; when set, readLoop increments re-attach counters.
 	metrics *metrics.Metrics
 
-	// Observer seam: non-client consumers (idle/prompt detectors, ANSI
-	// responder, adapter dispatchers) tap the PTY output stream here.
-	// Lazily initialized by RegisterObserver to keep construction sites
-	// untouched. See session_observer.go.
-	observersOnce sync.Once
-	observers     *observerRegistry
-
 	// keyMap is the active key-name → bytes mapping for SendInput when
-	// the variant is InputKeys. Nil means use DefaultKeyMap. Phase 4
-	// will let BackendDescriptor override this per-backend.
+	// the variant is InputKeys. The programmatic Connect adapter resolves
+	// its default map before constructing the session input.
 	keyMap KeyMap
 
 	// lastFrameAt is the wall time of the most recent non-empty PTY
@@ -144,11 +141,22 @@ func (s *Session) LastFrameAt() time.Time {
 // with the kind selected by InputMeta.IsPaste (paste → pty.KindPaste,
 // otherwise pty.KindKeystroke).
 func (s *Session) SendInput(in SessionInput) error {
+	_, err := s.SendInputCount(in)
+	return err
+}
+
+// SendInputCount resolves and writes an input, returning the resolved payload
+// length. The count is useful to structured transports that expose a byte
+// count; ordinary callers should use SendInput.
+func (s *Session) SendInputCount(in SessionInput) (int, error) {
 	data, err := in.resolveBytes(s.keyMap)
 	if err != nil {
-		return err
+		return 0, err
 	}
-	return s.applyInput(data, in.ptyKind())
+	if err := s.applyInput(data, in.ptyKind()); err != nil {
+		return 0, err
+	}
+	return len(data), nil
 }
 
 // applyInput is the single PTY-write seam. All client-origin and
@@ -319,7 +327,11 @@ func (s *Session) Subscribe() SubscribeResult {
 	notifyCh := make(chan int, 1)
 	sizeCh := make(chan [2]uint16, 1)
 	s.mu.Lock()
-	snap := s.emu.Snapshot()
+	if s.snapshotCacheDirty || s.snapshotCache == nil {
+		s.snapshotCache = s.emu.Snapshot()
+		s.snapshotCacheDirty = false
+	}
+	snap := s.snapshotCache
 	ch := make(chan []byte, s.clientChannelBuffer)
 	s.nextClientOrder++
 	s.clients[ch] = &ClientInfo{NotifyCh: notifyCh, SizeCh: sizeCh, SubscribedOrder: s.nextClientOrder}
@@ -334,7 +346,7 @@ func (s *Session) Subscribe() SubscribeResult {
 			s.publishSizeLocked(info)
 		}
 	}
-	bctrace("subscribe", s.ID, fmt.Sprintf("snapshot_bytes=%d alt=%v", len(snap), s.inAltBuffer), nil)
+	bctrace("subscribe", s.ID, nil, "snapshot_bytes=%d alt=%v", len(snap), s.inAltBuffer)
 	s.mu.Unlock()
 
 	return SubscribeResult{
@@ -383,13 +395,14 @@ func (s *Session) Resize(owner chan []byte, cols, rows uint16) error {
 
 func (s *Session) applyResizeLocked(cols, rows uint16) {
 	if cols == s.Cols && rows == s.Rows {
-		bctrace("resize_noop", s.ID, fmt.Sprintf("cols=%d rows=%d", cols, rows), nil)
+		bctrace("resize_noop", s.ID, nil, "cols=%d rows=%d", cols, rows)
 		return
 	}
-	bctrace("resize", s.ID, fmt.Sprintf("cols=%d->%d rows=%d->%d alt=%v", s.Cols, cols, s.Rows, rows, s.inAltBuffer), nil)
+	bctrace("resize", s.ID, nil, "cols=%d->%d rows=%d->%d alt=%v", s.Cols, cols, s.Rows, rows, s.inAltBuffer)
 	s.Cols = cols
 	s.Rows = rows
 	s.emu.Resize(int(cols), int(rows))
+	s.snapshotCacheDirty = true
 	_ = s.pty.SetSize(cols, rows)
 	s.publishAllSizesLocked()
 }
@@ -437,16 +450,6 @@ func (s *Session) EffectiveSize() (uint16, uint16) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return s.Cols, s.Rows
-}
-
-// HasChildProcess reports whether the shell has any running child processes.
-func (s *Session) HasChildProcess() bool {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	if s.processExited {
-		return false
-	}
-	return s.pty.HasChildProcess()
 }
 
 // Recovered reports whether this session was restored from a surviving tmux

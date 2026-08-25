@@ -151,6 +151,11 @@ message AgentProfile {
 
   // Canonical reasoning effort: low, medium, high, xhigh, or max.
   string effort = 35;
+
+  // Prompt-manager skill identifiers projected into this profile's private
+  // per-run runtime scope. Paths are never accepted here.
+  repeated string skill_pack = 36;
+  string skill_experiment_id = 37;
 }
 
 // =============================================================================

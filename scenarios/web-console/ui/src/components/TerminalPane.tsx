@@ -1,5 +1,5 @@
 // DOC: docs/concepts/ARCHITECTURE.md#terminal-io
-// DOC: docs/internal/SEAMS.md#1-entry--presentation
+// DOC: docs/internal/SEAMS.md#1-entry-presentation
 import { useCallback, useEffect, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState, forwardRef, type DragEvent, type ClipboardEvent } from "react";
 import { Terminal } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
@@ -10,13 +10,15 @@ import { strings } from "../consts/strings";
 import { useTerminalSession } from "../hooks/terminal/useTerminalSession";
 import { useTerminalBackgroundDetector } from "../hooks/terminal/useTerminalBackgroundDetector";
 import { chromeTheme } from "../lib/chromeTheme";
+import { readText } from "../lib/clipboard";
 import { isTabLikeDisplayMode } from "../lib/workspaceDisplayMode";
-import type { GateResult, InputSource } from "./terminal/inputGate";
+import type { GateResult, InputIntent } from "./terminal/inputGate";
+import type { InputSettlementCallback, InputSettledListener } from "../hooks/terminal/useStdinAck";
 import { TERMINAL_SCROLLBACK_LINES } from "../lib/terminalConfig";
 import { useTerminalTouch } from "../hooks/useTerminalTouch";
 import { useWorkspaceStore } from "../stores/useWorkspaceStore";
 import { TERMINAL_THEMES, DEFAULT_THEME_ID, TERMINAL_FONT_FAMILY, TERMINAL_FONT_SIZE } from "../consts/config";
-import { parseShortcut, matchesShortcut } from "../lib/shortcutParser";
+import { useTerminalVoiceShortcut } from "../hooks/useKeyboardListeners";
 import { useImageUpload } from "../hooks/useImageUpload";
 import { useWorkspaceSync } from "../hooks/useWorkspaceSync";
 import TerminalContextMenu from "./TerminalContextMenu";
@@ -29,6 +31,22 @@ import type { TTSPlaybackState } from "../audio-integration";
 import { DeviceFrame } from "./terminal/DeviceFrame";
 import { archetypeForGrid } from "../lib/deviceArchetype";
 import { chromeTier, fitDeviceGrid, fitDeviceGridWithControls, fitGrid, screenAperture, surplusRatio } from "../lib/followerViewport";
+
+function maybeSendResize(
+  terminal: Terminal,
+  sendResize: (cols: number, rows: number) => void,
+  lastSentSizeRef: { current: { cols: number; rows: number } | null },
+  getServerSize: () => { cols: number; rows: number } | null,
+): void {
+  const last = lastSentSizeRef.current;
+  const authoritative = getServerSize();
+  const dimensionsChanged = !last || last.cols !== terminal.cols || last.rows !== terminal.rows;
+  const serverDiffers = !authoritative || authoritative.cols !== terminal.cols || authoritative.rows !== terminal.rows;
+  if (serverDiffers && dimensionsChanged) {
+    sendResize(terminal.cols, terminal.rows);
+    lastSentSizeRef.current = { cols: terminal.cols, rows: terminal.rows };
+  }
+}
 
 const EMPTY_CONVERSATION_EVENTS: ConversationEvent[] = [];
 const EMPTY_CONVERSATION_CURSOR = { lastSeenSequence: 0, lastListenedSequence: 0 } as const;
@@ -127,7 +145,15 @@ export interface TerminalPaneHandle {
    * inspect the result's status/reason; callers that don't care
    * (Workspace's simple forwarders) can ignore it.
    */
-  submitInput: (data: string, source: InputSource) => GateResult;
+  submitInput: (data: string, intent: Exclude<InputIntent, "control">) => GateResult;
+  /** Send synthetic terminal controls without stdin sequencing or replay. */
+  sendControl: (data: string) => boolean;
+  /** Copy the current xterm selection without sending terminal bytes. */
+  copySelection: () => Promise<boolean>;
+  /** Paste clipboard text through the same settled input path as the menu. */
+  pasteFromClipboard: () => Promise<boolean>;
+  /** Scroll the xterm viewport without sending terminal bytes. */
+  scrollTerminal: (lines: number) => void;
   /** Focus the xterm.js terminal element. */
   focus: () => void;
   /** Stop TTS playback for this pane. */
@@ -155,7 +181,9 @@ export interface TerminalPaneHandle {
    * cleanup function. Used by MobileToolbar to delay clearing the draft
    * until the send is actually confirmed.
    */
-  subscribeInputSettled: (cb: (seq: number, ok: boolean) => void) => () => void;
+  subscribeInputSettled: (cb: InputSettledListener) => () => void;
+  /** Await settlement for one exact stdin sequence. */
+  awaitSeq: (seq: number, cb: InputSettlementCallback) => () => void;
   /** Subscribe to queue-changed notifications for the pending-input pill. */
   subscribePendingInput: (cb: () => void) => () => void;
   /** Snapshot of currently queued (unsent) input payloads. */
@@ -264,7 +292,7 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
     }, [needsUnlock, sessionId, unlockAudio]);
 
     // Delegate all WebSocket protocol handling to the session hook
-    const { submitInput, sendResize, getServerSize, serverSize, isFollower, leaderDevice, takeLease, subscribeInputSettled, subscribePendingInput, getPendingInputSnapshot, sendConversationAck } = useTerminalSession({
+  const { submitInput, sendControl, sendResize, getServerSize, serverSize, isFollower, leaderDevice, takeLease, subscribeInputSettled, awaitSeq, subscribePendingInput, getPendingInputSnapshot, sendConversationAck } = useTerminalSession({
       sessionId,
       terminal,
       onExit,
@@ -352,9 +380,11 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
     getPendingInputSnapshotRef.current = getPendingInputSnapshot;
     const submitInputRef = useRef(submitInput);
     submitInputRef.current = submitInput;
+    const copySelectionRef = useRef<() => Promise<boolean>>(() => Promise.resolve(false));
+    const pasteFromClipboardRef = useRef<() => Promise<boolean>>(() => Promise.resolve(false));
     useEffect(() => {
       const draft = consumePendingInputDraft(sessionId);
-      if (draft) submitInputRef.current(draft, "toolbar-submit");
+      if (draft) submitInputRef.current(draft, "bulk_text");
       return () => {
         const text = getPendingInputSnapshotRef.current()
           .map((entry) => entry.data)
@@ -366,6 +396,10 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
     // Expose submitInput + focus for parent components (mobile toolbar, launcher shortcuts)
     useImperativeHandle(ref, () => ({
       submitInput,
+      sendControl,
+      copySelection: () => copySelectionRef.current(),
+      pasteFromClipboard: () => pasteFromClipboardRef.current(),
+      scrollTerminal: (lines: number) => terminal?.scrollLines(lines),
       focus: () => terminal?.focus(),
       stopTts: () => {
         ttsStop();
@@ -392,20 +426,22 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
       setTtsMuted: ttsSetMuted,
       getTtsState: ttsGetPlaybackState,
       subscribeInputSettled,
+      awaitSeq,
       subscribePendingInput,
       getPendingInputSnapshot,
-    }), [submitInput, terminal, ttsStop, speakParagraphs, ttsPause, ttsResume, ttsSeek, ttsSetPlaybackRate, ttsSetVolume, ttsSetMuted, ttsGetPlaybackState, onSpeakingEventChange, subscribeInputSettled, subscribePendingInput, getPendingInputSnapshot]);
+    }), [submitInput, sendControl, terminal, ttsStop, speakParagraphs, ttsPause, ttsResume, ttsSeek, ttsSetPlaybackRate, ttsSetVolume, ttsSetMuted, ttsGetPlaybackState, onSpeakingEventChange, subscribeInputSettled, awaitSeq, subscribePendingInput, getPendingInputSnapshot]);
 
     const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
 
     const { hasSelection, copySelection, clearSelection } = useTerminalTouch({
       terminal,
       containerRef,
-      submitInput,
+      sendControl,
       onContextMenu: useCallback((x: number, y: number) => {
         setContextMenu({ x, y });
       }, []),
     });
+    copySelectionRef.current = copySelection;
 
     // Enable hold-to-delete on mobile virtual keyboards (see hook for details).
     useMobileBackspaceRepeat(terminal);
@@ -463,7 +499,7 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
       // stdin_ack before resolving. If queued or rejected, resolve
       // synchronously with the gate's reason so the UI can react
       // without holding the menu open forever.
-      const result = submitInput(text, "paste");
+      const result = submitInput(text, "bulk_text");
       terminal?.focus();
       if (result.status === "rejected") {
         return Promise.resolve({
@@ -484,17 +520,26 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
       // the seq to keep the pane-level banner from saying it twice.
       selfReportedSeqsRef.current.add(seq);
       return new Promise((resolve) => {
-        const unsub = subscribeInputSettled((ackSeq, ok) => {
-          if (ackSeq !== seq) return;
-          unsub();
+        awaitSeq(seq, (ok, reason) => {
           if (ok) {
             resolve({ status: "ok" });
           } else {
-            resolve({ status: "failed", reason: "server rejected" });
+            resolve({ status: "failed", reason: reason ?? "server rejected" });
           }
         });
       });
-    }, [submitInput, subscribeInputSettled, terminal]);
+    }, [submitInput, awaitSeq, terminal]);
+
+    pasteFromClipboardRef.current = async () => {
+      try {
+        const result = await readText();
+        if (!result.ok) return false;
+        const text = result.text;
+        return (await handleCtxPaste(text)).status === "ok";
+      } catch {
+        return false;
+      }
+    };
 
     const handleCtxSelectAll = useCallback(() => {
       terminal?.selectAll();
@@ -670,12 +715,7 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
 		if (followerFrame) return;
 		terminal.options.fontSize = paneFontSize;
       scrollAwareFit();
-	  const last = lastSentSizeRef.current;
-	  const authoritative = getServerSize();
-	  if ((!authoritative || authoritative.cols !== terminal.cols || authoritative.rows !== terminal.rows) && (!last || last.cols !== terminal.cols || last.rows !== terminal.rows)) {
-        sendResize(terminal.cols, terminal.rows);
-        lastSentSizeRef.current = { cols: terminal.cols, rows: terminal.rows };
-      }
+	  maybeSendResize(terminal, sendResize, lastSentSizeRef, getServerSize);
 	}, [paneFontSize, followerFrame, terminal, sendResize, scrollAwareFit, getServerSize]);
 
     // Keep the rendered xterm grid inside the follower rect.  The outer pane
@@ -738,32 +778,9 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
       onColor: useCallback((hex: string | null) => chromeTheme.setDetected(sessionId, hex), [sessionId]),
     });
 
-    // Intercept configurable voice shortcut via capture-phase DOM listener.
-    // attachCustomKeyEventHandler fires too late — the browser processes
-    // shortcuts like Alt+Space before xterm's handler runs. A capture-phase
-    // listener on the container intercepts early enough to preventDefault().
+    // Intercept configurable voice shortcut before xterm processes it.
     const voiceShortcut = useWorkspaceStore((s) => s.voiceShortcut);
-    useEffect(() => {
-      const container = containerRef.current;
-      if (!container || !onVoiceStart || !onVoiceStop) return;
-      const parsed = parseShortcut(voiceShortcut);
-      if (!parsed) return;
-
-      const handler = (event: KeyboardEvent) => {
-        if (!matchesShortcut(event, parsed)) return;
-        event.preventDefault();
-        event.stopPropagation();
-        if (event.type === "keydown") onVoiceStart();
-        if (event.type === "keyup") onVoiceStop();
-      };
-
-      container.addEventListener("keydown", handler, { capture: true });
-      container.addEventListener("keyup", handler, { capture: true });
-      return () => {
-        container.removeEventListener("keydown", handler, { capture: true });
-        container.removeEventListener("keyup", handler, { capture: true });
-      };
-    }, [onVoiceStart, onVoiceStop, voiceShortcut]);
+    useTerminalVoiceShortcut(containerRef, voiceShortcut, onVoiceStart, onVoiceStop);
 
     // Handle container resize -> fit terminal -> notify server.
     // Throttled via requestAnimationFrame to avoid flooding the WebSocket
@@ -785,12 +802,7 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
 		  // its geometry instead.
 		  if (isFollower) return;
 		  scrollAwareFit();
-		  const last = lastSentSizeRef.current;
-		  const authoritative = getServerSize();
-		  if ((!authoritative || authoritative.cols !== terminal.cols || authoritative.rows !== terminal.rows) && (!last || last.cols !== terminal.cols || last.rows !== terminal.rows)) {
-            sendResize(terminal.cols, terminal.rows);
-            lastSentSizeRef.current = { cols: terminal.cols, rows: terminal.rows };
-          }
+		  maybeSendResize(terminal, sendResize, lastSentSizeRef, getServerSize);
         });
       });
 		setPaneSize({ width: container.clientWidth, height: container.clientHeight });

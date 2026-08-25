@@ -24,7 +24,7 @@ _sym_db = _symbol_database.Default()
 
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n$web-console/v1/metrics/metrics.proto\x12\x1dvrooli.web_console.v1.metrics\"\x0c\n\nGetRequest\"\xf1\x04\n\x0bGetResponse\x12I\n\x08sessions\x18\x01 \x01(\x0b\x32-.vrooli.web_console.v1.metrics.SessionMetricsR\x08sessions\x12R\n\x0b\x63onnections\x18\x02 \x01(\x0b\x32\x30.vrooli.web_console.v1.metrics.ConnectionMetricsR\x0b\x63onnections\x12I\n\x08messages\x18\x03 \x01(\x0b\x32-.vrooli.web_console.v1.metrics.MessageMetricsR\x08messages\x12J\n\x08reattach\x18\x04 \x01(\x0b\x32..vrooli.web_console.v1.metrics.ReattachMetricsR\x08reattach\x12J\n\x08recovery\x18\x05 \x01(\x0b\x32..vrooli.web_console.v1.metrics.RecoveryMetricsR\x08recovery\x12%\n\x0e\x61i_generations\x18\x06 \x01(\x03R\raiGenerations\x12%\n\x0e\x61i_suggestions\x18\x07 \x01(\x03R\raiSuggestions\x12\x37\n\x18stdin_before_ready_total\x18\x08 \x01(\x03R\x15stdinBeforeReadyTotal\x12\x41\n\x1dvoice_skip_verification_total\x18\t \x01(\x03R\x1avoiceSkipVerificationTotal\x12\x16\n\x06uptime\x18\n \x01(\tR\x06uptime\"v\n\x0eSessionMetrics\x12\x18\n\x07\x63reated\x18\x01 \x01(\x03R\x07\x63reated\x12\x18\n\x07\x64\x65leted\x18\x02 \x01(\x03R\x07\x64\x65leted\x12\x16\n\x06\x61\x63tive\x18\x03 \x01(\x03R\x06\x61\x63tive\x12\x18\n\x07resizes\x18\x04 \x01(\x03R\x07resizes\"A\n\x11\x43onnectionMetrics\x12\x14\n\x05total\x18\x01 \x01(\x03R\x05total\x12\x16\n\x06\x61\x63tive\x18\x02 \x01(\x03R\x06\x61\x63tive\"@\n\x0eMessageMetrics\x12\x12\n\x04sent\x18\x01 \x01(\x03R\x04sent\x12\x1a\n\x08received\x18\x02 \x01(\x03R\x08received\"g\n\x0fReattachMetrics\x12\x1a\n\x08\x61ttempts\x18\x01 \x01(\x03R\x08\x61ttempts\x12\x1c\n\tsuccesses\x18\x02 \x01(\x03R\tsuccesses\x12\x1a\n\x08\x66\x61ilures\x18\x03 \x01(\x03R\x08\x66\x61ilures\"\xeb\x01\n\x0fRecoveryMetrics\x12\x1c\n\trecovered\x18\x01 \x01(\x03R\trecovered\x12+\n\x11orphaned_metadata\x18\x02 \x01(\x03R\x10orphanedMetadata\x12#\n\rorphaned_tmux\x18\x03 \x01(\x03R\x0corphanedTmux\x12%\n\x0e\x61ttach_retries\x18\x04 \x01(\x03R\rattachRetries\x12\x41\n\x1dpreserved_for_future_recovery\x18\x05 \x01(\x03R\x1apreservedForFutureRecovery2n\n\x0eMetricsService\x12\\\n\x03Get\x12).vrooli.web_console.v1.metrics.GetRequest\x1a*.vrooli.web_console.v1.metrics.GetResponseBRZPgithub.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/metrics;metrics_v1b\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n$web-console/v1/metrics/metrics.proto\x12\x1dvrooli.web_console.v1.metrics\"\x0c\n\nGetRequest\"\xb8\x04\n\x0bGetResponse\x12I\n\x08sessions\x18\x01 \x01(\x0b\x32-.vrooli.web_console.v1.metrics.SessionMetricsR\x08sessions\x12R\n\x0b\x63onnections\x18\x02 \x01(\x0b\x32\x30.vrooli.web_console.v1.metrics.ConnectionMetricsR\x0b\x63onnections\x12I\n\x08messages\x18\x03 \x01(\x0b\x32-.vrooli.web_console.v1.metrics.MessageMetricsR\x08messages\x12J\n\x08reattach\x18\x04 \x01(\x0b\x32..vrooli.web_console.v1.metrics.ReattachMetricsR\x08reattach\x12J\n\x08recovery\x18\x05 \x01(\x0b\x32..vrooli.web_console.v1.metrics.RecoveryMetricsR\x08recovery\x12%\n\x0e\x61i_generations\x18\x06 \x01(\x03R\raiGenerations\x12%\n\x0e\x61i_suggestions\x18\x07 \x01(\x03R\raiSuggestions\x12\x41\n\x1dvoice_skip_verification_total\x18\t \x01(\x03R\x1avoiceSkipVerificationTotal\x12\x16\n\x06uptime\x18\n \x01(\tR\x06uptime\"v\n\x0eSessionMetrics\x12\x18\n\x07\x63reated\x18\x01 \x01(\x03R\x07\x63reated\x12\x18\n\x07\x64\x65leted\x18\x02 \x01(\x03R\x07\x64\x65leted\x12\x16\n\x06\x61\x63tive\x18\x03 \x01(\x03R\x06\x61\x63tive\x12\x18\n\x07resizes\x18\x04 \x01(\x03R\x07resizes\"A\n\x11\x43onnectionMetrics\x12\x14\n\x05total\x18\x01 \x01(\x03R\x05total\x12\x16\n\x06\x61\x63tive\x18\x02 \x01(\x03R\x06\x61\x63tive\"@\n\x0eMessageMetrics\x12\x12\n\x04sent\x18\x01 \x01(\x03R\x04sent\x12\x1a\n\x08received\x18\x02 \x01(\x03R\x08received\"g\n\x0fReattachMetrics\x12\x1a\n\x08\x61ttempts\x18\x01 \x01(\x03R\x08\x61ttempts\x12\x1c\n\tsuccesses\x18\x02 \x01(\x03R\tsuccesses\x12\x1a\n\x08\x66\x61ilures\x18\x03 \x01(\x03R\x08\x66\x61ilures\"\xeb\x01\n\x0fRecoveryMetrics\x12\x1c\n\trecovered\x18\x01 \x01(\x03R\trecovered\x12+\n\x11orphaned_metadata\x18\x02 \x01(\x03R\x10orphanedMetadata\x12#\n\rorphaned_tmux\x18\x03 \x01(\x03R\x0corphanedTmux\x12%\n\x0e\x61ttach_retries\x18\x04 \x01(\x03R\rattachRetries\x12\x41\n\x1dpreserved_for_future_recovery\x18\x05 \x01(\x03R\x1apreservedForFutureRecovery2n\n\x0eMetricsService\x12\\\n\x03Get\x12).vrooli.web_console.v1.metrics.GetRequest\x1a*.vrooli.web_console.v1.metrics.GetResponseBRZPgithub.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/metrics;metrics_v1b\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -35,17 +35,17 @@ if not _descriptor._USE_C_DESCRIPTORS:
   _globals['_GETREQUEST']._serialized_start=71
   _globals['_GETREQUEST']._serialized_end=83
   _globals['_GETRESPONSE']._serialized_start=86
-  _globals['_GETRESPONSE']._serialized_end=711
-  _globals['_SESSIONMETRICS']._serialized_start=713
-  _globals['_SESSIONMETRICS']._serialized_end=831
-  _globals['_CONNECTIONMETRICS']._serialized_start=833
-  _globals['_CONNECTIONMETRICS']._serialized_end=898
-  _globals['_MESSAGEMETRICS']._serialized_start=900
-  _globals['_MESSAGEMETRICS']._serialized_end=964
-  _globals['_REATTACHMETRICS']._serialized_start=966
-  _globals['_REATTACHMETRICS']._serialized_end=1069
-  _globals['_RECOVERYMETRICS']._serialized_start=1072
-  _globals['_RECOVERYMETRICS']._serialized_end=1307
-  _globals['_METRICSSERVICE']._serialized_start=1309
-  _globals['_METRICSSERVICE']._serialized_end=1419
+  _globals['_GETRESPONSE']._serialized_end=654
+  _globals['_SESSIONMETRICS']._serialized_start=656
+  _globals['_SESSIONMETRICS']._serialized_end=774
+  _globals['_CONNECTIONMETRICS']._serialized_start=776
+  _globals['_CONNECTIONMETRICS']._serialized_end=841
+  _globals['_MESSAGEMETRICS']._serialized_start=843
+  _globals['_MESSAGEMETRICS']._serialized_end=907
+  _globals['_REATTACHMETRICS']._serialized_start=909
+  _globals['_REATTACHMETRICS']._serialized_end=1012
+  _globals['_RECOVERYMETRICS']._serialized_start=1015
+  _globals['_RECOVERYMETRICS']._serialized_end=1250
+  _globals['_METRICSSERVICE']._serialized_start=1252
+  _globals['_METRICSSERVICE']._serialized_end=1362
 # @@protoc_insertion_point(module_scope)

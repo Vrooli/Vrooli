@@ -37,6 +37,7 @@ message Heartbeat {
   uint64 sequence = 2;
   HealthSnapshot health = 3;
   google.protobuf.Timestamp sent_at = 4;
+  uint64 rejected_credential_pushes = 5;
 }
 
 message RunEvent {

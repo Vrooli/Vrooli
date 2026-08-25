@@ -12,7 +12,7 @@ import (
 )
 
 // DOC: docs/internal/ERROR_SEMANTICS.md
-// DOC: docs/internal/SEAMS.md#axis-3-error-codes--recovery-api--ui
+// DOC: docs/internal/SEAMS.md#axis-3-error-codes-recovery-api-ui
 
 /**
  * ╔════════════════════════════════════════════════════════════════╗

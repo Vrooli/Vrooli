@@ -63,6 +63,9 @@ func TestTerminalConnect_SendInput_RoundTrip(t *testing.T) {
 	if resp == nil {
 		t.Fatal("nil response")
 	}
+	if got := resp.Msg.GetBytesWritten(); got != int32(len("echo hi\n")) {
+		t.Fatalf("bytes_written = %d, want %d", got, len("echo hi\n"))
+	}
 }
 
 func TestTerminalConnect_SendInput_UnknownKey(t *testing.T) {

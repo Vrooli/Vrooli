@@ -10,6 +10,7 @@ type InputKind = sessioncore.InputKind
 const (
 	KindKeystroke = sessioncore.KindKeystroke
 	KindPaste     = sessioncore.KindPaste
+	KindControl   = sessioncore.KindControl
 )
 
 type (

@@ -79,6 +79,15 @@ const (
 	// SkillsServiceDeleteSkillVariantProcedure is the fully-qualified name of the SkillsService's
 	// DeleteSkillVariant RPC.
 	SkillsServiceDeleteSkillVariantProcedure = "/vrooli.prompt_manager.v1.skills.SkillsService/DeleteSkillVariant"
+	// SkillsServiceImportSkillProcedure is the fully-qualified name of the SkillsService's ImportSkill
+	// RPC.
+	SkillsServiceImportSkillProcedure = "/vrooli.prompt_manager.v1.skills.SkillsService/ImportSkill"
+	// SkillsServiceReviewImportedSkillProcedure is the fully-qualified name of the SkillsService's
+	// ReviewImportedSkill RPC.
+	SkillsServiceReviewImportedSkillProcedure = "/vrooli.prompt_manager.v1.skills.SkillsService/ReviewImportedSkill"
+	// SkillsServiceReportImportedSkillStalenessProcedure is the fully-qualified name of the
+	// SkillsService's ReportImportedSkillStaleness RPC.
+	SkillsServiceReportImportedSkillStalenessProcedure = "/vrooli.prompt_manager.v1.skills.SkillsService/ReportImportedSkillStaleness"
 )
 
 // SkillsServiceClient is a client for the vrooli.prompt_manager.v1.skills.SkillsService service.
@@ -99,6 +108,9 @@ type SkillsServiceClient interface {
 	CreateSkillVariant(context.Context, *connect.Request[skills.CreateSkillVariantRequest]) (*connect.Response[skills.CreateSkillVariantResponse], error)
 	UpdateSkillVariant(context.Context, *connect.Request[skills.UpdateSkillVariantRequest]) (*connect.Response[skills.UpdateSkillVariantResponse], error)
 	DeleteSkillVariant(context.Context, *connect.Request[skills.DeleteSkillVariantRequest]) (*connect.Response[skills.DeleteSkillVariantResponse], error)
+	ImportSkill(context.Context, *connect.Request[skills.ImportSkillRequest]) (*connect.Response[skills.ImportSkillResponse], error)
+	ReviewImportedSkill(context.Context, *connect.Request[skills.ReviewImportedSkillRequest]) (*connect.Response[skills.ReviewImportedSkillResponse], error)
+	ReportImportedSkillStaleness(context.Context, *connect.Request[skills.ReportImportedSkillStalenessRequest]) (*connect.Response[skills.ReportImportedSkillStalenessResponse], error)
 }
 
 // NewSkillsServiceClient constructs a client for the vrooli.prompt_manager.v1.skills.SkillsService
@@ -208,27 +220,48 @@ func NewSkillsServiceClient(httpClient connect.HTTPClient, baseURL string, opts 
 			connect.WithSchema(skillsServiceMethods.ByName("DeleteSkillVariant")),
 			connect.WithClientOptions(opts...),
 		),
+		importSkill: connect.NewClient[skills.ImportSkillRequest, skills.ImportSkillResponse](
+			httpClient,
+			baseURL+SkillsServiceImportSkillProcedure,
+			connect.WithSchema(skillsServiceMethods.ByName("ImportSkill")),
+			connect.WithClientOptions(opts...),
+		),
+		reviewImportedSkill: connect.NewClient[skills.ReviewImportedSkillRequest, skills.ReviewImportedSkillResponse](
+			httpClient,
+			baseURL+SkillsServiceReviewImportedSkillProcedure,
+			connect.WithSchema(skillsServiceMethods.ByName("ReviewImportedSkill")),
+			connect.WithClientOptions(opts...),
+		),
+		reportImportedSkillStaleness: connect.NewClient[skills.ReportImportedSkillStalenessRequest, skills.ReportImportedSkillStalenessResponse](
+			httpClient,
+			baseURL+SkillsServiceReportImportedSkillStalenessProcedure,
+			connect.WithSchema(skillsServiceMethods.ByName("ReportImportedSkillStaleness")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // skillsServiceClient implements SkillsServiceClient.
 type skillsServiceClient struct {
-	listSkills         *connect.Client[skills.ListSkillsRequest, skills.ListSkillsResponse]
-	getSkill           *connect.Client[skills.GetSkillRequest, skills.GetSkillResponse]
-	readSkills         *connect.Client[skills.ReadSkillsRequest, skills.ReadSkillsResponse]
-	createSkill        *connect.Client[skills.CreateSkillRequest, skills.CreateSkillResponse]
-	updateSkill        *connect.Client[skills.UpdateSkillRequest, skills.UpdateSkillResponse]
-	deleteSkill        *connect.Client[skills.DeleteSkillRequest, skills.DeleteSkillResponse]
-	syncSkills         *connect.Client[skills.SyncSkillsRequest, skills.SyncSkillsResponse]
-	rateSkill          *connect.Client[skills.RateSkillRequest, skills.RateSkillResponse]
-	recordSkillUsage   *connect.Client[skills.RecordSkillUsageRequest, skills.RecordSkillUsageResponse]
-	listSkillVersions  *connect.Client[skills.ListSkillVersionsRequest, skills.ListSkillVersionsResponse]
-	revertSkill        *connect.Client[skills.RevertSkillRequest, skills.RevertSkillResponse]
-	listSkillVariants  *connect.Client[skills.ListSkillVariantsRequest, skills.ListSkillVariantsResponse]
-	getSkillVariant    *connect.Client[skills.GetSkillVariantRequest, skills.GetSkillVariantResponse]
-	createSkillVariant *connect.Client[skills.CreateSkillVariantRequest, skills.CreateSkillVariantResponse]
-	updateSkillVariant *connect.Client[skills.UpdateSkillVariantRequest, skills.UpdateSkillVariantResponse]
-	deleteSkillVariant *connect.Client[skills.DeleteSkillVariantRequest, skills.DeleteSkillVariantResponse]
+	listSkills                   *connect.Client[skills.ListSkillsRequest, skills.ListSkillsResponse]
+	getSkill                     *connect.Client[skills.GetSkillRequest, skills.GetSkillResponse]
+	readSkills                   *connect.Client[skills.ReadSkillsRequest, skills.ReadSkillsResponse]
+	createSkill                  *connect.Client[skills.CreateSkillRequest, skills.CreateSkillResponse]
+	updateSkill                  *connect.Client[skills.UpdateSkillRequest, skills.UpdateSkillResponse]
+	deleteSkill                  *connect.Client[skills.DeleteSkillRequest, skills.DeleteSkillResponse]
+	syncSkills                   *connect.Client[skills.SyncSkillsRequest, skills.SyncSkillsResponse]
+	rateSkill                    *connect.Client[skills.RateSkillRequest, skills.RateSkillResponse]
+	recordSkillUsage             *connect.Client[skills.RecordSkillUsageRequest, skills.RecordSkillUsageResponse]
+	listSkillVersions            *connect.Client[skills.ListSkillVersionsRequest, skills.ListSkillVersionsResponse]
+	revertSkill                  *connect.Client[skills.RevertSkillRequest, skills.RevertSkillResponse]
+	listSkillVariants            *connect.Client[skills.ListSkillVariantsRequest, skills.ListSkillVariantsResponse]
+	getSkillVariant              *connect.Client[skills.GetSkillVariantRequest, skills.GetSkillVariantResponse]
+	createSkillVariant           *connect.Client[skills.CreateSkillVariantRequest, skills.CreateSkillVariantResponse]
+	updateSkillVariant           *connect.Client[skills.UpdateSkillVariantRequest, skills.UpdateSkillVariantResponse]
+	deleteSkillVariant           *connect.Client[skills.DeleteSkillVariantRequest, skills.DeleteSkillVariantResponse]
+	importSkill                  *connect.Client[skills.ImportSkillRequest, skills.ImportSkillResponse]
+	reviewImportedSkill          *connect.Client[skills.ReviewImportedSkillRequest, skills.ReviewImportedSkillResponse]
+	reportImportedSkillStaleness *connect.Client[skills.ReportImportedSkillStalenessRequest, skills.ReportImportedSkillStalenessResponse]
 }
 
 // ListSkills calls vrooli.prompt_manager.v1.skills.SkillsService.ListSkills.
@@ -311,6 +344,22 @@ func (c *skillsServiceClient) DeleteSkillVariant(ctx context.Context, req *conne
 	return c.deleteSkillVariant.CallUnary(ctx, req)
 }
 
+// ImportSkill calls vrooli.prompt_manager.v1.skills.SkillsService.ImportSkill.
+func (c *skillsServiceClient) ImportSkill(ctx context.Context, req *connect.Request[skills.ImportSkillRequest]) (*connect.Response[skills.ImportSkillResponse], error) {
+	return c.importSkill.CallUnary(ctx, req)
+}
+
+// ReviewImportedSkill calls vrooli.prompt_manager.v1.skills.SkillsService.ReviewImportedSkill.
+func (c *skillsServiceClient) ReviewImportedSkill(ctx context.Context, req *connect.Request[skills.ReviewImportedSkillRequest]) (*connect.Response[skills.ReviewImportedSkillResponse], error) {
+	return c.reviewImportedSkill.CallUnary(ctx, req)
+}
+
+// ReportImportedSkillStaleness calls
+// vrooli.prompt_manager.v1.skills.SkillsService.ReportImportedSkillStaleness.
+func (c *skillsServiceClient) ReportImportedSkillStaleness(ctx context.Context, req *connect.Request[skills.ReportImportedSkillStalenessRequest]) (*connect.Response[skills.ReportImportedSkillStalenessResponse], error) {
+	return c.reportImportedSkillStaleness.CallUnary(ctx, req)
+}
+
 // SkillsServiceHandler is an implementation of the vrooli.prompt_manager.v1.skills.SkillsService
 // service.
 type SkillsServiceHandler interface {
@@ -330,6 +379,9 @@ type SkillsServiceHandler interface {
 	CreateSkillVariant(context.Context, *connect.Request[skills.CreateSkillVariantRequest]) (*connect.Response[skills.CreateSkillVariantResponse], error)
 	UpdateSkillVariant(context.Context, *connect.Request[skills.UpdateSkillVariantRequest]) (*connect.Response[skills.UpdateSkillVariantResponse], error)
 	DeleteSkillVariant(context.Context, *connect.Request[skills.DeleteSkillVariantRequest]) (*connect.Response[skills.DeleteSkillVariantResponse], error)
+	ImportSkill(context.Context, *connect.Request[skills.ImportSkillRequest]) (*connect.Response[skills.ImportSkillResponse], error)
+	ReviewImportedSkill(context.Context, *connect.Request[skills.ReviewImportedSkillRequest]) (*connect.Response[skills.ReviewImportedSkillResponse], error)
+	ReportImportedSkillStaleness(context.Context, *connect.Request[skills.ReportImportedSkillStalenessRequest]) (*connect.Response[skills.ReportImportedSkillStalenessResponse], error)
 }
 
 // NewSkillsServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -435,6 +487,24 @@ func NewSkillsServiceHandler(svc SkillsServiceHandler, opts ...connect.HandlerOp
 		connect.WithSchema(skillsServiceMethods.ByName("DeleteSkillVariant")),
 		connect.WithHandlerOptions(opts...),
 	)
+	skillsServiceImportSkillHandler := connect.NewUnaryHandler(
+		SkillsServiceImportSkillProcedure,
+		svc.ImportSkill,
+		connect.WithSchema(skillsServiceMethods.ByName("ImportSkill")),
+		connect.WithHandlerOptions(opts...),
+	)
+	skillsServiceReviewImportedSkillHandler := connect.NewUnaryHandler(
+		SkillsServiceReviewImportedSkillProcedure,
+		svc.ReviewImportedSkill,
+		connect.WithSchema(skillsServiceMethods.ByName("ReviewImportedSkill")),
+		connect.WithHandlerOptions(opts...),
+	)
+	skillsServiceReportImportedSkillStalenessHandler := connect.NewUnaryHandler(
+		SkillsServiceReportImportedSkillStalenessProcedure,
+		svc.ReportImportedSkillStaleness,
+		connect.WithSchema(skillsServiceMethods.ByName("ReportImportedSkillStaleness")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/vrooli.prompt_manager.v1.skills.SkillsService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case SkillsServiceListSkillsProcedure:
@@ -469,6 +539,12 @@ func NewSkillsServiceHandler(svc SkillsServiceHandler, opts ...connect.HandlerOp
 			skillsServiceUpdateSkillVariantHandler.ServeHTTP(w, r)
 		case SkillsServiceDeleteSkillVariantProcedure:
 			skillsServiceDeleteSkillVariantHandler.ServeHTTP(w, r)
+		case SkillsServiceImportSkillProcedure:
+			skillsServiceImportSkillHandler.ServeHTTP(w, r)
+		case SkillsServiceReviewImportedSkillProcedure:
+			skillsServiceReviewImportedSkillHandler.ServeHTTP(w, r)
+		case SkillsServiceReportImportedSkillStalenessProcedure:
+			skillsServiceReportImportedSkillStalenessHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -540,4 +616,16 @@ func (UnimplementedSkillsServiceHandler) UpdateSkillVariant(context.Context, *co
 
 func (UnimplementedSkillsServiceHandler) DeleteSkillVariant(context.Context, *connect.Request[skills.DeleteSkillVariantRequest]) (*connect.Response[skills.DeleteSkillVariantResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.prompt_manager.v1.skills.SkillsService.DeleteSkillVariant is not implemented"))
+}
+
+func (UnimplementedSkillsServiceHandler) ImportSkill(context.Context, *connect.Request[skills.ImportSkillRequest]) (*connect.Response[skills.ImportSkillResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.prompt_manager.v1.skills.SkillsService.ImportSkill is not implemented"))
+}
+
+func (UnimplementedSkillsServiceHandler) ReviewImportedSkill(context.Context, *connect.Request[skills.ReviewImportedSkillRequest]) (*connect.Response[skills.ReviewImportedSkillResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.prompt_manager.v1.skills.SkillsService.ReviewImportedSkill is not implemented"))
+}
+
+func (UnimplementedSkillsServiceHandler) ReportImportedSkillStaleness(context.Context, *connect.Request[skills.ReportImportedSkillStalenessRequest]) (*connect.Response[skills.ReportImportedSkillStalenessResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.prompt_manager.v1.skills.SkillsService.ReportImportedSkillStaleness is not implemented"))
 }

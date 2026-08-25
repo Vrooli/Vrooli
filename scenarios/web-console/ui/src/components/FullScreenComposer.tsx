@@ -9,7 +9,8 @@ import { strings } from "../consts/strings";
 import { cn } from "../lib/classnames";
 import { composeComposerPayload } from "../lib/composerPayload";
 import type { ComposerDraft } from "../hooks/useComposerDraft";
-import type { GateResult, InputSource } from "./terminal/inputGate";
+import type { GateResult, InputIntent } from "./terminal/inputGate";
+import type { InputSettlementCallback } from "../hooks/terminal/useStdinAck";
 
 type ComposerSendStatus = "idle" | "uploading" | "sending" | "queued" | "failed";
 
@@ -21,9 +22,11 @@ interface FullScreenComposerProps {
   /** Shared per-session draft (single source of truth for the text). */
   draft: ComposerDraft;
   /** Inject the composed payload into the active terminal via the input gate. */
-  onInput: (data: string, source: InputSource) => GateResult;
+  onInput: (data: string, intent: Exclude<InputIntent, "control">) => GateResult;
   /** Subscribe to per-send settlement so we only clear+minimize on ok. */
-  subscribeInputSettled?: (cb: (seq: number, ok: boolean) => void) => () => void;
+  subscribeInputSettled?: (cb: (seq: number, ok: boolean, reason?: string) => void) => () => void;
+  /** Await settlement for the exact sequence returned by onInput. */
+  awaitSeq?: (seq: number, cb: InputSettlementCallback) => () => void;
   /** Move focus to the active terminal (e.g. after a successful send). */
   onFocusTerminal?: () => void;
 
@@ -67,6 +70,7 @@ export default function FullScreenComposer({
   draft,
   onInput,
   subscribeInputSettled,
+  awaitSeq,
   onFocusTerminal,
   mic,
   interimTranscript = "",
@@ -147,20 +151,6 @@ export default function FullScreenComposer({
     [draft],
   );
 
-  const awaitNextSettlement = useCallback(
-    (onSettle: (ok: boolean) => void) => {
-      if (!subscribeInputSettled) return;
-      settlementUnsubRef.current?.();
-      const unsub = subscribeInputSettled((_seq, ok) => {
-        settlementUnsubRef.current?.();
-        settlementUnsubRef.current = null;
-        onSettle(ok);
-      });
-      settlementUnsubRef.current = unsub;
-    },
-    [subscribeInputSettled],
-  );
-
   const hasAttachments = attachments.length > 0;
 
   // Minimizing with staged (never-sent) images would silently strand them, so
@@ -212,7 +202,7 @@ export default function FullScreenComposer({
     // Snapshot the session: the ack can settle after the user switches
     // sessions, and the clear below must target the session we sent from.
     const sentFrom = draft.getSessionId();
-    const result = onInput(payload, "toolbar-submit");
+    const result = onInput(payload, "bulk_text");
 
     if (result.status === "rejected") {
       // "disposed" — pane torn down. Keep the draft/attachments; go idle.
@@ -240,8 +230,13 @@ export default function FullScreenComposer({
       setErrorMsg(t(strings.composer.sendFailed));
     };
 
-    if (subscribeInputSettled) {
-      awaitNextSettlement((ok) => (ok ? finalizeSuccess() : finalizeFailure()));
+    if (awaitSeq) {
+      settlementUnsubRef.current?.();
+      settlementUnsubRef.current = awaitSeq(result.seq, (ok) => {
+        settlementUnsubRef.current = null;
+        if (ok) finalizeSuccess();
+        else finalizeFailure();
+      });
     } else {
       finalizeSuccess();
     }
@@ -251,8 +246,7 @@ export default function FullScreenComposer({
     hasAttachments,
     resolveAttachmentPaths,
     onInput,
-    subscribeInputSettled,
-    awaitNextSettlement,
+    awaitSeq,
     onClearAttachments,
     onClose,
     onFocusTerminal,

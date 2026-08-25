@@ -3,6 +3,7 @@ syntax = "proto3";
 package vrooli.vrooli_bridge.v1.presence;
 
 import "vrooli-bridge/v1/shared/shared.proto";
+import "vrooli-bridge/v1/channel/channel.proto";
 
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/presence;presence_v1";
 
@@ -41,6 +42,11 @@ service PresenceService {
   // from a node-agent. It is node-facing and authenticated with the same
   // per-node proof as heartbeat and session frames.
   rpc ReportRelayResponse(ReportRelayResponseRequest) returns (ReportRelayResponseResponse);
+
+  // ReportCredentialReceipt confirms that a grant-governed credential push
+  // was accepted or refused after node-side consent and decryption. The
+  // request carries metadata only; credential values never cross this RPC.
+  rpc ReportCredentialReceipt(ReportCredentialReceiptRequest) returns (ReportCredentialReceiptResponse);
 }
 
 message ReportHeartbeatRequest {
@@ -75,5 +81,23 @@ message ReportRelayResponseRequest {
 }
 
 message ReportRelayResponseResponse {
+  bool accepted = 1;
+}
+
+message ReportCredentialReceiptRequest {
+  CredentialReceipt receipt = 1;
+}
+
+message CredentialReceipt {
+  string grant_id = 1;
+  string node_id = 2;
+  string logical_id = 3;
+  string field = 4;
+  int64 generation = 5;
+  bool accepted = 6;
+  string reason = 7;
+}
+
+message ReportCredentialReceiptResponse {
   bool accepted = 1;
 }

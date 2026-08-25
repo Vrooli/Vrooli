@@ -9,7 +9,9 @@ import {
   TOUCH_SCROLL_DECEL,
   TOUCH_SCROLL_MIN_VELOCITY,
 } from "../consts/config";
-import type { GateResult, InputSource } from "../components/terminal/inputGate";
+import { mouseWheelSequence } from "../lib/terminalKeys";
+import { terminalIsInMouseTrackingMode } from "../components/terminal/inputGate";
+import { writeText } from "../lib/clipboard";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -22,11 +24,10 @@ export interface UseTerminalTouchOptions {
   /** Fired on right-click (desktop) or long-press-release without drag (mobile). */
   onContextMenu?: (x: number, y: number) => void;
   /**
-   * Submit data via the single input gate. Used for mouse wheel
-   * forwarding in app mouse mode; the gate's GateResult is ignored
-   * (mouse wheel bytes are best-effort).
+   * Send synthetic terminal control bytes. Controls are best-effort and
+   * deliberately bypass the reliable stdin gate.
    */
-  submitInput?: (data: string, source: InputSource) => GateResult;
+  sendControl?: (data: string) => boolean;
 }
 
 export interface UseTerminalTouchReturn {
@@ -155,24 +156,6 @@ function findGestureTouch(
   return undefined;
 }
 
-/**
- * Check if the terminal application has enabled mouse tracking (e.g. tmux
- * with `mouse on`). When active, scroll gestures should send mouse wheel
- * escape sequences to the application instead of scrolling xterm.js's buffer.
- */
-function isAppMouseMode(terminal: Terminal): boolean {
-  return !!terminal.modes && terminal.modes.mouseTrackingMode !== "none";
-}
-
-/**
- * Encode a mouse wheel event as an SGR mouse escape sequence.
- * Button 64 = scroll up, 65 = scroll down (1-based coordinates).
- */
-function sgrWheelSequence(up: boolean, col: number, row: number): string {
-  const button = up ? 64 : 65;
-  return `\x1b[<${button};${col + 1};${row + 1}M`;
-}
-
 // ---------------------------------------------------------------------------
 // Hook
 // ---------------------------------------------------------------------------
@@ -182,7 +165,7 @@ export function useTerminalTouch({
   containerRef,
   enabled = true,
   onContextMenu,
-  submitInput,
+  sendControl,
 }: UseTerminalTouchOptions): UseTerminalTouchReturn {
   const [hasSelection, setHasSelection] = useState(false);
   const gestureRef = useRef<GestureState>({ type: "idle" });
@@ -190,8 +173,8 @@ export function useTerminalTouch({
   const momentumRafRef = useRef<number | null>(null);
   const onContextMenuRef = useRef(onContextMenu);
   onContextMenuRef.current = onContextMenu;
-  const submitInputRef = useRef(submitInput);
-  submitInputRef.current = submitInput;
+  const sendControlRef = useRef(sendControl);
+  sendControlRef.current = sendControl;
 
   // ---- Clipboard helpers ----
 
@@ -199,12 +182,8 @@ export function useTerminalTouch({
     if (!terminal) return false;
     const text = terminal.getSelection();
     if (!text) return false;
-    try {
-      await navigator.clipboard.writeText(text);
-      return true;
-    } catch {
-      return false;
-    }
+    const result = await writeText(text);
+    return result.ok;
   }, [terminal]);
 
   const clearSelection = useCallback(() => {
@@ -252,16 +231,16 @@ export function useTerminalTouch({
     // xterm.js's own buffer as before.
     function scrollTerminal(lines: number) {
       if (lines === 0) return;
-      if (isAppMouseMode(term) && submitInputRef.current) {
+      if (terminalIsInMouseTrackingMode(term) && sendControlRef.current) {
         // Send one wheel event per line, at screen center. tmux treats
         // each event as a single scroll-line regardless of position.
         const col = Math.floor(term.cols / 2);
         const row = Math.floor(term.rows / 2);
         const up = lines < 0;
         const count = Math.abs(lines);
-        const seq = sgrWheelSequence(up, col, row);
+        const seq = mouseWheelSequence(up, col, row);
         for (let i = 0; i < count; i++) {
-          submitInputRef.current(seq, "xterm");
+          sendControlRef.current(seq);
         }
       } else {
         term.scrollLines(lines);

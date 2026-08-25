@@ -637,25 +637,33 @@ class KindMismatch(_message.Message):
     def __init__(self, asset_id: _Optional[str] = ..., declared_kind: _Optional[str] = ..., derived_kind: _Optional[str] = ..., message: _Optional[str] = ...) -> None: ...
 
 class CaptureEvidenceRequest(_message.Message):
-    __slots__ = ("asset_id", "all", "changed_only")
+    __slots__ = ("asset_id", "all", "changed_only", "limit", "offset")
     ASSET_ID_FIELD_NUMBER: _ClassVar[int]
     ALL_FIELD_NUMBER: _ClassVar[int]
     CHANGED_ONLY_FIELD_NUMBER: _ClassVar[int]
+    LIMIT_FIELD_NUMBER: _ClassVar[int]
+    OFFSET_FIELD_NUMBER: _ClassVar[int]
     asset_id: str
     all: bool
     changed_only: bool
-    def __init__(self, asset_id: _Optional[str] = ..., all: _Optional[bool] = ..., changed_only: _Optional[bool] = ...) -> None: ...
+    limit: int
+    offset: int
+    def __init__(self, asset_id: _Optional[str] = ..., all: _Optional[bool] = ..., changed_only: _Optional[bool] = ..., limit: _Optional[int] = ..., offset: _Optional[int] = ...) -> None: ...
 
 class CaptureEvidenceResponse(_message.Message):
-    __slots__ = ("asset_id", "capture_directory", "workbench_url", "rows_written", "missing_contract_assets")
+    __slots__ = ("asset_id", "capture_directory", "workbench_url", "rows_written", "missing_contract_assets", "next_offset", "complete")
     ASSET_ID_FIELD_NUMBER: _ClassVar[int]
     CAPTURE_DIRECTORY_FIELD_NUMBER: _ClassVar[int]
     WORKBENCH_URL_FIELD_NUMBER: _ClassVar[int]
     ROWS_WRITTEN_FIELD_NUMBER: _ClassVar[int]
     MISSING_CONTRACT_ASSETS_FIELD_NUMBER: _ClassVar[int]
+    NEXT_OFFSET_FIELD_NUMBER: _ClassVar[int]
+    COMPLETE_FIELD_NUMBER: _ClassVar[int]
     asset_id: str
     capture_directory: str
     workbench_url: str
     rows_written: int
     missing_contract_assets: _containers.RepeatedScalarFieldContainer[str]
-    def __init__(self, asset_id: _Optional[str] = ..., capture_directory: _Optional[str] = ..., workbench_url: _Optional[str] = ..., rows_written: _Optional[int] = ..., missing_contract_assets: _Optional[_Iterable[str]] = ...) -> None: ...
+    next_offset: int
+    complete: bool
+    def __init__(self, asset_id: _Optional[str] = ..., capture_directory: _Optional[str] = ..., workbench_url: _Optional[str] = ..., rows_written: _Optional[int] = ..., missing_contract_assets: _Optional[_Iterable[str]] = ..., next_offset: _Optional[int] = ..., complete: _Optional[bool] = ...) -> None: ...

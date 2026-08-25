@@ -276,6 +276,18 @@ func TestResolveNotFound(t *testing.T) {
 	}
 }
 
+func TestResolveRelativePathWithoutCwdReportsMissingContext(t *testing.T) {
+	r := newResolver(t.TempDir())
+	_, err := r.Resolve("", errors.New("platform: operation is not supported on this platform"), "missing.txt")
+	var fe *Error
+	if !errors.As(err, &fe) || fe.Code != CodeUnresolvable {
+		t.Fatalf("expected unresolvable, got %v", err)
+	}
+	if !strings.Contains(fe.Message, "current session context") {
+		t.Fatalf("message = %q, want missing working-directory context", fe.Message)
+	}
+}
+
 func TestResolveEmptyPath(t *testing.T) {
 	r := newResolver(t.TempDir())
 	_, err := r.Resolve("", nil, "   ")

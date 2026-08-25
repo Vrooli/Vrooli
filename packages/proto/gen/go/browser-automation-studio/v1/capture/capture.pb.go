@@ -379,8 +379,12 @@ type CaptureRequest struct {
 	// Interaction state requested by the capture matrix. The service preserves
 	// this value while constructing the stateful capture flow.
 	InteractionState string `protobuf:"bytes,12,opt,name=interaction_state,json=interactionState,proto3" json:"interaction_state,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+	// Optional CSS selector for the authoritative screenshot boundary. When
+	// set, BAS captures that element as the primary screenshot while keeping
+	// the rest of the evidence in the same browser session.
+	ScreenshotSelector string `protobuf:"bytes,13,opt,name=screenshot_selector,json=screenshotSelector,proto3" json:"screenshot_selector,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
 }
 
 func (x *CaptureRequest) Reset() {
@@ -493,6 +497,13 @@ func (x *CaptureRequest) GetBrowserProfile() *base.BrowserProfile {
 func (x *CaptureRequest) GetInteractionState() string {
 	if x != nil {
 		return x.InteractionState
+	}
+	return ""
+}
+
+func (x *CaptureRequest) GetScreenshotSelector() string {
+	if x != nil {
+		return x.ScreenshotSelector
 	}
 	return ""
 }
@@ -852,7 +863,7 @@ const file_browser_automation_studio_v1_capture_capture_proto_rawDesc = "" +
 	"\vnetworkidle\x18\x02 \x01(\bH\x00R\vnetworkidle\x12\x1f\n" +
 	"\n" +
 	"timeout_ms\x18\x03 \x01(\x05H\x00R\ttimeoutMsB\x06\n" +
-	"\x04spec\"\x83\x05\n" +
+	"\x04spec\"\xb4\x05\n" +
 	"\x0eCaptureRequest\x12\x19\n" +
 	"\x03url\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x03url\x12M\n" +
 	"\bcaptures\x18\x02 \x03(\x0e21.browser_automation_studio.v1.capture.CaptureTypeR\bcaptures\x12P\n" +
@@ -869,7 +880,8 @@ const file_browser_automation_studio_v1_capture_capture_proto_rawDesc = "" +
 	"\x15inline_computed_style\x18\n" +
 	" \x01(\bR\x13inlineComputedStyle\x12U\n" +
 	"\x0fbrowser_profile\x18\v \x01(\v2,.browser_automation_studio.v1.BrowserProfileR\x0ebrowserProfile\x12+\n" +
-	"\x11interaction_state\x18\f \x01(\tR\x10interactionState\"\xe1\x02\n" +
+	"\x11interaction_state\x18\f \x01(\tR\x10interactionState\x12/\n" +
+	"\x13screenshot_selector\x18\r \x01(\tR\x12screenshotSelector\"\xe1\x02\n" +
 	"\x0fCaptureArtifact\x12E\n" +
 	"\x04type\x18\x01 \x01(\x0e21.browser_automation_studio.v1.capture.CaptureTypeR\x04type\x12\x12\n" +
 	"\x04path\x18\x02 \x01(\tR\x04path\x12\x1d\n" +

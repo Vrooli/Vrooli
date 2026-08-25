@@ -71,7 +71,6 @@ func metricRows(m *metricsv1.GetResponse) []string {
 		fmt.Sprintf("reattach: attempts=%d successes=%d failures=%d", r.GetAttempts(), r.GetSuccesses(), r.GetFailures()),
 		fmt.Sprintf("recovery: recovered=%d orphaned_meta=%d orphaned_tmux=%d attach_retries=%d preserved=%d", rec.GetRecovered(), rec.GetOrphanedMetadata(), rec.GetOrphanedTmux(), rec.GetAttachRetries(), rec.GetPreservedForFutureRecovery()),
 		fmt.Sprintf("ai: generations=%d suggestions=%d", m.GetAiGenerations(), m.GetAiSuggestions()),
-		fmt.Sprintf("stdin_before_ready_total: %d", m.GetStdinBeforeReadyTotal()),
 		fmt.Sprintf("voice_skip_verification_total: %d", m.GetVoiceSkipVerificationTotal()),
 	}
 }

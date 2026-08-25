@@ -37,10 +37,6 @@ message GetResponse {
   int64 ai_generations = 6;
   int64 ai_suggestions = 7;
 
-  // stdin messages arriving before session_ready. Expected to be 0 in
-  // steady state.
-  int64 stdin_before_ready_total = 8;
-
   // /voice/transcribe requests that bypassed speaker verification.
   int64 voice_skip_verification_total = 9;
 

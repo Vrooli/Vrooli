@@ -9,7 +9,7 @@ import { useWorkspaceStore } from "../../stores/useWorkspaceStore";
 import {
   createInputGate,
   type GateResult,
-  type InputSource,
+  type InputIntent,
   type TerminalInputGate,
 } from "../../components/terminal/inputGate";
 import { getTerminalDebugProbe } from "../../components/terminal/debug";
@@ -22,6 +22,7 @@ import {
 import {
   useStdinAck,
   type InputSettledListener,
+  type InputSettlementCallback,
   type PendingInputEntry,
 } from "./useStdinAck";
 
@@ -77,7 +78,9 @@ export interface UseTerminalSessionOptions {
 
 export interface UseTerminalSessionResult {
   /** Single-path input entry used by every UI source. */
-  submitInput: (data: string, source: InputSource) => GateResult;
+  submitInput: (data: string, intent: Exclude<InputIntent, "control">) => GateResult;
+  /** Send best-effort synthetic terminal bytes outside the reliable lane. */
+  sendControl: (data: string) => boolean;
   gate: TerminalInputGate;
   sendResize: (cols: number, rows: number) => void;
 	getServerSize: () => { cols: number; rows: number } | null;
@@ -86,6 +89,7 @@ export interface UseTerminalSessionResult {
 	leaderDevice: string;
 	takeLease: () => void;
   subscribeInputSettled: (cb: InputSettledListener) => () => void;
+  awaitSeq: (seq: number, cb: InputSettlementCallback) => () => void;
   subscribePendingInput: (cb: () => void) => () => void;
   getPendingInputSnapshot: () => readonly PendingInputEntry[];
   /**
@@ -245,6 +249,11 @@ export function useTerminalSession({
   });
   transportRef.current = transport;
 
+  const sendControl = useCallback(
+    (data: string): boolean => transport.sendJson({ type: "control", data }),
+    [transport],
+  );
+
   const requestLease = useCallback((explicit = false) => {
 		if (!explicit && leaseRequestInFlightRef.current) return;
 		// Frames on one WebSocket are ordered. Refresh our declaration first so
@@ -264,9 +273,9 @@ export function useTerminalSession({
   const takeLease = useCallback(() => requestLease(true), [requestLease]);
 
   const submitInput = useCallback(
-    (data: string, source: InputSource): GateResult => {
+    (data: string, intent: Exclude<InputIntent, "control">): GateResult => {
       if (!holdsLease) requestLease();
-      return gate.submit(data, source);
+      return gate.submit(data, intent);
     },
     [gate, holdsLease, requestLease],
   );
@@ -367,19 +376,25 @@ export function useTerminalSession({
           );
           break;
         }
-		case "size_info": {
+        case "size_info": {
 			if (!msg.cols || !msg.rows) break;
 			serverSizeRef.current = { cols: msg.cols, rows: msg.rows };
 			setServerSize(serverSizeRef.current);
-			const nextHoldsLease = msg.holdsLease === true;
-			setHoldsLease(nextHoldsLease);
-			if (nextHoldsLease || !leaseRequestInFlightRef.current) leaseRequestInFlightRef.current = false;
+			if (msg.holdsLease !== undefined) {
+				const nextHoldsLease = msg.holdsLease === true;
+				setHoldsLease(nextHoldsLease);
+				if (nextHoldsLease || !leaseRequestInFlightRef.current) leaseRequestInFlightRef.current = false;
+			}
 			setLeaderDevice(msg.leaderDevice ?? "");
 			useWorkspaceStore.getState().setViewerCount(sessionId, msg.viewerCount ?? 1);
 			const t = terminalRef.current;
 			if (t && (t.cols !== msg.cols || t.rows !== msg.rows)) t.resize(msg.cols, msg.rows);
 			break;
 		}
+		default:
+			// Ignore forward-compatible message types without affecting the
+			// terminal stream or reporting a spurious error.
+			break;
       }
     });
     return unsubscribe;
@@ -401,7 +416,7 @@ export function useTerminalSession({
       }
       const echo = localEchoRef.current.handleInput(data);
       if (echo) terminal.write(echo);
-	  submitInput(data, "xterm");
+	  submitInput(data, "typing");
     });
     return () => {
       disposable.dispose();
@@ -454,6 +469,7 @@ export function useTerminalSession({
 
   return {
     submitInput,
+    sendControl,
     gate,
 		sendResize,
 		getServerSize,
@@ -462,6 +478,7 @@ export function useTerminalSession({
 		leaderDevice,
 		takeLease,
     subscribeInputSettled: stdin.subscribeInputSettled,
+    awaitSeq: stdin.awaitSeq,
     subscribePendingInput: stdin.subscribePendingInput,
     getPendingInputSnapshot: stdin.getPendingSnapshot,
     sendConversationAck,

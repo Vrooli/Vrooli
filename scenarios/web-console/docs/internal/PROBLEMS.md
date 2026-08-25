@@ -518,7 +518,7 @@ Tests that **stay** in web-console: `tts_hook_handler_test.go`, `tts_router_test
 
 Preexisting failing tests not caused by this work:
 - `TestDocsManifestResolves` and `TestDocsNoStaleOldPaths` reference removed
-  doc paths (`DESIGN.md`, `concepts/FLOWS.md`, `internal/PROGRESS.md`, etc.).
+  doc paths (`DESIGN.md`, `concepts/FLOWS.md`, and the internal progress log).
 Stale `docs/manifest.json` and `docs/START-HERE.md`; unrelated to audio
 extraction prep.
 

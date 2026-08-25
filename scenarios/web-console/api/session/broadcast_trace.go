@@ -59,13 +59,15 @@ func fingerprint(data []byte) string {
 		len(data), esc(data[:cap/2]), len(data)-cap, esc(data[len(data)-cap/2:]))
 }
 
-// bctrace emits one trace line when enabled. Fields are space-separated
-// key=value so a mobile user can read them line-wrapped and still match
-// identical fingerprints across lines.
-func bctrace(tag, sessionID, extra string, data []byte) {
+// bctrace emits one trace line when enabled. Formatting is deliberately done
+// after the enabled check so the PTY hot path does no work when tracing is off.
+// Fields are space-separated key=value so a mobile user can read them
+// line-wrapped and still match identical fingerprints across lines.
+func bctrace(tag, sessionID string, data []byte, format string, args ...any) {
 	if !bctraceOn() {
 		return
 	}
+	extra := fmt.Sprintf(format, args...)
 	seq := broadcastTraceSeq.Add(1)
 	if data == nil {
 		log.Printf("bctrace seq=%d tag=%s sess=%s %s", seq, tag, sessionID, extra)

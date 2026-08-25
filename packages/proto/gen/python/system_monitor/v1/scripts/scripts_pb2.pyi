@@ -106,6 +106,14 @@ class GetScriptResponse(_message.Message):
     content: str
     def __init__(self, script: _Optional[_Union[InvestigationScript, _Mapping]] = ..., content: _Optional[str] = ...) -> None: ...
 
+class UpdateScriptRequest(_message.Message):
+    __slots__ = ("id", "content")
+    ID_FIELD_NUMBER: _ClassVar[int]
+    CONTENT_FIELD_NUMBER: _ClassVar[int]
+    id: str
+    content: str
+    def __init__(self, id: _Optional[str] = ..., content: _Optional[str] = ...) -> None: ...
+
 class ExecuteScriptRequest(_message.Message):
     __slots__ = ("id", "content")
     ID_FIELD_NUMBER: _ClassVar[int]

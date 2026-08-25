@@ -1,4 +1,5 @@
 from vrooli_bridge.v1.shared import shared_pb2 as _shared_pb2
+from vrooli_bridge.v1.channel import channel_pb2 as _channel_pb2
 from google.protobuf import descriptor as _descriptor
 from google.protobuf import message as _message
 from collections.abc import Mapping as _Mapping
@@ -49,6 +50,36 @@ class ReportRelayResponseRequest(_message.Message):
     def __init__(self, response: _Optional[_Union[_shared_pb2.RelayResponse, _Mapping]] = ...) -> None: ...
 
 class ReportRelayResponseResponse(_message.Message):
+    __slots__ = ("accepted",)
+    ACCEPTED_FIELD_NUMBER: _ClassVar[int]
+    accepted: bool
+    def __init__(self, accepted: _Optional[bool] = ...) -> None: ...
+
+class ReportCredentialReceiptRequest(_message.Message):
+    __slots__ = ("receipt",)
+    RECEIPT_FIELD_NUMBER: _ClassVar[int]
+    receipt: CredentialReceipt
+    def __init__(self, receipt: _Optional[_Union[CredentialReceipt, _Mapping]] = ...) -> None: ...
+
+class CredentialReceipt(_message.Message):
+    __slots__ = ("grant_id", "node_id", "logical_id", "field", "generation", "accepted", "reason")
+    GRANT_ID_FIELD_NUMBER: _ClassVar[int]
+    NODE_ID_FIELD_NUMBER: _ClassVar[int]
+    LOGICAL_ID_FIELD_NUMBER: _ClassVar[int]
+    FIELD_FIELD_NUMBER: _ClassVar[int]
+    GENERATION_FIELD_NUMBER: _ClassVar[int]
+    ACCEPTED_FIELD_NUMBER: _ClassVar[int]
+    REASON_FIELD_NUMBER: _ClassVar[int]
+    grant_id: str
+    node_id: str
+    logical_id: str
+    field: str
+    generation: int
+    accepted: bool
+    reason: str
+    def __init__(self, grant_id: _Optional[str] = ..., node_id: _Optional[str] = ..., logical_id: _Optional[str] = ..., field: _Optional[str] = ..., generation: _Optional[int] = ..., accepted: _Optional[bool] = ..., reason: _Optional[str] = ...) -> None: ...
+
+class ReportCredentialReceiptResponse(_message.Message):
     __slots__ = ("accepted",)
     ACCEPTED_FIELD_NUMBER: _ClassVar[int]
     accepted: bool

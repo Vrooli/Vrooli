@@ -194,3 +194,33 @@ func TestSubscribe_SnapshotPrecedesLiveFrames(t *testing.T) {
 		t.Fatal("missed live frame")
 	}
 }
+
+func TestSubscribe_SnapshotCacheIsInvalidatedByFeed(t *testing.T) {
+	s := newBroadcastSession(4)
+	first := s.Subscribe()
+	s.Unsubscribe(first.OutputCh)
+	if len(first.Snapshot) == 0 {
+		t.Fatal("initial snapshot is empty")
+	}
+
+	s.broadcast([]byte("cache invalidation marker\r\n"))
+	second := s.Subscribe()
+	s.Unsubscribe(second.OutputCh)
+	if !bytes.Contains(second.Snapshot, []byte("cache invalidation marker")) {
+		t.Fatalf("snapshot after feed is stale: %q", second.Snapshot)
+	}
+}
+
+func TestSubscribe_RepeatedSubscribeReusesCache(t *testing.T) {
+	s := newBroadcastSession(4)
+	first := s.Subscribe()
+	second := s.Subscribe()
+	defer s.Unsubscribe(first.OutputCh)
+	defer s.Unsubscribe(second.OutputCh)
+	if len(first.Snapshot) == 0 || len(second.Snapshot) == 0 {
+		t.Fatal("snapshot cache returned an empty snapshot")
+	}
+	if &first.Snapshot[0] != &second.Snapshot[0] {
+		t.Fatal("repeated subscribe regenerated instead of reusing the cached snapshot")
+	}
+}

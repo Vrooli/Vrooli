@@ -3283,10 +3283,13 @@ func (x *KindMismatch) GetMessage() string {
 }
 
 type CaptureEvidenceRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	AssetId       string                 `protobuf:"bytes,1,opt,name=asset_id,json=assetId,proto3" json:"asset_id,omitempty"`
-	All           bool                   `protobuf:"varint,2,opt,name=all,proto3" json:"all,omitempty"`
-	ChangedOnly   bool                   `protobuf:"varint,3,opt,name=changed_only,json=changedOnly,proto3" json:"changed_only,omitempty"`
+	state       protoimpl.MessageState `protogen:"open.v1"`
+	AssetId     string                 `protobuf:"bytes,1,opt,name=asset_id,json=assetId,proto3" json:"asset_id,omitempty"`
+	All         bool                   `protobuf:"varint,2,opt,name=all,proto3" json:"all,omitempty"`
+	ChangedOnly bool                   `protobuf:"varint,3,opt,name=changed_only,json=changedOnly,proto3" json:"changed_only,omitempty"`
+	// Bounded catalog migration controls. A zero limit means all requested assets.
+	Limit         int32 `protobuf:"varint,4,opt,name=limit,proto3" json:"limit,omitempty"`
+	Offset        int32 `protobuf:"varint,5,opt,name=offset,proto3" json:"offset,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -3342,6 +3345,20 @@ func (x *CaptureEvidenceRequest) GetChangedOnly() bool {
 	return false
 }
 
+func (x *CaptureEvidenceRequest) GetLimit() int32 {
+	if x != nil {
+		return x.Limit
+	}
+	return 0
+}
+
+func (x *CaptureEvidenceRequest) GetOffset() int32 {
+	if x != nil {
+		return x.Offset
+	}
+	return 0
+}
+
 type CaptureEvidenceResponse struct {
 	state                 protoimpl.MessageState `protogen:"open.v1"`
 	AssetId               string                 `protobuf:"bytes,1,opt,name=asset_id,json=assetId,proto3" json:"asset_id,omitempty"`
@@ -3349,6 +3366,8 @@ type CaptureEvidenceResponse struct {
 	WorkbenchUrl          string                 `protobuf:"bytes,3,opt,name=workbench_url,json=workbenchUrl,proto3" json:"workbench_url,omitempty"`
 	RowsWritten           int32                  `protobuf:"varint,4,opt,name=rows_written,json=rowsWritten,proto3" json:"rows_written,omitempty"`
 	MissingContractAssets []string               `protobuf:"bytes,5,rep,name=missing_contract_assets,json=missingContractAssets,proto3" json:"missing_contract_assets,omitempty"`
+	NextOffset            int32                  `protobuf:"varint,6,opt,name=next_offset,json=nextOffset,proto3" json:"next_offset,omitempty"`
+	Complete              bool                   `protobuf:"varint,7,opt,name=complete,proto3" json:"complete,omitempty"`
 	unknownFields         protoimpl.UnknownFields
 	sizeCache             protoimpl.SizeCache
 }
@@ -3416,6 +3435,20 @@ func (x *CaptureEvidenceResponse) GetMissingContractAssets() []string {
 		return x.MissingContractAssets
 	}
 	return nil
+}
+
+func (x *CaptureEvidenceResponse) GetNextOffset() int32 {
+	if x != nil {
+		return x.NextOffset
+	}
+	return 0
+}
+
+func (x *CaptureEvidenceResponse) GetComplete() bool {
+	if x != nil {
+		return x.Complete
+	}
+	return false
 }
 
 var File_react_component_library_v1_catalog_catalog_proto protoreflect.FileDescriptor
@@ -3711,17 +3744,22 @@ const file_react_component_library_v1_catalog_catalog_proto_rawDesc = "" +
 	"\basset_id\x18\x01 \x01(\tR\aassetId\x12#\n" +
 	"\rdeclared_kind\x18\x02 \x01(\tR\fdeclaredKind\x12!\n" +
 	"\fderived_kind\x18\x03 \x01(\tR\vderivedKind\x12\x18\n" +
-	"\amessage\x18\x04 \x01(\tR\amessage\"h\n" +
+	"\amessage\x18\x04 \x01(\tR\amessage\"\x96\x01\n" +
 	"\x16CaptureEvidenceRequest\x12\x19\n" +
 	"\basset_id\x18\x01 \x01(\tR\aassetId\x12\x10\n" +
 	"\x03all\x18\x02 \x01(\bR\x03all\x12!\n" +
-	"\fchanged_only\x18\x03 \x01(\bR\vchangedOnly\"\xe1\x01\n" +
+	"\fchanged_only\x18\x03 \x01(\bR\vchangedOnly\x12\x14\n" +
+	"\x05limit\x18\x04 \x01(\x05R\x05limit\x12\x16\n" +
+	"\x06offset\x18\x05 \x01(\x05R\x06offset\"\x9e\x02\n" +
 	"\x17CaptureEvidenceResponse\x12\x19\n" +
 	"\basset_id\x18\x01 \x01(\tR\aassetId\x12+\n" +
 	"\x11capture_directory\x18\x02 \x01(\tR\x10captureDirectory\x12#\n" +
 	"\rworkbench_url\x18\x03 \x01(\tR\fworkbenchUrl\x12!\n" +
 	"\frows_written\x18\x04 \x01(\x05R\vrowsWritten\x126\n" +
-	"\x17missing_contract_assets\x18\x05 \x03(\tR\x15missingContractAssets2\xa1\f\n" +
+	"\x17missing_contract_assets\x18\x05 \x03(\tR\x15missingContractAssets\x12\x1f\n" +
+	"\vnext_offset\x18\x06 \x01(\x05R\n" +
+	"nextOffset\x12\x1a\n" +
+	"\bcomplete\x18\a \x01(\bR\bcomplete2\xa1\f\n" +
 	"\x0eCatalogService\x12\x8c\x01\n" +
 	"\vGetCoverage\x12=.vrooli.react_component_library.v1.catalog.GetCoverageRequest\x1a>.vrooli.react_component_library.v1.catalog.GetCoverageResponse\x12\x8f\x01\n" +
 	"\fListNextWork\x12>.vrooli.react_component_library.v1.catalog.ListNextWorkRequest\x1a?.vrooli.react_component_library.v1.catalog.ListNextWorkResponse\x12\x80\x01\n" +

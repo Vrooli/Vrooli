@@ -6,16 +6,18 @@ const baseProps = {
   onInput: vi.fn(() => ({ status: "sent" as const, seq: 1 })),
   onFocusTerminal: vi.fn(),
   activeSessionId: "sess-1",
-  voiceSupported: true,
-  voicePreparing: false,
-  voiceRecording: false,
-  voiceTranscribing: false,
-  voiceError: null,
-  voiceLevel: 0,
-  voicePartialTranscript: "",
-  voiceBackend: "browser",
-  onVoiceStart: vi.fn(),
-  onVoiceStop: vi.fn(),
+  voice: {
+    supported: true,
+    preparing: false,
+    recording: false,
+    transcribing: false,
+    error: null,
+    level: 0,
+    partialTranscript: "",
+    backend: "browser",
+    onStart: vi.fn(),
+    onStop: vi.fn(),
+  },
   onVoiceCancel: vi.fn(),
   onUploadImage: vi.fn(),
   isTtsSpeaking: false,
@@ -89,7 +91,7 @@ describe("MobileToolbar viewMode", () => {
     fireEvent.change(input, { target: { value: "hello" } });
     fireEvent.click(screen.getByTestId("mobile-command-submit"));
 
-    expect(baseProps.onInput).toHaveBeenCalledWith("hello", "toolbar-submit");
+    expect(baseProps.onInput).toHaveBeenCalledWith("hello", "bulk_text");
     expect(baseProps.onSwitchToTerminal).toHaveBeenCalledTimes(1);
   });
 

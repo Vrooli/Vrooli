@@ -39,7 +39,6 @@ func FromSession(s *session.Session) Response {
 		Backend:         s.Backend,
 		SurvivesRestart: s.Backend == backend.Persistent,
 		Policy:          s.GetPolicy(),
-		Busy:            s.HasChildProcess(),
 		Recovered:       s.Recovered(),
 	}
 }

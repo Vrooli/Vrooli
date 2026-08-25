@@ -1,4 +1,3 @@
-// DOC: docs/internal/SEAMS.md#tts-provider-seam
 //
 // Text-To-Speech Hook — Web-Console Adapter
 // ==========================================

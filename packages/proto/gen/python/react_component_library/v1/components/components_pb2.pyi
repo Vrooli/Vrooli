@@ -292,20 +292,22 @@ class IndexComponentsRequest(_message.Message):
     def __init__(self) -> None: ...
 
 class IndexComponentsResponse(_message.Message):
-    __slots__ = ("scanned", "indexed", "skipped", "deleted", "errors", "library_ids")
+    __slots__ = ("scanned", "indexed", "skipped", "deleted", "errors", "library_ids", "warnings")
     SCANNED_FIELD_NUMBER: _ClassVar[int]
     INDEXED_FIELD_NUMBER: _ClassVar[int]
     SKIPPED_FIELD_NUMBER: _ClassVar[int]
     DELETED_FIELD_NUMBER: _ClassVar[int]
     ERRORS_FIELD_NUMBER: _ClassVar[int]
     LIBRARY_IDS_FIELD_NUMBER: _ClassVar[int]
+    WARNINGS_FIELD_NUMBER: _ClassVar[int]
     scanned: int
     indexed: int
     skipped: int
     deleted: int
     errors: _containers.RepeatedScalarFieldContainer[str]
     library_ids: _containers.RepeatedScalarFieldContainer[str]
-    def __init__(self, scanned: _Optional[int] = ..., indexed: _Optional[int] = ..., skipped: _Optional[int] = ..., deleted: _Optional[int] = ..., errors: _Optional[_Iterable[str]] = ..., library_ids: _Optional[_Iterable[str]] = ...) -> None: ...
+    warnings: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, scanned: _Optional[int] = ..., indexed: _Optional[int] = ..., skipped: _Optional[int] = ..., deleted: _Optional[int] = ..., errors: _Optional[_Iterable[str]] = ..., library_ids: _Optional[_Iterable[str]] = ..., warnings: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class InitializeComponentRequest(_message.Message):
     __slots__ = ("library_id", "slug", "display_name", "description", "tags", "initial_version", "file_name", "initial_source")
@@ -706,10 +708,12 @@ class ListComponentStoriesRequest(_message.Message):
     def __init__(self, component_id: _Optional[str] = ..., version: _Optional[str] = ..., limit: _Optional[int] = ...) -> None: ...
 
 class ListComponentStoriesResponse(_message.Message):
-    __slots__ = ("stories",)
+    __slots__ = ("stories", "warnings")
     STORIES_FIELD_NUMBER: _ClassVar[int]
+    WARNINGS_FIELD_NUMBER: _ClassVar[int]
     stories: _containers.RepeatedCompositeFieldContainer[ComponentStory]
-    def __init__(self, stories: _Optional[_Iterable[_Union[ComponentStory, _Mapping]]] = ...) -> None: ...
+    warnings: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, stories: _Optional[_Iterable[_Union[ComponentStory, _Mapping]]] = ..., warnings: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class ListPreviewFramesRequest(_message.Message):
     __slots__ = ("component_id", "version", "story_id")

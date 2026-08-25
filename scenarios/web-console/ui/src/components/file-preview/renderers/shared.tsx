@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 
 import { strings } from "../../../consts/strings";
 import { cn } from "../../../lib/classnames";
+import { writeText } from "../../../lib/clipboard";
 import { formatBytes } from "../format";
 import type { PreviewModel } from "../types";
 
@@ -16,7 +17,7 @@ export function PreviewActions({ model, className }: { model: PreviewModel; clas
 
   const copyPath = () => {
     if (!model.resolvedPath) return;
-    void navigator.clipboard.writeText(model.resolvedPath);
+    void writeText(model.resolvedPath);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };

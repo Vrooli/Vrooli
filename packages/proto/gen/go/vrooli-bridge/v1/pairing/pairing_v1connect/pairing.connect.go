@@ -48,6 +48,9 @@ const (
 	// PairingServiceListPairingRequestsProcedure is the fully-qualified name of the PairingService's
 	// ListPairingRequests RPC.
 	PairingServiceListPairingRequestsProcedure = "/vrooli.vrooli_bridge.v1.pairing.PairingService/ListPairingRequests"
+	// PairingServiceRegisterEncryptionKeyProcedure is the fully-qualified name of the PairingService's
+	// RegisterEncryptionKey RPC.
+	PairingServiceRegisterEncryptionKeyProcedure = "/vrooli.vrooli_bridge.v1.pairing.PairingService/RegisterEncryptionKey"
 )
 
 // PairingServiceClient is a client for the vrooli.vrooli_bridge.v1.pairing.PairingService service.
@@ -75,6 +78,10 @@ type PairingServiceClient interface {
 	// ListPairingRequests returns the pending join requests awaiting owner
 	// approval. Owner-gated (console surface).
 	ListPairingRequests(context.Context, *connect.Request[pairing.ListPairingRequestsRequest]) (*connect.Response[pairing.ListPairingRequestsResponse], error)
+	// RegisterEncryptionKey adds the node's independently generated X25519
+	// public key. The request is node-authenticated with the existing Ed25519
+	// header proof; the private key never crosses this API.
+	RegisterEncryptionKey(context.Context, *connect.Request[pairing.RegisterEncryptionKeyRequest]) (*connect.Response[pairing.RegisterEncryptionKeyResponse], error)
 }
 
 // NewPairingServiceClient constructs a client for the
@@ -119,16 +126,23 @@ func NewPairingServiceClient(httpClient connect.HTTPClient, baseURL string, opts
 			connect.WithSchema(pairingServiceMethods.ByName("ListPairingRequests")),
 			connect.WithClientOptions(opts...),
 		),
+		registerEncryptionKey: connect.NewClient[pairing.RegisterEncryptionKeyRequest, pairing.RegisterEncryptionKeyResponse](
+			httpClient,
+			baseURL+PairingServiceRegisterEncryptionKeyProcedure,
+			connect.WithSchema(pairingServiceMethods.ByName("RegisterEncryptionKey")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // pairingServiceClient implements PairingServiceClient.
 type pairingServiceClient struct {
-	issuePairingCode    *connect.Client[pairing.IssuePairingCodeRequest, pairing.IssuePairingCodeResponse]
-	redeemPairingCode   *connect.Client[pairing.RedeemPairingCodeRequest, pairing.RedeemPairingCodeResponse]
-	requestPairing      *connect.Client[pairing.RequestPairingRequest, pairing.RequestPairingResponse]
-	approvePairing      *connect.Client[pairing.ApprovePairingRequest, pairing.ApprovePairingResponse]
-	listPairingRequests *connect.Client[pairing.ListPairingRequestsRequest, pairing.ListPairingRequestsResponse]
+	issuePairingCode      *connect.Client[pairing.IssuePairingCodeRequest, pairing.IssuePairingCodeResponse]
+	redeemPairingCode     *connect.Client[pairing.RedeemPairingCodeRequest, pairing.RedeemPairingCodeResponse]
+	requestPairing        *connect.Client[pairing.RequestPairingRequest, pairing.RequestPairingResponse]
+	approvePairing        *connect.Client[pairing.ApprovePairingRequest, pairing.ApprovePairingResponse]
+	listPairingRequests   *connect.Client[pairing.ListPairingRequestsRequest, pairing.ListPairingRequestsResponse]
+	registerEncryptionKey *connect.Client[pairing.RegisterEncryptionKeyRequest, pairing.RegisterEncryptionKeyResponse]
 }
 
 // IssuePairingCode calls vrooli.vrooli_bridge.v1.pairing.PairingService.IssuePairingCode.
@@ -154,6 +168,11 @@ func (c *pairingServiceClient) ApprovePairing(ctx context.Context, req *connect.
 // ListPairingRequests calls vrooli.vrooli_bridge.v1.pairing.PairingService.ListPairingRequests.
 func (c *pairingServiceClient) ListPairingRequests(ctx context.Context, req *connect.Request[pairing.ListPairingRequestsRequest]) (*connect.Response[pairing.ListPairingRequestsResponse], error) {
 	return c.listPairingRequests.CallUnary(ctx, req)
+}
+
+// RegisterEncryptionKey calls vrooli.vrooli_bridge.v1.pairing.PairingService.RegisterEncryptionKey.
+func (c *pairingServiceClient) RegisterEncryptionKey(ctx context.Context, req *connect.Request[pairing.RegisterEncryptionKeyRequest]) (*connect.Response[pairing.RegisterEncryptionKeyResponse], error) {
+	return c.registerEncryptionKey.CallUnary(ctx, req)
 }
 
 // PairingServiceHandler is an implementation of the vrooli.vrooli_bridge.v1.pairing.PairingService
@@ -182,6 +201,10 @@ type PairingServiceHandler interface {
 	// ListPairingRequests returns the pending join requests awaiting owner
 	// approval. Owner-gated (console surface).
 	ListPairingRequests(context.Context, *connect.Request[pairing.ListPairingRequestsRequest]) (*connect.Response[pairing.ListPairingRequestsResponse], error)
+	// RegisterEncryptionKey adds the node's independently generated X25519
+	// public key. The request is node-authenticated with the existing Ed25519
+	// header proof; the private key never crosses this API.
+	RegisterEncryptionKey(context.Context, *connect.Request[pairing.RegisterEncryptionKeyRequest]) (*connect.Response[pairing.RegisterEncryptionKeyResponse], error)
 }
 
 // NewPairingServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -221,6 +244,12 @@ func NewPairingServiceHandler(svc PairingServiceHandler, opts ...connect.Handler
 		connect.WithSchema(pairingServiceMethods.ByName("ListPairingRequests")),
 		connect.WithHandlerOptions(opts...),
 	)
+	pairingServiceRegisterEncryptionKeyHandler := connect.NewUnaryHandler(
+		PairingServiceRegisterEncryptionKeyProcedure,
+		svc.RegisterEncryptionKey,
+		connect.WithSchema(pairingServiceMethods.ByName("RegisterEncryptionKey")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/vrooli.vrooli_bridge.v1.pairing.PairingService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case PairingServiceIssuePairingCodeProcedure:
@@ -233,6 +262,8 @@ func NewPairingServiceHandler(svc PairingServiceHandler, opts ...connect.Handler
 			pairingServiceApprovePairingHandler.ServeHTTP(w, r)
 		case PairingServiceListPairingRequestsProcedure:
 			pairingServiceListPairingRequestsHandler.ServeHTTP(w, r)
+		case PairingServiceRegisterEncryptionKeyProcedure:
+			pairingServiceRegisterEncryptionKeyHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -260,4 +291,8 @@ func (UnimplementedPairingServiceHandler) ApprovePairing(context.Context, *conne
 
 func (UnimplementedPairingServiceHandler) ListPairingRequests(context.Context, *connect.Request[pairing.ListPairingRequestsRequest]) (*connect.Response[pairing.ListPairingRequestsResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.vrooli_bridge.v1.pairing.PairingService.ListPairingRequests is not implemented"))
+}
+
+func (UnimplementedPairingServiceHandler) RegisterEncryptionKey(context.Context, *connect.Request[pairing.RegisterEncryptionKeyRequest]) (*connect.Response[pairing.RegisterEncryptionKeyResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.vrooli_bridge.v1.pairing.PairingService.RegisterEncryptionKey is not implemented"))
 }

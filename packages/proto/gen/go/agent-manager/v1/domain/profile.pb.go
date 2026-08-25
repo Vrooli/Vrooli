@@ -213,9 +213,13 @@ type AgentProfile struct {
 	// When the profile was last updated.
 	UpdatedAt *timestamppb.Timestamp `protobuf:"bytes,17,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
 	// Canonical reasoning effort: low, medium, high, xhigh, or max.
-	Effort        string `protobuf:"bytes,35,opt,name=effort,proto3" json:"effort,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Effort string `protobuf:"bytes,35,opt,name=effort,proto3" json:"effort,omitempty"`
+	// Prompt-manager skill identifiers projected into this profile's private
+	// per-run runtime scope. Paths are never accepted here.
+	SkillPack         []string `protobuf:"bytes,36,rep,name=skill_pack,json=skillPack,proto3" json:"skill_pack,omitempty"`
+	SkillExperimentId string   `protobuf:"bytes,37,opt,name=skill_experiment_id,json=skillExperimentId,proto3" json:"skill_experiment_id,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
 }
 
 func (x *AgentProfile) Reset() {
@@ -433,6 +437,20 @@ func (x *AgentProfile) GetUpdatedAt() *timestamppb.Timestamp {
 func (x *AgentProfile) GetEffort() string {
 	if x != nil {
 		return x.Effort
+	}
+	return ""
+}
+
+func (x *AgentProfile) GetSkillPack() []string {
+	if x != nil {
+		return x.SkillPack
+	}
+	return nil
+}
+
+func (x *AgentProfile) GetSkillExperimentId() string {
+	if x != nil {
+		return x.SkillExperimentId
 	}
 	return ""
 }
@@ -1557,7 +1575,7 @@ var File_agent_manager_v1_domain_profile_proto protoreflect.FileDescriptor
 
 const file_agent_manager_v1_domain_profile_proto_rawDesc = "" +
 	"\n" +
-	"%agent-manager/v1/domain/profile.proto\x12\x10agent_manager.v1\x1a#agent-manager/v1/domain/types.proto\x1a\x1bbuf/validate/validate.proto\x1a\x1egoogle/protobuf/duration.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xd2\v\n" +
+	"%agent-manager/v1/domain/profile.proto\x12\x10agent_manager.v1\x1a#agent-manager/v1/domain/types.proto\x1a\x1bbuf/validate/validate.proto\x1a\x1egoogle/protobuf/duration.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xa1\f\n" +
 	"\fAgentProfile\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1e\n" +
 	"\x04name\x18\x02 \x01(\tB\n" +
@@ -1597,7 +1615,10 @@ const file_agent_manager_v1_domain_profile_proto_rawDesc = "" +
 	"created_at\x18\x10 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x129\n" +
 	"\n" +
 	"updated_at\x18\x11 \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\x12\x16\n" +
-	"\x06effort\x18# \x01(\tR\x06effort\x1a^\n" +
+	"\x06effort\x18# \x01(\tR\x06effort\x12\x1d\n" +
+	"\n" +
+	"skill_pack\x18$ \x03(\tR\tskillPack\x12.\n" +
+	"\x13skill_experiment_id\x18% \x01(\tR\x11skillExperimentId\x1a^\n" +
 	"\x0fExtraFlagsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x125\n" +
 	"\x05value\x18\x02 \x01(\v2\x1f.agent_manager.v1.ExtraFlagListR\x05value:\x028\x01J\x04\b\x04\x10\x05J\x04\b\x05\x10\x06J\x04\b\v\x10\fJ\x04\b\f\x10\rJ\x04\b\x13\x10\x14J\x04\b\x16\x10\x17J\x04\b \x10!R\vrunner_typeR\x05modelR\n" +

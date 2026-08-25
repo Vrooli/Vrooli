@@ -10,7 +10,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file vrooli-bridge/v1/dispatch/dispatch.proto.
  */
 export const file_vrooli_bridge_v1_dispatch_dispatch: GenFile = /*@__PURE__*/
-  fileDesc("Cih2cm9vbGktYnJpZGdlL3YxL2Rpc3BhdGNoL2Rpc3BhdGNoLnByb3RvEiB2cm9vbGkudnJvb2xpX2JyaWRnZS52MS5kaXNwYXRjaCKUAQoSRGlzcGF0Y2hKb2JSZXF1ZXN0Eg8KB25vZGVfaWQYASABKAkSEAoIc2NlbmFyaW8YAiABKAkSDAoEdmVyYhgDIAEoCRIMCgRhcmdzGAQgAygJEhcKD3RpbWVvdXRfc2Vjb25kcxgFIAEoAxIRCglkZXZpY2VfaWQYBiABKAkSEwoLbGVhc2VfdG9rZW4YByABKAkihQEKE0Rpc3BhdGNoSm9iUmVzcG9uc2USDgoGcnVuX2lkGAEgASgJEg8KB2RyeV9ydW4YAiABKAgSDwoHbm9kZV9pZBgDIAEoCRIQCghzY2VuYXJpbxgEIAEoCRIMCgR2ZXJiGAUgASgJEgwKBGFyZ3MYBiADKAkSDgoGcXVldWVkGAcgASgIMo0BCg9EaXNwYXRjaFNlcnZpY2USegoLRGlzcGF0Y2hKb2ISNC52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5kaXNwYXRjaC5EaXNwYXRjaEpvYlJlcXVlc3QaNS52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5kaXNwYXRjaC5EaXNwYXRjaEpvYlJlc3BvbnNlQlZaVGdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vdnJvb2xpLWJyaWRnZS92MS9kaXNwYXRjaDtkaXNwYXRjaF92MWIGcHJvdG8z");
+  fileDesc("Cih2cm9vbGktYnJpZGdlL3YxL2Rpc3BhdGNoL2Rpc3BhdGNoLnByb3RvEiB2cm9vbGkudnJvb2xpX2JyaWRnZS52MS5kaXNwYXRjaCLqAQoSRGlzcGF0Y2hKb2JSZXF1ZXN0Eg8KB25vZGVfaWQYASABKAkSEAoIc2NlbmFyaW8YAiABKAkSDAoEdmVyYhgDIAEoCRIMCgRhcmdzGAQgAygJEhcKD3RpbWVvdXRfc2Vjb25kcxgFIAEoAxIRCglkZXZpY2VfaWQYBiABKAkSEwoLbGVhc2VfdG9rZW4YByABKAkSVAoVY3JlZGVudGlhbF9pbmplY3Rpb25zGAggAygLMjUudnJvb2xpLnZyb29saV9icmlkZ2UudjEuZGlzcGF0Y2guQ3JlZGVudGlhbEluamVjdGlvbiJKChNDcmVkZW50aWFsSW5qZWN0aW9uEhIKCmxvZ2ljYWxfaWQYASABKAkSDQoFZmllbGQYAiABKAkSEAoIZW52X25hbWUYAyABKAkihQEKE0Rpc3BhdGNoSm9iUmVzcG9uc2USDgoGcnVuX2lkGAEgASgJEg8KB2RyeV9ydW4YAiABKAgSDwoHbm9kZV9pZBgDIAEoCRIQCghzY2VuYXJpbxgEIAEoCRIMCgR2ZXJiGAUgASgJEgwKBGFyZ3MYBiADKAkSDgoGcXVldWVkGAcgASgIMo0BCg9EaXNwYXRjaFNlcnZpY2USegoLRGlzcGF0Y2hKb2ISNC52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5kaXNwYXRjaC5EaXNwYXRjaEpvYlJlcXVlc3QaNS52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5kaXNwYXRjaC5EaXNwYXRjaEpvYlJlc3BvbnNlQlZaVGdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vdnJvb2xpLWJyaWRnZS92MS9kaXNwYXRjaDtkaXNwYXRjaF92MWIGcHJvdG8z");
 
 /**
  * @generated from message vrooli.vrooli_bridge.v1.dispatch.DispatchJobRequest
@@ -63,6 +63,14 @@ export type DispatchJobRequest = Message<"vrooli.vrooli_bridge.v1.dispatch.Dispa
    * @generated from field: string lease_token = 7;
    */
   leaseToken: string;
+
+  /**
+   * Metadata-only mappings for ephemeral credentials. The node validates its
+   * local grant and injects the value into this job's child environment.
+   *
+   * @generated from field: repeated vrooli.vrooli_bridge.v1.dispatch.CredentialInjection credential_injections = 8;
+   */
+  credentialInjections: CredentialInjection[];
 };
 
 /**
@@ -71,6 +79,33 @@ export type DispatchJobRequest = Message<"vrooli.vrooli_bridge.v1.dispatch.Dispa
  */
 export const DispatchJobRequestSchema: GenMessage<DispatchJobRequest> = /*@__PURE__*/
   messageDesc(file_vrooli_bridge_v1_dispatch_dispatch, 0);
+
+/**
+ * @generated from message vrooli.vrooli_bridge.v1.dispatch.CredentialInjection
+ */
+export type CredentialInjection = Message<"vrooli.vrooli_bridge.v1.dispatch.CredentialInjection"> & {
+  /**
+   * @generated from field: string logical_id = 1;
+   */
+  logicalId: string;
+
+  /**
+   * @generated from field: string field = 2;
+   */
+  field: string;
+
+  /**
+   * @generated from field: string env_name = 3;
+   */
+  envName: string;
+};
+
+/**
+ * Describes the message vrooli.vrooli_bridge.v1.dispatch.CredentialInjection.
+ * Use `create(CredentialInjectionSchema)` to create a new message.
+ */
+export const CredentialInjectionSchema: GenMessage<CredentialInjection> = /*@__PURE__*/
+  messageDesc(file_vrooli_bridge_v1_dispatch_dispatch, 1);
 
 /**
  * @generated from message vrooli.vrooli_bridge.v1.dispatch.DispatchJobResponse
@@ -129,7 +164,7 @@ export type DispatchJobResponse = Message<"vrooli.vrooli_bridge.v1.dispatch.Disp
  * Use `create(DispatchJobResponseSchema)` to create a new message.
  */
 export const DispatchJobResponseSchema: GenMessage<DispatchJobResponse> = /*@__PURE__*/
-  messageDesc(file_vrooli_bridge_v1_dispatch_dispatch, 1);
+  messageDesc(file_vrooli_bridge_v1_dispatch_dispatch, 2);
 
 /**
  * @generated from service vrooli.vrooli_bridge.v1.dispatch.DispatchService

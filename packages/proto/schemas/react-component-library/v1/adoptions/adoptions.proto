@@ -138,6 +138,11 @@ message Adoption {
   string source_sha256 = 12;
   string applied_at = 13;
   repeated AdoptionFile files = 14;
+  // Explicit fork classification. A declared fork is never overwritten by
+  // reconverge; the reason and extension points make the divergence reviewable.
+  string fork_status = 15;
+  string fork_reason = 16;
+  repeated string extension_points = 17;
 }
 
 message AdoptionFile {
@@ -207,6 +212,8 @@ message ApplyAdoptionRequest {
   bool replace_existing = 7;
   // Optional catalog asset library ids to include from `suggests` edges.
   repeated string include_suggestions = 8;
+  string fork_reason = 9;
+  repeated string extension_points = 10;
 }
 
 message PreflightAdoptionRequest {
@@ -230,6 +237,10 @@ message PreflightAdoptionResponse {
   string maturity_rung = 12;
   string maturity_floor = 13;
   repeated string warnings = 14;
+  // Derived i18n coverage is explicitly reported once its catalog gate is enabled.
+  string i18n_verdict = 15;
+  // Derived selector coverage is explicitly reported once its catalog gate is enabled.
+  string selector_verdict = 16;
 }
 
 message SyncScenarioTokensRequest {
@@ -280,6 +291,8 @@ message BatchApplyItem {
   bool override_validation = 6;
   bool replace_existing = 7;
   repeated string include_suggestions = 8;
+  string fork_reason = 9;
+  repeated string extension_points = 10;
 }
 
 message BatchApplyAdoptionsRequest { repeated BatchApplyItem items = 1; }
@@ -536,6 +549,7 @@ message ReconvergeOutcome {
   // Named classification for modified copies: translation_only,
   // local_addition, local_fork, or token_blocked.
   string disposition = 12;
+  string fork_status = 13;
 }
 
 message ReconvergeAdoptionsResponse {

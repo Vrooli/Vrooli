@@ -98,7 +98,7 @@ class ScenarioOption(_message.Message):
     def __init__(self, name: _Optional[str] = ..., display_name: _Optional[str] = ...) -> None: ...
 
 class Adoption(_message.Message):
-    __slots__ = ("id", "component_id", "library_id", "scenario", "adopted_path", "adopted_version", "library_version_status", "local_status", "status_detail", "created_at", "refreshed_at", "source_sha256", "applied_at", "files")
+    __slots__ = ("id", "component_id", "library_id", "scenario", "adopted_path", "adopted_version", "library_version_status", "local_status", "status_detail", "created_at", "refreshed_at", "source_sha256", "applied_at", "files", "fork_status", "fork_reason", "extension_points")
     ID_FIELD_NUMBER: _ClassVar[int]
     COMPONENT_ID_FIELD_NUMBER: _ClassVar[int]
     LIBRARY_ID_FIELD_NUMBER: _ClassVar[int]
@@ -113,6 +113,9 @@ class Adoption(_message.Message):
     SOURCE_SHA256_FIELD_NUMBER: _ClassVar[int]
     APPLIED_AT_FIELD_NUMBER: _ClassVar[int]
     FILES_FIELD_NUMBER: _ClassVar[int]
+    FORK_STATUS_FIELD_NUMBER: _ClassVar[int]
+    FORK_REASON_FIELD_NUMBER: _ClassVar[int]
+    EXTENSION_POINTS_FIELD_NUMBER: _ClassVar[int]
     id: str
     component_id: str
     library_id: str
@@ -127,7 +130,10 @@ class Adoption(_message.Message):
     source_sha256: str
     applied_at: str
     files: _containers.RepeatedCompositeFieldContainer[AdoptionFile]
-    def __init__(self, id: _Optional[str] = ..., component_id: _Optional[str] = ..., library_id: _Optional[str] = ..., scenario: _Optional[str] = ..., adopted_path: _Optional[str] = ..., adopted_version: _Optional[str] = ..., library_version_status: _Optional[_Union[LibraryVersionStatus, str]] = ..., local_status: _Optional[_Union[LocalStatus, str]] = ..., status_detail: _Optional[str] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., refreshed_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., source_sha256: _Optional[str] = ..., applied_at: _Optional[str] = ..., files: _Optional[_Iterable[_Union[AdoptionFile, _Mapping]]] = ...) -> None: ...
+    fork_status: str
+    fork_reason: str
+    extension_points: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, id: _Optional[str] = ..., component_id: _Optional[str] = ..., library_id: _Optional[str] = ..., scenario: _Optional[str] = ..., adopted_path: _Optional[str] = ..., adopted_version: _Optional[str] = ..., library_version_status: _Optional[_Union[LibraryVersionStatus, str]] = ..., local_status: _Optional[_Union[LocalStatus, str]] = ..., status_detail: _Optional[str] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., refreshed_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., source_sha256: _Optional[str] = ..., applied_at: _Optional[str] = ..., files: _Optional[_Iterable[_Union[AdoptionFile, _Mapping]]] = ..., fork_status: _Optional[str] = ..., fork_reason: _Optional[str] = ..., extension_points: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class AdoptionFile(_message.Message):
     __slots__ = ("library_path", "adopted_path", "source_sha256", "adopted_snapshot_sha256", "source_asset_id", "source_library_id", "source_version")
@@ -192,7 +198,7 @@ class ListEffectiveAdoptionsResponse(_message.Message):
     def __init__(self, adoptions: _Optional[_Iterable[_Union[EffectiveAdoption, _Mapping]]] = ...) -> None: ...
 
 class ApplyAdoptionRequest(_message.Message):
-    __slots__ = ("component_id", "scenario", "adopted_path", "version", "confirm_overwrite", "override_validation", "replace_existing", "include_suggestions")
+    __slots__ = ("component_id", "scenario", "adopted_path", "version", "confirm_overwrite", "override_validation", "replace_existing", "include_suggestions", "fork_reason", "extension_points")
     COMPONENT_ID_FIELD_NUMBER: _ClassVar[int]
     SCENARIO_FIELD_NUMBER: _ClassVar[int]
     ADOPTED_PATH_FIELD_NUMBER: _ClassVar[int]
@@ -201,6 +207,8 @@ class ApplyAdoptionRequest(_message.Message):
     OVERRIDE_VALIDATION_FIELD_NUMBER: _ClassVar[int]
     REPLACE_EXISTING_FIELD_NUMBER: _ClassVar[int]
     INCLUDE_SUGGESTIONS_FIELD_NUMBER: _ClassVar[int]
+    FORK_REASON_FIELD_NUMBER: _ClassVar[int]
+    EXTENSION_POINTS_FIELD_NUMBER: _ClassVar[int]
     component_id: str
     scenario: str
     adopted_path: str
@@ -209,7 +217,9 @@ class ApplyAdoptionRequest(_message.Message):
     override_validation: bool
     replace_existing: bool
     include_suggestions: _containers.RepeatedScalarFieldContainer[str]
-    def __init__(self, component_id: _Optional[str] = ..., scenario: _Optional[str] = ..., adopted_path: _Optional[str] = ..., version: _Optional[str] = ..., confirm_overwrite: _Optional[bool] = ..., override_validation: _Optional[bool] = ..., replace_existing: _Optional[bool] = ..., include_suggestions: _Optional[_Iterable[str]] = ...) -> None: ...
+    fork_reason: str
+    extension_points: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, component_id: _Optional[str] = ..., scenario: _Optional[str] = ..., adopted_path: _Optional[str] = ..., version: _Optional[str] = ..., confirm_overwrite: _Optional[bool] = ..., override_validation: _Optional[bool] = ..., replace_existing: _Optional[bool] = ..., include_suggestions: _Optional[_Iterable[str]] = ..., fork_reason: _Optional[str] = ..., extension_points: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class PreflightAdoptionRequest(_message.Message):
     __slots__ = ("component_id", "scenario", "version")
@@ -222,7 +232,7 @@ class PreflightAdoptionRequest(_message.Message):
     def __init__(self, component_id: _Optional[str] = ..., scenario: _Optional[str] = ..., version: _Optional[str] = ...) -> None: ...
 
 class PreflightAdoptionResponse(_message.Message):
-    __slots__ = ("component_id", "scenario", "version", "required_tokens", "required_token_patterns", "defined_tokens", "unsatisfied_tokens", "dependency_verdict", "style_fit", "blocking", "version_status", "maturity_rung", "maturity_floor", "warnings")
+    __slots__ = ("component_id", "scenario", "version", "required_tokens", "required_token_patterns", "defined_tokens", "unsatisfied_tokens", "dependency_verdict", "style_fit", "blocking", "version_status", "maturity_rung", "maturity_floor", "warnings", "i18n_verdict", "selector_verdict")
     COMPONENT_ID_FIELD_NUMBER: _ClassVar[int]
     SCENARIO_FIELD_NUMBER: _ClassVar[int]
     VERSION_FIELD_NUMBER: _ClassVar[int]
@@ -237,6 +247,8 @@ class PreflightAdoptionResponse(_message.Message):
     MATURITY_RUNG_FIELD_NUMBER: _ClassVar[int]
     MATURITY_FLOOR_FIELD_NUMBER: _ClassVar[int]
     WARNINGS_FIELD_NUMBER: _ClassVar[int]
+    I18N_VERDICT_FIELD_NUMBER: _ClassVar[int]
+    SELECTOR_VERDICT_FIELD_NUMBER: _ClassVar[int]
     component_id: str
     scenario: str
     version: str
@@ -251,7 +263,9 @@ class PreflightAdoptionResponse(_message.Message):
     maturity_rung: str
     maturity_floor: str
     warnings: _containers.RepeatedScalarFieldContainer[str]
-    def __init__(self, component_id: _Optional[str] = ..., scenario: _Optional[str] = ..., version: _Optional[str] = ..., required_tokens: _Optional[_Iterable[str]] = ..., required_token_patterns: _Optional[_Iterable[str]] = ..., defined_tokens: _Optional[_Iterable[str]] = ..., unsatisfied_tokens: _Optional[_Iterable[str]] = ..., dependency_verdict: _Optional[str] = ..., style_fit: _Optional[str] = ..., blocking: _Optional[bool] = ..., version_status: _Optional[str] = ..., maturity_rung: _Optional[str] = ..., maturity_floor: _Optional[str] = ..., warnings: _Optional[_Iterable[str]] = ...) -> None: ...
+    i18n_verdict: str
+    selector_verdict: str
+    def __init__(self, component_id: _Optional[str] = ..., scenario: _Optional[str] = ..., version: _Optional[str] = ..., required_tokens: _Optional[_Iterable[str]] = ..., required_token_patterns: _Optional[_Iterable[str]] = ..., defined_tokens: _Optional[_Iterable[str]] = ..., unsatisfied_tokens: _Optional[_Iterable[str]] = ..., dependency_verdict: _Optional[str] = ..., style_fit: _Optional[str] = ..., blocking: _Optional[bool] = ..., version_status: _Optional[str] = ..., maturity_rung: _Optional[str] = ..., maturity_floor: _Optional[str] = ..., warnings: _Optional[_Iterable[str]] = ..., i18n_verdict: _Optional[str] = ..., selector_verdict: _Optional[str] = ...) -> None: ...
 
 class SyncScenarioTokensRequest(_message.Message):
     __slots__ = ("scenario", "dry_run")
@@ -314,7 +328,7 @@ class ApplyAdoptionResponse(_message.Message):
     def __init__(self, adoption: _Optional[_Union[Adoption, _Mapping]] = ..., written_path: _Optional[str] = ..., import_sites: _Optional[_Iterable[str]] = ..., style_fit_affinity: _Optional[str] = ..., style_fit_detail: _Optional[str] = ..., copied_assets: _Optional[_Iterable[str]] = ..., satisfied_ports: _Optional[_Iterable[str]] = ..., available_suggestions: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class BatchApplyItem(_message.Message):
-    __slots__ = ("component_id", "scenario", "adopted_path", "version", "confirm_overwrite", "override_validation", "replace_existing", "include_suggestions")
+    __slots__ = ("component_id", "scenario", "adopted_path", "version", "confirm_overwrite", "override_validation", "replace_existing", "include_suggestions", "fork_reason", "extension_points")
     COMPONENT_ID_FIELD_NUMBER: _ClassVar[int]
     SCENARIO_FIELD_NUMBER: _ClassVar[int]
     ADOPTED_PATH_FIELD_NUMBER: _ClassVar[int]
@@ -323,6 +337,8 @@ class BatchApplyItem(_message.Message):
     OVERRIDE_VALIDATION_FIELD_NUMBER: _ClassVar[int]
     REPLACE_EXISTING_FIELD_NUMBER: _ClassVar[int]
     INCLUDE_SUGGESTIONS_FIELD_NUMBER: _ClassVar[int]
+    FORK_REASON_FIELD_NUMBER: _ClassVar[int]
+    EXTENSION_POINTS_FIELD_NUMBER: _ClassVar[int]
     component_id: str
     scenario: str
     adopted_path: str
@@ -331,7 +347,9 @@ class BatchApplyItem(_message.Message):
     override_validation: bool
     replace_existing: bool
     include_suggestions: _containers.RepeatedScalarFieldContainer[str]
-    def __init__(self, component_id: _Optional[str] = ..., scenario: _Optional[str] = ..., adopted_path: _Optional[str] = ..., version: _Optional[str] = ..., confirm_overwrite: _Optional[bool] = ..., override_validation: _Optional[bool] = ..., replace_existing: _Optional[bool] = ..., include_suggestions: _Optional[_Iterable[str]] = ...) -> None: ...
+    fork_reason: str
+    extension_points: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, component_id: _Optional[str] = ..., scenario: _Optional[str] = ..., adopted_path: _Optional[str] = ..., version: _Optional[str] = ..., confirm_overwrite: _Optional[bool] = ..., override_validation: _Optional[bool] = ..., replace_existing: _Optional[bool] = ..., include_suggestions: _Optional[_Iterable[str]] = ..., fork_reason: _Optional[str] = ..., extension_points: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class BatchApplyAdoptionsRequest(_message.Message):
     __slots__ = ("items",)
@@ -576,7 +594,7 @@ class ReconvergeFileOutcome(_message.Message):
     def __init__(self, library_path: _Optional[str] = ..., adopted_path: _Optional[str] = ..., local_status: _Optional[_Union[LocalStatus, str]] = ...) -> None: ...
 
 class ReconvergeOutcome(_message.Message):
-    __slots__ = ("adoption_id", "scenario", "component_id", "library_id", "adopted_version", "target_version", "library_version_status", "local_status", "action", "detail", "files", "disposition")
+    __slots__ = ("adoption_id", "scenario", "component_id", "library_id", "adopted_version", "target_version", "library_version_status", "local_status", "action", "detail", "files", "disposition", "fork_status")
     ADOPTION_ID_FIELD_NUMBER: _ClassVar[int]
     SCENARIO_FIELD_NUMBER: _ClassVar[int]
     COMPONENT_ID_FIELD_NUMBER: _ClassVar[int]
@@ -589,6 +607,7 @@ class ReconvergeOutcome(_message.Message):
     DETAIL_FIELD_NUMBER: _ClassVar[int]
     FILES_FIELD_NUMBER: _ClassVar[int]
     DISPOSITION_FIELD_NUMBER: _ClassVar[int]
+    FORK_STATUS_FIELD_NUMBER: _ClassVar[int]
     adoption_id: str
     scenario: str
     component_id: str
@@ -601,7 +620,8 @@ class ReconvergeOutcome(_message.Message):
     detail: str
     files: _containers.RepeatedCompositeFieldContainer[ReconvergeFileOutcome]
     disposition: str
-    def __init__(self, adoption_id: _Optional[str] = ..., scenario: _Optional[str] = ..., component_id: _Optional[str] = ..., library_id: _Optional[str] = ..., adopted_version: _Optional[str] = ..., target_version: _Optional[str] = ..., library_version_status: _Optional[_Union[LibraryVersionStatus, str]] = ..., local_status: _Optional[_Union[LocalStatus, str]] = ..., action: _Optional[_Union[ReconvergeAction, str]] = ..., detail: _Optional[str] = ..., files: _Optional[_Iterable[_Union[ReconvergeFileOutcome, _Mapping]]] = ..., disposition: _Optional[str] = ...) -> None: ...
+    fork_status: str
+    def __init__(self, adoption_id: _Optional[str] = ..., scenario: _Optional[str] = ..., component_id: _Optional[str] = ..., library_id: _Optional[str] = ..., adopted_version: _Optional[str] = ..., target_version: _Optional[str] = ..., library_version_status: _Optional[_Union[LibraryVersionStatus, str]] = ..., local_status: _Optional[_Union[LocalStatus, str]] = ..., action: _Optional[_Union[ReconvergeAction, str]] = ..., detail: _Optional[str] = ..., files: _Optional[_Iterable[_Union[ReconvergeFileOutcome, _Mapping]]] = ..., disposition: _Optional[str] = ..., fork_status: _Optional[str] = ...) -> None: ...
 
 class ReconvergeAdoptionsResponse(_message.Message):
     __slots__ = ("scanned", "behind", "reapplied", "flagged", "skipped", "errored", "outcomes", "translation_only", "local_addition", "local_fork", "token_blocked")

@@ -73,6 +73,34 @@ func TestConnectHandlerRunAction(t *testing.T) {
 	}
 }
 
+func TestConnectHandlerGetAndLivenessProjectAllFields(t *testing.T) {
+	svc := &fakeService{}
+	// Override the zero snapshots through a small wrapper so both projection
+	// paths exercise the same transport mapping.
+	projected := &projectionService{fakeService: svc}
+	h := NewConnectHandler(Deps{Service: projected})
+	get, err := h.Get(context.Background(), connect.NewRequest(&capabilitiesv1.GetRequest{}))
+	if err != nil || len(get.Msg.Capabilities) != 1 || len(get.Msg.SessionBackends) != 1 || get.Msg.DefaultBackend != "standard" {
+		t.Fatalf("get: %#v %v", get, err)
+	}
+	if get.Msg.Capabilities[0].Id != "audio" || get.Msg.SessionBackends[0].Id != "tmux" {
+		t.Fatalf("projection: %#v", get.Msg)
+	}
+	live, err := h.Liveness(context.Background(), connect.NewRequest(&capabilitiesv1.LivenessRequest{}))
+	if err != nil || len(live.Msg.Capabilities) != 1 || live.Msg.Timestamp == "" {
+		t.Fatalf("liveness: %#v %v", live, err)
+	}
+}
+
+type projectionService struct{ *fakeService }
+
+func (p *projectionService) Resolve(context.Context) Snapshot {
+	return Snapshot{Timestamp: "now", DefaultBackend: "standard", Capabilities: []CapabilityState{{ID: "audio", Name: "Audio", Features: []string{"stt"}, Status: "available"}}, BackendOptions: []BackendOption{{ID: "tmux", DisplayName: "tmux", Available: true}}}
+}
+func (p *projectionService) Liveness(context.Context) Snapshot {
+	return Snapshot{Timestamp: "live", Capabilities: []CapabilityState{{ID: "audio", Status: "available"}}}
+}
+
 func TestConnectHandlerRunActionInvalidArgument(t *testing.T) {
 	h := NewConnectHandler(Deps{Service: &fakeService{actionErr: errors.New("unsupported action")}})
 

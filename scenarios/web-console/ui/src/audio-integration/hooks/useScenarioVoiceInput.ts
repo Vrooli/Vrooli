@@ -1,4 +1,3 @@
-// DOC: docs/internal/SEAMS.md#voice-input-provider-seam
 //
 // Voice Input Hook — Web-Console Adapter
 // =======================================

@@ -1,4 +1,4 @@
-// DOC: docs/concepts/GLOSSARY.md#policy
+// DOC: docs/concepts/GLOSSARY.md#core-terms
 // DOC: docs/reference/configuration.md
 import type { PolicyMode } from "../api/sessions";
 

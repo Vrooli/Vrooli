@@ -1540,7 +1540,9 @@ type IndexComponentsResponse struct {
 	// Human-readable error strings, one per file that failed validation.
 	Errors []string `protobuf:"bytes,5,rep,name=errors,proto3" json:"errors,omitempty"`
 	// Library IDs successfully indexed in this pass, in walk order.
-	LibraryIds    []string `protobuf:"bytes,6,rep,name=library_ids,json=libraryIds,proto3" json:"library_ids,omitempty"`
+	LibraryIds []string `protobuf:"bytes,6,rep,name=library_ids,json=libraryIds,proto3" json:"library_ids,omitempty"`
+	// Non-blocking story-contract migration diagnostics.
+	Warnings      []string `protobuf:"bytes,7,rep,name=warnings,proto3" json:"warnings,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1613,6 +1615,13 @@ func (x *IndexComponentsResponse) GetErrors() []string {
 func (x *IndexComponentsResponse) GetLibraryIds() []string {
 	if x != nil {
 		return x.LibraryIds
+	}
+	return nil
+}
+
+func (x *IndexComponentsResponse) GetWarnings() []string {
+	if x != nil {
+		return x.Warnings
 	}
 	return nil
 }
@@ -3855,8 +3864,10 @@ func (x *ListComponentStoriesRequest) GetLimit() int32 {
 }
 
 type ListComponentStoriesResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Stories       []*ComponentStory      `protobuf:"bytes,1,rep,name=stories,proto3" json:"stories,omitempty"`
+	state   protoimpl.MessageState `protogen:"open.v1"`
+	Stories []*ComponentStory      `protobuf:"bytes,1,rep,name=stories,proto3" json:"stories,omitempty"`
+	// Non-blocking diagnostics for the returned story contracts.
+	Warnings      []string `protobuf:"bytes,2,rep,name=warnings,proto3" json:"warnings,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -3894,6 +3905,13 @@ func (*ListComponentStoriesResponse) Descriptor() ([]byte, []int) {
 func (x *ListComponentStoriesResponse) GetStories() []*ComponentStory {
 	if x != nil {
 		return x.Stories
+	}
+	return nil
+}
+
+func (x *ListComponentStoriesResponse) GetWarnings() []string {
+	if x != nil {
+		return x.Warnings
 	}
 	return nil
 }
@@ -4716,7 +4734,7 @@ const file_react_component_library_v1_components_components_proto_rawDesc = "" +
 	"\x0fviewport_height\x18\n" +
 	" \x01(\x05R\x0eviewportHeight\x12Y\n" +
 	"\vmeasurement\x18\v \x01(\v27.vrooli.experience_manager.v1.contract.ClaimMeasurementR\vmeasurement\"\x18\n" +
-	"\x16IndexComponentsRequest\"\xba\x01\n" +
+	"\x16IndexComponentsRequest\"\xd6\x01\n" +
 	"\x17IndexComponentsResponse\x12\x18\n" +
 	"\ascanned\x18\x01 \x01(\x05R\ascanned\x12\x18\n" +
 	"\aindexed\x18\x02 \x01(\x05R\aindexed\x12\x18\n" +
@@ -4724,7 +4742,8 @@ const file_react_component_library_v1_components_components_proto_rawDesc = "" +
 	"\adeleted\x18\x04 \x01(\x05R\adeleted\x12\x16\n" +
 	"\x06errors\x18\x05 \x03(\tR\x06errors\x12\x1f\n" +
 	"\vlibrary_ids\x18\x06 \x03(\tR\n" +
-	"libraryIds\"\x95\x02\n" +
+	"libraryIds\x12\x1a\n" +
+	"\bwarnings\x18\a \x03(\tR\bwarnings\"\x95\x02\n" +
 	"\x1aInitializeComponentRequest\x12\x1d\n" +
 	"\n" +
 	"library_id\x18\x01 \x01(\tR\tlibraryId\x12\x12\n" +
@@ -4913,9 +4932,10 @@ const file_react_component_library_v1_components_components_proto_rawDesc = "" +
 	"\x1bListComponentStoriesRequest\x12!\n" +
 	"\fcomponent_id\x18\x01 \x01(\tR\vcomponentId\x12\x18\n" +
 	"\aversion\x18\x02 \x01(\tR\aversion\x12\x14\n" +
-	"\x05limit\x18\x03 \x01(\x05R\x05limit\"v\n" +
+	"\x05limit\x18\x03 \x01(\x05R\x05limit\"\x92\x01\n" +
 	"\x1cListComponentStoriesResponse\x12V\n" +
-	"\astories\x18\x01 \x03(\v2<.vrooli.react_component_library.v1.components.ComponentStoryR\astories\"r\n" +
+	"\astories\x18\x01 \x03(\v2<.vrooli.react_component_library.v1.components.ComponentStoryR\astories\x12\x1a\n" +
+	"\bwarnings\x18\x02 \x03(\tR\bwarnings\"r\n" +
 	"\x18ListPreviewFramesRequest\x12!\n" +
 	"\fcomponent_id\x18\x01 \x01(\tR\vcomponentId\x12\x18\n" +
 	"\aversion\x18\x02 \x01(\tR\aversion\x12\x19\n" +

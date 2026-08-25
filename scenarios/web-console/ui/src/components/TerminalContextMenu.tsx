@@ -3,6 +3,7 @@ import { ClipboardPaste, Copy, Image, TextSelect, Trash2, Volume2 } from "lucide
 import { useTranslation } from "react-i18next";
 import ContextMenuBase, { contextMenuItemClass } from "./ContextMenuBase";
 import { strings } from "../consts/strings";
+import { readText } from "../lib/clipboard";
 
 /**
  * onPaste returns a thenable/promise that resolves when the pasted
@@ -71,7 +72,9 @@ export default function TerminalContextMenu({
   const handlePaste = useCallback(async () => {
     let text: string;
     try {
-      text = await navigator.clipboard.readText();
+      const result = await readText();
+      if (!result.ok) throw new Error(result.reason);
+      text = result.text;
     } catch {
       setPasteState({ kind: "clipboard_unavailable" });
       setTimeout(() => setPasteState({ kind: "idle" }), 2000);

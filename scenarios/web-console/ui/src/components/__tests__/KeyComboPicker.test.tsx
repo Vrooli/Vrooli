@@ -64,7 +64,7 @@ describe("KeyComboPicker", () => {
     // onInput should have been called with Ctrl+C data and the
     // toolbar-key source tag.
     await waitFor(() => {
-      expect(onInput).toHaveBeenCalledWith("\x03", "toolbar-key");
+      expect(onInput).toHaveBeenCalledWith("\x03", "named_key");
     });
   });
 

@@ -21,7 +21,7 @@ export default defineConfig({
         maxForks: 2,
       },
     },
-    setupFiles: ['./src/test-utils/setup.ts'],
+    setupFiles: ['./src/test-setup.ts'],
     // The shared audio package is a workspace file: link, so Vitest treats it
     // as an external dependency and lets Node resolve it — which lands on its
     // published dist/, whose emitted ESM uses extensionless relative imports
@@ -31,13 +31,35 @@ export default defineConfig({
     server: { deps: { inline: [/@vrooli\/audio-capture-browser/] } },
     coverage: {
       provider: 'v8',
-      reporter: ['json-summary', 'json', 'text'],
+      reporter: ['text', 'json-summary', 'json'],
+      include: ['src/**/*.{ts,tsx}'],
+      exclude: [
+        'src/**/*.test.{ts,tsx}',
+        'src/**/*.spec.{ts,tsx}',
+        'src/**/*.d.ts',
+        'src/main.tsx',
+        'src/test-setup.ts',
+        'src/test-utils/**',
+        'src/consts/strings.generated.ts',
+        'src/i18n/locales/**',
+        'src/**/generated/**',
+        // These files are compatibility/type surfaces, not executable
+        // web-console behavior. The implementation is owned by the shared
+        // audio package or the consuming modules, so counting their one-line
+        // re-export statements makes the aggregate floor measure import
+        // topology instead of this UI's testable behavior.
+        'src/types/**',
+        'src/audio-integration/hooks/voice/wakeword/**',
+        'src/audio-integration/hooks/voice/{activity,autoStopDecision,commandParser,commands,index,streamHealth}.ts',
+        'src/audio-integration/hooks/tts/index.ts',
+        'src/audio-integration/hooks/useServerVadStateStore.ts',
+        'src/audio-integration/components/Button.tsx',
+      ],
       reportOnFailure: true,
       thresholds: {
-        lines: 0,
-        functions: 0,
-        branches: 0,
-        statements: 0
+        lines: 85,
+        functions: 85,
+        statements: 85,
       }
     }
   }

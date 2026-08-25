@@ -21,6 +21,9 @@ service SkillsService {
   rpc CreateSkillVariant(CreateSkillVariantRequest) returns (CreateSkillVariantResponse);
   rpc UpdateSkillVariant(UpdateSkillVariantRequest) returns (UpdateSkillVariantResponse);
   rpc DeleteSkillVariant(DeleteSkillVariantRequest) returns (DeleteSkillVariantResponse);
+  rpc ImportSkill(ImportSkillRequest) returns (ImportSkillResponse);
+  rpc ReviewImportedSkill(ReviewImportedSkillRequest) returns (ReviewImportedSkillResponse);
+  rpc ReportImportedSkillStaleness(ReportImportedSkillStalenessRequest) returns (ReportImportedSkillStalenessResponse);
 }
 
 message Variable {
@@ -177,3 +180,26 @@ message UpdateSkillVariantRequest {
 message UpdateSkillVariantResponse { SkillVariant variant = 1; }
 message DeleteSkillVariantRequest { string skill_id = 1; string variant_id = 2; }
 message DeleteSkillVariantResponse { string skill_id = 1; string variant_id = 2; bool deleted = 3; }
+
+message ImportSkillRequest {
+  string source_dir = 1;
+  string source_url = 2;
+  string commit = 3;
+  string license = 4;
+  string checksum = 5;
+  string imported_by = 6;
+  string upstream_version = 7;
+  string id = 8;
+}
+message ImportSkillResponse {
+  string id = 1;
+  string pack = 2;
+  string status = 3;
+  string checksum = 4;
+  string review_verdict = 5;
+  string imported_at = 6;
+}
+message ReviewImportedSkillRequest { string id = 1; string reviewer = 2; string verdict = 3; }
+message ReviewImportedSkillResponse { string id = 1; string status = 2; string verdict = 3; string reviewer = 4; string reviewed_at = 5; }
+message ReportImportedSkillStalenessRequest { string id = 1; string upstream_version = 2; }
+message ReportImportedSkillStalenessResponse { string id = 1; string recorded_version = 2; string current_version = 3; bool stale = 4; }

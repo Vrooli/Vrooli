@@ -21,7 +21,6 @@ const mockSession: SessionInfo = {
   backend: "standard",
   survives_restart: false,
   policy: { mode: "never" },
-  busy: false,
   origin: "ui",
   owner: "",
   display_label: "",

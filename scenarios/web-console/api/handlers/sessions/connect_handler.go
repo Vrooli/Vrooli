@@ -370,7 +370,6 @@ func sessionToProto(s Session) *sessionsv1.Session {
 		Backend:          s.Backend,
 		SurvivesRestart:  s.SurvivesRestart,
 		Policy:           policyToProto(s.Policy),
-		Busy:             s.Busy,
 		Recovered:        s.Recovered,
 		Origin:           originToEnum(s.Origin),
 		Owner:            s.Owner,

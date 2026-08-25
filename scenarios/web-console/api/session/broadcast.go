@@ -15,7 +15,6 @@ package session
 // absorbs short bursts when a client falls behind.
 
 import (
-	"fmt"
 	"time"
 
 	"web-console/internal/backend"
@@ -67,12 +66,13 @@ func (s *Session) broadcast(data []byte) {
 	// emulator's ControlEvent stream and answers queries server-side;
 	// if the emulator never saw the query, the reply never fires.
 	_, _ = s.emu.Feed(data)
+	s.snapshotCacheDirty = true
 	prevAlt := s.inAltBuffer
 	s.inAltBuffer = s.emu.InAltBuffer()
 	if prevAlt != s.inAltBuffer {
 		s.lastAltBufferTransition = time.Now()
 	}
-	bctrace("broadcast", s.ID, fmt.Sprintf("clients=%d alt=%v", len(s.clients), s.inAltBuffer), data)
+	bctrace("broadcast", s.ID, data, "clients=%d alt=%v", len(s.clients), s.inAltBuffer)
 	s.markFrame()
 	if len(s.clients) == 0 {
 		return
@@ -91,7 +91,7 @@ func (s *Session) broadcast(data []byte) {
 	}
 }
 
-// DOC: docs/internal/ERROR_SEMANTICS.md#sync-warning-coalescing-notification
+// DOC: docs/internal/ERROR_SEMANTICS.md#sync-warning-data-loss-notification
 // deliver sends data to a client channel, coalescing into the pending buffer
 // when the channel is full. Must be called with s.mu held.
 func (s *Session) deliver(ch chan []byte, info *ClientInfo, data []byte) {
@@ -129,7 +129,7 @@ func (s *Session) notifyIfThreshold(info *ClientInfo) {
 // The WebSocket output forwarder calls this after each successful write
 // to resume normal per-frame delivery. Data is chunked at HistoryChunkSize
 // to prevent browser UI freezes from single large WebSocket messages.
-// DOC: docs/internal/SEAMS.md#3-domain--session-lifecycle
+// DOC: docs/internal/SEAMS.md#3-domain-session-lifecycle
 func (s *Session) FlushPending(ch chan []byte) {
 	s.mu.Lock()
 	defer s.mu.Unlock()

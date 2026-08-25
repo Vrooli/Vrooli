@@ -21,6 +21,24 @@ PAIRING_REQUEST_STATUS_PENDING: PairingRequestStatus
 PAIRING_REQUEST_STATUS_APPROVED: PairingRequestStatus
 PAIRING_REQUEST_STATUS_REJECTED: PairingRequestStatus
 
+class RegisterEncryptionKeyRequest(_message.Message):
+    __slots__ = ("node_id", "encryption_public_key")
+    NODE_ID_FIELD_NUMBER: _ClassVar[int]
+    ENCRYPTION_PUBLIC_KEY_FIELD_NUMBER: _ClassVar[int]
+    node_id: str
+    encryption_public_key: str
+    def __init__(self, node_id: _Optional[str] = ..., encryption_public_key: _Optional[str] = ...) -> None: ...
+
+class RegisterEncryptionKeyResponse(_message.Message):
+    __slots__ = ("node_id", "algorithm", "registered")
+    NODE_ID_FIELD_NUMBER: _ClassVar[int]
+    ALGORITHM_FIELD_NUMBER: _ClassVar[int]
+    REGISTERED_FIELD_NUMBER: _ClassVar[int]
+    node_id: str
+    algorithm: str
+    registered: bool
+    def __init__(self, node_id: _Optional[str] = ..., algorithm: _Optional[str] = ..., registered: _Optional[bool] = ...) -> None: ...
+
 class IssuePairingCodeRequest(_message.Message):
     __slots__ = ("name", "scopes", "ttl_seconds")
     NAME_FIELD_NUMBER: _ClassVar[int]

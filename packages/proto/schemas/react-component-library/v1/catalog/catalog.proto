@@ -308,11 +308,20 @@ message KindMismatch {
 	string message = 4;
 }
 
-message CaptureEvidenceRequest { string asset_id = 1; bool all = 2; bool changed_only = 3; }
+message CaptureEvidenceRequest {
+	string asset_id = 1;
+	bool all = 2;
+	bool changed_only = 3;
+	// Bounded catalog migration controls. A zero limit means all requested assets.
+	int32 limit = 4;
+	int32 offset = 5;
+}
 message CaptureEvidenceResponse {
   string asset_id = 1;
   string capture_directory = 2;
   string workbench_url = 3;
   int32 rows_written = 4;
   repeated string missing_contract_assets = 5;
+	int32 next_offset = 6;
+	bool complete = 7;
 }

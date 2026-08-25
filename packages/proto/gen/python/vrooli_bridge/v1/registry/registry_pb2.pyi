@@ -16,6 +16,7 @@ class NodeKind(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     NODE_KIND_AGENT: _ClassVar[NodeKind]
     NODE_KIND_SSH: _ClassVar[NodeKind]
     NODE_KIND_ATTACHED: _ClassVar[NodeKind]
+    NODE_KIND_CONTROL_PLANE: _ClassVar[NodeKind]
 
 class NodeStatus(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -28,6 +29,7 @@ NODE_KIND_UNSPECIFIED: NodeKind
 NODE_KIND_AGENT: NodeKind
 NODE_KIND_SSH: NodeKind
 NODE_KIND_ATTACHED: NodeKind
+NODE_KIND_CONTROL_PLANE: NodeKind
 NODE_STATUS_UNSPECIFIED: NodeStatus
 NODE_STATUS_OFFLINE: NodeStatus
 NODE_STATUS_ONLINE: NodeStatus
@@ -127,20 +129,22 @@ class GetNodeResponse(_message.Message):
     def __init__(self, node: _Optional[_Union[Node, _Mapping]] = ...) -> None: ...
 
 class UpdateNodeRequest(_message.Message):
-    __slots__ = ("id", "name", "endpoint", "capabilities", "scopes", "revision")
+    __slots__ = ("id", "name", "endpoint", "capabilities", "scopes", "revision", "kind")
     ID_FIELD_NUMBER: _ClassVar[int]
     NAME_FIELD_NUMBER: _ClassVar[int]
     ENDPOINT_FIELD_NUMBER: _ClassVar[int]
     CAPABILITIES_FIELD_NUMBER: _ClassVar[int]
     SCOPES_FIELD_NUMBER: _ClassVar[int]
     REVISION_FIELD_NUMBER: _ClassVar[int]
+    KIND_FIELD_NUMBER: _ClassVar[int]
     id: str
     name: str
     endpoint: str
     capabilities: _containers.RepeatedScalarFieldContainer[str]
     scopes: _containers.RepeatedScalarFieldContainer[str]
     revision: str
-    def __init__(self, id: _Optional[str] = ..., name: _Optional[str] = ..., endpoint: _Optional[str] = ..., capabilities: _Optional[_Iterable[str]] = ..., scopes: _Optional[_Iterable[str]] = ..., revision: _Optional[str] = ...) -> None: ...
+    kind: NodeKind
+    def __init__(self, id: _Optional[str] = ..., name: _Optional[str] = ..., endpoint: _Optional[str] = ..., capabilities: _Optional[_Iterable[str]] = ..., scopes: _Optional[_Iterable[str]] = ..., revision: _Optional[str] = ..., kind: _Optional[_Union[NodeKind, str]] = ...) -> None: ...
 
 class UpdateNodeResponse(_message.Message):
     __slots__ = ("node",)

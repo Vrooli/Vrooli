@@ -57,7 +57,7 @@ var Endpoints = []module.EndpointDescriptor{
 		Description: "WebSocket upgrade endpoint for xterm.js. Streams stdin/stdout/resize/keepalive frames between the browser and the per-session PTY (or tmux pane). Migration to Connect server-streaming is deferred to the final streams phase.",
 		Category:    "terminal",
 		RESTException: &module.RESTException{
-			Reason: module.RESTReasonOpsProbe,
+			Reason: module.RESTReasonStreamUpgrade,
 			Note:   "xterm.js requires a raw WebSocket upgrade — Connect-RPC cannot express that handshake. Stays REST until a Connect server-streaming RPC replaces it.",
 		},
 	},

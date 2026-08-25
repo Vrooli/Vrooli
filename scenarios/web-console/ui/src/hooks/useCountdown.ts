@@ -1,4 +1,4 @@
-// DOC: docs/concepts/GLOSSARY.md#policy
+// DOC: docs/concepts/GLOSSARY.md#core-terms
 import { useState, useEffect } from "react";
 import type { PolicyMode } from "../api/sessions";
 import { parseDurationMs, formatCountdown } from "../lib/format";

@@ -161,7 +161,7 @@ let _capSnapshot: CapabilitiesResponse | null = null;
 /**
  * Synchronous snapshot of the most recent capabilities liveness result.
  * Used by startRecording() to avoid blocking the mic activation hot path.
- * DOC: docs/internal/VOICE-LATENCY.md#background-capability-check
+ * DOC: docs/internal/VOICE-LATENCY.md#1-background-capability-check-always-on
  */
 export function getCapabilitiesLivenessSnapshot(): CapabilitiesResponse | null {
   if (!_capCache) return null;

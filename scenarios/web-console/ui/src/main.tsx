@@ -3,6 +3,7 @@ import ReactDOM from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { installChunkReloadGuard } from "@vrooli/api-base";
 import { initIframeBridgeChild } from "@vrooli/iframe-bridge";
+import { initSpatialNav } from "@vrooli/iframe-bridge/spatial";
 import App from "./App";
 import { registerVoiceTransport } from "./audio-integration";
 import "./i18n";
@@ -18,6 +19,10 @@ registerVoiceTransport();
 if (window.top !== window.self) {
   initIframeBridgeChild({ appId: "web-console" });
 }
+
+// Keep controller navigation available both standalone and when embedded in a
+// host frame. The bridge is process-wide and is disposed with the page.
+initSpatialNav();
 
 // Code-split routes use lazy(); after a rebuild the old hashed chunks are
 // gone, so a tab opened before the deploy would crash on its next

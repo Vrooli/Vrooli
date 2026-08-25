@@ -114,7 +114,7 @@ describe("FullScreenComposer — staged attachments", () => {
     });
 
     expect(resolve).toHaveBeenCalledTimes(1);
-    expect(onInput).toHaveBeenCalledWith("look at these /up/a.png /up/b.png", "toolbar-submit");
+    expect(onInput).toHaveBeenCalledWith("look at these /up/a.png /up/b.png", "bulk_text");
 
     act(() => settlement.fire(true));
     // Minimized + attachments cleared: reopen shows an empty tray.

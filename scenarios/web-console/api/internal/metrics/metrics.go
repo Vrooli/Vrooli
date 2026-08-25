@@ -5,7 +5,7 @@
 // on this package through a narrow Service interface — see
 // handlers/metrics/module.go.
 //
-// DOC: docs/concepts/ARCHITECTURE.md#observability
+// DOC: docs/internal/SEAMS.md#observability-surface
 // [REQ:P1-004b] Operational Metrics Collection
 package metrics
 
@@ -50,11 +50,6 @@ type Metrics struct {
 	// AI suggestion counter
 	AISuggestions atomic.Int64
 
-	// StdinBeforeReadyTotal counts stdin messages arriving before the server
-	// has emitted session_ready for the connection. Expected to be 0 in
-	// steady state; any increment indicates a sequencing regression.
-	StdinBeforeReadyTotal atomic.Int64
-
 	// VoiceSkipVerificationTotal counts /voice/transcribe requests that
 	// explicitly bypassed speaker verification via the
 	// `skip_speaker_verification=true` query parameter. User-initiated
@@ -84,7 +79,6 @@ type Response struct {
 	Recovery                   RecoveryMetrics   `json:"recovery"`
 	AIGenerations              int64             `json:"ai_generations"`
 	AISuggestions              int64             `json:"ai_suggestions"`
-	StdinBeforeReadyTotal      int64             `json:"stdin_before_ready_total"`
 	VoiceSkipVerificationTotal int64             `json:"voice_skip_verification_total"`
 	Uptime                     string            `json:"uptime"`
 }
@@ -156,7 +150,6 @@ func (m *Metrics) Snapshot() Response {
 		},
 		AIGenerations:              m.AIGenerations.Load(),
 		AISuggestions:              m.AISuggestions.Load(),
-		StdinBeforeReadyTotal:      m.StdinBeforeReadyTotal.Load(),
 		VoiceSkipVerificationTotal: m.VoiceSkipVerificationTotal.Load(),
 		Uptime:                     time.Since(m.StartTime).Truncate(time.Second).String(),
 	}

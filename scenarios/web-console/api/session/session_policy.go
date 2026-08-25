@@ -11,7 +11,7 @@ import (
 	"web-console/internal/policy"
 )
 
-// DOC: docs/concepts/ARCHITECTURE.md#session-policy
+// DOC: docs/concepts/GLOSSARY.md#core-terms
 
 // ExpirationSweeper periodically checks sessions for expiration and removes expired ones.
 type ExpirationSweeper struct {

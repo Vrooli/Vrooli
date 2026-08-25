@@ -1,4 +1,5 @@
 import { useCallback, useState } from "react";
+import { writeText } from "../../../lib/clipboard";
 
 interface UseCodeCopyReturn {
   copied: boolean;
@@ -10,7 +11,7 @@ export function useCodeCopy(code: string): UseCodeCopyReturn {
   const [copied, setCopied] = useState(false);
 
   const copyCode = useCallback(() => {
-    void navigator.clipboard.writeText(code);
+    void writeText(code);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   }, [code]);

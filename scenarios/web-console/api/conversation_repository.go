@@ -148,7 +148,7 @@ func (r *SQLConversationRepository) GetEvent(ctx context.Context, sessionID, eve
 	)
 	event, err := scanConversationEvent(row)
 	if err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
 			return ConversationEvent{}, false, nil
 		}
 		return ConversationEvent{}, false, fmt.Errorf("get event: %w", err)

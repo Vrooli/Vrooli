@@ -1,5 +1,5 @@
-// DOC: docs/internal/SEAMS.md#capability-registry-seam
-// DOC: docs/internal/SEAMS.md#connected-scenarios-registry-seam
+// DOC: docs/internal/SEAMS.md#capability-registry-seam-api
+// DOC: docs/internal/SEAMS.md#connected-scenarios-registry-seam-api-ui
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { CheckCircle, AlertCircle, Circle, Boxes, Plug, Play, RotateCw } from "lucide-react";

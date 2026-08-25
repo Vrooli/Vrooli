@@ -23,7 +23,7 @@ Referenced from:
 | `type` | `"stdin"` | yes | Discriminator. |
 | `data` | `string` | yes | Payload. UTF-8 JSON string; multi-byte runes are delivered byte-exact to the PTY. |
 | `seq` | `number` | yes | Client-assigned monotonic sequence, per WS connection. Reset to 1 on each (re)open. Echoed by `stdin_ack`. |
-| `kind` | `"keystroke"` \| `"paste"` | yes | Discriminates the delivery path on the persistent backend. Empty / unknown defaults to `"keystroke"` on the server for defensive parsing; the UI always sends it explicitly. |
+| `intent` | `"typing"` \| `"bulk_text"` \| `"named_key"` | yes | Identifies the source intent. `bulk_text` selects tmux paste-buffer delivery; `typing` and `named_key` select literal send-keys delivery. Empty / unknown defaults to `"typing"` on the server for defensive parsing. |
 
 ### `stdin_ack` (server → client)
 
@@ -35,12 +35,19 @@ Referenced from:
 | `reason` | `string` | when `ok=false` | Typed error code (see below). Human-readable detail in `data`. |
 | `data` | `string` | when `ok=false` | Full error text for logging; UI presents `reason` only. |
 
-## `InputKind` — delivery paths
+## Input lanes and delivery paths
 
-| Kind | Standard backend (`realPTY`) | Persistent backend (`tmuxPTY`) |
+The complete source-intent vocabulary is `typing`, `bulk_text`, `named_key`,
+and `control`. Operator payloads use the reliable stdin lane and settle through
+`stdin_ack`; `control` is represented by the separate control frame rather than
+an acknowledged stdin frame.
+Synthetic terminal bytes use a separate best-effort `control` frame and do not
+enter the sequence/ack queue; reconnect must never replay them.
+
+| Intent | Standard backend (`realPTY`) | Persistent backend (`tmuxPTY`) |
 |---|---|---|
-| `keystroke` | `ptmx.Write(data)`. | `tmux send-keys -t <session> -l -- <data>`; any active tmux client mode (copy-mode, command-prompt, menu, prefix-pending) is cancelled first via `send-keys -X cancel`. Payloads > 64 KB fall through to the paste path to dodge argv size limits. |
-| `paste` | `ptmx.Write(data)`. | `tmux load-buffer -b <buf> - < data` then `tmux paste-buffer -d -b <buf> -t <session>`; the mode is cancelled first. The `-d` flag deletes the per-call buffer after delivery so buffers never leak. |
+| `typing` / `named_key` | `ptmx.Write(data)`. | `tmux send-keys -t <session> -l -- <data>`; any active tmux client mode (copy-mode, command-prompt, menu, prefix-pending) is cancelled first via `send-keys -X cancel`. Payloads > 64 KB fall through to the paste path to dodge argv size limits. |
+| `bulk_text` | `ptmx.Write(data)`. | `tmux load-buffer -b <buf> - < data` then `tmux paste-buffer -d -b <buf> -t <session>`; the mode is cancelled first. The `-d` flag deletes the per-call buffer after delivery so buffers never leak. |
 
 `-l` (literal) + explicit cancel + per-call buffers are load-bearing:
 - `-l` alone does NOT escape copy-mode in tmux 3.4; it delivers to the
@@ -95,14 +102,15 @@ showing `Pasting…` until the cb fires, then flashes `Pasted` (ok) or
 These are the shapes the refactor permanently forbids. Each has a
 greenfield assertion test that fails at CI time if it reappears:
 
-- `ptmx.Write(` called outside `pty.go` / `pty_tmux.go` — would bypass
-  the kind-aware tmux path and reintroduce Bug A.
-- `PTY.Write(p []byte) (int, error)` declared on the interface — the
-  legacy shape was deleted; its return does not carry the typed kind.
-- Code on the stdout handler that does NOT advance `totalBytesRef`
-  per-frame — cache drift reintroduces Bug C.
-- A second paste handler that calls `submitInput` from anywhere other
-  than `TerminalPane.tsx` — bypasses the settlement contract and
-  reintroduces Bug B.
-- References to any deleted plan filename — indicates a stale
-  reviewer/doc cross-link.
+- `ptmx.Write(` called outside `pty.go` / `pty_tmux.go` — enforced by
+  `TestGreenfield_NoRawPtmxWriteOutsidePTYFiles`.
+- `PTY.Write(p []byte) (int, error)` declared on the interface — enforced by
+  `TestGreenfield_PTYInterfaceHasNoLegacyWrite`.
+- Raw PTY resizing outside the lease-gated paths — enforced by
+  `TestGreenfield_NoRawSetSizeOutsideGatedPaths`.
+- Audio-tools being required for terminal boot — enforced by
+  `TestGreenfield_AudioToolsDependencyIsLazyDegraded`.
+- Internal audio domains importing handlers — enforced by
+  `TestGreenfield_InternalAudioDomainsDoNotImportHandlers`.
+- Orchestration bypassing audio ports — enforced by
+  `TestGreenfield_OrchestrationRoutesThroughAudioPorts`.

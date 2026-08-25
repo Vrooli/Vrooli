@@ -45,7 +45,6 @@ func (a *Adapter) Snapshot(_ context.Context) Snapshot {
 		},
 		AIGenerations:              r.AIGenerations,
 		AISuggestions:              r.AISuggestions,
-		StdinBeforeReadyTotal:      r.StdinBeforeReadyTotal,
 		VoiceSkipVerificationTotal: r.VoiceSkipVerificationTotal,
 		Uptime:                     r.Uptime,
 	}

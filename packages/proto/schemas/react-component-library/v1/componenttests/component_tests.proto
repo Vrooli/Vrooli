@@ -41,6 +41,7 @@ message ComponentTestArtifact {
   string asset_library_id = 3;
   string version = 4;
   string reference = 5;
+  string story_id = 6;
 }
 
 message ComponentTestReport {

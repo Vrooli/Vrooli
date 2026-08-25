@@ -25,8 +25,11 @@ type ComposeRequest struct {
 	state          protoimpl.MessageState `protogen:"open.v1"`
 	Scenario       string                 `protobuf:"bytes,1,opt,name=scenario,proto3" json:"scenario,omitempty"`
 	SourceRevision string                 `protobuf:"bytes,2,opt,name=source_revision,json=sourceRevision,proto3" json:"source_revision,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	// Optional target CLI manifest used by tier-2 distributability filtering.
+	TargetCliManifest string `protobuf:"bytes,3,opt,name=target_cli_manifest,json=targetCliManifest,proto3" json:"target_cli_manifest,omitempty"`
+	EntitlementTier   string `protobuf:"bytes,4,opt,name=entitlement_tier,json=entitlementTier,proto3" json:"entitlement_tier,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
 }
 
 func (x *ComposeRequest) Reset() {
@@ -69,6 +72,20 @@ func (x *ComposeRequest) GetScenario() string {
 func (x *ComposeRequest) GetSourceRevision() string {
 	if x != nil {
 		return x.SourceRevision
+	}
+	return ""
+}
+
+func (x *ComposeRequest) GetTargetCliManifest() string {
+	if x != nil {
+		return x.TargetCliManifest
+	}
+	return ""
+}
+
+func (x *ComposeRequest) GetEntitlementTier() string {
+	if x != nil {
+		return x.EntitlementTier
 	}
 	return ""
 }
@@ -369,10 +386,12 @@ var File_scenario_to_plugin_v1_composition_composition_proto protoreflect.FileDe
 
 const file_scenario_to_plugin_v1_composition_composition_proto_rawDesc = "" +
 	"\n" +
-	"3scenario-to-plugin/v1/composition/composition.proto\x12(vrooli.scenario_to_plugin.v1.composition\"U\n" +
+	"3scenario-to-plugin/v1/composition/composition.proto\x12(vrooli.scenario_to_plugin.v1.composition\"\xb0\x01\n" +
 	"\x0eComposeRequest\x12\x1a\n" +
 	"\bscenario\x18\x01 \x01(\tR\bscenario\x12'\n" +
-	"\x0fsource_revision\x18\x02 \x01(\tR\x0esourceRevision\"\xad\x01\n" +
+	"\x0fsource_revision\x18\x02 \x01(\tR\x0esourceRevision\x12.\n" +
+	"\x13target_cli_manifest\x18\x03 \x01(\tR\x11targetCliManifest\x12)\n" +
+	"\x10entitlement_tier\x18\x04 \x01(\tR\x0fentitlementTier\"\xad\x01\n" +
 	"\x0fComposeResponse\x12K\n" +
 	"\apackage\x18\x01 \x01(\v21.vrooli.scenario_to_plugin.v1.composition.PackageR\apackage\x12M\n" +
 	"\bfindings\x18\x02 \x03(\v21.vrooli.scenario_to_plugin.v1.composition.FindingR\bfindings\"2\n" +

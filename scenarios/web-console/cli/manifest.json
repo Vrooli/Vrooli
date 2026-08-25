@@ -467,6 +467,113 @@
       ]
     },
     {
+      "name": "terminal",
+      "description": "Read and drive terminal sessions through the structured terminal service",
+      "commands": [
+        {
+          "name": "screen",
+          "description": "Print the decoded screen of a session",
+          "positionals": [
+            {
+              "name": "session-id",
+              "required": true,
+              "description": "Session ID",
+              "bind": {"field": "session_id"}
+            }
+          ],
+          "flags": [
+            {
+              "name": "include-scrollback",
+              "bool": true,
+              "description": "Include scrollback lines in the plain-text rendering",
+              "local_only": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "TerminalService",
+            "method": "GetScreen"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
+        },
+        {
+          "name": "send-text",
+          "description": "Send literal text to a session",
+          "positionals": [
+            {
+              "name": "session-id",
+              "required": true,
+              "description": "Session ID",
+              "bind": {"field": "session_id"}
+            },
+            {
+              "name": "text",
+              "required": true,
+              "repeated": true,
+              "description": "Text words to join and send",
+              "local_only": true
+            }
+          ],
+          "flags": [
+            {
+              "name": "paste",
+              "bool": true,
+              "description": "Deliver as bracketed paste",
+              "local_only": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "TerminalService",
+            "method": "SendInput"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": ["network:internal"]
+          }
+        },
+        {
+          "name": "wait-idle",
+          "description": "Block until a session is idle",
+          "positionals": [
+            {
+              "name": "session-id",
+              "required": true,
+              "description": "Session ID",
+              "bind": {"field": "session_id"}
+            }
+          ],
+          "flags": [
+            {
+              "name": "quiet-window",
+              "description": "Quiet duration before the session counts as idle",
+              "local_only": true
+            },
+            {
+              "name": "timeout",
+              "description": "Maximum total wait duration",
+              "local_only": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "TerminalService",
+            "method": "WaitIdle"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
+        }
+      ]
+    },
+    {
       "name": "session",
       "description": "Manage PTY terminal sessions",
       "commands": [
@@ -1084,6 +1191,26 @@
       "reason": "Conversation search is available through the web-console UI/API flow; no stable CLI command is exposed today."
     },
     {
+      "service": "ConversationService",
+      "method": "SearchArchived",
+      "reason": "Archived conversation search is available through the web-console UI/API flow; no stable CLI command is exposed today."
+    },
+    {
+      "service": "SessionsService",
+      "method": "Archive",
+      "reason": "Session archival is available through the web-console UI/API flow; no stable CLI command is exposed today."
+    },
+    {
+      "service": "SessionsService",
+      "method": "ListArchived",
+      "reason": "Archived session listing is available through the web-console UI/API flow; no stable CLI command is exposed today."
+    },
+    {
+      "service": "SessionsService",
+      "method": "Unarchive",
+      "reason": "Session unarchival is available through the web-console UI/API flow; no stable CLI command is exposed today."
+    },
+    {
       "service": "CapabilitiesService",
       "method": "Liveness",
       "reason": "Exposed through the same `capabilities` command via the --liveness flag (the flag selects Liveness vs Get inside the handler); not a separate CLI subcommand."
@@ -1214,19 +1341,31 @@
       "reason": "Audio runtime playback telemetry is emitted by the web UI only; no CLI command today."
     },
     {
-      "service": "TerminalService",
-      "method": "GetScreen",
-      "reason": "The terminal domain's CLI commands (screen, send-text, send-keys, wait-idle) are hand-registered in cli/domains/terminal/register.go: send-text and send-keys both map to SendInput (two commands, one method) and the commands carry bespoke key-parsing flags that cli-manifest/v1 one-command-per-method bindings cannot express. Kept code-registered."
+      "service": "SessionsService",
+      "method": "Reopen",
+      "reason": "The CLI's stable recovery command is `session recover`; Reopen is the archive-facing API alias used by the UI and is intentionally not duplicated as a second CLI verb."
+    }
+  ],
+  "exceptions": [
+    {
+      "command": "hooks register",
+      "class": "external_delegation",
+      "reason": "Delegates hook installation to the resource CLI and local hook scripts while the API is starting."
     },
     {
-      "service": "TerminalService",
-      "method": "SendInput",
-      "reason": "Backs two hand-registered commands (terminal send-text and terminal send-keys); a one-command-per-method manifest binding cannot express the two-command mapping. Kept code-registered in cli/domains/terminal/register.go."
+      "command": "hooks remove",
+      "class": "external_delegation",
+      "reason": "Delegates hook removal to the resource CLI and local hook scripts."
     },
     {
-      "service": "TerminalService",
-      "method": "WaitIdle",
-      "reason": "Hand-registered as `terminal wait-idle` in cli/domains/terminal/register.go alongside the other terminal commands (which can't all be manifest-expressed); kept code-registered for cohesion."
+      "command": "terminal targets",
+      "class": "external_delegation",
+      "reason": "Reports the target adapters accepted by the web launcher; it does not invoke a single Connect-RPC method."
+    },
+    {
+      "command": "terminal send-keys",
+      "class": "external_delegation",
+      "reason": "Uses a hand-registered terminal adapter for named-key parsing; it shares TerminalService.SendInput with send-text."
     }
   ]
 }

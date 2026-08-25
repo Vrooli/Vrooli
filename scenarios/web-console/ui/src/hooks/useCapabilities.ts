@@ -1,4 +1,4 @@
-// DOC: docs/internal/SEAMS.md#capability-registry-seam
+// DOC: docs/internal/SEAMS.md#capability-registry-seam-api
 import { useQuery } from "@tanstack/react-query";
 import { fetchCapabilities, type CapabilitiesResponse } from "../api/capabilities";
 

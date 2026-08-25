@@ -79,7 +79,6 @@ type Session struct {
 	Backend         string
 	SurvivesRestart bool
 	Policy          Policy
-	Busy            bool
 	Recovered       bool
 	// Provenance. Origin is the closed-set vocabulary
 	// "ui" | "programmatic" | "remote".

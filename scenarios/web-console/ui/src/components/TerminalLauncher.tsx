@@ -1,5 +1,5 @@
 // DOC: docs/reference/configuration.md#launcher-shortcuts
-// DOC: docs/internal/SEAMS.md#1-entry--presentation
+// DOC: docs/internal/SEAMS.md#1-entry-presentation
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import {
   Check,

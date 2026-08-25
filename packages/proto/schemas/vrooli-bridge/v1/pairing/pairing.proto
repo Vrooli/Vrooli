@@ -67,6 +67,22 @@ service PairingService {
   // ListPairingRequests returns the pending join requests awaiting owner
   // approval. Owner-gated (console surface).
   rpc ListPairingRequests(ListPairingRequestsRequest) returns (ListPairingRequestsResponse);
+
+  // RegisterEncryptionKey adds the node's independently generated X25519
+  // public key. The request is node-authenticated with the existing Ed25519
+  // header proof; the private key never crosses this API.
+  rpc RegisterEncryptionKey(RegisterEncryptionKeyRequest) returns (RegisterEncryptionKeyResponse);
+}
+
+message RegisterEncryptionKeyRequest {
+  string node_id = 1;
+  string encryption_public_key = 2;
+}
+
+message RegisterEncryptionKeyResponse {
+  string node_id = 1;
+  string algorithm = 2;
+  bool registered = 3;
 }
 
 // PairingRequestStatus is the lifecycle of a request/approve enrollment.

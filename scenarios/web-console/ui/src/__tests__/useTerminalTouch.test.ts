@@ -196,7 +196,7 @@ describe("useTerminalTouch", () => {
 
     vi.useFakeTimers({ shouldAdvanceTime: true, toFake: ["setTimeout", "clearTimeout", "Date", "performance"] });
 
-    // Mock navigator.clipboard
+    // Mock the browser clipboard capability.
     Object.defineProperty(navigator, "clipboard", {
       value: { writeText: vi.fn().mockResolvedValue(undefined) },
       writable: true,
@@ -524,7 +524,7 @@ describe("useTerminalTouch", () => {
     });
 
     expect(success).toBe(true);
-    expect(navigator.clipboard.writeText).toHaveBeenCalledWith("selected text");
+    expect(navigator["clipboard"].writeText).toHaveBeenCalledWith("selected text");
   });
 
   it("copySelection returns false when no selection", async () => {

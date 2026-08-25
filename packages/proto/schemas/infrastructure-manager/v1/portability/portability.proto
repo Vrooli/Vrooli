@@ -73,6 +73,8 @@ enum CapabilitySituation {
   CAPABILITY_SITUATION_NO_WORK_REQUIRED = 2;
   CAPABILITY_SITUATION_NO_EQUIVALENT_EVER = 3;
   CAPABILITY_SITUATION_REAL_PEER_NOBODY_WIRED = 4;
+  CAPABILITY_SITUATION_CONTROLS_UNPORTED = 5;
+  CAPABILITY_SITUATION_SCOPED_OUT = 6;
 }
 
 enum Verdict {
@@ -91,6 +93,7 @@ enum DeliveryTier {
 
 message PlatformEntry {
   HostOS host_os = 1;
+  string architecture = 17;
   ResolutionStatus status = 2;
   Qualification qualification = 3;
   string implementer = 4;
@@ -105,6 +108,8 @@ message PlatformEntry {
   bool has_implementation = 8;
   repeated string controls = 9;
   repeated string absent = 10;
+  repeated string absent_controls = 15;
+  repeated string absent_providers = 16;
   repeated CapabilityDeclarer declarers = 11;
   // observed_qualification is host evidence, not a replacement for the
   // declaration qualification above. It is explicit when the current host

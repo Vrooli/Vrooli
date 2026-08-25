@@ -291,6 +291,9 @@ message IndexComponentsResponse {
 
   // Library IDs successfully indexed in this pass, in walk order.
   repeated string library_ids = 6;
+
+  // Non-blocking story-contract migration diagnostics.
+  repeated string warnings = 7;
 }
 
 message InitializeComponentRequest {
@@ -595,6 +598,8 @@ message ListComponentStoriesRequest {
 
 message ListComponentStoriesResponse {
   repeated ComponentStory stories = 1;
+  // Non-blocking diagnostics for the returned story contracts.
+  repeated string warnings = 2;
 }
 
 // ListPreviewFrames returns catalog-backed frame candidates for a subject. It

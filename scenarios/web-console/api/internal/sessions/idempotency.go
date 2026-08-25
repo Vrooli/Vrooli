@@ -26,7 +26,6 @@ type Response struct {
 	Backend         backend.ID    `json:"backend"`
 	SurvivesRestart bool          `json:"survives_restart"`
 	Policy          policy.Policy `json:"policy"`
-	Busy            bool          `json:"busy"`
 	Recovered       bool          `json:"recovered,omitempty"`
 	// Provenance. Carried on the cached response so a replayed (idempotent)
 	// create returns the same origin/owner/label as the original.
