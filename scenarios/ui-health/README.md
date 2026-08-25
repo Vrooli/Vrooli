@@ -2,7 +2,7 @@
 
 Framework-agnostic UI manifest validation and UI-surface AI search for Vrooli scenarios
 
-This scenario was generated from the `react-vite` template and packages
+This scenario provides
 the standard full-stack Vrooli scenario shape:
 
 - Go API (`api/`)

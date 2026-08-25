@@ -20,7 +20,7 @@ func Register(core *cliapp.ScenarioApp) cliapp.SubcommandGroup {
 		NeedsAPI:    true,
 		Subcommands: []cliapp.Command{
 			{Name: "list", Aliases: []string{"ls"}, Description: "List available resources", Run: func(args []string) error { return runList(core, args) }},
-			{Name: "get", Aliases: []string{"show"}, Description: "Show one resource by name", Run: func(args []string) error { return runGet(core, args) }},
+			{Name: "get", Aliases: []string{"show"}, Description: "Show one resource by name", Run: func(args []string) error { return getResource(core, args) }},
 			{Name: "health", Description: "Show onboarding health for all resources", Run: func(args []string) error { return runHealth(core, args) }},
 		},
 	}
@@ -57,7 +57,7 @@ func runList(core *cliapp.ScenarioApp, args []string) error {
 	return cliapp.RenderListReport(os.Stdout, report)
 }
 
-func runGet(core *cliapp.ScenarioApp, args []string) error {
+func getResource(core *cliapp.ScenarioApp, args []string) error {
 	fs := support.NewFlagSet("resources get")
 	jsonOutput := cliutil.JSONFlag(fs)
 	if err := support.ParseFlags(fs, args); err != nil {

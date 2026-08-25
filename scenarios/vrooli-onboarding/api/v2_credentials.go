@@ -54,15 +54,18 @@ func (s *Server) handleV2Credentials(w http.ResponseWriter, _ *http.Request) {
 		}
 		credentials = append(credentials, items...)
 	}
+	projectCredentials, projectErr := projectCredentialReadiness()
+	if projectErr != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": projectErr.Error()})
+		return
+	}
+	credentials = append(credentials, projectCredentials...)
+	sortCredentialReadiness(credentials)
 	writeJSON(w, http.StatusOK, map[string]any{"credentials": credentials, "count": len(credentials)})
 }
 
 var credentialDoctorCommand = func(ctx context.Context) ([]byte, error) {
 	return onboardingDoctorJSON(ctx)
-}
-
-var credentialKeyringCommand = func(ctx context.Context, action string) ([]byte, error) {
-	return onboardingKeyringJSON(ctx, action)
 }
 
 type credentialProvisionRequest struct {
@@ -102,6 +105,10 @@ func (s *Server) handleV2CredentialProvision(w http.ResponseWriter, r *http.Requ
 }
 
 func (s *Server) handleV2CredentialDoctor(w http.ResponseWriter, r *http.Request) {
+	// One probe per request, never one per credential: the cached verdict is
+	// what makes a long-lived onboarding process report a store state it
+	// observed hours ago.
+	recheckCredentialAuthority()
 	ctx, cancel := context.WithTimeout(r.Context(), 20*time.Second)
 	defer cancel()
 	output, err := credentialDoctorCommand(ctx)
@@ -112,40 +119,6 @@ func (s *Server) handleV2CredentialDoctor(w http.ResponseWriter, r *http.Request
 	var payload json.RawMessage
 	if err := json.Unmarshal(output, &payload); err != nil {
 		writeJSON(w, http.StatusServiceUnavailable, map[string]string{"error": "credential diagnosis returned invalid data"})
-		return
-	}
-	writeJSON(w, http.StatusOK, payload)
-}
-
-func (s *Server) handleV2CredentialKeyringInspect(w http.ResponseWriter, r *http.Request) {
-	s.relayCredentialKeyring(w, r, "inspect", false)
-}
-
-func (s *Server) handleV2CredentialKeyringRepair(w http.ResponseWriter, r *http.Request) {
-	var request map[string]json.RawMessage
-	if !decodeJSONBody(w, r, &request) {
-		return
-	}
-	confirmed, ok := request["confirm"]
-	var confirm bool
-	if !ok || json.Unmarshal(confirmed, &confirm) != nil || !confirm {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "confirm=true is required to repair the keyring"})
-		return
-	}
-	s.relayCredentialKeyring(w, r, "repair", true)
-}
-
-func (s *Server) relayCredentialKeyring(w http.ResponseWriter, r *http.Request, action string, _ bool) {
-	ctx, cancel := context.WithTimeout(r.Context(), 20*time.Second)
-	defer cancel()
-	output, err := credentialKeyringCommand(ctx, action)
-	if err != nil {
-		writeJSON(w, http.StatusServiceUnavailable, map[string]string{"error": "keyring diagnostic is unavailable"})
-		return
-	}
-	var payload json.RawMessage
-	if err := json.Unmarshal(output, &payload); err != nil {
-		writeJSON(w, http.StatusServiceUnavailable, map[string]string{"error": "keyring diagnostic returned invalid data"})
 		return
 	}
 	writeJSON(w, http.StatusOK, payload)

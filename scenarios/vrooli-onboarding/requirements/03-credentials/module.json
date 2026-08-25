@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "Credential provisioning and readiness: descriptor-complete guidance, a disclosure-free relay boundary, backend diagnosis, and recovery coverage.",
-    "last_validated_at": "2026-08-19T14:39:07-04:00",
+    "last_validated_at": "2026-08-24T18:20:16-04:00",
     "module": "onboarding.credentials",
     "schema_version": "1.0.0"
   },
@@ -9,7 +9,7 @@
     {
       "id": "ONB-CRED-BOUNDARY",
       "title": "The wizard shall let an operator provision every declared credential without the value crossing any boundary other than the credential authority.",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-007",
       "category": "credentials",
       "description": "Compositional claim for the credential domain. The relay boundary is correct today; the guidance half and the negative disclosure assertions are outstanding.",
@@ -23,7 +23,7 @@
           "type": "test",
           "ref": "api/v2_credentials_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Relay half proven; disclosure and guidance halves covered by companion evidence."
         }
       ]
@@ -31,7 +31,7 @@
     {
       "id": "ONB-CRED-RELAY",
       "title": "When a credential value is submitted, the API shall relay it to the credential authority and shall return only the logical identity and field.",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-007",
       "category": "credentials",
       "description": "The value is accepted only in a request body, forwarded to the authority client, and never placed in a command argument, a response, or operator state.",
@@ -40,7 +40,7 @@
           "type": "test",
           "ref": "api/v2_credentials_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Asserts the response body carries no value and a rejected authority yields a service-unavailable state."
         }
       ]
@@ -48,7 +48,7 @@
     {
       "id": "ONB-CRED-NO-DISCLOSURE",
       "title": "If a credential value is submitted, then no response body, log line, request URL, operator-state field, or browser store shall contain that value.",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-007",
       "category": "credentials",
       "description": "The implementation is correct by construction, but only the response-body half is asserted. The target adds explicit negative assertions across every egress the value could reach, so a later refactor that starts logging the request body fails a test.",
@@ -57,14 +57,14 @@
           "type": "test",
           "ref": "api/v2_credentials_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Response body asserted clean."
         },
         {
           "type": "test",
           "ref": "api/v2_credentials_disclosure_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Evidence: captures logs, the request line, and the written operator-state document, and asserts none contains the submitted value."
         }
       ]
@@ -72,7 +72,7 @@
     {
       "id": "ONB-CRED-DESCRIPTOR-COMPLETE",
       "title": "Each credential card shall present the descriptor's declared purpose and its obtain link.",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P1-003",
       "category": "credentials",
       "description": "The shared credential descriptor declares description ('why this credential is needed and what it unlocks') and obtain_url ('where an operator signs up') specifically for onboarding. The readiness projection drops both, so the operator sees a required password field with no explanation and no link.",
@@ -81,14 +81,14 @@
           "type": "test",
           "ref": "api/v2_readiness_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Evidence: the readiness projection carries description and obtain_url through from the descriptor."
         },
         {
           "type": "test",
           "ref": "ui/src/components/wizard/V2Steps.test.tsx",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Evidence target: `ui/src/components/wizard/StepCredentials.test.tsx`; this requirement remains planned until that evidence is added. the card renders the purpose text and an obtain link pointing at the declared URL."
         }
       ]
@@ -96,7 +96,7 @@
     {
       "id": "ONB-CRED-DIAGNOSIS",
       "title": "If the credential backend is unreachable, then the readiness report shall name the backend condition and the next action.",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P1-001",
       "category": "credentials",
       "description": "An unset value, an unreachable secure store, and a host with no backend each have a different fix. The report distinguishes them rather than collapsing them into one failure.",
@@ -105,7 +105,7 @@
           "type": "test",
           "ref": "api/v2_readiness_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Asserts an unreachable authority yields an unsupported status with diagnosis text rather than an unconfigured status."
         }
       ]
@@ -113,7 +113,7 @@
     {
       "id": "ONB-CRED-RECOVERY-COVERAGE",
       "title": "The readiness report should name every configured credential that the verified recovery bundle does not cover.",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P1-001",
       "category": "credentials",
       "description": "A credential nothing declares is a credential no backup captures. The report treats an uncovered configured credential as a durable risk, not as a passing state.",
@@ -122,7 +122,7 @@
           "type": "test",
           "ref": "api/v2_readiness_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Asserts the recovery block reports uncovered entries and an absent receipt."
         }
       ]
@@ -130,7 +130,7 @@
     {
       "id": "ONB-CRED-HEADLESS-STORE",
       "title": "While the host has no graphical session, the wizard shall direct the operator to initialize the encrypted file store before provisioning.",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P1-004",
       "category": "credentials",
       "description": "Every native store needs a logged-in desktop session, so a VPS, a CI runner, or a headless bundle host has none. This is the default condition for remote onboarding, not an edge case, and the wizard must lead with the fix rather than report a failure.",
@@ -139,8 +139,49 @@
           "type": "test",
           "ref": "api/v2_readiness_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Evidence: a no-session backend yields the store-init remediation rather than a generic unsupported state."
+        }
+      ]
+    },
+    {
+      "id": "ONB-CRED-PROJECT-SCOPE",
+      "title": "The credential population shall include every scope the control-plane inventory includes for the same selection, including the project scope declared by the repository-root manifest.",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-007",
+      "category": "credentials",
+      "description": "A host-owned credential such as vrooli/remote-desktop has no scenario directory, so the repository-root manifest is its only possible owner. While the wizard walked only scenario and resource manifests, that credential could never appear at any selection, and the only way to provide it was a command outside the flow. The owner label is project, matching what the control-plane credential doctor already prints, so one address reads the same way on both surfaces.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/project_scope_test.go",
+          "phase": "unit",
+          "status": "passing",
+          "notes": "Asserts the project descriptors reach GET /api/v2/credentials and GET /api/v2/readiness with owner project and their declared label, description, and required flag, and that bundle mode inherits none of them."
+        },
+        {
+          "type": "test",
+          "ref": "api/credential_client_test.go",
+          "phase": "unit",
+          "status": "passing",
+          "notes": "Asserts the scope-aware descriptor source the API is built with returns the project descriptors with owner project. The cross-enumerator conformance test lives with the resolver at packages/credentialclient-go/inventory_test.go, outside this scenario's validation root."
+        }
+      ]
+    },
+    {
+      "id": "ONB-CRED-RECOVERY-VISIBLE",
+      "title": "The readiness report shall carry the same recovery facts the control-plane credential doctor reports, including the addresses that are required and absent.",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-007",
+      "category": "credentials",
+      "description": "The credential client was built without a state directory, so the doctor skipped its whole recovery block and the readiness gate on required-absent addresses could never fire. Recovery gaps are exactly the class of problem an operator must see before the flow claims completion.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/credential_client_test.go",
+          "phase": "unit",
+          "status": "passing",
+          "notes": "Proves the client is built with a root, a state directory, and a scope-aware descriptor source, and that the recovery block is populated only when the state directory is present."
         }
       ]
     }

@@ -11,6 +11,49 @@ type applyPlanInput struct {
 	Closure      closureResult
 	Requirements hostRequirementsResponse
 	State        OperatorState
+	// Observed maps an apply item ID to what this host was measured to be in
+	// before the plan is shown. The operator asked which items were already
+	// applied; without this the plan is a desired-state list that reads as if
+	// every entry were a pending change. buildApplyPlan stays pure: the caller
+	// does the measuring and passes the result in.
+	Observed map[string]string
+}
+
+func observedState(observed map[string]string, id string) string {
+	if state, ok := observed[id]; ok && state != "" {
+		return state
+	}
+	return applyStateUnknown
+}
+
+// observeApplyStates measures the host for the item kinds that can be checked
+// cheaply and without side effects. Tools resolve through PATH and safeguards
+// through their declared verification files, which is the same inspection the
+// readiness endpoint performs. Resources and scenarios would each need a
+// control-plane round trip, so they are reported as unknown rather than
+// guessed at.
+func observeApplyStates(root string, requirements hostRequirementsResponse) map[string]string {
+	observed := map[string]string{}
+	for _, tool := range requirements.Tools {
+		observed["tool:"+tool.Name] = applyStateFromReadiness(inspectToolReadiness(tool).Status)
+	}
+	for _, safeguard := range requirements.Safeguards {
+		observed["safeguard:"+safeguard.Name] = applyStateFromReadiness(inspectSafeguardReadiness(root, safeguard).Status)
+	}
+	return observed
+}
+
+func applyStateFromReadiness(status string) string {
+	switch status {
+	case "ready":
+		return applyStateSatisfied
+	case "missing":
+		return applyStatePending
+	default:
+		// "deferred" and "unsupported" both mean this process could not decide,
+		// so neither may be presented to the operator as a fact.
+		return applyStateUnknown
+	}
 }
 
 func buildApplyPlan(input applyPlanInput) []applyItem {
@@ -19,19 +62,19 @@ func buildApplyPlan(input applyPlanInput) []applyItem {
 		if item.Status != "required" && item.Status != "opted_in" {
 			continue
 		}
-		items = append(items, applyItem{ID: "tool:" + item.Name, Kind: "tool", Name: item.Name, Required: item.Required, Privileged: item.Privilege == "elevated"})
+		items = append(items, applyItem{ID: "tool:" + item.Name, Kind: "tool", Name: item.Name, Required: item.Required, Privileged: item.Privilege == "elevated", State: observedState(input.Observed, "tool:"+item.Name)})
 	}
 	for _, item := range input.Requirements.Safeguards {
 		if item.Status != "required" && item.Status != "opted_in" {
 			continue
 		}
-		items = append(items, applyItem{ID: "safeguard:" + item.Name, Kind: "safeguard", Name: item.Name, Required: item.Required, Privileged: item.Privilege == "elevated"})
+		items = append(items, applyItem{ID: "safeguard:" + item.Name, Kind: "safeguard", Name: item.Name, Required: item.Required, Privileged: item.Privilege == "elevated", State: observedState(input.Observed, "safeguard:"+item.Name)})
 	}
 	for _, member := range input.Closure.Resources {
 		if choice, ok := input.State.Resources[member.Name]; ok && choice.Enabled != nil && !*choice.Enabled && !member.Required {
 			continue
 		}
-		items = append(items, applyItem{ID: "resource:" + member.Name, Kind: "resource", Name: member.Name, Required: member.Required})
+		items = append(items, applyItem{ID: "resource:" + member.Name, Kind: "resource", Name: member.Name, Required: member.Required, State: observedState(input.Observed, "resource:"+member.Name)})
 	}
 	for _, member := range input.Closure.Scenarios {
 		dependencies := make([]string, 0)
@@ -43,7 +86,7 @@ func buildApplyPlan(input applyPlanInput) []applyItem {
 				}
 			}
 		}
-		items = append(items, applyItem{ID: "scenario:" + member.Name, Kind: "scenario", Name: member.Name, Dependencies: dependencies, Required: member.Required || member.Direct})
+		items = append(items, applyItem{ID: "scenario:" + member.Name, Kind: "scenario", Name: member.Name, Dependencies: dependencies, Required: member.Required || member.Direct, State: observedState(input.Observed, "scenario:"+member.Name)})
 	}
 	return items
 }
@@ -75,7 +118,12 @@ func (s *Server) handleV2ApplyPlan(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusUnprocessableEntity, map[string]string{"error": err.Error()})
 		return
 	}
-	requirements, err := deriveV2HostRequirements(root, state, models)
+	hostModels, err := hostRequirementScenarioModels(root, models, state)
+	if err != nil {
+		writeJSON(w, http.StatusUnprocessableEntity, map[string]string{"error": err.Error()})
+		return
+	}
+	requirements, err := deriveV2HostRequirements(root, state, hostModels)
 	if err != nil {
 		if writeCatalogDegraded(w, err) {
 			return
@@ -83,5 +131,5 @@ func (s *Server) handleV2ApplyPlan(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"items": buildApplyPlan(applyPlanInput{Closure: closure, Requirements: requirements, State: state})})
+	writeJSON(w, http.StatusOK, map[string]any{"items": buildApplyPlan(applyPlanInput{Closure: closure, Requirements: requirements, State: state, Observed: observeApplyStates(root, requirements)})})
 }

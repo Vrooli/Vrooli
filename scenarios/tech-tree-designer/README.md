@@ -2,7 +2,7 @@
 
 Tech Tree Designer is Vrooli's planning surface for scenario interfaces. It renders the actual cross-scenario interface graph and lets agents design future scenarios as proto contracts before implementation.
 
-This scenario was greenfield-regenerated from the `react-vite` template. The old Gin/Postgres implementation was intentionally deleted; only product concepts carry forward.
+This scenario uses the current full-stack Vrooli layout. The old Gin/Postgres implementation was intentionally deleted; only product concepts carry forward.
 
 ## What You Get
 

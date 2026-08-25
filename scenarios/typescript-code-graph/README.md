@@ -2,7 +2,7 @@
 
 Deterministic file/module/symbol/import graph extraction and mechanical TypeScript refactor execution for Vrooli scenarios; wraps ts-morph and is consumed by architecture-cartographer and react-component-library.
 
-This scenario was generated from the `react-vite` template and packages
+This scenario provides
 the standard full-stack Vrooli scenario shape:
 
 - Go API (`api/`)

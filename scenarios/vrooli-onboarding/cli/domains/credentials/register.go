@@ -15,33 +15,10 @@ import (
 
 func Register(core *cliapp.ScenarioApp) cliapp.SubcommandGroup {
 	return cliapp.SubcommandGroup{Name: "credentials", Description: "Inspect and provision onboarding credentials", NeedsAPI: true, Subcommands: []cliapp.Command{
-		{Name: "list", Description: "List credential descriptors", Run: func(args []string) error { return get(core, args, "/v2/credentials") }},
+		{Name: "list", Description: "List credential descriptors", Run: func(args []string) error { return support.GetJSON(core, "credentials", args, "/v2/credentials") }},
 		{Name: "provision", Description: "Provision a credential from standard input", Run: func(args []string) error { return provision(core, args) }},
-		{Name: "doctor", Description: "Diagnose the credential authority", Run: func(args []string) error { return get(core, args, "/v2/credentials/doctor") }},
+		{Name: "doctor", Description: "Diagnose the credential authority", Run: func(args []string) error { return support.GetJSON(core, "credentials", args, "/v2/credentials/doctor") }},
 	}}
-}
-
-func get(core *cliapp.ScenarioApp, args []string, path string) error {
-	fs := support.NewFlagSet("credentials")
-	jsonOutput := cliutil.JSONFlag(fs)
-	if err := support.ParseFlags(fs, args); err != nil {
-		return err
-	}
-	body, err := core.Get(path, nil)
-	if err != nil {
-		return err
-	}
-	if *jsonOutput {
-		_, err = os.Stdout.Write(append(body, '\n'))
-		return err
-	}
-	var value any
-	if err := json.Unmarshal(body, &value); err != nil {
-		return fmt.Errorf("decode credentials response: %w", err)
-	}
-	pretty, _ := json.MarshalIndent(value, "", "  ")
-	_, err = fmt.Fprintln(os.Stdout, string(pretty))
-	return err
 }
 
 func provision(core *cliapp.ScenarioApp, args []string) error {

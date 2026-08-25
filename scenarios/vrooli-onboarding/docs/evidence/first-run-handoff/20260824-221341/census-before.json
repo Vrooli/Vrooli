@@ -1,0 +1,20 @@
+{
+  "setup_go_lines": 1775,
+  "setup_deps_fields": 24,
+  "cli_json_get_helpers": 3,
+  "internal_imports": [
+    "github.com/vrooli/vrooli/internal/config",
+    "github.com/vrooli/vrooli/internal/operatorinput",
+    "github.com/vrooli/vrooli/internal/projectstate",
+    "github.com/vrooli/vrooli/internal/scenario",
+    "github.com/vrooli/vrooli/internal/setup"
+  ],
+  "ui_max_source_line_length": 1786,
+  "route_source": "scenarios/vrooli-onboarding/api/main.go",
+  "commands": {
+    "setup_go_lines": "wc -l internal/setup/setup.go (measured after the typed-stage/completion edits; no pre-edit raw census was preserved)",
+    "cli_json_get_helpers": "rg -n 'func (run)?get\\(' scenarios/vrooli-onboarding/cli/domains",
+    "ui_max_source_line_length": "awk over scenarios/vrooli-onboarding/ui/src",
+    "routes": "rg -n 'Handle(Func)?' scenarios/vrooli-onboarding/api/main.go"
+  }
+}

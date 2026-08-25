@@ -2,7 +2,7 @@
 
 Validates, visualizes, and scaffolds every scenario's business contract: PRD.md and requirements/ — template conformance, intent linkage, evidence-backed traceability, and deterministic remediation.
 
-This scenario was generated from the `react-vite` template and packages
+This scenario provides
 the standard full-stack Vrooli scenario shape:
 
 - Go API (`api/`)

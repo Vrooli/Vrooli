@@ -4,7 +4,7 @@ Local-first internet management, DNS filtering, network diagnostics, and safe op
 
 ## What You Get
 
-- React/Vite UI, Go API, and Go CLI scaffold generated from the `react-vite` template.
+- React/Vite UI, Go API, and Go CLI with managed lifecycle and health contracts.
 - `vrooli-default` design contract.
 - PRD defining Network Manager as a greenfield scenario.
 - Requirements registry covering health snapshots, AdGuard Home management, DNS filtering, device inventory, optimization experiments, adapter capabilities, Home Automation integration, and privacy defaults.

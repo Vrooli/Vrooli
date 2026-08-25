@@ -4,6 +4,11 @@
 
 Secrets Manager is a comprehensive security dashboard that discovers, validates, and provisions credentials required by Vrooli resources and scenarios. It eliminates "missing credential" fire drills, exposes security regressions before launch, and keeps the recursive Vrooli stack trustworthy.
 
+Secrets Manager owns credential discovery, metadata-safe operator surfaces, and
+grant authoring. It does not own credential values at rest, runtime delivery
+decisions, encryption, node key material, or fleet revocation; those remain
+control-plane responsibilities.
+
 ## 🎯 Business Value
 
 - **Pre-Launch Confidence**: Verify all resource secrets before production deployment
@@ -142,6 +147,7 @@ const manifest = await response.json();
 - Secrets are **never logged** or returned in API responses (only metadata and validation status)
 - File content endpoint (`/files/content`) includes path traversal safeguards
 - Provisioning sends values only over stdin to the control plane; status endpoints return metadata only
+- The scenario does not own encrypted-store lifecycle, explicit store deletion, or the authoritative credential inventory; those remain control-plane responsibilities
 - Security scan patterns are versioned and validated before use
 - PostgreSQL stores only secret **metadata**, not values
 

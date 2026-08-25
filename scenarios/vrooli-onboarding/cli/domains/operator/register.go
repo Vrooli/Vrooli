@@ -1,8 +1,6 @@
 package operator
 
 import (
-	"encoding/json"
-	"fmt"
 	"os"
 
 	"vrooli-onboarding/cli/internal/support"
@@ -15,38 +13,15 @@ import (
 // persists operator decisions and derives scenarios/readiness from manifests.
 func Register(core *cliapp.ScenarioApp) cliapp.SubcommandGroup {
 	return cliapp.SubcommandGroup{Name: "operator", Description: "Inspect and commit V2 operator state", NeedsAPI: true, Subcommands: []cliapp.Command{
-		{Name: "show", Description: "Show persisted operator state", Run: func(args []string) error { return runShow(core, args) }},
+		{Name: "show", Description: "Show persisted operator state", Run: func(args []string) error { return support.GetJSON(core, "operator", args, "/v1/operator-state") }},
 		{Name: "patch", Description: "Atomically apply an RFC 7386 operator-state merge patch from --body-file", Run: func(args []string) error { return runPatch(core, args) }},
-		{Name: "scenarios", Description: "Show manifest-derived scenario choices", Run: func(args []string) error { return runGet(core, args, "/v2/scenarios") }},
-		{Name: "readiness", Description: "Show metadata-safe composed readiness", Run: func(args []string) error { return runGet(core, args, "/v2/readiness") }},
+		{Name: "scenarios", Description: "Show manifest-derived scenario choices", Run: func(args []string) error { return support.GetJSON(core, "operator", args, "/v2/scenarios") }},
+		{Name: "readiness", Description: "Show metadata-safe composed readiness", Run: func(args []string) error { return support.GetJSON(core, "operator", args, "/v2/readiness") }},
 	}}
 }
 
 func runShow(core *cliapp.ScenarioApp, args []string) error {
-	return runGet(core, args, "/operator-state")
-}
-
-func runGet(core *cliapp.ScenarioApp, args []string, path string) error {
-	fs := support.NewFlagSet("operator")
-	jsonOutput := cliutil.JSONFlag(fs)
-	if err := support.ParseFlags(fs, args); err != nil {
-		return err
-	}
-	body, err := core.Get(path, nil)
-	if err != nil {
-		return err
-	}
-	if *jsonOutput {
-		_, err = os.Stdout.Write(append(body, '\n'))
-		return err
-	}
-	var value any
-	if err := json.Unmarshal(body, &value); err != nil {
-		return fmt.Errorf("decode operator response: %w", err)
-	}
-	encoded, _ := json.MarshalIndent(value, "", "  ")
-	_, err = fmt.Fprintln(os.Stdout, string(encoded))
-	return err
+	return support.GetJSON(core, "operator", args, "/operator-state")
 }
 
 func runPatch(core *cliapp.ScenarioApp, args []string) error {

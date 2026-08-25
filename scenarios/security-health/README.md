@@ -2,7 +2,7 @@
 
 Language-aware security posture validation and fleet-wide dependency/vulnerability intelligence.
 
-This scenario was generated from the `react-vite` template and packages
+This scenario provides
 the standard full-stack Vrooli scenario shape:
 
 - Go API (`api/`)

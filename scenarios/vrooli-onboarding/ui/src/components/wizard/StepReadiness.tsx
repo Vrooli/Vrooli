@@ -1,8 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 import { CheckCircle2, CircleAlert, Loader2 } from "lucide-react";
-import { applyOnboarding, fetchCapabilities, fetchV2ApplyPlan, fetchV2ApplyStatus, fetchV2Readiness, provisionCredential } from "../../lib/api";
-import type { ReadinessItem } from "../../types";
+import { acknowledgeDegraded, applyOnboarding, fetchCapabilities, fetchV2ApplyPlan, fetchV2ApplyStatus, fetchV2Readiness, provisionCredential } from "../../lib/api";
+import { ApplyPlanDisclosure } from "./ApplyPlanDisclosure";
+import type { CompletionBlocker, ReadinessItem } from "../../types";
 import { Button } from "../ui/button";
 import { CapabilityActions } from "./CapabilityActions";
 
@@ -15,7 +16,8 @@ export function StepReadiness({ title = "Validation" }: { title?: "Credentials" 
   const [provisionError, setProvisionError] = useState<string | null>(null);
   const [applyState, setApplyState] = useState<{ run_id: string; status: string; items: Array<{ name: string; outcome: string; error?: string }> } | null>(null);
   const [applyError, setApplyError] = useState<string | null>(null);
-  const [degradedAcknowledged, setDegradedAcknowledged] = useState(false);
+  const [acknowledging, setAcknowledging] = useState(false);
+  const [acknowledgeError, setAcknowledgeError] = useState<string | null>(null);
   const applyController = useRef<AbortController | null>(null);
 
   useEffect(() => () => applyController.current?.abort(), []);
@@ -58,6 +60,21 @@ export function StepReadiness({ title = "Validation" }: { title?: "Credentials" 
     }
   };
 
+  const acceptDegraded = async () => {
+    const digest = data?.degraded_digest;
+    if (!digest) return;
+    setAcknowledging(true);
+    setAcknowledgeError(null);
+    try {
+      await acknowledgeDegraded(digest);
+      await refetch();
+    } catch {
+      setAcknowledgeError("The acknowledgement was not recorded. Recheck readiness and try again.");
+    } finally {
+      setAcknowledging(false);
+    }
+  };
+
   return <div data-testid="step-readiness">
     <h1 className="text-xl font-semibold sm:text-2xl">{title}</h1>
     <p className="mt-2 text-sm text-muted">This report uses manifest metadata and provider status only. Credential values are never displayed.</p>
@@ -71,11 +88,7 @@ export function StepReadiness({ title = "Validation" }: { title?: "Credentials" 
       <div className="mt-6 flex items-center gap-2" role="status" data-testid="readiness-summary">{data.status === "ready" ? <CheckCircle2 className="h-5 w-5 text-primary" /> : <CircleAlert className="h-5 w-5 text-warning" />}<span className={data.status === "ready" ? "text-primary" : "text-warning"}>{data.status === "ready" ? "Ready" : `${data.status}: action required`}</span></div>
       {title === "Apply" && <section className="mt-4" aria-label="Apply plan">
         <h2 className="text-lg font-medium">Review apply plan</h2>
-        <ul data-testid="apply-plan" role="list" className="mt-2 space-y-1 text-sm text-muted">
-          {(plan?.items ?? []).map((item) => <li key={item.id}>{item.kind}: {item.name}{item.required ? " · required" : ""}</li>)}
-          {(plan?.items ?? []).length === 0 && <li>Current selection has no consented host changes.</li>}
-        </ul>
-        <p data-testid="privilege-warning" role="note" className="mt-2 text-sm text-warning">Review the named host items above; safeguards and elevated tools may require privilege. No undeclared host action is performed.</p>
+        <ApplyPlanDisclosure items={plan?.items ?? []} />
         <div className="mt-3 flex flex-wrap items-center gap-3">
           <Button data-testid="apply-confirm" type="button" onClick={() => { void apply(); }} className="rounded-md bg-primary px-3 py-2 text-sm font-medium text-on-primary">Apply selection</Button>
           {applyState && <span data-testid="apply-progress" role="progressbar" aria-valuetext={`${applyState.status} · ${applyState.items.length} items`} className="text-sm text-muted">{applyState.status} · {applyState.items.length} items</span>}
@@ -83,15 +96,46 @@ export function StepReadiness({ title = "Validation" }: { title?: "Credentials" 
       </section>}
       {applyState && <table className="mt-3 w-full text-left text-xs text-muted" data-testid="apply-report" role="table"><caption className="sr-only">Apply results</caption><thead><tr><th scope="col">Item</th><th scope="col">Outcome</th></tr></thead><tbody>{applyState.items.map((item) => <tr key={item.name}><td className="py-1">{item.name}</td><td className="py-1">{item.outcome}{item.error ? ` — ${item.error}` : ""}</td></tr>)}</tbody></table>}
       {applyState?.items.some((item) => item.outcome === "blocked" || item.outcome === "failed") && <><p data-testid="skipped-note" role="note" className="mt-3 text-sm text-warning">Some items were skipped or failed. Resolve the reported dependency or host issue before trying again.</p><Button data-testid="retry" type="button" variant="outline" onClick={() => { void apply(); }}>Apply again</Button></>}
-      {title === "Validation" && <div className="mt-4 flex flex-wrap gap-3"><Button data-testid="recheck" type="button" variant="outline" onClick={() => { void refetch(); }}>Recheck</Button>{data.status === "degraded" && !degradedAcknowledged && <Button data-testid="readiness-continue-degraded" type="button" variant="outline" onClick={() => setDegradedAcknowledged(true)}>Continue with degraded</Button>}{degradedAcknowledged && <p role="status" className="text-sm text-warning">Degraded continuation recorded for this session.</p>}</div>}
+      {title === "Validation" && <>
+        <BlockerList title="Blocking" testID="readiness-blockers" items={data.blockers ?? []} tone="danger" />
+        <BlockerList title="Degraded (optional)" testID="readiness-degraded" items={data.degraded ?? []} tone="warning" />
+        {acknowledgeError && <p className="mt-3 text-sm text-danger" role="alert">{acknowledgeError}</p>}
+        <div className="mt-4 flex flex-wrap gap-3">
+          <Button data-testid="recheck" type="button" variant="outline" onClick={() => { void refetch(); }}>Recheck</Button>
+          {(data.blockers ?? []).length === 0 && (data.degraded ?? []).length > 0 && !data.degraded_acknowledged && <Button data-testid="readiness-continue-degraded" type="button" variant="outline" disabled={acknowledging} onClick={() => { void acceptDegraded(); }}>{acknowledging ? "Recording…" : "Accept the degraded items"}</Button>}
+          {(data.degraded ?? []).length > 0 && data.degraded_acknowledged && <p role="status" className="text-sm text-warning">The degraded items above are recorded as accepted.</p>}
+        </div>
+        {(data.blockers ?? []).length > 0 && <p data-testid="finish-blocked" role="note" className="mt-3 text-sm text-danger">Configuration cannot be reported complete while a blocking item remains. Resolve the items above, then recheck.</p>}
+      </>}
       <ul className="mt-4 space-y-2">{data.credentials.map((credential) => {
         const key = `${credential.logical_id}/${credential.field}`;
-        const canProvision = title === "Credentials" && credential.provisioning !== "derived" && credential.status !== "configured";
-        return <li key={key} data-testid="credential-card" className="rounded-lg border border-muted bg-surface-muted p-3 text-sm"><p data-testid="credential-purpose" role="note" className="font-medium">{credential.label || credential.field}</p><span data-testid="credential-status" role="status" className="ml-2 text-muted">{credential.required ? "Required" : "Optional"} · {credential.status}</span>{credential.provisioning === "derived" && <p className="mt-1 text-xs text-muted">Provided by {credential.derived_from || "the owning component"} after its source credential is available.</p>}{credential.description && <p className="mt-1 text-xs text-muted">{credential.description}</p>}{credential.obtain_url && <a data-testid="credential-obtain-link" className="mt-1 inline-flex min-h-11 items-center rounded px-2 text-xs text-primary-soft underline" href={credential.obtain_url}>How to obtain this credential</a>}{credential.detail && <p className="mt-1 text-xs text-muted">{credential.detail}</p>}{canProvision && <div className="mt-3 flex flex-col gap-2 sm:flex-row"><input data-testid="credential-input" aria-label={`Value for ${credential.label || credential.field}`} type="password" autoComplete="off" value={values[key] ?? ""} onChange={(event) => setValues((current) => ({ ...current, [key]: event.target.value }))} className="min-h-11 min-w-0 flex-1 rounded-md border border-muted bg-surface px-3 py-2 text-sm" /><Button data-testid="credential-save" type="button" disabled={!values[key]?.trim() || provisioning === key} onClick={() => { void provision(credential.logical_id, credential.field); }} className="rounded-md bg-primary px-3 py-2 text-sm font-medium text-on-primary disabled:opacity-50">{provisioning === key ? "Saving…" : "Save securely"}</Button></div>}</li>;
+        const componentSupplied = credential.provisioning === "derived" || credential.provisioning === "generated";
+        const canProvision = title === "Credentials" && !componentSupplied && credential.status !== "configured";
+        return <li key={key} data-testid="credential-card" className="rounded-lg border border-muted bg-surface-muted p-3 text-sm"><p data-testid="credential-purpose" role="note" className="font-medium">{credential.label || credential.field}</p><span data-testid="credential-status" role="status" className="ml-2 text-muted">{credential.required ? "Required" : "Optional"} · {credential.status}</span>{credential.provisioning === "derived" && <p className="mt-1 text-xs text-muted">Provided by {credential.derived_from || "the owning component"} after its source credential is available.</p>}{credential.provisioning === "generated" && <p className="mt-1 text-xs text-muted">Generated by the owning component on first start. There is nothing to enter.</p>}{credential.description && <p className="mt-1 text-xs text-muted">{credential.description}</p>}{credential.obtain_url && <a data-testid="credential-obtain-link" className="mt-1 inline-flex min-h-11 items-center rounded px-2 text-xs text-primary-soft underline" href={credential.obtain_url}>How to obtain this credential</a>}{credential.detail && <p className="mt-1 text-xs text-muted">{credential.detail}</p>}{canProvision && <div className="mt-3 flex flex-col gap-2 sm:flex-row"><input data-testid="credential-input" aria-label={`Value for ${credential.label || credential.field}`} type="password" autoComplete="off" value={values[key] ?? ""} onChange={(event) => setValues((current) => ({ ...current, [key]: event.target.value }))} className="min-h-11 min-w-0 flex-1 rounded-md border border-muted bg-surface px-3 py-2 text-sm" /><Button data-testid="credential-save" type="button" disabled={!values[key]?.trim() || provisioning === key} onClick={() => { void provision(credential.logical_id, credential.field); }} className="rounded-md bg-primary px-3 py-2 text-sm font-medium text-on-primary disabled:opacity-50">{provisioning === key ? "Saving…" : "Save securely"}</Button></div>}</li>;
       })}</ul>
       {title === "Validation" && <><ReadinessGroup title="Host requirements" items={data.hosts} /><ReadinessGroup title="Integrations" items={data.integrations.filter((item) => item.category === "integration")} /><ReadinessGroup title="System checks" items={data.integrations.filter((item) => item.category === "system")} /></>}
     </>}
   </div>;
+}
+
+/**
+ * BlockerList shows the named reasons configuration is not complete. It renders
+ * nothing when the list is empty, so a clean verdict stays quiet.
+ */
+function BlockerList({ title, testID, items, tone }: { title: string; testID: string; items: CompletionBlocker[]; tone: "danger" | "warning" }) {
+  if (items.length === 0) return null;
+  const border = tone === "danger" ? "border-danger/40" : "border-warning/40";
+  const text = tone === "danger" ? "text-danger" : "text-warning";
+  return <section className="mt-4" aria-label={title}>
+    <h2 className={`text-lg font-medium ${text}`}>{title}</h2>
+    <ul data-testid={testID} role="list" className={`mt-2 space-y-2 rounded-lg border ${border} p-3`}>
+      {items.map((item) => <li key={`${item.kind}-${item.name}`} data-testid={`${testID}-item`} className="text-sm">
+        <span className="font-medium">{item.kind}: {item.name}</span>
+        <p className="mt-1 text-xs text-muted">{item.reason}</p>
+        <p className="mt-1 text-xs text-primary-soft">Next: {item.remediation}</p>
+      </li>)}
+    </ul>
+  </section>;
 }
 
 function ReadinessGroup({ title, items }: { title: string; items: ReadinessItem[] }) {

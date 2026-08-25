@@ -29,7 +29,7 @@ Manifests declare **what exists**. Operator state records **what this install ch
 |---|---|---|
 | Web UI | `make start`, then the lifecycle-managed UI port | A human is configuring a machine they can see |
 | Interactive CLI | `vrooli-onboarding wizard` | A human is on a terminal, or there is no desktop session |
-| Non-interactive CLI | `vrooli-onboarding wizard apply --selection "<file>"` | Automation, CI, vrooli-bridge, scenario-to-cloud |
+| Non-interactive CLI | `vrooli-onboarding wizard commit --selection "<file>"` | Automation, CI, vrooli-bridge, scenario-to-cloud |
 | REST API | `/api/v2/...` | Another scenario is driving setup |
 | Desktop bundle | The generated app's first-run flow | A tier-2 install configures itself |
 

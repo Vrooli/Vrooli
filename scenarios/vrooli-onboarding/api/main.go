@@ -19,6 +19,7 @@ import (
 // Server wires the HTTP router.
 type Server struct {
 	router *mux.Router
+	roots  Roots
 }
 
 // routingMuxAdapter adapts gorilla/mux's fluent Handle signature to the small
@@ -34,8 +35,10 @@ func (m routingMuxAdapter) Handle(pattern string, handler http.Handler) {
 
 // NewServer initializes routes.
 func NewServer() *Server {
+	roots, _ := resolveRoots()
 	srv := &Server{
 		router: mux.NewRouter(),
+		roots:  roots,
 	}
 	srv.setupRoutes()
 	return srv
@@ -64,7 +67,6 @@ func (s *Server) setupRoutes() {
 	s.router.HandleFunc("/api/v2/closure", s.handleV2Closure).Methods("GET")
 	s.router.HandleFunc("/api/v2/union", s.handleV2Union).Methods("GET")
 	s.router.HandleFunc("/api/v2/credentials", s.handleV2Credentials).Methods("GET")
-	s.router.HandleFunc("/api/v2/surface", s.handleV2Surface).Methods("GET")
 	s.router.HandleFunc("/api/v2/handoff", s.handleV2Handoff).Methods("POST")
 	s.router.Handle("/api/v2/apply", onboardingMutationAuth(http.HandlerFunc(s.handleV2Apply))).Methods("POST")
 	s.router.HandleFunc("/api/v2/apply/plan", s.handleV2ApplyPlan).Methods("GET")
@@ -82,8 +84,7 @@ func (s *Server) setupRoutes() {
 	s.router.HandleFunc("/api/v2/readiness", s.handleV2Readiness).Methods("GET")
 	s.router.Handle("/api/v2/credentials/provision", onboardingMutationAuth(http.HandlerFunc(s.handleV2CredentialProvision))).Methods("POST")
 	s.router.HandleFunc("/api/v2/credentials/doctor", s.handleV2CredentialDoctor).Methods("GET")
-	s.router.HandleFunc("/api/v2/credentials/keyring/inspect", s.handleV2CredentialKeyringInspect).Methods("GET")
-	s.router.HandleFunc("/api/v2/credentials/keyring/repair", s.handleV2CredentialKeyringRepair).Methods("POST")
+	s.router.Handle("/api/v2/readiness/degraded-acknowledgement", onboardingMutationAuth(http.HandlerFunc(s.handleV2DegradedAcknowledgement))).Methods("POST")
 
 	// Glossary endpoint
 	s.router.HandleFunc("/api/v1/glossary", s.handleGlossary).Methods("GET")

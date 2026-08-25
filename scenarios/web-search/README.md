@@ -2,7 +2,7 @@
 
 Federated web search provider with live results and a self-curating, citation-backed research knowledge store
 
-This scenario was generated from the `react-vite` template and packages
+This scenario provides
 the standard full-stack Vrooli scenario shape:
 
 - Go API (`api/`)

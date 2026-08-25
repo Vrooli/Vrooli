@@ -2,7 +2,7 @@
 
 Turn any Vrooli scenario into a distributable iOS application with evidence-backed validation on simulators and physical devices.
 
-This scenario was generated from the `react-vite` template and packages
+This scenario provides
 the standard full-stack Vrooli scenario shape:
 
 - Go API (`api/`)

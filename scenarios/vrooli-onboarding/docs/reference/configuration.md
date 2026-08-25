@@ -109,7 +109,7 @@ per concern. These are the contract; no surface reimplements them.
 
 ## The operator surface feed
 
-`GET /api/v2/surface` returns every operator-controllable decision the **current
+The typed V2 host-requirements endpoint returns every operator-controllable decision the **current
 catalog** declares — with its type, schema, risk, privilege, and default. The UI
 renders forms from it and search-hub indexes it.
 

@@ -5,6 +5,30 @@ configuration substrate it reads from and writes to is documented in
 [`/docs/configuration/`](../../../docs/configuration/); the UX contract it must
 satisfy is [`experience/`](../experience/).
 
+## One command configures or heals a host
+
+```bash
+vrooli setup --include-optional --maintenance-window --sudo-mode=ask --onboarding=auto
+```
+
+That command is the whole flow. Setup performs the bootstrap steps, hands off to
+this wizard, and the wizard asks for every value the operator has to supply.
+Nothing an operator needs is reached by a command outside it. In particular:
+
+- `--sudo-mode=ask` lets the in-process `sudo` wrapper prompt when a host item
+  needs privilege. An already-elevated invocation also works, but it runs the
+  whole of setup as root and is outside this flow.
+- Credentials are provisioned on the credentials step, not by a shell command.
+- Host changes are consented to on the host step, and the list shown there is
+  the list apply performs.
+
+Two commands prove the resulting state, and they must agree:
+
+```bash
+vrooli credentials doctor --format json
+curl -s http://127.0.0.1:$(vrooli scenario port vrooli-onboarding API_PORT)/api/v2/readiness
+```
+
 ## Why the flow is shaped this way
 
 Operators do not think in resources. They think in capabilities: "I want the
@@ -106,8 +130,20 @@ else carries the decision.
 
 ### 3 — Credentials
 
-One card per credential descriptor on the selected stack. The card renders the
-descriptor in full:
+One card per credential descriptor in scope. Scope is the selected stack plus
+the **project scope**: the descriptors declared by the repository-root manifest
+`.vrooli/service.json`. The project manifest is the authoritative owner of
+host-owned credentials that have no scenario directory to hang a declaration
+from — `vrooli/remote-desktop` username and password are exactly that case — so
+those cards appear on a repository install regardless of what the operator
+selected. Their owner label is `project`, matching what `vrooli credentials
+doctor` prints, so one address reads the same way on both surfaces.
+
+A desktop bundle stages no repository-root manifest by design and therefore
+shows no project-scope card. The exclusion is asserted by a test rather than
+left to the accident of a missing file.
+
+The card renders the descriptor in full:
 
 ```
 ┌─ OpenRouter API Key   (resource: openrouter · required) ─┐
@@ -172,7 +208,17 @@ binding. The connector and connection models are owned by integration-hub; see
 
 ### 5 — Host
 
-Tools and safeguards derived from every selected scenario and resource manifest.
+Tools and safeguards derived from the repository-root manifest, every scenario
+in the selection closure, and their resources. The closure — not the raw
+selection and not the whole catalog — is the input, because it is exactly what
+apply will start. The consent screen, the readiness report, the apply plan, and
+the apply run all read the same set, so the operator cannot consent to one list
+and have setup perform another.
+
+The derived name sets are asserted equal to `internal/hostreq.Resolve` for the
+same selection. Two implementations remain by decision, because `hostreq` needs
+a repository layout and onboarding must also serve a flat bundle catalog; the
+conformance test is what makes that duplication safe.
 
 ```
 ┌─ Host Tools ────────────────────────────────────────────┐
@@ -280,6 +326,36 @@ Contract:
   and the acknowledgement is recorded so the degraded state stays visible to
   later diagnosis.
 - Navigation back to any earlier decision remains available from this step.
+
+#### The completion rule
+
+Configuration is complete when readiness reports no unresolved required item.
+The rule is enforced where the `.configuration-complete` marker is written, not
+at a Next button, because three surfaces can complete configuration — the UI,
+the CLI wizard, and a direct API caller — and only the marker write is common to
+all three.
+
+| Condition | Marker | Apply run status |
+|---|---|---|
+| Nothing unresolved | written | `applied` |
+| A required credential, required host item, recovery gap, or unsuccessful apply item remains | withheld | `configuration_incomplete`, with the blockers named |
+| Only optional items unresolved, not acknowledged | withheld | `configuration_incomplete`, with the degraded set named |
+| Only optional items unresolved, acknowledged | written | `applied` |
+
+The degraded acknowledgement is durable operator state, not a click. It carries
+the digest of the exact degraded set it accepted, so a page reload cannot
+discard it and an acknowledgement of one gap cannot authorise completion over a
+different gap later. Record it with
+`POST /api/v2/readiness/degraded-acknowledgement`, or from the CLI with
+`vrooli-onboarding readiness acknowledge-degraded`.
+
+The CLI's `readiness` command and the wizard's `validation` step exit non-zero
+while a blocker remains, so a script cannot read a blocking verdict as success.
+
+Setup then verifies the same populations in process before it reports. A present
+marker no longer implies success on its own: when setup's verdict contradicts it,
+setup reports `configuration_pending` and names the single command that resolves
+it.
 
 ## Cross-cutting contracts
 

@@ -13,7 +13,7 @@ existing owners and arrive as references in a spec. See
 the write-spine rows in
 [`docs/internal/DECISIONS.md`](docs/internal/DECISIONS.md).
 
-This scenario was generated from the `react-vite` template and packages
+This scenario provides
 the standard full-stack Vrooli scenario shape:
 
 - Go API (`api/`)

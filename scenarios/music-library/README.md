@@ -2,7 +2,7 @@
 
 Personal music player with a legible taste engine: decomposes what you play, learns what you like, and generates toward it
 
-This scenario was generated from the `react-vite` template and packages
+This scenario provides
 the standard full-stack Vrooli scenario shape:
 
 - Go API (`api/`)

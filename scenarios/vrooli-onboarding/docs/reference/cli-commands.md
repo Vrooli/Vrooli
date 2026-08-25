@@ -16,7 +16,7 @@ the contract, not the flag list.
 vrooli-onboarding wizard run --interactive     # same nine-step flow used by the UI
 vrooli-onboarding wizard run --accept-recommendation --non-interactive # apply the explicit starter profile
 vrooli-onboarding wizard status                # step pointer + which steps are satisfied
-vrooli-onboarding wizard apply --selection "<file>"   # non-interactive, no prompts
+vrooli-onboarding wizard commit --selection "<file>"   # non-interactive, no prompts
 vrooli-onboarding wizard export --output "<file>"     # current selection as a selection document
 ```
 
@@ -104,14 +104,24 @@ path named.
 ## Apply and readiness
 
 ```bash
-vrooli-onboarding apply                     # install, apply, enable, start — per-item report
-vrooli-onboarding readiness [--json]       # required items control the exit code
-vrooli-onboarding wizard status [--json]    # readiness and committed state
+vrooli-onboarding apply                                       # install, apply, enable, start — per-item report
+vrooli-onboarding readiness [--json]                          # blockers control the exit code
+vrooli-onboarding readiness acknowledge-degraded [--digest D] # accept the current optional gaps
+vrooli-onboarding wizard status [--json]                      # readiness and committed state
 ```
 
-`readiness` exits non-zero when a required item is not ready and zero when only
-optional items are degraded. Automation cannot branch on prose; the exit code is
-what lets bridge, cloud provisioning, and CI gate on a real result.
+`readiness` prints every blocker with its reason and remediation, then exits
+non-zero while one remains. Automation cannot branch on prose; the exit code is
+what lets bridge, cloud provisioning, and CI gate on a real result. The verdict
+comes from the API's typed blockers rather than from a second derivation in the
+CLI, so the wizard and the completion marker cannot disagree.
+
+Optional gaps do not block, but they do need an explicit acceptance before
+configuration is reported complete. `readiness` names the digest of the current
+degraded set and `readiness acknowledge-degraded` records it; with no `--digest`
+the command reads the current one. The acknowledgement is durable operator state
+and names the exact set it accepted, so accepting one gap never authorises
+completion over a different gap later.
 
 ## Operator state
 

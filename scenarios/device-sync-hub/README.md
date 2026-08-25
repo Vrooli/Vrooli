@@ -2,7 +2,7 @@
 
 Polished, secure cross-device file and text transfer hub: push files or text from any trusted device and pull them on your other devices, relayed through your always-on server.
 
-This scenario was generated from the `react-vite` template and packages
+This scenario provides
 the standard full-stack Vrooli scenario shape:
 
 - Go API (`api/`)

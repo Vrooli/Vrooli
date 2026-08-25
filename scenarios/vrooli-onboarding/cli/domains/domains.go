@@ -1,6 +1,7 @@
 package domains
 
 import (
+	"vrooli-onboarding/cli/domains/capabilities"
 	"vrooli-onboarding/cli/domains/control"
 	"vrooli-onboarding/cli/domains/credentials"
 	"vrooli-onboarding/cli/domains/glossary"
@@ -26,6 +27,7 @@ func SubcommandGroups(core *cliapp.ScenarioApp) []cliapp.SubcommandGroup {
 		resources.Register(core),
 		credentials.Register(core),
 		operator.Register(core),
+		capabilities.Register(core),
 		wizard.Register(core),
 	}, control.SubcommandGroups(core)...)
 }

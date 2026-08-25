@@ -16,7 +16,7 @@ A real economy with money that isn't real: mint tokens, grant them with rules th
 
 ---
 
-This scenario was generated from the `react-vite` template and packages
+This scenario provides
 the standard full-stack Vrooli scenario shape:
 
 - Go API (`api/`)

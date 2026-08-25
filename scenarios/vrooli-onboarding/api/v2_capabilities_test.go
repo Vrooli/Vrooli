@@ -9,6 +9,11 @@ import (
 )
 
 func TestV2CapabilityRoutesUseMetadataOnlyGenericControlPlaneContract(t *testing.T) {
+	// Isolate the runtime home. Reading the operator's real one makes the test
+	// depend on host state it does not own; on this host that queue file was
+	// left root-owned by an elevated setup run, so the reconcile step failed
+	// with a permission error that had nothing to do with the contract.
+	t.Setenv("HOME", t.TempDir())
 	previous := controlPlaneCommand
 	var commands [][]string
 	controlPlaneCommand = func(ctx context.Context, name string, args ...string) *exec.Cmd {

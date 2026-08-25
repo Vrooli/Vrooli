@@ -2,7 +2,7 @@
 
 Owner-facing notification spine that routes alerts to the right device and channel, relaying through the fleet when this host cannot deliver
 
-This scenario was generated from the `react-vite` template and packages
+This scenario provides
 the standard full-stack Vrooli scenario shape:
 
 - Go API (`api/`)

@@ -89,7 +89,7 @@
       "prd_ref": "OT-P0-007",
       "priority": "P0",
       "title": "Credentials",
-      "requirement_count": 7,
+      "requirement_count": 9,
       "requirement_ids": [
         "ONB-CRED-BOUNDARY",
         "ONB-CRED-RELAY",
@@ -97,7 +97,9 @@
         "ONB-CRED-DESCRIPTOR-COMPLETE",
         "ONB-CRED-DIAGNOSIS",
         "ONB-CRED-RECOVERY-COVERAGE",
-        "ONB-CRED-HEADLESS-STORE"
+        "ONB-CRED-HEADLESS-STORE",
+        "ONB-CRED-PROJECT-SCOPE",
+        "ONB-CRED-RECOVERY-VISIBLE"
       ],
       "operationalTargets": [
         {
@@ -120,14 +122,16 @@
       "prd_ref": "OT-P0-004",
       "priority": "P0",
       "title": "Host tools and safeguards",
-      "requirement_count": 6,
+      "requirement_count": 8,
       "requirement_ids": [
         "ONB-HOST-CONSENT",
         "ONB-HOST-DERIVED",
         "ONB-HOST-RISK-DISCLOSURE",
         "ONB-HOST-CONFIG-FORMS",
         "ONB-HOST-CONFIG-VALIDATED",
-        "ONB-HOST-UNSUPPORTED-PLATFORM"
+        "ONB-HOST-UNSUPPORTED-PLATFORM",
+        "ONB-HOST-SCOPE-PARITY",
+        "ONB-HOST-PROBE-TRUTH"
       ],
       "operationalTargets": [
         {
@@ -144,7 +148,7 @@
       "prd_ref": "OT-P0-006",
       "priority": "P0",
       "title": "Apply and readiness",
-      "requirement_count": 10,
+      "requirement_count": 11,
       "requirement_ids": [
         "ONB-APPLY-INTENT-BECOMES-STATE",
         "ONB-APPLY-EXECUTES",
@@ -155,7 +159,8 @@
         "ONB-READY-RESOURCE-PROBE",
         "ONB-READY-REMEDIATION",
         "ONB-READY-RECHECK",
-        "ONB-READY-DEGRADED-CONTINUE"
+        "ONB-READY-DEGRADED-CONTINUE",
+        "ONB-COMPLETE-REQUIRES-READY"
       ],
       "operationalTargets": [
         {

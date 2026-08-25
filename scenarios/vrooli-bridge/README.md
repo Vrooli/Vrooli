@@ -2,7 +2,7 @@
 
 Fleet control plane that provisions, updates, and runs allowlisted commands across an owner's trusted Vrooli nodes on every OS
 
-This scenario was generated from the `react-vite` template and packages
+This scenario provides
 the standard full-stack Vrooli scenario shape:
 
 - Go API (`api/`)

@@ -2,7 +2,7 @@
 
 Cross-scenario CLI manifest validation and AI command discovery
 
-This scenario was generated from the `react-vite` template and packages
+This scenario provides
 the standard full-stack Vrooli scenario shape:
 
 - Go API (`api/`)

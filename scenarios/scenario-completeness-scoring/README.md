@@ -50,7 +50,7 @@ reads; swarm-manager computes the same rung predicates in-process on
 live findings. All three share maturity-go/freshness-go, so their answers
 agree by construction.
 
-This scenario was generated from the `react-vite` template and packages
+This scenario provides
 the standard full-stack Vrooli scenario shape:
 
 - Go API (`api/`) — domains `signals` (cached-artifact collectors),

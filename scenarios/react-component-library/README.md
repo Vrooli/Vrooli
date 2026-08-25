@@ -3,7 +3,7 @@
 Central UI/API/CLI for designing, previewing, versioning, applying, and
 tracking shared React UI components across Vrooli scenarios.
 
-This scenario was generated from the `react-vite` template and packages
+This scenario provides
 the standard full-stack Vrooli scenario shape:
 
 - Go API (`api/`)

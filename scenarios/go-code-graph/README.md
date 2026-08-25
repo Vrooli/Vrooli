@@ -2,7 +2,7 @@
 
 Deterministic file/package/symbol/import graph extraction and mechanical Go refactor execution for Vrooli scenarios; wraps golang.org/x/tools/go/packages and is consumed by architecture-cartographer.
 
-This scenario was generated from the `react-vite` template and packages
+This scenario provides
 the standard full-stack Vrooli scenario shape:
 
 - Go API (`api/`)

@@ -12,7 +12,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/vrooli/vrooli/internal/secrets"
+	credentialauthority "github.com/vrooli/vrooli/packages/credential-authority-go"
 )
 
 func TestGlossarySupportsEmptyAndFilteredQueries(t *testing.T) {
@@ -98,22 +98,6 @@ func testHost(name, status string) hostItem {
 	return hostItem{hostRequirement: hostRequirement{Name: name}, Status: status}
 }
 
-func TestCredentialKeyringHandlersRelaySafeReports(t *testing.T) {
-	previous := credentialKeyringCommand
-	credentialKeyringCommand = func(context.Context, string) ([]byte, error) { return []byte(`{"ok":true}`), nil }
-	t.Cleanup(func() { credentialKeyringCommand = previous })
-	server := NewServer()
-	if w := doGet(t, server, "/api/v2/credentials/keyring/inspect"); w.Code != http.StatusOK {
-		t.Fatalf("inspect status = %d", w.Code)
-	}
-	if w := doRequest(t, server, http.MethodPost, "/api/v2/credentials/keyring/repair", `{}`); w.Code != http.StatusBadRequest {
-		t.Fatalf("unconfirmed repair status = %d", w.Code)
-	}
-	if w := doRequest(t, server, http.MethodPost, "/api/v2/credentials/keyring/repair", `{"confirm":true}`); w.Code != http.StatusOK {
-		t.Fatalf("confirmed repair status = %d", w.Code)
-	}
-}
-
 func TestControlPlaneExecutorUsesDeclaredCommands(t *testing.T) {
 	var got []string
 	previous := controlPlaneCommand
@@ -184,7 +168,7 @@ func TestPrivilegedApplyReturnsTypedNeedsElevationWhenGrantIsMissing(t *testing.
 	t.Cleanup(func() { controlPlaneCommand = previousCommand; controlPlaneExecutable = previousExecutable })
 	err := (controlPlaneExecutor{}).ApplySafeguardPrivileged(context.Background(), "clock")
 	var typed *needsElevationError
-	if !errors.As(err, &typed) || !strings.Contains(typed.Error(), "sudo vrooli setup") {
+	if !errors.As(err, &typed) || !strings.Contains(typed.Error(), "vrooli setup --sudo-mode=ask") {
 		t.Fatalf("error = %v, want typed needs-elevation result", err)
 	}
 }
@@ -193,7 +177,7 @@ func TestV2ReadModelsDegradeWhenCatalogRootIsAbsent(t *testing.T) {
 	t.Setenv("VROOLI_ROOT", "")
 	t.Setenv("BUNDLE_ROOT", "")
 	server := NewServer()
-	for _, path := range []string{"/api/v2/scenarios", "/api/v2/resources", "/api/v2/credentials", "/api/v2/surface", "/api/v2/host-requirements"} {
+	for _, path := range []string{"/api/v2/scenarios", "/api/v2/resources", "/api/v2/credentials", "/api/v2/host-requirements"} {
 		w := doGet(t, server, path)
 		if w.Code != http.StatusOK || !strings.Contains(w.Body.String(), `"status":"degraded"`) {
 			t.Fatalf("GET %s = %d %s", path, w.Code, w.Body.String())
@@ -209,9 +193,9 @@ func TestCatalogUnavailableErrorIsActionable(t *testing.T) {
 }
 
 func TestCredentialClientReportsAuthorityConstructionFailures(t *testing.T) {
-	previous := secrets.DefaultAuthority
-	secrets.DefaultAuthority = func() (*secrets.Authority, error) { return nil, secrets.ErrProviderAbsent }
-	t.Cleanup(func() { secrets.DefaultAuthority = previous })
+	previous := onboardingAuthority
+	onboardingAuthority = func() (*credentialauthority.Authority, error) { return nil, credentialauthority.ErrProviderAbsent }
+	t.Cleanup(func() { onboardingAuthority = previous })
 	ctx := context.Background()
 	if _, err := onboardingDoctorJSON(ctx); err == nil {
 		t.Fatal("doctor should report authority construction failure")

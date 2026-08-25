@@ -22,6 +22,7 @@ const api = vi.hoisted(() => ({
   fetchCapabilities: vi.fn(),
   previewCapability: vi.fn(),
   applyCapability: vi.fn(),
+  acknowledgeDegraded: vi.fn(),
 }));
 
 vi.mock("../../lib/api", () => api);
@@ -48,7 +49,10 @@ beforeEach(() => {
     hosts: [{ name: "git", status: "ready", kind: "tool", required: true }],
     integrations: [{ name: "alpha/github-oauth", category: "integration", status: "deferred", required: true, detail: "Read project issues. Connection setup is deferred until the integration capability is available." }, { name: "release-authority", category: "system", status: "ready" }],
     checked_at: "2026-07-29T00:00:00Z",
+    blockers: [],
+    degraded: [],
   });
+  api.acknowledgeDegraded.mockResolvedValue({ status: "acknowledged", readiness_digest: "digest-under-test" });
   api.fetchV2Closure.mockResolvedValue({ resources: [{ name: "postgres", required: true, direct: true, provenance: [] }, { name: "ollama", required: false, direct: false, provenance: [] }], scenarios: [] });
   api.fetchV2Resources.mockResolvedValue({
     resources: [{ name: "postgres", category: "database", enabled: true, installed: true }, { name: "ollama", category: "ai", enabled: false, installed: true }],
@@ -139,17 +143,42 @@ describe("V2 onboarding wizard steps", () => {
     expect(screen.getByText("alpha/github-oauth")).toBeInTheDocument();
   });
 
-  it("surfaces provider failures and records deliberate degraded continuation", async () => {
+  it("surfaces provider failures", async () => {
     api.fetchV2Readiness.mockRejectedValueOnce(new Error("probe unavailable"));
     renderWithProviders(<StepReadiness title="Validation" />);
     expect(await screen.findByRole("alert")).toHaveTextContent("Readiness could not be checked");
+  });
 
-    api.fetchV2Readiness.mockResolvedValueOnce({
+  // The acknowledgement is durable operator state, not component state. A page
+  // reload must not silently discard the operator's acceptance, and accepting
+  // one gap must not authorise completion over a different one.
+  it("records the degraded acknowledgement through the API rather than in component state", async () => {
+    api.fetchV2Readiness.mockResolvedValue({
       status: "degraded", scenarios: [], resources: [], credentials: [], hosts: [], integrations: [], checked_at: "now",
+      blockers: [],
+      degraded: [{ kind: "credential", name: "vrooli/remote-desktop:username", reason: "the credential is declared and not configured", remediation: "Provide it on the credentials step." }],
+      degraded_digest: "digest-under-test",
+      degraded_acknowledged: false,
+    });
+    api.acknowledgeDegraded.mockResolvedValue({ status: "acknowledged", readiness_digest: "digest-under-test" });
+    renderWithProviders(<StepReadiness title="Validation" />);
+    expect(await screen.findByTestId("readiness-degraded")).toHaveTextContent("vrooli/remote-desktop:username");
+    fireEvent.click(await screen.findByTestId("readiness-continue-degraded"));
+    await waitFor(() => expect(api.acknowledgeDegraded).toHaveBeenCalledWith("digest-under-test"));
+  });
+
+  // The gate is at the marker write, but the operator must still be told why
+  // the flow will not report completion.
+  it("names blocking items and states that completion is withheld", async () => {
+    api.fetchV2Readiness.mockResolvedValue({
+      status: "missing", scenarios: [], resources: [], credentials: [], hosts: [], integrations: [], checked_at: "now",
+      blockers: [{ kind: "credential", name: "vrooli/calendar:jwt-secret", reason: "the credential is declared and not configured", remediation: "Provide it on the credentials step." }],
+      degraded: [],
     });
     renderWithProviders(<StepReadiness title="Validation" />);
-    fireEvent.click(await screen.findByTestId("readiness-continue-degraded"));
-    expect(await screen.findByText("Degraded continuation recorded for this session.")).toBeInTheDocument();
+    expect(await screen.findByTestId("readiness-blockers")).toHaveTextContent("vrooli/calendar:jwt-secret");
+    expect(screen.getByTestId("finish-blocked")).toBeInTheDocument();
+    expect(screen.queryByTestId("readiness-continue-degraded")).toBeNull();
   });
 
   it("supports enum, boolean, and numeric host configuration fields", async () => {

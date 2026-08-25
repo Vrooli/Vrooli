@@ -11,6 +11,8 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/vrooli/api-core/storage"
 )
 
 type credentialReadiness struct {
@@ -56,6 +58,12 @@ type readinessResponse struct {
 	CheckedAt           string                `json:"checked_at"`
 	CredentialDiagnosis json.RawMessage       `json:"credential_diagnosis,omitempty"`
 	Recovery            recoveryReadiness     `json:"recovery"`
+	// Blockers are the named reasons configuration is not complete. Degraded
+	// holds the optional gaps, which do not block once acknowledged.
+	Blockers             []completionBlocker `json:"blockers"`
+	Degraded             []completionBlocker `json:"degraded"`
+	DegradedDigest       string              `json:"degraded_digest,omitempty"`
+	DegradedAcknowledged bool                `json:"degraded_acknowledged"`
 }
 
 type recoveryReadiness struct {
@@ -280,37 +288,36 @@ func credentialReadinessForDescriptors(owner string, descriptors []readinessCred
 	return items
 }
 
-func (s *Server) handleV2Readiness(w http.ResponseWriter, r *http.Request) {
+// buildReadinessResponse computes the whole readiness verdict.
+//
+// It is a function rather than handler-local code because the completion gate
+// needs the same verdict the operator sees. Computing it twice from two code
+// paths is how the wizard and the marker came to disagree in the first place.
+func buildReadinessResponse(ctx context.Context) (readinessResponse, error) {
+	// One probe per request, before any credential status is read, so a store
+	// unlocked after this process started is observed on this request rather
+	// than after a restart.
+	recheckCredentialAuthority()
 	models, err := selectedScenarioModels()
 	if err != nil {
-		if writeCatalogDegraded(w, err) {
-			return
-		}
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
-		return
+		return readinessResponse{}, err
 	}
 	root, err := manifestRoot()
 	if err != nil {
-		if writeCatalogDegraded(w, err) {
-			return
-		}
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
-		return
+		return readinessResponse{}, err
 	}
 	resourceSet := map[string]struct{}{}
-	response := readinessResponse{Status: "ready", Scenarios: make([]string, 0, len(models)), Credentials: []credentialReadiness{}, Hosts: []hostReadiness{}, Integrations: []readinessItem{}, Recovery: recoveryReadiness{Uncovered: []string{}, RequiredAbsent: []string{}, RequiredAbsentDetails: []recoveryGapReadiness{}, RootCopyIssues: []string{}}, CheckedAt: operatorStateNow().UTC().Format(time.RFC3339)}
+	response := readinessResponse{Status: "ready", Scenarios: make([]string, 0, len(models)), Credentials: []credentialReadiness{}, Hosts: []hostReadiness{}, Integrations: []readinessItem{}, Recovery: recoveryReadiness{Uncovered: []string{}, RequiredAbsent: []string{}, RequiredAbsentDetails: []recoveryGapReadiness{}, RootCopyIssues: []string{}}, Blockers: []completionBlocker{}, Degraded: []completionBlocker{}, CheckedAt: operatorStateNow().UTC().Format(time.RFC3339)}
 	for _, model := range models {
 		response.Scenarios = append(response.Scenarios, model.Name)
 		scenarioCredentials, err := loadScenarioCredentialReadiness(model.Name)
 		if err != nil {
-			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
-			return
+			return readinessResponse{}, err
 		}
 		response.Credentials = append(response.Credentials, scenarioCredentials...)
 		integrationItems, integrationErr := loadIntegrationReadiness(filepath.Join(root, "scenarios", model.Name, ".vrooli", "service.json"), model.Name)
 		if integrationErr != nil {
-			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": integrationErr.Error()})
-			return
+			return readinessResponse{}, integrationErr
 		}
 		response.Integrations = append(response.Integrations, integrationItems...)
 		for _, resource := range model.Resources {
@@ -321,37 +328,41 @@ func (s *Server) handleV2Readiness(w http.ResponseWriter, r *http.Request) {
 		response.Resources = append(response.Resources, resource)
 		credentials, err := loadCredentialReadiness(resource)
 		if err != nil {
-			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
-			return
+			return readinessResponse{}, err
 		}
 		response.Credentials = append(response.Credentials, credentials...)
 		integrationItems, integrationErr := loadIntegrationReadiness(filepath.Join(root, "resources", resource, "resource.json"), resource)
 		if integrationErr != nil {
-			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": integrationErr.Error()})
-			return
+			return readinessResponse{}, integrationErr
 		}
 		response.Integrations = append(response.Integrations, integrationItems...)
 	}
+	projectCredentials, projectErr := projectCredentialReadiness()
+	if projectErr != nil {
+		return readinessResponse{}, projectErr
+	}
+	response.Credentials = append(response.Credentials, projectCredentials...)
 	sort.Strings(response.Scenarios)
 	sort.Strings(response.Resources)
-	sort.Slice(response.Credentials, func(i, j int) bool {
-		return response.Credentials[i].Resource+response.Credentials[i].Field < response.Credentials[j].Resource+response.Credentials[j].Field
-	})
+	sortCredentialReadiness(response.Credentials)
 	sort.Slice(response.Integrations, func(i, j int) bool {
 		return response.Integrations[i].Name < response.Integrations[j].Name
 	})
-	state, err := loadOperatorState()
+	state, err := loadOperatorStateFor(ctx)
 	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
-		return
+		return readinessResponse{}, err
 	}
-	hosts, err := deriveV2HostRequirements(root, state, models)
+	allModels, err := loadScenarioReadModels()
 	if err != nil {
-		if writeCatalogDegraded(w, err) {
-			return
-		}
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
-		return
+		return readinessResponse{}, err
+	}
+	hostModels, err := hostRequirementScenarioModels(root, allModels, state)
+	if err != nil {
+		return readinessResponse{}, err
+	}
+	hosts, err := deriveV2HostRequirements(root, state, hostModels)
+	if err != nil {
+		return readinessResponse{}, err
 	}
 	for _, tool := range hosts.Tools {
 		response.Hosts = append(response.Hosts, inspectToolReadiness(tool))
@@ -366,14 +377,14 @@ func (s *Server) handleV2Readiness(w http.ResponseWriter, r *http.Request) {
 		switch {
 		case credential.Status == "unsupported":
 			response.Status = lessReady(response.Status, "unsupported")
-		case credential.Required && credential.Provisioning != "derived" && credential.Status != "configured":
+		case credential.Required && operatorSuppliedCredential(credential) && credential.Status != "configured":
 			response.Status = lessReady(response.Status, "missing")
 		case !credential.Required && credential.Status != "configured":
 			response.Status = lessReady(response.Status, "degraded")
 		}
 	}
-	ctx, cancel := context.WithTimeout(r.Context(), 20*time.Second)
-	if output, err := credentialDoctorCommand(ctx); err == nil && json.Valid(output) {
+	doctorCtx, cancel := context.WithTimeout(ctx, 20*time.Second)
+	if output, err := credentialDoctorCommand(doctorCtx); err == nil && json.Valid(output) {
 		response.CredentialDiagnosis = append(response.CredentialDiagnosis[:0], output...)
 		var diagnosis credentialDiagnosisResponse
 		if json.Unmarshal(output, &diagnosis) == nil {
@@ -404,6 +415,23 @@ func (s *Server) handleV2Readiness(w http.ResponseWriter, r *http.Request) {
 	releaseItem := releaseAuthorityReadiness(root)
 	response.Integrations = append(response.Integrations, releaseItem)
 	response.Status = lessReady(response.Status, releaseItem.Status)
+	assessment := assessCompletion(response, nil)
+	response.Blockers = assessment.Blockers
+	response.Degraded = assessment.Degraded
+	response.DegradedDigest = assessment.DegradedDigest
+	response.DegradedAcknowledged = degradedAcknowledgementMatches(state, assessment.DegradedDigest)
+	return response, nil
+}
+
+func (s *Server) handleV2Readiness(w http.ResponseWriter, r *http.Request) {
+	response, err := buildReadinessResponse(r.Context())
+	if err != nil {
+		if writeCatalogDegraded(w, err) {
+			return
+		}
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		return
+	}
 	writeJSON(w, http.StatusOK, response)
 }
 
@@ -457,17 +485,42 @@ func inspectSafeguardReadiness(root string, item hostItem) hostReadiness {
 		return result
 	}
 	var manifest struct {
+		Handler           string `json:"handler"`
 		VerificationCheck struct {
 			Files []string `json:"files"`
 		} `json:"verificationCheck"`
 	}
-	if json.Unmarshal(data, &manifest) != nil || len(manifest.VerificationCheck.Files) == 0 {
+	if json.Unmarshal(data, &manifest) != nil {
 		result.Status = "unsupported"
-		result.Detail = "The safeguard has no declarative verification probe."
-		result.Remediation = "Add a verification check before enabling this safeguard."
+		result.Detail = "The safeguard manifest could not be decoded."
+		result.Remediation = "Repair the safeguard declaration before continuing."
 		return result
 	}
-	for _, path := range manifest.VerificationCheck.Files {
+	if len(manifest.VerificationCheck.Files) == 0 {
+		if strings.TrimSpace(manifest.Handler) != "" {
+			// A handler-owned safeguard is verified by the control plane when
+			// the selection is applied, not by a file this process can stat.
+			// Calling that unsupported would report a host fault that does not
+			// exist and would block completion on a probe rather than on the
+			// host, so the verdict is deferred to the apply outcome.
+			result.Status = "deferred"
+			result.Detail = "This safeguard is verified by its control-plane handler when the selection is applied."
+			result.Remediation = "Apply the selection; the handler reports the outcome for this item."
+			return result
+		}
+		result.Status = "unsupported"
+		result.Detail = "The safeguard has no declarative verification probe and no handler."
+		result.Remediation = "Add a verification check or a handler before enabling this safeguard."
+		return result
+	}
+	for _, declared := range manifest.VerificationCheck.Files {
+		path, resolveErr := resolveSafeguardVerificationPath(declared)
+		if resolveErr != nil {
+			result.Status = "unsupported"
+			result.Detail = "A declared verification path could not be resolved on this host."
+			result.Remediation = "Correct the safeguard's verification path declaration."
+			return result
+		}
 		if _, err := os.Stat(path); err != nil {
 			result.Status = "missing"
 			result.Detail = "The safeguard has not been applied on this host."
@@ -479,6 +532,35 @@ func inspectSafeguardReadiness(root string, item hostItem) hostReadiness {
 	result.Detail = "The declared safeguard verification files are present."
 	result.Remediation = ""
 	return result
+}
+
+// resolveSafeguardVerificationPath expands the portable tokens a safeguard
+// manifest is allowed to use in a verification path.
+//
+// Safeguard manifests declare user-scoped paths as $USER_HOME/... so one
+// declaration serves every account and every platform. Reading such a path
+// literally reports every user-scoped safeguard as unapplied, which is a false
+// negative on a required item — and a completion gate built on a false
+// negative would block a host that is in fact correctly configured. The
+// expansion uses the same api-core storage resolver the rest of the repository
+// uses, so onboarding does not invent a second path vocabulary.
+func resolveSafeguardVerificationPath(declared string) (string, error) {
+	declared = strings.TrimSpace(declared)
+	if declared == "" {
+		return "", fmt.Errorf("safeguard verification path is empty")
+	}
+	return storage.ResolvePortablePath("safeguard verification", storage.PortablePath{Value: declared}, storage.HostPlatform(), storage.PlatformSeams{})
+}
+
+// sortCredentialReadiness keeps one ordering for every credential surface, so
+// the project scope lands in the same place on the API, the UI, and the CLI.
+// The address is part of the key because owner and field alone are not unique.
+func sortCredentialReadiness(items []credentialReadiness) {
+	sort.Slice(items, func(i, j int) bool {
+		left := items[i].Resource + "\x00" + items[i].LogicalID + "\x00" + items[i].Field
+		right := items[j].Resource + "\x00" + items[j].LogicalID + "\x00" + items[j].Field
+		return left < right
+	})
 }
 
 func lessReady(current, candidate string) string {

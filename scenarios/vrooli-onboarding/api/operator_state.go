@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"os"
 	"path/filepath"
 	"strings"
 	"time"
@@ -24,6 +23,9 @@ type (
 	ScenarioChoice = operatorstate.ScenarioChoice
 	EnabledChoice  = operatorstate.EnabledChoice
 	OptInChoice    = operatorstate.OptInChoice
+
+	operatorCompletion              = operatorstate.Completion
+	operatorDegradedAcknowledgement = operatorstate.DegradedAcknowledgement
 )
 
 var (
@@ -32,19 +34,11 @@ var (
 	// operatorStatePath remains a test seam for existing API fixtures. Normal
 	// runtime path resolution is performed by internal/operatorstate.
 	operatorStatePath = func() (string, error) {
-		root := strings.TrimSpace(os.Getenv("VROOLI_ROOT"))
-		if root != "" {
-			return filepath.Join(root, ".vrooli", operatorstate.StateFile), nil
+		roots, err := resolveRoots()
+		if err != nil {
+			return "", fmt.Errorf("locate operator state: %w", err)
 		}
-		storageRoot := strings.TrimSpace(os.Getenv("VROOLI_STORAGE_ROOT"))
-		if storageRoot != "" {
-			return filepath.Join(storageRoot, operatorstate.StateFile), nil
-		}
-		bundleRoot := strings.TrimSpace(os.Getenv("BUNDLE_ROOT"))
-		if bundleRoot != "" {
-			return filepath.Join(bundleRoot, "app-data", operatorstate.StateFile), nil
-		}
-		return "", fmt.Errorf("VROOLI_ROOT, VROOLI_STORAGE_ROOT, or BUNDLE_ROOT is required to locate operator state")
+		return filepath.Join(roots.StorageRoot, operatorstate.StateFile), nil
 	}
 )
 
@@ -59,13 +53,8 @@ func configureOperatorStateRoots() error {
 }
 
 func operatorStateService() *operatorstate.Service {
-	root := strings.TrimSpace(os.Getenv("VROOLI_ROOT"))
-	storageRoot := strings.TrimSpace(os.Getenv("VROOLI_STORAGE_ROOT"))
-	if storageRoot == "" && root == "" {
-		if bundleRoot := strings.TrimSpace(os.Getenv("BUNDLE_ROOT")); bundleRoot != "" {
-			storageRoot = filepath.Join(bundleRoot, "app-data")
-		}
-	}
+	roots, _ := resolveRoots()
+	root, storageRoot := roots.RepoRoot, roots.StorageRoot
 	return operatorstate.New(operatorstate.Config{
 		RepoRoot: root, StorageRoot: storageRoot, Roots: operatorStateRoots,
 		StatePath: func(context.Context) (string, error) { return operatorStatePath() },

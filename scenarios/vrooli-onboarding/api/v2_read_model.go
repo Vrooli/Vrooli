@@ -49,15 +49,11 @@ type ScenarioReadModel struct {
 // manifestRoot resolves the immutable manifest catalog. Normal development
 // uses the repository; a desktop bundle uses its explicitly staged catalog.
 func manifestRoot() (string, error) {
-	root := strings.TrimSpace(os.Getenv("VROOLI_ROOT"))
-	if root != "" {
-		return root, nil
-	}
-	bundleRoot := strings.TrimSpace(os.Getenv("BUNDLE_ROOT"))
-	if bundleRoot == "" {
+	roots, err := resolveRoots()
+	if err != nil || roots.CatalogRoot == "" {
 		return "", &catalogUnavailableError{Missing: "manifest root", Remediation: "set VROOLI_ROOT for a repository install or stage BUNDLE_ROOT/catalog for a bundle"}
 	}
-	catalog := filepath.Join(bundleRoot, "catalog")
+	catalog := roots.CatalogRoot
 	if info, err := os.Stat(catalog); err != nil || !info.IsDir() {
 		if err != nil {
 			return "", &catalogUnavailableError{Missing: "catalog", Remediation: "rebuild the bundle with its declared catalog requirements"}

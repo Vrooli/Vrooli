@@ -47,7 +47,7 @@ cat > selection.json <<'JSON'
 }
 JSON
 
-vrooli-onboarding wizard apply --selection "selection.json"
+vrooli-onboarding wizard commit --selection "selection.json"
 vrooli-onboarding wizard status --json
 ```
 

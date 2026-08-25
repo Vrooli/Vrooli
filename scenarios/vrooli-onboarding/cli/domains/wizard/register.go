@@ -100,8 +100,6 @@ func ensureModeMap(value map[string]struct {
 	return value
 }
 
-func hostNames(names []string) string { return strings.Join(names, ", ") }
-
 type hostItem struct {
 	Name      string `json:"name"`
 	Required  bool   `json:"required"`
@@ -123,10 +121,15 @@ type operatorInputQueue struct {
 	Requests []operatorInputRequest `json:"requests"`
 }
 
+type stepModelEntry struct {
+	ID      string `json:"id"`
+	Ordinal int    `json:"ordinal"`
+}
+
 func Register(core *cliapp.ScenarioApp) cliapp.SubcommandGroup {
 	return cliapp.SubcommandGroup{Name: "wizard", Description: "Configure an installation through the onboarding API", NeedsAPI: true, Subcommands: []cliapp.Command{
-		{Name: "status", Description: "Show the computed onboarding step and committed state", Run: func(args []string) error { return get(core, args, "/v2/session") }},
-		{Name: "apply", Description: "Commit a selection document and apply it", Run: func(args []string) error { return apply(core, args) }},
+		{Name: "status", Description: "Show the computed onboarding step and committed state", Run: func(args []string) error { return support.GetJSON(core, "wizard", args, "/v2/session") }},
+		{Name: "commit", Description: "Commit a selection document and apply it; top-level apply applies committed state", Run: func(args []string) error { return apply(core, args) }},
 		{Name: "export", Description: "Export the current manifest-derived selection", Run: func(args []string) error { return exportSelection(core, args) }},
 		{Name: "run", Description: "Walk the same nine capability steps used by the UI", Run: func(args []string) error { return runWizard(core, args) }},
 	}}
@@ -137,6 +140,8 @@ func runWizard(core *cliapp.ScenarioApp, args []string) error {
 	interactive := fs.Bool("interactive", false, "Walk all nine onboarding steps in the terminal")
 	acceptRecommendation := fs.Bool("accept-recommendation", false, "Use the manifest-derived starter profile without asking for scenario names")
 	nonInteractive := fs.Bool("non-interactive", false, "Never read input; return a typed needs-input error when a decision is required")
+	fromStep := fs.String("from-step", "", "Start at a declared step id instead of the session pointer")
+	restart := fs.Bool("restart", false, "Restart from the first declared step instead of resuming")
 	if err := support.ParseFlags(fs, args); err != nil {
 		return err
 	}
@@ -148,17 +153,90 @@ func runWizard(core *cliapp.ScenarioApp, args []string) error {
 		return applyRecommendation(core)
 	}
 	if !*interactive {
-		return get(core, args, "/v2/scenarios")
+		return support.GetJSON(core, "wizard", args, "/v2/scenarios")
 	}
 	reader := bufio.NewReader(os.Stdin)
-	read := func(step int, prompt string) (string, error) {
+	stepsBody, err := core.Get("/v2/steps", nil)
+	if err != nil {
+		return err
+	}
+	var stepResponse struct {
+		Steps []stepModelEntry `json:"steps"`
+	}
+	if err := json.Unmarshal(stepsBody, &stepResponse); err != nil {
+		return fmt.Errorf("decode step model: %w", err)
+	}
+	sort.Slice(stepResponse.Steps, func(i, j int) bool { return stepResponse.Steps[i].Ordinal < stepResponse.Steps[j].Ordinal })
+	for _, step := range stepResponse.Steps {
+		if _, ok := stepHandlers[step.ID]; !ok {
+			return unimplementedStepError{ID: step.ID}
+		}
+	}
+	stepIndex := func(id string) (int, error) {
+		for _, step := range stepResponse.Steps {
+			if step.ID == id {
+				return step.Ordinal, nil
+			}
+		}
+		return 0, fmt.Errorf("unknown onboarding step %q", id)
+	}
+	startIndex := 0
+	if !*restart {
+		sessionBody, sessionErr := core.Get("/v2/session", nil)
+		if sessionErr != nil {
+			return sessionErr
+		}
+		var session struct {
+			FirstUnsatisfiedStep int  `json:"first_unsatisfied_step"`
+			Completion           bool `json:"completion"`
+		}
+		if err := json.Unmarshal(sessionBody, &session); err != nil {
+			return fmt.Errorf("decode onboarding session: %w", err)
+		}
+		startIndex = session.FirstUnsatisfiedStep
+		if session.Completion {
+			_, _ = fmt.Fprintln(os.Stdout, "Onboarding configuration is already applied; use --restart to walk it again.")
+			return nil
+		}
+	}
+	if strings.TrimSpace(*fromStep) != "" {
+		var stepErr error
+		startIndex, stepErr = stepIndex(strings.TrimSpace(*fromStep))
+		if stepErr != nil {
+			return stepErr
+		}
+	}
+	if startIndex < 0 || startIndex >= len(stepResponse.Steps) {
+		startIndex = 0
+	}
+	if startIndex > 0 {
+		_, _ = fmt.Fprintf(os.Stdout, "Resuming onboarding at %s; %d step(s) already satisfied.\n", stepResponse.Steps[startIndex].ID, startIndex)
+	}
+	shouldRun := func(id string) bool { index, err := stepIndex(id); return err == nil && index >= startIndex }
+	stepOrdinal := func(id string) (int, error) {
+		for _, step := range stepResponse.Steps {
+			if step.ID == id {
+				return step.Ordinal + 1, nil
+			}
+		}
+		return 0, fmt.Errorf("step model is missing %q", id)
+	}
+	read := func(stepID, prompt string) (string, error) {
+		step, err := stepOrdinal(stepID)
+		if err != nil {
+			return "", err
+		}
 		if _, err := fmt.Fprintf(os.Stdout, "Step %d — %s\n> ", step, prompt); err != nil {
 			return "", err
 		}
 		line, err := reader.ReadString('\n')
 		return strings.TrimSpace(line), err
 	}
-	readSecret := func(step int, prompt string) (string, error) {
+	readSecret := func(stepID, prompt string) (string, error) {
+		step, err := stepOrdinal(stepID)
+		if err != nil {
+			return "", err
+		}
 		if _, err := fmt.Fprintf(os.Stdout, "Step %d — %s\n> ", step, prompt); err != nil {
 			return "", err
 		}
@@ -204,33 +282,11 @@ func runWizard(core *cliapp.ScenarioApp, args []string) error {
 	for _, name := range recommendation.Resources {
 		selection.Resources[name] = true
 	}
-	if _, err := read(1, "welcome; press enter to begin the onboarding steps"); err != nil {
-		return err
-	}
 	known := map[string]bool{}
 	names := make([]string, 0, len(scenarioResponse.Scenarios))
 	for _, scenario := range scenarioResponse.Scenarios {
 		known[scenario.Name] = true
 		names = append(names, scenario.Name)
-	}
-	_, _ = fmt.Fprintln(os.Stdout, "Available scenarios:", strings.Join(names, ", "))
-	selectedLine, err := read(2, "select scenario names (comma separated; press enter to accept the starter profile)")
-	if err != nil {
-		return err
-	}
-	if strings.TrimSpace(selectedLine) != "" {
-		selection.Scenarios = nil
-		selection.ScenarioState = map[string]bool{}
-	}
-	for _, name := range strings.Split(selectedLine, ",") {
-		name = strings.TrimSpace(name)
-		if name != "" && !known[name] {
-			return fmt.Errorf("unknown scenario %q; choose from %s", name, strings.Join(names, ", "))
-		}
-		if name != "" {
-			selection.Scenarios = append(selection.Scenarios, name)
-			selection.ScenarioState[name] = true
-		}
 	}
 	resourcesBody, err := core.Get("/v2/resources", nil)
 	if err != nil {
@@ -255,37 +311,9 @@ func runWizard(core *cliapp.ScenarioApp, args []string) error {
 		optionalNames = append(optionalNames, resource.Name)
 	}
 	sort.Strings(optionalNames)
-	_, _ = fmt.Fprintln(os.Stdout, "Optional/standalone resources:", strings.Join(optionalNames, ", "))
-	resourceLine, err := read(3, "select optional or standalone resources (comma separated; press enter to keep the recommendation)")
-	if err != nil {
-		return err
-	}
 	knownResources := map[string]bool{}
 	for _, name := range optionalNames {
 		knownResources[name] = true
-	}
-	if strings.TrimSpace(resourceLine) != "" {
-		selection.OptionalResources = nil
-		selection.Resources = map[string]bool{}
-	}
-	for _, name := range strings.Split(resourceLine, ",") {
-		name = strings.TrimSpace(name)
-		if name != "" && !knownResources[name] {
-			return fmt.Errorf("unknown resource %q; choose from %s", name, strings.Join(optionalNames, ", "))
-		}
-		if name != "" {
-			selection.OptionalResources = append(selection.OptionalResources, name)
-			if selection.Resources == nil {
-				selection.Resources = map[string]bool{}
-			}
-			selection.Resources[name] = true
-		}
-	}
-	if err := resolvePendingOperatorInputs(core, read, readSecret); err != nil {
-		return err
-	}
-	if _, err := read(4, "credentials are listed by the API; provision values with credentials provision, then press enter"); err != nil {
-		return err
 	}
 	credentialsBody, err := core.Get("/v2/credentials", nil)
 	if err != nil {
@@ -303,36 +331,6 @@ func runWizard(core *cliapp.ScenarioApp, args []string) error {
 	if err := json.Unmarshal(credentialsBody, &credentialResponse); err != nil {
 		return fmt.Errorf("decode credentials: %w", err)
 	}
-	for _, credential := range credentialResponse.Credentials {
-		if credential.Status == "configured" {
-			continue
-		}
-		label := credential.Label
-		if label == "" {
-			label = credential.LogicalID + "/" + credential.Field
-		}
-		value, readErr := readSecret(4, fmt.Sprintf("enter %s; leave blank to defer (value is never printed)", label))
-		if readErr != nil {
-			return readErr
-		}
-		if value == "" {
-			if credential.Required {
-				_, _ = fmt.Fprintln(os.Stdout, "Required credential deferred; readiness will remain blocked.")
-			}
-			continue
-		}
-		body, marshalErr := json.Marshal(map[string]string{"logical_id": credential.LogicalID, "field": credential.Field, "value": value})
-		if marshalErr != nil {
-			return marshalErr
-		}
-		if _, requestErr := core.Request("POST", "/v2/credentials/provision", nil, body); requestErr != nil {
-			return fmt.Errorf("provision %s: %w", label, requestErr)
-		}
-		_, _ = fmt.Fprintln(os.Stdout, "Credential stored through the native authority:", label)
-	}
-	if _, err := read(5, "integration binding is deferred; press enter to continue"); err != nil {
-		return err
-	}
 	hostBody, err := core.Get("/v2/host-requirements", nil)
 	if err != nil {
 		return err
@@ -344,101 +342,236 @@ func runWizard(core *cliapp.ScenarioApp, args []string) error {
 	if err := json.Unmarshal(hostBody, &hostResponse); err != nil {
 		return fmt.Errorf("decode host requirements: %w", err)
 	}
-	_, _ = fmt.Fprintln(os.Stdout, "Host tools:", describeHostItems(hostResponse.Tools))
-	toolLine, err := read(6, "select optional host tools (comma separated; required tools are automatic)")
-	if err != nil {
-		return err
-	}
-	for _, name := range strings.Split(toolLine, ",") {
-		name = strings.TrimSpace(name)
-		if name != "" {
-			if !containsHost(hostResponse.Tools, name) {
-				return fmt.Errorf("unknown host tool %q", name)
+	var applyResult []byte
+	runStep := func(id string) error {
+		switch id {
+		case "welcome":
+			_, err := read("welcome", "welcome; press enter to begin the onboarding steps")
+			return err
+		case "scenarios":
+			_, _ = fmt.Fprintln(os.Stdout, "Available scenarios:", strings.Join(names, ", "))
+			selectedLine, err := read("scenarios", "select scenario names (comma separated; press enter to accept the starter profile)")
+			if err != nil {
+				return err
 			}
-			selection.Host.Tools = append(selection.Host.Tools, name)
-			if selection.HostTools == nil {
-				selection.HostTools = map[string]bool{}
+			if strings.TrimSpace(selectedLine) != "" {
+				selection.Scenarios = nil
+				selection.ScenarioState = map[string]bool{}
 			}
-			selection.HostTools[name] = true
+			for _, name := range strings.Split(selectedLine, ",") {
+				name = strings.TrimSpace(name)
+				if name != "" && !known[name] {
+					return fmt.Errorf("unknown scenario %q; choose from %s", name, strings.Join(names, ", "))
+				}
+				if name != "" {
+					selection.Scenarios = append(selection.Scenarios, name)
+					selection.ScenarioState[name] = true
+				}
+			}
+			return nil
+		case "resources":
+			_, _ = fmt.Fprintln(os.Stdout, "Optional/standalone resources:", strings.Join(optionalNames, ", "))
+			resourceLine, err := read("resources", "select optional or standalone resources (comma separated; press enter to keep the recommendation)")
+			if err != nil {
+				return err
+			}
+			if strings.TrimSpace(resourceLine) != "" {
+				selection.OptionalResources = nil
+				selection.Resources = map[string]bool{}
+			}
+			for _, name := range strings.Split(resourceLine, ",") {
+				name = strings.TrimSpace(name)
+				if name != "" && !knownResources[name] {
+					return fmt.Errorf("unknown resource %q; choose from %s", name, strings.Join(optionalNames, ", "))
+				}
+				if name != "" {
+					selection.OptionalResources = append(selection.OptionalResources, name)
+					if selection.Resources == nil {
+						selection.Resources = map[string]bool{}
+					}
+					selection.Resources[name] = true
+				}
+			}
+			return nil
+		case "credentials":
+			if err := resolvePendingOperatorInputs(core, func(_ int, prompt string) (string, error) { return read("credentials", prompt) }, func(_ int, prompt string) (string, error) { return readSecret("credentials", prompt) }); err != nil {
+				return err
+			}
+			if _, err := read("credentials", "credentials are listed by the API; provision values with credentials provision, then press enter"); err != nil {
+				return err
+			}
+			for _, credential := range credentialResponse.Credentials {
+				if credential.Status == "configured" {
+					continue
+				}
+				label := credential.Label
+				if label == "" {
+					label = credential.LogicalID + "/" + credential.Field
+				}
+				value, readErr := readSecret("credentials", fmt.Sprintf("enter %s; leave blank to defer (value is never printed)", label))
+				if readErr != nil {
+					return readErr
+				}
+				if value == "" {
+					if credential.Required {
+						_, _ = fmt.Fprintln(os.Stdout, "Required credential deferred; readiness will remain blocked.")
+					}
+					continue
+				}
+				body, marshalErr := json.Marshal(map[string]string{"logical_id": credential.LogicalID, "field": credential.Field, "value": value})
+				if marshalErr != nil {
+					return marshalErr
+				}
+				if _, requestErr := core.Request("POST", "/v2/credentials/provision", nil, body); requestErr != nil {
+					return fmt.Errorf("provision %s: %w", label, requestErr)
+				}
+				_, _ = fmt.Fprintln(os.Stdout, "Credential stored through the native authority:", label)
+			}
+			return nil
+		case "integrations":
+			_, err := read("integrations", "integration binding is deferred; press enter to continue")
+			return err
+		case "host":
+			_, _ = fmt.Fprintln(os.Stdout, "Host tools:", describeHostItems(hostResponse.Tools))
+			toolLine, err := read("host", "select optional host tools (comma separated; required tools are automatic)")
+			if err != nil {
+				return err
+			}
+			for _, name := range strings.Split(toolLine, ",") {
+				name = strings.TrimSpace(name)
+				if name != "" {
+					if !containsHost(hostResponse.Tools, name) {
+						return fmt.Errorf("unknown host tool %q", name)
+					}
+					selection.Host.Tools = append(selection.Host.Tools, name)
+					if selection.HostTools == nil {
+						selection.HostTools = map[string]bool{}
+					}
+					selection.HostTools[name] = true
+				}
+			}
+			_, _ = fmt.Fprintln(os.Stdout, "Host safeguards:", describeHostItems(hostResponse.Safeguards))
+			safeguardLine, err := read("host", "select optional host safeguards (comma separated; press enter for none)")
+			if err != nil {
+				return err
+			}
+			for _, name := range strings.Split(safeguardLine, ",") {
+				name = strings.TrimSpace(name)
+				if name != "" {
+					if !containsSafeguard(hostResponse.Safeguards, name) {
+						return fmt.Errorf("unknown host safeguard %q", name)
+					}
+					selection.Host.Safeguards = append(selection.Host.Safeguards, name)
+					if selection.HostSafeguards == nil {
+						selection.HostSafeguards = map[string]bool{}
+					}
+					selection.HostSafeguards[name] = true
+				}
+			}
+			return nil
+		case "operating-mode":
+			modeLine, err := read("operating-mode", "choose operating mode: enter scenario names for auto-restart (comma separated)")
+			if err != nil {
+				return err
+			}
+			for _, name := range strings.Split(modeLine, ",") {
+				name = strings.TrimSpace(name)
+				if name != "" && known[name] {
+					selection.OperatingMode = ensureModeMap(selection.OperatingMode)
+					selection.OperatingMode[name] = struct {
+						AutoRestart bool `json:"auto_restart"`
+					}{AutoRestart: true}
+				}
+			}
+			return nil
+		case "apply":
+			// The plan is fetched and shown BEFORE the confirmation prompt.
+			// It used to be printed immediately after, which meant the
+			// operator answered "apply this selection now?" with nothing
+			// disclosed — a consent prompt whose disclosure arrived too late
+			// to inform the answer. Persisting the selection first is what
+			// makes the plan computable, and it authorizes nothing on its own:
+			// selectionPatch carries no apply flag, and the host is only
+			// touched by POST /v2/apply below.
+			patch, marshalErr := json.Marshal(selectionPatch(selection))
+			if marshalErr != nil {
+				return marshalErr
+			}
+			if _, err := core.Request("PATCH", "/v2/operator-state", nil, patch); err != nil {
+				return err
+			}
+			planBody, err := core.Get("/v2/apply/plan", nil)
+			if err != nil {
+				return err
+			}
+			if err := printApplyPlan(planBody); err != nil {
+				return err
+			}
+			confirmation, err := read("apply", "apply this selection now? answer yes or no; press enter for yes")
+			if err != nil {
+				return err
+			}
+			if strings.TrimSpace(confirmation) != "" && strings.ToLower(strings.TrimSpace(confirmation)) != "yes" {
+				return fmt.Errorf("selection not applied; answer yes to commit the wizard selection")
+			}
+			selection.Apply = true
+			applyResult, err = core.Request("POST", "/v2/apply", nil, []byte("{}"))
+			if err != nil {
+				return err
+			}
+			var applyResponse struct {
+				RunID  string `json:"run_id"`
+				Status string `json:"status"`
+			}
+			if err := json.Unmarshal(applyResult, &applyResponse); err == nil && applyResponse.RunID != "" {
+				applyResult, err = waitForApply(core, applyResponse.RunID, applyResponse.Status)
+				if err != nil {
+					return err
+				}
+			}
+			return nil
+		case "validation":
+			if _, err := read("validation", "validation will run after apply; press enter to print final status"); err != nil {
+				return err
+			}
+			readinessResult, err := core.Get("/v2/readiness", nil)
+			if err != nil {
+				return err
+			}
+			if applyResult != nil {
+				if err := printApplyReport(applyResult); err != nil {
+					return err
+				}
+			}
+			if _, err := fmt.Fprintln(os.Stdout, "Readiness:", string(readinessResult)); err != nil {
+				return err
+			}
+			return reportReadinessBlockers(readinessResult)
+		default:
+			return unimplementedStepError{ID: id}
 		}
 	}
-	_, _ = fmt.Fprintln(os.Stdout, "Host safeguards:", describeHostItems(hostResponse.Safeguards))
-	safeguardLine, err := read(6, "select optional host safeguards (comma separated; press enter for none)")
-	if err != nil {
-		return err
-	}
-	for _, name := range strings.Split(safeguardLine, ",") {
-		name = strings.TrimSpace(name)
-		if name != "" {
-			if !containsSafeguard(hostResponse.Safeguards, name) {
-				return fmt.Errorf("unknown host safeguard %q", name)
-			}
-			selection.Host.Safeguards = append(selection.Host.Safeguards, name)
-			if selection.HostSafeguards == nil {
-				selection.HostSafeguards = map[string]bool{}
-			}
-			selection.HostSafeguards[name] = true
+	session := &wizardSession{runStep: runStep}
+	for _, step := range stepResponse.Steps {
+		if !shouldRun(step.ID) {
+			continue
 		}
-	}
-	modeLine, err := read(7, "choose operating mode: enter scenario names for auto-restart (comma separated)")
-	if err != nil {
-		return err
-	}
-	for _, name := range strings.Split(modeLine, ",") {
-		name = strings.TrimSpace(name)
-		if name != "" && known[name] {
-			selection.OperatingMode = ensureModeMap(selection.OperatingMode)
-			selection.OperatingMode[name] = struct {
-				AutoRestart bool `json:"auto_restart"`
-			}{AutoRestart: true}
+		handler, ok := stepHandlers[step.ID]
+		if !ok {
+			return unimplementedStepError{ID: step.ID}
 		}
-	}
-	confirmation, err := read(8, "apply this selection now? answer yes or no; press enter for yes")
-	if err != nil {
-		return err
-	}
-	if strings.TrimSpace(confirmation) != "" && strings.ToLower(strings.TrimSpace(confirmation)) != "yes" {
-		return fmt.Errorf("selection not applied; answer yes to commit the wizard selection")
-	}
-	if _, err := read(9, "validation will run after apply; press enter to print final status"); err != nil {
-		return err
-	}
-	selection.Apply = true
-	patch := selectionPatch(selection)
-	patchBody, _ := json.Marshal(patch)
-	if _, err := core.Request("PATCH", "/v2/operator-state", nil, patchBody); err != nil {
-		return err
-	}
-	planBody, err := core.Get("/v2/apply/plan", nil)
-	if err != nil {
-		return err
-	}
-	if err := printApplyPlan(planBody); err != nil {
-		return err
-	}
-	applyResult, err := core.Request("POST", "/v2/apply", nil, []byte("{}"))
-	if err != nil {
-		return err
-	}
-	var applyResponse struct {
-		RunID  string `json:"run_id"`
-		Status string `json:"status"`
-	}
-	if err := json.Unmarshal(applyResult, &applyResponse); err == nil && applyResponse.RunID != "" {
-		applyResult, err = waitForApply(core, applyResponse.RunID, applyResponse.Status)
-		if err != nil {
+		if err := handler(session); err != nil {
 			return err
 		}
+		body, marshalErr := json.Marshal(map[string]int{"step": step.Ordinal})
+		if marshalErr != nil {
+			return marshalErr
+		}
+		if _, err := core.Request("POST", "/v2/session/step", nil, body); err != nil {
+			return fmt.Errorf("record completed step %s: %w", step.ID, err)
+		}
 	}
-	readinessResult, err := core.Get("/v2/readiness", nil)
-	if err != nil {
-		return err
-	}
-	if err := printApplyReport(applyResult); err != nil {
-		return err
-	}
-	_, err = fmt.Fprintln(os.Stdout, "Readiness:", string(readinessResult))
-	return err
+	return nil
 }
 
 func applyRecommendation(core *cliapp.ScenarioApp) error {
@@ -602,30 +735,139 @@ func describeHostItems(items []hostItem) string {
 	return strings.Join(parts, ", ")
 }
 
+// printApplyPlan is the operator's disclosure before consent. It must answer
+// four questions the flat kind/name list did not: how much is about to happen,
+// which items change host state with elevation, which items are already in
+// place, and what "apply" actually does to this machine. The plan is a
+// desired-state list, so without the state split every entry reads as a
+// pending change even when most are already satisfied.
 func printApplyPlan(body []byte) error {
 	var plan struct {
-		Items []struct {
-			Kind     string `json:"kind"`
-			Name     string `json:"name"`
-			Required bool   `json:"required"`
-		} `json:"items"`
+		Items []planItem `json:"items"`
 	}
 	if err := json.Unmarshal(body, &plan); err != nil {
 		return fmt.Errorf("decode apply plan: %w", err)
 	}
-	_, _ = fmt.Fprintln(os.Stdout, "Apply plan (the exact list to be executed):")
 	if len(plan.Items) == 0 {
-		_, _ = fmt.Fprintln(os.Stdout, "  (no changes)")
+		_, _ = fmt.Fprintln(os.Stdout, "Apply plan: no changes. Nothing will be executed.")
 		return nil
 	}
-	for _, item := range plan.Items {
-		required := "optional"
-		if item.Required {
-			required = "required"
+
+	pending := filterByState(plan.Items, "pending")
+	satisfied := filterByState(plan.Items, "satisfied")
+	unknown := filterByState(plan.Items, "unknown")
+	elevatedPending := 0
+	for _, item := range pending {
+		if item.Privileged {
+			elevatedPending++
 		}
-		_, _ = fmt.Fprintf(os.Stdout, "  - %s: %s (%s)\n", item.Kind, item.Name, required)
 	}
+
+	_, _ = fmt.Fprintf(os.Stdout, "\nApply plan — %d selected item(s): %d not yet in place, %d already in place, %d not checkable before applying.\n",
+		len(plan.Items), len(pending), len(satisfied), len(unknown))
+
+	_, _ = fmt.Fprintln(os.Stdout, "\nWhat \"apply\" does, per kind:")
+	_, _ = fmt.Fprintln(os.Stdout, "  tool       `vrooli host install <name>`   — installs a program on this host")
+	_, _ = fmt.Fprintln(os.Stdout, "  safeguard  `vrooli host safeguard <name>` — changes host configuration (sysctl, systemd, sudoers and similar)")
+	_, _ = fmt.Fprintln(os.Stdout, "  resource   `vrooli resource enable <name>` — starts a local service")
+	_, _ = fmt.Fprintln(os.Stdout, "  scenario   `vrooli scenario start <name>`  — starts an app's processes")
+	_, _ = fmt.Fprintln(os.Stdout, "Every item runs even when already in place; those runs converge rather than reinstall.")
+	_, _ = fmt.Fprintln(os.Stdout, "Nothing is removed, disabled, or uninstalled by apply. Deselected items are skipped, not reverted.")
+
+	if len(pending) > 0 {
+		_, _ = fmt.Fprintf(os.Stdout, "\nNOT YET IN PLACE — these change this host (%d, %d elevated)\n", len(pending), elevatedPending)
+		printItemsGrouped(pending, true)
+	}
+	if len(satisfied) > 0 {
+		_, _ = fmt.Fprintf(os.Stdout, "\nALREADY IN PLACE — verified present on this host (%d)\n", len(satisfied))
+		printItemsGrouped(satisfied, false)
+	}
+	if len(unknown) > 0 {
+		_, _ = fmt.Fprintf(os.Stdout, "\nNOT CHECKED — state is reported by the handler during apply (%d)\n", len(unknown))
+		printItemsGrouped(unknown, false)
+	}
+	_, _ = fmt.Fprintln(os.Stdout, "\nNothing has been applied yet. Answering no leaves the host unchanged.")
 	return nil
+}
+
+type planItem struct {
+	Kind       string `json:"kind"`
+	Name       string `json:"name"`
+	Required   bool   `json:"required"`
+	Privileged bool   `json:"privileged"`
+	State      string `json:"state"`
+}
+
+func filterByState(items []planItem, state string) []planItem {
+	matched := make([]planItem, 0, len(items))
+	for _, item := range items {
+		itemState := item.State
+		if itemState == "" {
+			itemState = "unknown"
+		}
+		if itemState == state {
+			matched = append(matched, item)
+		}
+	}
+	return matched
+}
+
+// printItemsGrouped lists items by kind. Detailed lines are reserved for the
+// group that changes the host; the rest are summarized on one line per kind so
+// a long already-satisfied list cannot bury the part that matters.
+func printItemsGrouped(items []planItem, detailed bool) {
+	byKind := map[string][]planItem{}
+	kindOrder := make([]string, 0, 4)
+	for _, item := range items {
+		if _, seen := byKind[item.Kind]; !seen {
+			kindOrder = append(kindOrder, item.Kind)
+		}
+		byKind[item.Kind] = append(byKind[item.Kind], item)
+	}
+	for _, kind := range kindOrder {
+		entries := byKind[kind]
+		_, _ = fmt.Fprintf(os.Stdout, "  %s (%d)\n", pluralKind(kind, len(entries)), len(entries))
+		if !detailed {
+			names := make([]string, 0, len(entries))
+			for _, item := range entries {
+				names = append(names, item.Name)
+			}
+			_, _ = fmt.Fprintf(os.Stdout, "    %s\n", strings.Join(names, ", "))
+			continue
+		}
+		for _, item := range entries {
+			markers := []string{"optional"}
+			if item.Required {
+				markers = []string{"required"}
+			}
+			marker := "-"
+			if item.Privileged {
+				markers = append(markers, "elevated")
+				marker = "!"
+			}
+			_, _ = fmt.Fprintf(os.Stdout, "    %s %s (%s)\n", marker, item.Name, strings.Join(markers, ", "))
+		}
+	}
+}
+
+// pluralKind renders an apply-plan kind as a readable section heading.
+func pluralKind(kind string, count int) string {
+	label := map[string]string{
+		"tool":      "Host tool",
+		"safeguard": "Host safeguard",
+		"resource":  "Resource",
+		"scenario":  "Scenario",
+	}[kind]
+	if label == "" {
+		label = strings.ToUpper(kind[:1]) + kind[1:]
+	}
+	if count == 1 {
+		return label
+	}
+	if strings.HasSuffix(label, "s") {
+		return label
+	}
+	return label + "s"
 }
 
 func printApplyReport(body []byte) error {
@@ -688,31 +930,8 @@ func waitForApply(core *cliapp.ScenarioApp, runID, status string) ([]byte, error
 	return result, nil
 }
 
-func get(core *cliapp.ScenarioApp, args []string, path string) error {
-	fs := support.NewFlagSet("wizard")
-	jsonOutput := cliutil.JSONFlag(fs)
-	if err := support.ParseFlags(fs, args); err != nil {
-		return err
-	}
-	body, err := core.Get(path, nil)
-	if err != nil {
-		return err
-	}
-	if *jsonOutput {
-		_, err = os.Stdout.Write(append(body, '\n'))
-		return err
-	}
-	var value any
-	if err := json.Unmarshal(body, &value); err != nil {
-		return fmt.Errorf("decode wizard response: %w", err)
-	}
-	pretty, _ := json.MarshalIndent(value, "", "  ")
-	_, err = fmt.Fprintln(os.Stdout, string(pretty))
-	return err
-}
-
 func apply(core *cliapp.ScenarioApp, args []string) error {
-	fs := support.NewFlagSet("wizard apply")
+	fs := support.NewFlagSet("wizard commit")
 	selectionPath := fs.String("selection", "", "Path to a selection document")
 	jsonOutput := cliutil.JSONFlag(fs)
 	if err := support.ParseFlags(fs, args); err != nil {
@@ -817,4 +1036,46 @@ func exportSelection(core *cliapp.ScenarioApp, args []string) error {
 	}
 	_, err = fmt.Fprintln(os.Stdout, "Selection exported to", *outputPath)
 	return err
+}
+
+// completionBlocker mirrors the API's metadata-only blocker. It never carries a
+// credential value.
+type completionBlocker struct {
+	Kind        string `json:"kind"`
+	Name        string `json:"name"`
+	Reason      string `json:"reason"`
+	Remediation string `json:"remediation"`
+}
+
+// reportReadinessBlockers prints the named reasons configuration is not
+// complete and fails the command when any remains.
+//
+// A wizard that prints a blocking verdict and exits zero tells a script that
+// the host is configured. The exit code is the only part of that report a
+// caller can act on without parsing prose, so it has to carry the verdict.
+func reportReadinessBlockers(readiness []byte) error {
+	var response struct {
+		Status               string              `json:"status"`
+		Blockers             []completionBlocker `json:"blockers"`
+		Degraded             []completionBlocker `json:"degraded"`
+		DegradedDigest       string              `json:"degraded_digest"`
+		DegradedAcknowledged bool                `json:"degraded_acknowledged"`
+	}
+	if err := json.Unmarshal(readiness, &response); err != nil {
+		return fmt.Errorf("decode readiness: %w", err)
+	}
+	for _, blocker := range response.Blockers {
+		_, _ = fmt.Fprintf(os.Stdout, "Blocked: %s %s — %s. Next: %s\n", blocker.Kind, blocker.Name, blocker.Reason, blocker.Remediation)
+	}
+	for _, gap := range response.Degraded {
+		_, _ = fmt.Fprintf(os.Stdout, "Degraded: %s %s — %s. Next: %s\n", gap.Kind, gap.Name, gap.Reason, gap.Remediation)
+	}
+	if len(response.Blockers) > 0 {
+		return fmt.Errorf("configuration is not complete: %d blocking item(s) remain", len(response.Blockers))
+	}
+	if len(response.Degraded) > 0 && !response.DegradedAcknowledged {
+		_, _ = fmt.Fprintf(os.Stdout, "Accept the degraded set with: vrooli-onboarding readiness acknowledge-degraded --digest %s\n", response.DegradedDigest)
+		return fmt.Errorf("configuration is not complete: %d optional item(s) need an explicit acknowledgement", len(response.Degraded))
+	}
+	return nil
 }

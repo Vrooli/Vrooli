@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "Turning recorded intent into applied host state, and reporting honest readiness with a named remediation for every non-ready item.",
-    "last_validated_at": "2026-08-19T14:39:07-04:00",
+    "last_validated_at": "2026-08-24T18:20:16-04:00",
     "module": "onboarding.apply",
     "schema_version": "1.0.0"
   },
@@ -9,7 +9,7 @@
     {
       "id": "ONB-APPLY-INTENT-BECOMES-STATE",
       "title": "When the operator confirms setup, the system shall apply the recorded selection to the host and shall report the outcome of each item.",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-006",
       "category": "apply",
       "description": "Compositional claim for the apply domain. Today the wizard records preferences and never acts, so an operator who finishes setup has changed nothing and has no way to observe that.",
@@ -24,7 +24,7 @@
           "type": "test",
           "ref": "api/v2_apply_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Evidence: the apply engine and its report shape."
         }
       ]
@@ -32,7 +32,7 @@
     {
       "id": "ONB-APPLY-EXECUTES",
       "title": "When the operator confirms setup, the system shall install opted-in host tools, apply opted-in safeguards, enable selected resources, and start selected scenarios.",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-006",
       "category": "apply",
       "description": "Apply delegates each action to its owning control-plane handler. Onboarding orders the work and reports it; it does not carry a private host-repair implementation, which the repository contract reserves for the control plane.",
@@ -44,7 +44,7 @@
           "type": "test",
           "ref": "api/v2_apply_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Evidence: each action reaches its control-plane handler in dependency order with a fake executor."
         }
       ]
@@ -52,7 +52,7 @@
     {
       "id": "ONB-APPLY-PER-ITEM-RESULT",
       "title": "The apply report shall name every attempted item with its outcome and, for a failure, its remediation.",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-006",
       "category": "apply",
       "description": "A single aggregate success or failure is unusable. The operator needs to know which safeguard needed a privilege it did not have, and what to do next.",
@@ -61,7 +61,7 @@
           "type": "test",
           "ref": "api/v2_apply_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Evidence: a mixed run reports per-item outcomes and a remediation on each failure."
         }
       ]
@@ -69,7 +69,7 @@
     {
       "id": "ONB-APPLY-IDEMPOTENT",
       "title": "When apply runs twice with unchanged operator state, the second run shall change no host state and shall report every item as already satisfied.",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-006",
       "category": "apply",
       "description": "Re-entry is the normal case, not the exception. A re-apply that reinstalls tools or restarts healthy scenarios makes operators avoid the wizard.",
@@ -78,7 +78,7 @@
           "type": "test",
           "ref": "api/v2_apply_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Evidence: the second run issues no mutating call against the fake executor."
         }
       ]
@@ -86,7 +86,7 @@
     {
       "id": "ONB-APPLY-PARTIAL-FAILURE",
       "title": "If one apply item fails, then the system shall continue the remaining independent items and shall record the run as partially applied.",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-006",
       "category": "apply",
       "description": "Stopping at the first failure leaves the host in a less-configured state than proceeding would. Items that depend on the failed one are skipped with the dependency named.",
@@ -95,7 +95,7 @@
           "type": "test",
           "ref": "api/v2_apply_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Evidence: an induced failure skips dependants, completes independents, and marks the run partial."
         }
       ]
@@ -103,7 +103,7 @@
     {
       "id": "ONB-READY-COMPOSED",
       "title": "The readiness report shall compose credential, host-tool, host-safeguard, and resource state into one status with a named remediation for every item that is not ready.",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P1-001",
       "category": "readiness",
       "description": "Credentials and host requirements are probed today. Resource reachability is not, even though the scenario already exposes a resource-health endpoint.",
@@ -117,7 +117,7 @@
           "type": "test",
           "ref": "api/v2_readiness_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Credential and host composition proven; resource probe covered by companion evidence."
         }
       ]
@@ -125,7 +125,7 @@
     {
       "id": "ONB-READY-RESOURCE-PROBE",
       "title": "The readiness report should probe reachability for each resource derived from the selection.",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P1-001",
       "category": "readiness",
       "description": "The validation step's whole purpose is answering 'will this install work'. Reporting credential state while ignoring whether Postgres is reachable answers a narrower question than the operator asked.",
@@ -134,7 +134,7 @@
           "type": "test",
           "ref": "api/v2_readiness_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Evidence: an unreachable fixture resource degrades the composed status and names a remediation."
         }
       ]
@@ -142,7 +142,7 @@
     {
       "id": "ONB-READY-REMEDIATION",
       "title": "The readiness report shall name a remediation for every item that is not ready.",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P1-001",
       "category": "readiness",
       "description": "A status without a next action moves the diagnosis burden onto the operator. Remediation text is specific to the cause: an unset value, an unreachable store, a missing binary, and an unapplied safeguard each get a different instruction.",
@@ -151,15 +151,22 @@
           "type": "test",
           "ref": "api/v2_readiness_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Host and credential remediations asserted; resource remediation covered by companion evidence."
+        },
+        {
+          "type": "test",
+          "ref": "api/completion_test.go",
+          "phase": "unit",
+          "status": "passing",
+          "notes": "Every blocker and every degraded item carries a remediation."
         }
       ]
     },
     {
       "id": "ONB-READY-RECHECK",
       "title": "The validation step should re-run the probe pass on operator request without a page reload.",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P1-001",
       "category": "readiness",
       "description": "The operator's loop is fix-then-verify. Forcing a reload between the two makes the loop slow enough that operators stop using it.",
@@ -168,7 +175,7 @@
           "type": "test",
           "ref": "ui/src/components/wizard/V2Steps.test.tsx",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Evidence target: `ui/src/components/wizard/StepValidation.test.tsx`; this requirement remains planned until that evidence is added. the recheck control refetches and renders the updated composed status."
         }
       ]
@@ -176,17 +183,48 @@
     {
       "id": "ONB-READY-DEGRADED-CONTINUE",
       "title": "Where every required item is ready and an optional item is not, the operator may continue with a recorded degraded acknowledgement.",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P1-001",
       "category": "readiness",
       "description": "Blocking on an optional gap trains operators to bypass the wizard. Recording the acknowledgement keeps the degraded state visible to later diagnosis rather than silently forgotten.",
       "validation": [
         {
           "type": "test",
+          "ref": "api/completion_test.go",
+          "phase": "unit",
+          "status": "passing",
+          "notes": "The acknowledgement is durable operator state carrying the digest of the degraded set it accepted, so it cannot carry over to a different gap."
+        },
+        {
+          "type": "test",
           "ref": "ui/src/components/wizard/V2Steps.test.tsx",
           "phase": "unit",
-          "status": "implemented",
-          "notes": "Evidence target: `ui/src/components/wizard/StepValidation.test.tsx`; this requirement remains planned until that evidence is added. continue is offered only when required items are ready, and the acknowledgement is persisted."
+          "status": "passing",
+          "notes": "The UI records the acknowledgement through the API rather than in component state, and offers it only when no blocking item remains."
+        },
+        {
+          "type": "test",
+          "ref": "cli/domains/readiness/register_test.go",
+          "phase": "unit",
+          "status": "passing",
+          "notes": "The CLI exits non-zero while a blocker remains or an unacknowledged degraded set exists."
+        }
+      ]
+    },
+    {
+      "id": "ONB-COMPLETE-REQUIRES-READY",
+      "title": "The system shall write the configuration-complete marker only when readiness reports no unresolved required item, and shall name every blocker when it withholds it.",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-006",
+      "category": "apply",
+      "description": "Completion was a side effect of apply: every apply item succeeding wrote the marker, and no credential or readiness verdict was consulted. Setup then trusted that marker and reported success. The predicate now lives at the marker write, which is the one site common to the UI, the CLI wizard, and a direct API caller.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/completion_test.go",
+          "phase": "unit",
+          "status": "passing",
+          "notes": "Covers the four cases: nothing unresolved writes the marker, a required credential withholds it, an optional-only gap withholds it until acknowledged, and an acknowledgement of a different degraded set does not authorise completion."
         }
       ]
     }

@@ -2,7 +2,7 @@
 
 Validates Vrooli's development toolchain by executing skills against pristine golden scenarios and evaluating sandbox diffs against expected-diff manifests.
 
-This scenario was generated from the `react-vite` template and packages
+This scenario provides
 the standard full-stack Vrooli scenario shape:
 
 - Go API (`api/`)

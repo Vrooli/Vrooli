@@ -125,6 +125,25 @@ func hostItems(root, kind string, requirements map[string]hostRequirement, choic
 func deriveV2HostRequirements(root string, state OperatorState, models []ScenarioReadModel) (hostRequirementsResponse, error) {
 	tools, safeguards := map[string]hostRequirement{}, map[string]hostRequirement{}
 	resources := map[string]struct{}{}
+	// The repository root is itself a service manifest and is the authoritative
+	// owner of host changes that belong to no scenario. Merge it first: the
+	// merge keeps an existing entry unless the new one is required, so merging
+	// project last would let an optional project declaration mask a scenario's
+	// required one. A desktop bundle stages no root manifest by design and must
+	// not inherit a development machine's setup requirements, which is the same
+	// intent internal/hostreq states through ResolveOptions.ExcludeRoot.
+	if projectScopeAvailable() {
+		projectTools, projectSafeguards, err := loadHostRequirements(filepath.Join(root, ".vrooli", "service.json"))
+		switch {
+		case err == nil:
+			mergeHostRequirements(tools, projectTools)
+			mergeHostRequirements(safeguards, projectSafeguards)
+		case os.IsNotExist(err):
+			// A repository without a root manifest declares no project scope.
+		default:
+			return hostRequirementsResponse{}, fmt.Errorf("read project host requirements: %w", err)
+		}
+	}
 	for _, model := range models {
 		a, b, err := loadHostRequirements(filepath.Join(root, "scenarios", model.Name, ".vrooli", "service.json"))
 		if err != nil {
@@ -172,7 +191,7 @@ func (s *Server) handleV2HostRequirements(w http.ResponseWriter, _ *http.Request
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
 		return
 	}
-	models, err := selectedScenarioModels()
+	models, err := loadScenarioReadModels()
 	if err != nil {
 		if writeCatalogDegraded(w, err) {
 			return
@@ -180,7 +199,12 @@ func (s *Server) handleV2HostRequirements(w http.ResponseWriter, _ *http.Request
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
 		return
 	}
-	response, err := deriveV2HostRequirements(root, state, models)
+	hostModels, err := hostRequirementScenarioModels(root, models, state)
+	if err != nil {
+		writeJSON(w, http.StatusUnprocessableEntity, map[string]string{"error": err.Error()})
+		return
+	}
+	response, err := deriveV2HostRequirements(root, state, hostModels)
 	if err != nil {
 		if writeCatalogDegraded(w, err) {
 			return

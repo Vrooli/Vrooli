@@ -2,7 +2,7 @@
 
 Editorial production ledger for marketing content: drafts, verifiable claims, review gates, and publish history
 
-This scenario was generated from the `react-vite` template and packages
+This scenario provides
 the standard full-stack Vrooli scenario shape:
 
 - Go API (`api/`)

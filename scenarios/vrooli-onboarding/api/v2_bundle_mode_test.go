@@ -59,7 +59,7 @@ func TestV2BundleModeServesAllCatalogReadModels(t *testing.T) {
 	t.Setenv("BUNDLE_ROOT", bundle)
 	t.Setenv("VROOLI_STORAGE_ROOT", storageRoot)
 
-	for _, endpoint := range []string{"/api/v2/scenarios", "/api/v2/resources", "/api/v2/host-requirements", "/api/v2/readiness", "/api/v2/closure", "/api/v2/union", "/api/v2/credentials", "/api/v2/surface", "/api/v2/session"} {
+	for _, endpoint := range []string{"/api/v2/scenarios", "/api/v2/resources", "/api/v2/host-requirements", "/api/v2/readiness", "/api/v2/closure", "/api/v2/union", "/api/v2/credentials", "/api/v2/session"} {
 		w := doGet(t, NewServer(), endpoint)
 		if w.Code != http.StatusOK {
 			t.Fatalf("GET %s status = %d: %s", endpoint, w.Code, w.Body.String())
@@ -87,7 +87,7 @@ func TestV2BundleModeUsesBundleLocalAppDataWithOnlyBundleRoot(t *testing.T) {
 	t.Setenv("VROOLI_STORAGE_ROOT", "")
 	t.Setenv("BUNDLE_ROOT", bundle)
 
-	for _, endpoint := range []string{"/api/v2/scenarios", "/api/v2/resources", "/api/v2/host-requirements", "/api/v2/readiness", "/api/v2/closure", "/api/v2/union", "/api/v2/credentials", "/api/v2/surface", "/api/v2/session"} {
+	for _, endpoint := range []string{"/api/v2/scenarios", "/api/v2/resources", "/api/v2/host-requirements", "/api/v2/readiness", "/api/v2/closure", "/api/v2/union", "/api/v2/credentials", "/api/v2/session"} {
 		w := doGet(t, NewServer(), endpoint)
 		if w.Code != http.StatusOK {
 			t.Fatalf("GET %s status = %d: %s", endpoint, w.Code, w.Body.String())

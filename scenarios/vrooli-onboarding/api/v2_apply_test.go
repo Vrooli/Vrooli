@@ -34,7 +34,11 @@ func (e *recordingApplyExecutor) snapshotCalls() []string {
 
 func waitApplyTerminal(t *testing.T, id string) applyRun {
 	t.Helper()
-	deadline := time.Now().Add(2 * time.Second)
+	// An apply run now computes the readiness verdict before it decides whether
+	// the configuration marker may be written, and that verdict includes a
+	// credential-authority diagnosis. The budget is generous because the point
+	// of the wait is the terminal state, not the duration.
+	deadline := time.Now().Add(60 * time.Second)
 	for time.Now().Before(deadline) {
 		if run, ok := applyRunSnapshot(id); ok && run.Status != "pending" && run.Status != "applying" {
 			return run

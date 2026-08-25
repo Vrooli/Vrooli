@@ -1,0 +1,1 @@
+Git Control Tower immutable baseline: first-run-handoff-completion-truth-and-structural-cleanup-baseline, run 20260824-221341-9741ddda, synchronized complete before implementation. Current validation: hostpresentation, onboardinghandoff, projectstate, and setup suites pass; the resolved RunDevelop port-precedence fixture is documented in known-red.md.

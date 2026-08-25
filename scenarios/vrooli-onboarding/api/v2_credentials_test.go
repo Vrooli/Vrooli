@@ -49,13 +49,6 @@ func TestV2CredentialDoctorRelaysMetadataOnly(t *testing.T) {
 	}
 }
 
-func TestV2CredentialKeyringRepairRequiresConfirmation(t *testing.T) {
-	w := doPost(t, NewServer(), "/api/v2/credentials/keyring/repair", `{}`)
-	if w.Code != http.StatusBadRequest {
-		t.Fatalf("status = %d: %s", w.Code, w.Body.String())
-	}
-}
-
 func TestV2CredentialDoctorHidesRelayFailureDetails(t *testing.T) {
 	prior := credentialDoctorCommand
 	credentialDoctorCommand = func(context.Context) ([]byte, error) {

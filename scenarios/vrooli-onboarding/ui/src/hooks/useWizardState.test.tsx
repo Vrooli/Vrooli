@@ -2,13 +2,44 @@
 import { renderHook, act, waitFor } from "@testing-library/react";
 import { vi } from "vitest";
 import { useWizardState } from "./useWizardState";
-import { TOTAL_STEPS } from "../types";
+
+const testSteps = [
+  "welcome",
+  "scenarios",
+  "resources",
+  "credentials",
+  "integrations",
+  "host",
+  "operating-mode",
+  "apply",
+  "validation",
+].map((id, ordinal) => ({
+  id,
+  ordinal,
+  title: id,
+  route: `/setup/${id}`,
+  deferred: false,
+}));
+const stepCount = testSteps.length;
+const testAPIResponse = {
+  steps: testSteps,
+  version: "1.0.0",
+  updated_at: "now",
+  scenarios: {},
+};
+
+async function waitForStepModel(result: { current: { steps: unknown[] } }) {
+  await waitFor(() => expect(result.current.steps).toHaveLength(stepCount));
+}
 
 describe("useWizardState", () => {
   beforeEach(() => {
     window.history.replaceState({}, "", "/");
     // Default: no saved progress
-    globalThis.fetch = vi.fn().mockResolvedValue({ ok: false, status: 404 });
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve(testAPIResponse),
+    });
   });
 
   afterEach(() => {
@@ -22,20 +53,28 @@ describe("useWizardState", () => {
   });
 
   it("goNext advances step and caps at last step", async () => {
-    globalThis.fetch = vi.fn().mockResolvedValue({ ok: true, json: () => Promise.resolve({}) });
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve(testAPIResponse),
+    });
     const { result } = renderHook(() => useWizardState());
+    await waitForStepModel(result);
 
-    for (let i = 0; i < TOTAL_STEPS + 2; i++) {
+    for (let i = 0; i < stepCount + 2; i++) {
       act(() => result.current.goNext());
     }
-    expect(result.current.currentStep).toBe(TOTAL_STEPS - 1);
+    expect(result.current.currentStep).toBe(stepCount - 1);
   });
 
-  it("goPrev decrements step and caps at 0", () => {
+  it("goPrev decrements step and caps at 0", async () => {
     const { result } = renderHook(() => useWizardState());
+    await waitForStepModel(result);
 
     // Go forward first
-    globalThis.fetch = vi.fn().mockResolvedValue({ ok: true, json: () => Promise.resolve({}) });
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve(testAPIResponse),
+    });
     act(() => result.current.goNext());
     act(() => result.current.goNext());
     expect(result.current.currentStep).toBe(2);
@@ -50,15 +89,17 @@ describe("useWizardState", () => {
     expect(result.current.currentStep).toBe(0);
   });
 
-  it("goToStep navigates to valid step", () => {
+  it("goToStep navigates to valid step", async () => {
     const { result } = renderHook(() => useWizardState());
+    await waitForStepModel(result);
 
     act(() => result.current.goToStep(2));
     expect(result.current.currentStep).toBe(2);
   });
 
-  it("goToStep ignores out-of-bounds values", () => {
+  it("goToStep ignores out-of-bounds values", async () => {
     const { result } = renderHook(() => useWizardState());
+    await waitForStepModel(result);
 
     act(() => result.current.goToStep(2));
     expect(result.current.currentStep).toBe(2);
@@ -68,7 +109,7 @@ describe("useWizardState", () => {
     expect(result.current.currentStep).toBe(2);
 
     // Too high
-    act(() => result.current.goToStep(TOTAL_STEPS));
+    act(() => result.current.goToStep(stepCount));
     expect(result.current.currentStep).toBe(2);
 
     act(() => result.current.goToStep(100));
@@ -76,19 +117,27 @@ describe("useWizardState", () => {
   });
 
   it("toggleScenario commits enabled choices to operator state", async () => {
-    globalThis.fetch = vi.fn().mockResolvedValue({ ok: true, json: () => Promise.resolve({ version: "1.0.0", updated_at: "now", scenarios: {} }) });
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve(testAPIResponse),
+    });
     const { result } = renderHook(() => useWizardState());
+    await waitForStepModel(result);
 
     act(() => result.current.toggleScenario("scenario-a"));
     expect(result.current.selectedScenarios.has("scenario-a")).toBe(true);
-    await waitFor(() => expect(globalThis.fetch).toHaveBeenCalledTimes(4));
+    await waitFor(() => expect(globalThis.fetch).toHaveBeenCalledTimes(5));
   });
 
-  it("startOver resets navigation and local selections", () => {
+  it("startOver resets navigation and local selections", async () => {
     const { result } = renderHook(() => useWizardState());
+    await waitForStepModel(result);
 
     // Set up some state
-    globalThis.fetch = vi.fn().mockResolvedValue({ ok: true, json: () => Promise.resolve({}) });
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve(testAPIResponse),
+    });
     act(() => result.current.toggleScenario("scenario-a"));
     act(() => result.current.goNext());
     act(() => result.current.goNext());
@@ -101,12 +150,16 @@ describe("useWizardState", () => {
     expect(result.current.selectedScenarios.size).toBe(0);
   });
 
-  it("nextLabel changes based on current step", () => {
+  it("nextLabel changes based on current step", async () => {
     const { result } = renderHook(() => useWizardState());
+    await waitForStepModel(result);
 
     expect(result.current.nextLabel).toBe("Get Started");
 
-    globalThis.fetch = vi.fn().mockResolvedValue({ ok: true, json: () => Promise.resolve({}) });
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve(testAPIResponse),
+    });
     act(() => result.current.goNext());
     expect(result.current.nextLabel).toBe("Next");
 
@@ -114,18 +167,23 @@ describe("useWizardState", () => {
     expect(result.current.nextLabel).toBe("Next");
   });
 
-  it("uses a truthful label before validation", () => {
+  it("uses a truthful label before validation", async () => {
     const { result } = renderHook(() => useWizardState());
-    act(() => result.current.goToStep(TOTAL_STEPS - 2));
+    await waitForStepModel(result);
+    act(() => result.current.goToStep(stepCount - 2));
     expect(result.current.nextLabel).toBe("Review readiness");
   });
 
-  it("isLastStep is true only on the final step", () => {
+  it("isLastStep is true only on the final step", async () => {
     const { result } = renderHook(() => useWizardState());
+    await waitForStepModel(result);
     expect(result.current.isLastStep).toBe(false);
 
-    globalThis.fetch = vi.fn().mockResolvedValue({ ok: true, json: () => Promise.resolve({}) });
-    for (let i = 0; i < TOTAL_STEPS - 1; i++) {
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve(testAPIResponse),
+    });
+    for (let i = 0; i < stepCount - 1; i++) {
       act(() => result.current.goNext());
     }
     expect(result.current.isLastStep).toBe(true);
@@ -136,9 +194,13 @@ describe("useWizardState", () => {
       ok: true,
       json: () =>
         Promise.resolve({
+          ...testAPIResponse,
           version: "1.0.0",
           updated_at: "2026-07-29T00:00:00Z",
-          scenarios: { "scenario-a": { enabled: true }, "scenario-b": { enabled: false } },
+          scenarios: {
+            "scenario-a": { enabled: true },
+            "scenario-b": { enabled: false },
+          },
         }),
     });
 
@@ -155,7 +217,10 @@ describe("useWizardState", () => {
       ok: true,
       json: () =>
         Promise.resolve({
-          version: "1.0.0", updated_at: "2026-07-29T00:00:00Z", scenarios: { alpha: { enabled: true } },
+          ...testAPIResponse,
+          version: "1.0.0",
+          updated_at: "2026-07-29T00:00:00Z",
+          scenarios: { alpha: { enabled: true } },
         }),
     });
 
@@ -172,7 +237,10 @@ describe("useWizardState", () => {
       ok: true,
       json: () =>
         Promise.resolve({
-          version: "1.0.0", updated_at: "2026-07-29T00:00:00Z", scenarios: { bad: {} },
+          ...testAPIResponse,
+          version: "1.0.0",
+          updated_at: "2026-07-29T00:00:00Z",
+          scenarios: { bad: {} },
         }),
     });
 
@@ -196,14 +264,19 @@ describe("useWizardState", () => {
 
   it("focuses heading on step change via requestAnimationFrame", async () => {
     // Synchronously execute rAF callback so the DOM mutation is visible
-    const rafSpy = vi.spyOn(window, "requestAnimationFrame").mockImplementation((cb) => {
-      cb(0);
-      return 0;
-    });
+    const rafSpy = vi
+      .spyOn(window, "requestAnimationFrame")
+      .mockImplementation((cb) => {
+        cb(0);
+        return 0;
+      });
 
     // Render hook inside a wrapper that provides a real h1 inside stepContentRef
-    const Wrapper = ({ children }: { children: React.ReactNode }) => <>{children}</>;
+    const Wrapper = ({ children }: { children: React.ReactNode }) => (
+      <>{children}</>
+    );
     const { result } = renderHook(() => useWizardState(), { wrapper: Wrapper });
+    await waitForStepModel(result);
 
     // Attach a DOM element with an h1 to stepContentRef
     const container = document.createElement("div");
@@ -220,7 +293,10 @@ describe("useWizardState", () => {
 
     const focusSpy = vi.spyOn(heading, "focus");
 
-    globalThis.fetch = vi.fn().mockResolvedValue({ ok: true, json: () => Promise.resolve({}) });
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve(testAPIResponse),
+    });
     act(() => result.current.goNext());
 
     expect(rafSpy).toHaveBeenCalled();

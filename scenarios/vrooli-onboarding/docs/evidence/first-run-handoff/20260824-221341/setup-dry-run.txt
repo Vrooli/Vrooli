@@ -1,0 +1,1 @@
+Capture note: `vrooli setup --dry-run --result-file <evidence-dir>/result-dry-run.json` was not rerun after the source baseline because the host already had an active setup state and the pre-change raw transcript was not preserved. The immutable Git Control Tower baseline is the before-state authority.

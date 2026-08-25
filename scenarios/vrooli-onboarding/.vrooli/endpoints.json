@@ -298,18 +298,6 @@
       "description": "Passes typed inputs to the owning control-plane provider and returns only typed result metadata and secret-free evidence."
     },
     {
-      "id": "surface",
-      "path": "/api/v2/surface",
-      "method": "GET",
-      "category": "state",
-      "summary": "Operator-controllable surface declared by the catalog",
-      "description": "Every decision an operator may make, with type, schema, risk, privilege, and default. Drives generic form rendering and configuration discovery.",
-      "requirements": [
-        "ONB-SELECT-NO-HARDCODED-INVENTORY",
-        "ONB-CONFIG-DISCOVERY"
-      ]
-    },
-    {
       "id": "handoff",
       "path": "/api/v2/handoff",
       "method": "POST",
@@ -434,6 +422,24 @@
       ]
     },
     {
+      "id": "readiness-degraded-acknowledgement",
+      "path": "/api/v2/readiness/degraded-acknowledgement",
+      "method": "POST",
+      "category": "readiness",
+      "summary": "Record that the operator accepted the current degraded set",
+      "description": "Records a durable acknowledgement of the exact degraded optional items readiness reports now, identified by its digest. Completion stays withheld while any required item is unresolved, and a digest that no longer names the current gap is rejected. Never accepts or returns a credential value.",
+      "requirements": [
+        "ONB-READY-DEGRADED-CONTINUE",
+        "ONB-COMPLETE-REQUIRES-READY"
+      ],
+      "examples": [
+        {
+          "name": "Acknowledge the current degraded set",
+          "curl": "curl -X POST http://localhost:${API_PORT}/api/v2/readiness/degraded-acknowledgement -H 'Content-Type: application/json' -d '{\"readiness_digest\":\"<digest from GET /api/v2/readiness>\"}'"
+        }
+      ]
+    },
+    {
       "id": "credentials-provision",
       "path": "/api/v2/credentials/provision",
       "method": "POST",
@@ -456,21 +462,6 @@
         "ONB-CRED-DIAGNOSIS",
         "ONB-CRED-HEADLESS-STORE"
       ]
-    },
-    {
-      "id": "credentials-keyring-inspect",
-      "path": "/api/v2/credentials/keyring/inspect",
-      "method": "GET",
-      "category": "credentials",
-      "summary": "Read keyring state"
-    },
-    {
-      "id": "credentials-keyring-repair",
-      "path": "/api/v2/credentials/keyring/repair",
-      "method": "POST",
-      "category": "credentials",
-      "summary": "Repair the keyring",
-      "description": "Requires confirm=true in the request body."
     },
     {
       "id": "glossary",

@@ -1,0 +1,14 @@
+{
+  "scenario": "vrooli-onboarding/api",
+  "ceiling": 7,
+  "imports": [
+    "github.com/vrooli/vrooli/internal/config",
+    "github.com/vrooli/vrooli/internal/hostreq",
+    "github.com/vrooli/vrooli/internal/operatorcapability",
+    "github.com/vrooli/vrooli/internal/operatorinput",
+    "github.com/vrooli/vrooli/internal/operatorstate",
+    "github.com/vrooli/vrooli/internal/projectstate",
+    "github.com/vrooli/vrooli/internal/secrets"
+  ],
+  "decision": "Grandfather the current API projection imports. Do not grow this list; promote a package when the onboarding bundle must build outside the monorepo."
+}

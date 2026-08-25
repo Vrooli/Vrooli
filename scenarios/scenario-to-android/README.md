@@ -2,7 +2,7 @@
 
 Turn any Vrooli scenario into a distributable Android application with evidence-backed validation on emulators and physical devices.
 
-This scenario was generated from the `react-vite` template and packages
+This scenario provides
 the standard full-stack Vrooli scenario shape:
 
 - Go API (`api/`)

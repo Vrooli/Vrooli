@@ -2,7 +2,7 @@
 
 Platform identities, warming programs, account health, and the unified action queue that releases approved content
 
-This scenario was generated from the `react-vite` template and packages
+This scenario provides
 the standard full-stack Vrooli scenario shape:
 
 - Go API (`api/`)

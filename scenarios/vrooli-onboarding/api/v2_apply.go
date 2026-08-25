@@ -48,13 +48,15 @@ type privilegedApplyExecutor interface {
 type needsElevationError struct{ Command string }
 
 func (e *needsElevationError) Error() string {
-	return fmt.Sprintf("needs_elevation: the setup-provisioned grant is unavailable; run `sudo vrooli setup`, then retry `%s`", e.Command)
+	return fmt.Sprintf("needs_elevation: the setup-provisioned grant is unavailable; run `vrooli setup --sudo-mode=ask`, then retry `%s`", e.Command)
 }
 
 type controlPlaneExecutor struct{}
 
-var controlPlaneCommand = exec.CommandContext
-var controlPlaneExecutable = exec.LookPath
+var (
+	controlPlaneCommand    = exec.CommandContext
+	controlPlaneExecutable = exec.LookPath
+)
 
 func (e controlPlaneExecutor) run(ctx context.Context, args ...string) error {
 	return e.runNamed(ctx, "vrooli", args...)
@@ -205,7 +207,19 @@ type applyItem struct {
 	Dependencies []string `json:"dependencies,omitempty"`
 	Required     bool     `json:"required"`
 	Privileged   bool     `json:"privileged,omitempty"`
+	// State is what this host was observed to be in when the plan was built:
+	// "satisfied", "pending", or "unknown". It is disclosure only. It is
+	// deliberately excluded from selectionDigest, because the digest identifies
+	// the selection an operator consented to, and that consent must not be
+	// invalidated by the host drifting underneath it.
+	State string `json:"state,omitempty"`
 }
+
+const (
+	applyStateSatisfied = "satisfied"
+	applyStatePending   = "pending"
+	applyStateUnknown   = "unknown"
+)
 
 type applyItemResult struct {
 	applyItem
@@ -224,6 +238,11 @@ type applyRun struct {
 	CompletedAt     string            `json:"completed_at,omitempty"`
 	Error           string            `json:"error,omitempty"`
 	Items           []applyItemResult `json:"items"`
+	// Blockers name why the configuration-complete marker was withheld. An
+	// empty list on a run whose status is applied means it was written.
+	Blockers       []completionBlocker `json:"blockers,omitempty"`
+	Degraded       []completionBlocker `json:"degraded,omitempty"`
+	DegradedDigest string              `json:"degraded_digest,omitempty"`
 }
 
 var applyRuns = struct {
@@ -351,7 +370,11 @@ func (s *Server) buildApplyRun(ctx context.Context) (applyRun, error) {
 	if err != nil {
 		return applyRun{}, err
 	}
-	requirements, err := deriveV2HostRequirements(root, state, models)
+	hostModels, err := hostRequirementScenarioModels(root, models, state)
+	if err != nil {
+		return applyRun{}, err
+	}
+	requirements, err := deriveV2HostRequirements(root, state, hostModels)
 	if err != nil {
 		return applyRun{}, err
 	}
@@ -453,7 +476,7 @@ func executeApplyRun(ctx context.Context, run applyRun) {
 			if errors.As(err, &elevationErr) {
 				run.Items[i].Outcome = "needs_elevation"
 				run.Items[i].ErrorCode = "needs_elevation"
-				run.Items[i].Remediation = "run `sudo vrooli setup` to provision the exact grant, then re-run onboarding apply"
+				run.Items[i].Remediation = "run `vrooli setup --sudo-mode=ask` to provision the exact grant, then re-run onboarding apply"
 			}
 			run.Items[i].Error = err.Error()
 			if run.Items[i].Remediation == "" {
@@ -467,15 +490,53 @@ func executeApplyRun(ctx context.Context, run applyRun) {
 	}
 	if len(failed) > 0 {
 		run.Status = "partially_applied"
-	} else {
-		run.Status = "applied"
-		if _, err := operatorStateService().MarkApplied(ctx, run.SelectionDigest, operatorStateNow()); err != nil {
-			run.Status = "partially_applied"
-			run.Error = err.Error()
-		} else if err := markConfigurationComplete(run.SelectionDigest); err != nil {
-			run.Status = "partially_applied"
-			run.Error = err.Error()
-		}
+		run.CompletedAt = operatorStateNow().UTC().Format(time.RFC3339)
+		updateApplyRun(run)
+		return
+	}
+	run.Status = "applied"
+	// Completion is a consequence of verified readiness, not a side effect of
+	// apply. Every item succeeding says the host changes were made; it says
+	// nothing about whether a required credential is present or a required
+	// safeguard is in place, and the marker is the flow's claim that both are.
+	readiness, readinessErr := buildReadinessResponse(ctx)
+	if readinessErr != nil {
+		run.Status = "configuration_incomplete"
+		run.Error = readinessErr.Error()
+		run.Blockers = []completionBlocker{{
+			Kind:        "readiness",
+			Name:        "readiness",
+			Reason:      "readiness could not be computed, so completion cannot be claimed",
+			Remediation: "Resolve the reported condition, then apply the selection again.",
+		}}
+		run.CompletedAt = operatorStateNow().UTC().Format(time.RFC3339)
+		updateApplyRun(run)
+		return
+	}
+	assessment := assessCompletion(readiness, &run)
+	state, stateErr := loadOperatorStateFor(ctx)
+	if stateErr != nil {
+		run.Status = "configuration_incomplete"
+		run.Error = stateErr.Error()
+		run.CompletedAt = operatorStateNow().UTC().Format(time.RFC3339)
+		updateApplyRun(run)
+		return
+	}
+	run.Blockers = assessment.Blockers
+	run.Degraded = assessment.Degraded
+	run.DegradedDigest = assessment.DegradedDigest
+	if !configurationMayComplete(assessment, state) {
+		run.Status = "configuration_incomplete"
+		run.CompletedAt = operatorStateNow().UTC().Format(time.RFC3339)
+		updateApplyRun(run)
+		return
+	}
+	if _, err := operatorStateService().MarkApplied(ctx, run.SelectionDigest, operatorStateNow()); err != nil {
+		run.Status = "partially_applied"
+		run.Error = err.Error()
+	} else if err := markConfigurationComplete(run.SelectionDigest); err != nil {
+		run.Status = "partially_applied"
+		run.Error = err.Error()
 	}
 	run.CompletedAt = operatorStateNow().UTC().Format(time.RFC3339)
 	updateApplyRun(run)

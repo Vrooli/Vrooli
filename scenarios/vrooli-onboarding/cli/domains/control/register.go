@@ -16,43 +16,22 @@ import (
 // of the onboarding automation contract.
 func CommandGroups(core *cliapp.ScenarioApp) []cliapp.CommandGroup {
 	return []cliapp.CommandGroup{
-		{Title: "Selection", Commands: []cliapp.Command{{Name: "closure", Description: "Show the transitive selection closure", NeedsAPI: true, Run: func(args []string) error { return get(core, args, "/v2/closure") }}}},
-		{Title: "Apply", Commands: []cliapp.Command{{Name: "apply", Description: "Apply the committed onboarding selection", NeedsAPI: true, Run: func(args []string) error { return apply(core, args) }}}},
+		{Title: "Selection", Commands: []cliapp.Command{{Name: "closure", Description: "Show the transitive selection closure", NeedsAPI: true, Run: func(args []string) error { return support.GetJSON(core, "onboarding control", args, "/v2/closure") }}}},
+		{Title: "Apply", Commands: []cliapp.Command{{Name: "apply", Description: "Apply committed onboarding state; wizard commit applies a selection document first", NeedsAPI: true, Run: func(args []string) error { return apply(core, args) }}}},
 	}
 }
 
 func SubcommandGroups(core *cliapp.ScenarioApp) []cliapp.SubcommandGroup {
 	return []cliapp.SubcommandGroup{
-		{Name: "scenarios", Description: "Inspect manifest-derived scenario choices", NeedsAPI: true, Subcommands: []cliapp.Command{{Name: "list", Description: "List scenarios and their dependencies", Run: func(args []string) error { return get(core, args, "/v2/scenarios") }}}},
+		{Name: "scenarios", Description: "Inspect manifest-derived scenario choices", NeedsAPI: true, Subcommands: []cliapp.Command{{Name: "list", Description: "List scenarios and their dependencies", Run: func(args []string) error { return support.GetJSON(core, "onboarding control", args, "/v2/scenarios") }}}},
 		{Name: "union", Description: "Export the deployment union for the current selection", NeedsAPI: true, Subcommands: []cliapp.Command{{Name: "export", Description: "Write the deployment union JSON", Run: func(args []string) error { return exportUnion(core, args) }}}},
 		{Name: "host", Description: "Inspect host tools and safeguards", NeedsAPI: true, Subcommands: []cliapp.Command{
-			{Name: "list", Description: "List host requirements", Run: func(args []string) error { return get(core, args, "/v2/host-requirements") }},
+			{Name: "list", Description: "List host requirements", Run: func(args []string) error {
+				return support.GetJSON(core, "onboarding control", args, "/v2/host-requirements")
+			}},
 			{Name: "set-config", Description: "Set one safeguard configuration value", Run: func(args []string) error { return setConfig(core, args) }},
 		}},
 	}
-}
-
-func get(core *cliapp.ScenarioApp, args []string, path string) error {
-	fs := support.NewFlagSet("onboarding control")
-	jsonOutput := cliutil.JSONFlag(fs)
-	if err := support.ParseFlags(fs, args); err != nil {
-		return err
-	}
-	body, err := core.Get(path, nil)
-	if err != nil {
-		return err
-	}
-	if *jsonOutput {
-		_, err = os.Stdout.Write(append(body, '\n'))
-		return err
-	}
-	var value any
-	if err := json.Unmarshal(body, &value); err != nil {
-		return fmt.Errorf("decode onboarding response: %w", err)
-	}
-	pretty, _ := json.MarshalIndent(value, "", "  ")
-	_, err = fmt.Fprintln(os.Stdout, string(pretty))
-	return err
 }
 
 func apply(core *cliapp.ScenarioApp, args []string) error {

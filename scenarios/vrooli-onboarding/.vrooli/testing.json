@@ -167,7 +167,8 @@
             ],
             "required_scripts": [
               "test",
-              "test:coverage"
+              "test:coverage",
+              "type-check"
             ],
             "settings": {
               "environment": "jsdom",

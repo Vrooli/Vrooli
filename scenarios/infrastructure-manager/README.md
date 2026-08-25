@@ -46,7 +46,7 @@ Three rules explain most of the design:
 3. **Never actuate.** No restart, no shelve, no policy change. `FT` is a
    transmitter and `FIC` is a controller; this scenario has no `C`.
 
-This scenario was generated from the `react-vite` template and packages
+This scenario provides
 the standard full-stack Vrooli scenario shape:
 
 - Go API (`api/`)

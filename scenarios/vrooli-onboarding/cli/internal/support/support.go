@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vrooli/cli-core/cliapp"
 	"github.com/vrooli/cli-core/cliutil"
 )
 
@@ -28,6 +29,32 @@ func NewFlagSet(name string) *flag.FlagSet {
 // ParseFlags parses args with interspersed positional/flag support.
 func ParseFlags(fs *flag.FlagSet, args []string) error {
 	return cliutil.ParseInterspersed(fs, args)
+}
+
+// GetJSON is the shared read-only JSON command surface used by onboarding
+// domains. Keeping flag parsing, pretty printing, and raw JSON output in one
+// helper prevents each domain from drifting its response contract.
+func GetJSON(core *cliapp.ScenarioApp, domain string, args []string, path string) error {
+	fs := NewFlagSet(domain)
+	jsonOutput := cliutil.JSONFlag(fs)
+	if err := ParseFlags(fs, args); err != nil {
+		return err
+	}
+	body, err := core.Get(path, nil)
+	if err != nil {
+		return err
+	}
+	if *jsonOutput {
+		_, err = os.Stdout.Write(append(body, '\n'))
+		return err
+	}
+	var value any
+	if err := json.Unmarshal(body, &value); err != nil {
+		return fmt.Errorf("decode %s response: %w", domain, err)
+	}
+	pretty, _ := json.MarshalIndent(value, "", "  ")
+	_, err = fmt.Fprintln(os.Stdout, string(pretty))
+	return err
 }
 
 // Decode unmarshals body as the concrete shape expected by the caller.

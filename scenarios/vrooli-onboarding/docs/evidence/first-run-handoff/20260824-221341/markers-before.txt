@@ -1,0 +1,6 @@
+runtime-home: /home/matthalloran8/.vrooli
+project-key: Vrooli-5fe04881e4f4
+/home/matthalloran8/.vrooli/state/projects/Vrooli-5fe04881e4f4/setup/.bootstrap-complete: PRESENT
+/home/matthalloran8/.vrooli/state/projects/Vrooli-5fe04881e4f4/setup/.configuration-complete: ABSENT
+.vrooli/operator-state.json .completion: present in onboarding-owned state; not setup completion authority
+~/.config/vrooli/config.json .onboarding: no completion record was found

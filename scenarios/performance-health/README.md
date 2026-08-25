@@ -2,7 +2,7 @@
 
 Owns all performance judgment in Vrooli: build-time, startup/runtime, and UI browser perf — readiness validation, capture orchestration, Lighthouse, benchmarks, trace analysis, budgets, trends, and fleet intelligence.
 
-This scenario was generated from the `react-vite` template and packages
+This scenario provides
 the standard full-stack Vrooli scenario shape:
 
 - Go API (`api/`)

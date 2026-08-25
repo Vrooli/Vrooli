@@ -18,8 +18,7 @@ Around that contract: a form-based **Studio** (author specs with live validation
 
 **Status:** v1 implementation is live in API, CLI, and UI. The self-spec dogfood currently has 4 active pages, 1 draft page, 2 draft journeys, and 37 claims (17 machine / 17 manual / 3 aspirational), with all page specs schema-valid and BAS case stubs registered for every active page. The cockpit surfaces are wired to real backend data: Fleet, Scenario Explorer, Evidence, Studio, and Findings no longer rely on sample rows. Full live `vrooli scenario test experience-manager` closure is still the final verification gate for this follow-up.
 
-This scenario was generated from the `react-vite` template and now packages
-the full-stack Vrooli scenario shape:
+This scenario packages the full-stack Vrooli scenario shape:
 
 - Go API (`api/`)
 - React + TypeScript + Vite UI (`ui/`)

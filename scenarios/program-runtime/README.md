@@ -2,7 +2,7 @@
 
 Persistent programmatic execution surface where agents submit programs that invoke governed Vrooli operations as typed calls.
 
-This scenario was generated from the `react-vite` template and packages
+This scenario provides
 the standard full-stack Vrooli scenario shape:
 
 - Go API (`api/`)

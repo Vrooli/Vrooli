@@ -2,7 +2,7 @@
 
 Profile-aware validator of a scenario's skeleton and lifecycle wiring, reconciling code-facts ground truth against declared service.json intent.
 
-This scenario was generated from the `react-vite` template and packages
+This scenario provides
 the standard full-stack Vrooli scenario shape:
 
 - Go API (`api/`)

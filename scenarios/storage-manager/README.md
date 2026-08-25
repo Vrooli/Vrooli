@@ -15,8 +15,7 @@ cleanup workflows. `system-monitor` observes disk pressure,
 private deletion logic behind provider hooks; Storage Manager owns policy,
 approval, orchestration, and audit.
 
-The scenario was generated from the `react-vite` template and packages
-the standard full-stack Vrooli scenario shape:
+This scenario provides the standard full-stack Vrooli scenario shape:
 
 - Go API (`api/`)
 - React + TypeScript + Vite UI (`ui/`)

@@ -1,20 +1,13 @@
 import { useCallback, useRef, useState } from "react";
 import { Wand2, Activity, BookOpen } from "lucide-react";
 import { WizardShell } from "./components/wizard/WizardShell";
-import { StepWelcome } from "./components/wizard/StepWelcome";
-import { StepSelectScenarios } from "./components/wizard/StepSelectScenarios";
-import { StepDerivedResources } from "./components/wizard/StepDerivedResources";
-import { StepIntegrationsDeferred } from "./components/wizard/StepIntegrationsDeferred";
-import { StepHostRequirements } from "./components/wizard/StepHostRequirements";
-import { StepOperatingMode } from "./components/wizard/StepOperatingMode";
-import { StepReadiness } from "./components/wizard/StepReadiness";
-import { StepApply } from "./components/wizard/StepApply";
 import { HealthDashboard } from "./components/dashboard/HealthDashboard";
 import { GlossaryPanel } from "./components/glossary/GlossaryPanel";
 import { useGlobalKeyboardShortcuts } from "./hooks/useGlobalKeyboardShortcuts";
 import { useWizardState } from "./hooks/useWizardState";
 import { cn } from "./lib/utils";
 import { Button } from "./components/ui/button";
+import { stepRegistry } from "./components/wizard/stepRegistry";
 
 type AppView = "wizard" | "dashboard" | "glossary";
 
@@ -24,20 +17,45 @@ function initialViewForPath(pathname: string): AppView {
   return "wizard";
 }
 
-const NAV_ITEMS: { id: AppView; label: string; icon: React.ReactNode; testId: string }[] = [
-  { id: "wizard", label: "Setup Wizard", icon: <Wand2 className="h-4 w-4" aria-hidden="true" />, testId: "nav-wizard" },
-  { id: "dashboard", label: "Health Dashboard", icon: <Activity className="h-4 w-4" aria-hidden="true" />, testId: "nav-dashboard" },
-  { id: "glossary", label: "Glossary", icon: <BookOpen className="h-4 w-4" aria-hidden="true" />, testId: "nav-glossary" },
+const NAV_ITEMS: {
+  id: AppView;
+  label: string;
+  icon: React.ReactNode;
+  testId: string;
+}[] = [
+  {
+    id: "wizard",
+    label: "Setup Wizard",
+    icon: <Wand2 className="h-4 w-4" aria-hidden="true" />,
+    testId: "nav-wizard",
+  },
+  {
+    id: "dashboard",
+    label: "Health Dashboard",
+    icon: <Activity className="h-4 w-4" aria-hidden="true" />,
+    testId: "nav-dashboard",
+  },
+  {
+    id: "glossary",
+    label: "Glossary",
+    icon: <BookOpen className="h-4 w-4" aria-hidden="true" />,
+    testId: "nav-glossary",
+  },
 ];
 
 const VIEW_IDS = NAV_ITEMS.map((item) => item.id);
 
 export default function App() {
-  const [view, setView] = useState<AppView>(() => initialViewForPath(window.location.pathname));
+  const [view, setView] = useState<AppView>(() =>
+    initialViewForPath(window.location.pathname),
+  );
   const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
 
   const {
     currentStep,
+    steps,
+    stepsLoading,
+    stepsError,
     selectedScenarios,
     operatorState,
     stepContentRef,
@@ -107,12 +125,18 @@ export default function App() {
         aria-label="Main navigation"
         className="sticky top-0 z-50 border-b border-muted bg-surface/95 backdrop-blur-sm"
       >
-        <div className="mx-auto flex max-w-5xl items-center gap-0.5 px-2 py-1.5 sm:gap-1 sm:px-6 sm:py-3" role="tablist" aria-label="Application views">
+        <div
+          className="mx-auto flex max-w-5xl items-center gap-0.5 px-2 py-1.5 sm:gap-1 sm:px-6 sm:py-3"
+          role="tablist"
+          aria-label="Application views"
+        >
           {NAV_ITEMS.map((item, idx) => (
             <Button
               variant="ghost"
               key={item.id}
-              ref={(el) => { tabRefs.current[idx] = el; }}
+              ref={(el) => {
+                tabRefs.current[idx] = el;
+              }}
               role="tab"
               data-testid={item.testId}
               onClick={() => setView(item.id)}
@@ -126,13 +150,18 @@ export default function App() {
                 "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus/50",
                 view === item.id
                   ? "bg-surface-subtle text-foreground"
-                  : "text-muted hover:bg-surface-muted hover:text-foreground"
+                  : "text-muted hover:bg-surface-muted hover:text-foreground",
               )}
             >
               {item.icon}
               <span className="hidden sm:inline">{item.label}</span>
-              <span className="text-xs sm:hidden">{item.label.split(" ")[0]}</span>
-              <kbd className="hidden lg:inline-flex ml-1 h-4 min-w-4 items-center justify-center rounded bg-surface-muted px-1 text-[9px] font-mono text-muted/60" aria-hidden="true">
+              <span className="text-xs sm:hidden">
+                {item.label.split(" ")[0]}
+              </span>
+              <kbd
+                className="hidden lg:inline-flex ml-1 h-4 min-w-4 items-center justify-center rounded bg-surface-muted px-1 text-[9px] font-mono text-muted/60"
+                aria-hidden="true"
+              >
                 Alt+{idx + 1}
               </kbd>
               {item.id === "wizard" && selectedScenarios.size > 0 && (
@@ -150,46 +179,115 @@ export default function App() {
       </div>
 
       {/* Screen reader step announcement */}
-      <div className="sr-only" aria-live="assertive" aria-atomic="true" data-testid="step-announcement">
+      <div
+        className="sr-only"
+        aria-live="assertive"
+        aria-atomic="true"
+        data-testid="step-announcement"
+      >
         {view === "wizard" && `Step ${currentStep + 1} of ${totalSteps}`}
       </div>
 
       {/* Content */}
       <main id="main-content">
-        <div role="tabpanel" id="tabpanel-wizard" aria-labelledby="tab-wizard" hidden={view !== "wizard"} className={view === "wizard" ? "animate-panel-enter" : ""}>
-          {view === "wizard" && (
-            <WizardShell
-              currentStep={currentStep}
-              onNext={goNext}
-              onPrev={goPrev}
-              onGoToStep={goToStep}
-              nextDisabled={currentStep === 1 && selectedScenarios.size === 0}
-              nextLabel={nextLabel}
-              showPrev={currentStep > 0}
-              showNext={!isLastStep}
-            >
-              <div ref={stepContentRef} key={currentStep} className="animate-step-enter">
-              {currentStep === 0 && (
-                <>
-                  <StepWelcome />
-                </>
-              )}
-              {currentStep === 1 && <StepSelectScenarios selected={selectedScenarios} onToggle={toggleScenario} />}
-              {currentStep === 2 && <StepDerivedResources selected={selectedScenarios} operatorState={operatorState} onToggle={setResourceEnabled} />}
-              {currentStep === 3 && <StepReadiness title="Credentials" />}
-              {currentStep === 4 && <StepIntegrationsDeferred />}
-              {currentStep === 5 && <StepHostRequirements onTool={(name, value) => setHostOptIn("host_tools", name, value)} onSafeguard={(name, value) => setHostOptIn("host_safeguards", name, value)} onHostConfig={setHostConfig} />}
-              {currentStep === 6 && <StepOperatingMode selected={selectedScenarios} overrides={operatorState?.scenarios} onAutoRestart={setScenarioAutoRestart} />}
-              {currentStep === 7 && <StepApply />}
-              {currentStep === 8 && <StepReadiness title="Validation" />}
+        <div
+          role="tabpanel"
+          id="tabpanel-wizard"
+          aria-labelledby="tab-wizard"
+          hidden={view !== "wizard"}
+          className={view === "wizard" ? "animate-panel-enter" : ""}
+        >
+          {view === "wizard" && stepsLoading && (
+            <div data-testid="wizard-shell" className="contents">
+              <div
+                className="mx-auto max-w-3xl px-3 py-8"
+                data-testid="wizard-loading"
+                role="status"
+              >
+                <h1 className="text-2xl font-semibold">Welcome to Vrooli</h1>
+                Loading onboarding steps…
               </div>
-            </WizardShell>
+            </div>
+          )}
+          {view === "wizard" && stepsError && !stepsLoading && (
+            <div data-testid="wizard-shell" className="contents">
+              <div
+                className="mx-auto max-w-3xl px-3 py-8"
+                data-testid="wizard-error"
+                role="alert"
+              >
+                <h1 className="text-2xl font-semibold">Welcome to Vrooli</h1>
+                {stepsError}
+              </div>
+            </div>
+          )}
+          {view === "wizard" &&
+            !stepsLoading &&
+            !stepsError &&
+            steps.length > 0 && (
+              <WizardShell
+                currentStep={currentStep}
+                steps={steps}
+                onNext={goNext}
+                onPrev={goPrev}
+                onGoToStep={goToStep}
+                nextDisabled={
+                  steps[currentStep]?.id === "scenarios" &&
+                  selectedScenarios.size === 0
+                }
+                nextLabel={nextLabel}
+                showPrev={currentStep > 0}
+                showNext={!isLastStep}
+              >
+                <div
+                  ref={stepContentRef}
+                  key={currentStep}
+                  className="animate-step-enter"
+                >
+                  {steps[currentStep] &&
+                    stepRegistry[steps[currentStep].id]?.({
+                      step: steps[currentStep],
+                      selectedScenarios,
+                      operatorState,
+                      toggleScenario,
+                      setScenarioAutoRestart,
+                      setHostOptIn,
+                      setHostConfig,
+                      setResourceEnabled,
+                    })}
+                </div>
+              </WizardShell>
+            )}
+        </div>
+        <div
+          role="tabpanel"
+          id="tabpanel-dashboard"
+          aria-labelledby="tab-dashboard"
+          className={cn(
+            "mx-auto max-w-5xl px-3 py-4 sm:px-6 sm:py-8",
+            view === "dashboard" && "animate-panel-enter",
+          )}
+          hidden={view !== "dashboard"}
+        >
+          {view === "dashboard" && (
+            <HealthDashboard
+              onNavigateToWizard={() => {
+                setView("wizard");
+                tabRefs.current[0]?.focus();
+              }}
+            />
           )}
         </div>
-        <div role="tabpanel" id="tabpanel-dashboard" aria-labelledby="tab-dashboard" className={cn("mx-auto max-w-5xl px-3 py-4 sm:px-6 sm:py-8", view === "dashboard" && "animate-panel-enter")} hidden={view !== "dashboard"}>
-          {view === "dashboard" && <HealthDashboard onNavigateToWizard={() => { setView("wizard"); tabRefs.current[0]?.focus(); }} />}
-        </div>
-        <div role="tabpanel" id="tabpanel-glossary" aria-labelledby="tab-glossary" className={cn("mx-auto max-w-3xl px-3 py-4 sm:px-6 sm:py-8", view === "glossary" && "animate-panel-enter")} hidden={view !== "glossary"}>
+        <div
+          role="tabpanel"
+          id="tabpanel-glossary"
+          aria-labelledby="tab-glossary"
+          className={cn(
+            "mx-auto max-w-3xl px-3 py-4 sm:px-6 sm:py-8",
+            view === "glossary" && "animate-panel-enter",
+          )}
+          hidden={view !== "glossary"}
+        >
           {view === "glossary" && <GlossaryPanel />}
         </div>
       </main>

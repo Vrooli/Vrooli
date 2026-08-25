@@ -1,0 +1,13 @@
+{
+  "steps": [
+    {"id": "welcome", "ordinal": 0, "title": "Welcome", "route": "/setup/welcome", "deferred": false},
+    {"id": "scenarios", "ordinal": 1, "title": "Scenarios", "route": "/setup/scenarios", "deferred": false},
+    {"id": "resources", "ordinal": 2, "title": "Resources", "route": "/setup/resources", "deferred": false},
+    {"id": "credentials", "ordinal": 3, "title": "Credentials", "route": "/setup/credentials", "deferred": false},
+    {"id": "integrations", "ordinal": 4, "title": "Integrations", "route": "/setup/integrations", "deferred": true},
+    {"id": "host", "ordinal": 5, "title": "Host", "route": "/setup/host", "deferred": false},
+    {"id": "operating-mode", "ordinal": 6, "title": "Operating Mode", "route": "/setup/operating-mode", "deferred": false},
+    {"id": "apply", "ordinal": 7, "title": "Apply", "route": "/setup/apply", "deferred": false},
+    {"id": "validation", "ordinal": 8, "title": "Validation", "route": "/setup/validation", "deferred": false}
+  ]
+}

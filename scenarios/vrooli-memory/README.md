@@ -2,7 +2,7 @@
 
 Unified append-only agent memory with semantic recall and pressure-driven compaction, shared across every agent harness
 
-This scenario was generated from the `react-vite` template and packages
+This scenario provides
 the standard full-stack Vrooli scenario shape:
 
 - Go API (`api/`)

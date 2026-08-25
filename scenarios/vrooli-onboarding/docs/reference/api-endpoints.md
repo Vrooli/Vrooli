@@ -26,7 +26,6 @@ every request. None is cached, and none has independent storage.
 | GET | `/api/v2/credentials` | Credential descriptors for the selected stack, complete with `label`, `description`, `obtain_url`, `required`, and configured status — never a value |
 | GET | `/api/v2/host-requirements` | Host tools and safeguards from selected manifests with `risk`, `privilege`, `bundling`, `platforms`, and any declared config schema |
 | GET | `/api/v2/readiness` | Composed readiness over credentials, host tools, host safeguards, and resource reachability, with a remediation on every non-ready item |
-| GET | `/api/v2/surface` | Every operator-controllable decision the current catalog declares, with its type, schema, risk, privilege, and default. Drives generic form rendering and configuration discovery |
 | GET | `/api/v2/union` | The union of scenarios, resources, tools, and safeguards a target must carry to run the current selection |
 | POST | `/api/v2/handoff` | Resolve the effective capability-shaped selection for vrooli-bridge from node identity; returns no operator-state internals or credential values |
 
@@ -78,8 +77,6 @@ remediation itself.
 |---|---|---|
 | POST | `/api/v2/credentials/provision` | Relay a value to the credential authority |
 | GET | `/api/v2/credentials/doctor` | Diagnose the credential backend and name the fix |
-| GET | `/api/v2/credentials/keyring/inspect` | Read keyring state |
-| POST | `/api/v2/credentials/keyring/repair` | Repair the keyring; requires `confirm: true` |
 
 `provision` accepts the value only in the request body and returns only
 `logical_id` and `field`. `doctor` distinguishes an unset value, an unreachable

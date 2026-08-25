@@ -1,0 +1,1 @@
+UNAVAILABLE: the invoking host session was SSH-only; no local graphical session was available for a concurrent capture.

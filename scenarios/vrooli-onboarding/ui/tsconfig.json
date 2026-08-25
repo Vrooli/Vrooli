@@ -25,7 +25,8 @@
     // ╚══════════════════════════════════════════════════════════════════════════╝
     "strict": true,
     "noUncheckedIndexedAccess": true,
-    "types": ["vite/client", "vitest/globals", "@testing-library/jest-dom"]
+    "lib": ["ES2021", "DOM", "DOM.Iterable"],
+    "types": ["node", "vite/client", "vitest/globals", "@testing-library/jest-dom"]
   },
   "include": ["src", "vite.config.ts", "tailwind.config.ts"],
   "exclude": ["dist"]

@@ -2,7 +2,7 @@
 
 Holds the identity an agent transacts as, retrieves the codes a machine cannot receive on its own, and turns every wall it cannot cross into a resumable handoff
 
-This scenario was generated from the `react-vite` template and packages
+This scenario provides
 the standard full-stack Vrooli scenario shape:
 
 - Go API (`api/`)
