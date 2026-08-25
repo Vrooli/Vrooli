@@ -543,8 +543,11 @@ type CreateRequest struct {
 	// intent.
 	ExecuteLaunchCommand bool `protobuf:"varint,12,opt,name=execute_launch_command,json=executeLaunchCommand,proto3" json:"execute_launch_command,omitempty"`
 	// Empty creates a local session. Otherwise this is a target catalog id.
-	TargetId      string `protobuf:"bytes,13,opt,name=target_id,json=targetId,proto3" json:"target_id,omitempty"`
-	WorkingDir    string `protobuf:"bytes,14,opt,name=working_dir,json=workingDir,proto3" json:"working_dir,omitempty"`
+	TargetId   string `protobuf:"bytes,13,opt,name=target_id,json=targetId,proto3" json:"target_id,omitempty"`
+	WorkingDir string `protobuf:"bytes,14,opt,name=working_dir,json=workingDir,proto3" json:"working_dir,omitempty"`
+	// For persistent sessions, choose whether tmux captures mouse input for
+	// this pane. The default is false so ordinary scrolling stays local.
+	TmuxMouseMode bool `protobuf:"varint,15,opt,name=tmux_mouse_mode,json=tmuxMouseMode,proto3" json:"tmux_mouse_mode,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -675,6 +678,13 @@ func (x *CreateRequest) GetWorkingDir() string {
 		return x.WorkingDir
 	}
 	return ""
+}
+
+func (x *CreateRequest) GetTmuxMouseMode() bool {
+	if x != nil {
+		return x.TmuxMouseMode
+	}
+	return false
 }
 
 type CreateResponse struct {
@@ -2616,7 +2626,7 @@ const file_web_console_v1_sessions_sessions_proto_rawDesc = "" +
 	"\tpane_name\x18\x10 \x01(\tR\bpaneName\x12!\n" +
 	"\fheader_color\x18\x11 \x01(\tR\vheaderColor\x12\x1d\n" +
 	"\n" +
-	"group_name\x18\x12 \x01(\tR\tgroupName\"\x8c\x04\n" +
+	"group_name\x18\x12 \x01(\tR\tgroupName\"\xb4\x04\n" +
 	"\rCreateRequest\x12\x14\n" +
 	"\x05shell\x18\x01 \x01(\tR\x05shell\x12\x12\n" +
 	"\x04cols\x18\x02 \x01(\x05R\x04cols\x12\x12\n" +
@@ -2635,7 +2645,8 @@ const file_web_console_v1_sessions_sessions_proto_rawDesc = "" +
 	"\x16execute_launch_command\x18\f \x01(\bR\x14executeLaunchCommand\x12\x1b\n" +
 	"\ttarget_id\x18\r \x01(\tR\btargetId\x12\x1f\n" +
 	"\vworking_dir\x18\x0e \x01(\tR\n" +
-	"workingDir\"S\n" +
+	"workingDir\x12&\n" +
+	"\x0ftmux_mouse_mode\x18\x0f \x01(\bR\rtmuxMouseMode\"S\n" +
 	"\x0eCreateResponse\x12A\n" +
 	"\asession\x18\x01 \x01(\v2'.vrooli.web_console.v1.sessions.SessionR\asession\"\r\n" +
 	"\vListRequest\"\x9f\x01\n" +

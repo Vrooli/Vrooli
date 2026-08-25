@@ -742,6 +742,178 @@ func (x *ListComponentTestReportsResponse) GetReports() []*ComponentTestReport {
 	return nil
 }
 
+type SweepComponentTestsRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Skip versions with a durable non-blocked report; blocked and untested
+	// versions are retried so a BAS outage cannot be mistaken for coverage.
+	Resume         bool `protobuf:"varint,1,opt,name=resume,proto3" json:"resume,omitempty"`
+	IncludeClosure bool `protobuf:"varint,2,opt,name=include_closure,json=includeClosure,proto3" json:"include_closure,omitempty"`
+	// Optional component UUID. Supplying it keeps a large corpus sweep within
+	// one request deadline; callers can run one durable batch per component.
+	ComponentId   string `protobuf:"bytes,3,opt,name=component_id,json=componentId,proto3" json:"component_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SweepComponentTestsRequest) Reset() {
+	*x = SweepComponentTestsRequest{}
+	mi := &file_react_component_library_v1_componenttests_component_tests_proto_msgTypes[12]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SweepComponentTestsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SweepComponentTestsRequest) ProtoMessage() {}
+
+func (x *SweepComponentTestsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_react_component_library_v1_componenttests_component_tests_proto_msgTypes[12]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SweepComponentTestsRequest.ProtoReflect.Descriptor instead.
+func (*SweepComponentTestsRequest) Descriptor() ([]byte, []int) {
+	return file_react_component_library_v1_componenttests_component_tests_proto_rawDescGZIP(), []int{12}
+}
+
+func (x *SweepComponentTestsRequest) GetResume() bool {
+	if x != nil {
+		return x.Resume
+	}
+	return false
+}
+
+func (x *SweepComponentTestsRequest) GetIncludeClosure() bool {
+	if x != nil {
+		return x.IncludeClosure
+	}
+	return false
+}
+
+func (x *SweepComponentTestsRequest) GetComponentId() string {
+	if x != nil {
+		return x.ComponentId
+	}
+	return ""
+}
+
+type SweepComponentTestsResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Planned       int32                  `protobuf:"varint,1,opt,name=planned,proto3" json:"planned,omitempty"`
+	Started       int32                  `protobuf:"varint,2,opt,name=started,proto3" json:"started,omitempty"`
+	Skipped       int32                  `protobuf:"varint,3,opt,name=skipped,proto3" json:"skipped,omitempty"`
+	Passed        int32                  `protobuf:"varint,4,opt,name=passed,proto3" json:"passed,omitempty"`
+	Failed        int32                  `protobuf:"varint,5,opt,name=failed,proto3" json:"failed,omitempty"`
+	Blocked       int32                  `protobuf:"varint,6,opt,name=blocked,proto3" json:"blocked,omitempty"`
+	Complete      bool                   `protobuf:"varint,7,opt,name=complete,proto3" json:"complete,omitempty"`
+	Errors        []string               `protobuf:"bytes,8,rep,name=errors,proto3" json:"errors,omitempty"`
+	Reports       []*ComponentTestReport `protobuf:"bytes,9,rep,name=reports,proto3" json:"reports,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SweepComponentTestsResponse) Reset() {
+	*x = SweepComponentTestsResponse{}
+	mi := &file_react_component_library_v1_componenttests_component_tests_proto_msgTypes[13]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SweepComponentTestsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SweepComponentTestsResponse) ProtoMessage() {}
+
+func (x *SweepComponentTestsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_react_component_library_v1_componenttests_component_tests_proto_msgTypes[13]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SweepComponentTestsResponse.ProtoReflect.Descriptor instead.
+func (*SweepComponentTestsResponse) Descriptor() ([]byte, []int) {
+	return file_react_component_library_v1_componenttests_component_tests_proto_rawDescGZIP(), []int{13}
+}
+
+func (x *SweepComponentTestsResponse) GetPlanned() int32 {
+	if x != nil {
+		return x.Planned
+	}
+	return 0
+}
+
+func (x *SweepComponentTestsResponse) GetStarted() int32 {
+	if x != nil {
+		return x.Started
+	}
+	return 0
+}
+
+func (x *SweepComponentTestsResponse) GetSkipped() int32 {
+	if x != nil {
+		return x.Skipped
+	}
+	return 0
+}
+
+func (x *SweepComponentTestsResponse) GetPassed() int32 {
+	if x != nil {
+		return x.Passed
+	}
+	return 0
+}
+
+func (x *SweepComponentTestsResponse) GetFailed() int32 {
+	if x != nil {
+		return x.Failed
+	}
+	return 0
+}
+
+func (x *SweepComponentTestsResponse) GetBlocked() int32 {
+	if x != nil {
+		return x.Blocked
+	}
+	return 0
+}
+
+func (x *SweepComponentTestsResponse) GetComplete() bool {
+	if x != nil {
+		return x.Complete
+	}
+	return false
+}
+
+func (x *SweepComponentTestsResponse) GetErrors() []string {
+	if x != nil {
+		return x.Errors
+	}
+	return nil
+}
+
+func (x *SweepComponentTestsResponse) GetReports() []*ComponentTestReport {
+	if x != nil {
+		return x.Reports
+	}
+	return nil
+}
+
 var File_react_component_library_v1_componenttests_component_tests_proto protoreflect.FileDescriptor
 
 const file_react_component_library_v1_componenttests_component_tests_proto_rawDesc = "" +
@@ -795,12 +967,27 @@ const file_react_component_library_v1_componenttests_component_tests_proto_rawDe
 	"\x05limit\x18\x02 \x01(\x05R\x05limit\x12\x18\n" +
 	"\aversion\x18\x03 \x01(\tR\aversion\"\x83\x01\n" +
 	" ListComponentTestReportsResponse\x12_\n" +
-	"\areports\x18\x01 \x03(\v2E.vrooli.react_component_library.v1.componenttests.ComponentTestReportR\areports2\xf7\x05\n" +
+	"\areports\x18\x01 \x03(\v2E.vrooli.react_component_library.v1.componenttests.ComponentTestReportR\areports\"\x80\x01\n" +
+	"\x1aSweepComponentTestsRequest\x12\x16\n" +
+	"\x06resume\x18\x01 \x01(\bR\x06resume\x12'\n" +
+	"\x0finclude_closure\x18\x02 \x01(\bR\x0eincludeClosure\x12!\n" +
+	"\fcomponent_id\x18\x03 \x01(\tR\vcomponentId\"\xca\x02\n" +
+	"\x1bSweepComponentTestsResponse\x12\x18\n" +
+	"\aplanned\x18\x01 \x01(\x05R\aplanned\x12\x18\n" +
+	"\astarted\x18\x02 \x01(\x05R\astarted\x12\x18\n" +
+	"\askipped\x18\x03 \x01(\x05R\askipped\x12\x16\n" +
+	"\x06passed\x18\x04 \x01(\x05R\x06passed\x12\x16\n" +
+	"\x06failed\x18\x05 \x01(\x05R\x06failed\x12\x18\n" +
+	"\ablocked\x18\x06 \x01(\x05R\ablocked\x12\x1a\n" +
+	"\bcomplete\x18\a \x01(\bR\bcomplete\x12\x16\n" +
+	"\x06errors\x18\b \x03(\tR\x06errors\x12_\n" +
+	"\areports\x18\t \x03(\v2E.vrooli.react_component_library.v1.componenttests.ComponentTestReportR\areports2\xac\a\n" +
 	"\x15ComponentTestsService\x12\xa9\x01\n" +
 	"\x10RunComponentTest\x12I.vrooli.react_component_library.v1.componenttests.RunComponentTestRequest\x1aJ.vrooli.react_component_library.v1.componenttests.RunComponentTestResponse\x12\xaf\x01\n" +
 	"\x12RerunComponentTest\x12K.vrooli.react_component_library.v1.componenttests.RerunComponentTestRequest\x1aL.vrooli.react_component_library.v1.componenttests.RerunComponentTestResponse\x12\xbb\x01\n" +
 	"\x16GetComponentTestReport\x12O.vrooli.react_component_library.v1.componenttests.GetComponentTestReportRequest\x1aP.vrooli.react_component_library.v1.componenttests.GetComponentTestReportResponse\x12\xc1\x01\n" +
-	"\x18ListComponentTestReports\x12Q.vrooli.react_component_library.v1.componenttests.ListComponentTestReportsRequest\x1aR.vrooli.react_component_library.v1.componenttests.ListComponentTestReportsResponseBlZjgithub.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/componenttests;componenttests_v1b\x06proto3"
+	"\x18ListComponentTestReports\x12Q.vrooli.react_component_library.v1.componenttests.ListComponentTestReportsRequest\x1aR.vrooli.react_component_library.v1.componenttests.ListComponentTestReportsResponse\x12\xb2\x01\n" +
+	"\x13SweepComponentTests\x12L.vrooli.react_component_library.v1.componenttests.SweepComponentTestsRequest\x1aM.vrooli.react_component_library.v1.componenttests.SweepComponentTestsResponseBlZjgithub.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/componenttests;componenttests_v1b\x06proto3"
 
 var (
 	file_react_component_library_v1_componenttests_component_tests_proto_rawDescOnce sync.Once
@@ -814,7 +1001,7 @@ func file_react_component_library_v1_componenttests_component_tests_proto_rawDes
 	return file_react_component_library_v1_componenttests_component_tests_proto_rawDescData
 }
 
-var file_react_component_library_v1_componenttests_component_tests_proto_msgTypes = make([]protoimpl.MessageInfo, 12)
+var file_react_component_library_v1_componenttests_component_tests_proto_msgTypes = make([]protoimpl.MessageInfo, 14)
 var file_react_component_library_v1_componenttests_component_tests_proto_goTypes = []any{
 	(*RunComponentTestRequest)(nil),          // 0: vrooli.react_component_library.v1.componenttests.RunComponentTestRequest
 	(*ComponentTestResult)(nil),              // 1: vrooli.react_component_library.v1.componenttests.ComponentTestResult
@@ -828,30 +1015,35 @@ var file_react_component_library_v1_componenttests_component_tests_proto_goTypes
 	(*GetComponentTestReportResponse)(nil),   // 9: vrooli.react_component_library.v1.componenttests.GetComponentTestReportResponse
 	(*ListComponentTestReportsRequest)(nil),  // 10: vrooli.react_component_library.v1.componenttests.ListComponentTestReportsRequest
 	(*ListComponentTestReportsResponse)(nil), // 11: vrooli.react_component_library.v1.componenttests.ListComponentTestReportsResponse
-	(*timestamppb.Timestamp)(nil),            // 12: google.protobuf.Timestamp
+	(*SweepComponentTestsRequest)(nil),       // 12: vrooli.react_component_library.v1.componenttests.SweepComponentTestsRequest
+	(*SweepComponentTestsResponse)(nil),      // 13: vrooli.react_component_library.v1.componenttests.SweepComponentTestsResponse
+	(*timestamppb.Timestamp)(nil),            // 14: google.protobuf.Timestamp
 }
 var file_react_component_library_v1_componenttests_component_tests_proto_depIdxs = []int32{
 	2,  // 0: vrooli.react_component_library.v1.componenttests.ComponentTestResult.evidence:type_name -> vrooli.react_component_library.v1.componenttests.ComponentTestEvidence
-	12, // 1: vrooli.react_component_library.v1.componenttests.ComponentTestReport.created_at:type_name -> google.protobuf.Timestamp
+	14, // 1: vrooli.react_component_library.v1.componenttests.ComponentTestReport.created_at:type_name -> google.protobuf.Timestamp
 	1,  // 2: vrooli.react_component_library.v1.componenttests.ComponentTestReport.results:type_name -> vrooli.react_component_library.v1.componenttests.ComponentTestResult
 	3,  // 3: vrooli.react_component_library.v1.componenttests.ComponentTestReport.artifacts:type_name -> vrooli.react_component_library.v1.componenttests.ComponentTestArtifact
 	4,  // 4: vrooli.react_component_library.v1.componenttests.RunComponentTestResponse.report:type_name -> vrooli.react_component_library.v1.componenttests.ComponentTestReport
 	4,  // 5: vrooli.react_component_library.v1.componenttests.RerunComponentTestResponse.report:type_name -> vrooli.react_component_library.v1.componenttests.ComponentTestReport
 	4,  // 6: vrooli.react_component_library.v1.componenttests.GetComponentTestReportResponse.report:type_name -> vrooli.react_component_library.v1.componenttests.ComponentTestReport
 	4,  // 7: vrooli.react_component_library.v1.componenttests.ListComponentTestReportsResponse.reports:type_name -> vrooli.react_component_library.v1.componenttests.ComponentTestReport
-	0,  // 8: vrooli.react_component_library.v1.componenttests.ComponentTestsService.RunComponentTest:input_type -> vrooli.react_component_library.v1.componenttests.RunComponentTestRequest
-	6,  // 9: vrooli.react_component_library.v1.componenttests.ComponentTestsService.RerunComponentTest:input_type -> vrooli.react_component_library.v1.componenttests.RerunComponentTestRequest
-	8,  // 10: vrooli.react_component_library.v1.componenttests.ComponentTestsService.GetComponentTestReport:input_type -> vrooli.react_component_library.v1.componenttests.GetComponentTestReportRequest
-	10, // 11: vrooli.react_component_library.v1.componenttests.ComponentTestsService.ListComponentTestReports:input_type -> vrooli.react_component_library.v1.componenttests.ListComponentTestReportsRequest
-	5,  // 12: vrooli.react_component_library.v1.componenttests.ComponentTestsService.RunComponentTest:output_type -> vrooli.react_component_library.v1.componenttests.RunComponentTestResponse
-	7,  // 13: vrooli.react_component_library.v1.componenttests.ComponentTestsService.RerunComponentTest:output_type -> vrooli.react_component_library.v1.componenttests.RerunComponentTestResponse
-	9,  // 14: vrooli.react_component_library.v1.componenttests.ComponentTestsService.GetComponentTestReport:output_type -> vrooli.react_component_library.v1.componenttests.GetComponentTestReportResponse
-	11, // 15: vrooli.react_component_library.v1.componenttests.ComponentTestsService.ListComponentTestReports:output_type -> vrooli.react_component_library.v1.componenttests.ListComponentTestReportsResponse
-	12, // [12:16] is the sub-list for method output_type
-	8,  // [8:12] is the sub-list for method input_type
-	8,  // [8:8] is the sub-list for extension type_name
-	8,  // [8:8] is the sub-list for extension extendee
-	0,  // [0:8] is the sub-list for field type_name
+	4,  // 8: vrooli.react_component_library.v1.componenttests.SweepComponentTestsResponse.reports:type_name -> vrooli.react_component_library.v1.componenttests.ComponentTestReport
+	0,  // 9: vrooli.react_component_library.v1.componenttests.ComponentTestsService.RunComponentTest:input_type -> vrooli.react_component_library.v1.componenttests.RunComponentTestRequest
+	6,  // 10: vrooli.react_component_library.v1.componenttests.ComponentTestsService.RerunComponentTest:input_type -> vrooli.react_component_library.v1.componenttests.RerunComponentTestRequest
+	8,  // 11: vrooli.react_component_library.v1.componenttests.ComponentTestsService.GetComponentTestReport:input_type -> vrooli.react_component_library.v1.componenttests.GetComponentTestReportRequest
+	10, // 12: vrooli.react_component_library.v1.componenttests.ComponentTestsService.ListComponentTestReports:input_type -> vrooli.react_component_library.v1.componenttests.ListComponentTestReportsRequest
+	12, // 13: vrooli.react_component_library.v1.componenttests.ComponentTestsService.SweepComponentTests:input_type -> vrooli.react_component_library.v1.componenttests.SweepComponentTestsRequest
+	5,  // 14: vrooli.react_component_library.v1.componenttests.ComponentTestsService.RunComponentTest:output_type -> vrooli.react_component_library.v1.componenttests.RunComponentTestResponse
+	7,  // 15: vrooli.react_component_library.v1.componenttests.ComponentTestsService.RerunComponentTest:output_type -> vrooli.react_component_library.v1.componenttests.RerunComponentTestResponse
+	9,  // 16: vrooli.react_component_library.v1.componenttests.ComponentTestsService.GetComponentTestReport:output_type -> vrooli.react_component_library.v1.componenttests.GetComponentTestReportResponse
+	11, // 17: vrooli.react_component_library.v1.componenttests.ComponentTestsService.ListComponentTestReports:output_type -> vrooli.react_component_library.v1.componenttests.ListComponentTestReportsResponse
+	13, // 18: vrooli.react_component_library.v1.componenttests.ComponentTestsService.SweepComponentTests:output_type -> vrooli.react_component_library.v1.componenttests.SweepComponentTestsResponse
+	14, // [14:19] is the sub-list for method output_type
+	9,  // [9:14] is the sub-list for method input_type
+	9,  // [9:9] is the sub-list for extension type_name
+	9,  // [9:9] is the sub-list for extension extendee
+	0,  // [0:9] is the sub-list for field type_name
 }
 
 func init() { file_react_component_library_v1_componenttests_component_tests_proto_init() }
@@ -865,7 +1057,7 @@ func file_react_component_library_v1_componenttests_component_tests_proto_init()
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_react_component_library_v1_componenttests_component_tests_proto_rawDesc), len(file_react_component_library_v1_componenttests_component_tests_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   12,
+			NumMessages:   14,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

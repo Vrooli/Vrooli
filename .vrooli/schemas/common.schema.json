@@ -9,12 +9,33 @@
       "required": ["status"],
       "additionalProperties": false,
       "properties": {
-        "status": {
-          "type": "string",
-          "enum": ["supported", "build-verified", "experimental", "unqualified", "partial", "unsupported"]
-        },
+        "status": { "$ref": "#/definitions/platformStatusToken" },
         "mechanism": { "type": "string" },
-        "evidence": { "type": "string" }
+        "evidence": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/definitions/platformEvidence" },
+            { "type": "string", "minLength": 1 }
+          ]
+        }
+      }
+    },
+    "platformStatusToken": {
+      "type": "string",
+      "enum": ["supported", "build-verified", "experimental", "unqualified", "partial", "unsupported"]
+    },
+    "platformEvidence": {
+      "type": "object",
+      "required": ["run_id", "host", "os", "arch", "date", "surface", "artifact_uri"],
+      "additionalProperties": false,
+      "properties": {
+        "run_id": { "type": "string", "minLength": 1 },
+        "host": { "type": "string", "minLength": 1 },
+        "os": { "type": "string", "minLength": 1 },
+        "arch": { "type": "string", "minLength": 1 },
+        "date": { "type": "string", "minLength": 1 },
+        "surface": { "type": "string", "minLength": 1 },
+        "artifact_uri": { "type": "string", "minLength": 1 }
       }
     },
     "semver": {
@@ -672,9 +693,9 @@
         },
         "provisioning": {
           "type": "string",
-          "enum": ["operator", "derived"],
+          "enum": ["operator", "derived", "generated"],
           "default": "operator",
-          "description": "Whether the operator supplies this value or the declaring component derives it after another credential is present."
+          "description": "Who supplies this value. operator: a person provides it. derived: the declaring component writes it once derived_from is present. generated: the declaring component mints it out of nothing, typically on first start, because there is nowhere an operator could obtain it. Only an operator-supplied value may block configuration while it is absent."
         },
         "derived_from": {
           "type": "string",

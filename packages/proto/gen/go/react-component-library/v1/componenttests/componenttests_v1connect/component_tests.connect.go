@@ -45,6 +45,9 @@ const (
 	// ComponentTestsServiceListComponentTestReportsProcedure is the fully-qualified name of the
 	// ComponentTestsService's ListComponentTestReports RPC.
 	ComponentTestsServiceListComponentTestReportsProcedure = "/vrooli.react_component_library.v1.componenttests.ComponentTestsService/ListComponentTestReports"
+	// ComponentTestsServiceSweepComponentTestsProcedure is the fully-qualified name of the
+	// ComponentTestsService's SweepComponentTests RPC.
+	ComponentTestsServiceSweepComponentTestsProcedure = "/vrooli.react_component_library.v1.componenttests.ComponentTestsService/SweepComponentTests"
 )
 
 // ComponentTestsServiceClient is a client for the
@@ -54,6 +57,7 @@ type ComponentTestsServiceClient interface {
 	RerunComponentTest(context.Context, *connect.Request[componenttests.RerunComponentTestRequest]) (*connect.Response[componenttests.RerunComponentTestResponse], error)
 	GetComponentTestReport(context.Context, *connect.Request[componenttests.GetComponentTestReportRequest]) (*connect.Response[componenttests.GetComponentTestReportResponse], error)
 	ListComponentTestReports(context.Context, *connect.Request[componenttests.ListComponentTestReportsRequest]) (*connect.Response[componenttests.ListComponentTestReportsResponse], error)
+	SweepComponentTests(context.Context, *connect.Request[componenttests.SweepComponentTestsRequest]) (*connect.Response[componenttests.SweepComponentTestsResponse], error)
 }
 
 // NewComponentTestsServiceClient constructs a client for the
@@ -92,6 +96,12 @@ func NewComponentTestsServiceClient(httpClient connect.HTTPClient, baseURL strin
 			connect.WithSchema(componentTestsServiceMethods.ByName("ListComponentTestReports")),
 			connect.WithClientOptions(opts...),
 		),
+		sweepComponentTests: connect.NewClient[componenttests.SweepComponentTestsRequest, componenttests.SweepComponentTestsResponse](
+			httpClient,
+			baseURL+ComponentTestsServiceSweepComponentTestsProcedure,
+			connect.WithSchema(componentTestsServiceMethods.ByName("SweepComponentTests")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -101,6 +111,7 @@ type componentTestsServiceClient struct {
 	rerunComponentTest       *connect.Client[componenttests.RerunComponentTestRequest, componenttests.RerunComponentTestResponse]
 	getComponentTestReport   *connect.Client[componenttests.GetComponentTestReportRequest, componenttests.GetComponentTestReportResponse]
 	listComponentTestReports *connect.Client[componenttests.ListComponentTestReportsRequest, componenttests.ListComponentTestReportsResponse]
+	sweepComponentTests      *connect.Client[componenttests.SweepComponentTestsRequest, componenttests.SweepComponentTestsResponse]
 }
 
 // RunComponentTest calls
@@ -127,6 +138,12 @@ func (c *componentTestsServiceClient) ListComponentTestReports(ctx context.Conte
 	return c.listComponentTestReports.CallUnary(ctx, req)
 }
 
+// SweepComponentTests calls
+// vrooli.react_component_library.v1.componenttests.ComponentTestsService.SweepComponentTests.
+func (c *componentTestsServiceClient) SweepComponentTests(ctx context.Context, req *connect.Request[componenttests.SweepComponentTestsRequest]) (*connect.Response[componenttests.SweepComponentTestsResponse], error) {
+	return c.sweepComponentTests.CallUnary(ctx, req)
+}
+
 // ComponentTestsServiceHandler is an implementation of the
 // vrooli.react_component_library.v1.componenttests.ComponentTestsService service.
 type ComponentTestsServiceHandler interface {
@@ -134,6 +151,7 @@ type ComponentTestsServiceHandler interface {
 	RerunComponentTest(context.Context, *connect.Request[componenttests.RerunComponentTestRequest]) (*connect.Response[componenttests.RerunComponentTestResponse], error)
 	GetComponentTestReport(context.Context, *connect.Request[componenttests.GetComponentTestReportRequest]) (*connect.Response[componenttests.GetComponentTestReportResponse], error)
 	ListComponentTestReports(context.Context, *connect.Request[componenttests.ListComponentTestReportsRequest]) (*connect.Response[componenttests.ListComponentTestReportsResponse], error)
+	SweepComponentTests(context.Context, *connect.Request[componenttests.SweepComponentTestsRequest]) (*connect.Response[componenttests.SweepComponentTestsResponse], error)
 }
 
 // NewComponentTestsServiceHandler builds an HTTP handler from the service implementation. It
@@ -167,6 +185,12 @@ func NewComponentTestsServiceHandler(svc ComponentTestsServiceHandler, opts ...c
 		connect.WithSchema(componentTestsServiceMethods.ByName("ListComponentTestReports")),
 		connect.WithHandlerOptions(opts...),
 	)
+	componentTestsServiceSweepComponentTestsHandler := connect.NewUnaryHandler(
+		ComponentTestsServiceSweepComponentTestsProcedure,
+		svc.SweepComponentTests,
+		connect.WithSchema(componentTestsServiceMethods.ByName("SweepComponentTests")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/vrooli.react_component_library.v1.componenttests.ComponentTestsService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case ComponentTestsServiceRunComponentTestProcedure:
@@ -177,6 +201,8 @@ func NewComponentTestsServiceHandler(svc ComponentTestsServiceHandler, opts ...c
 			componentTestsServiceGetComponentTestReportHandler.ServeHTTP(w, r)
 		case ComponentTestsServiceListComponentTestReportsProcedure:
 			componentTestsServiceListComponentTestReportsHandler.ServeHTTP(w, r)
+		case ComponentTestsServiceSweepComponentTestsProcedure:
+			componentTestsServiceSweepComponentTestsHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -200,4 +226,8 @@ func (UnimplementedComponentTestsServiceHandler) GetComponentTestReport(context.
 
 func (UnimplementedComponentTestsServiceHandler) ListComponentTestReports(context.Context, *connect.Request[componenttests.ListComponentTestReportsRequest]) (*connect.Response[componenttests.ListComponentTestReportsResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.react_component_library.v1.componenttests.ComponentTestsService.ListComponentTestReports is not implemented"))
+}
+
+func (UnimplementedComponentTestsServiceHandler) SweepComponentTests(context.Context, *connect.Request[componenttests.SweepComponentTestsRequest]) (*connect.Response[componenttests.SweepComponentTestsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.react_component_library.v1.componenttests.ComponentTestsService.SweepComponentTests is not implemented"))
 }

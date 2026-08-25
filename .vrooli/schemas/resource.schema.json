@@ -601,31 +601,13 @@
       "type": "object",
       "properties": {
         "linux": {
-          "type": "string",
-          "enum": [
-            "supported",
-            "build-verified",
-            "partial",
-            "unsupported"
-          ]
+          "$ref": "common.schema.json#/definitions/platformStatusToken"
         },
         "macos": {
-          "type": "string",
-          "enum": [
-            "supported",
-            "build-verified",
-            "partial",
-            "unsupported"
-          ]
+          "$ref": "common.schema.json#/definitions/platformStatusToken"
         },
         "windows": {
-          "type": "string",
-          "enum": [
-            "supported",
-            "build-verified",
-            "partial",
-            "unsupported"
-          ]
+          "$ref": "common.schema.json#/definitions/platformStatusToken"
         }
       }
     },
@@ -902,6 +884,41 @@
     },
     "template_version": {
       "type": "string"
+    },
+    "vrooli_memory_targets": {
+      "type": "array",
+      "description": "Bounded projection targets for Vrooli Memory-managed instruction and memory files.",
+      "items": {
+        "type": "object",
+        "required": [
+          "runtime",
+          "path",
+          "byte_cap",
+          "line_cap"
+        ],
+        "properties": {
+          "runtime": {
+            "type": "string",
+            "minLength": 1
+          },
+          "path": {
+            "type": "string",
+            "minLength": 1
+          },
+          "section": {
+            "type": "string"
+          },
+          "byte_cap": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "line_cap": {
+            "type": "integer",
+            "minimum": 1
+          }
+        },
+        "additionalProperties": false
+      }
     },
     "deployment": {
       "type": "object",

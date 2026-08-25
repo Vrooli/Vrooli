@@ -34,13 +34,18 @@
     "project_config_allowlist": [
       "build",
       "agent-manager",
+      "apply-runs",
+      "audit",
+      "bin",
       "dependencies",
+      "generated",
       "capability-vocabulary.json",
       "operator-state.json",
       "repo-contract.json",
       "resources",
       "schemas",
-      "service.json"
+      "service.json",
+      "test-companions.json"
     ]
   },
   "targets": {

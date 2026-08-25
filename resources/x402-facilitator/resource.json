@@ -2,7 +2,7 @@
   "$schema": "../../.vrooli/schemas/resource.schema.json",
   "name": "x402-facilitator",
   "display_name": "X402 Facilitator",
-  "description": "Self-hosted x402 v2 verification and settlement service, pinned to the reviewed Second State Rust facilitator image.",
+  "description": "Self-hosted x402 v2 verification and settlement service, supervised from a digest-pinned upstream OCI artifact without a container daemon on Linux.",
   "cli": {
     "enabled": true,
     "command": "resource-x402-facilitator",
@@ -39,67 +39,59 @@
       ]
     }
   },
-  "template": "docker-service",
-  "driver": "docker-service",
+  "template": "managed-service",
+  "driver": "managed-service",
   "deployment": {
     "profiles": {
       "desktop": {
         "linux": {
           "support": "conditional",
-          "mode": "docker-desktop",
+          "mode": "bundled-service",
           "architectures": [
             "amd64",
             "arm64"
           ],
-          "requires": [
-            "docker"
-          ],
+          "requires": [],
           "limitations": [
-            "Docker remains a host-managed dependency. No payment network is enabled until an operator provisions a facilitator signer and an explicit RPC route."
+            "The upstream artifact is a Linux OCI filesystem extracted and supervised natively; no container daemon is required. No payment network is enabled until an operator provisions a facilitator signer and an explicit RPC route."
           ],
           "evidence": [
             "manifest-validation",
             "resource-cli-unit-tests",
-            "docker-preflight"
+            "artifact-checksum"
           ]
         },
         "macos": {
-          "support": "conditional",
-          "mode": "docker-desktop",
+          "support": "unsupported",
+          "mode": "manual",
           "architectures": [
             "amd64",
             "arm64"
           ],
-          "requires": [
-            "docker"
-          ],
+          "requires": [],
           "limitations": [
-            "Docker Desktop must be installed and running. No payment network is enabled until an operator provisions a facilitator signer and an explicit RPC route."
+            "No signed upstream macOS x402-facilitator executable or native artifact is published."
           ],
           "evidence": [
-            "manifest-validation",
-            "resource-cli-unit-tests",
-            "docker-preflight"
-          ]
+            "manifest-validation"
+          ],
+          "reason": "The upstream release publishes no macOS facilitator executable."
         },
         "windows": {
-          "support": "conditional",
-          "mode": "docker-desktop",
+          "support": "unsupported",
+          "mode": "manual",
           "architectures": [
             "amd64",
             "arm64"
           ],
-          "requires": [
-            "docker"
-          ],
+          "requires": [],
           "limitations": [
-            "Docker Desktop must be installed and running. No payment network is enabled until an operator provisions a facilitator signer and an explicit RPC route."
+            "No signed upstream Windows x402-facilitator executable or native artifact is published."
           ],
           "evidence": [
-            "manifest-validation",
-            "resource-cli-unit-tests",
-            "docker-preflight"
-          ]
+            "manifest-validation"
+          ],
+          "reason": "The upstream release publishes no Windows facilitator executable."
         }
       }
     }
@@ -119,8 +111,8 @@
   },
   "platforms": {
     "linux": "supported",
-    "macos": "supported",
-    "windows": "build-verified"
+    "macos": "unsupported",
+    "windows": "unsupported"
   },
   "dependencies": [],
   "ports": [
@@ -140,21 +132,95 @@
       "timeout_seconds": 5
     }
   ],
-  "runtime": {
-    "image": "ghcr.io/x402-rs/x402-facilitator@sha256:3a71fd6e3ff5ae00c30bcfbff35e5cf858bb37b9b97de032f46545c18e953d71",
-    "container_name": "vrooli-x402-facilitator",
-    "env": {
-      "HOST": "0.0.0.0",
-      "PORT": "8080",
+  "managed_service": {
+    "artifact_role": "managed-service",
+    "provenance_class": "upstream-digest",
+    "provider_policy": {
+      "target_defaults": {
+        "control-plane": "managed-private",
+        "desktop-bundle": "managed-private"
+      },
+      "allowed_modes": [
+        "managed-private",
+        "managed-shared",
+        "attach-only",
+        "remote-vrooli",
+        "managed-discovered"
+      ],
+      "shared_reuse_requires_consent": true,
+      "external_management": "forbidden",
+      "external_access_capabilities": [
+        "read-only",
+        "read-write"
+      ]
+    },
+    "artifact": {
+      "path": "server/x402-facilitator",
+      "version": "1.3.0",
+      "layout": "dir",
+      "entry_path": "usr/local/bin/x402-facilitator",
+      "bundle_artifact": "x402-facilitator_${os}_${arch}",
+      "sha256_by_platform": {
+        "linux-amd64": "ea245e013e731945eef9e050b5670eb3d02e2534002af5010116c00b66c3e271",
+        "linux-arm64": "257f2011bd49ec42c807e14f0d32ad3db6a0b4545956d09b7b959e05e54f7713"
+      }
+    },
+    "acquisition": {
+      "kind": "oci-image",
+      "license": "Apache-2.0",
+      "provenance": {
+        "kind": "none"
+      },
+      "targets": [
+        {
+          "when": {
+            "os": "linux",
+            "arch": "amd64"
+          },
+          "image": "ghcr.io/x402-rs/x402-facilitator@sha256:3a71fd6e3ff5ae00c30bcfbff35e5cf858bb37b9b97de032f46545c18e953d71",
+          "layout": "dir",
+          "bin_path": "usr/local/bin/x402-facilitator"
+        },
+        {
+          "when": {
+            "os": "linux",
+            "arch": "arm64"
+          },
+          "image": "ghcr.io/x402-rs/x402-facilitator@sha256:3a71fd6e3ff5ae00c30bcfbff35e5cf858bb37b9b97de032f46545c18e953d71",
+          "layout": "dir",
+          "bin_path": "usr/local/bin/x402-facilitator"
+        },
+        {
+          "when": {
+            "os": "macos"
+          },
+          "unsupported": "The upstream x402-rs release publishes no signed macOS facilitator executable."
+        },
+        {
+          "when": {
+            "os": "windows"
+          },
+          "unsupported": "The upstream x402-rs release publishes no signed Windows facilitator executable."
+        }
+      ]
+    },
+    "attach_health_path": "/health",
+    "arguments": [
+      "--config",
+      "${RESOURCE_CONFIG_DIR}/config.json"
+    ],
+    "environment": {
+      "HOST": "127.0.0.1",
+      "PORT": "${RESOURCE_PORT_HTTP}",
       "RUST_LOG": "info"
     },
-    "memory_limit": "512m",
-    "volumes": [
-      {
-        "source": "config/config.json",
-        "target": "/app/config.json"
-      }
-    ]
+    "config": {
+      "path": "config.json",
+      "content": "{\n  \"port\": ${RESOURCE_PORT_HTTP},\n  \"host\": \"127.0.0.1\",\n  \"chains\": {},\n  \"schemes\": []\n}\n"
+    },
+    "shutdown": {
+      "signal": "terminate"
+    }
   },
   "dependency_schema": {
     "type": "object",
@@ -194,5 +260,5 @@
   },
   "template_version": "2",
   "privilege": "user",
-  "bundling": "host-required"
+  "bundling": "vendorable"
 }

@@ -155,6 +155,9 @@ message CreateRequest {
   // Empty creates a local session. Otherwise this is a target catalog id.
   string target_id = 13;
   string working_dir = 14;
+  // For persistent sessions, choose whether tmux captures mouse input for
+  // this pane. The default is false so ordinary scrolling stays local.
+  bool tmux_mouse_mode = 15;
 }
 
 message CreateResponse {

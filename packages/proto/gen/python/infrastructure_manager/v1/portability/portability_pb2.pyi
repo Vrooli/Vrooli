@@ -97,7 +97,7 @@ DELIVERY_TIER_DESKTOP: DeliveryTier
 DELIVERY_TIER_MOBILE: DeliveryTier
 
 class PlatformEntry(_message.Message):
-    __slots__ = ("host_os", "architecture", "status", "qualification", "implementer", "mechanism", "reason", "qualification_reason", "has_implementation", "controls", "absent", "absent_controls", "absent_providers", "declarers", "observed_qualification", "observed_qualification_reason", "observed_declarers")
+    __slots__ = ("host_os", "architecture", "status", "qualification", "implementer", "mechanism", "reason", "qualification_reason", "has_implementation", "controls", "absent", "absent_controls", "absent_providers", "declarers", "observed_qualification", "observed_qualification_reason", "observed_declarers", "evidence", "policy")
     HOST_OS_FIELD_NUMBER: _ClassVar[int]
     ARCHITECTURE_FIELD_NUMBER: _ClassVar[int]
     STATUS_FIELD_NUMBER: _ClassVar[int]
@@ -115,6 +115,8 @@ class PlatformEntry(_message.Message):
     OBSERVED_QUALIFICATION_FIELD_NUMBER: _ClassVar[int]
     OBSERVED_QUALIFICATION_REASON_FIELD_NUMBER: _ClassVar[int]
     OBSERVED_DECLARERS_FIELD_NUMBER: _ClassVar[int]
+    EVIDENCE_FIELD_NUMBER: _ClassVar[int]
+    POLICY_FIELD_NUMBER: _ClassVar[int]
     host_os: HostOS
     architecture: str
     status: ResolutionStatus
@@ -132,7 +134,27 @@ class PlatformEntry(_message.Message):
     observed_qualification: Qualification
     observed_qualification_reason: str
     observed_declarers: _containers.RepeatedCompositeFieldContainer[ObservedDeclarer]
-    def __init__(self, host_os: _Optional[_Union[HostOS, str]] = ..., architecture: _Optional[str] = ..., status: _Optional[_Union[ResolutionStatus, str]] = ..., qualification: _Optional[_Union[Qualification, str]] = ..., implementer: _Optional[str] = ..., mechanism: _Optional[str] = ..., reason: _Optional[str] = ..., qualification_reason: _Optional[str] = ..., has_implementation: _Optional[bool] = ..., controls: _Optional[_Iterable[str]] = ..., absent: _Optional[_Iterable[str]] = ..., absent_controls: _Optional[_Iterable[str]] = ..., absent_providers: _Optional[_Iterable[str]] = ..., declarers: _Optional[_Iterable[_Union[CapabilityDeclarer, _Mapping]]] = ..., observed_qualification: _Optional[_Union[Qualification, str]] = ..., observed_qualification_reason: _Optional[str] = ..., observed_declarers: _Optional[_Iterable[_Union[ObservedDeclarer, _Mapping]]] = ...) -> None: ...
+    evidence: Evidence
+    policy: str
+    def __init__(self, host_os: _Optional[_Union[HostOS, str]] = ..., architecture: _Optional[str] = ..., status: _Optional[_Union[ResolutionStatus, str]] = ..., qualification: _Optional[_Union[Qualification, str]] = ..., implementer: _Optional[str] = ..., mechanism: _Optional[str] = ..., reason: _Optional[str] = ..., qualification_reason: _Optional[str] = ..., has_implementation: _Optional[bool] = ..., controls: _Optional[_Iterable[str]] = ..., absent: _Optional[_Iterable[str]] = ..., absent_controls: _Optional[_Iterable[str]] = ..., absent_providers: _Optional[_Iterable[str]] = ..., declarers: _Optional[_Iterable[_Union[CapabilityDeclarer, _Mapping]]] = ..., observed_qualification: _Optional[_Union[Qualification, str]] = ..., observed_qualification_reason: _Optional[str] = ..., observed_declarers: _Optional[_Iterable[_Union[ObservedDeclarer, _Mapping]]] = ..., evidence: _Optional[_Union[Evidence, _Mapping]] = ..., policy: _Optional[str] = ...) -> None: ...
+
+class Evidence(_message.Message):
+    __slots__ = ("run_id", "host", "os", "arch", "date", "surface", "artifact_uri")
+    RUN_ID_FIELD_NUMBER: _ClassVar[int]
+    HOST_FIELD_NUMBER: _ClassVar[int]
+    OS_FIELD_NUMBER: _ClassVar[int]
+    ARCH_FIELD_NUMBER: _ClassVar[int]
+    DATE_FIELD_NUMBER: _ClassVar[int]
+    SURFACE_FIELD_NUMBER: _ClassVar[int]
+    ARTIFACT_URI_FIELD_NUMBER: _ClassVar[int]
+    run_id: str
+    host: str
+    os: str
+    arch: str
+    date: str
+    surface: str
+    artifact_uri: str
+    def __init__(self, run_id: _Optional[str] = ..., host: _Optional[str] = ..., os: _Optional[str] = ..., arch: _Optional[str] = ..., date: _Optional[str] = ..., surface: _Optional[str] = ..., artifact_uri: _Optional[str] = ...) -> None: ...
 
 class CapabilityDeclarer(_message.Message):
     __slots__ = ("name", "role", "declared_status", "resolved", "reason")

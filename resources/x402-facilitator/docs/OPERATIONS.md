@@ -1,14 +1,15 @@
 # Operations
 
-`x402-facilitator` is a single-container, loopback-only Docker resource. The
-control plane owns image acquisition, process lifecycle, port publication, and
-health checks.
+`x402-facilitator` is a loopback-only managed service. The control plane owns
+digest-pinned OCI acquisition, native process lifecycle, port publication, and
+health checks. The OCI filesystem is extracted over HTTPS; the service does not
+require a Docker daemon on Linux.
 
 ## Architecture Boundary
 
 Keep responsibilities split cleanly:
 
-- `resource.json` owns declarative lifecycle, runtime, port, health, and export metadata.
+- `resource.json` owns declarative lifecycle, acquisition digest, runtime, port, health, and export metadata.
 - `cli/` owns the binary entrypoint, wiring, and delegated command registration.
 - `cli/internal/` owns resource-specific Go logic that cannot be expressed through the manifest or shared control-plane packages.
 
@@ -43,7 +44,7 @@ of an intentionally induced unknown outcome.
 
 ## Upgrade and rollback
 
-Pin OCI indexes by digest. Before changing the digest, review the upstream diff
+Pin OCI indexes by digest and the resulting materialized tree by SHA-256. Before changing the digest, review the upstream diff
 from image revision `e75adda8a0e3cf23db446883ba91b88bbab2fe28`, verify provenance,
 and exercise the protocol on testnet. Rollback is the inverse digest change plus
 `vrooli resource restart x402-facilitator`; never reuse a floating tag.

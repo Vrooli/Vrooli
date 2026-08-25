@@ -5,12 +5,14 @@ package remotedesktopaccess
 import (
 	"context"
 	"fmt"
+	"io"
 	"strings"
 
 	platform "github.com/vrooli/platform-go"
 	"github.com/vrooli/vrooli/internal/hostinventory"
 	"github.com/vrooli/vrooli/internal/hostreqkit"
 	"github.com/vrooli/vrooli/internal/hostreqspec"
+	credentialauthority "github.com/vrooli/vrooli/packages/credential-authority-go"
 )
 
 const (
@@ -18,6 +20,7 @@ const (
 	experienceLogin   = "login-screen"
 	experienceObserve = "observe-only"
 	providerAuto      = "auto"
+	remoteDesktopID   = "vrooli/remote-desktop"
 )
 
 type providerObservation struct {
@@ -38,6 +41,8 @@ var (
 			Stderr: opts.Stderr,
 		})
 	}
+	resolveCredentialFn = resolveRemoteDesktopCredential
+	credentialsReadyFn  = remoteDesktopCredentialsReady
 )
 
 type handler struct{ manifest hostreqkit.SafeguardManifest }
@@ -109,9 +114,23 @@ func (h handler) Inspect(host hostreqkit.Host, requirement hostreqspec.ResolvedR
 		return status
 	}
 	if experience == experienceLogin && selected == "gnome-system" && observed.active {
+		if !credentialsReadyFn() {
+			status.Notes = append(status.Notes, "system-mode GNOME Remote Desktop is active but its credentials are not configured in Vrooli's encrypted authority")
+			return status
+		}
 		status.Applied = true
 		status.ExecutionState = hostreqkit.ExecutionAlreadyPresent
 		status.Notes = append(status.Notes, "system-mode GNOME Remote Desktop is enabled and active")
+		return status
+	}
+	if experience == experienceDirect && selected == "gnome-system" && observed.active {
+		if !credentialsReadyFn() {
+			status.Notes = append(status.Notes, "system-mode GNOME Remote Desktop is active but its credentials are not configured in Vrooli's encrypted authority")
+			return status
+		}
+		status.Applied = true
+		status.ExecutionState = hostreqkit.ExecutionAlreadyPresent
+		status.Notes = append(status.Notes, "system-mode GNOME Remote Desktop is active and delivers direct-desktop through the autologin session")
 		return status
 	}
 	if experience == experienceDirect && observed.active && selected != "gnome-system" {
@@ -153,20 +172,31 @@ func (h handler) Apply(host hostreqkit.Host, status hostreqkit.ItemStatus, opts 
 		status.Notes = append(status.Notes, "an active remote-desktop session may be interrupted; rerun with --maintenance-window")
 		return status, nil
 	}
+	var systemUsername, systemPassword string
 	// Evaluate every permission and host-state gate before the dry-run branch.
 	// This keeps a preview from claiming an apply that a real run would refuse.
 	if host.OS == "linux" && status.SelectedProvider == "gnome-system" {
-		if !permission("allow_enable_system", "sudo systemctl enable --now gnome-remote-desktop.service") {
+		if !status.ObservedActive && !permission("allow_enable_system", setupCommand()) {
 			return status, nil
+		}
+		if !permission("allow_provision_credentials", credentialProvisionCommand("username")) {
+			return status, nil
+		}
+		var err error
+		if systemUsername, err = resolveCredentialFn(remoteDesktopID, "username"); err != nil {
+			return credentialProvisionRequired(&status, "username"), nil
+		}
+		if systemPassword, err = resolveCredentialFn(remoteDesktopID, "password"); err != nil {
+			return credentialProvisionRequired(&status, "password"), nil
 		}
 	} else if host.OS == "linux" && status.SelectedProvider == "gnome-user-shared" {
-		if switchingFromSystem && !permission("allow_disable_system_unit", "sudo systemctl disable --now gnome-remote-desktop.service") {
+		if switchingFromSystem && !permission("allow_disable_system_unit", setupCommand()) {
 			return status, nil
 		}
-		if !permission("allow_switch_provider", "systemctl --user enable --now gnome-remote-desktop.service") {
+		if !permission("allow_switch_provider", setupCommand()) {
 			return status, nil
 		}
-		if !permission("allow_enable_user_unit", "systemctl --user enable --now gnome-remote-desktop.service") {
+		if !permission("allow_enable_user_unit", setupCommand()) {
 			return status, nil
 		}
 		if status.CredentialStoreState != "ready" {
@@ -183,11 +213,11 @@ func (h handler) Apply(host hostreqkit.Host, status hostreqkit.ItemStatus, opts 
 			return status, nil
 		}
 	} else if host.OS == "windows" && status.SelectedProvider == "windows-termservice" {
-		if !permission("allow_enable_native_provider", "sc.exe config TermService start= auto && sc.exe start TermService") {
+		if !permission("allow_enable_native_provider", setupCommand()) {
 			return status, nil
 		}
 	} else if (host.OS == "darwin" || host.OS == "macos") && status.SelectedProvider == "macos-screen-sharing" {
-		if !permission("allow_enable_native_provider", "sudo launchctl enable system/com.apple.screensharing && sudo launchctl kickstart -k system/com.apple.screensharing") {
+		if !permission("allow_enable_native_provider", setupCommand()) {
 			return status, nil
 		}
 	}
@@ -197,14 +227,26 @@ func (h handler) Apply(host hostreqkit.Host, status hostreqkit.ItemStatus, opts 
 		return status, nil
 	}
 	if host.OS == "linux" && status.SelectedProvider == "gnome-system" {
-		if err := runFn(opts.SudoMode, "systemctl", []string{"enable", "--now", "gnome-remote-desktop.service"}, opts); err != nil {
+		provisionOpts := opts
+		provisionOpts.Stdout = io.Discard
+		provisionOpts.Stderr = io.Discard
+		if err := runFn(opts.SudoMode, "grdctl", []string{"--system", "rdp", "set-credentials", systemUsername, systemPassword}, provisionOpts); err != nil {
 			status.ExecutionState = hostreqkit.ExecutionFailed
-			status.Notes = append(status.Notes, "enable gnome-remote-desktop.service failed: "+err.Error())
+			status.Notes = append(status.Notes, "system-mode GNOME Remote Desktop credential provisioning failed; rerun the Vrooli credential doctor")
 			return status, nil
+		}
+		if !status.ObservedActive {
+			if err := runFn(opts.SudoMode, "systemctl", []string{"enable", "--now", "gnome-remote-desktop.service"}, opts); err != nil {
+				status.ExecutionState = hostreqkit.ExecutionFailed
+				status.Notes = append(status.Notes, "enable gnome-remote-desktop.service failed: "+err.Error())
+				return status, nil
+			}
+			status.Notes = append(status.Notes, "system-mode GNOME Remote Desktop enabled")
+		} else {
+			status.Notes = append(status.Notes, "system-mode GNOME Remote Desktop credentials refreshed")
 		}
 		status.Applied = true
 		status.ExecutionState = hostreqkit.ExecutionApplied
-		status.Notes = append(status.Notes, "system-mode GNOME Remote Desktop enabled")
 		return status, nil
 	}
 	if host.OS == "linux" && status.SelectedProvider == "gnome-user-shared" {
@@ -369,7 +411,7 @@ func providerAvailable(provider, osName string, facts hostinventory.Snapshot) bo
 func providerDelivers(provider, experience string, facts hostinventory.Snapshot) bool {
 	switch provider {
 	case "gnome-system":
-		return experience == experienceLogin
+		return experience == experienceLogin || experience == experienceDirect
 	case "gnome-user-shared":
 		return experience == experienceDirect && facts.DisplayAttached
 	case "gnome-headless":
@@ -396,7 +438,52 @@ func observedExperience(provider string, facts hostinventory.Snapshot) string {
 }
 
 func credentialCommand() string {
-	return "grdctl rdp set-credentials <username> <password>"
+	return credentialProvisionCommand("username")
+}
+
+func setupCommand() string {
+	return "vrooli setup --include-optional --maintenance-window --sudo-mode=ask"
+}
+
+func credentialProvisionCommand(field string) string {
+	return "vrooli credentials provision --identity " + remoteDesktopID + " --field " + field
+}
+
+func credentialProvisionRequired(status *hostreqkit.ItemStatus, field string) hostreqkit.ItemStatus {
+	status.ExecutionState = hostreqkit.ExecutionManualActionRequired
+	status.BlockingReason = hostreqkit.BlockingManual
+	status.Command = credentialProvisionCommand(field)
+	status.Notes = append(status.Notes, "remote-desktop credential is not configured in Vrooli's encrypted authority; run "+credentialProvisionCommand(field)+" and retry")
+	return *status
+}
+
+func resolveRemoteDesktopCredential(identity, field string) (string, error) {
+	authority, err := credentialauthority.Default()
+	if err != nil {
+		return "", err
+	}
+	parsed, err := credentialauthority.ParseIdentity(identity)
+	if err != nil {
+		return "", err
+	}
+	return authority.Resolve(parsed, field)
+}
+
+func remoteDesktopCredentialsReady() bool {
+	authority, err := credentialauthority.Default()
+	if err != nil {
+		return false
+	}
+	identity, err := credentialauthority.ParseIdentity(remoteDesktopID)
+	if err != nil {
+		return false
+	}
+	for _, field := range []string{"username", "password"} {
+		if !authority.Status(identity, field).Configured {
+			return false
+		}
+	}
+	return true
 }
 
 func credentialStoreBlock(status *hostreqkit.ItemStatus) bool {

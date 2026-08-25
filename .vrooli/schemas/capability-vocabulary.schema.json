@@ -26,6 +26,34 @@
           "^(linux|macos|windows)/(amd64|arm64|arm|386|armv7)$": {"enum": ["no_work_required", "no_equivalent_ever"]}
         }
       }
+    },
+    "control_policies": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "linux": {"enum": ["no_work_required", "no_equivalent_ever"]},
+            "macos": {"enum": ["no_work_required", "no_equivalent_ever"]},
+            "windows": {"enum": ["no_work_required", "no_equivalent_ever"]}
+          },
+          "patternProperties": {
+            "^(linux|macos|windows)/(amd64|arm64|arm|386|armv7)$": {"enum": ["no_work_required", "no_equivalent_ever"]}
+          }
+        }
+      }
+    },
+    "control_policy_reasons": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": {
+          "type": "object",
+          "additionalProperties": {"type": "string", "minLength": 1}
+        }
+      }
     }
   },
   "additionalProperties": false

@@ -11,11 +11,20 @@ import (
 
 func stubRemoteDesktop(t *testing.T, snapshot hostinventory.Snapshot) {
 	t.Helper()
-	origFacts, origRun, origRunUser := collectFactsFn, runFn, runUserFn
+	origFacts, origRun, origRunUser, origResolve, origReady := collectFactsFn, runFn, runUserFn, resolveCredentialFn, credentialsReadyFn
 	collectFactsFn = func() hostinventory.Snapshot { return snapshot }
 	runFn = func(string, string, []string, hostreqkit.EnsureOptions) error { return nil }
 	runUserFn = func(string, []string, hostreqkit.EnsureOptions) error { return nil }
-	t.Cleanup(func() { collectFactsFn, runFn, runUserFn = origFacts, origRun, origRunUser })
+	resolveCredentialFn = func(_, field string) (string, error) {
+		if field == "username" {
+			return "rdp-user", nil
+		}
+		return "rdp-password", nil
+	}
+	credentialsReadyFn = func() bool { return true }
+	t.Cleanup(func() {
+		collectFactsFn, runFn, runUserFn, resolveCredentialFn, credentialsReadyFn = origFacts, origRun, origRunUser, origResolve, origReady
+	})
 }
 
 func remoteRequest(config map[string]any) hostreqspec.ResolvedRequirement {
@@ -51,8 +60,83 @@ func TestApplyRequiresExplicitSystemPermission(t *testing.T) {
 	if got.ExecutionState != hostreqkit.ExecutionManualActionRequired || got.BlockingReason != hostreqkit.BlockingManual {
 		t.Fatalf("permission-gated apply = %#v", got)
 	}
-	if got.Command != "sudo systemctl enable --now gnome-remote-desktop.service" {
+	if got.Command != setupCommand() {
 		t.Fatalf("manual command = %q", got.Command)
+	}
+}
+
+func TestSystemProviderResolvesAndProvisionsAuthorityCredentials(t *testing.T) {
+	var calls []string
+	stubRemoteDesktop(t, hostinventory.Snapshot{
+		OS:              "linux",
+		SupportsSystemd: true,
+		RemoteDesktop: hostinventory.RemoteDesktopCapability{
+			Providers: []hostinventory.RemoteDesktopProvider{{Name: "gnome-system", Present: false}},
+		},
+	})
+	runFn = func(_ string, command string, args []string, _ hostreqkit.EnsureOptions) error {
+		calls = append(calls, command+" "+strings.Join(args, " "))
+		return nil
+	}
+	config := map[string]any{
+		"experience":                  experienceDirect,
+		"provider":                    "gnome-system",
+		"allow_enable_system":         true,
+		"allow_provision_credentials": true,
+	}
+	status := NewHandler(hostreqkit.SafeguardManifest{Name: "remote_desktop_access"}).Inspect(hostreqkit.Host{OS: "linux"}, remoteRequest(config))
+	status, err := NewHandler(hostreqkit.SafeguardManifest{Name: "remote_desktop_access"}).Apply(hostreqkit.Host{OS: "linux"}, status, hostreqkit.EnsureOptions{MaintenanceWindow: true})
+	if err != nil || status.ExecutionState != hostreqkit.ExecutionApplied {
+		t.Fatalf("system credential apply = %#v, err=%v", status, err)
+	}
+	want := []string{
+		"grdctl --system rdp set-credentials rdp-user rdp-password",
+		"systemctl enable --now gnome-remote-desktop.service",
+	}
+	if strings.Join(calls, "\x00") != strings.Join(want, "\x00") {
+		t.Fatalf("calls = %v, want %v", calls, want)
+	}
+}
+
+func TestActiveSystemProviderOnlyRefreshesCredentials(t *testing.T) {
+	var calls []string
+	stubRemoteDesktop(t, hostinventory.Snapshot{
+		OS:              "linux",
+		SupportsSystemd: true,
+		RemoteDesktop: hostinventory.RemoteDesktopCapability{
+			Mode:     "system",
+			Observed: true,
+			Active:   true,
+			Providers: []hostinventory.RemoteDesktopProvider{{
+				Name: "gnome-system", Present: true, Active: true,
+			}},
+		},
+	})
+	runFn = func(_ string, command string, args []string, _ hostreqkit.EnsureOptions) error {
+		calls = append(calls, command+" "+strings.Join(args, " "))
+		return nil
+	}
+	config := map[string]any{
+		"experience":                  experienceDirect,
+		"provider":                    "gnome-system",
+		"allow_provision_credentials": true,
+	}
+	status := NewHandler(hostreqkit.SafeguardManifest{Name: "remote_desktop_access"}).Inspect(hostreqkit.Host{OS: "linux"}, remoteRequest(config))
+	if status.ExecutionState != hostreqkit.ExecutionAlreadyPresent {
+		t.Fatalf("active system status = %#v", status)
+	}
+	// Simulate a refresh request after the authority values change: an active
+	// unit must not be needlessly toggled, but the system credential store still
+	// receives the current authority values.
+	status.Applied = false
+	status.ExecutionState = hostreqkit.ExecutionPending
+	status.ObservedActive = true
+	status, err := NewHandler(hostreqkit.SafeguardManifest{Name: "remote_desktop_access"}).Apply(hostreqkit.Host{OS: "linux"}, status, hostreqkit.EnsureOptions{MaintenanceWindow: true})
+	if err != nil || status.ExecutionState != hostreqkit.ExecutionApplied {
+		t.Fatalf("active system refresh = %#v, err=%v", status, err)
+	}
+	if len(calls) != 1 || calls[0] != "grdctl --system rdp set-credentials rdp-user rdp-password" {
+		t.Fatalf("calls = %v, want credential refresh only", calls)
 	}
 }
 
@@ -109,23 +193,23 @@ func TestDirectDesktopSeparatesObservedAndSelectedProviders(t *testing.T) {
 		hostreqkit.Host{OS: "linux"},
 		remoteRequest(map[string]any{"experience": experienceDirect, "provider": providerAuto}),
 	)
-	if status.ObservedProvider != "gnome-system" || status.SelectedProvider != "gnome-user-shared" {
-		t.Fatalf("provider roles = observed %q selected %q, want gnome-system/gnome-user-shared", status.ObservedProvider, status.SelectedProvider)
+	if status.ObservedProvider != "gnome-system" || status.SelectedProvider != "gnome-system" {
+		t.Fatalf("provider roles = observed %q selected %q, want gnome-system/gnome-system", status.ObservedProvider, status.SelectedProvider)
 	}
 	if !status.ObservedLive || !status.ObservedActive || status.ObservedMode != "system" {
 		t.Fatalf("observed state = live %t active %t mode %q, want true/true/system", status.ObservedLive, status.ObservedActive, status.ObservedMode)
 	}
 	joined := strings.Join(status.Notes, " ")
-	if !strings.Contains(joined, "observed experience: login-screen") || !strings.Contains(joined, "selected remote-desktop provider: gnome-user-shared") {
+	if !strings.Contains(joined, "observed experience: login-screen") || !strings.Contains(joined, "selected remote-desktop provider: gnome-system") {
 		t.Fatalf("notes do not distinguish observed target: %s", joined)
 	}
 }
 
-func TestDirectDesktopRejectsLoginScreenProvider(t *testing.T) {
+func TestDirectDesktopAcceptsSystemProvider(t *testing.T) {
 	stubRemoteDesktop(t, hostinventory.Snapshot{OS: "linux", SupportsSystemd: true, RemoteDesktop: hostinventory.RemoteDesktopCapability{Mode: "system", Providers: []hostinventory.RemoteDesktopProvider{{Name: "gnome-system", Present: true, Active: true}}}})
 	status := NewHandler(hostreqkit.SafeguardManifest{Name: "remote_desktop_access"}).Inspect(hostreqkit.Host{OS: "linux"}, remoteRequest(map[string]any{"experience": experienceDirect, "provider": "gnome-system"}))
-	if status.SupportClass != hostreqkit.SupportUnsupported || status.ExecutionState != hostreqkit.ExecutionUnsupported {
-		t.Fatalf("wrong-mode status = %#v", status)
+	if status.ExecutionState != hostreqkit.ExecutionAlreadyPresent || !status.Applied {
+		t.Fatalf("system provider status = %#v", status)
 	}
 }
 
@@ -172,7 +256,7 @@ func TestUserSharedSwitchDisablesSystemBeforeEnablingUserUnit(t *testing.T) {
 		calls = append(calls, command+" "+strings.Join(args, " "))
 		return nil
 	}
-	status := NewHandler(hostreqkit.SafeguardManifest{Name: "remote_desktop_access"}).Inspect(hostreqkit.Host{OS: "linux"}, remoteRequest(map[string]any{"experience": experienceDirect, "provider": providerAuto, "allow_switch_provider": true, "allow_enable_user_unit": true, "allow_disable_system_unit": true}))
+	status := NewHandler(hostreqkit.SafeguardManifest{Name: "remote_desktop_access"}).Inspect(hostreqkit.Host{OS: "linux"}, remoteRequest(map[string]any{"experience": experienceDirect, "provider": "gnome-user-shared", "allow_switch_provider": true, "allow_enable_user_unit": true, "allow_disable_system_unit": true}))
 	status, err := NewHandler(hostreqkit.SafeguardManifest{Name: "remote_desktop_access"}).Apply(hostreqkit.Host{OS: "linux"}, status, hostreqkit.EnsureOptions{MaintenanceWindow: true})
 	if err != nil || status.ExecutionState != hostreqkit.ExecutionApplied {
 		t.Fatalf("switch status = %#v, err=%v", status, err)
@@ -194,7 +278,7 @@ func TestUserSharedSwitchDoesNotDisableSystemWhenCredentialsAreUnready(t *testin
 		calls = append(calls, command+" "+strings.Join(args, " "))
 		return nil
 	}
-	config := map[string]any{"experience": experienceDirect, "provider": providerAuto, "allow_switch_provider": true, "allow_enable_user_unit": true, "allow_disable_system_unit": true, "allow_provision_credentials": true}
+	config := map[string]any{"experience": experienceDirect, "provider": "gnome-user-shared", "allow_switch_provider": true, "allow_enable_user_unit": true, "allow_disable_system_unit": true, "allow_provision_credentials": true}
 	status := NewHandler(hostreqkit.SafeguardManifest{Name: "remote_desktop_access"}).Inspect(hostreqkit.Host{OS: "linux"}, remoteRequest(config))
 	status, err := NewHandler(hostreqkit.SafeguardManifest{Name: "remote_desktop_access"}).Apply(hostreqkit.Host{OS: "linux"}, status, hostreqkit.EnsureOptions{MaintenanceWindow: true})
 	if err != nil || status.ExecutionState != hostreqkit.ExecutionManualActionRequired || status.BlockingReason != hostreqkit.BlockingCredentialStoreUnresponsive || status.Command != "" {
@@ -216,11 +300,11 @@ func TestUserSharedCredentialStoreStatesUseStateSpecificRemedies(t *testing.T) {
 		{state: "unresponsive", reason: hostreqkit.BlockingCredentialStoreUnresponsive, remedy: "credentials keyring status"},
 		{state: "unavailable", reason: hostreqkit.BlockingCredentialStoreUnavailable, remedy: "credentials keyring status"},
 		{state: "unsupported", reason: hostreqkit.BlockingCredentialStoreUnavailable, remedy: "credentials keyring status"},
-		{state: "empty", reason: hostreqkit.BlockingManual, remedy: "grdctl rdp set-credentials", command: credentialCommand()},
+		{state: "empty", reason: hostreqkit.BlockingManual, remedy: "vrooli credentials provision", command: credentialCommand()},
 	} {
 		t.Run(tc.state, func(t *testing.T) {
 			stubRemoteDesktop(t, hostinventory.Snapshot{OS: "linux", SupportsSystemd: true, DisplayAttached: true, RemoteDesktop: hostinventory.RemoteDesktopCapability{Mode: "system", Providers: []hostinventory.RemoteDesktopProvider{{Name: "gnome-user-shared", Present: false}}, CredentialStore: hostinventory.CredentialStoreCapability{State: tc.state}}})
-			config := map[string]any{"experience": experienceDirect, "provider": providerAuto, "allow_switch_provider": true, "allow_enable_user_unit": true, "allow_disable_system_unit": true, "allow_provision_credentials": true}
+			config := map[string]any{"experience": experienceDirect, "provider": "gnome-user-shared", "allow_switch_provider": true, "allow_enable_user_unit": true, "allow_disable_system_unit": true, "allow_provision_credentials": true}
 			status := NewHandler(hostreqkit.SafeguardManifest{Name: "remote_desktop_access"}).Inspect(hostreqkit.Host{OS: "linux"}, remoteRequest(config))
 			status, err := NewHandler(hostreqkit.SafeguardManifest{Name: "remote_desktop_access"}).Apply(hostreqkit.Host{OS: "linux"}, status, hostreqkit.EnsureOptions{MaintenanceWindow: true})
 			if err != nil || status.BlockingReason != tc.reason {

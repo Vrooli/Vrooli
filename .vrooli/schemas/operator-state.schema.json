@@ -168,8 +168,21 @@
           "type": "string",
           "format": "date-time"
         },
-        "degraded_continue_acknowledged": {
-          "type": "boolean"
+        "degraded_acknowledgement": {
+          "type": "object",
+          "description": "Durable record that the operator accepted a specific set of degraded optional items. The digest names the exact set that was acknowledged, so an acknowledgement cannot authorise completion over a different gap later.",
+          "additionalProperties": false,
+          "required": ["readiness_digest", "acknowledged_at"],
+          "properties": {
+            "readiness_digest": {
+              "type": "string",
+              "minLength": 1
+            },
+            "acknowledged_at": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
         }
       }
     },

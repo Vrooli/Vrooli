@@ -396,6 +396,8 @@ type PlatformEntry struct {
 	ObservedQualification       Qualification       `protobuf:"varint,12,opt,name=observed_qualification,json=observedQualification,proto3,enum=vrooli.infrastructure_manager.v1.portability.Qualification" json:"observed_qualification,omitempty"`
 	ObservedQualificationReason string              `protobuf:"bytes,13,opt,name=observed_qualification_reason,json=observedQualificationReason,proto3" json:"observed_qualification_reason,omitempty"`
 	ObservedDeclarers           []*ObservedDeclarer `protobuf:"bytes,14,rep,name=observed_declarers,json=observedDeclarers,proto3" json:"observed_declarers,omitempty"`
+	Evidence                    *Evidence           `protobuf:"bytes,18,opt,name=evidence,proto3" json:"evidence,omitempty"`
+	Policy                      string              `protobuf:"bytes,19,opt,name=policy,proto3" json:"policy,omitempty"`
 	unknownFields               protoimpl.UnknownFields
 	sizeCache                   protoimpl.SizeCache
 }
@@ -549,6 +551,112 @@ func (x *PlatformEntry) GetObservedDeclarers() []*ObservedDeclarer {
 	return nil
 }
 
+func (x *PlatformEntry) GetEvidence() *Evidence {
+	if x != nil {
+		return x.Evidence
+	}
+	return nil
+}
+
+func (x *PlatformEntry) GetPolicy() string {
+	if x != nil {
+		return x.Policy
+	}
+	return ""
+}
+
+type Evidence struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	RunId         string                 `protobuf:"bytes,1,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
+	Host          string                 `protobuf:"bytes,2,opt,name=host,proto3" json:"host,omitempty"`
+	Os            string                 `protobuf:"bytes,3,opt,name=os,proto3" json:"os,omitempty"`
+	Arch          string                 `protobuf:"bytes,4,opt,name=arch,proto3" json:"arch,omitempty"`
+	Date          string                 `protobuf:"bytes,5,opt,name=date,proto3" json:"date,omitempty"`
+	Surface       string                 `protobuf:"bytes,6,opt,name=surface,proto3" json:"surface,omitempty"`
+	ArtifactUri   string                 `protobuf:"bytes,7,opt,name=artifact_uri,json=artifactUri,proto3" json:"artifact_uri,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Evidence) Reset() {
+	*x = Evidence{}
+	mi := &file_infrastructure_manager_v1_portability_portability_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Evidence) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Evidence) ProtoMessage() {}
+
+func (x *Evidence) ProtoReflect() protoreflect.Message {
+	mi := &file_infrastructure_manager_v1_portability_portability_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Evidence.ProtoReflect.Descriptor instead.
+func (*Evidence) Descriptor() ([]byte, []int) {
+	return file_infrastructure_manager_v1_portability_portability_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *Evidence) GetRunId() string {
+	if x != nil {
+		return x.RunId
+	}
+	return ""
+}
+
+func (x *Evidence) GetHost() string {
+	if x != nil {
+		return x.Host
+	}
+	return ""
+}
+
+func (x *Evidence) GetOs() string {
+	if x != nil {
+		return x.Os
+	}
+	return ""
+}
+
+func (x *Evidence) GetArch() string {
+	if x != nil {
+		return x.Arch
+	}
+	return ""
+}
+
+func (x *Evidence) GetDate() string {
+	if x != nil {
+		return x.Date
+	}
+	return ""
+}
+
+func (x *Evidence) GetSurface() string {
+	if x != nil {
+		return x.Surface
+	}
+	return ""
+}
+
+func (x *Evidence) GetArtifactUri() string {
+	if x != nil {
+		return x.ArtifactUri
+	}
+	return ""
+}
+
 type CapabilityDeclarer struct {
 	state          protoimpl.MessageState `protogen:"open.v1"`
 	Name           string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
@@ -562,7 +670,7 @@ type CapabilityDeclarer struct {
 
 func (x *CapabilityDeclarer) Reset() {
 	*x = CapabilityDeclarer{}
-	mi := &file_infrastructure_manager_v1_portability_portability_proto_msgTypes[1]
+	mi := &file_infrastructure_manager_v1_portability_portability_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -574,7 +682,7 @@ func (x *CapabilityDeclarer) String() string {
 func (*CapabilityDeclarer) ProtoMessage() {}
 
 func (x *CapabilityDeclarer) ProtoReflect() protoreflect.Message {
-	mi := &file_infrastructure_manager_v1_portability_portability_proto_msgTypes[1]
+	mi := &file_infrastructure_manager_v1_portability_portability_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -587,7 +695,7 @@ func (x *CapabilityDeclarer) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CapabilityDeclarer.ProtoReflect.Descriptor instead.
 func (*CapabilityDeclarer) Descriptor() ([]byte, []int) {
-	return file_infrastructure_manager_v1_portability_portability_proto_rawDescGZIP(), []int{1}
+	return file_infrastructure_manager_v1_portability_portability_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *CapabilityDeclarer) GetName() string {
@@ -637,7 +745,7 @@ type ObservedDeclarer struct {
 
 func (x *ObservedDeclarer) Reset() {
 	*x = ObservedDeclarer{}
-	mi := &file_infrastructure_manager_v1_portability_portability_proto_msgTypes[2]
+	mi := &file_infrastructure_manager_v1_portability_portability_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -649,7 +757,7 @@ func (x *ObservedDeclarer) String() string {
 func (*ObservedDeclarer) ProtoMessage() {}
 
 func (x *ObservedDeclarer) ProtoReflect() protoreflect.Message {
-	mi := &file_infrastructure_manager_v1_portability_portability_proto_msgTypes[2]
+	mi := &file_infrastructure_manager_v1_portability_portability_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -662,7 +770,7 @@ func (x *ObservedDeclarer) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ObservedDeclarer.ProtoReflect.Descriptor instead.
 func (*ObservedDeclarer) Descriptor() ([]byte, []int) {
-	return file_infrastructure_manager_v1_portability_portability_proto_rawDescGZIP(), []int{2}
+	return file_infrastructure_manager_v1_portability_portability_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *ObservedDeclarer) GetName() string {
@@ -705,7 +813,7 @@ type CapabilityEntry struct {
 
 func (x *CapabilityEntry) Reset() {
 	*x = CapabilityEntry{}
-	mi := &file_infrastructure_manager_v1_portability_portability_proto_msgTypes[3]
+	mi := &file_infrastructure_manager_v1_portability_portability_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -717,7 +825,7 @@ func (x *CapabilityEntry) String() string {
 func (*CapabilityEntry) ProtoMessage() {}
 
 func (x *CapabilityEntry) ProtoReflect() protoreflect.Message {
-	mi := &file_infrastructure_manager_v1_portability_portability_proto_msgTypes[3]
+	mi := &file_infrastructure_manager_v1_portability_portability_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -730,7 +838,7 @@ func (x *CapabilityEntry) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CapabilityEntry.ProtoReflect.Descriptor instead.
 func (*CapabilityEntry) Descriptor() ([]byte, []int) {
-	return file_infrastructure_manager_v1_portability_portability_proto_rawDescGZIP(), []int{3}
+	return file_infrastructure_manager_v1_portability_portability_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *CapabilityEntry) GetCapability() string {
@@ -777,7 +885,7 @@ type Grid struct {
 
 func (x *Grid) Reset() {
 	*x = Grid{}
-	mi := &file_infrastructure_manager_v1_portability_portability_proto_msgTypes[4]
+	mi := &file_infrastructure_manager_v1_portability_portability_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -789,7 +897,7 @@ func (x *Grid) String() string {
 func (*Grid) ProtoMessage() {}
 
 func (x *Grid) ProtoReflect() protoreflect.Message {
-	mi := &file_infrastructure_manager_v1_portability_portability_proto_msgTypes[4]
+	mi := &file_infrastructure_manager_v1_portability_portability_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -802,7 +910,7 @@ func (x *Grid) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Grid.ProtoReflect.Descriptor instead.
 func (*Grid) Descriptor() ([]byte, []int) {
-	return file_infrastructure_manager_v1_portability_portability_proto_rawDescGZIP(), []int{4}
+	return file_infrastructure_manager_v1_portability_portability_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *Grid) GetCapabilities() []*CapabilityEntry {
@@ -856,7 +964,7 @@ type ObservedSafeguard struct {
 
 func (x *ObservedSafeguard) Reset() {
 	*x = ObservedSafeguard{}
-	mi := &file_infrastructure_manager_v1_portability_portability_proto_msgTypes[5]
+	mi := &file_infrastructure_manager_v1_portability_portability_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -868,7 +976,7 @@ func (x *ObservedSafeguard) String() string {
 func (*ObservedSafeguard) ProtoMessage() {}
 
 func (x *ObservedSafeguard) ProtoReflect() protoreflect.Message {
-	mi := &file_infrastructure_manager_v1_portability_portability_proto_msgTypes[5]
+	mi := &file_infrastructure_manager_v1_portability_portability_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -881,7 +989,7 @@ func (x *ObservedSafeguard) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ObservedSafeguard.ProtoReflect.Descriptor instead.
 func (*ObservedSafeguard) Descriptor() ([]byte, []int) {
-	return file_infrastructure_manager_v1_portability_portability_proto_rawDescGZIP(), []int{5}
+	return file_infrastructure_manager_v1_portability_portability_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *ObservedSafeguard) GetName() string {
@@ -950,7 +1058,7 @@ type GetGridRequest struct {
 
 func (x *GetGridRequest) Reset() {
 	*x = GetGridRequest{}
-	mi := &file_infrastructure_manager_v1_portability_portability_proto_msgTypes[6]
+	mi := &file_infrastructure_manager_v1_portability_portability_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -962,7 +1070,7 @@ func (x *GetGridRequest) String() string {
 func (*GetGridRequest) ProtoMessage() {}
 
 func (x *GetGridRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_infrastructure_manager_v1_portability_portability_proto_msgTypes[6]
+	mi := &file_infrastructure_manager_v1_portability_portability_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -975,7 +1083,7 @@ func (x *GetGridRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetGridRequest.ProtoReflect.Descriptor instead.
 func (*GetGridRequest) Descriptor() ([]byte, []int) {
-	return file_infrastructure_manager_v1_portability_portability_proto_rawDescGZIP(), []int{6}
+	return file_infrastructure_manager_v1_portability_portability_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *GetGridRequest) GetCapabilities() []string {
@@ -994,7 +1102,7 @@ type GetGridResponse struct {
 
 func (x *GetGridResponse) Reset() {
 	*x = GetGridResponse{}
-	mi := &file_infrastructure_manager_v1_portability_portability_proto_msgTypes[7]
+	mi := &file_infrastructure_manager_v1_portability_portability_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1006,7 +1114,7 @@ func (x *GetGridResponse) String() string {
 func (*GetGridResponse) ProtoMessage() {}
 
 func (x *GetGridResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_infrastructure_manager_v1_portability_portability_proto_msgTypes[7]
+	mi := &file_infrastructure_manager_v1_portability_portability_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1019,7 +1127,7 @@ func (x *GetGridResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetGridResponse.ProtoReflect.Descriptor instead.
 func (*GetGridResponse) Descriptor() ([]byte, []int) {
-	return file_infrastructure_manager_v1_portability_portability_proto_rawDescGZIP(), []int{7}
+	return file_infrastructure_manager_v1_portability_portability_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *GetGridResponse) GetGrid() *Grid {
@@ -1038,7 +1146,7 @@ type GetCapabilityRequest struct {
 
 func (x *GetCapabilityRequest) Reset() {
 	*x = GetCapabilityRequest{}
-	mi := &file_infrastructure_manager_v1_portability_portability_proto_msgTypes[8]
+	mi := &file_infrastructure_manager_v1_portability_portability_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1050,7 +1158,7 @@ func (x *GetCapabilityRequest) String() string {
 func (*GetCapabilityRequest) ProtoMessage() {}
 
 func (x *GetCapabilityRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_infrastructure_manager_v1_portability_portability_proto_msgTypes[8]
+	mi := &file_infrastructure_manager_v1_portability_portability_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1063,7 +1171,7 @@ func (x *GetCapabilityRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetCapabilityRequest.ProtoReflect.Descriptor instead.
 func (*GetCapabilityRequest) Descriptor() ([]byte, []int) {
-	return file_infrastructure_manager_v1_portability_portability_proto_rawDescGZIP(), []int{8}
+	return file_infrastructure_manager_v1_portability_portability_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *GetCapabilityRequest) GetCapability() string {
@@ -1084,7 +1192,7 @@ type GetCapabilityResponse struct {
 
 func (x *GetCapabilityResponse) Reset() {
 	*x = GetCapabilityResponse{}
-	mi := &file_infrastructure_manager_v1_portability_portability_proto_msgTypes[9]
+	mi := &file_infrastructure_manager_v1_portability_portability_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1096,7 +1204,7 @@ func (x *GetCapabilityResponse) String() string {
 func (*GetCapabilityResponse) ProtoMessage() {}
 
 func (x *GetCapabilityResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_infrastructure_manager_v1_portability_portability_proto_msgTypes[9]
+	mi := &file_infrastructure_manager_v1_portability_portability_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1109,7 +1217,7 @@ func (x *GetCapabilityResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetCapabilityResponse.ProtoReflect.Descriptor instead.
 func (*GetCapabilityResponse) Descriptor() ([]byte, []int) {
-	return file_infrastructure_manager_v1_portability_portability_proto_rawDescGZIP(), []int{9}
+	return file_infrastructure_manager_v1_portability_portability_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *GetCapabilityResponse) GetCapability() *CapabilityEntry {
@@ -1144,7 +1252,7 @@ type ListSituationsRequest struct {
 
 func (x *ListSituationsRequest) Reset() {
 	*x = ListSituationsRequest{}
-	mi := &file_infrastructure_manager_v1_portability_portability_proto_msgTypes[10]
+	mi := &file_infrastructure_manager_v1_portability_portability_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1156,7 +1264,7 @@ func (x *ListSituationsRequest) String() string {
 func (*ListSituationsRequest) ProtoMessage() {}
 
 func (x *ListSituationsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_infrastructure_manager_v1_portability_portability_proto_msgTypes[10]
+	mi := &file_infrastructure_manager_v1_portability_portability_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1169,7 +1277,7 @@ func (x *ListSituationsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListSituationsRequest.ProtoReflect.Descriptor instead.
 func (*ListSituationsRequest) Descriptor() ([]byte, []int) {
-	return file_infrastructure_manager_v1_portability_portability_proto_rawDescGZIP(), []int{10}
+	return file_infrastructure_manager_v1_portability_portability_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *ListSituationsRequest) GetSituation() CapabilitySituation {
@@ -1190,7 +1298,7 @@ type ListSituationsResponse struct {
 
 func (x *ListSituationsResponse) Reset() {
 	*x = ListSituationsResponse{}
-	mi := &file_infrastructure_manager_v1_portability_portability_proto_msgTypes[11]
+	mi := &file_infrastructure_manager_v1_portability_portability_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1202,7 +1310,7 @@ func (x *ListSituationsResponse) String() string {
 func (*ListSituationsResponse) ProtoMessage() {}
 
 func (x *ListSituationsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_infrastructure_manager_v1_portability_portability_proto_msgTypes[11]
+	mi := &file_infrastructure_manager_v1_portability_portability_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1215,7 +1323,7 @@ func (x *ListSituationsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListSituationsResponse.ProtoReflect.Descriptor instead.
 func (*ListSituationsResponse) Descriptor() ([]byte, []int) {
-	return file_infrastructure_manager_v1_portability_portability_proto_rawDescGZIP(), []int{11}
+	return file_infrastructure_manager_v1_portability_portability_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *ListSituationsResponse) GetCapabilities() []*CapabilityEntry {
@@ -1251,7 +1359,7 @@ type DependencyReason struct {
 
 func (x *DependencyReason) Reset() {
 	*x = DependencyReason{}
-	mi := &file_infrastructure_manager_v1_portability_portability_proto_msgTypes[12]
+	mi := &file_infrastructure_manager_v1_portability_portability_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1263,7 +1371,7 @@ func (x *DependencyReason) String() string {
 func (*DependencyReason) ProtoMessage() {}
 
 func (x *DependencyReason) ProtoReflect() protoreflect.Message {
-	mi := &file_infrastructure_manager_v1_portability_portability_proto_msgTypes[12]
+	mi := &file_infrastructure_manager_v1_portability_portability_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1276,7 +1384,7 @@ func (x *DependencyReason) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DependencyReason.ProtoReflect.Descriptor instead.
 func (*DependencyReason) Descriptor() ([]byte, []int) {
-	return file_infrastructure_manager_v1_portability_portability_proto_rawDescGZIP(), []int{12}
+	return file_infrastructure_manager_v1_portability_portability_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *DependencyReason) GetCode() string {
@@ -1320,7 +1428,7 @@ type DependencyResult struct {
 
 func (x *DependencyResult) Reset() {
 	*x = DependencyResult{}
-	mi := &file_infrastructure_manager_v1_portability_portability_proto_msgTypes[13]
+	mi := &file_infrastructure_manager_v1_portability_portability_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1332,7 +1440,7 @@ func (x *DependencyResult) String() string {
 func (*DependencyResult) ProtoMessage() {}
 
 func (x *DependencyResult) ProtoReflect() protoreflect.Message {
-	mi := &file_infrastructure_manager_v1_portability_portability_proto_msgTypes[13]
+	mi := &file_infrastructure_manager_v1_portability_portability_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1345,7 +1453,7 @@ func (x *DependencyResult) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DependencyResult.ProtoReflect.Descriptor instead.
 func (*DependencyResult) Descriptor() ([]byte, []int) {
-	return file_infrastructure_manager_v1_portability_portability_proto_rawDescGZIP(), []int{13}
+	return file_infrastructure_manager_v1_portability_portability_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *DependencyResult) GetKind() string {
@@ -1394,7 +1502,7 @@ type ScenarioBlock struct {
 
 func (x *ScenarioBlock) Reset() {
 	*x = ScenarioBlock{}
-	mi := &file_infrastructure_manager_v1_portability_portability_proto_msgTypes[14]
+	mi := &file_infrastructure_manager_v1_portability_portability_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1406,7 +1514,7 @@ func (x *ScenarioBlock) String() string {
 func (*ScenarioBlock) ProtoMessage() {}
 
 func (x *ScenarioBlock) ProtoReflect() protoreflect.Message {
-	mi := &file_infrastructure_manager_v1_portability_portability_proto_msgTypes[14]
+	mi := &file_infrastructure_manager_v1_portability_portability_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1419,7 +1527,7 @@ func (x *ScenarioBlock) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ScenarioBlock.ProtoReflect.Descriptor instead.
 func (*ScenarioBlock) Descriptor() ([]byte, []int) {
-	return file_infrastructure_manager_v1_portability_portability_proto_rawDescGZIP(), []int{14}
+	return file_infrastructure_manager_v1_portability_portability_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *ScenarioBlock) GetScenario() string {
@@ -1454,7 +1562,7 @@ type ScenarioPeerless struct {
 
 func (x *ScenarioPeerless) Reset() {
 	*x = ScenarioPeerless{}
-	mi := &file_infrastructure_manager_v1_portability_portability_proto_msgTypes[15]
+	mi := &file_infrastructure_manager_v1_portability_portability_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1466,7 +1574,7 @@ func (x *ScenarioPeerless) String() string {
 func (*ScenarioPeerless) ProtoMessage() {}
 
 func (x *ScenarioPeerless) ProtoReflect() protoreflect.Message {
-	mi := &file_infrastructure_manager_v1_portability_portability_proto_msgTypes[15]
+	mi := &file_infrastructure_manager_v1_portability_portability_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1479,7 +1587,7 @@ func (x *ScenarioPeerless) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ScenarioPeerless.ProtoReflect.Descriptor instead.
 func (*ScenarioPeerless) Descriptor() ([]byte, []int) {
-	return file_infrastructure_manager_v1_portability_portability_proto_rawDescGZIP(), []int{15}
+	return file_infrastructure_manager_v1_portability_portability_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *ScenarioPeerless) GetScenario() string {
@@ -1517,7 +1625,7 @@ type TierUpgrade struct {
 
 func (x *TierUpgrade) Reset() {
 	*x = TierUpgrade{}
-	mi := &file_infrastructure_manager_v1_portability_portability_proto_msgTypes[16]
+	mi := &file_infrastructure_manager_v1_portability_portability_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1529,7 +1637,7 @@ func (x *TierUpgrade) String() string {
 func (*TierUpgrade) ProtoMessage() {}
 
 func (x *TierUpgrade) ProtoReflect() protoreflect.Message {
-	mi := &file_infrastructure_manager_v1_portability_portability_proto_msgTypes[16]
+	mi := &file_infrastructure_manager_v1_portability_portability_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1542,7 +1650,7 @@ func (x *TierUpgrade) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TierUpgrade.ProtoReflect.Descriptor instead.
 func (*TierUpgrade) Descriptor() ([]byte, []int) {
-	return file_infrastructure_manager_v1_portability_portability_proto_rawDescGZIP(), []int{16}
+	return file_infrastructure_manager_v1_portability_portability_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *TierUpgrade) GetScenario() string {
@@ -1602,7 +1710,7 @@ type DesktopBundlingVerdict struct {
 
 func (x *DesktopBundlingVerdict) Reset() {
 	*x = DesktopBundlingVerdict{}
-	mi := &file_infrastructure_manager_v1_portability_portability_proto_msgTypes[17]
+	mi := &file_infrastructure_manager_v1_portability_portability_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1614,7 +1722,7 @@ func (x *DesktopBundlingVerdict) String() string {
 func (*DesktopBundlingVerdict) ProtoMessage() {}
 
 func (x *DesktopBundlingVerdict) ProtoReflect() protoreflect.Message {
-	mi := &file_infrastructure_manager_v1_portability_portability_proto_msgTypes[17]
+	mi := &file_infrastructure_manager_v1_portability_portability_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1627,7 +1735,7 @@ func (x *DesktopBundlingVerdict) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DesktopBundlingVerdict.ProtoReflect.Descriptor instead.
 func (*DesktopBundlingVerdict) Descriptor() ([]byte, []int) {
-	return file_infrastructure_manager_v1_portability_portability_proto_rawDescGZIP(), []int{17}
+	return file_infrastructure_manager_v1_portability_portability_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *DesktopBundlingVerdict) GetResources() int32 {
@@ -1698,7 +1806,7 @@ type FleetReadout struct {
 
 func (x *FleetReadout) Reset() {
 	*x = FleetReadout{}
-	mi := &file_infrastructure_manager_v1_portability_portability_proto_msgTypes[18]
+	mi := &file_infrastructure_manager_v1_portability_portability_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1710,7 +1818,7 @@ func (x *FleetReadout) String() string {
 func (*FleetReadout) ProtoMessage() {}
 
 func (x *FleetReadout) ProtoReflect() protoreflect.Message {
-	mi := &file_infrastructure_manager_v1_portability_portability_proto_msgTypes[18]
+	mi := &file_infrastructure_manager_v1_portability_portability_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1723,7 +1831,7 @@ func (x *FleetReadout) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FleetReadout.ProtoReflect.Descriptor instead.
 func (*FleetReadout) Descriptor() ([]byte, []int) {
-	return file_infrastructure_manager_v1_portability_portability_proto_rawDescGZIP(), []int{18}
+	return file_infrastructure_manager_v1_portability_portability_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *FleetReadout) GetBlockedByOs() []*ScenarioBlock {
@@ -1805,7 +1913,7 @@ type GetFleetRequest struct {
 
 func (x *GetFleetRequest) Reset() {
 	*x = GetFleetRequest{}
-	mi := &file_infrastructure_manager_v1_portability_portability_proto_msgTypes[19]
+	mi := &file_infrastructure_manager_v1_portability_portability_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1817,7 +1925,7 @@ func (x *GetFleetRequest) String() string {
 func (*GetFleetRequest) ProtoMessage() {}
 
 func (x *GetFleetRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_infrastructure_manager_v1_portability_portability_proto_msgTypes[19]
+	mi := &file_infrastructure_manager_v1_portability_portability_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1830,7 +1938,7 @@ func (x *GetFleetRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetFleetRequest.ProtoReflect.Descriptor instead.
 func (*GetFleetRequest) Descriptor() ([]byte, []int) {
-	return file_infrastructure_manager_v1_portability_portability_proto_rawDescGZIP(), []int{19}
+	return file_infrastructure_manager_v1_portability_portability_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *GetFleetRequest) GetView() string {
@@ -1849,7 +1957,7 @@ type GetFleetResponse struct {
 
 func (x *GetFleetResponse) Reset() {
 	*x = GetFleetResponse{}
-	mi := &file_infrastructure_manager_v1_portability_portability_proto_msgTypes[20]
+	mi := &file_infrastructure_manager_v1_portability_portability_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1861,7 +1969,7 @@ func (x *GetFleetResponse) String() string {
 func (*GetFleetResponse) ProtoMessage() {}
 
 func (x *GetFleetResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_infrastructure_manager_v1_portability_portability_proto_msgTypes[20]
+	mi := &file_infrastructure_manager_v1_portability_portability_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1874,7 +1982,7 @@ func (x *GetFleetResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetFleetResponse.ProtoReflect.Descriptor instead.
 func (*GetFleetResponse) Descriptor() ([]byte, []int) {
-	return file_infrastructure_manager_v1_portability_portability_proto_rawDescGZIP(), []int{20}
+	return file_infrastructure_manager_v1_portability_portability_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *GetFleetResponse) GetFleet() *FleetReadout {
@@ -1888,7 +1996,7 @@ var File_infrastructure_manager_v1_portability_portability_proto protoreflect.Fi
 
 const file_infrastructure_manager_v1_portability_portability_proto_rawDesc = "" +
 	"\n" +
-	"7infrastructure-manager/v1/portability/portability.proto\x12,vrooli.infrastructure_manager.v1.portability\x1a\x1fgoogle/protobuf/timestamp.proto\"\x86\b\n" +
+	"7infrastructure-manager/v1/portability/portability.proto\x12,vrooli.infrastructure_manager.v1.portability\x1a\x1fgoogle/protobuf/timestamp.proto\"\xf2\b\n" +
 	"\rPlatformEntry\x12M\n" +
 	"\ahost_os\x18\x01 \x01(\x0e24.vrooli.infrastructure_manager.v1.portability.HostOSR\x06hostOs\x12\"\n" +
 	"\farchitecture\x18\x11 \x01(\tR\farchitecture\x12V\n" +
@@ -1907,7 +2015,17 @@ const file_infrastructure_manager_v1_portability_portability_proto_rawDesc = "" 
 	"\tdeclarers\x18\v \x03(\v2@.vrooli.infrastructure_manager.v1.portability.CapabilityDeclarerR\tdeclarers\x12r\n" +
 	"\x16observed_qualification\x18\f \x01(\x0e2;.vrooli.infrastructure_manager.v1.portability.QualificationR\x15observedQualification\x12B\n" +
 	"\x1dobserved_qualification_reason\x18\r \x01(\tR\x1bobservedQualificationReason\x12m\n" +
-	"\x12observed_declarers\x18\x0e \x03(\v2>.vrooli.infrastructure_manager.v1.portability.ObservedDeclarerR\x11observedDeclarers\"\x99\x01\n" +
+	"\x12observed_declarers\x18\x0e \x03(\v2>.vrooli.infrastructure_manager.v1.portability.ObservedDeclarerR\x11observedDeclarers\x12R\n" +
+	"\bevidence\x18\x12 \x01(\v26.vrooli.infrastructure_manager.v1.portability.EvidenceR\bevidence\x12\x16\n" +
+	"\x06policy\x18\x13 \x01(\tR\x06policy\"\xaa\x01\n" +
+	"\bEvidence\x12\x15\n" +
+	"\x06run_id\x18\x01 \x01(\tR\x05runId\x12\x12\n" +
+	"\x04host\x18\x02 \x01(\tR\x04host\x12\x0e\n" +
+	"\x02os\x18\x03 \x01(\tR\x02os\x12\x12\n" +
+	"\x04arch\x18\x04 \x01(\tR\x04arch\x12\x12\n" +
+	"\x04date\x18\x05 \x01(\tR\x04date\x12\x18\n" +
+	"\asurface\x18\x06 \x01(\tR\asurface\x12!\n" +
+	"\fartifact_uri\x18\a \x01(\tR\vartifactUri\"\x99\x01\n" +
 	"\x12CapabilityDeclarer\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x12\n" +
 	"\x04role\x18\x02 \x01(\tR\x04role\x12'\n" +
@@ -2081,7 +2199,7 @@ func file_infrastructure_manager_v1_portability_portability_proto_rawDescGZIP() 
 }
 
 var file_infrastructure_manager_v1_portability_portability_proto_enumTypes = make([]protoimpl.EnumInfo, 6)
-var file_infrastructure_manager_v1_portability_portability_proto_msgTypes = make([]protoimpl.MessageInfo, 21)
+var file_infrastructure_manager_v1_portability_portability_proto_msgTypes = make([]protoimpl.MessageInfo, 22)
 var file_infrastructure_manager_v1_portability_portability_proto_goTypes = []any{
 	(HostOS)(0),                    // 0: vrooli.infrastructure_manager.v1.portability.HostOS
 	(ResolutionStatus)(0),          // 1: vrooli.infrastructure_manager.v1.portability.ResolutionStatus
@@ -2090,76 +2208,78 @@ var file_infrastructure_manager_v1_portability_portability_proto_goTypes = []any
 	(Verdict)(0),                   // 4: vrooli.infrastructure_manager.v1.portability.Verdict
 	(DeliveryTier)(0),              // 5: vrooli.infrastructure_manager.v1.portability.DeliveryTier
 	(*PlatformEntry)(nil),          // 6: vrooli.infrastructure_manager.v1.portability.PlatformEntry
-	(*CapabilityDeclarer)(nil),     // 7: vrooli.infrastructure_manager.v1.portability.CapabilityDeclarer
-	(*ObservedDeclarer)(nil),       // 8: vrooli.infrastructure_manager.v1.portability.ObservedDeclarer
-	(*CapabilityEntry)(nil),        // 9: vrooli.infrastructure_manager.v1.portability.CapabilityEntry
-	(*Grid)(nil),                   // 10: vrooli.infrastructure_manager.v1.portability.Grid
-	(*ObservedSafeguard)(nil),      // 11: vrooli.infrastructure_manager.v1.portability.ObservedSafeguard
-	(*GetGridRequest)(nil),         // 12: vrooli.infrastructure_manager.v1.portability.GetGridRequest
-	(*GetGridResponse)(nil),        // 13: vrooli.infrastructure_manager.v1.portability.GetGridResponse
-	(*GetCapabilityRequest)(nil),   // 14: vrooli.infrastructure_manager.v1.portability.GetCapabilityRequest
-	(*GetCapabilityResponse)(nil),  // 15: vrooli.infrastructure_manager.v1.portability.GetCapabilityResponse
-	(*ListSituationsRequest)(nil),  // 16: vrooli.infrastructure_manager.v1.portability.ListSituationsRequest
-	(*ListSituationsResponse)(nil), // 17: vrooli.infrastructure_manager.v1.portability.ListSituationsResponse
-	(*DependencyReason)(nil),       // 18: vrooli.infrastructure_manager.v1.portability.DependencyReason
-	(*DependencyResult)(nil),       // 19: vrooli.infrastructure_manager.v1.portability.DependencyResult
-	(*ScenarioBlock)(nil),          // 20: vrooli.infrastructure_manager.v1.portability.ScenarioBlock
-	(*ScenarioPeerless)(nil),       // 21: vrooli.infrastructure_manager.v1.portability.ScenarioPeerless
-	(*TierUpgrade)(nil),            // 22: vrooli.infrastructure_manager.v1.portability.TierUpgrade
-	(*DesktopBundlingVerdict)(nil), // 23: vrooli.infrastructure_manager.v1.portability.DesktopBundlingVerdict
-	(*FleetReadout)(nil),           // 24: vrooli.infrastructure_manager.v1.portability.FleetReadout
-	(*GetFleetRequest)(nil),        // 25: vrooli.infrastructure_manager.v1.portability.GetFleetRequest
-	(*GetFleetResponse)(nil),       // 26: vrooli.infrastructure_manager.v1.portability.GetFleetResponse
-	(*timestamppb.Timestamp)(nil),  // 27: google.protobuf.Timestamp
+	(*Evidence)(nil),               // 7: vrooli.infrastructure_manager.v1.portability.Evidence
+	(*CapabilityDeclarer)(nil),     // 8: vrooli.infrastructure_manager.v1.portability.CapabilityDeclarer
+	(*ObservedDeclarer)(nil),       // 9: vrooli.infrastructure_manager.v1.portability.ObservedDeclarer
+	(*CapabilityEntry)(nil),        // 10: vrooli.infrastructure_manager.v1.portability.CapabilityEntry
+	(*Grid)(nil),                   // 11: vrooli.infrastructure_manager.v1.portability.Grid
+	(*ObservedSafeguard)(nil),      // 12: vrooli.infrastructure_manager.v1.portability.ObservedSafeguard
+	(*GetGridRequest)(nil),         // 13: vrooli.infrastructure_manager.v1.portability.GetGridRequest
+	(*GetGridResponse)(nil),        // 14: vrooli.infrastructure_manager.v1.portability.GetGridResponse
+	(*GetCapabilityRequest)(nil),   // 15: vrooli.infrastructure_manager.v1.portability.GetCapabilityRequest
+	(*GetCapabilityResponse)(nil),  // 16: vrooli.infrastructure_manager.v1.portability.GetCapabilityResponse
+	(*ListSituationsRequest)(nil),  // 17: vrooli.infrastructure_manager.v1.portability.ListSituationsRequest
+	(*ListSituationsResponse)(nil), // 18: vrooli.infrastructure_manager.v1.portability.ListSituationsResponse
+	(*DependencyReason)(nil),       // 19: vrooli.infrastructure_manager.v1.portability.DependencyReason
+	(*DependencyResult)(nil),       // 20: vrooli.infrastructure_manager.v1.portability.DependencyResult
+	(*ScenarioBlock)(nil),          // 21: vrooli.infrastructure_manager.v1.portability.ScenarioBlock
+	(*ScenarioPeerless)(nil),       // 22: vrooli.infrastructure_manager.v1.portability.ScenarioPeerless
+	(*TierUpgrade)(nil),            // 23: vrooli.infrastructure_manager.v1.portability.TierUpgrade
+	(*DesktopBundlingVerdict)(nil), // 24: vrooli.infrastructure_manager.v1.portability.DesktopBundlingVerdict
+	(*FleetReadout)(nil),           // 25: vrooli.infrastructure_manager.v1.portability.FleetReadout
+	(*GetFleetRequest)(nil),        // 26: vrooli.infrastructure_manager.v1.portability.GetFleetRequest
+	(*GetFleetResponse)(nil),       // 27: vrooli.infrastructure_manager.v1.portability.GetFleetResponse
+	(*timestamppb.Timestamp)(nil),  // 28: google.protobuf.Timestamp
 }
 var file_infrastructure_manager_v1_portability_portability_proto_depIdxs = []int32{
 	0,  // 0: vrooli.infrastructure_manager.v1.portability.PlatformEntry.host_os:type_name -> vrooli.infrastructure_manager.v1.portability.HostOS
 	1,  // 1: vrooli.infrastructure_manager.v1.portability.PlatformEntry.status:type_name -> vrooli.infrastructure_manager.v1.portability.ResolutionStatus
 	2,  // 2: vrooli.infrastructure_manager.v1.portability.PlatformEntry.qualification:type_name -> vrooli.infrastructure_manager.v1.portability.Qualification
-	7,  // 3: vrooli.infrastructure_manager.v1.portability.PlatformEntry.declarers:type_name -> vrooli.infrastructure_manager.v1.portability.CapabilityDeclarer
+	8,  // 3: vrooli.infrastructure_manager.v1.portability.PlatformEntry.declarers:type_name -> vrooli.infrastructure_manager.v1.portability.CapabilityDeclarer
 	2,  // 4: vrooli.infrastructure_manager.v1.portability.PlatformEntry.observed_qualification:type_name -> vrooli.infrastructure_manager.v1.portability.Qualification
-	8,  // 5: vrooli.infrastructure_manager.v1.portability.PlatformEntry.observed_declarers:type_name -> vrooli.infrastructure_manager.v1.portability.ObservedDeclarer
-	2,  // 6: vrooli.infrastructure_manager.v1.portability.ObservedDeclarer.qualification:type_name -> vrooli.infrastructure_manager.v1.portability.Qualification
-	3,  // 7: vrooli.infrastructure_manager.v1.portability.CapabilityEntry.situation:type_name -> vrooli.infrastructure_manager.v1.portability.CapabilitySituation
-	6,  // 8: vrooli.infrastructure_manager.v1.portability.CapabilityEntry.platforms:type_name -> vrooli.infrastructure_manager.v1.portability.PlatformEntry
-	9,  // 9: vrooli.infrastructure_manager.v1.portability.Grid.capabilities:type_name -> vrooli.infrastructure_manager.v1.portability.CapabilityEntry
-	27, // 10: vrooli.infrastructure_manager.v1.portability.Grid.computed_at:type_name -> google.protobuf.Timestamp
-	11, // 11: vrooli.infrastructure_manager.v1.portability.Grid.observed_safeguards:type_name -> vrooli.infrastructure_manager.v1.portability.ObservedSafeguard
-	27, // 12: vrooli.infrastructure_manager.v1.portability.ObservedSafeguard.observed_at:type_name -> google.protobuf.Timestamp
-	10, // 13: vrooli.infrastructure_manager.v1.portability.GetGridResponse.grid:type_name -> vrooli.infrastructure_manager.v1.portability.Grid
-	9,  // 14: vrooli.infrastructure_manager.v1.portability.GetCapabilityResponse.capability:type_name -> vrooli.infrastructure_manager.v1.portability.CapabilityEntry
-	27, // 15: vrooli.infrastructure_manager.v1.portability.GetCapabilityResponse.computed_at:type_name -> google.protobuf.Timestamp
-	3,  // 16: vrooli.infrastructure_manager.v1.portability.ListSituationsRequest.situation:type_name -> vrooli.infrastructure_manager.v1.portability.CapabilitySituation
-	9,  // 17: vrooli.infrastructure_manager.v1.portability.ListSituationsResponse.capabilities:type_name -> vrooli.infrastructure_manager.v1.portability.CapabilityEntry
-	27, // 18: vrooli.infrastructure_manager.v1.portability.ListSituationsResponse.computed_at:type_name -> google.protobuf.Timestamp
-	4,  // 19: vrooli.infrastructure_manager.v1.portability.DependencyResult.verdict:type_name -> vrooli.infrastructure_manager.v1.portability.Verdict
-	18, // 20: vrooli.infrastructure_manager.v1.portability.DependencyResult.reasons:type_name -> vrooli.infrastructure_manager.v1.portability.DependencyReason
-	0,  // 21: vrooli.infrastructure_manager.v1.portability.ScenarioBlock.host_os:type_name -> vrooli.infrastructure_manager.v1.portability.HostOS
-	19, // 22: vrooli.infrastructure_manager.v1.portability.ScenarioBlock.dependencies:type_name -> vrooli.infrastructure_manager.v1.portability.DependencyResult
-	0,  // 23: vrooli.infrastructure_manager.v1.portability.ScenarioPeerless.host_os:type_name -> vrooli.infrastructure_manager.v1.portability.HostOS
-	0,  // 24: vrooli.infrastructure_manager.v1.portability.TierUpgrade.host_os:type_name -> vrooli.infrastructure_manager.v1.portability.HostOS
-	5,  // 25: vrooli.infrastructure_manager.v1.portability.TierUpgrade.current_tier:type_name -> vrooli.infrastructure_manager.v1.portability.DeliveryTier
-	5,  // 26: vrooli.infrastructure_manager.v1.portability.TierUpgrade.next_tier:type_name -> vrooli.infrastructure_manager.v1.portability.DeliveryTier
-	20, // 27: vrooli.infrastructure_manager.v1.portability.FleetReadout.blocked_by_os:type_name -> vrooli.infrastructure_manager.v1.portability.ScenarioBlock
-	20, // 28: vrooli.infrastructure_manager.v1.portability.FleetReadout.docker_blocked:type_name -> vrooli.infrastructure_manager.v1.portability.ScenarioBlock
-	21, // 29: vrooli.infrastructure_manager.v1.portability.FleetReadout.peerless:type_name -> vrooli.infrastructure_manager.v1.portability.ScenarioPeerless
-	22, // 30: vrooli.infrastructure_manager.v1.portability.FleetReadout.tier_upgrades:type_name -> vrooli.infrastructure_manager.v1.portability.TierUpgrade
-	23, // 31: vrooli.infrastructure_manager.v1.portability.FleetReadout.desktop_bundling:type_name -> vrooli.infrastructure_manager.v1.portability.DesktopBundlingVerdict
-	27, // 32: vrooli.infrastructure_manager.v1.portability.FleetReadout.computed_at:type_name -> google.protobuf.Timestamp
-	24, // 33: vrooli.infrastructure_manager.v1.portability.GetFleetResponse.fleet:type_name -> vrooli.infrastructure_manager.v1.portability.FleetReadout
-	12, // 34: vrooli.infrastructure_manager.v1.portability.PortabilityService.GetGrid:input_type -> vrooli.infrastructure_manager.v1.portability.GetGridRequest
-	14, // 35: vrooli.infrastructure_manager.v1.portability.PortabilityService.GetCapability:input_type -> vrooli.infrastructure_manager.v1.portability.GetCapabilityRequest
-	16, // 36: vrooli.infrastructure_manager.v1.portability.PortabilityService.ListSituations:input_type -> vrooli.infrastructure_manager.v1.portability.ListSituationsRequest
-	25, // 37: vrooli.infrastructure_manager.v1.portability.PortabilityService.GetFleet:input_type -> vrooli.infrastructure_manager.v1.portability.GetFleetRequest
-	13, // 38: vrooli.infrastructure_manager.v1.portability.PortabilityService.GetGrid:output_type -> vrooli.infrastructure_manager.v1.portability.GetGridResponse
-	15, // 39: vrooli.infrastructure_manager.v1.portability.PortabilityService.GetCapability:output_type -> vrooli.infrastructure_manager.v1.portability.GetCapabilityResponse
-	17, // 40: vrooli.infrastructure_manager.v1.portability.PortabilityService.ListSituations:output_type -> vrooli.infrastructure_manager.v1.portability.ListSituationsResponse
-	26, // 41: vrooli.infrastructure_manager.v1.portability.PortabilityService.GetFleet:output_type -> vrooli.infrastructure_manager.v1.portability.GetFleetResponse
-	38, // [38:42] is the sub-list for method output_type
-	34, // [34:38] is the sub-list for method input_type
-	34, // [34:34] is the sub-list for extension type_name
-	34, // [34:34] is the sub-list for extension extendee
-	0,  // [0:34] is the sub-list for field type_name
+	9,  // 5: vrooli.infrastructure_manager.v1.portability.PlatformEntry.observed_declarers:type_name -> vrooli.infrastructure_manager.v1.portability.ObservedDeclarer
+	7,  // 6: vrooli.infrastructure_manager.v1.portability.PlatformEntry.evidence:type_name -> vrooli.infrastructure_manager.v1.portability.Evidence
+	2,  // 7: vrooli.infrastructure_manager.v1.portability.ObservedDeclarer.qualification:type_name -> vrooli.infrastructure_manager.v1.portability.Qualification
+	3,  // 8: vrooli.infrastructure_manager.v1.portability.CapabilityEntry.situation:type_name -> vrooli.infrastructure_manager.v1.portability.CapabilitySituation
+	6,  // 9: vrooli.infrastructure_manager.v1.portability.CapabilityEntry.platforms:type_name -> vrooli.infrastructure_manager.v1.portability.PlatformEntry
+	10, // 10: vrooli.infrastructure_manager.v1.portability.Grid.capabilities:type_name -> vrooli.infrastructure_manager.v1.portability.CapabilityEntry
+	28, // 11: vrooli.infrastructure_manager.v1.portability.Grid.computed_at:type_name -> google.protobuf.Timestamp
+	12, // 12: vrooli.infrastructure_manager.v1.portability.Grid.observed_safeguards:type_name -> vrooli.infrastructure_manager.v1.portability.ObservedSafeguard
+	28, // 13: vrooli.infrastructure_manager.v1.portability.ObservedSafeguard.observed_at:type_name -> google.protobuf.Timestamp
+	11, // 14: vrooli.infrastructure_manager.v1.portability.GetGridResponse.grid:type_name -> vrooli.infrastructure_manager.v1.portability.Grid
+	10, // 15: vrooli.infrastructure_manager.v1.portability.GetCapabilityResponse.capability:type_name -> vrooli.infrastructure_manager.v1.portability.CapabilityEntry
+	28, // 16: vrooli.infrastructure_manager.v1.portability.GetCapabilityResponse.computed_at:type_name -> google.protobuf.Timestamp
+	3,  // 17: vrooli.infrastructure_manager.v1.portability.ListSituationsRequest.situation:type_name -> vrooli.infrastructure_manager.v1.portability.CapabilitySituation
+	10, // 18: vrooli.infrastructure_manager.v1.portability.ListSituationsResponse.capabilities:type_name -> vrooli.infrastructure_manager.v1.portability.CapabilityEntry
+	28, // 19: vrooli.infrastructure_manager.v1.portability.ListSituationsResponse.computed_at:type_name -> google.protobuf.Timestamp
+	4,  // 20: vrooli.infrastructure_manager.v1.portability.DependencyResult.verdict:type_name -> vrooli.infrastructure_manager.v1.portability.Verdict
+	19, // 21: vrooli.infrastructure_manager.v1.portability.DependencyResult.reasons:type_name -> vrooli.infrastructure_manager.v1.portability.DependencyReason
+	0,  // 22: vrooli.infrastructure_manager.v1.portability.ScenarioBlock.host_os:type_name -> vrooli.infrastructure_manager.v1.portability.HostOS
+	20, // 23: vrooli.infrastructure_manager.v1.portability.ScenarioBlock.dependencies:type_name -> vrooli.infrastructure_manager.v1.portability.DependencyResult
+	0,  // 24: vrooli.infrastructure_manager.v1.portability.ScenarioPeerless.host_os:type_name -> vrooli.infrastructure_manager.v1.portability.HostOS
+	0,  // 25: vrooli.infrastructure_manager.v1.portability.TierUpgrade.host_os:type_name -> vrooli.infrastructure_manager.v1.portability.HostOS
+	5,  // 26: vrooli.infrastructure_manager.v1.portability.TierUpgrade.current_tier:type_name -> vrooli.infrastructure_manager.v1.portability.DeliveryTier
+	5,  // 27: vrooli.infrastructure_manager.v1.portability.TierUpgrade.next_tier:type_name -> vrooli.infrastructure_manager.v1.portability.DeliveryTier
+	21, // 28: vrooli.infrastructure_manager.v1.portability.FleetReadout.blocked_by_os:type_name -> vrooli.infrastructure_manager.v1.portability.ScenarioBlock
+	21, // 29: vrooli.infrastructure_manager.v1.portability.FleetReadout.docker_blocked:type_name -> vrooli.infrastructure_manager.v1.portability.ScenarioBlock
+	22, // 30: vrooli.infrastructure_manager.v1.portability.FleetReadout.peerless:type_name -> vrooli.infrastructure_manager.v1.portability.ScenarioPeerless
+	23, // 31: vrooli.infrastructure_manager.v1.portability.FleetReadout.tier_upgrades:type_name -> vrooli.infrastructure_manager.v1.portability.TierUpgrade
+	24, // 32: vrooli.infrastructure_manager.v1.portability.FleetReadout.desktop_bundling:type_name -> vrooli.infrastructure_manager.v1.portability.DesktopBundlingVerdict
+	28, // 33: vrooli.infrastructure_manager.v1.portability.FleetReadout.computed_at:type_name -> google.protobuf.Timestamp
+	25, // 34: vrooli.infrastructure_manager.v1.portability.GetFleetResponse.fleet:type_name -> vrooli.infrastructure_manager.v1.portability.FleetReadout
+	13, // 35: vrooli.infrastructure_manager.v1.portability.PortabilityService.GetGrid:input_type -> vrooli.infrastructure_manager.v1.portability.GetGridRequest
+	15, // 36: vrooli.infrastructure_manager.v1.portability.PortabilityService.GetCapability:input_type -> vrooli.infrastructure_manager.v1.portability.GetCapabilityRequest
+	17, // 37: vrooli.infrastructure_manager.v1.portability.PortabilityService.ListSituations:input_type -> vrooli.infrastructure_manager.v1.portability.ListSituationsRequest
+	26, // 38: vrooli.infrastructure_manager.v1.portability.PortabilityService.GetFleet:input_type -> vrooli.infrastructure_manager.v1.portability.GetFleetRequest
+	14, // 39: vrooli.infrastructure_manager.v1.portability.PortabilityService.GetGrid:output_type -> vrooli.infrastructure_manager.v1.portability.GetGridResponse
+	16, // 40: vrooli.infrastructure_manager.v1.portability.PortabilityService.GetCapability:output_type -> vrooli.infrastructure_manager.v1.portability.GetCapabilityResponse
+	18, // 41: vrooli.infrastructure_manager.v1.portability.PortabilityService.ListSituations:output_type -> vrooli.infrastructure_manager.v1.portability.ListSituationsResponse
+	27, // 42: vrooli.infrastructure_manager.v1.portability.PortabilityService.GetFleet:output_type -> vrooli.infrastructure_manager.v1.portability.GetFleetResponse
+	39, // [39:43] is the sub-list for method output_type
+	35, // [35:39] is the sub-list for method input_type
+	35, // [35:35] is the sub-list for extension type_name
+	35, // [35:35] is the sub-list for extension extendee
+	0,  // [0:35] is the sub-list for field type_name
 }
 
 func init() { file_infrastructure_manager_v1_portability_portability_proto_init() }
@@ -2173,7 +2293,7 @@ func file_infrastructure_manager_v1_portability_portability_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_infrastructure_manager_v1_portability_portability_proto_rawDesc), len(file_infrastructure_manager_v1_portability_portability_proto_rawDesc)),
 			NumEnums:      6,
-			NumMessages:   21,
+			NumMessages:   22,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

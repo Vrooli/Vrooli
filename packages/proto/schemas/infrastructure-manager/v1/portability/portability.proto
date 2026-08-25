@@ -117,6 +117,18 @@ message PlatformEntry {
   Qualification observed_qualification = 12;
   string observed_qualification_reason = 13;
   repeated ObservedDeclarer observed_declarers = 14;
+  Evidence evidence = 18;
+  string policy = 19;
+}
+
+message Evidence {
+  string run_id = 1;
+  string host = 2;
+  string os = 3;
+  string arch = 4;
+  string date = 5;
+  string surface = 6;
+  string artifact_uri = 7;
 }
 
 message CapabilityDeclarer {

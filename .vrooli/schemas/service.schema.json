@@ -469,9 +469,15 @@
       "required": ["status", "evidence"],
       "additionalProperties": false,
       "properties": {
-        "status": {"enum": ["supported", "build-verified", "experimental", "unqualified", "unsupported"]},
+        "status": {"$ref": "common.schema.json#/definitions/platformStatusToken"},
         "mechanism": {"type": "string", "minLength": 1},
-        "evidence": {"type": "string", "minLength": 1}
+        "evidence": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "common.schema.json#/definitions/platformEvidence" },
+            { "type": "string", "minLength": 1 }
+          ]
+        }
       },
       "allOf": [
         {

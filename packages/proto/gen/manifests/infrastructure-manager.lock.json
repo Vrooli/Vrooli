@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "scenario": "infrastructure-manager",
-  "input_digest": "sha256:450b1c56bbeee448425411876029cb3ee263c973f8491e00de00d64f627d7d63",
+  "input_digest": "sha256:249bbcc873238eadd6a4316c2a8d268644fd46aba58ce440cd11f28033ce3eb7",
   "input_files": [
     "schemas/infrastructure-manager/v1/condition/condition.proto",
     "schemas/infrastructure-manager/v1/coverage/coverage.proto",
@@ -31,7 +31,7 @@
     "gen/go/infrastructure-manager/v1/focus/focus_v1connect/focus.connect.go": "sha256:1f8944bb8c03a18f3cabf7e6ac322da7fc615de3ebd1161f403f1da9e0a2de4c",
     "gen/go/infrastructure-manager/v1/ladder/ladder.pb.go": "sha256:58de7cd808ec25c014563e56f7e5f2efb151baeadf826ba88e68652f1195c80f",
     "gen/go/infrastructure-manager/v1/ladder/ladder_v1connect/ladder.connect.go": "sha256:8834e4a9b0b6f48df41bdc6c8e22a143c2dc8793948e8b08b9160d90c3f1f215",
-    "gen/go/infrastructure-manager/v1/portability/portability.pb.go": "sha256:102a9fb6dc947c730cfadfb451feb52767938f8bafa1dbad1e98885371da821f",
+    "gen/go/infrastructure-manager/v1/portability/portability.pb.go": "sha256:dd83ba8de7d540adfbdb16a1dd977698b6829edbe7391fd003893f561ef8b0dd",
     "gen/go/infrastructure-manager/v1/portability/portability_v1connect/portability.connect.go": "sha256:83f75a450a44c622d40cc227a3c71556d70d827ed824f0c562be134a4a053329",
     "gen/go/infrastructure-manager/v1/shared/cell.pb.go": "sha256:b29efd99caa70a255834f7ac3c99d95e4a7e470e03f91315526cca0fb2d8e3c8",
     "gen/go/infrastructure-manager/v1/shared/errors.pb.go": "sha256:94d0b7fab4e6617fc7b057c0987e5416dd668a799ab0318c7cfc1bddb1cdb073",
@@ -49,8 +49,8 @@
     "gen/python/infrastructure_manager/v1/ladder/ladder_pb2.py": "sha256:9d1cb6cf5a494dec6df10e0192dfe8c54920ca4efb4695c5ca169cdf345ea3f7",
     "gen/python/infrastructure_manager/v1/ladder/ladder_pb2.pyi": "sha256:4a71a78dafd7cf43058242c5b5a4d1fdcec1b3461d5a402e90b365fc51868b1d",
     "gen/python/infrastructure_manager/v1/ladder/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-    "gen/python/infrastructure_manager/v1/portability/portability_pb2.py": "sha256:1ddc77f35bbfc370d319024b6d0882a9f6dbfe18ee71520e4d1652315a6a4717",
-    "gen/python/infrastructure_manager/v1/portability/portability_pb2.pyi": "sha256:39f97ede51a3efced14733d7208b68f216cf68b07bd1afff8d33dca98dc69177",
+    "gen/python/infrastructure_manager/v1/portability/portability_pb2.py": "sha256:de8dd1402b1dac5ab6ed862ecbcfda40e95fab9684abeff6c689033f4db71599",
+    "gen/python/infrastructure_manager/v1/portability/portability_pb2.pyi": "sha256:1a4fca8acda1b8be72b21774e9b61b371dbd6a5f58b9c367d39cefa4d4ac5efc",
     "gen/python/infrastructure_manager/v1/portability/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "gen/python/infrastructure_manager/v1/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "gen/python/infrastructure_manager/v1/shared/cell_pb2.py": "sha256:44f1d80351cea8b737341ed2a9433e7ba38e24ad47d452b067e3917c1485a46d",
@@ -64,7 +64,7 @@
     "gen/typescript/infrastructure-manager/v1/coverage/coverage_pb.ts": "sha256:1f328e02dd2fbed36a8745bf80eae92a37f3800be8677002bf6bce5e3b151c35",
     "gen/typescript/infrastructure-manager/v1/focus/focus_pb.ts": "sha256:a3a338b133ef09204b0e274d65544345de643f18d70c922477d834a47732a3dd",
     "gen/typescript/infrastructure-manager/v1/ladder/ladder_pb.ts": "sha256:ed279f0f87f8a3a33502716486c2c50a696a36d4c0120b7d2fd79bae924c38c0",
-    "gen/typescript/infrastructure-manager/v1/portability/portability_pb.ts": "sha256:40363fcc1ee23e3d07f3d25b0faff6e4f63c71668a6e9bbe54e32d1c97d1294c",
+    "gen/typescript/infrastructure-manager/v1/portability/portability_pb.ts": "sha256:fcc337986989f0d9b6ba0e52c0e69073df51344b43104fae924f3a76e5b0e8e9",
     "gen/typescript/infrastructure-manager/v1/shared/cell_pb.ts": "sha256:c2acc85c2d415d2ee7dda6da979cd4e0216472073a5bdb9b71099ea056fe7218",
     "gen/typescript/infrastructure-manager/v1/shared/errors_pb.ts": "sha256:b11b11641041c72bfe7d65e03b74e61aa99e7806c3ba3af602dc9d826c6756a1",
     "gen/typescript/infrastructure-manager/v1/shared/health_pb.ts": "sha256:889f341b8214226a2eab9f9a6e2e6d86e1a7c0cd6c1fc636b845d10d89d89aa5"

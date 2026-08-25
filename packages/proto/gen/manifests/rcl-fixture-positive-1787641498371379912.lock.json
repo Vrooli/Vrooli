@@ -1,0 +1,46 @@
+{
+  "schema_version": 1,
+  "scenario": "rcl-fixture-positive-1787641498371379912",
+  "input_digest": "sha256:f6e3a442a7fc0a88f78cb8ccab42b77e939cfcf42c0467ea1d70888294c4ef3b",
+  "input_files": [
+    "schemas/measures/v1/measures.proto",
+    "schemas/rcl-fixture-positive-1787641498371379912/v1/notes/attachments.proto",
+    "schemas/rcl-fixture-positive-1787641498371379912/v1/notes/notes.proto",
+    "schemas/rcl-fixture-positive-1787641498371379912/v1/shared/errors.proto",
+    "schemas/rcl-fixture-positive-1787641498371379912/v1/shared/health.proto",
+    "vendor/protovalidate/buf/validate/validate.proto"
+  ],
+  "toolchain": {
+    "buf": "1.37.0",
+    "buf_gen_yaml_digest": "sha256:0006e0ffb2ba47a8abd22f21bcd0646e9aaa7a47f8bc8cd028bc17c74a5b346d",
+    "plugins": {
+      "protoc": "34.1",
+      "protoc-gen-connect-go": "v1.19.2",
+      "protoc-gen-es": "2.12.0",
+      "protoc-gen-go": "v1.36.11"
+    }
+  },
+  "outputs": {
+    "gen/go/rcl-fixture-positive-1787641498371379912/v1/notes/attachments.pb.go": "sha256:2e3907c6e3a7960207ed13f083f34d854117a46c3faa6b4dc85ac63c663c5d22",
+    "gen/go/rcl-fixture-positive-1787641498371379912/v1/notes/notes.pb.go": "sha256:ca6b7c62f3611828346d0a6486ffda16fe4bbe506739bec125258cfef306bc03",
+    "gen/go/rcl-fixture-positive-1787641498371379912/v1/notes/notes_v1connect/notes.connect.go": "sha256:3da95bc445772eb53dc27fc7b1375b3ef13f82d531468fce99bbdee424cebd70",
+    "gen/go/rcl-fixture-positive-1787641498371379912/v1/shared/errors.pb.go": "sha256:6503105375a0ae286ed8d3d5e163038de720cdb9045d456b3ae004dc3033dff0",
+    "gen/go/rcl-fixture-positive-1787641498371379912/v1/shared/health.pb.go": "sha256:e719534a83836ead101513cfe108a2f51cd2d6a6d15bb0c14ace10c7fb2aeb16",
+    "gen/python/rcl_fixture_positive_1787641498371379912/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/rcl_fixture_positive_1787641498371379912/v1/notes/attachments_pb2.py": "sha256:e816982e24bd25d3b1bec42dc3cadbe2c07ba893bc64f89a6251aae15bb5e162",
+    "gen/python/rcl_fixture_positive_1787641498371379912/v1/notes/attachments_pb2.pyi": "sha256:5594188beec26dac8bb0ab7d1ece27e28d425bc57b7544c9e509610cbb5e37fa",
+    "gen/python/rcl_fixture_positive_1787641498371379912/v1/notes/notes_pb2.py": "sha256:49364b7d7e3ff2f91665842a6c4ebbb9b11f82dfc35ba1b90a229dc8a172ade3",
+    "gen/python/rcl_fixture_positive_1787641498371379912/v1/notes/notes_pb2.pyi": "sha256:359aac5d47799ae41e88608988e03caee63bd56ec270e6b9959e4bcd3b139386",
+    "gen/python/rcl_fixture_positive_1787641498371379912/v1/notes/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/rcl_fixture_positive_1787641498371379912/v1/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/rcl_fixture_positive_1787641498371379912/v1/shared/errors_pb2.py": "sha256:62e883caa64f0fc7927c35bc1582b60aedb7dd0dd7540c142b2c5d8e67634bef",
+    "gen/python/rcl_fixture_positive_1787641498371379912/v1/shared/errors_pb2.pyi": "sha256:4fab4b85533131b72b50e57a69d84a6878a0c10aa64e5b6791a598b7b9716dd1",
+    "gen/python/rcl_fixture_positive_1787641498371379912/v1/shared/health_pb2.py": "sha256:25c7708f25a579c4565113bf41c8dc43328618f204019efb1cf5cf01067fcb14",
+    "gen/python/rcl_fixture_positive_1787641498371379912/v1/shared/health_pb2.pyi": "sha256:b9ec00d86e0bdde26187240212eb1746c8be4ebac7b5320be40d8097822a8a04",
+    "gen/python/rcl_fixture_positive_1787641498371379912/v1/shared/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/typescript/rcl-fixture-positive-1787641498371379912/v1/notes/attachments_pb.ts": "sha256:e7142f193422677168d8cdbaccad7edc66860403db85d3447291aa4b8c4ceca1",
+    "gen/typescript/rcl-fixture-positive-1787641498371379912/v1/notes/notes_pb.ts": "sha256:668faaa06cc884d9fab151d6c0f0af28606c44bffb433c2f107d98a69b8f8478",
+    "gen/typescript/rcl-fixture-positive-1787641498371379912/v1/shared/errors_pb.ts": "sha256:bede2c444c820e48797d2323cf999ab750a9405e34d8e7d1239694ea403a3b11",
+    "gen/typescript/rcl-fixture-positive-1787641498371379912/v1/shared/health_pb.ts": "sha256:a6d27aa19b4f27bf1d10789676496b91109756d3f11aeb96e2b5c5c46f3db18a"
+  }
+}

@@ -6,9 +6,9 @@ Managed Unstructured API runtime for document partitioning and extraction workfl
 
 - Resource ID: `unstructured-io`
 - Category: `ai`
-- Driver: `docker-service`
-- Host requirement: Docker/Docker Desktop with Linux containers
-- Runtime image: pinned `linux/amd64` only
+- Driver: `managed-service`
+- Host requirement: Linux amd64 for the pinned runtime artifact
+- Artifact source: digest-pinned upstream OCI filesystem, extracted and supervised without a Docker daemon
 
 ## Use Cases
 
@@ -18,14 +18,20 @@ Managed Unstructured API runtime for document partitioning and extraction workfl
 
 ## Architecture
 
-This resource uses the `docker-service` structure. The pinned image is
-approximately 9.81 GB and publishes only a Linux amd64 manifest. Linux amd64
-is the validated host path; macOS amd64 and Windows amd64 remain conditional
-Docker Desktop routes. Arm64 is not claimed because the image has no arm64
-manifest. A portability tier is intentionally not authored here; it is a
-derived deployability verdict.
+This resource uses the `managed-service` structure. The pinned OCI image is
+approximately 9.81 GB and publishes only a Linux amd64 manifest. Its
+filesystem is materialized into the Vrooli artifact store and launched with
+the image’s Python runtime directly; Docker is not part of start, stop, or
+health-check lifecycle. macOS, Windows, and arm64 remain unsupported because
+the upstream image publishes no native target for them.
 
-- `resource.json` is the declarative authority for lifecycle, runtime, ports, exports, health, and freshness metadata.
+The frozen runtime does not include `detectron2`. Fast and automatic
+partitioning are supported; `hi_res` is explicitly partial and must report
+that limitation instead of silently claiming OCR/layout parity with the full
+Docker image.
+
+- `resource.json` is the declarative authority for lifecycle, acquisition,
+  artifact digests, ports, exports, health, and freshness metadata.
 - `cli/` is the thin binary entrypoint and delegated command wiring surface.
 - `cli/internal/` is the default home for Unstructured-specific Go logic when the manifest and shared control plane are not enough.
 - `cli/internal/unstructured` owns typed health and document-processing requests.
@@ -64,6 +70,10 @@ Default endpoint:
 
 - API: `http://localhost:11450`
 
+The Linux amd64 artifact is versioned `2025.09.11` and is authenticated by
+the tree digest recorded in `resource.json`. The source image digest is also
+recorded there; changing either requires fresh evidence.
+
 ## Readiness and operations
 
 - Keep `cli/main.go` thin. Do not treat it as the implementation surface for document processing workflows.
@@ -71,7 +81,7 @@ Default endpoint:
 - Resource-local shell workflows are retired. Use the typed CLI or the shared resource control plane.
 - `resource-unstructured-io health` is the readiness probe. It calls the
   service health endpoint and completes a small text partition request, so a
-  running container that cannot serve the primary capability is unhealthy.
+  running service that cannot serve the primary capability is unhealthy.
 - The measured host run used 1.373 GiB (~1,404 MiB) resident memory during a
   `hi_res` scan parse, 6.12 seconds wall-clock, and a 9.81 GB image pull. The
   manifest rounds that observation to a 1,536 MiB requirement and keeps two

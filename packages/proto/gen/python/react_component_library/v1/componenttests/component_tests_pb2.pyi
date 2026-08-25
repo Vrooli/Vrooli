@@ -128,3 +128,35 @@ class ListComponentTestReportsResponse(_message.Message):
     REPORTS_FIELD_NUMBER: _ClassVar[int]
     reports: _containers.RepeatedCompositeFieldContainer[ComponentTestReport]
     def __init__(self, reports: _Optional[_Iterable[_Union[ComponentTestReport, _Mapping]]] = ...) -> None: ...
+
+class SweepComponentTestsRequest(_message.Message):
+    __slots__ = ("resume", "include_closure", "component_id")
+    RESUME_FIELD_NUMBER: _ClassVar[int]
+    INCLUDE_CLOSURE_FIELD_NUMBER: _ClassVar[int]
+    COMPONENT_ID_FIELD_NUMBER: _ClassVar[int]
+    resume: bool
+    include_closure: bool
+    component_id: str
+    def __init__(self, resume: _Optional[bool] = ..., include_closure: _Optional[bool] = ..., component_id: _Optional[str] = ...) -> None: ...
+
+class SweepComponentTestsResponse(_message.Message):
+    __slots__ = ("planned", "started", "skipped", "passed", "failed", "blocked", "complete", "errors", "reports")
+    PLANNED_FIELD_NUMBER: _ClassVar[int]
+    STARTED_FIELD_NUMBER: _ClassVar[int]
+    SKIPPED_FIELD_NUMBER: _ClassVar[int]
+    PASSED_FIELD_NUMBER: _ClassVar[int]
+    FAILED_FIELD_NUMBER: _ClassVar[int]
+    BLOCKED_FIELD_NUMBER: _ClassVar[int]
+    COMPLETE_FIELD_NUMBER: _ClassVar[int]
+    ERRORS_FIELD_NUMBER: _ClassVar[int]
+    REPORTS_FIELD_NUMBER: _ClassVar[int]
+    planned: int
+    started: int
+    skipped: int
+    passed: int
+    failed: int
+    blocked: int
+    complete: bool
+    errors: _containers.RepeatedScalarFieldContainer[str]
+    reports: _containers.RepeatedCompositeFieldContainer[ComponentTestReport]
+    def __init__(self, planned: _Optional[int] = ..., started: _Optional[int] = ..., skipped: _Optional[int] = ..., passed: _Optional[int] = ..., failed: _Optional[int] = ..., blocked: _Optional[int] = ..., complete: _Optional[bool] = ..., errors: _Optional[_Iterable[str]] = ..., reports: _Optional[_Iterable[_Union[ComponentTestReport, _Mapping]]] = ...) -> None: ...

@@ -231,8 +231,8 @@
   },
   "platforms": {
     "linux": "supported",
-    "macos": "supported",
-    "windows": "supported"
+    "macos": "build-verified",
+    "windows": "build-verified"
   },
   "hostTools": [],
   "dependencies": [],

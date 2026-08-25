@@ -24,13 +24,13 @@ func run(args []string, stdout, stderr io.Writer) error {
 	if len(args) == 0 {
 		return fmt.Errorf("usage: protogen <generate|verify|descriptor|lint|format|breaking|clean|refresh-vendor>")
 	}
-	protoRoot, err := os.Getwd()
+	workingDir, err := os.Getwd()
 	if err != nil {
 		return err
 	}
-	protoRoot = filepath.Clean(protoRoot)
-	if filepath.Base(protoRoot) != "proto" {
-		protoRoot = filepath.Join(protoRoot, "packages", "proto")
+	protoRoot, err := resolveProtoRoot(workingDir)
+	if err != nil {
+		return err
 	}
 	repoRoot := filepath.Clean(filepath.Join(protoRoot, "..", ".."))
 	command := args[0]
@@ -100,6 +100,38 @@ func run(args []string, stdout, stderr io.Writer) error {
 	default:
 		return fmt.Errorf("unknown protogen command %q", command)
 	}
+}
+
+// resolveProtoRoot accepts either the repository root, packages/proto, or a
+// descendant of packages/proto. The old basename-only fallback appended
+// packages/proto to a packages/ directory and could create the nested
+// packages/proto/packages/proto output tree after a caller changed directory.
+func resolveProtoRoot(start string) (string, error) {
+	current := filepath.Clean(start)
+	for {
+		if filepath.Base(current) == "proto" && isProtoRoot(current) {
+			return current, nil
+		}
+		candidate := filepath.Join(current, "packages", "proto")
+		if isProtoRoot(candidate) {
+			return candidate, nil
+		}
+		parent := filepath.Dir(current)
+		if parent == current {
+			break
+		}
+		current = parent
+	}
+	return "", fmt.Errorf("locate packages/proto from %s", start)
+}
+
+func isProtoRoot(path string) bool {
+	for _, marker := range []string{"buf.yaml", "schemas"} {
+		if _, err := os.Stat(filepath.Join(path, marker)); err != nil {
+			return false
+		}
+	}
+	return true
 }
 
 type scenarioFlags []string

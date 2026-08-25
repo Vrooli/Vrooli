@@ -51,6 +51,12 @@ const (
 	// AdoptionsServicePruneScenarioTokensProcedure is the fully-qualified name of the
 	// AdoptionsService's PruneScenarioTokens RPC.
 	AdoptionsServicePruneScenarioTokensProcedure = "/vrooli.react_component_library.v1.adoptions.AdoptionsService/PruneScenarioTokens"
+	// AdoptionsServiceLinkAdoptionProcedure is the fully-qualified name of the AdoptionsService's
+	// LinkAdoption RPC.
+	AdoptionsServiceLinkAdoptionProcedure = "/vrooli.react_component_library.v1.adoptions.AdoptionsService/LinkAdoption"
+	// AdoptionsServiceEjectAdoptionProcedure is the fully-qualified name of the AdoptionsService's
+	// EjectAdoption RPC.
+	AdoptionsServiceEjectAdoptionProcedure = "/vrooli.react_component_library.v1.adoptions.AdoptionsService/EjectAdoption"
 	// AdoptionsServiceApplyAdoptionProcedure is the fully-qualified name of the AdoptionsService's
 	// ApplyAdoption RPC.
 	AdoptionsServiceApplyAdoptionProcedure = "/vrooli.react_component_library.v1.adoptions.AdoptionsService/ApplyAdoption"
@@ -66,6 +72,9 @@ const (
 	// AdoptionsServiceRefreshAdoptionsProcedure is the fully-qualified name of the AdoptionsService's
 	// RefreshAdoptions RPC.
 	AdoptionsServiceRefreshAdoptionsProcedure = "/vrooli.react_component_library.v1.adoptions.AdoptionsService/RefreshAdoptions"
+	// AdoptionsServiceForkReportAdoptionsProcedure is the fully-qualified name of the
+	// AdoptionsService's ForkReportAdoptions RPC.
+	AdoptionsServiceForkReportAdoptionsProcedure = "/vrooli.react_component_library.v1.adoptions.AdoptionsService/ForkReportAdoptions"
 	// AdoptionsServiceReconcileAdoptionsProcedure is the fully-qualified name of the AdoptionsService's
 	// ReconcileAdoptions RPC.
 	AdoptionsServiceReconcileAdoptionsProcedure = "/vrooli.react_component_library.v1.adoptions.AdoptionsService/ReconcileAdoptions"
@@ -97,11 +106,20 @@ type AdoptionsServiceClient interface {
 	PreflightAdoption(context.Context, *connect.Request[adoptions.PreflightAdoptionRequest]) (*connect.Response[adoptions.PreflightAdoptionResponse], error)
 	SyncScenarioTokens(context.Context, *connect.Request[adoptions.SyncScenarioTokensRequest]) (*connect.Response[adoptions.SyncScenarioTokensResponse], error)
 	PruneScenarioTokens(context.Context, *connect.Request[adoptions.PruneScenarioTokensRequest]) (*connect.Response[adoptions.PruneScenarioTokensResponse], error)
+	// LinkAdoption records a package-backed adoption. It changes the target
+	// scenario manifest and never writes a vendored source file.
+	LinkAdoption(context.Context, *connect.Request[adoptions.LinkAdoptionRequest]) (*connect.Response[adoptions.LinkAdoptionResponse], error)
+	// EjectAdoption is the explicit, reason-bearing escape hatch for consumers
+	// whose required behavior cannot be expressed by the linked contract.
+	EjectAdoption(context.Context, *connect.Request[adoptions.EjectAdoptionRequest]) (*connect.Response[adoptions.EjectAdoptionResponse], error)
 	ApplyAdoption(context.Context, *connect.Request[adoptions.ApplyAdoptionRequest]) (*connect.Response[adoptions.ApplyAdoptionResponse], error)
 	BatchApplyAdoptions(context.Context, *connect.Request[adoptions.BatchApplyAdoptionsRequest]) (*connect.Response[adoptions.BatchApplyAdoptionsResponse], error)
 	ReapplyAdoption(context.Context, *connect.Request[adoptions.ReapplyAdoptionRequest]) (*connect.Response[adoptions.ReapplyAdoptionResponse], error)
 	DeleteAdoption(context.Context, *connect.Request[adoptions.DeleteAdoptionRequest]) (*connect.Response[adoptions.DeleteAdoptionResponse], error)
 	RefreshAdoptions(context.Context, *connect.Request[adoptions.RefreshAdoptionsRequest]) (*connect.Response[adoptions.RefreshAdoptionsResponse], error)
+	// ForkReportAdoptions classifies the full registry without rewriting source
+	// files. apply=true persists only the observed fork metadata.
+	ForkReportAdoptions(context.Context, *connect.Request[adoptions.RefreshAdoptionsRequest]) (*connect.Response[adoptions.RefreshAdoptionsResponse], error)
 	ReconcileAdoptions(context.Context, *connect.Request[adoptions.ReconcileAdoptionsRequest]) (*connect.Response[adoptions.ReconcileAdoptionsResponse], error)
 	// ReconvergeAdoptions closes the fleet drift loop: it batch-reconverges
 	// BEHIND adoptions to the current library version. A copy that is still
@@ -177,6 +195,18 @@ func NewAdoptionsServiceClient(httpClient connect.HTTPClient, baseURL string, op
 			connect.WithSchema(adoptionsServiceMethods.ByName("PruneScenarioTokens")),
 			connect.WithClientOptions(opts...),
 		),
+		linkAdoption: connect.NewClient[adoptions.LinkAdoptionRequest, adoptions.LinkAdoptionResponse](
+			httpClient,
+			baseURL+AdoptionsServiceLinkAdoptionProcedure,
+			connect.WithSchema(adoptionsServiceMethods.ByName("LinkAdoption")),
+			connect.WithClientOptions(opts...),
+		),
+		ejectAdoption: connect.NewClient[adoptions.EjectAdoptionRequest, adoptions.EjectAdoptionResponse](
+			httpClient,
+			baseURL+AdoptionsServiceEjectAdoptionProcedure,
+			connect.WithSchema(adoptionsServiceMethods.ByName("EjectAdoption")),
+			connect.WithClientOptions(opts...),
+		),
 		applyAdoption: connect.NewClient[adoptions.ApplyAdoptionRequest, adoptions.ApplyAdoptionResponse](
 			httpClient,
 			baseURL+AdoptionsServiceApplyAdoptionProcedure,
@@ -205,6 +235,12 @@ func NewAdoptionsServiceClient(httpClient connect.HTTPClient, baseURL string, op
 			httpClient,
 			baseURL+AdoptionsServiceRefreshAdoptionsProcedure,
 			connect.WithSchema(adoptionsServiceMethods.ByName("RefreshAdoptions")),
+			connect.WithClientOptions(opts...),
+		),
+		forkReportAdoptions: connect.NewClient[adoptions.RefreshAdoptionsRequest, adoptions.RefreshAdoptionsResponse](
+			httpClient,
+			baseURL+AdoptionsServiceForkReportAdoptionsProcedure,
+			connect.WithSchema(adoptionsServiceMethods.ByName("ForkReportAdoptions")),
 			connect.WithClientOptions(opts...),
 		),
 		reconcileAdoptions: connect.NewClient[adoptions.ReconcileAdoptionsRequest, adoptions.ReconcileAdoptionsResponse](
@@ -254,11 +290,14 @@ type adoptionsServiceClient struct {
 	preflightAdoption      *connect.Client[adoptions.PreflightAdoptionRequest, adoptions.PreflightAdoptionResponse]
 	syncScenarioTokens     *connect.Client[adoptions.SyncScenarioTokensRequest, adoptions.SyncScenarioTokensResponse]
 	pruneScenarioTokens    *connect.Client[adoptions.PruneScenarioTokensRequest, adoptions.PruneScenarioTokensResponse]
+	linkAdoption           *connect.Client[adoptions.LinkAdoptionRequest, adoptions.LinkAdoptionResponse]
+	ejectAdoption          *connect.Client[adoptions.EjectAdoptionRequest, adoptions.EjectAdoptionResponse]
 	applyAdoption          *connect.Client[adoptions.ApplyAdoptionRequest, adoptions.ApplyAdoptionResponse]
 	batchApplyAdoptions    *connect.Client[adoptions.BatchApplyAdoptionsRequest, adoptions.BatchApplyAdoptionsResponse]
 	reapplyAdoption        *connect.Client[adoptions.ReapplyAdoptionRequest, adoptions.ReapplyAdoptionResponse]
 	deleteAdoption         *connect.Client[adoptions.DeleteAdoptionRequest, adoptions.DeleteAdoptionResponse]
 	refreshAdoptions       *connect.Client[adoptions.RefreshAdoptionsRequest, adoptions.RefreshAdoptionsResponse]
+	forkReportAdoptions    *connect.Client[adoptions.RefreshAdoptionsRequest, adoptions.RefreshAdoptionsResponse]
 	reconcileAdoptions     *connect.Client[adoptions.ReconcileAdoptionsRequest, adoptions.ReconcileAdoptionsResponse]
 	reconvergeAdoptions    *connect.Client[adoptions.ReconvergeAdoptionsRequest, adoptions.ReconvergeAdoptionsResponse]
 	resolveAdoptionPath    *connect.Client[adoptions.ResolveAdoptionPathRequest, adoptions.ResolveAdoptionPathResponse]
@@ -301,6 +340,16 @@ func (c *adoptionsServiceClient) PruneScenarioTokens(ctx context.Context, req *c
 	return c.pruneScenarioTokens.CallUnary(ctx, req)
 }
 
+// LinkAdoption calls vrooli.react_component_library.v1.adoptions.AdoptionsService.LinkAdoption.
+func (c *adoptionsServiceClient) LinkAdoption(ctx context.Context, req *connect.Request[adoptions.LinkAdoptionRequest]) (*connect.Response[adoptions.LinkAdoptionResponse], error) {
+	return c.linkAdoption.CallUnary(ctx, req)
+}
+
+// EjectAdoption calls vrooli.react_component_library.v1.adoptions.AdoptionsService.EjectAdoption.
+func (c *adoptionsServiceClient) EjectAdoption(ctx context.Context, req *connect.Request[adoptions.EjectAdoptionRequest]) (*connect.Response[adoptions.EjectAdoptionResponse], error) {
+	return c.ejectAdoption.CallUnary(ctx, req)
+}
+
 // ApplyAdoption calls vrooli.react_component_library.v1.adoptions.AdoptionsService.ApplyAdoption.
 func (c *adoptionsServiceClient) ApplyAdoption(ctx context.Context, req *connect.Request[adoptions.ApplyAdoptionRequest]) (*connect.Response[adoptions.ApplyAdoptionResponse], error) {
 	return c.applyAdoption.CallUnary(ctx, req)
@@ -327,6 +376,12 @@ func (c *adoptionsServiceClient) DeleteAdoption(ctx context.Context, req *connec
 // vrooli.react_component_library.v1.adoptions.AdoptionsService.RefreshAdoptions.
 func (c *adoptionsServiceClient) RefreshAdoptions(ctx context.Context, req *connect.Request[adoptions.RefreshAdoptionsRequest]) (*connect.Response[adoptions.RefreshAdoptionsResponse], error) {
 	return c.refreshAdoptions.CallUnary(ctx, req)
+}
+
+// ForkReportAdoptions calls
+// vrooli.react_component_library.v1.adoptions.AdoptionsService.ForkReportAdoptions.
+func (c *adoptionsServiceClient) ForkReportAdoptions(ctx context.Context, req *connect.Request[adoptions.RefreshAdoptionsRequest]) (*connect.Response[adoptions.RefreshAdoptionsResponse], error) {
+	return c.forkReportAdoptions.CallUnary(ctx, req)
 }
 
 // ReconcileAdoptions calls
@@ -376,11 +431,20 @@ type AdoptionsServiceHandler interface {
 	PreflightAdoption(context.Context, *connect.Request[adoptions.PreflightAdoptionRequest]) (*connect.Response[adoptions.PreflightAdoptionResponse], error)
 	SyncScenarioTokens(context.Context, *connect.Request[adoptions.SyncScenarioTokensRequest]) (*connect.Response[adoptions.SyncScenarioTokensResponse], error)
 	PruneScenarioTokens(context.Context, *connect.Request[adoptions.PruneScenarioTokensRequest]) (*connect.Response[adoptions.PruneScenarioTokensResponse], error)
+	// LinkAdoption records a package-backed adoption. It changes the target
+	// scenario manifest and never writes a vendored source file.
+	LinkAdoption(context.Context, *connect.Request[adoptions.LinkAdoptionRequest]) (*connect.Response[adoptions.LinkAdoptionResponse], error)
+	// EjectAdoption is the explicit, reason-bearing escape hatch for consumers
+	// whose required behavior cannot be expressed by the linked contract.
+	EjectAdoption(context.Context, *connect.Request[adoptions.EjectAdoptionRequest]) (*connect.Response[adoptions.EjectAdoptionResponse], error)
 	ApplyAdoption(context.Context, *connect.Request[adoptions.ApplyAdoptionRequest]) (*connect.Response[adoptions.ApplyAdoptionResponse], error)
 	BatchApplyAdoptions(context.Context, *connect.Request[adoptions.BatchApplyAdoptionsRequest]) (*connect.Response[adoptions.BatchApplyAdoptionsResponse], error)
 	ReapplyAdoption(context.Context, *connect.Request[adoptions.ReapplyAdoptionRequest]) (*connect.Response[adoptions.ReapplyAdoptionResponse], error)
 	DeleteAdoption(context.Context, *connect.Request[adoptions.DeleteAdoptionRequest]) (*connect.Response[adoptions.DeleteAdoptionResponse], error)
 	RefreshAdoptions(context.Context, *connect.Request[adoptions.RefreshAdoptionsRequest]) (*connect.Response[adoptions.RefreshAdoptionsResponse], error)
+	// ForkReportAdoptions classifies the full registry without rewriting source
+	// files. apply=true persists only the observed fork metadata.
+	ForkReportAdoptions(context.Context, *connect.Request[adoptions.RefreshAdoptionsRequest]) (*connect.Response[adoptions.RefreshAdoptionsResponse], error)
 	ReconcileAdoptions(context.Context, *connect.Request[adoptions.ReconcileAdoptionsRequest]) (*connect.Response[adoptions.ReconcileAdoptionsResponse], error)
 	// ReconvergeAdoptions closes the fleet drift loop: it batch-reconverges
 	// BEHIND adoptions to the current library version. A copy that is still
@@ -451,6 +515,18 @@ func NewAdoptionsServiceHandler(svc AdoptionsServiceHandler, opts ...connect.Han
 		connect.WithSchema(adoptionsServiceMethods.ByName("PruneScenarioTokens")),
 		connect.WithHandlerOptions(opts...),
 	)
+	adoptionsServiceLinkAdoptionHandler := connect.NewUnaryHandler(
+		AdoptionsServiceLinkAdoptionProcedure,
+		svc.LinkAdoption,
+		connect.WithSchema(adoptionsServiceMethods.ByName("LinkAdoption")),
+		connect.WithHandlerOptions(opts...),
+	)
+	adoptionsServiceEjectAdoptionHandler := connect.NewUnaryHandler(
+		AdoptionsServiceEjectAdoptionProcedure,
+		svc.EjectAdoption,
+		connect.WithSchema(adoptionsServiceMethods.ByName("EjectAdoption")),
+		connect.WithHandlerOptions(opts...),
+	)
 	adoptionsServiceApplyAdoptionHandler := connect.NewUnaryHandler(
 		AdoptionsServiceApplyAdoptionProcedure,
 		svc.ApplyAdoption,
@@ -479,6 +555,12 @@ func NewAdoptionsServiceHandler(svc AdoptionsServiceHandler, opts ...connect.Han
 		AdoptionsServiceRefreshAdoptionsProcedure,
 		svc.RefreshAdoptions,
 		connect.WithSchema(adoptionsServiceMethods.ByName("RefreshAdoptions")),
+		connect.WithHandlerOptions(opts...),
+	)
+	adoptionsServiceForkReportAdoptionsHandler := connect.NewUnaryHandler(
+		AdoptionsServiceForkReportAdoptionsProcedure,
+		svc.ForkReportAdoptions,
+		connect.WithSchema(adoptionsServiceMethods.ByName("ForkReportAdoptions")),
 		connect.WithHandlerOptions(opts...),
 	)
 	adoptionsServiceReconcileAdoptionsHandler := connect.NewUnaryHandler(
@@ -531,6 +613,10 @@ func NewAdoptionsServiceHandler(svc AdoptionsServiceHandler, opts ...connect.Han
 			adoptionsServiceSyncScenarioTokensHandler.ServeHTTP(w, r)
 		case AdoptionsServicePruneScenarioTokensProcedure:
 			adoptionsServicePruneScenarioTokensHandler.ServeHTTP(w, r)
+		case AdoptionsServiceLinkAdoptionProcedure:
+			adoptionsServiceLinkAdoptionHandler.ServeHTTP(w, r)
+		case AdoptionsServiceEjectAdoptionProcedure:
+			adoptionsServiceEjectAdoptionHandler.ServeHTTP(w, r)
 		case AdoptionsServiceApplyAdoptionProcedure:
 			adoptionsServiceApplyAdoptionHandler.ServeHTTP(w, r)
 		case AdoptionsServiceBatchApplyAdoptionsProcedure:
@@ -541,6 +627,8 @@ func NewAdoptionsServiceHandler(svc AdoptionsServiceHandler, opts ...connect.Han
 			adoptionsServiceDeleteAdoptionHandler.ServeHTTP(w, r)
 		case AdoptionsServiceRefreshAdoptionsProcedure:
 			adoptionsServiceRefreshAdoptionsHandler.ServeHTTP(w, r)
+		case AdoptionsServiceForkReportAdoptionsProcedure:
+			adoptionsServiceForkReportAdoptionsHandler.ServeHTTP(w, r)
 		case AdoptionsServiceReconcileAdoptionsProcedure:
 			adoptionsServiceReconcileAdoptionsHandler.ServeHTTP(w, r)
 		case AdoptionsServiceReconvergeAdoptionsProcedure:
@@ -586,6 +674,14 @@ func (UnimplementedAdoptionsServiceHandler) PruneScenarioTokens(context.Context,
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.react_component_library.v1.adoptions.AdoptionsService.PruneScenarioTokens is not implemented"))
 }
 
+func (UnimplementedAdoptionsServiceHandler) LinkAdoption(context.Context, *connect.Request[adoptions.LinkAdoptionRequest]) (*connect.Response[adoptions.LinkAdoptionResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.react_component_library.v1.adoptions.AdoptionsService.LinkAdoption is not implemented"))
+}
+
+func (UnimplementedAdoptionsServiceHandler) EjectAdoption(context.Context, *connect.Request[adoptions.EjectAdoptionRequest]) (*connect.Response[adoptions.EjectAdoptionResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.react_component_library.v1.adoptions.AdoptionsService.EjectAdoption is not implemented"))
+}
+
 func (UnimplementedAdoptionsServiceHandler) ApplyAdoption(context.Context, *connect.Request[adoptions.ApplyAdoptionRequest]) (*connect.Response[adoptions.ApplyAdoptionResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.react_component_library.v1.adoptions.AdoptionsService.ApplyAdoption is not implemented"))
 }
@@ -604,6 +700,10 @@ func (UnimplementedAdoptionsServiceHandler) DeleteAdoption(context.Context, *con
 
 func (UnimplementedAdoptionsServiceHandler) RefreshAdoptions(context.Context, *connect.Request[adoptions.RefreshAdoptionsRequest]) (*connect.Response[adoptions.RefreshAdoptionsResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.react_component_library.v1.adoptions.AdoptionsService.RefreshAdoptions is not implemented"))
+}
+
+func (UnimplementedAdoptionsServiceHandler) ForkReportAdoptions(context.Context, *connect.Request[adoptions.RefreshAdoptionsRequest]) (*connect.Response[adoptions.RefreshAdoptionsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.react_component_library.v1.adoptions.AdoptionsService.ForkReportAdoptions is not implemented"))
 }
 
 func (UnimplementedAdoptionsServiceHandler) ReconcileAdoptions(context.Context, *connect.Request[adoptions.ReconcileAdoptionsRequest]) (*connect.Response[adoptions.ReconcileAdoptionsResponse], error) {

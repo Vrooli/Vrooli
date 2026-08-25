@@ -13,6 +13,7 @@ service ComponentTestsService {
   rpc RerunComponentTest(RerunComponentTestRequest) returns (RerunComponentTestResponse);
   rpc GetComponentTestReport(GetComponentTestReportRequest) returns (GetComponentTestReportResponse);
   rpc ListComponentTestReports(ListComponentTestReportsRequest) returns (ListComponentTestReportsResponse);
+  rpc SweepComponentTests(SweepComponentTestsRequest) returns (SweepComponentTestsResponse);
 }
 
 message RunComponentTestRequest {
@@ -77,4 +78,26 @@ message ListComponentTestReportsRequest {
 }
 message ListComponentTestReportsResponse {
   repeated ComponentTestReport reports = 1;
+}
+
+message SweepComponentTestsRequest {
+  // Skip versions with a durable non-blocked report; blocked and untested
+  // versions are retried so a BAS outage cannot be mistaken for coverage.
+  bool resume = 1;
+  bool include_closure = 2;
+  // Optional component UUID. Supplying it keeps a large corpus sweep within
+  // one request deadline; callers can run one durable batch per component.
+  string component_id = 3;
+}
+
+message SweepComponentTestsResponse {
+  int32 planned = 1;
+  int32 started = 2;
+  int32 skipped = 3;
+  int32 passed = 4;
+  int32 failed = 5;
+  int32 blocked = 6;
+  bool complete = 7;
+  repeated string errors = 8;
+  repeated ComponentTestReport reports = 9;
 }
