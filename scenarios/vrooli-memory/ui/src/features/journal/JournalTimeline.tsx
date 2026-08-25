@@ -4,16 +4,16 @@ import { useState } from "react";
 
 import { listJournalEntries } from "../../api/journal";
 import { assignFacet, listFacets, setPin } from "../../api/operator";
-import { Button } from "../../components/ui/button";
+import { Button } from "@vrooli/react-component-library/Button/1.2.0";
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
-import { EmptyState } from "../../components/ui/empty-state";
+import { EmptyState } from "@vrooli/react-component-library/EmptyState/1.1.0";
 import { ExperienceSurface, type ExperienceSurfaceState } from "../../components/experience/ExperienceSurface";
 import { selectors } from "../../consts/selectors";
 import { strings } from "../../consts/strings";
 import { useTranslation } from "../../i18n";
 import { formatDate } from "../../i18n/format";
 import { errorMessage } from "../../lib/errorMessage";
-import { Select } from "../../components/ui/select";
+import { Select } from "@vrooli/react-component-library/Select/1.1.0";
 
 export function JournalTimeline() {
   const { t } = useTranslation();

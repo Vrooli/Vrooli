@@ -51,18 +51,16 @@ type Projector struct {
 
 func NewProjector(db *sql.DB, wake sourceconnect.RecallServiceClient, roots ...*filerouting.RoutedRoots) *Projector {
 	home, _ := os.UserHomeDir()
-	// The line ceiling is a conservative configuration derived from the only
-	// consumer limit observable in this repository: Claude Code previously
-	// truncated MEMORY.md at 200 rendered lines. The other targets use the same
-	// ceiling until their harnesses publish a more specific contract.
-	const consumerLineCap = 200
-	p := &Projector{db: db, wake: wake, targets: map[string]projectionTarget{
-		"claude-code": {Runtime: "claude-code", Path: filepath.Join(home, ".claude", "projects", "-home-matthalloran8-Vrooli", "memory", "MEMORY.md"), Cap: 32768, LineCap: consumerLineCap},
-		"gemini":      {Runtime: "gemini", Path: filepath.Join(home, ".gemini", "GEMINI.md"), Section: "Gemini Added Memories", Cap: 32768, LineCap: consumerLineCap},
-		"codex":       {Runtime: "codex", Path: filepath.Join(home, ".codex", "memories", "vrooli-memory.md"), Cap: 32768, LineCap: consumerLineCap},
-		"grok":        {Runtime: "grok", Path: filepath.Join(home, ".grok", "memory", "MEMORY.md"), Cap: 32768, LineCap: consumerLineCap},
-		"antigravity": {Runtime: "antigravity", Path: filepath.Join(home, ".gemini", "antigravity", "brain", "MEMORY.md"), Cap: 32768, LineCap: consumerLineCap},
-	}}
+	workspace, _ := os.Getwd()
+	if configured := strings.TrimSpace(os.Getenv(workspaceRootEnv)); configured != "" {
+		workspace = configured
+	}
+	workspace, _ = filepath.Abs(workspace)
+	targets, err := LoadMemoryProjectionTargets(discoverResourcesDir(), home, workspace)
+	if err != nil {
+		targets = map[string]projectionTarget{}
+	}
+	p := &Projector{db: db, wake: wake, targets: targets}
 	if len(roots) > 0 {
 		p.roots = roots[0]
 	}

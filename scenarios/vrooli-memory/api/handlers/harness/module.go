@@ -25,11 +25,13 @@ func Module(db *database.RoutedDB, roots *filerouting.RoutedRoots, client *ledge
 	if _, err := internalharness.EnsureCuratedTopology("", home); err != nil {
 		panic(err)
 	}
+	projector := internalharness.NewProjector(db.Primary(), client.Recall, roots)
 	root := os.Getenv("VROOLI_MEMORY_CLAUDE_ROOT")
 	if root == "" {
-		root = filepath.Join(home, ".claude", "projects", "-home-matthalloran8-Vrooli", "memory")
+		if target, ok := projector.Target("claude-code"); ok {
+			root = filepath.Dir(target)
+		}
 	}
-	projector := internalharness.NewProjector(db.Primary(), client.Recall, roots)
 	importer := internalharness.NewImporter(client.Journal, root, projector.TargetPaths(), db.Primary())
 	interval, err := maintenance.IntervalFromOS()
 	if err != nil {
