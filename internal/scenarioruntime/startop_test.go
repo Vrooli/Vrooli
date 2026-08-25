@@ -221,6 +221,68 @@ func TestPhaseDurationEstimatesSmoothedAndPruned(t *testing.T) {
 	}
 }
 
+func TestStartTimingSummariesIncludeScenarioAndFleetTail(t *testing.T) {
+	ctx := context.Background()
+	clk := newFixedClock(time.Date(2026, 7, 1, 12, 0, 0, 0, time.UTC))
+	store := newTestStore(t, clk)
+
+	writeTerminal := func(scenario, operation string, setup, health time.Duration) {
+		op, err := store.BeginStartOperation(ctx, StartOperation{Scenario: scenario, Operation: operation})
+		if err != nil {
+			t.Fatalf("BeginStartOperation(%s): %v", scenario, err)
+		}
+		start := clk.Now()
+		setupEnd := start.Add(setup)
+		healthEnd := setupEnd.Add(health)
+		op.WithSteps([]StartOperationStep{
+			{Name: "setup", Status: StartStepDone, StartedAt: start, EndedAt: &setupEnd},
+			{Name: "health", Status: StartStepDone, StartedAt: setupEnd, EndedAt: &healthEnd},
+		})
+		op.Status = StartOperationStatusSucceeded
+		op.FinishedAt = &healthEnd
+		clk.Advance(time.Second)
+		if _, err := store.UpdateStartOperation(ctx, op); err != nil {
+			t.Fatalf("UpdateStartOperation(%s): %v", scenario, err)
+		}
+	}
+
+	writeTerminal("alpha", "start", time.Second, 2*time.Second)
+	writeTerminal("alpha", "restart", 3*time.Second, 4*time.Second)
+	writeTerminal("beta", "start", 5*time.Second, 6*time.Second)
+
+	rows, err := store.StartTimingSummaries(ctx, "")
+	if err != nil {
+		t.Fatalf("StartTimingSummaries(): %v", err)
+	}
+	find := func(scope, operation, step string) StartTimingSummary {
+		for _, row := range rows {
+			if row.Scenario == scope && row.Operation == operation && row.Step == step {
+				return row
+			}
+		}
+		t.Fatalf("missing timing row %s/%s/%s: %+v", scope, operation, step, rows)
+		return StartTimingSummary{}
+	}
+	alphaSetup := find("alpha", "start", "setup")
+	if alphaSetup.Count != 1 || alphaSetup.MeanMS != 1000 || alphaSetup.P50MS != 1000 || alphaSetup.P90MS != 1000 {
+		t.Fatalf("alpha setup = %+v, want one 1000ms sample", alphaSetup)
+	}
+	fleetHealth := find("fleet", "start", "health")
+	if fleetHealth.Count != 2 || fleetHealth.MeanMS != 4000 || fleetHealth.P50MS != 4000 || fleetHealth.P90MS != 5600 {
+		t.Fatalf("fleet start health = %+v, want [2s, 6s] interpolation", fleetHealth)
+	}
+
+	filtered, err := store.StartTimingSummaries(ctx, "alpha")
+	if err != nil {
+		t.Fatalf("StartTimingSummaries(alpha): %v", err)
+	}
+	for _, row := range filtered {
+		if row.Scenario != "alpha" {
+			t.Fatalf("filtered row = %+v, want alpha only", row)
+		}
+	}
+}
+
 func TestGetLatestStartOperationNotFound(t *testing.T) {
 	ctx := context.Background()
 	store := newTestStore(t, newFixedClock(time.Date(2026, 7, 1, 12, 0, 0, 0, time.UTC)))

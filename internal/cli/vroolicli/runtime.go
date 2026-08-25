@@ -948,12 +948,12 @@ func (app *App) buildTopLevelHandlerMap() map[topcli.CommandID]rootcli.Handler[*
 		topcli.CommandRuntime: func(ctx *CommandContext, args []string) error {
 			return ctx.app.runRuntimeCommand(ctx, args)
 		},
-		topcli.CommandDoctor: projectcli.DoctorHandler(commandStdout, projectOutputFormat, func(ctx *CommandContext) (project.DoctorReport, error) {
+		topcli.CommandDoctor: projectcli.DoctorHandler(commandStdout, projectOutputFormat, func(ctx *CommandContext, req projectcli.DoctorRequest) (project.DoctorReport, error) {
 			command, err := ctx.app.newProjectCommandService(ctx)
 			if err != nil {
 				return project.DoctorReport{}, err
 			}
-			return command.Doctor()
+			return command.DoctorWithOptions(project.DoctorOptions{RepairFilePermissions: req.RepairFilePermissions})
 		}),
 		topcli.CommandOrphans: projectcli.OrphansHandler(commandStdout, projectOutputFormat, func(ctx *CommandContext, req projectcli.OrphansRequest) (projectcli.OrphansResponse, error) {
 			policyArgs := []string{"orphans"}
@@ -1301,6 +1301,13 @@ func (app *App) buildScenarioHandlerMap() map[scenariocli.CommandID]rootcli.Hand
 		},
 		ScenarioOperations: func(ctx *CommandContext) (scenarioapp.ScenarioOperations, error) {
 			return ctx.app.newScenarioService(ctx)
+		},
+		TimingStore: func(ctx *CommandContext) (*scenarioruntime.SQLiteStore, error) {
+			home, err := ctx.HomeDir()
+			if err != nil {
+				return nil, err
+			}
+			return scenarioruntime.NewSQLiteStore(context.Background(), scenarioruntime.Config{HomeDir: home, ReadOnly: true})
 		},
 		LifecycleRunner: func(ctx *CommandContext) (scenarioapp.PhaseRunner, error) {
 			return ctx.app.newScenarioLifecycleRunner(ctx)

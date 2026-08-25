@@ -38,3 +38,20 @@ func TestUFWPolicyRejectsArbitraryCommandShapes(t *testing.T) {
 		})
 	}
 }
+
+func TestRuntimeHomePolicyAcceptsOnlyApprovedClassAndCallerIdentity(t *testing.T) {
+	req := Request{Version: ProtocolVersion, RequestID: "runtime-1", Action: ActionRuntimeHomeOwnershipRepair, RuntimeHome: &RuntimeHomeSubject{Class: "cache", ExpectedUID: 1000, ExpectedGID: 1000}}
+	if err := Validate(req); err != nil {
+		t.Fatalf("Validate(runtime home): %v", err)
+	}
+	req.RuntimeHome.Class = "secrets_enc"
+	if err := Validate(req); err != nil {
+		t.Fatalf("Validate(secrets_enc): %v", err)
+	}
+	for _, class := range []string{"/tmp", "../cache", "secrets"} {
+		req.RuntimeHome.Class = class
+		if err := Validate(req); err == nil {
+			t.Fatalf("Validate accepted unapproved class %q", class)
+		}
+	}
+}

@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strings"
 	"time"
 )
@@ -141,7 +142,16 @@ type KeyringReport struct {
 	// StaleDaemonCheck says whether the daemon comparison ran. It is "checked"
 	// when a daemon start time was readable and "not-run" when this host could
 	// not provide one. The stale fields stay empty in the latter case.
-	StaleDaemonCheck string `json:"staleDaemonCheck,omitempty"`
+	StaleDaemonCheck string          `json:"staleDaemonCheck,omitempty"`
+	Backups          []KeyringBackup `json:"backups,omitempty"`
+	Verdict          string          `json:"verdict,omitempty"`
+	VerdictReason    string          `json:"verdict_reason,omitempty"`
+}
+
+type KeyringBackup struct {
+	Path       string `json:"path"`
+	ModifiedAt string `json:"modified_at"`
+	AgeSeconds int64  `json:"age_seconds"`
 }
 
 // keyringField is one parsed field and the exact line span it occupies, so a
@@ -351,6 +361,9 @@ func InspectKeyringFile(path string) (KeyringReport, error) {
 	}
 	report := KeyringReport{Path: path, Format: keyringFormat(contents)}
 	addStaleDaemonReport(&report, info)
+	if backups, backupErr := listKeyringBackups(filepath.Dir(path), path, time.Now()); backupErr == nil {
+		report.Backups = backups
+	}
 	if report.Format != keyringFormatPlaintext {
 		// An encrypted keyring is binary and is not this file's problem. Saying
 		// so beats reporting a false defect on every password-protected host —
@@ -376,6 +389,56 @@ func InspectKeyringFile(path string) (KeyringReport, error) {
 		report.Defects = append(report.Defects, describeKeyringDefect(field, attributes, labels))
 	}
 	return report, nil
+}
+
+func listKeyringBackups(dir, livePath string, now time.Time) ([]KeyringBackup, error) {
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return nil, err
+	}
+	var backups []KeyringBackup
+	for _, entry := range entries {
+		if entry.IsDir() || entry.Name() == filepath.Base(livePath) || !strings.Contains(entry.Name(), "keyring") || !strings.Contains(entry.Name(), "backup") {
+			continue
+		}
+		info, err := entry.Info()
+		if err != nil {
+			continue
+		}
+		age := now.Sub(info.ModTime())
+		if age < 0 {
+			age = 0
+		}
+		backups = append(backups, KeyringBackup{Path: filepath.Join(dir, entry.Name()), ModifiedAt: info.ModTime().UTC().Format(time.RFC3339), AgeSeconds: int64(age / time.Second)})
+	}
+	sort.Slice(backups, func(i, j int) bool { return backups[i].Path < backups[j].Path })
+	return backups, nil
+}
+
+// RetireKeyringBackup removes one explicitly named backup after an operator
+// has decided it is no longer needed. It never accepts a directory, a glob, or
+// a path that does not look like a keyring backup; callers must name the exact
+// file so a cleanup cannot broaden into the whole keyring directory.
+func RetireKeyringBackup(path string) error {
+	path = strings.TrimSpace(path)
+	if path == "" {
+		return fmt.Errorf("keyring backup path is required")
+	}
+	base := filepath.Base(path)
+	if !strings.Contains(base, "keyring") || !strings.Contains(base, "backup") {
+		return fmt.Errorf("refusing to retire non-keyring-backup path %q", path)
+	}
+	info, err := os.Lstat(path)
+	if err != nil {
+		return fmt.Errorf("inspect keyring backup %q: %w", path, err)
+	}
+	if !info.Mode().IsRegular() {
+		return fmt.Errorf("refusing to retire non-regular keyring backup %q", path)
+	}
+	if err := os.Remove(path); err != nil {
+		return fmt.Errorf("retire keyring backup %q: %w", path, err)
+	}
+	return nil
 }
 
 func describeKeyringDefect(field keyringField, attributes map[string]map[string]string, labels map[string]string) KeyringDefect {

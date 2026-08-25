@@ -1,6 +1,7 @@
 package securestore
 
 import (
+	"bytes"
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/json"
@@ -49,6 +50,35 @@ func TestSealedEntryRoundTrips(t *testing.T) {
 				t.Fatalf("openEntry returned %d bytes, want %d", len(got), len(testCase.value))
 			}
 		})
+	}
+}
+
+func TestHistoricalStoreEntryFixtureOpensThroughCompatibilityReader(t *testing.T) {
+	fixturePath := filepath.Join("..", "..", "credentialpolicy", "testdata", "historical-envelopes-v1.json")
+	fixtureBytes, err := os.ReadFile(fixturePath)
+	if err != nil {
+		t.Fatalf("read historical credential fixture: %v", err)
+	}
+	var fixture struct {
+		Entry struct {
+			Service    string `json:"service"`
+			Key        string `json:"key"`
+			Nonce      string `json:"nonce"`
+			Ciphertext string `json:"ciphertext"`
+		} `json:"store_entry_v1"`
+	}
+	if err := json.Unmarshal(fixtureBytes, &fixture); err != nil {
+		t.Fatalf("decode historical credential fixture: %v", err)
+	}
+	value, err := openEntry(bytes.Repeat([]byte{0x22}, dataKeyLen), fixture.Entry.Service, fixture.Entry.Key, sealedEntry{
+		Service: fixture.Entry.Service, Key: fixture.Entry.Key,
+		Nonce: fixture.Entry.Nonce, Ciphertext: fixture.Entry.Ciphertext,
+	})
+	if err != nil {
+		t.Fatalf("historical store-entry fixture failed to open: %v", err)
+	}
+	if value != "store-fixture-value" {
+		t.Fatalf("historical store-entry fixture value = %q", value)
 	}
 }
 

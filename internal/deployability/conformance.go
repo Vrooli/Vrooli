@@ -28,6 +28,7 @@ type ConformanceFinding struct {
 	ManifestPath string `json:"manifest_path"`
 	OS           HostOS `json:"os"`
 	CodeRoot     string `json:"code_root"`
+	Rule         string `json:"rule,omitempty"`
 	Message      string `json:"message"`
 }
 
@@ -184,6 +185,7 @@ func decodeJSON(path string, value any) error {
 	}
 	return nil
 }
+
 func relativePath(root, path string) string {
 	rel, err := filepath.Rel(root, path)
 	if err != nil {
@@ -191,9 +193,11 @@ func relativePath(root, path string) string {
 	}
 	return filepath.ToSlash(rel)
 }
+
 func targetKey(t ConformanceTarget) string {
 	return t.ManifestPath + "\x00" + string(t.OS) + "\x00" + t.CodeRoot
 }
+
 func dedupeTargets(in []ConformanceTarget) []ConformanceTarget {
 	out := in[:0]
 	seen := map[string]bool{}
@@ -205,31 +209,4 @@ func dedupeTargets(in []ConformanceTarget) []ConformanceTarget {
 		}
 	}
 	return out
-}
-
-func nearestGoModule(root, start string) (string, error) {
-	path := start
-	for {
-		if _, err := os.Stat(filepath.Join(path, "go.mod")); err == nil {
-			return path, nil
-		}
-		if path == root || filepath.Dir(path) == path {
-			break
-		}
-		path = filepath.Dir(path)
-	}
-	return "", fmt.Errorf("no go.mod found from %s", start)
-}
-
-func conformanceHostOS(value string) (HostOS, bool) {
-	switch strings.ToLower(strings.TrimSpace(value)) {
-	case string(HostOSLinux):
-		return HostOSLinux, true
-	case string(HostOSMacOS), "darwin":
-		return HostOSMacOS, true
-	case string(HostOSWindows):
-		return HostOSWindows, true
-	default:
-		return "", false
-	}
 }

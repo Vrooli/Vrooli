@@ -10,7 +10,9 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 
+	"github.com/vrooli/vrooli/internal/hostinventory"
 	"github.com/vrooli/vrooli/internal/logx"
 	resourcecontrol "github.com/vrooli/vrooli/internal/resources/control"
 	"github.com/vrooli/vrooli/internal/scenario"
@@ -66,199 +68,281 @@ func resourceDependencyStartReason(status resourcecontrol.Status) string {
 	return strings.Join(reasons, "; ")
 }
 
-func (r *Runner) ensureDependencies(item scenario.Scenario, opts StartOptions, ready map[string]struct{}, setupCache setupCheckCache, stack []string) ([]string, error) {
+func (r *Runner) ensureDependencies(item scenario.Scenario, opts StartOptions, session *startSession) ([]string, error) {
 	if len(item.Manifest.Dependencies.Scenarios) == 0 {
 		return nil, nil
 	}
 
-	failed := []string{}
 	names := make([]string, 0, len(item.Manifest.Dependencies.Scenarios))
 	for name := range item.Manifest.Dependencies.Scenarios {
 		names = append(names, name)
 	}
 	sort.Strings(names)
 
+	fanoutCtx, cancel := context.WithCancel(session.context())
+	defer cancel()
+	limit := dependencyConcurrencyLimit(item)
+	sem := make(chan struct{}, limit)
+	var wg sync.WaitGroup
+	var mu sync.Mutex
+	failed := []string{}
+	var firstErr error
 	for index, dependencyName := range names {
-		dependency := item.Manifest.Dependencies.Scenarios[dependencyName]
-		decision := resolveDependencyDecision(dependency, opts.BestEffort)
-		if decision.skip {
-			r.logDebug("Skipping ignored dependency", logx.AttrScenario, item.Slug, logx.AttrDependency, dependencyName)
-			continue
-		}
-
-		if _, ok := ready[dependencyName]; ok {
-			r.logDebug("Dependency already ready", logx.AttrScenario, item.Slug, logx.AttrDependency, dependencyName)
-			continue
-		}
-		if containsString(stack, dependencyName) {
-			return nil, fmt.Errorf("circular scenario dependency detected: %s -> %s", strings.Join(stack, " -> "), dependencyName)
-		}
-
-		dependencyItem, err := r.loadScenario(dependencyName, "")
-		if err != nil {
-			if decision.continueOnFailure {
-				r.logWarn("Dependency could not be loaded; continuing in best-effort mode",
-					logx.AttrScenario, item.Slug,
-					logx.AttrDependency, dependencyName,
-					logx.AttrOperation, "load_dependency",
-				)
-				failed = append(failed, dependencyName)
-				continue
+		index, dependencyName := index, dependencyName
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			select {
+			case sem <- struct{}{}:
+			case <-fanoutCtx.Done():
+				return
 			}
-			return nil, err
-		}
-
-		dependencyView, err := r.lookupRegistryRuntime(context.Background(), dependencyItem)
-		if err != nil {
-			if decision.continueOnFailure {
-				r.logWarn("Dependency registry lookup failed; continuing in best-effort mode",
-					logx.AttrScenario, item.Slug,
-					logx.AttrDependency, dependencyName,
-					logx.AttrOperation, "lookup_dependency_runtime",
-					"error", err.Error(),
-				)
-				failed = append(failed, dependencyName)
-				continue
-			}
-			return nil, err
-		}
-		dependencyForceSetup := forceSetupFor(opts, dependencyItem.Slug)
-		// Reuse is gated on FRESHNESS only: a running, healthy dependency must
-		// not be bounced because a provisioning check (e.g. an empty data/
-		// dir) reports "not populated". Provisioning is handled if the dep is
-		// actually (re)started, never as a reason to restart a healthy one.
-		freshnessStale, freshnessReasons, err := r.freshnessStaleCached(dependencyItem, dependencyForceSetup, setupCache)
-		if err != nil {
-			if decision.continueOnFailure {
-				r.logWarn("Dependency setup check failed; continuing in best-effort mode",
-					logx.AttrScenario, item.Slug,
-					logx.AttrDependency, dependencyName,
-					logx.AttrOperation, "setup_needed_dependency",
-					"error", err.Error(),
-				)
-				failed = append(failed, dependencyName)
-				continue
-			}
-			return nil, err
-		}
-		strictHealthy := r.isRegistryRuntimeHealthy(dependencyItem, dependencyView)
-		dependencyRunning := dependencyView.Authoritative
-		if dependencyRunning && strictHealthy && !freshnessStale {
-			r.publish(ProgressEvent{Kind: EventDependencyReused, Scenario: item.Slug, Dependency: dependencyName, Index: index + 1, Total: len(names)})
-			r.logDebug("Dependency already running and healthy", logx.AttrScenario, item.Slug, logx.AttrDependency, dependencyName)
-			ready[dependencyName] = struct{}{}
-			continue
-		}
-
-		// Running + healthy + stale: the freshness_policy decides how (or
-		// whether) to disrupt it. Not-running or unhealthy deps always fall
-		// through to a full (re)start regardless of policy.
-		if dependencyRunning && strictHealthy && freshnessStale {
-			handled, err := r.applyDependencyFreshnessPolicy(item.Slug, dependencyItem, decision, dependencyView, freshnessReasons)
+			defer func() { <-sem }()
+			failedName, err := r.ensureDependency(fanoutCtx, item, opts, session, index, dependencyName, len(names))
 			if err != nil {
-				if decision.continueOnFailure {
-					r.logWarn("Dependency freshness handling failed; continuing in best-effort mode",
-						logx.AttrScenario, item.Slug,
-						logx.AttrDependency, dependencyName,
-						logx.AttrOperation, "apply_freshness_policy",
-						"error", err.Error(),
-					)
-					failed = append(failed, dependencyName)
-					continue
+				if errors.Is(err, context.Canceled) && fanoutCtx.Err() != nil {
+					return
 				}
-				return nil, err
+				mu.Lock()
+				if firstErr == nil {
+					firstErr = err
+					cancel()
+				}
+				mu.Unlock()
+				return
 			}
-			if handled {
-				ready[dependencyName] = struct{}{}
-				continue
+			if failedName != "" {
+				mu.Lock()
+				failed = append(failed, failedName)
+				mu.Unlock()
 			}
-		}
-
-		reason := dependencyRestartReason(dependencyRunning, strictHealthy, freshnessStale, freshnessReasons)
-		r.publish(ProgressEvent{Kind: EventDependencyStarting, Scenario: item.Slug, Dependency: dependencyName, Reason: reason, Index: index + 1, Total: len(names)})
-		r.logInfo("Dependency start required",
-			logx.AttrScenario, item.Slug,
-			logx.AttrDependency, dependencyName,
-			"reason", reason,
-			"registry_running", dependencyRunning,
-			"healthy", strictHealthy,
-			"freshness_stale", freshnessStale,
-			"freshness_reasons", freshnessReasons,
-		)
-
-		dependencyOpts := opts
-		dependencyOpts.CustomPath = ""
-		dependencyOpts.CleanStale = false
-		// Dependencies are shared live infrastructure: a shadow scenario adopts
-		// the live dependency instances rather than spinning variant-scoped
-		// copies, so the parent's variant must never leak onto a dependency
-		// start. dependencyItem is loaded as live above; clear the carried
-		// variant too so the "deps are always live" invariant is explicit.
-		dependencyOpts.Variant = ""
-
-		dependencyReadyForReuse := func() (bool, error) {
-			view, err := r.lookupRegistryRuntime(context.Background(), dependencyItem)
-			if err != nil {
-				return false, err
-			}
-			stale, _, err := r.freshnessStaleCached(dependencyItem, dependencyForceSetup, make(setupCheckCache))
-			if err != nil {
-				return false, err
-			}
-			return view.Authoritative && r.isRegistryRuntimeHealthy(dependencyItem, view) && !stale, nil
-		}
-
-		// Acquire the per-scenario single-flight lock for this transitive
-		// dependency. Without it, two top-level scenario starts that
-		// share a dependency (e.g. our swarm-manager start and autoheal's
-		// app-monitor restart both needing workspace-sandbox) would race
-		// on the dependency's port claims — one finishing its acquire +
-		// release cycle while the other was mid-startup, surfacing as
-		// "claim is no longer reservable" at bind time. The lock is
-		// scoped to this dep call and released as soon as the dep is
-		// running, before its siblings are started, so DAG fan-out is
-		// not held under a single lock.
-		depRelease, reusedAfterWait, lockErr := r.acquireDependencyScenarioLock(dependencyName, dependencyReadyForReuse)
-		if lockErr != nil {
-			if decision.continueOnFailure {
-				r.logWarn("Dependency lock contention in best-effort mode",
-					logx.AttrScenario, item.Slug,
-					logx.AttrDependency, dependencyName,
-					logx.AttrOperation, "start_dependency",
-					"error", lockErr.Error(),
-				)
-				failed = append(failed, dependencyName)
-				continue
-			}
-			return nil, lockErr
-		}
-		if reusedAfterWait {
-			r.publish(ProgressEvent{Kind: EventDependencyReused, Scenario: item.Slug, Dependency: dependencyName, AfterLockWait: true, Index: index + 1, Total: len(names)})
-			ready[dependencyName] = struct{}{}
-			continue
-		}
-
-		_, depErr := r.startScenario(dependencyItem, dependencyOpts, ready, setupCache, append(stack, dependencyName))
-		depRelease()
-		if err := depErr; err != nil {
-			if decision.continueOnFailure {
-				r.logWarn("Dependency failed to start; continuing in best-effort mode",
-					logx.AttrScenario, item.Slug,
-					logx.AttrDependency, dependencyName,
-					logx.AttrOperation, "start_dependency",
-				)
-				failed = append(failed, dependencyName)
-				continue
-			}
-			return nil, err
-		}
-		ready[dependencyName] = struct{}{}
+		}()
 	}
-
+	wg.Wait()
+	if firstErr != nil {
+		return nil, firstErr
+	}
+	if err := fanoutCtx.Err(); err != nil {
+		return nil, err
+	}
+	sort.Strings(failed)
 	return failed, nil
 }
 
+func (r *Runner) ensureDependency(ctx context.Context, item scenario.Scenario, opts StartOptions, session *startSession, index int, dependencyName string, total int) (string, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	select {
+	case <-ctx.Done():
+		return "", ctx.Err()
+	default:
+	}
+	dependency := item.Manifest.Dependencies.Scenarios[dependencyName]
+	decision := resolveDependencyDecision(dependency, opts.BestEffort)
+	if decision.skip {
+		r.logDebug("Skipping ignored dependency", logx.AttrScenario, item.Slug, logx.AttrDependency, dependencyName)
+		return "", nil
+	}
+
+	if session.isReady(dependencyName) {
+		r.logDebug("Dependency already ready", logx.AttrScenario, item.Slug, logx.AttrDependency, dependencyName)
+		return "", nil
+	}
+	if session.contains(dependencyName) {
+		return "", fmt.Errorf("circular scenario dependency detected involving %s", dependencyName)
+	}
+
+	dependencyItem, err := r.loadScenario(dependencyName, "")
+	if err != nil {
+		if decision.continueOnFailure {
+			r.logWarn("Dependency could not be loaded; continuing in best-effort mode",
+				logx.AttrScenario, item.Slug,
+				logx.AttrDependency, dependencyName,
+				logx.AttrOperation, "load_dependency",
+			)
+			return dependencyName, nil
+		}
+		return "", err
+	}
+
+	dependencyView, err := r.lookupRegistryRuntime(ctx, dependencyItem)
+	if err != nil {
+		if decision.continueOnFailure {
+			r.logWarn("Dependency registry lookup failed; continuing in best-effort mode",
+				logx.AttrScenario, item.Slug,
+				logx.AttrDependency, dependencyName,
+				logx.AttrOperation, "lookup_dependency_runtime",
+				"error", err.Error(),
+			)
+			return dependencyName, nil
+		}
+		return "", err
+	}
+	dependencyForceSetup := forceSetupFor(opts, dependencyItem.Slug)
+	// Reuse is gated on FRESHNESS only: a running, healthy dependency must
+	// not be bounced because a provisioning check (e.g. an empty data/
+	// dir) reports "not populated". Provisioning is handled if the dep is
+	// actually (re)started, never as a reason to restart a healthy one.
+	freshnessStale, freshnessReasons, err := r.freshnessStaleCached(dependencyItem, dependencyForceSetup, session)
+	if err != nil {
+		if decision.continueOnFailure {
+			r.logWarn("Dependency setup check failed; continuing in best-effort mode",
+				logx.AttrScenario, item.Slug,
+				logx.AttrDependency, dependencyName,
+				logx.AttrOperation, "setup_needed_dependency",
+				"error", err.Error(),
+			)
+			return dependencyName, nil
+		}
+		return "", err
+	}
+	strictHealthy := r.isRegistryRuntimeHealthy(dependencyItem, dependencyView)
+	dependencyRunning := dependencyView.Authoritative
+	if dependencyRunning && strictHealthy && !freshnessStale {
+		r.publish(ProgressEvent{Kind: EventDependencyReused, Scenario: item.Slug, Dependency: dependencyName, Index: index + 1, Total: total})
+		r.logDebug("Dependency already running and healthy", logx.AttrScenario, item.Slug, logx.AttrDependency, dependencyName)
+		session.markReady(dependencyName)
+		return "", nil
+	}
+
+	// Running + healthy + stale: the freshness_policy decides how (or
+	// whether) to disrupt it. Not-running or unhealthy deps always fall
+	// through to a full (re)start regardless of policy.
+	if dependencyRunning && strictHealthy && freshnessStale {
+		handled, err := r.applyDependencyFreshnessPolicyContext(ctx, item.Slug, dependencyItem, decision, dependencyView, freshnessReasons)
+		if err != nil {
+			if decision.continueOnFailure {
+				r.logWarn("Dependency freshness handling failed; continuing in best-effort mode",
+					logx.AttrScenario, item.Slug,
+					logx.AttrDependency, dependencyName,
+					logx.AttrOperation, "apply_freshness_policy",
+					"error", err.Error(),
+				)
+				return dependencyName, nil
+			}
+			return "", err
+		}
+		if handled {
+			session.markReady(dependencyName)
+			return "", nil
+		}
+	}
+
+	reason := dependencyRestartReason(dependencyRunning, strictHealthy, freshnessStale, freshnessReasons)
+	r.publish(ProgressEvent{Kind: EventDependencyStarting, Scenario: item.Slug, Dependency: dependencyName, Reason: reason, Index: index + 1, Total: total})
+	r.logInfo("Dependency start required",
+		logx.AttrScenario, item.Slug,
+		logx.AttrDependency, dependencyName,
+		"reason", reason,
+		"registry_running", dependencyRunning,
+		"healthy", strictHealthy,
+		"freshness_stale", freshnessStale,
+		"freshness_reasons", freshnessReasons,
+	)
+
+	dependencyOpts := opts
+	dependencyOpts.CustomPath = ""
+	dependencyOpts.CleanStale = false
+	// Dependencies are shared live infrastructure: a shadow scenario adopts
+	// the live dependency instances rather than spinning variant-scoped
+	// copies, so the parent's variant must never leak onto a dependency
+	// start. dependencyItem is loaded as live above; clear the carried
+	// variant too so the "deps are always live" invariant is explicit.
+	dependencyOpts.Variant = ""
+
+	dependencyReadyForReuse := func() (bool, error) {
+		view, err := r.lookupRegistryRuntime(ctx, dependencyItem)
+		if err != nil {
+			return false, err
+		}
+		stale, _, err := r.freshnessStaleCached(dependencyItem, dependencyForceSetup, session)
+		if err != nil {
+			return false, err
+		}
+		return view.Authoritative && r.isRegistryRuntimeHealthy(dependencyItem, view) && !stale, nil
+	}
+
+	// Acquire the per-scenario single-flight lock for this transitive
+	// dependency. Without it, two top-level scenario starts that
+	// share a dependency (e.g. our swarm-manager start and autoheal's
+	// app-monitor restart both needing workspace-sandbox) would race
+	// on the dependency's port claims — one finishing its acquire +
+	// release cycle while the other was mid-startup, surfacing as
+	// "claim is no longer reservable" at bind time. The lock is
+	// scoped to this dep call and released as soon as the dep is
+	// running, before its siblings are started, so DAG fan-out is
+	// not held under a single lock.
+	depRelease, reusedAfterWait, lockErr := r.acquireDependencyScenarioLockContext(ctx, dependencyName, dependencyReadyForReuse)
+	if lockErr != nil {
+		if decision.continueOnFailure {
+			r.logWarn("Dependency lock contention in best-effort mode",
+				logx.AttrScenario, item.Slug,
+				logx.AttrDependency, dependencyName,
+				logx.AttrOperation, "start_dependency",
+				"error", lockErr.Error(),
+			)
+			return dependencyName, nil
+		}
+		return "", lockErr
+	}
+	if reusedAfterWait {
+		r.publish(ProgressEvent{Kind: EventDependencyReused, Scenario: item.Slug, Dependency: dependencyName, AfterLockWait: true, Index: index + 1, Total: total})
+		session.markReady(dependencyName)
+		return "", nil
+	}
+
+	_, depErr := r.startScenario(dependencyItem, dependencyOpts, session.withContext(ctx))
+	depRelease()
+	if err := depErr; err != nil {
+		if decision.continueOnFailure {
+			r.logWarn("Dependency failed to start; continuing in best-effort mode",
+				logx.AttrScenario, item.Slug,
+				logx.AttrDependency, dependencyName,
+				logx.AttrOperation, "start_dependency",
+			)
+			return dependencyName, nil
+		}
+		return "", err
+	}
+	session.markReady(dependencyName)
+	return "", nil
+}
+
+func dependencyConcurrencyLimit(item scenario.Scenario) int {
+	maxReservation := int64(0)
+	registry := BuilderRegistry()
+	for _, spec := range registry {
+		if spec.MemoryReservationBytes > maxReservation {
+			maxReservation = spec.MemoryReservationBytes
+		}
+	}
+	// Retain the item parameter as part of the seam: future builders may carry
+	// scenario-specific reservations, but the current registry-wide ceiling is
+	// the safe bound for a fan-out whose siblings can be heterogeneous.
+	_ = item
+	if maxReservation <= 0 {
+		return 2
+	}
+	facts, err := hostinventory.HostMemoryFacts()
+	if err != nil || !facts.Trustworthy || facts.AvailableBytes == 0 {
+		return 2
+	}
+	limit := int(facts.AvailableBytes / uint64(maxReservation))
+	if limit < 1 {
+		return 1
+	}
+	if limit > 8 {
+		return 8
+	}
+	return limit
+}
+
 func (r *Runner) acquireDependencyScenarioLock(dependencyName string, dependencyReady func() (bool, error)) (func(), bool, error) {
+	return r.acquireDependencyScenarioLockContext(context.Background(), dependencyName, dependencyReady)
+}
+
+func (r *Runner) acquireDependencyScenarioLockContext(ctx context.Context, dependencyName string, dependencyReady func() (bool, error)) (func(), bool, error) {
 	release, err := r.acquireScenarioLock(dependencyName)
 	if err == nil {
 		return release, false, nil
@@ -280,7 +364,7 @@ func (r *Runner) acquireDependencyScenarioLock(dependencyName string, dependency
 	// apart, so the first tick only checks readiness and the first re-acquire
 	// happens after the first sleep.
 	firstTick := true
-	awaitErr := Await(r.awaitClock(), dependencyLockPolicy, func() (bool, error) {
+	awaitErr := AwaitContext(ctx, r.awaitClock(), dependencyLockPolicy, func() (bool, error) {
 		if dependencyReady != nil {
 			ready, readyErr := dependencyReady()
 			if readyErr == nil && ready {
@@ -332,6 +416,13 @@ func (r *Runner) acquireDependencyScenarioLock(dependencyName string, dependency
 // restart_when_stale edge to rebuild_only when other live scenarios depend on
 // the same instance, so this start never bounces a process others rely on.
 func (r *Runner) applyDependencyFreshnessPolicy(startingScenario string, dep scenario.Scenario, decision dependencyDecision, view registryRuntimeView, freshnessReasons []string) (bool, error) {
+	return r.applyDependencyFreshnessPolicyContext(context.Background(), startingScenario, dep, decision, view, freshnessReasons)
+}
+
+func (r *Runner) applyDependencyFreshnessPolicyContext(ctx context.Context, startingScenario string, dep scenario.Scenario, decision dependencyDecision, view registryRuntimeView, freshnessReasons []string) (bool, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	policy := decision.freshnessPolicy
 	if strings.TrimSpace(policy) == "" {
 		policy = scenario.DependencyFreshnessPolicyRestartWhenStale
@@ -339,7 +430,7 @@ func (r *Runner) applyDependencyFreshnessPolicy(startingScenario string, dep sce
 	reasonStr := strings.Join(freshnessReasons, "; ")
 
 	if policy == scenario.DependencyFreshnessPolicyRestartWhenStale &&
-		r.dependencyHasOtherLiveConsumers(context.Background(), dep.Slug, startingScenario) {
+		r.dependencyHasOtherLiveConsumers(ctx, dep.Slug, startingScenario) {
 		r.logInfo("Freshness arbitration: degrading restart to rebuild-only (shared dependency has other live consumers)",
 			logx.AttrScenario, dep.Slug, "freshness_reason", reasonStr)
 		policy = scenario.DependencyFreshnessPolicyRebuildOnly
@@ -355,7 +446,7 @@ func (r *Runner) applyDependencyFreshnessPolicy(startingScenario string, dep sce
 		r.publish(ProgressEvent{Kind: EventDependencyStalePolicy, Scenario: startingScenario, Dependency: dep.Slug, Policy: scenario.DependencyFreshnessPolicyRebuildOnly, Reason: reasonStr})
 		r.logInfo("Rebuilding stale dependency without restart",
 			logx.AttrScenario, dep.Slug, "freshness_policy", scenario.DependencyFreshnessPolicyRebuildOnly, "freshness_reason", reasonStr)
-		if err := r.rebuildDependencyArtifacts(dep, view); err != nil {
+		if err := r.rebuildDependencyArtifactsContext(ctx, dep, view); err != nil {
 			return false, err
 		}
 		return true, nil
@@ -364,14 +455,13 @@ func (r *Runner) applyDependencyFreshnessPolicy(startingScenario string, dep sce
 	}
 }
 
-// rebuildDependencyArtifacts re-runs the dependency's setup phase (rebuilding
-// its artifacts) without stopping the running process, then re-stamps the
-// freshness manifest. The setup env reuses the running instance's bound ports so
-// build steps that reference port env vars still resolve.
-func (r *Runner) rebuildDependencyArtifacts(item scenario.Scenario, view registryRuntimeView) error {
+func (r *Runner) rebuildDependencyArtifactsContext(ctx context.Context, item scenario.Scenario, view registryRuntimeView) error {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	env := envFromRuntimeView(item.Manifest, view)
 	if _, err := r.runWithLifecycleLog(startLifecycleLogContext(item.Slug, "rebuild", "setup"), func(logWriter, childWriter io.Writer) error {
-		_, execErr := r.ExecutePhaseDetailed(item, "setup", env, logWriter, childWriter)
+		_, execErr := r.executePhaseDetailed(ctx, item, "setup", env, logWriter, childWriter)
 		return execErr
 	}); err != nil {
 		return err

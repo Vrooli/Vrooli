@@ -84,11 +84,14 @@ type ProgressSink interface {
 // sink set is exactly the text renderer; WithProgressSink appends more.
 func (r *Runner) publish(ev ProgressEvent) {
 	ev.At = r.runtimeDeps().now()
-	if r.sinks == nil {
+	r.sinksMu.RLock()
+	sinks := append([]ProgressSink(nil), r.sinks...)
+	r.sinksMu.RUnlock()
+	if len(sinks) == 0 {
 		r.Publish(ev) // default renderer via the Runner's own sink impl
 		return
 	}
-	for _, sink := range r.sinks {
+	for _, sink := range sinks {
 		sink.Publish(ev)
 	}
 }
@@ -96,6 +99,8 @@ func (r *Runner) publish(ev ProgressEvent) {
 // WithProgressSink registers an additional progress sink alongside the text
 // renderer and returns the runner for chaining.
 func (r *Runner) WithProgressSink(sink ProgressSink) *Runner {
+	r.sinksMu.Lock()
+	defer r.sinksMu.Unlock()
 	if r.sinks == nil {
 		r.sinks = []ProgressSink{r}
 	}

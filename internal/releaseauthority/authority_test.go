@@ -11,7 +11,7 @@ import (
 
 	"github.com/vrooli/binaryfetch"
 	"github.com/vrooli/vrooli/internal/resources/securestore"
-	credentialauthority "github.com/vrooli/vrooli/internal/secrets"
+	"github.com/vrooli/vrooli/internal/credentialauthority"
 	resourcedeployment "github.com/vrooli/vrooli/packages/resource-deployment"
 )
 

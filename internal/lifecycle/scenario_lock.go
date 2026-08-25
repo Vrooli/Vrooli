@@ -10,6 +10,7 @@ import (
 	"sync"
 
 	platform "github.com/vrooli/platform-go"
+	"github.com/vrooli/vrooli/internal/config"
 	"github.com/vrooli/vrooli/internal/process"
 )
 
@@ -75,7 +76,7 @@ var lockFileFn = func(file *os.File, nonBlocking bool) (func(), error) {
 
 // lockFileOpenFn opens the lock file; tests override to inject failures.
 var lockFileOpenFn = func(name string, flag int, perm os.FileMode) (*os.File, error) {
-	return os.OpenFile(name, flag, perm)
+	return config.OpenOwnedFile(name, flag, perm)
 }
 
 // inProcessScenarioLocks holds one sync.Mutex per (home, scenario) tuple.

@@ -1,6 +1,7 @@
 package lifecycle
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/json"
 	"errors"
@@ -60,9 +61,10 @@ type sharedPackageDependency struct {
 }
 
 type sharedPackageProvisionOptions struct {
-	Home  string
-	Env   []string
-	Stdin io.Reader
+	Context context.Context
+	Home    string
+	Env     []string
+	Stdin   io.Reader
 }
 
 // ProvisionGeneratedPackages ensures repository-level generated packages are
@@ -110,27 +112,43 @@ func ProvisionGeneratedPackages(repoRoot, home string, stdout, logWriter io.Writ
 	return nil
 }
 
-// provisionSharedPackages derives shared-package work from the scenario UI's
-// file dependencies. It runs before any setup step, which is required because
-// pnpm copies file: dependencies during install-ui-deps.
-func (r *Runner) provisionSharedPackages(item scenario.Scenario, env map[string]string, logWriter, childWriter io.Writer) error {
-	uiPackageJSON := filepath.Join(item.Path, "ui", "package.json")
-	dependencies, err := sharedPackageDependencies(r.Root, uiPackageJSON)
-	if err != nil {
-		return fmt.Errorf("resolve shared packages for scenario %q: %w", item.Slug, err)
+// provisionSharedPackages derives shared-package work from the declared
+// builder contract. Builders that follow workspace file dependencies identify
+// their own package manifest; the lifecycle does not assume a component named
+// "ui" or a particular frontend layout.
+func (r *Runner) provisionSharedPackages(ctx context.Context, item scenario.Scenario, env map[string]string, logWriter, childWriter io.Writer) error {
+	registry := BuilderRegistry()
+	dependenciesByRoot := make(map[string]sharedPackageDependency)
+	for _, name := range orderedComponentNames(item.Manifest.Components) {
+		component := item.Manifest.Components[name]
+		spec, ok := registry[component.Build.Kind]
+		if !ok || !spec.FollowsWorkspaceFileDeps {
+			continue
+		}
+		dir := component.Build.Dir
+		if strings.TrimSpace(dir) == "" {
+			dir = "."
+		}
+		packageJSON := filepath.Join(item.Path, dir, "package.json")
+		resolved, err := sharedPackageDependencies(r.Root, packageJSON)
+		if err != nil {
+			return fmt.Errorf("resolve shared packages for scenario %q component %q: %w", item.Slug, name, err)
+		}
+		for _, dependency := range resolved {
+			dependenciesByRoot[dependency.Root] = dependency
+		}
 	}
+	dependencies := make([]sharedPackageDependency, 0, len(dependenciesByRoot))
+	for _, dependency := range dependenciesByRoot {
+		dependencies = append(dependencies, dependency)
+	}
+	sort.Slice(dependencies, func(i, j int) bool { return dependencies[i].Name < dependencies[j].Name })
 	if len(dependencies) == 0 {
 		return nil
 	}
 
 	if provisioningDisabled(env) {
 		dep := dependencies[0]
-		for _, candidate := range dependencies {
-			if candidate.Name == "@vrooli/iframe-bridge" {
-				dep = candidate
-				break
-			}
-		}
 		command := firstProvisioningCommand(dep)
 		return &SharedPackageProvisioningError{
 			PackageName: dep.Name,
@@ -141,9 +159,10 @@ func (r *Runner) provisionSharedPackages(item scenario.Scenario, env map[string]
 
 	_, _ = fmt.Fprintf(logWriter, "provision-shared-packages: %d package(s) before install-ui-deps\n", len(dependencies))
 	commandOptions := sharedPackageProvisionOptions{
-		Home:  r.Home,
-		Env:   lifecycleStepEnv("setup", env),
-		Stdin: strings.NewReader(""),
+		Context: ctx,
+		Home:    r.Home,
+		Env:     lifecycleStepEnv("setup", env),
+		Stdin:   strings.NewReader(""),
 	}
 	for _, dependency := range dependencies {
 		if err := provisionSharedPackageWithOptions(dependency, childWriter, logWriter, commandOptions); err != nil {
@@ -256,7 +275,7 @@ func provisionSharedPackageWithOptions(dependency sharedPackageDependency, stdou
 	var release func()
 	if strings.TrimSpace(options.Home) != "" {
 		var err error
-		release, err = acquireSharedPackageLock(options.Home, dependency.Name, dependency.Root, logWriter)
+		release, err = acquireSharedPackageLockContext(options.Context, options.Home, dependency.Name, dependency.Root, logWriter)
 		if err != nil {
 			return &SharedPackageProvisioningError{
 				PackageName: dependency.Name,

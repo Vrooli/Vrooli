@@ -189,6 +189,44 @@ func TestDoctorReportsToolingPortAndServiceManifest(t *testing.T) {
 	}
 }
 
+func TestDoctorRepairRequiresExplicitOptionAndUsesBrokerSeam(t *testing.T) {
+	root := t.TempDir()
+	home := t.TempDir()
+	testkitgo.WriteRepoContract(t, root, "scenarios")
+	testscenario.WriteProjectService(t, root, scenario.ServiceManifest{Service: scenario.ServiceMetadata{Name: "project-alpha"}})
+	controller := New(root, home, io.Discard, io.Discard)
+	controller.MaintenanceSnapshotFn = func() (maintenance.ProcessSnapshot, error) {
+		return maintenance.ProcessSnapshot{}, nil
+	}
+	controller.RepairRuntimeHomeFn = func() DoctorCheck {
+		return DoctorCheck{Name: "runtime_home_ownership_repair", Status: "ok", Message: "broker-backed test seam"}
+	}
+
+	withoutRepair, err := controller.Doctor()
+	if err != nil {
+		t.Fatalf("Doctor: %v", err)
+	}
+	for _, check := range withoutRepair.Checks {
+		if check.Name == "runtime_home_ownership_repair" {
+			t.Fatal("read-only doctor unexpectedly attempted ownership repair")
+		}
+	}
+
+	withRepair, err := controller.DoctorWithOptions(DoctorOptions{RepairFilePermissions: true})
+	if err != nil {
+		t.Fatalf("DoctorWithOptions: %v", err)
+	}
+	for _, check := range withRepair.Checks {
+		if check.Name == "runtime_home_ownership_repair" {
+			if check.Status != "ok" || check.Message != "broker-backed test seam" {
+				t.Fatalf("repair check = %#v", check)
+			}
+			return
+		}
+	}
+	t.Fatal("explicit repair option did not report the broker-backed repair check")
+}
+
 func TestDoctorReportsNonCanonicalCLIInstallLocations(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()

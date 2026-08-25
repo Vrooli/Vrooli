@@ -194,6 +194,18 @@ func (c *Controller) EnabledResourceNames() ([]string, error) {
 	return names, nil
 }
 
+// ResourceRequired reports whether the project configuration marks a resource
+// as semantically required. This is distinct from the operator's enabled
+// choice: an enabled resource may still be an optional capability whose
+// absence has a documented fallback.
+func (c *Controller) ResourceRequired(name string) (bool, error) {
+	entries, err := c.readConfigEntries()
+	if err != nil {
+		return false, err
+	}
+	return entries[name].Required, nil
+}
+
 // seedOperatorState adopts legacy repository enabled values once. The
 // repository manifest remains readable for migration, but after adoption the
 // operator-state document is the only mutable authority.

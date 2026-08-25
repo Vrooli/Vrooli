@@ -7,7 +7,7 @@ import (
 	resourceenv "github.com/vrooli/vrooli/internal/resources/env"
 	"github.com/vrooli/vrooli/internal/resources/securestore"
 	"github.com/vrooli/vrooli/internal/scenario"
-	credentialauthority "github.com/vrooli/vrooli/internal/secrets"
+	"github.com/vrooli/vrooli/internal/credentialauthority"
 )
 
 // withCredentialStore points the resolver at a store representing a host

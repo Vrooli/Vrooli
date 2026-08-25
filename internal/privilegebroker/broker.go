@@ -14,11 +14,12 @@ import (
 
 // Config is deliberately small: setup owns all filesystem and systemd policy.
 type Config struct {
-	SocketPath string
-	AllowedUID uint32
-	SocketGID  int
-	AuditPath  string
-	Executor   Executor
+	SocketPath        string
+	AllowedUID        uint32
+	SocketGID         int
+	AuditPath         string
+	Executor          Executor
+	RuntimeHomeRepair func(context.Context, RuntimeHomeSubject) Result
 }
 
 // Executor is the narrow test seam. Implementations receive only broker-built
@@ -114,6 +115,9 @@ func (b *Broker) Execute(ctx context.Context, req Request, callerUID uint32) Res
 	if err := Validate(req); err != nil {
 		return NewFailure(req.RequestID, req.Action, err.Error())
 	}
+	if req.Action == ActionRuntimeHomeOwnershipRepair && req.RuntimeHome.ExpectedUID != callerUID {
+		return NewFailure(req.RequestID, req.Action, "runtime_home_identity_not_caller")
+	}
 	result := b.dispatch(ctx, req)
 	b.audit(callerUID, req, result)
 	return result
@@ -126,6 +130,11 @@ func (b *Broker) dispatch(ctx context.Context, req Request) Result {
 	switch req.Action {
 	case ActionVolumeFilesystemCheck, ActionVolumeFilesystemRepair:
 		return executeVolume(ctx, b.config.Executor, req)
+	case ActionRuntimeHomeOwnershipRepair:
+		if b.config.RuntimeHomeRepair == nil {
+			return NewFailure(req.RequestID, req.Action, "runtime_home_repair_unavailable")
+		}
+		return b.config.RuntimeHomeRepair(ctx, *req.RuntimeHome)
 	default:
 		return executeUFW(ctx, b.config.Executor, req)
 	}

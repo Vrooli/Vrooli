@@ -24,8 +24,9 @@ const (
 	// unmount are absent because this service runs with mount-namespace
 	// isolation, so a mount performed here would not propagate to the host —
 	// an action that silently does nothing is worse than no action.
-	ActionVolumeFilesystemCheck  = "volume.filesystem.check"
-	ActionVolumeFilesystemRepair = "volume.filesystem.repair"
+	ActionVolumeFilesystemCheck      = "volume.filesystem.check"
+	ActionVolumeFilesystemRepair     = "volume.filesystem.repair"
+	ActionRuntimeHomeOwnershipRepair = "runtime-home.ownership.repair"
 )
 
 // Request is the complete v1 wire input. Deliberately, it has no command,
@@ -38,7 +39,8 @@ type Request struct {
 	// Volume carries the target of a volume.* action. It is a separate subject
 	// rather than extra fields on Subject so each action family validates
 	// against exactly the shape it needs and nothing else.
-	Volume *VolumeSubject `json:"volume,omitempty"`
+	Volume      *VolumeSubject      `json:"volume,omitempty"`
+	RuntimeHome *RuntimeHomeSubject `json:"runtime_home,omitempty"`
 }
 
 // VolumeSubject identifies a storage volume for a volume.* action. There is no
@@ -51,6 +53,12 @@ type VolumeSubject struct {
 	// required, so a renumbered or replugged device cannot inherit approval.
 	UUID   string `json:"uuid,omitempty"`
 	Serial string `json:"serial,omitempty"`
+}
+
+type RuntimeHomeSubject struct {
+	Class       string `json:"class"`
+	ExpectedUID uint32 `json:"expected_uid"`
+	ExpectedGID uint32 `json:"expected_gid"`
 }
 
 type Subject struct {
@@ -78,9 +86,12 @@ type Evidence struct {
 	// Volume-action evidence. Mounted and IdentityVerified record the broker's
 	// own checks rather than the caller's claims; ExitCode preserves the tool's
 	// status so a corrected-errors result is not mistaken for a failure.
-	Mounted          bool `json:"mounted,omitempty"`
-	IdentityVerified bool `json:"identity_verified,omitempty"`
-	ExitCode         int  `json:"exit_code,omitempty"`
+	Mounted          bool   `json:"mounted,omitempty"`
+	IdentityVerified bool   `json:"identity_verified,omitempty"`
+	ExitCode         int    `json:"exit_code,omitempty"`
+	Scanned          uint64 `json:"scanned,omitempty"`
+	Repaired         uint64 `json:"repaired,omitempty"`
+	Failed           uint64 `json:"failed,omitempty"`
 }
 
 func NewFailure(requestID, action, code string) Result {

@@ -68,7 +68,9 @@ func TestApplyFreshnessPolicyArbitrationDegradesToRebuildOnly(t *testing.T) {
 	if _, err := store.CreateInstance(ctx, scenarioruntime.Instance{Scenario: "gamma"}); err != nil {
 		t.Fatalf("CreateInstance(gamma): %v", err)
 	}
-	_ = store.Close()
+	if err := store.Close(); err != nil {
+		t.Fatalf("close freshness test store: %v", err)
+	}
 
 	r := &Runner{Root: root, Home: home, Out: io.Discard, Err: io.Discard, Verbosity: VerbosityQuiet}
 	// beta dep with an empty setup phase so rebuildDependencyArtifacts is a no-op.

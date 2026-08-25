@@ -3,6 +3,8 @@ package lifecycle
 import (
 	"bytes"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 )
@@ -105,4 +107,37 @@ func TestWithProgressSinkFansOutAndStampsClock(t *testing.T) {
 	if !capture.events[0].At.Equal(at) {
 		t.Fatalf("event At = %v, want injected clock %v", capture.events[0].At, at)
 	}
+}
+
+type concurrentProgressSink struct{ count atomic.Int64 }
+
+func (s *concurrentProgressSink) Publish(ProgressEvent) { s.count.Add(1) }
+
+func TestProgressPublishAndSinkChurnIsRaceSafe(t *testing.T) {
+	runner := &Runner{Verbosity: VerbosityVerbose, deps: lifecycleDeps{
+		now:   time.Now,
+		sleep: func(time.Duration) {},
+	}}
+	var wg sync.WaitGroup
+	for i := 0; i < 4; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for j := 0; j < 500; j++ {
+				runner.publish(ProgressEvent{Kind: EventOperationStarted, Scenario: "alpha"})
+			}
+		}()
+	}
+	for i := 0; i < 4; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for j := 0; j < 250; j++ {
+				sink := &concurrentProgressSink{}
+				detach := runner.attachSink(sink)
+				detach()
+			}
+		}()
+	}
+	wg.Wait()
 }

@@ -516,7 +516,7 @@ func TestEnsureDependenciesBestEffortMarksMissingRequiredDependencyAsFailed(t *t
 		t.Fatalf("Load(alpha): %v", err)
 	}
 
-	failed, err := runner.ensureDependencies(item, StartOptions{BestEffort: true}, map[string]struct{}{}, make(setupCheckCache), []string{"alpha"})
+	failed, err := runner.ensureDependencies(item, StartOptions{BestEffort: true}, newStartSession(context.Background()))
 	if err != nil {
 		t.Fatalf("ensureDependencies(best-effort): %v", err)
 	}
@@ -543,7 +543,7 @@ func TestEnsureDependenciesTryStartMarksMissingOptionalDependencyAsFailed(t *tes
 		t.Fatalf("Load(alpha): %v", err)
 	}
 
-	failed, err := runner.ensureDependencies(item, StartOptions{}, map[string]struct{}{}, make(setupCheckCache), []string{"alpha"})
+	failed, err := runner.ensureDependencies(item, StartOptions{}, newStartSession(context.Background()))
 	if err != nil {
 		t.Fatalf("ensureDependencies(try-start): %v", err)
 	}
@@ -570,7 +570,7 @@ func TestEnsureDependenciesIgnoreSkipsMissingOptionalDependency(t *testing.T) {
 		t.Fatalf("Load(alpha): %v", err)
 	}
 
-	failed, err := runner.ensureDependencies(item, StartOptions{}, map[string]struct{}{}, make(setupCheckCache), []string{"alpha"})
+	failed, err := runner.ensureDependencies(item, StartOptions{}, newStartSession(context.Background()))
 	if err != nil {
 		t.Fatalf("ensureDependencies(ignore): %v", err)
 	}
@@ -2045,7 +2045,8 @@ func TestKillOrphansOnPortsUsesInjectedListenerAndSignalSeams(t *testing.T) {
 				signaled = append(signaled, fmt.Sprintf("%d:%t", pid, force))
 				return nil
 			},
-			sleep: func(time.Duration) {},
+			isPIDRunning: func(int) bool { return false },
+			sleep:        func(time.Duration) {},
 		},
 	}
 
@@ -2053,7 +2054,7 @@ func TestKillOrphansOnPortsUsesInjectedListenerAndSignalSeams(t *testing.T) {
 		t.Fatalf("killOrphansOnPorts: %v", err)
 	}
 
-	want := []string{"101:false", "202:false", "303:true"}
+	want := []string{"101:false", "202:false"}
 	if len(signaled) != len(want) {
 		t.Fatalf("signaled = %v, want %v", signaled, want)
 	}
@@ -2121,7 +2122,7 @@ func orphanLifecycleDeps(signaled *[]string) lifecycleDeps {
 			*signaled = append(*signaled, fmt.Sprintf("%d:%t", pid, force))
 			return nil
 		},
-		isPIDRunning: func(pid int) bool { return pid == 101 || pid == 303 },
+		isPIDRunning: func(int) bool { return false },
 		sleep:        func(time.Duration) {},
 	}
 }
@@ -2138,17 +2139,19 @@ func TestCleanupFixedPortOrphans_Aggressive(t *testing.T) {
 		t.Fatalf("cleanupFixedPortOrphans: %v", err)
 	}
 
-	// PID 101 (alpha-owned) AND PID 303 (env-less orphan) both killed.
+	// PID 101 (alpha-owned) AND PID 303 (env-less orphan) both receive
+	// termination. Teardown now polls tracked listeners rather than rescanning
+	// the port and guessing which newly observed PID should be force-killed.
 	// PID 202 (beta-owned) is left alone to preserve cross-scenario safety.
 	signaledSet := map[string]bool{}
 	for _, s := range signaled {
 		signaledSet[s] = true
 	}
-	if !signaledSet["101:false"] || !signaledSet["101:true"] {
-		t.Errorf("env-matched PID 101 not signaled (SIGTERM+SIGKILL): %v", signaled)
+	if !signaledSet["101:false"] || signaledSet["101:true"] {
+		t.Errorf("env-matched PID 101 should exit during the graceful poll: %v", signaled)
 	}
-	if !signaledSet["303:false"] || !signaledSet["303:true"] {
-		t.Errorf("env-less orphan PID 303 should be killed via aggressive fallback: %v", signaled)
+	if !signaledSet["303:false"] || signaledSet["303:true"] {
+		t.Errorf("env-less orphan PID 303 should exit during the graceful poll: %v", signaled)
 	}
 	if signaledSet["202:false"] || signaledSet["202:true"] {
 		t.Errorf("beta-scenario PID 202 must not be killed: %v", signaled)
@@ -2169,7 +2172,7 @@ func TestCleanupFixedPortOrphans_StrictPreservesOldBehavior(t *testing.T) {
 		t.Fatalf("cleanupFixedPortOrphans: %v", err)
 	}
 
-	want := []string{"101:false", "101:true"}
+	want := []string{"101:false"}
 	if len(signaled) != len(want) {
 		t.Fatalf("signaled = %v, want %v", signaled, want)
 	}
@@ -2437,8 +2440,8 @@ func TestRunnerStartEnforcesScenarioHostRequirements(t *testing.T) {
 	if !captured.AutoInstall {
 		t.Fatal("AutoInstall must be true")
 	}
-	if captured.Label != "scenario:alpha" {
-		t.Fatalf("Label = %q, want scenario:alpha", captured.Label)
+	if captured.Label != "scenario-tree:alpha" {
+		t.Fatalf("Label = %q, want scenario-tree:alpha", captured.Label)
 	}
 }
 

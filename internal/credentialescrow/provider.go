@@ -21,7 +21,7 @@ import (
 	"github.com/vrooli/vrooli/internal/hostinventory"
 	"github.com/vrooli/vrooli/internal/operatorcapability"
 	"github.com/vrooli/vrooli/internal/resources/securestore"
-	credentialauthority "github.com/vrooli/vrooli/internal/secrets"
+	"github.com/vrooli/vrooli/internal/credentialauthority"
 	kopiaregistry "github.com/vrooli/vrooli/packages/kopiaregistry-go"
 )
 

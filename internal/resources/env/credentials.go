@@ -7,7 +7,7 @@ import (
 
 	"github.com/vrooli/vrooli/internal/credentialspec"
 	manifestpkg "github.com/vrooli/vrooli/internal/resources/manifest"
-	credentialauthority "github.com/vrooli/vrooli/internal/secrets"
+	"github.com/vrooli/vrooli/internal/credentialauthority"
 )
 
 // CredentialGapReason names why a declared credential is not usable right now.

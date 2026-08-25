@@ -2,6 +2,7 @@ package lifecycle
 
 import (
 	"bytes"
+	"crypto/sha256"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -19,6 +20,123 @@ import (
 	"github.com/vrooli/vrooli/internal/packagegov"
 	"github.com/vrooli/vrooli/internal/scenario"
 )
+
+type installDigestRecord struct {
+	Digest string `json:"digest"`
+}
+
+// installNeeded is the builder-declared install gate. It hashes only the
+// declared inputs and the builder's marker; output freshness remains owned by
+// the existing artifact freshness engine.
+func installNeeded(root string, component scenario.Component, spec BuilderSpec) (bool, string, error) {
+	if len(spec.Install) == 0 {
+		return false, "", nil
+	}
+	if len(spec.InstallInputs) == 0 {
+		return true, "builder declares no install inputs", nil
+	}
+	digest, err := installInputsDigest(root, component, spec)
+	if err != nil {
+		return true, "unable to digest install inputs", err
+	}
+	buildDir := component.Build.Dir
+	if strings.TrimSpace(buildDir) == "" {
+		buildDir = "."
+	}
+	if spec.InstallStateFile != "" {
+		if _, err := os.Stat(filepath.Join(root, buildDir, filepath.FromSlash(spec.InstallStateFile))); err != nil {
+			return true, "install state marker missing", nil
+		}
+	}
+	statePath := installDigestPath(root, component, spec)
+	data, err := os.ReadFile(statePath)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return true, "install digest missing", nil
+		}
+		return true, "install digest unreadable", err
+	}
+	var record installDigestRecord
+	if err := json.Unmarshal(data, &record); err != nil || record.Digest != digest {
+		return true, "install inputs changed", nil
+	}
+	return false, "install inputs unchanged", nil
+}
+
+func recordInstallDigest(root string, component scenario.Component, spec BuilderSpec) error {
+	if len(spec.InstallInputs) == 0 {
+		return nil
+	}
+	digest, err := installInputsDigest(root, component, spec)
+	if err != nil {
+		return err
+	}
+	path := installDigestPath(root, component, spec)
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		return err
+	}
+	data, err := json.Marshal(installDigestRecord{Digest: digest})
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(path, data, 0o644)
+}
+
+func installDigestPath(root string, component scenario.Component, spec BuilderSpec) string {
+	dir := component.Build.Dir
+	if strings.TrimSpace(dir) == "" {
+		dir = "."
+	}
+	name := strings.NewReplacer("/", "_", "\\", "_", " ", "_").Replace(spec.Kind)
+	return filepath.Join(root, dir, ".vrooli-install-"+name+".json")
+}
+
+func installInputsDigest(root string, component scenario.Component, spec BuilderSpec) (string, error) {
+	dir := component.Build.Dir
+	if strings.TrimSpace(dir) == "" {
+		dir = "."
+	}
+	type inputFile struct{ path string }
+	files := make([]inputFile, 0)
+	for _, pattern := range spec.InstallInputs {
+		matches, err := filepath.Glob(filepath.Join(root, dir, filepath.FromSlash(pattern)))
+		if err != nil {
+			return "", err
+		}
+		if len(matches) == 0 {
+			files = append(files, inputFile{path: "missing:" + pattern})
+			continue
+		}
+		for _, match := range matches {
+			info, statErr := os.Stat(match)
+			if statErr != nil {
+				return "", statErr
+			}
+			if info.Mode().IsRegular() {
+				files = append(files, inputFile{path: match})
+			}
+		}
+	}
+	sort.Slice(files, func(i, j int) bool { return files[i].path < files[j].path })
+	hash := sha256.New()
+	for _, file := range files {
+		if strings.HasPrefix(file.path, "missing:") {
+			_, _ = fmt.Fprintf(hash, "%s\x00missing\x00", file.path)
+			continue
+		}
+		data, err := os.ReadFile(file.path)
+		if err != nil {
+			return "", err
+		}
+		rel, err := filepath.Rel(filepath.Join(root, dir), file.path)
+		if err != nil {
+			return "", err
+		}
+		_, _ = fmt.Fprintf(hash, "%s\x00%d\x00", filepath.ToSlash(rel), len(data))
+		_, _ = hash.Write(data)
+	}
+	return fmt.Sprintf("%x", hash.Sum(nil)), nil
+}
 
 // artifactFreshness binds a single build artifact to the content-fingerprint
 // contract used to decide whether it is stale. The recorded manifest lives at

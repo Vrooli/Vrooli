@@ -26,7 +26,7 @@ func TestRunnerStartShadowInstanceIsolatedFromLive(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Start(alpha live): %v", err)
 	}
-	t.Cleanup(func() { _ = runner.Stop("alpha", StopOptions{}) })
+	cleanupRunner(t, runner, "alpha", StopOptions{})
 
 	// "alpha@shadow" must be exactly equivalent to passing --instance shadow.
 	shadowRes, err := runner.Start("alpha@shadow", StartOptions{})
@@ -36,7 +36,9 @@ func TestRunnerStartShadowInstanceIsolatedFromLive(t *testing.T) {
 	shadowStopped := false
 	t.Cleanup(func() {
 		if !shadowStopped {
-			_ = runner.Stop("alpha", StopOptions{Variant: "shadow"})
+			if err := runner.Stop("alpha", StopOptions{Variant: "shadow"}); err != nil {
+				t.Errorf("Stop(alpha@shadow) during cleanup: %v", err)
+			}
 		}
 	})
 

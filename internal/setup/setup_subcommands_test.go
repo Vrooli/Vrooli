@@ -8,6 +8,7 @@ import (
 	"github.com/vrooli/vrooli/internal/hostreq"
 	"github.com/vrooli/vrooli/internal/hostreqspec"
 	"github.com/vrooli/vrooli/internal/privilegebroker"
+	"github.com/vrooli/vrooli/internal/projectstate"
 	vrooliruntime "github.com/vrooli/vrooli/internal/runtime"
 	"github.com/vrooli/vrooli/internal/scenario"
 )
@@ -77,10 +78,26 @@ func TestRunSetupStatusPrintsGroupedAndDoesNotMutate(t *testing.T) {
 		"Already present (2): mcelog, rasdaemon",
 		"Run 'vrooli setup explain <name>'",
 		"Privilege broker: unavailable — setup was not elevated",
+		"Configuration: pending (.configuration-complete absent)",
 	} {
 		if !strings.Contains(out, expected) {
 			t.Fatalf("status output missing %q:\n%s", expected, out)
 		}
+	}
+
+	if err := writeSetupCompleteMarker(t, home, root); err != nil {
+		t.Fatalf("write bootstrap marker: %v", err)
+	}
+	if err := projectstate.MarkConfigurationComplete(home, root, "status-selection"); err != nil {
+		t.Fatalf("mark configuration complete: %v", err)
+	}
+	stdout.Reset()
+	if err := svc.RunSetupWithOptions(root, home, Options{Subcommand: "status"}, stdout, io.Discard); err != nil {
+		t.Fatalf("configured RunSetupWithOptions(status): %v", err)
+	}
+	configured := stdout.String()
+	if !strings.Contains(configured, "Configuration: complete") || !strings.Contains(configured, "selection_digest=status-selection") {
+		t.Fatalf("configured status output = %q", configured)
 	}
 }
 

@@ -1,7 +1,9 @@
 package lifecycle
 
 import (
+	"context"
 	"fmt"
+	"sort"
 	"time"
 
 	"github.com/vrooli/vrooli/internal/logx"
@@ -10,8 +12,17 @@ import (
 )
 
 func (r *Runner) WaitForHealth(item scenario.Scenario, env map[string]string) (string, error) {
-	deps := r.runtimeDeps()
+	return r.waitForHealth(context.Background(), item, env)
+}
+
+func (r *Runner) waitForHealth(ctx context.Context, item scenario.Scenario, env map[string]string) (string, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	health := item.Manifest.HealthConfig()
+	if err := r.awaitScenarioReadiness(ctx, item, env); err != nil {
+		return "unhealthy", err
+	}
 	if health == nil || len(health.Checks) == 0 {
 		r.logInfo("Scenario has no health checks; treating as running", logx.AttrScenario, item.Slug, logx.AttrStatus, "running")
 		return "running", nil
@@ -19,12 +30,8 @@ func (r *Runner) WaitForHealth(item scenario.Scenario, env map[string]string) (s
 	ports := healthPortsFromEnv(item.Manifest, env)
 	r.logDebug("Waiting for scenario health", logx.AttrScenario, item.Slug, logx.AttrChecks, len(health.Checks), logx.AttrPorts, ports)
 
-	if health.StartupGracePeriod > 0 {
-		deps.sleep(time.Duration(health.StartupGracePeriod) * time.Millisecond)
-	}
-
 	var lastStatus string
-	err := Await(r.awaitClock(), healthAwaitPolicy(health.Timeout, health.Interval), func() (bool, error) {
+	err := AwaitContext(ctx, r.awaitClock(), healthAwaitPolicy(health.Timeout, health.Interval), func() (bool, error) {
 		lastStatus = scenario.EvaluateHealth(health, ports)
 		return lastStatus == "healthy", nil
 	})
@@ -40,6 +47,55 @@ func (r *Runner) WaitForHealth(item scenario.Scenario, env map[string]string) (s
 	}
 	r.logWarn("Scenario health checks failed before timeout", logx.AttrScenario, item.Slug, logx.AttrStatus, lastStatus)
 	return lastStatus, fmt.Errorf("scenario %q failed health checks", item.Slug)
+}
+
+// awaitScenarioReadiness evaluates every launched component before the
+// scenario-level health contract. StartupGracePeriod is a failure ceiling: a
+// component that becomes ready immediately proceeds immediately, while a
+// failing probe is allowed to retry until the ceiling.
+func (r *Runner) awaitScenarioReadiness(ctx context.Context, item scenario.Scenario, env map[string]string) error {
+	if len(item.Manifest.Components) == 0 {
+		return nil
+	}
+	policy := scenarioReadinessPolicy
+	if health := item.Manifest.HealthConfig(); health != nil && health.StartupGracePeriod > 0 {
+		policy.Timeout = time.Duration(health.StartupGracePeriod) * time.Millisecond
+	}
+	names := make([]string, 0, len(item.Manifest.Components))
+	for name := range item.Manifest.Components {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	lastErrors := make(map[string]error, len(names))
+	err := AwaitContext(ctx, r.awaitClock(), policy, func() (bool, error) {
+		ready := true
+		for _, name := range names {
+			component := item.Manifest.Components[name]
+			if ok, _, conditionErr := stepConditionsMet(item, component.Run.Condition, env); conditionErr != nil {
+				return false, conditionErr
+			} else if !ok {
+				continue
+			}
+			probeErr := r.checkComponentReadinessNamed(recordSlug(item), item.Manifest, name, component, env)
+			if probeErr != nil {
+				lastErrors[name] = probeErr
+				ready = false
+			}
+		}
+		return ready, nil
+	})
+	if err != nil {
+		if ctx.Err() != nil {
+			return ctx.Err()
+		}
+		for _, name := range names {
+			if probeErr := lastErrors[name]; probeErr != nil {
+				return fmt.Errorf("scenario %q component %q was not ready before %s: %w", item.Slug, name, policy.Timeout, probeErr)
+			}
+		}
+		return fmt.Errorf("scenario %q components were not ready before %s", item.Slug, policy.Timeout)
+	}
+	return nil
 }
 
 // isRegistryRuntimeHealthy decides whether an authoritative registry runtime

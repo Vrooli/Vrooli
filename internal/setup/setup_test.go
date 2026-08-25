@@ -1,12 +1,15 @@
 package setup
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -15,6 +18,7 @@ import (
 	"github.com/vrooli/vrooli/internal/dockerhost"
 	"github.com/vrooli/vrooli/internal/hostreq"
 	hostreqspec "github.com/vrooli/vrooli/internal/hostreqspec"
+	"github.com/vrooli/vrooli/internal/onboardinghandoff"
 	"github.com/vrooli/vrooli/internal/operatorinput"
 	"github.com/vrooli/vrooli/internal/projectstate"
 	"github.com/vrooli/vrooli/internal/resources"
@@ -25,6 +29,26 @@ import (
 	testscenario "github.com/vrooli/vrooli/internal/scenario/scenariotest"
 	"github.com/vrooli/vrooli/internal/shell"
 )
+
+func TestRunSetupReportsFailureInsteadOfCompletion(t *testing.T) {
+	svc := stubSetupDeps(t)
+	svc.deps.currentHost = func() vrooliruntime.Host {
+		return vrooliruntime.Host{OS: "test", SupportsSetup: false}
+	}
+
+	var progress bytes.Buffer
+	err := svc.RunSetupWithOptions(t.TempDir(), t.TempDir(), Options{}, &progress, &progress)
+	if err == nil {
+		t.Fatal("RunSetupWithOptions succeeded on an unsupported host")
+	}
+	output := progress.String()
+	if !strings.Contains(output, "stopped after") {
+		t.Fatalf("progress = %q, want failed phase event", output)
+	}
+	if strings.Contains(output, "SETUP  · Complete") {
+		t.Fatalf("progress = %q, must not report complete after failure", output)
+	}
+}
 
 // AI_CHECK: GO_MIGRATION_TEST_QUALITY=4 | LAST: 2026-04-16
 
@@ -40,7 +64,7 @@ func TestMarkCompleteWritesSetupMarker(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewLocator: %v", err)
 	}
-	setupMarker := locator.SetupCompletePath()
+	setupMarker := locator.BootstrapCompletePath()
 	payload := testkitgo.ReadJSONFile(t, setupMarker)
 	if payload["setup_version"] != "2.0.0" {
 		t.Fatalf("setup_version = %v", payload["setup_version"])
@@ -462,7 +486,7 @@ func TestRunSetupTriggersOnboardingAfterSuccessfulSetup(t *testing.T) {
 	}
 	writeOnboardingScenarioFixture(t, root)
 
-	if err := svc.RunSetupWithOptions(root, home, Options{Resources: "none"}, io.Discard, io.Discard); err != nil {
+	if err := svc.RunSetupWithOptions(root, home, Options{Resources: "none", Onboarding: onboardinghandoff.ModeBrowser}, io.Discard, io.Discard); err != nil {
 		t.Fatalf("RunSetupWithOptions: %v", err)
 	}
 	if !markCompleteCalled {
@@ -470,6 +494,49 @@ func TestRunSetupTriggersOnboardingAfterSuccessfulSetup(t *testing.T) {
 	}
 	if onboardingCalls != 1 {
 		t.Fatalf("onboarding calls = %d, want 1", onboardingCalls)
+	}
+}
+
+func TestRunSetupCompletesWithDegradedOptionalResource(t *testing.T) {
+	svc := stubSetupDeps(t)
+
+	root := t.TempDir()
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	projectScenario := writeProjectFixtureWithServiceManifest(t, root, testscenario.ProjectServiceManifest(
+		testscenario.WithDependencies(scenario.Dependencies{Resources: map[string]scenario.Dependency{
+			"reranker": {Enabled: true},
+		}}),
+	))
+
+	svc.deps.currentHost = func() vrooliruntime.Host { return vrooliruntime.Host{SupportsSetup: true, SupportsDevelop: true} }
+	svc.deps.loadProject = func(root string) (scenario.Scenario, error) { return projectScenario, nil }
+	svc.deps.resolveHostRequirements = func(root, home string, opts hostreq.ResolveOptions) (hostreq.Resolution, error) {
+		return hostreq.Resolution{}, nil
+	}
+	svc.deps.inspectRequirements = func(environment string, resolution hostreq.Resolution) (vrooliruntime.Report, error) {
+		return vrooliruntime.Report{Environment: environment}, nil
+	}
+	svc.deps.ensureRequirements = func(opts vrooliruntime.EnsureOptions, resolution hostreq.Resolution) (vrooliruntime.Report, error) {
+		return vrooliruntime.Report{Environment: opts.Environment}, nil
+	}
+	svc.deps.resourceController = func(root, home string) resourceRunner {
+		return resourceRunnerFunc(func(name string, args []string, stdout, stderr io.Writer) error {
+			return errors.New("unsupported host target")
+		})
+	}
+
+	resultPath := filepath.Join(t.TempDir(), "setup-result.json")
+	var stdout strings.Builder
+	if err := svc.RunSetupWithOptions(root, home, Options{Resources: "reranker", ResultPath: resultPath}, &stdout, io.Discard); err != nil {
+		t.Fatalf("RunSetupWithOptions: %v", err)
+	}
+	resultData := testkitgo.ReadJSONFile(t, resultPath)
+	if resultData["status"] != SetupStatusDegraded || resultData["category"] != SetupCategoryDegraded {
+		t.Fatalf("setup result = %#v, want degraded result", resultData)
+	}
+	if !strings.Contains(stdout.String(), "Setup completed with degraded optional resources: reranker") {
+		t.Fatalf("stdout = %q, want degraded completion", stdout.String())
 	}
 }
 
@@ -924,6 +991,67 @@ func TestDockerIsDemandedOnlyBySelectedContainerResources(t *testing.T) {
 	}
 }
 
+func TestMaybeInstallResourcesContinuesAfterOptionalFailure(t *testing.T) {
+	root := t.TempDir()
+	home := t.TempDir()
+	testkitgo.WriteRepoContract(t, root, "scenarios")
+	testscenario.WriteProjectService(t, root, testscenario.ProjectServiceManifest(
+		testscenario.WithDependencies(scenario.Dependencies{Resources: map[string]scenario.Dependency{
+			"optional-a": {Enabled: true},
+			"required-a": {Enabled: true, Required: true},
+		}}),
+	))
+
+	var calls []string
+	svc := stubSetupDeps(t)
+	svc.deps.resourceController = func(root, home string) resourceRunner {
+		return resourceRunnerFunc(func(name string, args []string, stdout, stderr io.Writer) error {
+			calls = append(calls, name)
+			if name == "optional-a" {
+				return errors.New("unsupported host target")
+			}
+			return nil
+		})
+	}
+
+	degraded, err := svc.maybeInstallResources(root, home, Options{Resources: "optional-a,required-a"}, io.Discard, io.Discard)
+	if err != nil {
+		t.Fatalf("maybeInstallResources: %v", err)
+	}
+	if !reflect.DeepEqual(degraded, []string{"optional-a"}) {
+		t.Fatalf("degraded resources = %#v, want [optional-a]", degraded)
+	}
+	if !reflect.DeepEqual(calls, []string{"optional-a", "required-a"}) {
+		t.Fatalf("resource calls = %#v, want both resources", calls)
+	}
+}
+
+func TestMaybeInstallResourcesStillBlocksRequiredFailure(t *testing.T) {
+	root := t.TempDir()
+	home := t.TempDir()
+	testkitgo.WriteRepoContract(t, root, "scenarios")
+	testscenario.WriteProjectService(t, root, testscenario.ProjectServiceManifest(
+		testscenario.WithDependencies(scenario.Dependencies{Resources: map[string]scenario.Dependency{
+			"required-a": {Enabled: true, Required: true},
+			"optional-a": {Enabled: true},
+		}}),
+	))
+
+	svc := stubSetupDeps(t)
+	svc.deps.resourceController = func(root, home string) resourceRunner {
+		return resourceRunnerFunc(func(name string, args []string, stdout, stderr io.Writer) error {
+			if name == "required-a" {
+				return errors.New("required resource failed")
+			}
+			return nil
+		})
+	}
+
+	if _, err := svc.maybeInstallResources(root, home, Options{Resources: "required-a,optional-a"}, io.Discard, io.Discard); err == nil || !strings.Contains(err.Error(), "required resource failed") {
+		t.Fatalf("maybeInstallResources error = %v, want required failure", err)
+	}
+}
+
 func TestPreflightSelectedContainerResourceUsesRuntimeProviderLadder(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()
@@ -1065,7 +1193,7 @@ func TestRunDevelopSkipsSetupWhenMarkerExists(t *testing.T) {
 	svc.deps.healthCheck = func(port int, timeout time.Duration) error { return nil }
 	svc.deps.startOrchestrator = func(root, home string, stdout, stderr io.Writer) error { return nil }
 
-	if err := svc.RunDevelopWithOptions(root, home, Options{}, io.Discard, io.Discard); err != nil {
+	if err := svc.RunDevelopWithOptions(root, home, Options{Onboarding: onboardinghandoff.ModeBrowser}, io.Discard, io.Discard); err != nil {
 		t.Fatalf("RunDevelopWithOptions: %v", err)
 	}
 	if setupCalls != 0 {
@@ -1145,7 +1273,7 @@ func TestRunDevelopTriggersOnboardingFallback(t *testing.T) {
 	}
 	writeOnboardingScenarioFixture(t, root)
 
-	if err := svc.RunDevelopWithOptions(root, home, Options{}, io.Discard, io.Discard); err != nil {
+	if err := svc.RunDevelopWithOptions(root, home, Options{Onboarding: onboardinghandoff.ModeBrowser}, io.Discard, io.Discard); err != nil {
 		t.Fatalf("RunDevelopWithOptions: %v", err)
 	}
 	if onboardingCalls != 1 {
@@ -1184,162 +1312,19 @@ func TestLoadDotEnvParsesCommonForms(t *testing.T) {
 	}
 }
 
-func TestMaybeOpenOnboardingPersistsPromptedState(t *testing.T) {
-	svc := stubSetupDeps(t)
-
-	root := t.TempDir()
-	home := t.TempDir()
-	writeOnboardingScenarioFixture(t, root)
-	previousLaunch := launchOnboardingAsOperatorFn
-	launchOnboardingAsOperatorFn = func(gotRoot, gotExecutable string) error {
-		if gotRoot != root || gotExecutable != "/bin/true" {
-			t.Fatalf("onboarding launch = (%q, %q), want (%q, %q)", gotRoot, gotExecutable, root, "/bin/true")
-		}
-		return nil
+func TestConfigurationMarkerIsTheOnlyCompletionAuthority(t *testing.T) {
+	root, home := t.TempDir(), t.TempDir()
+	if configurationAlreadyComplete(home, root) {
+		t.Fatal("configuration must be pending before its marker exists")
 	}
-	t.Cleanup(func() { launchOnboardingAsOperatorFn = previousLaunch })
-
-	svc.deps.osExecutable = func() (string, error) { return "/bin/true", nil }
-	svc.deps.onboardingPortCommandRunner = func(ctx context.Context, name string, args ...string) ([]byte, error) {
-		return []byte("38123\n"), nil
+	if err := writeSetupCompleteMarker(t, home, root); err != nil {
+		t.Fatalf("write bootstrap marker: %v", err)
 	}
-	opened := ""
-	svc.deps.openOnboardingURL = func(url string) error {
-		opened = url
-		return nil
+	if err := projectstate.MarkConfigurationComplete(home, root, "selection-digest"); err != nil {
+		t.Fatalf("mark configuration complete: %v", err)
 	}
-
-	stdout := &strings.Builder{}
-	if err := svc.maybeOpenOnboarding(root, home, stdout, io.Discard); err != nil {
-		t.Fatalf("maybeOpenOnboarding: %v", err)
-	}
-	if opened != "http://127.0.0.1:38123" {
-		t.Fatalf("opened URL = %q", opened)
-	}
-	if !strings.Contains(stdout.String(), "Opening Vrooli onboarding") {
-		t.Fatalf("stdout = %q", stdout.String())
-	}
-
-	configPath := filepath.Join(home, ".config", "vrooli", "config.json")
-	data, err := os.ReadFile(configPath)
-	if err != nil {
-		t.Fatalf("read config: %v", err)
-	}
-	var stored struct {
-		Onboarding onboardingPreferences `json:"onboarding"`
-	}
-	if err := json.Unmarshal(data, &stored); err != nil {
-		t.Fatalf("unmarshal config: %v", err)
-	}
-	if stored.Onboarding.PromptedAt == "" {
-		t.Fatal("expected prompted_at to be recorded")
-	}
-}
-
-func TestMaybeOpenOnboardingRespectsEnvOptOut(t *testing.T) {
-	svc := stubSetupDeps(t)
-
-	root := t.TempDir()
-	home := t.TempDir()
-	writeOnboardingScenarioFixture(t, root)
-	t.Setenv(onboardingSkipEnv, "1")
-
-	opened := false
-	svc.deps.openOnboardingURL = func(url string) error {
-		opened = true
-		return nil
-	}
-
-	if err := svc.maybeOpenOnboarding(root, home, io.Discard, io.Discard); err != nil {
-		t.Fatalf("maybeOpenOnboarding: %v", err)
-	}
-	if opened {
-		t.Fatal("expected opt-out env var to skip onboarding")
-	}
-}
-
-func TestMaybeOpenOnboardingRespectsPersistentAutoOpenOptOut(t *testing.T) {
-	svc := stubSetupDeps(t)
-
-	root := t.TempDir()
-	home := t.TempDir()
-	writeOnboardingScenarioFixture(t, root)
-	autoOpen := false
-	configPath := filepath.Join(home, ".config", "vrooli", "config.json")
-	doc, err := json.Marshal(map[string]any{
-		"onboarding": onboardingPreferences{AutoOpen: &autoOpen},
-	})
-	if err != nil {
-		t.Fatalf("marshal config: %v", err)
-	}
-	if err := os.MkdirAll(filepath.Dir(configPath), 0o755); err != nil {
-		t.Fatalf("mkdir config dir: %v", err)
-	}
-	if err := os.WriteFile(configPath, doc, 0o644); err != nil {
-		t.Fatalf("write config: %v", err)
-	}
-
-	opened := false
-	svc.deps.openOnboardingURL = func(url string) error {
-		opened = true
-		return nil
-	}
-
-	if err := svc.maybeOpenOnboarding(root, home, io.Discard, io.Discard); err != nil {
-		t.Fatalf("maybeOpenOnboarding: %v", err)
-	}
-	if opened {
-		t.Fatal("expected persistent auto_open=false to skip onboarding")
-	}
-}
-
-func TestOnboardingPromptTelemetryDoesNotLatchContinuation(t *testing.T) {
-	if onboardingAlreadyHandled(onboardingPreferences{PromptedAt: "2026-08-13T18:00:00Z"}) {
-		t.Fatal("prompt telemetry must not suppress a later onboarding continuation")
-	}
-}
-
-func TestMaybeOpenOnboardingIgnoresLegacyConfigLocation(t *testing.T) {
-	svc := stubSetupDeps(t)
-
-	root := t.TempDir()
-	home := t.TempDir()
-	writeOnboardingScenarioFixture(t, root)
-
-	autoOpen := false
-	legacyConfigPath := filepath.Join(home, ".vrooli", "config.json")
-	doc, err := json.Marshal(map[string]any{
-		"onboarding": onboardingPreferences{AutoOpen: &autoOpen},
-	})
-	if err != nil {
-		t.Fatalf("marshal config: %v", err)
-	}
-	if err := os.MkdirAll(filepath.Dir(legacyConfigPath), 0o755); err != nil {
-		t.Fatalf("mkdir legacy config dir: %v", err)
-	}
-	if err := os.WriteFile(legacyConfigPath, doc, 0o644); err != nil {
-		t.Fatalf("write legacy config: %v", err)
-	}
-
-	svc.deps.osExecutable = func() (string, error) { return "/bin/true", nil }
-	svc.deps.onboardingPortCommandRunner = func(ctx context.Context, name string, args ...string) ([]byte, error) {
-		return []byte("38123\n"), nil
-	}
-
-	opened := ""
-	svc.deps.openOnboardingURL = func(url string) error {
-		opened = url
-		return nil
-	}
-
-	if err := svc.maybeOpenOnboarding(root, home, io.Discard, io.Discard); err != nil {
-		t.Fatalf("maybeOpenOnboarding: %v", err)
-	}
-	if opened != "http://127.0.0.1:38123" {
-		t.Fatalf("opened URL = %q", opened)
-	}
-	if _, err := os.Stat(legacyConfigPath); err != nil {
-		t.Fatalf("legacy config should remain untouched: %v", err)
+	if !configurationAlreadyComplete(home, root) {
+		t.Fatal("configuration marker was not recognized")
 	}
 }
 

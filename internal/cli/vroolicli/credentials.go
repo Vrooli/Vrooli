@@ -1,26 +1,32 @@
 package vroolicli
 
 import (
+	"context"
 	"encoding/json"
 	"flag"
 	"fmt"
 	"io"
+	"net/http"
 	"os"
 	"path/filepath"
 	"sort"
 	"strings"
 	"time"
 
+	"connectrpc.com/connect"
 	repocontract "github.com/vrooli/repo-contract-go"
 	"github.com/vrooli/vrooli/internal/cli/commandtree"
 	"github.com/vrooli/vrooli/internal/config"
+	"github.com/vrooli/vrooli/internal/credentialauthority"
+	"github.com/vrooli/vrooli/internal/credentialinventory"
 	"github.com/vrooli/vrooli/internal/credentialspec"
 	"github.com/vrooli/vrooli/internal/resources"
 	"github.com/vrooli/vrooli/internal/resources/catalog"
 	resourceenv "github.com/vrooli/vrooli/internal/resources/env"
 	manifestpkg "github.com/vrooli/vrooli/internal/resources/manifest"
 	"github.com/vrooli/vrooli/internal/scenario"
-	credentialauthority "github.com/vrooli/vrooli/internal/secrets"
+	grantv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/credentialgrant"
+	grantv1connect "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/credentialgrant/credentialgrant_v1connect"
 )
 
 // runCredentialsCommand owns all local credential writes. Values are accepted
@@ -28,12 +34,16 @@ import (
 // history, or status output.
 func (app *App) runCredentialsCommand(ctx *CommandContext, args []string) error {
 	if len(args) == 0 || commandtree.WantsHelp(args) {
-		fmt.Fprintln(ctx.Stdout, "Usage:\n  vrooli credentials doctor [--check-writes] [--format json]\n  vrooli credentials provision --identity <namespace/name> --field <field> < value\n  vrooli credentials status --identity <namespace/name> --field <field> [--format json]\n  vrooli credentials store <status|init|unlock|lock|rewrap|change-passphrase|copy>\n  vrooli credentials keyring <status|inspect|repair|unlock>\n  vrooli credentials recovery export --entry <identity>:<field> --output <bundle> < passphrase\n  vrooli credentials recovery verify --input <bundle> < passphrase\n  vrooli credentials recovery restore --input <bundle> < passphrase\n\nCredential values, store passphrases, and recovery passphrases are read only from standard input and never printed.\n`credentials store` manages the encrypted backend used on a host with no native credential store.")
+		fmt.Fprintln(ctx.Stdout, "Usage:\n  vrooli credentials doctor [--check-writes] [--format json]\n  vrooli credentials list [--format json]\n  vrooli credentials delete --identity <namespace/name> --field <field> --yes\n  vrooli credentials provision --identity <namespace/name> --field <field>\n  vrooli credentials status --identity <namespace/name> --field <field> [--format json]\n  vrooli credentials store <status|init|unlock|lock|rewrap|change-passphrase|copy>\n  vrooli credentials keyring <status|inspect|repair|unlock>\n  vrooli credentials recovery export --entry <identity>:<field> --output <bundle>\n  vrooli credentials recovery verify --input <bundle>\n  vrooli credentials recovery restore --input <bundle>\n\nAt a terminal, credential provision, store, keyring, and recovery commands prompt securely inside vrooli. Automation may provide secrets on standard input. Credential values, store passphrases, and recovery passphrases are never printed.\n`credentials store` manages the encrypted backend used on a host with no native credential store.")
 		return nil
 	}
 	switch args[0] {
 	case "doctor":
 		return credentialsDoctor(ctx, args[1:])
+	case "list":
+		return listCredentials(ctx, args[1:])
+	case "delete":
+		return deleteCredential(ctx, args[1:])
 	case "provision":
 		return provisionCredential(ctx, args[1:], os.Stdin)
 	case "status":
@@ -47,6 +57,76 @@ func (app *App) runCredentialsCommand(ctx *CommandContext, args []string) error 
 	default:
 		return fmt.Errorf("unknown credentials command %q", args[0])
 	}
+}
+
+type credentialListReport struct {
+	Basis            string            `json:"inventory_basis"`
+	Managed          bool              `json:"managed_instances_included"`
+	CredentialCount  int               `json:"credential_count"`
+	DeclarationSites int               `json:"declaration_site_count"`
+	Uncovered        []string          `json:"uncovered"`
+	RequiredAbsent   []string          `json:"required_absent"`
+	Credentials      []credentialEntry `json:"credentials"`
+}
+
+func listCredentials(ctx *CommandContext, args []string) error {
+	fs := flag.NewFlagSet("credentials list", flag.ContinueOnError)
+	fs.SetOutput(io.Discard)
+	format := fs.String("format", "text", "output format: text or json")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	if len(fs.Args()) != 0 || (*format != "text" && *format != "json") {
+		return fmt.Errorf("credentials list accepts only --format text|json")
+	}
+	entries, err := collectCredentialEntries(ctx.Root)
+	if err != nil {
+		return err
+	}
+	recovery := computeRecoveryStatus(entries)
+	report := credentialListReport{
+		Basis:            "distinct_addresses",
+		Managed:          true,
+		CredentialCount:  distinctCredentialCount(entries),
+		DeclarationSites: len(entries),
+		Uncovered:        recovery.Uncovered,
+		RequiredAbsent:   recovery.RequiredAbsent,
+		Credentials:      entries,
+	}
+	if *format == "json" {
+		return json.NewEncoder(ctx.Stdout).Encode(report)
+	}
+	fmt.Fprintf(ctx.Stdout, "Credential addresses (%d; basis=distinct_addresses; managed_instances_included=true)\n", report.CredentialCount)
+	fmt.Fprintf(ctx.Stdout, "Declaration sites: %d (basis=declaration_sites)\n", report.DeclarationSites)
+	fmt.Fprintf(ctx.Stdout, "Uncovered: %d (basis=distinct_addresses)\n", len(report.Uncovered))
+	fmt.Fprintf(ctx.Stdout, "Required but absent: %d (basis=distinct_addresses)\n", len(report.RequiredAbsent))
+	writeCredentialTable(ctx.Stdout, entries)
+	return nil
+}
+
+func deleteCredential(ctx *CommandContext, args []string) error {
+	identity, field, _, err := credentialSelectorFlags("credentials delete", args, false)
+	if err != nil {
+		return err
+	}
+	fs := flag.NewFlagSet("credentials delete", flag.ContinueOnError)
+	fs.SetOutput(io.Discard)
+	yes := fs.Bool("yes", false, "confirm deletion")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	if !*yes {
+		return fmt.Errorf("refusing to delete %s:%s without explicit --yes confirmation", identity, field)
+	}
+	authority, err := credentialAuthority()
+	if err != nil {
+		return err
+	}
+	if err := authority.Delete(identity, field); err != nil {
+		return err
+	}
+	_, err = fmt.Fprintf(ctx.Stdout, "Credential %s:%s deleted; no value was printed.\n", identity, field)
+	return err
 }
 
 // refuseInteractiveStdin turns a silent hang into an instruction.
@@ -120,20 +200,24 @@ func provisionCredential(ctx *CommandContext, args []string, input io.Reader) er
 	if err != nil {
 		return err
 	}
-	if err := refuseInteractiveStdin(input,
-		`printf '%s' "$VALUE" | vrooli credentials provision --identity <id> --field <field>`); err != nil {
-		return err
-	}
-	value, err := io.ReadAll(io.LimitReader(input, 64*1024))
+	value, err := readCredentialValue(input, ctx.Stderr)
 	if err != nil {
-		return fmt.Errorf("read credential input: %w", err)
+		return err
 	}
 	authority, err := credentialAuthority()
 	if err != nil {
 		return err
 	}
+	wasConfigured := authority.Status(identity, field).Configured
 	if err := authority.Put(identity, field, strings.TrimSpace(string(value))); err != nil {
 		return err
+	}
+	if wasConfigured && strings.TrimSpace(os.Getenv("VROOLI_BRIDGE_URL")) != "" {
+		if generation, rotateErr := rotateBridgeCredentialAddress(context.Background(), string(identity), field); rotateErr != nil {
+			_, _ = fmt.Fprintf(ctx.Stderr, "Credential stored locally, but bridge generation fanout was deferred: %v\n", rotateErr)
+		} else {
+			_, _ = fmt.Fprintf(ctx.Stdout, "Bridge credential generation advanced to %d and delivery was queued.\n", generation)
+		}
 	}
 	// The backend is named rather than assumed: on a headless host the value
 	// went into the encrypted store, and telling the operator it went into "the
@@ -142,6 +226,63 @@ func provisionCredential(ctx *CommandContext, args []string, input io.Reader) er
 	_, err = fmt.Fprintf(ctx.Stdout, "Credential %s/%s provisioned in the %s credential store.\n",
 		identity, field, authority.Provider())
 	return err
+}
+
+func readCredentialValue(input io.Reader, prompt io.Writer) (string, error) {
+	if file, ok := input.(*os.File); ok {
+		if info, err := file.Stat(); err == nil && info.Mode()&os.ModeCharDevice != 0 {
+			value, readErr := readInteractiveCredentialValue(file, prompt)
+			if readErr != nil {
+				return "", readErr
+			}
+			if strings.TrimSpace(value) == "" {
+				return "", fmt.Errorf("credential value is required")
+			}
+			return value, nil
+		}
+	}
+	if err := refuseInteractiveStdin(input,
+		`provide the value on standard input to vrooli credentials provision`); err != nil {
+		return "", err
+	}
+	value, err := io.ReadAll(io.LimitReader(input, 64*1024))
+	if err != nil {
+		return "", fmt.Errorf("read credential input: %w", err)
+	}
+	valueString := strings.TrimSpace(string(value))
+	if valueString == "" {
+		return "", fmt.Errorf("credential value is required")
+	}
+	return valueString, nil
+}
+
+func rotateBridgeCredentialAddress(ctx context.Context, logicalID, field string) (int64, error) {
+	baseURL := strings.TrimRight(strings.TrimSpace(os.Getenv("VROOLI_BRIDGE_URL")), "/")
+	if baseURL == "" {
+		return 0, fmt.Errorf("VROOLI_BRIDGE_URL is not configured")
+	}
+	token := strings.TrimSpace(os.Getenv("VROOLI_BRIDGE_API_TOKEN"))
+	transport := bearerRoundTripper{base: http.DefaultTransport, token: token}
+	client := grantv1connect.NewCredentialGrantServiceClient(&http.Client{Transport: transport}, baseURL)
+	response, err := client.RotateAddress(ctx, connect.NewRequest(&grantv1.RotateAddressRequest{LogicalId: logicalID, Field: field}))
+	if err != nil {
+		return 0, err
+	}
+	return response.Msg.GetGeneration(), nil
+}
+
+type bearerRoundTripper struct {
+	base  http.RoundTripper
+	token string
+}
+
+func (t bearerRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
+	if t.token == "" {
+		return t.base.RoundTrip(req)
+	}
+	copyReq := req.Clone(req.Context())
+	copyReq.Header.Set("Authorization", "Bearer "+t.token)
+	return t.base.RoundTrip(copyReq)
 }
 
 func credentialStatus(ctx *CommandContext, args []string) error {
@@ -219,6 +360,15 @@ func collectCredentialEntries(root string) ([]credentialEntry, error) {
 		providerState = credentialauthority.ProviderStateFor(availErr)
 	}
 
+	for _, system := range credentialinventory.ManagedSystemEntries(root) {
+		declaration := credentialspec.Declaration{Descriptors: []credentialspec.Descriptor{{LogicalID: system.LogicalID, Field: system.Field, Required: true}}}
+		gaps, gapErr := resourceenv.ResolveScenarioCredentialGaps(system.Owner, declaration)
+		if gapErr != nil {
+			continue
+		}
+		entries = append(entries, credentialEntriesFor(system.Owner, declaration, gaps, providerState)...)
+	}
+
 	for _, vault := range vaultEntries {
 		declaration := credentialspec.Declaration{Descriptors: []credentialspec.Descriptor{{
 			LogicalID: vault.LogicalID,
@@ -244,6 +394,23 @@ func collectCredentialEntries(root string) ([]credentialEntry, error) {
 			continue
 		}
 		entries = append(entries, credentialEntriesFor("kopia", declaration, gaps, providerState)...)
+	}
+
+	// The repository root is a service manifest too. Host-owned safeguards use
+	// this declaration source because they have no scenario directory; keeping
+	// it in the control-plane inventory makes recovery and the CLI agree on
+	// remote-desktop credential addresses.
+	projectManifestPath := filepath.Join(root, ".vrooli", "service.json")
+	if projectManifest, projectErr := scenario.ReadService(projectManifestPath); projectErr == nil {
+		if len(projectManifest.Credentials.All()) > 0 {
+			gaps, gapErr := resourceenv.ResolveScenarioCredentialGaps("project", projectManifest.Credentials)
+			if gapErr != nil {
+				return nil, fmt.Errorf("resolve project credential gaps: %w", gapErr)
+			}
+			entries = append(entries, credentialEntriesFor("project", projectManifest.Credentials, gaps, providerState)...)
+		}
+	} else if !os.IsNotExist(projectErr) {
+		return nil, fmt.Errorf("read project service manifest: %w", projectErr)
 	}
 
 	names, err := catalog.New(root).ManifestNames()
@@ -378,7 +545,7 @@ func (entries *credentialEntries) Set(value string) error {
 
 func recoveryCredentials(ctx *CommandContext, args []string, input io.Reader) error {
 	if len(args) == 0 || commandtree.WantsHelp(args) {
-		fmt.Fprintln(ctx.Stdout, "Usage:\n  vrooli credentials recovery export --entry <identity>:<field> --output <bundle> [--format json] < passphrase\n  vrooli credentials recovery export --all --output <bundle> [--format json] < passphrase\n  vrooli credentials recovery verify --input <bundle> [--format json] < passphrase\n  vrooli credentials recovery restore --input <bundle> < passphrase\n\nverify proves a bundle opens and lists what it would restore, without writing anything or printing a value.\n--all captures every configured credential declared by a resource or scenario manifest, plus the unseal key of every live managed Vault instance. A Vault unseal key is irreplaceable: without it the instance stays sealed and its contents are gone. Root tokens are deliberately excluded — Vault regenerates one from the unseal key, so a bundle carrying both would widen the blast radius for nothing.")
+		fmt.Fprintln(ctx.Stdout, "Usage:\n  vrooli credentials recovery export --entry <identity>:<field> --output <bundle> [--format json]\n  vrooli credentials recovery export --all --output <bundle> [--format json]\n  vrooli credentials recovery verify --input <bundle> [--format json]\n  vrooli credentials recovery restore --input <bundle>\n\nAt a terminal, these commands prompt securely inside vrooli for the recovery passphrase. Automation may provide it on standard input. `verify` proves a bundle opens and lists what it would restore, without writing anything or printing a value.\n--all captures every configured credential declared by a resource or scenario manifest, plus the unseal key of every live managed Vault instance. A Vault unseal key is irreplaceable: without it the instance stays sealed and its contents are gone. Root tokens are deliberately excluded — Vault regenerates one from the unseal key, so a bundle carrying both would widen the blast radius for nothing.")
 		return nil
 	}
 	switch args[0] {
@@ -399,9 +566,21 @@ func recoveryStateDir() (string, error) {
 	return config.VrooliPath(repocontract.HomeKeyState)
 }
 
-func recoveryPassphrase(input io.Reader) (string, error) {
+func recoveryPassphrase(input io.Reader, prompt io.Writer) (string, error) {
+	if file, ok := input.(*os.File); ok {
+		if info, err := file.Stat(); err == nil && info.Mode()&os.ModeCharDevice != 0 {
+			value, readErr := readInteractivePassphrase(file, prompt)
+			if readErr != nil {
+				return "", readErr
+			}
+			if value == "" {
+				return "", fmt.Errorf("recovery passphrase is required")
+			}
+			return value, nil
+		}
+	}
 	if err := refuseInteractiveStdin(input,
-		`printf '%s' "$PASSPHRASE" | vrooli credentials recovery <export|verify|restore> ...`); err != nil {
+		`provide the recovery passphrase on standard input to vrooli credentials recovery`); err != nil {
 		return "", err
 	}
 	value, err := io.ReadAll(io.LimitReader(input, 64*1024))
@@ -488,7 +667,7 @@ func exportCredentialRecovery(ctx *CommandContext, args []string, input io.Reade
 		}
 		selected = append(selected, credentialauthority.RecoveryEntry{Identity: identity, Field: field})
 	}
-	passphrase, err := recoveryPassphrase(input)
+	passphrase, err := recoveryPassphrase(input, ctx.Stderr)
 	if err != nil {
 		return err
 	}
@@ -565,7 +744,7 @@ func verifyCredentialRecovery(ctx *CommandContext, args []string, input io.Reade
 	if format != "text" && format != "json" {
 		return fmt.Errorf("credentials recovery verify format must be text or json")
 	}
-	passphrase, err := recoveryPassphrase(input)
+	passphrase, err := recoveryPassphrase(input, ctx.Stderr)
 	if err != nil {
 		return err
 	}
@@ -604,7 +783,7 @@ func restoreCredentialRecovery(ctx *CommandContext, args []string, input io.Read
 	if len(fs.Args()) != 0 || strings.TrimSpace(path) == "" {
 		return fmt.Errorf("recovery restore requires --input")
 	}
-	passphrase, err := recoveryPassphrase(input)
+	passphrase, err := recoveryPassphrase(input, ctx.Stderr)
 	if err != nil {
 		return err
 	}

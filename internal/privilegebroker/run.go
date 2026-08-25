@@ -21,13 +21,21 @@ func RunServiceCommand(args []string, stdout, stderr io.Writer) int {
 	allowedUID := flags.Uint("allowed-uid", 0, "")
 	socketGID := flags.Int("socket-gid", -1, "")
 	auditPath := flags.String("audit-path", defaultAuditPath, "")
+	runtimeHomeRoot := flags.String("runtime-home-root", "", "")
 	if err := flags.Parse(args[1:]); err != nil || flags.NArg() != 0 || *allowedUID == 0 || *allowedUID > uint(^uint32(0)) {
 		if err == nil {
 			fmt.Fprintln(stderr, "valid --allowed-uid is required")
 		}
 		return 2
 	}
-	b, err := New(Config{SocketPath: *socket, AllowedUID: uint32(*allowedUID), SocketGID: *socketGID, AuditPath: *auditPath})
+	runtimeRepair := executeRuntimeHomeRepair
+	if *runtimeHomeRoot != "" {
+		fixedRoot := *runtimeHomeRoot
+		runtimeRepair = func(ctx context.Context, subject RuntimeHomeSubject) Result {
+			return executeRuntimeHomeRepairAt(ctx, subject, fixedRoot)
+		}
+	}
+	b, err := New(Config{SocketPath: *socket, AllowedUID: uint32(*allowedUID), SocketGID: *socketGID, AuditPath: *auditPath, RuntimeHomeRepair: runtimeRepair})
 	if err != nil {
 		fmt.Fprintln(stderr, err)
 		return 1

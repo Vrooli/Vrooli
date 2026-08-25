@@ -84,3 +84,25 @@ func TestNativeStorageStrengthClassifiesKeyringFile(t *testing.T) {
 		t.Fatalf("absent strength/caveat = %q/%q, want empty", strength, caveat)
 	}
 }
+
+func TestRetireKeyringBackupRequiresExactRegularBackup(t *testing.T) {
+	dir := t.TempDir()
+	backup := filepath.Join(dir, "login.keyring.corrupt-backup")
+	if err := os.WriteFile(backup, []byte("backup"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := RetireKeyringBackup(backup); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(backup); !os.IsNotExist(err) {
+		t.Fatalf("backup stat error = %v, want not exist", err)
+	}
+
+	regular := filepath.Join(dir, "login.keyring")
+	if err := os.WriteFile(regular, []byte("live"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := RetireKeyringBackup(regular); err == nil {
+		t.Fatal("retired live keyring, want refusal")
+	}
+}

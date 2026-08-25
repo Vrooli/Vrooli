@@ -21,7 +21,23 @@ type BuilderSpec struct {
 	DefaultOutput string
 	Environment   map[string]string
 	Install       []string
-	Build         []string
+	// InstallInputs are build-dir-relative files/globs whose content digest
+	// controls whether Install must run. Empty means always install.
+	InstallInputs []string
+	// InstallStateFile is a builder-owned marker proving the install completed.
+	// Empty means the lifecycle uses its sidecar digest marker only.
+	InstallStateFile string
+	// MemoryReservationBytes is the conservative peak reservation used by
+	// dependency fan-out admission. Zero uses the global fallback budget.
+	MemoryReservationBytes int64
+	// StagedOutput requests an atomic replacement of the declared artifact.
+	// StageArgs are appended to BuildArgv with {stage_output_dir} expanded.
+	StagedOutput bool
+	StageArgs    []string
+	// StageDirectory means the declared output is a directory artifact (for
+	// example a Vite dist tree) even when the manifest names a file inside it.
+	StageDirectory bool
+	Build          []string
 	// ProfileBuild is the perf-build channel argv, selected when
 	// VROOLI_BUILD_MODE=profile. Empty means the builder has no separate
 	// channel and Build is used for every mode. Keeping the channel as its
@@ -47,14 +63,17 @@ const goModuleDefaultOutput = "{dir}/{scenario}-api{{ext}}"
 
 var builderRegistry = map[string]BuilderSpec{
 	"go_module": {
-		Kind:          "go_module",
-		Inputs:        []string{"**/*.go", "go.mod", "go.sum"},
-		DigestKeys:    []string{"go_toolchain", "GOOS", "GOARCH", "CGO_ENABLED", "GOAMD64", "GOARM64", "GOFLAGS", "build_tags"},
-		DefaultOutput: goModuleDefaultOutput,
-		Environment:   map[string]string{"GOWORK": "off"},
-		Install:       []string{"go", "mod", "download"},
-		Build:         goModuleBuildArgv(),
-		freshness:     goModuleComponentFreshness,
+		Kind:                   "go_module",
+		Inputs:                 []string{"**/*.go", "go.mod", "go.sum"},
+		DigestKeys:             []string{"go_toolchain", "GOOS", "GOARCH", "CGO_ENABLED", "GOAMD64", "GOARM64", "GOFLAGS", "build_tags"},
+		DefaultOutput:          goModuleDefaultOutput,
+		Environment:            map[string]string{"GOWORK": "off"},
+		Install:                []string{"go", "mod", "download"},
+		InstallInputs:          []string{"go.mod", "go.sum"},
+		MemoryReservationBytes: 394 << 20,
+		StagedOutput:           true,
+		Build:                  goModuleBuildArgv(),
+		freshness:              goModuleComponentFreshness,
 	},
 	"pnpm_vite": {
 		Kind:                     "pnpm_vite",
@@ -62,6 +81,12 @@ var builderRegistry = map[string]BuilderSpec{
 		DigestKeys:               []string{"NODE_ENV", "node_major", "pnpm_version", "build_mode"},
 		DefaultOutput:            "{dir}/dist/index.html",
 		Install:                  []string{"pnpm", "install", "--ignore-workspace"},
+		InstallInputs:            []string{"package.json", "pnpm-lock.yaml"},
+		InstallStateFile:         "node_modules/.modules.yaml",
+		MemoryReservationBytes:   752 << 20,
+		StagedOutput:             true,
+		StageDirectory:           true,
+		StageArgs:                []string{"--outDir", "{stage_output_dir}"},
 		Build:                    []string{"pnpm", "run", "build"},
 		ProfileBuild:             []string{"pnpm", "run", "build:profile"},
 		FollowsWorkspaceFileDeps: true,
@@ -72,11 +97,17 @@ var builderRegistry = map[string]BuilderSpec{
 		Inputs:                   []string{"{src}/**", "package.json", "tsconfig.json"},
 		DigestKeys:               []string{"NODE_ENV", "node_major", "pnpm_version", "build_mode"},
 		Install:                  []string{"pnpm", "install", "--ignore-workspace"},
+		InstallInputs:            []string{"package.json", "pnpm-lock.yaml"},
+		InstallStateFile:         "node_modules/.modules.yaml",
+		MemoryReservationBytes:   752 << 20,
 		Build:                    []string{"pnpm", "run", "build"},
 		ProfileBuild:             []string{"pnpm", "run", "build:profile"},
 		FollowsWorkspaceFileDeps: true,
 		freshness:                pnpmViteComponentFreshness,
 	},
+	// reuse remains in the registry vocabulary for schema compatibility with
+	// older manifests. Reuse components never execute a builder; componentArtifact
+	// resolves their target through Build.Reuse before consulting this entry.
 	"reuse": {
 		Kind: "reuse",
 	},
@@ -142,8 +173,10 @@ func BuilderRegistry() map[string]BuilderSpec {
 		spec.Inputs = append([]string(nil), spec.Inputs...)
 		spec.DigestKeys = append([]string(nil), spec.DigestKeys...)
 		spec.Install = append([]string(nil), spec.Install...)
+		spec.InstallInputs = append([]string(nil), spec.InstallInputs...)
 		spec.Build = append([]string(nil), spec.Build...)
 		spec.ProfileBuild = append([]string(nil), spec.ProfileBuild...)
+		spec.StageArgs = append([]string(nil), spec.StageArgs...)
 		spec.Environment = cloneStringMap(spec.Environment)
 		out[key] = spec
 	}

@@ -8,19 +8,6 @@ import (
 	"github.com/vrooli/vrooli/internal/scenario"
 )
 
-// setupCheckCache memoizes SetupNeeded results within a single top-level Start
-// invocation. Dependency trees frequently re-evaluate the same scenario's setup
-// conditions (once for the reuse decision, once before running the setup phase,
-// and once per parent that shares the dependency), each re-walking the same
-// replace dirs. The cache is created per Start and threaded through the start
-// path; nil means "no memoization" (each call recomputes).
-type setupCheckCache map[string]setupCheckResult
-
-type setupCheckResult struct {
-	needed  bool
-	reasons []string
-}
-
 // forceSetupFor reports whether the scenario identified by slug should be
 // force-rebuilt. A blank ForceSetupScenario means "force every scenario in this
 // start"; a specific value forces only that scenario (and its self-restart).
@@ -31,30 +18,24 @@ func forceSetupFor(opts StartOptions, slug string) bool {
 }
 
 // setupNeededCached returns component build freshness, memoized through cache.
-func (r *Runner) setupNeededCached(item scenario.Scenario, force bool, cache setupCheckCache) (bool, []string, error) {
-	return r.evaluateSetupChecksCached(item, force, cache)
+func (r *Runner) setupNeededCached(item scenario.Scenario, force bool, session *startSession) (bool, []string, error) {
+	if session == nil {
+		return r.evaluateSetupChecks(item, force)
+	}
+	return session.setupNeeded(item.Slug+"@"+item.Variant, force, func() (bool, []string, error) {
+		return r.evaluateSetupChecks(item, force)
+	})
 }
 
 // freshnessStaleCached is the reuse-decision spelling of the same component
 // build freshness authority used by setupNeededCached.
-func (r *Runner) freshnessStaleCached(item scenario.Scenario, force bool, cache setupCheckCache) (bool, []string, error) {
-	return r.evaluateSetupChecksCached(item, force, cache)
-}
-
-func (r *Runner) evaluateSetupChecksCached(item scenario.Scenario, force bool, cache setupCheckCache) (bool, []string, error) {
-	if cache == nil {
+func (r *Runner) freshnessStaleCached(item scenario.Scenario, force bool, session *startSession) (bool, []string, error) {
+	if session == nil {
 		return r.evaluateSetupChecks(item, force)
 	}
-	key := fmt.Sprintf("%s@%s|force=%t", item.Slug, item.Variant, force)
-	if cached, ok := cache[key]; ok {
-		return cached.needed, append([]string(nil), cached.reasons...), nil
-	}
-	needed, reasons, err := r.evaluateSetupChecks(item, force)
-	if err != nil {
-		return false, nil, err
-	}
-	cache[key] = setupCheckResult{needed: needed, reasons: append([]string(nil), reasons...)}
-	return needed, append([]string(nil), reasons...), nil
+	return session.setupNeeded(item.Slug+"@"+item.Variant, force, func() (bool, []string, error) {
+		return r.evaluateSetupChecks(item, force)
+	})
 }
 
 // SetupNeeded reports whether a declared component build is stale.

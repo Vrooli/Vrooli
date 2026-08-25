@@ -11,8 +11,8 @@ import (
 
 	repocontract "github.com/vrooli/repo-contract-go"
 	"github.com/vrooli/vrooli/internal/config"
+	"github.com/vrooli/vrooli/internal/credentialauthority"
 	"github.com/vrooli/vrooli/internal/resources/securestore"
-	credentialauthority "github.com/vrooli/vrooli/internal/secrets"
 )
 
 type recoveryStatus struct {
@@ -31,13 +31,23 @@ type recoveryStatus struct {
 	Path                  string              `json:"path,omitempty"`
 	// RootCopy remains present as null when no receipt exists so consumers can
 	// distinguish an absent copy from an omitted field in older output.
-	RootCopy       *securestore.CopyStatus `json:"root_copy"`
-	RootCopyIssues []string                `json:"root_copy_issues,omitempty"`
+	RootCopy                 *securestore.CopyStatus `json:"root_copy"`
+	RootCopyIssues           []string                `json:"root_copy_issues,omitempty"`
+	Basis                    string                  `json:"basis"`
+	ManagedInstancesIncluded bool                    `json:"managed_instances_included"`
 }
 
 type recoveryGapDetail struct {
 	Address     string `json:"address"`
 	Description string `json:"description,omitempty"`
+}
+
+func distinctCredentialCount(entries []credentialEntry) int {
+	addresses := make(map[string]struct{}, len(entries))
+	for _, entry := range entries {
+		addresses[entry.LogicalID+":"+entry.Field] = struct{}{}
+	}
+	return len(addresses)
 }
 
 // credentialEntry is one declared credential and what the host currently knows
@@ -75,7 +85,8 @@ func writeRecoveryStatus(ctx *CommandContext, entries []credentialEntry) {
 	if !status.ReceiptExists {
 		fmt.Fprintf(ctx.Stdout, "\nRecovery\n  No bundle has ever been exported on this host. Every configured credential\n"+
 			"  exists in exactly one place. Create one with:\n"+
-			"    printf '%%s' \"$PASSPHRASE\" | vrooli credentials recovery export --all --output <path>\n")
+			"    vrooli credentials recovery export --all --output <path>\n"+
+			"  Enter the recovery passphrase at vrooli's secure prompt.\n")
 		writeRequiredAbsent(ctx.Stdout, status)
 		writeRootCopyStatus(ctx.Stdout, status)
 		return
@@ -106,7 +117,7 @@ func writeRootCopyStatus(out io.Writer, status recoveryStatus) {
 }
 
 func computeRecoveryStatus(entries []credentialEntry) recoveryStatus {
-	status := recoveryStatus{Uncovered: []string{}, RequiredAbsent: []string{}, RequiredAbsentDetails: []recoveryGapDetail{}}
+	status := recoveryStatus{Uncovered: []string{}, RequiredAbsent: []string{}, RequiredAbsentDetails: []recoveryGapDetail{}, Basis: "distinct_addresses", ManagedInstancesIncluded: true}
 	status.RootCopy, status.RootCopyIssues = inspectCredentialStoreCopy()
 	configured, requiredAbsent := classifyRecoveryEntries(entries)
 	for _, entry := range requiredAbsent {
@@ -309,10 +320,14 @@ func credentialsDoctor(ctx *CommandContext, args []string) error {
 
 	if format == "json" {
 		return json.NewEncoder(ctx.Stdout).Encode(struct {
-			Provider    securestore.Diagnosis `json:"provider"`
-			Credentials []credentialEntry     `json:"credentials"`
-			Recovery    recoveryStatus        `json:"recovery"`
-		}{Provider: diagnosis, Credentials: entries, Recovery: computeRecoveryStatus(entries)})
+			Provider                 securestore.Diagnosis `json:"provider"`
+			Credentials              []credentialEntry     `json:"credentials"`
+			CredentialCount          int                   `json:"credential_count"`
+			DeclarationSiteCount     int                   `json:"declaration_site_count"`
+			InventoryBasis           string                `json:"inventory_basis"`
+			ManagedInstancesIncluded bool                  `json:"managed_instances_included"`
+			Recovery                 recoveryStatus        `json:"recovery"`
+		}{Provider: diagnosis, Credentials: entries, CredentialCount: distinctCredentialCount(entries), DeclarationSiteCount: len(entries), InventoryBasis: "distinct_addresses", ManagedInstancesIncluded: true, Recovery: computeRecoveryStatus(entries)})
 	}
 
 	fmt.Fprintf(ctx.Stdout, "Credential provider\n")
@@ -364,7 +379,8 @@ func credentialsDoctor(ctx *CommandContext, args []string) error {
 		return nil
 	}
 
-	fmt.Fprintf(ctx.Stdout, "\nDeclared credentials (%d)\n", len(entries))
+	fmt.Fprintf(ctx.Stdout, "\nCredential addresses (%d; basis=distinct_addresses; managed_instances_included=true)\n", distinctCredentialCount(entries))
+	fmt.Fprintf(ctx.Stdout, "Declaration sites: %d (basis=declaration_sites)\n", len(entries))
 	writeCredentialTable(ctx.Stdout, entries)
 
 	unresolved := 0

@@ -250,7 +250,7 @@ func newProgressCoordinator(w io.Writer, opts progressOptions) *progressCoordina
 	jsonOutput := opts.JSON || format == "json" || format == "ndjson"
 	quiet := format == "quiet" || strings.EqualFold(strings.TrimSpace(os.Getenv("VROOLI_SETUP_PROGRESS")), "quiet")
 	host, _ := os.Hostname()
-	return &progressCoordinator{sink: &writerSink{w: w, json: jsonOutput, quiet: quiet}, now: now, firstHeartbeat: first, heartbeatEvery: every, dryRun: opts.DryRun, statePath: opts.StatePath, runID: fmt.Sprintf("setup-%d-%d", os.Getpid(), now().UnixNano()), host: host, pid: os.Getpid()}
+	return &progressCoordinator{sink: &writerSink{w: w, json: jsonOutput, quiet: quiet}, now: now, firstHeartbeat: first, heartbeatEvery: every, dryRun: opts.DryRun, statePath: opts.StatePath, runID: fmt.Sprintf("setup-%d-%d", os.Getpid(), now().UnixNano()), host: host, pid: os.Getpid(), phase: setupPhases[0]}
 }
 
 func (p *progressCoordinator) publish(kind ProgressEventKind) {
@@ -334,6 +334,12 @@ func (p *progressCoordinator) StartPhase(id SetupPhase) {
 	p.publish(EventPhaseStarted)
 	p.stop, p.done = make(chan struct{}), make(chan struct{})
 	go p.heartbeatLoop(p.stop, p.done)
+}
+
+func (p *progressCoordinator) CurrentPhase() SetupPhase {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	return p.phase.ID
 }
 
 func (p *progressCoordinator) Operation(label string) {

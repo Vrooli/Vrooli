@@ -3,11 +3,8 @@ package lifecycle
 import (
 	"context"
 	"errors"
-	"os"
-	"os/signal"
 	"time"
 
-	platform "github.com/vrooli/platform-go"
 	"github.com/vrooli/vrooli/internal/logx"
 	"github.com/vrooli/vrooli/internal/scenarioruntime"
 )
@@ -32,6 +29,7 @@ const (
 
 type startOperationRecorder struct {
 	runner   *Runner
+	ctx      context.Context
 	store    scenarioRuntimeStore // nil once disabled by a write failure
 	op       scenarioruntime.StartOperation
 	steps    []scenarioruntime.StartOperationStep
@@ -40,7 +38,15 @@ type startOperationRecorder struct {
 	// the instance slug (scenario@variant for non-live), unlike every other
 	// event, so they are filtered against this instead of scenario.
 	instanceSlug string
-	sigCh        chan os.Signal
+	done         chan struct{}
+	cancelled    chan struct{}
+}
+
+func (rec *startOperationRecorder) context() context.Context {
+	if rec == nil || rec.ctx == nil {
+		return context.Background()
+	}
+	return rec.ctx
 }
 
 // beginStartOperationRecord opens the registry and creates a running
@@ -48,7 +54,10 @@ type startOperationRecorder struct {
 // registry is unavailable — the start proceeds unrecorded.
 func (r *Runner) beginStartOperationRecord(name string, opts StartOptions) *startOperationRecorder {
 	deps := r.runtimeDeps()
-	ctx := context.Background()
+	ctx := opts.Context
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	store, err := deps.runtimeRegistry(ctx, r.Home)
 	if err != nil {
 		r.logWarn("Start-operation record unavailable; starting unrecorded",
@@ -78,29 +87,25 @@ func (r *Runner) beginStartOperationRecord(name string, opts StartOptions) *star
 		return nil
 	}
 	rec := &startOperationRecorder{
-		runner: r, store: store, op: op, scenario: name,
+		runner: r, ctx: ctx, store: store, op: op, scenario: name,
 		instanceSlug: scenarioruntime.InstanceKey{Scenario: name, Variant: opts.Variant}.Slug(),
+		done:         make(chan struct{}),
+		cancelled:    make(chan struct{}),
 	}
-	// Ctrl-C on the OWNING start records `abandoned` before the process dies
-	// so status stays honest immediately (dead-pid detection would catch it
-	// eventually, but the explicit mark carries the reason). The handler
-	// re-raises the signal so the process still terminates normally.
-	rec.sigCh = make(chan os.Signal, 1)
-	signal.Notify(rec.sigCh, platform.TerminationSignals()...)
-	go func(operationID, home string, sigCh chan os.Signal) {
-		sig, ok := <-sigCh
-		if !ok {
-			return
+	// Cancellation is owned by the operation context. A fresh registry handle
+	// avoids racing the recorder's own flush/close path while preserving the
+	// abandoned marker when the caller cancels mid-phase.
+	go func(operationID, home string, operationCtx context.Context, done <-chan struct{}) {
+		select {
+		case <-operationCtx.Done():
+			if store, err := deps.runtimeRegistry(context.Background(), home); err == nil {
+				_, _ = store.MarkStartOperationAbandoned(context.Background(), operationID, "start cancelled")
+				_ = store.Close()
+			}
+			close(rec.cancelled)
+		case <-done:
 		}
-		// Fresh store handle: the recorder's handle is owned by the
-		// orchestration goroutine.
-		if store, err := deps.runtimeRegistry(context.Background(), home); err == nil {
-			_, _ = store.MarkStartOperationAbandoned(context.Background(), operationID, "start interrupted (signal)")
-			_ = store.Close()
-		}
-		signal.Stop(sigCh)
-		_ = reraiseSignal(sig)
-	}(op.OperationID, r.Home, rec.sigCh)
+	}(op.OperationID, r.Home, ctx, rec.done)
 	return rec
 }
 
@@ -111,10 +116,9 @@ func (rec *startOperationRecorder) close() {
 	if rec == nil {
 		return
 	}
-	if rec.sigCh != nil {
-		signal.Stop(rec.sigCh)
-		close(rec.sigCh)
-		rec.sigCh = nil
+	if rec.done != nil {
+		close(rec.done)
+		rec.done = nil
 	}
 	if rec.store == nil {
 		return
@@ -251,19 +255,19 @@ func (rec *startOperationRecorder) recordDuration(phase string, d time.Duration)
 	if d < 0 {
 		return
 	}
-	if err := rec.store.RecordPhaseDuration(context.Background(), rec.op.Scenario, rec.op.Variant, phase, d); err != nil {
+	if err := rec.store.RecordPhaseDuration(rec.context(), rec.op.Scenario, rec.op.Variant, phase, d); err != nil {
 		rec.runner.logDebug("Record phase duration failed", logx.AttrScenario, rec.op.Scenario, logx.AttrPhase, phase, "error", err.Error())
 	}
 }
 
 // flush persists the record. A write failure disables the recorder (the
 // start must never fail because progress bookkeeping did). ErrNotFound means
-// the record went terminal under us — abandoned by the signal handler or
+// the record went terminal under us — abandoned by the cancellation watcher or
 // superseded by a takeover — and terminal records are immutable, so the
 // recorder stops writing without alarming anyone.
 func (rec *startOperationRecorder) flush() {
 	rec.op.WithSteps(rec.steps)
-	updated, err := rec.store.UpdateStartOperation(context.Background(), rec.op)
+	updated, err := rec.store.UpdateStartOperation(rec.context(), rec.op)
 	if err != nil {
 		if errors.Is(err, scenarioruntime.ErrNotFound) {
 			rec.runner.logDebug("Start-operation record abandoned or superseded externally; further progress unrecorded",
@@ -282,11 +286,15 @@ func (rec *startOperationRecorder) flush() {
 // attachSink registers a sink for the duration of one operation and returns
 // the detach closure.
 func (r *Runner) attachSink(sink ProgressSink) func() {
+	r.sinksMu.Lock()
 	if r.sinks == nil {
 		r.sinks = []ProgressSink{r}
 	}
 	r.sinks = append(r.sinks, sink)
+	r.sinksMu.Unlock()
 	return func() {
+		r.sinksMu.Lock()
+		defer r.sinksMu.Unlock()
 		for i := range r.sinks {
 			if r.sinks[i] == sink {
 				r.sinks = append(r.sinks[:i], r.sinks[i+1:]...)

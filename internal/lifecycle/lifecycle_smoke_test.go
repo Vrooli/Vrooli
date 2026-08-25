@@ -143,7 +143,9 @@ func TestSetupNeededDetectsUpdatedSources(t *testing.T) {
 		t.Fatalf("expected setup reasons to be populated")
 	}
 
-	_ = runner.Stop("alpha", StopOptions{})
+	if err := runner.Stop("alpha", StopOptions{}); err != nil {
+		t.Fatalf("Stop(alpha): %v", err)
+	}
 }
 
 func TestRunnerStartStartsRequiredDependencies(t *testing.T) {
@@ -166,10 +168,8 @@ func TestRunnerStartStartsRequiredDependencies(t *testing.T) {
 		t.Fatalf("NewRunner: %v", err)
 	}
 
-	t.Cleanup(func() {
-		_ = runner.Stop("alpha", StopOptions{})
-		_ = runner.Stop("beta", StopOptions{})
-	})
+	cleanupRunner(t, runner, "alpha", StopOptions{})
+	cleanupRunner(t, runner, "beta", StopOptions{})
 
 	result, err := runner.Start("alpha", StartOptions{})
 	if err != nil {
@@ -222,10 +222,8 @@ func TestRunnerStartReusesHealthyDependencyWhenOnlyCLICheckWouldBeStale(t *testi
 		t.Fatalf("NewRunner: %v", err)
 	}
 
-	t.Cleanup(func() {
-		_ = runner.Stop("alpha", StopOptions{})
-		_ = runner.Stop("beta", StopOptions{})
-	})
+	cleanupRunner(t, runner, "alpha", StopOptions{})
+	cleanupRunner(t, runner, "beta", StopOptions{})
 
 	startedBeta, err := runner.Start("beta", StartOptions{})
 	if err != nil {

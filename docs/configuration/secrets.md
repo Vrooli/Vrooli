@@ -101,8 +101,8 @@ demand and are never cached:
 
 ```bash
 vrooli scenario start web-console                 # runs; openrouter degraded
-printf '%s' "$OPERATOR_VALUE" | vrooli credentials provision \
-  --identity vrooli/openrouter --field api-key
+vrooli credentials provision --identity vrooli/openrouter --field api-key
+# Enter the value at vrooli's secure prompt.
 vrooli resource status openrouter                 # now healthy
 ```
 
@@ -190,8 +190,53 @@ passphrase during recovery; the sink never receives a credential value.
 
 ## Diagnosing a host
 
+### Boot state: Vrooli store versus login keyring
+
+The Vrooli credential authority and the operating-system login keyring are
+different locks. The authority is the source for Vrooli-owned credentials and
+must open unattended through its selected backend; an encrypted GNOME login
+keyring may remain locked on an automatic-login desktop session.
+
+Use these commands to inspect the two sides without printing values:
+
+```bash
+vrooli credentials store status     # Vrooli encrypted-file/native authority
+vrooli credentials keyring status  # operating-system Secret Service verdict
+vrooli credentials keyring inspect # file verdict, daemon freshness, backups
+```
+
+The keyring surface reports `unlocked`, `locked`, `file_rejected`,
+`daemon_stale`, or `absent` with a reason. `login_keyring_unlock` remains an
+explicit, high-risk opt-in safeguard for desktop applications that still need
+the operating-system keyring; Vrooli must not silently disable encryption at
+rest to compensate for automatic login. Remote-desktop credentials owned by
+Vrooli belong in the encrypted credential authority instead.
+
 `vrooli credentials doctor` explains this host's backend, then every declared
 credential on it:
+
+On a healthy host, the first command reports `Unattended: yes` and names the
+host-bound wrap. The second reports the operating-system keyring honestly — it
+may say `locked` or `absent` when no Vrooli-owned consumer needs Secret Service.
+Neither condition is a Vrooli credential-store failure.
+
+For example:
+
+```
+$ vrooli credentials store status
+Encrypted credential store
+  State:       initialized
+  Authority:   yes
+  Unattended:  yes — the host-bound wrap opens this store after a reboot with no passphrase
+
+$ vrooli credentials keyring status
+Credential keyring: locked (or absent)
+```
+
+If `doctor` instead reports `provider_unavailable`, it is diagnosing the
+credential backend itself; do not infer that from a locked or absent login
+keyring. The following is a historical degraded-provider example, retained to
+explain that distinction; it is not the expected output on this host.
 
 ```
 $ vrooli credentials doctor
@@ -277,10 +322,11 @@ environment and every scenario's environment are left alone, so a broken login
 stays visible to the other session-scoped tools it affects — which is also why
 `doctor` discloses the repair instead of performing it silently.
 
-`secrets-manager credentials list --format json` prints the declaration table
-without the provider section. `secrets-manager credentials doctor` owns the
-operator-facing inventory and diagnosis; neither command can print a stored
-value.
+`vrooli credentials list --format json` is the control-plane inventory and
+store view; it works before any scenario is running. `vrooli credentials
+delete --identity <id> --field <field>` owns the explicit store mutation.
+The secrets-manager console consumes that same inventory for coverage and
+diagnosis; neither surface can print a stored value.
 
 `vrooli credentials status --identity <id> --field <field>` reports one
 credential and always carries the provider state alongside it, so
@@ -293,26 +339,32 @@ Credential vrooli/openrouter/api-key: unconfigured (provider libsecret, availabl
 
 ## Provisioning
 
-Provision through onboarding or standard input, never a command argument:
+Provision through the secure terminal prompt, never a command argument:
 
 ```bash
-printf '%s' "$OPERATOR_VALUE" | vrooli credentials provision \
-  --identity vrooli/openrouter --field api-key
+vrooli credentials provision --identity vrooli/openrouter --field api-key
 ```
 
-The bootstrap `vrooli credentials` surface is intentionally limited to
-provisioning, status, diagnosis, store recovery, and recovery bundles. Keyring
-inspection and repair live in secrets-manager:
+Enter the value at the prompt. Automation may provide it on standard input.
+
+The control-plane `vrooli credentials` surface owns provisioning, status,
+diagnosis, store lifecycle, metadata inventory, explicit deletion, recovery,
+and recovery bundles. Keyring inspection and repair, descriptor/campaign/tier
+coverage, and the console remain in the secrets-manager scenario; operator
+commands remain on the Vrooli control-plane surface:
 
 ```bash
-secrets-manager keyring inspect --format json
-secrets-manager keyring repair --format json
-secrets-manager backup export --output ~/vrooli-recovery.bundle < passphrase
+vrooli credentials keyring inspect --format json
+vrooli credentials keyring repair --format json
+vrooli credentials recovery export --all --output ~/vrooli-recovery.bundle
 ```
 
-`secrets-manager` owns the inventory, keyring, descriptor, tier, and backup
-operator experience. The bootstrap floor remains available with no scenarios
-running so a wiped host can still restore its authority.
+Each command prompts securely inside `vrooli` when a passphrase is needed.
+
+`secrets-manager` owns coverage, campaigns, descriptors, tiers, keyring
+operator experience, and the console; it does not own the encrypted store
+lifecycle or authoritative inventory. The bootstrap floor remains available
+with no scenarios running so a wiped host can still restore its authority.
 
 Runtime code resolves credentials through the control-plane authority into the
 target process only. It must not read YAML inventories, resource-private
@@ -349,8 +401,8 @@ the **entire keyring**, not the offending entry, taking every unrelated secret
 in it down with it, including credentials other applications had stored years
 earlier.
 
-A host already in that state is repaired with `secrets-manager keyring
-inspect` and `secrets-manager keyring repair`, which need no elevated
+A host already in that state is repaired with `vrooli credentials keyring
+inspect` and `vrooli credentials keyring repair`, which need no elevated
 privileges. See the [infra-rdp check](../../scenarios/vrooli-autoheal/docs/reference/checks/infra-rdp.md)
 for how autoheal detects it.
 
@@ -363,7 +415,7 @@ editor, so its confidentiality rests on file permissions. `credentials doctor`
 reports `unencrypted-keyring` and this caveat; this changes the description,
 not the Linux default or the existing data.
 
-`secrets-manager keyring inspect` also reports whether the stale-daemon
+`vrooli credentials keyring inspect` also reports whether the stale-daemon
 comparison ran. If the daemon start time is unavailable, it says that the
 check did not run and makes no stale-daemon claim.
 
@@ -481,24 +533,23 @@ operator-held passphrase, and both stay fail-closed when the provider is
 unavailable. Retired `config/secrets.yaml` files are migration inputs only and
 never a runtime contract.
 
-Create a recovery bundle by naming the credential metadata and passing the
-passphrase through standard input. The output path is created once with owner-
-only permissions; neither command prints a value or passphrase:
+Create a recovery bundle by naming the credential metadata. The command prompts
+securely for the operator-held passphrase. The output path is created once with
+owner-only permissions; neither command prints a value or passphrase:
 
 ```bash
-printf '%s' "$RECOVERY_PASSPHRASE" | vrooli credentials recovery export \
+vrooli credentials recovery export \
   --entry vrooli/openrouter:api-key --output ./vrooli-recovery.bundle
 
 # Back up every configured credential declared by a resource manifest.
-printf '%s' "$RECOVERY_PASSPHRASE" | vrooli credentials recovery export \
+vrooli credentials recovery export \
   --all --output ./vrooli-recovery-all.bundle
 
-printf '%s' "$RECOVERY_PASSPHRASE" | vrooli credentials recovery restore \
-  --input ./vrooli-recovery.bundle
+vrooli credentials recovery restore --input ./vrooli-recovery.bundle
 
 # Replace only the passphrase wrap. Read current and new passphrases on
-# separate stdin lines; stored values are not re-encrypted.
-printf 'CURRENT_PASSPHRASE\nNEW_PASSPHRASE\n' | vrooli credentials store change-passphrase
+# secure prompts; stored values are not re-encrypted.
+vrooli credentials store change-passphrase
 ```
 
 ## Generic escrow onboarding and evidence

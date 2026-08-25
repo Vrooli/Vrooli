@@ -15,6 +15,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/vrooli/envkit-go"
@@ -59,7 +60,10 @@ type Runner struct {
 	// sinks are the progress-event consumers. Nil means "just the built-in
 	// text renderer" (the Runner itself implements ProgressSink); populated
 	// via WithProgressSink.
-	sinks []ProgressSink
+	sinks         []ProgressSink
+	sinksMu       sync.RWMutex
+	containmentMu sync.Mutex
+	containment   map[int]func()
 }
 
 const lifecycleEnvironmentEnv = "VROOLI_ENVIRONMENT"
@@ -247,6 +251,10 @@ func defaultGoListJSON(dir string) ([]byte, error) {
 }
 
 type StartOptions struct {
+	// Context carries cancellation from the owning caller through the complete
+	// recursive start graph. Nil preserves the historical background context
+	// for library callers that do not need cancellation.
+	Context            context.Context
 	CustomPath         string
 	CleanStale         bool
 	BestEffort         bool
@@ -262,13 +270,15 @@ type StartOptions struct {
 	// the target instance — restart semantics. Set only by Runner.Restart;
 	// unexported so external callers express restart through Restart.
 	stopFirst bool
-	// hostRequirementsPreflighted is set only by the top-level start path. It
-	// prevents duplicate work for the root scenario while recursive dependency
-	// starts still enforce their own requirements normally.
-	hostRequirementsPreflighted string
+	// hostRequirementsPreflighted contains every scenario path covered by the
+	// one tree-level host-requirement pass.
+	hostRequirementsPreflighted map[string]struct{}
 }
 
 type StopOptions struct {
+	// Context carries cancellation through teardown. Nil preserves the
+	// historical background behavior for library callers.
+	Context    context.Context
 	CustomPath string
 	// Variant selects which instance to stop. Empty / "live" stops only the
 	// canonical instance and never reaps a sibling shadow (and vice versa).
@@ -276,6 +286,7 @@ type StopOptions struct {
 }
 
 type PhaseOptions struct {
+	Context                 context.Context
 	CustomPath              string
 	AllowSkipMissingRuntime bool
 	ManageRuntime           bool
@@ -446,7 +457,7 @@ func (r *Runner) Start(name string, opts StartOptions) (Result, error) {
 	for attempt := 0; ; attempt++ {
 		release, err := r.acquireScenarioLock(key.Slug())
 		if err == nil {
-			result, startErr := r.startLocked(key.Scenario, opts)
+			result, startErr := r.startLocked(key.Scenario, opts, newStartSession(opts.Context))
 			release()
 			return result, startErr
 		}
@@ -480,10 +491,18 @@ func (r *Runner) Start(name string, opts StartOptions) (Result, error) {
 	}
 }
 
+// StartContext is the explicit cancellation-aware entry point. Start keeps
+// the historical argument order for library compatibility; new callers should
+// prefer this form so the operation context cannot be omitted accidentally.
+func (r *Runner) StartContext(ctx context.Context, name string, opts StartOptions) (Result, error) {
+	opts.Context = ctx
+	return r.Start(name, opts)
+}
+
 // startLocked is the lock-free body of Start. Callers must already hold the
 // per-scenario advisory lock for `name` (acquireScenarioLock). Used by Start
 // and Restart to avoid double-acquiring the lock from the same goroutine.
-func (r *Runner) startLocked(name string, opts StartOptions) (Result, error) {
+func (r *Runner) startLocked(name string, opts StartOptions, session *startSession) (Result, error) {
 	// Validate and converge the target's host requirements before restart tears
 	// down a working instance or dependency bootstrap performs unrelated work.
 	// The execute path retains its enforcement as a safety net for recursive and
@@ -493,10 +512,17 @@ func (r *Runner) startLocked(name string, opts StartOptions) (Result, error) {
 	if err != nil {
 		return Result{}, err
 	}
-	if err := r.enforceScenarioHostRequirements(item); err != nil {
+	treePaths, err := r.startTreeScenarioPaths(item)
+	if err != nil {
+		return Result{}, err
+	}
+	if err := r.enforceScenarioHostRequirementsTree(item, treePaths); err != nil {
 		return Result{}, fmt.Errorf("preflight host requirements for scenario %q: %w", name, err)
 	}
-	opts.hostRequirementsPreflighted = item.Slug
+	opts.hostRequirementsPreflighted = make(map[string]struct{}, len(treePaths))
+	for _, path := range treePaths {
+		opts.hostRequirementsPreflighted[path] = struct{}{}
+	}
 
 	// Durable start-operation record: every top-level start/restart is
 	// introspectable by other processes for the duration of the run and
@@ -511,10 +537,12 @@ func (r *Runner) startLocked(name string, opts StartOptions) (Result, error) {
 		// Restart semantics: unconditional teardown before the start body,
 		// announced (and rendered) before "starting …" like the historical
 		// stop+start sequence.
-		if err := r.stopLocked(name, StopOptions{Variant: opts.Variant}); err != nil {
+		if err := r.stopLocked(name, StopOptions{Context: opts.Context, Variant: opts.Variant}); err != nil {
 			return Result{}, err
 		}
-		r.runtimeDeps().sleep(stopSettleDelay)
+		if err := r.waitForInstanceReleased(opts.Context, name, opts.Variant); err != nil {
+			return Result{}, err
+		}
 	}
 	r.publish(ProgressEvent{Kind: EventOperationStarted, Scenario: name, Operation: defaultIfEmpty(opts.Operation, "start")})
 	r.logInfo("Scenario start requested",
@@ -523,9 +551,7 @@ func (r *Runner) startLocked(name string, opts StartOptions) (Result, error) {
 		"clean_stale", opts.CleanStale,
 		"force_setup", opts.ForceSetup,
 	)
-	ready := make(map[string]struct{})
-	setupCache := make(setupCheckCache)
-	result, err := r.startWithState(name, opts, ready, setupCache, nil)
+	result, err := r.startWithState(name, opts, session)
 	if err != nil {
 		r.publish(ProgressEvent{Kind: EventOperationFailed, Scenario: name, Operation: defaultIfEmpty(opts.Operation, "start"), Err: err})
 		r.logError("Scenario start failed", err, logx.AttrScenario, name)
@@ -545,7 +571,7 @@ func (r *Runner) startLocked(name string, opts StartOptions) (Result, error) {
 	return result, nil
 }
 
-func (r *Runner) startWithState(name string, opts StartOptions, ready map[string]struct{}, setupCache setupCheckCache, stack []string) (Result, error) {
+func (r *Runner) startWithState(name string, opts StartOptions, session *startSession) (Result, error) {
 	item, err := r.loadScenario(name, opts.CustomPath)
 	if err != nil {
 		return Result{}, err
@@ -560,27 +586,28 @@ func (r *Runner) startWithState(name string, opts StartOptions, ready map[string
 	if err := scenario.ValidateManifestPorts(item.ServicePath, item.Manifest.Ports); err != nil {
 		return Result{}, err
 	}
-	return r.startScenario(item, opts, ready, setupCache, stack)
+	return r.startScenario(item, opts, session)
 }
 
-func (r *Runner) startScenario(item scenario.Scenario, opts StartOptions, ready map[string]struct{}, setupCache setupCheckCache, stack []string) (Result, error) {
+func (r *Runner) startScenario(item scenario.Scenario, opts StartOptions, session *startSession) (Result, error) {
+	branch := session.childStack(item.Slug)
 	// --clean-stale: reconcile stale runtime registry state (expired claims,
 	// dead-owner instances) before the top-level start so a previous crash
 	// doesn't block port allocation. Dependencies skip this (len(stack) > 0):
 	// one reconcile per user-initiated start is enough.
-	if opts.CleanStale && len(stack) == 0 {
+	if opts.CleanStale && len(branch.stack) == 1 {
 		r.logDebug("Reconciling stale runtime registry state before scenario start", logx.AttrScenario, item.Slug)
 		if cleanErr := r.runtimeDeps().cleanStaleLocks(); cleanErr != nil {
 			return Result{}, cleanErr
 		}
 	}
-	failedDeps, failedResources, err := r.bootstrapScenarioDependencies(item, opts, ready, setupCache, stack)
+	failedDeps, failedResources, err := r.bootstrapScenarioDependencies(item, opts, branch)
 	if err != nil {
 		return Result{}, err
 	}
 
 	forceSetup := forceSetupFor(opts, item.Slug)
-	observed, err := r.observeRuntime(item, forceSetup, setupCache)
+	observed, err := r.observeRuntime(item, forceSetup, branch)
 	if err != nil {
 		return Result{}, err
 	}
@@ -607,12 +634,42 @@ func (r *Runner) startScenario(item scenario.Scenario, opts StartOptions, ready 
 		// would collide with a fresh start.
 		r.logDebug("Stopping existing instance before start",
 			logx.AttrScenario, item.Slug, "reason", plan.RestartReason)
-		if err := r.stopLocked(item.Slug, StopOptions{Variant: item.Variant}); err != nil {
+		// Build the replacement while the current instance still owns the
+		// serving process. A failed setup therefore returns without taking a
+		// healthy instance offline; the later artifact-swap phase will make the
+		// output write itself atomic for concurrently served UI bundles.
+		if observed.View.Authoritative && string(observed.View.Instance.Status) != "failed" {
+			if err := r.prepareReplacementArtifacts(ctxOrBackground(opts.Context), item, observed.View); err != nil {
+				return Result{}, err
+			}
+		}
+		if err := r.stopLocked(item.Slug, StopOptions{Context: opts.Context, Variant: item.Variant}); err != nil {
 			return Result{}, err
 		}
-		r.runtimeDeps().sleep(stopSettleDelay)
+		if err := r.waitForInstanceReleased(opts.Context, item.Slug, item.Variant); err != nil {
+			return Result{}, err
+		}
 	}
-	return r.executeStart(item, opts, forceSetup, setupCache, failedDeps, failedResources)
+	return r.executeStart(item, opts, forceSetup, branch, failedDeps, failedResources)
+}
+
+func ctxOrBackground(ctx context.Context) context.Context {
+	if ctx == nil {
+		return context.Background()
+	}
+	return ctx
+}
+
+func (r *Runner) prepareReplacementArtifacts(ctx context.Context, item scenario.Scenario, view registryRuntimeView) error {
+	env := envFromRuntimeView(item.Manifest, view)
+	if _, err := r.runWithLifecycleLog(startLifecycleLogContext(item.Slug, "stage", "setup"), func(logWriter, childWriter io.Writer) error {
+		_, execErr := r.executePhaseDetailed(ctx, item, "setup", env, logWriter, childWriter)
+		return execErr
+	}); err != nil {
+		return fmt.Errorf("prepare replacement artifacts for %s: %w", item.Slug, err)
+	}
+	r.stampScenarioFreshness(item)
+	return nil
 }
 
 // executeStart runs the start steps for one instance whose teardown/reuse
@@ -620,7 +677,8 @@ func (r *Runner) startScenario(item scenario.Scenario, opts StartOptions, ready 
 // environment, setup (when needed), develop, health gate, registry
 // finalization, and supervisor handoff. It owns the failure rollback for
 // side effects it created.
-func (r *Runner) executeStart(item scenario.Scenario, opts StartOptions, forceSetup bool, setupCache setupCheckCache, failedDeps, failedResources []string) (result Result, err error) {
+func (r *Runner) executeStart(item scenario.Scenario, opts StartOptions, forceSetup bool, session *startSession, failedDeps, failedResources []string) (result Result, err error) {
+	ctx := session.context()
 	cleanupOnError := false
 	runtimeSession := disabledRuntimeRegistrySession()
 	defer func() {
@@ -630,7 +688,7 @@ func (r *Runner) executeStart(item scenario.Scenario, opts StartOptions, forceSe
 			}
 			return
 		}
-		if runtimeErr := runtimeSession.fail(context.Background(), err); runtimeErr != nil {
+		if runtimeErr := runtimeSession.fail(ctx, err); runtimeErr != nil {
 			err = errors.Join(err, runtimeErr)
 		}
 		_ = runtimeSession.close()
@@ -641,34 +699,34 @@ func (r *Runner) executeStart(item scenario.Scenario, opts StartOptions, forceSe
 		// Dependencies and resources that were started earlier in the recursive chain
 		// are shared runtime infrastructure and may already be needed by other live
 		// scenarios, so this rollback must not unwind them opportunistically.
-		if cleanupErr := r.cleanupScenarioRuntimeWithRegistry(item.Slug, item.Variant, opts.CustomPath, false, false); cleanupErr != nil {
+		if cleanupErr := r.cleanupScenarioRuntimeWithRegistryContext(ctx, item.Slug, item.Variant, opts.CustomPath, false, false); cleanupErr != nil {
 			r.logError("Failed to roll back failed scenario start", cleanupErr, logx.AttrScenario, recordSlug(item))
 			err = errors.Join(err, fmt.Errorf("rollback failed: %w", cleanupErr))
 		}
 	}()
 
-	runtimeSession, err = r.beginRuntimeRegistryStart(context.Background(), item)
+	runtimeSession, err = r.beginRuntimeRegistryStart(ctx, item)
 	if err != nil {
 		return Result{}, err
 	}
 
-	if item.Slug != opts.hostRequirementsPreflighted {
+	if _, covered := opts.hostRequirementsPreflighted[item.Path]; !covered {
 		if err := r.enforceScenarioHostRequirements(item); err != nil {
 			return Result{}, err
 		}
 	}
 
-	env, err := r.prepareScenarioEnvironment(item, runtimeSession)
+	env, err := r.prepareScenarioEnvironment(ctx, item, runtimeSession)
 	cleanupOnError = true
 	if err != nil {
 		return Result{}, err
 	}
-	if err := runtimeSession.adoptOrReservePorts(context.Background(), item, env); err != nil {
+	if err := runtimeSession.adoptOrReservePorts(ctx, item, env); err != nil {
 		return Result{}, err
 	}
 	runtimeSession.injectEnv(env.EnvVars)
 
-	setupNeeded, _, err := r.setupNeededCached(item, forceSetup, setupCache)
+	setupNeeded, _, err := r.setupNeededCached(item, forceSetup, session)
 	if err != nil {
 		return Result{}, err
 	}
@@ -676,12 +734,12 @@ func (r *Runner) executeStart(item scenario.Scenario, opts StartOptions, forceSe
 	if setupNeeded {
 		r.publish(ProgressEvent{Kind: EventPhaseStarted, Scenario: item.Slug, Phase: "setup"})
 		r.logInfo("Executing setup phase for scenario", logx.AttrScenario, item.Slug, logx.AttrPhase, "setup")
-		if err := runtimeSession.setPhase(context.Background(), "setup"); err != nil {
+		if err := runtimeSession.setPhase(ctx, "setup"); err != nil {
 			return Result{}, err
 		}
-		if err := runtimeSession.keepLeaseAlive(context.Background(), r.leaseRenewalWarning(item, "setup"), func() error {
+		if err := runtimeSession.keepLeaseAlive(ctx, r.leaseRenewalWarning(item, "setup"), func() error {
 			_, err := r.runWithLifecycleLog(startLifecycleLogContext(item.Slug, opts.Operation, "setup"), func(logWriter, childWriter io.Writer) error {
-				_, err := r.ExecutePhaseDetailed(item, "setup", env.EnvVars, logWriter, childWriter)
+				_, err := r.executePhaseDetailed(ctx, item, "setup", env.EnvVars, logWriter, childWriter)
 				return err
 			})
 			return err
@@ -693,7 +751,7 @@ func (r *Runner) executeStart(item scenario.Scenario, opts StartOptions, forceSe
 		// manifest-authoritative; the next freshness eval reads a stat-cache
 		// stamp instead of walking the source tree.
 		r.stampScenarioFreshness(item)
-		if err := runtimeSession.heartbeat(context.Background()); err != nil {
+		if err := runtimeSession.heartbeat(ctx); err != nil {
 			return Result{}, err
 		}
 		r.publish(ProgressEvent{Kind: EventPhaseCompleted, Scenario: item.Slug, Phase: "setup"})
@@ -701,45 +759,45 @@ func (r *Runner) executeStart(item scenario.Scenario, opts StartOptions, forceSe
 
 	r.publish(ProgressEvent{Kind: EventPhaseStarted, Scenario: item.Slug, Phase: "develop"})
 	r.logInfo("Executing develop phase for scenario", logx.AttrScenario, item.Slug, logx.AttrPhase, "develop")
-	if err := runtimeSession.setPhase(context.Background(), "develop"); err != nil {
+	if err := runtimeSession.setPhase(ctx, "develop"); err != nil {
 		return Result{}, err
 	}
-	if err := runtimeSession.keepLeaseAlive(context.Background(), r.leaseRenewalWarning(item, "develop"), func() error {
+	if err := runtimeSession.keepLeaseAlive(ctx, r.leaseRenewalWarning(item, "develop"), func() error {
 		_, err := r.runWithLifecycleLog(startLifecycleLogContext(item.Slug, opts.Operation, "develop"), func(logWriter, childWriter io.Writer) error {
-			_, err := r.ExecutePhaseDetailed(item, "develop", env.EnvVars, logWriter, childWriter)
+			_, err := r.executePhaseDetailed(ctx, item, "develop", env.EnvVars, logWriter, childWriter)
 			return err
 		})
 		return err
 	}); err != nil {
 		return Result{}, err
 	}
-	if err := runtimeSession.heartbeat(context.Background()); err != nil {
+	if err := runtimeSession.heartbeat(ctx); err != nil {
 		return Result{}, err
 	}
 	r.publish(ProgressEvent{Kind: EventPhaseCompleted, Scenario: item.Slug, Phase: "develop"})
 
 	r.publish(ProgressEvent{Kind: EventHealthWaiting, Scenario: item.Slug})
-	healthStatus, err := r.WaitForHealth(item, env.EnvVars)
+	healthStatus, err := r.waitForHealth(ctx, item, env.EnvVars)
 	if err != nil {
 		return Result{}, err
 	}
-	if err := runtimeSession.recordHealth(context.Background(), item, env, healthStatus); err != nil {
+	if err := runtimeSession.recordHealth(ctx, item, env, healthStatus); err != nil {
 		return Result{}, err
 	}
 
-	if err := runtimeSession.bindPorts(context.Background()); err != nil {
+	if err := runtimeSession.bindPorts(ctx); err != nil {
 		return Result{}, err
 	}
-	if err := runtimeSession.markRunning(context.Background()); err != nil {
+	if err := runtimeSession.markRunning(ctx); err != nil {
 		return Result{}, err
 	}
-	if err := r.ensureRuntimeSupervisor(context.Background(), runtimeSession); err != nil {
+	if err := r.ensureRuntimeSupervisor(ctx, runtimeSession); err != nil {
 		return Result{}, err
 	}
 	// Ownership must change hands before this process does, or the instance is
 	// left leased to a PID that is about to disappear.
-	r.attachSupervision(context.Background(), &runtimeSession, item)
-	if err := runtimeSession.publishPeerRecord(context.Background(), r.Home); err != nil {
+	r.attachSupervision(ctx, &runtimeSession, item)
+	if err := runtimeSession.publishPeerRecord(ctx, r.Home); err != nil {
 		return Result{}, err
 	}
 
@@ -772,8 +830,8 @@ func (r *Runner) executeStart(item scenario.Scenario, opts StartOptions, forceSe
 	return result, nil
 }
 
-func (r *Runner) bootstrapScenarioDependencies(item scenario.Scenario, opts StartOptions, ready map[string]struct{}, setupCache setupCheckCache, stack []string) ([]string, []string, error) {
-	failedDeps, err := r.ensureDependencies(item, opts, ready, setupCache, append(stack, item.Slug))
+func (r *Runner) bootstrapScenarioDependencies(item scenario.Scenario, opts StartOptions, session *startSession) ([]string, []string, error) {
+	failedDeps, err := r.ensureDependencies(item, opts, session)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -838,12 +896,15 @@ func (r *Runner) logCredentialGaps(slug string, env ports.Environment) {
 	)
 }
 
-func (r *Runner) prepareScenarioEnvironment(item scenario.Scenario, runtimeSession runtimeRegistrySession) (ports.Environment, error) {
+func (r *Runner) prepareScenarioEnvironment(ctx context.Context, item scenario.Scenario, runtimeSession runtimeRegistrySession) (ports.Environment, error) {
 	if err := r.cleanupFixedPortOrphans(item); err != nil {
 		return ports.Environment{}, err
 	}
 
-	env, err := r.Ports.BuildEnvironmentWithRuntimeClaims(item, nil, runtimeSession.portClaimOptions(context.Background()))
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	env, err := r.Ports.BuildEnvironmentWithRuntimeClaims(item, nil, runtimeSession.portClaimOptions(ctx))
 	if err != nil {
 		return ports.Environment{}, err
 	}
@@ -867,6 +928,12 @@ func (r *Runner) Stop(name string, opts StopOptions) error {
 	return r.stopLocked(key.Scenario, opts)
 }
 
+// StopContext is the explicit cancellation-aware stop entry point.
+func (r *Runner) StopContext(ctx context.Context, name string, opts StopOptions) error {
+	opts.Context = ctx
+	return r.Stop(name, opts)
+}
+
 // stopLocked is the lock-free body of Stop. Callers must already hold the
 // per-scenario advisory lock. Used internally by startScenario (which is
 // itself called under the Start/Restart lock) and by Restart.
@@ -874,7 +941,7 @@ func (r *Runner) stopLocked(name string, opts StopOptions) error {
 	slug := scenarioruntime.InstanceKey{Scenario: name, Variant: opts.Variant}.Slug()
 	r.publish(ProgressEvent{Kind: EventStopStarted, Scenario: slug, Operation: "stop"})
 	r.logInfo("Scenario stop requested", logx.AttrScenario, slug)
-	if err := r.cleanupScenarioRuntime(name, opts.Variant, opts.CustomPath, true); err != nil {
+	if err := r.cleanupScenarioRuntimeWithRegistryContext(opts.Context, name, opts.Variant, opts.CustomPath, true, true); err != nil {
 		r.logError("Failed to remove scenario locks", err, logx.AttrScenario, slug)
 		return err
 	}
@@ -882,18 +949,16 @@ func (r *Runner) stopLocked(name string, opts StopOptions) error {
 	return nil
 }
 
-func (r *Runner) cleanupScenarioRuntime(name, variant, customPath string, includeManifestFixedPorts bool) error {
-	return r.cleanupScenarioRuntimeWithRegistry(name, variant, customPath, includeManifestFixedPorts, true)
-}
-
 // cleanupScenarioRuntimeWithRegistry tears down one instance of a scenario.
 // `name` is the bare scenario slug and `variant` selects the instance; the two
 // are combined into a record slug for all on-disk record/log/lock operations
 // and into an InstanceFilter for the registry, so stopping one variant never
 // reaps a sibling (the reap-sibling bug fixed here). Empty variant ⇒ live.
-func (r *Runner) cleanupScenarioRuntimeWithRegistry(name, variant, customPath string, includeManifestFixedPorts bool, writeRegistry bool) error {
+func (r *Runner) cleanupScenarioRuntimeWithRegistryContext(ctx context.Context, name, variant, customPath string, includeManifestFixedPorts bool, writeRegistry bool) error {
 	deps := r.runtimeDeps()
-	ctx := context.Background()
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	key := scenarioruntime.InstanceKey{Scenario: name, Variant: variant}.Normalize()
 	slug := key.Slug()
 	runtimeStop := runtimeRegistryStopSession{}
@@ -920,28 +985,11 @@ func (r *Runner) cleanupScenarioRuntimeWithRegistry(name, variant, customPath st
 		return globErr
 	}
 
-	groups := make(map[int]struct{})
-	for _, record := range process.LiveRecords(records) {
-		pgid := record.PGID
-		if pgid <= 0 {
-			pgid = record.PID
+	liveRecords := process.LiveRecords(records)
+	if len(liveRecords) > 0 {
+		if err := r.terminateAndAwait(ctx, liveRecords); err != nil {
+			return err
 		}
-		if pgid > 0 {
-			groups[pgid] = struct{}{}
-		}
-	}
-
-	for pgid := range groups {
-		_ = deps.signalProcessGroup(pgid, false)
-	}
-	if len(groups) > 0 {
-		deps.sleep(2 * time.Second)
-		for pgid := range groups {
-			if deps.isPIDRunning(pgid) {
-				_ = deps.signalProcessGroup(pgid, true)
-			}
-		}
-		deps.sleep(500 * time.Millisecond)
 	}
 
 	for _, stepFile := range stepFiles {
@@ -960,11 +1008,11 @@ func (r *Runner) cleanupScenarioRuntimeWithRegistry(name, variant, customPath st
 		}
 	}
 
-	if err := r.killOrphansOnPorts(portsToCheck); err != nil {
+	if err := r.killOrphansOnPortsContext(ctx, portsToCheck); err != nil {
 		return err
 	}
 
-	if err := r.verifyPortsReleased(key, portsToCheck); err != nil {
+	if err := r.verifyPortsReleasedContext(ctx, key, portsToCheck); err != nil {
 		return err
 	}
 
@@ -978,7 +1026,8 @@ func (r *Runner) cleanupScenarioRuntimeWithRegistry(name, variant, customPath st
 }
 
 // Restart shares the start pipeline: it is a start whose first step is an
-// unconditional stop (stopFirst), with setup forced for the target scenario.
+// unconditional stop (stopFirst). Fresh artifacts are reused; callers opt
+// into an unconditional rebuild with ForceSetup.
 func (r *Runner) Restart(name string, opts StartOptions) (Result, error) {
 	key, err := scenarioruntime.ParseInstanceKey(name, opts.Variant)
 	if err != nil {
@@ -993,11 +1042,12 @@ func (r *Runner) Restart(name string, opts StartOptions) (Result, error) {
 	}
 	defer release()
 	r.logInfo("Scenario restart requested", logx.AttrScenario, slug)
-	opts.ForceSetup = true
-	opts.ForceSetupScenario = key.Scenario
+	if opts.ForceSetup {
+		opts.ForceSetupScenario = key.Scenario
+	}
 	opts.Operation = "restart"
 	opts.stopFirst = true
-	result, err := r.startLocked(key.Scenario, opts)
+	result, err := r.startLocked(key.Scenario, opts, newStartSession(opts.Context))
 	if err != nil {
 		r.logError("Scenario restart failed", err, logx.AttrScenario, slug)
 		return Result{}, err
@@ -1006,12 +1056,50 @@ func (r *Runner) Restart(name string, opts StartOptions) (Result, error) {
 	return result, nil
 }
 
+// RestartContext is the explicit cancellation-aware restart entry point.
+func (r *Runner) RestartContext(ctx context.Context, name string, opts StartOptions) (Result, error) {
+	opts.Context = ctx
+	return r.Restart(name, opts)
+}
+
 // enforceScenarioHostRequirements resolves and installs host requirements
 // declared directly on the scenario. Resource-level declarations are handled by
 // enforceResourceHostRequirements before each resource dep starts, so scope is
 // kept tight: only the root manifest plus the scenario's own declarations.
 // A scenario with no declared hostTools/hostSafeguards yields a no-op.
 func (r *Runner) enforceScenarioHostRequirements(item scenario.Scenario) error {
+	return r.enforceScenarioHostRequirementsTree(item, []string{item.Path})
+}
+
+func (r *Runner) startTreeScenarioPaths(root scenario.Scenario) ([]string, error) {
+	paths := []string{}
+	seen := map[string]struct{}{}
+	var visit func(scenario.Scenario) error
+	visit = func(item scenario.Scenario) error {
+		if _, ok := seen[item.Path]; ok {
+			return nil
+		}
+		seen[item.Path] = struct{}{}
+		paths = append(paths, item.Path)
+		for dependencyName := range item.Manifest.Dependencies.Scenarios {
+			dependency, err := r.loadScenario(dependencyName, "")
+			if err != nil {
+				return err
+			}
+			if err := visit(dependency); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+	if err := visit(root); err != nil {
+		return nil, err
+	}
+	sort.Strings(paths)
+	return paths, nil
+}
+
+func (r *Runner) enforceScenarioHostRequirementsTree(item scenario.Scenario, paths []string) error {
 	deps := r.runtimeDeps()
 	if deps.enforceHostRequirements == nil {
 		return nil
@@ -1022,11 +1110,11 @@ func (r *Runner) enforceScenarioHostRequirements(item scenario.Scenario) error {
 		Environment:   r.environmentProfile(),
 		When:          "develop",
 		Resources:     "none",
-		ScenarioPaths: []string{item.Path},
+		ScenarioPaths: paths,
 		AutoInstall:   true,
 		Stdout:        r.Out,
 		Stderr:        r.Err,
-		Label:         "scenario:" + item.Slug,
+		Label:         "scenario-tree:" + item.Slug,
 	}); err != nil {
 		r.logError("Host requirements enforcement failed", err, logx.AttrScenario, item.Slug)
 		return err
@@ -1119,34 +1207,38 @@ func (r *Runner) logError(msg string, err error, args ...any) {
 // lets Restart fail fast with a diagnostic rather than silently racing into
 // a Start that will itself fail with the generic "port already in use".
 func (r *Runner) verifyPortsReleased(key scenarioruntime.InstanceKey, portsToCheck map[int]struct{}) error {
+	// Compatibility wrapper for tests and library callers without a lifecycle
+	// context. The start/stop path uses the context-aware variant below.
+	return r.verifyPortsReleasedContext(context.Background(), key, portsToCheck)
+}
+
+func (r *Runner) verifyPortsReleasedContext(ctx context.Context, key scenarioruntime.InstanceKey, portsToCheck map[int]struct{}) error {
 	if len(portsToCheck) == 0 {
 		return nil
 	}
 	scenarioName := key.Slug()
 	deps := r.runtimeDeps()
-	const (
-		maxAttempts = 20
-		interval    = 100 * time.Millisecond
-	)
 	stillBound := make(map[int][]int)
-	for port := range portsToCheck {
-		var pids []int
-		for attempt := 0; attempt < maxAttempts; attempt++ {
+	err := AwaitContext(ctx, r.awaitClock(), AwaitPolicy{Timeout: 2 * time.Second, Interval: 100 * time.Millisecond}, func() (bool, error) {
+		stillBound = make(map[int][]int)
+		for port := range portsToCheck {
 			got, err := deps.listeningPIDs(port)
 			if err != nil {
 				// listeningPIDs swallows exec errors to nil; any real error
 				// means we cannot verify, so surface it.
-				return fmt.Errorf("verify port %d released: %w", port, err)
+				return false, fmt.Errorf("verify port %d released: %w", port, err)
 			}
-			pids = got
-			if len(pids) == 0 {
-				break
+			if len(got) > 0 {
+				stillBound[port] = got
 			}
-			deps.sleep(interval)
 		}
-		if len(pids) > 0 {
-			stillBound[port] = pids
-		}
+		return len(stillBound) == 0, nil
+	})
+	if err != nil && ctx != nil && ctx.Err() != nil {
+		return ctx.Err()
+	}
+	if err != nil && !errors.Is(err, ErrAwaitExpired) {
+		return err
 	}
 	if len(stillBound) == 0 {
 		return nil
@@ -1165,29 +1257,20 @@ func (r *Runner) verifyPortsReleased(key scenarioruntime.InstanceKey, portsToChe
 }
 
 func (r *Runner) killOrphansOnPorts(portsToCheck map[int]struct{}) error {
+	return r.killOrphansOnPortsContext(context.Background(), portsToCheck)
+}
+
+func (r *Runner) killOrphansOnPortsContext(ctx context.Context, portsToCheck map[int]struct{}) error {
 	deps := r.runtimeDeps()
+	pidsToKill := []int{}
 	for port := range portsToCheck {
 		pids, err := deps.listeningPIDs(port)
 		if err != nil {
 			return err
 		}
-		for _, pid := range pids {
-			_ = deps.signalPID(pid, false)
-		}
+		pidsToKill = append(pidsToKill, pids...)
 	}
-
-	deps.sleep(500 * time.Millisecond)
-
-	for port := range portsToCheck {
-		pids, err := deps.listeningPIDs(port)
-		if err != nil {
-			return err
-		}
-		for _, pid := range pids {
-			_ = deps.signalPID(pid, true)
-		}
-	}
-	return nil
+	return r.terminatePIDs(ctx, pidsToKill)
 }
 
 func (r *Runner) cleanupFixedPortOrphans(item scenario.Scenario) error {
@@ -1208,7 +1291,7 @@ func (r *Runner) cleanupFixedPortOrphans(item scenario.Scenario) error {
 	if len(portsToCheck) == 0 {
 		return nil
 	}
-	return r.killManagedScenarioListeners(portsToCheck, key)
+	return r.killManagedScenarioListenersContext(context.Background(), portsToCheck, key)
 }
 
 // envPortOrphanStrict disables the aggressive start-time fallback. When set
@@ -1219,7 +1302,7 @@ func (r *Runner) cleanupFixedPortOrphans(item scenario.Scenario) error {
 // (node grandchildren under vite, for example) are the common real cause.
 const envPortOrphanStrict = "VROOLI_PORT_ORPHAN_STRICT"
 
-func (r *Runner) killManagedScenarioListeners(portsToCheck map[int]struct{}, key scenarioruntime.InstanceKey) error {
+func (r *Runner) killManagedScenarioListenersContext(ctx context.Context, portsToCheck map[int]struct{}, key scenarioruntime.InstanceKey) error {
 	key = key.Normalize()
 	scenarioName := key.Slug()
 	deps := r.runtimeDeps()
@@ -1275,16 +1358,11 @@ func (r *Runner) killManagedScenarioListeners(portsToCheck map[int]struct{}, key
 	if len(targets) == 0 {
 		return nil
 	}
+	pids := make([]int, 0, len(targets))
 	for pid := range targets {
-		_ = deps.signalPID(pid, false)
+		pids = append(pids, pid)
 	}
-	deps.sleep(500 * time.Millisecond)
-	for pid := range targets {
-		if deps.isPIDRunning(pid) {
-			_ = deps.signalPID(pid, true)
-		}
-	}
-	return nil
+	return r.terminatePIDs(ctx, pids)
 }
 
 func listeningPIDs(port int) ([]int, error) {
@@ -1659,15 +1737,6 @@ func resolveCheckPath(base, path string) string {
 		return filepath.Clean(path)
 	}
 	return filepath.Join(base, filepath.FromSlash(path))
-}
-
-func containsString(values []string, target string) bool {
-	for _, value := range values {
-		if value == target {
-			return true
-		}
-	}
-	return false
 }
 
 func setEnvValue(env []string, key, value string) []string {

@@ -1,8 +1,11 @@
 package scenariohandlers
 
 import (
+	"context"
 	"fmt"
 	"io"
+	"os"
+	"os/signal"
 	"time"
 
 	scenarioapp "github.com/vrooli/vrooli/internal/app/scenario"
@@ -95,17 +98,21 @@ func RenderSetupPhaseResult(w io.Writer, format cliout.Format, result lifecycle.
 // initiator pid goes dead, readers report the operation abandoned, and the
 // next `scenario start`/`scenario wait` resumes or attaches. This asymmetry
 // vs a server-owned run is documented in cli-commands.md.
-func runWithStartCeiling(timeoutSeconds int, stderr io.Writer, reattachName string, run func() ([]scenarioapp.LifecycleItemOutput, error)) ([]scenarioapp.LifecycleItemOutput, error) {
+func runWithStartCeiling(timeoutSeconds int, stderr io.Writer, reattachName string, run func(context.Context) ([]scenarioapp.LifecycleItemOutput, error)) ([]scenarioapp.LifecycleItemOutput, error) {
+	operationCtx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
+	defer cancel()
 	if timeoutSeconds <= 0 {
-		return run()
+		return run(operationCtx)
 	}
+	operationCtx, cancel = context.WithTimeout(operationCtx, time.Duration(timeoutSeconds)*time.Second)
+	defer cancel()
 	type result struct {
 		items []scenarioapp.LifecycleItemOutput
 		err   error
 	}
 	ch := make(chan result, 1)
 	go func() {
-		items, err := run()
+		items, err := run(operationCtx)
 		ch <- result{items, err}
 	}()
 	timer := time.NewTimer(time.Duration(timeoutSeconds) * time.Second)
@@ -114,6 +121,7 @@ func runWithStartCeiling(timeoutSeconds int, stderr io.Writer, reattachName stri
 	case r := <-ch:
 		return r.items, r.err
 	case <-timer.C:
+		cancel()
 		fmt.Fprintf(stderr, "scenario start: --timeout ceiling (%ds) elapsed; detaching. The orchestration stops with this process, but the operation record stays honest — resume with `vrooli scenario start %s` or attach with `vrooli scenario wait %s --json`.\n", timeoutSeconds, reattachName, reattachName)
 		return nil, VerdictExitError{Code: 124}
 	}

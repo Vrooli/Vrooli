@@ -102,19 +102,11 @@ func wrapAAD(provider string) []byte {
 // providers use once they have derived or obtained a key-encryption key. Only
 // the way the KEK is obtained differs between them.
 func sealDataKey(kek, dataKey []byte, provider string) (string, error) {
-	block, err := aes.NewCipher(kek)
+	envelope, err := credentialpolicy.Seal(kek, dataKey, "key-wrap/"+provider, sealedFormatVersion)
 	if err != nil {
 		return "", err
 	}
-	gcm, err := cipher.NewGCM(block)
-	if err != nil {
-		return "", err
-	}
-	nonce := make([]byte, gcm.NonceSize())
-	if _, err := io.ReadFull(rand.Reader, nonce); err != nil {
-		return "", fmt.Errorf("generate wrap nonce: %w", err)
-	}
-	sealed := gcm.Seal(nonce, nonce, dataKey, wrapAAD(provider))
+	sealed := append(append([]byte(nil), envelope.Nonce...), envelope.Ciphertext...)
 	return base64.StdEncoding.EncodeToString(sealed), nil
 }
 
@@ -134,9 +126,17 @@ func openDataKey(kek []byte, ciphertext, provider string, mismatch error) ([]byt
 	if len(raw) < gcm.NonceSize() {
 		return nil, fmt.Errorf("%w: wrapped data key is too short to hold a nonce", errSealedCorrupt)
 	}
-	dataKey, err := gcm.Open(nil, raw[:gcm.NonceSize()], raw[gcm.NonceSize():], wrapAAD(provider))
-	if err != nil {
-		return nil, mismatch
+	nonce, rawCiphertext := raw[:gcm.NonceSize()], raw[gcm.NonceSize():]
+	dataKey, modernErr := credentialpolicy.Open(kek, credentialpolicy.Envelope{
+		Version: sealedFormatVersion, Purpose: "key-wrap/" + provider, Nonce: nonce, Ciphertext: rawCiphertext,
+	})
+	if modernErr != nil {
+		// Historical store files used wrapAAD directly. Keep this reader for
+		// existing hosts; all new wraps use the common authenticated framing.
+		dataKey, err = gcm.Open(nil, nonce, rawCiphertext, wrapAAD(provider))
+		if err != nil {
+			return nil, mismatch
+		}
 	}
 	if len(dataKey) != dataKeyLen {
 		return nil, fmt.Errorf("%w: unwrapped data key is %d bytes, want %d", errSealedCorrupt, len(dataKey), dataKeyLen)

@@ -20,9 +20,26 @@ func Validate(req Request) error {
 		return validateBridge(req)
 	case ActionVolumeFilesystemCheck, ActionVolumeFilesystemRepair:
 		return validateVolume(req)
+	case ActionRuntimeHomeOwnershipRepair:
+		return validateRuntimeHome(req)
 	default:
 		return fmt.Errorf("action_not_allowed")
 	}
+}
+
+func validateRuntimeHome(req Request) error {
+	if req.Subject != (Subject{}) || req.Volume != nil || req.RuntimeHome == nil {
+		return fmt.Errorf("runtime_home_subject_required")
+	}
+	switch strings.TrimSpace(req.RuntimeHome.Class) {
+	case "bin", "cache", "logs", "metrics", "processes", "build", "test_runs", "backups", "artifacts", "secrets_enc":
+	default:
+		return fmt.Errorf("runtime_home_class_not_allowed")
+	}
+	if req.RuntimeHome.ExpectedUID == 0 || req.RuntimeHome.ExpectedGID == 0 {
+		return fmt.Errorf("runtime_home_identity_required")
+	}
+	return nil
 }
 
 // validateBridge enforces the bridge admission shape. A bridge request that

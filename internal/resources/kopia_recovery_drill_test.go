@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	credentialauthority "github.com/vrooli/vrooli/internal/secrets"
+	"github.com/vrooli/vrooli/internal/credentialauthority"
 	kopiaregistry "github.com/vrooli/vrooli/packages/kopiaregistry-go"
 )
 

@@ -16,7 +16,11 @@ func newKeepAliveSession(t *testing.T, ttl time.Duration) (*runtimeRegistrySessi
 	if err != nil {
 		t.Fatalf("NewSQLiteStore() error = %v", err)
 	}
-	t.Cleanup(func() { _ = store.Close() })
+	t.Cleanup(func() {
+		if err := store.Close(); err != nil {
+			t.Errorf("close lease test store: %v", err)
+		}
+	})
 
 	ownerPID := 4242
 	instance, err := store.CreateLease(ctx, scenarioruntime.Instance{

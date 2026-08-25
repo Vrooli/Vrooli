@@ -32,6 +32,7 @@ type SetupStatus struct {
 
 type Installer struct {
 	Executable string
+	RepoRoot   string
 	Run        func(context.Context, string, ...string) ([]byte, error)
 	Copy       func(string, string) error
 }
@@ -40,6 +41,12 @@ func DefaultInstaller(executable string) Installer {
 	return Installer{Executable: executable, Run: func(ctx context.Context, name string, args ...string) ([]byte, error) {
 		return exec.CommandContext(ctx, name, args...).CombinedOutput()
 	}, Copy: copyRootOwned}
+}
+
+func DefaultInstallerForRepo(executable, repoRoot string) Installer {
+	installer := DefaultInstaller(executable)
+	installer.RepoRoot = repoRoot
+	return installer
 }
 
 func (i Installer) Install(ctx context.Context) (SetupStatus, error) {
@@ -53,6 +60,10 @@ func (i Installer) Install(ctx context.Context) (SetupStatus, error) {
 	if err != nil {
 		return SetupStatus{Supported: true, SocketPath: DefaultSocketPath, Reason: err.Error(), Recovery: "Re-run sudo vrooli setup from the owner account that will run Vrooli."}, nil
 	}
+	runtimeRoot, err := installedRuntimeHomeRoot(i.RepoRoot, uint32(uid))
+	if err != nil {
+		return SetupStatus{}, fmt.Errorf("resolve broker runtime-home root: %w", err)
+	}
 	if strings.TrimSpace(i.Executable) == "" {
 		return SetupStatus{}, fmt.Errorf("resolve broker executable: empty path")
 	}
@@ -62,7 +73,7 @@ func (i Installer) Install(ctx context.Context) (SetupStatus, error) {
 	if err := i.Copy(i.Executable, installedBinary); err != nil {
 		return SetupStatus{}, fmt.Errorf("install broker executable: %w", err)
 	}
-	if err := os.WriteFile(servicePath, []byte(systemdUnit(installedBinary, uid, gid)), 0o644); err != nil {
+	if err := os.WriteFile(servicePath, []byte(systemdUnitWithRuntimeHome(installedBinary, uid, gid, runtimeRoot)), 0o644); err != nil {
 		return SetupStatus{}, fmt.Errorf("write broker systemd unit: %w", err)
 	}
 	if err := os.Chown(servicePath, 0, 0); err != nil {
@@ -99,6 +110,14 @@ func Inspect() SetupStatus {
 }
 
 func systemdUnit(executable string, uid, gid int) string {
+	return systemdUnitWithRuntimeHome(executable, uid, gid, "")
+}
+
+func systemdUnitWithRuntimeHome(executable string, uid, gid int, runtimeRoot string) string {
+	runtimeArg := ""
+	if strings.TrimSpace(runtimeRoot) != "" {
+		runtimeArg = " --runtime-home-root " + strconv.Quote(filepath.Clean(runtimeRoot))
+	}
 	return fmt.Sprintf(`[Unit]
 Description=Vrooli setup-managed privilege broker
 After=network.target
@@ -106,7 +125,7 @@ After=network.target
 [Service]
 Type=simple
 User=root
-ExecStart=%s __privilege-broker serve --socket %s --allowed-uid %d --socket-gid %d --audit-path %s
+ExecStart=%s __privilege-broker serve --socket %s --allowed-uid %d --socket-gid %d --audit-path %s%s
 Restart=on-failure
 RestartSec=2s
 RuntimeDirectory=vrooli
@@ -115,7 +134,7 @@ LogsDirectory=vrooli
 LogsDirectoryMode=0750
 NoNewPrivileges=true
 PrivateTmp=true
-ProtectHome=true
+ProtectHome=false
 ProtectSystem=strict
 # UFW creates this lock even for read-only status requests, and writes its
 # managed rules below /etc/ufw. The lock does not exist until UFW is used, so
@@ -124,7 +143,7 @@ ReadWritePaths=/run/vrooli -/run/ufw.lock /etc/ufw /var/log/vrooli
 
 [Install]
 WantedBy=multi-user.target
-`, strconv.Quote(executable), DefaultSocketPath, uid, gid, defaultAuditPath)
+`, strconv.Quote(executable), DefaultSocketPath, uid, gid, defaultAuditPath, runtimeArg)
 }
 
 func invokingIdentity() (int, int, error) {

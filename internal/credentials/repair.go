@@ -96,6 +96,10 @@ type RepairReport struct {
 	Resolved bool `json:"resolved"`
 	// Remedy is what the operator does next. Empty when Resolved.
 	Remedy []string `json:"remedy,omitempty"`
+	// RetirementOffers are explicit, Vrooli-only commands for old backup files.
+	// They are suggestions, never implicit deletion, because a backup may still
+	// be needed for an incident review.
+	RetirementOffers []string `json:"retirementOffers,omitempty"`
 	// File is the rung-2 detail, present only when a keyring file was examined.
 	File *KeyringReport `json:"file,omitempty"`
 }
@@ -233,7 +237,7 @@ func finishLocked(ctx context.Context, report *RepairReport) RepairReport {
 		Detail: "the store is locked; unlocking it requires a passphrase this process does not hold and must never store",
 	})
 	report.Remedy = []string{
-		"Pipe the login-keyring passphrase to `vrooli credentials keyring unlock`, then rerun `vrooli credentials keyring repair` to confirm.",
+		"Run `vrooli credentials keyring unlock` and enter the passphrase at its secure prompt, then rerun `vrooli credentials keyring repair` to confirm.",
 		"Or log out and back in: PAM unlocks the login keyring with your login password automatically.",
 	}
 	return *report

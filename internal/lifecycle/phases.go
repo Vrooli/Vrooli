@@ -108,6 +108,10 @@ func (r *Runner) RunPhase(name, phaseName string, opts PhaseOptions) error {
 }
 
 func (r *Runner) RunPhaseDetailed(name, phaseName string, opts PhaseOptions) (PhaseResult, error) {
+	ctx := opts.Context
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	r.logInfo("Scenario phase requested", logx.AttrScenario, name, logx.AttrPhase, phaseName, logx.AttrProjectMode, opts.ProjectMode)
 	item, err := r.loadScenario(name, opts.CustomPath)
 	if err != nil {
@@ -127,10 +131,8 @@ func (r *Runner) RunPhaseDetailed(name, phaseName string, opts PhaseOptions) (Ph
 	defer release()
 
 	if phaseRequiresBootstrap(phaseName) {
-		ready := make(map[string]struct{})
-		setupCache := make(setupCheckCache)
 		bootstrapOpts := StartOptions{CustomPath: opts.CustomPath}
-		if _, _, err := r.bootstrapScenarioDependencies(item, bootstrapOpts, ready, setupCache, nil); err != nil {
+		if _, _, err := r.bootstrapScenarioDependencies(item, bootstrapOpts, newStartSession(ctx)); err != nil {
 			return PhaseResult{}, err
 		}
 	}
@@ -142,7 +144,7 @@ func (r *Runner) RunPhaseDetailed(name, phaseName string, opts PhaseOptions) (Ph
 			return PhaseResult{}, err
 		}
 	} else {
-		envResult, err = r.prepareScenarioEnvironment(item, disabledRuntimeRegistrySession())
+		envResult, err = r.prepareScenarioEnvironment(ctx, item, disabledRuntimeRegistrySession())
 		if err != nil {
 			return PhaseResult{}, err
 		}
@@ -168,7 +170,7 @@ func (r *Runner) RunPhaseDetailed(name, phaseName string, opts PhaseOptions) (Ph
 	logPath, _ := process.ScenarioLifecycleLogPath(r.Home, item.Slug)
 	meta, runErr := r.runWithLifecycleLog(lifecycleLogContext{Scenario: item.Slug, Operation: "phase", Phase: phaseName, RunID: strings.TrimSpace(opts.RunID)}, func(logWriter, childWriter io.Writer) error {
 		var executeErr error
-		result, executeErr = r.ExecutePhaseDetailed(item, phaseName, env, logWriter, childWriter)
+		result, executeErr = r.executePhaseDetailed(ctx, item, phaseName, env, logWriter, childWriter)
 		return executeErr
 	})
 	result.RunID = meta.RunID
@@ -190,6 +192,14 @@ func (r *Runner) RunPhaseDetailed(name, phaseName string, opts PhaseOptions) (Ph
 	return result, nil
 }
 
+// RunPhaseDetailedContext is the explicit cancellation-aware phase entry
+// point. The legacy method remains available to callers that do not need a
+// cancellation context.
+func (r *Runner) RunPhaseDetailedContext(ctx context.Context, name, phaseName string, opts PhaseOptions) (PhaseResult, error) {
+	opts.Context = ctx
+	return r.RunPhaseDetailed(name, phaseName, opts)
+}
+
 func phaseRequiresBootstrap(phaseName string) bool {
 	switch strings.TrimSpace(phaseName) {
 	case "develop":
@@ -208,6 +218,13 @@ func phaseRequiresBootstrap(phaseName string) bool {
 // verbosity, and a childWriter that tees to the log file plus the console
 // only at verbose — see runWithLifecycleLog.
 func (r *Runner) ExecutePhaseDetailed(item scenario.Scenario, phaseName string, env map[string]string, logWriter io.Writer, childWriter io.Writer) (PhaseResult, error) {
+	return r.executePhaseDetailed(context.Background(), item, phaseName, env, logWriter, childWriter)
+}
+
+func (r *Runner) executePhaseDetailed(ctx context.Context, item scenario.Scenario, phaseName string, env map[string]string, logWriter io.Writer, childWriter io.Writer) (PhaseResult, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	if childWriter == nil {
 		childWriter = logWriter
 	}
@@ -228,10 +245,10 @@ func (r *Runner) ExecutePhaseDetailed(item scenario.Scenario, phaseName string, 
 		Status:   PhaseExecutionSkipped,
 	}
 	if phaseName == "setup" {
-		if err := r.provisionSharedPackages(item, env, logWriter, childWriter); err != nil {
+		if err := r.provisionSharedPackages(ctx, item, env, logWriter, childWriter); err != nil {
 			return PhaseResult{}, err
 		}
-		built, err := r.buildDeclaredComponents(item, env, childWriter)
+		built, err := r.buildDeclaredComponents(ctx, item, env, childWriter)
 		if err != nil {
 			return result, err
 		}
@@ -285,7 +302,7 @@ func (r *Runner) ExecutePhaseDetailed(item scenario.Scenario, phaseName string, 
 		)
 
 		if step.Background {
-			if err := r.startTrackedProcess(item, phaseName, step, env); err != nil {
+			if err := r.startTrackedProcessContext(ctx, item, phaseName, step, env); err != nil {
 				return result, err
 			}
 			result.ExecutedSteps++
@@ -294,7 +311,7 @@ func (r *Runner) ExecutePhaseDetailed(item scenario.Scenario, phaseName string, 
 		}
 
 		sink := newStepSink(childWriter)
-		stepErr := r.runForegroundStep(item, phaseName, step, env, sink)
+		stepErr := r.runForegroundStep(ctx, item, phaseName, step, env, sink)
 		sink.Flush()
 		if stepErr != nil {
 			if phaseName == "stop" {
@@ -413,7 +430,7 @@ func sortComponentNames(names []string, components map[string]scenario.Component
 	})
 }
 
-func (r *Runner) buildDeclaredComponents(item scenario.Scenario, env map[string]string, writer io.Writer) (int, error) {
+func (r *Runner) buildDeclaredComponents(ctx context.Context, item scenario.Scenario, env map[string]string, writer io.Writer) (int, error) {
 	executed := 0
 	registry := BuilderRegistry()
 	buildMode := BuildModeForEnv(env, os.Getenv)
@@ -435,7 +452,7 @@ func (r *Runner) buildDeclaredComponents(item scenario.Scenario, env map[string]
 		}
 		buildArgv := spec.BuildArgv(buildMode)
 		output := ""
-		if slicesContainTemplate(buildArgv, "{output}") {
+		if slicesContainTemplate(buildArgv, "{output}") || spec.StagedOutput {
 			output, err = componentArtifact(name, item.Path, item.Slug, item.Manifest.Components, runtimeGOOS(), map[string]bool{})
 			if err != nil {
 				return executed, err
@@ -445,15 +462,54 @@ func (r *Runner) buildDeclaredComponents(item scenario.Scenario, env map[string]
 		if entry == "" {
 			entry = "."
 		}
+		target := output
+		var stagedOutput string
+		var cleanupStage func()
+		if spec.StagedOutput {
+			if spec.StageDirectory {
+				target = filepath.Dir(output)
+			}
+			_, stagedOutput, cleanupStage, err = stageArtifact(target, spec.StageDirectory)
+			if err != nil {
+				return executed, fmt.Errorf("stage component %s output: %w", name, err)
+			}
+			defer cleanupStage()
+		}
+		stageDir := stagedOutput
+		if !spec.StageDirectory {
+			stageDir = filepath.Dir(stagedOutput)
+		}
+		buildOutput := output
+		if spec.StagedOutput {
+			buildOutput = stagedOutput
+		}
 		replacer := strings.NewReplacer(
 			"{dir}", component.Build.Dir,
 			"{scenario}", item.Slug,
 			"{component}", name,
 			"{entry}", entry,
-			"{output}", output,
+			"{output}", buildOutput,
+			"{stage_output_dir}", stageDir,
 		)
-		commands := [][]string{spec.Install, buildArgv}
-		for commandIndex, template := range commands {
+		type buildCommand struct {
+			template []string
+			install  bool
+			build    bool
+		}
+		commands := make([]buildCommand, 0, 2)
+		install, _, installErr := installNeeded(item.Path, component, spec)
+		if installErr != nil {
+			return executed, fmt.Errorf("component %s install inputs: %w", name, installErr)
+		}
+		if install {
+			commands = append(commands, buildCommand{template: spec.Install, install: true})
+		}
+		if spec.StagedOutput {
+			buildArgv = append(buildArgv, spec.StageArgs...)
+		}
+		commands = append(commands, buildCommand{template: buildArgv, build: true})
+		for commandIndex, command := range commands {
+			template := command.template
 			if len(template) == 0 {
 				continue
 			}
@@ -468,8 +524,18 @@ func (r *Runner) buildDeclaredComponents(item scenario.Scenario, env map[string]
 				CWD:  filepath.ToSlash(component.Build.Dir),
 				Env:  stepEnv,
 			}
-			if err := r.runForegroundStep(item, "setup", step, env, writer); err != nil {
+			if err := r.runForegroundStep(ctx, item, "setup", step, env, writer); err != nil {
 				return executed, fmt.Errorf("build component %s: %w", name, err)
+			}
+			if command.install {
+				if err := recordInstallDigest(item.Path, component, spec); err != nil {
+					return executed, fmt.Errorf("component %s install digest: %w", name, err)
+				}
+			}
+			if command.build && spec.StagedOutput {
+				if err := swapArtifact(stagedOutput, target); err != nil {
+					return executed, fmt.Errorf("publish component %s output: %w", name, err)
+				}
 			}
 			executed++
 		}
@@ -504,6 +570,10 @@ func runtimeGOOS() string {
 }
 
 func (r *Runner) startTrackedProcess(item scenario.Scenario, phase string, step scenario.PhaseStep, env map[string]string) error {
+	return r.startTrackedProcessContext(context.Background(), item, phase, step, env)
+}
+
+func (r *Runner) startTrackedProcessContext(ctx context.Context, item scenario.Scenario, phase string, step scenario.PhaseStep, env map[string]string) error {
 	// Record/log directories are keyed by the instance record slug so two
 	// variants running the same step (e.g. "develop") never overwrite each
 	// other's record/PID/log files. Live ⇒ bare slug (unchanged). See §1a / P1.
@@ -521,7 +591,7 @@ func (r *Runner) startTrackedProcess(item scenario.Scenario, phase string, step 
 		_ = os.Rename(logFile, logFile+".bak")
 	}
 
-	file, err := os.OpenFile(logFile, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0o644)
+	file, err := config.OpenOwnedFile(logFile, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0o644)
 	if err != nil {
 		return newPhaseStepError(item.Slug, phase, step.Name, logFile, err)
 	}
@@ -553,6 +623,9 @@ func (r *Runner) startTrackedProcess(item scenario.Scenario, phase string, step 
 		}
 	}
 
+	// Background steps are intentionally detached daemons. Their process group
+	// must outlive this orchestration context so the runtime supervisor can own
+	// and tear them down after the phase returns.
 	cmd := exec.CommandContext(context.Background(), declared.Argv[0], declared.Argv[1:]...)
 	cmd.Dir = declared.Dir
 	cmd.Env = declared.Env
@@ -568,6 +641,12 @@ func (r *Runner) startTrackedProcess(item scenario.Scenario, phase string, step 
 	if err := cmd.Start(); err != nil {
 		return newPhaseStepError(item.Slug, phase, step.Name, logFile, err)
 	}
+	containmentRelease, err := platform.AssignProcessContainment(cmd.Process)
+	if err != nil {
+		_ = cmd.Process.Kill()
+		return newPhaseStepError(item.Slug, phase, step.Name, logFile, fmt.Errorf("assign process containment: %w", err))
+	}
+	r.registerContainment(cmd.Process.Pid, containmentRelease)
 
 	record := process.Record{
 		PID:        cmd.Process.Pid,
@@ -586,18 +665,22 @@ func (r *Runner) startTrackedProcess(item scenario.Scenario, phase string, step 
 	}
 	if err := process.WriteScenarioRecord(r.Home, slug, step.Name, record); err != nil {
 		_ = cmd.Process.Kill()
+		r.releaseContainment(cmd.Process.Pid)
 		return newPhaseStepError(item.Slug, phase, step.Name, logFile, err)
 	}
-	if err := recordRuntimeProcessRef(context.Background(), r.runtimeDeps(), r.Home, env, record); err != nil {
+	if err := recordRuntimeProcessRef(ctx, r.runtimeDeps(), r.Home, env, record); err != nil {
 		_ = cmd.Process.Kill()
+		r.releaseContainment(cmd.Process.Pid)
 		_ = process.RemoveScenarioRecord(r.Home, slug, step.Name)
 		return newPhaseStepError(item.Slug, phase, step.Name, logFile, err)
 	}
 
-	r.runtimeDeps().sleep(200 * time.Millisecond)
-	if !platform.IsPIDRunning(cmd.Process.Pid) {
+	if err := AwaitContext(ctx, r.awaitClock(), backgroundLaunchPolicy, func() (bool, error) {
+		return r.runtimeDeps().isPIDRunning(cmd.Process.Pid), nil
+	}); err != nil {
 		record.Status = "failed"
 		_ = process.WriteScenarioRecord(r.Home, slug, step.Name, record)
+		r.releaseContainment(cmd.Process.Pid)
 		exitErr := backgroundProcessExitError(cmd, logFile)
 		return newPhaseStepError(
 			item.Slug,
@@ -631,10 +714,7 @@ func (r *Runner) waitForComponentDependencies(item scenario.Scenario, component 
 			return fmt.Errorf("component dependency %q has not started", dependency.Component)
 		}
 		if dependency.Wait == "ready" {
-			if target.Run.Readiness == nil {
-				return fmt.Errorf("component dependency %q requests wait=ready but declares no readiness probe", dependency.Component)
-			}
-			if err := r.awaitComponentReadiness(item.Manifest, target, env); err != nil {
+			if err := r.awaitComponentReadinessNamed(recordSlug(item), item.Manifest, dependency.Component, target, env); err != nil {
 				return fmt.Errorf("component dependency %q readiness: %w", dependency.Component, err)
 			}
 		}
@@ -642,33 +722,34 @@ func (r *Runner) waitForComponentDependencies(item scenario.Scenario, component 
 	return nil
 }
 
-func (r *Runner) awaitComponentReadiness(manifest scenario.ServiceManifest, component scenario.Component, env map[string]string) error {
-	readiness := component.Run.Readiness
-	if readiness == nil {
-		return nil
-	}
+func (r *Runner) awaitComponentReadinessNamed(scenarioSlug string, manifest scenario.ServiceManifest, name string, component scenario.Component, env map[string]string) error {
+	readiness := derivedReadiness(component)
 	timeout := time.Duration(readiness.TimeoutMS) * time.Millisecond
 	if timeout <= 0 {
 		timeout = 30 * time.Second
 	}
-	deadline := time.Now().Add(timeout)
 	var lastErr error
-	for {
-		lastErr = checkComponentReadiness(manifest, component, env)
-		if lastErr == nil {
-			return nil
-		}
-		if time.Now().After(deadline) {
-			return fmt.Errorf("timed out after %s: %w", timeout, lastErr)
-		}
-		r.runtimeDeps().sleep(100 * time.Millisecond)
+	err := Await(r.awaitClock(), AwaitPolicy{Timeout: timeout, Interval: 250 * time.Millisecond}, func() (bool, error) {
+		lastErr = r.checkComponentReadinessNamed(scenarioSlug, manifest, name, component, env)
+		return lastErr == nil, nil
+	})
+	if err != nil {
+		return fmt.Errorf("timed out after %s: %w", timeout, lastErr)
 	}
+	return nil
 }
 
 func checkComponentReadiness(manifest scenario.ServiceManifest, component scenario.Component, env map[string]string) error {
-	readiness := component.Run.Readiness
+	return checkComponentReadinessNamed(manifest, "component", component, env)
+}
+
+func checkComponentReadinessNamed(manifest scenario.ServiceManifest, name string, component scenario.Component, env map[string]string) error {
+	readiness := derivedReadiness(component)
 	if readiness == nil {
 		return nil
+	}
+	if readiness.Type == "process_alive" {
+		return fmt.Errorf("component %q process liveness requires a runner", name)
 	}
 	portValue, exists := envPortValue(manifest.PortEnvVar(component.Run.Port), env)
 	if !exists {
@@ -705,6 +786,36 @@ func checkComponentReadiness(manifest scenario.ServiceManifest, component scenar
 	default:
 		return fmt.Errorf("unsupported readiness type %q", readiness.Type)
 	}
+}
+
+func (r *Runner) checkComponentReadinessNamed(scenarioSlug string, manifest scenario.ServiceManifest, name string, component scenario.Component, env map[string]string) error {
+	readiness := derivedReadiness(component)
+	if readiness.Type == "process_alive" {
+		if strings.TrimSpace(scenarioSlug) == "" {
+			return fmt.Errorf("component %q process liveness requires a scenario slug", name)
+		}
+		records, err := process.ReadScenarioRecords(r.Home, scenarioSlug)
+		if err != nil {
+			return err
+		}
+		for _, record := range process.LiveRecords(records) {
+			if record.Step == "start-"+name {
+				return nil
+			}
+		}
+		return fmt.Errorf("component process is not alive")
+	}
+	return checkComponentReadinessNamed(manifest, name, component, env)
+}
+
+func derivedReadiness(component scenario.Component) *scenario.ComponentReadiness {
+	if component.Run.Readiness != nil {
+		return component.Run.Readiness
+	}
+	if strings.TrimSpace(component.Run.Port) != "" {
+		return &scenario.ComponentReadiness{Type: "port_open", TimeoutMS: 30000}
+	}
+	return &scenario.ComponentReadiness{Type: "process_alive", TimeoutMS: 30000}
 }
 
 func envPortValue(envVar string, env map[string]string) (int, bool) {
@@ -777,14 +888,14 @@ func lastLogLine(path string) string {
 	return ""
 }
 
-func (r *Runner) runForegroundStep(item scenario.Scenario, phase string, step scenario.PhaseStep, env map[string]string, logWriter io.Writer) error {
+func (r *Runner) runForegroundStep(ctx context.Context, item scenario.Scenario, phase string, step scenario.PhaseStep, env map[string]string, logWriter io.Writer) error {
 	stepEnv := lifecycleStepEnv(phase, env)
 
 	declared, _, err := declaredCommandForStep(item, step, stepEnv)
 	if err != nil {
 		return err
 	}
-	cmd := exec.CommandContext(context.Background(), declared.Argv[0], declared.Argv[1:]...)
+	cmd := exec.CommandContext(ctx, declared.Argv[0], declared.Argv[1:]...)
 	cmd.Dir = declared.Dir
 	cmd.Env = declared.Env
 	cmd.Stdin = strings.NewReader("")
@@ -953,7 +1064,7 @@ func (r *Runner) runWithLifecycleLog(ctx lifecycleLogContext, fn func(logWriter,
 	if _, err := config.EnsureOwnedDir(filepath.Dir(path)); err != nil {
 		return RunMeta{}, err
 	}
-	file, err := os.OpenFile(path, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o644)
+	file, err := config.OpenOwnedFile(path, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o644)
 	if err != nil {
 		return RunMeta{}, err
 	}

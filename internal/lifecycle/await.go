@@ -1,6 +1,7 @@
 package lifecycle
 
 import (
+	"context"
 	"errors"
 	"time"
 )
@@ -101,6 +102,23 @@ func Await(clock AwaitClock, policy AwaitPolicy, cond func() (bool, error)) erro
 	}
 }
 
+// AwaitContext is Await with cancellation checked before each evaluation.
+// Await's injected sleep remains the single clock seam; a short poll interval
+// bounds how long a cancelled lifecycle waits to observe the cancellation.
+func AwaitContext(ctx context.Context, clock AwaitClock, policy AwaitPolicy, cond func() (bool, error)) error {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	return Await(clock, policy, func() (bool, error) {
+		select {
+		case <-ctx.Done():
+			return false, ctx.Err()
+		default:
+			return cond()
+		}
+	})
+}
+
 // awaitClock returns the runner's injectable clock pair for Await calls.
 func (r *Runner) awaitClock() AwaitClock {
 	deps := r.runtimeDeps()
@@ -147,6 +165,13 @@ var (
 		Timeout:  30 * time.Second,
 		Interval: 500 * time.Millisecond,
 	}
+	// scenarioReadinessPolicy bounds derived component readiness. The manifest's
+	// startup_grace_period overrides Timeout; it is a failure ceiling, never a
+	// leading delay. The 250ms interval is shared by every component in a run.
+	scenarioReadinessPolicy = AwaitPolicy{
+		Timeout:  30 * time.Second,
+		Interval: 250 * time.Millisecond,
+	}
 	// dependencyLockPolicy bounds how long a start waits for a transitive
 	// dependency's lifecycle lock held by a concurrent invocation.
 	dependencyLockPolicy = AwaitPolicy{
@@ -162,16 +187,6 @@ var (
 		ExpireStrictlyAfter: true,
 	}
 )
-
-// stopSettleDelay is the pause between stopping an instance and starting its
-// replacement. Stop verifies fixed-port release with a condition wait
-// (verifyPortsReleased), but dynamically allocated ports, process-record
-// removal, and registry claim release settle asynchronously after the kill
-// signal; an immediate restart can race a dying process's lingering sockets
-// or claims. A condition wait would need per-port probes for ports that are
-// not known until the new environment is built, so a short named delay is
-// the honest trade-off.
-const stopSettleDelay = 1 * time.Second
 
 // healthAwaitPolicy resolves the effective WaitForHealth policy for a
 // manifest health config: defaults from the policy table, overridden by the

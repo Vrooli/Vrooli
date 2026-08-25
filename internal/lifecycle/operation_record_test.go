@@ -46,7 +46,7 @@ func TestStartWritesOperationRecord(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewRunner: %v", err)
 	}
-	t.Cleanup(func() { _ = runner.Stop("alpha", StopOptions{}) })
+	cleanupRunner(t, runner, "alpha", StopOptions{})
 
 	if _, err := runner.Start("alpha", StartOptions{}); err != nil {
 		t.Fatalf("Start: %v", err)
@@ -163,6 +163,30 @@ func TestRecorderStopStepMatchesInstanceSlug(t *testing.T) {
 	}
 }
 
+func TestStartOperationContextCancellationMarksAbandoned(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	runner, err := NewRunner(t.TempDir(), t.TempDir(), io.Discard, io.Discard)
+	if err != nil {
+		t.Fatalf("NewRunner: %v", err)
+	}
+	rec := runner.beginStartOperationRecord("alpha", StartOptions{Context: ctx})
+	if rec == nil {
+		t.Fatal("beginStartOperationRecord returned nil")
+	}
+	cancel()
+	select {
+	case <-rec.cancelled:
+	case <-time.After(2 * time.Second):
+		t.Fatal("context cancellation did not mark the operation")
+	}
+	op := latestStartOperation(t, runner.Home, "alpha")
+	if op.Status != scenarioruntime.StartOperationStatusAbandoned || op.Error != "start cancelled" {
+		t.Fatalf("operation = %+v, want abandoned/start cancelled", op)
+	}
+	rec.close()
+}
+
 // TestFailedStartWritesFailedOperationRecord proves a health-failing start
 // leaves a failed record carrying the error.
 func TestFailedStartWritesFailedOperationRecord(t *testing.T) {
@@ -181,7 +205,7 @@ func TestFailedStartWritesFailedOperationRecord(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewRunner: %v", err)
 	}
-	t.Cleanup(func() { _ = runner.Stop("alpha", StopOptions{}) })
+	cleanupRunner(t, runner, "alpha", StopOptions{})
 
 	if _, err := runner.Start("alpha", StartOptions{}); err == nil {
 		t.Fatal("expected start to fail")

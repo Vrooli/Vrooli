@@ -4,6 +4,9 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
+
+	"github.com/vrooli/vrooli/internal/config"
 )
 
 const (
@@ -85,6 +88,19 @@ func WriteFileAtomic(path string, data []byte, perm os.FileMode) error {
 	if perm == 0 {
 		perm = DefaultFilePerm
 	}
+	// Route managed runtime-home writes through the control-plane seam. It
+	// preserves explicit modes, same-directory atomic replacement, and
+	// sudo-aware ownership without making this shared storage package a host
+	// remediation implementation.
+	if isOutsideVrooliRuntimeHome(path) {
+		// Resource storage may legitimately live in an XDG path outside the
+		// Vrooli runtime home. Preserve that existing portable atomic contract.
+		return writeFileAtomicUnmanaged(path, data, perm)
+	}
+	return config.WriteOwnedFileAtomic(path, data, perm)
+}
+
+func writeFileAtomicUnmanaged(path string, data []byte, perm os.FileMode) error {
 	dir := filepath.Dir(path)
 	if err := os.MkdirAll(dir, DefaultDirPerm); err != nil {
 		return &Error{Kind: ErrResolve, Message: "ensure parent dir", Details: dir, Err: err}
@@ -114,4 +130,13 @@ func WriteFileAtomic(path string, data []byte, perm os.FileMode) error {
 		return &Error{Kind: ErrResolve, Message: "rename temp file", Details: path, Err: err}
 	}
 	return nil
+}
+
+func isOutsideVrooliRuntimeHome(path string) bool {
+	home, err := config.VrooliHome()
+	if err != nil {
+		return true
+	}
+	path, home = filepath.Clean(path), filepath.Clean(home)
+	return path != home && !strings.HasPrefix(path, home+string(filepath.Separator))
 }

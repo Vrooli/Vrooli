@@ -1,6 +1,7 @@
 package lifecycle
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
@@ -28,6 +29,15 @@ var inProcessSharedPackageLocks sync.Map // map[home\x00canonical-root]*sync.Mut
 // an expected multi-minute operation. The first wait emits the lock owner and
 // package root so the wait is diagnosable instead of looking like a hang.
 func acquireSharedPackageLock(home, packageName, packageRoot string, logWriter io.Writer) (func(), error) {
+	// Legacy callers predate lifecycle cancellation. Their bounded polling uses
+	// the process lifetime as the compatibility context.
+	return acquireSharedPackageLockContext(context.Background(), home, packageName, packageRoot, logWriter)
+}
+
+func acquireSharedPackageLockContext(ctx context.Context, home, packageName, packageRoot string, logWriter io.Writer) (func(), error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	if strings.TrimSpace(home) == "" {
 		return nil, fmt.Errorf("acquire shared package lock for %q: home is required", packageName)
 	}
@@ -42,12 +52,23 @@ func acquireSharedPackageLock(home, packageName, packageRoot string, logWriter i
 	mu := sharedPackageMutex(key)
 	waitStarted := time.Now()
 	waitLogged := false
-	for !mu.TryLock() {
+	muLocked := false
+	lockErr := error(nil)
+	if err := AwaitContext(ctx, AwaitClock{Now: time.Now, Sleep: time.Sleep}, AwaitPolicy{Timeout: 24 * time.Hour, Interval: sharedPackageLockPollInterval}, func() (bool, error) {
+		if mu.TryLock() {
+			muLocked = true
+			return true, nil
+		}
 		if !waitLogged {
 			writeSharedPackageLockEvent(logWriter, "waiting", packageName, canonicalRoot, 0, time.Since(waitStarted))
 			waitLogged = true
 		}
-		time.Sleep(sharedPackageLockPollInterval)
+		return false, nil
+	}); err != nil {
+		return nil, err
+	}
+	if !muLocked {
+		return nil, fmt.Errorf("shared package lock wait ended without ownership")
 	}
 
 	lockDir := filepath.Join(home, scenarioLockDirName)
@@ -62,9 +83,10 @@ func acquireSharedPackageLock(home, packageName, packageRoot string, logWriter i
 		return nil, fmt.Errorf("open shared package lock %s: %w", lockPath, err)
 	}
 
-	for {
-		releaseFile, lockErr := lockFileFn(file, true)
-		if lockErr == nil {
+	var release func()
+	if err := AwaitContext(ctx, AwaitClock{Now: time.Now, Sleep: time.Sleep}, AwaitPolicy{Timeout: 24 * time.Hour, Interval: sharedPackageLockPollInterval}, func() (bool, error) {
+		releaseFile, err := lockFileFn(file, true)
+		if err == nil {
 			if _, err := file.Seek(0, 0); err == nil {
 				_ = file.Truncate(0)
 				_, _ = file.WriteString(fmt.Sprintf("%d\n", os.Getpid()))
@@ -74,7 +96,7 @@ func acquireSharedPackageLock(home, packageName, packageRoot string, logWriter i
 				writeSharedPackageLockEvent(logWriter, "acquired", packageName, canonicalRoot, 0, time.Since(waitStarted))
 			}
 			var released bool
-			return func() {
+			release = func() {
 				if released {
 					return
 				}
@@ -82,13 +104,13 @@ func acquireSharedPackageLock(home, packageName, packageRoot string, logWriter i
 				releaseFile()
 				_ = file.Close()
 				mu.Unlock()
-			}, nil
+			}
+			return true, nil
 		}
 
-		if !errors.Is(lockErr, platform.ErrLockUnavailable) {
-			_ = file.Close()
-			mu.Unlock()
-			return nil, fmt.Errorf("acquire shared package lock %s: %w", lockPath, lockErr)
+		if !errors.Is(err, platform.ErrLockUnavailable) {
+			lockErr = err
+			return false, err
 		}
 
 		if !waitLogged {
@@ -96,8 +118,16 @@ func acquireSharedPackageLock(home, packageName, packageRoot string, logWriter i
 			writeSharedPackageLockEvent(logWriter, "waiting", packageName, canonicalRoot, holder, time.Since(waitStarted))
 			waitLogged = true
 		}
-		time.Sleep(sharedPackageLockPollInterval)
+		return false, nil
+	}); err != nil {
+		_ = file.Close()
+		mu.Unlock()
+		if lockErr != nil {
+			return nil, fmt.Errorf("acquire shared package lock %s: %w", lockPath, lockErr)
+		}
+		return nil, err
 	}
+	return release, nil
 }
 
 func sharedPackageMutex(key string) *sync.Mutex {

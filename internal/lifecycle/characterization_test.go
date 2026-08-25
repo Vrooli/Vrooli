@@ -74,10 +74,9 @@ func waitForHealthFixture(critical bool, grace, timeout, interval int) scenario.
 	}
 }
 
-// TestCharacterizeWaitForHealthTiming pins the exact wait shape: the startup
-// grace sleep happens first, the deadline is anchored AFTER the grace sleep,
-// evaluation happens before each deadline check, and expiry is strictly-after
-// (now == deadline gets one more sleep+evaluation).
+// TestCharacterizeWaitForHealthTiming pins the readiness-driven wait shape:
+// evaluation happens immediately, startup grace is only a failure ceiling,
+// and expiry is strictly-after (now == deadline gets one more evaluation).
 func TestCharacterizeWaitForHealthTiming(t *testing.T) {
 	clock := newFakeAwaitClock()
 	runner := &Runner{deps: lifecycleDeps{now: clock.Now, sleep: clock.Sleep}}
@@ -90,11 +89,10 @@ func TestCharacterizeWaitForHealthTiming(t *testing.T) {
 	if status != "unhealthy" {
 		t.Fatalf("status = %q, want unhealthy", status)
 	}
-	// grace 25ms, then 10ms polls; deadline = t(grace)+50ms = +75ms. Evaluations
-	// at 25..75 all sleep (75 is NOT strictly after the deadline); the eval at
-	// 85 exits. Total: grace + 6 interval sleeps.
+	// The health deadline is anchored at the first evaluation. Evaluations at
+	// 0..50 all sleep (50 is NOT strictly after the deadline); the eval at 60
+	// exits. StartupGracePeriod contributes no sleep.
 	want := []time.Duration{
-		25 * time.Millisecond,
 		10 * time.Millisecond, 10 * time.Millisecond, 10 * time.Millisecond,
 		10 * time.Millisecond, 10 * time.Millisecond, 10 * time.Millisecond,
 	}
@@ -323,7 +321,7 @@ func TestCharacterizeStartProgressLines(t *testing.T) {
 		t.Skip("lifecycle process management currently targets linux")
 	}
 	runner, out := startCharacterizationRunner(t)
-	t.Cleanup(func() { _ = runner.Stop("alpha", StopOptions{}) })
+	cleanupRunner(t, runner, "alpha", StopOptions{})
 
 	if _, err := runner.Start("alpha", StartOptions{}); err != nil {
 		t.Fatalf("Start: %v", err)
@@ -352,7 +350,6 @@ func TestCharacterizeStartProgressLines(t *testing.T) {
 	}
 	wantRestart := "stopping alpha...\n" +
 		"starting alpha...\n" +
-		"running setup phase for alpha...\n" +
 		"running develop phase for alpha...\n" +
 		"waiting for alpha to become healthy...\n"
 	if got := out.String(); got != wantRestart {
@@ -391,10 +388,8 @@ func TestCharacterizeDependencyStartProgressLines(t *testing.T) {
 		t.Fatalf("NewRunner: %v", err)
 	}
 	runner.Verbosity = VerbosityQuiet
-	t.Cleanup(func() {
-		_ = runner.Stop("alpha", StopOptions{})
-		_ = runner.Stop("beta", StopOptions{})
-	})
+	cleanupRunner(t, runner, "alpha", StopOptions{})
+	cleanupRunner(t, runner, "beta", StopOptions{})
 
 	if _, err := runner.Start("alpha", StartOptions{}); err != nil {
 		t.Fatalf("Start: %v", err)

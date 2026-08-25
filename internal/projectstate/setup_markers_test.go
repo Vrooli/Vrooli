@@ -51,7 +51,7 @@ func TestLocatorProjectKeysAreDeterministicAndRootScoped(t *testing.T) {
 	}
 }
 
-func TestHasSetupCompleteIgnoresRepoLocalLegacyMarker(t *testing.T) {
+func TestHasBootstrapCompleteIgnoresRepoLocalLegacyMarker(t *testing.T) {
 	home := t.TempDir()
 	root := t.TempDir()
 	legacyDir := filepath.Join(root, ".vrooli", "state", "setup")
@@ -66,17 +66,81 @@ func TestHasSetupCompleteIgnoresRepoLocalLegacyMarker(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewLocator: %v", err)
 	}
-	if locator.HasSetupComplete() {
+	if locator.HasBootstrapComplete() {
 		t.Fatal("legacy repo-local setup marker must not be detected")
 	}
 	if err := os.MkdirAll(locator.SetupStateDir(), 0o755); err != nil {
 		t.Fatalf("mkdir setup state dir: %v", err)
 	}
-	if err := os.WriteFile(locator.SetupCompletePath(), []byte("ok\n"), 0o644); err != nil {
+	if err := os.WriteFile(locator.BootstrapCompletePath(), []byte("ok\n"), 0o644); err != nil {
 		t.Fatalf("write setup marker: %v", err)
 	}
-	if !locator.HasSetupComplete() {
+	if !locator.HasBootstrapComplete() {
 		t.Fatal("expected user-home setup marker to be detected")
+	}
+}
+
+func TestMigrationLedgerRoundTripAndAtomicPath(t *testing.T) {
+	home := t.TempDir()
+	root := filepath.Join(t.TempDir(), "project")
+	locator, err := NewLocator(home, root)
+	if err != nil {
+		t.Fatalf("NewLocator: %v", err)
+	}
+	ledger := NewMigrationLedger()
+	ledger.Migrations["runtime-home-ownership"] = MigrationRecord{
+		AppliedThrough: 1,
+		Status:         MigrationInterrupted,
+		Scope:          MigrationScope{Kind: "runtime_home", Classes: []string{"cache", "logs"}},
+		Expected:       MigrationExpectedIdentity{UID: 1000, GID: 1000},
+		Cursors:        map[string]string{"cache": filepath.Join(home, ".vrooli", "cache", "entry-a")},
+		Completed:      []string{"bin"},
+	}
+	if err := SaveMigrationLedger(locator, ledger); err != nil {
+		t.Fatalf("SaveMigrationLedger: %v", err)
+	}
+	got, err := LoadMigrationLedger(locator)
+	if err != nil {
+		t.Fatalf("LoadMigrationLedger: %v", err)
+	}
+	record := got.Migrations["runtime-home-ownership"]
+	if record.Status != MigrationInterrupted {
+		t.Fatalf("migration status = %q, want interrupted", record.Status)
+	}
+	if record.Cursors["cache"] == "" || len(record.Completed) != 1 || record.Completed[0] != "bin" {
+		t.Fatalf("migration progress = %+v, want cursor and completed class", record)
+	}
+	if _, err := os.Stat(locator.MigrationLedgerPath()); err != nil {
+		t.Fatalf("ledger missing: %v", err)
+	}
+	if matches, _ := filepath.Glob(filepath.Join(locator.SetupStateDir(), ".vrooli-owned-*")); len(matches) != 0 {
+		t.Fatalf("atomic temporary files remain: %v", matches)
+	}
+}
+
+func TestMigrationLedgerMissingIsRetryableAndMalformedFailsClosed(t *testing.T) {
+	locator, err := NewLocator(t.TempDir(), filepath.Join(t.TempDir(), "project"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	ledger, err := LoadMigrationLedger(locator)
+	if err != nil || ledger.SchemaVersion != 1 {
+		t.Fatalf("missing ledger = %+v, err=%v", ledger, err)
+	}
+	if _, err := os.Stat(locator.SetupStateDir()); !os.IsNotExist(err) {
+		t.Fatalf("missing ledger read should not create state directory, err=%v", err)
+	}
+	if _, err := os.Stat(locator.SetupStateDir()); err == nil {
+		t.Fatal("state directory unexpectedly created")
+	}
+	if err := os.MkdirAll(locator.SetupStateDir(), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(locator.MigrationLedgerPath(), []byte("{"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := LoadMigrationLedger(locator); err == nil || !strings.Contains(err.Error(), "decode migration ledger") {
+		t.Fatalf("malformed ledger error = %v", err)
 	}
 }
 

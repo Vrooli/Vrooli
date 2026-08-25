@@ -11,10 +11,48 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/vrooli/vrooli/internal/hostinventory"
 	"github.com/vrooli/vrooli/internal/resources/securestore"
 )
 
-type KeyringReport = securestore.KeyringReport
+type (
+	KeyringReport = securestore.KeyringReport
+	KeyringBackup = securestore.KeyringBackup
+)
+
+type KeyringVerdictState string
+
+const (
+	KeyringUnlocked     KeyringVerdictState = "unlocked"
+	KeyringLocked       KeyringVerdictState = "locked"
+	KeyringFileRejected KeyringVerdictState = "file_rejected"
+	KeyringDaemonStale  KeyringVerdictState = "daemon_stale"
+	KeyringAbsent       KeyringVerdictState = "absent"
+)
+
+type KeyringVerdict struct {
+	State  KeyringVerdictState `json:"state"`
+	Reason string              `json:"reason,omitempty"`
+}
+
+func DeriveKeyringVerdict(report KeyringReport, capability hostinventory.CredentialStoreCapability) KeyringVerdict {
+	if report.Assessed && !report.Loadable {
+		return KeyringVerdict{State: KeyringFileRejected, Reason: "the keyring file contains malformed entries"}
+	}
+	if report.StaleDaemon {
+		return KeyringVerdict{State: KeyringDaemonStale, Reason: report.StaleDaemonDetail}
+	}
+	switch capability.State {
+	case "ready":
+		return KeyringVerdict{State: KeyringUnlocked, Reason: "Secret Service answered a login-collection read"}
+	case "locked":
+		return KeyringVerdict{State: KeyringLocked, Reason: capability.Reason}
+	case "empty", "unavailable", "unsupported":
+		return KeyringVerdict{State: KeyringAbsent, Reason: capability.Reason}
+	default:
+		return KeyringVerdict{State: KeyringAbsent, Reason: capability.Reason}
+	}
+}
 
 func DefaultKeyringPath(path string) (string, error) {
 	if strings.TrimSpace(path) != "" {
@@ -49,6 +87,12 @@ func Repair(path string) (KeyringReport, error) {
 		return KeyringReport{}, err
 	}
 	return securestore.RepairKeyringFile(path)
+}
+
+// RetireBackup removes one explicitly named, regular keyring backup. The
+// control-plane CLI owns this mutation so operators never need a shell delete.
+func RetireBackup(path string) error {
+	return securestore.RetireKeyringBackup(path)
 }
 
 func IsPasswordless(path string) (bool, error) {

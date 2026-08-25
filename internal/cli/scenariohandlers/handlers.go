@@ -24,6 +24,7 @@ import (
 	"github.com/vrooli/vrooli/internal/orchestrator"
 	scenariomodel "github.com/vrooli/vrooli/internal/scenario"
 	"github.com/vrooli/vrooli/internal/scenarioexec"
+	"github.com/vrooli/vrooli/internal/scenarioruntime"
 )
 
 type HandlerDeps[C any] struct {
@@ -35,6 +36,7 @@ type HandlerDeps[C any] struct {
 	HomeDir            func(C) (string, error)
 	EnsureCLI          func(C, string) error
 	ScenarioOperations func(C) (scenarioapp.ScenarioOperations, error)
+	TimingStore        func(C) (*scenarioruntime.SQLiteStore, error)
 	LifecycleRunner    func(C) (scenarioapp.PhaseRunner, error)
 	EnvValidator       func(C) (scenarioapp.EnvironmentValidator, error)
 	OpenURL            func(C, string) error
@@ -106,6 +108,28 @@ func BuildHandlers[C any](deps HandlerDeps[C]) map[CommandID]rootcli.Handler[C] 
 				return format, resp, err
 			},
 			RenderInfoResponse,
+		),
+		CommandTimings: bindGlobal(deps.Stdout,
+			func(ctx C, args []string) (TimingsRequest, error) {
+				return ParseTimingsRequest(deps.Globals(ctx).JSON, args)
+			},
+			func(ctx C, req TimingsRequest) (cliout.Format, TimingsResponse, error) {
+				format, err := deps.OutputFormat(ctx)
+				if err != nil {
+					return "", TimingsResponse{}, err
+				}
+				if deps.TimingStore == nil {
+					return "", TimingsResponse{}, fmt.Errorf("scenario timings is not configured")
+				}
+				store, err := deps.TimingStore(ctx)
+				if err != nil {
+					return "", TimingsResponse{}, err
+				}
+				defer store.Close()
+				rows, err := store.StartTimingSummaries(context.Background(), req.Scenario)
+				return format, TimingsResponse{Rows: rows}, err
+			},
+			RenderTimingsResponse,
 		),
 		CommandStatus: bindGlobal(deps.Stdout,
 			func(ctx C, args []string) (StatusRequest, error) {
@@ -304,7 +328,8 @@ func BuildHandlers[C any](deps HandlerDeps[C]) map[CommandID]rootcli.Handler[C] 
 						return "", nil, err
 					}
 					service := NewStartService(ops, func(url string) error { return deps.OpenURL(ctx, url) })
-					items, err := runWithStartCeiling(req.TimeoutSeconds, deps.Stderr(ctx), strings.Join(req.Names, " "), func() ([]scenarioapp.LifecycleItemOutput, error) {
+					items, err := runWithStartCeiling(req.TimeoutSeconds, deps.Stderr(ctx), strings.Join(req.Names, " "), func(operationCtx context.Context) ([]scenarioapp.LifecycleItemOutput, error) {
+						req.Options.Context = operationCtx
 						return service.Start(scenarioapp.StartRequest(req))
 					})
 					return format, toCLILifecycleItems(items), err
@@ -378,7 +403,8 @@ func BuildHandlers[C any](deps HandlerDeps[C]) map[CommandID]rootcli.Handler[C] 
 						return "", nil, err
 					}
 					service := NewStartService(ops, func(url string) error { return deps.OpenURL(ctx, url) })
-					items, err := runWithStartCeiling(req.TimeoutSeconds, deps.Stderr(ctx), req.Name, func() ([]scenarioapp.LifecycleItemOutput, error) {
+					items, err := runWithStartCeiling(req.TimeoutSeconds, deps.Stderr(ctx), req.Name, func(operationCtx context.Context) ([]scenarioapp.LifecycleItemOutput, error) {
+						req.Options.Context = operationCtx
 						return service.Restart(scenarioapp.RestartRequest(req))
 					})
 					return format, toCLILifecycleItems(items), err

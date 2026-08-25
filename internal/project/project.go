@@ -1,6 +1,7 @@
 package project
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -11,6 +12,7 @@ import (
 	"strings"
 
 	"github.com/vrooli/vrooli/internal/cliinstall"
+	"github.com/vrooli/vrooli/internal/config"
 	"github.com/vrooli/vrooli/internal/control"
 	"github.com/vrooli/vrooli/internal/discovery"
 	"github.com/vrooli/vrooli/internal/dockerhost"
@@ -19,6 +21,7 @@ import (
 	"github.com/vrooli/vrooli/internal/maintenance"
 	"github.com/vrooli/vrooli/internal/network"
 	"github.com/vrooli/vrooli/internal/orchestrator"
+	"github.com/vrooli/vrooli/internal/privilegebroker"
 	"github.com/vrooli/vrooli/internal/resources"
 	"github.com/vrooli/vrooli/internal/scenario"
 	"github.com/vrooli/vrooli/internal/shell"
@@ -35,6 +38,7 @@ type Controller struct {
 	Maintenance           MaintenanceController
 	HostReqValidateFn     func(string, string) (hostreqcheck.Report, error)
 	MaintenanceSnapshotFn func() (maintenance.ProcessSnapshot, error)
+	RepairRuntimeHomeFn   func() DoctorCheck
 	LookPathFn            func(string) (string, error)
 	NewPhaseRunner        func(root, home string, stdout, stderr io.Writer) (PhaseRunner, error)
 }
@@ -74,6 +78,10 @@ type DoctorCheck struct {
 
 type DoctorReport struct {
 	Checks []DoctorCheck `json:"checks"`
+}
+
+type DoctorOptions struct {
+	RepairFilePermissions bool
 }
 
 type StatusOptions struct {
@@ -218,6 +226,10 @@ func (c *Controller) Status(opts StatusOptions) (StatusReport, error) {
 }
 
 func (c *Controller) Doctor() (DoctorReport, error) {
+	return c.DoctorWithOptions(DoctorOptions{})
+}
+
+func (c *Controller) DoctorWithOptions(options DoctorOptions) (DoctorReport, error) {
 	checks := make([]DoctorCheck, 0, 8)
 	for _, name := range []string{"jq", "curl", "git", "docker", "go", "lsof", "tput"} {
 		status := "missing"
@@ -261,6 +273,9 @@ func (c *Controller) Doctor() (DoctorReport, error) {
 		Status:  countStatus(maintenanceSnapshot.ZombieProcesses),
 		Message: fmt.Sprintf("%d zombie processes detected", maintenanceSnapshot.ZombieProcesses),
 	})
+	if options.RepairFilePermissions {
+		checks = append(checks, c.repairRuntimeHomeOwnershipCheck())
+	}
 
 	listenerInspection := network.ListenerInspectionStatus()
 	listenerStatus := "ok"
@@ -297,6 +312,38 @@ func (c *Controller) Doctor() (DoctorReport, error) {
 	checks = append(checks, installChecks...)
 
 	return DoctorReport{Checks: checks}, nil
+}
+
+func (c *Controller) repairRuntimeHomeOwnershipCheck() DoctorCheck {
+	if c.RepairRuntimeHomeFn != nil {
+		return c.RepairRuntimeHomeFn()
+	}
+	uid, gid := config.RepairIdentity()
+	classes := []string{"bin", "cache", "logs", "metrics", "processes", "build", "test_runs", "backups", "artifacts"}
+	broker := privilegebroker.NewClient()
+	if !broker.Available() {
+		return DoctorCheck{Name: "runtime_home_ownership_repair", Status: "degraded", Message: "privilege broker is unavailable; no repair was attempted"}
+	}
+	var repaired, failed uint64
+	for index, class := range classes {
+		result, err := broker.Do(context.Background(), privilegebroker.Request{
+			Version: privilegebroker.ProtocolVersion, RequestID: fmt.Sprintf("doctor-runtime-home-%d", index+1),
+			Action:      privilegebroker.ActionRuntimeHomeOwnershipRepair,
+			RuntimeHome: &privilegebroker.RuntimeHomeSubject{Class: class, ExpectedUID: uid, ExpectedGID: gid},
+		})
+		if err != nil {
+			return DoctorCheck{Name: "runtime_home_ownership_repair", Status: "degraded", Message: fmt.Sprintf("%s: %v", class, err)}
+		}
+		repaired += result.Evidence.Repaired
+		failed += result.Evidence.Failed
+		if result.Status == "failed" {
+			return DoctorCheck{Name: "runtime_home_ownership_repair", Status: "degraded", Message: fmt.Sprintf("%s: broker repair failed (%s)", class, result.Code)}
+		}
+	}
+	if failed > 0 {
+		return DoctorCheck{Name: "runtime_home_ownership_repair", Status: "degraded", Message: fmt.Sprintf("repaired=%d failed=%d", repaired, failed)}
+	}
+	return DoctorCheck{Name: "runtime_home_ownership_repair", Status: "ok", Message: fmt.Sprintf("repaired=%d entries", repaired)}
 }
 
 func dockerDaemonDoctorCheck() DoctorCheck {

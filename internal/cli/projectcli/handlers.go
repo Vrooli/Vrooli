@@ -128,13 +128,13 @@ func StatusHandler[C any](stdout func(C) io.Writer, outputFormat func(C) (cliout
 	)
 }
 
-func DoctorHandler[C any](stdout func(C) io.Writer, outputFormat func(C) (cliout.Format, error), run func(C) (project.DoctorReport, error)) rootcli.Handler[C] {
+func DoctorHandler[C any](stdout func(C) io.Writer, outputFormat func(C) (cliout.Format, error), run func(C, DoctorRequest) (project.DoctorReport, error)) rootcli.Handler[C] {
 	return rootcli.BindGlobalCommand(stdout,
-		func(ctx C, args []string) (NoArgsRequest, error) {
+		func(ctx C, args []string) (DoctorRequest, error) {
 			return ParseDoctorRequest(args)
 		},
-		func(ctx C, _ NoArgsRequest) (cliout.Format, project.DoctorReport, error) {
-			report, err := run(ctx)
+		func(ctx C, req DoctorRequest) (cliout.Format, project.DoctorReport, error) {
+			report, err := run(ctx, req)
 			if err != nil {
 				return "", project.DoctorReport{}, err
 			}

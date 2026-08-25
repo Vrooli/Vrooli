@@ -10,6 +10,16 @@ import (
 
 const defaultVrooliDirPerm = 0o755
 
+// RepairIdentity returns the only identity that a managed runtime-home repair
+// may target: the sudo invoking user when present, otherwise the current
+// process identity.
+func RepairIdentity() (uint32, uint32) {
+	if uid, gid, ok := invokingRepairIdentity(); ok {
+		return uid, gid
+	}
+	return currentRepairIdentity()
+}
+
 // EnsureOwnedDir creates dir (and any missing ancestors) and — when the process
 // is root via sudo — chowns exactly the components this call created back to the
 // invoking user. Components that already existed are left untouched, so a
@@ -32,16 +42,69 @@ func EnsureOwnedDir(dir string) (string, error) {
 // WriteOwnedFile ensures the parent directory exists (owned), writes the file,
 // then chowns the file to the invoking user under sudo.
 func WriteOwnedFile(path string, data []byte, perm os.FileMode) error {
+	return WriteOwnedFileAtomic(path, data, perm)
+}
+
+// WriteOwnedFileAtomic replaces a managed file through a same-directory
+// temporary file. The temporary file is explicitly chmod/chowned before the
+// rename, and the final path is rechecked after replacement. This keeps setup
+// sudo from leaving either a root-owned temporary or a partially-written file.
+func WriteOwnedFileAtomic(path string, data []byte, perm os.FileMode) error {
 	if path == "" {
 		return fmt.Errorf("config: empty file path")
 	}
 	if _, err := EnsureOwnedDir(filepath.Dir(path)); err != nil {
 		return err
 	}
-	if err := os.WriteFile(path, data, perm); err != nil {
+	tmp, err := os.CreateTemp(filepath.Dir(path), ".vrooli-owned-*")
+	if err != nil {
+		return err
+	}
+	tmpPath := tmp.Name()
+	defer os.Remove(tmpPath)
+	if err := tmp.Chmod(perm); err != nil {
+		_ = tmp.Close()
+		return err
+	}
+	if _, err := tmp.Write(data); err != nil {
+		_ = tmp.Close()
+		return err
+	}
+	if err := tmp.Sync(); err != nil {
+		_ = tmp.Close()
+		return err
+	}
+	if err := tmp.Close(); err != nil {
+		return err
+	}
+	if err := chownPathToInvokingUser(tmpPath); err != nil {
+		return err
+	}
+	if err := os.Rename(tmpPath, path); err != nil {
 		return err
 	}
 	return chownPathToInvokingUser(path)
+}
+
+// OpenOwnedFile opens a managed runtime file with an explicit mode and repairs
+// ownership when setup is running for an invoking user. It is the append/lock
+// counterpart to WriteOwnedFileAtomic for lifecycle records and logs.
+func OpenOwnedFile(path string, flags int, perm os.FileMode) (*os.File, error) {
+	if path == "" {
+		return nil, fmt.Errorf("config: empty file path")
+	}
+	if _, err := EnsureOwnedDir(filepath.Dir(path)); err != nil {
+		return nil, err
+	}
+	file, err := os.OpenFile(path, flags, perm)
+	if err != nil {
+		return nil, err
+	}
+	if err := chownPathToInvokingUser(path); err != nil {
+		_ = file.Close()
+		return nil, err
+	}
+	return file, nil
 }
 
 // EnsureVrooliDir resolves a runtime-home entry (repocontract.HomeKey*, plus any

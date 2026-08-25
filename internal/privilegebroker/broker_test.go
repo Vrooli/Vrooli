@@ -85,6 +85,27 @@ func TestBrokerUnavailableDoesNotClaimFirewallOpen(t *testing.T) {
 	}
 }
 
+func TestBrokerRuntimeHomeRepairUsesTypedCallbackAndCallerBinding(t *testing.T) {
+	called := false
+	b, err := New(Config{SocketPath: "/tmp/test.sock", AllowedUID: 1000, RuntimeHomeRepair: func(_ context.Context, subject RuntimeHomeSubject) Result {
+		called = true
+		return Result{Version: ProtocolVersion, Action: ActionRuntimeHomeOwnershipRepair, Status: "changed", Evidence: Evidence{Scanned: 3, Repaired: 2}}
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	req := Request{Version: ProtocolVersion, RequestID: "runtime-1", Action: ActionRuntimeHomeOwnershipRepair, RuntimeHome: &RuntimeHomeSubject{Class: "cache", ExpectedUID: 1000, ExpectedGID: 1000}}
+	result := b.Execute(context.Background(), req, 1000)
+	if result.Status != "changed" || !called || result.Evidence.Repaired != 2 {
+		t.Fatalf("result=%+v called=%v", result, called)
+	}
+	req.RuntimeHome.ExpectedUID = 1001
+	result = b.Execute(context.Background(), req, 1000)
+	if result.Code != "runtime_home_identity_not_caller" {
+		t.Fatalf("identity mismatch result=%+v", result)
+	}
+}
+
 type errExecutor struct{ err error }
 
 func (e errExecutor) Run(context.Context, string, ...string) ([]byte, error) { return nil, e.err }

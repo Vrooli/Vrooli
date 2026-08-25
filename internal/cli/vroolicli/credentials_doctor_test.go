@@ -9,9 +9,9 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/vrooli/vrooli/internal/credentialauthority"
 	"github.com/vrooli/vrooli/internal/resources"
 	"github.com/vrooli/vrooli/internal/resources/securestore"
-	credentialauthority "github.com/vrooli/vrooli/internal/secrets"
 )
 
 const provisionedTestValue = "sk-doctor-must-never-print-this"
@@ -185,13 +185,13 @@ func TestCredentialsDoctorJSONContractIncludesRecoveryFields(t *testing.T) {
 			}
 		}
 	}
-	assertJSONKeys("doctor", raw, "credentials", "provider", "recovery")
+	assertJSONKeys("doctor", raw, "credentials", "credential_count", "declaration_site_count", "inventory_basis", "managed_instances_included", "provider", "recovery")
 	var recovery map[string]json.RawMessage
 	if err := json.Unmarshal(raw["recovery"], &recovery); err != nil {
 		t.Fatal(err)
 	}
-	assertJSONKeys("recovery", recovery, "entry_count", "exported_at", "path", "receipt_exists", "uncovered", "required_absent", "required_absent_details", "root_copy", "root_copy_issues")
-	for _, key := range []string{"receipt_exists", "entry_count", "path", "uncovered", "required_absent", "required_absent_details", "root_copy", "root_copy_issues"} {
+	assertJSONKeys("recovery", recovery, "basis", "entry_count", "exported_at", "managed_instances_included", "path", "receipt_exists", "uncovered", "required_absent", "required_absent_details", "root_copy", "root_copy_issues")
+	for _, key := range []string{"basis", "receipt_exists", "entry_count", "path", "uncovered", "required_absent", "required_absent_details", "root_copy", "root_copy_issues"} {
 		if len(recovery[key]) == 0 {
 			t.Fatalf("recovery.%s is empty", key)
 		}
@@ -449,9 +449,9 @@ func TestCredentialsBootstrapHelpListsOnlyTheFloor(t *testing.T) {
 			t.Fatalf("help does not list floor command %q:\n%s", command, help)
 		}
 	}
-	for _, moved := range []string{"vrooli credentials list", "vrooli credentials delete"} {
-		if strings.Contains(help, moved) {
-			t.Fatalf("help still lists moved command %q:\n%s", moved, help)
+	for _, command := range []string{"list", "delete"} {
+		if !strings.Contains(help, "vrooli credentials "+command) {
+			t.Fatalf("help does not list inventory command %q:\n%s", command, help)
 		}
 	}
 }

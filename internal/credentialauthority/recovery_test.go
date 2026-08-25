@@ -1,12 +1,17 @@
-package secrets
+package credentialauthority
 
 import (
 	"bytes"
+	"crypto/aes"
+	"crypto/cipher"
+	"encoding/base64"
 	"encoding/json"
 	"os"
 	"path/filepath"
 	"testing"
 	"time"
+
+	"github.com/vrooli/vrooli/internal/credentialpolicy"
 )
 
 func TestRecoveryRoundTripDoesNotExposeValueInBundleMetadata(t *testing.T) {
@@ -66,7 +71,7 @@ func TestRecoveryReceiptCarriesVerificationMetadataWithoutValues(t *testing.T) {
 	}
 }
 
-func TestRecoveryEnvelopeCarriesKDFPolicyAndReadsVersionOne(t *testing.T) {
+func TestRecoveryEnvelopeCarriesAuthenticatedPolicyAndReadsHistoricalVersionOne(t *testing.T) {
 	source, err := NewAuthority(&authorityStore{})
 	if err != nil {
 		t.Fatal(err)
@@ -83,17 +88,79 @@ func TestRecoveryEnvelopeCarriesKDFPolicyAndReadsVersionOne(t *testing.T) {
 	if err := json.Unmarshal(bundle, &envelope); err != nil {
 		t.Fatal(err)
 	}
-	if envelope.Version != 2 || envelope.KDF != "pbkdf2-sha256" || envelope.Iterations <= 0 {
+	if envelope.Version != 3 || envelope.Purpose != "recovery-bundle" || envelope.KDF != "pbkdf2-sha256" || envelope.Iterations <= 0 {
 		t.Fatalf("envelope = %+v, want versioned KDF policy", envelope)
 	}
 	envelope.Version = 1
+	envelope.Purpose = ""
 	envelope.KDF = ""
 	envelope.Iterations = 0
+	// Re-seal the known plaintext in the historical no-AAD format. Merely
+	// relabelling a current envelope would (correctly) fail authentication.
+	plain, err := decryptRecovery(bundle, "passphrase")
+	if err != nil {
+		t.Fatal(err)
+	}
+	salt, err := base64.StdEncoding.DecodeString(envelope.Salt)
+	if err != nil {
+		t.Fatal(err)
+	}
+	nonce, err := base64.StdEncoding.DecodeString(envelope.Nonce)
+	if err != nil {
+		t.Fatal(err)
+	}
+	key, err := recoveryKey("passphrase", salt, credentialpolicy.RecoveryPBKDF2Iterations)
+	if err != nil {
+		t.Fatal(err)
+	}
+	block, err := aes.NewCipher(key)
+	if err != nil {
+		t.Fatal(err)
+	}
+	gcm, err := cipher.NewGCM(block)
+	if err != nil {
+		t.Fatal(err)
+	}
+	envelope.Ciphertext = base64.StdEncoding.EncodeToString(gcm.Seal(nil, nonce, plain, nil))
 	legacyBundle, err := json.Marshal(envelope)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if _, err := InspectRecovery(legacyBundle, "passphrase"); err != nil {
 		t.Fatalf("version 1 recovery fixture failed after policy metadata was added: %v", err)
+	}
+}
+
+func TestHistoricalRecoveryFixtureOpensThroughCompatibilityReader(t *testing.T) {
+	fixturePath := filepath.Join("..", "credentialpolicy", "testdata", "historical-envelopes-v1.json")
+	fixtureBytes, err := os.ReadFile(fixturePath)
+	if err != nil {
+		t.Fatalf("read historical credential fixture: %v", err)
+	}
+	var fixture struct {
+		Recovery struct {
+			Version    int    `json:"version"`
+			Salt       string `json:"salt"`
+			Nonce      string `json:"nonce"`
+			Ciphertext string `json:"ciphertext"`
+			Passphrase string `json:"passphrase"`
+		} `json:"recovery_v1"`
+	}
+	if err := json.Unmarshal(fixtureBytes, &fixture); err != nil {
+		t.Fatalf("decode historical credential fixture: %v", err)
+	}
+	bundle, err := json.Marshal(recoveryEnvelope{
+		Version: fixture.Recovery.Version, Salt: fixture.Recovery.Salt,
+		Nonce: fixture.Recovery.Nonce, Ciphertext: fixture.Recovery.Ciphertext,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	manifest, err := InspectRecovery(bundle, fixture.Recovery.Passphrase)
+	if err != nil {
+		t.Fatalf("historical recovery fixture failed to open: %v", err)
+	}
+	if len(manifest.Entries) != 1 || string(manifest.Entries[0].Identity) != "vrooli/fixture" || manifest.Entries[0].Field != "api-key" {
+		t.Fatalf("historical recovery manifest = %+v", manifest)
 	}
 }

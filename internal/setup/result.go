@@ -19,8 +19,9 @@ import (
 const SetupResultVersion = "v1"
 
 const (
-	SetupStatusSuccess = "success"
-	SetupStatusFailed  = "failed"
+	SetupStatusSuccess  = "success"
+	SetupStatusFailed   = "failed"
+	SetupStatusDegraded = "degraded"
 
 	SetupCategorySuccess                    = "success"
 	SetupCategoryConfigurationPending       = "configuration_pending"
@@ -29,33 +30,56 @@ const (
 	SetupCategoryInvalidConfiguration       = "invalid_configuration"
 	SetupCategoryPartialState               = "partial_state"
 	SetupCategoryTransientFailure           = "transient_failure"
+	SetupCategoryDegraded                   = "degraded"
 )
 
 // SetupResult is setup's machine-readable terminal contract. Human-oriented
 // setup output remains on stdout/stderr; this document is deliberately written
 // to a separate caller-provided path so automation never has to parse prose.
 type SetupResult struct {
-	Version              string   `json:"version"`
-	Status               string   `json:"status"`
-	Category             string   `json:"category"`
-	Stage                string   `json:"stage"`
-	Retryable            bool     `json:"retryable"`
-	BlockedRequirements  []string `json:"blocked_requirements,omitempty"`
-	Remediation          string   `json:"remediation"`
-	ConfigurationPending bool     `json:"configuration_pending,omitempty"`
+	Version              string            `json:"version"`
+	Status               string            `json:"status"`
+	Category             string            `json:"category"`
+	Stage                string            `json:"stage"`
+	Retryable            bool              `json:"retryable"`
+	BlockedRequirements  []string          `json:"blocked_requirements,omitempty"`
+	Remediation          string            `json:"remediation"`
+	ConfigurationPending bool              `json:"configuration_pending,omitempty"`
+	DegradedResources    []string          `json:"degraded_resources,omitempty"`
+	Onboarding           *OnboardingResult `json:"onboarding,omitempty"`
 }
 
-func setupTerminalResult(stage string, report runtime.Report, runErr error) SetupResult {
-	result := SetupResult{Version: SetupResultVersion, Stage: stage}
+type OnboardingResult struct {
+	Decision         string `json:"decision"`
+	Reason           string `json:"reason"`
+	PresentationKind string `json:"presentation_kind"`
+	URL              string `json:"url,omitempty"`
+	ResumeCommand    string `json:"resume_command,omitempty"`
+	Opened           bool   `json:"opened"`
+}
+
+func setupTerminalResult(stage SetupPhase, report runtime.Report, runErr error, degraded ...[]string) SetupResult {
+	result := SetupResult{Version: SetupResultVersion, Stage: string(stage)}
 	if runErr == nil {
 		result.Status = SetupStatusSuccess
 		result.Category = SetupCategorySuccess
 		result.Stage = "complete"
 		result.Remediation = "Setup completed successfully."
+		if len(degraded) > 0 && len(degraded[0]) > 0 {
+			result.Status = SetupStatusDegraded
+			result.Category = SetupCategoryDegraded
+			result.Retryable = true
+			result.DegradedResources = append([]string(nil), degraded[0]...)
+			result.Remediation = "Setup completed, but optional resources are unavailable. Retry those resources when their host prerequisites are available."
+		}
 		if pending, err := operatorinput.Load(); err == nil && len(pending.Requests) > 0 {
-			result.Category = SetupCategoryConfigurationPending
 			result.ConfigurationPending = true
-			result.Remediation = "Bootstrap completed. Continue in vrooli-onboarding to answer the pending operator inputs."
+			if result.Status == SetupStatusSuccess {
+				result.Category = SetupCategoryConfigurationPending
+				result.Remediation = "Bootstrap completed. Continue in vrooli-onboarding to answer the pending operator inputs."
+			} else {
+				result.Remediation += " Continue in vrooli-onboarding to answer the pending operator inputs."
+			}
 		}
 		return result
 	}
@@ -76,12 +100,12 @@ func setupTerminalResult(stage string, report runtime.Report, runErr error) Setu
 		return result
 	}
 
-	switch stage {
-	case "configuration", "project", "resolution":
+	switch phaseResultCategory(stage) {
+	case SetupCategoryInvalidConfiguration:
 		result.Category = SetupCategoryInvalidConfiguration
 		result.Retryable = false
 		result.Remediation = "Correct the project or setup configuration, then run setup again."
-	case "filesystem", "bootstrap", "requirements", "generated-packages", "credentials", "privilege-broker", "git", "resources", "cli", "finalize":
+	case SetupCategoryPartialState:
 		result.Category = SetupCategoryPartialState
 		result.Retryable = true
 		result.Remediation = "Setup may have completed some steps. Correct the reported condition and re-run; setup is designed to converge."
@@ -91,6 +115,19 @@ func setupTerminalResult(stage string, report runtime.Report, runErr error) Setu
 		result.Remediation = "Inspect the human diagnostics, correct the reported condition, and re-run setup."
 	}
 	return result
+}
+
+func phaseResultCategory(phase SetupPhase) string {
+	switch phase {
+	case PhaseProject, PhaseResolution:
+		return SetupCategoryInvalidConfiguration
+	case PhaseFilesystem, PhaseBootstrap, PhaseRequirements, PhaseGeneratedPackages,
+		PhaseCredentials, PhaseCredentialCapabilities, PhasePrivilegeBroker, PhaseGit,
+		PhaseResources, PhaseCLI, PhaseFinalize:
+		return SetupCategoryPartialState
+	default:
+		return SetupCategoryTransientFailure
+	}
 }
 
 func blockedRequirementNames(report runtime.Report) []string {

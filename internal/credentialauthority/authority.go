@@ -1,6 +1,6 @@
-// Package secrets owns the credential authority used by the control plane.
+// Package credentialauthority owns the credential authority used by the control plane.
 // It deliberately exposes values only to the runtime injection boundary.
-package secrets
+package credentialauthority
 
 import (
 	"errors"

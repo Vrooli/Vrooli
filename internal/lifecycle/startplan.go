@@ -1,10 +1,6 @@
 package lifecycle
 
-import (
-	"context"
-
-	"github.com/vrooli/vrooli/internal/scenario"
-)
+import "github.com/vrooli/vrooli/internal/scenario"
 
 // Plan → execute decomposition of startScenario (plan Phase 2). The runtime
 // state is OBSERVED once (observeRuntime, all the IO), the start decision is
@@ -22,8 +18,8 @@ type runtimeObservation struct {
 	FreshnessStale bool
 }
 
-func (r *Runner) observeRuntime(item scenario.Scenario, forceSetup bool, setupCache setupCheckCache) (runtimeObservation, error) {
-	view, err := r.lookupRegistryRuntime(context.Background(), item)
+func (r *Runner) observeRuntime(item scenario.Scenario, forceSetup bool, session *startSession) (runtimeObservation, error) {
+	view, err := r.lookupRegistryRuntime(session.context(), item)
 	if err != nil {
 		return runtimeObservation{}, err
 	}
@@ -33,7 +29,7 @@ func (r *Runner) observeRuntime(item scenario.Scenario, forceSetup bool, setupCa
 	}
 	// Reuse is gated on FRESHNESS only (not provisioning): a healthy running
 	// instance is kept unless a binaries/ui-bundle check is stale.
-	stale, _, err := r.freshnessStaleCached(item, forceSetup, setupCache)
+	stale, _, err := r.freshnessStaleCached(item, forceSetup, session)
 	if err != nil {
 		return runtimeObservation{}, err
 	}

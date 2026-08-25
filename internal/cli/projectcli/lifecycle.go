@@ -10,6 +10,7 @@ import (
 	"github.com/vrooli/vrooli/internal/cli/commandtree"
 	"github.com/vrooli/vrooli/internal/cliout"
 	"github.com/vrooli/vrooli/internal/control"
+	"github.com/vrooli/vrooli/internal/onboardinghandoff"
 	"github.com/vrooli/vrooli/internal/project"
 	projectsetup "github.com/vrooli/vrooli/internal/setup"
 	"github.com/vrooli/vrooli/internal/vroolierr"
@@ -20,6 +21,10 @@ func HelpOnlyWithoutRoot(args []string) bool {
 }
 
 type NoArgsRequest struct{}
+
+type DoctorRequest struct {
+	RepairFilePermissions bool
+}
 
 type StatusRequest struct {
 	ResourcesOnly bool
@@ -92,11 +97,14 @@ func ParseStatusRequest(args []string) (StatusRequest, error) {
 	return req, nil
 }
 
-func ParseDoctorRequest(args []string) (NoArgsRequest, error) {
-	if _, err := commandtree.ParseArgs("doctor", DoctorHelpText(), commandtree.ArgSchema{}, args); err != nil {
-		return NoArgsRequest{}, err
+func ParseDoctorRequest(args []string) (DoctorRequest, error) {
+	parsed, err := commandtree.ParseArgs("doctor", DoctorHelpText(), commandtree.ArgSchema{Options: []commandtree.OptionArg{
+		{Name: "--repair-file-permissions", Description: "Repair bounded runtime-home ownership mismatches after explicit opt-in"},
+	}}, args)
+	if err != nil {
+		return DoctorRequest{}, err
 	}
-	return NoArgsRequest{}, nil
+	return DoctorRequest{RepairFilePermissions: parsed.HasFlag("--repair-file-permissions")}, nil
 }
 
 func ParseStopRequest(args []string) (StopRequest, error) {
@@ -386,6 +394,13 @@ func parseLifecycleOptions(command string, args []string, helpText string) (proj
 	if value := strings.TrimSpace(parsed.FlagValue("--result-file")); value != "" {
 		opts.ResultPath = value
 	}
+	if value := strings.TrimSpace(parsed.FlagValue("--onboarding")); value != "" {
+		mode, modeErr := onboardinghandoff.ParseMode(value)
+		if modeErr != nil {
+			return projectsetup.Options{}, modeErr
+		}
+		opts.Onboarding = mode
+	}
 	if parsed.HasFlag("--include-optional") {
 		opts.IncludeOptional = true
 	}
@@ -422,7 +437,7 @@ func diagnosePortArgSchema() commandtree.ArgSchema {
 			{Name: "port", Required: true},
 			{Name: "scenario"},
 		},
-		Options: []commandtree.OptionArg{commandtree.JSONOption()},
+		Options: []commandtree.OptionArg{commandtree.JSONOption(), {Name: "--repair-file-permissions", Description: "Repair bounded runtime-home ownership mismatches after explicit opt-in"}},
 	}
 }
 
@@ -439,6 +454,7 @@ func lifecycleOptionsSchema() commandtree.ArgSchema {
 			{Name: "--scenarios", ValueName: "value", Description: "Scenario selection (none|all|comma,list)"},
 			{Name: "--yes", Aliases: []string{"-y"}, ValueName: "value", Description: "Confirmation policy forwarded to setup steps"},
 			{Name: "--result-file", ValueName: "path", Description: "Write the versioned terminal setup result JSON to path"},
+			{Name: "--onboarding", ValueName: "mode", Description: "Configuration handoff (auto|browser|cli|url|none)"},
 			{Name: "--include-optional", Description: "Apply optional safeguards too (default: skip optional items)"},
 		},
 	}
@@ -502,6 +518,9 @@ func SetupHelpText() string {
 			"    are listed but not installed (visible in the 'Optional' group).",
 			"  --maintenance-window acknowledges graphical/remote-session interruption risk",
 			"    for safeguards whose apply operation may interrupt the active session.",
+			"  --onboarding=auto|browser|cli|url|none selects the configuration handoff.",
+			"    `auto` opens a browser only when the invoking session can show one;",
+			"    otherwise it prints the URL and an exact resume command.",
 			"",
 			"Pass --verbose (global) to switch the apply / status output to the legacy per-item block format.",
 		},

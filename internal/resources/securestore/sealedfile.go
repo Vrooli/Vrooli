@@ -3,16 +3,17 @@ package securestore
 import (
 	"crypto/aes"
 	"crypto/cipher"
-	"crypto/rand"
 	"encoding/base64"
 	"encoding/binary"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"os"
 	"path/filepath"
 	"sort"
+
+	"github.com/vrooli/vrooli/internal/config"
+	"github.com/vrooli/vrooli/internal/credentialpolicy"
 )
 
 // The sealed file is the storage layer of the credential backend for hosts with
@@ -115,34 +116,18 @@ func appendLengthPrefixed(dst, value []byte) []byte {
 	return append(dst, value...)
 }
 
-func newAEAD(dataKey []byte) (cipher.AEAD, error) {
-	if len(dataKey) != dataKeyLen {
-		return nil, fmt.Errorf("%w: data key must be %d bytes", errSealedCorrupt, dataKeyLen)
-	}
-	block, err := aes.NewCipher(dataKey)
-	if err != nil {
-		return nil, err
-	}
-	return cipher.NewGCM(block)
-}
-
 // sealEntry encrypts one value under a fresh random nonce. The plaintext never
 // reaches an error string, so a failure here is safe to log.
 func sealEntry(dataKey []byte, service, key, value string) (sealedEntry, error) {
-	gcm, err := newAEAD(dataKey)
+	sealed, err := credentialpolicy.Seal(dataKey, []byte(value), "store-entry/"+service+"/"+key, sealedFormatVersion)
 	if err != nil {
 		return sealedEntry{}, err
 	}
-	nonce := make([]byte, gcm.NonceSize())
-	if _, err := io.ReadFull(rand.Reader, nonce); err != nil {
-		return sealedEntry{}, fmt.Errorf("generate credential nonce: %w", err)
-	}
-	sealed := gcm.Seal(nil, nonce, []byte(value), entryAAD(sealedFormatVersion, service, key))
 	return sealedEntry{
 		Service:    service,
 		Key:        key,
-		Nonce:      base64.StdEncoding.EncodeToString(nonce),
-		Ciphertext: base64.StdEncoding.EncodeToString(sealed),
+		Nonce:      base64.StdEncoding.EncodeToString(sealed.Nonce),
+		Ciphertext: base64.StdEncoding.EncodeToString(sealed.Ciphertext),
 	}, nil
 }
 
@@ -150,27 +135,35 @@ func sealEntry(dataKey []byte, service, key, value string) (sealedEntry, error) 
 // caller asked for rather than the ones recorded in the entry, so an entry moved
 // under another name fails to open instead of answering for its new slot.
 func openEntry(dataKey []byte, service, key string, entry sealedEntry) (string, error) {
-	gcm, err := newAEAD(dataKey)
-	if err != nil {
-		return "", err
-	}
 	nonce, err := base64.StdEncoding.DecodeString(entry.Nonce)
 	if err != nil {
 		return "", fmt.Errorf("%w: entry nonce is not valid base64", errSealedCorrupt)
-	}
-	if len(nonce) != gcm.NonceSize() {
-		return "", fmt.Errorf("%w: entry nonce is %d bytes, want %d", errSealedCorrupt, len(nonce), gcm.NonceSize())
 	}
 	ciphertext, err := base64.StdEncoding.DecodeString(entry.Ciphertext)
 	if err != nil {
 		return "", fmt.Errorf("%w: entry ciphertext is not valid base64", errSealedCorrupt)
 	}
-	plain, err := gcm.Open(nil, nonce, ciphertext, entryAAD(sealedFormatVersion, service, key))
-	if err != nil {
-		// The GCM error carries no plaintext and no key material, and neither
-		// does this one. "authentication failed" is the whole honest answer:
-		// the file was tampered with, the entry was relocated, or the data key
-		// is not the one that sealed it.
+	plain, err := credentialpolicy.Open(dataKey, credentialpolicy.Envelope{
+		Version: sealedFormatVersion, Purpose: "store-entry/" + service + "/" + key, Nonce: nonce, Ciphertext: ciphertext,
+	})
+	if err == nil {
+		return string(plain), nil
+	}
+	// Existing stores used the local entryAAD framing. Keep this compatibility
+	// reader while every new write uses credentialpolicy's common envelope.
+	block, cipherErr := aes.NewCipher(dataKey)
+	if cipherErr != nil {
+		return "", cipherErr
+	}
+	gcm, cipherErr := cipher.NewGCM(block)
+	if cipherErr != nil {
+		return "", cipherErr
+	}
+	if len(nonce) != gcm.NonceSize() {
+		return "", fmt.Errorf("%w: entry nonce is %d bytes, want %d", errSealedCorrupt, len(nonce), gcm.NonceSize())
+	}
+	plain, legacyErr := gcm.Open(nil, nonce, ciphertext, entryAAD(sealedFormatVersion, service, key))
+	if legacyErr != nil {
 		return "", fmt.Errorf("%w: %s/%s did not authenticate", errSealedCorrupt, service, key)
 	}
 	return string(plain), nil
@@ -318,6 +311,13 @@ func writeSealedFile(path string, file *sealedFile) error {
 	}
 	if err := os.Rename(tempName, path); err != nil {
 		return fmt.Errorf("replace credential store: %w", err)
+	}
+	// Rename gives the final file the temporary file's ownership. When a
+	// Vrooli command is run through sudo, that owner is root unless the write
+	// explicitly restores the invoking user's identity. Keep the encrypted
+	// store usable by the operator who owns the runtime home.
+	if err := config.ChownToInvokingUser(path); err != nil {
+		return fmt.Errorf("restore credential store ownership: %w", err)
 	}
 	return nil
 }

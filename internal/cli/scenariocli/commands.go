@@ -67,6 +67,7 @@ const (
 	CommandStatus          CommandID = "status"
 	CommandValidateEnv     CommandID = "validate-env"
 	CommandFreshness       CommandID = "freshness"
+	CommandTimings         CommandID = "timings"
 	CommandRun             CommandID = "run"
 	CommandStart           CommandID = "start"
 	CommandStartAll        CommandID = "start-all"
@@ -111,12 +112,16 @@ func CommandSpecs() []commandtree.Spec[CommandID] {
 				Options:     []commandtree.OptionArg{commandtree.JSONOption(), {Name: "--explain", Description: "Print every check (fresh and stale) plus resolved dependency policies"}, {Name: "--path", ValueName: "path"}},
 			},
 		},
+		{
+			Name: string(CommandTimings), Group: "Read-only Commands", Summary: "Show retained start and restart timing aggregates", Handler: CommandTimings, Suggestable: true, RootPolicy: commandtree.RootPolicy{RequiresRoot: true, CanRunWithoutRoot: HelpOnlyWithoutRoot},
+			Args: commandtree.ArgSchema{Options: []commandtree.OptionArg{{Name: "--scenario", ValueName: "name", Description: "Limit timing rows to one scenario"}, commandtree.JSONOption()}},
+		},
 		{Name: string(CommandRun), Group: "Lifecycle and Utility Commands", Summary: "Run a scenario directly (alias of start)", Handler: CommandRun, Suggestable: true, RootPolicy: commandtree.RootPolicy{RequiresRoot: true, CanRunWithoutRoot: HelpOnlyWithoutRoot}},
 		{
 			Name: string(CommandStart), Group: "Lifecycle and Utility Commands", Summary: "Start a scenario", Handler: CommandStart, Suggestable: true, RootPolicy: commandtree.RootPolicy{RequiresRoot: true, CanRunWithoutRoot: HelpOnlyWithoutRoot},
 			Args: commandtree.ArgSchema{
 				Positionals: []commandtree.PositionalArg{{Name: "scenario name", Required: true, Repeatable: true}},
-				Options:     []commandtree.OptionArg{{Name: "--path", ValueName: "path"}, {Name: "--best-effort"}, {Name: "--clean-stale"}, {Name: "--open"}, {Name: "--timeout", ValueName: "seconds", Description: "Ceiling for the whole start (not the expected duration); on expiry exit 124 — the operation record stays honest and the next start/wait resumes"}, commandtree.JSONOption(), instanceOption(), nodeOption()},
+				Options:     []commandtree.OptionArg{{Name: "--path", ValueName: "path"}, {Name: "--best-effort"}, {Name: "--clean-stale"}, {Name: "--force", Description: "Rebuild artifacts even when their inputs are fresh"}, {Name: "--open"}, {Name: "--timeout", ValueName: "seconds", Description: "Ceiling for the whole start (not the expected duration); on expiry exit 124 — the operation record stays honest and the next start/wait resumes"}, commandtree.JSONOption(), instanceOption(), nodeOption()},
 			},
 		},
 		{
@@ -131,7 +136,7 @@ func CommandSpecs() []commandtree.Spec[CommandID] {
 			Name: string(CommandRestart), Group: "Lifecycle and Utility Commands", Summary: "Restart a scenario", Handler: CommandRestart, Suggestable: true, RootPolicy: commandtree.RootPolicy{RequiresRoot: true, CanRunWithoutRoot: HelpOnlyWithoutRoot},
 			Args: commandtree.ArgSchema{
 				Positionals: []commandtree.PositionalArg{{Name: "scenario name", Required: true}},
-				Options:     []commandtree.OptionArg{{Name: "--path", ValueName: "path"}, {Name: "--best-effort"}, {Name: "--clean-stale"}, {Name: "--open"}, {Name: "--timeout", ValueName: "seconds", Description: "Ceiling for the whole restart; on expiry exit 124 — the operation record stays honest and the next start/wait resumes"}, commandtree.JSONOption(), instanceOption(), nodeOption()},
+				Options:     []commandtree.OptionArg{{Name: "--path", ValueName: "path"}, {Name: "--best-effort"}, {Name: "--clean-stale"}, {Name: "--force", Description: "Rebuild artifacts even when their inputs are fresh"}, {Name: "--open"}, {Name: "--timeout", ValueName: "seconds", Description: "Ceiling for the whole restart; on expiry exit 124 — the operation record stays honest and the next start/wait resumes"}, commandtree.JSONOption(), instanceOption(), nodeOption()},
 			},
 		},
 		{
@@ -371,6 +376,7 @@ func ParseScenarioStartArgs(defaultJSON bool, args []string) (ScenarioStartArgs,
 		Options: lifecycle.StartOptions{
 			BestEffort: parsed.HasFlag("--best-effort"),
 			CleanStale: parsed.HasFlag("--clean-stale"),
+			ForceSetup: parsed.HasFlag("--force"),
 			CustomPath: parsed.FlagValue("--path"),
 		},
 		JSON:      defaultJSON || parsed.HasFlag("--json"),

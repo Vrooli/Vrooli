@@ -3,6 +3,7 @@ package setup
 import (
 	"bytes"
 	"encoding/json"
+	"io"
 	"os"
 	"strings"
 	"testing"
@@ -25,6 +26,15 @@ func TestSetupPhaseCatalogIsStableAndOrdered(t *testing.T) {
 	}
 	if setupPhases[0].ID != PhaseValidation || setupPhases[len(setupPhases)-1].ID != PhaseCompletion {
 		t.Fatalf("catalog boundaries changed: %+v", setupPhases)
+	}
+}
+
+func TestStageIsRecordedByTheProgressCoordinator(t *testing.T) {
+	coordinator := newProgressCoordinator(io.Discard, progressOptions{FirstHeartbeat: time.Hour, HeartbeatEvery: time.Hour})
+	coordinator.StartPhase(PhaseResources)
+	defer coordinator.StopPhase()
+	if got := coordinator.CurrentPhase(); got != PhaseResources {
+		t.Fatalf("CurrentPhase() = %q, want %q", got, PhaseResources)
 	}
 }
 

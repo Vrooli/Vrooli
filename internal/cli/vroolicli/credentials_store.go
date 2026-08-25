@@ -12,8 +12,8 @@ import (
 	repocontract "github.com/vrooli/repo-contract-go"
 	"github.com/vrooli/vrooli/internal/cli/commandtree"
 	"github.com/vrooli/vrooli/internal/config"
+	"github.com/vrooli/vrooli/internal/credentialauthority"
 	"github.com/vrooli/vrooli/internal/resources/securestore"
-	credentialauthority "github.com/vrooli/vrooli/internal/secrets"
 	kopiaregistry "github.com/vrooli/vrooli/packages/kopiaregistry-go"
 )
 
@@ -29,24 +29,31 @@ func credentialsStore(ctx *CommandContext, args []string, input io.Reader) error
 	if len(args) == 0 || commandtree.WantsHelp(args) {
 		fmt.Fprintln(ctx.Stdout, "Usage:\n"+
 			"  vrooli credentials store status [--format json]\n"+
-			"  vrooli credentials store init [--format json] < passphrase\n"+
-			"  vrooli credentials store unlock < passphrase\n"+
+			"  vrooli credentials store entries [--format json]\n"+
+			"  vrooli credentials store entries delete --service <service> --key <key> --yes [--format json]\n"+
+			"  vrooli credentials store init [--format json]\n"+
+			"  vrooli credentials store unlock\n"+
 			"  vrooli credentials store lock\n"+
-			"  vrooli credentials store change-passphrase < current-passphrase\\nnew-passphrase\n"+
-			"  vrooli credentials store rewrap [--format json] < passphrase\n"+
+			"  vrooli credentials store change-passphrase\n"+
+			"  vrooli credentials store rewrap [--format json]\n"+
 			"  vrooli credentials store copy --sink <directory|s3://bucket/prefix> [--format json]\n"+
 			"  vrooli credentials store copy configure --sink <directory|s3://bucket/prefix> [--interval 15m]\n"+
 			"  vrooli credentials store copy scheduled [--format json]\n"+
 			"  vrooli credentials store reselect [--format json]\n"+
 			"  vrooli credentials store retire --backend encrypted-file\n\n"+
 			"The encrypted store is the credential backend on a host with no native one.\n"+
-			"A host whose TPM is reachable needs no passphrase and no unlock; supply one on\n"+
-			"standard input for any host that has no host-bound wrap.")
+			"A host whose TPM is reachable needs no passphrase and no unlock; otherwise these\n"+
+			"commands prompt securely inside vrooli. Automation may use standard input.")
 		return nil
 	}
 	switch args[0] {
 	case "status":
 		return credentialsStoreStatus(ctx, args[1:])
+	case "entries":
+		if len(args) > 1 && args[1] == "delete" {
+			return credentialsStoreDeleteEntry(ctx, args[2:])
+		}
+		return credentialsStoreEntries(ctx, args[1:])
 	case "init":
 		return credentialsStoreInit(ctx, args[1:], input)
 	case "unlock":
@@ -428,12 +435,17 @@ func credentialMigrationEntries(root string) ([]securestore.MigrationEntry, erro
 // value it is optional: a host whose host-bound wrap works needs none, and
 // demanding one there would reintroduce the human-at-boot requirement the
 // host-bound wrap exists to remove.
-func storePassphrase(input io.Reader) (string, error) {
+func storePassphrase(input io.Reader, prompt io.Writer) (string, error) {
 	if input == nil {
 		return "", nil
 	}
+	if file, ok := input.(*os.File); ok {
+		if info, err := file.Stat(); err == nil && info.Mode()&os.ModeCharDevice != 0 {
+			return readInteractivePassphrase(file, prompt)
+		}
+	}
 	if err := refuseInteractiveStdin(input,
-		`printf '%s' "$PASSPHRASE" | vrooli credentials store <init|unlock|rewrap>`); err != nil {
+		`provide the passphrase on standard input to vrooli credentials store <init|unlock|rewrap>`); err != nil {
 		return "", err
 	}
 	value, err := io.ReadAll(io.LimitReader(input, 64*1024))
@@ -503,17 +515,78 @@ func credentialsStoreStatus(ctx *CommandContext, args []string) error {
 	return nil
 }
 
+func credentialsStoreEntries(ctx *CommandContext, args []string) error {
+	format, err := storeFormatFlag("credentials store entries", args)
+	if err != nil {
+		return err
+	}
+	entries, err := securestore.ListEntryRefs()
+	if err != nil {
+		return err
+	}
+	if format == "json" {
+		return json.NewEncoder(ctx.Stdout).Encode(struct {
+			Basis   string                 `json:"basis"`
+			Entries []securestore.EntryRef `json:"entries"`
+		}{Basis: "sealed_store_metadata; values_not_read", Entries: entries})
+	}
+	fmt.Fprintf(ctx.Stdout, "Encrypted credential store entries (%d; basis=sealed_store_metadata; values_not_read)\n", len(entries))
+	for _, entry := range entries {
+		fmt.Fprintf(ctx.Stdout, "  %s | %s\n", entry.Service, entry.Key)
+	}
+	return nil
+}
+
+func credentialsStoreDeleteEntry(ctx *CommandContext, args []string) error {
+	fs := flag.NewFlagSet("credentials store entries delete", flag.ContinueOnError)
+	fs.SetOutput(io.Discard)
+	service := fs.String("service", "", "cleartext store service name")
+	key := fs.String("key", "", "cleartext store key name")
+	yes := fs.Bool("yes", false, "confirm deletion")
+	format := fs.String("format", "text", "output format: text or json")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	if len(fs.Args()) != 0 || strings.TrimSpace(*service) == "" || strings.TrimSpace(*key) == "" {
+		return fmt.Errorf("credentials store entries delete requires --service and --key")
+	}
+	if !*yes {
+		return fmt.Errorf("refusing to delete store entry without explicit --yes confirmation")
+	}
+	if *format != "text" && *format != "json" {
+		return fmt.Errorf("credentials store entries delete format must be text or json")
+	}
+	deleted, err := securestore.DeleteEntryRef(strings.TrimSpace(*service), strings.TrimSpace(*key))
+	if err != nil {
+		return err
+	}
+	result := struct {
+		Service string `json:"service"`
+		Key     string `json:"key"`
+		Deleted bool   `json:"deleted"`
+	}{Service: strings.TrimSpace(*service), Key: strings.TrimSpace(*key), Deleted: deleted}
+	if *format == "json" {
+		return json.NewEncoder(ctx.Stdout).Encode(result)
+	}
+	if deleted {
+		fmt.Fprintf(ctx.Stdout, "Deleted encrypted credential-store entry %s | %s; no value was printed.\n", result.Service, result.Key)
+	} else {
+		fmt.Fprintf(ctx.Stdout, "Encrypted credential-store entry %s | %s was already absent; no value was printed.\n", result.Service, result.Key)
+	}
+	return nil
+}
+
 func writeStoreStatus(ctx *CommandContext, status securestore.StoreStatus) {
 	fmt.Fprintf(ctx.Stdout, "Encrypted credential store\n")
 	fmt.Fprintf(ctx.Stdout, "  Path:        %s\n", status.Path)
 	if !status.Initialized {
 		fmt.Fprintf(ctx.Stdout, "  State:       not initialized\n")
 		if status.HostBoundBlocked != "" {
-			fmt.Fprintf(ctx.Stdout, "\nRun `vrooli credentials store init` and pipe a passphrase in on standard input.\n")
+			fmt.Fprintf(ctx.Stdout, "\nRun `vrooli credentials store init` and enter the passphrase at its secure prompt.\n")
 			fmt.Fprintf(ctx.Stdout, "The unattended host-bound wrap will not open on this host as it stands:\n  %s\n", status.HostBoundBlocked)
 			return
 		}
-		fmt.Fprintf(ctx.Stdout, "\nRun `vrooli credentials store init` to create it. A host with a reachable TPM\nneeds no passphrase; otherwise pipe one in on standard input.\n")
+		fmt.Fprintf(ctx.Stdout, "\nRun `vrooli credentials store init` to create it. A host with a reachable TPM\nneeds no passphrase; otherwise enter one at its secure prompt.\n")
 		return
 	}
 	fmt.Fprintf(ctx.Stdout, "  State:       initialized, %d credential(s)\n", status.Entries)
@@ -583,7 +656,7 @@ func credentialsStoreInit(ctx *CommandContext, args []string, input io.Reader) e
 	if err != nil {
 		return err
 	}
-	passphrase, err := storePassphrase(input)
+	passphrase, err := storePassphrase(input, ctx.Stderr)
 	if err != nil {
 		return err
 	}
@@ -620,12 +693,12 @@ func credentialsStoreUnlock(ctx *CommandContext, args []string, input io.Reader)
 	if len(args) != 0 {
 		return fmt.Errorf("credentials store unlock accepts no arguments")
 	}
-	passphrase, err := storePassphrase(input)
+	passphrase, err := storePassphrase(input, ctx.Stderr)
 	if err != nil {
 		return err
 	}
 	if passphrase == "" {
-		return fmt.Errorf("credentials store unlock reads the passphrase from standard input; pipe it in")
+		return fmt.Errorf("credentials store unlock requires a passphrase; run it in a terminal to enter one securely")
 	}
 	status, err := securestore.UnlockStore(passphrase)
 	if err != nil {
@@ -706,8 +779,28 @@ func credentialsStoreChangePassphrase(ctx *CommandContext, args []string, input 
 	if len(args) != 0 {
 		return fmt.Errorf("credentials store change-passphrase accepts no arguments")
 	}
+	if file, ok := input.(*os.File); ok {
+		if info, err := file.Stat(); err == nil && info.Mode()&os.ModeCharDevice != 0 {
+			current, err := readInteractivePassphraseWithLabel(file, ctx.Stderr, "Current credential store passphrase: ")
+			if err != nil {
+				return err
+			}
+			next, err := readInteractivePassphraseWithLabel(file, ctx.Stderr, "New credential store passphrase: ")
+			if err != nil {
+				return err
+			}
+			if strings.TrimSpace(current) == "" || strings.TrimSpace(next) == "" {
+				return fmt.Errorf("both credential store passphrases are required")
+			}
+			if err := securestore.ChangePassphraseStore(current, next); err != nil {
+				return err
+			}
+			_, err = fmt.Fprintln(ctx.Stdout, "Credential store passphrase changed. No stored value was re-encrypted.")
+			return err
+		}
+	}
 	if err := refuseInteractiveStdin(input,
-		`printf '%s\n%s\n' "$CURRENT" "$NEW" | vrooli credentials store change-passphrase`); err != nil {
+		`provide the current and new passphrases on standard input to vrooli credentials store change-passphrase`); err != nil {
 		return err
 	}
 	contents, err := io.ReadAll(io.LimitReader(input, 128*1024))

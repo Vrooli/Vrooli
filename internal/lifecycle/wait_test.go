@@ -22,7 +22,11 @@ func openWaitTestStore(t *testing.T, home string) *scenarioruntime.SQLiteStore {
 	if err != nil {
 		t.Fatalf("open runtime registry: %v", err)
 	}
-	t.Cleanup(func() { _ = store.Close() })
+	t.Cleanup(func() {
+		if err := store.Close(); err != nil {
+			t.Errorf("close wait test store: %v", err)
+		}
+	})
 	return store
 }
 
@@ -336,7 +340,7 @@ func TestStartTakesOverAbandonedInFlightStart(t *testing.T) {
 		t.Fatalf("NewRunner: %v", err)
 	}
 	runner.deps.isPIDRunning = nil // real liveness; seeded pid below is dead
-	t.Cleanup(func() { _ = runner.Stop("alpha", StopOptions{}) })
+	cleanupRunner(t, runner, "alpha", StopOptions{})
 
 	store := openWaitTestStore(t, home)
 	seedRunningStartOperation(t, store, "alpha", 999999) // dead pid

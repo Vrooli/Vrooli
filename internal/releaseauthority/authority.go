@@ -26,7 +26,7 @@ import (
 	"strings"
 
 	"github.com/vrooli/binaryfetch"
-	credentialauthority "github.com/vrooli/vrooli/internal/secrets"
+	"github.com/vrooli/vrooli/internal/credentialauthority"
 	resourcedeployment "github.com/vrooli/vrooli/packages/resource-deployment"
 )
 

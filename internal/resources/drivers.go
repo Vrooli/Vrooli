@@ -26,7 +26,7 @@ import (
 	runtimelogs "github.com/vrooli/vrooli/internal/resources/runtime/logs"
 	runtimestorage "github.com/vrooli/vrooli/internal/resources/runtime/storage"
 	"github.com/vrooli/vrooli/internal/scenario"
-	credentialauthority "github.com/vrooli/vrooli/internal/secrets"
+	"github.com/vrooli/vrooli/internal/credentialauthority"
 	"github.com/vrooli/vrooli/internal/shell"
 	resourcedeployment "github.com/vrooli/vrooli/packages/resource-deployment"
 )

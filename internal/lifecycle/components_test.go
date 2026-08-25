@@ -1,6 +1,7 @@
 package lifecycle
 
 import (
+	"encoding/json"
 	"fmt"
 	"net"
 	"os"
@@ -30,6 +31,59 @@ func TestBuilderRegistryDeclaresImplementedAndReservedKinds(t *testing.T) {
 	}
 	if registry["go_module"].Environment["GOWORK"] != "off" {
 		t.Fatalf("go_module must preserve the executor's GOWORK=off build environment")
+	}
+}
+
+func TestBuilderRegistryMatchesServiceSchema(t *testing.T) {
+	data, err := os.ReadFile(filepath.Join("..", "..", ".vrooli", "schemas", "service.schema.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var document map[string]any
+	if err := json.Unmarshal(data, &document); err != nil {
+		t.Fatal(err)
+	}
+	definitions := document["definitions"].(map[string]any)
+	componentBuild := definitions["componentBuild"].(map[string]any)
+	enum := componentBuild["properties"].(map[string]any)["kind"].(map[string]any)["enum"].([]any)
+	got := make([]string, len(enum))
+	for i, value := range enum {
+		got[i] = value.(string)
+	}
+	if want := RegisteredBuilderKinds(); !reflect.DeepEqual(got, want) {
+		t.Fatalf("service schema builder kinds = %v, registry = %v", got, want)
+	}
+}
+
+func TestInstallInputDigestGateSkipsUnchangedInputs(t *testing.T) {
+	root := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(root, "api"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	for name, data := range map[string]string{"go.mod": "module example\n", "go.sum": "sum-v1\n"} {
+		if err := os.WriteFile(filepath.Join(root, "api", name), []byte(data), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	component := scenario.Component{Build: scenario.ComponentBuild{Kind: "go_module", Dir: "api"}}
+	spec := BuilderSpec{Kind: "go_module", Install: []string{"go", "mod", "download"}, InstallInputs: []string{"go.mod", "go.sum"}}
+	needed, _, err := installNeeded(root, component, spec)
+	if err != nil || !needed {
+		t.Fatalf("first installNeeded = %t, %v; want true", needed, err)
+	}
+	if err := recordInstallDigest(root, component, spec); err != nil {
+		t.Fatal(err)
+	}
+	needed, _, err = installNeeded(root, component, spec)
+	if err != nil || needed {
+		t.Fatalf("unchanged installNeeded = %t, %v; want false", needed, err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "api", "go.sum"), []byte("sum-v2\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	needed, _, err = installNeeded(root, component, spec)
+	if err != nil || !needed {
+		t.Fatalf("changed installNeeded = %t, %v; want true", needed, err)
 	}
 }
 

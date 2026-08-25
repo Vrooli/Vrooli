@@ -10,6 +10,7 @@ import (
 
 	"github.com/vrooli/vrooli/internal/hostreqkit"
 	"github.com/vrooli/vrooli/internal/operatorinput"
+	"github.com/vrooli/vrooli/internal/projectstate"
 	"github.com/vrooli/vrooli/internal/runtime"
 )
 
@@ -25,21 +26,22 @@ func requiredBlockedReport(reason hostreqkit.BlockingReason) runtime.Report {
 }
 
 func TestSetupTerminalResultCategories(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
 	tests := []struct {
 		name      string
-		stage     string
+		stage     SetupPhase
 		report    runtime.Report
 		err       error
 		category  string
 		retryable bool
 	}{
-		{name: "ordinary success", stage: "finalize", category: SetupCategorySuccess},
-		{name: "original mac requirement failure", stage: "requirements", report: requiredBlockedReport(hostreqkit.BlockingNeedsSudo), err: errors.New("buf requires privilege"), category: SetupCategoryRequiredRequirementBlocked, retryable: true},
-		{name: "real unsupported host", stage: "validation", err: runtime.ErrUnsupportedPlatform, category: SetupCategoryUnsupportedPlatform},
-		{name: "network or checksum failure", stage: "requirements", report: requiredBlockedReport(hostreqkit.BlockingNone), err: errors.New("checksum mismatch"), category: SetupCategoryRequiredRequirementBlocked, retryable: true},
-		{name: "invalid configuration", stage: "resolution", err: errors.New("invalid selector"), category: SetupCategoryInvalidConfiguration},
-		{name: "partial state", stage: "resources", err: errors.New("resource install failed"), category: SetupCategoryPartialState, retryable: true},
-		{name: "partial bootstrap", stage: "bootstrap", err: errors.New("network unavailable"), category: SetupCategoryPartialState, retryable: true},
+		{name: "ordinary success", stage: PhaseFinalize, category: SetupCategorySuccess},
+		{name: "original mac requirement failure", stage: PhaseRequirements, report: requiredBlockedReport(hostreqkit.BlockingNeedsSudo), err: errors.New("buf requires privilege"), category: SetupCategoryRequiredRequirementBlocked, retryable: true},
+		{name: "real unsupported host", stage: PhaseValidation, err: runtime.ErrUnsupportedPlatform, category: SetupCategoryUnsupportedPlatform},
+		{name: "network or checksum failure", stage: PhaseRequirements, report: requiredBlockedReport(hostreqkit.BlockingNone), err: errors.New("checksum mismatch"), category: SetupCategoryRequiredRequirementBlocked, retryable: true},
+		{name: "invalid configuration", stage: PhaseResolution, err: errors.New("invalid selector"), category: SetupCategoryInvalidConfiguration},
+		{name: "partial state", stage: PhaseResources, err: errors.New("resource install failed"), category: SetupCategoryPartialState, retryable: true},
+		{name: "partial bootstrap", stage: PhaseBootstrap, err: errors.New("network unavailable"), category: SetupCategoryPartialState, retryable: true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -54,6 +56,44 @@ func TestSetupTerminalResultCategories(t *testing.T) {
 	}
 }
 
+func TestEveryDeclaredPhaseHasAResultCategory(t *testing.T) {
+	allowedDefault := map[SetupPhase]bool{
+		PhaseValidation: true, // validation failures have their host/report classifier.
+		PhaseCompletion: true, // completion failures are transient after durable work.
+	}
+	for _, phase := range setupPhases {
+		if category := phaseResultCategory(phase.ID); category == SetupCategoryTransientFailure && !allowedDefault[phase.ID] {
+			t.Errorf("phase %q has no explicit result category", phase.ID)
+		}
+	}
+}
+
+func TestSetupTerminalResultPreservesTypedStageValue(t *testing.T) {
+	result := setupTerminalResult(PhaseResources, runtime.Report{}, errors.New("resource failure"))
+	if result.Stage != string(PhaseResources) {
+		t.Fatalf("stage = %q, want %q", result.Stage, PhaseResources)
+	}
+}
+
+func TestFinalSetupResultConfigurationReadsMarker(t *testing.T) {
+	root, home := t.TempDir(), t.TempDir()
+	base := setupTerminalResult(PhaseFinalize, runtime.Report{}, nil)
+	pending := finalizeSetupResultConfiguration(base, home, root, nil)
+	if !pending.ConfigurationPending || pending.Category != SetupCategoryConfigurationPending {
+		t.Fatalf("pending result = %#v", pending)
+	}
+	if err := writeSetupCompleteMarker(t, home, root); err != nil {
+		t.Fatalf("write bootstrap marker: %v", err)
+	}
+	if err := projectstate.MarkConfigurationComplete(home, root, "result-selection"); err != nil {
+		t.Fatalf("mark configuration complete: %v", err)
+	}
+	complete := finalizeSetupResultConfiguration(base, home, root, nil)
+	if complete.ConfigurationPending || complete.Category != SetupCategorySuccess {
+		t.Fatalf("complete result = %#v", complete)
+	}
+}
+
 func TestSetupTerminalResultReportsConfigurationPendingWhenInputIsQueued(t *testing.T) {
 	t.Setenv("HOME", t.TempDir())
 	if err := operatorinput.Replace([]operatorinput.Request{{
@@ -65,12 +105,25 @@ func TestSetupTerminalResultReportsConfigurationPendingWhenInputIsQueued(t *test
 		t.Fatalf("queue operator input: %v", err)
 	}
 
-	result := setupTerminalResult("finalize", runtime.Report{}, nil)
+	result := setupTerminalResult(PhaseFinalize, runtime.Report{}, nil)
 	if result.Status != SetupStatusSuccess || result.Category != SetupCategoryConfigurationPending {
 		t.Fatalf("result = %#v, want successful configuration-pending result", result)
 	}
 	if !result.ConfigurationPending || result.Stage != "complete" {
 		t.Fatalf("result = %#v, want configuration_pending=true and complete stage", result)
+	}
+}
+
+func TestSetupTerminalResultReportsDegradedOptionalResources(t *testing.T) {
+	result := setupTerminalResult(PhaseFinalize, runtime.Report{}, nil, []string{"reranker"})
+	if result.Status != SetupStatusDegraded || result.Category != SetupCategoryDegraded {
+		t.Fatalf("result = %#v, want degraded status/category", result)
+	}
+	if !reflect.DeepEqual(result.DegradedResources, []string{"reranker"}) {
+		t.Fatalf("degraded resources = %#v", result.DegradedResources)
+	}
+	if !result.Retryable || result.Stage != "complete" {
+		t.Fatalf("result = %#v, want retryable completed result", result)
 	}
 }
 
@@ -95,4 +148,21 @@ func TestWriteSetupResultProducesPrivateSeparateJSONTransport(t *testing.T) {
 	if err != nil || info.Mode().Perm() != 0o600 {
 		t.Fatalf("result permissions = %v, %v; want 0600", info.Mode(), err)
 	}
+}
+
+func TestSetupResultOnboardingFieldIsAdditive(t *testing.T) {
+	payload := SetupResult{
+		Version: SetupResultVersion, Status: SetupStatusSuccess, Category: SetupCategoryConfigurationPending,
+		Stage: "complete", Retryable: false, Remediation: "continue",
+		Onboarding: &OnboardingResult{Decision: "url", PresentationKind: "remote-shell", URL: "http://127.0.0.1:1234"},
+	}
+	data, err := json.Marshal(payload)
+	if err != nil { t.Fatal(err) }
+	var old struct {
+		Version string `json:"version"`
+		Status string `json:"status"`
+		Stage string `json:"stage"`
+	}
+	if err := json.Unmarshal(data, &old); err != nil { t.Fatalf("old decoder rejected additive payload: %v", err) }
+	if old.Version != SetupResultVersion || old.Status != SetupStatusSuccess || old.Stage != "complete" { t.Fatalf("old fields = %+v", old) }
 }

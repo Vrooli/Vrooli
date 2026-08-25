@@ -51,6 +51,6 @@ func writeSetupCompleteMarker(t *testing.T, home, root string) error {
 	if err != nil {
 		return err
 	}
-	testkitgo.WriteFile(t, locator.SetupCompletePath(), "ok\n")
+	testkitgo.WriteFile(t, locator.BootstrapCompletePath(), "ok\n")
 	return nil
 }

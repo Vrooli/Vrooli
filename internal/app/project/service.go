@@ -82,6 +82,15 @@ func (s Service) Doctor() (project.DoctorReport, error) {
 	return s.Project.Doctor()
 }
 
+func (s Service) DoctorWithOptions(options project.DoctorOptions) (project.DoctorReport, error) {
+	if operations, ok := s.Project.(interface {
+		DoctorWithOptions(project.DoctorOptions) (project.DoctorReport, error)
+	}); ok {
+		return operations.DoctorWithOptions(options)
+	}
+	return s.Project.Doctor()
+}
+
 func (s Service) Stop(req StopRequest) (control.StopReport, error) {
 	return s.Project.Stop(project.StopOptions{Args: append([]string(nil), req.Targets...)})
 }

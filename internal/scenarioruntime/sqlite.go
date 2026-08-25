@@ -886,7 +886,11 @@ func buildReadOnlyDSN(path string) string {
 	if _, err := os.Stat(path + "-wal"); err != nil {
 		return "file:" + url.PathEscape(path) + "?mode=ro&immutable=1&_pragma=foreign_keys(ON)&_pragma=query_only(ON)&_pragma=busy_timeout(10000)&_pragma=temp_store(MEMORY)"
 	}
-	return "file:" + url.PathEscape(path) + "?mode=ro&nolock=1&_pragma=foreign_keys(ON)&_pragma=query_only(ON)&_pragma=busy_timeout(10000)&_pragma=temp_store(MEMORY)"
+	// A WAL-backed registry still needs SQLite's shared-memory locking. The
+	// nolock URI flag makes modernc unable to open a live WAL database and
+	// produces SQLITE_CANTOPEN, so keep the connection read-only while allowing
+	// SQLite to coordinate with the writer.
+	return "file:" + url.PathEscape(path) + "?mode=ro&_pragma=foreign_keys(ON)&_pragma=query_only(ON)&_pragma=busy_timeout(10000)&_pragma=temp_store(MEMORY)"
 }
 
 func nextGeneration(ctx context.Context, tx *sql.Tx, scenario, variant string) (int64, error) {

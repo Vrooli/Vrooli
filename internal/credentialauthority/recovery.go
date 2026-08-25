@@ -1,4 +1,4 @@
-package secrets
+package credentialauthority
 
 import (
 	"crypto/aes"
@@ -9,7 +9,6 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -36,6 +35,7 @@ type recoveryValue struct {
 }
 type recoveryEnvelope struct {
 	Version    int    `json:"version"`
+	Purpose    string `json:"purpose,omitempty"`
 	KDF        string `json:"kdf,omitempty"`
 	Iterations int    `json:"iterations,omitempty"`
 	Salt       string `json:"salt"`
@@ -126,27 +126,19 @@ func (a *Authority) read(identity Identity, field string) (string, error) {
 }
 
 func encryptRecovery(plain []byte, passphrase string) ([]byte, error) {
-	salt, nonce := make([]byte, 32), make([]byte, 12)
-	if _, err := io.ReadFull(rand.Reader, salt); err != nil {
-		return nil, err
-	}
-	if _, err := io.ReadFull(rand.Reader, nonce); err != nil {
+	salt := make([]byte, 32)
+	if _, err := rand.Read(salt); err != nil {
 		return nil, err
 	}
 	key, err := recoveryKey(passphrase, salt, credentialpolicy.RecoveryPBKDF2Iterations)
 	if err != nil {
 		return nil, err
 	}
-	block, err := aes.NewCipher(key)
+	sealed, err := credentialpolicy.Seal(key, plain, "recovery-bundle", 3)
 	if err != nil {
 		return nil, err
 	}
-	sealed := cipher.NewGCM
-	gcm, err := sealed(block)
-	if err != nil {
-		return nil, err
-	}
-	envelope := recoveryEnvelope{Version: 2, KDF: "pbkdf2-sha256", Iterations: credentialpolicy.RecoveryPBKDF2Iterations, Salt: base64.StdEncoding.EncodeToString(salt), Nonce: base64.StdEncoding.EncodeToString(nonce), Ciphertext: base64.StdEncoding.EncodeToString(gcm.Seal(nil, nonce, plain, nil))}
+	envelope := recoveryEnvelope{Version: sealed.Version, Purpose: sealed.Purpose, KDF: "pbkdf2-sha256", Iterations: credentialpolicy.RecoveryPBKDF2Iterations, Salt: base64.StdEncoding.EncodeToString(salt), Nonce: base64.StdEncoding.EncodeToString(sealed.Nonce), Ciphertext: base64.StdEncoding.EncodeToString(sealed.Ciphertext)}
 	return json.Marshal(envelope)
 }
 
@@ -162,6 +154,11 @@ func decryptRecovery(bundle []byte, passphrase string) ([]byte, error) {
 	case 2:
 		if envelope.KDF != "pbkdf2-sha256" || envelope.Iterations <= 0 {
 			return nil, fmt.Errorf("unsupported recovery KDF policy")
+		}
+		iterations = envelope.Iterations
+	case 3:
+		if envelope.KDF != "pbkdf2-sha256" || envelope.Iterations <= 0 || envelope.Purpose != "recovery-bundle" {
+			return nil, fmt.Errorf("unsupported recovery envelope policy")
 		}
 		iterations = envelope.Iterations
 	default:
@@ -183,15 +180,27 @@ func decryptRecovery(bundle []byte, passphrase string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	block, err := aes.NewCipher(key)
-	if err != nil {
-		return nil, err
+	if envelope.Version == 1 || envelope.Version == 2 {
+		// Historical recovery bundles were AES-GCM envelopes without
+		// authenticated framing. Keep their reader forever; only the writer
+		// moves to the framed format.
+		block, err := aes.NewCipher(key)
+		if err != nil {
+			return nil, err
+		}
+		gcm, err := cipher.NewGCM(block)
+		if err != nil {
+			return nil, err
+		}
+		plain, err := gcm.Open(nil, nonce, ciphertext, nil)
+		if err != nil {
+			return nil, fmt.Errorf("decrypt recovery bundle: authorization failed")
+		}
+		return plain, nil
 	}
-	gcm, err := cipher.NewGCM(block)
-	if err != nil {
-		return nil, err
-	}
-	plain, err := gcm.Open(nil, nonce, ciphertext, nil)
+	plain, err := credentialpolicy.Open(key, credentialpolicy.Envelope{
+		Version: envelope.Version, Purpose: envelope.Purpose, Nonce: nonce, Ciphertext: ciphertext,
+	})
 	if err != nil {
 		return nil, fmt.Errorf("decrypt recovery bundle: authorization failed")
 	}

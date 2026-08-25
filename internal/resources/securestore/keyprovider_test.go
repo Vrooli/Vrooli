@@ -6,7 +6,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -45,8 +47,46 @@ func TestPassphraseProviderRoundTripsTheDataKey(t *testing.T) {
 	}
 }
 
+func TestHistoricalKeyWrapFixtureOpensThroughCompatibilityReader(t *testing.T) {
+	fixturePath := filepath.Join("..", "..", "credentialpolicy", "testdata", "historical-envelopes-v1.json")
+	fixtureBytes, err := os.ReadFile(fixturePath)
+	if err != nil {
+		t.Fatalf("read historical credential fixture: %v", err)
+	}
+	var fixture struct {
+		Wrap struct {
+			Provider   string `json:"provider"`
+			Nonce      string `json:"nonce"`
+			Ciphertext string `json:"ciphertext"`
+			KEK        string `json:"kek"`
+		} `json:"key_wrap_v1"`
+	}
+	if err := json.Unmarshal(fixtureBytes, &fixture); err != nil {
+		t.Fatalf("decode historical credential fixture: %v", err)
+	}
+	nonce, err := base64.StdEncoding.DecodeString(fixture.Wrap.Nonce)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ciphertext, err := base64.StdEncoding.DecodeString(fixture.Wrap.Ciphertext)
+	if err != nil {
+		t.Fatal(err)
+	}
+	kek, err := base64.StdEncoding.DecodeString(fixture.Wrap.KEK)
+	if err != nil {
+		t.Fatal(err)
+	}
+	opened, err := openDataKey(kek, base64.StdEncoding.EncodeToString(append(nonce, ciphertext...)), fixture.Wrap.Provider, errWrongPassphrase)
+	if err != nil {
+		t.Fatalf("historical key-wrap fixture failed to open: %v", err)
+	}
+	if !bytes.Equal(opened, bytes.Repeat([]byte{0x22}, dataKeyLen)) {
+		t.Fatalf("historical key-wrap fixture returned unexpected data key")
+	}
+}
+
 // TestPassphraseProviderMatchesTheRecoveryKDFPolicy keeps this package from
-// drifting into a second KDF policy. internal/secrets/recovery.go uses
+// drifting into a second KDF policy. internal/credentialauthority/recovery.go uses
 // PBKDF2-SHA256 at 600,000 iterations; two different answers to "how hard is a
 // passphrase to grind" is a policy nobody can reason about.
 func TestPassphraseProviderMatchesTheRecoveryKDFPolicy(t *testing.T) {
@@ -191,6 +231,31 @@ func TestHostBoundProviderPrefersTheTPMAndReportsIt(t *testing.T) {
 	if !bytes.Equal(opened, dataKey) {
 		t.Fatalf("Unwrap returned a different data key")
 	}
+}
+
+func TestHostBoundProviderExplicitlyDisablesPCRBinding(t *testing.T) {
+	fake := newFakeSystemdCreds("tpm2")
+	provider := hostBoundProvider{run: fake.run}
+	if _, err := provider.Available(); err != nil {
+		t.Fatal(err)
+	}
+	for _, call := range fake.calls {
+		if len(call) == 0 || call[0] != "encrypt" {
+			continue
+		}
+		found := false
+		for _, arg := range call {
+			if arg == "--tpm2-pcrs=" {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Fatalf("TPM encrypt argv = %v, want explicit empty --tpm2-pcrs=", call)
+		}
+		return
+	}
+	t.Fatal("no TPM encrypt call recorded")
 }
 
 // TestHostBoundProviderReportsTheWeakerHostKeyHonestly is the disclosure the

@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 )
@@ -161,6 +162,25 @@ type StartOperationRepository interface {
 	// per phase for the instance. Phases with no history are absent — the
 	// caller renders "unknown", never a fabricated number.
 	PhaseDurationEstimates(ctx context.Context, scenario, variant string) (map[string]time.Duration, error)
+	// StartTimingSummaries returns step timing aggregates over retained terminal
+	// start-operation records. An empty scenario includes both per-scenario and
+	// fleet rows; a named scenario only includes that scenario.
+	StartTimingSummaries(ctx context.Context, scenario string) ([]StartTimingSummary, error)
+}
+
+// StartTimingSummary is the typed read model behind `vrooli scenario
+// timings`. Durations are milliseconds so the JSON surface remains stable and
+// easy for non-Go consumers to decode.
+type StartTimingSummary struct {
+	Scenario  string  `json:"scenario"`
+	Operation string  `json:"operation"`
+	Step      string  `json:"step"`
+	Count     int     `json:"count"`
+	MeanMS    float64 `json:"mean_ms"`
+	P50MS     float64 `json:"p50_ms"`
+	P90MS     float64 `json:"p90_ms"`
+	TotalMS   float64 `json:"total_ms"`
+	Share     float64 `json:"share"`
 }
 
 func (s *SQLiteStore) BeginStartOperation(ctx context.Context, op StartOperation) (StartOperation, error) {
@@ -383,6 +403,163 @@ GROUP BY phase`, scenario, variant)
 		out[phase] = time.Duration(avgMillis) * time.Millisecond
 	}
 	return out, rows.Err()
+}
+
+type timingSamples struct {
+	scenario  string
+	operation string
+	step      string
+	values    []float64
+}
+
+// StartTimingSummaries reads the durable operation rows and derives timing
+// statistics in Go. The operation record is intentionally the source of truth
+// for this view: its JSON step list preserves the operation dimension that the
+// phase-duration ETA table does not retain.
+func (s *SQLiteStore) StartTimingSummaries(ctx context.Context, scenario string) ([]StartTimingSummary, error) {
+	scenario = strings.TrimSpace(scenario)
+	query := `
+SELECT scenario, operation, steps_json
+FROM runtime_start_operations
+WHERE status != ?`
+	args := []any{StartOperationStatusRunning}
+	if scenario != "" {
+		query += " AND scenario = ?"
+		args = append(args, scenario)
+	}
+	query += " ORDER BY scenario, started_at, operation_id"
+
+	rows, err := s.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("read start timing records: %w", err)
+	}
+	defer rows.Close()
+
+	byScenario := map[string]map[string]*timingSamples{}
+	byFleet := map[string]*timingSamples{}
+	for rows.Next() {
+		var recordScenario, operation, stepsJSON string
+		if err := rows.Scan(&recordScenario, &operation, &stepsJSON); err != nil {
+			return nil, fmt.Errorf("scan start timing record: %w", err)
+		}
+		var steps []StartOperationStep
+		if strings.TrimSpace(stepsJSON) == "" || json.Unmarshal([]byte(stepsJSON), &steps) != nil {
+			continue
+		}
+		for _, step := range steps {
+			if step.EndedAt == nil || step.StartedAt.IsZero() || step.EndedAt.Before(step.StartedAt) {
+				continue
+			}
+			key := operation + "\x00" + step.Name
+			if byScenario[recordScenario] == nil {
+				byScenario[recordScenario] = map[string]*timingSamples{}
+			}
+			if byScenario[recordScenario][key] == nil {
+				byScenario[recordScenario][key] = &timingSamples{scenario: recordScenario, operation: operation, step: step.Name}
+			}
+			byScenario[recordScenario][key].values = append(byScenario[recordScenario][key].values, float64(step.EndedAt.Sub(step.StartedAt).Microseconds())/1000)
+			if scenario == "" {
+				if byFleet[key] == nil {
+					byFleet[key] = &timingSamples{scenario: "fleet", operation: operation, step: step.Name}
+				}
+				byFleet[key].values = append(byFleet[key].values, float64(step.EndedAt.Sub(step.StartedAt).Microseconds())/1000)
+			}
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("read start timing records: %w", err)
+	}
+
+	return buildTimingSummaries(scenario, byScenario, byFleet), nil
+}
+
+func buildTimingSummaries(scenario string, byScenario map[string]map[string]*timingSamples, byFleet map[string]*timingSamples) []StartTimingSummary {
+	result := make([]StartTimingSummary, 0)
+	if scenario == "" {
+		scenarios := make([]string, 0, len(byScenario))
+		for name := range byScenario {
+			scenarios = append(scenarios, name)
+		}
+		sort.Strings(scenarios)
+		for _, name := range scenarios {
+			result = append(result, summarizeTimingMap(byScenario[name])...)
+		}
+		fleet := make([]*timingSamples, 0, len(byFleet))
+		for _, sample := range byFleet {
+			fleet = append(fleet, sample)
+		}
+		result = append(result, summarizeTimingSamples(fleet)...)
+		return result
+	}
+
+	return summarizeTimingMap(byScenario[scenario])
+}
+
+func summarizeTimingMap(samples map[string]*timingSamples) []StartTimingSummary {
+	values := make([]*timingSamples, 0, len(samples))
+	for _, sample := range samples {
+		values = append(values, sample)
+	}
+	return summarizeTimingSamples(values)
+}
+
+func summarizeTimingSamples(values []*timingSamples) []StartTimingSummary {
+	sort.Slice(values, func(i, j int) bool {
+		if values[i].scenario != values[j].scenario {
+			return values[i].scenario < values[j].scenario
+		}
+		if values[i].operation != values[j].operation {
+			return values[i].operation < values[j].operation
+		}
+		return values[i].step < values[j].step
+	})
+	var scopeTotal float64
+	for _, sample := range values {
+		for _, value := range sample.values {
+			scopeTotal += value
+		}
+	}
+	result := make([]StartTimingSummary, 0, len(values))
+	for _, sample := range values {
+		if len(sample.values) == 0 {
+			continue
+		}
+		sorted := append([]float64(nil), sample.values...)
+		sort.Float64s(sorted)
+		var total float64
+		for _, value := range sorted {
+			total += value
+		}
+		result = append(result, StartTimingSummary{
+			Scenario:  sample.scenario,
+			Operation: sample.operation,
+			Step:      sample.step,
+			Count:     len(sorted),
+			MeanMS:    total / float64(len(sorted)),
+			P50MS:     percentile(sorted, 0.50),
+			P90MS:     percentile(sorted, 0.90),
+			TotalMS:   total,
+			Share:     total / scopeTotal,
+		})
+	}
+	return result
+}
+
+func percentile(sorted []float64, fraction float64) float64 {
+	if len(sorted) == 0 {
+		return 0
+	}
+	if len(sorted) == 1 {
+		return sorted[0]
+	}
+	position := fraction * float64(len(sorted)-1)
+	lower := int(position)
+	upper := lower + 1
+	if upper >= len(sorted) {
+		return sorted[len(sorted)-1]
+	}
+	weight := position - float64(lower)
+	return sorted[lower] + weight*(sorted[upper]-sorted[lower])
 }
 
 func scanStartOperation(row *sql.Row) (StartOperation, error) {
