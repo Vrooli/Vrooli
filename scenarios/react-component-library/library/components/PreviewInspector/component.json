@@ -2,8 +2,10 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "component",
   "catalogId": "preview.inspector-drawer",
-  "deprecatedVersions": [],
-  "description": "A dismissible slide-over for props, inspector details, and preview events.",
+  "deprecatedVersions": [
+    "1.0.0"
+  ],
+  "description": "",
   "designStyles": [
     {
       "affinity": "native",
@@ -11,7 +13,7 @@
     }
   ],
   "displayName": "PreviewInspector",
-  "latest": "1.0.0",
+  "latest": "1.0.1",
   "libraryId": "react-component-library:PreviewInspector",
   "slot": "ui-pattern",
   "tags": [
@@ -24,5 +26,6 @@
       "libraryId": "react-component-library:useLocale",
       "version": "1.0.0"
     }
-  ]
+  ],
+  "draft": ""
 }

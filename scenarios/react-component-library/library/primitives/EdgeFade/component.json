@@ -3,7 +3,7 @@
   "assetKind": "primitive",
   "catalogId": "primitives.edge-fade",
   "dependencies": [],
-  "description": "EdgeFade provides a token-backed directional affordance at an overflow edge.",
+  "description": "",
   "designStyles": [
     {
       "affinity": "native",
@@ -19,10 +19,14 @@
     }
   ],
   "displayName": "EdgeFade",
-  "latest": "1.0.0",
+  "latest": "1.0.1",
   "libraryId": "react-component-library:EdgeFade",
   "tags": [
     "primitive",
     "token-bound"
+  ],
+  "draft": "",
+  "deprecatedVersions": [
+    "1.0.0"
   ]
 }

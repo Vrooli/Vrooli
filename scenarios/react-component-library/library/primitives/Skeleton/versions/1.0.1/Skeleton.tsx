@@ -6,26 +6,26 @@
  * @tags ["primitive","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
-import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
-
 /** @vrooliComponentSource primitives.skeleton */
-import { resolveStrings } from "@vrooli/react-component-library/useLocale/1.0.1";
+import { translate } from "../../../../hooks/useLocale/versions/1.0.1/useLocale";
 import type { HTMLAttributes } from "react";
-import "./Skeleton.css";
 
-export const Skeleton = withClassName(function Skeleton({
-  label = resolveStrings("primitives.skeleton.loading", "Loading"),
-  style,
+export function Skeleton({
+  label = translate("primitives.skeleton.label.1", "Loading"),
   ...props
 }: HTMLAttributes<HTMLDivElement> & { label?: string }) {
   return (
-    <div data-testid="primitives.skeleton"
+    <div
       role="status"
       aria-label={label}
       data-skeleton="true"
-      data-rcl-skeleton
-      style={style}
+      style={{
+        background: "var(--color-surface-muted)",
+        borderRadius: "var(--radius-sm)",
+        minHeight: "var(--skeleton-line-height)",
+        ...props.style,
+      }}
       {...props}
     />
   );
-});
+}

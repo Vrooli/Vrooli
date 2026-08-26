@@ -1,0 +1,35 @@
+{
+  "claims": [
+    {
+      "id": "rollback",
+      "statement": "A rejected action restores the exact previous value and exposes the async error state.",
+      "states": ["default"],
+      "tier": "manual",
+      "type": "manual-review"
+    },
+    {
+      "id": "cancellation",
+      "statement": "Cancellation stops the underlying async action and exposes cancelled status without falsely committing the prediction.",
+      "states": ["default"],
+      "tier": "manual",
+      "type": "manual-review"
+    }
+  ],
+  "component": {
+    "id": "hooks.use-optimistic-action",
+    "purpose": "Make optimistic UI state immediate while making commit, cancellation, and rollback explicit.",
+    "title": "useOptimisticAction"
+  },
+  "contract": {
+    "kind": "rcl-component-experience-contract",
+    "provenance": "react-component-library:useOptimisticAction@1.0.0",
+    "schema": "scenario-experience-spec/v1"
+  },
+  "states": [
+    {
+      "description": "The hook exposes an idle optimistic controller with commit and rollback actions.",
+      "example": "default",
+      "id": "default"
+    }
+  ]
+}

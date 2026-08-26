@@ -1,0 +1,28 @@
+{
+  "claims": [
+    {
+      "id": "contract-present",
+      "statement": "ButtonGroup preserves action grouping and touch-target rhythm.",
+      "states": ["default"],
+      "tier": "manual",
+      "type": "manual-review"
+    }
+  ],
+  "component": {
+    "id": "controls.button-group",
+    "purpose": "Grouped actions with stable touch targets.",
+    "title": "ButtonGroup"
+  },
+  "contract": {
+    "kind": "rcl-component-experience-contract",
+    "provenance": "react-component-library:ButtonGroup@1.1.0",
+    "schema": "scenario-experience-spec/v1"
+  },
+  "states": [
+    {
+      "description": "Grouped actions are visible.",
+      "example": "default",
+      "id": "default"
+    }
+  ]
+}

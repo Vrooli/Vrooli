@@ -115,7 +115,7 @@ export default function ColorPicker({
     </button>
   );
   return (
-    <section data-testid="forms.color-picker"
+    <section
       className={className}
       data-rcl-color-picker
       aria-label={labels.heading ?? "Color picker"}

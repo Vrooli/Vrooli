@@ -6,23 +6,21 @@
  * @tags ["forms","async","recovery","offline","navigation","responsive","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
-import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
-
 /** @vrooliComponentSource patterns.async-form-flow */
-import { resolveStrings } from "@vrooli/react-component-library/useLocale/1.0.1";
+import { translate } from "../../../../hooks/useLocale/versions/1.0.1/useLocale";
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import {
   AsyncBoundary,
   type AsyncBoundaryStatus,
-} from "@vrooli/react-component-library/AsyncBoundary/1.0.0";
-import { Form, type FormValues } from "@vrooli/react-component-library/Form/1.0.0";
-import { FormActions } from "@vrooli/react-component-library/FormActions/1.0.0";
-import { ValidationSummary } from "@vrooli/react-component-library/ValidationSummary/1.0.0";
+} from "../../../AsyncBoundary/versions/1.0.0/AsyncBoundary";
+import { Form, type FormValues } from "../../../Form/versions/1.0.0/Form";
+import { FormActions } from "../../../FormActions/versions/1.0.0/FormActions";
+import { ValidationSummary } from "../../../ValidationSummary/versions/1.0.0/ValidationSummary";
 import {
   createFormStore,
   type FormStore,
   type FormValidationResult,
-} from "@vrooli/react-component-library/FormStore/1.0.0";
+} from "../../../../services/FormStore/versions/1.0.0/FormStore";
 
 export type AsyncFormLoadState =
   | "idle"
@@ -123,7 +121,7 @@ function useFormSnapshot<TValues extends FormValues>(store: FormStore<TValues>) 
   return store.get();
 }
 
-export const AsyncFormFlow = withClassName(function AsyncFormFlow<TValues extends FormValues = FormValues>({
+export function AsyncFormFlow<TValues extends FormValues = FormValues>({
   initialValues,
   children,
   load,
@@ -132,9 +130,9 @@ export const AsyncFormFlow = withClassName(function AsyncFormFlow<TValues extend
   onNavigate,
   destination,
   offline = false,
-  title = resolveStrings("patterns.async-form-flow.create-or-edit", "Create or edit"),
-  description = resolveStrings(
-    "patterns.async-form-flow.your-work-stays-in-place-while-we-validate-save-",
+  title = translate("patterns.async-form-flow.title.1", "Create or edit"),
+  description = translate(
+    "patterns.async-form-flow.description.2",
     "Your work stays in place while we validate, save, and recover from interruptions.",
   ),
   successMessage = "Saved successfully. Your changes are safe.",
@@ -232,7 +230,7 @@ export const AsyncFormFlow = withClassName(function AsyncFormFlow<TValues extend
         <header data-rcl-async-form-header>
           <div>
             <div data-rcl-async-form-kicker>
-              {resolveStrings("patterns.async-form-flow.async-workflow", "ASYNC WORKFLOW")}
+              {translate("patterns.async-form-flow.text.1", "ASYNC WORKFLOW")}
             </div>
             <div data-rcl-async-form-title>{title}</div>
             <div data-rcl-async-form-description>{description}</div>
@@ -261,11 +259,11 @@ export const AsyncFormFlow = withClassName(function AsyncFormFlow<TValues extend
             {showEmpty ? (
               <div data-rcl-async-form-empty>
                 <strong data-rcl-async-form-empty-title>
-                  {resolveStrings("patterns.async-form-flow.no-saved-draft-yet", "No saved draft yet")}
+                  {translate("patterns.async-form-flow.text.2", "No saved draft yet")}
                 </strong>
                 <span data-rcl-async-form-empty-copy>
-                  {resolveStrings(
-                    "patterns.async-form-flow.start-a-fresh-version-or-retry-if-you-expected-a",
+                  {translate(
+                    "patterns.async-form-flow.text.3",
                     "Start a fresh version, or retry if you expected an existing draft.",
                   )}
                 </span>
@@ -275,7 +273,7 @@ export const AsyncFormFlow = withClassName(function AsyncFormFlow<TValues extend
                   data-rcl-async-form-empty-action
                   onClick={() => setLoadState("success")}
                 >
-                  {resolveStrings("patterns.async-form-flow.start-fresh", "Start fresh")}
+                  {translate("patterns.async-form-flow.text.4", "Start fresh")}
                 </button>
               </div>
             ) : (
@@ -287,7 +285,7 @@ export const AsyncFormFlow = withClassName(function AsyncFormFlow<TValues extend
                     </span>
                     <span data-rcl-async-form-submit-copy>
                       <strong data-rcl-async-form-submit-title>
-                        {resolveStrings("patterns.async-form-flow.save-needs-attention", "Save needs attention")}
+                        {translate("patterns.async-form-flow.text.5", "Save needs attention")}
                       </strong>
                       <span>{formError ?? errorMessage}</span>
                     </span>
@@ -300,7 +298,7 @@ export const AsyncFormFlow = withClassName(function AsyncFormFlow<TValues extend
                     </span>
                     <span data-rcl-async-form-submit-copy>
                       <strong data-rcl-async-form-submit-title>
-                        {resolveStrings("patterns.async-form-flow.all-set", "All set")}
+                        {translate("patterns.async-form-flow.text.6", "All set")}
                       </strong>
                       <span>{successMessage}</span>
                       {onNavigate && (
@@ -310,7 +308,7 @@ export const AsyncFormFlow = withClassName(function AsyncFormFlow<TValues extend
                           data-rcl-async-form-next
                           onClick={() => onNavigate(destination)}
                         >
-                          {resolveStrings("patterns.async-form-flow.continue", "Continue")}
+                          {translate("patterns.async-form-flow.text.7", "Continue")}
                         </button>
                       )}
                     </span>
@@ -326,7 +324,7 @@ export const AsyncFormFlow = withClassName(function AsyncFormFlow<TValues extend
                     onClick={cancelSubmit}
                     disabled={!submitting}
                   >
-                    {resolveStrings("patterns.async-form-flow.cancel-request", "Cancel request")}
+                    {translate("patterns.async-form-flow.text.8", "Cancel request")}
                   </button>
                   <button
                     data-testid="patterns.async-form-flow"
@@ -334,7 +332,7 @@ export const AsyncFormFlow = withClassName(function AsyncFormFlow<TValues extend
                     data-rcl-form-action="reset"
                     disabled={submitting}
                   >
-                    {resolveStrings("patterns.async-form-flow.reset", "Reset")}
+                    {translate("patterns.async-form-flow.text.9", "Reset")}
                   </button>
                   <button
                     data-testid="patterns.async-form-flow"
@@ -353,4 +351,4 @@ export const AsyncFormFlow = withClassName(function AsyncFormFlow<TValues extend
       </section>
     </>
   );
-});
+}

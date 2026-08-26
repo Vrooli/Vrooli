@@ -4,8 +4,10 @@
   "catalogId": "primitives.selection-control",
   "category": "foundation",
   "dependencies": [],
-  "deprecatedVersions": [],
-  "description": "Native checkbox, radio, and switch semantics with a shared token-bound selection surface.",
+  "deprecatedVersions": [
+    "1.0.0"
+  ],
+  "description": "",
   "designStyles": [
     {
       "affinity": "native",
@@ -14,7 +16,7 @@
   ],
   "displayName": "SelectionControl",
   "draft": "",
-  "latest": "1.0.0",
+  "latest": "1.0.1",
   "libraryId": "react-component-library:SelectionControl",
   "slot": "ui-primitive",
   "tags": [

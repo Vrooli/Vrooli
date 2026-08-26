@@ -6,8 +6,6 @@
  * @tags ["media","files","status","responsive","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
-import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
-
 /** @vrooliComponentSource react-component-library:FilePreview */
 import { useId, type CSSProperties } from "react";
 
@@ -70,7 +68,7 @@ function extension(name: string, mimeType?: string) {
   return mimeType?.split("/").pop()?.slice(0, 4).toUpperCase() || "FILE";
 }
 
-export const FilePreview = withClassName(function FilePreview({
+export function FilePreview({
   name,
   mimeType,
   sizeBytes,
@@ -156,4 +154,4 @@ export const FilePreview = withClassName(function FilePreview({
       </div>
     </article>
   );
-});
+}

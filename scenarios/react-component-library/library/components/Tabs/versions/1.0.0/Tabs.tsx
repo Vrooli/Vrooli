@@ -7,7 +7,7 @@ import {
   type KeyboardEvent,
   type ReactNode,
 } from "react";
-import { motionTransition } from "@vrooli/react-component-library/VisualRecipes/1.0.0";
+import { motionTransition } from "../../../../foundations/VisualRecipes/versions/1.0.0/VisualRecipes";
 
 export type TabsMode = "controlled" | "uncontrolled";
 

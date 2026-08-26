@@ -17,10 +17,9 @@ import {
   Children,
   Fragment,
   cloneElement,
-  forwardRef,
+  createElement,
   isValidElement,
   type ComponentType,
-  type Ref,
   type ReactNode,
 } from "react";
 import { twMerge } from "tailwind-merge";
@@ -47,38 +46,12 @@ export function addClassName(node: ReactNode, className?: string): ReactNode {
   return cloneElement(node, { className: cn(existing, className) });
 }
 
-/** Attach a consumer ref to the first host element in a composed tree. */
-function addRef(node: ReactNode, ref: Ref<HTMLElement>): ReactNode {
-  if (!ref || !isValidElement(node)) return node;
-  if (node.type === Fragment) {
-    let attached = false;
-    return cloneElement(
-      node,
-      undefined,
-      Children.map(node.props.children, (child) => {
-        if (attached) return child;
-        const next = addRef(child, ref);
-        attached = next !== child;
-        return next;
-      }),
-    );
-  }
-  return cloneElement(node, { ref } as never);
-}
-
 /** Wrap a component with the stable className seam used by linked adopters. */
-export function withClassName<C extends (...args: never[]) => ReactNode>(Component: C): C;
-export function withClassName<P extends object>(
-  Component: ComponentType<P>,
-): ComponentType<P & { className?: string }>;
-export function withClassName<P extends object>(Component: ComponentType<P>) {
-  return forwardRef<HTMLElement, P & { className?: string }>(function ClassNameBoundary(
-    props,
-    ref,
-  ) {
+export function withClassName<C extends ComponentType<any>>(Component: C): C {
+  return function ClassNameBoundary(props: any) {
     const { className, ...rest } = props;
-    return addRef(addClassName(<Component {...(rest as P)} />, className), ref);
-  });
+    return addClassName(createElement(Component, rest), className);
+  } as C;
 }
 
 export type { ClassValue };

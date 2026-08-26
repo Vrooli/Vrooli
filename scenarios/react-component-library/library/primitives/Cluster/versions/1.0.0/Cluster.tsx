@@ -13,7 +13,7 @@ export const Cluster = forwardRef<
   HTMLDivElement,
   HTMLAttributes<HTMLDivElement> & { gap?: string }
 >(({ gap = "sm", className, ...props }, ref) => (
-  <div data-testid="primitives.cluster"
+  <div
     ref={ref}
     className={className}
     style={layoutStyle(gap, {

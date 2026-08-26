@@ -10,8 +10,8 @@
  * @vrooliComponentSource react-component-library:AppNavigation
  * @deps {"react":"^18","lucide-react":"^0.424.0"}
  */
-import { useStrings } from "@vrooli/react-component-library/useLocale/1.0.1";
-import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
+import { translate } from "../../../../hooks/useLocale/versions/1.0.1/useLocale";
+import { withClassName } from "../../../../foundations/ClassMerge/versions/1.0.1/ClassMerge";
 
 import type { ReactNode } from "react";
 import { Home, LayoutGrid, Settings } from "lucide-react";
@@ -46,7 +46,7 @@ const appNavigationStyles = `
 [data-rcl-app-navigation][data-viewport-mode="mobile"] [data-rcl-app-navigation-brand] { display: none; }
 [data-rcl-app-navigation][data-viewport-mode="mobile"] [data-rcl-app-navigation-list] { display: flex; justify-content: space-around; gap: var(--space-3xs); }
 [data-rcl-app-navigation][data-viewport-mode="mobile"] [data-rcl-app-navigation-list] a { min-inline-size: 0; flex: 1; justify-content: center; padding-inline: var(--space-2xs); }
-[data-rcl-app-navigation][data-viewport-mode="mobile"] [data-rcl-app-navigation-list] span { display: inline; }
+[data-rcl-app-navigation][data-viewport-mode="mobile"] [data-rcl-app-navigation-list] span { display: none; }
 [data-rcl-app-navigation][data-viewport-mode="tablet"] { border-radius: 0 var(--radius-panel) var(--radius-panel) 0; }
 @media (prefers-reduced-motion: reduce) { [data-rcl-app-navigation] * { transition: none; } }
 @media (forced-colors: active) { [data-rcl-app-navigation] [data-rcl-app-navigation-list] a[aria-current="page"] { background: Highlight; color: HighlightText; } }
@@ -101,7 +101,6 @@ export const AppNavigation = withClassName(function AppNavigation({
   children?: ReactNode;
   brand?: string;
 }) {
-  const strings = useStrings();
   return (
     <>
       <style
@@ -125,7 +124,7 @@ export const AppNavigation = withClassName(function AppNavigation({
           </div>
         ) : null}
         <nav
-          aria-label={strings("navigation.app-navigation.application-navigation", "Application navigation")}
+          aria-label={translate("navigation.app-navigation.aria-label.1", "Application navigation")}
         >
           {children ?? (
             <ul data-rcl-app-navigation-list>

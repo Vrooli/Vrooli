@@ -3,7 +3,7 @@
   "assetKind": "component",
   "catalogId": "data-display.table",
   "dependencies": [],
-  "description": "A semantic tabular surface with honest headings and responsive overflow boundaries.",
+  "description": "",
   "designStyles": [
     {
       "affinity": "native",
@@ -11,10 +11,14 @@
     }
   ],
   "displayName": "Table",
-  "latest": "1.0.0",
+  "latest": "1.0.1",
   "libraryId": "react-component-library:Table",
   "tags": [
     "data-display",
     "token-bound"
+  ],
+  "draft": "",
+  "deprecatedVersions": [
+    "1.0.0"
   ]
 }

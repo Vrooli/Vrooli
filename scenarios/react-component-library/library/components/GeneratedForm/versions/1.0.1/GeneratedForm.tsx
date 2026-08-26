@@ -6,23 +6,21 @@
  * @tags ["form","generated","schema","validation","responsive","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
-import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
-
 /** @vrooliComponentSource forms.generated-form */
 import { useId, useState, type CSSProperties, type ReactElement, type ReactNode } from "react";
-import { ArrayField } from "@vrooli/react-component-library/ArrayField/1.0.0";
-import { ComputedField } from "@vrooli/react-component-library/ComputedField/1.0.0";
-import { ConditionalField } from "@vrooli/react-component-library/ConditionalField/1.0.0";
-import { Form } from "@vrooli/react-component-library/Form/1.0.0";
-import { FormActions } from "@vrooli/react-component-library/FormActions/1.0.0";
-import { FormField } from "@vrooli/react-component-library/FormField/1.0.0";
-import { FormSection } from "@vrooli/react-component-library/FormSection/1.0.0";
-import { ObjectField } from "@vrooli/react-component-library/ObjectField/1.0.0";
-import { ValidationSummary } from "@vrooli/react-component-library/ValidationSummary/1.0.0";
+import { ArrayField } from "../../../../components/ArrayField/versions/1.0.0/ArrayField";
+import { ComputedField } from "../../../../components/ComputedField/versions/1.0.0/ComputedField";
+import { ConditionalField } from "../../../../components/ConditionalField/versions/1.0.0/ConditionalField";
+import { Form } from "../../../../components/Form/versions/1.0.0/Form";
+import { FormActions } from "../../../../components/FormActions/versions/1.0.0/FormActions";
+import { FormField } from "../../../../components/FormField/versions/1.0.0/FormField";
+import { FormSection } from "../../../../components/FormSection/versions/1.0.0/FormSection";
+import { ObjectField } from "../../../../components/ObjectField/versions/1.0.0/ObjectField";
+import { ValidationSummary } from "../../../../components/ValidationSummary/versions/1.0.0/ValidationSummary";
 import {
   createFormStore,
   type FormStore,
-} from "@vrooli/react-component-library/FormStore/1.0.0";
+} from "../../../../services/FormStore/versions/1.0.0/FormStore";
 
 export type GeneratedFieldType =
   | "text"
@@ -259,7 +257,7 @@ function RenderField<TValues extends Record<string, unknown>>({
   );
 }
 
-export const GeneratedForm = withClassName(function GeneratedForm<TValues extends Record<string, unknown> = Record<string, unknown>>({
+export function GeneratedForm<TValues extends Record<string, unknown> = Record<string, unknown>>({
   store,
   mode,
   initialValues,
@@ -341,4 +339,4 @@ export const GeneratedForm = withClassName(function GeneratedForm<TValues extend
       {sectionsById.size === 0 && <span hidden data-rcl-generated-form-no-sections />}
     </div>
   );
-});
+}

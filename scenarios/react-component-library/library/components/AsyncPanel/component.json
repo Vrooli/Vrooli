@@ -1,8 +1,10 @@
 {
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "category": "feedback",
-  "deprecatedVersions": [],
-  "description": "Composable presentation for an ExperienceSurface lifecycle without prescribing page layout.",
+  "deprecatedVersions": [
+    "1.0.0"
+  ],
+  "description": "",
   "designStyles": [
     {
       "affinity": "native",
@@ -11,7 +13,7 @@
   ],
   "displayName": "Async Panel",
   "draft": "",
-  "latest": "1.0.0",
+  "latest": "1.0.1",
   "libraryId": "react-component-library:AsyncPanel",
   "slot": "ui-pattern",
   "tags": [

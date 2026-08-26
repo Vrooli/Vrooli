@@ -61,7 +61,7 @@ function Showcase({
   );
 }
 
-export function ButtonStory({ args }: StoryHarnessProps) {
+export const ButtonStory = ({ args }: StoryHarnessProps) => {
   const buttonArgs = args as unknown as ButtonProps;
   const label =
     typeof buttonArgs.children === "string" ? buttonArgs.children : "Action";

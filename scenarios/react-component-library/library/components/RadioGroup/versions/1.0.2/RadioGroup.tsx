@@ -7,10 +7,10 @@
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
 /** @vrooliComponentSource controls.radio-group */
-import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
+import { withClassName } from "../../../../foundations/ClassMerge/versions/1.0.1/ClassMerge";
 
 import { useId, useState, type ReactNode } from "react";
-import { SelectionControl } from "@vrooli/react-component-library/SelectionControl/1.0.0";
+import { SelectionControl } from "../../../../primitives/SelectionControl/versions/1.0.0/SelectionControl";
 
 export interface RadioOption {
   value: string;
@@ -75,7 +75,7 @@ export const RadioGroup = withClassName(function RadioGroup({
 
   return (
     <>
-      <RadioGroupStyles data-testid="controls.radio-group" />
+      <RadioGroupStyles />
       <div
         role="radiogroup"
         aria-labelledby={labelId}

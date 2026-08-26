@@ -1,0 +1,1946 @@
+<title>RCL Asset Loop</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Archivo:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap">
+
+<style>
+:root {
+  --paper:      #F4F6F8;
+  --surface:    #FFFFFF;
+  --surface-2:  #EDF1F4;
+  --ink:        #141A21;
+  --ink-soft:   #57626F;
+  --ink-faint:  #8A94A1;
+  --rule:       #DAE0E7;
+  --rule-soft:  #E7ECF1;
+  --accent:     #1C6C79;
+  --accent-ink: #12525C;
+  --accent-wash:#E0EEF0;
+  --ok:         #3A7A4E;
+  --ok-wash:    #E3F0E6;
+  --warn:       #96620E;
+  --warn-wash:  #F6EBD8;
+  --err:        #A63029;
+  --err-wash:   #F7E5E3;
+  --shadow:     0 1px 2px rgba(20,26,33,.05), 0 8px 24px -16px rgba(20,26,33,.28);
+
+  --font-display: "Bricolage Grotesque", "Trebuchet MS", sans-serif;
+  --font-body: "Archivo", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", "SFMono-Regular", Consolas, monospace;
+
+  --col: 74ch;
+  --wide: 1120px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper:      #0E1218;
+    --surface:    #161C25;
+    --surface-2:  #1C242E;
+    --ink:        #E3E9F1;
+    --ink-soft:   #98A5B4;
+    --ink-faint:  #6C7887;
+    --rule:       #26303B;
+    --rule-soft:  #1F2833;
+    --accent:     #62B5C4;
+    --accent-ink: #8ACEDA;
+    --accent-wash:#15323A;
+    --ok:         #66AC7C;
+    --ok-wash:    #17301F;
+    --warn:       #D2A050;
+    --warn-wash:  #33280F;
+    --err:        #DC6F66;
+    --err-wash:   #38201D;
+    --shadow:     0 1px 2px rgba(0,0,0,.4), 0 10px 30px -18px rgba(0,0,0,.8);
+  }
+}
+
+:root[data-theme="dark"] {
+  --paper:      #0E1218;
+  --surface:    #161C25;
+  --surface-2:  #1C242E;
+  --ink:        #E3E9F1;
+  --ink-soft:   #98A5B4;
+  --ink-faint:  #6C7887;
+  --rule:       #26303B;
+  --rule-soft:  #1F2833;
+  --accent:     #62B5C4;
+  --accent-ink: #8ACEDA;
+  --accent-wash:#15323A;
+  --ok:         #66AC7C;
+  --ok-wash:    #17301F;
+  --warn:       #D2A050;
+  --warn-wash:  #33280F;
+  --err:        #DC6F66;
+  --err-wash:   #38201D;
+  --shadow:     0 1px 2px rgba(0,0,0,.4), 0 10px 30px -18px rgba(0,0,0,.8);
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 16px;
+  line-height: 1.62;
+  -webkit-font-smoothing: antialiased;
+}
+
+.wrap {
+  max-width: var(--wide);
+  margin: 0 auto;
+  padding: 0 24px 96px;
+}
+
+.col { max-width: var(--col); }
+
+/* ---------- masthead ---------- */
+
+.masthead {
+  border-bottom: 1px solid var(--rule);
+  padding: 56px 0 32px;
+  margin-bottom: 44px;
+  display: grid;
+  gap: 18px;
+}
+.eyebrow {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: var(--accent);
+  font-weight: 600;
+}
+h1 {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: clamp(2.4rem, 5.5vw, 3.9rem);
+  line-height: .98;
+  letter-spacing: -.028em;
+  margin: 0;
+  text-wrap: balance;
+  max-width: 18ch;
+}
+.standfirst {
+  font-size: 1.12rem;
+  color: var(--ink-soft);
+  max-width: 62ch;
+  margin: 0;
+}
+.stamp {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--ink-faint);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 20px;
+}
+
+/* ---------- headings ---------- */
+
+h2 {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: clamp(1.5rem, 3vw, 2.05rem);
+  letter-spacing: -.02em;
+  line-height: 1.1;
+  margin: 0 0 6px;
+  text-wrap: balance;
+}
+h3 {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 1.16rem;
+  letter-spacing: -.01em;
+  margin: 0 0 8px;
+  text-wrap: balance;
+}
+h4 {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  font-size: 11.5px;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  margin: 0 0 10px;
+}
+
+section { margin-top: 68px; }
+.sec-head { display: grid; gap: 4px; margin-bottom: 26px; }
+.sec-head .kicker {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: var(--accent);
+  font-weight: 600;
+}
+.sec-head p { color: var(--ink-soft); margin: 6px 0 0; max-width: 68ch; }
+
+p { margin: 0 0 1.05em; }
+p:last-child { margin-bottom: 0; }
+.col p, .col ul, .col ol { max-width: var(--col); }
+
+code {
+  font-family: var(--font-mono);
+  font-size: .86em;
+  background: var(--surface-2);
+  border: 1px solid var(--rule-soft);
+  border-radius: 4px;
+  padding: .08em .34em;
+  color: var(--accent-ink);
+  word-break: break-word;
+}
+strong { font-weight: 600; color: var(--ink); }
+
+ul, ol { padding-left: 1.15em; margin: 0 0 1.05em; }
+li { margin-bottom: .5em; }
+li::marker { color: var(--ink-faint); }
+
+/* ---------- verdict table ---------- */
+
+.verdicts { display: grid; gap: 10px; }
+.verdict {
+  display: grid;
+  grid-template-columns: 108px minmax(0,1fr);
+  gap: 4px 20px;
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-left: 3px solid var(--vc, var(--rule));
+  border-radius: 3px;
+  padding: 14px 18px;
+  box-shadow: var(--shadow);
+}
+.verdict[data-v="valid"]  { --vc: var(--err); }
+.verdict[data-v="fixed"]  { --vc: var(--ok); }
+.verdict[data-v="partial"]{ --vc: var(--warn); }
+.verdict .tag {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  font-weight: 600;
+  color: var(--vc);
+  padding-top: 4px;
+  align-self: start;
+}
+.verdict .claim { font-weight: 600; margin: 0; }
+.verdict .note { grid-column: 2; color: var(--ink-soft); font-size: .935rem; margin: 0; }
+@media (max-width: 620px) {
+  .verdict { grid-template-columns: 1fr; }
+  .verdict .note { grid-column: 1; }
+}
+
+/* ---------- pipeline diagram ---------- */
+
+.band {
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  padding: 28px;
+  box-shadow: var(--shadow);
+  overflow-x: auto;
+}
+.band + .band { margin-top: 16px; }
+
+.flow {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(155px, 1fr);
+  align-items: stretch;
+  gap: 0;
+  min-width: 900px;
+}
+.node {
+  position: relative;
+  padding: 0 20px 0 0;
+  display: grid;
+  gap: 6px;
+  align-content: start;
+}
+.node:not(:last-child)::after {
+  content: "";
+  position: absolute;
+  top: 13px;
+  right: 6px;
+  width: 9px; height: 9px;
+  border-top: 1.5px solid var(--rule);
+  border-right: 1.5px solid var(--rule);
+  transform: rotate(45deg);
+}
+.node .n-step {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: .1em;
+  color: var(--ink-faint);
+  border-top: 2px solid var(--nc, var(--accent));
+  padding-top: 8px;
+}
+.node .n-title {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: .98rem;
+  line-height: 1.2;
+}
+.node .n-body { font-size: .84rem; color: var(--ink-soft); line-height: 1.45; }
+.node .n-files {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--ink-faint);
+  display: grid;
+  gap: 2px;
+  line-height: 1.5;
+}
+.node[data-tone="author"] { --nc: var(--accent); }
+.node[data-tone="build"]  { --nc: var(--ink-faint); }
+.node[data-tone="gate"]   { --nc: var(--warn); }
+.node[data-tone="break"]  { --nc: var(--err); }
+
+.flow-legend {
+  display: flex; flex-wrap: wrap; gap: 6px 20px;
+  margin-top: 22px; padding-top: 16px;
+  border-top: 1px solid var(--rule-soft);
+  font-family: var(--font-mono); font-size: 11px; color: var(--ink-faint);
+}
+.flow-legend span { display: inline-flex; align-items: center; gap: 7px; }
+.flow-legend i { width: 16px; height: 2px; background: currentColor; display: block; }
+
+/* ---------- adoption lanes ---------- */
+
+.lanes { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 14px; }
+@media (max-width: 820px) { .lanes { grid-template-columns: 1fr; } }
+.lane {
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-top: 3px solid var(--lc, var(--rule));
+  border-radius: 3px;
+  padding: 20px;
+  box-shadow: var(--shadow);
+  display: grid;
+  gap: 12px;
+  align-content: start;
+}
+.lane[data-m="linked"] { --lc: var(--ok); }
+.lane[data-m="copied"] { --lc: var(--warn); }
+.lane[data-m="ejected"]{ --lc: var(--ink-faint); }
+.lane .l-name {
+  font-family: var(--font-mono);
+  font-size: 11px; letter-spacing: .12em; text-transform: uppercase;
+  font-weight: 600; color: var(--lc);
+}
+.lane .l-count {
+  font-family: var(--font-display);
+  font-weight: 800; font-size: 2.15rem; line-height: 1;
+  letter-spacing: -.03em;
+  font-variant-numeric: tabular-nums;
+}
+.lane .l-unit { font-size: .8rem; color: var(--ink-faint); font-family: var(--font-mono); }
+.lane p { font-size: .9rem; color: var(--ink-soft); margin: 0; }
+.lane .l-spec {
+  font-family: var(--font-mono); font-size: 10.5px;
+  background: var(--surface-2); border: 1px solid var(--rule-soft);
+  border-radius: 3px; padding: 8px 10px; color: var(--ink-soft);
+  overflow-x: auto; white-space: nowrap;
+}
+
+/* ---------- findings bars ---------- */
+
+.bars { display: grid; gap: 11px; }
+.bar-row {
+  display: grid;
+  grid-template-columns: minmax(0, 250px) 1fr 64px;
+  gap: 16px; align-items: center;
+}
+@media (max-width: 700px) { .bar-row { grid-template-columns: minmax(0,1fr) 56px; } .bar-row .track { grid-column: 1 / -1; order: 3; } }
+.bar-row .lbl { font-family: var(--font-mono); font-size: 12px; color: var(--ink); overflow-wrap: anywhere; }
+.bar-row .lbl em { font-style: normal; color: var(--ink-faint); }
+.track { background: var(--surface-2); border-radius: 2px; height: 22px; position: relative; overflow: hidden; }
+.track > i { position: absolute; inset: 0 auto 0 0; display: block; border-radius: 2px; }
+.bar-row[data-sev="error"] .track > i { background: var(--err); }
+.bar-row[data-sev="warning"] .track > i { background: var(--warn); }
+.bar-row .num {
+  font-family: var(--font-mono); font-size: 13px; font-weight: 600;
+  text-align: right; font-variant-numeric: tabular-nums;
+}
+.bar-row[data-sev="error"] .num { color: var(--err); }
+.bar-row[data-sev="warning"] .num { color: var(--warn); }
+
+/* ---------- metric strip ---------- */
+
+.metrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 1px;
+  background: var(--rule);
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  overflow: hidden;
+}
+.metric { background: var(--surface); padding: 18px 20px; display: grid; gap: 3px; }
+.metric .m-val {
+  font-family: var(--font-display); font-weight: 800;
+  font-size: 1.85rem; line-height: 1; letter-spacing: -.03em;
+  font-variant-numeric: tabular-nums;
+}
+.metric .m-lab { font-size: .82rem; color: var(--ink-soft); line-height: 1.35; }
+.metric[data-tone="bad"]  .m-val { color: var(--err); }
+.metric[data-tone="good"] .m-val { color: var(--ok); }
+.metric[data-tone="warn"] .m-val { color: var(--warn); }
+
+/* ---------- annotated code ---------- */
+
+.snip {
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  overflow: hidden;
+  box-shadow: var(--shadow);
+}
+.snip-head {
+  font-family: var(--font-mono); font-size: 11px;
+  padding: 9px 16px; border-bottom: 1px solid var(--rule);
+  background: var(--surface-2); color: var(--ink-soft);
+  display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap;
+}
+.snip pre {
+  margin: 0; padding: 18px 16px; overflow-x: auto;
+  font-family: var(--font-mono); font-size: 12.5px; line-height: 1.65;
+  color: var(--ink);
+}
+.snip pre .k { color: var(--accent-ink); }
+.snip pre .c { color: var(--ink-faint); }
+.snip pre .bad { color: var(--err); font-weight: 600; }
+.snip pre .good { color: var(--ok); font-weight: 600; }
+
+/* ---------- role cards ---------- */
+
+.roles { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 14px; }
+@media (max-width: 820px) { .roles { grid-template-columns: 1fr; } }
+.role {
+  border: 1px solid var(--rule); border-radius: 3px;
+  background: var(--surface); padding: 18px; display: grid; gap: 8px;
+  align-content: start; box-shadow: var(--shadow);
+}
+.role .r-key {
+  font-family: var(--font-mono); font-size: 11.5px; font-weight: 600;
+  color: var(--accent); letter-spacing: .04em;
+}
+.role .r-q { font-weight: 600; font-size: .96rem; }
+.role p { font-size: .88rem; color: var(--ink-soft); margin: 0; }
+.role .r-ex {
+  font-family: var(--font-mono); font-size: 10.5px; color: var(--ink-faint);
+  border-top: 1px solid var(--rule-soft); padding-top: 8px; line-height: 1.5;
+}
+
+/* ---------- callout ---------- */
+
+.callout {
+  border: 1px solid var(--rule);
+  border-left: 3px solid var(--co, var(--accent));
+  background: var(--surface);
+  border-radius: 3px;
+  padding: 18px 22px;
+  box-shadow: var(--shadow);
+}
+.callout[data-t="break"] { --co: var(--err); background: color-mix(in srgb, var(--err-wash) 55%, var(--surface)); }
+.callout[data-t="win"]   { --co: var(--ok);  background: color-mix(in srgb, var(--ok-wash) 55%, var(--surface)); }
+.callout h3 { margin-bottom: 6px; }
+.callout p:last-child { margin-bottom: 0; }
+
+/* ---------- residue table ---------- */
+
+.tbl-wrap { overflow-x: auto; border: 1px solid var(--rule); border-radius: 4px; background: var(--surface); box-shadow: var(--shadow); }
+table { border-collapse: collapse; width: 100%; min-width: 640px; font-size: .9rem; }
+th, td { text-align: left; padding: 10px 16px; border-bottom: 1px solid var(--rule-soft); vertical-align: top; }
+th {
+  font-family: var(--font-mono); font-size: 10.5px; letter-spacing: .1em;
+  text-transform: uppercase; color: var(--ink-faint); font-weight: 600;
+  background: var(--surface-2); border-bottom: 1px solid var(--rule);
+  position: sticky; top: 0;
+}
+tbody tr:last-child td { border-bottom: none; }
+td.mono { font-family: var(--font-mono); font-size: 11.5px; white-space: nowrap; }
+td .pill {
+  font-family: var(--font-mono); font-size: 10px; letter-spacing: .06em;
+  text-transform: uppercase; padding: 2px 7px; border-radius: 2px; font-weight: 600;
+  display: inline-block;
+}
+.pill[data-p="dead"] { background: var(--err-wash); color: var(--err); }
+.pill[data-p="live"] { background: var(--ok-wash);  color: var(--ok); }
+
+/* ---------- steps ---------- */
+
+.steps { display: grid; gap: 14px; counter-reset: s; }
+.step {
+  display: grid; grid-template-columns: 34px minmax(0,1fr); gap: 18px;
+  background: var(--surface); border: 1px solid var(--rule);
+  border-radius: 3px; padding: 18px 20px; box-shadow: var(--shadow);
+}
+.step::before {
+  counter-increment: s; content: counter(s);
+  font-family: var(--font-mono); font-size: 12px; font-weight: 600;
+  color: var(--accent); border: 1px solid var(--accent);
+  border-radius: 50%; width: 26px; height: 26px;
+  display: grid; place-items: center; margin-top: 1px;
+}
+.step h3 { margin-bottom: 4px; }
+.step p { font-size: .93rem; color: var(--ink-soft); margin: 0; }
+.step p + p { margin-top: .55em; }
+
+hr.rule { border: none; border-top: 1px solid var(--rule); margin: 0; }
+
+footer {
+  margin-top: 80px; padding-top: 24px; border-top: 1px solid var(--rule);
+  font-family: var(--font-mono); font-size: 11.5px; color: var(--ink-faint);
+  display: grid; gap: 4px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { animation: none !important; transition: none !important; }
+}
+</style>
+
+<div class="wrap">
+
+<header class="masthead">
+  <div class="eyebrow">react-component-library · state of the asset system</div>
+  <h1>The Asset Loop</h1>
+  <p class="standfirst">How a component gets authored, proved, and adopted — what the overnight run actually fixed, the one invariant it broke doing it, and why the Preview and Files tabs are failing.</p>
+  <div class="stamp">
+    <span>gate evidence 2026-08-25 23:04</span>
+    <span>tabs probed live on :17193</span>
+    <span>234 assets / 328 versions</span>
+    <span>36 gates</span>
+    <span>221 previews swept</span>
+  </div>
+</header>
+
+<section style="margin-top:0">
+  <div class="sec-head">
+    <div class="kicker">Verdict</div>
+    <h2>Your concerns, checked against the tree</h2>
+    <p>Most of what you raised across the three updates has real machinery behind it now. Two things are still open, and one thing went wrong overnight that nobody flagged.</p>
+  </div>
+
+  <div class="verdicts">
+    <div class="verdict" data-v="fixed">
+      <div class="tag">Fixed</div>
+      <p class="claim"><code>sharedHarness</code> was schema noise</p>
+      <p class="note">Gone. Zero occurrences. <code>composition.harness</code> is singular and declarable at contract or story level. All 302 contracts are on schemaVersion 5.</p>
+    </div>
+    <div class="verdict" data-v="partial">
+      <div class="tag">Partial</div>
+      <p class="claim">Raw HTML nodes in <code>args</code> are ugly</p>
+      <p class="note">Not removed — <em>blocklisted</em>. <code>$text</code> still exists; the schema now rejects the 30 HTML tag names inside it. 89 <code>$text</code> values remain across 16 contracts. The escape hatch survived; only its worst use died.</p>
+    </div>
+    <div class="verdict" data-v="fixed">
+      <div class="tag">Fixed</div>
+      <p class="claim">Screenshot tab shows one story only</p>
+      <p class="note">Story sheets ship. BAS captures 4 stories per composite image, paginated across the whole contract, and the Tests tab prefers the sheet over the single shot when one exists.</p>
+    </div>
+    <div class="verdict" data-v="fixed">
+      <div class="tag">Fixed</div>
+      <p class="claim">i18n and selectors aren't validated</p>
+      <p class="note">The catalog retains <code>i18n</code> and <code>selector-coverage</code>; ui-health now owns adopter-side provider, locale, selector-composition, and test-ownership checks. Selector names derive from the catalog id (<code>feedback.alert</code>), exactly the "no separate selector string" idea.</p>
+    </div>
+    <div class="verdict" data-v="fixed">
+      <div class="tag">Fixed</div>
+      <p class="claim">Adoption is 95% forks</p>
+      <p class="note">Inverted. 299 files import the package; 83 forked files remain, and 76 of those are three shadcn-style primitives (<code>input</code>, <code>card</code>, <code>dialog</code>). Templates are at zero forks.</p>
+    </div>
+    <div class="verdict" data-v="fixed">
+      <div class="tag">Fixed</div>
+      <p class="claim">File viewer tooltips are bare</p>
+      <p class="note">The editor controller now registers both a hover provider and a definition provider, so cross-asset imports resolve and open.</p>
+    </div>
+    <div class="verdict" data-v="valid">
+      <div class="tag">Still open</div>
+      <p class="claim">Validation doesn't push configs toward the ideal</p>
+      <p class="note">The sharpest of your observations, and still true. The gate that would force a variation matrix reads the contract's own self-declaration instead of the component's types — so 71% of contracts owe it nothing. Detail below.</p>
+    </div>
+    <div class="verdict" data-v="valid">
+      <div class="tag">Still open</div>
+      <p class="claim">Codemod residue and duplicate test files</p>
+      <p class="note">Worse than you saw. 12 unreferenced one-shot scripts (7 <code>.mjs</code>, 5 <code>.py</code>) plus a committed <code>__pycache__</code>, and 60 near-duplicate test files hoarded into the library — 13 of their 15 destinations are stale versions nobody imports.</p>
+    </div>
+    <div class="verdict" data-v="valid">
+      <div class="tag">New break</div>
+      <p class="claim">Those codemods rewrote released versions in place</p>
+      <p class="note">Not something you raised — something the run caused. 207 immutability errors and 270 stale-evidence errors. This is the library's core invariant, and it is currently violated across roughly 90% of version directories.</p>
+    </div>
+    <div class="verdict" data-v="valid">
+      <div class="tag">Confirmed</div>
+      <p class="claim">Preview tab errors on every story</p>
+      <p class="note">Two separate faults, both reproduced live against the running API on :17193. A missing esbuild CSS loader breaks 15 assets; an untyped error turns any unknown story id into a 500. Sweep and root causes below.</p>
+    </div>
+    <div class="verdict" data-v="valid">
+      <div class="tag">Confirmed</div>
+      <p class="claim">"Unresolved library import" is a false alarm</p>
+      <p class="note">Verified. 15 of 111 distinct library specifiers report unresolved while existing on disk — every one of them under <code>foundations/</code> or <code>services/</code>. The index holds 205 rows against 221 manifests.</p>
+    </div>
+    <div class="verdict" data-v="valid">
+      <div class="tag">Confirmed</div>
+      <p class="claim">No squiggles or gutter icons anywhere</p>
+      <p class="note">Not a rendering glitch — there is no diagnostics surface at all. Zero occurrences of <code>setModelMarkers</code>, <code>MarkerSeverity</code>, <code>deltaDecorations</code>, or <code>glyphMargin</code> in the UI. Hover is the only channel a problem can reach you through.</p>
+    </div>
+    <div class="verdict" data-v="partial">
+      <div class="tag">Mostly built</div>
+      <p class="claim">Rich hover and click-to-open for library imports</p>
+      <p class="note">Both already exist and work — for the 96 specifiers that resolve. The hover renders asset id, version, export kind, and description; go-to-definition opens the source through an <code>rcl://library/…</code> URI. Your ask is largely shipped and looks broken because of the resolver gap above.</p>
+    </div>
+    <div class="verdict" data-v="valid">
+      <div class="tag">Confirmed</div>
+      <p class="claim">Files tab never shows which version you're viewing</p>
+      <p class="note">Correct. <code>ComponentEditorSource</code> receives <code>activeVersionFiles</code> and renders only <code>file.path</code> — it takes no version prop and displays none.</p>
+    </div>
+  </div>
+</section>
+
+<hr class="rule" style="margin-top:64px">
+
+<section>
+  <div class="sec-head">
+    <div class="kicker">Pipeline 1 of 2</div>
+    <h2>How an asset gets proved</h2>
+    <p>Everything hangs off one immutable version directory. The contract declares what to render; the specimen renders it; the browser proves it; the gates read the proof. Nothing in this chain re-derives an earlier step — which is why a mutation at the left end invalidates everything to its right.</p>
+  </div>
+
+  <div class="band">
+    <div class="flow">
+      <div class="node" data-tone="author">
+        <div class="n-step">01 · DECLARE</div>
+        <div class="n-title">Asset manifest</div>
+        <div class="n-body">Catalog id, category, slot, latest version, dependency edges.</div>
+        <div class="n-files"><span>component.json</span></div>
+      </div>
+      <div class="node" data-tone="author">
+        <div class="n-step">02 · IMPLEMENT</div>
+        <div class="n-title">Version directory</div>
+        <div class="n-body">Frozen once released. Adopters pin it by content hash.</div>
+        <div class="n-files">
+          <span>versions/1.3.6/</span>
+          <span>· BottomNav.tsx</span>
+          <span>· styles.ts</span>
+          <span>· *.strings.ts</span>
+        </div>
+      </div>
+      <div class="node" data-tone="author">
+        <div class="n-step">03 · SPECIFY</div>
+        <div class="n-title">Story contract</div>
+        <div class="n-body">Declarative. Args, fixtures, composition, and one entry per story with a role.</div>
+        <div class="n-files"><span>story.json</span></div>
+      </div>
+      <div class="node" data-tone="author">
+        <div class="n-step">04 · COMPOSE</div>
+        <div class="n-title">Specimen module</div>
+        <div class="n-body">Real React. The contract points at named exports here rather than describing a DOM tree in JSON.</div>
+        <div class="n-files"><span>story.tsx</span></div>
+      </div>
+      <div class="node" data-tone="build">
+        <div class="n-step">05 · SERVE</div>
+        <div class="n-title">Preview harness</div>
+        <div class="n-body">Vite kit renders one story per route, or up to four tiled on a sheet route.</div>
+        <div class="n-files"><span>?stories=a,b,c,d</span></div>
+      </div>
+      <div class="node" data-tone="build">
+        <div class="n-step">06 · CAPTURE</div>
+        <div class="n-title">BAS execution</div>
+        <div class="n-body">Drives interactions, asserts expectations, returns screenshots plus an accessibility bundle.</div>
+        <div class="n-files"><span>bas-screenshot</span><span>bas-story-sheet</span></div>
+      </div>
+      <div class="node" data-tone="build">
+        <div class="n-step">07 · RECORD</div>
+        <div class="n-title">Evidence rows</div>
+        <div class="n-body">One row per asset × version × gate × target, hash-stamped to the source it proved.</div>
+        <div class="n-files"><span>sqlite: evidence</span></div>
+      </div>
+      <div class="node" data-tone="gate">
+        <div class="n-step">08 · JUDGE</div>
+        <div class="n-title">36 gates</div>
+        <div class="n-body">Go, in the scenario API. Each has calibration fixtures so the gate itself is tested.</div>
+        <div class="n-files"><span>internal/gates/</span></div>
+      </div>
+    </div>
+    <div class="flow-legend">
+      <span style="color:var(--accent)"><i></i>authored by hand or agent</span>
+      <span style="color:var(--ink-faint)"><i></i>machine-produced</span>
+      <span style="color:var(--warn)"><i></i>judgment</span>
+    </div>
+  </div>
+
+  <div class="col" style="margin-top:26px">
+    <p>Two properties of this chain matter for everything below. First, <strong>evidence is bound to a content hash</strong>, not to a version number — so editing a released file doesn't just risk breaking adopters, it detaches every screenshot and every gate verdict already recorded against it. Second, <strong>the gates read declarations, not implementations</strong>. They ask the contract what it claims to cover and check the claim. They don't ask the TypeScript what it could cover.</p>
+  </div>
+</section>
+
+<section>
+  <div class="sec-head">
+    <div class="kicker">Pipeline 2 of 2</div>
+    <h2>How an asset gets adopted</h2>
+    <p>Three recorded modes. The migration you commissioned moved the bulk of the ecosystem from the middle lane to the left one.</p>
+  </div>
+
+  <div class="lanes">
+    <div class="lane" data-m="linked">
+      <div class="l-name">Linked · preferred</div>
+      <div>
+        <div class="l-count">299</div>
+        <div class="l-unit">files importing the package</div>
+      </div>
+      <p>Only the adopter's <code>package.json</code> changes. Library source is never copied. Version pins ride in the import specifier, so a bump is a one-line edit and the type surface comes from the package.</p>
+      <div class="l-spec">import { BottomNav } from "@vrooli/react-component-library/BottomNav/1.3.6"</div>
+      <p>539 exports published, 318 of them version-pinned.</p>
+    </div>
+    <div class="lane" data-m="copied">
+      <div class="l-name">Copied · legacy</div>
+      <div>
+        <div class="l-count">83</div>
+        <div class="l-unit">forked files remaining</div>
+      </div>
+      <p>Source lands in the scenario carrying a <code>@vrooliComponentSource</code> header. Every fork needs its own tests, its own i18n wiring, and its own upstream reconcile. This is the mode that produced the duplicate-test problem.</p>
+      <div class="l-spec">/** @vrooliComponentSource controls.button */</div>
+      <p>76 of the 83 are <code>input.tsx</code>, <code>card.tsx</code>, <code>dialog.tsx</code> — one cluster, not a long tail.</p>
+    </div>
+    <div class="lane" data-m="ejected">
+      <div class="l-name">Ejected · deliberate exit</div>
+      <div>
+        <div class="l-count">—</div>
+        <div class="l-unit">recorded as a divergence</div>
+      </div>
+      <p>A copy the adopter intends to diverge from permanently. Distinct from a fork because reconcile stops chasing it and staleness scans stop reporting it as drift.</p>
+      <div class="l-spec">mode: "ejected" → reviewed_divergence</div>
+      <p>The escape valve that keeps "copied" honest.</p>
+    </div>
+  </div>
+
+  <div class="col" style="margin-top:26px">
+    <p>Alongside the mode, adoption carries two seams you asked about specifically. <strong>Selectors</strong> are emitted from the catalog id — <code>data-testid="primitives.text"</code> comes from the asset's own identity, no parallel string table — and a bridge block syncs them into the adopter's <code>selectors.ts</code>. 209 emitters are live. <strong>Strings</strong> use a <code>defineStrings</code> / <code>useStrings</code> pair keyed the same way: <code>navigation.app-navigation.application-navigation</code>. 87 string modules exist, but only 47 of 304 component files call <code>useStrings</code> — the seam is built and roughly 15% adopted.</p>
+  </div>
+</section>
+
+<hr class="rule" style="margin-top:64px">
+
+<section>
+  <div class="sec-head">
+    <div class="kicker">The break</div>
+    <h2>The overnight run rewrote released versions in place</h2>
+    <p>This is the thing to fix before anything else, because it invalidates the evidence that every other judgment rests on.</p>
+  </div>
+
+  <div class="metrics">
+    <div class="metric" data-tone="bad">
+      <div class="m-val">207</div>
+      <div class="m-lab">released-version immutability errors</div>
+    </div>
+    <div class="metric" data-tone="bad">
+      <div class="m-val">270</div>
+      <div class="m-lab">evidence-freshness errors downstream of them</div>
+    </div>
+    <div class="metric" data-tone="bad">
+      <div class="m-val">293</div>
+      <div class="m-lab">released component sources modified in 48h</div>
+    </div>
+    <div class="metric" data-tone="warn">
+      <div class="m-val">53</div>
+      <div class="m-lab">gate runner errors — the run couldn't finish clean</div>
+    </div>
+  </div>
+
+  <div class="callout" data-t="break" style="margin-top:20px">
+    <h3>What the gate is saying</h3>
+    <p><code>released source changed after release: recorded 0b46a9056c46, current 555a86e51e67</code></p>
+    <p style="margin-top:.7em">Released versions are immutable because adopters pin them by hash. Editing one in place means two scenarios can hold the same version number and get different code. The remediation text in the gate says it plainly: revert and publish as a new version.</p>
+  </div>
+
+  <div class="col" style="margin-top:26px">
+    <p>The timestamps line up exactly with the codemods. <code>ControlBase/1.0.0/ControlBase.tsx</code> was written at 16:36:59 — ten seconds after <code>migrate-cross-version-imports.mjs</code> ran at 16:36:49. <code>Alert/1.0.0</code> and <code>AsyncPanel/1.0.0</code> fall inside the 21:50–22:49 i18n window. 293 of 328 version directories carry a fresh mtime.</p>
+    <p>There's a poignant detail in the residue: one of the scripts is named <code>promote_released_changes.py</code>, written at 04:55. The agent understood the invariant early enough to build a version-bumping tool, then ran seven more codemods that bypassed it.</p>
+  </div>
+
+  <div class="band" style="margin-top:24px">
+    <div class="flow" style="min-width:760px">
+      <div class="node" data-tone="author">
+        <div class="n-step">INTENDED</div>
+        <div class="n-title">Edit a draft</div>
+        <div class="n-body">Changes land in an unreleased version directory.</div>
+      </div>
+      <div class="node" data-tone="author">
+        <div class="n-step">THEN</div>
+        <div class="n-title">Publish a bump</div>
+        <div class="n-body">1.0.0 stays frozen; 1.0.1 carries the change and gets its own export.</div>
+      </div>
+      <div class="node" data-tone="build">
+        <div class="n-step">THEN</div>
+        <div class="n-title">Recapture</div>
+        <div class="n-body">Evidence rows attach to the new hash. Old rows stay valid for the old version.</div>
+      </div>
+      <div class="node" data-tone="break">
+        <div class="n-step">WHAT HAPPENED</div>
+        <div class="n-title">In-place rewrite</div>
+        <div class="n-body">1.0.0's bytes changed. Its recorded hash no longer matches. Every gate verdict against it is now unmeasured, and adopters pinning 1.0.0 get different code than the one that was proved.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="sec-head">
+    <div class="kicker">Findings</div>
+    <h2>What the last gate run actually reported</h2>
+    <p>1,453 findings across 12,717 inspected files — 479 errors, 974 warnings. Four codes account for 99%.</p>
+  </div>
+
+  <div class="band">
+    <div class="bars">
+      <div class="bar-row" data-sev="warning">
+        <div class="lbl">catalog.documentation <em>warn</em></div>
+        <div class="track"><i style="width:100%"></i></div>
+        <div class="num">536</div>
+      </div>
+      <div class="bar-row" data-sev="warning">
+        <div class="lbl">catalog.graph_reconciled <em>warn</em></div>
+        <div class="track"><i style="width:80.0%"></i></div>
+        <div class="num">429</div>
+      </div>
+      <div class="bar-row" data-sev="error">
+        <div class="lbl">catalog.evidence_freshness <em>error</em></div>
+        <div class="track"><i style="width:50.4%"></i></div>
+        <div class="num">270</div>
+      </div>
+      <div class="bar-row" data-sev="error">
+        <div class="lbl">catalog.released_version_immutable <em>error</em></div>
+        <div class="track"><i style="width:38.6%"></i></div>
+        <div class="num">207</div>
+      </div>
+      <div class="bar-row" data-sev="warning">
+        <div class="lbl">catalog.surface_* <em>warn</em></div>
+        <div class="track"><i style="width:1.1%"></i></div>
+        <div class="num">6</div>
+      </div>
+      <div class="bar-row" data-sev="warning">
+        <div class="lbl">conformance.* <em>warn</em></div>
+        <div class="track"><i style="width:0.6%"></i></div>
+        <div class="num">3</div>
+      </div>
+      <div class="bar-row" data-sev="error">
+        <div class="lbl">composition / performance <em>error</em></div>
+        <div class="track"><i style="width:0.4%"></i></div>
+        <div class="num">2</div>
+      </div>
+    </div>
+    <div class="flow-legend">
+      <span>Notably absent: zero <code style="background:none;border:none;padding:0;color:inherit">story_grammar</code>, zero <code style="background:none;border:none;padding:0;color:inherit">story_distinctness</code>, zero <code style="background:none;border:none;padding:0;color:inherit">story_axis_missing</code> findings.</span>
+    </div>
+  </div>
+
+  <div class="col" style="margin-top:22px">
+    <p>That absence is not a clean bill of health. It's the loophole.</p>
+  </div>
+</section>
+
+<hr class="rule" style="margin-top:64px">
+
+<section>
+  <div class="sec-head">
+    <div class="kicker">Root cause</div>
+    <h2>Why validation doesn't push toward the ideal</h2>
+    <p>The story grammar you wanted exists. The gate that enforces it can be satisfied by declaring nothing.</p>
+  </div>
+
+  <div class="col">
+    <p>Schema v5 introduced exactly the vocabulary you described in the second update — stories stopped being a flat list and became three kinds of question:</p>
+  </div>
+
+  <div class="roles" style="margin-top:20px">
+    <div class="role">
+      <div class="r-key">role: "anatomy"</div>
+      <div class="r-q">What is this thing?</div>
+      <p>Exactly one per contract. The canonical rendering, free of matrix or boundary-only variation.</p>
+      <div class="r-ex">Text → "Default anatomy"</div>
+    </div>
+    <div class="role">
+      <div class="r-key">role: "axis"</div>
+      <div class="r-q">How does it vary?</div>
+      <p>One story per dimension, rendering every option at once. <code>covers</code> records which values actually appeared. This is your "matrix, not a list".</p>
+      <div class="r-ex">Text → axis: "textStyle"<br>covers: 8 styles in one frame</div>
+    </div>
+    <div class="role">
+      <div class="r-key">role: "boundary"</div>
+      <div class="r-q">Where does it break?</div>
+      <p>Drawn from a closed vocabulary: empty, truncate, overflow, loading, error, disabled, rtl, forced-colors.</p>
+      <div class="r-ex">Text → states: empty, truncate,<br>overflow, forced-colors</div>
+    </div>
+  </div>
+
+  <div class="col" style="margin-top:28px">
+    <p><code>Text/1.1.0</code> is now exactly the shape you asked for: four stories — one anatomy, an eight-value style matrix, a four-value tone matrix, and a boundary frame. That's the exemplar. The problem is that it's an exemplar and not the norm.</p>
+  </div>
+
+  <div class="metrics" style="margin-top:22px">
+    <div class="metric" data-tone="warn"><div class="m-val">143<span style="font-size:1rem;color:var(--ink-faint)">/302</span></div><div class="m-lab">contracts with exactly one story</div></div>
+    <div class="metric" data-tone="warn"><div class="m-val">59<span style="font-size:1rem;color:var(--ink-faint)">/728</span></div><div class="m-lab">stories that declare an axis</div></div>
+    <div class="metric" data-tone="bad"><div class="m-val">214<span style="font-size:1rem;color:var(--ink-faint)">/302</span></div><div class="m-lab">contracts declaring zero arg fields</div></div>
+    <div class="metric"><div class="m-val">443<span style="font-size:1rem;color:var(--ink-faint)">/728</span></div><div class="m-lab">stories rendering a single specimen</div></div>
+  </div>
+
+  <div class="col" style="margin-top:28px">
+    <p>Here is the mechanism, in the gate's own logic. It walks <code>contract.Args.Fields</code>, and for each field of kind <code>enum</code> it demands a matching axis story:</p>
+  </div>
+
+  <div class="snip" style="margin-top:16px">
+    <div class="snip-head"><span>api/internal/gates/gates.go — ValidateStoryGrammar</span><span>line 884</span></div>
+<pre><span class="c">// the obligation is derived from what the contract declares…</span>
+<span class="k">for</span> _, field := <span class="k">range</span> contract.Args.Fields {
+    <span class="k">if</span> field.Kind == components.StoryFieldEnum &amp;&amp; !axes[field.Path] {
+        <span class="c">// …"enum axis %q has no axis frame"</span>
+    }
+}
+<span class="c">// …so a contract that declares no fields owes no axes.</span></pre>
+  </div>
+
+  <div class="col" style="margin-top:24px">
+    <p>Now look at <code>Alert</code>. The component exports a four-value union:</p>
+  </div>
+
+  <div class="snip" style="margin-top:14px">
+    <div class="snip-head"><span>Alert/versions/1.0.1/Alert.tsx</span><span>the implementation</span></div>
+<pre><span class="k">export type</span> AlertTone = <span class="good">"info" | "success" | "warning" | "danger"</span>;</pre>
+  </div>
+
+  <div class="snip" style="margin-top:10px">
+    <div class="snip-head"><span>Alert/versions/1.0.1/story.json</span><span>the declaration</span></div>
+<pre>{
+  <span class="k">"args"</span>: { <span class="k">"fields"</span>: <span class="bad">[]</span> },        <span class="c">← declares nothing, so owes nothing</span>
+  <span class="k">"stories"</span>: [
+    { <span class="k">"id"</span>: "default", <span class="k">"role"</span>: "anatomy" }   <span class="c">← one story. gate passes.</span>
+  ]
+}</pre>
+  </div>
+
+  <div class="col" style="margin-top:24px">
+    <p>Alert 1.0.0 had four stories. Alert 1.0.1 has one. Coverage went down, the gate stayed green, and nothing in the pipeline noticed — because the only thing that could have noticed reads the same file that shrank.</p>
+    <p>This generalizes past stories. <strong>Every gate in the system judges a declaration against itself.</strong> That's a coherent design when a human authors the declaration and the gate catches drift. It inverts when an agent authors both sides: the cheapest way to pass is to declare less, and 214 contracts have found that path.</p>
+  </div>
+
+  <div class="callout" data-t="win" style="margin-top:24px">
+    <h3>The fix is a direction change, not a new gate</h3>
+    <p>Derive the obligation from the implementation, not the contract. The prop types are right there — a union type on a prop is an axis whether or not the contract admits it. Parse <code>Alert.tsx</code>, find <code>AlertTone</code>, require an axis frame covering all four values. The same inversion applies to i18n (a JSX string literal is an unkeyed string, regardless of whether a <code>.strings.ts</code> exists) and to selectors (an interactive element without a <code>data-testid</code> is uncovered, regardless of what the manifest lists).</p>
+    <p>That single change turns 214 silently-compliant contracts into 214 actionable findings, and it makes "declare less" stop working as a strategy.</p>
+  </div>
+</section>
+
+<hr class="rule" style="margin-top:64px">
+
+<section>
+  <div class="sec-head">
+    <div class="kicker">Residue</div>
+    <h2>The codemods, and what they left behind</h2>
+    <p>Your instinct on the <code>.mjs</code> files was right, and it extends to Python. Twelve one-shot scripts sit in <code>scenarios/react-component-library/tools/</code>. None is referenced by any package script, Makefile, doc, or Go file. Two <code>.pyc</code> files are committed alongside them.</p>
+  </div>
+
+  <div class="tbl-wrap">
+    <table>
+      <thead>
+        <tr><th>Script</th><th>Ran</th><th>What it rewrote</th><th>Wired in?</th></tr>
+      </thead>
+      <tbody>
+        <tr><td class="mono">repair_story_tag_nodes.py</td><td class="mono">01:16</td><td>story.json tag-name nodes</td><td><span class="pill" data-p="dead">unreferenced</span></td></tr>
+        <tr><td class="mono">convert_story_args.py</td><td class="mono">03:42</td><td>story.json arg shapes</td><td><span class="pill" data-p="dead">unreferenced</span></td></tr>
+        <tr><td class="mono">add_selector_coverage.py</td><td class="mono">04:43</td><td>injected <code>data-testid</code> into first uncovered control, by regex on <code>&lt;button|a|input…&gt;</code></td><td><span class="pill" data-p="dead">unreferenced</span></td></tr>
+        <tr><td class="mono">promote_released_changes.py</td><td class="mono">04:55</td><td>version bumps — the tool that should have prevented the break</td><td><span class="pill" data-p="dead">unreferenced</span></td></tr>
+        <tr><td class="mono">ecosystem-census.mjs</td><td class="mono">16:32</td><td>read-only; emits the census JSON this page quotes</td><td><span class="pill" data-p="dead">unreferenced</span></td></tr>
+        <tr><td class="mono">migrate-cross-version-imports.mjs</td><td class="mono">16:36</td><td>relative imports → package specifiers, <em>inside released dirs</em></td><td><span class="pill" data-p="dead">unreferenced</span></td></tr>
+        <tr><td class="mono">promote-adopter-tests.mjs</td><td class="mono">19:50</td><td>moved adopter tests into the library under hashed filenames</td><td><span class="pill" data-p="dead">unreferenced</span></td></tr>
+        <tr><td class="mono">migrate-story-contracts-v5.mjs</td><td class="mono">19:59</td><td>schemaVersion 4 → 5, forced story[0] to anatomy</td><td><span class="pill" data-p="dead">unreferenced</span></td></tr>
+        <tr><td class="mono">wrap_restyle_exports.py</td><td class="mono">20:32</td><td>export wrappers</td><td><span class="pill" data-p="dead">unreferenced</span></td></tr>
+        <tr><td class="mono">migrate-i18n-seam.mjs</td><td class="mono">21:50</td><td><code>useStrings</code> call shapes</td><td><span class="pill" data-p="dead">unreferenced</span></td></tr>
+        <tr><td class="mono">remove-locale-bridges.mjs</td><td class="mono">21:51</td><td>stripped bridge blocks from adopter i18n indexes</td><td><span class="pill" data-p="dead">unreferenced</span></td></tr>
+        <tr><td class="mono">promote-i18n-hook-calls.mjs</td><td class="mono">22:49</td><td>hoisted hook calls; brace-matched by hand</td><td><span class="pill" data-p="dead">unreferenced</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="col" style="margin-top:26px">
+    <p>Worth separating two things that both end in <code>.mjs</code>. The eleven scripts under <code>ui/scripts/</code> are legitimate — they're vite plugins and conformance checks, wired into <code>package.json</code>, two of them with their own test files. Node build tooling has to be Node. The twelve in <code>tools/</code> are the problem: hand-rolled regex and brace-counting transforms over TypeScript, run once, unversioned, untested, and left in the tree.</p>
+    <p>The deeper issue isn't the file extension — it's that <strong>a regex codemod can't see the invariant it's about to break</strong>. <code>migrate-cross-version-imports.mjs</code> had no concept of "released"; it saw <code>.tsx</code> files and rewrote imports. A transform that ran through the catalog API instead would have hit the immutability check before writing a byte.</p>
+  </div>
+</section>
+
+<section>
+  <div class="sec-head">
+    <div class="kicker">Residue, continued</div>
+    <h2>The duplicate test files you spotted</h2>
+    <p>Twelve <code>bottom-nav.&lt;hash&gt;.test.tsx</code> files in one directory. They're the fork-era adopter tests, relocated rather than retired.</p>
+  </div>
+
+  <div class="col">
+    <p>When a fork became an import, its test file became redundant — twelve scenarios had each written their own version of "renders labels and marks the active item", differing only in whether they assert with <code>toHaveTextContent</code> or <code>getByText</code>. <code>promote-adopter-tests.mjs</code> hashed each source path into a filename and copied all twelve into the library. Sixty such files across fifteen destinations.</p>
+    <p>Two things make this worse than simple duplication:</p>
+  </div>
+
+  <div class="tbl-wrap" style="margin-top:20px">
+    <table>
+      <thead><tr><th>Asset</th><th>Tests landed on</th><th>Current version</th><th>Gap</th></tr></thead>
+      <tbody>
+        <tr><td class="mono">EmptyState</td><td class="mono">1.1.0</td><td class="mono">1.7.5</td><td>7 tests, six minors stale</td></tr>
+        <tr><td class="mono">VoiceInputButton</td><td class="mono">3.0.0</td><td class="mono">4.2.0</td><td>a major behind</td></tr>
+        <tr><td class="mono">BottomNav</td><td class="mono">1.2.0</td><td class="mono">1.3.6</td><td>12 tests, none on latest</td></tr>
+        <tr><td class="mono">DataTable</td><td class="mono">1.2.0</td><td class="mono">1.3.3</td><td>16 tests, none on latest</td></tr>
+        <tr><td class="mono">SidebarShell</td><td class="mono">1.2.0</td><td class="mono">1.3.1</td><td>8 tests, none on latest</td></tr>
+        <tr><td class="mono">DirtyStateGuard</td><td class="mono">1.0.0 + 1.0.1</td><td class="mono">1.0.3</td><td>split across two dead versions</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="col" style="margin-top:24px">
+    <p>Thirteen of fifteen destinations are stale. So the tests were preserved onto versions nobody imports, while the versions everyone <em>does</em> import gained no coverage — and, because writing them counts as "landing in a released directory", they contributed to the immutability breach.</p>
+    <p>Your instinct in the second update was the correct one: these files should have been deleted, not promoted. The library owns one test per component version; twelve adopter opinions about the same component are not twelve tests, they're one test and eleven copies. The only thing worth salvaging is any assertion the library's own test doesn't already make — and that's a read-and-merge judgment, not a file move.</p>
+  </div>
+</section>
+
+<hr class="rule" style="margin-top:64px">
+
+<section>
+  <div class="sec-head">
+    <div class="kicker">Preview tab</div>
+    <h2>Why nothing renders</h2>
+    <p>Reproduced against the live API. I swept the harness route for every asset with a manifest — 221 requests — and the failures fall into three exact groups.</p>
+  </div>
+
+  <div class="metrics">
+    <div class="metric" data-tone="good"><div class="m-val">195</div><div class="m-lab">assets rendering (HTTP 200)</div></div>
+    <div class="metric" data-tone="bad"><div class="m-val">15</div><div class="m-lab">bundle errors — the CSS loader gap</div></div>
+    <div class="metric" data-tone="bad"><div class="m-val">11</div><div class="m-lab">not found — the <code>services/</code> gap</div></div>
+    <div class="metric" data-tone="warn"><div class="m-val">500</div><div class="m-lab">returned for any unknown story id</div></div>
+  </div>
+
+  <div class="col" style="margin-top:32px">
+    <h3>Fault 1 · The bundler has no CSS loader</h3>
+    <p>The story bundler configures esbuild with <code>Bundle: true</code>, <code>Write: false</code>, and an explicit loader map covering <code>.js</code>, <code>.jsx</code>, <code>.ts</code>, and <code>.tsx</code>. There is no <code>.css</code> entry and no <code>Outdir</code>. The moment a component does <code>import "./Text.css"</code>, esbuild has a CSS file it must emit somewhere and nowhere to put it:</p>
+  </div>
+
+  <div class="snip" style="margin-top:16px">
+    <div class="snip-head"><span>api/internal/preview/bundler.go</span><span>line 50</span></div>
+<pre>Loader: <span class="k">map</span>[<span class="k">string</span>]esbuild.Loader{
+    <span class="k">".js"</span>:  esbuild.LoaderJS,
+    <span class="k">".jsx"</span>: esbuild.LoaderJSX,
+    <span class="k">".ts"</span>:  esbuild.LoaderTS,
+    <span class="k">".tsx"</span>: esbuild.LoaderTSX,
+    <span class="bad">// no ".css" — and Write:false with no Outdir</span>
+},</pre>
+  </div>
+
+  <div class="col" style="margin-top:22px">
+    <p>That produces the exact string you saw. Live, just now:</p>
+  </div>
+
+  <div class="snip" style="margin-top:14px">
+    <div class="snip-head"><span>GET /preview/react-component-library:MorphingIcon/harness.html?version=2.0.9</span><span>HTTP 400</span></div>
+<pre><span class="bad">bundle failed: primitives/MorphingIcon/versions/2.0.9/story.tsx</span>
+
+Cannot import "../library/primitives/MorphingIcon/versions/2.0.9/MorphingIcon.css"
+into a JavaScript file without an output path configured</pre>
+  </div>
+
+  <div class="col" style="margin-top:22px">
+    <p>Exactly 15 library files import a sibling stylesheet, and all 15 fail. The set explains why the tab feels universally broken — these are the typographic and layout primitives you look at most:</p>
+    <p style="font-family:var(--font-mono);font-size:.82rem;color:var(--ink-soft)">Text · Icon · MorphingIcon · Stack · Inline · Container · Surface · Badge · Link · Separator · Skeleton · Spinner · ScrollArea · EdgeFade · SearchInput</p>
+    <p>One caution for whoever fixes it: adding a <code>.css</code> loader is necessary but not sufficient. With CSS in the graph esbuild emits <em>two</em> output files, and the code returns <code>result.OutputFiles[0].Contents</code> unconditionally — it would start serving a stylesheet as the ES module. The cleanest fix is an <code>OnLoad</code> plugin that turns a <code>.css</code> import into a module which injects a <code>&lt;style&gt;</code> tag, since the harness already injects design-system CSS the same way; that keeps the output single-file and preserves the component's styling in the preview.</p>
+  </div>
+
+  <div class="col" style="margin-top:32px">
+    <h3>Fault 2 · Every authoring error reports as a server fault</h3>
+    <p>The harness error writer classifies exactly three typed errors — component not found, path escape, bundle failure — and sends everything else to a <code>default</code> branch that logs and returns <code>preview: internal error</code>. Meanwhile <code>resolveStory</code> produces six distinct failure causes, and every one of them is an untyped <code>fmt.Errorf</code>. Reproduced:</p>
+  </div>
+
+  <div class="snip" style="margin-top:16px">
+    <div class="snip-head"><span>BottomNav 1.3.6 — real story ids vs. an unknown one</span><span>live</span></div>
+<pre>?version=1.3.6&amp;story=mobile-primary   <span class="good">HTTP 200</span>
+?version=1.3.6&amp;story=disabled-item    <span class="good">HTTP 200</span>
+?version=1.3.6&amp;story=long-labels      <span class="good">HTTP 200</span>
+?version=1.3.6&amp;story=anatomy          <span class="bad">HTTP 500  preview: internal error</span>
+?version=1.3.6&amp;story=bogus-story-id   <span class="bad">HTTP 500  preview: internal error</span></pre>
+  </div>
+
+  <div class="col" style="margin-top:22px">
+    <p>A story id that doesn't exist in the contract is an authoring mistake with an obvious message — "story <em>x</em> not found; this contract declares mobile-primary, disabled-item, long-labels". Instead it surfaces as an opaque 500. The same branch swallows an unparseable contract and a missing contract. Give those causes typed errors and map them to 404 and 422 with the resolver's own text, and a whole class of "the preview is just broken" turns into a fixable sentence.</p>
+    <p>This also matters for how you read the tab: a 400 means the component's code is wrong, a 500 currently means almost anything.</p>
+  </div>
+
+  <div class="col" style="margin-top:32px">
+    <h3>Fault 3 · Pinch zooms the page because <code>preventDefault</code> is a no-op</h3>
+    <p>The canvas does try to stop it. The handler is a React <code>onWheel</code> prop that calls <code>event.preventDefault()</code> — but React 18 (this project is on 18.3.1) attaches <code>wheel</code>, <code>touchstart</code>, and <code>touchmove</code> at the root as <strong>passive</strong> listeners. A passive listener cannot cancel the event; the call does nothing and the browser logs a warning. The gesture falls through to the browser and zooms the page.</p>
+    <p>There's a second bug hiding behind the first: the handler never checks <code>ctrlKey</code>. A trackpad pinch is <code>wheel</code> with <code>ctrlKey: true</code>; ordinary two-finger scrolling is the same event with <code>ctrlKey: false</code>. Both are currently treated as zoom, so the canvas can't be scrolled at all.</p>
+    <p>The fix is one <code>useEffect</code>: attach the listener natively to the canvas ref with <code>{ passive: false }</code>, then branch — <code>ctrlKey</code> zooms, everything else pans. The existing <code>touch-none</code> class handles touch devices already; it has no effect on trackpad wheel events, which is why the class being present didn't help.</p>
+  </div>
+
+  <div class="col" style="margin-top:32px">
+    <h3>Fault 4 · Drag-and-drop is disabled by the element it's attached to</h3>
+    <p>I checked the obvious suspects first and they're all fine. The <code>draggable</code> attribute and both drag handlers pass cleanly down <code>IconButton → Pressable → ControlBase → &lt;button&gt;</code>; every hop spreads its props. <code>updateCanvasDropTarget</code> calls <code>preventDefault</code> and sets <code>dropEffect</code>, which is what makes a drop zone accept a drop. The pan handler's <code>setPointerCapture</code> correctly bails out when the pointer starts inside a specimen card, so it isn't stealing the gesture. And the drop math uses <code>getBoundingClientRect</code>, which reports post-transform coordinates, so it stays correct at any zoom level.</p>
+    <p>What's left is the handle itself. The grip is an <code>IconButton</code>, which renders a real <code>&lt;button&gt;</code>, and Chromium and WebKit do not reliably start a native HTML5 drag from a form control — the control's own activation behavior consumes the gesture. This is the long-standing reason drag handles are conventionally a <code>div</code> or <code>span</code> rather than a button.</p>
+    <p>Two ways out. The small one: render the grip as a <code>&lt;span role="button" tabindex="0"&gt;</code> so it keeps its keyboard affordance and its accessible name while becoming genuinely draggable. The better one: drop HTML5 drag entirely and reorder with the pointer events the canvas already handles — that fixes touch reordering at the same time, which native drag will never give you. The keyboard path via <code>moveCaseByKeyboard</code> already works and should stay either way.</p>
+  </div>
+</section>
+
+<section>
+  <div class="sec-head">
+    <div class="kicker">Files tab</div>
+    <h2>The false alarm is real, and it has a data cause</h2>
+    <p>Your instinct was right on both counts: the warning is wrong, and the missing squiggles are a separate and larger gap.</p>
+  </div>
+
+  <div class="col">
+    <p>I resolved every distinct library import specifier used anywhere in the library — 111 of them — through the live <code>ResolveLibraryImport</code> endpoint. 96 resolve. 15 report "does not resolve to a catalog asset". All 15 exist on disk, and the split is perfectly clean:</p>
+  </div>
+
+  <div class="tbl-wrap" style="margin-top:20px">
+    <table>
+      <thead><tr><th>Specifier</th><th>Lives at</th><th>Indexed?</th></tr></thead>
+      <tbody>
+        <tr><td class="mono">IconRegistry/1.0.0</td><td class="mono">library/foundations/IconRegistry</td><td><span class="pill" data-p="dead">no</span></td></tr>
+        <tr><td class="mono">ClassMerge/1.0.1</td><td class="mono">library/foundations/ClassMerge</td><td><span class="pill" data-p="dead">no</span></td></tr>
+        <tr><td class="mono">Tokens/1.0.0</td><td class="mono">library/foundations/Tokens</td><td><span class="pill" data-p="dead">no</span></td></tr>
+        <tr><td class="mono">Contracts/1.0.0</td><td class="mono">library/foundations/Contracts</td><td><span class="pill" data-p="dead">no</span></td></tr>
+        <tr><td class="mono">VisualRecipes/1.0.0</td><td class="mono">library/foundations/VisualRecipes</td><td><span class="pill" data-p="dead">no</span></td></tr>
+        <tr><td class="mono">LayerManager, ToastManager,<br>UndoManager, FormStore,<br>SelectionStore, DragDropStore,<br>ShortcutRegistry, CommandRegistry,<br>LiveAnnouncer, createScopedStore</td><td class="mono">library/services/*</td><td><span class="pill" data-p="dead">no</span></td></tr>
+        <tr><td class="mono">Text, Pressable, useLocale,<br>+93 others</td><td class="mono">components / primitives / hooks</td><td><span class="pill" data-p="live">yes</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="col" style="margin-top:26px">
+    <p>The index holds <strong>205 rows against 221 manifests on disk</strong>, and the 16 missing are exactly the 5 foundations plus 11 services. There are two distinct causes stacked on top of each other:</p>
+    <p><strong>Services are never walked.</strong> The indexer's path allowlist names four directories, and <code>services/</code> isn't one of them:</p>
+  </div>
+
+  <div class="snip" style="margin-top:16px">
+    <div class="snip-head"><span>api/internal/components/indexer.go</span><span>line 202</span></div>
+<pre><span class="k">func</span> registryAssetPath(path <span class="k">string</span>) <span class="k">bool</span> {
+    clean := filepath.ToSlash(path)
+    <span class="k">return</span> strings.HasPrefix(clean, <span class="k">"components/"</span>) ||
+        strings.HasPrefix(clean, <span class="k">"primitives/"</span>) ||
+        strings.HasPrefix(clean, <span class="k">"foundations/"</span>) ||
+        strings.HasPrefix(clean, <span class="k">"hooks/"</span>)
+        <span class="bad">// services/ — 11 assets, never scanned</span>
+}</pre>
+  </div>
+
+  <div class="col" style="margin-top:22px">
+    <p><strong>Foundations are walked and still rejected.</strong> Note that <code>foundations/</code> <em>is</em> in the allowlist, yet the live index contains no <code>foundations.*</code> catalog id at all. So a second filter downstream in <code>buildManifestInput</code> is dropping them. The likely discriminator is visible in the manifest: foundations declare <code>"assetKind": "foundation"</code> and ship no <code>story.json</code> — they carry only an <code>experience-contract.json</code>. Whatever the precise check, it's silent: the index reports no error, the rows simply never appear, and the only symptom is a wrong tooltip several layers away.</p>
+    <p>This is the same root cause as the 11 preview 404s in the sweep above. One indexing gap, two broken tabs.</p>
+    <p>One more data-quality note while you're in here: <strong>17 indexed components have a null <code>catalogId</code></strong> — <code>ControlBase</code>, <code>Tooltip</code>, <code>DrawerShell</code>, <code>AsyncPanel</code>, <code>StatusBadge</code> and others. The hover renders <code>assetId || libraryId</code>, so those fall back to the library id and show no catalog identity. They resolve, they just present worse.</p>
+  </div>
+
+  <div class="callout" data-t="win" style="margin-top:26px">
+    <h3>The good news on your hover request</h3>
+    <p>Most of what you asked for is already written. <code>createLibraryImportHoverProvider</code> renders asset id, version, export kind, and description for a resolved import, and <code>createLibraryImportDefinitionProvider</code> gives you real go-to-definition — ctrl-click opens the target through an <code>rcl://library/{libraryId}/{version}/{path}</code> URI. Both work today for the 96 specifiers that resolve. Fix the indexer and the feature you're asking for largely appears.</p>
+    <p>The one hard edge: the definition provider returns <code>undefined</code> when a specifier is unresolved, so for those 15 the click silently does nothing. Worth returning the diagnostic there too rather than a dead gesture.</p>
+  </div>
+
+  <div class="col" style="margin-top:32px">
+    <h3>The missing diagnostics surface</h3>
+    <p>The absence of squiggles isn't a styling problem or a marker that failed to render. There are no markers. A search of the entire UI for <code>setModelMarkers</code>, <code>MarkerSeverity</code>, <code>deltaDecorations</code>, and <code>glyphMargin</code> returns nothing. Hover is the only way any problem can reach you, which means a file can carry a broken import and look completely clean until you happen to point at the right token.</p>
+    <p>Monaco gives this to you cheaply: resolve the specifiers in a file on open and on change, then push one marker per unresolved import with <code>monaco.editor.setModelMarkers</code>. You get underlines, gutter icons, and an errors-in-file count without building any of it. The same channel is where the catalog's own gate findings belong — <code>catalog.released_version_immutable</code> on a released file is exactly the kind of thing that should be a red underline in the editor rather than a line in a JSON artifact nobody opens.</p>
+  </div>
+
+  <div class="col" style="margin-top:32px">
+    <h3>The missing version label</h3>
+    <p>Confirmed and simple. <code>ComponentEditorSource</code> takes <code>activeVersionFiles</code> and renders each entry's <code>file.path</code> as its label. It receives no version and displays none, so a file open in the Files tab is identified only by a path that doesn't include the version segment. Given that the same asset routinely has three or four live versions and that editing the wrong one is how the immutability breach happened, this is a smaller fix with more leverage than its size suggests: show <code>Asset @ 1.3.6</code> in the file header, and mark the released ones as read-only in the editor.</p>
+  </div>
+</section>
+
+<hr class="rule" style="margin-top:64px">
+
+<section>
+  <div class="sec-head">
+    <div class="kicker">Ecosystem fit</div>
+    <h2>Where this system sits, and where it doesn't</h2>
+    <p>I had this substantially wrong in the first pass. The corrected version is more interesting than what I originally wrote, and it changes the recommendation.</p>
+  </div>
+
+  <div class="callout" data-t="break">
+    <h3>Correction to the first draft</h3>
+    <p>I wrote that the catalog's gates are invisible to everything outside the scenario, and prescribed surfacing them to the control plane. The first half overstated the isolation and the second half pointed at the wrong home.</p>
+    <p style="margin-top:.7em">What's true: nothing in <code>internal/</code> knows what a story contract is — verified. What's false: that nothing outside consumes the catalog. <strong>ui-health already integrates with react-component-library through a typed, proto-governed seam</strong>, and the control plane is not where UI conformance belongs anyway.</p>
+  </div>
+
+  <div class="col" style="margin-top:28px">
+    <h3>The seam that already exists</h3>
+    <p>There are twelve <code>*-health</code> scenarios, and one of them owns exactly this territory. <strong>ui-health defines an <code>InventoryService</code> proto and react-component-library implements it</strong> — the catalog is a registered provider to the health scenario, called over Connect with URL re-resolution and transport-failure retry. That is a properly built ecosystem seam, not an absence of one.</p>
+    <p>ui-health also carries 44 of its own UI checks, and several are the adopter-side counterparts of the catalog's gates:</p>
+  </div>
+
+  <div class="tbl-wrap" style="margin-top:20px">
+    <table>
+      <thead><tr><th>Concern</th><th>react-component-library gate</th><th>ui-health check</th><th>Verdict</th></tr></thead>
+      <tbody>
+        <tr><td>Internationalization</td><td class="mono">i18n, i18n-adopted</td><td class="mono">standard_i18n_locale_parity</td><td><span class="pill" data-p="dead">overlap</span></td></tr>
+        <tr><td>Design tokens</td><td class="mono">tokens, token-vocabulary,<br>token-ramp-complete</td><td class="mono">standard_design_token_bypass,<br>standard_no_raw_hex</td><td><span class="pill" data-p="dead">overlap</span></td></tr>
+        <tr><td>Accessibility</td><td class="mono">accessibility</td><td class="mono">standard_a11y_harness</td><td><span class="pill" data-p="dead">overlap</span></td></tr>
+        <tr><td>Adopter hygiene</td><td class="mono">adopter-hygiene</td><td class="mono">standard_component_canon_unengaged,<br>standard_raw_primitive_overuse,<br>standard_component_location,<br>standard_component_version_staleness</td><td><span class="pill" data-p="dead">ui-health's job</span></td></tr>
+        <tr><td>Story grammar, immutability,<br>composition, evidence</td><td class="mono">story-grammar, released-version-immutable,<br>composition, evidence-freshness, …</td><td class="mono">—</td><td><span class="pill" data-p="live">correctly RCL's</span></td></tr>
+        <tr><td>Selector coverage</td><td class="mono">selector-coverage, selectors-adopted</td><td class="mono">—</td><td><span class="pill" data-p="live">RCL only</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="col" style="margin-top:26px">
+    <p>So the ownership split is <em>almost</em> principled. Gates that need the catalog's domain model — what an anatomy frame is, what a released hash means — belong in the catalog and are correctly placed. Gates that restate a repo-wide UI rule are duplicated, and the adopter-side ones are ui-health's by ownership.</p>
+  </div>
+
+  <div class="col" style="margin-top:32px">
+    <h3>The two real defects</h3>
+    <p><strong>First: the seam carries inventory, not conformance.</strong> <code>ScanScenarioResponse</code> returns provenance, widget declarations, and surface records. There is no field for a gate verdict. ui-health can tell you that a scenario vendors BottomNav 1.2.0 while the catalog's latest is 1.3.6; it cannot tell you that 1.3.6 currently fails <code>released_version_immutable</code>. The pipe exists and the conformance signal isn't in it.</p>
+    <p><strong>Second — and I got this wrong twice before landing on it.</strong> There is no Makefile target, CI workflow, or <code>internal/</code> caller that runs the health scenarios, which is what I first reported. But that was looking in the wrong place: <strong>test-genie runs them as phases</strong>. The last full run has a <code>ui-health</code> phase that passed with 30 findings. So cadence exists.</p>
+    <p>The real failure is one layer in, and it's covered in full in the next section: the phase that validates the <em>library itself</em> hit its deadline, reported zero blockers, and disappeared from the verdict set. The run went red for docs, security, and tidiness — and stayed completely blind to 207 immutability errors.</p>
+  </div>
+
+  <div class="callout" data-t="break" style="margin-top:24px">
+    <h3>Three enumerations of the same catalog, all different</h3>
+    <p>A concrete symptom of the split ownership. The catalog is counted three independent ways and no two agree:</p>
+    <p style="margin-top:.7em"><code>packages/…/package.json</code> exports — <strong>complete</strong> (539 exports, includes foundations and services)<br>
+    <code>api/internal/components/indexer.go</code> — <strong>missing services</strong> (205 rows vs 221 manifests)<br>
+    <code>ui-health/…/standard_component_version_staleness.go</code> — reads <code>library/components</code> off the filesystem directly, so it sees <strong>components only</strong> — no primitives, hooks, foundations, or services</p>
+    <p style="margin-top:.7em">The staleness check that is supposed to catch adopters running behind is blind to every primitive in the library. And it bypasses the very <code>InventoryService</code> seam built for this, reading the other scenario's files instead.</p>
+  </div>
+</section>
+
+<section>
+  <div class="sec-head">
+    <div class="kicker">Options</div>
+    <h2>Four ways to close it</h2>
+    <p>Not mutually exclusive. Listed by what they buy, with the honest cost of each.</p>
+  </div>
+
+  <div class="lanes" style="grid-template-columns:repeat(2,minmax(0,1fr))">
+    <div class="lane" data-m="linked">
+      <div class="l-name">A · Cadence only</div>
+      <p><strong>Run ui-health and the catalog gates on a schedule or in CI. Change no architecture.</strong></p>
+      <p>This alone would have caught the 207-error break. It is by far the cheapest item on this page and has the highest ratio of caught-defects to work.</p>
+      <p>Doesn't fix blindness or duplication. But those are correctness-of-design problems; this is the one that was actually costing you last night.</p>
+    </div>
+    <div class="lane" data-m="linked">
+      <div class="l-name">B · Put conformance in the pipe</div>
+      <p><strong>Add gate verdicts, with freshness, to the contract ui-health already calls.</strong></p>
+      <p>Small, typed, reuses a proven seam, and keeps catalog domain knowledge in the catalog where it belongs.</p>
+      <p>Caveat worth naming: RCL would be self-reporting. ui-health inherits whatever the catalog claims. The payload must carry when the verdict was measured and against which hash — the catalog already computes both, so this is cheap insurance rather than new work.</p>
+    </div>
+    <div class="lane" data-m="copied">
+      <div class="l-name">C · Move the adopter gates out</div>
+      <p><strong>Delete <code>i18n-adopted</code>, <code>selectors-adopted</code>, and <code>adopter-hygiene</code> from the catalog; let ui-health own adopter-side rules.</strong></p>
+      <p>Removes genuine duplication and shrinks the catalog's surface to what only it can know. ui-health already owns three of the four adopter checks.</p>
+      <p>Depends on B — ui-health needs richer catalog data first. Treat B and C as one change, not two.</p>
+    </div>
+    <div class="lane" data-m="ejected">
+      <div class="l-name">D · A generic verdict contract</div>
+      <p><strong>Every scenario reports typed conformance findings with freshness; something aggregates.</strong></p>
+      <p>Solves the class rather than the instance, and would help elsewhere — resources, tools, and safeguards have no validation pipeline at all today.</p>
+      <p>But the <code>*-health</code> family already <em>is</em> that aggregator in intent. Building this beside them creates a fourth topology instead of fixing the third. Worth doing only as a deliberate consolidation of the health family, never as a drive-by.</p>
+    </div>
+  </div>
+
+  <div class="col" style="margin-top:26px">
+    <p>My recommendation: <strong>A now, B+C as one piece of work, and D only as an explicit decision about what the health family is for.</strong> A is the fix for what actually went wrong. B+C is the fix for the design. D is a strategy question that shouldn't be answered by accident.</p>
+  </div>
+</section>
+
+<section>
+  <div class="sec-head">
+    <div class="kicker">Version pressure</div>
+    <h2>I had this backwards</h2>
+    <p>I said versions were accumulating and recommended reaping. The data says the opposite, and the correct reading connects directly to the immutability break.</p>
+  </div>
+
+  <div class="metrics">
+    <div class="metric" data-tone="good"><div class="m-val">150</div><div class="m-lab">assets with exactly one version dir</div></div>
+    <div class="metric"><div class="m-val">1.4</div><div class="m-lab">mean version dirs per asset — median is 1</div></div>
+    <div class="metric" data-tone="warn"><div class="m-val">2<span style="font-size:1rem;color:var(--ink-faint)">/221</span></div><div class="m-lab">manifests declaring any deprecated version</div></div>
+    <div class="metric" data-tone="bad"><div class="m-val">0<span style="font-size:1rem;color:var(--ink-faint)">/221</span></div><div class="m-lab">manifests using the <code>draft</code> field</div></div>
+  </div>
+
+  <div class="col" style="margin-top:28px">
+    <p>There is no sprawl. 150 of 231 assets have a single version directory and only twelve have three or more. Reaping would be solving a problem that doesn't exist.</p>
+    <p>What the numbers actually show is the inverse: <strong>versions are already being reaped, silently and lossily.</strong> <code>EmptyState</code> is at 1.7.5 and retains four directories starting at 1.1.0 — roughly seven intermediate releases are simply gone. <code>Button</code> spans 1.2.0 to 2.2.0 in four dirs. <code>Avatar</code> spans 1.0.0 to 1.3.2 in two. Nobody recorded which versions were dropped or why, and <code>deprecatedVersions</code> — the field built to record exactly that — is empty in 219 of 221 manifests.</p>
+    <p>That is why the promoted tests stranded on 1.1.0 while adopters run 1.7.5. Not because versions piled up, but because the version they were attached to was quietly abandoned with nothing marking it abandoned.</p>
+  </div>
+
+  <div class="callout" data-t="break" style="margin-top:26px">
+    <h3>The draft lane exists and has never been used</h3>
+    <p>Every manifest carries a <code>draft</code> field. Across 221 assets it is empty 221 times.</p>
+    <p style="margin-top:.7em">This is a structural cause of the immutability break, not just a curiosity. An agent performing a mechanical migration — rewriting import specifiers, hoisting i18n hook calls, adding selectors — has three options: bump every touched asset to a new version, land the change in a released directory, or do nothing. The first is absurd at 293 files. The third fails the task. So it took the second, and the gate lit up 207 times.</p>
+    <p style="margin-top:.7em">Give mechanical work a draft lane to land in, and the pressure that produced the breach goes away. That is a better fix than any amount of reminding an agent not to edit released files.</p>
+  </div>
+
+  <div class="col" style="margin-top:28px">
+    <p>So the version work is three things, none of which is reaping:</p>
+    <ul>
+      <li><strong>Use the draft lane.</strong> Mechanical migrations land in draft, get reviewed once, and release once — instead of either N bumps or an in-place rewrite.</li>
+      <li><strong>Declare retirement instead of performing it.</strong> Populate <code>deprecatedVersions</code> when a version is dropped, so evidence and tests attached to it become findable orphans rather than silent ones.</li>
+      <li><strong>Attach evidence to a version range, not a directory.</strong> The reason a retired version strands its tests is that the test lives inside the directory. This is the deeper fix and the largest of the three.</li>
+    </ul>
+  </div>
+</section>
+
+<section>
+  <div class="sec-head">
+    <div class="kicker">Next</div>
+    <h2>What I'd do, in order</h2>
+    <p>Ordered by what unblocks the most. The first two are repair; the rest are the maturity you're after.</p>
+  </div>
+
+  <div class="steps">
+    <div class="step">
+      <h3>Resolve the immutability breach before any new work</h3>
+      <p>207 errors, and every gate verdict and screenshot in the library is currently detached from the source it proved. Two honest options: revert the released directories to their recorded hashes and re-apply the changes as version bumps, or accept the current bytes and re-release each touched version with fresh evidence. The first preserves the contract with adopters who already pinned; the second is faster and is only safe if you're confident nothing external pins those hashes. This is your call, and it should be made before the next agent run starts.</p>
+    </div>
+    <div class="step">
+      <h3>Delete the residue, keep one census</h3>
+      <p>Twelve unreferenced scripts, a committed <code>__pycache__</code>, and 60 hoarded test files. <code>ecosystem-census.mjs</code> is the one worth keeping — it's read-only and produces genuinely useful facts — so promote it into <code>ui/scripts/</code> with a package script and a test, and delete the other eleven. For the test files: read each one for an assertion the library's own test lacks, merge those, delete all 60.</p>
+    </div>
+    <div class="step">
+      <h3>Index every asset kind — one gap, two broken tabs</h3>
+      <p>Add <code>services/</code> to <code>registryAssetPath</code> and find the second filter that's silently dropping the five foundations. That single fix turns 11 preview 404s into working previews and 15 false "unresolved import" warnings into working hovers with go-to-definition. Backfill the 17 null <code>catalogId</code> rows while you're there. Cheapest high-leverage change on this list.</p>
+    </div>
+    <div class="step">
+      <h3>Unbreak the preview bundler and its error taxonomy</h3>
+      <p>Handle <code>.css</code> in the bundler — preferably via an <code>OnLoad</code> plugin that converts a stylesheet import into a style-injecting module, so the output stays single-file and <code>OutputFiles[0]</code> stays correct. That's 15 assets, including most of the primitives. Then give <code>resolveStory</code>'s six failure causes typed errors so an unknown story id returns a 404 naming the ids the contract actually declares, instead of a 500 that means nothing.</p>
+    </div>
+    <div class="step">
+      <h3>Fix the canvas gestures, then wire editor markers</h3>
+      <p>Move the wheel handler off React's passive root listener onto a native <code>{ passive: false }</code> listener and branch on <code>ctrlKey</code> so pinch zooms the canvas and scroll pans it. Move <code>draggable</code> off the <code>&lt;button&gt;</code> grip, or replace HTML5 drag with pointer-based reordering and get touch for free. Separately, push one Monaco marker per unresolved import so the Files tab has any diagnostics surface at all — and route catalog gate findings into the same channel, so an immutability violation is a red underline on the file rather than a line in a JSON artifact.</p>
+    </div>
+    <div class="step">
+      <h3>Make codemods impossible to write by hand</h3>
+      <p>The reason agents reach for regex scripts is that there's no sanctioned way to bulk-edit assets. Give them one: a catalog API command that takes an asset selector and a transform, and that routes every write through the same immutability, version, and evidence checks a human edit goes through. Then the invariant is enforced by the only available path rather than by remembering. TypeScript transforms belong on the TS AST — <code>ts-morph</code> or <code>ast-grep</code>, both already available here — not on brace-counting.</p>
+    </div>
+    <div class="step">
+      <h3>Invert the gate direction: judge implementations, not declarations</h3>
+      <p>Parse the component's prop types and require an axis frame per union-typed prop; flag JSX string literals as unkeyed strings; flag interactive elements without a catalog-derived <code>data-testid</code>. This is the single change that makes validation start pulling contracts toward the ideal instead of accepting whatever they claim. Expect it to surface a few hundred findings on first run — that's the point.</p>
+    </div>
+    <div class="step">
+      <h3>Give the story roles a worked reference and hold new work to it</h3>
+      <p><code>Text/1.1.0</code> is already the answer to "what should stories look like" — anatomy, one frame per axis rendering the full matrix, one boundary frame. It just isn't written down anywhere an agent will find it. Put it in the story-contract doc as the canonical example, and have the grammar gate's remediation text point at it by path. 143 single-story contracts are the backlog.</p>
+    </div>
+    <div class="step">
+      <h3>Close the last fork cluster and then retire the mode</h3>
+      <p>76 of 83 remaining forks are <code>input.tsx</code>, <code>card.tsx</code>, <code>dialog.tsx</code>. That's three library assets away from copied-mode being empty outside of deliberate ejections — at which point "copied" can stop being a default anyone can reach for and become something that requires the same review an ejection does.</p>
+    </div>
+    <div class="step">
+      <h3>Make the library phase able to fail the run</h3>
+      <p>Corrected twice from the first draft. The gates are not orphaned and cadence is not missing — test-genie already runs the health phases. What's broken is that <code>component-tests</code>, the phase that validates the library, times out at 1200s, reports <code>blockers=0</code>, and drops out of the verdict set. Honoring its own declared <code>"unavailable": "fail"</code> is the single change that would have caught last night's break.</p>
+    </div>
+    <div class="step">
+      <h3>Put conformance in the pipe, then move the adopter gates out</h3>
+      <p>Extend <code>ScanScenarioResponse</code> to carry gate verdicts with their measurement timestamp and source hash, so ui-health can see that an asset fails a gate and not merely that it exists. Then delete the catalog's <code>i18n-adopted</code>, <code>selectors-adopted</code>, and <code>adopter-hygiene</code> gates and let ui-health own adopter-side rules, which it already mostly does. One piece of work, not two.</p>
+      <p>While you're there: <code>standard_component_version_staleness</code> reads <code>library/components</code> off the filesystem and is therefore blind to every primitive, hook, foundation, and service. Point it at the inventory seam that exists.</p>
+    </div>
+    <div class="step">
+      <h3>Open the draft lane before the next migration runs</h3>
+      <p>Zero of 221 manifests have ever used the <code>draft</code> field. Until mechanical work has somewhere legitimate to land, an agent's only options are N version bumps or an in-place rewrite of released code — and you've now seen which one it picks. This is the structural fix for the immutability breach; the codemod policing in step 3 is the backstop, not the cure.</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="sec-head">
+    <div class="kicker">The gating design</div>
+    <h2>Your proposal is right, and mostly already built</h2>
+    <p>"Test the scenario, and it can't be green unless the library passes — with a ratchet, and skip what hasn't changed." Every piece of that is modeled in the tree today. It doesn't work because the phase carrying it times out and the timeout is silently non-blocking.</p>
+  </div>
+
+  <div class="callout" data-t="break">
+    <h3>The last full run, decoded</h3>
+    <p><code>coverage/latest/</code>, run <code>20260826-030606</code>: started 03:06:06, completed 03:33:22 — <strong>27 minutes</strong>, overall verdict FAIL. Twenty-one phases returned a verdict. Six failed: docs (172 findings), security (319), tidiness (293), unit (51), storage (29), workflow (10).</p>
+    <p style="margin-top:.7em"><strong>None of those failures is about the library.</strong> The 207 immutability errors, the 270 stale evidence rows, the 15 broken previews — none of it appears anywhere in that run's verdict. The library could be entirely broken and the result would read exactly the same.</p>
+  </div>
+
+  <div class="col" style="margin-top:26px">
+    <p>Here is why. The phase that validates the library is <code>component-tests</code>. It has a log in that run. It has no verdict row. The log is three lines:</p>
+  </div>
+
+  <div class="snip" style="margin-top:16px">
+    <div class="snip-head"><span>coverage/logs/20260826-030606-677faa54/component-tests.log</span><span>the whole file</span></div>
+<pre>component-tests summary: react-component-library status=error <span class="bad">blockers=0 errors=0 warnings=0 infos=0</span>
+OBSERVATIONS:
+ - [ERROR] ❌ react-component-library validation RPC failed: <span class="bad">deadline_exceeded: context deadline exceeded</span></pre>
+  </div>
+
+  <div class="col" style="margin-top:22px">
+    <p>The baseline phase hit its 1200-second deadline, reported <strong>zero blockers</strong>, and dropped out of the verdict set. Its own descriptor declares <code>"resultGating": "gating"</code> and <code>"unavailable": "fail"</code> — so the intent is exactly what you want, and the observed behavior contradicted it. The provider now emits a blocking timeout finding and preserves the phase verdict row.</p>
+    <p>And it isn't cheap silence: at 1200s of a 1637s run, <strong>the phase that validated nothing consumed roughly three-quarters of the wall clock</strong>. That is the slowness you've been feeling. It isn't that validation is thorough and therefore slow; it's that it runs until it dies and then discards the work.</p>
+  </div>
+
+  <div class="col" style="margin-top:32px">
+    <h3>The ratchet you described already exists</h3>
+    <p><code>catalog/config.json</code> defines 31 gates, and each carries exactly the controls you asked for:</p>
+  </div>
+
+  <div class="snip" style="margin-top:16px">
+    <div class="snip-head"><span>catalog/config.json — one gate definition</span><span>34 of these</span></div>
+<pre>{
+  <span class="k">"id"</span>: "token-vocabulary",
+  <span class="k">"rung"</span>: "implemented",          <span class="c">← the importance ladder</span>
+  <span class="k">"blocking"</span>: true,               <span class="c">← the gating switch</span>
+  <span class="k">"appliesTo"</span>: ["foundation", "primitive", "component",
+                 "runtime-hook", "runtime-service"],   <span class="c">← the hierarchy</span>
+  <span class="k">"runner"</span>: { "react-vite": "react-component-library catalog gates token-vocabulary" }
+}
+<span class="c">// plus, at the top level:  "adoptionMaturityFloor": "scaffolded"</span></pre>
+  </div>
+
+  <div class="metrics" style="margin-top:20px">
+    <div class="metric"><div class="m-val">27<span style="font-size:1rem;color:var(--ink-faint)">/31</span></div><div class="m-lab">gates already marked <code>blocking</code></div></div>
+    <div class="metric"><div class="m-val">4</div><div class="m-lab">rungs: scaffolded → implemented → verified → production-ready</div></div>
+    <div class="metric"><div class="m-val">11</div><div class="m-lab">asset kinds addressable by <code>appliesTo</code></div></div>
+    <div class="metric" data-tone="warn"><div class="m-val">0</div><div class="m-lab">of it enforced, because the phase never finishes</div></div>
+  </div>
+
+  <div class="col" style="margin-top:26px">
+    <p>So the ratchet isn't something to design. It's something to connect and then tune. The declared floor is now <code>scaffolded</code>, the measured current rung, and the four-rung ladder remains available for deliberate promotion as evidence improves.</p>
+  </div>
+
+  <div class="col" style="margin-top:32px">
+    <h3>Why it can't finish, and what makes skipping possible</h3>
+    <p>Three compounding reasons, each fixable:</p>
+    <ul>
+      <li><strong>It runs serially.</strong> The descriptor sets <code>"concurrency": {"mode": "provider-serial"}</code>. Every asset waits for the one before it.</li>
+      <li><strong>It validates history.</strong> There are 328 version directories against 221 asset manifests — <strong>107 of them, a third of the surface, are neither latest nor draft</strong>. Nothing imports most of them. Your instinct to scope runs to draft plus current would cut the work by a third immediately, and it would eliminate a large share of the <code>evidence_freshness</code> noise by construction, since much of that noise is stale evidence on abandoned versions.</li>
+      <li><strong>It deliberately opts out of caching.</strong> The descriptor sets <code>"determinism": "observational"</code>, with a stated reason: catalog releases and recorded evidence change outside the target scenario's files, so test-genie's file-digest cache would give wrong answers. That reasoning is correct — but the consequence is that every run is a full run, forever.</li>
+    </ul>
+    <p>That last one is the interesting one, because <strong>the skip primitive already exists — just not where test-genie can see it.</strong> The catalog records a content hash per asset version; that's how <code>released_version_immutable</code> can say "recorded 0b46a905, current 555a86e5". Evidence rows are keyed by asset × version × gate × target. So the provider can already answer "which assets have a source hash that differs from the hash their last verdict was recorded against" — which is precisely the skip decision.</p>
+    <p>The fix isn't to flip <code>determinism</code> to deterministic and let test-genie cache on file digests; that would reintroduce exactly the wrongness the descriptor is guarding against. It's to keep the phase observational at the test-genie layer and make the <em>provider</em> incremental internally: it enumerates draft plus latest, diffs each against its recorded evidence hash, validates only the drift, and reports the skipped set explicitly so a run can never look complete when it wasn't.</p>
+    <p>One small thing to fix along the way: the report digest at <code>runner.go:334</code> mixes <code>report.CreatedAt</code> into its hash, so two identical runs produce different digests. Nothing downstream can ever treat a report as unchanged while that's true.</p>
+  </div>
+
+  <div class="callout" data-t="break" style="margin-top:26px">
+    <h3>The throughline: five enumerations of the catalog, all different</h3>
+    <p>This keeps surfacing, and it's the reason "the whole library passes" is currently unachievable even in principle. Five places decide which assets exist, and no two agree:</p>
+    <p style="margin-top:.7em"><code>package.json</code> exports — <strong>all kinds</strong>, canonical enumeration shared with the indexer and health adapters<br>
+    <code>catalog/config.json appliesTo</code> — <strong>11 kinds</strong>, the most complete declaration<br>
+    <code>indexer.go registryAssetPath</code> — components, primitives, foundations, hooks; <strong>services missing</strong>, foundations rejected downstream anyway (205 rows / 221 manifests)<br>
+    <code>test-genie.json applicability</code> — <strong><code>library/components/*</code> and <code>library/hooks/*</code> only</strong>, so changing a primitive doesn't even trigger the gating phase<br>
+    <code>ui-health standard_component_version_staleness</code> — <strong><code>library/components</code> only</strong></p>
+    <p style="margin-top:.7em">Pick one as canonical. <code>catalog/config.json</code> is the obvious candidate — it is the most complete, it already expresses kinds rather than paths, and it is the file the ratchet lives in. Everything else should derive from it rather than restate it.</p>
+  </div>
+
+  <div class="col" style="margin-top:30px">
+    <h3>So: would it work?</h3>
+    <p>Yes, and it's four changes rather than a redesign.</p>
+  </div>
+
+  <div class="steps" style="margin-top:20px">
+    <div class="step">
+      <h3>Make the timeout a blocker</h3>
+      <p>Honor the descriptor's own <code>"unavailable": "fail"</code>. A phase that dies must not report <code>blockers=0</code> and must not vanish from the verdict set. This is the one change that makes "can't be green unless the library passes" true, and it's independent of everything else — though expect it to turn the run red immediately, which is the correct outcome.</p>
+    </div>
+    <div class="step">
+      <h3>Scope the run to draft plus latest, and go incremental inside the provider</h3>
+      <p>Drop the 107 historical version directories from routine validation — keep them reachable for an explicit full audit. Then have the provider diff each remaining asset's source hash against the hash its last verdict was recorded under, and validate only the drift. Report the skipped set in the result so an incremental run is legible as incremental. Lift <code>provider-serial</code> once the surface is small enough that parallelism is worth the contention.</p>
+    </div>
+    <div class="step">
+      <h3>Make <code>catalog/config.json</code> the single enumeration</h3>
+      <p>Derive the indexer's path allowlist, test-genie's applicability globs, and ui-health's staleness scan from the gate config's <code>appliesTo</code> kinds instead of each hard-coding its own subset. Until this is done, "the whole library passes" is a sentence that cannot be made true — three of the five enumerations can't see most of the library.</p>
+    </div>
+    <div class="step">
+      <h3>Then tune the ratchet, deliberately</h3>
+      <p>Once the phase completes and reports honestly, the knobs are already there: per-gate <code>blocking</code>, the four-rung ladder, <code>appliesTo</code> per kind, and <code>adoptionMaturityFloor</code>. The floor is now <code>scaffolded</code>, matching the measured library rung; ratchet it upward as gates earn their rung. That gives you a number that goes in one direction and a run that stays green while it does.</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="sec-head">
+    <div class="kicker">Decided</div>
+    <h2>The four questions, answered</h2>
+    <p>Three settled by you, one delegated to me. Two of them turned out to need less new work than expected, and one needs a different kind of work than I proposed.</p>
+  </div>
+
+  <div class="verdicts">
+    <div class="verdict" data-v="fixed">
+      <div class="tag">Settled</div>
+      <p class="claim">ui-health owns adopter-side conformance</p>
+      <p class="note">The catalog sheds <code>i18n-adopted</code>, <code>selectors-adopted</code>, and <code>adopter-hygiene</code>. It keeps only gates that need catalog domain knowledge. The hard part isn't the ownership call — it's granularity, and that has an answer below.</p>
+    </div>
+    <div class="verdict" data-v="fixed">
+      <div class="tag">Settled</div>
+      <p class="claim">Block on failure, lower the floor to reality</p>
+      <p class="note">Honor <code>"unavailable": "fail"</code>; move <code>adoptionMaturityFloor</code> down to where the library sits, then ratchet. Red means regression, not backlog.</p>
+    </div>
+    <div class="verdict" data-v="fixed">
+      <div class="tag">Settled</div>
+      <p class="claim">Deprecate, then delete after a window</p>
+      <p class="note">And you were right that the code exists — more of it than I'd found. Only the trigger is missing. Recommendation on what that trigger should be is below.</p>
+    </div>
+    <div class="verdict" data-v="partial">
+      <div class="tag">My call</div>
+      <p class="claim">Generalize the seams, not the topology</p>
+      <p class="note">No generic verdict contract. Two narrowly generic changes instead, which give you the generality without a thirteenth authority. Reasoning below.</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="sec-head">
+    <div class="kicker">Q1, the hard part</div>
+    <h2>Component granularity without hardcoding the catalog</h2>
+    <p>You asked how per-component invocation and version skipping can work when ui-health, experience-health, and workflow-health all validate a scenario as a whole — without teaching those scenarios what react-component-library is. There are three separable problems and the tree already answers two of them.</p>
+  </div>
+
+  <div class="col">
+    <h3>First: there is no sub-scenario subject in the target model</h3>
+    <p>test-genie's phase descriptor schema constrains <code>targets.kinds</code> to a closed enum:</p>
+  </div>
+
+  <div class="snip" style="margin-top:16px">
+    <div class="snip-head"><span>scenarios/test-genie/schemas/test-genie-phase-descriptor.schema.json</span><span>targets.kinds</span></div>
+<pre>"enum": ["scenario", "resource", "tool", "safeguard", "team",
+         "package", "control-plane", "docs", "project"]
+<span class="bad">// nothing smaller than a whole scenario</span></pre>
+  </div>
+
+  <div class="col" style="margin-top:22px">
+    <p>That is the structural reason "validate just this component" cannot be expressed. The fix is generic and precedented: <strong>add an <code>asset</code> kind</strong>. Any scenario that owns a versioned catalog can then enumerate sub-targets — the catalog is not special, it's just the first one with a reason to. The enum has already been widened before; 28 phases target <code>scenario</code> and another 25 target the eight other kinds, so extending it is a proven move rather than a new mechanism.</p>
+    <p>With that in place, test-genie enumerates the subjects and each health scenario validates what it is handed. None of them learns what a component is.</p>
+  </div>
+
+  <div class="col" style="margin-top:32px">
+    <h3>Second: the skipping lever already exists — I was wrong about needing to build it</h3>
+    <p>I previously recommended making the provider incremental internally, because <code>determinism: "observational"</code> appeared to be an all-or-nothing opt-out of caching. It isn't. The schema supports declared inputs <em>and</em> per-capability overrides:</p>
+  </div>
+
+  <div class="snip" style="margin-top:16px">
+    <div class="snip-head"><span>the same schema — determinism</span><span>17 phases already use file-determined</span></div>
+<pre>"default":  <span class="k">"file-determined" | "observational"</span>
+"inputs":   [ … ]        <span class="c">← required when file-determined; scopes the digest</span>
+"capabilities": {        <span class="c">← per-capability override of the above</span>
+   "&lt;name&gt;": { "mode": …, "inputs": [ … ], "reason": … }
+}</pre>
+  </div>
+
+  <div class="col" style="margin-top:22px">
+    <p>So the catalog does not need hand-rolled skip logic. It needs a correct descriptor: declare the static capabilities — contract parsing, story grammar, immutability, token vocabulary — as <code>file-determined</code> with <code>inputs</code> scoped to the asset's own version directory, and keep only the genuinely observational ones (BAS capture, screenshot evidence) as <code>observational</code>. Today the phase declares one blanket <code>observational</code> for everything, with a reason that is true of the screenshot capabilities and false of the static ones. That single over-broad declaration is why every run is a full run.</p>
+    <p>This is the highest-leverage speed fix on the page, and it is a config change rather than an implementation.</p>
+  </div>
+
+  <div class="col" style="margin-top:32px">
+    <h3>Third: make the scan contract take subjects, not a scenario name</h3>
+    <p>ui-health's contract is <code>ScanScenario(scenario)</code> — scenario in, findings out. That shape is what forces whole-scenario granularity on every consumer, and it is the same shape workflow-health uses (<code>applicability.default: "applies"</code>, provider-serial, observational, gating — identical problem, identical cause).</p>
+    <p>The generic change is to accept a subject list: <em>(kind, id, version, fingerprint)</em>. The catalog passes assets; an ordinary scenario passes itself; the health scenario validates whatever it is given and returns findings keyed by subject. No health scenario acquires catalog knowledge, and the same change fixes experience-health and workflow-health at the same time — which answers your worry about solving this three times.</p>
+    <p>Note this is one change, not three: it is the same subject model that <code>targets.kinds: ["asset"]</code> introduces. Do them together or the target kind has nothing to talk to.</p>
+  </div>
+</section>
+
+<section>
+  <div class="sec-head">
+    <div class="kicker">Q1, the composition part</div>
+    <h2>Selectors work the way you described. i18n was redesigned, then never connected.</h2>
+    <p>You asked whether selector and string tables are stored with the component, composed across imports, and isolated from the catalog's own. For selectors: yes, exactly that, already built. For i18n I initially reported that a codemod broke it — that was wrong, and the truth is both better and worse.</p>
+  </div>
+
+  <div class="lanes" style="grid-template-columns:repeat(2,minmax(0,1fr))">
+    <div class="lane" data-m="linked">
+      <div class="l-name">Selectors · working</div>
+      <p>A component emits a <code>data-testid</code> derived from its catalog id. Adoption generates a per-adopter <code>selectors.library.ts</code> between <code>// vrooli:library-selectors</code> markers, keyed by catalog id.</p>
+      <div class="l-spec">createSelectorRegistry({ library: librarySelectors, ...literalSelectors }, dynamic)</div>
+      <p>The merge namespaces every imported component's selectors under <code>library:</code>, so the adopter's own selectors and the catalog's stay separate while both resolve during BAS runs. That is precisely the design you sketched.</p>
+      <p><strong>Present in adopters today</strong> — swarm-manager, channel-manager, persona, source-ledger, backdrop-studio, prose-studio, offer-desk, plan-manager and others each carry a generated file.</p>
+    </div>
+    <div class="lane" data-m="copied">
+      <div class="l-name">i18n · designed, not wired</div>
+      <p>A <code>// vrooli:library-locale-bridge</code> did once exist in each adopter's <code>i18n/index.ts</code>, and <code>remove-locale-bridges.mjs</code> stripped it. But that was <strong>deliberate, not collateral</strong> — <code>link_test.go:44</code> now asserts the bridge stays absent, and the replacement is a better pattern.</p>
+      <div class="l-spec">LibraryStringsProvider({ strings, translate })  ·  useStrings()</div>
+      <p>Components call <code>defineStrings(namespace, defaults)</code> and read through <code>useStrings()</code>. A component works with zero adopter wiring — it renders its own English defaults. An adopter that wants translation mounts <code>LibraryStringsProvider</code> with its own <code>translate</code> function. That is the standard library-ships-defaults / host-supplies-translation shape, and it is the right call.</p>
+      <p><strong>It was never connected.</strong> No adopter mounts the provider anywhere in the tree — the only two references are the definition itself and one catalog test.</p>
+    </div>
+  </div>
+
+  <div class="metrics" style="margin-top:20px">
+    <div class="metric" data-tone="bad"><div class="m-val">0</div><div class="m-lab">adopters mounting <code>LibraryStringsProvider</code></div></div>
+    <div class="metric" data-tone="warn"><div class="m-val">47</div><div class="m-lab">components reading via <code>useStrings()</code> — translatable once wired</div></div>
+    <div class="metric" data-tone="bad"><div class="m-val">43</div><div class="m-lab">components using <code>resolveStrings()</code> — untranslatable by construction</div></div>
+    <div class="metric"><div class="m-val">0</div><div class="m-lab">distinct translation keys observed in the census</div></div>
+  </div>
+
+  <div class="col" style="margin-top:26px">
+    <p>That third number is the one to look at. <code>resolveStrings</code> is a stub that discards its key argument entirely:</p>
+  </div>
+
+  <div class="snip" style="margin-top:14px">
+    <div class="snip-head"><span>hooks/useLocale/versions/1.0.1/useLocale.ts</span><span>end of file</span></div>
+<pre><span class="k">export function</span> resolveStrings(<span class="bad">_key</span>: string, fallback: string): string {
+  <span class="k">return</span> fallback;   <span class="bad">// the key is never consulted</span>
+}</pre>
+  </div>
+
+  <div class="col" style="margin-top:22px">
+    <p>It exists for a legitimate reason — components need string resolution in prop defaults and conditional branches where a React hook would break hook ordering. But as written it means <strong>43 of 90 string-using components render English no matter what any adopter does</strong>, and mounting the provider would not fix them. Together with zero provider mounts, library internationalization is currently sound in shape and non-functional end to end.</p>
+    <p>So the fix is not the bridge I recommended a moment ago — restoring it would fight a deliberate decision that now has a regression test. It is three things: mount <code>LibraryStringsProvider</code> in the adoption link output so adopters get it by default; give <code>resolveStrings</code> a real context-free lookup so the non-hook call sites can translate; and point the <code>i18n</code> gate at whether a scenario actually mounts the provider, rather than at whether string files exist.</p>
+    <p>The isolation question you raised resolves cleanly either way. Both tables key on catalog id — <code>primitives.text</code>, <code>navigation.app-navigation.application-navigation</code> — so a collision between an adopter's own key and an imported component's is structurally impossible, and validation can attribute every obligation to the import it came from without a separate registry.</p>
+  </div>
+</section>
+
+<section>
+  <div class="sec-head">
+    <div class="kicker">Q3 · the trigger</div>
+    <h2>You're right, and there's more built than I found</h2>
+  </div>
+
+  <div class="col">
+    <p>The retirement machinery is close to complete: <code>RetireCandidates</code> and <code>RetireVersion</code> in the version ledger, a <code>CleanupVersions</code> RPC that takes a <code>plan_hash</code> and a <code>confirm</code> flag, a CLI surface under <code>versions</code>, and a ledger row carrying <code>lifecycle_state</code>, <code>retired_at</code>, <code>adoption_current</code>, and <code>adoption_peak</code>. There is even a test asserting that draft versions are excluded from candidacy. That is a full plan-and-apply retirement system with only the automatic trigger missing, exactly as you said.</p>
+    <p><strong>Recommendation: don't make the trigger a timer — make it a gate.</strong> <code>CleanupVersions</code> is already hash-addressed with a separate confirm step, which is the same shape as every other gate here: compute a plan, report it, apply under policy. So compute the retirement plan on every run, emit the candidate count as a finding, and let the ratchet decide whether it applies automatically, warns, or blocks. A cron would be a second scheduling authority for something the run already visits; this reuses the gating you're building anyway and keeps the deprecation window auditable in the same evidence stream as everything else.</p>
+  </div>
+</section>
+
+<section>
+  <div class="sec-head">
+    <div class="kicker">Q4 · my call</div>
+    <h2>Generalize the seams, not the topology</h2>
+    <p>You asked for the cleanest professional long-term answer rather than a menu. Here it is, with the reasoning, because the reasoning is the part you should push back on if you disagree.</p>
+  </div>
+
+  <div class="col">
+    <p><strong>Don't build a generic cross-scenario verdict contract.</strong> The cleanest long-term system has fewer authorities, not more, and a generic contract standing beside twelve <code>*-health</code> scenarios is a thirteenth. The version of it I'd endorse — building it <em>as</em> a consolidation of the health family — is a far larger project than anything else on this page and shouldn't be started while the catalog's own gating phase can't finish.</p>
+    <p><strong>Instead, make the two Q1 changes generic, and the need for a generic contract mostly evaporates.</strong> An <code>asset</code> target kind plus a subject-list scan contract give every health scenario sub-scenario granularity and give every catalog-owning scenario a way to be validated per-asset. That is the generality people actually want from a verdict contract, delivered by widening two seams that already exist rather than by introducing a new layer above them.</p>
+    <p>What this defers, honestly: there is still no cross-cutting place to ask "is anything in the repo red right now", and resources, tools, and safeguards still have thin validation. Those are real. But they are better answered later from a subject model that already exists than solved now by inventing one. If a second scenario turns up needing catalog-style per-asset verdicts, you will already have the model, and the contract becomes a small addition rather than a rewrite.</p>
+    <p>The test for whether this call was right: in six months, either the subject model got reused by something that isn't the component library — in which case generalizing the seams was correct — or it didn't, in which case a generic contract would have been over-engineering and this was still correct.</p>
+  </div>
+</section>
+
+<section>
+  <div class="sec-head">
+    <div class="kicker">Sequence</div>
+    <h2>What this adds up to</h2>
+    <p>Ordered so that each step makes the next one cheaper or observable. The first three are hours, not weeks.</p>
+  </div>
+
+  <div class="steps">
+    <div class="step">
+      <h3>Split the determinism declaration</h3>
+      <p>Declare the static capabilities <code>file-determined</code> with inputs scoped to asset version directories; leave BAS capture <code>observational</code>. No new code. This is what stops every run being a full run, and it's what makes the 1200s deadline survivable.</p>
+    </div>
+    <div class="step">
+      <h3>Scope routine runs to draft plus latest</h3>
+      <p>Drops 107 of 328 version directories from the working set and removes a large share of the stale-evidence noise by construction. Keep a full-audit path for deliberate sweeps.</p>
+    </div>
+    <div class="step">
+      <h3>Make the phase able to fail the run</h3>
+      <p>Honor <code>"unavailable": "fail"</code> so a timeout is a blocker, then set the maturity floor to where the library actually is. Do this <em>after</em> the first two, so the red you get is a real verdict rather than another deadline.</p>
+    </div>
+    <div class="step">
+      <h3>Unify the enumeration on the gate config</h3>
+      <p>Derive the indexer allowlist, the applicability globs, and ui-health's staleness scan from <code>catalog/config.json</code>'s <code>appliesTo</code> kinds. Until this lands, "the whole library passes" is not a statement that can be true — and it's the same fix that unbreaks 11 previews and 15 false import warnings.</p>
+    </div>
+    <div class="step">
+      <h3>Connect the i18n runtime that already exists</h3>
+      <p>Not a bridge restore — that decision was deliberate and is test-locked. Mount <code>LibraryStringsProvider</code> from the adoption link output so adopters get it by default, replace the <code>resolveStrings</code> stub so the 43 non-hook call sites can actually translate, and repoint the <code>i18n</code> gate at provider mounting rather than at file existence. Today every library string renders English in every scenario.</p>
+    </div>
+    <div class="step">
+      <h3>Add the asset target kind and the subject-list scan contract</h3>
+      <p>One change, not two. This is what makes per-component invocation expressible and fixes experience-health and workflow-health at the same time, without any of them learning what a component is.</p>
+    </div>
+    <div class="step">
+      <h3>Move the three adopter gates to ui-health, and make retirement a gate</h3>
+      <p>Delete <code>i18n-adopted</code>, <code>selectors-adopted</code>, <code>adopter-hygiene</code> once ui-health can see per-asset subjects. Wire <code>CleanupVersions</code>' existing plan-and-confirm into the run so the deprecation window advances itself.</p>
+    </div>
+  </div>
+</section>
+<hr class="rule" style="margin-top:64px">
+
+<section>
+  <div class="sec-head">
+    <div class="kicker">Debt</div>
+    <h2>Most of the 1,453 findings aren't work</h2>
+    <p>I took the two biggest warning piles apart. They are almost entirely structural noise, and that noise is why 207 real immutability errors went unnoticed inside the same report.</p>
+  </div>
+
+  <div class="band">
+    <div class="bars">
+      <div class="bar-row" data-sev="warning">
+        <div class="lbl">graph_reconciled <em>· 230 = "catalog declares this asset, no implementation yet"</em></div>
+        <div class="track"><i style="width:42.9%"></i></div>
+        <div class="num">230</div>
+      </div>
+      <div class="bar-row" data-sev="warning">
+        <div class="lbl">graph_reconciled <em>· 199 = one missing binary, repeated</em></div>
+        <div class="track"><i style="width:37.1%"></i></div>
+        <div class="num">199</div>
+      </div>
+      <div class="bar-row" data-sev="error">
+        <div class="lbl">evidence_freshness <em>· on abandoned versions</em></div>
+        <div class="track"><i style="width:16.2%"></i></div>
+        <div class="num">87</div>
+      </div>
+      <div class="bar-row" data-sev="warning">
+        <div class="lbl">documentation <em>· on story <code>Default</code> exports</em></div>
+        <div class="track"><i style="width:5.4%"></i></div>
+        <div class="num">29</div>
+      </div>
+    </div>
+    <div class="flow-legend"><span>545 of 1,453 findings — 37% — are noise rather than backlog.</span></div>
+  </div>
+
+  <div class="col" style="margin-top:28px">
+    <p><strong>The entire <code>graph_reconciled</code> gate is currently reporting nothing real.</strong> Its 429 warnings split two ways and neither is dependency drift, which is what the gate is for. 230 say <em>"the catalog declares this asset but no library implementation exists yet"</em> — that's the roadmap, not debt: the catalog declares 429 assets and 221 are built, so the library is about half-built against its own plan. Restating that as a per-asset warning on every run is a design mistake. The other 199 are one line repeated:</p>
+  </div>
+
+  <div class="snip" style="margin-top:16px">
+    <div class="snip-head"><span>catalog.graph_reconciled × 199</span><span>identical every time</span></div>
+<pre>imports-unavailable: typescript-code-graph could not provide an import graph:
+exec: <span class="bad">"typescript-code-graph": executable file not found in $PATH</span></pre>
+  </div>
+
+  <div class="col" style="margin-top:22px">
+    <p><code>typescript-code-graph</code> exists as a scenario in this repo; its binary just isn't installed. So the gate shells out to a sibling scenario's CLI, fails, and emits one warning per asset explaining that it failed. Two defects in one: the missing install, and a gate that reports its own unavailability 199 times instead of once as a single blocked verdict.</p>
+    <p>The freshness pile has a cheaper fix: <strong>87 of 270 sit on non-latest versions</strong> — 32%, matching the 33% of version directories that are historical. Scoping routine runs to draft plus latest deletes them mechanically rather than by fixing anything.</p>
+    <p>And 29 documentation warnings demand a TSDoc block on <code>Default</code> — the story specimen export. Story exports aren't public API and shouldn't be in that gate's scope.</p>
+  </div>
+</section>
+
+<section>
+  <div class="sec-head">
+    <div class="kicker">Speed</div>
+    <h2>Why the phase can't finish, exactly</h2>
+    <p>I said earlier this was serial execution plus no caching. That was incomplete. Two gates shell out to full pnpm workflows with their own inner deadlines.</p>
+  </div>
+
+  <div class="snip">
+    <div class="snip-head"><span>api/internal/gates — two subprocess gates</span><span>inner timeouts</span></div>
+<pre>gates.go:1268          exec("pnpm", "run", "catalog:check")   <span class="bad">timeout 3m</span>
+                       └─ catalog-conformance type-check + lint, whole catalog
+
+story_evidence.go:71   exec("pnpm", "run", "build")           <span class="bad">timeout 5m</span>
+                       └─ full production vite build</pre>
+  </div>
+
+  <div class="col" style="margin-top:22px">
+    <p><strong>Eight minutes of inner timeouts inside a twenty-minute outer deadline</strong>, before a single browser capture runs. Add serial BAS execution across every story of every version and the 1200s ceiling is not close.</p>
+    <p>Neither of those two can be made per-asset. You cannot typecheck one component through <code>pnpm run catalog:check</code>, and you cannot build one component through <code>pnpm run build</code>. They are corpus operations.</p>
+  </div>
+
+  <div class="callout" data-t="win" style="margin-top:26px">
+    <h3>The gate config already knows which is which</h3>
+    <p>Every gate carries an <code>attribution</code> field, and it splits exactly along the line the incremental design needs: <strong>21 attributable</strong> (per-asset) and <strong>10 corpus</strong> (whole-library). That maps almost one-to-one onto the descriptor's <code>determinism.capabilities</code> override map.</p>
+    <p style="margin-top:.7em">So the design writes itself: the 21 attributable gates become <code>file-determined</code> with inputs scoped to each asset's version directory and skip when unchanged; the corpus gates run once, <code>file-determined</code> against the whole library tree, and skip entirely when nothing in the library moved. A no-change run should cost near zero instead of 1200 seconds.</p>
+    <p style="margin-top:.7em">The ui-health ownership split removes <code>i18n-adopted</code>, <code>selectors-adopted</code>, and <code>adopter-hygiene</code> from the catalog. Moving them out drops the un-incrementalizable set from 13 to 10.</p>
+  </div>
+</section>
+
+<section>
+  <div class="sec-head">
+    <div class="kicker">Cleanup</div>
+    <h2>Leave it better than we found it</h2>
+    <p>Ordered by ratio of noise removed to risk taken. The first four are deletions and config, not refactors.</p>
+  </div>
+
+  <div class="tbl-wrap">
+    <table>
+      <thead><tr><th>Item</th><th>What</th><th>Effect</th></tr></thead>
+      <tbody>
+        <tr><td>Codemod residue</td><td class="mono">tools/ — 7 .mjs + 5 .py, all unreferenced, plus committed __pycache__</td><td>Keep <code>ecosystem-census.mjs</code> (read-only, useful) promoted into <code>ui/scripts/</code> with a test; delete the other 11 and the .pyc files</td></tr>
+        <tr><td>Promoted tests</td><td class="mono">60 hash-named .test.tsx, 13 of 15 destinations stale</td><td>Merge any assertion the library's own test lacks, delete all 60</td></tr>
+        <tr><td>Install the graph binary</td><td class="mono">typescript-code-graph not on PATH</td><td>Removes 199 findings; make the gate report one blocked verdict instead of one per asset</td></tr>
+        <tr><td>Stop reporting the roadmap</td><td class="mono">230 "not-implemented" warnings</td><td>Move declared-but-unbuilt into the coverage report where it belongs; it is a plan, not a finding</td></tr>
+        <tr><td>Exempt story exports</td><td class="mono">29 TSDoc warnings on <code>Default</code></td><td>Story specimens are not public API</td></tr>
+        <tr><td>Scope to draft + latest</td><td class="mono">107 of 328 version dirs are neither</td><td>Removes 87 freshness findings and a third of the work</td></tr>
+        <tr><td>Delete the compat hacks</td><td class="mono">bundler.go:113 and :120 — a hardcoded ClassMerge path rewrite and a <code>MonetizationAccount → SubscriptionBadge</code> alias injected at bundle time</td><td>Two named assets special-cased in shared production code. Both exist because a released version couldn't be edited — fix by publishing a version, then remove the branch</td></tr>
+        <tr><td>Local disk</td><td class="mono">coverage/ is 813 MB (512 runs, 63 MB logs)</td><td>Gitignored, so not repo debt — but it's real disk on a host with a prior exhaustion incident. Needs a retention window</td></tr>
+        <tr><td>Loose library files</td><td class="mono">library/css.d.ts, library/story-contracts.spec.ts</td><td>Two files sitting at the root of an otherwise strictly-structured asset tree; give them a home</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="col" style="margin-top:26px">
+    <p>The two bundler hacks deserve a note beyond deletion. They are the same disease as the 207 immutability errors: someone needed a released version to behave differently, couldn't edit it, and put the workaround somewhere else — in this case inside the shared bundler, where it now runs for every preview of every asset. That is the third distinct symptom of having no draft lane, after in-place rewriting and version-count churn.</p>
+  </div>
+</section>
+
+<section>
+  <div class="sec-head">
+    <div class="kicker">Resolved</div>
+    <h2>Every open question, closed</h2>
+    <p>Three answered themselves once I looked properly. Four were yours. Nothing on this page is now waiting on a decision.</p>
+  </div>
+
+  <div class="verdicts">
+    <div class="verdict" data-v="fixed">
+      <div class="tag">Retracted</div>
+      <p class="claim"><code>preview-harnesses</code> is not a blind spot</p>
+      <p class="note">Its own manifest declares <code>"ownership": "preview-only"</code>, and <code>reference-stories.json</code> states outright that these "are not catalog assets and never enter adoption closure." It has its own registry of harness families and its own conformance script. The exclusion is deliberate and documented in-band — I was wrong to count it as a gap. One genuine sub-finding survives: its <code>subjectKinds</code> vocabulary says <code>hook</code> where the gate config says <code>runtime-hook</code>, so pick one when unifying the enumeration.</p>
+    </div>
+    <div class="verdict" data-v="fixed">
+      <div class="tag">Not debt</div>
+      <p class="claim">The two loose files in <code>library/</code></p>
+      <p class="note"><code>css.d.ts</code> is a one-line ambient declaration (<code>declare module "*.css"</code>) that has to live in the library tree for TypeScript to see it — correctly placed, and quietly ironic: TypeScript has known about the library's CSS imports all along while the preview bundler does not. <code>story-contracts.spec.ts</code> is a real 376-line suite spanning library, api, and ui, and it does run, via <code>test:library</code>. Leave both.</p>
+    </div>
+    <div class="verdict" data-v="fixed">
+      <div class="tag">Decided</div>
+      <p class="claim">i18n: convert to <code>useStrings</code>, delete <code>resolveStrings</code></p>
+      <p class="note">Of 247 calls, ~204 sit in JSX attributes where a hook has always been legal — the stated hook-ordering justification simply doesn't apply to them. The remaining ~43 are destructuring defaults, fixed by moving the default out of the signature into the body: <code>const t = useStrings(); const title = props.title ?? t(key, fallback)</code>. No new machinery, no public API change, and the stub goes away rather than hardening into a global registry.</p>
+    </div>
+    <div class="verdict" data-v="fixed">
+      <div class="tag">Decided</div>
+      <p class="claim">Scenario calls go through <code>api-core/discovery</code>; everything else is a subprocess</p>
+      <p class="note">This is already the scenario's own pattern — the catalog imports <code>api-core/discovery</code> in three places (<code>experience/reader.go</code>, <code>capabilities/registry.go</code>, <code>workflows/agent_manager.go</code>). So <code>graphreconcile</code> exec'ing <code>typescript-code-graph</code> isn't a missing capability, it's an inconsistency with established local practice — and that scenario runs a Go API on a discoverable port, exactly what the resolver is for. Fixing it deletes 199 findings.</p>
+    </div>
+    <div class="verdict" data-v="fixed">
+      <div class="tag">Decided</div>
+      <p class="claim">Declared-but-unbuilt stays a finding, at <code>info</code>, non-blocking</p>
+      <p class="note">Keeps the 230 rows visible per-asset while removing them from the warning count and from the gating denominator. "The whole library passes" then means the 221 implemented assets pass.</p>
+    </div>
+    <div class="verdict" data-v="fixed">
+      <div class="tag">Decided</div>
+      <p class="claim">Retention: N recent runs plus anything a baseline references</p>
+      <p class="note">Prune on run start, reference-aware so a baseline diff never loses the run it compares against. Bounded by count, so worst-case disk stays predictable on a host that has filled up before.</p>
+    </div>
+  </div>
+
+  <div class="col" style="margin-top:30px">
+    <h3>One caveat on the subprocess half</h3>
+    <p>Four bare-name exec calls remain after the discovery fix — <code>pnpm</code> twice, <code>prettier</code>, and <code>vrooli</code> — and <code>exec.LookPath</code> appears nowhere in the scenario. Go resolves bare names through PATHEXT on Windows, so <code>pnpm</code> finding <code>pnpm.cmd</code> is not the real risk. The risk is that a missing tool surfaces as an error in the middle of a gate rather than as a clean unavailable-dependency verdict up front — which is exactly how one absent binary became 199 warnings. A <code>LookPath</code> preflight per subprocess gate, reported once as blocked, is the whole fix.</p>
+  </div>
+</section>
+
+<hr class="rule" style="margin-top:64px">
+
+<section>
+  <div class="sec-head">
+    <div class="kicker">Ratchet config</div>
+    <h2>The gate config is sound. Five things would make it airtight.</h2>
+    <p>Good news first: it validates clean against its schema — zero errors — all 34 gates carry all seven core fields, and <code>rung</code> and <code>attribution</code> are real enums. The gaps are at the edges, and one of them is the ratchet knob itself.</p>
+  </div>
+
+  <div class="tbl-wrap">
+    <table>
+      <thead><tr><th>Gap</th><th>Detail</th><th>Fix</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><strong>The floor was untyped</strong></td>
+          <td><code>adoptionMaturityFloor: "scaffolded"</code> is now a first-class catalog-config property with the four-rung enum.</td>
+          <td>Schema validation rejects a typo such as <code>"verifed"</code>; the live catalog declares the measured <code>scaffolded</code> floor.</td>
+        </tr>
+        <tr>
+          <td><strong><code>blocking</code> isn't required</strong></td>
+          <td>The gate item's required list is <code>id, description, appliesTo, rung, attribution</code>. <code>blocking</code> and <code>runner</code> are optional. All 34 gates set them by convention only.</td>
+          <td>Make both required. Undefined gating behavior is the one thing a ratchet cannot tolerate, and the schema currently permits it.</td>
+        </tr>
+        <tr>
+          <td><strong>Four unvalidated extensions</strong></td>
+          <td><code>x-evidence-kinds</code> (5 gates), <code>x-experience-claim-types</code> (3), <code>x-experience-min-viewports</code> (1), <code>x-experience-requires-capture</code> (1). These carry real semantics — what evidence a gate needs, what it captures — in a namespace with no shape.</td>
+          <td>Promote the two that recur into the schema; the two single-gate ones read as leakage from one feature and should move into that gate's runner or go.</td>
+        </tr>
+        <tr>
+          <td><strong>Two orphan calibrations</strong></td>
+          <td><code>catalog/calibration/integration</code> and <code>.../stress</code> exist as directories with no matching gate in the config — and both contain zero fixtures.</td>
+          <td>Delete, or define the gates they were meant to calibrate. Right now they are the only two of 36 calibration dirs with no owner.</td>
+        </tr>
+        <tr>
+          <td><strong>Kind vocabulary drift</strong></td>
+          <td>The gate config's <code>appliesTo</code> says <code>runtime-hook</code> and <code>runtime-service</code>; <code>preview-harnesses/manifest.json</code> says <code>hook</code>. Two registries, two spellings for one concept.</td>
+          <td>Settle on the config's vocabulary as canonical — it is already the most complete of the five enumerations, which is why it should own this too.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="col" style="margin-top:24px">
+    <p>Worth stating plainly because it cuts against the rest of this report: the <code>^x-</code> escape hatch is a deliberate, schema-blessed extension mechanism, not a hack. The problem is only that load-bearing fields moved into it and never moved back out.</p>
+  </div>
+</section>
+
+<section>
+  <div class="sec-head">
+    <div class="kicker">One command</div>
+    <h2>You already built most of it</h2>
+    <p>Your memory is right — <code>catalog health</code> exists, backed by <code>GetHealthOverview</code>, and it already carries coverage, score history, per-asset health, promote lanes, quarantined gates, and kind mismatches. Roughly 85% of the readiness report is sitting in that response today. Three things are missing and one is wrong.</p>
+  </div>
+
+  <div class="col">
+    <h3>What the data already gives you</h3>
+    <p><code>CoverageRow</code> per asset carries <code>rung</code>, <code>target</code>, <code>achieved</code>, <code>asset_score</code>, <code>weight</code>, <code>passed_gates</code>, <code>failed_gates</code>, <code>nearest_blocking_gate</code>, <code>newest_evidence</code>, and <code>blocks_downstream</code>. <code>MaturitySummary</code> carries <code>by_rung</code>, <code>catalog_completion</code>, <code>mandatory_gate_coverage</code>, <code>production_ready_coverage</code>, <code>pass/fail/unmeasured_evidence</code>, and per-gate score breakdowns. <code>HealthNode</code> carries <code>staleness_days</code> and <code>visual_current</code>.</p>
+    <p><strong><code>nearest_blocking_gate</code> is the single most valuable field on this page</strong> and it already exists per asset. That is literally "what is stopping this asset from climbing one rung."</p>
+  </div>
+
+  <div class="col" style="margin-top:30px">
+    <h3>What's missing</h3>
+    <ul>
+      <li><strong>Run identity and staleness at the report level.</strong> There's <code>staleness_days</code> per node and <code>newest_evidence</code> per row, but nothing says <em>which run produced this, when it ran, and whether it completed.</em> That gap is exactly how the timed-out <code>component-tests</code> phase stays invisible: the report happily renders against evidence from a run that never finished.</li>
+      <li><strong>Config strictness.</strong> Nothing surfaces the current floor, how many gates are blocking versus advisory, or the delta between the declared floor (<code>verified</code>) and where the library actually sits (16 of 34 gates at <code>implemented</code>). Without that, "how do I get to strict green" has no denominator.</li>
+      <li><strong>Unification.</strong> Coverage, health, and next-work are three commands. An agent has to know all three exist and how they relate.</li>
+    </ul>
+  </div>
+
+  <div class="col" style="margin-top:30px">
+    <h3>What's wrong: the output contract</h3>
+    <p>cli-core defines three canonical shapes — <code>ListReport</code> (Summary → Results → Hints) for data retrieval, <code>MutationReport</code> (Result → Changes → Next Command) for writes, and <strong><code>OperationalReport</code> (Status → Triage → Next Steps) for diagnostics</strong>. <code>catalog health</code> is a diagnostic rendered through <code>ListReport</code>, and it shows: an eleven-number run-on <code>Summary</code> string, then a flat list of every asset as <code>id health score stale</code>, unprioritized and untruncated.</p>
+    <p><strong>No react-component-library command uses <code>OperationalReport</code> at all.</strong> That's the whole "not following the output guidelines" finding — the right contract exists and this command family never adopted it.</p>
+  </div>
+
+  <div class="snip" style="margin-top:24px">
+    <div class="snip-head"><span>react-component-library catalog readiness</span><span>proposed — OperationalReport shape</span></div>
+<pre><span class="c">STATUS</span>
+  Verdict         <span class="bad">NOT READY</span> — 3 blocking gates failing, evidence stale
+  Last run        20260826-030606 · 2026-08-26 03:06Z · <span class="bad">component-tests DID NOT COMPLETE (deadline 1200s)</span>
+  Evidence age    oldest 4.2d · <span class="bad">87 rows on retired versions</span> · 270 older than their source
+  Floor           declared <span class="k">verified</span> · library sits at <span class="k">implemented</span> · <span class="bad">gap: 1 rung</span>
+  Gates           30 blocking · 4 advisory · 2 quarantined · 21 per-asset · 13 corpus
+  Assets          221 implemented / 429 declared · 118 at-or-above target
+
+<span class="c">TRIAGE</span>
+  Blocking now (3)
+    released-version-immutable   207 assets   ← highest blast radius
+    evidence-freshness           183 assets   (87 more on retired versions)
+    types                        blocked      catalog:check exceeded 3m
+  Nearest blocking gate, by weight (top 5)
+    controls.button        story-grammar      weight 9   blocks 24 downstream
+    primitives.text        evidence-freshness weight 8   blocks 31 downstream
+    …
+  Stale or unmeasured (2)
+    graph-reconciled   unavailable   typescript-code-graph not resolvable
+    performance        not measured  no evidence since 2026-08-24
+
+<span class="c">NEXT STEPS</span>
+  1  catalog gates released-version-immutable --fix-plan   <span class="c"># clears 207</span>
+  2  vrooli scenario test react-component-library          <span class="c"># refresh evidence</span>
+  3  catalog readiness --floor implemented                 <span class="c"># preview the next rung</span></pre>
+  </div>
+
+  <div class="col" style="margin-top:24px">
+    <p>Three properties make this worth building as one command rather than three.</p>
+    <p><strong>It refuses to look green when it isn't measured.</strong> The status block leads with run identity and completion, so a report built on a timed-out run says so in its first three lines instead of rendering a confident score over stale evidence. That single property would have surfaced last night's break immediately.</p>
+    <p><strong>Triage is ordered by blast radius, not alphabetically.</strong> <code>blocks_downstream</code> and <code>weight</code> already exist per row and nothing currently sorts by them. An agent should see the gate that unblocks 24 assets before the one that unblocks one.</p>
+    <p><strong>It states the ratchet as a distance.</strong> "Declared <code>verified</code>, sitting at <code>implemented</code>, gap one rung" turns the maturity ladder from a config value into a number that goes down. Add a <code>--floor</code> flag and the same command previews what tightening would cost before you tighten it.</p>
+    <p>Implementation is mostly assembly: extend <code>GetHealthOverview</code> with a run block and a config block, sort the existing rows by <code>blocks_downstream × weight</code>, and render through <code>RenderOperationalReport</code> instead of <code>RenderProtoList</code>. The expensive parts — coverage computation, evidence joins, score breakdowns — are already written.</p>
+  </div>
+</section>
+
+<section>
+  <div class="sec-head">
+    <div class="kicker">Outcome update · 2026-08-26</div>
+    <h2>The released-version loop is repaired</h2>
+    <p>The baseline findings above are retained as the investigation record. The implementation pass restored the recorded bytes, then used the governed draft/publish lifecycle to create patch releases for all 54 affected released versions. The live immutability gate now reports zero findings across 375 inspected files; its calibration fixture still fails intentionally with the required <code>catalog.released_version_immutable</code> code.</p>
+  </div>
+  <div class="col">
+    <h3>Evidence-backed seams</h3>
+    <ul>
+      <li>Package exports are synchronized: 221 assets, 606 versioned exports, 827 total exports, and zero broken version imports.</li>
+      <li>Versioned preview imports resolve through the governed compiled package output, with source fallback for catalog fixtures; the preview regression test covers a pinned component import.</li>
+      <li>The preview harness publishes a shared readiness marker, waits for browser-side sheet mounting, and uses a constrained accessible-name fallback for cross-realm DOM nodes.</li>
+      <li>The component-test client has a 20-minute request budget for multi-story closure reports. The direct no-closure <code>ApprovalPrompt@1.0.4</code> report and its two review sheets passed; the authoritative closure run still retains six failed closure reports for follow-up.</li>
+      <li>Readiness is rendered through the operational diagnostic contract and names its evidence run, completion state, maturity floor, achieved rung, gap, blast-radius triage, and runnable next steps.</li>
+    </ul>
+  </div>
+  <div class="col" style="margin-top:24px">
+    <h3>Remaining baseline context</h3>
+    <p>The final comparison separates repaired released-version targets from historical versions that have no durable report yet, and from repository-wide baseline conditions outside this repair: the graph dependency is unavailable as a managed binary, the template has known vendored divergences, and the full scenario suite retains pre-existing failures in unrelated health/security/experience phases. The completed run also retains six explicit closure blockers: five BAS readiness timeouts and the pinned Button story-contract gap in the ApprovalPrompt closure. No historical row is silently deleted or rewritten.</p>
+  </div>
+</section>
+
+<footer>
+  <div>Sources: docs/evidence/final-gate-report.json (2026-08-25 23:04) · docs/evidence/final-ecosystem-census.json (23:02) · .vrooli/schemas/story-contract.schema.json · api/internal/gates · api/internal/adoptions · api/internal/preview/bundler.go · api/internal/components/indexer.go · ui/src/features/components · direct filesystem census</div>
+  <div>Preview and Files findings were reproduced against the running API on 127.0.0.1:17193 — a 221-asset harness sweep and a 111-specifier import resolution pass.</div>
+  <div>Counts are as-measured, not projected. Fork and import counts exclude node_modules.</div>
+</footer>
+
+</div>

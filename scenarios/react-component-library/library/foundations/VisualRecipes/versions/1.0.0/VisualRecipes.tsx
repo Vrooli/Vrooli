@@ -2,7 +2,7 @@
 import {
   COMPONENT_TOKENS,
   SEMANTIC_TOKENS,
-} from "@vrooli/react-component-library/Tokens/1.0.0";
+} from "../../../Tokens/versions/1.0.0/Tokens";
 
 export const recipe = (...classes: Array<string | false | null | undefined>) =>
   classes.filter(Boolean).join(" ");

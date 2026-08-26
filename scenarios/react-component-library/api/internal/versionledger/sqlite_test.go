@@ -2,6 +2,7 @@ package versionledger
 
 import (
 	"context"
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"testing"
@@ -66,7 +67,7 @@ INSERT INTO version_ledger(library_id, version, lifecycle_state) VALUES ('librar
 	require.NoError(t, err)
 	manifest := filepath.Join(root, "components/button/component.json")
 	require.NoError(t, os.MkdirAll(filepath.Dir(manifest), 0o755))
-	require.NoError(t, os.WriteFile(manifest, []byte(`{"deprecatedVersions":["1.0.0"]}`), 0o644))
+	require.NoError(t, os.WriteFile(manifest, []byte(`{"deprecatedVersions":[]}`), 0o644))
 	repo := NewRepository(database, root)
 	items, planHash, err := repo.PlanCleanup(context.Background(), CleanupScope{ComponentID: "library-1"})
 	require.NoError(t, err)
@@ -89,6 +90,13 @@ INSERT INTO version_ledger(library_id, version, lifecycle_state) VALUES ('librar
 	var state string
 	require.NoError(t, database.QueryRowContext(context.Background(), `SELECT lifecycle_state FROM version_ledger WHERE library_id='library-1' AND version='1.0.0'`).Scan(&state))
 	require.Equal(t, "retired", state)
+	manifestData, err := os.ReadFile(manifest)
+	require.NoError(t, err)
+	var manifestDoc struct {
+		DeprecatedVersions []string `json:"deprecatedVersions"`
+	}
+	require.NoError(t, json.Unmarshal(manifestData, &manifestDoc))
+	require.Equal(t, []string{"1.0.0"}, manifestDoc.DeprecatedVersions)
 	items, _, err = repo.PlanCleanup(context.Background(), CleanupScope{ComponentID: "library-1"})
 	require.NoError(t, err)
 	for _, item := range items {

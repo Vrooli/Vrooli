@@ -12,7 +12,7 @@
       "version": "1.0.0"
     }
   ],
-  "description": "Icon resolves named glyphs through the semantic icon registry.",
+  "description": "",
   "designStyles": [
     {
       "affinity": "native",
@@ -28,12 +28,14 @@
     }
   ],
   "displayName": "Icon",
-  "latest": "1.1.2",
+  "latest": "1.1.3",
   "libraryId": "react-component-library:Icon",
   "tags": [
     "primitive",
     "token-bound"
   ],
   "draft": "",
-  "deprecatedVersions": []
+  "deprecatedVersions": [
+    "1.1.2"
+  ]
 }

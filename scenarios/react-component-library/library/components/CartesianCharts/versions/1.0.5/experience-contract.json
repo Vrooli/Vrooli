@@ -1,0 +1,48 @@
+{
+  "$schema": "../../../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "claims": [
+    {
+      "elements": ["chart"],
+      "id": "chart-present",
+      "statement": "The chart plot is named and present.",
+      "states": ["default"],
+      "tier": "machine",
+      "type": "element-present"
+    },
+    {
+      "elements": ["values"],
+      "id": "table-present",
+      "statement": "Every plotted value has an accessible tabular equivalent.",
+      "states": ["default"],
+      "tier": "machine",
+      "type": "element-present"
+    }
+  ],
+  "component": {
+    "id": "visualization.cartesian-charts",
+    "purpose": "Present version progression with a readable chart and tabular equivalent.",
+    "storyRef": "../../library/components/CartesianCharts/versions/1.0.5/story.json",
+    "title": "Cartesian Charts"
+  },
+  "elements": [
+    {
+      "description": "The named chart plot.",
+      "id": "chart",
+      "role": "img"
+    },
+    {
+      "description": "The accessible tabular equivalent.",
+      "id": "values",
+      "role": "table"
+    }
+  ],
+  "kind": "experience-component",
+  "schemaVersion": "1.1.0",
+  "states": [
+    {
+      "description": "A populated progression chart.",
+      "example": "default",
+      "id": "default"
+    }
+  ]
+}

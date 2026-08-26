@@ -7,8 +7,10 @@
       "version": "1.0.0"
     }
   ],
-  "deprecatedVersions": [],
-  "description": "Accessible icon-only action control.",
+  "deprecatedVersions": [
+    "2.0.0"
+  ],
+  "description": "",
   "designStyles": [
     {
       "affinity": "native",
@@ -17,11 +19,12 @@
   ],
   "displayName": "IconButton",
   "entry": "IconButton.tsx",
-  "latest": "2.0.0",
+  "latest": "2.0.1",
   "libraryId": "react-component-library:IconButton",
   "tags": [
     "button",
     "icon",
     "accessibility"
-  ]
+  ],
+  "draft": ""
 }

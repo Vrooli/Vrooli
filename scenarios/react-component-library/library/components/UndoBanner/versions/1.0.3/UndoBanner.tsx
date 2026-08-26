@@ -6,17 +6,15 @@
  * @tags ["feedback","recovery","undo","accessibility","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
-import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
-
 /** @vrooliComponentSource feedback.undo-banner */
-import { useStrings } from "@vrooli/react-component-library/useLocale/1.0.1";
+import { translate } from "../../../../hooks/useLocale/versions/1.0.1/useLocale";
 import { useEffect, useState, type CSSProperties } from "react";
-import { Presence } from "@vrooli/react-component-library/Presence/1.0.0";
-import { Surface } from "@vrooli/react-component-library/Surface/1.0.0";
+import { Presence } from "../../../../primitives/Presence/versions/1.0.0/Presence";
+import { Surface } from "../../../../primitives/Surface/versions/1.0.0/Surface";
 import {
   useUndoManager,
   type UndoRecord,
-} from "@vrooli/react-component-library/UndoManager/1.0.0";
+} from "../../../../services/UndoManager/versions/1.0.0/UndoManager";
 
 const styles = `
   [data-rcl-undo-viewport] { position: fixed; z-index: var(--layer-toast, 1000); inset-inline: var(--space-lg); inset-block: auto calc(var(--space-lg) + env(safe-area-inset-bottom)); display: grid; justify-items: center; pointer-events: none; }
@@ -72,7 +70,6 @@ function UndoItem({
   onUndo: () => void;
   onDismiss: () => void;
 }) {
-  const strings = useStrings();
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
     if (record.status !== "available") return undefined;
@@ -125,12 +122,12 @@ function UndoItem({
               onUndo();
             }}
           >
-            {strings("feedback.undo-banner.undo", "Undo")}
+            {translate("feedback.undo-banner.text.1", "Undo")}
           </button>
         )}
         {record.status === "submitting" && (
           <button data-testid="feedback.undo-banner" data-rcl-undo-action type="button" disabled>
-            {strings("feedback.undo-banner.restoring", "Restoring…")}
+            {translate("feedback.undo-banner.text.2", "Restoring…")}
           </button>
         )}
         {record.status === "error" && (
@@ -142,14 +139,14 @@ function UndoItem({
               onUndo();
             }}
           >
-            {strings("feedback.undo-banner.retry-undo", "Retry undo")}
+            {translate("feedback.undo-banner.text.3", "Retry undo")}
           </button>
         )}
         <button
           data-testid="feedback.undo-banner"
           data-rcl-undo-dismiss
           type="button"
-          aria-label={strings("feedback.undo-banner.dismiss-undo-message", "Dismiss undo message")}
+          aria-label={translate("feedback.undo-banner.aria-label.1", "Dismiss undo message")}
           onClick={onDismiss}
         >
           ×
@@ -171,8 +168,7 @@ export interface UndoBannerProps {
   style?: CSSProperties;
 }
 
-export const UndoBanner = withClassName(function UndoBanner({ className, style }: UndoBannerProps) {
-  const strings = useStrings();
+export function UndoBanner({ className, style }: UndoBannerProps) {
   const manager = useUndoManager();
   const visible = manager.records.filter((record) => record.status !== "expired");
   return (
@@ -182,7 +178,7 @@ export const UndoBanner = withClassName(function UndoBanner({ className, style }
         data-rcl-undo-viewport
         className={className}
         style={style}
-        aria-label={strings("feedback.undo-banner.undo-messages", "Undo messages")}
+        aria-label={translate("feedback.undo-banner.aria-label.2", "Undo messages")}
       >
         {visible.map((record) => (
           <UndoItem
@@ -197,4 +193,4 @@ export const UndoBanner = withClassName(function UndoBanner({ className, style }
       </div>
     </>
   );
-});
+}

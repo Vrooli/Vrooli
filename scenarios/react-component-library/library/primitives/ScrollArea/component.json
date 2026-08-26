@@ -3,7 +3,7 @@
   "assetKind": "primitive",
   "catalogId": "primitives.scroll-area",
   "dependencies": [],
-  "description": "ScrollArea provides a keyboard-reachable overflow boundary.",
+  "description": "",
   "designStyles": [
     {
       "affinity": "native",
@@ -19,7 +19,7 @@
     }
   ],
   "displayName": "ScrollArea",
-  "latest": "1.0.1",
+  "latest": "1.0.4",
   "libraryId": "react-component-library:ScrollArea",
   "tags": [
     "primitive",
@@ -32,5 +32,8 @@
     }
   ],
   "draft": "",
-  "deprecatedVersions": []
+  "deprecatedVersions": [
+    "1.0.1",
+    "1.0.3"
+  ]
 }

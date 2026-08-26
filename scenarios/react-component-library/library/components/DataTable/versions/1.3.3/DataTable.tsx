@@ -6,10 +6,8 @@
  * @tags ["data","table","interactive","selection","responsive","recovery","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
-import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
-
 /** @vrooliComponentSource data-display.data-table */
-import { resolveStrings } from "@vrooli/react-component-library/useLocale/1.0.1";
+import { translate } from "../../../../hooks/useLocale/versions/1.0.1/useLocale";
 import {
   isValidElement,
   useId,
@@ -23,9 +21,9 @@ import {
 import {
   AsyncBoundary,
   type AsyncBoundaryStatus,
-} from "@vrooli/react-component-library/AsyncBoundary/1.0.0";
-import { Table } from "@vrooli/react-component-library/Table/1.0.0";
-import { useSelectionStore } from "@vrooli/react-component-library/SelectionStore/1.0.0";
+} from "../../../AsyncBoundary/versions/1.0.0/AsyncBoundary";
+import { Table } from "../../../Table/versions/1.0.0/Table";
+import { useSelectionStore } from "../../../../services/SelectionStore/versions/1.0.0/SelectionStore";
 
 export interface DataTableColumn<Row> {
   id: string;
@@ -243,7 +241,7 @@ function useCardPresentation() {
   return { tableRef, cards };
 }
 
-export const DataTable = withClassName(function DataTable<Row>({
+export function DataTable<Row>({
   rows,
   columns,
   getRowKey,
@@ -413,7 +411,7 @@ export const DataTable = withClassName(function DataTable<Row>({
                 aria-pressed={currentFilterId === ""}
                 onClick={() => updateFilter("")}
               >
-                {resolveStrings("data-display.data-table.all", "All")}
+                {translate("data-display.data-table.text.1", "All")}
               </button>
               {filters.map((filter) => (
                 <button
@@ -452,7 +450,7 @@ export const DataTable = withClassName(function DataTable<Row>({
           <div
             data-rcl-data-table-density-toggle
             role={filters.length > 0 ? "group" : undefined}
-            aria-label={resolveStrings("data-display.data-table.row-density", "Row density")}
+            aria-label={translate("data-display.data-table.aria-label.1", "Row density")}
           >
             <button
               data-testid="data-display.data-table"
@@ -460,7 +458,7 @@ export const DataTable = withClassName(function DataTable<Row>({
               aria-pressed={currentDensity === "comfortable"}
               onClick={() => updateDensity("comfortable")}
             >
-              {resolveStrings("data-display.data-table.roomy", "Roomy")}
+              {translate("data-display.data-table.text.2", "Roomy")}
             </button>
             <button
               data-testid="data-display.data-table"
@@ -468,7 +466,7 @@ export const DataTable = withClassName(function DataTable<Row>({
               aria-pressed={currentDensity === "compact"}
               onClick={() => updateDensity("compact")}
             >
-              {resolveStrings("data-display.data-table.dense", "Dense")}
+              {translate("data-display.data-table.text.3", "Dense")}
             </button>
           </div>
         ) : null}
@@ -499,11 +497,11 @@ export const DataTable = withClassName(function DataTable<Row>({
     <div
       data-testid="data-table-content"
       role="region"
-      aria-label={resolveStrings("data-display.data-table.data-table-content", "Data table content")}
+      aria-label={translate("data-display.data-table.aria-label.2", "Data table content")}
     >
       {status === "permission-denied" ? (
         <div data-rcl-data-table-permission role="status">
-          <strong>{resolveStrings("data-display.data-table.access-is-limited", "Access is limited")}</strong>
+          <strong>{translate("data-display.data-table.text.4", "Access is limited")}</strong>
           <span>{permissionMessage}</span>
         </div>
       ) : pageRows.length === 0 || status === "empty" ? (
@@ -670,7 +668,7 @@ export const DataTable = withClassName(function DataTable<Row>({
                   disabled={currentPage <= 1}
                   onClick={() => changePage(currentPage - 1)}
                 >
-                  {resolveStrings("data-display.data-table.previous", "Previous")}
+                  {translate("data-display.data-table.text.5", "Previous")}
                 </button>
                 {Array.from({ length: totalPages }, (_, index) => index + 1).map((pageNumber) => (
                   <button
@@ -689,7 +687,7 @@ export const DataTable = withClassName(function DataTable<Row>({
                   disabled={currentPage >= totalPages}
                   onClick={() => changePage(currentPage + 1)}
                 >
-                  {resolveStrings("data-display.data-table.next", "Next")}
+                  {translate("data-display.data-table.text.6", "Next")}
                 </button>
               </div>
             </div>
@@ -719,4 +717,4 @@ export const DataTable = withClassName(function DataTable<Row>({
       </AsyncBoundary>
     </div>
   );
-});
+}

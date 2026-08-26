@@ -4,11 +4,9 @@
  * @status released
  * @deps {"react":"^18"}
  */
-import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
-
 import type { ReactNode } from "react";
 
-export const PreviewDock = withClassName(function PreviewDock({
+export function PreviewDock({
   children,
   label = "Preview controls",
 }: {
@@ -16,7 +14,7 @@ export const PreviewDock = withClassName(function PreviewDock({
   label?: string;
 }) {
   return (
-    <div data-testid="preview.preview-dock"
+    <div
       data-preview-dock
       role="toolbar"
       aria-label={label}
@@ -39,4 +37,4 @@ export const PreviewDock = withClassName(function PreviewDock({
       {children}
     </div>
   );
-});
+}

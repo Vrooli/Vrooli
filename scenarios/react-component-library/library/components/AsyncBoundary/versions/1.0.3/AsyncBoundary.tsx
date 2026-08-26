@@ -6,13 +6,11 @@
  * @tags ["feedback","async","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
-import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
-
 /** @vrooliComponentSource react-component-library:AsyncBoundary */
-import { useStrings } from "@vrooli/react-component-library/useLocale/1.0.1";
+import { translate } from "../../../../hooks/useLocale/versions/1.0.1/useLocale";
 import { useEffect, useId, useRef, useState, type CSSProperties, type ReactNode } from "react";
-import { useAnnounce } from "@vrooli/react-component-library/useAnnounce/1.0.0";
-import { useNetworkStatus } from "@vrooli/react-component-library/useNetworkStatus/1.0.0";
+import { useAnnounce } from "../../../../hooks/useAnnounce/versions/1.0.0/useAnnounce";
+import { useNetworkStatus } from "../../../../hooks/useNetworkStatus/versions/1.0.0/useNetworkStatus";
 
 export type AsyncBoundaryStatus =
   | "idle"
@@ -210,7 +208,7 @@ function LoadingSkeleton() {
   );
 }
 
-export const AsyncBoundary = withClassName(function AsyncBoundary({
+export function AsyncBoundary({
   status = "idle",
   children,
   pending,
@@ -227,7 +225,6 @@ export const AsyncBoundary = withClassName(function AsyncBoundary({
   "aria-label": ariaLabel,
   "aria-labelledby": ariaLabelledBy,
 }: AsyncBoundaryProps) {
-  const strings = useStrings();
   const isOnline = useNetworkStatus();
   const announce = useAnnounce();
   const generatedId = useId().replace(/:/g, "");
@@ -354,12 +351,12 @@ export const AsyncBoundary = withClassName(function AsyncBoundary({
               <LoadingSkeleton />
             ) : (
               <span data-rcl-async-muted>
-                {strings("feedback.async-boundary.loading-content", "Loading content")}
+                {translate("feedback.async-boundary.text.1", "Loading content")}
               </span>
             )}
             {!pending && pendingReady && (
               <span data-rcl-async-muted>
-                {strings("feedback.async-boundary.this-may-take-a-moment", "This may take a moment.")}
+                {translate("feedback.async-boundary.text.2", "This may take a moment.")}
               </span>
             )}
           </div>
@@ -399,4 +396,4 @@ export const AsyncBoundary = withClassName(function AsyncBoundary({
       </section>
     </>
   );
-});
+}

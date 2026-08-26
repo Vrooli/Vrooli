@@ -14,7 +14,7 @@
       "version": "1.0.0"
     }
   ],
-  "description": "Typed class recipes that keep visual variants token-backed and reviewable.",
+  "description": "",
   "designStyles": [
     {
       "affinity": "native",
@@ -22,11 +22,15 @@
     }
   ],
   "displayName": "Visual Recipes",
-  "latest": "1.0.0",
+  "latest": "1.0.1",
   "libraryId": "react-component-library:VisualRecipes",
   "tags": [
     "recipes",
     "variants",
     "tokens"
+  ],
+  "draft": "",
+  "deprecatedVersions": [
+    "1.0.0"
   ]
 }

@@ -8,11 +8,11 @@
  */
 /** @vrooliComponentSource controls.command-button */
 import { forwardRef, type CSSProperties, type ReactNode } from "react";
-import { Button, type ButtonProps } from "@vrooli/react-component-library/Button/2.0.0";
+import { Button, type ButtonProps } from "../../../Button/versions/2.0.0/Button";
 import {
   useAsyncAction,
   type AsyncAction,
-} from "@vrooli/react-component-library/useAsyncAction/1.0.0";
+} from "../../../../hooks/useAsyncAction/versions/1.0.0/useAsyncAction";
 
 const styles = `
 [data-rcl-command-button-labels] { display: inline-grid; align-items: center; justify-items: center; }
@@ -76,7 +76,7 @@ export const CommandButton = forwardRef<HTMLButtonElement, CommandButtonProps>(
     return (
       <>
         <style data-rcl-command-button-styles dangerouslySetInnerHTML={{ __html: styles }} />
-        <Button data-testid="controls.command-button"
+        <Button
           {...props}
           ref={ref}
           disabled={disabled || busy}

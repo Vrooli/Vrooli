@@ -8,7 +8,6 @@
  */
 /** @vrooliComponentSource primitives.inline */
 import { forwardRef, type CSSProperties, type HTMLAttributes } from "react";
-import "./Inline.css";
 
 export interface InlineProps extends HTMLAttributes<HTMLDivElement> {
   gap?: string;
@@ -21,15 +20,18 @@ export const Inline = forwardRef<
   HTMLDivElement,
   InlineProps
 >(({ gap = "sm", align = "center", justify, fullWidth = false, className, style, ...props }, ref) => (
-  <div data-testid="primitives.inline"
+  <div
     ref={ref}
     className={className}
-    data-rcl-inline
-    data-gap={gap}
-    data-align={align}
-    data-justify={justify}
-    data-full-width={fullWidth || undefined}
-    style={style}
+    style={{
+      display: "flex",
+      flexWrap: "wrap",
+      alignItems: align,
+      justifyContent: justify,
+      gap: `var(--space-${gap})`,
+      inlineSize: fullWidth ? "100%" : undefined,
+      ...style,
+    }}
     {...props}
   />
 ));

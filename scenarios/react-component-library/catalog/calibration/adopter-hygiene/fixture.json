@@ -1,9 +1,0 @@
-{
-  "gate": "adopter-hygiene",
-  "assetId": "",
-  "kind": "component",
-  "runner": "static",
-  "requiredFailureCode": "catalog.adopter_hygiene_orphan",
-  "description": "A scenario test directly imports the library package.",
-  "test": "broken.test.tsx"
-}

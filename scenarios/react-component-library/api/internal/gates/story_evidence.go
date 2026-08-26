@@ -66,6 +66,10 @@ func ValidatePerformance(root string) (Result, error) {
 func validateProductionBuild(root string) (Result, error) {
 	uiDir := filepath.Join(root, "scenarios", "react-component-library", "ui")
 	result := Result{}
+	if _, err := exec.LookPath("pnpm"); err != nil {
+		result.Findings = append(result.Findings, Finding{Code: "catalog.performance_runner_unavailable", Message: "pnpm is unavailable; the production build runner could not execute", Remediation: "Install or expose pnpm through the scenario dependency analyzer before running the performance gate."})
+		return result, nil
+	}
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 	defer cancel()
 	command := exec.CommandContext(ctx, "pnpm", "run", "build")

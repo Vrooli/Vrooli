@@ -1,0 +1,47 @@
+{
+  "contract": {
+    "kind": "rcl-component-experience-contract",
+    "schema": "scenario-experience-spec/v1",
+    "provenance": "react-component-library:FormField@1.0.0"
+  },
+  "component": {
+    "id": "forms.form-field",
+    "title": "FormField",
+    "purpose": "Binds field labels, controls, descriptions, and errors into one stable accessible relationship."
+  },
+  "states": [
+    {
+      "id": "default",
+      "example": "default",
+      "description": "A field with label and optional description."
+    },
+    {
+      "id": "validation-error",
+      "example": "error",
+      "description": "A field with an associated recoverable error."
+    }
+  ],
+  "claims": [
+    {
+      "id": "accessible-name",
+      "type": "manual-review",
+      "statement": "The rendered control is named by its visible label.",
+      "tier": "manual",
+      "states": ["default", "validation-error"]
+    },
+    {
+      "id": "error-association",
+      "type": "manual-review",
+      "statement": "An error state marks the control invalid and renders an alert associated with the field.",
+      "tier": "manual",
+      "states": ["validation-error"]
+    },
+    {
+      "id": "stable-structure",
+      "type": "manual-review",
+      "statement": "Adding help or error text does not replace or remove the control element.",
+      "tier": "manual",
+      "states": ["default", "validation-error"]
+    }
+  ]
+}

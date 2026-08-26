@@ -6,18 +6,16 @@
  * @tags ["feedback","async","accessibility","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
-import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
-
 /** @vrooliComponentSource feedback.toast */
-import { resolveStrings, useStrings } from "@vrooli/react-component-library/useLocale/1.0.1";
+import { translate } from "../../../../hooks/useLocale/versions/1.0.1/useLocale";
 import type { CSSProperties } from "react";
-import { Presence } from "@vrooli/react-component-library/Presence/1.0.0";
-import { Surface } from "@vrooli/react-component-library/Surface/1.0.0";
+import { Presence } from "../../../../primitives/Presence/versions/1.0.0/Presence";
+import { Surface } from "../../../../primitives/Surface/versions/1.0.0/Surface";
 import {
   useToastManager,
   type ToastRecord,
   type ToastTone,
-} from "@vrooli/react-component-library/ToastManager/1.0.0";
+} from "../../../../services/ToastManager/versions/1.0.0/ToastManager";
 
 const styles = `
 [data-rcl-toast-viewport] { position: fixed; z-index: var(--layer-toast, 1000); inset-inline: auto var(--space-lg); inset-block: auto calc(var(--space-lg) + env(safe-area-inset-bottom)); display: grid; gap: var(--space-xs); inline-size: min(100% - (var(--space-lg) * 2), 26rem); pointer-events: none; }
@@ -51,7 +49,6 @@ export interface ToastProps {
 }
 
 function ToastItem({ toast, onDismiss }: { toast: ToastRecord; onDismiss: () => void }) {
-  const strings = useStrings();
   return (
     <Presence present duration="quick">
       <Surface
@@ -84,7 +81,7 @@ function ToastItem({ toast, onDismiss }: { toast: ToastRecord; onDismiss: () => 
             data-testid="feedback.toast"
             data-rcl-toast-close
             type="button"
-            aria-label={strings("feedback.toast.dismiss-notification", "Dismiss notification")}
+            aria-label={translate("feedback.toast.aria-label.1", "Dismiss notification")}
             onClick={onDismiss}
           >
             ×
@@ -95,9 +92,9 @@ function ToastItem({ toast, onDismiss }: { toast: ToastRecord; onDismiss: () => 
   );
 }
 
-export const Toast = withClassName(function Toast({
+export function Toast({
   className,
-  label = resolveStrings("feedback.toast.notifications", "Notifications"),
+  label = translate("feedback.toast.label.2", "Notifications"),
   style,
 }: ToastProps) {
   const manager = useToastManager();
@@ -111,4 +108,4 @@ export const Toast = withClassName(function Toast({
       </div>
     </>
   );
-});
+}

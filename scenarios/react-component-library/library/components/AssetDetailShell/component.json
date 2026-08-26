@@ -11,8 +11,10 @@
       "version": "1.0.0"
     }
   ],
-  "deprecatedVersions": [],
-  "description": "A responsive asset-detail composition with preview, metadata, and lifecycle-aware supporting activity.",
+  "deprecatedVersions": [
+    "1.1.0"
+  ],
+  "description": "",
   "designStyles": [
     {
       "affinity": "native",
@@ -21,9 +23,15 @@
   ],
   "displayName": "Asset Detail Shell",
   "draft": "",
-  "latest": "1.1.0",
+  "latest": "1.1.1",
   "libraryId": "react-component-library:AssetDetailShell",
   "slot": "ui-pattern",
-  "tags": ["layout", "asset-detail", "preview", "metadata", "experience"],
+  "tags": [
+    "layout",
+    "asset-detail",
+    "preview",
+    "metadata",
+    "experience"
+  ],
   "x-supplementalJustification": "Pre-catalog operational composition retained as a supplemental asset until the page-template and detail-surface vocabulary is promoted."
 }

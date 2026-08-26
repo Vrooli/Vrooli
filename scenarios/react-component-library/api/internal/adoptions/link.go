@@ -14,9 +14,10 @@ import (
 )
 
 const (
-	linkedPackageName   = "@vrooli/react-component-library"
-	linkedPackagePath   = "file:../../../packages/react-component-library"
-	selectorBridgeStart = "// vrooli:library-selectors start"
+	linkedPackageName    = "@vrooli/react-component-library"
+	linkedPackagePath    = "file:../../../packages/react-component-library"
+	selectorBridgeStart  = "// vrooli:library-selectors start"
+	stringsProviderStart = "// vrooli:library-strings-provider start"
 )
 
 // Link records a package-backed adoption and updates only the adopter's
@@ -121,6 +122,11 @@ func (s *service) Link(ctx context.Context, in LinkInput) (LinkResult, error) {
 		return LinkResult{}, err
 	} else if changed {
 		updatedFiles = append(updatedFiles, "ui/src/consts/selectors.ts")
+	}
+	if changed, err := mountLibraryStringsProvider(ctx, s.files, in.Scenario); err != nil {
+		return LinkResult{}, err
+	} else if changed {
+		updatedFiles = append(updatedFiles, "ui/src/main.tsx")
 	}
 
 	var adoption Adoption
@@ -507,4 +513,146 @@ func composeSelectorRegistry(ctx context.Context, files ScenarioFileWriter, scen
 		return false, fmt.Errorf("write adopter selector composition: %w", err)
 	}
 	return true, nil
+}
+
+// mountLibraryStringsProvider makes the adopter's existing i18n translator
+// available to package-backed library components. The generated wrapper is
+// deliberately idempotent and lives at the application root, so a linked
+// component does not need a private locale bridge or a copied source tree.
+func mountLibraryStringsProvider(ctx context.Context, files ScenarioFileWriter, scenario string) (bool, error) {
+	path := "ui/src/main.tsx"
+	exists, err := files.Exists(ctx, scenario, path)
+	if err != nil {
+		return false, fmt.Errorf("check adopter application root: %w", err)
+	}
+	if !exists {
+		return false, nil
+	}
+	raw, err := files.Read(ctx, scenario, path)
+	if err != nil {
+		return false, fmt.Errorf("read adopter application root: %w", err)
+	}
+	source := string(raw)
+	if strings.Contains(source, stringsProviderStart) {
+		return false, nil
+	}
+	providerImport := `import { LibraryStringsProvider } from "@vrooli/react-component-library/useLocale/1.0.1";`
+	if !strings.Contains(source, "LibraryStringsProvider") {
+		source = providerImport + "\n" + source
+	}
+	if !strings.Contains(source, `from "./i18n"`) && !strings.Contains(source, `from './i18n'`) {
+		source = `import { i18n } from "./i18n";` + "\n" + source
+	}
+	open := "\n    " + stringsProviderStart + "\n    <LibraryStringsProvider translate={(key, fallback) => i18n.t(key, { defaultValue: fallback })}>"
+	close := "\n    </LibraryStringsProvider>\n    // vrooli:library-strings-provider end\n"
+	if renderOpen, renderClose, ok := findReactRender(source); ok {
+		source = source[:renderOpen+1] + open + source[renderOpen+1:]
+		renderClose += len(open)
+		source = source[:renderClose] + close + source[renderClose:]
+	} else if wrapperOpen, wrapperClose, ok := findRootWrapper(source); ok {
+		source = source[:wrapperOpen+1] + open + source[wrapperOpen+1:]
+		wrapperClose += len(open)
+		source = source[:wrapperClose] + close + source[wrapperClose:]
+	} else {
+		return false, fmt.Errorf("adopter application root does not contain a React render call or rootWrapper")
+	}
+	if _, err := files.Write(ctx, scenario, path, []byte(source)); err != nil {
+		return false, fmt.Errorf("write adopter library strings provider: %w", err)
+	}
+	return true, nil
+}
+
+func findReactRender(source string) (int, int, bool) {
+	for index := 0; index < len(source); index++ {
+		index = skipJavaScriptTrivia(source, index)
+		if index >= len(source) {
+			break
+		}
+		if strings.HasPrefix(source[index:], ".render(") {
+			open := index + len(".render")
+			if close, ok := matchingParenthesis(source, open); ok {
+				return open, close, true
+			}
+		}
+	}
+	return 0, 0, false
+}
+
+func findRootWrapper(source string) (int, int, bool) {
+	start := strings.Index(source, "rootWrapper:")
+	if start < 0 {
+		return 0, 0, false
+	}
+	arrow := strings.Index(source[start:], "=> (")
+	if arrow < 0 {
+		return 0, 0, false
+	}
+	open := start + arrow + len("=> ")
+	close, ok := matchingParenthesis(source, open)
+	return open, close, ok
+}
+
+func matchingParenthesis(source string, open int) (int, bool) {
+	if open >= len(source) || source[open] != '(' {
+		return 0, false
+	}
+	depth := 0
+	for index := open; index < len(source); index++ {
+		index = skipJavaScriptTrivia(source, index)
+		if index >= len(source) {
+			break
+		}
+		switch source[index] {
+		case '(':
+			depth++
+		case ')':
+			depth--
+			if depth == 0 {
+				return index, true
+			}
+		}
+	}
+	return 0, false
+}
+
+func skipJavaScriptTrivia(source string, index int) int {
+	for index < len(source) {
+		switch source[index] {
+		case '\'', '"', '`':
+			quote := source[index]
+			index++
+			for index < len(source) {
+				if source[index] == '\\' {
+					index += 2
+					continue
+				}
+				if source[index] == quote {
+					index++
+					break
+				}
+				index++
+			}
+		case '/':
+			if index+1 >= len(source) || source[index+1] != '/' && source[index+1] != '*' {
+				return index
+			}
+			if source[index+1] == '/' {
+				index += 2
+				for index < len(source) && source[index] != '\n' {
+					index++
+				}
+				continue
+			}
+			index += 2
+			for index+1 < len(source) && !(source[index] == '*' && source[index+1] == '/') {
+				index++
+			}
+			if index+1 < len(source) {
+				index += 2
+			}
+		default:
+			return index
+		}
+	}
+	return index
 }

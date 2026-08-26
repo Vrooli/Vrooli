@@ -8,7 +8,7 @@
       "version": "1.0.0"
     }
   ],
-  "description": "A recoverable render boundary that preserves product context while exposing honest recovery and safe diagnostics.",
+  "description": "",
   "designStyles": [
     {
       "affinity": "native",
@@ -24,7 +24,7 @@
     }
   ],
   "displayName": "ErrorBoundary",
-  "latest": "1.0.3",
+  "latest": "1.0.6",
   "libraryId": "react-component-library:ErrorBoundary",
   "tags": [
     "feedback",
@@ -40,5 +40,8 @@
     }
   ],
   "draft": "",
-  "deprecatedVersions": []
+  "deprecatedVersions": [
+    "1.0.3",
+    "1.0.5"
+  ]
 }

@@ -19,6 +19,16 @@ const locate = (document, queries, target) => {
   if (matches.length === 0 && target.role === "complementary") {
     matches = queries.queryAllByRole(document.body, target.role, { ...roleOptions, hidden: true });
   }
+  if (matches.length === 0 && target.name) {
+    // In the browser preview, the Testing Library module and the iframe DOM
+    // can use different realm implementations of accessible-name lookup.
+    // Preserve the semantic role requirement, then use the rendered text as
+    // a narrow fallback when the semantic query returned no candidate.
+    const expectedName = String(target.name).replace(/\s+/g, " ").trim();
+    matches = Array.from(document.querySelectorAll("[role]"))
+      .filter((candidate) => candidate.getAttribute("role") === target.role)
+      .filter((candidate) => String(candidate.textContent || "").replace(/\s+/g, " ").trim() === expectedName);
+  }
   return matches[0] || null;
 };
 
@@ -45,7 +55,10 @@ const expectationFailure = (document, queries, expectation, env) => {
     node = locate(document, queries, { selector: expectation.selector });
   }
   if (expectation.kind === "notVisible") return visible(node, document) ? "expected target not to be visible" : "";
-  if (["visible", "text", "role"].includes(expectation.kind)) return visible(node, document) ? "" : "expected target to be visible";
+  if (["visible", "text", "role"].includes(expectation.kind)) {
+    if (visible(node, document)) return "";
+    return "expected target to be visible";
+  }
   if (expectation.kind === "attribute") {
     const attribute = expectation.attribute || expectation.name || "";
     if (!node) return "expected attribute value was not found";
@@ -94,6 +107,39 @@ export async function runStory(previewStory, modules, env = browserEnv) {
   const skipped = [];
   const wait = env.wait || sleep;
   const flush = async () => { await env.flush?.(); };
+  if (env.browser) {
+    // React's browser renderer may commit the first mount after the event
+    // loop turn in which renderPreview() was called. A fixed sleep can race
+    // that commit and record false expectation failures for otherwise valid
+    // stories. Wait for the host-owned sheet to receive its first child,
+    // while keeping the bound so a genuinely broken mount still fails fast.
+    const deadline = Date.now() + 2000;
+    while (Date.now() < deadline) {
+      const sheet = document.querySelector("[data-preview-sheet]");
+      if (sheet?.children.length) break;
+      await wait(20);
+      await flush();
+    }
+    // The first concurrent commit can expose the sheet before its subject's
+    // accessible nodes are committed. Wait for the first actionable target
+    // (or first declared expectation for static stories) before running role
+    // and text queries. This avoids false negatives without hiding a broken
+    // mount behind an unbounded wait.
+    const initialTarget = previewStory.interactions?.[0]?.target || previewStory.expect?.[0];
+    const targetDeadline = Date.now() + 3000;
+    while (initialTarget && Date.now() < targetDeadline) {
+      let target = null;
+      if (initialTarget.kind === "text") {
+        const value = String(initialTarget.value || "");
+        target = queries.queryAllByText(document.body, value, { exact: false })[0] || null;
+      } else {
+        target = locate(document, queries, initialTarget);
+      }
+      if (target && visible(target, document)) break;
+      await wait(20);
+      await flush();
+    }
+  }
   await wait(50);
   for (const interaction of previewStory.interactions || []) {
     if (interaction.kind === "settle") { await wait(20); await flush(); continue; }

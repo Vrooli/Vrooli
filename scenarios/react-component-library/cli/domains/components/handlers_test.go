@@ -220,6 +220,10 @@ func (s *componentsService) GetComponentVersionContent(_ context.Context, _ *con
 	return connect.NewResponse(&componentsv1.GetComponentVersionContentResponse{}), nil
 }
 
+func (s *componentsService) ResolveLibraryImport(_ context.Context, _ *connect.Request[componentsv1.ResolveLibraryImportRequest]) (*connect.Response[componentsv1.ResolveLibraryImportResponse], error) {
+	return connect.NewResponse(&componentsv1.ResolveLibraryImportResponse{}), nil
+}
+
 func (s *componentsService) ListComponentStories(_ context.Context, req *connect.Request[componentsv1.ListComponentStoriesRequest]) (*connect.Response[componentsv1.ListComponentStoriesResponse], error) {
 	s.mu.Lock()
 	s.storiesReqs = append(s.storiesReqs, req.Msg)

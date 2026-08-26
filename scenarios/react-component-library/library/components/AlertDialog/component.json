@@ -3,7 +3,7 @@
   "assetKind": "component",
   "catalogId": "overlays.alert-dialog",
   "dependencies": [],
-  "description": "A focused confirmation surface for consequential decisions with explicit destructive recovery and resilient focus behavior.",
+  "description": "",
   "designStyles": [
     {
       "affinity": "native",
@@ -19,7 +19,7 @@
     }
   ],
   "displayName": "AlertDialog",
-  "latest": "1.0.2",
+  "latest": "1.0.6",
   "libraryId": "react-component-library:AlertDialog",
   "tags": [
     "overlay",
@@ -29,5 +29,8 @@
     "token-bound"
   ],
   "draft": "",
-  "deprecatedVersions": []
+  "deprecatedVersions": [
+    "1.0.2",
+    "1.0.4"
+  ]
 }

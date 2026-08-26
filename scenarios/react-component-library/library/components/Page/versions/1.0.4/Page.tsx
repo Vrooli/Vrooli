@@ -7,8 +7,8 @@
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
 /** @vrooliComponentSource react-component-library:Page */
-import { useStrings } from "@vrooli/react-component-library/useLocale/1.0.1";
-import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
+import { translate } from "../../../../hooks/useLocale/versions/1.0.1/useLocale";
+import { withClassName } from "../../../../foundations/ClassMerge/versions/1.0.1/ClassMerge";
 
 import type { ReactNode } from "react";
 
@@ -31,15 +31,14 @@ export const Page = withClassName(function Page({
   children?: ReactNode;
   state?: string;
 }) {
-  const strings = useStrings();
   return (
     <>
       <style data-rcl-page-styles dangerouslySetInnerHTML={{ __html: pageStyles }} />
-      <div data-testid="navigation.page" data-page-state={state} data-rcl-page>
+      <div data-page-state={state} data-rcl-page>
         {navigation ? (
           <aside
             data-rcl-page-navigation
-            aria-label={strings("navigation.page.page-navigation", "Page navigation")}
+            aria-label={translate("navigation.page.aria-label.1", "Page navigation")}
           >
             {navigation}
           </aside>

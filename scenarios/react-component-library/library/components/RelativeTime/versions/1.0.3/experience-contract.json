@@ -1,0 +1,28 @@
+{
+  "claims": [
+    {
+      "id": "contract-present",
+      "statement": "RelativeTime preserves machine-readable time context.",
+      "states": ["default"],
+      "tier": "manual",
+      "type": "manual-review"
+    }
+  ],
+  "component": {
+    "id": "primitives.relative-time",
+    "purpose": "Semantic time display.",
+    "title": "RelativeTime"
+  },
+  "contract": {
+    "kind": "rcl-component-experience-contract",
+    "provenance": "react-component-library:RelativeTime@1.0.0",
+    "schema": "scenario-experience-spec/v1"
+  },
+  "states": [
+    {
+      "description": "A concise relative time is shown.",
+      "example": "default",
+      "id": "default"
+    }
+  ]
+}

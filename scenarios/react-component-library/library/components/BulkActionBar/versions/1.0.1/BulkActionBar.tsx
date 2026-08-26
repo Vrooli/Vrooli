@@ -6,13 +6,11 @@
  * @tags ["data-display","selection","async","recovery","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
-import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
-
 /** @vrooliComponentSource data-display.bulk-action-bar */
-import { useStrings } from "@vrooli/react-component-library/useLocale/1.0.1";
+import { translate } from "../../../../hooks/useLocale/versions/1.0.1/useLocale";
 import { useId, useState, type CSSProperties, type ReactNode } from "react";
-import { Button } from "@vrooli/react-component-library/Button/2.0.0";
-import { ButtonGroup } from "@vrooli/react-component-library/ButtonGroup/1.0.0";
+import { Button } from "../../../Button/versions/2.0.0/Button";
+import { ButtonGroup } from "../../../ButtonGroup/versions/1.0.0/ButtonGroup";
 
 export type BulkActionBarStatus =
   | "default"
@@ -99,7 +97,7 @@ function statusCopy(status: BulkActionBarStatus) {
   }
 }
 
-export const BulkActionBar = withClassName(function BulkActionBar({
+export function BulkActionBar({
   selectedCount,
   totalCount,
   status,
@@ -123,7 +121,6 @@ export const BulkActionBar = withClassName(function BulkActionBar({
   className,
   style,
 }: BulkActionBarProps) {
-  const strings = useStrings();
   const titleId = useId();
   const [localStatus, setLocalStatus] = useState(defaultStatus);
   const resolvedStatus = status ?? localStatus;
@@ -146,7 +143,7 @@ export const BulkActionBar = withClassName(function BulkActionBar({
   };
 
   return (
-    <section data-testid="data-display.bulk-action-bar"
+    <section
       data-rcl-bulk-action-bar
       data-status={resolvedStatus}
       aria-labelledby={titleId}
@@ -214,7 +211,7 @@ export const BulkActionBar = withClassName(function BulkActionBar({
       ) : null}
 
       <ButtonGroup
-        label={strings("data-display.bulk-action-bar.selection-actions", "Selection actions")}
+        label={translate("data-display.bulk-action-bar.label.1", "Selection actions")}
         data-rcl-bulk-action-bar-actions
       >
         {resolvedStatus === "success" ? null : (
@@ -249,4 +246,4 @@ export const BulkActionBar = withClassName(function BulkActionBar({
       </ButtonGroup>
     </section>
   );
-});
+}

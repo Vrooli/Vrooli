@@ -7,15 +7,15 @@
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
 /** @vrooliComponentSource controls.checkbox */
-import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
+import { withClassName } from "../../../../foundations/ClassMerge/versions/1.0.1/ClassMerge";
 
 import {
   SelectionControl,
   type SelectionControlProps,
-} from "@vrooli/react-component-library/SelectionControl/1.0.0";
+} from "../../../../primitives/SelectionControl/versions/1.0.0/SelectionControl";
 
 export type CheckboxProps = Omit<SelectionControlProps, "kind">;
 
 export const Checkbox = withClassName(function Checkbox(props: CheckboxProps) {
-  return <SelectionControl data-testid="controls.checkbox" {...props} kind="checkbox" />;
+  return <SelectionControl {...props} kind="checkbox" />;
 });

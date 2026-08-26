@@ -1,14 +1,13 @@
-import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
 import { useRef, type ReactNode } from "react";
 
-import { useFocusTrap } from "@vrooli/react-component-library/DrawerShell/1.0.0";
+import { useFocusTrap } from "../../../DrawerShell/versions/1.0.0/useFocusTrap";
 
 export interface FocusTrapPanelProps {
   open?: boolean;
   children: ReactNode;
 }
 
-export const FocusTrapPanel = withClassName(function FocusTrapPanel({ open = true, children }: FocusTrapPanelProps) {
+export function FocusTrapPanel({ open = true, children }: FocusTrapPanelProps) {
   const panelRef = useRef<HTMLDivElement>(null);
   useFocusTrap(open, panelRef);
   if (!open) return null;
@@ -17,4 +16,4 @@ export const FocusTrapPanel = withClassName(function FocusTrapPanel({ open = tru
       {children}
     </div>
   );
-});
+}

@@ -7,7 +7,7 @@
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
 /** @vrooliComponentSource react-component-library:ResizableSidebar */
-import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
+import { withClassName } from "../../../../foundations/ClassMerge/versions/1.0.1/ClassMerge";
 
 import type { ReactNode } from "react";
 const panel = {
@@ -24,7 +24,7 @@ export const ResizableSidebar = withClassName(function ResizableSidebar({
   children?: ReactNode;
 }) {
   return (
-    <aside data-testid="navigation.resizable-sidebar" data-resizable-sidebar style={{ ...panel, minInlineSize: 260, maxInlineSize: 480 }}>
+    <aside data-resizable-sidebar style={{ ...panel, minInlineSize: 260, maxInlineSize: 480 }}>
       {children}
     </aside>
   );

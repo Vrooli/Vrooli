@@ -6,8 +6,6 @@
  * @tags ["overlay","menu","keyboard","typeahead","accessibility","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
-import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
-
 /** @vrooliComponentSource overlays.menu */
 import {
   createContext,
@@ -25,9 +23,9 @@ import {
   type RefObject,
 } from "react";
 import { ChevronRight } from "lucide-react";
-import { Popover, PopoverParts, usePopover } from "@vrooli/react-component-library/Popover/1.0.0";
-import { useRovingFocus } from "@vrooli/react-component-library/useRovingFocus/1.0.0";
-import { useTypeahead } from "@vrooli/react-component-library/useTypeahead/1.0.0";
+import { Popover, PopoverParts, usePopover } from "../../../Popover/versions/1.0.0/Popover";
+import { useRovingFocus } from "../../../../hooks/useRovingFocus/versions/1.0.0/useRovingFocus";
+import { useTypeahead } from "../../../../hooks/useTypeahead/versions/1.0.0/useTypeahead";
 
 const styles = `
 /* Icons are sized here rather than through the icon library's size prop: that
@@ -75,16 +73,16 @@ export interface MenuProps {
   onOpenChange?: (open: boolean) => void;
 }
 
-export const Menu = withClassName(function Menu({ children, ...props }: MenuProps) {
+export function Menu({ children, ...props }: MenuProps) {
   return (
     <Popover {...props} placement="bottom-start">
       <style data-rcl-menu-styles dangerouslySetInnerHTML={{ __html: styles }} />
       {children}
     </Popover>
   );
-});
+}
 
-export const MenuTrigger = withClassName(function MenuTrigger({
+export function MenuTrigger({
   children,
   ...props
 }: { children: ReactNode } & ButtonHTMLAttributes<HTMLButtonElement>) {
@@ -93,9 +91,9 @@ export const MenuTrigger = withClassName(function MenuTrigger({
       {children}
     </PopoverParts.Trigger>
   );
-});
+}
 
-export const MenuContent = withClassName(function MenuContent({
+export function MenuContent({
   children,
   ...props
 }: { children: ReactNode } & HTMLAttributes<HTMLDivElement>) {
@@ -167,7 +165,7 @@ export const MenuContent = withClassName(function MenuContent({
       </PopoverParts.Content>
     </MenuContext.Provider>
   );
-});
+}
 
 interface MenuItemProps {
   children: ReactNode;
@@ -231,11 +229,11 @@ function MenuItemBase({
   );
 }
 
-export const MenuItem = withClassName(function MenuItem(props: MenuItemProps) {
+export function MenuItem(props: MenuItemProps) {
   return <MenuItemBase {...props} />;
-});
+}
 
-export const MenuCheckboxItem = withClassName(function MenuCheckboxItem({
+export function MenuCheckboxItem({
   checked = false,
   onCheckedChange,
   ...props
@@ -253,9 +251,9 @@ export const MenuCheckboxItem = withClassName(function MenuCheckboxItem({
       onSelect={() => onCheckedChange?.(!checked)}
     />
   );
-});
+}
 
-export const MenuRadioItem = withClassName(function MenuRadioItem({
+export function MenuRadioItem({
   checked = false,
   onCheckedChange,
   ...props
@@ -270,7 +268,7 @@ export const MenuRadioItem = withClassName(function MenuRadioItem({
       onSelect={onCheckedChange}
     />
   );
-});
+}
 
 function SubmenuTrigger({ label, disabled }: { label: ReactNode; disabled: boolean }) {
   const menu = useMenuContext();
@@ -314,7 +312,7 @@ function SubmenuTrigger({ label, disabled }: { label: ReactNode; disabled: boole
   );
 }
 
-export const MenuSubmenu = withClassName(function MenuSubmenu({
+export function MenuSubmenu({
   label,
   children,
   disabled = false,
@@ -333,14 +331,14 @@ export const MenuSubmenu = withClassName(function MenuSubmenu({
       </Popover>
     </div>
   );
-});
+}
 
-export const MenuLabel = withClassName(function MenuLabel({ children }: { children: ReactNode }) {
+export function MenuLabel({ children }: { children: ReactNode }) {
   return <div data-rcl-menu-label>{children}</div>;
-});
-export const MenuSeparator = withClassName(function MenuSeparator() {
+}
+export function MenuSeparator() {
   return <div data-rcl-menu-separator role="separator" />;
-});
+}
 
 export const MenuParts = {
   Trigger: MenuTrigger,

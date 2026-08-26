@@ -7,9 +7,7 @@
  * @deps {"react":"^18"}
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
-import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
-
-import { useStrings } from "@vrooli/react-component-library/useLocale/1.0.1";
+import { translate } from "../../../../hooks/useLocale/versions/1.0.1/useLocale";
 import {
   useCallback,
   useEffect,
@@ -20,11 +18,11 @@ import {
   type ReactNode,
   type RefObject,
 } from "react";
-import { useControllableState } from "@vrooli/react-component-library/useControllableState/1.0.0";
-import { useFocusTrap } from "@vrooli/react-component-library/useFocusTrap/1.0.0";
-import { useMediaQuery } from "@vrooli/react-component-library/useMediaQuery/1.0.0";
-import { useScrollLock } from "@vrooli/react-component-library/useScrollLock/1.0.0";
-import { layerManager } from "@vrooli/react-component-library/LayerManager/1.0.0";
+import { useControllableState } from "../../../../hooks/useControllableState/versions/1.0.0/useControllableState";
+import { useFocusTrap } from "../../../../hooks/useFocusTrap/versions/1.0.0/useFocusTrap";
+import { useMediaQuery } from "../../../../hooks/useMediaQuery/versions/1.0.0/useMediaQuery";
+import { useScrollLock } from "../../../../hooks/useScrollLock/versions/1.0.0/useScrollLock";
+import { layerManager } from "../../../../services/LayerManager/versions/1.0.0/LayerManager";
 import { responsivePanelStyles } from "./styles";
 
 export interface ResponsivePanelProps {
@@ -73,7 +71,7 @@ const readStoredWidth = (key: string | undefined) => {
   }
 };
 
-export const ResponsivePanel = withClassName(function ResponsivePanel({
+export function ResponsivePanel({
   children,
   open: controlledOpen,
   defaultOpen = false,
@@ -97,7 +95,6 @@ export const ResponsivePanel = withClassName(function ResponsivePanel({
   panelClassName,
   contentClassName,
 }: ResponsivePanelProps) {
-  const strings = useStrings();
   const [open, setOpen] = useControllableState({
     value: controlledOpen,
     defaultValue: defaultOpen,
@@ -252,14 +249,14 @@ export const ResponsivePanel = withClassName(function ResponsivePanel({
             </button>
           </header>
           <div data-rcl-responsive-panel-content className={contentClassName}>
-            {children ?? <p>{strings("overlays.responsive-panel.panel-content", "Panel content")}</p>}
+            {children ?? <p>{translate("overlays.responsive-panel.text.1", "Panel content")}</p>}
           </div>
           {resizable && !isMobile ? (
             <input
               data-testid="overlays.responsive-panel"
               type="range"
               data-rcl-responsive-panel-resize
-              aria-label={strings("overlays.responsive-panel.resize-panel", "Resize panel")}
+              aria-label={translate("overlays.responsive-panel.aria-label.1", "Resize panel")}
               aria-orientation="vertical"
               min={minimumWidth}
               max={maximumWidth}
@@ -272,4 +269,4 @@ export const ResponsivePanel = withClassName(function ResponsivePanel({
       </div>
     </>
   );
-});
+}

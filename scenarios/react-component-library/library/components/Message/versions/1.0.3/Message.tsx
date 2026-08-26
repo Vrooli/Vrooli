@@ -6,19 +6,17 @@
  * @tags ["ai","conversation","content","accessibility","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
-import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
-
 /** @vrooliComponentSource ai.message */
-import { useStrings } from "@vrooli/react-component-library/useLocale/1.0.1";
+import { translate } from "../../../../hooks/useLocale/versions/1.0.1/useLocale";
 import { useId, type CSSProperties, type ReactNode } from "react";
-import { Avatar, type AvatarPresence } from "@vrooli/react-component-library/Avatar/1.0.0";
-import { RelativeTime } from "@vrooli/react-component-library/RelativeTime/1.0.0";
+import { Avatar, type AvatarPresence } from "../../../../components/Avatar/versions/1.0.0/Avatar";
+import { RelativeTime } from "../../../../components/RelativeTime/versions/1.0.0/RelativeTime";
 import {
   StatusIndicator,
   type StatusCertainty,
   type StatusUrgency,
-} from "@vrooli/react-component-library/StatusIndicator/1.0.0";
-import { Text } from "@vrooli/react-component-library/Text/1.0.0";
+} from "../../../../components/StatusIndicator/versions/1.0.0/StatusIndicator";
+import { Text } from "../../../../primitives/Text/versions/1.0.0/Text";
 
 export type MessageState =
   | "default"
@@ -133,10 +131,9 @@ function stateStatus(state: MessageState) {
 }
 
 function AttachmentList({ items }: { items: MessageAttachment[] }) {
-  const strings = useStrings();
   return (
-    <section aria-label={strings("ai.message.attachments", "Attachments")}>
-      <div data-rcl-message-list-title>{strings("ai.message.attachments", "Attachments")}</div>
+    <section aria-label={translate("ai.message.aria-label.1", "Attachments")}>
+      <div data-rcl-message-list-title>{translate("ai.message.text.1", "Attachments")}</div>
       <ul data-rcl-message-list>
         {items.map((item) => (
           <li key={item.id} data-rcl-message-attachment>
@@ -166,10 +163,9 @@ function AttachmentList({ items }: { items: MessageAttachment[] }) {
 }
 
 function CitationList({ items }: { items: MessageCitation[] }) {
-  const strings = useStrings();
   return (
-    <section aria-label={strings("ai.message.citations", "Citations")}>
-      <div data-rcl-message-list-title>{strings("ai.message.sources", "Sources")}</div>
+    <section aria-label={translate("ai.message.aria-label.2", "Citations")}>
+      <div data-rcl-message-list-title>{translate("ai.message.text.2", "Sources")}</div>
       <ol data-rcl-message-list>
         {items.map((item, index) => (
           <li key={item.id} data-rcl-message-citation>
@@ -194,7 +190,7 @@ function CitationList({ items }: { items: MessageCitation[] }) {
   );
 }
 
-export const Message = withClassName(function Message({
+export function Message({
   actor,
   content,
   state = "default",
@@ -212,7 +208,6 @@ export const Message = withClassName(function Message({
   className,
   style,
 }: MessageProps) {
-  const strings = useStrings();
   const id = useId().replace(/:/g, "");
   const titleId = `rcl-message-title-${id}`;
   const descriptionId = `rcl-message-content-${id}`;
@@ -260,13 +255,13 @@ export const Message = withClassName(function Message({
             id={descriptionId}
             data-rcl-message-state
             role="status"
-            aria-label={strings("ai.message.generating-response", "Generating response")}
+            aria-label={translate("ai.message.aria-label.3", "Generating response")}
           >
             <span data-rcl-message-marker aria-hidden="true">
               ✦
             </span>
             <span data-rcl-message-state-copy>
-              {strings("ai.message.gathering-a-considered-response", "Gathering a considered response…")}
+              {translate("ai.message.text.3", "Gathering a considered response…")}
             </span>
           </div>
         ) : content !== undefined ? (
@@ -313,7 +308,7 @@ export const Message = withClassName(function Message({
           <div data-rcl-message-divider aria-hidden="true" />
           <div
             data-rcl-message-actions
-            aria-label={strings("ai.message.message-actions", "Message actions")}
+            aria-label={translate("ai.message.aria-label.4", "Message actions")}
           >
             {actions.map((action) => (
               <button
@@ -334,7 +329,7 @@ export const Message = withClassName(function Message({
       {footer ? <footer data-rcl-message-footer>{footer}</footer> : null}
     </article>
   );
-});
+}
 
 export const MessageParts = {
   AttachmentList,

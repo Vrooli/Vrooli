@@ -4,10 +4,8 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
-	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 	"time"
 
 	"github.com/vrooli/api-core/database"
@@ -90,38 +88,4 @@ func freshnessFinding(root, path, reason string) Finding {
 		Code: "catalog.evidence_freshness", AssetID: implementationName(path), File: repoRel(root, path),
 		Message: reason, Remediation: "Run the component test sweep for this exact library version after its story contract changes; a stale or missing report cannot certify the current contract.", DocsRef: "docs/internal/TESTING.md",
 	}
-}
-
-func validateAdopterFiles(root, gate, requiredFile, marker, companion string) (Result, error) {
-	scenarios, err := filepath.Glob(filepath.Join(root, "scenarios", "*", "ui", "package.json"))
-	if err != nil {
-		return Result{}, err
-	}
-	result := Result{}
-	for _, packagePath := range scenarios {
-		data, readErr := os.ReadFile(packagePath)
-		if readErr != nil {
-			return Result{}, readErr
-		}
-		if !strings.Contains(string(data), "@vrooli/react-component-library") {
-			continue
-		}
-		result.Inspected++
-		uiRoot := filepath.Dir(packagePath)
-		requiredPath := filepath.Join(uiRoot, requiredFile)
-		body, readErr := os.ReadFile(requiredPath)
-		if readErr != nil || !strings.Contains(string(body), marker) {
-			result.Findings = append(result.Findings, Finding{
-				Code: "catalog." + gate, AssetID: "", File: repoRel(root, requiredPath),
-				Message:     fmt.Sprintf("linked adopter is missing the managed %s obligation", requiredFile),
-				Remediation: fmt.Sprintf("Run the governed adoption link workflow to write %s and verify %s.", requiredFile, companion),
-				DocsRef:     "docs/concepts/FLOWS.md#adoption",
-			})
-		}
-	}
-	if result.Inspected == 0 {
-		result.Inspected = 1
-		result.Status = "not-applicable"
-	}
-	return result, nil
 }

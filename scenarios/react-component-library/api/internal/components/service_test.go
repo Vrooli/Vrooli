@@ -57,6 +57,27 @@ func TestService_UpdateVersionContentAtFormatsDraftJSONWithoutMutatingRelease(t 
 	require.Equal(t, written.Body, string(draftStory))
 }
 
+func TestService_UpdateVersionContentAtRefusesReleasedVersion(t *testing.T) {
+	repo := mocks.NewFakeRepository()
+	root := t.TempDir()
+	svc := components.NewServiceWithContent(repo, components.NewFSContentStore(root))
+	_, err := svc.InitializeComponent(context.Background(), components.InitializeComponentInput{
+		LibraryID: "react-component-library:Button", Slug: "Button", DisplayName: "Button",
+		InitialVersion: "1.0.0", InitialSource: "export function Button() { return <button />; }",
+		ScaffoldExamples: true,
+	})
+	require.NoError(t, err)
+
+	writer := svc.(interface {
+		UpdateVersionContentAt(context.Context, string, string, string, components.WriteContentInput) (components.Content, error)
+	})
+	_, err = writer.UpdateVersionContentAt(context.Background(), "react-component-library:Button", "1.0.0", "story.json", components.WriteContentInput{
+		Body: `{"schemaVersion":5,"kind":"component","args":{"fields":[]},"environment":{"fixtures":[]},"stories":[]}`,
+	})
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "released component versions are immutable; create a draft first")
+}
+
 func TestService_ListAppliesDefaultLimit(t *testing.T) {
 	repo := mocks.NewFakeRepository()
 	svc := components.NewService(repo)

@@ -2,8 +2,10 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "catalogId": "overlays.dialog",
   "category": "overlays",
-  "deprecatedVersions": [],
-  "description": "Accessible modal dialog shell with escape/backdrop dismissal and mobile-safe sizing.",
+  "deprecatedVersions": [
+    "1.2.1"
+  ],
+  "description": "",
   "designStyles": [
     {
       "affinity": "native",
@@ -20,7 +22,7 @@
   ],
   "displayName": "Dialog",
   "draft": "",
-  "latest": "1.2.1",
+  "latest": "1.2.2",
   "libraryId": "react-component-library:Dialog",
   "slot": "ui-pattern",
   "tags": [

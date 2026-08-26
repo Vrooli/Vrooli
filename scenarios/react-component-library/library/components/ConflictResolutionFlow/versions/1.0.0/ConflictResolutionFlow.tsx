@@ -6,9 +6,9 @@ import {
   type CSSProperties,
   type ReactNode,
 } from "react";
-import { DiffViewer } from "@vrooli/react-component-library/DiffViewer/1.0.0";
-import { Form } from "@vrooli/react-component-library/Form/1.0.0";
-import { useAnnounce } from "@vrooli/react-component-library/useAnnounce/1.0.0";
+import { DiffViewer } from "../../../DiffViewer/versions/1.0.0/DiffViewer";
+import { Form } from "../../../Form/versions/1.0.0/Form";
+import { useAnnounce } from "../../../../hooks/useAnnounce/versions/1.0.0/useAnnounce";
 
 export interface ConflictField<T = unknown> {
   id: string;

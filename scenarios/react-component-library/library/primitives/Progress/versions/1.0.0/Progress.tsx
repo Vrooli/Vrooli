@@ -1,6 +1,6 @@
 /** @vrooliComponentSource primitives.progress */
 import type { CSSProperties, HTMLAttributes } from "react";
-import { useReducedMotion } from "@vrooli/react-component-library/useReducedMotion/1.0.0";
+import { useReducedMotion } from "../../../../hooks/useReducedMotion/versions/1.0.0/useReducedMotion";
 
 export type ProgressShape = "linear" | "circular";
 export type ProgressMode =

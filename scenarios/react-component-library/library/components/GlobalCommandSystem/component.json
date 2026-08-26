@@ -8,7 +8,7 @@
       "version": "1.0.0"
     }
   ],
-  "description": "A scoped command system that keeps registration, keyboard invocation, discovery, execution, history, and recovery in one coherent workflow.",
+  "description": "",
   "designStyles": [
     {
       "affinity": "native",
@@ -24,7 +24,7 @@
     }
   ],
   "displayName": "GlobalCommandSystem",
-  "latest": "1.0.1",
+  "latest": "1.0.2",
   "libraryId": "react-component-library:GlobalCommandSystem",
   "tags": [
     "pattern",
@@ -36,5 +36,7 @@
     "token-bound"
   ],
   "draft": "",
-  "deprecatedVersions": []
+  "deprecatedVersions": [
+    "1.0.1"
+  ]
 }

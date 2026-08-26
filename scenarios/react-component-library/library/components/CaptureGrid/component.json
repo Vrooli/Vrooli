@@ -3,7 +3,7 @@
   "assetKind": "component",
   "catalogId": "visualization.capture-grid",
   "dependencies": [],
-  "description": "A responsive matrix of declared viewport and theme evidence captures.",
+  "description": "",
   "designStyles": [
     {
       "affinity": "native",
@@ -11,7 +11,7 @@
     }
   ],
   "displayName": "CaptureGrid",
-  "latest": "1.0.4",
+  "latest": "1.0.5",
   "libraryId": "react-component-library:CaptureGrid",
   "tags": [
     "visualization",
@@ -24,5 +24,7 @@
     }
   ],
   "draft": "",
-  "deprecatedVersions": []
+  "deprecatedVersions": [
+    "1.0.4"
+  ]
 }

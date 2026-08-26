@@ -7,8 +7,8 @@
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
 /** @vrooliComponentSource react-component-library:PageHeader */
-import { resolveStrings } from "@vrooli/react-component-library/useLocale/1.0.1";
-import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
+import { translate } from "../../../../hooks/useLocale/versions/1.0.1/useLocale";
+import { withClassName } from "../../../../foundations/ClassMerge/versions/1.0.1/ClassMerge";
 
 import type { ReactNode } from "react";
 
@@ -22,7 +22,7 @@ const pageHeaderStyles = `
 `;
 
 export const PageHeader = withClassName(function PageHeader({
-  title = resolveStrings("navigation.page-header.page", "Page"),
+  title = translate("navigation.page-header.title.1", "Page"),
   description,
   actions,
 }: {
@@ -36,7 +36,7 @@ export const PageHeader = withClassName(function PageHeader({
         data-rcl-page-header-styles=""
         dangerouslySetInnerHTML={{ __html: pageHeaderStyles }}
       />
-      <header data-testid="navigation.page-header" data-rcl-page-header="">
+      <header data-rcl-page-header="">
         <div data-rcl-page-header-copy="">
           <h1>{title}</h1>
           {description ? <p>{description}</p> : null}

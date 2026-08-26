@@ -7,14 +7,14 @@
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
 /** @vrooliComponentSource react-component-library:LoadingState */
-import { resolveStrings } from "@vrooli/react-component-library/useLocale/1.0.1";
-import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
+import { translate } from "../../../../hooks/useLocale/versions/1.0.1/useLocale";
+import { withClassName } from "../../../../foundations/ClassMerge/versions/1.0.1/ClassMerge";
 
 import type { ReactNode } from "react";
-import { AsyncBoundary } from "@vrooli/react-component-library/AsyncBoundary/1.0.0";
+import { AsyncBoundary } from "../../../AsyncBoundary/versions/1.0.0/AsyncBoundary";
 
 export const LoadingState = withClassName(function LoadingState({
-  label = resolveStrings("feedback.loading-state.loading", "Loading…"),
+  label = translate("feedback.loading-state.label.1", "Loading…"),
   detail,
   children,
 }: {
@@ -23,7 +23,7 @@ export const LoadingState = withClassName(function LoadingState({
   children?: ReactNode;
 }) {
   return (
-    <AsyncBoundary data-testid="feedback.loading-state"
+    <AsyncBoundary
       status="pending"
       pending={
         <span

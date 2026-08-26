@@ -7,7 +7,7 @@
       "version": "1.0.0"
     }
   ],
-  "description": "Small overlay panel demonstrating a pinned reusable focus-trap hook.",
+  "description": "",
   "designStyles": [
     {
       "affinity": "native",
@@ -18,8 +18,9 @@
       "styleId": "vrooli-command-display"
     }
   ],
+  "entry": "FocusTrapPanel.tsx",
   "displayName": "FocusTrapPanel",
-  "latest": "1.0.0",
+  "latest": "1.0.1",
   "libraryId": "react-component-library:FocusTrapPanel",
   "slot": "ui-pattern",
   "tags": [
@@ -27,5 +28,9 @@
     "accessibility",
     "focus"
   ],
-  "x-supplementalJustification": "Pre-catalog focus demonstration retained as a supplemental accessibility fixture surface."
+  "x-supplementalJustification": "Pre-catalog focus demonstration retained as a supplemental accessibility fixture surface.",
+  "draft": "",
+  "deprecatedVersions": [
+    "1.0.0"
+  ]
 }

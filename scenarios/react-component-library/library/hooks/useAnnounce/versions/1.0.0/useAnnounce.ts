@@ -3,7 +3,7 @@ import { useCallback } from "react";
 import {
   useLiveAnnouncer,
   type AnnouncementOptions,
-} from "@vrooli/react-component-library/LiveAnnouncer/1.0.0";
+} from "../../../../services/LiveAnnouncer/versions/1.0.0/LiveAnnouncer";
 
 export function useAnnounce() {
   const announcer = useLiveAnnouncer();

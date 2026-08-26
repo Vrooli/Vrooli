@@ -1,0 +1,52 @@
+{
+  "claims": [
+    {
+      "id": "native-group",
+      "statement": "RadioGroup exposes a named radiogroup and native radio inputs sharing one name.",
+      "states": ["default", "interactive", "disabled"],
+      "tier": "manual",
+      "type": "manual-review"
+    },
+    {
+      "id": "controlled-selection",
+      "statement": "Controlled selection updates the consumer-visible value when a radio is chosen.",
+      "states": ["interactive"],
+      "tier": "manual",
+      "type": "manual-review"
+    },
+    {
+      "id": "disabled-context",
+      "statement": "Disabled options retain their labels and descriptions while preventing interaction.",
+      "states": ["disabled"],
+      "tier": "manual",
+      "type": "manual-review"
+    }
+  ],
+  "component": {
+    "id": "controls.radio-group",
+    "purpose": "Collect exactly one choice with native group semantics, clear context, and controlled state.",
+    "title": "RadioGroup"
+  },
+  "contract": {
+    "kind": "rcl-component-experience-contract",
+    "provenance": "react-component-library:RadioGroup@1.0.0",
+    "schema": "scenario-experience-spec/v1"
+  },
+  "states": [
+    {
+      "description": "One appearance option is selected.",
+      "example": "default",
+      "id": "default"
+    },
+    {
+      "description": "A controlled consumer receives the selected value.",
+      "example": "interactive",
+      "id": "interactive"
+    },
+    {
+      "description": "An administrator-owned group is unavailable without losing context.",
+      "example": "disabled",
+      "id": "disabled"
+    }
+  ]
+}

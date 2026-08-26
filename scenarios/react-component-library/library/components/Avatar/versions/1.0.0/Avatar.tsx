@@ -1,7 +1,7 @@
 /** @vrooliComponentSource primitives.avatar */
 import { useMemo, type CSSProperties, type ReactNode } from "react";
-import { ProgressiveImage } from "@vrooli/react-component-library/ProgressiveImage/1.1.0";
-import { Text } from "@vrooli/react-component-library/Text/1.0.0";
+import { ProgressiveImage } from "../../../../primitives/ProgressiveImage/versions/1.0.0/ProgressiveImage";
+import { Text } from "../../../../primitives/Text/versions/1.0.0/Text";
 
 export type AvatarSize = "xs" | "sm" | "md" | "lg" | "xl";
 export type AvatarShape = "circle" | "rounded" | "square";

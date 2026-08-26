@@ -7,21 +7,28 @@
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
 /** @vrooliComponentSource primitives.icon */
-import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
+import { withClassName } from "../../../../foundations/ClassMerge/versions/1.0.1/ClassMerge";
 
 import type { SVGProps } from "react";
-import "./Icon.css";
 import {
   ICON_REGISTRY,
   iconSize,
   type IconName,
-} from "@vrooli/react-component-library/IconRegistry/1.0.0";
+} from "../../../../foundations/IconRegistry/versions/1.0.0/IconRegistry";
+import { SEMANTIC_TOKENS } from "../../../../foundations/Tokens/versions/1.0.0/Tokens";
 
 export type { IconName };
 
 type SVGElementProps = SVGProps<SVGSVGElement>;
 export type IconSize = "sm" | "md" | "lg";
 export type IconTone = "default" | "muted" | "accent" | "danger";
+
+const toneColors: Record<IconTone, string> = {
+  default: SEMANTIC_TOKENS.foreground,
+  muted: SEMANTIC_TOKENS.muted,
+  accent: SEMANTIC_TOKENS.primary,
+  danger: SEMANTIC_TOKENS.danger,
+};
 
 /**
  * 1.1.0 — size through CSS rather than SVG presentation attributes.
@@ -59,7 +66,7 @@ export const Icon = withClassName(function Icon({
   const icon = ICON_REGISTRY[name];
   const resolved = iconSize(size);
   return (
-    <svg data-testid="primitives.icon"
+    <svg
       {...props}
       aria-hidden={!label}
       aria-label={label}
@@ -70,13 +77,12 @@ export const Icon = withClassName(function Icon({
       strokeWidth={props.strokeWidth ?? 2}
       strokeLinecap="round"
       strokeLinejoin="round"
-      data-icon-size={size}
-      data-icon-tone={tone}
-      style={
-        props.width || props.height
-          ? { inlineSize: props.width ?? resolved, blockSize: props.height ?? resolved, ...style }
-          : style
-      }
+      style={{
+        inlineSize: props.width ?? resolved,
+        blockSize: props.height ?? resolved,
+        color: toneColors[tone],
+        ...style,
+      }}
       data-icon={name}
     >
       <path d={icon.path} />

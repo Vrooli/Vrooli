@@ -3,7 +3,7 @@
   "assetKind": "component",
   "catalogId": "navigation.page",
   "dependencies": [],
-  "description": "The route content boundary that owns navigation, focus placement, and generic route state composition.",
+  "description": "",
   "designStyles": [
     {
       "affinity": "native",
@@ -11,7 +11,7 @@
     }
   ],
   "displayName": "Page",
-  "latest": "1.0.4",
+  "latest": "1.0.5",
   "libraryId": "react-component-library:Page",
   "tags": [
     "navigation",
@@ -25,5 +25,7 @@
     }
   ],
   "draft": "",
-  "deprecatedVersions": []
+  "deprecatedVersions": [
+    "1.0.4"
+  ]
 }

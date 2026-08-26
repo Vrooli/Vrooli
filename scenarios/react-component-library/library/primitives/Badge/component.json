@@ -3,7 +3,7 @@
   "assetKind": "primitive",
   "catalogId": "primitives.badge",
   "dependencies": [],
-  "description": "Badge communicates compact status with a typed semantic tone.",
+  "description": "",
   "designStyles": [
     {
       "affinity": "native",
@@ -19,10 +19,14 @@
     }
   ],
   "displayName": "Badge",
-  "latest": "1.0.0",
+  "latest": "1.0.1",
   "libraryId": "react-component-library:Badge",
   "tags": [
     "primitive",
     "token-bound"
+  ],
+  "draft": "",
+  "deprecatedVersions": [
+    "1.0.0"
   ]
 }

@@ -16,7 +16,7 @@
       "version": "1.0.0"
     }
   ],
-  "description": "A localized, keyboard-operable calendar for single, multiple, range, week, and month selection.",
+  "description": "",
   "designStyles": [
     {
       "affinity": "native",
@@ -32,7 +32,7 @@
     }
   ],
   "displayName": "Calendar",
-  "latest": "1.0.3",
+  "latest": "1.0.6",
   "libraryId": "react-component-library:Calendar",
   "tags": [
     "forms",
@@ -48,5 +48,8 @@
     }
   ],
   "draft": "",
-  "deprecatedVersions": []
+  "deprecatedVersions": [
+    "1.0.3",
+    "1.0.5"
+  ]
 }

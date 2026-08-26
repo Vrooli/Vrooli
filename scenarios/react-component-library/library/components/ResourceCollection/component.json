@@ -17,7 +17,7 @@
       "version": "1.0.0"
     }
   ],
-  "description": "A responsive resource-list pattern that composes collection controls and DataTable with honest recovery states and router seams.",
+  "description": "",
   "designStyles": [
     {
       "affinity": "native",
@@ -33,7 +33,7 @@
     }
   ],
   "displayName": "Resource Collection",
-  "latest": "1.0.1",
+  "latest": "1.0.4",
   "libraryId": "react-component-library:ResourceCollection",
   "slot": "ui-pattern",
   "tags": [
@@ -52,5 +52,8 @@
     }
   ],
   "draft": "",
-  "deprecatedVersions": []
+  "deprecatedVersions": [
+    "1.0.1",
+    "1.0.3"
+  ]
 }

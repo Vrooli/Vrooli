@@ -8,8 +8,10 @@
       "version": "1.0.0"
     }
   ],
-  "deprecatedVersions": [],
-  "description": "Shared semantic control primitive for consistent sizing, density, focus, hover, and disabled behavior.",
+  "deprecatedVersions": [
+    "1.0.0"
+  ],
+  "description": "",
   "designStyles": [
     {
       "affinity": "native",
@@ -18,7 +20,7 @@
   ],
   "displayName": "Control Base",
   "draft": "",
-  "latest": "1.0.0",
+  "latest": "1.0.1",
   "libraryId": "react-component-library:ControlBase",
   "slot": "ui-primitive",
   "tags": [

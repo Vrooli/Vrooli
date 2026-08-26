@@ -12,7 +12,7 @@
       "version": "1.0.0"
     }
   ],
-  "description": "A complete accessible field composition with stable label, description, control, and error relationships.",
+  "description": "",
   "designStyles": [
     {
       "affinity": "native",
@@ -20,12 +20,16 @@
     }
   ],
   "displayName": "FormField",
-  "latest": "1.0.0",
+  "latest": "1.0.1",
   "libraryId": "react-component-library:FormField",
   "tags": [
     "form",
     "accessibility",
     "token-bound",
     "compound"
+  ],
+  "draft": "",
+  "deprecatedVersions": [
+    "1.0.0"
   ]
 }

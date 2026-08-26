@@ -6,17 +6,15 @@
  * @tags ["visualization","data","accessibility","responsive","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
-import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
-
 /** @vrooliComponentSource react-component-library:Chart */
-import { resolveStrings, useStrings } from "@vrooli/react-component-library/useLocale/1.0.1";
+import { translate } from "../../../../hooks/useLocale/versions/1.0.1/useLocale";
 import { useId, useMemo, useState, type CSSProperties, type ReactNode } from "react";
 import {
   AsyncBoundary,
   type AsyncBoundaryStatus,
-} from "@vrooli/react-component-library/AsyncBoundary/1.0.0";
-import { useElementRect } from "@vrooli/react-component-library/useElementRect/1.0.0";
-import { useLocale } from "@vrooli/react-component-library/useLocale/1.0.0";
+} from "../../../AsyncBoundary/versions/1.0.0/AsyncBoundary";
+import { useElementRect } from "../../../../hooks/useElementRect/versions/1.0.0/useElementRect";
+import { useLocale } from "../../../../hooks/useLocale/versions/1.0.0/useLocale";
 
 export type ChartPresentation = "contained" | "immersive";
 export type ChartLevel = "controller" | "compound" | "convenience";
@@ -78,11 +76,11 @@ const styles = `
 const defaultFormatter = (value: number, locale: string) =>
   new Intl.NumberFormat(locale, { maximumFractionDigits: 1 }).format(value);
 
-export const Chart = withClassName(function Chart({
+export function Chart({
   data,
   title,
-  description = resolveStrings(
-    "visualization.chart.explore-the-trend-and-select-a-point-for-its-exa",
+  description = translate(
+    "visualization.chart.description.1",
     "Explore the trend and select a point for its exact value.",
   ),
   status = "success",
@@ -93,7 +91,6 @@ export const Chart = withClassName(function Chart({
   className,
   style,
 }: ChartProps) {
-  const strings = useStrings();
   const locale = useLocale();
   const [plotElement, setPlotElement] = useState<HTMLElement | null>(null);
   const rect = useElementRect(plotElement);
@@ -141,7 +138,7 @@ export const Chart = withClassName(function Chart({
             <div data-rcl-chart-header>
               <div data-rcl-chart-heading>
                 <span data-rcl-chart-kicker>
-                  {strings("visualization.chart.performance-overview", "Performance overview")}
+                  {translate("visualization.chart.text.1", "Performance overview")}
                 </span>
                 <h2 id={titleId} data-rcl-chart-title>
                   {title}
@@ -217,7 +214,7 @@ export const Chart = withClassName(function Chart({
               <div
                 data-rcl-chart-legend
                 data-rcl-chart-part="legend"
-                aria-label={strings("visualization.chart.chart-values", "Chart values")}
+                aria-label={translate("visualization.chart.aria-label.2", "Chart values")}
               >
                 {data.map((point) => (
                   <button
@@ -238,8 +235,8 @@ export const Chart = withClassName(function Chart({
               <caption>{title} data</caption>
               <thead>
                 <tr>
-                  <th scope="col">{strings("visualization.chart.period", "Period")}</th>
-                  <th scope="col">{strings("visualization.chart.value", "Value")}</th>
+                  <th scope="col">{translate("visualization.chart.text.2", "Period")}</th>
+                  <th scope="col">{translate("visualization.chart.text.3", "Value")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -260,4 +257,4 @@ export const Chart = withClassName(function Chart({
       </AsyncBoundary>
     </div>
   );
-});
+}

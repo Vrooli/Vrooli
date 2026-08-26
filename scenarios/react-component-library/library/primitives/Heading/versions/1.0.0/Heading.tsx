@@ -1,6 +1,6 @@
 /** @vrooliComponentSource primitives.heading */
 import type { HTMLAttributes } from "react";
-import { Text, type TextProps } from "@vrooli/react-component-library/Text/1.0.0";
+import { Text, type TextProps } from "../../../Text/versions/1.0.0/Text";
 
 export interface HeadingProps extends Omit<TextProps, "as"> {
   level?: 1 | 2 | 3 | 4 | 5 | 6;

@@ -13,13 +13,13 @@ import {
   type ControlShape,
   type ControlSize,
   type ControlVariant,
-} from "@vrooli/react-component-library/ControlBase/1.0.0";
-import { Pressable } from "@vrooli/react-component-library/Pressable/1.0.0";
+} from "../../../ControlBase/versions/1.0.0/ControlBase";
+import { Pressable } from "../../../Pressable/versions/1.0.0/Pressable";
 import {
   Icon,
   type IconName,
   type IconSize,
-} from "@vrooli/react-component-library/Icon/1.1.0";
+} from "../../../../primitives/Icon/versions/1.1.0/Icon";
 export const BUTTON_VARIANTS = [
   "primary",
   "secondary",
@@ -71,7 +71,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
       <Pressable
         {...props}
         ref={ref}
-        data-testid={testId ?? "controls.button"}
+        data-testid={testId ?? "button-action"}
         tone={variant}
         size={size}
         pending={pending}

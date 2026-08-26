@@ -7,12 +7,12 @@
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
 /** @vrooliComponentSource controls.toolbar */
-import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
+import { withClassName } from "../../../../foundations/ClassMerge/versions/1.0.1/ClassMerge";
 
 import { createRef, useRef, useState, type ReactNode, type RefObject } from "react";
-import { ControlBase, type ControlVariant } from "@vrooli/react-component-library/ControlBase/1.0.0";
-import { Toggle } from "@vrooli/react-component-library/Toggle/1.0.0";
-import { useRovingFocus } from "@vrooli/react-component-library/useRovingFocus/1.0.0";
+import { ControlBase, type ControlVariant } from "../../../ControlBase/versions/1.0.0/ControlBase";
+import { Toggle } from "../../../Toggle/versions/1.0.0/Toggle";
+import { useRovingFocus } from "../../../../hooks/useRovingFocus/versions/1.0.0/useRovingFocus";
 
 export interface ToolbarItem {
   id: string;
@@ -90,7 +90,7 @@ export const Toolbar = withClassName(function Toolbar({
 
   return (
     <>
-      <ToolbarStyles data-testid="controls.toolbar" />
+      <ToolbarStyles />
       <div role="toolbar" aria-label={label} aria-orientation={orientation} data-rcl-toolbar>
         {items.map((item, index) => {
           const common = {

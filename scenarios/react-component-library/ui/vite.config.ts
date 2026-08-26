@@ -125,10 +125,11 @@ export default defineConfig(({ mode }): UserConfig => {
       globals: true,
       environment: "jsdom",
       setupFiles: ["./src/test-setup.ts"],
-      // Coverage-isolation is a declared runner profile, not a package-script
-      // flag; keep the constrained pool portable across local and CI runs.
-      pool: "forks",
-      poolOptions: { forks: { minForks: 1, maxForks: 1 } },
+      // The corpus is one generated contract file with 728 sequential stories.
+      // Keep it in one worker, and use a thread so the worker remains alive for
+      // the complete run instead of exiting partway through the fork pool.
+      pool: "threads",
+      poolOptions: { threads: { singleThread: true } },
       coverage: {
         provider: "v8",
         reporter: ["text", "json-summary", "json"],

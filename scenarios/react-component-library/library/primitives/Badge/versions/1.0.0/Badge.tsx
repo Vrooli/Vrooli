@@ -1,24 +1,34 @@
 /** @vrooliComponentSource primitives.badge */
-import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
-
 import type { HTMLAttributes } from "react";
-import "./Badge.css";
 
-export const Badge = withClassName(function Badge({
+const badgeTones = {
+  neutral: "var(--color-muted-foreground)",
+  info: "var(--color-info)",
+  success: "var(--color-success)",
+  warning: "var(--color-warning)",
+  danger: "var(--color-danger)",
+} as const;
+
+export function Badge({
   tone = "neutral",
   children,
-  style,
   ...props
-}: HTMLAttributes<HTMLSpanElement> & { tone?: "neutral" | "info" | "success" | "warning" | "danger" }) {
+}: HTMLAttributes<HTMLSpanElement> & { tone?: keyof typeof badgeTones }) {
   return (
-    <span data-testid="primitives.badge"
+    <span
       role="status"
-      data-rcl-badge
       data-tone={tone}
-      style={style}
+      style={{
+        color: badgeTones[tone],
+        border: "var(--badge-border)",
+        borderRadius: "var(--radius-pill)",
+        paddingInline: "var(--space-sm)",
+        paddingBlock: "var(--space-3xs)",
+        ...props.style,
+      }}
       {...props}
     >
       {children}
     </span>
   );
-});
+}

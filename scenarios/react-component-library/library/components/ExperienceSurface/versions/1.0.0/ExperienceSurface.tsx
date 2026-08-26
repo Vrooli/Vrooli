@@ -4,8 +4,6 @@
  * @status released
  * @deps {"react":"^18"}
  */
-import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
-
 import type { HTMLAttributes, ReactNode } from "react";
 
 export type ExperienceSurfaceState =
@@ -31,7 +29,7 @@ export interface ExperienceSurfaceProps extends HTMLAttributes<HTMLElement> {
 // ExperienceSurface intentionally owns only machine-readable lifecycle and
 // accessible announcement semantics. Layout and presentation stay with the
 // scenario or the composed state-pattern components.
-export const ExperienceSurface = withClassName(function ExperienceSurface({
+export function ExperienceSurface({
   surfaceId,
   state,
   children,
@@ -61,4 +59,4 @@ export const ExperienceSurface = withClassName(function ExperienceSurface({
       {children}
     </Tag>
   );
-});
+}

@@ -203,7 +203,14 @@ func plan(root string, dryRun bool) (pruneReport, error) {
 }
 
 func isRetained(path string) bool {
+	path = filepath.ToSlash(path)
 	base := filepath.Base(path)
+	// The latest pointer, baseline evidence, and append-only run index are
+	// roots of the evidence graph. Pruning any of them makes retained run
+	// references point at missing evidence, so they are never age-pruned.
+	if path == "runs.index.json" || strings.HasPrefix(path, "latest/") || strings.HasPrefix(path, "baseline/") {
+		return true
+	}
 	return base == "verdicts.json" || strings.Contains(path, "verdict") || strings.Contains(path, "evaluator") || strings.Contains(path, "calibration") || strings.Contains(path, "hash") || strings.Contains(path, "timing")
 }
 

@@ -3,7 +3,7 @@
   "assetKind": "hook",
   "catalogId": "hooks.use-announce",
   "dependencies": [],
-  "description": "Production-ready useAnnounce hook with SSR-safe lifecycle behavior.",
+  "description": "",
   "designStyles": [
     {
       "affinity": "native",
@@ -11,10 +11,14 @@
     }
   ],
   "displayName": "useAnnounce",
-  "latest": "1.0.0",
+  "latest": "1.0.1",
   "libraryId": "react-component-library:useAnnounce",
   "tags": [
     "runtime",
     "accessibility"
+  ],
+  "draft": "",
+  "deprecatedVersions": [
+    "1.0.0"
   ]
 }

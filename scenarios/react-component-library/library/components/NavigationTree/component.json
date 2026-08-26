@@ -3,7 +3,7 @@
   "assetKind": "component",
   "catalogId": "navigation.navigation-tree",
   "dependencies": [],
-  "description": "A hierarchical navigation surface that preserves reading order and keyboard semantics.",
+  "description": "",
   "designStyles": [
     {
       "affinity": "native",
@@ -11,7 +11,7 @@
     }
   ],
   "displayName": "NavigationTree",
-  "latest": "1.1.4",
+  "latest": "1.1.7",
   "libraryId": "react-component-library:NavigationTree",
   "tags": [
     "navigation",
@@ -25,5 +25,8 @@
     }
   ],
   "draft": "",
-  "deprecatedVersions": []
+  "deprecatedVersions": [
+    "1.1.4",
+    "1.1.6"
+  ]
 }

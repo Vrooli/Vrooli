@@ -300,6 +300,13 @@ func runControlPlane(ctx context.Context, root, name string, args ...string) err
 }
 
 func runControlPlaneOutput(ctx context.Context, root, name string, args ...string) ([]byte, error) {
+	if name == "vrooli" && (len(args) == 0 || args[0] != "--no-stale-check") {
+		// The fixture is itself a validation of the generated scenario contract.
+		// Its temporary lifecycle must remain usable while unrelated root CLI
+		// packages are being rebuilt; --no-stale-check is the control plane's
+		// documented mode for that situation.
+		args = append([]string{"--no-stale-check"}, args...)
+	}
 	cmd := exec.CommandContext(ctx, name, args...) // #nosec G204 -- names are fixed provider-owned control-plane tools.
 	cmd.Dir = root
 	var stderr bytes.Buffer

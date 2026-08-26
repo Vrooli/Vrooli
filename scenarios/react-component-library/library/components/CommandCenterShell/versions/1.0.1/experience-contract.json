@@ -1,0 +1,55 @@
+{
+  "contract": {
+    "kind": "rcl-component-experience-contract",
+    "schema": "scenario-experience-spec/v1",
+    "provenance": "react-component-library/CommandCenterShell@1.0.0"
+  },
+  "component": {
+    "id": "command-center-shell",
+    "title": "Command Center Shell",
+    "purpose": "Compose operational navigation, metrics, controls, and an observable primary work region."
+  },
+  "states": [
+    {
+      "id": "loading",
+      "example": "loading",
+      "description": "The primary operational region is loading while navigation and context remain available."
+    },
+    {
+      "id": "ready",
+      "example": "ready",
+      "description": "The primary work region is usable."
+    },
+    {
+      "id": "empty",
+      "example": "empty",
+      "description": "The primary query completed with no matching work."
+    },
+    {
+      "id": "partial",
+      "example": "partial",
+      "description": "The primary work remains usable with supporting information unavailable."
+    },
+    {
+      "id": "error",
+      "example": "error",
+      "description": "The primary region exposes a terminal failure and optional retry."
+    }
+  ],
+  "claims": [
+    {
+      "id": "primary-region-observable",
+      "type": "manual-review",
+      "statement": "The primary region is rendered through AsyncPanel and exposes its lifecycle through ExperienceSurface.",
+      "tier": "manual",
+      "states": ["loading", "ready", "empty", "partial", "error"]
+    },
+    {
+      "id": "operational-context-preserved",
+      "type": "manual-review",
+      "statement": "Navigation and summary metrics remain structurally available in every primary-region lifecycle state.",
+      "tier": "manual",
+      "states": ["loading", "ready", "empty", "partial", "error"]
+    }
+  ]
+}

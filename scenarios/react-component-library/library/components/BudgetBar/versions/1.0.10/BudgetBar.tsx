@@ -6,13 +6,13 @@
  * @tags ["data-display","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
-import { resolveStrings } from "@vrooli/react-component-library/useLocale/1.0.1";
-import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
+import { translate } from "../../../../hooks/useLocale/versions/1.0.1/useLocale";
+import { withClassName } from "../../../../foundations/ClassMerge/versions/1.0.1/ClassMerge";
 
 /** @vrooliComponentSource react-component-library:BudgetBar */
-import { BoundedMeter } from "@vrooli/react-component-library/BoundedMeter/1.0.2";
+import { BoundedMeter } from "../../../BoundedMeter/versions/1.0.1/BoundedMeter";
 export const BudgetBar = withClassName(function BudgetBar({
-  label = resolveStrings("data-display.budget-bar.mount", "Mount"),
+  label = translate("data-display.budget-bar.label.1", "Mount"),
   value = 42,
   budget = 100,
   unit = "ms",
@@ -24,7 +24,7 @@ export const BudgetBar = withClassName(function BudgetBar({
 }) {
   const ratio = Math.max(0, Math.min(1, value / Math.max(budget, 1)));
   return (
-    <BoundedMeter data-testid="data-display.budget-bar"
+    <BoundedMeter
       label={label}
       value={value}
       max={budget}

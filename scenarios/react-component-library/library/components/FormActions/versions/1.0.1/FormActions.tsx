@@ -6,14 +6,12 @@
  * @tags ["form","actions","responsive","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
-import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
-
 /** @vrooliComponentSource forms.form-actions */
 import { useEffect, useState, type CSSProperties, type ReactNode } from "react";
 import {
   type FormPhase,
   type FormStore,
-} from "@vrooli/react-component-library/FormStore/1.0.0";
+} from "../../../../services/FormStore/versions/1.0.0/FormStore";
 
 export interface FormActionsProps<
   TValues extends Record<string, unknown> = Record<string, unknown>,
@@ -59,7 +57,7 @@ function useFormPhase<TValues extends Record<string, unknown>>(store?: FormStore
   return store?.get().phase;
 }
 
-export const FormActions = withClassName(function FormActions<TValues extends Record<string, unknown> = Record<string, unknown>>({
+export function FormActions<TValues extends Record<string, unknown> = Record<string, unknown>>({
   store,
   submitLabel = "Save changes",
   pendingLabel = "Saving…",
@@ -122,4 +120,4 @@ export const FormActions = withClassName(function FormActions<TValues extends Re
       </div>
     </>
   );
-});
+}

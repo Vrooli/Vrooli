@@ -6,10 +6,8 @@
  * @tags ["visualization","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
-import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
-
 /** @vrooliComponentSource react-component-library:NetworkGraph */
-import { useStrings } from "@vrooli/react-component-library/useLocale/1.0.1";
+import { translate } from "../../../../hooks/useLocale/versions/1.0.1/useLocale";
 import { useEffect, useRef } from "react";
 export interface GraphNode {
   id: string;
@@ -20,14 +18,13 @@ export interface GraphEdge {
   from: string;
   to: string;
 }
-export const NetworkGraph = withClassName(function NetworkGraph({
+export function NetworkGraph({
   nodes = [],
   edges = [],
 }: {
   nodes?: GraphNode[];
   edges?: GraphEdge[];
 }) {
-  const strings = useStrings();
   const canvas = useRef<HTMLCanvasElement>(null);
   useEffect(() => {
     const element = canvas.current;
@@ -61,7 +58,7 @@ export const NetworkGraph = withClassName(function NetworkGraph({
   }, [nodes, edges]);
   return (
     <section
-      aria-label={strings("visualization.network-graph.dependency-network", "Dependency network")}
+      aria-label={translate("visualization.network-graph.aria-label.1", "Dependency network")}
       style={{ display: "grid", gap: "var(--space-xs)" }}
     >
       <div role="img" aria-label={`${nodes.length} dependency nodes`}>
@@ -78,8 +75,8 @@ export const NetworkGraph = withClassName(function NetworkGraph({
         />
       </div>
       <div
-        aria-label={strings(
-          "visualization.network-graph.keyboard-accessible-dependency-nodes-style-displ",
+        aria-label={translate(
+          "visualization.network-graph.aria-label.2",
           "Keyboard accessible dependency nodes",
         )}
         style={{
@@ -98,11 +95,11 @@ export const NetworkGraph = withClassName(function NetworkGraph({
             style={{ textAlign: "start" }}
           >
             <span className="sr-only">
-              {strings("visualization.network-graph.select-dependency-node", "Select dependency node")}
+              {translate("visualization.network-graph.text.1", "Select dependency node")}
             </span>
           </button>
         ))}
       </div>
     </section>
   );
-});
+}

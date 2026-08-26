@@ -6,10 +6,8 @@
  * @tags ["template","page","data-source","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
-import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
-
 /** @vrooliComponentSource react-component-library:CollectionPage */
-import { useStrings } from "@vrooli/react-component-library/useLocale/1.0.1";
+import { translate } from "../../../../hooks/useLocale/versions/1.0.1/useLocale";
 import type { ReactNode } from "react";
 import { useState } from "react";
 
@@ -45,17 +43,16 @@ type State =
   | "offline"
   | "ready";
 function StateView({ state, children }: { state: State; children: ReactNode }) {
-  const strings = useStrings();
   if (state === "loading")
     return (
       <div role="status" style={{ ...panel, textAlign: "center" }}>
-        {strings("templates.collection-page.loading", "Loading…")}
+        {translate("templates.collection-page.text.1", "Loading…")}
       </div>
     );
   if (state === "refreshing")
     return (
       <div role="status" style={panel}>
-        <strong>{strings("templates.collection-page.refreshing", "Refreshing")}</strong>
+        <strong>{translate("templates.collection-page.text.2", "Refreshing")}</strong>
         {children}
       </div>
     );
@@ -63,7 +60,7 @@ function StateView({ state, children }: { state: State; children: ReactNode }) {
     return (
       <div style={{ display: "grid", gap: 12 }}>
         <span style={{ color: "var(--color-primary, #2563eb)" }}>
-          {strings("templates.collection-page.showing-stale-data", "Showing stale data")}
+          {translate("templates.collection-page.text.3", "Showing stale data")}
         </span>
         {children}
       </div>
@@ -71,7 +68,7 @@ function StateView({ state, children }: { state: State; children: ReactNode }) {
   if (state === "empty")
     return (
       <div data-state="empty" style={{ ...panel, textAlign: "center" }}>
-        {strings("templates.collection-page.nothing-here", "Nothing here")}
+        {translate("templates.collection-page.text.4", "Nothing here")}
       </div>
     );
   if (state === "partial-error")
@@ -79,13 +76,13 @@ function StateView({ state, children }: { state: State; children: ReactNode }) {
   if (state === "fatal-error")
     return (
       <div role="alert" style={{ ...panel, borderColor: "var(--color-danger, #dc2626)" }}>
-        {strings("templates.collection-page.unable-to-load-this-page", "Unable to load this page")}
+        {translate("templates.collection-page.text.5", "Unable to load this page")}
       </div>
     );
   if (state === "offline") return <div role="status">Offline{children}</div>;
   return <>{children}</>;
 }
-export const CollectionPage = withClassName(function CollectionPage({
+export function CollectionPage({
   state = "ready",
   data,
   mode,
@@ -102,7 +99,6 @@ export const CollectionPage = withClassName(function CollectionPage({
   onQueryChange?: (query: string) => void;
   onFilterSubmit?: (query: string) => void;
 }) {
-  const strings = useStrings();
   const [uncontrolledQuery, setUncontrolledQuery] = useState(defaultQuery);
   const resolvedMode: CollectionPageMode =
     mode ?? (query === undefined ? "uncontrolled" : "controlled");
@@ -117,11 +113,11 @@ export const CollectionPage = withClassName(function CollectionPage({
       <div style={{ display: "grid", gap: 16, minWidth: 0, width: "100%" }}>
         <header>
           <h1 style={{ margin: 0, fontSize: 24 }}>
-            {strings("templates.collection-page.collection", "Collection")}
+            {translate("templates.collection-page.text.6", "Collection")}
           </h1>
           <p style={muted}>
-            {strings(
-              "templates.collection-page.browse-filter-and-act-on-your-resources-p-header",
+            {translate(
+              "templates.collection-page.text.7",
               "Browse, filter, and act on your resources.",
             )}
           </p>
@@ -138,9 +134,9 @@ export const CollectionPage = withClassName(function CollectionPage({
         >
           <input
             data-testid="templates.collection-page"
-            aria-label={strings("templates.collection-page.filter-query", "Filter query")}
-            placeholder={strings(
-              "templates.collection-page.search-by-name-or-status-value-resolvedquery-onc",
+            aria-label={translate("templates.collection-page.aria-label.1", "Filter query")}
+            placeholder={translate(
+              "templates.collection-page.placeholder.2",
               "Search by name or status",
             )}
             value={resolvedQuery}
@@ -156,11 +152,11 @@ export const CollectionPage = withClassName(function CollectionPage({
             }}
           />
           <button data-testid="templates.collection-page" type="submit" style={button}>
-            {strings("templates.collection-page.apply-filters", "Apply filters")}
+            {translate("templates.collection-page.text.8", "Apply filters")}
           </button>
         </form>
         <ul
-          aria-label={strings("templates.collection-page.collection-results", "Collection results")}
+          aria-label={translate("templates.collection-page.aria-label.3", "Collection results")}
           style={{
             ...panel,
             display: "grid",
@@ -190,4 +186,4 @@ export const CollectionPage = withClassName(function CollectionPage({
       </div>
     </StateView>
   );
-});
+}

@@ -52,15 +52,34 @@ type GateEvidence struct {
 
 // GateDefinition is the config projection needed by the coverage engine.
 type GateDefinition struct {
-	ID                         string
-	Rung                       AchievedRung
-	Blocking                   bool
-	Attribution                string
-	Runner                     map[string]string `json:"runner"`
-	AppliesTo                  []string
-	ExperienceClaimTypes       []string `json:"x-experience-claim-types"`
-	ExperienceMinimumViewports int      `json:"x-experience-min-viewports"`
-	ExperienceRequiresCapture  bool     `json:"x-experience-requires-capture"`
+	ID                   string
+	Rung                 AchievedRung
+	Blocking             bool
+	Attribution          string
+	Runner               map[string]string `json:"runner"`
+	AppliesTo            []string
+	ExperienceClaimTypes []string `json:"experienceClaimTypes"`
+	EvidenceKinds        []string `json:"evidenceKinds"`
+	RunnerConfig         struct {
+		MinimumViewports int  `json:"minimumViewports"`
+		RequiresCapture  bool `json:"requiresCapture"`
+	} `json:"runnerConfig"`
+	ExperienceMinimumViewports int  `json:"-"`
+	ExperienceRequiresCapture  bool `json:"-"`
+}
+
+func (g GateDefinition) minimumViewports() int {
+	if g.RunnerConfig.MinimumViewports > 0 {
+		return g.RunnerConfig.MinimumViewports
+	}
+	return g.ExperienceMinimumViewports
+}
+
+func (g GateDefinition) requiresCapture() bool {
+	if g.RunnerConfig.RequiresCapture {
+		return true
+	}
+	return g.ExperienceRequiresCapture
 }
 
 // Row is one joined entry.

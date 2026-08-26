@@ -1,11 +1,11 @@
 /** @vrooliComponentSource feedback.undo-banner */
 import { useEffect, useState, type CSSProperties } from "react";
-import { Presence } from "@vrooli/react-component-library/Presence/1.0.0";
-import { Surface } from "@vrooli/react-component-library/Surface/1.0.0";
+import { Presence } from "../../../../primitives/Presence/versions/1.0.0/Presence";
+import { Surface } from "../../../../primitives/Surface/versions/1.0.0/Surface";
 import {
   useUndoManager,
   type UndoRecord,
-} from "@vrooli/react-component-library/UndoManager/1.0.0";
+} from "../../../../services/UndoManager/versions/1.0.0/UndoManager";
 
 const styles = `
   [data-rcl-undo-viewport] { position: fixed; z-index: var(--layer-toast, 1000); inset-inline: var(--space-lg); inset-block: auto calc(var(--space-lg) + env(safe-area-inset-bottom)); display: grid; justify-items: center; pointer-events: none; }

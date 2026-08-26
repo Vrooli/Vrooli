@@ -1,0 +1,138 @@
+{
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
+  "args": {
+    "fields": [
+      {
+        "default": "success",
+        "kind": "enum",
+        "label": "Tone",
+        "options": [
+          "neutral",
+          "success",
+          "warning",
+          "info",
+          "danger"
+        ],
+        "path": "tone",
+        "required": true
+      },
+      {
+        "default": {
+          "$text": "Current"
+        },
+        "kind": "structured",
+        "label": "Label",
+        "path": "children",
+        "required": true
+      }
+    ]
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "kind": "component",
+  "schemaVersion": 5,
+  "stories": [
+    {
+      "args": {
+        "children": {
+          "$text": "Current"
+        },
+        "tone": "neutral"
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "Current"
+        }
+      ],
+      "id": "neutral",
+      "mode": "pinned",
+      "name": "Neutral",
+      "role": "anatomy"
+    },
+    {
+      "args": {
+        "children": {
+          "$text": "Current"
+        },
+        "tone": "success"
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "Current"
+        }
+      ],
+      "id": "success",
+      "mode": "pinned",
+      "name": "Success",
+      "role": "axis",
+      "axis": "tone",
+      "covers": {
+        "tone": [
+          "neutral",
+          "success",
+          "warning",
+          "info",
+          "danger"
+        ]
+      }
+    },
+    {
+      "args": {
+        "children": {
+          "$text": "Behind"
+        },
+        "tone": "warning"
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "Behind"
+        }
+      ],
+      "id": "warning",
+      "mode": "pinned",
+      "name": "Warning",
+      "role": "boundary"
+    },
+    {
+      "args": {
+        "children": {
+          "$text": "Requires manual review"
+        },
+        "tone": "info"
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "Requires manual review"
+        }
+      ],
+      "id": "long-label",
+      "mode": "pinned",
+      "name": "Long Label",
+      "role": "boundary"
+    },
+    {
+      "args": {
+        "children": {
+          "$text": "Blocked"
+        },
+        "tone": "danger"
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "Blocked"
+        }
+      ],
+      "id": "danger",
+      "mode": "pinned",
+      "name": "Danger",
+      "role": "boundary"
+    }
+  ],
+  "title": "Status Badge"
+}

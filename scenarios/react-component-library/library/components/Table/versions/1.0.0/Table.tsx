@@ -1,6 +1,4 @@
 /** @vrooliComponentSource data-display.table */
-import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
-
 import type { CSSProperties, ReactNode } from "react";
 
 export interface TableProps {
@@ -25,7 +23,7 @@ const styles = `
 @media (forced-colors: active) { [data-rcl-table] { border-color: CanvasText; background: Canvas; color: CanvasText; box-shadow: none; } [data-rcl-table] th, [data-rcl-table] td { border-color: CanvasText; background: Canvas; color: CanvasText; } }
 `;
 
-export const Table = withClassName(function Table({
+export function Table({
   rows = [],
   children,
   caption,
@@ -34,7 +32,7 @@ export const Table = withClassName(function Table({
 }: TableProps) {
   const columns = Object.keys(rows[0] || {});
   return (
-    <div data-testid="data-display.table" data-rcl-table className={className} style={style}>
+    <div data-rcl-table className={className} style={style}>
       <style
         data-rcl-table-styles
         dangerouslySetInnerHTML={{ __html: styles }}
@@ -66,4 +64,4 @@ export const Table = withClassName(function Table({
       </div>
     </div>
   );
-});
+}

@@ -4,8 +4,10 @@
   "catalogId": "primitives.aspect-ratio",
   "category": "layout",
   "dependencies": [],
-  "deprecatedVersions": [],
-  "description": "A token-backed media frame that reserves space before its content resolves.",
+  "deprecatedVersions": [
+    "1.0.0"
+  ],
+  "description": "",
   "designStyles": [
     {
       "affinity": "native",
@@ -22,7 +24,7 @@
   ],
   "displayName": "AspectRatio",
   "draft": "",
-  "latest": "1.0.0",
+  "latest": "1.0.1",
   "libraryId": "react-component-library:AspectRatio",
   "slot": "ui-primitive",
   "tags": [

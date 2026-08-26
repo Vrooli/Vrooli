@@ -8,7 +8,7 @@
       "version": "1.0.0"
     }
   ],
-  "description": "An optimistic state controller that commits successful predictions and deterministically restores the previous value on failure.",
+  "description": "",
   "designStyles": [
     {
       "affinity": "native",
@@ -16,12 +16,16 @@
     }
   ],
   "displayName": "useOptimisticAction",
-  "latest": "1.0.0",
+  "latest": "1.0.1",
   "libraryId": "react-component-library:useOptimisticAction",
   "tags": [
     "runtime",
     "async",
     "optimistic",
     "recovery"
+  ],
+  "draft": "",
+  "deprecatedVersions": [
+    "1.0.0"
   ]
 }

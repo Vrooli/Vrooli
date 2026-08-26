@@ -17,8 +17,11 @@
       "version": "1.0.0"
     }
   ],
-  "deprecatedVersions": [],
-  "description": "A responsive action toolbar with declarative items, roving focus, disabled-item skipping, and shared Button/Toggle interaction grammar.",
+  "deprecatedVersions": [
+    "1.0.2",
+    "1.0.4"
+  ],
+  "description": "",
   "designStyles": [
     {
       "affinity": "native",
@@ -27,7 +30,7 @@
   ],
   "displayName": "Toolbar",
   "draft": "",
-  "latest": "1.0.2",
+  "latest": "1.0.5",
   "libraryId": "react-component-library:Toolbar",
   "slot": "ui-primitive",
   "tags": [

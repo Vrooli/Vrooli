@@ -12,7 +12,7 @@
       "version": "1.0.0"
     }
   ],
-  "description": "A native searchable selection field with local filtering, creation, keyboard navigation, and an async-options composition path.",
+  "description": "",
   "designStyles": [
     {
       "affinity": "native",
@@ -28,7 +28,7 @@
     }
   ],
   "displayName": "Combobox",
-  "latest": "1.0.3",
+  "latest": "1.0.6",
   "libraryId": "react-component-library:Combobox",
   "tags": [
     "forms",
@@ -45,5 +45,8 @@
     }
   ],
   "draft": "",
-  "deprecatedVersions": []
+  "deprecatedVersions": [
+    "1.0.3",
+    "1.0.5"
+  ]
 }

@@ -6,11 +6,9 @@
  * @tags ["form","layout","validation","responsive","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
-import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
-
 /** @vrooliComponentSource forms.form-section */
 import { useId, useState, type CSSProperties, type ReactNode } from "react";
-import { CollapsibleRegion } from "@vrooli/react-component-library/CollapsibleRegion/1.0.0";
+import { CollapsibleRegion } from "../../../../components/CollapsibleRegion/versions/1.0.0/CollapsibleRegion";
 
 export interface FormSectionProps {
   title: ReactNode;
@@ -46,7 +44,7 @@ const styles = `
   @media (prefers-reduced-motion: reduce) { [data-rcl-form-section-toggle] { transition: none; } }
 `;
 
-export const FormSection = withClassName(function FormSection({
+export function FormSection({
   title,
   children,
   description,
@@ -114,4 +112,4 @@ export const FormSection = withClassName(function FormSection({
       </CollapsibleRegion>
     </section>
   );
-});
+}

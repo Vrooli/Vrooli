@@ -7,8 +7,8 @@
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
 /** @vrooliComponentSource react-component-library:AuditTrail */
-import { useStrings } from "@vrooli/react-component-library/useLocale/1.0.1";
-import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
+import { translate } from "../../../../hooks/useLocale/versions/1.0.1/useLocale";
+import { withClassName } from "../../../../foundations/ClassMerge/versions/1.0.1/ClassMerge";
 
 const panel = {
   border: "1px solid var(--color-border, #cbd5e1)",
@@ -24,10 +24,9 @@ export const AuditTrail = withClassName(function AuditTrail({
 }: {
   entries?: Array<{ actor: string; action: string }>;
 }) {
-  const strings = useStrings();
   return (
-    <div data-testid="data-display.audit-trail"
-      aria-label={strings("data-display.audit-trail.audit-trail", "Audit trail")}
+    <div
+      aria-label={translate("data-display.audit-trail.aria-label.1", "Audit trail")}
       role="list"
       style={{
         display: "grid",

@@ -3,7 +3,7 @@
   "assetKind": "primitive",
   "catalogId": "primitives.separator",
   "dependencies": [],
-  "description": "Separator communicates an orientation-aware boundary using semantic border tokens.",
+  "description": "",
   "designStyles": [
     {
       "affinity": "native",
@@ -19,10 +19,14 @@
     }
   ],
   "displayName": "Separator",
-  "latest": "1.0.0",
+  "latest": "1.0.1",
   "libraryId": "react-component-library:Separator",
   "tags": [
     "primitive",
     "token-bound"
+  ],
+  "draft": "",
+  "deprecatedVersions": [
+    "1.0.0"
   ]
 }

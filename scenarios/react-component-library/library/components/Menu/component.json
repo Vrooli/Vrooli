@@ -16,7 +16,7 @@
       "version": "1.0.0"
     }
   ],
-  "description": "An anchored command menu with roving focus, typeahead, checkbox and radio items, and responsive layering.",
+  "description": "",
   "designStyles": [
     {
       "affinity": "native",
@@ -32,7 +32,7 @@
     }
   ],
   "displayName": "Menu",
-  "latest": "1.1.1",
+  "latest": "1.1.2",
   "libraryId": "react-component-library:Menu",
   "tags": [
     "overlay",
@@ -43,5 +43,7 @@
     "token-bound"
   ],
   "draft": "",
-  "deprecatedVersions": []
+  "deprecatedVersions": [
+    "1.1.1"
+  ]
 }

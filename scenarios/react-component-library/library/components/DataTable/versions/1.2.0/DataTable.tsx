@@ -16,7 +16,6 @@ export interface DataTableColumn<Row> {
   sortValue?: (row: Row) => string | number;
   searchValue?: (row: Row) => string;
   className?: string;
-  headerTestId?: string;
 }
 
 export interface DataTableFilter<Row> {
@@ -36,8 +35,6 @@ export interface DataTableProps<Row> {
   filterLabel?: string;
   filters?: Array<DataTableFilter<Row>>;
   className?: string;
-  tableId?: string;
-  getRowTestId?: (row: Row) => string;
   // Applied to the rendered <table> as data-testid. A generic test hook that
   // adopters use to target the table without depending on markup structure.
   tableTestId?: string;
@@ -97,8 +94,6 @@ export function DataTable<Row>({
   filterLabel = "Table filters",
   filters = [],
   className,
-  tableId,
-  getRowTestId,
   tableTestId,
   filterGroupLabel,
   sortLabel = (header) => `Sort by ${header}`,
@@ -202,7 +197,6 @@ export function DataTable<Row>({
       </div>
       <div className="max-w-full overflow-x-auto">
         <table
-          id={tableId}
           data-testid={tableTestId}
           className="w-full table-fixed border-collapse text-left text-sm"
         >
@@ -230,7 +224,6 @@ export function DataTable<Row>({
                         : "none"
                     }
                     className={cn("px-3 py-3 font-semibold", column.className)}
-                    data-testid={column.headerTestId}
                   >
                     {column.sortValue ? (
                       <button
@@ -267,7 +260,6 @@ export function DataTable<Row>({
                 <tr
                   key={getRowKey(row, index)}
                   className="border-t border-app-border"
-                  data-testid={getRowTestId?.(row)}
                 >
                   {columns.map((column) => (
                     <td

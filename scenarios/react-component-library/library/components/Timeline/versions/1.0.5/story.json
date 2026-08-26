@@ -1,0 +1,54 @@
+{
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
+  "args": {
+    "fields": []
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "kind": "component",
+  "schemaVersion": 5,
+  "stories": [
+    {
+      "args": {
+        "events": [
+          {
+            "detail": "Today",
+            "label": "Created"
+          }
+        ]
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "Created"
+        }
+      ],
+      "id": "default",
+      "mode": "pinned",
+      "name": "Default",
+      "role": "anatomy"
+    },
+    {
+      "args": {
+        "events": [
+          {
+            "detail": "Today",
+            "label": "Created"
+          }
+        ]
+      },
+      "id": "empty",
+      "mode": "pinned",
+      "name": "Empty",
+      "expect": [
+        {
+          "kind": "visible",
+          "selector": "body"
+        }
+      ],
+      "role": "boundary"
+    }
+  ],
+  "title": "Timeline"
+}

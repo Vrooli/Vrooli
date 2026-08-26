@@ -7,16 +7,16 @@
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
 /** @vrooliComponentSource motion.transition */
-import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
+import { withClassName } from "../../../../foundations/ClassMerge/versions/1.0.1/ClassMerge";
 
 import type { ReactNode } from "react";
-import { Presence, type PresenceDuration } from "@vrooli/react-component-library/Presence/1.0.0";
+import { Presence, type PresenceDuration } from "../../../Presence/versions/1.0.0/Presence";
 import {
   MotionPrimitive,
   type MotionDuration,
   type MotionPrimitiveProps,
   type MotionValue,
-} from "@vrooli/react-component-library/MotionPrimitive/1.0.0";
+} from "../../../MotionPrimitive/versions/1.0.0/MotionPrimitive";
 
 export type TransitionKind = "fade" | "scale" | "slide" | "blur" | "crossfade";
 
@@ -54,7 +54,7 @@ export const Transition = withClassName(function Transition({
 }: TransitionProps) {
   const presenceDuration: PresenceDuration | number = duration;
   return (
-    <Presence data-testid="motion.transition"
+    <Presence
       present={present}
       initial={initial}
       keepMounted={keepMounted}

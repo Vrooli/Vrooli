@@ -4,7 +4,7 @@
   "catalogId": "patterns.search-filter-results",
   "category": "patterns",
   "dependencies": [],
-  "description": "A URL-ready search and filter composition that separates no-match emptiness from loading and error states.",
+  "description": "",
   "designStyles": [
     {
       "affinity": "native",
@@ -12,7 +12,7 @@
     }
   ],
   "displayName": "SearchFilterResults",
-  "latest": "1.0.2",
+  "latest": "1.0.3",
   "libraryId": "react-component-library:SearchFilterResults",
   "slot": "ui-pattern",
   "tags": [
@@ -21,5 +21,7 @@
     "token-bound"
   ],
   "draft": "",
-  "deprecatedVersions": []
+  "deprecatedVersions": [
+    "1.0.2"
+  ]
 }

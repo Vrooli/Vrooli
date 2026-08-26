@@ -8,7 +8,7 @@
       "version": "1.0.0"
     }
   ],
-  "description": "Presence owns interruptible enter and exit lifecycles with token-backed motion and reduced-motion support.",
+  "description": "",
   "designStyles": [
     {
       "affinity": "native",
@@ -24,12 +24,16 @@
     }
   ],
   "displayName": "Presence",
-  "latest": "1.0.0",
+  "latest": "1.0.1",
   "libraryId": "react-component-library:Presence",
   "tags": [
     "primitive",
     "motion",
     "accessibility",
     "token-bound"
+  ],
+  "draft": "",
+  "deprecatedVersions": [
+    "1.0.0"
   ]
 }

@@ -3,7 +3,7 @@
   "assetKind": "component",
   "catalogId": "navigation.page-header",
   "dependencies": [],
-  "description": "A route-level hierarchy header with title, description, and action regions.",
+  "description": "",
   "designStyles": [
     {
       "affinity": "native",
@@ -11,7 +11,7 @@
     }
   ],
   "displayName": "PageHeader",
-  "latest": "1.0.4",
+  "latest": "1.0.7",
   "libraryId": "react-component-library:PageHeader",
   "tags": [
     "navigation",
@@ -24,5 +24,8 @@
     }
   ],
   "draft": "",
-  "deprecatedVersions": []
+  "deprecatedVersions": [
+    "1.0.4",
+    "1.0.6"
+  ]
 }

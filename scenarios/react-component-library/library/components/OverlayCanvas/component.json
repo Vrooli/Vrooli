@@ -3,7 +3,7 @@
   "assetKind": "component",
   "catalogId": "visualization.overlay-canvas",
   "dependencies": [],
-  "description": "A measured subject overlay that names implicated bounds.",
+  "description": "",
   "designStyles": [
     {
       "affinity": "native",
@@ -11,7 +11,7 @@
     }
   ],
   "displayName": "OverlayCanvas",
-  "latest": "1.0.10",
+  "latest": "1.0.11",
   "libraryId": "react-component-library:OverlayCanvas",
   "tags": [
     "visualization",
@@ -24,5 +24,7 @@
     }
   ],
   "draft": "",
-  "deprecatedVersions": []
+  "deprecatedVersions": [
+    "1.0.10"
+  ]
 }

@@ -31,10 +31,15 @@ type handlers struct {
 
 func newHandlers(core *cliapp.ScenarioApp) *handlers {
 	httpClient, baseURL := cliapp.NewConnectHTTPClient(core)
+	// A closure test can render several pinned story contracts sequentially.
+	// Keep ordinary component-registry calls on the scenario default timeout,
+	// but do not turn a valid long-running evidence RPC into a client-side
+	// cancellation before the server can persist its report.
+	testHTTPClient, _ := cliapp.NewConnectHTTPClientWithTimeout(core, 20*time.Minute)
 	return &handlers{
 		core:       core,
 		client:     componentsconnect.NewComponentsServiceClient(httpClient, baseURL),
-		testClient: componenttestsconnect.NewComponentTestsServiceClient(httpClient, baseURL),
+		testClient: componenttestsconnect.NewComponentTestsServiceClient(testHTTPClient, baseURL),
 	}
 }
 

@@ -10,15 +10,90 @@ import (
 	"github.com/vrooli/cli-core/cliapp"
 	catalogv1 "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/catalog"
 	catalogconnect "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/catalog/catalog_v1connect"
+	componentsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/components"
+	componentsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/components/components_v1connect"
+	versionsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/versions"
+	versionsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/versions/versions_v1connect"
 )
 
 type handlers struct {
-	client catalogconnect.CatalogServiceClient
+	client     catalogconnect.CatalogServiceClient
+	components componentsconnect.ComponentsServiceClient
+	lifecycle  versionsconnect.VersionLifecycleServiceClient
 }
 
 func newHandlers(core *cliapp.ScenarioApp) *handlers {
 	httpClient, baseURL := cliapp.NewConnectHTTPClient(core)
-	return &handlers{client: catalogconnect.NewCatalogServiceClient(httpClient, baseURL)}
+	return &handlers{
+		client:     catalogconnect.NewCatalogServiceClient(httpClient, baseURL),
+		components: componentsconnect.NewComponentsServiceClient(httpClient, baseURL),
+		lifecycle:  versionsconnect.NewVersionLifecycleServiceClient(httpClient, baseURL),
+	}
+}
+
+func (h *handlers) draft(ctx cliapp.RunContext) error {
+	action := strings.ToLower(strings.TrimSpace(ctx.Positional("action")))
+	if action != "open" && action != "promote" && action != "discard" {
+		return fmt.Errorf("usage: catalog draft <open|promote|discard> <asset-id> [--all]")
+	}
+	ids := []string{}
+	if ctx.BoolFlag("all") {
+		resp, err := h.components.ListComponents(context.Background(), connect.NewRequest(&componentsv1.ListComponentsRequest{Match: ctx.Flag("match"), Limit: 1000}))
+		if err != nil {
+			return cliapp.WrapAPIError("list draft targets", err, nil)
+		}
+		for _, component := range resp.Msg.GetComponents() {
+			if component != nil && component.GetLibraryId() != "" {
+				ids = append(ids, component.GetLibraryId())
+			}
+		}
+	} else if id := strings.TrimSpace(ctx.Positional("asset-id")); id != "" {
+		ids = append(ids, id)
+	}
+	if len(ids) == 0 {
+		return fmt.Errorf("an asset-id is required unless --all is set")
+	}
+
+	results := make([]string, 0, len(ids))
+	components := make([]*componentsv1.Component, 0, len(ids))
+	for _, id := range ids {
+		switch action {
+		case "open":
+			resp, err := h.components.BeginComponentVersion(context.Background(), connect.NewRequest(&componentsv1.BeginComponentVersionRequest{Component: id, Bump: ctx.Flag("bump"), Version: ctx.Flag("version")}))
+			if err != nil {
+				return cliapp.WrapAPIError("open catalog draft", err, nil)
+			}
+			if resp.Msg == nil || resp.Msg.Component == nil || resp.Msg.Version == nil {
+				return fmt.Errorf("server returned no draft for %s", id)
+			}
+			components = append(components, resp.Msg.Component)
+			results = append(results, fmt.Sprintf("%s draft=%s", id, resp.Msg.Version.Version))
+		case "promote":
+			resp, err := h.components.PublishComponentVersion(context.Background(), connect.NewRequest(&componentsv1.PublishComponentVersionRequest{Component: id, DraftVersion: ctx.Flag("draft-version"), Version: ctx.Flag("version"), ChangelogMd: ctx.Flag("changelog"), AcknowledgeParityWaiver: ctx.Flag("acknowledge-parity-waiver") != ""}))
+			if err != nil {
+				return cliapp.WrapAPIError("promote catalog draft", err, nil)
+			}
+			if resp.Msg == nil || resp.Msg.Component == nil || resp.Msg.Version == nil {
+				return fmt.Errorf("server returned no promoted version for %s", id)
+			}
+			components = append(components, resp.Msg.Component)
+			results = append(results, fmt.Sprintf("%s released=%s", id, resp.Msg.Version.Version))
+		case "discard":
+			resp, err := h.lifecycle.CleanupDraft(context.Background(), connect.NewRequest(&versionsv1.CleanupDraftRequest{ComponentId: id, Confirm: true}))
+			if err != nil {
+				return cliapp.WrapAPIError("discard catalog draft", err, nil)
+			}
+			if resp.Msg == nil || resp.Msg.Item == nil || resp.Msg.Item.Version == nil {
+				return fmt.Errorf("server returned no discarded draft for %s", id)
+			}
+			results = append(results, fmt.Sprintf("%s discarded=%s", id, resp.Msg.Item.Version.Version))
+		}
+	}
+	return cliapp.RenderProtoList(ctx, &componentsv1.ListComponentsResponse{Components: components}, cliapp.ListReport{
+		Summary:        []string{fmt.Sprintf("Catalog draft %s completed for %d asset(s).", action, len(ids))},
+		ResultsHeading: "Draft lane",
+		Results:        results,
+	})
 }
 
 func (h *handlers) coverage(ctx cliapp.RunContext) error {
@@ -91,6 +166,43 @@ func (h *handlers) health(ctx cliapp.RunContext) error {
 		}
 	}
 	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{Summary: []string{fmt.Sprintf("Health nodes: %d; promote: %d; quarantined gates: %d; kind mismatches: %d; instrument-moved: %d; composition median %.3f across %d captured asset(s); bespoke escapes %d; declared capabilities %d across %d asset(s); uncheckable %d asset(s); unmeasured %d asset(s).", len(resp.Msg.Nodes), len(resp.Msg.Promote), len(resp.Msg.QuarantinedGates), resp.Msg.KindMismatchCount, resp.Msg.InstrumentMovedCount, resp.Msg.Coverage.GetCompositionMedian(), len(resp.Msg.Coverage.GetCompositionScores()), resp.Msg.Coverage.GetBespokeEscapeCount(), resp.Msg.Coverage.GetCapabilityDeclarationCount(), resp.Msg.Coverage.GetDeclaredCapabilityAssetCount(), resp.Msg.Coverage.GetDeclaredUncheckableAssetCount(), resp.Msg.Coverage.GetUnmeasuredCapabilityAssetCount())}, ResultsHeading: "Asset health", Results: results})
+}
+
+func (h *handlers) readiness(ctx cliapp.RunContext) error {
+	floor := readinessFloor(ctx)
+	resp, err := h.client.GetReadiness(context.Background(), connect.NewRequest(&catalogv1.GetReadinessRequest{Floor: floor}))
+	if err != nil {
+		return cliapp.WrapAPIError("get catalog readiness", err, nil)
+	}
+	if resp == nil || resp.Msg == nil {
+		return fmt.Errorf("server returned no catalog readiness")
+	}
+	msg := resp.Msg
+	status := []string{
+		fmt.Sprintf("Verdict: %s", msg.GetVerdict()),
+		fmt.Sprintf("Evidence run: %s (completed=%t; completed_at=%s)", msg.GetRun().GetRunId(), msg.GetRun().GetCompleted(), msg.GetRun().GetCompletedAt()),
+		fmt.Sprintf("Floor: %s; achieved: %s; gap: %d", msg.GetConfig().GetDeclaredFloor(), msg.GetConfig().GetAchievedRung(), msg.GetConfig().GetRungGap()),
+	}
+	if msg.GetTriageOmittedCount() > 0 {
+		status = append(status, fmt.Sprintf("Triage: showing %d row(s); %d omitted", len(msg.GetTriage()), msg.GetTriageOmittedCount()))
+	}
+	groups := map[string][]string{}
+	for _, row := range msg.GetTriage() {
+		groups[row.GetGate()] = append(groups[row.GetGate()], fmt.Sprintf("%s: %s (blast=%d weight=%.2f)", row.GetAssetId(), row.GetMessage(), row.GetBlocksDownstream(), row.GetWeight()))
+	}
+	triage := make([]cliapp.TriageGroup, 0, len(groups))
+	for gate, items := range groups {
+		triage = append(triage, cliapp.TriageGroup{Heading: gate, Items: items})
+	}
+	sort.Slice(triage, func(i, j int) bool { return triage[i].Heading < triage[j].Heading })
+	return ctx.RenderOperational(cliapp.OperationalReport{Status: status, Triage: triage, NextSteps: msg.GetNextSteps()})
+}
+
+func readinessFloor(ctx cliapp.RunContext) string {
+	if ctx.FlagDeclared("floor") {
+		return ctx.Flag("floor")
+	}
+	return ""
 }
 
 func (h *handlers) evidence(ctx cliapp.RunContext) error {

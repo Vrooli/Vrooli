@@ -1481,7 +1481,7 @@ for (const contract of loadLiveContracts()) {
       <tr><td>Package/liveness</td><td><b>539</b> exports, <b>318</b> versioned exports, <b>550</b> pinned import occurrences, <b>0</b> cross-version relative imports</td></tr>
       <tr><td>Story corpus</td><td><b>302</b> contracts, <b>728/728</b> stories passed, <b>0</b> zero-expectation stories</td></tr>
       <tr><td>Adoption obligations</td><td><b>35</b> linked adopters inspected; i18n and selector adoption gates report zero findings</td></tr>
-      <tr><td>Editor/package validation</td><td>Hover and definition providers present; package build reports 221 assets, 318 versioned exports, 0 broken imports</td></tr>
+      <tr><td>Editor/package validation</td><td>Hover and definition providers present; package build reports 221 assets, 318 versioned exports, 0 broken imports; default story runner passes 728/728</td></tr>
     </tbody>
   </table>
   <p class="small mut" style="margin-top:16px">
@@ -1489,7 +1489,9 @@ for (const contract of loadLiveContracts()) {
     status <code>failed</code> mean the planted defect was detected; all plan-owned live
     findings are zero. Deferred baseline items are limited to the absent checked-in
     react-vite template referenced by an existing reviewed-divergence test, and the
-    previously started server-owned scenario run whose waiter did not return a durable
-    verdict. Neither changes the clean targeted gates or final census above.
+    previously started server-owned scenario run <code>20260826-030606-677faa54</code>
+    is still active after its waiter session ended with exit 143; its durable status is
+    recorded as <code>in_progress</code>. Neither this infrastructure state nor the
+    reviewed template divergence changes the clean targeted gates or final census above.
   </p>
 </section>

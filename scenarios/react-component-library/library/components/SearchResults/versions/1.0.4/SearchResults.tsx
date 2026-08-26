@@ -7,8 +7,8 @@
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
 /** @vrooliComponentSource data-display.search-results */
-import { useStrings } from "@vrooli/react-component-library/useLocale/1.0.1";
-import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
+import { translate } from "../../../../hooks/useLocale/versions/1.0.1/useLocale";
+import { withClassName } from "../../../../foundations/ClassMerge/versions/1.0.1/ClassMerge";
 
 import type { ReactNode } from "react";
 
@@ -51,7 +51,6 @@ export const SearchResults = withClassName(function SearchResults({
   noMatchMessage = "No results match this search.",
   renderItem,
 }: SearchResultsProps) {
-  const strings = useStrings();
   const normalizedQuery = query.trim().toLowerCase();
   const results = items.filter((item) => item.toLowerCase().includes(normalizedQuery));
   const isNoMatch = items.length > 0 && results.length === 0;
@@ -59,12 +58,12 @@ export const SearchResults = withClassName(function SearchResults({
   return (
     <section
       data-rcl-search-results
-      aria-label={strings("data-display.search-results.search-results", "Search results")}
+      aria-label={translate("data-display.search-results.aria-label.1", "Search results")}
     >
       <style data-rcl-search-results-styles dangerouslySetInnerHTML={{ __html: styles }} />
       <header data-rcl-search-results-header>
         <h2 data-rcl-search-results-title>
-          {strings("data-display.search-results.results", "Results")}
+          {translate("data-display.search-results.text.1", "Results")}
         </h2>
         {state === "default" ? (
           <span data-rcl-search-results-count aria-live="polite">
@@ -74,32 +73,32 @@ export const SearchResults = withClassName(function SearchResults({
       </header>
       {state === "loading" ? (
         <div data-rcl-search-results-state role="status" aria-live="polite">
-          <strong>{strings("data-display.search-results.finding-matches", "Finding matches")}</strong>
+          <strong>{translate("data-display.search-results.text.2", "Finding matches")}</strong>
           <span>
-            {strings(
-              "data-display.search-results.keeping-your-search-context-while-the-collection",
+            {translate(
+              "data-display.search-results.text.3",
               "Keeping your search context while the collection responds…",
             )}
           </span>
         </div>
       ) : state === "error" ? (
         <div data-rcl-search-results-state role="alert">
-          <strong>{strings("data-display.search-results.results-unavailable", "Results unavailable")}</strong>
+          <strong>{translate("data-display.search-results.text.4", "Results unavailable")}</strong>
           <span>{errorMessage}</span>
           {onRetry ? (
             <button data-testid="data-display.search-results" type="button" onClick={onRetry}>
-              {strings("data-display.search-results.try-again", "Try again")}
+              {translate("data-display.search-results.text.5", "Try again")}
             </button>
           ) : null}
         </div>
       ) : state === "offline" ? (
         <div data-rcl-search-results-state role="status" aria-live="polite">
           <strong>
-            {strings("data-display.search-results.showing-saved-results", "Showing saved results")}
+            {translate("data-display.search-results.text.6", "Showing saved results")}
           </strong>
           <span>
-            {strings(
-              "data-display.search-results.new-matches-will-appear-when-the-connection-retu",
+            {translate(
+              "data-display.search-results.text.7",
               "New matches will appear when the connection returns.",
             )}
           </span>

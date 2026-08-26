@@ -3,10 +3,10 @@ import type { CSSProperties, ReactNode } from "react";
 import {
   AsyncBoundary,
   type AsyncBoundaryStatus,
-} from "@vrooli/react-component-library/AsyncBoundary/1.0.0";
-import { AuditTrail } from "@vrooli/react-component-library/AuditTrail/1.0.0";
-import { DescriptionList } from "@vrooli/react-component-library/DescriptionList/1.0.0";
-import { PageHeader } from "@vrooli/react-component-library/PageHeader/1.0.0";
+} from "../../../AsyncBoundary/versions/1.0.0/AsyncBoundary";
+import { AuditTrail } from "../../../AuditTrail/versions/1.0.0/AuditTrail";
+import { DescriptionList } from "../../../DescriptionList/versions/1.0.0/DescriptionList";
+import { PageHeader } from "../../../PageHeader/versions/1.0.0/PageHeader";
 
 export interface ResourceDetailEntry {
   term: string;

@@ -2,8 +2,10 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "catalogId": "navigation.bottom-navigation",
   "category": "navigation",
-  "deprecatedVersions": [],
-  "description": "Mobile-first bottom navigation bar with safe-area spacing, active state styling, and accessible link semantics.",
+  "deprecatedVersions": [
+    "1.3.6"
+  ],
+  "description": "",
   "designStyles": [
     {
       "affinity": "native",
@@ -20,7 +22,7 @@
   ],
   "displayName": "Bottom Nav",
   "draft": "",
-  "latest": "1.3.6",
+  "latest": "1.3.7",
   "libraryId": "react-component-library:BottomNav",
   "slot": "layout-nav",
   "tags": [

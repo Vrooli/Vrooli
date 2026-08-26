@@ -3,7 +3,7 @@
   "assetKind": "component",
   "catalogId": "navigation.resizable-sidebar",
   "dependencies": [],
-  "description": "A navigation sidebar that preserves a usable minimum while supporting responsive width changes.",
+  "description": "",
   "designStyles": [
     {
       "affinity": "native",
@@ -11,7 +11,7 @@
     }
   ],
   "displayName": "ResizableSidebar",
-  "latest": "1.0.2",
+  "latest": "1.0.3",
   "libraryId": "react-component-library:ResizableSidebar",
   "tags": [
     "navigation",
@@ -19,5 +19,7 @@
     "token-bound"
   ],
   "draft": "",
-  "deprecatedVersions": []
+  "deprecatedVersions": [
+    "1.0.2"
+  ]
 }

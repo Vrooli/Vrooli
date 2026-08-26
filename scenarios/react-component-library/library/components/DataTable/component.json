@@ -17,8 +17,11 @@
       "version": "1.0.0"
     }
   ],
-  "deprecatedVersions": [],
-  "description": "A responsive, selectable data surface with honest async states, keyboard-operable sorting, visible row actions, pagination, and mobile card transformation.",
+  "deprecatedVersions": [
+    "1.3.3",
+    "1.3.5"
+  ],
+  "description": "",
   "designStyles": [
     {
       "affinity": "native",
@@ -35,7 +38,7 @@
   ],
   "displayName": "Data Table",
   "draft": "",
-  "latest": "1.3.3",
+  "latest": "1.3.6",
   "libraryId": "react-component-library:DataTable",
   "slot": "ui-pattern",
   "tags": [

@@ -11,8 +11,10 @@
       "version": "1.0.0"
     }
   ],
-  "deprecatedVersions": [],
-  "description": "Token-bound, self-contained drawer and modal shell.",
+  "deprecatedVersions": [
+    "1.1.0"
+  ],
+  "description": "",
   "designStyles": [
     {
       "affinity": "native",
@@ -31,7 +33,7 @@
     }
   ],
   "displayName": "DrawerShell",
-  "latest": "1.1.0",
+  "latest": "1.1.2",
   "libraryId": "react-component-library:DrawerShell",
   "slot": "ui-pattern",
   "tags": [
@@ -41,5 +43,6 @@
     "reviewed",
     "accessibility"
   ],
-  "x-supplementalJustification": "Pre-catalog overlay shell retained as a supplemental implementation seam; the public catalog overlay is the adopted asset."
+  "x-supplementalJustification": "Pre-catalog overlay shell retained as a supplemental implementation seam; the public catalog overlay is the adopted asset.",
+  "draft": ""
 }

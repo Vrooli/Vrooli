@@ -6,10 +6,8 @@
  * @tags ["pattern","collection","resources","responsive","recovery","keyboard","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
-import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
-
 /** @vrooliComponentSource patterns.resource-collection */
-import { resolveStrings } from "@vrooli/react-component-library/useLocale/1.0.1";
+import { translate } from "../../../../hooks/useLocale/versions/1.0.1/useLocale";
 import { useState, type CSSProperties, type ReactNode } from "react";
 import {
   DataTable,
@@ -18,14 +16,14 @@ import {
   type DataTableFilter,
   type DataTableRowAction,
   type DataTableStatus,
-} from "@vrooli/react-component-library/DataTable/1.3.0";
+} from "../../../DataTable/versions/1.3.0/DataTable";
 import {
   DataToolbar,
   type DataToolbarDensity,
   type DataToolbarSortOption,
   type DataToolbarStatus,
   type DataToolbarView,
-} from "@vrooli/react-component-library/DataToolbar/1.0.0";
+} from "../../../DataToolbar/versions/1.0.0/DataToolbar";
 
 export type ResourceCollectionStatus = DataTableStatus | "submitting" | "success";
 
@@ -130,7 +128,7 @@ function statusCopy(status: ResourceCollectionStatus) {
   }
 }
 
-export const ResourceCollection = withClassName(function ResourceCollection<Row>({
+export function ResourceCollection<Row>({
   title,
   description,
   rows,
@@ -211,7 +209,7 @@ export const ResourceCollection = withClassName(function ResourceCollection<Row>
   };
 
   return (
-    <div data-testid="patterns.resource-collection"
+    <div
       data-rcl-resource-collection
       className={className}
       style={style}
@@ -221,7 +219,7 @@ export const ResourceCollection = withClassName(function ResourceCollection<Row>
       <header data-rcl-resource-collection-header>
         <div data-rcl-resource-collection-heading>
           <span data-rcl-resource-collection-eyebrow>
-            {resolveStrings("patterns.resource-collection.resource-library", "Resource library")}
+            {translate("patterns.resource-collection.text.1", "Resource library")}
           </span>
           <h1 data-rcl-resource-collection-title>{title}</h1>
           {description ? <p data-rcl-resource-collection-description>{description}</p> : null}
@@ -304,4 +302,4 @@ export const ResourceCollection = withClassName(function ResourceCollection<Row>
       />
     </div>
   );
-});
+}

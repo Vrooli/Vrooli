@@ -7,9 +7,9 @@
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
 /** @vrooliComponentSource feedback.error-boundary */
-import { resolveStrings } from "@vrooli/react-component-library/useLocale/1.0.1";
-import { Component, forwardRef, type ErrorInfo, type ReactNode, type Ref } from "react";
-import { ErrorState } from "@vrooli/react-component-library/ErrorState/1.0.0";
+import { translate } from "../../../../hooks/useLocale/versions/1.0.1/useLocale";
+import { Component, type ErrorInfo, type ReactNode } from "react";
+import { ErrorState } from "../../../../components/ErrorState/versions/1.0.0/ErrorState";
 
 export interface ErrorBoundaryProps {
   children: ReactNode;
@@ -24,10 +24,6 @@ export interface ErrorBoundaryProps {
   onRetry?: (error: Error | null) => void | Promise<void>;
 }
 
-interface ErrorBoundaryImplProps extends ErrorBoundaryProps {
-  forwardedRef: Ref<HTMLDivElement>;
-}
-
 interface ErrorBoundaryState {
   error: Error | null;
 }
@@ -39,7 +35,7 @@ function keysChanged(previous: readonly unknown[] = [], next: readonly unknown[]
   );
 }
 
-class ErrorBoundaryImpl extends Component<ErrorBoundaryImplProps, ErrorBoundaryState> {
+export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
   state: ErrorBoundaryState = { error: null };
 
   static getDerivedStateFromError(error: Error): ErrorBoundaryState {
@@ -69,7 +65,7 @@ class ErrorBoundaryImpl extends Component<ErrorBoundaryImplProps, ErrorBoundaryS
     const errorMessage = (
       <>
         {this.props.contextLabel ? (
-          <span data-testid="feedback.error-boundary"
+          <span
             data-rcl-error-boundary-context
             style={{ display: "block", marginBlockEnd: "var(--space-2xs)" }}
           >
@@ -83,7 +79,7 @@ class ErrorBoundaryImpl extends Component<ErrorBoundaryImplProps, ErrorBoundaryS
         {this.props.showDiagnostics ? (
           <details data-rcl-error-boundary-diagnostics>
             <summary>
-              {resolveStrings("feedback.error-boundary.show-technical-details", "Show technical details")}
+              {translate("feedback.error-boundary.text.1", "Show technical details")}
             </summary>
             <code>{error.message || "Unknown render error"}</code>
           </details>
@@ -93,7 +89,6 @@ class ErrorBoundaryImpl extends Component<ErrorBoundaryImplProps, ErrorBoundaryS
     return (
       <div
         className={this.props.className}
-        ref={this.props.forwardedRef}
         data-rcl-error-boundary
         data-state="request-error"
         data-context={
@@ -109,9 +104,3 @@ class ErrorBoundaryImpl extends Component<ErrorBoundaryImplProps, ErrorBoundaryS
     );
   }
 }
-
-export const ErrorBoundary = forwardRef<HTMLDivElement, ErrorBoundaryProps>(
-  function ErrorBoundary(props, ref) {
-    return <ErrorBoundaryImpl {...props} forwardedRef={ref} />;
-  },
-);

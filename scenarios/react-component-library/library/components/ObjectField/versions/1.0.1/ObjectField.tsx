@@ -6,13 +6,11 @@
  * @tags ["form","object","nested","validation","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
-import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
-
 /** @vrooliComponentSource forms.object-field */
-import { resolveStrings } from "@vrooli/react-component-library/useLocale/1.0.1";
+import { translate } from "../../../../hooks/useLocale/versions/1.0.1/useLocale";
 import { useEffect, useState, type CSSProperties, type ReactNode } from "react";
-import { FormSection } from "@vrooli/react-component-library/FormSection/1.0.0";
-import type { FormStore } from "@vrooli/react-component-library/FormStore/1.0.0";
+import { FormSection } from "../../../../components/FormSection/versions/1.0.0/FormSection";
+import type { FormStore } from "../../../../services/FormStore/versions/1.0.0/FormStore";
 
 export interface ObjectFieldContext<TObject extends Record<string, unknown>> {
   value: TObject;
@@ -49,7 +47,7 @@ const styles = `
   @media (max-width: 34rem) { [data-rcl-object-meta] { align-items: flex-start; flex-direction: column; } }
 `;
 
-export const ObjectField = withClassName(function ObjectField<
+export function ObjectField<
   TValues extends Record<string, unknown>,
   K extends keyof TValues,
   TObject extends Record<string, unknown> = TValues[K] extends Record<string, unknown>
@@ -90,7 +88,7 @@ export const ObjectField = withClassName(function ObjectField<
   const content = typeof children === "function" ? children(context) : children;
 
   return (
-    <div data-testid="forms.object-field" className={className} style={style} data-rcl-object-field data-field={String(field)}>
+    <div className={className} style={style} data-rcl-object-field data-field={String(field)}>
       <style data-rcl-object-field-styles dangerouslySetInnerHTML={{ __html: styles }} />
       <FormSection
         title={title}
@@ -101,7 +99,7 @@ export const ObjectField = withClassName(function ObjectField<
         summary={
           <span data-rcl-object-meta>
             <span data-rcl-object-badge>{Object.keys(value).length} values</span>
-            {optional && <span>{resolveStrings("forms.object-field.optional-group", "Optional group")}</span>}
+            {optional && <span>{translate("forms.object-field.text.1", "Optional group")}</span>}
           </span>
         }
       >
@@ -116,4 +114,4 @@ export const ObjectField = withClassName(function ObjectField<
       </FormSection>
     </div>
   );
-});
+}

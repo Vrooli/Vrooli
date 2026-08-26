@@ -12,7 +12,7 @@
       "version": "1.0.0"
     }
   ],
-  "description": "A forgiving reversible-action surface with expiry, rollback progress, and recovery when undo fails.",
+  "description": "",
   "designStyles": [
     {
       "affinity": "native",
@@ -28,7 +28,7 @@
     }
   ],
   "displayName": "UndoBanner",
-  "latest": "1.0.3",
+  "latest": "1.0.4",
   "libraryId": "react-component-library:UndoBanner",
   "tags": [
     "feedback",
@@ -44,5 +44,7 @@
     }
   ],
   "draft": "",
-  "deprecatedVersions": []
+  "deprecatedVersions": [
+    "1.0.3"
+  ]
 }

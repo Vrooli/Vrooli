@@ -2,8 +2,10 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "catalogId": "forms.color-picker",
   "category": "uncategorized",
-  "deprecatedVersions": [],
-  "description": "Accessible palette, recent-color, gradient, and native custom-color picker.",
+  "deprecatedVersions": [
+    "1.0.2"
+  ],
+  "description": "",
   "designStyles": [
     {
       "affinity": "native",
@@ -14,7 +16,7 @@
   "displayName": "ColorPicker",
   "draft": "",
   "entry": "ColorPicker.tsx",
-  "latest": "1.0.2",
+  "latest": "1.0.3",
   "libraryId": "react-component-library:ColorPicker",
   "slot": "ui-primitive",
   "tags": [

@@ -1937,6 +1937,29 @@
           }
         },
         {
+          "name": "draft",
+          "description": "Open, promote, or discard immutable catalog drafts",
+          "positionals": [
+            { "name": "action", "required": true, "description": "Action: open, promote, or discard", "local_only": true },
+            { "name": "asset-id", "description": "Stable library ID; omit with --all", "local_only": true }
+          ],
+          "flags": [
+            { "name": "all", "bool": true, "description": "Apply the action to every matching catalog asset", "local_only": true },
+            { "name": "match", "description": "Optional substring selector used with --all", "local_only": true },
+            { "name": "bump", "description": "Version bump for open: major, minor, or patch", "local_only": true },
+            { "name": "version", "description": "Explicit release version for open or promote", "local_only": true },
+            { "name": "draft-version", "description": "Draft version to promote", "local_only": true },
+            { "name": "changelog", "description": "Changelog text for promote", "local_only": true },
+            { "name": "acknowledge-parity-waiver", "description": "Acknowledge recorded parity findings while promoting", "local_only": true }
+          ],
+          "binding": { "kind": "local" },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": ["network:internal", "filesystem:read", "filesystem:write"]
+          }
+        },
+        {
           "name": "stories",
           "description": "Lint every versioned story contract and specimen module",
           "positionals": [
@@ -2027,6 +2050,13 @@
       "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal", "filesystem:read"]}
     },
     {
+      "name": "readiness",
+      "description": "Report catalog readiness, blast-radius triage, and runnable next steps",
+      "flags": [{"name": "floor", "description": "Preview a stricter maturity floor without changing catalog config"}],
+      "binding": {"kind": "connect-rpc", "service": "CatalogService", "method": "GetReadiness"},
+      "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal", "filesystem:read"]}
+    },
+    {
       "name": "evidence",
       "description": "Capture declared light/dark viewport evidence for an asset",
       "positionals": [{"name": "action", "required": true, "description": "capture", "local_only": true}, {"name": "asset-id", "required": true, "description": "Catalog asset id"}],
@@ -2105,6 +2135,11 @@
     }
   ],
   "omitted": [
+    {
+      "service": "ComponentsService",
+      "method": "ResolveLibraryImport",
+      "reason": "Preview import resolution is an internal UI/API seam; the CLI draft lane and component commands do not expose a standalone resolver workflow."
+    },
     {
       "service": "ComponentsService",
       "method": "ListPreviewFrames",

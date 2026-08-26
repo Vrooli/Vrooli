@@ -3,7 +3,7 @@
   "assetKind": "component",
   "catalogId": "data-display.timeline",
   "dependencies": [],
-  "description": "A chronological surface that preserves event order and readable detail in dense histories.",
+  "description": "",
   "designStyles": [
     {
       "affinity": "native",
@@ -11,7 +11,7 @@
     }
   ],
   "displayName": "Timeline",
-  "latest": "1.0.4",
+  "latest": "1.0.5",
   "libraryId": "react-component-library:Timeline",
   "tags": [
     "data-display",
@@ -24,5 +24,7 @@
     }
   ],
   "draft": "",
-  "deprecatedVersions": []
+  "deprecatedVersions": [
+    "1.0.4"
+  ]
 }

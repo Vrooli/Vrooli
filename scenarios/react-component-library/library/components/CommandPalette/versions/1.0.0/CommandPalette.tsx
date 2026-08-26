@@ -12,8 +12,8 @@ import {
   createCommandRegistry,
   type Command,
   type CommandRegistry,
-} from "@vrooli/react-component-library/CommandRegistry/1.0.0";
-import { SearchInput } from "@vrooli/react-component-library/SearchInput/1.0.0";
+} from "../../../../services/CommandRegistry/versions/1.0.0/CommandRegistry";
+import { SearchInput } from "../../../SearchInput/versions/1.0.0/SearchInput";
 
 export type CommandPaletteStatus =
   | "default"

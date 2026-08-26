@@ -7,8 +7,8 @@
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
 /** @vrooliComponentSource react-component-library:Drawer */
-import { useStrings } from "@vrooli/react-component-library/useLocale/1.0.1";
-import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
+import { translate } from "../../../../hooks/useLocale/versions/1.0.1/useLocale";
+import { withClassName } from "../../../../foundations/ClassMerge/versions/1.0.1/ClassMerge";
 
 import type { ReactNode } from "react";
 const panel = {
@@ -34,12 +34,11 @@ export const Drawer = withClassName(function Drawer({
   side?: DrawerSide;
   presentation?: DrawerPresentation;
 }) {
-  const strings = useStrings();
   if (!open) return null;
   return (
     <section
       role="dialog"
-      aria-label={strings("overlays.drawer.drawer", "Drawer")}
+      aria-label={translate("overlays.drawer.aria-label.1", "Drawer")}
       data-side={side}
       data-presentation={presentation}
       style={{ ...panel, display: "grid", gap: 16 }}
@@ -51,7 +50,7 @@ export const Drawer = withClassName(function Drawer({
         onClick={onClose}
         style={{ minHeight: 44, minWidth: 44 }}
       >
-        {strings("overlays.drawer.close", "Close")}
+        {translate("overlays.drawer.text.1", "Close")}
       </button>
     </section>
   );

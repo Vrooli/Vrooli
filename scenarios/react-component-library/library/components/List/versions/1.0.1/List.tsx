@@ -6,10 +6,8 @@
  * @tags ["data-display","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
-import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
-
 /** @vrooliComponentSource react-component-library:List */
-import { resolveStrings } from "@vrooli/react-component-library/useLocale/1.0.1";
+import { translate } from "../../../../hooks/useLocale/versions/1.0.1/useLocale";
 import type { ReactNode } from "react";
 
 export interface ListItem {
@@ -55,19 +53,19 @@ function normalizeItem(item: string | ListItem, index: number): ListItem & { key
   return { ...item, key: item.id ?? `item-${index}` };
 }
 
-export const List = withClassName(function List({
+export function List({
   items = [],
   empty = "Nothing here yet.",
   title,
   description,
-  label = resolveStrings("data-display.list.list", "List"),
+  label = translate("data-display.list.label.1", "List"),
   className,
   style,
 }: ListProps) {
   return (
     <>
       <style data-rcl-list-styles dangerouslySetInnerHTML={{ __html: styles }} />
-      <section data-testid="data-display.list" className={className} style={style} data-rcl-list aria-label={label}>
+      <section className={className} style={style} data-rcl-list aria-label={label}>
         {(title || description) && (
           <header data-rcl-list-header>
             {title && <strong data-rcl-list-title>{title}</strong>}
@@ -104,4 +102,4 @@ export const List = withClassName(function List({
       </section>
     </>
   );
-});
+}

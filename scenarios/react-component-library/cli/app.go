@@ -23,6 +23,7 @@ type App struct {
 }
 
 func NewApp() (*App, error) {
+	// Local manifest bindings use the command name as their schema-level key.
 	app := &App{}
 	subcommandGroups := func(core *cliapp.ScenarioApp) []cliapp.SubcommandGroup {
 		groups, err := domains.SubcommandGroups(core, manifestBytes)

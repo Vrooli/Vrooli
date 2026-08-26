@@ -7,8 +7,8 @@
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
 /** @vrooliComponentSource react-component-library:MetricBreakdown */
-import { useStrings } from "@vrooli/react-component-library/useLocale/1.0.1";
-import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
+import { translate } from "../../../../hooks/useLocale/versions/1.0.1/useLocale";
+import { withClassName } from "../../../../foundations/ClassMerge/versions/1.0.1/ClassMerge";
 
 export interface MetricItem {
   id: string;
@@ -22,10 +22,9 @@ export const MetricBreakdown = withClassName(function MetricBreakdown({
 }: {
   items?: MetricItem[];
 }) {
-  const strings = useStrings();
   return (
-    <dl data-testid="data-display.metric-breakdown"
-      aria-label={strings("data-display.metric-breakdown.metric-breakdown", "Metric breakdown")}
+    <dl
+      aria-label={translate("data-display.metric-breakdown.aria-label.1", "Metric breakdown")}
       style={{ display: "grid", gap: "var(--space-xs)" }}
     >
       {items.map((item) => (

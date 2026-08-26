@@ -6,12 +6,10 @@
  * @tags ["form","validation","accessibility","recovery"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
-import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
-
 /** @vrooliComponentSource forms.validation-summary */
-import { resolveStrings } from "@vrooli/react-component-library/useLocale/1.0.1";
+import { translate } from "../../../../hooks/useLocale/versions/1.0.1/useLocale";
 import { useEffect, useId, useState, type CSSProperties, type ReactNode } from "react";
-import { type FormStore } from "@vrooli/react-component-library/FormStore/1.0.0";
+import { type FormStore } from "../../../../services/FormStore/versions/1.0.0/FormStore";
 
 export interface ValidationSummaryProps<
   TValues extends Record<string, unknown> = Record<string, unknown>,
@@ -43,13 +41,13 @@ function useFormSnapshot<TValues extends Record<string, unknown>>(store?: FormSt
   return store?.get();
 }
 
-export const ValidationSummary = withClassName(function ValidationSummary<
+export function ValidationSummary<
   TValues extends Record<string, unknown> = Record<string, unknown>,
 >({
   store,
   errors,
   fieldLabels,
-  title = resolveStrings("forms.validation-summary.review-these-fields", "Review these fields"),
+  title = translate("forms.validation-summary.title.1", "Review these fields"),
   onFocusField,
   className,
   style,
@@ -101,4 +99,4 @@ export const ValidationSummary = withClassName(function ValidationSummary<
       </section>
     </>
   );
-});
+}

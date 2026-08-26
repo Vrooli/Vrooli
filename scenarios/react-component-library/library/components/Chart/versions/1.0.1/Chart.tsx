@@ -11,9 +11,9 @@ import { useId, useMemo, useState, type CSSProperties, type ReactNode } from "re
 import {
   AsyncBoundary,
   type AsyncBoundaryStatus,
-} from "@vrooli/react-component-library/AsyncBoundary/1.0.0";
-import { useElementRect } from "@vrooli/react-component-library/useElementRect/1.0.0";
-import { useLocale } from "@vrooli/react-component-library/useLocale/1.0.0";
+} from "../../../AsyncBoundary/versions/1.0.0/AsyncBoundary";
+import { useElementRect } from "../../../../hooks/useElementRect/versions/1.0.0/useElementRect";
+import { useLocale } from "../../../../hooks/useLocale/versions/1.0.0/useLocale";
 
 export type ChartPresentation = "contained" | "immersive";
 export type ChartLevel = "controller" | "compound" | "convenience";

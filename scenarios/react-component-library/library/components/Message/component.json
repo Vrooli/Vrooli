@@ -20,7 +20,7 @@
       "version": "1.0.0"
     }
   ],
-  "description": "A structured conversational item that keeps identity, content, evidence, activity, recovery, and actions in one readable surface.",
+  "description": "",
   "designStyles": [
     {
       "affinity": "native",
@@ -36,7 +36,7 @@
     }
   ],
   "displayName": "Message",
-  "latest": "1.0.3",
+  "latest": "1.0.4",
   "libraryId": "react-component-library:Message",
   "tags": [
     "ai",
@@ -52,5 +52,7 @@
     }
   ],
   "draft": "",
-  "deprecatedVersions": []
+  "deprecatedVersions": [
+    "1.0.3"
+  ]
 }

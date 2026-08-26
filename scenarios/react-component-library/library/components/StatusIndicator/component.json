@@ -3,7 +3,7 @@
   "assetKind": "component",
   "catalogId": "primitives.status-indicator",
   "dependencies": [],
-  "description": "A compact live status signal with explicit semantic states and accessible status output.",
+  "description": "",
   "designStyles": [
     {
       "affinity": "native",
@@ -11,7 +11,7 @@
     }
   ],
   "displayName": "StatusIndicator",
-  "latest": "1.0.2",
+  "latest": "1.0.3",
   "libraryId": "react-component-library:StatusIndicator",
   "tags": [
     "primitive",
@@ -19,5 +19,7 @@
     "token-bound"
   ],
   "draft": "",
-  "deprecatedVersions": []
+  "deprecatedVersions": [
+    "1.0.2"
+  ]
 }

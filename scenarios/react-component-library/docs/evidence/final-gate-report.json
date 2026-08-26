@@ -3480,7 +3480,7 @@
     },
     {
       "code": "catalog.released_version_immutable",
-      "message": "released source changed after release: recorded 270780b2941f, current 484a3289a5bf",
+      "message": "released source changed after release: recorded 270780b2941f, current 95e28ae4e6fb",
       "asset_id": "motion.auto-animate-layout",
       "severity": "error",
       "file": "library/components/AutoAnimateLayout/versions/1.0.0/AutoAnimateLayout.tsx",
@@ -4596,7 +4596,7 @@
     },
     {
       "code": "catalog.released_version_immutable",
-      "message": "released source changed after release: recorded cf37f38be881, current a6f9e5d67261",
+      "message": "released source changed after release: recorded cf37f38be881, current 37fd196f05d9",
       "asset_id": "hooks.use-locale",
       "severity": "error",
       "file": "library/hooks/useLocale/versions/1.0.1/useLocale.ts",
@@ -4605,7 +4605,7 @@
     },
     {
       "code": "catalog.released_version_immutable",
-      "message": "released source changed after release: recorded 9275d8c6d57a, current c816b48bd64e",
+      "message": "released source changed after release: recorded 9275d8c6d57a, current f5eb1290c80e",
       "asset_id": "ai.approval-prompt",
       "severity": "error",
       "file": "library/components/ApprovalPrompt/versions/1.0.1/ApprovalPrompt.tsx",
@@ -4614,7 +4614,7 @@
     },
     {
       "code": "catalog.released_version_immutable",
-      "message": "released source changed after release: recorded e1e2caa602b6, current fd152ba0fdba",
+      "message": "released source changed after release: recorded e1e2caa602b6, current e84e022fa07a",
       "asset_id": "ai.message",
       "severity": "error",
       "file": "library/components/Message/versions/1.0.3/Message.tsx",
@@ -4632,7 +4632,7 @@
     },
     {
       "code": "catalog.released_version_immutable",
-      "message": "released source changed after release: recorded 1a8d47b303fa, current c111daae8385",
+      "message": "released source changed after release: recorded 1a8d47b303fa, current 99947bd37cb0",
       "asset_id": "data-display.audit-trail",
       "severity": "error",
       "file": "library/components/AuditTrail/versions/1.0.4/AuditTrail.tsx",
@@ -4650,7 +4650,7 @@
     },
     {
       "code": "catalog.released_version_immutable",
-      "message": "released source changed after release: recorded bc0441f42bc8, current 279870722764",
+      "message": "released source changed after release: recorded bc0441f42bc8, current d6248fcadee5",
       "asset_id": "data-display.bulk-action-bar",
       "severity": "error",
       "file": "library/components/BulkActionBar/versions/1.0.1/BulkActionBar.tsx",
@@ -4668,7 +4668,7 @@
     },
     {
       "code": "catalog.released_version_immutable",
-      "message": "released source changed after release: recorded 4f33054a75bf, current 8536feba4bad",
+      "message": "released source changed after release: recorded 4f33054a75bf, current 7d33f013caae",
       "asset_id": "data-display.data-toolbar",
       "severity": "error",
       "file": "library/components/DataToolbar/versions/1.0.3/DataToolbar.tsx",
@@ -4677,7 +4677,7 @@
     },
     {
       "code": "catalog.released_version_immutable",
-      "message": "released source changed after release: recorded 5aa948952351, current d26252576031",
+      "message": "released source changed after release: recorded 5aa948952351, current 18f545f7e1be",
       "asset_id": "data-display.diff-viewer",
       "severity": "error",
       "file": "library/components/DiffViewer/versions/1.0.1/DiffViewer.tsx",
@@ -4686,7 +4686,7 @@
     },
     {
       "code": "catalog.released_version_immutable",
-      "message": "released source changed after release: recorded ca03682fe636, current fa78d8140e49",
+      "message": "released source changed after release: recorded ca03682fe636, current 9a38b3261ea0",
       "asset_id": "data-display.filter-bar",
       "severity": "error",
       "file": "library/components/FilterBar/versions/1.1.3/FilterBar.tsx",
@@ -4695,7 +4695,7 @@
     },
     {
       "code": "catalog.released_version_immutable",
-      "message": "released source changed after release: recorded 0520ffff3b29, current d4b3854cf350",
+      "message": "released source changed after release: recorded 0520ffff3b29, current 5b61fb4de322",
       "asset_id": "data-display.finding-list",
       "severity": "error",
       "file": "library/components/FindingList/versions/1.0.8/FindingList.tsx",
@@ -4704,7 +4704,7 @@
     },
     {
       "code": "catalog.released_version_immutable",
-      "message": "released source changed after release: recorded 1722271d7ed0, current 61c23db688c2",
+      "message": "released source changed after release: recorded 1722271d7ed0, current bdde1449b28c",
       "asset_id": "data-display.json-viewer",
       "severity": "error",
       "file": "library/components/JsonViewer/versions/1.0.4/JsonViewer.tsx",
@@ -4731,7 +4731,7 @@
     },
     {
       "code": "catalog.released_version_immutable",
-      "message": "released source changed after release: recorded 8ff0368b4a1b, current 733993bc7edc",
+      "message": "released source changed after release: recorded 8ff0368b4a1b, current fd51f04b5132",
       "asset_id": "data-display.metric-breakdown",
       "severity": "error",
       "file": "library/components/MetricBreakdown/versions/1.0.4/MetricBreakdown.tsx",
@@ -4740,7 +4740,7 @@
     },
     {
       "code": "catalog.released_version_immutable",
-      "message": "released source changed after release: recorded 36aa7971fb9a, current e11a73f9963d",
+      "message": "released source changed after release: recorded 36aa7971fb9a, current 62e518d04af9",
       "asset_id": "data-display.progress-ladder",
       "severity": "error",
       "file": "library/components/ProgressLadder/versions/1.0.4/ProgressLadder.tsx",
@@ -4758,7 +4758,7 @@
     },
     {
       "code": "catalog.released_version_immutable",
-      "message": "released source changed after release: recorded 6aa313e51548, current fb3a432dab58",
+      "message": "released source changed after release: recorded 6aa313e51548, current 6a4782d62f14",
       "asset_id": "data-display.search-results",
       "severity": "error",
       "file": "library/components/SearchResults/versions/1.0.4/SearchResults.tsx",
@@ -4776,7 +4776,7 @@
     },
     {
       "code": "catalog.released_version_immutable",
-      "message": "released source changed after release: recorded 72b3ad6287f8, current 35e6cc6654e5",
+      "message": "released source changed after release: recorded 72b3ad6287f8, current 8af1713742be",
       "asset_id": "data-display.stat",
       "severity": "error",
       "file": "library/components/Stat/versions/1.0.1/Stat.tsx",
@@ -4785,7 +4785,7 @@
     },
     {
       "code": "catalog.released_version_immutable",
-      "message": "released source changed after release: recorded 36379a2d2da6, current 1a4e0a714440",
+      "message": "released source changed after release: recorded 36379a2d2da6, current 3c57abd02f23",
       "asset_id": "data-display.timeline",
       "severity": "error",
       "file": "library/components/Timeline/versions/1.0.4/Timeline.tsx",
@@ -4794,7 +4794,7 @@
     },
     {
       "code": "catalog.released_version_immutable",
-      "message": "released source changed after release: recorded ddf27504a969, current 4f337bc8c99c",
+      "message": "released source changed after release: recorded ddf27504a969, current ab2cc0bc4c17",
       "asset_id": "data-display.tree-view",
       "severity": "error",
       "file": "library/components/TreeView/versions/1.0.3/TreeView.tsx",
@@ -4803,7 +4803,7 @@
     },
     {
       "code": "catalog.released_version_immutable",
-      "message": "released source changed after release: recorded 6a51d78e69c8, current 428279f92eea",
+      "message": "released source changed after release: recorded 6a51d78e69c8, current 2b8ba74b7de8",
       "asset_id": "data-display.verdict-summary",
       "severity": "error",
       "file": "library/components/VerdictSummary/versions/1.0.4/VerdictSummary.tsx",
@@ -4821,7 +4821,7 @@
     },
     {
       "code": "catalog.released_version_immutable",
-      "message": "released source changed after release: recorded adc2feb28744, current 9bcf94201a99",
+      "message": "released source changed after release: recorded adc2feb28744, current 83cdd1916371",
       "asset_id": "feedback.async-boundary",
       "severity": "error",
       "file": "library/components/AsyncBoundary/versions/1.0.3/AsyncBoundary.tsx",
@@ -4830,7 +4830,7 @@
     },
     {
       "code": "catalog.released_version_immutable",
-      "message": "released source changed after release: recorded e402b85e5f78, current f1026052e9b0",
+      "message": "released source changed after release: recorded e402b85e5f78, current 51706578ffde",
       "asset_id": "feedback.empty-state",
       "severity": "error",
       "file": "library/components/EmptyState/versions/1.7.5/EmptyState.tsx",
@@ -4866,7 +4866,7 @@
     },
     {
       "code": "catalog.released_version_immutable",
-      "message": "released source changed after release: recorded f4a530a96910, current 381d0a2d9f8d",
+      "message": "released source changed after release: recorded f4a530a96910, current 6aa72e110479",
       "asset_id": "feedback.permission-state",
       "severity": "error",
       "file": "library/components/PermissionState/versions/1.0.4/PermissionState.tsx",
@@ -4875,7 +4875,7 @@
     },
     {
       "code": "catalog.released_version_immutable",
-      "message": "released source changed after release: recorded fb792298d6db, current 67e778ed55f2",
+      "message": "released source changed after release: recorded fb792298d6db, current 6ee6afeee643",
       "asset_id": "feedback.toast",
       "severity": "error",
       "file": "library/components/Toast/versions/1.0.3/Toast.tsx",
@@ -4884,7 +4884,7 @@
     },
     {
       "code": "catalog.released_version_immutable",
-      "message": "released source changed after release: recorded c1e60b3d15de, current 1617bb36ff8a",
+      "message": "released source changed after release: recorded c1e60b3d15de, current b174c62406c1",
       "asset_id": "feedback.undo-banner",
       "severity": "error",
       "file": "library/components/UndoBanner/versions/1.0.3/UndoBanner.tsx",
@@ -4893,7 +4893,7 @@
     },
     {
       "code": "catalog.released_version_immutable",
-      "message": "released source changed after release: recorded 24c8f86bc596, current 43f6d8b3ed0f",
+      "message": "released source changed after release: recorded 24c8f86bc596, current 6bc0b6cec0bb",
       "asset_id": "forms.async-options-field",
       "severity": "error",
       "file": "library/components/AsyncOptionsField/versions/1.0.3/AsyncOptionsField.tsx",
@@ -4902,7 +4902,7 @@
     },
     {
       "code": "catalog.released_version_immutable",
-      "message": "released source changed after release: recorded d4ee5c397751, current 18edfa55c8ea",
+      "message": "released source changed after release: recorded d4ee5c397751, current 591e0a708e42",
       "asset_id": "forms.calendar",
       "severity": "error",
       "file": "library/components/Calendar/versions/1.0.3/Calendar.tsx",
@@ -4920,7 +4920,7 @@
     },
     {
       "code": "catalog.released_version_immutable",
-      "message": "released source changed after release: recorded d34c5aa3e6d6, current 7e6d82a3fb1b",
+      "message": "released source changed after release: recorded d34c5aa3e6d6, current 7b084e7b5766",
       "asset_id": "forms.dirty-state-guard",
       "severity": "error",
       "file": "library/components/DirtyStateGuard/versions/1.0.3/DirtyStateGuard.tsx",
@@ -4938,7 +4938,7 @@
     },
     {
       "code": "catalog.released_version_immutable",
-      "message": "released source changed after release: recorded bd17c725267b, current 34f2c2ea2960",
+      "message": "released source changed after release: recorded bd17c725267b, current a4772b908a66",
       "asset_id": "forms.search-input",
       "severity": "error",
       "file": "library/components/SearchInput/versions/1.0.3/SearchInput.tsx",
@@ -4974,7 +4974,7 @@
     },
     {
       "code": "catalog.released_version_immutable",
-      "message": "released source changed after release: recorded e1ba67b3bf7a, current 2b91048035dd",
+      "message": "released source changed after release: recorded e1ba67b3bf7a, current 3016daa11c2a",
       "asset_id": "navigation.app-navigation",
       "severity": "error",
       "file": "library/components/AppNavigation/versions/1.1.4/AppNavigation.tsx",
@@ -4983,7 +4983,7 @@
     },
     {
       "code": "catalog.released_version_immutable",
-      "message": "released source changed after release: recorded 42ff63e92999, current 6628f36b9919",
+      "message": "released source changed after release: recorded 42ff63e92999, current f486cf07a215",
       "asset_id": "navigation.app-shell",
       "severity": "error",
       "file": "library/components/AppShell/versions/1.0.3/AppShell.tsx",
@@ -5010,7 +5010,7 @@
     },
     {
       "code": "catalog.released_version_immutable",
-      "message": "released source changed after release: recorded 9e34d8053f19, current b8a40cba166e",
+      "message": "released source changed after release: recorded 9e34d8053f19, current 7798df897875",
       "asset_id": "navigation.navigation-tree",
       "severity": "error",
       "file": "library/components/NavigationTree/versions/1.1.4/NavigationTree.tsx",
@@ -5028,7 +5028,7 @@
     },
     {
       "code": "catalog.released_version_immutable",
-      "message": "released source changed after release: recorded 89c0df0b8699, current 268548e700f7",
+      "message": "released source changed after release: recorded 89c0df0b8699, current 8041fc1eabc5",
       "asset_id": "navigation.page",
       "severity": "error",
       "file": "library/components/Page/versions/1.0.4/Page.tsx",
@@ -5037,7 +5037,7 @@
     },
     {
       "code": "catalog.released_version_immutable",
-      "message": "released source changed after release: recorded 3af025b028b5, current dad4bf31cf19",
+      "message": "released source changed after release: recorded 3af025b028b5, current 07ebfdce8561",
       "asset_id": "navigation.top-bar",
       "severity": "error",
       "file": "library/components/TopBar/versions/1.0.4/TopBar.tsx",
@@ -5046,7 +5046,7 @@
     },
     {
       "code": "catalog.released_version_immutable",
-      "message": "released source changed after release: recorded 10aff83b950c, current 0b1d2bdf257f",
+      "message": "released source changed after release: recorded 10aff83b950c, current f28e501dc7b7",
       "asset_id": "overlays.command-palette",
       "severity": "error",
       "file": "library/components/CommandPalette/versions/1.0.3/CommandPalette.tsx",
@@ -5055,7 +5055,7 @@
     },
     {
       "code": "catalog.released_version_immutable",
-      "message": "released source changed after release: recorded aca4c2c89936, current 0bbe9f19cc1a",
+      "message": "released source changed after release: recorded aca4c2c89936, current 5e106d42f275",
       "asset_id": "overlays.drawer",
       "severity": "error",
       "file": "library/components/Drawer/versions/1.0.4/Drawer.tsx",
@@ -5064,7 +5064,7 @@
     },
     {
       "code": "catalog.released_version_immutable",
-      "message": "released source changed after release: recorded b6e684af1b25, current bb644b5fc388",
+      "message": "released source changed after release: recorded b6e684af1b25, current a1ba83209e66",
       "asset_id": "overlays.inspector-panel",
       "severity": "error",
       "file": "library/components/InspectorPanel/versions/1.0.4/InspectorPanel.tsx",
@@ -5073,7 +5073,7 @@
     },
     {
       "code": "catalog.released_version_immutable",
-      "message": "released source changed after release: recorded be2dc313b998, current 835de259042c",
+      "message": "released source changed after release: recorded be2dc313b998, current 8cd7265cb938",
       "asset_id": "overlays.responsive-panel",
       "severity": "error",
       "file": "library/components/ResponsivePanel/versions/1.1.3/ResponsivePanel.tsx",
@@ -5118,7 +5118,7 @@
     },
     {
       "code": "catalog.released_version_immutable",
-      "message": "released source changed after release: recorded edaec59cd474, current b02e8772a6a6",
+      "message": "released source changed after release: recorded edaec59cd474, current 8e7b3130f010",
       "asset_id": "patterns.resource-detail",
       "severity": "error",
       "file": "library/components/ResourceDetail/versions/1.0.1/ResourceDetail.tsx",
@@ -5127,7 +5127,7 @@
     },
     {
       "code": "catalog.released_version_immutable",
-      "message": "released source changed after release: recorded de7e2f39eea6, current b597bba5bf60",
+      "message": "released source changed after release: recorded de7e2f39eea6, current f29ca4f55419",
       "asset_id": "patterns.undoable-destructive-action",
       "severity": "error",
       "file": "library/components/UndoableDestructiveAction/versions/1.0.3/UndoableDestructiveAction.tsx",
@@ -5136,7 +5136,7 @@
     },
     {
       "code": "catalog.released_version_immutable",
-      "message": "released source changed after release: recorded e7fb932be5f3, current 8f1021b8e6a5",
+      "message": "released source changed after release: recorded e7fb932be5f3, current 38d5536d9f48",
       "asset_id": "patterns.unsaved-changes-flow",
       "severity": "error",
       "file": "library/components/UnsavedChangesFlow/versions/1.0.3/UnsavedChangesFlow.tsx",
@@ -5154,7 +5154,7 @@
     },
     {
       "code": "catalog.released_version_immutable",
-      "message": "released source changed after release: recorded f893ca77369e, current c56f6f194b97",
+      "message": "released source changed after release: recorded f893ca77369e, current 095247b80147",
       "asset_id": "primitives.copyable-text",
       "severity": "error",
       "file": "library/components/CopyableText/versions/1.0.4/CopyableText.tsx",
@@ -5181,7 +5181,7 @@
     },
     {
       "code": "catalog.released_version_immutable",
-      "message": "released source changed after release: recorded 385912d2db35, current 0c6071447533",
+      "message": "released source changed after release: recorded 385912d2db35, current 0dfbd780beeb",
       "asset_id": "primitives.progressive-image",
       "severity": "error",
       "file": "library/primitives/ProgressiveImage/versions/1.1.4/ProgressiveImage.tsx",
@@ -5217,7 +5217,7 @@
     },
     {
       "code": "catalog.released_version_immutable",
-      "message": "released source changed after release: recorded 0281286563b8, current 7a2b5380df3f",
+      "message": "released source changed after release: recorded 0281286563b8, current 20f89d8450f8",
       "asset_id": "templates.collection-page",
       "severity": "error",
       "file": "library/components/CollectionPage/versions/1.0.3/CollectionPage.tsx",
@@ -5226,7 +5226,7 @@
     },
     {
       "code": "catalog.released_version_immutable",
-      "message": "released source changed after release: recorded fde9e72b4090, current 741c65ae3dd3",
+      "message": "released source changed after release: recorded fde9e72b4090, current 7ee39e3d19ea",
       "asset_id": "templates.dashboard-page",
       "severity": "error",
       "file": "library/components/DashboardPage/versions/1.0.4/DashboardPage.tsx",
@@ -5235,7 +5235,7 @@
     },
     {
       "code": "catalog.released_version_immutable",
-      "message": "released source changed after release: recorded c7ff915e9c42, current aca3fc7f9c3b",
+      "message": "released source changed after release: recorded c7ff915e9c42, current 9768083bd9f7",
       "asset_id": "templates.detail-page",
       "severity": "error",
       "file": "library/components/DetailPage/versions/1.0.4/DetailPage.tsx",
@@ -5244,7 +5244,7 @@
     },
     {
       "code": "catalog.released_version_immutable",
-      "message": "released source changed after release: recorded 29a8f8e4abfb, current cfdb42fcdf3a",
+      "message": "released source changed after release: recorded 29a8f8e4abfb, current 86285ea225cf",
       "asset_id": "visualization.capture-grid",
       "severity": "error",
       "file": "library/components/CaptureGrid/versions/1.0.4/CaptureGrid.tsx",
@@ -5253,7 +5253,7 @@
     },
     {
       "code": "catalog.released_version_immutable",
-      "message": "released source changed after release: recorded dd8a7e72fd15, current 1a29a918e4f3",
+      "message": "released source changed after release: recorded dd8a7e72fd15, current 37c6eeb6d7c4",
       "asset_id": "visualization.chart",
       "severity": "error",
       "file": "library/components/Chart/versions/1.0.3/Chart.tsx",
@@ -5262,7 +5262,7 @@
     },
     {
       "code": "catalog.released_version_immutable",
-      "message": "released source changed after release: recorded 9d093c5f9c8a, current 78ab1a450753",
+      "message": "released source changed after release: recorded 9d093c5f9c8a, current 87d0f6f47807",
       "asset_id": "visualization.evidence-carousel",
       "severity": "error",
       "file": "library/components/EvidenceCarousel/versions/1.0.12/EvidenceCarousel.tsx",
@@ -5271,7 +5271,7 @@
     },
     {
       "code": "catalog.released_version_immutable",
-      "message": "released source changed after release: recorded d9c7cf131502, current 8c9927aa779d",
+      "message": "released source changed after release: recorded d9c7cf131502, current 29a7ba82758c",
       "asset_id": "visualization.network-graph",
       "severity": "error",
       "file": "library/components/NetworkGraph/versions/1.0.3/NetworkGraph.tsx",
@@ -5280,7 +5280,7 @@
     },
     {
       "code": "catalog.released_version_immutable",
-      "message": "released source changed after release: recorded c388ddf5c7f1, current 67b2697a4423",
+      "message": "released source changed after release: recorded c388ddf5c7f1, current ea2d123d5d7d",
       "asset_id": "visualization.overlay-canvas",
       "severity": "error",
       "file": "library/components/OverlayCanvas/versions/1.0.10/OverlayCanvas.tsx",
@@ -5465,7 +5465,7 @@
       "asset_id": "ai.message",
       "severity": "warning",
       "file": "scenarios/react-component-library/library/components/Message/versions/1.0.3/Message.tsx",
-      "line": 195,
+      "line": 197,
       "remediation": "Add a /** ... */ TSDoc block immediately before the exported symbol describing its purpose, public inputs, behavior, accessibility contract, and important performance constraints.",
       "docs_ref": "docs/internal/TESTING.md"
     },
@@ -5475,7 +5475,7 @@
       "asset_id": "ai.message",
       "severity": "warning",
       "file": "scenarios/react-component-library/library/components/Message/versions/1.0.3/Message.tsx",
-      "line": 336,
+      "line": 339,
       "remediation": "Add a /** ... */ TSDoc block immediately before the exported symbol describing its purpose, public inputs, behavior, accessibility contract, and important performance constraints.",
       "docs_ref": "docs/internal/TESTING.md"
     },
@@ -6505,7 +6505,7 @@
       "asset_id": "feedback.toast",
       "severity": "warning",
       "file": "scenarios/react-component-library/library/components/Toast/versions/1.0.3/Toast.tsx",
-      "line": 97,
+      "line": 98,
       "remediation": "Add a /** ... */ TSDoc block immediately before the exported symbol describing its purpose, public inputs, behavior, accessibility contract, and important performance constraints.",
       "docs_ref": "docs/internal/TESTING.md"
     },
@@ -6515,7 +6515,7 @@
       "asset_id": "feedback.undo-banner",
       "severity": "warning",
       "file": "scenarios/react-component-library/library/components/UndoBanner/versions/1.0.3/UndoBanner.tsx",
-      "line": 168,
+      "line": 169,
       "remediation": "Add a /** ... */ TSDoc block immediately before the exported symbol describing its purpose, public inputs, behavior, accessibility contract, and important performance constraints.",
       "docs_ref": "docs/internal/TESTING.md"
     },
@@ -6525,7 +6525,7 @@
       "asset_id": "feedback.undo-banner",
       "severity": "warning",
       "file": "scenarios/react-component-library/library/components/UndoBanner/versions/1.0.3/UndoBanner.tsx",
-      "line": 173,
+      "line": 174,
       "remediation": "Add a /** ... */ TSDoc block immediately before the exported symbol describing its purpose, public inputs, behavior, accessibility contract, and important performance constraints.",
       "docs_ref": "docs/internal/TESTING.md"
     },
@@ -9275,7 +9275,7 @@
       "asset_id": "patterns.undoable-destructive-action",
       "severity": "warning",
       "file": "scenarios/react-component-library/library/components/UndoableDestructiveAction/versions/1.0.3/UndoableDestructiveAction.tsx",
-      "line": 175,
+      "line": 176,
       "remediation": "Add a /** ... */ TSDoc block immediately before the exported symbol describing its purpose, public inputs, behavior, accessibility contract, and important performance constraints.",
       "docs_ref": "docs/internal/TESTING.md"
     },
@@ -10495,7 +10495,7 @@
       "asset_id": "templates.collection-page",
       "severity": "warning",
       "file": "scenarios/react-component-library/library/components/CollectionPage/versions/1.0.3/CollectionPage.tsx",
-      "line": 87,
+      "line": 88,
       "remediation": "Add a /** ... */ TSDoc block immediately before the exported symbol describing its purpose, public inputs, behavior, accessibility contract, and important performance constraints.",
       "docs_ref": "docs/internal/TESTING.md"
     },
@@ -10505,7 +10505,7 @@
       "asset_id": "templates.dashboard-page",
       "severity": "warning",
       "file": "scenarios/react-component-library/library/components/DashboardPage/versions/1.0.4/DashboardPage.tsx",
-      "line": 64,
+      "line": 65,
       "remediation": "Add a /** ... */ TSDoc block immediately before the exported symbol describing its purpose, public inputs, behavior, accessibility contract, and important performance constraints.",
       "docs_ref": "docs/internal/TESTING.md"
     },
@@ -10515,7 +10515,7 @@
       "asset_id": "templates.detail-page",
       "severity": "warning",
       "file": "scenarios/react-component-library/library/components/DetailPage/versions/1.0.4/DetailPage.tsx",
-      "line": 64,
+      "line": 65,
       "remediation": "Add a /** ... */ TSDoc block immediately before the exported symbol describing its purpose, public inputs, behavior, accessibility contract, and important performance constraints.",
       "docs_ref": "docs/internal/TESTING.md"
     },
@@ -12551,15 +12551,6 @@
     {
       "code": "catalog.evidence_freshness",
       "message": "newest component test evidence is older than story.json",
-      "asset_id": "patterns.unsaved-changes-flow",
-      "severity": "error",
-      "file": "scenarios/react-component-library/library/components/UnsavedChangesFlow/versions/1.0.3/story.json",
-      "remediation": "Run the component test sweep for this exact library version after its story contract changes; a stale or missing report cannot certify the current contract.",
-      "docs_ref": "docs/internal/TESTING.md"
-    },
-    {
-      "code": "catalog.evidence_freshness",
-      "message": "newest component test evidence is older than story.json",
       "asset_id": "monetization.upgrade-prompt",
       "severity": "error",
       "file": "scenarios/react-component-library/library/components/UpgradePrompt/versions/1.0.2/story.json",
@@ -12581,15 +12572,6 @@
       "asset_id": "forms.validation-summary",
       "severity": "error",
       "file": "scenarios/react-component-library/library/components/ValidationSummary/versions/1.0.3/story.json",
-      "remediation": "Run the component test sweep for this exact library version after its story contract changes; a stale or missing report cannot certify the current contract.",
-      "docs_ref": "docs/internal/TESTING.md"
-    },
-    {
-      "code": "catalog.evidence_freshness",
-      "message": "newest component test evidence is older than story.json",
-      "asset_id": "data-display.verdict-summary",
-      "severity": "error",
-      "file": "scenarios/react-component-library/library/components/VerdictSummary/versions/1.0.4/story.json",
       "remediation": "Run the component test sweep for this exact library version after its story contract changes; a stale or missing report cannot certify the current contract.",
       "docs_ref": "docs/internal/TESTING.md"
     },
@@ -13382,13 +13364,6 @@
       "file": "library/primitives/SelectionControl/versions/1.0.0/SelectionControl.tsx",
       "remediation": "Revert this file to its released content and publish the change as a new version instead. Released versions are immutable because consumers pin them by hash; editing one in place means two scenarios can hold the same version number and get different code, which makes every downstream bug report unreproducible.",
       "docs_ref": "docs/concepts/ARCHITECTURE.md#versioning"
-    },
-    {
-      "code": "catalog.types_failed",
-      "message": "catalog conformance failed: s/1.0.0/Badge.tsx library/primitives/Cluster/versions/1.0.0/Cluster.tsx library/primitives/Container/versions/1.1.2/Container.tsx library/primitives/EdgeFade/versions/1.0.0/EdgeFade.tsx library/primitives/Heading/versions/1.1.0/Heading.tsx library/primitives/Heading/versions/1.1.0/story.tsx library/primitives/Icon/versions/1.1.2/Icon.tsx library/primitives/Icon/versions/1.1.2/story.tsx library/primitives/Inline/versions/1.1.0/Inline.tsx library/primitives/LayoutGroup/versions/1.0.0/LayoutGroup.tsx library/primitives/Link/versions/1.0.1/Link.tsx library/primitives/MorphingIcon/versions/2.0.9/geometry.ts library/primitives/MorphingIcon/versions/2.0.9/MorphingIcon.tsx library/primitives/MorphingIcon/versions/2.0.9/story.tsx library/primitives/MotionPrimitive/versions/1.0.0/MotionPrimitive.tsx library/primitives/MotionPrimitive/versions/1.0.0/story.tsx library/primitives/Presence/versions/1.0.0/Presence.tsx library/primitives/Presence/versions/1.0.0/story.tsx library/primitives/Progress/versions/1.0.1/Progress.strings.ts library/primitives/Progress/versions/1.0.1/Progress.tsx library/primitives/Progress/versions/1.0.1/story.tsx library/primitives/ProgressiveImage/versions/1.1.4/ProgressiveImage.strings.ts library/primitives/ProgressiveImage/versions/1.1.4/ProgressiveImage.tsx library/primitives/ProgressiveImage/versions/1.1.4/story.tsx library/primitives/ScrollArea/versions/1.0.1/ScrollArea.strings.ts library/primitives/ScrollArea/versions/1.0.1/ScrollArea.tsx library/primitives/SelectionControl/versions/1.0.0/SelectionControl.tsx library/primitives/SelectionControl/versions/1.0.0/story.tsx library/primitives/Separator/versions/1.0.0/Separator.tsx library/primitives/Skeleton/versions/1.0.1/Skeleton.strings.ts library/primitives/Skeleton/versions/1.0.1/Skeleton.tsx library/primitives/Slot/versions/1.0.0/Slot.tsx library/primitives/Spinner/versions/1.0.1/Spinner.strings.ts library/primitives/Spinner/versions/1.0.1/Spinner.tsx library/primitives/Stack/versions/1.2.1/Stack.tsx library/primitives/Surface/versions/1.0.0/story.tsx library/primitives/Surface/versions/1.0.0/Surface.tsx library/primitives/Text/versions/1.1.0/story.tsx library/primitives/Text/versions/1.1.0/Text.tsx library/primitives/Transition/versions/1.0.2/story.tsx library/primitives/Transition/versions/1.0.2/Transition.strings.ts library/primitives/Transition/versions/1.0.2/Transition.tsx library/services/CommandRegistry/versions/1.0.0/CommandRegistry.tsx library/services/createScopedStore/versions/1.0.0/createScopedStore.tsx library/services/DragDropStore/versions/1.0.0/DragDropStore.tsx library/services/FormStore/versions/1.0.0/FormStore.tsx library/services/LayerManager/versions/1.0.0/LayerManager.tsx library/services/LiveAnnouncer/versions/1.0.0/LiveAnnouncer.tsx library/services/ScrollRestoration/versions/1.0.0/ScrollRestoration.tsx library/services/SelectionStore/versions/1.0.0/SelectionStore.tsx library/services/ShortcutRegistry/versions/1.0.0/ShortcutRegistry.tsx library/services/ToastManager/versions/1.0.0/ToastManager.tsx library/services/UndoManager/versions/1.0.0/UndoManager.tsx\n    at genericNodeError (node:internal/errors:984:15)\n    at wrappedFn (node:internal/errors:538:14)\n    at checkExecSyncError (node:child_process:891:11)\n    at execFileSync (node:child_process:927:15)\n    at run (file:///home/matthalloran8/Vrooli/scenarios/react-component-library/ui/scripts/catalog-conformance.mjs:177:3)\n    at file:///home/matthalloran8/Vrooli/scenarios/react-component-library/ui/scripts/catalog-conformance.mjs:191:5\n    at ModuleJob.run (node:internal/modules/esm/module_job:263:25)\n    at async ModuleLoader.import (node:internal/modules/esm/loader:540:24)\n    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:117:5) {\n  status: 1,\n  signal: null,\n  output: [ null, null, null ],\n  pid: 643573,\n  stdout: null,\n  stderr: null\n}\n\nNode.js v20.19.4\n ELIFECYCLE  Command failed with exit code 1.\n ELIFECYCLE  Command failed with exit code 1.",
-      "severity": "error",
-      "remediation": "Reproduce with `pnpm run catalog:check` in scenarios/react-component-library/ui; the output above is that command's tail. Fix the reported type or lint errors at their source files — this gate deliberately reports the real toolchain's output rather than re-deriving its own verdict, so the failure it shows is the failure to fix.",
-      "docs_ref": "docs/internal/TESTING.md"
     },
     {
       "code": "catalog.evidence_freshness",

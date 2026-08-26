@@ -1,0 +1,43 @@
+{
+  "accessibility": {
+    "keyboard": [
+      "Tab remains contained inside the alert dialog",
+      "Escape and outside clicks do not dismiss a consequential decision"
+    ],
+    "semantics": [
+      "The alertdialog has a title and persistent description",
+      "Request errors are announced as alerts"
+    ]
+  },
+  "component": {
+    "id": "overlays.alert-dialog",
+    "purpose": "Make consequential decisions explicit, recoverable, and resistant to accidental dismissal.",
+    "title": "AlertDialog"
+  },
+  "contract": {
+    "kind": "rcl-component-experience-contract",
+    "provenance": "react-component-library:AlertDialog@1.0.0",
+    "schema": "scenario-experience-spec/v1"
+  },
+  "reducedMotion": "The restrained entrance transition is disabled when reduced motion is preferred.",
+  "responsive": {
+    "mobile": "The dialog becomes a bottom sheet with full-width actions."
+  },
+  "states": [
+    {
+      "description": "A destructive confirmation with clear impact and explicit actions.",
+      "example": "default",
+      "id": "default"
+    },
+    {
+      "description": "A disabled action surface while a consequential request is in flight.",
+      "example": "submitting",
+      "id": "submitting"
+    },
+    {
+      "description": "A useful error that preserves work and offers a retry path.",
+      "example": "request-error",
+      "id": "request-error"
+    }
+  ]
+}

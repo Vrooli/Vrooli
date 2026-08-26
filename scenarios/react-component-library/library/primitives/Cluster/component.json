@@ -3,7 +3,7 @@
   "assetKind": "primitive",
   "catalogId": "primitives.cluster",
   "dependencies": [],
-  "description": "Cluster groups variable-width items while keeping baseline alignment predictable.",
+  "description": "",
   "designStyles": [
     {
       "affinity": "native",
@@ -19,10 +19,14 @@
     }
   ],
   "displayName": "Cluster",
-  "latest": "1.0.0",
+  "latest": "1.0.1",
   "libraryId": "react-component-library:Cluster",
   "tags": [
     "primitive",
     "token-bound"
+  ],
+  "draft": "",
+  "deprecatedVersions": [
+    "1.0.0"
   ]
 }

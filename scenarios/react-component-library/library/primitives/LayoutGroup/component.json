@@ -3,7 +3,7 @@
   "assetKind": "primitive",
   "catalogId": "motion.layout-group",
   "dependencies": [],
-  "description": "LayoutGroup names a structural ownership boundary for coordinated layout.",
+  "description": "",
   "designStyles": [
     {
       "affinity": "native",
@@ -19,10 +19,14 @@
     }
   ],
   "displayName": "LayoutGroup",
-  "latest": "1.0.0",
+  "latest": "1.0.1",
   "libraryId": "react-component-library:LayoutGroup",
   "tags": [
     "primitive",
     "token-bound"
+  ],
+  "draft": "",
+  "deprecatedVersions": [
+    "1.0.0"
   ]
 }

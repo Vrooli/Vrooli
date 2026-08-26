@@ -3,7 +3,7 @@ import { useEffect, useState, type CSSProperties, type ReactNode } from "react";
 import {
   type FormPhase,
   type FormStore,
-} from "@vrooli/react-component-library/FormStore/1.0.0";
+} from "../../../../services/FormStore/versions/1.0.0/FormStore";
 
 export interface FormActionsProps<
   TValues extends Record<string, unknown> = Record<string, unknown>,

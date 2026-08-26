@@ -23,6 +23,12 @@ func TestPreviewStorySheetIDsIsBoundedAndDeduplicated(t *testing.T) {
 	require.Empty(t, previewStorySheetIDs(req))
 }
 
+func TestStorySheetPublishesTheSharedReadinessMarker(t *testing.T) {
+	require.Contains(t, storySheetJavaScript, `readiness.dataset.previewReadinessMarker`)
+	require.Contains(t, storySheetJavaScript, `readiness.dataset.previewReady`)
+	require.Contains(t, storySheetJavaScript, `setState("ready", "passed")`)
+}
+
 const testPreviewCSS = `:root { --color-primary: #2563eb; } .bg-app-primary { background: var(--color-primary); } .rounded-control { border-radius: var(--radius-control); }`
 
 func TestBuildImportMapJSONPinsDeclaredDeps(t *testing.T) {
@@ -206,6 +212,8 @@ func TestRenderHarnessHTMLSupportsScopedTemporaryPropsOverrides(t *testing.T) {
 	require.Contains(t, html, `const reportStoryResult = (passed, failures, skipped = []) =>`)
 	require.Contains(t, html, `export async function runStory(previewStory, modules, env = browserEnv)`)
 	require.Contains(t, html, `void runStory(previewStory, { document, window }`)
+	require.Contains(t, html, `const initialTarget = previewStory.interactions?.[0]?.target || previewStory.expect?.[0]`)
+	require.Contains(t, html, `different realm implementations of accessible-name lookup`)
 	require.NotContains(t, html, `setTimeout(() => {`)
 	require.NotContains(t, html, `const expectationFailure = (expectation)`)
 	require.Contains(t, html, `@testing-library/dom`)

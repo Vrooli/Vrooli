@@ -1,8 +1,10 @@
 {
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "catalogId": "primitives.code",
-  "deprecatedVersions": [],
-  "description": "Inline code token renderer with copy affordance.",
+  "deprecatedVersions": [
+    "0.3.2"
+  ],
+  "description": "",
   "designStyles": [
     {
       "affinity": "native",
@@ -13,7 +15,7 @@
   "displayName": "Inline Code",
   "draft": "",
   "entry": "InlineCode.tsx",
-  "latest": "0.3.2",
+  "latest": "0.3.3",
   "libraryId": "react-component-library:inline-code",
   "tags": [
     "markdown",

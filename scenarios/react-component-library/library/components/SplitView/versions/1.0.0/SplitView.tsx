@@ -1,6 +1,4 @@
 /** @vrooliComponentSource navigation.split-view */
-import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
-
 import type { CSSProperties, ReactNode } from "react";
 
 const styles = `
@@ -10,7 +8,7 @@ const styles = `
 @media (forced-colors: active) { [data-rcl-split-view-region] { forced-color-adjust: auto; } }
 `;
 
-export const SplitView = withClassName(function SplitView({
+export function SplitView({
   primary,
   secondary,
   primaryLabel = "Primary content",
@@ -26,7 +24,7 @@ export const SplitView = withClassName(function SplitView({
   style?: CSSProperties;
 }) {
   return (
-    <div data-testid="navigation.split-view"
+    <div
       data-rcl-split-view
       data-split-view
       className={className}
@@ -44,4 +42,4 @@ export const SplitView = withClassName(function SplitView({
       </section>
     </div>
   );
-});
+}

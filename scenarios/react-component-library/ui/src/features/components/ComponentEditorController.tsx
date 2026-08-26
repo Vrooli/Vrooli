@@ -31,6 +31,7 @@ import {
   type ComponentStory,
   type PreviewFrameCandidate,
 } from "../../api/components";
+import { ComponentVersionStatus } from "@vrooli/proto-types/react-component-library/v1/components/components_pb";
 import { useComponentInspector } from "../../hooks/useComponentInspector";
 import { useDeviceEmulation } from "../../hooks/useDeviceEmulation";
 import { useDeviceFilters } from "../../hooks/useDeviceFilters";
@@ -54,6 +55,8 @@ import { useShellNavigation } from "../../components/ShellNavigationContext";
 import {
   createLibraryImportDefinitionProvider,
   createLibraryImportHoverProvider,
+  isLibraryImportSpecifier,
+  libraryImportsInModel,
 } from "./libraryImportProviders";
 
 const PREVIEW_LOAD_TIMEOUT_MS = 8_000;
@@ -246,6 +249,9 @@ export function ComponentEditorImpl({
   const activeVersionFiles = ((versionsQuery.data?.versions ?? []).find(
     (version) => version.version === activeVersion,
   )?.files ?? []) as Array<{ path: string; isEntry: boolean }>;
+  const activeVersionRecord = (versionsQuery.data?.versions ?? []).find(
+    (version) => version.version === activeVersion,
+  );
 
   const contentQuery = useQuery({
     queryKey: ["components", "content", id, selectedVersion ?? "current", selectedFile],
@@ -761,7 +767,9 @@ export function ComponentEditorImpl({
     onError: (error) => setFrameSaveMessage(errorMessage(error, t)),
   });
 
-  const readOnly = Boolean(selectedVersion) || selectedFile.endsWith(".json");
+  const releasedVersion =
+    Boolean(selectedVersion) && activeVersionRecord?.status !== ComponentVersionStatus.DRAFT;
+  const readOnly = releasedVersion || selectedFile.endsWith(".json");
   const dirty = !readOnly && !!contentQuery.data && buffer !== contentQuery.data.content;
 
   const handleBeforeMount = (monaco: Monaco) => {
@@ -780,21 +788,62 @@ export function ComponentEditorImpl({
     const languages = ["typescript", "typescriptreact", "javascript", "javascriptreact"];
     const resolveImport = (specifier: string, fromPath: string) =>
       resolveLibraryImport({ specifier, fromPath });
+    const model = monacoEditor.getModel();
+    const diagnosticsOwner = "rcl-library-imports";
+    let diagnosticsRun = 0;
+    const refreshDiagnostics = async () => {
+      if (!model) return;
+      const run = ++diagnosticsRun;
+      const imports = libraryImportsInModel(model).filter((item) =>
+        isLibraryImportSpecifier(item.specifier),
+      );
+      const resolutions = await Promise.all(
+        imports.map(async (item) => ({
+          item,
+          resolution: await resolveImport(item.specifier, model.uri.path),
+        })),
+      );
+      if (run !== diagnosticsRun || model.isDisposed()) return;
+      monaco.editor.setModelMarkers(
+        model,
+        diagnosticsOwner,
+        resolutions
+          .filter(({ resolution }) => !resolution.resolved)
+          .map(({ item, resolution }) => ({
+            severity: monaco.MarkerSeverity.Error,
+            message: resolution.diagnostic || "The library import does not resolve.",
+            ...item.range,
+          })),
+      );
+    };
+    const contentListener = model?.onDidChangeContent(() => void refreshDiagnostics());
+    void refreshDiagnostics();
     monaco.languages.registerHoverProvider(
       languages,
       createLibraryImportHoverProvider(resolveImport),
     );
     monaco.languages.registerDefinitionProvider(
       languages,
-      createLibraryImportDefinitionProvider(monaco, resolveImport, async (resolution, uri) => {
-        if (monaco.editor.getModel(uri)) return;
-        const source = await componentsClient.getComponentVersionContent({
-          componentId: resolution.libraryId,
-          version: resolution.version,
-        });
-        monaco.editor.createModel(source.content, "typescript", uri);
-      }),
+      createLibraryImportDefinitionProvider(
+        monaco,
+        resolveImport,
+        async (resolution, uri) => {
+          if (monaco.editor.getModel(uri)) return;
+          const source = await componentsClient.getComponentVersionContent({
+            componentId: resolution.libraryId,
+            version: resolution.version,
+          });
+          monaco.editor.createModel(source.content, "typescript", uri);
+        },
+        (_resolution, _range) => {
+          void refreshDiagnostics();
+        },
+      ),
     );
+    monacoEditor.onDidDispose(() => {
+      contentListener?.dispose();
+      if (model && !model.isDisposed()) monaco.editor.setModelMarkers(model, diagnosticsOwner, []);
+    });
   };
 
   useEffect(() => {
@@ -1093,7 +1142,8 @@ export function ComponentEditorImpl({
           className="border-b border-app-warning/30 bg-app-warning/10 px-space-sm py-space-xs text-xs text-app-warning"
         >
           <p className="font-medium">
-            {storiesQuery.data?.warnings?.length} story contract warning(s); indexing remains available.
+            {storiesQuery.data?.warnings?.length} story contract warning(s); indexing remains
+            available.
           </p>
           <ul className="mt-space-2xs list-disc space-y-space-3xs pl-space-md">
             {storiesQuery.data?.warnings?.map((warning) => (
@@ -1131,6 +1181,8 @@ export function ComponentEditorImpl({
                         libraryId={libraryId}
                         renderable={renderable}
                         splitView={splitView}
+                        version={activeVersion}
+                        releasedVersion={releasedVersion}
                         activeVersionFiles={activeVersionFiles}
                         selectedFile={selectedFile}
                         selectedTemplate={selectedTemplate}

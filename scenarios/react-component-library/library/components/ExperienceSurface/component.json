@@ -1,8 +1,10 @@
 {
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "category": "feedback",
-  "deprecatedVersions": [],
-  "description": "Semantic lifecycle boundary for independently meaningful UI regions.",
+  "deprecatedVersions": [
+    "1.0.0"
+  ],
+  "description": "",
   "designStyles": [
     {
       "affinity": "native",
@@ -11,7 +13,7 @@
   ],
   "displayName": "Experience Surface",
   "draft": "",
-  "latest": "1.0.0",
+  "latest": "1.0.1",
   "libraryId": "react-component-library:ExperienceSurface",
   "slot": "ui-pattern",
   "tags": [

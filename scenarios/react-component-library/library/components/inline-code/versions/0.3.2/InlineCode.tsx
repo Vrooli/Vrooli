@@ -7,8 +7,6 @@
  * @deps {"react":"^18"}
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
-import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
-
 import type { MouseEvent, ReactNode } from "react";
 import { useCodeCopy } from "./useCodeCopy";
 import { inlineCodeStyles } from "./styles";
@@ -26,7 +24,7 @@ export interface InlineCodeProps {
   copyLabel?: string;
 }
 
-export const InlineCode = withClassName(function InlineCode({
+export function InlineCode({
   children,
   resolveInlineToken,
   looksLikeFileReference,
@@ -81,4 +79,4 @@ export const InlineCode = withClassName(function InlineCode({
       </button>
     </span>
   );
-});
+}

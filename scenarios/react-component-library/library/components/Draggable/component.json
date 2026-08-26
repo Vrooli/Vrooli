@@ -12,7 +12,7 @@
       "version": "1.0.0"
     }
   ],
-  "description": "A pointer-capturing and keyboard-operable direct-manipulation primitive with constraints, cancellation, announcements, and overlay-safe positioning.",
+  "description": "",
   "designStyles": [
     {
       "affinity": "native",
@@ -28,7 +28,7 @@
     }
   ],
   "displayName": "Draggable",
-  "latest": "1.0.1",
+  "latest": "1.0.4",
   "libraryId": "react-component-library:Draggable",
   "tags": [
     "manipulation",
@@ -45,5 +45,8 @@
     }
   ],
   "draft": "",
-  "deprecatedVersions": []
+  "deprecatedVersions": [
+    "1.0.1",
+    "1.0.3"
+  ]
 }

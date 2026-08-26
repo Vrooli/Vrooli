@@ -6,15 +6,13 @@
  * @tags ["media","files","upload","progress","recovery","responsive","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
-import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
-
 /** @vrooliComponentSource media.attachment-preview */
 import { type CSSProperties, type ReactNode } from "react";
 import {
   FilePreview,
   type FilePreviewStatus,
-} from "@vrooli/react-component-library/FilePreview/1.0.0";
-import { Progress } from "@vrooli/react-component-library/Progress/1.0.0";
+} from "../../../../components/FilePreview/versions/1.0.0/FilePreview";
+import { Progress } from "../../../../primitives/Progress/versions/1.0.0/Progress";
 
 export type AttachmentStatus =
   | "queued"
@@ -82,7 +80,7 @@ function defaultStatus(status: AttachmentStatus) {
   }[status];
 }
 
-export const AttachmentPreview = withClassName(function AttachmentPreview({
+export function AttachmentPreview({
   name,
   mimeType,
   sizeBytes,
@@ -205,4 +203,4 @@ export const AttachmentPreview = withClassName(function AttachmentPreview({
       )}
     </section>
   );
-});
+}

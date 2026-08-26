@@ -6,10 +6,8 @@
  * @tags ["data-display","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
-import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
-
 /** @vrooliComponentSource data-display.diff-viewer */
-import { useStrings } from "@vrooli/react-component-library/useLocale/1.0.1";
+import { translate } from "../../../../hooks/useLocale/versions/1.0.1/useLocale";
 import type { CSSProperties } from "react";
 
 const styles = `
@@ -25,7 +23,7 @@ const styles = `
 @media (forced-colors: active) { [data-rcl-diff-viewer-row] { border-color: CanvasText; background: Canvas; color: CanvasText; } [data-rcl-diff-viewer-row="removed"] { border-inline-start-color: Mark; } [data-rcl-diff-viewer-row="added"] { border-inline-start-color: Highlight; } }
 `;
 
-export const DiffViewer = withClassName(function DiffViewer({
+export function DiffViewer({
   before = "",
   after = "",
   className,
@@ -36,19 +34,18 @@ export const DiffViewer = withClassName(function DiffViewer({
   className?: string;
   style?: CSSProperties;
 }) {
-  const strings = useStrings();
   return (
-    <figure data-testid="data-display.diff-viewer"
+    <figure
       data-rcl-diff-viewer
-      aria-label={strings("data-display.diff-viewer.diff", "Diff")}
+      aria-label={translate("data-display.diff-viewer.aria-label.1", "Diff")}
       className={className}
       style={style}
     >
       <style data-rcl-diff-viewer-styles dangerouslySetInnerHTML={{ __html: styles }} />
-      <figcaption>{strings("data-display.diff-viewer.version-comparison", "Version comparison")}</figcaption>
+      <figcaption>{translate("data-display.diff-viewer.text.1", "Version comparison")}</figcaption>
       <div data-rcl-diff-viewer-row="removed">
         <span data-rcl-diff-viewer-label>
-          {strings("data-display.diff-viewer.previous-version", "Previous version")}
+          {translate("data-display.diff-viewer.text.2", "Previous version")}
         </span>
         <span data-rcl-diff-viewer-value>
           <del>{before || "No value"}</del>
@@ -56,7 +53,7 @@ export const DiffViewer = withClassName(function DiffViewer({
       </div>
       <div data-rcl-diff-viewer-row="added">
         <span data-rcl-diff-viewer-label>
-          {strings("data-display.diff-viewer.current-version", "Current version")}
+          {translate("data-display.diff-viewer.text.3", "Current version")}
         </span>
         <span data-rcl-diff-viewer-value>
           <ins>{after || "No value"}</ins>
@@ -64,4 +61,4 @@ export const DiffViewer = withClassName(function DiffViewer({
       </div>
     </figure>
   );
-});
+}

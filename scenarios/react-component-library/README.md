@@ -77,6 +77,16 @@ Run tests with `make test` (which runs `vrooli scenario test`) or invoke
 `test-genie execute react-component-library --preset comprehensive` directly for
 finer-grained presets.
 
+### Catalog readiness
+
+Use `react-component-library catalog readiness` for the combined evidence
+view. Its output is an `OperationalReport` with `Status`, `Triage`, and
+`Next Steps`; status names the evidence run, completion state, maturity floor,
+achieved rung, and gap. Triage is bounded to the highest-leverage 50 rows and
+reports the omitted count when more rows exist. Use `--floor <rung>` to preview
+a stricter floor without changing the catalog. `--json` carries the same
+status, triage, omission count, and runnable next-step commands for agents.
+
 ## Documentation Map
 
 | Need | Start Here |

@@ -8,7 +8,7 @@
       "version": "1.0.0"
     }
   ],
-  "description": "A store-backed repeating field with constrained add, duplicate, remove, and keyboard-safe reorder actions.",
+  "description": "",
   "designStyles": [
     {
       "affinity": "native",
@@ -24,7 +24,7 @@
     }
   ],
   "displayName": "ArrayField",
-  "latest": "1.0.1",
+  "latest": "1.0.2",
   "libraryId": "react-component-library:ArrayField",
   "tags": [
     "form",
@@ -34,5 +34,7 @@
     "token-bound"
   ],
   "draft": "",
-  "deprecatedVersions": []
+  "deprecatedVersions": [
+    "1.0.1"
+  ]
 }

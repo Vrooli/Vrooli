@@ -6,10 +6,8 @@
  * @tags ["data-display","virtualization","performance","accessibility","responsive","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
-import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
-
 /** @vrooliComponentSource data-display.virtual-list */
-import { resolveStrings } from "@vrooli/react-component-library/useLocale/1.0.1";
+import { translate } from "../../../../hooks/useLocale/versions/1.0.1/useLocale";
 import {
   useEffect,
   useLayoutEffect,
@@ -65,14 +63,14 @@ function lowerBound(values: number[], target: number) {
   return low;
 }
 
-export const VirtualList = withClassName(function VirtualList<T>({
+export function VirtualList<T>({
   items = [],
   renderItem,
   getItemKey = (_item, index) => `virtual-item-${index}`,
   estimateItemHeight = 72,
   overscan = 4,
   height = 360,
-  label = resolveStrings("data-display.virtual-list.virtual-list", "Virtual list"),
+  label = translate("data-display.virtual-list.label.1", "Virtual list"),
   title,
   description,
   empty = "Nothing here yet.",
@@ -165,7 +163,7 @@ export const VirtualList = withClassName(function VirtualList<T>({
   return (
     <>
       <style data-rcl-virtual-list-styles dangerouslySetInnerHTML={{ __html: styles }} />
-      <section data-testid="data-display.virtual-list" className={className} style={style} data-rcl-virtual-list aria-label={label}>
+      <section className={className} style={style} data-rcl-virtual-list aria-label={label}>
         {(title || description) && (
           <header data-rcl-virtual-list-header>
             {title && <strong data-rcl-virtual-list-title>{title}</strong>}
@@ -232,4 +230,4 @@ export const VirtualList = withClassName(function VirtualList<T>({
       </section>
     </>
   );
-});
+}

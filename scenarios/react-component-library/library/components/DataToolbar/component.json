@@ -13,8 +13,10 @@
       "version": "1.0.0"
     }
   ],
-  "deprecatedVersions": [],
-  "description": "A responsive collection control surface that composes query, filters, saved views, sorting, freshness, density, and recovery actions into one accessible grammar.",
+  "deprecatedVersions": [
+    "1.0.3"
+  ],
+  "description": "",
   "designStyles": [
     {
       "affinity": "native",
@@ -31,7 +33,7 @@
   ],
   "displayName": "DataToolbar",
   "draft": "",
-  "latest": "1.0.3",
+  "latest": "1.0.4",
   "libraryId": "react-component-library:DataToolbar",
   "slot": "ui-pattern",
   "tags": [

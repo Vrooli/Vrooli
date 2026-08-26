@@ -8,7 +8,7 @@
       "version": "1.0.0"
     }
   ],
-  "description": "A retryable error surface that explains failure without collapsing the surrounding product hierarchy.",
+  "description": "",
   "designStyles": [
     {
       "affinity": "native",
@@ -16,7 +16,7 @@
     }
   ],
   "displayName": "ErrorState",
-  "latest": "1.0.4",
+  "latest": "1.0.7",
   "libraryId": "react-component-library:ErrorState",
   "tags": [
     "feedback",
@@ -30,5 +30,8 @@
     }
   ],
   "draft": "",
-  "deprecatedVersions": []
+  "deprecatedVersions": [
+    "1.0.4",
+    "1.0.6"
+  ]
 }

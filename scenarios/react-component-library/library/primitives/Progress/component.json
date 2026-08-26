@@ -8,7 +8,7 @@
       "version": "1.0.0"
     }
   ],
-  "description": "A token-backed progress family for determinate, buffered, segmented, and indeterminate work.",
+  "description": "",
   "designStyles": [
     {
       "affinity": "native",
@@ -24,7 +24,7 @@
     }
   ],
   "displayName": "Progress",
-  "latest": "1.0.1",
+  "latest": "1.0.4",
   "libraryId": "react-component-library:Progress",
   "tags": [
     "primitive",
@@ -39,5 +39,8 @@
     }
   ],
   "draft": "",
-  "deprecatedVersions": []
+  "deprecatedVersions": [
+    "1.0.1",
+    "1.0.3"
+  ]
 }

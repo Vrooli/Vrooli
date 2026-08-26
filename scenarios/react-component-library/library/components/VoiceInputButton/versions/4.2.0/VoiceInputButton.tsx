@@ -7,8 +7,6 @@
  * @deps {"react":"^18"}
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
-import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
-
 import {
   useCallback,
   useRef,
@@ -16,11 +14,11 @@ import {
   type CSSProperties,
   type PointerEvent,
 } from "react";
-import { IconButton } from "@vrooli/react-component-library/IconButton/2.0.0";
+import { IconButton } from "../../../IconButton/versions/2.0.0/IconButton";
 import type {
   ControlDensity,
   ControlSize,
-} from "@vrooli/react-component-library/ControlBase/1.0.0";
+} from "../../../ControlBase/versions/1.0.0/ControlBase";
 import {
   VoiceInputButtonGlyph as Glyph,
   type VoiceInputGlyphKind,
@@ -73,7 +71,7 @@ const labels: Record<VoiceInputButtonState, string> = {
 const joinClasses = (...classes: Array<string | undefined | false>) =>
   classes.filter(Boolean).join(" ");
 
-export const VoiceInputButton = withClassName(function VoiceInputButton({
+export function VoiceInputButton({
   state = "idle",
   mode = "always-on",
   size = "sm",
@@ -279,4 +277,4 @@ export const VoiceInputButton = withClassName(function VoiceInputButton({
       </IconButton>
     </>
   );
-});
+}

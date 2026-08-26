@@ -12,7 +12,7 @@
       "version": "1.0.0"
     }
   ],
-  "description": "A stable async state boundary that preserves structure while pending, failed, or retryable content changes.",
+  "description": "",
   "designStyles": [
     {
       "affinity": "native",
@@ -20,7 +20,7 @@
     }
   ],
   "displayName": "AsyncBoundary",
-  "latest": "1.0.3",
+  "latest": "1.0.4",
   "libraryId": "react-component-library:AsyncBoundary",
   "tags": [
     "feedback",
@@ -34,5 +34,7 @@
     }
   ],
   "draft": "",
-  "deprecatedVersions": []
+  "deprecatedVersions": [
+    "1.0.3"
+  ]
 }

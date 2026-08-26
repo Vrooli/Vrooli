@@ -12,11 +12,45 @@
   "phaseClass": "capability",
   "runtimeClass": "execution",
   "concurrency": {
-    "mode": "provider-serial"
+    "mode": "parallel-safe"
   },
   "determinism": {
     "default": "observational",
-    "reason": "Component gates compare rendered story evidence against the version-pinned catalog held in the provider's own database. Catalog releases and recorded evidence change outside the target scenario's files, so the verdict is not determined by the target's file digest."
+    "reason": "Component gates compare rendered story evidence against the version-pinned catalog held in the provider's own database. Catalog releases and recorded evidence change outside the target scenario's files, so the verdict is not determined by the target's file digest.",
+    "capabilities": {
+      "graph-reconciled": { "mode": "file-determined", "inputs": ["library/**/versions/**", "catalog/config.json"] },
+      "token-vocabulary": { "mode": "file-determined", "inputs": ["library/**", "ui/**", "catalog/config.json"] },
+      "token-ramp-complete": { "mode": "file-determined", "inputs": ["library/**", "ui/**", "catalog/config.json"] },
+      "released-version-immutable": { "mode": "file-determined", "inputs": ["library/**/versions/**", "catalog/config.json"] },
+      "version-liveness": { "mode": "file-determined", "inputs": ["library/**", "ui/**", "catalog/config.json"] },
+      "types": { "mode": "file-determined", "inputs": ["library/**", "ui/**", "catalog/config.json"] },
+      "api": { "mode": "file-determined", "inputs": ["library/**/versions/**", "catalog/config.json"] },
+      "unit": { "mode": "file-determined", "inputs": ["library/**/versions/**", "catalog/config.json"] },
+      "interaction": { "mode": "file-determined", "inputs": ["library/**/versions/**", "catalog/config.json"] },
+      "accessibility": { "mode": "file-determined", "inputs": ["library/**/versions/**", "catalog/config.json"] },
+      "responsive": { "mode": "file-determined", "inputs": ["library/**/versions/**", "catalog/config.json"] },
+      "visual": { "mode": "file-determined", "inputs": ["library/**/versions/**", "catalog/config.json"] },
+      "rtl": { "mode": "file-determined", "inputs": ["library/**/versions/**", "catalog/config.json"] },
+      "reduced-motion": { "mode": "file-determined", "inputs": ["library/**/versions/**", "catalog/config.json"] },
+      "performance": { "mode": "file-determined", "inputs": ["library/**", "ui/**", "catalog/config.json"] },
+      "console-clean": { "mode": "file-determined", "inputs": ["library/**/versions/**", "catalog/config.json"] },
+      "surface-discipline": { "mode": "file-determined", "inputs": ["library/**/versions/**", "catalog/config.json"] },
+      "composition": { "mode": "file-determined", "inputs": ["library/**/versions/**", "catalog/config.json"] },
+      "composition-contract": { "mode": "file-determined", "inputs": ["library/**/versions/**", "catalog/config.json"] },
+      "documentation": { "mode": "file-determined", "inputs": ["library/**/versions/**", "catalog/config.json"] },
+      "examples": { "mode": "file-determined", "inputs": ["library/**/versions/**", "catalog/config.json"] },
+      "fixture-adversarial": { "mode": "file-determined", "inputs": ["library/**/versions/**", "catalog/config.json"] },
+      "tokens": { "mode": "file-determined", "inputs": ["library/**", "ui/**", "catalog/config.json"] },
+      "conformance": { "mode": "file-determined", "inputs": ["library/**", "ui/**", "catalog/config.json"] },
+      "lifecycle": { "mode": "file-determined", "inputs": ["library/**/versions/**", "catalog/config.json"] },
+      "i18n": { "mode": "file-determined", "inputs": ["library/**/versions/**", "catalog/config.json"] },
+      "selector-coverage": { "mode": "file-determined", "inputs": ["library/**/versions/**", "catalog/config.json"] },
+      "restyle-contract": { "mode": "file-determined", "inputs": ["library/**", "ui/**", "catalog/config.json"] },
+      "story-grammar": { "mode": "file-determined", "inputs": ["library/**", "ui/**", "catalog/config.json"] },
+      "story-distinctness": { "mode": "file-determined", "inputs": ["library/**", "ui/**", "catalog/config.json"] },
+      "evidence-freshness": { "mode": "file-determined", "inputs": ["library/**", "ui/**", "catalog/config.json"] },
+      "adopter-contracts": { "mode": "file-determined", "inputs": ["ui/**"] }
+    }
   },
   "dimensions": [
     "tests"
@@ -39,6 +73,15 @@
       },
       {
         "pathGlob": "library/hooks/*/component.json"
+      },
+      {
+        "pathGlob": "library/services/*/component.json"
+      },
+      {
+        "pathGlob": "library/primitives/*/component.json"
+      },
+      {
+        "pathGlob": "library/foundations/*/component.json"
       }
     ]
   },

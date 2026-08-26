@@ -4,8 +4,8 @@ import {
   ICON_REGISTRY,
   iconSize,
   type IconName,
-} from "@vrooli/react-component-library/IconRegistry/1.0.0";
-import { SEMANTIC_TOKENS } from "@vrooli/react-component-library/Tokens/1.0.0";
+} from "../../../../foundations/IconRegistry/versions/1.0.0/IconRegistry";
+import { SEMANTIC_TOKENS } from "../../../../foundations/Tokens/versions/1.0.0/Tokens";
 
 export type { IconName };
 

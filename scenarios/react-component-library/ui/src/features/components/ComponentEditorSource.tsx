@@ -33,6 +33,8 @@ interface ComponentEditorSourceProps {
   libraryId: string;
   renderable: boolean;
   splitView: boolean;
+  version: string;
+  releasedVersion: boolean;
   activeVersionFiles: SourceFile[];
   selectedFile: string;
   selectedTemplate: string;
@@ -66,6 +68,8 @@ export function ComponentEditorSource({
   libraryId,
   renderable,
   splitView,
+  version,
+  releasedVersion,
   activeVersionFiles,
   selectedFile,
   selectedTemplate,
@@ -106,7 +110,13 @@ export function ComponentEditorSource({
     >
       {splitView && (
         <header className="flex h-control-md shrink-0 items-center border-b border-app-border bg-app-surface px-space-2xs text-xs font-semibold">
-          {t(strings.components.editor.files)}
+          <span>{t(strings.components.editor.files)}</span>
+          <span
+            data-testid="components-editor-file-version"
+            className="ml-space-xs font-normal text-app-muted-foreground"
+          >
+            {libraryId || id} @ {version || "unversioned"}
+          </span>
         </header>
       )}
       <div className="flex shrink-0 min-w-0 gap-space-3xs overflow-x-auto border-b border-app-border bg-app-surface px-space-2xs py-space-2xs">
@@ -184,6 +194,21 @@ export function ComponentEditorSource({
         </div>
       ) : (
         <>
+          <div className="flex shrink-0 items-center justify-between border-b border-app-border bg-app-surface px-space-2xs py-space-2xs text-xs">
+            <span
+              data-testid="components-editor-file-version"
+              className="truncate text-app-muted-foreground"
+            >
+              {libraryId || id} @ {version || "unversioned"}
+            </span>
+            {releasedVersion && (
+              <span className="ml-space-xs shrink-0 text-app-warning">
+                {t("components.editor.releasedReadOnly", {
+                  defaultValue: "Released version is read-only. Use catalog draft open to edit.",
+                })}
+              </span>
+            )}
+          </div>
           <div className="flex shrink-0 flex-wrap items-center justify-between gap-space-2xs border-b border-app-border bg-app-surface px-space-2xs py-space-2xs">
             <div className="flex items-center gap-space-3xs">
               {isJSON && (

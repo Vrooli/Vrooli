@@ -12,7 +12,7 @@
       "version": "1.0.0"
     }
   ],
-  "description": "A resilient searchable option field with debounced loading, cancellation, retry, pagination, and honest async states.",
+  "description": "",
   "designStyles": [
     {
       "affinity": "native",
@@ -28,7 +28,7 @@
     }
   ],
   "displayName": "AsyncOptionsField",
-  "latest": "1.0.3",
+  "latest": "1.0.6",
   "libraryId": "react-component-library:AsyncOptionsField",
   "tags": [
     "forms",
@@ -45,5 +45,8 @@
     }
   ],
   "draft": "",
-  "deprecatedVersions": []
+  "deprecatedVersions": [
+    "1.0.3",
+    "1.0.5"
+  ]
 }

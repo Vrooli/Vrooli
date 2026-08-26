@@ -136,6 +136,13 @@ type StoryExecutor interface {
 	ExecuteStory(context.Context, string, string, string) (StoryExecution, error)
 }
 
+// ExecutorProber is an optional preflight capability for executors backed by
+// an external browser service. Providers can fail a validation phase before
+// scheduling a corpus of jobs when that service is unavailable.
+type ExecutorProber interface {
+	Probe(context.Context) error
+}
+
 // StorySheetExecutor is an optional capability of the production BAS
 // executor. Individual story captures remain authoritative; sheets are
 // bounded review accelerators and therefore never replace StoryExecutor.
@@ -331,6 +338,9 @@ func staticSourceResult(asset components.Component, version components.Component
 }
 
 func reportID(report Report) string {
-	sum := sha256.Sum256([]byte(strings.Join([]string{report.RootLibraryID, report.RootVersion, fmt.Sprintf("%t", report.IncludeClosure), report.CreatedAt.Format(time.RFC3339Nano)}, "\x00")))
+	// CreatedAt is evidence metadata, not report identity. Including the clock
+	// made a repeated validation of the same immutable closure look like a new
+	// report and prevented durable reuse on an unchanged run.
+	sum := sha256.Sum256([]byte(strings.Join([]string{report.RootLibraryID, report.RootVersion, fmt.Sprintf("%t", report.IncludeClosure)}, "\x00")))
 	return "ctr_" + hex.EncodeToString(sum[:8])
 }

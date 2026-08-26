@@ -7,8 +7,10 @@
       "version": "1.0.0"
     }
   ],
-  "deprecatedVersions": [],
-  "description": "A responsive page header with navigation, context, and action slots for operational workspaces.",
+  "deprecatedVersions": [
+    "1.0.0"
+  ],
+  "description": "",
   "designStyles": [
     {
       "affinity": "native",
@@ -17,9 +19,14 @@
   ],
   "displayName": "Workspace Header",
   "draft": "",
-  "latest": "1.0.0",
+  "latest": "1.0.1",
   "libraryId": "react-component-library:WorkspaceHeader",
   "slot": "layout-nav",
-  "tags": ["layout", "header", "workspace", "navigation"],
+  "tags": [
+    "layout",
+    "header",
+    "workspace",
+    "navigation"
+  ],
   "x-supplementalJustification": "Pre-catalog workspace chrome retained as a supplemental composition pending the navigation vocabulary decision."
 }

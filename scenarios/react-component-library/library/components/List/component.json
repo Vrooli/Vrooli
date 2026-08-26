@@ -3,7 +3,7 @@
   "assetKind": "component",
   "catalogId": "data-display.list",
   "dependencies": [],
-  "description": "A responsive list surface with stable item rhythm and empty-state composition.",
+  "description": "",
   "designStyles": [
     {
       "affinity": "native",
@@ -11,7 +11,7 @@
     }
   ],
   "displayName": "List",
-  "latest": "1.0.1",
+  "latest": "1.0.4",
   "libraryId": "react-component-library:List",
   "tags": [
     "data-display",
@@ -24,5 +24,8 @@
     }
   ],
   "draft": "",
-  "deprecatedVersions": []
+  "deprecatedVersions": [
+    "1.0.1",
+    "1.0.3"
+  ]
 }

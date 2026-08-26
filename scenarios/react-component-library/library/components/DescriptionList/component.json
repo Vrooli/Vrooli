@@ -3,7 +3,7 @@
   "assetKind": "component",
   "catalogId": "data-display.description-list",
   "dependencies": [],
-  "description": "A semantic key-value surface for readable resource metadata across narrow and wide layouts.",
+  "description": "",
   "designStyles": [
     {
       "affinity": "native",
@@ -11,12 +11,14 @@
     }
   ],
   "displayName": "DescriptionList",
-  "latest": "1.0.2",
+  "latest": "1.0.3",
   "libraryId": "react-component-library:DescriptionList",
   "tags": [
     "data-display",
     "token-bound"
   ],
   "draft": "",
-  "deprecatedVersions": []
+  "deprecatedVersions": [
+    "1.0.2"
+  ]
 }

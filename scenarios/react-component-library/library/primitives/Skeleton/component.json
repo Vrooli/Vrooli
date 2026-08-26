@@ -3,7 +3,7 @@
   "assetKind": "primitive",
   "catalogId": "primitives.skeleton",
   "dependencies": [],
-  "description": "Skeleton communicates loading content with a token-backed placeholder.",
+  "description": "",
   "designStyles": [
     {
       "affinity": "native",
@@ -19,7 +19,7 @@
     }
   ],
   "displayName": "Skeleton",
-  "latest": "1.0.1",
+  "latest": "1.0.4",
   "libraryId": "react-component-library:Skeleton",
   "tags": [
     "primitive",
@@ -32,5 +32,8 @@
     }
   ],
   "draft": "",
-  "deprecatedVersions": []
+  "deprecatedVersions": [
+    "1.0.1",
+    "1.0.3"
+  ]
 }

@@ -6,8 +6,6 @@
  * @tags ["overlay","anchored","accessible","responsive","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
-import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
-
 /** @vrooliComponentSource overlays.popover */
 import {
   Children,
@@ -29,12 +27,12 @@ import {
   type ReactElement,
   type ReactNode,
 } from "react";
-import { Presence } from "@vrooli/react-component-library/Presence/1.0.0";
-import { Surface } from "@vrooli/react-component-library/Surface/1.0.0";
-import { useControllableState } from "@vrooli/react-component-library/useControllableState/1.0.0";
-import { useEscapeKey } from "@vrooli/react-component-library/useEscapeKey/1.0.0";
-import { useOutsideInteraction } from "@vrooli/react-component-library/useOutsideInteraction/1.0.0";
-import { layerManager } from "@vrooli/react-component-library/LayerManager/1.0.0";
+import { Presence } from "../../../../primitives/Presence/versions/1.0.0/Presence";
+import { Surface } from "../../../../primitives/Surface/versions/1.0.0/Surface";
+import { useControllableState } from "../../../../hooks/useControllableState/versions/1.0.0/useControllableState";
+import { useEscapeKey } from "../../../../hooks/useEscapeKey/versions/1.0.0/useEscapeKey";
+import { useOutsideInteraction } from "../../../../hooks/useOutsideInteraction/versions/1.0.0/useOutsideInteraction";
+import { layerManager } from "../../../../services/LayerManager/versions/1.0.0/LayerManager";
 
 export type PopoverPlacement =
   | "top"
@@ -64,7 +62,7 @@ interface PopoverContextValue {
 const PopoverContext = createContext<PopoverContextValue | null>(null);
 
 const styles = `
-[data-rcl-popover-content] { --rcl-popover-top: 0px; --rcl-popover-left: 0px; --rcl-popover-arrow-left: 50%; position: fixed; inset-block-start: var(--rcl-popover-top); inset-inline-start: var(--rcl-popover-left); z-index: var(--layer-popover, 800); inline-size: min(calc(100vw - (var(--space-lg) * 2)), 24rem); max-block-size: min(32rem, calc(100vh - (var(--space-lg) * 2))); overflow: auto; overscroll-behavior: contain; transform-origin: var(--rcl-popover-arrow-left) top; background: linear-gradient(var(--color-surface-raised, #fff), var(--color-surface-raised, #fff)), var(--color-background, #fff); border: 1px solid var(--color-border, #cbd5e1); border-radius: var(--radius-panel, .75rem); box-shadow: var(--elev-floating, 0 18px 48px rgb(15 23 42 / 18%)); color: var(--color-foreground, #0f172a); pointer-events: auto; }
+[data-rcl-popover-content] { --rcl-popover-top: 0px; --rcl-popover-left: 0px; --rcl-popover-arrow-left: 50%; position: fixed; inset-block-start: var(--rcl-popover-top); inset-inline-start: var(--rcl-popover-left); z-index: var(--layer-popover, 800); inline-size: min(calc(100vw - (var(--space-lg) * 2)), 24rem); max-block-size: min(32rem, calc(100vh - (var(--space-lg) * 2))); overflow: auto; overscroll-behavior: contain; transform-origin: var(--rcl-popover-arrow-left) top; }
 [data-rcl-popover-content][data-placement^="top"] { transform-origin: var(--rcl-popover-arrow-left) bottom; }
 [data-rcl-popover-arrow] { position: absolute; inline-size: var(--space-sm); block-size: var(--space-sm); background: inherit; border-block-start: inherit; border-inline-start: inherit; transform: translateX(-50%) rotate(45deg); }
 [data-rcl-popover-content][data-placement^="bottom"] [data-rcl-popover-arrow] { inset-block-start: calc(var(--space-sm) * -.5); inset-inline-start: var(--rcl-popover-arrow-left); }
@@ -92,7 +90,7 @@ export interface PopoverProps {
   responsive?: "auto" | "none";
 }
 
-export const Popover = withClassName(function Popover({
+export function Popover({
   children,
   defaultOpen = false,
   onOpenChange,
@@ -140,7 +138,7 @@ export const Popover = withClassName(function Popover({
       </PopoverPositioner>
     </PopoverContext.Provider>
   );
-});
+}
 
 function usePopoverContext() {
   const value = useContext(PopoverContext);
@@ -286,7 +284,7 @@ export interface PopoverTriggerProps
   asChild?: boolean;
 }
 
-export const PopoverTrigger = withClassName(function PopoverTrigger({
+export function PopoverTrigger({
   children,
   asChild = false,
   onClick,
@@ -337,7 +335,7 @@ export const PopoverTrigger = withClassName(function PopoverTrigger({
       {children}
     </button>
   );
-});
+}
 
 function mergeRefs<T>(
   ...refs: Array<((value: T | null) => void) | MutableRefObject<T | null> | undefined>
@@ -358,7 +356,7 @@ export interface PopoverContentProps extends Omit<HTMLAttributes<HTMLDivElement>
   initialFocus?: "first" | "content" | "none";
 }
 
-export const PopoverContent = withClassName(function PopoverContent({
+export function PopoverContent({
   children,
   placement,
   responsive,
@@ -424,6 +422,16 @@ export const PopoverContent = withClassName(function PopoverContent({
         data-rcl-popover-content
         data-placement={placement ?? context.placement}
         data-responsive={(responsive ?? context.responsive) === "none" ? "none" : "sheet"}
+        style={{
+          background:
+            "linear-gradient(var(--color-surface-raised, #fff), var(--color-surface-raised, #fff)), var(--color-background, #fff)",
+          border: "1px solid var(--color-border, #cbd5e1)",
+          borderRadius: "var(--radius-panel, .75rem)",
+          boxShadow: "var(--elev-floating, 0 18px 48px rgb(15 23 42 / 18%))",
+          color: "var(--color-foreground, #0f172a)",
+          pointerEvents: "auto",
+          ...props.style,
+        }}
         onKeyDown={onKeyDown}
       >
         <span data-rcl-popover-arrow aria-hidden="true" />
@@ -431,7 +439,7 @@ export const PopoverContent = withClassName(function PopoverContent({
       </Surface>
     </Presence>
   );
-});
+}
 
 export const PopoverParts = {
   Trigger: PopoverTrigger,

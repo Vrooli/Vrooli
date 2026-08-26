@@ -1,0 +1,28 @@
+{
+  "claims": [
+    {
+      "id": "account-action-present",
+      "statement": "The account action is named and operable.",
+      "states": ["signed-out"],
+      "tier": "manual",
+      "type": "manual-review"
+    }
+  ],
+  "component": {
+    "id": "monetization.auth-section",
+    "purpose": "Account sign-in and sign-out action.",
+    "title": "AuthSection"
+  },
+  "contract": {
+    "kind": "rcl-component-experience-contract",
+    "provenance": "react-component-library:AuthSection@1.0.0",
+    "schema": "scenario-experience-spec/v1"
+  },
+  "states": [
+    {
+      "description": "The account can be signed in.",
+      "example": "signed-out",
+      "id": "signed-out"
+    }
+  ]
+}

@@ -3,7 +3,7 @@
   "assetKind": "component",
   "catalogId": "data-display.progress-ladder",
   "dependencies": [],
-  "description": "A rung-by-rung maturity ladder showing achieved and target states.",
+  "description": "",
   "designStyles": [
     {
       "affinity": "native",
@@ -11,7 +11,7 @@
     }
   ],
   "displayName": "ProgressLadder",
-  "latest": "1.0.4",
+  "latest": "1.0.5",
   "libraryId": "react-component-library:ProgressLadder",
   "tags": [
     "data-display",
@@ -24,5 +24,7 @@
     }
   ],
   "draft": "",
-  "deprecatedVersions": []
+  "deprecatedVersions": [
+    "1.0.4"
+  ]
 }

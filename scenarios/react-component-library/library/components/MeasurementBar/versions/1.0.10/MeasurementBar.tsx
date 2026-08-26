@@ -6,11 +6,11 @@
  * @tags ["data-display","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
-import { resolveStrings } from "@vrooli/react-component-library/useLocale/1.0.1";
-import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
+import { translate } from "../../../../hooks/useLocale/versions/1.0.1/useLocale";
+import { withClassName } from "../../../../foundations/ClassMerge/versions/1.0.1/ClassMerge";
 
 /** @vrooliComponentSource react-component-library:MeasurementBar */
-import { BoundedMeter } from "@vrooli/react-component-library/BoundedMeter/1.0.2";
+import { BoundedMeter } from "../../../BoundedMeter/versions/1.0.1/BoundedMeter";
 export interface MeasurementBarProps {
   label?: string;
   observed?: number;
@@ -18,7 +18,7 @@ export interface MeasurementBarProps {
   unit?: string;
 }
 export const MeasurementBar = withClassName(function MeasurementBar({
-  label = resolveStrings("data-display.measurement-bar.coverage", "Coverage"),
+  label = translate("data-display.measurement-bar.label.1", "Coverage"),
   observed = 72,
   required = 80,
   unit = "%",
@@ -26,7 +26,7 @@ export const MeasurementBar = withClassName(function MeasurementBar({
   const max = Math.max(required, observed, 1);
   const status = observed >= required ? "pass" : "below-threshold";
   return (
-    <BoundedMeter data-testid="data-display.measurement-bar"
+    <BoundedMeter
       label={label}
       value={observed}
       max={max}

@@ -44,7 +44,6 @@ export interface DirtyStateGuardProps {
   saveLabel?: string;
   discardLabel?: string;
   continueLabel?: string;
-  note?: ReactNode;
   protectUnload?: boolean;
   renderPrompt?: (props: DirtyStateGuardPromptProps) => ReactNode;
   className?: string;
@@ -127,7 +126,6 @@ export const DirtyStateGuard = forwardRef<
     saveLabel = "Save changes",
     discardLabel = "Discard changes",
     continueLabel = "Keep editing",
-    note = "Saving preserves your work. Discarding cannot be undone.",
     protectUnload = true,
     renderPrompt,
     className,
@@ -273,13 +271,14 @@ export const DirtyStateGuard = forwardRef<
                 </div>
               </div>
               <div data-rcl-dirty-guard-body>
-                  <p data-rcl-dirty-guard-note>{note}</p>
+                <p data-rcl-dirty-guard-note>
+                  Saving preserves your work. Discarding cannot be undone.
+                </p>
               </div>
               <div data-rcl-dirty-guard-actions>
                 <button
                   type="button"
                   data-rcl-dirty-guard-continue
-                  data-testid="dirty-state-guard-continue"
                   style={buttonBase}
                   disabled={saving}
                   onClick={promptProps.onContinue}
@@ -289,7 +288,6 @@ export const DirtyStateGuard = forwardRef<
                 <button
                   type="button"
                   data-rcl-dirty-guard-discard
-                  data-testid="dirty-state-guard-discard"
                   style={buttonBase}
                   disabled={saving}
                   onClick={promptProps.onDiscard}
@@ -299,7 +297,6 @@ export const DirtyStateGuard = forwardRef<
                 <button
                   type="button"
                   data-rcl-dirty-guard-save
-                  data-testid="dirty-state-guard-save"
                   style={buttonBase}
                   disabled={saving}
                   onClick={promptProps.onSave}

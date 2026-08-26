@@ -9,8 +9,11 @@
       "version": "1.0.0"
     }
   ],
-  "deprecatedVersions": [],
-  "description": "A responsive image surface that reserves space, reveals content gently, and degrades legibly.",
+  "deprecatedVersions": [
+    "1.1.4",
+    "1.1.6"
+  ],
+  "description": "",
   "designStyles": [
     {
       "affinity": "native",
@@ -27,7 +30,7 @@
   ],
   "displayName": "ProgressiveImage",
   "draft": "",
-  "latest": "1.1.4",
+  "latest": "1.1.7",
   "libraryId": "react-component-library:ProgressiveImage",
   "slot": "ui-primitive",
   "tags": [

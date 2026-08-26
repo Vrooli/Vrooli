@@ -20,7 +20,7 @@
       "version": "1.0.0"
     }
   ],
-  "description": "A read-and-edit resource workflow with draft preservation, guarded navigation, async save recovery, offline disclosure, and conflict handoff.",
+  "description": "",
   "designStyles": [
     {
       "affinity": "native",
@@ -36,7 +36,7 @@
     }
   ],
   "displayName": "EditableResource",
-  "latest": "1.0.3",
+  "latest": "1.0.6",
   "libraryId": "react-component-library:EditableResource",
   "tags": [
     "patterns",
@@ -55,5 +55,8 @@
     }
   ],
   "draft": "",
-  "deprecatedVersions": []
+  "deprecatedVersions": [
+    "1.0.3",
+    "1.0.5"
+  ]
 }

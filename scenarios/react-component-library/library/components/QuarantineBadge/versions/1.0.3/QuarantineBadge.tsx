@@ -1,11 +1,9 @@
 /** @vrooliComponentSource react-component-library:QuarantineBadge */
-import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
-
 import {
   CONTROL_VARIANTS,
   SURFACE_ELEVATIONS,
-} from "@vrooli/react-component-library/VisualRecipes/1.0.0";
-export const QuarantineBadge = withClassName(function QuarantineBadge({
+} from "../../../../foundations/VisualRecipes/versions/1.0.0/VisualRecipes";
+export function QuarantineBadge({
   gate = "visual",
   reason = "calibration failed",
 }: {
@@ -27,4 +25,4 @@ export const QuarantineBadge = withClassName(function QuarantineBadge({
       Quarantined · {gate} · {reason}
     </section>
   );
-});
+}

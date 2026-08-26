@@ -9,7 +9,7 @@
  */
 import { type CSSProperties, type HTMLAttributes, type ReactNode, forwardRef } from "react";
 import { X } from "lucide-react";
-import { useEscapeKey } from "@vrooli/react-component-library/useEscapeKey/1.0.0";
+import { useEscapeKey } from "../../../../hooks/useEscapeKey/versions/1.0.0/useEscapeKey";
 import { sidebarShellStyles } from "./styles";
 
 export interface SidebarShellProps {

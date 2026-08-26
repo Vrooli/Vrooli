@@ -20,7 +20,7 @@
       "version": "1.0.0"
     }
   ],
-  "description": "A route-safe resource identity, metadata, history, freshness, permission, and recovery composition.",
+  "description": "",
   "designStyles": [
     {
       "affinity": "native",
@@ -36,7 +36,7 @@
     }
   ],
   "displayName": "ResourceDetail",
-  "latest": "1.0.1",
+  "latest": "1.0.4",
   "libraryId": "react-component-library:ResourceDetail",
   "tags": [
     "pattern",
@@ -50,5 +50,8 @@
     }
   ],
   "draft": "",
-  "deprecatedVersions": []
+  "deprecatedVersions": [
+    "1.0.1",
+    "1.0.3"
+  ]
 }

@@ -98,6 +98,34 @@ equivalent of the canvas. `catalog next` defaults to the promote lane; the
 build lane is explicit, and `catalog evidence capture <asset-id>` records the
 declared light/dark viewport capture matrix.
 
+## Draft lane and canonical asset enumeration
+
+Released version directories are immutable. An update begins in a governed
+draft directory, where source, story, and generated obligations can change;
+promotion creates the next released version and records the superseded version
+in `deprecatedVersions`. The catalog command surface owns open, promote, and
+discard, while the indexer remains the admission boundary for hashes,
+dependencies, and story contracts.
+
+`catalog/config.json` is the canonical enumeration of asset kinds and targets.
+The component indexer, Test Genie applicability, and ui-health staleness scan
+derive their supported kinds from that declaration. A new kind therefore has
+one catalog change plus contract tests at each consumer, rather than three
+independent lists that can silently diverge.
+
+## Readiness and evidence ownership
+
+`react-component-library catalog readiness` joins the latest completed gate
+evidence, component-test run identity, declared maturity floor, and blast-radius
+triage. It reports `Status`, `Triage`, and `Next Steps` through the diagnostic
+CLI output contract. `--floor` evaluates a stricter preview without changing
+configuration. Incomplete or mismatched evidence is reported as not ready; it
+is never presented as a completed score.
+
+Retirement follows the same evidence boundary. Each run computes a cleanup
+plan, reports safe candidates informationally, and only applies a reviewed
+plan through the explicit plan-hash and confirmation path.
+
 ## Scenario Shape
 
 A scenario is one product expressed through three coordinated surfaces

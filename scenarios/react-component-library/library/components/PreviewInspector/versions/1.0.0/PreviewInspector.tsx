@@ -4,11 +4,9 @@
  * @status released
  * @deps {"react":"^18"}
  */
-import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
-
 import type { ReactNode } from "react";
 
-export const PreviewInspector = withClassName(function PreviewInspector({
+export function PreviewInspector({
   title = "Preview inspector",
   description,
   children,
@@ -23,7 +21,7 @@ export const PreviewInspector = withClassName(function PreviewInspector({
 }) {
   if (!open) return null;
   return (
-    <aside data-testid="preview.inspector-drawer"
+    <aside
       data-preview-inspector
       aria-label={title}
       style={{
@@ -49,4 +47,4 @@ export const PreviewInspector = withClassName(function PreviewInspector({
       <div style={{ minWidth: 0 }}>{children}</div>
     </aside>
   );
-});
+}

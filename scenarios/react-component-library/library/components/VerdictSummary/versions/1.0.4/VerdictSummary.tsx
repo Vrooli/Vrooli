@@ -6,15 +6,13 @@
  * @tags ["data-display","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
-import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
-
 /** @vrooliComponentSource react-component-library:VerdictSummary */
-import { useStrings } from "@vrooli/react-component-library/useLocale/1.0.1";
-import { Badge } from "@vrooli/react-component-library/Badge/1.0.0";
-import { Stack } from "@vrooli/react-component-library/Stack/1.0.0";
-import { Text } from "@vrooli/react-component-library/Text/1.0.0";
-import { SURFACE_ELEVATIONS } from "@vrooli/react-component-library/VisualRecipes/1.0.0";
-export const VerdictSummary = withClassName(function VerdictSummary({
+import { translate } from "../../../../hooks/useLocale/versions/1.0.1/useLocale";
+import { Badge } from "../../../../primitives/Badge/versions/1.0.0/Badge";
+import { Stack } from "../../../../primitives/Stack/versions/1.0.0/Stack";
+import { Text } from "../../../../primitives/Text/versions/1.0.0/Text";
+import { SURFACE_ELEVATIONS } from "../../../../foundations/VisualRecipes/versions/1.0.0/VisualRecipes";
+export function VerdictSummary({
   pass = 0,
   fail = 0,
   unmeasured = 0,
@@ -23,11 +21,10 @@ export const VerdictSummary = withClassName(function VerdictSummary({
   fail?: number;
   unmeasured?: number;
 }) {
-  const strings = useStrings();
   return (
     <section
       className={SURFACE_ELEVATIONS.raised}
-      aria-label={strings("data-display.verdict-summary.verdict-summary", "Verdict summary")}
+      aria-label={translate("data-display.verdict-summary.aria-label.1", "Verdict summary")}
       data-rcl-asset="data-display.verdict-summary"
       data-rcl-version="1.0.3"
       data-rcl-stamp="source"
@@ -36,7 +33,7 @@ export const VerdictSummary = withClassName(function VerdictSummary({
     >
       <Stack gap="xs">
         <Text as="strong" textStyle="label">
-          {strings("data-display.verdict-summary.verdict-census", "Verdict census")}
+          {translate("data-display.verdict-summary.text.1", "Verdict census")}
         </Text>
         <div style={{ display: "flex", flexWrap: "wrap", gap: "var(--space-xs)" }}>
           <Badge tone="success">{pass} pass</Badge>
@@ -46,4 +43,4 @@ export const VerdictSummary = withClassName(function VerdictSummary({
       </Stack>
     </section>
   );
-});
+}

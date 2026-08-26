@@ -7,12 +7,12 @@ import {
   type CSSProperties,
   type ReactNode,
 } from "react";
-import { useAnnounce } from "@vrooli/react-component-library/useAnnounce/1.0.0";
-import { useDrag } from "@vrooli/react-component-library/useDrag/1.0.0";
+import { useAnnounce } from "../../../../hooks/useAnnounce/versions/1.0.0/useAnnounce";
+import { useDrag } from "../../../../hooks/useDrag/versions/1.0.0/useDrag";
 import {
   createDragDropStore,
   type DragPosition,
-} from "@vrooli/react-component-library/DragDropStore/1.0.0";
+} from "../../../../services/DragDropStore/versions/1.0.0/DragDropStore";
 
 export interface DragBounds {
   left?: number;
@@ -154,7 +154,6 @@ export function Draggable({
       );
     },
   });
-  const { isDragging, ...dragHandlers } = drag;
   const state = store.get();
   useEffect(() => {
     return store.subscribe(() => {
@@ -175,14 +174,14 @@ export function Draggable({
       />
       <div
         data-rcl-draggable
-        data-dragging={isDragging || state.phase !== "idle"}
+        data-dragging={drag.isDragging || state.phase !== "idle"}
         data-disabled={disabled || undefined}
         className={className}
         style={dragStyle}
         role="group"
         aria-label={label}
         tabIndex={disabled ? -1 : 0}
-        {...dragHandlers}
+        {...drag}
       >
         <span data-rcl-draggable-status role="status" aria-live="polite">
           {state.phase === "keyboard" ? `Moving ${label}` : ""}

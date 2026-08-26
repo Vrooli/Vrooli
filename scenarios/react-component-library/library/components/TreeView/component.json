@@ -3,7 +3,7 @@
   "assetKind": "component",
   "catalogId": "data-display.tree-view",
   "dependencies": [],
-  "description": "An accessible hierarchical surface with honest tree semantics and bounded nesting.",
+  "description": "",
   "designStyles": [
     {
       "affinity": "native",
@@ -11,7 +11,7 @@
     }
   ],
   "displayName": "TreeView",
-  "latest": "1.0.3",
+  "latest": "1.0.6",
   "libraryId": "react-component-library:TreeView",
   "tags": [
     "data-display",
@@ -25,5 +25,8 @@
     }
   ],
   "draft": "",
-  "deprecatedVersions": []
+  "deprecatedVersions": [
+    "1.0.3",
+    "1.0.5"
+  ]
 }

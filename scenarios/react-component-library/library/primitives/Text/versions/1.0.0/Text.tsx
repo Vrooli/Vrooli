@@ -9,7 +9,7 @@ import {
   SEMANTIC_TOKENS,
   TEXT_STYLES,
   type TextStyle as TokenTextStyle,
-} from "@vrooli/react-component-library/Tokens/1.0.0";
+} from "../../../../foundations/Tokens/versions/1.0.0/Tokens";
 
 export type TextStyle = TokenTextStyle;
 export type TextTone = "default" | "muted" | "accent" | "danger";

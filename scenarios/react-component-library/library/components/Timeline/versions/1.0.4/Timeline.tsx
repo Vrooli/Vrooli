@@ -7,8 +7,8 @@
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
 /** @vrooliComponentSource react-component-library:Timeline */
-import { useStrings } from "@vrooli/react-component-library/useLocale/1.0.1";
-import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
+import { translate } from "../../../../hooks/useLocale/versions/1.0.1/useLocale";
+import { withClassName } from "../../../../foundations/ClassMerge/versions/1.0.1/ClassMerge";
 
 const muted = { color: "var(--color-muted-foreground, #64748b)" };
 export const Timeline = withClassName(function Timeline({
@@ -16,10 +16,9 @@ export const Timeline = withClassName(function Timeline({
 }: {
   events?: Array<{ label: string; detail?: string }>;
 }) {
-  const strings = useStrings();
   return (
-    <ol data-testid="data-display.timeline"
-      aria-label={strings("data-display.timeline.timeline", "Timeline")}
+    <ol
+      aria-label={translate("data-display.timeline.aria-label.1", "Timeline")}
       style={{
         display: "grid",
         gap: 16,

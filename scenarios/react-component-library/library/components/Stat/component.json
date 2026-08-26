@@ -3,7 +3,7 @@
   "assetKind": "component",
   "catalogId": "data-display.stat",
   "dependencies": [],
-  "description": "A hierarchy-aware metric primitive that keeps labels, values, and supporting context distinct.",
+  "description": "",
   "designStyles": [
     {
       "affinity": "native",
@@ -11,7 +11,7 @@
     }
   ],
   "displayName": "Stat",
-  "latest": "1.0.1",
+  "latest": "1.0.4",
   "libraryId": "react-component-library:Stat",
   "tags": [
     "data-display",
@@ -24,5 +24,8 @@
     }
   ],
   "draft": "",
-  "deprecatedVersions": []
+  "deprecatedVersions": [
+    "1.0.1",
+    "1.0.3"
+  ]
 }

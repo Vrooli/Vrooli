@@ -7,8 +7,6 @@
  * @deps {"react":"^18"}
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
-import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
-
 import type { MouseEvent, ReactNode } from "react";
 import { bottomNavStyles } from "./styles";
 
@@ -43,7 +41,7 @@ const joinClasses = (...classes: Array<string | undefined | false>) =>
 const activeClass = "text-app-primary";
 const inactiveClass = "text-app-muted-foreground hover:text-app-foreground";
 
-export const BottomNav = withClassName(function BottomNav({
+export function BottomNav({
   items,
   label,
   testId = "bottom-nav",
@@ -124,4 +122,4 @@ export const BottomNav = withClassName(function BottomNav({
       </nav>
     </>
   );
-});
+}

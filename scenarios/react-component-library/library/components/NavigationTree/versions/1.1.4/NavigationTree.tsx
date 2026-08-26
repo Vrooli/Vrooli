@@ -10,12 +10,12 @@
  * @vrooliComponentSource react-component-library:NavigationTree
  * @deps {"react":"^18","lucide-react":"^0.424.0"}
  */
-import { resolveStrings, useStrings } from "@vrooli/react-component-library/useLocale/1.0.1";
-import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
+import { translate } from "../../../../hooks/useLocale/versions/1.0.1/useLocale";
+import { withClassName } from "../../../../foundations/ClassMerge/versions/1.0.1/ClassMerge";
 
 import type { ReactNode } from "react";
 import { FolderTree } from "lucide-react";
-import { NavLink } from "@vrooli/react-component-library/NavLink/1.0.0";
+import { NavLink } from "../../../NavLink/versions/1.0.0/NavLink";
 
 const navigationTreeStyles = `
 [data-rcl-navigation-tree] { display: grid; min-inline-size: 0; max-block-size: max(12rem, min(32rem, calc(100dvh - 23rem))); overflow: auto; gap: var(--space-sm); border: var(--border-hairline) solid var(--color-border); border-radius: var(--radius-panel); background: var(--color-surface); color: var(--color-foreground); padding: var(--space-sm); box-shadow: var(--elev-raised); }
@@ -34,7 +34,7 @@ const navigationTreeStyles = `
 export const NavigationTree = withClassName(function NavigationTree({
   items = ["Overview", "Activity"],
   currentIndex = 0,
-  title = resolveStrings("navigation.navigation-tree.workspace", "Workspace"),
+  title = translate("navigation.navigation-tree.title.1", "Workspace"),
   children,
 }: {
   items?: string[];
@@ -42,20 +42,19 @@ export const NavigationTree = withClassName(function NavigationTree({
   title?: string;
   children?: ReactNode;
 }) {
-  const strings = useStrings();
   return (
     <>
       <style
         data-rcl-navigation-tree-styles
         dangerouslySetInnerHTML={{ __html: navigationTreeStyles }}
       />
-      <nav data-testid="navigation.navigation-tree"
-        aria-label={strings("navigation.navigation-tree.primary-navigation", "Primary navigation")}
+      <nav
+        aria-label={translate("navigation.navigation-tree.aria-label.2", "Primary navigation")}
         data-rcl-navigation-tree
       >
         <div data-rcl-navigation-tree-heading>
           <span data-rcl-navigation-tree-eyebrow>
-            {strings("navigation.navigation-tree.library", "Library")}
+            {translate("navigation.navigation-tree.text.1", "Library")}
           </span>
           <strong data-rcl-navigation-tree-title>{title}</strong>
         </div>

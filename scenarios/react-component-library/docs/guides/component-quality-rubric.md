@@ -18,3 +18,19 @@ Each reviewed component receives one disposition: `adopt`, `adapt`,
 `structural-only`, `defer`, or `reject`. The disposition names the exact
 version, evidence paths, reviewer note, and revisit condition when it is not
 `adopt`.
+
+## Maturity ratchet
+
+The current declared floor is `scaffolded`; the measured catalog readiness report
+may remain below that floor while evidence is being repaired. The ratchet is
+intentionally monotonic:
+
+| Step | Required evidence before promotion |
+|---|---|
+| scaffolded → implemented | valid indexed implementation, typed API, and story contract |
+| implemented → verified | passing component contract evidence plus declared accessibility and interaction evidence |
+| verified → production-ready | completed visual/responsive capture matrix, console-clean output, and adopter health checks |
+
+Raise the floor only after the corresponding gate evidence is complete. A
+failed result at the declared floor is a regression; an unmeasured result is a
+missing proof and cannot be treated as a pass.

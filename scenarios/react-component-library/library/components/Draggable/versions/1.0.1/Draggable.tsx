@@ -6,17 +6,15 @@
  * @tags ["manipulation","drag-drop","keyboard","motion","accessibility","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
-import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
-
 /** @vrooliComponentSource manipulation.draggable */
-import { resolveStrings } from "@vrooli/react-component-library/useLocale/1.0.1";
+import { translate } from "../../../../hooks/useLocale/versions/1.0.1/useLocale";
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
-import { useAnnounce } from "@vrooli/react-component-library/useAnnounce/1.0.0";
-import { useDrag } from "@vrooli/react-component-library/useDrag/1.0.0";
+import { useAnnounce } from "../../../../hooks/useAnnounce/versions/1.0.0/useAnnounce";
+import { useDrag } from "../../../../hooks/useDrag/versions/1.0.0/useDrag";
 import {
   createDragDropStore,
   type DragPosition,
-} from "@vrooli/react-component-library/DragDropStore/1.0.0";
+} from "../../../../services/DragDropStore/versions/1.0.0/DragDropStore";
 
 export interface DragBounds {
   left?: number;
@@ -58,7 +56,7 @@ function clamp(position: DragPosition, bounds: DragBounds): DragPosition {
   };
 }
 
-export const Draggable = withClassName(function Draggable({
+export function Draggable({
   id,
   children,
   defaultPosition = { x: 0, y: 0 },
@@ -70,7 +68,7 @@ export const Draggable = withClassName(function Draggable({
   bounds = {},
   step = 8,
   disabled = false,
-  label = resolveStrings("manipulation.draggable.draggable-item", "Draggable item"),
+  label = translate("manipulation.draggable.label.1", "Draggable item"),
   className,
   style,
 }: DraggableProps) {
@@ -152,7 +150,6 @@ export const Draggable = withClassName(function Draggable({
       );
     },
   });
-  const { isDragging, ...dragHandlers } = drag;
   const state = store.get();
   useEffect(() => {
     return store.subscribe(() => {
@@ -168,16 +165,16 @@ export const Draggable = withClassName(function Draggable({
   return (
     <>
       <style data-rcl-draggable-styles dangerouslySetInnerHTML={{ __html: styles }} />
-      <div data-testid="manipulation.draggable"
+      <div
         data-rcl-draggable
-        data-dragging={isDragging || state.phase !== "idle"}
+        data-dragging={drag.isDragging || state.phase !== "idle"}
         data-disabled={disabled || undefined}
         className={className}
         style={dragStyle}
         role="group"
         aria-label={label}
         tabIndex={disabled ? -1 : 0}
-        {...dragHandlers}
+        {...drag}
       >
         <span data-rcl-draggable-status role="status" aria-live="polite">
           {state.phase === "keyboard" ? `Moving ${label}` : ""}
@@ -186,4 +183,4 @@ export const Draggable = withClassName(function Draggable({
       </div>
     </>
   );
-});
+}

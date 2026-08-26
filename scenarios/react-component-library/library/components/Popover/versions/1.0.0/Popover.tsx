@@ -14,12 +14,12 @@ import {
   type MutableRefObject,
   type ReactNode,
 } from "react";
-import { Presence } from "@vrooli/react-component-library/Presence/1.0.0";
-import { Surface } from "@vrooli/react-component-library/Surface/1.0.0";
-import { useControllableState } from "@vrooli/react-component-library/useControllableState/1.0.0";
-import { useEscapeKey } from "@vrooli/react-component-library/useEscapeKey/1.0.0";
-import { useOutsideInteraction } from "@vrooli/react-component-library/useOutsideInteraction/1.0.0";
-import { layerManager } from "@vrooli/react-component-library/LayerManager/1.0.0";
+import { Presence } from "../../../../primitives/Presence/versions/1.0.0/Presence";
+import { Surface } from "../../../../primitives/Surface/versions/1.0.0/Surface";
+import { useControllableState } from "../../../../hooks/useControllableState/versions/1.0.0/useControllableState";
+import { useEscapeKey } from "../../../../hooks/useEscapeKey/versions/1.0.0/useEscapeKey";
+import { useOutsideInteraction } from "../../../../hooks/useOutsideInteraction/versions/1.0.0/useOutsideInteraction";
+import { layerManager } from "../../../../services/LayerManager/versions/1.0.0/LayerManager";
 
 export type PopoverPlacement =
   | "top"

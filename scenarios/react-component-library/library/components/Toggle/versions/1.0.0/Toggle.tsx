@@ -12,7 +12,7 @@ import {
   type ControlShape,
   type ControlSize,
   type ControlVariant,
-} from "@vrooli/react-component-library/ControlBase/1.0.0";
+} from "../../../ControlBase/versions/1.0.0/ControlBase";
 
 export interface ToggleProps
   extends Omit<
@@ -77,7 +77,7 @@ export const Toggle = forwardRef<HTMLButtonElement, ToggleProps>(
 
     return (
       <>
-        <ToggleStyles data-testid="controls.toggle" />
+        <ToggleStyles />
         <ControlBase
           {...props}
           ref={ref}

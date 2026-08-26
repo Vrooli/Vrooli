@@ -4,8 +4,6 @@
  * @status released
  * @deps {"react":"^18"}
  */
-import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
-
 import type { ReactNode } from "react";
 import { workspaceHeaderStyles } from "./styles";
 
@@ -21,7 +19,7 @@ export interface WorkspaceHeaderProps {
 }
 
 /** A structural header: callers own navigation state and action behavior. */
-export const WorkspaceHeader = withClassName(function WorkspaceHeader({
+export function WorkspaceHeader({
   title,
   description,
   leading,
@@ -63,4 +61,4 @@ export const WorkspaceHeader = withClassName(function WorkspaceHeader({
       ) : null}
     </Element>
   );
-});
+}

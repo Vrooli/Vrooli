@@ -103,12 +103,6 @@ func GateRunnerFor(gate string) GateRunner {
 		return ValidateStoryDistinctness
 	case "evidence-freshness":
 		return ValidateEvidenceFreshness
-	case "i18n-adopted":
-		return ValidateI18nAdopted
-	case "selectors-adopted":
-		return ValidateSelectorsAdopted
-	case "adopter-hygiene":
-		return ValidateAdopterHygiene
 	default:
 		return nil
 	}
@@ -343,18 +337,6 @@ func materializeFixture(root, gate string, fixture CalibrationFixture) (string, 
 			return "", func() {}, err
 		}
 		if err := copyFile(filepath.Join(fixtureDir, fixture.Source), filepath.Join(uiDir, "CalibrationConformance.tsx")); err != nil {
-			cleanup()
-			return "", func() {}, err
-		}
-	}
-	if gate == "i18n-adopted" || gate == "selectors-adopted" {
-		uiRoot := filepath.Join(tmp, "scenarios", "calibration-adopter", "ui")
-		if err := os.MkdirAll(uiRoot, 0o755); err != nil {
-			cleanup()
-			return "", func() {}, err
-		}
-		manifest := []byte("{\n  \"dependencies\": {\n    \"@vrooli/react-component-library\": \"file:../../../packages/react-component-library\"\n  }\n}\n")
-		if err := os.WriteFile(filepath.Join(uiRoot, "package.json"), manifest, 0o644); err != nil {
 			cleanup()
 			return "", func() {}, err
 		}

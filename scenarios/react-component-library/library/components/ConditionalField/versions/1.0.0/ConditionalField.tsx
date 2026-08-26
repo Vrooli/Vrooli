@@ -1,8 +1,6 @@
 /** @vrooliComponentSource forms.conditional-field */
-import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
-
 import { useEffect, useState, type CSSProperties, type ReactNode } from "react";
-import { type FormStore } from "@vrooli/react-component-library/FormStore/1.0.0";
+import { type FormStore } from "../../../../services/FormStore/versions/1.0.0/FormStore";
 
 export type ConditionalFieldMode = "hide" | "disable" | "reset";
 
@@ -37,7 +35,7 @@ function useStoreValues<TValues extends Record<string, unknown>>(
   return store.getValues();
 }
 
-export const ConditionalField = withClassName(function ConditionalField<TValues extends Record<string, unknown>>({
+export function ConditionalField<TValues extends Record<string, unknown>>({
   store,
   field,
   when,
@@ -60,7 +58,7 @@ export const ConditionalField = withClassName(function ConditionalField<TValues 
 
   if (!visible && (mode === "hide" || mode === "reset")) return <>{fallback}</>;
   return (
-    <div data-testid="forms.conditional-field"
+    <div
       className={className}
       style={style}
       data-rcl-conditional-field
@@ -75,4 +73,4 @@ export const ConditionalField = withClassName(function ConditionalField<TValues 
       {children}
     </div>
   );
-});
+}

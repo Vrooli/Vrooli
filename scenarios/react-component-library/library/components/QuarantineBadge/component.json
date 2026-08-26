@@ -3,7 +3,7 @@
   "assetKind": "component",
   "catalogId": "feedback.quarantine-badge",
   "dependencies": [],
-  "description": "A visible non-discriminating gate quarantine state.",
+  "description": "",
   "designStyles": [
     {
       "affinity": "native",
@@ -11,10 +11,14 @@
     }
   ],
   "displayName": "QuarantineBadge",
-  "latest": "1.0.3",
+  "latest": "1.0.4",
   "libraryId": "react-component-library:QuarantineBadge",
   "tags": [
     "feedback",
     "token-bound"
+  ],
+  "draft": "",
+  "deprecatedVersions": [
+    "1.0.3"
   ]
 }

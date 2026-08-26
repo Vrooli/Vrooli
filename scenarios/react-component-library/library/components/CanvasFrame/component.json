@@ -2,8 +2,10 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "component",
   "catalogId": "preview.canvas-frame",
-  "deprecatedVersions": [],
-  "description": "The shared preview substrate that owns fit, background, and specimen placement for focus and canvas views.",
+  "deprecatedVersions": [
+    "1.0.0"
+  ],
+  "description": "",
   "designStyles": [
     {
       "affinity": "native",
@@ -11,7 +13,7 @@
     }
   ],
   "displayName": "CanvasFrame",
-  "latest": "1.0.0",
+  "latest": "1.0.1",
   "libraryId": "react-component-library:CanvasFrame",
   "slot": "ui-pattern",
   "tags": [
@@ -24,5 +26,6 @@
       "libraryId": "react-component-library:useLocale",
       "version": "1.0.0"
     }
-  ]
+  ],
+  "draft": ""
 }

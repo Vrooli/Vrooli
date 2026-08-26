@@ -3,7 +3,7 @@
   "assetKind": "component",
   "catalogId": "data-display.finding-list",
   "dependencies": [],
-  "description": "An actionable list of gate findings with severity, identity, and remediation.",
+  "description": "",
   "designStyles": [
     {
       "affinity": "native",
@@ -11,7 +11,7 @@
     }
   ],
   "displayName": "FindingList",
-  "latest": "1.0.8",
+  "latest": "1.0.9",
   "libraryId": "react-component-library:FindingList",
   "tags": [
     "data-display",
@@ -24,5 +24,7 @@
     }
   ],
   "draft": "",
-  "deprecatedVersions": []
+  "deprecatedVersions": [
+    "1.0.8"
+  ]
 }

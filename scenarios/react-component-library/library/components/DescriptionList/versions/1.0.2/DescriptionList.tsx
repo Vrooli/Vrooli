@@ -7,7 +7,7 @@
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
 /** @vrooliComponentSource data-display.description-list */
-import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
+import { withClassName } from "../../../../foundations/ClassMerge/versions/1.0.1/ClassMerge";
 
 const styles = `
 [data-rcl-description-list] { display: grid; margin: 0; border: 1px solid var(--color-border, #cbd5e1); border-radius: var(--radius-panel, .75rem); overflow: hidden; container-type: inline-size; }
@@ -25,7 +25,7 @@ export const DescriptionList = withClassName(function DescriptionList({
   entries?: Array<{ term: string; description: string }>;
 }) {
   return (
-    <dl data-testid="data-display.description-list" data-rcl-description-list>
+    <dl data-rcl-description-list>
       <style data-rcl-description-list-styles dangerouslySetInnerHTML={{ __html: styles }} />
       {entries.map((entry, index) => (
         <div key={entry.term} data-rcl-description-list-row data-row-index={index}>

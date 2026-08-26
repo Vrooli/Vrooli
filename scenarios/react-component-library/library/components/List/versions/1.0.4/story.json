@@ -1,0 +1,71 @@
+{
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
+  "args": {
+    "fields": []
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "kind": "component",
+  "schemaVersion": 5,
+  "stories": [
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Default",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "Deploy completed"
+        }
+      ],
+      "id": "default",
+      "mode": "live",
+      "name": "Activity list",
+      "role": "anatomy"
+    },
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "LongContent",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "A descriptive activity"
+        }
+      ],
+      "id": "long-content",
+      "mode": "live",
+      "name": "Long content",
+      "role": "boundary"
+    },
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Empty",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "role": "status"
+        }
+      ],
+      "id": "empty",
+      "mode": "live",
+      "name": "Empty collection",
+      "role": "boundary"
+    }
+  ],
+  "title": "List"
+}

@@ -7,7 +7,7 @@
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
 /** @vrooliComponentSource react-component-library:DirtyStateGuard */
-import { resolveStrings, useStrings } from "@vrooli/react-component-library/useLocale/1.0.1";
+import { translate } from "../../../../hooks/useLocale/versions/1.0.1/useLocale";
 import {
   forwardRef,
   useCallback,
@@ -128,9 +128,9 @@ export const DirtyStateGuard = forwardRef<DirtyStateGuardHandle, DirtyStateGuard
       onSave,
       onDiscard,
       onAction,
-      title = resolveStrings("forms.dirty-state-guard.you-have-unsaved-changes", "You have unsaved changes"),
-      description = resolveStrings(
-        "forms.dirty-state-guard.leave-now-and-your-recent-edits-will-be-lost-sav",
+      title = translate("forms.dirty-state-guard.title.1", "You have unsaved changes"),
+      description = translate(
+        "forms.dirty-state-guard.description.2",
         "Leave now and your recent edits will be lost.",
       ),
       saveLabel = "Save changes",
@@ -143,7 +143,6 @@ export const DirtyStateGuard = forwardRef<DirtyStateGuardHandle, DirtyStateGuard
     },
     ref,
   ) {
-  const strings = useStrings();
     const titleId = useId();
     const descriptionId = useId();
     const dialogRef = useRef<HTMLDivElement>(null);
@@ -282,8 +281,8 @@ export const DirtyStateGuard = forwardRef<DirtyStateGuardHandle, DirtyStateGuard
                 </div>
                 <div data-rcl-dirty-guard-body>
                   <p data-rcl-dirty-guard-note>
-                    {strings(
-                      "forms.dirty-state-guard.saving-preserves-your-work-discarding-cannot-be-",
+                    {translate(
+                      "forms.dirty-state-guard.text.1",
                       "Saving preserves your work. Discarding cannot be undone.",
                     )}
                   </p>

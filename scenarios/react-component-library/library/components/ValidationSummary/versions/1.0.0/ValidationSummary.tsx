@@ -6,7 +6,7 @@ import {
   type CSSProperties,
   type ReactNode,
 } from "react";
-import { type FormStore } from "@vrooli/react-component-library/FormStore/1.0.0";
+import { type FormStore } from "../../../../services/FormStore/versions/1.0.0/FormStore";
 
 export interface ValidationSummaryProps<
   TValues extends Record<string, unknown> = Record<string, unknown>,

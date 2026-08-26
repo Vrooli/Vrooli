@@ -12,8 +12,10 @@
       "version": "1.0.0"
     }
   ],
-  "deprecatedVersions": [],
-  "description": "Accessible token-bound microphone control for a useVoiceInput lifecycle.",
+  "deprecatedVersions": [
+    "4.2.0"
+  ],
+  "description": "",
   "designStyles": [
     {
       "affinity": "native",
@@ -27,7 +29,7 @@
   "displayName": "Voice Input Button",
   "draft": "",
   "entry": "VoiceInputButton.tsx",
-  "latest": "4.2.0",
+  "latest": "4.2.1",
   "libraryId": "react-component-library:VoiceInputButton",
   "slot": "ui-primitive",
   "tags": [

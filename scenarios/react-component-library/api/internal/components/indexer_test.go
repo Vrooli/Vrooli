@@ -2,8 +2,11 @@ package components_test
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"os"
+	"path/filepath"
+	"strings"
 	"testing"
 	"testing/fstest"
 
@@ -215,6 +218,79 @@ export const Presence = () => null;`)},
 	require.Equal(t, components.AssetKindComponent, got.AssetKind)
 	require.Equal(t, "primitives/Presence/component.json", got.ManifestPath)
 	require.Equal(t, "primitives/Presence/versions/1.0.0/Presence.tsx", got.SourcePath)
+}
+
+func TestIndexer_RunIndexesRuntimeServiceFromCanonicalRoot(t *testing.T) {
+	fs := fstest.MapFS{
+		"services/FormStore/component.json":               {Data: []byte(`{"libraryId":"react-component-library:FormStore","displayName":"Form Store","assetKind":"service","latest":"1.0.0","dependencies":[]}`)},
+		"services/FormStore/versions/1.0.0/FormStore.tsx": {Data: []byte(`export const FormStore = () => null;`)},
+	}
+	repo := mocks.NewFakeRepository()
+	res, err := components.NewIndexer(repo, ".", fs).Run(context.Background())
+	require.NoError(t, err)
+	require.Equal(t, 1, res.Scanned)
+	require.Equal(t, 1, res.Indexed)
+
+	service, err := repo.GetByLibraryID(context.Background(), "react-component-library:FormStore")
+	require.NoError(t, err)
+	require.Equal(t, components.AssetKindComponent, service.AssetKind)
+	require.Equal(t, "services/FormStore/component.json", service.ManifestPath)
+	require.Equal(t, "services/FormStore/versions/1.0.0/FormStore.tsx", service.SourcePath)
+}
+
+func TestCanonicalCatalogRootsMatchTestGenieApplicability(t *testing.T) {
+	root := filepath.Clean("../../../")
+	configBytes, err := os.ReadFile(filepath.Join(root, "catalog", "config.json"))
+	require.NoError(t, err)
+	var config struct {
+		Gates []struct {
+			AppliesTo []string `json:"appliesTo"`
+		} `json:"gates"`
+	}
+	require.NoError(t, json.Unmarshal(configBytes, &config))
+
+	canonical := components.CatalogKindDirectories(root)
+	expected := map[string]struct{}{}
+	for _, gate := range config.Gates {
+		for _, kind := range gate.AppliesTo {
+			directory := "components"
+			switch strings.TrimSpace(kind) {
+			case "foundation":
+				directory = "foundations"
+			case "primitive":
+				directory = "primitives"
+			case "runtime-hook":
+				directory = "hooks"
+			case "runtime-service":
+				directory = "services"
+			}
+			expected[directory] = struct{}{}
+		}
+	}
+	got := map[string]struct{}{}
+	for _, directory := range canonical {
+		got[directory] = struct{}{}
+	}
+	require.Equal(t, expected, got, "indexer roots must derive from catalog/config.json")
+
+	var descriptor struct {
+		Applicability struct {
+			Any []struct {
+				PathGlob string `json:"pathGlob"`
+			} `json:"any"`
+		} `json:"applicability"`
+	}
+	descriptorBytes, err := os.ReadFile(filepath.Join(root, ".vrooli", "test-genie.json"))
+	require.NoError(t, err)
+	require.NoError(t, json.Unmarshal(descriptorBytes, &descriptor))
+	applicable := map[string]struct{}{}
+	for _, item := range descriptor.Applicability.Any {
+		parts := strings.Split(item.PathGlob, "/")
+		if len(parts) == 4 && parts[0] == "library" && parts[2] == "*" && parts[3] == "component.json" {
+			applicable[parts[1]] = struct{}{}
+		}
+	}
+	require.Equal(t, got, applicable, "test-genie applicability roots must match canonical catalog roots")
 }
 
 func TestIndexer_RunRejectsNestedCompanionFixture(t *testing.T) {

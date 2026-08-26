@@ -40,7 +40,7 @@
       "version": "1.0.0"
     }
   ],
-  "description": "A schema-driven form that compiles sections, field relationships, validation, nested objects, arrays, and derived values into one coherent runtime.",
+  "description": "",
   "designStyles": [
     {
       "affinity": "native",
@@ -56,7 +56,7 @@
     }
   ],
   "displayName": "GeneratedForm",
-  "latest": "1.0.1",
+  "latest": "1.0.2",
   "libraryId": "react-component-library:GeneratedForm",
   "tags": [
     "form",
@@ -67,5 +67,7 @@
     "token-bound"
   ],
   "draft": "",
-  "deprecatedVersions": []
+  "deprecatedVersions": [
+    "1.0.1"
+  ]
 }

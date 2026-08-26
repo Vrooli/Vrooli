@@ -6,12 +6,10 @@
  * @tags ["primitive","status","motion","accessibility"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
-import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
-
 /** @vrooliComponentSource primitives.progress */
-import { resolveStrings } from "@vrooli/react-component-library/useLocale/1.0.1";
+import { translate } from "../../../../hooks/useLocale/versions/1.0.1/useLocale";
 import type { CSSProperties, HTMLAttributes } from "react";
-import { useReducedMotion } from "@vrooli/react-component-library/useReducedMotion/1.0.0";
+import { useReducedMotion } from "../../../../hooks/useReducedMotion/versions/1.0.0/useReducedMotion";
 
 export type ProgressShape = "linear" | "circular";
 export type ProgressMode = "determinate" | "indeterminate" | "buffered" | "segmented";
@@ -104,14 +102,14 @@ function clamp(value: number, max: number) {
   return Math.max(0, Math.min(max, Number.isFinite(value) ? value : 0));
 }
 
-export const Progress = withClassName(function Progress({
+export function Progress({
   value = 0,
   max = 100,
   bufferedValue,
   segments = 5,
   shape = "linear",
   mode = "determinate",
-  label = resolveStrings("primitives.progress.progress", "Progress"),
+  label = translate("primitives.progress.label.1", "Progress"),
   showValue = true,
   tone = "accent",
   size = "md",
@@ -137,7 +135,7 @@ export const Progress = withClassName(function Progress({
   return (
     <>
       <style data-rcl-progress-styles dangerouslySetInnerHTML={{ __html: styles }} />
-      <div data-testid="primitives.progress"
+      <div
         {...props}
         {...common}
         data-rcl-progress="true"
@@ -208,4 +206,4 @@ export const Progress = withClassName(function Progress({
       </div>
     </>
   );
-});
+}

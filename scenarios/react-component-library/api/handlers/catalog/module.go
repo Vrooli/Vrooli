@@ -19,6 +19,7 @@ import (
 	componenttests "react-component-library/internal/componenttests"
 	"react-component-library/internal/gates"
 	"react-component-library/internal/module"
+	"react-component-library/internal/versionledger"
 
 	"connectrpc.com/connect"
 	"github.com/gorilla/mux"
@@ -67,17 +68,6 @@ func ModuleWithCapture(repoRoot string, db *sql.DB, assets components.Service, e
 }
 
 func (h *handler) module() module.Module {
-	// Warm the coverage report in the background at startup. The first
-	// computation costs ~45s because it runs the full gate suite including the
-	// toolchain-spawning `types` runner; paying that on a user's first page
-	// view is what made the coverage page appear broken. Detached from startup
-	// so it never delays the health check — until it lands, a cold request
-	// still computes synchronously and is correct, just slow.
-	go func() {
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
-		defer cancel()
-		_, _ = h.report(ctx)
-	}()
 	path, service := catalogconnect.NewCatalogServiceHandler(h)
 	return module.Module{
 		Name:      "catalog",
@@ -96,6 +86,7 @@ var Endpoints = []module.EndpointDescriptor{
 	{ID: "catalog_ports", Path: catalogconnect.CatalogServiceGetAssetPortContractProcedure, Method: "POST", Summary: "Read asset host obligations", Category: "catalog"},
 	{ID: "catalog_score_history", Path: catalogconnect.CatalogServiceGetScoreHistoryProcedure, Method: "POST", Summary: "Read carried-forward asset score history", Category: "catalog"},
 	{ID: "catalog_health", Path: catalogconnect.CatalogServiceGetHealthOverviewProcedure, Method: "POST", Summary: "Read server-computed catalog health", Category: "catalog"},
+	{ID: "catalog_readiness", Path: catalogconnect.CatalogServiceGetReadinessProcedure, Method: "POST", Summary: "Report catalog readiness and triage", Category: "catalog"},
 	{ID: "catalog_capture_evidence", Path: catalogconnect.CatalogServiceCaptureEvidenceProcedure, Method: "POST", Summary: "Capture declared visual evidence", Category: "catalog"},
 }
 
@@ -256,6 +247,25 @@ func (h *handler) RunGate(ctx context.Context, req *connect.Request[catalogv1.Ru
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("run catalog gate %q: %w", gate, err))
 	}
+	if gate == "version-liveness" && h.evidence != nil && h.evidence.Database() != nil {
+		items, planHash, planErr := versionledger.NewRepository(h.evidence.Database(), filepath.Join(h.repoRoot, "scenarios", "react-component-library", "library")).PlanCleanup(ctx, versionledger.CleanupScope{})
+		if planErr != nil {
+			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("compute version retirement plan: %w", planErr))
+		}
+		eligible := 0
+		for _, item := range items {
+			if item.Eligible {
+				eligible++
+			}
+		}
+		result.InformationalFindings = append(result.InformationalFindings, gates.Finding{
+			Code:        "catalog.version_retirement_plan",
+			AssetID:     "__corpus__",
+			Message:     fmt.Sprintf("retirement plan computed: %d safe candidate(s) out of %d; no versions applied without an explicit plan hash and confirmation", eligible, len(items)),
+			Remediation: fmt.Sprintf("Review `react-component-library versions plan-cleanup --json` (plan hash %s), then apply only with the reviewed hash and explicit confirmation.", planHash),
+			DocsRef:     "docs/concepts/ARCHITECTURE.md#version-lifecycle",
+		})
+	}
 	result = gates.NormalizeResult(h.repoRoot, result)
 	if nonDiscriminating {
 		// Calibration failure is a quarantine state. Preserve no corpus finding
@@ -323,7 +333,7 @@ func (h *handler) RunGate(ctx context.Context, req *connect.Request[catalogv1.Ru
 			response.CompositionEscapes = append(response.CompositionEscapes, &catalogv1.CompositionEscape{AssetId: escape.AssetID, Reason: escape.Reason})
 		}
 	}
-	response.Findings = make([]*catalogv1.GateFinding, 0, len(result.Findings)+1)
+	response.Findings = make([]*catalogv1.GateFinding, 0, len(result.Findings)+len(result.InformationalFindings)+1)
 	response.RunnerErrors = make([]*catalogv1.GateFinding, 0, len(result.RunnerError))
 	response.EvidenceRowsWritten = int32(evidenceRowsWritten)
 	if nonDiscriminating {
@@ -335,6 +345,18 @@ func (h *handler) RunGate(ctx context.Context, req *connect.Request[catalogv1.Ru
 			Message:     finding.Message,
 			AssetId:     finding.AssetID,
 			Severity:    severity,
+			File:        finding.File,
+			Line:        int32(finding.Line),
+			Remediation: finding.Remediation,
+			DocsRef:     finding.DocsRef,
+		})
+	}
+	for _, finding := range result.InformationalFindings {
+		response.Findings = append(response.Findings, &catalogv1.GateFinding{
+			Code:        finding.Code,
+			Message:     finding.Message,
+			AssetId:     finding.AssetID,
+			Severity:    "info",
 			File:        finding.File,
 			Line:        int32(finding.Line),
 			Remediation: finding.Remediation,
@@ -410,6 +432,16 @@ func (h *handler) GetHealthOverview(ctx context.Context, _ *connect.Request[cata
 		}
 	}
 	response := &catalogv1.GetHealthOverviewResponse{Coverage: toProto(report), KindMismatchCount: int32(len(report.KindMismatches))}
+	response.Run = readinessRun(h.repoRoot)
+	if configData, configErr := os.ReadFile(filepath.Join(h.repoRoot, "scenarios", "react-component-library", "catalog", "config.json")); configErr == nil {
+		var config readinessConfigFile
+		if json.Unmarshal(configData, &config) == nil {
+			response.Config = readinessConfigProjection(config, report)
+			h.quarantineMu.RLock()
+			response.Config.QuarantinedGates = int32(len(h.quarantined))
+			h.quarantineMu.RUnlock()
+		}
+	}
 	for _, mismatch := range report.KindMismatches {
 		response.KindMismatches = append(response.KindMismatches, &catalogv1.KindMismatch{AssetId: mismatch.AssetID, DeclaredKind: mismatch.DeclaredKind, DerivedKind: mismatch.DerivedKind, Message: mismatch.Message})
 	}

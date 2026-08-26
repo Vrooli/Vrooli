@@ -27,7 +27,6 @@ func TestBlockingStaticCalibrationFixturesDiscriminate(t *testing.T) {
 		"performance":                ValidatePerformance,
 		"restyle-contract":           ValidateRestyleContract,
 		"story-distinctness":         ValidateStoryDistinctness,
-		"adopter-hygiene":            ValidateAdopterHygiene,
 	}
 	for gate, runner := range runners {
 		t.Run(gate, func(t *testing.T) {

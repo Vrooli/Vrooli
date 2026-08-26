@@ -8,7 +8,7 @@
       "version": "1.0.0"
     }
   ],
-  "description": "A measured, accessible large-collection renderer with overscan, focus preservation, sticky rows, and scroll restoration.",
+  "description": "",
   "designStyles": [
     {
       "affinity": "native",
@@ -24,7 +24,7 @@
     }
   ],
   "displayName": "VirtualList",
-  "latest": "1.0.1",
+  "latest": "1.0.4",
   "libraryId": "react-component-library:VirtualList",
   "tags": [
     "data-display",
@@ -41,5 +41,8 @@
     }
   ],
   "draft": "",
-  "deprecatedVersions": []
+  "deprecatedVersions": [
+    "1.0.1",
+    "1.0.3"
+  ]
 }

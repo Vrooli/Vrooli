@@ -8,8 +8,8 @@
  */
 /** @vrooliComponentSource react-component-library:AsyncBoundary */
 import { useEffect, useId, useRef, useState, type CSSProperties, type ReactNode } from "react";
-import { useAnnounce } from "@vrooli/react-component-library/useAnnounce/1.0.0";
-import { useNetworkStatus } from "@vrooli/react-component-library/useNetworkStatus/1.0.0";
+import { useAnnounce } from "../../../../hooks/useAnnounce/versions/1.0.0/useAnnounce";
+import { useNetworkStatus } from "../../../../hooks/useNetworkStatus/versions/1.0.0/useNetworkStatus";
 
 export type AsyncBoundaryStatus =
   | "idle"

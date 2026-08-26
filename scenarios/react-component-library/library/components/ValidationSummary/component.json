@@ -4,8 +4,11 @@
   "catalogId": "forms.validation-summary",
   "category": "forms",
   "dependencies": [],
-  "deprecatedVersions": [],
-  "description": "An accessible, keyboard-addressable summary of field validation errors.",
+  "deprecatedVersions": [
+    "1.0.3",
+    "1.0.5"
+  ],
+  "description": "",
   "designStyles": [
     {
       "affinity": "native",
@@ -14,7 +17,7 @@
   ],
   "displayName": "ValidationSummary",
   "draft": "",
-  "latest": "1.0.3",
+  "latest": "1.0.6",
   "libraryId": "react-component-library:ValidationSummary",
   "slot": "ui-primitive",
   "tags": [

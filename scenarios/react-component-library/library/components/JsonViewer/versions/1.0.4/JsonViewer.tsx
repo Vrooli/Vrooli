@@ -7,8 +7,8 @@
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
 /** @vrooliComponentSource react-component-library:JsonViewer */
-import { useStrings } from "@vrooli/react-component-library/useLocale/1.0.1";
-import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
+import { translate } from "../../../../hooks/useLocale/versions/1.0.1/useLocale";
+import { withClassName } from "../../../../foundations/ClassMerge/versions/1.0.1/ClassMerge";
 
 const panel = {
   border: "1px solid var(--color-border, #cbd5e1)",
@@ -19,10 +19,9 @@ const panel = {
   boxShadow: "var(--elev-raised, 0 1px 3px rgb(15 23 42 / .08))",
 };
 export const JsonViewer = withClassName(function JsonViewer({ value = {} }: { value?: unknown }) {
-  const strings = useStrings();
   return (
-    <pre data-testid="data-display.json-viewer"
-      aria-label={strings("data-display.json-viewer.json-value", "JSON value")}
+    <pre
+      aria-label={translate("data-display.json-viewer.aria-label.1", "JSON value")}
       style={{
         ...panel,
         overflow: "auto",

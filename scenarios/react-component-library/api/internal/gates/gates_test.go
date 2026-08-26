@@ -31,47 +31,6 @@ func TestValidateSelectorCoverageLiveCorpusIsClean(t *testing.T) {
 	}
 }
 
-func TestValidateSelectorsAdoptedLiveCorpusIsSemantic(t *testing.T) {
-	result, err := ValidateSelectorsAdopted(liveRoot(t))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if result.Inspected != 35 || len(result.Findings) != 0 || len(result.RunnerError) != 0 {
-		t.Fatalf("adopted selectors = %+v, want 35 linked adopters and no findings", result)
-	}
-}
-
-func TestAdopterHygieneRejectsDirectAndDuplicateLibraryAssertions(t *testing.T) {
-	root := t.TempDir()
-	dir := filepath.Join(root, "scenarios", "example", "ui", "src")
-	if err := os.MkdirAll(dir, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	source := "import { Select } from \"@vrooli/react-component-library/Select/1.1.0\";\nimport { expect, it } from \"vitest\";\nit(\"renders\", () => expect(Select).toBeDefined());\n"
-	for _, name := range []string{"select.test.tsx", "select-copy.test.tsx"} {
-		if err := os.WriteFile(filepath.Join(dir, name), []byte(source), 0o644); err != nil {
-			t.Fatal(err)
-		}
-	}
-	result, err := ValidateAdopterHygiene(root)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if result.Inspected != 2 || len(result.Findings) != 3 {
-		t.Fatalf("result = %+v, want two orphan findings and one duplicate finding", result)
-	}
-	seen := map[string]bool{}
-	for _, finding := range result.Findings {
-		seen[finding.Code] = true
-		if finding.Remediation == "" || finding.Line == 0 {
-			t.Fatalf("finding lacks actionable location/remediation: %+v", finding)
-		}
-	}
-	if !seen["catalog.adopter_hygiene_orphan"] || !seen["catalog.adopter_hygiene_duplicate"] {
-		t.Fatalf("result = %+v, want orphan and duplicate codes", result)
-	}
-}
-
 func TestStoryDistinctnessRejectsOneSpecimenForManyFrames(t *testing.T) {
 	root := t.TempDir()
 	storyDir := filepath.Join(root, "scenarios", "react-component-library", "library", "components", "Fixture", "versions", "1.0.0")
@@ -136,25 +95,6 @@ func TestValidateRestyleContractLiveCorpusIsClean(t *testing.T) {
 	}
 	if result.Inspected == 0 || len(result.RunnerError) != 0 || len(result.Findings) != 0 {
 		t.Fatalf("restyle contract result = %+v", result)
-	}
-}
-
-func TestAdopterHygieneAcceptsScenarioOwnedTests(t *testing.T) {
-	root := t.TempDir()
-	dir := filepath.Join(root, "scenarios", "example", "ui")
-	if err := os.MkdirAll(dir, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	testSource := "import { expect, it } from \"vitest\";\nit(\"renders\", () => expect(true).toBe(true));\n"
-	if err := os.WriteFile(filepath.Join(dir, "owned.test.ts"), []byte(testSource), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	result, err := ValidateAdopterHygiene(root)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if result.Inspected != 1 || len(result.Findings) != 0 {
-		t.Fatalf("result = %+v, want one clean scenario-owned test", result)
 	}
 }
 

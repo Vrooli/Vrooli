@@ -8,7 +8,7 @@
       "version": "1.0.0"
     }
   ],
-  "description": "Accessible line, area, bar, stacked-bar, scatter, and histogram chart family.",
+  "description": "",
   "designStyles": [
     {
       "affinity": "native",
@@ -20,7 +20,7 @@
     }
   ],
   "displayName": "Cartesian Charts",
-  "latest": "1.0.2",
+  "latest": "1.0.5",
   "libraryId": "react-component-library:CartesianCharts",
   "tags": [
     "visualization",
@@ -29,5 +29,8 @@
     "responsive"
   ],
   "draft": "",
-  "deprecatedVersions": []
+  "deprecatedVersions": [
+    "1.0.2",
+    "1.0.4"
+  ]
 }

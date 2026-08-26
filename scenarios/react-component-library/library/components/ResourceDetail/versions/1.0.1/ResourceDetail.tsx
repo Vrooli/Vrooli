@@ -6,18 +6,16 @@
  * @tags ["pattern","data-source","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
-import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
-
 /** @vrooliComponentSource patterns.resource-detail */
-import { resolveStrings, useStrings } from "@vrooli/react-component-library/useLocale/1.0.1";
+import { translate } from "../../../../hooks/useLocale/versions/1.0.1/useLocale";
 import type { CSSProperties, ReactNode } from "react";
 import {
   AsyncBoundary,
   type AsyncBoundaryStatus,
-} from "@vrooli/react-component-library/AsyncBoundary/1.0.0";
-import { AuditTrail } from "@vrooli/react-component-library/AuditTrail/1.0.0";
-import { DescriptionList } from "@vrooli/react-component-library/DescriptionList/1.0.0";
-import { PageHeader } from "@vrooli/react-component-library/PageHeader/1.0.0";
+} from "../../../AsyncBoundary/versions/1.0.0/AsyncBoundary";
+import { AuditTrail } from "../../../AuditTrail/versions/1.0.0/AuditTrail";
+import { DescriptionList } from "../../../DescriptionList/versions/1.0.0/DescriptionList";
+import { PageHeader } from "../../../PageHeader/versions/1.0.0/PageHeader";
 
 export interface ResourceDetailEntry {
   term: string;
@@ -87,10 +85,10 @@ const boundaryStatus = (status: ResourceDetailStatus): AsyncBoundaryStatus => {
   return "idle";
 };
 
-export const ResourceDetail = withClassName(function ResourceDetail({
-  title = resolveStrings("patterns.resource-detail.resource", "Resource"),
-  description = resolveStrings(
-    "patterns.resource-detail.review-identity-metadata-and-recent-changes-in-o",
+export function ResourceDetail({
+  title = translate("patterns.resource-detail.title.1", "Resource"),
+  description = translate(
+    "patterns.resource-detail.description.2",
     "Review identity, metadata, and recent changes in one place.",
   ),
   entries = [],
@@ -105,11 +103,10 @@ export const ResourceDetail = withClassName(function ResourceDetail({
   className,
   style,
 }: ResourceDetailProps) {
-  const strings = useStrings();
   const isPermissionDenied = status === "permission-denied";
   const isEmpty = status === "empty";
   const content = isPermissionDenied ? (
-    <div data-testid="patterns.resource-detail" data-rcl-resource-detail-message="permission" role="status">
+    <div data-rcl-resource-detail-message="permission" role="status">
       {permissionMessage}
     </div>
   ) : isEmpty ? (
@@ -121,25 +118,25 @@ export const ResourceDetail = withClassName(function ResourceDetail({
       <div data-rcl-resource-detail-grid>
         <section data-rcl-resource-detail-section aria-labelledby="rcl-resource-metadata-title">
           <h2 id="rcl-resource-metadata-title" data-rcl-resource-detail-section-title>
-            {strings("patterns.resource-detail.metadata", "Metadata")}
+            {translate("patterns.resource-detail.text.1", "Metadata")}
           </h2>
           {entries.length ? (
             <DescriptionList entries={entries} />
           ) : (
             <p data-rcl-resource-detail-section-copy>
-              {strings("patterns.resource-detail.no-metadata-is-available-yet", "No metadata is available yet.")}
+              {translate("patterns.resource-detail.text.2", "No metadata is available yet.")}
             </p>
           )}
         </section>
         <section data-rcl-resource-detail-section aria-labelledby="rcl-resource-history-title">
           <h2 id="rcl-resource-history-title" data-rcl-resource-detail-section-title>
-            {strings("patterns.resource-detail.history", "History")}
+            {translate("patterns.resource-detail.text.3", "History")}
           </h2>
           {history.length ? (
             <AuditTrail entries={history} />
           ) : (
             <p data-rcl-resource-detail-section-copy>
-              {strings("patterns.resource-detail.no-recorded-changes-yet", "No recorded changes yet.")}
+              {translate("patterns.resource-detail.text.4", "No recorded changes yet.")}
             </p>
           )}
         </section>
@@ -156,8 +153,8 @@ export const ResourceDetail = withClassName(function ResourceDetail({
       </div>
       {status === "partial" ? (
         <div data-rcl-resource-detail-partial role="status">
-          {strings(
-            "patterns.resource-detail.some-fields-are-still-arriving-the-information-s",
+          {translate(
+            "patterns.resource-detail.text.5",
             "Some fields are still arriving. The information shown is usable but not complete.",
           )}
         </div>
@@ -174,4 +171,4 @@ export const ResourceDetail = withClassName(function ResourceDetail({
       </AsyncBoundary>
     </article>
   );
-});
+}

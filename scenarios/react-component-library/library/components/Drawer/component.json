@@ -3,7 +3,7 @@
   "assetKind": "component",
   "catalogId": "overlays.drawer",
   "dependencies": [],
-  "description": "A layered side surface with predictable dismissal, focus semantics, and token-backed elevation.",
+  "description": "",
   "designStyles": [
     {
       "affinity": "native",
@@ -11,7 +11,7 @@
     }
   ],
   "displayName": "Drawer",
-  "latest": "1.0.4",
+  "latest": "1.0.5",
   "libraryId": "react-component-library:Drawer",
   "tags": [
     "overlay",
@@ -25,5 +25,7 @@
     }
   ],
   "draft": "",
-  "deprecatedVersions": []
+  "deprecatedVersions": [
+    "1.0.4"
+  ]
 }

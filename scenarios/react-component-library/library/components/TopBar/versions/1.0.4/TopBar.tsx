@@ -7,8 +7,8 @@
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
 /** @vrooliComponentSource react-component-library:TopBar */
-import { useStrings } from "@vrooli/react-component-library/useLocale/1.0.1";
-import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
+import { translate } from "../../../../hooks/useLocale/versions/1.0.1/useLocale";
+import { withClassName } from "../../../../foundations/ClassMerge/versions/1.0.1/ClassMerge";
 
 import type { ReactNode } from "react";
 const panel = {
@@ -21,9 +21,8 @@ const panel = {
 };
 const muted = { color: "var(--color-muted-foreground, #64748b)" };
 export const TopBar = withClassName(function TopBar({ children }: { children?: ReactNode }) {
-  const strings = useStrings();
   return (
-    <header data-testid="navigation.top-bar"
+    <header
       data-top-bar
       style={{
         display: "flex",
@@ -37,10 +36,10 @@ export const TopBar = withClassName(function TopBar({ children }: { children?: R
       {children ?? (
         <>
           <strong style={{ fontSize: 18 }}>
-            {strings("navigation.top-bar.application", "Application")}
+            {translate("navigation.top-bar.text.1", "Application")}
           </strong>
           <span style={{ marginInlineStart: "auto", ...muted }}>
-            {strings("navigation.top-bar.workspace", "Workspace")}
+            {translate("navigation.top-bar.text.2", "Workspace")}
           </span>
         </>
       )}

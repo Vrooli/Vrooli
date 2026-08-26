@@ -7,8 +7,8 @@
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
 /** @vrooliComponentSource react-component-library:InspectorPanel */
-import { useStrings } from "@vrooli/react-component-library/useLocale/1.0.1";
-import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
+import { translate } from "../../../../hooks/useLocale/versions/1.0.1/useLocale";
+import { withClassName } from "../../../../foundations/ClassMerge/versions/1.0.1/ClassMerge";
 
 import type { ReactNode } from "react";
 const panel = {
@@ -28,17 +28,16 @@ export const InspectorPanel = withClassName(function InspectorPanel({
   onClose?: () => void;
   children?: ReactNode;
 }) {
-  const strings = useStrings();
   if (!open) return null;
   return (
     <section
       role="dialog"
-      aria-label={strings("overlays.inspector-panel.inspector", "Inspector")}
+      aria-label={translate("overlays.inspector-panel.aria-label.1", "Inspector")}
       style={{ ...panel, display: "grid", gap: 16 }}
     >
       {children ?? "Inspector details"}
       <button data-testid="overlays.inspector-panel" type="button" onClick={onClose}>
-        {strings("overlays.inspector-panel.close", "Close")}
+        {translate("overlays.inspector-panel.text.1", "Close")}
       </button>
     </section>
   );

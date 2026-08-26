@@ -60,7 +60,11 @@ func ModuleWithExecutor(db *sql.DB, assets components.Service, sourceRoot string
 func ModuleWithExecutorAndFixture(db *sql.DB, assets components.Service, sourceRoot string, executor domain.StoryExecutor, fixture GeneratedFixtureValidator, logger *log.Logger) module.Module {
 	svc := domain.NewService(domain.Runner{Assets: assets, Stories: assets, Executor: executor}, domain.NewSQLiteRepository(db))
 	path, handler := componenttestsconnect.NewComponentTestsServiceHandler(&connectHandler{service: svc, assets: assets, logger: logger, evidence: catalogcoverage.NewEvidenceStore(db), sourceRoot: sourceRoot, sweeps: domain.NewSQLiteSweepRepository(db)})
-	sharedPath, shared := scenariovalidationconnect.NewScenarioValidationServiceHandler(&sharedHandler{service: svc, assets: assets, sourceRoot: sourceRoot, logger: logger, evidence: catalogcoverage.NewEvidenceStore(db), fixture: fixture})
+	var probe func(context.Context) error
+	if prober, ok := executor.(domain.ExecutorProber); ok {
+		probe = prober.Probe
+	}
+	sharedPath, shared := scenariovalidationconnect.NewScenarioValidationServiceHandler(&sharedHandler{service: svc, assets: assets, sourceRoot: sourceRoot, logger: logger, evidence: catalogcoverage.NewEvidenceStore(db), fixture: fixture, probe: probe})
 	return module.Module{Name: "component-tests", Mount: func(r *mux.Router) {
 		connectx.RegisterServices(r, connectx.ServiceMount{Path: path, Handler: handler})
 		connectx.RegisterServices(r, connectx.ServiceMount{Path: sharedPath, Handler: shared})

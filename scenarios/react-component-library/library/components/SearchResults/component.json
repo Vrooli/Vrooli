@@ -3,7 +3,7 @@
   "assetKind": "component",
   "catalogId": "data-display.search-results",
   "dependencies": [],
-  "description": "A results surface that distinguishes no matches from an empty collection and preserves query context.",
+  "description": "",
   "designStyles": [
     {
       "affinity": "native",
@@ -11,7 +11,7 @@
     }
   ],
   "displayName": "SearchResults",
-  "latest": "1.0.4",
+  "latest": "1.0.5",
   "libraryId": "react-component-library:SearchResults",
   "tags": [
     "data-display",
@@ -24,5 +24,7 @@
     }
   ],
   "draft": "",
-  "deprecatedVersions": []
+  "deprecatedVersions": [
+    "1.0.4"
+  ]
 }

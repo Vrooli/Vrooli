@@ -16,7 +16,7 @@
       "version": "1.0.0"
     }
   ],
-  "description": "A field-level concurrency recovery surface that compares local and remote values, preserves intent, and retries resolution honestly.",
+  "description": "",
   "designStyles": [
     {
       "affinity": "native",
@@ -32,7 +32,7 @@
     }
   ],
   "displayName": "ConflictResolutionFlow",
-  "latest": "1.0.3",
+  "latest": "1.0.6",
   "libraryId": "react-component-library:ConflictResolutionFlow",
   "tags": [
     "patterns",
@@ -49,5 +49,8 @@
     }
   ],
   "draft": "",
-  "deprecatedVersions": []
+  "deprecatedVersions": [
+    "1.0.3",
+    "1.0.5"
+  ]
 }

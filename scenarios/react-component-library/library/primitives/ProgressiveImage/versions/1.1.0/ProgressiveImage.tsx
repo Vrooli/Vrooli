@@ -14,7 +14,7 @@ import {
   type ImgHTMLAttributes,
   type ReactNode,
 } from "react";
-import { AspectRatio } from "@vrooli/react-component-library/AspectRatio/1.0.0";
+import { AspectRatio } from "../../../AspectRatio/versions/1.0.0/AspectRatio";
 
 const styles = `
 [data-rcl-progressive-image] { position: relative; isolation: isolate; color: var(--color-foreground); background: var(--color-surface-muted); border-radius: var(--radius-panel); }

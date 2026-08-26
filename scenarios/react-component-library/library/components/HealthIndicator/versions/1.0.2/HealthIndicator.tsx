@@ -7,7 +7,7 @@
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
 /** @vrooliComponentSource react-component-library:HealthIndicator */
-import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
+import { withClassName } from "../../../../foundations/ClassMerge/versions/1.0.1/ClassMerge";
 
 export type HealthState = "healthy" | "degraded" | "blocked" | "unknown";
 export const HealthIndicator = withClassName(function HealthIndicator({
@@ -22,7 +22,7 @@ export const HealthIndicator = withClassName(function HealthIndicator({
   const text =
     state === "unknown" ? "Unknown" : `${state[0]?.toUpperCase() ?? ""}${state.slice(1)}`;
   return (
-    <span data-testid="data-display.health-indicator"
+    <span
       role="status"
       aria-label={`Health ${text}`}
       data-health={state}

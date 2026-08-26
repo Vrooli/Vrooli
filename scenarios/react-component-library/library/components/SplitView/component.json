@@ -3,7 +3,7 @@
   "assetKind": "component",
   "catalogId": "navigation.split-view",
   "dependencies": [],
-  "description": "A composed navigation workspace that keeps primary and secondary regions meaningful across breakpoints.",
+  "description": "",
   "designStyles": [
     {
       "affinity": "native",
@@ -11,11 +11,15 @@
     }
   ],
   "displayName": "SplitView",
-  "latest": "1.0.0",
+  "latest": "1.0.1",
   "libraryId": "react-component-library:SplitView",
   "tags": [
     "navigation",
     "layout",
     "token-bound"
+  ],
+  "draft": "",
+  "deprecatedVersions": [
+    "1.0.0"
   ]
 }

@@ -12,7 +12,7 @@
       "version": "1.0.0"
     }
   ],
-  "description": "A coordinated collection-and-detail layout that preserves selection and list position while drilling into detail on compact screens.",
+  "description": "",
   "designStyles": [
     {
       "affinity": "native",
@@ -28,7 +28,7 @@
     }
   ],
   "displayName": "MasterDetail",
-  "latest": "1.0.3",
+  "latest": "1.0.6",
   "libraryId": "react-component-library:MasterDetail",
   "tags": [
     "navigation",
@@ -46,5 +46,8 @@
     }
   ],
   "draft": "",
-  "deprecatedVersions": []
+  "deprecatedVersions": [
+    "1.0.3",
+    "1.0.5"
+  ]
 }

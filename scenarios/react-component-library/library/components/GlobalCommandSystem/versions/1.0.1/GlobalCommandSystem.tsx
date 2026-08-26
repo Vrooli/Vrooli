@@ -6,8 +6,6 @@
  * @tags ["pattern","commands","keyboard","recovery","responsive","accessibility","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
-import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
-
 /** @vrooliComponentSource patterns.global-command-system */
 import {
   useCallback,
@@ -20,17 +18,17 @@ import {
 import {
   CommandPalette,
   type CommandPaletteStatus,
-} from "@vrooli/react-component-library/CommandPalette/1.0.0";
+} from "../../../CommandPalette/versions/1.0.0/CommandPalette";
 import {
   createCommandRegistry,
   type Command,
   type CommandRegistry,
-} from "@vrooli/react-component-library/CommandRegistry/1.0.0";
+} from "../../../../services/CommandRegistry/versions/1.0.0/CommandRegistry";
 import {
   createShortcutRegistry,
   eventToShortcut,
   type ShortcutRegistry,
-} from "@vrooli/react-component-library/ShortcutRegistry/1.0.0";
+} from "../../../../services/ShortcutRegistry/versions/1.0.0/ShortcutRegistry";
 
 export interface GlobalCommandSystemProps {
   commands: Command[];
@@ -62,7 +60,7 @@ const styles = `
 @media (forced-colors: active) { [data-rcl-global-command-trigger], [data-rcl-global-command-trigger] kbd { border-color: CanvasText; background: Canvas; color: CanvasText; box-shadow: none; } }
 `;
 
-export const GlobalCommandSystem = withClassName(function GlobalCommandSystem({
+export function GlobalCommandSystem({
   commands,
   registry,
   shortcutRegistry,
@@ -148,4 +146,4 @@ export const GlobalCommandSystem = withClassName(function GlobalCommandSystem({
       />
     </div>
   );
-});
+}

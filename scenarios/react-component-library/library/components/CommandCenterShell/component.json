@@ -11,8 +11,10 @@
       "version": "1.0.0"
     }
   ],
-  "deprecatedVersions": [],
-  "description": "A responsive operational-workspace composition with navigation, summary figures, controls, and a lifecycle-aware primary region.",
+  "deprecatedVersions": [
+    "1.0.0"
+  ],
+  "description": "",
   "designStyles": [
     {
       "affinity": "native",
@@ -21,9 +23,15 @@
   ],
   "displayName": "Command Center Shell",
   "draft": "",
-  "latest": "1.0.0",
+  "latest": "1.0.1",
   "libraryId": "react-component-library:CommandCenterShell",
   "slot": "ui-pattern",
-  "tags": ["layout", "command-center", "dashboard", "responsive", "experience"],
+  "tags": [
+    "layout",
+    "command-center",
+    "dashboard",
+    "responsive",
+    "experience"
+  ],
   "x-supplementalJustification": "Pre-catalog operational shell retained as a supplemental asset pending promotion into the page-template vocabulary."
 }

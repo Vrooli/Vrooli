@@ -6,16 +6,14 @@
  * @tags ["patterns","recovery","destructive","undo","accessibility","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
-import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
-
 /** @vrooliComponentSource react-component-library:UndoableDestructiveAction */
-import { useStrings } from "@vrooli/react-component-library/useLocale/1.0.1";
+import { translate } from "../../../../hooks/useLocale/versions/1.0.1/useLocale";
 import { useState, type CSSProperties, type ReactNode } from "react";
-import { UndoBanner } from "@vrooli/react-component-library/UndoBanner/1.0.0";
+import { UndoBanner } from "../../../UndoBanner/versions/1.0.0/UndoBanner";
 import {
   UndoManagerProvider,
   useUndoManager,
-} from "@vrooli/react-component-library/UndoManager/1.0.0";
+} from "../../../../services/UndoManager/versions/1.0.0/UndoManager";
 
 export type UndoableDestructiveActionState = "idle" | "submitting" | "success" | "error";
 
@@ -68,7 +66,6 @@ function ActionContent({
   style,
   children,
 }: UndoableDestructiveActionProps) {
-  const strings = useStrings();
   const manager = useUndoManager();
   const [state, setState] = useState<UndoableDestructiveActionState>(defaultState ?? "idle");
   const [error, setError] = useState<string | null>(null);
@@ -133,8 +130,8 @@ function ActionContent({
           <div data-rcl-undoable-action-status role="status" aria-live="polite" aria-busy="true">
             <strong>Removing {itemLabel}…</strong>
             <span>
-              {strings(
-                "patterns.undoable-destructive-action.keep-this-page-open-while-the-change-is-saved",
+              {translate(
+                "patterns.undoable-destructive-action.text.1",
                 "Keep this page open while the change is saved.",
               )}
             </span>
@@ -144,8 +141,8 @@ function ActionContent({
           <div data-rcl-undoable-action-status role="status" aria-live="polite">
             <strong>{resolvedSuccess}</strong>
             <span>
-              {strings(
-                "patterns.undoable-destructive-action.the-change-is-complete-a-recovery-action-is-visi",
+              {translate(
+                "patterns.undoable-destructive-action.text.2",
                 "The change is complete. A recovery action is visible below.",
               )}
             </span>
@@ -173,10 +170,10 @@ function ActionContent({
   );
 }
 
-export const UndoableDestructiveAction = withClassName(function UndoableDestructiveAction(props: UndoableDestructiveActionProps) {
+export function UndoableDestructiveAction(props: UndoableDestructiveActionProps) {
   return (
     <UndoManagerProvider maxVisible={1} defaultExpiresMs={props.expiresMs ?? 8000}>
       <ActionContent {...props} />
     </UndoManagerProvider>
   );
-});
+}

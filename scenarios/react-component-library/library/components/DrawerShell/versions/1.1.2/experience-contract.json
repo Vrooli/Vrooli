@@ -1,0 +1,34 @@
+{
+  "accessibility": [
+    "dialog semantics",
+    "aria-labelledby",
+    "focus trap",
+    "keyboard dismissal",
+    "safe-area insets",
+    "reduced motion",
+    "forced colors"
+  ],
+  "behaviors": [
+    {
+      "description": "Clicking the backdrop invokes the close handler.",
+      "id": "backdrop-dismiss"
+    },
+    {
+      "description": "Escape dismisses only the topmost registered drawer layer.",
+      "id": "top-layer-escape"
+    },
+    {
+      "description": "Opening focuses the close control and cleanup restores the previously active element.",
+      "id": "focus-restoration"
+    },
+    {
+      "description": "Full and compact variants become polished bottom sheets on narrow viewports and inset modal surfaces on wide viewports.",
+      "id": "responsive-surface"
+    }
+  ],
+  "componentId": "react-component-library:DrawerShell",
+  "kind": "experience-component",
+  "schemaVersion": 1,
+  "states": ["full-open", "compact-open", "with-header-content"],
+  "version": "1.1.0"
+}

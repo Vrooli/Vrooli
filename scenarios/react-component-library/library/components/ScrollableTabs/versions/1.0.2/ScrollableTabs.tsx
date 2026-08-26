@@ -7,13 +7,13 @@
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
 /** @vrooliComponentSource navigation.scrollable-tabs */
-import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
+import { withClassName } from "../../../../foundations/ClassMerge/versions/1.0.1/ClassMerge";
 
-import { Tabs, type TabsProps } from "@vrooli/react-component-library/Tabs/1.0.0";
+import { Tabs, type TabsProps } from "../../../Tabs/versions/1.0.0/Tabs";
 
 export const ScrollableTabs = withClassName(function ScrollableTabs(props: TabsProps) {
   return (
-    <div data-testid="navigation.scrollable-tabs" data-scrollable-tabs style={{ maxWidth: "100%", overflow: "hidden" }}>
+    <div data-scrollable-tabs style={{ maxWidth: "100%", overflow: "hidden" }}>
       <Tabs {...props} />
     </div>
   );

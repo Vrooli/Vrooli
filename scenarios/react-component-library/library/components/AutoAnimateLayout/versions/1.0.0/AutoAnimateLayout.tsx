@@ -1,14 +1,12 @@
 /** @vrooliComponentSource motion.auto-animate-layout */
-import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
-
 import {
   useLayoutEffect,
   useRef,
   type CSSProperties,
   type ReactNode,
 } from "react";
-import { LayoutGroup } from "@vrooli/react-component-library/LayoutGroup/1.0.0";
-import { useReducedMotion } from "@vrooli/react-component-library/useReducedMotion/1.0.0";
+import { LayoutGroup } from "../../../../primitives/LayoutGroup/versions/1.0.0/LayoutGroup";
+import { useReducedMotion } from "../../../../hooks/useReducedMotion/versions/1.0.0/useReducedMotion";
 
 export interface AutoAnimateLayoutProps {
   children: ReactNode;
@@ -48,7 +46,7 @@ function snapshot(group: HTMLElement) {
   return result;
 }
 
-export const AutoAnimateLayout = withClassName(function AutoAnimateLayout({
+export function AutoAnimateLayout({
   children,
   duration = 180,
   easing = "cubic-bezier(.2,.8,.2,1)",
@@ -100,7 +98,7 @@ export const AutoAnimateLayout = withClassName(function AutoAnimateLayout({
     return () => animations.forEach((animation) => animation.cancel());
   }, [children, disabled, duration, easing, reducedMotion]);
   return (
-    <div data-testid="motion.auto-animate-layout"
+    <div
       ref={groupRef}
       data-rcl-auto-animate-layout
       className={className}
@@ -113,4 +111,4 @@ export const AutoAnimateLayout = withClassName(function AutoAnimateLayout({
       <LayoutGroup>{children}</LayoutGroup>
     </div>
   );
-});
+}

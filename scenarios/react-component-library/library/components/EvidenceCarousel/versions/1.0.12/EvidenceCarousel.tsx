@@ -6,10 +6,8 @@
  * @tags ["visualization","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
-import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
-
 /** @vrooliComponentSource react-component-library:EvidenceCarousel */
-import { useStrings } from "@vrooli/react-component-library/useLocale/1.0.1";
+import { translate } from "../../../../hooks/useLocale/versions/1.0.1/useLocale";
 import type { ReactNode } from "react";
 import { CheckCircle2, CircleAlert, FileText, Image, ScanSearch } from "lucide-react";
 
@@ -50,20 +48,19 @@ function statusIcon(status: EvidenceItem["status"]) {
   return status === "available" ? CheckCircle2 : CircleAlert;
 }
 
-export const EvidenceCarousel = withClassName(function EvidenceCarousel({
+export function EvidenceCarousel({
   items = [],
   selectedId,
   onSelect,
   renderContent,
   renderControls,
 }: EvidenceCarouselProps) {
-  const strings = useStrings();
   const selected = items.find((item) => item.id === selectedId) ?? items[0];
   const selectedContent = selected && renderContent ? renderContent(selected) : null;
 
   return (
     <section
-      aria-label={strings("visualization.evidence-carousel.evidence-workspace", "Evidence workspace")}
+      aria-label={translate("visualization.evidence-carousel.aria-label.1", "Evidence workspace")}
       data-rcl-asset="visualization.evidence-carousel"
       data-rcl-version="1.0.8"
       data-rcl-stamp="source"
@@ -78,7 +75,7 @@ export const EvidenceCarousel = withClassName(function EvidenceCarousel({
         </div>
         <div
           role="tablist"
-          aria-label={strings("visualization.evidence-carousel.evidence-types", "Evidence types")}
+          aria-label={translate("visualization.evidence-carousel.aria-label.2", "Evidence types")}
           className="flex gap-space-2xs overflow-x-auto"
         >
           {items.map((item) => {
@@ -127,10 +124,10 @@ export const EvidenceCarousel = withClassName(function EvidenceCarousel({
       ) : (
         <div className="flex min-h-content items-center justify-center p-space-md">
           <span className="text-xs text-app-muted-foreground">
-            {strings("visualization.evidence-carousel.no-evidence-captured", "No evidence captured.")}
+            {translate("visualization.evidence-carousel.text.1", "No evidence captured.")}
           </span>
         </div>
       )}
     </section>
   );
-});
+}

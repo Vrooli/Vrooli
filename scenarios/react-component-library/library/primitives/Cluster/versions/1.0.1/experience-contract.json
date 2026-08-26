@@ -1,0 +1,28 @@
+{
+  "contract": {
+    "kind": "rcl-component-experience-contract",
+    "schema": "scenario-experience-spec/v1",
+    "provenance": "react-component-library:Cluster@1.0.0"
+  },
+  "component": {
+    "id": "primitives.cluster",
+    "title": "Cluster",
+    "purpose": "Cluster is a token-bound structural primitive with a bounded public API."
+  },
+  "states": [
+    {
+      "id": "default",
+      "example": "default",
+      "description": "The default primitive state."
+    }
+  ],
+  "claims": [
+    {
+      "id": "contract-present",
+      "type": "manual-review",
+      "statement": "Cluster exposes a bounded public contract backed by shared tokens.",
+      "tier": "manual",
+      "states": ["default"]
+    }
+  ]
+}

@@ -6,10 +6,8 @@
  * @tags ["data-display","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
-import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
-
 /** @vrooliComponentSource react-component-library:Stat */
-import { resolveStrings, useStrings } from "@vrooli/react-component-library/useLocale/1.0.1";
+import { translate } from "../../../../hooks/useLocale/versions/1.0.1/useLocale";
 import type { ReactNode } from "react";
 
 export type StatTrendTone = "positive" | "negative" | "neutral";
@@ -44,8 +42,8 @@ export interface StatProps {
   "aria-label"?: string;
 }
 
-export const Stat = withClassName(function Stat({
-  label = resolveStrings("data-display.stat.metric", "Metric"),
+export function Stat({
+  label = translate("data-display.stat.label.1", "Metric"),
   value = "—",
   trend,
   trendTone = "neutral",
@@ -56,11 +54,10 @@ export const Stat = withClassName(function Stat({
   style,
   "aria-label": ariaLabel,
 }: StatProps) {
-  const strings = useStrings();
   return (
     <>
       <style data-rcl-stat-styles dangerouslySetInnerHTML={{ __html: styles }} />
-      <article data-testid="data-display.stat"
+      <article
         className={className}
         style={style}
         data-rcl-stat
@@ -70,7 +67,7 @@ export const Stat = withClassName(function Stat({
         {loading ? (
           <div
             data-rcl-stat-skeleton
-            aria-label={strings("data-display.stat.loading-metric", "Loading metric")}
+            aria-label={translate("data-display.stat.aria-label.2", "Loading metric")}
             role="status"
           >
             <span />
@@ -100,4 +97,4 @@ export const Stat = withClassName(function Stat({
       </article>
     </>
   );
-});
+}

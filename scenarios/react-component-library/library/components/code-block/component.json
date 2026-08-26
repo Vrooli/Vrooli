@@ -1,8 +1,10 @@
 {
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "catalogId": "data-display.code-block",
-  "deprecatedVersions": [],
-  "description": "Code block with language label and copy feedback.",
+  "deprecatedVersions": [
+    "0.3.2"
+  ],
+  "description": "",
   "designStyles": [
     {
       "affinity": "native",
@@ -13,7 +15,7 @@
   "displayName": "Code Block",
   "draft": "",
   "entry": "CodeBlock.tsx",
-  "latest": "0.3.2",
+  "latest": "0.3.3",
   "libraryId": "react-component-library:code-block",
   "tags": [
     "markdown",

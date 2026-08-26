@@ -6,8 +6,6 @@
  * @tags ["form","array","validation","responsive","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
-import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
-
 /** @vrooliComponentSource forms.array-field */
 import {
   useEffect,
@@ -18,8 +16,8 @@ import {
   type ReactElement,
   type ReactNode,
 } from "react";
-import { FormField } from "@vrooli/react-component-library/FormField/1.0.0";
-import type { FormStore } from "@vrooli/react-component-library/FormStore/1.0.0";
+import { FormField } from "../../../../components/FormField/versions/1.0.0/FormField";
+import type { FormStore } from "../../../../services/FormStore/versions/1.0.0/FormStore";
 
 export interface ArrayItemActions<TItem> {
   index: number;
@@ -89,7 +87,7 @@ function move<T>(items: T[], from: number, to: number) {
   return next;
 }
 
-export const ArrayField = withClassName(function ArrayField<
+export function ArrayField<
   TValues extends Record<string, unknown>,
   K extends keyof TValues,
   TItem = TValues[K] extends Array<infer T> ? T : never,
@@ -265,4 +263,4 @@ export const ArrayField = withClassName(function ArrayField<
       </div>
     </div>
   );
-});
+}

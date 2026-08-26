@@ -1,7 +1,9 @@
 {
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
-  "deprecatedVersions": [],
-  "description": "Mermaid diagram source preview with an expand seam.",
+  "deprecatedVersions": [
+    "0.3.1"
+  ],
+  "description": "",
   "designStyles": [
     {
       "affinity": "native",
@@ -12,7 +14,7 @@
   "displayName": "Mermaid Diagram",
   "draft": "",
   "entry": "MermaidDiagram.tsx",
-  "latest": "0.3.1",
+  "latest": "0.3.2",
   "libraryId": "react-component-library:mermaid-diagram",
   "tags": [
     "markdown",

@@ -12,9 +12,9 @@ import {
 import {
   AsyncBoundary,
   type AsyncBoundaryStatus,
-} from "@vrooli/react-component-library/AsyncBoundary/1.0.0";
-import { Table } from "@vrooli/react-component-library/Table/1.0.0";
-import { useSelectionStore } from "@vrooli/react-component-library/SelectionStore/1.0.0";
+} from "../../../AsyncBoundary/versions/1.0.0/AsyncBoundary";
+import { Table } from "../../../Table/versions/1.0.0/Table";
+import { useSelectionStore } from "../../../../services/SelectionStore/versions/1.0.0/SelectionStore";
 
 export interface DataTableColumn<Row> {
   id: string;

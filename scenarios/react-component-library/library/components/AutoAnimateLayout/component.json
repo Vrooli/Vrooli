@@ -12,7 +12,7 @@
       "version": "1.0.0"
     }
   ],
-  "description": "A keyed FLIP layout boundary that animates displacement without tweening layout properties.",
+  "description": "",
   "designStyles": [
     {
       "affinity": "native",
@@ -28,7 +28,7 @@
     }
   ],
   "displayName": "AutoAnimateLayout",
-  "latest": "1.0.0",
+  "latest": "1.0.1",
   "libraryId": "react-component-library:AutoAnimateLayout",
   "tags": [
     "motion",
@@ -41,5 +41,9 @@
       "libraryId": "react-component-library:useLocale",
       "version": "1.0.0"
     }
+  ],
+  "draft": "",
+  "deprecatedVersions": [
+    "1.0.0"
   ]
 }

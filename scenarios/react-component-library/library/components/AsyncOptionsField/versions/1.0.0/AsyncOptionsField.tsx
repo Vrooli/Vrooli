@@ -9,8 +9,8 @@ import {
   type CSSProperties,
   type KeyboardEvent,
 } from "react";
-import { useAbortableTask } from "@vrooli/react-component-library/useAbortableTask/1.0.0";
-import { useRetry } from "@vrooli/react-component-library/useRetry/1.0.0";
+import { useAbortableTask } from "../../../../hooks/useAbortableTask/versions/1.0.0/useAbortableTask";
+import { useRetry } from "../../../../hooks/useRetry/versions/1.0.0/useRetry";
 
 export interface AsyncOption {
   value: string;

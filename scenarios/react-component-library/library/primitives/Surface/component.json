@@ -3,7 +3,7 @@
   "assetKind": "primitive",
   "catalogId": "primitives.surface",
   "dependencies": [],
-  "description": "Surface maps the four elevation levels to the kit's elevation ramps.",
+  "description": "",
   "designStyles": [
     {
       "affinity": "native",
@@ -19,10 +19,14 @@
     }
   ],
   "displayName": "Surface",
-  "latest": "1.0.0",
+  "latest": "1.0.1",
   "libraryId": "react-component-library:Surface",
   "tags": [
     "primitive",
     "token-bound"
+  ],
+  "draft": "",
+  "deprecatedVersions": [
+    "1.0.0"
   ]
 }

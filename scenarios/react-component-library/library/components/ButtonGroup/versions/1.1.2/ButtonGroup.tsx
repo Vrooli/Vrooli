@@ -6,10 +6,8 @@
  * @tags ["control","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
-import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
-
 /** @vrooliComponentSource react-component-library:ButtonGroup */
-import { resolveStrings } from "@vrooli/react-component-library/useLocale/1.0.1";
+import { translate } from "../../../../hooks/useLocale/versions/1.0.1/useLocale";
 import type { ReactNode } from "react";
 import type { HTMLAttributes } from "react";
 
@@ -25,9 +23,9 @@ const styles = `
 export type ButtonGroupAlign = "start" | "center" | "end";
 export type ButtonGroupCollapse = "never" | "sm";
 
-export const ButtonGroup = withClassName(function ButtonGroup({
+export function ButtonGroup({
   children,
-  label = resolveStrings("controls.button-group.actions", "Actions"),
+  label = translate("controls.button-group.label.1", "Actions"),
   align = "start",
   collapse = "sm",
   className,
@@ -42,7 +40,7 @@ export const ButtonGroup = withClassName(function ButtonGroup({
   return (
     <>
       <style data-rcl-button-group-styles dangerouslySetInnerHTML={{ __html: styles }} />
-      <div data-testid="controls.button-group"
+      <div
         role="group"
         aria-label={label}
         data-rcl-button-group
@@ -56,4 +54,4 @@ export const ButtonGroup = withClassName(function ButtonGroup({
       </div>
     </>
   );
-});
+}

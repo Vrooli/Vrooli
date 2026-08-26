@@ -7,15 +7,15 @@
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
 /** @vrooliComponentSource controls.switch */
-import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
+import { withClassName } from "../../../../foundations/ClassMerge/versions/1.0.1/ClassMerge";
 
 import {
   SelectionControl,
   type SelectionControlProps,
-} from "@vrooli/react-component-library/SelectionControl/1.0.0";
+} from "../../../../primitives/SelectionControl/versions/1.0.0/SelectionControl";
 
 export type SwitchProps = Omit<SelectionControlProps, "kind">;
 
 export const Switch = withClassName(function Switch(props: SwitchProps) {
-  return <SelectionControl data-testid="controls.switch" {...props} kind="switch" />;
+  return <SelectionControl {...props} kind="switch" />;
 });

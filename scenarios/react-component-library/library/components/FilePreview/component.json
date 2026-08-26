@@ -3,7 +3,7 @@
   "assetKind": "component",
   "catalogId": "media.file-preview",
   "dependencies": [],
-  "description": "A safe, typed file summary with status, metadata, preview fallback, and keyboard-operable actions.",
+  "description": "",
   "designStyles": [
     {
       "affinity": "native",
@@ -19,7 +19,7 @@
     }
   ],
   "displayName": "FilePreview",
-  "latest": "1.0.1",
+  "latest": "1.0.2",
   "libraryId": "react-component-library:FilePreview",
   "tags": [
     "media",
@@ -29,5 +29,7 @@
     "token-bound"
   ],
   "draft": "",
-  "deprecatedVersions": []
+  "deprecatedVersions": [
+    "1.0.1"
+  ]
 }

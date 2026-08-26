@@ -4,13 +4,11 @@
  * @status released
  * @deps {"react":"^18"}
  */
-import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
-
 import type { Dispatch, SetStateAction } from "react";
 
 export type StoryPaletteItem = { id: string; label: string };
 
-export const StoryPalette = withClassName(function StoryPalette({
+export function StoryPalette({
   stories,
   selectedId,
   onSelect,
@@ -20,7 +18,7 @@ export const StoryPalette = withClassName(function StoryPalette({
   onSelect?: Dispatch<SetStateAction<string>> | ((id: string) => void);
 }) {
   return (
-    <nav data-testid="preview.story-palette" aria-label="Preview stories" data-story-palette>
+    <nav aria-label="Preview stories" data-story-palette>
       <div style={{ display: "flex", gap: "var(--space-3xs)", overflowX: "auto", paddingBlock: "var(--space-3xs)" }}>
         {stories.map((story) => {
           const selected = story.id === selectedId;
@@ -48,4 +46,4 @@ export const StoryPalette = withClassName(function StoryPalette({
       </div>
     </nav>
   );
-});
+}

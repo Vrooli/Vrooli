@@ -3,7 +3,7 @@
   "assetKind": "component",
   "catalogId": "primitives.relative-time",
   "dependencies": [],
-  "description": "A semantic time value that presents a concise relative label while preserving machine-readable date context.",
+  "description": "",
   "designStyles": [
     {
       "affinity": "native",
@@ -11,7 +11,7 @@
     }
   ],
   "displayName": "RelativeTime",
-  "latest": "1.0.2",
+  "latest": "1.0.3",
   "libraryId": "react-component-library:RelativeTime",
   "tags": [
     "primitive",
@@ -19,5 +19,7 @@
     "token-bound"
   ],
   "draft": "",
-  "deprecatedVersions": []
+  "deprecatedVersions": [
+    "1.0.2"
+  ]
 }

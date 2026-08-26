@@ -40,8 +40,10 @@
       "version": "1.0.0"
     }
   ],
-  "deprecatedVersions": [],
-  "description": "A collision-aware anchored surface with native focus, layered dismissal, responsive fallback, and a pointer-safe interaction boundary.",
+  "deprecatedVersions": [
+    "1.1.1"
+  ],
+  "description": "",
   "designStyles": [
     {
       "affinity": "native",
@@ -54,7 +56,7 @@
   ],
   "displayName": "Popover",
   "draft": "",
-  "latest": "1.1.1",
+  "latest": "1.1.2",
   "libraryId": "react-component-library:Popover",
   "slot": "ui-pattern",
   "tags": [

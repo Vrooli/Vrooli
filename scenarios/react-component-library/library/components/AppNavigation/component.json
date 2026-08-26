@@ -3,7 +3,7 @@
   "assetKind": "component",
   "catalogId": "navigation.app-navigation",
   "dependencies": [],
-  "description": "One composed navigation contract owning sidebar-to-drawer, modal-to-bottom-sheet, and header-to-bottom-navigation transformations.",
+  "description": "",
   "designStyles": [
     {
       "affinity": "native",
@@ -11,7 +11,7 @@
     }
   ],
   "displayName": "AppNavigation",
-  "latest": "1.1.4",
+  "latest": "1.1.5",
   "libraryId": "react-component-library:AppNavigation",
   "tags": [
     "navigation",
@@ -25,5 +25,7 @@
     }
   ],
   "draft": "",
-  "deprecatedVersions": []
+  "deprecatedVersions": [
+    "1.1.4"
+  ]
 }

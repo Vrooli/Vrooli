@@ -3,7 +3,7 @@
   "assetKind": "component",
   "catalogId": "navigation.top-bar",
   "dependencies": [],
-  "description": "A stable application header region that adapts its navigation affordances by viewport.",
+  "description": "",
   "designStyles": [
     {
       "affinity": "native",
@@ -11,7 +11,7 @@
     }
   ],
   "displayName": "TopBar",
-  "latest": "1.0.4",
+  "latest": "1.0.5",
   "libraryId": "react-component-library:TopBar",
   "tags": [
     "navigation",
@@ -25,5 +25,7 @@
     }
   ],
   "draft": "",
-  "deprecatedVersions": []
+  "deprecatedVersions": [
+    "1.0.4"
+  ]
 }

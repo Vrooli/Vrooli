@@ -7,14 +7,14 @@
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
 /** @vrooliComponentSource react-component-library:ErrorState */
-import { resolveStrings } from "@vrooli/react-component-library/useLocale/1.0.1";
-import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
+import { translate } from "../../../../hooks/useLocale/versions/1.0.1/useLocale";
+import { withClassName } from "../../../../foundations/ClassMerge/versions/1.0.1/ClassMerge";
 
 import type { ReactNode } from "react";
-import { AsyncBoundary } from "@vrooli/react-component-library/AsyncBoundary/1.0.0";
+import { AsyncBoundary } from "../../../AsyncBoundary/versions/1.0.0/AsyncBoundary";
 
 export const ErrorState = withClassName(function ErrorState({
-  title = resolveStrings("feedback.error-state.something-went-wrong", "Something went wrong"),
+  title = translate("feedback.error-state.title.1", "Something went wrong"),
   message = "The operation could not be completed.",
   onRetry,
   children,
@@ -25,7 +25,7 @@ export const ErrorState = withClassName(function ErrorState({
   children?: ReactNode;
 }) {
   return (
-    <AsyncBoundary data-testid="feedback.error-state" status="error" errorTitle={title} error={message} retry={onRetry}>
+    <AsyncBoundary status="error" errorTitle={title} error={message} retry={onRetry}>
       {children}
     </AsyncBoundary>
   );

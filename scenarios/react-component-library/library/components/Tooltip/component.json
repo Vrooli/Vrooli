@@ -1,7 +1,9 @@
 {
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
-  "deprecatedVersions": [],
-  "description": "A concise, accessible explanation attached to a focusable trigger.",
+  "deprecatedVersions": [
+    "1.0.1"
+  ],
+  "description": "",
   "designStyles": [
     {
       "affinity": "native",
@@ -13,7 +15,7 @@
   "catalogId": "overlays.tooltip",
   "draft": "",
   "entry": "Tooltip.tsx",
-  "latest": "1.0.1",
+  "latest": "1.0.2",
   "libraryId": "react-component-library:Tooltip",
   "tags": [
     "overlay",

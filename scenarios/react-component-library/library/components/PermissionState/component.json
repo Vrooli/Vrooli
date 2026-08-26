@@ -3,7 +3,7 @@
   "assetKind": "component",
   "catalogId": "feedback.permission-state",
   "dependencies": [],
-  "description": "A permission-aware state that gives the user a clear next action without exposing unauthorized content.",
+  "description": "",
   "designStyles": [
     {
       "affinity": "native",
@@ -11,7 +11,7 @@
     }
   ],
   "displayName": "PermissionState",
-  "latest": "1.0.4",
+  "latest": "1.0.5",
   "libraryId": "react-component-library:PermissionState",
   "tags": [
     "feedback",
@@ -25,5 +25,7 @@
     }
   ],
   "draft": "",
-  "deprecatedVersions": []
+  "deprecatedVersions": [
+    "1.0.4"
+  ]
 }

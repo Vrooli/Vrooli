@@ -6,22 +6,20 @@
  * @tags ["patterns","forms","async","recovery","conflict","responsive","accessibility","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
-import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
-
 /** @vrooliComponentSource patterns.editable-resource */
-import { resolveStrings } from "@vrooli/react-component-library/useLocale/1.0.1";
+import { translate } from "../../../../hooks/useLocale/versions/1.0.1/useLocale";
 import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from "react";
 import {
   ConflictResolutionFlow,
   type ConflictField,
-} from "@vrooli/react-component-library/ConflictResolutionFlow/1.0.0";
-import { Form } from "@vrooli/react-component-library/Form/1.0.0";
+} from "../../../ConflictResolutionFlow/versions/1.0.0/ConflictResolutionFlow";
+import { Form } from "../../../Form/versions/1.0.0/Form";
 import {
   ResourceDetail,
   type ResourceDetailEntry,
   type ResourceDetailStatus,
-} from "@vrooli/react-component-library/ResourceDetail/1.0.0";
-import { UnsavedChangesFlow } from "@vrooli/react-component-library/UnsavedChangesFlow/1.0.0";
+} from "../../../ResourceDetail/versions/1.0.0/ResourceDetail";
+import { UnsavedChangesFlow } from "../../../UnsavedChangesFlow/versions/1.0.0/UnsavedChangesFlow";
 
 export interface EditableResourceEditorState<T> {
   draft: T;
@@ -73,7 +71,7 @@ function same<T>(left: T, right: T) {
   }
 }
 
-export const EditableResource = withClassName(function EditableResource<T extends Record<string, unknown>>({
+export function EditableResource<T extends Record<string, unknown>>({
   record,
   title,
   description,
@@ -166,7 +164,7 @@ export const EditableResource = withClassName(function EditableResource<T extend
                 onClick={() => setEditing(true)}
                 disabled={editing || status === "offline" || status === "permission-denied"}
               >
-                {resolveStrings("patterns.editable-resource.edit", "Edit")}
+                {translate("patterns.editable-resource.text.1", "Edit")}
               </button>
             </div>
           }
@@ -177,8 +175,8 @@ export const EditableResource = withClassName(function EditableResource<T extend
                 <div data-rcl-editable-resource-editor-header>
                   <strong data-rcl-editable-resource-editor-title>Edit {title}</strong>
                   <span>
-                    {resolveStrings(
-                      "patterns.editable-resource.draft-changes-stay-local-until-you-save-span-div",
+                    {translate(
+                      "patterns.editable-resource.text.2",
                       "Draft changes stay local until you save.",
                     )}
                   </span>
@@ -194,7 +192,7 @@ export const EditableResource = withClassName(function EditableResource<T extend
                         onClick={cancel}
                         disabled={phase === "submitting"}
                       >
-                        {resolveStrings("patterns.editable-resource.cancel", "Cancel")}
+                        {translate("patterns.editable-resource.text.3", "Cancel")}
                       </button>
                       <button
                         data-testid="patterns.editable-resource"
@@ -216,4 +214,4 @@ export const EditableResource = withClassName(function EditableResource<T extend
       </UnsavedChangesFlow>
     </div>
   );
-});
+}

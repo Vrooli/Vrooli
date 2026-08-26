@@ -3,7 +3,7 @@
   "assetKind": "component",
   "catalogId": "templates.collection-page",
   "dependencies": [],
-  "description": "A collection template with URL-ready filtering, data-source-owned records, and recovery states.",
+  "description": "",
   "designStyles": [
     {
       "affinity": "native",
@@ -11,7 +11,7 @@
     }
   ],
   "displayName": "CollectionPage",
-  "latest": "1.0.3",
+  "latest": "1.0.4",
   "libraryId": "react-component-library:CollectionPage",
   "tags": [
     "template",
@@ -26,5 +26,7 @@
     }
   ],
   "draft": "",
-  "deprecatedVersions": []
+  "deprecatedVersions": [
+    "1.0.3"
+  ]
 }

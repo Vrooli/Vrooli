@@ -3,7 +3,7 @@
   "assetKind": "component",
   "catalogId": "forms.search-input",
   "dependencies": [],
-  "description": "A token-bound search field with a stable touch target and accessible label for progressive filtering.",
+  "description": "",
   "designStyles": [
     {
       "affinity": "native",
@@ -11,7 +11,7 @@
     }
   ],
   "displayName": "SearchInput",
-  "latest": "1.0.3",
+  "latest": "1.0.6",
   "libraryId": "react-component-library:SearchInput",
   "tags": [
     "form",
@@ -25,5 +25,8 @@
     }
   ],
   "draft": "",
-  "deprecatedVersions": []
+  "deprecatedVersions": [
+    "1.0.3",
+    "1.0.5"
+  ]
 }

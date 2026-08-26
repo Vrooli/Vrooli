@@ -12,7 +12,7 @@
       "version": "1.0.0"
     }
   ],
-  "description": "An adapter-driven attachment surface with independent upload, scanning, retry, cancellation, preview, removal, and offline states.",
+  "description": "",
   "designStyles": [
     {
       "affinity": "native",
@@ -28,7 +28,7 @@
     }
   ],
   "displayName": "AttachmentPreview",
-  "latest": "1.0.1",
+  "latest": "1.0.2",
   "libraryId": "react-component-library:AttachmentPreview",
   "tags": [
     "media",
@@ -40,5 +40,7 @@
     "token-bound"
   ],
   "draft": "",
-  "deprecatedVersions": []
+  "deprecatedVersions": [
+    "1.0.1"
+  ]
 }

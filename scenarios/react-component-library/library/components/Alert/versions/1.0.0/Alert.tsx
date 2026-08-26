@@ -1,8 +1,8 @@
 /** @vrooliComponentSource react-component-library:Alert */
 import { useId, type CSSProperties, type ReactNode } from "react";
-import { Icon } from "@vrooli/react-component-library/Icon/1.1.0";
-import { Stack } from "@vrooli/react-component-library/Stack/1.0.0";
-import { Text } from "@vrooli/react-component-library/Text/1.0.0";
+import { Icon } from "../../../../primitives/Icon/versions/1.0.0/Icon";
+import { Stack } from "../../../../primitives/Stack/versions/1.0.0/Stack";
+import { Text } from "../../../../primitives/Text/versions/1.0.0/Text";
 
 export type AlertTone = "info" | "success" | "warning" | "danger";
 

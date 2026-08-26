@@ -9,8 +9,10 @@
       "version": "1.0.0"
     }
   ],
-  "deprecatedVersions": [],
-  "description": "A token-bound pressed-state control composed over ControlBase with controlled state, native button semantics, and motion-safe feedback.",
+  "deprecatedVersions": [
+    "1.0.0"
+  ],
+  "description": "",
   "designStyles": [
     {
       "affinity": "native",
@@ -19,7 +21,7 @@
   ],
   "displayName": "Toggle",
   "draft": "",
-  "latest": "1.0.0",
+  "latest": "1.0.1",
   "libraryId": "react-component-library:Toggle",
   "slot": "ui-primitive",
   "tags": [

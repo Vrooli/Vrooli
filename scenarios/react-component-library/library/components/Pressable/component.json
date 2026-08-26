@@ -8,7 +8,7 @@
       "version": "1.0.0"
     }
   ],
-  "description": "The shared press contract for controls, with bounded tone, pending, focus, and touch-target behavior.",
+  "description": "",
   "designStyles": [
     {
       "affinity": "native",
@@ -16,11 +16,15 @@
     }
   ],
   "displayName": "Pressable",
-  "latest": "1.0.0",
+  "latest": "1.0.1",
   "libraryId": "react-component-library:Pressable",
   "tags": [
     "control",
     "interaction",
     "token-bound"
+  ],
+  "draft": "",
+  "deprecatedVersions": [
+    "1.0.0"
   ]
 }

@@ -1,6 +1,4 @@
 /** @vrooliComponentSource primitives.aspect-ratio */
-import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
-
 import type { CSSProperties, HTMLAttributes, ReactNode } from "react";
 
 const styles = `
@@ -14,33 +12,31 @@ export interface AspectRatioProps extends HTMLAttributes<HTMLDivElement> {
   contentStyle?: CSSProperties;
 }
 
-export const AspectRatio = withClassName(function AspectRatio({
+export function AspectRatio({
   children,
   contentStyle,
   ratio = "16 / 9",
   style,
   ...props
 }: AspectRatioProps) {
-  const frameStyle = { aspectRatio: ratio, ...style };
-  const innerStyle = { blockSize: "100%", inlineSize: "100%", ...contentStyle };
   return (
     <>
       <style
         data-rcl-aspect-ratio-styles
         dangerouslySetInnerHTML={{ __html: styles }}
       />
-      <div data-testid="primitives.aspect-ratio"
+      <div
         {...props}
         data-rcl-aspect-ratio
-        style={frameStyle}
+        style={{ aspectRatio: ratio, ...style }}
       >
         <div
           data-rcl-aspect-ratio-content
-          style={innerStyle}
+          style={{ blockSize: "100%", inlineSize: "100%", ...contentStyle }}
         >
           {children}
         </div>
       </div>
     </>
   );
-});
+}

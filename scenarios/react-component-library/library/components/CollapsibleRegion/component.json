@@ -3,7 +3,7 @@
   "assetKind": "component",
   "catalogId": "motion.collapsible-region",
   "dependencies": [],
-  "description": "A disclosure region that preserves accessible semantics while content enters and exits without clipping artifacts.",
+  "description": "",
   "designStyles": [
     {
       "affinity": "native",
@@ -11,7 +11,7 @@
     }
   ],
   "displayName": "CollapsibleRegion",
-  "latest": "1.0.2",
+  "latest": "1.0.3",
   "libraryId": "react-component-library:CollapsibleRegion",
   "tags": [
     "motion",
@@ -19,5 +19,7 @@
     "token-bound"
   ],
   "draft": "",
-  "deprecatedVersions": []
+  "deprecatedVersions": [
+    "1.0.2"
+  ]
 }

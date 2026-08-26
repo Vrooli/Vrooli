@@ -3,8 +3,11 @@
   "assetKind": "component",
   "catalogId": "controls.button-group",
   "dependencies": [],
-  "deprecatedVersions": [],
-  "description": "A grouped control surface that preserves touch targets and action spacing across responsive layouts.",
+  "deprecatedVersions": [
+    "1.1.2",
+    "1.1.4"
+  ],
+  "description": "",
   "designStyles": [
     {
       "affinity": "native",
@@ -13,7 +16,7 @@
   ],
   "displayName": "ButtonGroup",
   "draft": "",
-  "latest": "1.1.2",
+  "latest": "1.1.5",
   "libraryId": "react-component-library:ButtonGroup",
   "tags": [
     "control",

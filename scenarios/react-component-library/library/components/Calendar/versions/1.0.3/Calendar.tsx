@@ -6,14 +6,12 @@
  * @tags ["forms","calendar","date","accessibility","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
-import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
-
 /** @vrooliComponentSource forms.calendar */
-import { resolveStrings, useStrings } from "@vrooli/react-component-library/useLocale/1.0.1";
+import { translate } from "../../../../hooks/useLocale/versions/1.0.1/useLocale";
 import { useMemo, useState, type CSSProperties, type RefObject } from "react";
-import { useDirection } from "@vrooli/react-component-library/useDirection/1.0.0";
-import { useLocale } from "@vrooli/react-component-library/useLocale/1.0.0";
-import { useRovingFocus } from "@vrooli/react-component-library/useRovingFocus/1.0.0";
+import { useDirection } from "../../../../hooks/useDirection/versions/1.0.0/useDirection";
+import { useLocale } from "../../../../hooks/useLocale/versions/1.0.0/useLocale";
+import { useRovingFocus } from "../../../../hooks/useRovingFocus/versions/1.0.0/useRovingFocus";
 
 export type CalendarMode = "single" | "multiple" | "range" | "week" | "month";
 export type CalendarRange = { start: Date; end?: Date };
@@ -96,7 +94,7 @@ function isBetween(date: Date, start?: Date, end?: Date) {
   return Boolean(start && end && date >= startOfDay(start) && date <= startOfDay(end));
 }
 
-export const Calendar = withClassName(function Calendar({
+export function Calendar({
   month: controlledMonth,
   value,
   defaultValue = null,
@@ -105,13 +103,12 @@ export const Calendar = withClassName(function Calendar({
   maxDate,
   disabledDate,
   firstDayOfWeek = 0,
-  label = resolveStrings("forms.calendar.calendar", "Calendar"),
+  label = translate("forms.calendar.label.1", "Calendar"),
   onChange,
   onMonthChange,
   className,
   style,
 }: CalendarProps) {
-  const strings = useStrings();
   const locale = useLocale();
   const direction = useDirection();
   const initialMonth = asDate(value ?? defaultValue) ?? new Date();
@@ -207,12 +204,12 @@ export const Calendar = withClassName(function Calendar({
         </div>
         <nav
           data-rcl-calendar-nav
-          aria-label={strings("forms.calendar.calendar-navigation", "Calendar navigation")}
+          aria-label={translate("forms.calendar.aria-label.2", "Calendar navigation")}
         >
           <button
             data-testid="forms.calendar"
             type="button"
-            aria-label={strings("forms.calendar.previous-month", "Previous month")}
+            aria-label={translate("forms.calendar.aria-label.3", "Previous month")}
             onClick={() => updateMonth(-1)}
           >
             ‹
@@ -220,7 +217,7 @@ export const Calendar = withClassName(function Calendar({
           <button
             data-testid="forms.calendar"
             type="button"
-            aria-label={strings("forms.calendar.next-month", "Next month")}
+            aria-label={translate("forms.calendar.aria-label.4", "Next month")}
             onClick={() => updateMonth(1)}
           >
             ›
@@ -286,4 +283,4 @@ export const Calendar = withClassName(function Calendar({
       </footer>
     </section>
   );
-});
+}

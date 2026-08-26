@@ -6,9 +6,9 @@ export interface Finding {
   message: string;
   remediation?: string;
 }
-import { Surface } from "@vrooli/react-component-library/Surface/1.0.0";
-import { Stack } from "@vrooli/react-component-library/Stack/1.0.0";
-import { SURFACE_ELEVATIONS } from "@vrooli/react-component-library/VisualRecipes/1.0.0";
+import { Surface } from "../../../../primitives/Surface/versions/1.0.0/Surface";
+import { Stack } from "../../../../primitives/Stack/versions/1.0.0/Stack";
+import { SURFACE_ELEVATIONS } from "../../../../foundations/VisualRecipes/versions/1.0.0/VisualRecipes";
 export function FindingList({ findings = [] }: { findings?: Finding[] }) {
   return (
     <ul

@@ -3,7 +3,7 @@
   "assetKind": "component",
   "catalogId": "data-display.json-viewer",
   "dependencies": [],
-  "description": "A bounded structured-data viewer with readable overflow and machine-honest semantics.",
+  "description": "",
   "designStyles": [
     {
       "affinity": "native",
@@ -11,7 +11,7 @@
     }
   ],
   "displayName": "JsonViewer",
-  "latest": "1.0.4",
+  "latest": "1.0.5",
   "libraryId": "react-component-library:JsonViewer",
   "tags": [
     "data-display",
@@ -24,5 +24,7 @@
     }
   ],
   "draft": "",
-  "deprecatedVersions": []
+  "deprecatedVersions": [
+    "1.0.4"
+  ]
 }

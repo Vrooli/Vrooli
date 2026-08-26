@@ -6,19 +6,17 @@
  * @tags ["ai","approval","permission","accessibility","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
-import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
-
 /** @vrooliComponentSource ai.approval-prompt */
-import { resolveStrings, useStrings } from "@vrooli/react-component-library/useLocale/1.0.1";
+import { translate } from "../../../../hooks/useLocale/versions/1.0.1/useLocale";
 import { useEffect, useId, useMemo, useState, type CSSProperties, type ReactNode } from "react";
-import { Alert } from "@vrooli/react-component-library/Alert/1.0.0";
-import { Button } from "@vrooli/react-component-library/Button/2.0.0";
-import { ButtonGroup } from "@vrooli/react-component-library/ButtonGroup/1.0.0";
+import { Alert } from "../../../Alert/versions/1.0.0/Alert";
+import { Button } from "../../../Button/versions/2.0.0/Button";
+import { ButtonGroup } from "../../../ButtonGroup/versions/1.0.0/ButtonGroup";
 import {
   StatusIndicator,
   type StatusCertainty,
   type StatusUrgency,
-} from "@vrooli/react-component-library/StatusIndicator/1.0.0";
+} from "../../../StatusIndicator/versions/1.0.0/StatusIndicator";
 
 export type ApprovalPromptStatus =
   | "default"
@@ -116,11 +114,11 @@ function statusLabel(status: ApprovalPromptStatus) {
   return status === "retry" ? "Ready to retry" : "Awaiting decision";
 }
 
-export const ApprovalPrompt = withClassName(function ApprovalPrompt({
+export function ApprovalPrompt({
   action,
   target,
   scope,
-  title = resolveStrings("ai.approval-prompt.review-this-action", "Review this action"),
+  title = translate("ai.approval-prompt.title.1", "Review this action"),
   description,
   consequences,
   alternatives,
@@ -142,7 +140,6 @@ export const ApprovalPrompt = withClassName(function ApprovalPrompt({
   className,
   style,
 }: ApprovalPromptProps) {
-  const strings = useStrings();
   const titleId = useId();
   const descriptionId = useId();
   const [localStatus, setLocalStatus] = useState(defaultStatus);
@@ -183,29 +180,29 @@ export const ApprovalPrompt = withClassName(function ApprovalPrompt({
 
   const stateAlert =
     resolvedStatus === "success" ? (
-      <Alert data-testid="ai.approval-prompt"
+      <Alert
         tone="success"
-        title={strings("ai.approval-prompt.approval-recorded", "Approval recorded")}
-        description={strings(
-          "ai.approval-prompt.the-requested-action-is-now-authorized-within-th",
+        title={translate("ai.approval-prompt.title.2", "Approval recorded")}
+        description={translate(
+          "ai.approval-prompt.description.3",
           "The requested action is now authorized within the scope above.",
         )}
       />
     ) : resolvedStatus === "request-error" ? (
       <Alert
         tone="danger"
-        title={strings("ai.approval-prompt.approval-could-not-be-recorded", "Approval could not be recorded")}
-        description={strings(
-          "ai.approval-prompt.nothing-was-authorized-you-can-retry-without-cha",
+        title={translate("ai.approval-prompt.title.4", "Approval could not be recorded")}
+        description={translate(
+          "ai.approval-prompt.description.5",
           "Nothing was authorized. You can retry without changing the requested scope.",
         )}
       />
     ) : resolvedStatus === "permission-denied" ? (
       <Alert
         tone="warning"
-        title={strings("ai.approval-prompt.permission-was-not-granted", "Permission was not granted")}
-        description={strings(
-          "ai.approval-prompt.your-role-cannot-approve-this-action-request-acc",
+        title={translate("ai.approval-prompt.title.6", "Permission was not granted")}
+        description={translate(
+          "ai.approval-prompt.description.7",
           "Your role cannot approve this action. Request access or return to the conversation.",
         )}
       />
@@ -234,7 +231,7 @@ export const ApprovalPrompt = withClassName(function ApprovalPrompt({
           }}
         >
           <span data-rcl-approval-eyebrow>
-            {strings("ai.approval-prompt.permission-request", "Permission request")}
+            {translate("ai.approval-prompt.text.1", "Permission request")}
           </span>
           <StatusIndicator
             status={statusSignal(resolvedStatus)}
@@ -255,15 +252,15 @@ export const ApprovalPrompt = withClassName(function ApprovalPrompt({
 
       <dl data-rcl-approval-facts>
         <div data-rcl-approval-fact>
-          <dt>{strings("ai.approval-prompt.action", "Action")}</dt>
+          <dt>{translate("ai.approval-prompt.text.2", "Action")}</dt>
           <dd>{action}</dd>
         </div>
         <div data-rcl-approval-fact>
-          <dt>{strings("ai.approval-prompt.target", "Target")}</dt>
+          <dt>{translate("ai.approval-prompt.text.3", "Target")}</dt>
           <dd>{target}</dd>
         </div>
         <div data-rcl-approval-fact>
-          <dt>{strings("ai.approval-prompt.expiry", "Expiry")}</dt>
+          <dt>{translate("ai.approval-prompt.text.4", "Expiry")}</dt>
           <dd data-rcl-approval-expiry data-expired={expired || undefined}>
             {expiryText ?? "No expiry set"}
           </dd>
@@ -273,7 +270,7 @@ export const ApprovalPrompt = withClassName(function ApprovalPrompt({
       {consequences ? (
         <section data-rcl-approval-section aria-labelledby={`${titleId}-consequences`}>
           <h3 id={`${titleId}-consequences`}>
-            {strings("ai.approval-prompt.what-happens-next", "What happens next")}
+            {translate("ai.approval-prompt.text.5", "What happens next")}
           </h3>
           {typeof consequences === "string" ? <p>{consequences}</p> : consequences}
         </section>
@@ -281,7 +278,7 @@ export const ApprovalPrompt = withClassName(function ApprovalPrompt({
       {alternatives ? (
         <section data-rcl-approval-section aria-labelledby={`${titleId}-alternatives`}>
           <h3 id={`${titleId}-alternatives`}>
-            {strings("ai.approval-prompt.alternatives", "Alternatives")}
+            {translate("ai.approval-prompt.text.6", "Alternatives")}
           </h3>
           {typeof alternatives === "string" ? <p>{alternatives}</p> : alternatives}
         </section>
@@ -289,12 +286,12 @@ export const ApprovalPrompt = withClassName(function ApprovalPrompt({
 
       <div data-rcl-approval-consent>
         <span data-rcl-approval-consent-label>
-          {strings("ai.approval-prompt.confirm-the-exact-scope", "Confirm the exact scope")}
+          {translate("ai.approval-prompt.text.7", "Confirm the exact scope")}
         </span>
         <p data-rcl-approval-consent-line>
-          {strings("ai.approval-prompt.approve", "Approve")}
+          {translate("ai.approval-prompt.text.8", "Approve")}
           <strong>{action}</strong>
-          {strings("ai.approval-prompt.for", "for")}
+          {translate("ai.approval-prompt.text.9", "for")}
           <strong>{target}</strong> within <strong>{scope}</strong>.
         </p>
       </div>
@@ -303,7 +300,7 @@ export const ApprovalPrompt = withClassName(function ApprovalPrompt({
 
       {resolvedStatus !== "success" ? (
         <ButtonGroup
-          label={strings("ai.approval-prompt.approval-actions", "Approval actions")}
+          label={translate("ai.approval-prompt.label.8", "Approval actions")}
           data-rcl-approval-actions
         >
           <Button
@@ -336,4 +333,4 @@ export const ApprovalPrompt = withClassName(function ApprovalPrompt({
       ) : null}
     </section>
   );
-});
+}

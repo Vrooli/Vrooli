@@ -170,6 +170,27 @@ func TestModule_HarnessAcceptsLibraryID(t *testing.T) {
 	require.Contains(t, rec.Body.String(), `name="component-id" content="react-component-library:Button"`)
 }
 
+func TestModule_HarnessUnknownStoryNamesDeclaredIDs(t *testing.T) {
+	r, root := setupModule(t)
+	writeButtonManifest(t, root, buttonTSX)
+	storyPath := filepath.Join(root, "components", "Button", "versions", "1.0.0", "story.json")
+	require.NoError(t, os.WriteFile(storyPath, []byte(`{
+  "schemaVersion": 5,
+  "kind": "component",
+  "args": {"fields": []},
+  "environment": {"fixtures": []},
+  "stories": [{"id": "default", "name": "Default", "args": {}}]
+}`), 0o600))
+	rw := callConnect(r, componentsconnect.ComponentsServiceIndexComponentsProcedure, `{}`)
+	require.Equal(t, http.StatusOK, rw.Code, rw.Body.String())
+
+	req := httptest.NewRequest(http.MethodGet, "/preview/react-component-library:Button/harness.html?story=missing", nil)
+	rec := httptest.NewRecorder()
+	r.ServeHTTP(rec, req)
+	require.Equal(t, http.StatusNotFound, rec.Code, rec.Body.String())
+	require.Contains(t, rec.Body.String(), `declared ids: default`)
+}
+
 func TestModule_RuntimeReactServesVendoredESM(t *testing.T) {
 	r, _ := setupModule(t)
 	req, _ := http.NewRequest(http.MethodGet, "/preview/runtime/react@18.3.1/index.js", nil)

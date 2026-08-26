@@ -17,8 +17,11 @@
       "version": "1.0.0"
     }
   ],
-  "deprecatedVersions": [],
-  "description": "A compact tokenized transition family composed from Presence and MotionPrimitive.",
+  "deprecatedVersions": [
+    "1.0.2",
+    "1.0.4"
+  ],
+  "description": "",
   "designStyles": [
     {
       "affinity": "native",
@@ -35,7 +38,7 @@
   ],
   "displayName": "Transition",
   "draft": "",
-  "latest": "1.0.2",
+  "latest": "1.0.5",
   "libraryId": "react-component-library:Transition",
   "slot": "ui-primitive",
   "tags": [

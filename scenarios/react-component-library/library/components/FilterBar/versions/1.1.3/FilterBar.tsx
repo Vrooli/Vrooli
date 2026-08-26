@@ -6,14 +6,12 @@
  * @tags ["data-display","form","token-bound","responsive","keyboard"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
-import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
-
 /** @vrooliComponentSource react-component-library:FilterBar */
-import { useStrings } from "@vrooli/react-component-library/useLocale/1.0.1";
+import { translate } from "../../../../hooks/useLocale/versions/1.0.1/useLocale";
 import { useState, type FormEvent } from "react";
-import { Chip } from "@vrooli/react-component-library/Chip/1.0.0";
-import { SearchInput } from "@vrooli/react-component-library/SearchInput/1.0.0";
-import { Cluster } from "@vrooli/react-component-library/Cluster/1.0.0";
+import { Chip } from "../../../Chip/versions/1.0.0/Chip";
+import { SearchInput } from "../../../SearchInput/versions/1.0.0/SearchInput";
+import { Cluster } from "../../../../primitives/Cluster/versions/1.0.0/Cluster";
 
 export interface FilterOption {
   id: string;
@@ -58,7 +56,7 @@ const filterBarStyles = `
 @media (forced-colors: active) { .rcl-filter-bar, .rcl-filter-bar__button { border-color: CanvasText; background: Canvas; color: CanvasText; box-shadow: none; } .rcl-filter-bar__button--primary { background: Highlight; color: HighlightText; } }
 `;
 
-export const FilterBar = withClassName(function FilterBar({
+export function FilterBar({
   query,
   defaultQuery = "",
   onQueryChange,
@@ -72,7 +70,6 @@ export const FilterBar = withClassName(function FilterBar({
   applyLabel = "Apply filters",
   resetLabel = "Reset",
 }: FilterBarProps) {
-  const strings = useStrings();
   const isQueryControlled = query !== undefined;
   const isFiltersControlled = activeFilterIds !== undefined;
   const [localQuery, setLocalQuery] = useLocalState(defaultQuery);
@@ -123,7 +120,7 @@ export const FilterBar = withClassName(function FilterBar({
           <div className="rcl-filter-bar__query">
             <SearchInput
               aria-label={queryLabel}
-              placeholder={strings("data-display.filter-bar.search-records", "Search records")}
+              placeholder={translate("data-display.filter-bar.placeholder.1", "Search records")}
               value={resolvedQuery}
               onChange={(event) => setQuery(event.target.value)}
               style={{ width: "100%" }}
@@ -150,11 +147,11 @@ export const FilterBar = withClassName(function FilterBar({
         {options.length > 0 && (
           <fieldset style={{ border: 0, margin: 0, padding: 0 }}>
             <legend className="rcl-filter-bar__legend">
-              {strings("data-display.filter-bar.filter-by-status", "Filter by status")}
+              {translate("data-display.filter-bar.text.1", "Filter by status")}
             </legend>
             <Cluster
               gap="xs"
-              aria-label={strings("data-display.filter-bar.available-filters", "Available filters")}
+              aria-label={translate("data-display.filter-bar.aria-label.2", "Available filters")}
               role="group"
             >
               {options.map((option) => (
@@ -181,7 +178,7 @@ export const FilterBar = withClassName(function FilterBar({
       </form>
     </>
   );
-});
+}
 
 function useLocalState<T>(initialValue: T): [T, (next: T) => void] {
   const [value, setValue] = useState(initialValue);

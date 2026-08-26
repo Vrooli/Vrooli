@@ -1,0 +1,92 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-component",
+  "schemaVersion": "1.1.0",
+  "contract": {
+    "kind": "rcl-component-experience-contract",
+    "schema": "scenario-experience-spec/v1",
+    "provenance": "react-component-library:ExperienceSurface@1.0.0"
+  },
+  "component": {
+    "id": "experience-surface",
+    "title": "Experience Surface",
+    "purpose": "Expose the lifecycle of an independently meaningful rendered region without imposing layout or visual presentation.",
+    "storyRef": "./story.json"
+  },
+  "states": [
+    {
+      "id": "loading",
+      "example": "loading",
+      "description": "The surface is waiting for required work and announces progress."
+    },
+    {
+      "id": "ready",
+      "example": "ready",
+      "description": "The surface has usable primary content."
+    },
+    {
+      "id": "empty",
+      "example": "empty",
+      "description": "The surface completed successfully with no applicable content."
+    },
+    {
+      "id": "partial",
+      "example": "partial",
+      "description": "The primary task remains usable while supporting data is unavailable."
+    },
+    {
+      "id": "error",
+      "example": "error",
+      "description": "The surface reached a terminal failure and announces it accessibly."
+    },
+    {
+      "id": "static",
+      "example": "static",
+      "description": "The surface has no asynchronous lifecycle requirement."
+    }
+  ],
+  "elements": [
+    {
+      "id": "surface",
+      "role": "region",
+      "description": "The semantic lifecycle surface."
+    },
+    {
+      "id": "status",
+      "role": "status",
+      "description": "The polite lifecycle announcement when present."
+    }
+  ],
+  "claims": [
+    {
+      "id": "stable-surface-identity",
+      "type": "manual-review",
+      "statement": "Every example exposes its stable surface identity and lifecycle state through the component's machine-readable attributes.",
+      "tier": "manual",
+      "elements": ["surface"],
+      "states": ["loading", "ready", "empty", "partial", "error", "static"]
+    },
+    {
+      "id": "loading-busy-state",
+      "type": "manual-review",
+      "statement": "Loading examples expose aria-busy=true on the semantic surface.",
+      "tier": "manual",
+      "elements": ["surface"],
+      "states": ["loading"]
+    },
+    {
+      "id": "live-terminal-status",
+      "type": "element-present",
+      "statement": "Loading, partial, and error examples expose a polite status announcement when a status message is supplied.",
+      "tier": "machine",
+      "elements": ["status"],
+      "states": ["loading", "partial", "error"]
+    }
+  ],
+  "bindings": {
+    "elements": {
+      "surface": { "selector": "section" },
+      "status": { "selector": "[role='status']" }
+    }
+  }
+}

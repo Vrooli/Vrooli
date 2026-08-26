@@ -6,14 +6,12 @@
  * @tags ["identity","media","accessibility","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
-import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
-
 /** @vrooliComponentSource primitives.avatar */
-import { resolveStrings } from "@vrooli/react-component-library/useLocale/1.0.1";
+import { translate } from "../../../../hooks/useLocale/versions/1.0.1/useLocale";
 import { Children, useMemo, type CSSProperties, type ReactNode } from "react";
-import { ProgressiveImage } from "@vrooli/react-component-library/ProgressiveImage/1.1.0";
-import { Presence } from "@vrooli/react-component-library/Presence/1.0.0";
-import { Text } from "@vrooli/react-component-library/Text/1.0.0";
+import { ProgressiveImage } from "../../../../primitives/ProgressiveImage/versions/1.1.0/ProgressiveImage";
+import { Presence } from "../../../../primitives/Presence/versions/1.0.0/Presence";
+import { Text } from "../../../../primitives/Text/versions/1.1.0/Text";
 
 export type AvatarSize = "xs" | "sm" | "md" | "lg" | "xl";
 export type AvatarShape = "circle" | "rounded" | "square";
@@ -71,7 +69,7 @@ function initials(name: string) {
     .join("");
 }
 
-export const Avatar = withClassName(function Avatar({
+export function Avatar({
   name,
   src,
   alt = `${name} avatar`,
@@ -87,7 +85,7 @@ export const Avatar = withClassName(function Avatar({
 }: AvatarProps) {
   const fallback = useMemo(() => initials(name), [name]);
   const accessiblePresence = presenceLabel ?? `${name} is ${presence ?? "offline"}`;
-  const resolvedPlaceholder = placeholder ?? <span data-testid="primitives.avatar" aria-hidden="true" />;
+  const resolvedPlaceholder = placeholder ?? <span aria-hidden="true" />;
   return (
     <>
       <style data-rcl-avatar-styles dangerouslySetInnerHTML={{ __html: styles }} />
@@ -137,7 +135,7 @@ export const Avatar = withClassName(function Avatar({
       </span>
     </>
   );
-});
+}
 
 export interface AvatarGroupProps {
   children: ReactNode;
@@ -147,11 +145,11 @@ export interface AvatarGroupProps {
   className?: string;
 }
 
-export const AvatarGroup = withClassName(function AvatarGroup({
+export function AvatarGroup({
   children,
   maxVisible,
   overflowLabel = (count) => `+${count} more people`,
-  label = resolveStrings("primitives.avatar.people", "People"),
+  label = translate("primitives.avatar.label.1", "People"),
   className,
 }: AvatarGroupProps) {
   const items = Children.toArray(children);
@@ -176,6 +174,6 @@ export const AvatarGroup = withClassName(function AvatarGroup({
       </div>
     </>
   );
-});
+}
 
 export const AvatarParts = { Group: AvatarGroup };

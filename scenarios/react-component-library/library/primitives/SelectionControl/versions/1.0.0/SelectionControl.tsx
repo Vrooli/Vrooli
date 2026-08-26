@@ -1,6 +1,4 @@
 /** @vrooliComponentSource primitives.selection-control */
-import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
-
 import {
   useEffect,
   useId,
@@ -155,7 +153,7 @@ function SelectionStyles() {
   );
 }
 
-export const SelectionControl = withClassName(function SelectionControl({
+export function SelectionControl({
   kind,
   label,
   description,
@@ -193,7 +191,7 @@ export const SelectionControl = withClassName(function SelectionControl({
 
   return (
     <>
-      <SelectionStyles data-testid="primitives.selection-control" />
+      <SelectionStyles />
       <label
         data-rcl-selection-row
         data-kind={kind}
@@ -241,4 +239,4 @@ export const SelectionControl = withClassName(function SelectionControl({
       </label>
     </>
   );
-});
+}

@@ -20,7 +20,7 @@
       "version": "1.0.0"
     }
   ],
-  "description": "A recoverable create-or-edit workflow with loading, validation, submission, server mapping, offline behavior, and next-step navigation.",
+  "description": "",
   "designStyles": [
     {
       "affinity": "native",
@@ -36,7 +36,7 @@
     }
   ],
   "displayName": "AsyncFormFlow",
-  "latest": "1.0.3",
+  "latest": "1.0.6",
   "libraryId": "react-component-library:AsyncFormFlow",
   "tags": [
     "forms",
@@ -54,5 +54,8 @@
     }
   ],
   "draft": "",
-  "deprecatedVersions": []
+  "deprecatedVersions": [
+    "1.0.3",
+    "1.0.5"
+  ]
 }

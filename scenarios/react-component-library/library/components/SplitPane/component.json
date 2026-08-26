@@ -3,7 +3,7 @@
   "assetKind": "component",
   "catalogId": "manipulation.split-pane",
   "dependencies": [],
-  "description": "A two-region workspace layout with stable pane geometry and a shared responsive composition contract.",
+  "description": "",
   "designStyles": [
     {
       "affinity": "native",
@@ -11,7 +11,7 @@
     }
   ],
   "displayName": "SplitPane",
-  "latest": "1.1.2",
+  "latest": "1.1.5",
   "libraryId": "react-component-library:SplitPane",
   "tags": [
     "layout",
@@ -19,5 +19,8 @@
     "token-bound"
   ],
   "draft": "",
-  "deprecatedVersions": []
+  "deprecatedVersions": [
+    "1.1.2",
+    "1.1.4"
+  ]
 }

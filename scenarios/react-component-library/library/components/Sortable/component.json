@@ -24,7 +24,7 @@
       "version": "1.0.0"
     }
   ],
-  "description": "A keyboard and pointer reorder surface with optimistic persistence, animated displacement, announcements, and rollback.",
+  "description": "",
   "designStyles": [
     {
       "affinity": "native",
@@ -40,7 +40,7 @@
     }
   ],
   "displayName": "Sortable",
-  "latest": "1.0.3",
+  "latest": "1.0.6",
   "libraryId": "react-component-library:Sortable",
   "tags": [
     "manipulation",
@@ -58,5 +58,8 @@
     }
   ],
   "draft": "",
-  "deprecatedVersions": []
+  "deprecatedVersions": [
+    "1.0.3",
+    "1.0.5"
+  ]
 }

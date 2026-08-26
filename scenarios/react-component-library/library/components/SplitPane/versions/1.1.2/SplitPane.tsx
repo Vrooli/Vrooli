@@ -7,7 +7,7 @@
  * @deps {"react":"^18"}
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
-import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
+import { withClassName } from "../../../../foundations/ClassMerge/versions/1.0.1/ClassMerge";
 
 import type { ReactNode } from "react";
 
@@ -19,7 +19,7 @@ export const SplitPane = withClassName(function SplitPane({
   secondary?: ReactNode;
 }) {
   return (
-    <div data-testid="manipulation.split-pane"
+    <div
       data-split-pane
       style={{
         display: "grid",

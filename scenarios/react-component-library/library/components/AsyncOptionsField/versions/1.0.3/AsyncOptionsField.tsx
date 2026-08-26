@@ -6,10 +6,8 @@
  * @tags ["forms","async","combobox","accessibility","responsive","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
-import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
-
 /** @vrooliComponentSource forms.async-options-field */
-import { resolveStrings, useStrings } from "@vrooli/react-component-library/useLocale/1.0.1";
+import { translate } from "../../../../hooks/useLocale/versions/1.0.1/useLocale";
 import {
   useCallback,
   useEffect,
@@ -20,8 +18,8 @@ import {
   type CSSProperties,
   type KeyboardEvent,
 } from "react";
-import { useAbortableTask } from "@vrooli/react-component-library/useAbortableTask/1.0.0";
-import { useRetry } from "@vrooli/react-component-library/useRetry/1.0.0";
+import { useAbortableTask } from "../../../../hooks/useAbortableTask/versions/1.0.0/useAbortableTask";
+import { useRetry } from "../../../../hooks/useRetry/versions/1.0.0/useRetry";
 
 export interface AsyncOption {
   value: string;
@@ -120,14 +118,14 @@ function isAbortError(error: unknown) {
   return error instanceof DOMException && error.name === "AbortError";
 }
 
-export const AsyncOptionsField = withClassName(function AsyncOptionsField({
+export function AsyncOptionsField({
   label,
   loadOptions,
   value,
   defaultValue = "",
   onChange,
   description,
-  placeholder = resolveStrings("forms.async-options-field.search-or-choose-an-option", "Search or choose an option"),
+  placeholder = translate("forms.async-options-field.placeholder.1", "Search or choose an option"),
   emptyText = "No matches yet",
   loadingText = "Finding matches…",
   errorText = "We couldn’t load these options.",
@@ -146,7 +144,6 @@ export const AsyncOptionsField = withClassName(function AsyncOptionsField({
   style,
   offline = false,
 }: AsyncOptionsFieldProps) {
-  const strings = useStrings();
   const generatedID = useId();
   const inputID = id ?? `async-options-${generatedID.replace(/:/g, "")}`;
   const listID = `${inputID}-list`;
@@ -393,7 +390,7 @@ export const AsyncOptionsField = withClassName(function AsyncOptionsField({
                   data-rcl-async-options-more
                   onClick={() => request(nextPage, false)}
                 >
-                  {strings("forms.async-options-field.load-more", "Load more")}
+                  {translate("forms.async-options-field.text.1", "Load more")}
                 </button>
               )}
             </div>
@@ -402,4 +399,4 @@ export const AsyncOptionsField = withClassName(function AsyncOptionsField({
       )}
     </div>
   );
-});
+}

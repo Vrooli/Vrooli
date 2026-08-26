@@ -1,11 +1,11 @@
 /** @vrooliComponentSource react-component-library:OverlayCanvas */
-import { Stack } from "@vrooli/react-component-library/Stack/1.0.0";
-import { Text } from "@vrooli/react-component-library/Text/1.0.0";
+import { Stack } from "../../../../primitives/Stack/versions/1.0.0/Stack";
+import { Text } from "../../../../primitives/Text/versions/1.0.0/Text";
 import {
   CONTROL_VARIANTS,
   CONTROL_SIZES,
   SURFACE_ELEVATIONS,
-} from "@vrooli/react-component-library/VisualRecipes/1.0.0";
+} from "../../../../foundations/VisualRecipes/versions/1.0.0/VisualRecipes";
 export interface OverlaySubject {
   id: string;
   label: string;

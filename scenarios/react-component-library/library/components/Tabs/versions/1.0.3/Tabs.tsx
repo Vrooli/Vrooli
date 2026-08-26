@@ -7,7 +7,7 @@
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
 /** @vrooliComponentSource navigation.tabs */
-import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
+import { withClassName } from "../../../../foundations/ClassMerge/versions/1.0.1/ClassMerge";
 
 import {
   useLayoutEffect,
@@ -17,7 +17,7 @@ import {
   type KeyboardEvent,
   type ReactNode,
 } from "react";
-import { motionTransition } from "@vrooli/react-component-library/VisualRecipes/1.0.0";
+import { motionTransition } from "../../../../foundations/VisualRecipes/versions/1.0.0/VisualRecipes";
 
 export type TabsMode = "controlled" | "uncontrolled";
 

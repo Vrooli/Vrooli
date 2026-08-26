@@ -3,6 +3,7 @@ package componenttests
 import (
 	"testing"
 
+	"react-component-library/internal/catalogvalidate"
 	domain "react-component-library/internal/componenttests"
 
 	"github.com/stretchr/testify/require"
@@ -47,13 +48,21 @@ func TestComponentValidationWorkersLeaveBASSessionHeadroom(t *testing.T) {
 	require.Greater(t, componentValidationWorkers, 0)
 }
 
-func TestHasReusablePassedReportRequiresExactImmutableClosure(t *testing.T) {
+func TestHasReusableReportRequiresExactImmutableClosureAndNonBlockedVerdict(t *testing.T) {
 	reports := []domain.Report{
 		{RootLibraryID: "rcl:Card", RootVersion: "1.2.0", IncludeClosure: false, Verdict: domain.VerdictPassed},
 		{RootLibraryID: "rcl:Card", RootVersion: "1.1.0", IncludeClosure: true, Verdict: domain.VerdictPassed},
 		{RootLibraryID: "rcl:Card", RootVersion: "1.2.0", IncludeClosure: true, Verdict: domain.VerdictFailed},
 	}
-	require.False(t, hasReusablePassedReport(reports, "rcl:Card", "1.2.0"))
-	reports = append(reports, domain.Report{RootLibraryID: "rcl:Card", RootVersion: "1.2.0", IncludeClosure: true, Verdict: domain.VerdictPassed})
-	require.True(t, hasReusablePassedReport(reports, "rcl:Card", "1.2.0"))
+	require.True(t, hasReusableReport(reports, "rcl:Card", "1.2.0"))
+	reports = append(reports, domain.Report{RootLibraryID: "rcl:Card", RootVersion: "1.2.0", IncludeClosure: true, Verdict: domain.VerdictFailed})
+	require.True(t, hasReusableReport(reports, "rcl:Card", "1.2.0"))
+	require.False(t, hasReusableReport([]domain.Report{{RootLibraryID: "rcl:Card", RootVersion: "1.2.0", IncludeClosure: true, Verdict: domain.VerdictBlocked}}, "rcl:Card", "1.2.0"))
+}
+
+func TestGeneratedFixtureIsSkippedOnlyForCleanUnchangedSelections(t *testing.T) {
+	require.True(t, shouldSkipGeneratedFixture(221, 221, nil, nil))
+	require.False(t, shouldSkipGeneratedFixture(221, 220, nil, nil))
+	require.False(t, shouldSkipGeneratedFixture(221, 221, []catalogvalidate.Finding{{Message: "changed"}}, nil))
+	require.False(t, shouldSkipGeneratedFixture(221, 221, nil, []assetValidationResult{{failed: true}}))
 }

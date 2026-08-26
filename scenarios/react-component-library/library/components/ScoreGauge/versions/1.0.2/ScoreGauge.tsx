@@ -7,7 +7,7 @@
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
 /** @vrooliComponentSource react-component-library:ScoreGauge */
-import { BoundedMeter } from "@vrooli/react-component-library/BoundedMeter/1.0.2";
+import { BoundedMeter } from "../../../BoundedMeter/versions/1.0.1/BoundedMeter";
 
 export interface ScoreGaugeProps {
   value?: number;

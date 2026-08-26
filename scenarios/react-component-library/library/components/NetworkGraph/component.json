@@ -3,7 +3,7 @@
   "assetKind": "component",
   "catalogId": "visualization.network-graph",
   "dependencies": [],
-  "description": "A canvas-rendered dependency graph with a keyboard-accessible node list.",
+  "description": "",
   "designStyles": [
     {
       "affinity": "native",
@@ -11,7 +11,7 @@
     }
   ],
   "displayName": "NetworkGraph",
-  "latest": "1.0.3",
+  "latest": "1.0.4",
   "libraryId": "react-component-library:NetworkGraph",
   "tags": [
     "visualization",
@@ -24,5 +24,7 @@
     }
   ],
   "draft": "",
-  "deprecatedVersions": []
+  "deprecatedVersions": [
+    "1.0.3"
+  ]
 }

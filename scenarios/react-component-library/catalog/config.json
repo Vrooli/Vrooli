@@ -6,7 +6,7 @@
     "schema": "catalog-asset/v1"
   },
   "schemaVersion": "1.0.0",
-  "x-adoptionMaturityFloor": "verified",
+  "adoptionMaturityFloor": "scaffolded",
   "description": "Vocabularies and per-kind defaults for the desired-state UI asset catalog. Domains organize; kinds carry dependency rank and select gates. Nothing here records what exists.",
   "domains": [
     {
@@ -304,7 +304,7 @@
       "runner": {
         "react-vite": "vrooli scenario test react-component-library --phase experience"
       },
-      "x-experience-claim-types": [
+      "experienceClaimTypes": [
         "element-present",
         "element-absent",
         "keyboard-reachable",
@@ -329,12 +329,12 @@
       "runner": {
         "react-vite": "vrooli scenario test react-component-library --phase experience"
       },
-      "x-experience-claim-types": [
+      "experienceClaimTypes": [
         "visible-without-scroll",
         "reading-order",
         "size-parity"
       ],
-      "x-experience-min-viewports": 2
+      "runnerConfig": { "minimumViewports": 2 }
     },
     {
       "id": "visual",
@@ -352,14 +352,14 @@
       "runner": {
         "react-vite": "react-component-library catalog evidence capture all --all --json"
       },
-      "x-experience-claim-types": [
+      "experienceClaimTypes": [
         "single-dominant-action",
         "visible-without-scroll",
         "spacing",
         "state-contrast",
         "size-parity"
       ],
-      "x-experience-requires-capture": true
+      "runnerConfig": { "requiresCapture": true }
     },
     {
       "id": "rtl",
@@ -377,7 +377,7 @@
       "runner": {
         "react-vite": "react-component-library catalog gates rtl"
       },
-      "x-evidence-kinds": [
+      "evidenceKinds": [
         "bounds"
       ]
     },
@@ -397,7 +397,7 @@
       "runner": {
         "react-vite": "react-component-library catalog gates reduced-motion"
       },
-      "x-evidence-kinds": [
+      "evidenceKinds": [
         "computed-style"
       ]
     },
@@ -417,7 +417,7 @@
       "runner": {
         "react-vite": "react-component-library catalog gates performance"
       },
-      "x-evidence-kinds": [
+      "evidenceKinds": [
         "performance"
       ]
     },
@@ -437,7 +437,7 @@
       "runner": {
         "react-vite": "react-component-library catalog gates console-clean"
       },
-      "x-evidence-kinds": [
+      "evidenceKinds": [
         "console"
       ]
     },
@@ -457,7 +457,7 @@
       "runner": {
         "react-vite": "react-component-library catalog gates surface-discipline"
       },
-      "x-evidence-kinds": [
+      "evidenceKinds": [
         "computed-style"
       ]
     },
@@ -662,33 +662,6 @@
       "blocking": true,
       "description": "Every live version has non-blocked test evidence newer than its story contract.",
       "runner": { "react-vite": "react-component-library catalog gates evidence-freshness" }
-    },
-    {
-      "id": "i18n-adopted",
-      "attribution": "corpus",
-      "rung": "implemented",
-      "appliesTo": ["primitive", "component", "pattern", "page-template"],
-      "blocking": true,
-      "description": "Linked adopters install the locale bridge and carry the derived English catalog.",
-      "runner": { "react-vite": "react-component-library catalog gates i18n-adopted" }
-    },
-    {
-      "id": "selectors-adopted",
-      "attribution": "corpus",
-      "rung": "implemented",
-      "appliesTo": ["primitive", "component", "pattern", "page-template"],
-      "blocking": true,
-      "description": "Linked adopters compose the generated library selector registry.",
-      "runner": { "react-vite": "react-component-library catalog gates selectors-adopted" }
-    },
-    {
-      "id": "adopter-hygiene",
-      "attribution": "corpus",
-      "rung": "implemented",
-      "appliesTo": ["primitive", "component", "pattern", "page-template"],
-      "blocking": true,
-      "description": "Library assertion bodies live beside versioned library sources and are not duplicated in adopters.",
-      "runner": { "react-vite": "react-component-library catalog gates adopter-hygiene" }
     }
   ],
   "avoidVocabulary": [

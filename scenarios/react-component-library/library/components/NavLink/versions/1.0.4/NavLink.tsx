@@ -7,8 +7,8 @@
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
 /** @vrooliComponentSource react-component-library:NavLink */
-import { resolveStrings } from "@vrooli/react-component-library/useLocale/1.0.1";
-import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
+import { translate } from "../../../../hooks/useLocale/versions/1.0.1/useLocale";
+import { withClassName } from "../../../../foundations/ClassMerge/versions/1.0.1/ClassMerge";
 
 import type { ReactNode } from "react";
 
@@ -34,7 +34,7 @@ export interface NavLinkProps {
 }
 
 export const NavLink = withClassName(function NavLink({
-  label = resolveStrings("navigation.nav-link.home", "Home"),
+  label = translate("navigation.nav-link.label.1", "Home"),
   current = false,
   href = "/",
   icon,

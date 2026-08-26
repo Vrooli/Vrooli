@@ -3,8 +3,10 @@
   "assetKind": "primitive",
   "catalogId": "primitives.stack",
   "dependencies": [],
-  "deprecatedVersions": [],
-  "description": "Stack lays out content on the block axis with a token-backed gap.",
+  "deprecatedVersions": [
+    "1.2.1"
+  ],
+  "description": "",
   "designStyles": [
     {
       "affinity": "native",
@@ -21,7 +23,7 @@
   ],
   "displayName": "Stack",
   "draft": "",
-  "latest": "1.2.1",
+  "latest": "1.2.2",
   "libraryId": "react-component-library:Stack",
   "tags": [
     "primitive",

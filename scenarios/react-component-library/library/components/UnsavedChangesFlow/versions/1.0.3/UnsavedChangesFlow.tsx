@@ -6,16 +6,14 @@
  * @tags ["recovery","forms","navigation","accessibility","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
-import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
-
 /** @vrooliComponentSource react-component-library:UnsavedChangesFlow */
-import { resolveStrings, useStrings } from "@vrooli/react-component-library/useLocale/1.0.1";
+import { translate } from "../../../../hooks/useLocale/versions/1.0.1/useLocale";
 import { useState, type CSSProperties, type ReactNode } from "react";
 import {
   DirtyStateGuard,
   type DirtyStateGuardPromptProps,
-} from "@vrooli/react-component-library/DirtyStateGuard/1.0.0";
-import { AlertDialog } from "@vrooli/react-component-library/AlertDialog/1.0.0";
+} from "../../../DirtyStateGuard/versions/1.0.0/DirtyStateGuard";
+import { AlertDialog } from "../../../AlertDialog/versions/1.0.0/AlertDialog";
 
 export type UnsavedChangesSaveState = "idle" | "saving" | "saved" | "error";
 
@@ -62,7 +60,7 @@ const preserveButton: CSSProperties = {
   cursor: "pointer",
 };
 
-export const UnsavedChangesFlow = withClassName(function UnsavedChangesFlow({
+export function UnsavedChangesFlow({
   children,
   isDirty,
   defaultOpen = false,
@@ -73,9 +71,9 @@ export const UnsavedChangesFlow = withClassName(function UnsavedChangesFlow({
   onLeave,
   onPreserveDraft,
   saveState = "idle",
-  title = resolveStrings("patterns.unsaved-changes-flow.keep-your-work-before-leaving", "Keep your work before leaving?"),
-  description = resolveStrings(
-    "patterns.unsaved-changes-flow.you-have-edits-that-are-not-saved-yet-choose-how",
+  title = translate("patterns.unsaved-changes-flow.title.1", "Keep your work before leaving?"),
+  description = translate(
+    "patterns.unsaved-changes-flow.description.2",
     "You have edits that are not saved yet. Choose how you want to continue.",
   ),
   saveLabel = "Save changes",
@@ -86,7 +84,6 @@ export const UnsavedChangesFlow = withClassName(function UnsavedChangesFlow({
   className,
   style,
 }: UnsavedChangesFlowProps) {
-  const strings = useStrings();
   const [localError, setLocalError] = useState<string | null>(null);
   const [preserving, setPreserving] = useState(false);
   const [preserved, setPreserved] = useState(false);
@@ -135,8 +132,8 @@ export const UnsavedChangesFlow = withClassName(function UnsavedChangesFlow({
           lineHeight: 1.5,
         }}
       >
-        {strings(
-          "patterns.unsaved-changes-flow.saving-keeps-the-current-version-available-disca",
+        {translate(
+          "patterns.unsaved-changes-flow.text.1",
           "Saving keeps the current version available. Discarding removes these edits from this device.",
         )}
       </p>
@@ -152,8 +149,8 @@ export const UnsavedChangesFlow = withClassName(function UnsavedChangesFlow({
               lineHeight: 1.45,
             }}
           >
-            {strings(
-              "patterns.unsaved-changes-flow.keep-a-recoverable-copy-and-continue-deciding-wi",
+            {translate(
+              "patterns.unsaved-changes-flow.text.2",
               "Keep a recoverable copy and continue deciding without losing your work.",
             )}
           </span>
@@ -207,4 +204,4 @@ export const UnsavedChangesFlow = withClassName(function UnsavedChangesFlow({
       </DirtyStateGuard>
     </div>
   );
-});
+}

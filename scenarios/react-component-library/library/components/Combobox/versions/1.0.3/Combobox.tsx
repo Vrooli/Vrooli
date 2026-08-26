@@ -6,16 +6,14 @@
  * @tags ["forms","selection","combobox","async","keyboard","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
-import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
-
 /** @vrooliComponentSource forms.combobox */
-import { resolveStrings } from "@vrooli/react-component-library/useLocale/1.0.1";
+import { translate } from "../../../../hooks/useLocale/versions/1.0.1/useLocale";
 import { useId, useMemo, useState, type CSSProperties, type KeyboardEvent } from "react";
 import {
   AsyncOptionsField,
   type AsyncOptionsFieldProps,
-} from "@vrooli/react-component-library/AsyncOptionsField/1.0.0";
-import { type SelectOption } from "@vrooli/react-component-library/Select/1.1.0";
+} from "../../../AsyncOptionsField/versions/1.0.0/AsyncOptionsField";
+import { type SelectOption } from "../../../Select/versions/1.1.0/Select";
 
 export interface ComboboxOption extends SelectOption {
   description?: string;
@@ -82,7 +80,7 @@ function optionID(listID: string, value: string) {
   return `${listID}-option-${encodeURIComponent(value)}`;
 }
 
-export const Combobox = withClassName(function Combobox({
+export function Combobox({
   label,
   options = [],
   loadOptions,
@@ -93,7 +91,7 @@ export const Combobox = withClassName(function Combobox({
   allowCreate = false,
   description,
   error,
-  placeholder = resolveStrings("forms.combobox.search-or-choose-an-option", "Search or choose an option"),
+  placeholder = translate("forms.combobox.placeholder.1", "Search or choose an option"),
   emptyText = "No matches yet",
   disabled = false,
   required = false,
@@ -156,7 +154,7 @@ export const Combobox = withClassName(function Combobox({
       style={style}
     />
   );
-});
+}
 
 interface LocalProps extends Omit<ComboboxProps, "id" | "loadOptions" | "offline"> {
   inputID: string;

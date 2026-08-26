@@ -3,7 +3,7 @@
   "assetKind": "component",
   "catalogId": "navigation.nav-link",
   "dependencies": [],
-  "description": "A semantic route link with current-page state and a full navigation touch target.",
+  "description": "",
   "designStyles": [
     {
       "affinity": "native",
@@ -11,7 +11,7 @@
     }
   ],
   "displayName": "NavLink",
-  "latest": "1.0.4",
+  "latest": "1.0.7",
   "libraryId": "react-component-library:NavLink",
   "tags": [
     "navigation",
@@ -24,5 +24,8 @@
     }
   ],
   "draft": "",
-  "deprecatedVersions": []
+  "deprecatedVersions": [
+    "1.0.4",
+    "1.0.6"
+  ]
 }

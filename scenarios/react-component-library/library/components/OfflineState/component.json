@@ -8,7 +8,7 @@
       "version": "1.0.0"
     }
   ],
-  "description": "An actionable offline surface that distinguishes unavailable connectivity from an application failure.",
+  "description": "",
   "designStyles": [
     {
       "affinity": "native",
@@ -16,7 +16,7 @@
     }
   ],
   "displayName": "OfflineState",
-  "latest": "1.0.2",
+  "latest": "1.0.5",
   "libraryId": "react-component-library:OfflineState",
   "tags": [
     "feedback",
@@ -24,5 +24,8 @@
     "token-bound"
   ],
   "draft": "",
-  "deprecatedVersions": []
+  "deprecatedVersions": [
+    "1.0.2",
+    "1.0.4"
+  ]
 }

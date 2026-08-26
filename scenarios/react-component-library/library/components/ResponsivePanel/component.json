@@ -3,7 +3,7 @@
   "assetKind": "component",
   "catalogId": "overlays.responsive-panel",
   "dependencies": [],
-  "description": "One responsive layered panel contract that preserves open state while moving between desktop and mobile presentations.",
+  "description": "",
   "designStyles": [
     {
       "affinity": "native",
@@ -11,7 +11,7 @@
     }
   ],
   "displayName": "ResponsivePanel",
-  "latest": "1.1.3",
+  "latest": "1.1.4",
   "libraryId": "react-component-library:ResponsivePanel",
   "tags": [
     "overlay",
@@ -25,5 +25,7 @@
     }
   ],
   "draft": "",
-  "deprecatedVersions": []
+  "deprecatedVersions": [
+    "1.1.3"
+  ]
 }

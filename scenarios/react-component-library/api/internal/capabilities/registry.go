@@ -184,6 +184,9 @@ func (c ScenarioChecker) Check(ctx context.Context) (Status, string) {
 	if slug == "" {
 		return StatusUnavailable, "scenario slug is not configured; use the start action"
 	}
+	if _, err := exec.LookPath("vrooli"); err != nil {
+		return StatusUnavailable, "vrooli control-plane executable is unavailable; use the start action"
+	}
 	out, err := exec.CommandContext(ctx, "vrooli", "scenario", "status", slug, "--json").Output()
 	if err != nil {
 		return StatusUnavailable, "scenario status unavailable; use the start action"

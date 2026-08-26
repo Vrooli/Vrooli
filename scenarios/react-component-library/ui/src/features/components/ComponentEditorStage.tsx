@@ -117,6 +117,7 @@ export function ComponentEditorStage({
 }: StageProps) {
   const { t } = useTranslation();
   const [canvasOffset, setCanvasOffset] = useState({ x: 0, y: 0 });
+  const canvasRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef<{ x: number; y: number; originX: number; originY: number } | null>(null);
   const identityFor = (example?: PreviewSpecimen): SpecimenIdentity =>
     `${example?.version || "__current__"}:${example?.name || "__default__"}`;
@@ -166,6 +167,38 @@ export function ComponentEditorStage({
         : next;
     });
   }, [specimenOrderKey]);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const onWheel = (event: WheelEvent) => {
+      if (stageMode) return;
+      event.preventDefault();
+      if (event.ctrlKey) {
+        const currentIndex = emulator.zoomLevels.reduce(
+          (closest, level, index) =>
+            Math.abs(level - emulator.zoom) <
+            Math.abs((emulator.zoomLevels[closest] ?? emulator.zoom) - emulator.zoom)
+              ? index
+              : closest,
+          0,
+        );
+        const direction = event.deltaY > 0 ? -1 : 1;
+        const nextIndex = Math.max(
+          0,
+          Math.min(emulator.zoomLevels.length - 1, currentIndex + direction),
+        );
+        emulator.setZoom(emulator.zoomLevels[nextIndex] ?? emulator.zoom);
+        return;
+      }
+      setCanvasOffset((current) => ({
+        x: current.x - event.deltaX,
+        y: current.y - event.deltaY,
+      }));
+    };
+    canvas.addEventListener("wheel", onWheel, { passive: false });
+    return () => canvas.removeEventListener("wheel", onWheel);
+  }, [emulator, stageMode]);
 
   const orderIndex = new Map(caseOrder.map((identity, index) => [identity, index]));
   const orderedVisibleSpecimens = [...visibleSpecimens].sort(
@@ -256,6 +289,7 @@ export function ComponentEditorStage({
           mode={stageMode ? "stage" : "gallery"}
         >
           <div
+            ref={canvasRef}
             data-testid={selectors.components.editor.gallery}
             data-preview-stage-mode={stageMode ? "true" : "false"}
             data-preview-view={stageMode ? "focus" : "canvas"}
@@ -283,12 +317,6 @@ export function ComponentEditorStage({
             onPointerUp={(event) => {
               dragRef.current = null;
               event.currentTarget.releasePointerCapture?.(event.pointerId);
-            }}
-            onWheel={(event) => {
-              if (stageMode) return;
-              event.preventDefault();
-              const direction = event.deltaY > 0 ? -1 : 1;
-              emulator.setZoom(emulator.zoom + direction * 0.1);
             }}
             className={
               stageMode
@@ -401,11 +429,10 @@ export function ComponentEditorStage({
                             <CaseDimensions />
                           </div>
                           <div className="flex shrink-0 items-center gap-space-3xs">
-                            <IconButton
-                              type="button"
+                            <span
+                              role="button"
+                              tabIndex={0}
                               draggable
-                              density="compact"
-                              variant="secondary"
                               aria-label={`Move ${title}. Use arrow keys to reorder.`}
                               className="h-control-compact min-h-control-compact min-w-control-compact cursor-grab active:cursor-grabbing"
                               onClick={(event) => event.stopPropagation()}
@@ -429,7 +456,7 @@ export function ComponentEditorStage({
                               }}
                             >
                               <GripVertical aria-hidden className="h-icon-compact w-icon-compact" />
-                            </IconButton>
+                            </span>
                             <IconButton
                               data-testid={selectors.components.editor.exampleFocus}
                               type="button"

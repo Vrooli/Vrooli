@@ -4,7 +4,7 @@
  */
 import type { ReactNode } from "react";
 import { FolderTree } from "lucide-react";
-import { NavLink } from "@vrooli/react-component-library/NavLink/1.0.0";
+import { NavLink } from "../../../NavLink/versions/1.0.0/NavLink";
 
 const navigationTreeStyles = `
 [data-rcl-navigation-tree] { display: grid; min-inline-size: 0; max-block-size: max(12rem, min(32rem, calc(100dvh - 23rem))); overflow: auto; gap: var(--space-sm); border: var(--border-hairline) solid var(--color-border); border-radius: var(--radius-panel); background: var(--color-surface); color: var(--color-foreground); padding: var(--space-sm); box-shadow: var(--elev-raised); }

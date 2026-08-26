@@ -70,6 +70,7 @@
     "build:preview-kits": "node scripts/build-preview-kits.mjs",
     "build:profile": "pnpm type-check && pnpm strings:gen && pnpm build:preview-kits && vite build --mode profile",
     "catalog:check": "pnpm run type-check:catalog && pnpm run lint:catalog",
+    "census": "node scripts/ecosystem-census.mjs",
     "dev": "vrooli lifecycle protect -- vite",
     "format": "prettier --write \"src/**/*.{ts,tsx,css,json}\" \"../library/**/*.{ts,tsx,json,css}\"",
     "format:check": "prettier --check \"src/**/*.{ts,tsx,css,json}\" \"../library/**/*.{ts,tsx,json,css}\"",

@@ -6,8 +6,6 @@
  * @tags ["monetization","account"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
-import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
-
 export type EntitlementStatus =
   | "active"
   | "trialing"
@@ -52,7 +50,7 @@ export const PLAN_CONFIG: Record<
   },
 };
 
-export const PlanBadge = withClassName(function PlanBadge({
+export function PlanBadge({
   plan,
   size = "md",
 }: {
@@ -61,15 +59,15 @@ export const PlanBadge = withClassName(function PlanBadge({
 }) {
   const config = PLAN_CONFIG[plan];
   return (
-    <span data-testid="monetization.account-surface"
+    <span
       className={`${config.color} ${config.bgColor} ${config.borderColor} inline-flex items-center rounded border px-space-2xs py-space-4xs text-caption font-medium ${size === "sm" ? "text-caption" : ""}`}
     >
       {config.label}
     </span>
   );
-});
+}
 
-export const SubscriptionStatusCard = withClassName(function SubscriptionStatusCard({
+export function SubscriptionStatusCard({
   plan,
   status,
   credits,
@@ -91,9 +89,9 @@ export const SubscriptionStatusCard = withClassName(function SubscriptionStatusC
       </span>
     </section>
   );
-});
+}
 
-export const AuthSection = withClassName(function AuthSection({
+export function AuthSection({
   signedIn,
   onSignIn,
   onSignOut,
@@ -109,9 +107,9 @@ export const AuthSection = withClassName(function AuthSection({
       </button>
     </section>
   );
-});
+}
 
-export const UpgradePrompt = withClassName(function UpgradePrompt({
+export function UpgradePrompt({
   feature,
   requiredPlan,
   href = "/account",
@@ -128,13 +126,13 @@ export const UpgradePrompt = withClassName(function UpgradePrompt({
       <a href={href}>Manage subscription</a>
     </section>
   );
-});
+}
 
-export const PendingSyncBadge = withClassName(function PendingSyncBadge({ pending }: { pending: number }) {
+export function PendingSyncBadge({ pending }: { pending: number }) {
   return pending > 0 ? <span role="status">{pending} pending sync</span> : null;
-});
+}
 
-export const SubscriptionBadge = withClassName(function SubscriptionBadge({
+export function SubscriptionBadge({
   plan,
   status,
   credits,
@@ -160,9 +158,9 @@ export const SubscriptionBadge = withClassName(function SubscriptionBadge({
       {offline ? <span aria-label="offline">cached</span> : null}
     </button>
   );
-});
+}
 
-export const EntitlementErrorCard = withClassName(function EntitlementErrorCard({
+export function EntitlementErrorCard({
   errorType,
   title = "Subscription access unavailable",
   message = "Subscription access is temporarily unavailable.",
@@ -199,7 +197,7 @@ export const EntitlementErrorCard = withClassName(function EntitlementErrorCard(
       ) : null}
     </section>
   );
-});
+}
 
 export function useEntitlement<
   T extends { features?: string[]; planRank?: number; stale?: boolean },

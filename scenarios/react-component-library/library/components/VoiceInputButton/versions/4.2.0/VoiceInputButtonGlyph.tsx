@@ -1,4 +1,4 @@
-import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
+import { withClassName } from "../../../../foundations/ClassMerge/versions/1.0.2/ClassMerge";
 import type { ReactNode, SVGProps } from "react";
 
 export type VoiceInputGlyphKind = "alert" | "cancel" | "loader" | "mic";

@@ -1,0 +1,128 @@
+{
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
+  "args": {
+    "fields": [
+      {
+        "default": "No components indexed",
+        "kind": "text",
+        "label": "Title",
+        "path": "title"
+      },
+      {
+        "default": "Run the indexer to discover catalog source.",
+        "kind": "text",
+        "label": "Description",
+        "path": "description"
+      },
+      {
+        "default": "",
+        "kind": "structured",
+        "label": "Icon",
+        "path": "icon"
+      },
+      {
+        "default": {
+          "$text": "Create adoption"
+        },
+        "format": "renderable-text",
+        "kind": "structured",
+        "label": "Action label",
+        "path": "actionLabel"
+      }
+    ]
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "kind": "component",
+  "schemaVersion": 5,
+  "stories": [
+    {
+      "args": {
+        "description": "Run the indexer to discover catalog source.",
+        "title": "No components indexed"
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "No components indexed"
+        },
+        {
+          "kind": "text",
+          "value": "Run the indexer"
+        },
+        {
+          "kind": "layout",
+          "noOverflow": true,
+          "selector": "[data-rcl-empty-state]"
+        }
+      ],
+      "id": "no-components",
+      "mode": "pinned",
+      "name": "No Components",
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "NoComponents"
+        }
+      },
+      "role": "anatomy"
+    },
+    {
+      "args": {
+        "actionLabel": {
+          "$text": "Create adoption"
+        },
+        "description": "Record a scenario adoption to track drift.",
+        "title": "No adoptions yet"
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Create adoption",
+          "role": "button"
+        },
+        {
+          "kind": "text",
+          "value": "No adoptions yet"
+        },
+        {
+          "kind": "layout",
+          "noOverflow": true,
+          "selector": "[data-rcl-empty-state]"
+        }
+      ],
+      "id": "with-action",
+      "mode": "pinned",
+      "name": "With Action",
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "WithAction"
+        }
+      },
+      "role": "boundary"
+    },
+    {
+      "args": {
+        "title": "Nothing to review"
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "Nothing to review"
+        },
+        {
+          "kind": "layout",
+          "noOverflow": true,
+          "selector": "[data-rcl-empty-state]"
+        }
+      ],
+      "id": "compact",
+      "mode": "pinned",
+      "name": "Compact",
+      "role": "boundary"
+    }
+  ],
+  "title": "EmptyState"
+}

@@ -6,8 +6,8 @@
  * @tags ["primitive","media","responsive","accessibility","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
-import { useStrings } from "@vrooli/react-component-library/useLocale/1.0.1";
-import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
+import { translate } from "../../../../hooks/useLocale/versions/1.0.1/useLocale";
+import { withClassName } from "../../../../foundations/ClassMerge/versions/1.0.1/ClassMerge";
 
 /** @vrooliComponentSource primitives.progressive-image */
 import {
@@ -17,7 +17,7 @@ import {
   type ImgHTMLAttributes,
   type ReactNode,
 } from "react";
-import { AspectRatio } from "@vrooli/react-component-library/AspectRatio/1.0.0";
+import { AspectRatio } from "../../../AspectRatio/versions/1.0.0/AspectRatio";
 
 const styles = `
 [data-rcl-progressive-image] { position: relative; isolation: isolate; color: var(--color-foreground); background: var(--color-surface-muted); border-radius: var(--radius-panel); }
@@ -78,7 +78,6 @@ export const ProgressiveImage = withClassName(function ProgressiveImage({
   style,
   ...imageProps
 }: ProgressiveImageProps) {
-  const strings = useStrings();
   const [observedState, setObservedState] = useState<ProgressiveImageState>("loading");
 
   useEffect(() => {
@@ -95,7 +94,7 @@ export const ProgressiveImage = withClassName(function ProgressiveImage({
   return (
     <>
       <style data-rcl-progressive-image-styles dangerouslySetInnerHTML={{ __html: styles }} />
-      <AspectRatio data-testid="primitives.progressive-image"
+      <AspectRatio
         data-rcl-progressive-image
         ratio={ratio}
         style={{ ...frameStyle, ...style }}
@@ -107,7 +106,7 @@ export const ProgressiveImage = withClassName(function ProgressiveImage({
           aria-hidden={state !== "loading"}
         >
           {placeholder ?? (
-            <span>{strings("primitives.progressive-image.loading-image", "Loading image…")}</span>
+            <span>{translate("primitives.progressive-image.text.1", "Loading image…")}</span>
           )}
         </div>
         <picture>
@@ -146,7 +145,7 @@ export const ProgressiveImage = withClassName(function ProgressiveImage({
               !
             </span>
             {errorFallback ?? (
-              <span>{strings("primitives.progressive-image.image-unavailable", "Image unavailable.")}</span>
+              <span>{translate("primitives.progressive-image.text.2", "Image unavailable.")}</span>
             )}
           </div>
         </div>

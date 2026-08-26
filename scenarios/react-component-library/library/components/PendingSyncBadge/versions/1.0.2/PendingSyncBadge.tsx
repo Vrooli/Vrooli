@@ -6,11 +6,9 @@
  * @tags ["monetization","outbox"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
-import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
-
 /** @vrooliComponentSource react-component-library:PendingSyncBadge */
-import { PendingSyncBadge as BasePendingSyncBadge } from "@vrooli/react-component-library/MonetizationAccount/1.0.0";
+import { PendingSyncBadge as BasePendingSyncBadge } from "../../../MonetizationAccount/versions/1.0.0/MonetizationAccount";
 export type PendingSyncBadgeProps = { pending: number; className?: string };
-export const PendingSyncBadge = withClassName(function PendingSyncBadge(props: PendingSyncBadgeProps) {
-  return <BasePendingSyncBadge data-testid="monetization.pending-sync-badge" {...props} />;
-});
+export function PendingSyncBadge(props: PendingSyncBadgeProps) {
+  return <BasePendingSyncBadge {...props} />;
+}

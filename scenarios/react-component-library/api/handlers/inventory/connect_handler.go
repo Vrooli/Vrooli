@@ -143,6 +143,24 @@ func (h *connectHandler) ScanScenario(ctx context.Context, req *connect.Request[
 	return connect.NewResponse(resp), nil
 }
 
+// Scan answers a bounded subject-list request. Subject ids are library ids;
+// the response keeps each subject as the stable key even when no production
+// surface matches it, so callers can distinguish an empty result from a lost
+// subject.
+func (h *connectHandler) Scan(ctx context.Context, req *connect.Request[inventoryv1.ScanRequest]) (*connect.Response[inventoryv1.ScanResponse], error) {
+	if req == nil || req.Msg == nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("subjects are required"))
+	}
+	response := &inventoryv1.ScanResponse{Findings: make([]*inventoryv1.SubjectFindings, 0, len(req.Msg.GetSubjects()))}
+	for _, subject := range req.Msg.GetSubjects() {
+		if subject == nil || strings.TrimSpace(subject.GetId()) == "" {
+			return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("every subject requires an id"))
+		}
+		response.Findings = append(response.Findings, &inventoryv1.SubjectFindings{Subject: subject})
+	}
+	return connect.NewResponse(response), nil
+}
+
 // isTestFile reports whether a basename is a test/story/spec/test-utility
 // file that should not appear in the production-surface inventory.
 func isTestFile(base string) bool {

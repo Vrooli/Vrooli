@@ -7,8 +7,6 @@
  * @deps {"react":"^18","lucide-react":"^0.424.0"}
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
-import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
-
 import { X } from "lucide-react";
 import { type ReactNode, useEffect, useId } from "react";
 import { dialogStyles } from "./styles";
@@ -38,7 +36,7 @@ export interface DialogProps {
 
 const cn = (...inputs: Array<string | undefined>) => inputs.filter(Boolean).join(" ");
 
-export const Dialog = withClassName(function Dialog({
+export function Dialog({
   open,
   title,
   description,
@@ -109,4 +107,4 @@ export const Dialog = withClassName(function Dialog({
       </section>
     </div>
   );
-});
+}

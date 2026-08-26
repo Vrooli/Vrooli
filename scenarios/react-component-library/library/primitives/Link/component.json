@@ -3,7 +3,7 @@
   "assetKind": "primitive",
   "catalogId": "primitives.link",
   "dependencies": [],
-  "description": "Link is the accessible navigation primitive with a stable semantic hook.",
+  "description": "",
   "designStyles": [
     {
       "affinity": "native",
@@ -19,12 +19,14 @@
     }
   ],
   "displayName": "Link",
-  "latest": "1.0.1",
+  "latest": "1.0.2",
   "libraryId": "react-component-library:Link",
   "tags": [
     "primitive",
     "token-bound"
   ],
   "draft": "",
-  "deprecatedVersions": []
+  "deprecatedVersions": [
+    "1.0.1"
+  ]
 }

@@ -1,0 +1,33 @@
+{
+  "contract": {
+    "kind": "rcl-component-experience-contract",
+    "schema": "scenario-experience-spec/v1",
+    "provenance": "react-component-library:Presence@1.0.0"
+  },
+  "component": {
+    "id": "motion.presence",
+    "title": "Presence",
+    "purpose": "Presence coordinates interruptible enter and exit lifecycles through shared motion tokens and reduced-motion policy."
+  },
+  "states": [
+    {
+      "id": "present",
+      "example": "present",
+      "description": "Content enters through a restrained opacity and lift transition, then settles without layout animation."
+    },
+    {
+      "id": "absent",
+      "example": "absent",
+      "description": "Content remains mounted through its exit lifecycle before being removed."
+    }
+  ],
+  "claims": [
+    {
+      "id": "contract-present",
+      "type": "manual-review",
+      "statement": "Presence exposes a bounded public contract backed by shared duration, easing, and reduced-motion policy.",
+      "tier": "manual",
+      "states": ["default"]
+    }
+  ]
+}

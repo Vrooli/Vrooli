@@ -4,8 +4,6 @@
  * @status released
  * @deps {"react":"^18"}
  */
-import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
-
 import type { ReactNode } from "react";
 
 export interface PageFrameProps {
@@ -19,7 +17,7 @@ export interface PageFrameProps {
 // region placement, while the framed asset owns its own behavior and props.
 // This gives preview a real composition boundary without adding a second
 // slot vocabulary to the catalog.
-export const PageFrame = withClassName(function PageFrame({
+export function PageFrame({
   regions = {},
   fixture,
   children,
@@ -70,4 +68,4 @@ export const PageFrame = withClassName(function PageFrame({
       </div>
     </>
   );
-});
+}

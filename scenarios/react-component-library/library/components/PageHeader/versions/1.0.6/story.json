@@ -1,0 +1,71 @@
+{
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
+  "args": {
+    "fields": []
+  },
+  "composition": {
+    "frame": {
+      "asset": "navigation.page",
+      "capability": "navigation",
+      "fixture": "fixtures.user-directory",
+      "region": "navigation",
+      "version": "1.0.0"
+    }
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "kind": "component",
+  "schemaVersion": 5,
+  "stories": [
+    {
+      "args": {
+        "description": "Workspace",
+        "title": "Overview"
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "Overview"
+        }
+      ],
+      "id": "default",
+      "mode": "pinned",
+      "name": "Default",
+      "role": "anatomy"
+    },
+    {
+      "args": {
+        "description": "Fixture unavailable",
+        "title": "Workspace unavailable"
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "Workspace unavailable"
+        }
+      ],
+      "id": "fixture-failure",
+      "mode": "pinned",
+      "name": "Fixture failure",
+      "role": "boundary"
+    },
+    {
+      "args": {
+        "description": "Workspace navigation with a title long enough to test wrapping.",
+        "title": "Workspace overview with a deliberately long title"
+      },
+      "id": "long-content",
+      "mode": "pinned",
+      "name": "Long content",
+      "expect": [
+        {
+          "kind": "text",
+          "value": "Workspace overview with a deliberately long title"
+        }
+      ],
+      "role": "boundary"
+    }
+  ],
+  "title": "PageHeader"
+}

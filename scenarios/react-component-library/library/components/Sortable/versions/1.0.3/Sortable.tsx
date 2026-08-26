@@ -6,10 +6,8 @@
  * @tags ["manipulation","sortable","keyboard","motion","async","accessibility","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
-import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
-
 /** @vrooliComponentSource manipulation.sortable */
-import { resolveStrings } from "@vrooli/react-component-library/useLocale/1.0.1";
+import { translate } from "../../../../hooks/useLocale/versions/1.0.1/useLocale";
 import {
   useCallback,
   useEffect,
@@ -20,10 +18,10 @@ import {
   type PointerEvent,
   type ReactNode,
 } from "react";
-import { AutoAnimateLayout } from "@vrooli/react-component-library/AutoAnimateLayout/1.0.0";
-import { useAnnounce } from "@vrooli/react-component-library/useAnnounce/1.0.0";
-import { useDrag } from "@vrooli/react-component-library/useDrag/1.0.0";
-import { useOptimisticAction } from "@vrooli/react-component-library/useOptimisticAction/1.0.0";
+import { AutoAnimateLayout } from "../../../../components/AutoAnimateLayout/versions/1.0.0/AutoAnimateLayout";
+import { useAnnounce } from "../../../../hooks/useAnnounce/versions/1.0.0/useAnnounce";
+import { useDrag } from "../../../../hooks/useDrag/versions/1.0.0/useDrag";
+import { useOptimisticAction } from "../../../../hooks/useOptimisticAction/versions/1.0.0/useOptimisticAction";
 
 export interface SortableItem<T = unknown> {
   id: string;
@@ -76,11 +74,11 @@ function move<T>(items: SortableItem<T>[], from: number, to: number) {
   return next;
 }
 
-export const Sortable = withClassName(function Sortable<T>({
+export function Sortable<T>({
   items: initialItems,
   renderItem,
   onReorder,
-  label = resolveStrings("manipulation.sortable.sortable-list", "Sortable list"),
+  label = translate("manipulation.sortable.label.1", "Sortable list"),
   disabled = false,
   className,
   style,
@@ -259,4 +257,4 @@ export const Sortable = withClassName(function Sortable<T>({
       </div>
     </section>
   );
-});
+}

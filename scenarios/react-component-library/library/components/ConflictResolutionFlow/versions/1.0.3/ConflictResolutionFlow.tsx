@@ -6,14 +6,12 @@
  * @tags ["patterns","conflict","recovery","forms","accessibility","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
-import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
-
 /** @vrooliComponentSource patterns.conflict-resolution-flow */
-import { resolveStrings } from "@vrooli/react-component-library/useLocale/1.0.1";
+import { translate } from "../../../../hooks/useLocale/versions/1.0.1/useLocale";
 import { useCallback, useMemo, useState, type CSSProperties, type ReactNode } from "react";
-import { DiffViewer } from "@vrooli/react-component-library/DiffViewer/1.0.0";
-import { Form } from "@vrooli/react-component-library/Form/1.0.0";
-import { useAnnounce } from "@vrooli/react-component-library/useAnnounce/1.0.0";
+import { DiffViewer } from "../../../DiffViewer/versions/1.0.0/DiffViewer";
+import { Form } from "../../../Form/versions/1.0.0/Form";
+import { useAnnounce } from "../../../../hooks/useAnnounce/versions/1.0.0/useAnnounce";
 
 export interface ConflictField<T = unknown> {
   id: string;
@@ -81,15 +79,15 @@ function printable<T>(field: ConflictField<T>, value: T) {
       : JSON.stringify(value);
 }
 
-export const ConflictResolutionFlow = withClassName(function ConflictResolutionFlow<T>({
+export function ConflictResolutionFlow<T>({
   fields,
   status,
   onResolve,
   onRetry,
   onCancel,
-  title = resolveStrings("patterns.conflict-resolution-flow.resolve-concurrent-changes", "Resolve concurrent changes"),
-  description = resolveStrings(
-    "patterns.conflict-resolution-flow.another-version-changed-while-you-were-working-c",
+  title = translate("patterns.conflict-resolution-flow.title.1", "Resolve concurrent changes"),
+  description = translate(
+    "patterns.conflict-resolution-flow.description.2",
     "Another version changed while you were working. Choose the value that should survive for each field.",
   ),
   resolveLabel = "Save resolved version",
@@ -166,8 +164,8 @@ export const ConflictResolutionFlow = withClassName(function ConflictResolutionF
       <Form
         title={<span data-rcl-conflict-flow-title>{title}</span>}
         description={<span data-rcl-conflict-flow-description>{description}</span>}
-        aria-label={resolveStrings(
-          "patterns.conflict-resolution-flow.conflict-resolution-form-onsubmit-void-submit-fo",
+        aria-label={translate(
+          "patterns.conflict-resolution-flow.aria-label.3",
           "Conflict resolution form",
         )}
         onSubmit={() => void submit()}
@@ -179,7 +177,7 @@ export const ConflictResolutionFlow = withClassName(function ConflictResolutionF
               onClick={onCancel}
               disabled={busy}
             >
-              {resolveStrings("patterns.conflict-resolution-flow.keep-editing", "Keep editing")}
+              {translate("patterns.conflict-resolution-flow.text.1", "Keep editing")}
             </button>
             {resolvedStatus === "request-error" || resolvedStatus === "retry" ? (
               <button
@@ -188,7 +186,7 @@ export const ConflictResolutionFlow = withClassName(function ConflictResolutionF
                 onClick={() => void retry()}
                 disabled={busy}
               >
-                {resolveStrings("patterns.conflict-resolution-flow.retry-resolution", "Retry resolution")}
+                {translate("patterns.conflict-resolution-flow.text.2", "Retry resolution")}
               </button>
             ) : null}
             <button
@@ -204,8 +202,8 @@ export const ConflictResolutionFlow = withClassName(function ConflictResolutionF
         <div data-rcl-conflict-flow-list>
           {resolvedStatus === "loading" ? (
             <div data-rcl-conflict-flow-status role="status">
-              {resolveStrings(
-                "patterns.conflict-resolution-flow.checking-the-latest-version",
+              {translate(
+                "patterns.conflict-resolution-flow.text.3",
                 "Checking the latest version…",
               )}
             </div>
@@ -266,4 +264,4 @@ export const ConflictResolutionFlow = withClassName(function ConflictResolutionF
       </Form>
     </div>
   );
-});
+}

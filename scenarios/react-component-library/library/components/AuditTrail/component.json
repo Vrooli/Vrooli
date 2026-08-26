@@ -3,7 +3,7 @@
   "assetKind": "component",
   "catalogId": "data-display.audit-trail",
   "dependencies": [],
-  "description": "An ordered activity surface that makes actor, action, and sequence legible.",
+  "description": "",
   "designStyles": [
     {
       "affinity": "native",
@@ -11,7 +11,7 @@
     }
   ],
   "displayName": "AuditTrail",
-  "latest": "1.0.4",
+  "latest": "1.0.5",
   "libraryId": "react-component-library:AuditTrail",
   "tags": [
     "data-display",
@@ -24,5 +24,7 @@
     }
   ],
   "draft": "",
-  "deprecatedVersions": []
+  "deprecatedVersions": [
+    "1.0.4"
+  ]
 }

@@ -6,10 +6,8 @@
  * @tags ["overlay","command","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
-import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
-
 /** @vrooliComponentSource overlays.command-palette */
-import { resolveStrings, useStrings } from "@vrooli/react-component-library/useLocale/1.0.1";
+import { translate } from "../../../../hooks/useLocale/versions/1.0.1/useLocale";
 import {
   useEffect,
   useMemo,
@@ -23,8 +21,8 @@ import {
   createCommandRegistry,
   type Command,
   type CommandRegistry,
-} from "@vrooli/react-component-library/CommandRegistry/1.0.0";
-import { SearchInput } from "@vrooli/react-component-library/SearchInput/1.0.0";
+} from "../../../../services/CommandRegistry/versions/1.0.0/CommandRegistry";
+import { SearchInput } from "../../../SearchInput/versions/1.0.0/SearchInput";
 
 export type CommandPaletteStatus = "default" | "loading" | "empty" | "request-error" | "retry";
 
@@ -82,7 +80,7 @@ const styles = `
 @media (forced-colors: active) { [data-rcl-command-palette-panel], [data-rcl-command-palette-option], [data-rcl-command-palette-key], [data-rcl-command-palette-option-shortcut] { border-color: CanvasText; background: Canvas; color: CanvasText; box-shadow: none; } [data-rcl-command-palette-backdrop] { background: CanvasText; opacity: .5; } }
 `;
 
-export const CommandPalette = withClassName(function CommandPalette({
+export function CommandPalette({
   open = false,
   onClose,
   registry,
@@ -91,16 +89,15 @@ export const CommandPalette = withClassName(function CommandPalette({
   errorMessage = "Commands could not be refreshed. Your last available actions remain safe to retry.",
   onRetry,
   onExecuted,
-  title = resolveStrings("overlays.command-palette.command-palette", "Command palette"),
-  description = resolveStrings(
-    "overlays.command-palette.search-actions-across-this-workspace-placeholder",
+  title = translate("overlays.command-palette.title.1", "Command palette"),
+  description = translate(
+    "overlays.command-palette.description.2",
     "Search actions across this workspace.",
   ),
-  placeholder = resolveStrings("overlays.command-palette.search-commands", "Search commands…"),
+  placeholder = translate("overlays.command-palette.placeholder.3", "Search commands…"),
   className,
   style,
 }: CommandPaletteProps) {
-  const strings = useStrings();
   const localRegistry = useMemo(() => registry ?? createCommandRegistry(), [registry]);
   useEffect(() => {
     if (registry) return undefined;
@@ -188,7 +185,7 @@ export const CommandPalette = withClassName(function CommandPalette({
         data-testid="overlays.command-palette"
         type="button"
         data-rcl-command-palette-backdrop
-        aria-label={strings("overlays.command-palette.close-command-palette", "Close command palette")}
+        aria-label={translate("overlays.command-palette.aria-label.4", "Close command palette")}
         onClick={onClose}
       />
       <section
@@ -200,7 +197,7 @@ export const CommandPalette = withClassName(function CommandPalette({
       >
         <header data-rcl-command-palette-header>
           <span data-rcl-command-palette-eyebrow>
-            {strings("overlays.command-palette.command-center", "Command center")}
+            {translate("overlays.command-palette.text.1", "Command center")}
           </span>
           <h2 id="rcl-command-palette-title" data-rcl-command-palette-title>
             {title}
@@ -212,7 +209,7 @@ export const CommandPalette = withClassName(function CommandPalette({
         <div data-rcl-command-palette-search>
           <SearchInput
             ref={searchRef}
-            aria-label={strings("overlays.command-palette.search-commands.search-commands", "Search commands")}
+            aria-label={translate("overlays.command-palette.aria-label.5", "Search commands")}
             role="combobox"
             aria-controls="rcl-command-palette-list"
             aria-expanded="true"
@@ -240,17 +237,17 @@ export const CommandPalette = withClassName(function CommandPalette({
         </div>
         {state === "loading" ? (
           <div data-rcl-command-palette-state role="status">
-            <strong>{strings("overlays.command-palette.loading-commands", "Loading commands")}</strong>
+            <strong>{translate("overlays.command-palette.text.2", "Loading commands")}</strong>
             <span>
-              {strings(
-                "overlays.command-palette.preparing-actions-for-this-workspace-span-div-st",
+              {translate(
+                "overlays.command-palette.text.3",
                 "Preparing actions for this workspace…",
               )}
             </span>
           </div>
         ) : state === "request-error" || state === "retry" ? (
           <div data-rcl-command-palette-state data-tone="danger" role="alert">
-            <strong>{strings("overlays.command-palette.commands-need-a-retry", "Commands need a retry")}</strong>
+            <strong>{translate("overlays.command-palette.text.4", "Commands need a retry")}</strong>
             <span>{executionError ?? errorMessage}</span>
             {onRetry ? (
               <button
@@ -259,16 +256,16 @@ export const CommandPalette = withClassName(function CommandPalette({
                 data-rcl-command-palette-retry
                 onClick={() => void onRetry()}
               >
-                {strings("overlays.command-palette.try-again", "Try again")}
+                {translate("overlays.command-palette.text.5", "Try again")}
               </button>
             ) : null}
           </div>
         ) : state === "empty" || !grouped.length ? (
           <div data-rcl-command-palette-state role="status">
-            <strong>{strings("overlays.command-palette.no-matching-commands", "No matching commands")}</strong>
+            <strong>{translate("overlays.command-palette.text.6", "No matching commands")}</strong>
             <span>
-              {strings(
-                "overlays.command-palette.try-a-shorter-phrase-or-clear-the-search-span-di",
+              {translate(
+                "overlays.command-palette.text.7",
                 "Try a shorter phrase or clear the search.",
               )}
             </span>
@@ -278,7 +275,7 @@ export const CommandPalette = withClassName(function CommandPalette({
             id="rcl-command-palette-list"
             data-rcl-command-palette-list
             role="listbox"
-            aria-label={strings("overlays.command-palette.available-commands", "Available commands")}
+            aria-label={translate("overlays.command-palette.aria-label.6", "Available commands")}
           >
             {grouped.map(([group, groupCommands]) => (
               <div data-rcl-command-palette-group key={group}>
@@ -323,17 +320,17 @@ export const CommandPalette = withClassName(function CommandPalette({
           <span data-rcl-command-palette-footer-hints>
             <span>
               <kbd data-rcl-command-palette-key>↑↓</kbd>
-              {strings("overlays.command-palette.navigate", "Navigate")}
+              {translate("overlays.command-palette.text.8", "Navigate")}
             </span>
             <span>
               <kbd data-rcl-command-palette-key>↵</kbd>
-              {strings("overlays.command-palette.run", "Run")}
+              {translate("overlays.command-palette.text.9", "Run")}
             </span>
             <span>
               <kbd data-rcl-command-palette-key>
-                {strings("overlays.command-palette.esc", "Esc")}
+                {translate("overlays.command-palette.text.10", "Esc")}
               </kbd>
-              {strings("overlays.command-palette.close", "Close")}
+              {translate("overlays.command-palette.text.11", "Close")}
             </span>
           </span>
           <button
@@ -342,10 +339,10 @@ export const CommandPalette = withClassName(function CommandPalette({
             data-rcl-command-palette-close
             onClick={onClose}
           >
-            {strings("overlays.command-palette.close", "Close")}
+            {translate("overlays.command-palette.text.12", "Close")}
           </button>
         </footer>
       </section>
     </div>
   );
-});
+}

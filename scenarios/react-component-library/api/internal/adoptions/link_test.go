@@ -27,10 +27,11 @@ func TestLinkAddsGovernedPackageDependencyWithoutCopyingSource(t *testing.T) {
 	}
 	files := &fakeFiles{bytes: map[string][]byte{
 		"money-ledger::ui/package.json":                    []byte(`{"name":"money-ledger-ui","dependencies":{"react":"18.3.1"}}`),
-		"money-ledger::ui/src/i18n/index.ts":               []byte(`import i18n from "i18next";`),
+		"money-ledger::ui/src/i18n/index.ts":               []byte(`export const i18n = { t: (key: string, options?: { defaultValue?: string }) => options?.defaultValue ?? key };`),
 		"money-ledger::ui/src/consts/selectors.library.ts": []byte(`export const librarySelectors = {} as const;`),
 		"money-ledger::ui/src/consts/selectors.ts":         []byte(`const registry = createSelectorRegistry(literalSelectors, dynamicSelectorDefinitions);`),
 		"money-ledger::ui/src/i18n/locales/en.json":        []byte(`{}`),
+		"money-ledger::ui/src/main.tsx":                    []byte("import ReactDOM from \"react-dom/client\";\nReactDOM.createRoot(document.body).render(\n  <div />\n  );\n"),
 	}}
 	svc := adoptions.NewService(repo, lib, files, scheduletest.New(time.Unix(0, 0)))
 
@@ -41,6 +42,9 @@ func TestLinkAddsGovernedPackageDependencyWithoutCopyingSource(t *testing.T) {
 	require.Contains(t, result.UpdatedFiles, "ui/package.json")
 	require.Contains(t, result.UpdatedFiles, "ui/src/consts/selectors.library.ts")
 	require.Contains(t, result.UpdatedFiles, "ui/src/consts/selectors.ts")
+	require.Contains(t, result.UpdatedFiles, "ui/src/main.tsx")
+	require.Contains(t, string(files.bytes["money-ledger::ui/src/main.tsx"]), "LibraryStringsProvider")
+	require.Contains(t, string(files.bytes["money-ledger::ui/src/main.tsx"]), "i18n.t")
 	require.NotContains(t, string(files.bytes["money-ledger::ui/src/i18n/index.ts"]), "vrooli:library-locale-bridge")
 	require.Contains(t, string(files.bytes["money-ledger::ui/src/consts/selectors.library.ts"]), "librarySelectors")
 	_, exists := files.bytes["money-ledger::ui/src/components/Button.tsx"]

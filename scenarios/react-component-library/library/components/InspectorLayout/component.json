@@ -11,8 +11,10 @@
       "version": "1.0.0"
     }
   ],
-  "deprecatedVersions": [],
-  "description": "A responsive workbench composition that keeps a primary canvas usable while an inspector region reports its lifecycle.",
+  "deprecatedVersions": [
+    "1.1.0"
+  ],
+  "description": "",
   "designStyles": [
     {
       "affinity": "native",
@@ -21,9 +23,14 @@
   ],
   "displayName": "Inspector Layout",
   "draft": "",
-  "latest": "1.1.0",
+  "latest": "1.1.1",
   "libraryId": "react-component-library:InspectorLayout",
   "slot": "ui-pattern",
-  "tags": ["layout", "inspector", "workbench", "experience"],
+  "tags": [
+    "layout",
+    "inspector",
+    "workbench",
+    "experience"
+  ],
   "x-supplementalJustification": "Pre-catalog workbench composition retained as a supplemental asset pending promotion into the pattern vocabulary."
 }

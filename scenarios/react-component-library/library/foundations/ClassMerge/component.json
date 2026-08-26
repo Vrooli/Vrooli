@@ -3,7 +3,7 @@
   "assetKind": "foundation",
   "catalogId": "foundations.class-merge",
   "dependencies": [],
-  "description": "The single class composition primitive used by library assets; Tailwind conflicts resolve in favor of the consumer override.",
+  "description": "",
   "designStyles": [
     {
       "affinity": "native",
@@ -11,7 +11,7 @@
     }
   ],
   "displayName": "Class Merge",
-  "latest": "1.0.1",
+  "latest": "1.0.2",
   "libraryId": "react-component-library:ClassMerge",
   "tags": [
     "foundations",
@@ -19,5 +19,7 @@
     "composition"
   ],
   "draft": "",
-  "deprecatedVersions": []
+  "deprecatedVersions": [
+    "1.0.1"
+  ]
 }

@@ -3,7 +3,7 @@
   "assetKind": "primitive",
   "catalogId": "primitives.slot",
   "dependencies": [],
-  "description": "Slot composes child semantics while preserving the caller's structural props.",
+  "description": "",
   "designStyles": [
     {
       "affinity": "native",
@@ -19,10 +19,14 @@
     }
   ],
   "displayName": "Slot",
-  "latest": "1.0.0",
+  "latest": "1.0.1",
   "libraryId": "react-component-library:Slot",
   "tags": [
     "primitive",
     "token-bound"
+  ],
+  "draft": "",
+  "deprecatedVersions": [
+    "1.0.0"
   ]
 }

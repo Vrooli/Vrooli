@@ -12,7 +12,7 @@
       "version": "1.0.0"
     }
   ],
-  "description": "A recoverable unsaved-work workflow that coordinates save, discard, continue, and private-draft preservation.",
+  "description": "",
   "designStyles": [
     {
       "affinity": "native",
@@ -28,7 +28,7 @@
     }
   ],
   "displayName": "UnsavedChangesFlow",
-  "latest": "1.0.3",
+  "latest": "1.0.6",
   "libraryId": "react-component-library:UnsavedChangesFlow",
   "tags": [
     "recovery",
@@ -44,5 +44,8 @@
     }
   ],
   "draft": "",
-  "deprecatedVersions": []
+  "deprecatedVersions": [
+    "1.0.3",
+    "1.0.5"
+  ]
 }

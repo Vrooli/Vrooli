@@ -51,6 +51,14 @@ func (a AdoptionsServiceAdapter) List(ctx context.Context, q adoptions.ListQuery
 
 var Endpoints = []module.EndpointDescriptor{
 	{
+		ID:          "inventory_scan_subjects",
+		Path:        inventoryconnect.InventoryServiceScanProcedure,
+		Method:      "POST",
+		Summary:     "Scan a bounded list of UI asset subjects",
+		Description: "Returns one subject-keyed result for every supplied asset subject.",
+		Category:    "inventory",
+	},
+	{
 		ID:          "inventory_scan_scenario",
 		Path:        inventoryconnect.InventoryServiceScanScenarioProcedure,
 		Method:      "POST",

@@ -7,17 +7,15 @@
  * @deps {"react":"^18"}
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
-import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
-
-import { useStrings } from "@vrooli/react-component-library/useLocale/1.0.1";
+import { translate } from "../../../../hooks/useLocale/versions/1.0.1/useLocale";
 import { useId, type CSSProperties, type ReactNode } from "react";
-import { Button, type ButtonProps } from "@vrooli/react-component-library/Button/2.0.0";
-import { ButtonGroup } from "@vrooli/react-component-library/ButtonGroup/1.1.1";
-import { Card, CardContent } from "@vrooli/react-component-library/Card/1.1.0";
-import { Container } from "@vrooli/react-component-library/Container/1.1.2";
-import { Heading } from "@vrooli/react-component-library/Heading/1.1.0";
-import { Stack } from "@vrooli/react-component-library/Stack/1.2.1";
-import { Text } from "@vrooli/react-component-library/Text/1.0.0";
+import { Button, type ButtonProps } from "../../../Button/versions/2.2.0/Button";
+import { ButtonGroup } from "../../../ButtonGroup/versions/1.1.1/ButtonGroup";
+import { Card, CardContent } from "../../../Card/versions/1.1.0/Card";
+import { Container } from "../../../../primitives/Container/versions/1.1.2/Container";
+import { Heading } from "../../../../primitives/Heading/versions/1.1.0/Heading";
+import { Stack } from "../../../../primitives/Stack/versions/1.2.1/Stack";
+import { Text } from "../../../../primitives/Text/versions/1.1.0/Text";
 
 const iconBadgeStyle: CSSProperties = {
   display: "grid",
@@ -43,7 +41,7 @@ export interface EmptyStateProps {
   className?: string;
 }
 
-export const EmptyState = withClassName(function EmptyState({
+export function EmptyState({
   title,
   description,
   icon,
@@ -53,7 +51,6 @@ export const EmptyState = withClassName(function EmptyState({
   onAction,
   className,
 }: EmptyStateProps) {
-  const strings = useStrings();
   const id = `rcl-empty-state-${useId().replace(/:/g, "")}`;
   const titleId = `${id}-title`;
   const descriptionId = `${id}-description`;
@@ -66,7 +63,7 @@ export const EmptyState = withClassName(function EmptyState({
     ) : null);
 
   return (
-    <Container data-testid="feedback.empty-state" width="comfortable">
+    <Container width="comfortable">
       <Card
         data-rcl-empty-state
         className={className}
@@ -115,7 +112,7 @@ export const EmptyState = withClassName(function EmptyState({
               <ButtonGroup
                 align="center"
                 collapse="sm"
-                label={strings("feedback.empty-state.empty-state-actions", "Empty state actions")}
+                label={translate("feedback.empty-state.label.1", "Empty state actions")}
                 data-rcl-empty-state-action
               >
                 {resolvedAction}
@@ -126,4 +123,4 @@ export const EmptyState = withClassName(function EmptyState({
       </Card>
     </Container>
   );
-});
+}

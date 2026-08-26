@@ -330,7 +330,7 @@ func (s *service) GetBundleVersion(ctx context.Context, id, version string) (Bun
 	if stampVersion == "" {
 		stampVersion = asset.LatestVersion
 	}
-	stampedSource := stampPreviewSource(normalizePreviewCompatibilityForPath(content.Body, content.SourcePath), content.SourcePath, asset.CatalogID, stampVersion)
+	stampedSource := stampPreviewSource(content.Body, content.SourcePath, asset.CatalogID, stampVersion)
 	js, warnings, err := s.bundler.BuildBundle(ctx, stampedSource, content.SourcePath)
 	if err != nil {
 		return Bundle{}, err
@@ -345,7 +345,7 @@ func (s *service) GetBundleVersion(ctx context.Context, id, version string) (Bun
 				return Bundle{}, err
 			}
 			var storyWarnings []string
-			harnessJS, storyWarnings, storyErr = s.bundler.BuildBundle(ctx, normalizePreviewCompatibility(storyContent.Body), storyContent.SourcePath)
+			harnessJS, storyWarnings, storyErr = s.bundler.BuildBundle(ctx, storyContent.Body, storyContent.SourcePath)
 			warnings = append(warnings, storyWarnings...)
 			if storyErr != nil {
 				return Bundle{}, storyErr

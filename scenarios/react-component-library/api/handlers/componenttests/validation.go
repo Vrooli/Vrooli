@@ -11,6 +11,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"time"
 
 	"react-component-library/internal/catalogcoverage"
 	"react-component-library/internal/catalogvalidate"
@@ -35,21 +36,29 @@ type sharedHandler struct {
 	logger     *log.Logger
 	evidence   *catalogcoverage.EvidenceStore
 	fixture    GeneratedFixtureValidator
+	probe      func(context.Context) error
 }
 
 // The catalog suite is transport-bound: Test Genie keeps the validation RPC
 // open while every released asset is exercised. The worker pool must also
 // leave headroom for the shared BAS driver, which caps active browser sessions
 // at ten and may be serving other evidence requests during a full suite.
-// Six workers keeps catalog validation bounded below that hard browser limit
-// while retaining enough parallelism for the provider response to complete
-// within Test Genie's transport window.
-const componentValidationWorkers = 6
+// Nine workers approaches the hard browser-session limit while leaving one
+// slot for shared BAS traffic and keeping the provider response within Test
+// Genie's phase deadline. Unchanged versions bypass this pool entirely through
+// durable report reuse below.
+const componentValidationWorkers = 9
 
 type assetValidationResult struct {
 	libraryID string
 	detail    string
 	failed    bool
+	skipped   bool
+}
+
+type assetValidationJob struct {
+	asset   components.Component
+	version string
 }
 
 // DescribeProvider answers Test Genie readiness from provider-owned facts.
@@ -72,50 +81,117 @@ func (h *sharedHandler) DescribeProvider(context.Context, *connect.Request[scena
 
 func (h *sharedHandler) ValidateScenario(ctx context.Context, req *connect.Request[scenariovalidationv1.ValidateScenarioRequest]) (*connect.Response[scenariovalidationv1.ValidateScenarioResponse], error) {
 	collector := metrics.Start()
+	allVersions := domain.FullVersionAuditRequested(req.Msg.GetCapabilitySubset())
+	if h.probe != nil {
+		probeCtx, cancelProbe := context.WithTimeout(ctx, 5*time.Second)
+		probeErr := h.probe(probeCtx)
+		cancelProbe()
+		if probeErr != nil {
+			collector.Gauge("component_test_runner_available", 0)
+			details := map[string]string{"component-test-runner": "COMPONENT_TEST_RUNNER_UNAVAILABLE: " + probeErr.Error()}
+			assessment := componentTestsAssessment(req.Msg.GetScenario(), false, []string{"component-test-runner"}, details)
+			return connect.NewResponse(&scenariovalidationv1.ValidateScenarioResponse{
+				Scenario:   req.Msg.GetScenario(),
+				Status:     scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_FAILED,
+				Assessment: assessment,
+				Metrics:    collector.Stop(),
+			}), nil
+		}
+		collector.Gauge("component_test_runner_available", 1)
+	}
 	catalogFindings, err := h.validateCatalog()
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
-	coverage, err := h.coverageReport(ctx)
+	// Coverage is supporting presentation, not the component-test verdict. Its
+	// evidence merge can scan a large durable store, so it must not consume the
+	// validation RPC's entire deadline and hide the actual incremental result.
+	coverageCtx, cancelCoverage := context.WithTimeout(ctx, 2*time.Second)
+	coverage, err := h.coverageReport(coverageCtx)
+	cancelCoverage()
 	if err != nil {
-		return nil, connect.NewError(connect.CodeInternal, err)
+		if !errors.Is(err, context.Canceled) && !errors.Is(err, context.DeadlineExceeded) {
+			return nil, connect.NewError(connect.CodeInternal, err)
+		}
+		coverage = nil
 	}
 	assets, err := h.assets.List(ctx, components.SearchQuery{Limit: 500})
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
-	jobs := make(chan components.Component)
-	results := make(chan assetValidationResult, len(assets))
+	validationJobs := make([]assetValidationJob, 0, len(assets))
+	selectedAssets := map[string]struct{}{}
+	historicalVersionsSkipped := 0
+	selectedVersions := 0
+	versionListingFailures := make([]assetValidationResult, 0)
+	for _, asset := range assets {
+		versions, versionErr := h.assets.ListVersions(ctx, asset.ID, 100000)
+		if versionErr != nil {
+			versionListingFailures = append(versionListingFailures, assetValidationResult{libraryID: asset.LibraryID, failed: true, detail: "list versions: " + versionErr.Error()})
+			continue
+		}
+		selection := domain.SelectValidationVersions(asset, versions, allVersions)
+		historicalVersionsSkipped += selection.SkippedHistorical
+		selectedVersions += selection.SelectedVersionCount
+		if len(selection.Selected) == 0 {
+			continue
+		}
+		selectedAssets[asset.LibraryID] = struct{}{}
+		for _, version := range selection.Selected {
+			validationJobs = append(validationJobs, assetValidationJob{asset: asset, version: version.Version})
+		}
+	}
+	// Buffer the complete selection before workers start. A canceled request
+	// must let workers drain and exit without leaving the producer blocked on an
+	// unbuffered send after the request context has ended.
+	jobs := make(chan assetValidationJob, len(validationJobs))
+	results := make(chan assetValidationResult, len(validationJobs)+len(versionListingFailures))
 	workers := componentValidationWorkers
-	if len(assets) < workers {
-		workers = len(assets)
+	if selectedVersions < workers {
+		workers = selectedVersions
 	}
 	var wait sync.WaitGroup
 	for range workers {
 		wait.Add(1)
 		go func() {
 			defer wait.Done()
-			for asset := range jobs {
-				if asset.LatestVersion == "" {
-					continue
-				}
-				results <- h.validateAsset(ctx, asset)
+			for job := range jobs {
+				results <- h.validateAsset(ctx, job.asset, job.version)
 			}
 		}()
 	}
-	for _, asset := range assets {
-		if asset.LatestVersion != "" {
-			jobs <- asset
-		}
+	for _, job := range validationJobs {
+		jobs <- job
 	}
 	close(jobs)
 	wait.Wait()
 	close(results)
 
-	validated := make([]assetValidationResult, 0, len(results))
+	validated := make([]assetValidationResult, 0, len(results)+len(versionListingFailures))
+	validated = append(validated, versionListingFailures...)
+	skippedSelectedVersions := 0
+	validatedAssets := map[string]struct{}{}
 	for result := range results {
 		validated = append(validated, result)
+		if result.skipped {
+			skippedSelectedVersions++
+		} else if !result.failed {
+			validatedAssets[result.libraryID] = struct{}{}
+		}
 	}
+	skippedAssets := 0
+	for libraryID := range selectedAssets {
+		if _, validated := validatedAssets[libraryID]; !validated {
+			skippedAssets++
+		}
+	}
+	collector.Gauge("selected_assets", float64(len(selectedAssets)))
+	collector.Gauge("selected_versions", float64(selectedVersions))
+	collector.Gauge("skipped_assets", float64(skippedAssets))
+	collector.Gauge("skipped_versions", float64(historicalVersionsSkipped+skippedSelectedVersions))
+	collector.Gauge("historical_versions_excluded", float64(historicalVersionsSkipped))
+	collector.Gauge("reused_versions", float64(skippedSelectedVersions))
+	collector.Gauge("all_versions_audit", boolGauge(allVersions))
 	sort.Slice(validated, func(i, j int) bool { return validated[i].libraryID < validated[j].libraryID })
 	failed := len(catalogFindings) > 0
 	failedAssets := []string{}
@@ -130,7 +206,14 @@ func (h *sharedHandler) ValidateScenario(ctx context.Context, req *connect.Reque
 			failureDetails[result.libraryID] = result.detail
 		}
 	}
-	if h.fixture != nil {
+	fixtureSkipped := h.fixture != nil && shouldSkipGeneratedFixture(
+		selectedVersions,
+		skippedSelectedVersions,
+		catalogFindings,
+		versionListingFailures,
+	)
+	collector.Gauge("generated_fixture_skipped", boolGauge(fixtureSkipped))
+	if h.fixture != nil && !fixtureSkipped {
 		if fixtureErr := h.fixture.Validate(ctx); fixtureErr != nil {
 			failed = true
 			failedAssets = append(failedAssets, "generated-fixture")
@@ -247,19 +330,20 @@ func appendCatalogFindings(assessment *commonv1.MaturityAssessment, findings []c
 	assessment.Presentation = canonicalComponentTestsPresentation(assessment)
 }
 
-func (h *sharedHandler) validateAsset(ctx context.Context, asset components.Component) assetValidationResult {
+func (h *sharedHandler) validateAsset(ctx context.Context, asset components.Component, version string) assetValidationResult {
 	result := assetValidationResult{libraryID: asset.LibraryID}
-	// Released component versions are immutable. Reuse the newest complete
-	// passing report for the exact component/version pair instead of launching
-	// another browser closure during every Test Genie suite. Failed and partial
-	// reports are deliberately not reusable: they must be re-exercised so the
-	// next validation can observe a repair. This keeps the full-catalog gate
-	// complete without exceeding the provider transport window or BAS session
-	// budget.
-	if reports, listErr := h.service.List(ctx, asset.ID, asset.LatestVersion, 5); listErr == nil && hasReusablePassedReport(reports, asset.LibraryID, asset.LatestVersion) {
+	// Released component versions are immutable. Reuse any complete report for
+	// the exact component/version pair instead of launching another browser
+	// closure during every Test Genie suite. A failed report is still a valid
+	// unchanged observation; only a blocked report (for example, BAS being
+	// unavailable) must be retried. A source change creates a new release or
+	// draft, while an illegal in-place release mutation is owned by the
+	// immutability gate.
+	if reports, listErr := h.service.List(ctx, asset.ID, version, 5); listErr == nil && hasReusableReport(reports, asset.LibraryID, version) {
+		result.skipped = true
 		return result
 	}
-	report, runErr := h.service.Run(ctx, domain.Request{ComponentID: asset.ID, Version: asset.LatestVersion, IncludeClosure: true})
+	report, runErr := h.service.Run(ctx, domain.Request{ComponentID: asset.ID, Version: version, IncludeClosure: true})
 	if runErr == nil {
 		if evidenceErr := recordContractEvidence(ctx, h.evidence, h.sourceRoot, report); evidenceErr != nil {
 			result.failed = true
@@ -267,12 +351,12 @@ func (h *sharedHandler) validateAsset(ctx context.Context, asset components.Comp
 			return result
 		}
 	}
-	coverageGaps := h.storyCoverageGaps(ctx, asset.ID, asset.LatestVersion)
+	coverageGaps := h.storyCoverageGaps(ctx, asset.ID, version)
 	if len(coverageGaps) > 0 {
 		result.failed = true
 		result.detail = fmt.Sprintf("story coverage gaps: %v", coverageGaps)
 		if h.logger != nil {
-			h.logger.Printf("component-test story coverage failed for %s@%s: %v", asset.LibraryID, asset.LatestVersion, coverageGaps)
+			h.logger.Printf("component-test story coverage failed for %s@%s: %v", asset.LibraryID, version, coverageGaps)
 		}
 	}
 	if runErr == nil && report.Verdict == domain.VerdictPassed {
@@ -280,7 +364,7 @@ func (h *sharedHandler) validateAsset(ctx context.Context, asset components.Comp
 	}
 	result.failed = true
 	if h.logger != nil {
-		h.logger.Printf("component-test execution failed for %s@%s: run_error=%v verdict=%s results=%v", asset.LibraryID, asset.LatestVersion, runErr, report.Verdict, report.Results)
+		h.logger.Printf("component-test execution failed for %s@%s: run_error=%v verdict=%s results=%v", asset.LibraryID, version, runErr, report.Verdict, report.Results)
 	}
 	if runErr != nil {
 		result.detail = "runner error: " + runErr.Error()
@@ -295,9 +379,27 @@ func (h *sharedHandler) validateAsset(ctx context.Context, asset components.Comp
 	return result
 }
 
-func hasReusablePassedReport(reports []domain.Report, libraryID, version string) bool {
+func boolGauge(value bool) float64 {
+	if value {
+		return 1
+	}
+	return 0
+}
+
+func shouldSkipGeneratedFixture(selectedVersions, skippedSelectedVersions int, catalogFindings []catalogvalidate.Finding, versionListingFailures []assetValidationResult) bool {
+	// The generated-fixture check exercises the template/adoption lifecycle,
+	// not an individual asset version. Once every selected version was reused
+	// and catalog/version selection itself was clean, rerunning that lifecycle
+	// would make an unchanged component-test phase exceed its bounded budget.
+	return selectedVersions > 0 &&
+		skippedSelectedVersions == selectedVersions &&
+		len(catalogFindings) == 0 &&
+		len(versionListingFailures) == 0
+}
+
+func hasReusableReport(reports []domain.Report, libraryID, version string) bool {
 	for _, report := range reports {
-		if report.RootLibraryID == libraryID && report.RootVersion == version && report.IncludeClosure && report.Verdict == domain.VerdictPassed {
+		if report.RootLibraryID == libraryID && report.RootVersion == version && report.IncludeClosure && report.Verdict != domain.VerdictBlocked {
 			return true
 		}
 	}

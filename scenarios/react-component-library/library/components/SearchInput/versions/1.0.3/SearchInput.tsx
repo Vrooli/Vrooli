@@ -7,27 +7,43 @@
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
 /** @vrooliComponentSource react-component-library:SearchInput */
-import { resolveStrings, useStrings } from "@vrooli/react-component-library/useLocale/1.0.1";
+import { translate } from "../../../../hooks/useLocale/versions/1.0.1/useLocale";
 import { forwardRef, type InputHTMLAttributes } from "react";
-import "./SearchInput.css";
+const muted = { color: "var(--color-muted-foreground, #64748b)" };
 export const SearchInput = forwardRef<HTMLInputElement, InputHTMLAttributes<HTMLInputElement>>(
   function SearchInput(
-    { placeholder = resolveStrings("forms.search-input.search", "Search"), style, ...props },
+    { placeholder = translate("forms.search-input.placeholder.1", "Search"), style, ...props },
     ref,
   ) {
-  const strings = useStrings();
     return (
-      <label data-rcl-search-input>
-        <span data-rcl-search-input-label>
-          {strings("forms.search-input.search", "Search")}
+      <label style={{ display: "grid", gap: 6, width: "min(100%, 360px)" }}>
+        <span
+          style={{
+            ...muted,
+            fontSize: 12,
+            fontWeight: 700,
+            textTransform: "uppercase",
+          }}
+        >
+          {translate("forms.search-input.text.1", "Search")}
         </span>
         <input
           data-testid="forms.search-input"
           ref={ref}
           type="search"
           placeholder={placeholder}
-          data-rcl-search-input-field
-          style={style}
+          style={{
+            minHeight: 44,
+            boxSizing: "border-box",
+            width: "100%",
+            border: "1px solid var(--color-border, #cbd5e1)",
+            borderRadius: "var(--radius-control, .5rem)",
+            background: "var(--color-surface, #fff)",
+            color: "var(--color-foreground, #0f172a)",
+            paddingInline: 16,
+            font: "inherit",
+            ...style,
+          }}
           {...props}
         />
       </label>

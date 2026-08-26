@@ -3,7 +3,7 @@
   "assetKind": "component",
   "catalogId": "navigation.app-shell",
   "dependencies": [],
-  "description": "The responsive application frame that composes navigation and routed content without fixture coupling.",
+  "description": "",
   "designStyles": [
     {
       "affinity": "native",
@@ -11,7 +11,7 @@
     }
   ],
   "displayName": "AppShell",
-  "latest": "1.0.3",
+  "latest": "1.0.6",
   "libraryId": "react-component-library:AppShell",
   "tags": [
     "navigation",
@@ -25,5 +25,8 @@
     }
   ],
   "draft": "",
-  "deprecatedVersions": []
+  "deprecatedVersions": [
+    "1.0.3",
+    "1.0.5"
+  ]
 }

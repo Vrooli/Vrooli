@@ -7,8 +7,6 @@
  * @deps {"react":"^18","shiki":"^4.3.1"}
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
-import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
-
 import { useEffect, useState } from "react";
 import { languageLabel, normalizeCodeLanguage } from "./languageDetection";
 import { useCodeCopy } from "./useCodeCopy";
@@ -85,7 +83,7 @@ function useHighlightedCode(code: string, language: string) {
   return html;
 }
 
-export const CodeBlock = withClassName(function CodeBlock({
+export function CodeBlock({
   code,
   language,
   className,
@@ -117,4 +115,4 @@ export const CodeBlock = withClassName(function CodeBlock({
       )}
     </section>
   );
-});
+}

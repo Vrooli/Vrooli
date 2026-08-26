@@ -1,6 +1,4 @@
 /** @vrooliComponentSource forms.form */
-import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
-
 import {
   useEffect,
   useId,
@@ -13,7 +11,7 @@ import {
 import {
   type FormPhase,
   type FormStore,
-} from "@vrooli/react-component-library/FormStore/1.0.0";
+} from "../../../../services/FormStore/versions/1.0.0/FormStore";
 
 export type FormValues = Record<string, unknown>;
 
@@ -73,7 +71,7 @@ function useFormState<TValues extends FormValues>(store?: FormStore<TValues>) {
   return store?.get();
 }
 
-export const Form = withClassName(function Form<TValues extends FormValues = FormValues>({
+export function Form<TValues extends FormValues = FormValues>({
   mode,
   store,
   onSubmit,
@@ -125,7 +123,7 @@ export const Form = withClassName(function Form<TValues extends FormValues = For
         data-rcl-form-styles
         dangerouslySetInnerHTML={{ __html: styles }}
       />
-      <form data-testid="forms.form"
+      <form
         {...props}
         id={id}
         className={className}
@@ -170,4 +168,4 @@ export const Form = withClassName(function Form<TValues extends FormValues = For
       </form>
     </>
   );
-});
+}

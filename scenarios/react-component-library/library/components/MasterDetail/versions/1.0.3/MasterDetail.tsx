@@ -6,10 +6,8 @@
  * @tags ["navigation","responsive","collection","detail","routing","accessibility","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
-import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
-
 /** @vrooliComponentSource navigation.master-detail */
-import { resolveStrings } from "@vrooli/react-component-library/useLocale/1.0.1";
+import { translate } from "../../../../hooks/useLocale/versions/1.0.1/useLocale";
 import {
   useCallback,
   useEffect,
@@ -19,8 +17,8 @@ import {
   type CSSProperties,
   type ReactNode,
 } from "react";
-import { SplitView } from "@vrooli/react-component-library/SplitView/1.0.0";
-import { useMediaQuery } from "@vrooli/react-component-library/useMediaQuery/1.0.0";
+import { SplitView } from "../../../SplitView/versions/1.0.0/SplitView";
+import { useMediaQuery } from "../../../../hooks/useMediaQuery/versions/1.0.0/useMediaQuery";
 
 export interface MasterDetailItem<T = unknown> {
   id: string;
@@ -101,7 +99,7 @@ function State({ status, children }: { status: MasterDetailStatus; children: Rea
   );
 }
 
-export const MasterDetail = withClassName(function MasterDetail<T>({
+export function MasterDetail<T>({
   items,
   selectedId,
   defaultSelectedId,
@@ -113,7 +111,7 @@ export const MasterDetail = withClassName(function MasterDetail<T>({
   status = "default",
   statusMessage,
   errorMessage = "We couldn’t load this collection. Try again when the connection is available.",
-  label = resolveStrings("navigation.master-detail.master-detail-workspace", "Master detail workspace"),
+  label = translate("navigation.master-detail.label.1", "Master detail workspace"),
   breakpoint = "(max-width: 52rem)",
   className,
   style,
@@ -189,7 +187,7 @@ export const MasterDetail = withClassName(function MasterDetail<T>({
         ref={listRef}
         data-rcl-master-detail-list
         role="list"
-        aria-label={resolveStrings("navigation.master-detail.records", "Records")}
+        aria-label={translate("navigation.master-detail.aria-label.2", "Records")}
       >
         {items.map(renderMasterItem)}
       </div>
@@ -200,8 +198,8 @@ export const MasterDetail = withClassName(function MasterDetail<T>({
       <State status={status}>{statusMessage ?? "Loading detail…"}</State>
     ) : status === "request-error" ? (
       <State status="empty">
-        {resolveStrings(
-          "navigation.master-detail.detail-is-unavailable-until-the-collection-recon",
+        {translate(
+          "navigation.master-detail.text.1",
           "Detail is unavailable until the collection reconnects.",
         )}
       </State>
@@ -231,7 +229,7 @@ export const MasterDetail = withClassName(function MasterDetail<T>({
               type="button"
               onClick={back}
             >
-              {resolveStrings("navigation.master-detail.back-to-list", "Back to list")}
+              {translate("navigation.master-detail.text.2", "Back to list")}
             </button>
           ) : null}
         </div>
@@ -248,7 +246,7 @@ export const MasterDetail = withClassName(function MasterDetail<T>({
   const collectionPanel = (
     <section
       data-rcl-master-detail-panel
-      aria-label={resolveStrings("navigation.master-detail.record-collection", "Record collection")}
+      aria-label={translate("navigation.master-detail.aria-label.3", "Record collection")}
     >
       {masterState}
     </section>
@@ -259,12 +257,12 @@ export const MasterDetail = withClassName(function MasterDetail<T>({
       <style data-rcl-master-detail-styles dangerouslySetInnerHTML={{ __html: styles }} />
       <header data-rcl-master-detail-header>
         <span data-rcl-master-detail-kicker>
-          {resolveStrings("navigation.master-detail.collection-workspace", "Collection workspace")}
+          {translate("navigation.master-detail.text.3", "Collection workspace")}
         </span>
         <h1 data-rcl-master-detail-title>{label}</h1>
         <span data-rcl-master-detail-description>
-          {resolveStrings(
-            "navigation.master-detail.keep-the-collection-in-reach-while-inspecting-on",
+          {translate(
+            "navigation.master-detail.text.4",
             "Keep the collection in reach while inspecting one record at a time.",
           )}
         </span>
@@ -283,4 +281,4 @@ export const MasterDetail = withClassName(function MasterDetail<T>({
       )}
     </section>
   );
-});
+}

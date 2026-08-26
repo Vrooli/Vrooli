@@ -31,6 +31,13 @@ func ValidateDocumentation(root string) (Result, error) {
 		if !ok {
 			continue
 		}
+		if isStorySource(source) {
+			// story.tsx exports are preview specimens, not public library API.
+			// Their behavior is covered by the story contract and component test,
+			// so requiring TSDoc on every specimen helper creates noise without
+			// improving the published component contract.
+			continue
+		}
 		data, err := os.Open(source)
 		if err != nil {
 			return Result{}, err

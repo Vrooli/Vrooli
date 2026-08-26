@@ -3,8 +3,10 @@
   "assetKind": "component",
   "catalogId": "visualization.evidence-carousel",
   "dependencies": [],
-  "deprecatedVersions": [],
-  "description": "A compact evidence reference strip for captures and diagnostics.",
+  "deprecatedVersions": [
+    "1.0.12"
+  ],
+  "description": "",
   "designStyles": [
     {
       "affinity": "native",
@@ -13,7 +15,7 @@
   ],
   "displayName": "EvidenceCarousel",
   "draft": "",
-  "latest": "1.0.12",
+  "latest": "1.0.13",
   "libraryId": "react-component-library:EvidenceCarousel",
   "tags": [
     "visualization",

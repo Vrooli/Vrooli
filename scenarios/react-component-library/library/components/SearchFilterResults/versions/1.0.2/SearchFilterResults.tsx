@@ -7,15 +7,15 @@
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
 /** @vrooliComponentSource patterns.search-filter-results */
-import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
+import { withClassName } from "../../../../foundations/ClassMerge/versions/1.0.1/ClassMerge";
 
 import { useCallback, useRef, useState } from "react";
-import { FilterBar } from "@vrooli/react-component-library/FilterBar/1.0.0";
+import { FilterBar } from "../../../FilterBar/versions/1.0.0/FilterBar";
 import {
   SearchResults,
   type SearchResultsState,
-} from "@vrooli/react-component-library/SearchResults/1.0.4";
-import { useAbortableTask } from "@vrooli/react-component-library/useAbortableTask/1.0.0";
+} from "../../../SearchResults/versions/1.0.0/SearchResults";
+import { useAbortableTask } from "../../../../hooks/useAbortableTask/versions/1.0.0/useAbortableTask";
 
 export interface SearchFilterResultsProps {
   query?: string;
@@ -64,7 +64,7 @@ export const SearchFilterResults = withClassName(function SearchFilterResults({
   };
 
   return (
-    <div data-testid="patterns.search-filter-results" data-rcl-search-filter-results>
+    <div data-rcl-search-filter-results>
       <style data-rcl-search-filter-results-styles dangerouslySetInnerHTML={{ __html: styles }} />
       <FilterBar
         query={draftQuery}

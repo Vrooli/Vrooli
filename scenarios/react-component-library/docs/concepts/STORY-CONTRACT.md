@@ -12,6 +12,12 @@ a meaningful edge condition. Axis stories declare their prop and the rendered
 option union in `covers`; boundary stories may name states such as `empty`,
 `truncate`, `overflow`, `loading`, `error`, `disabled`, `rtl`, or `forced-colors`.
 
+These roles are deliberately separate: anatomy establishes the stable subject
+shape, an axis proves the meaningful values of one public dimension, and a
+boundary proves behavior at a credible edge. The canonical worked example is
+`library/primitives/Text/versions/1.1.0/story.json`; use it when deciding
+whether a new frame is a distinct question or only a duplicate specimen.
+
 ## Required shape
 
 Every contract has `schemaVersion: 5`, `kind` (`component` or `hook`), `args`,

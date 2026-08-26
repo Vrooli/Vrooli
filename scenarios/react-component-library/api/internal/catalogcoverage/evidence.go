@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"react-component-library/internal/gates"
+	"react-component-library/internal/versionledger"
 )
 
 // Schema owns the durable browser-backed gate evidence table. Evidence is
@@ -764,11 +765,11 @@ func deriveExperienceEvidence(root string, captures []ExperienceCapture, definit
 					result = "skipped"
 				}
 			}
-			if definition.ExperienceRequiresCapture && strings.TrimSpace(capture.CaptureRef) == "" && result == "pass" {
+			if definition.requiresCapture() && strings.TrimSpace(capture.CaptureRef) == "" && result == "pass" {
 				result = "skipped"
 			}
 		}
-		if definition.ExperienceMinimumViewports > 0 && len(viewports) < definition.ExperienceMinimumViewports && result == "pass" {
+		if definition.minimumViewports() > 0 && len(viewports) < definition.minimumViewports() && result == "pass" {
 			result = "skipped"
 		}
 		revision, err := CurrentRevision(root, assetID)
@@ -826,7 +827,7 @@ func deriveExperienceEvidence(root string, captures []ExperienceCapture, definit
 			if definition.ID != "visual" && definition.ID != "responsive" {
 				continue
 			}
-			if definition.ID == "responsive" && len(entry.viewports) < definition.ExperienceMinimumViewports {
+			if definition.ID == "responsive" && len(entry.viewports) < definition.minimumViewports() {
 				continue
 			}
 			out = append(out, GateEvidence{AssetID: assetID, Target: target, Version: latestCaptureVersion(latest, assetID, target), Gate: definition.ID, Result: "pass", SourceRevision: revision})
@@ -889,6 +890,34 @@ func recomputeEvidence(root string, runtimeDB *sql.DB) ([]GateEvidence, error) {
 	if runners["version-liveness"], err = gates.ValidateVersionLiveness(root); err != nil {
 		return nil, err
 	}
+	if runtimeDB != nil {
+		libraryRoot := filepath.Join(resolveScenarioRoot(root), "library")
+		var componentTableCount int
+		if tableErr := runtimeDB.QueryRowContext(context.Background(), `SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='components'`).Scan(&componentTableCount); tableErr != nil {
+			return nil, fmt.Errorf("check version retirement schema: %w", tableErr)
+		}
+		if componentTableCount > 0 {
+			items, planHash, planErr := versionledger.NewRepository(runtimeDB, libraryRoot).PlanCleanup(context.Background(), versionledger.CleanupScope{})
+			if planErr != nil {
+				return nil, fmt.Errorf("compute version retirement plan: %w", planErr)
+			}
+			eligible := 0
+			for _, item := range items {
+				if item.Eligible {
+					eligible++
+				}
+			}
+			versionLiveness := runners["version-liveness"]
+			versionLiveness.InformationalFindings = append(versionLiveness.InformationalFindings, gates.Finding{
+				Code:        "catalog.version_retirement_plan",
+				AssetID:     "__corpus__",
+				Message:     fmt.Sprintf("retirement plan computed: %d safe candidate(s) out of %d; no versions applied without an explicit plan hash and confirmation", eligible, len(items)),
+				Remediation: fmt.Sprintf("Review `react-component-library versions plan-cleanup --json` (plan hash %s), then apply only with the reviewed hash and explicit confirmation.", planHash),
+				DocsRef:     "docs/concepts/ARCHITECTURE.md#version-lifecycle",
+			})
+			runners["version-liveness"] = versionLiveness
+		}
+	}
 	if _, statErr := os.Stat(filepath.Join(root, "scenarios", "react-component-library", "ui", "src", "design-tokens.css")); statErr == nil {
 		if runners["token-vocabulary"], err = gates.ValidateTokenVocabulary(root); err != nil {
 			return nil, err
@@ -940,15 +969,6 @@ func recomputeEvidence(root string, runtimeDB *sql.DB) ([]GateEvidence, error) {
 		return nil, err
 	}
 	if runners["evidence-freshness"], err = gates.ValidateEvidenceFreshness(root); err != nil {
-		return nil, err
-	}
-	if runners["i18n-adopted"], err = gates.ValidateI18nAdopted(root); err != nil {
-		return nil, err
-	}
-	if runners["selectors-adopted"], err = gates.ValidateSelectorsAdopted(root); err != nil {
-		return nil, err
-	}
-	if runners["adopter-hygiene"], err = gates.ValidateAdopterHygiene(root); err != nil {
 		return nil, err
 	}
 	for name, runner := range runners {

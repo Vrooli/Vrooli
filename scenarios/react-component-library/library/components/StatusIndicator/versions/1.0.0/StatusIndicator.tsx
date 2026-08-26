@@ -46,7 +46,6 @@ export function StatusIndicator({
       />
       <span
         role="status"
-        aria-label={label ?? status}
         data-rcl-status-indicator="true"
         data-status={status}
         data-certainty={certainty}

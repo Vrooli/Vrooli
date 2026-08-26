@@ -1,6 +1,6 @@
 /** @vrooliComponentSource forms.form-section */
 import { useId, useState, type CSSProperties, type ReactNode } from "react";
-import { CollapsibleRegion } from "@vrooli/react-component-library/CollapsibleRegion/1.0.0";
+import { CollapsibleRegion } from "../../../../components/CollapsibleRegion/versions/1.0.0/CollapsibleRegion";
 
 export interface FormSectionProps {
   title: ReactNode;

@@ -7,7 +7,7 @@
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
 /** @vrooliComponentSource feedback.status-indicator */
-import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
+import { withClassName } from "../../../../foundations/ClassMerge/versions/1.0.1/ClassMerge";
 
 import type { CSSProperties } from "react";
 export type StatusCertainty = "scheduled" | "estimated" | "predicted" | "observed" | "confirmed";
@@ -45,7 +45,7 @@ export const StatusIndicator = withClassName(function StatusIndicator({
       `,
         }}
       />
-      <span data-testid="primitives.status-indicator"
+      <span
         role="status"
         data-rcl-status-indicator="true"
         data-status={status}

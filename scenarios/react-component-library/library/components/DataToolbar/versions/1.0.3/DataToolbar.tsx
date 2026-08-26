@@ -6,13 +6,11 @@
  * @tags ["data-display","query","filters","responsive","keyboard","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
-import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
-
 /** @vrooliComponentSource data-display.data-toolbar */
-import { useStrings } from "@vrooli/react-component-library/useLocale/1.0.1";
+import { translate } from "../../../../hooks/useLocale/versions/1.0.1/useLocale";
 import { useId, useState, type CSSProperties } from "react";
-import { FilterBar, type FilterOption } from "@vrooli/react-component-library/FilterBar/1.0.0";
-import { Toolbar, type ToolbarItem } from "@vrooli/react-component-library/Toolbar/1.0.0";
+import { FilterBar, type FilterOption } from "../../../FilterBar/versions/1.0.0/FilterBar";
+import { Toolbar, type ToolbarItem } from "../../../Toolbar/versions/1.0.0/Toolbar";
 
 export interface DataToolbarView {
   id: string;
@@ -96,7 +94,7 @@ function statusTone(status: DataToolbarStatus) {
   return "neutral";
 }
 
-export const DataToolbar = withClassName(function DataToolbar({
+export function DataToolbar({
   query,
   defaultQuery = "",
   filterOptions = [],
@@ -132,7 +130,6 @@ export const DataToolbar = withClassName(function DataToolbar({
   className,
   style,
 }: DataToolbarProps) {
-  const strings = useStrings();
   const sortControlId = useId();
   const [localViewId, setLocalViewId] = useState(defaultViewId ?? views[0]?.id ?? "");
   const [localSortId, setLocalSortId] = useState(defaultSortId ?? sortOptions[0]?.id ?? "");
@@ -207,7 +204,7 @@ export const DataToolbar = withClassName(function DataToolbar({
             <div
               data-rcl-data-toolbar-views
               role="group"
-              aria-label={strings("data-display.data-toolbar.saved-views", "Saved views")}
+              aria-label={translate("data-display.data-toolbar.aria-label.1", "Saved views")}
             >
               {views.map((view) => (
                 <button
@@ -248,7 +245,7 @@ export const DataToolbar = withClassName(function DataToolbar({
           {sortOptions.length > 0 ? (
             <span data-rcl-data-toolbar-sort>
               <label htmlFor={sortControlId}>
-                {strings("data-display.data-toolbar.sort", "Sort")}
+                {translate("data-display.data-toolbar.text.1", "Sort")}
               </label>
               <select
                 data-testid="data-display.data-toolbar"
@@ -267,7 +264,7 @@ export const DataToolbar = withClassName(function DataToolbar({
           {toolbarItems.length > 0 ? (
             <Toolbar
               items={toolbarItems}
-              label={strings("data-display.data-toolbar.collection-actions", "Collection actions")}
+              label={translate("data-display.data-toolbar.label.2", "Collection actions")}
               size="sm"
             />
           ) : null}
@@ -275,4 +272,4 @@ export const DataToolbar = withClassName(function DataToolbar({
       </div>
     </section>
   );
-});
+}

@@ -7,8 +7,8 @@
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
 /** @vrooliComponentSource react-component-library:StatCard */
-import { resolveStrings } from "@vrooli/react-component-library/useLocale/1.0.1";
-import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
+import { translate } from "../../../../hooks/useLocale/versions/1.0.1/useLocale";
+import { withClassName } from "../../../../foundations/ClassMerge/versions/1.0.1/ClassMerge";
 
 const panel = {
   border: "1px solid var(--color-border, #cbd5e1)",
@@ -20,7 +20,7 @@ const panel = {
 };
 const muted = { color: "var(--color-muted-foreground, #64748b)" };
 export const StatCard = withClassName(function StatCard({
-  label = resolveStrings("data-display.stat-card.metric", "Metric"),
+  label = translate("data-display.stat-card.label.1", "Metric"),
   value = "—",
   trend,
 }: {
@@ -29,7 +29,7 @@ export const StatCard = withClassName(function StatCard({
   trend?: string;
 }) {
   return (
-    <article data-testid="data-display.stat-card"
+    <article
       style={{
         ...panel,
         position: "relative",

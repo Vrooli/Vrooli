@@ -6,13 +6,11 @@
  * @tags ["navigation","layout","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
-import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
-
 /**
  * @vrooliComponentSource react-component-library:AppShell
  * @deps {"react":"^18"}
  */
-import { resolveStrings, useStrings } from "@vrooli/react-component-library/useLocale/1.0.1";
+import { translate } from "../../../../hooks/useLocale/versions/1.0.1/useLocale";
 import type { ReactNode } from "react";
 
 export interface AppShellProps {
@@ -61,22 +59,22 @@ const appShellStyles = `
 
 function defaultNavigation() {
   return (
-    <nav aria-label={resolveStrings("navigation.app-shell.application-navigation", "Application navigation")}>
+    <nav aria-label={translate("navigation.app-shell.aria-label.1", "Application navigation")}>
       <a data-testid="navigation.app-shell" href="/" aria-current="page">
-        {resolveStrings("navigation.app-shell.workspace", "Workspace")}
+        {translate("navigation.app-shell.text.1", "Workspace")}
       </a>
       <a data-testid="navigation.app-shell" href="/settings">
-        {resolveStrings("navigation.app-shell.settings", "Settings")}
+        {translate("navigation.app-shell.text.2", "Settings")}
       </a>
     </nav>
   );
 }
 
-export const AppShell = withClassName(function AppShell({
+export function AppShell({
   navigation,
   header,
   children,
-  title = resolveStrings("navigation.app-shell.application-workspace", "Application workspace"),
+  title = translate("navigation.app-shell.title.2", "Application workspace"),
   navigationLabel = "Application navigation",
   navigationMode = "rail",
   headerMode = "visible",
@@ -86,7 +84,6 @@ export const AppShell = withClassName(function AppShell({
   headerClassName,
   mainClassName,
 }: AppShellProps) {
-  const strings = useStrings();
   return (
     <div
       data-rcl-app-shell
@@ -106,7 +103,7 @@ export const AppShell = withClassName(function AppShell({
         data-testid="navigation.app-shell-skip"
         href="#app-shell-main"
       >
-        {strings("navigation.app-shell.skip-to-content", "Skip to content")}
+        {translate("navigation.app-shell.text.3", "Skip to content")}
       </a>
       <div
         data-rcl-app-shell-nav
@@ -148,4 +145,4 @@ export const AppShell = withClassName(function AppShell({
       </div>
     </div>
   );
-});
+}

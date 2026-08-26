@@ -189,3 +189,16 @@ func TestRunnerBlocksWhenTheStoryExecutorIsUnavailable(t *testing.T) {
 	require.Equal(t, VerdictBlocked, result.Verdict)
 	require.Contains(t, result.Message, "Chrome not found")
 }
+
+func TestReportIDDropsClockMetadata(t *testing.T) {
+	base := Report{
+		RootLibraryID:  "rcl:root",
+		RootVersion:    "1.0.0",
+		IncludeClosure: true,
+		CreatedAt:      time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC),
+	}
+	later := base
+	later.CreatedAt = base.CreatedAt.Add(time.Hour)
+
+	require.Equal(t, reportID(base), reportID(later))
+}

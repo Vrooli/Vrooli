@@ -1,6 +1,6 @@
 /** @vrooliComponentSource react-component-library:ErrorState */
 import type { ReactNode } from "react";
-import { AsyncBoundary } from "@vrooli/react-component-library/AsyncBoundary/1.0.0";
+import { AsyncBoundary } from "../../../AsyncBoundary/versions/1.0.0/AsyncBoundary";
 
 export function ErrorState({
   title = "Something went wrong",

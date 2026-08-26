@@ -9,8 +9,11 @@
       "version": "1.0.0"
     }
   ],
-  "deprecatedVersions": [],
-  "description": "A native checkbox-backed switch with a clear on/off state, supporting context, and reduced-motion-safe thumb transition.",
+  "deprecatedVersions": [
+    "1.0.2",
+    "1.0.4"
+  ],
+  "description": "",
   "designStyles": [
     {
       "affinity": "native",
@@ -19,7 +22,7 @@
   ],
   "displayName": "Switch",
   "draft": "",
-  "latest": "1.0.2",
+  "latest": "1.0.5",
   "libraryId": "react-component-library:Switch",
   "slot": "ui-primitive",
   "tags": [

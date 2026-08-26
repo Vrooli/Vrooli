@@ -32,11 +32,20 @@ func (r *SQLiteRepository) Save(ctx context.Context, report Report) error {
 	}
 	defer func() { _ = tx.Rollback() }()
 	created := report.CreatedAt.UTC().Format("2006-01-02T15:04:05.999999999Z07:00")
-	if _, err = tx.ExecContext(ctx, `INSERT INTO component_test_reports (id, component_id, root_library_id, root_version, include_closure, created_at, verdict, results_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`, report.ID, report.RootComponentID, report.RootLibraryID, report.RootVersion, report.IncludeClosure, created, report.Verdict, string(results)); err != nil {
+	var alreadySaved bool
+	if err = tx.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM component_test_reports WHERE id = ?)`, report.ID).Scan(&alreadySaved); err != nil {
 		return err
 	}
-	if err = updateRollup(ctx, tx, report); err != nil {
+	if _, err = tx.ExecContext(ctx, `INSERT INTO component_test_reports (id, component_id, root_library_id, root_version, include_closure, created_at, verdict, results_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+ON CONFLICT(id) DO UPDATE SET component_id=excluded.component_id, root_library_id=excluded.root_library_id,
+root_version=excluded.root_version, include_closure=excluded.include_closure, created_at=excluded.created_at,
+verdict=excluded.verdict, results_json=excluded.results_json`, report.ID, report.RootComponentID, report.RootLibraryID, report.RootVersion, report.IncludeClosure, created, report.Verdict, string(results)); err != nil {
 		return err
+	}
+	if !alreadySaved {
+		if err = updateRollup(ctx, tx, report); err != nil {
+			return err
+		}
 	}
 	if err = retainVersionReports(ctx, tx, report.RootComponentID, report.RootLibraryID, report.RootVersion); err != nil {
 		return err

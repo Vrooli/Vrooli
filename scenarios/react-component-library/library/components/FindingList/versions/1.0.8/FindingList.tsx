@@ -6,8 +6,6 @@
  * @tags ["data-display","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
-import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
-
 /** @vrooliComponentSource react-component-library:FindingList */
 export interface Finding {
   id: string;
@@ -16,15 +14,14 @@ export interface Finding {
   message: string;
   remediation?: string;
 }
-import { useStrings } from "@vrooli/react-component-library/useLocale/1.0.1";
-import { Surface } from "@vrooli/react-component-library/Surface/1.0.0";
-import { Stack } from "@vrooli/react-component-library/Stack/1.0.0";
-import { SURFACE_ELEVATIONS } from "@vrooli/react-component-library/VisualRecipes/1.0.0";
-export const FindingList = withClassName(function FindingList({ findings = [] }: { findings?: Finding[] }) {
-  const strings = useStrings();
+import { translate } from "../../../../hooks/useLocale/versions/1.0.1/useLocale";
+import { Surface } from "../../../../primitives/Surface/versions/1.0.0/Surface";
+import { Stack } from "../../../../primitives/Stack/versions/1.0.0/Stack";
+import { SURFACE_ELEVATIONS } from "../../../../foundations/VisualRecipes/versions/1.0.0/VisualRecipes";
+export function FindingList({ findings = [] }: { findings?: Finding[] }) {
   return (
     <ul
-      aria-label={strings("data-display.finding-list.gate-findings", "Gate findings")}
+      aria-label={translate("data-display.finding-list.aria-label.1", "Gate findings")}
       className={SURFACE_ELEVATIONS.raised}
       data-rcl-asset="data-display.finding-list"
       data-rcl-version="1.0.7"
@@ -61,9 +58,9 @@ export const FindingList = withClassName(function FindingList({ findings = [] }:
         ))
       ) : (
         <li role="status" data-bespoke="empty result row preserves list semantics">
-          {strings("data-display.finding-list.no-findings", "No findings.")}
+          {translate("data-display.finding-list.text.1", "No findings.")}
         </li>
       )}
     </ul>
   );
-});
+}

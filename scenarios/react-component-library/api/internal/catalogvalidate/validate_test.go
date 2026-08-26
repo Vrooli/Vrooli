@@ -1,6 +1,7 @@
 package catalogvalidate
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
@@ -24,7 +25,7 @@ func TestValidateReportsSchemaViolationAsFinding(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(schemaDir, "catalog-asset.schema.json"), schema, 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(root, "scenarios", "react-component-library", "catalog", "config.json"), []byte(`{"kind":"catalog-config","contract":{"kind":"ui-catalog","schema":"catalog-asset/v1"},"schemaVersion":"1.0.0","domains":[{"id":"controls","description":"Controls are reusable interactive surfaces."}],"gates":[{"id":"types","description":"Strict type validation gate.","appliesTo":["component"],"blocking":true,"rung":"scaffolded"}]}`), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(root, "scenarios", "react-component-library", "catalog", "config.json"), []byte(`{"kind":"catalog-config","contract":{"kind":"ui-catalog","schema":"catalog-asset/v1"},"schemaVersion":"1.0.0","domains":[{"id":"controls","description":"Controls are reusable interactive surfaces."}],"gates":[{"id":"types","description":"Strict type validation gate.","appliesTo":["component"],"blocking":true,"rung":"scaffolded","attribution":"attributable","runner":{"react-vite":"check types"}}]}`), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.WriteFile(filepath.Join(catalogDir, "broken.json"), []byte(`{"kind":"catalog-asset","schemaVersion":"1.0.0","asset":{"id":"controls.button","name":"Button","kind":"not-a-kind","domain":"controls","description":"A button with a clear action and accessible name.","targets":["react-vite"],"delivery":"adopted","target":{"priority":"P0","maturity":"scaffolded"}}}`), 0o644); err != nil {
@@ -88,6 +89,142 @@ func TestLiveCatalogValidation(t *testing.T) {
 	}
 	if len(findings) > 0 {
 		t.Fatalf("live catalog has %d findings: %+v", len(findings), findings[:min(10, len(findings))])
+	}
+}
+
+func TestLiveCatalogHasTypedFloorAndNoGateExtensions(t *testing.T) {
+	root, err := filepath.Abs(filepath.Join("..", "..", "..", "..", ".."))
+	if err != nil {
+		t.Fatal(err)
+	}
+	data, err := os.ReadFile(filepath.Join(root, "scenarios", "react-component-library", "catalog", "config.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var config struct {
+		AdoptionMaturityFloor string           `json:"adoptionMaturityFloor"`
+		Gates                 []map[string]any `json:"gates"`
+	}
+	if err := json.Unmarshal(data, &config); err != nil {
+		t.Fatal(err)
+	}
+	if config.AdoptionMaturityFloor == "" {
+		t.Fatal("catalog config must declare adoptionMaturityFloor")
+	}
+	for _, gate := range config.Gates {
+		for key := range gate {
+			if strings.HasPrefix(key, "x-") {
+				t.Fatalf("gate %v retains extension key %q", gate["id"], key)
+			}
+		}
+	}
+}
+
+func TestCatalogSchemaRejectsMisspelledFloor(t *testing.T) {
+	root := t.TempDir()
+	schemaDir := filepath.Join(root, ".vrooli", "schemas")
+	configDir := filepath.Join(root, "scenarios", "react-component-library", "catalog")
+	if err := os.MkdirAll(schemaDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(configDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	schema, err := os.ReadFile(filepath.Join("..", "..", "..", "..", "..", ".vrooli", "schemas", "catalog-asset.schema.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(schemaDir, "catalog-asset.schema.json"), schema, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	config := `{"kind":"catalog-config","contract":{"kind":"ui-catalog","schema":"catalog-asset/v1"},"schemaVersion":"1.0.0","adoptionMaturityFloor":"verifed","domains":[{"id":"controls","order":10,"description":"Controls are reusable interactive surfaces."}],"gates":[{"id":"types","description":"Strict type validation gate.","appliesTo":["component"],"blocking":true,"rung":"scaffolded","attribution":"attributable","runner":{"react-vite":"check types"}}]}`
+	if err := os.WriteFile(filepath.Join(configDir, "config.json"), []byte(config), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	findings, err := New(root).Validate()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, finding := range findings {
+		if finding.Code == "catalog.schema_error" && strings.Contains(finding.Message, "adoptionMaturityFloor") {
+			return
+		}
+	}
+	t.Fatalf("misspelled floor did not produce a schema finding: %+v", findings)
+}
+
+func TestCatalogSchemaRequiresGateBlockingAndRunner(t *testing.T) {
+	root := t.TempDir()
+	schemaDir := filepath.Join(root, ".vrooli", "schemas")
+	configDir := filepath.Join(root, "scenarios", "react-component-library", "catalog")
+	if err := os.MkdirAll(schemaDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(configDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	schema, err := os.ReadFile(filepath.Join("..", "..", "..", "..", "..", ".vrooli", "schemas", "catalog-asset.schema.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(schemaDir, "catalog-asset.schema.json"), schema, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	config := `{"kind":"catalog-config","contract":{"kind":"ui-catalog","schema":"catalog-asset/v1"},"schemaVersion":"1.0.0","adoptionMaturityFloor":"scaffolded","domains":[],"gates":[{"id":"types","rung":"scaffolded","attribution":"attributable","appliesTo":["component"]}]}`
+	if err := os.WriteFile(filepath.Join(configDir, "config.json"), []byte(config), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	findings, err := New(root).Validate()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(findings) == 0 {
+		t.Fatal("gate missing required blocking and runner fields was accepted")
+	}
+	for _, finding := range findings {
+		if finding.Code == "catalog.schema_error" && strings.Contains(finding.Message, "blocking") {
+			return
+		}
+	}
+	t.Fatalf("required gate fields did not produce a blocking schema finding: %+v", findings)
+}
+
+func TestCalibrationCoverageMatchesGates(t *testing.T) {
+	root, err := filepath.Abs(filepath.Join("..", "..", "..", "..", ".."))
+	if err != nil {
+		t.Fatal(err)
+	}
+	configData, err := os.ReadFile(filepath.Join(root, "scenarios", "react-component-library", "catalog", "config.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var config struct {
+		Gates []struct {
+			ID       string `json:"id"`
+			Blocking bool   `json:"blocking"`
+		} `json:"gates"`
+	}
+	if err := json.Unmarshal(configData, &config); err != nil {
+		t.Fatal(err)
+	}
+	calibrationRoot := filepath.Join(root, "scenarios", "react-component-library", "catalog", "calibration")
+	entries, err := os.ReadDir(calibrationRoot)
+	if err != nil {
+		t.Fatal(err)
+	}
+	known := map[string]bool{}
+	for _, gate := range config.Gates {
+		known[gate.ID] = true
+		if gate.Blocking {
+			if info, statErr := os.Stat(filepath.Join(calibrationRoot, gate.ID)); statErr != nil || !info.IsDir() {
+				t.Fatalf("blocking gate %q has no calibration directory", gate.ID)
+			}
+		}
+	}
+	for _, entry := range entries {
+		if entry.IsDir() && !known[entry.Name()] {
+			t.Fatalf("calibration directory %q has no gate", entry.Name())
+		}
 	}
 }
 

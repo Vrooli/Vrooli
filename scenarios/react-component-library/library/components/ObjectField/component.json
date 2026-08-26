@@ -8,7 +8,7 @@
       "version": "1.0.0"
     }
   ],
-  "description": "A section-backed nested object field that keeps child values, optionality, collapse, and nested errors together.",
+  "description": "",
   "designStyles": [
     {
       "affinity": "native",
@@ -24,7 +24,7 @@
     }
   ],
   "displayName": "ObjectField",
-  "latest": "1.0.1",
+  "latest": "1.0.4",
   "libraryId": "react-component-library:ObjectField",
   "tags": [
     "form",
@@ -40,5 +40,8 @@
     }
   ],
   "draft": "",
-  "deprecatedVersions": []
+  "deprecatedVersions": [
+    "1.0.1",
+    "1.0.3"
+  ]
 }

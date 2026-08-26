@@ -49,10 +49,11 @@ type UpsertObserver interface {
 }
 
 type Indexer struct {
-	repo     Repository
-	root     string
-	fs       fs.FS // injected for tests; nil means use os.DirFS(root)
-	observer UpsertObserver
+	repo             Repository
+	root             string
+	fs               fs.FS // injected for tests; nil means use os.DirFS(root)
+	observer         UpsertObserver
+	assetDirectories []string
 }
 
 // SetUpsertObserver installs the post-upsert seam. Designed to be
@@ -69,7 +70,7 @@ func NewIndexer(repo Repository, root string, fsys fs.FS) *Indexer {
 	if fsys == nil && root != "" {
 		fsys = os.DirFS(root)
 	}
-	return &Indexer{repo: repo, root: root, fs: fsys}
+	return &Indexer{repo: repo, root: root, fs: fsys, assetDirectories: CatalogKindDirectories(root)}
 }
 
 // IndexResult summarizes one Run.
@@ -92,7 +93,7 @@ func (idx *Indexer) IndexManifest(ctx context.Context, path string) (Component, 
 		return Component{}, fmt.Errorf("indexer has no filesystem configured")
 	}
 	path = filepath.ToSlash(strings.TrimSpace(path))
-	if filepath.Base(path) != "component.json" || !registryAssetPath(path) {
+	if filepath.Base(path) != "component.json" || !idx.registryAssetPath(path) {
 		return Component{}, fmt.Errorf("index manifest %q: expected a registry component.json path", path)
 	}
 	in, _, err := idx.buildManifestInput(path)
@@ -136,7 +137,7 @@ func (idx *Indexer) Run(ctx context.Context) (IndexResult, error) {
 		if filepath.Base(path) != "component.json" {
 			return nil
 		}
-		if !registryAssetPath(path) {
+		if !idx.registryAssetPath(path) {
 			result.Skipped++
 			return nil
 		}
@@ -199,12 +200,14 @@ func (idx *Indexer) Run(ctx context.Context) (IndexResult, error) {
 	return result, nil
 }
 
-func registryAssetPath(path string) bool {
+func (idx *Indexer) registryAssetPath(path string) bool {
 	clean := filepath.ToSlash(path)
-	return strings.HasPrefix(clean, "components/") ||
-		strings.HasPrefix(clean, "primitives/") ||
-		strings.HasPrefix(clean, "foundations/") ||
-		strings.HasPrefix(clean, "hooks/")
+	for _, directory := range idx.assetDirectories {
+		if strings.HasPrefix(clean, directory+"/") {
+			return true
+		}
+	}
+	return false
 }
 
 func registryOrphanFinding(o OrphanVersion) IndexFinding {
@@ -706,6 +709,8 @@ func assetKindForManifestPath(path, declared string) (AssetKind, error) {
 		inferred = AssetKindFoundation
 	case strings.HasPrefix(clean, "hooks/"):
 		inferred = AssetKindHook
+	case strings.HasPrefix(clean, "services/"):
+		inferred = AssetKindComponent
 	default:
 		return "", ErrInvalidHeader{SourcePath: path, Field: "asset root", Reason: "manifest must be under components/, primitives/, foundations/, or hooks/"}
 	}
@@ -717,6 +722,9 @@ func assetKindForManifestPath(path, declared string) (AssetKind, error) {
 	// primitives root; the registry intentionally normalizes it to the stable
 	// component kind used by the API and dependency resolver.
 	if kind == "primitive" && inferred == AssetKindComponent && strings.HasPrefix(clean, "primitives/") {
+		return inferred, nil
+	}
+	if kind == "service" && inferred == AssetKindComponent && strings.HasPrefix(clean, "services/") {
 		return inferred, nil
 	}
 	if !kind.Valid() || kind != inferred {

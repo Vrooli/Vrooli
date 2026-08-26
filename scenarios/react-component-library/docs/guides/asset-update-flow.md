@@ -23,25 +23,25 @@ adopters.
    Then run `react-component-library components index --json`. The indexer derives
    external token requirements and dynamic token families from the version source. A
    hash change to an existing released version is an integrity failure.
-4. Run the catalog vocabulary and ramp-completeness gates, then run the
+5. Run the catalog vocabulary and ramp-completeness gates, then run the
    version's component tests and the full scenario test suite.
-5. For each target, run `adoptions preflight <component-id> <scenario>`. If
+6. For each target, run `adoptions preflight <component-id> <scenario>`. If
    the token verdict is blocking, run `adoptions tokens-sync <scenario>` and
    review collisions before retrying preflight.
-6. Run `adoptions refresh` and classify the results. Clean, behind copies may
+7. Run `adoptions refresh` and classify the results. Clean, behind copies may
    be reconverged; modified copies require a human decision. A
    `source_drifted` result means the release record must be repaired or a new
    version must be published before adoption work proceeds.
-7. Reapply clean adopters with the exact version and required confirmations.
+8. Reapply clean adopters with the exact version and required confirmations.
    Reapply preserves opted-in suggested dependencies and removes orphaned
    files that left the new closure, unless another live adoption owns them.
    Cleanup also follows relative imports across released asset versions and
    adopted files, including stories. A protected cleanup item reports the
    importing asset/version, file, import specifier, scenario, and adoption id
    where applicable.
-8. For related assets, use the batch apply surface so shared dependencies and
+9. For related assets, use the batch apply surface so shared dependencies and
    target collisions are evaluated once.
-9. Record the evidence in the plan/work record: index result, gate results,
+10. Record the evidence in the plan/work record: index result, gate results,
    preflight results, refresh/reapply outcomes, and any intentional override.
 
 ## Importable adoption
@@ -96,3 +96,22 @@ ledger row remains after retirement, and the retained release set is the only
 set checked for released-source immutability. Never add a schema migration or
 compatibility fallback to make cleanup pass: fresh schemas are declared next
 to the code that interprets them.
+
+## Worked bulk migration
+
+For a migration touching several related assets, open one draft per asset and
+keep the working set isolated from released directories:
+
+```bash
+react-component-library catalog draft open react-component-library:Button --bump patch --json
+react-component-library catalog draft open react-component-library:Input --bump patch --json
+react-component-library components refresh react-component-library:Button --version <button-draft>
+react-component-library components refresh react-component-library:Input --version <input-draft>
+react-component-library catalog draft promote react-component-library:Button --version <button-draft> --json
+react-component-library catalog draft promote react-component-library:Input --version <input-draft> --json
+```
+
+Run the index, catalog gates, component tests, and adopter preflights after the
+batch promotion. If review rejects the migration, use
+`react-component-library catalog draft discard <component-id>`; never rewrite a
+released directory to make the batch pass.

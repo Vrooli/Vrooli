@@ -10,7 +10,7 @@ import {
   type ReactNode,
   type Ref,
 } from "react";
-import { useReducedMotion } from "@vrooli/react-component-library/useReducedMotion/1.0.0";
+import { useReducedMotion } from "../../../../hooks/useReducedMotion/versions/1.0.0/useReducedMotion";
 
 export type MotionVariant =
   | "none"
@@ -148,7 +148,6 @@ export const MotionPrimitive = forwardRef<HTMLElement, MotionPrimitiveProps>(
         ...props,
         ref: setRef,
         style: customProperties,
-        "data-testid": "motion.motion-primitive",
         "data-rcl-motion": true,
         "data-motion-variant": variant,
         "data-motion-active": active || reduced ? "true" : "false",

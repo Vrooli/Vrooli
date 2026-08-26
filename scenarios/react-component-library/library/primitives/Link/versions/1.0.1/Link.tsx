@@ -8,7 +8,6 @@
  */
 /** @vrooliComponentSource primitives.link */
 import { forwardRef, type AnchorHTMLAttributes } from "react";
-import "./Link.css";
 
 export const Link = forwardRef<HTMLAnchorElement, AnchorHTMLAttributes<HTMLAnchorElement>>(
   ({ children, style, ...props }, ref) => (
@@ -16,8 +15,12 @@ export const Link = forwardRef<HTMLAnchorElement, AnchorHTMLAttributes<HTMLAncho
       data-testid="primitives.link"
       ref={ref}
       data-link="true"
-      data-rcl-link
-      style={style}
+      style={{
+        color: "var(--color-primary)",
+        textUnderlineOffset: "var(--space-3xs)",
+        transition: "color var(--dur-quick) var(--ease-standard)",
+        ...style,
+      }}
       {...props}
     >
       {children}

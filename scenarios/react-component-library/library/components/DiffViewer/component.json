@@ -3,7 +3,7 @@
   "assetKind": "component",
   "catalogId": "data-display.diff-viewer",
   "dependencies": [],
-  "description": "A readable before-and-after surface that keeps change direction and context visible.",
+  "description": "",
   "designStyles": [
     {
       "affinity": "native",
@@ -11,7 +11,7 @@
     }
   ],
   "displayName": "DiffViewer",
-  "latest": "1.0.1",
+  "latest": "1.0.2",
   "libraryId": "react-component-library:DiffViewer",
   "tags": [
     "data-display",
@@ -24,5 +24,7 @@
     }
   ],
   "draft": "",
-  "deprecatedVersions": []
+  "deprecatedVersions": [
+    "1.0.1"
+  ]
 }

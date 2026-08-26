@@ -6,17 +6,15 @@
  * @tags ["visualization","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
-import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
-
 /** @vrooliComponentSource react-component-library:OverlayCanvas */
-import { useStrings } from "@vrooli/react-component-library/useLocale/1.0.1";
-import { Stack } from "@vrooli/react-component-library/Stack/1.0.0";
-import { Text } from "@vrooli/react-component-library/Text/1.0.0";
+import { translate } from "../../../../hooks/useLocale/versions/1.0.1/useLocale";
+import { Stack } from "../../../../primitives/Stack/versions/1.0.0/Stack";
+import { Text } from "../../../../primitives/Text/versions/1.0.0/Text";
 import {
   CONTROL_VARIANTS,
   CONTROL_SIZES,
   SURFACE_ELEVATIONS,
-} from "@vrooli/react-component-library/VisualRecipes/1.0.0";
+} from "../../../../foundations/VisualRecipes/versions/1.0.0/VisualRecipes";
 export interface OverlaySubject {
   id: string;
   label: string;
@@ -25,18 +23,17 @@ export interface OverlaySubject {
   width: number;
   height: number;
 }
-export const OverlayCanvas = withClassName(function OverlayCanvas({
+export function OverlayCanvas({
   subjects = [],
   message = "Select a claim to inspect its subjects.",
 }: {
   subjects?: OverlaySubject[];
   message?: string;
 }) {
-  const strings = useStrings();
   return (
     <section
       className={SURFACE_ELEVATIONS.raised}
-      aria-label={strings("visualization.overlay-canvas.claim-overlay", "Claim overlay")}
+      aria-label={translate("visualization.overlay-canvas.aria-label.1", "Claim overlay")}
       data-rcl-asset="visualization.overlay-canvas"
       data-rcl-version="1.0.7"
       data-rcl-stamp="source"
@@ -45,7 +42,7 @@ export const OverlayCanvas = withClassName(function OverlayCanvas({
     >
       <Stack gap="xs">
         <Text as="strong" textStyle="label">
-          {strings("visualization.overlay-canvas.measured-subjects", "Measured subjects")}
+          {translate("visualization.overlay-canvas.text.1", "Measured subjects")}
         </Text>
         <div
           role="img"
@@ -81,9 +78,9 @@ export const OverlayCanvas = withClassName(function OverlayCanvas({
           data-bespoke="evidence disclosure remains a native action"
           style={{ minHeight: "var(--control-height)" }}
         >
-          {strings("visualization.overlay-canvas.open-evidence", "Open evidence")}
+          {translate("visualization.overlay-canvas.text.2", "Open evidence")}
         </button>
       </Stack>
     </section>
   );
-});
+}

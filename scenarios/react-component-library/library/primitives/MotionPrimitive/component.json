@@ -13,8 +13,10 @@
       "version": "1.0.0"
     }
   ],
-  "deprecatedVersions": [],
-  "description": "A tokenized animated element with reduced-motion policy and direct motion-value binding without frame-by-frame React renders.",
+  "deprecatedVersions": [
+    "1.0.0"
+  ],
+  "description": "",
   "designStyles": [
     {
       "affinity": "native",
@@ -31,7 +33,7 @@
   ],
   "displayName": "MotionPrimitive",
   "draft": "",
-  "latest": "1.0.0",
+  "latest": "1.0.1",
   "libraryId": "react-component-library:MotionPrimitive",
   "slot": "ui-primitive",
   "tags": [

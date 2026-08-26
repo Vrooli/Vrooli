@@ -7,8 +7,8 @@
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
 /** @vrooliComponentSource react-component-library:CaptureGrid */
-import { useStrings } from "@vrooli/react-component-library/useLocale/1.0.1";
-import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
+import { translate } from "../../../../hooks/useLocale/versions/1.0.1/useLocale";
+import { withClassName } from "../../../../foundations/ClassMerge/versions/1.0.1/ClassMerge";
 
 export interface CaptureCell {
   id: string;
@@ -22,11 +22,10 @@ export const CaptureGrid = withClassName(function CaptureGrid({
 }: {
   cells?: CaptureCell[];
 }) {
-  const strings = useStrings();
   return (
-    <div data-testid="visualization.capture-grid"
+    <div
       role="grid"
-      aria-label={strings("visualization.capture-grid.evidence-captures", "Evidence captures")}
+      aria-label={translate("visualization.capture-grid.aria-label.1", "Evidence captures")}
       style={{
         display: "grid",
         gridTemplateColumns: "repeat(auto-fit, minmax(12rem, 1fr))",

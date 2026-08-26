@@ -6,13 +6,11 @@
  * @tags ["data-display","accessibility","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
-import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
-
 /**
  * @vrooliComponentSource react-component-library:TreeView
  * @deps {"react":"^18","lucide-react":"^0.424.0"}
  */
-import { resolveStrings, useStrings } from "@vrooli/react-component-library/useLocale/1.0.1";
+import { translate } from "../../../../hooks/useLocale/versions/1.0.1/useLocale";
 import {
   Children,
   isValidElement,
@@ -115,16 +113,15 @@ function collectAllIds(nodes: TreeNode[], result = new Set<string>()) {
   return result;
 }
 
-export const TreeView = withClassName(function TreeView({
+export function TreeView({
   items,
   nodes = [],
-  label = resolveStrings("data-display.tree-view.tree", "Tree"),
+  label = translate("data-display.tree-view.label.1", "Tree"),
   selectedId: controlledSelectedId,
   defaultSelectedId,
   defaultExpandedIds: defaultExpandedIdsProp,
   onSelect,
 }: TreeViewProps) {
-  const strings = useStrings();
   const defaultExpandedIds = defaultExpandedIdsProp ?? EMPTY_DEFAULT_EXPANDED_IDS;
   const resolvedNodes = useMemo<TreeNode[]>(
     () =>
@@ -299,9 +296,9 @@ export const TreeView = withClassName(function TreeView({
         resolvedNodes.map((node) => renderNode({ node, level: 1 }))
       ) : (
         <div className="rcl-tree-empty" role="status">
-          {strings("data-display.tree-view.nothing-to-display", "Nothing to display.")}
+          {translate("data-display.tree-view.text.1", "Nothing to display.")}
         </div>
       )}
     </div>
   );
-});
+}

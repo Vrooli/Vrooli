@@ -3,8 +3,8 @@ import { useState, type CSSProperties, type ReactNode } from "react";
 import {
   DirtyStateGuard,
   type DirtyStateGuardPromptProps,
-} from "@vrooli/react-component-library/DirtyStateGuard/1.0.0";
-import { AlertDialog } from "@vrooli/react-component-library/AlertDialog/1.0.0";
+} from "../../../DirtyStateGuard/versions/1.0.0/DirtyStateGuard";
+import { AlertDialog } from "../../../AlertDialog/versions/1.0.0/AlertDialog";
 
 export type UnsavedChangesSaveState = "idle" | "saving" | "saved" | "error";
 

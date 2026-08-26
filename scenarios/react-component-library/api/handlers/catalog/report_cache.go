@@ -47,6 +47,15 @@ func (c *reportCache) invalidate() {
 	c.mu.Unlock()
 }
 
+// peek returns the most recently computed report without triggering a cold
+// recomputation. Read-only summaries such as readiness must remain available
+// while a fresh full gate report is still being built.
+func (c *reportCache) peek() *catalogcoverage.Report {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.report
+}
+
 // fingerprintRoots are the trees whose contents can change a coverage verdict:
 // the desired-state catalog, the implementations, and the app sources the
 // `types` runner compiles.

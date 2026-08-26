@@ -6,14 +6,18 @@ package graphreconcile
 import (
 	"context"
 	"encoding/json"
-	"fmt"
+	"net/http"
 	"os"
-	"os/exec"
 	"path"
 	"path/filepath"
 	"sort"
 	"strings"
 	"time"
+
+	"connectrpc.com/connect"
+	"github.com/vrooli/api-core/discovery"
+	graphv1 "github.com/vrooli/vrooli/packages/proto/gen/go/typescript-code-graph/v1/graph"
+	graphconnect "github.com/vrooli/vrooli/packages/proto/gen/go/typescript-code-graph/v1/graph/graph_v1connect"
 )
 
 type Verdict string
@@ -166,19 +170,6 @@ func Reconcile(ctx context.Context, repoRoot string) (Report, error) {
 		}
 	}
 	return report, nil
-}
-
-type graphDocument struct {
-	Graph struct {
-		Nodes []struct {
-			ID   string `json:"id"`
-			Path string `json:"path"`
-		} `json:"nodes"`
-		Edges []struct {
-			From string `json:"from_node_id"`
-			To   string `json:"to_node_id"`
-		} `json:"edges"`
-	} `json:"graph"`
 }
 
 type (
@@ -362,20 +353,23 @@ func extractImports(parent context.Context, repoRoot string, impls []implementat
 		return nil, false, "", err
 	}
 	defer os.RemoveAll(project)
-	command := exec.CommandContext(ctx, "typescript-code-graph", "graph", "extract", filepath.Join(project, "tsconfig.json"), "--json")
-	var stderr strings.Builder
-	command.Stderr = &stderr
-	data, err := command.Output()
+	resolver := discovery.NewResolver(discovery.ResolverConfig{})
+	baseURL, err := resolver.ResolveScenarioURLDefault(ctx, "typescript-code-graph")
 	if err != nil {
-		return map[string][]string{}, false, extractionCause(err, stderr.String()), nil
+		return map[string][]string{}, false, "typescript-code-graph could not provide an import graph: scenario discovery failed: " + err.Error(), nil
 	}
-	var document graphDocument
-	if err := json.Unmarshal(data, &document); err != nil {
-		return nil, false, "", fmt.Errorf("decode TypeScript graph: %w", err)
+	client := graphconnect.NewTypeScriptCodeGraphServiceClient(&http.Client{Timeout: 90 * time.Second}, baseURL)
+	response, err := client.Extract(ctx, connect.NewRequest(&graphv1.ExtractRequest{ProjectPath: filepath.Join(project, "tsconfig.json")}))
+	if err != nil {
+		return map[string][]string{}, false, extractionCause(err, ""), nil
+	}
+	document := response.Msg.GetGraph()
+	if document == nil {
+		return map[string][]string{}, false, "typescript-code-graph returned an empty graph", nil
 	}
 	nodePath := map[string]string{}
-	for _, node := range document.Graph.Nodes {
-		nodePath[node.ID] = filepath.ToSlash(node.Path)
+	for _, node := range document.GetNodes() {
+		nodePath[node.GetId()] = filepath.ToSlash(node.GetPath())
 	}
 	// Extractor paths are relative to the generated project directory, so they
 	// carry one ascent per level between it and the scenario root. Strip every
@@ -395,9 +389,9 @@ func extractImports(parent context.Context, repoRoot string, impls []implementat
 		return ""
 	}
 	imports := map[string][]string{}
-	for _, edge := range document.Graph.Edges {
-		from := assetForPath(nodePath[edge.From])
-		to := assetForPath(nodePath[edge.To])
+	for _, edge := range document.GetEdges() {
+		from := assetForPath(nodePath[edge.GetFromNodeId()])
+		to := assetForPath(nodePath[edge.GetToNodeId()])
 		if from != "" && to != "" && from != to {
 			imports[from] = append(imports[from], to)
 		}

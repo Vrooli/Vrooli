@@ -3,7 +3,7 @@
   "assetKind": "component",
   "catalogId": "data-display.health-indicator",
   "dependencies": [],
-  "description": "A semantic health label with score, staleness, and non-color status treatment.",
+  "description": "",
   "designStyles": [
     {
       "affinity": "native",
@@ -11,12 +11,14 @@
     }
   ],
   "displayName": "HealthIndicator",
-  "latest": "1.0.2",
+  "latest": "1.0.3",
   "libraryId": "react-component-library:HealthIndicator",
   "tags": [
     "data-display",
     "token-bound"
   ],
   "draft": "",
-  "deprecatedVersions": []
+  "deprecatedVersions": [
+    "1.0.2"
+  ]
 }

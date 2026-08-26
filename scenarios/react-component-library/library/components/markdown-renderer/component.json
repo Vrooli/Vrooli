@@ -1,7 +1,9 @@
 {
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
-  "deprecatedVersions": [],
-  "description": "GFM markdown renderer with routed inline-token, file, link, and Mermaid seams.",
+  "deprecatedVersions": [
+    "0.3.2"
+  ],
+  "description": "",
   "designStyles": [
     {
       "affinity": "native",
@@ -12,7 +14,7 @@
   "displayName": "Markdown Renderer",
   "draft": "",
   "entry": "MarkdownRenderer.tsx",
-  "latest": "0.3.2",
+  "latest": "0.3.3",
   "libraryId": "react-component-library:markdown-renderer",
   "tags": [
     "markdown",

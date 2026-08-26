@@ -1,8 +1,11 @@
 {
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "catalogId": "primitives.meter",
-  "deprecatedVersions": [],
-  "description": "A semantic bounded-value meter shared by score, measurement, and budget components.",
+  "deprecatedVersions": [
+    "1.0.2",
+    "1.0.4"
+  ],
+  "description": "",
   "designStyles": [
     {
       "affinity": "native",
@@ -13,7 +16,7 @@
   "displayName": "BoundedMeter",
   "draft": "",
   "entry": "BoundedMeter.tsx",
-  "latest": "1.0.2",
+  "latest": "1.0.5",
   "libraryId": "react-component-library:BoundedMeter",
   "tags": [
     "primitive",

@@ -16,8 +16,10 @@
       "version": "1.0.0"
     }
   ],
-  "deprecatedVersions": [],
-  "description": "A semantic local message surface for information, success, warning, or error with resilient actions and dismissal.",
+  "deprecatedVersions": [
+    "1.0.1"
+  ],
+  "description": "",
   "designStyles": [
     {
       "affinity": "native",
@@ -34,7 +36,7 @@
   ],
   "displayName": "Alert",
   "draft": "",
-  "latest": "1.0.1",
+  "latest": "1.0.2",
   "libraryId": "react-component-library:Alert",
   "tags": [
     "feedback",

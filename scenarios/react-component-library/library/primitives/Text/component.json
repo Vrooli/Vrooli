@@ -8,8 +8,10 @@
       "version": "1.0.0"
     }
   ],
-  "deprecatedVersions": [],
-  "description": "Text selects one of the eight bundled text styles without free-form font sizing.",
+  "deprecatedVersions": [
+    "1.1.0"
+  ],
+  "description": "",
   "designStyles": [
     {
       "affinity": "native",
@@ -26,7 +28,7 @@
   ],
   "displayName": "Text",
   "draft": "",
-  "latest": "1.1.0",
+  "latest": "1.1.1",
   "libraryId": "react-component-library:Text",
   "tags": [
     "primitive",

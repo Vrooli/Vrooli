@@ -48,3 +48,36 @@ func TestPlanPrunesExpiredFilesButRetainsEvidenceArtifacts(t *testing.T) {
 		t.Fatalf("apply removed retained verdict: %v", err)
 	}
 }
+
+func TestPlanRetainsEvidenceRootsAndRunIndex(t *testing.T) {
+	root := t.TempDir()
+	retained := []string{
+		"latest/findings.json",
+		"latest/manifest.json",
+		"baseline/catalog-coverage.json",
+		"runs.index.json",
+	}
+	for _, relative := range retained {
+		path := filepath.Join(root, relative)
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(path, []byte(relative), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		old := time.Now().Add(-30 * 24 * time.Hour)
+		if err := os.Chtimes(path, old, old); err != nil {
+			t.Fatal(err)
+		}
+	}
+	report, err := plan(root, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(report.Selected) != 0 {
+		t.Fatalf("selected evidence roots for pruning: %+v", report.Selected)
+	}
+	if len(report.RetainedArtifact) != len(retained) {
+		t.Fatalf("retained artifacts = %v, want %v", report.RetainedArtifact, retained)
+	}
+}

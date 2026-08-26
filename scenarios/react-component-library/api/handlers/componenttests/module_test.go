@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync/atomic"
 	"testing"
 
 	"react-component-library/handlers/components"
@@ -32,6 +33,40 @@ type passingExecutor struct{}
 
 func (passingExecutor) ExecuteStory(context.Context, string, string, string) (domain.StoryExecution, error) {
 	return domain.StoryExecution{Passed: true, AccessibilityJSON: `{"contract":"bas-accessibility-snapshot/v1"}`, Artifacts: []domain.Artifact{{Reference: "test://capture"}}}, nil
+}
+
+type unavailableExecutor struct {
+	called atomic.Bool
+}
+
+func (e *unavailableExecutor) ExecuteStory(context.Context, string, string, string) (domain.StoryExecution, error) {
+	e.called.Store(true)
+	return domain.StoryExecution{}, domain.ExecutorUnavailableError{Err: io.ErrUnexpectedEOF}
+}
+
+func (*unavailableExecutor) Probe(context.Context) error {
+	return domain.ExecutorUnavailableError{Err: io.ErrUnexpectedEOF}
+}
+
+func TestModuleFailsValidationBeforeSchedulingWhenExecutorUnavailable(t *testing.T) {
+	database := db.NewSQLite(t)
+	require.NoError(t, apidb.EnsureSchemas(context.Background(), database, apidb.SchemaProviderFunc(localdb.SystemSchema), apidb.SchemaProviderFunc(internalcomponents.Schema)))
+	root := t.TempDir()
+	require.NoError(t, os.MkdirAll(filepath.Join(root, "components", "Button", "versions", "1.0.0"), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(root, "components", "Button", "component.json"), []byte(`{"libraryId":"rcl:Button","displayName":"Button","latest":"1.0.0"}`), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(root, "components", "Button", "versions", "1.0.0", "Button.tsx"), []byte("export const Button = () => null;"), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(root, "components", "Button", "versions", "1.0.0", "story.json"), []byte(`{"schemaVersion":5,"kind":"component","args":{"fields":[]},"environment":{"fixtures":[]},"stories":[{"id":"idle","name":"Idle","args":{},"expect":[]}]}`), 0o644))
+	assets, repo := components.BuildService(database, schedule.System(), root)
+	router := mux.NewRouter()
+	components.ModuleFromService(assets, repo, root, log.New(io.Discard, "", 0)).Mount(router)
+	executor := &unavailableExecutor{}
+	componenttests.ModuleWithExecutor(database, assets, root, executor, log.New(io.Discard, "", 0)).Mount(router)
+
+	provider := call(router, validationconnect.ScenarioValidationServiceValidateScenarioProcedure, `{"scenario":"react-component-library"}`)
+	require.Equal(t, http.StatusOK, provider.Code, provider.Body.String())
+	require.Contains(t, provider.Body.String(), `"status":"VALIDATION_STATUS_FAILED"`)
+	require.Contains(t, provider.Body.String(), `COMPONENT_TEST_RUNNER_UNAVAILABLE:`)
+	require.False(t, executor.called.Load())
 }
 
 func TestModuleRunsAndListsDurableContractReport(t *testing.T) {
@@ -75,6 +110,10 @@ func TestModuleRunsAndListsDurableContractReport(t *testing.T) {
 	list := call(router, testsconnect.ComponentTestsServiceListComponentTestReportsProcedure, `{"componentId":"`+id+`"}`)
 	require.Equal(t, http.StatusOK, list.Code, list.Body.String())
 	require.Contains(t, list.Body.String(), `"reports"`)
+	secondProvider := call(router, validationconnect.ScenarioValidationServiceValidateScenarioProcedure, `{"scenario":"react-component-library"}`)
+	require.Equal(t, http.StatusOK, secondProvider.Code, secondProvider.Body.String())
+	require.Contains(t, secondProvider.Body.String(), `"reused_versions":1`)
+	require.Contains(t, secondProvider.Body.String(), `"skipped_versions":1`)
 }
 
 func call(router *mux.Router, path, body string) *httptest.ResponseRecorder {

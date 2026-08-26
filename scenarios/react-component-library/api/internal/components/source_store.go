@@ -424,7 +424,7 @@ func hasEntryFile(files []ComponentVersionFile) bool {
 
 func normalizeVersionFiles(files []ComponentVersionFile, fallbackName, fallbackSource string) ([]ComponentVersionFile, string, error) {
 	if len(files) == 0 {
-		name, err := normalizeTSXFileName(fallbackName)
+		name, err := normalizeSourceFileName(fallbackName)
 		if err != nil {
 			return nil, "", err
 		}
@@ -457,6 +457,25 @@ func normalizeVersionFiles(files []ComponentVersionFile, fallbackName, fallbackS
 		return nil, "", ErrInvalidHeader{SourcePath: "files", Field: "files", Reason: "exactly one entry file is required"}
 	}
 	return normalized, entry, nil
+}
+
+// normalizeSourceFileName preserves the entry extension selected by the
+// component kind. Renderable assets use .tsx, while hook assets use .ts.
+// CreateVersion can infer that existing entry from the component registry, so
+// normalizing every fallback to .tsx would make a valid hook impossible to
+// republish.
+func normalizeSourceFileName(raw string) (string, error) {
+	name := strings.TrimSpace(raw)
+	if name == "" {
+		return "", ErrInvalidHeader{SourcePath: "component source", Field: "fileName", Reason: "required"}
+	}
+	if filepath.Base(name) != name || strings.Contains(name, "..") || filepath.IsAbs(name) {
+		return "", ErrInvalidHeader{SourcePath: name, Field: "fileName", Reason: "must be a single TS or TSX file name"}
+	}
+	if !strings.HasSuffix(name, ".ts") && !strings.HasSuffix(name, ".tsx") {
+		name += ".tsx"
+	}
+	return name, nil
 }
 
 func (s *FSContentStore) UpdateManifest(_ context.Context, c Component, in UpdateComponentManifestInput) error {

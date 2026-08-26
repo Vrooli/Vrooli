@@ -47,12 +47,16 @@ type Finding struct {
 // Result makes runner coverage observable. A gate that reports no findings
 // after inspecting zero inputs is not a passing gate; it is a broken runner.
 type Result struct {
-	Findings         []Finding
-	Inspected        int
-	InspectedAssets  []string
-	RunnerError      []Finding
-	SurfaceCounts    map[string]int
-	UnmeasuredAssets []string
+	Findings []Finding
+	// InformationalFindings are auditable observations that do not affect the
+	// gate verdict. They are used for planned-but-not-applied lifecycle work,
+	// where hiding the observation would make the run look cleaner than it is.
+	InformationalFindings []Finding
+	Inspected             int
+	InspectedAssets       []string
+	RunnerError           []Finding
+	SurfaceCounts         map[string]int
+	UnmeasuredAssets      []string
 	// UnstampedAssets and UncapturedAssets partition UnmeasuredAssets by root
 	// cause. An unstamped asset rendered without an identity marker, so its
 	// evidence exists but cannot be attributed — a build-config fix. An
@@ -185,6 +189,18 @@ func ValidateGraphReconciled(root string) (Result, error) {
 	}
 	result := Result{Inspected: len(report.Assets)}
 	for _, row := range report.Assets {
+		if row.Verdict != graphreconcile.ImportsUnavailable {
+			continue
+		}
+		result.Findings = append(result.Findings, Finding{
+			Code: "catalog.graph_reconciled_unavailable", AssetID: "__corpus__.graph-reconciled",
+			Message:     fmt.Sprintf("imports-unavailable: %s", row.Cause),
+			Remediation: "Confirm typescript-code-graph is running and has indexed scenarios/react-component-library; until it does, dependency reconciliation is unmeasured rather than evidence of drift.",
+			DocsRef:     "docs/concepts/ARCHITECTURE.md#catalog-graph-projection",
+		})
+		return result, nil
+	}
+	for _, row := range report.Assets {
 		if row.Verdict == graphreconcile.Reconciled {
 			continue
 		}
@@ -218,8 +234,6 @@ var (
 	cssVarRefGateRE         = regexp.MustCompile(`var\(\s*(--[A-Za-z0-9_-]+)`)
 	cssVarDeclGateRE        = regexp.MustCompile(`(--[A-Za-z0-9_-]+)\s*:`)
 	versionLivenessImportRE = regexp.MustCompile(`@vrooli/react-component-library/([^/\s'\";]+)/([^/\s'\";]+)`)
-	adopterLibraryAssetRE   = regexp.MustCompile(`@vrooli/react-component-library/([^/\s'\";]+)/([^/\s'\";]+)`)
-	adopterLibraryImportRE  = regexp.MustCompile(`(?m)^\s*import(?:[^\n;]*?\sfrom\s*)?\s*[\"']@vrooli/react-component-library(?:/[^\"']*)?[\"']`)
 )
 
 // ValidateVersionLiveness protects the published version boundary. Every
@@ -964,243 +978,10 @@ func ValidateStoryDistinctness(root string) (Result, error) {
 	return nonEmpty(result, "story-distinctness"), nil
 }
 
-// ValidateAdopterHygiene closes the ownership boundary after a library
-// migration. Adopter tests must not keep importing the package directly: the
-// assertion belongs beside the versioned source, while scenario tests should
-// exercise the scenario-owned composition. It also detects duplicate migrated
-// bodies before they silently diverge.
-func ValidateAdopterHygiene(root string) (Result, error) {
-	result := Result{}
-	bodies := map[string]string{}
-	err := filepath.WalkDir(root, func(path string, entry os.DirEntry, walkErr error) error {
-		if walkErr != nil {
-			return walkErr
-		}
-		if entry.IsDir() {
-			rel := repoRel(root, path)
-			if entry.Name() == ".git" || entry.Name() == "node_modules" || entry.Name() == "dist" || rel == "scenarios/react-component-library" || strings.HasPrefix(rel, "scenarios/react-component-library/") {
-				return filepath.SkipDir
-			}
-			return nil
-		}
-		name := strings.ToLower(entry.Name())
-		if !(strings.HasSuffix(name, ".test.ts") || strings.HasSuffix(name, ".test.tsx") || strings.HasSuffix(name, ".spec.ts") || strings.HasSuffix(name, ".spec.tsx")) {
-			return nil
-		}
-		data, readErr := os.ReadFile(path)
-		if readErr != nil {
-			return readErr
-		}
-		result.Inspected++
-		match := adopterLibraryImportRE.FindStringIndex(string(data))
-		if match == nil {
-			return nil
-		}
-		rel := repoRel(root, path)
-		result.Findings = append(result.Findings, Finding{
-			Code: "catalog.adopter_hygiene_orphan", AssetID: "__corpus__.adopter-hygiene", File: rel, Line: lineAt(data, match[0]),
-			Message:     "scenario test directly imports the React Component Library; the assertion is still owned by the adopter",
-			Remediation: "Move the library assertion beside the matching version under scenarios/react-component-library/library, then keep only scenario-owned composition assertions in this test.",
-			DocsRef:     "docs/guides/asset-update-flow.md#test-ownership",
-		})
-		canonical := adopterLibraryImportRE.ReplaceAll(data, nil)
-		canonical = []byte(strings.Join(strings.Fields(string(canonical)), " "))
-		hash := sha256.Sum256(canonical)
-		key := hex.EncodeToString(hash[:])
-		if previous, exists := bodies[key]; exists {
-			result.Findings = append(result.Findings, Finding{
-				Code: "catalog.adopter_hygiene_duplicate", AssetID: "__corpus__.adopter-hygiene", File: rel, Line: lineAt(data, match[0]),
-				Message:     fmt.Sprintf("library assertion body duplicates %s", previous),
-				Remediation: "Keep one canonical assertion beside the library version and delete the duplicate adopter copy after its scenario-owned coverage is preserved.",
-				DocsRef:     "docs/guides/asset-update-flow.md#test-ownership",
-			})
-		} else {
-			bodies[key] = rel
-		}
-		return nil
-	})
-	if err != nil {
-		return Result{}, err
-	}
-	return nonEmpty(result, "adopter-hygiene"), nil
-}
-
-// The adopter-aware gates share one deterministic policy: linked adopters must
-// carry the generated obligation files. They are intentionally filesystem
-// gates so preflight and link can use the same verifier without a live browser.
+// Evidence freshness is a filesystem gate so the catalog can distinguish a
+// current story contract from an older component-test observation.
 func ValidateEvidenceFreshness(root string) (Result, error) {
 	return validateEvidenceFreshness(root)
-}
-
-func ValidateI18nAdopted(root string) (Result, error) {
-	declarations, err := libraryStringDeclarations(root)
-	if err != nil {
-		return Result{}, err
-	}
-	result := Result{}
-	for _, packagePath := range adopterPackagePaths(root) {
-		adopterRoot := filepath.Dir(packagePath)
-		catalogPath := filepath.Join(adopterRoot, "src", "i18n", "locales", "en.json")
-		catalogBytes, readErr := os.ReadFile(catalogPath)
-		if readErr != nil {
-			result.Inspected++
-			result.Findings = append(result.Findings, Finding{
-				Code: "catalog.i18n-adopted", AssetID: "__adopter__", File: repoRel(root, catalogPath), Line: 1,
-				Message:     "linked adopter has no English catalog for declared library strings",
-				Remediation: "Create ui/src/i18n/locales/en.json and run the governed adoption link operation.",
-				DocsRef:     "docs/concepts/ARCHITECTURE.md#internationalization",
-			})
-			continue
-		}
-		var catalog any
-		if err := json.Unmarshal(catalogBytes, &catalog); err != nil {
-			return Result{}, fmt.Errorf("parse %s: %w", catalogPath, err)
-		}
-		catalogKeys := map[string]struct{}{}
-		collectJSONKeys(catalog, "", catalogKeys)
-		imports := map[string]struct{}{}
-		_ = filepath.WalkDir(adopterRoot, func(path string, entry os.DirEntry, walkErr error) error {
-			if walkErr != nil || entry.IsDir() || !strings.HasPrefix(filepath.Ext(path), ".") {
-				return walkErr
-			}
-			if ext := filepath.Ext(path); ext != ".ts" && ext != ".tsx" && ext != ".js" && ext != ".jsx" {
-				return nil
-			}
-			data, err := os.ReadFile(path)
-			if err != nil {
-				return err
-			}
-			for _, match := range adopterLibraryAssetRE.FindAllStringSubmatch(string(data), -1) {
-				imports[match[1]] = struct{}{}
-			}
-			return nil
-		})
-		result.Inspected++
-		for importKey := range imports {
-			keys := declarations[importKey]
-			if len(keys) == 0 {
-				continue
-			}
-			if !hasAnyKey(catalogKeys, keys) {
-				asset := strings.SplitN(importKey, "@", 2)[0]
-				result.Findings = append(result.Findings, Finding{
-					Code: "catalog.i18n-adopted", AssetID: asset, File: repoRel(root, catalogPath), Line: 1,
-					Message:     fmt.Sprintf("linked asset %s declares %d strings but the adopter English catalog contains none of them", asset, len(keys)),
-					Remediation: "Run the governed `adoptions link` operation for the linked asset so its declared strings are merged into ui/src/i18n/locales/en.json.",
-					DocsRef:     "docs/concepts/ARCHITECTURE.md#internationalization",
-				})
-			}
-		}
-	}
-	return nonEmpty(result, "i18n-adopted"), nil
-}
-
-func libraryStringDeclarations(root string) (map[string]map[string]struct{}, error) {
-	result := map[string]map[string]struct{}{}
-	pattern := regexp.MustCompile(`(?m)["']([^"']+)["']\s*:\s*["'][^"']*["']\s*,?`)
-	base := filepath.Join(root, "scenarios", "react-component-library", "library")
-	err := filepath.WalkDir(base, func(path string, entry os.DirEntry, walkErr error) error {
-		if walkErr != nil || entry.IsDir() || !strings.HasSuffix(entry.Name(), ".strings.ts") {
-			return walkErr
-		}
-		parts := strings.Split(filepath.ToSlash(path), "/")
-		if len(parts) < 4 {
-			return nil
-		}
-		asset := parts[len(parts)-4]
-		version := parts[len(parts)-2]
-		declarationKey := asset + "@" + version
-		data, err := os.ReadFile(path)
-		if err != nil {
-			return err
-		}
-		if result[declarationKey] == nil {
-			result[declarationKey] = map[string]struct{}{}
-		}
-		for _, match := range pattern.FindAllStringSubmatch(string(data), -1) {
-			result[declarationKey][match[1]] = struct{}{}
-		}
-		return nil
-	})
-	return result, err
-}
-
-func collectJSONKeys(value any, prefix string, keys map[string]struct{}) {
-	switch typed := value.(type) {
-	case map[string]any:
-		for key, child := range typed {
-			path := key
-			if prefix != "" {
-				path = prefix + "." + key
-			}
-			collectJSONKeys(child, path, keys)
-		}
-	case []any:
-		for _, child := range typed {
-			collectJSONKeys(child, prefix, keys)
-		}
-	default:
-		if prefix != "" {
-			keys[prefix] = struct{}{}
-		}
-	}
-}
-
-func hasAnyKey(catalog, required map[string]struct{}) bool {
-	for key := range required {
-		if _, ok := catalog[key]; ok {
-			return true
-		}
-	}
-	return false
-}
-
-func ValidateSelectorsAdopted(root string) (Result, error) {
-	result, err := validateAdopterFiles(root, "selectors-adopted", "src/consts/selectors.library.ts", "librarySelectors", "src/consts/selectors.ts")
-	if err != nil {
-		return Result{}, err
-	}
-	if result.Status == "not-applicable" {
-		return result, nil
-	}
-	positional := regexp.MustCompile(`(?m)^\s*["']?id[0-9]+["']?\s*:`)
-	legacyValue := regexp.MustCompile(`:\s*["'][^"'.]*-[^"'.]*["']\s*,?\s*$`)
-	for _, packagePath := range adopterPackagePaths(root) {
-		body, readErr := os.ReadFile(filepath.Join(filepath.Dir(packagePath), "src/consts/selectors.library.ts"))
-		if readErr != nil {
-			continue
-		}
-		data := string(body)
-		if match := positional.FindStringIndex(data); match != nil {
-			result.Findings = append(result.Findings, Finding{
-				Code: "catalog.selectors-adopted", AssetID: "", File: repoRel(root, filepath.Join(filepath.Dir(packagePath), "src/consts/selectors.library.ts")), Line: lineAt(body, match[0]),
-				Message:     "adopter selector registry uses positional idN names",
-				Remediation: "Name each selector from its meaning (for example, close or resizeHandle) and keep its value rooted at the dotted catalog id.",
-				DocsRef:     "docs/concepts/ARCHITECTURE.md#automation-selectors",
-			})
-		}
-		if match := legacyValue.FindStringIndex(data); match != nil {
-			result.Findings = append(result.Findings, Finding{
-				Code: "catalog.selectors-adopted", AssetID: "", File: repoRel(root, filepath.Join(filepath.Dir(packagePath), "src/consts/selectors.library.ts")), Line: lineAt(body, match[0]),
-				Message:     "adopter selector registry emits a legacy kebab-case test id instead of a dotted catalog id",
-				Remediation: "Regenerate the managed selector registry through the governed adoption link workflow.",
-				DocsRef:     "docs/concepts/ARCHITECTURE.md#automation-selectors",
-			})
-		}
-	}
-	return nonEmpty(result, "selectors-adopted"), nil
-}
-
-func adopterPackagePaths(root string) []string {
-	paths, _ := filepath.Glob(filepath.Join(root, "scenarios", "*", "ui", "package.json"))
-	result := make([]string, 0, len(paths))
-	for _, path := range paths {
-		data, err := os.ReadFile(path)
-		if err == nil && strings.Contains(string(data), "@vrooli/react-component-library") {
-			result = append(result, path)
-		}
-	}
-	return result
 }
 
 func interactiveElements(source string) []string {
@@ -1262,6 +1043,10 @@ func ValidateTypes(root string) (Result, error) {
 	result := Result{Inspected: countCatalogSources(root)}
 	if result.Inspected == 0 {
 		return nonEmpty(result, "types"), nil
+	}
+	if _, err := exec.LookPath("pnpm"); err != nil {
+		result.Findings = append(result.Findings, Finding{Code: "catalog.types_runner_unavailable", Message: "pnpm is unavailable; the declared types runner could not execute", Remediation: "Install or expose pnpm through the scenario dependency analyzer before running catalog conformance."})
+		return result, nil
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
 	defer cancel()

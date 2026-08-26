@@ -6,11 +6,11 @@
  * @tags ["data-display","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
-import { resolveStrings } from "@vrooli/react-component-library/useLocale/1.0.1";
-import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
+import { translate } from "../../../../hooks/useLocale/versions/1.0.1/useLocale";
+import { withClassName } from "../../../../foundations/ClassMerge/versions/1.0.1/ClassMerge";
 
 /** @vrooliComponentSource react-component-library:ScoreGauge */
-import { BoundedMeter } from "@vrooli/react-component-library/BoundedMeter/1.0.2";
+import { BoundedMeter } from "../../../BoundedMeter/versions/1.0.1/BoundedMeter";
 
 export interface ScoreGaugeProps {
   value?: number;
@@ -19,13 +19,13 @@ export interface ScoreGaugeProps {
 }
 export const ScoreGauge = withClassName(function ScoreGauge({
   value = 0,
-  label = resolveStrings("data-display.score-gauge.score", "Score"),
+  label = translate("data-display.score-gauge.label.1", "Score"),
   threshold = 90,
 }: ScoreGaugeProps) {
   const bounded = Math.max(0, Math.min(100, value));
   const status = bounded >= threshold ? "passing" : bounded >= threshold / 2 ? "watch" : "blocked";
   return (
-    <BoundedMeter data-testid="data-display.score-gauge"
+    <BoundedMeter
       label={label}
       value={bounded}
       max={100}

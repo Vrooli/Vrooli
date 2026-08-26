@@ -131,6 +131,25 @@ func TestService_GetBundle_RoundTrip(t *testing.T) {
 		"expected automatic JSX runtime in %q", bundle.JS)
 }
 
+func TestEsbuilder_BundlesVersionedComponentLibraryImports(t *testing.T) {
+	root := t.TempDir()
+	classMergeDir := filepath.Join(root, "library", "foundations", "ClassMerge", "versions", "1.0.1")
+	componentDir := filepath.Join(root, "library", "components", "Root", "versions", "1.0.0")
+	require.NoError(t, os.MkdirAll(classMergeDir, 0o755))
+	require.NoError(t, os.MkdirAll(componentDir, 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(classMergeDir, "ClassMerge.ts"), []byte("export const helper = (value: string) => value;\n"), 0o644))
+	source := `import { helper } from "@vrooli/react-component-library/ClassMerge/1.0.1";
+export const Root = () => helper("root");
+`
+	sourcePath := filepath.Join(componentDir, "Root.tsx")
+	require.NoError(t, os.WriteFile(sourcePath, []byte(source), 0o644))
+
+	bundle, _, err := NewEsbuilder().BuildBundle(context.Background(), source, sourcePath)
+	require.NoError(t, err)
+	require.Contains(t, bundle, "root")
+	require.NotContains(t, bundle, "@vrooli/react-component-library/ClassMerge/1.0.1")
+}
+
 func TestService_GetBundle_PropagatesComponentsError(t *testing.T) {
 	wantErr := errors.New("registry blew up")
 	comp := &fakeComponentsService{
@@ -426,6 +445,22 @@ export default function RelativeDemo() {
 	require.Contains(t, js, "Relative import works")
 	require.NotContains(t, js, `from "./label"`)
 	require.Contains(t, js, "react/jsx-runtime")
+}
+
+func TestEsbuilderBundlesCSSImportsIntoOneJavaScriptModule(t *testing.T) {
+	root := t.TempDir()
+	dir := filepath.Join(root, "components", "Styled")
+	require.NoError(t, os.MkdirAll(dir, 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "styles.css"), []byte("[data-styled] { color: red; }"), 0o644))
+
+	bundler := NewEsbuilderWithRoot(root)
+	js, warnings, err := bundler.BuildBundle(context.Background(), `import "./styles.css";
+export const Styled = () => <div data-styled>styled</div>;`, "components/Styled/Styled.tsx")
+	require.NoError(t, err)
+	require.Empty(t, warnings)
+	require.Contains(t, js, "data-rcl-asset-style")
+	require.Contains(t, js, "[data-styled] { color: red; }")
+	require.Contains(t, js, "export")
 }
 
 func TestEsbuilderBundlesLocalVrooliPackageImports(t *testing.T) {

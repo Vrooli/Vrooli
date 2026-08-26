@@ -3,7 +3,7 @@
   "assetKind": "component",
   "catalogId": "templates.detail-page",
   "dependencies": [],
-  "description": "A record detail template with identity, metadata, and data-source-owned content.",
+  "description": "",
   "designStyles": [
     {
       "affinity": "native",
@@ -11,7 +11,7 @@
     }
   ],
   "displayName": "DetailPage",
-  "latest": "1.0.4",
+  "latest": "1.0.5",
   "libraryId": "react-component-library:DetailPage",
   "tags": [
     "template",
@@ -26,5 +26,7 @@
     }
   ],
   "draft": "",
-  "deprecatedVersions": []
+  "deprecatedVersions": [
+    "1.0.4"
+  ]
 }

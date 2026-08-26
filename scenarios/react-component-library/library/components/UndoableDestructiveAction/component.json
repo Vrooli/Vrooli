@@ -8,7 +8,7 @@
       "version": "1.0.0"
     }
   ],
-  "description": "A forgiving destructive-action pattern that completes reversible removal immediately and exposes a clear undo path.",
+  "description": "",
   "designStyles": [
     {
       "affinity": "native",
@@ -24,7 +24,7 @@
     }
   ],
   "displayName": "UndoableDestructiveAction",
-  "latest": "1.0.3",
+  "latest": "1.0.4",
   "libraryId": "react-component-library:UndoableDestructiveAction",
   "tags": [
     "patterns",
@@ -41,5 +41,7 @@
     }
   ],
   "draft": "",
-  "deprecatedVersions": []
+  "deprecatedVersions": [
+    "1.0.3"
+  ]
 }

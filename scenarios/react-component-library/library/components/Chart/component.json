@@ -16,7 +16,7 @@
       "version": "1.0.0"
     }
   ],
-  "description": "A responsive, accessible chart surface with pluggable presentation, resilient data states, and keyboard-readable values.",
+  "description": "",
   "designStyles": [
     {
       "affinity": "native",
@@ -32,7 +32,7 @@
     }
   ],
   "displayName": "Chart",
-  "latest": "1.0.3",
+  "latest": "1.0.6",
   "libraryId": "react-component-library:Chart",
   "tags": [
     "visualization",
@@ -48,5 +48,8 @@
     }
   ],
   "draft": "",
-  "deprecatedVersions": []
+  "deprecatedVersions": [
+    "1.0.3",
+    "1.0.5"
+  ]
 }

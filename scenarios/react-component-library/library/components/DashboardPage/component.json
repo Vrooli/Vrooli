@@ -3,7 +3,7 @@
   "assetKind": "component",
   "catalogId": "templates.dashboard-page",
   "dependencies": [],
-  "description": "A metric-first page template with data-source-owned regions and honest asynchronous states.",
+  "description": "",
   "designStyles": [
     {
       "affinity": "native",
@@ -11,7 +11,7 @@
     }
   ],
   "displayName": "DashboardPage",
-  "latest": "1.0.4",
+  "latest": "1.0.5",
   "libraryId": "react-component-library:DashboardPage",
   "tags": [
     "template",
@@ -26,5 +26,7 @@
     }
   ],
   "draft": "",
-  "deprecatedVersions": []
+  "deprecatedVersions": [
+    "1.0.4"
+  ]
 }

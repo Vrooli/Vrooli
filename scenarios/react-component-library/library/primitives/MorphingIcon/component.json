@@ -17,9 +17,9 @@
     }
   ],
   "deprecatedVersions": [
-    "2.0.8"
+    "2.0.9"
   ],
-  "description": "An icon transition that chooses true path morphing when geometry is compatible and a polished fallback when it is not.",
+  "description": "",
   "designStyles": [
     {
       "affinity": "native",
@@ -36,7 +36,7 @@
   ],
   "displayName": "MorphingIcon",
   "draft": "",
-  "latest": "2.0.9",
+  "latest": "2.0.10",
   "libraryId": "react-component-library:MorphingIcon",
   "tags": [
     "primitive",

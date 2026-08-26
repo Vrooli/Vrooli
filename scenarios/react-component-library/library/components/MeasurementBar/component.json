@@ -3,8 +3,11 @@
   "assetKind": "component",
   "catalogId": "data-display.measurement-bar",
   "dependencies": [],
-  "deprecatedVersions": [],
-  "description": "A labeled measured-versus-required bar for evidence panels.",
+  "deprecatedVersions": [
+    "1.0.10",
+    "1.0.12"
+  ],
+  "description": "",
   "designStyles": [
     {
       "affinity": "native",
@@ -13,7 +16,7 @@
   ],
   "displayName": "MeasurementBar",
   "draft": "",
-  "latest": "1.0.10",
+  "latest": "1.0.13",
   "libraryId": "react-component-library:MeasurementBar",
   "tags": [
     "data-display",

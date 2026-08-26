@@ -6,13 +6,11 @@
  * @tags ["feedback","status","recovery","accessibility","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
-import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
-
 /** @vrooliComponentSource react-component-library:Alert */
 import { useId, type CSSProperties, type ReactNode } from "react";
-import { Icon } from "@vrooli/react-component-library/Icon/1.1.0";
-import { Stack } from "@vrooli/react-component-library/Stack/1.0.0";
-import { Text } from "@vrooli/react-component-library/Text/1.0.0";
+import { Icon } from "../../../../primitives/Icon/versions/1.0.0/Icon";
+import { Stack } from "../../../../primitives/Stack/versions/1.0.0/Stack";
+import { Text } from "../../../../primitives/Text/versions/1.0.0/Text";
 
 export type AlertTone = "info" | "success" | "warning" | "danger";
 
@@ -57,7 +55,7 @@ const styles = `
 @media (forced-colors: active) { [data-rcl-alert] { border-color: CanvasText; border-inline-start-color: Highlight; background: Canvas; } [data-rcl-alert-icon] { border: 1px solid CanvasText; background: Canvas; color: Highlight; } [data-rcl-alert-close] { color: CanvasText; } }
 `;
 
-export const Alert = withClassName(function Alert({
+export function Alert({
   tone = "info",
   title,
   description,
@@ -111,4 +109,4 @@ export const Alert = withClassName(function Alert({
       )}
     </div>
   );
-});
+}

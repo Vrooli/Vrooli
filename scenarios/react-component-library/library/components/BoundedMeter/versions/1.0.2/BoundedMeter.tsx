@@ -6,14 +6,12 @@
  * @tags ["primitive","token-bound","status","accessibility"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
-import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
-
 /** @vrooliComponentSource react-component-library:BoundedMeter */
-import { resolveStrings } from "@vrooli/react-component-library/useLocale/1.0.1";
+import { translate } from "../../../../hooks/useLocale/versions/1.0.1/useLocale";
 import type { CSSProperties, HTMLAttributes, ReactNode } from "react";
-import { Stack } from "@vrooli/react-component-library/Stack/1.0.0";
-import { Text } from "@vrooli/react-component-library/Text/1.0.0";
-import { SURFACE_ELEVATIONS } from "@vrooli/react-component-library/VisualRecipes/1.0.0";
+import { Stack } from "../../../../primitives/Stack/versions/1.0.0/Stack";
+import { Text } from "../../../../primitives/Text/versions/1.0.0/Text";
+import { SURFACE_ELEVATIONS } from "../../../../foundations/VisualRecipes/versions/1.0.0/VisualRecipes";
 
 export type BoundedMeterTone = "neutral" | "success" | "warning" | "danger";
 
@@ -76,8 +74,8 @@ function finite(value: number | undefined, fallback: number) {
   return Number.isFinite(value) ? (value as number) : fallback;
 }
 
-export const BoundedMeter = withClassName(function BoundedMeter({
-  label = resolveStrings("primitives.meter.value", "Value"),
+export function BoundedMeter({
+  label = translate("primitives.meter.label.1", "Value"),
   value = 0,
   min = 0,
   max = 100,
@@ -117,7 +115,7 @@ export const BoundedMeter = withClassName(function BoundedMeter({
         data-rcl-asset={assetId}
         data-rcl-version={assetVersion}
         data-rcl-stamp={assetStamp}
-        data-testid={testId || "primitives.meter"}
+        data-testid={testId}
         data-rcl-bounded-meter
         style={mergedStyle}
       >
@@ -144,4 +142,4 @@ export const BoundedMeter = withClassName(function BoundedMeter({
       </section>
     </>
   );
-});
+}

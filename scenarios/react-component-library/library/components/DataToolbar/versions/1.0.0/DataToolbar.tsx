@@ -3,11 +3,11 @@ import { useId, useState, type CSSProperties } from "react";
 import {
   FilterBar,
   type FilterOption,
-} from "@vrooli/react-component-library/FilterBar/1.0.0";
+} from "../../../FilterBar/versions/1.0.0/FilterBar";
 import {
   Toolbar,
   type ToolbarItem,
-} from "@vrooli/react-component-library/Toolbar/1.0.0";
+} from "../../../Toolbar/versions/1.0.0/Toolbar";
 
 export interface DataToolbarView {
   id: string;

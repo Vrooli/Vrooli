@@ -7,7 +7,7 @@
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
 /** @vrooliComponentSource react-component-library:RelativeTime */
-import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
+import { withClassName } from "../../../../foundations/ClassMerge/versions/1.0.1/ClassMerge";
 
 const muted = { color: "var(--color-muted-foreground, #64748b)" };
 export const RelativeTime = withClassName(function RelativeTime({
@@ -16,7 +16,7 @@ export const RelativeTime = withClassName(function RelativeTime({
   value?: string;
 }) {
   return (
-    <time data-testid="primitives.relative-time" dateTime={value} style={muted}>
+    <time dateTime={value} style={muted}>
       {value}
     </time>
   );

@@ -285,11 +285,23 @@ func (h *HarnessHandler) resolveComponentID(r *http.Request, id string) (string,
 
 func writeHarnessError(w http.ResponseWriter, logger *log.Logger, id string, err error) {
 	var (
-		notFound   components.ErrComponentNotFound
-		pathEscape components.ErrPathEscape
-		bundleErr  internalpreview.ErrBundle
+		notFound         components.ErrComponentNotFound
+		pathEscape       components.ErrPathEscape
+		bundleErr        internalpreview.ErrBundle
+		storyNotFound    components.StoryNotFoundError
+		contractNotFound components.StoryContractNotFoundError
+		contractParse    components.StoryContractParseError
+		storyEncode      components.StoryEncodeError
 	)
 	switch {
+	case errors.As(err, &storyNotFound):
+		http.Error(w, storyNotFound.Error(), http.StatusNotFound)
+	case errors.As(err, &contractNotFound):
+		http.Error(w, contractNotFound.Error(), http.StatusNotFound)
+	case errors.As(err, &contractParse):
+		http.Error(w, contractParse.Error(), http.StatusUnprocessableEntity)
+	case errors.As(err, &storyEncode):
+		http.Error(w, storyEncode.Error(), http.StatusUnprocessableEntity)
 	case errors.As(err, &notFound):
 		http.Error(w, fmt.Sprintf("preview: component %q not found", id), http.StatusNotFound)
 	case errors.As(err, &pathEscape):
@@ -346,8 +358,9 @@ func (h *HarnessHandler) resolveStory(r *http.Request, id string) (harnessStory,
 		return harnessStory{}, err
 	}
 	if len(stories) == 0 {
-		return harnessStory{}, fmt.Errorf("preview: story contract not found for component %q", id)
+		return harnessStory{}, components.StoryContractNotFoundError{ComponentID: id, Version: version}
 	}
+	declaredIDs := []string{}
 	for _, projected := range stories {
 		contractJSON := []byte(projected.ContractJSON)
 		if reader, ok := h.components.(interface {
@@ -355,33 +368,42 @@ func (h *HarnessHandler) resolveStory(r *http.Request, id string) (harnessStory,
 		}); ok {
 			content, contentErr := reader.GetVersionContentAt(r.Context(), id, projected.Version, "story.json")
 			if contentErr != nil {
-				return harnessStory{}, fmt.Errorf("preview: read story contract: %w", contentErr)
+				if errors.Is(contentErr, os.ErrNotExist) {
+					return harnessStory{}, components.StoryContractNotFoundError{ComponentID: id, Version: projected.Version}
+				}
+				return harnessStory{}, components.StoryContractParseError{ComponentID: id, Version: projected.Version, Detail: contentErr.Error()}
 			}
 			contractJSON = []byte(content.Body)
 		}
 		contract, diagnostics := components.ParseStoryContract(contractJSON)
 		if contract == nil || len(components.StoryContractErrors(diagnostics)) > 0 {
-			return harnessStory{}, fmt.Errorf("preview: parse story contract: %v", diagnostics)
+			messages := make([]string, 0, len(diagnostics))
+			for _, diagnostic := range diagnostics {
+				messages = append(messages, diagnostic.Error())
+			}
+			return harnessStory{}, components.StoryContractParseError{ComponentID: id, Version: projected.Version, Detail: strings.Join(messages, "; ")}
 		}
+		declaredIDs = make([]string, 0, len(contract.Stories))
 		for _, definition := range contract.Stories {
+			declaredIDs = append(declaredIDs, definition.ID)
 			if definition.ID != storyID {
 				continue
 			}
 			args, err := json.Marshal(definition.Args)
 			if err != nil {
-				return harnessStory{}, fmt.Errorf("preview: encode story args: %w", err)
+				return harnessStory{}, components.StoryEncodeError{ComponentID: id, StoryID: storyID, Field: "args", Cause: err}
 			}
 			expect, err := json.Marshal(definition.Expect)
 			if err != nil {
-				return harnessStory{}, fmt.Errorf("preview: encode story expectations: %w", err)
+				return harnessStory{}, components.StoryEncodeError{ComponentID: id, StoryID: storyID, Field: "expectations", Cause: err}
 			}
 			interactions, err := json.Marshal(definition.Interactions)
 			if err != nil {
-				return harnessStory{}, fmt.Errorf("preview: encode story interactions: %w", err)
+				return harnessStory{}, components.StoryEncodeError{ComponentID: id, StoryID: storyID, Field: "interactions", Cause: err}
 			}
 			environment, err := json.Marshal(definition.Environment)
 			if err != nil {
-				return harnessStory{}, fmt.Errorf("preview: encode story environment: %w", err)
+				return harnessStory{}, components.StoryEncodeError{ComponentID: id, StoryID: storyID, Field: "environment", Cause: err}
 			}
 			composition := definition.Composition
 			var fixture *components.StoryFixtureRef
@@ -403,7 +425,7 @@ func (h *HarnessHandler) resolveStory(r *http.Request, id string) (harnessStory,
 			}, nil
 		}
 	}
-	return harnessStory{}, fmt.Errorf("preview: story %q not found for component %q", storyID, id)
+	return harnessStory{}, components.StoryNotFoundError{ComponentID: id, StoryID: storyID, DeclaredIDs: declaredIDs}
 }
 
 type previewArchetype string

@@ -1,0 +1,38 @@
+{
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
+  "args": {
+    "fields": []
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "kind": "component",
+  "schemaVersion": 5,
+  "stories": [
+    {
+      "args": {},
+      "composition": {
+        "harness": {
+          "asset": "preview.showcase",
+          "config": {
+            "detail": "A reusable primitive specimen with stable visual context.",
+            "title": "Loading geometry"
+          },
+          "export": "Showcase",
+          "version": "1.0.0"
+        }
+      },
+      "id": "default",
+      "mode": "pinned",
+      "name": "Default",
+      "role": "anatomy",
+      "expect": [
+        {
+          "kind": "visible",
+          "selector": "body"
+        }
+      ]
+    }
+  ],
+  "title": "Skeleton"
+}

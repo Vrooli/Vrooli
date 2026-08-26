@@ -13,8 +13,10 @@
       "version": "1.0.0"
     }
   ],
-  "deprecatedVersions": [],
-  "description": "An async-aware action button with stable dimensions, acknowledged progress, recovery, and retry.",
+  "deprecatedVersions": [
+    "1.0.1"
+  ],
+  "description": "",
   "designStyles": [
     {
       "affinity": "native",
@@ -27,7 +29,7 @@
   ],
   "displayName": "CommandButton",
   "draft": "",
-  "latest": "1.0.1",
+  "latest": "1.0.2",
   "libraryId": "react-component-library:CommandButton",
   "slot": "ui-primitive",
   "tags": [

@@ -3,7 +3,7 @@
   "assetKind": "component",
   "catalogId": "forms.dirty-state-guard",
   "dependencies": [],
-  "description": "Protects meaningful unsaved work with an accessible recovery prompt and an SSR-safe unload guard.",
+  "description": "",
   "designStyles": [
     {
       "affinity": "native",
@@ -19,7 +19,7 @@
     }
   ],
   "displayName": "DirtyStateGuard",
-  "latest": "1.0.3",
+  "latest": "1.0.6",
   "libraryId": "react-component-library:DirtyStateGuard",
   "tags": [
     "forms",
@@ -35,5 +35,8 @@
     }
   ],
   "draft": "",
-  "deprecatedVersions": []
+  "deprecatedVersions": [
+    "1.0.3",
+    "1.0.5"
+  ]
 }

@@ -1,0 +1,28 @@
+{
+  "contract": {
+    "kind": "rcl-component-experience-contract",
+    "schema": "scenario-experience-spec/v1",
+    "provenance": "react-component-library:VisualRecipes@1.0.0"
+  },
+  "component": {
+    "id": "foundations.visual-recipes",
+    "title": "Visual Recipes",
+    "purpose": "Typed token-bound recipes for control and surface variation."
+  },
+  "states": [
+    {
+      "id": "default",
+      "example": "default",
+      "description": "The default foundation contract."
+    }
+  ],
+  "claims": [
+    {
+      "id": "contract-present",
+      "type": "manual-review",
+      "statement": "The foundation exposes a stable versioned contract for downstream assets.",
+      "tier": "manual",
+      "states": ["default"]
+    }
+  ]
+}

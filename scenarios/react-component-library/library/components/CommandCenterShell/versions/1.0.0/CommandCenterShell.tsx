@@ -4,11 +4,9 @@
  * @status released
  * @deps {"react":"^18"}
  */
-import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
-
 import type { ReactNode } from "react";
-import { AsyncPanel } from "@vrooli/react-component-library/AsyncPanel/1.0.0";
-import type { ExperienceSurfaceState } from "@vrooli/react-component-library/ExperienceSurface/1.0.0";
+import { AsyncPanel } from "../../../AsyncPanel/versions/1.0.0/AsyncPanel";
+import type { ExperienceSurfaceState } from "../../../ExperienceSurface/versions/1.0.0/ExperienceSurface";
 import { commandCenterShellStyles } from "./styles";
 
 export interface CommandCenterMetric {
@@ -36,7 +34,7 @@ export interface CommandCenterShellProps {
 // CommandCenterShell intentionally composes durable regions instead of drawing
 // a decorative frame: callers provide real navigation, controls, and primary
 // content while AsyncPanel supplies observable lifecycle semantics.
-export const CommandCenterShell = withClassName(function CommandCenterShell({
+export function CommandCenterShell({
   title,
   navigation,
   metrics,
@@ -110,4 +108,4 @@ export const CommandCenterShell = withClassName(function CommandCenterShell({
       </section>
     </main>
   );
-});
+}

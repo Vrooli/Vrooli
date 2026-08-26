@@ -371,6 +371,12 @@ func (r *Repository) Transition(ctx context.Context, componentID, version, state
 		if !allowed {
 			return c, fmt.Errorf("version %s is still referenced and is not safe to retire", version)
 		}
+		// Record the retirement in the manifest before removing its source
+		// directory. The manifest is the durable catalog declaration and must
+		// retain the version even after its implementation is retired.
+		if err := r.updateManifest(manifestPath, version); err != nil {
+			return c, err
+		}
 		path := filepath.Clean(filepath.Join(r.sourceRoot, sourcePath))
 		root := filepath.Clean(r.sourceRoot) + string(os.PathSeparator)
 		if !strings.HasPrefix(path, root) {
