@@ -1,6 +1,6 @@
 // DOC: docs/reference/configuration.md#mobile-toolbar-keys
 // DOC: docs/internal/SEAMS.md#axis-2-toolbar-keys-key-combos-p0-007
-import { useCallback, useDeferredValue, useRef, useState, useEffect, forwardRef, useImperativeHandle, type ReactNode } from "react";
+import { useCallback, useDeferredValue, useRef, useState, useEffect, forwardRef, useImperativeHandle, type CSSProperties, type ReactNode } from "react";
 import { ArrowDown as ArrowDownIcon, ArrowLeft as ArrowLeftIcon, ArrowRight as ArrowRightIcon, ArrowUp as ArrowUpIcon, Image, Loader2, Maximize2, SendHorizontal, Sparkles, type LucideIcon } from "lucide-react";
 import { Button } from "@vrooli/react-component-library/Button/2.2.1";
 import { IconButton } from "@vrooli/react-component-library/IconButton/2.0.0";
@@ -55,7 +55,7 @@ function ArrowToolbarButton({ keyDef, onFire, className }: ArrowToolbarButtonPro
       size="icon"
       variant="secondary"
       {...handlers}
-      className={className}
+      className={cn("flex min-h-11 min-w-11 items-center justify-center p-0 touch-manipulation", className)}
     >
       <ArrowIcon aria-hidden className="h-4 w-4" />
     </IconButton>
@@ -110,6 +110,7 @@ function ToolbarIconButton({ testId, label, onClick, active = false, className, 
   return (
     <IconButton
       data-testid={testId}
+      data-active={active ? "true" : undefined}
       tabIndex={-1}
       aria-label={label}
       title={label}
@@ -119,16 +120,9 @@ function ToolbarIconButton({ testId, label, onClick, active = false, className, 
       onClick={onClick}
       className={cn(
         "flex min-h-11 min-w-11 items-center justify-center p-0 touch-manipulation",
-        active
-          ? "border-wc-accent bg-wc-accent/20 text-wc-text-primary"
-          : "border-wc-default bg-wc-surface-input text-wc-text-secondary",
         className,
       )}
-      style={{
-        background: active ? "rgb(var(--wc-accent) / 0.2)" : "rgb(var(--wc-surface-input))",
-        borderColor: active ? "rgb(var(--wc-accent))" : "rgb(var(--wc-border-default))",
-        color: active ? "rgb(var(--wc-text-primary))" : "rgb(var(--wc-text-secondary))",
-      }}
+      style={active ? activeToolbarControlStyle : undefined}
     >
       {children}
     </IconButton>
@@ -148,6 +142,7 @@ function ToolbarTextButton({ testId, label, onClick, active = false, className, 
   return (
     <Button
       data-testid={testId}
+      data-active={active ? "true" : undefined}
       tabIndex={-1}
       type="button"
       variant="secondary"
@@ -158,22 +153,26 @@ function ToolbarTextButton({ testId, label, onClick, active = false, className, 
       className={cn(
         "shrink-0 rounded border text-sm font-medium transition touch-manipulation",
         compact ? "px-1.5 py-1 text-xs" : "px-2 py-1.5",
-        active
-          ? "border-wc-accent bg-wc-accent/20 text-wc-text-primary"
-          : "border-wc-default bg-wc-surface-input text-wc-text-secondary active:bg-wc-accent-active",
         className,
       )}
       style={{
+        ...(active ? activeToolbarControlStyle : undefined),
         paddingInline: compact ? "0.375rem" : "0.5rem",
-        background: active ? "rgb(var(--wc-accent) / 0.2)" : "rgb(var(--wc-surface-input))",
-        borderColor: active ? "rgb(var(--wc-accent))" : "rgb(var(--wc-border-default))",
-        color: active ? "rgb(var(--wc-text-primary))" : "rgb(var(--wc-text-secondary))",
       }}
     >
       {label}
     </Button>
   );
 }
+
+/* RCL owns the actual control painting. Active state is expressed by
+ * overriding the RCL semantic tokens, rather than by setting background,
+ * border, and color directly and bypassing the library's variants. */
+const activeToolbarControlStyle: CSSProperties = {
+  "--color-surface": "rgb(var(--wc-accent) / 0.2)",
+  "--color-border": "rgb(var(--wc-accent))",
+  "--color-foreground": "rgb(var(--wc-text-primary))",
+} as CSSProperties;
 
 /**
  * Wraps AiSuggestBar and applies useDeferredValue to the draft text *here*

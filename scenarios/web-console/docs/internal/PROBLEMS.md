@@ -627,7 +627,13 @@ server was cleared so new sessions inherit color-capable defaults.
   the relevant P0 capabilities. W1 passes with `business-health validate scenario
   web-console`; the stale `REQ-P0-008a` test reference was repaired to the existing
   drawer test. W2 passes with `vrooli scenario requirements validate web-console`.
-  Implementation evidence includes the platform matrix, dedicated route and
+  The mobile toolbar now supplies RCL's semantic color contract from the live
+  terminal-derived `--wc-*` palette at the toolbar boundary, so adopted arrows,
+  voice, and icon/text controls share one theme path. Focused UI evidence: 36
+  `MobileToolbar` tests pass, TypeScript/string checks pass, and BAS mobile
+  capture `web-console-mobile-toolbar-theme-bridge` shows named, centered controls
+  with matching surfaces and borders. Prior implementation evidence includes the
+  platform matrix, dedicated route and
   migration packages, the three-lock session seam, cached echo probing, the pure
   terminal protocol reducer, typed hook commands, storage declarations, focused
   Go/UI tests, race-tested Go suites, and six-target build/vet validation.

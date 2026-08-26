@@ -372,6 +372,31 @@ html[data-wc-adaptive-chrome="true"] .wc-ios-tint-edge {
   z-index: 8;
 }
 
+/* RCL controls consume the library's semantic --color-* contract while
+ * web-console's adaptive chrome publishes the live terminal palette as
+ * --wc-* RGB triples. Keep the adapter at the app boundary so the library
+ * stays host-agnostic and every adopted control (including arrows and voice)
+ * follows the same terminal-derived theme. */
+[data-testid="mobile-toolbar"] {
+  --color-background: rgb(var(--wc-surface-base));
+  --color-foreground: rgb(var(--wc-text-secondary));
+  --color-primary: rgb(var(--wc-accent));
+  --color-primary-foreground: rgb(var(--wc-accent-fg));
+  --color-secondary: rgb(var(--wc-accent));
+  --color-surface: rgb(var(--wc-surface-input));
+  --color-surface-raised: rgb(var(--wc-surface-raised));
+  --color-surface-muted: rgb(var(--wc-surface-base));
+  --color-border: rgb(var(--wc-border-default));
+  --color-border-strong: rgb(var(--wc-border-hover));
+  --color-muted-foreground: rgb(var(--wc-text-muted));
+  --color-accent: rgb(var(--wc-accent));
+  --color-focus: rgb(var(--wc-accent));
+  --color-danger: rgb(var(--wc-error-detail));
+  --color-info: rgb(var(--wc-accent));
+  --color-success: rgb(var(--wc-accent));
+  --color-on-primary: rgb(var(--wc-accent-fg));
+}
+
 /* Keep the first mobile paint single-column even if the browser applies its
  * emulated viewport after React's initial width read. The JS layout state will
  * converge as soon as the resize listener runs; this CSS guard prevents an

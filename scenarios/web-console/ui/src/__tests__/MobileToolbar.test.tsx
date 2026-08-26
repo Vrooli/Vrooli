@@ -549,8 +549,9 @@ describe("MobileToolbar — modifiers and optional actions", () => {
 
     renderToolbar({ onOpenAi, onUploadImage, voice });
 
-    expect(screen.getByTestId("toolbar-ai")).toHaveClass("border-wc-accent");
-    expect(screen.getByTestId("toolbar-mod-ctrl")).toHaveClass("border-wc-accent");
+    expect(screen.getByTestId("toolbar-ai")).toHaveAttribute("data-active", "true");
+    expect(screen.getByTestId("toolbar-ai").style.getPropertyValue("--color-surface")).toBe("rgb(var(--wc-accent) / 0.2)");
+    expect(screen.getByTestId("toolbar-mod-ctrl")).toHaveAttribute("data-active", "true");
     expect(screen.getByTestId("voice-mic-btn")).toHaveAttribute("data-control-size", "lg");
 
     useWorkspaceStore.setState({ toolbarLayout: "compact", aiSuggestActive: false, modifiers: { ctrl: false, alt: false, shift: false } });
@@ -560,7 +561,7 @@ describe("MobileToolbar — modifiers and optional actions", () => {
     useWorkspaceStore.setState({ aiSuggestActive: true });
     renderToolbar({ viewMode: "messages", onOpenAi: vi.fn() });
 
-    expect(screen.getByTestId("toolbar-ai")).toHaveClass("border-wc-accent");
+    expect(screen.getByTestId("toolbar-ai")).toHaveAttribute("data-active", "true");
     useWorkspaceStore.setState({ aiSuggestActive: false });
   });
 
