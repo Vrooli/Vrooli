@@ -17,11 +17,11 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vrooli/vrooli/internal/credentialauthority"
 	"github.com/vrooli/vrooli/internal/credentialinventory"
 	"github.com/vrooli/vrooli/internal/hostinventory"
 	"github.com/vrooli/vrooli/internal/operatorcapability"
 	"github.com/vrooli/vrooli/internal/resources/securestore"
-	"github.com/vrooli/vrooli/internal/credentialauthority"
 	kopiaregistry "github.com/vrooli/vrooli/packages/kopiaregistry-go"
 )
 

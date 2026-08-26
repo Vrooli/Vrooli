@@ -1,13 +1,14 @@
 package vroolicli
 
 import (
-	"encoding/json"
 	"flag"
 	"fmt"
 	"io"
 	"strings"
 
 	"github.com/vrooli/vrooli/internal/cli/commandtree"
+	"github.com/vrooli/vrooli/internal/cliout"
+	"github.com/vrooli/vrooli/internal/credentialauthority"
 	"github.com/vrooli/vrooli/internal/releaseauthority"
 )
 
@@ -60,11 +61,11 @@ func releaseAuthorityAddEvidence(ctx *CommandContext, authority *releaseauthorit
 	if err != nil {
 		return err
 	}
-	return json.NewEncoder(ctx.Stdout).Encode(artifact)
+	return cliout.WriteJSONValue(ctx.Stdout, artifact)
 }
 
 func (app *App) releaseAuthority() (*releaseauthority.Authority, error) {
-	credentials, err := credentialAuthority()
+	credentials, err := credentialauthority.DefaultAuthority()
 	if err != nil {
 		return nil, err
 	}
@@ -105,7 +106,7 @@ func releaseAuthorityStatus(ctx *CommandContext, authority *releaseauthority.Aut
 		return err
 	}
 	if format == "json" || ctx.Globals.JSON {
-		return json.NewEncoder(ctx.Stdout).Encode(status)
+		return cliout.WriteJSONValue(ctx.Stdout, status)
 	}
 	return renderReleaseAuthorityStatus(ctx, status)
 }
@@ -128,7 +129,7 @@ func releaseAuthoritySign(ctx *CommandContext, authority *releaseauthority.Autho
 		return err
 	}
 	if ctx.Globals.JSON {
-		return json.NewEncoder(ctx.Stdout).Encode(envelope)
+		return cliout.WriteJSONValue(ctx.Stdout, envelope)
 	}
 	_, err = fmt.Fprintf(ctx.Stdout, "Signed release manifest with managed authority key %s.\n", envelope.KeyID)
 	return err
@@ -154,7 +155,7 @@ func releaseAuthorityRegenerate(ctx *CommandContext, authority *releaseauthority
 
 func renderReleaseAuthorityStatus(ctx *CommandContext, status releaseauthority.Status) error {
 	if ctx.Globals.JSON {
-		return json.NewEncoder(ctx.Stdout).Encode(status)
+		return cliout.WriteJSONValue(ctx.Stdout, status)
 	}
 	state := "uninitialized"
 	if status.Configured {

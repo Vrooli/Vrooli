@@ -2,7 +2,6 @@ package vroolicli
 
 import (
 	"bytes"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -12,6 +11,7 @@ import (
 	"github.com/vrooli/vrooli/internal/cli/commandtree"
 	"github.com/vrooli/vrooli/internal/cli/rootcli"
 	"github.com/vrooli/vrooli/internal/cliinstall"
+	"github.com/vrooli/vrooli/internal/cliout"
 )
 
 const uninstallHelpText = `vrooli uninstall - Remove only recorded Vrooli installation artifacts
@@ -154,9 +154,7 @@ func (app *App) runUninstallCommand(ctx *CommandContext, args []string) error {
 }
 
 func writeUninstallJSON(w io.Writer, value any) error {
-	encoder := json.NewEncoder(w)
-	encoder.SetIndent("", "  ")
-	return encoder.Encode(value)
+	return cliout.WriteJSONValue(w, value)
 }
 
 func writeUninstallHuman(w io.Writer, value any) error {

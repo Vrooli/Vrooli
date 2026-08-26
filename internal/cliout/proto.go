@@ -8,6 +8,7 @@ import (
 
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/structpb"
 )
 
 // WriteProtoJSON writes a proto message as the canonical CLI JSON: snake_case
@@ -28,6 +29,25 @@ func WriteProtoJSON(w io.Writer, msg proto.Message) error {
 // was camelCase, so the migration stays byte-faithful.
 func WriteProtoJSONCamel(w io.Writer, msg proto.Message) error {
 	return writeProtoJSON(w, msg, false)
+}
+
+// WriteJSONValue adapts an existing JSON-shaped value to the canonical CLI
+// output seam. It is intended for legacy root commands whose result types do
+// not yet have a dedicated protobuf contract.
+func WriteJSONValue(w io.Writer, value any) error {
+	raw, err := json.Marshal(value)
+	if err != nil {
+		return err
+	}
+	var decoded any
+	if err := json.Unmarshal(raw, &decoded); err != nil {
+		return err
+	}
+	message, err := structpb.NewValue(decoded)
+	if err != nil {
+		return err
+	}
+	return WriteProtoJSON(w, message)
 }
 
 func writeProtoJSON(w io.Writer, msg proto.Message, useProtoNames bool) error {

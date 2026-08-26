@@ -76,8 +76,12 @@ func TestApplyRejectsInvalidPatchWithoutChangingStoredDocument(t *testing.T) {
 func TestHostWorkloadPostureDefaultsAndValidates(t *testing.T) {
 	service, _ := testService(t)
 	doc, err := service.Load(context.Background())
-	if err != nil || doc.HostWorkloadPosture != "vrooli_only" { t.Fatalf("default posture = %q, err=%v", doc.HostWorkloadPosture, err) }
-	if _, err := service.Apply(context.Background(), []byte(`{"host_workload_posture":"operator_machine"}`)); err == nil || !strings.Contains(err.Error(), "/host_workload_posture") { t.Fatalf("invalid posture error = %v", err) }
+	if err != nil || doc.HostWorkloadPosture != "vrooli_only" {
+		t.Fatalf("default posture = %q, err=%v", doc.HostWorkloadPosture, err)
+	}
+	if _, err := service.Apply(context.Background(), []byte(`{"host_workload_posture":"operator_machine"}`)); err == nil || !strings.Contains(err.Error(), "/host_workload_posture") {
+		t.Fatalf("invalid posture error = %v", err)
+	}
 }
 
 func TestDisjointConcurrentPatchesBothLand(t *testing.T) {

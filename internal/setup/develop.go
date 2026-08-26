@@ -194,6 +194,7 @@ func buildNestedModuleBinary(moduleDir, outputPath string, stdout, stderr io.Wri
 		Stdin:  os.Stdin,
 	})
 }
+
 func (s *setupService) applyDotEnv(root string) error {
 	values, err := s.deps.loadDotEnv(filepath.Join(root, ".env"))
 	if err != nil {

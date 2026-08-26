@@ -7,11 +7,11 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/vrooli/vrooli/internal/credentialauthority"
 	"github.com/vrooli/vrooli/internal/credentialspec"
 	manifestpkg "github.com/vrooli/vrooli/internal/resources/manifest"
 	"github.com/vrooli/vrooli/internal/resources/securestore"
 	"github.com/vrooli/vrooli/internal/scenario"
-	"github.com/vrooli/vrooli/internal/credentialauthority"
 )
 
 // The degradation contract under test: credential resolution returns an error

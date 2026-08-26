@@ -341,21 +341,7 @@ func buildAndInstallWatchdog(p paths) error {
 }
 
 func installUserFile(path, content string, opts hostreqkit.EnsureOptions) error {
-	if err := hostreqkit.RunAsInvokingUser("mkdir", []string{"-p", filepath.Dir(path)}, opts); err != nil {
-		return fmt.Errorf("create directory: %w", err)
-	}
-	tmp, err := hostreqkit.WriteTempFileFn(content)
-	if err != nil {
-		return fmt.Errorf("prepare file: %w", err)
-	}
-	defer os.Remove(tmp)
-	if err := os.Chmod(tmp, 0o644); err != nil {
-		return fmt.Errorf("make file readable: %w", err)
-	}
-	if err := hostreqkit.RunAsInvokingUser("install", []string{"-m", "0644", tmp, path}, opts); err != nil {
-		return fmt.Errorf("install file: %w", err)
-	}
-	return nil
+	return hostreqkit.InstallUserFile(path, content, opts)
 }
 
 func timerContent() string {

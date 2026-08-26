@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/vrooli/vrooli/internal/config"
+	"github.com/vrooli/vrooli/internal/credentialauthority"
 	"github.com/vrooli/vrooli/internal/hostsession"
 	"github.com/vrooli/vrooli/internal/network"
 	"github.com/vrooli/vrooli/internal/portspec"
@@ -19,7 +20,6 @@ import (
 	resourceenv "github.com/vrooli/vrooli/internal/resources/env"
 	"github.com/vrooli/vrooli/internal/scenario"
 	"github.com/vrooli/vrooli/internal/scenarioruntime"
-	"github.com/vrooli/vrooli/internal/credentialauthority"
 )
 
 func defaultHostBootID(ctx context.Context) (string, error) {

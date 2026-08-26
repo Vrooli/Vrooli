@@ -4,10 +4,10 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/vrooli/vrooli/internal/credentialauthority"
 	resourceenv "github.com/vrooli/vrooli/internal/resources/env"
 	"github.com/vrooli/vrooli/internal/resources/securestore"
 	"github.com/vrooli/vrooli/internal/scenario"
-	"github.com/vrooli/vrooli/internal/credentialauthority"
 )
 
 // withCredentialStore points the resolver at a store representing a host

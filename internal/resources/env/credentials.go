@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/vrooli/vrooli/internal/credentialauthority"
 	"github.com/vrooli/vrooli/internal/credentialspec"
 	manifestpkg "github.com/vrooli/vrooli/internal/resources/manifest"
-	"github.com/vrooli/vrooli/internal/credentialauthority"
 )
 
 // CredentialGapReason names why a declared credential is not usable right now.

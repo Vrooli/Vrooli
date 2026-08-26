@@ -574,15 +574,6 @@ func componentPublishTarget(target string, directory bool) string {
 	return target
 }
 
-func slicesContainTemplate(values []string, token string) bool {
-	for _, value := range values {
-		if strings.Contains(value, token) {
-			return true
-		}
-	}
-	return false
-}
-
 func runtimeGOOS() string {
 	return runtime.GOOS
 }

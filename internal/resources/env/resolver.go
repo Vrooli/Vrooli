@@ -11,11 +11,11 @@ import (
 	"strings"
 
 	repocontract "github.com/vrooli/repo-contract-go"
+	"github.com/vrooli/vrooli/internal/credentialauthority"
 	manifestpkg "github.com/vrooli/vrooli/internal/resources/manifest"
 	runtimestorage "github.com/vrooli/vrooli/internal/resources/runtime/storage"
 	"github.com/vrooli/vrooli/internal/scenario"
 	"github.com/vrooli/vrooli/internal/scenarioruntime"
-	"github.com/vrooli/vrooli/internal/credentialauthority"
 )
 
 const (

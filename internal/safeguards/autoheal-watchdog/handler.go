@@ -254,21 +254,7 @@ func enableScheduler(osName, name, path string, opts hostreqkit.EnsureOptions) e
 }
 
 func installAsInvokingUser(path, content string, opts hostreqkit.EnsureOptions) error {
-	if err := hostreqkit.RunAsInvokingUser("mkdir", []string{"-p", filepath.Dir(path)}, opts); err != nil {
-		return fmt.Errorf("create user scheduler directory: %w", err)
-	}
-	tmp, err := hostreqkit.WriteTempFileFn(content)
-	if err != nil {
-		return fmt.Errorf("prepare user scheduler definition: %w", err)
-	}
-	defer os.Remove(tmp)
-	if err := os.Chmod(tmp, 0o644); err != nil {
-		return fmt.Errorf("make user scheduler definition readable: %w", err)
-	}
-	if err := hostreqkit.RunAsInvokingUser("install", []string{"-m", "0644", tmp, path}, opts); err != nil {
-		return fmt.Errorf("install user scheduler definition: %w", err)
-	}
-	return nil
+	return hostreqkit.InstallUserFile(path, content, opts)
 }
 
 func lingeringEnabled(user string) bool {

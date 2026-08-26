@@ -70,10 +70,10 @@ func CommandSpecs() []commandtree.Spec[CommandID] {
 		{Name: string(CommandWorkload), Group: "Maintenance Commands", Summary: "List host workloads and their Vrooli ownership posture", Handler: CommandWorkload, Suggestable: true, RootPolicy: commandtree.RootPolicy{RequiresRoot: false, CanRunWithoutRoot: ListOrHelpWithoutRoot}},
 		{Name: string(CommandCapacity), Group: "Maintenance Commands", Summary: "Arbitrate host resource capacity (GPU VRAM/RAM/CPU) via the claim ledger", Handler: CommandCapacity, Suggestable: true},
 		{Name: string(CommandCapability), Group: "Maintenance Commands", Summary: "Read the manifest-derived cross-platform capability ledger", Handler: CommandCapability, Suggestable: true},
+		{Name: string(CommandUninstall), Group: "Maintenance Commands", Summary: "Plan and apply removal of recorded Vrooli installation artifacts", Handler: CommandUninstall, Suggestable: true},
 		{Name: string(CommandCredentials), Group: "Configuration Commands", Summary: "Provision and inspect credentials through the native secure-store authority", Handler: CommandCredentials, Suggestable: true},
 		{Name: string(CommandReleaseAuthority), Group: "Configuration Commands", Summary: "Create, inspect, and use the managed release signing authority", Handler: CommandReleaseAuthority, Suggestable: true},
 		{Name: string(CommandBreakGlass), Group: "Configuration Commands", Summary: "Provision and issue target-bound break-glass credentials", Handler: CommandBreakGlass, Suggestable: true},
-		{Name: string(CommandUninstall), Group: "Maintenance Commands", Summary: "Plan and apply removal of recorded Vrooli installation artifacts", Handler: CommandUninstall, Suggestable: true},
 		{Name: string(CommandLifecycle), Group: "Maintenance Commands", Summary: "Internal lifecycle command plumbing", Handler: CommandLifecycle, Hidden: true, Suggestable: false, RootPolicy: commandtree.RootPolicy{RequiresRoot: true, CanRunWithoutRoot: HelpOnlyWithoutRoot}},
 	}
 }

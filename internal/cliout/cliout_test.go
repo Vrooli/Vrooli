@@ -42,6 +42,20 @@ func TestWriteJSON(t *testing.T) {
 	}
 }
 
+func TestWriteJSONValuePreservesJSONShape(t *testing.T) {
+	var buffer bytes.Buffer
+	value := struct {
+		Key   string `json:"key"`
+		Count int    `json:"count"`
+	}{Key: "value", Count: 2}
+	if err := WriteJSONValue(&buffer, value); err != nil {
+		t.Fatalf("WriteJSONValue: %v", err)
+	}
+	if got := buffer.String(); got != "{\n  \"count\": 2,\n  \"key\": \"value\"\n}\n" {
+		t.Fatalf("unexpected JSON value output: %q", got)
+	}
+}
+
 func TestSuccessFieldsAddsSuccessKey(t *testing.T) {
 	payload := SuccessFields(map[string]any{"report": "ok"})
 	if payload[EnvelopeKeySuccess] != true {

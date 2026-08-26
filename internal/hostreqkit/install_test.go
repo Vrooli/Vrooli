@@ -6,6 +6,8 @@ import (
 	"os"
 	"strings"
 	"testing"
+
+	"github.com/vrooli/vrooli/internal/hostreqspec"
 )
 
 func TestInstallCommandLinuxManagers(t *testing.T) {
@@ -459,5 +461,142 @@ func TestPackageNameForHostEmptyManifest(t *testing.T) {
 	m := ToolManifest{}
 	if got := m.PackageNameForHost(Host{PackageManager: "brew"}); got != "" {
 		t.Fatalf("expected empty, got %q", got)
+	}
+}
+
+func TestAptRepoInstallerInspectPlatforms(t *testing.T) {
+	restore := stubLookups(t)
+	defer restore()
+	LookPathFn = func(name string) (string, error) {
+		if name == "vault" {
+			return "/usr/bin/vault", nil
+		}
+		return "", os.ErrNotExist
+	}
+	installer := AptRepoInstaller{
+		Manifest: ToolManifest{
+			Name: "vault", Commands: []string{"vault"},
+			Packages: map[string]string{"brew": "hashicorp/tap/vault", "winget": "Hashicorp.Vault"},
+		},
+		AptPackage: "vault",
+	}
+	requirement := hostreqspec.ResolvedRequirement{Name: "vault", Kind: hostreqspec.KindTool}
+	tests := []struct {
+		name        string
+		host        Host
+		wantPkg     string
+		wantStatus  SupportClass
+		wantInstall bool
+	}{
+		{name: "apt", host: Host{OS: "linux", PackageManager: "apt"}, wantPkg: "vault", wantInstall: true, wantStatus: SupportSupported},
+		{name: "brew", host: Host{OS: "darwin", PackageManager: "brew"}, wantPkg: "hashicorp/tap/vault", wantInstall: true, wantStatus: SupportSupported},
+		{name: "winget", host: Host{OS: "windows", PackageManager: "winget"}, wantPkg: "Hashicorp.Vault", wantInstall: true, wantStatus: SupportSupported},
+		{name: "unsupported", host: Host{OS: "linux", PackageManager: "dnf"}, wantStatus: SupportUnsupported},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			status := installer.Inspect(test.host, requirement)
+			if status.SupportClass != test.wantStatus {
+				t.Fatalf("SupportClass = %q, want %q", status.SupportClass, test.wantStatus)
+			}
+			if status.PackageName != test.wantPkg {
+				t.Fatalf("PackageName = %q, want %q", status.PackageName, test.wantPkg)
+			}
+			if status.InstallSupported != test.wantInstall {
+				t.Fatalf("InstallSupported = %t, want %t", status.InstallSupported, test.wantInstall)
+			}
+		})
+	}
+}
+
+func TestGoInstallInstallerInspectPresentAbsentAndVersionMismatch(t *testing.T) {
+	restore := stubLookups(t)
+	defer restore()
+	manifest := ToolManifest{Name: "plugin", Commands: []string{"plugin"}, VersionArgs: []string{"--version"}}
+	installer := GoInstallInstaller{Manifest: manifest, ModulePath: "example/plugin", Version: "v1.2.3", BinaryName: "plugin", Kind: InstallKindGo}
+	requirement := hostreqspec.ResolvedRequirement{Name: "plugin", Kind: hostreqspec.KindTool}
+
+	LookPathFn = func(name string) (string, error) {
+		if name == "go" {
+			return "/usr/local/go/bin/go", nil
+		}
+		if name == "plugin" {
+			return "/usr/local/bin/plugin", nil
+		}
+		return "", os.ErrNotExist
+	}
+	CombinedOutputFn = func(name string, args ...string) ([]byte, error) {
+		if name == "plugin" {
+			return []byte("plugin v9.9.9\n"), nil
+		}
+		return nil, os.ErrNotExist
+	}
+	present := installer.Inspect(Host{OS: "linux"}, requirement)
+	if !present.Installed || present.ExecutionState != ExecutionAlreadyPresent {
+		t.Fatalf("present status = %+v", present)
+	}
+	if present.Version != "plugin v9.9.9" {
+		t.Fatalf("observed version = %q", present.Version)
+	}
+	if present.PackageName != "example/plugin@v1.2.3" {
+		t.Fatalf("package reference = %q", present.PackageName)
+	}
+
+	LookPathFn = func(name string) (string, error) {
+		if name == "go" {
+			return "/usr/local/go/bin/go", nil
+		}
+		return "", os.ErrNotExist
+	}
+	absent := installer.Inspect(Host{OS: "linux"}, requirement)
+	if absent.Installed || !absent.InstallSupported {
+		t.Fatalf("absent status = %+v", absent)
+	}
+}
+
+func TestSysctlApplierInspectStates(t *testing.T) {
+	restore := stubLookups(t)
+	defer restore()
+	applier := SysctlApplier{
+		ConfigPath: "/etc/sysctl.d/test.conf",
+		Parameters: []SysctlParameter{{Name: "net.test.one", Value: 4}, {Name: "net.test.minimum", Value: 8, Minimum: true, ReadFailure: -1}},
+	}
+	requirement := hostreqspec.ResolvedRequirement{Name: "test", Kind: hostreqspec.KindSafeguard}
+	fullConfig := applier.ConfigContent()
+	ReadFileFn = func(path string) ([]byte, error) {
+		switch path {
+		case "/proc/sys/net/test/one":
+			return []byte("4"), nil
+		case "/proc/sys/net/test/minimum":
+			return []byte("9"), nil
+		case applier.ConfigPath:
+			return []byte(fullConfig), nil
+		default:
+			return nil, os.ErrNotExist
+		}
+	}
+	ready := applier.Inspect(Host{OS: "linux", SupportsSysctl: true}, requirement)
+	if !ready.Applied || ready.ExecutionState != ExecutionAlreadyPresent {
+		t.Fatalf("already-applied status = %+v", ready)
+	}
+
+	ReadFileFn = func(path string) ([]byte, error) {
+		if path == "/proc/sys/net/test/one" {
+			return []byte("2"), nil
+		}
+		if path == "/proc/sys/net/test/minimum" {
+			return []byte("9"), nil
+		}
+		return []byte(fullConfig), nil
+	}
+	needsApply := applier.Inspect(Host{OS: "linux", SupportsSysctl: true}, requirement)
+	if needsApply.Applied || needsApply.ExecutionState != ExecutionPending {
+		t.Fatalf("needs-apply status = %+v", needsApply)
+	}
+
+	ReadFileFn = func(string) ([]byte, error) { return nil, os.ErrPermission }
+	readFailure := applier.Inspect(Host{OS: "linux", SupportsSysctl: true}, requirement)
+	if readFailure.Applied || readFailure.ExecutionState != ExecutionPending {
+		t.Fatalf("read-failure status = %+v", readFailure)
 	}
 }

@@ -220,7 +220,6 @@ func TestVerifyPlacementReportsUndeterminedWhenNoWorkloadIsResident(t *testing.T
 		Name:             "ollama",
 		NoWorkloadReason: "no model is resident, so placement cannot be read yet",
 	}, accel.BackendCUDA)
-
 	// Then the verifier does not guess CPU placement
 	if err != nil {
 		t.Fatalf("VerifyPlacement() = %v, want nil", err)
