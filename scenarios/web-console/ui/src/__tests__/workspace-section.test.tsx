@@ -3,14 +3,17 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { screen, fireEvent } from "@testing-library/react";
 import { i18n } from "../i18n";
 import WorkspaceSection from "../components/settings/WorkspaceSection";
+import { toolbarPrefsFromPreset } from "../lib/toolbarLayout";
 
 const mockStoreState: Record<string, unknown> = {
   isMinimapVisible: true,
   setMinimapVisible: vi.fn(),
   displayMode: "grid",
   setDisplayMode: vi.fn(),
-  toolbarLayout: "expanded",
-  setToolbarLayout: vi.fn(),
+  toolbarPrefs: toolbarPrefsFromPreset("balanced"),
+  setToolbarPreset: vi.fn(),
+  updateToolbarPrefs: vi.fn(),
+  setToolbarControlEnabled: vi.fn(),
   keepScreenAwake: true,
   setKeepScreenAwake: vi.fn(),
   adaptiveChrome: true,
@@ -118,8 +121,8 @@ describe("WorkspaceSection", () => {
     fireEvent.click(screen.getByTestId("display-mode-grid"));
     fireEvent.click(screen.getByTestId("display-mode-tabs"));
     fireEvent.click(screen.getByTestId("display-mode-sidebar"));
-    fireEvent.click(screen.getByTestId("toolbar-layout-compact"));
-    fireEvent.click(screen.getByTestId("toolbar-layout-expanded"));
+    fireEvent.click(screen.getByTestId("toolbar-preset-dense"));
+    fireEvent.click(screen.getByTestId("toolbar-preset-balanced"));
     fireEvent.click(screen.getByTestId("minimap-toggle"));
     fireEvent.click(screen.getByTestId("adaptive-chrome-toggle"));
     fireEvent.click(screen.getByTestId("keep-screen-awake-toggle"));
@@ -129,7 +132,7 @@ describe("WorkspaceSection", () => {
     fireEvent.change(deviceInput, { target: { value: "phone" } });
 
     expect(mockStoreState.setDisplayMode).toHaveBeenCalledWith("sidebar");
-    expect(mockStoreState.setToolbarLayout).toHaveBeenCalledWith("expanded");
+    expect(mockStoreState.setToolbarPreset).toHaveBeenCalledWith("balanced");
     expect(mockStoreState.setMinimapVisible).toHaveBeenCalledWith(false);
     expect(mockStoreState.setAdaptiveChrome).toHaveBeenCalledWith(false);
     expect(mockStoreState.setTouchScrollSensitivity).toHaveBeenCalledWith(1.5);

@@ -10,6 +10,13 @@ import { DEFAULT_WAKE_WORD_THRESHOLD } from "../audio-integration/hooks/voice/wa
 // fallback (or, transitively, the audio-tools server). See vad.ts.
 import { VAD_FALLBACK_SILENCE_TIMEOUT_MS, VAD_FALLBACK_SEGMENT_SILENCE_MS } from "../audio-integration/hooks/voice/vad";
 import type { ModifierState } from "../consts/toolbar-keys";
+import {
+  DEFAULT_TOOLBAR_PREFS,
+  normalizeToolbarPrefs,
+  toolbarPrefsFromPreset,
+  type ToolbarPrefs,
+  type ToolbarPresetId,
+} from "../lib/toolbarLayout";
 
 export interface PaneMetadata {
   sessionId: string;
@@ -39,7 +46,6 @@ export interface PendingInputDraftEntry {
 }
 
 export type DisplayMode = "grid" | "tabs" | "sidebar";
-export type ToolbarLayout = "compact" | "expanded";
 export type PlusButtonBehavior = "launcher" | "new-terminal";
 /** Sidebar ordering: "manual" honors backend sort_order (drag-reorderable);
  *  the rest are view-only sorts that never write sort_order. */
@@ -92,8 +98,12 @@ interface WorkspaceState {
   appearanceModalPane: string | null;
   isMinimapVisible: boolean;
   displayMode: DisplayMode;
-  /** Mobile toolbar key layout: "compact" (single row) or "expanded" (two rows with D-pad). */
-  toolbarLayout: ToolbarLayout;
+  /**
+   * Mobile toolbar composition: which controls are shown, how large they are,
+   * and how many rows they may occupy. Device-local — screen size belongs to
+   * the phone, not the account — so it is persisted here and never synced.
+   */
+  toolbarPrefs: ToolbarPrefs;
   settingsModalOpen: boolean;
   /** One-shot request to open the settings modal on a specific tab (e.g. a
    *  deep link from the appearance modal). Consumed and cleared by
@@ -204,7 +214,12 @@ interface WorkspaceActions {
   setAppearanceModalPane: (sessionId: string | null) => void;
   setMinimapVisible: (visible: boolean) => void;
   setDisplayMode: (mode: DisplayMode) => void;
-  setToolbarLayout: (layout: ToolbarLayout) => void;
+  /** Apply a preset wholesale, replacing every field it owns. */
+  setToolbarPreset: (preset: Exclude<ToolbarPresetId, "custom">) => void;
+  /** Change individual fields. Any such edit moves the prefs to "custom". */
+  updateToolbarPrefs: (patch: Partial<Omit<ToolbarPrefs, "preset">>) => void;
+  /** Show or hide one control. */
+  setToolbarControlEnabled: (id: string, enabled: boolean) => void;
   setSettingsModalOpen: (open: boolean) => void;
   setSettingsInitialTab: (tab: string | null) => void;
   setAiModalOpen: (open: boolean) => void;
@@ -319,6 +334,28 @@ function withGroupAssigned(
   return orderPanesByGroupBlocks(tagged);
 }
 
+/**
+ * v22 → v23: `toolbarLayout` ("compact" | "expanded") conflated three
+ * independent choices — which controls are shown, how large they are, and how
+ * they are arranged. Map it onto the preset that reproduces what the user was
+ * already looking at, so nobody's choice silently resets.
+ *
+ * Also the repair point for prefs written by any build: persisted settings are
+ * user data, so unknown control ids and out-of-range values are dropped rather
+ * than trusted.
+ *
+ * Exported for `useWorkspaceStore-migration.test.ts`.
+ */
+export function migrateToolbarPrefs(
+  persisted: { toolbarLayout?: unknown; toolbarPrefs?: unknown },
+  version: number,
+): ToolbarPrefs {
+  if (version < 23) {
+    return toolbarPrefsFromPreset(persisted.toolbarLayout === "compact" ? "dense" : "balanced");
+  }
+  return normalizeToolbarPrefs(persisted.toolbarPrefs);
+}
+
 export const useWorkspaceStore = create<WorkspaceStore>()(
   persist(
     (set, get) => ({
@@ -329,7 +366,7 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
       appearanceModalPane: null,
       isMinimapVisible: true,
       displayMode: "grid",
-      toolbarLayout: "expanded",
+      toolbarPrefs: DEFAULT_TOOLBAR_PREFS,
       settingsModalOpen: false,
       settingsInitialTab: null,
       aiModalOpen: false,
@@ -541,7 +578,19 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
       setAppearanceModalPane: (sessionId) => set({ appearanceModalPane: sessionId }),
       setMinimapVisible: (visible) => set({ isMinimapVisible: visible }),
       setDisplayMode: (mode) => set({ displayMode: mode }),
-      setToolbarLayout: (layout) => set({ toolbarLayout: layout }),
+      setToolbarPreset: (preset) => set({ toolbarPrefs: toolbarPrefsFromPreset(preset) }),
+      updateToolbarPrefs: (patch) =>
+        set((state) => ({
+          toolbarPrefs: normalizeToolbarPrefs({ ...state.toolbarPrefs, ...patch, preset: "custom" }),
+        })),
+      setToolbarControlEnabled: (id, enabled) =>
+        set((state) => ({
+          toolbarPrefs: normalizeToolbarPrefs({
+            ...state.toolbarPrefs,
+            preset: "custom",
+            enabled: { ...state.toolbarPrefs.enabled, [id]: enabled },
+          }),
+        })),
       setSettingsModalOpen: (open) => set({ settingsModalOpen: open }),
       setSettingsInitialTab: (tab) => set({ settingsInitialTab: tab }),
       setAiModalOpen: (open) => set({ aiModalOpen: open }),
@@ -650,7 +699,7 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
     }),
     {
       name: "wc-workspace",
-      version: 22,
+      version: 23,
       migrate: (persisted, version) => {
         const state = persisted as Record<string, unknown>;
         if (version < 1) {
@@ -737,6 +786,8 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
         if (version < 22) {
           state.predictionLatencyThresholdMs ??= 20;
         }
+        state.toolbarPrefs = migrateToolbarPrefs(state, version);
+        delete state.toolbarLayout;
         return state as unknown as WorkspaceState & WorkspaceActions;
       },
       partialize: (state) => ({
@@ -744,7 +795,7 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
         rowFractions: state.rowFractions,
         isMinimapVisible: state.isMinimapVisible,
         displayMode: state.displayMode,
-        toolbarLayout: state.toolbarLayout,
+        toolbarPrefs: state.toolbarPrefs,
         voiceEnabled: state.voiceEnabled,
         voiceShortcut: state.voiceShortcut,
         vadAutoStop: state.vadAutoStop,

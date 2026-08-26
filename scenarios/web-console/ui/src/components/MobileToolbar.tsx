@@ -1,96 +1,46 @@
 // DOC: docs/reference/configuration.md#mobile-toolbar-keys
 // DOC: docs/internal/SEAMS.md#axis-2-toolbar-keys-key-combos-p0-007
-import { useCallback, useDeferredValue, useRef, useState, useEffect, forwardRef, useImperativeHandle, type CSSProperties, type ReactNode } from "react";
-import { ArrowDown as ArrowDownIcon, ArrowLeft as ArrowLeftIcon, ArrowRight as ArrowRightIcon, ArrowUp as ArrowUpIcon, Image, Loader2, Maximize2, SendHorizontal, Sparkles, type LucideIcon } from "lucide-react";
-import { Button } from "@vrooli/react-component-library/Button/2.2.1";
+import { useCallback, useDeferredValue, useMemo, useRef, useState, useEffect, forwardRef, useImperativeHandle, type ReactNode } from "react";
+import { Loader2, Maximize2, SendHorizontal } from "lucide-react";
 import { IconButton } from "@vrooli/react-component-library/IconButton/2.0.0";
 import { Textarea } from "@vrooli/react-component-library/Textarea/1.0.1";
 import { useTranslation } from "react-i18next";
-import { TOOLBAR_KEYS, ESC_KEY, TAB_KEY, ENTER_KEY, ARROW_UP, ARROW_DOWN, ARROW_LEFT, ARROW_RIGHT, type ToolbarKey, applyModifiers } from "../consts/toolbar-keys";
+import { ENTER_KEY, type ToolbarKey, applyModifiers } from "../consts/toolbar-keys";
 import { strings } from "../consts/strings";
 import type { GateResult, InputIntent } from "./terminal/inputGate";
 import type { InputSettlementCallback } from "../hooks/terminal/useStdinStream";
 import { useWorkspaceStore } from "../stores/useWorkspaceStore";
 import { cn } from "../lib/classnames";
 import KeyComboPicker from "./KeyComboPicker";
-import VoiceMicButton from "./VoiceMicButton";
 import VoiceCommandSuggestion from "./VoiceCommandSuggestion";
 import InterimTranscriptOverlay from "./composer/InterimTranscriptOverlay";
 import AiSuggestBar from "./AiSuggestBar";
 import type { StartRecordingOpts, VoiceActivitySnapshot } from "../audio-integration";
 import type { CommandSuggestion } from "../audio-integration";
-import { slugify } from "../lib/slugify";
 import { useComposerDraft, type ComposerDraft } from "../hooks/useComposerDraft";
-import { useHoldRepeat } from "../hooks/useHoldRepeat";
 import { decodeInputLabel } from "../lib/terminalKeyLabels";
+import {
+  TOOLBAR_CONTROLS,
+  layoutToolbar,
+  toolbarMetrics,
+  type ToolbarControlId,
+  type ToolbarControlSpec,
+} from "../lib/toolbarLayout";
+import { useElementWidth } from "../hooks/useElementWidth";
+import ToolbarSurface from "./toolbar/ToolbarSurface";
+import { activeToolbarControlStyle, renderToolbarControl, type ToolbarControlContext } from "./toolbar/toolbarControls";
 
 /**
- * Arrow keys are the only toolbar buttons with hold-to-repeat because users
- * routinely need to scan through shell history, long command lines, and TUI
- * views. Other toolbar buttons (Esc/Tab/Enter, modifiers) are one-shot
- * actions where repeat would only cause accidental misfires.
+ * Width assumed before the toolbar has been measured. In a browser the real
+ * width lands in the same commit (ResizeObserver reports on observe), so this
+ * only governs environments with no layout at all — SSR and jsdom — where a
+ * mainstream phone width produces a representative toolbar instead of an empty
+ * one.
  */
-const ARROW_KEYS = new Set<string>([ARROW_UP.input, ARROW_DOWN.input, ARROW_LEFT.input, ARROW_RIGHT.input]);
+const INITIAL_TOOLBAR_WIDTH_PX = 390;
 
-interface ArrowToolbarButtonProps {
-  keyDef: ToolbarKey;
-  onFire: (key: ToolbarKey) => void;
-  className: string;
-}
-
-/**
- * A toolbar arrow button that fires on pointerdown and auto-repeats while
- * held (via useHoldRepeat). Intentionally does NOT bind onClick — pointerdown
- * already dispatches, and a parallel click handler would double-fire on tap.
- */
-function ArrowToolbarButton({ keyDef, onFire, className }: ArrowToolbarButtonProps) {
-  const handlers = useHoldRepeat({ onFire: useCallback(() => onFire(keyDef), [onFire, keyDef]) });
-  const ArrowIcon = arrowIconFor(keyDef);
-  return (
-    <IconButton
-      data-testid={`toolbar-key-${slugify(arrowLabelFor(keyDef))}`}
-      tabIndex={-1}
-      aria-label={arrowLabelFor(keyDef)}
-      title={arrowLabelFor(keyDef)}
-      size="icon"
-      variant="secondary"
-      {...handlers}
-      className={cn("flex min-h-11 min-w-11 items-center justify-center p-0 touch-manipulation", className)}
-    >
-      <ArrowIcon aria-hidden className="h-4 w-4" />
-    </IconButton>
-  );
-}
-
-function arrowLabelFor(keyDef: ToolbarKey): string {
-  switch (keyDef.input) {
-    case ARROW_UP.input:
-      return "Arrow up";
-    case ARROW_DOWN.input:
-      return "Arrow down";
-    case ARROW_LEFT.input:
-      return "Arrow left";
-    case ARROW_RIGHT.input:
-      return "Arrow right";
-    default:
-      return keyDef.label;
-  }
-}
-
-function arrowIconFor(keyDef: ToolbarKey): LucideIcon {
-  switch (keyDef.input) {
-    case ARROW_UP.input:
-      return ArrowUpIcon;
-    case ARROW_DOWN.input:
-      return ArrowDownIcon;
-    case ARROW_LEFT.input:
-      return ArrowLeftIcon;
-    case ARROW_RIGHT.input:
-      return ArrowRightIcon;
-    default:
-      return ArrowUpIcon;
-  }
-}
+/** The More sheet always uses comfortable targets, whatever the toolbar does. */
+const SHEET_METRICS = toolbarMetrics("large");
 
 interface ToolbarIconButtonProps {
   testId: string;
@@ -128,51 +78,6 @@ function ToolbarIconButton({ testId, label, onClick, active = false, className, 
     </IconButton>
   );
 }
-
-interface ToolbarTextButtonProps {
-  testId: string;
-  label: string;
-  onClick: () => void;
-  active?: boolean;
-  className?: string;
-  compact?: boolean;
-}
-
-function ToolbarTextButton({ testId, label, onClick, active = false, className, compact = false }: ToolbarTextButtonProps) {
-  return (
-    <Button
-      data-testid={testId}
-      data-active={active ? "true" : undefined}
-      tabIndex={-1}
-      type="button"
-      variant="secondary"
-      size="sm"
-      density="compact"
-      onPointerDown={(e) => e.preventDefault()}
-      onClick={onClick}
-      className={cn(
-        "shrink-0 rounded border text-sm font-medium transition touch-manipulation",
-        compact ? "px-1.5 py-1 text-xs" : "px-2 py-1.5",
-        className,
-      )}
-      style={{
-        ...(active ? activeToolbarControlStyle : undefined),
-        paddingInline: compact ? "0.375rem" : "0.5rem",
-      }}
-    >
-      {label}
-    </Button>
-  );
-}
-
-/* RCL owns the actual control painting. Active state is expressed by
- * overriding the RCL semantic tokens, rather than by setting background,
- * border, and color directly and bypassing the library's variants. */
-const activeToolbarControlStyle: CSSProperties = {
-  "--color-surface": "rgb(var(--wc-accent) / 0.2)",
-  "--color-border": "rgb(var(--wc-accent))",
-  "--color-foreground": "rgb(var(--wc-text-primary))",
-} as CSSProperties;
 
 /**
  * Wraps AiSuggestBar and applies useDeferredValue to the draft text *here*
@@ -445,7 +350,7 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
   const settlementUnsubRef = useRef<(() => void) | null>(null);
   const [pendingInputEntries, setPendingInputEntries] = useState<readonly PendingInputSnapshot[]>([]);
   const [pillOpen, setPillOpen] = useState(false);
-  const toolbarLayout = useWorkspaceStore((s) => s.toolbarLayout);
+  const toolbarPrefs = useWorkspaceStore((s) => s.toolbarPrefs);
   const modifiers = useWorkspaceStore((s) => s.modifiers);
   const toggleModifier = useWorkspaceStore((s) => s.toggleModifier);
   const clearModifiers = useWorkspaceStore((s) => s.clearModifiers);
@@ -608,6 +513,119 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
     // immediately see and interact with the output.
     onFocusTerminal?.();
   }, [onInput, draft, showStatus, onFocusTerminal, clearModifiers, viewMode, onSwitchToTerminal, awaitOffset]);
+
+  // ── Toolbar composition ────────────────────────────────────────────────
+  // The arrangement is computed, not written. `layoutToolbar` decides which
+  // controls fit the user's row budget at the width we actually have; the same
+  // call with a simulated width drives the settings preview.
+  const [keysAreaRef, measuredWidth] = useElementWidth();
+
+  const voiceAvailable = Boolean(voiceSupported && onVoiceStart && onVoiceStop);
+
+  /** Controls whose feature is not wired up this render claim no width. */
+  const unavailable = useMemo<ToolbarControlId[]>(() => {
+    const ids: ToolbarControlId[] = [];
+    if (!onOpenAi) ids.push("ai");
+    if (!onUploadImage) ids.push("image");
+    if (!voiceAvailable) ids.push("mic");
+    return ids;
+  }, [onOpenAi, onUploadImage, voiceAvailable]);
+
+  const layout = useMemo(
+    () => layoutToolbar(toolbarPrefs, measuredWidth ?? INITIAL_TOOLBAR_WIDTH_PX, {
+      view: viewMode,
+      unavailable,
+    }),
+    [toolbarPrefs, measuredWidth, viewMode, unavailable],
+  );
+
+  const controlLabels = useMemo<Record<string, string>>(() => ({
+    more: t(strings.mobileToolbar.controls.more),
+    modifiers: t(strings.mobileToolbar.controls.modifiers),
+    special: t(strings.mobileToolbar.controls.special),
+    arrows: t(strings.mobileToolbar.controls.arrows),
+    mic: t(strings.mobileToolbar.controls.mic),
+    image: t(strings.mobileToolbar.uploadImageTitle),
+    ai: t(strings.mobileToolbar.aiCommandTitle),
+  }), [t]);
+
+  const voiceProps = useMemo(() => (voiceAvailable && onVoiceStart && onVoiceStop ? {
+    supported: true,
+    isPreparing: voicePreparing ?? false,
+    isRecording: voiceRecording ?? false,
+    persistentMode: voicePersistentMode ?? false,
+    isListening: voiceListening ?? false,
+    isPassive: voicePassive ?? false,
+    isTranscribing: voiceTranscribing ?? false,
+    error: voiceError ?? null,
+    audioLevel: voiceLevel,
+    voiceActivity: voiceActivity,
+    backend: voiceBackend,
+    onPrepare: onVoicePrepare,
+    onStart: onVoiceStart,
+    onStop: onVoiceStop,
+    onExitPassive: onVoiceExitPassive,
+  } : undefined), [
+    voiceAvailable, voicePreparing, voiceRecording, voicePersistentMode, voiceListening,
+    voicePassive, voiceTranscribing, voiceError, voiceLevel, voiceActivity, voiceBackend,
+    onVoicePrepare, onVoiceStart, onVoiceStop, onVoiceExitPassive,
+  ]);
+
+  /**
+   * Controls that are not on the surface — hidden by the user, or pushed out by
+   * the budget. They are the reason More is pinned: this list is what would
+   * otherwise be unreachable.
+   */
+  const offToolbarSpecs = useMemo<ToolbarControlSpec[]>(() => {
+    const seated = new Set<ToolbarControlId>(layout.rows.flatMap((row) => row.slots.map((s) => s.id)));
+    if (layout.dpad) seated.add("arrows");
+    return TOOLBAR_CONTROLS.filter((spec) => (
+      !spec.pinned
+      && !unavailable.includes(spec.id)
+      && !(viewMode === "messages" && spec.terminalOnly)
+      && !seated.has(spec.id)
+    ));
+  }, [layout, unavailable, viewMode]);
+
+  const baseControlContext = useMemo<Omit<ToolbarControlContext, "moreTrigger">>(() => ({
+    onKey: handleKey,
+    modifiers,
+    toggleModifier,
+    onOpenAi,
+    aiSuggestActive,
+    onUploadImage,
+    voice: voiceProps,
+    labels: controlLabels,
+  }), [handleKey, modifiers, toggleModifier, onOpenAi, aiSuggestActive, onUploadImage, voiceProps, controlLabels]);
+
+  // Rendered inside the More sheet at comfortable targets. Same renderer as the
+  // toolbar, so a control behaves identically wherever it is reached from.
+  const offToolbarControls = useMemo(() => offToolbarSpecs.map((spec) => ({
+    id: String(spec.id),
+    label: controlLabels[spec.id] ?? String(spec.id),
+    node: renderToolbarControl(
+      { id: spec.id, spec, width: SHEET_METRICS.unit, fill: false },
+      // A control can be in the strip and the sheet at once; the prefix keeps
+      // the two copies distinguishable.
+      { ...baseControlContext, testIdPrefix: "more-" },
+      SHEET_METRICS,
+    ),
+  })), [offToolbarSpecs, controlLabels, baseControlContext]);
+
+  const controlContext = useMemo<ToolbarControlContext>(() => ({
+    ...baseControlContext,
+    moreTrigger: ({ className, style, label }) => (
+      <KeyComboPicker
+        onInput={onInput}
+        onFocusTerminal={onFocusTerminal}
+        triggerClassName={className}
+        triggerStyle={style}
+        triggerLabel={label}
+        offToolbarControls={offToolbarControls}
+        showKeyCombos={viewMode === "terminal"}
+      />
+    ),
+  }), [baseControlContext, onInput, onFocusTerminal, offToolbarControls, viewMode]);
 
   if (!visible) return null;
 
@@ -804,265 +822,14 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
          4. select-none: prevents double-tap text selection which can blur the terminal.
          5. handleKey calls onFocusTerminal: restores terminal focus as a safety net
             in case the browser still manages to blur the terminal despite layers 1-4. */}
-      {viewMode === "messages" ? (
-        /* ── Messages mode: AI + image upload + voice mic ── */
-        <div
-          data-testid="messages-toolbar-actions"
-          className="flex items-stretch gap-0.5 px-1 py-1 touch-manipulation select-none"
+      <div ref={keysAreaRef} className="min-w-0">
+        <ToolbarSurface
+          testId={viewMode === "messages" ? "messages-toolbar-actions" : "toolbar-keys-area"}
+          layout={layout}
+          ctx={controlContext}
           onMouseDown={(e) => e.preventDefault()}
-        >
-          {onOpenAi && (
-            <ToolbarIconButton
-              testId="toolbar-ai"
-              label={t(strings.mobileToolbar.aiCommandTitle)}
-              onClick={onOpenAi}
-              active={aiSuggestActive}
-              className="min-w-0 flex-1"
-            >
-              <Sparkles aria-hidden className="h-4 w-4" />
-            </ToolbarIconButton>
-          )}
-          {onUploadImage && (
-            <ToolbarIconButton
-              testId="toolbar-upload-image"
-              label={t(strings.mobileToolbar.uploadImageTitle)}
-              onClick={onUploadImage}
-              className="min-w-0 flex-1"
-            >
-              <Image aria-hidden className="h-4 w-4" />
-            </ToolbarIconButton>
-          )}
-          {voiceSupported && onVoiceStart && onVoiceStop && (
-            <VoiceMicButton
-              testId="voice-mic-btn"
-              supported={voiceSupported}
-              isPreparing={voicePreparing ?? false}
-              isRecording={voiceRecording ?? false}
-              persistentMode={voicePersistentMode ?? false}
-              isListening={voiceListening ?? false}
-              size="sm"
-              isPassive={voicePassive ?? false}
-              isTranscribing={voiceTranscribing ?? false}
-              error={voiceError ?? null}
-              audioLevel={voiceLevel}
-              voiceActivity={voiceActivity}
-              backend={voiceBackend}
-              onPrepare={onVoicePrepare}
-              onStart={onVoiceStart}
-              onStop={onVoiceStop}
-              onExitPassive={onVoiceExitPassive}
-              className="flex min-w-0 flex-1"
-              buttonClassName="flex w-full items-center justify-center"
-            />
-          )}
-        </div>
-      ) : toolbarLayout === "expanded" ? (
-        /* ── Expanded layout: two rows with D-pad arrow cluster ──
-           ┌────────────────────────────────────────────────────────────┐
-           │ [Ctrl] [Alt] [Shift] │     [↑]      │ [📷] │            │
-           │ [Esc]  [Tab] [Enter] │ [←] [↓] [→]  │      │    [🎤]   │
-           └────────────────────────────────────────────────────────────┘
-           The mic button spans both rows for easy access. */
-        <div
-          className="mobile-toolbar-expanded flex flex-wrap items-stretch gap-0.5 px-1 py-1 touch-manipulation select-none"
-          onMouseDown={(e) => e.preventDefault()}
-        >
-          {/* Column 1: Combo picker + Modifiers (row 1) + Special keys (row 2) */}
-          <div className="mobile-toolbar-action-group flex flex-col gap-0.5">
-            <div className="flex items-stretch gap-0.5">
-              <KeyComboPicker
-                onInput={onInput}
-                onFocusTerminal={onFocusTerminal}
-                triggerClassName="shrink-0 rounded border border-wc-default bg-wc-surface-input px-2 py-1.5 text-wc-text-secondary transition active:bg-wc-accent-active touch-manipulation flex items-center justify-center"
-              />
-              <div className="w-px self-stretch bg-wc-default shrink-0" />
-              {(["ctrl", "alt", "shift"] as const).map((mod) => (
-                <ToolbarTextButton
-                  key={mod}
-                  testId={`toolbar-mod-${mod}`}
-                  label={mod.charAt(0).toUpperCase() + mod.slice(1)}
-                  onClick={() => toggleModifier(mod)}
-                  active={modifiers[mod]}
-                />
-              ))}
-            </div>
-            <div className="flex items-center gap-0.5">
-              {[ESC_KEY, TAB_KEY, ENTER_KEY].map((key) => (
-                <ToolbarTextButton
-                  key={key.label}
-                  testId={`toolbar-key-${slugify(key.label)}`}
-                  label={key.label}
-                  onClick={() => handleKey(key)}
-                  className="min-w-[2.75rem]"
-                />
-              ))}
-            </div>
-          </div>
-
-          {/* Column 2: D-pad arrow cluster (hold-to-repeat via ArrowToolbarButton) */}
-          <div className="mobile-toolbar-action-group flex flex-col items-center gap-0.5 px-1">
-            {/* Row 1: Up arrow centered */}
-            <div className="flex justify-center">
-              <ArrowToolbarButton
-                keyDef={ARROW_UP}
-                onFire={handleKey}
-                className="shrink-0 rounded border border-wc-default bg-wc-surface-input px-2.5 py-1.5 text-sm font-medium text-wc-text-secondary transition active:bg-wc-accent-active touch-manipulation min-w-[2.25rem]"
-              />
-            </div>
-            {/* Row 2: Left, Down, Right */}
-            <div className="flex items-center gap-0.5">
-              {[ARROW_LEFT, ARROW_DOWN, ARROW_RIGHT].map((key) => (
-                <ArrowToolbarButton
-                  key={key.label}
-                  keyDef={key}
-                  onFire={handleKey}
-                  className="shrink-0 rounded border border-wc-default bg-wc-surface-input px-2.5 py-1.5 text-sm font-medium text-wc-text-secondary transition active:bg-wc-accent-active touch-manipulation min-w-[2.25rem]"
-                />
-              ))}
-            </div>
-          </div>
-
-          {/* Column 3: AI + Image upload buttons (right-aligned) */}
-          <div className="mobile-toolbar-action-group flex flex-col items-end gap-0.5">
-            {onOpenAi && (
-              <ToolbarIconButton
-                testId="toolbar-ai"
-                label={t(strings.mobileToolbar.aiCommandTitle)}
-                onClick={onOpenAi}
-                active={aiSuggestActive}
-              >
-                <Sparkles aria-hidden className="h-4 w-4" />
-              </ToolbarIconButton>
-            )}
-            {onUploadImage && (
-              <ToolbarIconButton
-                testId="toolbar-upload-image"
-                label={t(strings.mobileToolbar.uploadImageTitle)}
-                onClick={onUploadImage}
-              >
-                <Image aria-hidden className="h-4 w-4" />
-              </ToolbarIconButton>
-            )}
-          </div>
-
-          {/* Flexible action slot: fills the remaining width on its flex line. */}
-          {voiceSupported && onVoiceStart && onVoiceStop && (
-            <div className="mobile-toolbar-action-slot mobile-toolbar-action-slot-fill flex min-w-11 items-stretch">
-              <VoiceMicButton
-                testId="voice-mic-btn"
-                supported={voiceSupported}
-                isPreparing={voicePreparing ?? false}
-                isRecording={voiceRecording ?? false}
-                persistentMode={voicePersistentMode ?? false}
-                isListening={voiceListening ?? false}
-                size="lg"
-                isTranscribing={voiceTranscribing ?? false}
-                error={voiceError ?? null}
-                audioLevel={voiceLevel}
-                voiceActivity={voiceActivity}
-                backend={voiceBackend}
-                onPrepare={onVoicePrepare}
-                onStart={onVoiceStart}
-                onStop={onVoiceStop}
-                onExitPassive={onVoiceExitPassive}
-                className="h-full w-full"
-                // The generic action slot owns the flexible width. The RCL
-                // control only fills that slot and keeps its icon centered.
-                buttonClassName="h-full w-full flex items-center justify-center"
-              />
-            </div>
-          )}
-        </div>
-      ) : (
-        /* ── Compact layout: single row (original) ── */
-        <div
-          className="flex items-center gap-0.5 px-1 py-1 touch-manipulation select-none"
-          onMouseDown={(e) => e.preventDefault()}
-        >
-          {/* Combo picker + Modifier toggle buttons */}
-          <KeyComboPicker onInput={onInput} onFocusTerminal={onFocusTerminal} />
-          <div className="w-px h-4 bg-wc-default shrink-0" />
-          {(["ctrl", "alt", "shift"] as const).map((mod) => (
-            <ToolbarTextButton
-              key={mod}
-              testId={`toolbar-mod-${mod}`}
-              label={mod.charAt(0).toUpperCase() + mod.slice(1)}
-              onClick={() => toggleModifier(mod)}
-              active={modifiers[mod]}
-              compact
-            />
-          ))}
-          <div className="w-px h-4 bg-wc-default shrink-0" />
-          <div className="flex items-center gap-0.5 overflow-x-auto min-w-0 flex-1">
-            {TOOLBAR_KEYS.map((key) => {
-              const className = cn(
-                "shrink-0 rounded border border-wc-default bg-wc-surface-input px-1.5 py-1 text-xs font-medium text-wc-text-secondary transition active:bg-wc-accent-active touch-manipulation",
-                key.width === "wide" ? "min-w-[3.5rem]" : key.width === "narrow" ? "min-w-[1.75rem]" : "min-w-[2.25rem]",
-              );
-              if (ARROW_KEYS.has(key.input)) {
-                return (
-                  <ArrowToolbarButton
-                    key={key.label}
-                    keyDef={key}
-                    onFire={handleKey}
-                    className={className}
-                  />
-                );
-              }
-              return (
-                <ToolbarTextButton
-                  key={key.label}
-                  testId={`toolbar-key-${slugify(key.label)}`}
-                  label={key.label}
-                  onClick={() => handleKey(key)}
-                  className={className}
-                  compact
-                />
-              );
-            })}
-          </div>
-          {onOpenAi && (
-            <ToolbarIconButton
-              testId="toolbar-ai"
-              label={t(strings.mobileToolbar.aiCommandTitle)}
-              onClick={onOpenAi}
-              active={aiSuggestActive}
-            >
-              <Sparkles aria-hidden className="h-4 w-4" />
-            </ToolbarIconButton>
-          )}
-          {onUploadImage && (
-            <ToolbarIconButton
-              testId="toolbar-upload-image"
-              label={t(strings.mobileToolbar.uploadImageTitle)}
-              onClick={onUploadImage}
-            >
-              <Image aria-hidden className="h-4 w-4" />
-            </ToolbarIconButton>
-          )}
-          {voiceSupported && onVoiceStart && onVoiceStop && (
-            <VoiceMicButton
-              testId="voice-mic-btn"
-              supported={voiceSupported}
-              isPreparing={voicePreparing ?? false}
-              isRecording={voiceRecording ?? false}
-              persistentMode={voicePersistentMode ?? false}
-              isListening={voiceListening ?? false}
-              size="sm"
-              isPassive={voicePassive ?? false}
-              isTranscribing={voiceTranscribing ?? false}
-              error={voiceError ?? null}
-              audioLevel={voiceLevel}
-              voiceActivity={voiceActivity}
-              backend={voiceBackend}
-              onPrepare={onVoicePrepare}
-              onStart={onVoiceStart}
-              onStop={onVoiceStop}
-              onExitPassive={onVoiceExitPassive}
-            />
-          )}
-        </div>
-      )}
+        />
+      </div>
     </div>
   );
 });

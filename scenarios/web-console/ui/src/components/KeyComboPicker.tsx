@@ -1,12 +1,19 @@
-import { useState, useCallback, useRef, useEffect, useMemo } from "react";
+import { useState, useCallback, useRef, useEffect, useMemo, type CSSProperties, type ReactNode } from "react";
 import { createPortal } from "react-dom";
-import { Search, SquareSlash } from "lucide-react";
+import { MoreHorizontal, Search } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { KEY_COMBOS, CATEGORY_ORDER, filterCombos, type KeyCombo } from "../consts/key-combos";
 import { sendComboSequence } from "../lib/comboSequence";
 import { strings } from "../consts/strings";
 import { useWorkspaceStore } from "../stores/useWorkspaceStore";
 import type { GateResult, InputIntent } from "./terminal/inputGate";
+
+/** One control that is not on the toolbar right now, ready to render. */
+export interface OffToolbarControl {
+  id: string;
+  label: string;
+  node: ReactNode;
+}
 
 interface KeyComboPickerProps {
   /**
@@ -18,9 +25,29 @@ interface KeyComboPickerProps {
   onFocusTerminal?: () => void;
   /** Override classes on the trigger button so callers can match neighbour button heights. */
   triggerClassName?: string;
+  /** Size the trigger from the toolbar layout rather than from a class. */
+  triggerStyle?: CSSProperties;
+  /** Accessible name for the trigger. */
+  triggerLabel?: string;
+  /**
+   * Controls the toolbar is not showing — hidden by the user, or pushed out by
+   * the row budget. Listing them here is what makes hiding a control safe: the
+   * cost of switching something off is one extra tap, not losing it.
+   */
+  offToolbarControls?: readonly OffToolbarControl[];
+  /** Key combos are terminal-only; the messages view hides that section. */
+  showKeyCombos?: boolean;
 }
 
-export default function KeyComboPicker({ onInput, onFocusTerminal, triggerClassName }: KeyComboPickerProps) {
+export default function KeyComboPicker({
+  onInput,
+  onFocusTerminal,
+  triggerClassName,
+  triggerStyle,
+  triggerLabel,
+  offToolbarControls = [],
+  showKeyCombos = true,
+}: KeyComboPickerProps) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -95,9 +122,11 @@ export default function KeyComboPicker({ onInput, onFocusTerminal, triggerClassN
         onPointerDown={(e) => e.preventDefault()}
         onClick={() => setOpen(true)}
         className={triggerClassName ?? "shrink-0 rounded border border-wc-default bg-wc-surface-input p-1.5 text-wc-text-secondary transition active:bg-wc-accent-active touch-manipulation"}
-        title={t(strings.keyComboPicker.triggerTitle)}
+        style={triggerStyle}
+        aria-label={triggerLabel ?? t(strings.keyComboPicker.triggerTitle)}
+        title={triggerLabel ?? t(strings.keyComboPicker.triggerTitle)}
       >
-        <SquareSlash className="h-3.5 w-3.5" />
+        <MoreHorizontal aria-hidden className="h-4 w-4" />
       </button>
 
       {/* Bottom sheet */}
@@ -123,7 +152,31 @@ export default function KeyComboPicker({ onInput, onFocusTerminal, triggerClassN
                 <div className="h-1 w-8 rounded-full bg-wc-text-muted/40" />
               </div>
 
+              {/* Controls that are not on the toolbar. Listed first because
+                  they are why the sheet is reachable at all — the key combos
+                  below are the long tail. */}
+              {offToolbarControls.length > 0 && (
+                <div data-testid="more-off-toolbar" className="border-b border-wc-default px-3 pb-3">
+                  <h3 className="pb-1.5 text-xs font-semibold uppercase tracking-wider text-wc-text-muted">
+                    {t(strings.keyComboPicker.offToolbar)}
+                  </h3>
+                  <div className="flex flex-col gap-1.5">
+                    {offToolbarControls.map((control) => (
+                      <div
+                        key={control.id}
+                        data-testid={`more-control-${control.id}`}
+                        className="flex items-center gap-3"
+                      >
+                        {control.node}
+                        <span className="min-w-0 truncate text-sm text-wc-text-secondary">{control.label}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {/* Search */}
+              {showKeyCombos && (
               <div className="flex items-center gap-2 border-b border-wc-default px-3 pb-2">
                 <Search className="h-4 w-4 shrink-0 text-wc-text-muted" />
                 <input
@@ -136,8 +189,10 @@ export default function KeyComboPicker({ onInput, onFocusTerminal, triggerClassN
                   className="min-w-0 flex-1 bg-transparent text-sm text-wc-text-primary placeholder:text-wc-text-muted outline-none"
                 />
               </div>
+              )}
 
               {/* Scrollable list */}
+              {showKeyCombos && (
               <div className="flex-1 overflow-y-auto px-2 py-2">
                 {/* Recent section */}
                 {recentItems.length > 0 && (
@@ -169,6 +224,7 @@ export default function KeyComboPicker({ onInput, onFocusTerminal, triggerClassN
                   </p>
                 )}
               </div>
+              )}
             </div>
           </div>,
           document.body,

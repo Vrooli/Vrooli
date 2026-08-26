@@ -7,6 +7,7 @@ import { strings } from "../../consts/strings";
 import { Button } from "../ui/button";
 import { SettingsCard, SettingsRow, SettingsSectionIntro, SettingsToggle } from "./primitives";
 import LocaleSwitcher from "../LocaleSwitcher";
+import ToolbarCustomizer from "./ToolbarCustomizer";
 import { deviceIdentity, setDeviceLabel } from "../../lib/deviceIdentity";
 import { useSecureContextCapabilities } from "../../hooks/useSecureContextCapabilities";
 
@@ -30,8 +31,6 @@ export default function WorkspaceSection() {
   const setMinimapVisible = useWorkspaceStore((state) => state.setMinimapVisible);
   const displayMode = useWorkspaceStore((state) => state.displayMode);
   const setDisplayMode = useWorkspaceStore((state) => state.setDisplayMode);
-  const toolbarLayout = useWorkspaceStore((state) => state.toolbarLayout);
-  const setToolbarLayout = useWorkspaceStore((state) => state.setToolbarLayout);
   const keepScreenAwake = useWorkspaceStore((state) => state.keepScreenAwake);
   const setKeepScreenAwake = useWorkspaceStore((state) => state.setKeepScreenAwake);
   const adaptiveChrome = useWorkspaceStore((state) => state.adaptiveChrome);
@@ -114,32 +113,20 @@ export default function WorkspaceSection() {
           )}
         />
 
-        <SettingsRow
-          label={t(strings.settings.workspaceSection.mobileToolbarLabel)}
-          hint={t(strings.settings.workspaceSection.mobileToolbarHint)}
-          control={(
-            <div className="flex items-center gap-2">
-              <Button
-                data-testid="toolbar-layout-compact"
-                variant={toolbarLayout === "compact" ? "default" : "outline"}
-                size="sm"
-                className="h-8 px-3"
-                onClick={() => setToolbarLayout("compact")}
-              >
-                {t(strings.settings.workspaceSection.compact)}
-              </Button>
-              <Button
-                data-testid="toolbar-layout-expanded"
-                variant={toolbarLayout === "expanded" ? "default" : "outline"}
-                size="sm"
-                className="h-8 px-3"
-                onClick={() => setToolbarLayout("expanded")}
-              >
-                {t(strings.settings.workspaceSection.expanded)}
-              </Button>
+        {/* The toolbar has three independent choices — which controls, how
+            large, how many rows — so it gets a block of its own rather than a
+            SettingsRow's single control slot. */}
+        <div className="space-y-2 border-t border-wc-default pt-4">
+          <div>
+            <div className="text-sm font-medium text-wc-text-secondary">
+              {t(strings.settings.workspaceSection.mobileToolbarLabel)}
             </div>
-          )}
-        />
+            <div className="text-[11px] text-wc-text-muted">
+              {t(strings.settings.workspaceSection.mobileToolbarHint)}
+            </div>
+          </div>
+          <ToolbarCustomizer />
+        </div>
 
         {displayMode === "grid" && (
           <SettingsRow

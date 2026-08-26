@@ -61,39 +61,123 @@
     ],
     "platform_capabilities": {
       "terminal-standard-pty": {
-        "linux": { "status": "supported", "mechanism": "creack-pty-v2", "evidence": "api PTY integration suite on linux/amd64" },
-        "macos": { "status": "build-verified", "mechanism": "creack-pty-v2-with-darwin-termios", "evidence": "go build and go vet linux-to-darwin matrix plus TIOCGETA adapter" },
-        "windows": { "status": "build-verified", "mechanism": "native-ConPTY-pipe-backed-pty", "evidence": "go build and go vet windows/amd64 and windows/arm64" }
+        "linux": {
+          "status": "build-verified",
+          "mechanism": "creack-pty-v2",
+          "evidence": "api PTY integration suite on linux/amd64"
+        },
+        "macos": {
+          "status": "build-verified",
+          "mechanism": "creack-pty-v2-with-darwin-termios",
+          "evidence": "go build and go vet linux-to-darwin matrix plus TIOCGETA adapter"
+        },
+        "windows": {
+          "status": "build-verified",
+          "mechanism": "native-ConPTY-pipe-backed-pty",
+          "evidence": "go build and go vet windows/amd64 and windows/arm64"
+        }
       },
       "terminal-persistent-tmux": {
-        "linux": { "status": "supported", "mechanism": "tmux-control-mode-with-local-pty-attach", "evidence": "api tmux integration and control-channel tests on linux/amd64" },
-        "macos": { "status": "build-verified", "mechanism": "unix-tmux-control-mode-with-local-pty-attach", "evidence": "go build and go vet darwin matrix; no real-host tmux run" },
-        "windows": { "status": "not_applicable", "mechanism": "tmux-backend-excluded-by-windows-build-tag", "evidence": "pty_tmux.go !windows compile-time seam" }
+        "linux": {
+          "status": "build-verified",
+          "mechanism": "tmux-control-mode-with-local-pty-attach",
+          "evidence": "api tmux integration and control-channel tests on linux/amd64"
+        },
+        "macos": {
+          "status": "build-verified",
+          "mechanism": "unix-tmux-control-mode-with-local-pty-attach",
+          "evidence": "go build and go vet darwin matrix; no real-host tmux run"
+        },
+        "windows": {
+          "status": "not_applicable",
+          "evidence": "pty_tmux.go !windows compile-time seam",
+          "review_by": "2027-08-26"
+        }
       },
       "terminal-remote-bridge": {
-        "linux": { "status": "supported", "mechanism": "vrooli-bridge-websocket-session-stream", "evidence": "api bridge PTY contract tests on linux/amd64" },
-        "macos": { "status": "build-verified", "mechanism": "vrooli-bridge-websocket-session-stream", "evidence": "go build and go vet darwin matrix plus bridge contract tests" },
-        "windows": { "status": "build-verified", "mechanism": "vrooli-bridge-websocket-session-stream", "evidence": "go build and go vet windows matrix plus bridge contract tests" }
+        "linux": {
+          "status": "build-verified",
+          "mechanism": "vrooli-bridge-websocket-session-stream",
+          "evidence": "api bridge PTY contract tests on linux/amd64"
+        },
+        "macos": {
+          "status": "build-verified",
+          "mechanism": "vrooli-bridge-websocket-session-stream",
+          "evidence": "go build and go vet darwin matrix plus bridge contract tests"
+        },
+        "windows": {
+          "status": "build-verified",
+          "mechanism": "vrooli-bridge-websocket-session-stream",
+          "evidence": "go build and go vet windows matrix plus bridge contract tests"
+        }
       },
       "session-working-dir": {
-        "linux": { "status": "supported", "mechanism": "launch-spec-working-directory", "evidence": "api session launch and recovery tests on linux/amd64" },
-        "macos": { "status": "build-verified", "mechanism": "launch-spec-working-directory", "evidence": "go build and go vet darwin matrix" },
-        "windows": { "status": "build-verified", "mechanism": "ConPTY-create-process-current-directory", "evidence": "go build and go vet windows matrix" }
+        "linux": {
+          "status": "build-verified",
+          "mechanism": "launch-spec-working-directory",
+          "evidence": "api session launch and recovery tests on linux/amd64"
+        },
+        "macos": {
+          "status": "build-verified",
+          "mechanism": "launch-spec-working-directory",
+          "evidence": "go build and go vet darwin matrix"
+        },
+        "windows": {
+          "status": "build-verified",
+          "mechanism": "ConPTY-create-process-current-directory",
+          "evidence": "go build and go vet windows matrix"
+        }
       },
       "terminal-echo-state": {
-        "linux": { "status": "supported", "mechanism": "TCGETS-termios-sampler", "evidence": "api echo-state tests on linux/amd64" },
-        "macos": { "status": "build-verified", "mechanism": "TIOCGETA-termios-sampler", "evidence": "darwin echo adapter and cross-target build" },
-        "windows": { "status": "not_applicable", "mechanism": "ConPTY-does-not-expose-termios-echo", "evidence": "pty_windows.go typed unsupported echo sentinel" }
+        "linux": {
+          "status": "build-verified",
+          "mechanism": "TCGETS-termios-sampler",
+          "evidence": "api echo-state tests on linux/amd64"
+        },
+        "macos": {
+          "status": "build-verified",
+          "mechanism": "TIOCGETA-termios-sampler",
+          "evidence": "darwin echo adapter and cross-target build"
+        },
+        "windows": {
+          "status": "not_applicable",
+          "review_by": "2027-08-26",
+          "evidence": "Windows ConPTY does not expose the Unix termios echo-control surface used by this capability."
+        }
       },
       "agent-hooks": {
-        "linux": { "status": "supported", "mechanism": "Go-web-console-hooks-dispatch-subcommand", "evidence": "cli hooks tests and API hook handler tests on linux/amd64" },
-        "macos": { "status": "build-verified", "mechanism": "Go-web-console-hooks-dispatch-subcommand", "evidence": "go build and go vet darwin matrix" },
-        "windows": { "status": "build-verified", "mechanism": "Go-web-console-hooks-dispatch-subcommand", "evidence": "go build and go vet windows matrix" }
+        "linux": {
+          "status": "build-verified",
+          "mechanism": "Go-web-console-hooks-dispatch-subcommand",
+          "evidence": "cli hooks tests and API hook handler tests on linux/amd64"
+        },
+        "macos": {
+          "status": "build-verified",
+          "mechanism": "Go-web-console-hooks-dispatch-subcommand",
+          "evidence": "go build and go vet darwin matrix"
+        },
+        "windows": {
+          "status": "build-verified",
+          "mechanism": "Go-web-console-hooks-dispatch-subcommand",
+          "evidence": "go build and go vet windows matrix"
+        }
       },
       "file-preview": {
-        "linux": { "status": "supported", "mechanism": "Go-file-preview-resolver", "evidence": "api file-preview handler tests on linux/amd64" },
-        "macos": { "status": "build-verified", "mechanism": "Go-file-preview-resolver", "evidence": "go build and go vet darwin matrix" },
-        "windows": { "status": "build-verified", "mechanism": "Go-file-preview-resolver", "evidence": "go build and go vet windows matrix" }
+        "linux": {
+          "status": "build-verified",
+          "mechanism": "Go-file-preview-resolver",
+          "evidence": "api file-preview handler tests on linux/amd64"
+        },
+        "macos": {
+          "status": "build-verified",
+          "mechanism": "Go-file-preview-resolver",
+          "evidence": "go build and go vet darwin matrix"
+        },
+        "windows": {
+          "status": "build-verified",
+          "mechanism": "Go-file-preview-resolver",
+          "evidence": "go build and go vet windows matrix"
+        }
       }
     },
     "tags": [

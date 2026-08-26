@@ -20,7 +20,9 @@ describe("useWorkspaceStore action surface", () => {
     s.setAppearanceModalPane("a");
     s.setMinimapVisible(false);
     s.setDisplayMode("tabs");
-    s.setToolbarLayout("compact");
+    s.setToolbarPreset("dense");
+    s.updateToolbarPrefs({ maxRows: 1 });
+    s.setToolbarControlEnabled("ai", true);
     s.setSettingsModalOpen(true);
     s.setSettingsInitialTab("voice");
     s.setAiModalOpen(true);

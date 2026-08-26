@@ -410,30 +410,6 @@ html[data-wc-adaptive-chrome="true"] .wc-ios-tint-edge {
     min-height: 44px;
   }
 
-  /* The expanded key arrangement has four desktop-oriented grid columns.
-   * Let those groups wrap on narrow devices so the 44px controls remain
-   * reachable instead of pushing the voice control past the viewport. */
-  [data-testid="mobile-toolbar"] .mobile-toolbar-expanded {
-    display: flex !important;
-    flex-wrap: wrap;
-    width: 100%;
-    max-width: 100%;
-    min-width: 0;
-    overflow: hidden;
-  }
-
-  [data-testid="mobile-toolbar"] .mobile-toolbar-expanded > div {
-    min-width: 0;
-  }
-
-  /* Layout is declared by the slot, not by the kind of action rendered in
-   * it. Any flexible action can share the remaining width on its line while
-   * retaining the mobile tap-target minimum. */
-  [data-testid="mobile-toolbar"] .mobile-toolbar-action-slot-fill {
-    flex: 1 1 8rem;
-    min-width: 44px;
-  }
-
   [data-testid="pane-grid"] {
     grid-template-columns: minmax(0, 1fr) !important;
     width: 100%;

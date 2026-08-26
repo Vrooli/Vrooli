@@ -153,11 +153,73 @@ The `TerminalLauncher` component accepts a `shortcuts` prop, enabling parent sce
 
 ## Mobile Toolbar Keys
 
-The mobile floating toolbar keys are defined in [CODE: ui/src/components/MobileToolbar.tsx] as `TOOLBAR_KEYS`. The default set covers essential terminal operations:
+The escape sequences the toolbar can send are defined in [CODE: ui/src/lib/terminalKeys.ts] as `TOOLBAR_KEYS`. The default set covers essential terminal operations:
 
 - Esc, Tab, Ctrl+C, Ctrl+D, Ctrl+Z, Arrow keys
 
-The toolbar component accepts `visible` and `onInput` props. Keys can be customized by modifying the `TOOLBAR_KEYS` array.
+The toolbar component accepts `visible` and `onInput` props. Sequences can be customized by modifying the `TOOLBAR_KEYS` array.
+
+---
+
+## Mobile Toolbar Layout
+
+Which controls appear, how large they are, and how many rows they occupy are three
+independent settings, not one. They live in the persisted workspace store as
+`toolbarPrefs` and are **device-local**: screen size belongs to the phone, not the
+account, so they are never synced (unlike shortcut profiles, which are per-user).
+
+| Setting | Values | Owned by |
+|---|---|---|
+| `enabled` | per-control visibility | the user |
+| `density` | `compact` 32px · `standard` 40px · `large` 44px | the user |
+| `maxRows` | `1` · `2` · `3` | the user (a ceiling, not a hint) |
+| `arrows` | `dpad` (two rows tall) · `inline` (one row) | the user |
+| `overflow` | `strip` · `more` | the user |
+| the arrangement | — | `layoutToolbar()` |
+
+Arrangement is computed, never authored. [CODE: ui/src/lib/toolbarLayout.ts] exports
+`layoutToolbar(prefs, availableWidth, options)`, a pure function that seats controls in
+priority order and returns the rows to paint. It replaces flex-wrap, which has no
+ceiling and let the toolbar grow to four rows on a 390px phone.
+
+### Invariants
+
+`layoutToolbar` guarantees three things, each covered by
+[CODE: ui/src/__tests__/toolbarLayout.test.ts]:
+
+1. **The budget is a ceiling.** `rowCount <= prefs.maxRows` at every width and density.
+   A D-pad needs two rows, so a one-row budget degrades it to the inline run rather
+   than spending a row the user did not authorise.
+2. **Overflow is never unreachable.** `more` is *pinned*: seated before every other
+   control and never allowed to overflow. It is the surface hidden and overflowed
+   controls live in, so stranding it would strand everything it holds — which is why
+   it is not a toggle.
+3. **Priority is respected.** A control only loses its seat to a lower-priority control
+   that is no wider than it. `TOOLBAR_CONTROLS` is the priority order, and the settings
+   checklist renders it top to bottom so the order is user-visible.
+
+### Adding a control
+
+Add one entry to `TOOLBAR_CONTROLS` and one case to `renderToolbarControl` in
+[CODE: ui/src/components/toolbar/toolbarControls.tsx]. Do not add a branch to a
+component: the toolbar, the settings preview, and the More sheet all render through
+that one function, at sizes the engine supplies. `ToolbarControlId` is an open string
+type so pinned shortcuts (`shortcut:<id>`) can join without a schema change.
+
+### Preview fidelity
+
+The settings preview calls the same `layoutToolbar` with a simulated width instead of a
+measured one, and paints it with the same `ToolbarSurface`. There is no second
+implementation for it to drift from. Adding preview-only layout code would break that
+property and should be treated as a defect.
+
+### Defaults
+
+Three presets ship — `dense`, `balanced` (the default), `essential` — plus `custom`,
+which any individual edit switches to. All three keep **More** and **image upload** on
+(screenshots are how coding agents are usually driven) and leave **AI suggest** off.
+Densities below 44px warn about the recommended touch target but are never blocked:
+trading target size for more controls per row is a legitimate preference.
 
 ---
 

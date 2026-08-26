@@ -1,3 +1,4 @@
+import type { CSSProperties } from "react";
 import { VoiceInputButton, type ButtonSize } from "@vrooli/react-component-library/VoiceInputButton/4.2.0";
 import type { StartRecordingOpts, VoiceActivitySnapshot } from "../audio-integration";
 
@@ -20,6 +21,12 @@ export interface VoiceMicButtonProps {
   onPrepare?: () => void;
   className?: string;
   buttonClassName?: string;
+  /**
+   * Inline box for the control itself. RCL merges caller style last, so this
+   * is the only reliable way to hand the button an exact size — a class can
+   * lose the cascade to the library's own utilities.
+   */
+  buttonStyle?: CSSProperties;
   iconClassName?: string;
   testId?: string;
 }
@@ -53,6 +60,7 @@ export default function VoiceMicButton({
   onPrepare,
   className,
   buttonClassName,
+  buttonStyle,
   iconClassName,
   testId,
 }: VoiceMicButtonProps) {
@@ -74,6 +82,7 @@ export default function VoiceMicButton({
         iconClassName={iconClassName}
         onExitPassive={onExitPassive}
         className={buttonClassName}
+        style={buttonStyle}
         onStart={() => onStart?.()}
         onStop={onStop}
         onPrepare={onPrepare}

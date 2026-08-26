@@ -2,6 +2,8 @@ import { renderWithProviders as render } from "../test-utils";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { screen, fireEvent } from "@testing-library/react";
 import MobileToolbar from "../components/MobileToolbar";
+import { useWorkspaceStore } from "../stores/useWorkspaceStore";
+import { toolbarPrefsFromPreset } from "../lib/toolbarLayout";
 
 const baseProps = {
   onInput: vi.fn(() => ({ status: "sent" as const, offset: 1 })),
@@ -29,6 +31,11 @@ const baseProps = {
 describe("MobileToolbar viewMode", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    // AI suggest ships off; these cases are about the view, not the default.
+    const base = toolbarPrefsFromPreset("balanced");
+    useWorkspaceStore.setState({
+      toolbarPrefs: { ...base, enabled: { ...base.enabled, ai: true } },
+    });
   });
 
   it("hides terminal-specific keys in messages mode", () => {
@@ -60,11 +67,16 @@ describe("MobileToolbar viewMode", () => {
     const upload = screen.getByTestId("toolbar-upload-image");
     const mic = screen.getByTestId("voice-mic-btn");
 
-    expect(row).toHaveClass("items-stretch");
-    expect(ai).toHaveClass("flex-1");
-    expect(upload).toHaveClass("flex-1");
-    expect(mic.parentElement).toHaveClass("flex-1");
-    expect(mic).toHaveClass("w-full");
+    expect(row).toBeInTheDocument();
+    // Even spread is now a computed width rather than a flex class, so assert
+    // the contract itself: every action gets the same share of the row.
+    const micSlot = screen.getByTestId("toolbar-mic-slot");
+    const widths = [ai, upload, micSlot].map((el) => parseFloat(el.style.width));
+    expect(widths.every((w) => w > 0)).toBe(true);
+    expect(Math.max(...widths) - Math.min(...widths)).toBeLessThanOrEqual(1);
+    // The box comes from the slot as inline style, not from a utility class:
+    // RCL merges caller style last, so a class can lose the cascade.
+    expect(mic.style.width).toBe(micSlot.style.width);
     expect(mic).toHaveAttribute("data-control-size", "sm");
   });
 

@@ -7,6 +7,10 @@
  * When adding new toolbar keys or modifying escape sequences,
  * changes should land HERE and not in the MobileToolbar component.
  *
+ * This file owns what a key *sends*. Which controls appear on the toolbar,
+ * how large they are, and how they are arranged is a separate concern owned by
+ * `lib/toolbarLayout.ts` — add a control there, not here.
+ *
  * [REQ:P0-007b] Terminal Key/Chord Mapping
  */
 

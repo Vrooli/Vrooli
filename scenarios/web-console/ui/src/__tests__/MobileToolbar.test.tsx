@@ -7,6 +7,24 @@ import { i18n } from "../i18n";
 import { useWorkspaceStore } from "../stores/useWorkspaceStore";
 import type { InputSettlementCallback } from "../hooks/terminal/useStdinStream";
 import type { PendingInputSnapshot } from "../components/MobileToolbar";
+import { toolbarPrefsFromPreset, type ToolbarPrefs } from "../lib/toolbarLayout";
+
+/**
+ * Put the toolbar in a known composition. Every shipped preset leaves AI
+ * suggest off, so a test that exercises it has to ask for it — which is the
+ * point of the setting.
+ */
+function setToolbarPrefs(overrides: Partial<ToolbarPrefs> = {}) {
+  const named = overrides.preset && overrides.preset !== "custom" ? overrides.preset : "balanced";
+  const base = toolbarPrefsFromPreset(named);
+  useWorkspaceStore.setState({
+    toolbarPrefs: {
+      ...base,
+      ...overrides,
+      enabled: { ...base.enabled, ...(overrides.enabled ?? {}) },
+    },
+  });
+}
 
 // Draft persistence wants a stable sessionId — pass a fixed one through props.
 function renderToolbar(overrides: Partial<Parameters<typeof MobileToolbar>[0]> = {}) {
@@ -427,7 +445,8 @@ describe("MobileToolbar — modifiers and optional actions", () => {
   });
 
   it("applies a modifier to a toolbar key and clears it after sending", () => {
-    useWorkspaceStore.setState({ toolbarLayout: "compact", aiSuggestActive: false });
+    setToolbarPrefs({ preset: "dense", density: "compact", arrows: "inline", enabled: { ai: true } });
+    useWorkspaceStore.setState({ aiSuggestActive: false });
     const onInput = vi.fn(() => ({ status: "sent" as const, offset: 1 }));
     const onFocusTerminal = vi.fn();
     const onExpandComposer = vi.fn();
@@ -468,28 +487,84 @@ describe("MobileToolbar — modifiers and optional actions", () => {
     expect(onSwitchToTerminal).toHaveBeenCalled();
   });
 
-  it("marks the expanded key area for responsive wrapping", () => {
-    useWorkspaceStore.setState({ toolbarLayout: "expanded", aiSuggestActive: false });
+  it("keeps the key area inside the row budget instead of wrapping", () => {
+    setToolbarPrefs({ preset: "balanced", maxRows: 2, arrows: "dpad" });
+    useWorkspaceStore.setState({ aiSuggestActive: false });
     renderToolbar({ onOpenAi: vi.fn(), onUploadImage: vi.fn() });
-    expect(document.querySelector(".mobile-toolbar-expanded")).toBeInTheDocument();
+
+    expect(screen.getByTestId("toolbar-row-0")).toBeInTheDocument();
+    expect(screen.getByTestId("toolbar-row-1")).toBeInTheDocument();
+    // The budget is a ceiling, not a hint: there is no third row to find.
+    expect(screen.queryByTestId("toolbar-row-2")).toBeNull();
+    expect(screen.getByTestId("toolbar-dpad")).toBeInTheDocument();
   });
 
-  it("keeps pointer gestures from stealing focus across compact and expanded layouts", () => {
+  it("collapses to a single row when the budget says one", () => {
+    setToolbarPrefs({ maxRows: 1, arrows: "dpad" });
+    renderToolbar({ onOpenAi: vi.fn(), onUploadImage: vi.fn() });
+
+    expect(screen.getByTestId("toolbar-row-0")).toBeInTheDocument();
+    expect(screen.queryByTestId("toolbar-row-1")).toBeNull();
+    // A D-pad needs two rows, so a one-row budget gets the inline run instead.
+    expect(screen.queryByTestId("toolbar-dpad")).toBeNull();
+  });
+
+  it("always offers More, so a hidden control is never stranded", () => {
+    setToolbarPrefs({ enabled: { ai: false, image: false } });
+    renderToolbar({ onOpenAi: vi.fn(), onUploadImage: vi.fn() });
+
+    expect(screen.queryByTestId("toolbar-ai")).toBeNull();
+    expect(screen.queryByTestId("toolbar-upload-image")).toBeNull();
+
+    fireEvent.click(screen.getByTestId("combo-picker-trigger"));
+    expect(screen.getByTestId("more-off-toolbar")).toBeInTheDocument();
+    expect(screen.getByTestId("more-control-ai")).toBeInTheDocument();
+    expect(screen.getByTestId("more-control-image")).toBeInTheDocument();
+  });
+
+  it("sizes the voice control from its slot at every density, not from a class", () => {
+    // Regression: RCL size tokens set padding and font, never dimensions, and
+    // the voice control clips its overflow instead of letting the glyph spill
+    // into the padding the way the other icon controls do. Sizing it by class
+    // therefore produced a clipped mic whose box depended on cascade order.
+    for (const [density, unit] of [["compact", 32], ["standard", 40], ["large", 44]] as const) {
+      setToolbarPrefs({ density, arrows: "inline", maxRows: 2 });
+      const { unmount } = renderToolbar({
+        onOpenAi: vi.fn(),
+        onUploadImage: vi.fn(),
+        voice: { supported: true, onStart: vi.fn(), onStop: vi.fn() },
+      });
+
+      const slot = screen.getByTestId("toolbar-mic-slot");
+      const button = screen.getByTestId("voice-mic-btn");
+
+      expect(button.style.width).toBe(slot.style.width);
+      expect(button.style.height).toBe(`${String(unit)}px`);
+      expect(button.style.minHeight).toBe(`${String(unit)}px`);
+      // The glyph never ramps with density — it matches its neighbours.
+      expect(button).toHaveAttribute("data-control-size", "sm");
+      // Zero padding is what keeps the glyph inside a clipping box.
+      expect(parseFloat(button.style.paddingInline)).toBe(0);
+
+      unmount();
+    }
+  });
+
+  it("keeps pointer gestures from stealing focus across every preset", () => {
+    setToolbarPrefs({ preset: "dense", density: "compact", arrows: "inline" });
     const { rerender } = renderToolbar({ onOpenAi: vi.fn(), onUploadImage: vi.fn() });
-    const compact = screen.getByTestId("mobile-toolbar");
-    fireEvent.mouseDown(compact);
+    fireEvent.mouseDown(screen.getByTestId("mobile-toolbar"));
     for (const button of screen.getAllByRole("button")) fireEvent.pointerDown(button);
 
-    useWorkspaceStore.setState({ toolbarLayout: "expanded" });
-    rerender(<MobileToolbar onInput={vi.fn(() => ({ status: "sent" as const, offset: 1 }))} activeSessionId="expanded" onFocusTerminal={vi.fn()} onOpenAi={vi.fn()} onUploadImage={vi.fn()} />);
-    const expanded = screen.getByTestId("mobile-toolbar");
-    fireEvent.mouseDown(expanded);
+    setToolbarPrefs({ preset: "essential", density: "large", arrows: "dpad" });
+    rerender(<MobileToolbar onInput={vi.fn(() => ({ status: "sent" as const, offset: 1 }))} activeSessionId="essential" onFocusTerminal={vi.fn()} onOpenAi={vi.fn()} onUploadImage={vi.fn()} />);
+    fireEvent.mouseDown(screen.getByTestId("mobile-toolbar"));
     for (const button of screen.getAllByRole("button")) fireEvent.pointerDown(button);
-    useWorkspaceStore.setState({ toolbarLayout: "compact" });
   });
 
   it("renders the active AI and voice controls in every terminal view", () => {
-    useWorkspaceStore.setState({ toolbarLayout: "compact", aiSuggestActive: true });
+    setToolbarPrefs({ preset: "dense", density: "compact", arrows: "inline", enabled: { ai: true } });
+    useWorkspaceStore.setState({ aiSuggestActive: true });
     const onOpenAi = vi.fn();
     const onUploadImage = vi.fn();
     const onVoiceStart = vi.fn();
@@ -522,9 +597,9 @@ describe("MobileToolbar — modifiers and optional actions", () => {
     expect(onUploadImage).toHaveBeenCalledOnce();
   });
 
-  it("renders active AI and the complete voice state in expanded layout", () => {
+  it("renders active AI and the complete voice state", () => {
+    setToolbarPrefs({ preset: "essential", density: "large", enabled: { ai: true } });
     useWorkspaceStore.setState({
-      toolbarLayout: "expanded",
       aiSuggestActive: true,
       modifiers: { ctrl: true, alt: false, shift: false },
     });
@@ -547,17 +622,24 @@ describe("MobileToolbar — modifiers and optional actions", () => {
       onExitPassive: vi.fn(),
     };
 
-    renderToolbar({ onOpenAi, onUploadImage, voice });
+    const { rerender } = renderToolbar({ onOpenAi, onUploadImage, voice });
 
     expect(screen.getByTestId("toolbar-ai")).toHaveAttribute("data-active", "true");
     expect(screen.getByTestId("toolbar-ai").style.getPropertyValue("--color-surface")).toBe("rgb(var(--wc-accent) / 0.2)");
     expect(screen.getByTestId("toolbar-mod-ctrl")).toHaveAttribute("data-active", "true");
-    expect(screen.getByTestId("voice-mic-btn")).toHaveAttribute("data-control-size", "lg");
+    // The glyph stays the size of its neighbours whatever the density does to
+    // the box; `toolbar-mic-slot` covers the box itself.
+    expect(screen.getByTestId("voice-mic-btn")).toHaveAttribute("data-control-size", "sm");
 
-    useWorkspaceStore.setState({ toolbarLayout: "compact", aiSuggestActive: false, modifiers: { ctrl: false, alt: false, shift: false } });
+    setToolbarPrefs({ preset: "dense", density: "compact", arrows: "inline", enabled: { ai: true } });
+    rerender(<MobileToolbar onInput={vi.fn(() => ({ status: "sent" as const, offset: 1 }))} activeSessionId="dense" onFocusTerminal={vi.fn()} onOpenAi={onOpenAi} onUploadImage={onUploadImage} voice={voice} />);
+    expect(screen.getByTestId("voice-mic-btn")).toHaveAttribute("data-control-size", "sm");
+
+    useWorkspaceStore.setState({ aiSuggestActive: false, modifiers: { ctrl: false, alt: false, shift: false } });
   });
 
   it("renders the active AI styling in messages mode", () => {
+    setToolbarPrefs({ enabled: { ai: true } });
     useWorkspaceStore.setState({ aiSuggestActive: true });
     renderToolbar({ viewMode: "messages", onOpenAi: vi.fn() });
 
