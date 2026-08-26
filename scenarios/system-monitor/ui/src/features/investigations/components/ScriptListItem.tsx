@@ -26,6 +26,8 @@ export const ScriptListItem = ({ script, isSelected, onSelect }: ScriptListItemP
       <span className="text-dim-xs" title={script.executionMode === 'native' ? 'Runs through typed collector queries' : 'Requires declared host tools'}>
         {script.executionMode === 'native' ? 'NATIVE QUERY' : 'SHELL-GATED'}
       </span>
+      {(script.platforms ?? []).length > 0 && <span className="text-dim-xs">{(script.platforms ?? []).join(' / ')}</span>}
+      {script.source && <span className="text-dim-xs">{script.source.toUpperCase()}</span>}
       {script.skipReason && <span className="text-dim-xs" title={script.skipReason}>UNAVAILABLE ON HOST</span>}
     </div>
     <div className="text-dim-xs" data-sm-style="sm-style-a37b6e5cc8">

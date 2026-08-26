@@ -27,6 +27,7 @@ vi.mock('../../../shared/api/proto-contracts', () => ({
   parseDetailedMetrics: vi.fn(),
   parseProcessMonitorData: vi.fn(),
   parseListScriptsResponse: vi.fn(),
+  parseListRunsResponse: vi.fn(),
   parseGetScriptResponse: vi.fn(),
 }));
 vi.mock('../../../shared/hooks/usePolling', () => ({ usePolling: vi.fn() }));
@@ -137,6 +138,9 @@ describe('investigation operator panels', () => {
   it('loads, filters, opens, refreshes, and creates investigation scripts', async () => {
     mocks.protoFetch.mockImplementation((url: string) => {
       if (url === '/investigations/scripts') return Promise.resolve({ scripts });
+      if (url === '/investigations/runs?limit=5') return Promise.resolve({ runs: [
+        { id: 'run-1', entryId: 'disk-check', status: 'completed', durationSeconds: 0.12 },
+      ] });
       return Promise.resolve({ script: scripts[0], content: 'echo disk' });
     });
     const onOpen = vi.fn();
@@ -153,6 +157,8 @@ describe('investigation operator panels', () => {
     expect(onOpen).toHaveBeenCalledWith(undefined, '', 'create');
     fireEvent.click(screen.getByRole('button', { name: 'REFRESH' }));
     await waitFor(() => { expect(mocks.protoFetch).toHaveBeenCalledTimes(3); });
+    fireEvent.click(screen.getByRole('button', { name: 'HISTORY' }));
+    expect(await screen.findByText(/Recent runs: disk-check completed/)).toBeInTheDocument();
   });
 
   it('shows script loading failures, retries them, and supports embedded empty state', async () => {
@@ -164,6 +170,30 @@ describe('investigation operator panels', () => {
     await waitFor(() => expect(screen.getByText('NO SCRIPTS AVAILABLE')).toBeInTheDocument());
     render(<InvestigationScriptsPanel onOpenScriptEditor={onOpen} embedded />);
     expect(await screen.findByText('NO SCRIPTS AVAILABLE')).toBeInTheDocument();
+  });
+
+  it('handles empty and unavailable run history', async () => {
+    mocks.protoFetch.mockImplementation((url: string) => {
+      if (url === '/investigations/scripts') return Promise.resolve({ scripts: [scripts[0]] });
+      if (url === '/investigations/runs?limit=5') return Promise.resolve({});
+      return Promise.resolve({});
+    });
+    render(<InvestigationScriptsPanel onOpenScriptEditor={vi.fn()} />);
+    expect(await screen.findByText('INVESTIGATION SCRIPTS')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'HISTORY' }));
+    await waitFor(() => { expect(mocks.protoFetch).toHaveBeenCalledWith('/investigations/runs?limit=5', expect.anything()); });
+    expect(screen.queryByText(/Recent runs:/)).not.toBeInTheDocument();
+
+    mocks.protoFetch.mockRejectedValueOnce(new Error('history unavailable'));
+    fireEvent.click(screen.getByRole('button', { name: 'HISTORY' }));
+    await waitFor(() => { expect(mocks.showApiError).toHaveBeenCalledWith(expect.any(Error)); });
+  });
+
+  it('filters scripts by metadata', async () => {
+    mocks.protoFetch.mockResolvedValue({ scripts });
+    render(<InvestigationScriptsPanel onOpenScriptEditor={vi.fn()} searchFilter="storage" />);
+    expect(await screen.findByText('Disk check')).toBeInTheDocument();
+    expect(screen.queryByText('CPU check')).not.toBeInTheDocument();
   });
 
   it('renders investigation metadata, empty states, and trigger failures', async () => {

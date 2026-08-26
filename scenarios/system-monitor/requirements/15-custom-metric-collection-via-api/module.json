@@ -1,58 +1,47 @@
 {
-  "description": "Not implemented. No custom metric ingestion endpoint exists. Only 6 built-in collectors (CPU, memory, disk, network, process, GPU).",
-  "module_id": "MOD-P1-015",
-  "prd_ref": "OT-P1-015",
-  "priority": "P1",
+  "_metadata": {
+    "last_validated_at": "2026-08-25T17:12:17-04:00"
+  },
   "requirements": [
     {
-      "category": "api",
-      "dependencies": [
-        "REQ-P0-001",
-        "REQ-P0-004"
-      ],
-      "description": "Implement API endpoint for custom metric ingestion with validation, rate limiting, and storage integration.",
       "id": "REQ-P1-005",
-      "prd_ref": "OT-P1-015",
-      "status": "pending",
       "title": "Custom Metric Collection API",
+      "status": "planned",
+      "prd_ref": "OT-P1-015",
+      "category": "api",
+      "description": "Implement API endpoint for custom metric ingestion with validation, rate limiting, and storage integration.",
       "validation": [
         {
-          "notes": "Test metric validation",
+          "type": "test",
           "phase": "unit",
-          "ref": "",
-          "status": "pending",
-          "type": "test"
+          "status": "not_implemented",
+          "notes": "Test metric validation"
         },
         {
-          "notes": "Verify storage integration",
+          "type": "test",
           "phase": "unit",
-          "ref": "",
-          "status": "pending",
-          "type": "test"
+          "status": "not_implemented",
+          "notes": "Verify storage integration"
         },
         {
-          "notes": "Validate custom metric collection flow",
+          "type": "test",
           "phase": "integration",
-          "ref": "",
-          "status": "pending",
-          "type": "test"
+          "status": "not_implemented",
+          "notes": "Validate custom metric collection flow"
         },
         {
-          "notes": "Ingestion latency < 100ms",
+          "type": "test",
           "phase": "performance",
-          "ref": "",
-          "status": "pending",
-          "type": "test"
+          "status": "planned",
+          "notes": "Ingestion latency \u003c 100ms"
         },
         {
-          "notes": "Custom metrics stored and queryable",
+          "type": "test",
           "phase": "business",
-          "ref": "",
-          "status": "pending",
-          "type": "test"
+          "status": "not_implemented",
+          "notes": "Custom metrics stored and queryable"
         }
       ]
     }
-  ],
-  "title": "Custom metric collection via API (no custom metric ingestion endpoint; only built-in collectors)"
+  ]
 }

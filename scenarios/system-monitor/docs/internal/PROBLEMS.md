@@ -3,8 +3,8 @@
 ## Work ladder
 
 - Rung: W3 implementation — selected System Monitor redesign slices implemented; governed re-measurement remains partially red
-- Evidence: focused UI validation passes (Header, Scripts, metric detail variants: 9 tests) and TypeScript type-check passes. BAS desktop/mobile captures confirm the responsive shell, including a stable mobile Menu trigger after the header was restructured into an explicit brand row and control row. The final server-owned run `20260824-143930-f36c6335` passed 20/22 phases; only `docs` and `unit` remain failed. The run also recorded a host-level degraded Ollama dependency (declared CUDA, observed CPU) while System Monitor itself started healthy in best-effort mode.
-- Blocker: no missing authority. Remaining red phases are inherited contract/documentation and unit-health debt; broad catalog cleanup and Plan Manager baseline-comparator repair are intentionally deferred under the current user-visible-outcome reprioritization. Linux arm64 hardware evidence remains unavailable.
+- Evidence: focused UI validation passes (Header, Scripts, metric detail variants: 9 tests) and TypeScript type-check passes. BAS desktop/mobile captures confirm the responsive shell, including a stable mobile Menu trigger after the header was restructured into an explicit brand row and control row. The final server-owned run `20260824-143930-f36c6335` passed 20/22 phases; only `docs` and `unit` remain failed. A restart reproduced the host-level degraded Ollama dependency (declared CUDA, observed CPU); the dependency declaration now treats Ollama as optional best-effort so System Monitor can start while preserving that resource health signal.
+- Blocker: no missing authority. Remaining red phases are inherited contract/documentation and unit-health debt; broad catalog cleanup and Plan Manager baseline-comparator repair are intentionally deferred under the current user-visible-outcome reprioritization. Linux arm64 hardware evidence remains unavailable. Ollama remains CPU-backed until the NVIDIA driver/device-node issue is repaired.
 - Measured: 2026-08-24
 
 ## Last Updated

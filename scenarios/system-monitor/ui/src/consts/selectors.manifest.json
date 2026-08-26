@@ -11,6 +11,14 @@
     "gpu": { "testId": "system-monitor-gpu", "selector": "h2" },
     "logs": { "testId": "system-monitor-logs", "selector": "h2" },
     "memory": { "testId": "system-monitor-memory", "selector": "h2" },
-    "network": { "testId": "system-monitor-network", "selector": "h2" }
+    "network": { "testId": "system-monitor-network", "selector": "h2" },
+    "detail-layout-customize": { "testId": "detail-layout-customize", "selector": "[data-testid=detail-layout-customize]" },
+    "detail-layout-controls": { "testId": "detail-layout-controls", "selector": "[data-testid=detail-layout-controls]" },
+    "detail-density": { "testId": "detail-density", "selector": "[data-testid=detail-density]" },
+    "detail-columns": { "testId": "detail-columns", "selector": "[data-testid=detail-columns]" },
+    "detail-mode-history-toggle": { "testId": "detail-mode-history-toggle", "selector": "[aria-label=\"Mode and stall history\"] input" },
+    "detail-process-monitor-up": { "testId": "detail-process-monitor-up", "selector": "[aria-label=\"Move Process monitor up\"]" },
+    "detail-layout-reset": { "testId": "detail-layout-reset", "selector": "[data-testid=detail-layout-reset]" },
+    "detail-mode-history": { "testId": "detail-mode-history", "selector": "[data-detail-section=mode-history]" }
   }
 }

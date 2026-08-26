@@ -13,7 +13,7 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
-	repocontract "github.com/vrooli/repo-contract-go"
+	"github.com/vrooli/api-core/storage"
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	healthpb "github.com/vrooli/vrooli/packages/proto/gen/go/system-monitor/v1/health"
 	"google.golang.org/protobuf/types/known/structpb"
@@ -261,45 +261,22 @@ func (h *HealthHandler) checkMetricsCollection(ctx context.Context) map[string]i
 // checkInvestigationSystem tests the investigation file system access
 func (h *HealthHandler) checkInvestigationSystem() map[string]interface{} {
 	result := healthutil.NewResult()
-	scenarioRoot, err := resolveSystemMonitorScenarioRoot()
+	resolver, err := storage.NewResolver(storage.ResolverConfig{})
 	if err != nil {
 		return healthutil.WithError(result, "SCENARIO_ROOT_RESOLUTION",
-			fmt.Sprintf("Cannot resolve system-monitor scenario root: %v", err), "resource", false)
+			fmt.Sprintf("Cannot create storage resolver: %v", err), "resource", false)
 	}
-
-	// Check if investigations directory exists and is accessible
-	investigationsDir := filepath.Join(scenarioRoot, "investigations")
-	if _, err := os.Stat(investigationsDir); err != nil {
+	investigationsDir, err := storage.EnsureClassDir(resolver, storage.Options{ScenarioID: "system-monitor"}, storage.ClassState, 0o755)
+	if err != nil {
 		return healthutil.WithError(result, "INVESTIGATION_DIR_ACCESS",
-			fmt.Sprintf("Cannot access investigations directory: %v", err), "resource", false)
+			fmt.Sprintf("Cannot access investigation state: %v", err), "resource", false)
 	}
-
-	// Check if results directory exists and is writable
-	resultsDir := filepath.Join(investigationsDir, "results")
-	if err := os.MkdirAll(resultsDir, 0o755); err != nil {
-		return healthutil.WithError(result, "RESULTS_DIR_WRITE",
-			fmt.Sprintf("Cannot create/write results directory: %v", err), "resource", false)
+	if _, err := os.Stat(filepath.Join(investigationsDir, "investigations")); err != nil && !os.IsNotExist(err) {
+		return healthutil.WithError(result, "INVESTIGATION_OVERLAY_ACCESS",
+			fmt.Sprintf("Cannot inspect investigation overlay: %v", err), "resource", false)
 	}
-
-	// Test writing a small test file
-	testFile := filepath.Join(resultsDir, ".health_check_test")
-	if err := os.WriteFile(testFile, []byte("test"), 0o644); err != nil {
-		return healthutil.WithError(result, "FILESYSTEM_WRITE_TEST",
-			fmt.Sprintf("Cannot write test file: %v", err), "resource", true)
-	}
-
-	// Clean up test file
-	os.Remove(testFile)
 
 	return healthutil.MarkConnected(result)
-}
-
-func resolveSystemMonitorScenarioRoot() (string, error) {
-	repoRoot, err := repocontract.ResolveRepoRoot()
-	if err != nil {
-		return "", err
-	}
-	return repocontract.ResolveScenarioPath(repoRoot, "system-monitor")
 }
 
 // checkNodeRed tests Node-RED connectivity

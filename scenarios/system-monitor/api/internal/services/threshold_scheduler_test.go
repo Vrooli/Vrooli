@@ -346,12 +346,9 @@ func (f *fakeReporter) snapshot() []cleanupmanager.Report {
 	return append([]cleanupmanager.Report(nil), f.reports...)
 }
 
-// TestThresholdScheduler_EscalatesOnlyAtHighAndCritical asserts remediation is
-// requested for the bands that call for it and no others.
-//
-// Warning must not escalate: it exists to record pressure, not to act on it.
-// Escalating on warning would mean an ordinary busy disk triggers cleanup.
-func TestThresholdScheduler_EscalatesOnlyAtHighAndCritical(t *testing.T) {
+// TestThresholdScheduler_ForwardsWarningHighAndCritical asserts every emitted
+// pressure band reaches storage-manager, which owns the safe action policy.
+func TestThresholdScheduler_ForwardsWarningHighAndCritical(t *testing.T) {
 	reporter := &fakeReporter{outcome: cleanupmanager.Outcome{Action: "applied", ReclaimedBytes: 4096}}
 
 	h := newThresholdHarness(t, 20, 80)
@@ -367,17 +364,20 @@ func TestThresholdScheduler_EscalatesOnlyAtHighAndCritical(t *testing.T) {
 	}
 
 	reports := reporter.snapshot()
-	if len(reports) != 2 {
-		t.Fatalf("escalated %d times, want 2 (high and critical only): %+v", len(reports), reports)
+	if len(reports) != 3 {
+		t.Fatalf("forwarded %d times, want warning, high, and critical: %+v", len(reports), reports)
 	}
-	if reports[0].Band != cleanupmanager.BandHigh {
-		t.Errorf("first escalation band = %s, want high", reports[0].Band)
+	if reports[0].Band != cleanupmanager.BandWarning {
+		t.Errorf("first escalation band = %s, want warning", reports[0].Band)
 	}
-	if reports[1].Band != cleanupmanager.BandCritical {
-		t.Errorf("second escalation band = %s, want critical", reports[1].Band)
+	if reports[1].Band != cleanupmanager.BandHigh {
+		t.Errorf("second escalation band = %s, want high", reports[1].Band)
 	}
-	if reports[1].UsedPercent != 96 {
-		t.Errorf("escalation reported %v percent, want the observed 96", reports[1].UsedPercent)
+	if reports[2].Band != cleanupmanager.BandCritical {
+		t.Errorf("third escalation band = %s, want critical", reports[2].Band)
+	}
+	if reports[2].UsedPercent != 96 {
+		t.Errorf("escalation reported %v percent, want the observed 96", reports[2].UsedPercent)
 	}
 	if reports[1].SourceScenario != "system-monitor" {
 		t.Errorf("escalation source = %q, want system-monitor so the audit can attribute it", reports[1].SourceScenario)

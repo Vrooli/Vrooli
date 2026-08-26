@@ -7,40 +7,15 @@ import (
 	"testing"
 )
 
-func TestResolvePathsFromRepoContract(t *testing.T) {
-	root := repoRootForPathsTest(t)
-	t.Setenv("VROOLI_SOURCE_ROOT", root)
-	t.Setenv("VROOLI_ROOT", "")
+func TestResolvePathsFromStorage(t *testing.T) {
+	root := t.TempDir()
+	t.Setenv("VROOLI_STORAGE_ROOT", root)
 
-	if got, want := ResolveConfigBasePath(), filepath.Join(root, "scenarios", "system-monitor", ".vrooli"); got != want {
+	if got, want := ResolveConfigBasePath(), filepath.Join(root, "config", "vrooli", "system-monitor"); got != want {
 		t.Fatalf("ResolveConfigBasePath() = %q, want %q", got, want)
 	}
-	if got, want := ResolvePromptBasePath(), filepath.Join(root, "scenarios", "system-monitor", "prompts"); got != want {
+	if got, want := ResolvePromptBasePath(), filepath.Join(root, "config", "vrooli", "system-monitor", "prompts"); got != want {
 		t.Fatalf("ResolvePromptBasePath() = %q, want %q", got, want)
-	}
-	if got, want := ResolveScriptsDir(), filepath.Join(root, "scenarios", "system-monitor", "investigations", "active"); got != want {
-		t.Fatalf("ResolveScriptsDir() = %q, want %q", got, want)
-	}
-}
-
-func TestResolveScriptsDirReturnsScenarioPathEvenWhenMissing(t *testing.T) {
-	repoRoot := t.TempDir()
-	writePathsFixture(t, repoRoot, ".vrooli/repo-contract.json", readLiveRepoContract(t))
-	writePathsFixture(t, repoRoot, "go.mod", "module example.com/test\n\ngo 1.24.0\n")
-	for _, dir := range []string{".vrooli", "templates", "scenarios", "resources", "packages", "cmd", "internal"} {
-		if dir == ".vrooli" {
-			continue
-		}
-		if err := os.MkdirAll(filepath.Join(repoRoot, dir), 0o755); err != nil {
-			t.Fatalf("mkdir %s: %v", dir, err)
-		}
-	}
-	writePathsFixture(t, repoRoot, filepath.Join("scenarios", "system-monitor", ".vrooli", "service.json"), `{"service":{"name":"system-monitor"}}`)
-
-	t.Setenv("VROOLI_SOURCE_ROOT", repoRoot)
-	t.Setenv("VROOLI_ROOT", "")
-	if got, want := ResolveScriptsDir(), filepath.Join(repoRoot, "scenarios", "system-monitor", "investigations", "active"); got != want {
-		t.Fatalf("ResolveScriptsDir() = %q, want %q", got, want)
 	}
 }
 

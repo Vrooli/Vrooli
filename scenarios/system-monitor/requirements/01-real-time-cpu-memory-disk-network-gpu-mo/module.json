@@ -1,40 +1,40 @@
 {
   "_metadata": {
-    "last_validated_at": "2026-08-22T15:56:32-04:00"
+    "last_validated_at": "2026-08-26T01:36:36-04:00"
   },
   "requirements": [
     {
       "id": "REQ-P0-001",
       "title": "Real-time System Metrics Collection",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P0-001",
       "category": "core",
       "description": "System must collect and expose real-time metrics for CPU, memory, disk, network, and GPU utilization with \u003c 100ms latency",
       "validation": [
-		{
-		  "type": "test",
-		  "ref": "api/internal/collectors/cpu_catalog_test.go",
-		  "phase": "unit",
-		  "status": "implemented",
-		  "notes": "CPU signal catalog, typed states, and platform refusal contract"
-		},
-		{
-		  "type": "test",
-		  "ref": "api/internal/services/cpu_threshold_test.go",
-		  "phase": "integration",
-		  "status": "implemented",
-		  "notes": "Sustained CPU window, refusal gap, and band alert behavior"
-		},
+        {
+          "type": "test",
+          "ref": "api/internal/collectors/cpu_catalog_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "CPU signal catalog, typed states, and platform refusal contract"
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/services/cpu_threshold_test.go",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Sustained CPU window, refusal gap, and band alert behavior"
+        },
         {
           "type": "test",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Test metric collector functions"
         },
         {
           "type": "test",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Verify all metric types are collected"
         },
         {
@@ -46,13 +46,13 @@
         {
           "type": "test",
           "phase": "performance",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Collection latency \u003c 100ms"
         },
         {
           "type": "test",
           "phase": "performance",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Handle 1000+ metrics/second"
         },
         {
@@ -65,7 +65,7 @@
           "type": "test",
           "ref": "api/internal/collectors/forkrate_test.go",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Paging and fragmentation flow counters use explicit measured/pending/unsupported states"
         }
       ]

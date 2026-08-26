@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"connectrpc.com/connect"
 	investigationspb "github.com/vrooli/vrooli/packages/proto/gen/go/system-monitor/v1/investigations"
@@ -30,7 +31,10 @@ type InvestigationHandler struct {
 	config           *config.Config
 	investigationSvc InvestigationManager
 	scriptSvc        ScriptRunner
+	runHistory       InvestigationRunHistory
 }
+
+func (h *InvestigationHandler) SetRunHistory(history InvestigationRunHistory) { h.runHistory = history }
 
 // NewInvestigationHandler creates a new investigation handler
 func NewInvestigationHandler(cfg *config.Config, investigationSvc InvestigationManager, scriptSvc ScriptRunner, log *slog.Logger) *InvestigationHandler {
@@ -105,6 +109,47 @@ func (h *InvestigationHandler) ExecuteScript(ctx context.Context, req *connect.R
 	return connect.NewResponse(&scriptspb.ExecuteScriptResponse{
 		Execution: convert.ScriptExecutionToProto(execution),
 	}), nil
+}
+
+func (h *InvestigationHandler) ListRuns(ctx context.Context, req *connect.Request[scriptspb.ListRunsRequest]) (*connect.Response[scriptspb.ListRunsResponse], error) {
+	if h.runHistory == nil {
+		return nil, connectError(apierrors.Internal("investigation run history is unavailable", nil))
+	}
+	var since time.Time
+	var err error
+	if strings.TrimSpace(req.Msg.GetSince()) != "" {
+		since, err = time.Parse(time.RFC3339Nano, req.Msg.GetSince())
+		if err != nil {
+			return nil, connectError(apierrors.Validation("since", "since must be RFC 3339"))
+		}
+	}
+	runs, err := h.runHistory.ListRuns(ctx, req.Msg.GetEntryId(), since, int(req.Msg.GetLimit()))
+	if err != nil {
+		return nil, connectError(err)
+	}
+	return connect.NewResponse(&scriptspb.ListRunsResponse{Runs: convert.InvestigationRunsToProto(runs)}), nil
+}
+
+func (h *InvestigationHandler) GetRun(ctx context.Context, req *connect.Request[scriptspb.GetRunRequest]) (*connect.Response[scriptspb.GetRunResponse], error) {
+	if h.runHistory == nil {
+		return nil, connectError(apierrors.Internal("investigation run history is unavailable", nil))
+	}
+	run, err := h.runHistory.GetRun(ctx, req.Msg.GetId())
+	if err != nil {
+		return nil, connectError(err)
+	}
+	return connect.NewResponse(&scriptspb.GetRunResponse{Run: convert.InvestigationRunToProto(run)}), nil
+}
+
+func (h *InvestigationHandler) PruneRuns(ctx context.Context, req *connect.Request[scriptspb.PruneRunsRequest]) (*connect.Response[scriptspb.PruneRunsResponse], error) {
+	if h.runHistory == nil {
+		return nil, connectError(apierrors.Internal("investigation run history is unavailable", nil))
+	}
+	deleted, err := h.runHistory.Prune(ctx, time.Now().UTC(), req.Msg.GetDryRun())
+	if err != nil {
+		return nil, connectError(err)
+	}
+	return connect.NewResponse(&scriptspb.PruneRunsResponse{Deleted: deleted, DryRun: req.Msg.GetDryRun()}), nil
 }
 
 // TriggerInvestigation starts a new anomaly investigation via Connect-RPC.
@@ -764,6 +809,58 @@ func (h *InvestigationHandler) HandleExecuteScript(w http.ResponseWriter, r *htt
 		Execution: convert.ScriptExecutionToProto(execution),
 	}
 	httputil.SafeProtoJSON(w, h.log, r, resp)
+}
+
+func (h *InvestigationHandler) HandleListRuns(w http.ResponseWriter, r *http.Request) {
+	entryID := r.URL.Query().Get("entry_id")
+	limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
+	var since time.Time
+	var err error
+	if value := r.URL.Query().Get("since"); value != "" {
+		since, err = time.Parse(time.RFC3339Nano, value)
+		if err != nil {
+			httputil.HandleError(w, h.log, r, apierrors.Validation("since", "since must be RFC 3339"))
+			return
+		}
+	}
+	if h.runHistory == nil {
+		httputil.HandleError(w, h.log, r, apierrors.Internal("investigation run history is unavailable", nil))
+		return
+	}
+	runs, err := h.runHistory.ListRuns(r.Context(), entryID, since, limit)
+	if err != nil {
+		httputil.HandleError(w, h.log, r, err)
+		return
+	}
+	httputil.SafeProtoJSON(w, h.log, r, &scriptspb.ListRunsResponse{Runs: convert.InvestigationRunsToProto(runs)})
+}
+
+func (h *InvestigationHandler) HandleGetRun(w http.ResponseWriter, r *http.Request) {
+	if h.runHistory == nil {
+		httputil.HandleError(w, h.log, r, apierrors.Internal("investigation run history is unavailable", nil))
+		return
+	}
+	run, err := h.runHistory.GetRun(r.Context(), r.PathValue("id"))
+	if err != nil {
+		httputil.HandleError(w, h.log, r, err)
+		return
+	}
+	httputil.SafeProtoJSON(w, h.log, r, &scriptspb.GetRunResponse{Run: convert.InvestigationRunToProto(run)})
+}
+
+func (h *InvestigationHandler) HandlePruneRuns(w http.ResponseWriter, r *http.Request) {
+	if h.runHistory == nil {
+		httputil.HandleError(w, h.log, r, apierrors.Internal("investigation run history is unavailable", nil))
+		return
+	}
+	var req scriptspb.PruneRunsRequest
+	_ = httputil.DecodeProtoJSON(r, &req)
+	deleted, err := h.runHistory.Prune(r.Context(), time.Now().UTC(), req.GetDryRun())
+	if err != nil {
+		httputil.HandleError(w, h.log, r, err)
+		return
+	}
+	httputil.SafeProtoJSON(w, h.log, r, &scriptspb.PruneRunsResponse{Deleted: deleted, DryRun: req.GetDryRun()})
 }
 
 // protoStepToModel converts a proto InvestigationStep to the internal model.

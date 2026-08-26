@@ -22,7 +22,7 @@
 - [x] OT-P0-005 | Configurable warning/critical thresholds | Manage per-metric thresholds via API settings endpoints
 - [x] OT-P0-006 | Report generation (daily/weekly) | Generate daily and weekly system reports via API endpoint
 - [x] OT-P0-007 | Governed responsive monitoring dashboard | The React UI shall use the vrooli-default / Vrooli Operational Console design system, remain operable at mobile width, and expose live metric states to assistive technology
-- [ ] OT-P0-008 | Investigation script execution | The API shall expose the investigation catalog with typed native execution where collected facts are sufficient and explicitly declared shell-gated execution otherwise
+- [x] OT-P0-008 | Investigation script execution | The API shall expose the investigation catalog with typed native execution where collected facts are sufficient and explicitly declared shell-gated execution otherwise
 - [ ] OT-P0-009 | Process monitoring and management | Zombie detection and process insight (UI has kill dialog; API kill endpoint not yet implemented)
 - [x] OT-P0-010 | Infrastructure monitoring | Monitor database pools, HTTP pools, message queues, and storage I/O
 

@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/vrooli/repo-contract-go/repocontracttest"
 	"github.com/vrooli/vrooli/internal/hostinventory"
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/models"
 )
@@ -230,7 +231,7 @@ func TestDiskCollector_Collect(t *testing.T) {
 
 func TestDiskCollector_NoSteadyForks(t *testing.T) {
 	if runtime.GOOS != "linux" {
-		t.Skip("disk collector reads /proc/statfs only on linux")
+		repocontracttest.SkipPlatform(t, "disk collector reads /proc/statfs only on linux")
 	}
 
 	c := NewDiskCollector()
@@ -257,7 +258,7 @@ func TestNetworkCollector_Collect(t *testing.T) {
 
 func TestNetworkCollector_NoSteadyForks(t *testing.T) {
 	if runtime.GOOS != "linux" {
-		t.Skip("network collector reads /proc only on linux")
+		repocontracttest.SkipPlatform(t, "network collector reads /proc only on linux")
 	}
 
 	c := NewNetworkCollector()

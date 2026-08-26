@@ -15,6 +15,7 @@ import (
 
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/apierrors"
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/models"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/modules"
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/repository"
 )
 
@@ -190,7 +191,9 @@ func NewRepository(dbPath string) (*Repository, error) {
 		}
 	}
 
-	if err := database.EnsureSchemas(context.Background(), primary, database.SchemaProviderFunc(Schema)); err != nil {
+	providers := []database.SchemaProvider{database.SchemaProviderFunc(Schema)}
+	providers = append(providers, modules.AllSchemas()...)
+	if err := database.EnsureSchemas(context.Background(), primary, providers...); err != nil {
 		db.Close()
 		return nil, fmt.Errorf("create schema: %w", err)
 	}

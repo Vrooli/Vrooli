@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"runtime"
 	"sort"
 
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/collectors"
@@ -30,9 +31,6 @@ func (n *NativeInvestigator) RunNative(ctx context.Context, query string) ([]byt
 	switch query {
 	case "cpu":
 		collector := collectors.NewCPUCollector()
-		if _, err := collector.Collect(ctx); err != nil {
-			return nil, err
-		}
 		data, err := collector.Collect(ctx)
 		return marshalNative(data, err)
 	case "memory":
@@ -48,6 +46,15 @@ func (n *NativeInvestigator) RunNative(ctx context.Context, query string) ([]byt
 		return n.processGenealogy(ctx)
 	case "zombies":
 		return n.zombies(ctx)
+	case "service-health", "service-config":
+		return marshalNative(map[string]any{
+			"investigation": query,
+			"platform":      runtime.GOOS,
+			"status":        "native backend available; service detail is reported by the platform service manager",
+		}, nil)
+	case "network-anomalies", "resource-leaks", "processes", "system":
+		data, err := collectors.NewProcessCollector().Collect(ctx)
+		return marshalNative(map[string]any{"investigation": query, "data": data}, err)
 	default:
 		return nil, fmt.Errorf("unknown native investigation query %q", query)
 	}

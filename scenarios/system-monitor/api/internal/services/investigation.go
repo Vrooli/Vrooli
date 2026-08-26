@@ -541,6 +541,17 @@ func resolveInvestigationWorkingDir() string {
 	return ""
 }
 
+// resolveSystemMonitorScenarioRoot is retained only for the agent's optional
+// working-directory seam. Catalog, config, prompt, and run-history resolution
+// never call it; those product surfaces are storage-owned or embedded.
+func resolveSystemMonitorScenarioRoot() (string, error) {
+	repoRoot, err := repocontract.ResolveRepoRoot()
+	if err != nil {
+		return "", err
+	}
+	return repocontract.ResolveScenarioPath(repoRoot, "system-monitor")
+}
+
 func truncateAgentLog(raw string, limit int) string {
 	trimmed := strings.TrimSpace(raw)
 	if limit <= 0 || len(trimmed) <= limit {

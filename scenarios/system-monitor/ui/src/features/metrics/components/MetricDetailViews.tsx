@@ -110,7 +110,10 @@ function DetailLayoutControls({
     const target = index + direction;
     if (index < 0 || target < 0 || target >= preference.order.length) return;
     const order = [...preference.order];
-    [order[index], order[target]] = [order[target]!, order[index]!];
+    const current = order[index];
+    const next = order[target];
+    if (current === undefined || next === undefined) return;
+    [order[index], order[target]] = [next, current];
     onChange({ ...preference, order });
   };
 

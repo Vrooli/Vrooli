@@ -4,7 +4,7 @@ import type { InvestigationScript } from '../../../types';
 import { LoadingSkeleton } from '../../../shared/components/LoadingSkeleton';
 import { extractErrorMessage, protoFetch } from '../../../shared/api/apiFetch';
 import { useToast } from '../../../shared/components/ToastProvider';
-import { parseListScriptsResponse, parseGetScriptResponse } from '../../../shared/api/proto-contracts';
+import { parseListScriptsResponse, parseGetScriptResponse, parseListRunsResponse } from '../../../shared/api/proto-contracts';
 import { ScriptListItem } from './ScriptListItem';
 
 interface InvestigationScriptsPanelProps {
@@ -26,6 +26,7 @@ export const InvestigationScriptsPanel = ({
   const [scripts, setScripts] = useState<InvestigationScript[]>([]);
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [recentRuns, setRecentRuns] = useState<Array<{ id: string; entryId: string; status: string; durationSeconds: number }>>([]);
 
   const visibleScripts = scripts.filter(script => script.enabled);
 
@@ -57,6 +58,15 @@ export const InvestigationScriptsPanel = ({
       setErrorMessage(extractErrorMessage(error, 'Unknown error'));
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadRuns = async () => {
+    try {
+      const runData = await protoFetch('/investigations/runs?limit=5', parseListRunsResponse);
+      setRecentRuns((runData.runs ?? []).map(run => ({ id: run.id, entryId: run.entryId, status: run.status, durationSeconds: run.durationSeconds })));
+    } catch (error) {
+      showApiError(error);
     }
   };
 
@@ -140,6 +150,9 @@ export const InvestigationScriptsPanel = ({
             </button>
           </div>
         )}
+        {recentRuns.length > 0 && <div className="text-dim-xs" data-sm-style="sm-style-investigation-run-history">
+          Recent runs: {recentRuns.map(run => `${run.entryId} ${run.status} (${run.durationSeconds.toFixed(2)}s)`).join(' · ')}
+        </div>}
       </div>
     );
   };
@@ -174,6 +187,7 @@ export const InvestigationScriptsPanel = ({
             <RefreshCw size={16} />
             REFRESH
           </button>
+          <button className="btn btn-action" onClick={() => { void loadRuns(); }}>HISTORY</button>
           {hasMoreScripts && onShowAll && (
             <button
               type="button"

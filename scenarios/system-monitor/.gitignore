@@ -10,8 +10,9 @@ test/artifacts/lighthouse/*.json
 .api.pid
 .ui.pid
 
-# Logs and generated results
-logs/
+# Logs and generated results. Anchor the runtime directory so a source feature
+# such as ui/src/features/logs remains part of the shipped working tree.
+/logs/
 results/
 test-output.txt
 test/artifacts/*.log

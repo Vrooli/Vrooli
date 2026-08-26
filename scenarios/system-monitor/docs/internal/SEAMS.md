@@ -5,6 +5,17 @@
 
 ## Integration Seams
 
+- **Investigation catalog seam** (`api/internal/investigations/catalog.go`):
+  embeds the built-in catalog and the two shell escape hatches in the API
+  binary, then overlays machine-local operator entries from storage state.
+  A missing repository is not a catalog state.
+
+- **Investigation run-history seam** (`api/internal/investigations/repository.go`):
+  `Repository` owns `investigation_runs` and `investigation_findings`; the
+  SQLite implementation is registered through `api/internal/modules/registry.go`.
+  `Service` owns retention cutoff policy while handlers and CLI consume the
+  interface.
+
 - **Platform paging seam** (`api/internal/collectors/platform_paging_*.go`):
   exposes native cumulative paging counters to the pressure collector. The
   collector owns counter-to-rate conversion and emits explicit degraded state

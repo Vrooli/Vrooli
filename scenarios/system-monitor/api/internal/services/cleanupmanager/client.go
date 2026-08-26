@@ -57,6 +57,7 @@ type Outcome struct {
 	ProvidersApplied       []string `json:"providersApplied"`
 	ProvidersWithheld      []string `json:"providersWithheld"`
 	Reason                 string   `json:"reason"`
+	BugReference           string   `json:"bugReference"`
 	AutonomousApplyEnabled bool     `json:"autonomousApplyEnabled"`
 }
 

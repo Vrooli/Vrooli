@@ -1,19 +1,7 @@
 {
-  "version": "1.0.0",
+  "version": "2.0.0",
   "entries": {
-    "cpu-analyzer": { "mode": "native", "query": "cpu" },
-    "memory-analyzer": { "mode": "native", "query": "memory" },
-    "process-genealogy": { "mode": "native", "query": "process-genealogy" },
-    "zombie-analyzer": { "mode": "native", "query": "zombies" },
-    "network-connection-summary-proc": { "mode": "native", "query": "network" },
-    "disk-io-analyzer": { "mode": "native", "query": "disk" },
-    "comprehensive-system-analyzer": { "mode": "shell", "required_tools": ["bash", "jq", "docker", "ps", "free", "systemctl"] },
-    "container-health": { "mode": "shell", "required_tools": ["bash", "jq", "docker"] },
-    "master-system-sweep": { "mode": "shell", "required_tools": ["bash", "jq", "timeout"] },
-    "network-anomaly-detector": { "mode": "shell", "required_tools": ["bash", "jq", "ss"] },
-    "python-subprocess-health": { "mode": "shell", "required_tools": ["bash", "jq", "ps", "pgrep"] },
-    "resource-leak-detector": { "mode": "shell", "required_tools": ["bash", "jq", "ps", "lsof", "ss"] },
-    "service-config-validator": { "mode": "shell", "required_tools": ["bash", "jq", "systemctl"] },
-    "service-health-monitor": { "mode": "shell", "required_tools": ["bash", "jq", "systemctl"] }
+    "container-health": {"mode": "shell", "required_tools": ["bash", "jq", "docker"]},
+    "master-system-sweep": {"mode": "shell", "required_tools": ["bash", "jq"]}
   }
 }

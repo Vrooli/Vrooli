@@ -57,6 +57,9 @@ func buildRouter(cfg *config.Config, health *handlers.HealthHandler, metrics *ha
 	r.HandleFunc("GET /api/v1/investigations/scripts/{id}", investigation.HandleGetScript)
 	r.HandleFunc("PUT /api/v1/investigations/scripts/{id}", investigation.HandleUpdateScript)
 	r.HandleFunc("POST /api/v1/investigations/scripts/{id}/execute", investigation.HandleExecuteScript)
+	r.HandleFunc("GET /api/v1/investigations/runs", investigation.HandleListRuns)
+	r.HandleFunc("GET /api/v1/investigations/runs/{id}", investigation.HandleGetRun)
+	r.HandleFunc("POST /api/v1/investigations/runs/prune", investigation.HandlePruneRuns)
 
 	return r
 }

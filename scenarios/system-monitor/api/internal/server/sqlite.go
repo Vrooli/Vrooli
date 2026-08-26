@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"os"
 	"path/filepath"
 
 	"github.com/vrooli/api-core/filerouting"
@@ -33,7 +32,7 @@ func connectSQLite() (*sqliterepo.Repository, *filerouting.RoutedRoots, error) {
 	}
 	dbPath := filepath.Join(dataRoot, "system-monitor.db")
 
-	if err := os.MkdirAll(filepath.Dir(dbPath), 0o755); err != nil {
+	if err := storage.EnsureDirectory(filepath.Dir(dbPath), 0o755); err != nil {
 		return nil, nil, fmt.Errorf("create db directory: %w", err)
 	}
 

@@ -114,7 +114,7 @@ Every boundary is settings-driven; none is hardcoded.
 | Band | Default | Action |
 | --- | --- | --- |
 | normal | below `disk_threshold` | Record the sample. No alert. |
-| warning | `disk_threshold` (80) | Persist a `ThresholdViolation`. No remediation. |
+| warning | `disk_threshold` (80) | Forward to storage-manager; it applies only the safe tier and files a growth bug when needed. |
 | high | `disk_high_percent` (90) | Ask storage-manager for a conservative preview. Nothing is deleted. |
 | critical | `disk_critical_percent` (95) | storage-manager applies safe-tier providers with no operator present. |
 

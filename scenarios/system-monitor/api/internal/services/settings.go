@@ -39,7 +39,7 @@ type Settings struct {
 
 	// Disk-pressure escalation bands, in percent used. Bands must ascend:
 	// DiskThreshold (warning) < DiskHighPercent < DiskCriticalPercent.
-	// warning  — record the pressure, take no action.
+	// warning  — forward the pressure; storage-manager applies only safe tier.
 	// high     — request a cleanup preview; still no deletion.
 	// critical — safe-tier reclamation may run with no operator present.
 	DiskHighPercent     float64 `json:"disk_high_percent"`

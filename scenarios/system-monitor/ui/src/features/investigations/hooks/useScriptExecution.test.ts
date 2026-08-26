@@ -78,11 +78,15 @@ describe('useScriptExecution', () => {
     expect(result.current.modalState.scriptResults.execution?.status).toBe(ScriptExecutionStatus.RUNNING);
   });
 
-  it('saves a script by closing the editor without an execution request', async () => {
+  it('persists a script before closing the editor', async () => {
     const { result } = renderHook(() => useScriptExecution());
     act(() => { result.current.openScriptEditor(script, 'echo ok', 'edit'); });
     await act(async () => { await result.current.saveScript(script, 'echo changed'); });
     expect(result.current.modalState.scriptEditor.isOpen).toBe(false);
-    expect(mocks.protoFetch).not.toHaveBeenCalled();
+    expect(mocks.protoFetch).toHaveBeenCalledWith(
+      '/investigations/scripts/disk-check',
+      expect.any(Function),
+      expect.objectContaining({ method: 'PUT', body: JSON.stringify({ id: 'disk-check', content: 'echo changed' }) }),
+    );
   });
 });

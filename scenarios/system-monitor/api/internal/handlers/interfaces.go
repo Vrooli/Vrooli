@@ -6,6 +6,7 @@ import (
 
 	capacityapp "github.com/vrooli/vrooli/internal/app/capacity"
 	engine "github.com/vrooli/vrooli/internal/capacity"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/investigations"
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/models"
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/repository"
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/services"
@@ -54,6 +55,12 @@ type ScriptRunner interface {
 	GetScript(id string) (services.ScriptMeta, string, error)
 	UpdateScript(id string, content string) (services.ScriptMeta, string, error)
 	ExecuteScript(ctx context.Context, id string, contentOverride string) (services.ScriptExecution, error)
+}
+
+type InvestigationRunHistory interface {
+	ListRuns(context.Context, string, time.Time, int) ([]investigations.Run, error)
+	GetRun(context.Context, string) (investigations.Run, error)
+	Prune(context.Context, time.Time, bool) (int64, error)
 }
 
 // ReportGenerator provides report operations.

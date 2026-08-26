@@ -20,7 +20,8 @@ type PressureBand int
 const (
 	// BandNormal is below the warning boundary. Record the sample, alert nobody.
 	BandNormal PressureBand = iota
-	// BandWarning persists a violation and takes no remedial action.
+	// BandWarning persists a violation and forwards it to storage-manager, which
+	// limits the resulting action to the safe tier.
 	BandWarning
 	// BandHigh requests a conservative cleanup preview. Nothing is deleted.
 	BandHigh

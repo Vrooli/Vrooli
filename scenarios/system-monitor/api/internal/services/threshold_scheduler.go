@@ -80,6 +80,7 @@ type ThresholdStatus struct {
 // RemediationResult records the outcome of escalating to storage-manager.
 type RemediationResult struct {
 	At                time.Time `json:"at"`
+	BugReference      string    `json:"bug_reference,omitempty"`
 	Band              string    `json:"band"`
 	Action            string    `json:"action"`
 	PlanID            string    `json:"plan_id,omitempty"`
@@ -371,19 +372,22 @@ func cpuBandBoundary(band PressureBand, settings Settings) float64 {
 	}
 }
 
-// escalate forwards a high or critical band to the remediation service.
+// escalate forwards warning, high, and critical bands to the remediation
+// service. Storage-manager owns the safety decision for the warning action.
 //
 // A failed report is logged and recorded, never fatal: storage-manager being
 // unreachable must not stop the monitor from continuing to observe. The
-// warning band is deliberately not escalated — it exists to record pressure,
-// not to act on it.
+// warning band is forwarded so storage-manager can apply its bounded safe tier.
 func (s *ThresholdScheduler) escalate(ctx context.Context, decision bandDecision, usage collectors.DiskUsage) {
-	if s.reporter == nil || decision.Band < BandHigh {
+	if s.reporter == nil || decision.Band < BandWarning {
 		return
 	}
 
-	band := cleanupmanager.BandHigh
-	if decision.Band == BandCritical {
+	band := cleanupmanager.BandWarning
+	switch decision.Band {
+	case BandHigh:
+		band = cleanupmanager.BandHigh
+	case BandCritical:
 		band = cleanupmanager.BandCritical
 	}
 
@@ -409,6 +413,8 @@ func (s *ThresholdScheduler) escalate(ctx context.Context, decision bandDecision
 		result.ReclaimedBytes = outcome.ReclaimedBytes
 		result.ProvidersApplied = outcome.ProvidersApplied
 		result.ProvidersWithheld = outcome.ProvidersWithheld
+		result.BugReference = outcome.BugReference
+		result.BugReference = outcome.BugReference
 		s.log.Info("disk pressure escalated to storage-manager",
 			"band", decision.Band.String(),
 			"action", outcome.Action,

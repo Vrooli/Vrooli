@@ -13,7 +13,7 @@ import { fromJson, toJsonString, create, type JsonValue, type MessageShape } fro
 import { MetricsResponseSchema, MetricsTimelineResponseSchema, DetailedMetricsSchema, DiskDetailResponseSchema, ProcessMonitorDataSchema, InfrastructureMonitorDataSchema } from "@vrooli/proto-types/system-monitor/v1/metrics/metrics_pb";
 import { InvestigationSchema, TriggerConfigSchema, CooldownStatusSchema, GetTriggersResponseSchema, TriggerInvestigationResponseSchema, GetCooldownStatusResponseSchema, ListInvestigationsResponseSchema } from "@vrooli/proto-types/system-monitor/v1/investigations/investigations_pb";
 import { SystemSettingsSchema, GetSettingsResponseSchema, UpdateSettingsResponseSchema, ResetSettingsResponseSchema, GetMaintenanceStateResponseSchema, SetMaintenanceStateResponseSchema } from "@vrooli/proto-types/system-monitor/v1/settings/settings_pb";
-import { ListScriptsResponseSchema, GetScriptResponseSchema, ExecuteScriptResponseSchema, InvestigationScriptSchema, ScriptExecutionSchema } from "@vrooli/proto-types/system-monitor/v1/scripts/scripts_pb";
+import { ListScriptsResponseSchema, GetScriptResponseSchema, ExecuteScriptResponseSchema, InvestigationScriptSchema, ScriptExecutionSchema, ListRunsResponseSchema } from "@vrooli/proto-types/system-monitor/v1/scripts/scripts_pb";
 import { EnhancedSystemReportSchema, ListReportsResponseSchema, GenerateReportResponseSchema } from "@vrooli/proto-types/system-monitor/v1/reports/reports_pb";
 import { GetCapacityOverviewResponseSchema, ListCapacityClaimsResponseSchema, ReconcileCapacityResponseSchema, GetCapacityPolicyResponseSchema, SetCapacityPolicyResponseSchema } from "@vrooli/proto-types/system-monitor/v1/capacity/capacity_pb";
 
@@ -146,6 +146,10 @@ export function parseGetScriptResponse(data: unknown): MessageShape<typeof GetSc
 
 export function parseExecuteScriptResponse(data: unknown): MessageShape<typeof ExecuteScriptResponseSchema> {
   return fromJson(ExecuteScriptResponseSchema, data as JsonValue, PROTO_JSON_OPTIONS);
+}
+
+export function parseListRunsResponse(data: unknown): MessageShape<typeof ListRunsResponseSchema> {
+  return fromJson(ListRunsResponseSchema, data as JsonValue, PROTO_JSON_OPTIONS);
 }
 
 // ---------------------------------------------------------------------------

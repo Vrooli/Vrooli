@@ -19,6 +19,7 @@ import (
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/config"
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/handlers"
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/infrastructure"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/investigations"
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/repository"
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/repository/memory"
 	sqliterepo "github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/repository/sqlite"
@@ -68,8 +69,18 @@ func Run(cfg *config.Config) error {
 	apiLog := slog.Default()
 
 	investigationSvc := services.NewInvestigationService(cfg, repo, monitorSvc, agentSvc, services.WithLogger(apiLog.With("service", "investigation")))
-	scriptSvc := services.NewScriptService(services.ResolveScriptsDir())
+	catalog, err := investigations.Load(services.ResolveRuntimeStateBasePath())
+	if err != nil {
+		return fmt.Errorf("load investigation catalog: %w", err)
+	}
+	scriptSvc := services.NewCatalogScriptService(catalog, services.ResolveRuntimeStateBasePath())
 	scriptSvc.SetNativeRunner(services.NewNativeInvestigator())
+	var runHistory *investigations.Service
+	if sqliteRepo, ok := repo.(*sqliterepo.Repository); ok {
+		runRepo := investigations.NewSQLiteRepository(sqliteRepo.RoutedDB())
+		runHistory = investigations.NewService(runRepo, 7)
+		scriptSvc.SetRunRepository(runRepo)
+	}
 	reportSvc := services.NewReportService(cfg, repo)
 	settingsMgr := services.NewSettingsManager()
 	monitorSvc.SetActive(settingsMgr.IsActive())
@@ -105,6 +116,9 @@ func Run(cfg *config.Config) error {
 	healthHandler := handlers.NewHealthHandler(cfg, monitorSvc, settingsMgr)
 	metricsHandler := handlers.NewMetricsHandler(cfg, monitorSvc, apiLog.With("handler", "metrics"))
 	investigationHandler := handlers.NewInvestigationHandler(cfg, investigationSvc, scriptSvc, apiLog.With("handler", "investigations"))
+	if runHistory != nil {
+		investigationHandler.SetRunHistory(runHistory)
+	}
 	reportHandler := handlers.NewReportHandler(cfg, reportSvc, apiLog.With("handler", "reports"))
 	settingsHandler := handlers.NewSettingsHandler(settingsMgr, apiLog.With("handler", "settings"))
 	maintenanceHandler := handlers.NewMaintenanceHandler(maintenanceSvc, apiLog.With("handler", "maintenance"))

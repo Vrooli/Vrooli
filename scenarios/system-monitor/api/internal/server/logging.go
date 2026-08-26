@@ -73,11 +73,7 @@ func (rw *rotatingFileWriter) Write(p []byte) (int, error) {
 }
 
 func (rw *rotatingFileWriter) openFile() error {
-	if err := os.MkdirAll(filepath.Dir(rw.path), 0o755); err != nil {
-		return err
-	}
-
-	file, err := os.OpenFile(rw.path, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o664)
+	file, err := storage.OpenAppendFile(rw.path, 0o664)
 	if err != nil {
 		return err
 	}
@@ -101,7 +97,7 @@ func (rw *rotatingFileWriter) rotate() error {
 	timestamp := time.Now().Format("20060102-150405")
 	rotatedPath := fmt.Sprintf("%s.%s", rw.path, timestamp)
 
-	if err := os.Rename(rw.path, rotatedPath); err != nil && !os.IsNotExist(err) {
+	if err := storage.RenameFile(rw.path, rotatedPath); err != nil && !os.IsNotExist(err) {
 		return err
 	}
 
@@ -132,7 +128,7 @@ func (rw *rotatingFileWriter) cleanup() {
 		}
 
 		if rw.maxAgeDays > 0 && time.Since(info.ModTime()) > cutoff {
-			if removeErr := os.Remove(match); removeErr != nil {
+			if removeErr := storage.RemoveFile(match); removeErr != nil {
 				fmt.Fprintf(os.Stderr, "log rotation remove error: %v\n", removeErr)
 			}
 			continue
@@ -152,7 +148,7 @@ func (rw *rotatingFileWriter) cleanup() {
 
 	if rw.maxBackups == 0 {
 		for _, path := range backups {
-			if err := os.Remove(path); err != nil {
+			if err := storage.RemoveFile(path); err != nil {
 				fmt.Fprintf(os.Stderr, "log rotation remove error: %v\n", err)
 			}
 		}
@@ -160,7 +156,7 @@ func (rw *rotatingFileWriter) cleanup() {
 	}
 
 	for i := rw.maxBackups; i < len(backups); i++ {
-		if err := os.Remove(backups[i]); err != nil {
+		if err := storage.RemoveFile(backups[i]); err != nil {
 			fmt.Fprintf(os.Stderr, "log rotation remove error: %v\n", err)
 		}
 	}

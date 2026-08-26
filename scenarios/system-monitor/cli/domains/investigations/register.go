@@ -11,6 +11,8 @@ import (
 	"connectrpc.com/connect"
 	investigationspb "github.com/vrooli/vrooli/packages/proto/gen/go/system-monitor/v1/investigations"
 	investigationsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/system-monitor/v1/investigations/investigationsconnect"
+	scriptspb "github.com/vrooli/vrooli/packages/proto/gen/go/system-monitor/v1/scripts"
+	scriptsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/system-monitor/v1/scripts/scriptsconnect"
 
 	"github.com/vrooli/cli-core/cliapp"
 	"google.golang.org/protobuf/proto"
@@ -26,6 +28,11 @@ func Register(core *cliapp.ScenarioApp) cliapp.SubcommandGroup {
 		Description: "List, inspect, trigger, and tune anomaly investigations",
 		NeedsAPI:    true,
 		Subcommands: []cliapp.Command{
+			{Name: "catalog", Description: "List the portable investigation catalog", RunCtx: h.catalog},
+			{Name: "run", Description: "Execute a catalog investigation", Args: cliapp.ArgSchema{Positionals: []cliapp.Positional{{Name: "id", Required: true, Description: "Catalog entry id"}}}, RunCtx: h.runScript},
+			{Name: "runs", Description: "List persisted investigation runs", Args: cliapp.ArgSchema{Flags: []cliapp.Flag{{Name: "entry-id", Description: "Filter by catalog entry"}, {Name: "limit", Description: "Maximum runs", Default: "20"}}}, RunCtx: h.runs},
+			{Name: "runs-get", Description: "Get one persisted investigation run", Args: cliapp.ArgSchema{Positionals: []cliapp.Positional{{Name: "id", Required: true, Description: "Persisted run id"}}}, RunCtx: h.runGet},
+			{Name: "runs-prune", Description: "Prune investigation history", Args: cliapp.ArgSchema{Flags: []cliapp.Flag{{Name: "dry-run", Description: "Report rows without deleting", Bool: true}}}, RunCtx: h.pruneRuns},
 			{Name: "list", Description: "List recent investigations", Args: cliapp.ArgSchema{Flags: []cliapp.Flag{{Name: "limit", Description: "Maximum number of investigations to return", Default: "20"}}}, RunCtx: h.list},
 			{Name: "latest", Description: "Get the latest investigation", RunCtx: h.latest},
 			{Name: "get", Description: "Get an investigation by ID", Args: cliapp.ArgSchema{Positionals: []cliapp.Positional{{Name: "id", Required: true, Description: "Investigation ID"}}}, RunCtx: h.get},
@@ -39,14 +46,105 @@ func Register(core *cliapp.ScenarioApp) cliapp.SubcommandGroup {
 }
 
 type handlers struct {
-	client investigationsconnect.InvestigationsServiceClient
+	client  investigationsconnect.InvestigationsServiceClient
+	scripts scriptsconnect.ScriptsServiceClient
 }
 
 func newHandlers(core *cliapp.ScenarioApp) *handlers {
 	httpClient, baseURL := cliapp.NewConnectHTTPClient(core)
 	return &handlers{
-		client: investigationsconnect.NewInvestigationsServiceClient(httpClient, baseURL),
+		client:  investigationsconnect.NewInvestigationsServiceClient(httpClient, baseURL),
+		scripts: scriptsconnect.NewScriptsServiceClient(httpClient, baseURL),
 	}
+}
+
+func (h *handlers) catalog(ctx cliapp.RunContext) error {
+	resp, err := h.scripts.ListScripts(context.Background(), connect.NewRequest(&scriptspb.ListScriptsRequest{}))
+	if err != nil {
+		return cliapp.WrapAPIError("list investigation catalog", err, nil)
+	}
+	if ctx.JSON() {
+		return cliapp.PrintProtoJSON(ctx.Stdout(), resp.Msg)
+	}
+	rows := make([]string, 0, len(resp.Msg.GetScripts()))
+	for _, item := range resp.Msg.GetScripts() {
+		status := "available"
+		if item.GetSkipReason() != "" {
+			status = "skipped: " + item.GetSkipReason()
+		}
+		rows = append(rows, fmt.Sprintf("%s mode=%s source=%s %s", item.GetId(), item.GetExecutionMode(), item.GetSource(), status))
+	}
+	return ctx.RenderOperational(cliapp.OperationalReport{Status: []string{fmt.Sprintf("Catalog entries: %d", len(rows))}, Triage: []cliapp.TriageGroup{{Heading: "Investigation catalog", Items: rows}}, NextSteps: []string{"system-monitor investigations run <id>", "system-monitor investigations runs --limit 5"}})
+}
+
+func (h *handlers) runScript(ctx cliapp.RunContext) error {
+	id := strings.TrimSpace(ctx.Positional("id"))
+	resp, err := h.scripts.ExecuteScript(context.Background(), connect.NewRequest(&scriptspb.ExecuteScriptRequest{Id: id}))
+	if err != nil {
+		return cliapp.WrapAPIError("run investigation", err, nil)
+	}
+	if ctx.JSON() {
+		return cliapp.PrintProtoJSON(ctx.Stdout(), resp.Msg)
+	}
+	exec := resp.Msg.GetExecution()
+	return ctx.RenderOperational(cliapp.OperationalReport{Status: []string{fmt.Sprintf("%s: %s", exec.GetScriptId(), exec.GetStatus().String()), fmt.Sprintf("Duration: %.2fs", exec.GetDurationSeconds())}, Triage: []cliapp.TriageGroup{{Heading: "Result", Items: []string{exec.GetStdout(), exec.GetStderr()}}}, NextSteps: []string{"system-monitor investigations runs --limit 5"}})
+}
+
+func (h *handlers) runs(ctx cliapp.RunContext) error {
+	limit, err := positiveIntFlag(ctx, "limit")
+	if err != nil {
+		return err
+	}
+	resp, err := h.scripts.ListRuns(context.Background(), connect.NewRequest(&scriptspb.ListRunsRequest{EntryId: strings.TrimSpace(ctx.Flag("entry-id")), Limit: int32(limit)}))
+	if err != nil {
+		return cliapp.WrapAPIError("list investigation runs", err, nil)
+	}
+	if ctx.JSON() {
+		return cliapp.PrintProtoJSON(ctx.Stdout(), resp.Msg)
+	}
+	rows := make([]string, 0, len(resp.Msg.GetRuns()))
+	for _, run := range resp.Msg.GetRuns() {
+		rows = append(rows, fmt.Sprintf("%s entry=%s status=%s started=%s duration=%.2fs", run.GetId(), run.GetEntryId(), run.GetStatus(), support.FormatTimestamp(run.GetStartedAt()), run.GetDurationSeconds()))
+	}
+	return ctx.RenderOperational(cliapp.OperationalReport{Status: []string{fmt.Sprintf("Runs returned: %d", len(rows))}, Triage: []cliapp.TriageGroup{{Heading: "Investigation runs", Items: rows}}})
+}
+
+func (h *handlers) runGet(ctx cliapp.RunContext) error {
+	id := strings.TrimSpace(ctx.Positional("id"))
+	resp, err := h.scripts.GetRun(context.Background(), connect.NewRequest(&scriptspb.GetRunRequest{Id: id}))
+	if err != nil {
+		return cliapp.WrapAPIError("get investigation run", err, nil)
+	}
+	if ctx.JSON() {
+		return cliapp.PrintProtoJSON(ctx.Stdout(), resp.Msg)
+	}
+	if resp.Msg.GetRun() == nil {
+		return fmt.Errorf("server returned no investigation run")
+	}
+	run := resp.Msg.GetRun()
+	return ctx.RenderOperational(cliapp.OperationalReport{
+		Status: []string{
+			fmt.Sprintf("%s: %s", run.GetEntryId(), run.GetStatus()),
+			fmt.Sprintf("Started: %s", support.FormatTimestamp(run.GetStartedAt())),
+			fmt.Sprintf("Duration: %.2fs", run.GetDurationSeconds()),
+		},
+		Triage: []cliapp.TriageGroup{{Heading: "Result", Items: []string{run.GetResultJson(), run.GetStderrTail()}}},
+	})
+}
+
+func (h *handlers) pruneRuns(ctx cliapp.RunContext) error {
+	resp, err := h.scripts.PruneRuns(context.Background(), connect.NewRequest(&scriptspb.PruneRunsRequest{DryRun: ctx.BoolFlag("dry-run")}))
+	if err != nil {
+		return cliapp.WrapAPIError("prune investigation runs", err, nil)
+	}
+	if ctx.JSON() {
+		return cliapp.PrintProtoJSON(ctx.Stdout(), resp.Msg)
+	}
+	mode := "deleted"
+	if resp.Msg.GetDryRun() {
+		mode = "would delete"
+	}
+	return ctx.RenderOperational(cliapp.OperationalReport{Status: []string{fmt.Sprintf("Investigation runs %s: %d", mode, resp.Msg.GetDeleted())}})
 }
 
 func (h *handlers) list(ctx cliapp.RunContext) error {

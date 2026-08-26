@@ -6,6 +6,8 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/vrooli/repo-contract-go/repocontracttest"
 )
 
 // TestProcessCollector_NoSteadyForks asserts that one Collect cycle does not
@@ -13,7 +15,7 @@ import (
 // commandOutput seam remains only for exceptional future commands.
 func TestProcessCollector_NoSteadyForks(t *testing.T) {
 	if runtime.GOOS != "linux" {
-		t.Skip("process collector reads /proc only on linux")
+		repocontracttest.SkipPlatform(t, "process collector reads /proc only on linux")
 	}
 
 	var mu sync.Mutex

@@ -407,6 +407,84 @@
               "network:internal"
             ]
           }
+        },
+        {
+          "name": "catalog",
+          "description": "List portable investigation catalog entries",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ScriptsService",
+            "method": "ListScripts"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
+        },
+        {
+          "name": "run",
+          "description": "Execute a catalog investigation",
+          "positionals": [{"name": "id", "required": true, "description": "Catalog entry id"}],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ScriptsService",
+            "method": "ExecuteScript"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
+        },
+        {
+          "name": "runs",
+          "description": "List persisted investigation runs",
+          "flags": [
+            {"name": "entry-id", "description": "Filter by catalog entry"},
+            {"name": "limit", "description": "Maximum runs", "default": "20"}
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ScriptsService",
+            "method": "ListRuns"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
+        },
+        {
+          "name": "runs-get",
+          "description": "Get one persisted investigation run",
+          "positionals": [{"name": "id", "required": true, "description": "Persisted run id"}],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ScriptsService",
+            "method": "GetRun"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
+        },
+        {
+          "name": "runs-prune",
+          "description": "Prune investigation history",
+          "flags": [{"name": "dry-run", "description": "Report rows without deleting", "bool": true}],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ScriptsService",
+            "method": "PruneRuns"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "requires_confirmation": true,
+            "permissions": ["network:internal"]
+          }
         }
       ]
     },

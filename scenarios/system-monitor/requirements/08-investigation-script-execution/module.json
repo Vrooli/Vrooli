@@ -1,50 +1,45 @@
 {
-  "description": "The investigation catalog is served through typed API endpoints. Native entries execute through collected platform data; materially richer shell entries remain explicitly declared escape hatches with tool requirements and honest skip results.",
-  "module_id": "MOD-P0-008",
-  "prd_ref": "OT-P0-008",
-  "priority": "P0",
+  "_metadata": {
+    "last_validated_at": "2026-08-26T01:36:36-04:00"
+  },
   "requirements": [
     {
-      "category": "api",
-      "dependencies": [
-        "REQ-P0-003"
-      ],
-      "description": "The system shall expose and execute the predefined investigation catalog through API endpoints, selecting native execution or an explicitly declared shell-gated path with honest unsupported results.",
       "id": "REQ-P0-008",
-      "prd_ref": "OT-P0-008",
-      "status": "in_progress",
       "title": "Investigation Script System",
+      "status": "complete",
+      "prd_ref": "OT-P0-008",
+      "category": "api",
+      "description": "The system shall expose and execute the predefined investigation catalog through API endpoints, selecting native execution or an explicitly declared shell-gated path with honest unsupported results.",
       "validation": [
         {
-          "notes": "Test script execution engine",
+          "type": "test",
+          "ref": "api/internal/investigations/catalog_test.go",
           "phase": "unit",
-          "ref": "",
-          "status": "pending",
-          "type": "test"
+          "status": "implemented",
+          "notes": "Test catalog loading, native execution, shell JSON validation, and durable run persistence"
         },
         {
-          "notes": "Verify the catalog declares native or shell-gated execution",
+          "type": "test",
+          "ref": "docs/evidence/investigation-catalog-final-2026-08-26/catalog.json",
           "phase": "integration",
-          "ref": "",
-          "status": "pending",
-          "type": "test"
+          "status": "implemented",
+          "notes": "Verify six catalog entries, two shell escape hatches, four native entries, and platform/tool metadata"
         },
         {
-          "notes": "Script execution < 30s",
+          "type": "test",
+          "ref": "docs/evidence/investigation-catalog-final-2026-08-26/run-container-health.json",
           "phase": "performance",
-          "ref": "",
-          "status": "pending",
-          "type": "test"
+          "status": "implemented",
+          "notes": "Runtime matrix records every catalog entry below the 60-second execution guard and below the 30-second observed target"
         },
         {
-          "notes": "Scripts runnable from UI",
+          "type": "test",
+          "ref": "ui/src/features/investigations/components/operator-panels.test.tsx",
           "phase": "business",
-          "ref": "",
-          "status": "pending",
-          "type": "test"
+          "status": "implemented",
+          "notes": "Operator panel renders catalog metadata and executes entries through the API"
         }
       ]
     }
-  ],
-  "title": "Typed investigation script execution"
+  ]
 }
