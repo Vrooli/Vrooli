@@ -213,7 +213,7 @@ footer { border-top:1px solid var(--line-strong); padding:1.4rem 0 3rem; color:v
             <td>terminal-standard-pty</td>
             <td><span class="pill sup">supported</span><span class="m">creack/pty, measured</span></td>
             <td><span class="pill bv">build-verified</span><span class="m">same code path, darwin BSD ptys; cross-builds, never run</span></td>
-            <td><span class="pill un">unsupported</span><span class="m"><code>hostSupportsPTY=false</code> via build tag; no ConPTY path wired</span></td>
+            <td><span class="pill un">unsupported</span><span class="m">Windows PTY implementation absent; no ConPTY path wired</span></td>
           </tr>
           <tr>
             <td>terminal-persistent-tmux</td>
@@ -408,7 +408,7 @@ footer { border-top:1px solid var(--line-strong); padding:1.4rem 0 3rem; color:v
     <div class="sec-head">
       <div class="row"><span class="tag">SCOPE</span><h2>One decision to make first</h2></div>
     </div>
-    <p>Windows is the fork in the road. Today it is honestly unsupported: no PTY, no tmux, no backend. Making it work means wiring ConPTY behind the <code>hostSupportsPTY</code> build tag and accepting that persistence has no tmux equivalent — a real project, not a fix. The alternative is to declare <code>unsupported</code> in the capability block and render that in the launcher, which is a day of work and leaves nobody confused. <b>Both are defensible; drifting between them is not.</b> Everything else in this review points the same way on all three platforms, so pick the Windows answer and the rest of the matrix stops being ambiguous.</p>
+    <p>Windows is the fork in the road. Today it is honestly unsupported: no PTY, no tmux, no backend. Making it work means wiring ConPTY behind the Windows compile-time seam and accepting that persistence has no tmux equivalent — a real project, not a fix. The alternative is to declare <code>unsupported</code> in the capability block and render that in the launcher, which is a day of work and leaves nobody confused. <b>Both are defensible; drifting between them is not.</b> Everything else in this review points the same way on all three platforms, so pick the Windows answer and the rest of the matrix stops being ambiguous.</p>
   </section>
 
   <footer>

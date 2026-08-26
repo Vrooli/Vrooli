@@ -46,11 +46,14 @@ Archive retention is disabled by default: `WC_ARCHIVE_MESSAGELESS_AGE_DAYS=0`, `
 
 When configured, retention removes session-owned agent history before transcript data. This changes a `Reopenable` entry to `Read-only` while keeping its conversation searchable. A transcript row is eligible for deletion only when it has no messages and is older than `WC_ARCHIVE_MESSAGELESS_AGE_DAYS`.
 
-### `codex_rollout_checkpoints`
-Per-rollout-file byte offset checkpoints. Lets the server backfill messages written while the UI was closed and resume after restart without re-reading old lines. Key: rollout `path`.
-
 ### `agent_transcript_checkpoints`
-Generic per-source ingestion cursors for the newer transcript adapters (Grok tailer, OpenCode watcher). Primary key `(source, source_key)`; columns `web_console_session_id`, `cursor`, `updated_at`. The `cursor` is an opaque, source-defined string: for Grok (`source=grok_tailer`, `source_key`=absolute `updates.jsonl` path) it is a byte offset advanced only at turn-completion boundaries; for OpenCode (`source=opencode_api`, `source_key`=opencode session id) it is a JSON high-water mark (`{lastUserCreated,lastAssistantCompleted}`) used to make full-history reconciliation idempotent. This table is deliberately separate from `codex_rollout_checkpoints` — rewriting Codex's proven byte-offset history is higher risk than an additive table. Cleared per session on delete.
+One checkpoint table for every transcript adapter. Primary key `(source,
+source_key)`; columns `web_console_session_id`, `cursor`, `updated_at`. The
+`cursor` is an opaque, source-defined string: for Codex and Grok it is a byte
+offset (Grok advances only at turn-completion boundaries), while OpenCode uses
+a JSON high-water mark (`{lastUserCreated,lastAssistantCompleted}`). The
+startup migration copies legacy Codex rows with `source=codex_rollout` before
+dropping the old table. Cleared per session on delete.
 
 ### `shortcut_profiles`
 Saved shortcut bindings with scope hierarchy (`service` < `workspace` < `parent`). The `shortcuts` column is a JSON-encoded array. Effective bindings are computed by [CODE: api/shortcut_profiles.go] from this table; see [GLOSSARY — Shortcut Profile](../concepts/GLOSSARY.md#shortcut-profile).
@@ -74,7 +77,7 @@ Schema bootstrap runs `api/internal/<domain>/schema.sql` once at startup. Additi
 
 | Concept | Location | Why not in SQLite |
 |---|---|---|
-| Codex rollouts | Codex-managed files referenced by `sessions.last_rollout_path` + `codex_rollout_checkpoints.path` | Codex owns the format; we only checkpoint offsets |
+| Codex rollouts | Codex-managed files referenced by `sessions.last_rollout_path` + `agent_transcript_checkpoints` | Codex owns the format; we only checkpoint offsets |
 | Grok transcripts | grok-managed `updates.jsonl` under a per-session `GROK_HOME`, referenced by `sessions.last_rollout_path` + `agent_transcript_checkpoints` | grok owns the ACP format; we only checkpoint offsets |
 | OpenCode sessions | OpenCode's global storage, accessed via the `opencode serve` HTTP API; only `agent_transcript_checkpoints` cursors persist | OpenCode owns the store; the HTTP API is the runtime contract (not SQLite) |
 | Wake-word template binary | Voice config dir | Binary blob; managed via `/api/v1/voice/wakeword` |

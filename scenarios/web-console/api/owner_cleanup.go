@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
@@ -54,6 +55,13 @@ type ownerCleanupResult struct {
 	Warnings       []string `json:"warnings,omitempty"`
 }
 
+type ownerOrphanReport struct {
+	ProviderID string             `json:"provider_id"`
+	Items      []ownerCleanupItem `json:"items"`
+	Bytes      int64              `json:"bytes"`
+	ObservedAt time.Time          `json:"observed_at"`
+}
+
 type webConsoleCleanup struct {
 	server *Server
 	mu     sync.Mutex
@@ -65,7 +73,76 @@ func (s *Server) registerOwnerCleanupRoutes() {
 	s.router.HandleFunc("/api/v1/cleanup/estimate", h.estimate).Methods(http.MethodGet)
 	s.router.HandleFunc("/api/v1/cleanup/preview", h.preview).Methods(http.MethodPost)
 	s.router.HandleFunc("/api/v1/cleanup/apply", h.apply).Methods(http.MethodPost)
+	s.router.HandleFunc("/api/v1/cleanup/orphans", h.orphans).Methods(http.MethodGet)
 	h.startAutomaticRetention(context.Background())
+}
+
+// orphans reconciles the filesystem-owned agent roots against the session
+// table. It intentionally reports rather than deletes: storage-manager or an
+// operator must approve reclamation, and a missing row is not sufficient proof
+// that a user no longer wants the files.
+func (h *webConsoleCleanup) orphans(w http.ResponseWriter, r *http.Request) {
+	rows, err := h.server.sessionStore.List(r.Context())
+	if err != nil {
+		http.Error(w, "unable to list sessions", http.StatusInternalServerError)
+		return
+	}
+	known := make(map[string]struct{}, len(rows))
+	for _, row := range rows {
+		known[row.ID] = struct{}{}
+	}
+	items := make([]ownerCleanupItem, 0)
+	root := resolveSessionStateRoot()
+	for _, agent := range []string{"codex", "grok"} {
+		entries, readErr := os.ReadDir(filepath.Join(root, agent))
+		if readErr != nil {
+			continue
+		}
+		for _, entry := range entries {
+			if !entry.IsDir() {
+				continue
+			}
+			if _, ok := known[entry.Name()]; ok || filepath.Base(entry.Name()) != entry.Name() {
+				continue
+			}
+			path := filepath.Join(root, agent, entry.Name())
+			bytes, modTime := directoryUsage(path)
+			items = append(items, ownerCleanupItem{ID: entry.Name(), Path: path, Bytes: bytes, AgeSeconds: nonNegativeAge(modTime)})
+		}
+	}
+	writeCleanupJSON(w, ownerOrphanReport{ProviderID: "web-console-agent-homes", Items: items, Bytes: itemsBytes(items), ObservedAt: time.Now().UTC()})
+}
+
+func directoryUsage(root string) (int64, time.Time) {
+	var total int64
+	var newest time.Time
+	_ = filepath.WalkDir(root, func(path string, entry os.DirEntry, err error) error {
+		if err != nil {
+			return nil
+		}
+		info, infoErr := entry.Info()
+		if infoErr == nil {
+			if info.ModTime().Before(newest) == false {
+				newest = info.ModTime()
+			}
+			if !info.IsDir() {
+				total += info.Size()
+			}
+		}
+		return nil
+	})
+	return total, newest
+}
+
+func nonNegativeAge(when time.Time) int64 {
+	if when.IsZero() {
+		return 0
+	}
+	age := int64(time.Since(when).Seconds())
+	if age < 0 {
+		return 0
+	}
+	return age
 }
 
 func (h *webConsoleCleanup) candidates(r *http.Request) ([]sessionstore.Metadata, int64, int64, int) {

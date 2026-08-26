@@ -73,7 +73,7 @@ describe("small interactive UI surfaces", () => {
     renderWithProviders(
       <GridSplitter axis="column" gridColumn="2" gridRow="1 / -1" onPointerDown={onPointerDown} label="Resize columns" />,
     );
-    const splitter = screen.getByRole("button", { name: "Resize columns" });
+    const splitter = screen.getByRole("separator", { name: "Resize columns" });
     expect(splitter).toHaveStyle({ gridColumn: "2", gridRow: "1 / -1", cursor: "col-resize", minWidth: "8px" });
     fireEvent.pointerDown(splitter);
     expect(onPointerDown).toHaveBeenCalledOnce();

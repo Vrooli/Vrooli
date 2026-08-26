@@ -2,9 +2,25 @@ package session
 
 import (
 	"bytes"
+	"sync/atomic"
 	"testing"
+	"time"
 	"unicode/utf8"
+
+	"web-console/internal/ptyfake"
+	"web-console/terminal"
 )
+
+type echoCountingPTY struct {
+	*ptyfake.FakePTYWithOutput
+	samples atomic.Int32
+	state   EchoState
+}
+
+func (p *echoCountingPTY) TerminalEchoState() (EchoState, error) {
+	p.samples.Add(1)
+	return p.state, nil
+}
 
 func TestSplitCompleteUTF8_MatchesStdlib(t *testing.T) {
 	cases := [][]byte{
@@ -28,5 +44,41 @@ func TestSplitCompleteUTF8_MatchesStdlib(t *testing.T) {
 		if !bytes.Equal(got, input[:wantAt]) || !bytes.Equal(remainder, input[wantAt:]) {
 			t.Fatalf("splitCompleteUTF8(%#v) = (%#v, %#v), want (%#v, %#v)", input, got, remainder, input[:wantAt], input[wantAt:])
 		}
+	}
+}
+
+func TestEchoStateUsesCachedBackendSample(t *testing.T) {
+	p := &echoCountingPTY{
+		FakePTYWithOutput: ptyfake.NewFakePTYWithOutput(),
+		state:             EchoState{Known: true, EchoEnabled: true},
+	}
+	s := &Session{
+		pty: p,
+		emu: terminal.New(terminal.Options{Cols: 80, Rows: 24}),
+	}
+
+	s.RefreshEchoState(true)
+	for i := 0; i < 100; i++ {
+		if _, err := s.EchoState(); err != nil {
+			t.Fatalf("EchoState() returned error: %v", err)
+		}
+	}
+	if got := p.samples.Load(); got != 1 {
+		t.Fatalf("backend echo samples after cached reads = %d, want 1", got)
+	}
+
+	p.state.EchoEnabled = false
+	s.echoSampleMu.Lock()
+	s.lastEchoSampleAt = time.Time{}
+	s.echoSampleMu.Unlock()
+	if !s.RefreshEchoState(false) {
+		t.Fatal("RefreshEchoState did not report the changed backend state")
+	}
+	state, err := s.EchoState()
+	if err != nil {
+		t.Fatalf("EchoState() after refresh returned error: %v", err)
+	}
+	if state.EchoEnabled {
+		t.Fatal("EchoState returned stale cached echo state")
 	}
 }

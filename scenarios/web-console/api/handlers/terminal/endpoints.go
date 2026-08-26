@@ -47,6 +47,11 @@ var Endpoints = []module.EndpointDescriptor{
 		RESTException: &module.RESTException{
 			Reason: module.RESTReasonMultipartUpload,
 			Note:   "Multipart/form-data upload. Stays REST even post-Connect because Connect's wire format does not natively carry multipart payloads.",
+			ProtoPayloads: &module.RESTProtoPayloads{
+				Request:  module.RESTPayload{Transport: "multipart/form-data", Conformance: "transport_only"},
+				Response: module.RESTPayload{Transport: "json", Conformance: "external_shape"},
+				Error:    module.RESTPayload{Transport: "json", Conformance: "external_shape"},
+			},
 		},
 	},
 	{
@@ -59,6 +64,11 @@ var Endpoints = []module.EndpointDescriptor{
 		RESTException: &module.RESTException{
 			Reason: module.RESTReasonStreamUpgrade,
 			Note:   "xterm.js requires a raw WebSocket upgrade — Connect-RPC cannot express that handshake. Stays REST until a Connect server-streaming RPC replaces it.",
+			ProtoPayloads: &module.RESTProtoPayloads{
+				Request:  module.RESTPayload{Transport: "none", Conformance: "none"},
+				Response: module.RESTPayload{Transport: "none", Conformance: "none"},
+				Error:    module.RESTPayload{Transport: "none", Conformance: "none"},
+			},
 		},
 	},
 }

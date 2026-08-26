@@ -6,7 +6,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -15,14 +14,10 @@ import (
 	"web-console/backends/codex"
 	"web-console/internal/pty"
 	"web-console/internal/ptyfake"
-
-	"github.com/vrooli/repo-contract-go/repocontracttest"
 )
 
 func TestDefaultPTYFactory_HonoursLaunchWorkingDir(t *testing.T) {
-	if runtime.GOOS != "linux" {
-		repocontracttest.SkipPlatform(t, "working-directory process fact is only measured on Linux")
-	}
+	requireLocalPTY(t)
 	dir := t.TempDir()
 	p, err := defaultPTYFactory(pty.LaunchSpec{Shell: "/bin/sh", Cols: 80, Rows: 24, WorkingDir: dir})
 	if err != nil {
@@ -349,9 +344,7 @@ func TestFilterServiceEnv_RemovesLifecycleVars(t *testing.T) {
 // ProbeReady, which must return immediately so the WebSocket input loop
 // can emit session_ready without an extra round-trip.
 func TestRealPTY_ProbeReady_Synchronous(t *testing.T) {
-	if runtime.GOOS == "windows" {
-		repocontracttest.SkipPlatform(t, "PTY tests unsupported on Windows")
-	}
+	requireLocalPTY(t)
 	p := &realPTY{}
 	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
 	defer cancel()
@@ -409,7 +402,7 @@ func TestPrepareCodexSessionHome_SharesAuthAndConfig(t *testing.T) {
 	}
 }
 
-func TestSessionManagerCreate_UsesSharedAuthAndSessionOwnedRoutingDirs(t *testing.T) {
+func TestSessionManagerCreate_DoesNotMaterializeAgentHomeForPlainShell(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)
 	stateRoot := useIsolatedSessionState(t)
@@ -437,20 +430,17 @@ func TestSessionManagerCreate_UsesSharedAuthAndSessionOwnedRoutingDirs(t *testin
 	if _, ok := captured.Env["CLAUDE_SESSIONS_DIR"]; ok {
 		t.Fatalf("did not expect CLAUDE_SESSIONS_DIR override")
 	}
-	codexHome := captured.Env["CODEX_HOME"]
-	if !strings.Contains(codexHome, sess.ID) {
-		t.Fatalf("expected session CODEX_HOME to contain %q, got %q", sess.ID, codexHome)
+	if _, ok := captured.Env["CODEX_HOME"]; ok {
+		t.Fatal("plain shell must not receive CODEX_HOME")
 	}
-	wantPrefix := filepath.Join(stateRoot, "codex", sess.ID)
-	if codexHome != wantPrefix {
-		t.Fatalf("expected session CODEX_HOME %q, got %q", wantPrefix, codexHome)
+	if _, ok := captured.Env["GROK_HOME"]; ok {
+		t.Fatal("plain shell must not receive GROK_HOME")
 	}
-	info, err := os.Lstat(filepath.Join(codexHome, "auth.json"))
-	if err != nil {
-		t.Fatalf("expected shared codex auth symlink: %v", err)
+	if got := captured.Env["WC_SESSION_STATE_ROOT"]; got != stateRoot {
+		t.Fatalf("WC_SESSION_STATE_ROOT = %q, want %q", got, stateRoot)
 	}
-	if info.Mode()&os.ModeSymlink == 0 {
-		t.Fatalf("expected session CODEX_HOME auth.json to be a symlink")
+	if _, err := os.Lstat(filepath.Join(stateRoot, "codex", sess.ID)); !os.IsNotExist(err) {
+		t.Fatalf("plain shell materialized agent home: %v", err)
 	}
 }
 
@@ -458,7 +448,7 @@ func TestSessionManagerCreate_UsesSharedAuthAndSessionOwnedRoutingDirs(t *testin
 // on the attach command, preventing "terminal does not support clear" failures
 // when the server process has TERM=dumb (common for non-interactive lifecycle).
 func TestTmuxAttach_SetsTermEnv(t *testing.T) {
-	requireIsolatedTmux(t)
+	requireTmux(t)
 
 	sessionName := tmuxSessionPrefix + "test-term-env"
 	// Create a detached tmux session on the dedicated wc socket

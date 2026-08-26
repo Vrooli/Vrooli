@@ -47,7 +47,7 @@ What `recover` does, in order:
 
 1. Validates the row is `awaiting_recovery` and has enough agent identity to reattach (codex requires nothing more; claude requires a non-empty `agent_session_id`).
 2. Creates a fresh `backend=persistent` pane inheriting `shell`, `cols`, `rows`, and `policy` from the orphan.
-3. For codex panes, `rsync -a $CODEX_HOME($old_id)/ $CODEX_HOME($new_id)/` copies the rollout history into the new pane's path.
+3. For codex panes, only the session-owned rollout tree is copied into the new pane's path. Shared configuration and regenerable runtime state are recreated or linked by the agent launcher; recovery does not duplicate the whole home.
 4. Copies the orphan's conversation history (`conversation_sessions` cursor + all `conversation_events`) onto the new session id, preserving sequence numbers and per-event playback/consumption state so the **messages view is populated on reattach** instead of starting empty. Best-effort: a copy failure is logged but does not abort recovery.
 5. Pastes the appropriate resume command into the new pane:
    - `codex --yolo resume <agent_session_id>` (or `--last` if id is empty)
@@ -167,7 +167,8 @@ new_id="$(
 old_id="<old-web-console-session-id>"
 old_home="$HOME/.local/state/vrooli/web-console/sessions/codex/$old_id"
 new_home="$HOME/.local/state/vrooli/web-console/sessions/codex/$new_id"
-rsync -a "$old_home/" "$new_home/"
+mkdir -p "$new_home/sessions"
+rsync -a "$old_home/sessions/" "$new_home/sessions/"
 
 curl -sS -X PUT "$api/api/v1/workspace/panes/$new_id" \
   -H 'Content-Type: application/json' \

@@ -99,6 +99,12 @@ Errors sent:
 - `"Invalid message format"` — client sent non-JSON
 - `"Terminal process is not accepting input"` — PTY write failed
 
+Connection-level reliable-input reconciliation failures are reported through
+the pane-status channel as `input-desynced`. This is distinct from a rejected
+payload: no individual payload callback is settled because the server cannot
+prove which payload boundary is safe. Reconnecting establishes a fresh
+connection-scoped offset base and clears the status.
+
 ### Client-Side WS Error Recovery
 
 The UI provides contextual recovery hints for known WS error messages:
@@ -115,6 +121,13 @@ When a client's output channel falls behind (e.g. slow WebSocket consumer, netwo
 ```json
 {"type": "sync_warning", "coalesced_frames": 7}
 ```
+
+Cursor-bearing output frames make recovery explicit. `stdout.output_cursor`
+is the end of that frame in the session output stream. A reconnect may send
+`hello{want_resume:true, rendered_through:N}`; the server replays frames after
+N when the ring still covers an exact boundary. Otherwise it sends `resync`,
+then the self-contained snapshot. `history_end.output_cursor` is the durable
+client checkpoint for the next reconnect.
 
 The client keeps this diagnostic out of the emulator/xterm buffer and exposes recovery through pane status chrome. Coalesced data is automatically delivered when the consumer catches up. If the pending buffer grows beyond the fixed cap (`pendingBufferMax`), the oldest bytes are truncated; the next snapshot replay (on reconnect) restores correct state. This is informational, not an error — the session continues normally.
 

@@ -6,9 +6,7 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"encoding/json"
-	"errors"
 	"fmt"
-	"io"
 	"log"
 	"net/http"
 	"os"
@@ -22,9 +20,9 @@ import (
 	"web-console/internal/backend"
 	"web-console/internal/capabilities"
 	"web-console/internal/config"
-	"web-console/internal/dbx"
 	"web-console/internal/events"
 	"web-console/internal/filepreview"
+	"web-console/internal/legacymigrate"
 	"web-console/internal/metrics"
 	"web-console/internal/sessionstore"
 	"web-console/session"
@@ -35,7 +33,6 @@ import (
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/devrouting"
 	"github.com/vrooli/api-core/filerouting"
-	"github.com/vrooli/api-core/health"
 	"github.com/vrooli/api-core/preflight"
 	"github.com/vrooli/api-core/server"
 	"github.com/vrooli/api-core/storage"
@@ -44,22 +41,6 @@ import (
 	entitlementclient "github.com/vrooli/vrooli/packages/entitlementclient-go"
 	monetization "github.com/vrooli/vrooli/packages/monetization-go"
 	_ "modernc.org/sqlite"
-
-	aiH "web-console/handlers/ai"
-	audioAdminH "web-console/handlers/audio_admin"
-	audioRuntimeH "web-console/handlers/audio_runtime"
-	capabilitiesH "web-console/handlers/capabilities"
-	conversationH "web-console/handlers/conversation"
-	eventsH "web-console/handlers/events"
-	filePreviewH "web-console/handlers/file_preview"
-	hooksH "web-console/handlers/hooks"
-	metricsH "web-console/handlers/metrics"
-
-	sessionsH "web-console/handlers/sessions"
-	settingsH "web-console/handlers/settings"
-	shortcutsH "web-console/handlers/shortcuts"
-	terminalH "web-console/handlers/terminal"
-	workspaceH "web-console/handlers/workspace"
 	audiotoolsint "web-console/integrations/audiotools"
 	intai "web-console/internal/ai"
 
@@ -68,255 +49,6 @@ import (
 	intworkspace "web-console/internal/workspace"
 )
 
-// schemaProviders returns the scenario's embedded schema + seed SQL as api-core
-// schema providers. Exposing them as providers (rather than executing inline)
-// lets the same SQL be applied to the primary pool at boot AND to every leased
-// test pool installed at runtime, which is what makes a test-mode request find
-// tables.
-func schemaProviders() ([]database.SchemaProvider, error) {
-	return []database.SchemaProvider{
-		database.SchemaProviderFunc(intsessions.Schema),
-		database.SchemaProviderFunc(intsessions.Seed),
-	}, nil
-}
-
-// initSchema applies the schema, seed, and forward-only migrations to db.
-// db is whichever pool the caller wants initialized: RoutedDB.Primary() at
-// boot, or a freshly leased test pool via the test-pool initializer.
-func initSchema(ctx context.Context, db dbx.Handle) error {
-	providers, err := schemaProviders()
-	if err != nil {
-		return err
-	}
-	return initSchemaWithProviders(ctx, db, providers)
-}
-
-// initSchemaWithProviders is initSchema's body with the schema source injected,
-// so the apply/migrate/verify ordering can be exercised against SQL loaded from
-// the repo rather than from a path relative to the running executable.
-func initSchemaWithProviders(ctx context.Context, db dbx.Handle, providers []database.SchemaProvider) error {
-	if db == nil {
-		return fmt.Errorf("database handle is nil")
-	}
-	// Apply, migrate, THEN verify. The declared-column drift check has to run
-	// last: schema.sql declares every current column, but on an existing DB
-	// `CREATE TABLE IF NOT EXISTS` is a no-op, so a newly declared column only
-	// lands via applyColumnMigrations below. Checking before migrating fails
-	// boot on precisely the drift the next few lines repair — which is exactly
-	// what adding workspace_panes.manually_unread hit.
-	if err := database.ApplySchemas(ctx, db, providers...); err != nil {
-		return err
-	}
-	log.Println("Schema initialized successfully")
-
-	if err := applyColumnMigrations(ctx, db); err != nil {
-		return err
-	}
-	if err := ensureConversationFTS(ctx, db); err != nil {
-		return fmt.Errorf("migration: conversation FTS: %w", err)
-	}
-
-	if err := migrateSessionsAgentTypeConstraint(ctx, db); err != nil {
-		return fmt.Errorf("migration: %w", err)
-	}
-
-	if err := reconcileDefaultShortcutProfile(ctx, db); err != nil {
-		return fmt.Errorf("migration: %w", err)
-	}
-
-	// EnsureSchemas is deliberately last: it reapplies the idempotent domain
-	// providers and reconciles additive columns after the forward-only
-	// migrations above have repaired existing databases.
-	if err := database.EnsureSchemas(ctx, db, providers...); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-const conversationFTSMigration = "conversation_events_fts_v1"
-
-// ensureConversationFTS creates the archive-search index and backfills old
-// events in bounded transactions. Progress is durable, so an interrupted boot
-// resumes rather than duplicating index rows or restarting the full backfill.
-func ensureConversationFTS(ctx context.Context, db dbx.Handle) error {
-	ddl := []string{
-		`CREATE TABLE IF NOT EXISTS web_console_migrations (
-			name TEXT PRIMARY KEY,
-			last_rowid INTEGER NOT NULL DEFAULT 0,
-			completed_at TEXT NOT NULL DEFAULT ''
-		)`,
-		`CREATE VIRTUAL TABLE IF NOT EXISTS conversation_events_fts USING fts5(event_id UNINDEXED, text, tokenize='unicode61')`,
-		`CREATE TRIGGER IF NOT EXISTS conversation_events_fts_insert AFTER INSERT ON conversation_events BEGIN
-			INSERT INTO conversation_events_fts(rowid, event_id, text) VALUES (new.rowid, new.id, new.text);
-		END`,
-		`CREATE TRIGGER IF NOT EXISTS conversation_events_fts_delete AFTER DELETE ON conversation_events BEGIN
-			DELETE FROM conversation_events_fts WHERE rowid = old.rowid;
-		END`,
-		`CREATE TRIGGER IF NOT EXISTS conversation_events_fts_text_update AFTER UPDATE OF text ON conversation_events BEGIN
-			DELETE FROM conversation_events_fts WHERE rowid = old.rowid;
-			INSERT INTO conversation_events_fts(rowid, event_id, text) VALUES (new.rowid, new.id, new.text);
-		END`,
-	}
-	for _, statement := range ddl {
-		if _, err := db.ExecContext(ctx, statement); err != nil {
-			return err
-		}
-	}
-
-	var cursor int64
-	var completed string
-	err := db.QueryRowContext(ctx, `SELECT last_rowid, completed_at FROM web_console_migrations WHERE name = ?`, conversationFTSMigration).Scan(&cursor, &completed)
-	if err != nil && !errors.Is(err, sql.ErrNoRows) {
-		return err
-	}
-	if completed != "" {
-		return nil
-	}
-
-	const batchSize = 1000
-	for {
-		var upper int64
-		if err := db.QueryRowContext(ctx, `SELECT COALESCE(MAX(rowid), 0) FROM (
-			SELECT rowid FROM conversation_events WHERE rowid > ? ORDER BY rowid LIMIT ?
-		)`, cursor, batchSize).Scan(&upper); err != nil {
-			return err
-		}
-		tx, err := db.BeginTx(ctx, nil)
-		if err != nil {
-			return err
-		}
-		if upper == 0 {
-			_, err = tx.ExecContext(ctx, `INSERT INTO web_console_migrations(name, last_rowid, completed_at)
-				VALUES (?, ?, ?) ON CONFLICT(name) DO UPDATE SET last_rowid=excluded.last_rowid, completed_at=excluded.completed_at`,
-				conversationFTSMigration, cursor, time.Now().UTC().Format(time.RFC3339))
-			if err == nil {
-				err = tx.Commit()
-			} else {
-				_ = tx.Rollback()
-			}
-			return err
-		}
-		if _, err = tx.ExecContext(ctx, `DELETE FROM conversation_events_fts WHERE rowid > ? AND rowid <= ?`, cursor, upper); err == nil {
-			_, err = tx.ExecContext(ctx, `INSERT INTO conversation_events_fts(rowid, event_id, text)
-				SELECT rowid, id, text FROM conversation_events WHERE rowid > ? AND rowid <= ?`, cursor, upper)
-		}
-		if err == nil {
-			_, err = tx.ExecContext(ctx, `INSERT INTO web_console_migrations(name, last_rowid, completed_at)
-				VALUES (?, ?, '') ON CONFLICT(name) DO UPDATE SET last_rowid=excluded.last_rowid`, conversationFTSMigration, upper)
-		}
-		if err == nil {
-			err = tx.Commit()
-		} else {
-			_ = tx.Rollback()
-		}
-		if err != nil {
-			return err
-		}
-		cursor = upper
-	}
-}
-
-// applyColumnMigrations adds columns to existing tables. ALTER TABLE ADD COLUMN
-// errors if the column already exists, so we ignore that specific error. New
-// columns declare their DEFAULT so pre-existing rows are backfilled by SQLite
-// as part of the ADD COLUMN — origin backfills to 'ui' because every historical
-// session was opened from the web UI.
-func applyColumnMigrations(ctx context.Context, db dbx.Handle) error {
-	migrations := []string{
-		`ALTER TABLE workspace_panes ADD COLUMN supports_messages_view INTEGER NOT NULL DEFAULT 0`,
-		`ALTER TABLE workspace_panes ADD COLUMN manually_unread INTEGER NOT NULL DEFAULT 0`,
-		`ALTER TABLE sessions ADD COLUMN backend TEXT NOT NULL DEFAULT 'standard'`,
-		`ALTER TABLE sessions ADD COLUMN detached INTEGER NOT NULL DEFAULT 0`,
-		`ALTER TABLE sessions ADD COLUMN status TEXT NOT NULL DEFAULT 'live'`,
-		`ALTER TABLE sessions ADD COLUMN agent_type TEXT NOT NULL DEFAULT 'none'`,
-		`ALTER TABLE sessions ADD COLUMN launch_command TEXT NOT NULL DEFAULT ''`,
-		`ALTER TABLE sessions ADD COLUMN agent_session_id TEXT NOT NULL DEFAULT ''`,
-		`ALTER TABLE sessions ADD COLUMN cwd TEXT NOT NULL DEFAULT ''`,
-		`ALTER TABLE sessions ADD COLUMN last_rollout_path TEXT NOT NULL DEFAULT ''`,
-		`ALTER TABLE sessions ADD COLUMN last_activity_at TEXT NOT NULL DEFAULT ''`,
-		`ALTER TABLE sessions ADD COLUMN orphaned_at TEXT NOT NULL DEFAULT ''`,
-		`ALTER TABLE sessions ADD COLUMN recovered_into TEXT NOT NULL DEFAULT ''`,
-		`ALTER TABLE sessions ADD COLUMN origin TEXT NOT NULL DEFAULT 'ui'`,
-		`ALTER TABLE sessions ADD COLUMN owner TEXT NOT NULL DEFAULT ''`,
-		`ALTER TABLE sessions ADD COLUMN display_label TEXT NOT NULL DEFAULT ''`,
-		`CREATE INDEX IF NOT EXISTS idx_sessions_status ON sessions(status)`,
-		`CREATE INDEX IF NOT EXISTS idx_sessions_agent ON sessions(agent_type, agent_session_id)`,
-		`CREATE INDEX IF NOT EXISTS idx_sessions_origin ON sessions(origin)`,
-		`CREATE INDEX IF NOT EXISTS idx_conversation_events_session_sequence ON conversation_events(session_id, sequence)`,
-	}
-	for _, m := range migrations {
-		if _, err := db.ExecContext(ctx, m); err != nil {
-			// "duplicate column name" means the column already exists — safe to ignore.
-			if !isDuplicateColumnError(err) {
-				return fmt.Errorf("migration: %w", err)
-			}
-		}
-	}
-	return nil
-}
-
-// migrateSessionsAgentTypeConstraint relaxes the sessions.agent_type CHECK
-// constraint to admit 'opencode' and 'grok'. SQLite cannot ALTER a CHECK
-// constraint in place, so a DB created before these agent types carries the old
-// constraint and would reject inserts for the new runtimes. The fix is the
-// canonical SQLite table-rebuild, guarded so it only runs when the live
-// constraint predates these values — making it a no-op on fresh DBs (which get
-// the up-to-date constraint from schema.sql) and idempotent on re-run.
-//
-// The column list is enumerated explicitly rather than `SELECT *` so the copy
-// is insensitive to physical column ordering (an incrementally ALTER-migrated
-// DB can order columns differently from schema.sql).
-func migrateSessionsAgentTypeConstraint(ctx context.Context, db dbx.Handle) error {
-	var tableSQL string
-	if err := db.QueryRowContext(ctx,
-		`SELECT sql FROM sqlite_master WHERE type='table' AND name='sessions'`,
-	).Scan(&tableSQL); err != nil {
-		if err == sql.ErrNoRows {
-			return nil // no sessions table yet; schema.sql will create it current
-		}
-		return fmt.Errorf("inspect sessions table: %w", err)
-	}
-	// Already admits opencode → nothing to do. Also skip tables with no
-	// agent_type CHECK at all (older shapes get columns added by the ALTER
-	// block above and never carried the constraint).
-	if strings.Contains(tableSQL, "'opencode'") || !strings.Contains(tableSQL, "CHECK(agent_type") {
-		return nil
-	}
-
-	const cols = `id, backend, shell, cols, rows, policy_mode, policy_duration,
-		created_at, detached, status, agent_type, launch_command, agent_session_id,
-		cwd, last_rollout_path, last_activity_at, orphaned_at, recovered_into,
-		origin, owner, display_label`
-	stmts := []string{
-		`PRAGMA foreign_keys=off`,
-		`ALTER TABLE sessions RENAME TO sessions_legacy_agentcheck`,
-		intsessions.AgentTypeMigrationSchema(),
-		`INSERT INTO sessions (` + cols + `) SELECT ` + cols + ` FROM sessions_legacy_agentcheck`,
-		`DROP TABLE sessions_legacy_agentcheck`,
-		`CREATE INDEX IF NOT EXISTS idx_sessions_created ON sessions(created_at DESC)`,
-		`CREATE INDEX IF NOT EXISTS idx_sessions_status ON sessions(status)`,
-		`CREATE INDEX IF NOT EXISTS idx_sessions_agent ON sessions(agent_type, agent_session_id)`,
-		`CREATE INDEX IF NOT EXISTS idx_sessions_origin ON sessions(origin)`,
-		`PRAGMA foreign_keys=on`,
-	}
-	for _, stmt := range stmts {
-		if _, err := db.ExecContext(ctx, stmt); err != nil {
-			return fmt.Errorf("rebuild sessions constraint (%.40s): %w", stmt, err)
-		}
-	}
-	log.Println("migration: relaxed sessions.agent_type CHECK to include opencode/grok")
-	return nil
-}
-
-// isDuplicateColumnError checks if a SQLite error is a "duplicate column name" error.
-func isDuplicateColumnError(err error) bool {
-	return err != nil && strings.Contains(err.Error(), "duplicate column name")
-}
-
-// DOC: docs/concepts/ARCHITECTURE.md#system-layers
-// Server wires the HTTP router, database connection, and session manager.
-//
 // Audio fields: speechProcessor, sttPort, ttsPort and summarizer are audio
 // capability ports backed by the audio-tools scenario in production; tests
 // substitute via the Set* methods. audio-tools is an optional try-start
@@ -329,30 +61,30 @@ func isDuplicateColumnError(err error) bool {
 // triple (ttsHookConfigState), and the auto-summarize policy cache
 // (summarizeAutoPolicy*).
 type Server struct {
-	db                   *database.RoutedDB
-	roots                *filerouting.RoutedRoots
-	router               *mux.Router
-	sessions             *session.Manager
-	hub                  *ConversationHub
-	events               *events.Logger
-	metrics              *metrics.Metrics
-	backendRegistry      *backend.Registry
-	sessionStore         sessionstore.Store
-	aiChain              *intai.Chain
-	shortcuts            ShortcutStore
-	aiConfig             intai.ConfigStore
-	ai                   *intai.Service
-	sweeper              *session.ExpirationSweeper
-	idempotency          *intsessions.IdempotencyCache // replay-safe session creation
-	capabilities         *capabilities.Registry
-	workspace            intworkspace.Store
-	hookAuthToken        string
-	codexTailer          *CodexTailer
-	codexCheckpointStore CodexCheckpointStore
-	claudeTailer         *ClaudeTailer
-	grokTailer           *GrokTailer
-	opencodeWatcher      *OpenCodeWatcher
-	agentCheckpointStore AgentTranscriptCheckpointStore
+	db                    *database.RoutedDB
+	roots                 *filerouting.RoutedRoots
+	router                *mux.Router
+	sessions              *session.Manager
+	hub                   *ConversationHub
+	events                *events.Logger
+	metrics               *metrics.Metrics
+	backendRegistry       *backend.Registry
+	sessionStore          sessionstore.Store
+	aiChain               *intai.Chain
+	shortcuts             ShortcutStore
+	aiConfig              intai.ConfigStore
+	ai                    *intai.Service
+	sweeper               *session.ExpirationSweeper
+	conversationRetention *conversationRetentionSweeper
+	idempotency           *intsessions.IdempotencyCache // replay-safe session creation
+	capabilities          *capabilities.Registry
+	workspace             intworkspace.Store
+	hookAuthToken         string
+	codexTailer           *CodexTailer
+	claudeTailer          *ClaudeTailer
+	grokTailer            *GrokTailer
+	opencodeWatcher       *OpenCodeWatcher
+	agentCheckpointStore  AgentTranscriptCheckpointStore
 
 	// Audio ports — all backed by audio-tools in production.
 	speechProcessor audioports.SpeechTextProcessor
@@ -551,7 +283,6 @@ func NewServer(db *database.RoutedDB) *Server {
 			path: hookCfgPath,
 		},
 		summarizeAutoPolicy:  defaultSummarizeAutoPolicy(),
-		codexCheckpointStore: NewSQLCodexCheckpointStore(db),
 		agentCheckpointStore: NewSQLAgentTranscriptCheckpointStore(db),
 		conversations:        NewConversationStoreWithRepository(NewSQLConversationRepository(db)),
 		filePreviewResolver:  &filepreview.Resolver{ProjectRoot: config.ResolveWorkingDir()},
@@ -559,6 +290,13 @@ func NewServer(db *database.RoutedDB) *Server {
 		lastTTSBySource:      make(map[string]conversationAppendSnapshot),
 		lastTTSAckBySrc:      make(map[string]ttsAckSnapshot),
 		speechProcessor:      audioports.PassthroughSpeechTextProcessor{},
+	}
+	if pruner, ok := srv.conversations.repository.(conversationEventPruner); ok {
+		srv.conversationRetention = newConversationRetentionSweeper(
+			pruner,
+			func() int { return srv.sessions.GetConfig().ConversationRetentionDays },
+			func() int { return srv.sessions.GetConfig().ConversationMaxEventsPerSession },
+		)
 	}
 	if authority, authorityErr := credentialauthority.Default(); authorityErr == nil {
 		if credentials, clientErr := credentialclient.NewClient(credentialclient.ClientOptions{Authority: authority}); clientErr == nil {
@@ -653,6 +391,9 @@ func NewServer(db *database.RoutedDB) *Server {
 	log.Printf("audio-tools adoption: STT/TTS/processor/summarize + admin/runtime ports wired to %s", atClient.BaseURL())
 
 	srv.sweeper.Start()
+	if srv.conversationRetention != nil {
+		srv.conversationRetention.Start()
+	}
 	// Fan session lifecycle events (created/deleted/terminated) from the event
 	// logger onto the SSE hub so externally created/destroyed sessions appear
 	// and disappear in every connected browser's sidebar live.
@@ -718,143 +459,8 @@ func newCapabilityCheckers(ollamaURL, openrouterKey, bridgeURL, bridgeOwnerToken
 	}
 }
 
-func (s *Server) setupRoutes() {
-	s.router.Use(requestIDMiddleware)
-	s.router.Use(loggingMiddleware)
-
-	// Health endpoints
-	healthBuilder := health.New().Version("1.0.0")
-	// Minimal test servers construct a Server without a database; the health
-	// check is only meaningful when one is wired.
-	if s.db != nil {
-		healthBuilder = healthBuilder.Check(health.DB(s.db.Primary()), health.Critical)
-	}
-	healthHandler := healthBuilder.Handler()
-	s.router.HandleFunc("/health", healthHandler).Methods("GET")
-	s.router.HandleFunc("/api/v1/health", healthHandler).Methods("GET")
-	s.registerOwnerCleanupRoutes()
-	voiceGate := monetizationGate{gate: s.monetization, outbox: s.monetizationOutbox}
-	s.router.Handle("/api/v1/monetization/voice", monetization.InjectEntitlement(http.HandlerFunc(voiceGate.voiceSynthesis))).Methods(http.MethodPost)
-
-	// Sessions domain (CRUD, recovery, policy) — Connect-RPC.
-	sessionsH.Module(&sessionsH.Adapter{
-		Manager:             s.sessions,
-		Store:               s.sessionStore,
-		Idempotency:         s.idempotency,
-		Events:              s.events,
-		Metrics:             s.metrics,
-		Conversations:       s.conversations,
-		CodexCheckpoints:    s.codexCheckpointStore,
-		AgentCheckpoints:    s.agentCheckpointStore,
-		Workspace:           s.workspace,
-		CopyCodexHome:       copyCodexHome,
-		AgentHistoryPresent: archivedAgentHistoryPresent,
-		RetentionPolicy: func() sessionsH.ArchiveRetentionPolicy {
-			cfg := s.sessions.GetConfig()
-			return sessionsH.ArchiveRetentionPolicy{
-				MessageLessAge: time.Duration(cfg.ArchiveMessageLessAgeDays) * 24 * time.Hour,
-				AgentHomeAge:   time.Duration(cfg.ArchiveAgentHomeAgeDays) * 24 * time.Hour,
-				MaxBytes:       cfg.ArchiveMaxBytes,
-			}
-		},
-		AgentHistorySize:  archivedAgentHistorySize,
-		PruneAgentHistory: pruneArchivedAgentHistory,
-		Remote:            s,
-	}, nil).Mount(s.router)
-	s.mountTargetCatalog()
-
-	// Terminal — Connect-RPC TerminalService (GetScreen, SendInput,
-	// WaitIdle) plus REST exceptions for the WebSocket bridge
-	// ([REQ:P0-002b]) and multipart image upload for path injection.
-	terminalH.Module(&terminalH.Adapter{Manager: s.sessions}, terminalH.LegacyDeps{
-		Upload: s.handleUpload,
-		WS:     s.handleTerminalWS,
-	}, nil).Mount(s.router)
-
-	// Workspace domain (panes, groups, layout) — Connect-RPC.
-	workspaceH.Module(&workspaceH.Adapter{
-		Store:  s.workspace,
-		Events: s.events,
-	}, nil).Mount(s.router)
-
-	// Conversation domain (history, cursor, summarize) — Connect-RPC.
-	conversationH.Module(newConversationAdapter(s), nil).Mount(s.router)
-
-	// File-preview domain — Connect-RPC FilePreviewService (Resolve,
-	// GetTextContent) plus a REST blob/range exception for opaque byte
-	// streaming into native browser media elements. The Connect handler is
-	// mounted via Module; the blob route is registered directly below because
-	// it needs the Server's session lookup + preview store.
-	filePreviewH.Module(newFilePreviewAdapter(s), nil).Mount(s.router)
-	s.router.HandleFunc("/api/v1/sessions/{id}/file-previews/{previewId}/blob", s.handleFilePreviewBlob).Methods("GET", "HEAD")
-
-	// Settings domain — Connect-RPC, mounted via Module.
-	settingsH.Module(newSettingsAdapter(s), nil).Mount(s.router)
-
-	// Shortcut profiles - [REQ:P1-002a] (Connect-RPC ShortcutsService)
-	shortcutsH.Module(newShortcutsAdapter(s), nil).Mount(s.router)
-
-	// AI domain - [REQ:P0-005a] [REQ:P1-003a] [REQ:P1-003b] (Connect-RPC AIService)
-	aiH.Module(&aiH.Adapter{Backend: s.ai}, nil).Mount(s.router)
-
-	// Metrics — Connect-RPC MetricsService [REQ:P1-004b]
-	metricsH.Module(&metricsH.Adapter{Metrics: s.metrics}, nil).Mount(s.router)
-
-	// Events — Connect-RPC EventsService [REQ:P1-004a]
-	eventsH.Module(&eventsH.Adapter{Logger: s.events}, nil).Mount(s.router)
-
-	// Capabilities — Connect-RPC.
-	capabilitiesH.Module(&capabilitiesH.Adapter{
-		Registry:        s.capabilities,
-		BackendRegistry: s.backendRegistry,
-		DefaultBackend:  func() string { return string(s.sessions.GetConfig().DefaultBackend) },
-	}, nil).Mount(s.router)
-
-	// Audio admin / runtime — UI talks same-origin to web-console; the
-	// handlers delegate to internal/audioports.* which proxies to
-	// audio-tools server-side. The browser never sees audio-tools' host.
-	audioAdminH.Module(audioAdminH.Deps{
-		StreamConfig:    s.streamConfigAdmin,
-		WakeWord:        s.wakeWordAdmin,
-		Speaker:         s.speakerAdmin,
-		TTSConfig:       s.ttsConfigAdmin,
-		SummarizeConfig: s.summarizeConfigAdmin,
-	}).Mount(s.router)
-
-	audioRuntimeH.Module(audioRuntimeH.Deps{
-		STT:      s.sttPort,
-		TTS:      s.ttsPort,
-		Playback: s.playbackRecorder,
-		Summ:     s.summarizer,
-	}).Mount(s.router)
-
-	// Voice streaming WebSocket proxy. Browser opens ws(s)://<web-console>/api/v1/voice/stream;
-	// web-console proxies to audio-tools server-side. interoperability rule:
-	// the UI never sees audio-tools' host.
-	if s.audioToolsResolver != nil {
-		s.router.Handle("/api/v1/voice/stream", newVoiceStreamProxy(s.audioToolsResolver))
-	}
-
-	// Global conversation event channel (Server-Sent Events). The UI opens ONE
-	// stream for ALL sessions; conversation events no longer ride the
-	// per-session terminal WebSocket. Raw HTTP handler (not Connect-RPC) because
-	// SSE is a long-lived streaming response the browser EventSource consumes.
-	s.router.HandleFunc("/api/v1/events/stream", s.handleEventStream).Methods("GET")
-
-	// Hooks — REST webhook receivers (Claude Code CLI dictates wire shape).
-	hooksH.Module(hooksH.Deps{
-		Stop:         s.handleHookStop,
-		PromptSubmit: s.handleHookPromptSubmit,
-	}).Mount(s.router)
-
-	// TTS hook routing diagnostics + auto/backend/startMuted preference triple.
-	// REST exception per RESTReasonHostHookGlue — this is web-console-internal
-	// Claude-hook glue and never crosses scenario boundaries. All audio
-	// synthesis flows through Connect against audio-tools (via audio-integration).
-	s.registerTTSHookRoutes()
-}
-
-// Handler returns the router wrapped with CORS and panic-recovery middleware.
+// Handler returns the router wrapped with CORS, security, and panic-recovery
+// middleware.
 // CORS accepts both localhost and 127.0.0.1 on the UI port so that desktop
 // bundles (where the UI and API run on separate ports) work without a proxy.
 func (s *Server) Handler() http.Handler {
@@ -875,12 +481,30 @@ func (s *Server) Handler() http.Handler {
 	// Handle returns *mux.Route and so does not satisfy devrouting.Mux.
 	rootMux := http.NewServeMux()
 	devrouting.RegisterWithFileRoots(rootMux, s.db, s.roots)
-	rootMux.Handle("/", handlers.RecoveryHandler()(cors(s.router)))
+	rootMux.Handle("/", securityHeadersMiddleware(handlers.RecoveryHandler()(cors(s.router))))
 
 	// TestModeMiddleware marks requests carrying X-Vrooli-Test-Mode: 1 so
 	// RoutedDB and RoutedRoots send them to the leased test pool/roots. It is
 	// a no-op pass-through in production mode.
 	return apihttp.TestModeMiddleware(rootMux)
+}
+
+// securityHeadersMiddleware stamps the baseline browser protections on every
+// response, including health and error responses produced outside a route
+// handler. HSTS is emitted only for HTTPS (or a TLS-terminating proxy that
+// forwards the original scheme) so local HTTP development is not pinned to an
+// unavailable HTTPS endpoint.
+func securityHeadersMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("X-Content-Type-Options", "nosniff")
+		w.Header().Set("X-Frame-Options", "SAMEORIGIN")
+		w.Header().Set("X-XSS-Protection", "0")
+		w.Header().Set("Referrer-Policy", "strict-origin-when-cross-origin")
+		if r.TLS != nil || strings.EqualFold(r.Header.Get("X-Forwarded-Proto"), "https") {
+			w.Header().Set("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
+		}
+		next.ServeHTTP(w, r)
+	})
 }
 
 // SetSpeechToText substitutes the SpeechToText port. Tests use this to inject
@@ -966,7 +590,7 @@ func resolveSQLiteDSN() string {
 		log.Fatalf("resolve db path: %v", err)
 	}
 
-	migrateLegacyDB(dbPath)
+	legacymigrate.MigrateDatabase(dbPath)
 
 	log.Printf("SQLite database: %s", dbPath)
 	dsn, err := storage.SQLiteDSNAt(dbPath, storage.SQLiteTuning{})
@@ -976,173 +600,12 @@ func resolveSQLiteDSN() string {
 	return dsn
 }
 
-// migrateLegacyDB relocates a pre-runtime-home web-console database to the
-// canonical path. Before the ~/.vrooli storage migration the DB lived under the
-// XDG data dir (~/.local/share/vrooli/web-console/web-console.db). When the
-// resolver started pointing at ~/.vrooli the DB was NOT moved, so a rebuilt
-// binary opened a brand-new empty DB and recovery treated every live session as
-// an orphan (the 2026-05-27 data-loss incident). This one-time, idempotent copy
-// closes that gap: when the canonical DB is absent but a legacy copy exists,
-// bring it (and any WAL sidecars) across before the DB is opened.
-func migrateLegacyDB(dbPath string) {
-	if _, err := os.Stat(dbPath); err == nil {
-		return // canonical DB already present; nothing to migrate
-	} else if !errors.Is(err, os.ErrNotExist) {
-		return // unexpected stat error: leave handling to the DB opener
-	}
-
-	for _, legacy := range legacyDBCandidates() {
-		if legacy == dbPath {
-			continue
-		}
-		if _, err := os.Stat(legacy); err != nil {
-			continue
-		}
-		// Copy the DB plus any WAL sidecars so uncommitted data is preserved;
-		// SQLite replays the WAL on first open.
-		if err := copyFileIfExists(legacy, dbPath); err != nil {
-			log.Printf("legacy-db migration: copy %s: %v", legacy, err)
-			continue
-		}
-		for _, suffix := range []string{"-wal", "-shm"} {
-			if err := copyFileIfExists(legacy+suffix, dbPath+suffix); err != nil {
-				log.Printf("legacy-db migration: copy %s: %v", legacy+suffix, err)
-			}
-		}
-		log.Printf("legacy-db migration: relocated %s -> %s", legacy, dbPath)
-		return
-	}
-}
-
-// legacyDBCandidates lists pre-migration database locations, most-specific first.
-func legacyDBCandidates() []string {
-	var out []string
-	if xdg := os.Getenv("XDG_DATA_HOME"); xdg != "" {
-		out = append(out, filepath.Join(xdg, "vrooli", "web-console", "web-console.db"))
-	}
-	if home, err := os.UserHomeDir(); err == nil {
-		out = append(out, filepath.Join(home, ".local", "share", "vrooli", "web-console", "web-console.db"))
-	}
-	return out
-}
-
-// legacyStateFiles is the manifest of State-class artifacts the ~/.vrooli
-// storage migration must bring across. hook-token.txt is the load-bearing one
-// — a fresh canonical token breaks the X-Hook-Token contract with claude-code
-// hooks and silently zeros the conversation_events stream. The remaining
-// configs default cleanly when absent, so their loss is invisible to the
-// failure mode but observable as the user "losing" their voice/TTS preferences;
-// migrating them at the same time is the cheap, complete fix.
-var legacyStateFiles = []string{
-	"hook-token.txt",
-	"tts-config.json",
-	"tts-hook-config.json",
-	"tts-summarize-config.json",
-	"voice-config.json",
-	"speaker-verification-config.json",
-	"wakeword-template.json",
-}
-
-// migrateLegacyStateFiles relocates the State-class web-console artifacts the
-// 2026-05-27 ~/.vrooli storage migration left behind. It must run BEFORE any
-// State-class file is read — most importantly loadOrCreateHookToken, which
-// otherwise mints a fresh token on first miss and locks claude-code hooks out.
-// Idempotent per file: only migrates when the canonical destination is absent.
+// migrateLegacyStateFiles adapts the application storage resolver to the
+// standalone legacy-migration package and runs before any state file is read.
 func migrateLegacyStateFiles() {
-	for _, name := range legacyStateFiles {
-		canonical := mustResolveScenarioStoragePath(storage.ClassState, name)
-		migrateLegacyStateFile(canonical, name)
-	}
-}
-
-// migrateLegacyStateFile is the per-file primitive behind migrateLegacyStateFiles.
-// Split out so tests can exercise a single artifact under a temp HOME without
-// depending on the full scenario-storage resolver.
-func migrateLegacyStateFile(canonicalPath, name string) {
-	if _, err := os.Stat(canonicalPath); err == nil {
-		return
-	} else if !errors.Is(err, os.ErrNotExist) {
-		return
-	}
-	for _, legacy := range legacyStateCandidates(name) {
-		if legacy == canonicalPath {
-			continue
-		}
-		info, err := os.Stat(legacy)
-		if err != nil {
-			continue
-		}
-		if err := copyFileWithMode(legacy, canonicalPath, info.Mode().Perm()); err != nil {
-			log.Printf("legacy-state migration: copy %s: %v", legacy, err)
-			continue
-		}
-		log.Printf("legacy-state migration: relocated %s -> %s", legacy, canonicalPath)
-		return
-	}
-}
-
-// legacyStateCandidates lists pre-migration State-class locations, most-specific
-// first. Unlike legacyDBCandidates, these live under XDG_STATE_HOME
-// (~/.local/state), so a separate resolver is required.
-func legacyStateCandidates(name string) []string {
-	var out []string
-	if xdg := os.Getenv("XDG_STATE_HOME"); xdg != "" {
-		out = append(out, filepath.Join(xdg, "vrooli", "web-console", name))
-	}
-	if home, err := os.UserHomeDir(); err == nil {
-		out = append(out, filepath.Join(home, ".local", "state", "vrooli", "web-console", name))
-	}
-	return out
-}
-
-// copyFileWithMode copies src to dst with an explicit mode, creating dst's
-// parent directory. Distinct from copyFileIfExists because hook-token.txt is
-// sensitive and must land 0o600, not the default 0o644.
-func copyFileWithMode(src, dst string, mode os.FileMode) error {
-	in, err := os.Open(src)
-	if err != nil {
-		return err
-	}
-	defer in.Close() //nolint:errcheck
-
-	if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
-		return err
-	}
-	out, err := os.OpenFile(dst, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, mode)
-	if err != nil {
-		return err
-	}
-	if _, err := io.Copy(out, in); err != nil {
-		_ = out.Close()
-		return err
-	}
-	return out.Close()
-}
-
-// copyFileIfExists copies src to dst, creating dst's parent dir. A missing src
-// is a no-op (returns nil) so optional WAL sidecars can be attempted blindly.
-func copyFileIfExists(src, dst string) error {
-	in, err := os.Open(src)
-	if err != nil {
-		if errors.Is(err, os.ErrNotExist) {
-			return nil
-		}
-		return err
-	}
-	defer in.Close() //nolint:errcheck
-
-	if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
-		return err
-	}
-	out, err := os.Create(dst)
-	if err != nil {
-		return err
-	}
-	if _, err := io.Copy(out, in); err != nil {
-		_ = out.Close()
-		return err
-	}
-	return out.Close()
+	legacymigrate.MigrateStateFiles(func(name string) string {
+		return mustResolveScenarioStoragePath(storage.ClassState, name)
+	}, legacymigrate.DefaultStateFiles)
 }
 
 func resolveHookTokenPath() string {
@@ -1216,7 +679,7 @@ func (s *Server) getClaudeHookStatus() (bool, string, string, string) {
 						return false, "hook_stale", "Claude Stop hook exists but has an outdated authentication token", settingsPath
 					}
 				case "command":
-					if !strings.Contains(hook.Command, "claude-stop-hook.sh") {
+					if !strings.Contains(hook.Command, "web-console") || !strings.Contains(hook.Command, "hooks dispatch") || !strings.Contains(hook.Command, "--event 'Stop'") {
 						return false, "hook_stale", "Claude Stop hook exists but uses an unexpected command", settingsPath
 					}
 					if expectedURL != "" && !strings.Contains(hook.Command, expectedURL) {
@@ -1390,6 +853,9 @@ func main() {
 		WriteTimeout: 150 * time.Second,
 		Cleanup: func(ctx context.Context) error {
 			srv.sweeper.Stop()
+			if srv.conversationRetention != nil {
+				srv.conversationRetention.Stop()
+			}
 			srv.sessions.StopReattachWatchdog()
 			if srv.codexTailer != nil {
 				srv.codexTailer.Stop()

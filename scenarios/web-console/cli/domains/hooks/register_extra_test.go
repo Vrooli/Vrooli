@@ -62,7 +62,7 @@ func TestRegistrarEnvironmentResolution(t *testing.T) {
 
 func TestRegisterExposesValidationCommands(t *testing.T) {
 	group := Register()
-	if len(group.Subcommands) != 2 {
+	if len(group.Subcommands) != 3 {
 		t.Fatalf("commands = %#v", group.Subcommands)
 	}
 	for _, command := range group.Subcommands {

@@ -77,8 +77,6 @@ func KnownForPlatform(goos string) []Def {
 	}
 	for i := range defs {
 		switch defs[i].ID {
-		case "session-backend-standard":
-			defs[i].Platform = capabilityregistry.PlatformVerdict{Support: capabilityregistry.PlatformUnsupported, Reason: "no PTY implementation for this platform"}
 		case "session-backend-persistent":
 			defs[i].Platform = capabilityregistry.PlatformVerdict{Support: capabilityregistry.PlatformUnsupported, Reason: "tmux is not available on this platform"}
 		}

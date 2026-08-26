@@ -1,12 +1,12 @@
 {
   "_metadata": {
-    "last_validated_at": "2026-08-25T17:35:46-04:00"
+    "last_validated_at": "2026-08-26T09:02:31-04:00"
   },
   "requirements": [
     {
       "id": "REQ-P0-007a",
       "title": "Floating Toolbar Component",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-007",
       "category": "ui",
       "description": "Floating toolbar component renders above mobile keyboard with essential terminal keys (Ctrl, Alt, Tab, Esc, arrows). Does not overlap terminal viewport.",
@@ -18,14 +18,14 @@
           "type": "test",
           "ref": "ui/src/__tests__/toolbar.test.ts",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Toolbar exports TOOLBAR_KEYS with essential terminal keys"
         },
         {
           "type": "test",
           "ref": "ui/src/__tests__/selectors.test.ts:exposes toolbar container selector",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Toolbar container selector registered"
         }
       ]
@@ -33,7 +33,7 @@
     {
       "id": "REQ-P0-007b",
       "title": "Terminal Key/Chord Mapping",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-007",
       "category": "ui",
       "description": "Toolbar keys inject correct escape sequences into active terminal. Chord support (Ctrl+C, Ctrl+D, Ctrl+Z) works reliably.",
@@ -45,14 +45,14 @@
           "type": "test",
           "ref": "ui/src/__tests__/toolbar-keys.test.ts",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "All chord sequences (Ctrl+C/D/Z) produce correct escape codes"
         },
         {
           "type": "test",
           "ref": "ui/src/__tests__/toolbar-keys.test.ts",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Arrow keys and special keys send correct ANSI sequences"
         }
       ]
@@ -60,7 +60,7 @@
     {
       "id": "REQ-P0-007b-i",
       "title": "Chord Sequence Reliability",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-007",
       "category": "ui",
       "description": "Chord sequences (Ctrl+C, Ctrl+D, Ctrl+Z) reliably produce correct escape codes under rapid input and concurrent terminal sessions.",
@@ -69,7 +69,7 @@
           "type": "test",
           "ref": "ui/src/__tests__/toolbar-keys.test.ts",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "All chord sequences produce correct escape codes"
         }
       ]

@@ -4,7 +4,7 @@ import { useStdinStream, type InputSettledListener } from "./useStdinStream";
 import type { TerminalMessage } from "../../types/terminal";
 
 describe("useStdinStream", () => {
-  function setup() {
+  function setup(options: { onUnreconcilable?: (offset: number) => void } = {}) {
     const frames: TerminalMessage[] = [];
     let ready = true;
     const rendered = renderHook(() => useStdinStream({
@@ -13,6 +13,7 @@ describe("useStdinStream", () => {
         return true;
       },
       isSessionReady: () => ready,
+      onUnreconcilable: options.onUnreconcilable,
     }));
     return { result: rendered.result, frames, setReady: (value: boolean) => { ready = value; } };
   }
@@ -56,7 +57,8 @@ describe("useStdinStream", () => {
   });
 
   it("reports a mid-entry server offset as unreconcilable", () => {
-    const { result } = setup();
+    const onUnreconcilable = vi.fn();
+    const { result } = setup({ onUnreconcilable });
     const events: Array<[number, boolean, string | undefined]> = [];
     const listener: InputSettledListener = (offset, ok, reason) => events.push([offset, ok, reason]);
 
@@ -66,12 +68,26 @@ describe("useStdinStream", () => {
       result.current.reconcile(1);
     });
 
-    expect(events).toEqual([[1, false, "unreconcilable"]]);
+    expect(events).toEqual([]);
+    expect(onUnreconcilable).toHaveBeenCalledWith(1);
     expect(result.current.send("later", "typing")).toEqual({ sent: false, reason: "not-ready" });
   });
 
+  it("routes connection reconciliation failures to the connection-status callback", () => {
+    const onUnreconcilable = vi.fn();
+    const { result } = setup({ onUnreconcilable });
+    const settled = vi.fn();
+    result.current.subscribeInputSettled(settled);
+
+    act(() => result.current.reconcile(1));
+
+    expect(settled).not.toHaveBeenCalled();
+    expect(onUnreconcilable).toHaveBeenCalledWith(1);
+  });
+
   it("rejects a server offset that is ahead of the local write head", () => {
-    const { result } = setup();
+    const onUnreconcilable = vi.fn();
+    const { result } = setup({ onUnreconcilable });
     const events: Array<[number, boolean, string | undefined]> = [];
 
     act(() => {
@@ -80,12 +96,14 @@ describe("useStdinStream", () => {
       result.current.reconcile(2);
     });
 
-    expect(events).toEqual([[2, false, "unreconcilable"]]);
+    expect(events).toEqual([]);
+    expect(onUnreconcilable).toHaveBeenCalledWith(2);
     expect(result.current.send("later", "typing")).toEqual({ sent: false, reason: "not-ready" });
   });
 
   it("refuses a server offset below the already released prefix", () => {
-    const { result } = setup();
+    const onUnreconcilable = vi.fn();
+    const { result } = setup({ onUnreconcilable });
     const events: Array<[number, boolean, string | undefined]> = [];
 
     act(() => {
@@ -95,7 +113,8 @@ describe("useStdinStream", () => {
       result.current.reconcile(0);
     });
 
-    expect(events).toEqual([[1, true, undefined], [0, false, "unreconcilable"]]);
+    expect(events).toEqual([[1, true, undefined]]);
+    expect(onUnreconcilable).toHaveBeenCalledWith(0);
     expect(result.current.send("later", "typing")).toEqual({ sent: false, reason: "not-ready" });
   });
 
@@ -110,5 +129,58 @@ describe("useStdinStream", () => {
     });
 
     expect(frames).toEqual([expect.objectContaining({ data: "queued", offset: 0, intent: "bulk_text" })]);
+  });
+
+  it("clears the unreconcilable latch and rebases input on a new connection", () => {
+    const onUnreconcilable = vi.fn();
+    const { result, frames } = setup({ onUnreconcilable });
+
+    act(() => {
+      result.current.send("é", "typing");
+      result.current.reconcile(1);
+      result.current.resetForNewConnection();
+    });
+
+    expect(onUnreconcilable).toHaveBeenCalledWith(1);
+    expect(result.current.send("x", "typing")).toEqual({ sent: true, offset: 3 });
+    expect(frames.at(-1)).toEqual(expect.objectContaining({ type: "stdin", data: "x", offset: 2 }));
+  });
+
+  it("coalesces adjacent typing actions but keeps intent boundaries", () => {
+    const { result } = setup();
+    act(() => {
+      result.current.enqueue("hel", "typing");
+      result.current.enqueue("lo", "typing");
+      result.current.enqueue("\x1b[A", "named_key");
+    });
+    expect(result.current.getPendingSnapshot()).toHaveLength(2);
+    expect(result.current.getPendingSnapshot()[0]).toMatchObject({ data: "hello", intent: "typing" });
+  });
+
+  it("supports discarding individual and all pending actions", () => {
+    const { result } = setup();
+    act(() => {
+      result.current.enqueue("one", "typing");
+      result.current.enqueue("two", "bulk_text");
+      result.current.discardEntry(0);
+    });
+    expect(result.current.getPendingSnapshot().map((entry) => entry.data)).toEqual(["two"]);
+    act(() => result.current.discardAll());
+    expect(result.current.getPendingSnapshot()).toEqual([]);
+  });
+
+  it("holds old pending actions until an explicit flushNow", () => {
+    vi.useFakeTimers();
+    const { result, frames } = setup();
+    act(() => {
+      result.current.enqueue("old", "typing");
+      vi.advanceTimersByTime(11 * 60 * 1000);
+      result.current.flush();
+    });
+    expect(frames).toEqual([]);
+    expect(result.current.getPendingSnapshot()[0]).toMatchObject({ data: "old", held: true });
+    act(() => result.current.flushNow());
+    expect(frames).toContainEqual(expect.objectContaining({ data: "old" }));
+    vi.useRealTimers();
   });
 });

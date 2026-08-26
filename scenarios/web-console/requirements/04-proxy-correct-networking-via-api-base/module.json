@@ -1,12 +1,12 @@
 {
   "_metadata": {
-    "last_validated_at": "2026-08-25T17:35:46-04:00"
+    "last_validated_at": "2026-08-26T09:02:31-04:00"
   },
   "requirements": [
     {
       "id": "REQ-P0-004a",
       "title": "api-base HTTP Integration",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-004",
       "category": "integration",
       "description": "All HTTP REST calls (health, sessions CRUD) route through api-base resolveApiBase/buildApiUrl helpers. No hardcoded origins.",
@@ -18,14 +18,14 @@
           "type": "test",
           "ref": "ui/src/__tests__/api.test.ts:createSession sends POST",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "All REST calls use api-base URL builder"
         },
         {
           "type": "test",
           "ref": "ui/src/__tests__/api.test.ts:deleteSession sends DELETE",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Delete session uses api-base routing"
         }
       ]
@@ -33,7 +33,7 @@
     {
       "id": "REQ-P0-004b",
       "title": "api-base WebSocket Integration",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-004",
       "category": "integration",
       "description": "WebSocket connections for terminal I/O use api-base WS URL resolution. Connection upgrades work through reverse proxies.",
@@ -45,7 +45,7 @@
           "type": "test",
           "ref": "ui/src/__tests__/api.test.ts:buildSessionWsUrl constructs correct WebSocket URL",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "WebSocket URL constructed through api-base resolver"
         }
       ]
@@ -53,7 +53,7 @@
     {
       "id": "REQ-P0-004b-i",
       "title": "Proxy Connection Upgrade",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-004",
       "category": "integration",
       "description": "WebSocket upgrade requests route through reverse proxy without direct-origin assumptions. Connection negotiation handles proxy headers.",
@@ -62,7 +62,7 @@
           "type": "test",
           "ref": "ui/src/__tests__/api.test.ts:buildSessionWsUrl constructs correct WebSocket URL",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "WebSocket URL resolution uses api-base WS helpers"
         }
       ]

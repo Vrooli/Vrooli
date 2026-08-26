@@ -25,6 +25,7 @@ import (
 	"log"
 
 	"web-console/internal/backend"
+	"web-console/internal/pty"
 	"web-console/terminal"
 )
 
@@ -65,9 +66,8 @@ func (s *Session) runAnsiResponder(events <-chan terminal.ControlEvent) {
 			if len(reply) == 0 {
 				continue
 			}
-			in := InputRaw(reply).WithSource(ansiResponderSource)
-			if err := s.SendInput(in); err != nil {
-				log.Printf("session %s: ansi-responder write failed: %v", s.ID, err)
+			if _, err := s.EnqueueInput(reply, pty.KindControl); err != nil {
+				log.Printf("session %s: ansi-responder enqueue failed: %v", s.ID, err)
 			}
 		}
 	}

@@ -1,6 +1,6 @@
 // DOC: docs/concepts/ARCHITECTURE.md#terminal-io
 // DOC: docs/internal/SEAMS.md#1-entry-presentation
-import { useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState, forwardRef } from "react";
+import { useCallback, useEffect, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState, forwardRef } from "react";
 import "@xterm/xterm/css/xterm.css";
 import { useTranslation } from "react-i18next";
 import { useXtermLifecycle } from "../hooks/terminal/useXtermLifecycle";
@@ -65,7 +65,10 @@ export interface TerminalPaneHandle {
   };
   pendingInput: {
     subscribe: (cb: () => void) => () => void;
-    snapshot: () => readonly { data: string; addedAt: number }[];
+    snapshot: () => readonly { data: string; addedAt: number; intent: "typing" | "bulk_text" | "named_key"; held?: boolean }[];
+    discard: (index: number) => void;
+    discardAll: () => void;
+    flushNow: () => void;
   };
   playback: PaneSpeechPlaybackHandle;
 }
@@ -111,7 +114,7 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
     const getServerSizeFromSession = useCallback(() => serverSizeRef.current, []);
     const renamePaneById = useWorkspaceStore((state) => state.renamePaneById);
     const { syncPaneUpdate } = useWorkspaceSync();
-    const { containerRef, fitRef, terminal, paneSize } = useXtermLifecycle({
+    const { containerRef, terminalHostRef, fitRef, terminal, paneSize, scrollAwareFit } = useXtermLifecycle({
       sessionId,
       paneFontSize,
       paneTheme,
@@ -124,7 +127,7 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
     });
 
     // Delegate all WebSocket protocol handling to the session hook
-  const { submitInput, sendControl, setMouseMode, mouseMode, scrollBy, sendResize, serverSize, isFollower, leaderDevice, takeLease, subscribeInputSettled, awaitOffset, subscribePendingInput, getPendingInputSnapshot, sendConversationAck } = useTerminalSession({
+  const { submitInput, sendControl, setMouseMode, mouseMode, scrollBy, sendResize, serverSize, isFollower, leaderDevice, viewerCount, takeLease, subscribeInputSettled, awaitOffset, subscribePendingInput, getPendingInputSnapshot, discardPendingInput, discardAllPendingInput, flushPendingInputNow, sendConversationAck } = useTerminalSession({
       sessionId,
       terminal,
       predictionContainer: containerRef.current,
@@ -161,7 +164,39 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
     sendResizeRef.current = sendResize;
     serverSizeRef.current = serverSize;
     isFollowerRef.current = isFollower;
-    const followerFrame = useFollowerPresentation({ terminal, fitRef, serverSize, isFollower, paneSize });
+    const followerFrame = useFollowerPresentation({ terminal, serverSize, isFollower, paneSize });
+
+    useLayoutEffect(() => {
+      const host = terminalHostRef.current;
+      if (!host || !terminal) return;
+      if (!followerFrame) {
+        host.style.position = "";
+        host.style.left = "";
+        host.style.top = "";
+        host.style.width = "";
+        host.style.height = "";
+        host.style.transformOrigin = "";
+        host.style.transform = "";
+        host.style.transition = "";
+        terminal.options.fontSize = paneFontSize;
+        scrollAwareFit();
+        return;
+      }
+      const { screenRect } = followerFrame;
+      host.style.position = "absolute";
+      host.style.left = `${String(screenRect.x)}px`;
+      host.style.top = `${String(screenRect.y)}px`;
+      host.style.width = `${String(screenRect.width / screenRect.scale)}px`;
+      host.style.height = `${String(screenRect.height / screenRect.scale)}px`;
+      host.style.transformOrigin = "top left";
+      host.style.transform = screenRect.scale < 1 ? `scale(${String(screenRect.scale)})` : "";
+      host.style.transition = "left 240ms ease, top 240ms ease, width 240ms ease, height 240ms ease, transform 240ms ease";
+      terminal.options.fontSize = screenRect.fontSize;
+      fitRef.current?.fit();
+      if (terminal.cols !== followerFrame.cols || terminal.rows !== followerFrame.rows) {
+        terminal.resize(followerFrame.cols, followerFrame.rows);
+      }
+    }, [fitRef, followerFrame, paneFontSize, scrollAwareFit, terminal, terminalHostRef]);
 
     const { supported: speechSupported, playback } = usePaneSpeech({
       sessionId,
@@ -186,7 +221,7 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
       const entries = consumePendingInputBuffer(sessionId);
       for (const entry of entries ?? []) submitInputRef.current(entry.data, entry.intent);
       return () => {
-        const entries = getPendingInputSnapshotRef.current().map((entry) => ({ data: entry.data, intent: entry.intent }));
+        const entries = getPendingInputSnapshotRef.current().map((entry) => ({ ...entry }));
         setPendingInputBuffer(sessionId, entries);
       };
     }, [sessionId, consumePendingInputBuffer, setPendingInputBuffer]);
@@ -218,9 +253,9 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
         copy: selection.copySelection,
         paste: selection.pasteFromClipboard,
       },
-      pendingInput: { subscribe: subscribePendingInput, snapshot: getPendingInputSnapshot },
+      pendingInput: { subscribe: subscribePendingInput, snapshot: getPendingInputSnapshot, discard: discardPendingInput, discardAll: discardAllPendingInput, flushNow: flushPendingInputNow },
       playback,
-    }), [awaitOffset, getPendingInputSnapshot, playback, selection.copySelection, selection.pasteFromClipboard, sendControl, scrollBy, subscribeInputSettled, subscribePendingInput, submitInput, terminal]);
+    }), [awaitOffset, discardAllPendingInput, discardPendingInput, flushPendingInputNow, getPendingInputSnapshot, playback, selection.copySelection, selection.pasteFromClipboard, sendControl, scrollBy, subscribeInputSettled, subscribePendingInput, submitInput, terminal]);
 
     const closeContextMenu = selection.closeContextMenu;
     const handleCtxSpeak = useCallback(() => {
@@ -253,6 +288,8 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
         ref={containerRef}
         data-testid="terminal-pane"
         data-session-id={sessionId}
+        role="group"
+        aria-label="Terminal pane"
         // overflow-hidden is critical: xterm.js manages its own scrolling via
         // an internal .xterm-viewport element (overflow-y: scroll). Without
         // clipping overflow here, the browser creates a SECOND native scrollbar
@@ -266,6 +303,7 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
       >
+        <div ref={terminalHostRef} className="h-full w-full" data-testid="terminal-host" />
         <PaneSelectionLayer
           contextMenu={selection.contextMenu}
           hasSelection={selection.hasSelection}
@@ -286,7 +324,7 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
           onClose={selection.closeContextMenu}
         >
           {pinchPreviewFontSize !== null && <div data-testid="pinch-font-preview" role="status" className="absolute top-2 right-2 z-wc-chrome-raised rounded bg-slate-900/90 px-2 py-1 text-xs text-slate-100 shadow-lg">{pinchPreviewFontSize}px</div>}
-          {followerFrame && <DeviceFrame archetype={followerFrame.archetype} chromeTier={followerFrame.tier} rect={followerFrame.rect} leaderDevice={leaderDevice} gridCols={followerFrame.cols} gridRows={followerFrame.rows} onTakeOver={takeLease} />}
+          {followerFrame && viewerCount > 1 && <DeviceFrame archetype={followerFrame.archetype} chromeTier={followerFrame.tier} rect={followerFrame.rect} leaderDevice={leaderDevice} gridCols={followerFrame.cols} gridRows={followerFrame.rows} onTakeOver={takeLease} />}
         </PaneSelectionLayer>
         <input ref={fileInputRef} type="file" accept="image/*" hidden onChange={handleFileInputChange} />
       </div>

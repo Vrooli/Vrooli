@@ -559,7 +559,7 @@ const handle = {
   input: { submit: vi.fn(() => ({ status: "sent" as const, offset: 1 })), subscribeSettled: vi.fn(() => () => {}), awaitOffset: vi.fn(() => () => {}) },
   control: { send: vi.fn(() => true), scroll: vi.fn(), focus: vi.fn() },
   selection: { copy: vi.fn(async () => true), paste: vi.fn(async () => true) },
-  pendingInput: { subscribe: vi.fn(() => () => {}), snapshot: vi.fn(() => []) },
+  pendingInput: { subscribe: vi.fn(() => () => {}), snapshot: vi.fn(() => []), discard: vi.fn(), discardAll: vi.fn(), flushNow: vi.fn() },
   playback: { stop: vi.fn(), speak: vi.fn(), pause: vi.fn(), resume: vi.fn(), seek: vi.fn(), setPlaybackRate: vi.fn(), setVolume: vi.fn(), setMuted: vi.fn(), getState: vi.fn() },
 };
     act(() => {
@@ -622,7 +622,7 @@ const handle = {
       },
       control: { send: vi.fn(() => true), scroll: vi.fn(), focus: vi.fn() },
       selection: { copy: vi.fn().mockResolvedValue(true), paste: vi.fn().mockResolvedValue(true) },
-      pendingInput: { subscribe: vi.fn(() => () => {}), snapshot: vi.fn(() => [{ data: "x", addedAt: 1 }]) },
+      pendingInput: { subscribe: vi.fn(() => () => {}), snapshot: vi.fn(() => [{ data: "x", addedAt: 1, intent: "typing" as const }]), discard: vi.fn(), discardAll: vi.fn(), flushNow: vi.fn() },
       playback: {
         stop: vi.fn(), speak: vi.fn().mockResolvedValue("ok"), pause: vi.fn(), resume: vi.fn(), seek: vi.fn(),
         setPlaybackRate: vi.fn(), setVolume: vi.fn(), setMuted: vi.fn(), getState: vi.fn().mockReturnValue({ playing: true }),
@@ -630,7 +630,7 @@ const handle = {
     };
     act(() => result.current.registerTerminalRef("facade", handle));
     expect(result.current.submitToActiveTerminal("x", "typing")).toEqual({ status: "sent", offset: 4 });
-    expect(result.current.getActivePendingInputSnapshot()).toEqual([{ data: "x", addedAt: 1 }]);
+    expect(result.current.getActivePendingInputSnapshot()).toEqual([{ data: "x", addedAt: 1, intent: "typing" }]);
     await expect(result.current.copySelectionOnPane()).resolves.toBe(true);
     await expect(result.current.pasteFromClipboardOnPane()).resolves.toBe(true);
     result.current.scrollTerminalOnPane(2);

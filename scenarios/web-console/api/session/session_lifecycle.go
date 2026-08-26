@@ -58,10 +58,11 @@ func (sm *Manager) Shutdown() {
 	// shutdown where retries would create new attach processes that get
 	// immediately killed.
 	for _, sess := range snapshot {
+		sess.stopInputWriter()
 		if sess.Backend == backend.Persistent {
-			sess.mu.Lock()
+			sess.emuMu.Lock()
 			sess.closing = true
-			sess.mu.Unlock()
+			sess.emuMu.Unlock()
 		}
 	}
 
@@ -71,13 +72,17 @@ func (sm *Manager) Shutdown() {
 			// without killing it. The readLoop will see EOF and exit, but
 			// the auto-remove goroutine checks shuttingDown and preserves
 			// the metadata.
-			_ = sess.pty.Close()
+			_ = sess.currentPTY().Close()
 			log.Printf("shutdown: detached from persistent session %s", sess.ID)
 		} else {
-			_ = sess.pty.Kill()
-			_ = sess.pty.Close()
+			p := sess.currentPTY()
+			_ = p.Kill()
+			_ = p.Close()
 			log.Printf("shutdown: killed standard session %s", sess.ID)
 		}
+	}
+	if sm.lifecycleCancel != nil {
+		sm.lifecycleCancel()
 	}
 }
 
@@ -296,7 +301,10 @@ func (sm *Manager) reattachSession(ctx context.Context, store sessionstore.Store
 		Backend:                 meta.Backend,
 		pty:                     p,
 		policy:                  meta.Policy,
+		uploadRoot:              sm.uploadDirFunc(),
 		clients:                 make(map[chan []byte]*ClientInfo),
+		inputQueue:              make(chan queuedInput, sm.cfg.InputQueueSize),
+		inputStopCh:             make(chan struct{}),
 		exitCh:                  make(chan struct{}),
 		emu:                     terminal.New(terminal.Options{Cols: int(meta.Cols), Rows: int(meta.Rows), ScrollbackLines: sm.cfg.TerminalScrollbackLines}),
 		ptyReadBuffer:           sm.cfg.PTYReadBuffer,
@@ -307,6 +315,8 @@ func (sm *Manager) reattachSession(ctx context.Context, store sessionstore.Store
 		sessionPrefix:           sm.tmuxSessionPrefix,
 		metrics:                 sm.metrics,
 	}
+	sess.RefreshEchoState(true)
+	sess.startInputWriter()
 
 	sm.mu.Lock()
 	sm.sessions[id] = sess
@@ -323,9 +333,9 @@ func (sm *Manager) reattachSession(ctx context.Context, store sessionstore.Store
 		// Persistent sessions: preserve metadata for future recovery.
 		// Standard sessions: delete metadata (they cannot survive).
 		if sm.store != nil && bid != backend.Persistent {
-			_ = sm.store.Delete(context.Background(), sessID)
+			_ = sm.store.Delete(sm.lifecycleCtx, sessID)
 		}
-		uploadDir := filepath.Join(sm.uploadDirFunc(), sessID)
+		uploadDir := filepath.Join(sess.uploadRoot, sessID)
 		if err := os.RemoveAll(uploadDir); err != nil && !os.IsNotExist(err) {
 			log.Printf("session %s: failed to clean up upload dir: %v", sessID, err)
 		}
@@ -369,13 +379,16 @@ func (sm *Manager) StopReattachWatchdog() {
 }
 
 func (sm *Manager) reattachWatchdogLoop() {
+	sm.mu.RLock()
+	stopCh := sm.reattachStopCh
+	sm.mu.RUnlock()
 	ticker := time.NewTicker(reattachWatchdogInterval)
 	defer ticker.Stop()
 	for {
 		select {
 		case <-ticker.C:
 			sm.reattachOrphanedSessions()
-		case <-sm.reattachStopCh:
+		case <-stopCh:
 			return
 		}
 	}
@@ -389,7 +402,7 @@ func (sm *Manager) reattachOrphanedSessions() {
 	if sm.store == nil {
 		return
 	}
-	metaList, err := sm.store.ListDetached(context.Background())
+	metaList, err := sm.store.ListDetached(sm.lifecycleCtx)
 	if err != nil {
 		return
 	}
@@ -408,7 +421,7 @@ func (sm *Manager) reattachOrphanedSessions() {
 		p, attachErr := sm.tmuxAttachFunc(sessionName)
 		if attachErr != nil {
 			// tmux session is gone — clean up stale metadata
-			_ = sm.store.Delete(context.Background(), meta.ID)
+			_ = sm.store.Delete(sm.lifecycleCtx, meta.ID)
 			log.Printf("reattach-watchdog: session %s tmux session gone, cleaned up metadata", meta.ID)
 			continue
 		}
@@ -423,6 +436,8 @@ func (sm *Manager) reattachOrphanedSessions() {
 			pty:                     p,
 			policy:                  meta.Policy,
 			clients:                 make(map[chan []byte]*ClientInfo),
+			inputQueue:              make(chan queuedInput, sm.cfg.InputQueueSize),
+			inputStopCh:             make(chan struct{}),
 			exitCh:                  make(chan struct{}),
 			emu:                     terminal.New(terminal.Options{Cols: int(meta.Cols), Rows: int(meta.Rows), ScrollbackLines: sm.cfg.TerminalScrollbackLines}),
 			ptyReadBuffer:           sm.cfg.PTYReadBuffer,
@@ -433,6 +448,8 @@ func (sm *Manager) reattachOrphanedSessions() {
 			sessionPrefix:           sm.tmuxSessionPrefix,
 			metrics:                 sm.metrics,
 		}
+		sess.RefreshEchoState(true)
+		sess.startInputWriter()
 
 		sm.mu.Lock()
 		// Double-check another goroutine didn't re-add it
@@ -453,9 +470,9 @@ func (sm *Manager) reattachOrphanedSessions() {
 			delete(sm.sessions, sessID)
 			sm.mu.Unlock()
 			if sm.store != nil && bid != backend.Persistent {
-				_ = sm.store.Delete(context.Background(), sessID)
+				_ = sm.store.Delete(sm.lifecycleCtx, sessID)
 			}
-			uploadDir := filepath.Join(sm.uploadDirFunc(), sessID)
+			uploadDir := filepath.Join(sess.uploadRoot, sessID)
 			if err := os.RemoveAll(uploadDir); err != nil && !os.IsNotExist(err) {
 				log.Printf("session %s: failed to clean up upload dir: %v", sessID, err)
 			}

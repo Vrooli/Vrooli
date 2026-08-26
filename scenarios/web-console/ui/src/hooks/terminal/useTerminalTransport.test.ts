@@ -36,6 +36,20 @@ describe("useTerminalTransport", () => {
     expect(isCleanWsClose(1006)).toBe(false);
   });
 
+  it("keeps the transport handle identity stable across rerenders", () => {
+    const socket = new FakeWebSocket();
+    const createSocket = () => socket as unknown as WebSocket;
+    const { result, rerender } = renderHook(
+      ({ url }: { url: string }) => useTerminalTransport({ url, createSocket }),
+      { initialProps: { url: "ws://example.test/stable" } },
+    );
+    const first = result.current;
+
+    rerender({ url: "ws://example.test/stable" });
+
+    expect(result.current).toBe(first);
+  });
+
   it("keeps retrying after a long server restart", async () => {
     const sockets: FakeWebSocket[] = [];
     renderHook(() => useTerminalTransport({

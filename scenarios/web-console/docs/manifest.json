@@ -415,6 +415,15 @@
           "ownerSkills": ["seam-discovery-and-enforcement"]
         },
         {
+          "path": "internal/reviews/INDEX.md",
+          "docType": "review-index",
+          "title": "Review Index",
+          "description": "Index of terminal reliability and portability review artifacts",
+          "audience": ["developers", "agents"],
+          "maturity": "active",
+          "completion": "optional"
+        },
+        {
           "path": "internal/BUNDLE_INTEGRATION.md",
           "docType": "bundle-integration",
           "title": "Bundle Integration",

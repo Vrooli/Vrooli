@@ -17,9 +17,9 @@ func registerClient(s *Session, chBuf int) (chan []byte, chan int, *ClientInfo) 
 	ch := make(chan []byte, chBuf)
 	notifyCh := make(chan int, 1)
 	info := &ClientInfo{NotifyCh: notifyCh}
-	s.mu.Lock()
+	s.emuMu.Lock()
 	s.clients[ch] = info
-	s.mu.Unlock()
+	s.emuMu.Unlock()
 	return ch, notifyCh, info
 }
 
@@ -44,9 +44,9 @@ func TestBroadcast_CoalescesWhenChannelFull(t *testing.T) {
 	s.broadcast([]byte("second"))
 	s.broadcast([]byte("third"))
 	<-ch
-	s.mu.Lock()
+	s.emuMu.Lock()
 	pending := append([]byte(nil), info.pending...)
-	s.mu.Unlock()
+	s.emuMu.Unlock()
 	if !bytes.Contains(pending, []byte("second")) || !bytes.Contains(pending, []byte("third")) {
 		t.Errorf("pending buffer missing coalesced frames: %q", pending)
 	}
@@ -71,6 +71,24 @@ func TestBroadcast_FeedsEmulator(t *testing.T) {
 	s.broadcast([]byte("hello\r\n"))
 	if !bytes.Contains(s.emu.Snapshot(), []byte("hello")) {
 		t.Fatalf("snapshot missing broadcasted bytes")
+	}
+}
+
+func TestBroadcast_RetainsCursorBoundedFramesForReconnect(t *testing.T) {
+	s := newBroadcastSession(4)
+	first := s.Subscribe()
+	s.Unsubscribe(first.OutputCh)
+	s.broadcast([]byte("one"))
+	s.broadcast([]byte("two"))
+	frames, cursor, ok := s.ReplayFrom(3)
+	if !ok || cursor != 6 || len(frames) != 1 {
+		t.Fatalf("ReplayFrom(3) = frames=%d cursor=%d ok=%v", len(frames), cursor, ok)
+	}
+	if string(frames[0].Data) != "two" || frames[0].StartCursor != 3 || frames[0].EndCursor != 6 {
+		t.Fatalf("unexpected replay frame: %+v", frames[0])
+	}
+	if _, _, ok := s.ReplayFrom(2); ok {
+		t.Fatal("replay accepted a cursor that is not on a frame boundary")
 	}
 }
 
@@ -116,12 +134,12 @@ func TestSubscribe_SnapshotPrecedesLiveFrames(t *testing.T) {
 	s := newBroadcastSession(4)
 	s.broadcast([]byte("before-subscribe\r\n"))
 	sub := SubscribeResult{}
-	s.mu.Lock()
+	s.emuMu.Lock()
 	sub.Snapshot = s.emu.Snapshot()
 	ch := make(chan []byte, 4)
 	s.clients[ch] = &ClientInfo{NotifyCh: make(chan int, 1)}
 	sub.OutputCh = ch
-	s.mu.Unlock()
+	s.emuMu.Unlock()
 	if !bytes.Contains(sub.Snapshot, []byte("before-subscribe")) {
 		t.Fatalf("snapshot missing pre-subscribe output")
 	}

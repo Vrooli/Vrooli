@@ -77,6 +77,12 @@ type Manager struct {
 	// reattachStopCh signals the periodic re-attach watchdog to stop.
 	reattachStopCh chan struct{}
 
+	// lifecycleCtx is owned by the manager rather than an HTTP request. It gives
+	// cleanup and watchdog goroutines a bounded lifetime without smuggling a
+	// request-scoped context into work that outlives the request.
+	lifecycleCtx    context.Context
+	lifecycleCancel context.CancelFunc
+
 	// recoveryMu guards recovery, the live progress of startup session
 	// recovery. Recovery runs asynchronously (so the HTTP listener comes up
 	// without waiting on reattaching N tmux sessions); this snapshot is what
@@ -110,10 +116,13 @@ type RecoveryProgress struct {
 // (package main) overwrite the defaults via the Set* methods; tests can use
 // the bare manager directly because the defaults won't panic.
 func NewManager(factory pty.Factory, cfg config.Config) *Manager {
+	lifecycleCtx, lifecycleCancel := context.WithCancel(context.Background())
 	return &Manager{
 		sessions:             make(map[string]*Session),
 		ptyFactory:           factory,
 		cfg:                  cfg,
+		lifecycleCtx:         lifecycleCtx,
+		lifecycleCancel:      lifecycleCancel,
 		uploadDirFunc:        func() string { return "" },
 		envForSession:        func(string) map[string]string { return nil },
 		tmuxDiscoverFunc:     func() ([]string, error) { return nil, nil },
@@ -326,6 +335,7 @@ func (sm *Manager) createWithRemote(ctx context.Context, shell string, cols, row
 	if err != nil {
 		return nil, fmt.Errorf("%w: %v", ErrPTYSpawnFailed, err)
 	}
+	uploadRoot := sm.uploadDirFunc()
 
 	// Resolve policy (read defaults under lock to avoid data race with settings handler)
 	var sessionPolicy policy.Policy
@@ -355,7 +365,10 @@ func (sm *Manager) createWithRemote(ctx context.Context, shell string, cols, row
 		Backend:                 bid,
 		pty:                     p,
 		policy:                  sessionPolicy,
+		uploadRoot:              uploadRoot,
 		clients:                 make(map[chan []byte]*ClientInfo),
+		inputQueue:              make(chan queuedInput, sm.cfg.InputQueueSize),
+		inputStopCh:             make(chan struct{}),
 		exitCh:                  make(chan struct{}),
 		emu:                     terminal.New(terminal.Options{Cols: int(cols), Rows: int(rows), ScrollbackLines: sm.cfg.TerminalScrollbackLines}),
 		ptyReadBuffer:           sm.cfg.PTYReadBuffer,
@@ -365,6 +378,8 @@ func (sm *Manager) createWithRemote(ctx context.Context, shell string, cols, row
 		sessionPrefix:           sm.tmuxSessionPrefix,
 		metrics:                 sm.metrics,
 	}
+	sess.RefreshEchoState(true)
+	sess.startInputWriter()
 
 	sm.mu.Lock()
 	sm.sessions[sess.ID] = sess
@@ -408,10 +423,10 @@ func (sm *Manager) createWithRemote(ctx context.Context, shell string, cols, row
 		//
 		// Standard sessions: always delete metadata (they cannot survive).
 		if sm.store != nil && bid != backend.Persistent {
-			_ = sm.store.Delete(context.Background(), sess.ID)
+			_ = sm.store.Delete(sm.lifecycleCtx, sess.ID)
 		}
 		// Clean up session upload directory
-		uploadDir := filepath.Join(sm.uploadDirFunc(), sess.ID)
+		uploadDir := filepath.Join(sess.uploadRoot, sess.ID)
 		if err := os.RemoveAll(uploadDir); err != nil && !os.IsNotExist(err) {
 			log.Printf("session %s: failed to clean up upload dir: %v", sess.ID, err)
 		}
@@ -461,14 +476,20 @@ func (sm *Manager) terminate(ctx context.Context, id string, preserveMetadata bo
 	delete(sm.sessions, id)
 	sm.mu.Unlock()
 
-	_ = sess.pty.Kill()
-	_ = sess.pty.Close()
+	p := sess.currentPTY()
+	_ = p.Kill()
+	sess.stopInputWriter()
+	_ = p.Close()
 	// Clean up persisted metadata
 	if sm.store != nil && !preserveMetadata {
 		_ = sm.store.Delete(ctx, id)
 	}
 	// Clean up session upload directory
-	uploadDir := filepath.Join(sm.uploadDirFunc(), id)
+	uploadRoot := sess.uploadRoot
+	if uploadRoot == "" {
+		uploadRoot = sm.uploadDirFunc()
+	}
+	uploadDir := filepath.Join(uploadRoot, id)
 	if err := os.RemoveAll(uploadDir); err != nil && !os.IsNotExist(err) {
 		log.Printf("session %s: failed to clean up upload dir on delete: %v", id, err)
 	}

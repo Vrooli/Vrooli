@@ -11,7 +11,7 @@
 CREATE TABLE IF NOT EXISTS sessions (
     id TEXT PRIMARY KEY,
     backend TEXT NOT NULL DEFAULT 'standard',
-    shell TEXT NOT NULL DEFAULT '/bin/bash',
+	 shell TEXT NOT NULL DEFAULT '',
     cols INTEGER NOT NULL DEFAULT 80,
     rows INTEGER NOT NULL DEFAULT 24,
     policy_mode TEXT NOT NULL DEFAULT 'never' CHECK(policy_mode IN ('never', 'preset', 'custom')),
@@ -77,25 +77,10 @@ CREATE TABLE IF NOT EXISTS conversation_events (
 CREATE INDEX IF NOT EXISTS idx_conversation_events_session_sequence
     ON conversation_events(session_id, sequence);
 
--- Per-rollout-file byte checkpoints for Codex ingestion. These let the server
--- backfill messages written while the UI was closed and resume after restart
--- without re-reading old lines.
-CREATE TABLE IF NOT EXISTS codex_rollout_checkpoints (
-    path TEXT PRIMARY KEY,
-    session_id TEXT NOT NULL,
-    offset_bytes INTEGER NOT NULL DEFAULT 0,
-    updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
-);
-
-CREATE INDEX IF NOT EXISTS idx_codex_rollout_checkpoints_session
-    ON codex_rollout_checkpoints(session_id);
-
 -- Generic per-source ingestion cursors for newer agent transcript adapters
 -- (Grok updates.jsonl tailing, OpenCode HTTP reconciliation). The cursor is an
--- opaque, source-defined string: a byte offset for Grok's append-only JSONL, a
--- JSON high-water mark for OpenCode's full-history message reconciliation. This
--- intentionally does NOT subsume codex_rollout_checkpoints — rewriting Codex's
--- proven byte-offset history is higher risk than an additive new table.
+-- opaque, source-defined string: a byte offset for append-only JSONL, or a
+-- JSON high-water mark for full-history reconciliation.
 CREATE TABLE IF NOT EXISTS agent_transcript_checkpoints (
     source TEXT NOT NULL,
     source_key TEXT NOT NULL,

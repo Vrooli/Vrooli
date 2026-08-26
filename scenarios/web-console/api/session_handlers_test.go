@@ -49,7 +49,7 @@ func newTestServer() *Server {
 		workspace:   intworkspace.NewMemStore(),
 	}
 	srv.conversations = NewConversationStore()
-	srv.codexCheckpointStore = NewInMemoryCodexCheckpointStore()
+	srv.agentCheckpointStore = NewInMemoryAgentTranscriptCheckpointStore()
 	srv.speechProcessor = audioports.PassthroughSpeechTextProcessor{}
 	srv.summarizeAutoPolicy = defaultSummarizeAutoPolicy()
 	srv.lastTTSBySource = map[string]conversationAppendSnapshot{}
@@ -82,7 +82,7 @@ func newFakeTestServerWithFactory(factory pty.Factory) *Server {
 		workspace:   intworkspace.NewMemStore(),
 	}
 	srv.conversations = NewConversationStore()
-	srv.codexCheckpointStore = NewInMemoryCodexCheckpointStore()
+	srv.agentCheckpointStore = NewInMemoryAgentTranscriptCheckpointStore()
 	srv.speechProcessor = audioports.PassthroughSpeechTextProcessor{}
 	srv.summarizeAutoPolicy = defaultSummarizeAutoPolicy()
 	srv.lastTTSBySource = map[string]conversationAppendSnapshot{}

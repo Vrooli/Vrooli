@@ -71,12 +71,22 @@ func PrepareSessionHome(sessionHome, sharedHome string) string {
 		return sessionHome
 	}
 
-	for _, dir := range []string{"sessions", "log", "logs", "outputs", "tmp"} {
-		ensureDir(filepath.Join(sessionHome, dir))
+	if sharedHome == "" {
+		for _, dir := range []string{"sessions", "log", "logs", "outputs", "tmp"} {
+			ensureDir(filepath.Join(sessionHome, dir))
+		}
+		return sessionHome
 	}
 
-	if sharedHome == "" {
-		return sessionHome
+	// Only the rollout tree is session identity. Runtime state is safe to
+	// share and often large (plugins, caches, logs, and shell snapshots), so
+	// point those directories at the operator's shared Codex home. The
+	// fallback creates a local directory only when no shared home is usable.
+	ensureDir(filepath.Join(sessionHome, "sessions"))
+	for _, dir := range []string{"log", "logs", "outputs", "tmp", "cache", "plugins", "shell_snapshots"} {
+		sharedDir := filepath.Join(sharedHome, dir)
+		ensureDir(sharedDir)
+		ensureSymlink(filepath.Join(sessionHome, dir), sharedDir)
 	}
 
 	for _, entry := range []string{
@@ -87,6 +97,8 @@ func PrepareSessionHome(sessionHome, sharedHome string) string {
 		"rules",
 		"version.json",
 		".personality_migration",
+		"models_cache.json",
+		"installation_id",
 	} {
 		src := filepath.Join(sharedHome, entry)
 		if _, err := os.Lstat(src); err != nil {
@@ -103,14 +115,24 @@ func PrepareSessionHome(sessionHome, sharedHome string) string {
 // web-console state directory) so this package stays independent of
 // package-main config helpers.
 func SessionHome(sessionStateRoot, sessionID string) string {
-	return PrepareSessionHome(
-		filepath.Join(sessionStateRoot, "codex", sessionID),
-		SharedHome(),
-	)
+	path := SessionHomePath(sessionStateRoot, sessionID)
+	return PrepareSessionHome(path, SharedHome())
+}
+
+// SessionHomePath returns the lazy per-session home path without creating it.
+// A plain shell must not pay the agent-home setup cost merely by being opened.
+func SessionHomePath(sessionStateRoot, sessionID string) string {
+	return filepath.Join(sessionStateRoot, "codex", sessionID)
 }
 
 // SessionsDir returns the per-session rollout-JSONL directory (the
 // "sessions" subdir under SessionHome).
 func SessionsDir(sessionStateRoot, sessionID string) string {
-	return ensureDir(filepath.Join(SessionHome(sessionStateRoot, sessionID), "sessions"))
+	path := SessionsDirPath(sessionStateRoot, sessionID)
+	return ensureDir(path)
+}
+
+// SessionsDirPath returns the rollout directory path without creating it.
+func SessionsDirPath(sessionStateRoot, sessionID string) string {
+	return filepath.Join(SessionHomePath(sessionStateRoot, sessionID), "sessions")
 }

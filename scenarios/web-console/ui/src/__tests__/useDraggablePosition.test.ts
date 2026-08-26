@@ -202,6 +202,11 @@ describe("useDraggablePosition", () => {
 
     act(() => { result.current.moveTo({ x: 400, y: 500 }); result.current.resetPosition(); });
     expect(result.current.position).toEqual({ x: 160, y: 72 });
+    // Reapplying the current coordinates is intentionally a no-op so resize
+    // and docking reconciliation cannot create a render loop.
+    const stablePosition = result.current.position;
+    act(() => { result.current.moveTo(stablePosition); });
+    expect(result.current.position).toBe(stablePosition);
     act(() => { rerender({ active: false }); });
     expect(result.current.floatingStyle).toBeUndefined();
   });
@@ -222,5 +227,41 @@ describe("useDraggablePosition", () => {
     act(() => { result.current.moveTo({ x: 1, y: 1 }); });
     vi.spyOn(localStorage, "removeItem").mockImplementation(() => { throw new Error("quota"); });
     act(() => { result.current.resetPosition(); });
+  });
+
+  it("reclamps a persisted position when ResizeObserver measures the toolbar", () => {
+    class MockResizeObserver {
+      observe = vi.fn();
+      disconnect = vi.fn();
+      unobserve = vi.fn();
+
+      constructor(private readonly onResize: ResizeObserverCallback) {
+        observed = this;
+      }
+
+      notify() {
+        this.onResize([], this as unknown as ResizeObserver);
+      }
+    }
+    let observed: MockResizeObserver | undefined;
+    vi.stubGlobal("ResizeObserver", MockResizeObserver);
+    localStorage.setItem("toolbar", JSON.stringify({ x: 1000, y: 30, savedAt: 1 }));
+
+    const el = makeMockElement();
+    const { result, rerender } = renderHook(({ active }) => useDraggablePosition({
+      isActive: active,
+      storageKey: "toolbar",
+      defaultPosition: DEFAULT_POS,
+    }), { initialProps: { active: true } });
+    act(() => { result.current.elementRef.current = el; });
+    act(() => { rerender({ active: false }); });
+    act(() => { rerender({ active: true }); });
+
+    const resizeObserver = observed;
+    if (!resizeObserver) throw new Error("ResizeObserver was not constructed");
+    expect(resizeObserver.observe).toHaveBeenCalledWith(el);
+    expect(result.current.position).toEqual({ x: 852, y: 30 });
+    act(() => { resizeObserver.notify(); });
+    expect(resizeObserver.disconnect).not.toHaveBeenCalled();
   });
 });

@@ -1,6 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
 import { renderHook } from "@testing-library/react";
-import type { FitAddon } from "@xterm/addon-fit";
 import { useFollowerPresentation } from "./useFollowerPresentation";
 
 function terminalFixture(options: { width?: number; height?: number; cols?: number; rows?: number } = {}) {
@@ -25,7 +24,6 @@ describe("useFollowerPresentation", () => {
   it("does not create a frame for a leader or an unmeasured pane", () => {
     const { result } = renderHook(() => useFollowerPresentation({
       terminal: null,
-      fitRef: { current: null },
       serverSize: { cols: 80, rows: 24 },
       isFollower: false,
       paneSize: { width: 800, height: 600 },
@@ -33,34 +31,29 @@ describe("useFollowerPresentation", () => {
     expect(result.current).toBeNull();
   });
 
-  it("fits a follower into the measured screen and restores styles on cleanup", () => {
+  it("computes a follower frame without mutating xterm's root element", () => {
     const terminal = terminalFixture({ cols: 40, rows: 12 });
-    const fit = { fit: vi.fn() } as unknown as FitAddon;
     const { result, rerender } = renderHook(({ paneSize }) => useFollowerPresentation({
       terminal: terminal as never,
-      fitRef: { current: fit },
       serverSize: { cols: 80, rows: 24 },
       isFollower: true,
       paneSize,
     }), { initialProps: { paneSize: { width: 1000, height: 700 } } });
 
     expect(result.current).not.toBeNull();
-    expect(terminal.element.style.position).toBe("absolute");
-    expect(fit.fit).toHaveBeenCalled();
-    expect(terminal.resize).toHaveBeenCalledWith(80, 24);
-    expect(terminal.options.fontSize).toBeGreaterThan(0);
+    expect(terminal.element.style.cssText).toBe("");
+    expect(terminal.resize).not.toHaveBeenCalled();
+    expect(terminal.options.fontSize).toBeUndefined();
 
     rerender({ paneSize: { width: 0, height: 0 } });
     expect(result.current).toBeNull();
-    expect(terminal.element.style.position).toBe("");
-    expect(terminal.element.style.transform).toBe("");
+    expect(terminal.element.style.cssText).toBe("");
   });
 
   it("uses the conservative aspect fallback and compact strip for a tiny pane", () => {
     const terminal = terminalFixture({ cols: 0, rows: 0, width: 0, height: 0 });
     const { result } = renderHook(() => useFollowerPresentation({
       terminal: terminal as never,
-      fitRef: { current: null },
       serverSize: { cols: 80, rows: 24 },
       isFollower: true,
       paneSize: { width: 120, height: 120 },
@@ -74,7 +67,6 @@ describe("useFollowerPresentation", () => {
     const terminal = terminalFixture();
     const { result } = renderHook(() => useFollowerPresentation({
       terminal: terminal as never,
-      fitRef: { current: null },
       serverSize: { cols: 80, rows: 24 },
       isFollower: true,
       paneSize: { width: 800, height: 600 },

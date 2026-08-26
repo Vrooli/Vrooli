@@ -139,6 +139,8 @@ describe("TerminalPane upload integration", () => {
 
     render(<TerminalPane sessionId="s1" />);
     const pane = screen.getByTestId("terminal-pane");
+    expect(pane).toHaveAttribute("role", "group");
+    expect(pane).toHaveAttribute("aria-label", "Terminal pane");
 
     const file = new File(["png data"], "pasted.png", { type: "image/png" });
     const clipboardData = {

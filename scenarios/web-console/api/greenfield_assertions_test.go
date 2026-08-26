@@ -2,6 +2,9 @@ package main
 
 import (
 	"encoding/json"
+	"go/ast"
+	"go/parser"
+	"go/token"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -39,6 +42,60 @@ func findEnclosingFunc(lines []string, lineIdx int) string {
 	return ""
 }
 
+// TestGreenfield_PTYTestsDeclarePlatformRequirement keeps host-dependent test
+// coverage honest. A test that reaches a real PTY or tmux command must declare
+// its platform boundary at the test entry point; otherwise a cross-platform
+// run can report a misleading implementation failure instead of a typed skip.
+func TestGreenfield_PTYTestsDeclarePlatformRequirement(t *testing.T) {
+	// Walk from the API module root so the check is recursive and remains
+	// scoped to this scenario's tests on every supported Go host.
+	var files []string
+	err := filepath.WalkDir(".", func(path string, entry os.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		if entry.IsDir() {
+			if path != "." && (entry.Name() == "node_modules" || entry.Name() == "vendor") {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		if strings.HasSuffix(path, "_test.go") && filepath.Base(path) != "greenfield_assertions_test.go" {
+			files = append(files, path)
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	needGuard := regexp.MustCompile(`\b(?:tmuxCmd|tmuxAttach|defaultPTYFactory|tmuxPTYFactory)\s*\(|\bcreackpty\b`)
+	hasGuard := regexp.MustCompile(`\brequire(?:LocalPTY|Tmux|UnixTools)\s*\(`)
+	for _, file := range files {
+		data, err := os.ReadFile(file)
+		if err != nil {
+			t.Fatal(err)
+		}
+		fset := token.NewFileSet()
+		parsed, err := parser.ParseFile(fset, file, data, 0)
+		if err != nil {
+			t.Fatalf("parse %s: %v", file, err)
+		}
+		for _, declaration := range parsed.Decls {
+			fn, ok := declaration.(*ast.FuncDecl)
+			if !ok || fn.Recv != nil || fn.Body == nil || fn.Name == nil || !strings.HasPrefix(fn.Name.Name, "Test") {
+				continue
+			}
+			start := fset.Position(fn.Pos()).Offset
+			end := fset.Position(fn.End()).Offset
+			body := string(data[start:end])
+			if needGuard.MatchString(body) && !hasGuard.MatchString(body) {
+				t.Errorf("%s:%s reaches a PTY/tmux seam without a require helper", file, fn.Name.Name)
+			}
+		}
+	}
+}
+
 func TestGreenfield_NoRawSetSizeOutsideGatedPaths(t *testing.T) {
 	files, err := walkModuleGoFiles("session")
 	if err != nil {
@@ -64,8 +121,43 @@ func TestGreenfield_NoRawSetSizeOutsideGatedPaths(t *testing.T) {
 	}
 }
 
+func TestGreenfield_NoSessionLockHeldAcrossExec(t *testing.T) {
+	files, err := walkModuleGoFiles("session")
+	if err != nil {
+		t.Fatal(err)
+	}
+	lockCall := regexp.MustCompile(`s\.(?:emuMu|clientsMu|ptyMu)\.(?:Lock|RLock)\(\)`)
+	unlockCall := regexp.MustCompile(`s\.(?:emuMu|clientsMu|ptyMu)\.(?:Unlock|RUnlock)\(\)`)
+	backendCall := regexp.MustCompile(`\.(?:Read|WriteInput|SetSize|Close|Kill|ExitCode|ProbeReady|CurrentDir|TerminalEchoState|Exec|Run|Output|CombinedOutput)\(`)
+	for _, file := range files {
+		data, err := os.ReadFile(file)
+		if err != nil {
+			t.Fatal(err)
+		}
+		depth := 0
+		for lineNumber, line := range strings.Split(string(data), "\n") {
+			if strings.HasPrefix(strings.TrimSpace(line), "func ") {
+				depth = 0
+			}
+			if lockCall.MatchString(line) {
+				depth++
+			}
+			if depth > 0 && backendCall.MatchString(line) {
+				t.Errorf("%s:%d calls backend I/O while a session state lock is held: %s", file, lineNumber+1, strings.TrimSpace(line))
+			}
+			if unlockCall.MatchString(line) && !strings.Contains(line, "defer ") {
+				depth--
+			}
+		}
+	}
+}
+
 func TestGreenfield_NoRawPtmxWriteOutsidePTYFiles(t *testing.T) {
-	allowed := map[string]bool{"pty.go": true, "pty_tmux.go": true}
+	allowed := map[string]bool{
+		"pty_local_unix.go":    true,
+		"pty_local_windows.go": true,
+		"pty_tmux.go":          true,
+	}
 	re := regexp.MustCompile(`\bptmx\.Write\(`)
 	files, err := walkModuleGoFiles(".")
 	if err != nil {
@@ -145,12 +237,16 @@ func TestGreenfield_TerminalHasOneWebSocketUpgrade(t *testing.T) {
 		t.Fatalf("terminal WebSocket upgrade sites = declarations %d, calls %d; want one of each", terminalUpgradeFunctions, terminalUpgradeCalls)
 	}
 
-	mainSource, err := os.ReadFile("main.go")
-	if err != nil {
-		t.Fatal(err)
+	routeRegistrations := 0
+	for _, file := range files {
+		data, err := os.ReadFile(file)
+		if err != nil {
+			t.Fatal(err)
+		}
+		routeRegistrations += strings.Count(string(data), "WS:     s.handleTerminalWS")
 	}
-	if count := strings.Count(string(mainSource), "WS:     s.handleTerminalWS"); count != 1 {
-		t.Fatalf("terminal WebSocket route registrations = %d, want exactly one", count)
+	if routeRegistrations != 1 {
+		t.Fatalf("terminal WebSocket route registrations = %d, want exactly one", routeRegistrations)
 	}
 }
 

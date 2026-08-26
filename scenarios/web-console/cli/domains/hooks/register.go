@@ -60,6 +60,7 @@ func Register() cliapp.SubcommandGroup {
 		Subcommands: []cliapp.Command{
 			{Name: "register", Description: "Register the Stop and UserPromptSubmit hooks", Run: r.register},
 			{Name: "remove", Description: "Remove the Stop and UserPromptSubmit hooks", Run: r.remove},
+			{Name: "dispatch", Description: "Dispatch a Claude hook payload to Web Console", Run: dispatch},
 		},
 	}
 }
@@ -111,14 +112,8 @@ func (r *registrar) register(args []string) error {
 		fmt.Fprintln(r.stderr, "tts-hook: Run 'web-console hooks register' manually after the API starts.")
 		return err
 	}
-	scenarioDir, err := r.scenarioDir()
-	if err != nil {
-		return err
-	}
-
 	stopCommand := strings.Join([]string{
-		"bash",
-		shellQuote(filepath.Join(scenarioDir, "lib", "claude-stop-hook.sh")),
+		"web-console", "hooks", "dispatch", "--event", shellQuote(stopEvent),
 		"--url", shellQuote("http://localhost:" + strconv.Itoa(apiPort) + "/api/v1/hooks/stop"),
 		"--token", shellQuote(hookToken),
 	}, " ")
@@ -127,8 +122,7 @@ func (r *registrar) register(args []string) error {
 	}
 
 	promptCommand := strings.Join([]string{
-		"bash",
-		shellQuote(filepath.Join(scenarioDir, "lib", "claude-prompt-submit-hook.sh")),
+		"web-console", "hooks", "dispatch", "--event", shellQuote(promptEvent),
 		"--url", shellQuote("http://localhost:" + strconv.Itoa(apiPort) + "/api/v1/hooks/prompt-submit"),
 		"--token", shellQuote(hookToken),
 	}, " ")
@@ -250,23 +244,6 @@ func (r *registrar) hookToken() (string, error) {
 		return "", errors.New("empty hook token")
 	}
 	return token, nil
-}
-
-func (r *registrar) scenarioDir() (string, error) {
-	if root := strings.TrimSpace(r.getenv("VROOLI_ROOT")); root != "" {
-		candidate := filepath.Join(root, "scenarios", "web-console")
-		if _, err := r.readFile(filepath.Join(candidate, "lib", "claude-stop-hook.sh")); err == nil {
-			return candidate, nil
-		}
-	}
-	workingDir, err := r.workingDir()
-	if err != nil {
-		return "", err
-	}
-	if _, err := r.readFile(filepath.Join(workingDir, "lib", "claude-stop-hook.sh")); err != nil {
-		return "", fmt.Errorf("resolve web-console scenario directory: %w", err)
-	}
-	return workingDir, nil
 }
 
 func shellQuote(value string) string {

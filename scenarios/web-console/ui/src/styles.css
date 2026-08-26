@@ -372,6 +372,77 @@ html[data-wc-adaptive-chrome="true"] .wc-ios-tint-edge {
   z-index: 8;
 }
 
+/* Keep the first mobile paint single-column even if the browser applies its
+ * emulated viewport after React's initial width read. The JS layout state will
+ * converge as soon as the resize listener runs; this CSS guard prevents an
+ * intrinsic xterm width from escaping horizontally during that handoff. */
+@media (max-width: 767px) {
+  /* Every mobile-toolbar button is a touch target, including the compact
+   * key strip and optional actions whose intrinsic icon/text size is smaller
+   * than the mobile interaction minimum. */
+  [data-testid="mobile-toolbar"] button {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  /* The expanded key arrangement has four desktop-oriented grid columns.
+   * Let those groups wrap on narrow devices so the 44px controls remain
+   * reachable instead of pushing the voice control past the viewport. */
+  [data-testid="mobile-toolbar"] .mobile-toolbar-expanded {
+    display: flex !important;
+    flex-wrap: wrap;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    overflow: hidden;
+  }
+
+  [data-testid="mobile-toolbar"] .mobile-toolbar-expanded > div {
+    min-width: 0;
+  }
+
+  /* Layout is declared by the slot, not by the kind of action rendered in
+   * it. Any flexible action can share the remaining width on its line while
+   * retaining the mobile tap-target minimum. */
+  [data-testid="mobile-toolbar"] .mobile-toolbar-action-slot-fill {
+    flex: 1 1 8rem;
+    min-width: 44px;
+  }
+
+  [data-testid="pane-grid"] {
+    grid-template-columns: minmax(0, 1fr) !important;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+  }
+
+  [data-testid="pane-grid"] > [data-testid="terminal-pane-container"] {
+    grid-column: 1 !important;
+    grid-row: auto !important;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+  }
+
+  [data-testid="pane-grid"] [data-testid="terminal-pane"] {
+    max-width: 100%;
+    min-width: 0;
+  }
+
+  /* xterm's helper textarea is the real mobile keyboard surface. It is
+   * visually hidden, but remains focusable and therefore appears in the
+   * accessibility tree; keep its hit box comfortable without changing the
+   * desktop cursor/input geometry. */
+  [data-testid="pane-grid"] .xterm-helper-textarea {
+    min-width: 44px !important;
+    min-height: 44px !important;
+  }
+
+  [data-testid="pane-grid"] > [data-testid^="grid-splitter-"] {
+    display: none;
+  }
+}
+
 /* Hide native scrollbar when minimap is active */
 .wc-hide-scrollbar {
   scrollbar-width: none;          /* Firefox */

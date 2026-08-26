@@ -2,13 +2,14 @@ package main
 
 // copyCodexHome lives in package main because it depends on the per-session
 // CODEX_HOME layout (sessionCodexHome in pty.go). It is injected into the
-// sessions handler's Adapter via the CopyCodexHome field.
+// sessions handler's Adapter via the CopyCodexHome field; the recovery copy
+// itself is limited to the rollout subtree.
 
 import (
 	"fmt"
+	"io"
 	"io/fs"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 
@@ -111,32 +112,54 @@ func pruneArchivedAgentHistory(meta sessionstore.Metadata) (int64, error) {
 	return size, nil
 }
 
-// copyCodexHome rsyncs (or copies via tar fallback) the per-session
-// CODEX_HOME from the orphan to the fresh pane. Bounded: codex homes
-// contain symlinks to global config + per-session rollouts, typically
-// < 50MB.
+// copyCodexHome copies only the session-owned rollout tree from the orphan to
+// the fresh pane. Shared configuration and regenerable runtime state are
+// linked by the launcher, so recovery never traverses or duplicates them.
 func copyCodexHome(oldID, newID string) error {
-	src := sessionCodexHome(oldID)
-	dst := sessionCodexHome(newID)
+	src := sessionCodexSessionsDir(oldID)
+	dst := sessionCodexSessionsDir(newID)
 	if _, err := os.Stat(src); err != nil {
 		return nil
 	}
-	if err := os.MkdirAll(dst, 0o755); err != nil {
-		return fmt.Errorf("mkdirall %s: %w", dst, err)
-	}
-	if path, err := exec.LookPath("rsync"); err == nil {
-		out, err := exec.Command(path, "-a", "--", src+"/", dst+"/").CombinedOutput()
-		if err != nil {
-			return fmt.Errorf("rsync %s -> %s: %v: %s", src, dst, err, string(out))
+	return filepath.WalkDir(src, func(path string, entry fs.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
 		}
-		return nil
-	}
-	if path, err := exec.LookPath("cp"); err == nil {
-		out, err := exec.Command(path, "-a", filepath.Join(src, "."), dst).CombinedOutput()
+		rel, err := filepath.Rel(src, path)
 		if err != nil {
-			return fmt.Errorf("cp -a %s -> %s: %v: %s", src, dst, err, string(out))
+			return err
 		}
-		return nil
+		target := filepath.Join(dst, rel)
+		if entry.IsDir() {
+			return os.MkdirAll(target, 0o755)
+		}
+		if entry.Type()&os.ModeSymlink != 0 {
+			return fmt.Errorf("refusing symlink in rollout tree %q", path)
+		}
+		return copyRolloutFile(path, target, entry)
+	})
+}
+
+func copyRolloutFile(src, dst string, entry fs.DirEntry) error {
+	if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
+		return err
 	}
-	return fmt.Errorf("neither rsync nor cp available")
+	in, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+	defer in.Close()
+	mode := entry.Type().Perm()
+	if mode == 0 {
+		mode = 0o600
+	}
+	out, err := os.OpenFile(dst, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, mode)
+	if err != nil {
+		return err
+	}
+	if _, err := io.Copy(out, in); err != nil {
+		_ = out.Close()
+		return err
+	}
+	return out.Close()
 }

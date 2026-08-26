@@ -183,9 +183,9 @@ func TestExpirationSweeper_RemovesExpiredSessions(t *testing.T) {
 
 	// Set a very short TTL and backdate creation
 	sess.SetPolicy(policy.Policy{Mode: policy.Custom, Duration: "1m"})
-	sess.mu.Lock()
+	sess.emuMu.Lock()
 	sess.CreatedAt = time.Now().Add(-2 * time.Minute) // 2 minutes ago
-	sess.mu.Unlock()
+	sess.emuMu.Unlock()
 
 	sweeper := NewExpirationSweeper(sm, events, metrics)
 	sweeper.sweep() // Run one sweep cycle
@@ -262,9 +262,9 @@ func TestExpirationSweeper_LoopFiresAndRemoves(t *testing.T) {
 
 	// Set a very short TTL and backdate creation
 	sess.SetPolicy(policy.Policy{Mode: policy.Custom, Duration: "1m"})
-	sess.mu.Lock()
+	sess.emuMu.Lock()
 	sess.CreatedAt = time.Now().Add(-2 * time.Minute)
-	sess.mu.Unlock()
+	sess.emuMu.Unlock()
 
 	sweeper := &ExpirationSweeper{
 		sessions: sm,

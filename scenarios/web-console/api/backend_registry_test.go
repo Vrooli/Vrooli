@@ -1,17 +1,13 @@
 package main
 
-import "testing"
+import (
+	"runtime"
+	"testing"
+)
 
-func TestBackendRegistry_StandardUnavailableWithoutPTY(t *testing.T) {
-	previous := hostSupportsPTY
-	hostSupportsPTY = false
-	t.Cleanup(func() { hostSupportsPTY = previous })
-
+func TestBackendRegistry_StandardAvailableWithPlatformPTY(t *testing.T) {
 	available, reason := probeStandard()
-	if available {
-		t.Fatal("standard backend reported available without a PTY implementation")
-	}
-	if reason != "no PTY implementation for this platform" {
-		t.Fatalf("reason = %q", reason)
+	if !available || reason != "" {
+		t.Fatalf("%s standard backend = (%v, %q), want available", runtime.GOOS, available, reason)
 	}
 }

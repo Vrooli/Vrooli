@@ -1,3 +1,5 @@
+//go:build !windows
+
 package main
 
 import (
@@ -17,6 +19,11 @@ import (
 
 	creackpty "github.com/creack/pty/v2"
 )
+
+// localPTYAvailable is a compile-time platform seam. The implementation file
+// itself is selected by the build, so this is only a truthful descriptor hook,
+// not a runtime capability switch.
+func localPTYAvailable() bool { return true }
 
 // realPTY wraps a creack/pty process.
 type realPTY struct {
@@ -214,23 +221,23 @@ func applySessionEnv(base []string, extra map[string]string) []string {
 // to backends/codex. Kept in package main as a thin wrapper so callers
 // don't need to plumb the state root.
 func sessionCodexHome(sessionID string) string {
-	return codex.SessionHome(resolveSessionStateRoot(), sessionID)
+	return codex.SessionHomePath(resolveSessionStateRoot(), sessionID)
 }
 
 // sessionCodexSessionsDir returns the per-session rollout JSONL dir.
 func sessionCodexSessionsDir(sessionID string) string {
-	return codex.SessionsDir(resolveSessionStateRoot(), sessionID)
+	return codex.SessionsDirPath(resolveSessionStateRoot(), sessionID)
 }
 
 // sessionGrokHome returns the per-session GROK_HOME, delegating layout to
 // backends/grok. Each pane gets its own home so the grok transcripts beneath it
 // belong unambiguously to that pane.
 func sessionGrokHome(sessionID string) string {
-	return grok.SessionHome(resolveSessionStateRoot(), sessionID)
+	return grok.SessionHomePath(resolveSessionStateRoot(), sessionID)
 }
 
 // sessionGrokSessionsDir returns the per-session grok transcript root. grok
 // writes <dir>/<url-encoded-cwd>/<session-id>/updates.jsonl beneath it.
 func sessionGrokSessionsDir(sessionID string) string {
-	return grok.SessionsDir(resolveSessionStateRoot(), sessionID)
+	return grok.SessionsDirPath(resolveSessionStateRoot(), sessionID)
 }

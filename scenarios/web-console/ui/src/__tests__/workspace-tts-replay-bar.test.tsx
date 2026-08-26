@@ -157,7 +157,7 @@ vi.mock("../components/TerminalPane", () => ({
       input: { submit: vi.fn().mockReturnValue({ status: "sent", offset: 1 }), subscribeSettled: vi.fn(() => () => {}), awaitOffset: vi.fn(() => () => {}) },
       control: { send: vi.fn().mockReturnValue(true), scroll: vi.fn(), focus: vi.fn() },
       selection: { copy: vi.fn().mockResolvedValue(true), paste: vi.fn().mockResolvedValue(true) },
-      pendingInput: { subscribe: vi.fn(() => () => {}), snapshot: vi.fn(() => []) },
+      pendingInput: { subscribe: vi.fn(() => () => {}), snapshot: vi.fn(() => []), discard: vi.fn(), discardAll: vi.fn(), flushNow: vi.fn() },
       playback: { stop: vi.fn(), speak: vi.fn(), pause: vi.fn(), resume: vi.fn(), seek: vi.fn(), setPlaybackRate: vi.fn(), setVolume: vi.fn(), setMuted: vi.fn(), getState: vi.fn().mockReturnValue(null) },
     }));
     return <div data-testid={`mock-terminal-${sessionId}`}>Terminal {sessionId}</div>;

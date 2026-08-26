@@ -1358,6 +1358,11 @@
       "reason": "Delegates hook removal to the resource CLI and local hook scripts."
     },
     {
+      "command": "hooks dispatch",
+      "class": "external_delegation",
+      "reason": "Posts a Claude hook payload to the running Web Console API; it is a local transport adapter rather than a single Connect-RPC command."
+    },
+    {
       "command": "terminal targets",
       "class": "external_delegation",
       "reason": "Reports the target adapters accepted by the web launcher; it does not invoke a single Connect-RPC method."

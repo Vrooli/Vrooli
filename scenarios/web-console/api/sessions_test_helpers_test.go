@@ -42,7 +42,7 @@ func newSessionsConnectHandlerForServer(srv *Server) sessionsConnectIface {
 		Events:              srv.events,
 		Metrics:             srv.metrics,
 		Conversations:       srv.conversations,
-		CodexCheckpoints:    srv.codexCheckpointStore,
+		CodexCheckpoints:    srv.agentCheckpointStore,
 		Workspace:           srv.workspace,
 		CopyCodexHome:       copyCodexHome,
 		AgentHistoryPresent: func(sessionstore.Metadata) bool { return true },

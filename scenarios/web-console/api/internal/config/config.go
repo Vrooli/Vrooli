@@ -15,10 +15,10 @@ import (
 // DefaultTerminalScrollbackLines is the one production scrollback depth used
 // by the emulator and persistent backend. UI clients must retain at least
 // this many lines when replaying a snapshot.
-const DefaultTerminalScrollbackLines = 10_000
+const DefaultTerminalScrollbackLines = 50_000
 
 // DefaultMaxSnapshotBytes bounds one reconnect/resync replay.
-const DefaultMaxSnapshotBytes = 2 * 1024 * 1024
+const DefaultMaxSnapshotBytes = 8 * 1024 * 1024
 
 // Config holds all tunable levers for the web-console API.
 // Each field maps to an environment variable with a sane default.
@@ -27,11 +27,11 @@ type Config struct {
 	// TerminalScrollbackLines is the number of decoded scrollback lines the
 	// per-session terminal emulator retains. Replayed via the snapshot
 	// stream on every (re)connect.
-	// Env: WC_TERMINAL_SCROLLBACK_LINES | Default: ten-thousand | Range: 100–100 thousand
+	// Env: WC_TERMINAL_SCROLLBACK_LINES | Default: fifty-thousand | Range: 100–100 thousand
 	TerminalScrollbackLines int
 
 	// MaxSnapshotBytes is the maximum ANSI byte stream sent for one replay.
-	// Env: WC_MAX_SNAPSHOT_BYTES | Default: 2097152 | Range: 65536–16777216
+	// Env: WC_MAX_SNAPSHOT_BYTES | Default: 8388608 | Range: 65536–16777216
 	MaxSnapshotBytes int
 
 	// PTYReadBuffer is the byte size of the buffer used to read PTY output.
@@ -79,6 +79,16 @@ type Config struct {
 	// Env: WC_ARCHIVE_MAX_BYTES | Default: 0 (unlimited)
 	ArchiveMaxBytes int64
 
+	// ConversationRetentionDays removes conversation events older than this
+	// many days. Zero means unlimited.
+	// Env: WC_CONVERSATION_RETENTION_DAYS | Default: 180 | Range: 0–36500
+	ConversationRetentionDays int
+
+	// ConversationMaxEventsPerSession bounds retained events per session. The
+	// newest events are preserved. Zero means unlimited.
+	// Env: WC_CONVERSATION_MAX_EVENTS_PER_SESSION | Default: 5000 | Range: 0–1000000
+	ConversationMaxEventsPerSession int
+
 	// ClientChannelBuffer is the capacity of the per-client output channel.
 	// Env: WC_CLIENT_CHANNEL_BUFFER | Default: 256 | Range: 8–1024
 	ClientChannelBuffer int
@@ -87,6 +97,10 @@ type Config struct {
 	// client before a sync_warning notification is sent.
 	// Env: WC_COALESCE_NOTIFY_THRESHOLD | Default: 5 | Range: 1–1000
 	CoalesceNotifyThreshold int
+
+	// InputQueueSize bounds ordered PTY input waiting for the writer worker.
+	// Env: WC_INPUT_QUEUE_SIZE | Default: 256 | Range: 16–4096
+	InputQueueSize int
 
 	// DefaultCWD is the working directory used for newly spawned shell sessions.
 	// Env: WC_DEFAULT_CWD | Default: derived from environment/runtime
@@ -113,23 +127,26 @@ type Config struct {
 func Default() Config {
 	shell, _ := resolveShell()
 	return Config{
-		TerminalScrollbackLines:   DefaultTerminalScrollbackLines,
-		MaxSnapshotBytes:          DefaultMaxSnapshotBytes,
-		PTYReadBuffer:             4096,
-		WSBufferSize:              4096,
-		DefaultCols:               80,
-		DefaultRows:               24,
-		DefaultShell:              shell,
-		MaxSessions:               0,
-		ArchiveMessageLessAgeDays: 0,
-		ArchiveAgentHomeAgeDays:   0,
-		ArchiveMaxBytes:           0,
-		ClientChannelBuffer:       256,
-		CoalesceNotifyThreshold:   5,
-		DefaultCWD:                resolveWorkingDir(),
-		DefaultBackend:            "auto",
-		DefaultPolicyMode:         "never",
-		DefaultPolicyDuration:     "",
+		TerminalScrollbackLines:         DefaultTerminalScrollbackLines,
+		MaxSnapshotBytes:                DefaultMaxSnapshotBytes,
+		PTYReadBuffer:                   4096,
+		WSBufferSize:                    4096,
+		DefaultCols:                     80,
+		DefaultRows:                     24,
+		DefaultShell:                    shell,
+		MaxSessions:                     0,
+		ArchiveMessageLessAgeDays:       0,
+		ArchiveAgentHomeAgeDays:         0,
+		ArchiveMaxBytes:                 0,
+		ConversationRetentionDays:       180,
+		ConversationMaxEventsPerSession: 5000,
+		ClientChannelBuffer:             256,
+		CoalesceNotifyThreshold:         5,
+		InputQueueSize:                  256,
+		DefaultCWD:                      resolveWorkingDir(),
+		DefaultBackend:                  "auto",
+		DefaultPolicyMode:               "never",
+		DefaultPolicyDuration:           "",
 	}
 }
 
@@ -148,8 +165,11 @@ func Load() Config {
 	cfg.ArchiveMessageLessAgeDays = envInt("WC_ARCHIVE_MESSAGELESS_AGE_DAYS", cfg.ArchiveMessageLessAgeDays, 0, 36_500)
 	cfg.ArchiveAgentHomeAgeDays = envInt("WC_ARCHIVE_AGENT_HOME_AGE_DAYS", cfg.ArchiveAgentHomeAgeDays, 0, 36_500)
 	cfg.ArchiveMaxBytes = envInt64("WC_ARCHIVE_MAX_BYTES", cfg.ArchiveMaxBytes, 0, 1<<62)
+	cfg.ConversationRetentionDays = envInt("WC_CONVERSATION_RETENTION_DAYS", cfg.ConversationRetentionDays, 0, 36_500)
+	cfg.ConversationMaxEventsPerSession = envInt("WC_CONVERSATION_MAX_EVENTS_PER_SESSION", cfg.ConversationMaxEventsPerSession, 0, 1_000_000)
 	cfg.ClientChannelBuffer = envInt("WC_CLIENT_CHANNEL_BUFFER", cfg.ClientChannelBuffer, 8, 1024)
 	cfg.CoalesceNotifyThreshold = envInt("WC_COALESCE_NOTIFY_THRESHOLD", cfg.CoalesceNotifyThreshold, 1, 1000)
+	cfg.InputQueueSize = envInt("WC_INPUT_QUEUE_SIZE", cfg.InputQueueSize, 16, 4096)
 
 	shell, _ := resolveShell()
 	cfg.DefaultShell = shell

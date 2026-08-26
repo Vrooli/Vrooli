@@ -12,7 +12,7 @@ import (
 // instead of panicking on a closed file descriptor.
 
 func TestTmuxPTY_ReadAfterClose(t *testing.T) {
-	requireIsolatedTmux(t)
+	requireTmux(t)
 
 	spec := pty.LaunchSpec{
 		SessionID: "test-read-after-close",
@@ -42,7 +42,7 @@ func TestTmuxPTY_ReadAfterClose(t *testing.T) {
 }
 
 func TestTmuxPTY_WriteAfterClose(t *testing.T) {
-	requireIsolatedTmux(t)
+	requireTmux(t)
 
 	spec := pty.LaunchSpec{
 		SessionID: "test-write-after-close",
@@ -70,7 +70,7 @@ func TestTmuxPTY_WriteAfterClose(t *testing.T) {
 }
 
 func TestTmuxPTY_SetSizeAfterClose(t *testing.T) {
-	requireIsolatedTmux(t)
+	requireTmux(t)
 
 	spec := pty.LaunchSpec{
 		SessionID: "test-setsize-after-close",
@@ -98,7 +98,7 @@ func TestTmuxPTY_SetSizeAfterClose(t *testing.T) {
 }
 
 func TestTmuxPTY_CloseIdempotent(t *testing.T) {
-	requireIsolatedTmux(t)
+	requireTmux(t)
 
 	spec := pty.LaunchSpec{
 		SessionID: "test-close-idempotent",
@@ -124,7 +124,7 @@ func TestTmuxPTY_CloseIdempotent(t *testing.T) {
 }
 
 func TestTmuxAttach_FailsForNonexistentSession(t *testing.T) {
-	requireIsolatedTmux(t)
+	requireTmux(t)
 
 	_, err := tmuxAttach("wc-nonexistent-session-12345")
 	if err == nil {
@@ -133,7 +133,7 @@ func TestTmuxAttach_FailsForNonexistentSession(t *testing.T) {
 }
 
 func TestApplyTmuxOptions_NonexistentSession(t *testing.T) {
-	requireIsolatedTmux(t)
+	requireTmux(t)
 
 	// Should not panic, just log errors
 	applyTmuxOptions("wc-nonexistent-session-12345", false)

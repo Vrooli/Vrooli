@@ -83,7 +83,7 @@ func TestTmuxPTYFactory_UsesLaunchSpecWorkingDir(t *testing.T) {
 }
 
 func TestTmuxPTYTerminalEchoStateTracksPaneEcho(t *testing.T) {
-	requireIsolatedTmux(t)
+	requireTmux(t)
 
 	spec := pty.LaunchSpec{
 		SessionID: "echo-state",
@@ -129,7 +129,7 @@ func TestTmuxPTYTerminalEchoStateTracksPaneEcho(t *testing.T) {
 // shared). This catches regressions if someone drops `-e` from the
 // new-session args.
 func TestTmuxPTYFactory_PropagatesSessionEnvIntoPane(t *testing.T) {
-	requireIsolatedTmux(t)
+	requireTmux(t)
 
 	spec := pty.LaunchSpec{
 		SessionID: "test-env-propagation",
@@ -174,7 +174,7 @@ func TestTmuxPTYFactory_PropagatesSessionEnvIntoPane(t *testing.T) {
 // to local xterm scrolling. Mouse mode is an explicit per-session choice;
 // enabling it is deliberately not an implicit side effect of persistence.
 func TestTmuxPTYFactory_DisablesMouseMode(t *testing.T) {
-	requireIsolatedTmux(t)
+	requireTmux(t)
 
 	spec := pty.LaunchSpec{
 		SessionID: "test-mouse-mode",
@@ -206,7 +206,7 @@ func TestTmuxPTYFactory_DisablesMouseMode(t *testing.T) {
 }
 
 func TestTmuxPTYFactory_UsesRequestedMouseMode(t *testing.T) {
-	requireIsolatedTmux(t)
+	requireTmux(t)
 
 	p, err := tmuxPTYFactory(pty.LaunchSpec{
 		SessionID:     "test-mouse-mode-on",
@@ -250,7 +250,7 @@ func TestTmuxPTYFactory_UsesRequestedMouseMode(t *testing.T) {
 // TestTmuxPTYFactory_SetsHistoryLimit verifies that tmuxPTYFactory configures
 // a generous scrollback buffer so users can scroll through substantial output.
 func TestTmuxPTYFactory_SetsHistoryLimit(t *testing.T) {
-	requireIsolatedTmux(t)
+	requireTmux(t)
 
 	spec := pty.LaunchSpec{
 		SessionID: "test-history-limit",
@@ -283,7 +283,7 @@ func TestTmuxPTYFactory_SetsHistoryLimit(t *testing.T) {
 }
 
 func TestTmuxPTYFactory_UsesResolvedWorkingDir(t *testing.T) {
-	requireIsolatedTmux(t)
+	requireTmux(t)
 
 	workingDir := t.TempDir()
 	t.Setenv("WC_DEFAULT_CWD", workingDir)
@@ -322,7 +322,7 @@ func TestTmuxPTYFactory_UsesResolvedWorkingDir(t *testing.T) {
 // attached tmux session — the attach process is already wired through,
 // so list-clients reports our attach as present.
 func TestTmuxPTY_ProbeReady_HappyPath(t *testing.T) {
-	requireIsolatedTmux(t)
+	requireTmux(t)
 
 	spec := pty.LaunchSpec{
 		SessionID: "test-probe-ready",
@@ -350,7 +350,7 @@ func TestTmuxPTY_ProbeReady_HappyPath(t *testing.T) {
 // ProbeReady must surface ctx.Err() so the WS handler can emit
 // session_not_ready rather than hanging the connection forever.
 func TestTmuxPTY_ProbeReady_TimeoutSurfacesCtxErr(t *testing.T) {
-	requireIsolatedTmux(t)
+	requireTmux(t)
 
 	// Construct a tmuxPTY referencing a session name that does not exist —
 	// list-clients will always return empty output, so ProbeReady must loop

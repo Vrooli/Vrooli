@@ -77,7 +77,7 @@ export default function TerminalHeader({
     <div
       data-testid={`terminal-header-${sessionId}`}
       className={cn(
-        "flex h-7 items-center gap-1 px-1.5 text-xs select-none",
+        "flex h-11 md:h-7 items-center gap-1 px-1.5 text-xs select-none",
         isActive ? "border-b-2 border-wc-accent" : "border-b border-wc-default",
       )}
       style={bgStyle ?? { backgroundColor: "rgb(var(--wc-surface-header))" }}
@@ -87,7 +87,7 @@ export default function TerminalHeader({
       <button
         type="button"
         data-testid={`terminal-drag-handle-${sessionId}`}
-        className="flex h-5 w-5 items-center justify-center shrink-0 text-wc-text-faint hover:text-wc-text-secondary cursor-grab active:cursor-grabbing touch-none"
+        className="flex h-11 w-11 md:h-5 md:w-5 items-center justify-center shrink-0 text-wc-text-faint hover:text-wc-text-secondary cursor-grab active:cursor-grabbing touch-none"
         onPointerDown={(e) => onDragStart?.(sessionId, e)}
         onKeyDown={(e: ReactKeyboardEvent) => {
           const idx = panes.findIndex((p) => p.sessionId === sessionId);
@@ -147,7 +147,7 @@ export default function TerminalHeader({
         <button
           data-testid={`terminal-header-toggle-view-${sessionId}`}
           type="button"
-          className="flex h-8 w-8 items-center justify-center rounded-full border border-wc-default bg-wc-surface-raised/80 shrink-0 text-wc-text-secondary transition-colors hover:bg-wc-surface-input hover:text-wc-text-primary backdrop-blur-sm"
+          className="flex h-11 w-11 md:h-8 md:w-8 items-center justify-center rounded-full border border-wc-default bg-wc-surface-raised/80 shrink-0 text-wc-text-secondary transition-colors hover:bg-wc-surface-input hover:text-wc-text-primary backdrop-blur-sm"
           onClick={(e) => {
             e.stopPropagation();
             onToggleView();
@@ -164,7 +164,7 @@ export default function TerminalHeader({
       <button
         data-testid={`terminal-header-appearance-${sessionId}`}
         type="button"
-        className="flex h-5 w-5 items-center justify-center rounded shrink-0 text-wc-text-faint hover:text-wc-text-secondary"
+        className="flex h-11 w-11 md:h-5 md:w-5 items-center justify-center rounded shrink-0 text-wc-text-faint hover:text-wc-text-secondary"
         onClick={(e) => {
           e.stopPropagation();
           setAppearanceModalPane(sessionId);
@@ -179,7 +179,7 @@ export default function TerminalHeader({
         data-testid={`terminal-close-${sessionId}`}
         variant="ghost"
         size="icon"
-        className="h-5 w-5 shrink-0 text-wc-text-faint"
+        className="h-11 w-11 md:h-5 md:w-5 shrink-0 text-wc-text-faint"
         onClick={(e) => {
           e.stopPropagation();
           onClose();

@@ -26,11 +26,11 @@ During `make start`, you should see:
 tts-hook: registered Stop hook -> localhost:<port>
 ```
 
-The hook is now reconciled by the `claude-code` resource and written to the project-level Claude file at `.claude/settings.json` in the repository root. `tts-hooks.sh` no longer writes the file directly; it delegates to the resource-owned reconciliation seam.
+The hook is now reconciled by the `claude-code` resource and written to the project-level Claude file at `.claude/settings.json` in the repository root. The portable `web-console hooks register` command delegates to the resource-owned reconciliation seam.
 
 If Settings shows `Claude hook: Not registered`, `hook_missing`, or `hook_stale`, or you saw `hook token not available after 5 attempts`, fix:
 ```bash
-source lib/tts-hooks.sh && wc::register_tts_hook
+web-console hooks register
 ```
 
 To inspect the project-level Claude settings file directly:

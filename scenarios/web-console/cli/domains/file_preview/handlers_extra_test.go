@@ -34,6 +34,9 @@ func TestValidationAndFlags(t *testing.T) {
 	if _, err := parsePageSizeFlag("bad"); err == nil {
 		t.Fatal("invalid page size unexpectedly succeeded")
 	}
+	if _, err := parsePageSizeFlag("2147483648"); err == nil {
+		t.Fatal("page size outside int32 range unexpectedly succeeded")
+	}
 	if got := formatEntry(&filepreviewv1.DirectoryEntry{Name: "dir", EntryType: filepreviewv1.EntryType_ENTRY_TYPE_DIRECTORY, ChildCount: 3}); got == "" {
 		t.Fatal("directory entry was empty")
 	}

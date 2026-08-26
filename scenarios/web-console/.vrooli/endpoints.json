@@ -587,7 +587,7 @@
       "path": "/vrooli.web_console.v1.file_preview.FilePreviewService/ListDirectory",
       "method": "POST",
       "summary": "List one page of a resolved directory",
-      "description": "Returns a bounded, sorted page of a directory previously resolved by Resolve, keyed by its opaque preview id. Entries are classified from their extension alone so a page costs no file reads. Pages are capped (1000 max, 200 default) and the scan stops at 50000 entries; size and date sorts are limited to 5000 entries and downgrade to a name sort with a warning above that. The continuation token pins the directory mtime, so a directory that changes mid-walk aborts rather than silently skipping entries.",
+      "description": "Returns a bounded, sorted page of a directory previously resolved by Resolve, keyed by its opaque preview id. Entries are classified from their extension alone so a page costs no file reads. Pages are capped (1000 max, 200 default) and the scan stops at fifty-thousand entries; size and date sorts are limited to 5000 entries and downgrade to a name sort with a warning above that. The continuation token pins the directory mtime, so a directory that changes mid-walk aborts rather than silently skipping entries.",
       "category": "file_preview",
       "response": {
         "type": "object",
@@ -656,7 +656,21 @@
       ],
       "rest_exception": {
         "reason": "stream_upgrade",
-        "note": "Byte-range blob stream consumed by native browser media elements without a generated client — the same browser-native-transport category as terminal_ws. Connect's wire format cannot express opaque byte streaming with Range. The opaque preview id (never a raw path) is issued by FilePreviewService.Resolve and bound to the session."
+        "note": "Byte-range blob stream consumed by native browser media elements without a generated client — the same browser-native-transport category as terminal_ws. Connect's wire format cannot express opaque byte streaming with Range. The opaque preview id (never a raw path) is issued by FilePreviewService.Resolve and bound to the session.",
+        "proto_payloads": {
+          "request": {
+            "transport": "none",
+            "conformance": "none"
+          },
+          "response": {
+            "transport": "none",
+            "conformance": "none"
+          },
+          "error": {
+            "transport": "none",
+            "conformance": "none"
+          }
+        }
       }
     },
     {
@@ -668,7 +682,21 @@
       "category": "hooks",
       "rest_exception": {
         "reason": "webhook_receiver",
-        "note": "Called by the Claude Code CLI, which we do not control. Request shape is dictated by Claude Code and cannot be wrapped in a Connect client."
+        "note": "Called by the Claude Code CLI, which we do not control. Request shape is dictated by Claude Code and cannot be wrapped in a Connect client.",
+        "proto_payloads": {
+          "request": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "response": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "error": {
+            "transport": "json",
+            "conformance": "external_shape"
+          }
+        }
       }
     },
     {
@@ -680,7 +708,21 @@
       "category": "hooks",
       "rest_exception": {
         "reason": "webhook_receiver",
-        "note": "Called by the Claude Code CLI, which we do not control. Request shape is dictated by Claude Code and cannot be wrapped in a Connect client."
+        "note": "Called by the Claude Code CLI, which we do not control. Request shape is dictated by Claude Code and cannot be wrapped in a Connect client.",
+        "proto_payloads": {
+          "request": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "response": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "error": {
+            "transport": "json",
+            "conformance": "external_shape"
+          }
+        }
       }
     },
     {
@@ -1227,7 +1269,21 @@
       "category": "terminal",
       "rest_exception": {
         "reason": "multipart_upload",
-        "note": "Multipart/form-data upload. Stays REST even post-Connect because Connect's wire format does not natively carry multipart payloads."
+        "note": "Multipart/form-data upload. Stays REST even post-Connect because Connect's wire format does not natively carry multipart payloads.",
+        "proto_payloads": {
+          "request": {
+            "transport": "multipart/form-data",
+            "conformance": "transport_only"
+          },
+          "response": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "error": {
+            "transport": "json",
+            "conformance": "external_shape"
+          }
+        }
       }
     },
     {
@@ -1239,7 +1295,21 @@
       "category": "terminal",
       "rest_exception": {
         "reason": "stream_upgrade",
-        "note": "xterm.js requires a raw WebSocket upgrade — Connect-RPC cannot express that handshake. Stays REST until a Connect server-streaming RPC replaces it."
+        "note": "xterm.js requires a raw WebSocket upgrade — Connect-RPC cannot express that handshake. Stays REST until a Connect server-streaming RPC replaces it.",
+        "proto_payloads": {
+          "request": {
+            "transport": "none",
+            "conformance": "none"
+          },
+          "response": {
+            "transport": "none",
+            "conformance": "none"
+          },
+          "error": {
+            "transport": "none",
+            "conformance": "none"
+          }
+        }
       }
     },
     {

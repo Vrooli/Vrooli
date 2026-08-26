@@ -40,6 +40,12 @@ import (
 	"strings"
 )
 
+// SnapshotPrologue is the complete reset sequence shared by full and bounded
+// replays. Keeping it in one constant prevents a truncated replay from
+// leaving the receiver in an unknown alternate-buffer, scrollback, or SGR
+// state.
+const SnapshotPrologue = "\x1b[?1049l\x1bc\x1b[3J\x1b[H\x1b[0m"
+
 // Snapshot returns a self-contained ANSI byte stream. Idempotent for a
 // given emulator state.
 //
@@ -58,7 +64,7 @@ import (
 //     scrollback streaming so the first scrolled line lands cleanly.
 func (e *Emulator) Snapshot() []byte {
 	var buf bytes.Buffer
-	buf.WriteString("\x1b[?1049l\x1bc\x1b[3J\x1b[H\x1b[0m")
+	buf.WriteString(SnapshotPrologue)
 
 	// Scrollback (oldest → newest), each followed by CRLF.
 	for _, line := range e.scrollback.All() {

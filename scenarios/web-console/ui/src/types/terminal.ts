@@ -31,7 +31,8 @@ export interface TerminalMessage {
     | "resync"
     | "snapshot_notice"
     | "echo_state"
-    | "mouse_mode";
+    | "mouse_mode"
+    | "presence";
 
   /** Terminal I/O payload (stdin input or stdout output). */
   data?: string;
@@ -53,6 +54,12 @@ export interface TerminalMessage {
   accepted_through?: number;
   /** Highest reliable stdin byte offset known by the reconnecting client. */
   have_through?: number;
+	/** Highest PTY-output cursor already rendered by this client. */
+	rendered_through?: number;
+	/** Requests cursor-based output replay during reconnect. */
+	want_resume?: boolean;
+	/** End cursor of a stdout/history replay frame. */
+	output_cursor?: number;
   /** Per-message success flag (used by stdin_ack). */
   ok?: boolean;
   /** Generation counter echoed in session_ready for the wsGen barrier. */
@@ -96,4 +103,5 @@ export type StdinAckReason =
   | "tmux_write_failed"
   | "pty_closed"
   | "offset_gap"
-  | "unreconcilable";
+  | "unreconcilable"
+  | "input_queue_full";

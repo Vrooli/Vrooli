@@ -1,11 +1,13 @@
 import { useCallback, useRef } from "react";
 import type { QueuedReason, RawSendResult, InputIntent } from "../../components/terminal/inputGate";
 import type { StdinAckReason, TerminalMessage } from "../../types/terminal";
+import { PENDING_INPUT_COALESCE_MS, PENDING_INPUT_HOLD_MS } from "../../lib/terminalConfig";
 
 export interface PendingInputEntry {
   data: string;
   addedAt: number;
   intent: Exclude<InputIntent, "control">;
+  held?: boolean;
 }
 
 export type InputFailureReason = StdinAckReason | "unreconcilable";
@@ -23,7 +25,7 @@ export interface StdinStreamHandle {
   send: (data: string, intent: Exclude<InputIntent, "control">) => RawSendResult;
   enqueue: (data: string, intent: Exclude<InputIntent, "control">) => void;
   flush: () => void;
-  resetForNewConnection: () => void;
+	resetForNewConnection: (renderedThrough?: number) => void;
   handleClose: () => void;
   reconcile: (acceptedThrough: number) => void;
   replay: () => void;
@@ -33,16 +35,20 @@ export interface StdinStreamHandle {
   subscribePendingInput: (cb: () => void) => () => void;
   getPendingSnapshot: () => readonly PendingInputEntry[];
   getPendingInputCount: () => number;
+  discardEntry: (index: number) => void;
+  discardAll: () => void;
+  flushNow: () => void;
   dispose: () => void;
 }
 
 export interface UseStdinStreamOptions {
   sendFrame: (msg: TerminalMessage) => boolean;
   isSessionReady: () => boolean;
+  onUnreconcilable?: (offset: number) => void;
 }
 
 /** Ordered, cumulative-offset stdin stream. No timer retransmits bytes. */
-export function useStdinStream({ sendFrame, isSessionReady }: UseStdinStreamOptions): StdinStreamHandle {
+export function useStdinStream({ sendFrame, isSessionReady, onUnreconcilable }: UseStdinStreamOptions): StdinStreamHandle {
   const writeHeadRef = useRef(0);
   const releasedThroughRef = useRef(0);
   const bufferedRef = useRef<BufferedEntry[]>([]);
@@ -67,7 +73,13 @@ export function useStdinStream({ sendFrame, isSessionReady }: UseStdinStreamOpti
 
   const enqueue = useCallback((data: string, intent: Exclude<InputIntent, "control">) => {
     if (!data) return;
-    queuedRef.current.push({ data, intent, addedAt: Date.now() });
+    const now = Date.now();
+    const last = queuedRef.current.at(-1);
+    if (intent === "typing" && last?.intent === "typing" && now - last.addedAt < PENDING_INPUT_COALESCE_MS) {
+      last.data += data;
+    } else {
+      queuedRef.current.push({ data, intent, addedAt: now });
+    }
     notifyPending();
   }, [notifyPending]);
 
@@ -85,18 +97,52 @@ export function useStdinStream({ sendFrame, isSessionReady }: UseStdinStreamOpti
     return { sent: true, offset: end };
   }, [isSessionReady, sendFrame, notifyPending]);
 
-  const flush = useCallback(() => {
+  const flushInternal = useCallback((force: boolean) => {
     if (!isSessionReady() || unreconcilableRef.current) return;
     while (queuedRef.current.length > 0) {
       const next = queuedRef.current[0];
-      if (!next || !send(next.data, next.intent).sent) break;
+      if (!next) break;
+      if (!force && Date.now() - next.addedAt >= PENDING_INPUT_HOLD_MS) {
+        next.held = true;
+        notifyPending();
+        break;
+      }
+      if (!send(next.data, next.intent).sent) break;
       queuedRef.current.shift();
     }
     notifyPending();
   }, [isSessionReady, notifyPending, send]);
+  const flush = useCallback(() => flushInternal(false), [flushInternal]);
+  const flushNow = useCallback(() => flushInternal(true), [flushInternal]);
+  const discardEntry = useCallback((index: number) => {
+    if (index < 0 || index >= queuedRef.current.length) return;
+    queuedRef.current.splice(index, 1);
+    notifyPending();
+  }, [notifyPending]);
+  const discardAll = useCallback(() => {
+    if (queuedRef.current.length === 0) return;
+    queuedRef.current = [];
+    notifyPending();
+  }, [notifyPending]);
 
-  const resetForNewConnection = useCallback(() => {
-    sendFrame({ type: "hello", have_through: releasedThroughRef.current });
+  const resetForNewConnection = useCallback((renderedThrough = 0) => {
+    // Offset space belongs to the WebSocket connection. Preserve only the
+    // unaccepted payloads, rebasing their boundaries for the new connection.
+    unreconcilableRef.current = false;
+    releasedThroughRef.current = 0;
+    let nextOffset = 0;
+    bufferedRef.current = bufferedRef.current.map((entry) => {
+      const rebased = { ...entry, start: nextOffset };
+      nextOffset += new TextEncoder().encode(entry.data).byteLength;
+      rebased.end = nextOffset;
+      return rebased;
+    });
+    writeHeadRef.current = nextOffset;
+    if (renderedThrough > 0) {
+      sendFrame({ type: "hello", have_through: 0, rendered_through: renderedThrough, want_resume: true });
+    } else {
+      sendFrame({ type: "hello", have_through: 0 });
+    }
   }, [sendFrame]);
 
   const handleClose = useCallback(() => {
@@ -107,19 +153,19 @@ export function useStdinStream({ sendFrame, isSessionReady }: UseStdinStreamOpti
   const reconcile = useCallback((acceptedThrough: number) => {
     if (acceptedThrough < releasedThroughRef.current || acceptedThrough > writeHeadRef.current) {
       unreconcilableRef.current = true;
-      notifySettled(acceptedThrough, false, "unreconcilable");
+      onUnreconcilable?.(acceptedThrough);
       return;
     }
     const matching = bufferedRef.current.every((entry) => entry.end <= acceptedThrough || entry.start >= acceptedThrough);
     if (!matching) {
       unreconcilableRef.current = true;
-      notifySettled(acceptedThrough, false, "unreconcilable");
+      onUnreconcilable?.(acceptedThrough);
       return;
     }
     releasedThroughRef.current = Math.max(releasedThroughRef.current, acceptedThrough);
     bufferedRef.current = bufferedRef.current.filter((entry) => entry.end > acceptedThrough);
     notifySettled(acceptedThrough, true);
-  }, [notifySettled]);
+  }, [notifySettled, onUnreconcilable]);
 
   const replay = useCallback(() => {
     if (!isSessionReady() || unreconcilableRef.current) return;
@@ -130,12 +176,16 @@ export function useStdinStream({ sendFrame, isSessionReady }: UseStdinStreamOpti
 
   const acknowledge = useCallback((acceptedThrough: number, ok: boolean, reason?: InputFailureReason) => {
     if (!ok) {
-      if (reason === "unreconcilable") unreconcilableRef.current = true;
+      if (reason === "unreconcilable") {
+        unreconcilableRef.current = true;
+        onUnreconcilable?.(acceptedThrough);
+        return;
+      }
       notifySettled(acceptedThrough, false, reason ?? "unreconcilable");
       return;
     }
     reconcile(acceptedThrough);
-  }, [notifySettled, reconcile]);
+  }, [notifySettled, onUnreconcilable, reconcile]);
   const subscribeInputSettled = useCallback((cb: InputSettledListener) => {
     settledSubsRef.current.add(cb);
     return () => settledSubsRef.current.delete(cb);
@@ -167,5 +217,5 @@ export function useStdinStream({ sendFrame, isSessionReady }: UseStdinStreamOpti
     waitersRef.current.clear();
   }, []);
 
-  return { send, enqueue, flush, resetForNewConnection, handleClose, reconcile, replay, acknowledge, subscribeInputSettled, awaitOffset, subscribePendingInput, getPendingSnapshot, getPendingInputCount, dispose };
+  return { send, enqueue, flush, flushNow, discardEntry, discardAll, resetForNewConnection, handleClose, reconcile, replay, acknowledge, subscribeInputSettled, awaitOffset, subscribePendingInput, getPendingSnapshot, getPendingInputCount, dispose };
 }

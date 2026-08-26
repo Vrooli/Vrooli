@@ -4,6 +4,8 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"web-console/internal/legacymigrate"
 )
 
 func TestMigrateLegacyDB_CopiesWhenCanonicalAbsent(t *testing.T) {
@@ -25,7 +27,7 @@ func TestMigrateLegacyDB_CopiesWhenCanonicalAbsent(t *testing.T) {
 	}
 
 	dbPath := filepath.Join(t.TempDir(), "vrooli", "web-console", "web-console.db")
-	migrateLegacyDB(dbPath)
+	legacymigrate.MigrateDatabase(dbPath)
 
 	got, err := os.ReadFile(dbPath)
 	if err != nil {
@@ -55,7 +57,7 @@ func TestMigrateLegacyDB_NoopWhenCanonicalPresent(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	migrateLegacyDB(dbPath)
+	legacymigrate.MigrateDatabase(dbPath)
 
 	got, _ := os.ReadFile(dbPath)
 	if string(got) != "canonical-data" {
@@ -87,7 +89,7 @@ func TestMigrateLegacyStateFile_CopiesHookTokenWhenCanonicalAbsent(t *testing.T)
 	}
 
 	canonical := filepath.Join(t.TempDir(), "vrooli", "web-console", "hook-token.txt")
-	migrateLegacyStateFile(canonical, "hook-token.txt")
+	legacymigrate.MigrateStateFile(canonical, "hook-token.txt")
 
 	got, err := os.ReadFile(canonical)
 	if err != nil {
@@ -115,7 +117,7 @@ func TestMigrateLegacyStateFile_NoopWhenCanonicalPresent(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	migrateLegacyStateFile(canonical, "hook-token.txt")
+	legacymigrate.MigrateStateFile(canonical, "hook-token.txt")
 
 	got, _ := os.ReadFile(canonical)
 	if string(got) != "canonical" {
@@ -138,7 +140,7 @@ func TestMigrateLegacyStateFile_PreservesTokenMode(t *testing.T) {
 	}
 
 	canonical := filepath.Join(t.TempDir(), "hook-token.txt")
-	migrateLegacyStateFile(canonical, "hook-token.txt")
+	legacymigrate.MigrateStateFile(canonical, "hook-token.txt")
 
 	info, err := os.Stat(canonical)
 	if err != nil {

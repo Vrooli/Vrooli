@@ -104,6 +104,37 @@ describe("terminal scroll seam", () => {
     expect(sendControl).toHaveBeenCalledTimes(2);
   });
 
+  it("recovers when the acknowledgement gate reaches its cap without output", () => {
+    vi.useFakeTimers();
+    try {
+      const term = terminal("sgr");
+      const sendControl = vi.fn(() => true);
+      let timestamp = 0;
+      const controller = createScrollController(() => term, sendControl, {
+        maxUnacknowledgedFrames: 1,
+        acknowledgementTimeoutMs: 100,
+        maxFramesPerSecond: 1_000,
+        now: () => timestamp,
+      });
+
+      controller.scrollBy(1, "touch");
+      controller.flush();
+      expect(controller.getUnacknowledgedFrames()).toBe(1);
+
+      controller.scrollBy(1, "touch");
+      controller.flush();
+      expect(sendControl).toHaveBeenCalledTimes(1);
+
+      timestamp = 1000;
+      vi.advanceTimersByTime(100);
+      expect(controller.getUnacknowledgedFrames()).toBe(0);
+      controller.flush();
+      expect(sendControl).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("drops a queued frame when the server leaves mouse tracking and tolerates rejected frames", () => {
     const term = terminal("sgr");
     const sendControl = vi.fn(() => false);

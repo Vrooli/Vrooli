@@ -1,12 +1,12 @@
 {
   "_metadata": {
-    "last_validated_at": "2026-08-25T17:35:46-04:00"
+    "last_validated_at": "2026-08-26T09:02:31-04:00"
   },
   "requirements": [
     {
       "id": "REQ-P0-001a",
       "title": "Responsive Pane Grid Layout",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-001",
       "category": "ui",
       "description": "Implement responsive CSS grid layout that renders 2-column panes on desktop (\u003e=768px) and single-column stacked panes on mobile (\u003c768px). Pane containers must support dynamic addition and removal without full re-render.",
@@ -19,21 +19,21 @@
           "type": "test",
           "ref": "ui/src/__tests__/selectors.test.ts:exposes workspace paneGrid selector",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Pane grid selector registered in selector registry"
         },
         {
           "type": "test",
           "ref": "ui/src/__tests__/config.test.ts:exports pane layout thresholds",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Pane layout config constants exported (min width/height)"
         },
         {
           "type": "test",
           "ref": "ui/src/__tests__/workspace.test.tsx",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Workspace renders pane grid, empty state, header controls, nav buttons, drawer toggle"
         }
       ]
@@ -41,7 +41,7 @@
     {
       "id": "REQ-P0-001b",
       "title": "Independent Pane Session Lifecycle",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-001",
       "category": "core",
       "description": "Each pane operates an independent terminal session with its own PTY, input/output stream, and lifecycle. Pane creation allocates a new session; pane destruction tears down the session cleanly.",
@@ -53,28 +53,28 @@
           "type": "test",
           "ref": "api/session_test.go:TestSessionManager_ConcurrentSessions",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Multiple active terminals function independently"
         },
         {
           "type": "test",
           "ref": "api/session_test.go:TestSessionManager_Delete",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Pane destruction cleans up session resources"
         },
         {
           "type": "test",
           "ref": "api/session_handlers_test.go:TestHandleCreateSession_SessionLimit",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Session limit enforced to prevent resource exhaustion"
         },
         {
           "type": "test",
           "ref": "ui/src/__tests__/workspace.test.tsx",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Workspace multi-pane rendering, error banner with retry, launcher integration"
         },
         {
@@ -89,7 +89,7 @@
     {
       "id": "REQ-P0-001b-i",
       "title": "PTY Allocation and Cleanup",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-001",
       "category": "core",
       "description": "PTY allocation creates isolated process per session. Cleanup on termination releases file descriptors and signals child process.",
@@ -98,7 +98,7 @@
           "type": "test",
           "ref": "api/pty_test.go:TestFakePTY_CreateAndGet",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "PTY factory creates and manages process lifecycle"
         }
       ]
@@ -106,7 +106,7 @@
     {
       "id": "REQ-P0-001c",
       "title": "Pane Management Controls",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-001",
       "category": "ui",
       "description": "Pane add/remove controls visible in workspace header. Add opens a new terminal; close tears down the pane session with confirmation if process is running.",
@@ -115,28 +115,28 @@
           "type": "test",
           "ref": "api/session_handlers_test.go:TestHandleCreateSession",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Create session API endpoint returns session info"
         },
         {
           "type": "test",
           "ref": "api/session_handlers_test.go:TestHandleDeleteSession",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Delete session API endpoint returns 204"
         },
         {
           "type": "test",
           "ref": "ui/src/__tests__/selectors.test.ts:exposes workspace newTerminalButton selector",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "New terminal button selector registered"
         },
         {
           "type": "test",
           "ref": "ui/src/__tests__/workspace.test.tsx",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Header New button, drawer toggle, sessions/settings nav buttons in Workspace"
         }
       ]
@@ -144,7 +144,7 @@
     {
       "id": "REQ-P0-001d",
       "title": "Bounded, Stable Conversation Messages",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-001",
       "category": "ui",
       "description": "Messages open reliably for multi-thousand-event sessions with a bounded first render; scrolling is anchored and stable; whole-history search, jump, and export preserve access to events outside the loaded page while durable terminal sessions remain intact across a Web Console restart.",
@@ -153,21 +153,21 @@
           "type": "test",
           "ref": "ui/src/__tests__/useVirtualList.test.tsx",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Virtualizer first render is bounded for a 2,500-event fixture."
         },
         {
           "type": "test",
           "ref": "ui/src/hooks/__tests__/refreshConversationSession.test.ts",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Page refresh coverage verifies tail-only and older-page behavior."
         },
         {
           "type": "test",
           "ref": "api/conversation_pagination_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Repository coverage verifies 2,500-event backward paging, oldest-history search, literal LIKE wildcard escaping, and legacy complete-history reads."
         }
       ]

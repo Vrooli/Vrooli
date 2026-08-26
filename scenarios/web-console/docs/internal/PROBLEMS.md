@@ -621,11 +621,32 @@ server was cleared so new sessions inherit color-capable defaults.
 
 ## Work ladder
 
-- Blocker: none. The terminal-fidelity work remains active at W3; the baseline failures are evidence to compare against after implementation, not a reason to stop.
-- Measured: 2026-08-25.
 - Rung: W3 (implementation)
-- Evidence: W0 comparison remains aligned: goals `hosted-cloud-tier-foundation` and `portal-front-door` do not contradict archive interaction and transcript rendering, while `OT-P0-003` and `OT-P0-008` require durable session continuity and drawer controls. W1 passes with `business-health validate scenario web-console`; W2 passes with `vrooli scenario requirements validate web-console`. For the terminal-fidelity plan, the latest server-owned Test Genie run `20260825-132544-d6fc96ac` recorded 14 pass, 9 fail, and 0 skipped; comparison against `20260825-124448-3feddfc4` reports 14 clean and 9 pre-existing phases with zero regressions, while immutable baseline capture was unavailable. Focused evidence includes cumulative UTF-8 stdin stream tests, terminal key and scroll-controller tests, prediction-overlay tests, live six-entry capability API/REST catalogues, server-start catalogue regression coverage, UI type-check through the lifecycle build, 188 UI shard files / 1,728 UI tests passing, Istanbul-merged UI coverage of 88.70% lines and 86.53% functions, service/CLI coverage, shared package tests, all six API plus six CLI cross-build cells, a passing root `make cross-compile`, and shared local/bridge protocol conformance. The live catalogue returns Audio Tools, Ollama, OpenRouter, Standard Terminal Sessions, Persistent Terminal Sessions, and Remote Terminals (`vrooli-bridge`) with checker-derived statuses.
-- Blocker: none. The terminal-fidelity work remains active at W3; the baseline failures and coverage shortfall are evidence to close, not a reason to stop.
-- Measured: 2026-08-25.
-- Blocker: none. The terminal-fidelity work remains active at W3; the baseline failures are evidence to compare against after implementation, not a reason to stop.
-- Measured: 2026-08-25.
+- Evidence: W0 comparison remains aligned: goals `hosted-cloud-tier-foundation` and
+  `portal-front-door` do not contradict this work, and the PRD continues to name
+  the relevant P0 capabilities. W1 passes with `business-health validate scenario
+  web-console`; the stale `REQ-P0-008a` test reference was repaired to the existing
+  drawer test. W2 passes with `vrooli scenario requirements validate web-console`.
+  Implementation evidence includes the platform matrix, dedicated route and
+  migration packages, the three-lock session seam, cached echo probing, the pure
+  terminal protocol reducer, typed hook commands, storage declarations, focused
+  Go/UI tests, race-tested Go suites, and six-target build/vet validation.
+- Remaining validation caveat: the latest server-owned Test Genie run
+  `20260826-104603-fd2ab54a` passed 15/23 phases. The terminal plan's unit,
+  performance-build, and CLI-contract execution failures are cleared: the UI
+  build and coverage phase pass, the `hooks dispatch` command is declared, and
+  the local UI suite reports 194 files / 1,826 tests with 90.66% lines,
+  85.00% branches, and 85.76% functions. The remaining eight failed phases
+  are standing UI-health, documentation, soak configuration, Lighthouse,
+  storage isolation, workflow, experience, and security/proto findings; none
+  is a terminal transport or portable-PTY failure. A full scenario pass
+  therefore remains open. The plan validation operation
+  `0928e81e-8eac-4686-b7db-af8ad46da03c` completed with a clean baseline
+  comparison (`web-console:ready:preexisting`); it establishes no regression
+  in the plan-owned scenario, but does not waive the standing failures. The
+  post-run findings projection is currently unavailable because the rebuilt
+  Test Genie CLI panics while loading another scenario's unsupported `asset`
+  target kind; the completed run itself remains durable.
+- Blocker: none. The remaining findings are diagnosable repository or environment
+  debt, not missing authority.
+- Measured: 2026-08-26.

@@ -1,9 +1,10 @@
-import { useState, useCallback, useEffect, useMemo, useRef } from "react";
+import { useState, useCallback, useEffect, useLayoutEffect, useMemo, useRef } from "react";
 import { Settings, Sparkles, Plus, ChevronLeft, ChevronRight, Maximize2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useDraggablePosition } from "../hooks/useDraggablePosition";
 import type { DragEndInfo } from "../hooks/useDraggablePosition";
 import { useLongPress } from "../hooks/useLongPress";
+import { useFloatingPosition } from "../hooks/useFloatingPosition";
 import { strings } from "../consts/strings";
 import { useWorkspaceStore } from "../stores/useWorkspaceStore";
 import { Button } from "./ui/button";
@@ -104,14 +105,17 @@ export default function FloatingToolbar({
   const [docked, setDocked] = useState<DockedEdge>(loadDockedEdge);
   const [animating, setAnimating] = useState(false);
   /** Measured full width of toolbar, for computing dock offset */
-  const [toolbarWidth, setToolbarWidth] = useState(160);
+  // Use a conservative pre-measure width so the first paint is safe even when
+  // a persisted coordinate was recorded on a wider viewport. The measured
+  // width replaces this estimate immediately after layout.
+  const [toolbarWidth, setToolbarWidth] = useState(220);
   /** Viewport width for right-dock positioning */
   const [vpWidth, setVpWidth] = useState(() =>
     typeof window !== "undefined" ? window.innerWidth : 1000,
   );
 
   // Track viewport width for right-dock transform
-  useEffect(() => {
+  useLayoutEffect(() => {
     const onResize = () => setVpWidth(window.innerWidth);
     window.addEventListener("resize", onResize);
     return () => window.removeEventListener("resize", onResize);
@@ -141,7 +145,8 @@ export default function FloatingToolbar({
     }
   }, []);
 
-  const { elementRef, floatingStyle, pointerHandlers, handleClickCapture, position } =
+  const { clampPosition } = useFloatingPosition();
+  const { elementRef, floatingStyle, pointerHandlers, handleClickCapture, position, moveTo } =
     useDraggablePosition({
       isActive: true,
       storageKey: "wc-toolbar-pos",
@@ -165,9 +170,23 @@ export default function FloatingToolbar({
   useEffect(() => {
     const el = elementRef.current;
     if (!el) return;
-    const rect = el.getBoundingClientRect();
-    if (rect.width > 0) setToolbarWidth(rect.width);
-  }, [docked, elementRef]);
+    const syncMeasuredBounds = () => {
+      const rect = el.getBoundingClientRect();
+      if (rect.width <= 0) return;
+      setToolbarWidth(rect.width);
+      // A stored position can outlive a viewport or responsive width change.
+      // Re-clamp from the measured box so the toolbar never extends beyond the
+      // capture viewport before the user interacts with it.
+      moveTo(clampPosition(position.x, position.y, {
+        width: rect.width,
+        height: rect.height,
+      }));
+    };
+    syncMeasuredBounds();
+    const observer = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(syncMeasuredBounds);
+    observer?.observe(el);
+    return () => observer?.disconnect();
+  }, [clampPosition, docked, elementRef, moveTo, position.x, position.y]);
 
   const undock = useCallback(() => {
     setAnimating(true);
@@ -182,7 +201,19 @@ export default function FloatingToolbar({
   // Left dock:  toolbar slides left, right edge is visible → tab renders at right end
   // Right dock: toolbar slides right, left edge is visible → tab renders at left end
   const computedStyle = useMemo(() => {
-    if (!docked) return floatingStyle;
+    if (!docked) {
+      // Clamp the rendered transform as well as the stored state. Layout
+      // effects repair the persisted coordinate, but the first paint must not
+      // briefly extend past the capture viewport while that repair runs.
+      const safePosition = clampPosition(position.x, position.y, {
+        width: toolbarWidth,
+        height: 54,
+      });
+      return {
+        ...floatingStyle,
+        transform: `translate3d(${Math.round(safePosition.x)}px, ${Math.round(safePosition.y)}px, 0)`,
+      };
+    }
     const y = position.y;
     if (docked === "left") {
       // Slide left so only the rightmost DOCK_TAB_WIDTH pixels are visible
@@ -192,7 +223,7 @@ export default function FloatingToolbar({
     // Slide right so only the leftmost DOCK_TAB_WIDTH pixels are visible
     const safe = readSafeAreaInsets();
     return { transform: `translate3d(${vpWidth - safe.right - DOCK_TAB_WIDTH}px, ${Math.max(y, safe.top + 12)}px, 0)` };
-  }, [docked, floatingStyle, position.y, toolbarWidth, vpWidth]);
+  }, [clampPosition, docked, floatingStyle, position.x, position.y, toolbarWidth, vpWidth]);
 
   const plusHandlers = useLongPress({
     onPress: plusButtonBehavior === "launcher" ? onOpenLauncher : onNewTerminal,
@@ -226,7 +257,7 @@ export default function FloatingToolbar({
         data-testid="toolbar-settings"
         variant="ghost"
         size="icon"
-        className="h-8 w-8"
+        className="h-11 w-11 md:h-8 md:w-8"
         onClick={onOpenSettings}
         title={t(strings.floatingToolbar.settingsTitle)}
         tabIndex={docked ? -1 : undefined}
@@ -288,7 +319,7 @@ export default function FloatingToolbar({
         data-testid="toolbar-new"
         variant="ghost"
         size="icon"
-        className="h-8 w-8"
+        className="h-11 w-11 md:h-8 md:w-8"
         disabled={isCreating}
         title={plusButtonBehavior === "launcher" ? t(strings.floatingToolbar.launcherFirstTitle) : t(strings.floatingToolbar.terminalFirstTitle)}
         tabIndex={docked ? -1 : undefined}

@@ -107,15 +107,22 @@ func PrepareSessionHome(sessionHome, sharedHome string) string {
 // SessionHome returns the per-session GROK_HOME path rooted under
 // sessionStateRoot, creating the directory layout and symlinks on first call.
 func SessionHome(sessionStateRoot, sessionID string) string {
-	return PrepareSessionHome(
-		filepath.Join(sessionStateRoot, "grok", sessionID),
-		SharedHome(),
-	)
+	return PrepareSessionHome(SessionHomePath(sessionStateRoot, sessionID), SharedHome())
+}
+
+// SessionHomePath returns the lazy per-session home path without creating it.
+func SessionHomePath(sessionStateRoot, sessionID string) string {
+	return filepath.Join(sessionStateRoot, "grok", sessionID)
 }
 
 // SessionsDir returns the per-session transcript root (the `sessions` subdir
 // under SessionHome). grok writes <SessionsDir>/<url-encoded-cwd>/<session-id>/
 // updates.jsonl beneath it.
 func SessionsDir(sessionStateRoot, sessionID string) string {
-	return ensureDir(filepath.Join(SessionHome(sessionStateRoot, sessionID), "sessions"))
+	return ensureDir(SessionsDirPath(sessionStateRoot, sessionID))
+}
+
+// SessionsDirPath returns the transcript path without creating it.
+func SessionsDirPath(sessionStateRoot, sessionID string) string {
+	return filepath.Join(SessionHomePath(sessionStateRoot, sessionID), "sessions")
 }

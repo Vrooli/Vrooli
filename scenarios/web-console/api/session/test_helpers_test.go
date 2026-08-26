@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/vrooli/repo-contract-go/repocontracttest"
 	"web-console/internal/pty"
 	"web-console/internal/ptyfake"
 )
@@ -14,6 +15,15 @@ import (
 // tmuxSessionPrefix mirrors the package-main constant; duplicated so session
 // recovery tests can address tmux sessions without importing package main.
 const tmuxSessionPrefix = "wc-"
+
+// requireTmux declares that a recovery test exercises a real tmux server.
+// Keep the platform skip typed so non-Unix suite runs report an honest skip.
+func requireTmux(t *testing.T) {
+	t.Helper()
+	if _, err := exec.LookPath("tmux"); err != nil {
+		repocontracttest.SkipPlatform(t, "tmux is unavailable on this platform")
+	}
+}
 
 // tmuxCmd runs a tmux command against the per-test socket (configured by
 // useIsolatedTmuxSocket via WC_TMUX_SOCKET). Mirrors the package-main helper.

@@ -94,9 +94,7 @@ func TestRecover_OrphanedMetadata_NoTmuxSession_PreservesRow(t *testing.T) {
 }
 
 func TestRecover_AwaitingRecoveryReattachOnNextStart(t *testing.T) {
-	if _, err := exec.LookPath("tmux"); err != nil {
-		t.Skip("tmux not installed")
-	}
+	requireTmux(t)
 	useIsolatedSessionState(t)
 	useIsolatedTmuxSocket(t)
 
@@ -887,18 +885,18 @@ func TestSessionManager_Shutdown_SetsClosingBeforeClose(t *testing.T) {
 	}
 
 	// Before shutdown, closing should be false
-	sess.mu.Lock()
+	sess.emuMu.Lock()
 	if sess.closing {
 		t.Error("closing should be false before Shutdown")
 	}
-	sess.mu.Unlock()
+	sess.emuMu.Unlock()
 
 	sm.Shutdown()
 
 	// After shutdown, closing should have been set
-	sess.mu.Lock()
+	sess.emuMu.Lock()
 	wasClosing := sess.closing
-	sess.mu.Unlock()
+	sess.emuMu.Unlock()
 	if !wasClosing {
 		t.Error("Shutdown did not set closing flag on persistent session")
 	}

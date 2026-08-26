@@ -1,12 +1,12 @@
 {
   "_metadata": {
-    "last_validated_at": "2026-08-25T17:35:46-04:00"
+    "last_validated_at": "2026-08-26T09:02:31-04:00"
   },
   "requirements": [
     {
       "id": "REQ-P0-008a",
       "title": "Drawer Layout Component",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-008",
       "category": "ui",
       "description": "Collapsible side drawer component slides in/out without disrupting terminal pane layout. Accessible via hamburger icon or keyboard shortcut.",
@@ -16,23 +16,23 @@
       "validation": [
         {
           "type": "test",
-          "ref": "ui/src/__tests__/drawer-shell.test.tsx",
+          "ref": "ui/src/__tests__/workspace.test.tsx:opens and closes the mobile sidebar drawer",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Drawer shell exposes dialog semantics, focus containment, backdrop close, and Escape close"
         },
         {
           "type": "test",
           "ref": "ui/src/__tests__/selectors.test.ts:exposes drawer panel selector",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Drawer panel selector registered"
         },
         {
           "type": "test",
           "ref": "ui/src/__tests__/workspace.test.tsx",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Workspace covers sidebar drawer open/close, backdrop, and mobile session activation"
         }
       ]
@@ -40,7 +40,7 @@
     {
       "id": "REQ-P0-008b",
       "title": "Session Status and Controls",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-008",
       "category": "ui",
       "description": "Drawer displays active session list with status indicators, workspace controls, and session management actions (rename, terminate).",
@@ -52,21 +52,21 @@
           "type": "test",
           "ref": "ui/src/__tests__/session-sidebar.test.tsx",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Sidebar renders session rows, grouping, sorting, and its primary controls"
         },
         {
           "type": "test",
           "ref": "ui/src/__tests__/format.test.ts:formatSessionTime",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Session time formatting for drawer display"
         },
         {
           "type": "test",
           "ref": "ui/src/__tests__/session-management-section.test.tsx",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Session management renders rows and policy controls and invokes session actions"
         }
       ]
@@ -74,7 +74,7 @@
     {
       "id": "REQ-P0-008b-i",
       "title": "Session Action Feedback",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-008",
       "category": "ui",
       "description": "Session terminate action provides visual feedback: confirmation state on first click, immediate deletion on second click.",
@@ -83,14 +83,14 @@
           "type": "test",
           "ref": "ui/src/__tests__/session-management-section.test.tsx",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Session management exposes an explicit remove action per pane"
         },
         {
           "type": "test",
           "ref": "ui/src/__tests__/terminal-context-menu.test.tsx",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Terminal context menu tests cover confirmation-backed destructive actions"
         }
       ]

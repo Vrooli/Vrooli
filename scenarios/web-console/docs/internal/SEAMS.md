@@ -1,6 +1,6 @@
 # Web Console — Seams & Responsibility Boundaries
 
-Last updated: 2026-05-16
+Last updated: 2026-08-26
 
 > **Audio adoption (2026-05-16):** `internal/voice/`, `internal/tts/`,
 > `handlers/voice/`, `handlers/tts/`, and the `web-console/v1/voice` +
@@ -76,12 +76,13 @@ contract.
 - `TerminalContextMenu` waits for settlement via
   `subscribeInputSettled` before closing, showing
   `Pasting… → Pasted` or `Paste failed: <reason>`. Closes Bug B.
-- Terminal replay uses a server-side emulator and a self-contained
-  ANSI snapshot (`api/terminal/`). The UI hook resets xterm on every WS
-  open and writes snapshot stdout frames verbatim until `history_end`,
-  then flips to live mode. There is no client-side cache, no byte
-  offset, and no duplication-detection logic. Closes the alt-buffer
-  scrollback-loss bug for good.
+- Terminal replay uses a server-side emulator and a self-contained ANSI
+  snapshot (`api/terminal/`). Each live stdout frame also carries an
+  `output_cursor`; the session retains an 8 MiB frame-boundary ring. A
+  reconnect sends `hello{want_resume,rendered_through}` and receives only the
+  covered delta, or an explicit `resync` followed by the authoritative
+  snapshot when the cursor has expired. `history_end.output_cursor` records
+  the renderer's new checkpoint.
 
 ## Session decomposition (refactored 2026-04-24)
 
@@ -111,6 +112,31 @@ enforce:
 - No references to deleted rework/phase-2 plan filenames.
 - `SIGWINCH` via `SetSize` only inside `maybeSIGWINCHRecovery` /
   `Resize` (checked across both `session.go` and `broadcast.go`).
+
+## Terminal reliability seams (2026-08-26)
+
+The terminal path has three explicit boundaries that must remain transport-
+neutral:
+
+- **Platform availability:** OS-specific PTY and echo files are selected by
+  build tags. The capability registry and `.vrooli/service.json` publish the
+  resulting status; callers use typed unsupported errors instead of a
+  runtime host-support boolean.
+- **Persistent input/control:** one bounded per-session writer queue orders
+  reliable stdin, best-effort control bytes, and ANSI responder replies. The
+  persistent backend keeps a long-lived tmux control client for command-style
+  operations; the PTY interface hides that channel from session and HTTP code.
+- **Protocol state:** `ui/src/lib/terminalProtocol.ts` is a DOM-free reducer
+  for replay, live, resync, echo, size, and presence state. WebSocket effects
+  remain in the hook, while this reducer is tested independently of xterm.
+
+Session synchronization follows the same ownership split: `emuMu` protects
+the emulator and snapshot cache, `clientsMu` protects viewers/leases/presence,
+and `ptyMu` protects only replacement of the PTY pointer. The locks are
+acquired in `clientsMu` → `emuMu` order and no lock is held across backend
+I/O. Backend echo state is sampled into a session cache with a 250 ms floor;
+the WebSocket path emits only changed combined state and retains a five-second
+maximum refresh while a client is connected.
 
 ## Responsibility Zones
 
@@ -178,7 +204,7 @@ are available and the URL is valid.
 - `AppendAssistant` / `AppendUser` (the `ConversationDispatcher` seam) is the only semantic ingestion path; every adapter routes through it. No adapter writes the conversation store directly or scrapes PTY output.
 - Source names are a stable, documented set: `claude_hook`, `codex_tailer`, `grok_tailer`, `opencode_api`.
 - Key invariant: source adapters produce normalized conversation events first; TTS is downstream of those events.
-- Checkpoint invariant: each adapter persists a replay-safe, source-scoped cursor. Codex uses `codex_rollout_checkpoints` (byte offset); Grok and OpenCode share `agent_transcript_checkpoints` (Grok cursor = byte offset advanced only at turn boundaries; OpenCode cursor = per-session JSON high-water mark). `ConversationStore` short-window dedup is the second line of defense, never the primary guard.
+- Checkpoint invariant: each adapter persists a replay-safe, source-scoped cursor in `agent_transcript_checkpoints`. Codex and Grok use byte offsets (Grok advances only at turn boundaries); OpenCode uses a per-session JSON high-water mark. `ConversationStore` short-window dedup is the second line of defense, never the primary guard.
 
 ### 3. Domain / Session Lifecycle
 **Owner**: [CODE: api/session.go], [CODE: api/pty.go]
@@ -807,9 +833,9 @@ Verification disabled           → no gating at all (current behavior)
 | `Emulator.Snapshot()` | Returns a self-contained ANSI replay payload | Round-trip: `New().Feed(Snapshot()) ≡ original` (`emulator_test.go`) |
 | `Emulator.Resize(cols, rows)` | Called from `Session.Resize` | Asserts scrollback line count is preserved |
 
-**Benefits**: Replay is replay-safe across alt-buffer/charset/resize transitions. The snapshot is the single source of truth for client reconnect; no client cache, no byte offsets, no duplication-detection logic anywhere.
+**Benefits**: Replay is replay-safe across alt-buffer/charset/resize transitions. The snapshot remains the recovery source of truth while the bounded cursor ring avoids retransmitting already-rendered output during short reconnects.
 
-**Boundary**: `api/terminal/` ↔ `api/session.go` (`Subscribe()` returns the snapshot) ↔ `api/terminal_ws.go` (chunks snapshot frames before `history_end`) ↔ `ui/src/hooks/terminal/useTerminalSession.ts` (snapshot-mode flag flips on `history_end`).
+**Boundary**: `api/terminal/` ↔ `api/session.go` (`Subscribe()` returns the snapshot and cursor-bearing frame stream) ↔ `api/terminal_ws.go` (resume handshake, cursor frames, and snapshot fallback) ↔ `ui/src/hooks/terminal/useTerminalSession.ts` (renderer checkpoint and snapshot-mode flag).
 
 ### Combo Sequence Delay Seam (UI)
 **File**: `ui/src/lib/comboSequence.ts`
@@ -909,10 +935,10 @@ The `TTSProvider` interface enables swapping between synthesis backends:
 
 ### Hook Delivery Chain
 
-**Path**: `tts-hooks.sh` → `claude-code` resource hook reconciliation → Claude Code Stop hook in repo-root `.claude/settings.json` / `CodexTailer` → conversation append/fan-out → WebSocket `conversation_event` → UI `useTerminalSession` → `TerminalPane` append + received/seen ack → `useTtsPlaybackController.handleIncomingEvent` → `TerminalPaneHandle.speakText` → `useTextToSpeech.speakParagraphs` → conversation playback ack/cursor update
+**Path**: `web-console hooks register` → `claude-code` resource hook reconciliation → Claude Code Stop hook in repo-root `.claude/settings.json` / transcript sources → conversation append/fan-out → WebSocket `conversation_event` → UI `useTerminalSession` → `TerminalPane` append + received/seen ack → `useTtsPlaybackController.handleIncomingEvent` → `TerminalPaneHandle.speakText` → `useTextToSpeech.speakParagraphs` → conversation playback ack/cursor update
 
 **Seam points**:
-1. `tts-hooks.sh` ↔ `claude-code` resource: scenario declares desired hook; resource owns settings-path resolution, JSON merge, and idempotent healing
+1. `web-console hooks register` ↔ `claude-code` resource: scenario declares desired hook; resource owns settings-path resolution, JSON merge, and idempotent healing
 2. Claude Stop hook ↔ API: HTTP POST with `X-Hook-Token` auth header
 3. `routeTTSCandidate` ↔ source adapters: backend routing only accepts explicit terminal ownership; it does not infer from PTY output
 4. Conversation store/fan-out ↔ WebSocket: normalized events broadcast to session subscribers
@@ -924,8 +950,8 @@ The `TTSProvider` interface enables swapping between synthesis backends:
 
 ### Two Independent TTS Trigger Paths
 
-1. **Claude Code Hook** (`tts-hooks.sh` → `claude-code` reconcile → `claude-stop-hook.sh` → `handleHookStop`): Active push. Claude Code fires a Stop hook after each response. Web-console now uses a command hook instead of a raw HTTP hook so the terminal environment can inject `WC_WEB_CONSOLE_SESSION_ID` directly into the payload. Claude keeps its native shared `~/.claude` session storage unchanged, so sign-in and onboarding state are preserved.
-2. **CodexTailer** (`codex_tailer.go`): Passive poll. Watches each terminal session's dedicated `CODEX_HOME/sessions/` tree and extracts assistant text. Each terminal gets a prepared `CODEX_HOME` overlay: shared auth/config is symlinked from `~/.codex`, while rollout/session data remains terminal-owned. Rollout ownership is therefore explicit from the filesystem path, not inferred from text.
+1. **Claude Code Hook** (`web-console hooks dispatch` → `handleHookStop`): Active push. Claude Code fires a Stop hook after each response. Web-console registers a portable Go command hook, so the terminal environment can inject `WC_WEB_CONSOLE_SESSION_ID` directly into the payload. Claude keeps its native shared `~/.claude` session storage unchanged, so sign-in and onboarding state are preserved.
+2. **CodexTailer** (`codex_tailer.go`, `internal/tailer`): Passive poll. Watches each terminal session's dedicated `CODEX_HOME/sessions/` tree and extracts assistant text. Each terminal gets a prepared `CODEX_HOME` overlay only when Codex is launched: shared auth/config and regenerable runtime state resolve to `~/.codex`, while rollout/session data remains terminal-owned. Rollout ownership is therefore explicit from the filesystem path, not inferred from text.
 
 Both paths converge as normalized conversation events. Frontend auto-play is gated by `autoTtsEnabled`, active pane ownership, assistant role, and persisted playback intent. The client reports delivery and playback outcomes over conversation-event acknowledgements.
 

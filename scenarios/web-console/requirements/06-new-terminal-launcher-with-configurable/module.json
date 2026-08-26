@@ -1,12 +1,12 @@
 {
   "_metadata": {
-    "last_validated_at": "2026-08-25T17:35:46-04:00"
+    "last_validated_at": "2026-08-26T09:02:31-04:00"
   },
   "requirements": [
     {
       "id": "REQ-P0-006a",
       "title": "Terminal Launch Flow UI",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-006",
       "category": "ui",
       "description": "Terminal launcher dialog presents empty shell option and configurable shortcut entries. Opens on new-pane action.",
@@ -18,21 +18,21 @@
           "type": "test",
           "ref": "ui/src/__tests__/launcher.test.ts",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Launcher component exports and renders"
         },
         {
           "type": "test",
           "ref": "ui/src/__tests__/selectors.test.ts:exposes launcher dialog selector",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Launcher dialog selector registered"
         },
         {
           "type": "test",
           "ref": "ui/src/__tests__/terminal-launcher.test.tsx",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Launcher modal open/close, empty shell, shortcut selection, custom command, isCreating states"
         },
         {
@@ -47,7 +47,7 @@
     {
       "id": "REQ-P0-006b",
       "title": "Configurable Shortcut Entries",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-006",
       "category": "core",
       "description": "Shortcut entries configurable via API. The default Claude shortcut uses `vrooli agent launch --runner claude --arg=--dangerously-skip-permissions`, and the Codex shortcut uses `codex --yolo`. Shortcut selection creates a session with the specified command.",
@@ -59,21 +59,21 @@
           "type": "test",
           "ref": "ui/src/__tests__/shortcuts.test.ts",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Default shortcuts include claude and codex per PRD"
         },
         {
           "type": "test",
           "ref": "ui/src/__tests__/launcher.test.ts",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "ShortcutEntry interface supports label, command, description"
         },
         {
           "type": "test",
           "ref": "ui/src/__tests__/terminal-launcher.test.tsx",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "API-driven shortcut loading, fallback to defaults on API failure, prop override"
         }
       ]
@@ -81,7 +81,7 @@
     {
       "id": "REQ-P0-006b-i",
       "title": "Shortcut Session Creation",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-006",
       "category": "core",
       "description": "Selecting a shortcut entry creates a new session with the shortcut's command pre-populated. Session creation uses the same API as empty shell.",
@@ -90,7 +90,7 @@
           "type": "test",
           "ref": "api/session_handlers_test.go:TestHandleCreateSession",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Create session API accepts optional shell command parameter"
         }
       ]

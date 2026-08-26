@@ -76,6 +76,30 @@ func TestHandler_HealthEndpoint(t *testing.T) {
 	}
 }
 
+func TestHandler_SecurityHeaders(t *testing.T) {
+	srv := &Server{router: mux.NewRouter()}
+	srv.router.HandleFunc("/health", func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusNoContent)
+	}).Methods(http.MethodGet)
+
+	req := httptest.NewRequest(http.MethodGet, "http://localhost/health", nil)
+	req.Header.Set("X-Forwarded-Proto", "https")
+	rec := httptest.NewRecorder()
+	srv.Handler().ServeHTTP(rec, req)
+
+	for header, want := range map[string]string{
+		"X-Content-Type-Options":    "nosniff",
+		"X-Frame-Options":           "SAMEORIGIN",
+		"X-XSS-Protection":          "0",
+		"Referrer-Policy":           "strict-origin-when-cross-origin",
+		"Strict-Transport-Security": "max-age=31536000; includeSubDomains",
+	} {
+		if got := rec.Header().Get(header); got != want {
+			t.Errorf("%s = %q, want %q", header, got, want)
+		}
+	}
+}
+
 // [REQ:P1-004b] Metrics - MetricsService.Get responds through the full
 // handler stack (CORS + request-ID middleware + Connect mux).
 func TestHandler_MetricsEndpoint(t *testing.T) {

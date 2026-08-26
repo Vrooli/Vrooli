@@ -53,11 +53,9 @@ func wireDefaultManagerHooks(sm *session.Manager) {
 func defaultSessionEnv(sessionID string) map[string]string {
 	return map[string]string{
 		"WC_WEB_CONSOLE_SESSION_ID": sessionID,
-		"CODEX_HOME":                sessionCodexHome(sessionID),
-		"WC_CODEX_SESSIONS_DIR":     sessionCodexSessionsDir(sessionID),
-		// Per-session GROK_HOME isolates the grok transcript tree per pane so the
-		// tailer can attribute sessions by construction (shared auth/config are
-		// symlinked in by backends/grok). See CONVERSATION_TRACKING.md.
-		"GROK_HOME": sessionGrokHome(sessionID),
+		// The launcher uses this root to materialize CODEX_HOME/GROK_HOME only
+		// when the corresponding native agent is actually started. A plain shell
+		// therefore carries attribution identity without creating agent state.
+		"WC_SESSION_STATE_ROOT": resolveSessionStateRoot(),
 	}
 }

@@ -25,7 +25,7 @@ import (
 // mode. This test asserts that: after entering copy-mode, both a
 // keystroke and a paste payload reach the pane's shell.
 func TestTmuxPTY_InCopyMode_InputReachesPane(t *testing.T) {
-	requireIsolatedTmux(t)
+	requireTmux(t)
 
 	spec := pty.LaunchSpec{
 		SessionID: "test-copy-mode-input",
@@ -127,7 +127,7 @@ func waitForPaneContent(t *testing.T, sessionName, want string, within time.Dura
 // them to the tmux client directly, preserving whatever mode the
 // client has entered.
 func TestTmuxPTY_MouseWheelPreservesCopyMode(t *testing.T) {
-	requireIsolatedTmux(t)
+	requireTmux(t)
 
 	spec := pty.LaunchSpec{
 		SessionID: "test-mouse-copy-mode",
@@ -183,7 +183,7 @@ func TestTmuxPTY_MouseWheelPreservesCopyMode(t *testing.T) {
 // buffer after delivery so our per-call buffers don't accumulate
 // across many pastes.
 func TestTmuxPTY_Paste_CleansUpBuffer(t *testing.T) {
-	requireIsolatedTmux(t)
+	requireTmux(t)
 
 	spec := pty.LaunchSpec{
 		SessionID: "test-paste-buffer-cleanup",

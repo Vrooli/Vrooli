@@ -17,6 +17,7 @@ import (
 	settingsH "web-console/handlers/settings"
 	"web-console/internal/capabilities"
 	"web-console/internal/filepreview"
+	"web-console/internal/legacymigrate"
 )
 
 func TestProductionCapabilityCheckersCoverCatalogue(t *testing.T) {
@@ -108,17 +109,17 @@ func TestHookTokenAndLegacyFilePrimitives(t *testing.T) {
 	if err := os.WriteFile(src, []byte("payload"), 0o640); err != nil {
 		t.Fatal(err)
 	}
-	if err := copyFileWithMode(src, dst, 0o600); err != nil {
+	if err := legacymigrate.CopyFileWithMode(src, dst, 0o600); err != nil {
 		t.Fatal(err)
 	}
 	data, err := os.ReadFile(dst)
 	if err != nil || string(data) != "payload" {
 		t.Fatalf("copied file = %q/%v", data, err)
 	}
-	if err := copyFileIfExists(filepath.Join(dir, "missing"), filepath.Join(dir, "ignored")); err != nil {
+	if err := legacymigrate.CopyFileIfExists(filepath.Join(dir, "missing"), filepath.Join(dir, "ignored")); err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(strings.Join(legacyDBCandidates(), ","), "web-console") {
+	if !strings.Contains(strings.Join(legacymigrate.DatabaseCandidates(), ","), "web-console") {
 		t.Fatal("legacy DB candidates did not include web-console")
 	}
 }

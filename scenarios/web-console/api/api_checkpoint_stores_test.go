@@ -6,7 +6,7 @@ import (
 	"time"
 )
 
-func TestInMemoryTranscriptAndCodexCheckpoints(t *testing.T) {
+func TestInMemoryTranscriptCheckpoints(t *testing.T) {
 	ctx := context.Background()
 	transcript := NewInMemoryAgentTranscriptCheckpointStore()
 	if _, ok, err := transcript.Get(ctx, "grok", "one"); err != nil || ok {
@@ -28,22 +28,21 @@ func TestInMemoryTranscriptAndCodexCheckpoints(t *testing.T) {
 		t.Fatal("deleted transcript checkpoint remains")
 	}
 
-	codex := NewInMemoryCodexCheckpointStore()
-	if err := codex.Save(ctx, CodexRolloutCheckpoint{Path: "/tmp/a", SessionID: "s1", Offset: 10}); err != nil {
+	if err := transcript.Save(ctx, AgentTranscriptCheckpoint{Source: "codex_rollout", SourceKey: "/tmp/a", SessionID: "s1", Cursor: "10"}); err != nil {
 		t.Fatal(err)
 	}
-	if cp, ok, err := codex.Get(ctx, "/tmp/a"); err != nil || !ok || cp.Offset != 10 {
+	if cp, ok, err := transcript.Get(ctx, "codex_rollout", "/tmp/a"); err != nil || !ok || cp.Cursor != "10" {
 		t.Fatalf("saved codex checkpoint = %#v, %v, %v", cp, ok, err)
 	}
-	if err := codex.DeleteSession(ctx, "s1"); err != nil {
+	if err := transcript.DeleteSession(ctx, "s1"); err != nil {
 		t.Fatal(err)
 	}
-	if _, ok, _ := codex.Get(ctx, "/tmp/a"); ok {
+	if _, ok, _ := transcript.Get(ctx, "codex_rollout", "/tmp/a"); ok {
 		t.Fatal("deleted codex checkpoint remains")
 	}
 }
 
-func TestSQLTranscriptAndCodexCheckpoints(t *testing.T) {
+func TestSQLTranscriptCheckpoints(t *testing.T) {
 	ctx := context.Background()
 	db := setupTestDB(t)
 	transcript := NewSQLAgentTranscriptCheckpointStore(db)
@@ -67,17 +66,16 @@ func TestSQLTranscriptAndCodexCheckpoints(t *testing.T) {
 		t.Fatalf("deleted transcript checkpoint = ok=%v err=%v", ok, err)
 	}
 
-	codex := NewSQLCodexCheckpointStore(db)
-	if err := codex.Save(ctx, CodexRolloutCheckpoint{Path: "/tmp/rollout.jsonl", SessionID: "sql-session", Offset: 128, UpdatedAt: when}); err != nil {
+	if err := transcript.Save(ctx, AgentTranscriptCheckpoint{Source: "codex_rollout", SourceKey: "/tmp/rollout.jsonl", SessionID: "sql-session", Cursor: "128", UpdatedAt: when}); err != nil {
 		t.Fatal(err)
 	}
-	if cp, ok, err := codex.Get(ctx, "/tmp/rollout.jsonl"); err != nil || !ok || cp.Offset != 128 || cp.SessionID != "sql-session" {
+	if cp, ok, err := transcript.Get(ctx, "codex_rollout", "/tmp/rollout.jsonl"); err != nil || !ok || cp.Cursor != "128" || cp.SessionID != "sql-session" {
 		t.Fatalf("saved codex checkpoint = %#v, %v, %v", cp, ok, err)
 	}
-	if err := codex.DeleteSession(ctx, "sql-session"); err != nil {
+	if err := transcript.DeleteSession(ctx, "sql-session"); err != nil {
 		t.Fatal(err)
 	}
-	if _, ok, err := codex.Get(ctx, "/tmp/rollout.jsonl"); err != nil || ok {
+	if _, ok, err := transcript.Get(ctx, "codex_rollout", "/tmp/rollout.jsonl"); err != nil || ok {
 		t.Fatalf("deleted codex checkpoint = ok=%v err=%v", ok, err)
 	}
 }

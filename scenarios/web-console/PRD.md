@@ -26,21 +26,21 @@
 ## 🎯 Operational Targets
 
 ### 🔴 P0 – Must ship for viability
-- [x] OT-P0-001 | Pane-Based Terminal Workspace | Multi-pane terminal layout with simultaneous terminals, 2-column desktop and 1-column mobile behavior aligned with app-monitor workspace ergonomics
-- [x] OT-P0-002 | Production-Grade Web Terminal Fidelity | Browser terminal supports interactive CLIs with PTY resize, cursor reporting, binary-safe I/O, and reconnect-safe input handling
-- [x] OT-P0-003 | Durable Session Continuity | Default session expiration is never; reconnect restores live state, transcript history, and output generated while client was offline
-- [x] OT-P0-004 | Proxy-Correct Networking via api-base | UI uses shared api-base for HTTP/WebSocket routing under parent proxying with no direct-origin assumptions
-- [x] OT-P0-005 | AI Input with Provider Fallback | AI command generation uses Ollama first with OpenRouter fallback and deterministic failover behavior
-- [x] OT-P0-006 | New Terminal Launcher with Configurable Shortcuts | New-terminal flow offers empty shell and configurable shortcut entries; default entries include `vrooli agent launch --runner claude --arg=--dangerously-skip-permissions` and `codex --yolo`
-- [x] OT-P0-007 | Mobile Terminal Usability Toolbar | Floating keyboard toolbar provides required terminal keys/chords for practical mobile usage
-- [x] OT-P0-008 | Sidebar/Drawer Controls Surface | Drawer exposes session/workspace status and core controls without blocking primary terminal workflow
+- [ ] OT-P0-001 | Pane-Based Terminal Workspace | Multi-pane terminal layout with simultaneous terminals, 2-column desktop and 1-column mobile behavior aligned with app-monitor workspace ergonomics
+- [ ] OT-P0-002 | Production-Grade Web Terminal Fidelity | Browser terminal supports interactive CLIs with PTY resize, cursor reporting, binary-safe I/O, and reconnect-safe input handling
+- [ ] OT-P0-003 | Durable Session Continuity | Default session expiration is never; reconnect restores live state, transcript history, and output generated while client was offline
+- [ ] OT-P0-004 | Proxy-Correct Networking via api-base | UI uses shared api-base for HTTP/WebSocket routing under parent proxying with no direct-origin assumptions
+- [ ] OT-P0-005 | AI Input with Provider Fallback | AI command generation uses Ollama first with OpenRouter fallback and deterministic failover behavior
+- [ ] OT-P0-006 | New Terminal Launcher with Configurable Shortcuts | New-terminal flow offers empty shell and configurable shortcut entries; default entries include `vrooli agent launch --runner claude --arg=--dangerously-skip-permissions` and `codex --yolo`
+- [ ] OT-P0-007 | Mobile Terminal Usability Toolbar | Floating keyboard toolbar provides required terminal keys/chords for practical mobile usage
+- [ ] OT-P0-008 | Sidebar/Drawer Controls Surface | Drawer exposes session/workspace status and core controls without blocking primary terminal workflow
 
 ### 🟠 P1 – Should have post-launch
 - [ ] OT-P1-001 | Session Policy Controls | Per-workspace/session expiration policy controls (never, preset TTL, custom) with explicit persistence behavior
 - [ ] OT-P1-002 | Shortcut Profile Management | Shortcut catalog is configuration-driven (service/workspace/parent context) rather than hardcoded UI constants
 - [ ] OT-P1-003 | AI Provider Policy Controls | Provider priority, timeout, and fallback policy are configurable with surfaced provider health
 - [ ] OT-P1-004 | Operational Observability Coverage | Metrics and structured events cover lifecycle, reconnects, pane actions, and AI provider failovers
-- [x] OT-P1-013 | Remote Terminal Targets | The launcher and CLI should expose a shared target vocabulary and readiness state for local, Bridge-node, and SSH terminal dispatch
+- [ ] OT-P1-013 | Remote Terminal Targets | The launcher and CLI should expose a shared target vocabulary and readiness state for local, Bridge-node, and SSH terminal dispatch
 
 ### 🟢 P2 – Future / expansion
 - [ ] OT-P2-001 | Collaborative Session Modes | Optional observer/shared-view terminal modes for paired operations and escalations

@@ -10,11 +10,9 @@ import (
 	"web-console/internal/dbx"
 )
 
-// AgentTranscriptCheckpoint is a per-source ingestion cursor for the newer
-// agent transcript adapters (Grok tailer, OpenCode reconciler). Cursor is an
-// opaque, source-defined string: a byte offset for Grok's append-only JSONL, a
-// JSON high-water mark for OpenCode's full-history reconciliation. Codex keeps
-// its own dedicated byte-offset table (codex_rollout_checkpoints).
+// AgentTranscriptCheckpoint is a per-source ingestion cursor for all agent
+// transcript adapters. Cursor is an opaque, source-defined string: a byte
+// offset for append-only JSONL, or a JSON high-water mark for reconciliation.
 type AgentTranscriptCheckpoint struct {
 	Source    string
 	SourceKey string

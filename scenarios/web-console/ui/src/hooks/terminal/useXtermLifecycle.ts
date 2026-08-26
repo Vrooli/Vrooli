@@ -53,14 +53,15 @@ export function useXtermLifecycle(options: XtermLifecycleOptions) {
     syncPaneUpdate,
   } = options;
   const containerRef = useRef<HTMLDivElement>(null);
+  const terminalHostRef = useRef<HTMLDivElement>(null);
   const fitRef = useRef<FitAddon | null>(null);
   const lastSentSizeRef = useRef<{ cols: number; rows: number } | null>(null);
   const [terminal, setTerminal] = useState<Terminal | null>(null);
   const [paneSize, setPaneSize] = useState({ width: 0, height: 0 });
 
   useEffect(() => {
-    const container = containerRef.current;
-    if (!container) return;
+    const terminalHost = terminalHostRef.current;
+    if (!terminalHost) return;
     const term = new Terminal({
       cursorBlink: true,
       fontSize: paneFontSize,
@@ -74,7 +75,7 @@ export function useXtermLifecycle(options: XtermLifecycleOptions) {
     const webLinksAddon = new WebLinksAddon();
     term.loadAddon(fitAddon);
     term.loadAddon(webLinksAddon);
-    term.open(container);
+    term.open(terminalHost);
     let disposed = false;
     const fitAfterFontLoad = async () => {
       await waitForTerminalFont(paneFontSize);
@@ -155,11 +156,18 @@ export function useXtermLifecycle(options: XtermLifecycleOptions) {
     });
     setPaneSize({ width: container.clientWidth, height: container.clientHeight });
     resizeObserver.observe(container);
+    // ResizeObserver's first notification is asynchronous. Fit once in the
+    // current layout as well, otherwise the accessibility capture can observe
+    // xterm's default 80-column screen before the observer callback runs.
+    if (!isFollower()) {
+      scrollAwareFit();
+      maybeSendResize(terminal, sendResize, lastSentSizeRef, getServerSize);
+    }
     return () => {
       resizeObserver.disconnect();
       if (rafId !== null) cancelAnimationFrame(rafId);
     };
   }, [terminal, sendResize, scrollAwareFit, getServerSize, isFollower]);
 
-  return { containerRef, fitRef, terminal, paneSize, scrollAwareFit };
+  return { containerRef, terminalHostRef, fitRef, terminal, paneSize, scrollAwareFit };
 }

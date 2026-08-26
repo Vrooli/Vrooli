@@ -34,16 +34,22 @@ func (s *Session) readLoop() {
 		if r := recover(); r != nil {
 			log.Printf("session %s: readLoop panic (recovered): %v", s.ID, r)
 			// Ensure exit signaling even after a panic so waiters don't hang.
-			s.mu.Lock()
+			s.clientsMu.Lock()
+			s.emuMu.Lock()
 			if !s.processExited {
+				s.stopInputWriter()
 				s.processExited = true
 				s.processExitCode = -1
 				for ch := range s.clients {
+					if info := s.clients[ch]; info != nil && info.FrameCh != nil {
+						close(info.FrameCh)
+					}
 					close(ch)
 					delete(s.clients, ch)
 				}
 			}
-			s.mu.Unlock()
+			s.emuMu.Unlock()
+			s.clientsMu.Unlock()
 			select {
 			case <-s.exitCh:
 			default:
@@ -53,9 +59,9 @@ func (s *Session) readLoop() {
 	}()
 	buf := make([]byte, s.ptyReadBuffer)
 	for {
-		s.mu.Lock()
-		p := s.pty
-		s.mu.Unlock()
+		s.emuMu.Lock()
+		p := s.currentPTY()
+		s.emuMu.Unlock()
 		n, err := p.Read(buf)
 		if n > 0 {
 			data := buf[:n]
@@ -86,9 +92,9 @@ func (s *Session) readLoop() {
 			// exponential backoff before declaring the session dead. A single
 			// transient failure should not permanently destroy a session.
 			if s.Backend == backend.Persistent {
-				s.mu.Lock()
+				s.emuMu.Lock()
 				isClosing := s.closing
-				s.mu.Unlock()
+				s.emuMu.Unlock()
 				if !isClosing {
 					sessionName := s.sessionPrefix + s.ID
 					reattached := false
@@ -96,9 +102,9 @@ func (s *Session) readLoop() {
 						delay := tmuxReattachBaseDelay << attempt // 500ms, 1s, 2s
 						time.Sleep(delay)
 						// Re-check closing in case Shutdown() was called during backoff.
-						s.mu.Lock()
+						s.emuMu.Lock()
 						isClosing = s.closing
-						s.mu.Unlock()
+						s.emuMu.Unlock()
 						if isClosing {
 							log.Printf("session %s: shutdown detected during re-attach backoff, stopping retries", s.ID)
 							break
@@ -112,10 +118,7 @@ func (s *Session) readLoop() {
 							if s.metrics != nil {
 								s.metrics.ReattachSuccesses.Add(1)
 							}
-							s.mu.Lock()
-							oldPTY := s.pty
-							s.pty = newPTY
-							s.mu.Unlock()
+							oldPTY := s.replacePTY(newPTY)
 							// Close the old PTY fd to prevent file descriptor leaks.
 							// The old attach process has already exited (that's why
 							// we're here), but its PTY master fd is still open.
@@ -143,15 +146,21 @@ func (s *Session) readLoop() {
 				s.broadcast(s.utf8Buf)
 				s.utf8Buf = nil
 			}
-			exitCode := s.pty.ExitCode()
-			s.mu.Lock()
+			exitCode := s.currentPTY().ExitCode()
+			s.stopInputWriter()
+			s.clientsMu.Lock()
+			s.emuMu.Lock()
 			s.processExited = true
 			s.processExitCode = exitCode
 			for ch := range s.clients {
+				if info := s.clients[ch]; info != nil && info.FrameCh != nil {
+					close(info.FrameCh)
+				}
 				close(ch)
 				delete(s.clients, ch)
 			}
-			s.mu.Unlock()
+			s.emuMu.Unlock()
+			s.clientsMu.Unlock()
 			close(s.exitCh)
 			return
 		}

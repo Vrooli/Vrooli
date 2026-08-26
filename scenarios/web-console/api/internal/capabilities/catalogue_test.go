@@ -77,8 +77,8 @@ func TestKnownForPlatformMarksUnavailableBackends(t *testing.T) {
 	for _, def := range defs {
 		switch def.ID {
 		case "session-backend-standard":
-			if def.Platform.Support != PlatformUnsupported || def.Platform.Reason != "no PTY implementation for this platform" {
-				t.Fatalf("standard Windows verdict = %+v", def.Platform)
+			if def.Platform.Support == PlatformUnsupported {
+				t.Fatalf("native ConPTY standard backend incorrectly unsupported: %+v", def.Platform)
 			}
 		case "session-backend-persistent":
 			if def.Platform.Support != PlatformUnsupported || def.Platform.Reason != "tmux is not available on this platform" {

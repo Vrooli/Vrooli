@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strconv"
 	"testing"
 	"time"
 
@@ -78,7 +79,14 @@ func newCodexTailerTestServer(t *testing.T) (*Server, *session.Session) {
 	if err != nil {
 		t.Fatalf("create session: %v", err)
 	}
-	t.Cleanup(func() { _ = sm.Delete(context.Background(), sess.ID) })
+	t.Cleanup(func() {
+		_ = sm.Delete(context.Background(), sess.ID)
+		select {
+		case <-sess.Done():
+		case <-time.After(2 * time.Second):
+			t.Logf("session %s did not finish shutting down before test cleanup", sess.ID)
+		}
+	})
 	return srv, sess
 }
 
@@ -227,8 +235,8 @@ func TestCodexTailer_BackfillsExistingRolloutContentWithoutCheckpoint(t *testing
 
 func TestCodexTailer_ResumesFromCheckpointOffset(t *testing.T) {
 	srv, sess := newCodexTailerTestServer(t)
-	checkpoints := NewInMemoryCodexCheckpointStore()
-	srv.codexCheckpointStore = checkpoints
+	checkpoints := NewInMemoryAgentTranscriptCheckpointStore()
+	srv.agentCheckpointStore = checkpoints
 
 	now := time.Now()
 	dateDir := filepath.Join(sessionCodexSessionsDir(sess.ID), now.Format("2006"), now.Format("01"), now.Format("02"))
@@ -253,10 +261,11 @@ func TestCodexTailer_ResumesFromCheckpointOffset(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := checkpoints.Save(context.Background(), CodexRolloutCheckpoint{
-		Path:      rolloutPath,
+	if err := checkpoints.Save(context.Background(), AgentTranscriptCheckpoint{
+		Source:    codexTailerSource,
+		SourceKey: rolloutPath,
 		SessionID: sess.ID,
-		Offset:    stat.Size(),
+		Cursor:    strconv.FormatInt(stat.Size(), 10),
 		UpdatedAt: time.Now().UTC(),
 	}); err != nil {
 		t.Fatal(err)
@@ -287,14 +296,15 @@ func TestCodexTailer_ResumesFromCheckpointOffset(t *testing.T) {
 		t.Fatalf("expected exactly one resumed event, got %d", len(state.Events))
 	}
 
-	checkpoint, ok, err := checkpoints.Get(context.Background(), rolloutPath)
+	checkpoint, ok, err := checkpoints.Get(context.Background(), codexTailerSource, rolloutPath)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if !ok {
 		t.Fatal("expected checkpoint to be saved after reading new rollout content")
 	}
-	if checkpoint.Offset <= stat.Size() {
-		t.Fatalf("expected checkpoint offset to advance beyond %d, got %d", stat.Size(), checkpoint.Offset)
+	offset, err := strconv.ParseInt(checkpoint.Cursor, 10, 64)
+	if err != nil || offset <= stat.Size() {
+		t.Fatalf("expected checkpoint offset to advance beyond %d, got %q", stat.Size(), checkpoint.Cursor)
 	}
 }

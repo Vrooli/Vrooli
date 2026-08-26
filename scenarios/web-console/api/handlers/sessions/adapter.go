@@ -74,6 +74,7 @@ type Adapter struct {
 	RetentionPolicy     func() ArchiveRetentionPolicy
 	AgentHistorySize    func(sessionstore.Metadata) (int64, error)
 	PruneAgentHistory   func(sessionstore.Metadata) (int64, error)
+	RemoveAgentHomes    func(sessionID string) error
 	Now                 func() time.Time
 	Remote              RemoteService
 
@@ -595,6 +596,11 @@ func (a *Adapter) Delete(ctx context.Context, id string) error {
 	}
 	if a.AgentCheckpoints != nil {
 		_ = a.AgentCheckpoints.DeleteSession(ctx, id)
+	}
+	if a.RemoveAgentHomes != nil {
+		if err := a.RemoveAgentHomes(id); err != nil {
+			a.logger().Printf("delete-session[%s]: failed to clean agent homes: %v", sanitizeID(id), err)
+		}
 	}
 	a.Events.Emit(events.SessionDeleted, id, nil)
 	a.Metrics.SessionsDeleted.Add(1)

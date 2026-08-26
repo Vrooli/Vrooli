@@ -29,3 +29,19 @@ func resolveSessionStateRoot() string {
 	}
 	return mustResolveScenarioStorageDir(storage.ClassState, "sessions")
 }
+
+// removeSessionAgentHomes removes only the two session-scoped agent roots for
+// one validated session identifier. Shared user homes are never traversed.
+func removeSessionAgentHomes(sessionID string) error {
+	if sessionID == "" || filepath.Base(sessionID) != sessionID {
+		return os.ErrInvalid
+	}
+	var firstErr error
+	for _, agent := range []string{"codex", "grok"} {
+		path := filepath.Join(resolveSessionStateRoot(), agent, sessionID)
+		if err := os.RemoveAll(path); err != nil && !os.IsNotExist(err) && firstErr == nil {
+			firstErr = err
+		}
+	}
+	return firstErr
+}

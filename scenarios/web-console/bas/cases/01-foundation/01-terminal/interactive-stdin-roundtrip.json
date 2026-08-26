@@ -14,6 +14,7 @@
       "requires_confirmation": "true",
       "routed_isolation": "true",
       "seed": "seed",
+      "spec_entry_id": "workspace",
       "requirements_json": "[\"REQ-P0-002b\"]"
     }
   },

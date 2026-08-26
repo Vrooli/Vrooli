@@ -47,7 +47,8 @@ func newHookTestServer(token string) *Server {
 // session — and only that session.
 //
 // The invariant this test locks in: attribution is bound to the filesystem
-// path $CODEX_HOME/sessions/... that was injected into the PTY env at
+// path $CODEX_HOME/sessions/... that the attributed launcher creates from the
+// PTY's web-console session identity at
 // session creation time. Two concurrent sessions cannot bleed into each
 // other because each gets its own CODEX_HOME.
 //

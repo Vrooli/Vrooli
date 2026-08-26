@@ -278,9 +278,16 @@ export default function AudioPlayerBar({
       {showPopover && createPortal(
         isMobile ? (
           // Mobile bottom sheet
-          <div className="fixed inset-0 z-wc-popover-backdrop" onMouseDown={(e) => e.preventDefault()}>
+          <div
+            className="fixed inset-0 z-wc-popover-backdrop"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="audio-settings-heading"
+            onMouseDown={(e) => e.preventDefault()}
+          >
             <div
               data-testid="audio-sheet-backdrop"
+              aria-hidden="true"
               className="absolute inset-0 bg-wc-backdrop"
               onClick={() => setShowPopover(false)}
             />
@@ -291,7 +298,7 @@ export default function AudioPlayerBar({
               <div className="mb-3 flex justify-center">
                 <div className="h-1 w-8 rounded-full bg-wc-text-muted/40" />
               </div>
-              <h3 className="mb-3 text-sm font-semibold text-wc-text-primary">{t(strings.audioPlayerBar.audioSettingsHeading)}</h3>
+              <h3 id="audio-settings-heading" className="mb-3 text-sm font-semibold text-wc-text-primary">{t(strings.audioPlayerBar.audioSettingsHeading)}</h3>
               <AudioSettingsContent
                 testIdPrefix="tts"
                 volume={volume}

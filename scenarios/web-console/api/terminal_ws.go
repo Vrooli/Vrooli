@@ -7,18 +7,25 @@ import (
 	"log"
 	"net/http"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"web-console/internal/config"
 	"web-console/internal/events"
 	"web-console/internal/wireproto"
 	"web-console/session"
+	"web-console/terminal"
 
 	"github.com/gorilla/websocket"
 )
 
-// wsPingPeriod is the keepalive ping interval; tests may override it.
-var wsPingPeriod = 30 * time.Second
+// wsPingPeriod is the keepalive ping interval in nanoseconds. It is atomic so
+// tests can shorten it without racing an already-running websocket handler.
+var wsPingPeriod atomic.Int64
+
+func init() {
+	wsPingPeriod.Store(int64(30 * time.Second))
+}
 
 // probeReadyTimeout bounds how long the input loop waits for the PTY's
 // attach handshake (tmux-backed sessions) to complete before giving up
@@ -30,6 +37,11 @@ var probeReadyTimeout = 3 * time.Second
 // wsWriteTimeout bounds every terminal JSON write, including snapshot replay.
 const wsWriteTimeout = 10 * time.Second
 
+type terminalResumeRequest struct {
+	want            bool
+	renderedThrough int64
+}
+
 func writeTerminalJSON(conn *websocket.Conn, writeMu *sync.Mutex, msg TerminalMessage) error {
 	writeMu.Lock()
 	defer writeMu.Unlock()
@@ -39,43 +51,7 @@ func writeTerminalJSON(conn *websocket.Conn, writeMu *sync.Mutex, msg TerminalMe
 	return conn.WriteJSON(msg)
 }
 
-// Keep the historical package-main names as aliases while the wire contract
-// itself lives in the transport-independent protocol package.
 type TerminalMessage = wireproto.TerminalMessage
-
-// Legacy package-main variables keep older tests and integrations source
-// compatible. The protocol values themselves are declared only in wireproto.
-var (
-	MsgTypeStdin                  = wireproto.MsgTypeStdin
-	MsgTypeStdout                 = wireproto.MsgTypeStdout
-	MsgTypeResize                 = wireproto.MsgTypeResize
-	MsgTypeResizeInfo             = wireproto.MsgTypeResizeInfo
-	MsgTypeSizeInfo               = wireproto.MsgTypeSizeInfo
-	MsgTypeTakeLease              = wireproto.MsgTypeTakeLease
-	MsgTypeExit                   = wireproto.MsgTypeExit
-	MsgTypeError                  = wireproto.MsgTypeError
-	MsgTypePing                   = wireproto.MsgTypePing
-	MsgTypePong                   = wireproto.MsgTypePong
-	MsgTypeSyncWarning            = wireproto.MsgTypeSyncWarning
-	MsgTypeHistoryEnd             = wireproto.MsgTypeHistoryEnd
-	MsgTypeConversationAck        = wireproto.MsgTypeConversationAck
-	MsgTypeSessionReady           = wireproto.MsgTypeSessionReady
-	MsgTypeStdinAck               = wireproto.MsgTypeStdinAck
-	MsgTypeControl                = wireproto.MsgTypeControl
-	MsgTypeHello                  = wireproto.MsgTypeHello
-	MsgTypeResync                 = wireproto.MsgTypeResync
-	MsgTypeSnapshotNotice         = wireproto.MsgTypeSnapshotNotice
-	MsgTypeEchoState              = wireproto.MsgTypeEchoState
-	MsgTypeMouseMode              = wireproto.MsgTypeMouseMode
-	StdinIntentTyping             = wireproto.StdinIntentTyping
-	StdinIntentBulkText           = wireproto.StdinIntentBulkText
-	StdinIntentNamedKey           = wireproto.StdinIntentNamedKey
-	StdinAckReasonTmuxWriteFailed = wireproto.StdinAckReasonTmuxFailed
-	StdinAckReasonPTYClosed       = wireproto.StdinAckReasonPTYClosed
-	StdinAckReasonOffsetGap       = wireproto.StdinAckReasonOffsetGap
-	StdinAckReasonUnreconcilable  = wireproto.StdinAckReasonUnreconcilable
-	ProtocolVersion               = wireproto.ProtocolVersion
-)
 
 // boundSnapshot keeps the newest complete line region and resets the renderer
 // before it receives the suffix. The notice is a separate frame so it cannot
@@ -84,9 +60,9 @@ func boundSnapshot(snapshot []byte, maxBytes int) ([]byte, int, bool) {
 	if maxBytes <= 0 || len(snapshot) <= maxBytes {
 		return snapshot, 0, false
 	}
-	reset := []byte("\x1bc")
+	reset := []byte(terminal.SnapshotPrologue)
 	if maxBytes <= len(reset) {
-		return append([]byte(nil), reset[:maxBytes]...), bytes.Count(snapshot, []byte{'\n'}), true
+		return append([]byte(nil), reset...), bytes.Count(snapshot, []byte{'\n'}), true
 	}
 	cut := len(snapshot)
 	payloadMax := maxBytes - len(reset)
@@ -150,7 +126,7 @@ func (s *Server) handleTerminalWS(w http.ResponseWriter, r *http.Request) {
 	// and extends the read deadline. Application-level JSON pings are not a
 	// substitute because they can be queued behind a stalled browser.
 	resetReadDeadline := func() error {
-		return conn.SetReadDeadline(time.Now().Add(2 * wsPingPeriod))
+		return conn.SetReadDeadline(time.Now().Add(2 * time.Duration(wsPingPeriod.Load())))
 	}
 	if err := resetReadDeadline(); err != nil {
 		log.Printf("ws[%s]: failed to set read deadline: %v", sessionID, err)
@@ -181,6 +157,8 @@ func (s *Server) handleTerminalWS(w http.ResponseWriter, r *http.Request) {
 	// writeMu serializes WebSocket writes from the output forwarder goroutine
 	// and the inline input loop (which also writes pong/error responses).
 	var writeMu sync.Mutex
+	readyCh := make(chan struct{})
+	resumeCh := make(chan terminalResumeRequest, 1)
 
 	// Context-based goroutine lifecycle: when the input loop exits (WS
 	// disconnect), cancel() fires and the output forwarder sees ctx.Done().
@@ -190,7 +168,7 @@ func (s *Server) handleTerminalWS(w http.ResponseWriter, r *http.Request) {
 	defer cancel()
 
 	sendError := func(msg string) {
-		_ = writeTerminalJSON(conn, &writeMu, TerminalMessage{Type: MsgTypeError, Data: msg})
+		_ = writeTerminalJSON(conn, &writeMu, TerminalMessage{Type: wireproto.MsgTypeError, Data: msg})
 	}
 
 	// Output forwarder: snapshot → PTY output → WebSocket client.
@@ -204,29 +182,60 @@ func (s *Server) handleTerminalWS(w http.ResponseWriter, r *http.Request) {
 			}
 		}()
 
+		// A reconnecting client identifies the output cursor it has already
+		// rendered. Wait only briefly so legacy clients still receive the
+		// initial snapshot promptly; the browser sends its hello immediately
+		// after opening the socket.
+		resume := terminalResumeRequest{}
+		select {
+		case resume = <-resumeCh:
+		case <-time.After(50 * time.Millisecond):
+		}
+		replayed := false
+		if resume.want {
+			frames, cursor, ok := sess.ReplayFrom(resume.renderedThrough)
+			if ok {
+				for _, frame := range frames {
+					if err := writeTerminalJSON(conn, &writeMu, TerminalMessage{Type: wireproto.MsgTypeStdout, Data: string(frame.Data), OutputCursor: frame.EndCursor}); err != nil {
+						return
+					}
+					s.metrics.WSMessagesSent.Add(1)
+				}
+				if err := writeTerminalJSON(conn, &writeMu, TerminalMessage{Type: wireproto.MsgTypeHistoryEnd, OutputCursor: cursor}); err != nil {
+					return
+				}
+				replayed = true
+			} else if err := writeTerminalJSON(conn, &writeMu, TerminalMessage{Type: wireproto.MsgTypeResync}); err != nil {
+				return
+			}
+		}
+
 		// Stream the self-contained ANSI snapshot first so the client
 		// reproduces the current (screen, alt-buffer, scrollback) triple
 		// before any live frame arrives. Chunked at session.HistoryChunkSize so
 		// no single JSON message stalls the renderer.
-		snapshot, droppedLines, truncated := boundSnapshot(sub.Snapshot, config.Load().MaxSnapshotBytes)
-		if truncated {
-			if err := writeTerminalJSON(conn, &writeMu, TerminalMessage{Type: MsgTypeSnapshotNotice, Data: fmt.Sprintf("%d scrollback lines omitted", droppedLines)}); err != nil {
+		if !replayed {
+			snapshot, droppedLines, truncated := boundSnapshot(sub.Snapshot, config.Load().MaxSnapshotBytes)
+			if truncated {
+				if err := writeTerminalJSON(conn, &writeMu, TerminalMessage{Type: wireproto.MsgTypeSnapshotNotice, Data: fmt.Sprintf("%d scrollback lines omitted", droppedLines)}); err != nil {
+					return
+				}
+			}
+			for off := 0; off < len(snapshot); off += session.HistoryChunkSize {
+				end := off + session.HistoryChunkSize
+				if end > len(snapshot) {
+					end = len(snapshot)
+				}
+				if err := writeTerminalJSON(conn, &writeMu, TerminalMessage{Type: wireproto.MsgTypeStdout, Data: string(snapshot[off:end])}); err != nil {
+					return
+				}
+				s.metrics.WSMessagesSent.Add(1)
+			}
+			if err := writeTerminalJSON(conn, &writeMu, TerminalMessage{Type: wireproto.MsgTypeHistoryEnd, OutputCursor: sess.OutputCursor()}); err != nil {
 				return
 			}
 		}
-		for off := 0; off < len(snapshot); off += session.HistoryChunkSize {
-			end := off + session.HistoryChunkSize
-			if end > len(snapshot) {
-				end = len(snapshot)
-			}
-			if err := writeTerminalJSON(conn, &writeMu, TerminalMessage{Type: MsgTypeStdout, Data: string(snapshot[off:end])}); err != nil {
-				return
-			}
-			s.metrics.WSMessagesSent.Add(1)
-		}
-		if err := writeTerminalJSON(conn, &writeMu, TerminalMessage{Type: MsgTypeHistoryEnd}); err != nil {
-			return
-		}
+		sess.RefreshEchoState(false)
 		var lastEchoState session.EchoState
 		haveEchoState := false
 		emitEchoState := func() bool {
@@ -239,7 +248,7 @@ func (s *Server) handleTerminalWS(w http.ResponseWriter, r *http.Request) {
 			}
 			lastEchoState, haveEchoState = state, true
 			return writeTerminalJSON(conn, &writeMu, TerminalMessage{
-				Type: MsgTypeEchoState, EchoKnown: state.Known, EchoEnabled: state.EchoEnabled,
+				Type: wireproto.MsgTypeEchoState, EchoKnown: state.Known, EchoEnabled: state.EchoEnabled,
 				InAltBuffer: state.InAltBuffer, CursorAtLineEnd: state.CursorAtLineEnd,
 			}) == nil
 		}
@@ -247,15 +256,23 @@ func (s *Server) handleTerminalWS(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		cols, rows, leader, leaderDevice, holdsLease, viewerCount := sess.SizeLeaseState(sub.OutputCh)
-		if err := writeTerminalJSON(conn, &writeMu, TerminalMessage{Type: MsgTypeSizeInfo, Cols: int(cols), Rows: int(rows), Leader: leader, LeaderDevice: leaderDevice, HoldsLease: holdsLease, ViewerCount: viewerCount}); err != nil {
+		if err := writeTerminalJSON(conn, &writeMu, TerminalMessage{Type: wireproto.MsgTypeSizeInfo, Cols: int(cols), Rows: int(rows), Leader: leader, LeaderDevice: leaderDevice, HoldsLease: holdsLease, ViewerCount: viewerCount}); err != nil {
 			return
 		}
 
 		// Server-side WebSocket keepalive: send a ping every 30s to prevent
 		// reverse proxies (Cloudflare tunnel default idle timeout ~100s) from
 		// killing the connection during periods without PTY output.
-		pingTicker := time.NewTicker(wsPingPeriod)
+		pingTicker := time.NewTicker(time.Duration(wsPingPeriod.Load()))
 		defer pingTicker.Stop()
+		// Idle sessions still refresh echo at the bounded maximum; active
+		// output/input paths use the shared 250 ms sampling floor.
+		echoTicker := time.NewTicker(5 * time.Second)
+		defer echoTicker.Stop()
+		// Presence may already contain the subscription's initial state. Hold
+		// that channel behind the session_ready barrier so handshake messages
+		// retain their deterministic order on the wire.
+		presenceCh := (<-chan session.PresenceState)(nil)
 
 		for {
 			select {
@@ -266,33 +283,50 @@ func (s *Server) handleTerminalWS(w http.ResponseWriter, r *http.Request) {
 				if err != nil {
 					return
 				}
-			case data, ok := <-sub.OutputCh:
+			case <-echoTicker.C:
+				sess.RefreshEchoState(false)
+				if !emitEchoState() {
+					return
+				}
+			case <-readyCh:
+				presenceCh = sub.PresenceCh
+				// SizeLeaseState above is the authoritative handshake snapshot.
+				// Consume the subscription bootstrap notification here so it
+				// cannot appear after history_end and reorder the established
+				// terminal stream. Future presence changes remain on the channel.
+				select {
+				case <-presenceCh:
+				default:
+				}
+				readyCh = nil
+			case frame, ok := <-sub.FrameCh:
 				if !ok {
-					_ = writeTerminalJSON(conn, &writeMu, TerminalMessage{Type: MsgTypeExit, Code: sess.ExitCode()})
+					_ = writeTerminalJSON(conn, &writeMu, TerminalMessage{Type: wireproto.MsgTypeExit, Code: sess.ExitCode()})
 					return
 				}
 				err := writeTerminalJSON(conn, &writeMu, TerminalMessage{
-					Type: MsgTypeStdout,
-					Data: string(data),
+					Type: wireproto.MsgTypeStdout,
+					Data: string(frame.Data), OutputCursor: frame.EndCursor,
 				})
 				s.metrics.WSMessagesSent.Add(1)
 				if err != nil {
 					return
 				}
+				sess.RefreshEchoState(false)
 				if !emitEchoState() {
 					return
 				}
-				if sess.FlushPending(sub.OutputCh) {
+				if sess.FlushPendingFrame(sub.FrameCh) {
 					snapshot, generation, ok := sess.Resync(sub.OutputCh)
 					if !ok {
 						continue
 					}
 					snapshot, droppedLines, truncated := boundSnapshot(snapshot, config.Load().MaxSnapshotBytes)
-					if err := writeTerminalJSON(conn, &writeMu, TerminalMessage{Type: MsgTypeResync}); err != nil {
+					if err := writeTerminalJSON(conn, &writeMu, TerminalMessage{Type: wireproto.MsgTypeResync}); err != nil {
 						return
 					}
 					if truncated {
-						if err := writeTerminalJSON(conn, &writeMu, TerminalMessage{Type: MsgTypeSnapshotNotice, Data: fmt.Sprintf("%d scrollback lines omitted", droppedLines)}); err != nil {
+						if err := writeTerminalJSON(conn, &writeMu, TerminalMessage{Type: wireproto.MsgTypeSnapshotNotice, Data: fmt.Sprintf("%d scrollback lines omitted", droppedLines)}); err != nil {
 							return
 						}
 					}
@@ -301,21 +335,18 @@ func (s *Server) handleTerminalWS(w http.ResponseWriter, r *http.Request) {
 						if end > len(snapshot) {
 							end = len(snapshot)
 						}
-						if err := writeTerminalJSON(conn, &writeMu, TerminalMessage{Type: MsgTypeStdout, Data: string(snapshot[off:end])}); err != nil {
+						if err := writeTerminalJSON(conn, &writeMu, TerminalMessage{Type: wireproto.MsgTypeStdout, Data: string(snapshot[off:end])}); err != nil {
 							return
 						}
 					}
-					if err := writeTerminalJSON(conn, &writeMu, TerminalMessage{Type: MsgTypeHistoryEnd}); err != nil {
-						return
-					}
-					if !emitEchoState() {
+					if err := writeTerminalJSON(conn, &writeMu, TerminalMessage{Type: wireproto.MsgTypeHistoryEnd, OutputCursor: sess.OutputCursor()}); err != nil {
 						return
 					}
 					sess.CompleteResync(sub.OutputCh, generation)
 				}
 			case coalesced := <-sub.NotifyCh:
 				_ = writeTerminalJSON(conn, &writeMu, TerminalMessage{
-					Type:            MsgTypeSyncWarning,
+					Type:            wireproto.MsgTypeSyncWarning,
 					CoalescedFrames: coalesced,
 				})
 				s.metrics.WSMessagesSent.Add(1)
@@ -327,7 +358,19 @@ func (s *Server) handleTerminalWS(w http.ResponseWriter, r *http.Request) {
 				if cols != size[0] || rows != size[1] {
 					continue
 				}
-				err := writeTerminalJSON(conn, &writeMu, TerminalMessage{Type: MsgTypeSizeInfo, Cols: int(cols), Rows: int(rows), Leader: leader, LeaderDevice: leaderDevice, HoldsLease: holdsLease, ViewerCount: viewerCount})
+				err := writeTerminalJSON(conn, &writeMu, TerminalMessage{Type: wireproto.MsgTypeSizeInfo, Cols: int(cols), Rows: int(rows), Leader: leader, LeaderDevice: leaderDevice, HoldsLease: holdsLease, ViewerCount: viewerCount})
+				if err != nil {
+					return
+				}
+				s.metrics.WSMessagesSent.Add(1)
+			case presence, ok := <-presenceCh:
+				if !ok {
+					return
+				}
+				err := writeTerminalJSON(conn, &writeMu, TerminalMessage{
+					Type: wireproto.MsgTypePresence, Leader: presence.Leader, LeaderDevice: presence.LeaderDevice,
+					HoldsLease: presence.HoldsLease, ViewerCount: presence.ViewerCount,
+				})
 				if err != nil {
 					return
 				}
@@ -355,16 +398,19 @@ func (s *Server) handleTerminalWS(w http.ResponseWriter, r *http.Request) {
 
 	mouseMode, mouseModeErr := sess.MouseMode()
 	if err := writeTerminalJSON(conn, &writeMu, TerminalMessage{
-		Type:            MsgTypeSessionReady,
+		Type:            wireproto.MsgTypeSessionReady,
 		Gen:             wsGen,
-		AcceptedThrough: sess.AcceptedThrough(),
-		ProtocolVersion: ProtocolVersion,
+		AcceptedThrough: sess.AcceptedThroughFor(sub.OutputCh),
+		ProtocolVersion: wireproto.ProtocolVersion,
 		MouseMode:       mouseMode,
 		MouseModeKnown:  mouseModeErr == nil,
 	}); err != nil {
 		log.Printf("ws[%s]: failed to send session_ready: %v", sessionID, err)
 		return
 	}
+	// The output forwarder uses this barrier to begin consuming presence
+	// notifications only after session_ready has been written.
+	close(readyCh)
 	// Input loop: WebSocket client → PTY stdin / resize / ping-pong.
 	// When this returns, defer cancel() signals the output forwarder to
 	// exit. Per-message handling lives in terminal_ws_input.go so the
@@ -379,7 +425,7 @@ func (s *Server) handleTerminalWS(w http.ResponseWriter, r *http.Request) {
 			sendError(decodeErr)
 			continue
 		}
-		res := s.dispatchInputMessage(conn, &writeMu, sess, sub.OutputCh, sessionID, msg)
+		res := s.dispatchInputMessage(conn, &writeMu, sess, sub.OutputCh, sessionID, msg, resumeCh)
 		if res.CloseReason != "" {
 			sendError(res.CloseReason)
 		}

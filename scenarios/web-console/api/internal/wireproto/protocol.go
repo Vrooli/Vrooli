@@ -29,6 +29,7 @@ const (
 	MsgTypeSnapshotNotice        = "snapshot_notice"
 	MsgTypeEchoState             = "echo_state"
 	MsgTypeMouseMode             = "mouse_mode"
+	MsgTypePresence              = "presence"
 	StdinIntentTyping            = "typing"
 	StdinIntentBulkText          = "bulk_text"
 	StdinIntentNamedKey          = "named_key"
@@ -36,6 +37,7 @@ const (
 	StdinAckReasonPTYClosed      = "pty_closed"
 	StdinAckReasonOffsetGap      = "offset_gap"
 	StdinAckReasonUnreconcilable = "unreconcilable"
+	StdinAckReasonQueueFull      = "input_queue_full"
 )
 
 // TerminalMessage is the JSON message exchanged by terminal WebSockets.
@@ -53,6 +55,9 @@ type TerminalMessage struct {
 	Offset          int64  `json:"offset,omitempty"`
 	AcceptedThrough int64  `json:"accepted_through,omitempty"`
 	HaveThrough     int64  `json:"have_through,omitempty"`
+	RenderedThrough int64  `json:"rendered_through,omitempty"`
+	OutputCursor    int64  `json:"output_cursor,omitempty"`
+	WantResume      bool   `json:"want_resume,omitempty"`
 	ProtocolVersion string `json:"protocol_version,omitempty"`
 	Ok              bool   `json:"ok,omitempty"`
 	Gen             int64  `json:"gen,omitempty"`

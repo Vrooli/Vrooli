@@ -1,6 +1,6 @@
 {
   "_metadata": {
-    "last_validated_at": "2026-08-25T17:35:46-04:00"
+    "last_validated_at": "2026-08-26T09:02:31-04:00"
   },
   "requirements": [
     {
@@ -18,7 +18,7 @@
           "type": "test",
           "ref": "api/session/session_policy_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Test policy enforcement for each mode (never, preset, custom) + validation, TTL resolution, expiration checks, sweeper"
         },
         {
@@ -32,14 +32,14 @@
           "type": "test",
           "ref": "api/session/session_policy_test.go:TestExpirationSweeper_StartIdempotent",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Sweeper Start() is idempotent — no double goroutine leak"
         },
         {
           "type": "test",
           "ref": "api/session/session_policy_test.go:TestExpirationSweeper_LoopFiresAndRemoves",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Sweeper loop fires and removes expired sessions end-to-end"
         }
       ]
@@ -47,7 +47,7 @@
     {
       "id": "REQ-P1-001b",
       "title": "Policy Configuration UI",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P1-001",
       "category": "ui",
       "description": "Per-workspace and per-session policy configuration UI in drawer. Shows current policy, allows modification, displays countdown for TTL sessions.",
@@ -73,7 +73,7 @@
           "type": "test",
           "ref": "ui/src/__tests__/session-management-section.test.tsx",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Session policy dropdown triggers updateSessionPolicy for preset and never modes"
         }
       ]
@@ -81,7 +81,7 @@
     {
       "id": "REQ-P1-001b-i",
       "title": "Countdown Timer Display",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P1-001",
       "category": "ui",
       "description": "Real-time countdown timer displays remaining TTL for sessions with preset or custom expiration policies. Updates every second.",
@@ -90,14 +90,14 @@
           "type": "test",
           "ref": "ui/src/__tests__/format.test.ts:parseDurationMs",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Duration parsing and countdown formatting verified"
         },
         {
           "type": "test",
           "ref": "ui/src/__tests__/useCountdown.test.ts",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "useCountdown hook returns null for never, countdown string for TTL, expired for past-due, cleans up interval"
         }
       ]

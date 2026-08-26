@@ -33,6 +33,13 @@ type ConversationRepository interface {
 	CopySession(ctx context.Context, oldID, newID string) error
 }
 
+// conversationEventPruner is intentionally additive: callers that do not own
+// a SQL event store can continue implementing ConversationRepository without
+// also taking on retention policy.
+type conversationEventPruner interface {
+	PruneEvents(ctx context.Context, before time.Time, maxPerSession int) (int64, error)
+}
+
 type ConversationSearchMatch struct {
 	EventID  string
 	Sequence int64
@@ -268,6 +275,44 @@ func (r *SQLConversationRepository) SessionStorageBytes(ctx context.Context, ses
 		), 0)
 		FROM conversation_events WHERE session_id = ?`, sessionID).Scan(&size)
 	return size, err
+}
+
+// PruneEvents removes at most one bounded batch of old events. FTS5 cleanup
+// is handled by the conversation_events DELETE trigger, so the index remains
+// consistent with the source table. A zero bound disables that bound.
+func (r *SQLConversationRepository) PruneEvents(ctx context.Context, before time.Time, maxPerSession int) (int64, error) {
+	conditions := make([]string, 0, 2)
+	args := make([]any, 0, 2)
+	if !before.IsZero() {
+		conditions = append(conditions, "created_at < ?")
+		args = append(args, formatTime(before))
+	}
+	if maxPerSession > 0 {
+		conditions = append(conditions, "rank > ?")
+		args = append(args, maxPerSession)
+	}
+	if len(conditions) == 0 {
+		return 0, nil
+	}
+	query := `DELETE FROM conversation_events
+		WHERE rowid IN (
+			SELECT rowid FROM (
+				SELECT rowid, created_at,
+				       ROW_NUMBER() OVER (PARTITION BY session_id ORDER BY sequence DESC) AS rank
+				FROM conversation_events
+			) ranked
+			WHERE ` + strings.Join(conditions, " OR ") + `
+			LIMIT 1000
+		)`
+	result, err := r.db.ExecContext(ctx, query, args...)
+	if err != nil {
+		return 0, fmt.Errorf("prune conversation events: %w", err)
+	}
+	n, err := result.RowsAffected()
+	if err != nil {
+		return 0, fmt.Errorf("count pruned conversation events: %w", err)
+	}
+	return n, nil
 }
 
 func (r *SQLConversationRepository) SearchSession(ctx context.Context, sessionID, query string, limit int) ([]ConversationSearchMatch, bool, int64, error) {
@@ -929,6 +974,26 @@ func (r *InMemoryConversationRepository) DeleteSession(_ context.Context, sessio
 	defer r.mu.Unlock()
 	delete(r.sessions, sessionID)
 	return nil
+}
+
+func (r *InMemoryConversationRepository) PruneEvents(_ context.Context, before time.Time, maxPerSession int) (int64, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	var removed int64
+	for _, session := range r.sessions {
+		kept := session.events[:0]
+		for i, event := range session.events {
+			oldByAge := !before.IsZero() && !event.CreatedAt.IsZero() && event.CreatedAt.Before(before)
+			oldByCount := maxPerSession > 0 && len(session.events)-i > maxPerSession
+			if oldByAge || oldByCount {
+				removed++
+				continue
+			}
+			kept = append(kept, event)
+		}
+		session.events = kept
+	}
+	return removed, nil
 }
 
 func (r *InMemoryConversationRepository) CopySession(_ context.Context, oldID, newID string) error {

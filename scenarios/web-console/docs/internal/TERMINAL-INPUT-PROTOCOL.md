@@ -22,7 +22,7 @@ Referenced from:
 |---|---|---|---|
 | `type` | `"stdin"` | yes | Discriminator. |
 | `data` | `string` | yes | Payload. UTF-8 JSON string; multi-byte runes are delivered byte-exact to the PTY. |
-| `offset` | `number` | yes | Cumulative UTF-8 byte offset at which this payload starts. The first payload starts at zero. |
+| `offset` | `number` | yes | Cumulative UTF-8 byte offset at which this payload starts within this WebSocket connection. The first payload starts at zero. |
 | `intent` | `"typing"` \| `"bulk_text"` \| `"named_key"` | yes | Identifies the source intent. `bulk_text` selects tmux paste-buffer delivery; `typing` and `named_key` select literal send-keys delivery. Empty / unknown defaults to `"typing"` on the server for defensive parsing. |
 
 ### `hello` (client → server)
@@ -30,17 +30,40 @@ Referenced from:
 | Field | Type | Required | Semantics |
 |---|---|---|---|
 | `type` | `"hello"` | yes | Starts reconnect reconciliation. |
-| `have_through` | `number` | yes | Highest offset the client has already released. The server refuses a value ahead of its accepted prefix. |
+| `have_through` | `number` | yes | Highest offset the client has already released in this connection's offset space. The server refuses a value ahead of its accepted prefix. |
+| `rendered_through` | `number` | no | Output cursor rendered by this client before reconnect. Sent with `want_resume` to request a delta instead of a snapshot. |
+| `want_resume` | `boolean` | no | Requests output replay from `rendered_through`. Older clients omit this field and receive the normal snapshot. |
+
+The stdin offset is connection-scoped. `session_ready.accepted_through` is
+therefore the starting point for that connection, while `stdin_ack` advances
+only that connection's prefix. Input accepted by another viewer never makes a
+new viewer's first offset unreconcilable.
 
 ### `stdin_ack` (server → client)
 
 | Field | Type | Required | Semantics |
 |---|---|---|---|
 | `type` | `"stdin_ack"` | yes | Discriminator. |
-| `accepted_through` | `number` | yes | Highest contiguous UTF-8 byte offset accepted by the session. It is monotonic across WebSocket reconnects. |
+| `accepted_through` | `number` | yes | Highest contiguous UTF-8 byte offset accepted for this WebSocket connection. It starts at zero for a new connection and is independent of other viewers. |
 | `ok` | `boolean` | yes | `true` iff the backend accepted the bytes. |
 | `reason` | `string` | when `ok=false` | Typed error code (see below). Human-readable detail in `data`. |
 | `data` | `string` | when `ok=false` | Full error text for logging; UI presents `reason` only. |
+
+### Output resume frames (server → client)
+
+`stdout.output_cursor` is the exclusive end cursor of that frame and
+`history_end.output_cursor` is the cursor covered by the initial replay. A
+reconnecting client sends `hello{want_resume:true,rendered_through:C}`. If `C`
+is an exact retained frame boundary, the server sends only the frames after
+`C`, then `history_end`; no reset is sent. If the cursor has fallen out of the
+bounded ring or lands inside a frame, the server sends `resync`, a complete
+snapshot, and `history_end`. The snapshot remains the authoritative fallback.
+
+### `presence` (server → client)
+
+Presence is independent of grid dimensions and carries `viewerCount`,
+`leader`, `leaderDevice`, and `holdsLease`. A size change cannot discard a
+lease transfer or make a single viewer look like a follower.
 
 ### `session_ready` mouse fields (server → client)
 
@@ -65,7 +88,9 @@ and `control`. Operator payloads use the reliable stdin lane and settle through
 `stdin_ack`; `control` is represented by the separate control frame rather than
 an acknowledged stdin frame.
 Synthetic terminal bytes use a separate best-effort `control` frame and do not
-enter the reliable-input ordering/replay state; reconnect must never replay them.
+enter the reliable-input offset space or replay state. They are enqueued behind
+stdin and ANSI-responder bytes in one per-session ordered writer, but have no
+acknowledgement; reconnect must never replay them.
 
 | Intent | Standard backend (`realPTY`) | Persistent backend (`tmuxPTY`) |
 |---|---|---|
@@ -88,6 +113,7 @@ enter the reliable-input ordering/replay state; reconnect must never replay them
 | `pty_closed` | `errors.Is(writeErr, errPTYClosed)` | Session's PTY has been closed (process exited, Close called). UI stops attempting to send; pane should surface a terminated banner. |
 | `offset_gap` | Server | The client sent a payload after a byte offset the session has not accepted. |
 | `unreconcilable` | Server/client | Reconciliation found an offset inside a payload or below the released prefix. No bytes are replayed. |
+| `input_queue_full` | Server | The bounded per-session ordered input lane is full. The payload was not written; the client may retry or retain it in the pending-input UI. |
 
 ## Client-side gating
 
@@ -99,23 +125,32 @@ reliable-input queue: cumulative offsets remain the ordering and replay
 barrier. On a fresh `session_ready`, the offline queue is drained in FIFO
 order with each entry's original intent preserved.
 
-`useStdinStream` retains sent payload boundaries across a close. It sends
-`hello`, compares the server's `accepted_through` with the local released
-offset, and replays only the unaccepted suffix. It never retries by timer.
+`useStdinStream` retains sent payload boundaries across a close. On a new
+WebSocket it clears the connection-level desynchronization latch, rebases the
+unaccepted payloads, sends `hello` with a zero connection offset, and replays
+only the unaccepted suffix. The terminal session also sends the last rendered
+output cursor so a covered reconnect receives a delta. It never retries by
+timer.
 Offscreen pane unmounts retain the same entry boundaries and intent in the
 workspace buffer; they are not flattened into one bulk-text string.
 
 ## `subscribeInputSettled` contract
 
 Every `send()` that returns `{sent: true, offset}` eventually settles via
-`subscribeInputSettled(cb)`: the numeric argument is the covered byte offset,
-not a connection-local sequence. The server must never acknowledge beyond the
+`subscribeInputSettled(cb)`: the numeric argument is the covered byte offset
+within the current connection. The server must never acknowledge beyond the
 client write head; such a response is unreconcilable. Paths:
 
 1. `stdin_ack(accepted_through)` covers the payload → `cb(offset, true)`.
 2. `stdin_ack(ok=false)` arrives → `cb(offset, false)` with the typed reason.
 3. Reconnect reports an offset inside a payload or below the released prefix
-   → `cb(offset, false, "unreconcilable")`; no bytes are replayed.
+   → the pane-status channel receives `input-desynced`; the per-payload
+   callback is not invoked because no individual payload was rejected.
+
+Connection-level reconciliation failures are reported as the
+`input-desynced` pane status with recovery text. They do not masquerade as a
+payload rejection and do not permanently disable input: a new connection
+clears the latch and establishes a fresh offset space.
 
 `TerminalContextMenu`'s paste UI keys on this: the menu stays open
 showing `Pasting…` until the cb fires, then flashes `Pasted` (ok) or

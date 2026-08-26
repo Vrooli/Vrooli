@@ -65,8 +65,8 @@ describe("FloatingToolbar", () => {
     expect(screen.getByTestId("toolbar-settings")).toBeTruthy();
     expect(screen.getByTestId("toolbar-ai")).toBeTruthy();
     expect(screen.getByTestId("toolbar-new")).toBeTruthy();
-    expect(screen.getByTestId("toolbar-settings")).toHaveClass("h-8", "w-8");
-    expect(screen.getByTestId("toolbar-new")).toHaveClass("h-8", "w-8");
+    expect(screen.getByTestId("toolbar-settings")).toHaveClass("h-11", "w-11", "md:h-8", "md:w-8");
+    expect(screen.getByTestId("toolbar-new")).toHaveClass("h-11", "w-11", "md:h-8", "md:w-8");
   });
 
   it("calls onOpenSettings when settings button is clicked", () => {

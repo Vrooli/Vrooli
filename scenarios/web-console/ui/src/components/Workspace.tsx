@@ -177,6 +177,9 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
     awaitActiveInputOffset,
     subscribeActivePendingInput,
     getActivePendingInputSnapshot,
+    discardActivePendingInput,
+    discardAllActivePendingInput,
+    flushActivePendingInputNow,
     copySelectionOnPane,
     pasteFromClipboardOnPane,
     scrollTerminalOnPane,
@@ -672,6 +675,19 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
   const handleGetPendingInputSnapshot = useCallback(
     () => getActivePendingInputSnapshot(workspace.activePane ?? undefined),
     [getActivePendingInputSnapshot, workspace.activePane],
+  );
+
+  const handleDiscardPendingInput = useCallback(
+    (index: number) => discardActivePendingInput(index, workspace.activePane ?? undefined),
+    [discardActivePendingInput, workspace.activePane],
+  );
+  const handleDiscardAllPendingInput = useCallback(
+    () => discardAllActivePendingInput(workspace.activePane ?? undefined),
+    [discardAllActivePendingInput, workspace.activePane],
+  );
+  const handleFlushPendingInputNow = useCallback(
+    () => flushActivePendingInputNow(workspace.activePane ?? undefined),
+    [flushActivePendingInputNow, workspace.activePane],
   );
 
   const handleFocusTerminal = useCallback(() => {
@@ -1342,7 +1358,7 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
       <div className="flex h-wc-app flex-col bg-wc-surface-base text-wc-text-primary">
         <TopSafeArea
           testId="workspace-top-edge"
-          fillClassName={bannerFill ?? "bg-wc-surface-base"}
+          fillClassName={bannerFill ?? "bg-wc-surface-header"}
         >
           <BannerRegion banners={banners} />
         </TopSafeArea>
@@ -1533,8 +1549,7 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
   // Whatever banner is on top owns the notch. This used to be a ternary wired
   // to the voice fallback notice alone, so the other ten notices left the
   // status strip showing the surface underneath them.
-  const statusFillClassName =
-    bannerFill ?? (hasTopChrome ? "wc-chrome-surface" : "bg-wc-surface-base");
+  const statusFillClassName = bannerFill ?? "wc-chrome-surface";
 
   // h-wc-app maps to var(--wc-app-height, 100dvh) — the actual visible
   // viewport height set by useAppViewport(). This is the root layout
@@ -1592,7 +1607,7 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
                 data-testid="tabbar-settings"
                 variant="ghost"
                 size="icon"
-                className="h-7 w-7 shrink-0 mx-1 self-center"
+                className="h-11 w-11 shrink-0 mx-1 self-center md:h-7 md:w-7"
                 onClick={() => workspace.setSettingsModalOpen(true)}
                 title={t(strings.workspace.settingsTitle)}
               >
@@ -1679,7 +1694,7 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
       {isTabLikeMode ? (
         <div
           ref={workspace.displayMode === "sidebar" ? sidebarLayoutRef : undefined}
-          className="flex flex-1 min-h-0 overflow-hidden"
+          className="flex flex-1 min-w-0 min-h-0 overflow-hidden"
         >
           {workspace.displayMode === "sidebar" && (
             <SessionSidebar
@@ -1761,7 +1776,7 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
         </div>
       ) : (
         /* Grid mode: original grid layout with minimap */
-        <div className="relative flex-1 min-h-0 overflow-hidden">
+        <div className="relative flex-1 min-w-0 min-h-0 overflow-hidden">
           <div
             ref={scrollContainerRef}
             className={cn("absolute inset-0 overflow-auto wc-hide-scrollbar", workspace.isMinimapVisible && "right-[34px]")}
@@ -1878,6 +1893,9 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
           awaitOffset={handleAwaitInputOffset}
           subscribePendingInput={handleSubscribePendingInput}
           getPendingInputSnapshot={handleGetPendingInputSnapshot}
+          discardPendingInput={handleDiscardPendingInput}
+          discardAllPendingInput={handleDiscardAllPendingInput}
+          flushPendingInputNow={handleFlushPendingInputNow}
           onFocusTerminal={handleFocusTerminal}
           activeSessionId={workspace.activePane}
           draft={composerDraft}

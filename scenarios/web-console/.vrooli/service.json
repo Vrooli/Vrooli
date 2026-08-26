@@ -3,16 +3,28 @@
   "version": "1.0.0",
   "storage": {
     "entries": {
-      "sessions": {
+      "session-rollouts": {
         "rung": "owned",
         "kind": "dir",
         "class": "state",
         "regenerable": false,
         "subpath": "sessions",
-        "rationale": "Session transcripts are durable user work and remain available for a 30-day review window.",
+        "rationale": "Per-session agent rollout transcripts are durable user work and remain available for a 30-day review window. Runtime directories under this tree are links to the shared agent home after launch-time provisioning.",
         "budget": {
           "max_age": "30d",
           "rationale": "Retain session transcripts for 30 days for user recovery; owner cleanup protects active sessions."
+        }
+      },
+      "agent-runtime": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "state",
+        "regenerable": true,
+        "subpath": "agent-runtime",
+        "rationale": "Regenerable agent runtime state is isolated from durable rollouts when a native agent cannot use the shared user home; normal launches link caches and runtime directories to that shared home.",
+        "budget": {
+          "max_age": "30d",
+          "rationale": "Fallback runtime state is disposable and may be reclaimed after the same review window without affecting rollout transcripts."
         }
       },
       "uploads": {
@@ -42,6 +54,48 @@
     "version": "0.0.1",
     "type": "business-application",
     "category": "ai_tools",
+    "capabilities": [
+      "terminal-local",
+      "terminal-persistent",
+      "terminal-remote"
+    ],
+    "platform_capabilities": {
+      "terminal-standard-pty": {
+        "linux": { "status": "supported", "mechanism": "creack-pty-v2", "evidence": "api PTY integration suite on linux/amd64" },
+        "macos": { "status": "build-verified", "mechanism": "creack-pty-v2-with-darwin-termios", "evidence": "go build and go vet linux-to-darwin matrix plus TIOCGETA adapter" },
+        "windows": { "status": "build-verified", "mechanism": "native-ConPTY-pipe-backed-pty", "evidence": "go build and go vet windows/amd64 and windows/arm64" }
+      },
+      "terminal-persistent-tmux": {
+        "linux": { "status": "supported", "mechanism": "tmux-control-mode-with-local-pty-attach", "evidence": "api tmux integration and control-channel tests on linux/amd64" },
+        "macos": { "status": "build-verified", "mechanism": "unix-tmux-control-mode-with-local-pty-attach", "evidence": "go build and go vet darwin matrix; no real-host tmux run" },
+        "windows": { "status": "not_applicable", "mechanism": "tmux-backend-excluded-by-windows-build-tag", "evidence": "pty_tmux.go !windows compile-time seam" }
+      },
+      "terminal-remote-bridge": {
+        "linux": { "status": "supported", "mechanism": "vrooli-bridge-websocket-session-stream", "evidence": "api bridge PTY contract tests on linux/amd64" },
+        "macos": { "status": "build-verified", "mechanism": "vrooli-bridge-websocket-session-stream", "evidence": "go build and go vet darwin matrix plus bridge contract tests" },
+        "windows": { "status": "build-verified", "mechanism": "vrooli-bridge-websocket-session-stream", "evidence": "go build and go vet windows matrix plus bridge contract tests" }
+      },
+      "session-working-dir": {
+        "linux": { "status": "supported", "mechanism": "launch-spec-working-directory", "evidence": "api session launch and recovery tests on linux/amd64" },
+        "macos": { "status": "build-verified", "mechanism": "launch-spec-working-directory", "evidence": "go build and go vet darwin matrix" },
+        "windows": { "status": "build-verified", "mechanism": "ConPTY-create-process-current-directory", "evidence": "go build and go vet windows matrix" }
+      },
+      "terminal-echo-state": {
+        "linux": { "status": "supported", "mechanism": "TCGETS-termios-sampler", "evidence": "api echo-state tests on linux/amd64" },
+        "macos": { "status": "build-verified", "mechanism": "TIOCGETA-termios-sampler", "evidence": "darwin echo adapter and cross-target build" },
+        "windows": { "status": "not_applicable", "mechanism": "ConPTY-does-not-expose-termios-echo", "evidence": "pty_windows.go typed unsupported echo sentinel" }
+      },
+      "agent-hooks": {
+        "linux": { "status": "supported", "mechanism": "Go-web-console-hooks-dispatch-subcommand", "evidence": "cli hooks tests and API hook handler tests on linux/amd64" },
+        "macos": { "status": "build-verified", "mechanism": "Go-web-console-hooks-dispatch-subcommand", "evidence": "go build and go vet darwin matrix" },
+        "windows": { "status": "build-verified", "mechanism": "Go-web-console-hooks-dispatch-subcommand", "evidence": "go build and go vet windows matrix" }
+      },
+      "file-preview": {
+        "linux": { "status": "supported", "mechanism": "Go-file-preview-resolver", "evidence": "api file-preview handler tests on linux/amd64" },
+        "macos": { "status": "build-verified", "mechanism": "Go-file-preview-resolver", "evidence": "go build and go vet darwin matrix" },
+        "windows": { "status": "build-verified", "mechanism": "Go-file-preview-resolver", "evidence": "go build and go vet windows matrix" }
+      }
+    },
     "tags": [
       "react-ui",
       "go-api"
@@ -91,7 +145,7 @@
         "setup",
         "develop"
       ],
-      "notes": "Web console falls back to the standard PTY backend when tmux is unavailable. Consult the runtime capability verdicts from /api/v1/capabilities/describe for current platform and dependency status."
+      "notes": "Persistent tmux support is declared in service.platform_capabilities; runtime availability is reported by /api/v1/capabilities/describe."
     }
   ],
   "lifecycle": {

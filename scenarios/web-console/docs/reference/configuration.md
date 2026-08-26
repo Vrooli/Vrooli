@@ -44,9 +44,10 @@ contract is required before remote restart recovery can be promised.
 
 | Variable | Default | Range | Impact |
 |----------|---------|-------|--------|
-| `WC_TERMINAL_SCROLLBACK_LINES` | `10000` | 100–100,000 | Decoded scrollback lines retained by the per-session terminal emulator and replayed via the snapshot stream on every (re)connect. **Higher** = more history restored on reconnect at the cost of memory per idle session. **Lower** = lighter idle footprint, less history. |
+| `WC_TERMINAL_SCROLLBACK_LINES` | `50000` | 100–100,000 | Decoded scrollback lines retained by the per-session terminal emulator and replayed via the snapshot stream on every (re)connect. **Higher** = more history restored on reconnect at the cost of memory per idle session. **Lower** = lighter idle footprint, less history. |
 | `WC_MAX_SESSIONS` | `0` (unlimited) | 0–1,000 | Maximum concurrent PTY sessions. Safety guardrail for resource-constrained systems. `0` = no limit. |
-| `WC_CLIENT_CHANNEL_BUFFER` | `64` | 8–1,024 | Per-client output channel capacity. **Higher** = absorbs output bursts better, uses more memory. **Lower** = less memory, may drop frames from slow WebSocket consumers. |
+| `WC_CLIENT_CHANNEL_BUFFER` | `256` | 8–1,024 | Per-client output channel capacity. **Higher** = absorbs output bursts better, uses more memory. **Lower** = less memory, may drop frames from slow WebSocket consumers. |
+| `WC_INPUT_QUEUE_SIZE` | `256` | 16–4,096 | Bounded ordered input requests per session. A full queue returns a typed input acknowledgement so the client can retry. |
 
 ### Performance Tuning
 
@@ -80,6 +81,8 @@ All archive-retention limits are opt-in. Inspect them with `web-console session 
 | `WC_ARCHIVE_MESSAGELESS_AGE_DAYS` | `0` (unlimited) | 0–36,500 days | Makes explicitly archived rows with no messages eligible for permanent transcript deletion after this age. Message-bearing transcripts are retained. |
 | `WC_ARCHIVE_AGENT_HOME_AGE_DAYS` | `0` (unlimited) | 0–36,500 days | Prunes exact session-owned agent history after this age. The conversation stays searchable and its restore state becomes `Read-only`. |
 | `WC_ARCHIVE_MAX_BYTES` | `0` (unlimited) | 0–2^62 bytes | Soft ceiling across measured archive transcript and agent-history bytes. Size pressure prunes agent history before any eligible message-less transcript. |
+| `WC_CONVERSATION_RETENTION_DAYS` | `180` | 0–36,500 days | Automatically removes conversation events older than this age. Zero disables age-based retention. The sweep is bounded per cycle. |
+| `WC_CONVERSATION_MAX_EVENTS_PER_SESSION` | `5000` | 0–1,000,000 events | Retains the newest events per session up to this limit. Zero disables the per-session cap. |
 
 ---
 

@@ -69,6 +69,7 @@ describe("stripTerminalResponses", () => {
     message({ type: "session_ready", gen: 2, mouse_mode_known: true, mouse_mode: true, accepted_through: 0 });
     message({ type: "session_ready" });
     message({ type: "stdin_ack", accepted_through: 0, ok: false, reason: "rejected" });
+    message({ type: "stdin_ack", accepted_through: 0, ok: false, reason: "unreconcilable" });
     message({ type: "stdin_ack", accepted_through: 0, ok: true });
     message({ type: "echo_state", echo_known: true, echo_enabled: true, in_alt_buffer: false, cursor_at_line_end: true });
     message({ type: "echo_state", echo_known: false, in_alt_buffer: true });
@@ -84,6 +85,9 @@ describe("stripTerminalResponses", () => {
     expect(result.current.serverSize).toEqual({ cols: 100, rows: 30 });
     expect(result.current.isFollower).toBe(true);
     expect(result.current.leaderDevice).toBe("tablet");
+    message({ type: "presence", holdsLease: false, leaderDevice: "laptop", viewerCount: 3 });
+    expect(result.current.viewerCount).toBe(3);
+    expect(result.current.leaderDevice).toBe("laptop");
     message({ type: "size_info", cols: 100, rows: 30, holdsLease: true });
 
     act(() => {
@@ -113,6 +117,7 @@ describe("stripTerminalResponses", () => {
       { kind: "resynced", detail: "Scrollback was truncated for replay" },
       { kind: "resynced", detail: "truncated" },
       { kind: "resynced" },
+      { kind: "input-desynced", detail: "Reliable input is out of sync at byte 0. Reconnect or reopen this pane to recover." },
       { kind: "session-ended", detail: "Session ended with exit code 7" },
       { kind: "error", detail: "The terminal session did not confirm readiness in time. Reconnect or reopen this pane." },
       { kind: "error", detail: "Terminal error" },

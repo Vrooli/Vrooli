@@ -25,6 +25,14 @@
     { "id": "offline", "description": "API unreachable: connection banner with retry, auto-clearing when health returns." },
     { "id": "voice-active", "description": "Mic engaged (recording/listening/transcribing) with visible state on the mic control." }
   ],
+  "regions": [
+    {
+      "id": "workspace-shell",
+      "purpose": "Stable hydrated shell marker used by capture and workflow consumers before inspecting workspace controls.",
+      "component": { "library": { "component": "experience-surface", "version": "1.0.0" } },
+      "lifecycle": { "kind": "static", "states": ["static"] }
+    }
+  ],
   "elements": [
     { "id": "new-terminal", "role": "button", "description": "Primary affordance to start a session; present in empty state and ambient chrome." },
     { "id": "launcher", "role": "dialog", "description": "New-terminal launcher: default shortcuts, custom command, backend/timeout options." },
@@ -167,6 +175,9 @@
     }
   ],
   "bindings": {
+    "regions": {
+      "workspace-shell": { "testid": "workspace-top-edge" }
+    },
     "elements": {
       "new-terminal": { "testid": "new-terminal-button", "note": "Empty-state instance; ambient instances are toolbar-new / tab-bar-new / workspace-sidebar-new." },
       "launcher": { "testid": "terminal-launcher" },

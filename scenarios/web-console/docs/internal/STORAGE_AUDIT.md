@@ -1,13 +1,16 @@
 # Web Console Storage Architecture Audit
 
 ## Last Updated
-2026-03-17
+2026-08-26
 
 ## Resource Configuration Status
 - [x] SQLite declared in service.json
 - [x] Database file resolved via `api-core/storage` (ClassData)
 - [x] Domain-owned embedded schema and seed (`api/internal/sessions/schema.sql`, `seed.sql`)
 - [x] Schema initialized on startup via `database.EnsureSchemas` in `main.go`
+- [x] Transcript cursors use one source-scoped `agent_transcript_checkpoints` table
+- [x] Conversation search uses external-content FTS5 over `conversation_events`
+- [x] Conversation retention is configurable and runs from the owner cleanup seam
 
 ## Connection Pattern Status
 - [x] DSN built with performance pragmas (WAL, foreign_keys, busy_timeout)
@@ -29,6 +32,8 @@
 - [x] In-memory implementations available for unit tests (`ShortcutProfileStore`, `AIProviderConfigStore`, `MemWorkspaceStore`)
 - [x] SQLite implementations for production (`SQLShortcutStore`, `SQLAIConfigStore`, `SQLWorkspaceStore`)
 - [x] Multiple storage concerns are separated into dedicated files
+- [x] Agent homes are lazy: plain shells do not create Codex/Grok homes
+- [x] Recovery copies only session-owned rollout files, not regenerable runtime state
 
 ## Filesystem Status
 - [x] Voice config resolved via `api-core/storage` (ClassState)
@@ -48,6 +53,8 @@
 | `Metrics` | `metrics.go` | Operational counters | In-memory (atomic) |
 | `idempotencyCache` | `session_handlers.go` | POST replay safety | In-memory (5-min TTL) |
 | `VoiceStreamConfig` | `voice_config.go` | Voice streaming parameters | **File** (JSON via api-core/storage) |
+| `agent_transcript_checkpoints` | `agent_transcript_checkpoint_store.go` | Claude/Codex/Grok/OpenCode ingestion cursors | **SQLite** (one source/key table) |
+| `conversation_events_fts` | `schema_migrations.go` | Archive conversation search index | **SQLite FTS5 external-content index** |
 
 ### Interface Hierarchy
 
@@ -73,5 +80,12 @@ WorkspaceStore (workspace_store.go)
 
 ## Priority Improvements (for future phases)
 
-1. **Session metadata persistence** — Store session metadata in `sessions` table for audit trail
-2. **SQLite backup strategy** — Periodic snapshots for data safety
+1. **Storage-manager backlog cleanup** — Existing orphaned homes remain an operator/storage-manager concern; web-console now reports them with byte counts.
+2. **SQLite backup strategy** — Periodic snapshots for data safety.
+
+## Current Findings and Boundaries
+
+- Session-owned rollout transcripts are durable state under the routed state root.
+- Agent runtime entries are symlinked to the shared user home where supported and are not recreated for shells that never launch an agent.
+- `api/internal/sessions/schema.sql` remains the domain-owned declarative schema; the boot migration code only repairs existing local databases and removes the retired Codex-only checkpoint table.
+- No host cleanup implementation was added. The `/api/v1/cleanup/orphans` endpoint reports filesystem/database drift for storage-manager or operator approval.

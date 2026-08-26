@@ -1,9 +1,10 @@
+//go:build !windows
+
 package main
 
 import (
 	"bytes"
 	"context"
-	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -28,7 +29,7 @@ import (
 )
 
 // errPTYClosed is returned when I/O is attempted on a closed tmuxPTY.
-var errPTYClosed = errors.New("pty is closed")
+var errPTYClosed = session.ErrPTYClosed
 
 var systemdRunProbe = struct {
 	sync.Once
@@ -67,22 +68,19 @@ type tmuxPTY struct {
 	sessionName string   // tmux session name: "wc-{id}"
 	ptmx        *os.File // PTY master connected to tmux attach process
 	cmd         *exec.Cmd
+	control     *tmuxControl
 	mu          sync.Mutex
 	closed      bool
 }
 
 func (p *tmuxPTY) TerminalEchoState() (session.EchoState, error) {
-	if runtime.GOOS == "windows" {
-		return session.EchoState{}, session.ErrEchoStateUnsupported
-	}
 	// The attach PTY has its own termios. Query the pane's slave tty instead;
 	// that is the terminal whose ECHO bit the shell/application changes for a
 	// password prompt. The tty path is supplied by tmux and is validated before
 	// it reaches stty so this remains a data query, never a shell command.
 	ctx, cancel := context.WithTimeout(context.Background(), tmuxCommandTimeout)
 	defer cancel()
-	paneCmd := tmuxCmdContext(ctx, "display-message", "-t", p.sessionName, "-p", "#{pane_tty}")
-	paneOut, err := paneCmd.Output()
+	paneOut, err := p.tmuxOutput(ctx, "display-message", "-t", p.sessionName, "-p", "#{pane_tty}")
 	if err != nil {
 		return session.EchoState{}, fmt.Errorf("tmux pane tty: %w", err)
 	}
@@ -90,27 +88,10 @@ func (p *tmuxPTY) TerminalEchoState() (session.EchoState, error) {
 	if !strings.HasPrefix(tty, "/dev/") || strings.ContainsAny(tty, " \t\r\n") {
 		return session.EchoState{}, fmt.Errorf("tmux returned invalid pane tty %q", tty)
 	}
-	sttyFlag := "-F"
-	if runtime.GOOS == "darwin" || runtime.GOOS == "freebsd" {
-		sttyFlag = "-f"
-	}
-	ctx, cancel = context.WithTimeout(context.Background(), tmuxCommandTimeout)
-	defer cancel()
-	sttyOut, err := exec.CommandContext(ctx, "stty", "-a", sttyFlag, tty).Output()
-	if err != nil {
-		return session.EchoState{}, fmt.Errorf("read pane echo state: %w", err)
-	}
-	for _, token := range strings.FieldsFunc(string(sttyOut), func(r rune) bool {
-		return r == ' ' || r == '\t' || r == '\r' || r == '\n' || r == ';'
-	}) {
-		switch token {
-		case "echo":
-			return session.EchoState{Known: true, EchoEnabled: true}, nil
-		case "-echo":
-			return session.EchoState{Known: true, EchoEnabled: false}, nil
-		}
-	}
-	return session.EchoState{}, fmt.Errorf("stty output did not contain an echo flag")
+	// The control channel supplies the pane tty path. Read its termios
+	// directly so echo sampling remains a channel request plus ioctl: no
+	// per-sample stty process is spawned.
+	return readPTYEchoPath(tty)
 }
 
 func (p *tmuxPTY) Read(buf []byte) (int, error) {
@@ -198,9 +179,9 @@ func (p *tmuxPTY) WriteInput(data []byte, kind pty.InputKind) error {
 // spurious stdin_ack.ok=false. Skipping the cancel when not needed is
 // also the hot path (no mode is the steady state).
 func (p *tmuxPTY) exitModeIfAny(sessionName string) error {
-	displayCmd, cancelDisplay := tmuxCmdWithTimeout("display-message", "-t", sessionName, "-p", "#{pane_in_mode}")
-	defer cancelDisplay()
-	out, err := displayCmd.Output()
+	ctx, cancel := context.WithTimeout(context.Background(), tmuxCommandTimeout)
+	defer cancel()
+	out, err := p.tmuxOutput(ctx, "display-message", "-t", sessionName, "-p", "#{pane_in_mode}")
 	if err != nil {
 		// If display-message fails the session likely died; surface
 		// it as a typed write failure via the caller.
@@ -209,13 +190,11 @@ func (p *tmuxPTY) exitModeIfAny(sessionName string) error {
 	if strings.TrimSpace(string(out)) != "1" {
 		return nil
 	}
-	cancelCmd, cancelCommand := tmuxCmdWithTimeout("send-keys", "-t", sessionName, "-X", "cancel")
-	defer cancelCommand()
-	if cancelOut, cancelErr := cancelCmd.CombinedOutput(); cancelErr != nil {
+	cancelOut, cancelErr := p.tmuxOutput(ctx, "send-keys", "-t", sessionName, "-X", "cancel")
+	if cancelErr != nil {
 		// Treat as fatal: if we can't exit the mode, subsequent input
 		// will be eaten by the mode. Better to surface the failure.
-		return fmt.Errorf("tmux send-keys -X cancel: %w (%s)",
-			cancelErr, strings.TrimSpace(string(cancelOut)))
+		return fmt.Errorf("tmux send-keys -X cancel: %w (%s)", cancelErr, strings.TrimSpace(cancelOut))
 	}
 	return nil
 }
@@ -270,10 +249,32 @@ func (p *tmuxPTY) deliverTyping(sessionName string, data []byte) error {
 	if err := p.exitModeIfAny(sessionName); err != nil {
 		return err
 	}
-	cmd, cancel := tmuxCmdWithTimeout("send-keys", "-t", sessionName, "-l", "--", string(data))
-	defer cancel()
-	if out, err := cmd.CombinedOutput(); err != nil {
-		return fmt.Errorf("tmux send-keys failed: %w (%s)", err, strings.TrimSpace(string(out)))
+	return p.deliverControlText(sessionName, data)
+}
+
+// deliverControlText keeps control-mode commands line-oriented without
+// changing the byte stream delivered to the pane. tmux's Enter key is the
+// protocol-safe representation of a newline; all other chunks remain literal
+// send-keys payloads.
+func (p *tmuxPTY) deliverControlText(sessionName string, data []byte) error {
+	chunks := bytes.Split(data, []byte{'\n'})
+	for index, chunk := range chunks {
+		if len(chunk) > 0 {
+			ctx, cancel := context.WithTimeout(context.Background(), tmuxCommandTimeout)
+			out, err := p.tmuxOutput(ctx, "send-keys", "-t", sessionName, "-l", "--", string(chunk))
+			cancel()
+			if err != nil {
+				return fmt.Errorf("tmux send-keys failed: %w (%s)", err, strings.TrimSpace(out))
+			}
+		}
+		if index < len(chunks)-1 {
+			ctx, cancel := context.WithTimeout(context.Background(), tmuxCommandTimeout)
+			out, err := p.tmuxOutput(ctx, "send-keys", "-t", sessionName, "Enter")
+			cancel()
+			if err != nil {
+				return fmt.Errorf("tmux send-keys Enter failed: %w (%s)", err, strings.TrimSpace(out))
+			}
+		}
 	}
 	return nil
 }
@@ -367,8 +368,8 @@ func (p *tmuxPTY) ProbeReady(ctx context.Context) error {
 			return errPTYClosed
 		}
 
-		out, err := tmuxCmdContext(ctx, "list-clients", "-t", sessionName, "-F", "#{client_tty}").Output()
-		if err == nil && len(bytes.TrimSpace(out)) > 0 {
+		out, err := p.tmuxOutput(ctx, "list-clients", "-t", sessionName, "-F", "#{client_tty}")
+		if err == nil && len(strings.TrimSpace(out)) > 0 {
 			return nil
 		}
 
@@ -381,11 +382,13 @@ func (p *tmuxPTY) ProbeReady(ctx context.Context) error {
 }
 
 func (p *tmuxPTY) CurrentDir(_ context.Context) (string, error) {
-	out, err := tmuxCmd("display-message", "-t", p.sessionName, "-p", "#{pane_current_path}").Output()
+	ctx, cancel := context.WithTimeout(context.Background(), tmuxCommandTimeout)
+	defer cancel()
+	out, err := p.tmuxOutput(ctx, "display-message", "-t", p.sessionName, "-p", "#{pane_current_path}")
 	if err != nil {
 		return "", fmt.Errorf("tmux display-message cwd: %w", err)
 	}
-	cwd := strings.TrimSpace(string(out))
+	cwd := strings.TrimSpace(out)
 	if cwd == "" {
 		return "", fmt.Errorf("tmux current path is empty")
 	}
@@ -400,9 +403,11 @@ func (p *tmuxPTY) SetSize(cols, rows uint16) error {
 	}
 	p.mu.Unlock()
 	// Resize the tmux window directly (not the local PTY)
-	if err := tmuxCmd("resize-window", "-t", p.sessionName,
+	ctx, cancel := context.WithTimeout(context.Background(), tmuxCommandTimeout)
+	defer cancel()
+	if _, err := p.tmuxOutput(ctx, "resize-window", "-t", p.sessionName,
 		"-x", strconv.Itoa(int(cols)),
-		"-y", strconv.Itoa(int(rows))).Run(); err != nil {
+		"-y", strconv.Itoa(int(rows))); err != nil {
 		return fmt.Errorf("tmux resize: %w", err)
 	}
 	// Also resize the local PTY so the attach process knows the new size
@@ -411,12 +416,18 @@ func (p *tmuxPTY) SetSize(cols, rows uint16) error {
 
 func (p *tmuxPTY) Close() error {
 	p.mu.Lock()
-	defer p.mu.Unlock()
 	if p.closed {
+		p.mu.Unlock()
 		return nil
 	}
 	p.closed = true
-	return p.ptmx.Close()
+	control := p.control
+	ptmx := p.ptmx
+	p.mu.Unlock()
+	if control != nil {
+		_ = control.Close()
+	}
+	return ptmx.Close()
 }
 
 func (p *tmuxPTY) Kill() error {
@@ -439,9 +450,11 @@ func (p *tmuxPTY) ExitCode() int {
 	// Check pane_dead first — pane_dead_status is only meaningful when the pane
 	// has exited. Without this guard, a running pane returns "0" for
 	// pane_dead_status which is indistinguishable from "exited with code 0".
-	out, err := tmuxCmd("display-message", "-t", p.sessionName, "-p", "#{pane_dead}:#{pane_dead_status}").Output()
+	ctx, cancel := context.WithTimeout(context.Background(), tmuxCommandTimeout)
+	defer cancel()
+	out, err := p.tmuxOutput(ctx, "display-message", "-t", p.sessionName, "-p", "#{pane_dead}:#{pane_dead_status}")
 	if err == nil {
-		parts := strings.SplitN(strings.TrimSpace(string(out)), ":", 2)
+		parts := strings.SplitN(strings.TrimSpace(out), ":", 2)
 		if len(parts) == 2 && parts[0] == "1" {
 			if code, parseErr := strconv.Atoi(parts[1]); parseErr == nil {
 				return code
@@ -540,6 +553,20 @@ func tmuxCmdContext(ctx context.Context, args ...string) *exec.Cmd {
 	return exec.CommandContext(ctx, "tmux", fullArgs...)
 }
 
+// tmuxOutput uses the persistent control client for session operations. The
+// nil-control path is intentionally retained for degraded hosts and for
+// construction-time operations that happen before an attach client exists.
+func (p *tmuxPTY) tmuxOutput(ctx context.Context, args ...string) (string, error) {
+	p.mu.Lock()
+	control := p.control
+	p.mu.Unlock()
+	if control != nil {
+		return control.Exec(ctx, args...)
+	}
+	out, err := tmuxCmdContext(ctx, args...).Output()
+	return string(out), err
+}
+
 // tmuxPTYFactory creates a tmux-backed PTY for persistent sessions.
 func tmuxPTYFactory(spec pty.LaunchSpec) (pty.PTY, error) {
 	sessionName := tmuxSessionPrefix + spec.SessionID
@@ -562,9 +589,11 @@ func tmuxPTYFactory(spec pty.LaunchSpec) (pty.PTY, error) {
 	// Session-scoped env vars are injected via `tmux new-session -e KEY=VAL`
 	// so panes opened inside THIS session (even when the tmux server was
 	// created by a previous session and thus has frozen server env) see the
-	// correct WC_WEB_CONSOLE_SESSION_ID / CODEX_HOME. Without this, the
-	// second and later sessions on the same tmux server would inherit the
-	// first session's attribution vars, breaking conversation tracking.
+	// correct WC_WEB_CONSOLE_SESSION_ID / WC_SESSION_STATE_ROOT. The native
+	// agent launcher derives the per-agent home from those values only when an
+	// agent starts. Without the per-session identity, later panes on the same
+	// tmux server would inherit the first session's attribution and break
+	// conversation tracking.
 	sessionArgs := buildTmuxNewSessionArgs(sessionName, workingDir, spec)
 	socketName := resolveTmuxSocket()
 	if systemdRunUsable() {
@@ -645,7 +674,9 @@ func (p *tmuxPTY) SetMouseMode(enabled bool) error {
 	}
 	sessionName := p.sessionName
 	p.mu.Unlock()
-	if err := tmuxCmd("set-option", "-t", sessionName, "mouse", tmuxMouseModeValue(enabled)).Run(); err != nil {
+	ctx, cancel := context.WithTimeout(context.Background(), tmuxCommandTimeout)
+	defer cancel()
+	if _, err := p.tmuxOutput(ctx, "set-option", "-t", sessionName, "mouse", tmuxMouseModeValue(enabled)); err != nil {
 		return fmt.Errorf("tmux set mouse mode: %w", err)
 	}
 	return nil
@@ -666,11 +697,13 @@ func (p *tmuxPTY) MouseMode() (bool, error) {
 	}
 	sessionName := p.sessionName
 	p.mu.Unlock()
-	out, err := tmuxCmd("show-options", "-t", sessionName, "-v", "mouse").Output()
+	ctx, cancel := context.WithTimeout(context.Background(), tmuxCommandTimeout)
+	defer cancel()
+	out, err := p.tmuxOutput(ctx, "show-options", "-t", sessionName, "-v", "mouse")
 	if err != nil {
 		return false, fmt.Errorf("tmux show mouse mode: %w", err)
 	}
-	return strings.TrimSpace(string(out)) == "on", nil
+	return strings.TrimSpace(out) == "on", nil
 }
 
 // tmuxAttachTimeout bounds how long we wait for `tmux attach-session` to start.
@@ -706,11 +739,21 @@ func tmuxAttach(sessionName string) (*tmuxPTY, error) {
 	if err != nil {
 		return nil, fmt.Errorf("tmux attach %s: %w", sessionName, err)
 	}
-	return &tmuxPTY{
+	p := &tmuxPTY{
 		sessionName: sessionName,
 		ptmx:        ptmx,
 		cmd:         attachCmd,
-	}, nil
+	}
+	control, controlErr := newTmuxControl(sessionName)
+	if controlErr != nil {
+		// The fork path remains a deliberate degraded-mode fallback. It keeps
+		// the terminal usable when tmux control mode is unavailable, while all
+		// normal hosts use one persistent command channel.
+		log.Printf("tmux control channel unavailable for %s; using fork fallback: %v", sessionName, controlErr)
+	} else {
+		p.control = control
+	}
+	return p, nil
 }
 
 // tmuxAttachAsPTY wraps tmuxAttach to return the PTY interface, matching

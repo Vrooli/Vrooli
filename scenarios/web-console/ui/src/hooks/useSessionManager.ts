@@ -473,7 +473,7 @@ export function useSessionManager() {
   );
 
   const getActivePendingInputSnapshot = useCallback(
-    (targetId?: string): readonly { data: string; addedAt: number }[] => {
+    (targetId?: string): readonly { data: string; addedAt: number; intent: "typing" | "bulk_text" | "named_key"; held?: boolean }[] => {
       const target = targetId ?? panes[panes.length - 1]?.session.id;
       if (!target) return [];
       const handle = terminalRefs.current.get(target);
@@ -481,6 +481,21 @@ export function useSessionManager() {
     },
     [panes],
   );
+
+  const discardActivePendingInput = useCallback((index: number, targetId?: string): void => {
+    const target = targetId ?? panes[panes.length - 1]?.session.id;
+    if (target) terminalRefs.current.get(target)?.pendingInput.discard(index);
+  }, [panes]);
+
+  const discardAllActivePendingInput = useCallback((targetId?: string): void => {
+    const target = targetId ?? panes[panes.length - 1]?.session.id;
+    if (target) terminalRefs.current.get(target)?.pendingInput.discardAll();
+  }, [panes]);
+
+  const flushActivePendingInputNow = useCallback((targetId?: string): void => {
+    const target = targetId ?? panes[panes.length - 1]?.session.id;
+    if (target) terminalRefs.current.get(target)?.pendingInput.flushNow();
+  }, [panes]);
 
   const copySelectionOnPane = useCallback(async (sessionId?: string): Promise<boolean> => {
     const target = sessionId ?? panes[panes.length - 1]?.session.id;
@@ -604,6 +619,9 @@ export function useSessionManager() {
     awaitActiveInputOffset,
     subscribeActivePendingInput,
     getActivePendingInputSnapshot,
+    discardActivePendingInput,
+    discardAllActivePendingInput,
+    flushActivePendingInputNow,
     copySelectionOnPane,
     pasteFromClipboardOnPane,
     scrollTerminalOnPane,

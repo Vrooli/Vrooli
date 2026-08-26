@@ -34,6 +34,8 @@ export interface PaneMetadata {
 export interface PendingInputDraftEntry {
   data: string;
   intent: "typing" | "bulk_text" | "named_key";
+  addedAt?: number;
+  held?: boolean;
 }
 
 export type DisplayMode = "grid" | "tabs" | "sidebar";
@@ -66,6 +68,7 @@ export type TerminalPaneStatus =
   | { kind: "reconnected"; detail?: string }
   | { kind: "disconnected"; detail?: string }
   | { kind: "resynced"; detail?: string }
+  | { kind: "input-desynced"; detail: string }
   | { kind: "session-ended"; detail?: string }
   | { kind: "error"; detail: string };
 

@@ -6,6 +6,7 @@ import MobileToolbar, { type MobileToolbarHandle } from "../components/MobileToo
 import { i18n } from "../i18n";
 import { useWorkspaceStore } from "../stores/useWorkspaceStore";
 import type { InputSettlementCallback } from "../hooks/terminal/useStdinStream";
+import type { PendingInputSnapshot } from "../components/MobileToolbar";
 
 // Draft persistence wants a stable sessionId — pass a fixed one through props.
 function renderToolbar(overrides: Partial<Parameters<typeof MobileToolbar>[0]> = {}) {
@@ -27,8 +28,8 @@ function renderToolbar(overrides: Partial<Parameters<typeof MobileToolbar>[0]> =
   });
 
   const pendingSubs = new Set<() => void>();
-  let snapshot: readonly { data: string; addedAt: number }[] = [];
-  const setSnapshot = (next: readonly { data: string; addedAt: number }[]) => {
+  let snapshot: readonly PendingInputSnapshot[] = [];
+  const setSnapshot = (next: readonly PendingInputSnapshot[]) => {
     snapshot = next;
     for (const cb of pendingSubs) cb();
   };
@@ -65,6 +66,12 @@ describe("MobileToolbar — send/ack flow", () => {
     } catch {
       /* no-op */
     }
+  });
+
+  it("keeps the mobile command target at the minimum touch height", () => {
+    renderToolbar();
+
+    expect(screen.getByTestId("mobile-command-input")).toHaveClass("min-h-11");
   });
 
   it("preserves draft during sending and clears on ok=true", () => {
@@ -185,8 +192,8 @@ describe("MobileToolbar — send/ack flow", () => {
     expect(screen.queryByTestId("pending-input-pill")).toBeNull();
 
     act(() => setSnapshot([
-      { data: "ls", addedAt: Date.now() - 3000 },
-      { data: "pwd", addedAt: Date.now() },
+      { data: "ls", addedAt: Date.now() - 3000, intent: "typing" },
+      { data: "pwd", addedAt: Date.now(), intent: "typing" },
     ]));
     const pill = screen.getByTestId("pending-input-pill");
     expect(pill.textContent).toMatch(/2 unsent/);
@@ -206,14 +213,16 @@ describe("MobileToolbar — send/ack flow", () => {
     const { setSnapshot } = renderToolbar();
 
     act(() => setSnapshot([
-      { data: long, addedAt: Date.now() - 1000 },
-      { data: "line1\nline2", addedAt: Date.now() },
+      { data: long, addedAt: Date.now() - 1000, intent: "bulk_text" },
+      { data: "line1\nline2", addedAt: Date.now(), intent: "bulk_text" },
     ]));
     fireEvent.click(screen.getByTestId("pending-input-pill").querySelector("button")!);
 
     const disclosure = screen.getByTestId("pending-input-disclosure");
     expect(disclosure).toHaveTextContent("x".repeat(60) + "…");
-    expect(disclosure).toHaveTextContent("line1⏎line2");
+    expect(disclosure).toHaveTextContent("line1");
+    expect(disclosure).toHaveTextContent("Enter");
+    expect(disclosure).toHaveTextContent("line2");
   });
 });
 
@@ -235,14 +244,12 @@ describe("MobileToolbar — arrow hold-to-repeat", () => {
   const ARROW_UP_INPUT = "\x1b[A";
   const ARROW_LEFT_INPUT = "\x1b[D";
 
-  // Arrow labels render as Unicode glyphs that slugify() strips, so we
-  // query by visible button text instead of by data-testid.
-  const getArrow = (glyph: "↑" | "↓" | "←" | "→") =>
-    screen.getByRole("button", { name: glyph });
+  const getArrow = (direction: "up" | "down" | "left" | "right") =>
+    screen.getByRole("button", { name: `Arrow ${direction}` });
 
   it("arrow fires once on pointerdown (no release needed)", () => {
     const { onInput } = renderToolbar();
-    const up = getArrow("↑");
+    const up = getArrow("up");
 
     act(() => {
       fireEvent.pointerDown(up, { pointerType: "touch", button: 0 });
@@ -254,7 +261,7 @@ describe("MobileToolbar — arrow hold-to-repeat", () => {
 
   it("arrow repeats while held after the initial delay", () => {
     const { onInput } = renderToolbar();
-    const up = getArrow("↑");
+    const up = getArrow("up");
 
     act(() => {
       fireEvent.pointerDown(up, { pointerType: "touch", button: 0 });
@@ -275,7 +282,7 @@ describe("MobileToolbar — arrow hold-to-repeat", () => {
 
   it("pointerup stops the repeat stream", () => {
     const { onInput } = renderToolbar();
-    const left = getArrow("←");
+    const left = getArrow("left");
     const mock = (onInput as unknown as import("vitest").Mock);
 
     act(() => {
@@ -299,7 +306,7 @@ describe("MobileToolbar — arrow hold-to-repeat", () => {
 
   it("pointerleave (finger dragged off) stops repeats", () => {
     const { onInput } = renderToolbar();
-    const up = getArrow("↑");
+    const up = getArrow("up");
     const mock = (onInput as unknown as import("vitest").Mock);
 
     act(() => {
@@ -322,7 +329,7 @@ describe("MobileToolbar — arrow hold-to-repeat", () => {
 
   it("quick tap on arrow fires exactly once (no phantom repeat after release)", () => {
     const { onInput } = renderToolbar();
-    const up = getArrow("↑");
+    const up = getArrow("up");
 
     act(() => {
       fireEvent.pointerDown(up, { pointerType: "touch", button: 0 });
@@ -423,16 +430,28 @@ describe("MobileToolbar — modifiers and optional actions", () => {
     useWorkspaceStore.setState({ toolbarLayout: "compact", aiSuggestActive: false });
     const onInput = vi.fn(() => ({ status: "sent" as const, offset: 1 }));
     const onFocusTerminal = vi.fn();
-    renderToolbar({ onInput, onFocusTerminal, onOpenAi: vi.fn(), onUploadImage: vi.fn(), onExpandComposer: vi.fn() });
+    const onExpandComposer = vi.fn();
+    renderToolbar({ onInput, onFocusTerminal, onOpenAi: vi.fn(), onUploadImage: vi.fn(), onExpandComposer });
 
     fireEvent.click(screen.getByTestId("toolbar-mod-ctrl"));
     fireEvent.click(screen.getByTestId("toolbar-key-esc"));
     expect(onInput).toHaveBeenCalledWith("\x1b", "typing");
     expect(onFocusTerminal).toHaveBeenCalled();
     expect(screen.getByTestId("expand-toggle")).toBeInTheDocument();
+    expect(screen.getByTestId("expand-toggle")).toHaveClass("min-h-11", "min-w-11");
+    expect(screen.getByTestId("mobile-command-submit")).toHaveClass("min-h-11", "min-w-11");
     fireEvent.click(screen.getByTestId("toolbar-ai"));
     fireEvent.click(screen.getByTestId("toolbar-upload-image"));
-    fireEvent.pointerDown(screen.getByTestId("expand-toggle"));
+    fireEvent.click(screen.getByTestId("expand-toggle"));
+    expect(onExpandComposer).toHaveBeenCalledOnce();
+  });
+
+  it("uses the shared RCL textarea and icon-control contracts", () => {
+    renderToolbar({ onOpenAi: vi.fn(), onUploadImage: vi.fn(), onExpandComposer: vi.fn() });
+
+    expect(screen.getByTestId("mobile-command-input")).toHaveAttribute("data-rcl-textarea", "true");
+    expect(screen.getByTestId("mobile-command-submit")).toHaveAttribute("data-rcl-control", "true");
+    expect(screen.getByRole("button", { name: "Arrow up" })).toHaveAttribute("data-rcl-control", "true");
   });
 
   it("renders message-mode actions and invokes the view switch after a send", () => {
@@ -447,6 +466,12 @@ describe("MobileToolbar — modifiers and optional actions", () => {
     fireEvent.click(screen.getByTestId("mobile-command-submit"));
     act(() => fireSettled(2, true));
     expect(onSwitchToTerminal).toHaveBeenCalled();
+  });
+
+  it("marks the expanded key area for responsive wrapping", () => {
+    useWorkspaceStore.setState({ toolbarLayout: "expanded", aiSuggestActive: false });
+    renderToolbar({ onOpenAi: vi.fn(), onUploadImage: vi.fn() });
+    expect(document.querySelector(".mobile-toolbar-expanded")).toBeInTheDocument();
   });
 
   it("keeps pointer gestures from stealing focus across compact and expanded layouts", () => {

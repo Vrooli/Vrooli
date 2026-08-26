@@ -49,7 +49,7 @@ func InitDefaultRegistry() *backend.Registry {
 }
 
 func probeStandard() (bool, string) {
-	if !hostSupportsPTY {
+	if !localPTYAvailable() {
 		return false, "no PTY implementation for this platform"
 	}
 	return true, ""

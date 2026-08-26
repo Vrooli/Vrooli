@@ -8,6 +8,8 @@ export interface TerminalScrollController {
   scrollBy: (lines: number, source: ScrollSource) => void;
   /** Notify the controller that a server output frame made progress. */
   notifyOutput: () => void;
+  /** Number of control frames awaiting output progress. */
+  getUnacknowledgedFrames: () => number;
   /** Deterministic seam for tests and teardown. */
   flush: () => void;
 }
@@ -18,6 +20,8 @@ export interface TerminalScrollControllerOptions {
   maxFramesPerSecond?: number;
   /** Injectable monotonic clock for rate-limit tests. */
   now?: () => number;
+  /** Watchdog duration for a missing output acknowledgement. */
+  acknowledgementTimeoutMs?: number;
 }
 
 /** Convert a sampled touch displacement into the legacy 16 ms velocity unit. */
@@ -50,8 +54,11 @@ export function createScrollController(
   let frameHandle: number | null = null;
   let unacknowledgedFrames = 0;
   let lastFrameAt = Number.NEGATIVE_INFINITY;
+  let acknowledgementWatchdog: ReturnType<typeof setTimeout> | null = null;
+  let watchdogWarned = false;
   const maxUnacknowledgedFrames = options.maxUnacknowledgedFrames ?? 8;
   const maxFramesPerSecond = options.maxFramesPerSecond ?? 60;
+  const acknowledgementTimeoutMs = options.acknowledgementTimeoutMs ?? 2000;
   const getSensitivity = options.getSensitivity ?? (() => 1);
   const now = options.now ?? (() => typeof performance !== "undefined" ? performance.now() : Date.now());
 
@@ -66,6 +73,20 @@ export function createScrollController(
     } else {
       frameHandle = Number(setTimeout(run, 16));
     }
+  };
+
+  const armAcknowledgementWatchdog = () => {
+    if (acknowledgementWatchdog !== null) return;
+    acknowledgementWatchdog = setTimeout(() => {
+      acknowledgementWatchdog = null;
+      if (unacknowledgedFrames < maxUnacknowledgedFrames) return;
+      unacknowledgedFrames = 0;
+      if (!watchdogWarned) {
+        watchdogWarned = true;
+        console.warn("terminal scroll acknowledgements stalled; resetting the control-frame gate");
+      }
+      if (pendingLines !== 0) schedule();
+    }, acknowledgementTimeoutMs);
   };
 
   function flush() {
@@ -89,6 +110,9 @@ export function createScrollController(
     if (sendControl(sequence)) {
       unacknowledgedFrames += 1;
       lastFrameAt = timestamp;
+      if (unacknowledgedFrames >= maxUnacknowledgedFrames) {
+        armAcknowledgementWatchdog();
+      }
     }
     if (pendingLines !== 0) schedule();
   }
@@ -109,6 +133,16 @@ export function createScrollController(
     },
     notifyOutput() {
       unacknowledgedFrames = Math.max(0, unacknowledgedFrames - 1);
+      if (unacknowledgedFrames < maxUnacknowledgedFrames) {
+        watchdogWarned = false;
+        if (acknowledgementWatchdog !== null) {
+          clearTimeout(acknowledgementWatchdog);
+          acknowledgementWatchdog = null;
+        }
+      }
+    },
+    getUnacknowledgedFrames() {
+      return unacknowledgedFrames;
     },
     flush,
   };

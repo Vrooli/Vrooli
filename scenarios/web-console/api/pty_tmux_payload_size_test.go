@@ -151,7 +151,7 @@ func newlineDelimitedPayload(n int) []byte {
 // This is the invariant that matters. Asserting the number itself would
 // pass just as happily on a tmux that moved the limit; this fails.
 func TestTmuxSendKeysCeiling_IsAboveOurThreshold(t *testing.T) {
-	requireIsolatedTmux(t)
+	requireTmux(t)
 
 	_, sessionName, _ := newPaneSink(t, "test-send-keys-ceiling", false)
 
@@ -194,7 +194,7 @@ func TestTmuxSendKeysCeiling_IsAboveOurThreshold(t *testing.T) {
 // payloads spanning both transports — including the exact range that
 // used to be dropped — and asserts every byte arrives.
 func TestTmuxPTY_Keystroke_DeliversAcrossArgvThreshold(t *testing.T) {
-	requireIsolatedTmux(t)
+	requireTmux(t)
 
 	cases := []struct {
 		name string
@@ -239,7 +239,7 @@ func TestTmuxPTY_Keystroke_DeliversAcrossArgvThreshold(t *testing.T) {
 // separate Enter — an agent submits the first line and treats the rest
 // as follow-up prompts.
 func TestTmuxPTY_Paste_IsBracketedWhenAppRequestsIt(t *testing.T) {
-	requireIsolatedTmux(t)
+	requireTmux(t)
 
 	p, _, sinkPath := newPaneSink(t, "test-paste-bracketed", true)
 
@@ -280,7 +280,7 @@ func TestTmuxPTY_Paste_IsBracketedWhenAppRequestsIt(t *testing.T) {
 // wire, so bracketing again here would double-wrap them and leak a
 // literal ESC[200~ into the application's input.
 func TestTmuxPTY_OversizedKeystroke_IsNotBracketed(t *testing.T) {
-	requireIsolatedTmux(t)
+	requireTmux(t)
 
 	// The pane requests bracketed paste, so `-p` would definitely take
 	// effect if the keystroke path wrongly passed it.

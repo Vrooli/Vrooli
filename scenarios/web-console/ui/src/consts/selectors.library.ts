@@ -1,37 +1,69 @@
 
 // vrooli:library-selectors start
 export const librarySelectors = {
-  "usevoiceinput": {
+      "usevoiceinput": {
     "root": "usevoiceinput",
   },
-  "voiceinputbutton": {
-    "root": "voice-fixture-state",
-    "id2": "voiceinputbutton",
+
+
+      "voiceinputbutton": {
+    "root": "voiceinputbutton",
+    "voiceFixtureState": "voiceinputbutton.voice-fixture-state",
   },
-  "foundations.visual-recipes": {
+
+
+      "foundations.visual-recipes": {
     "root": "foundations.visual-recipes",
   },
-  "foundations.tokens": {
+
+
+      "foundations.tokens": {
     "root": "foundations.tokens",
   },
-  "controls.pressable": {
+
+
+      "controls.pressable": {
     "root": "controls.pressable",
   },
-  "controls.icon-button": {
+
+
+        "controls.icon-button": {
     "root": "controls.icon-button",
   },
-  "drawershell": {
+
+
+
+      "drawershell": {
     "root": "drawershell",
   },
-  "controlbase": {
+
+
+      "controlbase": {
     "root": "controlbase",
   },
-  "forms.color-picker": {
+
+
+      "forms.color-picker": {
     "root": "forms.color-picker",
-    "id2": "selected-color",
+    "selectedColor": "forms.color-picker.selected-color",
   },
-  "controls.button": {
+
+
+                  "controls.button": {
     "root": "controls.button",
+    "icon": "controls.button.icon",
+    "label": "controls.button.label",
+  },
+
+
+
+
+
+
+
+
+  "forms.textarea": {
+    "root": "forms.textarea",
   },
 } as const;
 // vrooli:library-selectors end

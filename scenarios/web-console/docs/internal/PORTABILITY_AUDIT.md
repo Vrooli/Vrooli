@@ -5,7 +5,7 @@
 
 ## Target Tiers
 - [x] Tier 2 Desktop (Electron) — ready (CORS, storage, static build all handled)
-- [ ] Tier 3 Mobile — PTY requires Unix; no Windows PTY support
+- [ ] Tier 3 Mobile — mobile clients use the remote/bridge terminal path
 - [x] Tier 4 Cloud/SaaS
 - [x] Tier 5 Enterprise
 
@@ -72,8 +72,8 @@
 6. `Workspace.tsx` — Fixed missing `syncPaneUpdate` dependency in useEffect
 
 ## Known Limitations
-1. PTY support requires Unix-like OS (creack/pty) — no Windows native support
-2. Shell fallback is `/bin/sh` — not available on Windows without WSL
+1. Unix PTYs use creack/pty; Windows uses the native ConPTY adapter
+2. Shell fallback is platform-resolved (`$SHELL`/`/bin/sh` on Unix, PowerShell on Windows)
 3. `initSchema` reads SQL files relative to binary — desktop bundles must ship `api/internal/<domain>/` directory alongside binary (candidate for `//go:embed` in future)
 
 ## Required Changes for Tier 3 (Mobile)

@@ -42,7 +42,10 @@ describe("useXtermLifecycle", () => {
     const host = document.createElement("div");
     Object.defineProperty(host, "clientWidth", { value: 800 });
     Object.defineProperty(host, "clientHeight", { value: 600 });
-    act(() => { (result.current.containerRef as MutableRefObject<HTMLDivElement | null>).current = host; });
+    act(() => {
+      (result.current.containerRef as MutableRefObject<HTMLDivElement | null>).current = host;
+      (result.current.terminalHostRef as MutableRefObject<HTMLDivElement | null>).current = document.createElement("div");
+    });
     expect(result.current).toBeDefined();
   });
 
@@ -59,7 +62,7 @@ describe("useXtermLifecycle", () => {
     });
     function Harness({ size }: { size: number }): ReactNode {
       latest = useXtermLifecycle({ ...base, paneFontSize: size });
-      return createElement("div", { ref: latest.containerRef });
+      return createElement("div", { ref: latest.containerRef }, createElement("div", { ref: latest.terminalHostRef }));
     }
     const view = render(createElement(Harness, { size: 14 }));
 
@@ -143,6 +146,7 @@ describe("useXtermLifecycle", () => {
     const { unmount } = renderHook(() => {
       const lifecycle = useXtermLifecycle(lifecycleOptions);
       (lifecycle.containerRef as MutableRefObject<HTMLDivElement | null>).current = host;
+      (lifecycle.terminalHostRef as MutableRefObject<HTMLDivElement | null>).current = document.createElement("div");
       return lifecycle;
     });
 

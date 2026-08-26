@@ -4,7 +4,11 @@ Web Console delivers a full-fidelity terminal experience in the browser with pan
 
 ## Platform support
 
-Linux is supported (measured on the current host). macOS support is reasoned from source: session working-directory inspection is unavailable, so relative file preview reports an error instead of guessing. Windows is reasoned from source and unsupported because no PTY implementation exists.
+Linux is supported and covered by PTY/tmux integration tests. macOS uses the
+Unix PTY path with Darwin termios support. Windows uses the native ConPTY
+adapter; the Windows build is cross-compiled in validation, while tmux
+persistence remains Unix-only. Platform claims and evidence live in
+`.vrooli/service.json`.
 
 ## Scope Status
 

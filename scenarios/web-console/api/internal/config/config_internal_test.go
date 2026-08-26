@@ -33,6 +33,9 @@ func TestDefault(t *testing.T) {
 	if cfg.ArchiveMessageLessAgeDays != 0 || cfg.ArchiveAgentHomeAgeDays != 0 || cfg.ArchiveMaxBytes != 0 {
 		t.Errorf("archive retention defaults must be unlimited: %+v", cfg)
 	}
+	if cfg.ConversationRetentionDays != 180 || cfg.ConversationMaxEventsPerSession != 5000 {
+		t.Errorf("conversation retention defaults are wrong: %+v", cfg)
+	}
 	if cfg.ClientChannelBuffer != 256 {
 		t.Errorf("ClientChannelBuffer: want 256, got %d", cfg.ClientChannelBuffer)
 	}
@@ -49,6 +52,8 @@ func TestLoad_EnvOverride(t *testing.T) {
 	t.Setenv("WC_ARCHIVE_MESSAGELESS_AGE_DAYS", "7")
 	t.Setenv("WC_ARCHIVE_AGENT_HOME_AGE_DAYS", "30")
 	t.Setenv("WC_ARCHIVE_MAX_BYTES", "1048576")
+	t.Setenv("WC_CONVERSATION_RETENTION_DAYS", "30")
+	t.Setenv("WC_CONVERSATION_MAX_EVENTS_PER_SESSION", "250")
 
 	cfg := Load()
 
@@ -63,6 +68,9 @@ func TestLoad_EnvOverride(t *testing.T) {
 	}
 	if cfg.ArchiveMessageLessAgeDays != 7 || cfg.ArchiveAgentHomeAgeDays != 30 || cfg.ArchiveMaxBytes != 1_048_576 {
 		t.Errorf("archive retention env overrides not loaded: %+v", cfg)
+	}
+	if cfg.ConversationRetentionDays != 30 || cfg.ConversationMaxEventsPerSession != 250 {
+		t.Errorf("conversation retention env overrides not loaded: %+v", cfg)
 	}
 }
 

@@ -306,7 +306,7 @@ export default function SessionSidebar({
           data-testid="workspace-sidebar-settings"
           variant="ghost"
           size="icon"
-          className="h-8 w-8 shrink-0"
+          className="h-11 w-11 shrink-0 md:h-8 md:w-8"
           onClick={onOpenSettings}
           title={t(strings.workspace.settingsTitle)}
         >

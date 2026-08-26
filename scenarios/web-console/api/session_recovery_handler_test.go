@@ -46,6 +46,34 @@ func TestPrunedCodexHomeStaysAbsentAndReadOnly(t *testing.T) {
 	}
 }
 
+func TestCopyCodexHomeCopiesOnlyRolloutTree(t *testing.T) {
+	root := t.TempDir()
+	t.Setenv("WC_SESSION_STATE_ROOT", root)
+	oldSessions := filepath.Join(root, "codex", "old", "sessions", "2026", "08", "26")
+	if err := os.MkdirAll(oldSessions, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(oldSessions, "rollout.jsonl"), []byte("rollout"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(root, "codex", "old", "cache"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "codex", "old", "cache", "runtime.db"), []byte("runtime"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := copyCodexHome("old", "new"); err != nil {
+		t.Fatalf("copyCodexHome: %v", err)
+	}
+	if got, err := os.ReadFile(filepath.Join(root, "codex", "new", "sessions", "2026", "08", "26", "rollout.jsonl")); err != nil || string(got) != "rollout" {
+		t.Fatalf("copied rollout = %q, %v", got, err)
+	}
+	if _, err := os.Stat(filepath.Join(root, "codex", "new", "cache")); !os.IsNotExist(err) {
+		t.Fatalf("copied non-rollout runtime state: %v", err)
+	}
+}
+
 // newRecoveryTestServer wires the in-memory store + fake PTY factory so the
 // recovery flow can be exercised end-to-end without tmux. The fake PTY
 // preserves the WriteInput contract the recovery adapter depends on.

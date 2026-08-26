@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { Terminal } from "@xterm/xterm";
 import { buildSessionWsUrl } from "../../api/sessions";
 import { refreshConversationSession } from "../../hooks/useConversationSession";
@@ -16,6 +16,7 @@ import {
 import { getTerminalDebugProbe } from "../../components/terminal/debug";
 import { deviceIdentity } from "../../lib/deviceIdentity";
 import type { TerminalMessage } from "../../types/terminal";
+import { initialTerminalProtocolState, reduceTerminalMessage } from "../../lib/terminalProtocol";
 import {
   useTerminalTransport,
   type SocketFactory,
@@ -100,11 +101,15 @@ export interface UseTerminalSessionResult {
 	serverSize: { cols: number; rows: number } | null;
 	isFollower: boolean;
 	leaderDevice: string;
+	viewerCount: number;
 	takeLease: () => void;
   subscribeInputSettled: (cb: InputSettledListener) => () => void;
   awaitOffset: (offset: number, cb: InputSettlementCallback) => () => void;
   subscribePendingInput: (cb: () => void) => () => void;
   getPendingInputSnapshot: () => readonly PendingInputEntry[];
+  discardPendingInput: (index: number) => void;
+  discardAllPendingInput: () => void;
+  flushPendingInputNow: () => void;
   /**
    * Sends a conversation_event_ack frame (client→server playback telemetry)
    * over this pane's terminal WebSocket. Conversation events themselves now
@@ -155,6 +160,8 @@ export function useTerminalSession({
   // stays disabled so the snapshot's alt-buffer markers / TUI paint render
   // cleanly.
   const inSnapshotRef = useRef(true);
+	const outputCursorRef = useRef(0);
+	const protocolStateRef = useRef(initialTerminalProtocolState);
   const predictionOverlayRef = useRef<PredictionOverlay | null>(null);
 	const predictionSentAtRef = useRef(new Map<number, number>());
 	const predictionLatencyEmaRef = useRef(0);
@@ -169,6 +176,7 @@ export function useTerminalSession({
 	const [mouseMode, setMouseMode] = useState<boolean | null>(null);
 	const [holdsLease, setHoldsLease] = useState(true);
 	const [leaderDevice, setLeaderDevice] = useState("");
+	const [viewerCount, setViewerCount] = useState(1);
 
   const onExitRef = useRef(onExit);
   const onReadyRef = useRef(onReady);
@@ -196,6 +204,12 @@ export function useTerminalSession({
   const stdin = useStdinStream({
     sendFrame,
     isSessionReady,
+    onUnreconcilable: useCallback((offset: number) => {
+      onStatus?.({
+        kind: "input-desynced",
+        detail: `Reliable input is out of sync at byte ${offset}. Reconnect or reopen this pane to recover.`,
+      });
+    }, [onStatus]),
   });
 
   const gate: TerminalInputGate = useRef(
@@ -215,11 +229,11 @@ export function useTerminalSession({
   const onTransportOpen = useCallback((wasReconnect: boolean, _gen: number) => {
     sessionReadyRef.current = false;
 		echoStateRef.current = { known: false, enabled: false, inAltBuffer: false, cursorAtLineEnd: false };
-    stdin.resetForNewConnection();
-    inSnapshotRef.current = true;
+    stdin.resetForNewConnection(outputCursorRef.current);
+    inSnapshotRef.current = !wasReconnect;
 
     const t = terminalRef.current;
-    if (t) {
+    if (t && !wasReconnect) {
       // Wipe xterm.js buffers BEFORE the snapshot streams in. Two calls
       // are necessary because:
       //   - reset() is a soft reset (DECSTR) — clears modes/charsets but
@@ -235,8 +249,12 @@ export function useTerminalSession({
       predictionOverlayRef.current?.clear();
 		predictionSentAtRef.current.clear();
 		predictionLatencyEmaRef.current = 0;
-      if (wasReconnect) onStatus?.({ kind: "reconnected" });
     }
+	if (t && wasReconnect) {
+	  predictionOverlayRef.current?.clear();
+	  predictionSentAtRef.current.clear();
+	  if (onStatus) onStatus({ kind: "reconnected" });
+	}
     if (wasReconnect) {
       void refreshConversationSession(sessionId);
     }
@@ -269,15 +287,16 @@ export function useTerminalSession({
     [transport],
   );
 
-  const scrollController = useMemo(
-    () => createScrollController(() => terminalRef.current, sendControl, {
+  const scrollControllerRef = useRef<ReturnType<typeof createScrollController> | null>(null);
+  if (scrollControllerRef.current === null) {
+    scrollControllerRef.current = createScrollController(() => terminalRef.current, sendControl, {
       getSensitivity: (source) => {
         const state = useWorkspaceStore.getState();
         return source === "touch" ? state.touchScrollSensitivity : state.wheelScrollSensitivity;
       },
-    }),
-    [sendControl],
-  );
+    });
+  }
+  const scrollController = scrollControllerRef.current;
 
   const requestLease = useCallback((explicit = false) => {
 		if (!explicit && leaseRequestInFlightRef.current) return;
@@ -329,6 +348,7 @@ export function useTerminalSession({
   // Incoming message handler. Installed as a transport subscriber.
   useEffect(() => {
     const unsubscribe = transport.subscribe((msg) => {
+	  protocolStateRef.current = reduceTerminalMessage(protocolStateRef.current, msg);
       switch (msg.type) {
         case "session_ready": {
           sessionReadyRef.current = true;
@@ -404,11 +424,13 @@ export function useTerminalSession({
             appendOutputProbe(sessionId, msg.data);
             t.write(msg.data);
           }
+		  if (typeof msg.output_cursor === "number") outputCursorRef.current = msg.output_cursor;
           scrollController.notifyOutput();
           break;
         }
         case "history_end": {
           inSnapshotRef.current = false;
+		  if (typeof msg.output_cursor === "number") outputCursorRef.current = msg.output_cursor;
           break;
         }
         case "resync": {
@@ -458,9 +480,19 @@ export function useTerminalSession({
 				if (nextHoldsLease || !leaseRequestInFlightRef.current) leaseRequestInFlightRef.current = false;
 			}
 			setLeaderDevice(msg.leaderDevice ?? "");
+			setViewerCount(msg.viewerCount ?? 1);
 			useWorkspaceStore.getState().setViewerCount(sessionId, msg.viewerCount ?? 1);
 			const t = terminalRef.current;
 			if (t && (t.cols !== msg.cols || t.rows !== msg.rows)) t.resize(msg.cols, msg.rows);
+			break;
+		}
+		case "presence": {
+			const nextHoldsLease = msg.holdsLease === true;
+			setHoldsLease(nextHoldsLease);
+			setLeaderDevice(msg.leaderDevice ?? "");
+			setViewerCount(msg.viewerCount ?? 1);
+			useWorkspaceStore.getState().setViewerCount(sessionId, msg.viewerCount ?? 1);
+			if (nextHoldsLease || !leaseRequestInFlightRef.current) leaseRequestInFlightRef.current = false;
 			break;
 		}
 		default:
@@ -586,11 +618,15 @@ export function useTerminalSession({
 		serverSize,
 		isFollower: !holdsLease,
 		leaderDevice,
+		viewerCount,
 		takeLease,
     subscribeInputSettled: stdin.subscribeInputSettled,
     awaitOffset: stdin.awaitOffset,
     subscribePendingInput: stdin.subscribePendingInput,
     getPendingInputSnapshot: stdin.getPendingSnapshot,
+    discardPendingInput: stdin.discardEntry,
+    discardAllPendingInput: stdin.discardAll,
+    flushPendingInputNow: stdin.flushNow,
     sendConversationAck,
   };
 }

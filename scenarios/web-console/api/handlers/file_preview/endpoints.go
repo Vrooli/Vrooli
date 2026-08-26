@@ -104,6 +104,11 @@ var Endpoints = []module.EndpointDescriptor{
 		RESTException: &module.RESTException{
 			Reason: module.RESTReasonStreamUpgrade,
 			Note:   "Byte-range blob stream consumed by native browser media elements without a generated client — the same browser-native-transport category as terminal_ws. Connect's wire format cannot express opaque byte streaming with Range. The opaque preview id (never a raw path) is issued by FilePreviewService.Resolve and bound to the session.",
+			ProtoPayloads: &module.RESTProtoPayloads{
+				Request:  module.RESTPayload{Transport: "none", Conformance: "none"},
+				Response: module.RESTPayload{Transport: "none", Conformance: "none"},
+				Error:    module.RESTPayload{Transport: "none", Conformance: "none"},
+			},
 		},
 		Errors: []module.ErrorDesc{
 			{Status: 404, Code: "not_found", Description: "Unknown/expired preview id or session mismatch"},

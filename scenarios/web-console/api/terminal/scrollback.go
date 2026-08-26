@@ -9,7 +9,7 @@ package terminal
 
 // Scrollback is an append-only bounded ring of decoded Lines.
 //
-// Capacity is in *lines*, not bytes. Default ten-thousand (≈ 1–2 MB at typical
+// Capacity is in *lines*, not bytes. Default fifty-thousand (≈ 5–10 MB at typical
 // terminal widths) is set by the Emulator constructor.
 type Scrollback struct {
 	cap   int

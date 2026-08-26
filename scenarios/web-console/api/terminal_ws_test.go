@@ -12,7 +12,10 @@ import (
 
 	"web-console/internal/events"
 	"web-console/internal/metrics"
+	"web-console/internal/pty"
 	"web-console/internal/ptyfake"
+	"web-console/internal/wireproto"
+	"web-console/terminal"
 
 	intai "web-console/internal/ai"
 
@@ -23,20 +26,57 @@ import (
 	intworkspace "web-console/internal/workspace"
 )
 
+// Test fixtures use short local names to keep protocol assertions readable.
+// Production code references wireproto directly; these are not part of the
+// package's runtime API.
+const (
+	MsgTypeStdin                  = wireproto.MsgTypeStdin
+	MsgTypeStdout                 = wireproto.MsgTypeStdout
+	MsgTypeResize                 = wireproto.MsgTypeResize
+	MsgTypeResizeInfo             = wireproto.MsgTypeResizeInfo
+	MsgTypeSizeInfo               = wireproto.MsgTypeSizeInfo
+	MsgTypeTakeLease              = wireproto.MsgTypeTakeLease
+	MsgTypeExit                   = wireproto.MsgTypeExit
+	MsgTypeError                  = wireproto.MsgTypeError
+	MsgTypePing                   = wireproto.MsgTypePing
+	MsgTypePong                   = wireproto.MsgTypePong
+	MsgTypeSyncWarning            = wireproto.MsgTypeSyncWarning
+	MsgTypeHistoryEnd             = wireproto.MsgTypeHistoryEnd
+	MsgTypeConversationAck        = wireproto.MsgTypeConversationAck
+	MsgTypeSessionReady           = wireproto.MsgTypeSessionReady
+	MsgTypeStdinAck               = wireproto.MsgTypeStdinAck
+	MsgTypeControl                = wireproto.MsgTypeControl
+	MsgTypeHello                  = wireproto.MsgTypeHello
+	MsgTypeResync                 = wireproto.MsgTypeResync
+	MsgTypeSnapshotNotice         = wireproto.MsgTypeSnapshotNotice
+	MsgTypeEchoState              = wireproto.MsgTypeEchoState
+	MsgTypeMouseMode              = wireproto.MsgTypeMouseMode
+	MsgTypePresence               = wireproto.MsgTypePresence
+	StdinIntentTyping             = wireproto.StdinIntentTyping
+	StdinIntentBulkText           = wireproto.StdinIntentBulkText
+	StdinIntentNamedKey           = wireproto.StdinIntentNamedKey
+	StdinAckReasonTmuxWriteFailed = wireproto.StdinAckReasonTmuxFailed
+	StdinAckReasonPTYClosed       = wireproto.StdinAckReasonPTYClosed
+	StdinAckReasonOffsetGap       = wireproto.StdinAckReasonOffsetGap
+	StdinAckReasonUnreconcilable  = wireproto.StdinAckReasonUnreconcilable
+	StdinAckReasonQueueFull       = wireproto.StdinAckReasonQueueFull
+	ProtocolVersion               = wireproto.ProtocolVersion
+)
+
 // wsURL converts an httptest.Server URL to a WebSocket URL.
 func wsURL(s *httptest.Server, path string) string {
 	return "ws" + strings.TrimPrefix(s.URL, "http") + path
 }
 
 func TestBoundSnapshotKeepsNewestCompleteLines(t *testing.T) {
-	got, dropped, truncated := boundSnapshot([]byte("old-1\nold-2\nnew-1\nnew-2\n"), 14)
+	got, dropped, truncated := boundSnapshot([]byte("old-1\nold-2\nold-3\nold-4\nnew-1\nnew-2\n"), len(terminal.SnapshotPrologue)+12)
 	if !truncated {
 		t.Fatal("expected snapshot to be truncated")
 	}
-	if dropped != 2 {
-		t.Fatalf("dropped lines = %d, want 2", dropped)
+	if dropped != 4 {
+		t.Fatalf("dropped lines = %d, want 4", dropped)
 	}
-	if string(got) != "\x1bcnew-1\nnew-2\n" {
+	if string(got) != terminal.SnapshotPrologue+"new-1\nnew-2\n" {
 		t.Fatalf("bounded snapshot = %q", got)
 	}
 	if strings.Contains(string(got), "old-") {
@@ -49,18 +89,18 @@ func TestBoundSnapshotDoesNotEmitPartialLine(t *testing.T) {
 	if !truncated || dropped != 0 {
 		t.Fatalf("truncation = %v dropped = %d", truncated, dropped)
 	}
-	if string(got) != "\x1bc" {
+	if string(got) != terminal.SnapshotPrologue {
 		t.Fatalf("partial line was emitted: %q", got)
 	}
 }
 
 func TestBoundSnapshotRespectsTotalByteCap(t *testing.T) {
-	got, _, truncated := boundSnapshot([]byte("old line\nnew line\n"), 12)
+	got, _, truncated := boundSnapshot([]byte("old line\nolder line\nancient line\nnew line\n"), len(terminal.SnapshotPrologue)+9)
 	if !truncated {
 		t.Fatal("expected snapshot to be truncated")
 	}
-	if len(got) > 12 {
-		t.Fatalf("bounded snapshot length = %d, want <= 12: %q", len(got), got)
+	if len(got) > len(terminal.SnapshotPrologue)+9 {
+		t.Fatalf("bounded snapshot length = %d, want <= cap: %q", len(got), got)
 	}
 	if !strings.HasSuffix(string(got), "new line\n") {
 		t.Fatalf("bounded snapshot lost the newest complete line: %q", got)
@@ -470,12 +510,102 @@ func TestHandleTerminalWS_StdinAck_Success(t *testing.T) {
 					t.Errorf("offset=%d: expected ok=true", offset)
 				}
 				gotAck = true
-			case MsgTypeStdout, MsgTypeResizeInfo, MsgTypeSyncWarning:
+			case MsgTypeStdout, MsgTypeResizeInfo, MsgTypeSyncWarning, MsgTypePresence:
 				// Shell prompt echo or similar — keep reading until ack.
 			default:
 				t.Fatalf("offset=%d: unexpected message type=%s", offset, resp.Type)
 			}
 		}
+	}
+}
+
+func TestHandleTerminalWS_ConnectionRelativeOffsetStartsAtZero(t *testing.T) {
+	ts, srv := setupWSServer(t)
+	sessID := createTestSession(t, ts, srv)
+	sess, ok := srv.sessions.Get(sessID)
+	if !ok {
+		t.Fatal("session disappeared before websocket connect")
+	}
+	if got := sess.AdvanceAcceptedThrough(5); got != 5 {
+		t.Fatalf("seed accepted_through = %d, want 5", got)
+	}
+
+	conn, _, err := (&websocket.Dialer{}).Dial(wsURL(ts, "/api/v1/sessions/"+sessID+"/ws"), nil)
+	if err != nil {
+		t.Fatalf("ws dial: %v", err)
+	}
+	defer conn.Close()
+	_ = conn.SetReadDeadline(time.Now().Add(3 * time.Second))
+	for {
+		var msg TerminalMessage
+		if err := conn.ReadJSON(&msg); err != nil {
+			t.Fatalf("read session_ready: %v", err)
+		}
+		if msg.Type == MsgTypeSessionReady {
+			if msg.AcceptedThrough != 0 {
+				t.Fatalf("connection accepted_through = %d, want connection-relative zero", msg.AcceptedThrough)
+			}
+			return
+		}
+	}
+}
+
+func TestHandleTerminalWS_TwoClientsBothDeliverInput(t *testing.T) {
+	fake := ptyfake.NewFakePTYWithOutput()
+	srv := newFakeTestServerWithFactory(func(pty.LaunchSpec) (pty.PTY, error) { return fake, nil })
+	srv.setupRoutes()
+	ts := httptest.NewServer(srv.router)
+	t.Cleanup(ts.Close)
+	sess, err := srv.sessions.Create(context.Background(), "", 80, 24, "", nil)
+	if err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+
+	first := dialSessionWS(t, ts, sess.ID)
+	second := dialSessionWS(t, ts, sess.ID)
+	if err := first.WriteJSON(TerminalMessage{Type: MsgTypeStdin, Data: "one", Offset: 0}); err != nil {
+		t.Fatalf("first stdin: %v", err)
+	}
+	if ack := readUntilType(t, first, MsgTypeStdinAck); !ack.Ok || ack.AcceptedThrough != 3 {
+		t.Fatalf("first ack = %+v, want success through 3", ack)
+	}
+	if err := second.WriteJSON(TerminalMessage{Type: MsgTypeStdin, Data: "two", Offset: 0}); err != nil {
+		t.Fatalf("second stdin: %v", err)
+	}
+	if ack := readUntilType(t, second, MsgTypeStdinAck); !ack.Ok || ack.AcceptedThrough != 3 {
+		t.Fatalf("second ack = %+v, want independent success through 3", ack)
+	}
+	if len(fake.Inputs) != 2 || string(fake.Inputs[0]) != "one" || string(fake.Inputs[1]) != "two" {
+		t.Fatalf("PTY inputs = %q, want [one two]", fake.Inputs)
+	}
+}
+
+func TestHandleTerminalWS_OffsetBehindOnlyAcknowledgesExactDuplicate(t *testing.T) {
+	fake := ptyfake.NewFakePTYWithOutput()
+	srv := newFakeTestServerWithFactory(func(pty.LaunchSpec) (pty.PTY, error) { return fake, nil })
+	srv.setupRoutes()
+	ts := httptest.NewServer(srv.router)
+	t.Cleanup(ts.Close)
+	sess, err := srv.sessions.Create(context.Background(), "", 80, 24, "", nil)
+	if err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	conn := dialSessionWS(t, ts, sess.ID)
+	if err := conn.WriteJSON(TerminalMessage{Type: MsgTypeStdin, Data: "x", Offset: 0}); err != nil {
+		t.Fatalf("initial stdin: %v", err)
+	}
+	if ack := readUntilType(t, conn, MsgTypeStdinAck); !ack.Ok {
+		t.Fatalf("initial ack = %+v, want success", ack)
+	}
+	if err := conn.WriteJSON(TerminalMessage{Type: MsgTypeStdin, Data: "y", Offset: 0}); err != nil {
+		t.Fatalf("duplicate stdin: %v", err)
+	}
+	ack := readUntilType(t, conn, MsgTypeStdinAck)
+	if ack.Ok || ack.Reason != StdinAckReasonOffsetGap {
+		t.Fatalf("mismatched duplicate ack = %+v, want offset_gap rejection", ack)
+	}
+	if len(fake.Inputs) != 1 || string(fake.Inputs[0]) != "x" {
+		t.Fatalf("PTY inputs = %q, want only original payload", fake.Inputs)
 	}
 }
 
@@ -799,6 +929,58 @@ func TestHandleTerminalWS_HistoryEnd_AfterHistory(t *testing.T) {
 	t.Fatal("never received history_end message")
 }
 
+func TestHandleTerminalWS_ReconnectReplaysOutputDelta(t *testing.T) {
+	ts, sessID, fake := setupWSServerWithPTY(t)
+	defer fake.Close()
+	_, _ = fake.OutW.Write([]byte("first"))
+	time.Sleep(100 * time.Millisecond)
+
+	dialer := websocket.Dialer{}
+	first, _, err := dialer.Dial(wsURL(ts, "/api/v1/sessions/"+sessID+"/ws"), nil)
+	if err != nil {
+		t.Fatalf("first ws dial: %v", err)
+	}
+	var rendered int64
+	for i := 0; i < 20; i++ {
+		msg := readTerminalMessage(t, first)
+		if msg.Type == MsgTypeHistoryEnd {
+			rendered = msg.OutputCursor
+			break
+		}
+	}
+	if rendered == 0 {
+		t.Fatal("first connection did not report an output cursor")
+	}
+	_ = first.Close()
+	_, _ = fake.OutW.Write([]byte("second"))
+	time.Sleep(100 * time.Millisecond)
+
+	second, _, err := dialer.Dial(wsURL(ts, "/api/v1/sessions/"+sessID+"/ws"), nil)
+	if err != nil {
+		t.Fatalf("second ws dial: %v", err)
+	}
+	defer second.Close()
+	if err := second.WriteJSON(TerminalMessage{Type: MsgTypeHello, WantResume: true, RenderedThrough: rendered}); err != nil {
+		t.Fatalf("send resume hello: %v", err)
+	}
+	var stdout string
+	for i := 0; i < 20; i++ {
+		msg := readTerminalMessage(t, second)
+		switch msg.Type {
+		case MsgTypeStdout:
+			stdout += msg.Data
+		case MsgTypeResync:
+			t.Fatal("covered output cursor unexpectedly requested a full resync")
+		case MsgTypeHistoryEnd:
+			if !strings.Contains(stdout, "second") || strings.Contains(stdout, "first") {
+				t.Fatalf("resume stdout = %q, want only output after cursor", stdout)
+			}
+			return
+		}
+	}
+	t.Fatal("resumed connection did not reach history_end")
+}
+
 // --- Snapshot replay WebSocket tests ---
 
 // TestHandleTerminalWS_SnapshotPrecedesHistoryEnd verifies the snapshot
@@ -848,9 +1030,9 @@ func TestHandleTerminalWS_SnapshotPrecedesHistoryEnd(t *testing.T) {
 func TestHandleTerminalWS_ServerPingKeepalive(t *testing.T) {
 	// Shorten the keepalive interval so the test runs quickly. The behavior
 	// being verified (server sends a ping on schedule) is identical.
-	prevPingPeriod := wsPingPeriod
-	wsPingPeriod = 100 * time.Millisecond
-	t.Cleanup(func() { wsPingPeriod = prevPingPeriod })
+	prevPingPeriod := wsPingPeriod.Load()
+	wsPingPeriod.Store(int64(100 * time.Millisecond))
+	t.Cleanup(func() { wsPingPeriod.Store(prevPingPeriod) })
 
 	ts, sessID, _ := setupWSServerWithPTY(t)
 

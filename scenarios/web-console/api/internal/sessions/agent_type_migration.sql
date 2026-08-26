@@ -1,7 +1,7 @@
 CREATE TABLE IF NOT EXISTS sessions (
 			id TEXT PRIMARY KEY,
 			backend TEXT NOT NULL DEFAULT 'standard',
-			shell TEXT NOT NULL DEFAULT '/bin/bash',
+			shell TEXT NOT NULL DEFAULT '',
 			cols INTEGER NOT NULL DEFAULT 80,
 			rows INTEGER NOT NULL DEFAULT 24,
 			policy_mode TEXT NOT NULL DEFAULT 'never' CHECK(policy_mode IN ('never', 'preset', 'custom')),

@@ -32,9 +32,9 @@ func waitForFrame(t *testing.T, sess *Session, max time.Duration) {
 	t.Helper()
 	deadline := time.Now().Add(max)
 	for time.Now().Before(deadline) {
-		sess.mu.Lock()
+		sess.emuMu.Lock()
 		ready := !sess.lastFrameAt.IsZero()
-		sess.mu.Unlock()
+		sess.emuMu.Unlock()
 		if ready {
 			return
 		}
@@ -189,6 +189,44 @@ func TestSession_SizeLeaseTransfersAndResizes(t *testing.T) {
 	cols, rows, leader, label, holds, viewers = sess.SizeLeaseState(second.OutputCh)
 	if cols != 90 || rows != 25 || leader != "" || label != "" || !holds || viewers != 1 {
 		t.Fatalf("transferred lease state = %d x %d, leader=%q/%q holds=%v viewers=%d", cols, rows, leader, label, holds, viewers)
+	}
+}
+
+func TestSession_PresencePublishesViewerAndLeaseChanges(t *testing.T) {
+	sess, _, _ := newPipedSession(t)
+	first := sess.Subscribe()
+	second := sess.Subscribe()
+	defer sess.Unsubscribe(first.OutputCh)
+	defer sess.Unsubscribe(second.OutputCh)
+
+	readPresence := func(ch <-chan PresenceState) PresenceState {
+		t.Helper()
+		select {
+		case state := <-ch:
+			return state
+		case <-time.After(time.Second):
+			t.Fatal("timed out waiting for presence state")
+			return PresenceState{}
+		}
+	}
+	if got := readPresence(first.PresenceCh); got.ViewerCount != 2 {
+		t.Fatalf("first viewer count = %d, want 2", got.ViewerCount)
+	}
+	if got := readPresence(second.PresenceCh); got.ViewerCount != 2 {
+		t.Fatalf("second initial presence = %+v, want viewer count 2", got)
+	}
+
+	sess.SetClientDevice(second.OutputCh, "phone", "Phone")
+	if err := sess.AcquireLease(second.OutputCh, LeaseReasonExplicit); err != nil {
+		t.Fatalf("AcquireLease(second): %v", err)
+	}
+	firstState := readPresence(first.PresenceCh)
+	secondState := readPresence(second.PresenceCh)
+	if firstState.ViewerCount != 2 || firstState.HoldsLease || firstState.Leader != "phone" || firstState.LeaderDevice != "Phone" {
+		t.Fatalf("first follower presence = %+v", firstState)
+	}
+	if secondState.ViewerCount != 2 || !secondState.HoldsLease || secondState.Leader != "phone" || secondState.LeaderDevice != "Phone" {
+		t.Fatalf("second leader presence = %+v", secondState)
 	}
 }
 

@@ -34,8 +34,6 @@ func TestRegisterReconcilesBothHooks(t *testing.T) {
 				return []byte(`{"port":19777}`), nil
 			case strings.HasSuffix(path, "hook-token.txt"):
 				return []byte("secret-token\n"), nil
-			case strings.HasSuffix(path, "claude-stop-hook.sh"):
-				return []byte("hook"), nil
 			default:
 				return nil, errors.New("unexpected path")
 			}
@@ -87,8 +85,6 @@ func TestRegisterRetriesTokenWithoutSleepingInTest(t *testing.T) {
 				return nil, errors.New("not ready")
 			}
 			return []byte("token"), nil
-		case strings.HasSuffix(path, "claude-stop-hook.sh"):
-			return []byte("hook"), nil
 		default:
 			return nil, errors.New("unexpected path")
 		}

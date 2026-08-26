@@ -21,6 +21,7 @@ import (
 
 	"web-console/internal/events"
 	"web-console/internal/pty"
+	"web-console/internal/wireproto"
 	"web-console/session"
 
 	"github.com/gorilla/websocket"
@@ -48,105 +49,108 @@ func (s *Server) dispatchInputMessage(
 	client chan []byte,
 	sessionID string,
 	msg TerminalMessage,
+	resumeCh chan<- terminalResumeRequest,
 ) inputDispatchResult {
 	switch msg.Type {
-	case MsgTypeStdin:
+	case wireproto.MsgTypeStdin:
 		if !sess.HoldsLease(client) {
 			_ = sess.AcquireLease(client, session.LeaseReasonInput)
 		}
-		accepted := sess.AcceptedThrough()
+		accepted := sess.ClientAcceptedThrough(client)
+		head := sess.InputHeadFor(client)
 		switch {
-		case msg.Offset > accepted:
+		case msg.Offset > head:
 			_ = writeTerminalJSON(conn, writeMu, TerminalMessage{
-				Type:            MsgTypeStdinAck,
-				AcceptedThrough: accepted,
-				Reason:          StdinAckReasonOffsetGap,
+				Type:            wireproto.MsgTypeStdinAck,
+				AcceptedThrough: head,
+				Reason:          wireproto.StdinAckReasonOffsetGap,
 				Data:            "stdin offset is ahead of the session's accepted prefix",
 			})
 			return inputDispatchResult{}
-		case msg.Offset < accepted:
-			// The frame was already accepted before a reconnect or duplicate
-			// delivery. Ack the current prefix without writing it twice.
+		case msg.Offset < head:
+			// Only an exact replay of bytes already delivered by this
+			// connection is idempotent. A different payload at an old offset
+			// is an offset gap and must not receive a success ack.
+			if msg.Offset >= accepted || !sess.HasAcceptedInput(client, msg.Offset, []byte(msg.Data)) {
+				_ = writeTerminalJSON(conn, writeMu, TerminalMessage{
+					Type:            wireproto.MsgTypeStdinAck,
+					AcceptedThrough: accepted,
+					Reason:          wireproto.StdinAckReasonOffsetGap,
+					Data:            "stdin payload does not match the connection's accepted prefix",
+				})
+				return inputDispatchResult{}
+			}
+			// The frame was already accepted by this connection. Ack the
+			// current prefix without writing it twice.
 			_ = writeTerminalJSON(conn, writeMu, TerminalMessage{
-				Type:            MsgTypeStdinAck,
+				Type:            wireproto.MsgTypeStdinAck,
 				Ok:              true,
 				AcceptedThrough: accepted,
 			})
 			return inputDispatchResult{}
 		}
-		in := session.InputText(msg.Data).WithSource("ws")
-		if msg.Intent == StdinIntentBulkText {
-			in = in.AsPaste()
+		data := []byte(msg.Data)
+		if !sess.ReserveInputFor(client, int64(len(data))) {
+			return inputDispatchResult{}
 		}
-		written, writeErr := sess.SendInputCount(in)
-		if writeErr == nil {
-			accepted = sess.AdvanceAcceptedThrough(int64(written))
+		kind := pty.KindKeystroke
+		if msg.Intent == wireproto.StdinIntentBulkText {
+			kind = pty.KindPaste
 		}
-		ackMsg := TerminalMessage{
-			Type:            MsgTypeStdinAck,
-			Ok:              writeErr == nil,
-			AcceptedThrough: accepted,
+		result, enqueueErr := sess.EnqueueInput(data, kind)
+		if enqueueErr != nil {
+			sess.CompleteInputFor(client, data, enqueueErr)
+			s.writeStdinAck(conn, writeMu, sess, client, sessionID, enqueueErr)
+			return inputDispatchResult{}
 		}
-		if writeErr != nil {
-			ackMsg.Data = writeErr.Error()
-			switch {
-			case errors.Is(writeErr, errPTYClosed):
-				ackMsg.Reason = StdinAckReasonPTYClosed
+		go func() {
+			writeErr := <-result
+			sess.CompleteInputFor(client, data, writeErr)
+			s.writeStdinAck(conn, writeMu, sess, client, sessionID, writeErr)
+		}()
+	case wireproto.MsgTypeHello:
+		if msg.WantResume {
+			select {
+			case resumeCh <- terminalResumeRequest{want: true, renderedThrough: msg.RenderedThrough}:
 			default:
-				// tmux send-keys / paste-buffer failure, or realPTY
-				// write error (broken pipe, etc.). The full message
-				// is in Data; Reason is the typed code the UI keys
-				// on.
-				ackMsg.Reason = StdinAckReasonTmuxWriteFailed
 			}
 		}
-		_ = writeTerminalJSON(conn, writeMu, ackMsg)
-		if writeErr != nil {
-			log.Printf("ws[%s]: PTY write failed: %v", sessionID, writeErr)
-			// Only a dead PTY is fatal to the connection. A backend
-			// write that rejects one payload must not take the pane down;
-			// the client already has the typed failure acknowledgement.
-			if errors.Is(writeErr, errPTYClosed) {
-				return inputDispatchResult{Close: true, CloseReason: "Terminal process is not accepting input"}
-			}
-		}
-	case MsgTypeHello:
-		accepted := sess.AcceptedThrough()
+		accepted := sess.ClientAcceptedThrough(client)
 		if msg.HaveThrough > accepted {
 			_ = writeTerminalJSON(conn, writeMu, TerminalMessage{
-				Type:            MsgTypeStdinAck,
+				Type:            wireproto.MsgTypeStdinAck,
 				AcceptedThrough: accepted,
-				Reason:          StdinAckReasonUnreconcilable,
+				Reason:          wireproto.StdinAckReasonUnreconcilable,
 				Data:            "client reliable-input prefix is ahead of the session",
 			})
 		}
-	case MsgTypeControl:
-		// Synthetic terminal bytes are intentionally best-effort. They bypass
-		// reliable-input queue and are written directly through the
-		// PTY's control kind so a reconnect cannot replay stale gestures.
-		if err := sess.SendInput(session.InputRaw([]byte(msg.Data)).WithSource("ws-control").WithKind(pty.KindControl)); err != nil {
+	case wireproto.MsgTypeControl:
+		// Synthetic terminal bytes are intentionally best-effort. They use the
+		// same ordered writer as reliable stdin, but are not assigned an offset,
+		// acknowledged, or replayed after reconnect.
+		if _, err := sess.EnqueueInput([]byte(msg.Data), pty.KindControl); err != nil {
 			log.Printf("ws[%s]: best-effort control write failed: %v", sessionID, err)
 		}
-	case MsgTypeMouseMode:
+	case wireproto.MsgTypeMouseMode:
 		mode := strings.TrimSpace(strings.ToLower(msg.Data))
 		if mode != "on" && mode != "off" {
-			_ = writeTerminalJSON(conn, writeMu, TerminalMessage{Type: MsgTypeMouseMode, Data: "unsupported", Reason: "mouse mode must be on or off"})
+			_ = writeTerminalJSON(conn, writeMu, TerminalMessage{Type: wireproto.MsgTypeMouseMode, Data: "unsupported", Reason: "mouse mode must be on or off"})
 			break
 		}
 		enabled := mode == "on"
 		if err := sess.SetMouseMode(enabled); err != nil {
-			_ = writeTerminalJSON(conn, writeMu, TerminalMessage{Type: MsgTypeMouseMode, Data: "unsupported", Reason: err.Error()})
+			_ = writeTerminalJSON(conn, writeMu, TerminalMessage{Type: wireproto.MsgTypeMouseMode, Data: "unsupported", Reason: err.Error()})
 			break
 		}
-		_ = writeTerminalJSON(conn, writeMu, TerminalMessage{Type: MsgTypeMouseMode, Data: mode, Ok: true})
-	case MsgTypeResize:
+		_ = writeTerminalJSON(conn, writeMu, TerminalMessage{Type: wireproto.MsgTypeMouseMode, Data: mode, Ok: true})
+	case wireproto.MsgTypeResize:
 		if msg.Cols > 0 && msg.Rows > 0 {
 			sess.DeclareSize(client, uint16(msg.Cols), uint16(msg.Rows))
 			if sess.HoldsLease(client) {
 				_ = sess.Resize(client, uint16(msg.Cols), uint16(msg.Rows))
 			}
 			_ = writeTerminalJSON(conn, writeMu, TerminalMessage{
-				Type: MsgTypeResizeInfo,
+				Type: wireproto.MsgTypeResizeInfo,
 				Cols: msg.Cols,
 				Rows: msg.Rows,
 			})
@@ -157,7 +161,7 @@ func (s *Server) dispatchInputMessage(
 			})
 			s.metrics.ResizeCount.Add(1)
 		}
-	case MsgTypeTakeLease:
+	case wireproto.MsgTypeTakeLease:
 		if err := sess.AcquireLease(client, session.LeaseReasonExplicit); err != nil {
 			return inputDispatchResult{CloseReason: err.Error()}
 		}
@@ -167,13 +171,13 @@ func (s *Server) dispatchInputMessage(
 		// broadcast remains responsible for updating every other viewer.
 		cols, rows, leader, leaderDevice, holdsLease, viewerCount := sess.SizeLeaseState(client)
 		_ = writeTerminalJSON(conn, writeMu, TerminalMessage{
-			Type: MsgTypeSizeInfo, Cols: int(cols), Rows: int(rows),
+			Type: wireproto.MsgTypeSizeInfo, Cols: int(cols), Rows: int(rows),
 			Leader: leader, LeaderDevice: leaderDevice, HoldsLease: holdsLease,
 			ViewerCount: viewerCount,
 		})
-	case MsgTypePing:
-		_ = writeTerminalJSON(conn, writeMu, TerminalMessage{Type: MsgTypePong})
-	case MsgTypeConversationAck:
+	case wireproto.MsgTypePing:
+		_ = writeTerminalJSON(conn, writeMu, TerminalMessage{Type: wireproto.MsgTypePong})
+	case wireproto.MsgTypeConversationAck:
 		if msg.EventID == "" || msg.Source == "" || msg.Stage == "" {
 			return inputDispatchResult{CloseReason: "Invalid TTS acknowledgment"}
 		}
@@ -189,6 +193,36 @@ func (s *Server) dispatchInputMessage(
 		// Unknown message types are forward-compatible no-ops.
 	}
 	return inputDispatchResult{}
+}
+
+// writeStdinAck is called after the ordered input worker completes. Keeping
+// the acknowledgement off the WebSocket read loop means a slow tmux/PTY
+// backend cannot prevent the server from accepting subsequent frames.
+func (s *Server) writeStdinAck(
+	conn *websocket.Conn,
+	writeMu *sync.Mutex,
+	sess *session.Session,
+	client chan []byte,
+	sessionID string,
+	writeErr error,
+) {
+	ack := TerminalMessage{Type: wireproto.MsgTypeStdinAck, Ok: writeErr == nil, AcceptedThrough: sess.ClientAcceptedThrough(client)}
+	if writeErr != nil {
+		ack.Data = writeErr.Error()
+		switch {
+		case errors.Is(writeErr, errPTYClosed):
+			ack.Reason = wireproto.StdinAckReasonPTYClosed
+		case errors.Is(writeErr, session.ErrInputQueueFull):
+			ack.Reason = wireproto.StdinAckReasonQueueFull
+		default:
+			ack.Reason = wireproto.StdinAckReasonTmuxFailed
+		}
+		log.Printf("ws[%s]: PTY write failed: %v", sessionID, writeErr)
+	}
+	_ = writeTerminalJSON(conn, writeMu, ack)
+	if errors.Is(writeErr, session.ErrPTYClosed) || errors.Is(writeErr, errPTYClosed) {
+		_ = conn.Close()
+	}
 }
 
 // decodeInputMessage parses the raw WebSocket frame and increments the

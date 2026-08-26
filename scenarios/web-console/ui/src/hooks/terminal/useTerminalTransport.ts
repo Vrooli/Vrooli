@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import type { TerminalMessage } from "../../types/terminal";
 
 /** Factory for creating WebSocket connections. Override in tests. */
@@ -218,5 +218,8 @@ export function useTerminalTransport({
   const currentGen = useCallback(() => genRef.current, []);
   const state = useCallback(() => stateRef.current, []);
 
-  return { sendJson, sendReliableJson, currentGen, subscribe, onStateChange, state };
+  return useMemo(
+    () => ({ sendJson, sendReliableJson, currentGen, subscribe, onStateChange, state }),
+    [sendJson, sendReliableJson, currentGen, subscribe, onStateChange, state],
+  );
 }

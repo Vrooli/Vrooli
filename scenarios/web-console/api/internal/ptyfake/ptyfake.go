@@ -27,6 +27,7 @@ type FakePTY struct {
 	Closed        bool
 	ExitCodeVal   int
 	SetSizeCalls  int
+	Inputs        [][]byte
 	// WriteInputErr, when non-nil, is returned by WriteInput instead of
 	// the bytes being written. Lets tests drive backend write failures —
 	// and in particular the difference between a dead PTY and a backend
@@ -39,6 +40,9 @@ func (f *FakePTY) Read(p []byte) (int, error) { return f.StdoutReader.Read(p) }
 func (f *FakePTY) WriteInput(data []byte, _ pty.InputKind) error {
 	f.Mu.Lock()
 	forced := f.WriteInputErr
+	if forced == nil {
+		f.Inputs = append(f.Inputs, append([]byte(nil), data...))
+	}
 	f.Mu.Unlock()
 	if forced != nil {
 		return forced

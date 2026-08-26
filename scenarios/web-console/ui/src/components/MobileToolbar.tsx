@@ -1,7 +1,10 @@
 // DOC: docs/reference/configuration.md#mobile-toolbar-keys
 // DOC: docs/internal/SEAMS.md#axis-2-toolbar-keys-key-combos-p0-007
-import { useCallback, useDeferredValue, useRef, useState, useEffect, forwardRef, useImperativeHandle } from "react";
-import { Image, Loader2, Maximize2, SendHorizontal, Sparkles } from "lucide-react";
+import { useCallback, useDeferredValue, useRef, useState, useEffect, forwardRef, useImperativeHandle, type ReactNode } from "react";
+import { ArrowDown as ArrowDownIcon, ArrowLeft as ArrowLeftIcon, ArrowRight as ArrowRightIcon, ArrowUp as ArrowUpIcon, Image, Loader2, Maximize2, SendHorizontal, Sparkles, type LucideIcon } from "lucide-react";
+import { Button } from "@vrooli/react-component-library/Button/2.2.1";
+import { IconButton } from "@vrooli/react-component-library/IconButton/2.0.0";
+import { Textarea } from "@vrooli/react-component-library/Textarea/1.0.1";
 import { useTranslation } from "react-i18next";
 import { TOOLBAR_KEYS, ESC_KEY, TAB_KEY, ENTER_KEY, ARROW_UP, ARROW_DOWN, ARROW_LEFT, ARROW_RIGHT, type ToolbarKey, applyModifiers } from "../consts/toolbar-keys";
 import { strings } from "../consts/strings";
@@ -19,6 +22,7 @@ import type { CommandSuggestion } from "../audio-integration";
 import { slugify } from "../lib/slugify";
 import { useComposerDraft, type ComposerDraft } from "../hooks/useComposerDraft";
 import { useHoldRepeat } from "../hooks/useHoldRepeat";
+import { decodeInputLabel } from "../lib/terminalKeyLabels";
 
 /**
  * Arrow keys are the only toolbar buttons with hold-to-repeat because users
@@ -41,15 +45,133 @@ interface ArrowToolbarButtonProps {
  */
 function ArrowToolbarButton({ keyDef, onFire, className }: ArrowToolbarButtonProps) {
   const handlers = useHoldRepeat({ onFire: useCallback(() => onFire(keyDef), [onFire, keyDef]) });
+  const ArrowIcon = arrowIconFor(keyDef);
   return (
-    <button
-      data-testid={`toolbar-key-${slugify(keyDef.label)}`}
+    <IconButton
+      data-testid={`toolbar-key-${slugify(arrowLabelFor(keyDef))}`}
       tabIndex={-1}
+      aria-label={arrowLabelFor(keyDef)}
+      title={arrowLabelFor(keyDef)}
+      size="icon"
+      variant="secondary"
       {...handlers}
       className={className}
     >
-      {keyDef.label}
-    </button>
+      <ArrowIcon aria-hidden className="h-4 w-4" />
+    </IconButton>
+  );
+}
+
+function arrowLabelFor(keyDef: ToolbarKey): string {
+  switch (keyDef.input) {
+    case ARROW_UP.input:
+      return "Arrow up";
+    case ARROW_DOWN.input:
+      return "Arrow down";
+    case ARROW_LEFT.input:
+      return "Arrow left";
+    case ARROW_RIGHT.input:
+      return "Arrow right";
+    default:
+      return keyDef.label;
+  }
+}
+
+function arrowIconFor(keyDef: ToolbarKey): LucideIcon {
+  switch (keyDef.input) {
+    case ARROW_UP.input:
+      return ArrowUpIcon;
+    case ARROW_DOWN.input:
+      return ArrowDownIcon;
+    case ARROW_LEFT.input:
+      return ArrowLeftIcon;
+    case ARROW_RIGHT.input:
+      return ArrowRightIcon;
+    default:
+      return ArrowUpIcon;
+  }
+}
+
+interface ToolbarIconButtonProps {
+  testId: string;
+  label: string;
+  onClick: () => void;
+  active?: boolean;
+  className?: string;
+  children: ReactNode;
+}
+
+/**
+ * The mobile toolbar has several icon-only actions. Keep their hit target,
+ * centering, colour mapping, and accessible naming on the shared RCL control
+ * instead of rebuilding those details at each call site.
+ */
+function ToolbarIconButton({ testId, label, onClick, active = false, className, children }: ToolbarIconButtonProps) {
+  return (
+    <IconButton
+      data-testid={testId}
+      tabIndex={-1}
+      aria-label={label}
+      title={label}
+      size="icon"
+      variant="secondary"
+      onPointerDown={(e) => e.preventDefault()}
+      onClick={onClick}
+      className={cn(
+        "flex min-h-11 min-w-11 items-center justify-center p-0 touch-manipulation",
+        active
+          ? "border-wc-accent bg-wc-accent/20 text-wc-text-primary"
+          : "border-wc-default bg-wc-surface-input text-wc-text-secondary",
+        className,
+      )}
+      style={{
+        background: active ? "rgb(var(--wc-accent) / 0.2)" : "rgb(var(--wc-surface-input))",
+        borderColor: active ? "rgb(var(--wc-accent))" : "rgb(var(--wc-border-default))",
+        color: active ? "rgb(var(--wc-text-primary))" : "rgb(var(--wc-text-secondary))",
+      }}
+    >
+      {children}
+    </IconButton>
+  );
+}
+
+interface ToolbarTextButtonProps {
+  testId: string;
+  label: string;
+  onClick: () => void;
+  active?: boolean;
+  className?: string;
+  compact?: boolean;
+}
+
+function ToolbarTextButton({ testId, label, onClick, active = false, className, compact = false }: ToolbarTextButtonProps) {
+  return (
+    <Button
+      data-testid={testId}
+      tabIndex={-1}
+      type="button"
+      variant="secondary"
+      size="sm"
+      density="compact"
+      onPointerDown={(e) => e.preventDefault()}
+      onClick={onClick}
+      className={cn(
+        "shrink-0 rounded border text-sm font-medium transition touch-manipulation",
+        compact ? "px-1.5 py-1 text-xs" : "px-2 py-1.5",
+        active
+          ? "border-wc-accent bg-wc-accent/20 text-wc-text-primary"
+          : "border-wc-default bg-wc-surface-input text-wc-text-secondary active:bg-wc-accent-active",
+        className,
+      )}
+      style={{
+        paddingInline: compact ? "0.375rem" : "0.5rem",
+        background: active ? "rgb(var(--wc-accent) / 0.2)" : "rgb(var(--wc-surface-input))",
+        borderColor: active ? "rgb(var(--wc-accent))" : "rgb(var(--wc-border-default))",
+        color: active ? "rgb(var(--wc-text-primary))" : "rgb(var(--wc-text-secondary))",
+      }}
+    >
+      {label}
+    </Button>
   );
 }
 
@@ -80,8 +202,8 @@ function DeferredAiSuggestBar({
 const MAX_VISIBLE_LINES = 4;
 /** Approximate line height in px for the textarea. */
 const LINE_HEIGHT_PX = 20;
-/** Max textarea height: MAX_VISIBLE_LINES * line-height + padding. */
-const MAX_TEXTAREA_HEIGHT = MAX_VISIBLE_LINES * LINE_HEIGHT_PX + 12;
+/** Max textarea height: MAX_VISIBLE_LINES * line-height + vertical padding. */
+const MAX_TEXTAREA_HEIGHT = MAX_VISIBLE_LINES * LINE_HEIGHT_PX + 24;
 
 type SendStatus = "sent" | "queued" | "sending" | "failed" | "idle";
 
@@ -89,6 +211,8 @@ type SendStatus = "sent" | "queued" | "sending" | "failed" | "idle";
 export interface PendingInputSnapshot {
   data: string;
   addedAt: number;
+  intent: "typing" | "bulk_text" | "named_key";
+  held?: boolean;
 }
 
 export interface MobileToolbarHandle {
@@ -145,6 +269,9 @@ interface MobileToolbarProps {
   subscribePendingInput?: (cb: () => void) => () => void;
   /** Snapshot the active terminal's pending (unsent) input queue. */
   getPendingInputSnapshot?: () => readonly PendingInputSnapshot[];
+  discardPendingInput?: (index: number) => void;
+  discardAllPendingInput?: () => void;
+  flushPendingInputNow?: () => void;
   /** Move focus to the active terminal (e.g. after submitting a command). */
   onFocusTerminal?: () => void;
   /** Active session ID for per-tab draft persistence. */
@@ -186,6 +313,9 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
   awaitOffset,
   subscribePendingInput,
   getPendingInputSnapshot,
+  discardPendingInput,
+  discardAllPendingInput,
+  flushPendingInputNow,
   onFocusTerminal,
   activeSessionId,
   draft: draftProp,
@@ -526,11 +656,22 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
                   const ageSec = Math.max(0, Math.floor((Date.now() - entry.addedAt) / 1000));
                   return (
                     <li key={idx} className="truncate">
-                      <span className="text-wc-text-muted">[{ageSec}s]</span> {truncated.replace(/\n/g, "⏎")}
+                      <span className="text-wc-text-muted">[{ageSec}s]</span>{" "}
+                      {entry.held && <span className="me-1 text-amber-300">held</span>}
+                      {decodeInputLabel(truncated).map((label, labelIndex) => (
+                        <span key={labelIndex} className={label.kind === "key" ? "me-1 rounded bg-wc-surface-input px-1" : ""}>
+                          {label.kind === "text" ? `“${label.label}”` : label.label}
+                        </span>
+                      ))}
+                      {discardPendingInput && <button type="button" className="ms-2 text-wc-text-muted hover:text-red-300" aria-label={`Discard pending input ${idx + 1}`} onClick={() => discardPendingInput(idx)}>×</button>}
                     </li>
                   );
                 })}
               </ul>
+              <div className="flex gap-2 text-[10px]">
+                {discardAllPendingInput && <button type="button" className="rounded border border-wc-default px-1.5 py-0.5 hover:bg-wc-surface-input" aria-label="Discard all pending input" onClick={discardAllPendingInput}>Discard all</button>}
+                {flushPendingInputNow && <button type="button" className="rounded border border-wc-default px-1.5 py-0.5 hover:bg-wc-surface-input" aria-label="Send pending input now" onClick={flushPendingInputNow}>Send now</button>}
+              </div>
             </div>
           )}
         </div>
@@ -566,12 +707,12 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
               interim={voicePartialTranscript ?? ""}
               textareaRef={textareaRef}
               className={cn(
-                "rounded border border-transparent px-2 py-1 text-base text-wc-text-primary",
-                onExpandComposer && "pe-7",
+                "box-border rounded border border-transparent px-2 text-base leading-5 text-wc-text-primary",
+                onExpandComposer ? "pe-14" : "pe-2",
               )}
               testId="mobile-interim-overlay"
             />
-            <textarea
+            <Textarea
               ref={textareaRef}
               data-testid="mobile-command-input"
               defaultValue={draft.getValue()}
@@ -584,7 +725,7 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
               rows={1}
               placeholder={t(strings.mobileToolbar.placeholder)}
               className={cn(
-                "relative z-10 min-w-0 flex-1 resize-none rounded border border-wc-default bg-transparent px-2 py-1 text-base caret-wc-text-primary placeholder:text-wc-text-muted outline-none focus:border-wc-accent",
+                "relative z-10 min-h-11 min-w-0 flex-1 resize-none rounded border border-wc-default bg-transparent px-2 text-base caret-wc-text-primary placeholder:text-wc-text-muted outline-none focus:border-wc-accent",
                 "overflow-y-auto overflow-x-hidden",
                 // Hand the glyphs to the mirror while a hypothesis is on
                 // screen so settled and unsettled text cannot double up.
@@ -594,6 +735,13 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
                 onExpandComposer && "pe-7",
               )}
               style={{
+                minHeight: "44px",
+                paddingBlock: "11px",
+                paddingInlineStart: "8px",
+                paddingInlineEnd: onExpandComposer ? "56px" : "8px",
+                background: "transparent",
+                borderColor: "rgb(var(--wc-border-default))",
+                color: voicePartialTranscript ? "transparent" : "rgb(var(--wc-text-primary))",
                 lineHeight: `${LINE_HEIGHT_PX}px`,
                 maxHeight: `${MAX_TEXTAREA_HEIGHT}px`,
               }}
@@ -603,17 +751,20 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
                 both terminal and messages views — the composer is view-agnostic
                 and the long-message pain applies equally when chatting. */}
             {onExpandComposer && (
-              <button
+              <IconButton
                 type="button"
                 data-testid="expand-toggle"
+                aria-label={t(strings.mobileToolbar.expandComposerTitle)}
                 onPointerDown={(e) => e.preventDefault()}
                 onClick={onExpandComposer}
-                className="absolute end-1 top-1 rounded p-0.5 text-wc-text-muted/70 transition hover:bg-wc-surface-raised hover:text-wc-text-primary"
+                size="icon"
+                variant="ghost"
+                className="absolute inset-y-0 end-0 z-20 flex min-h-11 min-w-11 items-center justify-center rounded p-0 transition hover:bg-wc-surface-raised hover:text-wc-text-primary"
+                style={{ color: "rgb(var(--wc-text-muted))" }}
                 title={t(strings.mobileToolbar.expandComposerTitle)}
-                aria-label={t(strings.mobileToolbar.expandComposerTitle)}
               >
-                <Maximize2 className="h-3.5 w-3.5" />
-              </button>
+                <Maximize2 aria-hidden className="h-4 w-4" />
+              </IconButton>
             )}
           </div>
           {sendStatus === "queued" && (
@@ -629,22 +780,21 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
         </div>
         {/* Send button — always enabled so that tapping it with an empty
              input acts as Enter (see submitCommand for rationale). */}
-        <button
-          data-testid="mobile-command-submit"
-          onPointerDown={(e) => e.preventDefault()}
+        <ToolbarIconButton
+          testId="mobile-command-submit"
+          label={sendStatus === "sending" ? t(strings.mobileToolbar.statusSending) : t(strings.mobileToolbar.sendTitle)}
           onClick={submitCommand}
-          className="shrink-0 rounded border border-wc-default bg-wc-surface-input p-1.5 text-wc-text-secondary transition active:bg-wc-accent-active touch-manipulation"
-          title={sendStatus === "sending" ? t(strings.mobileToolbar.statusSending) : t(strings.mobileToolbar.sendTitle)}
+          className="shrink-0"
         >
           {/* "sending" renders as an inline spinner in the button itself rather
               than a label below the textarea — the label changed the toolbar's
               height on every send, forcing a costly terminal resize/reflow. */}
           {sendStatus === "sending" ? (
-            <Loader2 data-testid="send-status-sending" className="h-3.5 w-3.5 animate-spin" />
+            <Loader2 data-testid="send-status-sending" aria-hidden className="h-4 w-4 animate-spin" />
           ) : (
-            <SendHorizontal className="h-3.5 w-3.5" />
+            <SendHorizontal aria-hidden className="h-4 w-4" />
           )}
-        </button>
+        </ToolbarIconButton>
       </div>
       {/* Toolbar keys area.
          Focus-preservation strategy (multiple layers to handle browser inconsistencies):
@@ -663,33 +813,25 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
           onMouseDown={(e) => e.preventDefault()}
         >
           {onOpenAi && (
-            <button
-              data-testid="toolbar-ai"
-              tabIndex={-1}
-              onPointerDown={(e) => e.preventDefault()}
+            <ToolbarIconButton
+              testId="toolbar-ai"
+              label={t(strings.mobileToolbar.aiCommandTitle)}
               onClick={onOpenAi}
-              className={cn(
-                "flex min-w-0 flex-1 items-center justify-center rounded border p-1.5 transition active:bg-wc-accent-active touch-manipulation",
-                aiSuggestActive
-                  ? "border-wc-accent bg-wc-accent/20 text-wc-text-primary"
-                  : "border-wc-default bg-wc-surface-input text-wc-text-secondary",
-              )}
-              title={t(strings.mobileToolbar.aiCommandTitle)}
+              active={aiSuggestActive}
+              className="min-w-0 flex-1"
             >
-              <Sparkles className="h-3.5 w-3.5" />
-            </button>
+              <Sparkles aria-hidden className="h-4 w-4" />
+            </ToolbarIconButton>
           )}
           {onUploadImage && (
-            <button
-              data-testid="toolbar-upload-image"
-              tabIndex={-1}
-              onPointerDown={(e) => e.preventDefault()}
+            <ToolbarIconButton
+              testId="toolbar-upload-image"
+              label={t(strings.mobileToolbar.uploadImageTitle)}
               onClick={onUploadImage}
-              className="flex min-w-0 flex-1 items-center justify-center rounded border border-wc-default bg-wc-surface-input p-1.5 text-wc-text-secondary transition active:bg-wc-accent-active touch-manipulation"
-              title={t(strings.mobileToolbar.uploadImageTitle)}
+              className="min-w-0 flex-1"
             >
-              <Image className="h-3.5 w-3.5" />
-            </button>
+              <Image aria-hidden className="h-4 w-4" />
+            </ToolbarIconButton>
           )}
           {voiceSupported && onVoiceStart && onVoiceStop && (
             <VoiceMicButton
@@ -723,15 +865,11 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
            └────────────────────────────────────────────────────────────┘
            The mic button spans both rows for easy access. */
         <div
-          className="grid gap-0.5 px-1 py-1 touch-manipulation select-none"
-          // Mic column is `minmax(0,1fr)` so it grows to fill remaining width
-          // (up to ~2× the image-upload button) but is allowed to shrink when
-          // the other columns are wide — preventing viewport overflow.
-          style={{ gridTemplateColumns: "auto auto auto minmax(0,1fr)", gridTemplateRows: "auto auto" }}
+          className="mobile-toolbar-expanded flex flex-wrap items-stretch gap-0.5 px-1 py-1 touch-manipulation select-none"
           onMouseDown={(e) => e.preventDefault()}
         >
           {/* Column 1: Combo picker + Modifiers (row 1) + Special keys (row 2) */}
-          <div className="flex flex-col gap-0.5" style={{ gridRow: "1 / -1" }}>
+          <div className="mobile-toolbar-action-group flex flex-col gap-0.5">
             <div className="flex items-stretch gap-0.5">
               <KeyComboPicker
                 onInput={onInput}
@@ -740,41 +878,30 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
               />
               <div className="w-px self-stretch bg-wc-default shrink-0" />
               {(["ctrl", "alt", "shift"] as const).map((mod) => (
-                <button
+                <ToolbarTextButton
                   key={mod}
-                  data-testid={`toolbar-mod-${mod}`}
-                  tabIndex={-1}
-                  onPointerDown={(e) => e.preventDefault()}
+                  testId={`toolbar-mod-${mod}`}
+                  label={mod.charAt(0).toUpperCase() + mod.slice(1)}
                   onClick={() => toggleModifier(mod)}
-                  className={cn(
-                    "shrink-0 rounded border px-2 py-1.5 text-sm font-medium transition touch-manipulation",
-                    modifiers[mod]
-                      ? "border-wc-accent bg-wc-accent/20 text-wc-text-primary"
-                      : "border-wc-default bg-wc-surface-input text-wc-text-secondary active:bg-wc-accent-active",
-                  )}
-                >
-                  {mod.charAt(0).toUpperCase() + mod.slice(1)}
-                </button>
+                  active={modifiers[mod]}
+                />
               ))}
             </div>
             <div className="flex items-center gap-0.5">
               {[ESC_KEY, TAB_KEY, ENTER_KEY].map((key) => (
-                <button
+                <ToolbarTextButton
                   key={key.label}
-                  data-testid={`toolbar-key-${slugify(key.label)}`}
-                  tabIndex={-1}
-                  onPointerDown={(e) => e.preventDefault()}
+                  testId={`toolbar-key-${slugify(key.label)}`}
+                  label={key.label}
                   onClick={() => handleKey(key)}
-                  className="shrink-0 rounded border border-wc-default bg-wc-surface-input px-2 py-1.5 text-sm font-medium text-wc-text-secondary transition active:bg-wc-accent-active touch-manipulation min-w-[2.75rem]"
-                >
-                  {key.label}
-                </button>
+                  className="min-w-[2.75rem]"
+                />
               ))}
             </div>
           </div>
 
           {/* Column 2: D-pad arrow cluster (hold-to-repeat via ArrowToolbarButton) */}
-          <div className="flex flex-col items-center gap-0.5 px-1" style={{ gridRow: "1 / -1" }}>
+          <div className="mobile-toolbar-action-group flex flex-col items-center gap-0.5 px-1">
             {/* Row 1: Up arrow centered */}
             <div className="flex justify-center">
               <ArrowToolbarButton
@@ -797,41 +924,31 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
           </div>
 
           {/* Column 3: AI + Image upload buttons (right-aligned) */}
-          <div className="flex flex-col items-end gap-0.5" style={{ gridColumn: 3, gridRow: "1 / -1" }}>
+          <div className="mobile-toolbar-action-group flex flex-col items-end gap-0.5">
             {onOpenAi && (
-              <button
-                data-testid="toolbar-ai"
-                tabIndex={-1}
-                onPointerDown={(e) => e.preventDefault()}
+              <ToolbarIconButton
+                testId="toolbar-ai"
+                label={t(strings.mobileToolbar.aiCommandTitle)}
                 onClick={onOpenAi}
-                className={cn(
-                  "shrink-0 rounded border p-2 transition active:bg-wc-accent-active touch-manipulation",
-                  aiSuggestActive
-                    ? "border-wc-accent bg-wc-accent/20 text-wc-text-primary"
-                    : "border-wc-default bg-wc-surface-input text-wc-text-secondary",
-                )}
-                title={t(strings.mobileToolbar.aiCommandTitle)}
+                active={aiSuggestActive}
               >
-                <Sparkles className="h-4 w-4" />
-              </button>
+                <Sparkles aria-hidden className="h-4 w-4" />
+              </ToolbarIconButton>
             )}
             {onUploadImage && (
-              <button
-                data-testid="toolbar-upload-image"
-                tabIndex={-1}
-                onPointerDown={(e) => e.preventDefault()}
+              <ToolbarIconButton
+                testId="toolbar-upload-image"
+                label={t(strings.mobileToolbar.uploadImageTitle)}
                 onClick={onUploadImage}
-                className="shrink-0 rounded border border-wc-default bg-wc-surface-input p-2 text-wc-text-secondary transition active:bg-wc-accent-active touch-manipulation"
-                title={t(strings.mobileToolbar.uploadImageTitle)}
               >
-                <Image className="h-4 w-4" />
-              </button>
+                <Image aria-hidden className="h-4 w-4" />
+              </ToolbarIconButton>
             )}
           </div>
 
-          {/* Column 4: Voice mic button spanning both rows for easy access */}
+          {/* Flexible action slot: fills the remaining width on its flex line. */}
           {voiceSupported && onVoiceStart && onVoiceStop && (
-            <div className="flex items-stretch" style={{ gridColumn: 4, gridRow: "1 / -1" }}>
+            <div className="mobile-toolbar-action-slot mobile-toolbar-action-slot-fill flex min-w-11 items-stretch">
               <VoiceMicButton
                 testId="voice-mic-btn"
                 supported={voiceSupported}
@@ -850,11 +967,9 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
                 onStop={onVoiceStop}
                 onExitPassive={onVoiceExitPassive}
                 className="h-full w-full"
-                // Mic stretches to fill the remaining row width (its grid
-                // column is minmax(0,1fr)), making it as wide as fits without
-                // pushing other buttons off-screen. min-width keeps it a
-                // usable tap target even on very narrow viewports.
-                buttonClassName="h-full w-full min-w-[2.5rem] flex items-center justify-center"
+                // The generic action slot owns the flexible width. The RCL
+                // control only fills that slot and keeps its icon centered.
+                buttonClassName="h-full w-full flex items-center justify-center"
               />
             </div>
           )}
@@ -869,21 +984,14 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
           <KeyComboPicker onInput={onInput} onFocusTerminal={onFocusTerminal} />
           <div className="w-px h-4 bg-wc-default shrink-0" />
           {(["ctrl", "alt", "shift"] as const).map((mod) => (
-            <button
+            <ToolbarTextButton
               key={mod}
-              data-testid={`toolbar-mod-${mod}`}
-              tabIndex={-1}
-              onPointerDown={(e) => e.preventDefault()}
+              testId={`toolbar-mod-${mod}`}
+              label={mod.charAt(0).toUpperCase() + mod.slice(1)}
               onClick={() => toggleModifier(mod)}
-              className={cn(
-                "shrink-0 rounded border px-1.5 py-1 text-xs font-medium transition touch-manipulation",
-                modifiers[mod]
-                  ? "border-wc-accent bg-wc-accent/20 text-wc-text-primary"
-                  : "border-wc-default bg-wc-surface-input text-wc-text-secondary active:bg-wc-accent-active",
-              )}
-            >
-              {mod.charAt(0).toUpperCase() + mod.slice(1)}
-            </button>
+              active={modifiers[mod]}
+              compact
+            />
           ))}
           <div className="w-px h-4 bg-wc-default shrink-0" />
           <div className="flex items-center gap-0.5 overflow-x-auto min-w-0 flex-1">
@@ -903,47 +1011,35 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
                 );
               }
               return (
-                <button
+                <ToolbarTextButton
                   key={key.label}
-                  data-testid={`toolbar-key-${slugify(key.label)}`}
-                  tabIndex={-1}
-                  onPointerDown={(e) => e.preventDefault()}
+                  testId={`toolbar-key-${slugify(key.label)}`}
+                  label={key.label}
                   onClick={() => handleKey(key)}
                   className={className}
-                >
-                  {key.label}
-                </button>
+                  compact
+                />
               );
             })}
           </div>
           {onOpenAi && (
-            <button
-              data-testid="toolbar-ai"
-              tabIndex={-1}
-              onPointerDown={(e) => e.preventDefault()}
+            <ToolbarIconButton
+              testId="toolbar-ai"
+              label={t(strings.mobileToolbar.aiCommandTitle)}
               onClick={onOpenAi}
-              className={cn(
-                "shrink-0 rounded border p-1.5 transition active:bg-wc-accent-active touch-manipulation",
-                aiSuggestActive
-                  ? "border-wc-accent bg-wc-accent/20 text-wc-text-primary"
-                  : "border-wc-default bg-wc-surface-input text-wc-text-secondary",
-              )}
-              title={t(strings.mobileToolbar.aiCommandTitle)}
+              active={aiSuggestActive}
             >
-              <Sparkles className="h-3.5 w-3.5" />
-            </button>
+              <Sparkles aria-hidden className="h-4 w-4" />
+            </ToolbarIconButton>
           )}
           {onUploadImage && (
-            <button
-              data-testid="toolbar-upload-image"
-              tabIndex={-1}
-              onPointerDown={(e) => e.preventDefault()}
+            <ToolbarIconButton
+              testId="toolbar-upload-image"
+              label={t(strings.mobileToolbar.uploadImageTitle)}
               onClick={onUploadImage}
-              className="shrink-0 rounded border border-wc-default bg-wc-surface-input p-1.5 text-wc-text-secondary transition active:bg-wc-accent-active touch-manipulation"
-              title={t(strings.mobileToolbar.uploadImageTitle)}
             >
-              <Image className="h-3.5 w-3.5" />
-            </button>
+              <Image aria-hidden className="h-4 w-4" />
+            </ToolbarIconButton>
           )}
           {voiceSupported && onVoiceStart && onVoiceStop && (
             <VoiceMicButton

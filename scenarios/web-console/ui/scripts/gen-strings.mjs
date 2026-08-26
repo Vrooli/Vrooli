@@ -23,7 +23,7 @@
  * resource, once as input to the registry). At ~500 strings that's tens of KB
  * in every user's initial download. Codegen eliminates the second copy.
  */
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -108,7 +108,17 @@ export const writeIfChanged = () => {
   const next = generateContents();
   const current = existsSync(TARGET_PATH) ? readFileSync(TARGET_PATH, "utf-8") : "";
   if (current === next) return false;
-  writeFileSync(TARGET_PATH, next);
+  // Unit and performance providers can invoke Vite/codegen concurrently.
+  // Publish a complete generated module in one rename so a reader never sees
+  // the target between truncation and the final write.
+  const outputDir = mkdtempSync(join(dirname(TARGET_PATH), ".strings-generated-"));
+  const tempPath = join(outputDir, "strings.generated.ts");
+  try {
+    writeFileSync(tempPath, next);
+    renameSync(tempPath, TARGET_PATH);
+  } finally {
+    rmSync(outputDir, { recursive: true, force: true });
+  }
   return true;
 };
 

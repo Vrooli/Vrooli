@@ -1,6 +1,6 @@
 {
   "_metadata": {
-    "last_validated_at": "2026-08-25T17:35:46-04:00"
+    "last_validated_at": "2026-08-26T09:02:31-04:00"
   },
   "requirements": [
     {
@@ -18,7 +18,7 @@
           "type": "test",
           "ref": "api/shortcut_profiles_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Test CRUD operations for profiles — shortcut_profiles_test.go (16 tests) + shortcut-profiles.test.ts (8 tests)"
         },
         {
@@ -33,7 +33,7 @@
     {
       "id": "REQ-P1-002b",
       "title": "Shortcut Profile Management UI",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P1-002",
       "category": "ui",
       "description": "TerminalLauncher fetches effective shortcuts from API on open, falling back to DEFAULT_SHORTCUTS. Scope hierarchy resolution happens server-side.",
@@ -59,7 +59,7 @@
           "type": "test",
           "ref": "ui/src/__tests__/settings-page.test.tsx",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "SettingsPage renders profiles, dirty tracking, save/delete/create, error recovery with refetch"
         }
       ]
@@ -67,7 +67,7 @@
     {
       "id": "REQ-P1-002b-i",
       "title": "Fallback Shortcut Resolution",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P1-002",
       "category": "ui",
       "description": "When API shortcut fetch fails, launcher falls back to DEFAULT_SHORTCUTS defined in consts/shortcuts.ts without error display.",
@@ -76,7 +76,7 @@
           "type": "test",
           "ref": "ui/src/__tests__/shortcuts.test.ts",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Default shortcuts exported with correct entries"
         }
       ]

@@ -208,6 +208,11 @@ export function useTerminalTouch({
   onContextMenuRef.current = onContextMenu;
   const sendControlRef = useRef(sendControl);
   sendControlRef.current = sendControl;
+  const scrollByRef = useRef(scrollBy);
+  scrollByRef.current = scrollBy;
+  const terminalRef = useRef<Terminal | null>(terminal);
+  terminalRef.current = terminal;
+  const fallbackScrollControllerRef = useRef<ReturnType<typeof createScrollController> | null>(null);
 
   // ---- Clipboard helpers ----
 
@@ -258,13 +263,19 @@ export function useTerminalTouch({
 
     const cellH = (): number => getCellHeight(term, container);
 
-    const scroll = scrollBy ?? createScrollController(
-      () => term,
-      (data) => sendControlRef.current?.(data) ?? false,
-    ).scrollBy;
-
     function scrollTerminal(lines: number) {
-      scroll(lines, "touch");
+      const providedScrollBy = scrollByRef.current;
+      if (providedScrollBy) {
+        providedScrollBy(lines, "touch");
+        return;
+      }
+      if (fallbackScrollControllerRef.current === null) {
+        fallbackScrollControllerRef.current = createScrollController(
+          () => terminalRef.current,
+          (data) => sendControlRef.current?.(data) ?? false,
+        );
+      }
+      fallbackScrollControllerRef.current.scrollBy(lines, "touch");
     }
 
     // ---- Momentum scroll ----

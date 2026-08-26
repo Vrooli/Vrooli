@@ -5,12 +5,12 @@
       "selector": "[data-testid=\"usevoiceinput\"]"
     },
     "library.voiceinputbutton.root": {
-      "testId": "voice-fixture-state",
-      "selector": "[data-testid=\"voice-fixture-state\"]"
-    },
-    "library.voiceinputbutton.id2": {
       "testId": "voiceinputbutton",
       "selector": "[data-testid=\"voiceinputbutton\"]"
+    },
+    "library.voiceinputbutton.voiceFixtureState": {
+      "testId": "voiceinputbutton.voice-fixture-state",
+      "selector": "[data-testid=\"voiceinputbutton.voice-fixture-state\"]"
     },
     "library.foundations.visual-recipes.root": {
       "testId": "foundations.visual-recipes",
@@ -40,13 +40,25 @@
       "testId": "forms.color-picker",
       "selector": "[data-testid=\"forms.color-picker\"]"
     },
-    "library.forms.color-picker.id2": {
-      "testId": "selected-color",
-      "selector": "[data-testid=\"selected-color\"]"
+    "library.forms.color-picker.selectedColor": {
+      "testId": "forms.color-picker.selected-color",
+      "selector": "[data-testid=\"forms.color-picker.selected-color\"]"
     },
     "library.controls.button.root": {
       "testId": "controls.button",
       "selector": "[data-testid=\"controls.button\"]"
+    },
+    "library.controls.button.icon": {
+      "testId": "controls.button.icon",
+      "selector": "[data-testid=\"controls.button.icon\"]"
+    },
+    "library.controls.button.label": {
+      "testId": "controls.button.label",
+      "selector": "[data-testid=\"controls.button.label\"]"
+    },
+    "library.forms.textarea.root": {
+      "testId": "forms.textarea",
+      "selector": "[data-testid=\"forms.textarea\"]"
     },
     "workspace.paneGrid": {
       "testId": "pane-grid",

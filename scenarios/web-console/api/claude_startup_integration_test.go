@@ -28,6 +28,7 @@ import (
 // logged in on this machine" — nothing else distinguishes "hang because
 // the server broke it" from "hang on OAuth flow because no auth").
 func TestStandardBackend_ClaudeCodeActuallyStarts(t *testing.T) {
+	requireLocalPTY(t)
 	if testing.Short() {
 		t.Skip("skipping slow e2e test in -short mode")
 	}
