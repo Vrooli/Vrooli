@@ -48,6 +48,14 @@ type Credential struct {
 	RevokedAt time.Time
 }
 
+type EncryptionKey struct {
+	NodeID    string
+	PublicKey string
+	Algorithm string
+	CreatedAt time.Time
+	RevokedAt time.Time
+}
+
 // Revoked reports whether the credential has been severed.
 func (c Credential) Revoked() bool { return !c.RevokedAt.IsZero() }
 
@@ -100,6 +108,14 @@ type CorrelatedNodeRegistrar interface {
 	NodeRegistrar
 	RegisterNodeWithCorrelation(context.Context, NodeFacts, string) (string, error)
 	FindNodeByPairingCorrelation(context.Context, string) (string, error)
+}
+
+// CorrelatedNodeScopeUpdater is the optional registry seam used when a fresh,
+// owner-issued correlated enrollment reuses an existing node identity. The
+// pairing code is the authority for the new grant; the node's self-report is
+// not allowed to preserve stale execution scopes across re-enrollment.
+type CorrelatedNodeScopeUpdater interface {
+	UpdateNodeScopes(context.Context, string, []string) error
 }
 
 type EnrollmentSaga struct {

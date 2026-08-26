@@ -42,7 +42,7 @@ func runStatus(args []string) error {
 		return err
 	}
 	return support.PrintOperational(jsonOutput, response, cliapp.OperationalReport{
-		Status:    []string{fmt.Sprintf("Recovery receipt: %t", response.Recovery.ReceiptExists), fmt.Sprintf("Covered entries: %d", response.Recovery.EntryCount), fmt.Sprintf("Uncovered: %d", len(response.Recovery.Uncovered))},
+		Status:    []string{fmt.Sprintf("Recovery receipt: %t", response.Recovery.ReceiptExists), fmt.Sprintf("Covered entries: %d (basis=%s)", response.Recovery.EntryCount, response.Recovery.Basis), fmt.Sprintf("Uncovered: %d (basis=%s)", len(response.Recovery.Uncovered), response.Recovery.Basis), fmt.Sprintf("Required but absent: %d (basis=%s)", len(response.Recovery.RequiredAbsent), response.Recovery.Basis)},
 		NextSteps: []string{"secrets-manager backup export --output <bundle> < passphrase"},
 	})
 }

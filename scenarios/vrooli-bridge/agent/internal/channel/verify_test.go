@@ -138,3 +138,14 @@ func TestHandleServerFrame_NoVerifierRefuses(t *testing.T) {
 	require.False(t, cancelled(ctx), "no pin ⇒ no frame is trusted")
 	require.Equal(t, uint64(1), c.rejectedFrames.Load())
 }
+
+func TestHandleServerFrame_RejectsCredentialPushWithoutLocalGrant(t *testing.T) {
+	c, priv := signedClient(t)
+	c.cfg.NodeID = "node-1"
+	frame := &channelv1.ServerFrame{Payload: &channelv1.ServerFrame_CredentialPush{CredentialPush: &channelv1.CredentialPush{
+		NodeId: "node-1", LogicalId: "vrooli/test", Field: "api-key", Generation: 1, Retention: "durable",
+	}}}
+	c.handleServerFrame(signFrame(t, priv, frame))
+	require.Equal(t, uint64(1), c.rejectedCredentialPushes.Load())
+	require.Equal(t, uint64(0), c.rejectedFrames.Load())
+}

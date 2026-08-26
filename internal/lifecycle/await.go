@@ -178,6 +178,20 @@ var (
 		Timeout:  2 * time.Minute,
 		Interval: 500 * time.Millisecond,
 	}
+	// dependencyBestEffortLockPolicy bounds contention for an optional
+	// try_start dependency. The parent scenario has a valid degraded mode, so
+	// it must not wait as long as a required dependency before starting without
+	// the optional capability. The readiness check still reuses the dependency
+	// immediately when the concurrent owner finishes within this window.
+	dependencyBestEffortLockPolicy = AwaitPolicy{
+		Timeout:  10 * time.Second,
+		Interval: 500 * time.Millisecond,
+	}
+	// dependencyBestEffortStartTimeout bounds the optional dependency's own
+	// recursive start. A cold optional dependency may need setup/build work;
+	// the parent still has a valid degraded contract and must remain available
+	// when that work exceeds this short capability budget.
+	dependencyBestEffortStartTimeout = 15 * time.Second
 	// SandboxStartPolicy bounds the orchestrator's wait for a scenario to
 	// report running after a sandbox host-lifecycle proxy start. Exported for
 	// internal/orchestrator, which owns no wait loops of its own.

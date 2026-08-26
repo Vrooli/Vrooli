@@ -31,6 +31,9 @@ type HostProcess struct {
 	// compute process whose executable sits inside the resource's own artifact
 	// tree belongs to that resource.
 	ExecutablePrefix string
+	// NoWorkloadReason is supplied by the resource layer when an empty
+	// accelerator process table is expected before a workload is loaded.
+	NoWorkloadReason string
 }
 
 // Container is a resource that runs as a single named container.
@@ -77,9 +80,13 @@ const (
 	// StateDrift means the resource is serving on a backend below the one it
 	// declared. It is serving, so it is not down; it is degraded.
 	StateDrift State = "drift"
-	// StateUnknown means the host could not answer. It is never treated as ok:
-	// an unverifiable placement is reported, not assumed.
-	StateUnknown State = "unknown"
+	// StateUndetermined means the placement signal is not present yet. It is
+	// distinct from drift: an absent workload cannot prove CPU placement and
+	// must not block a start.
+	StateUndetermined State = "undetermined"
+	// BackendUndetermined is the public placement verdict name. Its State type
+	// prevents callers from treating an unreadable verdict as a boolean.
+	BackendUndetermined = StateUndetermined
 )
 
 // AccessState is what a device-level probe observed inside a container. It
@@ -103,9 +110,9 @@ type Placement struct {
 	// Declared is the backend the resource asked the platform for.
 	Declared Backend `json:"declared"`
 	// Observed is the backend the host says the process is using. Empty when
-	// State is StateUnknown.
+	// State is StateUndetermined.
 	Observed Backend `json:"observed,omitempty"`
-	// State is StateOK, StateDrift or StateUnknown.
+	// State is StateOK, StateDrift or StateUndetermined.
 	State State `json:"state"`
 	// Reason is the evidence, in the words of whatever produced it.
 	Reason string `json:"reason"`
@@ -143,7 +150,7 @@ type Verifier struct {
 	// Facts reads the host. Required.
 	Facts FactSource
 	// Container probes a device node inside a container. nil means container
-	// targets report StateUnknown with a named reason rather than failing.
+	// targets report StateUndetermined with a named reason rather than failing.
 	Container ContainerProbe
 	// Attempts is how many times to look before giving up. Zero means 3.
 	Attempts int
@@ -184,12 +191,12 @@ func (v Verifier) sleep(ctx context.Context, d time.Duration) error {
 // VerifyPlacement reads which backend a running resource is on.
 //
 // It retries, because a process that has just started may not have opened its
-// device yet. It returns StateUnknown rather than guessing when the host cannot
+// device yet. It returns StateUndetermined rather than guessing when the host cannot
 // answer, and it returns an *AccessRevokedError only for the one case that has
 // a known repair: a container that lost a device it used to hold.
 func (v Verifier) VerifyPlacement(ctx context.Context, resource string, target PlacementTarget, declared Backend) (Placement, error) {
 	description := Describe(target)
-	placement := Placement{Declared: declared, State: StateUnknown, Target: description}
+	placement := Placement{Declared: declared, State: StateUndetermined, Target: description}
 
 	if declared == BackendCPU {
 		// Every host can run on the CPU, so a CPU declaration is trivially met
@@ -217,7 +224,7 @@ func (v Verifier) VerifyPlacement(ctx context.Context, resource string, target P
 		if observed != "" {
 			placement.State = StateDrift
 		} else {
-			placement.State = StateUnknown
+			placement.State = StateUndetermined
 		}
 		if attempt < attempts-1 {
 			if err := v.sleep(ctx, v.backoff()); err != nil {
@@ -321,6 +328,9 @@ func observeCUDAProcess(snapshot hostinventory.Snapshot, process HostProcess) (B
 	if len(snapshot.GPUs) == 0 {
 		return BackendCPU, AccessUnknown, "the host reports no CUDA device", nil
 	}
+	if len(snapshot.GPUProcesses) == 0 {
+		return "", AccessUnknown, noWorkloadReason(process), nil
+	}
 	return BackendCPU, AccessUnknown, fmt.Sprintf("%s lists no compute process for pid %d, so it is running on the CPU", hostinventory.ToolNvidiaSMI, process.PID), nil
 }
 
@@ -332,6 +342,9 @@ func observeROCmProcess(snapshot hostinventory.Snapshot, process HostProcess) (B
 	if row, ok := matchComputeProcess(snapshot, process); ok {
 		return BackendROCm, AccessOK, fmt.Sprintf("%s reports %s holding %d bytes on GPU %d", hostinventory.ToolROCmSMI, describeComputeRow(row), row.UsedBytes, row.GPUIndex), nil
 	}
+	if len(snapshot.GPUProcesses) == 0 {
+		return "", AccessUnknown, noWorkloadReason(process), nil
+	}
 	return BackendCPU, AccessUnknown, fmt.Sprintf("%s lists no compute process for pid %d, so it is running on the CPU", hostinventory.ToolROCmSMI, process.PID), nil
 }
 
@@ -342,7 +355,17 @@ func observeVulkanProcess(snapshot hostinventory.Snapshot, process HostProcess) 
 	if len(snapshot.VulkanICDs) == 0 {
 		return BackendCPU, AccessUnknown, "the host has no Vulkan installable client driver manifest", nil
 	}
+	if len(snapshot.GPUProcesses) == 0 {
+		return "", AccessUnknown, noWorkloadReason(process), nil
+	}
 	return "", AccessUnknown, fmt.Sprintf("the host has %d Vulkan ICD manifests, but per-process Vulkan attribution is not readable from the host", len(snapshot.VulkanICDs)), nil
+}
+
+func noWorkloadReason(process HostProcess) string {
+	if reason := strings.TrimSpace(process.NoWorkloadReason); reason != "" {
+		return reason
+	}
+	return "no workload is resident, so placement cannot be read yet"
 }
 
 // matchComputeProcess finds the compute row that belongs to a supervised

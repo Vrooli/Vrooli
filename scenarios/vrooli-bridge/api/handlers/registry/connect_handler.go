@@ -122,6 +122,10 @@ func kindString(kind registryv1.NodeKind) string {
 		return registry.KindSSH
 	case registryv1.NodeKind_NODE_KIND_ATTACHED:
 		return registry.KindAttached
+	case registryv1.NodeKind_NODE_KIND_CONTROL_PLANE:
+		return registry.KindControlPlane
+	case registryv1.NodeKind_NODE_KIND_UNSPECIFIED:
+		return ""
 	default:
 		return registry.KindAgent
 	}
@@ -171,6 +175,7 @@ func (h *connectHandler) UpdateNode(ctx context.Context, req *connect.Request[re
 		Capabilities: req.Msg.Capabilities,
 		Scopes:       req.Msg.Scopes,
 		Revision:     req.Msg.Revision,
+		Kind:         kindString(req.Msg.Kind),
 	})
 	if err != nil {
 		connectErr := registry.ToConnectError(err)

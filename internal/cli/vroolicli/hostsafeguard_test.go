@@ -1,6 +1,7 @@
 package vroolicli
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/vrooli/vrooli/internal/hostreqkit"
@@ -13,6 +14,13 @@ func TestHostSafeguardSpecDeclaresSudoAndDryRun(t *testing.T) {
 	}
 	if len(spec.Args.Positionals) != 1 || spec.Args.Positionals[0].Name != "name" {
 		t.Fatalf("safeguard must require a name: %#v", spec.Args)
+	}
+}
+
+func TestHostSafeguardSpecDocumentsPortabilityBacklog(t *testing.T) {
+	spec := hostSafeguardSpec()
+	if !strings.Contains(spec.Help.Usage, "portability") {
+		t.Fatalf("usage = %q, want portability backlog command documented", spec.Help.Usage)
 	}
 }
 

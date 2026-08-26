@@ -10,13 +10,14 @@ import (
 	"testing"
 	"time"
 
-	"github.com/vrooli/envkit-go"
 	"github.com/stretchr/testify/require"
+	"github.com/vrooli/envkit-go"
+	"github.com/vrooli/repo-contract-go/repocontracttest"
 )
 
 func TestOSStepRunnerDoesNotWaitForInheritedPipeHandles(t *testing.T) {
 	if runtime.GOOS == "windows" {
-		t.Skip("the regression command uses the POSIX shell available on Linux and macOS")
+		repocontracttest.SkipPlatform(t, "the regression command uses the POSIX shell available on Linux and macOS")
 	}
 
 	dir := t.TempDir()

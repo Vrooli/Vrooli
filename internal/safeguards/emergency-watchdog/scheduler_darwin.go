@@ -32,6 +32,15 @@ func nativePending(goos string, p paths) []string {
 	return pending
 }
 
+// guiLaunchdAvailable reports whether the invoking user's GUI launchd domain
+// exists. SSH-only sessions can still have launchctl installed while lacking
+// that domain; attempting to load a user LaunchAgent there returns the opaque
+// exit status 5 and must not make unrelated project setup fail.
+func guiLaunchdAvailable() bool {
+	_, err := hostreqkit.CombinedOutputFn("launchctl", "print", fmt.Sprintf("gui/%d", os.Getuid()))
+	return err == nil
+}
+
 func applyNative(goos string, p paths, status hostreqkit.ItemStatus, opts hostreqkit.EnsureOptions) (hostreqkit.ItemStatus, error) {
 	if goos != "darwin" {
 		status.ExecutionState = hostreqkit.ExecutionUnsupported
@@ -40,6 +49,12 @@ func applyNative(goos string, p paths, status hostreqkit.ItemStatus, opts hostre
 	if opts.DryRun {
 		status.ExecutionState = hostreqkit.ExecutionWouldApply
 		status.Notes = append(status.Notes, "dry-run: would install "+p.LaunchAgent+" and load the launchd agent")
+		return status, nil
+	}
+	if !guiLaunchdAvailable() {
+		status.SupportClass = hostreqkit.SupportNotApplicable
+		status.ExecutionState = hostreqkit.ExecutionNotApplicable
+		status.Notes = append(status.Notes, "the invoking user's GUI launchd domain is unavailable; this user LaunchAgent is not applicable to the current SSH/headless session")
 		return status, nil
 	}
 	if err := os.MkdirAll(filepath.Dir(p.LaunchAgent), 0o755); err != nil {
@@ -69,7 +84,7 @@ func commandAvailable(name string) bool { _, err := exec.LookPath(name); return 
 func launchdDomain() string {
 	uid := os.Getuid()
 	gui := fmt.Sprintf("gui/%d", uid)
-	if _, err := hostreqkit.CombinedOutputFn("launchctl", "print", gui); err == nil {
+	if guiLaunchdAvailable() {
 		return gui
 	}
 	return fmt.Sprintf("user/%d", uid)

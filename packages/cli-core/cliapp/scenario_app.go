@@ -22,6 +22,9 @@ var (
 	resolveScenarioCLIPath = func(root, scenario string) (string, error) {
 		return repocontract.ResolveScenarioFile(root, scenario, "cli")
 	}
+	execScenarioSetupCommand = func(name string) *exec.Cmd {
+		return exec.Command("vrooli", "scenario", "setup", name)
+	}
 	execScenarioStartCommand = func(name string) *exec.Cmd {
 		return exec.Command("vrooli", "scenario", "start", name)
 	}
@@ -680,7 +683,24 @@ func (a *ScenarioApp) tryAutoStart() error {
 	cmd.Stderr = os.Stderr
 
 	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("vrooli scenario start failed: %w", err)
+		// A copied or newly provisioned node can have a valid scenario manifest
+		// but no component artifact yet. The normal lifecycle start reports that
+		// as an exec failure; one governed setup retry repairs the artifact and
+		// keeps --auto-start useful on cold nodes without ever executing a binary
+		// directly.
+		fmt.Printf("%s is not startable yet; running scenario setup and retrying...\n", a.options.Name)
+		setup := execScenarioSetupCommand(a.options.Name)
+		setup.Stdout = os.Stdout
+		setup.Stderr = os.Stderr
+		if setupErr := setup.Run(); setupErr != nil {
+			return fmt.Errorf("vrooli scenario setup failed after start failure: %w (start: %v)", setupErr, err)
+		}
+		retry := execScenarioStartCommand(a.options.Name)
+		retry.Stdout = os.Stdout
+		retry.Stderr = os.Stderr
+		if retryErr := retry.Run(); retryErr != nil {
+			return fmt.Errorf("vrooli scenario start failed after setup retry: %w (initial start: %v)", retryErr, err)
+		}
 	}
 
 	// Wait for API to become available (poll port detector)

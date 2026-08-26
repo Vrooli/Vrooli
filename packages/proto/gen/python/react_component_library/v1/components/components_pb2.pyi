@@ -667,6 +667,36 @@ class GetComponentVersionContentResponse(_message.Message):
     content: str
     def __init__(self, version: _Optional[_Union[ComponentVersion, _Mapping]] = ..., content: _Optional[str] = ...) -> None: ...
 
+class ResolveLibraryImportRequest(_message.Message):
+    __slots__ = ("specifier", "from_path")
+    SPECIFIER_FIELD_NUMBER: _ClassVar[int]
+    FROM_PATH_FIELD_NUMBER: _ClassVar[int]
+    specifier: str
+    from_path: str
+    def __init__(self, specifier: _Optional[str] = ..., from_path: _Optional[str] = ...) -> None: ...
+
+class ResolveLibraryImportResponse(_message.Message):
+    __slots__ = ("resolved", "specifier", "asset_id", "library_id", "version", "export_kind", "description", "source_path", "diagnostic")
+    RESOLVED_FIELD_NUMBER: _ClassVar[int]
+    SPECIFIER_FIELD_NUMBER: _ClassVar[int]
+    ASSET_ID_FIELD_NUMBER: _ClassVar[int]
+    LIBRARY_ID_FIELD_NUMBER: _ClassVar[int]
+    VERSION_FIELD_NUMBER: _ClassVar[int]
+    EXPORT_KIND_FIELD_NUMBER: _ClassVar[int]
+    DESCRIPTION_FIELD_NUMBER: _ClassVar[int]
+    SOURCE_PATH_FIELD_NUMBER: _ClassVar[int]
+    DIAGNOSTIC_FIELD_NUMBER: _ClassVar[int]
+    resolved: bool
+    specifier: str
+    asset_id: str
+    library_id: str
+    version: str
+    export_kind: str
+    description: str
+    source_path: str
+    diagnostic: str
+    def __init__(self, resolved: _Optional[bool] = ..., specifier: _Optional[str] = ..., asset_id: _Optional[str] = ..., library_id: _Optional[str] = ..., version: _Optional[str] = ..., export_kind: _Optional[str] = ..., description: _Optional[str] = ..., source_path: _Optional[str] = ..., diagnostic: _Optional[str] = ...) -> None: ...
+
 class ComponentStory(_message.Message):
     __slots__ = ("id", "component_id", "library_id", "version", "schema_version", "kind", "title", "args_json", "environment_json", "stories_json", "contract_json", "source_path", "indexed_at")
     ID_FIELD_NUMBER: _ClassVar[int]

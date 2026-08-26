@@ -44,12 +44,13 @@ func (p channelPusher) Push(_ context.Context, job queue.Job) (int, error) {
 		FrameId: uuid.NewString(),
 		Payload: &channelv1.ServerFrame_Job{
 			Job: &channelv1.JobPush{
-				RunId:          job.RunID,
-				Scenario:       job.Scenario,
-				Verb:           job.Verb,
-				Args:           append([]string(nil), job.Args...),
-				TimeoutSeconds: job.TimeoutSeconds,
-				Outputs:        outputsToProto(job.Outputs),
+				RunId:                job.RunID,
+				Scenario:             job.Scenario,
+				Verb:                 job.Verb,
+				Args:                 append([]string(nil), job.Args...),
+				TimeoutSeconds:       job.TimeoutSeconds,
+				Outputs:              outputsToProto(job.Outputs),
+				CredentialInjections: injectionsToProto(job.CredentialInjections),
 			},
 		},
 	}
@@ -58,6 +59,17 @@ func (p channelPusher) Push(_ context.Context, job queue.Job) (int, error) {
 		return 0, err
 	}
 	return p.hub.PushFrame(job.NodeID, frame.GetFrameId(), payload), nil
+}
+
+func injectionsToProto(in []queue.CredentialInjection) []*channelv1.CredentialInjection {
+	if len(in) == 0 {
+		return nil
+	}
+	out := make([]*channelv1.CredentialInjection, 0, len(in))
+	for _, injection := range in {
+		out = append(out, &channelv1.CredentialInjection{LogicalId: injection.LogicalID, Field: injection.Field, EnvName: injection.EnvName})
+	}
+	return out
 }
 
 func (p channelPusher) IsAvailable(nodeID string) bool { return p.hub.IsOnline(nodeID) }

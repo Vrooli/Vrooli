@@ -67,6 +67,10 @@ type Status struct {
 // one it declared. running is true, serving is true, healthy is false.
 const StatusCodeModeDrift = "mode_drift"
 
+// StatusCodePlacementUndetermined means the resource is healthy and serving,
+// but no workload is resident yet so placement cannot be read.
+const StatusCodePlacementUndetermined = "placement_undetermined"
+
 // StatusCodeNeedsReacquire marks an artifact that was staged under host facts
 // the host no longer reports, so the resolver now selects a different artifact.
 // It is distinct from an unavailable artifact on purpose: the bytes are intact,

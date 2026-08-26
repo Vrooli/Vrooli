@@ -1,14 +1,18 @@
 package runtime
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io/fs"
 	"os"
+	goruntime "runtime"
 	"sort"
 	"strings"
 	"time"
 
+	"github.com/vrooli/vrooli/internal/hostcapability"
+	"github.com/vrooli/vrooli/internal/hostinventory"
 	"github.com/vrooli/vrooli/internal/hostreq"
 	"github.com/vrooli/vrooli/internal/hostreqkit"
 	"github.com/vrooli/vrooli/internal/hostreqspec"
@@ -20,6 +24,93 @@ var ErrUnsupportedPlatform = hostreqkit.ErrUnsupportedPlatform
 type Host = hostreqkit.Host
 
 type EnsureOptions = hostreqkit.EnsureOptions
+
+type PortabilityBacklogReport struct {
+	NotImplemented int      `json:"not_implemented"`
+	Total          int      `json:"total_safeguards"`
+	Entries        []string `json:"entries,omitempty"`
+}
+
+// SafeguardPortabilityBacklog counts platform-status entries that are
+// explicitly not implemented. not_applicable is closed work and is excluded.
+func SafeguardPortabilityBacklog() (PortabilityBacklogReport, error) {
+	manifests, err := safeguardManifests()
+	if err != nil {
+		return PortabilityBacklogReport{}, err
+	}
+	report := PortabilityBacklogReport{Total: len(manifests), Entries: []string{}}
+	for _, manifest := range manifests {
+		for platform, status := range manifest.PlatformStatus {
+			if status.Status != "not_implemented" {
+				continue
+			}
+			report.NotImplemented++
+			report.Entries = append(report.Entries, manifest.Name+"/"+platform)
+		}
+	}
+	sort.Strings(report.Entries)
+	return report, nil
+}
+
+// SafeguardInvariantCoverage walks the embedded safeguard declaration sites so
+// a count cannot hide a manifest that the evaluator forgot to visit.
+func SafeguardInvariantCoverage() (hostcapability.Coverage, error) {
+	manifests, err := safeguardManifests()
+	if err != nil {
+		return hostcapability.Coverage{}, err
+	}
+	sites := make([]hostcapability.Site, 0, len(manifests))
+	for _, manifest := range manifests {
+		invariants := make([]hostcapability.Invariant, 0, len(manifest.Invariants))
+		for _, declaration := range manifest.Invariants {
+			invariants = append(invariants, hostcapability.Invariant{ID: declaration.ID, Kind: declaration.Kind, Statement: declaration.Statement, Severity: declaration.Severity})
+		}
+		sites = append(sites, hostcapability.Site{Name: manifest.Name, Invariants: invariants, Walked: true})
+	}
+	registry := hostcapability.NewRegistry(hostcapability.AptProvider{}, hostcapability.DarwinProvider{})
+	coverage, _ := hostcapability.EvaluateSites(context.Background(), registry, sites, hostcapability.Facts{OS: goruntime.GOOS})
+	return coverage, nil
+}
+
+// SafeguardHostStateAudit compares declared safeguard artifacts with the
+// current host observation. The legacy NVIDIA policy path is accepted as an
+// adoption-equivalent observation until the operator can install the owned
+// replacement with privilege.
+func SafeguardHostStateAudit() (hostinventory.AuditReport, error) {
+	manifests, err := safeguardManifests()
+	if err != nil {
+		return hostinventory.AuditReport{}, err
+	}
+	var declared []hostinventory.DeclaredArtifact
+	var observed []hostinventory.ObservedArtifact
+	for _, manifest := range manifests {
+		storageValue, ok := manifest.Storage["entries"].(map[string]any)
+		if !ok {
+			continue
+		}
+		for _, raw := range storageValue {
+			entry, ok := raw.(map[string]any)
+			if !ok {
+				continue
+			}
+			path, _ := entry["path"].(string)
+			if path == "" {
+				continue
+			}
+			declared = append(declared, hostinventory.DeclaredArtifact{Owner: manifest.Name, Path: path})
+			if hash, hashErr := hostinventory.HashFile(path); hashErr == nil {
+				observed = append(observed, hostinventory.ObservedArtifact{Path: path, ContentHash: hash})
+				continue
+			}
+			if manifest.Name == "nvidia_driver" {
+				if hash, hashErr := hostinventory.HashFile("/etc/apt/apt.conf.d/52unattended-upgrades-nvidia-blacklist"); hashErr == nil {
+					observed = append(observed, hostinventory.ObservedArtifact{Path: path, ContentHash: hash})
+				}
+			}
+		}
+	}
+	return hostinventory.AuditArtifacts(declared, observed), nil
+}
 
 func Current() Host {
 	return currentHost()

@@ -3,7 +3,7 @@ package onboard
 import (
 	"bytes"
 	"context"
-	"crypto/ed25519"
+	"crypto/ecdh"
 	"crypto/rand"
 	"io"
 	"net/http"
@@ -20,7 +20,6 @@ import (
 	machinesconnect "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/machines/machines_v1connect"
 	onboardv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/onboard"
 	onboardconnect "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/onboard/onboard_v1connect"
-	"github.com/vrooli/vrooli/packages/proto/sealing"
 
 	"github.com/vrooli/cli-core/cliapp"
 	cliapptest "github.com/vrooli/cli-core/cliapptest"
@@ -102,14 +101,11 @@ func (f *fakeOnboard) ProtectOnboarding(_ context.Context, req *connect.Request[
 
 func (f *fakeOnboard) PrepareCleanup(_ context.Context, req *connect.Request[cleanupv1.PrepareCleanupRequest]) (*connect.Response[cleanupv1.PrepareCleanupResponse], error) {
 	f.prepareCleanupReq = req.Msg
-	public, _, err := ed25519.GenerateKey(rand.Reader)
+	private, err := ecdh.X25519().GenerateKey(rand.Reader)
 	if err != nil {
 		return nil, err
 	}
-	sealingPublicKey, err := sealing.PublicKeyFromEd25519(public)
-	if err != nil {
-		return nil, err
-	}
+	sealingPublicKey := private.PublicKey().Bytes()
 	return connect.NewResponse(&cleanupv1.PrepareCleanupResponse{Target: &cleanupv1.CleanupTarget{
 		MachineId: req.Msg.MachineId, NodeId: req.Msg.NodeId, Target: req.Msg.Target, Scope: req.Msg.Scope,
 		OperationId: "cleanup-protection-1", OperatorId: "operator-1", SealingPublicKey: sealingPublicKey,

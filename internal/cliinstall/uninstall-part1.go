@@ -10,6 +10,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vrooli/vrooli/internal/artifactledger"
+
 	"github.com/vrooli/api-core/cleanupplan"
 	"github.com/vrooli/api-core/trustposture"
 	repocontract "github.com/vrooli/repo-contract-go"
@@ -289,12 +291,18 @@ func NewFileRemover(home string, deferredServiceNames ...string) Remover {
 			deferred[name] = struct{}{}
 		}
 	}
-	return fileRemover{home: filepath.Clean(home), deferredServiceNames: deferred}
+	home = filepath.Clean(home)
+	// A ledger failure here is not fatal to constructing the remover: it is
+	// surfaced at removal time, where refusing to delete is meaningful. A nil
+	// ledger makes Remove refuse rather than delete unrecorded.
+	ledger, _ := artifactledger.New(home)
+	return fileRemover{home: home, deferredServiceNames: deferred, ledger: ledger}
 }
 
 type fileRemover struct {
 	home                 string
 	deferredServiceNames map[string]struct{}
+	ledger               *artifactledger.Ledger
 }
 
 func (r fileRemover) Remove(entry InstallEntry) error {
@@ -312,11 +320,26 @@ func (r fileRemover) Remove(entry InstallEntry) error {
 			return err
 		}
 	}
-	if err := os.RemoveAll(entry.Path); err != nil {
+	if r.ledger == nil {
+		// Refusing is the safe direction: an uninstall nothing recorded is the
+		// fault class this ledger exists to end.
+		return fmt.Errorf("remove %s: no removal ledger is configured", entry.Path)
+	}
+	if err := r.ledger.Guard(artifactledger.Removal{
+		Path:      entry.Path,
+		Kind:      string(entry.Kind),
+		Component: "cliinstall.fileRemover",
+		Predicate: uninstallPlanPredicate,
+	}, func() error { return os.RemoveAll(entry.Path) }); err != nil {
 		return fmt.Errorf("remove %s: %w", entry.Path, err)
 	}
 	return nil
 }
+
+// uninstallPlanPredicate is the rule the uninstall remover enforces. Unlike a
+// reclamation, this path never decides for itself what to delete: it applies an
+// operator-authorized plan, and the receipt says so.
+const uninstallPlanPredicate = "entry listed in an authorized uninstall plan"
 
 // defersServiceStop is used by the paired privileged helper while it is
 // applying its own frozen cleanup plan. Stopping either Bridge service before

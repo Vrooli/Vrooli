@@ -4,7 +4,7 @@ package privsep_test
 
 import (
 	"context"
-	"crypto/ed25519"
+	"crypto/ecdh"
 	"crypto/rand"
 	"os"
 	"os/exec"
@@ -15,12 +15,13 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	"vrooli-bridge/agent/internal/privsep"
+
 	channelv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/channel"
 	cleanupv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/cleanup"
 	provisionv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/provision"
 	"github.com/vrooli/vrooli/packages/proto/privilegedops"
 	"github.com/vrooli/vrooli/packages/proto/sealing"
-	"vrooli-bridge/agent/internal/privsep"
 )
 
 func TestIPCProvisionRoundTripUsesTypedEvents(t *testing.T) {
@@ -75,9 +76,9 @@ func TestIPCRejectsWrongRunnerPeer(t *testing.T) {
 
 func TestIPCCleanupRoundTripsEveryNamedOperation(t *testing.T) {
 	stateDir := t.TempDir()
-	_, nodePrivate, err := ed25519.GenerateKey(rand.Reader)
+	nodePrivate, err := ecdh.X25519().GenerateKey(rand.Reader)
 	require.NoError(t, err)
-	require.NoError(t, os.WriteFile(filepath.Join(stateDir, "node_credential.key"), nodePrivate.Seed(), 0o600))
+	require.NoError(t, os.WriteFile(filepath.Join(stateDir, "encryption.key"), nodePrivate.Bytes(), 0o600))
 	fakeVrooli := filepath.Join(t.TempDir(), "vrooli")
 	require.NoError(t, os.WriteFile(fakeVrooli, []byte("#!/bin/sh\nprintf '{\"ok\":true,\"complete\":true,\"plan_hash\":\"frozen\"}\\n'\n"), 0o700))
 	socket := filepath.Join(t.TempDir(), "run", "cleanup.sock")
@@ -87,8 +88,7 @@ func TestIPCCleanupRoundTripsEveryNamedOperation(t *testing.T) {
 	go func() { serverErr <- privsep.Serve(ctx, socket, fakeVrooli, t.TempDir(), os.Getuid(), stateDir) }()
 	waitForSocket(t, socket)
 
-	public, err := sealing.PublicKeyFromEd25519(nodePrivate.Public().(ed25519.PublicKey))
-	require.NoError(t, err)
+	public := nodePrivate.PublicKey().Bytes()
 	operations := []channelv1.PrivilegedOperation{
 		channelv1.PrivilegedOperation_PRIVILEGED_OPERATION_INVENTORY_INSTALLATION,
 		channelv1.PrivilegedOperation_PRIVILEGED_OPERATION_PLAN_UNINSTALL,

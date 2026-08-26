@@ -15,6 +15,7 @@
 package nodecred
 
 import (
+	"crypto/ecdh"
 	"crypto/ed25519"
 	"crypto/rand"
 	"encoding/base64"
@@ -39,6 +40,56 @@ const (
 type Credential struct {
 	priv ed25519.PrivateKey
 	pub  ed25519.PublicKey
+}
+
+// EncryptionCredential is the node's separate X25519 key agreement key. It is
+// intentionally not derived from Credential: signing identity and encryption
+// identity have independent rotation and compromise boundaries.
+type EncryptionCredential struct {
+	priv *ecdh.PrivateKey
+}
+
+// LoadOrCreateEncryption loads or creates a raw 32-byte X25519 private key with
+// the same local-file protections as the Ed25519 identity key.
+func LoadOrCreateEncryption(path string) (*EncryptionCredential, error) {
+	if path == "" {
+		return nil, errors.New("nodecred: empty encryption credential path")
+	}
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+		return nil, fmt.Errorf("nodecred: create encryption dir: %w", err)
+	}
+	raw, err := os.ReadFile(path) // #nosec G304 -- path is the agent's own state dir.
+	if err == nil {
+		priv, parseErr := ecdh.X25519().NewPrivateKey(raw)
+		if parseErr != nil {
+			return nil, fmt.Errorf("nodecred: malformed encryption key %q: %w", path, parseErr)
+		}
+		return &EncryptionCredential{priv: priv}, nil
+	}
+	if !errors.Is(err, os.ErrNotExist) {
+		return nil, fmt.Errorf("nodecred: read encryption key: %w", err)
+	}
+	priv, err := ecdh.X25519().GenerateKey(rand.Reader)
+	if err != nil {
+		return nil, fmt.Errorf("nodecred: generate encryption key: %w", err)
+	}
+	if err := os.WriteFile(path, priv.Bytes(), 0o600); err != nil {
+		return nil, fmt.Errorf("nodecred: write encryption key: %w", err)
+	}
+	return &EncryptionCredential{priv: priv}, nil
+}
+
+func (c *EncryptionCredential) PrivateKey() *ecdh.PrivateKey { return c.priv }
+
+func (c *EncryptionCredential) PublicKey() []byte {
+	if c == nil || c.priv == nil {
+		return nil
+	}
+	return append([]byte(nil), c.priv.PublicKey().Bytes()...)
+}
+
+func (c *EncryptionCredential) PublicKeyBase64() string {
+	return base64.StdEncoding.EncodeToString(c.PublicKey())
 }
 
 // LoadOrCreate returns the node's keypair, generating and persisting a new one

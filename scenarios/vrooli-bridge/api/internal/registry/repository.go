@@ -43,11 +43,25 @@ type Repository interface {
 }
 
 const (
-	KindAgent    = "agent"
-	KindSSH      = "ssh"
-	KindAttached = "attached"
+	KindAgent        = "agent"
+	KindSSH          = "ssh"
+	KindAttached     = "attached"
+	KindControlPlane = "control_plane"
 )
 
 func ValidKind(kind string) bool {
-	return kind == KindAgent || kind == KindSSH || kind == KindAttached
+	return kind == KindAgent || kind == KindSSH || kind == KindAttached || kind == KindControlPlane
+}
+
+// PushTargets is the single structural target gate for control-plane initiated
+// delivery. The source host is never a recipient, even when its API is ready.
+func PushTargets(nodes []Node) []Node {
+	result := make([]Node, 0, len(nodes))
+	for _, node := range nodes {
+		if node.Revoked() || node.Kind == KindControlPlane {
+			continue
+		}
+		result = append(result, node)
+	}
+	return result
 }

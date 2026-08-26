@@ -56,6 +56,14 @@ CREATE TABLE IF NOT EXISTS node_credentials (
   revoked_at  TEXT NOT NULL DEFAULT ''
 );
 
+CREATE TABLE IF NOT EXISTS node_encryption_keys (
+  node_id     TEXT PRIMARY KEY,
+  public_key  TEXT NOT NULL,
+  algorithm   TEXT NOT NULL DEFAULT 'x25519',
+  created_at  TEXT NOT NULL,
+  revoked_at  TEXT NOT NULL DEFAULT ''
+);
+
 -- pairing_requests — the request/approve fallback when there is no pre-shared
 -- code. A node asks to join (status pending) and the owner approves/rejects.
 CREATE TABLE IF NOT EXISTS pairing_requests (

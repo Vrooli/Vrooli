@@ -931,23 +931,77 @@ func containsSafeguard(items []hostItem, name string) bool {
 	return containsHost(items, name)
 }
 
+// applyReconnectWindow is how long the wizard keeps trying to reach the API
+// while an apply is in flight before it gives up on reconnecting.
+//
+// Applying a selection starts scenarios, and starting a scenario can restart
+// the onboarding API -- so the API going away mid-apply is an expected event on
+// this path, not a failure. The run itself is executed by a separate process
+// and continues across that restart; the only thing that breaks is this
+// client's connection. Treating the first refused connection as fatal is what
+// made the operator's wizard vanish moments after they answered the consent
+// prompt, with the run still progressing invisibly behind it.
+//
+// The window is generous because the restart it absorbs includes a rebuild: a
+// cold scenario stage can take tens of seconds before the port is listening.
+const (
+	applyReconnectWindow = 5 * time.Minute
+	applyPollInterval    = 500 * time.Millisecond
+)
+
 func waitForApply(core *cliapp.ScenarioApp, runID, status string) ([]byte, error) {
 	result := []byte(`{"run_id":"` + runID + `","status":"` + status + `"}`)
+	var (
+		unreachableSince time.Time
+		announced        bool
+		items            []applyRunItem
+	)
+	reporter := newApplyProgressReporter(os.Stdout, time.Now)
 	for status == "pending" || status == "applying" {
-		time.Sleep(100 * time.Millisecond)
-		var err error
-		result, err = core.Get("/v2/apply/"+runID, nil)
+		time.Sleep(applyPollInterval)
+
+		body, err := core.Get("/v2/apply/"+runID, nil)
 		if err != nil {
-			return nil, err
+			// The run is server-owned. Keep waiting for it rather than
+			// reporting a failure this client cannot actually observe.
+			if unreachableSince.IsZero() {
+				unreachableSince = time.Now()
+			}
+			if !announced {
+				announced = true
+				_, _ = fmt.Fprintln(os.Stdout, "The onboarding API restarted while applying; the run continues. Reconnecting...")
+			}
+			// A restarted scenario comes back on a freshly assigned port, and
+			// the base this CLI resolved at startup points at the old one.
+			// Without rebinding, every reconnection attempt would politely
+			// retry an address nothing is listening on until the window ran out.
+			if core.RebindToDetectedAPI() {
+				_, _ = fmt.Fprintln(os.Stdout, "The onboarding API moved to", core.APIRootBase())
+			}
+			if time.Since(unreachableSince) > applyReconnectWindow {
+				return nil, fmt.Errorf("apply run %s is still in progress but the onboarding API has been unreachable for %s: %w", runID, applyReconnectWindow, err)
+			}
+			continue
 		}
+		if !unreachableSince.IsZero() {
+			unreachableSince = time.Time{}
+			_, _ = fmt.Fprintln(os.Stdout, "Reconnected to the onboarding API.")
+			reporter.Reconnected()
+		}
+
+		result = body
 		var current struct {
-			Status string `json:"status"`
+			Status string         `json:"status"`
+			Items  []applyRunItem `json:"items"`
 		}
 		if err := json.Unmarshal(result, &current); err != nil {
 			return nil, err
 		}
+		items = current.Items
+		reporter.Observe(items)
 		status = current.Status
 	}
+	reporter.Finish(status, items)
 	return result, nil
 }
 
@@ -1092,11 +1146,22 @@ func reportReadinessBlockers(readiness []byte) error {
 		_, _ = fmt.Fprintf(os.Stdout, "Degraded: %s %s — %s. Next: %s\n", gap.Kind, gap.Name, gap.Reason, gap.Remediation)
 	}
 	if len(response.Blockers) > 0 {
-		return fmt.Errorf("configuration is not complete: %d blocking item(s) remain", len(response.Blockers))
+		return fmt.Errorf("configuration is not complete: %d blocking item(s) remain; blockers: %s", len(response.Blockers), completionBlockerDetails(response.Blockers))
 	}
 	if len(response.Degraded) > 0 && !response.DegradedAcknowledged {
 		_, _ = fmt.Fprintf(os.Stdout, "Accept the degraded set with: vrooli-onboarding readiness acknowledge-degraded --digest %s\n", response.DegradedDigest)
-		return fmt.Errorf("configuration is not complete: %d optional item(s) need an explicit acknowledgement", len(response.Degraded))
+		return fmt.Errorf("configuration is not complete: %d optional item(s) need an explicit acknowledgement; degraded: %s", len(response.Degraded), completionBlockerDetails(response.Degraded))
 	}
 	return nil
+}
+
+// completionBlockerDetails is deliberately metadata-only. The wizard error
+// is also consumed by remote orchestration, so it must retain the same safe
+// diagnostic context as the human-readable lines written above.
+func completionBlockerDetails(items []completionBlocker) string {
+	details := make([]string, 0, len(items))
+	for _, item := range items {
+		details = append(details, fmt.Sprintf("%s %s — %s; next: %s", item.Kind, item.Name, item.Reason, item.Remediation))
+	}
+	return strings.Join(details, " | ")
 }

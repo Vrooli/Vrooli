@@ -18,6 +18,8 @@ func TestParsePlatformStatusAcceptsEveryAuthoredToken(t *testing.T) {
 		{raw: "unqualified", status: StatusUnqualified, qualification: QualificationUnqualified},
 		{raw: "partial", status: StatusPartial, qualification: QualificationDegraded},
 		{raw: "unsupported", status: StatusUnsupported, qualification: QualificationIneligible},
+		{raw: "not_implemented", status: StatusNotImplemented, qualification: QualificationDegraded},
+		{raw: "not_applicable", status: StatusNotApplicable, qualification: QualificationIneligible},
 		{raw: "  Build-Verified ", status: StatusBuildVerified, qualification: QualificationBuildVerified},
 	}
 	for _, testCase := range cases {

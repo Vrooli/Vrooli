@@ -54,6 +54,9 @@ type HeartbeatDeps struct {
 	RelayResponses interface {
 		Deliver(context.Context, string, relay.Response) error
 	}
+	CredentialReceipts interface {
+		RecordCredentialReceipt(context.Context, string, string, int64, bool, string) error
+	}
 }
 
 // HeartbeatOption adds a production side effect without forcing focused
@@ -80,6 +83,12 @@ func WithRelayResponseSink(sink interface {
 },
 ) HeartbeatOption {
 	return func(d *HeartbeatDeps) { d.RelayResponses = sink }
+}
+
+func WithCredentialReceiptRecorder(recorder interface {
+	RecordCredentialReceipt(context.Context, string, string, int64, bool, string) error
+}) HeartbeatOption {
+	return func(d *HeartbeatDeps) { d.CredentialReceipts = recorder }
 }
 
 type heartbeatHandler struct {
@@ -236,6 +245,36 @@ func (h *heartbeatHandler) ReportRelayResponse(ctx context.Context, req *connect
 		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
 	return connect.NewResponse(&presencev1.ReportRelayResponseResponse{Accepted: true}), nil
+}
+
+// ReportCredentialReceipt records only metadata from a node-side credential
+// ingest. Authentication is the same node proof used by every other
+// node-facing RPC; the receipt deliberately contains no credential value.
+func (h *heartbeatHandler) ReportCredentialReceipt(ctx context.Context, req *connect.Request[presencev1.ReportCredentialReceiptRequest]) (*connect.Response[presencev1.ReportCredentialReceiptResponse], error) {
+	receipt := req.Msg.GetReceipt()
+	if receipt == nil || receipt.GetGrantId() == "" || receipt.GetNodeId() == "" || receipt.GetLogicalId() == "" || receipt.GetField() == "" || receipt.GetGeneration() <= 0 {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("credential receipt requires grant, node, address, and positive generation"))
+	}
+	nodeID := req.Header().Get(nodeauth.HeaderNode)
+	if nodeID == "" || nodeID != receipt.GetNodeId() {
+		return nil, connect.NewError(connect.CodeUnauthenticated, errors.New("credential receipt node proof mismatch"))
+	}
+	if h.deps.Verifier != nil {
+		proof, err := nodeauth.ParseHeaders(nodeID, req.Header().Get(nodeauth.HeaderTS), req.Header().Get(nodeauth.HeaderSig))
+		if err != nil {
+			return nil, connect.NewError(connect.CodeUnauthenticated, err)
+		}
+		if err := h.deps.Verifier.VerifyProof(ctx, proof); err != nil {
+			return nil, connect.NewError(connect.CodeUnauthenticated, err)
+		}
+	}
+	if h.deps.CredentialReceipts == nil {
+		return nil, connect.NewError(connect.CodeUnavailable, errors.New("credential receipt recorder unavailable"))
+	}
+	if err := h.deps.CredentialReceipts.RecordCredentialReceipt(ctx, receipt.GetGrantId(), nodeID, receipt.GetGeneration(), receipt.GetAccepted(), receipt.GetReason()); err != nil {
+		return nil, connect.NewError(connect.CodePermissionDenied, err)
+	}
+	return connect.NewResponse(&presencev1.ReportCredentialReceiptResponse{Accepted: true}), nil
 }
 
 func relayResponseKind(kind sharedv1.RelayResponseKind) string {

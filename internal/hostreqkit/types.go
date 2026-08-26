@@ -120,6 +120,7 @@ const (
 	// no install or reinstall changes it.
 	BlockingProbeFailed                 BlockingReason = "probe_failed"
 	BlockingNeedsMaintenanceWindow      BlockingReason = "maintenance_window"
+	BlockingUndeterminedNeedsConsent    BlockingReason = "undetermined_needs_consent"
 	BlockingCredentialStoreLocked       BlockingReason = "credential_store_locked"
 	BlockingCredentialStoreUnresponsive BlockingReason = "credential_store_unresponsive"
 	BlockingCredentialStoreUnavailable  BlockingReason = "credential_store_unavailable"

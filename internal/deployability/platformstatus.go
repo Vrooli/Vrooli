@@ -29,6 +29,12 @@ const (
 	// StatusUnsupported is authored by resource manifests and synthesized by
 	// the capability loader for an OS a manifest does not claim.
 	StatusUnsupported PlatformStatus = "unsupported"
+	// StatusNotImplemented is countable portability debt: the capability may
+	// exist on the platform, but no provider is wired yet.
+	StatusNotImplemented PlatformStatus = "not_implemented"
+	// StatusNotApplicable is closed work: the capability does not exist on the
+	// platform or the safeguard's host mechanism cannot apply there.
+	StatusNotApplicable PlatformStatus = "not_applicable"
 )
 
 // Qualification ranks how much real-world proof a platform declaration
@@ -83,12 +89,14 @@ func (q Qualification) Reason() string { return qualificationReasons[q] }
 func (q Qualification) AtLeast(floor Qualification) bool { return q.Rank() >= floor.Rank() }
 
 var platformStatusQualifications = map[PlatformStatus]Qualification{
-	StatusSupported:     QualificationQualified,
-	StatusBuildVerified: QualificationBuildVerified,
-	StatusExperimental:  QualificationUnqualified,
-	StatusUnqualified:   QualificationUnqualified,
-	StatusPartial:       QualificationDegraded,
-	StatusUnsupported:   QualificationIneligible,
+	StatusSupported:      QualificationQualified,
+	StatusBuildVerified:  QualificationBuildVerified,
+	StatusExperimental:   QualificationUnqualified,
+	StatusUnqualified:    QualificationUnqualified,
+	StatusPartial:        QualificationDegraded,
+	StatusUnsupported:    QualificationIneligible,
+	StatusNotImplemented: QualificationDegraded,
+	StatusNotApplicable:  QualificationIneligible,
 }
 
 // PlatformStatuses returns the vocabulary in ladder order, most proven first.
@@ -100,6 +108,8 @@ func PlatformStatuses() []PlatformStatus {
 		StatusUnqualified,
 		StatusPartial,
 		StatusUnsupported,
+		StatusNotImplemented,
+		StatusNotApplicable,
 	}
 }
 

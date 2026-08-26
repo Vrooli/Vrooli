@@ -228,6 +228,12 @@ func resolveDependency(dependency DependencyDeclaration, tier DeliveryTier, os H
 	case StatusUnsupported:
 		result.Verdict = VerdictIneligible
 		result.Reasons = append(result.Reasons, Reason{Code: "platform_unsupported", Dependency: result.Name, Message: fmt.Sprintf("platform declaration marks %s unsupported on %s", result.Name, os)})
+	case StatusNotImplemented:
+		result.Verdict = VerdictDegraded
+		result.Reasons = append(result.Reasons, Reason{Code: "platform_not_implemented", Dependency: result.Name, Message: fmt.Sprintf("platform declaration marks %s not implemented on %s", result.Name, os)})
+	case StatusNotApplicable:
+		result.Verdict = VerdictIneligible
+		result.Reasons = append(result.Reasons, Reason{Code: "platform_not_applicable", Dependency: result.Name, Message: fmt.Sprintf("platform declaration marks %s not applicable on %s", result.Name, os)})
 	}
 
 	if dependency.Requirements == nil {

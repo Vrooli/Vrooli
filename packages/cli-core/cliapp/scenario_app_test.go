@@ -637,9 +637,8 @@ func TestScenarioAppTryAutoStartRunsScenarioStartCommand(t *testing.T) {
 	t.Setenv("API_BASE_ENV", server.URL)
 
 	originalExec := execScenarioStartCommand
-	t.Cleanup(func() {
-		execScenarioStartCommand = originalExec
-	})
+	originalSetup := execScenarioSetupCommand
+	t.Cleanup(func() { execScenarioStartCommand = originalExec; execScenarioSetupCommand = originalSetup })
 
 	var started string
 	execScenarioStartCommand = func(name string) *exec.Cmd {
@@ -652,6 +651,56 @@ func TestScenarioAppTryAutoStartRunsScenarioStartCommand(t *testing.T) {
 	}
 	if started != "demo" {
 		t.Fatalf("started scenario = %q, want %q", started, "demo")
+	}
+}
+
+func TestScenarioAppTryAutoStartSetsUpColdScenarioBeforeRetry(t *testing.T) {
+	configDir := t.TempDir()
+	t.Setenv("CLI_CONFIG_DIR_OVERRIDE", configDir)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+	t.Setenv("API_BASE_ENV", server.URL)
+
+	app, err := NewScenarioApp(ScenarioOptions{
+		Name:             "demo",
+		APIEnvVars:       []string{"API_BASE_ENV"},
+		ConfigDirEnvVars: []string{"CLI_CONFIG_DIR_OVERRIDE"},
+		AllowAnonymous:   true,
+	})
+	if err != nil {
+		t.Fatalf("NewScenarioApp: %v", err)
+	}
+
+	originalSetup := execScenarioSetupCommand
+	originalStart := execScenarioStartCommand
+	t.Cleanup(func() { execScenarioSetupCommand = originalSetup; execScenarioStartCommand = originalStart })
+	setupCalled := false
+	startCalls := 0
+	execScenarioSetupCommand = func(name string) *exec.Cmd {
+		if name != "demo" {
+			t.Fatalf("setup scenario = %q, want demo", name)
+		}
+		setupCalled = true
+		return exec.Command("true")
+	}
+	execScenarioStartCommand = func(name string) *exec.Cmd {
+		if name != "demo" {
+			t.Fatalf("start scenario = %q, want demo", name)
+		}
+		startCalls++
+		if startCalls == 1 {
+			return exec.Command("sh", "-c", "exit 1")
+		}
+		return exec.Command("true")
+	}
+
+	if err := app.tryAutoStart(); err != nil {
+		t.Fatalf("tryAutoStart: %v", err)
+	}
+	if !setupCalled || startCalls != 2 {
+		t.Fatalf("setup=%t start_calls=%d, want setup once and two starts", setupCalled, startCalls)
 	}
 }
 

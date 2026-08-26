@@ -1,4 +1,5 @@
 import { selectors } from "../consts/selectors";
+import { GrantPanel } from "../features/trust/GrantPanel";
 
 type ControlSurfacePageProps = {
   area: "Sessions" | "Rollouts" | "Trust" | "Setup";
@@ -19,6 +20,7 @@ export function ControlSurfacePage({ area, description }: ControlSurfacePageProp
     <section data-testid={pageSelector} aria-labelledby={`${area.toLowerCase()}-heading`} className="mx-auto flex w-full max-w-6xl flex-col gap-4">
       <h2 id={`${area.toLowerCase()}-heading`} className="text-2xl font-semibold">{area}</h2>
       <p className="text-app-muted-foreground">{description}</p>
+      {area === "Trust" && <GrantPanel />}
     </section>
   );
 }

@@ -28,6 +28,18 @@ func TestRegisterAndSelectionErrors(t *testing.T) {
 	}
 }
 
+func TestReportReadinessBlockersRetainsSafeMetadataInError(t *testing.T) {
+	err := reportReadinessBlockers([]byte(`{"status":"missing","blockers":[{"kind":"host","name":"workspace_sandbox_userns","reason":"safeguard is missing on this host","remediation":"Apply the selection."}],"degraded":[]}`))
+	if err == nil {
+		t.Fatal("expected readiness blocker error")
+	}
+	for _, want := range []string{"workspace_sandbox_userns", "safeguard is missing on this host", "Apply the selection."} {
+		if !strings.Contains(err.Error(), want) {
+			t.Fatalf("error = %q, want %q", err.Error(), want)
+		}
+	}
+}
+
 func TestDeclarativeWizardApplyExportAndStatus(t *testing.T) {
 	core := clitest.NewTestApp(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodPatch || r.Method == http.MethodPost {

@@ -18,8 +18,10 @@ import (
 )
 
 type correlatedRegistrar struct {
-	mu    sync.Mutex
-	nodes map[string]string
+	mu      sync.Mutex
+	nodes   map[string]string
+	scopes  map[string][]string
+	updates map[string][]string
 }
 
 func (r *correlatedRegistrar) RegisterNode(_ context.Context, _ pairing.NodeFacts) (string, error) {
@@ -37,6 +39,16 @@ func (r *correlatedRegistrar) RegisterNodeWithCorrelation(_ context.Context, _ p
 	return id, nil
 }
 
+func (r *correlatedRegistrar) UpdateNodeScopes(_ context.Context, nodeID string, scopes []string) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.updates == nil {
+		r.updates = map[string][]string{}
+	}
+	r.updates[nodeID] = append([]string(nil), scopes...)
+	return nil
+}
+
 func (r *correlatedRegistrar) FindNodeByPairingCorrelation(_ context.Context, correlation string) (string, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -51,7 +63,7 @@ func TestCorrelatedRedemptionConcurrentReplayConverges(t *testing.T) {
 	d := db.NewSQLite(t)
 	require.NoError(t, apiDB.EnsureSchemas(ctx, d, apiDB.SchemaProviderFunc(pairing.Schema)))
 	clock := scheduletest.New(time.Date(2026, 7, 17, 12, 0, 0, 0, time.UTC))
-	registrar := &correlatedRegistrar{nodes: map[string]string{}}
+	registrar := &correlatedRegistrar{nodes: map[string]string{}, updates: map[string][]string{}}
 	svc := pairing.NewService(pairing.NewSQLiteRepository(d, clock), registrar, clock, pairing.WithGrantValidator(func([]string) error { return nil }))
 	issued, err := svc.IssueCodeForEnrollment(ctx, "mac", nil, 0, "attempt-concurrent")
 	require.NoError(t, err)
@@ -81,7 +93,7 @@ func TestCorrelatedRedemptionIsReplaySafe(t *testing.T) {
 	d := db.NewSQLite(t)
 	require.NoError(t, apiDB.EnsureSchemas(ctx, d, apiDB.SchemaProviderFunc(pairing.Schema)))
 	clock := scheduletest.New(time.Date(2026, 7, 17, 12, 0, 0, 0, time.UTC))
-	registrar := &correlatedRegistrar{nodes: map[string]string{}}
+	registrar := &correlatedRegistrar{nodes: map[string]string{}, updates: map[string][]string{}}
 	svc := pairing.NewService(pairing.NewSQLiteRepository(d, clock), registrar, clock, pairing.WithGrantValidator(func([]string) error { return nil }))
 	issued, err := svc.IssueCodeForEnrollment(ctx, "mac", []string{"demo:read"}, 0, "attempt-1")
 	require.NoError(t, err)
@@ -103,9 +115,9 @@ func TestCorrelatedRedemptionReusesActiveCredential(t *testing.T) {
 	d := db.NewSQLite(t)
 	require.NoError(t, apiDB.EnsureSchemas(ctx, d, apiDB.SchemaProviderFunc(pairing.Schema)))
 	clock := scheduletest.New(time.Date(2026, 7, 17, 12, 0, 0, 0, time.UTC))
-	registrar := &correlatedRegistrar{nodes: map[string]string{}}
+	registrar := &correlatedRegistrar{nodes: map[string]string{}, updates: map[string][]string{}}
 	repo := pairing.NewSQLiteRepository(d, clock)
-	svc := pairing.NewService(repo, registrar, clock)
+	svc := pairing.NewService(repo, registrar, clock, pairing.WithGrantValidator(func([]string) error { return nil }))
 	key := base64.StdEncoding.EncodeToString(make([]byte, 32))
 
 	firstCode, err := svc.IssueCodeForEnrollment(ctx, "mac", nil, 0, "attempt-first")
@@ -113,12 +125,13 @@ func TestCorrelatedRedemptionReusesActiveCredential(t *testing.T) {
 	first, err := svc.Redeem(ctx, firstCode.Code, key, pairing.NodeFacts{OS: "darwin", Arch: "amd64"})
 	require.NoError(t, err)
 
-	secondCode, err := svc.IssueCodeForEnrollment(ctx, "mac", nil, 0, "attempt-reconcile")
+	secondCode, err := svc.IssueCodeForEnrollment(ctx, "mac", []string{"demo:read"}, 0, "attempt-reconcile")
 	require.NoError(t, err)
 	second, err := svc.Redeem(ctx, secondCode.Code, key, pairing.NodeFacts{OS: "darwin", Arch: "amd64"})
 	require.NoError(t, err)
 	require.Equal(t, first, second)
 	require.Len(t, registrar.nodes, 1)
+	require.Equal(t, []string{"demo:read"}, registrar.updates[first])
 	resolved, paired, err := svc.ResolveEnrollment(ctx, "attempt-reconcile")
 	require.NoError(t, err)
 	require.True(t, paired)

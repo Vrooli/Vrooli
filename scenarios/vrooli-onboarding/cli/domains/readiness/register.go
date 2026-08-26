@@ -128,7 +128,7 @@ func run(core *cliapp.ScenarioApp, args []string) error {
 		}
 	}
 	if len(response.Blockers) > 0 {
-		return &ExitError{Code: 2, Text: fmt.Sprintf("configuration is not complete: %d blocking item(s) remain", len(response.Blockers))}
+		return &ExitError{Code: 2, Text: fmt.Sprintf("configuration is not complete: %d blocking item(s) remain; blockers: %s", len(response.Blockers), blockerDetails(response.Blockers))}
 	}
 	if len(response.Degraded) > 0 && !response.DegradedAcknowledged {
 		for _, item := range response.Degraded {
@@ -139,7 +139,19 @@ func run(core *cliapp.ScenarioApp, args []string) error {
 		if _, err := fmt.Fprintf(os.Stdout, "Accept them with: vrooli-onboarding readiness acknowledge-degraded --digest %s\n", response.DegradedDigest); err != nil {
 			return err
 		}
-		return &ExitError{Code: 2, Text: fmt.Sprintf("configuration is not complete: %d optional item(s) need an explicit acknowledgement", len(response.Degraded))}
+		return &ExitError{Code: 2, Text: fmt.Sprintf("configuration is not complete: %d optional item(s) need an explicit acknowledgement; degraded: %s", len(response.Degraded), blockerDetails(response.Degraded))}
 	}
 	return nil
+}
+
+// blockerDetails keeps the process error useful to non-interactive callers
+// that do not retain the CLI's stdout. It contains only the metadata already
+// exposed by the readiness API; credentials and other secret values never
+// enter this string.
+func blockerDetails(items []blocker) string {
+	details := make([]string, 0, len(items))
+	for _, item := range items {
+		details = append(details, fmt.Sprintf("%s %s — %s; next: %s", item.Kind, item.Name, item.Reason, item.Remediation))
+	}
+	return strings.Join(details, " | ")
 }

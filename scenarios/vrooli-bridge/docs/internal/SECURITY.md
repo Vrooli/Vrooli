@@ -138,6 +138,14 @@ to device-sync-hub.
 
 ## Secrets
 
+Credential values are never dispatch arguments, dispatch verbs, audit fields,
+or node-registration material. Fleet delivery uses an explicit grant and a
+typed `CredentialPush` channel frame sealed to the node's independent X25519
+encryption key. The Ed25519 node identity authenticates the key-add exchange
+but is never converted into an encryption key. Revocation stops future pushes
+and purges reachable nodes; an unreachable node may retain a durable copy, so
+the operator must rotate the source credential after a lost-node event.
+
 | Secret | Source | Required? | Details |
 |---|---|---|---|
 | Node mutual-auth credential (Ed25519) | minted at pairing on the node | yes | Public key registered in `node_credentials`; private key stays on the node; destroyed on revoke/re-onboard. |

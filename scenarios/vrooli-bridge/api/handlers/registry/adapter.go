@@ -16,6 +16,12 @@ import (
 // presence reader. The domain layer never imports proto; this is the single
 // translation point (api-steer §7).
 func domainToProto(n registry.Node, online, dispatchable bool, facts ...internalpresence.ReadinessFacts) *registryv1.Node {
+	if n.Kind == registry.KindControlPlane {
+		// The control plane is ready by virtue of the API process being alive. It
+		// has no dial-out heartbeat and is excluded from push-target resolution.
+		online, dispatchable = true, true
+		facts = []internalpresence.ReadinessFacts{{HeartbeatFresh: true, ChannelHeld: false, ProtocolCompatible: true, Dispatchable: true}}
+	}
 	readiness := internalpresence.ReadinessFacts{ChannelHeld: online, ProtocolCompatible: dispatchable, Dispatchable: dispatchable}
 	if len(facts) > 0 {
 		readiness = facts[0]
@@ -56,6 +62,8 @@ func kindProto(kind string) registryv1.NodeKind {
 		return registryv1.NodeKind_NODE_KIND_SSH
 	case registry.KindAttached:
 		return registryv1.NodeKind_NODE_KIND_ATTACHED
+	case registry.KindControlPlane:
+		return registryv1.NodeKind_NODE_KIND_CONTROL_PLANE
 	default:
 		return registryv1.NodeKind_NODE_KIND_AGENT
 	}

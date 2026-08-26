@@ -76,6 +76,7 @@ type Document struct {
 	UpdatedAt           string                     `json:"updated_at"`
 	TrustPosture        string                     `json:"trust_posture,omitempty"`
 	HostWorkloadPosture string                     `json:"host_workload_posture,omitempty"`
+	UpdateControl       string                     `json:"update_control,omitempty"`
 	Core                *CoreSet                   `json:"core,omitempty"`
 	ActiveProfile       *string                    `json:"active_profile,omitempty"`
 	Scenarios           map[string]ScenarioChoice  `json:"scenarios,omitempty"`
@@ -85,6 +86,15 @@ type Document struct {
 	Completion          *Completion                `json:"completion,omitempty"`
 	Session             *Session                   `json:"session,omitempty"`
 	RawFields           map[string]json.RawMessage `json:"-"`
+}
+
+func (d Document) EffectiveUpdateControl() string {
+	switch d.UpdateControl {
+	case "observe", "guard", "own":
+		return d.UpdateControl
+	default:
+		return "observe"
+	}
 }
 
 type Config struct {

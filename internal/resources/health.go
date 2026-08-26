@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os/exec"
+	"strings"
 
 	"github.com/vrooli/vrooli/internal/accel"
 	runtimehealth "github.com/vrooli/vrooli/internal/resources/runtime/health"
@@ -31,6 +32,9 @@ type HealthResult struct {
 	ModeDrift bool
 	// ModeReason is the evidence behind ObservedMode.
 	ModeReason string
+	// PlacementUndetermined means the resource is serving but the accelerator
+	// placement signal is not present yet. It must not make a health gate fail.
+	PlacementUndetermined bool
 }
 
 func (c *Controller) runResourceHealthChecks(ctx context.Context, manifest ResourceManifest) (HealthResult, error) {
@@ -78,12 +82,23 @@ func (c *Controller) foldPlacementIntoHealth(ctx context.Context, manifest Resou
 	if err != nil || placement == nil {
 		if err != nil {
 			health.ModeReason = err.Error()
+			health.PlacementUndetermined = true
 		}
 		return health
 	}
 	health.DeclaredMode = string(placement.Declared)
 	health.ObservedMode = string(placement.Observed)
 	health.ModeReason = placement.Reason
+	if placement.State == accel.BackendUndetermined {
+		if isPlacementProbeLivenessFailure(manifest, health.LivenessFailed) {
+			health.Healthy = true
+			health.Serving = true
+			health.LivenessFailed = ""
+			health.Message = "healthy"
+		}
+		health.PlacementUndetermined = true
+		return health
+	}
 	if placement.State != accel.StateDrift {
 		return health
 	}
@@ -94,4 +109,24 @@ func (c *Controller) foldPlacementIntoHealth(ctx context.Context, manifest Resou
 		health.Message = fmt.Sprintf("degraded: declared %s but running on %s", placement.Declared, placement.Observed)
 	}
 	return health
+}
+
+// isPlacementProbeLivenessFailure identifies a liveness command whose failed
+// result is itself the absence of a resident workload. The placement verifier
+// is the authority for that distinction; this helper only connects the
+// resource's declared probe to the tri-state verdict.
+func isPlacementProbeLivenessFailure(manifest ResourceManifest, failed string) bool {
+	failed = strings.TrimSpace(failed)
+	if failed == "" {
+		return false
+	}
+	for _, check := range manifest.HealthChecks {
+		if !strings.EqualFold(strings.TrimSpace(check.Kind), "liveness") || len(check.Command) == 0 {
+			continue
+		}
+		if strings.Join(check.Command, " ") == failed && strings.Contains(strings.ToLower(check.Command[len(check.Command)-1]), "health-gpu") {
+			return true
+		}
+	}
+	return false
 }

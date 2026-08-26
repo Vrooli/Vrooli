@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/vrooli/vrooli/internal/scenarioexec"
@@ -65,6 +66,13 @@ func (app *App) remoteScenarioCall(ctx *CommandContext, nodeName, scenario, comm
 	if jsonOutput {
 		remoteArgs = append(remoteArgs, "--json")
 	}
+	if timeout := relayTimeoutArg(remoteArgs); timeout != "" {
+		// The addressed scenario command carries its own lifecycle ceiling in
+		// the forwarded args. Mirror that ceiling on the outer relay transport;
+		// otherwise the Bridge CLI's default HTTP deadline cancels a valid slow
+		// remote build before the node can return its lifecycle result.
+		callArgs = append(callArgs, "--timeout", timeout)
+	}
 	if len(remoteArgs) > 0 {
 		// vrooli-bridge's public CLI accepts relay arguments as CSV. Keep the
 		// relay contract in one place so every remotely dispatched scenario
@@ -90,6 +98,19 @@ func (app *App) remoteScenarioCall(ctx *CommandContext, nodeName, scenario, comm
 		return nil, fmt.Errorf("decode relay response data: %w", err)
 	}
 	return payload, nil
+}
+
+func relayTimeoutArg(args []string) string {
+	for index := 0; index+1 < len(args); index++ {
+		if args[index] != "--timeout" {
+			continue
+		}
+		seconds, err := strconv.Atoi(strings.TrimSpace(args[index+1]))
+		if err == nil && seconds > 0 {
+			return strconv.Itoa(seconds)
+		}
+	}
+	return ""
 }
 
 func (app *App) runBridgeJSON(ctx *CommandContext, executable string, args ...string) ([]byte, error) {

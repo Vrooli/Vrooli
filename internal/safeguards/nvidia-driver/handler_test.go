@@ -55,9 +55,21 @@ func TestApplyBlocksLiveDriverTransitionDuringRemoteDesktopSession(t *testing.T)
 	restore := stub(t)
 	defer restore()
 	RemoteDesktopActiveFn = func() bool { return true }
+	RemoteDesktopStateFn = func() (bool, bool) { return RemoteDesktopActiveFn(), true }
 	status := hostreqkit.ItemStatus{ExecutionState: hostreqkit.ExecutionPending, PackageName: "nvidia-driver-580-open"}
 	out, err := newHandler().Apply(linuxHost(), status, hostreqkit.EnsureOptions{})
 	if err != nil || out.ExecutionState != hostreqkit.ExecutionManualActionRequired || out.BlockingReason != hostreqkit.BlockingNeedsMaintenanceWindow {
+		t.Fatalf("Apply() = %#v, %v", out, err)
+	}
+}
+
+func TestApplyRequiresConsentWhenRemoteDesktopStateIsUndetermined(t *testing.T) {
+	restore := stub(t)
+	defer restore()
+	RemoteDesktopStateFn = func() (bool, bool) { return false, false }
+	status := hostreqkit.ItemStatus{ExecutionState: hostreqkit.ExecutionPending, PackageName: "nvidia-driver-580-open"}
+	out, err := newHandler().Apply(linuxHost(), status, hostreqkit.EnsureOptions{})
+	if err != nil || out.ExecutionState != hostreqkit.ExecutionManualActionRequired || out.BlockingReason != hostreqkit.BlockingUndeterminedNeedsConsent {
 		t.Fatalf("Apply() = %#v, %v", out, err)
 	}
 }
@@ -66,6 +78,7 @@ func TestDryRunMatchesRemoteDesktopGate(t *testing.T) {
 	restore := stub(t)
 	defer restore()
 	RemoteDesktopActiveFn = func() bool { return true }
+	RemoteDesktopStateFn = func() (bool, bool) { return RemoteDesktopActiveFn(), true }
 	status := hostreqkit.ItemStatus{ExecutionState: hostreqkit.ExecutionPending, PackageName: "nvidia-driver-580-open"}
 	comparison, err := hostreqkit.CompareDryRunAndApply(newHandler(), linuxHost(), status, hostreqkit.EnsureOptions{})
 	if err != nil {
@@ -98,7 +111,7 @@ func requirement() hostreqspec.ResolvedRequirement {
 
 func stub(t *testing.T) func() {
 	t.Helper()
-	oldReadDir, oldRead, oldRun, oldRoot, oldRemote := readDirFn, hostreqkit.ReadFileFn, hostreqkit.RunCommandFn, hostreqkit.RunningAsRootFn, RemoteDesktopActiveFn
+	oldReadDir, oldRead, oldRun, oldRoot, oldRemote, oldRemoteState := readDirFn, hostreqkit.ReadFileFn, hostreqkit.RunCommandFn, hostreqkit.RunningAsRootFn, RemoteDesktopActiveFn, RemoteDesktopStateFn
 	// DriverReadyFn and the two persistence probes are restored as well, so a
 	// test that overrides them cannot leak into the next one. Their defaults
 	// shell out to nvidia-smi, which must never happen in a unit test.
@@ -108,11 +121,12 @@ func stub(t *testing.T) func() {
 	hostreqkit.RunCommandFn = func(string, []string, hostreqkit.EnsureOptions) error { return errors.New("unexpected command") }
 	hostreqkit.RunningAsRootFn = func() bool { return false }
 	RemoteDesktopActiveFn = func() bool { return false }
+	RemoteDesktopStateFn = func() (bool, bool) { return false, true }
 	DriverReadyFn = func() bool { return false }
 	PersistenceModeReadyFn = func() bool { return false }
 	PersistencedPresentFn = func() bool { return true }
 	return func() {
-		readDirFn, hostreqkit.ReadFileFn, hostreqkit.RunCommandFn, hostreqkit.RunningAsRootFn, RemoteDesktopActiveFn = oldReadDir, oldRead, oldRun, oldRoot, oldRemote
+		readDirFn, hostreqkit.ReadFileFn, hostreqkit.RunCommandFn, hostreqkit.RunningAsRootFn, RemoteDesktopActiveFn, RemoteDesktopStateFn = oldReadDir, oldRead, oldRun, oldRoot, oldRemote, oldRemoteState
 		DriverReadyFn, PersistenceModeReadyFn, PersistencedPresentFn = oldDriver, oldPersistMode, oldPersistPresent
 	}
 }

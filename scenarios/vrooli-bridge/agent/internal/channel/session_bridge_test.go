@@ -10,12 +10,13 @@ import (
 	"vrooli-bridge/agent/internal/config"
 
 	"github.com/stretchr/testify/require"
+	"github.com/vrooli/repo-contract-go/repocontracttest"
 	sessionv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/session"
 )
 
 func TestOpenNodeSessionUsesNativePTYAndResizes(t *testing.T) {
 	if runtime.GOOS == "windows" {
-		t.Skip("creack/pty reports unsupported on Windows; the agent uses the documented pipe fallback")
+		repocontracttest.SkipPlatform(t, "creack/pty reports unsupported on Windows; the agent uses the documented pipe fallback")
 	}
 
 	c := NewClient(config.Config{}, WithLogger(log.Default()))
@@ -36,7 +37,7 @@ func TestOpenNodeSessionUsesNativePTYAndResizes(t *testing.T) {
 
 func TestInteractiveShellDefaultsBeforeCleaningEmptyInput(t *testing.T) {
 	if runtime.GOOS == "windows" {
-		t.Skip("default shell selection is platform-specific on Windows")
+		repocontracttest.SkipPlatform(t, "default shell selection is platform-specific on Windows")
 	}
 	t.Setenv("SHELL", "")
 	require.Equal(t, "/bin/sh", interactiveShell(""))

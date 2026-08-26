@@ -131,8 +131,9 @@ const LauncherPath = "/usr/local/bin/vrooli"
 //     edge cases like AD-bound macs where local /etc/passwd is sparse;
 //     the invoking user's $HOME is still correct for them, even if the
 //     cross-user case won't work without dscl).
-//   - exec's the real binary with the original arguments. `set -e` makes
-//     a missing binary fail loudly instead of silently no-op'ing.
+//   - prefers the canonical binary, but temporarily falls back to the last
+//     known-good copy if a repair or foreign remover made the canonical path
+//     unavailable. The fallback is maintained by the binary installers.
 const shimContent = `#!/bin/sh
 # Vrooli launcher shim — installed by ` + "`vrooli setup --include-optional`" + `.
 # See: internal/safeguards/vrooli-launcher/handler.go (package doc).
@@ -149,7 +150,17 @@ set -e
 user="${SUDO_USER:-$USER}"
 home=$(awk -F: -v u="$user" '$1==u{print $6; exit}' /etc/passwd)
 : "${home:=$HOME}"
-exec "$home/.vrooli/bin/vrooli" "$@"
+primary="$home/.vrooli/bin/vrooli"
+fallback="$home/.vrooli/libexec/vrooli.previous"
+if [ -x "$primary" ]; then
+    exec "$primary" "$@"
+fi
+if [ -x "$fallback" ]; then
+    echo "vrooli: canonical executable is unavailable; using last known-good fallback" >&2
+    exec "$fallback" "$@"
+fi
+echo "vrooli: no usable control-plane executable at $primary or $fallback" >&2
+exit 127
 `
 
 type handler struct {

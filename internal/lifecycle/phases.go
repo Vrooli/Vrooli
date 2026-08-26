@@ -450,67 +450,73 @@ func (r *Runner) buildDeclaredComponents(ctx context.Context, item scenario.Scen
 		if !exists || spec.Reserved {
 			return executed, fmt.Errorf("component %s has no executable builder %q", name, component.Build.Kind)
 		}
-		buildArgv := spec.BuildArgv(buildMode)
-		output := ""
-		if slicesContainTemplate(buildArgv, "{output}") || spec.StagedOutput {
-			output, err = componentArtifact(name, item.Path, item.Slug, item.Manifest.Components, runtimeGOOS(), map[string]bool{})
-			if err != nil {
-				return executed, err
-			}
+		targets, targetErr := componentBuildTargets(name, item.Path, item.Slug, component, spec, runtimeGOOS())
+		if targetErr != nil {
+			return executed, targetErr
 		}
-		entry := strings.TrimSpace(component.Build.Entry)
-		if entry == "" {
-			entry = "."
-		}
-		target := output
-		var stagedOutput string
-		var cleanupStage func()
-		if spec.StagedOutput {
-			if spec.StageDirectory {
-				target = filepath.Dir(output)
-			}
-			_, stagedOutput, cleanupStage, err = stageArtifact(target, spec.StageDirectory)
-			if err != nil {
-				return executed, fmt.Errorf("stage component %s output: %w", name, err)
-			}
-			defer cleanupStage()
-		}
-		stageDir := stagedOutput
-		if !spec.StageDirectory {
-			stageDir = filepath.Dir(stagedOutput)
-		}
-		buildOutput := output
-		if spec.StagedOutput {
-			buildOutput = stagedOutput
-		}
-		replacer := strings.NewReplacer(
-			"{dir}", component.Build.Dir,
-			"{scenario}", item.Slug,
-			"{component}", name,
-			"{entry}", entry,
-			"{output}", buildOutput,
-			"{stage_output_dir}", stageDir,
-		)
-		type buildCommand struct {
-			template []string
-			install  bool
-			build    bool
-		}
-		commands := make([]buildCommand, 0, 2)
 		install, _, installErr := installNeeded(item.Path, component, spec)
 		if installErr != nil {
 			return executed, fmt.Errorf("component %s install inputs: %w", name, installErr)
 		}
+		commandIndex := 0
 		if install {
-			commands = append(commands, buildCommand{template: spec.Install, install: true})
+			replacer := strings.NewReplacer("{dir}", component.Build.Dir, "{scenario}", item.Slug, "{component}", name)
+			argv := make([]string, len(spec.Install))
+			for index, value := range spec.Install {
+				argv[index] = replacer.Replace(value)
+			}
+			stepEnv := cloneStringMap(spec.Environment)
+			step := scenario.PhaseStep{
+				Name: fmt.Sprintf("build-%s-%d", name, commandIndex+1),
+				Exec: argv,
+				CWD:  filepath.ToSlash(component.Build.Dir),
+				Env:  stepEnv,
+			}
+			if err := r.runForegroundStep(ctx, item, "setup", step, env, writer); err != nil {
+				return executed, fmt.Errorf("build component %s: %w", name, err)
+			}
+			if err := recordInstallDigest(item.Path, component, spec); err != nil {
+				return executed, fmt.Errorf("component %s install digest: %w", name, err)
+			}
+			executed++
+			commandIndex++
 		}
-		if spec.StagedOutput {
-			buildArgv = append(buildArgv, spec.StageArgs...)
-		}
-		commands = append(commands, buildCommand{template: buildArgv, build: true})
-		for commandIndex, command := range commands {
-			template := command.template
+		for _, buildTarget := range targets {
+			buildArgv := spec.BuildArgv(buildMode)
+			target := buildTarget.Output
+			publishTarget := componentPublishTarget(target, spec.StageDirectory)
+			var stagedOutput string
+			var cleanupStage func()
+			if spec.StagedOutput {
+				_, stagedOutput, cleanupStage, err = stageArtifact(publishTarget, spec.StageDirectory)
+				if err != nil {
+					return executed, fmt.Errorf("stage component %s output: %w", name, err)
+				}
+			}
+			stageDir := stagedOutput
+			if !spec.StageDirectory && stagedOutput != "" {
+				stageDir = filepath.Dir(stagedOutput)
+			}
+			buildOutput := target
+			if spec.StagedOutput {
+				buildOutput = stagedOutput
+			}
+			replacer := strings.NewReplacer(
+				"{dir}", component.Build.Dir,
+				"{scenario}", item.Slug,
+				"{component}", name,
+				"{entry}", buildTarget.Entry,
+				"{output}", buildOutput,
+				"{stage_output_dir}", stageDir,
+			)
+			if spec.StagedOutput {
+				buildArgv = append(buildArgv, spec.StageArgs...)
+			}
+			template := buildArgv
 			if len(template) == 0 {
+				if cleanupStage != nil {
+					cleanupStage()
+				}
 				continue
 			}
 			argv := make([]string, len(template))
@@ -525,19 +531,24 @@ func (r *Runner) buildDeclaredComponents(ctx context.Context, item scenario.Scen
 				Env:  stepEnv,
 			}
 			if err := r.runForegroundStep(ctx, item, "setup", step, env, writer); err != nil {
+				if cleanupStage != nil {
+					cleanupStage()
+				}
 				return executed, fmt.Errorf("build component %s: %w", name, err)
 			}
-			if command.install {
-				if err := recordInstallDigest(item.Path, component, spec); err != nil {
-					return executed, fmt.Errorf("component %s install digest: %w", name, err)
-				}
-			}
-			if command.build && spec.StagedOutput {
-				if err := swapArtifact(stagedOutput, target); err != nil {
+			if spec.StagedOutput {
+				if err := swapArtifact(stagedOutput, publishTarget); err != nil {
+					if cleanupStage != nil {
+						cleanupStage()
+					}
 					return executed, fmt.Errorf("publish component %s output: %w", name, err)
 				}
 			}
+			if cleanupStage != nil {
+				cleanupStage()
+			}
 			executed++
+			commandIndex++
 		}
 	}
 	return executed, nil
@@ -554,6 +565,13 @@ func uniqueStrings(values []string) []string {
 		result = append(result, value)
 	}
 	return result
+}
+
+func componentPublishTarget(target string, directory bool) string {
+	if directory {
+		return filepath.Dir(target)
+	}
+	return target
 }
 
 func slicesContainTemplate(values []string, token string) bool {

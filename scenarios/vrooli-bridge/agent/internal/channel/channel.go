@@ -21,6 +21,7 @@ package channel
 import (
 	"bufio"
 	"context"
+	"crypto/ecdh"
 	"errors"
 	"fmt"
 	"io"
@@ -38,6 +39,8 @@ import (
 	"vrooli-bridge/agent/internal/buildinfo"
 	"vrooli-bridge/agent/internal/config"
 	"vrooli-bridge/agent/internal/cpverify"
+	"vrooli-bridge/agent/internal/credentialgrant"
+	"vrooli-bridge/agent/internal/credentialpush"
 	"vrooli-bridge/agent/internal/exec"
 	"vrooli-bridge/agent/internal/health"
 	"vrooli-bridge/agent/internal/nodecred"
@@ -51,6 +54,8 @@ import (
 	channelv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/channel"
 	cleanupv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/cleanup"
 	"github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/cleanup/cleanup_v1connect"
+	credentialgrantv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/credentialgrant"
+	credentialgrantconnect "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/credentialgrant/credentialgrant_v1connect"
 	presencev1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/presence"
 	"github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/presence/presence_v1connect"
 	provisionv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/provision"
@@ -86,26 +91,37 @@ var ErrNotConfigured = errors.New("agent not configured to dial a control plane 
 
 // Client holds the agent's channel configuration and transport seams.
 type Client struct {
-	cfg          config.Config
-	httpClient   *http.Client
-	rpc          presence_v1connect.PresenceServiceClient
-	runsRPC      runs_v1connect.RunsServiceClient
-	artifactsRPC artifacts_v1connect.ArtifactsServiceClient
-	provisionRPC provision_v1connect.ProvisionServiceClient
-	cleanupRPC   cleanup_v1connect.CleanupServiceClient
-	sampler      health.Sampler
-	cred         *nodecred.Credential
-	cpVerifier   *cpverify.Verifier
-	logger       *log.Logger
-	now          func() time.Time
-	minBackoff   time.Duration
-	maxBackoff   time.Duration
+	cfg            config.Config
+	httpClient     *http.Client
+	rpc            presence_v1connect.PresenceServiceClient
+	grantRPC       credentialgrantconnect.CredentialGrantServiceClient
+	runsRPC        runs_v1connect.RunsServiceClient
+	artifactsRPC   artifacts_v1connect.ArtifactsServiceClient
+	provisionRPC   provision_v1connect.ProvisionServiceClient
+	cleanupRPC     cleanup_v1connect.CleanupServiceClient
+	sampler        health.Sampler
+	cred           *nodecred.Credential
+	encryption     *nodecred.EncryptionCredential
+	grantStore     credentialgrant.Store
+	credentialSink credentialpush.Sink
+	ephemeral      *credentialpush.EphemeralStore
+	cpVerifier     *cpverify.Verifier
+	logger         *log.Logger
+	now            func() time.Time
+	minBackoff     time.Duration
+	maxBackoff     time.Duration
 
 	// rejectedFrames counts control-plane pushes dropped because they did not
 	// verify against the pinned control-plane key (unsigned, mis-signed, or
 	// wrong-key). It is surfaced on every heartbeat's HealthSnapshot details so an
 	// operator sees a node being fed impostor frames.
 	rejectedFrames atomic.Uint64
+
+	// rejectedCredentialPushes counts signed pushes that the node refused after
+	// signature verification because local grant consent or decryption/storage
+	// policy did not allow them. It is reported on the next heartbeat without
+	// exposing any credential value.
+	rejectedCredentialPushes atomic.Uint64
 
 	// baseCtx is the top-level dial context, captured at Dial. Job execution is
 	// anchored to it (not the per-session SSE context) so a running job survives
@@ -142,6 +158,24 @@ func WithSampler(s health.Sampler) Option { return func(c *Client) { c.sampler =
 // key, so the control plane can verify the node's identity. Without it the agent
 // falls back to the unauthenticated ?node= form (pre-pairing / Phase-1).
 func WithCredential(cred *nodecred.Credential) Option { return func(c *Client) { c.cred = cred } }
+
+// WithEncryptionCredential supplies the independent X25519 key used only for
+// decrypting grant-governed credential pushes.
+func WithEncryptionCredential(cred *nodecred.EncryptionCredential) Option {
+	return func(c *Client) { c.encryption = cred }
+}
+
+func WithCredentialGrants(grants credentialgrant.Store) Option {
+	return func(c *Client) { c.grantStore = grants }
+}
+
+func WithCredentialSink(sink credentialpush.Sink) Option {
+	return func(c *Client) { c.credentialSink = sink }
+}
+
+func WithEphemeralCredentials(store *credentialpush.EphemeralStore) Option {
+	return func(c *Client) { c.ephemeral = store }
+}
 
 // WithCPVerifier pins the control-plane public key the agent verifies every
 // server push against (SECURITY.md boundary 2). It is REQUIRED for a paired
@@ -191,6 +225,7 @@ func NewClient(cfg config.Config, opts ...Option) *Client {
 		httpClient: &http.Client{},
 		logger:     log.Default(),
 		now:        time.Now,
+		ephemeral:  credentialpush.NewEphemeralStore(),
 		sampler:    health.NewSystemSampler(cfg.StateDir),
 		minBackoff: defaultMinBackoff,
 		maxBackoff: defaultMaxBackoff,
@@ -200,6 +235,7 @@ func NewClient(cfg config.Config, opts ...Option) *Client {
 	}
 	base := strings.TrimRight(cfg.ControlPlaneURL, "/")
 	c.rpc = presence_v1connect.NewPresenceServiceClient(c.httpClient, base)
+	c.grantRPC = credentialgrantconnect.NewCredentialGrantServiceClient(c.httpClient, base)
 	c.runsRPC = runs_v1connect.NewRunsServiceClient(c.httpClient, base)
 	c.artifactsRPC = artifacts_v1connect.NewArtifactsServiceClient(c.httpClient, base)
 	c.provisionRPC = provision_v1connect.NewProvisionServiceClient(c.httpClient, base)
@@ -221,6 +257,53 @@ func (c *Client) Handshake() *channelv1.Handshake {
 		Capabilities:      append([]string(nil), c.cfg.Capabilities...),
 		SupportsWebsocket: true,
 	}
+}
+
+// SyncCredentialGrants reconciles metadata consent with the control plane at
+// startup. It is the offline-revocation safety net: grants revoked while the
+// node was away are removed from the local grant store and their corresponding
+// grant-owned authority entries are purged. No credential value is returned by
+// this RPC.
+func (c *Client) SyncCredentialGrants(ctx context.Context) error {
+	if c.grantRPC == nil || c.grantStore == nil || c.cfg.NodeID == "" {
+		return nil
+	}
+	req := connect.NewRequest(&credentialgrantv1.SyncNodeGrantsRequest{NodeId: c.cfg.NodeID})
+	if c.cred != nil {
+		for key, value := range c.cred.Headers(c.cfg.NodeID, c.now().UTC()) {
+			req.Header().Set(key, value)
+		}
+	}
+	response, err := c.grantRPC.SyncNodeGrants(ctx, req)
+	if err != nil {
+		return fmt.Errorf("sync credential grants: %w", err)
+	}
+	active := make(map[string]credentialgrant.Grant, len(response.Msg.GetGrants()))
+	for _, grant := range response.Msg.GetGrants() {
+		if grant.GetNodeId() != "" && grant.GetNodeId() != c.cfg.NodeID {
+			continue
+		}
+		metadata := credentialgrant.Grant{ID: grant.GetId(), NodeID: c.cfg.NodeID, LogicalID: grant.GetLogicalId(), Field: grant.GetField(), Class: grant.GetClass(), Retention: grant.GetRetention(), Generation: grant.GetGeneration()}
+		if err := c.grantStore.Put(metadata); err != nil {
+			return fmt.Errorf("store active credential grant metadata: %w", err)
+		}
+		active[metadata.LogicalID+":"+metadata.Field] = metadata
+	}
+	for _, local := range c.grantStore.List() {
+		key := local.LogicalID + ":" + local.Field
+		if _, ok := active[key]; ok || local.Revoked {
+			continue
+		}
+		if err := c.grantStore.Revoke(local.LogicalID, local.Field); err != nil {
+			return fmt.Errorf("revoke stale local credential grant: %w", err)
+		}
+		if c.credentialSink != nil {
+			if err := c.credentialSink.Delete(local.LogicalID, local.Field); err != nil {
+				return fmt.Errorf("purge stale granted credential: %w", err)
+			}
+		}
+	}
+	return nil
 }
 
 // Dial holds the persistent dial-out channel, blocking until ctx is cancelled.
@@ -460,6 +543,110 @@ func (c *Client) handleServerFrame(payload string) {
 			c.logger.Printf("channel: abort for unknown or already-finished run %q (ignored)", abort.GetRunId())
 		}
 	}
+	if push := frame.GetCredentialPush(); push != nil {
+		c.handleCredentialPush(push)
+	}
+	if purge := frame.GetCredentialPurge(); purge != nil {
+		c.handleCredentialPurge(purge)
+	}
+	if grant := frame.GetCredentialGrant(); grant != nil {
+		c.handleCredentialGrant(grant)
+	}
+}
+
+func (c *Client) handleCredentialGrant(grant *channelv1.CredentialGrant) {
+	if grant == nil || c.grantStore == nil {
+		return
+	}
+	if grant.GetNodeId() != "" && grant.GetNodeId() != c.cfg.NodeID {
+		return
+	}
+	if grant.GetRevoked() {
+		if err := c.grantStore.Revoke(grant.GetLogicalId(), grant.GetField()); err != nil {
+			c.logger.Printf("channel: credential grant revoke failed for logical_id=%q field=%q: %v", grant.GetLogicalId(), grant.GetField(), err)
+		}
+		return
+	}
+	if err := c.grantStore.Put(credentialgrant.Grant{
+		ID: grant.GetGrantId(), NodeID: grant.GetNodeId(), LogicalID: grant.GetLogicalId(), Field: grant.GetField(),
+		Class: grant.GetClass(), Retention: grant.GetRetention(), Generation: grant.GetGeneration(),
+	}); err != nil {
+		c.logger.Printf("channel: credential grant refused for logical_id=%q field=%q: %v", grant.GetLogicalId(), grant.GetField(), err)
+	}
+}
+
+func (c *Client) handleCredentialPush(push *channelv1.CredentialPush) {
+	var private *ecdh.PrivateKey
+	if c.encryption != nil {
+		private = c.encryption.PrivateKey()
+	}
+	result, err := credentialpush.Apply(push, c.cfg.NodeID, private, c.grantStore, c.credentialSink)
+	if err != nil {
+		c.rejectedCredentialPushes.Add(1)
+		c.logger.Printf("channel: credential push refused for logical_id=%q field=%q: %v", push.GetLogicalId(), push.GetField(), err)
+		c.reportCredentialReceipt(&channelv1.CredentialReceipt{GrantId: push.GetGrantId(), NodeId: c.cfg.NodeID, LogicalId: push.GetLogicalId(), Field: push.GetField(), Generation: push.GetGeneration(), Accepted: false, Reason: "ingest failed"})
+		return
+	}
+	if result.Rejected {
+		c.rejectedCredentialPushes.Add(1)
+		c.logger.Printf("channel: credential push refused for logical_id=%q field=%q: %s", push.GetLogicalId(), push.GetField(), result.RejectReason)
+		c.reportCredentialReceipt(result.Receipt)
+		return
+	}
+	c.reportCredentialReceipt(result.Receipt)
+	if len(result.Ephemeral) > 0 {
+		if c.ephemeral != nil {
+			_ = c.ephemeral.Put(push.GetLogicalId(), push.GetField(), result.Ephemeral)
+		}
+		credentialpush.Zero(result.Ephemeral)
+	}
+}
+
+func (c *Client) reportCredentialReceipt(receipt *channelv1.CredentialReceipt) {
+	if receipt == nil || c.rpc == nil {
+		return
+	}
+	ctx := c.baseCtx
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+	req := connect.NewRequest(&presencev1.ReportCredentialReceiptRequest{Receipt: &presencev1.CredentialReceipt{
+		GrantId: receipt.GetGrantId(), NodeId: receipt.GetNodeId(), LogicalId: receipt.GetLogicalId(), Field: receipt.GetField(), Generation: receipt.GetGeneration(), Accepted: receipt.GetAccepted(), Reason: receipt.GetReason(),
+	}})
+	if c.cred != nil {
+		for key, value := range c.cred.Headers(c.cfg.NodeID, c.now().UTC()) {
+			req.Header().Set(key, value)
+		}
+	}
+	if _, err := c.rpc.ReportCredentialReceipt(ctx, req); err != nil {
+		c.logger.Printf("channel: credential receipt failed for logical_id=%q field=%q generation=%d: %v", receipt.GetLogicalId(), receipt.GetField(), receipt.GetGeneration(), err)
+	}
+}
+
+func (c *Client) handleCredentialPurge(purge *channelv1.CredentialPurge) {
+	if purge.GetNodeId() != "" && purge.GetNodeId() != c.cfg.NodeID {
+		return
+	}
+	if c.grantStore == nil {
+		return
+	}
+	for _, address := range purge.GetAddresses() {
+		parts := strings.SplitN(address, ":", 2)
+		if len(parts) != 2 {
+			continue
+		}
+		if err := c.grantStore.Revoke(parts[0], parts[1]); err != nil {
+			c.logger.Printf("channel: credential purge refused for address metadata: %v", err)
+			continue
+		}
+		if c.credentialSink != nil {
+			if err := c.credentialSink.Delete(parts[0], parts[1]); err != nil {
+				c.logger.Printf("channel: credential purge store operation failed for address metadata: %v", err)
+			}
+		}
+	}
 }
 
 // sendDeliveryAck reports receipt immediately after signature verification and
@@ -606,6 +793,7 @@ func (c *Client) runJob(job *channelv1.JobPush) {
 	runnerOpts := []exec.Option{
 		exec.WithClock(c.now), exec.WithArtifactUploader(uploader),
 		exec.WithArtifactDir(filepath.Join(c.cfg.StateDir, "artifacts")),
+		exec.WithCredentialEnvironment(c.ephemeral),
 	}
 	if c.commandRunner != nil {
 		runnerOpts = append(runnerOpts, exec.WithCommandRunner(c.commandRunner))
@@ -908,11 +1096,18 @@ func (c *Client) sendHeartbeat(ctx context.Context, seq *uint64) {
 		}
 		health.Details["rejected_cp_frames"] = strconv.FormatUint(rejected, 10)
 	}
+	if rejected := c.rejectedCredentialPushes.Load(); rejected > 0 {
+		if health.Details == nil {
+			health.Details = map[string]string{}
+		}
+		health.Details["rejected_credential_pushes"] = strconv.FormatUint(rejected, 10)
+	}
 	hb := &sharedv1.Heartbeat{
-		NodeId:   c.cfg.NodeID,
-		Sequence: *seq,
-		Health:   health,
-		SentAt:   timestamppb.New(now),
+		NodeId:                   c.cfg.NodeID,
+		Sequence:                 *seq,
+		Health:                   health,
+		SentAt:                   timestamppb.New(now),
+		RejectedCredentialPushes: c.rejectedCredentialPushes.Load(),
 	}
 	connReq := connect.NewRequest(&presencev1.ReportHeartbeatRequest{Heartbeat: hb})
 	if c.cred != nil {

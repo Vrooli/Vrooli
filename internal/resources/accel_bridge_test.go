@@ -133,12 +133,30 @@ func TestPlacementTargetForMatchesTheDriverRuntimeShape(t *testing.T) {
 			if isProcess && !strings.Contains(process.ExecutablePrefix, "fixture") {
 				t.Fatalf("ExecutablePrefix = %q, want it to name the resource's artifact tree", process.ExecutablePrefix)
 			}
+			if isProcess && process.NoWorkloadReason != "no workload is resident, so placement cannot be read yet" {
+				t.Fatalf("NoWorkloadReason = %q, want the resource-owned default", process.NoWorkloadReason)
+			}
 		})
 	}
 
 	// And a driver with no accelerator runtime shape resolves nothing
 	if _, ok, err := placementTargetFor(context.Background(), controller, acceleratedManifest("fixture", "cloud-api")); err != nil || ok {
 		t.Fatalf("placementTargetFor(cloud-api) = ok %v err %v, want ok=false", ok, err)
+	}
+}
+
+func TestPlacementTargetForDerivesGenericNoWorkloadReason(t *testing.T) {
+	controller := NewController(t.TempDir(), t.TempDir())
+	target, ok, err := placementTargetFor(context.Background(), controller, acceleratedManifest("ollama", "managed-service"))
+	if err != nil || !ok {
+		t.Fatalf("placementTargetFor() = %v, %v; want a target", target, err)
+	}
+	process, ok := target.(accel.HostProcess)
+	if !ok {
+		t.Fatalf("target = %T, want accel.HostProcess", target)
+	}
+	if process.NoWorkloadReason != "no workload is resident, so placement cannot be read yet" {
+		t.Fatalf("NoWorkloadReason = %q, want the generic resource reason", process.NoWorkloadReason)
 	}
 }
 

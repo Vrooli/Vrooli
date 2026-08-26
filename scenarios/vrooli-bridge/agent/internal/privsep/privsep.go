@@ -101,9 +101,8 @@ func WithRevisionResolver(r RevisionResolver) Option { return func(h *Helper) { 
 // WithGitBin overrides the git binary name/path.
 func WithGitBin(bin string) Option { return func(h *Helper) { h.gitBin = strings.TrimSpace(bin) } }
 
-// WithSealingSeedPath points at the node credential seed from which the
-// helper derives its X25519 private key. The seed is read only for the
-// duration of opening an operator envelope.
+// WithSealingSeedPath points at the node's independent X25519 private key.
+// The raw key is read only for the duration of opening an operator envelope.
 func WithSealingSeedPath(path string) Option {
 	return func(h *Helper) { h.sealingSeedPath = strings.TrimSpace(path) }
 }

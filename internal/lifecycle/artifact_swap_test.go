@@ -57,3 +57,12 @@ func TestStageArtifactFileLeavesCurrentArtifactWhenBuildDoesNotPublish(t *testin
 		t.Fatalf("target changed before publish: %q", got)
 	}
 }
+
+func TestComponentPublishTargetUsesArtifactDirectoryForDirectoryBuilders(t *testing.T) {
+	if got, want := componentPublishTarget("ui/dist/index.html", true), "ui/dist"; got != want {
+		t.Fatalf("directory publish target = %q, want %q", got, want)
+	}
+	if got, want := componentPublishTarget("api/demo-api", false), "api/demo-api"; got != want {
+		t.Fatalf("file publish target = %q, want %q", got, want)
+	}
+}

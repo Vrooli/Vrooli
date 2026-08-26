@@ -40,3 +40,31 @@ func ListObservedSafeguards(root string, now func() time.Time) ([]ObservedSafegu
 	}
 	return result, nil
 }
+
+// ObserveSafeguard samples one named safeguard's unprivileged inspection
+// handler. It is the focused twin of ListObservedSafeguards, for consumers that
+// already know which safeguard they are reporting on and must not pay for the
+// whole roster: sampling every handler to answer a question about one of them
+// charges that safeguard for every other handler's probe cost.
+//
+// An unknown name is an error, never an empty observation. Like the list form,
+// this never calls Apply.
+func ObserveSafeguard(root, name string, now func() time.Time) (ObservedSafeguard, error) {
+	if now == nil {
+		now = func() time.Time { return time.Now().UTC() }
+	}
+	item, err := hostruntime.ObserveSafeguardAt(root, name, now)
+	if err != nil {
+		return ObservedSafeguard{}, err
+	}
+	return ObservedSafeguard{
+		Name:           item.Name,
+		Capability:     item.Capability,
+		CapabilityRole: item.CapabilityRole,
+		Platforms:      append([]string(nil), item.Platforms...),
+		SupportClass:   string(item.SupportClass),
+		ExecutionState: string(item.ExecutionState),
+		Notes:          append([]string(nil), item.Notes...),
+		ObservedAt:     item.ObservedAt,
+	}, nil
+}

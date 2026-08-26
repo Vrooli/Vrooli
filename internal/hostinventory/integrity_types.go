@@ -92,6 +92,7 @@ type KernelPackageState struct {
 
 type DriverPackageState struct {
 	Vendor                   string            `json:"vendor"`
+	VendorID                 string            `json:"vendorId,omitempty"`
 	Series                   string            `json:"series,omitempty"`
 	Flavor                   string            `json:"flavor,omitempty"`
 	InstalledPackages        []PackageInfo     `json:"installedPackages,omitempty"`

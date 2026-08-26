@@ -2,7 +2,9 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"net/http"
+	"os"
 
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
@@ -129,6 +131,21 @@ func main() {
 
 	if err := configureOperatorStateRoots(); err != nil {
 		panic("configure operator state roots: " + err.Error())
+	}
+
+	// Runner mode executes one accepted apply run and exits. It is deliberately
+	// ahead of every server concern below: a runner opens no listener, claims
+	// no port, and registers no routes, so an apply in flight never competes
+	// with the API it was spawned from.
+	if id, ok := applyRunnerRequest(os.Args[1:]); ok {
+		if err := runApplyRunner(context.Background(), id); err != nil {
+			_, _ = fmt.Fprintf(os.Stderr, "apply runner: %v\n", err)
+			os.Exit(1)
+		}
+		return
+	}
+	if err := prepareApplyRunnerExecutable(); err != nil {
+		panic("prepare apply runner executable: " + err.Error())
 	}
 	// Keep the file-only API inside api-core's routed storage contract. The
 	// operatorstate service performs the actual request-scoped selection; this

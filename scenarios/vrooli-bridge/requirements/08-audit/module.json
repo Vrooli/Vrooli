@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "Append-only audit of every job dispatch and provisioning op (who/node/verb/args/outcome) via workspace-sandbox.",
-    "last_validated_at": "2026-08-19T07:16:08-04:00",
+    "last_validated_at": "2026-08-24T17:40:20-04:00",
     "module": "audit",
     "prd_ref": "OT-P0-008",
     "priority": "P0",
@@ -11,7 +11,7 @@
     {
       "id": "BRG-P0-008",
       "title": "Immutable Audit Trail",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-008",
       "category": "security",
       "description": "Every job dispatch and every provisioning operation — who, which node, what verb/args, outcome — is recorded to an append-only audit trail (workspace-sandbox as the accountability substrate), because remote code execution and remote provisioning must be fully traceable after the fact.",
@@ -20,7 +20,7 @@
           "type": "test",
           "ref": "api/internal/audit/audit_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Each dispatch/provision writes an immutable audit record with actor, node, verb/args, and outcome; records cannot be mutated."
         },
         {

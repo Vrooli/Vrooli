@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 import { CheckCircle2, CircleAlert, Loader2 } from "lucide-react";
 import { acknowledgeDegraded, applyOnboarding, fetchCapabilities, fetchV2ApplyPlan, fetchV2ApplyStatus, fetchV2Readiness, provisionCredential } from "../../lib/api";
+import { pollApplyRun } from "../../lib/applyRun";
 import { ApplyPlanDisclosure } from "./ApplyPlanDisclosure";
 import type { CompletionBlocker, ReadinessItem } from "../../types";
 import { Button } from "../ui/button";
@@ -16,6 +17,7 @@ export function StepReadiness({ title = "Validation" }: { title?: "Credentials" 
   const [provisionError, setProvisionError] = useState<string | null>(null);
   const [applyState, setApplyState] = useState<{ run_id: string; status: string; items: Array<{ name: string; outcome: string; error?: string }> } | null>(null);
   const [applyError, setApplyError] = useState<string | null>(null);
+  const [applyReconnecting, setApplyReconnecting] = useState(false);
   const [acknowledging, setAcknowledging] = useState(false);
   const [acknowledgeError, setAcknowledgeError] = useState<string | null>(null);
   const applyController = useRef<AbortController | null>(null);
@@ -46,16 +48,21 @@ export function StepReadiness({ title = "Validation" }: { title?: "Credentials" 
     applyController.current = controller;
     try {
       const result = await applyOnboarding(controller.signal);
-      const update = (current: typeof result) => setApplyState({ run_id: current.run_id, status: current.status, items: current.items.map((item) => ({ name: item.name, outcome: item.outcome, error: item.error })) });
-      update(result);
-      let current = result;
-      while (current.status === "pending" || current.status === "applying") {
-        await new Promise((resolve) => window.setTimeout(resolve, 250));
-        current = await fetchV2ApplyStatus(result.run_id, controller.signal);
-        update(current);
-      }
+      await pollApplyRun(result, {
+        fetchStatus: (runID) => fetchV2ApplyStatus(runID, controller.signal),
+        onUpdate: (current) => setApplyState({
+          run_id: current.run_id,
+          status: current.status,
+          items: current.items.map((item) => ({ name: item.name, outcome: item.outcome, error: item.error })),
+        }),
+        onConnectionChange: (connected) => setApplyReconnecting(!connected),
+        wait: (ms) => new Promise((resolve) => window.setTimeout(resolve, ms)),
+        now: () => Date.now(),
+      });
+      setApplyReconnecting(false);
       await refetch();
     } catch {
+      setApplyReconnecting(false);
       setApplyError("The selection could not be applied. Resolve the reported host issue and try again.");
     }
   };
@@ -82,6 +89,7 @@ export function StepReadiness({ title = "Validation" }: { title?: "Credentials" 
     {error && <p className="mt-6 text-danger" role="alert">Readiness could not be checked. Verify the control plane is available.</p>}
     {provisionError && <p className="mt-4 text-sm text-danger" role="alert">{provisionError}</p>}
     {applyError && <p className="mt-4 text-sm text-danger" role="alert">{applyError}</p>}
+    {applyReconnecting && <p className="mt-4 text-sm text-muted" role="status" data-testid="apply-reconnecting">The onboarding API restarted while applying. The run is still going; reconnecting&hellip;</p>}
     {title === "Credentials" && capabilities && <CapabilityActions statuses={capabilities.capabilities} onRefresh={() => { void Promise.all([refetchCapabilities(), refetch()]); }} />}
     {data?.credential_diagnosis?.provider && <div data-testid="backend-diagnosis" className="mt-4 rounded-lg border border-warning/30 bg-warning-surface p-3 text-sm"><p className="font-medium text-warning">Credential provider diagnosis</p><p className="mt-1 text-foreground">{data.credential_diagnosis.provider.condition} · {data.credential_diagnosis.provider.backend}</p>{data.credential_diagnosis.provider.explanation && <p className="mt-1 text-xs text-muted">{data.credential_diagnosis.provider.explanation}</p>}{data.credential_diagnosis.provider.fix && <p className="mt-1 text-xs text-primary-soft">Next: {data.credential_diagnosis.provider.fix}</p>}{data.credential_diagnosis.provider.write_condition && <p className="mt-1 text-xs text-muted">Write reachability: {data.credential_diagnosis.provider.write_condition}. {data.credential_diagnosis.provider.write_fix}</p>}</div>}
       {data && <>

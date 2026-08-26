@@ -110,6 +110,18 @@ func scenarioMutex(key string) *sync.Mutex {
 // The returned release closure must be invoked exactly once when the
 // caller is finished. Deferring it is the expected pattern.
 func (r *Runner) acquireScenarioLock(name string) (func(), error) {
+	return r.acquireScenarioLockWithMode(name, true)
+}
+
+// tryAcquireScenarioLock attempts the complete single-flight lock without
+// blocking on the in-process mutex. Dependency arbitration uses this probe so
+// its context and policy remain effective even when the competing lifecycle
+// invocation is another goroutine in this process.
+func (r *Runner) tryAcquireScenarioLock(name string) (func(), error) {
+	return r.acquireScenarioLockWithMode(name, false)
+}
+
+func (r *Runner) acquireScenarioLockWithMode(name string, blocking bool) (func(), error) {
 	if strings.TrimSpace(name) == "" {
 		return nil, fmt.Errorf("acquire scenario lock: name is required")
 	}
@@ -119,7 +131,11 @@ func (r *Runner) acquireScenarioLock(name string) (func(), error) {
 	}
 	key := lockKey(home, name)
 	mu := scenarioMutex(key)
-	mu.Lock()
+	if blocking {
+		mu.Lock()
+	} else if !mu.TryLock() {
+		return nil, &ScenarioBusyError{Scenario: name}
+	}
 
 	lockDir := filepath.Join(home, scenarioLockDirName)
 	if err := os.MkdirAll(lockDir, 0o755); err != nil {

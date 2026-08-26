@@ -25,6 +25,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/vrooli/vrooli/internal/hostcapability"
 	"github.com/vrooli/vrooli/internal/hostinventory"
 	"github.com/vrooli/vrooli/internal/hostreqkit"
 	"github.com/vrooli/vrooli/internal/hostreqspec"
@@ -122,7 +123,9 @@ var (
 		return strings.TrimSpace(string(out)), err
 	}
 	InstalledPackagesFn = func() ([]string, error) {
-		out, err := hostreqkit.CombinedOutputFn("dpkg-query", "-W", "-f=${binary:Package}\\t${db:Status-Abbrev}\\n", "nvidia-driver-*", "linux-modules-nvidia-*")
+		args := []string{"-W", "-f=${binary:Package}\\t${db:Status-Abbrev}\\n"}
+		args = append(args, hostcapability.NvidiaPackageQueryPatterns()...)
+		out, err := hostreqkit.CombinedOutputFn("dpkg-query", args...)
 		if err != nil {
 			return nil, err
 		}
@@ -159,9 +162,10 @@ var (
 		}
 		return false
 	}
+	// RemoteDesktopStateFn keeps an unreadable session state distinct from a
+	// confirmed inactive session. Unknown live state needs operator consent.
+	RemoteDesktopStateFn = func() (bool, bool) { return RemoteDesktopActiveFn(), true }
 )
-
-var driverPackageRE = regexp.MustCompile(`^nvidia-driver-([0-9]+(?:-[a-z]+)?)(?:-(open|server(?:-open)?))?$`)
 
 type handler struct{ manifest hostreqkit.SafeguardManifest }
 
@@ -277,7 +281,14 @@ func (h handler) Apply(host hostreqkit.Host, status hostreqkit.ItemStatus, opts 
 	if len(packages) == 0 {
 		return applyPersistence(status, opts)
 	}
-	if RemoteDesktopActiveFn() && !opts.MaintenanceWindow {
+	remoteDesktopActive, remoteDesktopDetermined := RemoteDesktopStateFn()
+	if !remoteDesktopDetermined && !opts.MaintenanceWindow {
+		status.ExecutionState = hostreqkit.ExecutionManualActionRequired
+		status.BlockingReason = hostreqkit.BlockingUndeterminedNeedsConsent
+		status.Notes = append(status.Notes, "remote-desktop state could not be determined; operator consent is required before changing the live driver")
+		return status, nil
+	}
+	if remoteDesktopActive && !opts.MaintenanceWindow {
 		status.ExecutionState = hostreqkit.ExecutionManualActionRequired
 		status.BlockingReason = hostreqkit.BlockingNeedsMaintenanceWindow
 		status.Notes = append(status.Notes,
@@ -384,7 +395,7 @@ func repairPackages() ([]string, error) {
 	}
 	driver := ""
 	for _, pkg := range installed {
-		if driverPackageRE.MatchString(pkg) {
+		if hostcapability.IsNvidiaDriverPackage(pkg) {
 			driver = pkg
 			break
 		}
@@ -392,13 +403,14 @@ func repairPackages() ([]string, error) {
 	if driver == "" {
 		return nil, fmt.Errorf("no installed nvidia-driver metapackage identifies the supported driver branch")
 	}
-	match := driverPackageRE.FindStringSubmatch(driver)
-	branch, flavor := match[1], match[2]
-	modulePrefix := "linux-modules-nvidia-" + branch
-	if flavor != "" {
-		modulePrefix += "-" + flavor
+	modulePrefix, ok := hostcapability.NvidiaModulePackagePrefix(driver)
+	if !ok {
+		return nil, fmt.Errorf("installed driver package %q has no supported module-package mapping", driver)
 	}
-	current := modulePrefix + "-" + kernel
+	current, ok := hostcapability.DeriveNvidiaModulePackage(driver, kernel)
+	if !ok {
+		return nil, fmt.Errorf("running kernel %q has no supported module-package mapping", kernel)
+	}
 	if !PackageAvailableFn(current) {
 		return nil, fmt.Errorf("Ubuntu repository has no module package %q for running kernel", current)
 	}

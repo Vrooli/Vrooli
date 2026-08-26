@@ -13,7 +13,6 @@ import (
 	"time"
 
 	"github.com/vrooli/api-core/schedule"
-	"github.com/vrooli/vrooli/packages/proto/sealing"
 )
 
 // Code/TTL policy. Codes are single-use and short-lived: a live code can enrol a
@@ -175,6 +174,10 @@ func (s *Service) redeemCorrelated(ctx context.Context, code PairingCode, public
 	if !ok {
 		return "", fmt.Errorf("correlated pairing requires correlation-capable node registrar")
 	}
+	// Correlated enrollment is owner-directed. Carry the scopes from the
+	// single-use pairing code into the durable saga instead of trusting the
+	// agent's self-report, which may be stale or intentionally presence-only.
+	facts.Scopes = normalizeScopes(code.Scopes)
 	saga, err := repo.PrepareEnrollmentSaga(ctx, EnrollmentSaga{CorrelationID: code.CorrelationID, CodeID: code.ID, PublicKey: publicKey, Facts: facts})
 	if err != nil {
 		return "", err
@@ -198,6 +201,9 @@ func (s *Service) redeemCorrelated(ctx context.Context, code PairingCode, public
 		if err := repo.UpdateEnrollmentSaga(ctx, saga); err != nil {
 			return "", err
 		}
+		if err := s.reconcileNodeScopes(ctx, registrar, nodeID, code.Scopes); err != nil {
+			return "", err
+		}
 		return s.continueEnrollment(ctx, repo, registrar, saga)
 	}
 	if saga.State == "prepared" {
@@ -210,6 +216,20 @@ func (s *Service) redeemCorrelated(ctx context.Context, code PairingCode, public
 		}
 	}
 	return s.continueEnrollment(ctx, repo, registrar, saga)
+}
+
+func (s *Service) reconcileNodeScopes(ctx context.Context, registrar CorrelatedNodeRegistrar, nodeID string, scopes []string) error {
+	updater, ok := registrar.(CorrelatedNodeScopeUpdater)
+	if !ok {
+		// Older test and embedded registrars may not expose the optional update
+		// seam. They can still complete enrollment; production wiring implements
+		// the seam through the registry service.
+		return nil
+	}
+	if err := updater.UpdateNodeScopes(ctx, nodeID, normalizeScopes(scopes)); err != nil {
+		return fmt.Errorf("reconcile node scopes: %w", err)
+	}
+	return nil
 }
 
 func (s *Service) existingNodeByPublicKey(ctx context.Context, publicKey string) (string, bool, error) {
@@ -394,21 +414,64 @@ func (s *Service) ListRequests(ctx context.Context, includeDecided bool) ([]Pair
 // RevokeCredential severs a node's credential. Called by the registry domain's
 // atomic revoke (so a single RevokeNode kills durable identity AND auth).
 func (s *Service) RevokeCredential(ctx context.Context, nodeID string) error {
-	return s.repo.RevokeCredential(ctx, nodeID)
+	if err := s.repo.RevokeCredential(ctx, nodeID); err != nil {
+		return err
+	}
+	if keys, ok := s.repo.(EncryptionKeyRepository); ok {
+		return keys.RevokeEncryptionKey(ctx, nodeID)
+	}
+	return nil
 }
 
 // SealingPublicKey returns the node-bound X25519 public key used to seal
 // operator authorization envelopes. It is derived from the already-pinned
 // Ed25519 identity; no additional private key is stored or transported.
 func (s *Service) SealingPublicKey(ctx context.Context, nodeID string) ([]byte, error) {
-	public, ok, err := s.repo.ActivePublicKey(ctx, nodeID)
+	keys, ok := s.repo.(EncryptionKeyRepository)
+	if !ok {
+		return nil, fmt.Errorf("node %q has no encryption-key repository", nodeID)
+	}
+	public, found, err := keys.ActiveEncryptionPublicKey(ctx, nodeID)
 	if err != nil {
 		return nil, err
 	}
-	if !ok {
-		return nil, fmt.Errorf("node %q has no active credential", nodeID)
+	if !found {
+		return nil, fmt.Errorf("node %q has no active encryption credential", nodeID)
 	}
-	return sealing.PublicKeyFromEd25519(public)
+	return public, nil
+}
+
+// RegisterEncryptionKey adds or rotates the node's X25519 public key. The
+// caller must already have proved possession of the active Ed25519 identity;
+// this method additionally checks that the supplied identity is still active.
+func (s *Service) RegisterEncryptionKey(ctx context.Context, nodeID, signingPublicKey, encryptionPublicKey string) error {
+	active, ok, err := s.repo.ActivePublicKey(ctx, nodeID)
+	if err != nil {
+		return err
+	}
+	if !ok || base64.StdEncoding.EncodeToString(active) != strings.TrimSpace(signingPublicKey) {
+		return ErrInvalid{Field: "node_auth", Reason: "active Ed25519 credential required"}
+	}
+	keys, ok := s.repo.(EncryptionKeyRepository)
+	if !ok {
+		return fmt.Errorf("encryption-key repository is not configured")
+	}
+	raw, err := base64.StdEncoding.DecodeString(strings.TrimSpace(encryptionPublicKey))
+	if err != nil || len(raw) != 32 {
+		return ErrInvalid{Field: "encryption_public_key", Reason: "must be 32-byte X25519 base64"}
+	}
+	return keys.StoreEncryptionPublicKey(ctx, EncryptionKey{NodeID: nodeID, PublicKey: base64.StdEncoding.EncodeToString(raw), Algorithm: "x25519"})
+}
+
+func (s *Service) RegisterEncryptionKeyAuthenticated(ctx context.Context, nodeID, encryptionPublicKey string) error {
+	active, ok, err := s.repo.ActivePublicKey(ctx, nodeID)
+	if err != nil {
+		return err
+	}
+	if !ok {
+		return ErrInvalid{Field: "node_auth", Reason: "active Ed25519 credential required"}
+	}
+	return s.RegisterEncryptionKey(ctx, nodeID, base64.StdEncoding.EncodeToString(active), encryptionPublicKey)
 }
 
 // --- helpers ---

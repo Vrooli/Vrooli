@@ -62,7 +62,7 @@ func buildManifest() ([]string, map[string][]ArtifactOutput, error) {
 	if err != nil {
 		return nil, nil, fmt.Errorf("locate repository for dispatch scope catalog: %w", err)
 	}
-	catalog, err := scopecatalog.Build(root)
+	catalog, err := scopecatalog.BuildResilient(root)
 	if err != nil {
 		return nil, nil, err
 	}

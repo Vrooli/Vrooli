@@ -8,7 +8,7 @@ This log records durable design choices that affect safe maintenance.
 
 | Decision | Rationale | Evidence |
 |---|---|---|
-| Native credential authority owns ordinary resource credentials | One metadata-safe provisioning and runtime-resolution contract prevents fallback drift | `internal/secrets`, `api/credential_*.go` (legacy filenames pending source move) |
+| Native credential authority owns ordinary resource credentials | One metadata-safe provisioning and runtime-resolution contract prevents fallback drift | `internal/credentialauthority`, `api/credential_*.go` (legacy filenames pending source move) |
 | Desktop metadata uses private SQLite | Bundle data remains private to its app root | `api/desktop_storage.go` |
 | Vault is capability-specific or an explicit mirror | Ordinary desktop credentials must resolve locally when Vault is unavailable | desktop resource plan tests |
 | Artifact admission fails closed | A bundle must not consume unsigned release checksums | resource artifact pipeline |

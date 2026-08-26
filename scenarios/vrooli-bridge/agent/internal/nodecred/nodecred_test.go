@@ -13,6 +13,27 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestLoadOrCreateEncryptionUsesIndependentX25519Key(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "node-encryption.key")
+	first, err := LoadOrCreateEncryption(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	second, err := LoadOrCreateEncryption(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(first.PublicKey()) != string(second.PublicKey()) {
+		t.Fatal("encryption public key changed across reload")
+	}
+	if len(first.PublicKey()) != 32 || first.PublicKeyBase64() == "" {
+		t.Fatalf("unexpected X25519 public key: %d bytes", len(first.PublicKey()))
+	}
+	if info, err := os.Stat(path); err != nil || info.Mode().Perm() != 0o600 {
+		t.Fatalf("encryption key permissions = %v, err=%v; want 0600", info.Mode().Perm(), err)
+	}
+}
+
 // [REQ:BRG-P0-002] The node keypair is stable across loads (so its registered
 // public key keeps verifying) and the private seed is written owner-only.
 func TestLoadOrCreate_StableAndOwnerOnly(t *testing.T) {

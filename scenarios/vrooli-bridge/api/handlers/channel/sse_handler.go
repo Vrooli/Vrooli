@@ -105,13 +105,6 @@ func (h *sseHandler) handleEvents(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set("Content-Type", "text/event-stream")
-	w.Header().Set("Cache-Control", "no-cache")
-	w.Header().Set("Connection", "keep-alive")
-	w.Header().Set("X-Accel-Buffering", "no") // disable proxy buffering (nginx)
-	w.WriteHeader(http.StatusOK)
-	flusher.Flush()
-
 	// Record the node's protocol-compatibility verdict from the version it
 	// reports on the dial-out (?pv=). A version-drifted node holds its channel
 	// (presence) but is excluded from work by dispatch / the fleet roll. Absence
@@ -120,8 +113,20 @@ func (h *sseHandler) handleEvents(w http.ResponseWriter, r *http.Request) {
 	nodePV := parseProtocolVersion(r.URL.Query().Get("pv"))
 	h.deps.Hub.SetCompatibility(nodeID, compat.Evaluate(nodePV))
 
+	// Register presence before acknowledging the HTTP stream. The TCP connection
+	// already exists when this handler runs, so writing/flushing the response
+	// first creates a visible handshake window in which operators can observe a
+	// connected node as offline. If the response cannot be written, the deferred
+	// Close below removes the registration again.
 	conn := h.deps.Hub.Connect(nodeID)
 	defer conn.Close()
+
+	w.Header().Set("Content-Type", "text/event-stream")
+	w.Header().Set("Cache-Control", "no-cache")
+	w.Header().Set("Connection", "keep-alive")
+	w.Header().Set("X-Accel-Buffering", "no") // disable proxy buffering (nginx)
+	w.WriteHeader(http.StatusOK)
+	flusher.Flush()
 
 	// Greet the node so a just-connected client renders state without waiting,
 	// and prove the stream is live.

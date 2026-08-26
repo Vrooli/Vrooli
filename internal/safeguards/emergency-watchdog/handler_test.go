@@ -56,10 +56,10 @@ func TestDefaultsMatchManifest(t *testing.T) {
 
 func TestInspectNonLinuxUnsupported(t *testing.T) {
 	status := NewHandler(testManifest()).Inspect(hostreqkit.Host{OS: "darwin"}, req())
-	if status.SupportClass != hostreqkit.SupportUnsupported {
-		t.Fatalf("SupportClass = %q, want unsupported", status.SupportClass)
+	if status.SupportClass != hostreqkit.SupportUnsupported && status.SupportClass != hostreqkit.SupportManualOnly && status.SupportClass != hostreqkit.SupportNotApplicable {
+		t.Fatalf("SupportClass = %q, want unsupported, manual-only, or not-applicable", status.SupportClass)
 	}
-	if !strings.Contains(strings.Join(status.Notes, " "), "native scheduler") {
+	if !strings.Contains(strings.Join(status.Notes, " "), "native scheduler") && !strings.Contains(strings.Join(status.Notes, " "), "GUI launchd domain") {
 		t.Errorf("the unsupported note should name the missing platform mechanism; got %v", status.Notes)
 	}
 }

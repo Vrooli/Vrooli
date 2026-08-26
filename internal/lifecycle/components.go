@@ -272,7 +272,11 @@ func componentArtifact(name, scenarioRoot, scenarioName string, components map[s
 	if !ok || spec.Reserved {
 		return "", fmt.Errorf("component %q has no resolvable builder kind %q", name, component.Build.Kind)
 	}
-	output := strings.TrimSpace(component.Build.Output)
+	return componentArtifactWithOutput(name, scenarioRoot, scenarioName, component, spec, component.Build.Output, goos)
+}
+
+func componentArtifactWithOutput(name, scenarioRoot, scenarioName string, component scenario.Component, spec BuilderSpec, declaredOutput, goos string) (string, error) {
+	output := strings.TrimSpace(declaredOutput)
 	if output == "" {
 		output = spec.DefaultOutput
 	}
@@ -295,6 +299,45 @@ func componentArtifact(name, scenarioRoot, scenarioName string, components map[s
 	return filepath.Join(scenarioRoot, filepath.FromSlash(output)), nil
 }
 
+type componentBuildTarget struct {
+	Entry  string
+	Output string
+}
+
+// componentBuildTargets returns the primary component artifact followed by
+// explicitly declared secondary artifacts. Keeping this expansion here makes
+// run.argv resolution, setup builds, and freshness use the same artifact
+// contract instead of each inferring outputs independently.
+func componentBuildTargets(name, scenarioRoot, scenarioName string, component scenario.Component, spec BuilderSpec, goos string) ([]componentBuildTarget, error) {
+	if strings.TrimSpace(spec.Kind) == "" || spec.Reserved {
+		return nil, fmt.Errorf("component %q has no resolvable builder kind %q", name, component.Build.Kind)
+	}
+	primary, err := componentArtifactWithOutput(name, scenarioRoot, scenarioName, component, spec, component.Build.Output, goos)
+	if err != nil {
+		return nil, err
+	}
+	entry := strings.TrimSpace(component.Build.Entry)
+	if entry == "" {
+		entry = "."
+	}
+	targets := []componentBuildTarget{{Entry: entry, Output: primary}}
+	for index, extra := range component.Build.Outputs {
+		if strings.TrimSpace(extra.Output) == "" {
+			return nil, fmt.Errorf("component %q build.outputs[%d].output is required", name, index)
+		}
+		extraOutput, err := componentArtifactWithOutput(name, scenarioRoot, scenarioName, component, spec, extra.Output, goos)
+		if err != nil {
+			return nil, fmt.Errorf("component %q build.outputs[%d]: %w", name, index, err)
+		}
+		extraEntry := strings.TrimSpace(extra.Entry)
+		if extraEntry == "" {
+			extraEntry = "."
+		}
+		targets = append(targets, componentBuildTarget{Entry: extraEntry, Output: extraOutput})
+	}
+	return targets, nil
+}
+
 func componentFreshnessArtifacts(appRoot, repoRoot string, component scenario.Component, deps hostProbeDeps) ([]artifactFreshness, error) {
 	spec, ok := builderRegistry[strings.TrimSpace(component.Build.Kind)]
 	if !ok || spec.Reserved || spec.freshness == nil {
@@ -304,15 +347,22 @@ func componentFreshnessArtifacts(appRoot, repoRoot string, component scenario.Co
 }
 
 func goModuleComponentFreshness(appRoot, repoRoot string, component scenario.Component, deps hostProbeDeps) ([]artifactFreshness, error) {
-	output := strings.TrimSpace(component.Build.Output)
-	if output == "" {
-		output = strings.NewReplacer(
-			"{dir}", strings.TrimSpace(component.Build.Dir),
-			"{scenario}", filepath.Base(appRoot),
-			"{{ext}}", "",
-		).Replace(goModuleDefaultOutput)
+	targets, err := componentBuildTargets("component", appRoot, filepath.Base(appRoot), component, BuilderSpec{
+		Kind:          "go_module",
+		DefaultOutput: goModuleDefaultOutput,
+	}, runtimeGOOS())
+	if err != nil {
+		return nil, err
 	}
-	return binariesFreshnessArtifacts(appRoot, repoRoot, scenario.ConditionCheck{Type: "binaries", Targets: []string{output}}, deps)
+	declared := make([]string, 0, len(targets))
+	for _, target := range targets {
+		rel, err := filepath.Rel(appRoot, target.Output)
+		if err != nil {
+			return nil, err
+		}
+		declared = append(declared, filepath.ToSlash(rel))
+	}
+	return binariesFreshnessArtifacts(appRoot, repoRoot, scenario.ConditionCheck{Type: "binaries", Targets: declared}, deps)
 }
 
 func pnpmViteComponentFreshness(appRoot, repoRoot string, component scenario.Component, deps hostProbeDeps) ([]artifactFreshness, error) {

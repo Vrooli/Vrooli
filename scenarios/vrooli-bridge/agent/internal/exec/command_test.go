@@ -12,6 +12,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/vrooli/repo-contract-go/repocontracttest"
 	channelv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/channel"
 	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/shared"
 )
@@ -21,7 +22,7 @@ import (
 // events, and reports the real exit code — with no shell anywhere in the path.
 func TestRunner_RealExecNoShell(t *testing.T) {
 	if runtime.GOOS == "windows" {
-		t.Skip("uses a POSIX echo binary; the runner itself is cross-platform")
+		repocontracttest.SkipPlatform(t, "uses a POSIX echo binary; the runner itself is cross-platform")
 	}
 	echo, err := exec.LookPath("echo")
 	if err != nil {

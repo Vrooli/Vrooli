@@ -24,6 +24,14 @@ type osCommandRunner struct{}
 var _ CommandRunner = osCommandRunner{}
 
 func (osCommandRunner) Run(ctx context.Context, argv []string, dir string, onLog func(string)) (int, error) {
+	return osCommandRunner{}.run(ctx, argv, dir, nil, onLog)
+}
+
+func (osCommandRunner) RunWithEnvironment(ctx context.Context, argv []string, dir string, env []string, onLog func(string)) (int, error) {
+	return osCommandRunner{}.run(ctx, argv, dir, env, onLog)
+}
+
+func (osCommandRunner) run(ctx context.Context, argv []string, dir string, overlay []string, onLog func(string)) (int, error) {
 	if len(argv) == 0 {
 		return startFailureExitCode, errors.New("empty argv")
 	}
@@ -40,6 +48,9 @@ func (osCommandRunner) Run(ctx context.Context, argv []string, dir string, onLog
 	// toolchain locations that bootstrap already treats as authoritative so a
 	// background node behaves like the same node in an interactive shell.
 	cmd.Env = commandEnvironment(argv[0])
+	if len(overlay) > 0 {
+		cmd.Env = append(cmd.Env, overlay...)
+	}
 
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {

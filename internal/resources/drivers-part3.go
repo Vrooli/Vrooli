@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -14,6 +15,8 @@ import (
 
 	"github.com/vrooli/cli-core/cliutil"
 	repocontract "github.com/vrooli/repo-contract-go"
+	"github.com/vrooli/vrooli/internal/artifactlease"
+	"github.com/vrooli/vrooli/internal/artifactledger"
 	"github.com/vrooli/vrooli/internal/credentialauthority"
 	resourceenv "github.com/vrooli/vrooli/internal/resources/env"
 	manifestpkg "github.com/vrooli/vrooli/internal/resources/manifest"
@@ -184,7 +187,6 @@ func usesManagedDiscoveredProvider(manifest ResourceManifest) bool {
 }
 
 func (d nativeCLIDriver) Status(ctx context.Context, controller *Controller, item Resource, manifest ResourceManifest, fast bool) (Status, error) {
-
 	if manifest.ManagedService != nil && len(manifest.ManagedService.DataArtifacts) > 0 {
 		fast = false
 	}
@@ -411,16 +413,46 @@ func uninstallNativeCLI(controller *Controller, manifest ResourceManifest) error
 	if err != nil || filepath.Dir(cleanBinary) != binDir {
 		return fmt.Errorf("refuse to uninstall unsafe native CLI path %q", binary)
 	}
-	for _, path := range []string{cleanBinary, cliutil.InstalledManifestPath(cleanBinary), cliutil.InstalledBuildMetadataPath(cleanBinary)} {
-		if err := os.Remove(path); err != nil && !errors.Is(err, os.ErrNotExist) {
+	// Resource manifests share ~/.vrooli/bin with the control-plane and
+	// scenario CLIs. A malformed or future manifest must never turn resource
+	// uninstall into a root-control-plane removal.
+	switch filepath.Base(cleanBinary) {
+	case "vrooli", "vrooli-api", "vrooli-agent-launcher", "vrooli-policy-runner":
+		return fmt.Errorf("refuse to uninstall protected control-plane CLI %q", filepath.Base(cleanBinary))
+	}
+	ledger, err := artifactledger.New(controller.Home)
+	if err != nil {
+		return fmt.Errorf("prepare native CLI removal ledger: %w", err)
+	}
+	for _, artifact := range []struct {
+		kind string
+		path string
+	}{
+		{kind: "binary", path: cleanBinary},
+		{kind: "manifest", path: cliutil.InstalledManifestPath(cleanBinary)},
+		{kind: "build-metadata", path: cliutil.InstalledBuildMetadataPath(cleanBinary)},
+	} {
+		err := ledger.Guard(artifactledger.Removal{
+			Path:      artifact.path,
+			Subject:   cleanBinary,
+			Kind:      artifact.kind,
+			Component: "resources.uninstallNativeCLI",
+			Predicate: "operator requested uninstall of the named resource CLI",
+		}, func() error { return os.Remove(artifact.path) })
+		if errors.Is(err, fs.ErrNotExist) {
+			continue
+		}
+		if err != nil {
 			return fmt.Errorf("uninstall native CLI %s: %w", manifest.Name, err)
 		}
+	}
+	if err := artifactlease.Remove(cleanBinary); err != nil {
+		return fmt.Errorf("remove native CLI ownership record %s: %w", manifest.Name, err)
 	}
 	return nil
 }
 
 func runInstallCommand(ctx context.Context, controller *Controller, manifest ResourceManifest) error {
-
 	if manifest.ManagedService != nil && len(manifest.ManagedService.DataArtifacts) > 0 {
 		if err := ensureManagedServiceDataArtifacts(ctx, controller, manifest); err != nil {
 			return err

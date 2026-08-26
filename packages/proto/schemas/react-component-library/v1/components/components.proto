@@ -42,6 +42,7 @@ service ComponentsService {
   rpc UpdateComponentContent(UpdateComponentContentRequest) returns (UpdateComponentContentResponse);
   rpc ListComponentVersions(ListComponentVersionsRequest) returns (ListComponentVersionsResponse);
   rpc GetComponentVersionContent(GetComponentVersionContentRequest) returns (GetComponentVersionContentResponse);
+  rpc ResolveLibraryImport(ResolveLibraryImportRequest) returns (ResolveLibraryImportResponse);
   rpc ListComponentStories(ListComponentStoriesRequest) returns (ListComponentStoriesResponse);
   rpc ListPreviewFrames(ListPreviewFramesRequest) returns (ListPreviewFramesResponse);
   rpc PersistPreviewFrame(PersistPreviewFrameRequest) returns (PersistPreviewFrameResponse);
@@ -569,6 +570,27 @@ message GetComponentVersionContentRequest {
 message GetComponentVersionContentResponse {
   ComponentVersion version = 1;
   string content = 2;
+}
+
+// ResolveLibraryImport maps a published package specifier to the immutable
+// catalog source it names. Relative imports are intentionally reported as
+// unresolved: they belong to the local file's module graph, not the library
+// catalog.
+message ResolveLibraryImportRequest {
+  string specifier = 1;
+  string from_path = 2;
+}
+
+message ResolveLibraryImportResponse {
+  bool resolved = 1;
+  string specifier = 2;
+  string asset_id = 3;
+  string library_id = 4;
+  string version = 5;
+  string export_kind = 6;
+  string description = 7;
+  string source_path = 8;
+  string diagnostic = 9;
 }
 
 // ComponentStory is the validated, version-level projection of story.json.

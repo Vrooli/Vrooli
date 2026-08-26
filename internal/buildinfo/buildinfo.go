@@ -599,6 +599,7 @@ func RebuildAndReexec(argv []string) error {
 		_ = os.Remove(tempPath)
 		return fmt.Errorf("rebuild %s: %w", buildTarget, err)
 	}
+	_ = PreserveRootBinaryFallback(executable)
 	if err := renameFn(tempPath, executable); err != nil {
 		_ = os.Remove(tempPath)
 		return fmt.Errorf("install rebuilt binary %s: %w", executable, err)

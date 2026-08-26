@@ -28,6 +28,7 @@ func New() (credentialclient.Client, error) {
 	}
 	return credentialclient.NewClient(credentialclient.ClientOptions{
 		Authority:   authority,
+		Root:        root,
 		StateDir:    state,
 		Descriptors: func() ([]credentialclient.CredentialRef, error) { return credentialclient.DiscoverDescriptors(root) },
 	})

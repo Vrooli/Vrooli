@@ -3,6 +3,9 @@ package vroolilauncher
 import (
 	"errors"
 	"io/fs"
+	"os"
+	"os/exec"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -101,6 +104,60 @@ func TestInspectMatchingShimIsAlreadyPresent(t *testing.T) {
 	}
 	if !st.Applied {
 		t.Errorf("Applied should be true")
+	}
+}
+
+func TestShimFallsBackWhenCanonicalBinaryIsMissing(t *testing.T) {
+	home := t.TempDir()
+	marker := filepath.Join(home, "fallback-ran")
+	fallback := filepath.Join(home, ".vrooli", "libexec", "vrooli.previous")
+	if err := os.MkdirAll(filepath.Dir(fallback), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(fallback, []byte("#!/bin/sh\nprintf '%s' fallback > \"$MARKER\"\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	cmd := exec.Command("sh", "-c", shimContent, "vrooli")
+	cmd.Env = append(os.Environ(), "HOME="+home, "USER=vrooli-test-user", "MARKER="+marker)
+	if output, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("shim fallback failed: %v\n%s", err, output)
+	}
+	data, err := os.ReadFile(marker)
+	if err != nil {
+		t.Fatalf("fallback did not run: %v", err)
+	}
+	if string(data) != "fallback" {
+		t.Fatalf("fallback marker = %q, want fallback", data)
+	}
+}
+
+func TestShimPrefersCanonicalBinary(t *testing.T) {
+	home := t.TempDir()
+	marker := filepath.Join(home, "canonical-ran")
+	primary := filepath.Join(home, ".vrooli", "bin", "vrooli")
+	fallback := filepath.Join(home, ".vrooli", "libexec", "vrooli.previous")
+	if err := os.MkdirAll(filepath.Dir(primary), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Dir(fallback), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	for _, path := range []string{primary, fallback} {
+		if err := os.WriteFile(path, []byte("#!/bin/sh\nprintf '%s' "+filepath.Base(path)+" > \"$MARKER\"\n"), 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	cmd := exec.Command("sh", "-c", shimContent, "vrooli")
+	cmd.Env = append(os.Environ(), "HOME="+home, "USER=vrooli-test-user", "MARKER="+marker)
+	if output, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("shim canonical path failed: %v\n%s", err, output)
+	}
+	data, err := os.ReadFile(marker)
+	if err != nil {
+		t.Fatalf("canonical binary did not run: %v", err)
+	}
+	if string(data) != "vrooli" {
+		t.Fatalf("canonical marker = %q, want vrooli", data)
 	}
 }
 

@@ -2,19 +2,20 @@ package privsep_test
 
 import (
 	"context"
-	"crypto/ed25519"
+	"crypto/ecdh"
 	"crypto/rand"
 	"os"
 	"strings"
 	"sync"
 	"testing"
 
+	"vrooli-bridge/agent/internal/privsep"
+
 	"github.com/stretchr/testify/require"
 	channelv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/channel"
 	cleanupv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/cleanup"
 	"github.com/vrooli/vrooli/packages/proto/privilegedops"
 	"github.com/vrooli/vrooli/packages/proto/sealing"
-	"vrooli-bridge/agent/internal/privsep"
 )
 
 type cleanupRunner struct {
@@ -43,10 +44,10 @@ func (r *cleanupRunner) Run(_ context.Context, argv []string, _ string, onLog fu
 }
 
 func TestCleanupHelperTreatsExistingBreakGlassAsProtectedWithoutOverwrite(t *testing.T) {
-	_, nodePrivate, err := ed25519.GenerateKey(rand.Reader)
+	nodePrivate, err := ecdh.X25519().GenerateKey(rand.Reader)
 	require.NoError(t, err)
 	seedPath := t.TempDir() + "/node_credential.key"
-	require.NoError(t, os.WriteFile(seedPath, nodePrivate.Seed(), 0o600))
+	require.NoError(t, os.WriteFile(seedPath, nodePrivate.Bytes(), 0o600))
 	runner := &cleanupRunner{statusComplete: true}
 	h := privsep.NewHelper("vrooli", "/work", nil, privsep.WithStepRunner(runner), privsep.WithSealingSeedPath(seedPath))
 	var events []*cleanupv1.CleanupEvent
@@ -132,12 +133,11 @@ func TestCleanupHelperCarriesDeferredBridgeServicesForSelfCleanup(t *testing.T) 
 }
 
 func TestCleanupHelperOpensSealedPassphraseOnlyAtNode(t *testing.T) {
-	_, nodePrivate, err := ed25519.GenerateKey(rand.Reader)
+	nodePrivate, err := ecdh.X25519().GenerateKey(rand.Reader)
 	require.NoError(t, err)
-	public, err := sealing.PublicKeyFromEd25519(nodePrivate.Public().(ed25519.PublicKey))
-	require.NoError(t, err)
+	public := nodePrivate.PublicKey().Bytes()
 	seedPath := t.TempDir() + "/node_credential.key"
-	require.NoError(t, os.WriteFile(seedPath, nodePrivate.Seed(), 0o600))
+	require.NoError(t, os.WriteFile(seedPath, nodePrivate.Bytes(), 0o600))
 	cmd := &channelv1.CleanupCommand{
 		Operation:         channelv1.PrivilegedOperation_PRIVILEGED_OPERATION_PROVISION_BREAK_GLASS,
 		OpId:              "operation-1",
@@ -197,12 +197,11 @@ func TestCleanupHelperRefusesApplyWithoutOperatorConfirmation(t *testing.T) {
 }
 
 func TestCleanupHelperRoutesEveryNamedCleanupOperation(t *testing.T) {
-	_, nodePrivate, err := ed25519.GenerateKey(rand.Reader)
+	nodePrivate, err := ecdh.X25519().GenerateKey(rand.Reader)
 	require.NoError(t, err)
-	public, err := sealing.PublicKeyFromEd25519(nodePrivate.Public().(ed25519.PublicKey))
-	require.NoError(t, err)
+	public := nodePrivate.PublicKey().Bytes()
 	seedPath := t.TempDir() + "/node_credential.key"
-	require.NoError(t, os.WriteFile(seedPath, nodePrivate.Seed(), 0o600))
+	require.NoError(t, os.WriteFile(seedPath, nodePrivate.Bytes(), 0o600))
 	runner := &cleanupRunner{}
 	h := privsep.NewHelper("vrooli", "/work", nil, privsep.WithStepRunner(runner), privsep.WithSealingSeedPath(seedPath))
 

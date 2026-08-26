@@ -62,3 +62,12 @@ type EnrollmentRepository interface {
 	ListIncompleteEnrollmentSagas(context.Context) ([]EnrollmentSaga, error)
 	FinalizeClaimedCode(context.Context, string, string) error
 }
+
+// EncryptionKeyRepository stores the independently generated X25519 public
+// key. It is optional in the legacy Repository seam so focused pairing fakes
+// remain valid while production sqlite supports key-add and rotation.
+type EncryptionKeyRepository interface {
+	StoreEncryptionPublicKey(context.Context, EncryptionKey) error
+	ActiveEncryptionPublicKey(context.Context, string) ([]byte, bool, error)
+	RevokeEncryptionKey(context.Context, string) error
+}

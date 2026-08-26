@@ -120,6 +120,57 @@ func TestResolveComponentArgvRejectsReuseCycle(t *testing.T) {
 	}
 }
 
+func TestComponentBuildTargetsIncludesDeclaredSecondaryArtifacts(t *testing.T) {
+	component := scenario.Component{Build: scenario.ComponentBuild{
+		Kind:  "go_module",
+		Dir:   "api",
+		Entry: ".",
+		Outputs: []scenario.ComponentBuildOutput{
+			{Entry: "./cmd/workspace-sandbox-launcher", Output: "api/workspace-sandbox-launcher"},
+		},
+	}}
+	targets, err := componentBuildTargets("api", "/repo/scenarios/workspace-sandbox", "workspace-sandbox", component, builderRegistry["go_module"], "darwin")
+	if err != nil {
+		t.Fatalf("componentBuildTargets: %v", err)
+	}
+	if len(targets) != 2 {
+		t.Fatalf("target count = %d, want 2", len(targets))
+	}
+	if got, want := targets[0].Entry, "."; got != want {
+		t.Fatalf("primary entry = %q, want %q", got, want)
+	}
+	if got, want := targets[0].Output, "/repo/scenarios/workspace-sandbox/api/workspace-sandbox-api"; got != want {
+		t.Fatalf("primary output = %q, want %q", got, want)
+	}
+	if got, want := targets[1].Entry, "./cmd/workspace-sandbox-launcher"; got != want {
+		t.Fatalf("secondary entry = %q, want %q", got, want)
+	}
+	if got, want := targets[1].Output, "/repo/scenarios/workspace-sandbox/api/workspace-sandbox-launcher"; got != want {
+		t.Fatalf("secondary output = %q, want %q", got, want)
+	}
+}
+
+func TestGoModuleFreshnessIncludesDeclaredSecondaryArtifacts(t *testing.T) {
+	root := t.TempDir()
+	component := scenario.Component{Build: scenario.ComponentBuild{
+		Kind: "go_module",
+		Dir:  "api",
+		Outputs: []scenario.ComponentBuildOutput{
+			{Entry: "./cmd/helper", Output: "api/helper"},
+		},
+	}}
+	artifacts, err := goModuleComponentFreshness(root, root, component, defaultHostProbeDeps())
+	if err != nil {
+		t.Fatalf("goModuleComponentFreshness: %v", err)
+	}
+	if len(artifacts) != 2 {
+		t.Fatalf("freshness artifact count = %d, want 2", len(artifacts))
+	}
+	if got, want := artifacts[1].Target, "api/helper"; got != want {
+		t.Fatalf("secondary freshness target = %q, want %q", got, want)
+	}
+}
+
 func TestDeclaredCommandForComponentOwnsArgvEnvironmentAndPort(t *testing.T) {
 	root := t.TempDir()
 	item := scenario.Scenario{

@@ -106,6 +106,10 @@ func (f *fakeControlPlane) ReportRelayResponse(_ context.Context, _ *connect.Req
 	return connect.NewResponse(&presencev1.ReportRelayResponseResponse{Accepted: true}), nil
 }
 
+func (f *fakeControlPlane) ReportCredentialReceipt(_ context.Context, _ *connect.Request[presencev1.ReportCredentialReceiptRequest]) (*connect.Response[presencev1.ReportCredentialReceiptResponse], error) {
+	return connect.NewResponse(&presencev1.ReportCredentialReceiptResponse{Accepted: true}), nil
+}
+
 func (f *fakeControlPlane) deliveryAckCount() int {
 	f.mu.Lock()
 	defer f.mu.Unlock()

@@ -40,13 +40,6 @@ type applyExecutor interface {
 	StartScenario(context.Context, string) error
 }
 
-// scenarioFreshnessProbe reports whether a scenario's build artifacts are
-// stale. It is read-only. The apply run needs it to protect itself: see
-// selfRestartBlocker.
-type scenarioFreshnessProbe interface {
-	ScenarioIsStale(context.Context, string) (bool, error)
-}
-
 type privilegedApplyExecutor interface {
 	InstallToolPrivileged(context.Context, string) error
 	ApplySafeguardPrivileged(context.Context, string) error
@@ -216,34 +209,6 @@ func (e controlPlaneExecutor) EnableResource(ctx context.Context, name string) e
 	return e.run(ctx, "resource", "enable", name, "--json")
 }
 
-// ScenarioIsStale asks the control plane whether a scenario would be rebuilt
-// on its next start. It never starts anything.
-//
-// The probe runs from the repository root deliberately. `vrooli scenario
-// freshness` returns opposite verdicts for the same scenario depending on the
-// caller's working directory -- run from the repo root it reported fresh while
-// the identical call from scenarios/vrooli-onboarding/api reported
-// "build input changed" at the same instant. This API's own working directory
-// is the latter, so inheriting it made the probe report a permanent false
-// stale and refuse every apply.
-func (e controlPlaneExecutor) ScenarioIsStale(ctx context.Context, name string) (bool, error) {
-	roots, rootErr := resolveRoots()
-	if rootErr != nil {
-		return false, rootErr
-	}
-	output, err := e.runNamedInDir(ctx, roots.RepoRoot, "vrooli", "scenario", "freshness", name, "--json")
-	if err != nil {
-		return false, err
-	}
-	var report struct {
-		Stale bool `json:"stale"`
-	}
-	if err := json.Unmarshal(output, &report); err != nil {
-		return false, fmt.Errorf("decode freshness report for %s: %w", name, err)
-	}
-	return report.Stale, nil
-}
-
 func (e controlPlaneExecutor) StartScenario(ctx context.Context, name string) error {
 	return e.run(ctx, "scenario", "start", name, "--json")
 }
@@ -271,6 +236,12 @@ const (
 	applyStateUnknown   = "unknown"
 )
 
+// applyOutcomeApplying marks the item a runner is executing right now. It is
+// the only non-terminal outcome: every other value means the item is done.
+// Completion assessment never sees it, because a run is only assessed once it
+// has reached a terminal status.
+const applyOutcomeApplying = "applying"
+
 type applyItemResult struct {
 	applyItem
 	Outcome     string `json:"outcome"`
@@ -293,7 +264,29 @@ type applyRun struct {
 	Blockers       []completionBlocker `json:"blockers,omitempty"`
 	Degraded       []completionBlocker `json:"degraded,omitempty"`
 	DegradedDigest string              `json:"degraded_digest,omitempty"`
+
+	// RunnerPID and Heartbeat identify the process executing this run and
+	// prove it is still alive.
+	//
+	// The run outlives the API: applying starts scenarios, and a started
+	// scenario can restart this API, which used to take the in-process worker
+	// with it. Ownership therefore has to be recorded rather than implied by
+	// "the server that accepted the request is still up". A reader combines
+	// these two fields to distinguish a run that is still working from one
+	// whose executor died -- neither of which is visible from status alone,
+	// because a killed executor leaves "applying" behind forever.
+	RunnerPID int    `json:"runner_pid,omitempty"`
+	Heartbeat string `json:"heartbeat,omitempty"`
 }
+
+// applyHeartbeatInterval is how often an executing runner restamps its
+// liveness, and staleApplyHeartbeat is how long a reader waits before it stops
+// believing a run is still working. The gap between them absorbs a slow item
+// and a slow filesystem without declaring a healthy run dead.
+const (
+	applyHeartbeatInterval = 5 * time.Second
+	staleApplyHeartbeat    = 90 * time.Second
+)
 
 var applyRuns = struct {
 	sync.RWMutex
@@ -392,15 +385,25 @@ func updateApplyRun(run applyRun) {
 	_ = persistApplyRun(run)
 }
 
+// applyRunSnapshot reads a run, preferring the persisted copy.
+//
+// The order matters and it used to be the other way round. The run is executed
+// by a separate process now, so this process's map is not a cache of the run --
+// it is a snapshot of the run as it looked when this process last touched it,
+// which for an accepted run is the moment before any work happened. Serving
+// that would report "pending" for the entire life of a run that was in fact
+// progressing on disk the whole time.
 func applyRunSnapshot(id string) (applyRun, bool) {
+	if persisted, err := loadPersistedApplyRun(id); err == nil {
+		return persisted, true
+	}
+	// The map is the fallback, for the window between accepting a run and its
+	// first persisted write, and for a host where the state file cannot be read
+	// back. It is never preferred: the executing process is the one that knows.
 	applyRuns.RLock()
 	run, ok := applyRuns.items[id]
 	applyRuns.RUnlock()
-	if ok {
-		return run, true
-	}
-	run, err := loadPersistedApplyRun(id)
-	return run, err == nil
+	return run, ok
 }
 
 func (s *Server) buildApplyRun(ctx context.Context) (applyRun, error) {
@@ -493,65 +496,8 @@ func executeApplyItem(ctx context.Context, item applyItem) error {
 	return err
 }
 
-// selfRestartBlocker reports the condition under which this apply run cannot
-// survive itself.
-//
-// Skipping the onboarding scenario's own apply item is necessary but not
-// sufficient. Other scenarios in the plan declare it as a dependency with
-// startup_policy "try_start" -- vrooli-bridge does -- so starting them cascades
-// into starting this one. That cascade is harmless while this scenario's
-// artifacts are fresh: start on an already-running fresh scenario is a no-op.
-// When they are stale, the cascade rebuilds and swaps them, which stops the
-// process executing the apply. The run then never reaches a terminal state and
-// every remaining item is silently skipped.
-//
-// Refusing up front is strictly better than dying halfway: the host is
-// unchanged, and the operator gets an instruction instead of a truncated run.
-func selfRestartBlocker(ctx context.Context, run applyRun) *completionBlocker {
-	probe, ok := onboardingApplyExecutor.(scenarioFreshnessProbe)
-	if !ok {
-		return nil
-	}
-	var cascades bool
-	for _, item := range run.Items {
-		if item.Kind == "scenario" && item.Name != onboardingScenarioName {
-			cascades = true
-			break
-		}
-	}
-	if !cascades {
-		return nil
-	}
-	stale, err := probe.ScenarioIsStale(ctx, onboardingScenarioName)
-	if err != nil {
-		// A probe that could not run is not evidence of a healthy host, but it
-		// is also not grounds to refuse an apply the operator consented to.
-		// Proceed; a self-restart now surfaces as a reported error rather than
-		// as silence.
-		return nil
-	}
-	if !stale {
-		return nil
-	}
-	return &completionBlocker{
-		Kind:   "apply",
-		Name:   onboardingScenarioName,
-		Reason: "this scenario's build artifacts are stale, and another scenario in the plan starts it as a dependency; applying would rebuild and restart the process running this apply",
-		Remediation: "Run `vrooli scenario start " + onboardingScenarioName +
-			"` to rebuild it, then apply the selection again.",
-	}
-}
-
 func executeApplyRun(ctx context.Context, run applyRun) {
 	if run.Status == "already_satisfied" {
-		updateApplyRun(run)
-		return
-	}
-	if blocker := selfRestartBlocker(ctx, run); blocker != nil {
-		run.Status = "blocked"
-		run.Error = blocker.Reason
-		run.Blockers = []completionBlocker{*blocker}
-		run.CompletedAt = operatorStateNow().UTC().Format(time.RFC3339)
 		updateApplyRun(run)
 		return
 	}
@@ -586,6 +532,13 @@ func executeApplyRun(ctx context.Context, run applyRun) {
 			updateApplyRun(run)
 			continue
 		}
+		// Publish the in-flight item before executing it. Until this, the run
+		// record only ever carried finished work, so a client polling a long
+		// step could not tell "still working" from "wedged": a five-minute
+		// scenario start and a hang produced byte-identical output.
+		run.Items[i].Outcome = applyOutcomeApplying
+		updateApplyRun(run)
+
 		if err := executeApplyItem(ctx, item); err != nil {
 			run.Items[i].Outcome = "timed_out"
 			if !strings.Contains(err.Error(), "timed out") {
@@ -684,10 +637,23 @@ func (s *Server) handleV2Apply(w http.ResponseWriter, r *http.Request) {
 	}
 	storeApplyRun(run)
 	if run.Status == "pending" {
-		// The HTTP request ends as soon as the durable run is accepted. Preserve
-		// request-scoped values for the worker while intentionally removing the
-		// response cancellation that would otherwise abort a valid apply.
-		go executeApplyRun(context.WithoutCancel(r.Context()), run)
+		// The run is handed to a process of its own. Executing it here would
+		// tie it to this API's lifetime, and applying a selection restarts
+		// scenarios -- including, transitively, this one. See apply_runner.go.
+		if err := spawnApplyRunner(context.WithoutCancel(r.Context()), run); err != nil {
+			run.Status = "failed"
+			run.Error = err.Error()
+			run.CompletedAt = operatorStateNow().UTC().Format(time.RFC3339)
+			run.Blockers = []completionBlocker{{
+				Kind:        "apply",
+				Name:        "apply-runner",
+				Reason:      "the apply run could not be started: " + err.Error(),
+				Remediation: "Check that the onboarding API binary is executable, then apply the selection again.",
+			}}
+			updateApplyRun(run)
+			writeJSON(w, http.StatusInternalServerError, run)
+			return
+		}
 	}
 	writeJSON(w, http.StatusAccepted, run)
 }
@@ -699,7 +665,9 @@ func (s *Server) handleV2ApplyStatus(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusNotFound, map[string]string{"error": "apply run not found"})
 		return
 	}
-	writeJSON(w, http.StatusOK, run)
+	// A run whose executor died must not keep reporting "applying" to a client
+	// that will then poll it forever.
+	writeJSON(w, http.StatusOK, observedApplyRun(run))
 }
 
 func (r applyRun) MarshalJSON() ([]byte, error) {

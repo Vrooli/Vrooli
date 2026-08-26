@@ -15,6 +15,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/vrooli/vrooli/internal/artifactlease"
+	"github.com/vrooli/vrooli/internal/artifactledger"
+
 	"github.com/vrooli/cli-core/cliutil"
 	platform "github.com/vrooli/platform-go"
 	testkitgo "github.com/vrooli/repo-contract-go/repocontracttest"
@@ -856,4 +859,210 @@ func mapResourceDependencies(enabled map[string]bool) map[string]scenario.Depend
 		deps[name] = scenario.Dependency{Enabled: ok}
 	}
 	return deps
+}
+
+// [REQ:VROOLI-ARTIFACT-ATTRIBUTION]
+// Scenario CLI triples were disappearing with no record of who removed them or
+// why. Every removal this path performs must now leave a receipt naming the
+// artifact, the code path, and the rule that authorized it.
+func TestRemoveScenarioCLIWritesAReceiptForEveryArtifact(t *testing.T) {
+	home := t.TempDir()
+	manager := mustManager(t, t.TempDir(), home)
+	if err := os.MkdirAll(manager.InstallDir(), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	binary := filepath.Join(manager.InstallDir(), "rcl-fixture-positive")
+	for _, path := range []string{binary, binary + ".build.meta", binary + ".manifest.json"} {
+		if err := os.WriteFile(path, []byte("fixture"), 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	if _, err := manager.RemoveScenarioCLI("rcl-fixture-positive"); err != nil {
+		t.Fatalf("RemoveScenarioCLI: %v", err)
+	}
+
+	ledger, err := artifactledger.New(home)
+	if err != nil {
+		t.Fatalf("open ledger: %v", err)
+	}
+	receipts, err := ledger.Read()
+	if err != nil {
+		t.Fatalf("read ledger: %v", err)
+	}
+
+	removed := map[string]bool{}
+	for _, receipt := range receipts {
+		if receipt.Outcome != artifactledger.OutcomeRemoved {
+			continue
+		}
+		removed[receipt.Kind] = true
+		if receipt.Component != "cliinstall.RemoveScenarioCLIReport" {
+			t.Fatalf("receipt does not name the removing code path: %+v", receipt)
+		}
+		if receipt.Predicate == "" {
+			t.Fatalf("receipt records a deletion without the rule that authorized it: %+v", receipt)
+		}
+		if receipt.Identity.Node == "" || receipt.Identity.PID == 0 {
+			t.Fatalf("receipt carries no observed identity: %+v", receipt.Identity)
+		}
+	}
+	for _, kind := range []string{"binary", "build-metadata", "manifest"} {
+		if !removed[kind] {
+			t.Fatalf("no removal receipt for the %s artifact; receipts=%+v", kind, receipts)
+		}
+	}
+}
+
+// A Manager assembled without a ledger must refuse to delete rather than
+// perform an unattributable removal.
+func TestRemoveScenarioCLIRefusesWithoutALedger(t *testing.T) {
+	manager := mustManager(t, t.TempDir(), t.TempDir())
+	if err := os.MkdirAll(manager.InstallDir(), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	binary := filepath.Join(manager.InstallDir(), "unattributable")
+	if err := os.WriteFile(binary, []byte("fixture"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	manager.ledger = nil
+
+	if _, err := manager.RemoveScenarioCLI("unattributable"); err == nil {
+		t.Fatal("removal proceeded with no ledger configured")
+	}
+	if _, err := os.Stat(binary); err != nil {
+		t.Fatalf("the artifact was removed despite the refusal: %v", err)
+	}
+}
+
+// [REQ:VROOLI-ARTIFACT-LEASE]
+// An installed CLI must carry an ownership record, or nothing downstream can
+// tell a live artifact from an abandoned one.
+func TestRecordInstalledCLIClaimsOwnership(t *testing.T) {
+	home := t.TempDir()
+	root := t.TempDir()
+	manager := mustManager(t, root, home)
+	if err := os.MkdirAll(manager.InstallDir(), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	item := InstallableCLI{Kind: KindScenario, Name: "fixture-cli", BinaryName: "fixture-cli", ModulePath: filepath.Join(root, "scenarios", "fixture-cli", "cli")}
+	binary := manager.InstalledBinaryPath(item)
+	if err := os.WriteFile(binary, []byte("binary"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := manager.recordInstalledCLI(item); err != nil {
+		t.Fatalf("recordInstalledCLI: %v", err)
+	}
+	manager.noteOwnership(item, binary, true)
+
+	lease, found, err := artifactlease.Load(binary)
+	if err != nil || !found {
+		t.Fatalf("no ownership record after install: %v found=%v", err, found)
+	}
+	if lease.Generation != 1 {
+		t.Fatalf("generation = %d, want 1", lease.Generation)
+	}
+	if lease.OwnerModule != item.ModulePath {
+		t.Fatalf("owner module = %q, want %q", lease.OwnerModule, item.ModulePath)
+	}
+	if lease.Owner.Node == "" {
+		t.Fatalf("observed owner identity is empty: %+v", lease.Owner)
+	}
+}
+
+// Removing the triple must remove its ownership record too, or a later install
+// inherits a stale generation and a stale recorded absence.
+func TestRemoveScenarioCLIClearsTheOwnershipRecord(t *testing.T) {
+	home := t.TempDir()
+	manager := mustManager(t, t.TempDir(), home)
+	if err := os.MkdirAll(manager.InstallDir(), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	binary := filepath.Join(manager.InstallDir(), "fixture-cli")
+	for _, path := range []string{binary, binary + ".build.meta", binary + ".manifest.json"} {
+		if err := os.WriteFile(path, []byte("fixture"), 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if _, err := artifactlease.Claim(binary, artifactlease.Owner{Node: "n"}, "/gone", time.Hour, time.Now().UTC()); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := manager.RemoveScenarioCLI("fixture-cli"); err != nil {
+		t.Fatalf("RemoveScenarioCLI: %v", err)
+	}
+
+	if _, err := os.Stat(artifactlease.Path(binary)); !os.IsNotExist(err) {
+		t.Fatalf("the ownership record survived removal of the artifact it describes: %v", err)
+	}
+}
+
+// [REQ:VROOLI-ARTIFACT-LEASE]
+// The generation exists to detect that an artifact was replaced. A freshness
+// check that finds the binary already current is not a replacement, and
+// counting it as one made the generation climb from 3 to 8 in under an hour on
+// an artifact nothing had rebuilt -- destroying the only signal it carries.
+func TestFreshnessCheckRenewsWithoutClaimingANewGeneration(t *testing.T) {
+	home := t.TempDir()
+	root := t.TempDir()
+	manager := mustManager(t, root, home)
+	if err := os.MkdirAll(manager.InstallDir(), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	item := InstallableCLI{Kind: KindScenario, Name: "fixture-cli", BinaryName: "fixture-cli", ModulePath: filepath.Join(root, "scenarios", "fixture-cli", "cli")}
+	binary := manager.InstalledBinaryPath(item)
+	if err := os.WriteFile(binary, []byte("binary"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	manager.noteOwnership(item, binary, true)
+	claimed, _, err := artifactlease.Load(binary)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for range 5 {
+		manager.noteOwnership(item, binary, false)
+	}
+
+	renewed, _, err := artifactlease.Load(binary)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if renewed.Generation != claimed.Generation {
+		t.Fatalf("generation moved from %d to %d across freshness checks that replaced nothing",
+			claimed.Generation, renewed.Generation)
+	}
+}
+
+// Rewriting a lease on every invocation is pointless disk churn, and it buries
+// real artifact activity in the filesystem traces used to diagnose this system.
+func TestRenewalSkipsWritingWhenNothingWouldChange(t *testing.T) {
+	home := t.TempDir()
+	root := t.TempDir()
+	manager := mustManager(t, root, home)
+	if err := os.MkdirAll(manager.InstallDir(), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	item := InstallableCLI{Kind: KindScenario, Name: "fixture-cli", BinaryName: "fixture-cli", ModulePath: filepath.Join(root, "scenarios", "fixture-cli", "cli")}
+	binary := manager.InstalledBinaryPath(item)
+	if err := os.WriteFile(binary, []byte("binary"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	manager.noteOwnership(item, binary, true)
+
+	before, err := os.Stat(artifactlease.Path(binary))
+	if err != nil {
+		t.Fatal(err)
+	}
+	manager.noteOwnership(item, binary, false)
+	after, err := os.Stat(artifactlease.Path(binary))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !before.ModTime().Equal(after.ModTime()) {
+		t.Fatal("a renewal rewrote a lease that was still fresh and unmarked")
+	}
 }

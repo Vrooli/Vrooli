@@ -103,6 +103,65 @@ func TestApplyHealthToStatusReportsAgreementAsHealthy(t *testing.T) {
 	}
 }
 
+// Scenario: an idle accelerated resource is healthy even when placement is not
+// yet observable.
+func TestApplyHealthToStatusReportsPlacementUndeterminedAsHealthy(t *testing.T) {
+	health := HealthResult{
+		Healthy:               true,
+		Serving:               true,
+		PlacementUndetermined: true,
+		DeclaredMode:          "cuda",
+		ModeReason:            "no model is resident, so placement cannot be read yet",
+	}
+
+	status := applyHealthToStatus(Status{Running: true}, health)
+
+	if status.Healthy == nil || !*status.Healthy || status.Serving == nil || !*status.Serving {
+		t.Fatalf("health/serving = %v/%v, want true/true", status.Healthy, status.Serving)
+	}
+	if status.StatusCode != resourcecontrol.StatusCodePlacementUndetermined {
+		t.Fatalf("StatusCode = %q, want %q", status.StatusCode, resourcecontrol.StatusCodePlacementUndetermined)
+	}
+	if status.Health != "healthy" || status.ModeDrift {
+		t.Fatalf("status = %+v, want healthy without mode drift", status)
+	}
+	if !strings.Contains(status.Message, "no model is resident") {
+		t.Fatalf("Message = %q, want the undetermined reason", status.Message)
+	}
+}
+
+// Scenario: undetermined placement does not erase an independent readiness
+// failure.
+func TestApplyHealthToStatusKeepsReadinessFailureWithUndeterminedPlacement(t *testing.T) {
+	status := applyHealthToStatus(Status{Running: true}, HealthResult{
+		Healthy:               false,
+		Serving:               false,
+		PlacementUndetermined: true,
+		ModeReason:            "no model is resident, so placement cannot be read yet",
+	})
+	if status.Healthy == nil || *status.Healthy || status.Health != "unhealthy" {
+		t.Fatalf("status = %+v, want unhealthy readiness result", status)
+	}
+	if status.StatusCode == resourcecontrol.StatusCodePlacementUndetermined {
+		t.Fatalf("StatusCode = %q, want no healthy placement code on a failed readiness", status.StatusCode)
+	}
+}
+
+func TestIsPlacementProbeLivenessFailureMatchesOnlyDeclaredGPUProbe(t *testing.T) {
+	manifest := ResourceManifest{HealthChecks: []ResourceHealthCheck{
+		{Kind: "liveness", Type: "command", Command: []string{"resource-ollama", "health-gpu"}},
+	}}
+	if !isPlacementProbeLivenessFailure(manifest, "resource-ollama health-gpu") {
+		t.Fatal("declared health-gpu liveness was not recognized")
+	}
+	if isPlacementProbeLivenessFailure(manifest, "resource-ollama health-ready") {
+		t.Fatal("readiness command was recognized as a placement probe")
+	}
+	if isPlacementProbeLivenessFailure(ResourceManifest{}, "resource-ollama health-gpu") {
+		t.Fatal("undeclared health-gpu command was recognized")
+	}
+}
+
 // Feature: the control plane runs both declared check kinds
 //
 // Before this, a liveness check could be declared and was never executed, so

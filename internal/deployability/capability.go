@@ -123,7 +123,7 @@ func ResolveCapability(implementations []CapabilityImplementation, capability st
 			result.Declarers = declarerDetails(implementations, capability, os, resolved)
 			return result
 		}
-		if implementation.Role == "control" && name != "" && status != StatusUnsupported {
+		if implementation.Role == "control" && name != "" && status != StatusUnsupported && status != StatusNotImplemented && status != StatusNotApplicable {
 			controls = append(controls, capabilityCandidate{implementation: implementation, qualification: status.Qualification()})
 			resolved[name] = true
 		}
@@ -148,6 +148,14 @@ func ResolveCapability(implementations []CapabilityImplementation, capability st
 				unwired = append(unwired, mechanism)
 				continue
 			}
+			ineligible = true
+		case StatusNotImplemented:
+			if mechanism := strings.TrimSpace(platform.Mechanism); mechanism != "" {
+				unwired = append(unwired, mechanism)
+				continue
+			}
+			ineligible = true
+		case StatusNotApplicable:
 			ineligible = true
 		}
 	}

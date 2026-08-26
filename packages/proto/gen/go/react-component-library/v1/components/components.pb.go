@@ -3660,6 +3660,170 @@ func (x *GetComponentVersionContentResponse) GetContent() string {
 	return ""
 }
 
+// ResolveLibraryImport maps a published package specifier to the immutable
+// catalog source it names. Relative imports are intentionally reported as
+// unresolved: they belong to the local file's module graph, not the library
+// catalog.
+type ResolveLibraryImportRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Specifier     string                 `protobuf:"bytes,1,opt,name=specifier,proto3" json:"specifier,omitempty"`
+	FromPath      string                 `protobuf:"bytes,2,opt,name=from_path,json=fromPath,proto3" json:"from_path,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ResolveLibraryImportRequest) Reset() {
+	*x = ResolveLibraryImportRequest{}
+	mi := &file_react_component_library_v1_components_components_proto_msgTypes[44]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ResolveLibraryImportRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ResolveLibraryImportRequest) ProtoMessage() {}
+
+func (x *ResolveLibraryImportRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_react_component_library_v1_components_components_proto_msgTypes[44]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ResolveLibraryImportRequest.ProtoReflect.Descriptor instead.
+func (*ResolveLibraryImportRequest) Descriptor() ([]byte, []int) {
+	return file_react_component_library_v1_components_components_proto_rawDescGZIP(), []int{44}
+}
+
+func (x *ResolveLibraryImportRequest) GetSpecifier() string {
+	if x != nil {
+		return x.Specifier
+	}
+	return ""
+}
+
+func (x *ResolveLibraryImportRequest) GetFromPath() string {
+	if x != nil {
+		return x.FromPath
+	}
+	return ""
+}
+
+type ResolveLibraryImportResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Resolved      bool                   `protobuf:"varint,1,opt,name=resolved,proto3" json:"resolved,omitempty"`
+	Specifier     string                 `protobuf:"bytes,2,opt,name=specifier,proto3" json:"specifier,omitempty"`
+	AssetId       string                 `protobuf:"bytes,3,opt,name=asset_id,json=assetId,proto3" json:"asset_id,omitempty"`
+	LibraryId     string                 `protobuf:"bytes,4,opt,name=library_id,json=libraryId,proto3" json:"library_id,omitempty"`
+	Version       string                 `protobuf:"bytes,5,opt,name=version,proto3" json:"version,omitempty"`
+	ExportKind    string                 `protobuf:"bytes,6,opt,name=export_kind,json=exportKind,proto3" json:"export_kind,omitempty"`
+	Description   string                 `protobuf:"bytes,7,opt,name=description,proto3" json:"description,omitempty"`
+	SourcePath    string                 `protobuf:"bytes,8,opt,name=source_path,json=sourcePath,proto3" json:"source_path,omitempty"`
+	Diagnostic    string                 `protobuf:"bytes,9,opt,name=diagnostic,proto3" json:"diagnostic,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ResolveLibraryImportResponse) Reset() {
+	*x = ResolveLibraryImportResponse{}
+	mi := &file_react_component_library_v1_components_components_proto_msgTypes[45]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ResolveLibraryImportResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ResolveLibraryImportResponse) ProtoMessage() {}
+
+func (x *ResolveLibraryImportResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_react_component_library_v1_components_components_proto_msgTypes[45]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ResolveLibraryImportResponse.ProtoReflect.Descriptor instead.
+func (*ResolveLibraryImportResponse) Descriptor() ([]byte, []int) {
+	return file_react_component_library_v1_components_components_proto_rawDescGZIP(), []int{45}
+}
+
+func (x *ResolveLibraryImportResponse) GetResolved() bool {
+	if x != nil {
+		return x.Resolved
+	}
+	return false
+}
+
+func (x *ResolveLibraryImportResponse) GetSpecifier() string {
+	if x != nil {
+		return x.Specifier
+	}
+	return ""
+}
+
+func (x *ResolveLibraryImportResponse) GetAssetId() string {
+	if x != nil {
+		return x.AssetId
+	}
+	return ""
+}
+
+func (x *ResolveLibraryImportResponse) GetLibraryId() string {
+	if x != nil {
+		return x.LibraryId
+	}
+	return ""
+}
+
+func (x *ResolveLibraryImportResponse) GetVersion() string {
+	if x != nil {
+		return x.Version
+	}
+	return ""
+}
+
+func (x *ResolveLibraryImportResponse) GetExportKind() string {
+	if x != nil {
+		return x.ExportKind
+	}
+	return ""
+}
+
+func (x *ResolveLibraryImportResponse) GetDescription() string {
+	if x != nil {
+		return x.Description
+	}
+	return ""
+}
+
+func (x *ResolveLibraryImportResponse) GetSourcePath() string {
+	if x != nil {
+		return x.SourcePath
+	}
+	return ""
+}
+
+func (x *ResolveLibraryImportResponse) GetDiagnostic() string {
+	if x != nil {
+		return x.Diagnostic
+	}
+	return ""
+}
+
 // ComponentStory is the validated, version-level projection of story.json.
 // Args, fixtures, and stories remain JSON to retain the declarative field
 // grammar while avoiding separate, drifting transport schemas for each asset.
@@ -3684,7 +3848,7 @@ type ComponentStory struct {
 
 func (x *ComponentStory) Reset() {
 	*x = ComponentStory{}
-	mi := &file_react_component_library_v1_components_components_proto_msgTypes[44]
+	mi := &file_react_component_library_v1_components_components_proto_msgTypes[46]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3696,7 +3860,7 @@ func (x *ComponentStory) String() string {
 func (*ComponentStory) ProtoMessage() {}
 
 func (x *ComponentStory) ProtoReflect() protoreflect.Message {
-	mi := &file_react_component_library_v1_components_components_proto_msgTypes[44]
+	mi := &file_react_component_library_v1_components_components_proto_msgTypes[46]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3709,7 +3873,7 @@ func (x *ComponentStory) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ComponentStory.ProtoReflect.Descriptor instead.
 func (*ComponentStory) Descriptor() ([]byte, []int) {
-	return file_react_component_library_v1_components_components_proto_rawDescGZIP(), []int{44}
+	return file_react_component_library_v1_components_components_proto_rawDescGZIP(), []int{46}
 }
 
 func (x *ComponentStory) GetId() string {
@@ -3814,7 +3978,7 @@ type ListComponentStoriesRequest struct {
 
 func (x *ListComponentStoriesRequest) Reset() {
 	*x = ListComponentStoriesRequest{}
-	mi := &file_react_component_library_v1_components_components_proto_msgTypes[45]
+	mi := &file_react_component_library_v1_components_components_proto_msgTypes[47]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3826,7 +3990,7 @@ func (x *ListComponentStoriesRequest) String() string {
 func (*ListComponentStoriesRequest) ProtoMessage() {}
 
 func (x *ListComponentStoriesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_react_component_library_v1_components_components_proto_msgTypes[45]
+	mi := &file_react_component_library_v1_components_components_proto_msgTypes[47]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3839,7 +4003,7 @@ func (x *ListComponentStoriesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListComponentStoriesRequest.ProtoReflect.Descriptor instead.
 func (*ListComponentStoriesRequest) Descriptor() ([]byte, []int) {
-	return file_react_component_library_v1_components_components_proto_rawDescGZIP(), []int{45}
+	return file_react_component_library_v1_components_components_proto_rawDescGZIP(), []int{47}
 }
 
 func (x *ListComponentStoriesRequest) GetComponentId() string {
@@ -3874,7 +4038,7 @@ type ListComponentStoriesResponse struct {
 
 func (x *ListComponentStoriesResponse) Reset() {
 	*x = ListComponentStoriesResponse{}
-	mi := &file_react_component_library_v1_components_components_proto_msgTypes[46]
+	mi := &file_react_component_library_v1_components_components_proto_msgTypes[48]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3886,7 +4050,7 @@ func (x *ListComponentStoriesResponse) String() string {
 func (*ListComponentStoriesResponse) ProtoMessage() {}
 
 func (x *ListComponentStoriesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_react_component_library_v1_components_components_proto_msgTypes[46]
+	mi := &file_react_component_library_v1_components_components_proto_msgTypes[48]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3899,7 +4063,7 @@ func (x *ListComponentStoriesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListComponentStoriesResponse.ProtoReflect.Descriptor instead.
 func (*ListComponentStoriesResponse) Descriptor() ([]byte, []int) {
-	return file_react_component_library_v1_components_components_proto_rawDescGZIP(), []int{46}
+	return file_react_component_library_v1_components_components_proto_rawDescGZIP(), []int{48}
 }
 
 func (x *ListComponentStoriesResponse) GetStories() []*ComponentStory {
@@ -3930,7 +4094,7 @@ type ListPreviewFramesRequest struct {
 
 func (x *ListPreviewFramesRequest) Reset() {
 	*x = ListPreviewFramesRequest{}
-	mi := &file_react_component_library_v1_components_components_proto_msgTypes[47]
+	mi := &file_react_component_library_v1_components_components_proto_msgTypes[49]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3942,7 +4106,7 @@ func (x *ListPreviewFramesRequest) String() string {
 func (*ListPreviewFramesRequest) ProtoMessage() {}
 
 func (x *ListPreviewFramesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_react_component_library_v1_components_components_proto_msgTypes[47]
+	mi := &file_react_component_library_v1_components_components_proto_msgTypes[49]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3955,7 +4119,7 @@ func (x *ListPreviewFramesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListPreviewFramesRequest.ProtoReflect.Descriptor instead.
 func (*ListPreviewFramesRequest) Descriptor() ([]byte, []int) {
-	return file_react_component_library_v1_components_components_proto_rawDescGZIP(), []int{47}
+	return file_react_component_library_v1_components_components_proto_rawDescGZIP(), []int{49}
 }
 
 func (x *ListPreviewFramesRequest) GetComponentId() string {
@@ -3996,7 +4160,7 @@ type PreviewFrameCandidate struct {
 
 func (x *PreviewFrameCandidate) Reset() {
 	*x = PreviewFrameCandidate{}
-	mi := &file_react_component_library_v1_components_components_proto_msgTypes[48]
+	mi := &file_react_component_library_v1_components_components_proto_msgTypes[50]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4008,7 +4172,7 @@ func (x *PreviewFrameCandidate) String() string {
 func (*PreviewFrameCandidate) ProtoMessage() {}
 
 func (x *PreviewFrameCandidate) ProtoReflect() protoreflect.Message {
-	mi := &file_react_component_library_v1_components_components_proto_msgTypes[48]
+	mi := &file_react_component_library_v1_components_components_proto_msgTypes[50]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4021,7 +4185,7 @@ func (x *PreviewFrameCandidate) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PreviewFrameCandidate.ProtoReflect.Descriptor instead.
 func (*PreviewFrameCandidate) Descriptor() ([]byte, []int) {
-	return file_react_component_library_v1_components_components_proto_rawDescGZIP(), []int{48}
+	return file_react_component_library_v1_components_components_proto_rawDescGZIP(), []int{50}
 }
 
 func (x *PreviewFrameCandidate) GetAsset() string {
@@ -4096,7 +4260,7 @@ type ListPreviewFramesResponse struct {
 
 func (x *ListPreviewFramesResponse) Reset() {
 	*x = ListPreviewFramesResponse{}
-	mi := &file_react_component_library_v1_components_components_proto_msgTypes[49]
+	mi := &file_react_component_library_v1_components_components_proto_msgTypes[51]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4108,7 +4272,7 @@ func (x *ListPreviewFramesResponse) String() string {
 func (*ListPreviewFramesResponse) ProtoMessage() {}
 
 func (x *ListPreviewFramesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_react_component_library_v1_components_components_proto_msgTypes[49]
+	mi := &file_react_component_library_v1_components_components_proto_msgTypes[51]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4121,7 +4285,7 @@ func (x *ListPreviewFramesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListPreviewFramesResponse.ProtoReflect.Descriptor instead.
 func (*ListPreviewFramesResponse) Descriptor() ([]byte, []int) {
-	return file_react_component_library_v1_components_components_proto_rawDescGZIP(), []int{49}
+	return file_react_component_library_v1_components_components_proto_rawDescGZIP(), []int{51}
 }
 
 func (x *ListPreviewFramesResponse) GetCandidates() []*PreviewFrameCandidate {
@@ -4150,7 +4314,7 @@ type PersistPreviewFrameRequest struct {
 
 func (x *PersistPreviewFrameRequest) Reset() {
 	*x = PersistPreviewFrameRequest{}
-	mi := &file_react_component_library_v1_components_components_proto_msgTypes[50]
+	mi := &file_react_component_library_v1_components_components_proto_msgTypes[52]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4162,7 +4326,7 @@ func (x *PersistPreviewFrameRequest) String() string {
 func (*PersistPreviewFrameRequest) ProtoMessage() {}
 
 func (x *PersistPreviewFrameRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_react_component_library_v1_components_components_proto_msgTypes[50]
+	mi := &file_react_component_library_v1_components_components_proto_msgTypes[52]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4175,7 +4339,7 @@ func (x *PersistPreviewFrameRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PersistPreviewFrameRequest.ProtoReflect.Descriptor instead.
 func (*PersistPreviewFrameRequest) Descriptor() ([]byte, []int) {
-	return file_react_component_library_v1_components_components_proto_rawDescGZIP(), []int{50}
+	return file_react_component_library_v1_components_components_proto_rawDescGZIP(), []int{52}
 }
 
 func (x *PersistPreviewFrameRequest) GetComponentId() string {
@@ -4247,7 +4411,7 @@ type PersistPreviewFrameResponse struct {
 
 func (x *PersistPreviewFrameResponse) Reset() {
 	*x = PersistPreviewFrameResponse{}
-	mi := &file_react_component_library_v1_components_components_proto_msgTypes[51]
+	mi := &file_react_component_library_v1_components_components_proto_msgTypes[53]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4259,7 +4423,7 @@ func (x *PersistPreviewFrameResponse) String() string {
 func (*PersistPreviewFrameResponse) ProtoMessage() {}
 
 func (x *PersistPreviewFrameResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_react_component_library_v1_components_components_proto_msgTypes[51]
+	mi := &file_react_component_library_v1_components_components_proto_msgTypes[53]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4272,7 +4436,7 @@ func (x *PersistPreviewFrameResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PersistPreviewFrameResponse.ProtoReflect.Descriptor instead.
 func (*PersistPreviewFrameResponse) Descriptor() ([]byte, []int) {
-	return file_react_component_library_v1_components_components_proto_rawDescGZIP(), []int{51}
+	return file_react_component_library_v1_components_components_proto_rawDescGZIP(), []int{53}
 }
 
 func (x *PersistPreviewFrameResponse) GetComponentId() string {
@@ -4322,7 +4486,7 @@ type DesignStyle struct {
 
 func (x *DesignStyle) Reset() {
 	*x = DesignStyle{}
-	mi := &file_react_component_library_v1_components_components_proto_msgTypes[52]
+	mi := &file_react_component_library_v1_components_components_proto_msgTypes[54]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4334,7 +4498,7 @@ func (x *DesignStyle) String() string {
 func (*DesignStyle) ProtoMessage() {}
 
 func (x *DesignStyle) ProtoReflect() protoreflect.Message {
-	mi := &file_react_component_library_v1_components_components_proto_msgTypes[52]
+	mi := &file_react_component_library_v1_components_components_proto_msgTypes[54]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4347,7 +4511,7 @@ func (x *DesignStyle) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DesignStyle.ProtoReflect.Descriptor instead.
 func (*DesignStyle) Descriptor() ([]byte, []int) {
-	return file_react_component_library_v1_components_components_proto_rawDescGZIP(), []int{52}
+	return file_react_component_library_v1_components_components_proto_rawDescGZIP(), []int{54}
 }
 
 func (x *DesignStyle) GetId() string {
@@ -4386,7 +4550,7 @@ type ListDesignStylesRequest struct {
 
 func (x *ListDesignStylesRequest) Reset() {
 	*x = ListDesignStylesRequest{}
-	mi := &file_react_component_library_v1_components_components_proto_msgTypes[53]
+	mi := &file_react_component_library_v1_components_components_proto_msgTypes[55]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4398,7 +4562,7 @@ func (x *ListDesignStylesRequest) String() string {
 func (*ListDesignStylesRequest) ProtoMessage() {}
 
 func (x *ListDesignStylesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_react_component_library_v1_components_components_proto_msgTypes[53]
+	mi := &file_react_component_library_v1_components_components_proto_msgTypes[55]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4411,7 +4575,7 @@ func (x *ListDesignStylesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListDesignStylesRequest.ProtoReflect.Descriptor instead.
 func (*ListDesignStylesRequest) Descriptor() ([]byte, []int) {
-	return file_react_component_library_v1_components_components_proto_rawDescGZIP(), []int{53}
+	return file_react_component_library_v1_components_components_proto_rawDescGZIP(), []int{55}
 }
 
 type ListDesignStylesResponse struct {
@@ -4423,7 +4587,7 @@ type ListDesignStylesResponse struct {
 
 func (x *ListDesignStylesResponse) Reset() {
 	*x = ListDesignStylesResponse{}
-	mi := &file_react_component_library_v1_components_components_proto_msgTypes[54]
+	mi := &file_react_component_library_v1_components_components_proto_msgTypes[56]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4435,7 +4599,7 @@ func (x *ListDesignStylesResponse) String() string {
 func (*ListDesignStylesResponse) ProtoMessage() {}
 
 func (x *ListDesignStylesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_react_component_library_v1_components_components_proto_msgTypes[54]
+	mi := &file_react_component_library_v1_components_components_proto_msgTypes[56]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4448,7 +4612,7 @@ func (x *ListDesignStylesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListDesignStylesResponse.ProtoReflect.Descriptor instead.
 func (*ListDesignStylesResponse) Descriptor() ([]byte, []int) {
-	return file_react_component_library_v1_components_components_proto_rawDescGZIP(), []int{54}
+	return file_react_component_library_v1_components_components_proto_rawDescGZIP(), []int{56}
 }
 
 func (x *ListDesignStylesResponse) GetStyles() []*DesignStyle {
@@ -4469,7 +4633,7 @@ type ValidateStyleFitRequest struct {
 
 func (x *ValidateStyleFitRequest) Reset() {
 	*x = ValidateStyleFitRequest{}
-	mi := &file_react_component_library_v1_components_components_proto_msgTypes[55]
+	mi := &file_react_component_library_v1_components_components_proto_msgTypes[57]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4481,7 +4645,7 @@ func (x *ValidateStyleFitRequest) String() string {
 func (*ValidateStyleFitRequest) ProtoMessage() {}
 
 func (x *ValidateStyleFitRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_react_component_library_v1_components_components_proto_msgTypes[55]
+	mi := &file_react_component_library_v1_components_components_proto_msgTypes[57]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4494,7 +4658,7 @@ func (x *ValidateStyleFitRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ValidateStyleFitRequest.ProtoReflect.Descriptor instead.
 func (*ValidateStyleFitRequest) Descriptor() ([]byte, []int) {
-	return file_react_component_library_v1_components_components_proto_rawDescGZIP(), []int{55}
+	return file_react_component_library_v1_components_components_proto_rawDescGZIP(), []int{57}
 }
 
 func (x *ValidateStyleFitRequest) GetComponentId() string {
@@ -4533,7 +4697,7 @@ type ValidateStyleFitResponse struct {
 
 func (x *ValidateStyleFitResponse) Reset() {
 	*x = ValidateStyleFitResponse{}
-	mi := &file_react_component_library_v1_components_components_proto_msgTypes[56]
+	mi := &file_react_component_library_v1_components_components_proto_msgTypes[58]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4545,7 +4709,7 @@ func (x *ValidateStyleFitResponse) String() string {
 func (*ValidateStyleFitResponse) ProtoMessage() {}
 
 func (x *ValidateStyleFitResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_react_component_library_v1_components_components_proto_msgTypes[56]
+	mi := &file_react_component_library_v1_components_components_proto_msgTypes[58]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4558,7 +4722,7 @@ func (x *ValidateStyleFitResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ValidateStyleFitResponse.ProtoReflect.Descriptor instead.
 func (*ValidateStyleFitResponse) Descriptor() ([]byte, []int) {
-	return file_react_component_library_v1_components_components_proto_rawDescGZIP(), []int{56}
+	return file_react_component_library_v1_components_components_proto_rawDescGZIP(), []int{58}
 }
 
 func (x *ValidateStyleFitResponse) GetKind() StyleFitVerdictKind {
@@ -4910,7 +5074,25 @@ const file_react_component_library_v1_components_components_proto_rawDesc = "" +
 	"\x04path\x18\x03 \x01(\tR\x04path\"\x98\x01\n" +
 	"\"GetComponentVersionContentResponse\x12X\n" +
 	"\aversion\x18\x01 \x01(\v2>.vrooli.react_component_library.v1.components.ComponentVersionR\aversion\x12\x18\n" +
-	"\acontent\x18\x02 \x01(\tR\acontent\"\xb9\x03\n" +
+	"\acontent\x18\x02 \x01(\tR\acontent\"X\n" +
+	"\x1bResolveLibraryImportRequest\x12\x1c\n" +
+	"\tspecifier\x18\x01 \x01(\tR\tspecifier\x12\x1b\n" +
+	"\tfrom_path\x18\x02 \x01(\tR\bfromPath\"\xb0\x02\n" +
+	"\x1cResolveLibraryImportResponse\x12\x1a\n" +
+	"\bresolved\x18\x01 \x01(\bR\bresolved\x12\x1c\n" +
+	"\tspecifier\x18\x02 \x01(\tR\tspecifier\x12\x19\n" +
+	"\basset_id\x18\x03 \x01(\tR\aassetId\x12\x1d\n" +
+	"\n" +
+	"library_id\x18\x04 \x01(\tR\tlibraryId\x12\x18\n" +
+	"\aversion\x18\x05 \x01(\tR\aversion\x12\x1f\n" +
+	"\vexport_kind\x18\x06 \x01(\tR\n" +
+	"exportKind\x12 \n" +
+	"\vdescription\x18\a \x01(\tR\vdescription\x12\x1f\n" +
+	"\vsource_path\x18\b \x01(\tR\n" +
+	"sourcePath\x12\x1e\n" +
+	"\n" +
+	"diagnostic\x18\t \x01(\tR\n" +
+	"diagnostic\"\xb9\x03\n" +
 	"\x0eComponentStory\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12!\n" +
 	"\fcomponent_id\x18\x02 \x01(\tR\vcomponentId\x12\x1d\n" +
@@ -5022,7 +5204,7 @@ const file_react_component_library_v1_components_components_proto_rawDesc = "" +
 	"\"STYLE_FIT_VERDICT_KIND_UNSPECIFIED\x10\x00\x12\x1d\n" +
 	"\x19STYLE_FIT_VERDICT_KIND_OK\x10\x01\x12\x1f\n" +
 	"\x1bSTYLE_FIT_VERDICT_KIND_INFO\x10\x02\x12\x1f\n" +
-	"\x1bSTYLE_FIT_VERDICT_KIND_WARN\x10\x032\xa3\x1b\n" +
+	"\x1bSTYLE_FIT_VERDICT_KIND_WARN\x10\x032\xd3\x1c\n" +
 	"\x11ComponentsService\x12\x9b\x01\n" +
 	"\x0eListComponents\x12C.vrooli.react_component_library.v1.components.ListComponentsRequest\x1aD.vrooli.react_component_library.v1.components.ListComponentsResponse\x12\x95\x01\n" +
 	"\fGetComponent\x12A.vrooli.react_component_library.v1.components.GetComponentRequest\x1aB.vrooli.react_component_library.v1.components.GetComponentResponse\x12\xb6\x01\n" +
@@ -5039,6 +5221,7 @@ const file_react_component_library_v1_components_components_proto_rawDesc = "" +
 	"\x16UpdateComponentContent\x12K.vrooli.react_component_library.v1.components.UpdateComponentContentRequest\x1aL.vrooli.react_component_library.v1.components.UpdateComponentContentResponse\x12\xb0\x01\n" +
 	"\x15ListComponentVersions\x12J.vrooli.react_component_library.v1.components.ListComponentVersionsRequest\x1aK.vrooli.react_component_library.v1.components.ListComponentVersionsResponse\x12\xbf\x01\n" +
 	"\x1aGetComponentVersionContent\x12O.vrooli.react_component_library.v1.components.GetComponentVersionContentRequest\x1aP.vrooli.react_component_library.v1.components.GetComponentVersionContentResponse\x12\xad\x01\n" +
+	"\x14ResolveLibraryImport\x12I.vrooli.react_component_library.v1.components.ResolveLibraryImportRequest\x1aJ.vrooli.react_component_library.v1.components.ResolveLibraryImportResponse\x12\xad\x01\n" +
 	"\x14ListComponentStories\x12I.vrooli.react_component_library.v1.components.ListComponentStoriesRequest\x1aJ.vrooli.react_component_library.v1.components.ListComponentStoriesResponse\x12\xa4\x01\n" +
 	"\x11ListPreviewFrames\x12F.vrooli.react_component_library.v1.components.ListPreviewFramesRequest\x1aG.vrooli.react_component_library.v1.components.ListPreviewFramesResponse\x12\xaa\x01\n" +
 	"\x13PersistPreviewFrame\x12H.vrooli.react_component_library.v1.components.PersistPreviewFrameRequest\x1aI.vrooli.react_component_library.v1.components.PersistPreviewFrameResponse\x12\xa1\x01\n" +
@@ -5058,7 +5241,7 @@ func file_react_component_library_v1_components_components_proto_rawDescGZIP() [
 }
 
 var file_react_component_library_v1_components_components_proto_enumTypes = make([]protoimpl.EnumInfo, 5)
-var file_react_component_library_v1_components_components_proto_msgTypes = make([]protoimpl.MessageInfo, 58)
+var file_react_component_library_v1_components_components_proto_msgTypes = make([]protoimpl.MessageInfo, 60)
 var file_react_component_library_v1_components_components_proto_goTypes = []any{
 	(AssetKind)(0),                             // 0: vrooli.react_component_library.v1.components.AssetKind
 	(ComponentVersionIntent)(0),                // 1: vrooli.react_component_library.v1.components.ComponentVersionIntent
@@ -5109,28 +5292,30 @@ var file_react_component_library_v1_components_components_proto_goTypes = []any{
 	(*ListComponentVersionsResponse)(nil),      // 46: vrooli.react_component_library.v1.components.ListComponentVersionsResponse
 	(*GetComponentVersionContentRequest)(nil),  // 47: vrooli.react_component_library.v1.components.GetComponentVersionContentRequest
 	(*GetComponentVersionContentResponse)(nil), // 48: vrooli.react_component_library.v1.components.GetComponentVersionContentResponse
-	(*ComponentStory)(nil),                     // 49: vrooli.react_component_library.v1.components.ComponentStory
-	(*ListComponentStoriesRequest)(nil),        // 50: vrooli.react_component_library.v1.components.ListComponentStoriesRequest
-	(*ListComponentStoriesResponse)(nil),       // 51: vrooli.react_component_library.v1.components.ListComponentStoriesResponse
-	(*ListPreviewFramesRequest)(nil),           // 52: vrooli.react_component_library.v1.components.ListPreviewFramesRequest
-	(*PreviewFrameCandidate)(nil),              // 53: vrooli.react_component_library.v1.components.PreviewFrameCandidate
-	(*ListPreviewFramesResponse)(nil),          // 54: vrooli.react_component_library.v1.components.ListPreviewFramesResponse
-	(*PersistPreviewFrameRequest)(nil),         // 55: vrooli.react_component_library.v1.components.PersistPreviewFrameRequest
-	(*PersistPreviewFrameResponse)(nil),        // 56: vrooli.react_component_library.v1.components.PersistPreviewFrameResponse
-	(*DesignStyle)(nil),                        // 57: vrooli.react_component_library.v1.components.DesignStyle
-	(*ListDesignStylesRequest)(nil),            // 58: vrooli.react_component_library.v1.components.ListDesignStylesRequest
-	(*ListDesignStylesResponse)(nil),           // 59: vrooli.react_component_library.v1.components.ListDesignStylesResponse
-	(*ValidateStyleFitRequest)(nil),            // 60: vrooli.react_component_library.v1.components.ValidateStyleFitRequest
-	(*ValidateStyleFitResponse)(nil),           // 61: vrooli.react_component_library.v1.components.ValidateStyleFitResponse
-	nil,                                        // 62: vrooli.react_component_library.v1.components.Component.HeadersEntry
-	(*timestamppb.Timestamp)(nil),              // 63: google.protobuf.Timestamp
-	(*contract.ClaimMeasurement)(nil),          // 64: vrooli.experience_manager.v1.contract.ClaimMeasurement
+	(*ResolveLibraryImportRequest)(nil),        // 49: vrooli.react_component_library.v1.components.ResolveLibraryImportRequest
+	(*ResolveLibraryImportResponse)(nil),       // 50: vrooli.react_component_library.v1.components.ResolveLibraryImportResponse
+	(*ComponentStory)(nil),                     // 51: vrooli.react_component_library.v1.components.ComponentStory
+	(*ListComponentStoriesRequest)(nil),        // 52: vrooli.react_component_library.v1.components.ListComponentStoriesRequest
+	(*ListComponentStoriesResponse)(nil),       // 53: vrooli.react_component_library.v1.components.ListComponentStoriesResponse
+	(*ListPreviewFramesRequest)(nil),           // 54: vrooli.react_component_library.v1.components.ListPreviewFramesRequest
+	(*PreviewFrameCandidate)(nil),              // 55: vrooli.react_component_library.v1.components.PreviewFrameCandidate
+	(*ListPreviewFramesResponse)(nil),          // 56: vrooli.react_component_library.v1.components.ListPreviewFramesResponse
+	(*PersistPreviewFrameRequest)(nil),         // 57: vrooli.react_component_library.v1.components.PersistPreviewFrameRequest
+	(*PersistPreviewFrameResponse)(nil),        // 58: vrooli.react_component_library.v1.components.PersistPreviewFrameResponse
+	(*DesignStyle)(nil),                        // 59: vrooli.react_component_library.v1.components.DesignStyle
+	(*ListDesignStylesRequest)(nil),            // 60: vrooli.react_component_library.v1.components.ListDesignStylesRequest
+	(*ListDesignStylesResponse)(nil),           // 61: vrooli.react_component_library.v1.components.ListDesignStylesResponse
+	(*ValidateStyleFitRequest)(nil),            // 62: vrooli.react_component_library.v1.components.ValidateStyleFitRequest
+	(*ValidateStyleFitResponse)(nil),           // 63: vrooli.react_component_library.v1.components.ValidateStyleFitResponse
+	nil,                                        // 64: vrooli.react_component_library.v1.components.Component.HeadersEntry
+	(*timestamppb.Timestamp)(nil),              // 65: google.protobuf.Timestamp
+	(*contract.ClaimMeasurement)(nil),          // 66: vrooli.experience_manager.v1.contract.ClaimMeasurement
 }
 var file_react_component_library_v1_components_components_proto_depIdxs = []int32{
 	7,  // 0: vrooli.react_component_library.v1.components.AssetMetrics.version_adoptions:type_name -> vrooli.react_component_library.v1.components.VersionAdoptionMetric
-	63, // 1: vrooli.react_component_library.v1.components.Component.indexed_at:type_name -> google.protobuf.Timestamp
-	63, // 2: vrooli.react_component_library.v1.components.Component.updated_at:type_name -> google.protobuf.Timestamp
-	62, // 3: vrooli.react_component_library.v1.components.Component.headers:type_name -> vrooli.react_component_library.v1.components.Component.HeadersEntry
+	65, // 1: vrooli.react_component_library.v1.components.Component.indexed_at:type_name -> google.protobuf.Timestamp
+	65, // 2: vrooli.react_component_library.v1.components.Component.updated_at:type_name -> google.protobuf.Timestamp
+	64, // 3: vrooli.react_component_library.v1.components.Component.headers:type_name -> vrooli.react_component_library.v1.components.Component.HeadersEntry
 	44, // 4: vrooli.react_component_library.v1.components.Component.design_styles:type_name -> vrooli.react_component_library.v1.components.ComponentDesignAffinity
 	0,  // 5: vrooli.react_component_library.v1.components.Component.asset_kind:type_name -> vrooli.react_component_library.v1.components.AssetKind
 	5,  // 6: vrooli.react_component_library.v1.components.Component.dependencies:type_name -> vrooli.react_component_library.v1.components.AssetDependency
@@ -5143,7 +5328,7 @@ var file_react_component_library_v1_components_components_proto_depIdxs = []int3
 	16, // 13: vrooli.react_component_library.v1.components.ComponentExperience.states:type_name -> vrooli.react_component_library.v1.components.ComponentExperienceState
 	17, // 14: vrooli.react_component_library.v1.components.ComponentExperience.claims:type_name -> vrooli.react_component_library.v1.components.ComponentExperienceClaim
 	18, // 15: vrooli.react_component_library.v1.components.ComponentExperience.evidence:type_name -> vrooli.react_component_library.v1.components.ComponentExperienceEvidence
-	64, // 16: vrooli.react_component_library.v1.components.ComponentExperienceEvidence.measurement:type_name -> vrooli.experience_manager.v1.contract.ClaimMeasurement
+	66, // 16: vrooli.react_component_library.v1.components.ComponentExperienceEvidence.measurement:type_name -> vrooli.experience_manager.v1.contract.ClaimMeasurement
 	8,  // 17: vrooli.react_component_library.v1.components.InitializeComponentResponse.component:type_name -> vrooli.react_component_library.v1.components.Component
 	8,  // 18: vrooli.react_component_library.v1.components.IngestComponentResponse.component:type_name -> vrooli.react_component_library.v1.components.Component
 	24, // 19: vrooli.react_component_library.v1.components.IngestComponentResponse.findings:type_name -> vrooli.react_component_library.v1.components.IngestFinding
@@ -5161,17 +5346,17 @@ var file_react_component_library_v1_components_components_proto_depIdxs = []int3
 	42, // 31: vrooli.react_component_library.v1.components.PublishComponentVersionResponse.version:type_name -> vrooli.react_component_library.v1.components.ComponentVersion
 	8,  // 32: vrooli.react_component_library.v1.components.UpdateComponentManifestResponse.component:type_name -> vrooli.react_component_library.v1.components.Component
 	2,  // 33: vrooli.react_component_library.v1.components.ComponentVersion.status:type_name -> vrooli.react_component_library.v1.components.ComponentVersionStatus
-	63, // 34: vrooli.react_component_library.v1.components.ComponentVersion.indexed_at:type_name -> google.protobuf.Timestamp
-	63, // 35: vrooli.react_component_library.v1.components.ComponentVersion.released_at:type_name -> google.protobuf.Timestamp
+	65, // 34: vrooli.react_component_library.v1.components.ComponentVersion.indexed_at:type_name -> google.protobuf.Timestamp
+	65, // 35: vrooli.react_component_library.v1.components.ComponentVersion.released_at:type_name -> google.protobuf.Timestamp
 	43, // 36: vrooli.react_component_library.v1.components.ComponentVersion.files:type_name -> vrooli.react_component_library.v1.components.ComponentVersionFile
 	26, // 37: vrooli.react_component_library.v1.components.ComponentVersion.parity_report:type_name -> vrooli.react_component_library.v1.components.IngestParityReport
 	3,  // 38: vrooli.react_component_library.v1.components.ComponentDesignAffinity.affinity:type_name -> vrooli.react_component_library.v1.components.DesignAffinity
 	42, // 39: vrooli.react_component_library.v1.components.ListComponentVersionsResponse.versions:type_name -> vrooli.react_component_library.v1.components.ComponentVersion
 	42, // 40: vrooli.react_component_library.v1.components.GetComponentVersionContentResponse.version:type_name -> vrooli.react_component_library.v1.components.ComponentVersion
-	63, // 41: vrooli.react_component_library.v1.components.ComponentStory.indexed_at:type_name -> google.protobuf.Timestamp
-	49, // 42: vrooli.react_component_library.v1.components.ListComponentStoriesResponse.stories:type_name -> vrooli.react_component_library.v1.components.ComponentStory
-	53, // 43: vrooli.react_component_library.v1.components.ListPreviewFramesResponse.candidates:type_name -> vrooli.react_component_library.v1.components.PreviewFrameCandidate
-	57, // 44: vrooli.react_component_library.v1.components.ListDesignStylesResponse.styles:type_name -> vrooli.react_component_library.v1.components.DesignStyle
+	65, // 41: vrooli.react_component_library.v1.components.ComponentStory.indexed_at:type_name -> google.protobuf.Timestamp
+	51, // 42: vrooli.react_component_library.v1.components.ListComponentStoriesResponse.stories:type_name -> vrooli.react_component_library.v1.components.ComponentStory
+	55, // 43: vrooli.react_component_library.v1.components.ListPreviewFramesResponse.candidates:type_name -> vrooli.react_component_library.v1.components.PreviewFrameCandidate
+	59, // 44: vrooli.react_component_library.v1.components.ListDesignStylesResponse.styles:type_name -> vrooli.react_component_library.v1.components.DesignStyle
 	4,  // 45: vrooli.react_component_library.v1.components.ValidateStyleFitResponse.kind:type_name -> vrooli.react_component_library.v1.components.StyleFitVerdictKind
 	3,  // 46: vrooli.react_component_library.v1.components.ValidateStyleFitResponse.affinity:type_name -> vrooli.react_component_library.v1.components.DesignAffinity
 	9,  // 47: vrooli.react_component_library.v1.components.ComponentsService.ListComponents:input_type -> vrooli.react_component_library.v1.components.ListComponentsRequest
@@ -5189,33 +5374,35 @@ var file_react_component_library_v1_components_components_proto_depIdxs = []int3
 	40, // 59: vrooli.react_component_library.v1.components.ComponentsService.UpdateComponentContent:input_type -> vrooli.react_component_library.v1.components.UpdateComponentContentRequest
 	45, // 60: vrooli.react_component_library.v1.components.ComponentsService.ListComponentVersions:input_type -> vrooli.react_component_library.v1.components.ListComponentVersionsRequest
 	47, // 61: vrooli.react_component_library.v1.components.ComponentsService.GetComponentVersionContent:input_type -> vrooli.react_component_library.v1.components.GetComponentVersionContentRequest
-	50, // 62: vrooli.react_component_library.v1.components.ComponentsService.ListComponentStories:input_type -> vrooli.react_component_library.v1.components.ListComponentStoriesRequest
-	52, // 63: vrooli.react_component_library.v1.components.ComponentsService.ListPreviewFrames:input_type -> vrooli.react_component_library.v1.components.ListPreviewFramesRequest
-	55, // 64: vrooli.react_component_library.v1.components.ComponentsService.PersistPreviewFrame:input_type -> vrooli.react_component_library.v1.components.PersistPreviewFrameRequest
-	58, // 65: vrooli.react_component_library.v1.components.ComponentsService.ListDesignStyles:input_type -> vrooli.react_component_library.v1.components.ListDesignStylesRequest
-	60, // 66: vrooli.react_component_library.v1.components.ComponentsService.ValidateStyleFit:input_type -> vrooli.react_component_library.v1.components.ValidateStyleFitRequest
-	10, // 67: vrooli.react_component_library.v1.components.ComponentsService.ListComponents:output_type -> vrooli.react_component_library.v1.components.ListComponentsResponse
-	12, // 68: vrooli.react_component_library.v1.components.ComponentsService.GetComponent:output_type -> vrooli.react_component_library.v1.components.GetComponentResponse
-	14, // 69: vrooli.react_component_library.v1.components.ComponentsService.GetComponentByLibraryId:output_type -> vrooli.react_component_library.v1.components.GetComponentByLibraryIdResponse
-	20, // 70: vrooli.react_component_library.v1.components.ComponentsService.IndexComponents:output_type -> vrooli.react_component_library.v1.components.IndexComponentsResponse
-	22, // 71: vrooli.react_component_library.v1.components.ComponentsService.InitializeComponent:output_type -> vrooli.react_component_library.v1.components.InitializeComponentResponse
-	25, // 72: vrooli.react_component_library.v1.components.ComponentsService.IngestComponent:output_type -> vrooli.react_component_library.v1.components.IngestComponentResponse
-	30, // 73: vrooli.react_component_library.v1.components.ComponentsService.BeginComponentVersion:output_type -> vrooli.react_component_library.v1.components.BeginComponentVersionResponse
-	33, // 74: vrooli.react_component_library.v1.components.ComponentsService.CheckComponentVersion:output_type -> vrooli.react_component_library.v1.components.CheckComponentVersionResponse
-	35, // 75: vrooli.react_component_library.v1.components.ComponentsService.PublishComponentVersion:output_type -> vrooli.react_component_library.v1.components.PublishComponentVersionResponse
-	28, // 76: vrooli.react_component_library.v1.components.ComponentsService.CreateComponentVersion:output_type -> vrooli.react_component_library.v1.components.CreateComponentVersionResponse
-	37, // 77: vrooli.react_component_library.v1.components.ComponentsService.UpdateComponentManifest:output_type -> vrooli.react_component_library.v1.components.UpdateComponentManifestResponse
-	39, // 78: vrooli.react_component_library.v1.components.ComponentsService.GetComponentContent:output_type -> vrooli.react_component_library.v1.components.GetComponentContentResponse
-	41, // 79: vrooli.react_component_library.v1.components.ComponentsService.UpdateComponentContent:output_type -> vrooli.react_component_library.v1.components.UpdateComponentContentResponse
-	46, // 80: vrooli.react_component_library.v1.components.ComponentsService.ListComponentVersions:output_type -> vrooli.react_component_library.v1.components.ListComponentVersionsResponse
-	48, // 81: vrooli.react_component_library.v1.components.ComponentsService.GetComponentVersionContent:output_type -> vrooli.react_component_library.v1.components.GetComponentVersionContentResponse
-	51, // 82: vrooli.react_component_library.v1.components.ComponentsService.ListComponentStories:output_type -> vrooli.react_component_library.v1.components.ListComponentStoriesResponse
-	54, // 83: vrooli.react_component_library.v1.components.ComponentsService.ListPreviewFrames:output_type -> vrooli.react_component_library.v1.components.ListPreviewFramesResponse
-	56, // 84: vrooli.react_component_library.v1.components.ComponentsService.PersistPreviewFrame:output_type -> vrooli.react_component_library.v1.components.PersistPreviewFrameResponse
-	59, // 85: vrooli.react_component_library.v1.components.ComponentsService.ListDesignStyles:output_type -> vrooli.react_component_library.v1.components.ListDesignStylesResponse
-	61, // 86: vrooli.react_component_library.v1.components.ComponentsService.ValidateStyleFit:output_type -> vrooli.react_component_library.v1.components.ValidateStyleFitResponse
-	67, // [67:87] is the sub-list for method output_type
-	47, // [47:67] is the sub-list for method input_type
+	49, // 62: vrooli.react_component_library.v1.components.ComponentsService.ResolveLibraryImport:input_type -> vrooli.react_component_library.v1.components.ResolveLibraryImportRequest
+	52, // 63: vrooli.react_component_library.v1.components.ComponentsService.ListComponentStories:input_type -> vrooli.react_component_library.v1.components.ListComponentStoriesRequest
+	54, // 64: vrooli.react_component_library.v1.components.ComponentsService.ListPreviewFrames:input_type -> vrooli.react_component_library.v1.components.ListPreviewFramesRequest
+	57, // 65: vrooli.react_component_library.v1.components.ComponentsService.PersistPreviewFrame:input_type -> vrooli.react_component_library.v1.components.PersistPreviewFrameRequest
+	60, // 66: vrooli.react_component_library.v1.components.ComponentsService.ListDesignStyles:input_type -> vrooli.react_component_library.v1.components.ListDesignStylesRequest
+	62, // 67: vrooli.react_component_library.v1.components.ComponentsService.ValidateStyleFit:input_type -> vrooli.react_component_library.v1.components.ValidateStyleFitRequest
+	10, // 68: vrooli.react_component_library.v1.components.ComponentsService.ListComponents:output_type -> vrooli.react_component_library.v1.components.ListComponentsResponse
+	12, // 69: vrooli.react_component_library.v1.components.ComponentsService.GetComponent:output_type -> vrooli.react_component_library.v1.components.GetComponentResponse
+	14, // 70: vrooli.react_component_library.v1.components.ComponentsService.GetComponentByLibraryId:output_type -> vrooli.react_component_library.v1.components.GetComponentByLibraryIdResponse
+	20, // 71: vrooli.react_component_library.v1.components.ComponentsService.IndexComponents:output_type -> vrooli.react_component_library.v1.components.IndexComponentsResponse
+	22, // 72: vrooli.react_component_library.v1.components.ComponentsService.InitializeComponent:output_type -> vrooli.react_component_library.v1.components.InitializeComponentResponse
+	25, // 73: vrooli.react_component_library.v1.components.ComponentsService.IngestComponent:output_type -> vrooli.react_component_library.v1.components.IngestComponentResponse
+	30, // 74: vrooli.react_component_library.v1.components.ComponentsService.BeginComponentVersion:output_type -> vrooli.react_component_library.v1.components.BeginComponentVersionResponse
+	33, // 75: vrooli.react_component_library.v1.components.ComponentsService.CheckComponentVersion:output_type -> vrooli.react_component_library.v1.components.CheckComponentVersionResponse
+	35, // 76: vrooli.react_component_library.v1.components.ComponentsService.PublishComponentVersion:output_type -> vrooli.react_component_library.v1.components.PublishComponentVersionResponse
+	28, // 77: vrooli.react_component_library.v1.components.ComponentsService.CreateComponentVersion:output_type -> vrooli.react_component_library.v1.components.CreateComponentVersionResponse
+	37, // 78: vrooli.react_component_library.v1.components.ComponentsService.UpdateComponentManifest:output_type -> vrooli.react_component_library.v1.components.UpdateComponentManifestResponse
+	39, // 79: vrooli.react_component_library.v1.components.ComponentsService.GetComponentContent:output_type -> vrooli.react_component_library.v1.components.GetComponentContentResponse
+	41, // 80: vrooli.react_component_library.v1.components.ComponentsService.UpdateComponentContent:output_type -> vrooli.react_component_library.v1.components.UpdateComponentContentResponse
+	46, // 81: vrooli.react_component_library.v1.components.ComponentsService.ListComponentVersions:output_type -> vrooli.react_component_library.v1.components.ListComponentVersionsResponse
+	48, // 82: vrooli.react_component_library.v1.components.ComponentsService.GetComponentVersionContent:output_type -> vrooli.react_component_library.v1.components.GetComponentVersionContentResponse
+	50, // 83: vrooli.react_component_library.v1.components.ComponentsService.ResolveLibraryImport:output_type -> vrooli.react_component_library.v1.components.ResolveLibraryImportResponse
+	53, // 84: vrooli.react_component_library.v1.components.ComponentsService.ListComponentStories:output_type -> vrooli.react_component_library.v1.components.ListComponentStoriesResponse
+	56, // 85: vrooli.react_component_library.v1.components.ComponentsService.ListPreviewFrames:output_type -> vrooli.react_component_library.v1.components.ListPreviewFramesResponse
+	58, // 86: vrooli.react_component_library.v1.components.ComponentsService.PersistPreviewFrame:output_type -> vrooli.react_component_library.v1.components.PersistPreviewFrameResponse
+	61, // 87: vrooli.react_component_library.v1.components.ComponentsService.ListDesignStyles:output_type -> vrooli.react_component_library.v1.components.ListDesignStylesResponse
+	63, // 88: vrooli.react_component_library.v1.components.ComponentsService.ValidateStyleFit:output_type -> vrooli.react_component_library.v1.components.ValidateStyleFitResponse
+	68, // [68:89] is the sub-list for method output_type
+	47, // [47:68] is the sub-list for method input_type
 	47, // [47:47] is the sub-list for extension type_name
 	47, // [47:47] is the sub-list for extension extendee
 	0,  // [0:47] is the sub-list for field type_name
@@ -5232,7 +5419,7 @@ func file_react_component_library_v1_components_components_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_react_component_library_v1_components_components_proto_rawDesc), len(file_react_component_library_v1_components_components_proto_rawDesc)),
 			NumEnums:      5,
-			NumMessages:   58,
+			NumMessages:   60,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

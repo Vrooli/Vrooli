@@ -15,6 +15,8 @@ import (
 	"strings"
 
 	repocontract "github.com/vrooli/repo-contract-go"
+	"github.com/vrooli/vrooli/internal/artifactlease"
+	"github.com/vrooli/vrooli/internal/artifactledger"
 	"github.com/vrooli/vrooli/internal/buildinfo"
 	"github.com/vrooli/vrooli/internal/config"
 	"github.com/vrooli/vrooli/internal/discovery"
@@ -51,6 +53,11 @@ type Manager struct {
 	installDir string // resolved once from the runtime_home authority (bin entry)
 	Installer  Installer
 	removeFile func(string) error
+	// ledger makes every removal this manager performs attributable. It is
+	// never nil in a manager built by NewManager; a nil ledger means a caller
+	// constructed a Manager literal, and removal refuses rather than deleting
+	// something nothing will have recorded.
+	ledger *artifactledger.Ledger
 }
 
 // ScenarioCLIRemovalReport describes the installed artifacts removed during
@@ -94,6 +101,7 @@ func AtomicInstall(src, dst string) error {
 		return fmt.Errorf("lock binary install %s: %w", dst, err)
 	}
 	defer release()
+	_ = buildinfo.PreserveRootBinaryFallback(dst)
 
 	tmp := dst + ".new"
 	if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
@@ -146,7 +154,6 @@ func (s InstallLocationStatus) PathMismatch() bool {
 }
 
 func NewManager(root, home string) (*Manager, error) {
-
 	if strings.TrimSpace(home) == "" {
 		resolved, err := config.HomeDir()
 		if err != nil {
@@ -159,12 +166,17 @@ func NewManager(root, home string) (*Manager, error) {
 	if err != nil {
 		return nil, fmt.Errorf("resolve cli install dir: %w", err)
 	}
+	ledger, err := artifactledger.New(cleanHome)
+	if err != nil {
+		return nil, fmt.Errorf("resolve removal ledger: %w", err)
+	}
 	return &Manager{
 		Root:       filepath.Clean(root),
 		Home:       cleanHome,
 		installDir: installDir,
 		Installer:  GoInstaller{},
 		removeFile: os.Remove,
+		ledger:     ledger,
 	}, nil
 }
 
@@ -423,6 +435,12 @@ func (m *Manager) InstallDir() string {
 	return m.installDir
 }
 
+// scenarioDeletionPredicate is the rule this removal path enforces, recorded on
+// every receipt it writes. This path runs only as part of deleting a scenario:
+// the CLI triple follows its scenario out of the repository rather than being
+// reclaimed on its own judgement.
+const scenarioDeletionPredicate = "scenario source deletion requested; the installed CLI triple follows its scenario"
+
 // RemoveScenarioCLI removes the canonical installed triple for a scenario.
 // It is intentionally idempotent: scenario deletion may be retried after the
 // binary or either sidecar has already disappeared. Resource binaries and the
@@ -447,14 +465,28 @@ func (m *Manager) RemoveScenarioCLIReport(name string) (ScenarioCLIRemovalReport
 	if removeFile == nil {
 		removeFile = os.Remove
 	}
+	if m.ledger == nil {
+		// Refusing is the safe direction. A removal nothing records is exactly
+		// the fault this ledger exists to end, so a Manager assembled without
+		// one does not get to delete.
+		return ScenarioCLIRemovalReport{}, fmt.Errorf("remove scenario CLI %q: no removal ledger is configured", name)
+	}
 	report := ScenarioCLIRemovalReport{}
 	for _, binaryName := range []string{name, name + ".exe"} {
-		for _, path := range []string{
-			filepath.Join(m.InstallDir(), binaryName),
-			installedBuildMetadataPath(filepath.Join(m.InstallDir(), binaryName)),
-			installedManifestPath(filepath.Join(m.InstallDir(), binaryName)),
+		installed := filepath.Join(m.InstallDir(), binaryName)
+		for _, artifact := range []struct{ kind, path string }{
+			{"binary", installed},
+			{"build-metadata", installedBuildMetadataPath(installed)},
+			{"manifest", installedManifestPath(installed)},
 		} {
-			err := removeFile(path)
+			kind, path := artifact.kind, artifact.path
+			err := m.ledger.Guard(artifactledger.Removal{
+				Path:      path,
+				Subject:   installed,
+				Kind:      kind,
+				Component: "cliinstall.RemoveScenarioCLIReport",
+				Predicate: scenarioDeletionPredicate,
+			}, func() error { return removeFile(path) })
 			if errors.Is(err, fs.ErrNotExist) {
 				continue
 			}
@@ -466,6 +498,12 @@ func (m *Manager) RemoveScenarioCLIReport(name string) (ScenarioCLIRemovalReport
 				return report, fmt.Errorf("remove scenario CLI artifact %s: %w", path, err)
 			}
 			report.Removed++
+		}
+		// The ownership record describes an artifact that is now gone. Leaving it
+		// would let a later install inherit a stale generation and, worse, a
+		// stale recorded absence.
+		if err := artifactlease.Remove(filepath.Join(m.InstallDir(), binaryName)); err != nil {
+			report.Skipped = append(report.Skipped, artifactlease.Path(filepath.Join(m.InstallDir(), binaryName)))
 		}
 	}
 	return report, nil
@@ -568,12 +606,23 @@ func (m *Manager) ensure(ctx context.Context, item InstallableCLI) error {
 			return fingerprintErr
 		}
 		if current {
-			return m.recordInstalledCLI(item)
+			if err := m.recordInstalledCLI(item); err != nil {
+				return err
+			}
+			// Already current: the artifact was not replaced, so this renews
+			// the lease rather than claiming a new generation.
+			m.noteOwnership(item, m.InstalledBinaryPath(item), false)
+			return nil
 		}
 	} else if err != nil && !os.IsNotExist(err) {
 		return err
 	}
-	return m.install(ctx, item)
+	if err := m.install(ctx, item); err != nil {
+		return err
+	}
+	// New bytes were written to this path, so this is a claim.
+	m.noteOwnership(item, m.InstalledBinaryPath(item), true)
+	return nil
 }
 
 func (m *Manager) installedBinaryCurrent(item InstallableCLI) (bool, error) {

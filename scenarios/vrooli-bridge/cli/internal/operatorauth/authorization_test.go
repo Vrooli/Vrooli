@@ -23,7 +23,7 @@ func TestReadSealsPlaintextAndKeepsCapabilityOpaque(t *testing.T) {
 	}
 	// A valid X25519 public key is required by Seal; use the deterministic test
 	// vector from the package contract rather than accepting a plaintext fallback.
-	private, err := sealing.PrivateKeyFromEd25519Seed(key)
+	private, err := sealing.PrivateKeyFromRaw(key)
 	if err != nil {
 		t.Fatal(err)
 	}

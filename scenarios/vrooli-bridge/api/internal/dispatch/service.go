@@ -36,6 +36,7 @@ type service struct {
 	catalogErr     error
 	defaultTimeout int64
 	leases         DeviceLeaseStore
+	grants         CredentialGrantReader
 }
 
 // Option customises the service (manifest override, default timeout).
@@ -80,6 +81,12 @@ func WithDeviceLeaseStore(store DeviceLeaseStore) Option {
 			s.leases = store
 		}
 	}
+}
+
+// WithCredentialGrantReader binds the metadata-only grant policy used by
+// typed ephemeral job injections.
+func WithCredentialGrantReader(reader CredentialGrantReader) Option {
+	return func(s *service) { s.grants = reader }
 }
 
 // NewService constructs the production Service.
@@ -141,6 +148,10 @@ func (s *service) Dispatch(ctx context.Context, in DispatchInput) (Decision, err
 		s.auditReject(ctx, in, err.Error())
 		return Decision{}, err
 	}
+	if err := s.validateCredentialInjections(ctx, job); err != nil {
+		s.auditReject(ctx, in, err.Error())
+		return Decision{}, err
+	}
 
 	// 3. The allowlist gate has completed. A rejection here is
 	//    audited and surfaced before any run is created or anything is pushed.
@@ -196,7 +207,8 @@ func (s *service) Dispatch(ctx context.Context, in DispatchInput) (Decision, err
 	//    adds a durable per-node queue that redelivers instead.
 	pushed := PushedJob{
 		RunID: runID, Scenario: job.Scenario, Verb: job.Verb, Args: job.Args, TimeoutSeconds: timeout,
-		Outputs: append([]ArtifactOutput(nil), s.outputs[job.Verb]...),
+		Outputs:              append([]ArtifactOutput(nil), s.outputs[job.Verb]...),
+		CredentialInjections: append([]CredentialInjection(nil), job.CredentialInjections...),
 	}
 	queued := false
 	var delivered int
@@ -214,6 +226,31 @@ func (s *service) Dispatch(ctx context.Context, in DispatchInput) (Decision, err
 	}
 
 	return Decision{RunID: runID, Job: job, Queued: queued}, nil
+}
+
+func (s *service) validateCredentialInjections(ctx context.Context, job Job) error {
+	if len(job.CredentialInjections) == 0 {
+		return nil
+	}
+	if s.grants == nil {
+		return ErrCredentialGrantRequired{NodeID: job.NodeID, Reason: "credential grant policy is unavailable"}
+	}
+	for _, injection := range job.CredentialInjections {
+		if strings.TrimSpace(injection.LogicalID) == "" || strings.TrimSpace(injection.Field) == "" || strings.TrimSpace(injection.EnvName) == "" {
+			return ErrCredentialGrantRequired{NodeID: job.NodeID, LogicalID: injection.LogicalID, Field: injection.Field, Reason: "logical_id, field, and env_name are required"}
+		}
+		_, retention, found, err := s.grants.ActiveGrant(ctx, job.NodeID, injection.LogicalID, injection.Field)
+		if err != nil {
+			return ErrCredentialGrantRequired{NodeID: job.NodeID, LogicalID: injection.LogicalID, Field: injection.Field, Reason: "grant lookup failed"}
+		}
+		if !found {
+			return ErrCredentialGrantRequired{NodeID: job.NodeID, LogicalID: injection.LogicalID, Field: injection.Field, Reason: "address is not actively granted to this node"}
+		}
+		if retention != "ephemeral" {
+			return ErrCredentialGrantRequired{NodeID: job.NodeID, LogicalID: injection.LogicalID, Field: injection.Field, Reason: "job injection requires an ephemeral grant"}
+		}
+	}
+	return nil
 }
 
 // Admit applies the complete node/job authorization decision without causing

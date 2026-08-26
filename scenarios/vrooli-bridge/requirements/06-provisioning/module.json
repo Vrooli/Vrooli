@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "Privileged tier: bring a node to revision R (fetch source + idempotent vrooli setup); separated from the non-privileged runner.",
-    "last_validated_at": "2026-08-19T07:16:08-04:00",
+    "last_validated_at": "2026-08-24T17:40:20-04:00",
     "module": "provisioning",
     "prd_ref": "OT-P0-006",
     "priority": "P0",
@@ -11,7 +11,7 @@
     {
       "id": "BRG-P0-006",
       "title": "Privileged Provisioning Tier",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-006",
       "category": "core",
       "description": "A distinct, privileged provisioning path brings a node to a target project revision R (fetch source at R + idempotent `vrooli setup`) and reports the resulting version. Provisioning is structurally separated from the non-privileged job runner so everyday remote execution can never escalate privilege, and re-running provisioning is always safe (idempotent).",
@@ -20,14 +20,14 @@
           "type": "test",
           "ref": "api/internal/provision/provision_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Sync-to-revision-R is idempotent; re-running yields the same end state and reports the node's resulting version."
         },
         {
           "type": "test",
           "ref": "agent/internal/privsep/privsep_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "The job runner (internal/exec) cannot invoke provisioning/privileged operations; the two trust tiers share no in-process call path (TestPrivilegeSeparation_NoCrossImport). Idempotent re-provision + rollback-on-failed-setup proven here."
         },
         {

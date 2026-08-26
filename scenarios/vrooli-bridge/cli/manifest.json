@@ -112,7 +112,7 @@
             },
             {
               "name": "kind",
-              "description": "Node kind: agent (default), ssh, or attached"
+              "description": "Node kind: agent (default), ssh, attached, or control_plane"
             },
             {
               "name": "endpoint",
@@ -233,6 +233,10 @@
             {
               "name": "revision",
               "description": "Provisioned Vrooli revision"
+            },
+            {
+              "name": "kind",
+              "description": "Node kind: agent, ssh, attached, or control_plane"
             }
           ],
           "binding": {
@@ -2231,6 +2235,11 @@
       "reason": "Node-facing authenticated relay response called by the node-agent after executing a signed relay frame, not an operator. The owner-facing relay call is RelayService/Call."
     },
     {
+      "service": "PresenceService",
+      "method": "ReportCredentialReceipt",
+      "reason": "Node-facing authenticated credential delivery receipt called by the node-agent; operators inspect the generation and ack metadata through grant inventory."
+    },
+    {
       "service": "RunsService",
       "method": "ReportRunEvent",
       "reason": "Node-facing dial-out RPC: the node-agent streams run events back here signed with its per-node credential. There is no operator `runs report` command; the agent reports run progress on the channel."
@@ -2249,6 +2258,36 @@
       "service": "ArtifactsService",
       "method": "UploadRunArtifact",
       "reason": "Node-facing authenticated upload called by the bridge agent after a typed job produces bounded evidence; there is no operator upload command."
+    },
+    {
+      "service": "PairingService",
+      "method": "RegisterEncryptionKey",
+      "reason": "Node-facing authenticated key-add exchange called by an already-paired agent at startup; it is not an operator command."
+    },
+    {
+      "service": "CredentialGrantService",
+      "method": "SyncNodeGrants",
+      "reason": "Node-facing authenticated grant reconciliation called by the node-agent after channel connection; operators use the owner-facing grant commands."
+    },
+    {
+      "service": "CredentialGrantService",
+      "method": "CreateGrant",
+      "reason": "Owner-facing grant authoring is exposed by the secrets-manager grants CLI and Trust console, not the bridge fleet transport CLI."
+    },
+    {
+      "service": "CredentialGrantService",
+      "method": "ListGrants",
+      "reason": "Owner-facing grant inventory is exposed by the secrets-manager grants CLI and Trust console, not the bridge fleet transport CLI."
+    },
+    {
+      "service": "CredentialGrantService",
+      "method": "RevokeGrant",
+      "reason": "Owner-facing grant revocation is exposed by the secrets-manager grants CLI and Trust console, not the bridge fleet transport CLI."
+    },
+    {
+      "service": "CredentialGrantService",
+      "method": "RotateAddress",
+      "reason": "Owner-facing address rotation is exposed by the secrets-manager grants CLI and root credential provisioning fanout, not the bridge fleet transport CLI."
     }
   ]
 }

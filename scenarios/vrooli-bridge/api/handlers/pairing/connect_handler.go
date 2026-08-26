@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"vrooli-bridge/internal/auth"
+	"vrooli-bridge/internal/nodeauth"
 	"vrooli-bridge/internal/pairing"
 
 	"connectrpc.com/connect"
@@ -24,6 +25,24 @@ type Deps struct {
 	// not provide a narrower grant at enrollment time.
 	DefaultScopes []string
 	Logger        *log.Logger
+	NodeVerifier  *nodeauth.Verifier
+}
+
+func (h *connectHandler) RegisterEncryptionKey(ctx context.Context, req *connect.Request[pairingv1.RegisterEncryptionKeyRequest]) (*connect.Response[pairingv1.RegisterEncryptionKeyResponse], error) {
+	if h.deps.NodeVerifier == nil {
+		return nil, connect.NewError(connect.CodeUnauthenticated, errors.New("node authentication is not configured"))
+	}
+	proof, err := nodeauth.ParseHeaders(req.Header().Get(nodeauth.HeaderNode), req.Header().Get(nodeauth.HeaderTS), req.Header().Get(nodeauth.HeaderSig))
+	if err != nil || proof.NodeID != req.Msg.GetNodeId() {
+		return nil, connect.NewError(connect.CodeUnauthenticated, errors.New("node authentication proof does not match request"))
+	}
+	if err := h.deps.NodeVerifier.VerifyProof(ctx, proof); err != nil {
+		return nil, connect.NewError(connect.CodeUnauthenticated, err)
+	}
+	if err := h.deps.Service.RegisterEncryptionKeyAuthenticated(ctx, proof.NodeID, req.Msg.GetEncryptionPublicKey()); err != nil {
+		return nil, h.toConnectError("RegisterEncryptionKey", err)
+	}
+	return connect.NewResponse(&pairingv1.RegisterEncryptionKeyResponse{NodeId: proof.NodeID, Algorithm: "x25519", Registered: true}), nil
 }
 
 type connectHandler struct {

@@ -9,6 +9,12 @@ type NodeReader interface {
 	GetTarget(ctx context.Context, id string) (TargetNode, error)
 }
 
+// CredentialGrantReader is the metadata-only consent seam for ephemeral job
+// injection. Implementations must never return a credential value.
+type CredentialGrantReader interface {
+	ActiveGrant(ctx context.Context, nodeID, logicalID, field string) (class, retention string, found bool, err error)
+}
+
 // Presence is the live online/offline seam (the presence hub satisfies it).
 // Dispatchable reports whether the node is online AND its agent protocol
 // version is not flagged (needs-update / incompatible); a version-drifted node
@@ -76,12 +82,13 @@ type QueueAwarePusher interface {
 
 // PushedJob is the dispatch-local DTO for the pushed job (proto-free).
 type PushedJob struct {
-	RunID          string
-	Scenario       string
-	Verb           string
-	Args           []string
-	TimeoutSeconds int64
-	Outputs        []ArtifactOutput
+	RunID                string
+	Scenario             string
+	Verb                 string
+	Args                 []string
+	TimeoutSeconds       int64
+	Outputs              []ArtifactOutput
+	CredentialInjections []CredentialInjection
 }
 
 // ArtifactOutput is a typed, manifest-selected output declaration. It carries

@@ -260,3 +260,41 @@ func TestDispatch_DeviceScopedVerbWithBridgeLeaseIsAccepted(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, sink.Recorded()[0].Accepted)
 }
+
+type fakeCredentialGrantReader struct {
+	class, retention string
+	found            bool
+	err              error
+}
+
+func (f fakeCredentialGrantReader) ActiveGrant(context.Context, string, string, string) (string, string, bool, error) {
+	return f.class, f.retention, f.found, f.err
+}
+
+func TestDispatch_RejectsCredentialInjectionWithoutActiveEphemeralGrant(t *testing.T) {
+	reader := fakeCredentialGrantReader{class: "user_prompt", retention: "durable", found: true}
+	svc, _, _, runsCtl, sink, pusher := newSvc(t, dispatch.WithCredentialGrantReader(reader))
+	job := job()
+	job.CredentialInjections = []dispatch.CredentialInjection{{LogicalID: "vrooli/test", Field: "api-key", EnvName: "TEST_API_KEY"}}
+
+	_, err := svc.Dispatch(context.Background(), dispatch.DispatchInput{Actor: "owner", Job: job})
+	var required dispatch.ErrCredentialGrantRequired
+	require.ErrorAs(t, err, &required)
+	require.Contains(t, err.Error(), "ephemeral grant")
+	require.Empty(t, runsCtl.Created)
+	require.Empty(t, pusher.PushedJobs())
+	require.False(t, sink.Recorded()[0].Accepted)
+}
+
+func TestDispatch_AcceptsCredentialInjectionWithActiveEphemeralGrant(t *testing.T) {
+	reader := fakeCredentialGrantReader{class: "infrastructure", retention: "ephemeral", found: true}
+	svc, _, _, runsCtl, sink, pusher := newSvc(t, dispatch.WithCredentialGrantReader(reader))
+	job := job()
+	job.CredentialInjections = []dispatch.CredentialInjection{{LogicalID: "vrooli/test", Field: "api-key", EnvName: "TEST_API_KEY"}}
+
+	_, err := svc.Dispatch(context.Background(), dispatch.DispatchInput{Actor: "owner", Job: job})
+	require.NoError(t, err)
+	require.Len(t, runsCtl.Created, 1)
+	require.True(t, sink.Recorded()[0].Accepted)
+	require.Len(t, pusher.PushedJobs()[0].CredentialInjections, 1)
+}

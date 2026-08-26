@@ -72,6 +72,7 @@ type UpdateInput struct {
 	Capabilities []string
 	Scopes       []string
 	Revision     string
+	Kind         string
 }
 
 // ErrNodeNotFound is the typed sentinel returned when no row matches an id.

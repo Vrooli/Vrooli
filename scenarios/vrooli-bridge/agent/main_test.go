@@ -1,12 +1,38 @@
 package main
 
 import (
+	"context"
+	"errors"
+	"io"
+	"log"
 	"testing"
 
 	"vrooli-bridge/agent/internal/config"
 
+	"connectrpc.com/connect"
 	"github.com/stretchr/testify/require"
 )
+
+func TestTransientControlPlaneErrorClassification(t *testing.T) {
+	require.True(t, transientControlPlaneError(connect.NewError(connect.CodeUnavailable, errors.New("connection refused"))))
+	require.True(t, transientControlPlaneError(connect.NewError(connect.CodeDeadlineExceeded, errors.New("timeout"))))
+	require.False(t, transientControlPlaneError(connect.NewError(connect.CodeUnauthenticated, errors.New("revoked"))))
+	require.False(t, transientControlPlaneError(connect.NewError(connect.CodeInvalidArgument, errors.New("bad key"))))
+	require.False(t, transientControlPlaneError(context.Canceled))
+	require.True(t, transientControlPlaneError(io.EOF))
+}
+
+func TestRetryControlPlaneStopsWhenContextIsCancelled(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	called := 0
+	err := retryControlPlane(ctx, log.New(io.Discard, "", 0), "test", func() error {
+		called++
+		cancel()
+		return connect.NewError(connect.CodeUnavailable, errors.New("temporarily unavailable"))
+	})
+	require.ErrorIs(t, err, context.Canceled)
+	require.Equal(t, 1, called)
+}
 
 // [REQ:BRG-P0-007] The `service` verbs pull --json out of the arg stream before
 // handing the remainder to config.Load (which owns every other flag), so

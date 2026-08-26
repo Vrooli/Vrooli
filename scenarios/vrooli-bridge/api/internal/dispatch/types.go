@@ -27,13 +27,20 @@ import (
 // positional by the node-agent; `Args` are additional typed tokens. None is
 // ever joined into a shell string.
 type Job struct {
-	NodeID         string
-	Scenario       string
-	Verb           string
-	Args           []string
-	TimeoutSeconds int64
-	DeviceID       string
-	LeaseToken     string
+	NodeID               string
+	Scenario             string
+	Verb                 string
+	Args                 []string
+	TimeoutSeconds       int64
+	DeviceID             string
+	LeaseToken           string
+	CredentialInjections []CredentialInjection
+}
+
+type CredentialInjection struct {
+	LogicalID string
+	Field     string
+	EnvName   string
 }
 
 // trimmed returns a copy with surrounding whitespace stripped from the scalar
@@ -45,6 +52,7 @@ func (j Job) trimmed() Job {
 	out.Verb = strings.TrimSpace(j.Verb)
 	out.DeviceID = strings.TrimSpace(j.DeviceID)
 	out.LeaseToken = strings.TrimSpace(j.LeaseToken)
+	out.CredentialInjections = append([]CredentialInjection(nil), j.CredentialInjections...)
 	out.Args = trimAll(j.Args)
 	return out
 }
@@ -74,6 +82,21 @@ type ErrUnsupportedNodeKind struct{ ID, Kind string }
 
 func (e ErrUnsupportedNodeKind) Error() string {
 	return fmt.Sprintf("node %q of kind %q cannot receive agent jobs", e.ID, e.Kind)
+}
+
+type ErrCredentialGrantRequired struct {
+	NodeID, LogicalID, Field, Reason string
+}
+
+func (e ErrCredentialGrantRequired) Error() string {
+	address := e.LogicalID
+	if e.Field != "" {
+		address += ":" + e.Field
+	}
+	if address == "" {
+		address = "credential injection"
+	}
+	return fmt.Sprintf("%s for node %q: %s", address, e.NodeID, e.Reason)
 }
 
 // ErrCatalogUnavailable is returned when the shared CLI catalog cannot be

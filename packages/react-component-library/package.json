@@ -1,0 +1,2182 @@
+{
+  "name": "@vrooli/react-component-library",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Version-keyed, governed React assets published by the React Component Library scenario.",
+  "scripts": {
+    "sync-exports": "node scripts/sync-exports.mjs",
+    "sync-exports:check": "node scripts/sync-exports.mjs --check",
+    "test:sync-exports": "node --test scripts/sync-exports.test.mjs",
+    "build": "node scripts/build.mjs",
+    "typecheck": "node scripts/build.mjs --check-only"
+  },
+  "peerDependencies": {
+    "react": ">=18.0.0"
+  },
+  "exports": {
+    "./Alert": {
+      "types": "./dist/components/Alert/versions/1.0.1/Alert.d.ts",
+      "import": "./dist/components/Alert/versions/1.0.1/Alert.js"
+    },
+    "./Alert/1.0.0": {
+      "types": "./dist/components/Alert/versions/1.0.0/Alert.d.ts",
+      "import": "./dist/components/Alert/versions/1.0.0/Alert.js"
+    },
+    "./Alert/1.0.1": {
+      "types": "./dist/components/Alert/versions/1.0.1/Alert.d.ts",
+      "import": "./dist/components/Alert/versions/1.0.1/Alert.js"
+    },
+    "./AlertDialog": {
+      "types": "./dist/components/AlertDialog/versions/1.0.2/AlertDialog.d.ts",
+      "import": "./dist/components/AlertDialog/versions/1.0.2/AlertDialog.js"
+    },
+    "./AlertDialog/1.0.0": {
+      "types": "./dist/components/AlertDialog/versions/1.0.0/AlertDialog.d.ts",
+      "import": "./dist/components/AlertDialog/versions/1.0.0/AlertDialog.js"
+    },
+    "./AlertDialog/1.0.2": {
+      "types": "./dist/components/AlertDialog/versions/1.0.2/AlertDialog.d.ts",
+      "import": "./dist/components/AlertDialog/versions/1.0.2/AlertDialog.js"
+    },
+    "./AppNavigation": {
+      "types": "./dist/components/AppNavigation/versions/1.1.4/AppNavigation.d.ts",
+      "import": "./dist/components/AppNavigation/versions/1.1.4/AppNavigation.js"
+    },
+    "./AppNavigation/1.1.0": {
+      "types": "./dist/components/AppNavigation/versions/1.1.0/AppNavigation.d.ts",
+      "import": "./dist/components/AppNavigation/versions/1.1.0/AppNavigation.js"
+    },
+    "./AppNavigation/1.1.4": {
+      "types": "./dist/components/AppNavigation/versions/1.1.4/AppNavigation.d.ts",
+      "import": "./dist/components/AppNavigation/versions/1.1.4/AppNavigation.js"
+    },
+    "./ApprovalPrompt": {
+      "types": "./dist/components/ApprovalPrompt/versions/1.0.1/ApprovalPrompt.d.ts",
+      "import": "./dist/components/ApprovalPrompt/versions/1.0.1/ApprovalPrompt.js"
+    },
+    "./ApprovalPrompt/1.0.1": {
+      "types": "./dist/components/ApprovalPrompt/versions/1.0.1/ApprovalPrompt.d.ts",
+      "import": "./dist/components/ApprovalPrompt/versions/1.0.1/ApprovalPrompt.js"
+    },
+    "./AppShell": {
+      "types": "./dist/components/AppShell/versions/1.0.3/AppShell.d.ts",
+      "import": "./dist/components/AppShell/versions/1.0.3/AppShell.js"
+    },
+    "./AppShell/1.0.0": {
+      "types": "./dist/components/AppShell/versions/1.0.0/AppShell.d.ts",
+      "import": "./dist/components/AppShell/versions/1.0.0/AppShell.js"
+    },
+    "./AppShell/1.0.3": {
+      "types": "./dist/components/AppShell/versions/1.0.3/AppShell.d.ts",
+      "import": "./dist/components/AppShell/versions/1.0.3/AppShell.js"
+    },
+    "./ArrayField": {
+      "types": "./dist/components/ArrayField/versions/1.0.1/ArrayField.d.ts",
+      "import": "./dist/components/ArrayField/versions/1.0.1/ArrayField.js"
+    },
+    "./ArrayField/1.0.0": {
+      "types": "./dist/components/ArrayField/versions/1.0.0/ArrayField.d.ts",
+      "import": "./dist/components/ArrayField/versions/1.0.0/ArrayField.js"
+    },
+    "./ArrayField/1.0.1": {
+      "types": "./dist/components/ArrayField/versions/1.0.1/ArrayField.d.ts",
+      "import": "./dist/components/ArrayField/versions/1.0.1/ArrayField.js"
+    },
+    "./AspectRatio": {
+      "types": "./dist/primitives/AspectRatio/versions/1.0.0/AspectRatio.d.ts",
+      "import": "./dist/primitives/AspectRatio/versions/1.0.0/AspectRatio.js"
+    },
+    "./AspectRatio/1.0.0": {
+      "types": "./dist/primitives/AspectRatio/versions/1.0.0/AspectRatio.d.ts",
+      "import": "./dist/primitives/AspectRatio/versions/1.0.0/AspectRatio.js"
+    },
+    "./AssetDetailShell": {
+      "types": "./dist/components/AssetDetailShell/versions/1.1.0/AssetDetailShell.d.ts",
+      "import": "./dist/components/AssetDetailShell/versions/1.1.0/AssetDetailShell.js"
+    },
+    "./AssetDetailShell/1.1.0": {
+      "types": "./dist/components/AssetDetailShell/versions/1.1.0/AssetDetailShell.d.ts",
+      "import": "./dist/components/AssetDetailShell/versions/1.1.0/AssetDetailShell.js"
+    },
+    "./AsyncBoundary": {
+      "types": "./dist/components/AsyncBoundary/versions/1.0.3/AsyncBoundary.d.ts",
+      "import": "./dist/components/AsyncBoundary/versions/1.0.3/AsyncBoundary.js"
+    },
+    "./AsyncBoundary/1.0.0": {
+      "types": "./dist/components/AsyncBoundary/versions/1.0.0/AsyncBoundary.d.ts",
+      "import": "./dist/components/AsyncBoundary/versions/1.0.0/AsyncBoundary.js"
+    },
+    "./AsyncBoundary/1.0.1": {
+      "types": "./dist/components/AsyncBoundary/versions/1.0.1/AsyncBoundary.d.ts",
+      "import": "./dist/components/AsyncBoundary/versions/1.0.1/AsyncBoundary.js"
+    },
+    "./AsyncBoundary/1.0.3": {
+      "types": "./dist/components/AsyncBoundary/versions/1.0.3/AsyncBoundary.d.ts",
+      "import": "./dist/components/AsyncBoundary/versions/1.0.3/AsyncBoundary.js"
+    },
+    "./AsyncFormFlow": {
+      "types": "./dist/components/AsyncFormFlow/versions/1.0.3/AsyncFormFlow.d.ts",
+      "import": "./dist/components/AsyncFormFlow/versions/1.0.3/AsyncFormFlow.js"
+    },
+    "./AsyncFormFlow/1.0.3": {
+      "types": "./dist/components/AsyncFormFlow/versions/1.0.3/AsyncFormFlow.d.ts",
+      "import": "./dist/components/AsyncFormFlow/versions/1.0.3/AsyncFormFlow.js"
+    },
+    "./AsyncOptionsField": {
+      "types": "./dist/components/AsyncOptionsField/versions/1.0.3/AsyncOptionsField.d.ts",
+      "import": "./dist/components/AsyncOptionsField/versions/1.0.3/AsyncOptionsField.js"
+    },
+    "./AsyncOptionsField/1.0.0": {
+      "types": "./dist/components/AsyncOptionsField/versions/1.0.0/AsyncOptionsField.d.ts",
+      "import": "./dist/components/AsyncOptionsField/versions/1.0.0/AsyncOptionsField.js"
+    },
+    "./AsyncOptionsField/1.0.3": {
+      "types": "./dist/components/AsyncOptionsField/versions/1.0.3/AsyncOptionsField.d.ts",
+      "import": "./dist/components/AsyncOptionsField/versions/1.0.3/AsyncOptionsField.js"
+    },
+    "./AsyncPanel": {
+      "types": "./dist/components/AsyncPanel/versions/1.0.0/AsyncPanel.d.ts",
+      "import": "./dist/components/AsyncPanel/versions/1.0.0/AsyncPanel.js"
+    },
+    "./AsyncPanel/1.0.0": {
+      "types": "./dist/components/AsyncPanel/versions/1.0.0/AsyncPanel.d.ts",
+      "import": "./dist/components/AsyncPanel/versions/1.0.0/AsyncPanel.js"
+    },
+    "./AttachmentPreview": {
+      "types": "./dist/components/AttachmentPreview/versions/1.0.1/AttachmentPreview.d.ts",
+      "import": "./dist/components/AttachmentPreview/versions/1.0.1/AttachmentPreview.js"
+    },
+    "./AttachmentPreview/1.0.1": {
+      "types": "./dist/components/AttachmentPreview/versions/1.0.1/AttachmentPreview.d.ts",
+      "import": "./dist/components/AttachmentPreview/versions/1.0.1/AttachmentPreview.js"
+    },
+    "./AuditTrail": {
+      "types": "./dist/components/AuditTrail/versions/1.0.4/AuditTrail.d.ts",
+      "import": "./dist/components/AuditTrail/versions/1.0.4/AuditTrail.js"
+    },
+    "./AuditTrail/1.0.0": {
+      "types": "./dist/components/AuditTrail/versions/1.0.0/AuditTrail.d.ts",
+      "import": "./dist/components/AuditTrail/versions/1.0.0/AuditTrail.js"
+    },
+    "./AuditTrail/1.0.4": {
+      "types": "./dist/components/AuditTrail/versions/1.0.4/AuditTrail.d.ts",
+      "import": "./dist/components/AuditTrail/versions/1.0.4/AuditTrail.js"
+    },
+    "./AuthSection": {
+      "types": "./dist/components/AuthSection/versions/1.0.2/AuthSection.d.ts",
+      "import": "./dist/components/AuthSection/versions/1.0.2/AuthSection.js"
+    },
+    "./AuthSection/1.0.2": {
+      "types": "./dist/components/AuthSection/versions/1.0.2/AuthSection.d.ts",
+      "import": "./dist/components/AuthSection/versions/1.0.2/AuthSection.js"
+    },
+    "./AutoAnimateLayout": {
+      "types": "./dist/components/AutoAnimateLayout/versions/1.0.0/AutoAnimateLayout.d.ts",
+      "import": "./dist/components/AutoAnimateLayout/versions/1.0.0/AutoAnimateLayout.js"
+    },
+    "./AutoAnimateLayout/1.0.0": {
+      "types": "./dist/components/AutoAnimateLayout/versions/1.0.0/AutoAnimateLayout.d.ts",
+      "import": "./dist/components/AutoAnimateLayout/versions/1.0.0/AutoAnimateLayout.js"
+    },
+    "./Avatar": {
+      "types": "./dist/components/Avatar/versions/1.3.2/Avatar.d.ts",
+      "import": "./dist/components/Avatar/versions/1.3.2/Avatar.js"
+    },
+    "./Avatar/1.0.0": {
+      "types": "./dist/components/Avatar/versions/1.0.0/Avatar.d.ts",
+      "import": "./dist/components/Avatar/versions/1.0.0/Avatar.js"
+    },
+    "./Avatar/1.3.2": {
+      "types": "./dist/components/Avatar/versions/1.3.2/Avatar.d.ts",
+      "import": "./dist/components/Avatar/versions/1.3.2/Avatar.js"
+    },
+    "./Badge": {
+      "types": "./dist/primitives/Badge/versions/1.0.0/Badge.d.ts",
+      "import": "./dist/primitives/Badge/versions/1.0.0/Badge.js"
+    },
+    "./Badge/1.0.0": {
+      "types": "./dist/primitives/Badge/versions/1.0.0/Badge.d.ts",
+      "import": "./dist/primitives/Badge/versions/1.0.0/Badge.js"
+    },
+    "./BottomNav": {
+      "types": "./dist/components/BottomNav/versions/1.3.6/BottomNav.d.ts",
+      "import": "./dist/components/BottomNav/versions/1.3.6/BottomNav.js"
+    },
+    "./BottomNav/1.2.0": {
+      "types": "./dist/components/BottomNav/versions/1.2.0/BottomNav.d.ts",
+      "import": "./dist/components/BottomNav/versions/1.2.0/BottomNav.js"
+    },
+    "./BottomNav/1.3.0": {
+      "types": "./dist/components/BottomNav/versions/1.3.0/BottomNav.d.ts",
+      "import": "./dist/components/BottomNav/versions/1.3.0/BottomNav.js"
+    },
+    "./BottomNav/1.3.3": {
+      "types": "./dist/components/BottomNav/versions/1.3.3/BottomNav.d.ts",
+      "import": "./dist/components/BottomNav/versions/1.3.3/BottomNav.js"
+    },
+    "./BottomNav/1.3.6": {
+      "types": "./dist/components/BottomNav/versions/1.3.6/BottomNav.d.ts",
+      "import": "./dist/components/BottomNav/versions/1.3.6/BottomNav.js"
+    },
+    "./BoundedMeter": {
+      "types": "./dist/components/BoundedMeter/versions/1.0.2/BoundedMeter.d.ts",
+      "import": "./dist/components/BoundedMeter/versions/1.0.2/BoundedMeter.js"
+    },
+    "./BoundedMeter/1.0.2": {
+      "types": "./dist/components/BoundedMeter/versions/1.0.2/BoundedMeter.d.ts",
+      "import": "./dist/components/BoundedMeter/versions/1.0.2/BoundedMeter.js"
+    },
+    "./BudgetBar": {
+      "types": "./dist/components/BudgetBar/versions/1.0.10/BudgetBar.d.ts",
+      "import": "./dist/components/BudgetBar/versions/1.0.10/BudgetBar.js"
+    },
+    "./BudgetBar/1.0.10": {
+      "types": "./dist/components/BudgetBar/versions/1.0.10/BudgetBar.d.ts",
+      "import": "./dist/components/BudgetBar/versions/1.0.10/BudgetBar.js"
+    },
+    "./BulkActionBar": {
+      "types": "./dist/components/BulkActionBar/versions/1.0.1/BulkActionBar.d.ts",
+      "import": "./dist/components/BulkActionBar/versions/1.0.1/BulkActionBar.js"
+    },
+    "./BulkActionBar/1.0.1": {
+      "types": "./dist/components/BulkActionBar/versions/1.0.1/BulkActionBar.d.ts",
+      "import": "./dist/components/BulkActionBar/versions/1.0.1/BulkActionBar.js"
+    },
+    "./Button": {
+      "types": "./dist/components/Button/versions/2.2.0/Button.d.ts",
+      "import": "./dist/components/Button/versions/2.2.0/Button.js"
+    },
+    "./Button/1.2.0": {
+      "types": "./dist/components/Button/versions/1.2.0/Button.d.ts",
+      "import": "./dist/components/Button/versions/1.2.0/Button.js"
+    },
+    "./Button/1.3.0": {
+      "types": "./dist/components/Button/versions/1.3.0/Button.d.ts",
+      "import": "./dist/components/Button/versions/1.3.0/Button.js"
+    },
+    "./Button/2.0.0": {
+      "types": "./dist/components/Button/versions/2.0.0/Button.d.ts",
+      "import": "./dist/components/Button/versions/2.0.0/Button.js"
+    },
+    "./Button/2.2.0": {
+      "types": "./dist/components/Button/versions/2.2.0/Button.d.ts",
+      "import": "./dist/components/Button/versions/2.2.0/Button.js"
+    },
+    "./ButtonGroup": {
+      "types": "./dist/components/ButtonGroup/versions/1.1.2/ButtonGroup.d.ts",
+      "import": "./dist/components/ButtonGroup/versions/1.1.2/ButtonGroup.js"
+    },
+    "./ButtonGroup/1.0.0": {
+      "types": "./dist/components/ButtonGroup/versions/1.0.0/ButtonGroup.d.ts",
+      "import": "./dist/components/ButtonGroup/versions/1.0.0/ButtonGroup.js"
+    },
+    "./ButtonGroup/1.1.1": {
+      "types": "./dist/components/ButtonGroup/versions/1.1.1/ButtonGroup.d.ts",
+      "import": "./dist/components/ButtonGroup/versions/1.1.1/ButtonGroup.js"
+    },
+    "./ButtonGroup/1.1.2": {
+      "types": "./dist/components/ButtonGroup/versions/1.1.2/ButtonGroup.d.ts",
+      "import": "./dist/components/ButtonGroup/versions/1.1.2/ButtonGroup.js"
+    },
+    "./Calendar": {
+      "types": "./dist/components/Calendar/versions/1.0.3/Calendar.d.ts",
+      "import": "./dist/components/Calendar/versions/1.0.3/Calendar.js"
+    },
+    "./Calendar/1.0.3": {
+      "types": "./dist/components/Calendar/versions/1.0.3/Calendar.d.ts",
+      "import": "./dist/components/Calendar/versions/1.0.3/Calendar.js"
+    },
+    "./CanvasFrame": {
+      "types": "./dist/components/CanvasFrame/versions/1.0.0/CanvasFrame.d.ts",
+      "import": "./dist/components/CanvasFrame/versions/1.0.0/CanvasFrame.js"
+    },
+    "./CanvasFrame/1.0.0": {
+      "types": "./dist/components/CanvasFrame/versions/1.0.0/CanvasFrame.d.ts",
+      "import": "./dist/components/CanvasFrame/versions/1.0.0/CanvasFrame.js"
+    },
+    "./CaptureGrid": {
+      "types": "./dist/components/CaptureGrid/versions/1.0.4/CaptureGrid.d.ts",
+      "import": "./dist/components/CaptureGrid/versions/1.0.4/CaptureGrid.js"
+    },
+    "./CaptureGrid/1.0.0": {
+      "types": "./dist/components/CaptureGrid/versions/1.0.0/CaptureGrid.d.ts",
+      "import": "./dist/components/CaptureGrid/versions/1.0.0/CaptureGrid.js"
+    },
+    "./CaptureGrid/1.0.4": {
+      "types": "./dist/components/CaptureGrid/versions/1.0.4/CaptureGrid.d.ts",
+      "import": "./dist/components/CaptureGrid/versions/1.0.4/CaptureGrid.js"
+    },
+    "./Card": {
+      "types": "./dist/components/Card/versions/1.2.0/Card.d.ts",
+      "import": "./dist/components/Card/versions/1.2.0/Card.js"
+    },
+    "./Card/1.1.0": {
+      "types": "./dist/components/Card/versions/1.1.0/Card.d.ts",
+      "import": "./dist/components/Card/versions/1.1.0/Card.js"
+    },
+    "./Card/1.2.0": {
+      "types": "./dist/components/Card/versions/1.2.0/Card.d.ts",
+      "import": "./dist/components/Card/versions/1.2.0/Card.js"
+    },
+    "./CardGrid": {
+      "types": "./dist/components/CardGrid/versions/1.0.0/CardGrid.d.ts",
+      "import": "./dist/components/CardGrid/versions/1.0.0/CardGrid.js"
+    },
+    "./CardGrid/1.0.0": {
+      "types": "./dist/components/CardGrid/versions/1.0.0/CardGrid.d.ts",
+      "import": "./dist/components/CardGrid/versions/1.0.0/CardGrid.js"
+    },
+    "./CartesianCharts": {
+      "types": "./dist/components/CartesianCharts/versions/1.0.2/CartesianCharts.d.ts",
+      "import": "./dist/components/CartesianCharts/versions/1.0.2/CartesianCharts.js"
+    },
+    "./CartesianCharts/1.0.0": {
+      "types": "./dist/components/CartesianCharts/versions/1.0.0/CartesianCharts.d.ts",
+      "import": "./dist/components/CartesianCharts/versions/1.0.0/CartesianCharts.js"
+    },
+    "./CartesianCharts/1.0.2": {
+      "types": "./dist/components/CartesianCharts/versions/1.0.2/CartesianCharts.d.ts",
+      "import": "./dist/components/CartesianCharts/versions/1.0.2/CartesianCharts.js"
+    },
+    "./Chart": {
+      "types": "./dist/components/Chart/versions/1.0.3/Chart.d.ts",
+      "import": "./dist/components/Chart/versions/1.0.3/Chart.js"
+    },
+    "./Chart/1.0.0": {
+      "types": "./dist/components/Chart/versions/1.0.0/Chart.d.ts",
+      "import": "./dist/components/Chart/versions/1.0.0/Chart.js"
+    },
+    "./Chart/1.0.1": {
+      "types": "./dist/components/Chart/versions/1.0.1/Chart.d.ts",
+      "import": "./dist/components/Chart/versions/1.0.1/Chart.js"
+    },
+    "./Chart/1.0.3": {
+      "types": "./dist/components/Chart/versions/1.0.3/Chart.d.ts",
+      "import": "./dist/components/Chart/versions/1.0.3/Chart.js"
+    },
+    "./Checkbox": {
+      "types": "./dist/components/Checkbox/versions/1.0.2/Checkbox.d.ts",
+      "import": "./dist/components/Checkbox/versions/1.0.2/Checkbox.js"
+    },
+    "./Checkbox/1.0.2": {
+      "types": "./dist/components/Checkbox/versions/1.0.2/Checkbox.d.ts",
+      "import": "./dist/components/Checkbox/versions/1.0.2/Checkbox.js"
+    },
+    "./Chip": {
+      "types": "./dist/components/Chip/versions/1.0.2/Chip.d.ts",
+      "import": "./dist/components/Chip/versions/1.0.2/Chip.js"
+    },
+    "./Chip/1.0.0": {
+      "types": "./dist/components/Chip/versions/1.0.0/Chip.d.ts",
+      "import": "./dist/components/Chip/versions/1.0.0/Chip.js"
+    },
+    "./Chip/1.0.2": {
+      "types": "./dist/components/Chip/versions/1.0.2/Chip.d.ts",
+      "import": "./dist/components/Chip/versions/1.0.2/Chip.js"
+    },
+    "./ClassMerge": {
+      "types": "./dist/foundations/ClassMerge/versions/1.0.1/ClassMerge.d.ts",
+      "import": "./dist/foundations/ClassMerge/versions/1.0.1/ClassMerge.js"
+    },
+    "./ClassMerge/1.0.0": {
+      "types": "./dist/foundations/ClassMerge/versions/1.0.0/ClassMerge.d.ts",
+      "import": "./dist/foundations/ClassMerge/versions/1.0.0/ClassMerge.js"
+    },
+    "./ClassMerge/1.0.1": {
+      "types": "./dist/foundations/ClassMerge/versions/1.0.1/ClassMerge.d.ts",
+      "import": "./dist/foundations/ClassMerge/versions/1.0.1/ClassMerge.js"
+    },
+    "./Cluster": {
+      "types": "./dist/primitives/Cluster/versions/1.0.0/Cluster.d.ts",
+      "import": "./dist/primitives/Cluster/versions/1.0.0/Cluster.js"
+    },
+    "./Cluster/1.0.0": {
+      "types": "./dist/primitives/Cluster/versions/1.0.0/Cluster.d.ts",
+      "import": "./dist/primitives/Cluster/versions/1.0.0/Cluster.js"
+    },
+    "./code-block": {
+      "types": "./dist/components/code-block/versions/0.3.2/CodeBlock.d.ts",
+      "import": "./dist/components/code-block/versions/0.3.2/CodeBlock.js"
+    },
+    "./code-block/0.3.2": {
+      "types": "./dist/components/code-block/versions/0.3.2/CodeBlock.d.ts",
+      "import": "./dist/components/code-block/versions/0.3.2/CodeBlock.js"
+    },
+    "./CollapsibleRegion": {
+      "types": "./dist/components/CollapsibleRegion/versions/1.0.2/CollapsibleRegion.d.ts",
+      "import": "./dist/components/CollapsibleRegion/versions/1.0.2/CollapsibleRegion.js"
+    },
+    "./CollapsibleRegion/1.0.0": {
+      "types": "./dist/components/CollapsibleRegion/versions/1.0.0/CollapsibleRegion.d.ts",
+      "import": "./dist/components/CollapsibleRegion/versions/1.0.0/CollapsibleRegion.js"
+    },
+    "./CollapsibleRegion/1.0.2": {
+      "types": "./dist/components/CollapsibleRegion/versions/1.0.2/CollapsibleRegion.d.ts",
+      "import": "./dist/components/CollapsibleRegion/versions/1.0.2/CollapsibleRegion.js"
+    },
+    "./CollectionPage": {
+      "types": "./dist/components/CollectionPage/versions/1.0.3/CollectionPage.d.ts",
+      "import": "./dist/components/CollectionPage/versions/1.0.3/CollectionPage.js"
+    },
+    "./CollectionPage/1.0.3": {
+      "types": "./dist/components/CollectionPage/versions/1.0.3/CollectionPage.d.ts",
+      "import": "./dist/components/CollectionPage/versions/1.0.3/CollectionPage.js"
+    },
+    "./ColorPicker": {
+      "types": "./dist/components/ColorPicker/versions/1.0.2/ColorPicker.d.ts",
+      "import": "./dist/components/ColorPicker/versions/1.0.2/ColorPicker.js"
+    },
+    "./ColorPicker/1.0.0": {
+      "types": "./dist/components/ColorPicker/versions/1.0.0/ColorPicker.d.ts",
+      "import": "./dist/components/ColorPicker/versions/1.0.0/ColorPicker.js"
+    },
+    "./ColorPicker/1.0.2": {
+      "types": "./dist/components/ColorPicker/versions/1.0.2/ColorPicker.d.ts",
+      "import": "./dist/components/ColorPicker/versions/1.0.2/ColorPicker.js"
+    },
+    "./Combobox": {
+      "types": "./dist/components/Combobox/versions/1.0.3/Combobox.d.ts",
+      "import": "./dist/components/Combobox/versions/1.0.3/Combobox.js"
+    },
+    "./Combobox/1.0.3": {
+      "types": "./dist/components/Combobox/versions/1.0.3/Combobox.d.ts",
+      "import": "./dist/components/Combobox/versions/1.0.3/Combobox.js"
+    },
+    "./CommandButton": {
+      "types": "./dist/components/CommandButton/versions/1.0.1/CommandButton.d.ts",
+      "import": "./dist/components/CommandButton/versions/1.0.1/CommandButton.js"
+    },
+    "./CommandButton/1.0.1": {
+      "types": "./dist/components/CommandButton/versions/1.0.1/CommandButton.d.ts",
+      "import": "./dist/components/CommandButton/versions/1.0.1/CommandButton.js"
+    },
+    "./CommandCenterShell": {
+      "types": "./dist/components/CommandCenterShell/versions/1.0.0/CommandCenterShell.d.ts",
+      "import": "./dist/components/CommandCenterShell/versions/1.0.0/CommandCenterShell.js"
+    },
+    "./CommandCenterShell/1.0.0": {
+      "types": "./dist/components/CommandCenterShell/versions/1.0.0/CommandCenterShell.d.ts",
+      "import": "./dist/components/CommandCenterShell/versions/1.0.0/CommandCenterShell.js"
+    },
+    "./CommandPalette": {
+      "types": "./dist/components/CommandPalette/versions/1.0.3/CommandPalette.d.ts",
+      "import": "./dist/components/CommandPalette/versions/1.0.3/CommandPalette.js"
+    },
+    "./CommandPalette/1.0.0": {
+      "types": "./dist/components/CommandPalette/versions/1.0.0/CommandPalette.d.ts",
+      "import": "./dist/components/CommandPalette/versions/1.0.0/CommandPalette.js"
+    },
+    "./CommandPalette/1.0.3": {
+      "types": "./dist/components/CommandPalette/versions/1.0.3/CommandPalette.d.ts",
+      "import": "./dist/components/CommandPalette/versions/1.0.3/CommandPalette.js"
+    },
+    "./CommandRegistry": {
+      "types": "./dist/services/CommandRegistry/versions/1.0.0/CommandRegistry.d.ts",
+      "import": "./dist/services/CommandRegistry/versions/1.0.0/CommandRegistry.js"
+    },
+    "./CommandRegistry/1.0.0": {
+      "types": "./dist/services/CommandRegistry/versions/1.0.0/CommandRegistry.d.ts",
+      "import": "./dist/services/CommandRegistry/versions/1.0.0/CommandRegistry.js"
+    },
+    "./ComputedField": {
+      "types": "./dist/components/ComputedField/versions/1.0.0/ComputedField.d.ts",
+      "import": "./dist/components/ComputedField/versions/1.0.0/ComputedField.js"
+    },
+    "./ComputedField/1.0.0": {
+      "types": "./dist/components/ComputedField/versions/1.0.0/ComputedField.d.ts",
+      "import": "./dist/components/ComputedField/versions/1.0.0/ComputedField.js"
+    },
+    "./ConditionalField": {
+      "types": "./dist/components/ConditionalField/versions/1.0.0/ConditionalField.d.ts",
+      "import": "./dist/components/ConditionalField/versions/1.0.0/ConditionalField.js"
+    },
+    "./ConditionalField/1.0.0": {
+      "types": "./dist/components/ConditionalField/versions/1.0.0/ConditionalField.d.ts",
+      "import": "./dist/components/ConditionalField/versions/1.0.0/ConditionalField.js"
+    },
+    "./ConflictResolutionFlow": {
+      "types": "./dist/components/ConflictResolutionFlow/versions/1.0.3/ConflictResolutionFlow.d.ts",
+      "import": "./dist/components/ConflictResolutionFlow/versions/1.0.3/ConflictResolutionFlow.js"
+    },
+    "./ConflictResolutionFlow/1.0.0": {
+      "types": "./dist/components/ConflictResolutionFlow/versions/1.0.0/ConflictResolutionFlow.d.ts",
+      "import": "./dist/components/ConflictResolutionFlow/versions/1.0.0/ConflictResolutionFlow.js"
+    },
+    "./ConflictResolutionFlow/1.0.3": {
+      "types": "./dist/components/ConflictResolutionFlow/versions/1.0.3/ConflictResolutionFlow.d.ts",
+      "import": "./dist/components/ConflictResolutionFlow/versions/1.0.3/ConflictResolutionFlow.js"
+    },
+    "./Container": {
+      "types": "./dist/primitives/Container/versions/1.1.2/Container.d.ts",
+      "import": "./dist/primitives/Container/versions/1.1.2/Container.js"
+    },
+    "./Container/1.1.0": {
+      "types": "./dist/primitives/Container/versions/1.1.0/Container.d.ts",
+      "import": "./dist/primitives/Container/versions/1.1.0/Container.js"
+    },
+    "./Container/1.1.2": {
+      "types": "./dist/primitives/Container/versions/1.1.2/Container.d.ts",
+      "import": "./dist/primitives/Container/versions/1.1.2/Container.js"
+    },
+    "./Contracts": {
+      "types": "./dist/foundations/Contracts/versions/1.0.0/Contracts.d.ts",
+      "import": "./dist/foundations/Contracts/versions/1.0.0/Contracts.js"
+    },
+    "./Contracts/1.0.0": {
+      "types": "./dist/foundations/Contracts/versions/1.0.0/Contracts.d.ts",
+      "import": "./dist/foundations/Contracts/versions/1.0.0/Contracts.js"
+    },
+    "./ControlBase": {
+      "types": "./dist/components/ControlBase/versions/1.0.0/ControlBase.d.ts",
+      "import": "./dist/components/ControlBase/versions/1.0.0/ControlBase.js"
+    },
+    "./ControlBase/1.0.0": {
+      "types": "./dist/components/ControlBase/versions/1.0.0/ControlBase.d.ts",
+      "import": "./dist/components/ControlBase/versions/1.0.0/ControlBase.js"
+    },
+    "./CopyableText": {
+      "types": "./dist/components/CopyableText/versions/1.0.4/CopyableText.d.ts",
+      "import": "./dist/components/CopyableText/versions/1.0.4/CopyableText.js"
+    },
+    "./CopyableText/1.0.4": {
+      "types": "./dist/components/CopyableText/versions/1.0.4/CopyableText.d.ts",
+      "import": "./dist/components/CopyableText/versions/1.0.4/CopyableText.js"
+    },
+    "./createScopedStore": {
+      "types": "./dist/services/createScopedStore/versions/1.0.0/createScopedStore.d.ts",
+      "import": "./dist/services/createScopedStore/versions/1.0.0/createScopedStore.js"
+    },
+    "./createScopedStore/1.0.0": {
+      "types": "./dist/services/createScopedStore/versions/1.0.0/createScopedStore.d.ts",
+      "import": "./dist/services/createScopedStore/versions/1.0.0/createScopedStore.js"
+    },
+    "./DashboardPage": {
+      "types": "./dist/components/DashboardPage/versions/1.0.4/DashboardPage.d.ts",
+      "import": "./dist/components/DashboardPage/versions/1.0.4/DashboardPage.js"
+    },
+    "./DashboardPage/1.0.4": {
+      "types": "./dist/components/DashboardPage/versions/1.0.4/DashboardPage.d.ts",
+      "import": "./dist/components/DashboardPage/versions/1.0.4/DashboardPage.js"
+    },
+    "./DataTable": {
+      "types": "./dist/components/DataTable/versions/1.3.3/DataTable.d.ts",
+      "import": "./dist/components/DataTable/versions/1.3.3/DataTable.js"
+    },
+    "./DataTable/1.2.0": {
+      "types": "./dist/components/DataTable/versions/1.2.0/DataTable.d.ts",
+      "import": "./dist/components/DataTable/versions/1.2.0/DataTable.js"
+    },
+    "./DataTable/1.3.0": {
+      "types": "./dist/components/DataTable/versions/1.3.0/DataTable.d.ts",
+      "import": "./dist/components/DataTable/versions/1.3.0/DataTable.js"
+    },
+    "./DataTable/1.3.1": {
+      "types": "./dist/components/DataTable/versions/1.3.1/DataTable.d.ts",
+      "import": "./dist/components/DataTable/versions/1.3.1/DataTable.js"
+    },
+    "./DataTable/1.3.3": {
+      "types": "./dist/components/DataTable/versions/1.3.3/DataTable.d.ts",
+      "import": "./dist/components/DataTable/versions/1.3.3/DataTable.js"
+    },
+    "./DataToolbar": {
+      "types": "./dist/components/DataToolbar/versions/1.0.3/DataToolbar.d.ts",
+      "import": "./dist/components/DataToolbar/versions/1.0.3/DataToolbar.js"
+    },
+    "./DataToolbar/1.0.0": {
+      "types": "./dist/components/DataToolbar/versions/1.0.0/DataToolbar.d.ts",
+      "import": "./dist/components/DataToolbar/versions/1.0.0/DataToolbar.js"
+    },
+    "./DataToolbar/1.0.3": {
+      "types": "./dist/components/DataToolbar/versions/1.0.3/DataToolbar.d.ts",
+      "import": "./dist/components/DataToolbar/versions/1.0.3/DataToolbar.js"
+    },
+    "./DescriptionList": {
+      "types": "./dist/components/DescriptionList/versions/1.0.2/DescriptionList.d.ts",
+      "import": "./dist/components/DescriptionList/versions/1.0.2/DescriptionList.js"
+    },
+    "./DescriptionList/1.0.0": {
+      "types": "./dist/components/DescriptionList/versions/1.0.0/DescriptionList.d.ts",
+      "import": "./dist/components/DescriptionList/versions/1.0.0/DescriptionList.js"
+    },
+    "./DescriptionList/1.0.2": {
+      "types": "./dist/components/DescriptionList/versions/1.0.2/DescriptionList.d.ts",
+      "import": "./dist/components/DescriptionList/versions/1.0.2/DescriptionList.js"
+    },
+    "./DetailPage": {
+      "types": "./dist/components/DetailPage/versions/1.0.4/DetailPage.d.ts",
+      "import": "./dist/components/DetailPage/versions/1.0.4/DetailPage.js"
+    },
+    "./DetailPage/1.0.4": {
+      "types": "./dist/components/DetailPage/versions/1.0.4/DetailPage.d.ts",
+      "import": "./dist/components/DetailPage/versions/1.0.4/DetailPage.js"
+    },
+    "./Dialog": {
+      "types": "./dist/components/Dialog/versions/1.2.1/Dialog.d.ts",
+      "import": "./dist/components/Dialog/versions/1.2.1/Dialog.js"
+    },
+    "./Dialog/1.1.0": {
+      "types": "./dist/components/Dialog/versions/1.1.0/Dialog.d.ts",
+      "import": "./dist/components/Dialog/versions/1.1.0/Dialog.js"
+    },
+    "./Dialog/1.2.1": {
+      "types": "./dist/components/Dialog/versions/1.2.1/Dialog.d.ts",
+      "import": "./dist/components/Dialog/versions/1.2.1/Dialog.js"
+    },
+    "./DiffViewer": {
+      "types": "./dist/components/DiffViewer/versions/1.0.1/DiffViewer.d.ts",
+      "import": "./dist/components/DiffViewer/versions/1.0.1/DiffViewer.js"
+    },
+    "./DiffViewer/1.0.0": {
+      "types": "./dist/components/DiffViewer/versions/1.0.0/DiffViewer.d.ts",
+      "import": "./dist/components/DiffViewer/versions/1.0.0/DiffViewer.js"
+    },
+    "./DiffViewer/1.0.1": {
+      "types": "./dist/components/DiffViewer/versions/1.0.1/DiffViewer.d.ts",
+      "import": "./dist/components/DiffViewer/versions/1.0.1/DiffViewer.js"
+    },
+    "./DirtyStateGuard": {
+      "types": "./dist/components/DirtyStateGuard/versions/1.0.3/DirtyStateGuard.d.ts",
+      "import": "./dist/components/DirtyStateGuard/versions/1.0.3/DirtyStateGuard.js"
+    },
+    "./DirtyStateGuard/1.0.0": {
+      "types": "./dist/components/DirtyStateGuard/versions/1.0.0/DirtyStateGuard.d.ts",
+      "import": "./dist/components/DirtyStateGuard/versions/1.0.0/DirtyStateGuard.js"
+    },
+    "./DirtyStateGuard/1.0.1": {
+      "types": "./dist/components/DirtyStateGuard/versions/1.0.1/DirtyStateGuard.d.ts",
+      "import": "./dist/components/DirtyStateGuard/versions/1.0.1/DirtyStateGuard.js"
+    },
+    "./DirtyStateGuard/1.0.3": {
+      "types": "./dist/components/DirtyStateGuard/versions/1.0.3/DirtyStateGuard.d.ts",
+      "import": "./dist/components/DirtyStateGuard/versions/1.0.3/DirtyStateGuard.js"
+    },
+    "./DragDropStore": {
+      "types": "./dist/services/DragDropStore/versions/1.0.0/DragDropStore.d.ts",
+      "import": "./dist/services/DragDropStore/versions/1.0.0/DragDropStore.js"
+    },
+    "./DragDropStore/1.0.0": {
+      "types": "./dist/services/DragDropStore/versions/1.0.0/DragDropStore.d.ts",
+      "import": "./dist/services/DragDropStore/versions/1.0.0/DragDropStore.js"
+    },
+    "./Draggable": {
+      "types": "./dist/components/Draggable/versions/1.0.1/Draggable.d.ts",
+      "import": "./dist/components/Draggable/versions/1.0.1/Draggable.js"
+    },
+    "./Draggable/1.0.0": {
+      "types": "./dist/components/Draggable/versions/1.0.0/Draggable.d.ts",
+      "import": "./dist/components/Draggable/versions/1.0.0/Draggable.js"
+    },
+    "./Draggable/1.0.1": {
+      "types": "./dist/components/Draggable/versions/1.0.1/Draggable.d.ts",
+      "import": "./dist/components/Draggable/versions/1.0.1/Draggable.js"
+    },
+    "./Drawer": {
+      "types": "./dist/components/Drawer/versions/1.0.4/Drawer.d.ts",
+      "import": "./dist/components/Drawer/versions/1.0.4/Drawer.js"
+    },
+    "./Drawer/1.0.0": {
+      "types": "./dist/components/Drawer/versions/1.0.0/Drawer.d.ts",
+      "import": "./dist/components/Drawer/versions/1.0.0/Drawer.js"
+    },
+    "./Drawer/1.0.4": {
+      "types": "./dist/components/Drawer/versions/1.0.4/Drawer.d.ts",
+      "import": "./dist/components/Drawer/versions/1.0.4/Drawer.js"
+    },
+    "./DrawerShell": {
+      "types": "./dist/components/DrawerShell/versions/1.1.0/DrawerShell.d.ts",
+      "import": "./dist/components/DrawerShell/versions/1.1.0/DrawerShell.js"
+    },
+    "./DrawerShell/1.0.0": {
+      "types": "./dist/components/DrawerShell/versions/1.0.0/DrawerShell.d.ts",
+      "import": "./dist/components/DrawerShell/versions/1.0.0/DrawerShell.js"
+    },
+    "./DrawerShell/1.1.0": {
+      "types": "./dist/components/DrawerShell/versions/1.1.0/DrawerShell.d.ts",
+      "import": "./dist/components/DrawerShell/versions/1.1.0/DrawerShell.js"
+    },
+    "./EdgeFade": {
+      "types": "./dist/primitives/EdgeFade/versions/1.0.0/EdgeFade.d.ts",
+      "import": "./dist/primitives/EdgeFade/versions/1.0.0/EdgeFade.js"
+    },
+    "./EdgeFade/1.0.0": {
+      "types": "./dist/primitives/EdgeFade/versions/1.0.0/EdgeFade.d.ts",
+      "import": "./dist/primitives/EdgeFade/versions/1.0.0/EdgeFade.js"
+    },
+    "./EditableResource": {
+      "types": "./dist/components/EditableResource/versions/1.0.3/EditableResource.d.ts",
+      "import": "./dist/components/EditableResource/versions/1.0.3/EditableResource.js"
+    },
+    "./EditableResource/1.0.3": {
+      "types": "./dist/components/EditableResource/versions/1.0.3/EditableResource.d.ts",
+      "import": "./dist/components/EditableResource/versions/1.0.3/EditableResource.js"
+    },
+    "./EmptyState": {
+      "types": "./dist/components/EmptyState/versions/1.7.5/EmptyState.d.ts",
+      "import": "./dist/components/EmptyState/versions/1.7.5/EmptyState.js"
+    },
+    "./EmptyState/1.1.0": {
+      "types": "./dist/components/EmptyState/versions/1.1.0/EmptyState.d.ts",
+      "import": "./dist/components/EmptyState/versions/1.1.0/EmptyState.js"
+    },
+    "./EmptyState/1.2.0": {
+      "types": "./dist/components/EmptyState/versions/1.2.0/EmptyState.d.ts",
+      "import": "./dist/components/EmptyState/versions/1.2.0/EmptyState.js"
+    },
+    "./EmptyState/1.7.4": {
+      "types": "./dist/components/EmptyState/versions/1.7.4/EmptyState.d.ts",
+      "import": "./dist/components/EmptyState/versions/1.7.4/EmptyState.js"
+    },
+    "./EmptyState/1.7.5": {
+      "types": "./dist/components/EmptyState/versions/1.7.5/EmptyState.d.ts",
+      "import": "./dist/components/EmptyState/versions/1.7.5/EmptyState.js"
+    },
+    "./EntitlementErrorCard": {
+      "types": "./dist/components/EntitlementErrorCard/versions/1.0.2/EntitlementErrorCard.d.ts",
+      "import": "./dist/components/EntitlementErrorCard/versions/1.0.2/EntitlementErrorCard.js"
+    },
+    "./EntitlementErrorCard/1.0.2": {
+      "types": "./dist/components/EntitlementErrorCard/versions/1.0.2/EntitlementErrorCard.d.ts",
+      "import": "./dist/components/EntitlementErrorCard/versions/1.0.2/EntitlementErrorCard.js"
+    },
+    "./ErrorBoundary": {
+      "types": "./dist/components/ErrorBoundary/versions/1.0.3/ErrorBoundary.d.ts",
+      "import": "./dist/components/ErrorBoundary/versions/1.0.3/ErrorBoundary.js"
+    },
+    "./ErrorBoundary/1.0.3": {
+      "types": "./dist/components/ErrorBoundary/versions/1.0.3/ErrorBoundary.d.ts",
+      "import": "./dist/components/ErrorBoundary/versions/1.0.3/ErrorBoundary.js"
+    },
+    "./ErrorState": {
+      "types": "./dist/components/ErrorState/versions/1.0.4/ErrorState.d.ts",
+      "import": "./dist/components/ErrorState/versions/1.0.4/ErrorState.js"
+    },
+    "./ErrorState/1.0.0": {
+      "types": "./dist/components/ErrorState/versions/1.0.0/ErrorState.d.ts",
+      "import": "./dist/components/ErrorState/versions/1.0.0/ErrorState.js"
+    },
+    "./ErrorState/1.0.4": {
+      "types": "./dist/components/ErrorState/versions/1.0.4/ErrorState.d.ts",
+      "import": "./dist/components/ErrorState/versions/1.0.4/ErrorState.js"
+    },
+    "./EvidenceCarousel": {
+      "types": "./dist/components/EvidenceCarousel/versions/1.0.12/EvidenceCarousel.d.ts",
+      "import": "./dist/components/EvidenceCarousel/versions/1.0.12/EvidenceCarousel.js"
+    },
+    "./EvidenceCarousel/1.0.12": {
+      "types": "./dist/components/EvidenceCarousel/versions/1.0.12/EvidenceCarousel.d.ts",
+      "import": "./dist/components/EvidenceCarousel/versions/1.0.12/EvidenceCarousel.js"
+    },
+    "./EvidenceCarousel/1.0.9": {
+      "types": "./dist/components/EvidenceCarousel/versions/1.0.9/EvidenceCarousel.d.ts",
+      "import": "./dist/components/EvidenceCarousel/versions/1.0.9/EvidenceCarousel.js"
+    },
+    "./ExperienceSurface": {
+      "types": "./dist/components/ExperienceSurface/versions/1.0.0/ExperienceSurface.d.ts",
+      "import": "./dist/components/ExperienceSurface/versions/1.0.0/ExperienceSurface.js"
+    },
+    "./ExperienceSurface/1.0.0": {
+      "types": "./dist/components/ExperienceSurface/versions/1.0.0/ExperienceSurface.d.ts",
+      "import": "./dist/components/ExperienceSurface/versions/1.0.0/ExperienceSurface.js"
+    },
+    "./FilePreview": {
+      "types": "./dist/components/FilePreview/versions/1.0.1/FilePreview.d.ts",
+      "import": "./dist/components/FilePreview/versions/1.0.1/FilePreview.js"
+    },
+    "./FilePreview/1.0.0": {
+      "types": "./dist/components/FilePreview/versions/1.0.0/FilePreview.d.ts",
+      "import": "./dist/components/FilePreview/versions/1.0.0/FilePreview.js"
+    },
+    "./FilePreview/1.0.1": {
+      "types": "./dist/components/FilePreview/versions/1.0.1/FilePreview.d.ts",
+      "import": "./dist/components/FilePreview/versions/1.0.1/FilePreview.js"
+    },
+    "./FilterBar": {
+      "types": "./dist/components/FilterBar/versions/1.1.3/FilterBar.d.ts",
+      "import": "./dist/components/FilterBar/versions/1.1.3/FilterBar.js"
+    },
+    "./FilterBar/1.0.0": {
+      "types": "./dist/components/FilterBar/versions/1.0.0/FilterBar.d.ts",
+      "import": "./dist/components/FilterBar/versions/1.0.0/FilterBar.js"
+    },
+    "./FilterBar/1.1.3": {
+      "types": "./dist/components/FilterBar/versions/1.1.3/FilterBar.d.ts",
+      "import": "./dist/components/FilterBar/versions/1.1.3/FilterBar.js"
+    },
+    "./FindingList": {
+      "types": "./dist/components/FindingList/versions/1.0.8/FindingList.d.ts",
+      "import": "./dist/components/FindingList/versions/1.0.8/FindingList.js"
+    },
+    "./FindingList/1.0.7": {
+      "types": "./dist/components/FindingList/versions/1.0.7/FindingList.d.ts",
+      "import": "./dist/components/FindingList/versions/1.0.7/FindingList.js"
+    },
+    "./FindingList/1.0.8": {
+      "types": "./dist/components/FindingList/versions/1.0.8/FindingList.d.ts",
+      "import": "./dist/components/FindingList/versions/1.0.8/FindingList.js"
+    },
+    "./FocusTrapPanel": {
+      "types": "./dist/components/FocusTrapPanel/versions/1.0.0/FocusTrapPanel.d.ts",
+      "import": "./dist/components/FocusTrapPanel/versions/1.0.0/FocusTrapPanel.js"
+    },
+    "./FocusTrapPanel/1.0.0": {
+      "types": "./dist/components/FocusTrapPanel/versions/1.0.0/FocusTrapPanel.d.ts",
+      "import": "./dist/components/FocusTrapPanel/versions/1.0.0/FocusTrapPanel.js"
+    },
+    "./Form": {
+      "types": "./dist/components/Form/versions/1.0.0/Form.d.ts",
+      "import": "./dist/components/Form/versions/1.0.0/Form.js"
+    },
+    "./Form/1.0.0": {
+      "types": "./dist/components/Form/versions/1.0.0/Form.d.ts",
+      "import": "./dist/components/Form/versions/1.0.0/Form.js"
+    },
+    "./FormActions": {
+      "types": "./dist/components/FormActions/versions/1.0.1/FormActions.d.ts",
+      "import": "./dist/components/FormActions/versions/1.0.1/FormActions.js"
+    },
+    "./FormActions/1.0.0": {
+      "types": "./dist/components/FormActions/versions/1.0.0/FormActions.d.ts",
+      "import": "./dist/components/FormActions/versions/1.0.0/FormActions.js"
+    },
+    "./FormActions/1.0.1": {
+      "types": "./dist/components/FormActions/versions/1.0.1/FormActions.d.ts",
+      "import": "./dist/components/FormActions/versions/1.0.1/FormActions.js"
+    },
+    "./FormField": {
+      "types": "./dist/components/FormField/versions/1.0.0/FormField.d.ts",
+      "import": "./dist/components/FormField/versions/1.0.0/FormField.js"
+    },
+    "./FormField/1.0.0": {
+      "types": "./dist/components/FormField/versions/1.0.0/FormField.d.ts",
+      "import": "./dist/components/FormField/versions/1.0.0/FormField.js"
+    },
+    "./FormSection": {
+      "types": "./dist/components/FormSection/versions/1.0.1/FormSection.d.ts",
+      "import": "./dist/components/FormSection/versions/1.0.1/FormSection.js"
+    },
+    "./FormSection/1.0.0": {
+      "types": "./dist/components/FormSection/versions/1.0.0/FormSection.d.ts",
+      "import": "./dist/components/FormSection/versions/1.0.0/FormSection.js"
+    },
+    "./FormSection/1.0.1": {
+      "types": "./dist/components/FormSection/versions/1.0.1/FormSection.d.ts",
+      "import": "./dist/components/FormSection/versions/1.0.1/FormSection.js"
+    },
+    "./FormStore": {
+      "types": "./dist/services/FormStore/versions/1.0.0/FormStore.d.ts",
+      "import": "./dist/services/FormStore/versions/1.0.0/FormStore.js"
+    },
+    "./FormStore/1.0.0": {
+      "types": "./dist/services/FormStore/versions/1.0.0/FormStore.d.ts",
+      "import": "./dist/services/FormStore/versions/1.0.0/FormStore.js"
+    },
+    "./GeneratedForm": {
+      "types": "./dist/components/GeneratedForm/versions/1.0.1/GeneratedForm.d.ts",
+      "import": "./dist/components/GeneratedForm/versions/1.0.1/GeneratedForm.js"
+    },
+    "./GeneratedForm/1.0.1": {
+      "types": "./dist/components/GeneratedForm/versions/1.0.1/GeneratedForm.d.ts",
+      "import": "./dist/components/GeneratedForm/versions/1.0.1/GeneratedForm.js"
+    },
+    "./GlobalCommandSystem": {
+      "types": "./dist/components/GlobalCommandSystem/versions/1.0.1/GlobalCommandSystem.d.ts",
+      "import": "./dist/components/GlobalCommandSystem/versions/1.0.1/GlobalCommandSystem.js"
+    },
+    "./GlobalCommandSystem/1.0.1": {
+      "types": "./dist/components/GlobalCommandSystem/versions/1.0.1/GlobalCommandSystem.d.ts",
+      "import": "./dist/components/GlobalCommandSystem/versions/1.0.1/GlobalCommandSystem.js"
+    },
+    "./Heading": {
+      "types": "./dist/primitives/Heading/versions/1.1.0/Heading.d.ts",
+      "import": "./dist/primitives/Heading/versions/1.1.0/Heading.js"
+    },
+    "./Heading/1.0.0": {
+      "types": "./dist/primitives/Heading/versions/1.0.0/Heading.d.ts",
+      "import": "./dist/primitives/Heading/versions/1.0.0/Heading.js"
+    },
+    "./Heading/1.1.0": {
+      "types": "./dist/primitives/Heading/versions/1.1.0/Heading.d.ts",
+      "import": "./dist/primitives/Heading/versions/1.1.0/Heading.js"
+    },
+    "./HealthIndicator": {
+      "types": "./dist/components/HealthIndicator/versions/1.0.2/HealthIndicator.d.ts",
+      "import": "./dist/components/HealthIndicator/versions/1.0.2/HealthIndicator.js"
+    },
+    "./HealthIndicator/1.0.0": {
+      "types": "./dist/components/HealthIndicator/versions/1.0.0/HealthIndicator.d.ts",
+      "import": "./dist/components/HealthIndicator/versions/1.0.0/HealthIndicator.js"
+    },
+    "./HealthIndicator/1.0.2": {
+      "types": "./dist/components/HealthIndicator/versions/1.0.2/HealthIndicator.d.ts",
+      "import": "./dist/components/HealthIndicator/versions/1.0.2/HealthIndicator.js"
+    },
+    "./Icon": {
+      "types": "./dist/primitives/Icon/versions/1.1.2/Icon.d.ts",
+      "import": "./dist/primitives/Icon/versions/1.1.2/Icon.js"
+    },
+    "./Icon/1.0.0": {
+      "types": "./dist/primitives/Icon/versions/1.0.0/Icon.d.ts",
+      "import": "./dist/primitives/Icon/versions/1.0.0/Icon.js"
+    },
+    "./Icon/1.1.0": {
+      "types": "./dist/primitives/Icon/versions/1.1.0/Icon.d.ts",
+      "import": "./dist/primitives/Icon/versions/1.1.0/Icon.js"
+    },
+    "./Icon/1.1.2": {
+      "types": "./dist/primitives/Icon/versions/1.1.2/Icon.d.ts",
+      "import": "./dist/primitives/Icon/versions/1.1.2/Icon.js"
+    },
+    "./IconButton": {
+      "types": "./dist/components/IconButton/versions/2.0.0/IconButton.d.ts",
+      "import": "./dist/components/IconButton/versions/2.0.0/IconButton.js"
+    },
+    "./IconButton/2.0.0": {
+      "types": "./dist/components/IconButton/versions/2.0.0/IconButton.d.ts",
+      "import": "./dist/components/IconButton/versions/2.0.0/IconButton.js"
+    },
+    "./IconRegistry": {
+      "types": "./dist/foundations/IconRegistry/versions/1.0.0/IconRegistry.d.ts",
+      "import": "./dist/foundations/IconRegistry/versions/1.0.0/IconRegistry.js"
+    },
+    "./IconRegistry/1.0.0": {
+      "types": "./dist/foundations/IconRegistry/versions/1.0.0/IconRegistry.d.ts",
+      "import": "./dist/foundations/IconRegistry/versions/1.0.0/IconRegistry.js"
+    },
+    "./Inline": {
+      "types": "./dist/primitives/Inline/versions/1.1.0/Inline.d.ts",
+      "import": "./dist/primitives/Inline/versions/1.1.0/Inline.js"
+    },
+    "./inline-code": {
+      "types": "./dist/components/inline-code/versions/0.3.2/InlineCode.d.ts",
+      "import": "./dist/components/inline-code/versions/0.3.2/InlineCode.js"
+    },
+    "./inline-code/0.3.2": {
+      "types": "./dist/components/inline-code/versions/0.3.2/InlineCode.d.ts",
+      "import": "./dist/components/inline-code/versions/0.3.2/InlineCode.js"
+    },
+    "./Inline/1.1.0": {
+      "types": "./dist/primitives/Inline/versions/1.1.0/Inline.d.ts",
+      "import": "./dist/primitives/Inline/versions/1.1.0/Inline.js"
+    },
+    "./Input": {
+      "types": "./dist/components/Input/versions/1.1.1/Input.d.ts",
+      "import": "./dist/components/Input/versions/1.1.1/Input.js"
+    },
+    "./Input/1.1.0": {
+      "types": "./dist/components/Input/versions/1.1.0/Input.d.ts",
+      "import": "./dist/components/Input/versions/1.1.0/Input.js"
+    },
+    "./Input/1.1.1": {
+      "types": "./dist/components/Input/versions/1.1.1/Input.d.ts",
+      "import": "./dist/components/Input/versions/1.1.1/Input.js"
+    },
+    "./InspectorLayout": {
+      "types": "./dist/components/InspectorLayout/versions/1.1.0/InspectorLayout.d.ts",
+      "import": "./dist/components/InspectorLayout/versions/1.1.0/InspectorLayout.js"
+    },
+    "./InspectorLayout/1.1.0": {
+      "types": "./dist/components/InspectorLayout/versions/1.1.0/InspectorLayout.d.ts",
+      "import": "./dist/components/InspectorLayout/versions/1.1.0/InspectorLayout.js"
+    },
+    "./InspectorPanel": {
+      "types": "./dist/components/InspectorPanel/versions/1.0.4/InspectorPanel.d.ts",
+      "import": "./dist/components/InspectorPanel/versions/1.0.4/InspectorPanel.js"
+    },
+    "./InspectorPanel/1.0.4": {
+      "types": "./dist/components/InspectorPanel/versions/1.0.4/InspectorPanel.d.ts",
+      "import": "./dist/components/InspectorPanel/versions/1.0.4/InspectorPanel.js"
+    },
+    "./JsonViewer": {
+      "types": "./dist/components/JsonViewer/versions/1.0.4/JsonViewer.d.ts",
+      "import": "./dist/components/JsonViewer/versions/1.0.4/JsonViewer.js"
+    },
+    "./JsonViewer/1.0.4": {
+      "types": "./dist/components/JsonViewer/versions/1.0.4/JsonViewer.d.ts",
+      "import": "./dist/components/JsonViewer/versions/1.0.4/JsonViewer.js"
+    },
+    "./LayerManager": {
+      "types": "./dist/services/LayerManager/versions/1.0.0/LayerManager.d.ts",
+      "import": "./dist/services/LayerManager/versions/1.0.0/LayerManager.js"
+    },
+    "./LayerManager/1.0.0": {
+      "types": "./dist/services/LayerManager/versions/1.0.0/LayerManager.d.ts",
+      "import": "./dist/services/LayerManager/versions/1.0.0/LayerManager.js"
+    },
+    "./LayoutGroup": {
+      "types": "./dist/primitives/LayoutGroup/versions/1.0.0/LayoutGroup.d.ts",
+      "import": "./dist/primitives/LayoutGroup/versions/1.0.0/LayoutGroup.js"
+    },
+    "./LayoutGroup/1.0.0": {
+      "types": "./dist/primitives/LayoutGroup/versions/1.0.0/LayoutGroup.d.ts",
+      "import": "./dist/primitives/LayoutGroup/versions/1.0.0/LayoutGroup.js"
+    },
+    "./Link": {
+      "types": "./dist/primitives/Link/versions/1.0.1/Link.d.ts",
+      "import": "./dist/primitives/Link/versions/1.0.1/Link.js"
+    },
+    "./Link/1.0.1": {
+      "types": "./dist/primitives/Link/versions/1.0.1/Link.d.ts",
+      "import": "./dist/primitives/Link/versions/1.0.1/Link.js"
+    },
+    "./List": {
+      "types": "./dist/components/List/versions/1.0.1/List.d.ts",
+      "import": "./dist/components/List/versions/1.0.1/List.js"
+    },
+    "./List/1.0.0": {
+      "types": "./dist/components/List/versions/1.0.0/List.d.ts",
+      "import": "./dist/components/List/versions/1.0.0/List.js"
+    },
+    "./List/1.0.1": {
+      "types": "./dist/components/List/versions/1.0.1/List.d.ts",
+      "import": "./dist/components/List/versions/1.0.1/List.js"
+    },
+    "./LiveAnnouncer": {
+      "types": "./dist/services/LiveAnnouncer/versions/1.0.0/LiveAnnouncer.d.ts",
+      "import": "./dist/services/LiveAnnouncer/versions/1.0.0/LiveAnnouncer.js"
+    },
+    "./LiveAnnouncer/1.0.0": {
+      "types": "./dist/services/LiveAnnouncer/versions/1.0.0/LiveAnnouncer.d.ts",
+      "import": "./dist/services/LiveAnnouncer/versions/1.0.0/LiveAnnouncer.js"
+    },
+    "./LoadingState": {
+      "types": "./dist/components/LoadingState/versions/1.0.4/LoadingState.d.ts",
+      "import": "./dist/components/LoadingState/versions/1.0.4/LoadingState.js"
+    },
+    "./LoadingState/1.0.4": {
+      "types": "./dist/components/LoadingState/versions/1.0.4/LoadingState.d.ts",
+      "import": "./dist/components/LoadingState/versions/1.0.4/LoadingState.js"
+    },
+    "./markdown-renderer": {
+      "types": "./dist/components/markdown-renderer/versions/0.3.2/MarkdownRenderer.d.ts",
+      "import": "./dist/components/markdown-renderer/versions/0.3.2/MarkdownRenderer.js"
+    },
+    "./markdown-renderer/0.1.1": {
+      "types": "./dist/components/markdown-renderer/versions/0.1.1/MarkdownRenderer.d.ts",
+      "import": "./dist/components/markdown-renderer/versions/0.1.1/MarkdownRenderer.js"
+    },
+    "./markdown-renderer/0.3.2": {
+      "types": "./dist/components/markdown-renderer/versions/0.3.2/MarkdownRenderer.d.ts",
+      "import": "./dist/components/markdown-renderer/versions/0.3.2/MarkdownRenderer.js"
+    },
+    "./MasterDetail": {
+      "types": "./dist/components/MasterDetail/versions/1.0.3/MasterDetail.d.ts",
+      "import": "./dist/components/MasterDetail/versions/1.0.3/MasterDetail.js"
+    },
+    "./MasterDetail/1.0.3": {
+      "types": "./dist/components/MasterDetail/versions/1.0.3/MasterDetail.d.ts",
+      "import": "./dist/components/MasterDetail/versions/1.0.3/MasterDetail.js"
+    },
+    "./MeasurementBar": {
+      "types": "./dist/components/MeasurementBar/versions/1.0.10/MeasurementBar.d.ts",
+      "import": "./dist/components/MeasurementBar/versions/1.0.10/MeasurementBar.js"
+    },
+    "./MeasurementBar/1.0.10": {
+      "types": "./dist/components/MeasurementBar/versions/1.0.10/MeasurementBar.d.ts",
+      "import": "./dist/components/MeasurementBar/versions/1.0.10/MeasurementBar.js"
+    },
+    "./Menu": {
+      "types": "./dist/components/Menu/versions/1.1.1/Menu.d.ts",
+      "import": "./dist/components/Menu/versions/1.1.1/Menu.js"
+    },
+    "./Menu/1.1.1": {
+      "types": "./dist/components/Menu/versions/1.1.1/Menu.d.ts",
+      "import": "./dist/components/Menu/versions/1.1.1/Menu.js"
+    },
+    "./mermaid-diagram": {
+      "types": "./dist/components/mermaid-diagram/versions/0.3.1/MermaidDiagram.d.ts",
+      "import": "./dist/components/mermaid-diagram/versions/0.3.1/MermaidDiagram.js"
+    },
+    "./mermaid-diagram/0.1.1": {
+      "types": "./dist/components/mermaid-diagram/versions/0.1.1/MermaidDiagram.d.ts",
+      "import": "./dist/components/mermaid-diagram/versions/0.1.1/MermaidDiagram.js"
+    },
+    "./mermaid-diagram/0.3.1": {
+      "types": "./dist/components/mermaid-diagram/versions/0.3.1/MermaidDiagram.d.ts",
+      "import": "./dist/components/mermaid-diagram/versions/0.3.1/MermaidDiagram.js"
+    },
+    "./Message": {
+      "types": "./dist/components/Message/versions/1.0.3/Message.d.ts",
+      "import": "./dist/components/Message/versions/1.0.3/Message.js"
+    },
+    "./Message/1.0.3": {
+      "types": "./dist/components/Message/versions/1.0.3/Message.d.ts",
+      "import": "./dist/components/Message/versions/1.0.3/Message.js"
+    },
+    "./Meter": {
+      "types": "./dist/components/Meter/versions/1.0.0/Meter.d.ts",
+      "import": "./dist/components/Meter/versions/1.0.0/Meter.js"
+    },
+    "./Meter/1.0.0": {
+      "types": "./dist/components/Meter/versions/1.0.0/Meter.d.ts",
+      "import": "./dist/components/Meter/versions/1.0.0/Meter.js"
+    },
+    "./MetricBreakdown": {
+      "types": "./dist/components/MetricBreakdown/versions/1.0.4/MetricBreakdown.d.ts",
+      "import": "./dist/components/MetricBreakdown/versions/1.0.4/MetricBreakdown.js"
+    },
+    "./MetricBreakdown/1.0.0": {
+      "types": "./dist/components/MetricBreakdown/versions/1.0.0/MetricBreakdown.d.ts",
+      "import": "./dist/components/MetricBreakdown/versions/1.0.0/MetricBreakdown.js"
+    },
+    "./MetricBreakdown/1.0.4": {
+      "types": "./dist/components/MetricBreakdown/versions/1.0.4/MetricBreakdown.d.ts",
+      "import": "./dist/components/MetricBreakdown/versions/1.0.4/MetricBreakdown.js"
+    },
+    "./MonetizationAccount": {
+      "types": "./dist/components/MonetizationAccount/versions/1.0.2/MonetizationAccount.d.ts",
+      "import": "./dist/components/MonetizationAccount/versions/1.0.2/MonetizationAccount.js"
+    },
+    "./MonetizationAccount/1.0.0": {
+      "types": "./dist/components/MonetizationAccount/versions/1.0.0/MonetizationAccount.d.ts",
+      "import": "./dist/components/MonetizationAccount/versions/1.0.0/MonetizationAccount.js"
+    },
+    "./MonetizationAccount/1.0.1": {
+      "types": "./dist/components/MonetizationAccount/versions/1.0.1/MonetizationAccount.d.ts",
+      "import": "./dist/components/MonetizationAccount/versions/1.0.1/MonetizationAccount.js"
+    },
+    "./MonetizationAccount/1.0.2": {
+      "types": "./dist/components/MonetizationAccount/versions/1.0.2/MonetizationAccount.d.ts",
+      "import": "./dist/components/MonetizationAccount/versions/1.0.2/MonetizationAccount.js"
+    },
+    "./MorphingIcon": {
+      "types": "./dist/primitives/MorphingIcon/versions/2.0.9/MorphingIcon.d.ts",
+      "import": "./dist/primitives/MorphingIcon/versions/2.0.9/MorphingIcon.js"
+    },
+    "./MorphingIcon/2.0.0": {
+      "types": "./dist/primitives/MorphingIcon/versions/2.0.0/MorphingIcon.d.ts",
+      "import": "./dist/primitives/MorphingIcon/versions/2.0.0/MorphingIcon.js"
+    },
+    "./MorphingIcon/2.0.9": {
+      "types": "./dist/primitives/MorphingIcon/versions/2.0.9/MorphingIcon.d.ts",
+      "import": "./dist/primitives/MorphingIcon/versions/2.0.9/MorphingIcon.js"
+    },
+    "./MotionPrimitive": {
+      "types": "./dist/primitives/MotionPrimitive/versions/1.0.0/MotionPrimitive.d.ts",
+      "import": "./dist/primitives/MotionPrimitive/versions/1.0.0/MotionPrimitive.js"
+    },
+    "./MotionPrimitive/1.0.0": {
+      "types": "./dist/primitives/MotionPrimitive/versions/1.0.0/MotionPrimitive.d.ts",
+      "import": "./dist/primitives/MotionPrimitive/versions/1.0.0/MotionPrimitive.js"
+    },
+    "./NavigationTree": {
+      "types": "./dist/components/NavigationTree/versions/1.1.4/NavigationTree.d.ts",
+      "import": "./dist/components/NavigationTree/versions/1.1.4/NavigationTree.js"
+    },
+    "./NavigationTree/1.1.0": {
+      "types": "./dist/components/NavigationTree/versions/1.1.0/NavigationTree.d.ts",
+      "import": "./dist/components/NavigationTree/versions/1.1.0/NavigationTree.js"
+    },
+    "./NavigationTree/1.1.4": {
+      "types": "./dist/components/NavigationTree/versions/1.1.4/NavigationTree.d.ts",
+      "import": "./dist/components/NavigationTree/versions/1.1.4/NavigationTree.js"
+    },
+    "./NavLink": {
+      "types": "./dist/components/NavLink/versions/1.0.4/NavLink.d.ts",
+      "import": "./dist/components/NavLink/versions/1.0.4/NavLink.js"
+    },
+    "./NavLink/1.0.0": {
+      "types": "./dist/components/NavLink/versions/1.0.0/NavLink.d.ts",
+      "import": "./dist/components/NavLink/versions/1.0.0/NavLink.js"
+    },
+    "./NavLink/1.0.4": {
+      "types": "./dist/components/NavLink/versions/1.0.4/NavLink.d.ts",
+      "import": "./dist/components/NavLink/versions/1.0.4/NavLink.js"
+    },
+    "./NetworkGraph": {
+      "types": "./dist/components/NetworkGraph/versions/1.0.3/NetworkGraph.d.ts",
+      "import": "./dist/components/NetworkGraph/versions/1.0.3/NetworkGraph.js"
+    },
+    "./NetworkGraph/1.0.0": {
+      "types": "./dist/components/NetworkGraph/versions/1.0.0/NetworkGraph.d.ts",
+      "import": "./dist/components/NetworkGraph/versions/1.0.0/NetworkGraph.js"
+    },
+    "./NetworkGraph/1.0.3": {
+      "types": "./dist/components/NetworkGraph/versions/1.0.3/NetworkGraph.d.ts",
+      "import": "./dist/components/NetworkGraph/versions/1.0.3/NetworkGraph.js"
+    },
+    "./ObjectField": {
+      "types": "./dist/components/ObjectField/versions/1.0.1/ObjectField.d.ts",
+      "import": "./dist/components/ObjectField/versions/1.0.1/ObjectField.js"
+    },
+    "./ObjectField/1.0.0": {
+      "types": "./dist/components/ObjectField/versions/1.0.0/ObjectField.d.ts",
+      "import": "./dist/components/ObjectField/versions/1.0.0/ObjectField.js"
+    },
+    "./ObjectField/1.0.1": {
+      "types": "./dist/components/ObjectField/versions/1.0.1/ObjectField.d.ts",
+      "import": "./dist/components/ObjectField/versions/1.0.1/ObjectField.js"
+    },
+    "./OfflineState": {
+      "types": "./dist/components/OfflineState/versions/1.0.2/OfflineState.d.ts",
+      "import": "./dist/components/OfflineState/versions/1.0.2/OfflineState.js"
+    },
+    "./OfflineState/1.0.2": {
+      "types": "./dist/components/OfflineState/versions/1.0.2/OfflineState.d.ts",
+      "import": "./dist/components/OfflineState/versions/1.0.2/OfflineState.js"
+    },
+    "./OverlayCanvas": {
+      "types": "./dist/components/OverlayCanvas/versions/1.0.10/OverlayCanvas.d.ts",
+      "import": "./dist/components/OverlayCanvas/versions/1.0.10/OverlayCanvas.js"
+    },
+    "./OverlayCanvas/1.0.10": {
+      "types": "./dist/components/OverlayCanvas/versions/1.0.10/OverlayCanvas.d.ts",
+      "import": "./dist/components/OverlayCanvas/versions/1.0.10/OverlayCanvas.js"
+    },
+    "./OverlayCanvas/1.0.7": {
+      "types": "./dist/components/OverlayCanvas/versions/1.0.7/OverlayCanvas.d.ts",
+      "import": "./dist/components/OverlayCanvas/versions/1.0.7/OverlayCanvas.js"
+    },
+    "./Page": {
+      "types": "./dist/components/Page/versions/1.0.4/Page.d.ts",
+      "import": "./dist/components/Page/versions/1.0.4/Page.js"
+    },
+    "./Page/1.0.4": {
+      "types": "./dist/components/Page/versions/1.0.4/Page.d.ts",
+      "import": "./dist/components/Page/versions/1.0.4/Page.js"
+    },
+    "./PageFrame": {
+      "types": "./dist/components/PageFrame/versions/1.0.0/PageFrame.d.ts",
+      "import": "./dist/components/PageFrame/versions/1.0.0/PageFrame.js"
+    },
+    "./PageFrame/1.0.0": {
+      "types": "./dist/components/PageFrame/versions/1.0.0/PageFrame.d.ts",
+      "import": "./dist/components/PageFrame/versions/1.0.0/PageFrame.js"
+    },
+    "./PageHeader": {
+      "types": "./dist/components/PageHeader/versions/1.0.4/PageHeader.d.ts",
+      "import": "./dist/components/PageHeader/versions/1.0.4/PageHeader.js"
+    },
+    "./PageHeader/1.0.0": {
+      "types": "./dist/components/PageHeader/versions/1.0.0/PageHeader.d.ts",
+      "import": "./dist/components/PageHeader/versions/1.0.0/PageHeader.js"
+    },
+    "./PageHeader/1.0.4": {
+      "types": "./dist/components/PageHeader/versions/1.0.4/PageHeader.d.ts",
+      "import": "./dist/components/PageHeader/versions/1.0.4/PageHeader.js"
+    },
+    "./PendingSyncBadge": {
+      "types": "./dist/components/PendingSyncBadge/versions/1.0.2/PendingSyncBadge.d.ts",
+      "import": "./dist/components/PendingSyncBadge/versions/1.0.2/PendingSyncBadge.js"
+    },
+    "./PendingSyncBadge/1.0.2": {
+      "types": "./dist/components/PendingSyncBadge/versions/1.0.2/PendingSyncBadge.d.ts",
+      "import": "./dist/components/PendingSyncBadge/versions/1.0.2/PendingSyncBadge.js"
+    },
+    "./PermissionState": {
+      "types": "./dist/components/PermissionState/versions/1.0.4/PermissionState.d.ts",
+      "import": "./dist/components/PermissionState/versions/1.0.4/PermissionState.js"
+    },
+    "./PermissionState/1.0.4": {
+      "types": "./dist/components/PermissionState/versions/1.0.4/PermissionState.d.ts",
+      "import": "./dist/components/PermissionState/versions/1.0.4/PermissionState.js"
+    },
+    "./Popover": {
+      "types": "./dist/components/Popover/versions/1.1.1/Popover.d.ts",
+      "import": "./dist/components/Popover/versions/1.1.1/Popover.js"
+    },
+    "./Popover/1.0.0": {
+      "types": "./dist/components/Popover/versions/1.0.0/Popover.d.ts",
+      "import": "./dist/components/Popover/versions/1.0.0/Popover.js"
+    },
+    "./Popover/1.1.0": {
+      "types": "./dist/components/Popover/versions/1.1.0/Popover.d.ts",
+      "import": "./dist/components/Popover/versions/1.1.0/Popover.js"
+    },
+    "./Popover/1.1.1": {
+      "types": "./dist/components/Popover/versions/1.1.1/Popover.d.ts",
+      "import": "./dist/components/Popover/versions/1.1.1/Popover.js"
+    },
+    "./Presence": {
+      "types": "./dist/primitives/Presence/versions/1.0.0/Presence.d.ts",
+      "import": "./dist/primitives/Presence/versions/1.0.0/Presence.js"
+    },
+    "./Presence/1.0.0": {
+      "types": "./dist/primitives/Presence/versions/1.0.0/Presence.d.ts",
+      "import": "./dist/primitives/Presence/versions/1.0.0/Presence.js"
+    },
+    "./Pressable": {
+      "types": "./dist/components/Pressable/versions/1.0.0/Pressable.d.ts",
+      "import": "./dist/components/Pressable/versions/1.0.0/Pressable.js"
+    },
+    "./Pressable/1.0.0": {
+      "types": "./dist/components/Pressable/versions/1.0.0/Pressable.d.ts",
+      "import": "./dist/components/Pressable/versions/1.0.0/Pressable.js"
+    },
+    "./PreviewDock": {
+      "types": "./dist/components/PreviewDock/versions/1.0.0/PreviewDock.d.ts",
+      "import": "./dist/components/PreviewDock/versions/1.0.0/PreviewDock.js"
+    },
+    "./PreviewDock/1.0.0": {
+      "types": "./dist/components/PreviewDock/versions/1.0.0/PreviewDock.d.ts",
+      "import": "./dist/components/PreviewDock/versions/1.0.0/PreviewDock.js"
+    },
+    "./PreviewInspector": {
+      "types": "./dist/components/PreviewInspector/versions/1.0.0/PreviewInspector.d.ts",
+      "import": "./dist/components/PreviewInspector/versions/1.0.0/PreviewInspector.js"
+    },
+    "./PreviewInspector/1.0.0": {
+      "types": "./dist/components/PreviewInspector/versions/1.0.0/PreviewInspector.d.ts",
+      "import": "./dist/components/PreviewInspector/versions/1.0.0/PreviewInspector.js"
+    },
+    "./Progress": {
+      "types": "./dist/primitives/Progress/versions/1.0.1/Progress.strings.d.ts",
+      "import": "./dist/primitives/Progress/versions/1.0.1/Progress.strings.js"
+    },
+    "./Progress/1.0.0": {
+      "types": "./dist/primitives/Progress/versions/1.0.0/Progress.d.ts",
+      "import": "./dist/primitives/Progress/versions/1.0.0/Progress.js"
+    },
+    "./Progress/1.0.1": {
+      "types": "./dist/primitives/Progress/versions/1.0.1/Progress.strings.d.ts",
+      "import": "./dist/primitives/Progress/versions/1.0.1/Progress.strings.js"
+    },
+    "./ProgressiveImage": {
+      "types": "./dist/primitives/ProgressiveImage/versions/1.1.4/ProgressiveImage.strings.d.ts",
+      "import": "./dist/primitives/ProgressiveImage/versions/1.1.4/ProgressiveImage.strings.js"
+    },
+    "./ProgressiveImage/1.1.0": {
+      "types": "./dist/primitives/ProgressiveImage/versions/1.1.0/ProgressiveImage.d.ts",
+      "import": "./dist/primitives/ProgressiveImage/versions/1.1.0/ProgressiveImage.js"
+    },
+    "./ProgressiveImage/1.1.4": {
+      "types": "./dist/primitives/ProgressiveImage/versions/1.1.4/ProgressiveImage.strings.d.ts",
+      "import": "./dist/primitives/ProgressiveImage/versions/1.1.4/ProgressiveImage.strings.js"
+    },
+    "./ProgressLadder": {
+      "types": "./dist/components/ProgressLadder/versions/1.0.4/ProgressLadder.d.ts",
+      "import": "./dist/components/ProgressLadder/versions/1.0.4/ProgressLadder.js"
+    },
+    "./ProgressLadder/1.0.0": {
+      "types": "./dist/components/ProgressLadder/versions/1.0.0/ProgressLadder.d.ts",
+      "import": "./dist/components/ProgressLadder/versions/1.0.0/ProgressLadder.js"
+    },
+    "./ProgressLadder/1.0.4": {
+      "types": "./dist/components/ProgressLadder/versions/1.0.4/ProgressLadder.d.ts",
+      "import": "./dist/components/ProgressLadder/versions/1.0.4/ProgressLadder.js"
+    },
+    "./QuarantineBadge": {
+      "types": "./dist/components/QuarantineBadge/versions/1.0.3/QuarantineBadge.d.ts",
+      "import": "./dist/components/QuarantineBadge/versions/1.0.3/QuarantineBadge.js"
+    },
+    "./QuarantineBadge/1.0.3": {
+      "types": "./dist/components/QuarantineBadge/versions/1.0.3/QuarantineBadge.d.ts",
+      "import": "./dist/components/QuarantineBadge/versions/1.0.3/QuarantineBadge.js"
+    },
+    "./RadioGroup": {
+      "types": "./dist/components/RadioGroup/versions/1.0.2/RadioGroup.d.ts",
+      "import": "./dist/components/RadioGroup/versions/1.0.2/RadioGroup.js"
+    },
+    "./RadioGroup/1.0.2": {
+      "types": "./dist/components/RadioGroup/versions/1.0.2/RadioGroup.d.ts",
+      "import": "./dist/components/RadioGroup/versions/1.0.2/RadioGroup.js"
+    },
+    "./RelativeTime": {
+      "types": "./dist/components/RelativeTime/versions/1.0.2/RelativeTime.d.ts",
+      "import": "./dist/components/RelativeTime/versions/1.0.2/RelativeTime.js"
+    },
+    "./RelativeTime/1.0.0": {
+      "types": "./dist/components/RelativeTime/versions/1.0.0/RelativeTime.d.ts",
+      "import": "./dist/components/RelativeTime/versions/1.0.0/RelativeTime.js"
+    },
+    "./RelativeTime/1.0.2": {
+      "types": "./dist/components/RelativeTime/versions/1.0.2/RelativeTime.d.ts",
+      "import": "./dist/components/RelativeTime/versions/1.0.2/RelativeTime.js"
+    },
+    "./Resizable": {
+      "types": "./dist/components/Resizable/versions/1.0.2/Resizable.d.ts",
+      "import": "./dist/components/Resizable/versions/1.0.2/Resizable.js"
+    },
+    "./Resizable/1.0.2": {
+      "types": "./dist/components/Resizable/versions/1.0.2/Resizable.d.ts",
+      "import": "./dist/components/Resizable/versions/1.0.2/Resizable.js"
+    },
+    "./ResizableSidebar": {
+      "types": "./dist/components/ResizableSidebar/versions/1.0.2/ResizableSidebar.d.ts",
+      "import": "./dist/components/ResizableSidebar/versions/1.0.2/ResizableSidebar.js"
+    },
+    "./ResizableSidebar/1.0.2": {
+      "types": "./dist/components/ResizableSidebar/versions/1.0.2/ResizableSidebar.d.ts",
+      "import": "./dist/components/ResizableSidebar/versions/1.0.2/ResizableSidebar.js"
+    },
+    "./ResourceCollection": {
+      "types": "./dist/components/ResourceCollection/versions/1.0.1/ResourceCollection.d.ts",
+      "import": "./dist/components/ResourceCollection/versions/1.0.1/ResourceCollection.js"
+    },
+    "./ResourceCollection/1.0.1": {
+      "types": "./dist/components/ResourceCollection/versions/1.0.1/ResourceCollection.d.ts",
+      "import": "./dist/components/ResourceCollection/versions/1.0.1/ResourceCollection.js"
+    },
+    "./ResourceDetail": {
+      "types": "./dist/components/ResourceDetail/versions/1.0.1/ResourceDetail.d.ts",
+      "import": "./dist/components/ResourceDetail/versions/1.0.1/ResourceDetail.js"
+    },
+    "./ResourceDetail/1.0.0": {
+      "types": "./dist/components/ResourceDetail/versions/1.0.0/ResourceDetail.d.ts",
+      "import": "./dist/components/ResourceDetail/versions/1.0.0/ResourceDetail.js"
+    },
+    "./ResourceDetail/1.0.1": {
+      "types": "./dist/components/ResourceDetail/versions/1.0.1/ResourceDetail.d.ts",
+      "import": "./dist/components/ResourceDetail/versions/1.0.1/ResourceDetail.js"
+    },
+    "./ResponsivePanel": {
+      "types": "./dist/components/ResponsivePanel/versions/1.1.3/ResponsivePanel.d.ts",
+      "import": "./dist/components/ResponsivePanel/versions/1.1.3/ResponsivePanel.js"
+    },
+    "./ResponsivePanel/1.1.3": {
+      "types": "./dist/components/ResponsivePanel/versions/1.1.3/ResponsivePanel.d.ts",
+      "import": "./dist/components/ResponsivePanel/versions/1.1.3/ResponsivePanel.js"
+    },
+    "./ScoreGauge": {
+      "types": "./dist/components/ScoreGauge/versions/1.0.6/ScoreGauge.d.ts",
+      "import": "./dist/components/ScoreGauge/versions/1.0.6/ScoreGauge.js"
+    },
+    "./ScoreGauge/1.0.2": {
+      "types": "./dist/components/ScoreGauge/versions/1.0.2/ScoreGauge.d.ts",
+      "import": "./dist/components/ScoreGauge/versions/1.0.2/ScoreGauge.js"
+    },
+    "./ScoreGauge/1.0.6": {
+      "types": "./dist/components/ScoreGauge/versions/1.0.6/ScoreGauge.d.ts",
+      "import": "./dist/components/ScoreGauge/versions/1.0.6/ScoreGauge.js"
+    },
+    "./ScrollableTabs": {
+      "types": "./dist/components/ScrollableTabs/versions/1.0.2/ScrollableTabs.d.ts",
+      "import": "./dist/components/ScrollableTabs/versions/1.0.2/ScrollableTabs.js"
+    },
+    "./ScrollableTabs/1.0.2": {
+      "types": "./dist/components/ScrollableTabs/versions/1.0.2/ScrollableTabs.d.ts",
+      "import": "./dist/components/ScrollableTabs/versions/1.0.2/ScrollableTabs.js"
+    },
+    "./ScrollArea": {
+      "types": "./dist/primitives/ScrollArea/versions/1.0.1/ScrollArea.strings.d.ts",
+      "import": "./dist/primitives/ScrollArea/versions/1.0.1/ScrollArea.strings.js"
+    },
+    "./ScrollArea/1.0.1": {
+      "types": "./dist/primitives/ScrollArea/versions/1.0.1/ScrollArea.strings.d.ts",
+      "import": "./dist/primitives/ScrollArea/versions/1.0.1/ScrollArea.strings.js"
+    },
+    "./ScrollRestoration": {
+      "types": "./dist/services/ScrollRestoration/versions/1.0.0/ScrollRestoration.d.ts",
+      "import": "./dist/services/ScrollRestoration/versions/1.0.0/ScrollRestoration.js"
+    },
+    "./ScrollRestoration/1.0.0": {
+      "types": "./dist/services/ScrollRestoration/versions/1.0.0/ScrollRestoration.d.ts",
+      "import": "./dist/services/ScrollRestoration/versions/1.0.0/ScrollRestoration.js"
+    },
+    "./SearchFilterResults": {
+      "types": "./dist/components/SearchFilterResults/versions/1.0.2/SearchFilterResults.d.ts",
+      "import": "./dist/components/SearchFilterResults/versions/1.0.2/SearchFilterResults.js"
+    },
+    "./SearchFilterResults/1.0.0": {
+      "types": "./dist/components/SearchFilterResults/versions/1.0.0/SearchFilterResults.d.ts",
+      "import": "./dist/components/SearchFilterResults/versions/1.0.0/SearchFilterResults.js"
+    },
+    "./SearchFilterResults/1.0.2": {
+      "types": "./dist/components/SearchFilterResults/versions/1.0.2/SearchFilterResults.d.ts",
+      "import": "./dist/components/SearchFilterResults/versions/1.0.2/SearchFilterResults.js"
+    },
+    "./SearchInput": {
+      "types": "./dist/components/SearchInput/versions/1.0.3/SearchInput.d.ts",
+      "import": "./dist/components/SearchInput/versions/1.0.3/SearchInput.js"
+    },
+    "./SearchInput/1.0.0": {
+      "types": "./dist/components/SearchInput/versions/1.0.0/SearchInput.d.ts",
+      "import": "./dist/components/SearchInput/versions/1.0.0/SearchInput.js"
+    },
+    "./SearchInput/1.0.3": {
+      "types": "./dist/components/SearchInput/versions/1.0.3/SearchInput.d.ts",
+      "import": "./dist/components/SearchInput/versions/1.0.3/SearchInput.js"
+    },
+    "./SearchResults": {
+      "types": "./dist/components/SearchResults/versions/1.0.4/SearchResults.d.ts",
+      "import": "./dist/components/SearchResults/versions/1.0.4/SearchResults.js"
+    },
+    "./SearchResults/1.0.4": {
+      "types": "./dist/components/SearchResults/versions/1.0.4/SearchResults.d.ts",
+      "import": "./dist/components/SearchResults/versions/1.0.4/SearchResults.js"
+    },
+    "./Select": {
+      "types": "./dist/components/Select/versions/1.1.1/Select.d.ts",
+      "import": "./dist/components/Select/versions/1.1.1/Select.js"
+    },
+    "./Select/1.1.0": {
+      "types": "./dist/components/Select/versions/1.1.0/Select.d.ts",
+      "import": "./dist/components/Select/versions/1.1.0/Select.js"
+    },
+    "./Select/1.1.1": {
+      "types": "./dist/components/Select/versions/1.1.1/Select.d.ts",
+      "import": "./dist/components/Select/versions/1.1.1/Select.js"
+    },
+    "./SelectionControl": {
+      "types": "./dist/primitives/SelectionControl/versions/1.0.0/SelectionControl.d.ts",
+      "import": "./dist/primitives/SelectionControl/versions/1.0.0/SelectionControl.js"
+    },
+    "./SelectionControl/1.0.0": {
+      "types": "./dist/primitives/SelectionControl/versions/1.0.0/SelectionControl.d.ts",
+      "import": "./dist/primitives/SelectionControl/versions/1.0.0/SelectionControl.js"
+    },
+    "./SelectionStore": {
+      "types": "./dist/services/SelectionStore/versions/1.0.0/SelectionStore.d.ts",
+      "import": "./dist/services/SelectionStore/versions/1.0.0/SelectionStore.js"
+    },
+    "./SelectionStore/1.0.0": {
+      "types": "./dist/services/SelectionStore/versions/1.0.0/SelectionStore.d.ts",
+      "import": "./dist/services/SelectionStore/versions/1.0.0/SelectionStore.js"
+    },
+    "./Separator": {
+      "types": "./dist/primitives/Separator/versions/1.0.0/Separator.d.ts",
+      "import": "./dist/primitives/Separator/versions/1.0.0/Separator.js"
+    },
+    "./Separator/1.0.0": {
+      "types": "./dist/primitives/Separator/versions/1.0.0/Separator.d.ts",
+      "import": "./dist/primitives/Separator/versions/1.0.0/Separator.js"
+    },
+    "./ShortcutRegistry": {
+      "types": "./dist/services/ShortcutRegistry/versions/1.0.0/ShortcutRegistry.d.ts",
+      "import": "./dist/services/ShortcutRegistry/versions/1.0.0/ShortcutRegistry.js"
+    },
+    "./ShortcutRegistry/1.0.0": {
+      "types": "./dist/services/ShortcutRegistry/versions/1.0.0/ShortcutRegistry.d.ts",
+      "import": "./dist/services/ShortcutRegistry/versions/1.0.0/ShortcutRegistry.js"
+    },
+    "./SidebarShell": {
+      "types": "./dist/components/SidebarShell/versions/1.3.1/SidebarShell.d.ts",
+      "import": "./dist/components/SidebarShell/versions/1.3.1/SidebarShell.js"
+    },
+    "./SidebarShell/1.2.0": {
+      "types": "./dist/components/SidebarShell/versions/1.2.0/SidebarShell.d.ts",
+      "import": "./dist/components/SidebarShell/versions/1.2.0/SidebarShell.js"
+    },
+    "./SidebarShell/1.3.1": {
+      "types": "./dist/components/SidebarShell/versions/1.3.1/SidebarShell.d.ts",
+      "import": "./dist/components/SidebarShell/versions/1.3.1/SidebarShell.js"
+    },
+    "./Skeleton": {
+      "types": "./dist/primitives/Skeleton/versions/1.0.1/Skeleton.strings.d.ts",
+      "import": "./dist/primitives/Skeleton/versions/1.0.1/Skeleton.strings.js"
+    },
+    "./Skeleton/1.0.1": {
+      "types": "./dist/primitives/Skeleton/versions/1.0.1/Skeleton.strings.d.ts",
+      "import": "./dist/primitives/Skeleton/versions/1.0.1/Skeleton.strings.js"
+    },
+    "./Slot": {
+      "types": "./dist/primitives/Slot/versions/1.0.0/Slot.d.ts",
+      "import": "./dist/primitives/Slot/versions/1.0.0/Slot.js"
+    },
+    "./Slot/1.0.0": {
+      "types": "./dist/primitives/Slot/versions/1.0.0/Slot.d.ts",
+      "import": "./dist/primitives/Slot/versions/1.0.0/Slot.js"
+    },
+    "./Sortable": {
+      "types": "./dist/components/Sortable/versions/1.0.3/Sortable.d.ts",
+      "import": "./dist/components/Sortable/versions/1.0.3/Sortable.js"
+    },
+    "./Sortable/1.0.3": {
+      "types": "./dist/components/Sortable/versions/1.0.3/Sortable.d.ts",
+      "import": "./dist/components/Sortable/versions/1.0.3/Sortable.js"
+    },
+    "./Spinner": {
+      "types": "./dist/primitives/Spinner/versions/1.0.1/Spinner.strings.d.ts",
+      "import": "./dist/primitives/Spinner/versions/1.0.1/Spinner.strings.js"
+    },
+    "./Spinner/1.0.1": {
+      "types": "./dist/primitives/Spinner/versions/1.0.1/Spinner.strings.d.ts",
+      "import": "./dist/primitives/Spinner/versions/1.0.1/Spinner.strings.js"
+    },
+    "./SplitPane": {
+      "types": "./dist/components/SplitPane/versions/1.1.2/SplitPane.d.ts",
+      "import": "./dist/components/SplitPane/versions/1.1.2/SplitPane.js"
+    },
+    "./SplitPane/1.1.2": {
+      "types": "./dist/components/SplitPane/versions/1.1.2/SplitPane.d.ts",
+      "import": "./dist/components/SplitPane/versions/1.1.2/SplitPane.js"
+    },
+    "./SplitView": {
+      "types": "./dist/components/SplitView/versions/1.0.0/SplitView.d.ts",
+      "import": "./dist/components/SplitView/versions/1.0.0/SplitView.js"
+    },
+    "./SplitView/1.0.0": {
+      "types": "./dist/components/SplitView/versions/1.0.0/SplitView.d.ts",
+      "import": "./dist/components/SplitView/versions/1.0.0/SplitView.js"
+    },
+    "./Stack": {
+      "types": "./dist/primitives/Stack/versions/1.2.1/Stack.d.ts",
+      "import": "./dist/primitives/Stack/versions/1.2.1/Stack.js"
+    },
+    "./Stack/1.0.0": {
+      "types": "./dist/primitives/Stack/versions/1.0.0/Stack.d.ts",
+      "import": "./dist/primitives/Stack/versions/1.0.0/Stack.js"
+    },
+    "./Stack/1.2.1": {
+      "types": "./dist/primitives/Stack/versions/1.2.1/Stack.d.ts",
+      "import": "./dist/primitives/Stack/versions/1.2.1/Stack.js"
+    },
+    "./Stat": {
+      "types": "./dist/components/Stat/versions/1.0.1/Stat.d.ts",
+      "import": "./dist/components/Stat/versions/1.0.1/Stat.js"
+    },
+    "./Stat/1.0.1": {
+      "types": "./dist/components/Stat/versions/1.0.1/Stat.d.ts",
+      "import": "./dist/components/Stat/versions/1.0.1/Stat.js"
+    },
+    "./StatCard": {
+      "types": "./dist/components/StatCard/versions/1.0.4/StatCard.d.ts",
+      "import": "./dist/components/StatCard/versions/1.0.4/StatCard.js"
+    },
+    "./StatCard/1.0.4": {
+      "types": "./dist/components/StatCard/versions/1.0.4/StatCard.d.ts",
+      "import": "./dist/components/StatCard/versions/1.0.4/StatCard.js"
+    },
+    "./StatusBadge": {
+      "types": "./dist/components/StatusBadge/versions/1.2.0/StatusBadge.d.ts",
+      "import": "./dist/components/StatusBadge/versions/1.2.0/StatusBadge.js"
+    },
+    "./StatusBadge/1.1.0": {
+      "types": "./dist/components/StatusBadge/versions/1.1.0/StatusBadge.d.ts",
+      "import": "./dist/components/StatusBadge/versions/1.1.0/StatusBadge.js"
+    },
+    "./StatusBadge/1.2.0": {
+      "types": "./dist/components/StatusBadge/versions/1.2.0/StatusBadge.d.ts",
+      "import": "./dist/components/StatusBadge/versions/1.2.0/StatusBadge.js"
+    },
+    "./StatusIndicator": {
+      "types": "./dist/components/StatusIndicator/versions/1.0.2/StatusIndicator.d.ts",
+      "import": "./dist/components/StatusIndicator/versions/1.0.2/StatusIndicator.js"
+    },
+    "./StatusIndicator/1.0.0": {
+      "types": "./dist/components/StatusIndicator/versions/1.0.0/StatusIndicator.d.ts",
+      "import": "./dist/components/StatusIndicator/versions/1.0.0/StatusIndicator.js"
+    },
+    "./StatusIndicator/1.0.2": {
+      "types": "./dist/components/StatusIndicator/versions/1.0.2/StatusIndicator.d.ts",
+      "import": "./dist/components/StatusIndicator/versions/1.0.2/StatusIndicator.js"
+    },
+    "./StoryPalette": {
+      "types": "./dist/components/StoryPalette/versions/1.0.0/StoryPalette.d.ts",
+      "import": "./dist/components/StoryPalette/versions/1.0.0/StoryPalette.js"
+    },
+    "./StoryPalette/1.0.0": {
+      "types": "./dist/components/StoryPalette/versions/1.0.0/StoryPalette.d.ts",
+      "import": "./dist/components/StoryPalette/versions/1.0.0/StoryPalette.js"
+    },
+    "./SubscriptionStatusCard": {
+      "types": "./dist/components/SubscriptionStatusCard/versions/1.0.2/SubscriptionStatusCard.d.ts",
+      "import": "./dist/components/SubscriptionStatusCard/versions/1.0.2/SubscriptionStatusCard.js"
+    },
+    "./SubscriptionStatusCard/1.0.2": {
+      "types": "./dist/components/SubscriptionStatusCard/versions/1.0.2/SubscriptionStatusCard.d.ts",
+      "import": "./dist/components/SubscriptionStatusCard/versions/1.0.2/SubscriptionStatusCard.js"
+    },
+    "./Surface": {
+      "types": "./dist/primitives/Surface/versions/1.0.0/Surface.d.ts",
+      "import": "./dist/primitives/Surface/versions/1.0.0/Surface.js"
+    },
+    "./Surface/1.0.0": {
+      "types": "./dist/primitives/Surface/versions/1.0.0/Surface.d.ts",
+      "import": "./dist/primitives/Surface/versions/1.0.0/Surface.js"
+    },
+    "./Switch": {
+      "types": "./dist/components/Switch/versions/1.0.2/Switch.d.ts",
+      "import": "./dist/components/Switch/versions/1.0.2/Switch.js"
+    },
+    "./Switch/1.0.2": {
+      "types": "./dist/components/Switch/versions/1.0.2/Switch.d.ts",
+      "import": "./dist/components/Switch/versions/1.0.2/Switch.js"
+    },
+    "./Table": {
+      "types": "./dist/components/Table/versions/1.0.0/Table.d.ts",
+      "import": "./dist/components/Table/versions/1.0.0/Table.js"
+    },
+    "./Table/1.0.0": {
+      "types": "./dist/components/Table/versions/1.0.0/Table.d.ts",
+      "import": "./dist/components/Table/versions/1.0.0/Table.js"
+    },
+    "./Tabs": {
+      "types": "./dist/components/Tabs/versions/1.0.3/Tabs.d.ts",
+      "import": "./dist/components/Tabs/versions/1.0.3/Tabs.js"
+    },
+    "./Tabs/1.0.0": {
+      "types": "./dist/components/Tabs/versions/1.0.0/Tabs.d.ts",
+      "import": "./dist/components/Tabs/versions/1.0.0/Tabs.js"
+    },
+    "./Tabs/1.0.3": {
+      "types": "./dist/components/Tabs/versions/1.0.3/Tabs.d.ts",
+      "import": "./dist/components/Tabs/versions/1.0.3/Tabs.js"
+    },
+    "./Text": {
+      "types": "./dist/primitives/Text/versions/1.1.0/Text.d.ts",
+      "import": "./dist/primitives/Text/versions/1.1.0/Text.js"
+    },
+    "./Text/1.0.0": {
+      "types": "./dist/primitives/Text/versions/1.0.0/Text.d.ts",
+      "import": "./dist/primitives/Text/versions/1.0.0/Text.js"
+    },
+    "./Text/1.1.0": {
+      "types": "./dist/primitives/Text/versions/1.1.0/Text.d.ts",
+      "import": "./dist/primitives/Text/versions/1.1.0/Text.js"
+    },
+    "./Textarea": {
+      "types": "./dist/components/Textarea/versions/1.0.1/Textarea.d.ts",
+      "import": "./dist/components/Textarea/versions/1.0.1/Textarea.js"
+    },
+    "./Textarea/1.0.0": {
+      "types": "./dist/components/Textarea/versions/1.0.0/Textarea.d.ts",
+      "import": "./dist/components/Textarea/versions/1.0.0/Textarea.js"
+    },
+    "./Textarea/1.0.1": {
+      "types": "./dist/components/Textarea/versions/1.0.1/Textarea.d.ts",
+      "import": "./dist/components/Textarea/versions/1.0.1/Textarea.js"
+    },
+    "./Timeline": {
+      "types": "./dist/components/Timeline/versions/1.0.4/Timeline.d.ts",
+      "import": "./dist/components/Timeline/versions/1.0.4/Timeline.js"
+    },
+    "./Timeline/1.0.4": {
+      "types": "./dist/components/Timeline/versions/1.0.4/Timeline.d.ts",
+      "import": "./dist/components/Timeline/versions/1.0.4/Timeline.js"
+    },
+    "./Toast": {
+      "types": "./dist/components/Toast/versions/1.0.3/Toast.d.ts",
+      "import": "./dist/components/Toast/versions/1.0.3/Toast.js"
+    },
+    "./Toast/1.0.3": {
+      "types": "./dist/components/Toast/versions/1.0.3/Toast.d.ts",
+      "import": "./dist/components/Toast/versions/1.0.3/Toast.js"
+    },
+    "./ToastManager": {
+      "types": "./dist/services/ToastManager/versions/1.0.0/ToastManager.d.ts",
+      "import": "./dist/services/ToastManager/versions/1.0.0/ToastManager.js"
+    },
+    "./ToastManager/1.0.0": {
+      "types": "./dist/services/ToastManager/versions/1.0.0/ToastManager.d.ts",
+      "import": "./dist/services/ToastManager/versions/1.0.0/ToastManager.js"
+    },
+    "./Toggle": {
+      "types": "./dist/components/Toggle/versions/1.0.0/Toggle.d.ts",
+      "import": "./dist/components/Toggle/versions/1.0.0/Toggle.js"
+    },
+    "./Toggle/1.0.0": {
+      "types": "./dist/components/Toggle/versions/1.0.0/Toggle.d.ts",
+      "import": "./dist/components/Toggle/versions/1.0.0/Toggle.js"
+    },
+    "./Tokens": {
+      "types": "./dist/foundations/Tokens/versions/1.0.0/Tokens.d.ts",
+      "import": "./dist/foundations/Tokens/versions/1.0.0/Tokens.js"
+    },
+    "./Tokens/1.0.0": {
+      "types": "./dist/foundations/Tokens/versions/1.0.0/Tokens.d.ts",
+      "import": "./dist/foundations/Tokens/versions/1.0.0/Tokens.js"
+    },
+    "./Toolbar": {
+      "types": "./dist/components/Toolbar/versions/1.0.2/Toolbar.d.ts",
+      "import": "./dist/components/Toolbar/versions/1.0.2/Toolbar.js"
+    },
+    "./Toolbar/1.0.0": {
+      "types": "./dist/components/Toolbar/versions/1.0.0/Toolbar.d.ts",
+      "import": "./dist/components/Toolbar/versions/1.0.0/Toolbar.js"
+    },
+    "./Toolbar/1.0.2": {
+      "types": "./dist/components/Toolbar/versions/1.0.2/Toolbar.d.ts",
+      "import": "./dist/components/Toolbar/versions/1.0.2/Toolbar.js"
+    },
+    "./Tooltip": {
+      "types": "./dist/components/Tooltip/versions/1.0.1/Tooltip.d.ts",
+      "import": "./dist/components/Tooltip/versions/1.0.1/Tooltip.js"
+    },
+    "./Tooltip/1.0.1": {
+      "types": "./dist/components/Tooltip/versions/1.0.1/Tooltip.d.ts",
+      "import": "./dist/components/Tooltip/versions/1.0.1/Tooltip.js"
+    },
+    "./TopBar": {
+      "types": "./dist/components/TopBar/versions/1.0.4/TopBar.d.ts",
+      "import": "./dist/components/TopBar/versions/1.0.4/TopBar.js"
+    },
+    "./TopBar/1.0.4": {
+      "types": "./dist/components/TopBar/versions/1.0.4/TopBar.d.ts",
+      "import": "./dist/components/TopBar/versions/1.0.4/TopBar.js"
+    },
+    "./Transition": {
+      "types": "./dist/primitives/Transition/versions/1.0.2/Transition.strings.d.ts",
+      "import": "./dist/primitives/Transition/versions/1.0.2/Transition.strings.js"
+    },
+    "./Transition/1.0.2": {
+      "types": "./dist/primitives/Transition/versions/1.0.2/Transition.strings.d.ts",
+      "import": "./dist/primitives/Transition/versions/1.0.2/Transition.strings.js"
+    },
+    "./TreeView": {
+      "types": "./dist/components/TreeView/versions/1.0.3/TreeView.d.ts",
+      "import": "./dist/components/TreeView/versions/1.0.3/TreeView.js"
+    },
+    "./TreeView/1.0.0": {
+      "types": "./dist/components/TreeView/versions/1.0.0/TreeView.d.ts",
+      "import": "./dist/components/TreeView/versions/1.0.0/TreeView.js"
+    },
+    "./TreeView/1.0.3": {
+      "types": "./dist/components/TreeView/versions/1.0.3/TreeView.d.ts",
+      "import": "./dist/components/TreeView/versions/1.0.3/TreeView.js"
+    },
+    "./UndoableDestructiveAction": {
+      "types": "./dist/components/UndoableDestructiveAction/versions/1.0.3/UndoableDestructiveAction.d.ts",
+      "import": "./dist/components/UndoableDestructiveAction/versions/1.0.3/UndoableDestructiveAction.js"
+    },
+    "./UndoableDestructiveAction/1.0.3": {
+      "types": "./dist/components/UndoableDestructiveAction/versions/1.0.3/UndoableDestructiveAction.d.ts",
+      "import": "./dist/components/UndoableDestructiveAction/versions/1.0.3/UndoableDestructiveAction.js"
+    },
+    "./UndoBanner": {
+      "types": "./dist/components/UndoBanner/versions/1.0.3/UndoBanner.d.ts",
+      "import": "./dist/components/UndoBanner/versions/1.0.3/UndoBanner.js"
+    },
+    "./UndoBanner/1.0.0": {
+      "types": "./dist/components/UndoBanner/versions/1.0.0/UndoBanner.d.ts",
+      "import": "./dist/components/UndoBanner/versions/1.0.0/UndoBanner.js"
+    },
+    "./UndoBanner/1.0.3": {
+      "types": "./dist/components/UndoBanner/versions/1.0.3/UndoBanner.d.ts",
+      "import": "./dist/components/UndoBanner/versions/1.0.3/UndoBanner.js"
+    },
+    "./UndoManager": {
+      "types": "./dist/services/UndoManager/versions/1.0.0/UndoManager.d.ts",
+      "import": "./dist/services/UndoManager/versions/1.0.0/UndoManager.js"
+    },
+    "./UndoManager/1.0.0": {
+      "types": "./dist/services/UndoManager/versions/1.0.0/UndoManager.d.ts",
+      "import": "./dist/services/UndoManager/versions/1.0.0/UndoManager.js"
+    },
+    "./UnsavedChangesFlow": {
+      "types": "./dist/components/UnsavedChangesFlow/versions/1.0.3/UnsavedChangesFlow.d.ts",
+      "import": "./dist/components/UnsavedChangesFlow/versions/1.0.3/UnsavedChangesFlow.js"
+    },
+    "./UnsavedChangesFlow/1.0.0": {
+      "types": "./dist/components/UnsavedChangesFlow/versions/1.0.0/UnsavedChangesFlow.d.ts",
+      "import": "./dist/components/UnsavedChangesFlow/versions/1.0.0/UnsavedChangesFlow.js"
+    },
+    "./UnsavedChangesFlow/1.0.3": {
+      "types": "./dist/components/UnsavedChangesFlow/versions/1.0.3/UnsavedChangesFlow.d.ts",
+      "import": "./dist/components/UnsavedChangesFlow/versions/1.0.3/UnsavedChangesFlow.js"
+    },
+    "./UpgradePrompt": {
+      "types": "./dist/components/UpgradePrompt/versions/1.0.2/UpgradePrompt.d.ts",
+      "import": "./dist/components/UpgradePrompt/versions/1.0.2/UpgradePrompt.js"
+    },
+    "./UpgradePrompt/1.0.2": {
+      "types": "./dist/components/UpgradePrompt/versions/1.0.2/UpgradePrompt.d.ts",
+      "import": "./dist/components/UpgradePrompt/versions/1.0.2/UpgradePrompt.js"
+    },
+    "./useAbortableTask": {
+      "types": "./dist/hooks/useAbortableTask/versions/1.0.0/useAbortableTask.d.ts",
+      "import": "./dist/hooks/useAbortableTask/versions/1.0.0/useAbortableTask.js"
+    },
+    "./useAbortableTask/1.0.0": {
+      "types": "./dist/hooks/useAbortableTask/versions/1.0.0/useAbortableTask.d.ts",
+      "import": "./dist/hooks/useAbortableTask/versions/1.0.0/useAbortableTask.js"
+    },
+    "./useAnnounce": {
+      "types": "./dist/hooks/useAnnounce/versions/1.0.0/useAnnounce.d.ts",
+      "import": "./dist/hooks/useAnnounce/versions/1.0.0/useAnnounce.js"
+    },
+    "./useAnnounce/1.0.0": {
+      "types": "./dist/hooks/useAnnounce/versions/1.0.0/useAnnounce.d.ts",
+      "import": "./dist/hooks/useAnnounce/versions/1.0.0/useAnnounce.js"
+    },
+    "./useAsyncAction": {
+      "types": "./dist/hooks/useAsyncAction/versions/1.0.0/useAsyncAction.d.ts",
+      "import": "./dist/hooks/useAsyncAction/versions/1.0.0/useAsyncAction.js"
+    },
+    "./useAsyncAction/1.0.0": {
+      "types": "./dist/hooks/useAsyncAction/versions/1.0.0/useAsyncAction.d.ts",
+      "import": "./dist/hooks/useAsyncAction/versions/1.0.0/useAsyncAction.js"
+    },
+    "./useControllableState": {
+      "types": "./dist/hooks/useControllableState/versions/1.0.0/useControllableState.d.ts",
+      "import": "./dist/hooks/useControllableState/versions/1.0.0/useControllableState.js"
+    },
+    "./useControllableState/1.0.0": {
+      "types": "./dist/hooks/useControllableState/versions/1.0.0/useControllableState.d.ts",
+      "import": "./dist/hooks/useControllableState/versions/1.0.0/useControllableState.js"
+    },
+    "./useDelayedPending": {
+      "types": "./dist/hooks/useDelayedPending/versions/1.0.0/useDelayedPending.d.ts",
+      "import": "./dist/hooks/useDelayedPending/versions/1.0.0/useDelayedPending.js"
+    },
+    "./useDelayedPending/1.0.0": {
+      "types": "./dist/hooks/useDelayedPending/versions/1.0.0/useDelayedPending.d.ts",
+      "import": "./dist/hooks/useDelayedPending/versions/1.0.0/useDelayedPending.js"
+    },
+    "./useDirection": {
+      "types": "./dist/hooks/useDirection/versions/1.0.0/useDirection.d.ts",
+      "import": "./dist/hooks/useDirection/versions/1.0.0/useDirection.js"
+    },
+    "./useDirection/1.0.0": {
+      "types": "./dist/hooks/useDirection/versions/1.0.0/useDirection.d.ts",
+      "import": "./dist/hooks/useDirection/versions/1.0.0/useDirection.js"
+    },
+    "./useDisclosure": {
+      "types": "./dist/hooks/useDisclosure/versions/1.0.0/useDisclosure.d.ts",
+      "import": "./dist/hooks/useDisclosure/versions/1.0.0/useDisclosure.js"
+    },
+    "./useDisclosure/1.0.0": {
+      "types": "./dist/hooks/useDisclosure/versions/1.0.0/useDisclosure.d.ts",
+      "import": "./dist/hooks/useDisclosure/versions/1.0.0/useDisclosure.js"
+    },
+    "./useDrag": {
+      "types": "./dist/hooks/useDrag/versions/1.0.0/useDrag.d.ts",
+      "import": "./dist/hooks/useDrag/versions/1.0.0/useDrag.js"
+    },
+    "./useDrag/1.0.0": {
+      "types": "./dist/hooks/useDrag/versions/1.0.0/useDrag.d.ts",
+      "import": "./dist/hooks/useDrag/versions/1.0.0/useDrag.js"
+    },
+    "./useElementRect": {
+      "types": "./dist/hooks/useElementRect/versions/1.0.0/useElementRect.d.ts",
+      "import": "./dist/hooks/useElementRect/versions/1.0.0/useElementRect.js"
+    },
+    "./useElementRect/1.0.0": {
+      "types": "./dist/hooks/useElementRect/versions/1.0.0/useElementRect.d.ts",
+      "import": "./dist/hooks/useElementRect/versions/1.0.0/useElementRect.js"
+    },
+    "./useEscapeKey": {
+      "types": "./dist/hooks/useEscapeKey/versions/1.0.0/useEscapeKey.d.ts",
+      "import": "./dist/hooks/useEscapeKey/versions/1.0.0/useEscapeKey.js"
+    },
+    "./useEscapeKey/1.0.0": {
+      "types": "./dist/hooks/useEscapeKey/versions/1.0.0/useEscapeKey.d.ts",
+      "import": "./dist/hooks/useEscapeKey/versions/1.0.0/useEscapeKey.js"
+    },
+    "./useFocusReturn": {
+      "types": "./dist/hooks/useFocusReturn/versions/1.0.0/useFocusReturn.d.ts",
+      "import": "./dist/hooks/useFocusReturn/versions/1.0.0/useFocusReturn.js"
+    },
+    "./useFocusReturn/1.0.0": {
+      "types": "./dist/hooks/useFocusReturn/versions/1.0.0/useFocusReturn.d.ts",
+      "import": "./dist/hooks/useFocusReturn/versions/1.0.0/useFocusReturn.js"
+    },
+    "./useFocusTrap": {
+      "types": "./dist/hooks/useFocusTrap/versions/1.0.0/useFocusTrap.d.ts",
+      "import": "./dist/hooks/useFocusTrap/versions/1.0.0/useFocusTrap.js"
+    },
+    "./useFocusTrap/1.0.0": {
+      "types": "./dist/hooks/useFocusTrap/versions/1.0.0/useFocusTrap.d.ts",
+      "import": "./dist/hooks/useFocusTrap/versions/1.0.0/useFocusTrap.js"
+    },
+    "./useFocusVisible": {
+      "types": "./dist/hooks/useFocusVisible/versions/1.0.0/useFocusVisible.d.ts",
+      "import": "./dist/hooks/useFocusVisible/versions/1.0.0/useFocusVisible.js"
+    },
+    "./useFocusVisible/1.0.0": {
+      "types": "./dist/hooks/useFocusVisible/versions/1.0.0/useFocusVisible.d.ts",
+      "import": "./dist/hooks/useFocusVisible/versions/1.0.0/useFocusVisible.js"
+    },
+    "./useHover": {
+      "types": "./dist/hooks/useHover/versions/1.0.0/useHover.d.ts",
+      "import": "./dist/hooks/useHover/versions/1.0.0/useHover.js"
+    },
+    "./useHover/1.0.0": {
+      "types": "./dist/hooks/useHover/versions/1.0.0/useHover.d.ts",
+      "import": "./dist/hooks/useHover/versions/1.0.0/useHover.js"
+    },
+    "./useHydrated": {
+      "types": "./dist/hooks/useHydrated/versions/1.0.0/useHydrated.d.ts",
+      "import": "./dist/hooks/useHydrated/versions/1.0.0/useHydrated.js"
+    },
+    "./useHydrated/1.0.0": {
+      "types": "./dist/hooks/useHydrated/versions/1.0.0/useHydrated.d.ts",
+      "import": "./dist/hooks/useHydrated/versions/1.0.0/useHydrated.js"
+    },
+    "./useLocale": {
+      "types": "./dist/hooks/useLocale/versions/1.0.1/useLocale.d.ts",
+      "import": "./dist/hooks/useLocale/versions/1.0.1/useLocale.js"
+    },
+    "./useLocale/1.0.0": {
+      "types": "./dist/hooks/useLocale/versions/1.0.0/useLocale.d.ts",
+      "import": "./dist/hooks/useLocale/versions/1.0.0/useLocale.js"
+    },
+    "./useLocale/1.0.1": {
+      "types": "./dist/hooks/useLocale/versions/1.0.1/useLocale.d.ts",
+      "import": "./dist/hooks/useLocale/versions/1.0.1/useLocale.js"
+    },
+    "./useMediaQuery": {
+      "types": "./dist/hooks/useMediaQuery/versions/1.0.0/useMediaQuery.d.ts",
+      "import": "./dist/hooks/useMediaQuery/versions/1.0.0/useMediaQuery.js"
+    },
+    "./useMediaQuery/1.0.0": {
+      "types": "./dist/hooks/useMediaQuery/versions/1.0.0/useMediaQuery.d.ts",
+      "import": "./dist/hooks/useMediaQuery/versions/1.0.0/useMediaQuery.js"
+    },
+    "./useNetworkStatus": {
+      "types": "./dist/hooks/useNetworkStatus/versions/1.0.0/useNetworkStatus.d.ts",
+      "import": "./dist/hooks/useNetworkStatus/versions/1.0.0/useNetworkStatus.js"
+    },
+    "./useNetworkStatus/1.0.0": {
+      "types": "./dist/hooks/useNetworkStatus/versions/1.0.0/useNetworkStatus.d.ts",
+      "import": "./dist/hooks/useNetworkStatus/versions/1.0.0/useNetworkStatus.js"
+    },
+    "./useOptimisticAction": {
+      "types": "./dist/hooks/useOptimisticAction/versions/1.0.0/useOptimisticAction.d.ts",
+      "import": "./dist/hooks/useOptimisticAction/versions/1.0.0/useOptimisticAction.js"
+    },
+    "./useOptimisticAction/1.0.0": {
+      "types": "./dist/hooks/useOptimisticAction/versions/1.0.0/useOptimisticAction.d.ts",
+      "import": "./dist/hooks/useOptimisticAction/versions/1.0.0/useOptimisticAction.js"
+    },
+    "./useOutsideInteraction": {
+      "types": "./dist/hooks/useOutsideInteraction/versions/1.0.0/useOutsideInteraction.d.ts",
+      "import": "./dist/hooks/useOutsideInteraction/versions/1.0.0/useOutsideInteraction.js"
+    },
+    "./useOutsideInteraction/1.0.0": {
+      "types": "./dist/hooks/useOutsideInteraction/versions/1.0.0/useOutsideInteraction.d.ts",
+      "import": "./dist/hooks/useOutsideInteraction/versions/1.0.0/useOutsideInteraction.js"
+    },
+    "./usePress": {
+      "types": "./dist/hooks/usePress/versions/1.0.0/usePress.d.ts",
+      "import": "./dist/hooks/usePress/versions/1.0.0/usePress.js"
+    },
+    "./usePress/1.0.0": {
+      "types": "./dist/hooks/usePress/versions/1.0.0/usePress.d.ts",
+      "import": "./dist/hooks/usePress/versions/1.0.0/usePress.js"
+    },
+    "./useReducedMotion": {
+      "types": "./dist/hooks/useReducedMotion/versions/1.0.0/useReducedMotion.d.ts",
+      "import": "./dist/hooks/useReducedMotion/versions/1.0.0/useReducedMotion.js"
+    },
+    "./useReducedMotion/1.0.0": {
+      "types": "./dist/hooks/useReducedMotion/versions/1.0.0/useReducedMotion.d.ts",
+      "import": "./dist/hooks/useReducedMotion/versions/1.0.0/useReducedMotion.js"
+    },
+    "./useResizeObserver": {
+      "types": "./dist/hooks/useResizeObserver/versions/1.0.0/useResizeObserver.d.ts",
+      "import": "./dist/hooks/useResizeObserver/versions/1.0.0/useResizeObserver.js"
+    },
+    "./useResizeObserver/1.0.0": {
+      "types": "./dist/hooks/useResizeObserver/versions/1.0.0/useResizeObserver.d.ts",
+      "import": "./dist/hooks/useResizeObserver/versions/1.0.0/useResizeObserver.js"
+    },
+    "./useRetry": {
+      "types": "./dist/hooks/useRetry/versions/1.0.0/useRetry.d.ts",
+      "import": "./dist/hooks/useRetry/versions/1.0.0/useRetry.js"
+    },
+    "./useRetry/1.0.0": {
+      "types": "./dist/hooks/useRetry/versions/1.0.0/useRetry.d.ts",
+      "import": "./dist/hooks/useRetry/versions/1.0.0/useRetry.js"
+    },
+    "./useRovingFocus": {
+      "types": "./dist/hooks/useRovingFocus/versions/1.0.0/useRovingFocus.d.ts",
+      "import": "./dist/hooks/useRovingFocus/versions/1.0.0/useRovingFocus.js"
+    },
+    "./useRovingFocus/1.0.0": {
+      "types": "./dist/hooks/useRovingFocus/versions/1.0.0/useRovingFocus.d.ts",
+      "import": "./dist/hooks/useRovingFocus/versions/1.0.0/useRovingFocus.js"
+    },
+    "./useScrollLock": {
+      "types": "./dist/hooks/useScrollLock/versions/1.0.0/useScrollLock.d.ts",
+      "import": "./dist/hooks/useScrollLock/versions/1.0.0/useScrollLock.js"
+    },
+    "./useScrollLock/1.0.0": {
+      "types": "./dist/hooks/useScrollLock/versions/1.0.0/useScrollLock.d.ts",
+      "import": "./dist/hooks/useScrollLock/versions/1.0.0/useScrollLock.js"
+    },
+    "./useScrollState": {
+      "types": "./dist/hooks/useScrollState/versions/1.0.0/useScrollState.d.ts",
+      "import": "./dist/hooks/useScrollState/versions/1.0.0/useScrollState.js"
+    },
+    "./useScrollState/1.0.0": {
+      "types": "./dist/hooks/useScrollState/versions/1.0.0/useScrollState.d.ts",
+      "import": "./dist/hooks/useScrollState/versions/1.0.0/useScrollState.js"
+    },
+    "./useSwipe": {
+      "types": "./dist/hooks/useSwipe/versions/1.0.0/useSwipe.d.ts",
+      "import": "./dist/hooks/useSwipe/versions/1.0.0/useSwipe.js"
+    },
+    "./useSwipe/1.0.0": {
+      "types": "./dist/hooks/useSwipe/versions/1.0.0/useSwipe.d.ts",
+      "import": "./dist/hooks/useSwipe/versions/1.0.0/useSwipe.js"
+    },
+    "./useTypeahead": {
+      "types": "./dist/hooks/useTypeahead/versions/1.0.0/useTypeahead.d.ts",
+      "import": "./dist/hooks/useTypeahead/versions/1.0.0/useTypeahead.js"
+    },
+    "./useTypeahead/1.0.0": {
+      "types": "./dist/hooks/useTypeahead/versions/1.0.0/useTypeahead.d.ts",
+      "import": "./dist/hooks/useTypeahead/versions/1.0.0/useTypeahead.js"
+    },
+    "./useVoiceInput": {
+      "types": "./dist/hooks/useVoiceInput/versions/3.0.0/useVoiceInput.d.ts",
+      "import": "./dist/hooks/useVoiceInput/versions/3.0.0/useVoiceInput.js"
+    },
+    "./useVoiceInput/1.0.0": {
+      "types": "./dist/hooks/useVoiceInput/versions/1.0.0/useVoiceInput.d.ts",
+      "import": "./dist/hooks/useVoiceInput/versions/1.0.0/useVoiceInput.js"
+    },
+    "./useVoiceInput/3.0.0": {
+      "types": "./dist/hooks/useVoiceInput/versions/3.0.0/useVoiceInput.d.ts",
+      "import": "./dist/hooks/useVoiceInput/versions/3.0.0/useVoiceInput.js"
+    },
+    "./ValidationSummary": {
+      "types": "./dist/components/ValidationSummary/versions/1.0.3/ValidationSummary.d.ts",
+      "import": "./dist/components/ValidationSummary/versions/1.0.3/ValidationSummary.js"
+    },
+    "./ValidationSummary/1.0.0": {
+      "types": "./dist/components/ValidationSummary/versions/1.0.0/ValidationSummary.d.ts",
+      "import": "./dist/components/ValidationSummary/versions/1.0.0/ValidationSummary.js"
+    },
+    "./ValidationSummary/1.0.3": {
+      "types": "./dist/components/ValidationSummary/versions/1.0.3/ValidationSummary.d.ts",
+      "import": "./dist/components/ValidationSummary/versions/1.0.3/ValidationSummary.js"
+    },
+    "./VerdictSummary": {
+      "types": "./dist/components/VerdictSummary/versions/1.0.4/VerdictSummary.d.ts",
+      "import": "./dist/components/VerdictSummary/versions/1.0.4/VerdictSummary.js"
+    },
+    "./VerdictSummary/1.0.4": {
+      "types": "./dist/components/VerdictSummary/versions/1.0.4/VerdictSummary.d.ts",
+      "import": "./dist/components/VerdictSummary/versions/1.0.4/VerdictSummary.js"
+    },
+    "./VirtualList": {
+      "types": "./dist/components/VirtualList/versions/1.0.1/VirtualList.d.ts",
+      "import": "./dist/components/VirtualList/versions/1.0.1/VirtualList.js"
+    },
+    "./VirtualList/1.0.1": {
+      "types": "./dist/components/VirtualList/versions/1.0.1/VirtualList.d.ts",
+      "import": "./dist/components/VirtualList/versions/1.0.1/VirtualList.js"
+    },
+    "./VisualRecipes": {
+      "types": "./dist/foundations/VisualRecipes/versions/1.0.0/VisualRecipes.d.ts",
+      "import": "./dist/foundations/VisualRecipes/versions/1.0.0/VisualRecipes.js"
+    },
+    "./VisualRecipes/1.0.0": {
+      "types": "./dist/foundations/VisualRecipes/versions/1.0.0/VisualRecipes.d.ts",
+      "import": "./dist/foundations/VisualRecipes/versions/1.0.0/VisualRecipes.js"
+    },
+    "./VoiceInputButton": {
+      "types": "./dist/components/VoiceInputButton/versions/4.2.0/VoiceInputButton.d.ts",
+      "import": "./dist/components/VoiceInputButton/versions/4.2.0/VoiceInputButton.js"
+    },
+    "./VoiceInputButton/3.0.0": {
+      "types": "./dist/components/VoiceInputButton/versions/3.0.0/VoiceInputButton.d.ts",
+      "import": "./dist/components/VoiceInputButton/versions/3.0.0/VoiceInputButton.js"
+    },
+    "./VoiceInputButton/4.1.0": {
+      "types": "./dist/components/VoiceInputButton/versions/4.1.0/VoiceInputButton.d.ts",
+      "import": "./dist/components/VoiceInputButton/versions/4.1.0/VoiceInputButton.js"
+    },
+    "./VoiceInputButton/4.2.0": {
+      "types": "./dist/components/VoiceInputButton/versions/4.2.0/VoiceInputButton.d.ts",
+      "import": "./dist/components/VoiceInputButton/versions/4.2.0/VoiceInputButton.js"
+    },
+    "./WorkspaceHeader": {
+      "types": "./dist/components/WorkspaceHeader/versions/1.0.0/WorkspaceHeader.d.ts",
+      "import": "./dist/components/WorkspaceHeader/versions/1.0.0/WorkspaceHeader.js"
+    },
+    "./WorkspaceHeader/1.0.0": {
+      "types": "./dist/components/WorkspaceHeader/versions/1.0.0/WorkspaceHeader.d.ts",
+      "import": "./dist/components/WorkspaceHeader/versions/1.0.0/WorkspaceHeader.js"
+    }
+  },
+  "files": [
+    "dist/**",
+    "README.md",
+    "package.json"
+  ],
+  "sideEffects": false,
+  "packageManager": "pnpm@10.14.0+sha512.ad27a79641b49c3e481a16a805baa71817a04bbe06a38d17e60e2eaee83f6a146c6a688125f5792e48dd5ba30e7da52a5cda4c3992b9ccf333f9ce223af84748"
+}

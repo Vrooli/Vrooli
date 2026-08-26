@@ -53,7 +53,7 @@ func hostSafeguardSpec() commandtree.Spec[string] {
 		Summary: "Inspect or apply one declared host safeguard",
 		Help: commandtree.Help{
 			Description: "Applies one typed host safeguard through Vrooli's requirement runtime. Use this for focused, auditable repairs such as a kernel driver; high-risk safeguards can report a typed reboot-required result instead of pretending the host is ready.",
-			Usage:       "vrooli host safeguard <name|list> [--json] [--dry-run] [--maintenance-window] [--sudo-mode ask|skip|error]",
+			Usage:       "vrooli host safeguard <name|list|portability-backlog|invariant-coverage|audit> [--json] [--dry-run] [--maintenance-window] [--sudo-mode ask|skip|error]",
 			Options:     []commandtree.OptionArg{{Name: "--dry-run", Description: "Report the managed change without applying it"}, {Name: "--maintenance-window", Description: "Acknowledge graphical/remote-session interruption risk"}, {Name: "--sudo-mode", ValueName: "mode", Description: "Privilege policy: ask, skip, or error (default: skip)"}},
 			Examples:    []string{"vrooli host safeguard list --json", "vrooli host safeguard nvidia_driver --dry-run", "vrooli host safeguard nvidia-driver --maintenance-window --sudo-mode ask"},
 		},
@@ -76,6 +76,15 @@ func (app *App) runHostSafeguardCommand(ctx *CommandContext, args []string) erro
 	if strings.EqualFold(name, "list") {
 		return renderSafeguardList(ctx.Stdout, jsonOut)
 	}
+	if strings.EqualFold(name, "portability-backlog") || strings.EqualFold(name, "portability_backlog") {
+		return renderPortabilityBacklog(ctx.Stdout, jsonOut)
+	}
+	if strings.EqualFold(name, "invariant-coverage") || strings.EqualFold(name, "invariant_coverage") {
+		return renderInvariantCoverage(ctx.Stdout, jsonOut)
+	}
+	if strings.EqualFold(name, "audit") || strings.EqualFold(name, "host-state-audit") {
+		return renderHostStateAudit(ctx.Stdout, jsonOut)
+	}
 	name = strings.ReplaceAll(strings.ToLower(name), "-", "_")
 	sudoMode := strings.ToLower(strings.TrimSpace(parsed.FlagValue("--sudo-mode")))
 	if sudoMode != "" && sudoMode != "ask" && sudoMode != "skip" && sudoMode != "error" {
@@ -96,6 +105,56 @@ func (app *App) runHostSafeguardCommand(ctx *CommandContext, args []string) erro
 		return rootcli.ExitCodeError{Code: 1, Silent_: true}
 	}
 	return nil
+}
+
+func renderInvariantCoverage(output io.Writer, jsonOut bool) error {
+	report, err := hostruntime.SafeguardInvariantCoverage()
+	if err != nil {
+		return err
+	}
+	if jsonOut {
+		return json.NewEncoder(output).Encode(report)
+	}
+	_, err = fmt.Fprintf(output, "sites walked: %d; invariants declared: %d; invariants evaluated: %d\n", report.SitesWalked, report.InvariantsDeclared, report.InvariantsEvaluated)
+	for _, gap := range report.Gaps {
+		if _, writeErr := fmt.Fprintf(output, "gap: %s\n", gap); writeErr != nil {
+			return writeErr
+		}
+	}
+	return err
+}
+
+func renderHostStateAudit(output io.Writer, jsonOut bool) error {
+	report, err := hostruntime.SafeguardHostStateAudit()
+	if err != nil {
+		return err
+	}
+	if jsonOut {
+		return json.NewEncoder(output).Encode(report)
+	}
+	for _, finding := range report.Findings {
+		if _, writeErr := fmt.Fprintf(output, "%s\t%s\t%s\n", finding.Kind, finding.Path, finding.Reason); writeErr != nil {
+			return writeErr
+		}
+	}
+	return nil
+}
+
+func renderPortabilityBacklog(output io.Writer, jsonOut bool) error {
+	report, err := hostruntime.SafeguardPortabilityBacklog()
+	if err != nil {
+		return err
+	}
+	if jsonOut {
+		return json.NewEncoder(output).Encode(report)
+	}
+	_, err = fmt.Fprintf(output, "not_implemented safeguards: %d/%d\n", report.NotImplemented, report.Total)
+	for _, entry := range report.Entries {
+		if _, writeErr := fmt.Fprintf(output, "- %s\n", entry); writeErr != nil {
+			return writeErr
+		}
+	}
+	return err
 }
 
 type safeguardListEntry struct {

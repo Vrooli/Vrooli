@@ -87,6 +87,20 @@ var Endpoints = []module.EndpointDescriptor{
 		},
 	},
 	{
+		ID:          "presence_report_credential_receipt",
+		Path:        presenceconnect.PresenceServiceReportCredentialReceiptProcedure,
+		Method:      "POST",
+		Summary:     "Report credential delivery receipt",
+		Description: "Node-facing: records metadata-only acceptance or rejection of a credential push; secret values are never returned or persisted.",
+		Category:    "channel",
+		Request:     &module.Schema{Type: "object", Properties: map[string]string{"receipt": "CredentialReceipt (grant_id, node_id, generation, accepted, reason)"}},
+		Response:    &module.Schema{Type: "object", Properties: map[string]string{"accepted": "boolean"}},
+		Errors: []module.ErrorDesc{
+			{Status: 400, Code: "invalid_argument", Description: "Missing grant or node metadata"},
+			{Status: 401, Code: "unauthenticated", Description: "Missing or invalid node proof"},
+		},
+	},
+	{
 		ID:          "presence_report_relay_response",
 		Path:        presenceconnect.PresenceServiceReportRelayResponseProcedure,
 		Method:      "POST",

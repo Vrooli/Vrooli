@@ -62,6 +62,10 @@ func nodeKind(raw string) registryv1.NodeKind {
 		return registryv1.NodeKind_NODE_KIND_SSH
 	case "attached":
 		return registryv1.NodeKind_NODE_KIND_ATTACHED
+	case "control_plane", "control-plane":
+		return registryv1.NodeKind_NODE_KIND_CONTROL_PLANE
+	case "":
+		return registryv1.NodeKind_NODE_KIND_UNSPECIFIED
 	default:
 		return registryv1.NodeKind_NODE_KIND_AGENT
 	}
@@ -121,10 +125,17 @@ func (h *handlers) doctor(ctx cliapp.RunContext) error {
 		ok                          bool
 	}{
 		{"registry_record_present", fmt.Sprintf("%t", n.RegistryRecordPresent), "re-register the node with `nodes register`", n.RegistryRecordPresent},
-		{"heartbeat_fresh", fmt.Sprintf("%t (age=%ds)", n.HeartbeatFresh, n.HeartbeatAgeSeconds), "restart the node agent and verify heartbeats", n.HeartbeatFresh},
-		{"channel_held", fmt.Sprintf("%t", n.ChannelHeld), "start the node agent and reconnect its dial-out channel", n.ChannelHeld},
 		{"protocol_compatible", fmt.Sprintf("%t", n.ProtocolCompatible), "provision the node with the current Bridge agent", n.ProtocolCompatible},
 		{"dispatchable", fmt.Sprintf("%t", n.Dispatchable), "resolve the first failing readiness rung above", n.Dispatchable},
+	}
+	if n.Kind != registryv1.NodeKind_NODE_KIND_CONTROL_PLANE {
+		rungs = append(rungs[:1], append([]struct {
+			name, observed, remediation string
+			ok                          bool
+		}{
+			{"heartbeat_fresh", fmt.Sprintf("%t (age=%ds)", n.HeartbeatFresh, n.HeartbeatAgeSeconds), "restart the node agent and verify heartbeats", n.HeartbeatFresh},
+			{"channel_held", fmt.Sprintf("%t", n.ChannelHeld), "start the node agent and reconnect its dial-out channel", n.ChannelHeld},
+		}, rungs[1:]...)...)
 	}
 	for _, rung := range rungs {
 		if !rung.ok {
@@ -146,6 +157,7 @@ func (h *handlers) update(ctx cliapp.RunContext) error {
 		Capabilities: splitCSV(ctx.Flag("capabilities")),
 		Scopes:       splitCSV(ctx.Flag("scopes")),
 		Revision:     ctx.Flag("revision"),
+		Kind:         nodeKind(ctx.Flag("kind")),
 	}))
 	if err != nil {
 		return cliapp.WrapAPIError(fmt.Sprintf("update node %q", id), err, nil)

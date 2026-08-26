@@ -24,21 +24,30 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"net"
+	"net/http"
 	"os"
+	"os/exec"
 	"os/signal"
 	"path/filepath"
 	"strconv"
 	"strings"
 	"syscall"
+	"time"
 
+	"connectrpc.com/connect"
 	channelv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/channel"
 	cleanupv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/cleanup"
+	pairingv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/pairing"
+	"github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/pairing/pairing_v1connect"
 	"google.golang.org/protobuf/encoding/protojson"
 
 	"vrooli-bridge/agent/internal/buildinfo"
 	"vrooli-bridge/agent/internal/channel"
 	"vrooli-bridge/agent/internal/config"
 	"vrooli-bridge/agent/internal/cpverify"
+	"vrooli-bridge/agent/internal/credentialgrant"
+	"vrooli-bridge/agent/internal/credentialpush"
 	"vrooli-bridge/agent/internal/discovery"
 	"vrooli-bridge/agent/internal/nodecred"
 	"vrooli-bridge/agent/internal/platform"
@@ -110,6 +119,17 @@ func run(args []string) error {
 	if err != nil {
 		return fmt.Errorf("load node credential: %w", err)
 	}
+	// Encryption identity is deliberately generated and persisted independently
+	// of the Ed25519 signing identity. Pairing adds its public half to the
+	// control plane; the private half never leaves this state directory.
+	encryption, err := nodecred.LoadOrCreateEncryption(filepath.Join(cfg.StateDir, "encryption.key"))
+	if err != nil {
+		return fmt.Errorf("load node encryption credential: %w", err)
+	}
+	grants, err := credentialgrant.LoadFile(filepath.Join(cfg.StateDir, "credential-grants.json"))
+	if err != nil {
+		return fmt.Errorf("load credential grants: %w", err)
+	}
 	if cfg.PrintPublicKey {
 		// Bootstrap helper: print the key the installer feeds to `pair redeem`.
 		fmt.Println(cred.PublicKeyBase64())
@@ -150,8 +170,20 @@ func run(args []string) error {
 			return fmt.Errorf("load pinned control-plane key: %w", err)
 		}
 	}
+	if cfg.Paired() {
+		if err := retryControlPlane(ctx, logger, "register node encryption key", func() error {
+			return registerEncryptionKey(ctx, cfg, cred, encryption)
+		}); err != nil {
+			return err
+		}
+	}
 
-	client := channel.NewClient(cfg, channel.WithLogger(logger), channel.WithCredential(cred), channel.WithCPVerifier(cpVerifier), channel.WithShutdown(stop))
+	client := channel.NewClient(cfg, channel.WithLogger(logger), channel.WithCredential(cred), channel.WithEncryptionCredential(encryption), channel.WithCredentialGrants(grants), channel.WithCredentialSink(cliCredentialSink{binary: cfg.VrooliBin, workDir: cfg.WorkDir}), channel.WithCPVerifier(cpVerifier), channel.WithShutdown(stop))
+	if err := retryControlPlane(ctx, logger, "sync credential grants", func() error {
+		return client.SyncCredentialGrants(ctx)
+	}); err != nil {
+		return err
+	}
 	hs := client.Handshake()
 	logger.Printf("channel handshake: node_id=%q protocol_version=%d os=%s arch=%s capabilities=%v",
 		hs.GetNodeId(), hs.GetProtocolVersion(), hs.GetOs(), hs.GetArch(), hs.GetCapabilities())
@@ -171,6 +203,106 @@ func run(args []string) error {
 	return nil
 }
 
+const (
+	controlPlaneRetryInitial = time.Second
+	controlPlaneRetryMaximum = 30 * time.Second
+)
+
+// retryControlPlane keeps the installed agent resident while the control
+// plane is restarting or temporarily unreachable. Both encryption-key
+// registration and grant synchronization are startup preflights; failing the
+// service on a transport error creates a dead node that cannot reconnect by
+// itself. Authentication, validation, and local configuration errors remain
+// terminal so a real trust failure is not hidden behind retries.
+func retryControlPlane(ctx context.Context, logger *log.Logger, operation string, fn func() error) error {
+	backoff := controlPlaneRetryInitial
+	for {
+		if err := fn(); err == nil {
+			return nil
+		} else if !transientControlPlaneError(err) {
+			return err
+		} else {
+			logger.Printf("control plane %s failed (%v); retrying in %s", operation, err, backoff)
+		}
+
+		timer := time.NewTimer(backoff)
+		select {
+		case <-ctx.Done():
+			if !timer.Stop() {
+				<-timer.C
+			}
+			return ctx.Err()
+		case <-timer.C:
+		}
+		backoff *= 2
+		if backoff > controlPlaneRetryMaximum {
+			backoff = controlPlaneRetryMaximum
+		}
+	}
+}
+
+func transientControlPlaneError(err error) bool {
+	if err == nil || errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+		return false
+	}
+	switch connect.CodeOf(err) {
+	case connect.CodeUnavailable, connect.CodeDeadlineExceeded, connect.CodeResourceExhausted, connect.CodeAborted:
+		return true
+	}
+	var networkErr net.Error
+	return errors.As(err, &networkErr) || errors.Is(err, io.EOF)
+}
+
+// cliCredentialSink is the node-side authority adapter. It delegates to the
+// node's own vrooli credential command, which selects that host's configured
+// backend (Keychain, encrypted-file, or another supported authority). The
+// value is supplied only on stdin and command output is discarded, so the
+// bridge channel never puts it in argv, logs, or receipts.
+type cliCredentialSink struct {
+	binary  string
+	workDir string
+}
+
+func (s cliCredentialSink) Put(logicalID, field, value string) error {
+	cmd := exec.Command(s.binary, "credentials", "provision", "--identity", logicalID, "--field", field)
+	cmd.Dir = s.workDir
+	cmd.Stdin = strings.NewReader(value)
+	cmd.Stdout = io.Discard
+	cmd.Stderr = io.Discard
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("node credential authority provision: %w", err)
+	}
+	return nil
+}
+
+func (s cliCredentialSink) Delete(logicalID, field string) error {
+	cmd := exec.Command(s.binary, "credentials", "delete", "--identity", logicalID, "--field", field, "--yes")
+	cmd.Dir = s.workDir
+	cmd.Stdout = io.Discard
+	cmd.Stderr = io.Discard
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("node credential authority delete: %w", err)
+	}
+	return nil
+}
+
+var _ credentialpush.Sink = cliCredentialSink{}
+
+func registerEncryptionKey(ctx context.Context, cfg config.Config, cred *nodecred.Credential, encryption *nodecred.EncryptionCredential) error {
+	if encryption == nil || cred == nil || cfg.ControlPlaneURL == "" || cfg.NodeID == "" {
+		return fmt.Errorf("register encryption key: paired agent identity is incomplete")
+	}
+	client := pairing_v1connect.NewPairingServiceClient(&http.Client{}, strings.TrimRight(cfg.ControlPlaneURL, "/"))
+	req := connect.NewRequest(&pairingv1.RegisterEncryptionKeyRequest{NodeId: cfg.NodeID, EncryptionPublicKey: encryption.PublicKeyBase64()})
+	for k, v := range cred.Headers(cfg.NodeID, time.Now().UTC()) {
+		req.Header().Set(k, v)
+	}
+	if _, err := client.RegisterEncryptionKey(ctx, req); err != nil {
+		return fmt.Errorf("register node encryption key: %w", err)
+	}
+	return nil
+}
+
 // runCleanupStdin is the non-interactive SSH transport for the same typed
 // helper used by the paired channel. The command arrives as protobuf JSON and
 // the helper chooses every executable and argv token. Events leave as protobuf
@@ -185,7 +317,7 @@ func runCleanupStdin(cfg config.Config) error {
 		return fmt.Errorf("decode typed cleanup command: %w", err)
 	}
 	helper := privsep.NewHelper(cfg.VrooliBin, cfg.WorkDir, nil,
-		privsep.WithSealingSeedPath(filepath.Join(cfg.StateDir, "sealing.key")),
+		privsep.WithSealingSeedPath(filepath.Join(cfg.StateDir, "encryption.key")),
 		privsep.WithClientUID(cfg.ProvisionClientUID),
 		privsep.WithClientHome(cfg.ProvisionClientHome),
 	)

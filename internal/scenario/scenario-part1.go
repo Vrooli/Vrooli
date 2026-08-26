@@ -251,6 +251,16 @@ type ComponentBuild struct {
 	Entry  string `json:"entry,omitempty"`
 	Output string `json:"output,omitempty"`
 	Reuse  string `json:"reuse,omitempty"`
+	// Outputs declares additional artifacts produced by the same component
+	// build. Entry and Output remain the primary target for compatibility;
+	// additional targets are built and fingerprinted by the lifecycle as part
+	// of the same typed component contract.
+	Outputs []ComponentBuildOutput `json:"outputs,omitempty"`
+}
+
+type ComponentBuildOutput struct {
+	Entry  string `json:"entry,omitempty"`
+	Output string `json:"output"`
 }
 
 type ComponentRun struct {

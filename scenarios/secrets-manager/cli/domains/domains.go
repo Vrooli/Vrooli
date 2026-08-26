@@ -7,6 +7,7 @@ import (
 	"secrets-manager/cli/domains/credentials"
 	"secrets-manager/cli/domains/deployment"
 	"secrets-manager/cli/domains/descriptors"
+	"secrets-manager/cli/domains/grants"
 	"secrets-manager/cli/domains/keyring"
 	"secrets-manager/cli/domains/overrides"
 	"secrets-manager/cli/domains/overview"
@@ -34,6 +35,7 @@ func SubcommandGroups(core *cliapp.ScenarioApp) []cliapp.SubcommandGroup {
 		overrides.Register(core),
 		admin.Register(core),
 		credentials.Register(core),
+		grants.Register(core),
 		descriptors.Register(core),
 		backup.Register(core),
 		keyring.Register(core),

@@ -12,6 +12,10 @@ import (
 	"runtime"
 	"sort"
 	"strings"
+	"time"
+
+	"github.com/vrooli/vrooli/internal/artifactlease"
+	"github.com/vrooli/vrooli/internal/artifactledger"
 
 	"github.com/vrooli/cli-core/cliutil"
 	repocontract "github.com/vrooli/repo-contract-go"
@@ -56,6 +60,42 @@ func (m *Manager) recordInstalledCLI(item InstallableCLI) error {
 		return fmt.Errorf("record installed CLI %q: %w", item.Name, err)
 	}
 	return nil
+}
+
+// leaseTTL is how long a freshly installed CLI is protected outright.
+//
+// It matches the reclamation grace window on purpose. An artifact whose
+// scenario is genuinely gone stops being reinstalled, so its lease lapses a day
+// after the last install and the absence clock then has to run its own course.
+// An artifact that is still in use is reinstalled long before that and is never
+// eligible. The conservative direction costs only disk.
+const leaseTTL = artifactlease.DefaultGrace
+
+// noteOwnership records ownership of an installed CLI.
+//
+// replaced distinguishes the two callers. An actual install claims, which bumps
+// the generation; a freshness check that found the binary already current
+// renews, which does not. Collapsing them made the generation count
+// invocations instead of replacements.
+//
+// Failures warn rather than fail. An unwritable ownership record leaves the
+// artifact unprotected, which is bad; refusing to install because of it would
+// leave the operator with no CLI at all, which is worse. The warning goes to
+// stderr so it survives --json output.
+func (m *Manager) noteOwnership(item InstallableCLI, path string, replaced bool) {
+	identity := artifactledger.CurrentIdentity()
+	owner := artifactlease.Owner{
+		Node:  identity.Node,
+		User:  identity.User,
+		Agent: identity.Claimed.Session,
+	}
+	record := artifactlease.Renew
+	if replaced {
+		record = artifactlease.Claim
+	}
+	if _, err := record(path, owner, item.ModulePath, leaseTTL, time.Now().UTC()); err != nil {
+		fmt.Fprintf(os.Stderr, "[WARN]    ownership record for %s could not be written: %v\n", item.Name, err)
+	}
 }
 
 func (m *Manager) installMetadataSource(item InstallableCLI) string {

@@ -287,7 +287,7 @@ func (h *Helper) openPassphrase(cmd *channelv1.CleanupCommand) ([]byte, error) {
 		return nil, fmt.Errorf("read node sealing seed: %w", err)
 	}
 	defer zeroBytes(seed)
-	private, err := sealing.PrivateKeyFromEd25519Seed(seed)
+	private, err := sealing.PrivateKeyFromRaw(seed)
 	if err != nil {
 		return nil, err
 	}

@@ -185,7 +185,7 @@ func serveConn(ctx context.Context, conn net.Conn, vrooliBin, workDir string, al
 	// would destroy that reporting path or kill this helper mid-apply.
 	opts := []Option{WithDeferredServiceNames("vrooli-bridge-agent", "vrooli-bridge-provisioner")}
 	if stateDir != "" {
-		opts = append(opts, WithSealingSeedPath(filepath.Join(stateDir, "node_credential.key")))
+		opts = append(opts, WithSealingSeedPath(filepath.Join(stateDir, "encryption.key")))
 	}
 	opts = append(opts, WithClientUID(allowedClientUID))
 	helper := NewHelper(vrooliBin, workDir, nil, opts...)

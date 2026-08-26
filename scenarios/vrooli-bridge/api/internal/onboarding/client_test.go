@@ -27,10 +27,16 @@ func TestHTTPHandoffClientCarriesIdentityAndDecodesSelection(t *testing.T) {
 	}))
 	defer server.Close()
 
-	selection, err := (HTTPHandoffClient{Endpoint: server.URL}).Resolve(context.Background(), HandoffRequest{MachineID: "machine-1", NodeID: "node-1", NodeKind: "agent"})
+	selection, err := (HTTPHandoffClient{Endpoint: HandoffEndpoint(server.URL)}).Resolve(context.Background(), HandoffRequest{MachineID: "machine-1", NodeID: "node-1", NodeKind: "agent"})
 	require.NoError(t, err)
 	require.True(t, selection.Apply)
 	require.Equal(t, []string{"demo"}, selection.Scenarios)
+}
+
+func TestHandoffEndpointUsesStableRoute(t *testing.T) {
+	require.Equal(t, "http://example.test"+HandoffPath, HandoffEndpoint("http://example.test/"))
+	require.Equal(t, "http://example.test"+HandoffPath, HandoffEndpoint("http://example.test"+HandoffPath))
+	require.Empty(t, HandoffEndpoint("  "))
 }
 
 type fakeRunner struct {
@@ -50,8 +56,14 @@ func TestApplySendsCapabilityDocumentWithoutArgvJSON(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Apply() error: %v", err)
 	}
-	if result.ExitCode != 0 || !strings.Contains(runner.command, "vrooli-onboarding wizard apply") {
+	if result.ExitCode != 0 || !strings.Contains(runner.command, "wizard commit --selection") {
 		t.Fatalf("unexpected remote result/command: %+v %q", result, runner.command)
+	}
+	if !strings.Contains(runner.command, "$HOME/.vrooli/bin/vrooli-onboarding") || !strings.Contains(runner.command, "command -v vrooli-onboarding") {
+		t.Fatalf("command does not resolve the runtime-home CLI before PATH fallback: %q", runner.command)
+	}
+	if !strings.Contains(runner.command, `PATH="$HOME/.vrooli/bin:$HOME/.local/bin:$PATH"`) {
+		t.Fatalf("command does not expose runtime bins to auto-start: %q", runner.command)
 	}
 	if strings.Contains(runner.command, `"alpha"`) || strings.Contains(runner.command, "ollama") {
 		t.Fatalf("selection JSON leaked into command argv: %q", runner.command)
@@ -95,7 +107,24 @@ func TestApplyAndReadinessReturnsAuthoritativeRemoteReport(t *testing.T) {
 	if result.ExitCode != 0 || result.Stdout != `{"status":"ready"}` {
 		t.Fatalf("readiness result = %+v", result)
 	}
-	if len(runner.commands) != 2 || !strings.Contains(runner.commands[1], "vrooli-onboarding readiness --json") {
+	if len(runner.commands) != 2 || !strings.Contains(runner.commands[1], "readiness --json") || !strings.Contains(runner.commands[1], "$HOME/.vrooli/bin/vrooli-onboarding") {
+		t.Fatalf("commands = %#v", runner.commands)
+	}
+}
+
+func TestApplyAndReadinessRetainsReadinessWhenApplyReportsBlockers(t *testing.T) {
+	runner := &sequenceRunner{results: []Result{
+		{ExitCode: 2, Stderr: "configuration is not complete: 6 blocking item(s) remain"},
+		{ExitCode: 2, Stdout: `{"blockers":[{"kind":"host","name":"launchagent","reason":"unsupported","remediation":"use the supported service path"}]}`},
+	}}
+	result, err := ApplyAndReadiness(context.Background(), runner, Target{Host: "example.test"}, Selection{Scenarios: []string{"demo"}, Apply: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.ExitCode != 2 || !strings.Contains(result.Stdout, `"launchagent"`) || !strings.Contains(result.Stderr, "6 blocking") {
+		t.Fatalf("merged readiness result = %+v", result)
+	}
+	if len(runner.commands) != 2 || !strings.Contains(runner.commands[1], "readiness --json") {
 		t.Fatalf("commands = %#v", runner.commands)
 	}
 }

@@ -27,6 +27,7 @@ import (
 	auditH "vrooli-bridge/handlers/audit"
 	channelH "vrooli-bridge/handlers/channel"
 	cleanupH "vrooli-bridge/handlers/cleanup"
+	credentialgrantH "vrooli-bridge/handlers/credentialgrant"
 	dispatchH "vrooli-bridge/handlers/dispatch"
 	fleetH "vrooli-bridge/handlers/fleet"
 	gateH "vrooli-bridge/handlers/gate"
@@ -42,6 +43,7 @@ import (
 	relayH "vrooli-bridge/handlers/relay"
 	runsH "vrooli-bridge/handlers/runs"
 	internalattached "vrooli-bridge/internal/attached"
+	internalcredentialgrant "vrooli-bridge/internal/credentialgrant"
 	localdb "vrooli-bridge/internal/database"
 	internalmachines "vrooli-bridge/internal/machines"
 	internaloperatorsession "vrooli-bridge/internal/operatorsession"
@@ -51,6 +53,7 @@ import (
 	attachedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/attached_devices"
 	auditv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/audit"
 	cleanupv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/cleanup"
+	credentialgrantv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/credentialgrant"
 	dispatchv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/dispatch"
 	fleetv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/fleet"
 	gatev1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/gate"
@@ -78,6 +81,7 @@ func AllEndpoints() []module.EndpointDescriptor {
 	out = append(out, auditH.Endpoints...)
 	out = append(out, channelH.Endpoints...)
 	out = append(out, cleanupH.Endpoints...)
+	out = append(out, credentialgrantH.Endpoints...)
 	out = append(out, dispatchH.Endpoints...)
 	out = append(out, fleetH.Endpoints...)
 	out = append(out, gateH.Endpoints...)
@@ -122,6 +126,7 @@ func AllProtoFiles() []ProtoFileEntry {
 		{Module: "audit", File: auditv1.File_vrooli_bridge_v1_audit_audit_proto},
 		{Module: "channel", File: presencev1.File_vrooli_bridge_v1_presence_presence_proto},
 		{Module: "cleanup", File: cleanupv1.File_vrooli_bridge_v1_cleanup_cleanup_proto},
+		{Module: "credentialgrant", File: credentialgrantv1.File_vrooli_bridge_v1_credentialgrant_credentialgrant_proto},
 		{Module: "dispatch", File: dispatchv1.File_vrooli_bridge_v1_dispatch_dispatch_proto},
 		{Module: "fleet", File: fleetv1.File_vrooli_bridge_v1_fleet_fleet_proto},
 		{Module: "gate", File: gatev1.File_vrooli_bridge_v1_gate_gate_proto},
@@ -153,12 +158,14 @@ func AllSchemas() []apidb.SchemaProvider {
 		apidb.SchemaProviderFunc(auditH.Schema),
 		apidb.SchemaProviderFunc(channelH.Schema),
 		apidb.SchemaProviderFunc(cleanupH.Schema),
+		apidb.SchemaProviderFunc(credentialgrantH.Schema),
 		apidb.SchemaProviderFunc(fleetH.Schema),
 		apidb.SchemaProviderFunc(gateH.Schema),
 		apidb.SchemaProviderFunc(identityH.Schema),
 		apidb.SchemaProviderFunc(internaloperatorsession.Schema),
 		apidb.SchemaProviderFunc(internalmachines.Schema),
 		apidb.SchemaProviderFunc(internalattached.Schema),
+		apidb.SchemaProviderFunc(internalcredentialgrant.Schema),
 		apidb.SchemaProviderFunc(onboardH.Schema),
 		apidb.SchemaProviderFunc(pairingH.Schema),
 		apidb.SchemaProviderFunc(provisionH.Schema),

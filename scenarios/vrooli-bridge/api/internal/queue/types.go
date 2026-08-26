@@ -54,13 +54,20 @@ func (s State) String() string {
 // Job is the scheduler's proto-free job DTO (a dispatched, allowlist-validated
 // job bound to a durable run).
 type Job struct {
-	RunID          string
-	NodeID         string
-	Scenario       string
-	Verb           string
-	Args           []string
-	TimeoutSeconds int64
-	Outputs        []Output
+	RunID                string
+	NodeID               string
+	Scenario             string
+	Verb                 string
+	Args                 []string
+	TimeoutSeconds       int64
+	Outputs              []Output
+	CredentialInjections []CredentialInjection
+}
+
+type CredentialInjection struct {
+	LogicalID string
+	Field     string
+	EnvName   string
 }
 
 // Output is a typed artifact declaration carried to the node.

@@ -78,6 +78,9 @@ const (
 	// ComponentsServiceGetComponentVersionContentProcedure is the fully-qualified name of the
 	// ComponentsService's GetComponentVersionContent RPC.
 	ComponentsServiceGetComponentVersionContentProcedure = "/vrooli.react_component_library.v1.components.ComponentsService/GetComponentVersionContent"
+	// ComponentsServiceResolveLibraryImportProcedure is the fully-qualified name of the
+	// ComponentsService's ResolveLibraryImport RPC.
+	ComponentsServiceResolveLibraryImportProcedure = "/vrooli.react_component_library.v1.components.ComponentsService/ResolveLibraryImport"
 	// ComponentsServiceListComponentStoriesProcedure is the fully-qualified name of the
 	// ComponentsService's ListComponentStories RPC.
 	ComponentsServiceListComponentStoriesProcedure = "/vrooli.react_component_library.v1.components.ComponentsService/ListComponentStories"
@@ -113,6 +116,7 @@ type ComponentsServiceClient interface {
 	UpdateComponentContent(context.Context, *connect.Request[components.UpdateComponentContentRequest]) (*connect.Response[components.UpdateComponentContentResponse], error)
 	ListComponentVersions(context.Context, *connect.Request[components.ListComponentVersionsRequest]) (*connect.Response[components.ListComponentVersionsResponse], error)
 	GetComponentVersionContent(context.Context, *connect.Request[components.GetComponentVersionContentRequest]) (*connect.Response[components.GetComponentVersionContentResponse], error)
+	ResolveLibraryImport(context.Context, *connect.Request[components.ResolveLibraryImportRequest]) (*connect.Response[components.ResolveLibraryImportResponse], error)
 	ListComponentStories(context.Context, *connect.Request[components.ListComponentStoriesRequest]) (*connect.Response[components.ListComponentStoriesResponse], error)
 	ListPreviewFrames(context.Context, *connect.Request[components.ListPreviewFramesRequest]) (*connect.Response[components.ListPreviewFramesResponse], error)
 	PersistPreviewFrame(context.Context, *connect.Request[components.PersistPreviewFrameRequest]) (*connect.Response[components.PersistPreviewFrameResponse], error)
@@ -222,6 +226,12 @@ func NewComponentsServiceClient(httpClient connect.HTTPClient, baseURL string, o
 			connect.WithSchema(componentsServiceMethods.ByName("GetComponentVersionContent")),
 			connect.WithClientOptions(opts...),
 		),
+		resolveLibraryImport: connect.NewClient[components.ResolveLibraryImportRequest, components.ResolveLibraryImportResponse](
+			httpClient,
+			baseURL+ComponentsServiceResolveLibraryImportProcedure,
+			connect.WithSchema(componentsServiceMethods.ByName("ResolveLibraryImport")),
+			connect.WithClientOptions(opts...),
+		),
 		listComponentStories: connect.NewClient[components.ListComponentStoriesRequest, components.ListComponentStoriesResponse](
 			httpClient,
 			baseURL+ComponentsServiceListComponentStoriesProcedure,
@@ -272,6 +282,7 @@ type componentsServiceClient struct {
 	updateComponentContent     *connect.Client[components.UpdateComponentContentRequest, components.UpdateComponentContentResponse]
 	listComponentVersions      *connect.Client[components.ListComponentVersionsRequest, components.ListComponentVersionsResponse]
 	getComponentVersionContent *connect.Client[components.GetComponentVersionContentRequest, components.GetComponentVersionContentResponse]
+	resolveLibraryImport       *connect.Client[components.ResolveLibraryImportRequest, components.ResolveLibraryImportResponse]
 	listComponentStories       *connect.Client[components.ListComponentStoriesRequest, components.ListComponentStoriesResponse]
 	listPreviewFrames          *connect.Client[components.ListPreviewFramesRequest, components.ListPreviewFramesResponse]
 	persistPreviewFrame        *connect.Client[components.PersistPreviewFrameRequest, components.PersistPreviewFrameResponse]
@@ -368,6 +379,12 @@ func (c *componentsServiceClient) GetComponentVersionContent(ctx context.Context
 	return c.getComponentVersionContent.CallUnary(ctx, req)
 }
 
+// ResolveLibraryImport calls
+// vrooli.react_component_library.v1.components.ComponentsService.ResolveLibraryImport.
+func (c *componentsServiceClient) ResolveLibraryImport(ctx context.Context, req *connect.Request[components.ResolveLibraryImportRequest]) (*connect.Response[components.ResolveLibraryImportResponse], error) {
+	return c.resolveLibraryImport.CallUnary(ctx, req)
+}
+
 // ListComponentStories calls
 // vrooli.react_component_library.v1.components.ComponentsService.ListComponentStories.
 func (c *componentsServiceClient) ListComponentStories(ctx context.Context, req *connect.Request[components.ListComponentStoriesRequest]) (*connect.Response[components.ListComponentStoriesResponse], error) {
@@ -416,6 +433,7 @@ type ComponentsServiceHandler interface {
 	UpdateComponentContent(context.Context, *connect.Request[components.UpdateComponentContentRequest]) (*connect.Response[components.UpdateComponentContentResponse], error)
 	ListComponentVersions(context.Context, *connect.Request[components.ListComponentVersionsRequest]) (*connect.Response[components.ListComponentVersionsResponse], error)
 	GetComponentVersionContent(context.Context, *connect.Request[components.GetComponentVersionContentRequest]) (*connect.Response[components.GetComponentVersionContentResponse], error)
+	ResolveLibraryImport(context.Context, *connect.Request[components.ResolveLibraryImportRequest]) (*connect.Response[components.ResolveLibraryImportResponse], error)
 	ListComponentStories(context.Context, *connect.Request[components.ListComponentStoriesRequest]) (*connect.Response[components.ListComponentStoriesResponse], error)
 	ListPreviewFrames(context.Context, *connect.Request[components.ListPreviewFramesRequest]) (*connect.Response[components.ListPreviewFramesResponse], error)
 	PersistPreviewFrame(context.Context, *connect.Request[components.PersistPreviewFrameRequest]) (*connect.Response[components.PersistPreviewFrameResponse], error)
@@ -520,6 +538,12 @@ func NewComponentsServiceHandler(svc ComponentsServiceHandler, opts ...connect.H
 		connect.WithSchema(componentsServiceMethods.ByName("GetComponentVersionContent")),
 		connect.WithHandlerOptions(opts...),
 	)
+	componentsServiceResolveLibraryImportHandler := connect.NewUnaryHandler(
+		ComponentsServiceResolveLibraryImportProcedure,
+		svc.ResolveLibraryImport,
+		connect.WithSchema(componentsServiceMethods.ByName("ResolveLibraryImport")),
+		connect.WithHandlerOptions(opts...),
+	)
 	componentsServiceListComponentStoriesHandler := connect.NewUnaryHandler(
 		ComponentsServiceListComponentStoriesProcedure,
 		svc.ListComponentStories,
@@ -582,6 +606,8 @@ func NewComponentsServiceHandler(svc ComponentsServiceHandler, opts ...connect.H
 			componentsServiceListComponentVersionsHandler.ServeHTTP(w, r)
 		case ComponentsServiceGetComponentVersionContentProcedure:
 			componentsServiceGetComponentVersionContentHandler.ServeHTTP(w, r)
+		case ComponentsServiceResolveLibraryImportProcedure:
+			componentsServiceResolveLibraryImportHandler.ServeHTTP(w, r)
 		case ComponentsServiceListComponentStoriesProcedure:
 			componentsServiceListComponentStoriesHandler.ServeHTTP(w, r)
 		case ComponentsServiceListPreviewFramesProcedure:
@@ -659,6 +685,10 @@ func (UnimplementedComponentsServiceHandler) ListComponentVersions(context.Conte
 
 func (UnimplementedComponentsServiceHandler) GetComponentVersionContent(context.Context, *connect.Request[components.GetComponentVersionContentRequest]) (*connect.Response[components.GetComponentVersionContentResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.react_component_library.v1.components.ComponentsService.GetComponentVersionContent is not implemented"))
+}
+
+func (UnimplementedComponentsServiceHandler) ResolveLibraryImport(context.Context, *connect.Request[components.ResolveLibraryImportRequest]) (*connect.Response[components.ResolveLibraryImportResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.react_component_library.v1.components.ComponentsService.ResolveLibraryImport is not implemented"))
 }
 
 func (UnimplementedComponentsServiceHandler) ListComponentStories(context.Context, *connect.Request[components.ListComponentStoriesRequest]) (*connect.Response[components.ListComponentStoriesResponse], error) {

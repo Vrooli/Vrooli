@@ -59,7 +59,7 @@ func resourceDependencyStartReason(status resourcecontrol.Status) string {
 	if status.Healthy != nil && !*status.Healthy {
 		reasons = append(reasons, "unhealthy")
 	}
-	if strings.TrimSpace(status.StatusCode) != "" && status.StatusCode != resourcecontrol.StatusCodeOK {
+	if strings.TrimSpace(status.StatusCode) != "" && status.StatusCode != resourcecontrol.StatusCodeOK && status.StatusCode != resourcecontrol.StatusCodePlacementUndetermined {
 		reasons = append(reasons, "status_code="+status.StatusCode)
 	}
 	if len(reasons) == 0 {
@@ -140,6 +140,11 @@ func (r *Runner) ensureDependency(ctx context.Context, item scenario.Scenario, o
 	}
 	dependency := item.Manifest.Dependencies.Scenarios[dependencyName]
 	decision := resolveDependencyDecision(dependency, opts.BestEffort)
+	var cancelDependency context.CancelFunc
+	if decision.continueOnFailure {
+		ctx, cancelDependency = context.WithTimeout(ctx, dependencyBestEffortStartTimeout)
+		defer cancelDependency()
+	}
 	if decision.skip {
 		r.logDebug("Skipping ignored dependency", logx.AttrScenario, item.Slug, logx.AttrDependency, dependencyName)
 		return "", nil
@@ -180,6 +185,17 @@ func (r *Runner) ensureDependency(ctx context.Context, item scenario.Scenario, o
 		return "", err
 	}
 	dependencyForceSetup := forceSetupFor(opts, dependencyItem.Slug)
+	strictHealthy := r.isRegistryRuntimeHealthy(dependencyItem, dependencyView)
+	dependencyRunning := dependencyView.Authoritative
+	// Optional capabilities never justify disrupting a healthy shared process.
+	// In particular, do not perform an expensive source-freshness walk merely
+	// to decide whether a healthy try_start dependency can be reused.
+	if dependencyRunning && strictHealthy && decision.continueOnFailure {
+		r.publish(ProgressEvent{Kind: EventDependencyReused, Scenario: item.Slug, Dependency: dependencyName, Index: index + 1, Total: total})
+		r.logDebug("Optional dependency already running and healthy; reusing without freshness arbitration", logx.AttrScenario, item.Slug, logx.AttrDependency, dependencyName)
+		session.markReady(dependencyName)
+		return "", nil
+	}
 	// Reuse is gated on FRESHNESS only: a running, healthy dependency must
 	// not be bounced because a provisioning check (e.g. an empty data/
 	// dir) reports "not populated". Provisioning is handled if the dep is
@@ -197,8 +213,6 @@ func (r *Runner) ensureDependency(ctx context.Context, item scenario.Scenario, o
 		}
 		return "", err
 	}
-	strictHealthy := r.isRegistryRuntimeHealthy(dependencyItem, dependencyView)
-	dependencyRunning := dependencyView.Authoritative
 	if dependencyRunning && strictHealthy && !freshnessStale {
 		r.publish(ProgressEvent{Kind: EventDependencyReused, Scenario: item.Slug, Dependency: dependencyName, Index: index + 1, Total: total})
 		r.logDebug("Dependency already running and healthy", logx.AttrScenario, item.Slug, logx.AttrDependency, dependencyName)
@@ -256,6 +270,9 @@ func (r *Runner) ensureDependency(ctx context.Context, item scenario.Scenario, o
 		if err != nil {
 			return false, err
 		}
+		if decision.continueOnFailure {
+			return view.Authoritative && r.isRegistryRuntimeHealthy(dependencyItem, view), nil
+		}
 		stale, _, err := r.freshnessStaleCached(dependencyItem, dependencyForceSetup, session)
 		if err != nil {
 			return false, err
@@ -273,7 +290,11 @@ func (r *Runner) ensureDependency(ctx context.Context, item scenario.Scenario, o
 	// scoped to this dep call and released as soon as the dep is
 	// running, before its siblings are started, so DAG fan-out is
 	// not held under a single lock.
-	depRelease, reusedAfterWait, lockErr := r.acquireDependencyScenarioLockContext(ctx, dependencyName, dependencyReadyForReuse)
+	lockPolicy := dependencyLockPolicy
+	if decision.continueOnFailure {
+		lockPolicy = dependencyBestEffortLockPolicy
+	}
+	depRelease, reusedAfterWait, lockErr := r.acquireDependencyScenarioLockContextWithPolicy(ctx, dependencyName, dependencyReadyForReuse, lockPolicy)
 	if lockErr != nil {
 		if decision.continueOnFailure {
 			r.logWarn("Dependency lock contention in best-effort mode",
@@ -343,7 +364,11 @@ func (r *Runner) acquireDependencyScenarioLock(dependencyName string, dependency
 }
 
 func (r *Runner) acquireDependencyScenarioLockContext(ctx context.Context, dependencyName string, dependencyReady func() (bool, error)) (func(), bool, error) {
-	release, err := r.acquireScenarioLock(dependencyName)
+	return r.acquireDependencyScenarioLockContextWithPolicy(ctx, dependencyName, dependencyReady, dependencyLockPolicy)
+}
+
+func (r *Runner) acquireDependencyScenarioLockContextWithPolicy(ctx context.Context, dependencyName string, dependencyReady func() (bool, error), policy AwaitPolicy) (func(), bool, error) {
+	release, err := r.tryAcquireScenarioLock(dependencyName)
 	if err == nil {
 		return release, false, nil
 	}
@@ -354,7 +379,7 @@ func (r *Runner) acquireDependencyScenarioLockContext(ctx context.Context, depen
 	lastErr := err
 	r.logInfo("Dependency lifecycle lock is busy; waiting for concurrent invocation to finish",
 		logx.AttrDependency, dependencyName,
-		"wait_timeout", dependencyLockPolicy.Timeout.String(),
+		"wait_timeout", policy.Timeout.String(),
 		"error", err.Error(),
 	)
 
@@ -364,7 +389,7 @@ func (r *Runner) acquireDependencyScenarioLockContext(ctx context.Context, depen
 	// apart, so the first tick only checks readiness and the first re-acquire
 	// happens after the first sleep.
 	firstTick := true
-	awaitErr := AwaitContext(ctx, r.awaitClock(), dependencyLockPolicy, func() (bool, error) {
+	awaitErr := AwaitContext(ctx, r.awaitClock(), policy, func() (bool, error) {
 		if dependencyReady != nil {
 			ready, readyErr := dependencyReady()
 			if readyErr == nil && ready {
@@ -385,7 +410,7 @@ func (r *Runner) acquireDependencyScenarioLockContext(ctx context.Context, depen
 			firstTick = false
 			return false, nil
 		}
-		release, acquireErr := r.acquireScenarioLock(dependencyName)
+		release, acquireErr := r.tryAcquireScenarioLock(dependencyName)
 		if acquireErr == nil {
 			acquired = release
 			return true, nil
@@ -403,7 +428,7 @@ func (r *Runner) acquireDependencyScenarioLockContext(ctx context.Context, depen
 		return acquired, false, nil
 	}
 	if errors.Is(awaitErr, ErrAwaitExpired) {
-		return nil, false, fmt.Errorf("dependency %q lifecycle lock remained busy for %s: %w", dependencyName, dependencyLockPolicy.Timeout, lastErr)
+		return nil, false, fmt.Errorf("dependency %q lifecycle lock remained busy for %s: %w", dependencyName, policy.Timeout, lastErr)
 	}
 	return nil, false, awaitErr
 }
@@ -732,6 +757,12 @@ func (r *Runner) waitForResourceDependencyReady(resourceName string) (resourceco
 func resourceDependencyReady(status resourcecontrol.Status) bool {
 	if !status.Running {
 		return false
+	}
+	// Healthy=false can describe a serving resource that is operating below
+	// its declared accelerator backend. Serving is the readiness contract for
+	// lifecycle reuse; Healthy remains the operator-facing degradation signal.
+	if status.Serving != nil {
+		return *status.Serving
 	}
 	if status.Healthy != nil {
 		return *status.Healthy

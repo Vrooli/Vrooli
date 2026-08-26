@@ -91,20 +91,39 @@ func targetMatches(target ToolSourceTarget, osName, arch string) (bool, error) {
 }
 
 type SafeguardManifest struct {
-	Schema            string                `json:"$schema,omitempty"`
-	Name              string                `json:"name"`
-	Capability        string                `json:"capability,omitempty"`
-	CapabilityRole    string                `json:"capability_role,omitempty"`
-	Description       string                `json:"description"`
-	Platforms         []string              `json:"platforms,omitempty"`
-	Handler           string                `json:"handler"`
-	Privilege         hostreqspec.Privilege `json:"privilege"`
-	Bundling          hostreqspec.Bundling  `json:"bundling"`
-	BundlingReason    string                `json:"bundlingReason,omitempty"`
-	VerificationCheck *VerificationCheck    `json:"verificationCheck,omitempty"`
-	Config            map[string]any        `json:"config,omitempty"`
-	Version           string                `json:"version,omitempty"`
-	Notes             string                `json:"notes,omitempty"`
+	Schema            string                    `json:"$schema,omitempty"`
+	Name              string                    `json:"name"`
+	Capability        string                    `json:"capability,omitempty"`
+	CapabilityRole    string                    `json:"capability_role,omitempty"`
+	Description       string                    `json:"description"`
+	Platforms         []string                  `json:"platforms,omitempty"`
+	RiskClass         string                    `json:"risk_class,omitempty"`
+	PlatformStatus    map[string]PlatformStatus `json:"platform_status,omitempty"`
+	Invariants        []InvariantDeclaration    `json:"invariants,omitempty"`
+	Storage           map[string]any            `json:"storage,omitempty"`
+	Handler           string                    `json:"handler"`
+	Privilege         hostreqspec.Privilege     `json:"privilege"`
+	Bundling          hostreqspec.Bundling      `json:"bundling"`
+	BundlingReason    string                    `json:"bundlingReason,omitempty"`
+	VerificationCheck *VerificationCheck        `json:"verificationCheck,omitempty"`
+	Config            map[string]any            `json:"config,omitempty"`
+	Version           string                    `json:"version,omitempty"`
+	Notes             string                    `json:"notes,omitempty"`
+}
+
+type PlatformStatus struct {
+	Status    string `json:"status"`
+	Mechanism string `json:"mechanism,omitempty"`
+	Evidence  any    `json:"evidence,omitempty"`
+}
+
+type InvariantDeclaration struct {
+	ID            string         `json:"id"`
+	Kind          string         `json:"kind"`
+	Statement     string         `json:"statement"`
+	Severity      string         `json:"severity"`
+	Applicability map[string]any `json:"applicability,omitempty"`
+	Notes         string         `json:"notes,omitempty"`
 }
 
 type VerificationCheck struct {

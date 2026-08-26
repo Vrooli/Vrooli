@@ -58,13 +58,14 @@ func (h *connectHandler) DispatchJob(ctx context.Context, req *connect.Request[d
 		Actor:  actor,
 		DryRun: dryRun,
 		Job: dispatch.Job{
-			NodeID:         req.Msg.NodeId,
-			Scenario:       req.Msg.Scenario,
-			Verb:           req.Msg.Verb,
-			Args:           req.Msg.Args,
-			TimeoutSeconds: req.Msg.TimeoutSeconds,
-			DeviceID:       req.Msg.DeviceId,
-			LeaseToken:     req.Msg.LeaseToken,
+			NodeID:               req.Msg.NodeId,
+			Scenario:             req.Msg.Scenario,
+			Verb:                 req.Msg.Verb,
+			Args:                 req.Msg.Args,
+			TimeoutSeconds:       req.Msg.TimeoutSeconds,
+			DeviceID:             req.Msg.DeviceId,
+			LeaseToken:           req.Msg.LeaseToken,
+			CredentialInjections: credentialInjections(req.Msg.GetCredentialInjections()),
 		},
 	})
 	if err != nil {
@@ -86,4 +87,18 @@ func (h *connectHandler) DispatchJob(ctx context.Context, req *connect.Request[d
 		Args:     decision.Job.Args,
 		Queued:   decision.Queued,
 	}), nil
+}
+
+func credentialInjections(in []*dispatchv1.CredentialInjection) []dispatch.CredentialInjection {
+	if len(in) == 0 {
+		return nil
+	}
+	out := make([]dispatch.CredentialInjection, 0, len(in))
+	for _, injection := range in {
+		if injection == nil {
+			continue
+		}
+		out = append(out, dispatch.CredentialInjection{LogicalID: injection.GetLogicalId(), Field: injection.GetField(), EnvName: injection.GetEnvName()})
+	}
+	return out
 }

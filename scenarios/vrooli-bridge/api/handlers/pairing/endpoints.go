@@ -136,4 +136,18 @@ var Endpoints = []module.EndpointDescriptor{
 			{Name: "List pending requests", Curl: "curl http://localhost:${API_PORT}/vrooli.vrooli_bridge.v1.pairing.PairingService/ListPairingRequests -H 'Authorization: Bearer <token>' -H 'Content-Type: application/json' -d '{}'"},
 		},
 	},
+	{
+		ID:          "pairing_register_encryption_key",
+		Path:        pairingconnect.PairingServiceRegisterEncryptionKeyProcedure,
+		Method:      "POST",
+		Summary:     "Register a node encryption key",
+		Description: "Stores a node-generated X25519 public key after the existing Ed25519 node-auth proof succeeds. The private key never crosses the control plane.",
+		Category:    "pairing",
+		Request:     &module.Schema{Type: "object", Properties: map[string]string{"node_id": "string", "encryption_public_key": "string (base64 X25519)"}},
+		Response:    &module.Schema{Type: "object", Properties: map[string]string{"node_id": "string", "algorithm": "string", "registered": "boolean"}},
+		Errors: []module.ErrorDesc{
+			{Status: 400, Code: "invalid_argument", Description: "Invalid X25519 public key"},
+			{Status: 401, Code: "unauthenticated", Description: "Active node Ed25519 proof required"},
+		},
+	},
 }

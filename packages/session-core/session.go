@@ -12,6 +12,8 @@ import (
 	"strings"
 )
 
+var ErrUnsupported = errors.New("unsupported")
+
 // InputKind distinguishes ordinary terminal input, clipboard payloads, and
 // synthetic terminal control bytes. Control bytes are best-effort and must
 // never inherit a reliable delivery queue from the caller.
@@ -31,6 +33,19 @@ type LaunchSpec struct {
 	Rows       uint16
 	WorkingDir string
 	Env        map[string]string
+	// Remote transport fields are populated only for a node-agent backend.
+	// They remain part of the typed launch request so factories do not need a
+	// second untyped session registry or browser-facing protocol.
+	RemoteURL            string
+	RemoteNodeID         string
+	RemoteOwnerToken     string
+	RemoteReauthToken    string
+	LaunchCommand        string
+	ExecuteLaunchCommand bool
+	// TmuxMouseMode requests tmux mouse capture for a persistent session.
+	// Other backends ignore this field. The zero value deliberately keeps
+	// scrolling local to the browser terminal.
+	TmuxMouseMode bool
 }
 
 // PTY is the common interactive stream contract. Implementations must not

@@ -4,6 +4,7 @@ import (
 	"context"
 	"strings"
 	"testing"
+	"time"
 
 	"vrooli-bridge/internal/registry"
 	"vrooli-bridge/internal/registry/mocks"
@@ -43,6 +44,17 @@ func TestService_Register_Validation(t *testing.T) {
 			require.Equal(t, int64(1), repo.CreateCalls.Load())
 		})
 	}
+}
+
+func TestPushTargetsExcludesControlPlaneAndRevokedNodes(t *testing.T) {
+	nodes := []registry.Node{
+		{ID: "source", Kind: registry.KindControlPlane},
+		{ID: "revoked", Kind: registry.KindAgent, RevokedAt: time.Unix(1, 0)},
+		{ID: "agent", Kind: registry.KindAgent},
+		{ID: "ssh", Kind: registry.KindSSH},
+	}
+	targets := registry.PushTargets(nodes)
+	require.Equal(t, []string{"agent", "ssh"}, []string{targets[0].ID, targets[1].ID})
 }
 
 // [REQ:BRG-P0-001] Register normalises self-reported capabilities while owner

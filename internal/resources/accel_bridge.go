@@ -124,7 +124,11 @@ func placementTargetFor(ctx context.Context, controller *Controller, manifest Re
 		return accel.Container{Name: dockerContainerName(manifest)}, true, nil
 
 	case "managed-service", "native-cli":
-		process := accel.HostProcess{Name: manifest.Name, ExecutablePrefix: resourceArtifactPrefix(manifest)}
+		process := accel.HostProcess{
+			Name:             manifest.Name,
+			ExecutablePrefix: resourceArtifactPrefix(manifest),
+			NoWorkloadReason: noWorkloadReasonFor(manifest),
+		}
 		supervisor, _, err := managedServiceSupervisorFor(manifest.Name)
 		if err == nil {
 			if state, running, statusErr := supervisor.Status(); statusErr == nil && running {
@@ -134,6 +138,10 @@ func placementTargetFor(ctx context.Context, controller *Controller, manifest Re
 		return process, true, nil
 	}
 	return nil, false, nil
+}
+
+func noWorkloadReasonFor(manifest ResourceManifest) string {
+	return "no workload is resident, so placement cannot be read yet"
 }
 
 // verifyStartedPlacement is the single post-start placement check for every
@@ -269,6 +277,12 @@ func applyHealthToStatus(status Status, health HealthResult) Status {
 		status.Message = health.Message
 	}
 	switch {
+	case health.PlacementUndetermined && healthy:
+		status.StatusCode = resourcecontrol.StatusCodePlacementUndetermined
+		status.Health = "healthy"
+		if status.Message == "" {
+			status.Message = "healthy; placement undetermined: " + health.ModeReason
+		}
 	case health.ModeDrift:
 		// Serving on a backend below the declared one. running stays true,
 		// serving stays true, healthy is false: a consumer that restarts on

@@ -25,13 +25,18 @@ import (
 // adapter (which dispatches a validation run per target OS) — every gate run
 // flows through the same allowlist + scope + audit gate as any other job, and no
 // second dispatch policy can drift from it.
-func NewService(registrySvc registry.Service, runsSvc runs.Service, auditSink audit.Sink, hub *presence.Hub, scheduler *queue.Scheduler) dispatch.Service {
+func NewService(registrySvc registry.Service, runsSvc runs.Service, auditSink audit.Sink, hub *presence.Hub, scheduler *queue.Scheduler, grants ...dispatch.CredentialGrantReader) dispatch.Service {
+	options := make([]dispatch.Option, 0, 1)
+	if len(grants) > 0 && grants[0] != nil {
+		options = append(options, dispatch.WithCredentialGrantReader(grants[0]))
+	}
 	return dispatch.NewService(
 		nodeReaderAdapter{svc: registrySvc},
 		hub, // *presence.Hub satisfies dispatch.Presence via IsOnline + Dispatchable
 		runControllerAdapter{svc: runsSvc},
 		auditSinkAdapter{sink: auditSink},
 		jobPusherAdapter{scheduler: scheduler}, // bounded-concurrency scheduler on the push path
+		options...,
 	)
 }
 

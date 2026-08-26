@@ -1431,6 +1431,52 @@ func TestRebuildAndReexec_WritesSidecarOnSuccess(t *testing.T) {
 	}
 }
 
+func TestPreserveRootBinaryFallbackCopiesPriorExecutable(t *testing.T) {
+	home := t.TempDir()
+	executable := filepath.Join(home, ".vrooli", "bin", "vrooli")
+	if err := os.MkdirAll(filepath.Dir(executable), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	prior := []byte("prior control plane")
+	if err := os.WriteFile(executable, prior, 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := PreserveRootBinaryFallback(executable); err != nil {
+		t.Fatalf("PreserveRootBinaryFallback: %v", err)
+	}
+	fallback := filepath.Join(home, ".vrooli", "libexec", "vrooli.previous")
+	got, err := os.ReadFile(fallback)
+	if err != nil {
+		t.Fatalf("read fallback: %v", err)
+	}
+	if string(got) != string(prior) {
+		t.Fatalf("fallback = %q, want %q", got, prior)
+	}
+	info, err := os.Stat(fallback)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if info.Mode().Perm() != 0o755 {
+		t.Fatalf("fallback mode = %o, want 755", info.Mode().Perm())
+	}
+
+	updated := []byte("updated control plane")
+	if err := os.WriteFile(executable, updated, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := PreserveRootBinaryFallback(executable); err != nil {
+		t.Fatalf("PreserveRootBinaryFallback update: %v", err)
+	}
+	got, err = os.ReadFile(fallback)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(got) != string(updated) {
+		t.Fatalf("updated fallback = %q, want %q", got, updated)
+	}
+}
+
 func TestComputeSourceFingerprintReport_DumpsDebugWhenEnabled(t *testing.T) {
 	originalWriter := debugWriter
 	t.Cleanup(func() { debugWriter = originalWriter })

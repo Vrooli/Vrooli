@@ -217,6 +217,7 @@ func runApplyToTerminal(t *testing.T) applyRun {
 	previous := onboardingApplyExecutor
 	onboardingApplyExecutor = fake
 	t.Cleanup(func() { onboardingApplyExecutor = previous })
+	useInProcessApplyRunner(t)
 	w := doRequest(t, NewServer(), http.MethodPost, "/api/v2/apply", "{}")
 	if w.Code != http.StatusAccepted {
 		t.Fatalf("apply status = %d: %s", w.Code, w.Body.String())

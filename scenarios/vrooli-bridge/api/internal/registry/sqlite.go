@@ -63,7 +63,7 @@ FROM nodes
 
 	updateNodeSQL = `
 UPDATE nodes
-SET name = ?, endpoint = ?, capabilities = ?, scopes = ?, revision = ?, updated_at = ?
+SET name = ?, kind = ?, endpoint = ?, capabilities = ?, scopes = ?, revision = ?, updated_at = ?
 WHERE id = ?
 `
 
@@ -189,6 +189,9 @@ func (s *sqliteRepository) Update(ctx context.Context, n Node) (Node, error) {
 	existing.Capabilities = n.Capabilities
 	existing.Scopes = n.Scopes
 	existing.Revision = n.Revision
+	if n.Kind != "" {
+		existing.Kind = n.Kind
+	}
 	existing.UpdatedAt = s.clock.Now().UTC()
 
 	caps, err := marshalStrings(existing.Capabilities)
@@ -201,7 +204,7 @@ func (s *sqliteRepository) Update(ctx context.Context, n Node) (Node, error) {
 	}
 
 	if _, err := s.db.ExecContext(ctx, updateNodeSQL,
-		existing.Name, existing.Endpoint, caps, scopes, existing.Revision,
+		existing.Name, existing.Kind, existing.Endpoint, caps, scopes, existing.Revision,
 		existing.UpdatedAt.Format(nodeTimeFormat), existing.ID,
 	); err != nil {
 		return Node{}, fmt.Errorf("update node %q: %w", n.ID, err)

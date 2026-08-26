@@ -61,15 +61,26 @@ type CommandRunner interface {
 	Run(ctx context.Context, argv []string, dir string, onLog func(string)) (exitCode int, err error)
 }
 
+// EnvironmentCommandRunner is the optional seam for job-scoped environment
+// overlays. It is additive so existing command fakes remain valid.
+type EnvironmentCommandRunner interface {
+	RunWithEnvironment(ctx context.Context, argv []string, dir string, env []string, onLog func(string)) (exitCode int, err error)
+}
+
 // Runner executes typed jobs and reports their progress.
 type Runner struct {
-	bin         string
-	workDir     string
-	command     CommandRunner
-	reporter    EventReporter
-	uploader    ArtifactUploader
-	artifactDir string
-	now         func() time.Time
+	bin           string
+	workDir       string
+	command       CommandRunner
+	reporter      EventReporter
+	uploader      ArtifactUploader
+	artifactDir   string
+	credentialEnv CredentialEnvironment
+	now           func() time.Time
+}
+
+type CredentialEnvironment interface {
+	Take(logicalID, field string) ([]byte, bool)
 }
 
 // Option customises a Runner.
@@ -86,6 +97,10 @@ func WithArtifactUploader(u ArtifactUploader) Option { return func(r *Runner) { 
 
 // WithArtifactDir selects the private directory used for typed output files.
 func WithArtifactDir(dir string) Option { return func(r *Runner) { r.artifactDir = dir } }
+
+func WithCredentialEnvironment(provider CredentialEnvironment) Option {
+	return func(r *Runner) { r.credentialEnv = provider }
+}
 
 // NewRunner constructs a Runner. bin is the local vrooli CLI (default "vrooli"),
 // workDir the directory jobs run in, reporter the event sink.
@@ -112,10 +127,10 @@ func NewRunner(bin, workDir string, reporter EventReporter, opts ...Option) *Run
 //	[bin] + <verb tokens split on whitespace> + [scenario] + [args...]
 //
 // e.g. JobPush{verb:"scenario test", scenario:"web-search"} → ["vrooli",
-// "scenario", "test", "web-search"]. Device Control is a scenario CLI rather
-// than a vrooli subcommand, so its typed namespace is translated to
-// ["device-control", <device-control subcommand>, args...] and does not append
-// the redundant scenario field. It is pure and exported so the no-shell-path
+// "scenario", "test", "web-search"]. Scenario-owned verbs (for example
+// `system-monitor metrics devices`) are translated to the scenario CLI
+// directly; the scenario name is already the first verb token and must not be
+// appended as a root-CLI argument. It is pure and exported so the no-shell-path
 // property is directly testable. It returns an error (not an argv) when the
 // verb is empty or ANY token carries a shell metacharacter — so a malicious
 // typed field can never reach execution.
@@ -129,10 +144,10 @@ func BuildArgv(bin string, job *channelv1.JobPush) ([]string, error) {
 	}
 
 	verbTokens := strings.Fields(verb)
-	if len(verbTokens) >= 2 && verbTokens[0] == deviceControlCLI {
+	scenario := strings.TrimSpace(job.GetScenario())
+	if scenario != "" && scenario != "vrooli" && len(verbTokens) > 0 && verbTokens[0] == scenario {
 		argv := make([]string, 0, len(verbTokens)+len(job.GetArgs()))
-		argv = append(argv, deviceControlCLI)
-		argv = append(argv, verbTokens[1:]...)
+		argv = append(argv, verbTokens...)
 		argv = append(argv, job.GetArgs()...)
 		for _, tok := range argv[1:] {
 			if i := strings.IndexAny(tok, shellMetachars); i >= 0 {
@@ -192,9 +207,29 @@ func (r *Runner) Execute(ctx context.Context, job *channelv1.JobPush) error {
 		defer cancel()
 	}
 
-	exitCode, runErr := r.command.Run(runCtx, argv, r.workDir, func(chunk string) {
-		_ = emit(logEvent(chunk))
-	})
+	env, clearEnv, envErr := r.credentialEnvironment(job)
+	if envErr != nil {
+		_ = emit(statusEvent("rejected: " + envErr.Error()))
+		return emit(exitEvent(rejectExitCode))
+	}
+	defer clearEnv()
+
+	var exitCode int
+	var runErr error
+	if len(env) > 0 {
+		if runner, ok := r.command.(EnvironmentCommandRunner); ok {
+			exitCode, runErr = runner.RunWithEnvironment(runCtx, argv, r.workDir, env, func(chunk string) {
+				_ = emit(logEvent(chunk))
+			})
+		} else {
+			_ = emit(statusEvent("rejected: command runner does not support credential environments"))
+			return emit(exitEvent(rejectExitCode))
+		}
+	} else {
+		exitCode, runErr = r.command.Run(runCtx, argv, r.workDir, func(chunk string) {
+			_ = emit(logEvent(chunk))
+		})
+	}
 	if runErr != nil && exitCode == 0 {
 		// The process could not start (or was killed without yielding a code).
 		_ = emit(statusEvent("error: " + runErr.Error()))
@@ -226,6 +261,43 @@ func (r *Runner) Execute(ctx context.Context, job *channelv1.JobPush) error {
 		}
 	}
 	return emit(exitEvent(exitCode))
+}
+
+func (r *Runner) credentialEnvironment(job *channelv1.JobPush) ([]string, func(), error) {
+	if len(job.GetCredentialInjections()) == 0 {
+		return nil, func() {}, nil
+	}
+	if r.credentialEnv == nil {
+		return nil, func() {}, fmt.Errorf("credential environment provider is unavailable")
+	}
+	env := make([]string, 0, len(job.GetCredentialInjections()))
+	owned := make([][]byte, 0, len(job.GetCredentialInjections()))
+	for _, injection := range job.GetCredentialInjections() {
+		envName := strings.TrimSpace(injection.GetEnvName())
+		if envName == "" || strings.ContainsAny(envName, "=\\x00 \t\r\n") {
+			return nil, func() {}, fmt.Errorf("invalid credential environment name")
+		}
+		value, ok := r.credentialEnv.Take(injection.GetLogicalId(), injection.GetField())
+		if !ok {
+			for _, previous := range owned {
+				credentialZero(previous)
+			}
+			return nil, func() {}, fmt.Errorf("ephemeral credential %s:%s is unavailable", injection.GetLogicalId(), injection.GetField())
+		}
+		owned = append(owned, value)
+		env = append(env, envName+"="+string(value))
+	}
+	return env, func() {
+		for _, value := range owned {
+			credentialZero(value)
+		}
+	}, nil
+}
+
+func credentialZero(value []byte) {
+	for i := range value {
+		value[i] = 0
+	}
 }
 
 type preparedOutput struct {

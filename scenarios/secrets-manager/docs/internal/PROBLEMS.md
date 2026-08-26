@@ -341,6 +341,13 @@ The API-wide migration remains incomplete. Direct environment reads still exist 
 
 ## 📝 Notes
 
+## Work ladder
+
+- Rung: W3
+- Evidence: W0 passed against goal `credential-authority-migration`; W1 `business-health validate scenario secrets-manager` passed; W2 `vrooli scenario requirements validate secrets-manager` passed; W3 `vrooli scenario test secrets-manager` run `20260825-011926-51f49389` completed with 17/20 phases passing.
+- Blocker: the scenario suite still fails its pre-existing quality, unit, and security phases; the inventory parity change itself passes focused Go tests and the scenario CLI package tests.
+- Measured: 2026-08-24
+
 ### Cross-Scenario Dependencies
 - **deployment-manager**: Waiting for SEC-DEP-003 handshake API
 - **scenario-to-desktop/mobile/cloud**: Waiting for SEC-DEP-004 SDK helpers

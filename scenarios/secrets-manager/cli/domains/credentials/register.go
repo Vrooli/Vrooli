@@ -19,6 +19,24 @@ type inventoryEntry struct {
 	ProviderState string `json:"provider_state"`
 }
 
+type inventoryReport struct {
+	Credentials              []inventoryEntry `json:"credentials"`
+	CredentialCount          int              `json:"credential_count"`
+	DeclarationSiteCount     int              `json:"declaration_site_count"`
+	InventoryBasis           string           `json:"inventory_basis"`
+	ManagedInstancesIncluded bool             `json:"managed_instances_included"`
+	Uncovered                []string         `json:"uncovered"`
+	RequiredAbsent           []string         `json:"required_absent,omitempty"`
+}
+
+func distinctCredentialCount(entries []credentialclient.CredentialRef) int {
+	seen := make(map[string]struct{}, len(entries))
+	for _, entry := range entries {
+		seen[entry.LogicalID+":"+entry.Field] = struct{}{}
+	}
+	return len(seen)
+}
+
 func Register(core *cliapp.ScenarioApp) cliapp.SubcommandGroup {
 	return cliapp.SubcommandGroup{
 		Name:        "credentials",
@@ -109,10 +127,19 @@ func runList(args []string) error {
 	if err != nil {
 		return err
 	}
-	refs, err := client.List(context.Background())
+	var inventory credentialclient.InventoryResponse
+	if provider, ok := client.(credentialclient.InventoryProvider); ok {
+		inventory, err = provider.Inventory(context.Background())
+	} else {
+		inventory.Credentials, err = client.List(context.Background())
+		inventory.CredentialCount = distinctCredentialCount(inventory.Credentials)
+		inventory.DeclarationSiteCount = len(inventory.Credentials)
+		inventory.InventoryBasis = "distinct_addresses"
+	}
 	if err != nil {
 		return err
 	}
+	refs := inventory.Credentials
 	entries := make([]inventoryEntry, 0, len(refs))
 	for _, ref := range refs {
 		status, statusErr := client.Status(context.Background(), ref.LogicalID, ref.Field)
@@ -130,7 +157,12 @@ func runList(args []string) error {
 	for _, entry := range entries {
 		results = append(results, fmt.Sprintf("%s:%s | configured=%t | provider=%s | state=%s", entry.LogicalID, entry.Field, entry.Configured, entry.Provider, entry.ProviderState))
 	}
-	return support.PrintList(jsonOutput, entries, cliapp.ListReport{Summary: []string{fmt.Sprintf("Declared credentials: %d", len(entries))}, ResultsHeading: "Credentials", Results: results})
+	return support.PrintList(jsonOutput, inventoryReport{Credentials: entries, CredentialCount: inventory.CredentialCount, DeclarationSiteCount: inventory.DeclarationSiteCount, InventoryBasis: inventory.InventoryBasis, ManagedInstancesIncluded: inventory.ManagedInstancesIncluded, Uncovered: inventory.Uncovered, RequiredAbsent: inventory.RequiredAbsent}, cliapp.ListReport{Summary: []string{
+		fmt.Sprintf("Credential addresses: %d (basis=%s; managed_instances_included=%t)", inventory.CredentialCount, inventory.InventoryBasis, inventory.ManagedInstancesIncluded),
+		fmt.Sprintf("Declaration sites: %d (basis=declaration_sites)", inventory.DeclarationSiteCount),
+		fmt.Sprintf("Uncovered: %d (basis=%s)", len(inventory.Uncovered), inventory.InventoryBasis),
+		fmt.Sprintf("Required but absent: %d (basis=%s)", len(inventory.RequiredAbsent), inventory.InventoryBasis),
+	}, ResultsHeading: "Credentials", Results: results})
 }
 
 func runStatus(args []string) error {
@@ -177,7 +209,7 @@ func runDoctor(args []string) error {
 	if err != nil {
 		return err
 	}
-	return support.PrintOperational(jsonOutput, diagnosis, cliapp.OperationalReport{Status: []string{"provider=" + diagnosis.Provider.Backend, "condition=" + diagnosis.Provider.Condition, fmt.Sprintf("recovery_receipt=%t", diagnosis.Recovery.ReceiptExists), fmt.Sprintf("uncovered=%d", len(diagnosis.Recovery.Uncovered))}, NextSteps: []string{"secrets-manager backup export --output <bundle> < passphrase"}})
+	return support.PrintOperational(jsonOutput, diagnosis, cliapp.OperationalReport{Status: []string{"provider=" + diagnosis.Provider.Backend, "condition=" + diagnosis.Provider.Condition, fmt.Sprintf("credential_count=%d basis=%s managed_instances_included=%t", diagnosis.CredentialCount, diagnosis.InventoryBasis, diagnosis.ManagedInstancesIncluded), fmt.Sprintf("recovery_receipt=%t", diagnosis.Recovery.ReceiptExists), fmt.Sprintf("uncovered=%d basis=%s", len(diagnosis.Recovery.Uncovered), diagnosis.Recovery.Basis), fmt.Sprintf("required_but_absent=%d basis=%s", len(diagnosis.Recovery.RequiredAbsent), diagnosis.Recovery.Basis)}, NextSteps: []string{"secrets-manager backup export --output <bundle> < passphrase"}})
 }
 
 func runProvision(args []string) error {

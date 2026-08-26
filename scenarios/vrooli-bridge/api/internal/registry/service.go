@@ -76,7 +76,7 @@ func (s *service) Register(ctx context.Context, in RegisterInput) (Node, error) 
 		kind = KindAgent
 	}
 	if !ValidKind(kind) {
-		return Node{}, ErrInvalidNode{Field: "kind", Reason: "must be agent, ssh, or attached"}
+		return Node{}, ErrInvalidNode{Field: "kind", Reason: "must be agent, ssh, attached, or control_plane"}
 	}
 	if err := s.validateScopes(in.Scopes); err != nil {
 		return Node{}, err
@@ -117,6 +117,17 @@ func (s *service) Update(ctx context.Context, in UpdateInput) (Node, error) {
 	if err := s.validateScopes(in.Scopes); err != nil {
 		return Node{}, err
 	}
+	kind := strings.TrimSpace(in.Kind)
+	if kind == "" {
+		current, err := s.repo.Get(ctx, id)
+		if err != nil {
+			return Node{}, err
+		}
+		kind = current.Kind
+	}
+	if !ValidKind(kind) {
+		return Node{}, ErrInvalidNode{Field: "kind", Reason: "must be agent, ssh, attached, or control_plane"}
+	}
 	return s.repo.Update(ctx, Node{
 		ID:           id,
 		Name:         name,
@@ -124,6 +135,7 @@ func (s *service) Update(ctx context.Context, in UpdateInput) (Node, error) {
 		Capabilities: trimAll(in.Capabilities),
 		Scopes:       trimAll(in.Scopes),
 		Revision:     strings.TrimSpace(in.Revision),
+		Kind:         kind,
 	})
 }
 

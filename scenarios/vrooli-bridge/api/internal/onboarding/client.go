@@ -40,6 +40,25 @@ type HandoffClient interface {
 	Resolve(ctx context.Context, request HandoffRequest) (Selection, error)
 }
 
+// HandoffPath is the stable HTTP route exposed by vrooli-onboarding. Scenario
+// discovery returns a scenario base URL, so Bridge must add this route before
+// constructing the client.
+const HandoffPath = "/api/v2/handoff"
+
+// HandoffEndpoint converts a discovered onboarding scenario base URL into the
+// stable handoff endpoint. Keeping this join here prevents callers from
+// accidentally POSTing to the scenario root (which returns HTTP 404).
+func HandoffEndpoint(baseURL string) string {
+	base := strings.TrimRight(strings.TrimSpace(baseURL), "/")
+	if base == "" {
+		return ""
+	}
+	if strings.HasSuffix(base, HandoffPath) {
+		return base
+	}
+	return base + HandoffPath
+}
+
 // HTTPHandoffClient calls the onboarding scenario's stable JSON surface. The
 // endpoint is configured by the operator; Bridge does not assume onboarding is
 // installed or reachable.
@@ -145,7 +164,9 @@ func Apply(ctx context.Context, runner Runner, target Target, selection Selectio
 	}
 	payload := base64.StdEncoding.EncodeToString(data)
 	command := "tmp=$(mktemp); trap 'rm -f \"$tmp\"' EXIT; printf '%s' " + shellQuote(payload) +
-		" | base64 --decode > \"$tmp\"; vrooli-onboarding wizard apply --selection \"$tmp\" --json"
+		" | base64 --decode > \"$tmp\"; " +
+		`PATH="$HOME/.vrooli/bin:$HOME/.local/bin:$PATH"; export PATH; if command -v vrooli >/dev/null 2>&1; then vrooli scenario restart vrooli-onboarding >/dev/null 2>&1 || true; fi; ` +
+		onboardingCLICommand("wizard commit --selection \"$tmp\" --json")
 	return runner.Run(ctx, target, command)
 }
 
@@ -153,7 +174,15 @@ func Apply(ctx context.Context, runner Runner, target Target, selection Selectio
 // intentionally produced by onboarding itself so Bridge never reimplements
 // credential, host-tool, or safeguard readiness rules.
 func Readiness(ctx context.Context, runner Runner, target Target) (Result, error) {
-	return runner.Run(ctx, target, "vrooli-onboarding readiness --json")
+	return runner.Run(ctx, target, onboardingCLICommand("readiness --json"))
+}
+
+// onboardingCLICommand resolves the scenario CLI explicitly because bootstrap
+// and setup install scenario CLIs under the runtime home, while non-interactive
+// SSH shells do not necessarily source the operator's login PATH. The PATH
+// fallback preserves manually installed or older nodes.
+func onboardingCLICommand(args string) string {
+	return `PATH="$HOME/.vrooli/bin:$HOME/.local/bin:$PATH"; export PATH; cli="${VROOLI_ONBOARDING_BIN:-$HOME/.vrooli/bin/vrooli-onboarding}"; if [ ! -x "$cli" ]; then cli="$(command -v vrooli-onboarding || true)"; fi; [ -n "$cli" ] || { echo "vrooli-onboarding CLI not found in $HOME/.vrooli/bin or PATH" >&2; exit 127; }; "$cli" --auto-start ` + args
 }
 
 // ApplyAndReadiness is the complete remote contract exposed to Bridge: apply
@@ -161,10 +190,41 @@ func Readiness(ctx context.Context, runner Runner, target Target) (Result, error
 // report and its exit code.
 func ApplyAndReadiness(ctx context.Context, runner Runner, target Target, selection Selection) (Result, error) {
 	result, err := Apply(ctx, runner, target, selection)
-	if err != nil || result.ExitCode != 0 {
+	if err != nil {
 		return result, err
 	}
+	if result.ExitCode != 0 {
+		// wizard commit performs the apply and may already have fetched
+		// readiness, but its exit path is allowed to contain only the concise
+		// failure in stderr. Run the authoritative readiness command once more
+		// so the bridge failure record retains the named metadata-only blockers.
+		readiness, readinessErr := Readiness(ctx, runner, target)
+		result = mergeResults(result, readiness)
+		if readinessErr != nil {
+			return result, readinessErr
+		}
+		return result, nil
+	}
 	return Readiness(ctx, runner, target)
+}
+
+func mergeResults(first, second Result) Result {
+	merged := first
+	merged.Stdout = joinOutput(first.Stdout, second.Stdout)
+	merged.Stderr = joinOutput(first.Stderr, second.Stderr)
+	return merged
+}
+
+func joinOutput(first, second string) string {
+	first = strings.TrimSpace(first)
+	second = strings.TrimSpace(second)
+	if first == "" {
+		return second
+	}
+	if second == "" {
+		return first
+	}
+	return first + "\n" + second
 }
 
 // ReadinessExitCode is the bridge-facing policy: onboarding's exit code is

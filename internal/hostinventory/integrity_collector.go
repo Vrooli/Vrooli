@@ -17,6 +17,7 @@ import (
 	"time"
 
 	platformgo "github.com/vrooli/platform-go"
+	"github.com/vrooli/vrooli/internal/hostcapability"
 )
 
 // IntegrityCommandRunner and IntegrityFileSystem are the control-plane seams
@@ -362,22 +363,20 @@ func collectIntegrityPackages(ctx context.Context, c *IntegrityDefaultCollector,
 	return PackageState{}
 }
 
-var integrityNVIDIARE = regexp.MustCompile(`^nvidia-driver-([0-9]+)(-open)?$`)
-
 func enrichIntegrityDrivers(ctx context.Context, c *IntegrityDefaultCollector, inv *HostInventory) {
 	if inv == nil || inv.Packages.Manager != "dpkg" || inv.Kernel.Release == "" || !integrityHasNVIDIAEvidence(*inv) {
 		return
 	}
-	driver := DriverPackageState{Vendor: "nvidia", Applicability: "needs_corroboration", LoadedModules: integrityFilterModules(inv.Kernel.LoadedModules, []string{"nvidia", "nouveau"})}
+	driver := DriverPackageState{Vendor: "nvidia", VendorID: "10de", Applicability: "needs_corroboration", LoadedModules: integrityFilterModules(inv.Kernel.LoadedModules, []string{"nvidia", "nouveau"})}
+	driverPackage := ""
 	for _, pkg := range inv.Packages.InstalledPackages {
-		match := integrityNVIDIARE.FindStringSubmatch(pkg.Name)
-		if len(match) == 0 {
+		if !hostcapability.IsNvidiaDriverPackage(pkg.Name) {
 			continue
 		}
-		driver.Series = match[1]
-		if match[2] == "-open" {
-			driver.Flavor = "open"
+		if driverPackage == "" {
+			driverPackage = pkg.Name
 		}
+		driver.Series, driver.Flavor = hostcapability.NvidiaDriverPackageIdentity(pkg.Name)
 		driver.InstalledPackages = append(driver.InstalledPackages, pkg)
 	}
 	if driver.Series == "" {
@@ -385,11 +384,7 @@ func enrichIntegrityDrivers(ctx context.Context, c *IntegrityDefaultCollector, i
 		inv.Packages.Drivers = append(inv.Packages.Drivers, driver)
 		return
 	}
-	parts := []string{"linux-modules-nvidia", driver.Series}
-	if driver.Flavor != "" {
-		parts = append(parts, driver.Flavor)
-	}
-	driver.ExpectedModulePackage = strings.Join(append(parts, inv.Kernel.Release), "-")
+	driver.ExpectedModulePackage, _ = hostcapability.DeriveNvidiaModulePackage(driverPackage, inv.Kernel.Release)
 	for _, pkg := range inv.Packages.InstalledPackages {
 		if pkg.Name == driver.ExpectedModulePackage {
 			driver.ExpectedPackageInstalled = true

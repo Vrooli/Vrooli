@@ -53,6 +53,25 @@ type fakeCommand struct {
 	logs    []string
 }
 
+type environmentCommand struct {
+	fakeCommand
+	env []string
+}
+
+func (f *environmentCommand) RunWithEnvironment(_ context.Context, argv []string, dir string, env []string, _ func(string)) (int, error) {
+	f.gotArgv, f.gotDir, f.env = argv, dir, append([]string(nil), env...)
+	return f.exit, nil
+}
+
+type ephemeralProvider struct{ values map[string][]byte }
+
+func (p *ephemeralProvider) Take(logicalID, field string) ([]byte, bool) {
+	key := logicalID + ":" + field
+	value, ok := p.values[key]
+	delete(p.values, key)
+	return value, ok
+}
+
 type fakeUploader struct {
 	runID, name, mediaType string
 	data                   []byte
@@ -91,6 +110,14 @@ func TestBuildArgv_RoutesDeviceControlNamespaceToScenarioCLI(t *testing.T) {
 	})
 	require.NoError(t, err)
 	require.Equal(t, []string{"device-control", "flow", "run", "--file", "/tmp/flow.json", "--device", "android-1"}, argv)
+}
+
+func TestBuildArgv_RoutesScenarioOwnedVerbToScenarioCLI(t *testing.T) {
+	argv, err := exec.BuildArgv("vrooli", &channelv1.JobPush{
+		Verb: "system-monitor metrics devices", Scenario: "system-monitor",
+	})
+	require.NoError(t, err)
+	require.Equal(t, []string{"system-monitor", "metrics", "devices"}, argv)
 }
 
 func TestExecute_DeviceControlJobPreservesBridgeRunIdentity(t *testing.T) {
@@ -170,6 +197,20 @@ func TestExecute_NonZeroExitReported(t *testing.T) {
 	last := rep.events[len(rep.events)-1]
 	require.Equal(t, sharedv1.RunEventKind_RUN_EVENT_KIND_EXIT, last.Kind)
 	require.Equal(t, int32(2), last.ExitCode)
+}
+
+func TestExecute_InjectsEphemeralCredentialOnlyIntoChildEnvironment(t *testing.T) {
+	cmd := &environmentCommand{fakeCommand: fakeCommand{exit: 0}}
+	provider := &ephemeralProvider{values: map[string][]byte{"vrooli/test:token": []byte("secret")}}
+	rep := &fakeReporter{}
+	runner := exec.NewRunner("vrooli", "", rep, exec.WithCommandRunner(cmd), exec.WithCredentialEnvironment(provider))
+
+	require.NoError(t, runner.Execute(context.Background(), &channelv1.JobPush{
+		RunId: "r", Verb: "scenario test", CredentialInjections: []*channelv1.CredentialInjection{{LogicalId: "vrooli/test", Field: "token", EnvName: "TEST_TOKEN"}},
+	}))
+	require.Equal(t, []string{"TEST_TOKEN=secret"}, cmd.env)
+	require.Empty(t, provider.values, "ephemeral material is consumed once")
+	require.Equal(t, []string{"vrooli", "scenario", "test"}, cmd.gotArgv, "credential value is not placed in argv")
 }
 
 // [REQ:BRG-P0-004] A job rejected by BuildArgv (unsafe token) is never executed:

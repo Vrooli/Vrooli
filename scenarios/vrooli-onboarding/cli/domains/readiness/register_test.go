@@ -44,6 +44,11 @@ func TestRunReturnsMachineReadableRequiredFailure(t *testing.T) {
 	if !ok || exit.Code != 2 {
 		t.Fatalf("readiness error = %#v", err)
 	}
+	for _, want := range []string{"vrooli/calendar:jwt-secret", "the credential is declared and not configured", "Provide it on the credentials step."} {
+		if !strings.Contains(exit.Error(), want) {
+			t.Fatalf("readiness error = %q, want %q", exit.Error(), want)
+		}
+	}
 }
 
 func TestRunReturnsFailureForRequiredHostAndUnacknowledgedDegradation(t *testing.T) {

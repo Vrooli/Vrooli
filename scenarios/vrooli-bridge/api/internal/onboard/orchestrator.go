@@ -339,8 +339,11 @@ func (s *service) runOnboarding(ctx context.Context, opID string, in StartInput)
 			detail := fmt.Sprintf("remote onboarding readiness exited %d", remote.ExitCode)
 			if applyErr != nil {
 				detail += ": " + applyErr.Error()
-			} else if strings.TrimSpace(remote.Stderr) != "" {
-				detail += ": " + strings.TrimSpace(remote.Stderr)
+			}
+			for _, output := range []string{remote.Stderr, remote.Stdout} {
+				if value := strings.TrimSpace(output); value != "" {
+					detail += ": " + value
+				}
 			}
 			s.emit(ctx, opID, &seq, StepApplySelection, StepStatusFailed, detail)
 			s.finishFailed(ctx, opID, &seq, FailureOnboarding, int32(remote.ExitCode), detail, remote.Stderr)

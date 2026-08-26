@@ -3,8 +3,8 @@ package main
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"net/http"
+	"os"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -67,10 +67,40 @@ func (e *recordingApplyExecutor) StartScenario(_ context.Context, name string) e
 	return e.call("scenario", name)
 }
 
+// useInProcessApplyRunner replaces the detached runner with an in-process one
+// for behaviour tests.
+//
+// Production hands each accepted run to a separate process so the run survives
+// this API being restarted by its own apply. A test does not want a real fork:
+// it wants the executor's behaviour, deterministically, against its fixtures.
+// The detachment itself is covered separately -- see TestApplyRunnerMode and
+// TestObservedApplyRunReportsAnAbandonedRun -- so stubbing here does not leave
+// the handoff untested.
+func useInProcessApplyRunner(t *testing.T) {
+	t.Helper()
+	previous := spawnApplyRunner
+	spawnApplyRunner = func(ctx context.Context, run applyRun) error {
+		run.RunnerPID = os.Getpid()
+		run.Heartbeat = operatorStateNow().UTC().Format(time.RFC3339)
+		updateApplyRun(run)
+		go executeApplyRun(ctx, run)
+		return nil
+	}
+	t.Cleanup(func() { spawnApplyRunner = previous })
+}
+
 func TestV2ApplyOrdersDependenciesAndIsIdempotent(t *testing.T) {
 	root := t.TempDir()
 	t.Setenv("VROOLI_ROOT", root)
 	t.Setenv("BUNDLE_ROOT", "")
+	// Own the home and the external probes. Without this the readiness pass
+	// inside apply shells out to the operator's real credential doctor, so the
+	// verdict depends on whichever kopia repositories and paired devices happen
+	// to exist on the developer's machine -- which is both non-deterministic
+	// and order-dependent, because a neighbouring test stubs the same globals.
+	t.Setenv("HOME", t.TempDir())
+	t.Setenv("VROOLI_STORAGE_ROOT", "")
+	stubExternalReadinessProbes(t)
 	writeFixtureFile(t, filepath.Join(root, ".vrooli", "operator-state.json"), `{"version":"1.0.0","updated_at":"2026-08-11T00:00:00Z","scenarios":{"alpha":{"enabled":true}}}`)
 	writeFixtureFile(t, filepath.Join(root, "scenarios", "alpha", ".vrooli", "service.json"), `{"service":{"name":"alpha","system_required":true},"dependencies":{"resources":{"postgres":{"required":true}}}}`)
 	writeFixtureFile(t, filepath.Join(root, "resources", "postgres", "resource.json"), `{"name":"postgres","hostTools":[],"hostSafeguards":[]}`)
@@ -78,6 +108,7 @@ func TestV2ApplyOrdersDependenciesAndIsIdempotent(t *testing.T) {
 	previous := onboardingApplyExecutor
 	onboardingApplyExecutor = fake
 	t.Cleanup(func() { onboardingApplyExecutor = previous })
+	useInProcessApplyRunner(t)
 
 	w := doRequest(t, NewServer(), http.MethodPost, "/api/v2/apply", "{}")
 	if w.Code != http.StatusAccepted {
@@ -121,6 +152,14 @@ func TestV2ApplySkipsDependentAfterFailure(t *testing.T) {
 	root := t.TempDir()
 	t.Setenv("VROOLI_ROOT", root)
 	t.Setenv("BUNDLE_ROOT", "")
+	// Own the home and the external probes. Without this the readiness pass
+	// inside apply shells out to the operator's real credential doctor, so the
+	// verdict depends on whichever kopia repositories and paired devices happen
+	// to exist on the developer's machine -- which is both non-deterministic
+	// and order-dependent, because a neighbouring test stubs the same globals.
+	t.Setenv("HOME", t.TempDir())
+	t.Setenv("VROOLI_STORAGE_ROOT", "")
+	stubExternalReadinessProbes(t)
 	writeFixtureFile(t, filepath.Join(root, ".vrooli", "operator-state.json"), `{"version":"1.0.0","updated_at":"2026-08-11T00:00:00Z","scenarios":{"alpha":{"enabled":true}}}`)
 	writeFixtureFile(t, filepath.Join(root, "scenarios", "alpha", ".vrooli", "service.json"), `{"service":{"name":"alpha","system_required":true},"dependencies":{"resources":{"postgres":{"required":true}}}}`)
 	writeFixtureFile(t, filepath.Join(root, "resources", "postgres", "resource.json"), `{"name":"postgres"}`)
@@ -128,6 +167,7 @@ func TestV2ApplySkipsDependentAfterFailure(t *testing.T) {
 	previous := onboardingApplyExecutor
 	onboardingApplyExecutor = fake
 	t.Cleanup(func() { onboardingApplyExecutor = previous })
+	useInProcessApplyRunner(t)
 
 	w := doRequest(t, NewServer(), http.MethodPost, "/api/v2/apply", "{}")
 	if w.Code != http.StatusAccepted {
@@ -167,6 +207,14 @@ func TestApplyNeverRestartsItself(t *testing.T) {
 	root := t.TempDir()
 	t.Setenv("VROOLI_ROOT", root)
 	t.Setenv("BUNDLE_ROOT", "")
+	// Own the home and the external probes. Without this the readiness pass
+	// inside apply shells out to the operator's real credential doctor, so the
+	// verdict depends on whichever kopia repositories and paired devices happen
+	// to exist on the developer's machine -- which is both non-deterministic
+	// and order-dependent, because a neighbouring test stubs the same globals.
+	t.Setenv("HOME", t.TempDir())
+	t.Setenv("VROOLI_STORAGE_ROOT", "")
+	stubExternalReadinessProbes(t)
 	writeFixtureFile(t, filepath.Join(root, ".vrooli", "operator-state.json"),
 		`{"version":"1.0.0","updated_at":"2026-08-11T00:00:00Z","scenarios":{"`+onboardingScenarioName+`":{"enabled":true},"alpha":{"enabled":true}}}`)
 	writeFixtureFile(t, filepath.Join(root, "scenarios", onboardingScenarioName, ".vrooli", "service.json"),
@@ -178,6 +226,7 @@ func TestApplyNeverRestartsItself(t *testing.T) {
 	previous := onboardingApplyExecutor
 	onboardingApplyExecutor = fake
 	t.Cleanup(func() { onboardingApplyExecutor = previous })
+	useInProcessApplyRunner(t)
 
 	w := doRequest(t, NewServer(), http.MethodPost, "/api/v2/apply", "{}")
 	if w.Code != http.StatusAccepted {
@@ -226,95 +275,4 @@ func TestApplyNeverRestartsItself(t *testing.T) {
 			t.Fatalf("item %s was blocked by the skipped self-item", item.Name)
 		}
 	}
-}
-
-// staleSelfExecutor is a recording executor that also answers the freshness
-// probe, so a test can choose whether this scenario would be rebuilt.
-type staleSelfExecutor struct {
-	recordingApplyExecutor
-	stale     bool
-	probeErr  error
-	probeCall int
-}
-
-func (e *staleSelfExecutor) ScenarioIsStale(_ context.Context, _ string) (bool, error) {
-	e.probeCall++
-	return e.stale, e.probeErr
-}
-
-// TestApplyRefusesWhenACascadeWouldRestartIt covers the failure the self-item
-// skip does not: another scenario in the plan (vrooli-bridge, in the real
-// catalogue) declares this one as a try_start dependency, so starting it
-// cascades here. While this scenario is fresh that cascade is a no-op; while it
-// is stale the cascade rebuilds and swaps its artifacts, stopping the process
-// mid-apply. Refusing before touching the host beats dying halfway through.
-func TestApplyRefusesWhenACascadeWouldRestartIt(t *testing.T) {
-	setup := func(t *testing.T, executor applyExecutor) applyRun {
-		t.Helper()
-		root := t.TempDir()
-		t.Setenv("VROOLI_ROOT", root)
-		t.Setenv("BUNDLE_ROOT", "")
-		writeFixtureFile(t, filepath.Join(root, ".vrooli", "operator-state.json"),
-			`{"version":"1.0.0","updated_at":"2026-08-11T00:00:00Z","scenarios":{"`+onboardingScenarioName+`":{"enabled":true},"alpha":{"enabled":true}}}`)
-		writeFixtureFile(t, filepath.Join(root, "scenarios", onboardingScenarioName, ".vrooli", "service.json"),
-			`{"service":{"name":"`+onboardingScenarioName+`","system_required":true}}`)
-		writeFixtureFile(t, filepath.Join(root, "scenarios", "alpha", ".vrooli", "service.json"),
-			`{"service":{"name":"alpha","system_required":true}}`)
-
-		previous := onboardingApplyExecutor
-		onboardingApplyExecutor = executor
-		t.Cleanup(func() { onboardingApplyExecutor = previous })
-
-		w := doRequest(t, NewServer(), http.MethodPost, "/api/v2/apply", "{}")
-		if w.Code != http.StatusAccepted {
-			t.Fatalf("apply status = %d: %s", w.Code, w.Body.String())
-		}
-		var started applyRun
-		if err := json.Unmarshal(w.Body.Bytes(), &started); err != nil {
-			t.Fatal(err)
-		}
-		return waitApplyTerminal(t, started.ID)
-	}
-
-	t.Run("stale refuses without touching the host", func(t *testing.T) {
-		executor := &staleSelfExecutor{stale: true}
-		run := setup(t, executor)
-
-		if run.Status != "blocked" {
-			t.Fatalf("run status = %q, want blocked", run.Status)
-		}
-		if calls := executor.snapshotCalls(); len(calls) != 0 {
-			t.Fatalf("a refused run must change nothing; calls = %#v", calls)
-		}
-		if len(run.Blockers) != 1 || run.Blockers[0].Name != onboardingScenarioName {
-			t.Fatalf("blockers = %#v, want one naming %s", run.Blockers, onboardingScenarioName)
-		}
-		if !strings.Contains(run.Blockers[0].Remediation, "vrooli scenario start") {
-			t.Fatalf("the operator must be told how to clear this, got %q", run.Blockers[0].Remediation)
-		}
-	})
-
-	t.Run("fresh applies normally", func(t *testing.T) {
-		executor := &staleSelfExecutor{stale: false}
-		run := setup(t, executor)
-
-		if run.Status == "blocked" {
-			t.Fatal("a fresh scenario must not block its own apply; the cascade is a no-op")
-		}
-		if executor.probeCall == 0 {
-			t.Fatal("the freshness probe never ran, so this test is not exercising the guard")
-		}
-		if len(executor.snapshotCalls()) == 0 {
-			t.Fatal("a fresh run must still apply the plan")
-		}
-	})
-
-	t.Run("an unusable probe does not block consented work", func(t *testing.T) {
-		executor := &staleSelfExecutor{probeErr: errors.New("freshness unavailable")}
-		run := setup(t, executor)
-
-		if run.Status == "blocked" {
-			t.Fatal("a probe failure is not evidence that a restart would happen; the run must proceed")
-		}
-	})
 }

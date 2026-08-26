@@ -1,6 +1,7 @@
 package lifecycle
 
 import (
+	"context"
 	"errors"
 	"os"
 	"path/filepath"
@@ -284,6 +285,43 @@ func TestAcquireDependencyScenarioLockTimesOutWhenBusy(t *testing.T) {
 	}
 	if msg := err.Error(); !contains(msg, "remained busy") {
 		t.Fatalf("error message should mention timeout, got %q", msg)
+	}
+}
+
+func TestAcquireDependencyScenarioLockBestEffortUsesShortBound(t *testing.T) {
+	home := t.TempDir()
+	now := time.Date(2026, 6, 26, 12, 0, 0, 0, time.UTC)
+	r := &Runner{
+		Home: home,
+		deps: lifecycleDeps{
+			now: func() time.Time { return now },
+			sleep: func(d time.Duration) {
+				now = now.Add(d)
+			},
+		},
+	}
+	// Hold the in-process mutex directly. A blocking mu.Lock() here would
+	// prevent the dependency policy from ever observing its 10-second bound.
+	releaseHeld, err := r.acquireScenarioLock("optional-dependency")
+	if err != nil {
+		t.Fatalf("seed in-process lock: %v", err)
+	}
+	defer releaseHeld()
+
+	_, _, err = r.acquireDependencyScenarioLockContextWithPolicy(
+		context.Background(),
+		"optional-dependency",
+		func() (bool, error) { return false, nil },
+		dependencyBestEffortLockPolicy,
+	)
+	if !errors.Is(err, ErrScenarioBusy) {
+		t.Fatalf("error = %v, want ErrScenarioBusy", err)
+	}
+	if msg := err.Error(); !contains(msg, "10s") {
+		t.Fatalf("error should report the best-effort bound, got %q", msg)
+	}
+	if elapsed := now.Sub(time.Date(2026, 6, 26, 12, 0, 0, 0, time.UTC)); elapsed > dependencyBestEffortLockPolicy.Timeout {
+		t.Fatalf("virtual wait = %s, want no more than %s", elapsed, dependencyBestEffortLockPolicy.Timeout)
 	}
 }
 

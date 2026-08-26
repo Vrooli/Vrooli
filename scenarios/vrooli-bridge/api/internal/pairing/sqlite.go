@@ -205,6 +205,58 @@ func (s *sqliteRepository) StoreCredential(ctx context.Context, c Credential) er
 	return nil
 }
 
+func (s *sqliteRepository) StoreEncryptionPublicKey(ctx context.Context, k EncryptionKey) error {
+	if k.CreatedAt.IsZero() {
+		k.CreatedAt = s.clock.Now().UTC()
+	}
+	if k.Algorithm == "" {
+		k.Algorithm = "x25519"
+	}
+	if k.Algorithm != "x25519" {
+		return fmt.Errorf("unsupported encryption key algorithm %q", k.Algorithm)
+	}
+	raw, err := base64.StdEncoding.DecodeString(k.PublicKey)
+	if err != nil || len(raw) != 32 {
+		return fmt.Errorf("x25519 public key must be 32-byte base64")
+	}
+	_, err = s.db.ExecContext(ctx,
+		`INSERT INTO node_encryption_keys (node_id, public_key, algorithm, created_at, revoked_at)
+		 VALUES (?, ?, ?, ?, '')
+		 ON CONFLICT(node_id) DO UPDATE SET public_key=excluded.public_key, algorithm=excluded.algorithm, created_at=excluded.created_at, revoked_at=''`,
+		k.NodeID, k.PublicKey, k.Algorithm, k.CreatedAt.Format(timeFormat))
+	if err != nil {
+		return fmt.Errorf("store encryption key: %w", err)
+	}
+	return nil
+}
+
+func (s *sqliteRepository) ActiveEncryptionPublicKey(ctx context.Context, nodeID string) ([]byte, bool, error) {
+	var publicKey, algorithm, revokedAt string
+	err := s.db.QueryRowContext(ctx, `SELECT public_key, algorithm, revoked_at FROM node_encryption_keys WHERE node_id=?`, nodeID).Scan(&publicKey, &algorithm, &revokedAt)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, false, nil
+	}
+	if err != nil {
+		return nil, false, fmt.Errorf("lookup encryption key: %w", err)
+	}
+	if revokedAt != "" || algorithm != "x25519" {
+		return nil, false, nil
+	}
+	raw, err := base64.StdEncoding.DecodeString(publicKey)
+	if err != nil || len(raw) != 32 {
+		return nil, false, nil
+	}
+	return raw, true, nil
+}
+
+func (s *sqliteRepository) RevokeEncryptionKey(ctx context.Context, nodeID string) error {
+	_, err := s.db.ExecContext(ctx, `UPDATE node_encryption_keys SET revoked_at=? WHERE node_id=? AND revoked_at=''`, s.clock.Now().UTC().Format(timeFormat), nodeID)
+	if err != nil {
+		return fmt.Errorf("revoke encryption key: %w", err)
+	}
+	return nil
+}
+
 func (s *sqliteRepository) RevokeCredential(ctx context.Context, nodeID string) error {
 	now := s.clock.Now().UTC().Format(timeFormat)
 	_, err := s.db.ExecContext(ctx,

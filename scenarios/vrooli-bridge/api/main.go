@@ -16,6 +16,7 @@ import (
 	"vrooli-bridge/internal/channelsign"
 	"vrooli-bridge/internal/cpkeys"
 	"vrooli-bridge/internal/cprev"
+	internalcredentialgrant "vrooli-bridge/internal/credentialgrant"
 	"vrooli-bridge/internal/hostbroker"
 	internalmachines "vrooli-bridge/internal/machines"
 	"vrooli-bridge/internal/modules"
@@ -50,6 +51,7 @@ import (
 	"github.com/vrooli/api-core/storage"
 	"github.com/vrooli/api-core/trustposture"
 	repocontract "github.com/vrooli/repo-contract-go"
+	credentialauthority "github.com/vrooli/vrooli/packages/credential-authority-go"
 	_ "modernc.org/sqlite"
 
 	artifactsH "vrooli-bridge/handlers/artifacts"
@@ -57,6 +59,7 @@ import (
 	auditH "vrooli-bridge/handlers/audit"
 	channelH "vrooli-bridge/handlers/channel"
 	cleanupH "vrooli-bridge/handlers/cleanup"
+	credentialgrantH "vrooli-bridge/handlers/credentialgrant"
 	dispatchH "vrooli-bridge/handlers/dispatch"
 	fleetH "vrooli-bridge/handlers/fleet"
 	gateH "vrooli-bridge/handlers/gate"
@@ -80,12 +83,39 @@ type registrarAdapter struct {
 	svc internalregistry.Service
 }
 
+type registryNodeKindResolver struct{ svc internalregistry.Service }
+
+func (r registryNodeKindResolver) NodeKind(ctx context.Context, nodeID string) (string, error) {
+	node, err := r.svc.Get(ctx, nodeID)
+	if err != nil {
+		return "", err
+	}
+	return node.Kind, nil
+}
+
 func (a registrarAdapter) RegisterNode(ctx context.Context, facts internalpairing.NodeFacts) (string, error) {
 	return a.registerNode(ctx, facts, "")
 }
 
 func (a registrarAdapter) RegisterNodeWithCorrelation(ctx context.Context, facts internalpairing.NodeFacts, correlationID string) (string, error) {
 	return a.registerNode(ctx, facts, correlationID)
+}
+
+func (a registrarAdapter) UpdateNodeScopes(ctx context.Context, nodeID string, scopes []string) error {
+	node, err := a.svc.Get(ctx, nodeID)
+	if err != nil {
+		return err
+	}
+	_, err = a.svc.Update(ctx, internalregistry.UpdateInput{
+		ID:           node.ID,
+		Name:         node.Name,
+		Kind:         node.Kind,
+		Endpoint:     node.Endpoint,
+		Capabilities: node.Capabilities,
+		Scopes:       scopes,
+		Revision:     node.Revision,
+	})
+	return err
 }
 
 func (a registrarAdapter) registerNode(ctx context.Context, facts internalpairing.NodeFacts, correlationID string) (string, error) {
@@ -364,7 +394,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("locate repository for node grant validation: %v", err)
 	}
-	grantCatalog, err := scopecatalog.Build(repoRoot)
+	grantCatalog, err := scopecatalog.BuildResilient(repoRoot)
 	var grantValidator func([]string) error
 	if err != nil {
 		// A malformed scenario manifest must not take the fleet control plane
@@ -385,15 +415,33 @@ func main() {
 		pairingOpts = append(pairingOpts, internalpairing.WithGrantValidator(grantValidator))
 	}
 	pairingSvc := internalpairing.NewService(pairingRepo, registrar, clk, pairingOpts...)
+	// The node mutual-auth verifier reads node public keys from the pairing
+	// repository (a revoked credential reads as absent). Construct it before
+	// the grant handler so owner and node-facing grant operations fail closed.
+	nodeVerifier := nodeauth.NewVerifier(pairingRepo)
+	grantSvc := internalcredentialgrant.NewService(
+		internalcredentialgrant.NewSQLiteRepository(db, clk.Now),
+		registryNodeKindResolver{svc: registrySvc},
+		clk.Now,
+	)
+	grantHandler := credentialgrantH.NewHandler(credentialgrantH.ModuleDeps{
+		Service: grantSvc, Presence: presenceHub, Signer: cpKeypair,
+		SealingPublicKey: pairingSvc.SealingPublicKey, NodeVerifier: nodeVerifier, Logger: logger,
+		ResolveValue: func(ctx context.Context, logicalID, field string) (string, error) {
+			authority, err := credentialauthority.Default()
+			if err != nil {
+				return "", err
+			}
+			identity, err := credentialauthority.ParseIdentity(logicalID)
+			if err != nil {
+				return "", err
+			}
+			return authority.Resolve(identity, field)
+		},
+	})
 	if _, err := pairingSvc.ReconcileEnrollments(context.Background()); err != nil {
 		log.Fatalf("pairing enrollment reconciliation failed: %v", err)
 	}
-
-	// The node mutual-auth verifier reads node public keys from the pairing
-	// repository (a revoked credential reads as absent). Threaded into the
-	// channel + runs modules so every heartbeat, dial-out, and run-event report
-	// is authenticated.
-	nodeVerifier := nodeauth.NewVerifier(pairingRepo)
 
 	// Audit (OT-P0-008): the append-only accountability substrate. Construct it
 	// before queue restoration so boot reconciliation can account for every run
@@ -482,6 +530,13 @@ func main() {
 		if scheduler != nil {
 			scheduler.Promote(context.Background(), nodeID)
 		}
+		if grantHandler != nil {
+			go func() {
+				if syncErr := grantHandler.SyncNode(context.Background(), nodeID); syncErr != nil {
+					logger.Printf("credential grants: sync node %q: %v", nodeID, syncErr)
+				}
+			}()
+		}
 	})
 	watchdog := internalqueue.NewWatchdog(durableQueue, scheduler, queueH.NewAborter(runsSvc), clk,
 		watchdogConfig, func(outcome internalqueue.Reconciliation) {
@@ -565,8 +620,9 @@ func main() {
 		})),
 	}
 	if handoffEndpoint, handoffErr := discovery.ResolveScenarioURLDefault(context.Background(), "vrooli-onboarding"); handoffErr == nil {
-		onboardOpts = append(onboardOpts, internalonboard.WithOnboardingHandoff(internalonboarding.HTTPHandoffClient{Endpoint: handoffEndpoint}))
-		log.Printf("onboard: scenario selection handoff enabled at %s", handoffEndpoint)
+		handoffURL := internalonboarding.HandoffEndpoint(handoffEndpoint)
+		onboardOpts = append(onboardOpts, internalonboard.WithOnboardingHandoff(internalonboarding.HTTPHandoffClient{Endpoint: handoffURL}))
+		log.Printf("onboard: scenario selection handoff enabled at %s", handoffURL)
 	} else {
 		log.Printf("onboard: optional onboarding scenario unavailable: %v", handoffErr)
 	}
@@ -592,7 +648,7 @@ func main() {
 	// instance backs both the dispatch handler and the gate domain's runner
 	// adapter — every cross-OS gate validation run flows through the same
 	// allowlist + per-node scopes + audit gate as any other job.
-	dispatchSvc := dispatchH.NewService(registrySvc, runsSvc, auditStore, presenceHub, scheduler)
+	dispatchSvc := dispatchH.NewService(registrySvc, runsSvc, auditStore, presenceHub, scheduler, grantSvc)
 	// Relay reuses the same node reader, presence gate, manifest-derived
 	// admission, signed channel transport, and append-only audit sink. Its
 	// response broker is wired into the node-facing Presence RPC below, so a
@@ -623,9 +679,10 @@ func main() {
 		channelH.Module(presenceHub, nodeLastSeen, nodeVerifier, logger,
 			channelH.WithDeliveryAckRecorder(runsSvc), channelH.WithAuditSink(auditStore),
 			channelH.WithSessionManager(sessionManager, authClient, registrySvc), channelH.WithSessionPush(pushSession),
-			channelH.WithRelayResponseSink(relayBroker)),
+			channelH.WithRelayResponseSink(relayBroker), channelH.WithCredentialReceiptRecorder(grantSvc)),
 		cleanupH.Module(cleanupSvc, nodeVerifier, logger),
-		pairingH.Module(pairingSvc, cpKeypair.PublicKeyBase64(), postureDefaults.NodeExecutionScopes, logger),
+		credentialgrantH.Module(grantHandler),
+		pairingH.Module(pairingSvc, cpKeypair.PublicKeyBase64(), postureDefaults.NodeExecutionScopes, nodeVerifier, logger),
 		// dispatch (OT-P0-004): the allowlist gate. It reads node scopes
 		// (registrySvc), checks presence + protocol compatibility, creates durable
 		// runs (runsSvc), audits (auditStore), and submits typed jobs to the

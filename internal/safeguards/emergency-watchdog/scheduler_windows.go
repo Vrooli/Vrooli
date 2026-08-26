@@ -16,6 +16,8 @@ func nativeSchedulerAvailable(goos string) bool {
 	return goos == "windows" && commandAvailable("schtasks.exe")
 }
 
+func guiLaunchdAvailable() bool { return false }
+
 func nativePending(goos string, _ paths) []string {
 	if goos != "windows" {
 		return []string{"unsupported scheduler"}

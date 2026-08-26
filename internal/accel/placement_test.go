@@ -198,14 +198,54 @@ func TestVerifyPlacementReportsUnknownRatherThanGuessing(t *testing.T) {
 			if err != nil {
 				t.Fatalf("VerifyPlacement() = %v, want nil", err)
 			}
-			if placement.State != accel.StateUnknown {
-				t.Fatalf("state = %q, want %q (placement = %+v)", placement.State, accel.StateUnknown, placement)
+			if placement.State != accel.StateUndetermined {
+				t.Fatalf("state = %q, want %q (placement = %+v)", placement.State, accel.StateUndetermined, placement)
 			}
 			// And the reason names what could not be read
 			if !strings.Contains(placement.Reason, tc.wantReason) {
 				t.Fatalf("reason = %q, want it to contain %q", placement.Reason, tc.wantReason)
 			}
 		})
+	}
+}
+
+// Scenario: a host with an accelerator but no resident workload is undetermined.
+func TestVerifyPlacementReportsUndeterminedWhenNoWorkloadIsResident(t *testing.T) {
+	// Given a CUDA host whose process table is empty
+	verifier := verifierFor(hostWithCUDA(), nil)
+
+	// When the resource has not loaded a model yet
+	placement, err := verifier.VerifyPlacement(context.Background(), "ollama", accel.HostProcess{
+		PID:              4242,
+		Name:             "ollama",
+		NoWorkloadReason: "no model is resident, so placement cannot be read yet",
+	}, accel.BackendCUDA)
+
+	// Then the verifier does not guess CPU placement
+	if err != nil {
+		t.Fatalf("VerifyPlacement() = %v, want nil", err)
+	}
+	if placement.State != accel.BackendUndetermined {
+		t.Fatalf("state = %q, want %q", placement.State, accel.BackendUndetermined)
+	}
+	if placement.Observed != "" {
+		t.Fatalf("observed = %q, want empty", placement.Observed)
+	}
+	if placement.Reason != "no model is resident, so placement cannot be read yet" {
+		t.Fatalf("reason = %q, want the resource-specific no-model reason", placement.Reason)
+	}
+}
+
+// Scenario: Vulkan follows the same absent-workload rule as CUDA and ROCm.
+func TestVerifyPlacementReportsUndeterminedForVulkanWithoutResidentWorkload(t *testing.T) {
+	snapshot := hostWithCUDA()
+	snapshot.VulkanICDs = []string{"/usr/share/vulkan/icd.d/nvidia_icd.json"}
+	placement, err := verifierFor(snapshot, nil).VerifyPlacement(context.Background(), "fixture", accel.HostProcess{PID: 4242}, accel.BackendVulkan)
+	if err != nil {
+		t.Fatalf("VerifyPlacement() = %v, want nil", err)
+	}
+	if placement.State != accel.BackendUndetermined {
+		t.Fatalf("state = %q, want %q", placement.State, accel.BackendUndetermined)
 	}
 }
 
@@ -223,8 +263,8 @@ func TestVerifyPlacementReportsMetalUnsupportedOffDarwin(t *testing.T) {
 	if err != nil {
 		t.Fatalf("VerifyPlacement() = %v, want nil", err)
 	}
-	if placement.State != accel.StateUnknown {
-		t.Fatalf("state = %q, want %q", placement.State, accel.StateUnknown)
+	if placement.State != accel.StateUndetermined {
+		t.Fatalf("state = %q, want %q", placement.State, accel.StateUndetermined)
 	}
 	if !strings.Contains(placement.Reason, "only reachable on darwin") {
 		t.Fatalf("reason = %q, want it to name the platform", placement.Reason)

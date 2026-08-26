@@ -108,15 +108,27 @@ func (a jobPusherAdapter) PushJob(ctx context.Context, nodeID string, job dispat
 
 func (a jobPusherAdapter) PushJobOutcome(ctx context.Context, nodeID string, job dispatch.PushedJob) (int, bool, error) {
 	outcome, delivered, err := a.scheduler.Submit(ctx, queue.Job{
-		RunID:          job.RunID,
-		NodeID:         nodeID,
-		Scenario:       job.Scenario,
-		Verb:           job.Verb,
-		Args:           append([]string(nil), job.Args...),
-		TimeoutSeconds: job.TimeoutSeconds,
-		Outputs:        outputsToQueue(job.Outputs),
+		RunID:                job.RunID,
+		NodeID:               nodeID,
+		Scenario:             job.Scenario,
+		Verb:                 job.Verb,
+		Args:                 append([]string(nil), job.Args...),
+		TimeoutSeconds:       job.TimeoutSeconds,
+		Outputs:              outputsToQueue(job.Outputs),
+		CredentialInjections: injectionsToQueue(job.CredentialInjections),
 	})
 	return delivered, outcome == queue.OutcomeQueued, err
+}
+
+func injectionsToQueue(in []dispatch.CredentialInjection) []queue.CredentialInjection {
+	if len(in) == 0 {
+		return nil
+	}
+	out := make([]queue.CredentialInjection, 0, len(in))
+	for _, injection := range in {
+		out = append(out, queue.CredentialInjection{LogicalID: injection.LogicalID, Field: injection.Field, EnvName: injection.EnvName})
+	}
+	return out
 }
 
 func outputsToQueue(outputs []dispatch.ArtifactOutput) []queue.Output {
