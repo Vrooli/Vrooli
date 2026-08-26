@@ -199,6 +199,53 @@ func TestCollectionCaptureAdmissionSaturationDefersMemberUntilSiblingCompletes(t
 	}
 }
 
+func TestCollectionCaptureAdmissionSaturationRetriesWithoutSibling(t *testing.T) {
+	svc, exec := collectionService(t)
+	exec.startErrs = []error{
+		errors.New("resource_exhausted: test-genie admission is saturated (caller queued run capacity)"),
+		nil,
+	}
+	repoDir := t.TempDir()
+	started, err := svc.StartCollectionCapture(context.Background(), StartCollectionCaptureRequest{
+		RepoID: 1, RepoDir: repoDir, Name: "single-member",
+		Targets: []CollectionTarget{{Scenario: "web-console", BaselineName: "single-member", Required: true}},
+	})
+	if err != nil || len(started.Pending) != 0 || started.Collection.Coverage().Pending != 1 {
+		t.Fatalf("saturated single-member capture = %#v err=%v", started, err)
+	}
+	if started.Collection.RepoDir != repoDir {
+		t.Fatalf("deferred capture lost repo metadata: %#v", started.Collection)
+	}
+
+	// The first status read respects the durable retry lease rather than
+	// hammering Test Genie while its admission queue is still full.
+	if _, err := svc.GetCollectionCaptureStatus(context.Background(), 1, "agi", "single-member"); err != nil {
+		t.Fatal(err)
+	}
+	if exec.calls != 1 {
+		t.Fatalf("capture retried before its lease expired: calls=%d", exec.calls)
+	}
+	if _, err := svc.storage.UpdateCollectionMember(1, "agi", "single-member", "web-console", func(member *CollectionMember) error {
+		member.UpdatedAt = time.Now().UTC().Add(-collectionCaptureDispatchLease)
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	collection, err := svc.GetCollectionCaptureStatus(context.Background(), 1, "agi", "single-member")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if exec.calls != 2 || collection.Members[0].RunID == "" || !collection.Coverage().Complete() {
+		t.Fatalf("deferred single-member capture did not recover: %#v calls=%d", collection, exec.calls)
+	}
+
+	settled, err := svc.ResumeCollectionCapture(context.Background(), 1, "agi", "single-member")
+	if err != nil || !settled.Coverage().Complete() {
+		t.Fatalf("recovered single-member capture did not finalize: %#v err=%v", settled, err)
+	}
+}
+
 func TestDeferredCollectionCaptureStopsAfterRequiredFailure(t *testing.T) {
 	svc, exec := collectionService(t)
 	exec.startErrs = []error{

@@ -40,6 +40,58 @@ func newTestServiceWith(t *testing.T, d Deps) (*Service, *Storage) {
 	return NewService(d), st
 }
 
+type countingReachability struct {
+	calls int
+	err   error
+}
+
+func (r *countingReachability) Probe(context.Context) error {
+	r.calls++
+	return r.err
+}
+
+func TestReachabilityErrorCachesOnlySuccessfulProbeWithinTTL(t *testing.T) {
+	now := time.Date(2026, 8, 25, 14, 0, 0, 0, time.UTC)
+	probe := &countingReachability{}
+	svc, _ := newTestServiceWith(t, Deps{
+		Exec:      &fakeExecutor{result: terminalResult()},
+		Runs:      &fakeRuns{},
+		Reachable: probe,
+		Now:       func() time.Time { return now },
+	})
+
+	if reason := svc.reachabilityError(context.Background()); reason != "" {
+		t.Fatalf("first successful probe returned %q", reason)
+	}
+	if reason := svc.reachabilityError(context.Background()); reason != "" {
+		t.Fatalf("cached successful probe returned %q", reason)
+	}
+	if probe.calls != 1 {
+		t.Fatalf("probe calls before TTL = %d, want 1", probe.calls)
+	}
+
+	now = now.Add(reachabilityCacheTTL + time.Nanosecond)
+	if reason := svc.reachabilityError(context.Background()); reason != "" {
+		t.Fatalf("post-TTL successful probe returned %q", reason)
+	}
+	if probe.calls != 2 {
+		t.Fatalf("probe calls after TTL = %d, want 2", probe.calls)
+	}
+
+	probe.err = errors.New("backend unavailable")
+	now = now.Add(reachabilityCacheTTL + time.Nanosecond)
+	reason := svc.reachabilityError(context.Background())
+	if !strings.Contains(reason, "backend unavailable") {
+		t.Fatalf("failed probe reason = %q, want backend error", reason)
+	}
+	if retryReason := svc.reachabilityError(context.Background()); !strings.Contains(retryReason, "backend unavailable") {
+		t.Fatalf("uncached failed probe reason = %q, want backend error", retryReason)
+	}
+	if probe.calls != 4 {
+		t.Fatalf("failed probe calls = %d, want 4 including immediate retry", probe.calls)
+	}
+}
+
 func seedBaseline(t *testing.T, svc *Service, name string) BaselineManifest {
 	t.Helper()
 	res, err := svc.Create(context.Background(), CreateRequest{

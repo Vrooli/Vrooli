@@ -38,10 +38,21 @@ type Service struct {
 	// Test Genie's pin owner is itself idempotent, so concurrent processes and
 	// crash recovery still converge on one durable retention claim.
 	migrationMu sync.Mutex
+	// reachabilityMu prevents a collection fan-out from issuing one discovery
+	// probe per member. A successful probe is shared briefly; failures are never
+	// cached, so an outage remains visible and retryable.
+	reachabilityMu         sync.Mutex
+	reachabilityValidUntil time.Time
 	// collectionDiffMu protects whole-operation member checkpoint rewrites while
 	// independent child waits run concurrently outside the lock.
 	collectionDiffMu sync.Mutex
+	// collectionCaptureMu serializes deferred capture claims. A pending member
+	// has no child run id yet, so two status readers otherwise could both admit
+	// the same Test Genie capture after backpressure clears.
+	collectionCaptureMu sync.Mutex
 }
+
+const reachabilityCacheTTL = 30 * time.Second
 
 // Deps wires the Service.
 type Deps struct {
@@ -86,9 +97,15 @@ func (s *Service) reachabilityError(ctx context.Context) string {
 		return "test-genie unavailable at capture time (owning subsystem not wired)"
 	}
 	if s.reachable != nil {
+		s.reachabilityMu.Lock()
+		defer s.reachabilityMu.Unlock()
+		if s.now().Before(s.reachabilityValidUntil) {
+			return ""
+		}
 		if err := s.reachable.Probe(ctx); err != nil {
 			return "test-genie unreachable (fast-skip, not blocked): " + err.Error()
 		}
+		s.reachabilityValidUntil = s.now().Add(reachabilityCacheTTL)
 	}
 	return ""
 }

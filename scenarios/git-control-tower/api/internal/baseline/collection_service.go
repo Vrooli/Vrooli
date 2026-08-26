@@ -120,7 +120,9 @@ type PendingCollectionDiff struct {
 
 const (
 	collectionDiffDispatchLease       = 30 * time.Second
+	collectionDiffDispatchCeiling     = 15 * time.Minute
 	maxCollectionDiffDispatchAttempts = 3
+	collectionCaptureDispatchLease    = 30 * time.Second
 )
 
 // Test Genie can reject a caller temporarily when its durable-run admission
@@ -291,6 +293,12 @@ func (s *Service) StartCollectionCapture(ctx context.Context, req StartCollectio
 // the member remains pending until a finalizer advances capacity and invokes
 // this server-owned handoff.
 func (s *Service) StartDeferredCollectionCapture(ctx context.Context, repoID int64, pending PendingCollectionCapture) (PendingCollectionCapture, bool, error) {
+	s.collectionCaptureMu.Lock()
+	defer s.collectionCaptureMu.Unlock()
+	return s.startDeferredCollectionCapture(ctx, repoID, pending)
+}
+
+func (s *Service) startDeferredCollectionCapture(ctx context.Context, repoID int64, pending PendingCollectionCapture) (PendingCollectionCapture, bool, error) {
 	collection, err := s.storage.LoadCollection(repoID, pending.Branch, pending.CollectionName)
 	if err != nil {
 		return PendingCollectionCapture{}, false, err
@@ -308,11 +316,18 @@ func (s *Service) StartDeferredCollectionCapture(ctx context.Context, repoID int
 			continue
 		}
 		started, startErr := s.StartCapture(ctx, CreateRequest{
-			RepoID: repoID, RepoDir: pending.Pending.Req.RepoDir, Scenario: member.Scenario,
-			Name: member.BaselineName, Branch: pending.Branch, CreatedBy: pending.Pending.Req.CreatedBy, Reason: pending.Pending.Req.Reason,
+			RepoID: repoID, RepoDir: deferredCaptureRepoDir(collection, pending), Scenario: member.Scenario,
+			Name: member.BaselineName, Branch: pending.Branch, CreatedBy: deferredCaptureCreatedBy(collection, pending), Reason: deferredCaptureReason(collection, pending),
 		})
 		if startErr != nil {
 			if isTransientAdmissionSaturation(startErr) {
+				_, updateErr := s.storage.UpdateCollectionMember(repoID, pending.Branch, pending.CollectionName, member.Scenario, func(target *CollectionMember) error {
+					target.Error, target.UpdatedAt = "deferred: "+startErr.Error(), s.now().UTC()
+					return nil
+				})
+				if updateErr != nil {
+					return PendingCollectionCapture{}, false, updateErr
+				}
 				return PendingCollectionCapture{}, false, nil
 			}
 			_, updateErr := s.storage.UpdateCollectionMember(repoID, pending.Branch, pending.CollectionName, member.Scenario, func(target *CollectionMember) error {
@@ -334,6 +349,63 @@ func (s *Service) StartDeferredCollectionCapture(ctx context.Context, repoID int
 		return PendingCollectionCapture{CollectionName: pending.CollectionName, Branch: pending.Branch, Scenario: member.Scenario, Pending: started}, true, nil
 	}
 	return PendingCollectionCapture{}, false, nil
+}
+
+func deferredCaptureRepoDir(collection CollectionManifest, pending PendingCollectionCapture) string {
+	if pending.Pending.Req.RepoDir != "" {
+		return pending.Pending.Req.RepoDir
+	}
+	return collection.RepoDir
+}
+
+func deferredCaptureCreatedBy(collection CollectionManifest, pending PendingCollectionCapture) string {
+	if pending.Pending.Req.CreatedBy != "" {
+		return pending.Pending.Req.CreatedBy
+	}
+	return collection.CreatedBy
+}
+
+func deferredCaptureReason(collection CollectionManifest, pending PendingCollectionCapture) string {
+	if pending.Pending.Req.Reason != "" {
+		return pending.Pending.Req.Reason
+	}
+	return collection.Reason
+}
+
+// retryDeferredCollectionCapture admits one pending member after its durable
+// retry lease. The collection manifest carries the original capture request
+// metadata because a deferred member has no SnapshotIntent or run id yet.
+func (s *Service) retryDeferredCollectionCapture(ctx context.Context, repoID int64, collection CollectionManifest) (CollectionManifest, error) {
+	if collection.RepoDir == "" {
+		return collection, nil
+	}
+	now := s.now().UTC()
+	for _, member := range collection.Members {
+		if member.Status != CollectionMemberPending || member.RunID != "" {
+			continue
+		}
+		if !member.UpdatedAt.IsZero() && now.Before(member.UpdatedAt.Add(collectionCaptureDispatchLease)) {
+			continue
+		}
+		_, started, err := s.StartDeferredCollectionCapture(ctx, repoID, PendingCollectionCapture{
+			CollectionName: collection.Name,
+			Branch:         collection.Branch,
+			Scenario:       member.Scenario,
+			Pending: PendingCapture{Req: CreateRequest{
+				RepoID: repoID, RepoDir: collection.RepoDir, Scenario: member.Scenario,
+				Name: member.BaselineName, Branch: collection.Branch,
+				CreatedBy: collection.CreatedBy, Reason: collection.Reason,
+			}},
+		})
+		if err != nil {
+			return CollectionManifest{}, err
+		}
+		if started {
+			return s.storage.LoadCollection(repoID, collection.Branch, collection.Name)
+		}
+		break
+	}
+	return collection, nil
 }
 
 // ExtendCollection adds only previously unknown scenarios to an existing
@@ -401,7 +473,7 @@ func newCollectionManifest(req StartCollectionCaptureRequest, branch string, now
 	if len(req.PathSelections) > 0 {
 		paths = []string{strings.TrimSpace(req.Name)}
 	}
-	return CollectionManifest{Name: strings.TrimSpace(req.Name), Branch: branch, CreatedAt: now, UpdatedAt: now, SchemaVersion: CollectionSchemaVersion, Generation: 1, Members: members, PathSnapshots: paths}.Normalized()
+	return CollectionManifest{Name: strings.TrimSpace(req.Name), Branch: branch, RepoDir: req.RepoDir, CreatedBy: req.CreatedBy, Reason: req.Reason, CreatedAt: now, UpdatedAt: now, SchemaVersion: CollectionSchemaVersion, Generation: 1, Members: members, PathSnapshots: paths}.Normalized()
 }
 
 // CapturePathSnapshot creates or resumes one immutable, branch-scoped source
@@ -516,6 +588,10 @@ func (s *Service) ResumeCollectionCapture(ctx context.Context, repoID int64, bra
 	if err != nil {
 		return CollectionManifest{}, err
 	}
+	collection, err = s.retryDeferredCollectionCapture(ctx, repoID, collection)
+	if err != nil {
+		return CollectionManifest{}, err
+	}
 	type pendingJob struct {
 		member CollectionMember
 		intent SnapshotIntent
@@ -617,8 +693,32 @@ func (s *Service) ResumeCollectionCapture(ctx context.Context, repoID int64, bra
 // terminal child must be projected on every status read even when the original
 // asynchronous finalizer was lost to a restart. Unlike ResumeCollectionCapture
 // this never waits for an active child.
+// EnsureCollectionCaptureRepoDir backfills request metadata for collections
+// written by older servers. The transport already resolves the repository
+// path, so a subsequent status or wait can recover a pre-run deferred member.
+func (s *Service) EnsureCollectionCaptureRepoDir(repoID int64, branch, name, repoDir string) error {
+	repoDir = strings.TrimSpace(repoDir)
+	if repoDir == "" {
+		return nil
+	}
+	collection, err := s.storage.LoadCollection(repoID, branch, name)
+	if err != nil {
+		return err
+	}
+	if collection.RepoDir != "" {
+		return nil
+	}
+	collection.RepoDir = repoDir
+	collection.UpdatedAt = s.now().UTC()
+	return s.storage.SaveCollection(repoID, collection, Overwrite)
+}
+
 func (s *Service) GetCollectionCaptureStatus(ctx context.Context, repoID int64, branch, name string) (CollectionManifest, error) {
 	collection, err := s.storage.LoadCollection(repoID, branch, name)
+	if err != nil {
+		return CollectionManifest{}, err
+	}
+	collection, err = s.retryDeferredCollectionCapture(ctx, repoID, collection)
 	if err != nil {
 		return CollectionManifest{}, err
 	}
@@ -757,6 +857,13 @@ func (s *Service) StartCollectionDiff(ctx context.Context, req StartCollectionDi
 // the current attachment, never the work identity needed by another agent.
 // The caller holds collectionDiffMu while choosing unassigned children.
 func (s *Service) dispatchCollectionDiff(ctx context.Context, req StartCollectionDiffRequest, collection CollectionManifest, operation CollectionDiffOperation) (StartCollectionDiffResult, error) {
+	// Dispatch is durable server-owned work. Detach it from the initiating
+	// HTTP/CLI request so a transport deadline cannot cancel the tail of a
+	// sequential collection fan-out, while retaining a finite ceiling for a
+	// genuinely wedged control plane.
+	dispatchCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), collectionDiffDispatchCeiling)
+	defer cancel()
+
 	// Older operation records predate RepoDir. A resumed explicit start has the
 	// authoritative path, so checkpoint it before any handoff; later status
 	// recovery then remains server-owned even if this caller detaches.
@@ -827,7 +934,7 @@ func (s *Service) dispatchCollectionDiff(ctx context.Context, req StartCollectio
 				continue
 			}
 			member = &operation.Members[i]
-			started, err := s.StartDiff(ctx, StartDiffRequest{RepoID: req.RepoID, RepoDir: req.RepoDir, Branch: req.Branch, Scenario: member.Scenario, Name: member.BaselineName})
+			started, err := s.StartDiff(dispatchCtx, StartDiffRequest{RepoID: req.RepoID, RepoDir: req.RepoDir, Branch: req.Branch, Scenario: member.Scenario, Name: member.BaselineName})
 			outcomeStatus, outcomeDetail, outcomeRunID := member.Status, member.Detail, member.RunID
 			outcomeAttempts, outcomeLease := member.DispatchAttempts, member.DispatchLeaseExpiresAt
 			if err != nil {

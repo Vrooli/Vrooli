@@ -448,12 +448,14 @@ func TestEveryPlatformStatusResolvesThroughTheGrid(t *testing.T) {
 		qualification deployability.Qualification
 	}
 	want := map[deployability.PlatformStatus]outcome{
-		deployability.StatusSupported:     {deployability.CapabilityImplemented, deployability.QualificationQualified},
-		deployability.StatusBuildVerified: {deployability.CapabilityImplemented, deployability.QualificationBuildVerified},
-		deployability.StatusExperimental:  {deployability.CapabilityImplemented, deployability.QualificationUnqualified},
-		deployability.StatusUnqualified:   {deployability.CapabilityImplemented, deployability.QualificationUnqualified},
-		deployability.StatusPartial:       {deployability.CapabilityDegraded, deployability.QualificationDegraded},
-		deployability.StatusUnsupported:   {deployability.CapabilityIneligible, deployability.QualificationIneligible},
+		deployability.StatusSupported:      {deployability.CapabilityImplemented, deployability.QualificationQualified},
+		deployability.StatusBuildVerified:  {deployability.CapabilityImplemented, deployability.QualificationBuildVerified},
+		deployability.StatusExperimental:   {deployability.CapabilityImplemented, deployability.QualificationUnqualified},
+		deployability.StatusUnqualified:    {deployability.CapabilityImplemented, deployability.QualificationUnqualified},
+		deployability.StatusPartial:        {deployability.CapabilityDegraded, deployability.QualificationDegraded},
+		deployability.StatusUnsupported:    {deployability.CapabilityIneligible, deployability.QualificationIneligible},
+		deployability.StatusNotImplemented: {deployability.CapabilityIneligible, deployability.QualificationIneligible},
+		deployability.StatusNotApplicable:  {deployability.CapabilityIneligible, deployability.QualificationIneligible},
 	}
 	if len(want) != len(deployability.PlatformStatuses()) {
 		t.Fatalf("the expectation table covers %d tokens; the vocabulary has %d", len(want), len(deployability.PlatformStatuses()))

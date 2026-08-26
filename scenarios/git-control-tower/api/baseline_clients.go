@@ -80,7 +80,14 @@ const baselineAdmissionCaller = "git-control-tower:baseline"
 var (
 	baselineAdmissionRetryDelays = []time.Duration{250 * time.Millisecond, 500 * time.Millisecond, time.Second, 2 * time.Second}
 	baselineWaitRetryDelays      = []time.Duration{250 * time.Millisecond, 500 * time.Millisecond, time.Second, 2 * time.Second}
+	// Test Genie publishes the terminal run record before the canonical
+	// terminal snapshot is observable through every read path. Keep the
+	// baseline handoff attached briefly so that publication ordering cannot
+	// turn valid terminal phase evidence into a false baseline failure.
+	baselineEvidenceRetryDelays = []time.Duration{250 * time.Millisecond, 500 * time.Millisecond, time.Second, 2 * time.Second}
 )
+
+const baselineWaitSliceSeconds = 60
 
 func (e baselineExecutor) StartRun(ctx context.Context, scenario string) (baseline.RunHandle, error) {
 	cl, err := e.runs.client(ctx)
@@ -201,16 +208,13 @@ func (e baselineExecutor) AwaitResult(ctx context.Context, scenario, runID strin
 	if err != nil {
 		return baseline.ExecResult{}, err
 	}
-	waited, err := waitForBaselineTerminal(ctx, func() (*connect.Response[runspb.WaitRunResponse], error) {
+	waited, err := waitForCanonicalBaselineTerminal(ctx, func() (*connect.Response[runspb.WaitRunResponse], error) {
 		return cl.WaitRun(ctx, connect.NewRequest(&runspb.WaitRunRequest{
-			Target: scenario, RunId: runID,
+			Target: scenario, RunId: runID, TimeoutSeconds: baselineWaitSliceSeconds,
 		}))
 	})
 	if err != nil {
 		return baseline.ExecResult{}, err
-	}
-	if reasons := waited.Msg.GetDegradedReasons(); len(reasons) > 0 {
-		return baseline.ExecResult{}, fmt.Errorf("run %s terminal evidence is degraded: %s", runID, strings.Join(reasons, "; "))
 	}
 	info := waited.Msg.GetTerminalRun()
 	if info == nil || waited.Msg.GetTerminalSnapshotSchemaVersion() == 0 {
@@ -279,6 +283,41 @@ func waitForBaselineTerminal(ctx context.Context, wait func() (*connect.Response
 		case <-ctx.Done():
 			return nil, ctx.Err()
 		default:
+		}
+	}
+}
+
+// waitForCanonicalBaselineTerminal closes the small publication-ordering gap
+// between Test Genie's terminal status and its canonical terminal snapshot.
+// WaitRun may legitimately return a terminal status while the snapshot write
+// is still becoming visible to a subsequent read. This retry is bounded and
+// does not weaken the evidence gate: a response is accepted only when it has
+// a canonical snapshot and no degraded reasons.
+func waitForCanonicalBaselineTerminal(ctx context.Context, wait func() (*connect.Response[runspb.WaitRunResponse], error)) (*connect.Response[runspb.WaitRunResponse], error) {
+	for attempt := 0; ; attempt++ {
+		response, err := waitForBaselineTerminal(ctx, wait)
+		if err != nil {
+			return nil, err
+		}
+		if response != nil && response.Msg != nil && response.Msg.GetTerminalSnapshotSchemaVersion() > 0 && len(response.Msg.GetDegradedReasons()) == 0 && response.Msg.GetTerminalRun() != nil {
+			return response, nil
+		}
+
+		if attempt == len(baselineEvidenceRetryDelays) {
+			if response != nil && response.Msg != nil {
+				if reasons := response.Msg.GetDegradedReasons(); len(reasons) > 0 {
+					return nil, fmt.Errorf("terminal evidence is degraded: %s", strings.Join(reasons, "; "))
+				}
+			}
+			return nil, errors.New("terminal run has no canonical terminal snapshot")
+		}
+
+		timer := time.NewTimer(baselineEvidenceRetryDelays[attempt])
+		select {
+		case <-ctx.Done():
+			timer.Stop()
+			return nil, ctx.Err()
+		case <-timer.C:
 		}
 	}
 }
@@ -486,7 +525,7 @@ func (c baselineRunsClient) CaptureMissingEvidence(ctx context.Context, scenario
 		return "", fmt.Errorf("test-genie returned no missing-evidence run id")
 	}
 	waited, err := waitForBaselineTerminal(ctx, func() (*connect.Response[runspb.WaitRunResponse], error) {
-		return cl.WaitRun(ctx, connect.NewRequest(&runspb.WaitRunRequest{Target: scenario, RunId: runID}))
+		return cl.WaitRun(ctx, connect.NewRequest(&runspb.WaitRunRequest{Target: scenario, RunId: runID, TimeoutSeconds: baselineWaitSliceSeconds}))
 	})
 	if err != nil {
 		return "", err
@@ -646,9 +685,11 @@ func (s *Server) newBaselineService() *baseline.Service {
 		Exec:    exec,
 		Runs:    runs,
 		Probe:   baselineStalenessProbe{},
-		// Fast-skip an unreachable test-genie in ~5s instead of blocking the
-		// whole snapshot to the multi-minute execute/compare deadlines.
-		Reachable: newBaselineReachability(5 * time.Second),
+		// Keep the reachability probe bounded, but allow the control-plane
+		// discovery path to absorb the fan-out caused by a collection diff
+		// launching many member runs at once. A healthy Test Genie must not be
+		// classified unreachable merely because discovery is briefly contended.
+		Reachable: newBaselineReachability(30 * time.Second),
 		ReuseTTL:  diffRunReuseTTL(),
 	})
 }

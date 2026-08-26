@@ -15,6 +15,7 @@ import (
 	"context"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"time"
 )
@@ -88,18 +89,58 @@ func (e *runErr) Unwrap() error { return e.err }
 
 // ResolveBinary resolves a CLI binary by name. When envVar is non-empty and that
 // environment variable holds a path, it wins (an explicit override). Otherwise
-// the name is looked up on PATH. Returns "" when nothing resolves so callers can
-// degrade gracefully rather than hard-fail.
+// the canonical runtime-home install is preferred over PATH. This matters on
+// developer machines that still have an older same-named CLI in ~/.local/bin:
+// validation must exercise the artifact the Vrooli lifecycle installed, not an
+// ambient legacy copy selected by a runner's PATH ordering. PATH remains the
+// fallback for tools that are not Vrooli-installed. Returns "" when nothing
+// resolves so callers can degrade gracefully rather than hard-fail.
 func ResolveBinary(name, envVar string) string {
 	if envVar != "" {
 		if p := strings.TrimSpace(os.Getenv(envVar)); p != "" {
 			return p
 		}
 	}
-	if p, err := exec.LookPath(strings.TrimSpace(name)); err == nil {
+	name = strings.TrimSpace(name)
+	if canonical := canonicalRuntimeHomeBinary(name); canonical != "" {
+		return canonical
+	}
+	if p, err := exec.LookPath(name); err == nil {
 		return p
 	}
 	return ""
+}
+
+func canonicalRuntimeHomeBinary(name string) string {
+	if name == "" || filepath.Base(name) != name || strings.ContainsAny(name, `/\\`) {
+		return ""
+	}
+	if home, err := os.UserHomeDir(); err == nil && strings.TrimSpace(home) != "" {
+		if path := executableFile(filepath.Join(home, ".vrooli", "bin", name)); path != "" {
+			return path
+		}
+	}
+
+	// Test-genie and other governed runners may sandbox HOME while preserving
+	// the operator's canonical bin directory on PATH. Prefer that explicit
+	// runtime-home entry over a stale same-named binary in another PATH entry.
+	for _, dir := range filepath.SplitList(os.Getenv("PATH")) {
+		if filepath.Base(filepath.Clean(dir)) != "bin" || filepath.Base(filepath.Dir(filepath.Clean(dir))) != ".vrooli" {
+			continue
+		}
+		if path := executableFile(filepath.Join(dir, name)); path != "" {
+			return path
+		}
+	}
+	return ""
+}
+
+func executableFile(path string) string {
+	info, err := os.Stat(path)
+	if err != nil || !info.Mode().IsRegular() || info.Mode()&0o111 == 0 {
+		return ""
+	}
+	return path
 }
 
 func truncateForEmbedding(s string, max int) string {

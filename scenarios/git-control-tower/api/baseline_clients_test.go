@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"io"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -135,5 +136,51 @@ func TestWaitForBaselineTerminalReattachesAfterUnexpectedEOF(t *testing.T) {
 	}
 	if attempts != 2 || response.Msg.GetTerminalSnapshotSchemaVersion() != 1 {
 		t.Fatalf("attempts=%d response=%+v, want reattached terminal response", attempts, response.Msg)
+	}
+}
+
+func TestWaitForCanonicalBaselineTerminalRetriesSnapshotPublicationRace(t *testing.T) {
+	original := baselineEvidenceRetryDelays
+	baselineEvidenceRetryDelays = []time.Duration{time.Millisecond}
+	t.Cleanup(func() { baselineEvidenceRetryDelays = original })
+
+	attempts := 0
+	response, err := waitForCanonicalBaselineTerminal(context.Background(), func() (*connect.Response[runspb.WaitRunResponse], error) {
+		attempts++
+		if attempts == 1 {
+			return connect.NewResponse(&runspb.WaitRunResponse{
+				Status:      &runspb.RunLiveStatus{Status: "failed"},
+				TerminalRun: &runspb.RunInfo{RunId: "run-1", Status: "failed"},
+			}), nil
+		}
+		return connect.NewResponse(&runspb.WaitRunResponse{
+			Status:                        &runspb.RunLiveStatus{Status: "failed"},
+			TerminalRun:                   &runspb.RunInfo{RunId: "run-1", Status: "failed"},
+			TerminalSnapshotSchemaVersion: 1,
+		}), nil
+	})
+	if err != nil {
+		t.Fatalf("wait for canonical terminal evidence: %v", err)
+	}
+	if attempts != 2 || response.Msg.GetTerminalSnapshotSchemaVersion() != 1 {
+		t.Fatalf("attempts=%d response=%+v, want one retry before canonical evidence", attempts, response.Msg)
+	}
+}
+
+func TestWaitForCanonicalBaselineTerminalRejectsPersistentDegradedEvidence(t *testing.T) {
+	original := baselineEvidenceRetryDelays
+	baselineEvidenceRetryDelays = []time.Duration{time.Millisecond}
+	t.Cleanup(func() { baselineEvidenceRetryDelays = original })
+
+	_, err := waitForCanonicalBaselineTerminal(context.Background(), func() (*connect.Response[runspb.WaitRunResponse], error) {
+		return connect.NewResponse(&runspb.WaitRunResponse{
+			Status:                        &runspb.RunLiveStatus{Status: "failed"},
+			TerminalRun:                   &runspb.RunInfo{RunId: "run-1", Status: "failed"},
+			TerminalSnapshotSchemaVersion: 1,
+			DegradedReasons:               []string{"source tree changed during run"},
+		}), nil
+	})
+	if err == nil || !strings.Contains(err.Error(), "source tree changed during run") {
+		t.Fatalf("err=%v, want persistent degraded evidence rejection", err)
 	}
 }

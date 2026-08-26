@@ -3,27 +3,6 @@ import { describe, expect, it, vi } from "vitest";
 
 import { renderWithProviders } from "../../test-utils";
 import { Dialog } from "./dialog";
-import { EmptyState } from "@vrooli/react-component-library/EmptyState/1.1.0";
-
-describe("EmptyState", () => {
-  it("renders optional description, icon, action, and custom class", () => {
-    renderWithProviders(
-      <EmptyState
-        title="Nothing here"
-        description="Try another filter"
-        icon={<span data-testid="empty-icon">!</span>}
-        action={<button type="button">Retry</button>}
-        className="custom-empty"
-      />,
-    );
-    expect(screen.getByText(/Nothing here/)).toBeInTheDocument();
-    expect(screen.getByText(/Try another filter/)).toBeInTheDocument();
-    expect(screen.getByTestId("empty-icon")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Retry/ })).toBeInTheDocument();
-    expect(screen.getByText(/Nothing here/).parentElement?.parentElement).toHaveClass("custom-empty");
-  });
-});
-
 describe("Dialog", () => {
   it("does not render when closed", () => {
     renderWithProviders(<Dialog open={false} title="Hidden" onClose={vi.fn()} closeLabel="Close">Body</Dialog>);

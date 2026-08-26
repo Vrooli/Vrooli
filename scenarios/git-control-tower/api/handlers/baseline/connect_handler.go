@@ -520,8 +520,11 @@ func (s *Server) finalizeCollectionCapture(ctx context.Context, repoID int64, pe
 
 func (s *Server) GetCollectionStatus(ctx context.Context, req *connect.Request[baselinesv1.GetCollectionStatusRequest]) (*connect.Response[baselinesv1.GetCollectionStatusResponse], error) {
 	m := req.Msg
-	rid, _, branch, err := s.resolveTarget(ctx, m.GetRepoId(), m.GetBranch(), false)
+	rid, repoDir, branch, err := s.resolveTarget(ctx, m.GetRepoId(), m.GetBranch(), false)
 	if err != nil {
+		return nil, s.wrap("GetCollectionStatus", err)
+	}
+	if err := s.svc.EnsureCollectionCaptureRepoDir(rid, branch, m.GetName(), repoDir); err != nil {
 		return nil, s.wrap("GetCollectionStatus", err)
 	}
 	collection, err := s.svc.StorageLoadCollection(rid, branch, m.GetName())
@@ -533,8 +536,11 @@ func (s *Server) GetCollectionStatus(ctx context.Context, req *connect.Request[b
 
 func (s *Server) WaitCollectionCapture(ctx context.Context, req *connect.Request[baselinesv1.WaitCollectionCaptureRequest]) (*connect.Response[baselinesv1.WaitCollectionCaptureResponse], error) {
 	m := req.Msg
-	rid, _, branch, err := s.resolveTarget(ctx, m.GetRepoId(), m.GetBranch(), false)
+	rid, repoDir, branch, err := s.resolveTarget(ctx, m.GetRepoId(), m.GetBranch(), false)
 	if err != nil {
+		return nil, s.wrap("WaitCollectionCapture", err)
+	}
+	if err := s.svc.EnsureCollectionCaptureRepoDir(rid, branch, m.GetName(), repoDir); err != nil {
 		return nil, s.wrap("WaitCollectionCapture", err)
 	}
 	waitCtx := ctx

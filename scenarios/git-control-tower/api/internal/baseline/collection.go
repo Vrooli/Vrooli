@@ -40,8 +40,14 @@ type CollectionMember struct {
 // identity. It owns no Test Genie run and is intentionally repository/branch
 // scoped, matching the existing baseline store.
 type CollectionManifest struct {
-	Name          string             `json:"name"`
-	Branch        string             `json:"branch"`
+	Name   string `json:"name"`
+	Branch string `json:"branch"`
+	// Capture request metadata is retained so a pending member that was
+	// deferred before a Test Genie run id existed can be retried after a
+	// restart or through a status/wait request.
+	RepoDir       string             `json:"repo_dir,omitempty"`
+	CreatedBy     string             `json:"created_by,omitempty"`
+	Reason        string             `json:"reason,omitempty"`
 	CreatedAt     time.Time          `json:"created_at"`
 	UpdatedAt     time.Time          `json:"updated_at"`
 	SchemaVersion int                `json:"schema_version"`
@@ -112,6 +118,9 @@ func (m CollectionManifest) Normalized() CollectionManifest {
 	m.Name = strings.TrimSpace(m.Name)
 	m.ReanchorDetail = strings.TrimSpace(m.ReanchorDetail)
 	m.Branch = strings.TrimSpace(m.Branch)
+	m.RepoDir = strings.TrimSpace(m.RepoDir)
+	m.CreatedBy = strings.TrimSpace(m.CreatedBy)
+	m.Reason = strings.TrimSpace(m.Reason)
 	for i := range m.Members {
 		m.Members[i].Scenario = strings.TrimSpace(m.Members[i].Scenario)
 		m.Members[i].BaselineName = strings.TrimSpace(m.Members[i].BaselineName)

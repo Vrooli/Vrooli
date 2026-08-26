@@ -1,6 +1,6 @@
 import { Download, Monitor, Package, Plus, Smartphone } from 'lucide-react';
 import { Button } from '../../../shared/ui/button';
-import { EmptyState } from '../../../shared/ui/EmptyState';
+import { EmptyState } from '@vrooli/react-component-library/EmptyState/1.1.0';
 
 interface DownloadAppsEmptyStateProps {
   onAddApp: () => void;
