@@ -17,8 +17,8 @@
           "macos": "/etc/sudoers.d/vrooli-onboarding-apply",
           "windows": null
         },
-      "kind": "file",
-      "regenerable": false,
+        "kind": "file",
+        "regenerable": false,
         "class": "config",
         "sensitive": true,
         "rationale": "The grant is setup-managed host policy and contains only exact selected control-plane argv."
@@ -62,9 +62,10 @@
       "evidence": null
     },
     "windows": {
-      "status": "unsupported",
+      "status": "not_applicable",
       "mechanism": "handler",
-      "evidence": "A mechanism exists but no implementation is wired for this host OS."
+      "evidence": "This safeguard has no implementation for the Windows host mechanism; the capability is not applicable on this host OS."
     }
-  }
+  },
+  "risk_class": "reload_live"
 }

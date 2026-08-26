@@ -10,8 +10,8 @@
           "macos": null,
           "windows": null
         },
-      "kind": "file",
-      "regenerable": false,
+        "kind": "file",
+        "regenerable": false,
         "class": "state",
         "sensitive": false,
         "rationale": "The safeguard installs the Linux kdump summary collector executable.",
@@ -27,8 +27,8 @@
           "macos": null,
           "windows": null
         },
-      "kind": "file",
-      "regenerable": false,
+        "kind": "file",
+        "regenerable": false,
         "class": "config",
         "sensitive": true,
         "rationale": "The safeguard installs the Linux kdump collector service."
@@ -40,8 +40,8 @@
           "macos": null,
           "windows": null
         },
-      "kind": "file",
-      "regenerable": false,
+        "kind": "file",
+        "regenerable": false,
         "class": "config",
         "sensitive": true,
         "rationale": "The safeguard installs the Linux kdump collector timer."
@@ -102,14 +102,15 @@
       "evidence": null
     },
     "macos": {
-      "status": "unsupported",
+      "status": "not_applicable",
       "mechanism": "handler",
-      "evidence": "A mechanism exists but no implementation is wired for this host OS."
+      "evidence": "This safeguard has no implementation for the macOS host mechanism; the capability is not applicable on this host OS."
     },
     "windows": {
-      "status": "unsupported",
+      "status": "not_applicable",
       "mechanism": "handler",
-      "evidence": "A mechanism exists but no implementation is wired for this host OS."
+      "evidence": "This safeguard has no implementation for the Windows host mechanism; the capability is not applicable on this host OS."
     }
-  }
+  },
+  "risk_class": "restore_absent"
 }

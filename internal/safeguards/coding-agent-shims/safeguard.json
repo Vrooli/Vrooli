@@ -17,8 +17,8 @@
           "macos": "~/.vrooli/bin",
           "windows": "~/.vrooli/bin"
         },
-      "kind": "dir",
-      "regenerable": true,
+        "kind": "dir",
+        "regenerable": true,
         "class": "cache",
         "sensitive": false,
         "rationale": "Alias links to vrooli-agent-launcher. Pinned because the directory must stay on PATH ahead of the agents' own install directories for the shims to be reached at all; moving it silently disables attribution. The contents are regenerable — the safeguard recreates every alias from the launcher binary.",
@@ -64,5 +64,6 @@
       "status": "unqualified",
       "evidence": null
     }
-  }
+  },
+  "risk_class": "restore_absent"
 }

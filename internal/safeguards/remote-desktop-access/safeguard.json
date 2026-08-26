@@ -106,5 +106,6 @@
       "status": "unqualified",
       "evidence": null
     }
-  }
+  },
+  "risk_class": "reload_live"
 }

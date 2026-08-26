@@ -58,6 +58,11 @@
       "default": "low",
       "description": "Operator-facing risk indicator. 'low' = no system state changes outside Vrooli's tree (probes, reads); 'medium' = writes config files outside Vrooli's tree or modifies networking rules; 'high' = modifies kernel parameters or requires root in ways that broadly affect host behavior. Used by onboarding to surface risk before opt-in."
     },
+    "risk_class": {
+      "type": "string",
+      "enum": ["restore_absent", "reload_live", "boot_critical"],
+      "description": "Operational gate class: restore an absent artifact, reload a live service/session, or change boot-critical state."
+    },
     "privilege": {
       "enum": ["none", "user", "elevated"],
       "description": "Machine-readable privilege gate, distinct from the operator-facing risk label."

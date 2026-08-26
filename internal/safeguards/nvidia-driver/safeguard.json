@@ -2,8 +2,20 @@
   "$schema": "../../../../.vrooli/schemas/safeguard.schema.json",
   "name": "nvidia_driver",
   "storage": {
-    "entries": {},
-    "rationale": "This safeguard does not persist a host file or directory; the explicit empty declaration records that its effect is runtime-only or externally owned."
+    "entries": {
+      "apt_policy_blacklist": {
+        "path": "/etc/apt/apt.conf.d/52-vrooli-nvidia-coupling",
+        "rung": "owned",
+        "kind": "file",
+        "class": "config",
+        "regenerable": false,
+        "platforms": [
+          "linux"
+        ],
+        "rationale": "This policy file keeps the NVIDIA coupled package set version-coherent under guard update control."
+      }
+    },
+    "rationale": "The safeguard owns the apt policy file that prevents unattended upgrades from separating the running kernel from its NVIDIA module set."
   },
   "description": "Validate and repair the NVIDIA kernel driver for the running Ubuntu kernel, and keep the compute device nodes durable across boots, when NVIDIA display hardware is present",
   "handler": "nvidia_driver",
@@ -12,6 +24,36 @@
   "bundling": "prohibited",
   "capability": "gpu-driver-health",
   "capability_role": "control",
+  "invariants": [
+    {
+      "id": "module-loadable-on-running-kernel",
+      "kind": "kernel_module_available",
+      "statement": "The capability module set is loadable for the running kernel.",
+      "severity": "critical",
+      "applicability": {
+        "device_class": "display",
+        "vendor_id": "10de",
+        "platforms": [
+          "linux"
+        ],
+        "capability": "gpu-driver-health"
+      }
+    },
+    {
+      "id": "kernel-and-module-move-together",
+      "kind": "update_atomicity",
+      "statement": "The running kernel and capability module set move together during host updates.",
+      "severity": "critical",
+      "applicability": {
+        "device_class": "display",
+        "vendor_id": "10de",
+        "platforms": [
+          "linux"
+        ],
+        "capability": "gpu-driver-health"
+      }
+    }
+  ],
   "deployment": {
     "profiles": {
       "desktop": {
@@ -35,18 +77,20 @@
   },
   "platform_status": {
     "linux": {
-      "status": "unqualified",
-      "evidence": null
+      "status": "build-verified",
+      "mechanism": "handler",
+      "evidence": "The Linux provider and host safeguard were exercised on this host after the 2026-08-25 NVIDIA kernel-module repair; the running driver is serving CUDA workloads. A durable structured run record is not available, so this claim remains build-verified until that evidence is captured."
     },
     "macos": {
-      "status": "unsupported",
+      "status": "not_applicable",
       "mechanism": "handler",
-      "evidence": "A mechanism exists but no implementation is wired for this host OS."
+      "evidence": "NVIDIA display hardware is not supported by current Mac hardware, so this Linux kernel-driver safeguard cannot apply."
     },
     "windows": {
-      "status": "unsupported",
+      "status": "not_implemented",
       "mechanism": "handler",
-      "evidence": "A mechanism exists but no implementation is wired for this host OS."
+      "evidence": "Windows driver-store and kernel-module management for NVIDIA hardware is a defined capability gap; no provider is wired yet."
     }
-  }
+  },
+  "risk_class": "boot_critical"
 }

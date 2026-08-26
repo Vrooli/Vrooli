@@ -1,6 +1,6 @@
 import { selectors } from "../consts/selectors";
 import { strings } from "../consts/strings";
-import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@vrooli/react-component-library/Card/1.1.0";
 import { HealthCard } from "../features/health/HealthCard";
 import { useTranslation } from "../i18n";
 

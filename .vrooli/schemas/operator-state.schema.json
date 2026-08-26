@@ -31,6 +31,12 @@
       "default": "vrooli_only",
       "description": "Operator-declared scope for workload reporting. It changes reporting, grading, and recorded detail, but never how declared, unmanaged, or abandoned workloads are classified. It is independent of trust_posture, which selects credential and node-execution defaults. Missing means vrooli_only."
     },
+    "update_control": {
+      "type": "string",
+      "enum": ["observe", "guard", "own"],
+      "default": "observe",
+      "description": "Operator-selected host update policy. observe records drift, guard preserves declared coupled sets, and own is reserved for a future typed implementation."
+    },
     "operator_id": {
       "type": "string",
       "minLength": 1,

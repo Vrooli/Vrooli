@@ -65,5 +65,6 @@
       "status": "unqualified",
       "evidence": null
     }
-  }
+  },
+  "risk_class": "restore_absent"
 }
