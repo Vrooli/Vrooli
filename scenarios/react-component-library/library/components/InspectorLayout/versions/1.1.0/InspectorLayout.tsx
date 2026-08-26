@@ -4,9 +4,11 @@
  * @status released
  * @deps {"react":"^18"}
  */
+import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
+
 import type { ReactNode } from "react";
-import { AsyncPanel } from "../../../AsyncPanel/versions/1.0.0/AsyncPanel";
-import type { ExperienceSurfaceState } from "../../../ExperienceSurface/versions/1.0.0/ExperienceSurface";
+import { AsyncPanel } from "@vrooli/react-component-library/AsyncPanel/1.0.0";
+import type { ExperienceSurfaceState } from "@vrooli/react-component-library/ExperienceSurface/1.0.0";
 import { inspectorLayoutStyles } from "./styles";
 
 export interface InspectorLayoutProps {
@@ -24,7 +26,7 @@ export interface InspectorLayoutProps {
   className?: string;
 }
 
-export function InspectorLayout({
+export const InspectorLayout = withClassName(function InspectorLayout({
   title,
   canvas,
   inspector,
@@ -73,4 +75,4 @@ export function InspectorLayout({
       </main>
     </>
   );
-}
+});

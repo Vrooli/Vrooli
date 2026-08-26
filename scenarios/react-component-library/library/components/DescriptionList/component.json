@@ -11,10 +11,12 @@
     }
   ],
   "displayName": "DescriptionList",
-  "latest": "1.0.0",
+  "latest": "1.0.2",
   "libraryId": "react-component-library:DescriptionList",
   "tags": [
     "data-display",
     "token-bound"
-  ]
+  ],
+  "draft": "",
+  "deprecatedVersions": []
 }

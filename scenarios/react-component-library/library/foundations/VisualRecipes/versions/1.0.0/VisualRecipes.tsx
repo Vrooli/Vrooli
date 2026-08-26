@@ -2,11 +2,10 @@
 import {
   COMPONENT_TOKENS,
   SEMANTIC_TOKENS,
-} from "../../../Tokens/versions/1.0.0/Tokens";
-import { cn } from "../../../ClassMerge/versions/1.0.0/ClassMerge";
+} from "@vrooli/react-component-library/Tokens/1.0.0";
 
 export const recipe = (...classes: Array<string | false | null | undefined>) =>
-  cn(classes);
+  classes.filter(Boolean).join(" ");
 
 export type MotionTransitionPhase = "interaction" | "enter" | "exit" | "spring";
 

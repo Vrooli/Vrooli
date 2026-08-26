@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "Testing seams and coverage targets per unit-testing-architecture-steer: SQLite-backed repos, mocked handlers, UI component tests, BAS flows.",
-    "last_validated_at": "2026-08-24T21:00:49-04:00",
+    "last_validated_at": "2026-08-25T10:29:44-04:00",
     "module": "testing-coverage",
     "prd_ref": "PRD.md",
     "priority": "P0",
@@ -75,7 +75,7 @@
       "prd_ref": "OT-P0-008",
       "category": "testing",
       "criticality": "P0",
-      "description": "Browser coverage includes the live preview/catalog render path today. Additional end-to-end flows remain planned for index/list, edit-and-preview, select-element, adopt-and-detect-drift, dep-mismatch-blocks-adopt, and theme-switch-applies.",
+      "description": "Browser coverage includes the live preview/catalog render path, version-pinned five-stage component evidence, story-sheet artifacts, and the adoption obligation surfaces. Additional end-to-end flows remain planned for index/list, edit-and-preview, select-element, adopt-and-detect-drift, dep-mismatch-blocks-adopt, and theme-switch-applies.",
       "tags": [
         "testing",
         "bas"
@@ -117,7 +117,7 @@
       "prd_ref": "OT-P0-008",
       "category": "testing",
       "criticality": "P0",
-      "description": "Catalog source is tested independently from the host UI: latest/draft TSX files pass catalog TypeScript and ESLint gates, every example-bearing component renders in Chromium, and the Button pilot experience-component reconciles against BAS captures of the preview harness.",
+      "description": "Catalog source is tested independently from the host UI: authored TSX files pass catalog TypeScript and ESLint gates, story contracts lint without raw node-tag corruption, eligible versions render in Chromium, and evidence freshness is enforced against each story contract.",
       "tags": [
         "testing",
         "catalog",

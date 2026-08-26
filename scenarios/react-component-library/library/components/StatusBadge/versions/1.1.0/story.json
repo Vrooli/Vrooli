@@ -30,7 +30,7 @@
     "fixtures": []
   },
   "kind": "component",
-  "schemaVersion": 4,
+  "schemaVersion": 5,
   "stories": [
     {
       "args": {
@@ -47,7 +47,8 @@
       ],
       "id": "success",
       "mode": "pinned",
-      "name": "Success"
+      "name": "Success",
+      "role": "anatomy"
     },
     {
       "args": {
@@ -64,7 +65,17 @@
       ],
       "id": "warning",
       "mode": "pinned",
-      "name": "Warning"
+      "name": "Warning",
+      "role": "axis",
+      "axis": "tone",
+      "covers": {
+        "tone": [
+          "success",
+          "warning",
+          "info",
+          "danger"
+        ]
+      }
     },
     {
       "args": {
@@ -81,7 +92,8 @@
       ],
       "id": "long-label",
       "mode": "pinned",
-      "name": "Long Label"
+      "name": "Long Label",
+      "role": "boundary"
     },
     {
       "args": {
@@ -98,7 +110,8 @@
       ],
       "id": "danger",
       "mode": "pinned",
-      "name": "Danger"
+      "name": "Danger",
+      "role": "boundary"
     }
   ],
   "title": "Status Badge"

@@ -9,33 +9,7 @@
         "path": "label"
       },
       {
-        "default": [
-          {
-            "active": true,
-            "href": "#home",
-            "icon": {
-              "$icon": "Home"
-            },
-            "id": "home",
-            "label": "Home"
-          },
-          {
-            "href": "#tasks",
-            "icon": {
-              "$icon": "ListTodo"
-            },
-            "id": "tasks",
-            "label": "Tasks"
-          },
-          {
-            "href": "#settings",
-            "icon": {
-              "$icon": "Settings"
-            },
-            "id": "settings",
-            "label": "Settings"
-          }
-        ],
+        "default": [],
         "kind": "structured",
         "label": "Items",
         "path": "items"
@@ -55,37 +29,10 @@
     "fixtures": []
   },
   "kind": "component",
-  "schemaVersion": 4,
+  "schemaVersion": 5,
   "stories": [
     {
       "args": {
-        "items": [
-          {
-            "active": true,
-            "href": "#home",
-            "icon": {
-              "$icon": "Home"
-            },
-            "id": "home",
-            "label": "Home"
-          },
-          {
-            "href": "#tasks",
-            "icon": {
-              "$icon": "ListTodo"
-            },
-            "id": "tasks",
-            "label": "Tasks"
-          },
-          {
-            "href": "#settings",
-            "icon": {
-              "$icon": "Settings"
-            },
-            "id": "settings",
-            "label": "Settings"
-          }
-        ],
         "label": "Primary navigation"
       },
       "expect": [
@@ -107,35 +54,17 @@
       ],
       "id": "mobile-primary",
       "mode": "pinned",
-      "name": "Mobile Primary"
+      "name": "Mobile Primary",
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "MobilePrimary"
+        }
+      },
+      "role": "anatomy"
     },
     {
       "args": {
-        "items": [
-          {
-            "active": true,
-            "icon": {
-              "$icon": "LayoutDashboard"
-            },
-            "id": "overview",
-            "label": "Overview"
-          },
-          {
-            "disabled": true,
-            "icon": {
-              "$icon": "CreditCard"
-            },
-            "id": "billing",
-            "label": "Billing"
-          },
-          {
-            "icon": {
-              "$icon": "Users"
-            },
-            "id": "team",
-            "label": "Team"
-          }
-        ],
         "label": "Workspace navigation"
       },
       "expect": [
@@ -151,34 +80,17 @@
       ],
       "id": "disabled-item",
       "mode": "pinned",
-      "name": "Disabled Item"
+      "name": "Disabled Item",
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "DisabledItem"
+        }
+      },
+      "role": "boundary"
     },
     {
       "args": {
-        "items": [
-          {
-            "active": true,
-            "icon": {
-              "$icon": "Activity"
-            },
-            "id": "activity",
-            "label": "Activity"
-          },
-          {
-            "icon": {
-              "$icon": "Workflow"
-            },
-            "id": "automations",
-            "label": "Automations"
-          },
-          {
-            "icon": {
-              "$icon": "Plug"
-            },
-            "id": "integrations",
-            "label": "Integrations"
-          }
-        ],
         "label": "Compact navigation"
       },
       "expect": [
@@ -193,7 +105,14 @@
       ],
       "id": "long-labels",
       "mode": "pinned",
-      "name": "Long Labels"
+      "name": "Long Labels",
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "LongLabels"
+        }
+      },
+      "role": "boundary"
     }
   ],
   "title": "BottomNav"

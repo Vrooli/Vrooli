@@ -1,6 +1,4 @@
 /** @vrooliComponentSource data-display.diff-viewer */
-import { translate } from "../../../../hooks/useLocale/versions/1.0.0/useLocale";
-
 import type { CSSProperties } from "react";
 
 const styles = `
@@ -30,7 +28,7 @@ export function DiffViewer({
   return (
     <figure
       data-rcl-diff-viewer
-      aria-label={translate("data-display.diff-viewer.aria-label.1", "Diff")}
+      aria-label="Diff"
       className={className}
       style={style}
     >
@@ -38,15 +36,15 @@ export function DiffViewer({
         data-rcl-diff-viewer-styles
         dangerouslySetInnerHTML={{ __html: styles }}
       />
-      <figcaption>{translate("data-display.diff-viewer.text.2", "Version comparison")}</figcaption>
+      <figcaption>Version comparison</figcaption>
       <div data-rcl-diff-viewer-row="removed">
-        <span data-rcl-diff-viewer-label>{translate("data-display.diff-viewer.text.3", "Previous version")}</span>
+        <span data-rcl-diff-viewer-label>Previous version</span>
         <span data-rcl-diff-viewer-value>
           <del>{before || "No value"}</del>
         </span>
       </div>
       <div data-rcl-diff-viewer-row="added">
-        <span data-rcl-diff-viewer-label>{translate("data-display.diff-viewer.text.4", "Current version")}</span>
+        <span data-rcl-diff-viewer-label>Current version</span>
         <span data-rcl-diff-viewer-value>
           <ins>{after || "No value"}</ins>
         </span>

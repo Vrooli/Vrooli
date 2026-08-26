@@ -1,0 +1,87 @@
+{
+  "generatedAt": "filesystem",
+  "storyContracts": {
+    "corruptCount": 0,
+    "corruptFiles": 0
+  },
+  "storyCorruption": {
+    "corruptCount": 0,
+    "corruptFiles": 0
+  },
+  "composition": {
+    "fixture": 0,
+    "frame": 0,
+    "harness": 14,
+    "none": 267,
+    "specimen": 441
+  },
+  "versions": 263,
+  "storyFiles": 237,
+  "stories": 722,
+  "adoptions": {
+    "records": 394,
+    "files": 617,
+    "byMode": {
+      "copied": 394
+    },
+    "byLocalStatus": {
+      "clean": 15,
+      "modified": 379
+    },
+    "byLibraryVersionStatus": {
+      "behind": 145,
+      "current": 249
+    },
+    "byForkStatus": {
+      "": 394
+    },
+    "byScenario": {
+      "asset-studio": 11,
+      "audio-tools": 4,
+      "backdrop-studio": 11,
+      "browser-automation-studio": 2,
+      "channel-manager": 8,
+      "content-desk": 11,
+      "device-control": 11,
+      "document-manager": 11,
+      "experience-manager": 2,
+      "hello-mobile": 11,
+      "infrastructure-manager": 11,
+      "landing-page-business-suite": 3,
+      "money-ledger": 21,
+      "music-library": 11,
+      "music-tools": 11,
+      "notification-hub": 11,
+      "offer-desk": 21,
+      "persona": 11,
+      "plan-manager": 2,
+      "program-runtime": 11,
+      "prose-studio": 11,
+      "react-component-library": 59,
+      "scenario-to-android": 11,
+      "scenario-to-desktop": 3,
+      "scenario-to-ios": 11,
+      "scenario-to-plugin": 11,
+      "signal-inbox": 11,
+      "source-ledger": 11,
+      "storage-manager": 9,
+      "swarm-manager": 9,
+      "template-manager": 10,
+      "token-economy": 11,
+      "treasury": 11,
+      "vrooli-memory": 11,
+      "web-console": 10
+    }
+  },
+  "adoptionRecords": 394,
+  "adoptionFiles": 617,
+  "obligations": {
+    "translateAssignments": 0,
+    "selectorFiles": 3,
+    "selectorAdopters": 3
+  },
+  "styling": {
+    "inlineStyleFiles": 55,
+    "mergeFiles": 1
+  }
+}

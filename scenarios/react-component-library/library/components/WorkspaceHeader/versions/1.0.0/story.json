@@ -15,9 +15,7 @@
         "path": "description"
       },
       {
-        "default": {
-          "$text": "button"
-        },
+        "default": "Content",
         "kind": "structured",
         "label": "Primary Action",
         "path": "primaryAction"
@@ -28,14 +26,11 @@
     "fixtures": []
   },
   "kind": "component",
-  "schemaVersion": 4,
+  "schemaVersion": 5,
   "stories": [
     {
       "args": {
         "description": "Browse reusable UI assets",
-        "primaryAction": {
-          "$text": "button"
-        },
         "title": "Component Library"
       },
       "expect": [
@@ -46,7 +41,14 @@
       ],
       "id": "basic",
       "mode": "pinned",
-      "name": "Workspace header"
+      "name": "Workspace header",
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "Basic"
+        }
+      },
+      "role": "anatomy"
     }
   ],
   "title": "WorkspaceHeader"

@@ -30,3 +30,7 @@ export function Interactive({ args, log }: DialogStoryProps) {
     </div>
   );
 }
+
+export const ConfirmOpen = Interactive;
+export const DetailsOpen = Interactive;
+export const MinimalOpen = Interactive;

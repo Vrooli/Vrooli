@@ -2,8 +2,6 @@
  * @vrooliComponentSource react-component-library:TreeView
  * @deps {"react":"^18","lucide-react":"^0.424.0"}
  */
-import { translate } from "../../../../hooks/useLocale/versions/1.0.0/useLocale";
-
 import {
   Children,
   isValidElement,
@@ -116,7 +114,7 @@ function collectAllIds(nodes: TreeNode[], result = new Set<string>()) {
 export function TreeView({
   items,
   nodes = [],
-  label = translate("data-display.tree-view.label.1", "Tree"),
+  label = "Tree",
   selectedId: controlledSelectedId,
   defaultSelectedId,
   defaultExpandedIds: defaultExpandedIdsProp,
@@ -257,7 +255,7 @@ export function TreeView({
           onKeyDown={(event) => handleKeyDown(event, visible)}
         >
           {hasChildren ? (
-            <button data-testid="data-display.tree-view"
+            <button
               type="button"
               tabIndex={-1}
               aria-label={
@@ -316,7 +314,7 @@ export function TreeView({
         resolvedNodes.map((node) => renderNode({ node, level: 1 }))
       ) : (
         <div className="rcl-tree-empty" role="status">
-          {translate("data-display.tree-view.text.1", "Nothing to display.")}
+          Nothing to display.
         </div>
       )}
     </div>

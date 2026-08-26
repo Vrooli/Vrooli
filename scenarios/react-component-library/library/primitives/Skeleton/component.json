@@ -19,7 +19,7 @@
     }
   ],
   "displayName": "Skeleton",
-  "latest": "1.0.0",
+  "latest": "1.0.1",
   "libraryId": "react-component-library:Skeleton",
   "tags": [
     "primitive",
@@ -30,5 +30,7 @@
       "libraryId": "react-component-library:useLocale",
       "version": "1.0.0"
     }
-  ]
+  ],
+  "draft": "",
+  "deprecatedVersions": []
 }

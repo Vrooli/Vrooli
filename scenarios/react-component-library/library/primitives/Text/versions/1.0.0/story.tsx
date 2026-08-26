@@ -54,7 +54,7 @@ export function TypographyShowcase({ args }: { args?: { style?: TextStyle } }) {
           borderBlock: "var(--border-hairline) solid var(--color-border)",
         }}
       >
-        <Text as="p" data-testid="rcl-text-sample" style={style} balance>
+        <Text as="p" data-testid="rcl-text-sample" textStyle={style} balance>
           {samples[style]}
         </Text>
         <Text textStyle="caption" tone="muted">
@@ -74,4 +74,20 @@ export function TypographyShowcase({ args }: { args?: { style?: TextStyle } }) {
       </div>
     </section>
   );
+}
+
+export function TextAnatomy() {
+  return <TypographyShowcase args={{ style: "body" }} />;
+}
+
+export function TextScaleMatrix() {
+  return <TypographyShowcase args={{ style: "display" }} />;
+}
+
+export function TextToneMatrix() {
+  return <TypographyShowcase args={{ style: "label" }} />;
+}
+
+export function TextBoundaries() {
+  return <TypographyShowcase args={{ style: "caption" }} />;
 }

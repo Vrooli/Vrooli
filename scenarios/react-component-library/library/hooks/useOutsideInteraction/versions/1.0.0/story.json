@@ -14,7 +14,7 @@
     "fixtures": []
   },
   "kind": "hook",
-  "schemaVersion": 4,
+  "schemaVersion": 5,
   "stories": [
     {
       "args": {
@@ -29,8 +29,11 @@
       "expect": [
         {
           "kind": "role",
-          "name": "Dismissed from outside pointer interaction",
           "role": "status"
+        },
+        {
+          "kind": "text",
+          "value": "Dismissed from outside pointer interaction"
         }
       ],
       "id": "pointer",
@@ -47,7 +50,8 @@
         }
       ],
       "mode": "live",
-      "name": "Outside pointer"
+      "name": "Outside pointer",
+      "role": "anatomy"
     },
     {
       "args": {
@@ -62,8 +66,11 @@
       "expect": [
         {
           "kind": "role",
-          "name": "Dismissed with Escape",
           "role": "status"
+        },
+        {
+          "kind": "text",
+          "value": "Dismissed with Escape"
         }
       ],
       "id": "escape",
@@ -77,7 +84,8 @@
         }
       ],
       "mode": "live",
-      "name": "Escape dismissal"
+      "name": "Escape dismissal",
+      "role": "boundary"
     }
   ],
   "title": "useOutsideInteraction"

@@ -1,6 +1,6 @@
 /** @vrooliComponentSource controls.button */
 import type { ButtonHTMLAttributes, ReactNode } from "react";
-import { Pressable } from "../../../Pressable/versions/1.0.0/Pressable";
+import { Pressable } from "@vrooli/react-component-library/Pressable/1.0.0";
 
 export type ButtonVariant = "primary" | "secondary" | "ghost" | "danger";
 export type ButtonSize = "xs" | "sm" | "md" | "icon";

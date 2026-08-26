@@ -17,7 +17,7 @@ export const drawerShellStyles = `
 @keyframes rcl-drawer-shell-enter { from { opacity: 0; transform: translateY(var(--space-md)); } to { opacity: 1; transform: translateY(0); } }
 @media (min-width: 48rem) {
   [data-rcl-drawer-shell] { inset-block-start: var(--space-md); inset-inline: var(--space-md); inset-block-end: var(--space-md); border-block-end: var(--border-hairline) solid var(--color-border); border-radius: var(--radius-panel); }
-  [data-rcl-drawer-shell][data-size="compact"] { inset-block-start: 50%; inset-inline: 50%; inset-block-end: auto; inline-size: min(100% - (var(--space-lg) * 2), 32rem); max-block-size: 80dvh; transform: translate(-50%, -50%); }
+  [data-rcl-drawer-shell][data-size="compact"] { inset-block-start: 50%; inset-inline: 50%; inset-block-end: auto; inline-size: min(100% - (var(--space-lg) * 2), 32rem); max-block-size: 80dvh; transform: resolveStrings(-50%, -50%); }
 }
 @media (prefers-reduced-motion: reduce) { [data-rcl-drawer-shell], [data-rcl-drawer-shell] * { animation: none; transition-duration: .01ms; } }
 @media (forced-colors: active) { [data-rcl-drawer-shell] { border-color: CanvasText; background: Canvas; color: CanvasText; } [data-rcl-drawer-shell-backdrop] { background: Canvas; opacity: .8; } }

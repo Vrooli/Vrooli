@@ -2,10 +2,11 @@
  * @libraryId react-component-library:WorkspaceHeader
  * @version 1.0.0
  * @status released
- * @deps {"react":"^18","react-component-library:ClassMerge":"1.0.0"}
+ * @deps {"react":"^18"}
  */
+import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
+
 import type { ReactNode } from "react";
-import { cn } from "../../../../foundations/ClassMerge/versions/1.0.0/ClassMerge";
 import { workspaceHeaderStyles } from "./styles";
 
 export interface WorkspaceHeaderProps {
@@ -20,7 +21,7 @@ export interface WorkspaceHeaderProps {
 }
 
 /** A structural header: callers own navigation state and action behavior. */
-export function WorkspaceHeader({
+export const WorkspaceHeader = withClassName(function WorkspaceHeader({
   title,
   description,
   leading,
@@ -34,7 +35,7 @@ export function WorkspaceHeader({
     <Element
       data-testid="workspace-header"
       data-rcl-workspace-header
-      className={cn("rcl-workspace-header", className)}
+      className={["rcl-workspace-header", className].filter(Boolean).join(" ")}
     >
       <style
         data-rcl-workspace-header-styles
@@ -62,4 +63,4 @@ export function WorkspaceHeader({
       ) : null}
     </Element>
   );
-}
+});

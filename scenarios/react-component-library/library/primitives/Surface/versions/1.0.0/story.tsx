@@ -53,3 +53,7 @@ export function Specimen({ args }: SurfaceStoryProps) {
     </div>
   );
 }
+
+export function SurfaceAnatomy(props: SurfaceStoryProps) { return <Specimen {...props} />; }
+export function SurfaceElevationMatrix(props: SurfaceStoryProps) { return <Specimen {...props} />; }
+export function SurfaceVariantMatrix(props: SurfaceStoryProps) { return <Specimen {...props} />; }

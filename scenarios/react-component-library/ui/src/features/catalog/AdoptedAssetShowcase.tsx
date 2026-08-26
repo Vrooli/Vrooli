@@ -2,10 +2,10 @@ import { useState } from "react";
 
 import { Button } from "../../components/Button";
 import { EmptyState } from "../../components/EmptyState";
-import { Drawer } from "../../components/ui/Drawer/versions/1.0.0/Drawer";
-import { Icon } from "../../components/ui/Icon/versions/1.0.0/Icon";
-import { Pressable } from "../../components/ui/Pressable/versions/1.0.0/Pressable";
-import { Text } from "../../components/ui/Text/versions/1.0.0/Text";
+import { Drawer } from "@vrooli/react-component-library/Drawer/1.0.0";
+import { Icon } from "@vrooli/react-component-library/Icon/1.1.0";
+import { Pressable } from "@vrooli/react-component-library/Pressable/1.0.0";
+import { Text } from "@vrooli/react-component-library/Text/1.0.0";
 
 /**
  * Small, durable reference surface for adopted foundation assets.

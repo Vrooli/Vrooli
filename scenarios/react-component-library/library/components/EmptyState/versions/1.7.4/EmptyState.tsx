@@ -7,16 +7,14 @@
  * @deps {"react":"^18"}
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
-import { translate } from "../../../../hooks/useLocale/versions/1.0.0/useLocale";
-
 import { useId, type CSSProperties, type ReactNode } from "react";
-import { Button, type ButtonProps } from "../../../Button/versions/2.2.0/Button";
-import { ButtonGroup } from "../../../ButtonGroup/versions/1.1.1/ButtonGroup";
-import { Card, CardContent } from "../../../Card/versions/1.1.0/Card";
-import { Container } from "../../../../primitives/Container/versions/1.1.2/Container";
-import { Heading } from "../../../../primitives/Heading/versions/1.1.0/Heading";
-import { Stack } from "../../../../primitives/Stack/versions/1.2.1/Stack";
-import { Text } from "../../../../primitives/Text/versions/1.1.0/Text";
+import { Button, type ButtonProps } from "@vrooli/react-component-library/Button/2.0.0";
+import { ButtonGroup } from "@vrooli/react-component-library/ButtonGroup/1.1.1";
+import { Card, CardContent } from "@vrooli/react-component-library/Card/1.1.0";
+import { Container } from "@vrooli/react-component-library/Container/1.1.2";
+import { Heading } from "@vrooli/react-component-library/Heading/1.1.0";
+import { Stack } from "@vrooli/react-component-library/Stack/1.2.1";
+import { Text } from "@vrooli/react-component-library/Text/1.0.0";
 
 const iconBadgeStyle: CSSProperties = {
   display: "grid",
@@ -113,7 +111,7 @@ export function EmptyState({
               <ButtonGroup
                 align="center"
                 collapse="sm"
-                label={translate("feedback.empty-state.label.1", "Empty state actions")}
+                label="Empty state actions"
                 data-rcl-empty-state-action
               >
                 {resolvedAction}

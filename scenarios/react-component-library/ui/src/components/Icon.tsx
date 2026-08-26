@@ -1,2 +1,2 @@
 /** @vrooliComponentSource primitives.icon */
-export * from "./ui/Icon/versions/1.0.0/Icon";
+export * from "@vrooli/react-component-library/Icon/1.1.0";

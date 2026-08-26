@@ -1,5 +1,5 @@
 import { useMemo, type ReactNode } from "react";
-import { createFormStore } from "../../../../services/FormStore/versions/1.0.0/FormStore";
+import { createFormStore } from "@vrooli/react-component-library/FormStore/1.0.0";
 import { ComputedField } from "./ComputedField";
 
 function Showcase({

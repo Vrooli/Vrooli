@@ -2,7 +2,7 @@
   "extends": "./tsconfig.json",
   "compilerOptions": {
     "baseUrl": ".",
-    "types": ["react", "react-dom", "node"],
+    "types": ["react", "react-dom", "vitest/globals", "@testing-library/jest-dom", "node"],
     "noEmit": true,
     "paths": {
       "@/*": ["./src/*"],

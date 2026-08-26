@@ -28,7 +28,7 @@
     ]
   },
   "kind": "hook",
-  "schemaVersion": 4,
+  "schemaVersion": 5,
   "stories": [
     {
       "args": {
@@ -53,7 +53,8 @@
         }
       ],
       "mode": "pinned",
-      "name": "Always-on fixture enters recording"
+      "name": "Always-on fixture enters recording",
+      "role": "anatomy"
     },
     {
       "args": {
@@ -75,7 +76,15 @@
         }
       ],
       "mode": "pinned",
-      "name": "Timeout fixture returns to idle"
+      "name": "Timeout fixture returns to idle",
+      "role": "axis",
+      "axis": "mode",
+      "covers": {
+        "mode": [
+          "always-on",
+          "timeout"
+        ]
+      }
     },
     {
       "args": {
@@ -100,7 +109,8 @@
         }
       ],
       "mode": "pinned",
-      "name": "Denied media fixture enters an error state"
+      "name": "Denied media fixture enters an error state",
+      "role": "boundary"
     }
   ],
   "title": "useVoiceInput"

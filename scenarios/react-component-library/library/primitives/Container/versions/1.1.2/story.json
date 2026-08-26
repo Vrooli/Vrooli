@@ -34,7 +34,7 @@
     "fixtures": []
   },
   "kind": "component",
-  "schemaVersion": 4,
+  "schemaVersion": 5,
   "stories": [
     {
       "args": {
@@ -43,7 +43,14 @@
       },
       "id": "width-content",
       "mode": "pinned",
-      "name": "width content"
+      "name": "width content",
+      "role": "anatomy",
+      "expect": [
+        {
+          "kind": "visible",
+          "selector": "body"
+        }
+      ]
     },
     {
       "args": {
@@ -52,7 +59,24 @@
       },
       "id": "width-compact",
       "mode": "pinned",
-      "name": "width compact"
+      "name": "width compact",
+      "expect": [
+        {
+          "kind": "visible",
+          "selector": "body"
+        }
+      ],
+      "role": "axis",
+      "axis": "width",
+      "covers": {
+        "width": [
+          "compact",
+          "content",
+          "comfortable",
+          "wide",
+          "full"
+        ]
+      }
     },
     {
       "args": {
@@ -61,7 +85,24 @@
       },
       "id": "width-comfortable",
       "mode": "pinned",
-      "name": "width comfortable"
+      "name": "width comfortable",
+      "expect": [
+        {
+          "kind": "visible",
+          "selector": "body"
+        }
+      ],
+      "role": "axis",
+      "axis": "gutter",
+      "covers": {
+        "gutter": [
+          "none",
+          "sm",
+          "md",
+          "lg",
+          "responsive"
+        ]
+      }
     },
     {
       "args": {
@@ -70,7 +111,14 @@
       },
       "id": "width-wide",
       "mode": "pinned",
-      "name": "width wide"
+      "name": "width wide",
+      "expect": [
+        {
+          "kind": "visible",
+          "selector": "body"
+        }
+      ],
+      "role": "boundary"
     },
     {
       "args": {
@@ -79,7 +127,14 @@
       },
       "id": "width-full",
       "mode": "pinned",
-      "name": "width full"
+      "name": "width full",
+      "expect": [
+        {
+          "kind": "visible",
+          "selector": "body"
+        }
+      ],
+      "role": "boundary"
     }
   ],
   "title": "Container"

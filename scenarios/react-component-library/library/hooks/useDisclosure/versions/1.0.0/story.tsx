@@ -2,7 +2,7 @@ import { useDisclosure } from "./useDisclosure";
 export function Default() {
   const disclosure = useDisclosure();
   return (
-    <button
+    <button data-testid="hooks.use-disclosure"
       type="button"
       aria-expanded={disclosure.open}
       onClick={disclosure.onToggle}

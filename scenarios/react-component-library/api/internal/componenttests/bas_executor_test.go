@@ -7,7 +7,22 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
+
+func TestBASCaptureExecutorProbeRequiresHealthyBoundary(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/health" {
+			http.NotFound(w, r)
+			return
+		}
+		w.WriteHeader(http.StatusServiceUnavailable)
+	}))
+	defer server.Close()
+	executor := BASCaptureExecutor{BASBaseURL: server.URL, HTTPClient: server.Client()}
+	require.Error(t, executor.Probe(context.Background()))
+}
 
 func TestBASCaptureExecutorParsesStoryAndEvidence(t *testing.T) {
 	var request basCaptureRequest
@@ -43,7 +58,7 @@ func TestBASCaptureExecutorParsesStoryAndEvidence(t *testing.T) {
 	if request.ScreenshotSelector != "[data-preview-sheet]" {
 		t.Fatalf("screenshot selector = %q", request.ScreenshotSelector)
 	}
-	if !strings.Contains(request.WaitFor.Selector, "component-harness") {
+	if !strings.Contains(request.WaitFor.Selector, "data-preview-readiness-marker") || !strings.Contains(request.WaitFor.Selector, "data-preview-ready") || !strings.Contains(request.WaitFor.Selector, "data-rcl-story-status") {
 		t.Fatalf("wait selector = %q", request.WaitFor.Selector)
 	}
 }

@@ -1,5 +1,5 @@
 import { useScrollLock } from "./useScrollLock";
 export function Default() {
   useScrollLock(false);
-  return <div role="status">unlocked</div>;
+  return <div data-testid="hooks.use-scroll-lock" role="status">unlocked</div>;
 }

@@ -20,7 +20,7 @@
   ],
   "displayName": "Dialog",
   "draft": "",
-  "latest": "1.2.0",
+  "latest": "1.2.1",
   "libraryId": "react-component-library:Dialog",
   "slot": "ui-pattern",
   "tags": [

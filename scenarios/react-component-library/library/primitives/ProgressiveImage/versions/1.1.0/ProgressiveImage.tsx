@@ -6,8 +6,6 @@
  * @tags ["primitive","media","responsive","accessibility","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
-import { translate } from "../../../../hooks/useLocale/versions/1.0.0/useLocale";
-
 /** @vrooliComponentSource primitives.progressive-image */
 import {
   useEffect,
@@ -16,7 +14,7 @@ import {
   type ImgHTMLAttributes,
   type ReactNode,
 } from "react";
-import { AspectRatio } from "../../../AspectRatio/versions/1.0.0/AspectRatio";
+import { AspectRatio } from "@vrooli/react-component-library/AspectRatio/1.0.0";
 
 const styles = `
 [data-rcl-progressive-image] { position: relative; isolation: isolate; color: var(--color-foreground); background: var(--color-surface-muted); border-radius: var(--radius-panel); }
@@ -107,7 +105,7 @@ export function ProgressiveImage({
           data-visible={state === "loading"}
           aria-hidden={state !== "loading"}
         >
-          {placeholder ?? <span>{translate("primitives.progressive-image.text.1", "Loading image…")}</span>}
+          {placeholder ?? <span>Loading image…</span>}
         </div>
         <picture>
           {sources.map((source) => (
@@ -144,7 +142,7 @@ export function ProgressiveImage({
             <span data-rcl-progressive-image-error-icon aria-hidden="true">
               !
             </span>
-            {errorFallback ?? <span>{translate("primitives.progressive-image.text.2", "Image unavailable.")}</span>}
+            {errorFallback ?? <span>Image unavailable.</span>}
           </div>
         </div>
       </AspectRatio>

@@ -40,7 +40,7 @@
     "fixtures": []
   },
   "kind": "component",
-  "schemaVersion": 4,
+  "schemaVersion": 5,
   "stories": [
     {
       "args": {
@@ -75,7 +75,8 @@
       ],
       "id": "persistent",
       "mode": "live",
-      "name": "Persistent workspace navigation"
+      "name": "Persistent workspace navigation",
+      "role": "anatomy"
     },
     {
       "args": {
@@ -105,7 +106,16 @@
       ],
       "id": "overlay-open",
       "mode": "live",
-      "name": "Open mobile navigation"
+      "name": "Open mobile navigation",
+      "role": "axis",
+      "axis": "mode",
+      "covers": {
+        "mode": [
+          "persistent",
+          "overlay",
+          "responsive"
+        ]
+      }
     },
     {
       "args": {
@@ -130,7 +140,8 @@
       ],
       "id": "fixture-failure",
       "mode": "live",
-      "name": "Navigation data failure"
+      "name": "Navigation data failure",
+      "role": "boundary"
     },
     {
       "args": {
@@ -145,7 +156,13 @@
       },
       "expect": [
         {
-          "kind": "text",
+          "kind": "role",
+          "role": "complementary"
+        },
+        {
+          "kind": "attribute",
+          "name": "aria-label",
+          "selector": "[data-testid='sidebar-shell']",
           "value": "Scenario"
         },
         {
@@ -161,7 +178,8 @@
       ],
       "id": "responsive-closed",
       "mode": "live",
-      "name": "Responsive navigation closed"
+      "name": "Responsive navigation closed",
+      "role": "boundary"
     }
   ],
   "title": "SidebarShell"

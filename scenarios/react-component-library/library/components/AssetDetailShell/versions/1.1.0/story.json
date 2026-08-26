@@ -9,9 +9,7 @@
         "path": "title"
       },
       {
-        "default": {
-          "$text": "div"
-        },
+        "default": "Content",
         "kind": "structured",
         "label": "Preview",
         "path": "preview"
@@ -25,9 +23,7 @@
         "path": "metadata"
       },
       {
-        "default": {
-          "$text": "p"
-        },
+        "default": "Content",
         "kind": "structured",
         "label": "Activity",
         "path": "activity"
@@ -44,19 +40,13 @@
     "fixtures": []
   },
   "kind": "component",
-  "schemaVersion": 4,
+  "schemaVersion": 5,
   "stories": [
     {
       "args": {
-        "activity": {
-          "$text": "p"
-        },
         "activitySurfaceId": "asset-activity",
         "metadata": {
           "$text": "dl"
-        },
-        "preview": {
-          "$text": "div"
         },
         "title": "Release artifact"
       },
@@ -78,17 +68,18 @@
       ],
       "id": "ready-detail",
       "mode": "pinned",
-      "name": "Ready asset detail"
+      "name": "Ready asset detail",
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "ReadyDetail"
+        }
+      },
+      "role": "anatomy"
     },
     {
       "args": {
         "activityState": "partial",
-        "metadata": {
-          "$text": "p"
-        },
-        "preview": {
-          "$text": "div"
-        },
         "title": "Release artifact"
       },
       "expect": [
@@ -100,20 +91,18 @@
       ],
       "id": "activity-partial",
       "mode": "pinned",
-      "name": "Partial activity"
+      "name": "Partial activity",
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "ActivityPartial"
+        }
+      },
+      "role": "boundary"
     },
     {
       "args": {
-        "activityLoading": {
-          "$text": "p"
-        },
         "activityState": "loading",
-        "metadata": {
-          "$text": "p"
-        },
-        "preview": {
-          "$text": "div"
-        },
         "title": "Release artifact"
       },
       "expect": [
@@ -126,20 +115,18 @@
       ],
       "id": "activity-loading",
       "mode": "pinned",
-      "name": "Loading activity"
+      "name": "Loading activity",
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "ActivityLoading"
+        }
+      },
+      "role": "boundary"
     },
     {
       "args": {
-        "activityEmpty": {
-          "$text": "p"
-        },
         "activityState": "empty",
-        "metadata": {
-          "$text": "p"
-        },
-        "preview": {
-          "$text": "div"
-        },
         "title": "Release artifact"
       },
       "expect": [
@@ -152,20 +139,18 @@
       ],
       "id": "activity-empty",
       "mode": "pinned",
-      "name": "Empty activity"
+      "name": "Empty activity",
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "ActivityEmpty"
+        }
+      },
+      "role": "boundary"
     },
     {
       "args": {
-        "activityError": {
-          "$text": "p"
-        },
         "activityState": "error",
-        "metadata": {
-          "$text": "p"
-        },
-        "preview": {
-          "$text": "div"
-        },
         "title": "Release artifact"
       },
       "expect": [
@@ -178,7 +163,14 @@
       ],
       "id": "activity-error",
       "mode": "pinned",
-      "name": "Activity error"
+      "name": "Activity error",
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "ActivityError"
+        }
+      },
+      "role": "boundary"
     }
   ],
   "title": "AssetDetailShell"

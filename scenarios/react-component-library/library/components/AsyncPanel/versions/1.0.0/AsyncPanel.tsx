@@ -4,11 +4,13 @@
  * @status released
  * @deps {"react":"^18"}
  */
+import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
+
 import type { ReactNode } from "react";
 import {
   ExperienceSurface,
   type ExperienceSurfaceState,
-} from "../../../ExperienceSurface/versions/1.0.0/ExperienceSurface";
+} from "@vrooli/react-component-library/ExperienceSurface/1.0.0";
 
 export interface AsyncPanelProps {
   surfaceId: string;
@@ -34,7 +36,7 @@ const fallback: Record<ExperienceSurfaceState, string> = {
 // AsyncPanel presents common lifecycle states while ExperienceSurface remains
 // the source of semantic runtime evidence. It intentionally owns no card,
 // grid, or page-shell styling so scenarios retain their visual composition.
-export function AsyncPanel({
+export const AsyncPanel = withClassName(function AsyncPanel({
   surfaceId,
   state,
   children,
@@ -78,4 +80,4 @@ export function AsyncPanel({
       {content}
     </ExperienceSurface>
   );
-}
+});

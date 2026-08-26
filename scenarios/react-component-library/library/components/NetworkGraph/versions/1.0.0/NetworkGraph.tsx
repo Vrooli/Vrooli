@@ -1,6 +1,4 @@
 /** @vrooliComponentSource react-component-library:NetworkGraph */
-import { translate } from "../../../../hooks/useLocale/versions/1.0.0/useLocale";
-
 import { useEffect, useRef } from "react";
 export interface GraphNode {
   id: string;
@@ -51,7 +49,7 @@ export function NetworkGraph({
   }, [nodes, edges]);
   return (
     <section
-      aria-label={translate("visualization.network-graph.aria-label.1", "Dependency network")}
+      aria-label="Dependency network"
       style={{ display: "grid", gap: "var(--space-xs)" }}
     >
       <div role="img" aria-label={`${nodes.length} dependency nodes`}>
@@ -68,7 +66,7 @@ export function NetworkGraph({
         />
       </div>
       <div
-        aria-label={translate("visualization.network-graph.aria-label.2", "Keyboard accessible dependency nodes")}
+        aria-label="Keyboard accessible dependency nodes"
         style={{
           display: "grid",
           gridTemplateColumns: "repeat(auto-fit, minmax(10rem, 1fr))",
@@ -76,14 +74,14 @@ export function NetworkGraph({
         }}
       >
         {nodes.map((node) => (
-          <button data-testid="visualization.network-graph"
+          <button
             type="button"
             key={node.id}
             data-node-id={node.id}
             aria-label={`${node.label}, ${node.health ?? "unknown"}`}
             style={{ textAlign: "start" }}
           >
-            <span className="sr-only">{translate("visualization.network-graph.text.3", "Select dependency node")}</span>
+            <span className="sr-only">Select dependency node</span>
           </button>
         ))}
       </div>

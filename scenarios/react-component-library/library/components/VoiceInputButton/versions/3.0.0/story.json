@@ -83,7 +83,7 @@
     "fixtures": []
   },
   "kind": "component",
-  "schemaVersion": 4,
+  "schemaVersion": 5,
   "stories": [
     {
       "args": {
@@ -99,7 +99,8 @@
       ],
       "id": "idle",
       "mode": "pinned",
-      "name": "Idle"
+      "name": "Idle",
+      "role": "anatomy"
     },
     {
       "args": {
@@ -114,7 +115,20 @@
       ],
       "id": "preparing",
       "mode": "pinned",
-      "name": "Preparing"
+      "name": "Preparing",
+      "role": "axis",
+      "axis": "state",
+      "covers": {
+        "state": [
+          "idle",
+          "preparing",
+          "recording",
+          "recovering",
+          "transcribing",
+          "unavailable",
+          "error"
+        ]
+      }
     },
     {
       "args": {
@@ -131,7 +145,15 @@
       ],
       "id": "recording",
       "mode": "pinned",
-      "name": "Recording"
+      "name": "Recording",
+      "role": "axis",
+      "axis": "mode",
+      "covers": {
+        "mode": [
+          "always-on",
+          "timeout"
+        ]
+      }
     },
     {
       "args": {
@@ -147,7 +169,19 @@
       ],
       "id": "recovering",
       "mode": "pinned",
-      "name": "Recovering"
+      "name": "Recovering",
+      "role": "axis",
+      "axis": "size",
+      "covers": {
+        "size": [
+          "xs",
+          "sm",
+          "md",
+          "lg",
+          "xl",
+          "icon"
+        ]
+      }
     },
     {
       "args": {
@@ -162,7 +196,15 @@
       ],
       "id": "transcribing",
       "mode": "pinned",
-      "name": "Transcribing"
+      "name": "Transcribing",
+      "role": "axis",
+      "axis": "density",
+      "covers": {
+        "density": [
+          "comfortable",
+          "compact"
+        ]
+      }
     },
     {
       "args": {
@@ -177,7 +219,8 @@
       ],
       "id": "unavailable",
       "mode": "pinned",
-      "name": "Unavailable"
+      "name": "Unavailable",
+      "role": "boundary"
     },
     {
       "args": {
@@ -197,7 +240,8 @@
       ],
       "id": "error",
       "mode": "pinned",
-      "name": "Error"
+      "name": "Error",
+      "role": "boundary"
     },
     {
       "args": {
@@ -213,7 +257,8 @@
       ],
       "id": "mode-always-on",
       "mode": "pinned",
-      "name": "Always-on mode"
+      "name": "Always-on mode",
+      "role": "boundary"
     },
     {
       "args": {
@@ -230,7 +275,8 @@
       ],
       "id": "mode-timeout",
       "mode": "pinned",
-      "name": "Timeout mode"
+      "name": "Timeout mode",
+      "role": "boundary"
     },
     {
       "args": {
@@ -246,7 +292,8 @@
       ],
       "id": "size-xs",
       "mode": "pinned",
-      "name": "XS"
+      "name": "XS",
+      "role": "boundary"
     },
     {
       "args": {
@@ -262,7 +309,8 @@
       ],
       "id": "size-sm",
       "mode": "pinned",
-      "name": "SM"
+      "name": "SM",
+      "role": "boundary"
     },
     {
       "args": {
@@ -278,7 +326,8 @@
       ],
       "id": "size-md",
       "mode": "pinned",
-      "name": "MD"
+      "name": "MD",
+      "role": "boundary"
     },
     {
       "args": {
@@ -294,7 +343,8 @@
       ],
       "id": "size-lg",
       "mode": "pinned",
-      "name": "LG"
+      "name": "LG",
+      "role": "boundary"
     },
     {
       "args": {
@@ -310,7 +360,8 @@
       ],
       "id": "size-xl",
       "mode": "pinned",
-      "name": "XL"
+      "name": "XL",
+      "role": "boundary"
     },
     {
       "args": {
@@ -326,7 +377,8 @@
       ],
       "id": "size-icon",
       "mode": "pinned",
-      "name": "Icon"
+      "name": "Icon",
+      "role": "boundary"
     },
     {
       "args": {
@@ -342,7 +394,8 @@
       ],
       "id": "density-comfortable",
       "mode": "pinned",
-      "name": "Comfortable density"
+      "name": "Comfortable density",
+      "role": "boundary"
     },
     {
       "args": {
@@ -358,7 +411,8 @@
       ],
       "id": "density-compact",
       "mode": "pinned",
-      "name": "Compact density"
+      "name": "Compact density",
+      "role": "boundary"
     }
   ],
   "title": "VoiceInputButton 3.0"

@@ -7,6 +7,8 @@
  * @deps {"react":"^18","mermaid":"^11.4.0"}
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
+import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
+
 import { useState } from "react";
 import { useCodeCopy } from "./useCodeCopy";
 import { useMermaidSvg } from "./useMermaidSvg";
@@ -21,7 +23,7 @@ export interface MermaidDiagramProps {
   copyLabel?: string;
 }
 
-export function MermaidDiagram({
+export const MermaidDiagram = withClassName(function MermaidDiagram({
   code,
   onMermaidOpen,
   sourceLabel = "Source",
@@ -89,4 +91,4 @@ export function MermaidDiagram({
       )}
     </section>
   );
-}
+});

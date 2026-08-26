@@ -11,10 +11,13 @@
     }
   ],
   "displayName": "useLocale",
-  "latest": "1.0.0",
+  "entry": "useLocale.ts",
+  "latest": "1.0.1",
   "libraryId": "react-component-library:useLocale",
   "tags": [
     "runtime",
     "accessibility"
-  ]
+  ],
+  "draft": "",
+  "deprecatedVersions": []
 }

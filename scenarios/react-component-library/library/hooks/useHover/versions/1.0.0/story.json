@@ -7,7 +7,7 @@
     "fixtures": []
   },
   "kind": "hook",
-  "schemaVersion": 4,
+  "schemaVersion": 5,
   "stories": [
     {
       "args": {},
@@ -30,7 +30,8 @@
       ],
       "id": "default",
       "mode": "live",
-      "name": "Hover intent"
+      "name": "Hover intent",
+      "role": "anatomy"
     }
   ],
   "title": "useHover"

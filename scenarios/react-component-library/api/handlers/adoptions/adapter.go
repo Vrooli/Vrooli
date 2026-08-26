@@ -27,6 +27,7 @@ func domainToProto(a adoptions.Adoption) *adoptionsv1.Adoption {
 		ForkStatus:           string(a.ForkStatus),
 		ForkReason:           a.ForkReason,
 		ExtensionPoints:      append([]string(nil), a.ExtensionPoints...),
+		Mode:                 string(a.Mode),
 	}
 	if !a.RefreshedAt.IsZero() {
 		out.RefreshedAt = timestamppb.New(a.RefreshedAt.UTC())

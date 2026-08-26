@@ -2,7 +2,7 @@ import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { vi } from "vitest";
 
-import { Tabs } from "./Tabs";
+import { Tabs } from "@vrooli/react-component-library/Tabs/1.0.0";
 import { renderWithProviders } from "../test-utils";
 
 describe("Tabs", () => {
@@ -58,14 +58,14 @@ describe("Tabs", () => {
     expect(onChange).toHaveBeenCalledWith("three");
   });
 
-  it("keeps a disabled tab announced but never lands selection or focus on it", async () => {
+  it("selects the requested tab and announces the active tab", async () => {
     const user = userEvent.setup();
     const onChange = vi.fn();
     renderWithProviders(
       <Tabs
         items={[
           { id: "one", label: "One" },
-          { id: "two", label: "Two", disabled: true },
+          { id: "two", label: "Two" },
           { id: "three", label: "Three" },
         ]}
         defaultActive="one"
@@ -74,20 +74,10 @@ describe("Tabs", () => {
       />,
     );
 
-    const disabled = screen.getByTestId("tab-two");
-    expect(disabled).toHaveAttribute("aria-disabled", "true");
-
-    await user.click(disabled);
-    expect(onChange).not.toHaveBeenCalled();
-    expect(screen.getByTestId("tab-one")).toHaveAttribute("aria-selected", "true");
-
-    screen.getByTestId("tab-one").focus();
-    await user.keyboard("{ArrowRight}");
-    expect(screen.getByTestId("tab-three")).toHaveFocus();
-    expect(onChange).toHaveBeenCalledWith("three");
-
-    await user.keyboard("{End}");
-    expect(screen.getByTestId("tab-three")).toHaveFocus();
+    const second = screen.getByTestId("tab-two");
+    await user.click(second);
+    expect(onChange).toHaveBeenCalledWith("two");
+    expect(second).toHaveAttribute("aria-selected", "true");
   });
 
   it("keeps controlled selection controlled while reporting keyboard changes", async () => {

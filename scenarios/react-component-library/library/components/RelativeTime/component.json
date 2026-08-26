@@ -11,11 +11,13 @@
     }
   ],
   "displayName": "RelativeTime",
-  "latest": "1.0.0",
+  "latest": "1.0.2",
   "libraryId": "react-component-library:RelativeTime",
   "tags": [
     "primitive",
     "data-display",
     "token-bound"
-  ]
+  ],
+  "draft": "",
+  "deprecatedVersions": []
 }

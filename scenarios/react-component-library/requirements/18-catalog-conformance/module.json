@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "Static and browser gates that make the catalog source itself a tested surface.",
-    "last_validated_at": "2026-08-24T22:13:11-04:00",
+    "last_validated_at": "2026-08-25T10:29:44-04:00",
     "module": "catalog-conformance",
     "prd_ref": "PRD.md",
     "priority": "P0",
@@ -11,11 +11,11 @@
     {
       "id": "CC-001",
       "title": "Latest and draft catalog TSX is type-checked and linted",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-008",
       "category": "testing",
       "criticality": "P0",
-      "description": "The UI package owns a dedicated catalog conformance surface over `library/components/**/versions/**`. The gate derives latest and draft TSX files from component manifests, runs TypeScript and ESLint against those files, and is wired into `make lint-ui` plus the scenario test plan.",
+      "description": "The UI package owns a dedicated catalog conformance surface over authored `library/**/versions/**` files. The gate derives eligible TSX files from component manifests, runs TypeScript and ESLint against them, and is wired into the scenario lifecycle plus the story lint surface.",
       "tags": [
         "catalog",
         "type-check",
@@ -26,7 +26,7 @@
           "type": "test",
           "ref": "ui/scripts/catalog-conformance.mjs",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "`pnpm run catalog:check` and `make lint-ui` passed after the catalog conformance scripts/configs were added. A temporary Button type error produced the expected TypeScript failure before removal."
         }
       ]
@@ -38,7 +38,7 @@
       "prd_ref": "OT-P0-008",
       "category": "testing",
       "criticality": "P0",
-      "description": "The catalog evidence service enumerates selected or all catalog components, invokes the version-pinned BAS CaptureService through the component-test runner, validates each declared story, and persists screenshot, DOM, accessibility, console, network, and performance artifact references. The gate fails closed when BAS evidence is missing or the story contract fails; it never marks a manifest pass from contract metadata alone.",
+      "description": "The catalog evidence service enumerates eligible authored versions, invokes the version-pinned BAS CaptureService through the component-test runner, validates each declared story, and persists screenshot, DOM, accessibility, console, network, and performance artifact references. The gate fails closed when BAS evidence is missing or the story contract fails; it never marks a manifest pass from contract metadata alone.",
       "tags": [
         "catalog",
         "browser",
@@ -71,7 +71,7 @@
         {
           "type": "manual",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Cross-scenario unit evidence lives in experience-manager: `api/internal/reconcile/reconcile_test.go::TestActiveComponentBuildsHarnessTargetsAndPersistsEvidence` proves component harness target construction and evidence persistence."
         },
         {

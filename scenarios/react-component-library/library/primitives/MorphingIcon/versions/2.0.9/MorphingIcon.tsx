@@ -6,9 +6,12 @@
  * @tags ["primitive","motion","icon","accessibility","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
+import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
+
 /** @vrooliComponentSource react-component-library:MorphingIcon */
 import { useEffect, useRef, useState, type CSSProperties } from "react";
-import { useReducedMotion } from "../../../../hooks/useReducedMotion/versions/1.0.0/useReducedMotion";
+import { useReducedMotion } from "@vrooli/react-component-library/useReducedMotion/1.0.0";
+import "./MorphingIcon.css";
 import {
   geometryPath,
   interpolateGeometry,
@@ -51,7 +54,7 @@ function springProgress(elapsed: number, duration: number) {
   return Math.max(0, Math.min(1.04, 1 - displacement));
 }
 
-export function MorphingIcon({
+export const MorphingIcon = withClassName(function MorphingIcon({
   icon,
   from,
   strategy = "morph",
@@ -93,21 +96,17 @@ export function MorphingIcon({
     };
   }, [icon, strategy, duration, reducedMotion]);
 
+  const computedStyle = { inlineSize: sizeValue(size), blockSize: sizeValue(size), ...style };
+
   return (
-    <span
+    <span data-testid="motion.morphing-icon"
       className={className}
-      style={{
-        display: "inline-grid",
-        placeItems: "center",
-        inlineSize: sizeValue(size),
-        blockSize: sizeValue(size),
-        verticalAlign: "middle",
-        ...style,
-      }}
+      data-rcl-morphing-icon
+      data-size={size}
+      style={computedStyle}
       aria-hidden={!label}
       aria-label={label}
       role={label ? "img" : undefined}
-      data-rcl-morphing-icon
       data-rcl-transition-mode={strategy}
     >
       <svg
@@ -127,4 +126,4 @@ export function MorphingIcon({
       </svg>
     </span>
   );
-}
+});

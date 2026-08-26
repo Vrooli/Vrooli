@@ -7,7 +7,7 @@
     "fixtures": []
   },
   "kind": "component",
-  "schemaVersion": 4,
+  "schemaVersion": 5,
   "stories": [
     {
       "args": {},
@@ -34,7 +34,8 @@
       ],
       "id": "default",
       "mode": "live",
-      "name": "Keyed layout movement"
+      "name": "Keyed layout movement",
+      "role": "anatomy"
     }
   ],
   "title": "AutoAnimateLayout"

@@ -4,7 +4,6 @@
  * @status released
  * @deps {"react":"^18"}
  */
-import { cn } from "../../../../foundations/ClassMerge/versions/1.0.0/ClassMerge";
 import {
   useCallback,
   useRef,
@@ -12,11 +11,11 @@ import {
   type CSSProperties,
   type PointerEvent,
 } from "react";
-import { IconButton } from "../../../IconButton/versions/2.0.0/IconButton";
+import { IconButton } from "@vrooli/react-component-library/IconButton/2.0.0";
 import type {
   ControlDensity,
   ControlSize,
-} from "../../../ControlBase/versions/1.0.0/ControlBase";
+} from "@vrooli/react-component-library/ControlBase/1.0.0";
 import {
   VoiceInputButtonGlyph as Glyph,
   type VoiceInputGlyphKind,
@@ -63,6 +62,9 @@ const labels: Record<VoiceInputButtonState, string> = {
   unavailable: "Voice input unavailable",
   error: "Voice input error",
 };
+
+const joinClasses = (...classes: Array<string | undefined | false>) =>
+  classes.filter(Boolean).join(" ");
 
 export function VoiceInputButton({
   state = "idle",
@@ -196,7 +198,7 @@ export function VoiceInputButton({
         size={size}
         density={density}
         variant="secondary"
-        className={cn(
+        className={joinClasses(
           "relative overflow-hidden touch-manipulation",
           stateClassName,
           state === "recording" && mode === "timeout"

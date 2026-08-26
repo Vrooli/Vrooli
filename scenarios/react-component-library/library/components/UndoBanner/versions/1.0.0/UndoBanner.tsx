@@ -1,13 +1,11 @@
 /** @vrooliComponentSource feedback.undo-banner */
-import { translate } from "../../../../hooks/useLocale/versions/1.0.0/useLocale";
-
 import { useEffect, useState, type CSSProperties } from "react";
-import { Presence } from "../../../../primitives/Presence/versions/1.0.0/Presence";
-import { Surface } from "../../../../primitives/Surface/versions/1.0.0/Surface";
+import { Presence } from "@vrooli/react-component-library/Presence/1.0.0";
+import { Surface } from "@vrooli/react-component-library/Surface/1.0.0";
 import {
   useUndoManager,
   type UndoRecord,
-} from "../../../../services/UndoManager/versions/1.0.0/UndoManager";
+} from "@vrooli/react-component-library/UndoManager/1.0.0";
 
 const styles = `
   [data-rcl-undo-viewport] { position: fixed; z-index: var(--layer-toast, 1000); inset-inline: var(--space-lg); inset-block: auto calc(var(--space-lg) + env(safe-area-inset-bottom)); display: grid; justify-items: center; pointer-events: none; }
@@ -113,36 +111,36 @@ function UndoItem({
           <span data-rcl-undo-detail>{detail}</span>
         </div>
         {record.status === "available" && (
-          <button data-testid="feedback.undo-banner"
+          <button
             data-rcl-undo-action
             type="button"
             onClick={() => {
               onUndo();
             }}
           >
-            {translate("feedback.undo-banner.text.1", "Undo")}
+            Undo
           </button>
         )}
         {record.status === "submitting" && (
-          <button data-testid="feedback.undo-banner" data-rcl-undo-action type="button" disabled>
-            {translate("feedback.undo-banner.text.2", "Restoring…")}
+          <button data-rcl-undo-action type="button" disabled>
+            Restoring…
           </button>
         )}
         {record.status === "error" && (
-          <button data-testid="feedback.undo-banner"
+          <button
             data-rcl-undo-action
             type="button"
             onClick={() => {
               onUndo();
             }}
           >
-            {translate("feedback.undo-banner.text.3", "Retry undo")}
+            Retry undo
           </button>
         )}
-        <button data-testid="feedback.undo-banner"
+        <button
           data-rcl-undo-dismiss
           type="button"
-          aria-label={translate("feedback.undo-banner.aria-label.1", "Dismiss undo message")}
+          aria-label="Dismiss undo message"
           onClick={onDismiss}
         >
           ×
@@ -179,7 +177,7 @@ export function UndoBanner({ className, style }: UndoBannerProps) {
         data-rcl-undo-viewport
         className={className}
         style={style}
-        aria-label={translate("feedback.undo-banner.aria-label.2", "Undo messages")}
+        aria-label="Undo messages"
       >
         {visible.map((record) => (
           <UndoItem

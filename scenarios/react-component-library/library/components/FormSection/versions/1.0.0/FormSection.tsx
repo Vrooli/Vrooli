@@ -1,6 +1,6 @@
 /** @vrooliComponentSource forms.form-section */
 import { useId, useState, type CSSProperties, type ReactNode } from "react";
-import { CollapsibleRegion } from "../../../../components/CollapsibleRegion/versions/1.0.0/CollapsibleRegion";
+import { CollapsibleRegion } from "@vrooli/react-component-library/CollapsibleRegion/1.0.0";
 
 export interface FormSectionProps {
   title: ReactNode;
@@ -88,7 +88,7 @@ export function FormSection({
           )}
         </div>
         {collapsible && (
-          <button data-testid="forms.form-section"
+          <button
             type="button"
             data-rcl-form-section-toggle
             aria-expanded={isOpen}

@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { UndoBanner } from "./UndoBanner";
-import { UndoManagerProvider } from "../../../../services/UndoManager/versions/1.0.0/UndoManager";
+import { UndoManagerProvider } from "@vrooli/react-component-library/UndoManager/1.0.0";
 
 const noopUndo = () => undefined;
 

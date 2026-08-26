@@ -11,7 +11,7 @@
     }
   ],
   "displayName": "DashboardPage",
-  "latest": "1.0.0",
+  "latest": "1.0.4",
   "libraryId": "react-component-library:DashboardPage",
   "tags": [
     "template",
@@ -24,5 +24,7 @@
       "libraryId": "react-component-library:useLocale",
       "version": "1.0.0"
     }
-  ]
+  ],
+  "draft": "",
+  "deprecatedVersions": []
 }

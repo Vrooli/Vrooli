@@ -1,6 +1,4 @@
 /** @vrooliComponentSource forms.async-options-field */
-import { translate } from "../../../../hooks/useLocale/versions/1.0.0/useLocale";
-
 import {
   useCallback,
   useEffect,
@@ -11,8 +9,8 @@ import {
   type CSSProperties,
   type KeyboardEvent,
 } from "react";
-import { useAbortableTask } from "../../../../hooks/useAbortableTask/versions/1.0.0/useAbortableTask";
-import { useRetry } from "../../../../hooks/useRetry/versions/1.0.0/useRetry";
+import { useAbortableTask } from "@vrooli/react-component-library/useAbortableTask/1.0.0";
+import { useRetry } from "@vrooli/react-component-library/useRetry/1.0.0";
 
 export interface AsyncOption {
   value: string;
@@ -120,7 +118,7 @@ export function AsyncOptionsField({
   defaultValue = "",
   onChange,
   description,
-  placeholder = translate("forms.async-options-field.placeholder.1", "Search or choose an option"),
+  placeholder = "Search or choose an option",
   emptyText = "No matches yet",
   loadingText = "Finding matches…",
   errorText = "We couldn’t load these options.",
@@ -281,7 +279,7 @@ export function AsyncOptionsField({
         {description && <small id={descriptionID}>{description}</small>}
       </label>
       <div data-rcl-async-options-control>
-        <input data-testid="forms.async-options-field"
+        <input
           id={inputID}
           name={name}
           data-rcl-async-options-input
@@ -332,7 +330,7 @@ export function AsyncOptionsField({
           {status === "error" ? (
             <div data-rcl-async-options-state data-tone="error">
               <span>{errorText}</span>
-              <button data-testid="forms.async-options-field"
+              <button
                 type="button"
                 onClick={() => request(pageRef.current, pageRef.current !== 1)}
               >
@@ -363,7 +361,7 @@ export function AsyncOptionsField({
                         options[position - 1]?.group !== option.group) && (
                         <div data-rcl-async-options-group>{option.group}</div>
                       )}
-                    <button data-testid="forms.async-options-field"
+                    <button
                       id={`${listID}-option-${option.value}`}
                       type="button"
                       role="option"
@@ -394,12 +392,12 @@ export function AsyncOptionsField({
                 );
               })}
               {nextPage !== undefined && (
-                <button data-testid="forms.async-options-field"
+                <button
                   type="button"
                   data-rcl-async-options-more
                   onClick={() => request(nextPage, false)}
                 >
-                  {translate("forms.async-options-field.text.2", "Load more")}
+                  Load more
                 </button>
               )}
             </div>

@@ -1,2 +1,2 @@
 /** @vrooliComponentSource overlays.dialog */
-export * from "./Dialog/versions/1.1.0/Dialog";
+export * from "@vrooli/react-component-library/Dialog/1.1.0";

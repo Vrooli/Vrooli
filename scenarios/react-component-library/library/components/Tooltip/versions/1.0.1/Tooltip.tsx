@@ -6,6 +6,8 @@
  * @tags ["overlay","accessible","interaction","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
+import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
+
 import {
   Children,
   cloneElement,
@@ -26,8 +28,8 @@ import {
   type ReactElement,
   type ReactNode,
 } from "react";
-import { Presence } from "../../../../primitives/Presence/versions/1.0.0/Presence";
-import { useControllableState } from "../../../../hooks/useControllableState/versions/1.0.0/useControllableState";
+import { Presence } from "@vrooli/react-component-library/Presence/1.0.0";
+import { useControllableState } from "@vrooli/react-component-library/useControllableState/1.0.0";
 
 const styles = `
 [data-rcl-tooltip] { position: relative; display: inline-flex; max-inline-size: 100%; vertical-align: middle; }
@@ -71,7 +73,7 @@ export interface TooltipProps {
   placement?: TooltipPlacement;
 }
 
-export function Tooltip({
+export const Tooltip = withClassName(function Tooltip({
   children,
   open: controlledOpen,
   defaultOpen = false,
@@ -119,14 +121,14 @@ export function Tooltip({
     [cancelTimers, id, open, placement, scheduleClose, scheduleOpen, setOpen],
   );
   return (
-    <TooltipContext.Provider value={context}>
+    <TooltipContext.Provider data-testid="overlays.tooltip" value={context}>
       <span data-rcl-tooltip data-placement={placement}>
         <style data-rcl-tooltip-styles dangerouslySetInnerHTML={{ __html: styles }} />
         {children}
       </span>
     </TooltipContext.Provider>
   );
-}
+});
 
 function useTooltipContext() {
   const value = useContext(TooltipContext);
@@ -165,7 +167,7 @@ export interface TooltipTriggerProps extends HTMLAttributes<HTMLElement> {
   asChild?: boolean;
 }
 
-export function TooltipTrigger({
+export const TooltipTrigger = withClassName(function TooltipTrigger({
   children,
   asChild = false,
   ...props
@@ -209,13 +211,13 @@ export function TooltipTrigger({
     return cloneElement(child as ReactElement<Record<string, unknown>>, triggerProps);
   }
   return createElement("button", { ...triggerProps, type: "button" }, children);
-}
+});
 
 export interface TooltipContentProps extends HTMLAttributes<HTMLSpanElement> {
   children: ReactNode;
 }
 
-export function TooltipContent({ children, ...props }: TooltipContentProps) {
+export const TooltipContent = withClassName(function TooltipContent({ children, ...props }: TooltipContentProps) {
   const context = useTooltipContext();
   return (
     <Presence present={context.open} duration="quick" initial={false} as="span">
@@ -224,7 +226,7 @@ export function TooltipContent({ children, ...props }: TooltipContentProps) {
       </span>
     </Presence>
   );
-}
+});
 
 export const TooltipParts = { Trigger: TooltipTrigger, Content: TooltipContent };
 

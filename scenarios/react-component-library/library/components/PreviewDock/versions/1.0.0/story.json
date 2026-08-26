@@ -14,7 +14,7 @@
     "fixtures": []
   },
   "kind": "component",
-  "schemaVersion": 4,
+  "schemaVersion": 5,
   "stories": [
     {
       "args": {},
@@ -38,7 +38,8 @@
       ],
       "id": "default",
       "mode": "live",
-      "name": "Overlay controls"
+      "name": "Overlay controls",
+      "role": "anatomy"
     }
   ],
   "title": "Preview dock"

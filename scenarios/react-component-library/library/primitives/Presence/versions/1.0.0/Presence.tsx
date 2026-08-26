@@ -1,4 +1,6 @@
 /** @vrooliComponentSource react-component-library:Presence */
+import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
+
 import {
   createElement,
   useEffect,
@@ -8,7 +10,7 @@ import {
   type ElementType,
   type ReactNode,
 } from "react";
-import { useReducedMotion } from "../../../../hooks/useReducedMotion/versions/1.0.0/useReducedMotion";
+import { useReducedMotion } from "@vrooli/react-component-library/useReducedMotion/1.0.0";
 
 export type PresencePhase = "entering" | "entered" | "exiting" | "exited";
 export type PresenceDuration = "instant" | "quick" | "moderate" | "deliberate";
@@ -80,7 +82,7 @@ const styles = `
   }
 `;
 
-export function Presence({
+export const Presence = withClassName(function Presence({
   present,
   children,
   as: Component = "div",
@@ -185,6 +187,7 @@ export function Presence({
       className,
       style: customProperties,
       "aria-label": ariaLabel,
+      "data-testid": "motion.presence",
       "data-rcl-presence": true,
       "data-presence-phase": phase,
       "data-presence-hidden": !mounted || undefined,
@@ -195,4 +198,4 @@ export function Presence({
     }),
     children,
   );
-}
+});

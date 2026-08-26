@@ -4,7 +4,6 @@
  * @status released
  * @deps {"react":"^18"}
  */
-import { cn } from "../../../../foundations/ClassMerge/versions/1.0.0/ClassMerge";
 import { forwardRef, type InputHTMLAttributes } from "react";
 export const INPUT_MODES = ["controlled", "uncontrolled"] as const;
 export const INPUT_SIZES = ["sm", "md", "lg"] as const;
@@ -14,6 +13,9 @@ export const INPUT_PARTS = ["prefix", "control", "suffix"] as const;
 export type InputProps = InputHTMLAttributes<HTMLInputElement> & {
   "data-testid"?: string;
 };
+
+const joinClasses = (...inputs: Array<string | undefined>) =>
+  inputs.filter(Boolean).join(" ");
 
 const styleSheet = `
 [data-rcl-input] {
@@ -36,7 +38,7 @@ const styleSheet = `
 `;
 
 export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
-  { className, type, ...props },
+  { className, type, "data-testid": testID, ...props },
   ref,
 ) {
   return (
@@ -48,9 +50,9 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
       <input
         ref={ref}
         type={type}
-        data-testid="forms.input"
+        data-testid={testID ?? "rcl-input"}
         data-rcl-input="true"
-        className={cn(
+        className={joinClasses(
           "rounded-control border border-app-border",
           className,
         )}

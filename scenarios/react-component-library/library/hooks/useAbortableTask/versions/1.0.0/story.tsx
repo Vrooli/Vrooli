@@ -4,7 +4,7 @@ export function Default({ log }: StoryHarnessProps) {
   const [done, setDone] = useState(false);
   const { run } = useAbortableTask(() => Promise.resolve("done"));
   return (
-    <button
+    <button data-testid="hooks.use-abortable-task"
       type="button"
       onClick={() => {
         void run().then(() => {

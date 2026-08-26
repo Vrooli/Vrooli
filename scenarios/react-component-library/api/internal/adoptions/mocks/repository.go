@@ -80,8 +80,48 @@ func (f *FakeRepository) Create(ctx context.Context, in adoptions.CreateInput) (
 		AppliedAt:             f.NowFn(),
 		IncludeSuggestions:    append([]string(nil), in.IncludeSuggestions...),
 		Files:                 append([]adoptions.AdoptionFile(nil), in.Files...),
+		Mode:                  in.Mode,
+	}
+	if a.Mode == "" {
+		a.Mode = adoptions.AdoptionModeCopied
 	}
 	f.items[a.ID] = a
+	return a, nil
+}
+
+func (f *FakeRepository) UpdateMode(_ context.Context, id string, mode adoptions.AdoptionMode, reason string) (adoptions.Adoption, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	a, ok := f.items[id]
+	if !ok {
+		return adoptions.Adoption{}, adoptions.ErrAdoptionNotFound{ID: id}
+	}
+	a.Mode = mode
+	a.ForkReason = reason
+	if reason != "" {
+		a.ForkStatus = adoptions.ForkStatusDeclared
+	}
+	f.items[id] = a
+	return a, nil
+}
+
+func (f *FakeRepository) UpdateLinked(_ context.Context, id, adoptedPath, adoptedVersion, sourceSHA256 string) (adoptions.Adoption, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	a, ok := f.items[id]
+	if !ok {
+		return adoptions.Adoption{}, adoptions.ErrAdoptionNotFound{ID: id}
+	}
+	a.AdoptedPath = adoptedPath
+	a.AdoptedVersion = adoptedVersion
+	a.SourceSHA256 = sourceSHA256
+	a.Mode = adoptions.AdoptionModeLinked
+	a.LocalStatus = adoptions.LocalStatusClean
+	a.LibraryVersionStatus = adoptions.LibraryVersionStatusCurrent
+	a.ForkStatus = adoptions.ForkStatusNone
+	a.ForkReason = ""
+	a.Files = nil
+	f.items[id] = a
 	return a, nil
 }
 

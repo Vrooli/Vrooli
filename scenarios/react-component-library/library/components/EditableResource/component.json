@@ -36,7 +36,7 @@
     }
   ],
   "displayName": "EditableResource",
-  "latest": "1.0.0",
+  "latest": "1.0.3",
   "libraryId": "react-component-library:EditableResource",
   "tags": [
     "patterns",
@@ -53,5 +53,7 @@
       "libraryId": "react-component-library:useLocale",
       "version": "1.0.0"
     }
-  ]
+  ],
+  "draft": "",
+  "deprecatedVersions": []
 }

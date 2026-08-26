@@ -1,14 +1,12 @@
 /** @vrooliComponentSource patterns.resource-detail */
-import { translate } from "../../../../hooks/useLocale/versions/1.0.0/useLocale";
-
 import type { CSSProperties, ReactNode } from "react";
 import {
   AsyncBoundary,
   type AsyncBoundaryStatus,
-} from "../../../AsyncBoundary/versions/1.0.0/AsyncBoundary";
-import { AuditTrail } from "../../../AuditTrail/versions/1.0.0/AuditTrail";
-import { DescriptionList } from "../../../DescriptionList/versions/1.0.0/DescriptionList";
-import { PageHeader } from "../../../PageHeader/versions/1.0.0/PageHeader";
+} from "@vrooli/react-component-library/AsyncBoundary/1.0.0";
+import { AuditTrail } from "@vrooli/react-component-library/AuditTrail/1.0.0";
+import { DescriptionList } from "@vrooli/react-component-library/DescriptionList/1.0.0";
+import { PageHeader } from "@vrooli/react-component-library/PageHeader/1.0.0";
 
 export interface ResourceDetailEntry {
   term: string;
@@ -79,8 +77,8 @@ const boundaryStatus = (status: ResourceDetailStatus): AsyncBoundaryStatus => {
 };
 
 export function ResourceDetail({
-  title = translate("patterns.resource-detail.title.1", "Resource"),
-  description = translate("patterns.resource-detail.description.2", "Review identity, metadata, and recent changes in one place."),
+  title = "Resource",
+  description = "Review identity, metadata, and recent changes in one place.",
   entries = [],
   history = [],
   status = "default",
@@ -114,13 +112,13 @@ export function ResourceDetail({
             id="rcl-resource-metadata-title"
             data-rcl-resource-detail-section-title
           >
-            {translate("patterns.resource-detail.text.3", "Metadata")}
+            Metadata
           </h2>
           {entries.length ? (
             <DescriptionList entries={entries} />
           ) : (
             <p data-rcl-resource-detail-section-copy>
-              {translate("patterns.resource-detail.text.4", "No metadata is available yet.")}
+              No metadata is available yet.
             </p>
           )}
         </section>
@@ -132,13 +130,13 @@ export function ResourceDetail({
             id="rcl-resource-history-title"
             data-rcl-resource-detail-section-title
           >
-            {translate("patterns.resource-detail.text.5", "History")}
+            History
           </h2>
           {history.length ? (
             <AuditTrail entries={history} />
           ) : (
             <p data-rcl-resource-detail-section-copy>
-              {translate("patterns.resource-detail.text.6", "No recorded changes yet.")}
+              No recorded changes yet.
             </p>
           )}
         </section>

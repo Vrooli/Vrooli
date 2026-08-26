@@ -1,0 +1,94 @@
+{
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
+  "args": {
+    "fields": []
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "kind": "component",
+  "schemaVersion": 5,
+  "stories": [
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Default",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "Recent activity"
+        },
+        {
+          "kind": "text",
+          "value": "120 records"
+        }
+      ],
+      "id": "default",
+      "mode": "live",
+      "name": "Measured activity",
+      "role": "anatomy"
+    },
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Dense",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "Command history"
+        }
+      ],
+      "id": "dense",
+      "mode": "live",
+      "name": "Dense command history",
+      "role": "boundary"
+    },
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Empty",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "No activity has arrived"
+        }
+      ],
+      "id": "empty",
+      "mode": "live",
+      "name": "Empty collection",
+      "role": "boundary"
+    },
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "RestoredScroll",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "Returning here preserves your reading position"
+        }
+      ],
+      "id": "restored-scroll",
+      "mode": "live",
+      "name": "Restored reading position",
+      "role": "boundary"
+    }
+  ],
+  "title": "VirtualList"
+}

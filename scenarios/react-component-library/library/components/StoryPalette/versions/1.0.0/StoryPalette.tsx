@@ -4,13 +4,13 @@
  * @status released
  * @deps {"react":"^18"}
  */
-import { translate } from "../../../../hooks/useLocale/versions/1.0.0/useLocale";
+import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
 
 import type { Dispatch, SetStateAction } from "react";
 
 export type StoryPaletteItem = { id: string; label: string };
 
-export function StoryPalette({
+export const StoryPalette = withClassName(function StoryPalette({
   stories,
   selectedId,
   onSelect,
@@ -20,7 +20,7 @@ export function StoryPalette({
   onSelect?: Dispatch<SetStateAction<string>> | ((id: string) => void);
 }) {
   return (
-    <nav aria-label={translate("preview.story-palette.aria-label.1", "Preview stories")} data-story-palette>
+    <nav data-testid="preview.story-palette" aria-label="Preview stories" data-story-palette>
       <div style={{ display: "flex", gap: "var(--space-3xs)", overflowX: "auto", paddingBlock: "var(--space-3xs)" }}>
         {stories.map((story) => {
           const selected = story.id === selectedId;
@@ -48,4 +48,4 @@ export function StoryPalette({
       </div>
     </nav>
   );
-}
+});

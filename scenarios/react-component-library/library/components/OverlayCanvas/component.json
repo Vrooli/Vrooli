@@ -11,7 +11,7 @@
     }
   ],
   "displayName": "OverlayCanvas",
-  "latest": "1.0.7",
+  "latest": "1.0.10",
   "libraryId": "react-component-library:OverlayCanvas",
   "tags": [
     "visualization",
@@ -22,5 +22,7 @@
       "libraryId": "react-component-library:useLocale",
       "version": "1.0.0"
     }
-  ]
+  ],
+  "draft": "",
+  "deprecatedVersions": []
 }

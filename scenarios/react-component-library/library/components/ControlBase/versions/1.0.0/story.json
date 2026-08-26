@@ -74,7 +74,7 @@
     "fixtures": []
   },
   "kind": "component",
-  "schemaVersion": 4,
+  "schemaVersion": 5,
   "stories": [
     {
       "args": {
@@ -92,7 +92,8 @@
       ],
       "id": "variant-primary",
       "mode": "pinned",
-      "name": "Primary"
+      "name": "Primary",
+      "role": "anatomy"
     },
     {
       "args": {
@@ -110,7 +111,17 @@
       ],
       "id": "variant-secondary",
       "mode": "pinned",
-      "name": "Secondary"
+      "name": "Secondary",
+      "role": "axis",
+      "axis": "variant",
+      "covers": {
+        "variant": [
+          "primary",
+          "secondary",
+          "ghost",
+          "danger"
+        ]
+      }
     },
     {
       "args": {
@@ -128,7 +139,19 @@
       ],
       "id": "variant-ghost",
       "mode": "pinned",
-      "name": "Ghost"
+      "name": "Ghost",
+      "role": "axis",
+      "axis": "size",
+      "covers": {
+        "size": [
+          "xs",
+          "sm",
+          "md",
+          "lg",
+          "xl",
+          "icon"
+        ]
+      }
     },
     {
       "args": {
@@ -146,7 +169,15 @@
       ],
       "id": "variant-danger",
       "mode": "pinned",
-      "name": "Danger"
+      "name": "Danger",
+      "role": "axis",
+      "axis": "density",
+      "covers": {
+        "density": [
+          "comfortable",
+          "compact"
+        ]
+      }
     },
     {
       "args": {
@@ -164,7 +195,15 @@
       ],
       "id": "size-xs",
       "mode": "pinned",
-      "name": "Extra small"
+      "name": "Extra small",
+      "role": "axis",
+      "axis": "shape",
+      "covers": {
+        "shape": [
+          "square",
+          "pill"
+        ]
+      }
     },
     {
       "args": {
@@ -182,7 +221,8 @@
       ],
       "id": "size-sm",
       "mode": "pinned",
-      "name": "Small"
+      "name": "Small",
+      "role": "boundary"
     },
     {
       "args": {
@@ -200,7 +240,8 @@
       ],
       "id": "size-md",
       "mode": "pinned",
-      "name": "Medium"
+      "name": "Medium",
+      "role": "boundary"
     },
     {
       "args": {
@@ -218,7 +259,8 @@
       ],
       "id": "size-lg",
       "mode": "pinned",
-      "name": "Large"
+      "name": "Large",
+      "role": "boundary"
     },
     {
       "args": {
@@ -236,10 +278,12 @@
       ],
       "id": "size-xl",
       "mode": "pinned",
-      "name": "Extra large"
+      "name": "Extra large",
+      "role": "boundary"
     },
     {
       "args": {
+        "aria-label": "Icon action",
         "children": {
           "$text": "•"
         },
@@ -254,7 +298,8 @@
       ],
       "id": "size-icon",
       "mode": "pinned",
-      "name": "Icon floor"
+      "name": "Icon floor",
+      "role": "boundary"
     },
     {
       "args": {
@@ -272,7 +317,8 @@
       ],
       "id": "density-comfortable",
       "mode": "pinned",
-      "name": "Comfortable density"
+      "name": "Comfortable density",
+      "role": "boundary"
     },
     {
       "args": {
@@ -290,7 +336,8 @@
       ],
       "id": "density-compact",
       "mode": "pinned",
-      "name": "Compact density"
+      "name": "Compact density",
+      "role": "boundary"
     },
     {
       "args": {
@@ -308,7 +355,8 @@
       ],
       "id": "shape-square",
       "mode": "pinned",
-      "name": "Square shape"
+      "name": "Square shape",
+      "role": "boundary"
     },
     {
       "args": {
@@ -326,7 +374,8 @@
       ],
       "id": "shape-pill",
       "mode": "pinned",
-      "name": "Pill shape"
+      "name": "Pill shape",
+      "role": "boundary"
     }
   ],
   "title": "Control Base 1.0"

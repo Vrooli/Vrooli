@@ -25,6 +25,9 @@ func TestBlockingStaticCalibrationFixturesDiscriminate(t *testing.T) {
 		"lifecycle":                  ValidateLifecycle,
 		"console-clean":              ValidateConsoleClean,
 		"performance":                ValidatePerformance,
+		"restyle-contract":           ValidateRestyleContract,
+		"story-distinctness":         ValidateStoryDistinctness,
+		"adopter-hygiene":            ValidateAdopterHygiene,
 	}
 	for gate, runner := range runners {
 		t.Run(gate, func(t *testing.T) {
@@ -52,5 +55,19 @@ func TestCalibrationQuarantinesAlwaysPassingRunner(t *testing.T) {
 	}
 	if !report.NonDiscriminating || len(report.Results) != 1 || report.Results[0].Status != "non-discriminating" {
 		t.Fatalf("always-passing runner was not quarantined: %+v", report)
+	}
+}
+
+func TestCalibrationDelegatesExternalRunner(t *testing.T) {
+	root, err := filepath.Abs("../../../../..")
+	if err != nil {
+		t.Fatal(err)
+	}
+	report, err := Calibrate(root, "unit", GateRunnerFor("unit"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if report.NonDiscriminating || !report.Delegated || len(report.Results) != 1 || report.Results[0].Status != "delegated" {
+		t.Fatalf("external calibration was not delegated: %+v", report)
 	}
 }

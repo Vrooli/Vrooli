@@ -23,13 +23,14 @@ import (
 	internalpreview "react-component-library/internal/preview"
 )
 
-//go:embed assets/harness.js assets/story-sheet.css assets/story-sheet.js
+//go:embed assets/harness.js assets/story-evaluator.js assets/story-sheet.css assets/story-sheet.js
 var previewAssets embed.FS
 
 var (
-	harnessJavaScript    = mustPreviewAsset("assets/harness.js")
-	storySheetCSS        = mustPreviewAsset("assets/story-sheet.css")
-	storySheetJavaScript = mustPreviewAsset("assets/story-sheet.js")
+	harnessJavaScript        = mustPreviewAsset("assets/harness.js")
+	storyEvaluatorJavaScript = mustPreviewAsset("assets/story-evaluator.js")
+	storySheetCSS            = mustPreviewAsset("assets/story-sheet.css")
+	storySheetJavaScript     = mustPreviewAsset("assets/story-sheet.js")
 )
 
 func mustPreviewAsset(name string) string {
@@ -531,6 +532,11 @@ func renderHarnessHTML(id string, b internalpreview.Bundle, ex harnessStory, des
   html[data-rcl-capture-mode="isolated"] .rcl-preview-stage {
     min-height: 0;
   }
+  /* A fixed/absolute specimen has no in-flow height. Preserve the viewport
+     capture context only after the mounted boundary confirms that geometry. */
+  html[data-rcl-capture-mode="isolated"] [data-preview-sheet][data-preview-positioned="true"] {
+    min-height: 100vh;
+  }
   [data-preview-sheet]:has([data-preview-harness-density="compact"]) {
     width: min(100%, 640px);
     margin-inline: auto;
@@ -680,7 +686,9 @@ func renderHarnessJavaScript(id string, b internalpreview.Bundle, ex harnessStor
 		"__PREVIEW_ID__":               jsString(id),
 		"__BUNDLE_SHA256__":            jsString(b.SHA256),
 	}
-	script := harnessJavaScript
+	// The evaluator is embedded into the same module as the harness so the
+	// browser and jsdom paths execute one implementation.
+	script := storyEvaluatorJavaScript + "\n" + harnessJavaScript
 	for placeholder, replacement := range replacements {
 		script = strings.ReplaceAll(script, placeholder, replacement)
 	}
@@ -695,6 +703,11 @@ func buildImportMapJSON(b internalpreview.Bundle) (string, []string) {
 		"react/jsx-dev-runtime": runtimeURL("react", reactVersion, "jsx-dev-runtime", &warnings),
 		"react-dom":             runtimeURL("react-dom", reactDOMVersion, "", &warnings),
 		"react-dom/client":      runtimeURL("react-dom", reactDOMVersion, "client", &warnings),
+	}
+	if version, ok := internaldeps.ResolveRangeToLatest("10.4.1", packageRuntimeCandidatesFor("@testing-library/dom")); ok {
+		imports["@testing-library/dom"] = packageRuntimeURL("@testing-library/dom", version, "", &warnings)
+	} else {
+		warnings = append(warnings, "preview: dependency \"@testing-library/dom\" cannot be resolved from the governed preview runtime store")
 	}
 	for _, d := range b.Dependencies {
 		name := strings.TrimSpace(d.DepName)

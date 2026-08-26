@@ -7,7 +7,7 @@
     "fixtures": []
   },
   "kind": "component",
-  "schemaVersion": 4,
+  "schemaVersion": 5,
   "stories": [
     {
       "args": {},
@@ -36,7 +36,8 @@
       ],
       "id": "default",
       "mode": "live",
-      "name": "Conflict choices"
+      "name": "Conflict choices",
+      "role": "anatomy"
     },
     {
       "args": {},
@@ -54,7 +55,8 @@
       ],
       "id": "loading",
       "mode": "live",
-      "name": "Loading comparison"
+      "name": "Loading comparison",
+      "role": "boundary"
     },
     {
       "args": {},
@@ -76,7 +78,8 @@
       ],
       "id": "request-error",
       "mode": "live",
-      "name": "Retryable conflict"
+      "name": "Retryable conflict",
+      "role": "boundary"
     },
     {
       "args": {},
@@ -121,7 +124,8 @@
         }
       ],
       "mode": "live",
-      "name": "Interactive resolution"
+      "name": "Interactive resolution",
+      "role": "boundary"
     }
   ],
   "title": "ConflictResolutionFlow"

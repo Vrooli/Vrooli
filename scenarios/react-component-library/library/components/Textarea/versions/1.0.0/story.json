@@ -26,10 +26,11 @@
     "fixtures": []
   },
   "kind": "component",
-  "schemaVersion": 4,
+  "schemaVersion": 5,
   "stories": [
     {
       "args": {
+        "aria-label": "Release notes",
         "defaultValue": "Improves preview coverage.",
         "placeholder": "Write release notes"
       },
@@ -48,7 +49,8 @@
       ],
       "id": "notes",
       "mode": "pinned",
-      "name": "Notes"
+      "name": "Notes",
+      "role": "anatomy"
     },
     {
       "args": {
@@ -64,7 +66,8 @@
       ],
       "id": "empty",
       "mode": "pinned",
-      "name": "Empty"
+      "name": "Empty",
+      "role": "boundary"
     },
     {
       "args": {
@@ -85,7 +88,8 @@
       ],
       "id": "disabled",
       "mode": "pinned",
-      "name": "Disabled"
+      "name": "Disabled",
+      "role": "boundary"
     }
   ],
   "title": "Textarea"

@@ -1,6 +1,4 @@
 /** @vrooliComponentSource react-component-library:ProgressLadder */
-import { translate } from "../../../../hooks/useLocale/versions/1.0.0/useLocale";
-
 export interface ProgressRung {
   id: string;
   label: string;
@@ -10,7 +8,7 @@ export interface ProgressRung {
 export function ProgressLadder({ rungs = [] }: { rungs?: ProgressRung[] }) {
   return (
     <ol
-      aria-label={translate("data-display.progress-ladder.aria-label.1", "Progress ladder")}
+      aria-label="Progress ladder"
       style={{
         display: "grid",
         gap: "var(--space-2xs)",

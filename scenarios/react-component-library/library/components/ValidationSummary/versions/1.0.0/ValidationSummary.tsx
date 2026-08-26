@@ -1,6 +1,4 @@
 /** @vrooliComponentSource forms.validation-summary */
-import { translate } from "../../../../hooks/useLocale/versions/1.0.0/useLocale";
-
 import {
   useEffect,
   useId,
@@ -8,7 +6,7 @@ import {
   type CSSProperties,
   type ReactNode,
 } from "react";
-import { type FormStore } from "../../../../services/FormStore/versions/1.0.0/FormStore";
+import { type FormStore } from "@vrooli/react-component-library/FormStore/1.0.0";
 
 export interface ValidationSummaryProps<
   TValues extends Record<string, unknown> = Record<string, unknown>,
@@ -48,7 +46,7 @@ export function ValidationSummary<
   store,
   errors,
   fieldLabels,
-  title = translate("forms.validation-summary.title.1", "Review these fields"),
+  title = "Review these fields",
   onFocusField,
   className,
   style,
@@ -93,7 +91,7 @@ export function ValidationSummary<
         <ul data-rcl-validation-summary-list>
           {entries.map(([field, message]) => (
             <li key={String(field)}>
-              <a data-testid="forms.validation-summary"
+              <a
                 href={`#${String(field)}`}
                 onClick={() => onFocusField?.(field)}
               >

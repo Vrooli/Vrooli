@@ -88,16 +88,15 @@ func loadStoryEvidence(root string, kinds ...string) (Result, error) {
 	for _, kind := range kinds {
 		allowedKinds[kind] = true
 	}
-	dbPath := filepath.Join(root, "scenarios", "react-component-library", "data", "react-component-library.db")
-	if _, err := os.Stat(dbPath); err != nil {
-		if os.IsNotExist(err) {
-			return Result{}, nil
-		}
-		return Result{}, err
-	}
-	db, err := openGateDB(context.Background(), dbPath)
+	// Use the same routed evidence database as the freshness gate. The
+	// scenario's source tree may not contain a local database in development,
+	// while the control plane keeps the live store under ~/.vrooli/data.
+	db, err := openEvidenceDatabase(root)
 	if err != nil {
 		return Result{}, err
+	}
+	if db == nil {
+		return Result{}, nil
 	}
 	defer db.Close()
 	rows, err := db.QueryContext(context.Background(), `SELECT results_json FROM component_test_reports ORDER BY created_at DESC`)

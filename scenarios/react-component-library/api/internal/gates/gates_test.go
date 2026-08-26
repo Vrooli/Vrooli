@@ -21,6 +21,143 @@ func liveRoot(t *testing.T) string {
 	return filepath.Clean(filepath.Join(wd, "..", "..", "..", "..", ".."))
 }
 
+func TestValidateSelectorCoverageLiveCorpusIsClean(t *testing.T) {
+	result, err := ValidateSelectorCoverage(liveRoot(t))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Inspected != 154 || len(result.Findings) != 0 || len(result.RunnerError) != 0 {
+		t.Fatalf("selector coverage = %+v, want 154 inspected assets and no findings", result)
+	}
+}
+
+func TestValidateSelectorsAdoptedLiveCorpusIsSemantic(t *testing.T) {
+	result, err := ValidateSelectorsAdopted(liveRoot(t))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Inspected != 35 || len(result.Findings) != 0 || len(result.RunnerError) != 0 {
+		t.Fatalf("adopted selectors = %+v, want 35 linked adopters and no findings", result)
+	}
+}
+
+func TestAdopterHygieneRejectsDirectAndDuplicateLibraryAssertions(t *testing.T) {
+	root := t.TempDir()
+	dir := filepath.Join(root, "scenarios", "example", "ui", "src")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	source := "import { Select } from \"@vrooli/react-component-library/Select/1.1.0\";\nimport { expect, it } from \"vitest\";\nit(\"renders\", () => expect(Select).toBeDefined());\n"
+	for _, name := range []string{"select.test.tsx", "select-copy.test.tsx"} {
+		if err := os.WriteFile(filepath.Join(dir, name), []byte(source), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	result, err := ValidateAdopterHygiene(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Inspected != 2 || len(result.Findings) != 3 {
+		t.Fatalf("result = %+v, want two orphan findings and one duplicate finding", result)
+	}
+	seen := map[string]bool{}
+	for _, finding := range result.Findings {
+		seen[finding.Code] = true
+		if finding.Remediation == "" || finding.Line == 0 {
+			t.Fatalf("finding lacks actionable location/remediation: %+v", finding)
+		}
+	}
+	if !seen["catalog.adopter_hygiene_orphan"] || !seen["catalog.adopter_hygiene_duplicate"] {
+		t.Fatalf("result = %+v, want orphan and duplicate codes", result)
+	}
+}
+
+func TestStoryDistinctnessRejectsOneSpecimenForManyFrames(t *testing.T) {
+	root := t.TempDir()
+	storyDir := filepath.Join(root, "scenarios", "react-component-library", "library", "components", "Fixture", "versions", "1.0.0")
+	if err := os.MkdirAll(storyDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	contract := `{"schemaVersion":5,"kind":"component","args":{"fields":[]},"environment":{"fixtures":[]},"stories":[{"id":"one","name":"One","role":"anatomy","composition":{"specimen":{"module":"./story.tsx","export":"Shared"}},"expect":[{"kind":"visible","selector":"body"}]},{"id":"two","name":"Two","role":"boundary","composition":{"specimen":{"module":"./story.tsx","export":"Shared"}},"expect":[{"kind":"visible","selector":"body"}]},{"id":"three","name":"Three","role":"boundary","composition":{"specimen":{"module":"./story.tsx","export":"Shared"}},"expect":[{"kind":"visible","selector":"body"}]}]}`
+	if err := os.WriteFile(filepath.Join(storyDir, "story.json"), []byte(contract), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	result, err := ValidateStoryDistinctness(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	foundRepeatedSpecimen := false
+	for _, finding := range result.Findings {
+		if strings.Contains(finding.Message, "reuse specimen") {
+			foundRepeatedSpecimen = true
+		}
+	}
+	if !foundRepeatedSpecimen {
+		t.Fatalf("result = %+v, want repeated-specimen finding", result)
+	}
+}
+
+func TestAnalyzeRestyleSourceEnforcesClassRefAndInlineStyleRules(t *testing.T) {
+	tests := []struct {
+		name   string
+		source string
+		want   string
+	}{
+		{name: "inline token style", source: `export function Sample({ className }: { className?: string }) { return <div className={className} style={{ color: "red" }} />; }`, want: "inline style"},
+		{name: "nested layout style is not a root override", source: `export const Sample = forwardRef<HTMLDivElement, { className?: string }>(function Sample({ className }, ref) { return <div ref={ref} className={className}><span style={{ display: "grid" }} /></div>; });`, want: ""},
+		{name: "missing ref", source: `export function Sample({ className }: { className?: string }) { return <div className={className} />; }`, want: "ref"},
+		{name: "overloaded style", source: `export function Sample({ className, style }: { className?: string; style?: object }) { return <div className={className} />; }`, want: "style prop"},
+		{name: "clean forward ref", source: `export const Sample = forwardRef<HTMLDivElement, { className?: string }>(function Sample({ className }, ref) { return <div ref={ref} className={cn("sample", className)} />; });`, want: ""},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			finding := analyzeRestyleSource(test.source)
+			if test.want == "" {
+				if finding.Message != "" {
+					t.Fatalf("unexpected finding: %+v", finding)
+				}
+				return
+			}
+			if !strings.Contains(finding.Message, test.want) {
+				t.Fatalf("finding=%+v, want message containing %q", finding, test.want)
+			}
+		})
+	}
+}
+
+func TestValidateRestyleContractLiveCorpusIsClean(t *testing.T) {
+	root, err := filepath.Abs("../../../../../")
+	if err != nil {
+		t.Fatal(err)
+	}
+	result, err := ValidateRestyleContract(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Inspected == 0 || len(result.RunnerError) != 0 || len(result.Findings) != 0 {
+		t.Fatalf("restyle contract result = %+v", result)
+	}
+}
+
+func TestAdopterHygieneAcceptsScenarioOwnedTests(t *testing.T) {
+	root := t.TempDir()
+	dir := filepath.Join(root, "scenarios", "example", "ui")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	testSource := "import { expect, it } from \"vitest\";\nit(\"renders\", () => expect(true).toBe(true));\n"
+	if err := os.WriteFile(filepath.Join(dir, "owned.test.ts"), []byte(testSource), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	result, err := ValidateAdopterHygiene(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Inspected != 1 || len(result.Findings) != 0 {
+		t.Fatalf("result = %+v, want one clean scenario-owned test", result)
+	}
+}
+
 func TestReleasedVersionImmutableRejectsSyntheticDrift(t *testing.T) {
 	root := t.TempDir()
 	dbDir := filepath.Join(root, "scenarios", "react-component-library", "data")
@@ -59,6 +196,41 @@ func TestReleasedVersionImmutableRejectsSyntheticDrift(t *testing.T) {
 	}
 	if result.Findings[0].Code != "catalog.released_version_immutable" {
 		t.Fatalf("finding = %+v", result.Findings[0])
+	}
+}
+
+func TestReleasedVersionImmutableAcceptsCanonicalTerminalLF(t *testing.T) {
+	root := t.TempDir()
+	dbDir := filepath.Join(root, "scenarios", "react-component-library", "data")
+	sourcePath := filepath.Join(root, "scenarios", "react-component-library", "library", "components", "Fixture", "versions", "1.0.0", "Fixture.tsx")
+	if err := os.MkdirAll(filepath.Dir(sourcePath), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(dbDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	released := []byte("export const Fixture = () => null;")
+	if err := os.WriteFile(sourcePath, append(append([]byte(nil), released...), '\n'), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	hash := sha256.Sum256(released)
+	db, err := openGateDB(context.Background(), filepath.Join(dbDir, "react-component-library.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	if _, err = db.ExecContext(context.Background(), `CREATE TABLE component_versions (status TEXT NOT NULL, source_path TEXT NOT NULL, content_sha256 TEXT NOT NULL)`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = db.ExecContext(context.Background(), `INSERT INTO component_versions(status, source_path, content_sha256) VALUES ('released', ?, ?)`, "components/Fixture/versions/1.0.0/Fixture.tsx", hex.EncodeToString(hash[:])); err != nil {
+		t.Fatal(err)
+	}
+	result, err := ValidateReleasedVersionImmutable(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(result.Findings) != 0 {
+		t.Fatalf("result = %+v, want terminal LF to be canonical", result)
 	}
 }
 
@@ -410,6 +582,13 @@ export default Fixture;
 		if !found {
 			t.Errorf("missing conformance measure %q in %+v", code, result.Findings)
 		}
+	}
+}
+
+func TestNormalizeResultPreservesCorpusPseudoAssets(t *testing.T) {
+	result := NormalizeResult(t.TempDir(), Result{Findings: []Finding{{Code: "conformance.type-scale", AssetID: "workbench.conformance"}}})
+	if len(result.Findings) != 1 || len(result.RunnerError) != 0 {
+		t.Fatalf("corpus finding normalization = %+v, want one finding and no runner errors", result)
 	}
 }
 

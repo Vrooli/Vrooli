@@ -48,3 +48,9 @@ export function Live({ args, environment, log }: LiveStoryProps) {
     </div>
   );
 }
+
+export function VoiceAnatomy(props: LiveStoryProps) { return <Live {...props} />; }
+export function VoiceStateMatrix(props: LiveStoryProps) { return <Live {...props} />; }
+export function VoiceModeMatrix(props: LiveStoryProps) { return <Live {...props} />; }
+export function VoiceSizeMatrix(props: LiveStoryProps) { return <Live {...props} />; }
+export function VoiceDensityMatrix(props: LiveStoryProps) { return <Live {...props} />; }

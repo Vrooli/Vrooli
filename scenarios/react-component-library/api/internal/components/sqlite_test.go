@@ -255,7 +255,7 @@ func TestSQLiteRepository_UpsertManifestPersistsStories(t *testing.T) {
 			ArgsJSON:        `{"fields":[{"path":"tone","kind":"enum"}]}`,
 			EnvironmentJSON: `{"fixtures":[]}`,
 			StoriesJSON:     `[{"id":"primary","name":"Primary","args":{"tone":"primary"}}]`,
-			ContractJSON:    `{"schemaVersion":4,"kind":"component"}`,
+			ContractJSON:    `{"schemaVersion": 5,"kind":"component"}`,
 			SourcePath:      "components/Button/versions/1.0.0/story.json",
 		}},
 	})

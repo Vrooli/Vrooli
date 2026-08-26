@@ -3,7 +3,7 @@ import { useEffect, useState, type CSSProperties, type ReactNode } from "react";
 import {
   type FormPhase,
   type FormStore,
-} from "../../../../services/FormStore/versions/1.0.0/FormStore";
+} from "@vrooli/react-component-library/FormStore/1.0.0";
 
 export interface FormActionsProps<
   TValues extends Record<string, unknown> = Record<string, unknown>,
@@ -85,7 +85,7 @@ export function FormActions<
         {children ?? (
           <>
             {cancelLabel && (
-              <button data-testid="forms.form-actions"
+              <button
                 type="button"
                 data-rcl-form-action="cancel"
                 onClick={onCancel}
@@ -95,7 +95,7 @@ export function FormActions<
               </button>
             )}
             {resetLabel && (
-              <button data-testid="forms.form-actions"
+              <button
                 type="reset"
                 data-rcl-form-action="reset"
                 disabled={isDisabled}
@@ -103,7 +103,7 @@ export function FormActions<
                 {resetLabel}
               </button>
             )}
-            <button data-testid="forms.form-actions"
+            <button
               type="submit"
               data-rcl-form-action="submit"
               disabled={isDisabled}

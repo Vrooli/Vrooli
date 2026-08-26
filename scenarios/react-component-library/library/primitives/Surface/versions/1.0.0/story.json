@@ -30,7 +30,7 @@
     "fixtures": []
   },
   "kind": "component",
-  "schemaVersion": 4,
+  "schemaVersion": 5,
   "stories": [
     {
       "args": {
@@ -39,8 +39,8 @@
       },
       "composition": {
         "specimen": {
-          "export": "Specimen",
-          "module": "./story.tsx"
+          "module": "./story.tsx",
+          "export": "SurfaceAnatomy"
         }
       },
       "expect": [
@@ -52,7 +52,8 @@
       ],
       "id": "elevation-flat",
       "mode": "live",
-      "name": "elevation flat"
+      "name": "elevation flat",
+      "role": "anatomy"
     },
     {
       "args": {
@@ -61,13 +62,29 @@
       },
       "composition": {
         "specimen": {
-          "export": "Specimen",
-          "module": "./story.tsx"
+          "module": "./story.tsx",
+          "export": "SurfaceElevationMatrix"
         }
       },
       "id": "elevation-raised",
       "mode": "live",
-      "name": "elevation raised"
+      "name": "elevation raised",
+      "expect": [
+        {
+          "kind": "visible",
+          "selector": "body"
+        }
+      ],
+      "role": "axis",
+      "axis": "elevation",
+      "covers": {
+        "elevation": [
+          "flat",
+          "raised",
+          "floating",
+          "overlay"
+        ]
+      }
     },
     {
       "args": {
@@ -76,8 +93,8 @@
       },
       "composition": {
         "specimen": {
-          "export": "Specimen",
-          "module": "./story.tsx"
+          "module": "./story.tsx",
+          "export": "SurfaceVariantMatrix"
         }
       },
       "expect": [
@@ -88,22 +105,15 @@
       ],
       "id": "elevation-floating",
       "mode": "live",
-      "name": "elevation floating"
-    },
-    {
-      "args": {
-        "elevation": "overlay",
-        "variant": "solid"
-      },
-      "composition": {
-        "specimen": {
-          "export": "Specimen",
-          "module": "./story.tsx"
-        }
-      },
-      "id": "elevation-overlay",
-      "mode": "live",
-      "name": "elevation overlay"
+      "name": "elevation floating",
+      "role": "axis",
+      "axis": "variant",
+      "covers": {
+        "variant": [
+          "solid",
+          "translucent"
+        ]
+      }
     }
   ],
   "title": "Surface"

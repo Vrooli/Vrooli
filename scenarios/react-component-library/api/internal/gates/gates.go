@@ -20,6 +20,7 @@ import (
 	"strings"
 	"time"
 
+	"react-component-library/internal/components"
 	"react-component-library/internal/graphreconcile"
 )
 
@@ -85,6 +86,14 @@ func NormalizeResult(root string, result Result) Result {
 	for _, finding := range result.Findings {
 		if finding.AssetID == "" {
 			result.RunnerError = append(result.RunnerError, finding)
+			continue
+		}
+		// Corpus-level gates use stable pseudo-assets instead of attributing a
+		// distribution finding to an arbitrary catalog entry. Preserve those
+		// findings as findings; they are measured observations, not runner
+		// failures caused by an unresolvable asset identity.
+		if strings.HasPrefix(finding.AssetID, "workbench.") || strings.HasPrefix(finding.AssetID, "__corpus__") {
+			normalized = append(normalized, finding)
 			continue
 		}
 		if ids[finding.AssetID] {
@@ -206,9 +215,100 @@ func ValidateGraphReconciled(root string) (Result, error) {
 }
 
 var (
-	cssVarRefGateRE  = regexp.MustCompile(`var\(\s*(--[A-Za-z0-9_-]+)`)
-	cssVarDeclGateRE = regexp.MustCompile(`(--[A-Za-z0-9_-]+)\s*:`)
+	cssVarRefGateRE         = regexp.MustCompile(`var\(\s*(--[A-Za-z0-9_-]+)`)
+	cssVarDeclGateRE        = regexp.MustCompile(`(--[A-Za-z0-9_-]+)\s*:`)
+	versionLivenessImportRE = regexp.MustCompile(`@vrooli/react-component-library/([^/\s'\";]+)/([^/\s'\";]+)`)
+	adopterLibraryAssetRE   = regexp.MustCompile(`@vrooli/react-component-library/([^/\s'\";]+)/([^/\s'\";]+)`)
+	adopterLibraryImportRE  = regexp.MustCompile(`(?m)^\s*import(?:[^\n;]*?\sfrom\s*)?\s*[\"']@vrooli/react-component-library(?:/[^\"']*)?[\"']`)
 )
+
+// ValidateVersionLiveness protects the published version boundary. Every
+// library import must resolve to a surviving version entry, and released
+// source must not retain a relative edge into another version directory.
+// Package compilation catches the former late; this gate makes the contract
+// visible to catalog evidence and calibration before a consumer build.
+func ValidateVersionLiveness(root string) (Result, error) {
+	libraryRoot := filepath.Join(root, "scenarios", "react-component-library", "library")
+	var sources []string
+	err := filepath.WalkDir(libraryRoot, func(path string, entry os.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		if entry.IsDir() {
+			if entry.Name() == "node_modules" || entry.Name() == "dist" {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		if ext := strings.ToLower(filepath.Ext(path)); ext == ".ts" || ext == ".tsx" {
+			sources = append(sources, path)
+		}
+		return nil
+	})
+	if err != nil {
+		return Result{}, err
+	}
+	sort.Strings(sources)
+	result := Result{Inspected: len(sources)}
+	for _, path := range sources {
+		data, err := os.ReadFile(path)
+		if err != nil {
+			return Result{}, err
+		}
+		text := string(data)
+		assetID := implementationName(path)
+		for _, match := range versionLivenessImportRE.FindAllStringSubmatchIndex(text, -1) {
+			name := text[match[2]:match[3]]
+			version := text[match[4]:match[5]]
+			if !versionEntryExists(libraryRoot, name, version) {
+				line := lineAt(data, match[0])
+				result.Findings = append(result.Findings, Finding{
+					Code: "catalog.version_liveness", AssetID: assetID, File: repoRel(root, path), Line: line,
+					Message:     fmt.Sprintf("imports retired or missing library version %s@%s", name, version),
+					Remediation: fmt.Sprintf("Point this import at a surviving %s version and run `react-component-library versions plan-cleanup` before retiring any further versions. Published package subpaths must resolve to a live version entry.", name),
+					DocsRef:     "docs/concepts/ARCHITECTURE.md#version-lifecycle",
+				})
+			}
+		}
+		for _, match := range regexp.MustCompile(`(?:from\s*|import\s*)[\"']([^\"']+)[\"']`).FindAllStringSubmatchIndex(text, -1) {
+			specifier := text[match[2]:match[3]]
+			if strings.HasPrefix(specifier, ".") && strings.Contains(specifier, "/versions/") {
+				result.Findings = append(result.Findings, Finding{
+					Code: "catalog.version_liveness", AssetID: assetID, File: repoRel(root, path), Line: lineAt(data, match[0]),
+					Message:     fmt.Sprintf("retains a relative import into a version directory: %s", specifier),
+					Remediation: "Use the published @vrooli/react-component-library/<asset>/<version> entry for a dependency, or move a shared helper into the importing version's own closure before retiring versions.",
+					DocsRef:     "docs/concepts/ARCHITECTURE.md#version-lifecycle",
+				})
+			}
+		}
+	}
+	return nonEmpty(result, "version-liveness"), nil
+}
+
+func versionEntryExists(libraryRoot, name, version string) bool {
+	for _, kind := range []string{"foundations", "hooks", "services", "primitives", "components"} {
+		dir := filepath.Join(libraryRoot, kind, name, "versions", version)
+		for _, entry := range []string{name, pascalCaseGate(name)} {
+			for _, ext := range []string{".ts", ".tsx"} {
+				if _, err := os.Stat(filepath.Join(dir, entry+ext)); err == nil {
+					return true
+				}
+			}
+		}
+	}
+	return false
+}
+
+func pascalCaseGate(value string) string {
+	parts := strings.Split(value, "-")
+	for i, part := range parts {
+		if part == "" {
+			continue
+		}
+		parts[i] = strings.ToUpper(part[:1]) + part[1:]
+	}
+	return strings.Join(parts, "")
+}
 
 // ValidateTokenVocabulary rejects the retired app-prefixed CSS vocabulary in
 // active library source. The consumer-side token-map vocabulary is separate
@@ -343,7 +443,14 @@ func ValidateReleasedVersionImmutableWithDB(root string, db queryContexter) (Res
 		}
 		sum := sha256.Sum256(raw)
 		current := hex.EncodeToString(sum[:])
-		if recorded != "" && recorded != current {
+		// A source checkout may materialize one terminal LF even when the
+		// release record was captured without one. Treat that representation
+		// change as canonical whitespace, while still rejecting every other
+		// byte-level mutation.
+		if recorded != "" && recorded != current && !(bytes.HasSuffix(raw, []byte("\n")) && func() bool {
+			withoutTerminalLF := sha256.Sum256(bytes.TrimSuffix(raw, []byte("\n")))
+			return recorded == hex.EncodeToString(withoutTerminalLF[:])
+		}()) {
 			result.Findings = append(result.Findings, Finding{
 				Code: "catalog.released_version_immutable", AssetID: implementationName(filepath.Join(root, "scenarios", "react-component-library", "library", sourcePath)), File: filepath.Join("library", sourcePath),
 				Message:     fmt.Sprintf("released source changed after release: recorded %s, current %s", recorded[:12], current[:12]),
@@ -482,6 +589,9 @@ var (
 	i18nAttributeLiteral    = regexp.MustCompile(`(?m)\b(aria-label|placeholder|title|alt|label|description)\s*=\s*["']([^"'\r\n<>]{1,160})["']`)
 	jsxTextLiteral          = regexp.MustCompile(`>\s*([[:alpha:]][^<>{}\n]{1,160})\s*</[A-Za-z]`)
 	interactiveElementStart = regexp.MustCompile(`<((?:button|a|input|select|textarea))\b`)
+	objectTestIDLiteral     = regexp.MustCompile(`["']data-testid["']\s*:\s*["']([^"'\r\n<>]+)["']`)
+	legacyI18nBridge        = regexp.MustCompile(`__vrooliTranslate|library-locale-bridge|\btranslate\(\s*["']`)
+	positionalStringKey     = regexp.MustCompile(`(?:useStrings|resolveStrings|defineStrings)\(\s*["'][^"']*\.[0-9]+["']|["'][^"']*\.[0-9]+["']\s*:`)
 )
 
 // ValidateI18n derives user-facing strings from component source. Literal
@@ -489,6 +599,20 @@ var (
 // translation through the shared locale bridge.
 func ValidateI18n(root string) (Result, error) {
 	return validateActiveSources(root, "i18n", func(asset assetDoc, source string) defect {
+		if legacyI18nBridge.MatchString(source) {
+			return defect{
+				Message:     "library source still uses the removed locale bridge or legacy translate call",
+				Remediation: "Declare a named key in a co-located .strings.ts module and read it through useStrings.",
+				DocsRef:     "docs/concepts/ARCHITECTURE.md#internationalization",
+			}
+		}
+		if positionalStringKey.MatchString(source) {
+			return defect{
+				Message:     "internationalization key is positional rather than semantic",
+				Remediation: "Rename the key to describe the meaning of the copy and keep the English default in the strings declaration.",
+				DocsRef:     "docs/concepts/ARCHITECTURE.md#internationalization",
+			}
+		}
 		for _, match := range i18nAttributeLiteral.FindAllStringSubmatch(source, -1) {
 			return defect{
 				Message:     fmt.Sprintf("user-facing %s literal %q is embedded in the library source", match[1], match[2]),
@@ -512,6 +636,28 @@ func ValidateI18n(root string) (Result, error) {
 // portable after the asset is copied into an adopting scenario.
 func ValidateSelectorCoverage(root string) (Result, error) {
 	return validateActiveSources(root, "selector-coverage", func(asset assetDoc, source string) defect {
+		rootSelector := false
+		for _, tag := range jsxOpeningTags(source) {
+			if regexp.MustCompile(`\bdata-testid\s*=`).MatchString(tag) && strings.Contains(tag, asset.Asset.ID) {
+				rootSelector = true
+				break
+			}
+		}
+		if !rootSelector {
+			for _, match := range objectTestIDLiteral.FindAllStringSubmatch(source, -1) {
+				if len(match) > 1 && strings.Contains(match[1], asset.Asset.ID) {
+					rootSelector = true
+					break
+				}
+			}
+		}
+		if !rootSelector {
+			return defect{
+				Message:     fmt.Sprintf("exported component has no root data-testid derived from %s", asset.Asset.ID),
+				Remediation: fmt.Sprintf("Add data-testid=%q to the outermost rendered element, or derive the value from the catalog id.", asset.Asset.ID),
+				DocsRef:     "docs/concepts/ARCHITECTURE.md#automation-selectors",
+			}
+		}
 		for _, tag := range interactiveElements(source) {
 			match := interactiveElementStart.FindStringSubmatch(tag)
 			if len(match) == 0 {
@@ -528,6 +674,533 @@ func ValidateSelectorCoverage(root string) (Result, error) {
 		}
 		return defect{}
 	})
+}
+
+// ValidateRestyleContract checks the public seam used by linked consumers.
+// Native HTML attribute inheritance is accepted as an explicit className
+// contract when the component forwards its remaining props to its root
+// element. Components with bespoke props must name className and use it in
+// rendered markup so a consumer never has to copy the implementation merely
+// to change presentation.
+func ValidateRestyleContract(root string) (Result, error) {
+	return validateActiveSources(root, "restyle-contract", func(asset assetDoc, source string) defect {
+		finding := analyzeRestyleSource(source)
+		if finding.Message == "" {
+			return ok()
+		}
+		finding.Message = fmt.Sprintf("%s: %s", asset.Asset.ID, finding.Message)
+		return finding
+	})
+}
+
+var (
+	stylePropRE         = regexp.MustCompile(`(?m)(?:^|[;{]\s*)style\?\s*:\s*([^;},\n]+)`)
+	classNamePropRE     = regexp.MustCompile(`(?m)\bclassName\??\s*:`)
+	classNameUseRE      = regexp.MustCompile(`\bclassName\b`)
+	forwardRefRE        = regexp.MustCompile(`\bforwardRef\b`)
+	refAttributeRE      = regexp.MustCompile(`\bref\s*=\s*\{[^}]*\b(?:ref|forwardedRef)\b[^}]*\}`)
+	imperativeRefRE     = regexp.MustCompile(`\buseImperativeHandle\s*\(`)
+	assignRefRE         = regexp.MustCompile(`\bassignRef\s*\(`)
+	classNameBoundaryRE = regexp.MustCompile(`\bwithClassName\s*\(`)
+	exportedComponentRE = regexp.MustCompile(`(?m)^export\s+(?:function|const|class)\s+[A-Z]`)
+)
+
+func analyzeRestyleSource(source string) defect {
+	if !exportedComponentRE.MatchString(source) {
+		return ok()
+	}
+	hasClassName := classNamePropRE.MatchString(source) || classNameUseRE.MatchString(source) || strings.Contains(source, "HTMLAttributes<") || strings.Contains(source, "ComponentProps<") || classNameBoundaryRE.MatchString(source)
+	if hasOverloadedStyleProp(source) && hasClassName {
+		return defect{
+			Message:     "overloads the standard style prop while exposing className",
+			Remediation: "Remove the bespoke style prop; expose a named token selector and reserve style for consumer-owned computed values.",
+			DocsRef:     "docs/concepts/ARCHITECTURE.md#restyle-contract",
+		}
+	}
+	if hasClassName && hasInlineStyleOverride(source) && !strings.Contains(source, "/* computed-style-ok */") {
+		return defect{
+			Message:     "accepts className but also assigns an inline style object",
+			Remediation: "Move token-derived declarations to a co-located stylesheet keyed by data attributes, then compose className with cn() on the root.",
+			DocsRef:     "docs/concepts/ARCHITECTURE.md#restyle-contract",
+		}
+	}
+	hasForwardedRef := forwardRefRE.MatchString(source) && refAttributeRE.MatchString(source)
+	if classNameBoundaryRE.MatchString(source) || imperativeRefRE.MatchString(source) || assignRefRE.MatchString(source) {
+		hasForwardedRef = true
+	}
+	if hasClassName && !hasForwardedRef {
+		return defect{
+			Message:     "does not forward a consumer ref to its root element",
+			Remediation: "Wrap the exported component in forwardRef and pass ref to the outermost rendered element.",
+			DocsRef:     "docs/concepts/ARCHITECTURE.md#restyle-contract",
+		}
+	}
+	if !hasClassName {
+		return defect{
+			Message:     "does not expose a className pass-through on its public component surface",
+			Remediation: "Add className?: string to the exported props, merge it with cn(), and forward it to the outermost rendered element.",
+			DocsRef:     "docs/concepts/ARCHITECTURE.md#restyle-contract",
+		}
+	}
+	return ok()
+}
+
+func hasOverloadedStyleProp(source string) bool {
+	for _, match := range stylePropRE.FindAllStringSubmatch(source, -1) {
+		if len(match) < 2 {
+			continue
+		}
+		typeName := strings.TrimSpace(match[1])
+		if typeName != "CSSProperties" && typeName != "React.CSSProperties" {
+			return true
+		}
+	}
+	return false
+}
+
+// hasInlineStyleOverride only considers one JSX opening element at a time.
+// A component can legitimately use a computed inline value on a nested
+// layout child while still exposing a className-controlled root. Matching the
+// whole source would incorrectly reject that case (and even match
+// data-* attributes such as data-text-style).
+func hasInlineStyleOverride(source string) bool {
+	for _, tag := range jsxOpeningTags(source) {
+		if !jsxInlineStyleObjectRE.MatchString(tag) {
+			continue
+		}
+		if jsxConsumerClassRE.MatchString(tag) || jsxSpreadRE.MatchString(tag) {
+			return true
+		}
+	}
+	return false
+}
+
+var (
+	jsxSpreadRE            = regexp.MustCompile(`\.\.\.(?:props|rest)\b`)
+	jsxConsumerClassRE     = regexp.MustCompile(`(?m)(?:^|\s)className\s*=\s*\{[^}]*\bclassName\b`)
+	jsxInlineStyleObjectRE = regexp.MustCompile(`(?m)(?:^|\s)style\s*=\s*\{\s*\{`)
+)
+
+func jsxOpeningTags(source string) []string {
+	var tags []string
+	for index := 0; index < len(source); index++ {
+		if source[index] != '<' || index+1 >= len(source) || !isJSXNameStart(source[index+1]) {
+			continue
+		}
+		braceDepth := 0
+		quote := byte(0)
+		for end := index + 1; end < len(source); end++ {
+			char := source[end]
+			if quote != 0 {
+				if char == '\\' {
+					end++
+				} else if char == quote {
+					quote = 0
+				}
+				continue
+			}
+			if char == '"' || char == '\'' || char == '`' {
+				quote = char
+				continue
+			}
+			switch char {
+			case '{':
+				braceDepth++
+			case '}':
+				if braceDepth > 0 {
+					braceDepth--
+				}
+			case '>':
+				if braceDepth == 0 {
+					tags = append(tags, source[index:end+1])
+					index = end
+					end = len(source)
+				}
+			}
+		}
+	}
+	return tags
+}
+
+func isJSXNameStart(char byte) bool {
+	return (char >= 'A' && char <= 'Z') || (char >= 'a' && char <= 'z')
+}
+
+// ValidateStoryGrammar is the catalog-level counterpart to the story parser.
+// It reads every story contract so the node DSL is checked even when a caller
+// bypasses the component indexer.
+func ValidateStoryGrammar(root string) (Result, error) {
+	paths, err := filepath.Glob(filepath.Join(root, "scenarios", "react-component-library", "library", "*", "*", "versions", "*", "story.json"))
+	if err != nil {
+		return Result{}, err
+	}
+	result := Result{Inspected: len(paths)}
+	for _, path := range paths {
+		raw, readErr := os.ReadFile(path)
+		if readErr != nil {
+			return Result{}, readErr
+		}
+		_, diagnostics := components.ParseStoryContract(raw)
+		contract, _ := components.ParseStoryContract(raw)
+		for _, diagnostic := range components.StoryContractErrors(diagnostics) {
+			if diagnostic.Rule != "raw_node_tag_name" {
+				continue
+			}
+			result.Findings = append(result.Findings, Finding{
+				Code: "catalog.raw_node_tag_name", AssetID: implementationName(path), File: repoRel(root, path),
+				Message: diagnostic.Detail, Remediation: "Replace the tag-name $text value with a $node and meaningful children, or move the React composition into story.tsx.", DocsRef: "docs/guides/asset-preview-composition.md",
+			})
+		}
+		if contract == nil {
+			continue
+		}
+		assetID := implementationName(path)
+		anatomyCount := 0
+		axes := map[string]bool{}
+		for _, story := range contract.Stories {
+			if story.Role == "anatomy" {
+				anatomyCount++
+			}
+			if story.Role == "axis" {
+				axes[story.Axis] = true
+			}
+			if len(story.Expect) == 0 {
+				result.Findings = append(result.Findings, Finding{
+					Code: "catalog.story_expectation_missing", AssetID: assetID, File: repoRel(root, path),
+					Message:     fmt.Sprintf("story %q declares no expectation", story.ID),
+					Remediation: "Add at least one rendered expectation to the story, such as a role, text, attribute, or layout assertion.",
+					DocsRef:     "docs/concepts/STORY-CONTRACT.md#story-roles",
+				})
+			}
+		}
+		if anatomyCount != 1 {
+			result.Findings = append(result.Findings, Finding{
+				Code: "catalog.story_anatomy_missing", AssetID: assetID, File: repoRel(root, path),
+				Message:     fmt.Sprintf("contract has %d anatomy frames; exactly one is required", anatomyCount),
+				Remediation: "Mark exactly one default rendered story with role=anatomy and keep its specimen free of matrix or boundary-only variation.",
+				DocsRef:     "docs/concepts/STORY-CONTRACT.md#story-roles",
+			})
+		}
+		for _, field := range contract.Args.Fields {
+			if field.Kind == components.StoryFieldEnum && !axes[field.Path] {
+				result.Findings = append(result.Findings, Finding{
+					Code: "catalog.story_axis_missing", AssetID: assetID, File: repoRel(root, path),
+					Message:     fmt.Sprintf("enum axis %q has no axis frame", field.Path),
+					Remediation: fmt.Sprintf("Add one story with role=axis, axis=%q, and covers listing the rendered options.", field.Path),
+					DocsRef:     "docs/concepts/STORY-CONTRACT.md#story-roles",
+				})
+			}
+		}
+	}
+	return nonEmpty(result, "story-grammar"), nil
+}
+
+// ValidateStoryDistinctness rejects exact duplicate frames and the old
+// one-specimen-per-option shape. Axis stories are intentionally allowed to
+// share a specimen because their declared covers matrix is the variation.
+func ValidateStoryDistinctness(root string) (Result, error) {
+	paths, err := filepath.Glob(filepath.Join(root, "scenarios", "react-component-library", "library", "*", "*", "versions", "*", "story.json"))
+	if err != nil {
+		return Result{}, err
+	}
+	result := Result{Inspected: len(paths)}
+	for _, path := range paths {
+		raw, readErr := os.ReadFile(path)
+		if readErr != nil {
+			return Result{}, readErr
+		}
+		contract, diagnostics := components.ParseStoryContract(raw)
+		if contract == nil || len(components.StoryContractErrors(diagnostics)) > 0 || len(contract.Stories) < 2 {
+			continue
+		}
+		seen := map[string]string{}
+		specimenExports := map[string]int{}
+		for _, story := range contract.Stories {
+			if story.Composition != nil && story.Composition.Specimen != nil {
+				specimenExports[story.Composition.Specimen.Export]++
+			}
+			fingerprintStory := story
+			fingerprintStory.ID = ""
+			fingerprintStory.Name = ""
+			canonical, marshalErr := json.Marshal(fingerprintStory)
+			if marshalErr != nil {
+				return Result{}, marshalErr
+			}
+			hash := sha256.Sum256(canonical)
+			key := hex.EncodeToString(hash[:])
+			if previous, exists := seen[key]; exists {
+				result.Findings = append(result.Findings, Finding{
+					Code: "catalog.story_sibling_duplicate", AssetID: implementationName(path), File: repoRel(root, path),
+					Message:     fmt.Sprintf("story %q duplicates sibling story %q", story.ID, previous),
+					Remediation: "Give each sibling frame a distinct rendered question, or collapse the duplicate into the matrix story that declares its covers.",
+					DocsRef:     "docs/concepts/STORY-CONTRACT.md#story-roles",
+				})
+			} else {
+				seen[key] = story.ID
+			}
+		}
+		if len(contract.Stories) >= 3 && len(specimenExports) == 1 {
+			for exportName, count := range specimenExports {
+				if exportName == "" || count != len(contract.Stories) {
+					continue
+				}
+				result.Findings = append(result.Findings, Finding{
+					Code: "catalog.story_sibling_duplicate", AssetID: implementationName(path), File: repoRel(root, path),
+					Message:     fmt.Sprintf("all %d sibling frames reuse specimen %q", count, exportName),
+					Remediation: "Give anatomy, axis, and boundary questions distinct specimen compositions; an axis matrix may share one specimen only when it is the sole frame for that axis.",
+					DocsRef:     "docs/concepts/STORY-CONTRACT.md#story-roles",
+				})
+			}
+		}
+		if len(seen) == 1 && contract.Stories[0].Role == "" {
+			result.Findings = append(result.Findings, Finding{
+				Code: "catalog.story_sibling_duplicate", AssetID: implementationName(path), File: repoRel(root, path),
+				Message:     "multiple stories render one indistinguishable legacy specimen",
+				Remediation: "Migrate the contract to role=anatomy plus explicit axis or boundary frames with distinct rendered coverage.",
+				DocsRef:     "docs/concepts/STORY-CONTRACT.md#story-roles",
+			})
+		}
+	}
+	return nonEmpty(result, "story-distinctness"), nil
+}
+
+// ValidateAdopterHygiene closes the ownership boundary after a library
+// migration. Adopter tests must not keep importing the package directly: the
+// assertion belongs beside the versioned source, while scenario tests should
+// exercise the scenario-owned composition. It also detects duplicate migrated
+// bodies before they silently diverge.
+func ValidateAdopterHygiene(root string) (Result, error) {
+	result := Result{}
+	bodies := map[string]string{}
+	err := filepath.WalkDir(root, func(path string, entry os.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		if entry.IsDir() {
+			rel := repoRel(root, path)
+			if entry.Name() == ".git" || entry.Name() == "node_modules" || entry.Name() == "dist" || rel == "scenarios/react-component-library" || strings.HasPrefix(rel, "scenarios/react-component-library/") {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		name := strings.ToLower(entry.Name())
+		if !(strings.HasSuffix(name, ".test.ts") || strings.HasSuffix(name, ".test.tsx") || strings.HasSuffix(name, ".spec.ts") || strings.HasSuffix(name, ".spec.tsx")) {
+			return nil
+		}
+		data, readErr := os.ReadFile(path)
+		if readErr != nil {
+			return readErr
+		}
+		result.Inspected++
+		match := adopterLibraryImportRE.FindStringIndex(string(data))
+		if match == nil {
+			return nil
+		}
+		rel := repoRel(root, path)
+		result.Findings = append(result.Findings, Finding{
+			Code: "catalog.adopter_hygiene_orphan", AssetID: "__corpus__.adopter-hygiene", File: rel, Line: lineAt(data, match[0]),
+			Message:     "scenario test directly imports the React Component Library; the assertion is still owned by the adopter",
+			Remediation: "Move the library assertion beside the matching version under scenarios/react-component-library/library, then keep only scenario-owned composition assertions in this test.",
+			DocsRef:     "docs/guides/asset-update-flow.md#test-ownership",
+		})
+		canonical := adopterLibraryImportRE.ReplaceAll(data, nil)
+		canonical = []byte(strings.Join(strings.Fields(string(canonical)), " "))
+		hash := sha256.Sum256(canonical)
+		key := hex.EncodeToString(hash[:])
+		if previous, exists := bodies[key]; exists {
+			result.Findings = append(result.Findings, Finding{
+				Code: "catalog.adopter_hygiene_duplicate", AssetID: "__corpus__.adopter-hygiene", File: rel, Line: lineAt(data, match[0]),
+				Message:     fmt.Sprintf("library assertion body duplicates %s", previous),
+				Remediation: "Keep one canonical assertion beside the library version and delete the duplicate adopter copy after its scenario-owned coverage is preserved.",
+				DocsRef:     "docs/guides/asset-update-flow.md#test-ownership",
+			})
+		} else {
+			bodies[key] = rel
+		}
+		return nil
+	})
+	if err != nil {
+		return Result{}, err
+	}
+	return nonEmpty(result, "adopter-hygiene"), nil
+}
+
+// The adopter-aware gates share one deterministic policy: linked adopters must
+// carry the generated obligation files. They are intentionally filesystem
+// gates so preflight and link can use the same verifier without a live browser.
+func ValidateEvidenceFreshness(root string) (Result, error) {
+	return validateEvidenceFreshness(root)
+}
+
+func ValidateI18nAdopted(root string) (Result, error) {
+	declarations, err := libraryStringDeclarations(root)
+	if err != nil {
+		return Result{}, err
+	}
+	result := Result{}
+	for _, packagePath := range adopterPackagePaths(root) {
+		adopterRoot := filepath.Dir(packagePath)
+		catalogPath := filepath.Join(adopterRoot, "src", "i18n", "locales", "en.json")
+		catalogBytes, readErr := os.ReadFile(catalogPath)
+		if readErr != nil {
+			result.Inspected++
+			result.Findings = append(result.Findings, Finding{
+				Code: "catalog.i18n-adopted", AssetID: "__adopter__", File: repoRel(root, catalogPath), Line: 1,
+				Message:     "linked adopter has no English catalog for declared library strings",
+				Remediation: "Create ui/src/i18n/locales/en.json and run the governed adoption link operation.",
+				DocsRef:     "docs/concepts/ARCHITECTURE.md#internationalization",
+			})
+			continue
+		}
+		var catalog any
+		if err := json.Unmarshal(catalogBytes, &catalog); err != nil {
+			return Result{}, fmt.Errorf("parse %s: %w", catalogPath, err)
+		}
+		catalogKeys := map[string]struct{}{}
+		collectJSONKeys(catalog, "", catalogKeys)
+		imports := map[string]struct{}{}
+		_ = filepath.WalkDir(adopterRoot, func(path string, entry os.DirEntry, walkErr error) error {
+			if walkErr != nil || entry.IsDir() || !strings.HasPrefix(filepath.Ext(path), ".") {
+				return walkErr
+			}
+			if ext := filepath.Ext(path); ext != ".ts" && ext != ".tsx" && ext != ".js" && ext != ".jsx" {
+				return nil
+			}
+			data, err := os.ReadFile(path)
+			if err != nil {
+				return err
+			}
+			for _, match := range adopterLibraryAssetRE.FindAllStringSubmatch(string(data), -1) {
+				imports[match[1]] = struct{}{}
+			}
+			return nil
+		})
+		result.Inspected++
+		for importKey := range imports {
+			keys := declarations[importKey]
+			if len(keys) == 0 {
+				continue
+			}
+			if !hasAnyKey(catalogKeys, keys) {
+				asset := strings.SplitN(importKey, "@", 2)[0]
+				result.Findings = append(result.Findings, Finding{
+					Code: "catalog.i18n-adopted", AssetID: asset, File: repoRel(root, catalogPath), Line: 1,
+					Message:     fmt.Sprintf("linked asset %s declares %d strings but the adopter English catalog contains none of them", asset, len(keys)),
+					Remediation: "Run the governed `adoptions link` operation for the linked asset so its declared strings are merged into ui/src/i18n/locales/en.json.",
+					DocsRef:     "docs/concepts/ARCHITECTURE.md#internationalization",
+				})
+			}
+		}
+	}
+	return nonEmpty(result, "i18n-adopted"), nil
+}
+
+func libraryStringDeclarations(root string) (map[string]map[string]struct{}, error) {
+	result := map[string]map[string]struct{}{}
+	pattern := regexp.MustCompile(`(?m)["']([^"']+)["']\s*:\s*["'][^"']*["']\s*,?`)
+	base := filepath.Join(root, "scenarios", "react-component-library", "library")
+	err := filepath.WalkDir(base, func(path string, entry os.DirEntry, walkErr error) error {
+		if walkErr != nil || entry.IsDir() || !strings.HasSuffix(entry.Name(), ".strings.ts") {
+			return walkErr
+		}
+		parts := strings.Split(filepath.ToSlash(path), "/")
+		if len(parts) < 4 {
+			return nil
+		}
+		asset := parts[len(parts)-4]
+		version := parts[len(parts)-2]
+		declarationKey := asset + "@" + version
+		data, err := os.ReadFile(path)
+		if err != nil {
+			return err
+		}
+		if result[declarationKey] == nil {
+			result[declarationKey] = map[string]struct{}{}
+		}
+		for _, match := range pattern.FindAllStringSubmatch(string(data), -1) {
+			result[declarationKey][match[1]] = struct{}{}
+		}
+		return nil
+	})
+	return result, err
+}
+
+func collectJSONKeys(value any, prefix string, keys map[string]struct{}) {
+	switch typed := value.(type) {
+	case map[string]any:
+		for key, child := range typed {
+			path := key
+			if prefix != "" {
+				path = prefix + "." + key
+			}
+			collectJSONKeys(child, path, keys)
+		}
+	case []any:
+		for _, child := range typed {
+			collectJSONKeys(child, prefix, keys)
+		}
+	default:
+		if prefix != "" {
+			keys[prefix] = struct{}{}
+		}
+	}
+}
+
+func hasAnyKey(catalog, required map[string]struct{}) bool {
+	for key := range required {
+		if _, ok := catalog[key]; ok {
+			return true
+		}
+	}
+	return false
+}
+
+func ValidateSelectorsAdopted(root string) (Result, error) {
+	result, err := validateAdopterFiles(root, "selectors-adopted", "src/consts/selectors.library.ts", "librarySelectors", "src/consts/selectors.ts")
+	if err != nil {
+		return Result{}, err
+	}
+	if result.Status == "not-applicable" {
+		return result, nil
+	}
+	positional := regexp.MustCompile(`(?m)^\s*["']?id[0-9]+["']?\s*:`)
+	legacyValue := regexp.MustCompile(`:\s*["'][^"'.]*-[^"'.]*["']\s*,?\s*$`)
+	for _, packagePath := range adopterPackagePaths(root) {
+		body, readErr := os.ReadFile(filepath.Join(filepath.Dir(packagePath), "src/consts/selectors.library.ts"))
+		if readErr != nil {
+			continue
+		}
+		data := string(body)
+		if match := positional.FindStringIndex(data); match != nil {
+			result.Findings = append(result.Findings, Finding{
+				Code: "catalog.selectors-adopted", AssetID: "", File: repoRel(root, filepath.Join(filepath.Dir(packagePath), "src/consts/selectors.library.ts")), Line: lineAt(body, match[0]),
+				Message:     "adopter selector registry uses positional idN names",
+				Remediation: "Name each selector from its meaning (for example, close or resizeHandle) and keep its value rooted at the dotted catalog id.",
+				DocsRef:     "docs/concepts/ARCHITECTURE.md#automation-selectors",
+			})
+		}
+		if match := legacyValue.FindStringIndex(data); match != nil {
+			result.Findings = append(result.Findings, Finding{
+				Code: "catalog.selectors-adopted", AssetID: "", File: repoRel(root, filepath.Join(filepath.Dir(packagePath), "src/consts/selectors.library.ts")), Line: lineAt(body, match[0]),
+				Message:     "adopter selector registry emits a legacy kebab-case test id instead of a dotted catalog id",
+				Remediation: "Regenerate the managed selector registry through the governed adoption link workflow.",
+				DocsRef:     "docs/concepts/ARCHITECTURE.md#automation-selectors",
+			})
+		}
+	}
+	return nonEmpty(result, "selectors-adopted"), nil
+}
+
+func adopterPackagePaths(root string) []string {
+	paths, _ := filepath.Glob(filepath.Join(root, "scenarios", "*", "ui", "package.json"))
+	result := make([]string, 0, len(paths))
+	for _, path := range paths {
+		data, err := os.ReadFile(path)
+		if err == nil && strings.Contains(string(data), "@vrooli/react-component-library") {
+			result = append(result, path)
+		}
+	}
+	return result
 }
 
 func interactiveElements(source string) []string {
@@ -772,6 +1445,11 @@ func literalDimensionFindings(root, path string, data []byte) []Finding {
 		})
 	}
 	for _, loc := range literalSizing.FindAllIndex(data, -1) {
+		// Do not treat the sizing suffix in layout utilities such as
+		// min-w-0/max-w-0 as a standalone raw width utility.
+		if loc[0] > 0 && data[loc[0]-1] == '-' {
+			continue
+		}
 		match := string(data[loc[0]:loc[1]])
 		out = append(out, Finding{
 			Code: "catalog.tokens_literal", AssetID: assetID, File: file, Line: lineAt(data, loc[0]),

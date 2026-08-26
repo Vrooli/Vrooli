@@ -1,2 +1,2 @@
 /** @vrooliComponentSource react-component-library:VoiceInputButton */
-export * from "./VoiceInputButton/versions/4.1.0/VoiceInputButton";
+export * from "@vrooli/react-component-library/VoiceInputButton/4.1.0";

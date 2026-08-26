@@ -1,10 +1,10 @@
 import { useAnnounce } from "./useAnnounce";
-import { LiveAnnouncer } from "../../../../services/LiveAnnouncer/versions/1.0.0/LiveAnnouncer";
+import { LiveAnnouncer } from "@vrooli/react-component-library/LiveAnnouncer/1.0.0";
 
 export function Default({ log }: StoryHarnessProps) {
   const announce = useAnnounce();
   return (
-    <LiveAnnouncer>
+    <LiveAnnouncer data-testid="hooks.use-announce">
       <button
         type="button"
         onClick={() => {

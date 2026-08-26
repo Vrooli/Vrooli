@@ -886,6 +886,9 @@ func recomputeEvidence(root string, runtimeDB *sql.DB) ([]GateEvidence, error) {
 	if runners["conformance"], err = gates.ValidateConformance(root); err != nil {
 		return nil, err
 	}
+	if runners["version-liveness"], err = gates.ValidateVersionLiveness(root); err != nil {
+		return nil, err
+	}
 	if _, statErr := os.Stat(filepath.Join(root, "scenarios", "react-component-library", "ui", "src", "design-tokens.css")); statErr == nil {
 		if runners["token-vocabulary"], err = gates.ValidateTokenVocabulary(root); err != nil {
 			return nil, err
@@ -925,6 +928,27 @@ func recomputeEvidence(root string, runtimeDB *sql.DB) ([]GateEvidence, error) {
 		return nil, err
 	}
 	if runners["surface-discipline"], err = gates.ValidateSurfaceDiscipline(root); err != nil {
+		return nil, err
+	}
+	if runners["restyle-contract"], err = gates.ValidateRestyleContract(root); err != nil {
+		return nil, err
+	}
+	if runners["story-grammar"], err = gates.ValidateStoryGrammar(root); err != nil {
+		return nil, err
+	}
+	if runners["story-distinctness"], err = gates.ValidateStoryDistinctness(root); err != nil {
+		return nil, err
+	}
+	if runners["evidence-freshness"], err = gates.ValidateEvidenceFreshness(root); err != nil {
+		return nil, err
+	}
+	if runners["i18n-adopted"], err = gates.ValidateI18nAdopted(root); err != nil {
+		return nil, err
+	}
+	if runners["selectors-adopted"], err = gates.ValidateSelectorsAdopted(root); err != nil {
+		return nil, err
+	}
+	if runners["adopter-hygiene"], err = gates.ValidateAdopterHygiene(root); err != nil {
 		return nil, err
 	}
 	for name, runner := range runners {

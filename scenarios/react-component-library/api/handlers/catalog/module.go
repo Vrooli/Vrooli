@@ -219,7 +219,11 @@ func (h *handler) RunGate(ctx context.Context, req *connect.Request[catalogv1.Ru
 		}
 	}
 	runner := h.gateRunner(gate)
-	calibration, calibrationErr := gates.Calibrate(h.repoRoot, gate, runner)
+	// Calibration runs against an isolated overlay. In particular, the
+	// immutable-version fixture creates an overlay database; using the live
+	// routed database here would make the planted drift invisible and falsely
+	// quarantine an otherwise measurable gate.
+	calibration, calibrationErr := gates.Calibrate(h.repoRoot, gate, gates.GateRunnerFor(gate))
 	if calibrationErr != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("calibrate catalog gate %q: %w", gate, calibrationErr))
 	}
@@ -272,7 +276,14 @@ func (h *handler) RunGate(ctx context.Context, req *connect.Request[catalogv1.Ru
 			if evidenceErr != nil {
 				return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("derive evidence for gate %q: %w", gate, evidenceErr))
 			}
-			if evidenceErr = h.evidence.Save(ctx, rows); evidenceErr != nil {
+			// Gate runners can legitimately outlive the client request budget
+			// while they derive evidence for the full catalog. Evidence is a
+			// durable observation, so do not discard it when the RPC context is
+			// canceled after the runner has completed.
+			persistCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+			evidenceErr = h.evidence.Save(persistCtx, rows)
+			cancel()
+			if evidenceErr != nil {
 				return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("persist evidence for gate %q: %w", gate, evidenceErr))
 			}
 			h.reports.invalidate()
@@ -337,6 +348,12 @@ func (h *handler) RunGate(ctx context.Context, req *connect.Request[catalogv1.Ru
 }
 
 func (h *handler) gateRunner(gate string) gates.GateRunner {
+	if gate == "released-version-immutable" && h.evidence != nil && h.evidence.Database() != nil {
+		db := h.evidence.Database()
+		return func(root string) (gates.Result, error) {
+			return gates.ValidateReleasedVersionImmutableWithDB(root, db)
+		}
+	}
 	return gates.GateRunnerFor(gate)
 }
 
@@ -350,7 +367,7 @@ func (h *handler) ensureQuarantines(definitions []catalogcoverage.GateDefinition
 		if !definition.Blocking {
 			continue
 		}
-		calibration, err := gates.Calibrate(h.repoRoot, definition.ID, h.gateRunner(definition.ID))
+		calibration, err := gates.Calibrate(h.repoRoot, definition.ID, gates.GateRunnerFor(definition.ID))
 		if err != nil {
 			return fmt.Errorf("calibrate quarantine state for %q: %w", definition.ID, err)
 		}

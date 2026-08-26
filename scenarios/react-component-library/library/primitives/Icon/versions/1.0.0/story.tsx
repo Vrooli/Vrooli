@@ -1,4 +1,4 @@
-import { Icon, type IconName } from "./Icon";
+import { Icon, type IconName, type IconSize, type IconTone } from "./Icon";
 
 const names: IconName[] = [
   "check",
@@ -128,6 +128,41 @@ export function IconShowcase({ args }: { args?: { name?: IconName } }) {
         <Icon name={selected} tone="accent" size="md" />
         <span>{labels[selected]} · named for assistive technology</span>
       </footer>
+    </section>
+  );
+}
+
+export function IconAnatomy() {
+  return (
+    <section aria-label="Icon anatomy" data-rcl-icon-anatomy style={shellStyle}>
+      <h1 style={{ margin: 0, font: "var(--text-title)" }}>A named icon with an accessible label</h1>
+      <Icon name="check" label="Check" size="lg" tone="accent" />
+      <p style={{ margin: 0 }}>The anatomy frame proves the root geometry and accessible name.</p>
+    </section>
+  );
+}
+
+export function IconSetMatrix() {
+  return (
+    <section aria-label="Icon set matrix" data-rcl-icon-set style={shellStyle}>
+      <h2 style={{ margin: 0, font: "var(--text-heading)" }}>Nine registered names</h2>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: "var(--space-md)" }}>
+        {names.map((name) => <Icon key={name} name={name} label={labels[name]} size="md" />)}
+      </div>
+    </section>
+  );
+}
+
+export function IconTreatmentMatrix() {
+  const treatments: Array<[IconSize, IconTone]> = [
+    ["sm", "default"], ["md", "muted"], ["lg", "accent"], ["lg", "danger"],
+  ];
+  return (
+    <section aria-label="Icon treatment matrix" data-rcl-icon-treatment style={shellStyle}>
+      <h2 style={{ margin: 0, font: "var(--text-heading)" }}>Size and tone treatments</h2>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: "var(--space-lg)", alignItems: "center" }}>
+        {treatments.map(([size, tone]) => <Icon key={`${size}-${tone}`} name="plus" label={`${size} ${tone}`} size={size} tone={tone} />)}
+      </div>
     </section>
   );
 }

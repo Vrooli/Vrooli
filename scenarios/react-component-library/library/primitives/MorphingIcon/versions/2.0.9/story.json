@@ -7,7 +7,7 @@
     "fixtures": []
   },
   "kind": "component",
-  "schemaVersion": 4,
+  "schemaVersion": 5,
   "stories": [
     {
       "args": {},
@@ -39,7 +39,8 @@
         }
       ],
       "mode": "live",
-      "name": "Interactive state change"
+      "name": "Interactive state change",
+      "role": "anatomy"
     },
     {
       "args": {},
@@ -71,7 +72,8 @@
         }
       ],
       "mode": "live",
-      "name": "Copy to success"
+      "name": "Copy to success",
+      "role": "boundary"
     }
   ],
   "title": "MorphingIcon"

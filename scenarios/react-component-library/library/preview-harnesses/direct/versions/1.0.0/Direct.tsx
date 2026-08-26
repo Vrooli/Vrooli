@@ -1,5 +1,5 @@
 import type { ComponentType } from "react";
-import { PreviewShowcase } from "../../../../showcase/versions/1.0.0/PreviewShowcase";
+import { PreviewShowcase } from "../../../showcase/PreviewShowcase";
 
 type DirectProps = {
   subject: ComponentType<Record<string, unknown>>;

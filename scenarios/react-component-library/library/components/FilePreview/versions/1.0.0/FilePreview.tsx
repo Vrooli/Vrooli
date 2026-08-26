@@ -122,17 +122,17 @@ export function FilePreview({
       </div>
       <div data-rcl-file-preview-actions>
         {onOpen && (
-          <button data-testid="media.file-preview" type="button" data-primary="true" onClick={onOpen}>
+          <button type="button" data-primary="true" onClick={onOpen}>
             {openLabel}
           </button>
         )}
         {onDownload && (
-          <button data-testid="media.file-preview" type="button" onClick={onDownload}>
+          <button type="button" onClick={onDownload}>
             {downloadLabel}
           </button>
         )}
         {onRemove && (
-          <button data-testid="media.file-preview" type="button" data-danger="true" onClick={onRemove}>
+          <button type="button" data-danger="true" onClick={onRemove}>
             {removeLabel}
           </button>
         )}

@@ -492,6 +492,17 @@ var Endpoints = []module.EndpointDescriptor{
 		},
 	},
 	{
+		ID:          "components_library_import_resolve",
+		Path:        componentsconnect.ComponentsServiceResolveLibraryImportProcedure,
+		Method:      "POST",
+		Summary:     "Resolve a library import",
+		Description: "Resolves a published React Component Library package specifier to its catalog asset, pinned version, export kind, description, and source path. Relative imports return an explicit unresolved diagnostic.",
+		Category:    "components",
+		Request:     &module.Schema{Type: "object", Properties: map[string]string{"specifier": "string", "from_path": "string (optional source path)"}},
+		Response:    &module.Schema{Type: "object", Properties: map[string]string{"resolved": "bool", "asset_id": "string", "library_id": "string", "version": "string", "export_kind": "string", "description": "string", "source_path": "string", "diagnostic": "string"}},
+		Errors:      []module.ErrorDesc{{Status: 500, Code: "internal", Description: "Catalog read failure"}},
+	},
+	{
 		ID:          "components_stories_list",
 		Path:        componentsconnect.ComponentsServiceListComponentStoriesProcedure,
 		Method:      "POST",

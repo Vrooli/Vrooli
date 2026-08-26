@@ -1,2 +1,2 @@
 /** @vrooliComponentSource forms.input */
-export * from "./ui/Input/versions/1.1.0/Input";
+export * from "@vrooli/react-component-library/Input/1.1.0";

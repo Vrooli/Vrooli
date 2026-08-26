@@ -28,7 +28,7 @@
     }
   ],
   "displayName": "BulkActionBar",
-  "latest": "1.0.0",
+  "latest": "1.0.1",
   "libraryId": "react-component-library:BulkActionBar",
   "tags": [
     "data-display",
@@ -42,5 +42,7 @@
       "libraryId": "react-component-library:useLocale",
       "version": "1.0.0"
     }
-  ]
+  ],
+  "draft": "",
+  "deprecatedVersions": []
 }

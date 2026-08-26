@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { ArrayField } from "./ArrayField";
-import { createFormStore } from "../../../../services/FormStore/versions/1.0.0/FormStore";
+import { createFormStore } from "@vrooli/react-component-library/FormStore/1.0.0";
 
 const inputStyle = {
   boxSizing: "border-box",

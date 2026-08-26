@@ -7,7 +7,7 @@
     "fixtures": []
   },
   "kind": "component",
-  "schemaVersion": 4,
+  "schemaVersion": 5,
   "stories": [
     {
       "args": {},
@@ -30,7 +30,8 @@
       ],
       "id": "default",
       "mode": "live",
-      "name": "Default"
+      "name": "Default",
+      "role": "anatomy"
     },
     {
       "args": {},
@@ -52,7 +53,8 @@
       ],
       "id": "validation",
       "mode": "live",
-      "name": "Validation summary"
+      "name": "Validation summary",
+      "role": "boundary"
     },
     {
       "args": {},
@@ -75,7 +77,8 @@
       ],
       "id": "collapsed",
       "mode": "live",
-      "name": "Collapsed"
+      "name": "Collapsed",
+      "role": "boundary"
     }
   ],
   "title": "FormSection"

@@ -1,0 +1,28 @@
+{
+  "contract": {
+    "kind": "rcl-component-experience-contract",
+    "schema": "scenario-experience-spec/v1",
+    "provenance": "react-component-library:useLocale@1.0.0"
+  },
+  "component": {
+    "id": "use-locale",
+    "title": "Locale",
+    "purpose": "Reads the document language for locale-aware behavior."
+  },
+  "states": [
+    {
+      "id": "default",
+      "example": "default",
+      "description": "The default contract."
+    }
+  ],
+  "claims": [
+    {
+      "id": "contract-present",
+      "type": "manual-review",
+      "statement": "The hook exposes its documented public behavior through a stable versioned entrypoint.",
+      "tier": "manual",
+      "states": ["default"]
+    }
+  ]
+}

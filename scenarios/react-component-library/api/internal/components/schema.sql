@@ -198,3 +198,19 @@ CREATE TABLE IF NOT EXISTS component_version_test_rollup (
   last_run_at TEXT NOT NULL DEFAULT '',
   PRIMARY KEY (library_id, version)
 );
+
+-- Durable envelope for a corpus run. The per-version verdict map lets a
+-- resumed request distinguish completed non-blocked work from versions that
+-- were blocked by an unavailable browser boundary.
+CREATE TABLE IF NOT EXISTS component_test_sweeps (
+  id TEXT PRIMARY KEY,
+  component_filter TEXT NOT NULL DEFAULT '',
+  include_closure INTEGER NOT NULL DEFAULT 0,
+  started_at TEXT NOT NULL,
+  completed_at TEXT NOT NULL DEFAULT '',
+  status TEXT NOT NULL,
+  results_json TEXT NOT NULL DEFAULT '{}',
+  errors_json TEXT NOT NULL DEFAULT '[]'
+);
+CREATE INDEX IF NOT EXISTS idx_component_test_sweeps_status_started
+  ON component_test_sweeps(status, started_at DESC);

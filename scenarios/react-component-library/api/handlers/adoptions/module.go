@@ -152,6 +152,16 @@ func (l *componentsLibrary) ListVersions(ctx context.Context, componentID string
 	return l.svc.ListVersions(ctx, componentID, limit)
 }
 
+func (l *componentsLibrary) GetVersionContentAt(ctx context.Context, componentID, version, path string) (components.Content, error) {
+	reader, ok := l.svc.(interface {
+		GetVersionContentAt(context.Context, string, string, string) (components.Content, error)
+	})
+	if !ok {
+		return components.Content{}, fmt.Errorf("version file reader is not configured")
+	}
+	return reader.GetVersionContentAt(ctx, componentID, version, path)
+}
+
 // defaultScenariosRoot resolves the on-disk scenarios root via the canonical
 // repo-contract discovery (VROOLI_SOURCE_ROOT / VROOLI_ROOT env vars, then
 // CWD, then the executable's directory) plus the contract's declared
@@ -295,6 +305,26 @@ var Endpoints = []module.EndpointDescriptor{
 		Errors: []module.ErrorDesc{{Status: 400, Code: "invalid_argument", Description: "Missing scenario or token-ramp contract error"}},
 	},
 	{
+		ID:          "adoptions_link",
+		Path:        adoptionsconnect.AdoptionsServiceLinkAdoptionProcedure,
+		Method:      "POST",
+		Summary:     "Link a pinned component version through the governed package",
+		Description: "Adds the file dependency to the adopter and records a linked adoption without copying source files.",
+		Category:    "adoptions",
+		Request:     &module.Schema{Type: "object", Properties: map[string]string{"component_id": "string", "scenario": "string", "version": "string", "import_subpath": "string"}},
+		Response:    &module.Schema{Type: "object", Properties: map[string]string{"adoption": "Adoption", "package_path": "string", "import_subpath": "string"}},
+	},
+	{
+		ID:          "adoptions_eject",
+		Path:        adoptionsconnect.AdoptionsServiceEjectAdoptionProcedure,
+		Method:      "POST",
+		Summary:     "Eject a component with an explicit reason",
+		Description: "Copies source into the adopter only when the operator supplies a durable fork reason.",
+		Category:    "adoptions",
+		Request:     &module.Schema{Type: "object", Properties: map[string]string{"component_id": "string", "scenario": "string", "adopted_path": "string", "reason": "string"}},
+		Response:    &module.Schema{Type: "object", Properties: map[string]string{"adoption": "Adoption", "written_path": "string"}},
+	},
+	{
 		ID:          "adoptions_apply",
 		Path:        adoptionsconnect.AdoptionsServiceApplyAdoptionProcedure,
 		Method:      "POST",
@@ -399,6 +429,17 @@ var Endpoints = []module.EndpointDescriptor{
 		Errors: []module.ErrorDesc{
 			{Status: 500, Code: "internal", Description: "Repository or filesystem failure"},
 		},
+	},
+	{
+		ID:          "adoptions_fork_report",
+		Path:        adoptionsconnect.AdoptionsServiceForkReportAdoptionsProcedure,
+		Method:      "POST",
+		Summary:     "Classify adoption fork dispositions",
+		Description: "Computes the four-way fork report for the complete adoption registry. The report is read-only unless apply is requested.",
+		Category:    "adoptions",
+		Request:     &module.Schema{Type: "object", Properties: map[string]string{"component_id": "string (optional filter)", "apply": "bool"}},
+		Response:    &module.Schema{Type: "object", Properties: map[string]string{"adoptions": "array<Adoption>", "fork_status": "four-way classification on each adoption"}},
+		Errors:      []module.ErrorDesc{{Status: 500, Code: "internal", Description: "Repository or filesystem failure"}},
 	},
 	{
 		ID:          "adoptions_resolve_path",

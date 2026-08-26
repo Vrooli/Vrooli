@@ -1,6 +1,4 @@
 /** @vrooliComponentSource react-component-library:List */
-import { translate } from "../../../../hooks/useLocale/versions/1.0.0/useLocale";
-
 import type { ReactNode } from "react";
 
 export interface ListItem {
@@ -54,7 +52,7 @@ export function List({
   empty = "Nothing here yet.",
   title,
   description,
-  label = translate("data-display.list.label.1", "List"),
+  label = "List",
   className,
   style,
 }: ListProps) {

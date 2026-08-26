@@ -4,7 +4,6 @@
  * @status released
  * @deps {"react":"^18","lucide-react":"^0.424.0","react-component-library:useEscapeKey":"^1.0.0"}
  */
-import { cn } from "../../../../foundations/ClassMerge/versions/1.0.0/ClassMerge";
 import {
   type CSSProperties,
   type HTMLAttributes,
@@ -12,7 +11,7 @@ import {
   forwardRef,
 } from "react";
 import { X } from "lucide-react";
-import { useEscapeKey } from "../../../../hooks/useEscapeKey/versions/1.0.0/useEscapeKey";
+import { useEscapeKey } from "@vrooli/react-component-library/useEscapeKey/1.0.0";
 import { sidebarShellStyles } from "./styles";
 
 export interface SidebarShellProps {
@@ -31,6 +30,9 @@ export interface SidebarShellProps {
   contentClassName?: string;
   backdropClassName?: string;
 }
+
+const cn = (...inputs: Array<string | undefined>) =>
+  inputs.filter(Boolean).join(" ");
 
 export const SidebarShell = forwardRef<HTMLDivElement, SidebarShellProps>(
   function SidebarShell(

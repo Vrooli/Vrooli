@@ -167,7 +167,7 @@ export function AlertDialog({
           </div>
         )}
         <div data-rcl-alert-dialog-actions>
-          <button data-testid="overlays.alert-dialog"
+          <button
             type="button"
             data-rcl-alert-dialog-cancel
             onClick={onCancel}
@@ -175,7 +175,7 @@ export function AlertDialog({
           >
             {cancelLabel}
           </button>
-          <button data-testid="overlays.alert-dialog"
+          <button
             type="button"
             data-rcl-alert-dialog-confirm
             data-destructive={destructive ? "true" : "false"}

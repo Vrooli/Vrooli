@@ -2,8 +2,8 @@ import { afterEach, describe, expect, it } from "vitest";
 import { cleanup } from "@testing-library/react";
 
 import { COMPONENT_STYLE_ID_ATTRIBUTE, useComponentStyles } from "./useComponentStyles";
-import { StatusBadge } from "../components/StatusBadge/versions/1.2.0/StatusBadge";
-import { Card } from "../components/Card/versions/1.1.0/Card";
+import { StatusBadge } from "@vrooli/react-component-library/StatusBadge/1.2.0";
+import { Card } from "@vrooli/react-component-library/Card/1.1.0";
 import { renderWithProviders as render } from "../test-utils";
 
 const CSS_A = "[data-probe-a] { color: red; }";

@@ -24,6 +24,10 @@ type sqliteRepository struct {
 
 // NewSQLiteRepository constructs the production Repository.
 func NewSQLiteRepository(db *sql.DB, clk schedule.Clock) Repository {
+	// Existing scenario databases predate adoption modes. SQLite does not
+	// provide a portable ADD COLUMN IF NOT EXISTS, so the one-time migration
+	// is intentionally idempotent by accepting the duplicate-column result.
+	_, _ = db.Exec(`ALTER TABLE adoption_records ADD COLUMN mode TEXT NOT NULL DEFAULT 'copied'`)
 	return &sqliteRepository{db: db, clock: clk}
 }
 
@@ -61,12 +65,19 @@ func (s *sqliteRepository) Create(ctx context.Context, in CreateInput) (Adoption
 	if err != nil {
 		return Adoption{}, fmt.Errorf("encode adoption extension points: %w", err)
 	}
+	mode := in.Mode
+	if mode == "" {
+		mode = AdoptionModeCopied
+	}
+	if !mode.Valid() {
+		return Adoption{}, ErrInvalidAdoption{Field: "mode", Reason: "must be copied, linked, or ejected"}
+	}
 	if _, err := s.db.ExecContext(ctx, `
 INSERT INTO adoption_records
-  (id, component_id, library_id, scenario, adopted_path, adopted_version, source_sha256, adopted_snapshot_sha256, library_version_status, local_status, status_detail, created_at, refreshed_at, applied_at, drift_backlog_ref, suggested_dependencies, fork_status, fork_reason, extension_points)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, '', ?, '', ?, '', ?, ?, ?, ?)
+  (id, component_id, library_id, scenario, adopted_path, adopted_version, source_sha256, adopted_snapshot_sha256, library_version_status, local_status, status_detail, created_at, refreshed_at, applied_at, drift_backlog_ref, suggested_dependencies, fork_status, fork_reason, extension_points, mode)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, '', ?, '', ?, '', ?, ?, ?, ?, ?)
 `, id, in.ComponentID, in.LibraryID, in.Scenario, in.AdoptedPath, in.AdoptedVersion, in.SourceSHA256, in.AdoptedSnapshotSHA256,
-		string(LibraryVersionStatusCurrent), string(LocalStatusClean), now.Format(timeFormat), now.Format(timeFormat), string(suggestions), forkStatus(in.ForkReason), strings.TrimSpace(in.ForkReason), string(extensions)); err != nil {
+		string(LibraryVersionStatusCurrent), string(LocalStatusClean), now.Format(timeFormat), now.Format(timeFormat), string(suggestions), forkStatus(in.ForkReason), strings.TrimSpace(in.ForkReason), string(extensions), string(mode)); err != nil {
 		return Adoption{}, fmt.Errorf("insert adoption: %w", err)
 	}
 	for _, file := range in.Files {
@@ -113,12 +124,19 @@ func (s *sqliteRepository) CreateBatch(ctx context.Context, inputs []CreateInput
 		if err != nil {
 			return nil, fmt.Errorf("encode batch adoption extension points: %w", err)
 		}
+		mode := in.Mode
+		if mode == "" {
+			mode = AdoptionModeCopied
+		}
+		if !mode.Valid() {
+			return nil, ErrInvalidAdoption{Field: "mode", Reason: "must be copied, linked, or ejected"}
+		}
 		if _, err := tx.ExecContext(ctx, `
 INSERT INTO adoption_records
-  (id, component_id, library_id, scenario, adopted_path, adopted_version, source_sha256, adopted_snapshot_sha256, library_version_status, local_status, status_detail, created_at, refreshed_at, applied_at, drift_backlog_ref, suggested_dependencies, fork_status, fork_reason, extension_points)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, '', ?, '', ?, '', ?, ?, ?, ?)
+  (id, component_id, library_id, scenario, adopted_path, adopted_version, source_sha256, adopted_snapshot_sha256, library_version_status, local_status, status_detail, created_at, refreshed_at, applied_at, drift_backlog_ref, suggested_dependencies, fork_status, fork_reason, extension_points, mode)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, '', ?, '', ?, '', ?, ?, ?, ?, ?)
 `, id, in.ComponentID, in.LibraryID, in.Scenario, in.AdoptedPath, in.AdoptedVersion, in.SourceSHA256, in.AdoptedSnapshotSHA256,
-			string(LibraryVersionStatusCurrent), string(LocalStatusClean), now, now, string(suggestions), forkStatus(in.ForkReason), strings.TrimSpace(in.ForkReason), string(extensions)); err != nil {
+			string(LibraryVersionStatusCurrent), string(LocalStatusClean), now, now, string(suggestions), forkStatus(in.ForkReason), strings.TrimSpace(in.ForkReason), string(extensions), string(mode)); err != nil {
 			return nil, fmt.Errorf("insert batch adoption %q: %w", id, err)
 		}
 		for _, file := range in.Files {
@@ -257,7 +275,7 @@ func (s *sqliteRepository) List(ctx context.Context, q ListQuery) ([]Adoption, e
 	}
 	args = append(args, limit)
 	rows, err := s.db.QueryContext(ctx, fmt.Sprintf(`
-SELECT id, component_id, library_id, scenario, adopted_path, adopted_version, source_sha256, adopted_snapshot_sha256, library_version_status, local_status, status_detail, created_at, refreshed_at, applied_at, drift_backlog_ref, suggested_dependencies, fork_status, fork_reason, extension_points
+SELECT id, component_id, library_id, scenario, adopted_path, adopted_version, source_sha256, adopted_snapshot_sha256, library_version_status, local_status, status_detail, created_at, refreshed_at, applied_at, drift_backlog_ref, suggested_dependencies, fork_status, fork_reason, extension_points, mode
 FROM adoption_records
 %s
 ORDER BY created_at DESC, id ASC
@@ -392,7 +410,7 @@ WHERE id = ?
 }
 
 const selectAdoptionByIDSQL = `
-SELECT id, component_id, library_id, scenario, adopted_path, adopted_version, source_sha256, adopted_snapshot_sha256, library_version_status, local_status, status_detail, created_at, refreshed_at, applied_at, drift_backlog_ref, suggested_dependencies, fork_status, fork_reason, extension_points
+SELECT id, component_id, library_id, scenario, adopted_path, adopted_version, source_sha256, adopted_snapshot_sha256, library_version_status, local_status, status_detail, created_at, refreshed_at, applied_at, drift_backlog_ref, suggested_dependencies, fork_status, fork_reason, extension_points, mode
 FROM adoption_records WHERE id = ?
 `
 
@@ -411,9 +429,10 @@ func scanAdoption(s rowScanner) (Adoption, error) {
 		suggestedRaw     string
 		forkStatusRaw    string
 		extensionsRaw    string
+		modeRaw          string
 	)
 	if err := s.Scan(&a.ID, &a.ComponentID, &a.LibraryID, &a.Scenario, &a.AdoptedPath, &a.AdoptedVersion,
-		&a.SourceSHA256, &a.AdoptedSnapshotSHA256, &libraryStatusRaw, &localStatusRaw, &a.StatusDetail, &createdRaw, &refreshedRaw, &appliedRaw, &a.DriftBacklogRef, &suggestedRaw, &forkStatusRaw, &a.ForkReason, &extensionsRaw); err != nil {
+		&a.SourceSHA256, &a.AdoptedSnapshotSHA256, &libraryStatusRaw, &localStatusRaw, &a.StatusDetail, &createdRaw, &refreshedRaw, &appliedRaw, &a.DriftBacklogRef, &suggestedRaw, &forkStatusRaw, &a.ForkReason, &extensionsRaw, &modeRaw); err != nil {
 		return Adoption{}, err
 	}
 	if suggestedRaw != "" {
@@ -429,6 +448,10 @@ func scanAdoption(s rowScanner) (Adoption, error) {
 	a.LibraryVersionStatus = LibraryVersionStatus(libraryStatusRaw)
 	a.LocalStatus = LocalStatus(localStatusRaw)
 	a.ForkStatus = ForkStatus(forkStatusRaw)
+	a.Mode = AdoptionMode(modeRaw)
+	if a.Mode == "" {
+		a.Mode = AdoptionModeCopied
+	}
 	created, err := time.Parse(timeFormat, createdRaw)
 	if err != nil {
 		return Adoption{}, fmt.Errorf("parse created_at %q: %w", createdRaw, err)
@@ -449,4 +472,37 @@ func scanAdoption(s rowScanner) (Adoption, error) {
 		a.AppliedAt = applied
 	}
 	return a, nil
+}
+
+func (s *sqliteRepository) UpdateMode(ctx context.Context, id string, mode AdoptionMode, reason string) (Adoption, error) {
+	if !mode.Valid() {
+		return Adoption{}, ErrInvalidAdoption{Field: "mode", Reason: "must be copied, linked, or ejected"}
+	}
+	if mode == AdoptionModeEjected && strings.TrimSpace(reason) == "" {
+		return Adoption{}, ErrInvalidAdoption{Field: "reason", Reason: "required for ejected adoption"}
+	}
+	res, err := s.db.ExecContext(ctx, `UPDATE adoption_records SET mode = ?, fork_reason = ?, fork_status = ? WHERE id = ?`, string(mode), strings.TrimSpace(reason), forkStatus(reason), id)
+	if err != nil {
+		return Adoption{}, fmt.Errorf("update adoption mode %q: %w", id, err)
+	}
+	count, _ := res.RowsAffected()
+	if count == 0 {
+		return Adoption{}, ErrAdoptionNotFound{ID: id}
+	}
+	return s.Get(ctx, id)
+}
+
+func (s *sqliteRepository) UpdateLinked(ctx context.Context, id, adoptedPath, adoptedVersion, sourceSHA256 string) (Adoption, error) {
+	res, err := s.db.ExecContext(ctx, `UPDATE adoption_records SET adopted_path = ?, adopted_version = ?, source_sha256 = ?, adopted_snapshot_sha256 = '', local_status = ?, library_version_status = ?, mode = ?, fork_status = '', fork_reason = '' WHERE id = ?`, adoptedPath, adoptedVersion, sourceSHA256, string(LocalStatusClean), string(LibraryVersionStatusCurrent), string(AdoptionModeLinked), id)
+	if err != nil {
+		return Adoption{}, fmt.Errorf("update linked adoption %q: %w", id, err)
+	}
+	count, _ := res.RowsAffected()
+	if count == 0 {
+		return Adoption{}, ErrAdoptionNotFound{ID: id}
+	}
+	if _, err := s.db.ExecContext(ctx, `DELETE FROM adoption_files WHERE adoption_id = ?`, id); err != nil {
+		return Adoption{}, fmt.Errorf("clear copied files for linked adoption %q: %w", id, err)
+	}
+	return s.Get(ctx, id)
 }

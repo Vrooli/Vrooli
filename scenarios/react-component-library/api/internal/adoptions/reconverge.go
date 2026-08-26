@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	"react-component-library/internal/components"
@@ -133,6 +134,14 @@ func (s *service) classifyModified(ctx context.Context, row Adoption) Reconverge
 	if err != nil {
 		return ReconvergeDispositionLocalFork
 	}
+	// Public exports are the first contract signal. A locally added export is
+	// an intentional extension even when the implementation was otherwise
+	// restyled enough that the mechanical-line heuristic cannot prove it.
+	if disposition, ok := s.rootSurfaceDisposition(ctx, row, v); ok {
+		if disposition == ReconvergeDispositionContractPreserved || disposition == ReconvergeDispositionLocalAddition {
+			return disposition
+		}
+	}
 	files := row.Files
 	if len(files) == 0 {
 		files = []AdoptionFile{{LibraryPath: filepath.Base(row.AdoptedPath), AdoptedPath: row.AdoptedPath}}
@@ -164,6 +173,12 @@ func (s *service) classifyModified(ctx context.Context, row Adoption) Reconverge
 		if local == expected {
 			continue
 		}
+		// Exported surface is the contract boundary. Check it before the
+		// mechanical-line heuristics so styling-system rewrites are classified
+		// as contract-preserved instead of being mistaken for unintended drift.
+		if s.contractSurfacePreserved(ctx, row, v) {
+			return ReconvergeDispositionContractPreserved
+		}
 		if containsEverySourceLine(local, expected) {
 			addition = true
 			continue
@@ -173,7 +188,160 @@ func (s *service) classifyModified(ctx context.Context, row Adoption) Reconverge
 	if addition {
 		return ReconvergeDispositionLocalAddition
 	}
+	if s.contractSurfacePreserved(ctx, row, v) {
+		return ReconvergeDispositionContractPreserved
+	}
 	return ReconvergeDispositionTranslationOnly
+}
+
+// forkStatusForDisposition is the durable four-way automated fork vocabulary.
+// `declared-fork` is reserved for an explicit operator decision and is handled
+// before this function. Keeping the mapping in one place makes Refresh and the
+// report/apply path agree on the same evidence vocabulary.
+func forkStatusForDisposition(disposition ReconvergeDisposition) ForkStatus {
+	switch disposition {
+	case ReconvergeDispositionTranslationOnly:
+		return ForkStatusMechanicalTranslation
+	case ReconvergeDispositionContractPreserved:
+		return ForkStatusContractPreserved
+	case ReconvergeDispositionLocalAddition:
+		return ForkStatusLocalAddition
+	case ReconvergeDispositionLocalFork, ReconvergeDispositionTokenBlocked:
+		return ForkStatusLocalFork
+	default:
+		return ForkStatusLocalFork
+	}
+}
+
+func (s *service) contractSurfacePreserved(ctx context.Context, row Adoption, version components.ComponentVersion) bool {
+	files := row.Files
+	if len(files) == 0 {
+		files = []AdoptionFile{{LibraryPath: filepath.Base(row.AdoptedPath), AdoptedPath: row.AdoptedPath}}
+	}
+	// Fork status describes the public surface of the adopted root component.
+	// Dependency files are part of the materialized closure, but comparing all
+	// of their exports would turn an implementation-only root restyle into a
+	// fork whenever a helper was translated or renamed during copying.
+	entry := files[0]
+	for _, file := range files {
+		if filepath.Clean(file.AdoptedPath) == filepath.Clean(row.AdoptedPath) {
+			entry = file
+			break
+		}
+	}
+	libraryFile, ok := libraryFileByPath(version, entry.LibraryPath)
+	if !ok {
+		return false
+	}
+	disk, err := s.files.Read(ctx, row.Scenario, row.AdoptedPath)
+	if err != nil || !sameExportSurface(libraryFile.Content, stripSourceHeader(string(disk))) {
+		return false
+	}
+	return true
+}
+
+func (s *service) rootSurfaceDisposition(ctx context.Context, row Adoption, version components.ComponentVersion) (ReconvergeDisposition, bool) {
+	files := row.Files
+	if len(files) == 0 {
+		files = []AdoptionFile{{LibraryPath: filepath.Base(row.AdoptedPath), AdoptedPath: row.AdoptedPath}}
+	}
+	entry := files[0]
+	for _, file := range files {
+		if filepath.Clean(file.AdoptedPath) == filepath.Clean(row.AdoptedPath) {
+			entry = file
+			break
+		}
+	}
+	libraryFile, ok := libraryFileByPath(version, entry.LibraryPath)
+	if !ok {
+		return ReconvergeDispositionLocalFork, false
+	}
+	disk, err := s.files.Read(ctx, row.Scenario, row.AdoptedPath)
+	if err != nil {
+		return ReconvergeDispositionLocalFork, false
+	}
+	return exportSurfaceDisposition(libraryFile.Content, stripSourceHeader(string(disk))), true
+}
+
+func exportSurfaceDisposition(source, adopted string) ReconvergeDisposition {
+	librarySymbols, adoptedSymbols := exportedSymbols(source), exportedSymbols(adopted)
+	if len(librarySymbols) == 0 || len(adoptedSymbols) == 0 {
+		return ReconvergeDispositionLocalFork
+	}
+	if sameSymbolSet(librarySymbols, adoptedSymbols) {
+		return ReconvergeDispositionContractPreserved
+	}
+	if len(adoptedSymbols) > len(librarySymbols) && containsSymbols(adoptedSymbols, librarySymbols) {
+		return ReconvergeDispositionLocalAddition
+	}
+	return ReconvergeDispositionLocalFork
+}
+
+func sameSymbolSet(left, right map[string]struct{}) bool {
+	return len(left) == len(right) && containsSymbols(left, right)
+}
+
+func containsSymbols(haystack, needles map[string]struct{}) bool {
+	for name := range needles {
+		if _, ok := haystack[name]; !ok {
+			return false
+		}
+	}
+	return true
+}
+
+func sameExportSurface(source, adopted string) bool {
+	left, right := exportedSymbols(source), exportedSymbols(adopted)
+	if len(left) == 0 || len(left) != len(right) {
+		return false
+	}
+	for name := range left {
+		if _, ok := right[name]; !ok {
+			return false
+		}
+	}
+	return true
+}
+
+var (
+	exportedDeclarationPattern = regexp.MustCompile(`(?m)^\s*export\s+(?:(?:declare|abstract|async)\s+)*(?:interface|type|function|const|class|enum|namespace)\s+([A-Za-z0-9_]+)`)
+	exportedListPattern        = regexp.MustCompile(`(?ms)^\s*export\s+(?:type\s+)?\{([^}]*)\}`)
+	exportedDefaultPattern     = regexp.MustCompile(`(?m)^\s*export\s+default\b`)
+)
+
+// exportedSymbols deliberately models the public contract rather than the
+// implementation. It accepts declaration, default, and export-list forms so
+// adopters that rewrite the implementation style are still comparable.
+func exportedSymbols(source string) map[string]struct{} {
+	symbols := map[string]struct{}{}
+	for _, match := range exportedDeclarationPattern.FindAllStringSubmatch(source, -1) {
+		if len(match) > 1 {
+			symbols[match[1]] = struct{}{}
+		}
+	}
+	for _, match := range exportedListPattern.FindAllStringSubmatch(source, -1) {
+		if len(match) < 2 {
+			continue
+		}
+		for _, item := range strings.Split(match[1], ",") {
+			item = strings.TrimSpace(item)
+			if item == "" {
+				continue
+			}
+			parts := strings.Fields(item)
+			name := parts[0]
+			if len(parts) == 3 && parts[1] == "as" {
+				name = parts[2]
+			}
+			if name != "" {
+				symbols[name] = struct{}{}
+			}
+		}
+	}
+	if exportedDefaultPattern.MatchString(source) {
+		symbols["default"] = struct{}{}
+	}
+	return symbols
 }
 
 func containsEverySourceLine(local, source string) bool {

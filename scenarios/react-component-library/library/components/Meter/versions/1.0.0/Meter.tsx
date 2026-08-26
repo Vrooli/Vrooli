@@ -8,7 +8,7 @@
  */
 export default function Meter() {
   return (
-    <section className="rcl-component">
+    <section data-testid="primitives.meter" className="rcl-component">
       <h1>Meter</h1>
     </section>
   );

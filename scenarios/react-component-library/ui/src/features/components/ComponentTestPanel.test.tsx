@@ -203,6 +203,13 @@ describe("ComponentTestPanel", () => {
       "src",
       expect.stringContaining("/embedded/browser-automation-studio/api/v1/artifacts/sheet.png"),
     );
+    expect(screen.getByTestId("captured-story-sheet-gallery")).toBeInTheDocument();
+    expect(
+      screen.getByRole("img", { name: "Captured story sheet: Review sheet · primary, secondary" }),
+    ).toHaveAttribute(
+      "src",
+      expect.stringContaining("/embedded/browser-automation-studio/api/v1/artifacts/sheet.png"),
+    );
     const storyPicker = screen.getByRole("combobox", { name: "Captured story" });
     expect(storyPicker).toHaveValue("review-sheet:primary,secondary");
     expect(screen.getAllByText("contract failure")).toHaveLength(1);

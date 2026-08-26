@@ -1,6 +1,4 @@
 /** @vrooliComponentSource react-component-library:AsyncBoundary */
-import { translate } from "../../../../hooks/useLocale/versions/1.0.0/useLocale";
-
 import {
   useEffect,
   useId,
@@ -9,8 +7,8 @@ import {
   type CSSProperties,
   type ReactNode,
 } from "react";
-import { useAnnounce } from "../../../../hooks/useAnnounce/versions/1.0.0/useAnnounce";
-import { useNetworkStatus } from "../../../../hooks/useNetworkStatus/versions/1.0.0/useNetworkStatus";
+import { useAnnounce } from "@vrooli/react-component-library/useAnnounce/1.0.0";
+import { useNetworkStatus } from "@vrooli/react-component-library/useNetworkStatus/1.0.0";
 
 export type AsyncBoundaryStatus =
   | "idle"
@@ -340,7 +338,7 @@ export function AsyncBoundary({
               <span data-rcl-async-state-detail>{copy.detail}</span>
             </span>
             {retry && effectiveStatus !== "error" && (
-              <button data-testid="feedback.async-boundary"
+              <button
                 type="button"
                 data-rcl-async-state-action
                 aria-busy={retrying || undefined}
@@ -365,10 +363,10 @@ export function AsyncBoundary({
             ) : pendingReady ? (
               <LoadingSkeleton />
             ) : (
-              <span data-rcl-async-muted>{translate("feedback.async-boundary.text.1", "Loading content")}</span>
+              <span data-rcl-async-muted>Loading content</span>
             )}
             {!pending && pendingReady && (
-              <span data-rcl-async-muted>{translate("feedback.async-boundary.text.2", "This may take a moment.")}</span>
+              <span data-rcl-async-muted>This may take a moment.</span>
             )}
           </div>
         ) : effectiveStatus === "error" ? (
@@ -385,7 +383,7 @@ export function AsyncBoundary({
               <span data-rcl-async-muted>{error}</span>
               {retry && (
                 <span>
-                  <button data-testid="feedback.async-boundary"
+                  <button
                     type="button"
                     data-rcl-async-retry
                     aria-busy={retrying || undefined}

@@ -13,7 +13,7 @@
     "fixtures": []
   },
   "kind": "component",
-  "schemaVersion": 4,
+  "schemaVersion": 5,
   "stories": [
     {
       "args": {
@@ -59,7 +59,8 @@
       ],
       "id": "default",
       "mode": "pinned",
-      "name": "Expanded project"
+      "name": "Expanded project",
+      "role": "anatomy"
     },
     {
       "args": {
@@ -92,7 +93,8 @@
       ],
       "id": "collapsed",
       "mode": "pinned",
-      "name": "Collapsed folders"
+      "name": "Collapsed folders",
+      "role": "boundary"
     },
     {
       "args": {
@@ -112,7 +114,8 @@
       ],
       "id": "empty",
       "mode": "pinned",
-      "name": "Empty"
+      "name": "Empty",
+      "role": "boundary"
     }
   ],
   "title": "TreeView"

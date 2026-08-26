@@ -7,7 +7,7 @@
     "fixtures": []
   },
   "kind": "component",
-  "schemaVersion": 4,
+  "schemaVersion": 5,
   "stories": [
     {
       "args": {},
@@ -35,7 +35,8 @@
         }
       ],
       "mode": "live",
-      "name": "Ready attachment"
+      "name": "Ready attachment",
+      "role": "anatomy"
     },
     {
       "args": {},
@@ -62,7 +63,8 @@
         }
       ],
       "mode": "live",
-      "name": "Preparing preview"
+      "name": "Preparing preview",
+      "role": "boundary"
     },
     {
       "args": {},
@@ -89,7 +91,8 @@
         }
       ],
       "mode": "live",
-      "name": "Typed fallback"
+      "name": "Typed fallback",
+      "role": "boundary"
     }
   ],
   "title": "FilePreview"

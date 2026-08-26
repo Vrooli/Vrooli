@@ -48,6 +48,32 @@ func NewBASCaptureExecutor() BASCaptureExecutor {
 	return BASCaptureExecutor{RCLBaseURL: rclBase, BASBaseURL: basBase, HTTPClient: &http.Client{Timeout: 2 * time.Minute}}
 }
 
+// Probe confirms that the browser boundary is reachable before a sweep
+// creates partial evidence. BAS owns this health endpoint; a capture failure
+// is not a reason to manufacture a blocked row for every remaining version.
+func (e BASCaptureExecutor) Probe(ctx context.Context) error {
+	if strings.TrimSpace(e.BASBaseURL) == "" {
+		return ExecutorUnavailableError{Err: fmt.Errorf("BAS CaptureService base URL is required")}
+	}
+	client := e.HTTPClient
+	if client == nil {
+		client = &http.Client{Timeout: 5 * time.Second}
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, e.BASBaseURL+"/health", nil)
+	if err != nil {
+		return ExecutorUnavailableError{Err: err}
+	}
+	resp, err := client.Do(req)
+	if err != nil {
+		return ExecutorUnavailableError{Err: fmt.Errorf("BAS health probe: %w", err)}
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
+		return ExecutorUnavailableError{Err: fmt.Errorf("BAS health probe returned HTTP %d", resp.StatusCode)}
+	}
+	return nil
+}
+
 type basCaptureRequest struct {
 	URL                 string        `json:"url"`
 	Captures            []string      `json:"captures"`
@@ -141,7 +167,7 @@ func (e BASCaptureExecutor) ExecuteStorySheet(ctx context.Context, libraryID, ve
 }
 
 func (e BASCaptureExecutor) executeCapture(ctx context.Context, storyURL, label, libraryID, version, storyID string) (StoryExecution, error) {
-	capture, err := e.captureURL(ctx, storyURL, label, `[data-experience-surface="component-harness"][data-experience-state="ready"]`, `[data-preview-sheet]`)
+	capture, err := e.captureURL(ctx, storyURL, label, `[data-preview-readiness-marker][data-preview-ready="true"][data-rcl-story-status="passed"]`, `[data-preview-sheet]`)
 	if err != nil {
 		return StoryExecution{}, err
 	}

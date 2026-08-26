@@ -1,3 +1,5 @@
+import * as testingLibraryDOM from "@testing-library/dom";
+
 const componentModuleURL = __COMPONENT_MODULE_URL__;
 const storyHarnessModuleURL = __STORY_HARNESS_MODULE_URL__;
 const frameModuleURL = __FRAME_MODULE_URL__;
@@ -261,10 +263,50 @@ if (captureTheme === "light" || captureTheme === "dark") {
   document.documentElement.style.colorScheme = captureTheme;
 }
 const setHarnessState = (state) => {
-  if (harnessRoot) harnessRoot.dataset.experienceState = state;
+  // The host root is an orchestration mount point. Some frame compositions
+  // deliberately paint outside that node (for example fixed navigation or
+  // overlay surfaces), so the root can have zero layout even while the
+  // rendered preview is visibly ready. Mirror readiness onto the visible,
+  // host-owned capture boundary so BAS waits on the thing it captures.
+  const surfaces = [harnessRoot, harnessRoot?.querySelector("[data-preview-sheet]")].filter(Boolean);
+  const status = harnessRoot?.dataset.rclStoryStatus;
+  for (const surface of surfaces) {
+    surface.dataset.experienceState = state;
+    if (status) surface.dataset.rclStoryStatus = status;
+  }
+  const boundary = surfaces.find((surface) => surface !== harnessRoot);
+  if (boundary) {
+    let readiness = boundary.querySelector("[data-preview-readiness-marker]");
+    if (!readiness) {
+      readiness = document.createElement("span");
+      readiness.dataset.previewReadinessMarker = "true";
+      readiness.setAttribute("aria-hidden", "true");
+      readiness.style.cssText = "position:absolute;width:1px;height:1px;overflow:hidden;pointer-events:none;";
+      boundary.appendChild(readiness);
+    }
+    readiness.dataset.experienceState = state;
+    if (status) readiness.dataset.rclStoryStatus = status;
+    if (state === "ready" && status === "passed") {
+      readiness.dataset.previewReady = "true";
+    } else {
+      delete readiness.dataset.previewReady;
+    }
+    const positioned = [...boundary.querySelectorAll("*")].some((node) => {
+      if (node === readiness) return false;
+      const position = getComputedStyle(node).position;
+      return position === "fixed" || position === "absolute";
+    });
+    if (positioned) {
+      boundary.dataset.previewPositioned = "true";
+      // Apply the geometry immediately as well as through the stylesheet.
+      // BAS evaluates visibility at the readiness boundary and must not race
+      // a style recalculation after React mounts a fixed specimen.
+      boundary.style.minHeight = "100vh";
+    }
+  }
   const requestedTheme = captureTheme;
-  if (harnessRoot && (requestedTheme === "light" || requestedTheme === "dark")) {
-    harnessRoot.dataset.rclTheme = requestedTheme;
+  if (requestedTheme === "light" || requestedTheme === "dark") {
+    for (const surface of surfaces) surface.dataset.rclTheme = requestedTheme;
   }
 };
 const showPreviewError = (message) => {
@@ -275,118 +317,12 @@ const showPreviewError = (message) => {
     parent.postMessage({ type: "preview-error", id: __PREVIEW_ID__, sha256: __BUNDLE_SHA256__, story: previewStory.name || "", version: previewStory.version || "", message }, "*");
   } catch (e) {}
 };
-const normalizeText = (value) => String(value || "").replace(/\s+/g, " ").trim();
-const readableText = (node) => {
-  if (!node) return "";
-  if (node.nodeType === Node.TEXT_NODE) return node.nodeValue || "";
-  if (node.nodeType === Node.ELEMENT_NODE && node.getAttribute("aria-hidden") === "true") return "";
-  return Array.from(node.childNodes || []).map(readableText).join(" ");
-};
-const implicitRole = (el) => {
-const tag = (el && el.tagName ? el.tagName.toLowerCase() : "");
-  if (tag === "button") return "button";
-  if (tag === "img") return "img";
-  if (tag === "select") return "combobox";
-  if (tag === "textarea") return "textbox";
-  if (tag === "output") return "status";
-  if (tag === "input") {
-    const type = (el.getAttribute("type") || "text").toLowerCase();
-    if (["button", "submit", "reset"].includes(type)) return "button";
-    if (["search", "text", "email", "password", "url", "tel"].includes(type)) return "textbox";
-  }
-  if (tag === "a" && el.hasAttribute("href")) return "link";
-  if (tag === "main") return "main";
-  if (tag === "form") return "form";
-  if (tag === "table") return "table";
-  if (tag === "nav") return "navigation";
-  if (tag === "aside") return "complementary";
-  if (tag === "section" && el.hasAttribute("aria-label")) return "region";
-  if (/^h[1-6]$/.test(tag)) return "heading";
-  return "";
-};
-const accessibleName = (el) => {
-  const associatedLabel = el.id
-    ? Array.from(document.querySelectorAll("label")).find((candidate) => candidate.htmlFor === el.id)
-    : null;
-  return normalizeText(
-    el.getAttribute("aria-label") ||
-    el.getAttribute("aria-labelledby")?.split(/\s+/).map((id) => readableText(document.getElementById(id))).join(" ") ||
-    el.getAttribute("title") ||
-    readableText(associatedLabel) ||
-    el.value ||
-    readableText(el) ||
-    ""
-  );
-};
-const elementsByRole = (role) => Array.from(document.querySelectorAll("body *"))
-  .filter((el) => (el.getAttribute("role") || implicitRole(el)) === role);
-const assertPreviewExpectations = () => {
-  const failures = [];
-  for (const [index, expectation] of (Array.isArray(previewStory.expect) ? previewStory.expect : []).entries()) {
-    const kind = expectation && expectation.kind;
-    if (kind === "text") {
-      const value = normalizeText(expectation.value);
-      if (value && !normalizeText(document.body.textContent).includes(value)) {
-        failures.push("expect[" + index + "] text " + value + " not found");
-      }
-      continue;
-    }
-    if (kind === "role") {
-      const role = expectation.role;
-      const name = normalizeText(expectation.name);
-      const matches = elementsByRole(role);
-      const ok = matches.some((el) => !name || accessibleName(el).includes(name));
-      if (!ok) failures.push("expect[" + index + "] role " + role + (name ? " named " + name : "") + " not found");
-      continue;
-    }
-    if (kind === "selector") {
-      if (!document.querySelector(expectation.selector || "")) {
-        failures.push("expect[" + index + "] selector " + (expectation.selector || "<empty>") + " not found");
-      }
-      continue;
-    }
-    if (kind === "attribute") {
-      const el = document.querySelector(expectation.selector || "");
-      const attr = expectation.name || "";
-      const actual = el ? el.getAttribute(attr) : null;
-      const expected = expectation.value;
-      if (!el || (expected !== undefined && actual !== String(expected))) {
-        failures.push("expect[" + index + "] attribute " + attr + " expected " + expected + " got " + actual);
-      }
-      continue;
-    }
-    if (kind === "layout") {
-      const el = document.querySelector(expectation.selector || "");
-      if (!el) {
-        failures.push("expect[" + index + "] layout selector " + (expectation.selector || "<empty>") + " not found");
-        continue;
-      }
-      const rect = el.getBoundingClientRect();
-      const checks = [
-        ["width", expectation.minWidth, rect.width >= Number(expectation.minWidth)],
-        ["height", expectation.minHeight, rect.height >= Number(expectation.minHeight)],
-        ["width", expectation.maxWidth, rect.width <= Number(expectation.maxWidth)],
-        ["height", expectation.maxHeight, rect.height <= Number(expectation.maxHeight)],
-      ];
-      for (const [dimension, bound, passed] of checks) {
-        if (bound !== undefined && !passed) {
-          failures.push("expect[" + index + "] layout " + dimension + "=" + Math.round(rect[dimension]) + " violates bound " + bound);
-        }
-      }
-      if (expectation.noOverflow && el.scrollWidth > el.clientWidth + 1) {
-        failures.push("expect[" + index + "] layout overflows horizontally: scrollWidth=" + el.scrollWidth + " clientWidth=" + el.clientWidth);
-      }
-      continue;
-    }
-    failures.push("expect[" + index + "] unsupported kind " + (kind || "<missing>"));
-  }
-  if (failures.length > 0) throw new Error(failures.join("; "));
-};
-const reportStoryResult = (passed, failures) => {
+const reportStoryResult = (passed, failures, skipped = []) => {
   performanceEntries.push(...performance.getEntriesByType("measure").map((entry) => ({ name: entry.name, duration: entry.duration })));
   const result = {
     passed,
     failures: Array.isArray(failures) ? failures : [],
+    skipped: Array.isArray(skipped) ? skipped : [],
     performance: {
       mountMs: mountMs || Math.max(0, performance.now() - mountStartedAt),
       commitCount,
@@ -672,110 +608,8 @@ try {
         : React.createElement(Cmp, props);
       renderSheet(wrapStandalone(standaloneSubject), "standalone");
     };
-    const locate = (target) => {
-      if (!target || typeof target !== "object") return null;
-      if (typeof target.selector === "string") return document.querySelector(target.selector);
-      if (typeof target.role !== "string") return null;
-      const candidates = Array.from(document.querySelectorAll("body *")).filter((candidate) => (candidate.getAttribute("role") || implicitRole(candidate)) === target.role);
-      const accessibleName = (candidate) => {
-        const labelledBy = candidate.getAttribute("aria-labelledby");
-        if (labelledBy) return labelledBy.split(/\s+/).map((id) => readableText(document.getElementById(id))).join(" ").trim();
-        const associatedLabel = candidate.id
-          ? Array.from(document.querySelectorAll("label")).find((label) => label.htmlFor === candidate.id)
-          : null;
-        return (candidate.getAttribute("aria-label") || candidate.getAttribute("title") || readableText(associatedLabel) || candidate.value || readableText(candidate) || "").trim();
-      };
-      return Array.from(candidates).find((candidate) => typeof target.name !== "string" || accessibleName(candidate) === target.name) || null;
-    };
-    const expectationFailure = (expectation) => {
-      const visible = (node) => !!node && !node.hasAttribute("hidden") && getComputedStyle(node).display !== "none" && getComputedStyle(node).visibility !== "hidden";
-      let node = null;
-      if (expectation.kind === "text") node = Array.from(document.querySelectorAll("body *")).find((candidate) => candidate.textContent && candidate.textContent.includes(expectation.value || ""));
-      else if (expectation.kind === "role") node = locate({ role: expectation.role, name: expectation.name });
-      else node = locate({ selector: expectation.selector });
-	  if (!node && previewStory.kind === "hook" && expectation.kind === "visible") node = document.querySelector("[data-rcl-hook-root]");
-      if (expectation.kind === "notVisible") return visible(node) ? "expected target not to be visible" : "";
-      if (expectation.kind === "visible" || expectation.kind === "text" || expectation.kind === "role") return visible(node) ? "" : "expected target to be visible";
-      if (expectation.kind === "attribute") {
-        const attribute = expectation.attribute || expectation.name || "";
-        if (!node) return "expected attribute value was not found";
-        if (expectation.value === undefined) return node.hasAttribute(attribute) ? "" : "expected attribute value was not found";
-        return node.getAttribute(attribute) === expectation.value ? "" : "expected attribute value was not found";
-      }
-      if (expectation.kind === "count") {
-        if (!expectation.selector) return "count expectation requires a selector";
-        const expected = Number(expectation.value);
-        if (!Number.isInteger(expected) || expected < 0) return "count expectation requires a non-negative integer value";
-        return document.querySelectorAll(expectation.selector).length === expected ? "" : "expected element count was not met";
-      }
-      if (expectation.kind === "layout") {
-        if (!node) return "expected layout target was not found";
-        const rect = node.getBoundingClientRect();
-        if (expectation.minWidth !== undefined && rect.width < Number(expectation.minWidth)) return "expected layout width minimum was not met";
-        if (expectation.minHeight !== undefined && rect.height < Number(expectation.minHeight)) return "expected layout height minimum was not met";
-        if (expectation.maxWidth !== undefined && rect.width > Number(expectation.maxWidth)) return "expected layout width maximum was not met";
-        if (expectation.maxHeight !== undefined && rect.height > Number(expectation.maxHeight)) return "expected layout height maximum was not met";
-        if (expectation.noOverflow && node.scrollWidth > node.clientWidth + 1) return "expected layout target not to overflow horizontally";
-        return "";
-      }
-      return "unsupported expectation";
-    };
-    const runStory = async () => {
-      const failures = [];
-      // React 18 schedules the initial root commit asynchronously. Interactions
-      // must target the mounted specimen, not the scheduling frame following
-      // root.render(); this matters especially for custom stateful harnesses.
-      await new Promise((resolve) => setTimeout(resolve, 50));
-      for (const interaction of previewStory.interactions || []) {
-        let target = locate(interaction.target);
-        if (interaction.kind === "settle") { await new Promise((resolve) => setTimeout(resolve, 20)); continue; }
-		if (interaction.kind === "waitFor") {
-		  const waitText = String(interaction.text || "").trim();
-		  const deadline = Date.now() + 2000;
-		  while (waitText && Date.now() < deadline) {
-		    const visibleText = Array.from(document.querySelectorAll("body *")).some((candidate) => {
-		      const style = getComputedStyle(candidate);
-		      return candidate.textContent?.includes(waitText) && style.display !== "none" && style.visibility !== "hidden";
-		    });
-		    if (visibleText) break;
-		    await new Promise((resolve) => setTimeout(resolve, 20));
-		  }
-		  continue;
-		}
-        if (!target && previewStory.kind === "hook" && interaction.kind === "key") target = window;
-        if (!target && previewStory.kind === "hook" && interaction.kind === "click") target = document.querySelector("[data-rcl-hook-action=start]");
-        if (!target && previewStory.kind === "hook" && interaction.kind === "focus") target = document.querySelector("[data-rcl-hook-root]");
-        if (!target) { failures.push({ kind: "interaction", message: "target not found for " + interaction.kind }); continue; }
-        if (interaction.kind === "click") target.click();
-        else if (interaction.kind === "focus") target.focus();
-        else if (interaction.kind === "blur") target.blur();
-        else if (interaction.kind === "key") target.dispatchEvent(new KeyboardEvent("keydown", { key: interaction.text || "", bubbles: true }));
-        else if (interaction.kind === "type") {
-          const text = interaction.text || "";
-          // Bypass React's controlled-input value tracker before dispatching
-          // the browser events. A plain assignment updates that tracker, so
-          // React can correctly treat the following input/change as a no-op.
-          const setter = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(target), "value")?.set;
-          if (setter) setter.call(target, text);
-          else target.value = text;
-          target.dispatchEvent(new Event("input", { bubbles: true }));
-          target.dispatchEvent(new Event("change", { bubbles: true }));
-        }
-      }
-      // React 18 may defer the commit past the first animation frame. Story
-      // expectations run against the committed specimen, never the scheduling
-      // frame that happened to follow root.render().
-      // A bounded timer is the fallback for headless Chrome, where animation
-      // frames may be throttled even after React has committed the root.
-      await new Promise((resolve) => setTimeout(resolve, 50));
-      for (const expectation of previewStory.expect || []) {
-        const message = expectationFailure(expectation);
-        if (message) failures.push({ kind: "expect", expectation, message });
-      }
-      reportStoryResult(failures.length === 0, failures);
-    };
     renderPreview({});
-    void runStory().then(() => {
+    void runStory(previewStory, { document, window }, { queries: testingLibraryDOM, report: reportStoryResult, browser: true }).then(() => {
       setHarnessState("ready");
       parent.postMessage({ type: "preview-ready", id: __PREVIEW_ID__, sha256: __BUNDLE_SHA256__, story: previewStory.name || "", version: previewStory.version || "" }, "*");
     }).catch((error) => {
@@ -807,4 +641,3 @@ try {
 } catch (e) {
   showPreviewError("preview: render failed - " + (e && e.stack || e));
 }
-

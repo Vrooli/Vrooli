@@ -249,6 +249,12 @@ func sharedPrimitiveNode(node *axObservation) bool {
 	for _, key := range []string{
 		"data-elevation",
 		"data-rcl-control",
+		"data-rcl-bounded-meter-control",
+		"data-rcl-empty-state-title",
+		"data-rcl-empty-state-copy",
+		"data-rcl-empty-state-icon",
+		"data-rcl-empty-state-action",
+		"data-rcl-pressable-label",
 		"data-rcl-progress",
 		"data-text-style",
 		"data-tone",
@@ -256,6 +262,18 @@ func sharedPrimitiveNode(node *axObservation) bool {
 		if strings.TrimSpace(attributes[key]) != "" {
 			return true
 		}
+	}
+	// A dotted selector is the catalog asset identity, not an incidental
+	// browser test hook. Treat the marked interaction surface as composed even
+	// when the host primitive predates the newer data-rcl-control marker.
+	if strings.Contains(strings.TrimSpace(attributes["data-testid"]), ".") {
+		return true
+	}
+	// Legacy catalog controls predate the shared-control marker. A native
+	// button is still a deliberate interactive composition boundary, so keep
+	// those historical captures measurable while newer controls add markers.
+	if strings.EqualFold(strings.TrimSpace(node.DOM.Tag), "button") {
+		return true
 	}
 	return false
 }

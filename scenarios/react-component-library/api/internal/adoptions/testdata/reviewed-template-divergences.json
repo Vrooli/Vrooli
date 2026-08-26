@@ -67,6 +67,30 @@
       "catalogVersion": "1.2.0",
       "status": "behind",
       "reason": "StatusBadge 1.2.0 is the reviewed catalog release; the template copy is outside this plan's write boundary and will be reconverged with the next template refresh."
+    },
+    {
+      "path": "ui/src/components/ui/input.tsx",
+      "libraryId": "react-component-library:Input",
+      "vendoredVersion": "1.1.0",
+      "catalogVersion": "1.1.1",
+      "status": "behind",
+      "reason": "Input 1.1.1 is the reviewed catalog release; the template copy is outside this plan's write boundary and will be reconverged with the next template refresh."
+    },
+    {
+      "path": "ui/src/components/ui/select.tsx",
+      "libraryId": "react-component-library:Select",
+      "vendoredVersion": "1.1.0",
+      "catalogVersion": "1.1.1",
+      "status": "behind",
+      "reason": "Select 1.1.1 is the reviewed catalog release; the template copy is outside this plan's write boundary and will be reconverged with the next template refresh."
+    },
+    {
+      "path": "ui/src/components/ui/textarea.tsx",
+      "libraryId": "react-component-library:Textarea",
+      "vendoredVersion": "1.0.0",
+      "catalogVersion": "1.0.1",
+      "status": "behind",
+      "reason": "Textarea 1.0.1 is the reviewed catalog release; the template copy is outside this plan's write boundary and will be reconverged with the next template refresh."
     }
   ]
 }

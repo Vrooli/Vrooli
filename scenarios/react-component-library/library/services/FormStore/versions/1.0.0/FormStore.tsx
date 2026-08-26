@@ -3,7 +3,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import {
   createScopedStore,
   type ScopedStore,
-} from "../../../createScopedStore/versions/1.0.0/createScopedStore";
+} from "@vrooli/react-component-library/createScopedStore/1.0.0";
 
 export type FormPhase =
   | "idle"

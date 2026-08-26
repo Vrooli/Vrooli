@@ -4,7 +4,7 @@ import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import { renderWithProviders } from "../test-utils";
-import { TreeView, type TreeNode } from "./ui/TreeView/versions/1.0.0/TreeView";
+import { TreeView, type TreeNode } from "@vrooli/react-component-library/TreeView/1.0.0";
 
 describe("released TreeView 1.0.0", () => {
   it("renders the empty state and legacy string nodes", () => {

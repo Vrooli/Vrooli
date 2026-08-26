@@ -7,7 +7,7 @@
     "fixtures": []
   },
   "kind": "component",
-  "schemaVersion": 4,
+  "schemaVersion": 5,
   "stories": [
     {
       "args": {},
@@ -30,7 +30,8 @@
       ],
       "id": "default",
       "mode": "live",
-      "name": "Default form"
+      "name": "Default form",
+      "role": "anatomy"
     },
     {
       "args": {},
@@ -54,7 +55,8 @@
       ],
       "id": "error",
       "mode": "live",
-      "name": "Validation recovery"
+      "name": "Validation recovery",
+      "role": "boundary"
     },
     {
       "args": {},
@@ -77,7 +79,8 @@
       ],
       "id": "offline",
       "mode": "live",
-      "name": "Offline status"
+      "name": "Offline status",
+      "role": "boundary"
     }
   ],
   "title": "Form"

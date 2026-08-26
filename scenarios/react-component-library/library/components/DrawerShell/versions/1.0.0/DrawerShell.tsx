@@ -140,3 +140,4 @@ export function DrawerShell({
 }
 
 export default DrawerShell;
+export { useFocusTrap } from "./useFocusTrap";

@@ -1,8 +1,11 @@
 package components
 
 import (
+	"bytes"
 	"context"
+	"crypto/sha256"
 	"database/sql"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -237,7 +240,7 @@ func (s *sqliteRepository) checkReleasedVersionHashes(ctx context.Context, in In
 		if err != nil {
 			return fmt.Errorf("check released version %s@%s: %w", in.Manifest.LibraryID, version.Version, err)
 		}
-		if status == string(VersionStatusReleased) && recorded != "" && recorded != version.ContentSHA256 {
+		if status == string(VersionStatusReleased) && recorded != "" && !releaseHashMatches(recorded, version.Content, version.ContentSHA256) {
 			return ErrReleasedVersionMutated{ComponentID: in.Manifest.LibraryID, Version: version.Version, Recorded: recorded, Incoming: version.ContentSHA256}
 		}
 		if status != string(VersionStatusReleased) {
@@ -245,6 +248,17 @@ func (s *sqliteRepository) checkReleasedVersionHashes(ctx context.Context, in In
 		}
 	}
 	return nil
+}
+
+func releaseHashMatches(recorded, content, incoming string) bool {
+	if recorded == incoming {
+		return true
+	}
+	if !bytes.HasSuffix([]byte(content), []byte("\n")) {
+		return false
+	}
+	trimmed := sha256.Sum256(bytes.TrimSuffix([]byte(content), []byte("\n")))
+	return recorded == hex.EncodeToString(trimmed[:])
 }
 
 type versionMetadata struct {

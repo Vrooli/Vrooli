@@ -14,7 +14,7 @@
   ],
   "displayName": "ValidationSummary",
   "draft": "",
-  "latest": "1.0.0",
+  "latest": "1.0.3",
   "libraryId": "react-component-library:ValidationSummary",
   "slot": "ui-primitive",
   "tags": [

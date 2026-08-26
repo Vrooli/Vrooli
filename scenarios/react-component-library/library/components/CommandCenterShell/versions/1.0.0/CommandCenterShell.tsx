@@ -2,12 +2,13 @@
  * @libraryId react-component-library:CommandCenterShell
  * @version 1.0.0
  * @status released
- * @deps {"react":"^18","react-component-library:ClassMerge":"1.0.0"}
+ * @deps {"react":"^18"}
  */
+import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
+
 import type { ReactNode } from "react";
-import { AsyncPanel } from "../../../AsyncPanel/versions/1.0.0/AsyncPanel";
-import { cn } from "../../../../foundations/ClassMerge/versions/1.0.0/ClassMerge";
-import type { ExperienceSurfaceState } from "../../../ExperienceSurface/versions/1.0.0/ExperienceSurface";
+import { AsyncPanel } from "@vrooli/react-component-library/AsyncPanel/1.0.0";
+import type { ExperienceSurfaceState } from "@vrooli/react-component-library/ExperienceSurface/1.0.0";
 import { commandCenterShellStyles } from "./styles";
 
 export interface CommandCenterMetric {
@@ -35,7 +36,7 @@ export interface CommandCenterShellProps {
 // CommandCenterShell intentionally composes durable regions instead of drawing
 // a decorative frame: callers provide real navigation, controls, and primary
 // content while AsyncPanel supplies observable lifecycle semantics.
-export function CommandCenterShell({
+export const CommandCenterShell = withClassName(function CommandCenterShell({
   title,
   navigation,
   metrics,
@@ -53,7 +54,7 @@ export function CommandCenterShell({
   return (
     <main
       data-rcl-command-center
-      className={cn("rcl-command-center", className)}
+      className={["rcl-command-center", className].filter(Boolean).join(" ")}
     >
       <style
         data-rcl-command-center-styles
@@ -109,4 +110,4 @@ export function CommandCenterShell({
       </section>
     </main>
   );
-}
+});

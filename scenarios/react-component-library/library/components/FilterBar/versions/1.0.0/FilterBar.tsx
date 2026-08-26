@@ -1,8 +1,8 @@
 /** @vrooliComponentSource react-component-library:FilterBar */
 import { useState, type FormEvent } from "react";
-import { Chip } from "../../../Chip/versions/1.0.0/Chip";
-import { SearchInput } from "../../../SearchInput/versions/1.0.0/SearchInput";
-import { Cluster } from "../../../../primitives/Cluster/versions/1.0.0/Cluster";
+import { Chip } from "@vrooli/react-component-library/Chip/1.0.0";
+import { SearchInput } from "@vrooli/react-component-library/SearchInput/1.0.0";
+import { Cluster } from "@vrooli/react-component-library/Cluster/1.0.0";
 
 export interface FilterOption {
   id: string;

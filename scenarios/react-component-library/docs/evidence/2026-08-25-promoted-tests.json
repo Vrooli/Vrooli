@@ -1,0 +1,691 @@
+{
+  "generatedAt": "2026-08-25T23:50:11.996Z",
+  "candidateCount": 140,
+  "promoted": [
+    {
+      "hash": "c9a7c0fd56ea7a4be92132340292d11f4165478de3e6996b54eac04a7714ce46",
+      "source": "scenarios/template-manager/ui/src/components/ui/select.test.tsx",
+      "destination": "scenarios/react-component-library/library/components/Select/versions/1.1.0/select.c9a7c0fd.test.tsx",
+      "component": "scenarios/react-component-library/library/components/Select/versions/1.1.0/Select.tsx",
+      "specifier": "Select/1.1.0",
+      "copies": [
+        "scenarios/template-manager/ui/src/components/ui/select.test.tsx"
+      ]
+    },
+    {
+      "hash": "0cbb21a3cf34ca1f3c1d31112eeb3fdc565366d407089b2cc3a72f81dce002cb",
+      "source": "scenarios/template-manager/ui/src/components/ui/bottom-nav.test.tsx",
+      "destination": "scenarios/react-component-library/library/components/BottomNav/versions/1.2.0/bottom-nav.0cbb21a3.test.tsx",
+      "component": "scenarios/react-component-library/library/components/BottomNav/versions/1.2.0/BottomNav.tsx",
+      "specifier": "BottomNav/1.2.0",
+      "copies": [
+        "scenarios/template-manager/ui/src/components/ui/bottom-nav.test.tsx"
+      ]
+    },
+    {
+      "hash": "514b6e45a6f2872f6db2b2837051cacfa649fc49bf7eec05beb8942cf5606598",
+      "source": "scenarios/template-manager/ui/src/components/ui/sidebar-shell.test.tsx",
+      "destination": "scenarios/react-component-library/library/components/SidebarShell/versions/1.2.0/sidebar-shell.514b6e45.test.tsx",
+      "component": "scenarios/react-component-library/library/components/SidebarShell/versions/1.2.0/SidebarShell.tsx",
+      "specifier": "SidebarShell/1.2.0",
+      "copies": [
+        "scenarios/template-manager/ui/src/components/ui/sidebar-shell.test.tsx"
+      ]
+    },
+    {
+      "hash": "dabb413f1759c96cda2772c01b674fa6fbc7a720415ba764b6626aa176b7a2ac",
+      "source": "scenarios/template-manager/ui/src/components/ui/data-table.test.tsx",
+      "destination": "scenarios/react-component-library/library/components/DataTable/versions/1.2.0/data-table.dabb413f.test.tsx",
+      "component": "scenarios/react-component-library/library/components/DataTable/versions/1.2.0/DataTable.tsx",
+      "specifier": "DataTable/1.2.0",
+      "copies": [
+        "scenarios/template-manager/ui/src/components/ui/data-table.test.tsx"
+      ]
+    },
+    {
+      "hash": "3d07bfd91fbf4f9f7da61885d47384f079d250f6d66357a14475979e0cca26b0",
+      "source": "scenarios/music-library/ui/src/components/ui/select.test.tsx",
+      "destination": "scenarios/react-component-library/library/components/Select/versions/1.1.0/select.3d07bfd9.test.tsx",
+      "component": "scenarios/react-component-library/library/components/Select/versions/1.1.0/Select.tsx",
+      "specifier": "Select/1.1.0",
+      "copies": [
+        "scenarios/music-library/ui/src/components/ui/select.test.tsx",
+        "scenarios/source-ledger/ui/src/components/ui/select.test.tsx",
+        "scenarios/asset-studio/ui/src/components/ui/select.test.tsx",
+        "scenarios/persona/ui/src/components/ui/select.test.tsx",
+        "scenarios/notification-hub/ui/src/components/ui/select.test.tsx",
+        "scenarios/storage-manager/ui/src/components/ui/select.test.tsx",
+        "scenarios/scenario-to-plugin/ui/src/components/ui/select.test.tsx",
+        "scenarios/signal-inbox/ui/src/components/ui/select.test.tsx",
+        "scenarios/content-desk/ui/src/components/ui/select.test.tsx",
+        "scenarios/music-tools/ui/src/components/ui/select.test.tsx",
+        "scenarios/vrooli-memory/ui/src/components/ui/select.test.tsx",
+        "scenarios/backdrop-studio/ui/src/components/ui/select.test.tsx",
+        "scenarios/treasury/ui/src/components/ui/select.test.tsx",
+        "scenarios/scenario-to-android/ui/src/components/ui/select.test.tsx",
+        "scenarios/prose-studio/ui/src/components/ui/select.test.tsx",
+        "scenarios/channel-manager/ui/src/components/ui/select.test.tsx",
+        "scenarios/program-runtime/ui/src/components/ui/select.test.tsx",
+        "scenarios/hello-mobile/ui/src/components/ui/select.test.tsx"
+      ]
+    },
+    {
+      "hash": "c29100d1d5ff51a4583f0c21eba19b3b580cb04424a07ba68a4bb88ea365412b",
+      "source": "scenarios/music-library/ui/src/components/ui/bottom-nav.test.tsx",
+      "destination": "scenarios/react-component-library/library/components/BottomNav/versions/1.2.0/bottom-nav.c29100d1.test.tsx",
+      "component": "scenarios/react-component-library/library/components/BottomNav/versions/1.2.0/BottomNav.tsx",
+      "specifier": "BottomNav/1.2.0",
+      "copies": [
+        "scenarios/music-library/ui/src/components/ui/bottom-nav.test.tsx",
+        "scenarios/source-ledger/ui/src/components/ui/bottom-nav.test.tsx",
+        "scenarios/asset-studio/ui/src/components/ui/bottom-nav.test.tsx",
+        "scenarios/persona/ui/src/components/ui/bottom-nav.test.tsx",
+        "scenarios/notification-hub/ui/src/components/ui/bottom-nav.test.tsx",
+        "scenarios/scenario-to-plugin/ui/src/components/ui/bottom-nav.test.tsx",
+        "scenarios/signal-inbox/ui/src/components/ui/bottom-nav.test.tsx",
+        "scenarios/content-desk/ui/src/components/ui/bottom-nav.test.tsx",
+        "scenarios/music-tools/ui/src/components/ui/bottom-nav.test.tsx",
+        "scenarios/backdrop-studio/ui/src/components/ui/bottom-nav.test.tsx",
+        "scenarios/treasury/ui/src/components/ui/bottom-nav.test.tsx",
+        "scenarios/scenario-to-android/ui/src/components/ui/bottom-nav.test.tsx",
+        "scenarios/prose-studio/ui/src/components/ui/bottom-nav.test.tsx",
+        "scenarios/hello-mobile/ui/src/components/ui/bottom-nav.test.tsx"
+      ]
+    },
+    {
+      "hash": "cc814ef2638093f40d620d0383d43bc76d3f34e540a6c973f3e1311e5076909b",
+      "source": "scenarios/music-library/ui/src/components/ui/sidebar-shell.test.tsx",
+      "destination": "scenarios/react-component-library/library/components/SidebarShell/versions/1.2.0/sidebar-shell.cc814ef2.test.tsx",
+      "component": "scenarios/react-component-library/library/components/SidebarShell/versions/1.2.0/SidebarShell.tsx",
+      "specifier": "SidebarShell/1.2.0",
+      "copies": [
+        "scenarios/music-library/ui/src/components/ui/sidebar-shell.test.tsx",
+        "scenarios/source-ledger/ui/src/components/ui/sidebar-shell.test.tsx",
+        "scenarios/asset-studio/ui/src/components/ui/sidebar-shell.test.tsx",
+        "scenarios/persona/ui/src/components/ui/sidebar-shell.test.tsx",
+        "scenarios/notification-hub/ui/src/components/ui/sidebar-shell.test.tsx",
+        "scenarios/storage-manager/ui/src/components/ui/sidebar-shell.test.tsx",
+        "scenarios/scenario-to-plugin/ui/src/components/ui/sidebar-shell.test.tsx",
+        "scenarios/signal-inbox/ui/src/components/ui/sidebar-shell.test.tsx",
+        "scenarios/content-desk/ui/src/components/ui/sidebar-shell.test.tsx",
+        "scenarios/music-tools/ui/src/components/ui/sidebar-shell.test.tsx",
+        "scenarios/vrooli-memory/ui/src/components/ui/sidebar-shell.test.tsx",
+        "scenarios/backdrop-studio/ui/src/components/ui/sidebar-shell.test.tsx",
+        "scenarios/treasury/ui/src/components/ui/sidebar-shell.test.tsx",
+        "scenarios/scenario-to-android/ui/src/components/ui/sidebar-shell.test.tsx",
+        "scenarios/channel-manager/ui/src/components/ui/sidebar-shell.test.tsx",
+        "scenarios/program-runtime/ui/src/components/ui/sidebar-shell.test.tsx",
+        "scenarios/hello-mobile/ui/src/components/ui/sidebar-shell.test.tsx"
+      ]
+    },
+    {
+      "hash": "1edb1d26874597b4014fd05985abc866313371bfc52f6fb724c6e322e951692b",
+      "source": "scenarios/music-library/ui/src/components/ui/textarea.test.tsx",
+      "destination": "scenarios/react-component-library/library/components/Textarea/versions/1.0.0/textarea.1edb1d26.test.tsx",
+      "component": "scenarios/react-component-library/library/components/Textarea/versions/1.0.0/Textarea.tsx",
+      "specifier": "Textarea/1.0.0",
+      "copies": [
+        "scenarios/music-library/ui/src/components/ui/textarea.test.tsx",
+        "scenarios/source-ledger/ui/src/components/ui/textarea.test.tsx",
+        "scenarios/asset-studio/ui/src/components/ui/textarea.test.tsx",
+        "scenarios/persona/ui/src/components/ui/textarea.test.tsx",
+        "scenarios/token-economy/ui/src/components/ui/textarea.test.tsx",
+        "scenarios/notification-hub/ui/src/components/ui/textarea.test.tsx",
+        "scenarios/infrastructure-manager/ui/src/components/ui/textarea.test.tsx",
+        "scenarios/scenario-to-plugin/ui/src/components/ui/textarea.test.tsx",
+        "scenarios/signal-inbox/ui/src/components/ui/textarea.test.tsx",
+        "scenarios/content-desk/ui/src/components/ui/textarea.test.tsx",
+        "scenarios/offer-desk/ui/src/components/ui/textarea.test.tsx",
+        "scenarios/music-tools/ui/src/components/ui/textarea.test.tsx",
+        "scenarios/vrooli-memory/ui/src/components/ui/textarea.test.tsx",
+        "scenarios/backdrop-studio/ui/src/components/ui/textarea.test.tsx",
+        "scenarios/treasury/ui/src/components/ui/textarea.test.tsx",
+        "scenarios/scenario-to-android/ui/src/components/ui/textarea.test.tsx",
+        "scenarios/prose-studio/ui/src/components/ui/textarea.test.tsx",
+        "scenarios/scenario-to-ios/ui/src/components/ui/textarea.test.tsx",
+        "scenarios/document-manager/ui/src/components/ui/textarea.test.tsx",
+        "scenarios/channel-manager/ui/src/components/ui/textarea.test.tsx",
+        "scenarios/program-runtime/ui/src/components/ui/textarea.test.tsx",
+        "scenarios/hello-mobile/ui/src/components/ui/textarea.test.tsx",
+        "scenarios/device-control/ui/src/components/ui/textarea.test.tsx"
+      ]
+    },
+    {
+      "hash": "d57e51c35aed0d68c4112ec7e88dd1ac52e24d6f6a51981c26557e7d1586498d",
+      "source": "scenarios/music-library/ui/src/components/ui/data-table.test.tsx",
+      "destination": "scenarios/react-component-library/library/components/DataTable/versions/1.2.0/data-table.d57e51c3.test.tsx",
+      "component": "scenarios/react-component-library/library/components/DataTable/versions/1.2.0/DataTable.tsx",
+      "specifier": "DataTable/1.2.0",
+      "copies": [
+        "scenarios/music-library/ui/src/components/ui/data-table.test.tsx",
+        "scenarios/asset-studio/ui/src/components/ui/data-table.test.tsx",
+        "scenarios/scenario-to-plugin/ui/src/components/ui/data-table.test.tsx",
+        "scenarios/music-tools/ui/src/components/ui/data-table.test.tsx",
+        "scenarios/vrooli-memory/ui/src/components/ui/data-table.test.tsx",
+        "scenarios/treasury/ui/src/components/ui/data-table.test.tsx",
+        "scenarios/prose-studio/ui/src/components/ui/data-table.test.tsx",
+        "scenarios/program-runtime/ui/src/components/ui/data-table.test.tsx",
+        "scenarios/hello-mobile/ui/src/components/ui/data-table.test.tsx"
+      ]
+    },
+    {
+      "hash": "f133ee1d6faa93267ebb2230c82c2337cc22fa45fbb172bf4edc7054e177f208",
+      "source": "scenarios/source-ledger/ui/src/components/ui/data-table.test.tsx",
+      "destination": "scenarios/react-component-library/library/components/DataTable/versions/1.2.0/data-table.f133ee1d.test.tsx",
+      "component": "scenarios/react-component-library/library/components/DataTable/versions/1.2.0/DataTable.tsx",
+      "specifier": "DataTable/1.2.0",
+      "copies": [
+        "scenarios/source-ledger/ui/src/components/ui/data-table.test.tsx"
+      ]
+    },
+    {
+      "hash": "f60eb18d0ba4c4e6fed6207a59606e03673db886a62f8687c802efd7fdeb5349",
+      "source": "scenarios/audio-tools/ui/src/audio-integration/SharedVoiceInputButton.test.tsx",
+      "destination": "scenarios/react-component-library/library/components/VoiceInputButton/versions/3.0.0/SharedVoiceInputButton.f60eb18d.test.tsx",
+      "component": "scenarios/react-component-library/library/components/VoiceInputButton/versions/3.0.0/VoiceInputButton.tsx",
+      "specifier": "VoiceInputButton/3.0.0",
+      "copies": [
+        "scenarios/audio-tools/ui/src/audio-integration/SharedVoiceInputButton.test.tsx"
+      ]
+    },
+    {
+      "hash": "e79a191f4428af6863072816c22b8b2eba90e937987632243d67ae87417c96d5",
+      "source": "scenarios/persona/ui/src/components/ui/data-table.test.tsx",
+      "destination": "scenarios/react-component-library/library/components/DataTable/versions/1.2.0/data-table.e79a191f.test.tsx",
+      "component": "scenarios/react-component-library/library/components/DataTable/versions/1.2.0/DataTable.tsx",
+      "specifier": "DataTable/1.2.0",
+      "copies": [
+        "scenarios/persona/ui/src/components/ui/data-table.test.tsx"
+      ]
+    },
+    {
+      "hash": "e7169c4212969fe4247a4d802884b777784fe57d0771688e668f9b7b32578f94",
+      "source": "scenarios/token-economy/ui/src/components/ui/select.test.tsx",
+      "destination": "scenarios/react-component-library/library/components/Select/versions/1.1.0/select.e7169c42.test.tsx",
+      "component": "scenarios/react-component-library/library/components/Select/versions/1.1.0/Select.tsx",
+      "specifier": "Select/1.1.0",
+      "copies": [
+        "scenarios/token-economy/ui/src/components/ui/select.test.tsx"
+      ]
+    },
+    {
+      "hash": "eb2f3a6e4e7f0933ba408980fb135dc2476c303d58ca92e5c191968f2a4bd253",
+      "source": "scenarios/token-economy/ui/src/components/ui/empty-state.test.tsx",
+      "destination": "scenarios/react-component-library/library/components/EmptyState/versions/1.1.0/empty-state.eb2f3a6e.test.tsx",
+      "component": "scenarios/react-component-library/library/components/EmptyState/versions/1.1.0/EmptyState.tsx",
+      "specifier": "EmptyState/1.1.0",
+      "copies": [
+        "scenarios/token-economy/ui/src/components/ui/empty-state.test.tsx"
+      ]
+    },
+    {
+      "hash": "4d7b9ae38ae34b6c0ff3a5baaaafa8dbbae699a3d906bf2eed2c8492e326f2d2",
+      "source": "scenarios/token-economy/ui/src/components/ui/bottom-nav.test.tsx",
+      "destination": "scenarios/react-component-library/library/components/BottomNav/versions/1.2.0/bottom-nav.4d7b9ae3.test.tsx",
+      "component": "scenarios/react-component-library/library/components/BottomNav/versions/1.2.0/BottomNav.tsx",
+      "specifier": "BottomNav/1.2.0",
+      "copies": [
+        "scenarios/token-economy/ui/src/components/ui/bottom-nav.test.tsx"
+      ]
+    },
+    {
+      "hash": "6c537dd1aef47fc1a9936b2499fd9e8659745ae609014fd057f9edbdf3b86451",
+      "source": "scenarios/token-economy/ui/src/components/ui/sidebar-shell.test.tsx",
+      "destination": "scenarios/react-component-library/library/components/SidebarShell/versions/1.2.0/sidebar-shell.6c537dd1.test.tsx",
+      "component": "scenarios/react-component-library/library/components/SidebarShell/versions/1.2.0/SidebarShell.tsx",
+      "specifier": "SidebarShell/1.2.0",
+      "copies": [
+        "scenarios/token-economy/ui/src/components/ui/sidebar-shell.test.tsx"
+      ]
+    },
+    {
+      "hash": "e6e78265cc679e0ba353b2943b7f3df4d0e5dac699c6d7c1d75379798fd4b8d5",
+      "source": "scenarios/token-economy/ui/src/components/ui/data-table.test.tsx",
+      "destination": "scenarios/react-component-library/library/components/DataTable/versions/1.2.0/data-table.e6e78265.test.tsx",
+      "component": "scenarios/react-component-library/library/components/DataTable/versions/1.2.0/DataTable.tsx",
+      "specifier": "DataTable/1.2.0",
+      "copies": [
+        "scenarios/token-economy/ui/src/components/ui/data-table.test.tsx"
+      ]
+    },
+    {
+      "hash": "dd92024905a4f890adf35e647ec9d75ff8482b7fdf8e18e51e61355b0d237367",
+      "source": "scenarios/notification-hub/ui/src/components/ui/data-table.test.tsx",
+      "destination": "scenarios/react-component-library/library/components/DataTable/versions/1.2.0/data-table.dd920249.test.tsx",
+      "component": "scenarios/react-component-library/library/components/DataTable/versions/1.2.0/DataTable.tsx",
+      "specifier": "DataTable/1.2.0",
+      "copies": [
+        "scenarios/notification-hub/ui/src/components/ui/data-table.test.tsx"
+      ]
+    },
+    {
+      "hash": "730e05c5d9c203fbbe5786879849b5b8217ec7083f4c952f0302730d5d7103a4",
+      "source": "scenarios/infrastructure-manager/ui/src/components/ui/select.test.tsx",
+      "destination": "scenarios/react-component-library/library/components/Select/versions/1.1.0/select.730e05c5.test.tsx",
+      "component": "scenarios/react-component-library/library/components/Select/versions/1.1.0/Select.tsx",
+      "specifier": "Select/1.1.0",
+      "copies": [
+        "scenarios/infrastructure-manager/ui/src/components/ui/select.test.tsx"
+      ]
+    },
+    {
+      "hash": "80e1fa4b87234d2ce7d253fd49483bbfd108189c7188c16f3ff20059cbd8287e",
+      "source": "scenarios/infrastructure-manager/ui/src/components/ui/bottom-nav.test.tsx",
+      "destination": "scenarios/react-component-library/library/components/BottomNav/versions/1.2.0/bottom-nav.80e1fa4b.test.tsx",
+      "component": "scenarios/react-component-library/library/components/BottomNav/versions/1.2.0/BottomNav.tsx",
+      "specifier": "BottomNav/1.2.0",
+      "copies": [
+        "scenarios/infrastructure-manager/ui/src/components/ui/bottom-nav.test.tsx"
+      ]
+    },
+    {
+      "hash": "cbb91c34521813d0b4ba62dde7a0831d10ec5e48580f2b95178faec2a9df80cc",
+      "source": "scenarios/infrastructure-manager/ui/src/components/ui/sidebar-shell.test.tsx",
+      "destination": "scenarios/react-component-library/library/components/SidebarShell/versions/1.2.0/sidebar-shell.cbb91c34.test.tsx",
+      "component": "scenarios/react-component-library/library/components/SidebarShell/versions/1.2.0/SidebarShell.tsx",
+      "specifier": "SidebarShell/1.2.0",
+      "copies": [
+        "scenarios/infrastructure-manager/ui/src/components/ui/sidebar-shell.test.tsx"
+      ]
+    },
+    {
+      "hash": "7981f75488a7cd72ad1ed48365db4572b1ac00ec6ead76a82435e38c80b8cd8c",
+      "source": "scenarios/infrastructure-manager/ui/src/components/ui/data-table.test.tsx",
+      "destination": "scenarios/react-component-library/library/components/DataTable/versions/1.2.0/data-table.7981f754.test.tsx",
+      "component": "scenarios/react-component-library/library/components/DataTable/versions/1.2.0/DataTable.tsx",
+      "specifier": "DataTable/1.2.0",
+      "copies": [
+        "scenarios/infrastructure-manager/ui/src/components/ui/data-table.test.tsx"
+      ]
+    },
+    {
+      "hash": "82442e7c8bb31d3ecc5de8658dadaf17e6e993c0e9fdab40a3bf2a1ec3a69af5",
+      "source": "scenarios/storage-manager/ui/src/components/ui/empty-state.test.tsx",
+      "destination": "scenarios/react-component-library/library/components/EmptyState/versions/1.1.0/empty-state.82442e7c.test.tsx",
+      "component": "scenarios/react-component-library/library/components/EmptyState/versions/1.1.0/EmptyState.tsx",
+      "specifier": "EmptyState/1.1.0",
+      "copies": [
+        "scenarios/storage-manager/ui/src/components/ui/empty-state.test.tsx"
+      ]
+    },
+    {
+      "hash": "71e04d78bb5b3a3f964a930a3f03f533f56470f1ba7a9bf43c9b4f850cbdac80",
+      "source": "scenarios/storage-manager/ui/src/components/ui/bottom-nav.test.tsx",
+      "destination": "scenarios/react-component-library/library/components/BottomNav/versions/1.2.0/bottom-nav.71e04d78.test.tsx",
+      "component": "scenarios/react-component-library/library/components/BottomNav/versions/1.2.0/BottomNav.tsx",
+      "specifier": "BottomNav/1.2.0",
+      "copies": [
+        "scenarios/storage-manager/ui/src/components/ui/bottom-nav.test.tsx"
+      ]
+    },
+    {
+      "hash": "cdb450555badb873c311ececd1c69c43bdd7b4edd504ccfa91c31db2b35a1f9a",
+      "source": "scenarios/storage-manager/ui/src/components/ui/data-table.test.tsx",
+      "destination": "scenarios/react-component-library/library/components/DataTable/versions/1.2.0/data-table.cdb45055.test.tsx",
+      "component": "scenarios/react-component-library/library/components/DataTable/versions/1.2.0/DataTable.tsx",
+      "specifier": "DataTable/1.2.0",
+      "copies": [
+        "scenarios/storage-manager/ui/src/components/ui/data-table.test.tsx"
+      ]
+    },
+    {
+      "hash": "c532abe00924b8b079cf6f59e82fb94171f628d19e8a79593469660da9ab939e",
+      "source": "scenarios/signal-inbox/ui/src/components/ui/empty-state.test.tsx",
+      "destination": "scenarios/react-component-library/library/components/EmptyState/versions/1.1.0/empty-state.c532abe0.test.tsx",
+      "component": "scenarios/react-component-library/library/components/EmptyState/versions/1.1.0/EmptyState.tsx",
+      "specifier": "EmptyState/1.1.0",
+      "copies": [
+        "scenarios/signal-inbox/ui/src/components/ui/empty-state.test.tsx"
+      ]
+    },
+    {
+      "hash": "43c9c7d9ad94b0af91cacc39349bbf120731b5267536a7f701e1e60364c52f76",
+      "source": "scenarios/signal-inbox/ui/src/components/ui/data-table.test.tsx",
+      "destination": "scenarios/react-component-library/library/components/DataTable/versions/1.2.0/data-table.43c9c7d9.test.tsx",
+      "component": "scenarios/react-component-library/library/components/DataTable/versions/1.2.0/DataTable.tsx",
+      "specifier": "DataTable/1.2.0",
+      "copies": [
+        "scenarios/signal-inbox/ui/src/components/ui/data-table.test.tsx"
+      ]
+    },
+    {
+      "hash": "6dbab19d161d47dc117852e4337844a6927c203aa7f2a78e9404e84f4d3a6335",
+      "source": "scenarios/content-desk/ui/src/components/ui/empty-state.test.tsx",
+      "destination": "scenarios/react-component-library/library/components/EmptyState/versions/1.1.0/empty-state.6dbab19d.test.tsx",
+      "component": "scenarios/react-component-library/library/components/EmptyState/versions/1.1.0/EmptyState.tsx",
+      "specifier": "EmptyState/1.1.0",
+      "copies": [
+        "scenarios/content-desk/ui/src/components/ui/empty-state.test.tsx"
+      ]
+    },
+    {
+      "hash": "31f3b21257c3fc273464215165aaf88c111c091e20e98b319b207f6cd0ec3742",
+      "source": "scenarios/content-desk/ui/src/components/ui/data-table.test.tsx",
+      "destination": "scenarios/react-component-library/library/components/DataTable/versions/1.2.0/data-table.31f3b212.test.tsx",
+      "component": "scenarios/react-component-library/library/components/DataTable/versions/1.2.0/DataTable.tsx",
+      "specifier": "DataTable/1.2.0",
+      "copies": [
+        "scenarios/content-desk/ui/src/components/ui/data-table.test.tsx"
+      ]
+    },
+    {
+      "hash": "5577c402100e09106fa178bce7333fdb3a652dcd0d14ab68e3a28127bf9060e9",
+      "source": "scenarios/offer-desk/ui/src/components/DirtyStateGuard.test.tsx",
+      "destination": "scenarios/react-component-library/library/components/DirtyStateGuard/versions/1.0.0/DirtyStateGuard.5577c402.test.tsx",
+      "component": "scenarios/react-component-library/library/components/DirtyStateGuard/versions/1.0.0/DirtyStateGuard.tsx",
+      "specifier": "DirtyStateGuard/1.0.0",
+      "copies": [
+        "scenarios/offer-desk/ui/src/components/DirtyStateGuard.test.tsx"
+      ]
+    },
+    {
+      "hash": "aac54a8ca2335ecae29c45bc0cc7d3793957f1a89d7f6b0295951ce9244b8e2a",
+      "source": "scenarios/offer-desk/ui/src/components/ui/select.test.tsx",
+      "destination": "scenarios/react-component-library/library/components/Select/versions/1.1.0/select.aac54a8c.test.tsx",
+      "component": "scenarios/react-component-library/library/components/Select/versions/1.1.0/Select.tsx",
+      "specifier": "Select/1.1.0",
+      "copies": [
+        "scenarios/offer-desk/ui/src/components/ui/select.test.tsx",
+        "scenarios/document-manager/ui/src/components/ui/select.test.tsx"
+      ]
+    },
+    {
+      "hash": "1082bf17dbb17e363351783338074cdd62e06b18abc31dbdd59b1ba347f1c03a",
+      "source": "scenarios/offer-desk/ui/src/components/ui/empty-state.test.tsx",
+      "destination": "scenarios/react-component-library/library/components/EmptyState/versions/1.1.0/empty-state.1082bf17.test.tsx",
+      "component": "scenarios/react-component-library/library/components/EmptyState/versions/1.1.0/EmptyState.tsx",
+      "specifier": "EmptyState/1.1.0",
+      "copies": [
+        "scenarios/offer-desk/ui/src/components/ui/empty-state.test.tsx"
+      ]
+    },
+    {
+      "hash": "f62a5d057e1cfa84595998cd48896f3fc5d2a8e11c9d7087af674782a5112686",
+      "source": "scenarios/offer-desk/ui/src/components/ui/bottom-nav.test.tsx",
+      "destination": "scenarios/react-component-library/library/components/BottomNav/versions/1.2.0/bottom-nav.f62a5d05.test.tsx",
+      "component": "scenarios/react-component-library/library/components/BottomNav/versions/1.2.0/BottomNav.tsx",
+      "specifier": "BottomNav/1.2.0",
+      "copies": [
+        "scenarios/offer-desk/ui/src/components/ui/bottom-nav.test.tsx"
+      ]
+    },
+    {
+      "hash": "bbd88c0ee10955cefbcbba3aaf580551240ee24534bf1ce165334d16fcc46d74",
+      "source": "scenarios/offer-desk/ui/src/components/ui/sidebar-shell.test.tsx",
+      "destination": "scenarios/react-component-library/library/components/SidebarShell/versions/1.2.0/sidebar-shell.bbd88c0e.test.tsx",
+      "component": "scenarios/react-component-library/library/components/SidebarShell/versions/1.2.0/SidebarShell.tsx",
+      "specifier": "SidebarShell/1.2.0",
+      "copies": [
+        "scenarios/offer-desk/ui/src/components/ui/sidebar-shell.test.tsx",
+        "scenarios/document-manager/ui/src/components/ui/sidebar-shell.test.tsx"
+      ]
+    },
+    {
+      "hash": "d2fc8bf1fd6a36074d9364c88d016d691e18a39e28c0cfe2f07c62b4c0187774",
+      "source": "scenarios/offer-desk/ui/src/components/ui/data-table.test.tsx",
+      "destination": "scenarios/react-component-library/library/components/DataTable/versions/1.2.0/data-table.d2fc8bf1.test.tsx",
+      "component": "scenarios/react-component-library/library/components/DataTable/versions/1.2.0/DataTable.tsx",
+      "specifier": "DataTable/1.2.0",
+      "copies": [
+        "scenarios/offer-desk/ui/src/components/ui/data-table.test.tsx"
+      ]
+    },
+    {
+      "hash": "4b386e02cbf410447ffa2105b32d1b6ece3b74a4379ced0d38ca7cb2d07471e9",
+      "source": "scenarios/offer-desk/ui/src/components/AsyncBoundary.test.tsx",
+      "destination": "scenarios/react-component-library/library/components/AsyncBoundary/versions/1.0.0/AsyncBoundary.4b386e02.test.tsx",
+      "component": "scenarios/react-component-library/library/components/AsyncBoundary/versions/1.0.0/AsyncBoundary.tsx",
+      "specifier": "AsyncBoundary/1.0.0",
+      "copies": [
+        "scenarios/offer-desk/ui/src/components/AsyncBoundary.test.tsx"
+      ]
+    },
+    {
+      "hash": "2e505fd335cc377e313c44fc493c1f6796c37d7625aa3b18786f7ed6d851e29f",
+      "source": "scenarios/offer-desk/ui/src/components/FormSection.test.tsx",
+      "destination": "scenarios/react-component-library/library/components/FormSection/versions/1.0.0/FormSection.2e505fd3.test.tsx",
+      "component": "scenarios/react-component-library/library/components/FormSection/versions/1.0.0/FormSection.tsx",
+      "specifier": "FormSection/1.0.0",
+      "copies": [
+        "scenarios/offer-desk/ui/src/components/FormSection.test.tsx"
+      ]
+    },
+    {
+      "hash": "646a61e282b0ba0f08c280f39b64a61b2a3ff9cd4bd9bb8ce38973d73f2a8e2b",
+      "source": "scenarios/vrooli-memory/ui/src/components/ui/empty-state.test.tsx",
+      "destination": "scenarios/react-component-library/library/components/EmptyState/versions/1.1.0/empty-state.646a61e2.test.tsx",
+      "component": "scenarios/react-component-library/library/components/EmptyState/versions/1.1.0/EmptyState.tsx",
+      "specifier": "EmptyState/1.1.0",
+      "copies": [
+        "scenarios/vrooli-memory/ui/src/components/ui/empty-state.test.tsx"
+      ]
+    },
+    {
+      "hash": "bf217627eef28a146beb15262c9a1a3254e458edc353bc0ff97a48999736f9eb",
+      "source": "scenarios/vrooli-memory/ui/src/components/ui/bottom-nav.test.tsx",
+      "destination": "scenarios/react-component-library/library/components/BottomNav/versions/1.2.0/bottom-nav.bf217627.test.tsx",
+      "component": "scenarios/react-component-library/library/components/BottomNav/versions/1.2.0/BottomNav.tsx",
+      "specifier": "BottomNav/1.2.0",
+      "copies": [
+        "scenarios/vrooli-memory/ui/src/components/ui/bottom-nav.test.tsx"
+      ]
+    },
+    {
+      "hash": "f22cc6418bae61bfaecf68a9c7331631d42f44d44e57099c2dd0145941e17a28",
+      "source": "scenarios/backdrop-studio/ui/src/components/ui/data-table.test.tsx",
+      "destination": "scenarios/react-component-library/library/components/DataTable/versions/1.2.0/data-table.f22cc641.test.tsx",
+      "component": "scenarios/react-component-library/library/components/DataTable/versions/1.2.0/DataTable.tsx",
+      "specifier": "DataTable/1.2.0",
+      "copies": [
+        "scenarios/backdrop-studio/ui/src/components/ui/data-table.test.tsx"
+      ]
+    },
+    {
+      "hash": "a1bb6e3d3afd65b8df7c10e1ddb345d6d4764ee48c4c54f27e5472793f18f10d",
+      "source": "scenarios/treasury/ui/src/components/ui/empty-state.test.tsx",
+      "destination": "scenarios/react-component-library/library/components/EmptyState/versions/1.1.0/empty-state.a1bb6e3d.test.tsx",
+      "component": "scenarios/react-component-library/library/components/EmptyState/versions/1.1.0/EmptyState.tsx",
+      "specifier": "EmptyState/1.1.0",
+      "copies": [
+        "scenarios/treasury/ui/src/components/ui/empty-state.test.tsx"
+      ]
+    },
+    {
+      "hash": "d8e5f9b11d76f1cd2058aa1f769d990d1ba98aa023d3ba464611d2d5a853e326",
+      "source": "scenarios/scenario-to-android/ui/src/components/ui/data-table.test.tsx",
+      "destination": "scenarios/react-component-library/library/components/DataTable/versions/1.2.0/data-table.d8e5f9b1.test.tsx",
+      "component": "scenarios/react-component-library/library/components/DataTable/versions/1.2.0/DataTable.tsx",
+      "specifier": "DataTable/1.2.0",
+      "copies": [
+        "scenarios/scenario-to-android/ui/src/components/ui/data-table.test.tsx"
+      ]
+    },
+    {
+      "hash": "3ad60f187803f87e1c586d6300bfef610da2aa3ecfee363f27feecbde89e324f",
+      "source": "scenarios/prose-studio/ui/src/components/ui/sidebar-shell.test.tsx",
+      "destination": "scenarios/react-component-library/library/components/SidebarShell/versions/1.2.0/sidebar-shell.3ad60f18.test.tsx",
+      "component": "scenarios/react-component-library/library/components/SidebarShell/versions/1.2.0/SidebarShell.tsx",
+      "specifier": "SidebarShell/1.2.0",
+      "copies": [
+        "scenarios/prose-studio/ui/src/components/ui/sidebar-shell.test.tsx"
+      ]
+    },
+    {
+      "hash": "35974aaa2f3e851296a34104abf8f366e616f2bc4693f6538469dda8eb4c5cf7",
+      "source": "scenarios/scenario-to-ios/ui/src/components/ui/select.test.tsx",
+      "destination": "scenarios/react-component-library/library/components/Select/versions/1.1.0/select.35974aaa.test.tsx",
+      "component": "scenarios/react-component-library/library/components/Select/versions/1.1.0/Select.tsx",
+      "specifier": "Select/1.1.0",
+      "copies": [
+        "scenarios/scenario-to-ios/ui/src/components/ui/select.test.tsx"
+      ]
+    },
+    {
+      "hash": "814be8166a0277a05d01b022e20f4411d7537659564472de0d3bb55d1d646735",
+      "source": "scenarios/scenario-to-ios/ui/src/components/ui/bottom-nav.test.tsx",
+      "destination": "scenarios/react-component-library/library/components/BottomNav/versions/1.2.0/bottom-nav.814be816.test.tsx",
+      "component": "scenarios/react-component-library/library/components/BottomNav/versions/1.2.0/BottomNav.tsx",
+      "specifier": "BottomNav/1.2.0",
+      "copies": [
+        "scenarios/scenario-to-ios/ui/src/components/ui/bottom-nav.test.tsx"
+      ]
+    },
+    {
+      "hash": "2718c26db00e5fa6b562a62f272d3a3a5bf8d9e463cf158518637d7fed5ff000",
+      "source": "scenarios/scenario-to-ios/ui/src/components/ui/sidebar-shell.test.tsx",
+      "destination": "scenarios/react-component-library/library/components/SidebarShell/versions/1.2.0/sidebar-shell.2718c26d.test.tsx",
+      "component": "scenarios/react-component-library/library/components/SidebarShell/versions/1.2.0/SidebarShell.tsx",
+      "specifier": "SidebarShell/1.2.0",
+      "copies": [
+        "scenarios/scenario-to-ios/ui/src/components/ui/sidebar-shell.test.tsx"
+      ]
+    },
+    {
+      "hash": "9900e240970c887c0e51eec7084b783e1e4bd547d2bc7afa4d9b122f84708f24",
+      "source": "scenarios/scenario-to-ios/ui/src/components/ui/data-table.test.tsx",
+      "destination": "scenarios/react-component-library/library/components/DataTable/versions/1.2.0/data-table.9900e240.test.tsx",
+      "component": "scenarios/react-component-library/library/components/DataTable/versions/1.2.0/DataTable.tsx",
+      "specifier": "DataTable/1.2.0",
+      "copies": [
+        "scenarios/scenario-to-ios/ui/src/components/ui/data-table.test.tsx"
+      ]
+    },
+    {
+      "hash": "4f98da8d4a2112b8fc2c1ebdbf9741acbd32093e95a311cafc922328b5ac36b0",
+      "source": "scenarios/document-manager/ui/src/components/ui/bottom-nav.test.tsx",
+      "destination": "scenarios/react-component-library/library/components/BottomNav/versions/1.2.0/bottom-nav.4f98da8d.test.tsx",
+      "component": "scenarios/react-component-library/library/components/BottomNav/versions/1.2.0/BottomNav.tsx",
+      "specifier": "BottomNav/1.2.0",
+      "copies": [
+        "scenarios/document-manager/ui/src/components/ui/bottom-nav.test.tsx"
+      ]
+    },
+    {
+      "hash": "17f8d466ef18713e25c307fe32483f2d4152cd432074c94879b5b74b7b90219e",
+      "source": "scenarios/document-manager/ui/src/components/ui/data-table.test.tsx",
+      "destination": "scenarios/react-component-library/library/components/DataTable/versions/1.2.0/data-table.17f8d466.test.tsx",
+      "component": "scenarios/react-component-library/library/components/DataTable/versions/1.2.0/DataTable.tsx",
+      "specifier": "DataTable/1.2.0",
+      "copies": [
+        "scenarios/document-manager/ui/src/components/ui/data-table.test.tsx"
+      ]
+    },
+    {
+      "hash": "f117762c1d42c10c701a65b17fa3379368470d9bfb2a673a3de2636587ca715e",
+      "source": "scenarios/money-ledger/ui/src/components/Chart.test.tsx",
+      "destination": "scenarios/react-component-library/library/components/Chart/versions/1.0.1/Chart.f117762c.test.tsx",
+      "component": "scenarios/react-component-library/library/components/Chart/versions/1.0.1/Chart.tsx",
+      "specifier": "Chart/1.0.1",
+      "copies": [
+        "scenarios/money-ledger/ui/src/components/Chart.test.tsx"
+      ]
+    },
+    {
+      "hash": "95f0c1c1e819d3ab3abee74676610eae7baa9ae197c70ce1d59c1fb05613236b",
+      "source": "scenarios/money-ledger/ui/src/components/DirtyStateGuard.test.tsx",
+      "destination": "scenarios/react-component-library/library/components/DirtyStateGuard/versions/1.0.1/DirtyStateGuard.95f0c1c1.test.tsx",
+      "component": "scenarios/react-component-library/library/components/DirtyStateGuard/versions/1.0.1/DirtyStateGuard.tsx",
+      "specifier": "DirtyStateGuard/1.0.1",
+      "copies": [
+        "scenarios/money-ledger/ui/src/components/DirtyStateGuard.test.tsx"
+      ]
+    },
+    {
+      "hash": "87f935440f9d69e18f41ef523d9aa5b6791fc4aa7d4edd0033ed6eaa34f1b594",
+      "source": "scenarios/channel-manager/ui/src/components/ui/bottom-nav.test.tsx",
+      "destination": "scenarios/react-component-library/library/components/BottomNav/versions/1.2.0/bottom-nav.87f93544.test.tsx",
+      "component": "scenarios/react-component-library/library/components/BottomNav/versions/1.2.0/BottomNav.tsx",
+      "specifier": "BottomNav/1.2.0",
+      "copies": [
+        "scenarios/channel-manager/ui/src/components/ui/bottom-nav.test.tsx"
+      ]
+    },
+    {
+      "hash": "eea43e5b9018fbdb49a7e90afca009318077a344505aada977452c994fa2dc8f",
+      "source": "scenarios/money-ledger/ui/src/components/FormSection.test.tsx",
+      "destination": "scenarios/react-component-library/library/components/FormSection/versions/1.0.1/FormSection.eea43e5b.test.tsx",
+      "component": "scenarios/react-component-library/library/components/FormSection/versions/1.0.1/FormSection.tsx",
+      "specifier": "FormSection/1.0.1",
+      "copies": [
+        "scenarios/money-ledger/ui/src/components/FormSection.test.tsx"
+      ]
+    },
+    {
+      "hash": "a1ce4fa6aa82d9f1c13df12ea926d7e5a821e23064b41fbf7d25df9a6b31890a",
+      "source": "scenarios/program-runtime/ui/src/components/ui/bottom-nav.test.tsx",
+      "destination": "scenarios/react-component-library/library/components/BottomNav/versions/1.2.0/bottom-nav.a1ce4fa6.test.tsx",
+      "component": "scenarios/react-component-library/library/components/BottomNav/versions/1.2.0/BottomNav.tsx",
+      "specifier": "BottomNav/1.2.0",
+      "copies": [
+        "scenarios/program-runtime/ui/src/components/ui/bottom-nav.test.tsx"
+      ]
+    },
+    {
+      "hash": "94272c2b70c5e383113c99d05e67af0b99d071e2c9d552e46f827c91569859ea",
+      "source": "scenarios/web-console/ui/src/__tests__/drawer-shell.test.tsx",
+      "destination": "scenarios/react-component-library/library/components/DrawerShell/versions/1.0.0/drawer-shell.94272c2b.test.tsx",
+      "component": "scenarios/react-component-library/library/components/DrawerShell/versions/1.0.0/DrawerShell.tsx",
+      "specifier": "DrawerShell/1.0.0",
+      "copies": [
+        "scenarios/web-console/ui/src/__tests__/drawer-shell.test.tsx"
+      ]
+    },
+    {
+      "hash": "8b15436a29c339797543f6ba65f8eb83d046d15db2cb02aecaea0a32f6ce6393",
+      "source": "scenarios/device-control/ui/src/components/ui/select.test.tsx",
+      "destination": "scenarios/react-component-library/library/components/Select/versions/1.1.0/select.8b15436a.test.tsx",
+      "component": "scenarios/react-component-library/library/components/Select/versions/1.1.0/Select.tsx",
+      "specifier": "Select/1.1.0",
+      "copies": [
+        "scenarios/device-control/ui/src/components/ui/select.test.tsx"
+      ]
+    },
+    {
+      "hash": "232c66d1ad37f5981c09941f68ede5d28a4c2a1775495916917baf38162e26d9",
+      "source": "scenarios/device-control/ui/src/components/ui/bottom-nav.test.tsx",
+      "destination": "scenarios/react-component-library/library/components/BottomNav/versions/1.2.0/bottom-nav.232c66d1.test.tsx",
+      "component": "scenarios/react-component-library/library/components/BottomNav/versions/1.2.0/BottomNav.tsx",
+      "specifier": "BottomNav/1.2.0",
+      "copies": [
+        "scenarios/device-control/ui/src/components/ui/bottom-nav.test.tsx"
+      ]
+    },
+    {
+      "hash": "5c92ae10104f6eb77fca2746e7fa17ce1a7b0ff07f90b103df45d37ddb4b3858",
+      "source": "scenarios/device-control/ui/src/components/ui/sidebar-shell.test.tsx",
+      "destination": "scenarios/react-component-library/library/components/SidebarShell/versions/1.2.0/sidebar-shell.5c92ae10.test.tsx",
+      "component": "scenarios/react-component-library/library/components/SidebarShell/versions/1.2.0/SidebarShell.tsx",
+      "specifier": "SidebarShell/1.2.0",
+      "copies": [
+        "scenarios/device-control/ui/src/components/ui/sidebar-shell.test.tsx"
+      ]
+    },
+    {
+      "hash": "a420edb6641654a866cc1e0bac90e9b6a3b8634f31807f6f98a850a8f58fa612",
+      "source": "scenarios/device-control/ui/src/components/ui/data-table.test.tsx",
+      "destination": "scenarios/react-component-library/library/components/DataTable/versions/1.2.0/data-table.a420edb6.test.tsx",
+      "component": "scenarios/react-component-library/library/components/DataTable/versions/1.2.0/DataTable.tsx",
+      "specifier": "DataTable/1.2.0",
+      "copies": [
+        "scenarios/device-control/ui/src/components/ui/data-table.test.tsx"
+      ]
+    },
+    {
+      "hash": "ef62de266f794d6432ddd8d85d532274b3654987ad7e89294972f712dafbe7f7",
+      "source": "scenarios/swarm-manager/ui/src/components/markdown/markdown-stability.test.tsx",
+      "destination": "scenarios/react-component-library/library/components/markdown-renderer/versions/0.3.2/markdown-stability.ef62de26.test.tsx",
+      "component": "scenarios/react-component-library/library/components/markdown-renderer/versions/0.3.2/MarkdownRenderer.tsx",
+      "specifier": "markdown-renderer/0.3.2",
+      "copies": [
+        "scenarios/swarm-manager/ui/src/components/markdown/markdown-stability.test.tsx"
+      ]
+    }
+  ],
+  "ignored": [
+    {
+      "file": "scenarios/device-control/ui/src/components/ui/empty-state-dialog.test.tsx",
+      "reason": "mixed adopter-local Dialog test"
+    }
+  ],
+  "uniquePromotedCount": 60
+}

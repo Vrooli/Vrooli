@@ -2,9 +2,10 @@
  * @libraryId react-component-library:StatusBadge
  * @version 1.1.0
  * @status released
- * @deps {"react":"^18"}
+ * @deps {"react":"^18","clsx":"^2.1.1","tailwind-merge":"^2.3.0"}
  */
-import { cn } from "../../../../foundations/ClassMerge/versions/1.0.0/ClassMerge";
+import { clsx, type ClassValue } from "clsx";
+import { twMerge } from "tailwind-merge";
 import type { HTMLAttributes, ReactNode } from "react";
 
 type StatusTone = "neutral" | "success" | "warning" | "danger" | "info";
@@ -13,6 +14,8 @@ export interface StatusBadgeProps extends HTMLAttributes<HTMLSpanElement> {
   children: ReactNode;
   tone?: StatusTone;
 }
+
+const cn = (...inputs: ClassValue[]) => twMerge(clsx(inputs));
 
 const toneClasses: Record<StatusTone, string> = {
   neutral: "border-app-border bg-app-surface-muted text-app-muted-foreground",

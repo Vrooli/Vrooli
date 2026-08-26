@@ -41,7 +41,7 @@
     "fixtures": []
   },
   "kind": "component",
-  "schemaVersion": 4,
+  "schemaVersion": 5,
   "stories": [
     {
       "args": {
@@ -65,10 +65,12 @@
       ],
       "id": "with-placeholder",
       "mode": "pinned",
-      "name": "With Placeholder"
+      "name": "With Placeholder",
+      "role": "anatomy"
     },
     {
       "args": {
+        "aria-label": "native",
         "defaultValue": "native",
         "options": [
           {
@@ -90,10 +92,12 @@
       ],
       "id": "selected",
       "mode": "pinned",
-      "name": "Selected"
+      "name": "Selected",
+      "role": "boundary"
     },
     {
       "args": {
+        "aria-label": "locked",
         "defaultValue": "locked",
         "disabled": true,
         "options": [
@@ -122,7 +126,8 @@
       ],
       "id": "disabled",
       "mode": "pinned",
-      "name": "Disabled"
+      "name": "Disabled",
+      "role": "boundary"
     }
   ],
   "title": "Select"

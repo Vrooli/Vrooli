@@ -11,11 +11,13 @@
     }
   ],
   "displayName": "StatusIndicator",
-  "latest": "1.0.0",
+  "latest": "1.0.2",
   "libraryId": "react-component-library:StatusIndicator",
   "tags": [
     "primitive",
     "feedback",
     "token-bound"
-  ]
+  ],
+  "draft": "",
+  "deprecatedVersions": []
 }

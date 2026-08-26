@@ -4,7 +4,6 @@
  * @status released
  * @deps {"react":"^18"}
  */
-import { cn } from "../../../../foundations/ClassMerge/versions/1.0.0/ClassMerge";
 import type { MouseEvent, ReactNode } from "react";
 import { bottomNavStyles } from "./styles";
 
@@ -32,6 +31,9 @@ export interface BottomNavProps {
   activeItemClassName?: string;
   inactiveItemClassName?: string;
 }
+
+const joinClasses = (...classes: Array<string | undefined | false>) =>
+  classes.filter(Boolean).join(" ");
 
 const activeClass = "text-app-primary";
 const inactiveClass = "text-app-muted-foreground hover:text-app-foreground";
@@ -65,10 +67,10 @@ export function BottomNav({
         data-testid={testId}
         data-rcl-bottom-nav
         aria-label={label}
-        className={cn("pb-safe pl-safe pr-safe", className)}
+        className={joinClasses("pb-safe pl-safe pr-safe", className)}
       >
         {items.map((item) => {
-          const itemClassName = cn(
+          const itemClassName = joinClasses(
             item.active ? activeClass : inactiveClass,
             itemClassNameOverride,
             item.active ? activeItemClassName : inactiveItemClassName,
@@ -87,6 +89,7 @@ export function BottomNav({
             "data-rcl-bottom-nav-item": true,
             "data-active": item.active ? "true" : "false",
             "data-disabled": item.disabled ? "true" : "false",
+            "data-testid": item.testId,
             "aria-label": item.ariaLabel,
             "aria-current": item.active ? ("page" as const) : undefined,
             className: itemClassName,
@@ -95,7 +98,7 @@ export function BottomNav({
 
           if (item.href) {
             return (
-              <a data-testid={item.testId ?? "navigation.bottom-navigation"}
+              <a
                 key={item.id}
                 href={item.disabled ? undefined : item.href}
                 aria-disabled={item.disabled ? "true" : undefined}
@@ -107,7 +110,7 @@ export function BottomNav({
           }
 
           return (
-            <button data-testid={item.testId ?? "navigation.bottom-navigation"}
+            <button
               key={item.id}
               type="button"
               disabled={item.disabled}

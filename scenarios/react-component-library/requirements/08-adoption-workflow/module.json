@@ -9,12 +9,12 @@
   "requirements": [
     {
       "id": "AD-001",
-      "title": "Create adoption record from CLI or UI",
+      "title": "Link or eject an adoption from the CLI",
       "status": "complete",
       "prd_ref": "OT-P0-006",
       "category": "adoption",
       "criticality": "P0",
-      "description": "`POST /api/v1/adoptions` (mirrored by `react-component-library adoptions create`) accepts `{component_id, scenario, adopted_path, adopted_version}` and inserts a row into `adoption_records`. Component_id is a soft FK (no SQL constraint) per per-domain rule.",
+      "description": "The governed adoption surface records a version-pinned `mode=linked` package dependency through `react-component-library adoptions link`. A deliberate source materialization uses `adoptions eject` and requires a non-empty reason, recording `mode=ejected` and `fork_reason`. Component_id is a soft FK (no SQL constraint) per per-domain rule.",
       "tags": ["adoption", "cli"],
       "validation": [
         {
@@ -60,12 +60,12 @@
     },
     {
       "id": "AD-004",
-      "title": "Replacement adoption is explicit and provenance-safe",
+      "title": "Ejection is explicit and provenance-safe",
       "status": "complete",
       "prd_ref": "OT-P0-006",
       "category": "adoption",
       "criticality": "P0",
-      "description": "Apply supports explicit replace_existing mode, compares the existing source body after stripping provenance, requires confirm_overwrite on divergence, records source and snapshot hashes, and reports direct import sites.",
+      "description": "Eject compares the selected source and target, requires a non-empty reason, records source and snapshot hashes plus provenance, and reports direct import sites. Linked adoption never overwrites consumer source.",
       "tags": ["adoption", "replacement", "provenance"],
       "validation": [{"type": "automated", "status": "complete", "notes": "internal/adoptions service test proves divergence confirmation, stamped provenance, and import-site reporting."}]
     },

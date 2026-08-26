@@ -13,16 +13,10 @@
     "fixtures": []
   },
   "kind": "component",
-  "schemaVersion": 4,
+  "schemaVersion": 5,
   "stories": [
     {
       "args": {
-        "children": {
-          "$text": "section"
-        },
-        "navigation": {
-          "$text": "nav"
-        },
         "title": "Application workspace"
       },
       "expect": [
@@ -62,16 +56,17 @@
       ],
       "id": "default",
       "mode": "pinned",
-      "name": "Workspace"
+      "name": "Workspace",
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "Default"
+        }
+      },
+      "role": "anatomy"
     },
     {
       "args": {
-        "children": {
-          "$text": "section"
-        },
-        "navigation": {
-          "$text": "nav"
-        },
         "title": "Application workspace"
       },
       "expect": [
@@ -103,7 +98,14 @@
       ],
       "id": "long-content",
       "mode": "pinned",
-      "name": "Long content"
+      "name": "Long content",
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "LongContent"
+        }
+      },
+      "role": "boundary"
     }
   ],
   "title": "AppShell"

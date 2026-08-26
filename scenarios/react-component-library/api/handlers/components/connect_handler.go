@@ -415,6 +415,82 @@ func (h *connectHandler) GetComponentVersionContent(ctx context.Context, req *co
 	}), nil
 }
 
+// ResolveLibraryImport projects the catalog's immutable import graph into the
+// Files editor. A non-library or relative specifier is a normal unresolved
+// result so Monaco can explain the boundary instead of silently showing no
+// hover or definition.
+func (h *connectHandler) ResolveLibraryImport(ctx context.Context, req *connect.Request[componentsv1.ResolveLibraryImportRequest]) (*connect.Response[componentsv1.ResolveLibraryImportResponse], error) {
+	specifier := strings.TrimSpace(req.Msg.Specifier)
+	result := &componentsv1.ResolveLibraryImportResponse{Specifier: specifier}
+	name, requestedVersion, diagnostic := parseLibrarySpecifier(specifier)
+	if diagnostic != "" {
+		result.Diagnostic = diagnostic
+		return connect.NewResponse(result), nil
+	}
+	rows, err := h.deps.Service.List(ctx, components.SearchQuery{Match: name, Limit: 2000})
+	if err != nil {
+		return nil, components.ToConnectError(err)
+	}
+	var match *components.Component
+	for i := range rows {
+		if rows[i].LibraryID == "react-component-library:"+name || rows[i].Slug == name {
+			candidate := rows[i]
+			match = &candidate
+			break
+		}
+	}
+	if match == nil {
+		result.Diagnostic = fmt.Sprintf("library import %q does not resolve to a catalog asset", specifier)
+		return connect.NewResponse(result), nil
+	}
+	version := requestedVersion
+	if version == "" {
+		version = match.LatestVersion
+	}
+	artifact, err := h.deps.Service.GetVersion(ctx, match.ID, version)
+	if err != nil {
+		result.Diagnostic = fmt.Sprintf("library import %q does not resolve to %s@%s", specifier, match.LibraryID, version)
+		return connect.NewResponse(result), nil
+	}
+	description := match.Description
+	if description == "" {
+		description = artifact.Headers["description"]
+	}
+	result.Resolved = true
+	result.AssetId = match.CatalogID
+	result.LibraryId = match.LibraryID
+	result.Version = artifact.Version
+	result.ExportKind = string(match.AssetKind)
+	result.Description = description
+	result.SourcePath = artifact.SourcePath
+	return connect.NewResponse(result), nil
+}
+
+func parseLibrarySpecifier(specifier string) (name, version, diagnostic string) {
+	if specifier == "" {
+		return "", "", "empty import specifier cannot resolve"
+	}
+	if strings.HasPrefix(specifier, ".") || strings.HasPrefix(specifier, "/") {
+		return "", "", fmt.Sprintf("relative import %q is local to the current file and is not a catalog library import", specifier)
+	}
+	const prefix = "@vrooli/react-component-library/"
+	if !strings.HasPrefix(specifier, prefix) {
+		return "", "", fmt.Sprintf("import %q is not a React Component Library package specifier", specifier)
+	}
+	parts := strings.Split(strings.TrimPrefix(specifier, prefix), "/")
+	if len(parts) < 1 || len(parts) > 2 || strings.TrimSpace(parts[0]) == "" {
+		return "", "", fmt.Sprintf("library import %q has an invalid asset/version shape", specifier)
+	}
+	name = parts[0]
+	if len(parts) == 2 {
+		version = strings.TrimSpace(parts[1])
+		if version == "" {
+			return "", "", fmt.Sprintf("library import %q has an empty version", specifier)
+		}
+	}
+	return name, version, ""
+}
+
 func (h *connectHandler) ListComponentStories(ctx context.Context, req *connect.Request[componentsv1.ListComponentStoriesRequest]) (*connect.Response[componentsv1.ListComponentStoriesResponse], error) {
 	rows, err := h.deps.Service.ListStories(ctx, components.StoryQuery{
 		ComponentID: req.Msg.ComponentId,

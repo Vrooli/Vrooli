@@ -19,10 +19,12 @@
     }
   ],
   "displayName": "Link",
-  "latest": "1.0.0",
+  "latest": "1.0.1",
   "libraryId": "react-component-library:Link",
   "tags": [
     "primitive",
     "token-bound"
-  ]
+  ],
+  "draft": "",
+  "deprecatedVersions": []
 }

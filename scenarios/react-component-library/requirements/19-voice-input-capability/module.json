@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "Reusable, safe browser voice-input lifecycle and presentation capability.",
-    "last_validated_at": "2026-08-24T22:13:11-04:00",
+    "last_validated_at": "2026-08-25T02:11:45-04:00",
     "module": "voice-input-capability",
     "prd_ref": "OT-P0-008",
     "priority": "P0",
@@ -11,7 +11,7 @@
     {
       "id": "VI-001",
       "title": "Voice input has one owner, one clock, and one terminal cleanup funnel",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-008",
       "category": "reliability",
       "criticality": "P0",
@@ -26,7 +26,7 @@
           "type": "test",
           "ref": "ui/src/test-utils/voiceInput.test.ts",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         }
       ]
     },
@@ -48,7 +48,7 @@
           "type": "test",
           "ref": "ui/src/test-utils/voiceInputButton.test.tsx",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         },
         {
           "type": "test",

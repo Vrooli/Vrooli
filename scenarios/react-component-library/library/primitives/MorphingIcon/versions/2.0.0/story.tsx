@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { IconButton } from "../../../../components/IconButton/versions/2.0.0/IconButton";
+import { IconButton } from "@vrooli/react-component-library/IconButton/2.0.0";
 import { MorphingIcon } from "./MorphingIcon";
 
 export function ToggleMorphingIcon() {

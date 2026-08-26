@@ -185,6 +185,27 @@
       }
     },
     {
+      "id": "version-liveness",
+      "attribution": "corpus",
+      "rung": "verified",
+      "description": "Every live library import resolves to a surviving published version entry and no source edge crosses directly into another version directory.",
+      "appliesTo": [
+        "foundation",
+        "primitive",
+        "component",
+        "runtime-hook",
+        "runtime-service",
+        "adapter",
+        "pattern",
+        "page-template",
+        "navigation"
+      ],
+      "blocking": true,
+      "runner": {
+        "react-vite": "react-component-library catalog gates version-liveness"
+      }
+    },
+    {
       "id": "types",
       "attribution": "attributable",
       "rung": "scaffolded",
@@ -605,6 +626,69 @@
       "runner": {
         "react-vite": "react-component-library catalog gates selector-coverage"
       }
+    },
+    {
+      "id": "restyle-contract",
+      "attribution": "corpus",
+      "rung": "implemented",
+      "appliesTo": ["primitive", "component", "pattern", "page-template"],
+      "blocking": true,
+      "description": "Every published component exposes a consumer-winning className pass-through contract.",
+      "runner": { "react-vite": "react-component-library catalog gates restyle-contract" }
+    },
+    {
+      "id": "story-grammar",
+      "attribution": "corpus",
+      "rung": "implemented",
+      "appliesTo": ["primitive", "component", "pattern", "page-template"],
+      "blocking": true,
+      "description": "Story contracts reject tag names encoded as text and preserve the typed composition grammar.",
+      "runner": { "react-vite": "react-component-library catalog gates story-grammar" }
+    },
+    {
+      "id": "story-distinctness",
+      "attribution": "corpus",
+      "rung": "implemented",
+      "appliesTo": ["primitive", "component", "pattern", "page-template"],
+      "blocking": true,
+      "description": "Sibling story frames answer distinct rendered questions instead of duplicating one specimen.",
+      "runner": { "react-vite": "react-component-library catalog gates story-distinctness" }
+    },
+    {
+      "id": "evidence-freshness",
+      "attribution": "corpus",
+      "rung": "implemented",
+      "appliesTo": ["primitive", "component", "pattern", "page-template"],
+      "blocking": true,
+      "description": "Every live version has non-blocked test evidence newer than its story contract.",
+      "runner": { "react-vite": "react-component-library catalog gates evidence-freshness" }
+    },
+    {
+      "id": "i18n-adopted",
+      "attribution": "corpus",
+      "rung": "implemented",
+      "appliesTo": ["primitive", "component", "pattern", "page-template"],
+      "blocking": true,
+      "description": "Linked adopters install the locale bridge and carry the derived English catalog.",
+      "runner": { "react-vite": "react-component-library catalog gates i18n-adopted" }
+    },
+    {
+      "id": "selectors-adopted",
+      "attribution": "corpus",
+      "rung": "implemented",
+      "appliesTo": ["primitive", "component", "pattern", "page-template"],
+      "blocking": true,
+      "description": "Linked adopters compose the generated library selector registry.",
+      "runner": { "react-vite": "react-component-library catalog gates selectors-adopted" }
+    },
+    {
+      "id": "adopter-hygiene",
+      "attribution": "corpus",
+      "rung": "implemented",
+      "appliesTo": ["primitive", "component", "pattern", "page-template"],
+      "blocking": true,
+      "description": "Library assertion bodies live beside versioned library sources and are not duplicated in adopters.",
+      "runner": { "react-vite": "react-component-library catalog gates adopter-hygiene" }
     }
   ],
   "avoidVocabulary": [

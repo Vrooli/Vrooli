@@ -2,6 +2,7 @@ package componenttests
 
 import (
 	"context"
+	"database/sql"
 	"testing"
 	"time"
 
@@ -48,4 +49,23 @@ func TestSQLiteRepositoryReadsLegacyResultsArray(t *testing.T) {
 	require.Len(t, reports, 1)
 	require.Equal(t, StageContract, reports[0].Results[0].Stage)
 	require.Empty(t, reports[0].Artifacts)
+}
+
+func TestSQLiteSweepRepositoryResumesDurableResults(t *testing.T) {
+	database := db.NewSQLite(t)
+	require.NoError(t, apidb.EnsureSchemas(context.Background(), database, apidb.SchemaProviderFunc(localdb.SystemSchema), apidb.SchemaProviderFunc(internalcomponents.Schema)))
+	store := NewSQLiteSweepRepository(database)
+	sweep, err := store.Start(context.Background(), "component-id", false, "sweep-test")
+	require.NoError(t, err)
+	sweep.Results["rcl:Button@1.0.0"] = string(VerdictPassed)
+	require.NoError(t, store.Save(context.Background(), sweep))
+	resumed, err := store.LatestOpen(context.Background(), "component-id")
+	require.NoError(t, err)
+	require.Equal(t, "sweep-test", resumed.ID)
+	require.Equal(t, string(VerdictPassed), resumed.Results["rcl:Button@1.0.0"])
+	resumed.Status = SweepComplete
+	resumed.CompletedAt = time.Now().UTC()
+	require.NoError(t, store.Save(context.Background(), resumed))
+	_, err = store.LatestOpen(context.Background(), "component-id")
+	require.ErrorIs(t, err, sql.ErrNoRows)
 }

@@ -1,6 +1,6 @@
 import { screen, within } from "@testing-library/react";
 
-import { Table } from "./ui/DataTable/versions/1.3.0/Table";
+import { Table } from "@vrooli/react-component-library/Table/1.0.0";
 import { renderWithProviders } from "../test-utils";
 
 describe("Table", () => {

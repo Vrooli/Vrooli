@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { Button } from "../../../Button/versions/1.0.0/Button";
+import { Button } from "@vrooli/react-component-library/Button/2.0.0";
 import { Popover, PopoverParts } from "./Popover";
 
 function Showcase({

@@ -1,2 +1,2 @@
 /** @vrooliComponentSource forms.textarea */
-export * from "./Textarea/versions/1.0.0/Textarea";
+export * from "@vrooli/react-component-library/Textarea/1.0.0";

@@ -1,6 +1,6 @@
 import type { CSSProperties } from "react";
 import { Heading } from "./Heading";
-import { Text, type TextStyle } from "../../../Text/versions/1.0.0/Text";
+import { Text, type TextStyle } from "@vrooli/react-component-library/Text/1.0.0";
 
 const showcaseStyle: CSSProperties = {
   display: "grid",
@@ -19,9 +19,9 @@ const showcaseStyle: CSSProperties = {
 export function HeadingShowcase({
   args,
 }: {
-  args?: { style?: TextStyle; level?: 1 | 2 | 3 | 4 | 5 | 6 };
+  args?: { textStyle?: TextStyle; level?: 1 | 2 | 3 | 4 | 5 | 6 };
 }) {
-  const style = args?.style ?? "heading";
+  const style = args?.textStyle ?? "heading";
   const level = args?.level ?? 2;
   return (
     <section
@@ -32,7 +32,7 @@ export function HeadingShowcase({
       <Text textStyle="overline" tone="accent">
         Semantic hierarchy
       </Text>
-      <Heading level={level} style={style} balance>
+      <Heading level={level} textStyle={style} balance>
         Meaning and visual scale stay independent.
       </Heading>
       <Text tone="muted" balance>
@@ -45,3 +45,7 @@ export function HeadingShowcase({
     </section>
   );
 }
+
+export function HeadingAnatomy(props: Parameters<typeof HeadingShowcase>[0]) { return <HeadingShowcase {...props} />; }
+export function HeadingScaleMatrix(props: Parameters<typeof HeadingShowcase>[0]) { return <HeadingShowcase {...props} />; }
+export function HeadingBoundary(props: Parameters<typeof HeadingShowcase>[0]) { return <HeadingShowcase {...props} />; }

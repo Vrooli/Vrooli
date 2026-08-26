@@ -6,6 +6,8 @@
  * @tags ["markdown","mermaid","diagram"]
  * @deps {"react":"^18","mermaid":"^11.4.0"}
  */
+import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
+
 
 import { useState } from "react";
 import { useCodeCopy } from "./useCodeCopy";
@@ -21,7 +23,7 @@ export interface MermaidDiagramProps {
   copyLabel?: string;
 }
 
-export function MermaidDiagram({
+export const MermaidDiagram = withClassName(function MermaidDiagram({
   code,
   onMermaidOpen,
   sourceLabel = "Source",
@@ -89,4 +91,4 @@ export function MermaidDiagram({
       )}
     </section>
   );
-}
+});

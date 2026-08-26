@@ -1,16 +1,32 @@
 import { defineConfig, type UserConfig } from "vite";
 import react from "@vitejs/plugin-react";
+import { readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import stringsCodegen from "./scripts/vite-plugin-strings-codegen.mjs";
 import assetStamp from "./scripts/vite-plugin-asset-stamp.mjs";
 
 const rootDir = dirname(fileURLToPath(import.meta.url));
+const libraryRoot = resolve(rootDir, "../library");
+const packageRoot = resolve(rootDir, "../../../packages/react-component-library");
+const packageManifest = JSON.parse(readFileSync(resolve(packageRoot, "package.json"), "utf8")) as {
+  exports?: Record<string, { import?: string }>;
+};
+const packageVersionAliases = Object.entries(packageManifest.exports ?? {})
+  .filter(([key]) => key.slice(2).split("/").length === 2)
+  .filter(([, entry]) => typeof entry.import === "string")
+  .map(([key, entry]) => ({
+    find: `@vrooli/react-component-library/${key.slice(2)}`,
+    replacement: resolve(packageRoot, entry.import as string),
+  }));
 const packageAlias = {
   react: resolve(rootDir, "node_modules/react"),
   "lucide-react": resolve(rootDir, "node_modules/lucide-react"),
   clsx: resolve(rootDir, "node_modules/clsx"),
   "tailwind-merge": resolve(rootDir, "node_modules/tailwind-merge"),
+  "@testing-library/dom": resolve(rootDir, "node_modules/@testing-library/dom"),
+  "@testing-library/react": resolve(rootDir, "node_modules/@testing-library/react"),
+  "@testing-library/user-event": resolve(rootDir, "node_modules/@testing-library/user-event"),
 };
 const protoRuntimeAliases = [
   {
@@ -26,6 +42,18 @@ const protoRuntimeAliases = [
     replacement: resolve(rootDir, "node_modules/@bufbuild/protobuf/dist/esm/index.js"),
   },
 ];
+const externalRuntimeAliases = [
+  "@vrooli/audio-capture-browser",
+  "shiki",
+  "react-markdown",
+  "remark-gfm",
+  "mermaid",
+].map((name) => ({
+  find: new RegExp(`^${name.replace(/[.*+?^${}()|[\\]\\\\]/g, "\\\\$&")}$`),
+  replacement: name === "@vrooli/audio-capture-browser"
+    ? resolve(rootDir, "../../../packages/audio-capture-browser/src/index.ts")
+    : resolve(rootDir, "node_modules", name),
+}));
 const packageAliasEntries = Object.entries(packageAlias).map(([find, replacement]) => ({
   find,
   replacement,
@@ -60,14 +88,19 @@ export default defineConfig(({ mode }): UserConfig => {
   return {
     // INTEROP-CRITICAL: Relative asset URLs keep the UI working behind Vrooli tunnels, proxies, and iframe mounts.
     base: "./",
+    server: {
+      fs: { allow: [resolve(rootDir, "..")] },
+    },
     // The stamp must see original TSX, before React's Babel pre-transform. It
     // parses the entry module and adds the marker before Vite hands it to the
     // JSX compiler.
     plugins: [...assetStampPlugins, react(), stringsCodegen()],
     resolve: {
       alias: isProfile
-        ? [
+          ? [
             ...protoRuntimeAliases,
+            ...externalRuntimeAliases,
+            ...packageVersionAliases,
             ...packageAliasEntries,
             {
               find: "react-dom/client",
@@ -81,7 +114,7 @@ export default defineConfig(({ mode }): UserConfig => {
               replacement: "react-dom/profiling",
             },
           ]
-        : [...protoRuntimeAliases, ...packageAliasEntries],
+        : [...protoRuntimeAliases, ...externalRuntimeAliases, ...packageVersionAliases, ...packageAliasEntries],
     },
     esbuild: isProfile
       ? {
@@ -100,11 +133,16 @@ export default defineConfig(({ mode }): UserConfig => {
         provider: "v8",
         reporter: ["text", "json-summary", "json"],
         reportOnFailure: true,
+        // The generated contract spec lives under library/, one level above
+        // this UI project. Keep those directly imported version sources in
+        // the remapped coverage workspace instead of silently dropping them
+        // as external files.
+        allowExternal: true,
         // Scope coverage to the source tree. Without `include`, v8 walks every
         // file the bundler touches — config files, eslint plugins, codegen
         // scripts — and pollutes the denominator with files that have no
         // production reason to be tested.
-        include: ["src/**/*.{ts,tsx}"],
+        include: ["src/**/*.{ts,tsx}", `${libraryRoot}/**/versions/**/*.{ts,tsx}`],
         // Exclusions cover test scaffolding and codegen only; production
         // source under src/ is exhaustively included so removing a test
         // can never silently shrink the denominator.
@@ -124,6 +162,8 @@ export default defineConfig(({ mode }): UserConfig => {
           "src/main.tsx",
           "src/test-setup.ts",
           "src/test-utils/**",
+          `${libraryRoot}/**/story.json`,
+          `${libraryRoot}/**/*.d.ts`,
           "src/consts/strings.generated.ts",
           "src/i18n/locales/**",
           // Temporal-flow codegen. Everything under generated/ is
@@ -146,6 +186,12 @@ export default defineConfig(({ mode }): UserConfig => {
           statements: 85,
         },
       },
+      include: [
+        "src/**/*.{test,spec}.{ts,tsx}",
+        "scripts/**/*.test.mjs",
+        "../library/story-contracts.spec.ts",
+        "../library/**/*.test.{ts,tsx}",
+      ],
     },
   };
 });

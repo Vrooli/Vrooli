@@ -7,7 +7,8 @@
  * @deps {"react":"^18"}
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
-import { cn } from "../../../../foundations/ClassMerge/versions/1.0.0/ClassMerge";
+import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
+
 import {
   useCallback,
   useRef,
@@ -15,11 +16,11 @@ import {
   type CSSProperties,
   type PointerEvent,
 } from "react";
-import { IconButton } from "../../../IconButton/versions/2.0.0/IconButton";
+import { IconButton } from "@vrooli/react-component-library/IconButton/2.0.0";
 import type {
   ControlDensity,
   ControlSize,
-} from "../../../ControlBase/versions/1.0.0/ControlBase";
+} from "@vrooli/react-component-library/ControlBase/1.0.0";
 import {
   VoiceInputButtonGlyph as Glyph,
   type VoiceInputGlyphKind,
@@ -69,7 +70,10 @@ const labels: Record<VoiceInputButtonState, string> = {
   error: "Voice input error",
 };
 
-export function VoiceInputButton({
+const joinClasses = (...classes: Array<string | undefined | false>) =>
+  classes.filter(Boolean).join(" ");
+
+export const VoiceInputButton = withClassName(function VoiceInputButton({
   state = "idle",
   mode = "always-on",
   size = "sm",
@@ -215,7 +219,7 @@ export function VoiceInputButton({
         size={size}
         density={density}
         variant="secondary"
-        className={cn(
+        className={joinClasses(
           "relative overflow-hidden touch-manipulation",
           stateClassName,
           state === "recording" && mode === "timeout"
@@ -275,4 +279,4 @@ export function VoiceInputButton({
       </IconButton>
     </>
   );
-}
+});

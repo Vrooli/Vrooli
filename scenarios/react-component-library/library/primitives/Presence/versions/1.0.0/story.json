@@ -32,7 +32,7 @@
     "fixtures": []
   },
   "kind": "component",
-  "schemaVersion": 4,
+  "schemaVersion": 5,
   "stories": [
     {
       "args": {
@@ -42,8 +42,8 @@
       },
       "composition": {
         "specimen": {
-          "export": "TogglePresence",
-          "module": "./story.tsx"
+          "module": "./story.tsx",
+          "export": "PresenceAnatomy"
         }
       },
       "expect": [
@@ -59,7 +59,8 @@
         }
       ],
       "mode": "live",
-      "name": "Entering and entered"
+      "name": "Entering and entered",
+      "role": "anatomy"
     },
     {
       "args": {
@@ -70,8 +71,8 @@
       },
       "composition": {
         "specimen": {
-          "export": "TogglePresence",
-          "module": "./story.tsx"
+          "module": "./story.tsx",
+          "export": "PresenceBoundary"
         }
       },
       "expect": [
@@ -89,43 +90,8 @@
         }
       ],
       "mode": "live",
-      "name": "Unmounted after exit"
-    },
-    {
-      "args": {
-        "children": "Ready to continue",
-        "present": true
-      },
-      "composition": {
-        "specimen": {
-          "export": "TogglePresence",
-          "module": "./story.tsx"
-        }
-      },
-      "expect": [
-        {
-          "attribute": "data-presence-hidden",
-          "kind": "attribute",
-          "selector": "[data-rcl-presence]",
-          "value": "true"
-        }
-      ],
-      "id": "toggle",
-      "interactions": [
-        {
-          "kind": "click",
-          "target": {
-            "name": "Toggle presence",
-            "role": "button"
-          }
-        },
-        {
-          "kind": "waitFor",
-          "text": "160"
-        }
-      ],
-      "mode": "live",
-      "name": "Interruptible toggle"
+      "name": "Unmounted after exit",
+      "role": "boundary"
     }
   ],
   "title": "Presence"

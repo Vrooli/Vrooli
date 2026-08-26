@@ -28,10 +28,12 @@
     }
   ],
   "displayName": "Icon",
-  "latest": "1.1.0",
+  "latest": "1.1.2",
   "libraryId": "react-component-library:Icon",
   "tags": [
     "primitive",
     "token-bound"
-  ]
+  ],
+  "draft": "",
+  "deprecatedVersions": []
 }

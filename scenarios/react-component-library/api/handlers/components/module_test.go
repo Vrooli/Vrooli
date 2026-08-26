@@ -95,7 +95,7 @@ func TestModule_AuthoringWorkflowUsesLibraryIDAndPublishesOnlyAfterCheck(t *test
 func TestModule_Shape(t *testing.T) {
 	r, _ := setupModule(t)
 	require.NotNil(t, r)
-	require.Len(t, components.Endpoints, 20, "components ships registry, authoring, ingest, style fit, styles, content, versions, stories, and Preview frame endpoints")
+	require.Len(t, components.Endpoints, 21, "components ships registry, authoring, ingest, style fit, styles, content, versions, import resolution, stories, and Preview frame endpoints")
 }
 
 func TestModule_PersistPreviewFrameCreatesVersionPinnedDraftStory(t *testing.T) {
@@ -362,7 +362,7 @@ func writePageManifest(t *testing.T, root string) {
 export const Page = () => null;
 `), 0o600))
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "versions", "1.0.0", "story.json"), []byte(`{
-  "schemaVersion": 4,
+  "schemaVersion": 5,
   "kind": "component",
   "args": {"fields": []},
   "environment": {"fixtures": []},

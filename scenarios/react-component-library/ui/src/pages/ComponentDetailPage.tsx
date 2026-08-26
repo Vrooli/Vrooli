@@ -13,7 +13,7 @@ import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom"
 
 import { adoptionsClient } from "../api/adoptions";
 import { Button } from "../components/Button";
-import { Tabs } from "../components/Tabs";
+import { Tabs } from "@vrooli/react-component-library/Tabs/1.0.0";
 import { EmptyState } from "../components/EmptyState";
 import { StatusBadge } from "../components/StatusBadge";
 import {

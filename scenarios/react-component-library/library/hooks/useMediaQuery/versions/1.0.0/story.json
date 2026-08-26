@@ -7,7 +7,7 @@
     "fixtures": []
   },
   "kind": "hook",
-  "schemaVersion": 4,
+  "schemaVersion": 5,
   "stories": [
     {
       "args": {},
@@ -17,10 +17,16 @@
           "module": "./story.tsx"
         }
       },
-      "expect": [],
+      "expect": [
+        {
+          "kind": "visible",
+          "selector": "body"
+        }
+      ],
       "id": "default",
       "mode": "live",
-      "name": "Default"
+      "name": "Default",
+      "role": "anatomy"
     }
   ],
   "title": "useMediaQuery"

@@ -29,17 +29,13 @@
         "path": "children"
       },
       {
-        "default": {
-          "$text": "button"
-        },
+        "default": "Content",
         "kind": "structured",
         "label": "Footer",
         "path": "footer"
       },
       {
-        "default": {
-          "$handler": "close"
-        },
+        "default": null,
         "kind": "structured",
         "label": "On Close",
         "path": "onClose"
@@ -56,7 +52,7 @@
     "fixtures": []
   },
   "kind": "component",
-  "schemaVersion": 4,
+  "schemaVersion": 5,
   "stories": [
     {
       "args": {
@@ -65,19 +61,13 @@
         },
         "closeLabel": "Close dialog",
         "description": "This keeps prior versions available for audit.",
-        "footer": {
-          "$text": "button"
-        },
-        "onClose": {
-          "$handler": "close"
-        },
         "open": false,
         "title": "Archive component"
       },
       "composition": {
         "specimen": {
-          "export": "Interactive",
-          "module": "./story.tsx"
+          "module": "./story.tsx",
+          "export": "ConfirmOpen"
         }
       },
       "expect": [
@@ -102,7 +92,8 @@
         }
       ],
       "mode": "live",
-      "name": "Confirm Open"
+      "name": "Confirm Open",
+      "role": "anatomy"
     },
     {
       "args": {
@@ -110,16 +101,13 @@
           "$text": "Used by 14 scenarios"
         },
         "closeLabel": "Close details",
-        "onClose": {
-          "$handler": "close"
-        },
         "open": true,
         "title": "Component details"
       },
       "composition": {
         "specimen": {
-          "export": "Interactive",
-          "module": "./story.tsx"
+          "module": "./story.tsx",
+          "export": "DetailsOpen"
         }
       },
       "expect": [
@@ -147,7 +135,8 @@
         }
       ],
       "mode": "live",
-      "name": "Details Open"
+      "name": "Details Open",
+      "role": "boundary"
     },
     {
       "args": {
@@ -155,16 +144,13 @@
           "$text": "Short confirmation copy"
         },
         "closeLabel": "Close",
-        "onClose": {
-          "$handler": "close"
-        },
         "open": true,
         "title": "Minimal dialog"
       },
       "composition": {
         "specimen": {
-          "export": "Interactive",
-          "module": "./story.tsx"
+          "module": "./story.tsx",
+          "export": "MinimalOpen"
         }
       },
       "expect": [
@@ -193,7 +179,8 @@
         }
       ],
       "mode": "live",
-      "name": "Minimal Open"
+      "name": "Minimal Open",
+      "role": "boundary"
     }
   ],
   "title": "Dialog"

@@ -5,7 +5,7 @@ export function Default({ args }: StoryHarnessProps<{ active: boolean }>) {
   const ref = useRef<HTMLDivElement>(null);
   useFocusTrap(args.active, ref);
   return (
-    <div ref={ref}>
+    <div data-testid="hooks.use-focus-trap" ref={ref}>
       <button type="button">First</button>
       <div role="status">Focus contained</div>
       <button type="button">Last</button>

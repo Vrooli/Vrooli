@@ -5,7 +5,7 @@ export function Default({ log }: StoryHarnessProps) {
     onChange: () => log("changed"),
   });
   return (
-    <button type="button" onClick={() => setValue("changed")}>
+    <button data-testid="hooks.use-controllable-state" type="button" onClick={() => setValue("changed")}>
       {value}
     </button>
   );

@@ -1,6 +1,4 @@
 /** @vrooliComponentSource data-display.data-table */
-import { translate } from "../../../../hooks/useLocale/versions/1.0.0/useLocale";
-
 import {
   isValidElement,
   useId,
@@ -14,9 +12,9 @@ import {
 import {
   AsyncBoundary,
   type AsyncBoundaryStatus,
-} from "../../../AsyncBoundary/versions/1.0.0/AsyncBoundary";
-import { Table } from "../../../Table/versions/1.0.0/Table";
-import { useSelectionStore } from "../../../../services/SelectionStore/versions/1.0.0/SelectionStore";
+} from "@vrooli/react-component-library/AsyncBoundary/1.0.0";
+import { Table } from "@vrooli/react-component-library/Table/1.0.0";
+import { useSelectionStore } from "@vrooli/react-component-library/SelectionStore/1.0.0";
 
 export interface DataTableColumn<Row> {
   id: string;
@@ -410,7 +408,7 @@ export function DataTable<Row>({
         <div data-rcl-data-table-query-row>
           <div data-rcl-data-table-query>
             <label htmlFor={searchId}>{searchLabel}</label>
-            <input data-testid="data-display.data-table"
+            <input
               id={searchId}
               type="search"
               aria-label={searchLabel}
@@ -426,15 +424,15 @@ export function DataTable<Row>({
               aria-label={filterGroupLabel ?? filterLabel}
             >
               <span data-rcl-data-table-filter-label>{filterLabel}</span>
-              <button data-testid="data-display.data-table"
+              <button
                 type="button"
                 aria-pressed={currentFilterId === ""}
                 onClick={() => updateFilter("")}
               >
-                {translate("data-display.data-table.text.1", "All")}
+                All
               </button>
               {filters.map((filter) => (
-                <button data-testid="data-display.data-table"
+                <button
                   key={filter.id}
                   type="button"
                   aria-pressed={currentFilterId === filter.id}
@@ -472,21 +470,21 @@ export function DataTable<Row>({
           <div
             data-rcl-data-table-density-toggle
             role={filters.length > 0 ? "group" : undefined}
-            aria-label={translate("data-display.data-table.aria-label.1", "Row density")}
+            aria-label="Row density"
           >
-            <button data-testid="data-display.data-table"
+            <button
               type="button"
               aria-pressed={currentDensity === "comfortable"}
               onClick={() => updateDensity("comfortable")}
             >
-              {translate("data-display.data-table.text.2", "Roomy")}
+              Roomy
             </button>
-            <button data-testid="data-display.data-table"
+            <button
               type="button"
               aria-pressed={currentDensity === "compact"}
               onClick={() => updateDensity("compact")}
             >
-              {translate("data-display.data-table.text.3", "Dense")}
+              Dense
             </button>
           </div>
         ) : null}
@@ -498,7 +496,7 @@ export function DataTable<Row>({
     rowActions.length > 0 ? (
       <div data-rcl-data-table-actions aria-label={rowActionsLabel}>
         {rowActions.map((action) => (
-          <button data-testid="data-display.data-table"
+          <button
             key={action.id}
             type="button"
             aria-label={`${action.label} ${getRowKey(row, 0)}`}
@@ -516,11 +514,11 @@ export function DataTable<Row>({
     <div
       data-testid="data-table-content"
       role="region"
-      aria-label={translate("data-display.data-table.aria-label.2", "Data table content")}
+      aria-label="Data table content"
     >
       {status === "permission-denied" ? (
         <div data-rcl-data-table-permission role="status">
-          <strong>{translate("data-display.data-table.text.3", "Access is limited")}</strong>
+          <strong>Access is limited</strong>
           <span>{permissionMessage}</span>
         </div>
       ) : pageRows.length === 0 || status === "empty" ? (
@@ -550,7 +548,7 @@ export function DataTable<Row>({
                       {enableSelection ? (
                         <th scope="col">
                           <span data-rcl-data-table-checkbox-hit>
-                            <input data-testid="data-display.data-table"
+                            <input
                               className="rcl-data-table__checkbox"
                               data-rcl-data-table-checkbox
                               type="checkbox"
@@ -568,7 +566,7 @@ export function DataTable<Row>({
                           className={column.className}
                         >
                           {column.sortValue ? (
-                            <button data-testid="data-display.data-table"
+                            <button
                               type="button"
                               data-rcl-data-table-sort
                               aria-label={sortLabel(column.header)}
@@ -613,7 +611,7 @@ export function DataTable<Row>({
                           {enableSelection ? (
                             <td>
                               <span data-rcl-data-table-checkbox-hit>
-                                <input data-testid="data-display.data-table"
+                                <input
                                   data-rcl-data-table-checkbox
                                   type="checkbox"
                                   aria-label={`Select ${key}`}
@@ -659,7 +657,7 @@ export function DataTable<Row>({
                         {enableSelection ? (
                           <label>
                             <span data-rcl-data-table-checkbox-hit>
-                              <input data-testid="data-display.data-table"
+                              <input
                                 data-rcl-data-table-checkbox
                                 type="checkbox"
                                 aria-label={`Select ${key}`}
@@ -694,18 +692,18 @@ export function DataTable<Row>({
                 Page {currentPage} of {totalPages}
               </span>
               <div data-rcl-data-table-page-controls>
-                <button data-testid="data-display.data-table"
+                <button
                   type="button"
                   disabled={currentPage <= 1}
                   onClick={() => changePage(currentPage - 1)}
                 >
-                  {translate("data-display.data-table.text.4", "Previous")}
+                  Previous
                 </button>
                 {Array.from(
                   { length: totalPages },
                   (_, index) => index + 1,
                 ).map((pageNumber) => (
-                  <button data-testid="data-display.data-table"
+                  <button
                     key={pageNumber}
                     type="button"
                     aria-current={
@@ -716,12 +714,12 @@ export function DataTable<Row>({
                     {pageNumber}
                   </button>
                 ))}
-                <button data-testid="data-display.data-table"
+                <button
                   type="button"
                   disabled={currentPage >= totalPages}
                   onClick={() => changePage(currentPage + 1)}
                 >
-                  {translate("data-display.data-table.text.5", "Next")}
+                  Next
                 </button>
               </div>
             </div>

@@ -116,7 +116,7 @@ type StoryFixtureRef struct {
 	State   string `json:"state,omitempty"`
 }
 
-// StoryComposition makes the five preview composition roles explicit. Each
+// StoryComposition makes the four preview composition roles explicit. Each
 // field is a reference, not executable content. A story-level composition
 // replaces the corresponding file-level role.
 type StoryComposition struct {
@@ -145,8 +145,12 @@ var storyFixtureAdapters = map[string]struct{}{
 }
 
 type StoryDefinition struct {
-	ID   string `json:"id"`
-	Name string `json:"name"`
+	ID     string                       `json:"id"`
+	Name   string                       `json:"name"`
+	Role   string                       `json:"role,omitempty"`
+	Axis   string                       `json:"axis,omitempty"`
+	Covers map[string][]json.RawMessage `json:"covers,omitempty"`
+	States []string                     `json:"states,omitempty"`
 	// Description is optional specimen context shown by the catalog workbench.
 	Description  string             `json:"description,omitempty"`
 	Mode         StoryMode          `json:"mode,omitempty"`
@@ -216,17 +220,26 @@ type StoryExpectation struct {
 }
 
 type StoryDiagnostic struct {
-	Pointer  string
-	Rule     string
-	Detail   string
-	Severity StoryDiagnosticSeverity
+	Pointer  string                  `json:"pointer"`
+	Rule     string                  `json:"rule"`
+	Detail   string                  `json:"detail"`
+	Severity StoryDiagnosticSeverity `json:"severity"`
 }
 
 type StoryDiagnosticSeverity string
 
 const (
-	StoryDiagnosticError StoryDiagnosticSeverity = "error"
+	StoryDiagnosticError    StoryDiagnosticSeverity = "error"
+	StoryDiagnosticWarning  StoryDiagnosticSeverity = "warning"
+	StoryDiagnosticAdvisory StoryDiagnosticSeverity = "advisory"
 )
+
+var storyHTMLTagNames = map[string]struct{}{
+	"div": {}, "p": {}, "span": {}, "button": {}, "nav": {}, "section": {}, "article": {},
+	"ul": {}, "ol": {}, "li": {}, "h1": {}, "h2": {}, "h3": {}, "h4": {}, "h5": {}, "h6": {},
+	"header": {}, "footer": {}, "main": {}, "aside": {}, "table": {}, "form": {}, "label": {},
+	"img": {}, "a": {}, "strong": {}, "em": {}, "small": {}, "code": {}, "pre": {},
+}
 
 // CatalogFrameAsset is the small catalog projection needed to validate a
 // story frame. Keeping this interface-shaped projection here lets the story
@@ -453,6 +466,19 @@ func StoryCoverageGaps(contract *StoryContract) []StoryCoverageGap {
 		}
 		seen := map[string]struct{}{}
 		for _, story := range contract.Stories {
+			for path, values := range story.Covers {
+				if path != field.Path {
+					continue
+				}
+				for _, value := range values {
+					var decoded any
+					if json.Unmarshal(value, &decoded) == nil {
+						if raw, err := json.Marshal(decoded); err == nil {
+							seen[string(raw)] = struct{}{}
+						}
+					}
+				}
+			}
 			var args map[string]any
 			if json.Unmarshal(story.Args, &args) != nil {
 				continue
@@ -511,17 +537,18 @@ func ParseStoryContract(raw []byte) (*StoryContract, []StoryDiagnostic) {
 		return nil, []StoryDiagnostic{{Pointer: "/", Rule: "single_document", Detail: "only one JSON document is allowed"}}
 	}
 	diagnostics := ValidateStoryContract(&contract)
-	sort.Slice(diagnostics, func(i, j int) bool {
-		if diagnostics[i].Pointer == diagnostics[j].Pointer {
-			return diagnostics[i].Severity < diagnostics[j].Severity
-		}
-		return diagnostics[i].Pointer < diagnostics[j].Pointer
-	})
+	sortStoryDiagnostics(diagnostics)
 	return &contract, diagnostics
 }
 
 func StoryContractErrors(diagnostics []StoryDiagnostic) []StoryDiagnostic {
-	return diagnostics
+	errors := make([]StoryDiagnostic, 0, len(diagnostics))
+	for _, diagnostic := range diagnostics {
+		if diagnostic.Severity == "" || diagnostic.Severity == StoryDiagnosticError {
+			errors = append(errors, diagnostic)
+		}
+	}
+	return errors
 }
 
 func ValidateStoryContract(contract *StoryContract) []StoryDiagnostic {
@@ -529,8 +556,8 @@ func ValidateStoryContract(contract *StoryContract) []StoryDiagnostic {
 		return []StoryDiagnostic{{Pointer: "/", Rule: "required", Detail: "story contract is required"}}
 	}
 	var diagnostics []StoryDiagnostic
-	if contract.SchemaVersion != 4 {
-		diagnostics = append(diagnostics, storyDiagnostic("/schemaVersion", "supported_version", "schemaVersion must be 4 for published story contracts"))
+	if contract.SchemaVersion != 5 {
+		diagnostics = append(diagnostics, storyDiagnostic("/schemaVersion", "supported_version", "schemaVersion must be 5 for published story contracts"))
 	}
 	if contract.Kind != StoryKindComponent && contract.Kind != StoryKindHook {
 		diagnostics = append(diagnostics, storyDiagnostic("/kind", "asset_kind", "kind must be component or hook"))
@@ -549,6 +576,9 @@ func ValidateStoryContract(contract *StoryContract) []StoryDiagnostic {
 		}
 		fields[path] = field
 		diagnostics = append(diagnostics, validateStoryField(pointer, field)...)
+		if len(field.Default) > 0 {
+			diagnostics = append(diagnostics, validateStoryGrammar(pointer+"/default", field.Default, false)...)
+		}
 	}
 	fixtureOptions := map[string]map[string]struct{}{}
 	for index, fixture := range contract.Environment.Fixtures {
@@ -597,6 +627,12 @@ func ValidateStoryContract(contract *StoryContract) []StoryDiagnostic {
 		if strings.TrimSpace(story.Name) == "" {
 			diagnostics = append(diagnostics, storyDiagnostic(pointer+"/name", "required", "name is required"))
 		}
+		if story.Role != "" && story.Role != "anatomy" && story.Role != "axis" && story.Role != "boundary" {
+			diagnostics = append(diagnostics, storyDiagnostic(pointer+"/role", "story_role", "role must be anatomy, axis, or boundary"))
+		}
+		if story.Role == "axis" && !validStoryPath(story.Axis) {
+			diagnostics = append(diagnostics, storyDiagnostic(pointer+"/axis", "axis_required", "axis stories require a valid prop path"))
+		}
 		if story.Mode != "" && story.Mode != StoryModePinned && story.Mode != StoryModeLive {
 			diagnostics = append(diagnostics, storyDiagnostic(pointer+"/mode", "story_mode", "mode must be pinned or live"))
 		}
@@ -610,6 +646,17 @@ func ValidateStoryContract(contract *StoryContract) []StoryDiagnostic {
 			diagnostics = append(diagnostics, storyDiagnostic(pointer+"/composition/specimen/export", "required", "specimen export is required"))
 		}
 		diagnostics = append(diagnostics, validateStoryArgs(pointer+"/args", story.Args, fields)...)
+		diagnostics = append(diagnostics, validateStoryGrammar(pointer+"/args", story.Args, true)...)
+		if story.Composition == nil || story.Composition.Specimen == nil {
+			for expectationIndex, expectation := range story.Expect {
+				if expectation.Kind != "text" || strings.TrimSpace(expectation.Value) == "" {
+					continue
+				}
+				if !containsTextValue(story.Args, expectation.Value) {
+					diagnostics = append(diagnostics, storyDiagnosticSeverity(fmt.Sprintf("%s/expect/%d", pointer, expectationIndex), "expect_unreachable_text", fmt.Sprintf("text expectation %q does not occur in the story args; use a specimen when content is rendered by React composition", expectation.Value), StoryDiagnosticWarning))
+				}
+			}
+		}
 		for key, option := range story.Environment {
 			options, exists := fixtureOptions[key]
 			if !exists {
@@ -632,8 +679,100 @@ func ValidateStoryContract(contract *StoryContract) []StoryDiagnostic {
 	if len(contract.Stories) == 0 {
 		diagnostics = append(diagnostics, storyDiagnostic("/stories", "required", "at least one named story is required"))
 	}
-	sort.Slice(diagnostics, func(i, j int) bool { return diagnostics[i].Pointer < diagnostics[j].Pointer })
+	sortStoryDiagnostics(diagnostics)
 	return diagnostics
+}
+
+func sortStoryDiagnostics(diagnostics []StoryDiagnostic) {
+	sort.SliceStable(diagnostics, func(i, j int) bool {
+		if diagnostics[i].Pointer != diagnostics[j].Pointer {
+			return diagnostics[i].Pointer < diagnostics[j].Pointer
+		}
+		return storyDiagnosticSeverityRank(diagnostics[i].Severity) < storyDiagnosticSeverityRank(diagnostics[j].Severity)
+	})
+}
+
+func storyDiagnosticSeverityRank(severity StoryDiagnosticSeverity) int {
+	switch severity {
+	case StoryDiagnosticError, "":
+		return 0
+	case StoryDiagnosticWarning:
+		return 1
+	case StoryDiagnosticAdvisory:
+		return 2
+	default:
+		return 3
+	}
+}
+
+func storyDiagnosticSeverity(pointer, rule, detail string, severity StoryDiagnosticSeverity) StoryDiagnostic {
+	return StoryDiagnostic{Pointer: pointer, Rule: rule, Detail: detail, Severity: severity}
+}
+
+func validateStoryGrammar(pointer string, raw json.RawMessage, storyArgs bool) []StoryDiagnostic {
+	if len(raw) == 0 {
+		return nil
+	}
+	var value any
+	if err := json.Unmarshal(raw, &value); err != nil {
+		return nil
+	}
+	diagnostics := make([]StoryDiagnostic, 0)
+	var walk func(any, string)
+	walk = func(current any, currentPointer string) {
+		switch typed := current.(type) {
+		case map[string]any:
+			if text, ok := typed["$text"].(string); ok {
+				if _, isTag := storyHTMLTagNames[strings.ToLower(strings.TrimSpace(text))]; isTag {
+					diagnostics = append(diagnostics, storyDiagnostic(currentPointer, "raw_node_tag_name", fmt.Sprintf("$text value %q is an HTML tag name; move the React composition into story.tsx instead", text)))
+				}
+			}
+			for key, child := range typed {
+				walk(child, currentPointer+"/"+escapeJSONPointer(key))
+			}
+		case []any:
+			for index, child := range typed {
+				walk(child, fmt.Sprintf("%s/%d", currentPointer, index))
+			}
+		}
+	}
+	walk(value, pointer)
+	return diagnostics
+}
+
+func containsTextValue(raw json.RawMessage, wanted string) bool {
+	if len(raw) == 0 {
+		return false
+	}
+	var value any
+	if json.Unmarshal(raw, &value) != nil {
+		return false
+	}
+	var found func(any) bool
+	found = func(current any) bool {
+		switch typed := current.(type) {
+		case string:
+			return typed == wanted
+		case map[string]any:
+			for _, child := range typed {
+				if found(child) {
+					return true
+				}
+			}
+		case []any:
+			for _, child := range typed {
+				if found(child) {
+					return true
+				}
+			}
+		}
+		return false
+	}
+	return found(value)
+}
+
+func escapeJSONPointer(value string) string {
+	return strings.NewReplacer("~", "~0", "/", "~1").Replace(value)
 }
 
 func validateStoryHarnessRef(pointer string, harness *StoryHarnessRef) []StoryDiagnostic {
@@ -725,6 +864,17 @@ func validateStoryValue(pointer string, field StoryField, raw json.RawMessage) [
 	if err := json.Unmarshal(raw, &value); err != nil {
 		return []StoryDiagnostic{storyDiagnostic(pointer, "json", "value must be JSON")}
 	}
+	if tag := removedStructuredTag(value); tag != "" {
+		replacement := "a named export in ./story.tsx referenced by composition.specimen"
+		if tag == "$rowKey" {
+			replacement = "a getRowKey function in the story.tsx specimen"
+		} else if tag == "$columns" {
+			replacement = "a columns array in the story.tsx specimen"
+		} else if tag == "$filters" {
+			replacement = "a filters array in the story.tsx specimen"
+		}
+		return []StoryDiagnostic{storyDiagnostic(pointer, "removed_structured_tag", fmt.Sprintf("structured value %s was removed; use %s", tag, replacement))}
+	}
 	if !safeStoryValue(value) {
 		return []StoryDiagnostic{storyDiagnostic(pointer, "safe_value", "value contains unsupported structured data")}
 	}
@@ -755,6 +905,36 @@ func validateStoryValue(pointer string, field StoryField, raw json.RawMessage) [
 		return []StoryDiagnostic{storyDiagnostic(pointer, "enum", "value is not one of the declared options")}
 	}
 	return nil
+}
+
+var removedStructuredTagNames = []string{"$node", "$icon", "$handler", "$rowKey", "$columns", "$filters"}
+
+func removedStructuredTag(value any) string {
+	switch typed := value.(type) {
+	case map[string]any:
+		for _, tag := range removedStructuredTagNames {
+			if _, exists := typed[tag]; exists {
+				return tag
+			}
+		}
+		keys := make([]string, 0, len(typed))
+		for key := range typed {
+			keys = append(keys, key)
+		}
+		sort.Strings(keys)
+		for _, key := range keys {
+			if tag := removedStructuredTag(typed[key]); tag != "" {
+				return tag
+			}
+		}
+	case []any:
+		for _, item := range typed {
+			if tag := removedStructuredTag(item); tag != "" {
+				return tag
+			}
+		}
+	}
+	return ""
 }
 
 var (
@@ -886,7 +1066,7 @@ func safeStoryValue(value any) bool {
 			if key == "__proto__" || key == "prototype" || key == "constructor" {
 				return false
 			}
-			if strings.HasPrefix(key, "$") && key != "$text" && key != "$node" && key != "$icon" && key != "$handler" && key != "$rowKey" && key != "$columns" && key != "$filters" {
+			if strings.HasPrefix(key, "$") && key != "$text" {
 				return false
 			}
 			if !safeStoryValue(item) {

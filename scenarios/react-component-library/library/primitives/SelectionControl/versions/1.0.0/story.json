@@ -7,7 +7,7 @@
     "fixtures": []
   },
   "kind": "component",
-  "schemaVersion": 4,
+  "schemaVersion": 5,
   "stories": [
     {
       "args": {},
@@ -35,7 +35,8 @@
         }
       ],
       "mode": "live",
-      "name": "Checkbox"
+      "name": "Checkbox",
+      "role": "anatomy"
     },
     {
       "args": {},
@@ -63,7 +64,8 @@
         }
       ],
       "mode": "live",
-      "name": "Selection states"
+      "name": "Selection states",
+      "role": "boundary"
     }
   ],
   "title": "SelectionControl"

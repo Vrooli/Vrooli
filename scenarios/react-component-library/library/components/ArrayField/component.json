@@ -24,7 +24,7 @@
     }
   ],
   "displayName": "ArrayField",
-  "latest": "1.0.0",
+  "latest": "1.0.1",
   "libraryId": "react-component-library:ArrayField",
   "tags": [
     "form",
@@ -32,5 +32,7 @@
     "validation",
     "responsive",
     "token-bound"
-  ]
+  ],
+  "draft": "",
+  "deprecatedVersions": []
 }

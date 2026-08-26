@@ -415,7 +415,7 @@ func TestIndexer_RunProjectsValidatedStoryContract(t *testing.T) {
 		"components/Button/component.json":            {Data: []byte(manifest("react-component-library:Button", "Button", `[]`))},
 		"components/Button/versions/1.0.0/Button.tsx": {Data: []byte(buttonTSX)},
 		"components/Button/versions/1.0.0/story.json": {Data: []byte(`{
-  "schemaVersion":4,
+  "schemaVersion": 5,
   "kind":"component",
   "args":{"fields":[{"path":"tone","kind":"enum","options":["primary","secondary"],"default":"primary"}]},
   "environment":{"fixtures":[]},
@@ -437,7 +437,7 @@ func TestIndexer_RunProjectsValidatedStoryContract(t *testing.T) {
 
 func TestIndexer_RunValidatesStoryHarnessArtifacts(t *testing.T) {
 	const story = `{
-  "schemaVersion": 4,
+  "schemaVersion": 5,
   "kind": "component",
   "args": {"fields": []},
   "environment": {"fixtures": []},
@@ -491,7 +491,7 @@ func TestIndexer_RunFindsOrphanStoryHarnessArtifact(t *testing.T) {
 	fsys := fstest.MapFS{
 		"components/Button/component.json":            {Data: []byte(manifest("react-component-library:Button", "Button", `[]`))},
 		"components/Button/versions/1.0.0/Button.tsx": {Data: []byte(buttonTSX)},
-		"components/Button/versions/1.0.0/story.json": {Data: []byte(`{"schemaVersion":4,"kind":"component","args":{"fields":[]},"environment":{"fixtures":[]},"stories":[{"id":"primary","name":"Primary","args":{}}]}`)},
+		"components/Button/versions/1.0.0/story.json": {Data: []byte(`{"schemaVersion": 5,"kind":"component","args":{"fields":[]},"environment":{"fixtures":[]},"stories":[{"id":"primary","name":"Primary","args":{}}]}`)},
 		"components/Button/versions/1.0.0/story.tsx":  {Data: []byte(`export const UnusedHarness = () => null;`)},
 	}
 	res, err := components.NewIndexer(mocks.NewFakeRepository(), ".", fsys).Run(context.Background())

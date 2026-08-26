@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { FileCode2, Folder } from "lucide-react";
 
 import { adoptionsClient, type ResolvedVersionFile } from "../../api/adoptions";
-import { Tabs } from "../../components/Tabs";
+import { Tabs } from "@vrooli/react-component-library/Tabs/1.0.0";
 import { selectors } from "../../consts/selectors";
 import { useTranslation } from "../../i18n";
 import type { TemplateOption } from "./adoptionTemplates";

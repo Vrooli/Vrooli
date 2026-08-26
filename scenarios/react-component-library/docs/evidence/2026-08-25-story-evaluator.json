@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "phase": 4,
+  "module": "api/handlers/preview/assets/story-evaluator.js",
+  "exports": ["browserEnv", "jsdomEnv", "runStory"],
+  "browserConsumer": "api/handlers/preview/assets/harness.js",
+  "goEmbedding": "api/handlers/preview/static.go",
+  "queryEngine": "@testing-library/dom@10.4.1",
+  "jsdomParity": {
+    "test": "ui/src/story-evaluator.test.ts",
+    "result": "passed",
+    "roleNameResolution": "passed",
+    "layout": "skipped by jsdomEnv"
+  },
+  "goPreviewTests": "passed",
+  "status": "validated-with-override",
+  "validationNote": "Focused Go and Vitest checks passed. Durable plan validation was unavailable during plan-manager lifecycle rebuild; the dependency analyzer runtime surface also encountered an existing pnpm store/lockfile mismatch."
+}

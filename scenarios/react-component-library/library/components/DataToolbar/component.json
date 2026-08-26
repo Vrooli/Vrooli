@@ -31,7 +31,7 @@
   ],
   "displayName": "DataToolbar",
   "draft": "",
-  "latest": "1.0.0",
+  "latest": "1.0.3",
   "libraryId": "react-component-library:DataToolbar",
   "slot": "ui-pattern",
   "tags": [

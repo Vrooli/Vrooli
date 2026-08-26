@@ -24,7 +24,7 @@
     "fixtures": []
   },
   "kind": "component",
-  "schemaVersion": 4,
+  "schemaVersion": 5,
   "stories": [
     {
       "args": {
@@ -48,7 +48,8 @@
       ],
       "id": "primary",
       "mode": "live",
-      "name": "Primary"
+      "name": "Primary",
+      "role": "anatomy"
     },
     {
       "args": {
@@ -73,7 +74,8 @@
       ],
       "id": "start-icon",
       "mode": "live",
-      "name": "Governed start icon"
+      "name": "Governed start icon",
+      "role": "boundary"
     },
     {
       "args": {
@@ -97,7 +99,8 @@
       ],
       "id": "disabled-long-label",
       "mode": "live",
-      "name": "Disabled"
+      "name": "Disabled",
+      "role": "boundary"
     },
     {
       "args": {
@@ -126,7 +129,8 @@
       ],
       "id": "shared-showcase",
       "mode": "live",
-      "name": "Shared showcase harness"
+      "name": "Shared showcase harness",
+      "role": "boundary"
     },
     {
       "args": {
@@ -172,7 +176,8 @@
         }
       ],
       "mode": "live",
-      "name": "Async save pending"
+      "name": "Async save pending",
+      "role": "boundary"
     },
     {
       "args": {
@@ -205,7 +210,8 @@
       ],
       "id": "long-content",
       "mode": "live",
-      "name": "Long content stress"
+      "name": "Long content stress",
+      "role": "boundary"
     },
     {
       "args": {
@@ -250,7 +256,8 @@
         }
       ],
       "mode": "live",
-      "name": "Recoverable save failure"
+      "name": "Recoverable save failure",
+      "role": "boundary"
     }
   ],
   "title": "Button 2.2"

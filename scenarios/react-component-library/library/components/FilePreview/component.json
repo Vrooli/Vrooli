@@ -19,7 +19,7 @@
     }
   ],
   "displayName": "FilePreview",
-  "latest": "1.0.0",
+  "latest": "1.0.1",
   "libraryId": "react-component-library:FilePreview",
   "tags": [
     "media",
@@ -27,5 +27,7 @@
     "status",
     "responsive",
     "token-bound"
-  ]
+  ],
+  "draft": "",
+  "deprecatedVersions": []
 }

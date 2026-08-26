@@ -6,6 +6,8 @@
  * @tags ["markdown","code","shiki"]
  * @deps {"react":"^18","shiki":"^4.3.1"}
  */
+import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
+
 
 import { useEffect, useState } from "react";
 import { languageLabel, normalizeCodeLanguage } from "./languageDetection";
@@ -83,7 +85,7 @@ function useHighlightedCode(code: string, language: string) {
   return html;
 }
 
-export function CodeBlock({
+export const CodeBlock = withClassName(function CodeBlock({
   code,
   language,
   className,
@@ -120,4 +122,4 @@ export function CodeBlock({
       )}
     </section>
   );
-}
+});

@@ -7,7 +7,7 @@
     "fixtures": []
   },
   "kind": "component",
-  "schemaVersion": 4,
+  "schemaVersion": 5,
   "stories": [
     {
       "args": {},
@@ -30,7 +30,8 @@
         }
       ],
       "mode": "live",
-      "name": "Reserved media frame"
+      "name": "Reserved media frame",
+      "role": "anatomy"
     },
     {
       "args": {},
@@ -53,7 +54,8 @@
         }
       ],
       "mode": "live",
-      "name": "Wide frame"
+      "name": "Wide frame",
+      "role": "boundary"
     }
   ],
   "title": "AspectRatio"

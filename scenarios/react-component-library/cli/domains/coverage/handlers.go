@@ -45,15 +45,21 @@ func Commands() cliapp.CommandGroup {
 		Commands: []cliapp.Command{{
 			Name:        "coverage",
 			NeedsAPI:    false,
-			Description: "Inspect and prune the local validation coverage cache",
+			Description: "Inspect validation coverage, emit the adoption census, and prune its cache",
 			Run:         run,
 		}},
 	}
 }
 
 func run(args []string) error {
-	if len(args) == 0 || args[0] != "prune" {
-		return fmt.Errorf("usage: react-component-library coverage prune [--apply] [--json] [--root <path>]")
+	if len(args) == 0 {
+		return fmt.Errorf("usage: react-component-library coverage <prune|census> [options]")
+	}
+	if args[0] == "census" {
+		return runCensus(args[1:])
+	}
+	if args[0] != "prune" {
+		return fmt.Errorf("usage: react-component-library coverage <prune|census> [options]")
 	}
 
 	apply, jsonOutput := false, false

@@ -18,7 +18,7 @@
     "fixtures": []
   },
   "kind": "component",
-  "schemaVersion": 4,
+  "schemaVersion": 5,
   "stories": [
     {
       "args": {
@@ -43,7 +43,8 @@
       ],
       "id": "default",
       "mode": "live",
-      "name": "Shared substrate"
+      "name": "Shared substrate",
+      "role": "anatomy"
     },
     {
       "args": {
@@ -68,7 +69,15 @@
       ],
       "id": "canvas",
       "mode": "live",
-      "name": "Spatial canvas"
+      "name": "Spatial canvas",
+      "role": "axis",
+      "axis": "mode",
+      "covers": {
+        "mode": [
+          "focus",
+          "canvas"
+        ]
+      }
     }
   ],
   "title": "Canvas frame"

@@ -44,14 +44,14 @@ func TestService_UpdateVersionContentAtFormatsDraftJSONWithoutMutatingRelease(t 
 		UpdateVersionContentAt(context.Context, string, string, string, components.WriteContentInput) (components.Content, error)
 	})
 	written, err := writer.UpdateVersionContentAt(context.Background(), "react-component-library:Button", draft.Version.Version, "story.json", components.WriteContentInput{
-		Body: `{"schemaVersion":4,"kind":"component","args":{"fields":[]},"environment":{"fixtures":[]},"stories":[]}`,
+		Body: `{"schemaVersion": 5,"kind":"component","args":{"fields":[]},"environment":{"fixtures":[]},"stories":[]}`,
 	})
 	require.NoError(t, err)
-	require.Contains(t, written.Body, "\n  \"schemaVersion\": 4")
+	require.Contains(t, written.Body, "\n  \"schemaVersion\": 5")
 
 	released, err := os.ReadFile(filepath.Join(root, "components", "Button", "versions", "1.0.0", "story.json"))
 	require.NoError(t, err)
-	require.Contains(t, string(released), "\"schemaVersion\": 4")
+	require.Contains(t, string(released), "\"schemaVersion\": 5")
 	draftStory, err := os.ReadFile(filepath.Join(root, "components", "Button", "versions", draft.Version.Version, "story.json"))
 	require.NoError(t, err)
 	require.Equal(t, written.Body, string(draftStory))
@@ -146,7 +146,7 @@ func TestAuthoringWorkflowBeginsChecksAndPublishesByLibraryID(t *testing.T) {
 	}
 
 	authoredStory := []byte(`{
-  "schemaVersion": 4,
+  "schemaVersion": 5,
   "kind": "component",
   "args": {"fields": []},
   "environment": {"fixtures": []},

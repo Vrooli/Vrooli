@@ -26,8 +26,8 @@ const showcaseStyle: CSSProperties = {
   boxShadow: "var(--elev-raised)",
 };
 
-export function TypographyShowcase({ args }: { args?: { style?: TextStyle } }) {
-  const style = args?.style ?? "body";
+export function TypographyShowcase({ args }: { args?: { textStyle?: TextStyle } }) {
+  const style = args?.textStyle ?? "body";
   return (
     <section
       aria-label="Typography specimen"
@@ -54,7 +54,7 @@ export function TypographyShowcase({ args }: { args?: { style?: TextStyle } }) {
           borderBlock: "var(--border-hairline) solid var(--color-border)",
         }}
       >
-        <Text style={style} balance>
+        <Text textStyle={style} balance>
           {samples[style]}
         </Text>
         <Text textStyle="caption" tone="muted">
@@ -72,6 +72,63 @@ export function TypographyShowcase({ args }: { args?: { style?: TextStyle } }) {
           01 / 08
         </Text>
       </div>
+    </section>
+  );
+}
+
+const toneSamples = [
+  ["default", "Foreground text for the main reading path."],
+  ["muted", "Muted text for supporting context."],
+  ["accent", "Accent text for a deliberate emphasis."],
+  ["danger", "Danger text for a recoverable warning."],
+] as const;
+
+export function TextAnatomy() {
+  return (
+    <section aria-label="Text anatomy" data-rcl-text-anatomy style={showcaseStyle}>
+      <Text as="h1" textStyle="title">A clear typographic hierarchy</Text>
+      <Text tone="muted">One component carries the reading rhythm across a surface.</Text>
+      <Text textStyle="caption" tone="accent">Default anatomy</Text>
+    </section>
+  );
+}
+
+export function TextScaleMatrix() {
+  return (
+    <section aria-label="Text scale matrix" data-rcl-text-scale style={showcaseStyle}>
+      <Text as="h2" textStyle="heading">Eight bundled styles</Text>
+      <div style={{ display: "grid", gap: "var(--space-sm)" }}>
+        {(Object.keys(samples) as TextStyle[]).map((style) => (
+          <Text key={style} textStyle={style}>{samples[style]}</Text>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+export function TextToneMatrix() {
+  return (
+    <section aria-label="Text tone matrix" data-rcl-text-tone style={showcaseStyle}>
+      <Text as="h2" textStyle="heading">Four semantic tones</Text>
+      <div style={{ display: "grid", gap: "var(--space-sm)" }}>
+        {toneSamples.map(([tone, copy]) => (
+          <Text key={tone} tone={tone}>{copy}</Text>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+export function TextBoundaries() {
+  return (
+    <section aria-label="Text boundary states" data-rcl-text-boundaries style={showcaseStyle}>
+      <Text as="h2" textStyle="heading">Boundary conditions</Text>
+      <Text aria-label="Empty text" textStyle="body" />
+      <Text truncate>Truncated content remains legible when a single line must fit inside a constrained surface.</Text>
+      <div style={{ maxInlineSize: "12rem" }}>
+        <Text>Overflow content demonstrates the wrapping boundary.</Text>
+      </div>
+      <Text numeric tone="muted">1,024.00</Text>
     </section>
   );
 }

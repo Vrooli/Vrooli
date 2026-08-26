@@ -1,3 +1,4 @@
+import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
 import type { ReactNode, SVGProps } from "react";
 
 export type VoiceInputGlyphKind = "alert" | "cancel" | "loader" | "mic";
@@ -24,7 +25,7 @@ const paths: Record<VoiceInputGlyphKind, ReactNode> = {
   ),
 };
 
-export function VoiceInputButtonGlyph({
+export const VoiceInputButtonGlyph = withClassName(function VoiceInputButtonGlyph({
   kind,
   className = "",
   ...props
@@ -45,4 +46,4 @@ export function VoiceInputButtonGlyph({
       {paths[kind]}
     </svg>
   );
-}
+});

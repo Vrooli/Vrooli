@@ -1,23 +1,21 @@
 /** @vrooliComponentSource primitives.edge-fade */
-import type { HTMLAttributes } from "react";
+import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
 
-export function EdgeFade({
+import type { HTMLAttributes } from "react";
+import "./EdgeFade.css";
+
+export const EdgeFade = withClassName(function EdgeFade({
   side = "inline-end",
+  style,
   ...props
 }: HTMLAttributes<HTMLDivElement> & { side?: "inline-start" | "inline-end" }) {
   return (
-    <div
+    <div data-testid="primitives.edge-fade"
       aria-hidden
-      style={{
-        pointerEvents: "none",
-        [side === "inline-start" ? "insetInlineStart" : "insetInlineEnd"]: 0,
-        position: "absolute",
-        insetBlock: 0,
-        width: "var(--edge-fade-width)",
-        background: "var(--edge-fade)",
-        ...props.style,
-      }}
+      data-rcl-edge-fade
+      data-side={side}
+      style={style}
       {...props}
     />
   );
-}
+});

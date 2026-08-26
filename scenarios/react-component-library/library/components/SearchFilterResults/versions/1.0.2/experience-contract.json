@@ -1,0 +1,76 @@
+{
+  "claims": [
+    {
+      "elements": ["query"],
+      "id": "query-preserved",
+      "statement": "The search form remains present while result state changes.",
+      "states": ["default", "no-match", "empty", "error"],
+      "tier": "machine",
+      "type": "element-present"
+    },
+    {
+      "id": "empty-distinct",
+      "statement": "No matches and no indexed results use distinct headings and guidance.",
+      "states": ["no-match", "empty"],
+      "tier": "manual",
+      "type": "manual-review"
+    },
+    {
+      "elements": ["retry"],
+      "id": "error-retryable",
+      "statement": "The request-error state exposes a named retry action.",
+      "states": ["error"],
+      "tier": "machine",
+      "type": "element-present"
+    }
+  ],
+  "component": {
+    "id": "patterns.search-filter-results",
+    "purpose": "Keep query intent, asynchronous result state, and the distinction between an empty collection and no matches visible in one responsive surface.",
+    "title": "SearchFilterResults"
+  },
+  "contract": {
+    "kind": "rcl-component-experience-contract",
+    "provenance": "react-component-library:SearchFilterResults@1.0.0",
+    "schema": "scenario-experience-spec/v1"
+  },
+  "elements": [
+    {
+      "description": "The preserved query and filter form.",
+      "id": "query",
+      "role": "search"
+    },
+    {
+      "description": "The labelled result surface.",
+      "id": "results",
+      "role": "region"
+    },
+    {
+      "description": "The explicit recovery action.",
+      "id": "retry",
+      "role": "button"
+    }
+  ],
+  "states": [
+    {
+      "description": "A query surface and populated result list are available.",
+      "example": "default",
+      "id": "default"
+    },
+    {
+      "description": "The query has no matches and can be relaxed without confusing it with an empty source.",
+      "example": "no-match",
+      "id": "no-match"
+    },
+    {
+      "description": "The source contains no results yet and communicates a different next step.",
+      "example": "empty",
+      "id": "empty"
+    },
+    {
+      "description": "The request fails while the query remains visible and retryable.",
+      "example": "error",
+      "id": "error"
+    }
+  ]
+}

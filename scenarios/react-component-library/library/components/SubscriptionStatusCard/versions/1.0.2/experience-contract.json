@@ -1,0 +1,28 @@
+{
+  "claims": [
+    {
+      "id": "status-summary-is-structured",
+      "statement": "Plan status and balance are presented in a structured account region.",
+      "states": ["active"],
+      "tier": "manual",
+      "type": "manual-review"
+    }
+  ],
+  "component": {
+    "id": "monetization.subscription-status-card",
+    "purpose": "Summarize a subscription plan and balance.",
+    "title": "SubscriptionStatusCard"
+  },
+  "contract": {
+    "kind": "rcl-component-experience-contract",
+    "provenance": "react-component-library:SubscriptionStatusCard@1.0.0",
+    "schema": "scenario-experience-spec/v1"
+  },
+  "states": [
+    {
+      "description": "An active plan and balance are visible.",
+      "example": "active",
+      "id": "active"
+    }
+  ]
+}

@@ -2,11 +2,9 @@
  * @vrooliComponentSource react-component-library:NavigationTree
  * @deps {"react":"^18","lucide-react":"^0.424.0"}
  */
-import { translate } from "../../../../hooks/useLocale/versions/1.0.0/useLocale";
-
 import type { ReactNode } from "react";
 import { FolderTree } from "lucide-react";
-import { NavLink } from "../../../NavLink/versions/1.0.0/NavLink";
+import { NavLink } from "@vrooli/react-component-library/NavLink/1.0.0";
 
 const navigationTreeStyles = `
 [data-rcl-navigation-tree] { display: grid; min-inline-size: 0; max-block-size: max(12rem, min(32rem, calc(100dvh - 23rem))); overflow: auto; gap: var(--space-sm); border: var(--border-hairline) solid var(--color-border); border-radius: var(--radius-panel); background: var(--color-surface); color: var(--color-foreground); padding: var(--space-sm); box-shadow: var(--elev-raised); }
@@ -25,7 +23,7 @@ const navigationTreeStyles = `
 export function NavigationTree({
   items = ["Overview", "Activity"],
   currentIndex = 0,
-  title = translate("navigation.navigation-tree.title.1", "Workspace"),
+  title = "Workspace",
   children,
 }: {
   items?: string[];
@@ -39,9 +37,9 @@ export function NavigationTree({
         data-rcl-navigation-tree-styles
         dangerouslySetInnerHTML={{ __html: navigationTreeStyles }}
       />
-      <nav aria-label={translate("navigation.navigation-tree.aria-label.2", "Primary navigation")} data-rcl-navigation-tree>
+      <nav aria-label="Primary navigation" data-rcl-navigation-tree>
         <div data-rcl-navigation-tree-heading>
-          <span data-rcl-navigation-tree-eyebrow>{translate("navigation.navigation-tree.text.3", "Library")}</span>
+          <span data-rcl-navigation-tree-eyebrow>Library</span>
           <strong data-rcl-navigation-tree-title>{title}</strong>
         </div>
         {children ?? (

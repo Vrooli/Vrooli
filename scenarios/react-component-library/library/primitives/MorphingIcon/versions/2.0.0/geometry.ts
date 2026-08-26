@@ -2,7 +2,7 @@ import {
   ICON_REGISTRY,
   type IconDefinition,
   type IconName,
-} from "../../../../foundations/IconRegistry/versions/1.0.0/IconRegistry";
+} from "@vrooli/react-component-library/IconRegistry/1.0.0";
 
 export type MorphingIconName = IconName | "copy";
 export type Point = { x: number; y: number };

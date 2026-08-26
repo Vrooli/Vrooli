@@ -27,7 +27,7 @@
   ],
   "displayName": "ProgressiveImage",
   "draft": "",
-  "latest": "1.1.0",
+  "latest": "1.1.4",
   "libraryId": "react-component-library:ProgressiveImage",
   "slot": "ui-primitive",
   "tags": [

@@ -1,6 +1,8 @@
 /** @vrooliComponentSource forms.computed-field */
+import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
+
 import { useEffect, useState, type CSSProperties, type ReactNode } from "react";
-import { type FormStore } from "../../../../services/FormStore/versions/1.0.0/FormStore";
+import { type FormStore } from "@vrooli/react-component-library/FormStore/1.0.0";
 
 export interface ComputedFieldProps<
   TValues extends Record<string, unknown> = Record<string, unknown>,
@@ -36,7 +38,7 @@ function useStoreValues<TValues extends Record<string, unknown>>(
   return store.getValues();
 }
 
-export function ComputedField<TValues extends Record<string, unknown>>({
+export const ComputedField = withClassName(function ComputedField<TValues extends Record<string, unknown>>({
   store,
   field,
   compute,
@@ -53,7 +55,7 @@ export function ComputedField<TValues extends Record<string, unknown>>({
   const labelText = typeof label === "string" ? label : "Calculated value";
   const value = override && fieldState.dirty ? fieldState.value : calculated;
   return (
-    <div className={className} style={style} data-rcl-computed-field>
+    <div data-testid="forms.computed-field" className={className} style={style} data-rcl-computed-field>
       <style
         data-rcl-computed-field-styles
         dangerouslySetInnerHTML={{ __html: styles }}
@@ -73,4 +75,4 @@ export function ComputedField<TValues extends Record<string, unknown>>({
       {description && <span data-rcl-computed-description>{description}</span>}
     </div>
   );
-}
+});

@@ -1,0 +1,61 @@
+{
+  "$schema": "../../../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "bindings": {
+    "elements": {
+      "icon": {
+        "selector": "[data-icon]"
+      }
+    }
+  },
+  "claims": [
+    {
+      "elements": ["icon"],
+      "id": "icon-present",
+      "statement": "The named icon renders as an image-like element.",
+      "states": ["accessible", "registry"],
+      "tier": "machine",
+      "type": "element-present"
+    },
+    {
+      "id": "accessible-contract",
+      "statement": "Icon distinguishes meaningful named icons from decorative glyphs for assistive technology.",
+      "states": ["accessible"],
+      "tier": "manual",
+      "type": "manual-review"
+    },
+    {
+      "id": "registry-contract",
+      "statement": "Icon resolves bounded geometry and optical size from the shared icon registry.",
+      "states": ["registry"],
+      "tier": "manual",
+      "type": "manual-review"
+    }
+  ],
+  "component": {
+    "id": "icon",
+    "purpose": "A bounded, token-backed semantic icon renderer.",
+    "storyRef": "../../library/primitives/Icon/versions/1.1.2/story.json",
+    "title": "Icon"
+  },
+  "elements": [
+    {
+      "description": "The semantic icon output.",
+      "id": "icon",
+      "role": "x-icon"
+    }
+  ],
+  "kind": "experience-component",
+  "schemaVersion": "1.1.0",
+  "states": [
+    {
+      "description": "The named icon registry renders with optical sizing.",
+      "example": "name-check",
+      "id": "registry"
+    },
+    {
+      "description": "Meaningful icons expose a name while decorative icons remain hidden.",
+      "example": "name-search",
+      "id": "accessible"
+    }
+  ]
+}

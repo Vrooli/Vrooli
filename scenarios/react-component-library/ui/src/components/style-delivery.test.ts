@@ -63,59 +63,11 @@ describe("component stylesheet delivery", () => {
   });
 });
 
-/**
- * Four catalog copies of `ControlBase` and four of `Pressable` deliberately
- * share one style id each, which is only safe while their CSS is byte-identical.
- * If a copy drifts, the shared id would silently serve one copy's CSS to all of
- * them — this pins that assumption instead of letting it rot.
- */
-describe("shared style ids stay backed by identical CSS", () => {
-  const cases = [
-    {
-      id: "rcl-control",
-      declaration: "const styleSheet = `",
-      files: [
-        "ui/Button/versions/2.0.0/ControlBase.tsx",
-        "ui/IconButton/versions/2.0.0/ControlBase.tsx",
-        "ui/Pressable/versions/1.0.0/ControlBase.tsx",
-        "VoiceInputButton/versions/4.1.0/ControlBase.tsx",
-      ],
-    },
-    {
-      id: "rcl-pressable",
-      declaration: "const pressableStyles = `",
-      files: [
-        "ui/Button/versions/2.0.0/Pressable.tsx",
-        "ui/IconButton/versions/2.0.0/Pressable.tsx",
-        "ui/Pressable/versions/1.0.0/Pressable.tsx",
-        "VoiceInputButton/versions/4.1.0/Pressable.tsx",
-      ],
-    },
-  ];
-
-  function stylesheetLiteral(relative: string, declaration: string): string {
-    const source = readFileSync(path.join(componentsDir, relative), "utf8");
-    const start = source.indexOf(declaration);
-    expect(start, `${relative} declares ${declaration}`).toBeGreaterThan(-1);
-    const bodyStart = start + declaration.length;
-    const end = source.indexOf("`;", bodyStart);
-    expect(end, `${relative} terminates ${declaration}`).toBeGreaterThan(-1);
-    return source.slice(bodyStart, end);
-  }
-
-  it.each(cases)("$id is shared only by identical stylesheets", ({ declaration, files }) => {
-    const literals = files.map((file) => stylesheetLiteral(file, declaration));
-    const distinct = new Set(literals);
-    expect(distinct.size).toBe(1);
-  });
-
-  it("uses each shared id in exactly the files listed here", () => {
-    for (const { id, files } of cases) {
-      const users = sourceFiles(componentsDir)
-        .filter((file) => readFileSync(file, "utf8").includes(`useComponentStyles("${id}"`))
-        .map((file) => path.relative(componentsDir, file))
-        .sort();
-      expect(users).toEqual([...files].sort());
-    }
+describe("package-backed style delivery", () => {
+  it("does not retain legacy vendored foundation copies", () => {
+    const legacy = sourceFiles(componentsDir)
+      .map((file) => path.relative(componentsDir, file))
+      .filter((file) => file.includes("/versions/") && /ControlBase|Pressable/.test(file));
+    expect(legacy).toEqual([]);
   });
 });

@@ -17,6 +17,18 @@
           "overline"
         ],
         "path": "style"
+      },
+      {
+        "default": "default",
+        "kind": "enum",
+        "label": "Tone",
+        "options": [
+          "default",
+          "muted",
+          "accent",
+          "danger"
+        ],
+        "path": "tone"
       }
     ]
   },
@@ -24,255 +36,120 @@
     "fixtures": []
   },
   "kind": "component",
-  "schemaVersion": 4,
+  "schemaVersion": 5,
   "stories": [
     {
+      "id": "anatomy",
+      "name": "Default anatomy",
+      "role": "anatomy",
       "args": {
-        "style": "display"
+        "style": "body",
+        "tone": "default"
       },
       "composition": {
         "specimen": {
-          "export": "TypographyShowcase",
-          "module": "./story.tsx"
+          "module": "./story.tsx",
+          "export": "TextAnatomy"
         }
       },
       "expect": [
         {
           "kind": "role",
-          "name": "Typography as a system",
-          "role": "heading"
-        },
-        {
-          "kind": "text",
-          "value": "Make the important thing unmistakable."
-        },
-        {
-          "kind": "layout",
-          "minHeight": 160,
-          "minWidth": 240,
-          "noOverflow": true,
-          "selector": "[data-rcl-typography-showcase]"
+          "role": "heading",
+          "name": "Typography as a system"
         }
-      ],
-      "id": "style-display",
-      "interactions": [
-        {
-          "kind": "settle"
-        }
-      ],
-      "mode": "live",
-      "name": "Display"
+      ]
     },
     {
-      "args": {
-        "style": "title"
+      "id": "scale",
+      "name": "Style scale",
+      "role": "axis",
+      "axis": "style",
+      "covers": {
+        "style": [
+          "display",
+          "title",
+          "heading",
+          "body",
+          "label",
+          "caption",
+          "code",
+          "overline"
+        ]
       },
-      "composition": {
-        "specimen": {
-          "export": "TypographyShowcase",
-          "module": "./story.tsx"
-        }
-      },
-      "expect": [
-        {
-          "kind": "role",
-          "name": "Typography as a system",
-          "role": "heading"
-        },
-        {
-          "kind": "text",
-          "value": "A considered hierarchy makes every decision easier."
-        }
-      ],
-      "id": "style-title",
-      "interactions": [
-        {
-          "kind": "settle"
-        }
-      ],
-      "mode": "live",
-      "name": "Title"
-    },
-    {
-      "args": {
-        "style": "heading"
-      },
-      "composition": {
-        "specimen": {
-          "export": "TypographyShowcase",
-          "module": "./story.tsx"
-        }
-      },
-      "expect": [
-        {
-          "kind": "role",
-          "name": "Typography as a system",
-          "role": "heading"
-        },
-        {
-          "kind": "text",
-          "value": "Typography that carries the product’s point of view."
-        }
-      ],
-      "id": "style-heading",
-      "interactions": [
-        {
-          "kind": "settle"
-        }
-      ],
-      "mode": "live",
-      "name": "Heading"
-    },
-    {
       "args": {
         "style": "body"
       },
       "composition": {
         "specimen": {
-          "export": "TypographyShowcase",
-          "module": "./story.tsx"
+          "module": "./story.tsx",
+          "export": "TextScaleMatrix"
         }
       },
       "expect": [
         {
           "kind": "role",
-          "name": "Typography as a system",
-          "role": "heading"
-        },
-        {
-          "kind": "text",
-          "value": "Good interface writing gives people enough context"
+          "role": "heading",
+          "name": "Typography as a system"
         }
-      ],
-      "id": "style-body",
-      "interactions": [
-        {
-          "kind": "settle"
-        }
-      ],
-      "mode": "live",
-      "name": "Body"
+      ]
     },
     {
+      "id": "tone",
+      "name": "Semantic tones",
+      "role": "axis",
+      "axis": "tone",
+      "covers": {
+        "tone": [
+          "default",
+          "muted",
+          "accent",
+          "danger"
+        ]
+      },
       "args": {
-        "style": "label"
+        "tone": "default"
       },
       "composition": {
         "specimen": {
-          "export": "TypographyShowcase",
-          "module": "./story.tsx"
+          "module": "./story.tsx",
+          "export": "TextToneMatrix"
         }
       },
       "expect": [
         {
           "kind": "role",
-          "name": "Typography as a system",
-          "role": "heading"
-        },
-        {
-          "kind": "text",
-          "value": "Workspace identity"
+          "role": "heading",
+          "name": "Typography as a system"
         }
-      ],
-      "id": "style-label",
-      "interactions": [
-        {
-          "kind": "settle"
-        }
-      ],
-      "mode": "live",
-      "name": "Label"
+      ]
     },
     {
+      "id": "boundaries",
+      "name": "Boundary conditions",
+      "role": "boundary",
+      "states": [
+        "empty",
+        "truncate",
+        "overflow",
+        "forced-colors"
+      ],
       "args": {
-        "style": "caption"
+        "style": "body"
       },
       "composition": {
         "specimen": {
-          "export": "TypographyShowcase",
-          "module": "./story.tsx"
+          "module": "./story.tsx",
+          "export": "TextBoundaries"
         }
       },
       "expect": [
         {
           "kind": "role",
-          "name": "Typography as a system",
-          "role": "heading"
-        },
-        {
-          "kind": "text",
-          "value": "Updated a moment ago"
+          "role": "heading",
+          "name": "Typography as a system"
         }
-      ],
-      "id": "style-caption",
-      "interactions": [
-        {
-          "kind": "settle"
-        }
-      ],
-      "mode": "live",
-      "name": "Caption"
-    },
-    {
-      "args": {
-        "style": "code"
-      },
-      "composition": {
-        "specimen": {
-          "export": "TypographyShowcase",
-          "module": "./story.tsx"
-        }
-      },
-      "expect": [
-        {
-          "kind": "role",
-          "name": "Typography as a system",
-          "role": "heading"
-        },
-        {
-          "kind": "text",
-          "value": "const result = await workspace.publish();"
-        }
-      ],
-      "id": "style-code",
-      "interactions": [
-        {
-          "kind": "settle"
-        }
-      ],
-      "mode": "live",
-      "name": "Code"
-    },
-    {
-      "args": {
-        "style": "overline"
-      },
-      "composition": {
-        "specimen": {
-          "export": "TypographyShowcase",
-          "module": "./story.tsx"
-        }
-      },
-      "expect": [
-        {
-          "kind": "role",
-          "name": "Typography as a system",
-          "role": "heading"
-        },
-        {
-          "kind": "text",
-          "value": "TYPE SCALE / 08 STYLES"
-        }
-      ],
-      "id": "style-overline",
-      "interactions": [
-        {
-          "kind": "settle"
-        }
-      ],
-      "mode": "live",
-      "name": "Overline"
+      ]
     }
-  ],
-  "title": "Text"
+  ]
 }

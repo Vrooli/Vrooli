@@ -7,7 +7,7 @@
     "fixtures": []
   },
   "kind": "component",
-  "schemaVersion": 4,
+  "schemaVersion": 5,
   "stories": [
     {
       "args": {
@@ -26,7 +26,8 @@
       ],
       "id": "default",
       "mode": "pinned",
-      "name": "Default"
+      "name": "Default",
+      "role": "anatomy"
     },
     {
       "args": {
@@ -39,7 +40,14 @@
       },
       "id": "empty",
       "mode": "pinned",
-      "name": "Empty"
+      "name": "Empty",
+      "expect": [
+        {
+          "kind": "visible",
+          "selector": "body"
+        }
+      ],
+      "role": "boundary"
     }
   ],
   "title": "Table"

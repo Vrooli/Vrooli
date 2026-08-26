@@ -40,7 +40,7 @@
     }
   ],
   "displayName": "Sortable",
-  "latest": "1.0.0",
+  "latest": "1.0.3",
   "libraryId": "react-component-library:Sortable",
   "tags": [
     "manipulation",
@@ -56,5 +56,7 @@
       "libraryId": "react-component-library:useLocale",
       "version": "1.0.0"
     }
-  ]
+  ],
+  "draft": "",
+  "deprecatedVersions": []
 }

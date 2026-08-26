@@ -32,10 +32,11 @@
     "fixtures": []
   },
   "kind": "component",
-  "schemaVersion": 4,
+  "schemaVersion": 5,
   "stories": [
     {
       "args": {
+        "aria-label": "Component name",
         "defaultValue": "Button",
         "placeholder": "Component name",
         "type": "text"
@@ -55,11 +56,13 @@
       ],
       "id": "text",
       "mode": "pinned",
-      "name": "Text"
+      "name": "Text",
+      "role": "anatomy"
     },
     {
       "args": {
         "defaultValue": "status",
+        "aria-label": "Filter components",
         "placeholder": "Filter components",
         "type": "search"
       },
@@ -67,12 +70,13 @@
         {
           "kind": "role",
           "name": "Filter components",
-          "role": "textbox"
+          "role": "searchbox"
         }
       ],
       "id": "search",
       "mode": "pinned",
-      "name": "Search"
+      "name": "Search",
+      "role": "boundary"
     },
     {
       "args": {
@@ -90,7 +94,8 @@
       ],
       "id": "disabled",
       "mode": "pinned",
-      "name": "Disabled"
+      "name": "Disabled",
+      "role": "boundary"
     }
   ],
   "title": "Input"

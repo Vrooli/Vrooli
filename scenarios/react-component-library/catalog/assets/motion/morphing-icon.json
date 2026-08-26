@@ -2,6 +2,9 @@
   "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
   "kind": "catalog-asset",
   "schemaVersion": "1.0.0",
+  "budgets": {
+    "mountMs": 54
+  },
   "asset": {
     "id": "motion.morphing-icon",
     "name": "MorphingIcon",
@@ -52,7 +55,6 @@
     ],
     "variants": {
       "strategy": [
-        "auto",
         "morph",
         "transform",
         "crossfade"

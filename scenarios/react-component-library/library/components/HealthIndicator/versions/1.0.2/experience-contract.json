@@ -1,0 +1,33 @@
+{
+  "claims": [
+    {
+      "id": "health-non-color",
+      "statement": "Health state and freshness are available as text.",
+      "states": ["default", "stale"],
+      "tier": "aspirational",
+      "type": "text"
+    }
+  ],
+  "component": {
+    "id": "data-display.health-indicator",
+    "purpose": "HealthIndicator communicates state, score, and evidence freshness without color alone.",
+    "title": "HealthIndicator"
+  },
+  "contract": {
+    "kind": "rcl-component-experience-contract",
+    "provenance": "react-component-library:HealthIndicator@1.0.0",
+    "schema": "scenario-experience-spec/v1"
+  },
+  "states": [
+    {
+      "description": "Healthy status is named and scored.",
+      "example": "default",
+      "id": "default"
+    },
+    {
+      "description": "Staleness is visible in text.",
+      "example": "stale",
+      "id": "stale"
+    }
+  ]
+}

@@ -1,11 +1,13 @@
 /** @vrooliComponentSource controls.icon-button */
+import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
+
 import type { ButtonHTMLAttributes, ReactNode } from "react";
 import {
   type ControlDensity,
   type ControlSize,
   type ControlVariant,
-} from "../../../ControlBase/versions/1.0.0/ControlBase";
-import { Pressable } from "../../../Pressable/versions/1.0.0/Pressable";
+} from "@vrooli/react-component-library/ControlBase/1.0.0";
+import { Pressable } from "@vrooli/react-component-library/Pressable/1.0.0";
 
 export interface IconButtonProps
   extends Omit<ButtonHTMLAttributes<HTMLButtonElement>, "color"> {
@@ -18,7 +20,7 @@ export interface IconButtonProps
   disableTooltip?: boolean;
 }
 
-export function IconButton({
+export const IconButton = withClassName(function IconButton({
   "aria-label": ariaLabel,
   children,
   density = "comfortable",
@@ -31,7 +33,7 @@ export function IconButton({
   ...props
 }: IconButtonProps) {
   return (
-    <Pressable
+    <Pressable data-testid="controls.icon-button"
       {...props}
       aria-label={ariaLabel}
       type={type}
@@ -45,4 +47,4 @@ export function IconButton({
       {children}
     </Pressable>
   );
-}
+});

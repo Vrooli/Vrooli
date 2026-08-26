@@ -1,15 +1,13 @@
 /** @vrooliComponentSource data-display.data-toolbar */
-import { translate } from "../../../../hooks/useLocale/versions/1.0.0/useLocale";
-
 import { useId, useState, type CSSProperties } from "react";
 import {
   FilterBar,
   type FilterOption,
-} from "../../../FilterBar/versions/1.0.0/FilterBar";
+} from "@vrooli/react-component-library/FilterBar/1.0.0";
 import {
   Toolbar,
   type ToolbarItem,
-} from "../../../Toolbar/versions/1.0.0/Toolbar";
+} from "@vrooli/react-component-library/Toolbar/1.0.0";
 
 export interface DataToolbarView {
   id: string;
@@ -214,10 +212,10 @@ export function DataToolbar({
             <div
               data-rcl-data-toolbar-views
               role="group"
-              aria-label={translate("data-display.data-toolbar.aria-label.1", "Saved views")}
+              aria-label="Saved views"
             >
               {views.map((view) => (
-                <button data-testid="data-display.data-toolbar"
+                <button
                   key={view.id}
                   type="button"
                   aria-pressed={resolvedViewId === view.id}
@@ -253,8 +251,8 @@ export function DataToolbar({
         <div data-rcl-data-toolbar-controls>
           {sortOptions.length > 0 ? (
             <span data-rcl-data-toolbar-sort>
-              <label htmlFor={sortControlId}>{translate("data-display.data-toolbar.text.3", "Sort")}</label>
-              <select data-testid="data-display.data-toolbar"
+              <label htmlFor={sortControlId}>Sort</label>
+              <select
                 id={sortControlId}
                 value={resolvedSortId}
                 onChange={(event) => updateSort(event.target.value)}
@@ -270,7 +268,7 @@ export function DataToolbar({
           {toolbarItems.length > 0 ? (
             <Toolbar
               items={toolbarItems}
-              label={translate("data-display.data-toolbar.label.2", "Collection actions")}
+              label="Collection actions"
               size="sm"
             />
           ) : null}

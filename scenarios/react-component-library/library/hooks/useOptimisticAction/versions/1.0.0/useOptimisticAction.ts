@@ -3,7 +3,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import {
   useAsyncAction,
   type AsyncActionStatus,
-} from "../../../useAsyncAction/versions/1.0.0/useAsyncAction";
+} from "@vrooli/react-component-library/useAsyncAction/1.0.0";
 
 export interface UseOptimisticActionOptions<T, R> {
   value: T;

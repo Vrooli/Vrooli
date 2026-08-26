@@ -1,6 +1,4 @@
 /** @vrooliComponentSource react-component-library:DirtyStateGuard */
-import { translate } from "../../../../hooks/useLocale/versions/1.0.0/useLocale";
-
 import {
   forwardRef,
   useCallback,
@@ -46,6 +44,7 @@ export interface DirtyStateGuardProps {
   saveLabel?: string;
   discardLabel?: string;
   continueLabel?: string;
+  note?: ReactNode;
   protectUnload?: boolean;
   renderPrompt?: (props: DirtyStateGuardPromptProps) => ReactNode;
   className?: string;
@@ -123,11 +122,12 @@ export const DirtyStateGuard = forwardRef<
     onSave,
     onDiscard,
     onAction,
-    title = translate("forms.dirty-state-guard.title.1", "You have unsaved changes"),
-    description = translate("forms.dirty-state-guard.description.2", "Leave now and your recent edits will be lost."),
+    title = "You have unsaved changes",
+    description = "Leave now and your recent edits will be lost.",
     saveLabel = "Save changes",
     discardLabel = "Discard changes",
     continueLabel = "Keep editing",
+    note = "Saving preserves your work. Discarding cannot be undone.",
     protectUnload = true,
     renderPrompt,
     className,
@@ -273,32 +273,33 @@ export const DirtyStateGuard = forwardRef<
                 </div>
               </div>
               <div data-rcl-dirty-guard-body>
-                <p data-rcl-dirty-guard-note>
-                  {translate("forms.dirty-state-guard.text.1", "Saving preserves your work. Discarding cannot be undone.")}
-                </p>
+                  <p data-rcl-dirty-guard-note>{note}</p>
               </div>
               <div data-rcl-dirty-guard-actions>
-                <button data-testid="forms.dirty-state-guard"
+                <button
                   type="button"
                   data-rcl-dirty-guard-continue
+                  data-testid="dirty-state-guard-continue"
                   style={buttonBase}
                   disabled={saving}
                   onClick={promptProps.onContinue}
                 >
                   {continueLabel}
                 </button>
-                <button data-testid="forms.dirty-state-guard"
+                <button
                   type="button"
                   data-rcl-dirty-guard-discard
+                  data-testid="dirty-state-guard-discard"
                   style={buttonBase}
                   disabled={saving}
                   onClick={promptProps.onDiscard}
                 >
                   {discardLabel}
                 </button>
-                <button data-testid="forms.dirty-state-guard"
+                <button
                   type="button"
                   data-rcl-dirty-guard-save
+                  data-testid="dirty-state-guard-save"
                   style={buttonBase}
                   disabled={saving}
                   onClick={promptProps.onSave}

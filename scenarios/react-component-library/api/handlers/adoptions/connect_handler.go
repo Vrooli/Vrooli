@@ -146,6 +146,47 @@ func (h *connectHandler) PruneScenarioTokens(ctx context.Context, req *connect.R
 	return connect.NewResponse(&adoptionsv1.PruneScenarioTokensResponse{Scenario: out.Scenario, Removed: out.Removed, Retained: out.Retained, Changed: out.Changed}), nil
 }
 
+func (h *connectHandler) LinkAdoption(ctx context.Context, req *connect.Request[adoptionsv1.LinkAdoptionRequest]) (*connect.Response[adoptionsv1.LinkAdoptionResponse], error) {
+	result, err := h.deps.Service.Link(ctx, adoptions.LinkInput{
+		ComponentID:     req.Msg.ComponentId,
+		Scenario:        req.Msg.Scenario,
+		Version:         req.Msg.Version,
+		ImportSubpath:   req.Msg.ImportSubpath,
+		ConfirmExisting: req.Msg.ConfirmExisting,
+	})
+	if err != nil {
+		return nil, adoptions.ToConnectError(err)
+	}
+	return connect.NewResponse(&adoptionsv1.LinkAdoptionResponse{
+		Adoption: domainToProto(result.Adoption), PackagePath: result.PackagePath,
+		ImportSubpath: result.ImportSubpath, UpdatedFiles: result.UpdatedFiles,
+	}), nil
+}
+
+func (h *connectHandler) EjectAdoption(ctx context.Context, req *connect.Request[adoptionsv1.EjectAdoptionRequest]) (*connect.Response[adoptionsv1.EjectAdoptionResponse], error) {
+	result, err := h.deps.Service.Eject(ctx, adoptions.EjectInput{
+		ApplyInput: adoptions.ApplyInput{
+			ComponentID:        req.Msg.ComponentId,
+			Scenario:           req.Msg.Scenario,
+			AdoptedPath:        req.Msg.AdoptedPath,
+			Version:            req.Msg.Version,
+			ConfirmOverwrite:   req.Msg.ConfirmOverwrite,
+			OverrideValidation: req.Msg.OverrideValidation,
+			ReplaceExisting:    req.Msg.ReplaceExisting,
+			IncludeSuggestions: req.Msg.IncludeSuggestions,
+			ExtensionPoints:    req.Msg.ExtensionPoints,
+		},
+		Reason: req.Msg.Reason,
+	})
+	if err != nil {
+		return nil, adoptions.ToConnectError(err)
+	}
+	return connect.NewResponse(&adoptionsv1.EjectAdoptionResponse{
+		Adoption: domainToProto(result.Adoption), WrittenPath: result.WrittenPath,
+		CopiedAssets: result.CopiedAssets,
+	}), nil
+}
+
 func (h *connectHandler) ApplyAdoption(ctx context.Context, req *connect.Request[adoptionsv1.ApplyAdoptionRequest]) (*connect.Response[adoptionsv1.ApplyAdoptionResponse], error) {
 	result, err := h.deps.Service.Apply(ctx, adoptions.ApplyInput{
 		ComponentID:        req.Msg.ComponentId,
@@ -219,7 +260,24 @@ func (h *connectHandler) DeleteAdoption(ctx context.Context, req *connect.Reques
 }
 
 func (h *connectHandler) RefreshAdoptions(ctx context.Context, req *connect.Request[adoptionsv1.RefreshAdoptionsRequest]) (*connect.Response[adoptionsv1.RefreshAdoptionsResponse], error) {
-	rows, summary, err := h.deps.Service.Refresh(ctx, req.Msg.ComponentId)
+	return h.refreshAdoptions(ctx, req, false)
+}
+
+func (h *connectHandler) ForkReportAdoptions(ctx context.Context, req *connect.Request[adoptionsv1.RefreshAdoptionsRequest]) (*connect.Response[adoptionsv1.RefreshAdoptionsResponse], error) {
+	return h.refreshAdoptions(ctx, req, true)
+}
+
+func (h *connectHandler) refreshAdoptions(ctx context.Context, req *connect.Request[adoptionsv1.RefreshAdoptionsRequest], forceReport bool) (*connect.Response[adoptionsv1.RefreshAdoptionsResponse], error) {
+	var (
+		rows    []adoptions.Adoption
+		summary adoptions.RefreshSummary
+		err     error
+	)
+	if forceReport || req.Msg.ForkReport {
+		rows, summary, err = h.deps.Service.ForkReport(ctx, req.Msg.ComponentId, req.Msg.Apply)
+	} else {
+		rows, summary, err = h.deps.Service.Refresh(ctx, req.Msg.ComponentId)
+	}
 	if err != nil {
 		h.deps.Logger.Printf("adoptions.RefreshAdoptions: %v", err)
 		return nil, adoptions.ToConnectError(err)
@@ -239,6 +297,20 @@ func (h *connectHandler) RefreshAdoptions(ctx context.Context, req *connect.Requ
 	}
 	for _, a := range rows {
 		resp.Adoptions = append(resp.Adoptions, domainToProto(a))
+	}
+	if forceReport || req.Msg.ForkReport {
+		resp.ForkDispositionCounts = map[string]int32{}
+		resp.ForkScenarioCounts = map[string]int32{}
+		resp.ForkLibraryCounts = map[string]int32{}
+		for _, a := range rows {
+			status := string(a.ForkStatus)
+			if status == "" {
+				status = "unclassified"
+			}
+			resp.ForkDispositionCounts[status]++
+			resp.ForkScenarioCounts[a.Scenario]++
+			resp.ForkLibraryCounts[a.LibraryID]++
+		}
 	}
 	return connect.NewResponse(resp), nil
 }

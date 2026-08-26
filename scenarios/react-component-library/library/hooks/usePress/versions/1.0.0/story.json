@@ -15,7 +15,7 @@
     "fixtures": []
   },
   "kind": "hook",
-  "schemaVersion": 4,
+  "schemaVersion": 5,
   "stories": [
     {
       "args": {
@@ -36,7 +36,8 @@
       ],
       "id": "default",
       "mode": "live",
-      "name": "Default"
+      "name": "Default",
+      "role": "anatomy"
     }
   ],
   "title": "Press"

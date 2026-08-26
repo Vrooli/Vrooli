@@ -4,19 +4,19 @@
  * @status released
  * @deps {"react":"^18"}
  */
-import { translate } from "../../../../hooks/useLocale/versions/1.0.0/useLocale";
+import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
 
 import type { ReactNode } from "react";
 
-export function PreviewDock({
+export const PreviewDock = withClassName(function PreviewDock({
   children,
-  label = translate("preview.preview-dock.label.1", "Preview controls"),
+  label = "Preview controls",
 }: {
   children?: ReactNode;
   label?: string;
 }) {
   return (
-    <div
+    <div data-testid="preview.preview-dock"
       data-preview-dock
       role="toolbar"
       aria-label={label}
@@ -39,4 +39,4 @@ export function PreviewDock({
       {children}
     </div>
   );
-}
+});

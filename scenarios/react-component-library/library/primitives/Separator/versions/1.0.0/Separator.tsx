@@ -1,25 +1,23 @@
 /** @vrooliComponentSource primitives.separator */
-import type { HTMLAttributes } from "react";
+import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
 
-export function Separator({
+import type { HTMLAttributes } from "react";
+import "./Separator.css";
+
+export const Separator = withClassName(function Separator({
   orientation = "horizontal",
+  style,
   ...props
 }: HTMLAttributes<HTMLHRElement> & {
   orientation?: "horizontal" | "vertical";
 }) {
   return (
-    <hr
+    <hr data-testid="primitives.separator"
       aria-orientation={orientation}
       data-orientation={orientation}
-      style={{
-        border: 0,
-        background: "var(--color-border)",
-        ...(orientation === "vertical"
-          ? { width: "var(--separator-thickness)", height: "100%" }
-          : { height: "var(--separator-thickness)", width: "100%" }),
-        ...props.style,
-      }}
+      data-rcl-separator
+      style={style}
       {...props}
     />
   );
-}
+});

@@ -7,7 +7,7 @@
     "fixtures": []
   },
   "kind": "component",
-  "schemaVersion": 4,
+  "schemaVersion": 5,
   "stories": [
     {
       "args": {},
@@ -36,7 +36,8 @@
       ],
       "id": "default",
       "mode": "live",
-      "name": "Default"
+      "name": "Default",
+      "role": "anatomy"
     },
     {
       "args": {},
@@ -68,7 +69,8 @@
       ],
       "id": "interactive",
       "mode": "live",
-      "name": "Interactive"
+      "name": "Interactive",
+      "role": "boundary"
     },
     {
       "args": {
@@ -113,7 +115,8 @@
       ],
       "id": "shared-showcase",
       "mode": "live",
-      "name": "Shared showcase context"
+      "name": "Shared showcase context",
+      "role": "boundary"
     }
   ],
   "title": "FilterBar"

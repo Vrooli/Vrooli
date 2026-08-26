@@ -11,11 +11,13 @@
     }
   ],
   "displayName": "Chip",
-  "latest": "1.0.0",
+  "latest": "1.0.2",
   "libraryId": "react-component-library:Chip",
   "tags": [
     "primitive",
     "control",
     "token-bound"
-  ]
+  ],
+  "draft": "",
+  "deprecatedVersions": []
 }

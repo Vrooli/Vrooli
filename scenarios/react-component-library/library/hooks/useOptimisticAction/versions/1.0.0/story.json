@@ -7,7 +7,7 @@
     "fixtures": []
   },
   "kind": "hook",
-  "schemaVersion": 4,
+  "schemaVersion": 5,
   "stories": [
     {
       "args": {},
@@ -24,13 +24,17 @@
         },
         {
           "kind": "role",
-          "name": "idle",
           "role": "status"
+        },
+        {
+          "kind": "text",
+          "value": "idle"
         }
       ],
       "id": "default",
       "mode": "live",
-      "name": "Optimistic action"
+      "name": "Optimistic action",
+      "role": "anatomy"
     }
   ],
   "title": "useOptimisticAction"

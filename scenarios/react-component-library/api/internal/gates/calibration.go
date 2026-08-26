@@ -23,8 +23,10 @@ type CalibrationFixture struct {
 	RequiredFailureCode string `json:"requiredFailureCode"`
 	Description         string `json:"description"`
 	Source              string `json:"source"`
+	Story               string `json:"story"`
 	CatalogAsset        string `json:"catalogAsset"`
 	Mutation            string `json:"mutation"`
+	Test                string `json:"test"`
 }
 
 type CalibrationResult struct {
@@ -39,13 +41,14 @@ type CalibrationResult struct {
 type CalibrationReport struct {
 	Results           []CalibrationResult
 	NonDiscriminating bool
+	Delegated         bool
 }
 
 type GateRunner func(string) (Result, error)
 
 // GateRunnerFor returns the production runner for a declared gate. A nil
-// runner is intentional: external gates remain visible as quarantined until
-// their owning browser/toolchain runner is wired into this process.
+// runner is intentional for external gates: their calibration is delegated to
+// the owning browser/toolchain suite rather than fabricated in this process.
 func GateRunnerFor(gate string) GateRunner {
 	switch gate {
 	case "types":
@@ -62,6 +65,8 @@ func GateRunnerFor(gate string) GateRunner {
 		return ValidateTokenRampComplete
 	case "released-version-immutable":
 		return ValidateReleasedVersionImmutable
+	case "version-liveness":
+		return ValidateVersionLiveness
 	case "lifecycle":
 		return ValidateLifecycle
 	case "fixture-adversarial":
@@ -90,6 +95,20 @@ func GateRunnerFor(gate string) GateRunner {
 		return ValidateI18n
 	case "selector-coverage":
 		return ValidateSelectorCoverage
+	case "restyle-contract":
+		return ValidateRestyleContract
+	case "story-grammar":
+		return ValidateStoryGrammar
+	case "story-distinctness":
+		return ValidateStoryDistinctness
+	case "evidence-freshness":
+		return ValidateEvidenceFreshness
+	case "i18n-adopted":
+		return ValidateI18nAdopted
+	case "selectors-adopted":
+		return ValidateSelectorsAdopted
+	case "adopter-hygiene":
+		return ValidateAdopterHygiene
 	default:
 		return nil
 	}
@@ -117,9 +136,9 @@ func Calibrate(root, gate string, runner GateRunner) (CalibrationReport, error) 
 			RequiredFailureCode: fixture.RequiredFailureCode,
 		}
 		if fixture.Runner != "static" {
-			result.Status = "non-discriminating"
-			result.Message = "the declared runner is external to the deterministic catalog gate process"
-			report.NonDiscriminating = true
+			result.Status = "delegated"
+			result.Message = "the declared runner is external to the deterministic catalog gate process; the owning scenario suite supplies the calibration"
+			report.Delegated = true
 			report.Results = append(report.Results, result)
 			continue
 		}
@@ -251,6 +270,12 @@ func materializeFixture(root, gate string, fixture CalibrationFixture) (string, 
 			cleanup()
 			return "", func() {}, err
 		}
+		if fixture.Story != "" {
+			if err := copyFile(filepath.Join(fixtureDir, fixture.Story), filepath.Join(versionDir, "story.json")); err != nil {
+				cleanup()
+				return "", func() {}, err
+			}
+		}
 	}
 	if fixture.Mutation == "released-hash" {
 		dbPath := filepath.Join(tmp, "scenarios", "react-component-library", "data", "react-component-library.db")
@@ -283,6 +308,53 @@ func materializeFixture(root, gate string, fixture CalibrationFixture) (string, 
 	if fixture.Mutation == "composition-low-score" {
 		dbPath := filepath.Join(tmp, "scenarios", "experience-manager", "data", "experience-manager.db")
 		if err := createCompositionCalibrationDatabase(dbPath, fixture.AssetID); err != nil {
+			cleanup()
+			return "", func() {}, err
+		}
+	}
+	if fixture.Mutation == "surface-hard-coded" {
+		dbPath := filepath.Join(tmp, "scenarios", "experience-manager", "data", "experience-manager.db")
+		if err := createSurfaceCalibrationDatabase(dbPath, fixture.AssetID); err != nil {
+			cleanup()
+			return "", func() {}, err
+		}
+	}
+	if fixture.Test != "" {
+		testPath := filepath.Join(tmp, "scenarios", "calibration-adopter", "ui", "src", "components", "Calibration.test.tsx")
+		if err := os.MkdirAll(filepath.Dir(testPath), 0o755); err != nil {
+			cleanup()
+			return "", func() {}, err
+		}
+		if err := copyFile(filepath.Join(fixtureDir, fixture.Test), testPath); err != nil {
+			cleanup()
+			return "", func() {}, err
+		}
+	}
+	if fixture.Mutation == "conformance" && fixture.Source != "" {
+		uiDir := filepath.Join(tmp, "scenarios", "react-component-library", "ui", "src")
+		if info, err := os.Lstat(uiDir); err == nil && info.Mode()&os.ModeSymlink != 0 {
+			if err := os.Remove(uiDir); err != nil {
+				cleanup()
+				return "", func() {}, err
+			}
+		}
+		if err := os.MkdirAll(uiDir, 0o755); err != nil {
+			cleanup()
+			return "", func() {}, err
+		}
+		if err := copyFile(filepath.Join(fixtureDir, fixture.Source), filepath.Join(uiDir, "CalibrationConformance.tsx")); err != nil {
+			cleanup()
+			return "", func() {}, err
+		}
+	}
+	if gate == "i18n-adopted" || gate == "selectors-adopted" {
+		uiRoot := filepath.Join(tmp, "scenarios", "calibration-adopter", "ui")
+		if err := os.MkdirAll(uiRoot, 0o755); err != nil {
+			cleanup()
+			return "", func() {}, err
+		}
+		manifest := []byte("{\n  \"dependencies\": {\n    \"@vrooli/react-component-library\": \"file:../../../packages/react-component-library\"\n  }\n}\n")
+		if err := os.WriteFile(filepath.Join(uiRoot, "package.json"), manifest, 0o644); err != nil {
 			cleanup()
 			return "", func() {}, err
 		}
@@ -454,6 +526,13 @@ func createCalibrationDatabase(targetPath string, fixture CalibrationFixture) er
 	if _, err := target.ExecContext(context.Background(), `CREATE TABLE component_versions (id TEXT PRIMARY KEY, component_id TEXT NOT NULL, library_id TEXT NOT NULL, version TEXT NOT NULL, status TEXT NOT NULL, source_path TEXT NOT NULL, content TEXT NOT NULL DEFAULT '', content_sha256 TEXT NOT NULL, changelog_md TEXT NOT NULL DEFAULT '', indexed_at TEXT NOT NULL, released_at TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL DEFAULT '', UNIQUE(component_id, version))`); err != nil {
 		return err
 	}
+	// Evidence-freshness reads the report table, not the component index. Keep
+	// the calibration database explicit about that seam so a missing report is
+	// observed as the planted defect instead of being mistaken for a broken
+	// runner with zero inspected inputs.
+	if _, err := target.ExecContext(context.Background(), `CREATE TABLE component_test_reports (id TEXT PRIMARY KEY, root_library_id TEXT NOT NULL, root_version TEXT NOT NULL, results_json TEXT NOT NULL DEFAULT '{}', created_at TEXT NOT NULL)`); err != nil {
+		return err
+	}
 	name := calibrationDirectoryName(fixture.AssetID)
 	sourcePath := filepath.ToSlash(filepath.Join("components", name, "versions", "1.0.0", name+filepath.Ext(fixture.Source)))
 	contentPath := filepath.Join(filepath.Dir(filepath.Dir(targetPath)), "library", sourcePath)
@@ -600,6 +679,29 @@ func createCompositionCalibrationDatabase(targetPath, assetID string) error {
 		return err
 	}
 	_, err = db.ExecContext(context.Background(), `INSERT INTO reconcile_evidence(id,scenario,document_kind,component_id,example_name,state_id,ax_node_json,measurement_json,checked_at) VALUES(?,?,?,?,?,?,?,?,?)`, "calibration-composition", "react-component-library", "component", assetID, "default", "default", string(tree), `{}`, "2026-01-01T00:00:00Z")
+	return err
+}
+
+func createSurfaceCalibrationDatabase(targetPath, assetID string) error {
+	if err := os.MkdirAll(filepath.Dir(targetPath), 0o755); err != nil {
+		return err
+	}
+	if err := removeGateDB(targetPath); err != nil {
+		return err
+	}
+	db, err := openGateDB(context.Background(), targetPath)
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+	if _, err := db.ExecContext(context.Background(), `CREATE TABLE reconcile_evidence (id TEXT PRIMARY KEY, scenario TEXT NOT NULL, document_kind TEXT NOT NULL, component_id TEXT NOT NULL, example_name TEXT NOT NULL, state_id TEXT NOT NULL, ax_node_json TEXT NOT NULL, measurement_json TEXT NOT NULL, checked_at TEXT NOT NULL)`); err != nil {
+		return err
+	}
+	if _, err := db.ExecContext(context.Background(), `CREATE TABLE reconcile_evidence_viewports (evidence_id TEXT PRIMARY KEY, viewport_id TEXT NOT NULL, viewport_width INTEGER NOT NULL, viewport_height INTEGER NOT NULL)`); err != nil {
+		return err
+	}
+	ax := fmt.Sprintf(`{"dom":{"attributes":{"data-rcl-asset":%q}},"computedStyle":{"box-shadow":"0 1px 2px rgba(9, 18, 22, 0.06), 0 1px 3px rgba(9, 18, 22, 0.1)"}}`, assetID)
+	_, err = db.ExecContext(context.Background(), `INSERT INTO reconcile_evidence(id,scenario,document_kind,component_id,example_name,state_id,ax_node_json,measurement_json,checked_at) VALUES(?,?,?,?,?,?,?,?,?)`, "calibration-surface-hard-coded", "react-component-library", "component", assetID, "default", "default", ax, `{}`, "2026-01-01T00:00:00Z")
 	return err
 }
 

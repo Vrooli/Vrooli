@@ -9,9 +9,9 @@ import {
 import {
   ControlBase,
   type ControlVariant,
-} from "../../../ControlBase/versions/1.0.0/ControlBase";
-import { Toggle } from "../../../Toggle/versions/1.0.0/Toggle";
-import { useRovingFocus } from "../../../../hooks/useRovingFocus/versions/1.0.0/useRovingFocus";
+} from "@vrooli/react-component-library/ControlBase/1.0.0";
+import { Toggle } from "@vrooli/react-component-library/Toggle/1.0.0";
+import { useRovingFocus } from "@vrooli/react-component-library/useRovingFocus/1.0.0";
 
 export interface ToolbarItem {
   id: string;

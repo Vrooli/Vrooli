@@ -7,7 +7,7 @@
     "fixtures": []
   },
   "kind": "component",
-  "schemaVersion": 4,
+  "schemaVersion": 5,
   "stories": [
     {
       "args": {},
@@ -30,7 +30,8 @@
       ],
       "id": "default",
       "mode": "live",
-      "name": "Default"
+      "name": "Default",
+      "role": "anatomy"
     },
     {
       "args": {},
@@ -81,7 +82,8 @@
         }
       ],
       "mode": "live",
-      "name": "Selected"
+      "name": "Selected",
+      "role": "boundary"
     },
     {
       "args": {},
@@ -104,7 +106,8 @@
       ],
       "id": "error-state",
       "mode": "live",
-      "name": "Error State"
+      "name": "Error State",
+      "role": "boundary"
     }
   ],
   "title": "AsyncOptionsField"

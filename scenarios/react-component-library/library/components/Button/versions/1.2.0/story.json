@@ -28,7 +28,7 @@
     "fixtures": []
   },
   "kind": "component",
-  "schemaVersion": 4,
+  "schemaVersion": 5,
   "stories": [
     {
       "args": {
@@ -50,7 +50,8 @@
       ],
       "id": "primary",
       "mode": "pinned",
-      "name": "Primary"
+      "name": "Primary",
+      "role": "anatomy"
     },
     {
       "args": {
@@ -72,7 +73,8 @@
       ],
       "id": "destructive",
       "mode": "pinned",
-      "name": "Destructive"
+      "name": "Destructive",
+      "role": "boundary"
     },
     {
       "args": {
@@ -96,18 +98,11 @@
       ],
       "id": "disabled-long-label",
       "mode": "pinned",
-      "name": "Disabled Long Label"
+      "name": "Disabled Long Label",
+      "role": "boundary"
     },
     {
       "args": {
-        "children": [
-          {
-            "$icon": "Save"
-          },
-          {
-            "$text": "Save draft"
-          }
-        ],
         "variant": "primary"
       },
       "expect": [
@@ -123,7 +118,14 @@
       ],
       "id": "icon-start",
       "mode": "pinned",
-      "name": "Icon Start"
+      "name": "Icon Start",
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "IconStart"
+        }
+      },
+      "role": "boundary"
     }
   ],
   "title": "Button"

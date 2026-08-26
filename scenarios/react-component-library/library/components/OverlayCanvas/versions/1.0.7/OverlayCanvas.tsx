@@ -1,13 +1,11 @@
 /** @vrooliComponentSource react-component-library:OverlayCanvas */
-import { translate } from "../../../../hooks/useLocale/versions/1.0.0/useLocale";
-
-import { Stack } from "../../../../primitives/Stack/versions/1.0.0/Stack";
-import { Text } from "../../../../primitives/Text/versions/1.0.0/Text";
+import { Stack } from "@vrooli/react-component-library/Stack/1.0.0";
+import { Text } from "@vrooli/react-component-library/Text/1.0.0";
 import {
   CONTROL_VARIANTS,
   CONTROL_SIZES,
   SURFACE_ELEVATIONS,
-} from "../../../../foundations/VisualRecipes/versions/1.0.0/VisualRecipes";
+} from "@vrooli/react-component-library/VisualRecipes/1.0.0";
 export interface OverlaySubject {
   id: string;
   label: string;
@@ -26,7 +24,7 @@ export function OverlayCanvas({
   return (
     <section
       className={SURFACE_ELEVATIONS.raised}
-      aria-label={translate("visualization.overlay-canvas.aria-label.1", "Claim overlay")}
+      aria-label="Claim overlay"
       data-rcl-asset="visualization.overlay-canvas"
       data-rcl-version="1.0.7"
       data-rcl-stamp="source"
@@ -35,7 +33,7 @@ export function OverlayCanvas({
     >
       <Stack gap="xs">
         <Text as="strong" textStyle="label">
-          {translate("visualization.overlay-canvas.text.2", "Measured subjects")}
+          Measured subjects
         </Text>
         <div
           role="img"
@@ -64,13 +62,13 @@ export function OverlayCanvas({
           ))}
           {!subjects.length ? <Text tone="muted">{message}</Text> : null}
         </div>
-        <button data-testid="visualization.overlay-canvas"
+        <button
           type="button"
           className={`${CONTROL_VARIANTS.ghost} ${CONTROL_SIZES.md}`}
           data-bespoke="evidence disclosure remains a native action"
           style={{ minHeight: "var(--control-height)" }}
         >
-          {translate("visualization.overlay-canvas.text.3", "Open evidence")}
+          Open evidence
         </button>
       </Stack>
     </section>

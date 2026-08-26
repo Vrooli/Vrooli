@@ -6,7 +6,7 @@ export function Default() {
   const [active, setActive] = useState(0);
   const onKeyDown = useRovingFocus([first, second], active, setActive);
   return (
-    <div role="toolbar" tabIndex={0} onKeyDown={onKeyDown}>
+    <div data-testid="hooks.use-roving-focus" role="toolbar" tabIndex={0} onKeyDown={onKeyDown}>
       <button ref={first} type="button">
         One
       </button>

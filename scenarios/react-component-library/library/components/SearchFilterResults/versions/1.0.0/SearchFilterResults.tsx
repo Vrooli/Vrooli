@@ -1,11 +1,11 @@
 /** @vrooliComponentSource patterns.search-filter-results */
 import { useCallback, useRef, useState } from "react";
-import { FilterBar } from "../../../FilterBar/versions/1.0.0/FilterBar";
+import { FilterBar } from "@vrooli/react-component-library/FilterBar/1.0.0";
 import {
   SearchResults,
   type SearchResultsState,
-} from "../../../SearchResults/versions/1.0.0/SearchResults";
-import { useAbortableTask } from "../../../../hooks/useAbortableTask/versions/1.0.0/useAbortableTask";
+} from "@vrooli/react-component-library/SearchResults/1.0.4";
+import { useAbortableTask } from "@vrooli/react-component-library/useAbortableTask/1.0.0";
 
 export interface SearchFilterResultsProps {
   query?: string;

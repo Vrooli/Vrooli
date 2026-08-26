@@ -159,6 +159,37 @@ func (h *handlers) pruneTokens(ctx cliapp.RunContext) error {
 	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{Summary: []string{fmt.Sprintf("Token prune for %s: removed=%d changed=%t", resp.Msg.Scenario, len(resp.Msg.Removed), resp.Msg.Changed)}, ResultsHeading: "Removed tokens", Results: resp.Msg.Removed})
 }
 
+func (h *handlers) link(ctx cliapp.RunContext) error {
+	resp, err := h.client.LinkAdoption(context.Background(), connect.NewRequest(&adoptionsv1.LinkAdoptionRequest{
+		ComponentId: ctx.Positional("component-id"), Scenario: ctx.Positional("scenario"), Version: ctx.Flag("version"),
+		ImportSubpath: ctx.Flag("import-subpath"), ConfirmExisting: ctx.Flag("confirm-existing") == "true",
+	}))
+	if err != nil {
+		return cliapp.WrapAPIError("link adoption", err, nil)
+	}
+	if resp == nil || resp.Msg == nil || resp.Msg.Adoption == nil {
+		return fmt.Errorf("server returned no linked adoption")
+	}
+	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{Summary: []string{fmt.Sprintf("Linked %s through %s.", resp.Msg.Adoption.Id, resp.Msg.PackagePath)}, ResultsHeading: "Adoption", Results: []string{formatAdoption(resp.Msg.Adoption)}})
+}
+
+func (h *handlers) eject(ctx cliapp.RunContext) error {
+	if strings.TrimSpace(ctx.Flag("reason")) == "" {
+		return fmt.Errorf("--reason is required for an ejection")
+	}
+	resp, err := h.client.EjectAdoption(context.Background(), connect.NewRequest(&adoptionsv1.EjectAdoptionRequest{
+		ComponentId: ctx.Positional("component-id"), Scenario: ctx.Positional("scenario"), AdoptedPath: ctx.Positional("adopted-path"), Version: ctx.Flag("version"), Reason: ctx.Flag("reason"),
+		ConfirmOverwrite: ctx.Flag("confirm-overwrite") == "true", OverrideValidation: ctx.Flag("override-validation") == "true", ReplaceExisting: ctx.Flag("replace-existing") == "true",
+	}))
+	if err != nil {
+		return cliapp.WrapAPIError("eject adoption", err, nil)
+	}
+	if resp == nil || resp.Msg == nil || resp.Msg.Adoption == nil {
+		return fmt.Errorf("server returned no ejected adoption")
+	}
+	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{Summary: []string{fmt.Sprintf("Ejected %s to %s for reason: %s", resp.Msg.Adoption.Id, resp.Msg.WrittenPath, resp.Msg.Adoption.ForkReason)}, ResultsHeading: "Adoption", Results: []string{formatAdoption(resp.Msg.Adoption)}})
+}
+
 func (h *handlers) apply(ctx cliapp.RunContext) error {
 	if ctx.FlagDeclared("set") {
 		values := ctx.FlagValues("set")
@@ -316,7 +347,9 @@ func (h *handlers) delete(ctx cliapp.RunContext) error {
 }
 
 func (h *handlers) refresh(ctx cliapp.RunContext) error {
-	req := &adoptionsv1.RefreshAdoptionsRequest{ComponentId: ctx.Flag("component-id")}
+	report := ctx.FlagDeclared("report") && ctx.Flag("report") == "true"
+	apply := !report || (ctx.FlagDeclared("apply") && ctx.Flag("apply") == "true")
+	req := &adoptionsv1.RefreshAdoptionsRequest{ComponentId: ctx.Flag("component-id"), ForkReport: report, Apply: apply}
 	resp, err := h.client.RefreshAdoptions(context.Background(), connect.NewRequest(req))
 	if err != nil {
 		return cliapp.WrapAPIError("refresh adoptions", err, nil)
@@ -330,6 +363,20 @@ func (h *handlers) refresh(ctx cliapp.RunContext) error {
 	}
 	summary := fmt.Sprintf("Refreshed %d adoption(s): library current=%d behind=%d source-drifted=%d; local clean=%d modified=%d missing=%d.",
 		len(resp.Msg.Adoptions), resp.Msg.LibraryCurrent, resp.Msg.LibraryBehind, resp.Msg.LibrarySourceDrifted, resp.Msg.LocalClean, resp.Msg.LocalModified, resp.Msg.LocalMissing)
+	if report {
+		counts := map[string]int{}
+		for _, adoption := range resp.Msg.Adoptions {
+			if adoption != nil {
+				counts[nonEmpty(adoption.ForkStatus, "unclassified")]++
+			}
+		}
+		mode := "dry-run"
+		if apply {
+			mode = "applied"
+		}
+		summary = fmt.Sprintf("Fork report (%s) for %d adoption(s): mechanical-translation=%d contract-preserved=%d local-addition=%d local-fork=%d declared-fork=%d unclassified=%d.",
+			mode, len(resp.Msg.Adoptions), counts["mechanical-translation"], counts["contract-preserved"], counts["local-addition"], counts["local-fork"], counts["declared-fork"], counts["unclassified"])
+	}
 	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{
 		Summary:        []string{summary},
 		ResultsHeading: "Adoptions",
@@ -568,8 +615,8 @@ func formatAdoption(a *adoptionsv1.Adoption) string {
 	if a.StatusDetail != "" {
 		detail = " (" + a.StatusDetail + ")"
 	}
-	return fmt.Sprintf("%s — %s:%s [%s%s] v=%s adopted=%s refreshed=%s",
-		a.Id, a.Scenario, a.AdoptedPath, status, detail, a.AdoptedVersion, a.LibraryId, refreshed)
+	return fmt.Sprintf("%s — %s:%s [%s%s] fork=%s mode=%s v=%s adopted=%s refreshed=%s",
+		a.Id, a.Scenario, a.AdoptedPath, status, detail, nonEmpty(a.ForkStatus, "unclassified"), nonEmpty(a.Mode, "copied"), a.AdoptedVersion, a.LibraryId, refreshed)
 }
 
 func libraryStatusLabel(s adoptionsv1.LibraryVersionStatus) string {

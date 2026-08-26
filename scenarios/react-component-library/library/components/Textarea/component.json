@@ -20,7 +20,7 @@
   ],
   "displayName": "Textarea",
   "draft": "",
-  "latest": "1.0.0",
+  "latest": "1.0.1",
   "libraryId": "react-component-library:Textarea",
   "slot": "ui-primitive",
   "tags": [

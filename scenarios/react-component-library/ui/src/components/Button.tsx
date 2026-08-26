@@ -1,2 +1,2 @@
 /** @vrooliComponentSource controls.button */
-export * from "./ui/Button/versions/2.0.0/Button";
+export * from "@vrooli/react-component-library/Button/2.0.0";

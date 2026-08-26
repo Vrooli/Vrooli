@@ -6,8 +6,8 @@ import { useTranslation } from "../i18n";
 import { BarChart3, FolderTree, PanelLeftClose, Sparkles } from "lucide-react";
 import { BrandMark } from "./BrandMark";
 import { IconButton } from "./IconButton";
-import { AppNavigation } from "./ui/AppNavigation/versions/1.0.0/AppNavigation";
-import { NavigationTree } from "./ui/NavigationTree/versions/1.0.0/NavigationTree";
+import { AppNavigation } from "@vrooli/react-component-library/AppNavigation/1.1.0";
+import { NavigationTree } from "@vrooli/react-component-library/NavigationTree/1.1.0";
 
 interface SidebarContentProps {
   onNavigate?: () => void;

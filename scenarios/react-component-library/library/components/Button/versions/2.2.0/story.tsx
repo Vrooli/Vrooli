@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Button, type ButtonProps } from "./Button";
-import { PreviewShowcase } from "../../../../preview-harnesses/showcase/versions/1.0.0/PreviewShowcase";
+import { PreviewShowcase } from "../../../../preview-harnesses/showcase/PreviewShowcase";
 
 export function ButtonStory({ args }: StoryHarnessProps) {
   const buttonArgs = args as unknown as ButtonProps;

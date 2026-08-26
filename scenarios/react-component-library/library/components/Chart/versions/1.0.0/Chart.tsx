@@ -1,6 +1,4 @@
 /** @vrooliComponentSource react-component-library:Chart */
-import { translate } from "../../../../hooks/useLocale/versions/1.0.0/useLocale";
-
 import {
   useId,
   useMemo,
@@ -11,9 +9,9 @@ import {
 import {
   AsyncBoundary,
   type AsyncBoundaryStatus,
-} from "../../../AsyncBoundary/versions/1.0.0/AsyncBoundary";
-import { useElementRect } from "../../../../hooks/useElementRect/versions/1.0.0/useElementRect";
-import { useLocale } from "../../../../hooks/useLocale/versions/1.0.0/useLocale";
+} from "@vrooli/react-component-library/AsyncBoundary/1.0.0";
+import { useElementRect } from "@vrooli/react-component-library/useElementRect/1.0.0";
+import { useLocale } from "@vrooli/react-component-library/useLocale/1.0.0";
 
 export type ChartPresentation = "contained" | "immersive";
 export type ChartLevel = "controller" | "compound" | "convenience";
@@ -78,7 +76,7 @@ const defaultFormatter = (value: number, locale: string) =>
 export function Chart({
   data,
   title,
-  description = translate("visualization.chart.description.1", "Explore the trend and select a point for its exact value."),
+  description = "Explore the trend and select a point for its exact value.",
   status = "success",
   presentation = "contained",
   valueFormatter = defaultFormatter,
@@ -139,7 +137,7 @@ export function Chart({
           <div data-rcl-chart-surface data-presentation={presentation}>
             <div data-rcl-chart-header>
               <div data-rcl-chart-heading>
-                <span data-rcl-chart-kicker>{translate("visualization.chart.text.3", "Performance overview")}</span>
+                <span data-rcl-chart-kicker>Performance overview</span>
                 <h2 id={titleId} data-rcl-chart-title>
                   {title}
                 </h2>
@@ -223,10 +221,10 @@ export function Chart({
               <div
                 data-rcl-chart-legend
                 data-rcl-chart-part="legend"
-                aria-label={translate("visualization.chart.aria-label.2", "Chart values")}
+                aria-label="Chart values"
               >
                 {data.map((point) => (
-                  <button data-testid="visualization.chart"
+                  <button
                     key={point.id}
                     type="button"
                     aria-pressed={point.id === selected}
@@ -245,8 +243,8 @@ export function Chart({
               <caption>{title} data</caption>
               <thead>
                 <tr>
-                  <th scope="col">{translate("visualization.chart.text.4", "Period")}</th>
-                  <th scope="col">{translate("visualization.chart.text.5", "Value")}</th>
+                  <th scope="col">Period</th>
+                  <th scope="col">Value</th>
                 </tr>
               </thead>
               <tbody>

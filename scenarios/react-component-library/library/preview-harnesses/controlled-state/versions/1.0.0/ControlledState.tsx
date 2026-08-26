@@ -1,6 +1,6 @@
 import { useState, type ComponentType, type ReactNode } from "react";
 
-import { PreviewShowcase } from "../../../showcase/versions/1.0.0/PreviewShowcase";
+import { PreviewShowcase } from "../../../showcase/PreviewShowcase";
 
 export type ControlledStateConfig = {
   valueProp?: string;

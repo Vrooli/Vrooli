@@ -14,7 +14,7 @@
     "fixtures": []
   },
   "kind": "hook",
-  "schemaVersion": 4,
+  "schemaVersion": 5,
   "stories": [
     {
       "args": {
@@ -43,7 +43,8 @@
         }
       ],
       "mode": "live",
-      "name": "Escape action"
+      "name": "Escape action",
+      "role": "anatomy"
     }
   ],
   "title": "useEscapeKey"

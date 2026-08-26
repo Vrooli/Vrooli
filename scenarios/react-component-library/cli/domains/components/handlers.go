@@ -94,6 +94,40 @@ func (h *handlers) testList(ctx cliapp.RunContext) error {
 	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{Summary: []string{fmt.Sprintf("Found %d component test report(s).", len(results))}, ResultsHeading: "Reports", Results: results, RetrievalHints: []string{"`components test-show <report-id>` — inspect stages and remediation"}})
 }
 
+func (h *handlers) sweep(ctx cliapp.RunContext) error {
+	resp, err := h.testClient.SweepComponentTests(context.Background(), connect.NewRequest(&componenttestsv1.SweepComponentTestsRequest{
+		Resume: ctx.BoolFlag("resume"), IncludeClosure: ctx.BoolFlag("closure"), ComponentId: ctx.Flag("component-id"),
+	}))
+	if err != nil {
+		return cliapp.WrapAPIError("sweep component tests", err, nil)
+	}
+	if resp == nil || resp.Msg == nil {
+		return fmt.Errorf("server returned no component test sweep response")
+	}
+	rows := make([]string, 0, len(resp.Msg.Reports))
+	for _, report := range resp.Msg.Reports {
+		if report == nil {
+			continue
+		}
+		rows = append(rows, fmt.Sprintf("%s\t%s@%s\t%s", report.Id, report.RootLibraryId, report.RootVersion, report.Verdict))
+	}
+	mode := "fresh"
+	if resp.Msg.Skipped > 0 || ctx.BoolFlag("resume") {
+		mode = "resume"
+	}
+	summary := fmt.Sprintf("Component sweep (%s): planned=%d started=%d skipped=%d passed=%d failed=%d blocked=%d complete=%t.", mode, resp.Msg.Planned, resp.Msg.Started, resp.Msg.Skipped, resp.Msg.Passed, resp.Msg.Failed, resp.Msg.Blocked, resp.Msg.Complete)
+	if len(resp.Msg.Errors) > 0 {
+		rows = append(rows, resp.Msg.Errors...)
+	}
+	if err := cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{Summary: []string{summary}, ResultsHeading: "Version reports", Results: rows, RetrievalHints: []string{"`components sweep --resume` — retry only untested or blocked versions"}}); err != nil {
+		return err
+	}
+	if resp.Msg.Blocked > 0 || !resp.Msg.Complete {
+		return fmt.Errorf("component sweep is not complete: %d blocked result(s), %d error(s)", resp.Msg.Blocked, len(resp.Msg.Errors))
+	}
+	return nil
+}
+
 func renderTestReport(ctx cliapp.RunContext, report *componenttestsv1.ComponentTestReport, summary string) error {
 	results := make([]string, 0, len(report.Results))
 	for _, result := range report.Results {

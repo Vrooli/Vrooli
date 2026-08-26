@@ -85,17 +85,15 @@ describe("resolver chain", () => {
     assert.equal(metadata?.strategy, "library");
   });
 
-  it("resolves an adopted copy through its re-export shim marker", () => {
+  it("does not classify a package-backed re-export as a copied adoption", () => {
     const adoptedIndex = adoptedAssetIndex(`${scenarioRoot}/ui/src/components`);
     const metadata = assetStampMetadata(
-      `${scenarioRoot}/ui/src/components/ui/Button/versions/2.0.0/Button.tsx`,
+      `${scenarioRoot}/ui/src/components/Button.tsx`,
       scenarioRoot,
       undefined,
       { adoptedIndex },
     );
-    assert.equal(metadata?.asset, "controls.button");
-    assert.equal(metadata?.version, "2.0.0");
-    assert.equal(metadata?.strategy, "adopted");
+    assert.equal(metadata, undefined);
   });
 
   it("indexes only re-export shims, never files that merely import an asset", () => {

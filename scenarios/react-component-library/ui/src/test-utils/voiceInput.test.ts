@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { VoiceInputController } from "../hooks/useVoiceInput/versions/1.0.0/useVoiceInput";
+import { VoiceInputController } from "@vrooli/react-component-library/useVoiceInput/1.0.0";
 import { FakeVoiceAdapter, FakeVoiceClock, FakeVoiceCues, FakeVoiceMedia } from "./voiceInput";
 
 const arrange = (mode: "always-on" | "timeout" = "always-on") => {

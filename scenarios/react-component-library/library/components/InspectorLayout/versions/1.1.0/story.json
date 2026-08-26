@@ -9,25 +9,19 @@
         "path": "title"
       },
       {
-        "default": {
-          "$text": "button"
-        },
+        "default": "Content",
         "kind": "structured",
         "label": "Toolbar",
         "path": "toolbar"
       },
       {
-        "default": {
-          "$text": "p"
-        },
+        "default": "Content",
         "kind": "structured",
         "label": "Canvas",
         "path": "canvas"
       },
       {
-        "default": {
-          "$text": "p"
-        },
+        "default": "Content",
         "kind": "structured",
         "label": "Inspector",
         "path": "inspector"
@@ -44,21 +38,12 @@
     "fixtures": []
   },
   "kind": "component",
-  "schemaVersion": 4,
+  "schemaVersion": 5,
   "stories": [
     {
       "args": {
-        "canvas": {
-          "$text": "p"
-        },
-        "inspector": {
-          "$text": "p"
-        },
         "inspectorSurfaceId": "inspector",
-        "title": "Workflow editor",
-        "toolbar": {
-          "$text": "button"
-        }
+        "title": "Workflow editor"
       },
       "expect": [
         {
@@ -78,13 +63,17 @@
       ],
       "id": "ready-inspector",
       "mode": "pinned",
-      "name": "Ready inspector"
+      "name": "Ready inspector",
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "ReadyInspector"
+        }
+      },
+      "role": "anatomy"
     },
     {
       "args": {
-        "canvas": {
-          "$text": "p"
-        },
         "inspectorState": "empty",
         "title": "Workflow editor"
       },
@@ -96,16 +85,17 @@
       ],
       "id": "empty-inspector",
       "mode": "pinned",
-      "name": "Empty inspector"
+      "name": "Empty inspector",
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "EmptyInspector"
+        }
+      },
+      "role": "boundary"
     },
     {
       "args": {
-        "canvas": {
-          "$text": "p"
-        },
-        "inspector": {
-          "$text": "p"
-        },
         "inspectorState": "loading",
         "title": "Workflow editor"
       },
@@ -119,16 +109,17 @@
       ],
       "id": "loading-inspector",
       "mode": "pinned",
-      "name": "Loading inspector"
+      "name": "Loading inspector",
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "LoadingInspector"
+        }
+      },
+      "role": "boundary"
     },
     {
       "args": {
-        "canvas": {
-          "$text": "p"
-        },
-        "inspector": {
-          "$text": "p"
-        },
         "inspectorState": "partial",
         "title": "Workflow editor"
       },
@@ -142,16 +133,17 @@
       ],
       "id": "partial-inspector",
       "mode": "pinned",
-      "name": "Partial inspector"
+      "name": "Partial inspector",
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "PartialInspector"
+        }
+      },
+      "role": "boundary"
     },
     {
       "args": {
-        "canvas": {
-          "$text": "p"
-        },
-        "inspector": {
-          "$text": "p"
-        },
         "inspectorState": "error",
         "title": "Workflow editor"
       },
@@ -165,7 +157,14 @@
       ],
       "id": "error-inspector",
       "mode": "pinned",
-      "name": "Inspector error"
+      "name": "Inspector error",
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "ErrorInspector"
+        }
+      },
+      "role": "boundary"
     }
   ],
   "title": "InspectorLayout"

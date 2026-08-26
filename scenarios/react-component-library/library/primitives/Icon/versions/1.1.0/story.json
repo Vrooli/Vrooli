@@ -6,237 +6,51 @@
         "default": "check",
         "kind": "enum",
         "label": "Name",
-        "options": [
-          "check",
-          "close",
-          "chevronDown",
-          "chevronRight",
-          "menu",
-          "search",
-          "plus",
-          "arrowStart",
-          "arrowEnd"
-        ],
+        "options": ["check", "close", "chevronDown", "chevronRight", "menu", "search", "plus", "arrowStart", "arrowEnd"],
         "path": "name"
       }
     ]
   },
-  "environment": {
-    "fixtures": []
-  },
+  "environment": {"fixtures": []},
   "kind": "component",
-  "schemaVersion": 4,
+  "schemaVersion": 5,
   "stories": [
     {
-      "args": {
-        "name": "check"
-      },
-      "composition": {
-        "specimen": {
-          "export": "IconShowcase",
-          "module": "./story.tsx"
-        }
-      },
+      "id": "anatomy",
+      "name": "Default anatomy",
+      "role": "anatomy",
+      "args": {"name": "check"},
+      "composition": {"specimen": {"module": "./story.tsx", "export": "IconAnatomy"}},
       "expect": [
-        {
-          "kind": "role",
-          "name": "Check",
-          "role": "img"
-        },
-        {
-          "kind": "text",
-          "value": "Icons with a point of view"
-        },
-        {
-          "kind": "layout",
-          "minHeight": 180,
-          "minWidth": 240,
-          "noOverflow": true,
-          "selector": "[data-rcl-icon-showcase]"
-        }
-      ],
-      "id": "name-check",
-      "mode": "live",
-      "name": "Check"
+        {"kind": "role", "role": "heading", "name": "A named icon with an accessible label"},
+        {"kind": "role", "role": "img", "name": "Check"}
+      ]
     },
     {
-      "args": {
-        "name": "search"
-      },
-      "composition": {
-        "specimen": {
-          "export": "IconShowcase",
-          "module": "./story.tsx"
-        }
-      },
+      "id": "set",
+      "name": "Icon set",
+      "role": "axis",
+      "axis": "name",
+      "covers": {"name": ["check", "close", "chevronDown", "chevronRight", "menu", "search", "plus", "arrowStart", "arrowEnd"]},
+      "args": {"name": "check"},
+      "composition": {"specimen": {"module": "./story.tsx", "export": "IconSetMatrix"}},
       "expect": [
-        {
-          "kind": "role",
-          "name": "Search",
-          "role": "img"
-        },
-        {
-          "kind": "attribute",
-          "name": "aria-label",
-          "selector": "[data-icon=search]",
-          "value": "Search"
-        }
-      ],
-      "id": "name-search",
-      "mode": "live",
-      "name": "Search"
+        {"kind": "role", "role": "heading", "name": "Nine registered names"},
+        {"kind": "role", "role": "img", "name": "Check"}
+      ]
     },
     {
-      "args": {
-        "name": "arrowEnd"
-      },
-      "composition": {
-        "specimen": {
-          "export": "IconShowcase",
-          "module": "./story.tsx"
-        }
-      },
+      "id": "treatment",
+      "name": "Size and tone treatment",
+      "role": "boundary",
+      "states": ["disabled", "rtl", "forced-colors"],
+      "args": {"name": "plus"},
+      "composition": {"specimen": {"module": "./story.tsx", "export": "IconTreatmentMatrix"}},
       "expect": [
-        {
-          "kind": "role",
-          "name": "Arrow end",
-          "role": "img"
-        },
-        {
-          "kind": "text",
-          "value": "Arrow end · named for assistive technology"
-        }
-      ],
-      "id": "name-arrow-end",
-      "mode": "live",
-      "name": "Arrow end"
-    },
-    {
-      "args": {
-        "name": "close"
-      },
-      "composition": {
-        "specimen": {
-          "export": "IconShowcase",
-          "module": "./story.tsx"
-        }
-      },
-      "expect": [
-        {
-          "kind": "role",
-          "name": "Close",
-          "role": "img"
-        }
-      ],
-      "id": "name-close",
-      "mode": "live",
-      "name": "Close"
-    },
-    {
-      "args": {
-        "name": "chevronDown"
-      },
-      "composition": {
-        "specimen": {
-          "export": "IconShowcase",
-          "module": "./story.tsx"
-        }
-      },
-      "expect": [
-        {
-          "kind": "role",
-          "name": "Chevron down",
-          "role": "img"
-        }
-      ],
-      "id": "name-chevron-down",
-      "mode": "live",
-      "name": "Chevron down"
-    },
-    {
-      "args": {
-        "name": "chevronRight"
-      },
-      "composition": {
-        "specimen": {
-          "export": "IconShowcase",
-          "module": "./story.tsx"
-        }
-      },
-      "expect": [
-        {
-          "kind": "role",
-          "name": "Chevron right",
-          "role": "img"
-        }
-      ],
-      "id": "name-chevron-right",
-      "mode": "live",
-      "name": "Chevron right"
-    },
-    {
-      "args": {
-        "name": "menu"
-      },
-      "composition": {
-        "specimen": {
-          "export": "IconShowcase",
-          "module": "./story.tsx"
-        }
-      },
-      "expect": [
-        {
-          "kind": "role",
-          "name": "Menu",
-          "role": "img"
-        }
-      ],
-      "id": "name-menu",
-      "mode": "live",
-      "name": "Menu"
-    },
-    {
-      "args": {
-        "name": "plus"
-      },
-      "composition": {
-        "specimen": {
-          "export": "IconShowcase",
-          "module": "./story.tsx"
-        }
-      },
-      "expect": [
-        {
-          "kind": "role",
-          "name": "Plus",
-          "role": "img"
-        }
-      ],
-      "id": "name-plus",
-      "mode": "live",
-      "name": "Plus"
-    },
-    {
-      "args": {
-        "name": "arrowStart"
-      },
-      "composition": {
-        "specimen": {
-          "export": "IconShowcase",
-          "module": "./story.tsx"
-        }
-      },
-      "expect": [
-        {
-          "kind": "role",
-          "name": "Arrow start",
-          "role": "img"
-        }
-      ],
-      "id": "name-arrow-start",
-      "mode": "live",
-      "name": "Arrow start"
+        {"kind": "role", "role": "heading", "name": "Size and tone treatments"},
+        {"kind": "role", "role": "img", "name": "sm default"}
+      ]
     }
-  ],
-  "title": "Icon"
+  ]
 }
+

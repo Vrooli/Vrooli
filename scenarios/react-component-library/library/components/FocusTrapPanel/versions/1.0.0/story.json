@@ -22,7 +22,7 @@
     "fixtures": []
   },
   "kind": "component",
-  "schemaVersion": 4,
+  "schemaVersion": 5,
   "stories": [
     {
       "args": {
@@ -43,7 +43,8 @@
       ],
       "id": "open",
       "mode": "pinned",
-      "name": "Open"
+      "name": "Open",
+      "role": "anatomy"
     },
     {
       "args": {
@@ -60,7 +61,8 @@
       ],
       "id": "closed",
       "mode": "pinned",
-      "name": "Closed"
+      "name": "Closed",
+      "role": "boundary"
     }
   ],
   "title": "FocusTrapPanel"

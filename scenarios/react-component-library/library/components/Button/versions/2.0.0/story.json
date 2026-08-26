@@ -69,9 +69,7 @@
         "path": "disabled"
       },
       {
-        "default": {
-          "$icon": "Save"
-        },
+        "default": "",
         "kind": "structured",
         "label": "Icon",
         "path": "icon"
@@ -82,7 +80,7 @@
     "fixtures": []
   },
   "kind": "component",
-  "schemaVersion": 4,
+  "schemaVersion": 5,
   "stories": [
     {
       "args": {
@@ -106,7 +104,8 @@
       ],
       "id": "primary",
       "mode": "live",
-      "name": "Primary"
+      "name": "Primary",
+      "role": "anatomy"
     },
     {
       "args": {
@@ -130,7 +129,17 @@
       ],
       "id": "secondary",
       "mode": "live",
-      "name": "Secondary"
+      "name": "Secondary",
+      "role": "axis",
+      "axis": "variant",
+      "covers": {
+        "variant": [
+          "primary",
+          "secondary",
+          "ghost",
+          "danger"
+        ]
+      }
     },
     {
       "args": {
@@ -154,7 +163,19 @@
       ],
       "id": "ghost",
       "mode": "live",
-      "name": "Ghost"
+      "name": "Ghost",
+      "role": "axis",
+      "axis": "size",
+      "covers": {
+        "size": [
+          "xs",
+          "sm",
+          "md",
+          "lg",
+          "xl",
+          "icon"
+        ]
+      }
     },
     {
       "args": {
@@ -178,7 +199,15 @@
       ],
       "id": "danger",
       "mode": "live",
-      "name": "Danger"
+      "name": "Danger",
+      "role": "axis",
+      "axis": "density",
+      "covers": {
+        "density": [
+          "comfortable",
+          "compact"
+        ]
+      }
     },
     {
       "args": {
@@ -202,7 +231,15 @@
       ],
       "id": "disabled-long-label",
       "mode": "live",
-      "name": "Disabled"
+      "name": "Disabled",
+      "role": "axis",
+      "axis": "shape",
+      "covers": {
+        "shape": [
+          "square",
+          "pill"
+        ]
+      }
     },
     {
       "args": {
@@ -226,7 +263,8 @@
       ],
       "id": "size-xs",
       "mode": "live",
-      "name": "XS"
+      "name": "XS",
+      "role": "boundary"
     },
     {
       "args": {
@@ -250,7 +288,8 @@
       ],
       "id": "size-sm",
       "mode": "live",
-      "name": "SM"
+      "name": "SM",
+      "role": "boundary"
     },
     {
       "args": {
@@ -274,7 +313,8 @@
       ],
       "id": "size-md",
       "mode": "live",
-      "name": "MD"
+      "name": "MD",
+      "role": "boundary"
     },
     {
       "args": {
@@ -298,7 +338,8 @@
       ],
       "id": "size-lg",
       "mode": "live",
-      "name": "LG"
+      "name": "LG",
+      "role": "boundary"
     },
     {
       "args": {
@@ -322,7 +363,8 @@
       ],
       "id": "size-xl",
       "mode": "live",
-      "name": "XL"
+      "name": "XL",
+      "role": "boundary"
     },
     {
       "args": {
@@ -346,7 +388,8 @@
       ],
       "id": "size-icon",
       "mode": "live",
-      "name": "Icon floor"
+      "name": "Icon floor",
+      "role": "boundary"
     },
     {
       "args": {
@@ -370,7 +413,8 @@
       ],
       "id": "density-comfortable",
       "mode": "live",
-      "name": "Comfortable"
+      "name": "Comfortable",
+      "role": "boundary"
     },
     {
       "args": {
@@ -394,7 +438,8 @@
       ],
       "id": "density-compact",
       "mode": "live",
-      "name": "Compact"
+      "name": "Compact",
+      "role": "boundary"
     },
     {
       "args": {
@@ -418,7 +463,8 @@
       ],
       "id": "shape-square",
       "mode": "live",
-      "name": "Square"
+      "name": "Square",
+      "role": "boundary"
     },
     {
       "args": {
@@ -442,22 +488,20 @@
       ],
       "id": "shape-pill",
       "mode": "live",
-      "name": "Pill"
+      "name": "Pill",
+      "role": "boundary"
     },
     {
       "args": {
         "children": {
           "$text": "Save"
         },
-        "icon": {
-          "$icon": "Save"
-        },
         "size": "sm"
       },
       "composition": {
         "specimen": {
-          "export": "ButtonStory",
-          "module": "./story.tsx"
+          "module": "./story.tsx",
+          "export": "StartIcon"
         }
       },
       "expect": [
@@ -469,7 +513,8 @@
       ],
       "id": "start-icon",
       "mode": "live",
-      "name": "Start icon spacing"
+      "name": "Start icon spacing",
+      "role": "boundary"
     }
   ],
   "title": "Button 2.0"

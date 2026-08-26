@@ -1,0 +1,10 @@
+{
+  "gate": "i18n-adopted",
+  "assetId": "__adopter__",
+  "kind": "component",
+  "runner": "static",
+  "requiredFailureCode": "catalog.i18n-adopted",
+  "source": "broken.tsx",
+  "catalogAsset": "asset.json",
+  "description": "The linked adopter is missing its locale bridge."
+}

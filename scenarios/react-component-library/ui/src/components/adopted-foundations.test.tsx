@@ -116,11 +116,6 @@ const PRIMITIVE_LAYER = /[\\/]versions[\\/]/;
  * composing the primitive is the fix.
  */
 const JUSTIFIED_RAW_ELEMENTS: Record<string, string> = {
-  "Tabs.tsx":
-    "Tabs is itself a foundation. A tab is not a Pressable: it carries role=tab, " +
-    "aria-selected and a roving tabIndex, and it has to sit flush in the strip " +
-    "without the lift, border and 44px min-width ControlBase enforces. Tokens and " +
-    "motionTransition are still adopted for everything else.",
   "markdown-harvest/CodeBlock.tsx":
     "Self-contained harvest asset: its @deps header declares react + shiki only, so " +
     "importing a sibling library primitive would break standalone extraction. The " +

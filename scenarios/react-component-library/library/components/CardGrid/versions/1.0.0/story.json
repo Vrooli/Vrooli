@@ -3,14 +3,7 @@
   "args": {
     "fields": [
       {
-        "default": [
-          {
-            "$text": "article"
-          },
-          {
-            "$text": "article"
-          }
-        ],
+        "default": [],
         "kind": "structured",
         "label": "Children",
         "path": "children"
@@ -21,19 +14,10 @@
     "fixtures": []
   },
   "kind": "component",
-  "schemaVersion": 4,
+  "schemaVersion": 5,
   "stories": [
     {
-      "args": {
-        "children": [
-          {
-            "$text": "article"
-          },
-          {
-            "$text": "article"
-          }
-        ]
-      },
+      "args": {},
       "expect": [
         {
           "kind": "text",
@@ -42,7 +26,14 @@
       ],
       "id": "raised-records",
       "mode": "pinned",
-      "name": "Raised records"
+      "name": "Raised records",
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "RaisedRecords"
+        }
+      },
+      "role": "anatomy"
     }
   ],
   "title": "Card Grid"

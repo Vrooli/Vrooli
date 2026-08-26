@@ -1,6 +1,4 @@
 /** @vrooliComponentSource overlays.command-palette */
-import { translate } from "../../../../hooks/useLocale/versions/1.0.0/useLocale";
-
 import {
   useEffect,
   useMemo,
@@ -14,8 +12,8 @@ import {
   createCommandRegistry,
   type Command,
   type CommandRegistry,
-} from "../../../../services/CommandRegistry/versions/1.0.0/CommandRegistry";
-import { SearchInput } from "../../../SearchInput/versions/1.0.0/SearchInput";
+} from "@vrooli/react-component-library/CommandRegistry/1.0.0";
+import { SearchInput } from "@vrooli/react-component-library/SearchInput/1.0.0";
 
 export type CommandPaletteStatus =
   | "default"
@@ -87,9 +85,9 @@ export function CommandPalette({
   errorMessage = "Commands could not be refreshed. Your last available actions remain safe to retry.",
   onRetry,
   onExecuted,
-  title = translate("overlays.command-palette.title.1", "Command palette"),
-  description = translate("overlays.command-palette.description.2", "Search actions across this workspace."),
-  placeholder = translate("overlays.command-palette.placeholder.3", "Search commands…"),
+  title = "Command palette",
+  description = "Search actions across this workspace.",
+  placeholder = "Search commands…",
   className,
   style,
 }: CommandPaletteProps) {
@@ -202,10 +200,10 @@ export function CommandPalette({
         data-rcl-command-palette-styles
         dangerouslySetInnerHTML={{ __html: styles }}
       />
-      <button data-testid="overlays.command-palette"
+      <button
         type="button"
         data-rcl-command-palette-backdrop
-        aria-label={translate("overlays.command-palette.aria-label.4", "Close command palette")}
+        aria-label="Close command palette"
         onClick={onClose}
       />
       <section
@@ -216,7 +214,7 @@ export function CommandPalette({
         aria-describedby="rcl-command-palette-description"
       >
         <header data-rcl-command-palette-header>
-          <span data-rcl-command-palette-eyebrow>{translate("overlays.command-palette.text.7", "Command center")}</span>
+          <span data-rcl-command-palette-eyebrow>Command center</span>
           <h2 id="rcl-command-palette-title" data-rcl-command-palette-title>
             {title}
           </h2>
@@ -230,7 +228,7 @@ export function CommandPalette({
         <div data-rcl-command-palette-search>
           <SearchInput
             ref={searchRef}
-            aria-label={translate("overlays.command-palette.aria-label.5", "Search commands")}
+            aria-label="Search commands"
             role="combobox"
             aria-controls="rcl-command-palette-list"
             aria-expanded="true"
@@ -260,40 +258,40 @@ export function CommandPalette({
         </div>
         {state === "loading" ? (
           <div data-rcl-command-palette-state role="status">
-            <strong>{translate("overlays.command-palette.text.8", "Loading commands")}</strong>
-            <span>{translate("overlays.command-palette.text.9", "Preparing actions for this workspace…")}</span>
+            <strong>Loading commands</strong>
+            <span>Preparing actions for this workspace…</span>
           </div>
         ) : state === "request-error" || state === "retry" ? (
           <div data-rcl-command-palette-state data-tone="danger" role="alert">
-            <strong>{translate("overlays.command-palette.text.10", "Commands need a retry")}</strong>
+            <strong>Commands need a retry</strong>
             <span>{executionError ?? errorMessage}</span>
             {onRetry ? (
-              <button data-testid="overlays.command-palette"
+              <button
                 type="button"
                 data-rcl-command-palette-retry
                 onClick={() => void onRetry()}
               >
-                {translate("overlays.command-palette.text.1", "Try again")}
+                Try again
               </button>
             ) : null}
           </div>
         ) : state === "empty" || !grouped.length ? (
           <div data-rcl-command-palette-state role="status">
-            <strong>{translate("overlays.command-palette.text.11", "No matching commands")}</strong>
-            <span>{translate("overlays.command-palette.text.12", "Try a shorter phrase or clear the search.")}</span>
+            <strong>No matching commands</strong>
+            <span>Try a shorter phrase or clear the search.</span>
           </div>
         ) : (
           <div
             id="rcl-command-palette-list"
             data-rcl-command-palette-list
             role="listbox"
-            aria-label={translate("overlays.command-palette.aria-label.6", "Available commands")}
+            aria-label="Available commands"
           >
             {grouped.map(([group, groupCommands]) => (
               <div data-rcl-command-palette-group key={group}>
                 <div data-rcl-command-palette-group-label>{group}</div>
                 {groupCommands.map((command) => (
-                  <button data-testid="overlays.command-palette"
+                  <button
                     key={command.id}
                     id={`rcl-command-${command.id}`}
                     type="button"
@@ -336,21 +334,21 @@ export function CommandPalette({
         <footer data-rcl-command-palette-footer>
           <span data-rcl-command-palette-footer-hints>
             <span>
-              <kbd data-rcl-command-palette-key>↑↓</kbd> {translate("overlays.command-palette.text.2", "Navigate")}
+              <kbd data-rcl-command-palette-key>↑↓</kbd> Navigate
             </span>
             <span>
-              <kbd data-rcl-command-palette-key>↵</kbd> {translate("overlays.command-palette.text.3", "Run")}
+              <kbd data-rcl-command-palette-key>↵</kbd> Run
             </span>
             <span>
-              <kbd data-rcl-command-palette-key>{translate("overlays.command-palette.text.13", "Esc")}</kbd> {translate("overlays.command-palette.text.4", "Close")}
+              <kbd data-rcl-command-palette-key>Esc</kbd> Close
             </span>
           </span>
-          <button data-testid="overlays.command-palette"
+          <button
             type="button"
             data-rcl-command-palette-close
             onClick={onClose}
           >
-            {translate("overlays.command-palette.text.5", "Close")}
+            Close
           </button>
         </footer>
       </section>

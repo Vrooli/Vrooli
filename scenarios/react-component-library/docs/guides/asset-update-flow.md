@@ -44,6 +44,42 @@ adopters.
 9. Record the evidence in the plan/work record: index result, gate results,
    preflight results, refresh/reapply outcomes, and any intentional override.
 
+## Importable adoption
+
+Use a linked adoption when the released export surface is sufficient for the
+target scenario. The governed link workflow installs the scenario's
+`file:../../../packages/react-component-library` dependency, records
+`mode=linked`, and writes the managed locale and selector obligations:
+
+```bash
+scenario-dependency-analyzer deps install node/@vrooli/react-component-library \
+  --scenario <scenario> --surface ui \
+  --version file:../../../packages/react-component-library --apply --json
+react-component-library adoptions link <library-id> <scenario> \
+  --version <version> --json
+```
+
+Linked records have no `adoption_files` rows. Imports use a stable versioned
+subpath such as `@vrooli/react-component-library/components/Button/1.2.0`.
+Run `react-component-library adoptions refresh --json` after linking so the
+fork census and adopter gates reflect the live state.
+
+If a scenario must change behavior outside the exported contract, use the
+reason-bearing eject command. Eject changes the record to `mode=ejected` and
+returns the adoption to the governed copy workflow; it never silently turns a
+linked dependency into a private fork.
+
+## Files editor library imports
+
+The Files editor understands published imports such as
+`@vrooli/react-component-library/Button/2.2.0`. Hovering an import resolves it
+through the catalog and shows the asset id, pinned version, export kind, and
+description. Go to Definition opens the version-pinned source in the same
+Monaco viewer. Relative imports remain local to the current file and are
+reported as unresolved; the editor does not pretend that a relative path is a
+catalog dependency. An unresolved package import likewise produces a visible
+diagnostic instead of an empty hover.
+
 ## Intentional forks and version retention
 
 An adopter may declare a fork at apply time by supplying a reason and the

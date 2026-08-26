@@ -28,7 +28,7 @@ function Demo() {
       ]),
   });
   return (
-    <div style={{ display: "grid", gap: "var(--space-sm)" }}>
+    <div data-testid="hooks.use-hover" style={{ display: "grid", gap: "var(--space-sm)" }}>
       <button
         type="button"
         {...hover.triggerProps}

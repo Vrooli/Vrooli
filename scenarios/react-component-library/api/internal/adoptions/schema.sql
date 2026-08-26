@@ -27,6 +27,7 @@ CREATE TABLE IF NOT EXISTS adoption_records (
   fork_reason     TEXT NOT NULL DEFAULT '',
   extension_points TEXT NOT NULL DEFAULT '[]',
   suggested_dependencies TEXT NOT NULL DEFAULT '',
+  mode            TEXT NOT NULL DEFAULT 'copied',
   -- drift_backlog_ref records the swarm-manager backlog item
   -- (`<kind>/<name>`) filed when this adoption first transitioned to
   -- behind/modified. Cleared back to '' when status returns to
@@ -42,6 +43,10 @@ CREATE INDEX IF NOT EXISTS idx_adoptions_scenario
 
 CREATE INDEX IF NOT EXISTS idx_adoptions_created_at
   ON adoption_records(created_at DESC);
+
+-- Forward-only migration for databases created before adoption modes existed.
+-- The repository also runs this defensively because SQLite has no portable
+-- ADD COLUMN IF NOT EXISTS form.
 
 CREATE TABLE IF NOT EXISTS adoption_files (
   adoption_id              TEXT NOT NULL,

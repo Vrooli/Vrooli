@@ -8,8 +8,11 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"os"
 	"path/filepath"
+	"sort"
 	"strings"
+	"time"
 
 	"connectrpc.com/connect"
 	"github.com/gorilla/mux"
@@ -56,7 +59,7 @@ func ModuleWithExecutor(db *sql.DB, assets components.Service, sourceRoot string
 // boundaries explicit for module tests.
 func ModuleWithExecutorAndFixture(db *sql.DB, assets components.Service, sourceRoot string, executor domain.StoryExecutor, fixture GeneratedFixtureValidator, logger *log.Logger) module.Module {
 	svc := domain.NewService(domain.Runner{Assets: assets, Stories: assets, Executor: executor}, domain.NewSQLiteRepository(db))
-	path, handler := componenttestsconnect.NewComponentTestsServiceHandler(&connectHandler{service: svc, logger: logger, evidence: catalogcoverage.NewEvidenceStore(db), sourceRoot: sourceRoot})
+	path, handler := componenttestsconnect.NewComponentTestsServiceHandler(&connectHandler{service: svc, assets: assets, logger: logger, evidence: catalogcoverage.NewEvidenceStore(db), sourceRoot: sourceRoot, sweeps: domain.NewSQLiteSweepRepository(db)})
 	sharedPath, shared := scenariovalidationconnect.NewScenarioValidationServiceHandler(&sharedHandler{service: svc, assets: assets, sourceRoot: sourceRoot, logger: logger, evidence: catalogcoverage.NewEvidenceStore(db), fixture: fixture})
 	return module.Module{Name: "component-tests", Mount: func(r *mux.Router) {
 		connectx.RegisterServices(r, connectx.ServiceMount{Path: path, Handler: handler})
@@ -66,9 +69,11 @@ func ModuleWithExecutorAndFixture(db *sql.DB, assets components.Service, sourceR
 
 type connectHandler struct {
 	service    *domain.Service
+	assets     components.Service
 	logger     *log.Logger
 	evidence   *catalogcoverage.EvidenceStore
 	sourceRoot string
+	sweeps     domain.SweepRepository
 }
 
 func (h *connectHandler) RunComponentTest(ctx context.Context, req *connect.Request[componenttestsv1.RunComponentTestRequest]) (*connect.Response[componenttestsv1.RunComponentTestResponse], error) {
@@ -198,6 +203,166 @@ func (h *connectHandler) ListComponentTestReports(ctx context.Context, req *conn
 	return connect.NewResponse(&componenttestsv1.ListComponentTestReportsResponse{Reports: out}), nil
 }
 
+func (h *connectHandler) SweepComponentTests(ctx context.Context, req *connect.Request[componenttestsv1.SweepComponentTestsRequest]) (*connect.Response[componenttestsv1.SweepComponentTestsResponse], error) {
+	if h.assets == nil {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("component test sweep is not wired to the component registry"))
+	}
+	var sweep domain.Sweep
+	if h.sweeps != nil {
+		if probeErr := domain.NewBASCaptureExecutor().Probe(ctx); probeErr != nil {
+			return nil, h.error(fmt.Errorf("refusing to start component sweep: %w", probeErr))
+		}
+		filter := strings.TrimSpace(req.Msg.GetComponentId())
+		if req.Msg.GetResume() {
+			resumed, resumeErr := h.sweeps.LatestOpen(ctx, filter)
+			switch {
+			case resumeErr == nil:
+				sweep = resumed
+			case errors.Is(resumeErr, sql.ErrNoRows):
+				sweep, resumeErr = h.sweeps.Start(ctx, filter, req.Msg.GetIncludeClosure(), "")
+				if resumeErr != nil {
+					return nil, h.error(resumeErr)
+				}
+			default:
+				return nil, h.error(resumeErr)
+			}
+		} else {
+			var startErr error
+			sweep, startErr = h.sweeps.Start(ctx, filter, req.Msg.GetIncludeClosure(), "")
+			if startErr != nil {
+				return nil, h.error(startErr)
+			}
+		}
+	}
+	assets, err := h.assets.List(ctx, components.SearchQuery{Limit: 100000})
+	if err != nil {
+		return nil, h.error(err)
+	}
+	if requested := strings.TrimSpace(req.Msg.GetComponentId()); requested != "" {
+		filtered := assets[:0]
+		for _, asset := range assets {
+			if asset.ID == requested || asset.LibraryID == requested {
+				filtered = append(filtered, asset)
+			}
+		}
+		assets = filtered
+	}
+	sort.Slice(assets, func(i, j int) bool { return assets[i].LibraryID < assets[j].LibraryID })
+	response := &componenttestsv1.SweepComponentTestsResponse{}
+	for _, asset := range assets {
+		versions, versionErr := h.assets.ListVersions(ctx, asset.ID, 100000)
+		if versionErr != nil {
+			response.Errors = append(response.Errors, fmt.Sprintf("%s: list versions: %v", asset.LibraryID, versionErr))
+			response.Complete = false
+			continue
+		}
+		sort.Slice(versions, func(i, j int) bool { return versions[i].Version < versions[j].Version })
+		for _, version := range versions {
+			// Evidence is governed for authored story contracts in the live
+			// library corpus. Drafts and historical database rows without a
+			// source-tree story contract are authoring/index records, not
+			// runnable evidence targets; attempting them makes a corpus sweep
+			// wait on a preview that cannot exist and distorts freshness counts.
+			if !h.sweepableVersion(version) {
+				response.Skipped++
+				continue
+			}
+			response.Planned++
+			key := asset.LibraryID + "@" + version.Version
+			if req.Msg.GetResume() {
+				previous := sweep.Results[key]
+				if previous == "" && h.sweeps != nil {
+					existing, listErr := h.service.List(ctx, asset.ID, version.Version, 1)
+					if listErr != nil {
+						response.Errors = append(response.Errors, fmt.Sprintf("%s@%s: read prior report: %v", asset.LibraryID, version.Version, listErr))
+					} else if len(existing) > 0 && existing[0].Verdict != domain.VerdictBlocked && h.storyEvidenceFresh(version) {
+						previous = string(existing[0].Verdict)
+						sweep.Results[key] = previous
+						_ = h.sweeps.Save(ctx, sweep)
+					}
+				}
+				if previous != "" && previous != string(domain.VerdictBlocked) {
+					response.Skipped++
+					continue
+				}
+			}
+			response.Started++
+			report, runErr := h.service.Run(ctx, domain.Request{ComponentID: asset.ID, Version: version.Version, IncludeClosure: req.Msg.GetIncludeClosure()})
+			if runErr != nil {
+				response.Blocked++
+				response.Errors = append(response.Errors, fmt.Sprintf("%s@%s: %v", asset.LibraryID, version.Version, runErr))
+				if h.sweeps != nil {
+					sweep.Results[key] = string(domain.VerdictBlocked)
+					_ = h.sweeps.Save(ctx, sweep)
+				}
+				continue
+			}
+			if evidenceErr := h.recordContractEvidence(ctx, report); evidenceErr != nil {
+				response.Errors = append(response.Errors, fmt.Sprintf("%s@%s: record evidence: %v", asset.LibraryID, version.Version, evidenceErr))
+			}
+			response.Reports = append(response.Reports, toProto(report))
+			if h.sweeps != nil {
+				sweep.Results[key] = string(report.Verdict)
+				_ = h.sweeps.Save(ctx, sweep)
+			}
+			switch report.Verdict {
+			case domain.VerdictPassed:
+				response.Passed++
+			case domain.VerdictFailed:
+				response.Failed++
+			case domain.VerdictBlocked:
+				response.Blocked++
+			}
+		}
+	}
+	response.Complete = len(response.Errors) == 0 && response.Blocked == 0
+	if h.sweeps != nil {
+		sweep.Status = domain.SweepComplete
+		if response.Blocked > 0 {
+			sweep.Status = domain.SweepBlocked
+		} else if len(response.Errors) > 0 || response.Failed > 0 {
+			sweep.Status = domain.SweepFailed
+		}
+		sweep.CompletedAt = time.Now().UTC()
+		if saveErr := h.sweeps.Save(ctx, sweep); saveErr != nil {
+			return nil, h.error(saveErr)
+		}
+	}
+	return connect.NewResponse(response), nil
+}
+
+func (h *connectHandler) storyEvidenceFresh(version components.ComponentVersion) bool {
+	storyPath, ok := h.storyContractPath(version)
+	if !ok {
+		return false
+	}
+	contract, err := os.Stat(storyPath)
+	if err != nil {
+		return false
+	}
+	reports, err := h.service.List(context.Background(), version.ComponentID, version.Version, 1)
+	return err == nil && len(reports) > 0 && reports[0].CreatedAt.After(contract.ModTime())
+}
+
+func (h *connectHandler) sweepableVersion(version components.ComponentVersion) bool {
+	if version.Status == components.VersionStatusDraft {
+		return false
+	}
+	_, ok := h.storyContractPath(version)
+	return ok
+}
+
+func (h *connectHandler) storyContractPath(version components.ComponentVersion) (string, bool) {
+	if h.sourceRoot == "" || strings.TrimSpace(version.SourcePath) == "" {
+		return "", false
+	}
+	path := filepath.Join(h.sourceRoot, filepath.Dir(version.SourcePath), "story.json")
+	if _, err := os.Stat(path); err != nil {
+		return "", false
+	}
+	return path, true
+}
+
 func (h *connectHandler) error(err error) error {
 	var validation domain.ValidationError
 	switch {
@@ -238,6 +403,7 @@ var Endpoints = []module.EndpointDescriptor{
 	{ID: "component_tests_rerun", Path: componenttestsconnect.ComponentTestsServiceRerunComponentTestProcedure, Method: "POST", Summary: "Rerun a durable component test report", Category: "component-tests"},
 	{ID: "component_tests_get", Path: componenttestsconnect.ComponentTestsServiceGetComponentTestReportProcedure, Method: "POST", Summary: "Get a durable component test report", Category: "component-tests"},
 	{ID: "component_tests_list", Path: componenttestsconnect.ComponentTestsServiceListComponentTestReportsProcedure, Method: "POST", Summary: "List durable component test reports", Category: "component-tests"},
+	{ID: "component_tests_sweep", Path: componenttestsconnect.ComponentTestsServiceSweepComponentTestsProcedure, Method: "POST", Summary: "Run the resumable full-corpus component-test sweep", Category: "component-tests"},
 	{ID: "component_tests_validate_scenario", Path: scenariovalidationconnect.ScenarioValidationServiceValidateScenarioProcedure, Method: "POST", Summary: "Run the catalog component-test suite for Test Genie", Category: "component-tests"},
 	{ID: "component_tests_preview_fix", Path: scenariovalidationconnect.ScenarioValidationServicePreviewFixProcedure, Method: "POST", Summary: "Preview component-test fixes", Category: "component-tests"},
 	{ID: "component_tests_apply_fix", Path: scenariovalidationconnect.ScenarioValidationServiceApplyFixProcedure, Method: "POST", Summary: "Apply component-test fixes", Category: "component-tests"},

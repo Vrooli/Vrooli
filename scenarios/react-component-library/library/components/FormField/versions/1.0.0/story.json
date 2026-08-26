@@ -7,7 +7,7 @@
     "fixtures": []
   },
   "kind": "component",
-  "schemaVersion": 4,
+  "schemaVersion": 5,
   "stories": [
     {
       "args": {},
@@ -26,7 +26,8 @@
       ],
       "id": "default",
       "mode": "live",
-      "name": "Default field"
+      "name": "Default field",
+      "role": "anatomy"
     },
     {
       "args": {},
@@ -45,7 +46,8 @@
       ],
       "id": "required",
       "mode": "live",
-      "name": "Required field"
+      "name": "Required field",
+      "role": "boundary"
     },
     {
       "args": {},
@@ -74,7 +76,8 @@
       ],
       "id": "error",
       "mode": "live",
-      "name": "Validation error"
+      "name": "Validation error",
+      "role": "boundary"
     },
     {
       "args": {},
@@ -93,7 +96,8 @@
       ],
       "id": "disabled",
       "mode": "live",
-      "name": "Disabled field"
+      "name": "Disabled field",
+      "role": "boundary"
     }
   ],
   "title": "FormField"

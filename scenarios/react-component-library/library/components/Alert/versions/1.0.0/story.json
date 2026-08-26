@@ -7,7 +7,7 @@
     "fixtures": []
   },
   "kind": "component",
-  "schemaVersion": 4,
+  "schemaVersion": 5,
   "stories": [
     {
       "args": {},
@@ -41,7 +41,8 @@
         }
       ],
       "mode": "live",
-      "name": "Dismissible information"
+      "name": "Dismissible information",
+      "role": "anatomy"
     },
     {
       "args": {},
@@ -63,7 +64,8 @@
       ],
       "id": "success",
       "mode": "live",
-      "name": "Success"
+      "name": "Success",
+      "role": "boundary"
     },
     {
       "args": {},
@@ -86,7 +88,8 @@
       ],
       "id": "warning",
       "mode": "live",
-      "name": "Warning with recovery"
+      "name": "Warning with recovery",
+      "role": "boundary"
     },
     {
       "args": {},
@@ -108,7 +111,8 @@
       ],
       "id": "danger",
       "mode": "live",
-      "name": "Error"
+      "name": "Error",
+      "role": "boundary"
     }
   ],
   "title": "Alert"

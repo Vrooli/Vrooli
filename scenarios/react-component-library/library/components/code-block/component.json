@@ -13,7 +13,7 @@
   "displayName": "Code Block",
   "draft": "",
   "entry": "CodeBlock.tsx",
-  "latest": "0.3.1",
+  "latest": "0.3.2",
   "libraryId": "react-component-library:code-block",
   "tags": [
     "markdown",

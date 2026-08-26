@@ -7,7 +7,7 @@
     "fixtures": []
   },
   "kind": "component",
-  "schemaVersion": 4,
+  "schemaVersion": 5,
   "stories": [
     {
       "args": {},
@@ -30,7 +30,8 @@
       ],
       "id": "default",
       "mode": "live",
-      "name": "Undo available"
+      "name": "Undo available",
+      "role": "anatomy"
     },
     {
       "args": {},
@@ -53,7 +54,8 @@
       ],
       "id": "submitting",
       "mode": "live",
-      "name": "Rollback in progress"
+      "name": "Rollback in progress",
+      "role": "boundary"
     },
     {
       "args": {},
@@ -71,7 +73,8 @@
       ],
       "id": "success",
       "mode": "live",
-      "name": "Rollback complete"
+      "name": "Rollback complete",
+      "role": "boundary"
     },
     {
       "args": {},
@@ -94,7 +97,8 @@
       ],
       "id": "request-error",
       "mode": "live",
-      "name": "Rollback failed"
+      "name": "Rollback failed",
+      "role": "boundary"
     },
     {
       "args": {},
@@ -124,7 +128,8 @@
         }
       ],
       "mode": "live",
-      "name": "Interactive rollback"
+      "name": "Interactive rollback",
+      "role": "boundary"
     }
   ],
   "title": "UndoBanner"

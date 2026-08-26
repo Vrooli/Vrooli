@@ -18,6 +18,9 @@
  * 3. `selectorsManifest` updates from the same source maps automatically
  */
 import { LOCALE_CODES } from "../i18n/locales";
+import { librarySelectors } from "./selectors.library";
+
+export { librarySelectors };
 
 type LiteralSelectorTree = { readonly [key: string]: string | LiteralSelectorTree };
 type LiteralNode = string | LiteralSelectorTree;
@@ -76,7 +79,13 @@ type SelectorTreeResult<L extends LiteralSelectorTree, D extends DynamicSelector
         Extract<L[K], LiteralSelectorTree>,
         K extends keyof D ? Extract<D[K], DynamicSelectorTree> : DynamicSelectorTree
       >;
-} & (D extends DynamicSelectorTree ? DynamicBranchResult<D> : Record<string, never>);
+} & {
+  [K in Exclude<keyof D, keyof L>]: D[K] extends DynamicSelectorDefinition<infer P>
+    ? DynamicSelectorFn<P>
+    : D[K] extends DynamicSelectorTree
+      ? DynamicBranchResult<D[K]>
+      : never;
+};
 
 const TEMPLATE_TOKEN = /\$\{([^}]+)\}/g;
 
@@ -680,7 +689,7 @@ const dynamicSelectorDefinitions = {
   },
 } satisfies DynamicSelectorTree;
 
-const registry = createSelectorRegistry(literalSelectors, dynamicSelectorDefinitions);
+const registry = createSelectorRegistry({ library: librarySelectors, ...literalSelectors }, dynamicSelectorDefinitions);
 
 export const selectors = registry.selectors;
 export type Selectors = typeof selectors;

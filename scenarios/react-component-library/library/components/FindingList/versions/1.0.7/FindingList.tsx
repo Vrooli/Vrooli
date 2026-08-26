@@ -1,6 +1,4 @@
 /** @vrooliComponentSource react-component-library:FindingList */
-import { translate } from "../../../../hooks/useLocale/versions/1.0.0/useLocale";
-
 export interface Finding {
   id: string;
   assetId?: string;
@@ -8,13 +6,13 @@ export interface Finding {
   message: string;
   remediation?: string;
 }
-import { Surface } from "../../../../primitives/Surface/versions/1.0.0/Surface";
-import { Stack } from "../../../../primitives/Stack/versions/1.0.0/Stack";
-import { SURFACE_ELEVATIONS } from "../../../../foundations/VisualRecipes/versions/1.0.0/VisualRecipes";
+import { Surface } from "@vrooli/react-component-library/Surface/1.0.0";
+import { Stack } from "@vrooli/react-component-library/Stack/1.0.0";
+import { SURFACE_ELEVATIONS } from "@vrooli/react-component-library/VisualRecipes/1.0.0";
 export function FindingList({ findings = [] }: { findings?: Finding[] }) {
   return (
     <ul
-      aria-label={translate("data-display.finding-list.aria-label.1", "Gate findings")}
+      aria-label="Gate findings"
       className={SURFACE_ELEVATIONS.raised}
       data-rcl-asset="data-display.finding-list"
       data-rcl-version="1.0.7"
@@ -56,7 +54,7 @@ export function FindingList({ findings = [] }: { findings?: Finding[] }) {
           role="status"
           data-bespoke="empty result row preserves list semantics"
         >
-          {translate("data-display.finding-list.text.1", "No findings.")}
+          No findings.
         </li>
       )}
     </ul>

@@ -15,17 +15,13 @@
         "path": "description"
       },
       {
-        "default": {
-          "$icon": "PackageSearch"
-        },
+        "default": "",
         "kind": "structured",
         "label": "Icon",
         "path": "icon"
       },
       {
-        "default": {
-          "$text": "button"
-        },
+        "default": "Content",
         "kind": "structured",
         "label": "Action",
         "path": "action"
@@ -36,14 +32,11 @@
     "fixtures": []
   },
   "kind": "component",
-  "schemaVersion": 4,
+  "schemaVersion": 5,
   "stories": [
     {
       "args": {
         "description": "Run the indexer to discover catalog source.",
-        "icon": {
-          "$icon": "PackageSearch"
-        },
         "title": "No components indexed"
       },
       "expect": [
@@ -58,17 +51,18 @@
       ],
       "id": "no-components",
       "mode": "pinned",
-      "name": "No Components"
+      "name": "No Components",
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "NoComponents"
+        }
+      },
+      "role": "anatomy"
     },
     {
       "args": {
-        "action": {
-          "$text": "button"
-        },
         "description": "Record a scenario adoption to track drift.",
-        "icon": {
-          "$icon": "GitBranch"
-        },
         "title": "No adoptions yet"
       },
       "expect": [
@@ -84,7 +78,14 @@
       ],
       "id": "with-action",
       "mode": "pinned",
-      "name": "With Action"
+      "name": "With Action",
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "WithAction"
+        }
+      },
+      "role": "boundary"
     },
     {
       "args": {
@@ -98,7 +99,8 @@
       ],
       "id": "compact",
       "mode": "pinned",
-      "name": "Compact"
+      "name": "Compact",
+      "role": "boundary"
     }
   ],
   "title": "EmptyState"

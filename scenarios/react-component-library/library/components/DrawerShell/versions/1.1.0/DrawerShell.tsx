@@ -4,9 +4,11 @@
  * @status released
  * @deps {"react":"^18"}
  */
+import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
+
 import { useEffect, useId, useRef, type ReactNode } from "react";
-import { useFocusTrap } from "../../../../hooks/useFocusTrap/versions/1.0.0/useFocusTrap";
-import { useEscapeKey } from "../../../../hooks/useEscapeKey/versions/1.0.0/useEscapeKey";
+import { useFocusTrap } from "@vrooli/react-component-library/useFocusTrap/1.0.0";
+import { useEscapeKey } from "@vrooli/react-component-library/useEscapeKey/1.0.0";
 import { drawerShellStyles } from "./styles";
 
 export interface DrawerShellProps {
@@ -22,7 +24,7 @@ export interface DrawerShellProps {
   children: ReactNode;
 }
 
-export function DrawerShell({
+export const DrawerShell = withClassName(function DrawerShell({
   open = true,
   onClose = () => {},
   closeAriaLabel = "Close drawer",
@@ -101,6 +103,6 @@ export function DrawerShell({
       </div>
     </>
   );
-}
+});
 
 export default DrawerShell;

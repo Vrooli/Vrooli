@@ -40,8 +40,8 @@ func TestCatalogStoryConformance(t *testing.T) {
 			}
 			return nil
 		}
-		if contract.SchemaVersion != 4 {
-			failures = append(failures, prefix+": story schemaVersion must be 4")
+		if contract.SchemaVersion != 5 {
+			failures = append(failures, prefix+": story schemaVersion must be 5")
 		}
 		return nil
 	})

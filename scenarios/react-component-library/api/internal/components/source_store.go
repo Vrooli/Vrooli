@@ -162,7 +162,7 @@ func (s *FSContentStore) CreateVersion(_ context.Context, c Component, in Create
 	} else if !os.IsNotExist(err) {
 		return "", fmt.Errorf("stat component source %q: %w", sourcePath, err)
 	}
-	if len(in.Files) == 0 && strings.TrimSpace(in.Source) == "" {
+	if len(in.Files) == 0 {
 		from := firstNonEmpty(in.FromVersion, c.DraftVersion, c.LatestVersion, c.Version)
 		fromDir := filepath.Join(s.root, assetRoot, c.Slug, "versions", from)
 		if entries, err := os.ReadDir(fromDir); err == nil {
@@ -182,6 +182,14 @@ func (s *FSContentStore) CreateVersion(_ context.Context, c Component, in Create
 			}
 			if len(files) > 0 {
 				sort.Slice(files, func(i, j int) bool { return files[i].Path < files[j].Path })
+			}
+			if strings.TrimSpace(in.Source) != "" {
+				for i := range files {
+					if files[i].IsEntry {
+						files[i].Content = in.Source
+						break
+					}
+				}
 			}
 		}
 		if len(files) == 0 || !hasEntryFile(files) {
@@ -363,7 +371,7 @@ func componentAssetRoot(c Component) string {
 }
 
 const scaffoldStoryJSON = `{
-  "schemaVersion": 4,
+  "schemaVersion": 5,
   "kind": "component",
   "args": { "fields": [] },
   "environment": { "fixtures": [] },

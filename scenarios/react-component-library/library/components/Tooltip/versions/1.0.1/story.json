@@ -50,7 +50,7 @@
     "fixtures": []
   },
   "kind": "component",
-  "schemaVersion": 4,
+  "schemaVersion": 5,
   "stories": [
     {
       "args": {
@@ -72,7 +72,8 @@
       ],
       "id": "default",
       "mode": "pinned",
-      "name": "Default"
+      "name": "Default",
+      "role": "anatomy"
     },
     {
       "args": {
@@ -100,7 +101,17 @@
       ],
       "id": "open",
       "mode": "pinned",
-      "name": "Open on focus"
+      "name": "Open on focus",
+      "role": "axis",
+      "axis": "placement",
+      "covers": {
+        "placement": [
+          "top",
+          "bottom",
+          "start",
+          "end"
+        ]
+      }
     },
     {
       "args": {
@@ -122,7 +133,8 @@
       ],
       "id": "placements",
       "mode": "pinned",
-      "name": "Responsive placements"
+      "name": "Responsive placements",
+      "role": "boundary"
     },
     {
       "args": {
@@ -144,7 +156,8 @@
       ],
       "id": "start",
       "mode": "pinned",
-      "name": "Start placement"
+      "name": "Start placement",
+      "role": "boundary"
     },
     {
       "args": {
@@ -166,7 +179,8 @@
       ],
       "id": "end",
       "mode": "pinned",
-      "name": "End placement"
+      "name": "End placement",
+      "role": "boundary"
     }
   ],
   "title": "Tooltip"

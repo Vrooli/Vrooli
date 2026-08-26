@@ -4,7 +4,7 @@ import type { editor } from "monaco-editor";
 
 import { Button } from "../../components/Button";
 import { IconButton } from "../../components/IconButton";
-import { Tabs } from "../../components/Tabs";
+import { Tabs } from "@vrooli/react-component-library/Tabs/1.0.0";
 import { selectors } from "../../consts/selectors";
 import { strings } from "../../consts/strings";
 import { useTranslation } from "../../i18n";

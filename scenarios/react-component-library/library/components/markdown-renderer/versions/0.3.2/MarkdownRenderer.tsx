@@ -7,6 +7,8 @@
  * @deps {"react":"^18","react-markdown":"^10.1.0","remark-gfm":"^4.0.1","shiki":"^4.3.1","mermaid":"^11.4.0"}
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
+import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
+
 import {
   Component,
   type CSSProperties,
@@ -33,7 +35,10 @@ export {
   remarkProsePaths,
 } from "./languageDetection";
 export { useCodeCopy } from "./useCodeCopy";
-export { useMermaidSvg } from "./useMermaidSvg";
+export {
+  resetMermaidRenderCacheForTests,
+  useMermaidSvg,
+} from "./useMermaidSvg";
 
 export interface MarkdownRendererProps {
   content: string;
@@ -73,7 +78,7 @@ const markdownTokens: CSSProperties & Record<`--${string}`, string> = {
   "--markdown-error": "var(--color-danger, currentColor)",
 };
 
-export function MarkdownRenderer({
+export const MarkdownRenderer = withClassName(function MarkdownRenderer({
   content,
   className,
   inline = false,
@@ -164,6 +169,6 @@ export function MarkdownRenderer({
       </Wrapper>
     </MarkdownErrorBoundary>
   );
-}
+});
 
 export default MarkdownRenderer;

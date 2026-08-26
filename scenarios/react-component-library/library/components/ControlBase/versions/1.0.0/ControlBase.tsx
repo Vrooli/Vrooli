@@ -5,7 +5,7 @@ import {
   type CSSProperties,
   type ReactNode,
 } from "react";
-import { motionTransition } from "../../../../foundations/VisualRecipes/versions/1.0.0/VisualRecipes";
+import { motionTransition } from "@vrooli/react-component-library/VisualRecipes/1.0.0";
 
 export type ControlVariant =
   | "primary"

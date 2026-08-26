@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "templateForks": {
+    "forkCount": 0,
+    "forks": []
+  },
+  "adoptionSummary": {
+    "total": 394,
+    "forkStatuses": {
+      "declared-fork": 79,
+      "contract-preserved": 315
+    },
+    "modes": {
+      "ejected": 79,
+      "linked": 315
+    }
+  },
+  "validation": {
+    "templateTest": "node --test templates/scenarios/react-vite/ui/scripts/template-library-link.test.mjs",
+    "templateTestResult": "passed",
+    "scratchTemplateSourceForkFiles": 0
+  }
+}

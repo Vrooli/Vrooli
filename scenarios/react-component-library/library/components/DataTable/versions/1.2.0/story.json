@@ -2,181 +2,38 @@
   "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
   "args": {
     "fields": [
-      {
-        "default": "Scenario adoption table",
-        "kind": "text",
-        "label": "Caption",
-        "path": "caption"
-      },
-      {
-        "default": [
-          {
-            "id": "rcl",
-            "name": "React Component Library",
-            "status": "Current"
-          },
-          {
-            "id": "web",
-            "name": "Web Console",
-            "status": "Behind"
-          }
-        ],
-        "kind": "structured",
-        "label": "Rows",
-        "path": "rows"
-      },
-      {
-        "default": {
-          "$columns": [
-            {
-              "field": "name",
-              "header": "Scenario",
-              "id": "name",
-              "searchable": true,
-              "sortable": true
-            },
-            {
-              "field": "status",
-              "header": "Status",
-              "id": "status",
-              "searchable": true,
-              "sortable": true
-            }
-          ]
-        },
-        "kind": "structured",
-        "label": "Columns",
-        "path": "columns"
-      },
-      {
-        "default": {
-          "$rowKey": "id"
-        },
-        "kind": "structured",
-        "label": "Row key",
-        "path": "getRowKey"
-      },
-      {
-        "default": {
-          "$filters": [
-            {
-              "equals": "Current",
-              "field": "status",
-              "id": "current",
-              "label": "Current"
-            }
-          ]
-        },
-        "kind": "structured",
-        "label": "Filters",
-        "path": "filters"
-      },
-      {
-        "default": "No scenarios match",
-        "kind": "text",
-        "label": "Empty message",
-        "path": "emptyMessage"
-      }
+      { "default": "Scenario adoption table", "kind": "text", "label": "Caption", "path": "caption" },
+      { "default": [], "kind": "array", "label": "Rows", "path": "rows" },
+      { "default": "No scenarios match", "kind": "text", "label": "Empty message", "path": "emptyMessage" }
     ]
   },
-  "environment": {
-    "fixtures": []
-  },
+  "environment": { "fixtures": [] },
   "kind": "component",
-  "schemaVersion": 4,
+  "schemaVersion": 5,
   "stories": [
     {
-      "args": {
-        "caption": "Scenario adoption table",
-        "columns": {
-          "$columns": [
-            {
-              "field": "name",
-              "header": "Scenario",
-              "id": "name",
-              "searchable": true,
-              "sortable": true
-            },
-            {
-              "field": "status",
-              "header": "Status",
-              "id": "status",
-              "searchable": true,
-              "sortable": true
-            }
-          ]
-        },
-        "filters": {
-          "$filters": [
-            {
-              "equals": "Current",
-              "field": "status",
-              "id": "current",
-              "label": "Current"
-            }
-          ]
-        },
-        "getRowKey": {
-          "$rowKey": "id"
-        },
-        "rows": [
-          {
-            "id": "rcl",
-            "name": "React Component Library",
-            "status": "Current"
-          },
-          {
-            "id": "web",
-            "name": "Web Console",
-            "status": "Behind"
-          }
-        ]
-      },
+      "args": { "caption": "Scenario adoption table", "rows": [] },
+      "composition": { "specimen": { "module": "./story.tsx", "export": "Populated" } },
       "expect": [
-        {
-          "kind": "text",
-          "value": "React Component Library"
-        },
-        {
-          "kind": "role",
-          "role": "table"
-        }
+        { "kind": "text", "value": "React Component Library" },
+        { "kind": "role", "role": "table" }
       ],
       "id": "populated",
-      "mode": "pinned",
-      "name": "Populated"
+      "mode": "live",
+      "name": "Populated",
+      "role": "anatomy"
     },
     {
-      "args": {
-        "caption": "No rows table",
-        "columns": {
-          "$columns": [
-            {
-              "field": "name",
-              "header": "Scenario",
-              "id": "name"
-            }
-          ]
-        },
-        "emptyMessage": "No scenarios match",
-        "getRowKey": {
-          "$rowKey": "id"
-        },
-        "rows": []
-      },
+      "args": { "caption": "No rows table", "emptyMessage": "No scenarios match", "rows": [] },
+      "composition": { "specimen": { "module": "./story.tsx", "export": "Empty" } },
       "expect": [
-        {
-          "kind": "text",
-          "value": "No scenarios match"
-        },
-        {
-          "kind": "role",
-          "role": "table"
-        }
+        { "kind": "text", "value": "No scenarios match" },
+        { "kind": "role", "role": "table" }
       ],
       "id": "empty",
-      "mode": "pinned",
-      "name": "Empty"
+      "mode": "live",
+      "name": "Empty",
+      "role": "boundary"
     }
   ],
   "title": "DataTable"

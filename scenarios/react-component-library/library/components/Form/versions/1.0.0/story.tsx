@@ -1,8 +1,8 @@
 import { useState, type ReactNode } from "react";
 import { Form } from "./Form";
-import { FormActions } from "../../../FormActions/versions/1.0.0/FormActions";
-import { FormField } from "../../../FormField/versions/1.0.0/FormField";
-import { createFormStore } from "../../../../services/FormStore/versions/1.0.0/FormStore";
+import { FormActions } from "@vrooli/react-component-library/FormActions/1.0.0";
+import { FormField } from "@vrooli/react-component-library/FormField/1.0.0";
+import { createFormStore } from "@vrooli/react-component-library/FormStore/1.0.0";
 
 function Showcase({
   children,

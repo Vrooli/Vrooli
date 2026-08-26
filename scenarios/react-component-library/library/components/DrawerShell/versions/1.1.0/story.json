@@ -27,9 +27,7 @@
         "path": "avoidKeyboard"
       },
       {
-        "default": {
-          "$handler": "close"
-        },
+        "default": null,
         "kind": "structured",
         "label": "On Close",
         "path": "onClose"
@@ -48,15 +46,12 @@
     "fixtures": []
   },
   "kind": "component",
-  "schemaVersion": 4,
+  "schemaVersion": 5,
   "stories": [
     {
       "args": {
         "children": {
           "$text": "Full-page drawer body content"
-        },
-        "onClose": {
-          "$handler": "close"
         },
         "open": true,
         "title": "Component details"
@@ -74,15 +69,19 @@
       ],
       "id": "full-open",
       "mode": "pinned",
-      "name": "Full drawer"
+      "name": "Full drawer",
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "FullOpen"
+        }
+      },
+      "role": "anatomy"
     },
     {
       "args": {
         "children": {
           "$text": "Compact panel content"
-        },
-        "onClose": {
-          "$handler": "close"
         },
         "open": true,
         "size": "compact",
@@ -101,18 +100,19 @@
       ],
       "id": "compact-open",
       "mode": "pinned",
-      "name": "Compact centered panel"
+      "name": "Compact centered panel",
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "CompactOpen"
+        }
+      },
+      "role": "boundary"
     },
     {
       "args": {
         "children": {
           "$text": "Body with supporting context"
-        },
-        "headerExtra": {
-          "$text": "p"
-        },
-        "onClose": {
-          "$handler": "close"
         },
         "open": true,
         "title": "Edit prompt"
@@ -129,7 +129,14 @@
       ],
       "id": "with-header-content",
       "mode": "pinned",
-      "name": "Header content"
+      "name": "Header content",
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "WithHeaderContent"
+        }
+      },
+      "role": "boundary"
     }
   ],
   "title": "DrawerShell"

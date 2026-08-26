@@ -58,7 +58,7 @@
   ],
   "displayName": "Empty State",
   "draft": "",
-  "latest": "1.7.4",
+  "latest": "1.7.5",
   "libraryId": "react-component-library:EmptyState",
   "slot": "ui-pattern",
   "tags": [

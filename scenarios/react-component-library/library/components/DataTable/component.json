@@ -35,7 +35,7 @@
   ],
   "displayName": "Data Table",
   "draft": "",
-  "latest": "1.3.0",
+  "latest": "1.3.3",
   "libraryId": "react-component-library:DataTable",
   "slot": "ui-pattern",
   "tags": [

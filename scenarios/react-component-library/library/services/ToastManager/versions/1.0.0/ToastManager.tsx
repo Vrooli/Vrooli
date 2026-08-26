@@ -9,7 +9,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { useAnnounce } from "../../../../hooks/useAnnounce/versions/1.0.0/useAnnounce";
+import { useAnnounce } from "@vrooli/react-component-library/useAnnounce/1.0.0";
 
 export type ToastTone = "info" | "success" | "warning" | "error";
 

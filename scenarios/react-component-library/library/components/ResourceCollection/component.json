@@ -33,7 +33,7 @@
     }
   ],
   "displayName": "Resource Collection",
-  "latest": "1.0.0",
+  "latest": "1.0.1",
   "libraryId": "react-component-library:ResourceCollection",
   "slot": "ui-pattern",
   "tags": [
@@ -50,5 +50,7 @@
       "libraryId": "react-component-library:useLocale",
       "version": "1.0.0"
     }
-  ]
+  ],
+  "draft": "",
+  "deprecatedVersions": []
 }

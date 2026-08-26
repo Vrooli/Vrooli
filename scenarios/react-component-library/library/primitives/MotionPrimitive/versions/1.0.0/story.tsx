@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Button } from "../../../../components/Button/versions/1.0.0/Button";
+import { Button } from "@vrooli/react-component-library/Button/2.0.0";
 import {
   MotionPrimitive,
   useMotionValue,

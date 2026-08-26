@@ -5,7 +5,6 @@
  * @deps {"react":"^18"}
  * @category controls
  */
-import { cn } from "../../../../foundations/ClassMerge/versions/1.0.0/ClassMerge";
 import * as React from "react";
 
 export type TextareaProps = React.TextareaHTMLAttributes<HTMLTextAreaElement>;
@@ -20,6 +19,9 @@ const styleSheet = `
 @media (prefers-reduced-motion: reduce) { [data-rcl-textarea] { transition: none; } }
 `;
 
+const joinClasses = (...inputs: Array<string | undefined>) =>
+  inputs.filter(Boolean).join(" ");
+
 const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
   ({ className, ...props }, ref) => {
     return (
@@ -28,9 +30,9 @@ const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
           data-rcl-textarea-styles
           dangerouslySetInnerHTML={{ __html: styleSheet }}
         />
-        <textarea data-testid="forms.textarea"
+        <textarea
           data-rcl-textarea="true"
-          className={cn(
+          className={joinClasses(
             "rounded-control border border-app-border",
             className,
           )}

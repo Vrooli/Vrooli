@@ -32,6 +32,7 @@ import ar from "./locales/ar.json";
 import en from "./locales/en.json";
 import ja from "./locales/ja.json";
 
+
 interface LocaleConfig {
   /** Native-language label shown in switchers; never translated. */
   nativeLabel: string;

@@ -3,6 +3,7 @@ import {
   ComponentsService,
   type Component,
   type ListComponentsResponse,
+  type ResolveLibraryImportResponse,
 } from "@vrooli/proto-types/react-component-library/v1/components/components_pb";
 
 import { transport } from "./client";
@@ -239,4 +240,16 @@ export async function listCatalogAssets(input: {
 
 export async function getCatalogAsset(id: string): Promise<{ component?: CatalogAsset }> {
   return baseComponentsClient.getComponent({ id });
+}
+
+export type LibraryImportResolution = ResolveLibraryImportResponse;
+
+export async function resolveLibraryImport(input: {
+  specifier: string;
+  fromPath?: string;
+}): Promise<LibraryImportResolution> {
+  return baseComponentsClient.resolveLibraryImport({
+    specifier: input.specifier,
+    fromPath: input.fromPath ?? "",
+  });
 }

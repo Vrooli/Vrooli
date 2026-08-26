@@ -10,6 +10,7 @@
     }
   ],
   "displayName": "Tooltip",
+  "catalogId": "overlays.tooltip",
   "draft": "",
   "entry": "Tooltip.tsx",
   "latest": "1.0.1",

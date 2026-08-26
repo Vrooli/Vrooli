@@ -7,7 +7,7 @@ import {
   type KeyboardEvent,
   type ReactNode,
 } from "react";
-import { motionTransition } from "../../../../foundations/VisualRecipes/versions/1.0.0/VisualRecipes";
+import { motionTransition } from "@vrooli/react-component-library/VisualRecipes/1.0.0";
 
 export type TabsMode = "controlled" | "uncontrolled";
 
@@ -141,7 +141,7 @@ export function Tabs({
                 aria-controls={panels ? `rcl-tab-panel-${index}` : undefined}
                 tabIndex={selected ? 0 : -1}
                 data-index={index}
-                data-testid={itemTestId?.(item.id) ?? "navigation.tabs"}
+                data-testid={itemTestId?.(item.id)}
                 data-rcl-tab-trigger
                 data-rcl-tab
                 onClick={() => {

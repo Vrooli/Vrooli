@@ -62,6 +62,18 @@ func (b Esbuilder) BuildBundle(_ context.Context, tsx string, sourcePath string)
 		Plugins: []esbuild.Plugin{{
 			Name: "preview-bare-imports",
 			Setup: func(build esbuild.PluginBuild) {
+				build.OnLoad(esbuild.OnLoadOptions{Filter: `\.(?:ts|tsx)$`}, func(args esbuild.OnLoadArgs) (esbuild.OnLoadResult, error) {
+					source, err := os.ReadFile(args.Path)
+					if err != nil {
+						return esbuild.OnLoadResult{}, err
+					}
+					content := normalizePreviewCompatibilityForPath(string(source), args.Path)
+					loader := esbuild.LoaderTSX
+					if strings.HasSuffix(args.Path, ".ts") {
+						loader = esbuild.LoaderTS
+					}
+					return esbuild.OnLoadResult{Contents: &content, Loader: loader}, nil
+				})
 				build.OnResolve(esbuild.OnResolveOptions{Filter: ".*"}, func(args esbuild.OnResolveArgs) (esbuild.OnResolveResult, error) {
 					if localPath, ok := resolveLocalVrooliPackage(args.Path, resolveDir); ok {
 						return esbuild.OnResolveResult{Path: localPath}, nil
@@ -89,6 +101,29 @@ func (b Esbuilder) BuildBundle(_ context.Context, tsx string, sourcePath string)
 		return "", warns, ErrBundle{SourcePath: sourcePath, Messages: []string{"bundle produced no output"}}
 	}
 	return string(result.OutputFiles[0].Contents), warns, nil
+}
+
+// normalizePreviewCompatibility keeps immutable historical releases runnable
+// when a foundation moved to a compatible implementation path. The released
+// source and its recorded hash remain untouched; this is the preview-time
+// equivalent of the package builder's disposable compatibility staging.
+func normalizePreviewCompatibility(source string) string {
+	return strings.ReplaceAll(
+		source,
+		"../../../../foundations/ClassMerge/versions/1.0.0/ClassMerge",
+		"../../../../foundations/ClassMerge/versions/1.0.1/ClassMerge",
+	)
+}
+
+func normalizePreviewCompatibilityForPath(source, path string) string {
+	source = normalizePreviewCompatibility(source)
+	if strings.HasSuffix(path, "/components/MonetizationAccount/versions/1.0.0/MonetizationAccount.tsx") && !strings.Contains(source, "export const SubscriptionBadge") {
+		// This released story predates the component's export rename. Keep the
+		// immutable source intact while exposing its compatible semantic alias
+		// to the version-pinned preview module graph.
+		source += "\nexport const SubscriptionBadge = SubscriptionStatusCard;\n"
+	}
+	return source
 }
 
 // resolveLocalVrooliPackage keeps preview artifacts self-contained for

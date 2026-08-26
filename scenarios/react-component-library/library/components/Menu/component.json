@@ -32,7 +32,7 @@
     }
   ],
   "displayName": "Menu",
-  "latest": "1.1.0",
+  "latest": "1.1.1",
   "libraryId": "react-component-library:Menu",
   "tags": [
     "overlay",
@@ -41,5 +41,7 @@
     "typeahead",
     "accessibility",
     "token-bound"
-  ]
+  ],
+  "draft": "",
+  "deprecatedVersions": []
 }

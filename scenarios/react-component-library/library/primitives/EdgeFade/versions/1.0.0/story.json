@@ -18,7 +18,7 @@
     "fixtures": []
   },
   "kind": "component",
-  "schemaVersion": 4,
+  "schemaVersion": 5,
   "stories": [
     {
       "args": {
@@ -26,7 +26,14 @@
       },
       "id": "side-inline-start",
       "mode": "pinned",
-      "name": "side inline-start"
+      "name": "side inline-start",
+      "role": "anatomy",
+      "expect": [
+        {
+          "kind": "visible",
+          "selector": "body"
+        }
+      ]
     },
     {
       "args": {
@@ -34,7 +41,21 @@
       },
       "id": "side-inline-end",
       "mode": "pinned",
-      "name": "side inline-end"
+      "name": "side inline-end",
+      "expect": [
+        {
+          "kind": "visible",
+          "selector": "body"
+        }
+      ],
+      "role": "axis",
+      "axis": "side",
+      "covers": {
+        "side": [
+          "inline-start",
+          "inline-end"
+        ]
+      }
     }
   ],
   "title": "EdgeFade"

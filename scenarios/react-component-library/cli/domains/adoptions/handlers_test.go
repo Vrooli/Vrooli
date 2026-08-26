@@ -107,6 +107,14 @@ func (s *adoptionsService) PruneScenarioTokens(_ context.Context, _ *connect.Req
 	return connect.NewResponse(&adoptionsv1.PruneScenarioTokensResponse{}), nil
 }
 
+func (s *adoptionsService) LinkAdoption(_ context.Context, _ *connect.Request[adoptionsv1.LinkAdoptionRequest]) (*connect.Response[adoptionsv1.LinkAdoptionResponse], error) {
+	return connect.NewResponse(&adoptionsv1.LinkAdoptionResponse{Adoption: sampleAdoption(), PackagePath: "file:../../../packages/react-component-library"}), nil
+}
+
+func (s *adoptionsService) EjectAdoption(_ context.Context, _ *connect.Request[adoptionsv1.EjectAdoptionRequest]) (*connect.Response[adoptionsv1.EjectAdoptionResponse], error) {
+	return connect.NewResponse(&adoptionsv1.EjectAdoptionResponse{Adoption: sampleAdoption(), WrittenPath: "/tmp/Button.tsx"}), nil
+}
+
 func (s *adoptionsService) ApplyAdoption(_ context.Context, req *connect.Request[adoptionsv1.ApplyAdoptionRequest]) (*connect.Response[adoptionsv1.ApplyAdoptionResponse], error) {
 	s.mu.Lock()
 	s.applyReqs = append(s.applyReqs, req.Msg)
@@ -139,6 +147,16 @@ func (s *adoptionsService) DeleteAdoption(_ context.Context, _ *connect.Request[
 }
 
 func (s *adoptionsService) RefreshAdoptions(_ context.Context, req *connect.Request[adoptionsv1.RefreshAdoptionsRequest]) (*connect.Response[adoptionsv1.RefreshAdoptionsResponse], error) {
+	s.mu.Lock()
+	s.refreshReqs = append(s.refreshReqs, req.Msg)
+	s.mu.Unlock()
+	if s.refreshResp == nil {
+		s.refreshResp = &adoptionsv1.RefreshAdoptionsResponse{}
+	}
+	return connect.NewResponse(s.refreshResp), nil
+}
+
+func (s *adoptionsService) ForkReportAdoptions(_ context.Context, req *connect.Request[adoptionsv1.RefreshAdoptionsRequest]) (*connect.Response[adoptionsv1.RefreshAdoptionsResponse], error) {
 	s.mu.Lock()
 	s.refreshReqs = append(s.refreshReqs, req.Msg)
 	s.mu.Unlock()

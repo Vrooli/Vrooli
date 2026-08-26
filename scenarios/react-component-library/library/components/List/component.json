@@ -11,7 +11,7 @@
     }
   ],
   "displayName": "List",
-  "latest": "1.0.0",
+  "latest": "1.0.1",
   "libraryId": "react-component-library:List",
   "tags": [
     "data-display",
@@ -22,5 +22,7 @@
       "libraryId": "react-component-library:useLocale",
       "version": "1.0.0"
     }
-  ]
+  ],
+  "draft": "",
+  "deprecatedVersions": []
 }

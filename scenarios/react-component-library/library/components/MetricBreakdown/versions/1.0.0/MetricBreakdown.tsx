@@ -1,6 +1,4 @@
 /** @vrooliComponentSource react-component-library:MetricBreakdown */
-import { translate } from "../../../../hooks/useLocale/versions/1.0.0/useLocale";
-
 export interface MetricItem {
   id: string;
   label: string;
@@ -11,7 +9,7 @@ export interface MetricItem {
 export function MetricBreakdown({ items = [] }: { items?: MetricItem[] }) {
   return (
     <dl
-      aria-label={translate("data-display.metric-breakdown.aria-label.1", "Metric breakdown")}
+      aria-label="Metric breakdown"
       style={{ display: "grid", gap: "var(--space-xs)" }}
     >
       {items.map((item) => (

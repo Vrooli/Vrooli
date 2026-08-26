@@ -7,7 +7,7 @@
     "fixtures": []
   },
   "kind": "component",
-  "schemaVersion": 4,
+  "schemaVersion": 5,
   "stories": [
     {
       "args": {},
@@ -26,7 +26,8 @@
       ],
       "id": "account",
       "mode": "live",
-      "name": "Signed-out account"
+      "name": "Signed-out account",
+      "role": "anatomy"
     }
   ],
   "title": "MonetizationAccount"

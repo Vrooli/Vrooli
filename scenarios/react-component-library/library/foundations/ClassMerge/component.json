@@ -11,11 +11,13 @@
     }
   ],
   "displayName": "Class Merge",
-  "latest": "1.0.0",
+  "latest": "1.0.1",
   "libraryId": "react-component-library:ClassMerge",
   "tags": [
     "foundations",
     "styling",
     "composition"
-  ]
+  ],
+  "draft": "",
+  "deprecatedVersions": []
 }

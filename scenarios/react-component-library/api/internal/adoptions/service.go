@@ -30,11 +30,18 @@ import (
 // policy lives next to the only code that applies it.
 const defaultListLimit = 200
 
+// refreshListLimit is deliberately larger than the interactive list limit.
+// Refresh is the fleet-wide reconciliation operation; silently truncating it
+// would leave a false impression that the registry is fully classified.
+const refreshListLimit = 100000
+
 // Service is the application-layer surface handlers depend on. Owns
 // the Refresh drift policy and any cross-handler validation that does
 // not belong in transport.
 type Service interface {
 	Create(ctx context.Context, in CreateInput) (Adoption, error)
+	Link(ctx context.Context, in LinkInput) (LinkResult, error)
+	Eject(ctx context.Context, in EjectInput) (ApplyResult, error)
 	Apply(ctx context.Context, in ApplyInput) (ApplyResult, error)
 	BatchApply(ctx context.Context, in BatchApplyInput) (BatchApplyResult, error)
 	Preflight(ctx context.Context, in PreflightInput) (PreflightResult, error)
@@ -51,6 +58,7 @@ type Service interface {
 	Delete(ctx context.Context, id string) error
 	DeleteWithOptions(ctx context.Context, id string, confirmRemoveFiles bool) (DeleteResult, error)
 	Refresh(ctx context.Context, componentID string) ([]Adoption, RefreshSummary, error)
+	ForkReport(ctx context.Context, componentID string, apply bool) ([]Adoption, RefreshSummary, error)
 }
 
 // BatchApply validates every root and its closure before writing anything.
@@ -468,6 +476,14 @@ type LibraryReader interface {
 	ListVersions(ctx context.Context, componentID string, limit int) ([]components.ComponentVersion, error)
 }
 
+// VersionFileReader is an optional source-store seam used by link-time
+// projection. The registry keeps released version rows immutable, while a
+// source companion can be added alongside an existing release without
+// changing that release's entry hash.
+type VersionFileReader interface {
+	GetVersionContentAt(ctx context.Context, componentID, version, path string) (components.Content, error)
+}
+
 // ProvenanceFile is one source file found by a read-only provenance scan.
 type ProvenanceFile struct {
 	Scenario    string
@@ -521,6 +537,14 @@ type ScenarioFileRemover interface {
 // retain their read/write-only contract.
 type ScenarioImportSiteFinder interface {
 	FindImportSites(ctx context.Context, scenario, adoptedPath string) ([]string, error)
+}
+
+// ScenarioImportRewriter replaces imports of a copied root with the package
+// subpath selected by Link. It is optional so focused service fakes can remain
+// read/write-only; production must implement it because linking without
+// updating call sites would delete the old file and leave a broken build.
+type ScenarioImportRewriter interface {
+	RewriteImportSites(ctx context.Context, scenario, adoptedPath, replacement string) ([]string, error)
 }
 
 // ScenarioTokenNamespaceReader resolves the semantic Tailwind vocabulary of a
@@ -1365,7 +1389,19 @@ func (s *service) DeleteWithOptions(ctx context.Context, id string, confirmRemov
 }
 
 func (s *service) Refresh(ctx context.Context, componentID string) ([]Adoption, RefreshSummary, error) {
-	rows, err := s.repo.List(ctx, ListQuery{ComponentID: strings.TrimSpace(componentID), Limit: defaultListLimit})
+	return s.refresh(ctx, componentID, true)
+}
+
+// ForkReport classifies the complete adoption registry using the same
+// evidence as Refresh. Dry-run is the default so operators can inspect every
+// row before persisting the four-way disposition; apply only updates the
+// registry metadata and never rewrites scenario source files.
+func (s *service) ForkReport(ctx context.Context, componentID string, apply bool) ([]Adoption, RefreshSummary, error) {
+	return s.refresh(ctx, componentID, apply)
+}
+
+func (s *service) refresh(ctx context.Context, componentID string, apply bool) ([]Adoption, RefreshSummary, error) {
+	rows, err := s.repo.List(ctx, ListQuery{ComponentID: strings.TrimSpace(componentID), Limit: refreshListLimit})
 	if err != nil {
 		return nil, RefreshSummary{}, err
 	}
@@ -1381,10 +1417,22 @@ func (s *service) Refresh(ctx context.Context, componentID string) ([]Adoption, 
 		update := RefreshUpdate{
 			ID: row.ID, LibraryVersionStatus: libraryStatus, LocalStatus: localStatus, StatusDetail: detail, RefreshedAt: now,
 		}
-		if row.ForkStatus == ForkStatusNone && localStatus == LocalStatusModified {
-			update.ForkStatus = ForkStatusUnintendedDrift
-			rows[i].ForkStatus = ForkStatusUnintendedDrift
+		// Automated classifications are observations, not operator declarations.
+		// Recompute them on refresh so improving the classifier repairs earlier
+		// coarse results and every registry row has an explicit disposition. A
+		// declared fork remains authoritative and is never overwritten here.
+		if row.ForkStatus == ForkStatusDeclared {
+			update.ForkStatus = ForkStatusDeclared
+		} else if row.Mode == AdoptionModeLinked {
+			update.ForkStatus = ForkStatusContractPreserved
+		} else if localStatus == LocalStatusModified {
+			update.ForkStatus = forkStatusForDisposition(s.classifyModified(ctx, row))
+		} else if localStatus == LocalStatusClean && s.verifiedCleanAgainstLibrary(ctx, row) {
+			update.ForkStatus = ForkStatusMechanicalTranslation
+		} else {
+			update.ForkStatus = ForkStatusLocalFork
 		}
+		rows[i].ForkStatus = update.ForkStatus
 		// Drift policy:
 		//   * status flips to behind/modified AND no backlog item filed
 		//     yet → call the reporter and store the returned ref so the
@@ -1392,7 +1440,7 @@ func (s *service) Refresh(ctx context.Context, componentID string) ([]Adoption, 
 		//   * status returns to current → clear the stored ref so a
 		//     fresh drift files a new item rather than being silently
 		//     swallowed.
-		if s.reporter != nil {
+		if apply && s.reporter != nil {
 			switch {
 			case (libraryStatus == LibraryVersionStatusBehind || localStatus == LocalStatusModified) && row.DriftBacklogRef == "":
 				ev := s.buildDriftEvent(ctx, rows[i])
@@ -1434,8 +1482,10 @@ func (s *service) Refresh(ctx context.Context, componentID string) ([]Adoption, 
 			summary.LocalUnknown++
 		}
 	}
-	if _, err := s.repo.ApplyRefresh(ctx, updates); err != nil {
-		return nil, RefreshSummary{}, err
+	if apply {
+		if _, err := s.repo.ApplyRefresh(ctx, updates); err != nil {
+			return nil, RefreshSummary{}, err
+		}
 	}
 	return rows, summary, nil
 }
@@ -1921,6 +1971,90 @@ func (r *FSScenarioFileReader) FindImportSites(_ context.Context, scenario, adop
 	}
 	sort.Strings(sites)
 	return sites, nil
+}
+
+func (r *FSScenarioFileReader) RewriteImportSites(ctx context.Context, scenario, adoptedPath, replacement string) ([]string, error) {
+	base := filepath.Join(r.root, scenario)
+	updated := make([]string, 0)
+	if strings.HasPrefix(replacement, linkedPackageName+"/") {
+		modulePrefix := replacement
+		if slash := strings.LastIndex(modulePrefix, "/"); slash >= 0 {
+			modulePrefix = modulePrefix[:slash+1]
+		}
+		// A row records the adopter-owned provenance path, while source files
+		// import the package subpath. Rewrite the whole component family, not
+		// only the row's current exact version, so a repeated governed Link
+		// repairs stale package imports as well.
+		oldModulePattern := regexp.MustCompile(`(["'])` + regexp.QuoteMeta(modulePrefix) + `[^"']+(["'])`)
+		err := filepath.Walk(base, func(path string, info os.FileInfo, walkErr error) error {
+			if walkErr != nil {
+				return walkErr
+			}
+			if info.IsDir() || strings.Contains(filepath.ToSlash(path), "/node_modules/") || !isSourceFile(path) {
+				return nil
+			}
+			body, readErr := os.ReadFile(path)
+			if readErr != nil {
+				return readErr
+			}
+			text := string(body)
+			rewritten := oldModulePattern.ReplaceAllString(text, `$1`+replacement+`$2`)
+			if rewritten == text {
+				return nil
+			}
+			if writeErr := os.WriteFile(path, []byte(rewritten), 0o644); writeErr != nil {
+				return writeErr
+			}
+			rel, relErr := filepath.Rel(base, path)
+			if relErr != nil {
+				return relErr
+			}
+			updated = append(updated, filepath.ToSlash(rel))
+			return nil
+		})
+		if err != nil {
+			return nil, fmt.Errorf("rewrite package import sites for %q: %w", adoptedPath, err)
+		}
+	}
+	if strings.HasPrefix(filepath.ToSlash(adoptedPath), "./") {
+		sort.Strings(updated)
+		return updated, nil
+	}
+	sites, err := r.FindImportSites(ctx, scenario, adoptedPath)
+	if err != nil {
+		return nil, err
+	}
+	target, err := r.resolve(scenario, adoptedPath)
+	if err != nil {
+		return nil, err
+	}
+	for _, site := range sites {
+		absolute := filepath.Join(base, filepath.FromSlash(site))
+		content, readErr := os.ReadFile(absolute)
+		if readErr != nil {
+			return nil, fmt.Errorf("read import site %q: %w", site, readErr)
+		}
+		relTarget, relErr := filepath.Rel(filepath.Dir(absolute), target)
+		if relErr != nil {
+			return nil, relErr
+		}
+		module := strings.TrimSuffix(filepath.ToSlash(relTarget), filepath.Ext(relTarget))
+		if !strings.HasPrefix(module, ".") {
+			module = "./" + module
+		}
+		body := string(content)
+		for _, quote := range []string{"\"", "'"} {
+			body = strings.ReplaceAll(body, quote+module+quote, quote+replacement+quote)
+		}
+		if body == string(content) {
+			continue
+		}
+		if writeErr := os.WriteFile(absolute, []byte(body), 0o644); writeErr != nil {
+			return nil, fmt.Errorf("rewrite import site %q: %w", site, writeErr)
+		}
+		updated = append(updated, site)
+	}
+	return updated, nil
 }
 
 // resolve maps (scenario, adoptedPath) onto disk. Scenario is either a plain

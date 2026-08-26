@@ -9,9 +9,7 @@
         "path": "aria-label"
       },
       {
-        "default": {
-          "$icon": "X"
-        },
+        "default": "",
         "kind": "structured",
         "label": "Icon",
         "path": "children"
@@ -67,13 +65,10 @@
     "fixtures": []
   },
   "kind": "component",
-  "schemaVersion": 4,
+  "schemaVersion": 5,
   "stories": [
     {
       "args": {
-        "children": {
-          "$icon": "Play"
-        },
         "variant": "primary"
       },
       "expect": [
@@ -85,13 +80,17 @@
       ],
       "id": "variant-primary",
       "mode": "pinned",
-      "name": "Primary"
+      "name": "Primary",
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "VariantPrimary"
+        }
+      },
+      "role": "anatomy"
     },
     {
       "args": {
-        "children": {
-          "$icon": "Settings"
-        },
         "variant": "secondary"
       },
       "expect": [
@@ -103,13 +102,26 @@
       ],
       "id": "variant-secondary",
       "mode": "pinned",
-      "name": "Secondary"
+      "name": "Secondary",
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "VariantSecondary"
+        }
+      },
+      "role": "axis",
+      "axis": "variant",
+      "covers": {
+        "variant": [
+          "primary",
+          "secondary",
+          "ghost",
+          "danger"
+        ]
+      }
     },
     {
       "args": {
-        "children": {
-          "$icon": "X"
-        },
         "variant": "ghost"
       },
       "expect": [
@@ -121,13 +133,28 @@
       ],
       "id": "variant-ghost",
       "mode": "pinned",
-      "name": "Ghost"
+      "name": "Ghost",
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "VariantGhost"
+        }
+      },
+      "role": "axis",
+      "axis": "size",
+      "covers": {
+        "size": [
+          "xs",
+          "sm",
+          "md",
+          "lg",
+          "xl",
+          "icon"
+        ]
+      }
     },
     {
       "args": {
-        "children": {
-          "$icon": "Trash2"
-        },
         "variant": "danger"
       },
       "expect": [
@@ -139,13 +166,24 @@
       ],
       "id": "variant-danger",
       "mode": "pinned",
-      "name": "Danger"
+      "name": "Danger",
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "VariantDanger"
+        }
+      },
+      "role": "axis",
+      "axis": "density",
+      "covers": {
+        "density": [
+          "comfortable",
+          "compact"
+        ]
+      }
     },
     {
       "args": {
-        "children": {
-          "$icon": "Circle"
-        },
         "size": "xs"
       },
       "expect": [
@@ -157,13 +195,17 @@
       ],
       "id": "size-xs",
       "mode": "pinned",
-      "name": "XS"
+      "name": "XS",
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "SizeXs"
+        }
+      },
+      "role": "boundary"
     },
     {
       "args": {
-        "children": {
-          "$icon": "Circle"
-        },
         "size": "sm"
       },
       "expect": [
@@ -175,13 +217,17 @@
       ],
       "id": "size-sm",
       "mode": "pinned",
-      "name": "SM"
+      "name": "SM",
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "SizeSm"
+        }
+      },
+      "role": "boundary"
     },
     {
       "args": {
-        "children": {
-          "$icon": "Circle"
-        },
         "size": "md"
       },
       "expect": [
@@ -193,13 +239,17 @@
       ],
       "id": "size-md",
       "mode": "pinned",
-      "name": "MD"
+      "name": "MD",
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "SizeMd"
+        }
+      },
+      "role": "boundary"
     },
     {
       "args": {
-        "children": {
-          "$icon": "Circle"
-        },
         "size": "lg"
       },
       "expect": [
@@ -211,13 +261,17 @@
       ],
       "id": "size-lg",
       "mode": "pinned",
-      "name": "LG"
+      "name": "LG",
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "SizeLg"
+        }
+      },
+      "role": "boundary"
     },
     {
       "args": {
-        "children": {
-          "$icon": "Circle"
-        },
         "size": "xl"
       },
       "expect": [
@@ -229,13 +283,17 @@
       ],
       "id": "size-xl",
       "mode": "pinned",
-      "name": "XL"
+      "name": "XL",
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "SizeXl"
+        }
+      },
+      "role": "boundary"
     },
     {
       "args": {
-        "children": {
-          "$icon": "Circle"
-        },
         "size": "icon"
       },
       "expect": [
@@ -247,13 +305,17 @@
       ],
       "id": "size-icon",
       "mode": "pinned",
-      "name": "Icon"
+      "name": "Icon",
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "SizeIcon"
+        }
+      },
+      "role": "boundary"
     },
     {
       "args": {
-        "children": {
-          "$icon": "Circle"
-        },
         "density": "comfortable"
       },
       "expect": [
@@ -265,13 +327,17 @@
       ],
       "id": "density-comfortable",
       "mode": "pinned",
-      "name": "Comfortable"
+      "name": "Comfortable",
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "DensityComfortable"
+        }
+      },
+      "role": "boundary"
     },
     {
       "args": {
-        "children": {
-          "$icon": "Circle"
-        },
         "density": "compact"
       },
       "expect": [
@@ -283,7 +349,14 @@
       ],
       "id": "density-compact",
       "mode": "pinned",
-      "name": "Compact"
+      "name": "Compact",
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "DensityCompact"
+        }
+      },
+      "role": "boundary"
     }
   ],
   "title": "IconButton 2.0"

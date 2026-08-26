@@ -4,5 +4,5 @@ import { useEscapeKey } from "./useEscapeKey";
 export function Default({ args }: StoryHarnessProps<{ active: boolean }>) {
   const [escaped, setEscaped] = useState(false);
   useEscapeKey(args.active, () => setEscaped(true));
-  return <div role="status">{escaped ? "escaped" : "waiting"}</div>;
+  return <div data-testid="hooks.use-escape-key" role="status">{escaped ? "escaped" : "waiting"}</div>;
 }

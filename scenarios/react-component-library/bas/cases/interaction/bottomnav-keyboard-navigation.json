@@ -26,7 +26,7 @@
         "navigate": {
           "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
           "scenario": "react-component-library",
-          "scenario_path": "/preview/react-component-library:BottomNav/harness.html?story=mobile-primary",
+          "scenario_path": "/preview/react-component-library:BottomNav/harness.html?version=1.2.0&story=mobile-primary",
           "wait_until": "NAVIGATE_WAIT_EVENT_DOMCONTENTLOADED",
           "timeout_ms": 30000
         },

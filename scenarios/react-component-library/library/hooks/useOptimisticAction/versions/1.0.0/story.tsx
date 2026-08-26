@@ -13,7 +13,7 @@ export function Default() {
     },
   });
   return (
-    <section
+    <section data-testid="hooks.use-optimistic-action"
       style={{
         display: "grid",
         gap: "var(--space-sm)",

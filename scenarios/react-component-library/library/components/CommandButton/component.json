@@ -27,7 +27,7 @@
   ],
   "displayName": "CommandButton",
   "draft": "",
-  "latest": "1.0.0",
+  "latest": "1.0.1",
   "libraryId": "react-component-library:CommandButton",
   "slot": "ui-primitive",
   "tags": [

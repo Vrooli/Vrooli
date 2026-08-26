@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
-import { Button } from "../../../../components/Button/versions/1.0.0/Button";
-import { IconButton } from "../../../../components/IconButton/versions/2.0.0/IconButton";
-import { Surface } from "../../../Surface/versions/1.0.0/Surface";
+import { Button } from "@vrooli/react-component-library/Button/2.0.0";
+import { IconButton } from "@vrooli/react-component-library/IconButton/2.0.0";
+import { Surface } from "@vrooli/react-component-library/Surface/1.0.0";
 import { MorphingIcon } from "./MorphingIcon";
 
 const stageStyle = {

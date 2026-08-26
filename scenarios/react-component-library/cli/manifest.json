@@ -178,6 +178,39 @@
           }
         },
         {
+          "name": "link",
+          "description": "Link a pinned component version through the governed package dependency",
+          "positionals": [
+            { "name": "component-id", "required": true, "description": "Library component id" },
+            { "name": "scenario", "required": true, "description": "Target scenario name" }
+          ],
+          "flags": [
+            { "name": "version", "description": "Library version to link; defaults to latest" },
+            { "name": "import-subpath", "description": "Explicit package export subpath" },
+            { "name": "confirm-existing", "description": "Accept an existing different package dependency" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "AdoptionsService", "method": "LinkAdoption" },
+          "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal", "filesystem:write"] }
+        },
+        {
+          "name": "eject",
+          "description": "Copy a component into a scenario as an explicit reason-bearing ejection",
+          "positionals": [
+            { "name": "component-id", "required": true, "description": "Library component id" },
+            { "name": "scenario", "required": true, "description": "Target scenario name" },
+            { "name": "adopted-path", "required": true, "description": "Path within the target scenario" }
+          ],
+          "flags": [
+            { "name": "version", "description": "Library version to eject; defaults to latest" },
+            { "name": "reason", "description": "Required explanation for the ejection" },
+            { "name": "replace-existing", "description": "Replace an existing scenario source" },
+            { "name": "confirm-overwrite", "description": "Confirm replacing different source" },
+            { "name": "override-validation", "description": "Explicitly allow a blocking validation verdict" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "AdoptionsService", "method": "EjectAdoption" },
+          "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal", "filesystem:write"] }
+        },
+        {
           "name": "apply",
           "description": "Copy a component version into a target scenario and record the adoption",
           "positionals": [
@@ -503,6 +536,48 @@
           }
         },
         {
+          "name": "fork-report",
+          "description": "Classify every adoption's fork disposition; dry-run by default, --apply persists the report",
+          "flags": [
+            {
+              "name": "component-id",
+              "description": "Limit the report to one component's adoptions"
+            },
+            {
+              "name": "apply",
+              "description": "Persist the computed fork dispositions"
+            },
+            {
+              "name": "report",
+              "default": "true",
+              "description": "Internal command selector",
+              "bind": {
+                "field": "fork_report"
+              }
+            },
+            {
+              "name": "json",
+              "bool": true,
+              "local_only": true,
+              "description": "Emit JSON output instead of human-readable output"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AdoptionsService",
+            "method": "ForkReportAdoptions"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:read",
+              "filesystem:write"
+            ]
+          }
+        },
+        {
           "name": "resolve-path",
           "description": "Compute the canonical adopted path for a component in a target scenario (uses the scenario's UI manifest)",
           "positionals": [
@@ -758,6 +833,25 @@
             "permissions": [
               "network:internal"
             ]
+          }
+        },
+        {
+          "name": "sweep",
+          "description": "Run the durable five-stage test pipeline across every live library version",
+          "flags": [
+            {"name": "resume", "bool": true, "description": "Skip versions with a prior non-blocked report"},
+            {"name": "closure", "bool": true, "description": "Include each version's pinned dependency closure", "bind": {"field": "include_closure"}},
+            {"name": "component-id", "description": "Run one component batch by UUID or library id"}
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ComponentTestsService",
+            "method": "SweepComponentTests"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": ["network:internal", "filesystem:write"]
           }
         },
         {
@@ -1842,6 +1936,28 @@
             ]
           }
         },
+        {
+          "name": "stories",
+          "description": "Lint every versioned story contract and specimen module",
+          "positionals": [
+            { "name": "action", "required": true, "description": "Action: lint", "local_only": true },
+            { "name": "gate", "description": "Internal gate selector; stories lint selects story-grammar", "local_only": true }
+          ],
+          "flags": [
+            { "name": "all", "bool": true, "description": "Run every declared catalog gate", "local_only": true },
+            { "name": "calibration-only", "bool": true, "description": "Run gate-owned planted-error fixtures without inspecting the corpus", "local_only": true }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "CatalogService",
+            "method": "RunGate"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": ["network:internal", "filesystem:read"]
+          }
+        },
     {
       "name": "gates",
           "description": "Run one deterministic catalog gate against the live corpus",
@@ -1998,11 +2114,6 @@
       "service": "ComponentsService",
       "method": "PersistPreviewFrame",
       "reason": "Preview-only UI authoring surface. Frame persistence creates versioned story drafts from the Components UI; no standalone CLI workflow exists."
-    },
-    {
-      "service": "InventoryService",
-      "method": "ScanScenario",
-      "reason": "Internal provider surface used by catalog inventory workflows; no standalone CLI command is intended."
     },
     {
       "service": "ScenarioValidationService",

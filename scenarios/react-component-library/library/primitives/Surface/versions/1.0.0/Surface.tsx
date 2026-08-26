@@ -1,5 +1,6 @@
 /** @vrooliComponentSource primitives.surface */
 import { forwardRef, type HTMLAttributes } from "react";
+import "./Surface.css";
 
 export const Surface = forwardRef<
   HTMLDivElement,
@@ -7,17 +8,11 @@ export const Surface = forwardRef<
     elevation?: "flat" | "raised" | "floating" | "overlay";
   }
 >(({ elevation = "flat", className, ...props }, ref) => (
-  <div
+  <div data-testid="primitives.surface"
     ref={ref}
     className={className}
     data-elevation={elevation}
-    style={{
-      background: "var(--color-surface)",
-      border: "var(--surface-border)",
-      borderRadius: "var(--panel-radius)",
-      boxShadow: `var(--elev-${elevation})`,
-      ...props.style,
-    }}
+    data-rcl-surface
     {...props}
   />
 ));

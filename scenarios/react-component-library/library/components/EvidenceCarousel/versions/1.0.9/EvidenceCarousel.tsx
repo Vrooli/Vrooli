@@ -6,8 +6,6 @@
  * @tags ["visualization","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
-import { translate } from "../../../../hooks/useLocale/versions/1.0.0/useLocale";
-
 /** @vrooliComponentSource react-component-library:EvidenceCarousel */
 import type { ReactNode } from "react";
 import { CheckCircle2, CircleAlert, FileText, Image, ScanSearch } from "lucide-react";
@@ -61,7 +59,7 @@ export function EvidenceCarousel({
 
   return (
     <section
-      aria-label={translate("visualization.evidence-carousel.aria-label.1", "Evidence workspace")}
+      aria-label="Evidence workspace"
       data-rcl-asset="visualization.evidence-carousel"
       data-rcl-version="1.0.8"
       data-rcl-stamp="source"
@@ -76,7 +74,7 @@ export function EvidenceCarousel({
         </div>
         <div
           role="tablist"
-          aria-label={translate("visualization.evidence-carousel.aria-label.2", "Evidence types")}
+          aria-label="Evidence types"
           className="flex gap-space-2xs overflow-x-auto"
         >
           {items.map((item) => {
@@ -85,7 +83,7 @@ export function EvidenceCarousel({
             const isSelected = item.id === selected?.id;
             const label = item.label ?? kindLabel(item.kind);
             return (
-              <button data-testid="visualization.evidence-carousel"
+              <button
                 key={item.id}
                 type="button"
                 role="tab"
@@ -123,7 +121,7 @@ export function EvidenceCarousel({
         </div>
       ) : (
         <div className="flex min-h-content items-center justify-center p-space-md">
-          <span className="text-xs text-app-muted-foreground">{translate("visualization.evidence-carousel.text.3", "No evidence captured.")}</span>
+          <span className="text-xs text-app-muted-foreground">No evidence captured.</span>
         </div>
       )}
     </section>

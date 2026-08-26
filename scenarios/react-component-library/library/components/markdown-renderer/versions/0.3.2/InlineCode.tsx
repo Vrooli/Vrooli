@@ -6,6 +6,8 @@
  * @tags ["markdown","code","inline"]
  * @deps {"react":"^18"}
  */
+import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
+
 
 import type { MouseEvent, ReactNode } from "react";
 import { useCodeCopy } from "./useCodeCopy";
@@ -24,7 +26,7 @@ export interface InlineCodeProps {
   copyLabel?: string;
 }
 
-export function InlineCode({
+export const InlineCode = withClassName(function InlineCode({
   children,
   resolveInlineToken,
   looksLikeFileReference,
@@ -83,4 +85,4 @@ export function InlineCode({
       </button>
     </span>
   );
-}
+});

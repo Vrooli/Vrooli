@@ -70,7 +70,10 @@ export function ButtonStory({ args }: StoryHarnessProps) {
     : "A clear visual hierarchy, a full touch target, and a small amount of responsive motion make the next action feel inevitable.";
   return (
     <Showcase title={label} detail={detail}>
-      <Button {...buttonArgs} />
+      <Button
+        {...buttonArgs}
+        aria-label={buttonArgs.size === "icon" ? "Icon action" : buttonArgs["aria-label"]}
+      />
     </Showcase>
   );
 }

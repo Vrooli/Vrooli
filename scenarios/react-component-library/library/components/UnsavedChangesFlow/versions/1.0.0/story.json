@@ -7,7 +7,7 @@
     "fixtures": []
   },
   "kind": "component",
-  "schemaVersion": 4,
+  "schemaVersion": 5,
   "stories": [
     {
       "args": {},
@@ -46,7 +46,8 @@
       ],
       "id": "default",
       "mode": "live",
-      "name": "Recovery decision"
+      "name": "Recovery decision",
+      "role": "anatomy"
     },
     {
       "args": {},
@@ -64,13 +65,17 @@
         },
         {
           "kind": "role",
-          "name": "The workspace service is temporarily unavailable. Retry, keep editing, or preserve a private draft.",
           "role": "alert"
+        },
+        {
+          "kind": "text",
+          "value": "The workspace service is temporarily unavailable. Retry, keep editing, or preserve a private draft."
         }
       ],
       "id": "request-error",
       "mode": "live",
-      "name": "Save request error"
+      "name": "Save request error",
+      "role": "boundary"
     },
     {
       "args": {},
@@ -93,7 +98,8 @@
       ],
       "id": "success",
       "mode": "live",
-      "name": "Saved state"
+      "name": "Saved state",
+      "role": "boundary"
     }
   ],
   "title": "UnsavedChangesFlow"

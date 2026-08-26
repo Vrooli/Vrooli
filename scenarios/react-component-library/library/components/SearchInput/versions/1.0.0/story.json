@@ -13,7 +13,7 @@
     "fixtures": []
   },
   "kind": "component",
-  "schemaVersion": 4,
+  "schemaVersion": 5,
   "stories": [
     {
       "args": {
@@ -27,7 +27,14 @@
       },
       "id": "empty",
       "mode": "live",
-      "name": "Empty"
+      "name": "Empty",
+      "role": "anatomy",
+      "expect": [
+        {
+          "kind": "visible",
+          "selector": "body"
+        }
+      ]
     }
   ],
   "title": "SearchInput"

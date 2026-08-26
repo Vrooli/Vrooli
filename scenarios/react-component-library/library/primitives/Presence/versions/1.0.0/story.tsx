@@ -38,3 +38,6 @@ export function TogglePresence({
     </div>
   );
 }
+
+export function PresenceAnatomy(props: Parameters<typeof TogglePresence>[0]) { return <TogglePresence {...props} />; }
+export function PresenceBoundary(props: Parameters<typeof TogglePresence>[0]) { return <TogglePresence {...props} />; }

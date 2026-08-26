@@ -15,9 +15,7 @@
         "path": "title"
       },
       {
-        "default": {
-          "$handler": "close"
-        },
+        "default": null,
         "kind": "structured",
         "label": "On Close",
         "path": "onClose"
@@ -37,17 +35,13 @@
         "path": "size"
       },
       {
-        "default": {
-          "$text": "button"
-        },
+        "default": "Content",
         "kind": "structured",
         "label": "Header Actions",
         "path": "headerActions"
       },
       {
-        "default": {
-          "$text": "p"
-        },
+        "default": "Content",
         "kind": "structured",
         "label": "Header Extra",
         "path": "headerExtra"
@@ -70,15 +64,12 @@
     "fixtures": []
   },
   "kind": "component",
-  "schemaVersion": 4,
+  "schemaVersion": 5,
   "stories": [
     {
       "args": {
         "children": {
           "$text": "Full-page drawer body content"
-        },
-        "onClose": {
-          "$handler": "close"
         },
         "open": true,
         "title": "Component details"
@@ -96,15 +87,19 @@
       ],
       "id": "full-open",
       "mode": "pinned",
-      "name": "Full drawer"
+      "name": "Full drawer",
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "FullOpen"
+        }
+      },
+      "role": "anatomy"
     },
     {
       "args": {
         "children": {
           "$text": "Compact centered panel"
-        },
-        "onClose": {
-          "$handler": "close"
         },
         "open": true,
         "size": "compact",
@@ -123,18 +118,19 @@
       ],
       "id": "compact-open",
       "mode": "pinned",
-      "name": "Compact drawer"
+      "name": "Compact drawer",
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "CompactOpen"
+        }
+      },
+      "role": "boundary"
     },
     {
       "args": {
         "children": {
           "$text": "Body with a header action"
-        },
-        "headerActions": {
-          "$text": "button"
-        },
-        "onClose": {
-          "$handler": "close"
         },
         "open": true,
         "title": "Edit prompt"
@@ -152,18 +148,19 @@
       ],
       "id": "with-header-actions",
       "mode": "pinned",
-      "name": "Header actions"
+      "name": "Header actions",
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "WithHeaderActions"
+        }
+      },
+      "role": "boundary"
     },
     {
       "args": {
         "children": {
           "$text": "Scrollable log content"
-        },
-        "headerExtra": {
-          "$text": "p"
-        },
-        "onClose": {
-          "$handler": "close"
         },
         "open": true,
         "title": "Session log"
@@ -180,7 +177,14 @@
       ],
       "id": "with-header-extra",
       "mode": "pinned",
-      "name": "Header subtitle"
+      "name": "Header subtitle",
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "WithHeaderExtra"
+        }
+      },
+      "role": "boundary"
     },
     {
       "args": {
@@ -189,9 +193,6 @@
           "$text": "Composer body lifted above the keyboard"
         },
         "closeAriaLabel": "Close composer",
-        "onClose": {
-          "$handler": "close"
-        },
         "open": true,
         "title": "Message"
       },
@@ -208,7 +209,14 @@
       ],
       "id": "keyboard-aware",
       "mode": "pinned",
-      "name": "Keyboard-aware composer"
+      "name": "Keyboard-aware composer",
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "KeyboardAware"
+        }
+      },
+      "role": "boundary"
     }
   ],
   "title": "DrawerShell"

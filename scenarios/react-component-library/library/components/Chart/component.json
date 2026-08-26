@@ -32,7 +32,7 @@
     }
   ],
   "displayName": "Chart",
-  "latest": "1.0.0",
+  "latest": "1.0.3",
   "libraryId": "react-component-library:Chart",
   "tags": [
     "visualization",
@@ -46,5 +46,7 @@
       "libraryId": "react-component-library:useLocale",
       "version": "1.0.0"
     }
-  ]
+  ],
+  "draft": "",
+  "deprecatedVersions": []
 }

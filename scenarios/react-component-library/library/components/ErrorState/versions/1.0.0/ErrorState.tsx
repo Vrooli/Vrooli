@@ -1,11 +1,9 @@
 /** @vrooliComponentSource react-component-library:ErrorState */
-import { translate } from "../../../../hooks/useLocale/versions/1.0.0/useLocale";
-
 import type { ReactNode } from "react";
-import { AsyncBoundary } from "../../../AsyncBoundary/versions/1.0.0/AsyncBoundary";
+import { AsyncBoundary } from "@vrooli/react-component-library/AsyncBoundary/1.0.0";
 
 export function ErrorState({
-  title = translate("feedback.error-state.title.1", "Something went wrong"),
+  title = "Something went wrong",
   message = "The operation could not be completed.",
   onRetry,
   children,

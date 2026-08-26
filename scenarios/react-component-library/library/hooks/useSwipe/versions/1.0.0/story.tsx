@@ -1,7 +1,7 @@
 import { useSwipe } from "./useSwipe";
 export function Default({ log }: StoryHarnessProps) {
   return (
-    <div {...useSwipe((direction) => log("swipe", direction))}>
+    <div data-testid="hooks.use-swipe" {...useSwipe((direction) => log("swipe", direction))}>
       Swipe surface
     </div>
   );

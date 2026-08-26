@@ -7,7 +7,7 @@
     "fixtures": []
   },
   "kind": "component",
-  "schemaVersion": 4,
+  "schemaVersion": 5,
   "stories": [
     {
       "args": {},
@@ -33,7 +33,8 @@
       ],
       "id": "default",
       "mode": "live",
-      "name": "Field errors"
+      "name": "Field errors",
+      "role": "anatomy"
     },
     {
       "args": {},
@@ -55,7 +56,8 @@
       ],
       "id": "custom-title",
       "mode": "live",
-      "name": "Custom title"
+      "name": "Custom title",
+      "role": "boundary"
     },
     {
       "args": {},
@@ -73,7 +75,8 @@
       ],
       "id": "empty",
       "mode": "live",
-      "name": "No errors"
+      "name": "No errors",
+      "role": "boundary"
     }
   ],
   "title": "ValidationSummary"

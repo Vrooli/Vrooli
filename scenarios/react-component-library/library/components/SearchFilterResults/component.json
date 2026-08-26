@@ -12,12 +12,14 @@
     }
   ],
   "displayName": "SearchFilterResults",
-  "latest": "1.0.0",
+  "latest": "1.0.2",
   "libraryId": "react-component-library:SearchFilterResults",
   "slot": "ui-pattern",
   "tags": [
     "pattern",
     "data-source",
     "token-bound"
-  ]
+  ],
+  "draft": "",
+  "deprecatedVersions": []
 }

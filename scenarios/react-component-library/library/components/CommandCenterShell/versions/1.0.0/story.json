@@ -9,9 +9,7 @@
         "path": "title"
       },
       {
-        "default": {
-          "$text": "nav"
-        },
+        "default": "Content",
         "kind": "structured",
         "label": "Navigation",
         "path": "navigation"
@@ -33,17 +31,13 @@
         "path": "metrics"
       },
       {
-        "default": {
-          "$text": "button"
-        },
+        "default": "Content",
         "kind": "structured",
         "label": "Controls",
         "path": "controls"
       },
       {
-        "default": {
-          "$text": "section"
-        },
+        "default": "Content",
         "kind": "structured",
         "label": "Children",
         "path": "children"
@@ -60,16 +54,10 @@
     "fixtures": []
   },
   "kind": "component",
-  "schemaVersion": 4,
+  "schemaVersion": 5,
   "stories": [
     {
       "args": {
-        "children": {
-          "$text": "section"
-        },
-        "controls": {
-          "$text": "button"
-        },
         "metrics": [
           {
             "detail": "3 need attention",
@@ -81,9 +69,6 @@
             "value": "28"
           }
         ],
-        "navigation": {
-          "$text": "nav"
-        },
         "regionId": "operations-runs",
         "title": "Operations command center"
       },
@@ -105,7 +90,14 @@
       ],
       "id": "ready-workspace",
       "mode": "pinned",
-      "name": "Ready workspace"
+      "name": "Ready workspace",
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "ReadyWorkspace"
+        }
+      },
+      "role": "anatomy"
     },
     {
       "args": {
@@ -115,9 +107,6 @@
             "value": "12"
           }
         ],
-        "navigation": {
-          "$text": "nav"
-        },
         "regionState": "partial",
         "title": "Operations command center"
       },
@@ -130,22 +119,23 @@
       ],
       "id": "partial-workspace",
       "mode": "pinned",
-      "name": "Partial workspace"
+      "name": "Partial workspace",
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "PartialWorkspace"
+        }
+      },
+      "role": "boundary"
     },
     {
       "args": {
-        "loading": {
-          "$text": "p"
-        },
         "metrics": [
           {
             "label": "Active runs",
             "value": "12"
           }
         ],
-        "navigation": {
-          "$text": "nav"
-        },
         "regionState": "loading",
         "title": "Operations command center"
       },
@@ -159,22 +149,23 @@
       ],
       "id": "loading-workspace",
       "mode": "pinned",
-      "name": "Loading workspace"
+      "name": "Loading workspace",
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "LoadingWorkspace"
+        }
+      },
+      "role": "boundary"
     },
     {
       "args": {
-        "empty": {
-          "$text": "p"
-        },
         "metrics": [
           {
             "label": "Active runs",
             "value": "0"
           }
         ],
-        "navigation": {
-          "$text": "nav"
-        },
         "regionState": "empty",
         "title": "Operations command center"
       },
@@ -188,22 +179,23 @@
       ],
       "id": "empty-workspace",
       "mode": "pinned",
-      "name": "Empty workspace"
+      "name": "Empty workspace",
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "EmptyWorkspace"
+        }
+      },
+      "role": "boundary"
     },
     {
       "args": {
-        "error": {
-          "$text": "p"
-        },
         "metrics": [
           {
             "label": "Active runs",
             "value": "12"
           }
         ],
-        "navigation": {
-          "$text": "nav"
-        },
         "regionState": "error",
         "title": "Operations command center"
       },
@@ -217,7 +209,14 @@
       ],
       "id": "error-workspace",
       "mode": "pinned",
-      "name": "Workspace error"
+      "name": "Workspace error",
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "ErrorWorkspace"
+        }
+      },
+      "role": "boundary"
     }
   ],
   "title": "CommandCenterShell"

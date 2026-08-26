@@ -1,4 +1,6 @@
 /** @vrooliComponentSource forms.form-field */
+import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
+
 import {
   cloneElement,
   isValidElement,
@@ -48,7 +50,7 @@ function mergeDescribedBy(...ids: Array<string | undefined>) {
   return ids.filter(Boolean).join(" ") || undefined;
 }
 
-export function FormField({
+export const FormField = withClassName(function FormField({
   label,
   control,
   id,
@@ -85,7 +87,7 @@ export function FormField({
         data-rcl-form-field-styles
         dangerouslySetInnerHTML={{ __html: styles }}
       />
-      <div
+      <div data-testid="forms.form-field"
         className={className}
         data-rcl-form-field="true"
         data-invalid={Boolean(error)}
@@ -122,4 +124,4 @@ export function FormField({
       </div>
     </>
   );
-}
+});

@@ -36,6 +36,7 @@ func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup
 		"ComponentTestsService.RerunComponentTest":       h.testRerun,
 		"ComponentTestsService.GetComponentTestReport":   h.testShow,
 		"ComponentTestsService.ListComponentTestReports": h.testList,
+		"ComponentTestsService.SweepComponentTests":      h.sweep,
 	}
 	group, err := cliapp.LoadFromManifest(manifest, GroupName, bindings)
 	if err != nil {

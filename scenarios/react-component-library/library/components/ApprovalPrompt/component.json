@@ -20,6 +20,7 @@
       "version": "1.0.0"
     }
   ],
+  "deprecatedVersions": [],
   "description": "A human-in-the-loop decision surface that makes action scope, consequences, expiry, and recovery explicit.",
   "designStyles": [
     {
@@ -36,19 +37,20 @@
     }
   ],
   "displayName": "ApprovalPrompt",
-  "latest": "1.0.0",
+  "draft": "",
+  "latest": "1.0.1",
   "libraryId": "react-component-library:ApprovalPrompt",
+  "requires": [
+    {
+      "libraryId": "react-component-library:useLocale",
+      "version": "1.0.0"
+    }
+  ],
   "tags": [
     "ai",
     "approval",
     "permission",
     "accessibility",
     "token-bound"
-  ],
-  "requires": [
-    {
-      "libraryId": "react-component-library:useLocale",
-      "version": "1.0.0"
-    }
   ]
 }

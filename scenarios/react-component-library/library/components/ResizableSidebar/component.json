@@ -11,11 +11,13 @@
     }
   ],
   "displayName": "ResizableSidebar",
-  "latest": "1.0.0",
+  "latest": "1.0.2",
   "libraryId": "react-component-library:ResizableSidebar",
   "tags": [
     "navigation",
     "responsive",
     "token-bound"
-  ]
+  ],
+  "draft": "",
+  "deprecatedVersions": []
 }

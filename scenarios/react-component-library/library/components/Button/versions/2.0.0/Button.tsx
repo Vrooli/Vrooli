@@ -5,8 +5,8 @@ import {
   type ControlShape,
   type ControlSize,
   type ControlVariant,
-} from "../../../ControlBase/versions/1.0.0/ControlBase";
-import { Pressable } from "../../../Pressable/versions/1.0.0/Pressable";
+} from "@vrooli/react-component-library/ControlBase/1.0.0";
+import { Pressable } from "@vrooli/react-component-library/Pressable/1.0.0";
 export const BUTTON_VARIANTS = [
   "primary",
   "secondary",

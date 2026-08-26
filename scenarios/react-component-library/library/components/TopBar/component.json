@@ -11,7 +11,7 @@
     }
   ],
   "displayName": "TopBar",
-  "latest": "1.0.0",
+  "latest": "1.0.4",
   "libraryId": "react-component-library:TopBar",
   "tags": [
     "navigation",
@@ -23,5 +23,7 @@
       "libraryId": "react-component-library:useLocale",
       "version": "1.0.0"
     }
-  ]
+  ],
+  "draft": "",
+  "deprecatedVersions": []
 }

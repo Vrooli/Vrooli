@@ -374,11 +374,13 @@ function StructuredArtifact({ reference, label }: { reference: string; label: st
 
 function ScreenshotArtifact({
   reference,
+  alt = "Captured component screenshot",
   showOverlay,
   overlaySubjects,
   overlayMessage,
 }: {
   reference: string;
+  alt?: string;
   showOverlay: boolean;
   overlaySubjects: Array<{
     id: string;
@@ -410,7 +412,7 @@ function ScreenshotArtifact({
       ) : null}
       <img
         src={reference}
-        alt="Captured component screenshot"
+        alt={alt}
         className={`max-h-[42rem] max-w-full object-contain ${status === "ready" ? "opacity-100" : "opacity-0"}`}
         onLoad={() => setStatus("ready")}
         onError={() => setStatus("error")}
@@ -426,6 +428,7 @@ function ScreenshotArtifact({
 
 function EvidenceWorkspace({
   items,
+  storySheets,
   storyChoices,
   selectedStoryID,
   onSelectStory,
@@ -436,6 +439,7 @@ function EvidenceWorkspace({
   overlayMessage,
 }: {
   items: CaptureItem[];
+  storySheets: ComponentTestArtifact[];
   storyChoices: Array<{ id: string; label: string }>;
   selectedStoryID: string;
   onSelectStory: (storyID: string) => void;
@@ -463,6 +467,46 @@ function EvidenceWorkspace({
 
   return (
     <div className="space-y-space-xs">
+      {storySheets.length ? (
+        <section
+          aria-label="Captured story sheets"
+          data-testid="captured-story-sheet-gallery"
+          className="space-y-space-2xs rounded-control border border-app-border bg-app-surface-muted p-space-xs"
+        >
+          <div>
+            <h4 className="text-xs font-semibold uppercase tracking-wide">All story sheets</h4>
+            <p className="mt-space-3xs text-xs text-app-muted-foreground">
+              Composite BAS captures are shown together so no story group is hidden behind a
+              selector.
+            </p>
+          </div>
+          <div className="grid gap-space-xs xl:grid-cols-2">
+            {storySheets.map((sheet, index) => (
+              <figure
+                key={`${sheet.reference}-${sheet.storyId ?? index}`}
+                className="overflow-hidden rounded-control border border-app-border bg-app-surface"
+              >
+                <figcaption className="border-b border-app-border px-space-xs py-space-2xs text-xs font-medium text-app-foreground">
+                  {storyCaptureLabel(sheet.storyId || sheet.label || `Story sheet ${index + 1}`)}
+                </figcaption>
+                {sheet.reference ? (
+                  <ScreenshotArtifact
+                    reference={browserVisibleArtifactUrl(sheet.reference)}
+                    alt={`Captured story sheet: ${storyCaptureLabel(sheet.storyId || sheet.label || `Story sheet ${index + 1}`)}`}
+                    showOverlay={false}
+                    overlaySubjects={[]}
+                    overlayMessage=""
+                  />
+                ) : (
+                  <div className="p-space-sm text-xs text-app-muted-foreground">
+                    Capture reference unavailable.
+                  </div>
+                )}
+              </figure>
+            ))}
+          </div>
+        </section>
+      ) : null}
       {storyChoices.length ? (
         <label className="flex flex-wrap items-center gap-space-2xs text-xs text-app-muted-foreground">
           <span className="font-medium text-app-foreground">Captured story</span>
@@ -755,6 +799,7 @@ export function ComponentTestPanel({
         .filter((storyID): storyID is string => Boolean(storyID)),
     ),
   );
+  const storySheets = capturedArtifacts.filter((artifact) => artifact.kind === "bas-story-sheet");
   const defaultStoryID =
     capturedStoryIDs.find((storyID) => storyID.startsWith("review-sheet:")) ?? capturedStoryIDs[0] ?? "";
   const activeStoryID = selectedStoryID || defaultStoryID;
@@ -973,6 +1018,7 @@ export function ComponentTestPanel({
               >
                 <EvidenceWorkspace
                   items={captureItems}
+                  storySheets={storySheets}
                   storyChoices={storyChoices}
                   selectedStoryID={activeStoryID}
                   onSelectStory={selectStory}
@@ -1003,6 +1049,7 @@ export function ComponentTestPanel({
             <section aria-labelledby="capture-inspector-heading-empty">
               <EvidenceWorkspace
                 items={captureItems}
+                storySheets={storySheets}
                 storyChoices={storyChoices}
                 selectedStoryID={activeStoryID}
                 onSelectStory={selectStory}

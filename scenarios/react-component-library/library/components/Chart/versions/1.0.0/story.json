@@ -7,7 +7,7 @@
     "fixtures": []
   },
   "kind": "component",
-  "schemaVersion": 4,
+  "schemaVersion": 5,
   "stories": [
     {
       "args": {},
@@ -47,7 +47,8 @@
         }
       ],
       "mode": "live",
-      "name": "Interactive trend"
+      "name": "Interactive trend",
+      "role": "anatomy"
     },
     {
       "args": {},
@@ -65,7 +66,8 @@
       ],
       "id": "loading",
       "mode": "live",
-      "name": "Loading"
+      "name": "Loading",
+      "role": "boundary"
     },
     {
       "args": {},
@@ -87,7 +89,8 @@
       ],
       "id": "empty",
       "mode": "live",
-      "name": "Empty"
+      "name": "Empty",
+      "role": "boundary"
     },
     {
       "args": {},
@@ -110,7 +113,8 @@
       ],
       "id": "request-error",
       "mode": "live",
-      "name": "Request error"
+      "name": "Request error",
+      "role": "boundary"
     },
     {
       "args": {},
@@ -128,7 +132,8 @@
       ],
       "id": "offline",
       "mode": "live",
-      "name": "Offline"
+      "name": "Offline",
+      "role": "boundary"
     }
   ],
   "title": "Chart"

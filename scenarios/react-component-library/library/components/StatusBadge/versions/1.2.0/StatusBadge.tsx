@@ -4,6 +4,8 @@
  * @status released
  * @deps {"react":"^18"}
  */
+import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
+
 import type { HTMLAttributes, ReactNode } from "react";
 import { statusBadgeStyles } from "./styles";
 
@@ -14,7 +16,7 @@ export interface StatusBadgeProps extends HTMLAttributes<HTMLSpanElement> {
   tone?: StatusTone;
 }
 
-export function StatusBadge({
+export const StatusBadge = withClassName(function StatusBadge({
   children,
   className,
   tone = "neutral",
@@ -37,4 +39,4 @@ export function StatusBadge({
       </span>
     </>
   );
-}
+});

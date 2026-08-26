@@ -1,2 +1,2 @@
 /** @vrooliComponentSource forms.select */
-export * from "./Select/versions/1.1.0/Select";
+export * from "@vrooli/react-component-library/Select/1.1.0";

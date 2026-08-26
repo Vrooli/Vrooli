@@ -1,6 +1,4 @@
 /** @vrooliComponentSource react-component-library:CaptureGrid */
-import { translate } from "../../../../hooks/useLocale/versions/1.0.0/useLocale";
-
 export interface CaptureCell {
   id: string;
   viewport: string;
@@ -12,7 +10,7 @@ export function CaptureGrid({ cells = [] }: { cells?: CaptureCell[] }) {
   return (
     <div
       role="grid"
-      aria-label={translate("visualization.capture-grid.aria-label.1", "Evidence captures")}
+      aria-label="Evidence captures"
       style={{
         display: "grid",
         gridTemplateColumns: "repeat(auto-fit, minmax(12rem, 1fr))",

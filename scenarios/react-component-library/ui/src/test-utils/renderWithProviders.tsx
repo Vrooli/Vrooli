@@ -23,6 +23,7 @@ import {
   type ProviderRenderOptions,
   type ProviderRenderResult,
 } from "@vrooli/api-base/testing";
+import { MemoryRouter } from "react-router-dom";
 import type { ReactElement } from "react";
 
 import { i18n } from "../i18n";
@@ -31,5 +32,29 @@ export function renderWithProviders(
   ui: ReactElement,
   options: ProviderRenderOptions = {},
 ): ProviderRenderResult {
-  return renderWithBaseProviders(ui, { i18n, ...options });
+  const {
+    routerEntries,
+    initialEntries,
+    initialIndex,
+    route,
+    withoutRouter,
+    withRouter,
+    ...providerOptions
+  } = options;
+  const entries = routerEntries ?? initialEntries ?? (route ? [route] : ["/"]);
+  const shouldUseRouter = withRouter === undefined ? !withoutRouter : withRouter;
+  const routed = shouldUseRouter ? (
+    <MemoryRouter
+      initialEntries={entries}
+      initialIndex={initialIndex}
+    >
+      {ui}
+    </MemoryRouter>
+  ) : ui;
+
+  return renderWithBaseProviders(routed, {
+    i18n,
+    withoutRouter: true,
+    ...providerOptions,
+  });
 }

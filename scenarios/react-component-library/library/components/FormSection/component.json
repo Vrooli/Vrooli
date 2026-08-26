@@ -24,7 +24,7 @@
     }
   ],
   "displayName": "FormSection",
-  "latest": "1.0.0",
+  "latest": "1.0.1",
   "libraryId": "react-component-library:FormSection",
   "tags": [
     "form",
@@ -32,5 +32,7 @@
     "validation",
     "responsive",
     "token-bound"
-  ]
+  ],
+  "draft": "",
+  "deprecatedVersions": []
 }

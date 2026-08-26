@@ -128,6 +128,34 @@ func TestService_Reconverge_FlagsModifiedNeverOverwrites(t *testing.T) {
 	require.Equal(t, []byte(edited), files.bytes[tmButtonKey()], "a modified copy must never be overwritten")
 }
 
+// TestService_Reconverge_ClassifiesImplementationOnlyRewrite proves that a
+// styling or implementation rewrite with the same exported surface is not
+// reported as unintended drift. This is the population the package-adoption
+// migration is meant to serve.
+func TestService_Reconverge_ClassifiesImplementationOnlyRewrite(t *testing.T) {
+	ctx := context.Background()
+	repo := adoptmocks.NewFakeRepository()
+	bodyV10 := "export interface ButtonProps { label: string }\nexport function Button() { return null }"
+	bodyV11 := "export interface ButtonProps { label: string }\nexport function Button() { return 'latest' }"
+	edited := "export interface ButtonProps { label: string }\nexport function Button() { return <button className=\"local\" /> }"
+	lib := reconvergeLibrary(bodyV10, bodyV11)
+	files := &fakeFiles{bytes: map[string][]byte{tmButtonKey(): []byte(edited)}}
+	svc := adoptions.NewService(repo, lib, files, scheduletest.New(time.Now()))
+	repo.Seed(adoptions.Adoption{
+		ID: "row-contract-preserved", ComponentID: "cmp-btn", LibraryID: "rcl:Button",
+		Scenario: "template-manager", AdoptedPath: tmButtonPath,
+		AdoptedVersion: "1.0.0", AdoptedSnapshotSHA256: sha(bodyV10),
+		Files: []adoptions.AdoptionFile{{LibraryPath: "Button.tsx", AdoptedPath: tmButtonPath, AdoptedSnapshotSHA256: sha(bodyV10)}},
+	})
+
+	out, err := svc.Reconverge(ctx, adoptions.ReconvergeInput{})
+	require.NoError(t, err)
+	require.Len(t, out.Outcomes, 1)
+	require.Equal(t, adoptions.ReconvergeDispositionContractPreserved, out.Outcomes[0].Disposition)
+	require.Equal(t, adoptions.ReconvergeActionFlaggedModified, out.Outcomes[0].Action)
+	require.Equal(t, []byte(edited), files.bytes[tmButtonKey()])
+}
+
 // TestService_Reconverge_ScopesByScenarioAndSkipsCurrent proves the scenario
 // filter restricts the batch to one adopter tree and that CURRENT adoptions are
 // not reconverge candidates (only BEHIND rows appear in the outcomes).

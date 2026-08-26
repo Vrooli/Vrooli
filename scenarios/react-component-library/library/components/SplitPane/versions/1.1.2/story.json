@@ -1,0 +1,47 @@
+{
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
+  "args": {
+    "fields": []
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "kind": "component",
+  "schemaVersion": 5,
+  "stories": [
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Default",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Keep both decisions in view",
+          "role": "heading"
+        },
+        {
+          "kind": "text",
+          "value": "Needs review"
+        },
+        {
+          "kind": "text",
+          "value": "Ready to ship"
+        }
+      ],
+      "id": "default",
+      "interactions": [
+        {
+          "kind": "settle"
+        }
+      ],
+      "mode": "live",
+      "name": "Two meaningful panes",
+      "role": "anatomy"
+    }
+  ],
+  "title": "SplitPane"
+}

@@ -1,6 +1,4 @@
 /** @vrooliComponentSource patterns.conflict-resolution-flow */
-import { translate } from "../../../../hooks/useLocale/versions/1.0.0/useLocale";
-
 import {
   useCallback,
   useMemo,
@@ -8,9 +6,9 @@ import {
   type CSSProperties,
   type ReactNode,
 } from "react";
-import { DiffViewer } from "../../../DiffViewer/versions/1.0.0/DiffViewer";
-import { Form } from "../../../Form/versions/1.0.0/Form";
-import { useAnnounce } from "../../../../hooks/useAnnounce/versions/1.0.0/useAnnounce";
+import { DiffViewer } from "@vrooli/react-component-library/DiffViewer/1.0.0";
+import { Form } from "@vrooli/react-component-library/Form/1.0.0";
+import { useAnnounce } from "@vrooli/react-component-library/useAnnounce/1.0.0";
 
 export interface ConflictField<T = unknown> {
   id: string;
@@ -84,8 +82,8 @@ export function ConflictResolutionFlow<T>({
   onResolve,
   onRetry,
   onCancel,
-  title = translate("patterns.conflict-resolution-flow.title.1", "Resolve concurrent changes"),
-  description = translate("patterns.conflict-resolution-flow.description.2", "Another version changed while you were working. Choose the value that should survive for each field."),
+  title = "Resolve concurrent changes",
+  description = "Another version changed while you were working. Choose the value that should survive for each field.",
   resolveLabel = "Save resolved version",
   className,
   style,
@@ -167,24 +165,24 @@ export function ConflictResolutionFlow<T>({
         description={
           <span data-rcl-conflict-flow-description>{description}</span>
         }
-        aria-label={translate("patterns.conflict-resolution-flow.aria-label.3", "Conflict resolution form")}
+        aria-label="Conflict resolution form"
         onSubmit={() => void submit()}
         footer={
           <div data-rcl-conflict-flow-actions>
-            <button data-testid="patterns.conflict-resolution-flow" type="button" onClick={onCancel} disabled={busy}>
-              {translate("patterns.conflict-resolution-flow.text.4", "Keep editing")}
+            <button type="button" onClick={onCancel} disabled={busy}>
+              Keep editing
             </button>
             {resolvedStatus === "request-error" ||
             resolvedStatus === "retry" ? (
-              <button data-testid="patterns.conflict-resolution-flow"
+              <button
                 type="button"
                 onClick={() => void retry()}
                 disabled={busy}
               >
-                {translate("patterns.conflict-resolution-flow.text.5", "Retry resolution")}
+                Retry resolution
               </button>
             ) : null}
-            <button data-testid="patterns.conflict-resolution-flow" type="submit" disabled={busy || fields.length === 0}>
+            <button type="submit" disabled={busy || fields.length === 0}>
               {busy ? "Saving…" : resolveLabel}
             </button>
           </div>
@@ -193,7 +191,7 @@ export function ConflictResolutionFlow<T>({
         <div data-rcl-conflict-flow-list>
           {resolvedStatus === "loading" ? (
             <div data-rcl-conflict-flow-status role="status">
-              {translate("patterns.conflict-resolution-flow.text.6", "Checking the latest version…")}
+              Checking the latest version…
             </div>
           ) : null}
           {fields.map((field) => {
@@ -220,7 +218,7 @@ export function ConflictResolutionFlow<T>({
                   aria-label={`${field.label} resolution`}
                 >
                   {(["local", "remote"] as const).map((choice) => (
-                    <button data-testid="patterns.conflict-resolution-flow"
+                    <button
                       key={choice}
                       type="button"
                       data-rcl-conflict-flow-option

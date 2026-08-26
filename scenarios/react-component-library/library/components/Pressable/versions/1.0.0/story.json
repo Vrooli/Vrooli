@@ -7,7 +7,7 @@
     "fixtures": []
   },
   "kind": "component",
-  "schemaVersion": 4,
+  "schemaVersion": 5,
   "stories": [
     {
       "args": {},
@@ -37,7 +37,8 @@
       ],
       "id": "ready",
       "mode": "live",
-      "name": "Ready"
+      "name": "Ready",
+      "role": "anatomy"
     },
     {
       "args": {},
@@ -67,7 +68,8 @@
       ],
       "id": "pending",
       "mode": "live",
-      "name": "Pending"
+      "name": "Pending",
+      "role": "boundary"
     }
   ],
   "title": "Pressable"

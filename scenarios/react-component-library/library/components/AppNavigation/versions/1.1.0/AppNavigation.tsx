@@ -2,8 +2,6 @@
  * @vrooliComponentSource react-component-library:AppNavigation
  * @deps {"react":"^18","lucide-react":"^0.424.0"}
  */
-import { translate } from "../../../../hooks/useLocale/versions/1.0.0/useLocale";
-
 import type { ReactNode } from "react";
 import { Home, LayoutGrid, Settings } from "lucide-react";
 
@@ -37,7 +35,7 @@ const appNavigationStyles = `
 [data-rcl-app-navigation][data-viewport-mode="mobile"] [data-rcl-app-navigation-brand] { display: none; }
 [data-rcl-app-navigation][data-viewport-mode="mobile"] [data-rcl-app-navigation-list] { display: flex; justify-content: space-around; gap: var(--space-3xs); }
 [data-rcl-app-navigation][data-viewport-mode="mobile"] [data-rcl-app-navigation-list] a { min-inline-size: 0; flex: 1; justify-content: center; padding-inline: var(--space-2xs); }
-[data-rcl-app-navigation][data-viewport-mode="mobile"] [data-rcl-app-navigation-list] span { display: none; }
+[data-rcl-app-navigation][data-viewport-mode="mobile"] [data-rcl-app-navigation-list] span { display: inline; }
 [data-rcl-app-navigation][data-viewport-mode="tablet"] { border-radius: 0 var(--radius-panel) var(--radius-panel) 0; }
 @media (prefers-reduced-motion: reduce) { [data-rcl-app-navigation] * { transition: none; } }
 @media (forced-colors: active) { [data-rcl-app-navigation] [data-rcl-app-navigation-list] a[aria-current="page"] { background: Highlight; color: HighlightText; } }
@@ -118,12 +116,12 @@ export function AppNavigation({
             <span>{brand}</span>
           </div>
         ) : null}
-        <nav aria-label={translate("navigation.app-navigation.aria-label.1", "Application navigation")}>
+        <nav aria-label="Application navigation">
           {children ?? (
             <ul data-rcl-app-navigation-list>
               {items.map((item) => (
                 <li key={item.label}>
-                  <a data-testid="navigation.app-navigation"
+                  <a
                     href={item.href ?? "#"}
                     aria-current={item.current ? "page" : undefined}
                   >

@@ -262,7 +262,8 @@ export function stampSource(source, { asset, version, componentName }) {
   if (target.kind === "createElement") {
     const existing = target.node.arguments[1];
     if (existing && ts.isObjectLiteralExpression(existing)) {
-      const prefix = existing.properties.length ? ", " : "";
+      const existingText = source.slice(existing.getStart(sourceFile), existing.end - 1).trimEnd();
+      const prefix = existing.properties.length && !existingText.endsWith(",") ? ", " : "";
       // The marker names contain hyphens, so they are only valid as quoted
       // object keys. Emitting them bare produces a syntax error that no unit
       // test catches until a real asset happens to use a dynamic root.
@@ -338,7 +339,10 @@ function libraryMetadata(id, exemptions) {
   const manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
   const sourceFiles = readdirSync(versionDir).filter((entry) => {
     const extension = entry.slice(entry.lastIndexOf("."));
-    return SOURCE_EXTENSIONS.has(extension) && entry !== "story.tsx";
+    return SOURCE_EXTENSIONS.has(extension) &&
+      entry !== "story.tsx" &&
+      !entry.includes(".test.") &&
+      !entry.includes(".spec.");
   });
   const tsxEntries = sourceFiles.filter((entry) => entry.endsWith(".tsx"));
   const tsEntries = sourceFiles.filter((entry) => entry.endsWith(".ts"));

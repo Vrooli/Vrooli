@@ -76,14 +76,30 @@ const (
 	ForkStatusDeclared              ForkStatus = "declared-fork"
 	ForkStatusUnintendedDrift       ForkStatus = "unintended-drift"
 	ForkStatusMechanicalTranslation ForkStatus = "mechanical-translation"
+	ForkStatusContractPreserved     ForkStatus = "contract-preserved"
+	ForkStatusLocalAddition         ForkStatus = "local-addition"
+	ForkStatusLocalFork             ForkStatus = "local-fork"
 )
 
 func (s ForkStatus) Valid() bool {
 	switch s {
-	case ForkStatusNone, ForkStatusDeclared, ForkStatusUnintendedDrift, ForkStatusMechanicalTranslation:
+	case ForkStatusNone, ForkStatusDeclared, ForkStatusUnintendedDrift, ForkStatusMechanicalTranslation, ForkStatusContractPreserved, ForkStatusLocalAddition, ForkStatusLocalFork:
 		return true
 	}
 	return false
+}
+
+// AdoptionMode records how an adopter consumes the library asset.
+type AdoptionMode string
+
+const (
+	AdoptionModeCopied  AdoptionMode = "copied"
+	AdoptionModeLinked  AdoptionMode = "linked"
+	AdoptionModeEjected AdoptionMode = "ejected"
+)
+
+func (m AdoptionMode) Valid() bool {
+	return m == AdoptionModeCopied || m == AdoptionModeLinked || m == AdoptionModeEjected
 }
 
 // Adoption is the internal domain shape for an adoption record. The
@@ -107,6 +123,7 @@ type Adoption struct {
 	ForkStatus            ForkStatus
 	ForkReason            string
 	ExtensionPoints       []string
+	Mode                  AdoptionMode
 	// DriftBacklogRef is the swarm-manager backlog item ("<kind>/<name>")
 	// filed by Refresh when this adoption first transitioned to
 	// behind/modified. Cleared back to "" when status returns to current
@@ -159,7 +176,28 @@ type CreateInput struct {
 	IncludeSuggestions    []string
 	ForkReason            string
 	ExtensionPoints       []string
+	Mode                  AdoptionMode
 	Files                 []AdoptionFile
+}
+
+type LinkInput struct {
+	ComponentID     string
+	Scenario        string
+	Version         string
+	ImportSubpath   string
+	ConfirmExisting bool
+}
+
+type LinkResult struct {
+	Adoption      Adoption
+	PackagePath   string
+	ImportSubpath string
+	UpdatedFiles  []string
+}
+
+type EjectInput struct {
+	ApplyInput
+	Reason string
 }
 
 type ApplyInput struct {
@@ -390,10 +428,11 @@ type ReconvergeAction string
 type ReconvergeDisposition string
 
 const (
-	ReconvergeDispositionTranslationOnly ReconvergeDisposition = "translation_only"
-	ReconvergeDispositionLocalAddition   ReconvergeDisposition = "local_addition"
-	ReconvergeDispositionLocalFork       ReconvergeDisposition = "local_fork"
-	ReconvergeDispositionTokenBlocked    ReconvergeDisposition = "token_blocked"
+	ReconvergeDispositionTranslationOnly   ReconvergeDisposition = "translation_only"
+	ReconvergeDispositionLocalAddition     ReconvergeDisposition = "local_addition"
+	ReconvergeDispositionLocalFork         ReconvergeDisposition = "local_fork"
+	ReconvergeDispositionTokenBlocked      ReconvergeDisposition = "token_blocked"
+	ReconvergeDispositionContractPreserved ReconvergeDisposition = "contract_preserved"
 )
 
 const (

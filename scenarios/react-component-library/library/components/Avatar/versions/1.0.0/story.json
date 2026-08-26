@@ -7,7 +7,7 @@
     "fixtures": []
   },
   "kind": "component",
-  "schemaVersion": 4,
+  "schemaVersion": 5,
   "stories": [
     {
       "args": {},
@@ -31,7 +31,8 @@
       ],
       "id": "default",
       "mode": "live",
-      "name": "Named identity"
+      "name": "Named identity",
+      "role": "anatomy"
     },
     {
       "args": {},
@@ -50,7 +51,8 @@
       ],
       "id": "loading",
       "mode": "live",
-      "name": "Loading"
+      "name": "Loading",
+      "role": "boundary"
     },
     {
       "args": {},
@@ -69,7 +71,8 @@
       ],
       "id": "request-error",
       "mode": "live",
-      "name": "Request error fallback"
+      "name": "Request error fallback",
+      "role": "boundary"
     },
     {
       "args": {},
@@ -93,7 +96,8 @@
       ],
       "id": "group",
       "mode": "live",
-      "name": "Group overflow"
+      "name": "Group overflow",
+      "role": "boundary"
     }
   ],
   "title": "Avatar"

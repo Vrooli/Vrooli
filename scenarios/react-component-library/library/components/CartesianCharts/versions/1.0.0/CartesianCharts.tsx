@@ -3,7 +3,7 @@ import {
   Chart,
   type ChartDatum,
   type ChartProps,
-} from "../../../Chart/versions/1.0.0/Chart";
+} from "@vrooli/react-component-library/Chart/1.0.0";
 
 export type CartesianChartKind =
   | "line"

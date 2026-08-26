@@ -2,9 +2,10 @@
  * @libraryId react-component-library:DataTable
  * @version 1.2.0
  * @status released
- * @deps {"react":"^18","lucide-react":"^0.424.0"}
+ * @deps {"react":"^18","lucide-react":"^0.424.0","clsx":"^2.1.1","tailwind-merge":"^2.3.0"}
  */
-import { cn } from "../../../../foundations/ClassMerge/versions/1.0.0/ClassMerge";
+import { clsx, type ClassValue } from "clsx";
+import { twMerge } from "tailwind-merge";
 import { ArrowDown, ArrowUp, ChevronsUpDown, Search } from "lucide-react";
 import { isValidElement, type ReactNode, useMemo, useState } from "react";
 
@@ -15,6 +16,7 @@ export interface DataTableColumn<Row> {
   sortValue?: (row: Row) => string | number;
   searchValue?: (row: Row) => string;
   className?: string;
+  headerTestId?: string;
 }
 
 export interface DataTableFilter<Row> {
@@ -34,6 +36,8 @@ export interface DataTableProps<Row> {
   filterLabel?: string;
   filters?: Array<DataTableFilter<Row>>;
   className?: string;
+  tableId?: string;
+  getRowTestId?: (row: Row) => string;
   // Applied to the rendered <table> as data-testid. A generic test hook that
   // adopters use to target the table without depending on markup structure.
   tableTestId?: string;
@@ -46,6 +50,8 @@ export interface DataTableProps<Row> {
 }
 
 type SortDirection = "asc" | "desc";
+
+const cn = (...inputs: ClassValue[]) => twMerge(clsx(inputs));
 
 // searchableText recursively extracts the visible text from a rendered accessor
 // node so a column with no explicit searchValue is still searchable by its
@@ -91,6 +97,8 @@ export function DataTable<Row>({
   filterLabel = "Table filters",
   filters = [],
   className,
+  tableId,
+  getRowTestId,
   tableTestId,
   filterGroupLabel,
   sortLabel = (header) => `Sort by ${header}`,
@@ -194,6 +202,7 @@ export function DataTable<Row>({
       </div>
       <div className="max-w-full overflow-x-auto">
         <table
+          id={tableId}
           data-testid={tableTestId}
           className="w-full table-fixed border-collapse text-left text-sm"
         >
@@ -221,6 +230,7 @@ export function DataTable<Row>({
                         : "none"
                     }
                     className={cn("px-3 py-3 font-semibold", column.className)}
+                    data-testid={column.headerTestId}
                   >
                     {column.sortValue ? (
                       <button
@@ -257,6 +267,7 @@ export function DataTable<Row>({
                 <tr
                   key={getRowKey(row, index)}
                   className="border-t border-app-border"
+                  data-testid={getRowTestId?.(row)}
                 >
                   {columns.map((column) => (
                     <td

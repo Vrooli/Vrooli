@@ -203,11 +203,12 @@ func TestRenderHarnessHTMLSupportsScopedTemporaryPropsOverrides(t *testing.T) {
 	require.Contains(t, html, `rcl-preview-props-error`)
 	require.Contains(t, html, `rcl-story-result`)
 	require.Contains(t, html, `id="rcl-story-result"`)
-	require.Contains(t, html, `const reportStoryResult = (passed, failures) =>`)
-	require.Contains(t, html, `const runStory = async ()`)
-	require.Contains(t, html, `void runStory().then(() =>`)
+	require.Contains(t, html, `const reportStoryResult = (passed, failures, skipped = []) =>`)
+	require.Contains(t, html, `export async function runStory(previewStory, modules, env = browserEnv)`)
+	require.Contains(t, html, `void runStory(previewStory, { document, window }`)
 	require.NotContains(t, html, `setTimeout(() => {`)
-	require.Contains(t, html, `const expectationFailure = (expectation)`)
+	require.NotContains(t, html, `const expectationFailure = (expectation)`)
+	require.Contains(t, html, `@testing-library/dom`)
 	require.Contains(t, html, `data.componentId !== "cmp-1"`)
 	require.NotContains(t, html, `eval(`)
 }
@@ -261,7 +262,12 @@ func TestRenderHarnessHTMLRecordsDeclarativeHandlersAndCustomHarnessEvents(t *te
 func withPackageRuntimeCandidates(t *testing.T, fn func(string) []string) {
 	t.Helper()
 	prev := packageRuntimeCandidatesFor
-	packageRuntimeCandidatesFor = fn
+	packageRuntimeCandidatesFor = func(name string) []string {
+		if name == "@testing-library/dom" {
+			return []string{"10.4.1"}
+		}
+		return fn(name)
+	}
 	t.Cleanup(func() {
 		packageRuntimeCandidatesFor = prev
 	})

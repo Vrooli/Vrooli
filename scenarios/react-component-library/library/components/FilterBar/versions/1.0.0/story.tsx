@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { FilterBar, type FilterOption } from "./FilterBar";
-import { PreviewShowcase } from "../../../../preview-harnesses/showcase/versions/1.0.0/PreviewShowcase";
+import { PreviewShowcase } from "../../../../preview-harnesses/showcase/PreviewShowcase";
 
 const options: FilterOption[] = [
   { id: "ready", label: "Ready", count: 24 },

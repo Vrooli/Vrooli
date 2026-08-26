@@ -13,7 +13,7 @@
   ],
   "displayName": "ScoreGauge",
   "draft": "",
-  "latest": "1.0.2",
+  "latest": "1.0.6",
   "libraryId": "react-component-library:ScoreGauge",
   "tags": [
     "data-display",

@@ -8,21 +8,9 @@
  */
 /** @vrooliComponentSource primitives.stack */
 import { forwardRef, type CSSProperties, type HTMLAttributes } from "react";
+import "./Stack.css";
 
 export type StackMeasure = "none" | "narrow" | "content" | "wide";
-
-const measureWidths: Record<Exclude<StackMeasure, "none">, string> = {
-  narrow: "var(--layout-content-compact, 28rem)",
-  content: "var(--layout-content, 34rem)",
-  wide: "var(--layout-content-wide, 42rem)",
-};
-
-const resolveInset = (value: string | undefined) =>
-  value === "responsive"
-    ? "clamp(var(--space-lg), 6vw, var(--space-2xl))"
-    : value
-      ? `var(--space-${value})`
-      : undefined;
 
 export interface StackProps extends HTMLAttributes<HTMLDivElement> {
   gap?: string;
@@ -39,27 +27,19 @@ export const Stack = forwardRef<
   HTMLDivElement,
   StackProps
 >(({ gap = "md", align, justify, textAlign, measure = "none", inset, insetBlock, insetInline, className, style, ...props }, ref) => (
-  <div
+  <div data-testid="primitives.stack"
     ref={ref}
     className={className}
-    style={{
-      display: "flex",
-      flexDirection: "column",
-      boxSizing: "border-box",
-      minInlineSize: 0,
-      gap: `var(--space-${gap})`,
-      alignItems: align,
-      justifyContent: justify,
-      textAlign,
-      inlineSize: measure === "none" ? undefined : "100%",
-      maxInlineSize:
-        measure === "none" ? undefined : measureWidths[measure],
-      marginInline: measure === "none" ? undefined : "auto",
-      padding: resolveInset(inset),
-      paddingBlock: resolveInset(insetBlock),
-      paddingInline: resolveInset(insetInline),
-      ...style,
-    }}
+    data-rcl-stack
+    data-gap={gap}
+    data-align={align}
+    data-justify={justify}
+    data-text-align={textAlign}
+    data-measure={measure}
+    data-inset={inset}
+    data-inset-block={insetBlock}
+    data-inset-inline={insetInline}
+    style={style}
     {...props}
   />
 ));

@@ -1,6 +1,6 @@
 import type { ComponentType, ReactNode } from "react";
 
-import { PreviewShowcase } from "../../../showcase/versions/1.0.0/PreviewShowcase";
+import { PreviewShowcase } from "../../../showcase/PreviewShowcase";
 
 export type PreviewHarnessProps = {
   subject: ComponentType<Record<string, unknown>>;

@@ -11,11 +11,11 @@ import {
   type ButtonHTMLAttributes,
   type PointerEvent,
 } from "react";
-import { IconButton } from "../../../IconButton/versions/2.0.0/IconButton";
+import { IconButton } from "@vrooli/react-component-library/IconButton/2.0.0";
 import type {
   ControlDensity,
   ControlSize,
-} from "../../../ControlBase/versions/1.0.0/ControlBase";
+} from "@vrooli/react-component-library/ControlBase/1.0.0";
 import {
   VoiceInputButtonGlyph as Glyph,
   type VoiceInputGlyphKind,

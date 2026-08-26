@@ -333,7 +333,10 @@ func repositoryRoot(sourceRoot string) (string, error) {
 }
 
 func fixtureName(kind string) string {
-	return fmt.Sprintf("rcl-fixture-%s-%d", kind, time.Now().UnixNano())
+	// The fixture is a deterministic validation resource. Timestamped names
+	// leak temporary scenarios and proto trees into the repository when a
+	// cleanup is interrupted, and they make a second run impossible to audit.
+	return generatedFixtureNamePrefix + strings.TrimSpace(kind)
 }
 
 func removeRequiredSurfaceToken(path string) error {

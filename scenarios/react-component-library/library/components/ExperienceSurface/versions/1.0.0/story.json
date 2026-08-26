@@ -15,9 +15,7 @@
         "path": "state"
       },
       {
-        "default": {
-          "$text": "p"
-        },
+        "default": "Content",
         "kind": "structured",
         "label": "Children",
         "path": "children"
@@ -34,13 +32,10 @@
     "fixtures": []
   },
   "kind": "component",
-  "schemaVersion": 4,
+  "schemaVersion": 5,
   "stories": [
     {
       "args": {
-        "children": {
-          "$text": "p"
-        },
         "state": "ready",
         "surfaceId": "results"
       },
@@ -52,13 +47,17 @@
       ],
       "id": "ready",
       "mode": "pinned",
-      "name": "Ready"
+      "name": "Ready",
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "Ready"
+        }
+      },
+      "role": "anatomy"
     },
     {
       "args": {
-        "children": {
-          "$text": "p"
-        },
         "state": "static",
         "surfaceId": "guidance"
       },
@@ -70,13 +69,17 @@
       ],
       "id": "static",
       "mode": "pinned",
-      "name": "Static"
+      "name": "Static",
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "Static"
+        }
+      },
+      "role": "boundary"
     },
     {
       "args": {
-        "children": {
-          "$text": "p"
-        },
         "state": "loading",
         "statusMessage": "Loading results",
         "surfaceId": "results"
@@ -90,13 +93,17 @@
       ],
       "id": "loading",
       "mode": "pinned",
-      "name": "Loading"
+      "name": "Loading",
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "Loading"
+        }
+      },
+      "role": "boundary"
     },
     {
       "args": {
-        "children": {
-          "$text": "p"
-        },
         "state": "empty",
         "surfaceId": "results"
       },
@@ -108,13 +115,17 @@
       ],
       "id": "empty",
       "mode": "pinned",
-      "name": "Empty"
+      "name": "Empty",
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "Empty"
+        }
+      },
+      "role": "boundary"
     },
     {
       "args": {
-        "children": {
-          "$text": "p"
-        },
         "state": "partial",
         "statusMessage": "Some results are unavailable",
         "surfaceId": "results"
@@ -128,13 +139,17 @@
       ],
       "id": "partial",
       "mode": "pinned",
-      "name": "Partial"
+      "name": "Partial",
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "Partial"
+        }
+      },
+      "role": "boundary"
     },
     {
       "args": {
-        "children": {
-          "$text": "p"
-        },
         "state": "error",
         "statusMessage": "Results could not load",
         "surfaceId": "results"
@@ -148,7 +163,14 @@
       ],
       "id": "error",
       "mode": "pinned",
-      "name": "Error"
+      "name": "Error",
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "Error"
+        }
+      },
+      "role": "boundary"
     }
   ],
   "title": "ExperienceSurface"

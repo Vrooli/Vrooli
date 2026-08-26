@@ -6,7 +6,7 @@
  * @tags ["monetization","account"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
-import { translate } from "../../../../hooks/useLocale/versions/1.0.0/useLocale";
+import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
 
 export type EntitlementStatus =
   | "active"
@@ -52,7 +52,7 @@ export const PLAN_CONFIG: Record<
   },
 };
 
-export function PlanBadge({
+export const PlanBadge = withClassName(function PlanBadge({
   plan,
   size = "md",
 }: {
@@ -61,20 +61,20 @@ export function PlanBadge({
 }) {
   const config = PLAN_CONFIG[plan];
   return (
-    <span
+    <span data-testid="monetization.account-surface"
       className={`${config.color} ${config.bgColor} ${config.borderColor} inline-flex items-center rounded border px-space-2xs py-space-4xs text-caption font-medium ${size === "sm" ? "text-caption" : ""}`}
     >
       {config.label}
     </span>
   );
-}
+});
 
-export function SubscriptionStatusCard({
+export const SubscriptionStatusCard = withClassName(function SubscriptionStatusCard({
   plan,
   status,
   credits,
   multiplier = 1,
-  label = translate("monetization.account-surface.label.1", "credits"),
+  label = "credits",
 }: {
   plan: string;
   status: EntitlementStatus;
@@ -83,7 +83,7 @@ export function SubscriptionStatusCard({
   label?: string;
 }) {
   return (
-    <section aria-label={translate("monetization.account-surface.aria-label.2", "Subscription status")}>
+    <section aria-label="Subscription status">
       <strong>{plan}</strong>
       <span>{status}</span>
       <span>
@@ -91,9 +91,9 @@ export function SubscriptionStatusCard({
       </span>
     </section>
   );
-}
+});
 
-export function AuthSection({
+export const AuthSection = withClassName(function AuthSection({
   signedIn,
   onSignIn,
   onSignOut,
@@ -103,15 +103,15 @@ export function AuthSection({
   onSignOut: () => void;
 }) {
   return (
-    <section aria-label={translate("monetization.account-surface.aria-label.3", "Account")}>
+    <section aria-label="Account">
       <button type="button" onClick={signedIn ? onSignOut : onSignIn}>
         {signedIn ? "Sign out" : "Sign in"}
       </button>
     </section>
   );
-}
+});
 
-export function UpgradePrompt({
+export const UpgradePrompt = withClassName(function UpgradePrompt({
   feature,
   requiredPlan,
   href = "/account",
@@ -125,16 +125,16 @@ export function UpgradePrompt({
       <p>
         {feature} requires {requiredPlan}.
       </p>
-      <a href={href}>{translate("monetization.account-surface.text.7", "Manage subscription")}</a>
+      <a href={href}>Manage subscription</a>
     </section>
   );
-}
+});
 
-export function PendingSyncBadge({ pending }: { pending: number }) {
+export const PendingSyncBadge = withClassName(function PendingSyncBadge({ pending }: { pending: number }) {
   return pending > 0 ? <span role="status">{pending} pending sync</span> : null;
-}
+});
 
-export function SubscriptionBadge({
+export const SubscriptionBadge = withClassName(function SubscriptionBadge({
   plan,
   status,
   credits,
@@ -151,20 +151,20 @@ export function SubscriptionBadge({
     <button
       type="button"
       onClick={onClick}
-      aria-label={translate("monetization.account-surface.aria-label.4", "Manage subscription")}
+      aria-label="Manage subscription"
       className="relative"
     >
       <span>{plan}</span>
       <span>{status}</span>
       <span>{credits} credits</span>
-      {offline ? <span aria-label={translate("monetization.account-surface.aria-label.5", "offline")}>{translate("monetization.account-surface.text.8", "cached")}</span> : null}
+      {offline ? <span aria-label="offline">cached</span> : null}
     </button>
   );
-}
+});
 
-export function EntitlementErrorCard({
+export const EntitlementErrorCard = withClassName(function EntitlementErrorCard({
   errorType,
-  title = translate("monetization.account-surface.title.6", "Subscription access unavailable"),
+  title = "Subscription access unavailable",
   message = "Subscription access is temporarily unavailable.",
   plan,
   creditsUsed,
@@ -199,7 +199,7 @@ export function EntitlementErrorCard({
       ) : null}
     </section>
   );
-}
+});
 
 export function useEntitlement<
   T extends { features?: string[]; planRank?: number; stale?: boolean },

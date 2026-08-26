@@ -376,7 +376,7 @@ func (idx *Indexer) buildManifestInput(path string) (IndexManifestInput, map[str
 		if entryName == "" {
 			var entries []string
 			for _, f := range sourceFiles {
-				if validEntryExtension(f.Name(), assetKind) {
+				if validEntryExtension(f.Name(), assetKind) && !isTestArtifact(f.Name()) {
 					entries = append(entries, f.Name())
 				}
 			}
@@ -749,6 +749,12 @@ func validEntryExtension(name string, kind AssetKind) bool {
 		return strings.HasSuffix(name, ".ts") && !strings.HasSuffix(name, ".tsx")
 	}
 	return strings.HasSuffix(name, ".tsx")
+}
+
+func isTestArtifact(name string) bool {
+	base := strings.ToLower(filepath.Base(name))
+	return strings.HasSuffix(base, ".test.tsx") || strings.HasSuffix(base, ".spec.tsx") ||
+		strings.HasSuffix(base, ".test.ts") || strings.HasSuffix(base, ".spec.ts")
 }
 
 func entryFileRequirement(kind AssetKind) string {

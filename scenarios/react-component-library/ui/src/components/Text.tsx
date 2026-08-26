@@ -1,2 +1,2 @@
 /** @vrooliComponentSource primitives.text */
-export * from "./ui/Text/versions/1.0.0/Text";
+export * from "@vrooli/react-component-library/Text/1.0.0";

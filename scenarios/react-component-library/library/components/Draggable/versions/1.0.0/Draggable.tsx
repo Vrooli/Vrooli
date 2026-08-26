@@ -1,6 +1,4 @@
 /** @vrooliComponentSource manipulation.draggable */
-import { translate } from "../../../../hooks/useLocale/versions/1.0.0/useLocale";
-
 import {
   useEffect,
   useMemo,
@@ -9,12 +7,12 @@ import {
   type CSSProperties,
   type ReactNode,
 } from "react";
-import { useAnnounce } from "../../../../hooks/useAnnounce/versions/1.0.0/useAnnounce";
-import { useDrag } from "../../../../hooks/useDrag/versions/1.0.0/useDrag";
+import { useAnnounce } from "@vrooli/react-component-library/useAnnounce/1.0.0";
+import { useDrag } from "@vrooli/react-component-library/useDrag/1.0.0";
 import {
   createDragDropStore,
   type DragPosition,
-} from "../../../../services/DragDropStore/versions/1.0.0/DragDropStore";
+} from "@vrooli/react-component-library/DragDropStore/1.0.0";
 
 export interface DragBounds {
   left?: number;
@@ -74,7 +72,7 @@ export function Draggable({
   bounds = {},
   step = 8,
   disabled = false,
-  label = translate("manipulation.draggable.label.1", "Draggable item"),
+  label = "Draggable item",
   className,
   style,
 }: DraggableProps) {
@@ -156,6 +154,7 @@ export function Draggable({
       );
     },
   });
+  const { isDragging, ...dragHandlers } = drag;
   const state = store.get();
   useEffect(() => {
     return store.subscribe(() => {
@@ -176,14 +175,14 @@ export function Draggable({
       />
       <div
         data-rcl-draggable
-        data-dragging={drag.isDragging || state.phase !== "idle"}
+        data-dragging={isDragging || state.phase !== "idle"}
         data-disabled={disabled || undefined}
         className={className}
         style={dragStyle}
         role="group"
         aria-label={label}
         tabIndex={disabled ? -1 : 0}
-        {...drag}
+        {...dragHandlers}
       >
         <span data-rcl-draggable-status role="status" aria-live="polite">
           {state.phase === "keyboard" ? `Moving ${label}` : ""}

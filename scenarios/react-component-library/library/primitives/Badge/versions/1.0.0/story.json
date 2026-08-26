@@ -21,7 +21,7 @@
     "fixtures": []
   },
   "kind": "component",
-  "schemaVersion": 4,
+  "schemaVersion": 5,
   "stories": [
     {
       "args": {
@@ -29,7 +29,14 @@
       },
       "id": "tone-neutral",
       "mode": "pinned",
-      "name": "tone neutral"
+      "name": "tone neutral",
+      "role": "anatomy",
+      "expect": [
+        {
+          "kind": "visible",
+          "selector": "body"
+        }
+      ]
     },
     {
       "args": {
@@ -37,7 +44,24 @@
       },
       "id": "tone-info",
       "mode": "pinned",
-      "name": "tone info"
+      "name": "tone info",
+      "expect": [
+        {
+          "kind": "visible",
+          "selector": "body"
+        }
+      ],
+      "role": "axis",
+      "axis": "tone",
+      "covers": {
+        "tone": [
+          "neutral",
+          "info",
+          "success",
+          "warning",
+          "danger"
+        ]
+      }
     },
     {
       "args": {
@@ -45,7 +69,14 @@
       },
       "id": "tone-success",
       "mode": "pinned",
-      "name": "tone success"
+      "name": "tone success",
+      "expect": [
+        {
+          "kind": "visible",
+          "selector": "body"
+        }
+      ],
+      "role": "boundary"
     },
     {
       "args": {
@@ -53,7 +84,14 @@
       },
       "id": "tone-warning",
       "mode": "pinned",
-      "name": "tone warning"
+      "name": "tone warning",
+      "expect": [
+        {
+          "kind": "visible",
+          "selector": "body"
+        }
+      ],
+      "role": "boundary"
     },
     {
       "args": {
@@ -61,7 +99,14 @@
       },
       "id": "tone-danger",
       "mode": "pinned",
-      "name": "tone danger"
+      "name": "tone danger",
+      "expect": [
+        {
+          "kind": "visible",
+          "selector": "body"
+        }
+      ],
+      "role": "boundary"
     }
   ],
   "title": "Badge"

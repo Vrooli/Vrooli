@@ -207,13 +207,16 @@ divergence allowlist in [`DATA.md`](DATA.md)). The origin-parity closure also
 resolves app-alias origins so a component ingested under one scenario alias is
 not mistaken for an untagged copy.
 
-`AdoptionsService.ApplyAdoption` is the reverse edge. It validates dependency
-and design-style fit server-side, stamps provenance/source hashes, and records
-the copied target. Replacing an existing source requires both
-`replace_existing` and confirmation when its body differs from the library
-source; the response reports direct import sites. `SuggestAdoptions` composes
-the existing InventoryService scan, style-fit verdict, dependency verdict, and
-adoption ledger to return only non-adopted, explainable candidates.
+`AdoptionsService.LinkAdoption` is the reverse edge. It validates dependency
+and design-style fit server-side, records a version-pinned `file:` dependency,
+and writes the managed locale and selector obligations into the target. A link
+does not materialize the library closure in the scenario. When the published
+contract cannot express a deliberate local behavior, `EjectAdoption` is the
+explicit, reason-bearing path that writes a source copy and records
+`mode=ejected` plus `fork_reason`; it is never the default. `SuggestAdoptions`
+composes the existing InventoryService scan, style-fit verdict, dependency
+verdict, and adoption ledger to return only non-adopted, explainable
+candidates.
 
 `WorkflowsService` is an RCL-owned, durable observation ledger for assisted
 extract/adopt requests. Its server-side adapter discovers Agent Manager,
@@ -233,12 +236,12 @@ fact:
   human confirms before any provenance header is stamped (confirm-before-write).
   A fleet run proved this does not over-claim: generic shadcn primitives that
   merely resemble a catalog component are not treated as copies.
-- `ReconvergeAdoptions` re-applies the current library source onto adopters that
-  have fallen behind, so a version cut that restores dropped adopter affordances
-  can be pushed back out without hand-editing each scenario. Adopters under
-  `templates/**` are out of the write boundary and are reported (not rewritten);
-  reviewed, still-behind template copies are tracked in the reviewed divergence
-  allowlist rather than silently tolerated.
+- `ReconvergeAdoptions` reports linked version drift and migration work; it does
+  not overwrite linked consumers. Ejected adopters remain explicit local
+  ownership boundaries. Adopters under `templates/**` are out of the write
+  boundary and are reported (not rewritten); reviewed, still-behind template
+  copies are tracked in the reviewed divergence allowlist rather than silently
+  tolerated.
 
 `ResolveAdoptionPath` returns per-file placement (dual provenance: library slot
 plus adopting-template manifest) so a multi-file component version lands each
@@ -288,6 +291,22 @@ data contract and sequence are owned by [`DATA.md`](DATA.md#preview-session-boun
 and [`FLOWS.md`](FLOWS.md#preview-workspace-experiment).
 
 ## Contracts And Data Flow
+
+### Internationalization
+
+Library-facing copy uses the typed strings seam exported from
+`useLocale/1.0.1`. A version that renders user-visible copy keeps a
+co-located `<Component>.strings.ts` module and declares named keys with
+`defineStrings(namespace, defaults)`. Components read those keys through
+`useStrings(key, englishDefault)`, so an unmounted provider remains safe and
+renders the declared English default.
+
+`LibraryStringsProvider` is the optional host boundary for translating those
+declared keys. Adoption linking reads the co-located declarations and merges
+them into the adopter's `ui/src/i18n/locales/en.json`; the i18next global
+bridge is intentionally not part of the library contract. Positional keys
+such as `text.1` are prohibited because they describe markup position rather
+than meaning.
 
 Wire shapes do not live in TypeScript interfaces, Go structs, or
 hand-written JSON schemas. They live in `.proto` files. For

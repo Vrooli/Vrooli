@@ -27,6 +27,7 @@ import {
   listComponentStories,
   listPreviewFrames,
   persistPreviewFrame,
+  resolveLibraryImport,
   type ComponentStory,
   type PreviewFrameCandidate,
 } from "../../api/components";
@@ -47,9 +48,13 @@ import { ThemeSwitcher, type PreviewKit } from "./ThemeSwitcher";
 import { DEFAULT_ADOPTION_TEMPLATE } from "./adoptionTemplates";
 import { AssetWorkspace } from "../assets/AssetWorkspace";
 import type { DiffRow } from "../../api/versions";
-import { ExperienceSurface } from "../../components/ExperienceSurface/versions/1.0.0/ExperienceSurface";
+import { ExperienceSurface } from "@vrooli/react-component-library/ExperienceSurface/1.0.0";
 import { WorkspaceHeader } from "../../components/WorkspaceHeader";
 import { useShellNavigation } from "../../components/ShellNavigationContext";
+import {
+  createLibraryImportDefinitionProvider,
+  createLibraryImportHoverProvider,
+} from "./libraryImportProviders";
 
 const PREVIEW_LOAD_TIMEOUT_MS = 8_000;
 const PANEL_LAYOUT_STORAGE_KEY = "rcl.component-editor.split-view.v1";
@@ -772,6 +777,24 @@ export function ComponentEditorImpl({
     monacoEditor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => {
       if (!saveMutation.isPending) saveMutation.mutate();
     });
+    const languages = ["typescript", "typescriptreact", "javascript", "javascriptreact"];
+    const resolveImport = (specifier: string, fromPath: string) =>
+      resolveLibraryImport({ specifier, fromPath });
+    monaco.languages.registerHoverProvider(
+      languages,
+      createLibraryImportHoverProvider(resolveImport),
+    );
+    monaco.languages.registerDefinitionProvider(
+      languages,
+      createLibraryImportDefinitionProvider(monaco, resolveImport, async (resolution, uri) => {
+        if (monaco.editor.getModel(uri)) return;
+        const source = await componentsClient.getComponentVersionContent({
+          componentId: resolution.libraryId,
+          version: resolution.version,
+        });
+        monaco.editor.createModel(source.content, "typescript", uri);
+      }),
+    );
   };
 
   useEffect(() => {

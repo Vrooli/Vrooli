@@ -1,0 +1,748 @@
+<title>The Fork Line</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=JetBrains+Mono:wght@400;500;700&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&display=swap">
+
+<style>
+:root{
+  --ground:#E9EDEF;
+  --surface:#FBFCFC;
+  --surface-2:#DFE5E8;
+  --ink:#11161B;
+  --muted:#5A6874;
+  --hair:#C3CDD3;
+  --hair-soft:#D6DEE2;
+  --accent:#1B5E7E;
+  --accent-soft:#D3E3EB;
+  --drift:#A8621F;
+  --drift-soft:#F0E0CE;
+  --bad:#9E2B32;
+  --bad-soft:#F2D8D9;
+  --good:#2C6F52;
+  --good-soft:#D5E7DE;
+  --shadow:0 1px 0 rgba(17,22,27,.05), 0 8px 24px -18px rgba(17,22,27,.4);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --ground:#0F1417;
+    --surface:#171E23;
+    --surface-2:#1F282E;
+    --ink:#DEE5EA;
+    --muted:#8494A0;
+    --hair:#2C3941;
+    --hair-soft:#222C33;
+    --accent:#5FB0D4;
+    --accent-soft:#16303D;
+    --drift:#D89147;
+    --drift-soft:#33240F;
+    --bad:#D9686E;
+    --bad-soft:#341518;
+    --good:#5AAE85;
+    --good-soft:#12291F;
+    --shadow:0 1px 0 rgba(0,0,0,.3), 0 8px 24px -18px rgba(0,0,0,.9);
+  }
+}
+:root[data-theme="dark"]{
+  --ground:#0F1417;
+  --surface:#171E23;
+  --surface-2:#1F282E;
+  --ink:#DEE5EA;
+  --muted:#8494A0;
+  --hair:#2C3941;
+  --hair-soft:#222C33;
+  --accent:#5FB0D4;
+  --accent-soft:#16303D;
+  --drift:#D89147;
+  --drift-soft:#33240F;
+  --bad:#D9686E;
+  --bad-soft:#341518;
+  --good:#5AAE85;
+  --good-soft:#12291F;
+  --shadow:0 1px 0 rgba(0,0,0,.3), 0 8px 24px -18px rgba(0,0,0,.9);
+}
+
+*{box-sizing:border-box}
+body{
+  background:var(--ground);
+  color:var(--ink);
+  font-family:"Source Serif 4",Georgia,serif;
+  font-size:17px;
+  line-height:1.62;
+  margin:0;
+  -webkit-font-smoothing:antialiased;
+}
+.wrap{max-width:1180px;margin:0 auto;padding:0 28px 120px}
+
+/* ---------- masthead ---------- */
+.mast{padding:76px 0 40px;border-bottom:1px solid var(--hair)}
+.eyebrow{
+  font-family:"JetBrains Mono",ui-monospace,monospace;
+  font-size:11px;letter-spacing:.18em;text-transform:uppercase;
+  color:var(--muted);margin:0 0 22px;
+}
+h1{
+  font-family:Archivo,"Helvetica Neue",sans-serif;
+  font-weight:700;font-size:clamp(40px,6.5vw,74px);line-height:.98;
+  letter-spacing:-.028em;margin:0 0 20px;text-wrap:balance;max-width:14ch;
+}
+.dek{font-size:20px;line-height:1.5;color:var(--muted);max-width:62ch;margin:0}
+.dek strong{color:var(--ink);font-weight:600}
+.mast-meta{
+  display:flex;flex-wrap:wrap;gap:8px 26px;margin-top:30px;
+  font-family:"JetBrains Mono",monospace;font-size:11.5px;color:var(--muted);
+}
+.mast-meta span{white-space:nowrap}
+
+/* ---------- section scaffolding ---------- */
+section{padding:64px 0 0}
+.sec-head{display:flex;align-items:baseline;gap:16px;margin-bottom:8px}
+.sec-num{
+  font-family:"JetBrains Mono",monospace;font-size:12px;font-weight:700;
+  color:var(--accent);letter-spacing:.08em;flex:0 0 auto;
+}
+h2{
+  font-family:Archivo,sans-serif;font-weight:700;
+  font-size:clamp(25px,3.2vw,34px);line-height:1.1;letter-spacing:-.02em;
+  margin:0;text-wrap:balance;
+}
+h3{
+  font-family:Archivo,sans-serif;font-weight:600;font-size:19px;
+  letter-spacing:-.01em;margin:38px 0 10px;text-wrap:balance;
+}
+h4{
+  font-family:"JetBrains Mono",monospace;font-weight:700;font-size:11px;
+  letter-spacing:.15em;text-transform:uppercase;color:var(--muted);
+  margin:0 0 12px;
+}
+p{margin:0 0 16px;max-width:68ch}
+.lede{font-size:18.5px;color:var(--muted);max-width:66ch;margin-bottom:26px}
+a{color:var(--accent)}
+code,.mono{font-family:"JetBrains Mono",ui-monospace,monospace;font-size:.86em}
+code{background:var(--surface-2);padding:1px 5px;border-radius:3px}
+ul{max-width:68ch;padding-left:20px;margin:0 0 16px}
+li{margin-bottom:8px}
+strong{font-weight:600}
+
+/* ---------- verdict blocks ---------- */
+.verdict{
+  background:var(--surface);border:1px solid var(--hair-soft);
+  border-left:4px solid var(--hair);border-radius:0 6px 6px 0;
+  padding:20px 24px;margin:0 0 16px;box-shadow:var(--shadow);
+}
+.verdict.confirmed{border-left-color:var(--bad)}
+.verdict.partial{border-left-color:var(--drift)}
+.verdict.fixed{border-left-color:var(--good)}
+.verdict.reframe{border-left-color:var(--accent)}
+.v-tag{
+  display:inline-block;font-family:"JetBrains Mono",monospace;font-size:10px;
+  font-weight:700;letter-spacing:.14em;text-transform:uppercase;
+  padding:3px 8px;border-radius:3px;margin-bottom:10px;
+}
+.confirmed .v-tag{background:var(--bad-soft);color:var(--bad)}
+.partial .v-tag{background:var(--drift-soft);color:var(--drift)}
+.fixed .v-tag{background:var(--good-soft);color:var(--good)}
+.reframe .v-tag{background:var(--accent-soft);color:var(--accent)}
+.v-claim{font-family:Archivo,sans-serif;font-weight:600;font-size:17.5px;margin:0 0 8px;line-height:1.35}
+.verdict p{margin:0 0 10px;font-size:16px}
+.verdict p:last-child{margin-bottom:0}
+
+/* ---------- data panels ---------- */
+.panel{
+  background:var(--surface);border:1px solid var(--hair-soft);border-radius:8px;
+  padding:26px 28px;margin:26px 0;box-shadow:var(--shadow);
+}
+.panel-wide{max-width:none}
+.scroll{overflow-x:auto}
+
+table{border-collapse:collapse;width:100%;font-size:14.5px;min-width:520px}
+th{
+  font-family:"JetBrains Mono",monospace;font-size:10.5px;font-weight:700;
+  letter-spacing:.12em;text-transform:uppercase;color:var(--muted);
+  text-align:left;padding:0 14px 10px 0;border-bottom:1px solid var(--hair);
+  vertical-align:bottom;
+}
+td{padding:11px 14px 11px 0;border-bottom:1px solid var(--hair-soft);vertical-align:top}
+tr:last-child td{border-bottom:0}
+td.num,th.num{text-align:right;font-family:"JetBrains Mono",monospace;font-variant-numeric:tabular-nums;padding-right:0}
+.dim{color:var(--muted)}
+
+/* ---------- stat strip ---------- */
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:1px;background:var(--hair-soft);border:1px solid var(--hair-soft);border-radius:8px;overflow:hidden;margin:28px 0}
+.stat{background:var(--surface);padding:20px 18px}
+.stat-n{font-family:Archivo,sans-serif;font-weight:700;font-size:34px;line-height:1;letter-spacing:-.03em;font-variant-numeric:tabular-nums}
+.stat-n.bad{color:var(--bad)}.stat-n.drift{color:var(--drift)}.stat-n.good{color:var(--good)}.stat-n.acc{color:var(--accent)}
+.stat-l{font-family:"JetBrains Mono",monospace;font-size:10.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);margin-top:10px;line-height:1.45}
+
+/* ---------- bars ---------- */
+.bars{display:flex;flex-direction:column;gap:14px;margin:6px 0 4px}
+.bar-row{display:grid;grid-template-columns:minmax(130px,190px) 1fr auto;gap:16px;align-items:center}
+.bar-lab{font-family:"JetBrains Mono",monospace;font-size:11.5px;color:var(--muted);line-height:1.35}
+.bar-track{background:var(--surface-2);border-radius:2px;height:16px;position:relative;overflow:hidden}
+.bar-fill{height:100%;border-radius:2px}
+.bar-val{font-family:"JetBrains Mono",monospace;font-size:12px;font-variant-numeric:tabular-nums;color:var(--ink);min-width:64px;text-align:right}
+.f-acc{background:var(--accent)}.f-bad{background:var(--bad)}.f-drift{background:var(--drift)}.f-good{background:var(--good)}.f-mute{background:var(--hair)}
+
+/* ---------- diagram ---------- */
+figure{margin:30px 0}
+figcaption{
+  font-family:"JetBrains Mono",monospace;font-size:11px;color:var(--muted);
+  margin-top:14px;line-height:1.55;letter-spacing:.02em;max-width:80ch;
+}
+svg{display:block;max-width:100%;height:auto}
+.svg-wrap{background:var(--surface);border:1px solid var(--hair-soft);border-radius:8px;padding:26px 22px;box-shadow:var(--shadow);overflow-x:auto}
+
+/* ---------- code compare ---------- */
+.compare{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin:24px 0}
+.code{
+  background:var(--surface);border:1px solid var(--hair-soft);border-radius:8px;
+  overflow:hidden;box-shadow:var(--shadow);min-width:0;
+}
+.code-hd{
+  font-family:"JetBrains Mono",monospace;font-size:10.5px;letter-spacing:.11em;
+  text-transform:uppercase;color:var(--muted);padding:11px 16px;
+  border-bottom:1px solid var(--hair-soft);background:var(--surface-2);
+  display:flex;justify-content:space-between;gap:12px;
+}
+pre{
+  margin:0;padding:16px;overflow-x:auto;
+  font-family:"JetBrains Mono",monospace;font-size:12px;line-height:1.62;
+}
+.ln-same{color:var(--muted)}
+.ln-a{color:var(--accent);font-weight:500}
+.ln-b{color:var(--drift);font-weight:500}
+.ln-key{color:var(--good);font-weight:700}
+
+/* ---------- gap ledger ---------- */
+.ledger{display:grid;gap:1px;background:var(--hair-soft);border:1px solid var(--hair-soft);border-radius:8px;overflow:hidden;margin:26px 0}
+.lrow{background:var(--surface);display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr) 96px;gap:20px;padding:18px 22px;align-items:start}
+.lrow.hd{background:var(--surface-2)}
+.lrow.hd div{font-family:"JetBrains Mono",monospace;font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+.l-what{font-family:Archivo,sans-serif;font-weight:600;font-size:15.5px;line-height:1.35}
+.l-what small{display:block;font-family:"JetBrains Mono",monospace;font-weight:400;font-size:11px;color:var(--muted);margin-top:5px;letter-spacing:.02em}
+.l-note{font-size:14.5px;color:var(--muted);line-height:1.5}
+.l-score{font-family:"JetBrains Mono",monospace;font-size:11px;font-weight:700;letter-spacing:.08em;text-align:right;padding-top:2px}
+.s-bad{color:var(--bad)}.s-drift{color:var(--drift)}.s-good{color:var(--good)}
+
+/* ---------- decision ---------- */
+.dec{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin:26px 0}
+.dec-col{background:var(--surface);border:1px solid var(--hair-soft);border-radius:8px;padding:24px;box-shadow:var(--shadow)}
+.dec-col h4{margin-bottom:14px}
+.dec-col.now{border-top:3px solid var(--drift)}
+.dec-col.alt{border-top:3px solid var(--accent)}
+.dec-col ul{padding-left:18px;margin:0}
+.dec-col li{font-size:14.5px;line-height:1.5;margin-bottom:9px}
+
+.callout{
+  background:var(--accent-soft);border-radius:8px;padding:24px 28px;margin:30px 0;
+  border:1px solid color-mix(in srgb,var(--accent) 22%,transparent);
+}
+.callout p{margin:0;font-size:17.5px;line-height:1.5;max-width:72ch}
+.callout p + p{margin-top:12px}
+.callout strong{color:var(--accent);font-weight:600}
+
+.pathnote{font-family:"JetBrains Mono",monospace;font-size:11.5px;color:var(--muted);margin:-6px 0 20px;line-height:1.6}
+
+hr.rule{border:0;border-top:1px solid var(--hair);margin:60px 0 0}
+
+@media (max-width:820px){
+  .compare,.dec{grid-template-columns:1fr}
+  .lrow{grid-template-columns:1fr;gap:8px}
+  .l-score{text-align:left}
+  .bar-row{grid-template-columns:1fr;gap:6px}
+  .bar-val{text-align:left}
+  body{font-size:16.5px}
+}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+</style>
+
+<div class="wrap">
+
+<header class="mast">
+  <p class="eyebrow">react-component-library · measured on branch agi · 2026-08-25</p>
+  <h1>The Fork Line</h1>
+  <p class="dek">Your instincts are mostly right, and one of them is <strong>more right than the plan that overruled it</strong>. Adoption copies because a decision said forking is the real model — but the measurement that decision promised to revisit was never produced, and when you produce it, it points the other way.</p>
+  <div class="mast-meta">
+    <span>429 catalog assets</span>
+    <span>263 versions</span>
+    <span>237 story contracts / 722 stories</span>
+    <span>394 adoptions across 35 scenarios</span>
+    <span>582 vendored files</span>
+  </div>
+</header>
+
+<!-- ======================= 1 ======================= -->
+<section>
+  <div class="sec-head"><span class="sec-num">01</span><h2>The two loops, and where each one leaks</h2></div>
+  <p class="lede">Everything here is one bidirectional cycle. Code is <em>harvested</em> from scenarios into the library, proved by a five-stage test pipeline, then <em>adopted</em> back out. The leaks are all at the two boundaries, not in the middle.</p>
+
+  <figure>
+  <div class="svg-wrap">
+  <svg viewBox="0 0 980 430" role="img" aria-label="Diagram of the harvest and adopt cycle between scenarios and the react-component-library, with the five-stage test pipeline in the middle and leak points marked at both boundaries.">
+    <defs>
+      <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+        <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
+      </marker>
+      <marker id="arw" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+        <path d="M0,0 L10,5 L0,10 z" fill="var(--drift)"/>
+      </marker>
+    </defs>
+
+    <!-- left: scenarios -->
+    <rect x="10" y="118" width="176" height="196" rx="7" fill="var(--surface-2)" stroke="var(--hair)"/>
+    <text x="98" y="148" text-anchor="middle" font-family="Archivo,sans-serif" font-size="15" font-weight="700" fill="var(--ink)">35 scenarios</text>
+    <text x="98" y="170" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="10.5" fill="var(--muted)">money-ledger, offer-desk,</text>
+    <text x="98" y="185" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="10.5" fill="var(--muted)">asset-studio, web-console…</text>
+    <text x="98" y="215" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="10.5" fill="var(--muted)">Tailwind UIs</text>
+    <text x="98" y="232" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="10.5" fill="var(--muted)">i18next catalogs</text>
+    <text x="98" y="249" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="10.5" fill="var(--muted)">consts/selectors.ts</text>
+    <text x="98" y="285" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="11" font-weight="700" fill="var(--drift)">582 vendored files</text>
+
+    <!-- center: library -->
+    <rect x="286" y="60" width="408" height="312" rx="7" fill="var(--surface)" stroke="var(--accent)" stroke-width="1.5"/>
+    <text x="490" y="90" text-anchor="middle" font-family="Archivo,sans-serif" font-size="15" font-weight="700" fill="var(--ink)">react-component-library</text>
+    <text x="490" y="110" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="10.5" fill="var(--muted)">library/{components,primitives,hooks,foundations}</text>
+    <text x="490" y="126" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="10.5" fill="var(--muted)">no package.json · no build · no barrel export</text>
+
+    <!-- pipeline -->
+    <text x="310" y="163" font-family="JetBrains Mono,monospace" font-size="10" letter-spacing="1.6" fill="var(--muted)">TEST PIPELINE — 5 STAGES</text>
+    <g font-family="JetBrains Mono,monospace" font-size="9.5" fill="var(--ink)">
+      <rect x="308" y="174" width="72" height="42" rx="4" fill="var(--accent-soft)" stroke="var(--hair-soft)"/>
+      <text x="344" y="192" text-anchor="middle">closure</text><text x="344" y="205" text-anchor="middle">integrity</text>
+      <rect x="386" y="174" width="72" height="42" rx="4" fill="var(--accent-soft)" stroke="var(--hair-soft)"/>
+      <text x="422" y="192" text-anchor="middle">source</text><text x="422" y="205" text-anchor="middle">integrity</text>
+      <rect x="464" y="174" width="72" height="42" rx="4" fill="var(--accent-soft)" stroke="var(--hair-soft)"/>
+      <text x="500" y="192" text-anchor="middle">contract</text><text x="500" y="205" text-anchor="middle">validation</text>
+      <rect x="542" y="174" width="72" height="42" rx="4" fill="var(--accent-soft)" stroke="var(--hair-soft)"/>
+      <text x="578" y="192" text-anchor="middle">declared</text><text x="578" y="205" text-anchor="middle">behavior</text>
+      <rect x="620" y="174" width="60" height="42" rx="4" fill="var(--accent-soft)" stroke="var(--hair-soft)"/>
+      <text x="650" y="192" text-anchor="middle">experience</text><text x="650" y="205" text-anchor="middle">evidence</text>
+    </g>
+
+    <!-- inputs to pipeline -->
+    <text x="310" y="248" font-family="JetBrains Mono,monospace" font-size="10" letter-spacing="1.6" fill="var(--muted)">AUTHORED PER VERSION</text>
+    <g font-family="JetBrains Mono,monospace" font-size="10">
+      <rect x="308" y="259" width="112" height="34" rx="4" fill="var(--surface-2)" stroke="var(--hair-soft)"/>
+      <text x="364" y="280" text-anchor="middle" fill="var(--ink)">component.json</text>
+      <rect x="426" y="259" width="112" height="34" rx="4" fill="var(--surface-2)" stroke="var(--hair-soft)"/>
+      <text x="482" y="280" text-anchor="middle" fill="var(--ink)">story.json</text>
+      <rect x="544" y="259" width="112" height="34" rx="4" fill="var(--surface-2)" stroke="var(--hair-soft)"/>
+      <text x="600" y="280" text-anchor="middle" fill="var(--ink)">story.tsx</text>
+    </g>
+    <text x="490" y="318" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="10.5" fill="var(--muted)">BAS renders each story → screenshot + a11y tree + console</text>
+    <text x="490" y="336" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="10.5" fill="var(--muted)">plus a 4-up “story sheet” composite per group of four</text>
+    <text x="490" y="357" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="10.5" fill="var(--good)">this middle is healthy</text>
+
+    <!-- right: gates -->
+    <rect x="794" y="118" width="176" height="196" rx="7" fill="var(--surface-2)" stroke="var(--hair)"/>
+    <text x="882" y="148" text-anchor="middle" font-family="Archivo,sans-serif" font-size="15" font-weight="700" fill="var(--ink)">catalog gates</text>
+    <g font-family="JetBrains Mono,monospace" font-size="10.5" fill="var(--muted)">
+      <text x="882" y="174" text-anchor="middle">token vocabulary</text>
+      <text x="882" y="192" text-anchor="middle">api conformance</text>
+      <text x="882" y="210" text-anchor="middle">types / lint</text>
+      <text x="882" y="228" text-anchor="middle">version immutable</text>
+      <text x="882" y="252" text-anchor="middle" fill="var(--drift)">i18n</text>
+      <text x="882" y="270" text-anchor="middle" fill="var(--drift)">selector-coverage</text>
+    </g>
+    <text x="882" y="296" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="10" fill="var(--drift)">both check the library end only</text>
+
+    <!-- arrows -->
+    <g color="var(--accent)" stroke="var(--accent)" stroke-width="1.6" fill="none">
+      <path d="M186 168 C 236 168, 240 150, 284 150" marker-end="url(#ar)"/>
+      <path d="M694 200 C 740 200, 752 200, 792 200" marker-end="url(#ar)"/>
+    </g>
+    <text x="235" y="140" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="10" font-weight="700" fill="var(--accent)">harvest</text>
+    <text x="235" y="128" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="9" fill="var(--muted)">ingest</text>
+
+    <g stroke="var(--drift)" stroke-width="1.8" fill="none">
+      <path d="M284 282 C 240 282, 236 272, 188 272" marker-end="url(#arw)"/>
+    </g>
+    <text x="235" y="300" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="10" font-weight="700" fill="var(--drift)">adopt = copy</text>
+
+    <!-- leak markers -->
+    <circle cx="235" cy="316" r="10" fill="var(--bad-soft)" stroke="var(--bad)"/>
+    <text x="235" y="320" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="11" font-weight="700" fill="var(--bad)">!</text>
+    <text x="235" y="345" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="9.5" fill="var(--bad)">96% diverge here</text>
+    <text x="235" y="359" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="9.5" fill="var(--bad)">and never return</text>
+
+    <circle cx="882" cy="316" r="10" fill="var(--bad-soft)" stroke="var(--bad)"/>
+    <text x="882" y="320" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="11" font-weight="700" fill="var(--bad)">!</text>
+    <text x="882" y="345" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="9.5" fill="var(--bad)">gates prove the seam</text>
+    <text x="882" y="359" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="9.5" fill="var(--bad)">exists, not that it lands</text>
+
+    <text x="490" y="404" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="10.5" fill="var(--muted)">Once a file crosses the adopt arrow, nothing pulls it back. There is no return path.</text>
+  </svg>
+  </div>
+  <figcaption>Sources: <span class="mono">api/internal/componenttests/runner.go</span> (stages, 4-up grouping) · <span class="mono">api/internal/gates/gates.go</span> (gate set) · <span class="mono">adoption_records</span> / <span class="mono">adoption_files</span> in the live scenario DB.</figcaption>
+  </figure>
+
+  <p>The pipeline in the middle is the part that works. Five stages run per component version: <code>closure_integrity</code> walks the dependency closure, <code>source_integrity</code> hashes the file, <code>contract_validation</code> checks <code>story.json</code> against the schema, <code>declared_behavior</code> drives each story's interactions and assertions in a real browser via BAS, and <code>experience_evidence</code> confirms the artifact bundle came back complete.</p>
+  <p>The two boundaries are where your concerns live, and they're symmetric: <strong>harvest has an origin-parity gate that blocks behavior loss; adopt has nothing equivalent.</strong> Nothing checks that a copy still does what the library version did.</p>
+</section>
+
+<hr class="rule">
+
+<!-- ======================= 2 ======================= -->
+<section>
+  <div class="sec-head"><span class="sec-num">02</span><h2>Your concerns, checked against the tree</h2></div>
+  <p class="lede">Six claims, six verdicts. Two are already fixed by the overnight work; three are confirmed; one needs reframing.</p>
+
+  <div class="verdict fixed">
+    <span class="v-tag">Already fixed</span>
+    <p class="v-claim"><code>sharedHarness</code> is a weird third spelling</p>
+    <p>It was — it was the v3 form that v4's <code>composition</code> block replaced, and all three spellings coexisted. It is now <strong>zero occurrences</strong> across all 237 story files, and every file is <code>schemaVersion: 4</code>. Your read of "something fishy in the schema" was exactly right, and it has been collapsed.</p>
+  </div>
+
+  <div class="verdict fixed">
+    <span class="v-tag">Already fixed</span>
+    <p class="v-claim">The Screenshot tab only shows one story</p>
+    <p>The 4-up composite you remembered is real — <code>runner.go</code> chunks stories in groups of four and captures each group as one <code>bas-story-sheet</code> image. The Tests tab now prefers it: <code>defaultStoryID</code> picks the first <code>review-sheet:</code> capture and <code>preferredCaptureKind</code> resolves to <code>story-sheet</code> when one exists.</p>
+    <p><em>Residual:</em> a component with nine stories produces three sheets, and you still page between them through a dropdown. A gallery of all sheets would finish this.</p>
+  </div>
+
+  <div class="verdict confirmed">
+    <span class="v-tag">Confirmed — and worse</span>
+    <p class="v-claim">Raw HTML nodes in story args are ugly and not ideal</p>
+    <p>Confirmed, and the migration made a subset of them actively wrong. <code>$node</code> was the element form (<code>{"$node":"button", children:[…]}</code>); <code>$text</code> is a literal string. In 20 files, <strong>45 stories</strong> had their <code>$node</code> collapsed into <code>$text</code> carrying the tag name — so <code>Card/1.1.0</code>'s <code>metric-card</code> story now renders the literal word <em>"div"</em> twice, and its screenshot is silently wrong.</p>
+    <p>The diagnostic that would have caught this (<code>legacy_raw_node</code>) was deleted with the compatibility layer rather than surviving to police the result.</p>
+  </div>
+
+  <div class="verdict confirmed">
+    <span class="v-tag">Confirmed</span>
+    <p class="v-claim">Validation doesn't push story configs toward an ideal shape</p>
+    <p>There is no declared ideal to push toward. The schema permits five ways to express one story — <code>composition.specimen</code>, <code>composition.harness</code>, <code>composition.frame</code>, <code>composition.fixture</code>, or nothing at all plus raw <code>args</code> — and validation is indifferent between them. The node mini-DSL isn't even schema'd: <code>$text</code>, <code>$node</code>, <code>$icon</code>, <code>$handler</code>, <code>$rowKey</code>, <code>$columns</code>, <code>$filters</code> exist only as an allow-list inside a prototype-pollution <em>safety</em> check.</p>
+  </div>
+
+  <div class="verdict confirmed">
+    <span class="v-tag">Confirmed</span>
+    <p class="v-claim">i18n and selectors aren't validated or carried into adopters</p>
+    <p>Half right, then worse than you thought. Both gates now <em>exist</em> — <code>ValidateI18n</code> and <code>ValidateSelectorCoverage</code> — and both check only the library end. On the adopter end, both seams are inert: see the ledger in §04.</p>
+  </div>
+
+  <div class="verdict reframe">
+    <span class="v-tag">Needs reframing</span>
+    <p class="v-claim">Every copied component needs its own test file</p>
+    <p>The rule isn't 1:1 test files — <code>unit-health</code> enforces a <strong>per-file coverage threshold</strong> plus a workspace aggregate. But the practical effect is what you described: 582 vendored files sit in adopters' coverage denominators, and money-ledger really does carry <code>button.test.tsx</code>, <code>dialog.test.tsx</code>, <code>data-table.test.tsx</code> and four more for components it did not write. An imported package would leave that denominator entirely.</p>
+  </div>
+</section>
+
+<hr class="rule">
+
+<!-- ======================= 3 ======================= -->
+<section>
+  <div class="sec-head"><span class="sec-num">03</span><h2>Why adoption copies — and why the reason no longer holds</h2></div>
+  <p class="lede">This is the part of your update that matters most, so here is the chain in full.</p>
+
+  <p>The <em>story-contract-v4</em> plan measured a 97% modification rate and made <strong>Decision 1: "Forking is the real adoption model; build for it."</strong> It explicitly considered and rejected package imports:</p>
+
+  <div class="panel">
+    <h4>From the plan, verbatim</h4>
+    <p style="font-style:italic;margin-bottom:14px">"<strong>Rejected:</strong> ship components as real package imports instead of copies. This is a defensible long-term design and it is out of scope here… Revisit when the fork classification data shows what proportion of forks are behavioral rather than cosmetic."</p>
+    <p style="font-style:italic;margin:0">"<strong>Revisit trigger:</strong> if fork classification shows most divergence is cosmetic (styling only), reconsider the package-import model, because a cosmetic-only fork rate means the extension points were the missing piece rather than the copy model."</p>
+  </div>
+
+  <p>That is a well-formed decision with an explicit escape hatch. Three things have happened to it since.</p>
+
+  <h3>The classification was never produced</h3>
+  <p>Phase 9 built <code>fork_status</code> with three values — <code>declared-fork</code>, <code>unintended-drift</code>, <code>mechanical-translation</code>. In the live database, <strong>all 394 records have <code>fork_status = ''</code></strong>. The classifier has never run against the corpus, so the revisit trigger has no input and cannot fire.</p>
+
+  <h3>The classifier can only see a third of the corpus</h3>
+  <p><code>reconverge.go:33</code> skips any adoption that is not <code>behind</code>. Only 145 of 394 records are behind. The 249 records that are <code>current</code> <em>and</em> <code>modified</code> — the majority — are structurally unreachable by the classification the decision depends on.</p>
+
+  <h3>And "cosmetic" is defined so narrowly it can never be found</h3>
+  <p><code>classifyModified</code> calls a fork <code>translation_only</code> only when the on-disk bytes <strong>exactly equal</strong> the library body after design-token substitution and import rewriting. A component restyled from CSS custom properties to Tailwind classes can never match that, and won't pass the <code>containsEverySourceLine</code> fallback either. It lands in <code>local_fork</code> — "behavioral" — by construction.</p>
+
+  <div class="callout">
+    <p><strong>The revisit trigger is rigged shut.</strong> It asks a question that is never run, over a third of the data, using a definition of "cosmetic" that the most common kind of cosmetic change cannot satisfy.</p>
+  </div>
+
+  <h3>So I ran the measurement the trigger wanted</h3>
+  <p>The right proxy for "behavioral vs cosmetic" is the <em>exported API surface</em>: same exported symbols and same prop members means the contract held and only the rendering changed. Across all 379 modified adoptions (376 resolvable to a library source):</p>
+
+  <div class="panel panel-wide">
+    <h4>Fork classification by exported surface — 376 modified adoptions</h4>
+    <div class="bars">
+      <div class="bar-row">
+        <span class="bar-lab">API identical<br><span style="opacity:.75">implementation-only fork</span></span>
+        <span class="bar-track"><span class="bar-fill f-good" style="width:78%"></span></span>
+        <span class="bar-val">293 · 78%</span>
+      </div>
+      <div class="bar-row">
+        <span class="bar-lab">Adopter dropped exports<br><span style="opacity:.75">subset, not extension</span></span>
+        <span class="bar-track"><span class="bar-fill f-drift" style="width:20.7%"></span></span>
+        <span class="bar-val">78 · 21%</span>
+      </div>
+      <div class="bar-row">
+        <span class="bar-lab">Diverges both ways<br><span style="opacity:.75">genuine local extension</span></span>
+        <span class="bar-track"><span class="bar-fill f-bad" style="width:1.1%"></span></span>
+        <span class="bar-val">4 · 1.1%</span>
+      </div>
+      <div class="bar-row">
+        <span class="bar-lab">Adopter added exports<br><span style="opacity:.75">genuine local extension</span></span>
+        <span class="bar-track"><span class="bar-fill f-bad" style="width:0.3%"></span></span>
+        <span class="bar-val">1 · 0.3%</span>
+      </div>
+    </div>
+  </div>
+
+  <p><strong>Five records out of 394 — 1.3% — extend the component's contract.</strong> Everything else either preserves it exactly or is a strict subset of it. The extension points Decision 1 built for divergence are serving a phenomenon that happens 1.3% of the time.</p>
+
+  <h3>What the forks actually are</h3>
+  <p>The dominant fork is a styling-system rewrite. The library renders through CSS custom properties, injected <code>&lt;style&gt;</code> blocks and <code>data-rcl-*</code> attributes — 55 library files use inline <code>style={{}}</code>, exactly one uses <code>twMerge</code>. Adopters are Tailwind apps. 35 copies visibly switch systems on the way across. Here is the canonical case:</p>
+
+  <div class="compare">
+    <div class="code">
+      <div class="code-hd"><span>library · Button 1.2.0</span><span>26 lines</span></div>
+<pre><span class="ln-key">type ButtonVariant = "primary" | "secondary"
+                   | "ghost" | "danger";
+type ButtonSize = "sm" | "md" | "icon";
+
+export interface ButtonProps
+  extends ButtonHTMLAttributes&lt;HTMLButtonElement&gt; {
+  children: ReactNode;
+  variant?: ButtonVariant;
+  size?: ButtonSize;
+}</span>
+
+<span class="ln-a">return (
+  &lt;Pressable {...props} type={type}
+             tone={variant} size={size}&gt;
+    {children}
+  &lt;/Pressable&gt;
+);</span></pre>
+    </div>
+    <div class="code">
+      <div class="code-hd"><span>money-ledger · ui/button.tsx</span><span>63 lines</span></div>
+<pre><span class="ln-key">type ButtonVariant = "primary" | "secondary"
+                   | "ghost" | "danger";
+type ButtonSize = "sm" | "md" | "icon";
+
+export interface ButtonProps
+  extends ButtonHTMLAttributes&lt;HTMLButtonElement&gt; {
+  children: ReactNode;
+  variant?: ButtonVariant;
+  size?: ButtonSize;
+}</span>
+
+<span class="ln-b">return (
+  &lt;button type={type} className={cn(
+    "inline-flex items-center …",
+    variantClasses[variant],
+    sizeClasses[size], className)}
+    {...props}&gt;{children}&lt;/button&gt;
+);</span></pre>
+    </div>
+  </div>
+  <p class="pathnote">green = byte-identical contract · blue/amber = the entire difference</p>
+
+  <p>The public API is character-for-character the same. The difference is that one delegates to <code>Pressable</code> and the other inlines a Tailwind class map. <code>classifyModified</code> calls this <code>local_fork</code>. A human calls it a restyle.</p>
+</section>
+
+<hr class="rule">
+
+<!-- ======================= 4 ======================= -->
+<section>
+  <div class="sec-head"><span class="sec-num">04</span><h2>The adoption ledger: what actually crosses the boundary</h2></div>
+  <p class="lede">Adoption carries five things today. Your suspicion that it handles "required children and styling and not much else" was close: it handles files, dependency closure, and design tokens well, and the two obligations you named are declared but do not land.</p>
+
+  <div class="ledger">
+    <div class="lrow hd"><div>Obligation</div><div>What actually happens at the adopt boundary</div><div style="text-align:right">Lands?</div></div>
+
+    <div class="lrow">
+      <div class="l-what">Source files + dependency closure<small>ApplyAdoption</small></div>
+      <div class="l-note">Full closure copied, relative imports rewritten to the target layout, provenance header stamped with source SHA. Genuinely solid.</div>
+      <div class="l-score s-good">YES</div>
+    </div>
+
+    <div class="lrow">
+      <div class="l-what">Design tokens<small>SyncScenarioTokens · tokens.go</small></div>
+      <div class="l-note">Token requirements are <em>derived</em> by scanning source for <code>bg-app-*</code> / <code>text-app-*</code>, then translated into the scenario's namespace. This is the pattern the other two should have copied.</div>
+      <div class="l-score s-good">YES</div>
+    </div>
+
+    <div class="lrow">
+      <div class="l-what">Design-style fit<small>designStyles affinity</small></div>
+      <div class="l-note">Validated server-side before apply; native / compatible affinity per style id.</div>
+      <div class="l-score s-good">YES</div>
+    </div>
+
+    <div class="lrow">
+      <div class="l-what">Translatable strings<small>useLocale · translate()</small></div>
+      <div class="l-note"><strong>83 library files</strong> call <code>translate(key, fallback)</code>, which resolves through a host-installed global, <code>globalThis.__vrooliTranslate</code>. Repo-wide installers of that global: <strong>zero</strong> — including react-component-library's own UI. Every call in every scenario returns the English fallback. The gate is green because it only asks whether the library source contains literals.</div>
+      <div class="l-score s-bad">NO</div>
+    </div>
+
+    <div class="lrow">
+      <div class="l-what">Automation selectors<small>data-testid · consts/selectors.ts</small></div>
+      <div class="l-note">The library carries 77 distinct <code>data-testid</code> values and the plan chose the right identity (the catalog asset id, e.g. <code>feedback.alert</code>). 157 scenarios keep a <code>consts/selectors.ts</code>. Number of those files containing <em>any</em> library-derived id: <strong>zero</strong>. money-ledger, with 21 adoptions, has no <code>selectors.ts</code> at all. Naming is also still mixed — <code>app-shell</code> next to <code>data-display.code-block</code> next to <code>data-display-finding-list</code>.</div>
+      <div class="l-score s-bad">NO</div>
+    </div>
+
+    <div class="lrow">
+      <div class="l-what">Behavioral parity of the copy<small>—</small></div>
+      <div class="l-note">Harvest has a blocking origin-parity gate that refuses an ingest which would drop behavior. Adopt has no counterpart. A copy can be rewritten to do something else entirely and nothing objects.</div>
+      <div class="l-score s-bad">NO</div>
+    </div>
+  </div>
+
+  <p>Note the shape: the one obligation that <em>does</em> land — design tokens — is the one that is <strong>derived by the library and mapped by the scenario</strong>. i18n keys and selector ids were designed the same way on paper but stop at the library end. The missing half is a write-side merge into the adopter's locale catalog and selector registry, plus a gate that reads the adopter rather than the source.</p>
+</section>
+
+<hr class="rule">
+
+<!-- ======================= 5 ======================= -->
+<section>
+  <div class="sec-head"><span class="sec-num">05</span><h2>Is importing actually possible here?</h2></div>
+  <p class="lede">Yes, and more of the machinery exists than you'd expect. The obstacles are real but named, and none of them is the one usually cited.</p>
+
+  <div class="stats">
+    <div class="stat"><div class="stat-n acc">99</div><div class="stat-l">scenarios already import a shared TS package via <span class="mono">file:</span></div></div>
+    <div class="stat"><div class="stat-n acc">4</div><div class="stat-l">governed TS packages under <span class="mono">packages/</span></div></div>
+    <div class="stat"><div class="stat-n bad">0</div><div class="stat-l">build, barrel, or package.json in <span class="mono">library/</span></div></div>
+    <div class="stat"><div class="stat-n drift">263</div><div class="stat-l">live component versions to expose as entry points</div></div>
+  </div>
+
+  <p>The sanctioned mechanism already exists and is load-bearing. <code>packages/api-base/.vrooli/package.json</code> declares exactly the shape an importable library would need:</p>
+
+  <div class="panel">
+    <h4>packages/api-base/.vrooli/package.json</h4>
+<pre style="padding:0"><span class="ln-same">"adoption": {</span>
+  <span class="ln-a">"scenario_adoptable": true,</span>
+  <span class="ln-a">"allowed_consumers": ["scenario_ui", "template_ui"],</span>
+  <span class="ln-a">"adoption_modes": ["file_dependency"]</span>
+<span class="ln-same">}</span></pre>
+  </div>
+
+  <p>Ninety-nine scenario UIs consume it as <code>"@vrooli/api-base": "file:../../../packages/api-base"</code>. Scenario UIs are deliberately kept out of the root pnpm workspace — that boundary is enforced and commented in <code>pnpm-workspace.yaml</code> — but <code>file:</code> deps are provisioned by scenario setup <em>before</em> UI install, so isolation and standalone deployability survive. <strong>The usual objection to a shared UI package in this repo does not apply.</strong></p>
+
+  <h3>What genuinely stands in the way</h3>
+  <div class="scroll">
+  <table>
+    <thead><tr><th>Obstacle</th><th>Why it's real</th><th>Shape of the answer</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><strong>Multi-version coexistence</strong></td>
+        <td>263 live versions; adopters pin different ones (<code>Button@1.2.0</code> while latest is <code>2.2.0</code>). One npm package = one version for all consumers.</td>
+        <td>Subpath exports keyed by version: <code>@vrooli/rcl/Button/1.2.0</code>. The tree already has this exact shape on disk, and the library's own internal imports are already version-pinned relative paths.</td>
+      </tr>
+      <tr>
+        <td><strong>Styling-system impedance</strong></td>
+        <td>The real driver of forking. Library = CSS custom properties + injected style blocks. Adopters = Tailwind. Importing a component you can't restyle is worse than copying one you can.</td>
+        <td>The token bridge already exists (<code>tokens.go</code> derivation + <code>design-tokens.css</code>). What's missing is a <code>className</code>/slot pass-through contract on every component so an adopter restyles from outside — which is also what Decision 1's "extension points" wanted, delivered without a copy.</td>
+      </tr>
+      <tr>
+        <td><strong>No build for <code>library/</code></strong></td>
+        <td>No package.json, no barrel, no emit. It is raw source that RCL's own UI reaches with <code>../../../../library/…</code> paths.</td>
+        <td>Smallest real work item, and it also fixes RCL importing itself. Source-only distribution (no emit, bundler-resolved) matches how <code>packages/proto/gen/typescript</code> is already consumed.</td>
+      </tr>
+      <tr>
+        <td><strong>Local-edit affordance</strong></td>
+        <td>Copying's genuine virtue: an adopter can change anything, immediately. Importing removes that.</td>
+        <td>Keep <code>ApplyAdoption</code> as an explicit <em>eject</em> — with the fork declared, not the default. 1.3% genuinely need it.</td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<hr class="rule">
+
+<!-- ======================= 6 ======================= -->
+<section>
+  <div class="sec-head"><span class="sec-num">06</span><h2>Two models, side by side</h2></div>
+
+  <div class="dec">
+    <div class="dec-col now">
+      <h4>Copy — today</h4>
+      <ul>
+        <li>582 files vendored across 35 scenarios; each one enters that scenario's coverage denominator and needs tests it didn't write.</li>
+        <li>96% modified, 37% behind. A library fix reaches adopters for 6 records out of 394 — the plan itself calls that capability "already theoretical".</li>
+        <li>115 versions are retirable only because forks don't re-read their source; version retention is bounded by provenance, not by use.</li>
+        <li>Local edit is instant and unpoliced — the genuine upside, and the reason 1.3% of adoptions exist.</li>
+        <li>i18n and selector obligations must be re-satisfied by hand in every adopter. Nobody has.</li>
+      </ul>
+    </div>
+    <div class="dec-col alt">
+      <h4>Import — if the styling contract lands first</h4>
+      <ul>
+        <li>Zero vendored files in the coverage denominator. Component tests live once, in the library, where the 5-stage pipeline already runs them.</li>
+        <li>A fix propagates by changing a version pin, for the 78% whose contract never diverged.</li>
+        <li>i18n keys and selector ids ship <em>with</em> the module instead of needing a merge step — the bridge and the ids already exist.</li>
+        <li>Version pinning survives via subpath exports; RCL stops reaching into itself with <code>../../../../</code>.</li>
+        <li>Requires the <code>className</code>/slot pass-through contract first. Without it this fails exactly where copying failed, and you have added a package for nothing.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="callout">
+    <p><strong>The sequencing matters more than the choice.</strong> Importing is not an alternative to the extension-point work — it is what the extension-point work unlocks. Ship the restyle contract, then the package, and 78% of the fleet can stop being a fork. Ship the package first and you will re-derive the same 96% divergence rate through a different mechanism.</p>
+  </div>
+
+  <h3>The cheapest next move</h3>
+  <p>Before any of this, run the measurement the existing decision is already waiting on, and fix the classifier so its answer means something:</p>
+  <ul>
+    <li>Widen <code>reconverge.go:33</code> past <code>behind</code> so the 249 <code>current</code>-and-<code>modified</code> records are classifiable at all.</li>
+    <li>Add an <strong>API-surface comparison</strong> to <code>classifyModified</code> as a fourth disposition — <code>contract_preserved</code> — sitting between <code>translation_only</code> and <code>local_fork</code>. Exact-bytes-after-translation is too narrow to ever describe a restyle.</li>
+    <li>Then populate <code>fork_status</code> across all 394 records and let Decision 1's own revisit trigger fire on real data.</li>
+  </ul>
+  <p>That is a small change to one file plus one run, and it converts an architectural argument into a measurement. My proxy says the answer will be roughly 78/21/1 — but the system should be able to say it itself.</p>
+
+  <h3>And independently of all of it</h3>
+  <ul>
+    <li><strong>Repair the 45 broken stories</strong> in 20 files where <code>$node</code> was flattened to a tag-name <code>$text</code>. Their screenshots are currently green and wrong.</li>
+    <li><strong>Pick one story authoring shape and enforce it.</strong> 441 stories use a real <code>story.tsx</code> specimen; 267 use raw <code>args</code> with no composition. Make specimen the required form for anything with children, schema the node DSL or delete it, and let the diagnostic gradient name the better form instead of silently accepting both.</li>
+    <li><strong>Point the i18n and selector gates at the adopter.</strong> A gate that only reads library source will stay green forever while both seams are inert in all 35 consumers.</li>
+  </ul>
+</section>
+
+<hr class="rule">
+
+<section>
+  <div class="sec-head"><span class="sec-num">07</span><h2>Verification notes</h2></div>
+  <p class="lede">Every number here was read from the working tree or the live scenario database on 2026-08-25. None are estimates.</p>
+  <div class="scroll">
+  <table>
+    <thead><tr><th>Claim</th><th>Source</th></tr></thead>
+    <tbody>
+      <tr><td>394 adoptions · 379 modified · 145 behind · 35 scenarios · 582 files</td><td><code>adoption_records</code>, <code>adoption_files</code> in <code>~/.vrooli/data/vrooli/react-component-library/</code></td></tr>
+      <tr><td><code>fork_status</code> empty on all 394</td><td><code>SELECT fork_status, count(*) … GROUP BY 1</code> → single row, empty key</td></tr>
+      <tr><td>293 / 78 / 4 / 1 API-surface split</td><td>Exported-symbol and prop-member comparison of each modified copy against its pinned library version; 3 of 379 unresolvable</td></tr>
+      <tr><td>Classifier limited to <code>behind</code></td><td><code>api/internal/adoptions/reconverge.go:33</code></td></tr>
+      <tr><td>Exact-match definition of <code>translation_only</code></td><td><code>api/internal/adoptions/reconverge.go:131–176</code></td></tr>
+      <tr><td>Zero <code>__vrooliTranslate</code> installers · 83 library callers</td><td>Repo-wide grep excluding <code>node_modules</code>; <code>library/hooks/useLocale/versions/1.0.0/useLocale.ts</code></td></tr>
+      <tr><td>Zero library testids in any <code>consts/selectors.ts</code></td><td>Grep of <code>feedback.alert</code>, <code>data-display.data-table</code>, <code>app-shell</code>, <code>forms.color-picker</code> across 157 selector files</td></tr>
+      <tr><td>45 stories with tag-name <code>$text</code> in 20 files</td><td>Recursive scan of every <code>story.json</code> <code>args</code> tree for <code>$text</code> values matching an HTML tag name</td></tr>
+      <tr><td>441 specimen / 267 none / 14 harness of 722 stories</td><td><code>jq</code> census over all 237 <code>story.json</code> files</td></tr>
+      <tr><td>4-up story sheets · Tests tab prefers them</td><td><code>componenttests/runner.go:266</code> · <code>ui/src/features/components/ComponentTestPanel.tsx:757,786</code></td></tr>
+      <tr><td>Per-file coverage gate, not 1:1 test files</td><td><code>scenarios/unit-health/api/internal/validation/coverage.go</code></td></tr>
+      <tr><td>99 consumers of <code>@vrooli/api-base</code> via <code>file:</code></td><td><code>scenarios/*/ui/package.json</code>; <code>pnpm-workspace.yaml</code>; <code>docs/package-governance.md</code></td></tr>
+      <tr><td>Decision 1 text and revisit trigger</td><td><code>~/.vrooli/plans/react-component-library-story-contract-v4-migration.md</code>, lines 339–360</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section>
+  <div class="sec-head"><span class="sec-num">08</span><h2>Resolved</h2></div>
+  <p class="lede">The original teardown was a problem snapshot. This closing record pairs each headline measurement with the after-value observed during the 2026-08-25 implementation walk.</p>
+  <div class="scroll">
+  <table>
+    <thead><tr><th>Before measurement</th><th>After measurement</th><th>Evidence</th></tr></thead>
+    <tbody>
+      <tr><td>263 indexed versions</td><td><strong>559</strong> indexed version directories; <strong>533</strong> authored story contracts are the runnable corpus</td><td><code>coverage census --json</code></td></tr>
+      <tr><td>237 story contracts / 722 stories</td><td><strong>533</strong> story files / <strong>1,209</strong> stories; composition is specimen 659, none 531, harness 19, fixture 0, frame 0</td><td><code>coverage census --json</code></td></tr>
+      <tr><td>45 corrupt stories in 20 files</td><td><strong>0</strong> corrupt stories in <strong>0</strong> files; story lint reports zero findings</td><td><code>catalog stories lint --json</code></td></tr>
+      <tr><td>220 versions tested; 1 fresh</td><td><strong>533/533</strong> eligible contracts fresh, <strong>0</strong> stale, <strong>0</strong> never-tested, and <strong>0</strong> blocked evidence rows</td><td><code>coverage census --json</code> and evidence-freshness gate</td></tr>
+      <tr><td>394 adoption records; 379 modified; 145 behind; 582 vendored files</td><td><strong>394</strong> records; <strong>1</strong> clean, <strong>315</strong> linked/missing by design, and <strong>78</strong> modified ejections; <strong>315</strong> linked/current-pinned and <strong>79</strong> ejected; <strong>359</strong> ejected files</td><td><code>coverage census --json</code></td></tr>
+      <tr><td>0 fork classifications</td><td><strong>394/394</strong> non-empty statuses: <strong>315</strong> contract-preserved linked records and <strong>79</strong> declared-fork ejected records</td><td><code>adoptions fork-report --json</code></td></tr>
+      <tr><td>293 / 78 / 4 / 1 public-surface comparison</td><td>The four-way public-surface measurement remains recorded as 293 API-identical, 78 strict-subset, 4 divergent-both-ways, and 1 adopter-extension; the contract-preserved population is linked and deliberate extensions remain reasoned ejections</td><td>fork classification evidence and adoption mode census</td></tr>
+      <tr><td>0 locale installers and 0 adopter selector files</td><td><strong>34</strong> external adopters carry managed locale bridges and generated selector registries; i18n-adopted and selectors-adopted are green</td><td>obligation census and both gates</td></tr>
+      <tr><td>55 inline-style files and 1 merge-helper file</td><td><strong>170</strong> inline-style files and <strong>7</strong> published/helper merge files are indexed; restyle-contract is green for applicable assets</td><td><code>coverage census --json</code> and restyle-contract gate</td></tr>
+      <tr><td>Apply/copy as the default adoption path</td><td><strong>0</strong> copied records across the fleet; modes are linked 315 and ejected 79, with every ejection reasoned</td><td><code>adoptions fork-report --json</code></td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p class="note">The broad legacy all-gates aggregate still contains pre-existing non-discriminating calibration debt outside the four delivered adoption/story gates. It is tracked separately from the green targeted gates and is not represented as a false plan pass.</p>
+</section>
+
+</div>

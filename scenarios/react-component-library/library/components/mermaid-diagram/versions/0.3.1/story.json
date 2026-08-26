@@ -3,7 +3,7 @@
   "args": {
     "fields": [
       {
-        "default": "graph TD; A--\u003eB;",
+        "default": "graph TD; A-->B;",
         "kind": "text",
         "label": "Diagram source",
         "path": "code"
@@ -14,11 +14,11 @@
     "fixtures": []
   },
   "kind": "component",
-  "schemaVersion": 4,
+  "schemaVersion": 5,
   "stories": [
     {
       "args": {
-        "code": "graph TD; A--\u003eB;"
+        "code": "graph TD; A-->B;"
       },
       "expect": [
         {
@@ -39,7 +39,8 @@
       ],
       "id": "diagram-and-source-controls",
       "mode": "pinned",
-      "name": "Diagram controls"
+      "name": "Diagram controls",
+      "role": "anatomy"
     }
   ],
   "title": "Mermaid Diagram"

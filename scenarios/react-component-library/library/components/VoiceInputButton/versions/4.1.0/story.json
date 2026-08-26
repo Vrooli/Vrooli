@@ -87,7 +87,7 @@
     ]
   },
   "kind": "component",
-  "schemaVersion": 4,
+  "schemaVersion": 5,
   "stories": [
     {
       "args": {
@@ -96,7 +96,7 @@
       },
       "composition": {
         "specimen": {
-          "export": "Live",
+          "export": "VoiceAnatomy",
           "module": "./story.tsx"
         }
       },
@@ -112,7 +112,8 @@
       ],
       "id": "idle",
       "mode": "live",
-      "name": "Idle"
+      "name": "Idle",
+      "role": "anatomy"
     },
     {
       "args": {
@@ -120,7 +121,7 @@
       },
       "composition": {
         "specimen": {
-          "export": "Live",
+          "export": "VoiceStateMatrix",
           "module": "./story.tsx"
         }
       },
@@ -133,7 +134,20 @@
       ],
       "id": "preparing",
       "mode": "live",
-      "name": "Preparing"
+      "name": "Preparing",
+      "role": "axis",
+      "axis": "state",
+      "covers": {
+        "state": [
+          "idle",
+          "preparing",
+          "recording",
+          "recovering",
+          "transcribing",
+          "unavailable",
+          "error"
+        ]
+      }
     },
     {
       "args": {
@@ -143,7 +157,7 @@
       },
       "composition": {
         "specimen": {
-          "export": "Live",
+          "export": "VoiceModeMatrix",
           "module": "./story.tsx"
         }
       },
@@ -156,7 +170,15 @@
       ],
       "id": "recording",
       "mode": "live",
-      "name": "Recording"
+      "name": "Recording",
+      "role": "axis",
+      "axis": "mode",
+      "covers": {
+        "mode": [
+          "always-on",
+          "timeout"
+        ]
+      }
     },
     {
       "args": {
@@ -165,7 +187,7 @@
       },
       "composition": {
         "specimen": {
-          "export": "Live",
+          "export": "VoiceSizeMatrix",
           "module": "./story.tsx"
         }
       },
@@ -178,7 +200,19 @@
       ],
       "id": "recovering",
       "mode": "live",
-      "name": "Recovering"
+      "name": "Recovering",
+      "role": "axis",
+      "axis": "size",
+      "covers": {
+        "size": [
+          "xs",
+          "sm",
+          "md",
+          "lg",
+          "xl",
+          "icon"
+        ]
+      }
     },
     {
       "args": {
@@ -186,7 +220,7 @@
       },
       "composition": {
         "specimen": {
-          "export": "Live",
+          "export": "VoiceDensityMatrix",
           "module": "./story.tsx"
         }
       },
@@ -199,7 +233,15 @@
       ],
       "id": "transcribing",
       "mode": "live",
-      "name": "Transcribing"
+      "name": "Transcribing",
+      "role": "axis",
+      "axis": "density",
+      "covers": {
+        "density": [
+          "comfortable",
+          "compact"
+        ]
+      }
     },
     {
       "args": {
@@ -207,7 +249,7 @@
       },
       "composition": {
         "specimen": {
-          "export": "Live",
+          "export": "VoiceAnatomy",
           "module": "./story.tsx"
         }
       },
@@ -220,204 +262,11 @@
       ],
       "id": "unavailable",
       "mode": "live",
-      "name": "Unavailable"
-    },
-    {
-      "args": {
-        "state": "error"
-      },
-      "composition": {
-        "specimen": {
-          "export": "Live",
-          "module": "./story.tsx"
-        }
-      },
-      "expect": [
-        {
-          "kind": "role",
-          "name": "Voice input error",
-          "role": "button"
-        }
-      ],
-      "id": "error",
-      "mode": "live",
-      "name": "Error"
-    },
-    {
-      "args": {
-        "mode": "timeout",
-        "state": "recording"
-      },
-      "composition": {
-        "specimen": {
-          "export": "Live",
-          "module": "./story.tsx"
-        }
-      },
-      "expect": [
-        {
-          "kind": "role",
-          "name": "Stop voice input",
-          "role": "button"
-        }
-      ],
-      "id": "timeout",
-      "mode": "live",
-      "name": "Timeout recording"
-    },
-    {
-      "args": {
-        "size": "xs",
-        "state": "idle"
-      },
-      "composition": {
-        "specimen": {
-          "export": "Live",
-          "module": "./story.tsx"
-        }
-      },
-      "expect": [
-        {
-          "kind": "role",
-          "name": "Start voice input",
-          "role": "button"
-        }
-      ],
-      "id": "size-xs",
-      "mode": "live",
-      "name": "Extra small"
-    },
-    {
-      "args": {
-        "size": "md",
-        "state": "idle"
-      },
-      "composition": {
-        "specimen": {
-          "export": "Live",
-          "module": "./story.tsx"
-        }
-      },
-      "expect": [
-        {
-          "kind": "role",
-          "name": "Start voice input",
-          "role": "button"
-        }
-      ],
-      "id": "size-md",
-      "mode": "live",
-      "name": "Medium"
-    },
-    {
-      "args": {
-        "size": "lg",
-        "state": "idle"
-      },
-      "composition": {
-        "specimen": {
-          "export": "Live",
-          "module": "./story.tsx"
-        }
-      },
-      "expect": [
-        {
-          "kind": "role",
-          "name": "Start voice input",
-          "role": "button"
-        }
-      ],
-      "id": "size-lg",
-      "mode": "live",
-      "name": "Large"
-    },
-    {
-      "args": {
-        "size": "xl",
-        "state": "idle"
-      },
-      "composition": {
-        "specimen": {
-          "export": "Live",
-          "module": "./story.tsx"
-        }
-      },
-      "expect": [
-        {
-          "kind": "role",
-          "name": "Start voice input",
-          "role": "button"
-        }
-      ],
-      "id": "size-xl",
-      "mode": "live",
-      "name": "Extra large"
-    },
-    {
-      "args": {
-        "size": "icon",
-        "state": "idle"
-      },
-      "composition": {
-        "specimen": {
-          "export": "Live",
-          "module": "./story.tsx"
-        }
-      },
-      "expect": [
-        {
-          "kind": "role",
-          "name": "Start voice input",
-          "role": "button"
-        }
-      ],
-      "id": "size-icon",
-      "mode": "live",
-      "name": "Icon only"
-    },
-    {
-      "args": {
-        "density": "comfortable",
-        "state": "idle"
-      },
-      "composition": {
-        "specimen": {
-          "export": "Live",
-          "module": "./story.tsx"
-        }
-      },
-      "expect": [
-        {
-          "kind": "role",
-          "name": "Start voice input",
-          "role": "button"
-        }
-      ],
-      "id": "density-comfortable",
-      "mode": "live",
-      "name": "Comfortable density"
-    },
-    {
-      "args": {
-        "density": "compact",
-        "state": "idle"
-      },
-      "composition": {
-        "specimen": {
-          "export": "Live",
-          "module": "./story.tsx"
-        }
-      },
-      "expect": [
-        {
-          "kind": "role",
-          "name": "Start voice input",
-          "role": "button"
-        }
-      ],
-      "id": "density-compact",
-      "mode": "live",
-      "name": "Compact density"
+      "name": "Unavailable",
+      "role": "boundary",
+      "states": [
+        "error"
+      ]
     }
   ],
   "title": "VoiceInputButton"

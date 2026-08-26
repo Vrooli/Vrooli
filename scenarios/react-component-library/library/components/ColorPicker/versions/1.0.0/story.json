@@ -22,7 +22,7 @@
     "fixtures": []
   },
   "kind": "component",
-  "schemaVersion": 4,
+  "schemaVersion": 5,
   "stories": [
     {
       "args": {
@@ -49,7 +49,8 @@
       ],
       "id": "palette",
       "mode": "live",
-      "name": "Palette"
+      "name": "Palette",
+      "role": "anatomy"
     },
     {
       "args": {
@@ -87,7 +88,8 @@
         }
       ],
       "mode": "live",
-      "name": "Controlled with recents"
+      "name": "Controlled with recents",
+      "role": "boundary"
     },
     {
       "args": {
@@ -131,7 +133,8 @@
         }
       ],
       "mode": "live",
-      "name": "Custom color records on blur"
+      "name": "Custom color records on blur",
+      "role": "boundary"
     }
   ]
 }

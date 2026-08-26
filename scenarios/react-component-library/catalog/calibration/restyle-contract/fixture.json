@@ -1,0 +1,10 @@
+{
+  "gate": "restyle-contract",
+  "assetId": "calibration.restyle-contract",
+  "kind": "component",
+  "runner": "static",
+  "requiredFailureCode": "catalog.restyle-contract",
+  "source": "broken.tsx",
+  "catalogAsset": "asset.json",
+  "description": "Does not expose a className pass-through."
+}

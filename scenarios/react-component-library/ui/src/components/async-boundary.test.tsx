@@ -1,7 +1,7 @@
 import { act, cleanup, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { AsyncBoundary } from "./ui/DataTable/versions/1.3.0/AsyncBoundary";
+import { AsyncBoundary } from "@vrooli/react-component-library/AsyncBoundary/1.0.0";
 import { renderWithProviders } from "../test-utils";
 
 describe("AsyncBoundary", () => {

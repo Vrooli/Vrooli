@@ -1,12 +1,10 @@
 /** @vrooliComponentSource react-component-library:UnsavedChangesFlow */
-import { translate } from "../../../../hooks/useLocale/versions/1.0.0/useLocale";
-
 import { useState, type CSSProperties, type ReactNode } from "react";
 import {
   DirtyStateGuard,
   type DirtyStateGuardPromptProps,
-} from "../../../DirtyStateGuard/versions/1.0.0/DirtyStateGuard";
-import { AlertDialog } from "../../../AlertDialog/versions/1.0.0/AlertDialog";
+} from "@vrooli/react-component-library/DirtyStateGuard/1.0.0";
+import { AlertDialog } from "@vrooli/react-component-library/AlertDialog/1.0.0";
 
 export type UnsavedChangesSaveState = "idle" | "saving" | "saved" | "error";
 
@@ -64,8 +62,8 @@ export function UnsavedChangesFlow({
   onLeave,
   onPreserveDraft,
   saveState = "idle",
-  title = translate("patterns.unsaved-changes-flow.title.1", "Keep your work before leaving?"),
-  description = translate("patterns.unsaved-changes-flow.description.2", "You have edits that are not saved yet. Choose how you want to continue."),
+  title = "Keep your work before leaving?",
+  description = "You have edits that are not saved yet. Choose how you want to continue.",
   saveLabel = "Save changes",
   discardLabel = "Discard changes",
   continueLabel = "Keep editing",
@@ -145,7 +143,7 @@ export function UnsavedChangesFlow({
             Keep a recoverable copy and continue deciding without losing your
             work.
           </span>
-          <button data-testid="patterns.unsaved-changes-flow"
+          <button
             type="button"
             style={preserveButton}
             disabled={preserving || prompt.saving}
@@ -159,7 +157,7 @@ export function UnsavedChangesFlow({
           </button>
         </div>
       )}
-      <button data-testid="patterns.unsaved-changes-flow"
+      <button
         type="button"
         data-rcl-unsaved-discard
         disabled={prompt.saving || preserving}

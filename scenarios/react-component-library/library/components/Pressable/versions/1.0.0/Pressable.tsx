@@ -6,7 +6,7 @@ import {
   type ControlShape,
   type ControlSize,
   type ControlVariant,
-} from "../../../ControlBase/versions/1.0.0/ControlBase";
+} from "@vrooli/react-component-library/ControlBase/1.0.0";
 
 const pressableStyles = `
 [data-rcl-pressable-content] { position: relative; display: inline-flex; align-items: center; min-inline-size: 0; max-inline-size: 100%; }
@@ -56,7 +56,7 @@ export const Pressable = forwardRef<HTMLButtonElement, PressableProps>(
           data-rcl-pressable-styles
           dangerouslySetInnerHTML={{ __html: pressableStyles }}
         />
-        <ControlBase
+        <ControlBase data-testid="controls.pressable"
           {...props}
           disabled={disabled || pending}
           aria-busy={ariaBusy ?? (pending || undefined)}

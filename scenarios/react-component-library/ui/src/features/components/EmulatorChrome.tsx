@@ -41,11 +41,11 @@ const deviceGroup = (id: DevicePresetId): "phone" | "tablet" | "desktop" | "resp
 
 const deviceGroupLabel = (
   group: "phone" | "tablet" | "desktop",
-  t: ReturnType<typeof useTranslation>["t"],
+  t: (key: string) => unknown,
 ) => {
-  if (group === "phone") return t(strings.components.emulator.deviceGroups.phone);
-  if (group === "tablet") return t(strings.components.emulator.deviceGroups.tablet);
-  return t(strings.components.emulator.deviceGroups.desktop);
+  if (group === "phone") return String(t(strings.components.emulator.deviceGroups.phone));
+  if (group === "tablet") return String(t(strings.components.emulator.deviceGroups.tablet));
+  return String(t(strings.components.emulator.deviceGroups.desktop));
 };
 
 /**
@@ -76,6 +76,7 @@ const resolveViewportPane = (origin: HTMLElement): HTMLElement | null => {
  */
 export function EmulatorToolbar({ emulator, compactOnMobile = false }: EmulatorToolbarProps) {
   const { t } = useTranslation();
+  const translateLabel = (key: string) => String(t(key as never));
   const idPrefix = useId();
   const widthInputId = `${idPrefix}-width`;
   const heightInputId = `${idPrefix}-height`;
@@ -110,7 +111,7 @@ export function EmulatorToolbar({ emulator, compactOnMobile = false }: EmulatorT
           return (
             <section key={group} className="border-b border-app-border py-space-xs first:pt-0">
               <h3 className="text-sm font-semibold text-app-foreground">
-                {deviceGroupLabel(group, t)}
+                {deviceGroupLabel(group, translateLabel)}
               </h3>
               <div className="mt-space-2xs grid grid-cols-1 gap-space-2xs sm:grid-cols-2">
                 {presets.map((preset) => {

@@ -8,8 +8,8 @@ import {
   type ReactElement,
   type ReactNode,
 } from "react";
-import { FormField } from "../../../../components/FormField/versions/1.0.0/FormField";
-import type { FormStore } from "../../../../services/FormStore/versions/1.0.0/FormStore";
+import { FormField } from "@vrooli/react-component-library/FormField/1.0.0";
+import type { FormStore } from "@vrooli/react-component-library/FormStore/1.0.0";
 
 export interface ArrayItemActions<TItem> {
   index: number;
@@ -164,7 +164,7 @@ export function ArrayField<
         {items.length === 0 ? (
           <div data-rcl-array-empty role="status">
             <span>{emptyState}</span>
-            <button data-testid="forms.array-field"
+            <button
               type="button"
               data-rcl-array-add
               onClick={add}
@@ -219,7 +219,7 @@ export function ArrayField<
                   data-rcl-array-item-actions
                   aria-label={`Actions for ${listLabel} ${index + 1}`}
                 >
-                  <button data-testid="forms.array-field"
+                  <button
                     type="button"
                     data-rcl-array-action
                     onClick={actions.moveUp}
@@ -228,7 +228,7 @@ export function ArrayField<
                   >
                     ↑
                   </button>
-                  <button data-testid="forms.array-field"
+                  <button
                     type="button"
                     data-rcl-array-action
                     onClick={actions.moveDown}
@@ -237,7 +237,7 @@ export function ArrayField<
                   >
                     ↓
                   </button>
-                  <button data-testid="forms.array-field"
+                  <button
                     type="button"
                     data-rcl-array-action
                     onClick={actions.duplicate}
@@ -246,7 +246,7 @@ export function ArrayField<
                   >
                     ＋
                   </button>
-                  <button data-testid="forms.array-field"
+                  <button
                     type="button"
                     data-rcl-array-action
                     onClick={actions.remove}
@@ -262,7 +262,7 @@ export function ArrayField<
         )}
       </div>
       {items.length > 0 && (
-        <button data-testid="forms.array-field"
+        <button
           type="button"
           data-rcl-array-add
           onClick={add}

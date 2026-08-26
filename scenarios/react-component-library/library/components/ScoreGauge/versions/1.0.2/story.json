@@ -7,13 +7,19 @@
     "fixtures": []
   },
   "kind": "component",
-  "schemaVersion": 4,
+  "schemaVersion": 5,
   "stories": [
     {
       "args": {},
-      "expect": [],
+      "expect": [
+        {
+          "kind": "visible",
+          "selector": "body"
+        }
+      ],
       "id": "default",
-      "name": "Default"
+      "name": "Default",
+      "role": "anatomy"
     }
   ]
 }

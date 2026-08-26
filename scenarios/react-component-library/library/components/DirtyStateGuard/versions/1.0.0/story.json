@@ -7,7 +7,7 @@
     "fixtures": []
   },
   "kind": "component",
-  "schemaVersion": 4,
+  "schemaVersion": 5,
   "stories": [
     {
       "args": {},
@@ -48,7 +48,8 @@
         }
       ],
       "mode": "live",
-      "name": "Editable draft"
+      "name": "Editable draft",
+      "role": "anatomy"
     },
     {
       "args": {},
@@ -82,7 +83,8 @@
       ],
       "id": "prompt-open",
       "mode": "live",
-      "name": "Unsaved changes prompt"
+      "name": "Unsaved changes prompt",
+      "role": "boundary"
     }
   ],
   "title": "DirtyStateGuard"

@@ -7,7 +7,7 @@
     "fixtures": []
   },
   "kind": "component",
-  "schemaVersion": 4,
+  "schemaVersion": 5,
   "stories": [
     {
       "args": {},
@@ -25,7 +25,8 @@
       ],
       "id": "default",
       "mode": "live",
-      "name": "Ready content"
+      "name": "Ready content",
+      "role": "anatomy"
     },
     {
       "args": {},
@@ -47,7 +48,8 @@
       ],
       "id": "pending",
       "mode": "live",
-      "name": "Initial loading"
+      "name": "Initial loading",
+      "role": "boundary"
     },
     {
       "args": {},
@@ -69,7 +71,8 @@
       ],
       "id": "refreshing",
       "mode": "live",
-      "name": "Refreshing in place"
+      "name": "Refreshing in place",
+      "role": "boundary"
     },
     {
       "args": {},
@@ -91,7 +94,8 @@
       ],
       "id": "stale",
       "mode": "live",
-      "name": "Stale but useful"
+      "name": "Stale but useful",
+      "role": "boundary"
     },
     {
       "args": {},
@@ -113,7 +117,8 @@
       ],
       "id": "partial-error",
       "mode": "live",
-      "name": "Partial failure"
+      "name": "Partial failure",
+      "role": "boundary"
     },
     {
       "args": {},
@@ -135,7 +140,8 @@
       ],
       "id": "offline",
       "mode": "live",
-      "name": "Offline with saved content"
+      "name": "Offline with saved content",
+      "role": "boundary"
     },
     {
       "args": {},
@@ -158,7 +164,8 @@
       ],
       "id": "error-static",
       "mode": "live",
-      "name": "Error with retry"
+      "name": "Error with retry",
+      "role": "boundary"
     },
     {
       "args": {},
@@ -188,7 +195,8 @@
         }
       ],
       "mode": "live",
-      "name": "Recoverable error"
+      "name": "Recoverable error",
+      "role": "boundary"
     }
   ],
   "title": "AsyncBoundary"

@@ -4,12 +4,12 @@
  * @status released
  * @deps {"react":"^18"}
  */
-import { translate } from "../../../../hooks/useLocale/versions/1.0.0/useLocale";
+import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
 
 import type { ReactNode } from "react";
 
-export function PreviewInspector({
-  title = translate("preview.inspector-drawer.title.1", "Preview inspector"),
+export const PreviewInspector = withClassName(function PreviewInspector({
+  title = "Preview inspector",
   description,
   children,
   open = true,
@@ -23,7 +23,7 @@ export function PreviewInspector({
 }) {
   if (!open) return null;
   return (
-    <aside
+    <aside data-testid="preview.inspector-drawer"
       data-preview-inspector
       aria-label={title}
       style={{
@@ -44,9 +44,9 @@ export function PreviewInspector({
           <h2 style={{ margin: 0, font: "var(--text-heading)" }}>{title}</h2>
           {description ? <p style={{ margin: 0, color: "var(--color-muted-foreground)", font: "var(--text-body-sm)" }}>{description}</p> : null}
         </div>
-        {onClose ? <button type="button" onClick={onClose} aria-label={translate("preview.inspector-drawer.aria-label.2", "Close inspector")} style={{ minHeight: "var(--tap-target-min)", paddingInline: "var(--space-sm)", border: "var(--border-hairline) solid var(--color-border)", borderRadius: "var(--radius-control)", background: "var(--color-surface)", color: "var(--color-foreground)" }}>{translate("preview.inspector-drawer.text.3", "Close")}</button> : null}
+        {onClose ? <button type="button" onClick={onClose} aria-label="Close inspector" style={{ minHeight: "var(--tap-target-min)", paddingInline: "var(--space-sm)", border: "var(--border-hairline) solid var(--color-border)", borderRadius: "var(--radius-control)", background: "var(--color-surface)", color: "var(--color-foreground)" }}>Close</button> : null}
       </header>
       <div style={{ minWidth: 0 }}>{children}</div>
     </aside>
   );
-}
+});

@@ -14,7 +14,7 @@ export function Default({ args }: StoryHarnessProps<{ active: boolean }>) {
     onEscape: () => setMessage("Dismissed with Escape"),
   });
   return (
-    <div
+    <div data-testid="hooks.use-outside-interaction"
       style={{
         display: "grid",
         gap: "var(--space-md)",

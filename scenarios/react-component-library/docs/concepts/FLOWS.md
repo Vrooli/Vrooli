@@ -7,11 +7,12 @@ This document is the canonical workflow map for ordered behavior.
 | Flow | Domain | Trigger | Outcome | Validation |
 |---|---|---|---|---|
 | Index library | components | CLI/API/UI `components index` | Manifests and version folders are validated and reflected in SQLite | Indexer, repository, handler, CLI tests |
-| Apply component | adoptions | CLI/API/UI `adoptions apply` | Selected version source is copied into a target scenario with provenance and an adoption row | Service, handler, CLI, UI tests |
+| Link component | adoptions | CLI/API `adoptions link` | Selected version is added as a pinned `file:` package dependency and its adopter obligations are installed | Service, handler, CLI tests |
+| Eject component | adoptions | CLI/API `adoptions eject` | A deliberate local source copy is written with a mandatory reason and ejected adoption row | Service, handler, CLI tests |
 | Preflight styling contract | adoptions | CLI/API `adoptions preflight` | Dependency, style-fit, version, maturity, and token findings are combined into one read-only adoptability verdict | Service and handler tests |
 | Sync scenario ramp | adoptions | CLI/API `adoptions tokens-sync` | Missing closure tokens are added only inside the managed design-token region | Ramp parser and service tests |
 | Prune scenario ramp | adoptions | CLI/API `adoptions tokens-prune` | Unused managed declarations are reported, then removed only with explicit apply | Ramp parser and service tests |
-| Batch apply | adoptions | API/CLI batch apply | Several roots share one union closure and persistence transaction | Service, handler, and CLI tests |
+| Batch link | adoptions | API/CLI batch link | Several roots share one dependency declaration and obligation transaction | Service, handler, and CLI tests |
 | Assisted extract/adopt | workflows | CLI/API/UI `workflows start` | RCL records a scoped Agent Manager task/run and exposes honest queued/running/terminal status | Workflow service, handler, CLI tests |
 | Promotion readiness | workflows | CLI/API/UI `workflows promotion-readiness` | Read-only evidence report joins parity, examples, dependency closure, origin replacement, and drift | Workflow readiness service, handler, CLI, UI tests |
 | Refresh drift | adoptions | CLI/API/UI `adoptions refresh` | Adoption rows receive separate library-version and local-edit statuses | Service status matrix and UI tests |
@@ -20,19 +21,27 @@ This document is the canonical workflow map for ordered behavior.
 | Graduate scenario component | components / experience | Scenario UI component becomes reusable | TSX, story contract, and experience-component claims land in the catalog as one versioned contract | Catalog conformance, preview e2e, experience phase |
 | Story workbench | preview | User selects a named story and varies generated Args or explicit environment fixtures | Exactly that iframe rerenders from validated effective story args; Reset/reload restores the named baseline | Component editor UI tests, preview harness tests, preview E2E, BAS workflow |
 
-## Apply Component
+## Link Component
 
 1. Resolve the component and its manifest-pinned dependency closure.
 2. Use requested version, or the manifest latest when no version is
    supplied.
-3. Reject an existing target path unless overwrite is confirmed.
-4. Write a provenance header with library id, version, adoption id,
-   applied timestamp, and source sha.
-5. Copy the full editable source body into the target scenario.
-6. Insert one direct parent adoption plus a provenance row for each materialized
-   asset exactly once. Dependency rows retain their originating asset, library,
-   and version so hooks can report mediated effective usage and link back to
-   the parent component adoption.
+3. Validate the target's package and design-token configuration.
+4. Add the version-pinned `file:` dependency through Scenario Dependency
+   Analyzer and regenerate the package lock state.
+5. Install the managed locale bridge, derived English keys, and generated
+   selector registry.
+6. Insert one linked parent adoption plus a durable record for each effective
+   asset. No library source file enters the target scenario.
+
+## Eject Component
+
+1. Resolve and validate the same pinned closure as a link.
+2. Require a non-empty human reason explaining why the published contract and
+   restyle seam are insufficient.
+3. Materialize the source closure with provenance and record `mode=ejected`.
+4. Verify the target's obligations and retain the reason with the adoption
+   record; future updates require an explicit migration decision.
 
 ## Assisted Work
 

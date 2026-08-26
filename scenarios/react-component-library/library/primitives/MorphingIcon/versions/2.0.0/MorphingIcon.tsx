@@ -1,6 +1,6 @@
 /** @vrooliComponentSource react-component-library:MorphingIcon */
 import { useEffect, useRef, useState, type CSSProperties } from "react";
-import { useReducedMotion } from "../../../../hooks/useReducedMotion/versions/1.0.0/useReducedMotion";
+import { useReducedMotion } from "@vrooli/react-component-library/useReducedMotion/1.0.0";
 import {
   geometryPath,
   interpolateGeometry,

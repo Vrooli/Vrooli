@@ -20,7 +20,7 @@
   ],
   "displayName": "Select",
   "draft": "",
-  "latest": "1.1.0",
+  "latest": "1.1.1",
   "libraryId": "react-component-library:Select",
   "slot": "ui-primitive",
   "tags": [

@@ -7,7 +7,7 @@
     "fixtures": []
   },
   "kind": "component",
-  "schemaVersion": 4,
+  "schemaVersion": 5,
   "stories": [
     {
       "args": {},
@@ -38,7 +38,8 @@
         }
       ],
       "mode": "live",
-      "name": "Metric card with semantic content"
+      "name": "Metric card with semantic content",
+      "role": "anatomy"
     },
     {
       "args": {},
@@ -62,7 +63,8 @@
       ],
       "id": "empty-tool",
       "mode": "live",
-      "name": "Empty card state"
+      "name": "Empty card state",
+      "role": "boundary"
     },
     {
       "args": {},
@@ -87,7 +89,8 @@
       ],
       "id": "long-content",
       "mode": "live",
-      "name": "Long content wraps cleanly"
+      "name": "Long content wraps cleanly",
+      "role": "boundary"
     },
     {
       "args": {},
@@ -111,7 +114,8 @@
       ],
       "id": "card-grid-raised",
       "mode": "live",
-      "name": "Card inside raised grid context"
+      "name": "Card inside raised grid context",
+      "role": "boundary"
     }
   ],
   "title": "Card"

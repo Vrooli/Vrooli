@@ -13,6 +13,8 @@ type Repository interface {
 	// written by a reapply without changing ownership metadata.
 	UpdateAppliedSnapshot(ctx context.Context, in AppliedSnapshotUpdate) (Adoption, error)
 	UpdateAppliedUnit(ctx context.Context, in AppliedUnitUpdate) (Adoption, error)
+	UpdateMode(ctx context.Context, id string, mode AdoptionMode, reason string) (Adoption, error)
+	UpdateLinked(ctx context.Context, id, adoptedPath, adoptedVersion, sourceSHA256 string) (Adoption, error)
 
 	// Rebaseline overwrites only the recorded pristine snapshot hashes (parent +
 	// per-file) of an existing row, leaving version / status / applied_at /

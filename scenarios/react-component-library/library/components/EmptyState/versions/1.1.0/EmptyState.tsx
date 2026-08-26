@@ -2,9 +2,10 @@
  * @libraryId react-component-library:EmptyState
  * @version 1.1.0
  * @status released
- * @deps {"react":"^18"}
+ * @deps {"react":"^18","clsx":"^2.1.1","tailwind-merge":"^2.3.0"}
  */
-import { cn } from "../../../../foundations/ClassMerge/versions/1.0.0/ClassMerge";
+import { clsx, type ClassValue } from "clsx";
+import { twMerge } from "tailwind-merge";
 import type { ReactNode } from "react";
 
 export interface EmptyStateProps {
@@ -14,6 +15,8 @@ export interface EmptyStateProps {
   action?: ReactNode;
   className?: string;
 }
+
+const cn = (...inputs: ClassValue[]) => twMerge(clsx(inputs));
 
 export function EmptyState({
   title,
