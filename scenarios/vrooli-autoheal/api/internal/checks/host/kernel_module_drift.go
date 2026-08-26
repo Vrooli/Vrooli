@@ -1,6 +1,9 @@
 package host
 
 import (
+	"context"
+
+	"github.com/vrooli/vrooli/internal/hostcapability"
 	"github.com/vrooli/vrooli/internal/hostinventory"
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks"
 )
@@ -31,26 +34,48 @@ func runKernelModuleDrift(inv hostinventory.HostInventory) checks.Result {
 		warning++
 		evidence = append(evidence, map[string]any{"kind": "package_targets_other_kernel", "package": drift, "runningKernel": inv.Kernel.Release})
 	}
+	invariants, err := hostcapability.EmbeddedSafeguardInvariants("nvidia-driver")
+	if err != nil {
+		warning++
+		evidence = append(evidence, map[string]any{"kind": "invariant_declaration_unavailable", "error": err.Error()})
+	}
+	registry := hostcapability.NewRegistry(hostcapability.AptProvider{}, hostcapability.DarwinProvider{})
 	for _, driver := range inv.Packages.Drivers {
-		if driver.Vendor != "nvidia" {
-			continue
+		facts := hostcapability.Facts{
+			OS:              inv.Platform,
+			VendorID:        driver.VendorID,
+			DriverPackage:   firstDriverPackage(driver),
+			KernelRelease:   inv.Kernel.Release,
+			ExpectedPackage: driver.ExpectedModulePackage,
+			PackageNames:    packageNames(driver.InstalledPackages),
 		}
-		evidence = append(evidence, map[string]any{"kind": "nvidia_kernel_package_state", "driver": driver, "runningKernel": inv.Kernel.Release})
-		if driver.MissingModulePackage != "" {
-			severity := "warning"
-			if driver.Candidate != nil && driver.Candidate.Available {
-				severity = "critical"
+		if driver.Candidate != nil && driver.Candidate.Available {
+			facts.CandidatePackageNames = []string{driver.Candidate.Name}
+		}
+		results := hostcapability.Evaluate(context.Background(), registry, invariants, facts)
+		for _, result := range results {
+			evidence = append(evidence, map[string]any{
+				"kind":        "capability_invariant",
+				"invariantId": result.InvariantID,
+				"verdict":     result.Verdict,
+				"reason":      result.Reason,
+				"evidence":    result.Evidence,
+			})
+			switch result.Verdict {
+			case hostcapability.Failed:
 				critical++
-			} else {
+			case hostcapability.Undetermined, hostcapability.SatisfiedStructurally:
 				warning++
 			}
-			evidence = append(evidence, map[string]any{
-				"kind":            "missing_nvidia_module_package",
-				"severity":        severity,
-				"expectedPackage": driver.MissingModulePackage,
-				"runningKernel":   inv.Kernel.Release,
-				"candidate":       driver.Candidate,
-			})
+			if result.InvariantID == "module-loadable-on-running-kernel" && result.Verdict == hostcapability.Failed {
+				evidence = append(evidence, map[string]any{
+					"kind":            "missing_nvidia_module_package",
+					"severity":        "critical",
+					"expectedPackage": result.Evidence["expectedPackage"],
+					"runningKernel":   inv.Kernel.Release,
+					"candidate":       driver.Candidate,
+				})
+			}
 		}
 	}
 	if len(evidence) == 0 {
@@ -65,4 +90,21 @@ func runKernelModuleDrift(inv hostinventory.HostInventory) checks.Result {
 			"When a missing NVIDIA module package has an apt candidate, generate an operator-approved remediation script instead of running package commands automatically.",
 		}),
 	}
+}
+
+func firstDriverPackage(driver hostinventory.DriverPackageState) string {
+	for _, packageInfo := range driver.InstalledPackages {
+		if hostcapability.IsNvidiaDriverPackage(packageInfo.Name) {
+			return packageInfo.Name
+		}
+	}
+	return ""
+}
+
+func packageNames(packages []hostinventory.PackageInfo) []string {
+	names := make([]string, 0, len(packages))
+	for _, packageInfo := range packages {
+		names = append(names, packageInfo.Name)
+	}
+	return names
 }

@@ -10,16 +10,18 @@ import (
 
 // FileConfig configures the builtin pruner for one regenerable file.
 type FileConfig struct {
-	Path string
-	Now  func() time.Time
+	Path           string
+	ProtectedRoots []string
+	Now            func() time.Time
 }
 
 // FilePruner removes one declared file atomically when its retention bound is
 // exceeded. It is intentionally narrow: it never truncates or rewrites a file,
 // and a missing file is already within budget.
 type FilePruner struct {
-	path string
-	now  func() time.Time
+	path           string
+	protectedRoots []string
+	now            func() time.Time
 }
 
 func NewFilePruner(cfg FileConfig) (*FilePruner, error) {
@@ -29,10 +31,14 @@ func NewFilePruner(cfg FileConfig) (*FilePruner, error) {
 	if !filepath.IsAbs(cfg.Path) {
 		return nil, fmt.Errorf("file pruner: Path %q must be absolute", cfg.Path)
 	}
+	protectedRoots, err := normalizeProtectedRoots(cfg.ProtectedRoots)
+	if err != nil {
+		return nil, fmt.Errorf("file pruner: %w", err)
+	}
 	if cfg.Now == nil {
 		cfg.Now = time.Now
 	}
-	return &FilePruner{path: cfg.Path, now: cfg.Now}, nil
+	return &FilePruner{path: filepath.Clean(cfg.Path), protectedRoots: protectedRoots, now: cfg.Now}, nil
 }
 
 func (p *FilePruner) Measure(context.Context) (Usage, error) {
@@ -70,6 +76,9 @@ func (p *FilePruner) Prune(ctx context.Context, budget Budget) (Result, error) {
 	if err := ctx.Err(); err != nil {
 		result.Incomplete = true
 		return result, err
+	}
+	if protectedPathOverlap(p.path, p.protectedRoots) {
+		return result, fmt.Errorf("refusing to remove protected path %s", p.path)
 	}
 	if err := os.Remove(p.path); err != nil {
 		return result, fmt.Errorf("remove %s: %w", p.path, err)

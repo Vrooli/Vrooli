@@ -47,6 +47,25 @@ func TestInspectDedicatedRequiresLinuxLingering(t *testing.T) {
 	}
 }
 
+func TestInspectHeadlessMacDoesNotRequireGuiLaunchAgent(t *testing.T) {
+	original := commandOutputFn
+	commandOutputFn = func(name string, args ...string) ([]byte, error) {
+		if name == "launchctl" && strings.HasPrefix(strings.Join(args, " "), "print gui/") {
+			return nil, os.ErrNotExist
+		}
+		return []byte(""), nil
+	}
+	t.Cleanup(func() { commandOutputFn = original })
+
+	status := NewHandler(hostreqkit.SafeguardManifest{Name: "autoheal_watchdog"}).Inspect(
+		hostreqkit.Host{OS: "macos"},
+		hostreqspec.ResolvedRequirement{Name: "autoheal_watchdog", Kind: hostreqspec.KindSafeguard, Required: true},
+	)
+	if status.ExecutionState != hostreqkit.ExecutionNotApplicable || status.SupportClass != hostreqkit.SupportNotApplicable {
+		t.Fatalf("status=%+v, want headless macOS not-applicable", status)
+	}
+}
+
 func TestAsUserArgsTargetsInvokingUserBus(t *testing.T) {
 	uid, _, ok := hostreqkit.InvokingUserIDs()
 	if !ok {

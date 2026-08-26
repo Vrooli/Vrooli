@@ -80,22 +80,23 @@ type operationalRetentionReporter interface {
 
 // Handlers wraps the dependencies needed by HTTP handlers
 type Handlers struct {
-	registry              *checks.Registry
-	store                 StoreInterface
-	platform              *platform.Capabilities
-	watchdogDetector      *watchdog.Detector
-	hostCollector         hostinventory.IntegrityCollector
-	incidentService       *incidents.Service
-	remediationService    *remediation.Service
-	systemEventService    *systemevents.Service
-	historyRetentionHours func() int
-	lastRetentionAt       time.Time
-	lastRetentionResult   persistence.RetentionResult
-	lastRetentionErr      string
-	reconcileProvider     reconcile.Provider
-	installedProvider     reconcile.InstalledProvider
-	startedAt             time.Time
-	starter               string
+	registry               *checks.Registry
+	store                  StoreInterface
+	platform               *platform.Capabilities
+	watchdogDetector       *watchdog.Detector
+	hostCollector          hostinventory.IntegrityCollector
+	incidentService        *incidents.Service
+	remediationService     *remediation.Service
+	remediationAskVerifier remediation.AskVerifier
+	systemEventService     *systemevents.Service
+	historyRetentionHours  func() int
+	lastRetentionAt        time.Time
+	lastRetentionResult    persistence.RetentionResult
+	lastRetentionErr       string
+	reconcileProvider      reconcile.Provider
+	installedProvider      reconcile.InstalledProvider
+	startedAt              time.Time
+	starter                string
 	// skipLog keeps the action history to one row per auto-heal skip state
 	// change rather than one per tick.
 	skipLog *skipLogGate
@@ -154,6 +155,21 @@ func New(registry *checks.Registry, store *persistence.Store, plat *platform.Cap
 		startedAt:          time.Now().UTC(),
 		starter:            "unknown",
 		skipLog:            newSkipLogGate(),
+	}
+}
+
+func (h *Handlers) SetIncidentEventPublisher(publisher incidents.EventPublisher) {
+	if h != nil && h.incidentService != nil {
+		h.incidentService.SetEventPublisher(publisher)
+	}
+}
+
+// SetRemediationAskVerifier wires the notification-hub read path. Keeping it
+// behind an interface makes the execution gate testable without weakening the
+// production rule that approval must come from the durable ask store.
+func (h *Handlers) SetRemediationAskVerifier(verifier remediation.AskVerifier) {
+	if h != nil {
+		h.remediationAskVerifier = verifier
 	}
 }
 

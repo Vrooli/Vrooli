@@ -187,6 +187,23 @@ CREATE TABLE IF NOT EXISTS incident_status_history (
 CREATE INDEX IF NOT EXISTS idx_incident_status_history_incident
     ON incident_status_history (incident_id, created_at DESC);
 
+-- A notification answer is a one-time authorization for one incident and one
+-- generated candidate. Keeping this separate from incident notes makes replay
+-- detection durable and prevents a caller from turning an arbitrary ask id
+-- into permission for a different remediation.
+CREATE TABLE IF NOT EXISTS remediation_authorisations (
+    ask_id TEXT PRIMARY KEY,
+    incident_id TEXT NOT NULL,
+    incident_fingerprint TEXT NOT NULL,
+    remediation_id TEXT NOT NULL,
+    approved_by TEXT NOT NULL DEFAULT '',
+    approved_at TEXT NOT NULL,
+    consumed_at TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_remediation_authorisations_incident
+    ON remediation_authorisations (incident_id, remediation_id);
+
 CREATE TABLE IF NOT EXISTS autoheal_actions (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     check_id TEXT NOT NULL,

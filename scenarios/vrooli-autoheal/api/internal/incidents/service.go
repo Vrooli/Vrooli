@@ -3,6 +3,7 @@ package incidents
 import (
 	"context"
 	"fmt"
+	"log"
 	"reflect"
 	"strings"
 	"time"
@@ -18,13 +19,42 @@ type Store interface {
 	UpdateIncidentStatus(ctx context.Context, incidentID string, status Status, note string) (*Incident, error)
 }
 
+type EventPublisher interface {
+	Publish(context.Context, string, map[string]any) error
+}
+
 type Service struct {
-	store Store
-	now   func() time.Time
+	store     Store
+	now       func() time.Time
+	publisher EventPublisher
 }
 
 func NewService(store Store) *Service {
 	return &Service{store: store, now: func() time.Time { return time.Now().UTC() }}
+}
+
+func (s *Service) SetEventPublisher(publisher EventPublisher) { s.publisher = publisher }
+
+// UpdateIncidentStatus is the single lifecycle mutation boundary. Manual
+// status changes must publish the same transition facts as check-driven
+// recovery; otherwise an operator resolving an incident would leave
+// downstream notification consumers with a stale open state.
+func (s *Service) UpdateIncidentStatus(ctx context.Context, incidentID string, status Status, note string) (*Incident, error) {
+	if s == nil || s.store == nil {
+		return nil, fmt.Errorf("incident service is unavailable")
+	}
+	current, err := s.store.GetIncident(ctx, incidentID)
+	if err != nil {
+		return nil, err
+	}
+	updated, err := s.store.UpdateIncidentStatus(ctx, incidentID, status, note)
+	if err != nil {
+		return nil, err
+	}
+	if status == StatusResolved && (current == nil || current.Status != StatusResolved) {
+		s.publish(ctx, "incident.resolved.v1", updated)
+	}
+	return updated, nil
 }
 
 func (s *Service) UpsertFromCheckResult(ctx context.Context, result checks.Result) (*Incident, bool, error) {
@@ -54,6 +84,7 @@ func (s *Service) UpsertFromCheckResult(ctx context.Context, result checks.Resul
 		Evidence:        boundedEvidence(result.Details),
 		Recommendations: stringSliceDetail(result.Details, "recommendations"),
 	}
+	previousSeverity, hadOpen := s.openIncidentSeverity(ctx, input.Fingerprint)
 	enrichInputFromResult(&input, result)
 	if err := s.supersedePriorIncidents(ctx, result.CheckID, input.Fingerprint); err != nil {
 		return nil, false, err
@@ -62,7 +93,33 @@ func (s *Service) UpsertFromCheckResult(ctx context.Context, result checks.Resul
 	if err != nil {
 		return nil, true, err
 	}
+	if incident != nil && incident.EventCount == 1 {
+		s.publish(ctx, "incident.opened.v1", incident)
+		if incident.Severity == SeverityCritical {
+			if candidate, ok := firstApplicableCandidate(*incident); ok {
+				s.publishApprovalRequest(ctx, incident, candidate)
+			}
+		}
+	} else if incident != nil && hadOpen && previousSeverity != incident.Severity {
+		s.publish(ctx, "incident.severity_changed.v1", incident)
+	}
 	return incident, true, nil
+}
+
+func (s *Service) openIncidentSeverity(ctx context.Context, fingerprint string) (Severity, bool) {
+	if fingerprint == "" {
+		return "", false
+	}
+	response, err := s.store.ListIncidents(ctx, ListFilters{Status: StatusOpen, Limit: 200})
+	if err != nil || response == nil {
+		return "", false
+	}
+	for _, incident := range response.Incidents {
+		if incident.Fingerprint == fingerprint {
+			return incident.Severity, true
+		}
+	}
+	return "", false
 }
 
 func (s *Service) supersedePriorIncidents(ctx context.Context, checkID, fingerprint string) error {
@@ -77,7 +134,7 @@ func (s *Service) supersedePriorIncidents(ctx context.Context, checkID, fingerpr
 		if incident.Fingerprint == fingerprint || !incidentFromCheck(incident, checkID) {
 			continue
 		}
-		if _, err := s.store.UpdateIncidentStatus(ctx, incident.ID, StatusResolved,
+		if _, err := s.UpdateIncidentStatus(ctx, incident.ID, StatusResolved,
 			fmt.Sprintf("superseded by newer evidence from %s (%s)", checkID, fingerprint)); err != nil {
 			return err
 		}
@@ -137,7 +194,7 @@ func (s *Service) ResolveHealIncident(ctx context.Context, checkID, actionID str
 		if !incidentFromCheck(incident, checkID) || stringDetail(incident.Evidence, "actionId") != actionID {
 			continue
 		}
-		if _, err := s.store.UpdateIncidentStatus(ctx, incident.ID, StatusResolved,
+		if _, err := s.UpdateIncidentStatus(ctx, incident.ID, StatusResolved,
 			fmt.Sprintf("auto-resolved: %s action %s succeeded", checkID, actionID)); err != nil {
 			return err
 		}
@@ -157,13 +214,69 @@ func (s *Service) resolveRecoveredForCheck(ctx context.Context, result checks.Re
 		if !incidentFromCheck(incident, result.CheckID) || !autoResolvableIncident(incident) {
 			continue
 		}
-		_, err := s.store.UpdateIncidentStatus(ctx, incident.ID, StatusResolved,
+		updated, err := s.UpdateIncidentStatus(ctx, incident.ID, StatusResolved,
 			fmt.Sprintf("auto-resolved: %s reported OK", result.CheckID))
 		if err != nil {
 			return err
 		}
+		s.publish(ctx, "incident.resolved.v1", updated)
 	}
 	return nil
+}
+
+func (s *Service) publish(ctx context.Context, eventType string, incident *Incident) {
+	if s == nil || s.publisher == nil || incident == nil {
+		return
+	}
+	// This envelope carries facts only. Notification copy, recipients, and
+	// sensitivity are owned by notification-hub.
+	if err := s.publisher.Publish(ctx, eventType, incidentEventFacts(incident)); err != nil {
+		log.Printf("vrooli-autoheal incident event publish failed: type=%s incident=%s error=%v", eventType, incident.ID, err)
+	}
+}
+
+func (s *Service) publishApprovalRequest(ctx context.Context, incident *Incident, candidate RemediationCandidate) {
+	if s == nil || s.publisher == nil || incident == nil {
+		return
+	}
+	facts := incidentEventFacts(incident)
+	facts["candidate_id"] = candidate.ID
+	facts["candidate_title"] = candidate.Title
+	facts["candidate_risk_level"] = candidate.RiskLevel
+	if err := s.publisher.Publish(ctx, "incident.remediation_approval_requested.v1", facts); err != nil {
+		log.Printf("vrooli-autoheal remediation approval event publish failed: incident=%s candidate=%s error=%v", incident.ID, candidate.ID, err)
+	}
+}
+
+func incidentEventFacts(incident *Incident) map[string]any {
+	return map[string]any{
+		"incident_id":          incident.ID,
+		"incident_fingerprint": incident.Fingerprint,
+		"incident_type":        string(incident.Type),
+		// Domain aliases are not accepted by protobuf Struct conversion. Emit
+		// their wire representation explicitly at this boundary.
+		"severity":         string(incident.Severity),
+		"status":           string(incident.Status),
+		"source_check_id":  firstString(incident.SourceCheckIDs),
+		"incident_title":   incident.Title,
+		"incident_summary": incident.Summary,
+	}
+}
+
+func firstApplicableCandidate(incident Incident) (RemediationCandidate, bool) {
+	for _, candidate := range incident.RemediationCandidates {
+		if candidate.Applicability == "applicable" && strings.TrimSpace(candidate.ID) != "" {
+			return candidate, true
+		}
+	}
+	return RemediationCandidate{}, false
+}
+
+func firstString(values []string) string {
+	if len(values) == 0 {
+		return ""
+	}
+	return values[0]
 }
 
 type incidentRule struct {

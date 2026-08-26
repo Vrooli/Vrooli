@@ -11,6 +11,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/bootstrap"
@@ -25,13 +26,16 @@ import (
 	"github.com/vrooli/api-core/apihttp"
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/devrouting"
+	"github.com/vrooli/api-core/discovery"
 	"github.com/vrooli/api-core/filerouting"
 	"github.com/vrooli/api-core/preflight"
 	"github.com/vrooli/api-core/retention"
 	"github.com/vrooli/api-core/server"
 	"github.com/vrooli/api-core/storage"
 	apiHandlers "github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/handlers"
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/incidents"
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/middleware"
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/remediation"
 	_ "modernc.org/sqlite"
 )
 
@@ -87,6 +91,7 @@ func run() error {
 	if err := initializeSchema(db); err != nil {
 		log.Printf("warning: schema initialization failed: %v (tables may already exist)", err)
 	}
+	log.Printf("startup stage=schema-ready")
 
 	// Initialize components
 	store := persistence.NewStore(db)
@@ -117,25 +122,42 @@ func run() error {
 		return fmt.Errorf("invalid auto-heal policy configuration: %w", err)
 	}
 
-	// Restore cooldown/backoff tracker state from persistence.
-	ctxTrackers, cancelTrackers := context.WithTimeout(context.Background(), 10*time.Second)
-	if err := registry.LoadHealTrackers(ctxTrackers); err != nil {
-		log.Printf("warning: heal tracker restore failed (continuing with empty in-memory trackers): %v", err)
-	}
-	cancelTrackers()
+	// Historical SQLite state can be large and may be contended by the
+	// retention worker. It is not part of API readiness: restore it in the
+	// background so a healthy supervisor is available within the lifecycle
+	// health window.
+	startupCtx, cancelStartup := context.WithCancel(context.Background())
+	var startupWG sync.WaitGroup
+	startupWG.Add(1)
+	go func() {
+		defer startupWG.Done()
+		ctxTrackers, cancelTrackers := context.WithTimeout(startupCtx, 10*time.Second)
+		defer cancelTrackers()
+		if err := registry.LoadHealTrackers(ctxTrackers); err != nil {
+			log.Printf("warning: heal tracker restore failed (continuing with empty in-memory trackers): %v", err)
+		} else {
+			log.Printf("startup stage=heal-trackers-restored")
+		}
+	}()
 
 	// Register health checks using user's monitoring config (delegated to bootstrap module)
 	bootstrap.RegisterChecksFromConfig(registry, plat, configMgr)
+	log.Printf("startup stage=checks-registered count=%d", registry.GetSummary().TotalCount)
 
-	// Pre-populate registry from database so dashboard shows data immediately
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	if err := bootstrap.PopulateRecentResults(ctx, registry, store); err != nil {
-		log.Printf("warning: could not pre-populate results: %v", err)
-	}
-	if _, err := systemEventService.Ingest(ctx); err != nil {
-		log.Printf("warning: system event ingestion failed: %v", err)
-	}
-	cancel()
+	startupWG.Add(1)
+	go func() {
+		defer startupWG.Done()
+		ctx, cancel := context.WithTimeout(startupCtx, 10*time.Second)
+		defer cancel()
+		if err := bootstrap.PopulateRecentResults(ctx, registry, store); err != nil {
+			log.Printf("warning: could not pre-populate results: %v", err)
+		}
+		log.Printf("startup stage=recent-results-loaded")
+		if _, err := systemEventService.Ingest(ctx); err != nil {
+			log.Printf("warning: system event ingestion failed: %v", err)
+		}
+		log.Printf("startup stage=system-events-loaded")
+	}()
 
 	// Stagger the first run of interval checks so aligned intervals don't burst
 	// together on every cycle. Checks restored from persistence keep their
@@ -147,6 +169,21 @@ func run() error {
 
 	// Setup HTTP server
 	h := apiHandlers.New(registry, store, plat)
+	log.Printf("startup stage=handlers-created")
+	if eventsBase, resolveErr := discovery.ResolveScenarioURLDefault(context.Background(), "vrooli-events"); resolveErr == nil {
+		h.SetIncidentEventPublisher(incidents.NewEventBusPublisher(eventsBase))
+	}
+	log.Printf("startup stage=event-publisher-resolved")
+	if notificationBase, resolveErr := discovery.ResolveScenarioURLDefault(context.Background(), "notification-hub"); resolveErr == nil {
+		if verifier, verifierErr := remediation.NewNotificationHubAskVerifier(notificationBase); verifierErr == nil {
+			h.SetRemediationAskVerifier(verifier)
+			log.Printf("startup stage=remediation-ask-verifier-resolved")
+		} else {
+			log.Printf("warning: notification ask verifier unavailable: %v", verifierErr)
+		}
+	} else {
+		log.Printf("warning: notification-hub URL unavailable for remediation ask verification: %v", resolveErr)
+	}
 	h.SetSystemEventService(systemEventService)
 	h.SetHistoryRetentionHoursProvider(func() int { return configMgr.GetGlobal().HistoryRetentionHours })
 	configHandlers := apiHandlers.NewConfigHandlers(configMgr, registry)
@@ -164,6 +201,7 @@ func run() error {
 	if err != nil {
 		return fmt.Errorf("start retention: %w", err)
 	}
+	log.Printf("startup stage=retention-ready")
 
 	log.Printf("starting server | service=vrooli-autoheal-api platform=%s", plat.Platform)
 
@@ -172,6 +210,8 @@ func run() error {
 		Handler:      handlers.RecoveryHandler()(handler),
 		WriteTimeout: 6 * time.Minute,
 		Cleanup: func(ctx context.Context) error {
+			cancelStartup()
+			startupWG.Wait()
 			// Retention stops first and Stop waits for the in-flight cycle, so
 			// its connection is idle before either handle closes.
 			retentionManager.Stop()
@@ -297,7 +337,8 @@ func setupRouter(h *apiHandlers.Handlers, ch *apiHandlers.ConfigHandlers) *mux.R
 	router.HandleFunc("/api/v1/incidents/{incidentId}/remediations", h.IncidentRemediations).Methods("GET")
 	router.HandleFunc("/api/v1/incidents/{incidentId}/remediations/{remediationId}/generate", h.GenerateIncidentRemediation).Methods("POST")
 	router.HandleFunc("/api/v1/incidents/{incidentId}/remediations/{remediationId}/outcome", h.RecordIncidentRemediationOutcome).Methods("POST")
-	router.HandleFunc("/api/v1/incidents/{incidentId}/{action:acknowledge|resolve|ignore}", h.MutateIncidentStatus).Methods("POST")
+	router.HandleFunc("/api/v1/incidents/{incidentId}/remediations/{remediationId}/approve", h.ApproveIncidentRemediation).Methods("POST")
+	router.HandleFunc("/api/v1/incidents/{incidentId}/{action:acknowledge|resolve|ignore|keep-open}", h.MutateIncidentStatus).Methods("POST")
 	router.HandleFunc("/api/v1/transitions", h.Transitions).Methods("GET")
 
 	// Watchdog endpoints [REQ:WATCH-DETECT-001] [REQ:WATCH-INSTALL-001]

@@ -209,3 +209,34 @@ func TestDirectoryPrunerRequiresAnAbsolutePath(t *testing.T) {
 		t.Fatal("expected an empty path to be rejected")
 	}
 }
+
+func TestDirectoryPrunerRefusesProtectedRootAndBroadAncestor(t *testing.T) {
+	root := t.TempDir()
+	bin := filepath.Join(root, ".vrooli", "bin")
+	if err := os.MkdirAll(bin, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	entry := filepath.Join(bin, "vrooli")
+	if err := os.WriteFile(entry, []byte("live"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chtimes(bin, fixtureClock.Add(-time.Hour), fixtureClock.Add(-time.Hour)); err != nil {
+		t.Fatal(err)
+	}
+
+	pruner, err := NewDirectoryPruner(DirectoryConfig{
+		Path:           filepath.Dir(bin),
+		ProtectedRoots: []string{bin},
+		Now:            func() time.Time { return fixtureClock },
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = pruner.Prune(context.Background(), Budget{Name: "runtime", MaxAge: time.Nanosecond})
+	if err == nil || !strings.Contains(err.Error(), "protected path") {
+		t.Fatalf("Prune error = %v, want protected-path refusal", err)
+	}
+	if _, statErr := os.Stat(entry); statErr != nil {
+		t.Fatalf("protected executable was removed: %v", statErr)
+	}
+}

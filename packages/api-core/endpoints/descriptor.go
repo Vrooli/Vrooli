@@ -66,6 +66,11 @@ const (
 	// generated client (e.g. plain GET /health, static browser-facing
 	// HTML wrappers served to iframes).
 	RESTReasonOpsProbe RESTReason = "ops_probe"
+
+	// RESTReasonStreamUpgrade covers WebSocket upgrades and server-streaming
+	// endpoints whose browser-native or long-lived transport cannot be
+	// expressed by a generated client procedure.
+	RESTReasonStreamUpgrade RESTReason = "stream_upgrade"
 )
 
 // RESTException tags an EndpointDescriptor whose Path is a hand-authored

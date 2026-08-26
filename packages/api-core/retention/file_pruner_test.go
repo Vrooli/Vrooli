@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 )
@@ -44,5 +45,27 @@ func TestFilePrunerLeavesRecentFileWithinBudget(t *testing.T) {
 	}
 	if result.Deleted != 0 || result.After.Bytes != 2 {
 		t.Fatalf("result = %+v", result)
+	}
+}
+
+func TestFilePrunerRefusesProtectedExecutable(t *testing.T) {
+	root := t.TempDir()
+	path := filepath.Join(root, ".vrooli", "bin", "vrooli")
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, []byte("live"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	pruner, err := NewFilePruner(FileConfig{Path: path, ProtectedRoots: []string{filepath.Dir(path)}, Now: func() time.Time { return time.Unix(100, 0) }})
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = pruner.Prune(context.Background(), Budget{Name: "runtime", MaxBytes: 1})
+	if err == nil || !strings.Contains(err.Error(), "protected path") {
+		t.Fatalf("Prune error = %v, want protected-path refusal", err)
+	}
+	if _, statErr := os.Stat(path); statErr != nil {
+		t.Fatalf("protected executable was removed: %v", statErr)
 	}
 }

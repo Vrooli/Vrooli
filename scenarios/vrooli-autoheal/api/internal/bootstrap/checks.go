@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks"
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks/coverage"
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/platform"
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/userconfig"
 )
@@ -50,20 +51,32 @@ func RegisterChecksFromConfig(registry *checks.Registry, caps *platform.Capabili
 // This enables testing check registration with mock factories.
 // [REQ:TEST-SEAM-001]
 func RegisterChecksWithFactory(registry *checks.Registry, caps *platform.Capabilities, factory CheckFactory) {
+
+	started := time.Now()
 	// Infrastructure checks
+	sectionStarted := time.Now()
 	for _, check := range factory.CreateInfrastructureChecks(caps) {
 		registry.Register(check)
 	}
+	log.Printf("autoheal startup: infrastructure checks registered in %s", time.Since(sectionStarted))
 
 	// System checks
+	sectionStarted = time.Now()
 	for _, check := range factory.CreateSystemChecks() {
 		registry.Register(check)
 	}
+	log.Printf("autoheal startup: system checks registered in %s", time.Since(sectionStarted))
 
 	// Vrooli checks (API, resources, scenarios, watchdog)
+	sectionStarted = time.Now()
 	for _, check := range factory.CreateVrooliChecks(caps) {
 		registry.Register(check)
 	}
+	// These projections are themselves checks so a missing remediation path or
+	// unreadable delivery source is visible in the same ordered-severity model.
+	registry.Register(coverage.NewRemediationReachCheck(registry))
+	registry.Register(coverage.NewDeliveryReachCheck(coverage.UnavailableDeliveryReader))
+	log.Printf("autoheal startup: Vrooli checks registered in %s (total=%s)", time.Since(sectionStarted), time.Since(started))
 }
 
 // ResultLoader is the interface for loading persisted results.

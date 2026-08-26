@@ -20,6 +20,7 @@
 | 2025-12-04 | Claude | Auto-Heal Verification | Added post-action verification to all recovery actions - restarts now confirm success by re-running checks |
 | 2026-02-18 | Codex | Seam Enforcement (Watchdog Installer) | Routed watchdog install/uninstall side effects through `detectorProbe` (commands, privileged writes, fs mutations, temp-file writes) and added seam-focused unit tests |
 | 2026-02-18 | Codex | Seam Enforcement (User Config I/O) | Added `configIO` seam for `userconfig.Manager` file/home-dir interactions (load/save/schema/default-path), plus seam-focused tests for missing-config behavior, temp-file cleanup on atomic-save failure, and default-path fallback when home resolution fails |
+| 2026-08-25 | Codex | Host capability coupling and notification reach | Added invariant-backed host verdicts, transition-only incident facts, live notification approval verification, one-time remediation authorization records, evidence-backed incident disposition, and remediation/delivery reach sensors. Focused Go suites pass; broad scenario gates still report unrelated maturity debt. |
 
 ## Completed Features
 

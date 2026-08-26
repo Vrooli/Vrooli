@@ -6,7 +6,7 @@
 |---|---|
 | Projection | substrate |
 | Owner | `vrooli-autoheal` |
-| Denominator confidence | `PARTIAL` — eleven of seventeen cells are NOW, five are IN-REACH, and SB6 remains the one open-loop crash-accounting gap; SB17 is joined by workload reconciliation |
+| Denominator confidence | `PARTIAL` — eleven of nineteen cells are NOW, seven are IN-REACH, and SB6 remains the one open-loop crash-accounting gap; SB17 is joined by workload reconciliation |
 | Leg unit | host subsystem |
 
 ## Why This Projection Exists
@@ -36,6 +36,8 @@ read as OK.
 | SB3 | Is machine-check telemetry readable? | vrooli-autoheal | NOW | | `system-mce-recent`. Depends on rasdaemon; an unreadable MCE channel is a blind spot, not a clean bill of health. |
 | SB4 | Are accelerator devices present and usable by their claimants? | vrooli-autoheal | NOW | | `system-gpu` and `resource-gpu-access`. Device presence and claimant access are distinct failures and both belong here. |
 | SB5 | Do the running kernel, module inventory and driver bindings agree? | vrooli-autoheal | NOW | | `host-kernel-module-drift`, `host-device-driver-binding`, `host-runtime-integrity`. Drift here precedes device-access failures that look like application faults. |
+| SB18 | Do critical findings have a remediation path? | vrooli-autoheal | IN-REACH | 2026-08-25 | `coverage-remediation-reach` reads critical registry results and registered actions; a missing action is a critical shortfall rather than an implicit OK. |
+| SB19 | Do critical findings reach a human channel? | notification-hub | IN-REACH | 2026-08-25 | `coverage-delivery-reach` joins incident IDs to durable delivery-attempt IDs. Its current host reading is explicitly unreadable until the notification-hub projection is configured. |
 | SB6 | Are userspace process crashes counted and attributed to an owner? | vrooli-autoheal | MISSING | 2026-08-20 | No core-dump sensor exists anywhere in the platform. `core_pattern`, `systemd-coredump` and `coredumpctl` are unread, so a process crash loop is invisible unless it also fails a liveness check. |
 | SB7 | Did the host boot cleanly? | vrooli-autoheal | NOW | | `system-boot-history`. An unclean boot re-dates every other substrate reading and is checked before them. |
 | SB8 | Is the host watchdog armed and are declared host capabilities present? | vrooli-autoheal | NOW | | `os-watchdog` and `host-capability-drift`. The watchdog is the last line under everything above it, so its own liveness is part of the substrate. |

@@ -8,6 +8,8 @@ import (
 	"strconv"
 	"syscall"
 	"testing"
+
+	"github.com/vrooli/repo-contract-go/repocontracttest"
 )
 
 // TestPeakRSSIncludesChildProcesses is the regression test for a measurement
@@ -25,7 +27,7 @@ func TestPeakRSSIncludesChildProcesses(t *testing.T) {
 		return
 	}
 	if !sampleRusage().ok {
-		t.Skip("rusage not sampleable on this platform")
+		repocontracttest.SkipPlatform(t, "rusage not sampleable on this platform")
 	}
 
 	before := sampleRusage()

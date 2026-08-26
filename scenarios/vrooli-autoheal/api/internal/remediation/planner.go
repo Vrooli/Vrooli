@@ -18,6 +18,7 @@ const scenarioID = "vrooli-autoheal"
 type Service struct {
 	resolver *storage.Resolver
 	now      func() time.Time
+	runner   ScriptRunner
 }
 
 type GenerateResponse struct {

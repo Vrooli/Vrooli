@@ -8,9 +8,13 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vrooli/vrooli/scenarios/vrooli-events/internal/convert"
 	"github.com/vrooli/vrooli/scenarios/vrooli-events/internal/match"
 	"github.com/vrooli/vrooli/scenarios/vrooli-events/internal/store"
 	"github.com/vrooli/vrooli/scenarios/vrooli-events/internal/subscription"
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/anypb"
+	"google.golang.org/protobuf/types/known/structpb"
 )
 
 func (s *Server) enqueueSubscriptions(ctx context.Context, event store.Event) error {
@@ -23,9 +27,16 @@ func (s *Server) enqueueSubscriptions(ctx context.Context, event store.Event) er
 		return err
 	}
 	var payloadValue any
-	if json.Valid(event.Payload) {
+	if env, err := convert.EventToEnvelope(event); err == nil && env.Data != nil {
+		if message, unmarshalErr := anypb.UnmarshalNew(env.Data, proto.UnmarshalOptions{}); unmarshalErr == nil {
+			if structured, ok := message.(*structpb.Struct); ok {
+				payloadValue = structured.AsMap()
+			}
+		}
+	}
+	if payloadValue == nil && json.Valid(event.Payload) {
 		payloadValue = json.RawMessage(event.Payload)
-	} else if len(event.Payload) > 0 {
+	} else if payloadValue == nil && len(event.Payload) > 0 {
 		// Event storage is intentionally bytes-oriented because protobuf event
 		// payloads are valid inputs too. Preserve opaque payloads losslessly
 		// rather than making an invalid JSON webhook body.

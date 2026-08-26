@@ -105,10 +105,15 @@ type RemediationArtifact struct {
 }
 
 type Outcome struct {
-	RemediationID string    `json:"remediationId,omitempty"`
-	Status        string    `json:"status"`
-	Note          string    `json:"note,omitempty"`
-	ReportedAt    time.Time `json:"reportedAt"`
+	RemediationID       string    `json:"remediationId,omitempty"`
+	Status              string    `json:"status"`
+	Note                string    `json:"note,omitempty"`
+	ReportedAt          time.Time `json:"reportedAt"`
+	AskID               string    `json:"askId,omitempty"`
+	IncidentFingerprint string    `json:"incidentFingerprint,omitempty"`
+	ScriptPath          string    `json:"scriptPath,omitempty"`
+	ExitStatus          int       `json:"exitStatus,omitempty"`
+	Output              string    `json:"output,omitempty"`
 }
 
 type Observation struct {

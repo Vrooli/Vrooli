@@ -21,7 +21,11 @@ import (
 const (
 	MaxAttempts       = 3
 	DefaultDedupeWind = 5 * time.Minute
-	PendingSweepAfter = 2 * time.Minute
+	// EventSaturationLimit bounds repeated notifications for one fingerprint
+	// even when they arrive outside the shorter duplicate-collapse window.
+	EventSaturationLimit  = 3
+	EventSaturationWindow = time.Hour
+	PendingSweepAfter     = 2 * time.Minute
 )
 
 var (
@@ -387,11 +391,22 @@ func (s *Service) Process(ctx context.Context, id string) error {
 	}
 	if n.DedupeKey != "" && n.DigestKey == "" {
 		var collapsed string
-		err = s.db.QueryRowContext(ctx, `SELECT id FROM notifications WHERE requested_by = ? AND dedupe_key = ? AND id != ? AND created_at >= datetime(?, '-' || dedupe_window_seconds || ' seconds') ORDER BY created_at ASC LIMIT 1`, n.RequestedBy, n.DedupeKey, n.ID, n.CreatedAt).Scan(&collapsed)
+		err = s.db.QueryRowContext(ctx, `SELECT id FROM notifications WHERE requested_by = ? AND dedupe_key = ? AND id != ? AND julianday(created_at) >= julianday(?) - (dedupe_window_seconds / 86400.0) ORDER BY created_at ASC LIMIT 1`, n.RequestedBy, n.DedupeKey, n.ID, n.CreatedAt).Scan(&collapsed)
 		if err == nil && collapsed != "" {
-			now := s.clock.Now().UTC().Format(time.RFC3339Nano)
-			_, _ = s.db.ExecContext(ctx, `INSERT INTO suppressions (id, notification_id, collapsed_into, dedupe_key, created_at) VALUES (?, ?, ?, ?, ?)`, uuid.NewString(), n.ID, collapsed, n.DedupeKey, now)
-			return s.appendEvent(ctx, n.ID, "suppressed", "collapsed into "+collapsed, now)
+			return s.recordSuppression(ctx, n, collapsed, "duplicate event within dedupe window")
+		}
+	}
+	if n.DedupeKey != "" && n.DigestKey == "" {
+		var prior int
+		if err := s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM notifications WHERE requested_by = ? AND dedupe_key = ? AND id != ? AND julianday(created_at) >= julianday(?) - (? / 86400.0)`, n.RequestedBy, n.DedupeKey, n.ID, n.CreatedAt, EventSaturationWindow.Seconds()).Scan(&prior); err != nil {
+			return err
+		}
+		if prior >= EventSaturationLimit {
+			var collapsed string
+			if err := s.db.QueryRowContext(ctx, `SELECT id FROM notifications WHERE requested_by = ? AND dedupe_key = ? AND id != ? ORDER BY created_at ASC LIMIT 1`, n.RequestedBy, n.DedupeKey, n.ID).Scan(&collapsed); err != nil {
+				return err
+			}
+			return s.recordSuppression(ctx, n, collapsed, fmt.Sprintf("saturation cap reached: %d notifications per %s", EventSaturationLimit, EventSaturationWindow))
 		}
 	}
 	quiet, err := s.inQuietWindow(ctx, n.RequestedBy, n.Urgency, s.clock.Now())
@@ -415,7 +430,12 @@ func (s *Service) Process(ctx context.Context, id string) error {
 		}
 	}
 	if len(targets) == 0 {
-		return s.appendEvent(ctx, n.ID, "unroutable", "no live web push subscription is registered for recipient", s.clock.Now().UTC().Format(time.RFC3339Nano))
+		now := s.clock.Now().UTC().Format(time.RFC3339Nano)
+		reason := "no recipient configured: no live web push subscription is registered for recipient"
+		if _, err := s.db.ExecContext(ctx, `INSERT INTO delivery_attempts (notification_id, channel, machine_id, attempt_number, outcome, reason, next_attempt_at, created_at) VALUES (?, 'none', '', 1, 'unroutable', ?, '', ?)`, n.ID, reason, now); err != nil {
+			return err
+		}
+		return s.appendEvent(ctx, n.ID, "unroutable", reason, now)
 	}
 	_ = s.appendEvent(ctx, n.ID, "routed", "channel targets selected from recipient registry", s.clock.Now().UTC().Format(time.RFC3339Nano))
 	s.mu.RLock()
@@ -482,6 +502,14 @@ func (s *Service) Process(ctx context.Context, id string) error {
 		return s.appendEvent(ctx, n.ID, "delivered", "at least one approved channel accepted the payload", s.clock.Now().UTC().Format(time.RFC3339Nano))
 	}
 	return s.appendEvent(ctx, n.ID, "failed", fmt.Sprintf("retry budget exhausted: %s", safeReason(lastErr)), s.clock.Now().UTC().Format(time.RFC3339Nano))
+}
+
+func (s *Service) recordSuppression(ctx context.Context, n Notification, collapsedInto, reason string) error {
+	now := s.clock.Now().UTC().Format(time.RFC3339Nano)
+	if _, err := s.db.ExecContext(ctx, `INSERT INTO suppressions (id, notification_id, collapsed_into, dedupe_key, created_at) VALUES (?, ?, ?, ?, ?)`, uuid.NewString(), n.ID, collapsedInto, n.DedupeKey, now); err != nil {
+		return err
+	}
+	return s.appendEvent(ctx, n.ID, "suppressed", reason+"; collapsed into "+collapsedInto, now)
 }
 
 func (s *Service) deliverTarget(ctx context.Context, target channelTarget, n Notification, body string, push PushSender, email EmailSender, desktop DesktopSender, remote RemoteDelivery) (string, error) {
@@ -789,6 +817,10 @@ func (s *Service) Ask(ctx context.Context, recipient string, question string, al
 	n, err := s.Send(ctx, SendInput{RequestedBy: recipient, Title: "Decision required", Body: question, Urgency: "critical", SensitivityLabel: sensitivity, IdempotencyKey: key})
 	if err != nil {
 		return "", Notification{}, err
+	}
+	var existingAskID string
+	if err := s.db.QueryRowContext(ctx, `SELECT asks.id FROM asks JOIN notifications ON notifications.id = asks.notification_id WHERE notifications.requested_by = ? AND notifications.idempotency_key = ?`, recipient, key).Scan(&existingAskID); err == nil && existingAskID != "" {
+		return existingAskID, n, nil
 	}
 	encoded, _ := json.Marshal(allowed)
 	id := uuid.NewString()

@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
 )
 
@@ -31,6 +32,43 @@ func TestResolve(t *testing.T) {
 				t.Fatalf("Resolve(%q, %q) = %v, want %v", test.held, test.required, got, test.want)
 			}
 		})
+	}
+}
+
+func TestBuildResilientQuarantinesOneInvalidScenarioManifest(t *testing.T) {
+	root := repoRoot(t)
+	brokenRoot := t.TempDir()
+	brokenPath := filepath.Join(brokenRoot, "broken-scenario", "cli", "manifest.json")
+	if err := os.MkdirAll(filepath.Dir(brokenPath), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(brokenPath, []byte(`{"name":`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	catalog, err := buildWithManifestPaths(root, filepath.Join(root, "scenarios"), []string{
+		filepath.Join(root, "cli", "manifest.json"),
+		filepath.Join(root, "scenarios", "hello-plugin", "cli", "manifest.json"),
+		brokenPath,
+	}, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(catalog.InvalidManifests) != 1 || catalog.InvalidManifests[0].Path != brokenPath {
+		t.Fatalf("invalid manifests = %#v, want only %s", catalog.InvalidManifests, brokenPath)
+	}
+	if !strings.Contains(catalog.InvalidManifests[0].Reason, "decode") {
+		t.Fatalf("invalid reason = %q, want decode detail", catalog.InvalidManifests[0].Reason)
+	}
+	valid := false
+	for _, scope := range catalog.Scopes {
+		if scope.Scenario == "hello-plugin" {
+			valid = true
+			break
+		}
+	}
+	if !valid {
+		t.Fatal("valid hello-plugin manifest was removed with the broken manifest")
 	}
 }
 

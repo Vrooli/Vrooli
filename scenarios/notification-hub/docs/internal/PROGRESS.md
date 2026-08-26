@@ -19,6 +19,7 @@ work lands, not while work is still speculative.
 | 2026-08-18 | codex | done | Removed the generated `notes` example domain from scenario surfaces and all Notification Hub proto outputs through template-manager; reconciled the documentation debt entry after every registered document reached active maturity. |
 | 2026-08-18 | codex | done | Rebuilt the served UI after cleanup and reran the authoritative gates: notification-hub 21/21, vrooli-bridge 20/20, and vrooli-events 21/21 passed; the durable baseline comparison remains not-comparable only because its Notification Hub member has no recorded phase result. |
 | 2026-08-18 | codex | blocked | Recorded the remaining operator/platform acceptance blocker: the managed public origin lacks Cloudflare credentials/DNS resolution, and real iPhone plus paired-Mac delivery evidence is still required for OT-P0-001 and OT-P0-015. |
+| 2026-08-25 | codex | done | Added live incident-event rendering for remediation approval asks, server-owned approve/reject semantics, idempotent ask creation, severity-driven sensitivity, saturation evidence, and a Linux freedesktop desktop sender that reports missing display/session-bus prerequisites truthfully. Focused API tests pass; this host still lacks an active desktop session for real GUI delivery. |
 
 ## Entry Template
 

@@ -49,6 +49,16 @@
       "binding": "DeliveryService.GetTimeline"
     },
     {
+      "path": "integrations event-config",
+      "group": "integrations",
+      "command": "event-config"
+    },
+    {
+      "path": "integrations event-config-set",
+      "group": "integrations",
+      "command": "event-config-set"
+    },
+    {
       "path": "notifications get",
       "group": "notifications",
       "command": "get",

@@ -1,12 +1,12 @@
 {
   "_metadata": {
-    "last_validated_at": "2026-08-18T18:06:52-04:00"
+    "last_validated_at": "2026-08-25T14:43:36-04:00"
   },
   "requirements": [
     {
       "id": "REQ-PS-001",
       "title": "SSE streaming",
-      "status": "complete",
+      "status": "in_progress",
       "criticality": "P0",
       "description": "Server-Sent Events endpoint with 30s heartbeat, retry: 5000ms, standard SSE format",
       "children": [
@@ -18,14 +18,14 @@
           "type": "test",
           "ref": "api/handlers_sse_write_test.go",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         }
       ]
     },
     {
       "id": "REQ-PS-001A",
       "title": "SSE message format compliance",
-      "status": "complete",
+      "status": "in_progress",
       "criticality": "P0",
       "description": "SSE frames use standard format: id/event/data fields for events, comment lines for heartbeats",
       "children": [
@@ -36,14 +36,14 @@
           "type": "test",
           "ref": "api/handlers_sse_write_test.go",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         }
       ]
     },
     {
       "id": "REQ-PS-001A1",
       "title": "Heartbeat comment format",
-      "status": "complete",
+      "status": "in_progress",
       "criticality": "P0",
       "description": "Heartbeats written as SSE comments (: heartbeat) with optional data payload",
       "children": [
@@ -54,14 +54,14 @@
           "type": "test",
           "ref": "api/handlers_sse_write_test.go",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         }
       ]
     },
     {
       "id": "REQ-PS-001B",
       "title": "SSE headers and retry directive",
-      "status": "complete",
+      "status": "in_progress",
       "criticality": "P0",
       "description": "SSE endpoint sets Content-Type, Cache-Control, Connection, X-Accel-Buffering headers and retry directive",
       "children": [
@@ -72,14 +72,14 @@
           "type": "test",
           "ref": "api/handlers_sse_write_test.go",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         }
       ]
     },
     {
       "id": "REQ-PS-002",
       "title": "Glob-pattern filtering",
-      "status": "complete",
+      "status": "in_progress",
       "criticality": "P0",
       "description": "Segment-aware glob matching: * matches one segment, ** matches one or more",
       "children": [
@@ -91,26 +91,26 @@
           "type": "test",
           "ref": "internal/broker/matcher_test.go",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         },
         {
           "type": "test",
           "ref": "internal/match/match_test.go",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         },
         {
           "type": "test",
           "ref": "api/handlers_sse_write_test.go",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         }
       ]
     },
     {
       "id": "REQ-PS-003",
       "title": "Last-Event-ID resume",
-      "status": "complete",
+      "status": "in_progress",
       "criticality": "P1",
       "description": "SSE clients can reconnect with Last-Event-ID to replay missed events from store",
       "children": [
@@ -122,14 +122,14 @@
           "type": "test",
           "ref": "api/handlers_sse_write_test.go",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         }
       ]
     },
     {
       "id": "REQ-PS-004",
       "title": "Backpressure handling",
-      "status": "complete",
+      "status": "in_progress",
       "criticality": "P1",
       "description": "64-capacity subscriber channels with non-blocking send; dropped events counted in heartbeat",
       "children": [
@@ -141,14 +141,14 @@
           "type": "test",
           "ref": "internal/broker/broker_test.go",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         }
       ]
     },
     {
       "id": "REQ-PS-004A",
       "title": "Channel buffering capacity",
-      "status": "complete",
+      "status": "in_progress",
       "criticality": "P1",
       "description": "Subscriber channels use 64-capacity buffer with non-blocking send",
       "children": [
@@ -159,7 +159,7 @@
           "type": "test",
           "ref": "internal/broker/broker_temporal_test.go",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         }
       ]
     },
@@ -186,7 +186,7 @@
     {
       "id": "REQ-PS-001A1a",
       "title": "Heartbeat interval configuration",
-      "status": "complete",
+      "status": "in_progress",
       "criticality": "P0",
       "description": "Heartbeat interval configurable with default 30s ticker",
       "validation": [
@@ -194,14 +194,14 @@
           "type": "test",
           "ref": "api/handlers_sse_write_test.go",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         }
       ]
     },
     {
       "id": "REQ-PS-001B1",
       "title": "Proxy buffering prevention",
-      "status": "complete",
+      "status": "in_progress",
       "criticality": "P0",
       "description": "X-Accel-Buffering: no header prevents nginx/reverse proxy buffering",
       "validation": [
@@ -209,14 +209,14 @@
           "type": "test",
           "ref": "api/handlers_sse_write_test.go",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         }
       ]
     },
     {
       "id": "REQ-PS-002A",
       "title": "Pattern compilation and caching",
-      "status": "complete",
+      "status": "in_progress",
       "criticality": "P0",
       "description": "Glob patterns compiled once at subscription creation and cached for reuse",
       "children": [
@@ -227,14 +227,14 @@
           "type": "test",
           "ref": "api/handlers_sse_write_test.go",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         }
       ]
     },
     {
       "id": "REQ-PS-002A1",
       "title": "Wildcard segment matching",
-      "status": "complete",
+      "status": "in_progress",
       "criticality": "P0",
       "description": "Single * matches one path segment, ** matches one or more segments",
       "validation": [
@@ -242,14 +242,14 @@
           "type": "test",
           "ref": "api/handlers_sse_write_test.go",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         }
       ]
     },
     {
       "id": "REQ-PS-002B",
       "title": "Multi-field filter composition",
-      "status": "complete",
+      "status": "in_progress",
       "criticality": "P0",
       "description": "Filters applied on type, source, and target fields independently",
       "validation": [
@@ -257,7 +257,7 @@
           "type": "test",
           "ref": "api/handlers_sse_write_test.go",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         }
       ]
     },

@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "P0 operational targets for the owner notification spine. Amended 2026-08-17 to make sensitivity labelling default-deny, to name the missing push-provider resource, and to add unroutable visibility, request idempotency, and bounded delivery history.",
-    "last_validated_at": "2026-08-22T16:44:17-04:00",
+    "last_validated_at": "2026-08-25T17:21:40-04:00",
     "module": "P0-targets",
     "priority": "P0",
     "schema_version": "1.0.0"

@@ -33,6 +33,7 @@ import (
 	conversationSchema "notification-hub/internal/conversations"
 	localdb "notification-hub/internal/database"
 	deliverySchema "notification-hub/internal/delivery"
+	integrationSchema "notification-hub/internal/integrationconfig"
 	notificationSchema "notification-hub/internal/notifications"
 	recipientSchema "notification-hub/internal/recipients"
 	routingSchema "notification-hub/internal/routing"
@@ -102,6 +103,7 @@ func AllSchemas() []apidb.SchemaProvider {
 	return []apidb.SchemaProvider{
 		apidb.SchemaProviderFunc(localdb.SystemSchema),
 		apidb.SchemaProviderFunc(healthH.Schema),
+		apidb.SchemaProviderFunc(integrationSchema.Schema),
 		apidb.SchemaProviderFunc(recipientSchema.Schema),
 		apidb.SchemaProviderFunc(notificationSchema.Schema),
 		apidb.SchemaProviderFunc(routingSchema.Schema),

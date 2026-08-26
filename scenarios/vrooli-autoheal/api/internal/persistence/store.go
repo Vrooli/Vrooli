@@ -275,6 +275,19 @@ func (s *Store) RecordIncidentRemediationOutcome(ctx context.Context, incidentID
 	return s.recordIncidentRemediationOutcomeSQLite(ctx, incidentID, outcome)
 }
 
+// RecordRemediationAuthorisation persists the exact ask-to-incident binding
+// that was verified by notification-hub. The ask id is unique, so an answer
+// cannot authorize two executions.
+func (s *Store) RecordRemediationAuthorisation(ctx context.Context, askID, incidentID, fingerprint, remediationID, approvedBy string, approvedAt time.Time) error {
+	return s.recordRemediationAuthorisationSQLite(ctx, askID, incidentID, fingerprint, remediationID, approvedBy, approvedAt)
+}
+
+// ClaimRemediationAuthorisation makes an approved ask single-use. A false
+// result means the authorization was absent, mismatched, or already consumed.
+func (s *Store) ClaimRemediationAuthorisation(ctx context.Context, askID, incidentID, fingerprint, remediationID string, consumedAt time.Time) (bool, error) {
+	return s.claimRemediationAuthorisationSQLite(ctx, askID, incidentID, fingerprint, remediationID, consumedAt)
+}
+
 // ActionLog represents a logged recovery action execution.
 type ActionLog struct {
 	ID         int64  `json:"id"`

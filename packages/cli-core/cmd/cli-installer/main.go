@@ -284,9 +284,13 @@ func defaultInstallDir() string {
 // as the previous-good binary or is the fully-written new binary — never
 // the zero-filled stub that broke us today.
 func replaceBinary(src, dst string) error {
+	if err := os.Chmod(src, 0o755); err != nil {
+		return fmt.Errorf("set executable mode before install: %w", err)
+	}
 	if err := fsyncPath(src); err != nil {
 		return fmt.Errorf("fsync new binary before rename: %w", err)
 	}
+	_ = preserveRootBinaryFallback(dst)
 	renameErr := os.Rename(src, dst)
 	if renameErr != nil && runtime.GOOS == "windows" {
 		// Windows rename(2) refuses to overwrite an existing file; fall
@@ -303,6 +307,62 @@ func replaceBinary(src, dst string) error {
 		return fmt.Errorf("fsync install directory after rename: %w", err)
 	}
 	return nil
+}
+
+// preserveRootBinaryFallback retains the prior root control-plane binary
+// outside ~/.vrooli/bin. cli-core is a nested module, so this small installer
+// helper intentionally mirrors the parent module's recovery behavior without
+// coupling the modules' dependency graphs.
+func preserveRootBinaryFallback(executable string) error {
+	base := filepath.Base(filepath.Clean(executable))
+	switch base {
+	case "vrooli", "vrooli.exe", "vrooli-api", "vrooli-api.exe":
+	default:
+		return nil
+	}
+	info, err := os.Stat(executable)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return err
+	}
+	fallbackDir := filepath.Join(filepath.Dir(filepath.Dir(executable)), "libexec")
+	if err := os.MkdirAll(fallbackDir, 0o755); err != nil {
+		return err
+	}
+	tmp, err := os.CreateTemp(fallbackDir, "."+base+".previous-*")
+	if err != nil {
+		return err
+	}
+	tmpPath := tmp.Name()
+	defer os.Remove(tmpPath)
+	in, openErr := os.Open(executable)
+	if openErr != nil {
+		_ = tmp.Close()
+		return openErr
+	}
+	_, copyErr := io.Copy(tmp, in)
+	closeInErr := in.Close()
+	if copyErr == nil {
+		copyErr = closeInErr
+	}
+	if copyErr != nil {
+		_ = tmp.Close()
+		return copyErr
+	}
+	if err := tmp.Sync(); err != nil {
+		_ = tmp.Close()
+		return err
+	}
+	if err := tmp.Chmod(info.Mode().Perm()); err != nil {
+		_ = tmp.Close()
+		return err
+	}
+	if err := tmp.Close(); err != nil {
+		return err
+	}
+	return os.Rename(tmpPath, filepath.Join(fallbackDir, base+".previous"))
 }
 
 // fsyncPath opens path and calls fsync(2). Works for both regular files

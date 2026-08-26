@@ -301,8 +301,8 @@ func TestRegisterChecksWithFactory_UsesFactory(t *testing.T) {
 
 	// Verify checks were registered
 	registeredChecks := registry.ListChecks()
-	if len(registeredChecks) != 3 {
-		t.Errorf("registered checks = %d, want 3", len(registeredChecks))
+	if len(registeredChecks) != 5 {
+		t.Errorf("registered checks = %d, want 5", len(registeredChecks))
 	}
 
 	// Verify check IDs
@@ -320,6 +320,9 @@ func TestRegisterChecksWithFactory_UsesFactory(t *testing.T) {
 	if !foundIDs["mock-vrooli"] {
 		t.Error("expected mock-vrooli to be registered")
 	}
+	if !foundIDs["coverage-remediation-reach"] || !foundIDs["coverage-delivery-reach"] {
+		t.Error("expected coverage reach checks to be registered")
+	}
 }
 
 // TestRegisterChecksWithFactory_EmptyFactory verifies empty factory works
@@ -333,10 +336,11 @@ func TestRegisterChecksWithFactory_EmptyFactory(t *testing.T) {
 	// Should not panic
 	RegisterChecksWithFactory(registry, caps, factory)
 
-	// No checks registered
+	// Coverage checks remain registered so an empty source is reported as
+	// unreadable instead of silently disappearing from the instrument.
 	registeredChecks := registry.ListChecks()
-	if len(registeredChecks) != 0 {
-		t.Errorf("registered checks = %d, want 0", len(registeredChecks))
+	if len(registeredChecks) != 2 {
+		t.Errorf("registered checks = %d, want 2", len(registeredChecks))
 	}
 }
 

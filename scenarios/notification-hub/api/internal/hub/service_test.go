@@ -140,6 +140,10 @@ func TestSend_IsIdempotentAndLeavesDurableTerminalState(t *testing.T) {
 	var pending int
 	require.NoError(t, db.QueryRowContext(ctx, `SELECT COUNT(*) FROM (SELECT notification_id, state, ROW_NUMBER() OVER (PARTITION BY notification_id ORDER BY id DESC) AS rank FROM notification_events) WHERE rank = 1 AND state = 'pending'`).Scan(&pending))
 	require.Zero(t, pending)
+	var outcome, reason string
+	require.NoError(t, db.QueryRowContext(ctx, `SELECT outcome, reason FROM delivery_attempts WHERE notification_id = ?`, first.ID).Scan(&outcome, &reason))
+	require.Equal(t, "unroutable", outcome)
+	require.Contains(t, reason, "no recipient configured")
 }
 
 // [REQ:NOTIFICA-P0-005][REQ:NOTIFICA-P0-008][REQ:NOTIFICA-P0-010]
@@ -212,6 +216,35 @@ func TestProcess_DedupeCollapsesRepeatedKey(t *testing.T) {
 	n, _, err := service.Get(context.Background(), second)
 	require.NoError(t, err)
 	require.Equal(t, "suppressed", n.State)
+	var reason string
+	require.NoError(t, db.QueryRowContext(context.Background(), `SELECT dedupe_key FROM suppressions WHERE notification_id = ?`, second).Scan(&reason))
+	require.Equal(t, "same-key", reason)
+}
+
+func TestProcess_SaturationGuardRecordsDroppedNotification(t *testing.T) {
+	service, db := testService(t)
+	ctx := context.Background()
+	now := time.Now().UTC()
+	ids := make([]string, 0, hub.EventSaturationLimit+1)
+	for i := 0; i <= hub.EventSaturationLimit; i++ {
+		id := uuid.NewString()
+		created := now.Add(-time.Duration(hub.EventSaturationLimit-i) * 10 * time.Minute).Format(time.RFC3339Nano)
+		_, err := db.ExecContext(ctx, `INSERT INTO notifications (id, requested_by, title, body, urgency, sensitivity_label, idempotency_key, dedupe_key, dedupe_window_seconds, created_at, updated_at) VALUES (?, 'alice', 'Test', 'body', 'normal', 'critical', ?, 'incident.opened.v1:incident-1', 300, ?, ?)`, id, uuid.NewString(), created, created)
+		require.NoError(t, err)
+		_, err = db.ExecContext(ctx, `INSERT INTO notification_events (notification_id, state, reason, created_at) VALUES (?, 'pending', 'test accepted', ?)`, id, created)
+		require.NoError(t, err)
+		ids = append(ids, id)
+	}
+	require.NoError(t, service.Process(ctx, ids[len(ids)-1]))
+	n, _, err := service.Get(ctx, ids[len(ids)-1])
+	require.NoError(t, err)
+	require.Equal(t, "suppressed", n.State)
+	var reason string
+	require.NoError(t, db.QueryRowContext(ctx, `SELECT reason FROM notification_events WHERE notification_id = ? AND state = 'suppressed' ORDER BY id DESC LIMIT 1`, ids[len(ids)-1]).Scan(&reason))
+	require.Contains(t, reason, "saturation cap reached")
+	var recorded string
+	require.NoError(t, db.QueryRowContext(ctx, `SELECT dedupe_key FROM suppressions WHERE notification_id = ?`, ids[len(ids)-1]).Scan(&recorded))
+	require.Equal(t, "incident.opened.v1:incident-1", recorded)
 }
 
 // [REQ:NOTIFICA-P0-013]

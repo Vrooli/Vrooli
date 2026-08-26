@@ -47,6 +47,12 @@ func (h handler) Inspect(host hostreqkit.Host, requirement hostreqspec.ResolvedR
 		status.Notes = append(status.Notes, "autoheal watchdog has no usable native scheduler on "+host.OS)
 		return status
 	}
+	if isMacOS(host.OS) && !guiLaunchdAvailable() {
+		status.SupportClass = hostreqkit.SupportNotApplicable
+		status.ExecutionState = hostreqkit.ExecutionNotApplicable
+		status.Notes = append(status.Notes, "the invoking user's GUI launchd domain is unavailable; this user LaunchAgent is not applicable to the current SSH/headless session")
+		return status
+	}
 	home, err := userHomeFn()
 	if err != nil || strings.TrimSpace(home) == "" {
 		status.ExecutionState = hostreqkit.ExecutionFailed
@@ -156,7 +162,18 @@ func (h handler) Apply(host hostreqkit.Host, status hostreqkit.ItemStatus, opts 
 }
 
 func supported(host hostreqkit.Host) bool {
-	return host.OS == "macos" || host.OS == "windows" || (host.OS == "linux" && host.SupportsSystemd)
+	return isMacOS(host.OS) || host.OS == "windows" || (host.OS == "linux" && host.SupportsSystemd)
+}
+
+func isMacOS(osName string) bool { return osName == "darwin" || osName == "macos" }
+
+func guiLaunchdAvailable() bool {
+	uid := "0"
+	if current, err := user.Current(); err == nil && current.Uid != "" {
+		uid = current.Uid
+	}
+	_, err := commandOutputFn("launchctl", "print", "gui/"+uid)
+	return err == nil
 }
 
 func bootPolicy(config map[string]any) string {
@@ -181,7 +198,7 @@ func loopPath(root, osName string) string {
 func nativeDefinition(osName, root, home string) (string, string, string, error) {
 	name := serviceName
 	path := filepath.Join(home, ".config", "systemd", "user", name)
-	if osName == "macos" {
+	if isMacOS(osName) {
 		name = "com.vrooli.autoheal"
 		path = filepath.Join(home, "Library", "LaunchAgents", name+".plist")
 	}
@@ -189,7 +206,11 @@ func nativeDefinition(osName, root, home string) (string, string, string, error)
 		name = "VrooliAutoheal"
 		path = filepath.Join(os.TempDir(), "vrooli-autoheal.xml")
 	}
-	content, err := platformgo.RenderWatchdogDefinition(osName, platformgo.WatchdogDefinitionOptions{Root: root, Home: home, LoopBinary: loopPath(root, osName), VrooliBinary: filepath.Join(home, ".vrooli", "bin", "vrooli")})
+	renderTarget := osName
+	if isMacOS(osName) {
+		renderTarget = "macos"
+	}
+	content, err := platformgo.RenderWatchdogDefinition(renderTarget, platformgo.WatchdogDefinitionOptions{Root: root, Home: home, LoopBinary: loopPath(root, osName), VrooliBinary: filepath.Join(home, ".vrooli", "bin", "vrooli")})
 	return content, path, name, err
 }
 
@@ -221,7 +242,7 @@ func enableScheduler(osName, name, path string, opts hostreqkit.EnsureOptions) e
 		}
 		return nil
 	}
-	if osName == "macos" {
+	if isMacOS(osName) {
 		uid := "0"
 		if current, err := user.Current(); err == nil && current.Uid != "" {
 			uid = current.Uid

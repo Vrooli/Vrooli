@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 
 	"notification-hub/internal/capabilities"
@@ -111,8 +112,35 @@ func main() {
 	}
 	ownerVerifier := owneridentity.NewClient(owneridentity.Config{Resolver: discovery.NewResolver(discovery.ResolverConfig{})})
 	service.SetEmailSender(hub.NewSMTPSenderFromEnvironment(os.Getenv))
-	service.SetDesktopSender(hub.NewMacOSDesktopSender())
+	service.SetDesktopSender(hub.NewDesktopSender())
+	slog.Info("desktop notification transport selected", "platform", runtime.GOOS)
 	service.SetRemoteDelivery(hub.NewBridgeRemoteFromEnvironment())
+	eventDefaults := integrations.LiveConfig{
+		Pattern:               "incident.**",
+		SensitivityBySeverity: map[string]string{"critical": "critical", "warning": "sensitive", "informational": "public"},
+		Templates: map[string]integrations.EventTemplate{
+			"incident.opened.v1":           {Title: "Incident opened: {{check_id}}", Body: "{{message}}"},
+			"incident.severity_changed.v1": {Title: "Incident severity changed: {{check_id}}", Body: "{{message}}"},
+			"incident.resolved.v1":         {Title: "Incident resolved: {{check_id}}", Body: "{{message}}"},
+		},
+	}
+	if eventsBase, resolveErr := discovery.ResolveScenarioURLDefault(context.Background(), "vrooli-events"); resolveErr == nil {
+		eventDefaults.EventsAPIBase = eventsBase
+	} else {
+		slog.Error("vrooli-events URL could not be resolved", "error", resolveErr)
+	}
+	if apiPort := strings.TrimSpace(os.Getenv("API_PORT")); apiPort != "" {
+		eventDefaults.WebhookURL = "http://127.0.0.1:" + apiPort + "/api/v1/integrations/events"
+	}
+	eventConfig, err := integrations.NewPersistentLiveConfigStore(context.Background(), db, eventDefaults)
+	if err != nil {
+		log.Fatalf("event integration config initialization failed: %v", err)
+	}
+	if err := integrations.EnsureEventSubscription(context.Background(), eventConfig.Get().EventsAPIBase, eventConfig.Get().WebhookURL, eventConfig.Get().Pattern); err != nil {
+		slog.Error("vrooli-events subscription reconciliation failed", "error", err)
+	} else {
+		slog.Info("vrooli-events subscription reconciled", "pattern", eventConfig.Get().Pattern)
+	}
 
 	srv := server.New(
 		server.Deps{Clock: schedule.System(), Logger: log.Default()},
@@ -130,10 +158,12 @@ func main() {
 	// runtime test DB pool without restarting this scenario.
 	rootMux := http.NewServeMux()
 	devrouting.RegisterWithFileRoots(rootMux, db, fileRoots)
-	rootMux.Handle("/api/v1/integrations/events", integrations.EventWebhook(service, os.Getenv("VROOLI_EVENTS_WEBHOOK_SECRET")))
-	if err := integrations.EnsureEventSubscription(context.Background(), os.Getenv("VROOLI_EVENTS_API_BASE"), os.Getenv("VROOLI_NOTIFICATION_EVENTS_WEBHOOK_URL"), os.Getenv("VROOLI_NOTIFICATION_EVENTS_PATTERN")); err != nil {
-		slog.Warn("event subscription reconciliation unavailable", "error", err)
-	}
+	rootMux.Handle("/api/v1/integrations/events", integrations.EventWebhookWithTemplatesAndSensitivity(service, os.Getenv("VROOLI_EVENTS_WEBHOOK_SECRET"), func() map[string]integrations.EventTemplate {
+		return eventConfig.Get().Templates
+	}, func() map[string]string { return eventConfig.Get().SensitivityBySeverity }))
+	rootMux.Handle("/api/v1/config/event-integration", integrations.Handler(eventConfig, func(config integrations.LiveConfig) error {
+		return integrations.EnsureEventSubscription(context.Background(), config.EventsAPIBase, config.WebhookURL, config.Pattern)
+	}))
 
 	rootMux.Handle("/", srv.Handler())
 

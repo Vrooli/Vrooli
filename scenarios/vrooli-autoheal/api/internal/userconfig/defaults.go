@@ -56,7 +56,17 @@ func DefaultConfig() *Config {
 	return &Config{
 		Version:    DefaultVersion,
 		Global:     DefaultGlobal(),
-		Checks:     make(map[string]Check),
+		Checks: map[string]Check{
+			// Host-integrity checks are part of the operator-visible contract.
+			// Keep their explicit toggles in the returned config so the API and
+			// CLI expose the same controls that the registry uses.
+			"host-kernel-module-drift":   {Enabled: boolPtr(true), AutoHeal: boolPtr(false)},
+			"host-device-driver-binding": {Enabled: boolPtr(true), AutoHeal: boolPtr(false)},
+			"host-runtime-integrity":     {Enabled: boolPtr(true), AutoHeal: boolPtr(false)},
+			"host-package-state":         {Enabled: boolPtr(true), AutoHeal: boolPtr(false)},
+			"host-kernel-error-signals":  {Enabled: boolPtr(true), AutoHeal: boolPtr(false)},
+			"host-capability-drift":      {Enabled: boolPtr(true), AutoHeal: boolPtr(false)},
+		},
 		UI:         DefaultUI(),
 		Monitoring: DefaultMonitoring(),
 	}
@@ -262,6 +272,16 @@ var KnownCheckDefaults = map[string]CheckDefaults{
 		AutoHealOn:      "critical",
 		IntervalSeconds: 3600,
 	},
+
+	// Host-integrity checks are intentionally observable by default, but their
+	// mutations remain operator-approved until each remediation action has an
+	// explicit safety contract.
+	"host-kernel-module-drift":   {Enabled: true, AutoHeal: false, AutoHealOn: "critical", IntervalSeconds: 300},
+	"host-device-driver-binding": {Enabled: true, AutoHeal: false, AutoHealOn: "critical", IntervalSeconds: 300},
+	"host-runtime-integrity":     {Enabled: true, AutoHeal: false, AutoHealOn: "critical", IntervalSeconds: 300},
+	"host-package-state":         {Enabled: true, AutoHeal: false, AutoHealOn: "critical", IntervalSeconds: 300},
+	"host-kernel-error-signals":  {Enabled: true, AutoHeal: false, AutoHealOn: "critical", IntervalSeconds: 300},
+	"host-capability-drift":      {Enabled: true, AutoHeal: false, AutoHealOn: "critical", IntervalSeconds: 300},
 
 	// Resource checks - all enabled with auto-heal by default
 	"resource-postgres": {

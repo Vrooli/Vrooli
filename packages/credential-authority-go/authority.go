@@ -1,6 +1,6 @@
 // Package credentialauthority provides the public runtime boundary for
 // scenario consumers of Vrooli's credential authority. The implementation
-// remains in internal/secrets; scenarios do not select a backend or read a
+// remains in internal/credentialauthority; scenarios do not select a backend or read a
 // plaintext file themselves.
 //
 // This is the Go binding. The directory carries a -go suffix because a
@@ -20,8 +20,8 @@ import (
 	"fmt"
 	"path/filepath"
 
+	internalcredentialauthority "github.com/vrooli/vrooli/internal/credentialauthority"
 	"github.com/vrooli/vrooli/internal/resources/securestore"
-	internalcredentialauthority "github.com/vrooli/vrooli/internal/secrets"
 )
 
 type (
@@ -67,6 +67,17 @@ func NewAuthority(store securestore.Store) (*Authority, error) {
 	return &Authority{inner: inner}, nil
 }
 
+// Unavailable returns an authority whose backend reports that this host has no
+// credential store.
+//
+// It exists because that condition cannot be produced on a working machine, and
+// a consumer that cannot exercise it cannot prove it degrades correctly. Reads
+// and writes fail with ErrProviderAbsent; metadata paths that do not need a
+// value, such as reading a recovery receipt, still work.
+func Unavailable(reason string) (*Authority, error) {
+	return NewAuthority(securestore.Absent(reason))
+}
+
 func Default() (*Authority, error) {
 	inner, err := internalcredentialauthority.DefaultAuthority()
 	if err != nil {
@@ -94,6 +105,11 @@ func (a *Authority) Status(identity Identity, field string) Status {
 func (a *Authority) Provider() string { return a.inner.Provider() }
 
 func (a *Authority) Availability() error { return a.inner.Availability() }
+
+// Recheck discards the cached availability verdict. A long-lived scenario
+// process calls it once per request so a store that was unlocked after the
+// process started is observed, rather than requiring a restart.
+func (a *Authority) Recheck() { a.inner.Recheck() }
 
 func (a *Authority) KeyringInspect(path string) (KeyringReport, error) {
 	path, err := firstKeyringPath(path)

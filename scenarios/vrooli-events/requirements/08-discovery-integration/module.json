@@ -1,12 +1,12 @@
 {
   "_metadata": {
-    "last_validated_at": "2026-08-18T18:06:52-04:00"
+    "last_validated_at": "2026-08-25T14:43:36-04:00"
   },
   "requirements": [
     {
       "id": "REQ-DI-001",
       "title": "EmittingResolver decorator",
-      "status": "complete",
+      "status": "in_progress",
       "criticality": "P1",
       "description": "Wraps discovery.Resolver, emits discovery events via fire-and-forget.",
       "children": [
@@ -18,14 +18,14 @@
           "type": "test",
           "ref": "internal/resolver/resolver_test.go",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         }
       ]
     },
     {
       "id": "REQ-DI-001A",
       "title": "Resolver wrapping and delegation",
-      "status": "complete",
+      "status": "in_progress",
       "criticality": "P1",
       "description": "EmittingResolver delegates all resolve calls to inner resolver and captures results",
       "children": [
@@ -36,7 +36,7 @@
           "type": "test",
           "ref": "internal/resolver/resolver_emit_test.go",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         }
       ]
     },
@@ -63,7 +63,7 @@
     {
       "id": "REQ-DI-002",
       "title": "Fire-and-forget event emission",
-      "status": "complete",
+      "status": "in_progress",
       "criticality": "P1",
       "description": "Events sent via 256-capacity buffered channel with batching.",
       "children": [
@@ -75,14 +75,14 @@
           "type": "test",
           "ref": "internal/emitter/emitter_test.go",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         }
       ]
     },
     {
       "id": "REQ-DI-002A",
       "title": "Buffered channel with drop on full",
-      "status": "complete",
+      "status": "in_progress",
       "criticality": "P1",
       "description": "256-capacity channel; events dropped with warning counter if full",
       "children": [
@@ -93,7 +93,7 @@
           "type": "test",
           "ref": "internal/emitter/emitter_retry_test.go",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         }
       ]
     },
@@ -120,7 +120,7 @@
     {
       "id": "REQ-DI-003",
       "title": "Sender-side policy cache",
-      "status": "complete",
+      "status": "in_progress",
       "criticality": "P1",
       "description": "Local policy cache loaded at construction and kept current via SSE.",
       "children": [
@@ -132,14 +132,14 @@
           "type": "test",
           "ref": "internal/resolver/resolver_test.go",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         }
       ]
     },
     {
       "id": "REQ-DI-004",
       "title": "Receiver-side policy middleware",
-      "status": "complete",
+      "status": "in_progress",
       "criticality": "P1",
       "description": "Go middleware evaluating policy on incoming requests.",
       "children": [
@@ -151,14 +151,14 @@
           "type": "test",
           "ref": "internal/middleware/policy_test.go",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         }
       ]
     },
     {
       "id": "REQ-DI-005",
       "title": "Graceful degradation",
-      "status": "complete",
+      "status": "in_progress",
       "criticality": "P1",
       "description": "Empty cache fail-open when vrooli-events unreachable.",
       "children": [
@@ -170,14 +170,14 @@
           "type": "test",
           "ref": "internal/middleware/policy_test.go",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         }
       ]
     },
     {
       "id": "REQ-DI-005A",
       "title": "Empty cache fail-open initialization",
-      "status": "complete",
+      "status": "in_progress",
       "criticality": "P1",
       "description": "Resolver starts with empty policy cache in fail-open mode when unreachable",
       "children": [
@@ -188,7 +188,7 @@
           "type": "test",
           "ref": "internal/fallback/fallback_test.go",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         }
       ]
     },
@@ -215,7 +215,7 @@
     {
       "id": "REQ-DI-006",
       "title": "X-Source-Scenario header injection",
-      "status": "complete",
+      "status": "in_progress",
       "criticality": "P1",
       "description": "Adds X-Source-Scenario header to all outgoing HTTP requests.",
       "children": [
@@ -227,14 +227,14 @@
           "type": "test",
           "ref": "internal/headers/headers_test.go",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         }
       ]
     },
     {
       "id": "REQ-DI-007",
       "title": "Zero-dependency fallback",
-      "status": "complete",
+      "status": "in_progress",
       "criticality": "P1",
       "description": "Existing discovery.Resolver works unchanged without vrooli-events.",
       "children": [
@@ -246,7 +246,7 @@
           "type": "test",
           "ref": "internal/fallback/fallback_test.go",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         }
       ]
     },

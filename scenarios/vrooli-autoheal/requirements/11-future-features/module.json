@@ -1,12 +1,12 @@
 {
   "_metadata": {
-    "last_validated_at": "2026-08-24T02:30:59-04:00"
+    "last_validated_at": "2026-08-25T17:59:35-04:00"
   },
   "requirements": [
     {
       "id": "FUTURE-CERT-001",
       "title": "Certificate expiration monitoring",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P2-001",
       "criticality": "P2",
       "description": "Check SSL certificates and warn before expiration",
@@ -15,7 +15,7 @@
           "type": "test",
           "ref": "api/internal/checks/infra/certificate_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Covered by Go certificate-check tests (api/internal/checks/infra)"
         }
       ]
@@ -23,7 +23,7 @@
     {
       "id": "FUTURE-DISPLAY-001",
       "title": "Display manager health",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P2-002",
       "criticality": "P2",
       "description": "Monitor GDM/lightdm/sddm for Linux desktop systems",
@@ -32,7 +32,7 @@
           "type": "test",
           "ref": "api/internal/checks/infra/display_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Covered by Go display-manager-check tests (api/internal/checks/infra)"
         }
       ]

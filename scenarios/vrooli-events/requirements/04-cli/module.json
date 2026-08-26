@@ -1,12 +1,12 @@
 {
   "_metadata": {
-    "last_validated_at": "2026-08-18T18:06:52-04:00"
+    "last_validated_at": "2026-08-25T14:43:36-04:00"
   },
   "requirements": [
     {
       "id": "REQ-CLI-001",
       "title": "ScenarioApp integration",
-      "status": "complete",
+      "status": "in_progress",
       "criticality": "P1",
       "description": "CLI built on cli-core ScenarioApp with auto-config, API client, and consistent UX",
       "children": [
@@ -18,7 +18,7 @@
           "type": "test",
           "ref": "cli/app_test.go",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         }
       ]
     },
@@ -55,7 +55,7 @@
     {
       "id": "REQ-CLI-002",
       "title": "Query command",
-      "status": "complete",
+      "status": "in_progress",
       "criticality": "P1",
       "description": "vrooli-events query with --type, --source, --correlation-id, --since, --limit, --json flags",
       "children": [
@@ -67,14 +67,14 @@
           "type": "test",
           "ref": "cli/app_test.go",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         }
       ]
     },
     {
       "id": "REQ-CLI-003",
       "title": "Subscribe command",
-      "status": "complete",
+      "status": "in_progress",
       "criticality": "P1",
       "description": "vrooli-events subscribe with --type, --source, --target, --json flags",
       "children": [
@@ -86,14 +86,14 @@
           "type": "test",
           "ref": "cli/cmd_subscribe_test.go",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         }
       ]
     },
     {
       "id": "REQ-CLI-004",
       "title": "Stats command",
-      "status": "complete",
+      "status": "in_progress",
       "criticality": "P1",
       "description": "vrooli-events stats shows store health, subscriber count, event count, size",
       "children": [
@@ -105,14 +105,14 @@
           "type": "test",
           "ref": "cli/app_test.go",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         }
       ]
     },
     {
       "id": "REQ-CLI-005",
       "title": "Ingest command",
-      "status": "complete",
+      "status": "in_progress",
       "criticality": "P1",
       "description": "vrooli-events ingest with --event-id, --type, --source, --target, --correlation-id, --payload, --json flags",
       "children": [
@@ -124,7 +124,7 @@
           "type": "test",
           "ref": "cli/app_test.go",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         }
       ]
     },

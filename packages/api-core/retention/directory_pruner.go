@@ -12,10 +12,48 @@ import (
 	"time"
 )
 
+func normalizeProtectedRoots(roots []string) ([]string, error) {
+	out := make([]string, 0, len(roots))
+	for _, root := range roots {
+		if root == "" {
+			continue
+		}
+		if !filepath.IsAbs(root) {
+			return nil, fmt.Errorf("protected root %q must be absolute", root)
+		}
+		out = append(out, filepath.Clean(root))
+	}
+	return out, nil
+}
+
+// protectedPathOverlap reports whether removing candidate would remove a
+// protected root, or whether candidate is itself below one. The ancestor case
+// matters because a broad retention root such as ~/.vrooli would otherwise
+// remove its protected ~/.vrooli/bin child as one top-level entry.
+func protectedPathOverlap(candidate string, protectedRoots []string) bool {
+	candidate = filepath.Clean(candidate)
+	for _, root := range protectedRoots {
+		root = filepath.Clean(root)
+		if candidate == root || pathContains(root, candidate) || pathContains(candidate, root) {
+			return true
+		}
+	}
+	return false
+}
+
+func pathContains(parent, child string) bool {
+	rel, err := filepath.Rel(parent, child)
+	return err == nil && rel != "." && rel != ".." && len(rel) >= 3 && rel[:3] != ".."+string(filepath.Separator)
+}
+
 // DirectoryConfig configures the builtin pruner for a directory target.
 type DirectoryConfig struct {
 	// Path is the absolute directory the budget bounds. Required.
 	Path string
+	// ProtectedRoots are absolute paths that this pruner must never remove or
+	// remove through. A configured root, or any child/ancestor overlap with a
+	// protected root, is refused at the deletion boundary.
+	ProtectedRoots []string
 	// Now supplies the current time. Defaults to time.Now.
 	Now func() time.Time
 	// Logger receives cycle detail. Defaults to slog.Default.
@@ -29,7 +67,8 @@ type DirectoryConfig struct {
 // missing one: the caller can tell that a snapshot directory is gone, but cannot
 // tell that one is intact.
 type DirectoryPruner struct {
-	cfg DirectoryConfig
+	cfg            DirectoryConfig
+	protectedRoots []string
 }
 
 // NewDirectoryPruner validates cfg and returns the pruner.
@@ -40,13 +79,18 @@ func NewDirectoryPruner(cfg DirectoryConfig) (*DirectoryPruner, error) {
 	if !filepath.IsAbs(cfg.Path) {
 		return nil, fmt.Errorf("directory pruner: Path %q must be absolute; resolve it through api-core/storage first", cfg.Path)
 	}
+	protectedRoots, err := normalizeProtectedRoots(cfg.ProtectedRoots)
+	if err != nil {
+		return nil, fmt.Errorf("directory pruner: %w", err)
+	}
 	if cfg.Now == nil {
 		cfg.Now = time.Now
 	}
 	if cfg.Logger == nil {
 		cfg.Logger = slog.Default()
 	}
-	return &DirectoryPruner{cfg: cfg}, nil
+	cfg.Path = filepath.Clean(cfg.Path)
+	return &DirectoryPruner{cfg: cfg, protectedRoots: protectedRoots}, nil
 }
 
 // entry is one top-level directory member with the two facts pruning needs.
@@ -184,9 +228,14 @@ func (p *DirectoryPruner) Prune(ctx context.Context, b Budget) (Result, error) {
 			break
 		}
 
-		if err := os.RemoveAll(filepath.Join(p.cfg.Path, e.name)); err != nil {
+		candidate := filepath.Join(p.cfg.Path, e.name)
+		if protectedPathOverlap(candidate, p.protectedRoots) {
 			result.After = Usage{Bytes: remainingBytes, Items: before.Items - result.Deleted}
-			return result, fmt.Errorf("remove %s: %w", filepath.Join(p.cfg.Path, e.name), err)
+			return result, fmt.Errorf("refusing to remove protected path %s", candidate)
+		}
+		if err := os.RemoveAll(candidate); err != nil {
+			result.After = Usage{Bytes: remainingBytes, Items: before.Items - result.Deleted}
+			return result, fmt.Errorf("remove %s: %w", candidate, err)
 		}
 		remainingBytes -= e.bytes
 		result.Deleted++

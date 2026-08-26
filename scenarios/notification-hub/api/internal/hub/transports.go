@@ -6,7 +6,9 @@ import (
 	"fmt"
 	"net"
 	"net/smtp"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"runtime"
 	"strconv"
 	"strings"
@@ -35,11 +37,11 @@ func (unavailableEmail) Available() (bool, string) {
 type unavailableDesktop struct{}
 
 func (unavailableDesktop) Send(context.Context, string, string, string, string) (string, error) {
-	return "", errors.New("macOS desktop sender is unavailable")
+	return "", errors.New("desktop sender is unavailable")
 }
 
 func (unavailableDesktop) Available(string) (bool, string) {
-	return false, "macOS desktop delivery is available only on a paired macOS host"
+	return false, "desktop delivery is unavailable on this host"
 }
 
 type SMTPSender struct {
@@ -155,7 +157,91 @@ end run`
 	return address, nil
 }
 
+// LinuxDesktopSender integrates with the host desktop notification daemon.
+// notify-send is intentionally treated as an optional local capability: a
+// headless host must report unavailable instead of advertising a channel that
+// cannot deliver.
+type LinuxDesktopSender struct {
+	Command  string
+	Env      func(string) string
+	LookPath func(string) (string, error)
+}
+
+func NewLinuxDesktopSender() DesktopSender {
+	if runtime.GOOS != "linux" {
+		return unavailableDesktop{}
+	}
+	return LinuxDesktopSender{Command: "notify-send", Env: os.Getenv, LookPath: exec.LookPath}
+}
+
+func (s LinuxDesktopSender) Available(channel string) (bool, string) {
+	if runtime.GOOS != "linux" {
+		return false, "Linux desktop delivery requires a Linux host"
+	}
+	if channel != "linux_notification" {
+		return false, "unsupported Linux channel"
+	}
+	env := s.Env
+	if env == nil {
+		env = os.Getenv
+	}
+	if strings.TrimSpace(env("DISPLAY")) == "" && strings.TrimSpace(env("WAYLAND_DISPLAY")) == "" {
+		return false, "no DISPLAY or WAYLAND_DISPLAY is available"
+	}
+	bus := strings.TrimSpace(env("DBUS_SESSION_BUS_ADDRESS"))
+	if bus == "" {
+		runtimeDir := strings.TrimSpace(env("XDG_RUNTIME_DIR"))
+		if runtimeDir != "" {
+			if _, err := os.Stat(filepath.Join(runtimeDir, "bus")); err == nil {
+				bus = "unix:path=" + filepath.Join(runtimeDir, "bus")
+			}
+		}
+	}
+	if bus == "" {
+		return false, "no D-Bus session bus is available"
+	}
+	lookPath := s.LookPath
+	if lookPath == nil {
+		lookPath = exec.LookPath
+	}
+	if _, err := lookPath(s.Command); err != nil {
+		return false, "notify-send is not installed"
+	}
+	return true, "Linux desktop notification adapter available"
+}
+
+func (s LinuxDesktopSender) Send(ctx context.Context, channel, address, title, body string) (string, error) {
+	ready, reason := s.Available(channel)
+	if !ready {
+		return "", errors.New(reason)
+	}
+	cmd := exec.CommandContext(ctx, s.Command, title, body)
+	if output, err := cmd.CombinedOutput(); err != nil {
+		return "", fmt.Errorf("%s: %w", strings.TrimSpace(string(output)), err)
+	}
+	if strings.TrimSpace(address) == "" {
+		return "local", nil
+	}
+	return address, nil
+}
+
+// NewDesktopSender selects only the adapter supported by the running host.
+// This keeps capability discovery truthful on Linux, macOS, and headless
+// environments without exposing macOS channels from a Linux process.
+func NewDesktopSender() DesktopSender {
+	switch runtime.GOOS {
+	case "darwin":
+		return NewMacOSDesktopSender()
+	case "linux":
+		return NewLinuxDesktopSender()
+	default:
+		return unavailableDesktop{}
+	}
+}
+
 var (
 	_ EmailSender   = unavailableEmail{}
 	_ DesktopSender = unavailableDesktop{}
+	_ DesktopSender = LinuxDesktopSender{}
+	_ DesktopSender = MacOSDesktopSender{}
 )

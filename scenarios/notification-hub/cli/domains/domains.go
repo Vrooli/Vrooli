@@ -4,6 +4,7 @@ import (
 	"notification-hub/cli/domains/channels"
 	"notification-hub/cli/domains/conversations"
 	"notification-hub/cli/domains/delivery"
+	"notification-hub/cli/domains/integrations"
 	"notification-hub/cli/domains/notifications"
 	"notification-hub/cli/domains/recipients"
 
@@ -60,5 +61,5 @@ func SubcommandGroups(core *cliapp.ScenarioApp, manifest []byte) ([]cliapp.Subco
 	if err != nil {
 		return nil, err
 	}
-	return []cliapp.SubcommandGroup{group, channelsGroup, deliveryGroup, conversationsGroup, recipientsGroup}, nil
+	return []cliapp.SubcommandGroup{group, channelsGroup, deliveryGroup, conversationsGroup, recipientsGroup, integrations.Register(core)}, nil
 }

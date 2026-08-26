@@ -72,11 +72,42 @@ func (c *inProcessClient) Delete(_ context.Context, identity, field string) erro
 	return c.authority.Delete(parsed, field)
 }
 
+// List returns the whole declared population for the configured root.
+//
+// Manifest descriptors are read first because they carry what a recovery entry
+// cannot: the owner label, the operator-facing label, and the required flag.
+// The control-plane inventory then contributes the live managed instances that
+// no manifest declares — the release-authority key, device-control entries,
+// Vault unseal keys, Kopia repository passphrases — as metadata-only refs, so
+// the population stays whole without inventing an owner for them.
 func (c *inProcessClient) List(_ context.Context) ([]CredentialRef, error) {
-	if c.descriptors == nil {
-		return []CredentialRef{}, nil
+	if strings.TrimSpace(c.root) == "" {
+		if c.descriptors == nil {
+			return []CredentialRef{}, nil
+		}
+		return c.descriptors()
 	}
-	return c.descriptors()
+	refs, err := DescriptorsForScope(c.root, Scope{IncludeProject: true})
+	if err != nil {
+		return nil, err
+	}
+	collected, err := credentialinventory.Collect(c.root)
+	if err != nil {
+		return nil, err
+	}
+	seen := make(map[string]struct{}, len(refs))
+	for _, ref := range refs {
+		seen[ref.LogicalID+":"+ref.Field] = struct{}{}
+	}
+	for _, entry := range collected.Declared {
+		key := string(entry.Identity) + ":" + entry.Field
+		if _, found := seen[key]; found {
+			continue
+		}
+		seen[key] = struct{}{}
+		refs = append(refs, CredentialRef{LogicalID: string(entry.Identity), Field: entry.Field, Required: true})
+	}
+	return refs, nil
 }
 
 // Inventory returns the control-plane inventory when a repository root is
@@ -94,34 +125,22 @@ func (c *inProcessClient) Inventory(ctx context.Context) (InventoryResponse, err
 		InventoryBasis:           "distinct_addresses",
 		ManagedInstancesIncluded: false,
 		Uncovered:                []string{},
+		RequiredAbsent:           []string{},
 	}
 	if strings.TrimSpace(c.root) == "" {
 		return response, nil
 	}
+	// List has already merged the managed instances into the population; the
+	// inventory result is read again here only for the counting basis and the
+	// required-absent classification, which are Collect's own answers.
 	collected, collectErr := credentialinventory.Collect(c.root)
 	if collectErr != nil {
 		return response, collectErr
 	}
 	response.DeclarationSiteCount = collected.DeclarationSiteCount
 	response.ManagedInstancesIncluded = collected.ManagedInstancesIncluded
-	response.InventoryBasis = "distinct_addresses"
-	// Collect includes dynamic managed-instance addresses that cannot appear
-	// in a repository manifest. Add those metadata-only refs to the shared
-	// response without resolving or exposing their values.
-	byAddress := make(map[string]struct{}, len(response.Credentials))
-	for _, ref := range response.Credentials {
-		byAddress[ref.LogicalID+":"+ref.Field] = struct{}{}
-	}
-	for _, entry := range collected.Declared {
-		key := string(entry.Identity) + ":" + entry.Field
-		if _, found := byAddress[key]; found {
-			continue
-		}
-		response.Credentials = append(response.Credentials, CredentialRef{LogicalID: string(entry.Identity), Field: entry.Field, Required: true})
-		byAddress[key] = struct{}{}
-	}
-	response.CredentialCount = distinctCredentialCount(response.Credentials)
-	response.Uncovered = append(response.Uncovered, collected.RequiredAbsent...)
+	response.InventoryBasis = collected.Basis
+	response.RequiredAbsent = append(response.RequiredAbsent, collected.RequiredAbsent...)
 	return response, nil
 }
 
@@ -138,7 +157,7 @@ func (c *inProcessClient) Doctor(ctx context.Context) (DoctorResponse, error) {
 		DeclarationSiteCount:     inventory.DeclarationSiteCount,
 		InventoryBasis:           inventory.InventoryBasis,
 		ManagedInstancesIncluded: inventory.ManagedInstancesIncluded,
-		Recovery:                 RecoveryStatus{Uncovered: append([]string(nil), inventory.Uncovered...), Basis: inventory.InventoryBasis, ManagedInstancesIncluded: inventory.ManagedInstancesIncluded},
+		Recovery:                 RecoveryStatus{Uncovered: []string{}, RequiredAbsent: append([]string(nil), inventory.RequiredAbsent...), Basis: inventory.InventoryBasis, ManagedInstancesIncluded: inventory.ManagedInstancesIncluded},
 	}
 	response.Provider = ProviderDiagnosis{Platform: diagnosis.Platform, Adapter: diagnosis.Adapter, Backend: diagnosis.Backend, Condition: diagnosis.Condition, Available: diagnosis.Available, Writable: diagnosis.Writable, Explanation: diagnosis.Explanation, Fix: diagnosis.Fix}
 	if c.stateDir != "" {

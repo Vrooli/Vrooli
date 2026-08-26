@@ -167,6 +167,31 @@ OT-P0-015 without changing the stable-origin design.
 **Refs:** `OT-P0-001`, `OT-P0-015`, `docs/concepts/INTEGRATIONS.md`,
 `tunnel-manager config credentials-status --json`.
 
+### 2026-08-25 — This host has no active user desktop session
+
+**Status: OPEN — operator/session action required.**
+
+**Symptom:** The Linux desktop transport is implemented and reports its
+`notify-send`/D-Bus prerequisites, but this host currently has no active
+desktop session for the operator account. A direct `notify-send` probe cannot
+complete, so a real desktop delivery cannot be claimed from this execution.
+
+**Root cause:** The graphical session is at the display-manager boundary; no
+operator-owned DISPLAY/WAYLAND session bus is available to the lifecycle
+process.
+
+**Workaround:** Start or attach the operator's desktop session, then configure
+a `linux_notification` recipient and send a validation notification. A
+headless run remains an explicit unavailable channel, not a successful send.
+
+**Real fix:** Complete the operator-owned Linux desktop acceptance and record
+the notification receipt and channel status.
+
+**Owner:** operator/platform.
+
+**Refs:** `api/internal/hub/transports.go`,
+`docs/concepts/INTEGRATIONS.md`, Definition of Done item 20.
+
 ## Architecture Drift
 
 Use this section for deferred findings from `screaming-architecture-audit`.

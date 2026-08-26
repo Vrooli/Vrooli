@@ -331,7 +331,8 @@ func validRESTReason(r endpoints.RESTReason) bool {
 	case endpoints.RESTReasonMultipartUpload,
 		endpoints.RESTReasonWebhookReceiver,
 		endpoints.RESTReasonThirdPartyShape,
-		endpoints.RESTReasonOpsProbe:
+		endpoints.RESTReasonOpsProbe,
+		endpoints.RESTReasonStreamUpgrade:
 		return true
 	}
 	return false

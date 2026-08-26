@@ -89,6 +89,15 @@ type Catalog struct {
 	Scopes                      []Scope             `json:"scopes"`
 	OmittedResolutions          []OmittedResolution `json:"omitted_resolutions"`
 	ScenariosWithoutManifest    []string            `json:"scenarios_without_manifest,omitempty"`
+	InvalidManifests            []InvalidManifest   `json:"invalid_manifests,omitempty"`
+}
+
+// InvalidManifest records a scenario CLI manifest that was intentionally
+// excluded from a resilient catalog. The path and reason are surfaced so a
+// degraded control plane can remain usable without hiding the defect.
+type InvalidManifest struct {
+	Path   string `json:"path"`
+	Reason string `json:"reason"`
 }
 
 // ProjectManifestIdentity is the stable scope namespace for the root CLI.
@@ -138,11 +147,26 @@ type manifestOmission struct {
 // CLI manifest, deriving their scopes and omitted-RPC defaults. The returned
 // catalog is deterministic.
 func Build(repoRoot string) (Catalog, error) {
+	return build(repoRoot, false)
+}
+
+// BuildResilient derives the catalog while excluding invalid scenario
+// manifests individually. The project manifest and catalog infrastructure
+// still fail closed; only a scenario-local manifest defect is quarantined.
+func BuildResilient(repoRoot string) (Catalog, error) {
+	return build(repoRoot, true)
+}
+
+func build(repoRoot string, resilient bool) (Catalog, error) {
 	scenariosRoot := filepath.Join(repoRoot, "scenarios")
 	paths, err := manifestPaths(repoRoot)
 	if err != nil {
 		return Catalog{}, err
 	}
+	return buildWithManifestPaths(repoRoot, scenariosRoot, paths, resilient)
+}
+
+func buildWithManifestPaths(repoRoot, scenariosRoot string, paths []string, resilient bool) (Catalog, error) {
 	validate, err := manifestValidator(repoRoot)
 	if err != nil {
 		return Catalog{}, err
@@ -150,32 +174,71 @@ func Build(repoRoot string) (Catalog, error) {
 
 	catalog := Catalog{ManifestCount: len(paths)}
 	manifestScenarios := make(map[string]struct{}, len(paths))
+	projectManifest := filepath.Join(repoRoot, "cli", "manifest.json")
+	recordInvalid := func(path string, cause error) {
+		catalog.InvalidManifests = append(catalog.InvalidManifests, InvalidManifest{Path: path, Reason: cause.Error()})
+		// Keep the directory out of ScenariosWithoutManifest: it has a
+		// manifest, but that manifest is quarantined and already reported.
+		if filepath.Clean(path) != filepath.Clean(projectManifest) {
+			scenarioDir := filepath.Base(filepath.Dir(filepath.Dir(path)))
+			if scenarioDir != "" {
+				manifestScenarios[scenarioDir] = struct{}{}
+			}
+		}
+	}
+	quarantine := func(path string, cause error) bool {
+		if !resilient || filepath.Clean(path) == filepath.Clean(projectManifest) {
+			return false
+		}
+		recordInvalid(path, cause)
+		return true
+	}
 	for _, path := range paths {
 		raw, err := os.ReadFile(path)
 		if err != nil {
+			if quarantine(path, fmt.Errorf("read %s: %w", path, err)) {
+				continue
+			}
 			return Catalog{}, fmt.Errorf("read %s: %w", path, err)
 		}
 		var document any
 		if err := json.Unmarshal(raw, &document); err != nil {
+			if quarantine(path, fmt.Errorf("decode %s: %w", path, err)) {
+				continue
+			}
 			return Catalog{}, fmt.Errorf("decode %s: %w", path, err)
 		}
 		if err := validate.Validate(document); err != nil {
+			if quarantine(path, fmt.Errorf("validate %s: %w", path, err)) {
+				continue
+			}
 			return Catalog{}, fmt.Errorf("validate %s: %w", path, err)
 		}
 		var m manifest
 		if err := json.Unmarshal(raw, &m); err != nil {
+			if quarantine(path, fmt.Errorf("decode manifest %s: %w", path, err)) {
+				continue
+			}
 			return Catalog{}, fmt.Errorf("decode manifest %s: %w", path, err)
 		}
 		if strings.TrimSpace(m.Name) == "" {
+			cause := fmt.Errorf("manifest %s has an empty name", path)
+			if quarantine(path, cause) {
+				continue
+			}
 			return Catalog{}, fmt.Errorf("manifest %s has an empty name", path)
 		}
-		if filepath.Clean(path) == filepath.Join(repoRoot, "cli", "manifest.json") {
+		if filepath.Clean(path) == filepath.Clean(projectManifest) {
 			// The root manifest's name is the public project CLI identity. Keep
 			// this explicit instead of inferring it from a filesystem directory,
 			// which prevents a scenario named "vrooli" from colliding with it.
 			m.Name = ProjectManifestIdentity
 		} else {
 			if m.Name == ProjectManifestIdentity {
+				cause := fmt.Errorf("scenario manifest %s collides with project scope identity %q", path, ProjectManifestIdentity)
+				if quarantine(path, cause) {
+					continue
+				}
 				return Catalog{}, fmt.Errorf("scenario manifest %s collides with project scope identity %q", path, ProjectManifestIdentity)
 			}
 			manifestScenarios[m.Name] = struct{}{}
@@ -194,6 +257,9 @@ func Build(repoRoot string) (Catalog, error) {
 	sort.Slice(catalog.OmittedResolutions, func(i, j int) bool {
 		a, b := catalog.OmittedResolutions[i], catalog.OmittedResolutions[j]
 		return omittedKey(a) < omittedKey(b)
+	})
+	sort.Slice(catalog.InvalidManifests, func(i, j int) bool {
+		return catalog.InvalidManifests[i].Path < catalog.InvalidManifests[j].Path
 	})
 	return catalog, nil
 }

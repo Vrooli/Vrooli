@@ -289,6 +289,28 @@ func TestSQLiteStore_IncidentLifecycle(t *testing.T) {
 	}
 }
 
+func TestSQLiteStore_RemediationAuthorisationIsBoundAndSingleUse(t *testing.T) {
+	db := openSQLiteTestDB(t)
+	store := NewStore(db)
+	ctx := context.Background()
+	approvedAt := time.Date(2026, 5, 8, 12, 0, 0, 0, time.UTC)
+	if err := store.RecordRemediationAuthorisation(ctx, "ask-1", "incident-1", "fingerprint-1", "candidate-1", "operator-1", approvedAt); err != nil {
+		t.Fatalf("RecordRemediationAuthorisation() error = %v", err)
+	}
+	claimed, err := store.ClaimRemediationAuthorisation(ctx, "ask-1", "incident-1", "fingerprint-1", "candidate-1", approvedAt.Add(time.Minute))
+	if err != nil || !claimed {
+		t.Fatalf("first claim = %v/%v, want true", claimed, err)
+	}
+	claimed, err = store.ClaimRemediationAuthorisation(ctx, "ask-1", "incident-1", "fingerprint-1", "candidate-1", approvedAt.Add(2*time.Minute))
+	if err != nil || claimed {
+		t.Fatalf("replay claim = %v/%v, want false", claimed, err)
+	}
+	claimed, err = store.ClaimRemediationAuthorisation(ctx, "ask-1", "incident-1", "different-fingerprint", "candidate-1", approvedAt.Add(3*time.Minute))
+	if err != nil || claimed {
+		t.Fatalf("mismatched claim = %v/%v, want false", claimed, err)
+	}
+}
+
 func TestSQLiteStore_RecordsRemediationArtifactAndPreservesAcrossUpsert(t *testing.T) {
 	db := openSQLiteTestDB(t)
 	store := NewStore(db)

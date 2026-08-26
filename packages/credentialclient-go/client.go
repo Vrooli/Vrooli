@@ -1,7 +1,8 @@
-// Package credentialclient is the typed client boundary for credential
-// consumers. It keeps scenario code independent of the bootstrap CLI while
-// allowing the same request to use local authority, desktop IPC, or remote
-// SSH transport.
+// Package credentialclient is the typed client boundary for scenario
+// consumers. Use it when a scenario needs the authoritative inventory,
+// subscriptions, or remote-node transport; control-plane-adjacent Go code
+// should use packages/credential-authority-go for direct in-process access.
+// Neither binding exposes a credential value in metadata responses.
 package credentialclient
 
 import "context"
@@ -12,7 +13,11 @@ type CredentialRef struct {
 	LogicalID string `json:"logical_id"`
 	Field     string `json:"field"`
 	Label     string `json:"label,omitempty"`
-	Required  bool   `json:"required"`
+	// Description is the operator-facing purpose of the credential. It is
+	// carried separately from Label because a credential card must show both
+	// the name and the reason the value is being asked for.
+	Description string `json:"description,omitempty"`
+	Required    bool   `json:"required"`
 }
 
 type CredentialStatus struct {
@@ -53,6 +58,7 @@ type RecoveryStatus struct {
 	ExportedAt               string   `json:"exported_at"`
 	EntryCount               int      `json:"entry_count"`
 	Uncovered                []string `json:"uncovered"`
+	RequiredAbsent           []string `json:"required_absent,omitempty"`
 	Basis                    string   `json:"basis"`
 	ManagedInstancesIncluded bool     `json:"managed_instances_included"`
 }
@@ -77,6 +83,7 @@ type InventoryResponse struct {
 	InventoryBasis           string          `json:"inventory_basis"`
 	ManagedInstancesIncluded bool            `json:"managed_instances_included"`
 	Uncovered                []string        `json:"uncovered"`
+	RequiredAbsent           []string        `json:"required_absent,omitempty"`
 }
 
 // InventoryProvider is implemented by transports that can return the

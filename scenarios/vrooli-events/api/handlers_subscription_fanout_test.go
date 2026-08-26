@@ -3,8 +3,10 @@ package main
 import (
 	"bytes"
 	"context"
+	"io"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -26,15 +28,18 @@ func TestIngest_FansOutDurablyWithSignatureAndHealth(t *testing.T) {
 		signature      string
 		eventID        string
 		idempotencyKey string
+		body           string
 	}
 	observations := make(chan deliveryObservation, 1)
 	var observationOnce sync.Once
 	webhook := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		observationOnce.Do(func() {
+			body, _ := io.ReadAll(r.Body)
 			observations <- deliveryObservation{
 				signature:      r.Header.Get("X-Vrooli-Events-Signature"),
 				eventID:        r.Header.Get("X-Vrooli-Events-Event-ID"),
 				idempotencyKey: r.Header.Get("X-Vrooli-Events-Idempotency-Key"),
+				body:           string(body),
 			}
 		})
 		w.WriteHeader(http.StatusAccepted)
@@ -100,6 +105,9 @@ func TestIngest_FansOutDurablyWithSignatureAndHealth(t *testing.T) {
 	case observation := <-observations:
 		if observation.eventID != env.EventId || observation.idempotencyKey != env.EventId || len(observation.signature) < len("sha256=")+64 {
 			t.Fatalf("missing delivery headers: event=%q idempotency=%q signature=%q", observation.eventID, observation.idempotencyKey, observation.signature)
+		}
+		if !strings.Contains(observation.body, `"kind":"fanout"`) {
+			t.Fatalf("webhook payload did not preserve structured event facts: %s", observation.body)
 		}
 	case <-time.After(3 * time.Second):
 		t.Fatal("runtime subscription dispatcher did not deliver the queued webhook")

@@ -1,12 +1,12 @@
 {
   "_metadata": {
-    "last_validated_at": "2026-08-18T18:06:52-04:00"
+    "last_validated_at": "2026-08-25T14:43:36-04:00"
   },
   "requirements": [
     {
       "id": "REQ-ES-001",
       "title": "SQLite WAL mode storage",
-      "status": "complete",
+      "status": "in_progress",
       "criticality": "P0",
       "description": "Events stored in SQLite with WAL mode, busy_timeout=10000, synchronous=NORMAL",
       "children": [
@@ -18,14 +18,14 @@
           "type": "test",
           "ref": "internal/store/sqlite_test.go",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         }
       ]
     },
     {
       "id": "REQ-ES-001A",
       "title": "WAL mode pragma configuration",
-      "status": "complete",
+      "status": "in_progress",
       "criticality": "P0",
       "description": "SQLite configured with journal_mode=WAL, busy_timeout=10000, synchronous=NORMAL pragmas",
       "children": [
@@ -36,14 +36,14 @@
           "type": "test",
           "ref": "internal/store/sqlite_idempotency_test.go",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         }
       ]
     },
     {
       "id": "REQ-ES-001A1",
       "title": "WAL mode verified at store construction",
-      "status": "complete",
+      "status": "in_progress",
       "criticality": "P0",
       "description": "NewSQLiteStore applies WAL pragmas during construction and verifies they take effect",
       "children": [
@@ -54,14 +54,14 @@
           "type": "test",
           "ref": "internal/store/sqlite_test.go",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         }
       ]
     },
     {
       "id": "REQ-ES-001B",
       "title": "GetSince for replay support",
-      "status": "complete",
+      "status": "in_progress",
       "criticality": "P0",
       "description": "Store provides GetSince(lastID, limit) for SSE replay on reconnection",
       "children": [
@@ -72,14 +72,14 @@
           "type": "test",
           "ref": "internal/store/sqlite_getsince_test.go",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         }
       ]
     },
     {
       "id": "REQ-ES-002",
       "title": "Event schema",
-      "status": "complete",
+      "status": "in_progress",
       "criticality": "P0",
       "description": "Events table with id (autoincrement), event_id (unique), source_scenario, target_scenario, event_type, correlation_id, payload (BLOB), metadata (JSON), created_at. Duplicate event_id returns ErrDuplicateEvent (409 Conflict at API level).",
       "children": [
@@ -91,26 +91,26 @@
           "type": "test",
           "ref": "api/handlers_hardcut_test.go",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         },
         {
           "type": "test",
           "ref": "api/handlers_hardcut_test.go",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         },
         {
           "type": "test",
           "ref": "internal/store/sqlite_idempotency_test.go",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         }
       ]
     },
     {
       "id": "REQ-ES-003",
       "title": "Dual-trigger pruning",
-      "status": "complete",
+      "status": "in_progress",
       "criticality": "P1",
       "description": "Background goroutine at configurable interval deletes events older than retention window or when total size exceeds size cap.",
       "children": [
@@ -122,14 +122,14 @@
           "type": "test",
           "ref": "internal/store/pruner_test.go",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         }
       ]
     },
     {
       "id": "REQ-ES-003A",
       "title": "Time-based retention pruning",
-      "status": "complete",
+      "status": "in_progress",
       "criticality": "P1",
       "description": "Prune events older than configurable retention window (default: 30 days)",
       "children": [
@@ -140,7 +140,7 @@
           "type": "test",
           "ref": "internal/config/config_test.go",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         }
       ]
     },
@@ -167,7 +167,7 @@
     {
       "id": "REQ-ES-004",
       "title": "Configurable retention settings",
-      "status": "complete",
+      "status": "in_progress",
       "criticality": "P1",
       "description": "Retention window, size cap, and prune interval configurable via environment and settings.",
       "children": [
@@ -179,14 +179,14 @@
           "type": "test",
           "ref": "internal/store/sqlite_test.go",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         }
       ]
     },
     {
       "id": "REQ-ES-001A1a",
       "title": "WAL checkpoint verification",
-      "status": "complete",
+      "status": "in_progress",
       "criticality": "P0",
       "description": "Verifies WAL mode pragma took effect via PRAGMA query after construction",
       "validation": [
@@ -194,14 +194,14 @@
           "type": "test",
           "ref": "internal/store/sqlite_test.go",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         }
       ]
     },
     {
       "id": "REQ-ES-001B1",
       "title": "GetSince cursor-based pagination",
-      "status": "complete",
+      "status": "in_progress",
       "criticality": "P0",
       "description": "Pagination uses cursor-based approach with last seen ID for efficient replay",
       "validation": [
@@ -209,14 +209,14 @@
           "type": "test",
           "ref": "internal/store/sqlite_test.go",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         }
       ]
     },
     {
       "id": "REQ-ES-002A",
       "title": "Table schema and indexing",
-      "status": "complete",
+      "status": "in_progress",
       "criticality": "P0",
       "description": "Events table with composite indexes on event_id, source_scenario, event_type, correlation_id",
       "children": [
@@ -227,14 +227,14 @@
           "type": "test",
           "ref": "internal/store/sqlite_test.go",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         }
       ]
     },
     {
       "id": "REQ-ES-002A1",
       "title": "Unique constraint on event_id",
-      "status": "complete",
+      "status": "in_progress",
       "criticality": "P0",
       "description": "UNIQUE constraint on event_id column enables idempotent ingestion with 409 Conflict",
       "validation": [
@@ -242,14 +242,14 @@
           "type": "test",
           "ref": "internal/store/sqlite_test.go",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         }
       ]
     },
     {
       "id": "REQ-ES-002B",
       "title": "Metadata JSON serialization",
-      "status": "complete",
+      "status": "in_progress",
       "criticality": "P0",
       "description": "Metadata stored as JSON text column with structured key-value pairs",
       "validation": [
@@ -257,7 +257,7 @@
           "type": "test",
           "ref": "internal/store/sqlite_test.go",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         }
       ]
     },

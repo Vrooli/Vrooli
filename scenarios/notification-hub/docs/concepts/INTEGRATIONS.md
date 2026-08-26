@@ -24,6 +24,8 @@ Use this document to answer:
 | `vrooli-events` | scenario | no | Event-driven ingress | Inbound subscription webhook to this scenario's receiver | Event ingress unavailable; direct requests unaffected. |
 | `tunnel-manager` | scenario | yes | Push subscription origin | Core-tier public hostname, never auto-expired | No new device can subscribe; existing subscriptions keep working while the origin resolves. |
 | Browser push service | third-party | yes | Web Push adapter | RFC 8030 Web Push with VAPID; payload encrypted under RFC 8291 | Deliveries fail retryably, then terminally with a stated reason. `410 Gone` deletes the subscription. |
+| Linux desktop session | host capability | optional | `linux_notification` sender | `notify-send` through the freedesktop notification interface; requires a graphical display and a reachable D-Bus session bus | The channel reports unavailable with the missing display, session bus, or sender binary. It is never advertised as a macOS-only channel. |
+| macOS desktop session | host capability | optional | `macos_notification` / `imessage` sender | `osascript` through Notification Center or Messages | The channel is selected only on macOS and reports host-specific unavailability before dispatch. |
 
 ## Vrooli Resources
 
@@ -80,6 +82,8 @@ them, so no import-graph edge should be expected as evidence.
 | `vrooli-events` | Webhook receiver never called | Event ingress is silently absent, which is acceptable: direct ingress is the P0 path. | receiver contract tests |
 | `tunnel-manager` | Origin not resolvable | Push reports unavailable with a stated reason. No new subscription can be created. | channel status tests |
 | Browser push service | Non-2xx | Retry with backoff, then terminal failure with an actionable reason (OT-P0-008). `410 Gone` deletes the subscription instead of retrying (OT-P0-014). | Web Push adapter tests |
+| Linux desktop session | No display, D-Bus session, or `notify-send` | `linux_notification` is reported unavailable with a reason before dispatch. | Linux transport availability tests |
+| macOS desktop session | Non-macOS host or missing `osascript` | macOS channels are not selected on Linux and unavailable reasons are exposed before dispatch. | Desktop sender selection tests |
 
 ## Event Subscription Reconciliation
 

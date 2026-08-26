@@ -21,6 +21,9 @@ const (
 	// health observation. It is used when a check's capability does not exist
 	// on the current host (for example, NVIDIA container access on a CPU host).
 	StatusNotApplicable Status = "not-applicable"
+	// StatusUndetermined means the check could not read its source. It is not
+	// a successful observation and remains visible in aggregate readings.
+	StatusUndetermined Status = "undetermined"
 )
 
 // Category groups related health checks for UI organization
@@ -92,6 +95,7 @@ type Summary struct {
 	WarnCount          int       `json:"warningCount"`
 	CritCount          int       `json:"criticalCount"`
 	NotApplicableCount int       `json:"notApplicableCount"`
+	UndeterminedCount  int       `json:"undeterminedCount"`
 	Checks             []Result  `json:"checks"`
 	Timestamp          time.Time `json:"timestamp"`
 }
@@ -99,11 +103,12 @@ type Summary struct {
 // WorstStatus returns the most severe status between two statuses.
 // Severity order: critical > warning > ok
 func WorstStatus(a, b Status) Status {
-	priority := map[Status]int{
-		StatusNotApplicable: -1,
-		StatusOK:            0,
-		StatusWarning:       1,
-		StatusCritical:      2,
+	priority := map[Status]int{StatusNotApplicable: -1, StatusUndetermined: -1, StatusOK: 0, StatusWarning: 1, StatusCritical: 2}
+	if a == StatusUndetermined && priority[b] == 0 {
+		return a
+	}
+	if b == StatusUndetermined && priority[a] == 0 {
+		return b
 	}
 	if priority[a] >= priority[b] {
 		return a
@@ -140,6 +145,8 @@ func ComputeSummary(results []Result) Summary {
 			summary.CritCount++
 		case StatusNotApplicable:
 			summary.NotApplicableCount++
+		case StatusUndetermined:
+			summary.UndeterminedCount++
 		}
 	}
 

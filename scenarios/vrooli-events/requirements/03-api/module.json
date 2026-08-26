@@ -1,12 +1,12 @@
 {
   "_metadata": {
-    "last_validated_at": "2026-08-18T18:06:52-04:00"
+    "last_validated_at": "2026-08-25T14:43:36-04:00"
   },
   "requirements": [
     {
       "id": "REQ-API-001",
       "title": "Event ingestion endpoint",
-      "status": "complete",
+      "status": "in_progress",
       "criticality": "P0",
       "description": "POST /api/v1/events accepts proto-JSON EventEnvelope, validates required fields, returns 202 Accepted.",
       "children": [
@@ -18,14 +18,14 @@
           "type": "test",
           "ref": "api/handlers_hardcut_test.go",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         }
       ]
     },
     {
       "id": "REQ-API-001A",
       "title": "Envelope field validation",
-      "status": "complete",
+      "status": "in_progress",
       "criticality": "P0",
       "description": "Validates required fields (eventId, sourceScenario, eventType) and rejects malformed bodies",
       "children": [
@@ -36,14 +36,14 @@
           "type": "test",
           "ref": "api/handlers_hardcut_test.go",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         }
       ]
     },
     {
       "id": "REQ-API-001A1",
       "title": "Structured error codes for validation failures",
-      "status": "complete",
+      "status": "in_progress",
       "criticality": "P0",
       "description": "Returns machine-readable error codes (missing_field, invalid_body) for client-side error handling",
       "children": [
@@ -54,14 +54,14 @@
           "type": "test",
           "ref": "api/handlers_hardcut_test.go",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         }
       ]
     },
     {
       "id": "REQ-API-001B",
       "title": "Dry-run support",
-      "status": "complete",
+      "status": "in_progress",
       "criticality": "P0",
       "description": "X-Dry-Run header skips persistence and broadcast while running full validation",
       "children": [
@@ -72,14 +72,14 @@
           "type": "test",
           "ref": "api/handlers_hardcut_test.go",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         }
       ]
     },
     {
       "id": "REQ-API-002",
       "title": "Event query endpoint",
-      "status": "complete",
+      "status": "in_progress",
       "criticality": "P0",
       "description": "GET /api/v1/events with query params: type (glob), source, correlation_id, since, limit",
       "children": [
@@ -91,14 +91,14 @@
           "type": "test",
           "ref": "api/handlers_hardcut_test.go",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         }
       ]
     },
     {
       "id": "REQ-API-003",
       "title": "Health endpoint",
-      "status": "complete",
+      "status": "in_progress",
       "criticality": "P0",
       "description": "GET /health returns store stats, subscriber count, status",
       "children": [
@@ -110,14 +110,14 @@
           "type": "test",
           "ref": "api/handlers_health_test.go",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         }
       ]
     },
     {
       "id": "REQ-API-001A1a",
       "title": "Error code to HTTP status mapping",
-      "status": "complete",
+      "status": "in_progress",
       "criticality": "P0",
       "description": "Maps validation error codes to appropriate HTTP status codes (400, 409)",
       "validation": [
@@ -125,14 +125,14 @@
           "type": "test",
           "ref": "api/handlers_hardcut_test.go",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         }
       ]
     },
     {
       "id": "REQ-API-001B1",
       "title": "Dry-run validation response",
-      "status": "complete",
+      "status": "in_progress",
       "criticality": "P0",
       "description": "Returns validation result with would-be event ID without persisting",
       "validation": [
@@ -140,14 +140,14 @@
           "type": "test",
           "ref": "api/handlers_hardcut_test.go",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         }
       ]
     },
     {
       "id": "REQ-API-002A",
       "title": "Query parameter parsing and validation",
-      "status": "complete",
+      "status": "in_progress",
       "criticality": "P0",
       "description": "Parses type, source, correlation_id, since, limit with type coercion and bounds",
       "children": [
@@ -158,14 +158,14 @@
           "type": "test",
           "ref": "api/handlers_hardcut_test.go",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         }
       ]
     },
     {
       "id": "REQ-API-002A1",
       "title": "Glob pattern filter for type parameter",
-      "status": "complete",
+      "status": "in_progress",
       "criticality": "P0",
       "description": "Type parameter supports glob matching against event_type field",
       "validation": [
@@ -173,14 +173,14 @@
           "type": "test",
           "ref": "api/handlers_hardcut_test.go",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         }
       ]
     },
     {
       "id": "REQ-API-002B",
       "title": "Response format and pagination",
-      "status": "complete",
+      "status": "in_progress",
       "criticality": "P0",
       "description": "Returns JSON array with total count header for client-side pagination",
       "validation": [
@@ -188,14 +188,14 @@
           "type": "test",
           "ref": "api/handlers_hardcut_test.go",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         }
       ]
     },
     {
       "id": "REQ-API-003A",
       "title": "Store statistics collection",
-      "status": "complete",
+      "status": "in_progress",
       "criticality": "P0",
       "description": "Collects event count, database size, and oldest event timestamp from store",
       "children": [
@@ -206,14 +206,14 @@
           "type": "test",
           "ref": "api/handlers_hardcut_test.go",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         }
       ]
     },
     {
       "id": "REQ-API-003A1",
       "title": "Size reporting in human-readable format",
-      "status": "complete",
+      "status": "in_progress",
       "criticality": "P0",
       "description": "Database size returned in bytes with human-readable formatted string",
       "validation": [
@@ -221,14 +221,14 @@
           "type": "test",
           "ref": "api/handlers_hardcut_test.go",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         }
       ]
     },
     {
       "id": "REQ-API-003B",
       "title": "Active subscriber count",
-      "status": "complete",
+      "status": "in_progress",
       "criticality": "P0",
       "description": "Reports current SSE subscriber count from broker state",
       "validation": [
@@ -236,7 +236,7 @@
           "type": "test",
           "ref": "api/handlers_hardcut_test.go",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         }
       ]
     }

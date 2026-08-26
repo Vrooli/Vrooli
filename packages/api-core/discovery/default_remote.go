@@ -108,7 +108,7 @@ func defaultCommandScope(command string) (string, bool) {
 	if err != nil {
 		return conservativeCommandScope(command)
 	}
-	catalog, err := scopecatalog.Build(root)
+	catalog, err := scopecatalog.BuildResilient(root)
 	if err != nil {
 		return conservativeCommandScope(command)
 	}

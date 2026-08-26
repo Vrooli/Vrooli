@@ -28,6 +28,36 @@ func (c *inventoryCheck) Category() checks.Category  { return checks.CategorySys
 func (c *inventoryCheck) IntervalSeconds() int       { return 300 }
 func (c *inventoryCheck) Platforms() []platform.Type { return nil }
 
+func (c *inventoryCheck) RecoveryActions(lastResult *checks.Result) []checks.RecoveryAction {
+	available := lastResult != nil && lastResult.Status == checks.StatusCritical
+	return []checks.RecoveryAction{{
+		ID: "review-evidence", Name: "Review host evidence",
+		Description: "Re-run the host inventory check and review its evidence; no host mutation is performed automatically.",
+		Dangerous:   false, Available: available,
+	}}
+}
+
+func (c *inventoryCheck) ExecuteAction(ctx context.Context, actionID string) checks.ActionResult {
+	start := time.Now()
+	result := checks.ActionResult{ActionID: actionID, CheckID: c.id, Timestamp: start.UTC(), Duration: time.Since(start)}
+	if actionID != "review-evidence" {
+		result.Message = "unknown host-integrity action"
+		result.Error = result.Message
+		return result
+	}
+	select {
+	case <-ctx.Done():
+		result.Message = ctx.Err().Error()
+		result.Error = result.Message
+		return result
+	default:
+	}
+	result.Success = true
+	result.Message = "host evidence review requested; no host mutation was performed"
+	result.Duration = time.Since(start)
+	return result
+}
+
 func (c *inventoryCheck) Run(ctx context.Context) checks.Result {
 	start := time.Now()
 	inv, err := c.collector.Collect(ctx)

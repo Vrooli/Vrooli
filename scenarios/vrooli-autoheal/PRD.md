@@ -24,33 +24,33 @@
 
 ### 🔴 P0 – Must ship for viability
 
-- [x] OT-P0-001 | CLI tick command | Single-shot bootstrap + health cycle via `vrooli-autoheal tick`
-- [x] OT-P0-002 | CLI loop command | Long-running mode with configurable interval via `vrooli-autoheal loop`
-- [x] OT-P0-003 | Platform detection | Detect platform (linux/windows/macos/other) and capabilities (supportsRdp, supportsSystemd, etc.)
-- [x] OT-P0-004 | Health check registry | Extensible registry pattern for registering/running health checks with intervals and platform filters
+- [ ] OT-P0-001 | CLI tick command | Single-shot bootstrap + health cycle via `vrooli-autoheal tick`
+- [ ] OT-P0-002 | CLI loop command | Long-running mode with configurable interval via `vrooli-autoheal loop`
+- [ ] OT-P0-003 | Platform detection | Detect platform (linux/windows/macos/other) and capabilities (supportsRdp, supportsSystemd, etc.)
+- [ ] OT-P0-004 | Health check registry | Extensible registry pattern for registering/running health checks with intervals and platform filters
 - [ ] OT-P0-005 | Core bootstrap | Bootstrap DB, core resources, and critical scenarios from cold state
-- [x] OT-P0-006 | Resource health checks | Monitor configured resources (postgres, redis, qdrant, ollama) with auto-restart on failure
-- [x] OT-P0-007 | Scenario health checks | Monitor configured scenarios with auto-restart on failure
-- [x] OT-P0-008 | OS watchdog installer | Idempotently install/verify systemd/launchd/Windows service that keeps autoheal loop running
+- [ ] OT-P0-006 | Resource health checks | Monitor configured resources (postgres, redis, qdrant, ollama) with auto-restart on failure
+- [ ] OT-P0-007 | Scenario health checks | Monitor configured scenarios with auto-restart on failure
+- [ ] OT-P0-008 | OS watchdog installer | Idempotently install/verify systemd/launchd/Windows service that keeps autoheal loop running
 - [ ] OT-P0-009 | Health result persistence | Store health check results with timestamps for status queries and UI display
-- [x] OT-P0-010 | CLI status command | Show last-known health summary via `vrooli-autoheal status`
+- [ ] OT-P0-010 | CLI status command | Show last-known health summary via `vrooli-autoheal status`
 
 ### 🟠 P1 – Should have post-launch
 
-- [x] OT-P1-001 | Infrastructure checks | Network connectivity, DNS resolution, time synchronization checks
-- [x] OT-P1-002 | System resource checks | Disk space, swap usage, zombie processes, port exhaustion monitoring
-- [x] OT-P1-003 | RDP/remote access health | Platform-specific RDP/xrdp/TermService monitoring with auto-restart
-- [x] OT-P1-004 | Docker daemon health | Monitor Docker service and restart if unresponsive
-- [x] OT-P1-005 | Cloudflared tunnel health | Monitor cloudflared service and tunnel connectivity
+- [ ] OT-P1-001 | Infrastructure checks | Network connectivity, DNS resolution, time synchronization checks
+- [ ] OT-P1-002 | System resource checks | Disk space, swap usage, zombie processes, port exhaustion monitoring
+- [ ] OT-P1-003 | RDP/remote access health | Platform-specific RDP/xrdp/TermService monitoring with auto-restart
+- [ ] OT-P1-004 | Docker daemon health | Monitor Docker service and restart if unresponsive
+- [ ] OT-P1-005 | Cloudflared tunnel health | Monitor cloudflared service and tunnel connectivity
 - [ ] OT-P1-006 | Health history window | Store recent health check history (24h) for dashboards and trend analysis
 - [ ] OT-P1-007 | Web UI dashboard | React dashboard showing current health status, recent events, and auto-heal actions
-- [x] OT-P1-008 | Configurable check intervals | Per-check interval configuration with smart scheduling (only run when interval elapsed)
-- [x] OT-P1-009 | Graceful shutdown | Handle SIGINT/SIGTERM cleanly in loop mode
+- [ ] OT-P1-008 | Configurable check intervals | Per-check interval configuration with smart scheduling (only run when interval elapsed)
+- [ ] OT-P1-009 | Graceful shutdown | Handle SIGINT/SIGTERM cleanly in loop mode
 
 ### 🟢 P2 – Future / expansion
 
-- [x] OT-P2-001 | Certificate expiration monitoring | Check SSL certificates and warn before expiration
-- [x] OT-P2-002 | Display manager health | GDM/lightdm/sddm monitoring for Linux desktops
+- [ ] OT-P2-001 | Certificate expiration monitoring | Check SSL certificates and warn before expiration
+- [ ] OT-P2-002 | Display manager health | GDM/lightdm/sddm monitoring for Linux desktops
 - [ ] OT-P2-003 | Webhook notifications | Send alerts to Slack/Discord/email on critical failures
 - [ ] OT-P2-004 | Custom check plugins | Allow external check definitions via config files
 - [ ] OT-P2-005 | AI-powered root cause analysis | Use Ollama to analyze failure patterns and suggest fixes

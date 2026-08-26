@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/vrooli/repo-contract-go/repocontracttest"
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 )
 
@@ -155,7 +156,7 @@ func TestGpuSamplerPopulatesStageAndTopLevel(t *testing.T) {
 
 func TestConcurrentCollectorsBestEffort(t *testing.T) {
 	if runtime.GOOS == "windows" {
-		t.Skip("rusage unavailable on this platform; reliability would be UNAVAILABLE")
+		repocontracttest.SkipPlatform(t, "rusage unavailable on this platform; reliability would be UNAVAILABLE")
 	}
 	a := Start()
 	b := Start() // two collectors active simultaneously
@@ -170,7 +171,7 @@ func TestConcurrentCollectorsBestEffort(t *testing.T) {
 	wg.Wait()
 
 	if !sampleRusage().ok {
-		t.Skip("rusage not sampleable on this platform")
+		repocontracttest.SkipPlatform(t, "rusage not sampleable on this platform")
 	}
 	if ao.GetResources().GetCpu() != commonv1.Reliability_RELIABILITY_BEST_EFFORT &&
 		bo.GetResources().GetCpu() != commonv1.Reliability_RELIABILITY_BEST_EFFORT {

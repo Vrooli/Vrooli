@@ -1,12 +1,12 @@
 {
   "_metadata": {
-    "last_validated_at": "2026-08-24T02:30:59-04:00"
+    "last_validated_at": "2026-08-25T17:59:35-04:00"
   },
   "requirements": [
     {
       "id": "REG-CORE-001",
       "title": "Health check registration",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-004",
       "criticality": "P0",
       "description": "registerCheck(check) adds a health check to the registry",
@@ -15,7 +15,7 @@
           "type": "test",
           "ref": "api/internal/checks/registry_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Covered by Go health-registry tests (api/internal/checks)"
         }
       ]
@@ -23,7 +23,7 @@
     {
       "id": "REG-CORE-002",
       "title": "Platform-filtered check retrieval",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-004",
       "criticality": "P0",
       "description": "getChecksForPlatform(platform) returns only checks valid for the current platform",
@@ -32,7 +32,7 @@
           "type": "test",
           "ref": "api/internal/checks/registry_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Covered by Go health-registry tests (api/internal/checks)"
         }
       ]
@@ -40,7 +40,7 @@
     {
       "id": "REG-CORE-003",
       "title": "Health check interface compliance",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-004",
       "criticality": "P0",
       "description": "All checks implement id, description, intervalSeconds, platforms?, and run() method",
@@ -49,7 +49,7 @@
           "type": "test",
           "ref": "api/internal/checks/registry_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Covered by Go health-registry tests (api/internal/checks)"
         }
       ]
@@ -57,7 +57,7 @@
     {
       "id": "REG-CORE-004",
       "title": "Health result structure",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-004",
       "criticality": "P0",
       "description": "All checks return {status: ok|warning|critical, message, details?}",
@@ -66,7 +66,7 @@
           "type": "test",
           "ref": "api/internal/checks/registry_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Covered by Go health-registry tests (api/internal/checks)"
         }
       ]
@@ -74,7 +74,7 @@
     {
       "id": "REG-INTERVAL-001",
       "title": "Per-check interval tracking",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P1-008",
       "criticality": "P1",
       "description": "Registry tracks last run time per check and only runs when interval elapsed",
@@ -83,7 +83,7 @@
           "type": "test",
           "ref": "api/internal/checks/registry_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Covered by Go health-registry tests (api/internal/checks)"
         }
       ]
@@ -91,7 +91,7 @@
     {
       "id": "REG-INTERVAL-002",
       "title": "Configurable check intervals",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P1-008",
       "criticality": "P1",
       "description": "Each check can specify its own intervalSeconds value",
@@ -100,7 +100,7 @@
           "type": "test",
           "ref": "api/internal/checks/registry_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Covered by Go health-registry tests (api/internal/checks)"
         }
       ]
