@@ -4,10 +4,11 @@ import (
 	"context"
 	"testing"
 
+	"web-console/internal/audioports"
+
 	"connectrpc.com/connect"
 	audioadminv1 "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/audio_admin"
 	"google.golang.org/protobuf/types/known/fieldmaskpb"
-	"web-console/internal/audioports"
 )
 
 type fakeAdminPorts struct{}
@@ -15,30 +16,39 @@ type fakeAdminPorts struct{}
 func (fakeAdminPorts) GetStreamConfig(context.Context) (audioports.StreamConfig, error) {
 	return audioports.StreamConfig{FlushIntervalMs: 1}, nil
 }
+
 func (fakeAdminPorts) UpdateStreamConfig(context.Context, audioports.FieldMask, audioports.StreamConfig) (audioports.StreamConfig, error) {
 	return audioports.StreamConfig{FlushIntervalMs: 2}, nil
 }
+
 func (fakeAdminPorts) GetWakeWordConfig(context.Context) (audioports.WakeWordConfig, error) {
 	return audioports.WakeWordConfig{Configured: true}, nil
 }
+
 func (fakeAdminPorts) UpdateWakeWordTemplate(context.Context, audioports.WakeWordTemplate) (audioports.WakeWordConfig, error) {
 	return audioports.WakeWordConfig{Configured: true}, nil
 }
+
 func (fakeAdminPorts) DeleteWakeWordTemplate(context.Context) (audioports.WakeWordConfig, error) {
 	return audioports.WakeWordConfig{}, nil
 }
+
 func (fakeAdminPorts) GetTTSConfig(context.Context) (audioports.TTSConfig, error) {
 	return audioports.TTSConfig{AutoEnabled: true}, nil
 }
+
 func (fakeAdminPorts) UpdateTTSConfig(context.Context, audioports.FieldMask, audioports.TTSConfig) (audioports.TTSConfig, error) {
 	return audioports.TTSConfig{AutoEnabled: true}, nil
 }
+
 func (fakeAdminPorts) GetSummarizeConfig(context.Context) (audioports.SummarizeConfig, error) {
 	return audioports.SummarizeConfig{Enabled: true}, nil
 }
+
 func (fakeAdminPorts) UpdateSummarizeConfig(context.Context, audioports.FieldMask, audioports.SummarizeConfig) (audioports.SummarizeConfig, error) {
 	return audioports.SummarizeConfig{Enabled: true}, nil
 }
+
 func (fakeAdminPorts) ListSummarizeModels(context.Context) ([]audioports.SummarizeModel, error) {
 	return []audioports.SummarizeModel{{ID: "m"}}, nil
 }
@@ -77,6 +87,27 @@ func TestConnectHandlerAdminConfigOperations(t *testing.T) {
 	}
 	if r, err := h.ListSummarizeModels(ctx, connect.NewRequest(&audioadminv1.ListSummarizeModelsRequest{})); err != nil || len(r.Msg.Models) != 1 {
 		t.Fatal(err)
+	}
+}
+
+func TestConnectHandlerSpeakerProfileOperations(t *testing.T) {
+	f := &fakeSpeakerAdmin{
+		cfg:      audioports.SpeakerConfig{Enabled: true},
+		profiles: []audioports.SpeakerProfile{{ID: "p1", DisplayName: "Primary"}},
+	}
+	h := NewConnectHandler(Deps{Speaker: f})
+	ctx := context.Background()
+	if r, err := h.ListSpeakerProfiles(ctx, connect.NewRequest(&audioadminv1.ListSpeakerProfilesRequest{})); err != nil || len(r.Msg.Profiles) != 1 {
+		t.Fatal(err)
+	}
+	if _, err := h.ClearSpeakerProfileBinding(ctx, connect.NewRequest(&audioadminv1.ClearSpeakerProfileBindingRequest{})); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := h.DeleteSpeakerProfile(ctx, connect.NewRequest(&audioadminv1.DeleteSpeakerProfileRequest{ProfileId: "p1"})); err != nil {
+		t.Fatal(err)
+	}
+	if f.lastDeleteID != "p1" {
+		t.Fatalf("delete id=%q", f.lastDeleteID)
 	}
 }
 

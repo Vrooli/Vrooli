@@ -1,10 +1,11 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as api from "../api/conversation";
+import type { ConversationEvent } from "../api/conversation";
 import { useConversationStore } from "../stores/useConversationStore";
 import { loadConversationPageContaining, loadOlderConversationPage, refreshConversationSession, useConversationSession } from "./useConversationSession";
 
-const event = { id: "e1", sessionId: "s", source: "agent", role: "assistant", text: "hello", speechParagraphs: ["hello"], summarized: false, createdAt: "now", deliveryState: "received", ttsState: "idle", consumptionState: "new", sequence: 1 } as const;
+const event: ConversationEvent = { id: "e1", sessionId: "s", source: "agent", role: "assistant", text: "hello", speechParagraphs: ["hello"], summarized: false, createdAt: "now", deliveryState: "received", ttsState: "idle", consumptionState: "new", sequence: 1 };
 const page = { sessionId: "s", events: [event], cursor: { lastSeenSequence: 1, lastListenedSequence: 0 }, hasMore: true, oldestSequence: 1, totalCount: 1 };
 
 describe("conversation session orchestration", () => {
@@ -37,5 +38,20 @@ describe("conversation session orchestration", () => {
     await waitFor(() => expect(useConversationStore.getState().sessions.s).toBeDefined());
     expect(useConversationStore.getState().sessions.s?.events).toEqual([]);
     unmount();
+  });
+
+  it("handles bounded-page guards, duplicate events, and optimistic cursor failures", async () => {
+    expect(await loadConversationPageContaining("s", 0)).toBe(false);
+    expect(await loadOlderConversationPage("missing")).toBe(false);
+    useConversationStore.getState().hydrateSession("s", [event], page.cursor, { oldestSequence: 1, hasOlder: true, totalCount: 1 });
+    vi.spyOn(api, "getConversationSession").mockResolvedValue({ ...page, events: [{ ...event }], hasMore: false } as never);
+    expect(await loadOlderConversationPage("s")).toBe(false);
+    expect(await loadConversationPageContaining("s", 5)).toBe(false);
+    vi.spyOn(api, "getConversationSession").mockRejectedValue(new Error("offline"));
+    expect(await loadOlderConversationPage("s")).toBe(false);
+    const update = vi.spyOn(api, "updateConversationCursor").mockRejectedValue(new Error("offline"));
+    const { result } = renderHook(() => useConversationSession("s", { hydrate: false }));
+    await act(async () => { await result.current.persistCursor({ lastListenedSequence: 3 }); });
+    expect(update).toHaveBeenCalledWith("s", { lastListenedSequence: 3 });
   });
 });

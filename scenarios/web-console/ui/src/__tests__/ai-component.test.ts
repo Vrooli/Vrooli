@@ -1,6 +1,7 @@
+import { renderWithProviders as render } from "../test-utils";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { createElement } from "react";
-import { render, screen, fireEvent, act, cleanup } from "@testing-library/react";
+import { screen, fireEvent, act, cleanup } from "@testing-library/react";
 import { apiBaseMock } from "../test-utils";
 import type { AIGenerateResponse } from "../api/ai";
 

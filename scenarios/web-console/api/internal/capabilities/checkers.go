@@ -4,13 +4,108 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"net/url"
 	"os/exec"
+	"strings"
 	"time"
 )
 
 type ResourceChecker struct {
 	URL    string
 	Client *http.Client
+}
+
+// StaticChecker adapts a host probe to the capability registry without
+// duplicating the registry's status vocabulary in a handler.
+type StaticChecker struct {
+	Available func() (bool, string)
+}
+
+func (c *StaticChecker) Check(context.Context) (Status, string) {
+	if c == nil || c.Available == nil {
+		return StatusUnavailable, "host capability probe is not configured"
+	}
+	ok, reason := c.Available()
+	if ok {
+		return StatusAvailable, "available"
+	}
+	return StatusUnavailable, reason
+}
+
+// BridgeChecker probes the Bridge control plane without exposing its owner
+// credentials to the browser. Configuration failures are typed so the
+// capability surface can explain the recovery path instead of collapsing all
+// remote-terminal failures into a generic unavailable state.
+type BridgeChecker struct {
+	BaseURL     string
+	OwnerToken  string
+	ReauthToken string
+	Client      *http.Client
+	Probe       bool
+}
+
+func (c *BridgeChecker) Check(ctx context.Context) (Status, string) {
+	result := c.CheckResult(ctx)
+	return result.Status, result.Message
+}
+
+func (c *BridgeChecker) CheckResult(ctx context.Context) CheckResult {
+	start := CheckResult{
+		Status:          StatusUnavailable,
+		ActionKind:      ActionKindScenarioStart,
+		ActionLabel:     "Start Bridge",
+		OperatorCommand: "vrooli scenario start vrooli-bridge --json",
+	}
+	base := strings.TrimRight(strings.TrimSpace(c.BaseURL), "/")
+	if base == "" {
+		start.Message = "Bridge URL is not configured"
+		start.ReasonCode = "bridge_url_missing"
+		return start
+	}
+	u, err := url.Parse(base)
+	if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" {
+		start.Message = "Bridge URL is invalid"
+		start.ReasonCode = "bridge_url_invalid"
+		return start
+	}
+	if strings.TrimSpace(c.OwnerToken) == "" || (strings.TrimSpace(c.ReauthToken) == "" && !strings.HasPrefix(strings.TrimSpace(c.OwnerToken), "LocalSession ")) {
+		start.Message = "Bridge credentials are not configured"
+		start.ReasonCode = "bridge_credentials_missing"
+		return start
+	}
+	if !c.Probe {
+		return CheckResult{Status: StatusAvailable, Message: "Bridge is configured"}
+	}
+
+	client := c.Client
+	if client == nil {
+		client = &http.Client{Timeout: 3 * time.Second}
+	}
+	probeCtx, cancel := context.WithTimeout(ctx, 3*time.Second)
+	defer cancel()
+	req, err := http.NewRequestWithContext(probeCtx, http.MethodGet, base+"/health", nil)
+	if err != nil {
+		start.Message = "Bridge health request could not be created"
+		start.ReasonCode = "bridge_unreachable"
+		return start
+	}
+	req.Header.Set("Authorization", c.OwnerToken)
+	if strings.TrimSpace(c.ReauthToken) != "" {
+		req.Header.Set("X-Bridge-Owner-Reauth", c.ReauthToken)
+	}
+	resp, err := client.Do(req)
+	if err != nil {
+		start.Message = "Bridge registry is unreachable"
+		start.ReasonCode = "bridge_unreachable"
+		return start
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
+		start.Message = "Bridge registry is unreachable"
+		start.ReasonCode = "bridge_unreachable"
+		return start
+	}
+	return CheckResult{Status: StatusAvailable, Message: "Bridge is reachable and ready"}
 }
 
 func (c *ResourceChecker) Check(ctx context.Context) (Status, string) {

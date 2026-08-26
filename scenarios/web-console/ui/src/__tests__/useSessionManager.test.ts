@@ -119,6 +119,64 @@ describe("useSessionManager", () => {
     expect(result.current.isHydrated).toBe(true);
   });
 
+  it("does not publish hydration results after the hook unmounts", async () => {
+    let resolveList: (value: SessionInfo[]) => void = () => {};
+    mockListSessions.mockImplementationOnce(() => new Promise<SessionInfo[]>((resolve) => { resolveList = resolve; }));
+    const { result, unmount } = renderHook(() => useSessionManager());
+
+    unmount();
+    await act(async () => {
+      resolveList([extSession("late")]);
+      await Promise.resolve();
+    });
+
+    expect(result.current.isHydrated).toBe(false);
+  });
+
+  it("falls back to session-derived pane metadata when layout is unavailable", async () => {
+    const api = await import("../api/workspace");
+    const mockGetWorkspaceLayout = api.getWorkspaceLayout as ReturnType<typeof vi.fn>;
+    mockGetWorkspaceLayout.mockResolvedValueOnce(null);
+    mockListSessions.mockResolvedValueOnce([extSession("fallback", { shell: "/bin/zsh" })]);
+    useWorkspaceStore.setState({ panes: [], activePane: null });
+
+    const { result } = renderHook(() => useSessionManager());
+    await flushHydration();
+
+    expect(result.current.panes[0]?.session.id).toBe("fallback");
+    expect(useWorkspaceStore.getState().panes[0]?.name).toBe("zsh");
+  });
+
+  it("maps layout metadata and supplies defaults for sessions missing a pane", async () => {
+    const api = await import("../api/workspace");
+    const mockGetWorkspaceLayout = api.getWorkspaceLayout as ReturnType<typeof vi.fn>;
+    mockListSessions.mockResolvedValueOnce([
+      extSession("known"),
+      extSession("missing", { shell: "/bin/fish" }),
+    ]);
+    mockGetWorkspaceLayout.mockResolvedValueOnce({
+      active_pane: "",
+      panes: [{
+        session_id: "known",
+        name: "Known pane",
+        header_color: "#7aa0ff",
+        theme_id: "dracula",
+        font_size: 16,
+        group_id: null,
+        supports_messages_view: undefined,
+        manually_unread: undefined,
+      }],
+      groups: [],
+    });
+    useWorkspaceStore.setState({ panes: [], activePane: null });
+
+    const { result } = renderHook(() => useSessionManager());
+    await flushHydration();
+
+    expect(result.current.panes.map((pane) => pane.session.id).sort()).toEqual(["known", "missing"]);
+    expect(useWorkspaceStore.getState().panes.map((pane) => pane.sessionId).sort()).toEqual(["known", "missing"]);
+  });
+
   it("surfaces hydrationError when both hydration calls fail", async () => {
     // Simulate the exact regression that prompted this safety net:
     // both calls reject (e.g. proxy misroute, network drop). The hook
@@ -497,13 +555,123 @@ describe("useSessionManager", () => {
       await result.current.launchSession({ command: "echo hi" });
     });
 
-const handle = { submitInput: vi.fn(() => ({ status: "sent" as const, seq: 1 })), sendControl: vi.fn(() => true), copySelection: vi.fn(async () => true), pasteFromClipboard: vi.fn(async () => true), scrollTerminal: vi.fn(), focus: vi.fn(), stopTts: vi.fn(), speakText: vi.fn(), speakSequence: vi.fn(), pauseTts: vi.fn(), resumeTts: vi.fn(), seekTts: vi.fn(), setTtsPlaybackRate: vi.fn(), setTtsVolume: vi.fn(), setTtsMuted: vi.fn(), getTtsState: vi.fn(), subscribeInputSettled: vi.fn(() => () => {}), awaitSeq: vi.fn(() => () => {}), subscribePendingInput: vi.fn(() => () => {}), getPendingInputSnapshot: vi.fn(() => []) };
+const handle = {
+  input: { submit: vi.fn(() => ({ status: "sent" as const, offset: 1 })), subscribeSettled: vi.fn(() => () => {}), awaitOffset: vi.fn(() => () => {}) },
+  control: { send: vi.fn(() => true), scroll: vi.fn(), focus: vi.fn() },
+  selection: { copy: vi.fn(async () => true), paste: vi.fn(async () => true) },
+  pendingInput: { subscribe: vi.fn(() => () => {}), snapshot: vi.fn(() => []) },
+  playback: { stop: vi.fn(), speak: vi.fn(), pause: vi.fn(), resume: vi.fn(), seek: vi.fn(), setPlaybackRate: vi.fn(), setVolume: vi.fn(), setMuted: vi.fn(), getState: vi.fn() },
+};
     act(() => {
       result.current.registerTerminalRef("sess-1", handle);
     });
 
     // The server pastes the launch command into the PTY; the client must not
     // also type it, or the command would execute twice.
-    expect(handle.submitInput).not.toHaveBeenCalled();
+    expect(handle.input.submit).not.toHaveBeenCalled();
+  });
+
+  it("handles missing panes, failed undo/delete, and the terminal facade branches", async () => {
+    const { result } = renderHook(() => useSessionManager());
+    await flushHydration();
+
+    expect(await result.current.removePane("missing")).toBe("failed");
+    expect(await result.current.undoArchive("missing")).toBe(false);
+    act(() => result.current.endExternalSession("missing"));
+    expect(result.current.submitToActiveTerminal("x", "typing")).toEqual({ status: "rejected", reason: "disposed" });
+    result.current.subscribeActiveInputSettled(undefined, vi.fn())();
+    result.current.awaitActiveInputOffset(undefined, 1, vi.fn())();
+    result.current.subscribeActivePendingInput(undefined, vi.fn())();
+    expect(result.current.getActivePendingInputSnapshot()).toEqual([]);
+    await expect(result.current.copySelectionOnPane()).resolves.toBe(false);
+    await expect(result.current.pasteFromClipboardOnPane()).resolves.toBe(false);
+    result.current.scrollTerminalOnPane(1);
+    result.current.focusActiveTerminal();
+    result.current.stopActiveTts();
+    await expect(result.current.speakTextOnPane("missing", "hello")).resolves.toBeUndefined();
+    result.current.pauseTtsOnPane("missing");
+    result.current.resumeTtsOnPane("missing");
+    result.current.seekTtsOnPane("missing", 1);
+    result.current.setTtsPlaybackRateOnPane("missing", 1.25);
+    result.current.setTtsVolumeOnPane("missing", 0.5);
+    result.current.setTtsMutedOnPane("missing", true);
+    expect(result.current.getTtsStateOnPane("missing")).toBeNull();
+
+    // An explicit but stale pane id must be a safe no-op for every facade. This
+    // is the path used after a pane closes while an async toolbar action is
+    // still resolving.
+    result.current.subscribeActiveInputSettled("missing", vi.fn())();
+    result.current.awaitActiveInputOffset("missing", 1, vi.fn())();
+    result.current.subscribeActivePendingInput("missing", vi.fn())();
+    expect(result.current.getActivePendingInputSnapshot("missing")).toEqual([]);
+    await expect(result.current.copySelectionOnPane("missing")).resolves.toBe(false);
+    await expect(result.current.pasteFromClipboardOnPane("missing")).resolves.toBe(false);
+    result.current.scrollTerminalOnPane(1, "missing");
+    result.current.focusActiveTerminal("missing");
+    result.current.stopActiveTts("missing");
+    act(() => result.current.registerTerminalRef("missing", null));
+
+    const session = extSession("facade");
+    mockCreateSession.mockResolvedValueOnce(session);
+    await act(async () => { await result.current.launchSession(); });
+    const handle = {
+      input: {
+        submit: vi.fn(() => ({ status: "sent" as const, offset: 4 })),
+        subscribeSettled: vi.fn(() => () => {}),
+        awaitOffset: vi.fn(() => () => {}),
+      },
+      control: { send: vi.fn(() => true), scroll: vi.fn(), focus: vi.fn() },
+      selection: { copy: vi.fn().mockResolvedValue(true), paste: vi.fn().mockResolvedValue(true) },
+      pendingInput: { subscribe: vi.fn(() => () => {}), snapshot: vi.fn(() => [{ data: "x", addedAt: 1 }]) },
+      playback: {
+        stop: vi.fn(), speak: vi.fn().mockResolvedValue("ok"), pause: vi.fn(), resume: vi.fn(), seek: vi.fn(),
+        setPlaybackRate: vi.fn(), setVolume: vi.fn(), setMuted: vi.fn(), getState: vi.fn().mockReturnValue({ playing: true }),
+      },
+    };
+    act(() => result.current.registerTerminalRef("facade", handle));
+    expect(result.current.submitToActiveTerminal("x", "typing")).toEqual({ status: "sent", offset: 4 });
+    expect(result.current.getActivePendingInputSnapshot()).toEqual([{ data: "x", addedAt: 1 }]);
+    await expect(result.current.copySelectionOnPane()).resolves.toBe(true);
+    await expect(result.current.pasteFromClipboardOnPane()).resolves.toBe(true);
+    result.current.scrollTerminalOnPane(2);
+    result.current.focusActiveTerminal();
+    result.current.stopActiveTts();
+    await expect(result.current.speakTextOnPane("facade", "hello")).resolves.toBe("ok");
+    result.current.pauseTtsOnPane("facade");
+    result.current.resumeTtsOnPane("facade");
+    result.current.seekTtsOnPane("facade", 2);
+    result.current.setTtsPlaybackRateOnPane("facade", 1.5);
+    result.current.setTtsVolumeOnPane("facade", 0.75);
+    result.current.setTtsMutedOnPane("facade", false);
+    expect(result.current.getTtsStateOnPane("facade")).toEqual({ playing: true });
+    expect(handle.control.scroll).toHaveBeenCalledWith(2);
+    expect(handle.control.focus).toHaveBeenCalled();
+
+    mockArchiveSession.mockResolvedValueOnce(undefined);
+    mockUnarchiveSession.mockRejectedValueOnce(new Error("archive race"));
+    await act(async () => { await result.current.removePane("facade"); });
+    await expect(result.current.undoArchive("facade")).resolves.toBe(false);
+
+    mockCreateSession.mockResolvedValueOnce(extSession("delete-me"));
+    await act(async () => { await result.current.launchSession(); });
+    mockDeleteSession.mockRejectedValueOnce(new Error("already deleted"));
+    await act(async () => {
+      await expect(result.current.deletePanePermanently("delete-me")).rejects.toThrow("already deleted");
+    });
+    expect(result.current.panes.some((pane) => pane.session.id === "delete-me")).toBe(false);
+  });
+
+  it("rejects a concurrent launch while the first create is in flight", async () => {
+    let resolveCreate: (session: SessionInfo) => void = () => {};
+    mockCreateSession.mockImplementationOnce(() => new Promise<SessionInfo>((resolve) => { resolveCreate = resolve; }));
+    const { result } = renderHook(() => useSessionManager());
+    let first: Promise<SessionInfo | null> | undefined;
+    await act(async () => {
+      first = result.current.launchSession();
+      expect(await result.current.launchSession()).toBeNull();
+    });
+    resolveCreate(extSession("first"));
+    await act(async () => { await first; });
+    expect(result.current.panes.map((pane) => pane.session.id)).toEqual(["first"]);
   });
 });

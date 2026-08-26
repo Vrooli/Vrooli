@@ -1,25 +1,27 @@
+import { renderWithProviders as render } from "../test-utils";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, act, fireEvent, screen } from "@testing-library/react";
+import { act, fireEvent, screen } from "@testing-library/react";
 import { createRef, type RefObject } from "react";
 import MobileToolbar, { type MobileToolbarHandle } from "../components/MobileToolbar";
 import { i18n } from "../i18n";
-import type { InputSettlementCallback } from "../hooks/terminal/useStdinAck";
+import { useWorkspaceStore } from "../stores/useWorkspaceStore";
+import type { InputSettlementCallback } from "../hooks/terminal/useStdinStream";
 
 // Draft persistence wants a stable sessionId — pass a fixed one through props.
 function renderToolbar(overrides: Partial<Parameters<typeof MobileToolbar>[0]> = {}) {
-  const onInput = overrides.onInput ?? vi.fn(() => ({ status: "sent" as const, seq: 1 }));
-  const settledSubs = new Set<(seq: number, ok: boolean) => void>();
-  const fireSettled = (seq: number, ok: boolean) => {
-    for (const cb of settledSubs) cb(seq, ok);
+  const onInput = overrides.onInput ?? vi.fn(() => ({ status: "sent" as const, offset: 1 }));
+  const settledSubs = new Set<(offset: number, ok: boolean) => void>();
+  const fireSettled = (offset: number, ok: boolean) => {
+    for (const cb of settledSubs) cb(offset, ok);
   };
   const subscribeInputSettled =
     overrides.subscribeInputSettled ??
-    vi.fn((cb: (seq: number, ok: boolean) => void) => {
+    vi.fn((cb: (offset: number, ok: boolean) => void) => {
       settledSubs.add(cb);
       return () => settledSubs.delete(cb);
     });
-  const awaitSeq = overrides.awaitSeq ?? vi.fn((_seq: number, cb: InputSettlementCallback) => {
-    const listener = (seq: number, ok: boolean) => cb(ok);
+  const awaitOffset = overrides.awaitOffset ?? vi.fn((_seq: number, cb: InputSettlementCallback) => {
+    const listener = (offset: number, ok: boolean) => cb(ok);
     settledSubs.add(listener);
     return () => settledSubs.delete(listener);
   });
@@ -43,7 +45,7 @@ function renderToolbar(overrides: Partial<Parameters<typeof MobileToolbar>[0]> =
     <MobileToolbar
       onInput={onInput}
       subscribeInputSettled={subscribeInputSettled}
-      awaitSeq={awaitSeq}
+      awaitOffset={awaitOffset}
       subscribePendingInput={subscribePendingInput}
       getPendingInputSnapshot={getPendingInputSnapshot}
       activeSessionId={overrides.activeSessionId ?? "sess-1"}
@@ -66,7 +68,7 @@ describe("MobileToolbar — send/ack flow", () => {
   });
 
   it("preserves draft during sending and clears on ok=true", () => {
-    const { onInput, fireSettled } = renderToolbar({ onInput: vi.fn(() => ({ status: "sent" as const, seq: 1 })) });
+    const { onInput, fireSettled } = renderToolbar({ onInput: vi.fn(() => ({ status: "sent" as const, offset: 1 })) });
 
     const textarea = screen.getByTestId("mobile-command-input") as HTMLTextAreaElement;
     fireEvent.change(textarea, { target: { value: "echo hi" } });
@@ -84,7 +86,7 @@ describe("MobileToolbar — send/ack flow", () => {
   });
 
   it("restores editable draft and shows Send failed on ok=false", () => {
-    const { fireSettled } = renderToolbar({ onInput: vi.fn(() => ({ status: "sent" as const, seq: 1 })) });
+    const { fireSettled } = renderToolbar({ onInput: vi.fn(() => ({ status: "sent" as const, offset: 1 })) });
 
     const textarea = screen.getByTestId("mobile-command-input") as HTMLTextAreaElement;
     fireEvent.change(textarea, { target: { value: "long payload" } });
@@ -108,12 +110,77 @@ describe("MobileToolbar — send/ack flow", () => {
     expect(screen.getByTestId("send-status-queued")).toBeTruthy();
   });
 
+  it("clears a queued status before a later send enters the ack flow", () => {
+    const onInput = vi.fn()
+      .mockReturnValueOnce({ status: "queued" as const, reason: "ws-closed" as const })
+      .mockReturnValueOnce({ status: "sent" as const, offset: 4 });
+    const { fireSettled } = renderToolbar({ onInput });
+    const textarea = screen.getByTestId("mobile-command-input");
+
+    fireEvent.change(textarea, { target: { value: "first" } });
+    fireEvent.click(screen.getByTestId("mobile-command-submit"));
+    expect(screen.getByTestId("send-status-queued")).toBeInTheDocument();
+
+    fireEvent.change(textarea, { target: { value: "second" } });
+    fireEvent.click(screen.getByTestId("mobile-command-submit"));
+    expect(screen.getByTestId("send-status-sending")).toBeInTheDocument();
+    act(() => fireSettled(4, true));
+    expect(textarea).toHaveValue("");
+  });
+
+  it("treats an empty command as Enter and restores terminal focus", () => {
+    const onInput = vi.fn(() => ({ status: "sent" as const, offset: 1 }));
+    const onFocusTerminal = vi.fn();
+    renderToolbar({ onInput, onFocusTerminal });
+
+    fireEvent.click(screen.getByTestId("mobile-command-submit"));
+
+    expect(onInput).toHaveBeenCalledWith("\r", "typing");
+    expect(onFocusTerminal).toHaveBeenCalledOnce();
+  });
+
+  it("submits whitespace verbatim without treating it as Enter", () => {
+    const onInput = vi.fn(() => ({ status: "sent" as const, offset: 2 }));
+    renderToolbar({ onInput });
+    const textarea = screen.getByTestId("mobile-command-input");
+
+    fireEvent.change(textarea, { target: { value: "  " } });
+    fireEvent.click(screen.getByTestId("mobile-command-submit"));
+
+    expect(onInput).toHaveBeenCalledWith("  ", "bulk_text");
+  });
+
+  it("applies active modifiers to command text and clears them", () => {
+    const onInput = vi.fn(() => ({ status: "sent" as const, offset: 3 }));
+    renderToolbar({ onInput });
+    const textarea = screen.getByTestId("mobile-command-input");
+
+    fireEvent.click(screen.getByTestId("toolbar-mod-ctrl"));
+    fireEvent.change(textarea, { target: { value: "c" } });
+    fireEvent.click(screen.getByTestId("mobile-command-submit"));
+
+    expect(onInput).toHaveBeenCalledWith("\x03", "bulk_text");
+    expect(useWorkspaceStore.getState().modifiers).toEqual({ ctrl: false, alt: false, shift: false });
+  });
+
+  it("keeps the draft when the input gate rejects the command", () => {
+    const onInput = vi.fn(() => ({ status: "rejected" as const, reason: "disposed" as const }));
+    renderToolbar({ onInput });
+    const textarea = screen.getByTestId("mobile-command-input") as HTMLTextAreaElement;
+
+    fireEvent.change(textarea, { target: { value: "retry me" } });
+    fireEvent.click(screen.getByTestId("mobile-command-submit"));
+
+    expect(textarea.value).toBe("retry me");
+    expect(screen.queryByTestId("send-status-sending")).toBeNull();
+  });
+
   it("renders N unsent pill when queue non-empty and hides when drained", async () => {
     // Opt into the real `en` locale so the `{{count}}` interpolation in
     // the unsent-pill heading renders an actual digit — cimode otherwise
     // returns the raw key path with the token unsubstituted.
     await i18n.changeLanguage("en");
-    const { setSnapshot } = renderToolbar({ onInput: vi.fn(() => ({ status: "sent" as const, seq: 1 })) });
+    const { setSnapshot } = renderToolbar({ onInput: vi.fn(() => ({ status: "sent" as const, offset: 1 })) });
 
     expect(screen.queryByTestId("pending-input-pill")).toBeNull();
 
@@ -123,9 +190,30 @@ describe("MobileToolbar — send/ack flow", () => {
     ]));
     const pill = screen.getByTestId("pending-input-pill");
     expect(pill.textContent).toMatch(/2 unsent/);
+    const pillButton = pill.querySelector("button");
+    if (!pillButton) throw new Error("pending input pill button missing");
+    fireEvent.pointerDown(pillButton);
+    fireEvent.click(pillButton);
+    expect(screen.getByTestId("pending-input-disclosure")).toBeInTheDocument();
 
     act(() => setSnapshot([]));
     expect(screen.queryByTestId("pending-input-pill")).toBeNull();
+  });
+
+  it("shows truncated and newline-safe entries in the pending disclosure", async () => {
+    await i18n.changeLanguage("en");
+    const long = "x".repeat(61) + "\nnext";
+    const { setSnapshot } = renderToolbar();
+
+    act(() => setSnapshot([
+      { data: long, addedAt: Date.now() - 1000 },
+      { data: "line1\nline2", addedAt: Date.now() },
+    ]));
+    fireEvent.click(screen.getByTestId("pending-input-pill").querySelector("button")!);
+
+    const disclosure = screen.getByTestId("pending-input-disclosure");
+    expect(disclosure).toHaveTextContent("x".repeat(60) + "…");
+    expect(disclosure).toHaveTextContent("line1⏎line2");
   });
 });
 
@@ -326,6 +414,163 @@ describe("MobileToolbar — command textbox backspace", () => {
   });
 });
 
+describe("MobileToolbar — modifiers and optional actions", () => {
+  beforeEach(() => {
+    window.localStorage.clear();
+  });
+
+  it("applies a modifier to a toolbar key and clears it after sending", () => {
+    useWorkspaceStore.setState({ toolbarLayout: "compact", aiSuggestActive: false });
+    const onInput = vi.fn(() => ({ status: "sent" as const, offset: 1 }));
+    const onFocusTerminal = vi.fn();
+    renderToolbar({ onInput, onFocusTerminal, onOpenAi: vi.fn(), onUploadImage: vi.fn(), onExpandComposer: vi.fn() });
+
+    fireEvent.click(screen.getByTestId("toolbar-mod-ctrl"));
+    fireEvent.click(screen.getByTestId("toolbar-key-esc"));
+    expect(onInput).toHaveBeenCalledWith("\x1b", "typing");
+    expect(onFocusTerminal).toHaveBeenCalled();
+    expect(screen.getByTestId("expand-toggle")).toBeInTheDocument();
+    fireEvent.click(screen.getByTestId("toolbar-ai"));
+    fireEvent.click(screen.getByTestId("toolbar-upload-image"));
+    fireEvent.pointerDown(screen.getByTestId("expand-toggle"));
+  });
+
+  it("renders message-mode actions and invokes the view switch after a send", () => {
+    const onInput = vi.fn(() => ({ status: "sent" as const, offset: 2 }));
+    const onSwitchToTerminal = vi.fn();
+    const { fireSettled } = renderToolbar({ onInput, viewMode: "messages", onSwitchToTerminal, onOpenAi: vi.fn(), onUploadImage: vi.fn() });
+    expect(screen.getByTestId("messages-toolbar-actions")).toBeInTheDocument();
+    fireEvent.mouseDown(screen.getByTestId("messages-toolbar-actions"));
+    fireEvent.pointerDown(screen.getByTestId("toolbar-ai"));
+    fireEvent.pointerDown(screen.getByTestId("toolbar-upload-image"));
+    fireEvent.change(screen.getByTestId("mobile-command-input"), { target: { value: "hello" } });
+    fireEvent.click(screen.getByTestId("mobile-command-submit"));
+    act(() => fireSettled(2, true));
+    expect(onSwitchToTerminal).toHaveBeenCalled();
+  });
+
+  it("keeps pointer gestures from stealing focus across compact and expanded layouts", () => {
+    const { rerender } = renderToolbar({ onOpenAi: vi.fn(), onUploadImage: vi.fn() });
+    const compact = screen.getByTestId("mobile-toolbar");
+    fireEvent.mouseDown(compact);
+    for (const button of screen.getAllByRole("button")) fireEvent.pointerDown(button);
+
+    useWorkspaceStore.setState({ toolbarLayout: "expanded" });
+    rerender(<MobileToolbar onInput={vi.fn(() => ({ status: "sent" as const, offset: 1 }))} activeSessionId="expanded" onFocusTerminal={vi.fn()} onOpenAi={vi.fn()} onUploadImage={vi.fn()} />);
+    const expanded = screen.getByTestId("mobile-toolbar");
+    fireEvent.mouseDown(expanded);
+    for (const button of screen.getAllByRole("button")) fireEvent.pointerDown(button);
+    useWorkspaceStore.setState({ toolbarLayout: "compact" });
+  });
+
+  it("renders the active AI and voice controls in every terminal view", () => {
+    useWorkspaceStore.setState({ toolbarLayout: "compact", aiSuggestActive: true });
+    const onOpenAi = vi.fn();
+    const onUploadImage = vi.fn();
+    const onVoiceStart = vi.fn();
+    const onVoiceStop = vi.fn();
+    const onVoicePrepare = vi.fn();
+    const onExitPassive = vi.fn();
+    const onAiSuggestExecute = vi.fn();
+
+    renderToolbar({
+      onOpenAi,
+      onUploadImage,
+      onAiSuggestExecute,
+      voice: {
+        supported: true,
+        preparing: true,
+        recording: false,
+        persistentMode: true,
+        transcribing: false,
+        onStart: onVoiceStart,
+        onStop: onVoiceStop,
+        onPrepare: onVoicePrepare,
+        onExitPassive,
+      },
+    });
+
+    expect(screen.getByTestId("voice-mic-btn")).toBeInTheDocument();
+    fireEvent.click(screen.getByTestId("toolbar-ai"));
+    fireEvent.click(screen.getByTestId("toolbar-upload-image"));
+    expect(onOpenAi).toHaveBeenCalledOnce();
+    expect(onUploadImage).toHaveBeenCalledOnce();
+  });
+
+  it("renders active AI and the complete voice state in expanded layout", () => {
+    useWorkspaceStore.setState({
+      toolbarLayout: "expanded",
+      aiSuggestActive: true,
+      modifiers: { ctrl: true, alt: false, shift: false },
+    });
+    const onOpenAi = vi.fn();
+    const onUploadImage = vi.fn();
+    const voice = {
+      supported: true,
+      preparing: true,
+      recording: true,
+      persistentMode: true,
+      listening: true,
+      passive: true,
+      transcribing: true,
+      error: "microphone unavailable",
+      level: 0.7,
+      backend: "scenario",
+      onStart: vi.fn(),
+      onStop: vi.fn(),
+      onPrepare: vi.fn(),
+      onExitPassive: vi.fn(),
+    };
+
+    renderToolbar({ onOpenAi, onUploadImage, voice });
+
+    expect(screen.getByTestId("toolbar-ai")).toHaveClass("border-wc-accent");
+    expect(screen.getByTestId("toolbar-mod-ctrl")).toHaveClass("border-wc-accent");
+    expect(screen.getByTestId("voice-mic-btn")).toHaveAttribute("data-control-size", "lg");
+
+    useWorkspaceStore.setState({ toolbarLayout: "compact", aiSuggestActive: false, modifiers: { ctrl: false, alt: false, shift: false } });
+  });
+
+  it("renders the active AI styling in messages mode", () => {
+    useWorkspaceStore.setState({ aiSuggestActive: true });
+    renderToolbar({ viewMode: "messages", onOpenAi: vi.fn() });
+
+    expect(screen.getByTestId("toolbar-ai")).toHaveClass("border-wc-accent");
+    useWorkspaceStore.setState({ aiSuggestActive: false });
+  });
+
+  it("uses optimistic clearing when no settlement callback is supplied", () => {
+    const onInput = vi.fn(() => ({ status: "sent" as const, offset: 9 }));
+    render(
+      <MobileToolbar
+        onInput={onInput}
+        awaitOffset={undefined}
+        activeSessionId="legacy"
+        onFocusTerminal={vi.fn()}
+      />,
+    );
+    const textarea = screen.getByTestId("mobile-command-input");
+
+    fireEvent.change(textarea, { target: { value: "legacy command" } });
+    fireEvent.click(screen.getByTestId("mobile-command-submit"));
+
+    expect(textarea).toHaveValue("");
+  });
+
+  it("renders no toolbar when visibility is disabled", () => {
+    renderToolbar({ visible: false });
+
+    expect(screen.queryByTestId("mobile-toolbar")).toBeNull();
+  });
+
+  it("uses the interim transcript style while voice text is pending", () => {
+    renderToolbar({ voice: { supported: true, onStart: vi.fn(), onStop: vi.fn(), partialTranscript: "draft words" } });
+
+    expect(screen.getByTestId("mobile-command-input")).toHaveClass("text-transparent");
+    expect(screen.getByTestId("mobile-interim-overlay")).toHaveTextContent("draft words");
+  });
+});
+
 describe("MobileToolbar — appendText (voice transcript insertion)", () => {
   beforeEach(() => {
     try {
@@ -340,7 +585,7 @@ describe("MobileToolbar — appendText (voice transcript insertion)", () => {
     const utils = render(
       <MobileToolbar
         ref={ref}
-        onInput={vi.fn(() => ({ status: "sent" as const, seq: 1 }))}
+        onInput={vi.fn(() => ({ status: "sent" as const, offset: 1 }))}
         activeSessionId="sess-append"
         onFocusTerminal={vi.fn()}
       />,
@@ -427,5 +672,14 @@ describe("MobileToolbar — appendText (voice transcript insertion)", () => {
     await flushRaf();
     // Trailing: next char "w" is non-ws → add trailing space.
     expect(textarea.value).toBe("hello world");
+  });
+
+  it("exposes focus and clear imperative controls", () => {
+    const { ref, textarea } = renderWithRef();
+    getToolbarHandle(ref).focusInput();
+    expect(document.activeElement).toBe(textarea);
+    fireEvent.change(textarea, { target: { value: "clear me" } });
+    act(() => getToolbarHandle(ref).clearInput());
+    expect(textarea.value).toBe("");
   });
 });

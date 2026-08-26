@@ -19,7 +19,9 @@ import (
 	"time"
 
 	"web-console/backends/claude"
+	"web-console/internal/config"
 	"web-console/internal/pty"
+	"web-console/session"
 
 	creackpty "github.com/creack/pty/v2"
 	platform "github.com/vrooli/platform-go"
@@ -69,6 +71,48 @@ type tmuxPTY struct {
 	closed      bool
 }
 
+func (p *tmuxPTY) TerminalEchoState() (session.EchoState, error) {
+	if runtime.GOOS == "windows" {
+		return session.EchoState{}, session.ErrEchoStateUnsupported
+	}
+	// The attach PTY has its own termios. Query the pane's slave tty instead;
+	// that is the terminal whose ECHO bit the shell/application changes for a
+	// password prompt. The tty path is supplied by tmux and is validated before
+	// it reaches stty so this remains a data query, never a shell command.
+	ctx, cancel := context.WithTimeout(context.Background(), tmuxCommandTimeout)
+	defer cancel()
+	paneCmd := tmuxCmdContext(ctx, "display-message", "-t", p.sessionName, "-p", "#{pane_tty}")
+	paneOut, err := paneCmd.Output()
+	if err != nil {
+		return session.EchoState{}, fmt.Errorf("tmux pane tty: %w", err)
+	}
+	tty := strings.TrimSpace(string(paneOut))
+	if !strings.HasPrefix(tty, "/dev/") || strings.ContainsAny(tty, " \t\r\n") {
+		return session.EchoState{}, fmt.Errorf("tmux returned invalid pane tty %q", tty)
+	}
+	sttyFlag := "-F"
+	if runtime.GOOS == "darwin" || runtime.GOOS == "freebsd" {
+		sttyFlag = "-f"
+	}
+	ctx, cancel = context.WithTimeout(context.Background(), tmuxCommandTimeout)
+	defer cancel()
+	sttyOut, err := exec.CommandContext(ctx, "stty", "-a", sttyFlag, tty).Output()
+	if err != nil {
+		return session.EchoState{}, fmt.Errorf("read pane echo state: %w", err)
+	}
+	for _, token := range strings.FieldsFunc(string(sttyOut), func(r rune) bool {
+		return r == ' ' || r == '\t' || r == '\r' || r == '\n' || r == ';'
+	}) {
+		switch token {
+		case "echo":
+			return session.EchoState{Known: true, EchoEnabled: true}, nil
+		case "-echo":
+			return session.EchoState{Known: true, EchoEnabled: false}, nil
+		}
+	}
+	return session.EchoState{}, fmt.Errorf("stty output did not contain an echo flag")
+}
+
 func (p *tmuxPTY) Read(buf []byte) (int, error) {
 	p.mu.Lock()
 	if p.closed {
@@ -89,20 +133,13 @@ func (p *tmuxPTY) Read(buf []byte) (int, error) {
 // unblocks it" bug.
 //
 //   - pty.KindControl: raw bytes to the attach PTY master. These are
-//     best-effort client controls (mouse tracking today), with no mode
+//     best-effort client controls, with no mode
 //     cancellation or replay semantics.
 //   - pty.KindKeystroke: `tmux send-keys -t <session> -l -- <data>`.
 //     The `-l` (literal) flag tells tmux to deliver the bytes to the
 //     active pane's stdin verbatim, bypassing key-name lookup AND
 //     client-mode interpretation. This path handles arbitrary byte
 //     sequences including control characters.
-//     EXCEPTION: mouse-tracking CSI sequences (wheel scroll, click,
-//     drag) are intentionally routed through the attach PTY master so
-//     that the tmux client can interpret them at the client level
-//     (enter copy-mode on scroll, select text, etc.). Routing these
-//     via send-keys would deliver them to the pane's shell, which
-//     does not understand them, and mobile scroll would silently
-//     break. See isMouseTrackingSequence.
 //   - pty.KindPaste: `tmux load-buffer -b <buf> -` (piped stdin) then
 //     `tmux paste-buffer -d -p -b <buf> -t <session>`. The `-d` flag
 //     deletes the buffer after paste so our per-session buffers don't
@@ -117,7 +154,7 @@ func (p *tmuxPTY) Read(buf []byte) (int, error) {
 // decisions separate — conflating them is what made a single wrong
 // constant silently drop every paste between 16 KiB and 64 KiB.
 //
-// Both non-mouse branches surface tmux's stderr in the returned error
+// Both input branches surface tmux's stderr in the returned error
 // so the caller can forward it as stdin_ack.reason.
 func (p *tmuxPTY) WriteInput(data []byte, kind pty.InputKind) error {
 	p.mu.Lock()
@@ -148,19 +185,6 @@ func (p *tmuxPTY) WriteInput(data []byte, kind pty.InputKind) error {
 	}
 }
 
-// isMouseTrackingSequence returns true if data begins with an xterm
-// mouse-tracking CSI introducer. These must be delivered to the tmux
-// client (via the attach PTY master) rather than routed through
-// `send-keys` into the pane, because the client is what interprets
-// scroll / click / drag events. Two forms are recognized:
-//
-//   - X10 / VT200: `\x1b[M` followed by 3 encoding bytes.
-//   - SGR (mode 1006): `\x1b[<Cb;Cx;Cy{M|m}`.
-//
-// Arrow keys (`\x1b[A..D`) and function keys (`\x1b[11~`, etc.) do
-// NOT match — data[2] must be 'M' or '<'. URXVT mode is not emitted
-// by xterm.js and is not handled here; if we ever need it we can add
-// a digit-based introducer check.
 // exitModeIfAny ensures the pane is NOT in copy-mode / command-prompt /
 // menu / any tmux mode before subsequent input is delivered. `send-keys
 // -l` and `paste-buffer` both respect the current client mode: if the
@@ -174,7 +198,9 @@ func (p *tmuxPTY) WriteInput(data []byte, kind pty.InputKind) error {
 // spurious stdin_ack.ok=false. Skipping the cancel when not needed is
 // also the hot path (no mode is the steady state).
 func (p *tmuxPTY) exitModeIfAny(sessionName string) error {
-	out, err := tmuxCmd("display-message", "-t", sessionName, "-p", "#{pane_in_mode}").Output()
+	displayCmd, cancelDisplay := tmuxCmdWithTimeout("display-message", "-t", sessionName, "-p", "#{pane_in_mode}")
+	defer cancelDisplay()
+	out, err := displayCmd.Output()
 	if err != nil {
 		// If display-message fails the session likely died; surface
 		// it as a typed write failure via the caller.
@@ -183,7 +209,8 @@ func (p *tmuxPTY) exitModeIfAny(sessionName string) error {
 	if strings.TrimSpace(string(out)) != "1" {
 		return nil
 	}
-	cancelCmd := tmuxCmd("send-keys", "-t", sessionName, "-X", "cancel")
+	cancelCmd, cancelCommand := tmuxCmdWithTimeout("send-keys", "-t", sessionName, "-X", "cancel")
+	defer cancelCommand()
 	if cancelOut, cancelErr := cancelCmd.CombinedOutput(); cancelErr != nil {
 		// Treat as fatal: if we can't exit the mode, subsequent input
 		// will be eaten by the mode. Better to surface the failure.
@@ -216,6 +243,13 @@ func (p *tmuxPTY) exitModeIfAny(sessionName string) error {
 // as a red test rather than as silently dropped user input.
 const maxKeystrokeArgvBytes = 8 * 1024
 
+const tmuxCommandTimeout = 5 * time.Second
+
+func tmuxCmdWithTimeout(args ...string) (*exec.Cmd, context.CancelFunc) {
+	ctx, cancel := context.WithTimeout(context.Background(), tmuxCommandTimeout)
+	return tmuxCmdContext(ctx, args...), cancel
+}
+
 // deliverTyping sends data via `tmux send-keys -t <target> -l --`.
 // Payloads too large for a single tmux command fall through to the
 // buffer path. Before delivery, any tmux mode on the pane is cancelled
@@ -236,7 +270,8 @@ func (p *tmuxPTY) deliverTyping(sessionName string, data []byte) error {
 	if err := p.exitModeIfAny(sessionName); err != nil {
 		return err
 	}
-	cmd := tmuxCmd("send-keys", "-t", sessionName, "-l", "--", string(data))
+	cmd, cancel := tmuxCmdWithTimeout("send-keys", "-t", sessionName, "-l", "--", string(data))
+	defer cancel()
 	if out, err := cmd.CombinedOutput(); err != nil {
 		return fmt.Errorf("tmux send-keys failed: %w (%s)", err, strings.TrimSpace(string(out)))
 	}
@@ -285,7 +320,8 @@ func (p *tmuxPTY) deliverBuffer(sessionName string, data []byte, bracketed bool)
 	seq := atomic.AddUint64(&tmuxPasteBufferSeq, 1)
 	buf := fmt.Sprintf("wc-paste-%s-%d", sessionName, seq)
 
-	loadCmd := tmuxCmd("load-buffer", "-b", buf, "-")
+	loadCmd, cancelLoad := tmuxCmdWithTimeout("load-buffer", "-b", buf, "-")
+	defer cancelLoad()
 	loadCmd.Stdin = bytes.NewReader(data)
 	if out, err := loadCmd.CombinedOutput(); err != nil {
 		return fmt.Errorf("tmux load-buffer failed: %w (%s)", err, strings.TrimSpace(string(out)))
@@ -296,9 +332,13 @@ func (p *tmuxPTY) deliverBuffer(sessionName string, data []byte, bracketed bool)
 		pasteArgs = append(pasteArgs, "-p")
 	}
 	pasteArgs = append(pasteArgs, "-b", buf, "-t", sessionName)
-	if out, err := tmuxCmd(pasteArgs...).CombinedOutput(); err != nil {
+	pasteCmd, cancelPaste := tmuxCmdWithTimeout(pasteArgs...)
+	defer cancelPaste()
+	if out, err := pasteCmd.CombinedOutput(); err != nil {
 		// Best-effort cleanup of the orphaned buffer; ignore errors.
-		_ = tmuxCmd("delete-buffer", "-b", buf).Run()
+		cleanupCmd, cancelCleanup := tmuxCmdWithTimeout("delete-buffer", "-b", buf)
+		_ = cleanupCmd.Run()
+		cancelCleanup()
 		return fmt.Errorf("tmux paste-buffer failed: %w (%s)", err, strings.TrimSpace(string(out)))
 	}
 	return nil
@@ -457,9 +497,23 @@ func buildSessionEnv(spec pty.LaunchSpec) []string {
 // app's persistent-session server; production keeps the stable default.
 func resolveTmuxSocket() string {
 	if socket := strings.TrimSpace(os.Getenv("WC_TMUX_SOCKET")); socket != "" {
-		return socket
+		absolute := socket
+		if !filepath.IsAbs(absolute) {
+			// tmux sockets are subject to a short UNIX-domain path limit. Test
+			// and operator-provided socket labels therefore live under /tmp
+			// rather than gaining the scenario working directory prefix.
+			absolute = filepath.Join(os.TempDir(), absolute+".sock")
+		}
+		var err error
+		absolute, err = filepath.Abs(absolute)
+		if err == nil {
+			_ = os.MkdirAll(filepath.Dir(absolute), 0o755)
+			return absolute
+		}
 	}
-	return defaultTmuxSocket
+	path := filepath.Join(resolveSessionStateRoot(), "tmux", defaultTmuxSocket+".sock")
+	_ = os.MkdirAll(filepath.Dir(path), 0o755)
+	return path
 }
 
 // resolveTmuxScopeName returns the systemd scope name used when booting the
@@ -476,13 +530,13 @@ func resolveTmuxScopeName() string {
 // All tmux operations MUST go through this helper to ensure they target the
 // correct server (isolated from the parent service's cgroup and test sockets).
 func tmuxCmd(args ...string) *exec.Cmd {
-	fullArgs := append([]string{"-L", resolveTmuxSocket()}, args...)
+	fullArgs := append([]string{"-S", resolveTmuxSocket()}, args...)
 	return exec.Command("tmux", fullArgs...)
 }
 
 // tmuxCmdContext is like tmuxCmd but accepts a context for timeout/cancellation.
 func tmuxCmdContext(ctx context.Context, args ...string) *exec.Cmd {
-	fullArgs := append([]string{"-L", resolveTmuxSocket()}, args...)
+	fullArgs := append([]string{"-S", resolveTmuxSocket()}, args...)
 	return exec.CommandContext(ctx, "tmux", fullArgs...)
 }
 
@@ -516,26 +570,28 @@ func tmuxPTYFactory(spec pty.LaunchSpec) (pty.PTY, error) {
 	if systemdRunUsable() {
 		createCmd := exec.Command("systemd-run", append([]string{
 			"--user", "--scope", "--unit=" + resolveTmuxScopeName(),
-			"tmux", "-L", socketName,
+			"tmux", "-S", socketName,
 		}, sessionArgs...)...)
 		_ = platform.ConfigureCommand(createCmd, platform.ProcessOptions{Detached: true})
 		createCmd.Env = buildSessionEnv(spec)
-		if err := createCmd.Run(); err == nil {
+		if output, err := createCmd.CombinedOutput(); err == nil {
 			goto configureTmuxSession
+		} else if strings.TrimSpace(string(output)) != "" {
+			log.Printf("tmux systemd-run create failed: %s", strings.TrimSpace(string(output)))
 		}
 	}
 	{
 		fallbackCmd := tmuxCmd(sessionArgs...)
 		_ = platform.ConfigureCommand(fallbackCmd, platform.ProcessOptions{Detached: true})
 		fallbackCmd.Env = buildSessionEnv(spec)
-		if err := fallbackCmd.Run(); err != nil {
-			return nil, fmt.Errorf("tmux new-session: %w", err)
+		if output, err := fallbackCmd.CombinedOutput(); err != nil {
+			return nil, fmt.Errorf("tmux new-session: %w (%s)", err, strings.TrimSpace(string(output)))
 		}
 	}
 
 configureTmuxSession:
 	// 2. Configure session options
-	applyTmuxOptions(sessionName)
+	applyTmuxOptions(sessionName, spec.TmuxMouseMode)
 
 	// 3. Attach to tmux session via a PTY for I/O streaming
 	p, err := tmuxAttach(sessionName)
@@ -549,11 +605,11 @@ configureTmuxSession:
 // applyTmuxOptions configures session options (mouse mode, scrollback, titles).
 // Errors are logged but not fatal — a session with missing options is still
 // usable, and callers need to know something went wrong for debugging.
-func applyTmuxOptions(sessionName string) {
+func applyTmuxOptions(sessionName string, mouseMode bool) {
 	opts := [][2]string{
 		{"remain-on-exit", "on"},
-		{"mouse", "on"},
-		{"history-limit", "50000"},
+		{"mouse", tmuxMouseModeValue(mouseMode)},
+		{"history-limit", strconv.Itoa(config.DefaultTerminalScrollbackLines)},
 		{"set-titles", "on"},
 		{"set-titles-string", "#{pane_title}"},
 	}
@@ -562,6 +618,59 @@ func applyTmuxOptions(sessionName string) {
 			log.Printf("tmux: set-option %s=%s on %s failed: %v", opt[0], opt[1], sessionName, err)
 		}
 	}
+}
+
+// refreshTmuxOptions reapplies options that are safe to normalize during
+// recovery. Mouse mode is deliberately omitted so existing persistent
+// sessions retain the choice made when they were created.
+func refreshTmuxOptions(sessionName string) {
+	for _, opt := range [][2]string{
+		{"remain-on-exit", "on"},
+		{"history-limit", strconv.Itoa(config.DefaultTerminalScrollbackLines)},
+		{"set-titles", "on"},
+		{"set-titles-string", "#{pane_title}"},
+	} {
+		if err := tmuxCmd("set-option", "-t", sessionName, opt[0], opt[1]).Run(); err != nil {
+			log.Printf("tmux: set-option %s=%s on %s failed: %v", opt[0], opt[1], sessionName, err)
+		}
+	}
+}
+
+// SetMouseMode changes capture for one running persistent pane.
+func (p *tmuxPTY) SetMouseMode(enabled bool) error {
+	p.mu.Lock()
+	if p.closed {
+		p.mu.Unlock()
+		return errPTYClosed
+	}
+	sessionName := p.sessionName
+	p.mu.Unlock()
+	if err := tmuxCmd("set-option", "-t", sessionName, "mouse", tmuxMouseModeValue(enabled)).Run(); err != nil {
+		return fmt.Errorf("tmux set mouse mode: %w", err)
+	}
+	return nil
+}
+
+func tmuxMouseModeValue(enabled bool) string {
+	if enabled {
+		return "on"
+	}
+	return "off"
+}
+
+func (p *tmuxPTY) MouseMode() (bool, error) {
+	p.mu.Lock()
+	if p.closed {
+		p.mu.Unlock()
+		return false, errPTYClosed
+	}
+	sessionName := p.sessionName
+	p.mu.Unlock()
+	out, err := tmuxCmd("show-options", "-t", sessionName, "-v", "mouse").Output()
+	if err != nil {
+		return false, fmt.Errorf("tmux show mouse mode: %w", err)
+	}
+	return strings.TrimSpace(string(out)) == "on", nil
 }
 
 // tmuxAttachTimeout bounds how long we wait for `tmux attach-session` to start.

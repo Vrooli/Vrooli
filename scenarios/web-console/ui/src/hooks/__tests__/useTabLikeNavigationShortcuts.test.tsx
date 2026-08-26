@@ -1,4 +1,4 @@
-import { render } from "@testing-library/react";
+import { renderWithProviders as render } from "../../test-utils";
 import { describe, expect, it, vi } from "vitest";
 import { useTabLikeNavigationShortcuts } from "../useTabLikeNavigationShortcuts";
 import type { PaneMetadata } from "../../stores/useWorkspaceStore";

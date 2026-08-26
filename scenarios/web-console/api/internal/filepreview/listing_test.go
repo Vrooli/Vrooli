@@ -8,6 +8,8 @@ import (
 	"runtime"
 	"testing"
 	"time"
+
+	"github.com/vrooli/repo-contract-go/repocontracttest"
 )
 
 // listRoot builds a directory tree and returns its path plus a resolver.
@@ -701,7 +703,7 @@ func requireSymlinks(t *testing.T) {
 func requireUnreadableFiles(t *testing.T) {
 	t.Helper()
 	if runtime.GOOS == "windows" {
-		t.Skip("POSIX mode bits do not gate reads on Windows")
+		repocontracttest.SkipPlatform(t, "POSIX mode bits do not gate reads on Windows")
 	}
 	if os.Geteuid() == 0 {
 		t.Skip("running as root bypasses file permissions")

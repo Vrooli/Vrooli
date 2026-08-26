@@ -136,5 +136,5 @@ func TestApplyTmuxOptions_NonexistentSession(t *testing.T) {
 	requireIsolatedTmux(t)
 
 	// Should not panic, just log errors
-	applyTmuxOptions("wc-nonexistent-session-12345")
+	applyTmuxOptions("wc-nonexistent-session-12345", false)
 }

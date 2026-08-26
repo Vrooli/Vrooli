@@ -1,5 +1,6 @@
+import { renderWithProviders as render } from "../test-utils";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { screen, fireEvent, waitFor } from "@testing-library/react";
 import type { ShortcutEntry } from "../consts/shortcuts";
 import { asMockedClient } from "../test-utils";
 import { strings } from "../consts/strings";
@@ -58,6 +59,20 @@ describe("TerminalLauncher", () => {
     );
     expect(screen.getByTestId("launcher-empty-shell")).toBeTruthy();
     expect(screen.getByText(strings.terminalLauncher.emptyShell)).toBeTruthy();
+  });
+
+  it("explains and disables launch when no session backend is available", () => {
+    render(
+      <TerminalLauncher
+        open={true}
+        onClose={onClose}
+        onLaunch={onLaunch}
+        shortcuts={testShortcuts}
+        availableBackends={[{ id: "standard", display_name: "Standard", description: "", survives_restart: false, available: false, reason: "no PTY implementation for this platform" }]}
+      />,
+    );
+    expect(screen.getByTestId("launcher-no-backend").textContent).toContain("no PTY implementation for this platform");
+    expect(screen.getByTestId("launcher-empty-shell")).toBeDisabled();
   });
 
   it("calls onLaunch with undefined backend when default is unchanged so the server applies its configured default", () => {
@@ -282,5 +297,55 @@ describe("TerminalLauncher", () => {
     expect(screen.getByTestId("launcher-target-catalog-state")).toHaveTextContent(strings.terminalLauncher.unconfigured);
     fireEvent.click(screen.getByTestId("launcher-target-refresh"));
     expect(onRefreshTargets).toHaveBeenCalledOnce();
+  });
+
+  it("shows target loading state and disables refresh while loading", () => {
+    const onRefreshTargets = vi.fn();
+    render(
+      <TerminalLauncher
+        open
+        onClose={onClose}
+        onLaunch={onLaunch}
+        shortcuts={testShortcuts}
+        targetsLoading
+        onRefreshTargets={onRefreshTargets}
+      />,
+    );
+
+    expect(screen.getByTestId("launcher-target-loading")).toBeInTheDocument();
+    expect(screen.getByTestId("launcher-target-refresh")).toBeDisabled();
+  });
+
+  it("filters remote targets and reports when no node matches", () => {
+    const targets: TerminalTarget[] = [
+      { id: "one", kind: "bridge-node", label: "Build one", available: true, state: "dispatchable", os: "linux", arch: "amd64" },
+      { id: "two", kind: "bridge-node", label: "Build two", available: true, state: "dispatchable", os: "linux", arch: "amd64" },
+      { id: "three", kind: "bridge-node", label: "Build three", available: true, state: "dispatchable", os: "linux", arch: "amd64" },
+      { id: "four", kind: "bridge-node", label: "Build four", available: true, state: "dispatchable", os: "linux", arch: "amd64" },
+    ];
+    render(<TerminalLauncher open onClose={onClose} onLaunch={onLaunch} shortcuts={testShortcuts} availableTargets={targets} />);
+
+    const search = screen.getByTestId("launcher-target-search");
+    fireEvent.change(search, { target: { value: "does-not-exist" } });
+
+    expect(screen.getByText(strings.terminalLauncher.noRemoteNodes)).toBeInTheDocument();
+    expect(screen.queryByTestId("launcher-target-card-one")).not.toBeInTheDocument();
+  });
+
+  it("renders every target status and preserves an invalid last-seen value", () => {
+    const targets: TerminalTarget[] = [
+      { id: "update", kind: "bridge-node", label: "Needs update", available: true, state: "needs-update", last_seen_at: "not-a-date" },
+      { id: "offline", kind: "bridge-node", label: "Offline", available: false, state: "offline" },
+      { id: "unconfigured", kind: "bridge-node", label: "Unconfigured", available: false, state: "unconfigured" },
+      { id: "unknown", kind: "bridge-node", label: "Unknown", available: false },
+    ];
+    render(<TerminalLauncher open onClose={onClose} onLaunch={onLaunch} shortcuts={testShortcuts} availableTargets={targets} />);
+
+    expect(screen.getByTestId("launcher-target-card-update")).toBeInTheDocument();
+    expect(screen.getByTestId("launcher-target-card-offline")).toBeInTheDocument();
+    expect(screen.getByTestId("launcher-target-card-unconfigured")).toBeInTheDocument();
+    expect(screen.getByTestId("launcher-target-card-unknown")).toBeInTheDocument();
+    fireEvent.click(screen.getByTestId("launcher-target-card-update"));
+    expect(screen.getByText(/not-a-date/)).toBeInTheDocument();
   });
 });

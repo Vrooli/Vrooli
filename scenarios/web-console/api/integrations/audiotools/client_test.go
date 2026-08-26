@@ -2,6 +2,7 @@ package audiotools
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -48,5 +49,24 @@ func TestResolverClientAndCredentials(t *testing.T) {
 	}
 	if err := c.PingContext(context.Background()); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestResolversAndErrorNormalization(t *testing.T) {
+	t.Setenv("AUDIO_TOOLS_URL", " ")
+	if got, err := (EnvResolver{EnvVar: "AUDIO_TOOLS_URL", Default: "http://fallback"}).Resolve(); err != nil || got != "http://fallback" {
+		t.Fatalf("default resolver=%q err=%v", got, err)
+	}
+	if _, err := (EnvResolver{EnvVar: "MISSING_AUDIO_TOOLS"}).Resolve(); err == nil {
+		t.Fatal("missing resolver should fail")
+	}
+	if !errors.Is(NormalizeError(context.DeadlineExceeded), ErrTimeout) {
+		t.Fatal("deadline should normalize to timeout")
+	}
+	if !errors.Is(NormalizeError(connect.NewError(connect.CodeUnavailable, errors.New("down"))), ErrUnavailable) {
+		t.Fatal("connect unavailable should normalize")
+	}
+	if !errors.Is(NormalizeError(connect.NewError(connect.CodeInvalidArgument, errors.New("bad"))), ErrInvalidArgument) {
+		t.Fatal("connect invalid argument should normalize")
 	}
 }

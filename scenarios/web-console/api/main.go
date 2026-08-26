@@ -400,11 +400,8 @@ type Server struct {
 	// nextWSGen is a monotonically increasing generation counter; each
 	// new terminal WebSocket connection gets a fresh Gen that is echoed
 	// to the client in session_ready. Clients use it as the wsGen write
-	// barrier on pending-ack re-enqueue (see useStdinAck).
-	nextWSGen atomic.Int64
-	// remoteSessions contains the short-lived server-side records used by the
-	// Bridge federation adapter. Credentials stay in the server process.
-	remoteSessions      *remoteTerminalRegistry
+	// barrier on cumulative-offset stdin reconciliation.
+	nextWSGen           atomic.Int64
 	remoteTargetCatalog func() []remoteTerminalTarget
 	monetization        *monetization.Gate
 	monetizationOutbox  *monetization.Outbox
@@ -561,7 +558,6 @@ func NewServer(db *database.RoutedDB) *Server {
 		filePreviews:         filepreview.NewStore(filepreview.DefaultTTL),
 		lastTTSBySource:      make(map[string]conversationAppendSnapshot),
 		lastTTSAckBySrc:      make(map[string]ttsAckSnapshot),
-		remoteSessions:       &remoteTerminalRegistry{sessions: make(map[string]remoteTerminalSession)},
 		speechProcessor:      audioports.PassthroughSpeechTextProcessor{},
 	}
 	if authority, authorityErr := credentialauthority.Default(); authorityErr == nil {
@@ -586,24 +582,10 @@ func NewServer(db *database.RoutedDB) *Server {
 
 	ollamaURL := getEnvOrDefault("OLLAMA_URL", "http://localhost:11434")
 	openrouterKey := os.Getenv("OPENROUTER_API_KEY")
+	bridgeOwnerToken, bridgeReauthToken := resolveBridgeOwnerCredentials()
+	bridgeURL := os.Getenv("WEB_CONSOLE_BRIDGE_URL")
 
-	checkers := map[string]capabilities.Checker{
-		"ollama": &capabilities.OllamaChecker{
-			BaseURL: ollamaURL,
-			Client:  &http.Client{Timeout: 5 * time.Second},
-		},
-		"openrouter": &capabilities.OpenRouterChecker{
-			APIKey: openrouterKey,
-			Client: &http.Client{Timeout: 5 * time.Second},
-		},
-		// Connected scenarios. Each DependencyScenario entry in
-		// capabilities.Known needs a checker so the integrations UI can
-		// render real status. These shell out to the Vrooli CLI rather than
-		// calling another scenario's API directly — see
-		// project_wrap_not_use_principle. audio-tools owns Whisper / Kokoro /
-		// speaker-verification end-to-end.
-		"audio-tools": &capabilities.ScenarioChecker{Slug: "audio-tools"},
-	}
+	checkers := newCapabilityCheckers(ollamaURL, openrouterKey, bridgeURL, bridgeOwnerToken, bridgeReauthToken)
 	srv.capabilities = capabilities.NewRegistry(capabilities.Known, checkers, 30*time.Second)
 	srv.capabilities.SetLivenessCheckers(map[string]capabilities.Checker{
 		"ollama": &capabilities.ResourceChecker{
@@ -614,6 +596,10 @@ func NewServer(db *database.RoutedDB) *Server {
 			APIKey: openrouterKey,
 		},
 		"audio-tools": &capabilities.ScenarioChecker{Slug: "audio-tools"},
+		"vrooli-bridge": &capabilities.BridgeChecker{
+			BaseURL: bridgeURL, OwnerToken: bridgeOwnerToken, ReauthToken: bridgeReauthToken,
+			Client: &http.Client{Timeout: 3 * time.Second}, Probe: true,
+		},
 	})
 	// Warm capability cache so the first /capabilities request returns instantly.
 	go func() {
@@ -702,6 +688,36 @@ func NewServer(db *database.RoutedDB) *Server {
 	return srv
 }
 
+// newCapabilityCheckers is the production checker map kept separate from
+// server construction so tests can assert that every catalogue entry has a
+// real status producer. The integrations panel must never silently fall back
+// to a fixture or an unregistered capability.
+func newCapabilityCheckers(ollamaURL, openrouterKey, bridgeURL, bridgeOwnerToken, bridgeReauthToken string) map[string]capabilities.Checker {
+	return map[string]capabilities.Checker{
+		"ollama": &capabilities.OllamaChecker{
+			BaseURL: ollamaURL,
+			Client:  &http.Client{Timeout: 5 * time.Second},
+		},
+		"openrouter": &capabilities.OpenRouterChecker{
+			APIKey: openrouterKey,
+			Client: &http.Client{Timeout: 5 * time.Second},
+		},
+		// Connected scenarios. Each DependencyScenario entry in
+		// capabilities.Known needs a checker so the integrations UI can
+		// render real status. These shell out to the Vrooli CLI rather than
+		// calling another scenario's API directly — see
+		// project_wrap_not_use_principle. audio-tools owns Whisper / Kokoro /
+		// speaker-verification end-to-end.
+		"audio-tools":                &capabilities.ScenarioChecker{Slug: "audio-tools"},
+		"session-backend-standard":   &capabilities.StaticChecker{Available: probeStandard},
+		"session-backend-persistent": &capabilities.StaticChecker{Available: backend.CheckTmuxAvailable},
+		"vrooli-bridge": &capabilities.BridgeChecker{
+			BaseURL: bridgeURL, OwnerToken: bridgeOwnerToken, ReauthToken: bridgeReauthToken,
+			Client: &http.Client{Timeout: 3 * time.Second}, Probe: true,
+		},
+	}
+}
+
 func (s *Server) setupRoutes() {
 	s.router.Use(requestIDMiddleware)
 	s.router.Use(loggingMiddleware)
@@ -716,6 +732,7 @@ func (s *Server) setupRoutes() {
 	healthHandler := healthBuilder.Handler()
 	s.router.HandleFunc("/health", healthHandler).Methods("GET")
 	s.router.HandleFunc("/api/v1/health", healthHandler).Methods("GET")
+	s.registerOwnerCleanupRoutes()
 	voiceGate := monetizationGate{gate: s.monetization, outbox: s.monetizationOutbox}
 	s.router.Handle("/api/v1/monetization/voice", monetization.InjectEntitlement(http.HandlerFunc(voiceGate.voiceSynthesis))).Methods(http.MethodPost)
 
@@ -804,15 +821,6 @@ func (s *Server) setupRoutes() {
 		SummarizeConfig: s.summarizeConfigAdmin,
 	}).Mount(s.router)
 
-	// Remote terminal federation is a deliberately small REST/WS exception:
-	// the browser terminal protocol is already JSON-over-WebSocket and the
-	// Bridge edge is binary protobuf-over-WebSocket. The server-side adapter
-	// keeps Bridge credentials out of the browser and publishes only configured
-	// readiness facts.
-	s.router.HandleFunc("/api/v1/remote-sessions/targets", s.handleRemoteTerminalTargets).Methods(http.MethodGet)
-	s.router.HandleFunc("/api/v1/remote-sessions", s.handleRemoteTerminalCreate).Methods(http.MethodPost)
-	s.router.HandleFunc("/api/v1/remote-sessions", s.handleRemoteTerminalList).Methods(http.MethodGet)
-	s.router.HandleFunc("/api/v1/remote-sessions/{id}", s.handleRemoteTerminalDelete).Methods(http.MethodDelete)
 	audioRuntimeH.Module(audioRuntimeH.Deps{
 		STT:      s.sttPort,
 		TTS:      s.ttsPort,
@@ -899,7 +907,7 @@ const requestIDKey contextKey = "request_id"
 func requestIDMiddleware(next http.Handler) http.Handler {
 	var counter uint64
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		id := fmt.Sprintf("req-%d-%d", time.Now().UnixMilli()%100000, atomic.AddUint64(&counter, 1))
+		id := fmt.Sprintf("req-%d-%d", time.Now().UnixMilli()%(100*1000), atomic.AddUint64(&counter, 1))
 		ctx := context.WithValue(r.Context(), requestIDKey, id)
 		w.Header().Set("X-Request-ID", id)
 		next.ServeHTTP(w, r.WithContext(ctx))

@@ -1,5 +1,6 @@
+import { renderWithProviders as render } from "../test-utils";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { screen, fireEvent, waitFor } from "@testing-library/react";
 import TtsSettingsSection from "../components/settings/TtsSettingsSection";
 import { strings } from "../consts/strings";
 
@@ -278,5 +279,23 @@ describe("TtsSettingsSection", () => {
     fireEvent.change(screen.getByTestId("summarize-model-select"), { target: { value: "qwen3:4b" } });
     await waitFor(() => expect(mockUpdateSummarizeConfig).toHaveBeenCalledWith({ model: "qwen3:4b" }));
     expect(screen.getByTestId("summarize-model-reasoning-warning").textContent).toContain("Reasoning models are slower");
+  });
+
+  it("exercises browser playback controls, refresh, test, and summarize sliders", async () => {
+    await renderSection();
+    fireEvent.click(screen.getByTestId("start-muted-toggle"));
+    fireEvent.click(screen.getByTestId("tts-refresh"));
+    fireEvent.click(screen.getByTestId("tts-test-button"));
+    fireEvent.change(screen.getByTestId("tts-voice-select"), { target: { value: "af_heart" } });
+    fireEvent.change(screen.getByTestId("tts-rate-slider"), { target: { value: "1.4" } });
+    fireEvent.change(screen.getByTestId("tts-pitch-slider"), { target: { value: "0.8" } });
+    fireEvent.change(screen.getByTestId("summarize-threshold"), { target: { value: "800" } });
+    fireEvent.change(screen.getByTestId("summarize-level-select"), { target: { value: "heavy" } });
+    fireEvent.change(screen.getByTestId("summarize-timeout"), { target: { value: "90" } });
+    expect(mockStoreState.setStartMutedOnLoad).toHaveBeenCalledWith(true);
+    expect(mockStoreState.setTtsVoice).toHaveBeenCalledWith("af_heart");
+    expect(mockStoreState.setTtsRate).toHaveBeenCalledWith(1.4);
+    expect(mockStoreState.setTtsPitch).toHaveBeenCalledWith(0.8);
+    await waitFor(() => expect(mockUpdateSummarizeConfig).toHaveBeenCalled());
   });
 });

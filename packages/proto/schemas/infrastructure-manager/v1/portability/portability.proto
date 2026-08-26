@@ -162,6 +162,26 @@ message Grid {
   int32 manifests_read = 3;
   google.protobuf.Timestamp computed_at = 4;
   repeated ObservedSafeguard observed_safeguards = 5;
+  repeated NativeEvidence native_evidence = 6;
+}
+
+// NativeEvidence is the durable qualification surface observed by a runner.
+// CI records are broad-surface evidence; hardware records may name the exact
+// capability claims they validate. A failed latest record decays a supported
+// manifest claim back to build-verified in the computed grid.
+message NativeEvidence {
+  string kind = 1;
+  HostOS host_os = 2;
+  string architecture = 3;
+  string commit = 4;
+  google.protobuf.Timestamp generated_at = 5;
+  bool passed = 6;
+  string source = 7;
+  string run_id = 8;
+  string host = 9;
+  string surface = 10;
+  string artifact_uri = 11;
+  repeated string capabilities = 12;
 }
 
 message ObservedSafeguard {

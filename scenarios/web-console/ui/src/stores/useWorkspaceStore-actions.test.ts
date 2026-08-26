@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it } from "vitest";
+import { act, renderHook } from "@testing-library/react";
 import { useWorkspaceStore } from "./useWorkspaceStore";
+import { useEffectiveFontSize } from "./useWorkspaceStore";
 
 describe("useWorkspaceStore action surface", () => {
   beforeEach(() => {
@@ -45,6 +47,7 @@ describe("useWorkspaceStore action surface", () => {
     s.setSidebarView("archive");
     s.setSidebarOriginTab("remote");
     s.setAdaptiveChrome(false);
+		s.setTmuxMouseMode(true);
     s.setKeepScreenAwake(false);
     s.setDeviceFontSize("a", 20);
     s.setViewerCount("a", 2);
@@ -77,5 +80,41 @@ describe("useWorkspaceStore action surface", () => {
     expect(result.deviceFontSize.a).toBe(20);
     expect(result.viewerCounts.a).toBe(2);
     expect(result.modifiers).toEqual({ ctrl: false, alt: false, shift: false });
+  });
+
+  it("keeps terminal input buffers and device-local scroll/font preferences bounded", () => {
+    const s = useWorkspaceStore.getState();
+    s.setTouchScrollSensitivity(0);
+    s.setWheelScrollSensitivity(9);
+    expect(useWorkspaceStore.getState().touchScrollSensitivity).toBe(0.1);
+    expect(useWorkspaceStore.getState().wheelScrollSensitivity).toBe(4);
+		s.resetScrollSensitivities();
+		expect(useWorkspaceStore.getState().touchScrollSensitivity).toBe(1);
+		expect(useWorkspaceStore.getState().wheelScrollSensitivity).toBe(1);
+		expect(useWorkspaceStore.getState().tmuxMouseMode).toBe(true);
+		s.setPredictionLatencyThresholdMs(-10);
+		expect(useWorkspaceStore.getState().predictionLatencyThresholdMs).toBe(0);
+		s.setPredictionLatencyThresholdMs(2000);
+		expect(useWorkspaceStore.getState().predictionLatencyThresholdMs).toBe(1000);
+
+    s.setPendingInputBuffer("a", [{ data: "draft", intent: "typing" }]);
+    const entries = s.consumePendingInputBuffer("a");
+    expect(entries).toEqual([{ data: "draft", intent: "typing" }]);
+    expect(s.consumePendingInputBuffer("a")).toBeUndefined();
+    s.setPendingInputBuffer("a", []);
+
+    s.setDeviceFontSize("a", 99);
+    expect(useWorkspaceStore.getState().deviceFontSize.a).toBe(24);
+    s.clearDeviceFontSize("a");
+    expect(useWorkspaceStore.getState().deviceFontSize.a).toBeUndefined();
+
+    act(() => {
+      useWorkspaceStore.setState({
+        panes: [{ sessionId: "a", name: "A", headerColor: "transparent", themeId: "slate-ocean", fontSize: 16, groupId: null, supportsMessagesView: false, manuallyUnread: false }],
+        deviceFontSize: { a: 20 },
+      });
+    });
+    const { result } = renderHook(() => useEffectiveFontSize("a"));
+    expect(result.current).toBe(20);
   });
 });

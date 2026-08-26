@@ -78,7 +78,7 @@ func uniquePath(dir, name string) string {
 	}
 	ext := filepath.Ext(name)
 	base := strings.TrimSuffix(name, ext)
-	for i := 1; i < 10000; i++ {
+	for i := 1; i < 10*1000; i++ {
 		candidate = filepath.Join(dir, fmt.Sprintf("%s_%d%s", base, i, ext))
 		if _, err := os.Stat(candidate); os.IsNotExist(err) {
 			return candidate

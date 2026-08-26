@@ -25,7 +25,7 @@ import { strings } from "../consts/strings";
 import { cn } from "../lib/classnames";
 import { formatRelativeTime } from "./MessageJumpList.helpers";
 import { ConfirmDialog } from "./ConfirmDialog";
-import { DrawerShell } from "./DrawerShell";
+import { DrawerShell } from "@vrooli/react-component-library/DrawerShell/1.0.0";
 import MessageExportDrawer from "./MessageExportDrawer";
 import MessagesPane from "./MessagesPane";
 

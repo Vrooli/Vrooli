@@ -7,7 +7,7 @@ import * as sessions from "../sessions";
 import * as settings from "../settings";
 import * as targets from "../targets";
 import * as workspace from "../workspace";
-import { ArchiveRestoreState } from "@vrooli/proto-types/web-console/v1/sessions/sessions_pb";
+import { ArchiveRestoreState, SessionOrigin } from "@vrooli/proto-types/web-console/v1/sessions/sessions_pb";
 import { CatalogState } from "@vrooli/proto-types/web-console/v1/targets/targets_pb";
 import { EntryType, PreviewKind } from "@vrooli/proto-types/web-console/v1/file_preview/file_preview_pb";
 
@@ -81,10 +81,33 @@ describe("Connect client wrappers", () => {
   });
 
   it("decodes session origins and builds websocket URLs", () => {
+    expect(sessions.originName(SessionOrigin.UI)).toBe("ui");
+    expect(sessions.originName(SessionOrigin.PROGRAMMATIC)).toBe("programmatic");
+    expect(sessions.originName(SessionOrigin.REMOTE)).toBe("remote");
+    expect(sessions.originName(undefined)).toBe("unspecified");
+    expect(sessions.coerceOriginName("ui")).toBe("ui");
+    expect(sessions.coerceOriginName("programmatic")).toBe("programmatic");
     expect(sessions.coerceOriginName("remote")).toBe("remote");
     expect(sessions.coerceOriginName("other")).toBe("unspecified");
     expect(sessions.decodeSession(undefined)).toMatchObject({ backend: "standard", origin: "unspecified", policy: { mode: "never" } });
+    expect(sessions.decodeSession({ id: "full", shell: "sh", createdAt: "now", cols: 80, rows: 24, backend: "persistent", survivesRestart: true, policy: { mode: "custom", duration: "1h" }, recovered: true, origin: SessionOrigin.UI, owner: "o", displayLabel: "label", trackingDegraded: true, target: { id: "t", kind: "ssh", label: "remote", os: "linux", arch: "amd64", nodeId: "n", revision: "r", status: "online", online: true, dispatchable: true, readiness: [], failureRung: "", state: 0, recoveryAction: "", survivesRestart: true } } as never)).toMatchObject({ origin: "ui", recovered: true, tracking_degraded: true, target: { id: "t" } });
     expect(sessions.buildSessionWsUrl("s1", { id: "d", label: "phone" })).toContain("deviceId=d");
+    expect(sessions.buildSessionWsUrl("s1")).toContain("/sessions/s1/ws");
+  });
+
+  it("covers session request defaults, empty optional projections, and URL protocol branches", async () => {
+    const create = vi.spyOn(sessions.sessionsClient, "create").mockResolvedValue({ session: { id: "s", shell: "", cols: 0, rows: 0, createdAt: "", backend: "", survivesRestart: false, policy: undefined } } as never);
+    await sessions.createSession();
+    expect(create.mock.calls[0]?.[0]).toMatchObject({ shell: "", cols: 0, rows: 0, backend: "", executeLaunchCommand: false, origin: SessionOrigin.UI });
+    vi.spyOn(sessions.sessionsClient, "getArchiveRetention").mockResolvedValue({ policy: undefined, stats: undefined } as never);
+    await expect(sessions.getArchiveRetention()).resolves.toEqual({ policy: { message_less_age_days: 0, agent_home_age_days: 0, max_bytes: 0 }, stats: { entry_count: 0, message_count: 0, transcript_bytes: 0, agent_home_bytes: 0, total_bytes: 0 } });
+    vi.spyOn(sessions.sessionsClient, "recover").mockResolvedValue({ oldSessionId: "", newSessionId: "", agentType: "", commandSent: "", codexHomeCopied: false } as never);
+    await expect(sessions.recoverSession("s")).resolves.toEqual({ old_session_id: "", new_session_id: "", agent_type: undefined, command_sent: undefined, codex_home_copied: false });
+    vi.spyOn(sessions.sessionsClient, "reopen").mockResolvedValue({ oldSessionId: "", newSessionId: "", agentType: "", commandSent: "", codexHomeCopied: false } as never);
+    await expect(sessions.reopenSession("s", "k")).resolves.toMatchObject({ agent_type: undefined, command_sent: undefined });
+    vi.spyOn(sessions.sessionsClient, "getPolicy").mockResolvedValue({ policy: undefined } as never);
+    await expect(sessions.getSessionPolicy("s")).resolves.toEqual({ session_id: "", policy: { mode: "never" } });
+    expect(sessions.buildSessionWsUrl("s", undefined)).toContain("/sessions/s/ws");
   });
 
   it("covers session lifecycle wrappers and recovery projections", async () => {
@@ -121,6 +144,18 @@ describe("Connect client wrappers", () => {
     await sessions.dismissRecoverableSession("r");
     await expect(sessions.getSessionPolicy("s1")).resolves.toMatchObject({ expires_at: "later", ttl_seconds: 10 });
     await expect(sessions.updateSessionPolicy("s1", { mode: "never" })).resolves.toMatchObject({ policy: { mode: "never" } });
+
+    vi.spyOn(sessions.sessionsClient, "list").mockResolvedValueOnce({ sessions: [], recovery: undefined } as never);
+    await expect(sessions.listSessionsWithRecovery()).resolves.toMatchObject({ sessions: [], recovery: { in_progress: false, total: 0, adopted: 0 } });
+    vi.spyOn(sessions.sessionsClient, "listRecoverable").mockResolvedValueOnce({ sessions: [{ id: "empty", backend: "", shell: "", cols: 0, rows: 0, createdAt: "", orphanedAt: "", lastActivityAt: "", agentType: "", agentSessionId: "", launchCommand: "", cwd: "", lastRolloutPath: "", recoverable: false, notRecoverableReason: "", paneName: "", headerColor: "", groupName: "" }] } as never);
+    await expect(sessions.listRecoverableSessions()).resolves.toEqual([{ id: "empty", recoverable: false }]);
+    vi.spyOn(sessions.sessionsClient, "getPolicy").mockResolvedValueOnce({ policy: { sessionId: "s1", hasExpiry: false } } as never);
+    await expect(sessions.getSessionPolicy("s1")).resolves.toEqual({ session_id: "s1", policy: { mode: "never" } });
+    vi.spyOn(sessions.sessionsClient, "listArchived").mockResolvedValueOnce({ sessions: [
+      { id: "r", archivedAt: "", createdAt: "", agentType: "", agentSessionId: "", cwd: "", paneName: "", headerColor: "", groupName: "", messageCount: 0n, restoreState: ArchiveRestoreState.READ_ONLY, restoreStateReason: "reason", awaitingRecovery: false },
+      { id: "n", archivedAt: "", createdAt: "", agentType: "", agentSessionId: "", cwd: "", paneName: "", headerColor: "", groupName: "", messageCount: 0n, restoreState: ArchiveRestoreState.NOTHING_TO_RESTORE, restoreStateReason: "", awaitingRecovery: false },
+    ], total: 2 } as never);
+    await expect(sessions.listArchivedSessions()).resolves.toMatchObject({ sessions: [{ restore_state: "read_only" }, { restore_state: "nothing_to_restore" }] });
   });
 
   it("decodes target catalogs and file preview pages", async () => {
@@ -137,5 +172,44 @@ describe("Connect client wrappers", () => {
     await expect(filePreview.resolveFilePreview("s", "x", "cli")).resolves.toMatchObject({ kind: "markdown", line: 4, blobHref: expect.stringContaining("/blob") });
     await expect(filePreview.listDirectory("s", "p", { sort: "name", showHidden: false })).resolves.toMatchObject({ entries: [{ entryType: "file", kind: "text", childCount: null }] });
     await expect(filePreview.getFilePreviewText("s", "p")).resolves.toEqual({ resolvedPath: "/x", kind: "text", mimeType: "text/plain", content: "hi", truncated: false, line: undefined });
+  });
+
+  it("covers empty and unknown decoder branches for capabilities, targets, and previews", async () => {
+    capabilities._resetCapabilitiesCache();
+    vi.spyOn(capabilities.capabilitiesClient, "get").mockResolvedValue({
+      capabilities: [{ id: "future", name: "Future", description: "", dependencyKind: "", dependencySlug: "", features: undefined, status: "future", message: "", checkedAt: "", reasonCode: "", actionKind: "", actionLabel: "", operatorCommand: "" }],
+      timestamp: "now",
+      sessionBackends: [],
+      defaultBackend: "",
+    } as never);
+    await expect(capabilities.fetchCapabilities()).resolves.toEqual({
+      capabilities: [{ id: "future", name: "Future", description: "", dependencyKind: "", dependencySlug: "", features: [], status: "unknown" }],
+      timestamp: "now",
+    });
+
+    vi.spyOn(targets.targetCatalogClient, "list").mockResolvedValue({ state: CatalogState.UNCONFIGURED, targets: [], message: "", recoveryAction: "" } as never);
+    await expect(targets.listTargetCatalog()).resolves.toEqual({ status: "unconfigured", targets: [] });
+    expect(targets.decodeTarget({ id: "offline", kind: "", label: "", os: "", arch: "", nodeId: "", revision: "", status: "", online: false, lastSeenAt: { seconds: 0n, nanos: 0 }, dispatchable: false, readiness: [], failureRung: "", state: 2, recoveryAction: "", survivesRestart: false } as never)).toMatchObject({ kind: "bridge-node", label: "offline", last_seen_at: undefined, state: "offline" });
+    expect(targets.decodeTarget({ id: "update", kind: "attached", label: "u", dispatchable: false, readiness: [], failureRung: "", state: 3 } as never)).toMatchObject({ kind: "attached", state: "needs-update" });
+    expect(targets.decodeTarget({ id: "bad", kind: "ssh", label: "b", dispatchable: false, readiness: [], failureRung: "transport", state: 99 } as never)).toMatchObject({ state: "unavailable" });
+
+    expect(filePreview.previewBlobHref("blob")).toMatch(/\/blob$/);
+    vi.spyOn(filePreview.filePreviewClient, "resolve").mockResolvedValue({ previewId: "p", inputPath: "x", resolvedPath: "/x", basename: "x", hasLine: false, line: 0, resolutionBasis: "", previewKind: 999, mimeType: "", sizeBytes: 0n, canPreview: false, canDownload: false, supportsRange: false, textContentAvailable: false, listingAvailable: false, blobUrl: "", expiresUnixNano: 0n, warnings: undefined } as never);
+    await expect(filePreview.resolveFilePreview("s", "x")).resolves.toMatchObject({ kind: "unsupported", line: undefined, blobHref: "", warnings: [] });
+    vi.spyOn(filePreview.filePreviewClient, "listDirectory").mockResolvedValue({ resolvedPath: "/", parentPath: "", entries: [{ name: "unknown", entryType: 999, previewKind: 0, sizeBytes: 0n, mtimeUnixNano: 0n, canPreview: false, symlinkTarget: "", symlinkBroken: false, mode: "", childCount: 0n }], totalEntries: 1, truncated: true, nextPageToken: "next", effectiveSort: 999, warnings: undefined } as never);
+    await expect(filePreview.listDirectory("s", "p", { sort: "mtime_desc", showHidden: true })).resolves.toMatchObject({ effectiveSort: "dirs_first_name", entries: [{ entryType: "other", kind: null, childCount: 0 }], warnings: [] });
+  });
+
+  it("sets every workspace update presence bit and fails closed on missing responses", async () => {
+    const pane = { sessionId: "s", name: "n", headerColor: "h", themeId: "t", fontSize: 14, sortOrder: 1, groupId: "g", supportsMessagesView: true, manuallyUnread: true };
+    const updatePane = vi.spyOn(workspace.workspaceClient, "updatePane").mockResolvedValue({ pane } as never);
+    await expect(workspace.updateWorkspacePane("s", { name: "n", header_color: "h", theme_id: "t", font_size: 14, sort_order: 1, group_id: null, supports_messages_view: true, manually_unread: true })).resolves.toMatchObject({ group_id: "g" });
+    expect(updatePane.mock.calls[0]?.[0]).toMatchObject({ hasName: true, hasHeaderColor: true, hasThemeId: true, hasFontSize: true, hasSortOrder: true, hasGroupId: true, hasSupportsMessagesView: true, hasManuallyUnread: true });
+    vi.spyOn(workspace.workspaceClient, "updatePane").mockResolvedValue({ pane: undefined } as never);
+    await expect(workspace.updateWorkspacePane("s", {})).rejects.toThrow("missing pane");
+    vi.spyOn(workspace.workspaceClient, "createGroup").mockResolvedValue({ group: undefined } as never);
+    await expect(workspace.createTabGroup({ name: "x", color: "y" })).rejects.toThrow("missing group");
+    vi.spyOn(workspace.workspaceClient, "updateGroup").mockResolvedValue({ group: undefined } as never);
+    await expect(workspace.updateTabGroup("g", { name: "n", color: "c", is_collapsed: true })).rejects.toThrow("missing group");
   });
 });

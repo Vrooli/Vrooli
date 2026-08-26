@@ -37,7 +37,7 @@ func FromSession(s *session.Session) Response {
 		Cols:            int(s.Cols),
 		Rows:            int(s.Rows),
 		Backend:         s.Backend,
-		SurvivesRestart: s.Backend == backend.Persistent,
+		SurvivesRestart: s.Backend == backend.Persistent || s.Backend == backend.Remote,
 		Policy:          s.GetPolicy(),
 		Recovered:       s.Recovered(),
 	}

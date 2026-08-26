@@ -1,6 +1,8 @@
 package main
 
 import (
+	"log"
+
 	"web-console/internal/config"
 	"web-console/internal/pty"
 	"web-console/session"
@@ -11,7 +13,13 @@ import (
 // env builder wired in. The session/ sub-package has no knowledge of these
 // defaults — this is the single place that bridges the two packages.
 func newSessionManager() *session.Manager {
-	sm := session.NewManager(defaultPTYFactory, config.Load())
+	cfg, err := config.LoadChecked()
+	if err != nil {
+		log.Printf("configuration: shell unavailable: %v", err)
+	} else {
+		log.Printf("configuration: resolved shell=%q", cfg.DefaultShell)
+	}
+	sm := session.NewManager(defaultPTYFactory, cfg)
 	wireDefaultManagerHooks(sm)
 	return sm
 }
@@ -31,7 +39,7 @@ func wireDefaultManagerHooks(sm *session.Manager) {
 	sm.SetTmuxHooks(
 		tmuxAttachAsPTY,
 		DiscoverTmuxSessions,
-		applyTmuxOptions,
+		refreshTmuxOptions,
 		func(name string) { _ = tmuxCmd("kill-session", "-t", name).Run() },
 		tmuxSessionPrefix,
 	)

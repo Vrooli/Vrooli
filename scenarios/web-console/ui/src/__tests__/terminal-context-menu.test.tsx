@@ -1,5 +1,6 @@
+import { renderWithProviders as render } from "../test-utils";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, fireEvent, act } from "@testing-library/react";
+import { screen, fireEvent, act } from "@testing-library/react";
 import TerminalContextMenu from "../components/TerminalContextMenu";
 import { strings } from "../consts/strings";
 import { i18n } from "../i18n";

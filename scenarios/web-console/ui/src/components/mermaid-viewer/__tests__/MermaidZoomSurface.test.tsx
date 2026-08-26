@@ -1,5 +1,5 @@
+import { renderWithProviders as render } from "../../../test-utils";
 import { describe, expect, it } from "vitest";
-import { render } from "@testing-library/react";
 
 import { MermaidZoomSurface } from "../MermaidZoomSurface";
 

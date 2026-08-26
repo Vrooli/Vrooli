@@ -224,17 +224,49 @@ func (sm *Manager) isSessionLimitReached() bool {
 // Create starts a new shell session with a PTY.
 // [REQ:P0-002a] PTY Session Backend
 func (sm *Manager) Create(ctx context.Context, shell string, cols, rows uint16, bid backend.ID, pol *policy.Policy) (*Session, error) {
-	return sm.create(ctx, shell, cols, rows, bid, pol, "")
+	return sm.createWithOptions(ctx, shell, cols, rows, bid, pol, "", false)
 }
 
 // CreateWithWorkingDir starts a session in workingDir when non-empty. It is
 // intentionally separate from Create so existing create paths retain their
 // configured-default behavior.
 func (sm *Manager) CreateWithWorkingDir(ctx context.Context, shell string, cols, rows uint16, bid backend.ID, pol *policy.Policy, workingDir string) (*Session, error) {
-	return sm.create(ctx, shell, cols, rows, bid, pol, workingDir)
+	return sm.createWithOptions(ctx, shell, cols, rows, bid, pol, workingDir, false)
 }
 
-func (sm *Manager) create(ctx context.Context, shell string, cols, rows uint16, bid backend.ID, pol *policy.Policy, workingDir string) (*Session, error) {
+// CreateWithOptions starts a session with creation-time backend options. The
+// tmux mouse choice is carried in the typed launch spec so it cannot leak
+// through an untyped environment variable or a global setting.
+func (sm *Manager) CreateWithOptions(ctx context.Context, shell string, cols, rows uint16, bid backend.ID, pol *policy.Policy, workingDir string, tmuxMouseMode bool) (*Session, error) {
+	return sm.createWithOptions(ctx, shell, cols, rows, bid, pol, workingDir, tmuxMouseMode)
+}
+
+// RemoteLaunch carries server-side Bridge credentials into the typed backend
+// factory. It is never serialized into a browser response.
+type RemoteLaunch struct {
+	BaseURL              string
+	NodeID               string
+	OwnerToken           string
+	ReauthToken          string
+	Shell                string
+	WorkingDir           string
+	Cols                 uint16
+	Rows                 uint16
+	LaunchCommand        string
+	ExecuteLaunchCommand bool
+}
+
+// CreateRemote creates a node-agent session through the same Session object
+// and websocket handler used by local PTYs.
+func (sm *Manager) CreateRemote(ctx context.Context, launch RemoteLaunch, pol *policy.Policy) (*Session, error) {
+	return sm.createWithRemote(ctx, launch.Shell, launch.Cols, launch.Rows, backend.Remote, pol, launch.WorkingDir, false, &launch)
+}
+
+func (sm *Manager) createWithOptions(ctx context.Context, shell string, cols, rows uint16, bid backend.ID, pol *policy.Policy, workingDir string, tmuxMouseMode bool) (*Session, error) {
+	return sm.createWithRemote(ctx, shell, cols, rows, bid, pol, workingDir, tmuxMouseMode, nil)
+}
+
+func (sm *Manager) createWithRemote(ctx context.Context, shell string, cols, rows uint16, bid backend.ID, pol *policy.Policy, workingDir string, tmuxMouseMode bool, remote *RemoteLaunch) (*Session, error) {
 	shell, cols, rows = sm.applySessionDefaults(shell, cols, rows)
 
 	// Resolve backend (read default under lock to avoid data race with settings handler)
@@ -273,12 +305,21 @@ func (sm *Manager) create(ctx context.Context, shell string, cols, rows uint16, 
 
 	sessionID := uuid.New().String()
 	spec := pty.LaunchSpec{
-		SessionID:  sessionID,
-		Shell:      shell,
-		Cols:       cols,
-		Rows:       rows,
-		WorkingDir: workingDir,
-		Env:        sm.envForSession(sessionID),
+		SessionID:     sessionID,
+		Shell:         shell,
+		Cols:          cols,
+		Rows:          rows,
+		WorkingDir:    workingDir,
+		Env:           sm.envForSession(sessionID),
+		TmuxMouseMode: tmuxMouseMode,
+	}
+	if remote != nil {
+		spec.RemoteURL = remote.BaseURL
+		spec.RemoteNodeID = remote.NodeID
+		spec.RemoteOwnerToken = remote.OwnerToken
+		spec.RemoteReauthToken = remote.ReauthToken
+		spec.LaunchCommand = remote.LaunchCommand
+		spec.ExecuteLaunchCommand = remote.ExecuteLaunchCommand
 	}
 
 	p, err := factory(spec)
@@ -320,7 +361,6 @@ func (sm *Manager) create(ctx context.Context, shell string, cols, rows uint16, 
 		ptyReadBuffer:           sm.cfg.PTYReadBuffer,
 		clientChannelBuffer:     sm.cfg.ClientChannelBuffer,
 		coalesceNotifyThreshold: sm.cfg.CoalesceNotifyThreshold,
-		sigwinchCooldown:        time.Duration(sm.cfg.SIGWINCHCooldownMs) * time.Millisecond,
 		reattachFunc:            sm.tmuxAttachFunc,
 		sessionPrefix:           sm.tmuxSessionPrefix,
 		metrics:                 sm.metrics,

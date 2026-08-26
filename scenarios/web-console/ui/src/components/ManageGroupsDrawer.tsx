@@ -9,7 +9,7 @@ import { strings } from "../consts/strings";
 import { cn } from "../lib/classnames";
 import { Button } from "./ui/button";
 import { ConfirmDialog } from "./ConfirmDialog";
-import { DrawerShell } from "./DrawerShell";
+import { DrawerShell } from "@vrooli/react-component-library/DrawerShell/1.0.0";
 
 const rowIconButtonClass =
   "shrink-0 rounded-full p-1.5 text-wc-text-muted transition hover:bg-wc-surface-input hover:text-wc-text-primary";

@@ -8,7 +8,7 @@ read the exact semantics, not an overview.
 Referenced from:
 
 - `ui/src/components/terminal/inputGate.ts`
-- `ui/src/hooks/terminal/useStdinAck.ts`
+- `ui/src/hooks/terminal/useStdinStream.ts`
 - `ui/src/hooks/terminal/useTerminalSession.ts`
 - `api/terminal_ws.go` (type constants)
 - `api/terminal_ws_input.go` (dispatch)
@@ -22,18 +22,41 @@ Referenced from:
 |---|---|---|---|
 | `type` | `"stdin"` | yes | Discriminator. |
 | `data` | `string` | yes | Payload. UTF-8 JSON string; multi-byte runes are delivered byte-exact to the PTY. |
-| `seq` | `number` | yes | Client-assigned monotonic sequence, per WS connection. Reset to 1 on each (re)open. Echoed by `stdin_ack`. |
+| `offset` | `number` | yes | Cumulative UTF-8 byte offset at which this payload starts. The first payload starts at zero. |
 | `intent` | `"typing"` \| `"bulk_text"` \| `"named_key"` | yes | Identifies the source intent. `bulk_text` selects tmux paste-buffer delivery; `typing` and `named_key` select literal send-keys delivery. Empty / unknown defaults to `"typing"` on the server for defensive parsing. |
+
+### `hello` (client → server)
+
+| Field | Type | Required | Semantics |
+|---|---|---|---|
+| `type` | `"hello"` | yes | Starts reconnect reconciliation. |
+| `have_through` | `number` | yes | Highest offset the client has already released. The server refuses a value ahead of its accepted prefix. |
 
 ### `stdin_ack` (server → client)
 
 | Field | Type | Required | Semantics |
 |---|---|---|---|
 | `type` | `"stdin_ack"` | yes | Discriminator. |
-| `seq` | `number` | yes | Echoes the `seq` of the matched `stdin` frame. |
+| `accepted_through` | `number` | yes | Highest contiguous UTF-8 byte offset accepted by the session. It is monotonic across WebSocket reconnects. |
 | `ok` | `boolean` | yes | `true` iff the backend accepted the bytes. |
 | `reason` | `string` | when `ok=false` | Typed error code (see below). Human-readable detail in `data`. |
 | `data` | `string` | when `ok=false` | Full error text for logging; UI presents `reason` only. |
+
+### `session_ready` mouse fields (server → client)
+
+| Field | Type | Required | Semantics |
+|---|---|---|---|
+| `mouse_mode_known` | `boolean` | yes | `true` only for a persistent tmux-backed pane that exposes mouse capture. |
+| `mouse_mode` | `boolean` | when known | Current tmux mouse-capture state. `false` is the default and means browser-local scrollback remains in control. |
+
+### `mouse_mode` (client ↔ server)
+
+| Field | Type | Required | Semantics |
+|---|---|---|---|
+| `type` | `"mouse_mode"` | yes | Requests or reports the per-pane tmux mouse-capture state. |
+| `data` | `"on"` \| `"off"` \| `"unsupported"` | yes | Client sends `on` or `off`; the server echoes the applied state. Unsupported backends return `unsupported` and do not change terminal input. |
+| `ok` | `boolean` | server response | `true` only when the tmux option was changed successfully. |
+| `reason` | `string` | on unsupported/rejected | Diagnostic detail; it is not written into the terminal buffer. |
 
 ## Input lanes and delivery paths
 
@@ -42,7 +65,7 @@ and `control`. Operator payloads use the reliable stdin lane and settle through
 `stdin_ack`; `control` is represented by the separate control frame rather than
 an acknowledged stdin frame.
 Synthetic terminal bytes use a separate best-effort `control` frame and do not
-enter the sequence/ack queue; reconnect must never replay them.
+enter the reliable-input ordering/replay state; reconnect must never replay them.
 
 | Intent | Standard backend (`realPTY`) | Persistent backend (`tmuxPTY`) |
 |---|---|---|
@@ -63,35 +86,36 @@ enter the sequence/ack queue; reconnect must never replay them.
 |---|---|---|
 | `tmux_write_failed` | `tmuxPTY.WriteInput` → `tmux send-keys`/`load-buffer`/`paste-buffer` returned non-zero | Transient or terminal tmux failure. UI preserves the draft, surfaces reason, does NOT auto-retry. |
 | `pty_closed` | `errors.Is(writeErr, errPTYClosed)` | Session's PTY has been closed (process exited, Close called). UI stops attempting to send; pane should surface a terminated banner. |
-| `not_ready` | Client-side only (input gate / useStdinAck) | `session_ready` not yet observed on this WS gen. Never emitted by the server. |
-| `invalid_input` | Reserved; not emitted today | Future use for malformed payloads. |
+| `offset_gap` | Server | The client sent a payload after a byte offset the session has not accepted. |
+| `unreconcilable` | Server/client | Reconciliation found an offset inside a payload or below the released prefix. No bytes are replayed. |
 
 ## Client-side gating
 
-`useStdinAck.send(data, kind)` emits a `stdin` frame only if the
-session is ready; otherwise returns `{sent: false, reason: "not-ready"}`
-and the caller queues the payload. On a fresh `session_ready`, the
-queue is drained in FIFO order with each entry's original `kind`
-preserved.
+`useStdinStream.send(data, kind)` emits a `stdin` frame only if the
+session is ready and the WebSocket is open; otherwise returns
+`{sent: false, reason: "not-ready"}` and the caller queues the payload. An
+open socket's browser send-buffer high-water mark does not create a second
+reliable-input queue: cumulative offsets remain the ordering and replay
+barrier. On a fresh `session_ready`, the offline queue is drained in FIFO
+order with each entry's original intent preserved.
 
-`useStdinAck.handleClose` re-enqueues only payloads whose `gen` matches
-the current transport generation. Payloads from prior generations
-have a committed outcome (their server wrote the bytes before the WS
-close, or the shell never saw them — either way, double-delivery is
-worse than one-off loss on a flaky network).
+`useStdinStream` retains sent payload boundaries across a close. It sends
+`hello`, compares the server's `accepted_through` with the local released
+offset, and replays only the unaccepted suffix. It never retries by timer.
+Offscreen pane unmounts retain the same entry boundaries and intent in the
+workspace buffer; they are not flattened into one bulk-text string.
 
 ## `subscribeInputSettled` contract
 
-Every `send()` that returns `{sent: true, seq}` eventually settles via
-`subscribeInputSettled(cb)`: `cb(seq, ok)` fires exactly once. Paths:
+Every `send()` that returns `{sent: true, offset}` eventually settles via
+`subscribeInputSettled(cb)`: the numeric argument is the covered byte offset,
+not a connection-local sequence. The server must never acknowledge beyond the
+client write head; such a response is unreconcilable. Paths:
 
-1. `stdin_ack(seq, ok=true)` arrives → `cb(seq, true)`.
-2. `stdin_ack(seq, ok=false)` arrives → `cb(seq, false)`. Payload is
-   automatically re-enqueued.
-3. `ACK_TIMEOUT_MS` elapses without an ack → `cb(seq, false)`. Payload
-   is automatically re-enqueued.
-4. WS close with matching `gen` → `cb(seq, false)`. Payload is
-   automatically re-enqueued.
+1. `stdin_ack(accepted_through)` covers the payload → `cb(offset, true)`.
+2. `stdin_ack(ok=false)` arrives → `cb(offset, false)` with the typed reason.
+3. Reconnect reports an offset inside a payload or below the released prefix
+   → `cb(offset, false, "unreconcilable")`; no bytes are replayed.
 
 `TerminalContextMenu`'s paste UI keys on this: the menu stays open
 showing `Pasting…` until the cb fires, then flashes `Pasted` (ok) or

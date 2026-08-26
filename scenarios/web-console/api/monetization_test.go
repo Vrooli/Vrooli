@@ -3,12 +3,59 @@ package main
 import (
 	"context"
 	"database/sql"
+	"encoding/base64"
+	"net/http"
+	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
 	monetization "github.com/vrooli/vrooli/packages/monetization-go"
 	_ "modernc.org/sqlite"
 )
+
+func TestBearerIdentityHintAndUsageTransport(t *testing.T) {
+	if got := bearerIdentityHint(""); got != "" {
+		t.Fatalf("empty bearer identity = %q", got)
+	}
+	encode := func(v string) string { return base64.RawURLEncoding.EncodeToString([]byte(v)) }
+	claims := encode(`{"email":"Alice@Example.COM"}`)
+	if got := bearerIdentityHint("Bearer " + encode("header") + "." + claims + "." + encode("sig")); got != "alice@example.com" {
+		t.Fatalf("email identity = %q", got)
+	}
+	claims = encode(`{"sub":"subject-1"}`)
+	if got := bearerIdentityHint("Bearer " + encode("header") + "." + claims + "." + encode("sig")); got != "subject-1" {
+		t.Fatalf("subject identity = %q", got)
+	}
+	if got := bearerIdentityHint("Bearer malformed"); got != "" {
+		t.Fatalf("malformed identity = %q", got)
+	}
+
+	seen := make(chan string, 1)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		seen <- r.Header.Get("Authorization")
+		w.WriteHeader(http.StatusNoContent)
+	}))
+	defer server.Close()
+	transport := &lpbsMonetizationTransport{baseURL: server.URL + "/", resolveToken: func(context.Context, string) (string, error) { return "lpbs-token", nil }}
+	if err := transport.Report(context.Background(), monetization.Usage{UserIdentity: "alice", MeterKey: "voice_minutes", Units: 1, AppKey: "web-console", OperationID: "op-1"}); err != nil {
+		t.Fatalf("usage report: %v", err)
+	}
+	if got := <-seen; got != "Bearer lpbs-token" {
+		t.Fatalf("authorization = %q", got)
+	}
+	if err := (&lpbsMonetizationTransport{}).Report(context.Background(), monetization.Usage{}); err == nil {
+		t.Fatal("unconfigured usage transport unexpectedly succeeded")
+	}
+	if err := (&monetizationGate{}).enqueueUsage(context.Background(), "alice"); err == nil {
+		t.Fatal("nil outbox unexpectedly accepted usage")
+	}
+	r := httptest.NewRecorder()
+	(&monetizationGate{}).voiceSynthesis(r, httptest.NewRequest(http.MethodPost, "/", strings.NewReader("{}")))
+	if r.Code != http.StatusUnauthorized {
+		t.Fatalf("unauthorized voice synthesis = %d", r.Code)
+	}
+}
 
 func TestSQLMonetizationOutboxStoreIsDurableAndIdempotent(t *testing.T) {
 	db, err := sql.Open("sqlite", "file:monetization-outbox-test?mode=memory&cache=shared")

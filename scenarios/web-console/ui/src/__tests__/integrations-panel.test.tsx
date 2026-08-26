@@ -37,16 +37,6 @@ const mockCapabilities: CapabilitiesResponse = {
       checkedAt: "2026-03-17T00:00:00Z",
     },
     {
-      id: "kokoro-tts",
-      name: "Kokoro TTS",
-      description: "Text-to-speech synthesis via Kokoro",
-      dependencyKind: "resource",
-      dependencySlug: "kokoro",
-      features: ["voice-output"],
-      status: "unavailable",
-      message: "resource is not responding",
-    },
-    {
       id: "ollama",
       name: "Ollama",
       description: "Local LLM inference for AI command generation",
@@ -64,6 +54,38 @@ const mockCapabilities: CapabilitiesResponse = {
       features: ["ai-command-generation"],
       status: "unavailable",
       message: "OPENROUTER_API_KEY not configured",
+    },
+    {
+      id: "session-backend-standard",
+      name: "Standard Terminal Sessions",
+      description: "Local PTY terminal sessions",
+      dependencyKind: "resource",
+      dependencySlug: "session-backend-standard",
+      features: [],
+      status: "available",
+    },
+    {
+      id: "session-backend-persistent",
+      name: "Persistent Terminal Sessions",
+      description: "tmux-backed terminal sessions",
+      dependencyKind: "resource",
+      dependencySlug: "session-backend-persistent",
+      features: [],
+      status: "available",
+    },
+    {
+      id: "vrooli-bridge",
+      name: "Remote Terminals",
+      description: "Bridged terminal sessions on registered nodes",
+      dependencyKind: "scenario",
+      dependencySlug: "vrooli-bridge",
+      features: [],
+      status: "unavailable",
+      message: "Bridge URL is not configured",
+      reasonCode: "bridge_url_missing",
+      actionKind: "scenario_start",
+      actionLabel: "Start Bridge",
+      operatorCommand: "vrooli scenario start vrooli-bridge --json",
     },
   ],
   timestamp: "2026-03-17T00:00:00Z",
@@ -96,10 +118,9 @@ describe("IntegrationsPanel", () => {
     renderWithProviders(<IntegrationsPanel open={true} />);
 
     await waitFor(() => {
-      expect(screen.getByTestId("cap-card-audio-tools")).toBeTruthy();
-      expect(screen.getByTestId("cap-card-kokoro-tts")).toBeTruthy();
-      expect(screen.getByTestId("cap-card-ollama")).toBeTruthy();
-      expect(screen.getByTestId("cap-card-openrouter")).toBeTruthy();
+      for (const capability of mockCapabilities.capabilities) {
+        expect(screen.getByTestId(`cap-card-${capability.id}`)).toBeTruthy();
+      }
     });
   });
 
@@ -109,7 +130,7 @@ describe("IntegrationsPanel", () => {
     renderWithProviders(<IntegrationsPanel open={true} />);
 
     await waitFor(() => {
-      expect(screen.getByText("2/4 active")).toBeTruthy();
+      expect(screen.getByText("4/6 active")).toBeTruthy();
     });
   });
 
@@ -118,9 +139,8 @@ describe("IntegrationsPanel", () => {
     renderWithProviders(<IntegrationsPanel open={true} />);
 
     await waitFor(() => {
-      expect(screen.getByTestId("cap-message-kokoro-tts")).toBeTruthy();
-      expect(screen.getByText("resource is not responding")).toBeTruthy();
       expect(screen.getByText("OPENROUTER_API_KEY not configured")).toBeTruthy();
+      expect(screen.getByText("Bridge URL is not configured")).toBeTruthy();
     });
   });
 
@@ -249,6 +269,31 @@ describe("IntegrationsPanel", () => {
     });
   });
 
+  it("normalizes a non-Error action rejection for the operator", async () => {
+    await i18n.changeLanguage("en");
+    mockFetchCapabilities.mockResolvedValue({
+      capabilities: [{
+        id: "audio-tools",
+        name: "Audio Tools",
+        description: "Shared audio capability scenario",
+        dependencyKind: "scenario",
+        dependencySlug: "audio-tools",
+        features: [],
+        status: "unavailable",
+        actionKind: "scenario_start",
+        actionLabel: "Start scenario",
+      }],
+      timestamp: "2026-03-17T00:00:00Z",
+    });
+    mockRunCapabilityAction.mockRejectedValue("bridge returned a non-error failure");
+    renderWithProviders(<IntegrationsPanel open />);
+
+    fireEvent.click(await screen.findByTestId("cap-run-action-audio-tools"));
+    await waitFor(() => {
+      expect(screen.getByTestId("cap-action-error-audio-tools")).toHaveTextContent("bridge returned a non-error failure");
+    });
+  });
+
   it("shows unsuccessful lifecycle results returned by the backend", async () => {
     await i18n.changeLanguage("en");
     const stopped: CapabilitiesResponse = {
@@ -323,9 +368,9 @@ describe("IntegrationsPanel", () => {
     renderWithProviders(<IntegrationsPanel open={true} />);
 
     await waitFor(() => {
-      // 3 resources (kokoro-tts, ollama, openrouter) + 1 scenario (audio-tools).
-      expect(screen.getAllByText("resource").length).toBe(3);
-      expect(screen.getAllByText("scenario").length).toBe(1);
+      // Four resources (AI providers and session backends) + two scenarios.
+      expect(screen.getAllByText("resource").length).toBe(4);
+      expect(screen.getAllByText("scenario").length).toBe(2);
     });
   });
 
@@ -334,8 +379,8 @@ describe("IntegrationsPanel", () => {
     renderWithProviders(<IntegrationsPanel open={true} />);
 
     await waitFor(() => {
-      const voiceOutput = screen.getByText("voice-output");
-      expect(voiceOutput.className).toContain("line-through");
+      const remoteReason = screen.getByText("Bridge URL is not configured");
+      expect(remoteReason).toBeTruthy();
     });
   });
 
@@ -352,5 +397,62 @@ describe("IntegrationsPanel", () => {
   it("does not fetch when open is false", () => {
     renderWithProviders(<IntegrationsPanel open={false} />);
     expect(mockFetchCapabilities).not.toHaveBeenCalled();
+  });
+
+  it("renders an unknown capability with neutral status styling", async () => {
+    mockFetchCapabilities.mockResolvedValue({
+      capabilities: [{
+        id: "future-capability",
+        name: "Future capability",
+        description: "Status not understood by this client yet",
+        dependencyKind: "resource",
+        dependencySlug: "future-capability",
+        features: [],
+        status: "unknown",
+      }],
+      timestamp: "2026-03-17T00:00:00Z",
+    });
+    renderWithProviders(<IntegrationsPanel open />);
+
+    await waitFor(() => {
+      const card = screen.getByTestId("cap-card-future-capability");
+      expect(card.className).toContain("border-l-wc-default");
+      expect(screen.getByText(strings.integrationsPanel.activeCount)).toBeInTheDocument();
+    });
+  });
+
+  it("reports an empty capability catalogue", async () => {
+    mockFetchCapabilities.mockResolvedValue({ capabilities: [], timestamp: "2026-03-17T00:00:00Z" });
+    renderWithProviders(<IntegrationsPanel open />);
+
+    await waitFor(() => {
+      expect(screen.getByText(strings.integrationsPanel.noneConfigured)).toBeInTheDocument();
+    });
+  });
+
+  it("falls back to the lifecycle status when an action has no message", async () => {
+    const capability = mockCapabilities.capabilities[0];
+    if (!capability) throw new Error("test fixture missing capability");
+    mockFetchCapabilities.mockResolvedValue({ capabilities: [{
+      ...capability,
+      status: "unavailable",
+      reasonCode: "scenario_stopped",
+      actionKind: "scenario_start",
+      actionLabel: "Start scenario",
+    }], timestamp: "2026-03-17T00:00:00Z" });
+    mockRunCapabilityAction.mockResolvedValue({
+      success: true,
+      status: "healthy",
+      capabilityId: capability.id,
+      actionKind: "scenario_start",
+      capabilities: [{ ...capability, status: "available" }],
+      timestamp: "2026-03-17T00:01:00Z",
+    });
+    renderWithProviders(<IntegrationsPanel open />);
+
+    fireEvent.click(await screen.findByTestId("cap-run-action-audio-tools"));
+    await waitFor(() => {
+      expect(screen.getByTestId("cap-action-result-audio-tools")).toHaveTextContent("healthy");
+    });
   });
 });

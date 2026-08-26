@@ -33,6 +33,18 @@ func InitDefaultRegistry() *backend.Registry {
 		Reason:          tmuxReason,
 	}, tmuxPTYFactory)
 
+	// Remote sessions use the same Session manager and terminal websocket as
+	// local sessions. Availability is target-specific and is checked before a
+	// remote launch; the descriptor only makes the typed backend selectable by
+	// that path.
+	reg.Register(backend.Descriptor{
+		ID:              backend.Remote,
+		DisplayName:     "Remote",
+		Description:     "Session stream provided by vrooli-bridge.",
+		SurvivesRestart: true,
+		Available:       true,
+	}, bridgePTYFactory)
+
 	return reg
 }
 

@@ -9,6 +9,7 @@ import (
 	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/shared"
 	targetsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/targets"
 	targetsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/targets/targets_v1connect"
+	"google.golang.org/protobuf/reflect/protoreflect"
 
 	"github.com/vrooli/cli-core/cliapp"
 	"web-console/cli/internal/support"
@@ -70,7 +71,7 @@ func (h *handlers) doctor(ctx cliapp.RunContext) error {
 		return fmt.Errorf("target doctor returned no target for %q", id)
 	}
 	target := response.Msg.GetTarget()
-	next := response.Msg.GetTarget().GetRecoveryAction()
+	next := targetText(response.Msg.GetTarget(), "recovery_action")
 	if next == "" {
 		next = fmt.Sprintf("%s session create --target %s", support.CLIName, target.GetId())
 	}
@@ -109,8 +110,19 @@ func targetDetails(target *sharedv1.Target) []string {
 		fmt.Sprintf("ID: %s", target.GetId()), fmt.Sprintf("Kind: %s", target.GetKind()), fmt.Sprintf("Label: %s", target.GetLabel()),
 		fmt.Sprintf("State: %s", target.GetState()), fmt.Sprintf("Dispatchable: %t", target.GetDispatchable()), fmt.Sprintf("Platform: %s/%s", target.GetOs(), target.GetArch()),
 		fmt.Sprintf("Status: %s", target.GetStatus()), fmt.Sprintf("Survives restart: %t", target.GetSurvivesRestart()),
-		fmt.Sprintf("Failure rung: %s", defaultText(target.GetFailureRung(), "none")), fmt.Sprintf("Recovery: %s", defaultText(target.GetRecoveryAction(), "none")),
+		fmt.Sprintf("Dispatch reason: %s", defaultText(targetText(target, "failure_rung"), "none")), fmt.Sprintf("Operator action: %s", defaultText(targetText(target, "recovery_action"), "none")),
 	}
+}
+
+func targetText(target *sharedv1.Target, name string) string {
+	if target == nil {
+		return ""
+	}
+	field := target.ProtoReflect().Descriptor().Fields().ByName(protoreflect.Name(name))
+	if field == nil || field.Kind() != protoreflect.StringKind {
+		return ""
+	}
+	return target.ProtoReflect().Get(field).String()
 }
 
 func readinessRows(target *sharedv1.Target) []string {

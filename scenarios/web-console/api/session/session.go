@@ -2,6 +2,7 @@ package session
 
 import (
 	"context"
+	"errors"
 	"sync"
 	"time"
 
@@ -11,6 +12,30 @@ import (
 	"web-console/internal/pty"
 	"web-console/terminal"
 )
+
+// EchoState is the server-owned authorization context for predictive input.
+// Unknown is intentionally fail-closed: a client must never draw a secret
+// when the backend cannot inspect terminal echo state.
+type EchoState struct {
+	Known           bool
+	EchoEnabled     bool
+	InAltBuffer     bool
+	CursorAtLineEnd bool
+}
+
+var ErrEchoStateUnsupported = errors.New("terminal echo state is unsupported")
+
+type echoStateProvider interface {
+	TerminalEchoState() (EchoState, error)
+}
+
+type mouseModeController interface {
+	SetMouseMode(bool) error
+}
+
+type mouseModeReader interface {
+	MouseMode() (bool, error)
+}
 
 // SubscribeResult holds the channels and snapshot returned by Subscribe.
 // DOC: docs/concepts/ARCHITECTURE.md#terminal-snapshot-replay
@@ -47,8 +72,12 @@ type Session struct {
 	// Output fan-out: the readLoop goroutine reads from the PTY, feeds the
 	// decoded emulator, and broadcasts the live frame to connected
 	// WebSocket clients. The emulator owns the durable replay state.
-	mu              sync.Mutex
-	clients         map[chan []byte]*ClientInfo
+	mu      sync.Mutex
+	clients map[chan []byte]*ClientInfo
+	// acceptedThrough is the cumulative UTF-8 byte offset of reliable stdin
+	// accepted by this session. It survives WebSocket reconnects and is
+	// intentionally independent of connection-local sequence numbers.
+	acceptedThrough int64
 	leaseOwner      chan []byte
 	leaseReason     LeaseReason
 	nextClientOrder uint64
@@ -70,22 +99,6 @@ type Session struct {
 	ptyReadBuffer           int
 	clientChannelBuffer     int
 	coalesceNotifyThreshold int
-	sigwinchCooldown        time.Duration
-
-	// inAltBuffer mirrors emu.InAltBuffer() at the most recent broadcast,
-	// so SIGWINCH-recovery decisions don't need to lock the emulator. It
-	// is updated under s.mu by broadcast.
-	inAltBuffer bool
-
-	// lastSIGWINCHRecovery is the wall time of the most recent SIGWINCH
-	// emitted by FlushPending's recovery path. Protected by s.mu.
-	lastSIGWINCHRecovery time.Time
-
-	// lastAltBufferTransition is the wall time of the most recent
-	// alt-buffer enter or exit observed on the PTY output stream.
-	// Used by maybeSIGWINCHRecovery to skip SIGWINCH during the
-	// brief non-alt windows between alt-buffer cycles of a TUI.
-	lastAltBufferTransition time.Time
 
 	// exitCh is closed when the PTY process exits, signaling the session owner.
 	exitCh chan struct{}
@@ -125,11 +138,77 @@ type Session struct {
 	idleWaiters []chan struct{}
 }
 
+// EchoState returns the backend-owned terminal attributes when available.
+// The session layer adds emulator facts that are common to every backend.
+func (s *Session) EchoState() (EchoState, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	provider, ok := s.pty.(echoStateProvider)
+	if !ok {
+		return EchoState{}, ErrEchoStateUnsupported
+	}
+	state, err := provider.TerminalEchoState()
+	if err != nil {
+		return EchoState{}, err
+	}
+	state.InAltBuffer = s.emu.InAltBuffer()
+	view := s.emu.View()
+	state.CursorAtLineEnd = view.Cursor.X >= view.Cols-1
+	return state, nil
+}
+
+// SetMouseMode changes mouse capture for the current backend when supported.
+// Standard and bridged PTYs do not own a tmux session, so they return the
+// shared unsupported sentinel rather than pretending the setting applied.
+func (s *Session) SetMouseMode(enabled bool) error {
+	s.mu.Lock()
+	controller, ok := s.pty.(mouseModeController)
+	s.mu.Unlock()
+	if !ok {
+		return pty.ErrUnsupported
+	}
+	return controller.SetMouseMode(enabled)
+}
+
+// MouseMode reports the current backend-owned mouse capture state. The
+// boolean is meaningful only when the error is nil; unsupported backends
+// return the shared sentinel so callers can hide the pane control.
+func (s *Session) MouseMode() (bool, error) {
+	s.mu.Lock()
+	reader, ok := s.pty.(mouseModeReader)
+	s.mu.Unlock()
+	if !ok {
+		return false, pty.ErrUnsupported
+	}
+	return reader.MouseMode()
+}
+
 // LastFrameAt returns the most recent non-empty terminal-output frame time.
 func (s *Session) LastFrameAt() time.Time {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return s.lastFrameAt
+}
+
+// AcceptedThrough returns the cumulative reliable-stdin offset accepted by
+// this session. The value is monotonic for the lifetime of the PTY session.
+func (s *Session) AcceptedThrough() int64 {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.acceptedThrough
+}
+
+// AdvanceAcceptedThrough advances the reliable-stdin offset after a
+// successful PTY write. Callers must pass the number of bytes written.
+func (s *Session) AdvanceAcceptedThrough(bytes int64) int64 {
+	if bytes <= 0 {
+		return s.AcceptedThrough()
+	}
+	s.mu.Lock()
+	s.acceptedThrough += bytes
+	accepted := s.acceptedThrough
+	s.mu.Unlock()
+	return accepted
 }
 
 // SendInput delivers a typed SessionInput to the PTY through the single
@@ -149,7 +228,19 @@ func (s *Session) SendInput(in SessionInput) error {
 // length. The count is useful to structured transports that expose a byte
 // count; ordinary callers should use SendInput.
 func (s *Session) SendInputCount(in SessionInput) (int, error) {
-	data, err := in.resolveBytes(s.keyMap)
+	return s.sendInputCount(in, s.keyMap)
+}
+
+// SendInputCountWithKeyMap resolves a named-key input with an explicit map
+// before writing it through the same PTY seam as every other input. It is
+// used by structured adapters whose key vocabulary lives outside package
+// session, while ordinary session callers use the configured map above.
+func (s *Session) SendInputCountWithKeyMap(in SessionInput, km KeyMap) (int, error) {
+	return s.sendInputCount(in, km)
+}
+
+func (s *Session) sendInputCount(in SessionInput, km KeyMap) (int, error) {
+	data, err := in.resolveBytes(km)
 	if err != nil {
 		return 0, err
 	}
@@ -176,6 +267,15 @@ func (s *Session) Screen() terminal.ScreenView {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return s.emu.View()
+}
+
+// ScreenWithText returns both projections from one emulator moment. Callers
+// that expose a structured screen and its plain-text companion must not take
+// two independent locks around those reads.
+func (s *Session) ScreenWithText(includeScrollback bool) (terminal.ScreenView, string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.emu.View(), s.emu.PlainText(includeScrollback)
 }
 
 // PlainText returns the active screen as UTF-8 text (trailing blanks
@@ -346,7 +446,7 @@ func (s *Session) Subscribe() SubscribeResult {
 			s.publishSizeLocked(info)
 		}
 	}
-	bctrace("subscribe", s.ID, nil, "snapshot_bytes=%d alt=%v", len(snap), s.inAltBuffer)
+	bctrace("subscribe", s.ID, nil, "snapshot_bytes=%d", len(snap))
 	s.mu.Unlock()
 
 	return SubscribeResult{
@@ -398,7 +498,7 @@ func (s *Session) applyResizeLocked(cols, rows uint16) {
 		bctrace("resize_noop", s.ID, nil, "cols=%d rows=%d", cols, rows)
 		return
 	}
-	bctrace("resize", s.ID, nil, "cols=%d->%d rows=%d->%d alt=%v", s.Cols, cols, s.Rows, rows, s.inAltBuffer)
+	bctrace("resize", s.ID, nil, "cols=%d->%d rows=%d", s.Cols, cols, rows)
 	s.Cols = cols
 	s.Rows = rows
 	s.emu.Resize(int(cols), int(rows))

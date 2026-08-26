@@ -4,6 +4,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -11,8 +12,8 @@ import (
 func TestDefault(t *testing.T) {
 	cfg := Default()
 
-	if cfg.TerminalScrollbackLines != 10_000 {
-		t.Errorf("TerminalScrollbackLines: want 10000, got %d", cfg.TerminalScrollbackLines)
+	if cfg.TerminalScrollbackLines != DefaultTerminalScrollbackLines {
+		t.Errorf("TerminalScrollbackLines: want default, got %d", cfg.TerminalScrollbackLines)
 	}
 	if cfg.PTYReadBuffer != 4096 {
 		t.Errorf("PTYReadBuffer: want 4096, got %d", cfg.PTYReadBuffer)
@@ -90,7 +91,7 @@ func TestLoad_InvalidFallback(t *testing.T) {
 
 	cfg := Load()
 
-	if cfg.TerminalScrollbackLines != 10_000 {
+	if cfg.TerminalScrollbackLines != DefaultTerminalScrollbackLines {
 		t.Errorf("TerminalScrollbackLines should fall back to default, got %d", cfg.TerminalScrollbackLines)
 	}
 }
@@ -118,7 +119,10 @@ func TestResolveShell_FallbackToSHELL(t *testing.T) {
 	t.Setenv("WC_DEFAULT_SHELL", "")
 	t.Setenv("SHELL", "/bin/bash")
 
-	shell := resolveShell()
+	shell, err := resolveShell()
+	if err != nil {
+		t.Fatalf("resolveShell error = %v", err)
+	}
 	if shell != "/bin/bash" {
 		t.Errorf("expected /bin/bash, got %s", shell)
 	}
@@ -126,8 +130,42 @@ func TestResolveShell_FallbackToSHELL(t *testing.T) {
 
 func TestResolveShell_FailsLoudlyWhenUnresolvable(t *testing.T) {
 	t.Setenv("WC_DEFAULT_SHELL", "/definitely/missing/web-console-shell")
-	if _, err := resolveShellChecked(); err == nil || !errors.Is(err, ErrShellUnavailable) {
-		t.Fatalf("resolveShellChecked error = %v, want ErrShellUnavailable", err)
+	if _, err := resolveShell(); err == nil || !errors.Is(err, ErrShellUnavailable) {
+		t.Fatalf("resolveShell error = %v, want ErrShellUnavailable", err)
+	}
+}
+
+func TestLoadCheckedReturnsNamedStartupErrorForUnresolvableShell(t *testing.T) {
+	t.Setenv("WC_DEFAULT_SHELL", "/definitely/missing/web-console-shell")
+	_, err := LoadChecked()
+	if err == nil || !errors.Is(err, ErrShellUnavailable) {
+		t.Fatalf("LoadChecked error = %v, want ErrShellUnavailable", err)
+	}
+	if !strings.Contains(err.Error(), "web-console shell is unavailable") {
+		t.Fatalf("LoadChecked error = %q, want named startup error", err)
+	}
+}
+
+func TestResolveShell_WindowsIgnoresUnresolvablePOSIXShell(t *testing.T) {
+	t.Setenv("WC_DEFAULT_SHELL", "")
+	t.Setenv("SHELL", "/usr/bin/bash")
+	previous := shellLookPath
+	t.Cleanup(func() { shellLookPath = previous })
+	var requested string
+	shellLookPath = func(name string) (string, error) {
+		requested = name
+		return `C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe`, nil
+	}
+
+	shell, err := resolveShellForOS("windows")
+	if err != nil {
+		t.Fatalf("resolveShellForOS error = %v", err)
+	}
+	if requested != "powershell.exe" {
+		t.Fatalf("Windows shell lookup = %q, want powershell.exe", requested)
+	}
+	if shell == "" {
+		t.Fatal("Windows shell resolution returned an empty path")
 	}
 }
 

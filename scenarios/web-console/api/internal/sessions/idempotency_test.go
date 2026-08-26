@@ -64,3 +64,16 @@ func TestIdempotencyCache_EvictionScan(t *testing.T) {
 		t.Error("fresh entry should survive eviction scan")
 	}
 }
+
+func TestNewIdempotencyCacheUsesDefaultTTLAndStartsEmpty(t *testing.T) {
+	c := NewIdempotencyCache()
+	if c.ttl != idempotencyTTL {
+		t.Fatalf("ttl=%s want %s", c.ttl, idempotencyTTL)
+	}
+	if len(c.entries) != 0 {
+		t.Fatalf("new cache has %d entries", len(c.entries))
+	}
+	if _, ok := c.Get("missing"); ok {
+		t.Fatal("new cache must not contain entries")
+	}
+}

@@ -90,4 +90,18 @@ describe("useTerminalSession — conversation acks", () => {
       { type: "take_lease" },
     ]);
   });
+
+  it("routes local scrolling through the shared scroll seam", () => {
+    const { result } = renderHook(() =>
+      useTerminalSession({
+        sessionId: "sess-scroll",
+        terminal: terminal as never,
+        createSocket,
+      }),
+    );
+
+    act(() => result.current.scrollBy(2, "wheel"));
+
+    expect(terminal.scrollLines).toHaveBeenCalledWith(2);
+  });
 });

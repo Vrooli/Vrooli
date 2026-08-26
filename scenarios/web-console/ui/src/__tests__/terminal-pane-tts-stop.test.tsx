@@ -1,10 +1,11 @@
+import { renderWithProviders as render } from "../test-utils";
 /**
  * Regression tests for stop semantics. Stop is now a playback-intent action
  * owned by the controller; TerminalPane must stop the provider without marking
  * assistant messages as listened.
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, act, cleanup } from "@testing-library/react";
+import { act, cleanup } from "@testing-library/react";
 import { createRef } from "react";
 import { apiBaseMock } from "../test-utils";
 import type { TerminalPaneHandle } from "../components/TerminalPane";
@@ -49,8 +50,8 @@ vi.mock("../hooks/useTextToSpeech", () => ({
 }));
 
 vi.mock("../hooks/terminal/useTerminalSession", () => {
-  const gate = { submit: vi.fn(() => ({ status: "sent" as const, seq: 1 })), dispose: vi.fn(), canAcceptPaste: () => true };
-  const submitInput = vi.fn(() => ({ status: "sent" as const, seq: 1 }));
+  const gate = { submit: vi.fn(() => ({ status: "sent" as const, offset: 1 })), dispose: vi.fn() };
+  const submitInput = vi.fn(() => ({ status: "sent" as const, offset: 1 }));
   return {
     useTerminalSession: () => ({
       submitInput,
@@ -100,6 +101,8 @@ const storeState: Record<string, unknown> = {
   panes: [{ sessionId: SESSION_ID, name: "test", headerColor: "transparent", themeId: "default", fontSize: 14, groupId: null }],
   activePane: SESSION_ID,
   renamePaneById: vi.fn(),
+  setPendingInputBuffer: vi.fn(),
+  consumePendingInputBuffer: vi.fn(() => undefined),
   setPendingInputDraft: vi.fn(),
   consumePendingInputDraft: vi.fn(() => undefined),
 };
@@ -107,6 +110,7 @@ const storeState: Record<string, unknown> = {
 vi.mock("../stores/useWorkspaceStore", () => ({
   useWorkspaceStore: (selector?: (s: Record<string, unknown>) => unknown) =>
     selector ? selector(storeState) : storeState,
+  useEffectiveFontSize: () => 14,
 }));
 
 const { default: TerminalPane } = await import("../components/TerminalPane");
@@ -162,7 +166,7 @@ describe("TerminalPane TTS stop prevents retry loop", () => {
     });
 
     await act(async () => {
-      ref.current?.stopTts();
+      ref.current?.playback.stop();
     });
 
     const session = useConversationStore.getState().sessions[SESSION_ID];
@@ -184,7 +188,7 @@ describe("TerminalPane TTS stop prevents retry loop", () => {
     }
 
     await act(async () => {
-      ref.current?.stopTts();
+      ref.current?.playback.stop();
     });
 
     const session = useConversationStore.getState().sessions[SESSION_ID];
@@ -201,12 +205,12 @@ describe("TerminalPane TTS stop prevents retry loop", () => {
     await act(async () => { await new Promise((r) => setTimeout(r, 10)); });
 
     act(() => {
-      ref.current?.speakText("Manual", ["Manual"], { eventId: "evt-manual", version: "active" });
+      ref.current?.playback.speak("Manual", ["Manual"], { eventId: "evt-manual", version: "active" });
     });
     expect(mockSetMuted).toHaveBeenCalledWith(false);
 
     act(() => {
-      ref.current?.resumeTts();
+      ref.current?.playback.resume();
     });
     expect(mockSetMuted).toHaveBeenLastCalledWith(false);
     expect(mockResume).toHaveBeenCalledTimes(1);
@@ -220,7 +224,7 @@ describe("TerminalPane TTS stop prevents retry loop", () => {
     await act(async () => { await new Promise((r) => setTimeout(r, 10)); });
 
     act(() => {
-      void ref.current?.speakText("Auto", ["Auto"], { eventId: "evt-auto", version: "active", initiatedBy: "auto" });
+      void ref.current?.playback.speak("Auto", ["Auto"], { eventId: "evt-auto", version: "active", initiatedBy: "auto" });
     });
 
     expect(mockSetMuted).not.toHaveBeenCalledWith(false);

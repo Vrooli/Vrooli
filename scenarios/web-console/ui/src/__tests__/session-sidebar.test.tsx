@@ -1,6 +1,7 @@
+import { renderWithProviders as render } from "../test-utils";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { createRef } from "react";
-import { render, screen, fireEvent, act, waitFor } from "@testing-library/react";
+import { screen, fireEvent, act, waitFor } from "@testing-library/react";
 import SessionSidebar from "../components/SessionSidebar";
 import { buildWorkspaceNavigationItems } from "../lib/workspaceNavigation";
 import { useWorkspaceStore, type PaneMetadata } from "../stores/useWorkspaceStore";
@@ -179,5 +180,48 @@ describe("SessionSidebar", () => {
     await waitFor(() => expect(listArchivedSessions).toHaveBeenCalled());
     expect(screen.queryByTestId("sidebar-archive-session-crash")).not.toBeInTheDocument();
     expect(screen.getByTestId("sidebar-archive-search-all")).toBeInTheDocument();
+  });
+
+  it("routes sidebar controls and returns from the archive view", async () => {
+    const onOpenArchiveDrawer = vi.fn();
+    const items = buildWorkspaceNavigationItems({ panes: [pane("a", "transparent")], groups: [], activePane: "a" });
+    render(<SessionSidebar {...baseProps} onOpenArchiveDrawer={onOpenArchiveDrawer} buckets={asBuckets(items)} />);
+    fireEvent.click(screen.getByTestId("sidebar-session-a"));
+    fireEvent.click(screen.getByTestId("workspace-sidebar-settings"));
+    fireEvent.pointerDown(screen.getByTestId("workspace-sidebar-new"), { pointerType: "mouse", button: 0 });
+    fireEvent.pointerUp(screen.getByTestId("workspace-sidebar-new"), { pointerType: "mouse", button: 0 });
+    expect(baseProps.onActivatePane).toHaveBeenCalledWith("a");
+    expect(baseProps.onOpenSettings).toHaveBeenCalled();
+    expect(baseProps.onOpenLauncher).toHaveBeenCalled();
+
+    fireEvent.click(screen.getByTestId("sidebar-archive-footer"));
+    await screen.findByTestId("sidebar-archive-view");
+    fireEvent.click(screen.getByTestId("sidebar-archive-search-all"));
+    expect(onOpenArchiveDrawer).toHaveBeenCalledWith();
+    fireEvent.click(screen.getByTestId("sidebar-archive-back"));
+    expect(screen.getByTestId("sidebar-sort-select")).toBeInTheDocument();
+  });
+
+  it("routes pane context actions through the sidebar", () => {
+    const onDeletePanePermanently = vi.fn();
+    const onClosePane = vi.fn();
+    const items = buildWorkspaceNavigationItems({ panes: [pane("a", "transparent")], groups: [], activePane: "a" });
+    useWorkspaceStore.setState({ panes: [pane("a", "transparent")] });
+    render(<SessionSidebar {...baseProps} onDeletePanePermanently={onDeletePanePermanently} onClosePane={onClosePane} buckets={asBuckets(items)} />);
+
+    fireEvent.contextMenu(screen.getByTestId("sidebar-session-a"), { clientX: 10, clientY: 20 });
+    fireEvent.click(screen.getByTestId("tab-ctx-rename"));
+    const input = screen.getByTestId("sidebar-rename-input-a");
+    fireEvent.change(input, { target: { value: "renamed" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+
+    fireEvent.contextMenu(screen.getByTestId("sidebar-session-a"), { clientX: 10, clientY: 20 });
+    fireEvent.click(screen.getByTestId("tab-ctx-toggle-unread"));
+    fireEvent.contextMenu(screen.getByTestId("sidebar-session-a"), { clientX: 10, clientY: 20 });
+    fireEvent.click(screen.getByTestId("tab-ctx-close"));
+    expect(onClosePane).toHaveBeenCalledWith("a");
+    fireEvent.contextMenu(screen.getByTestId("sidebar-session-a"), { clientX: 10, clientY: 20 });
+    fireEvent.click(screen.getByTestId("tab-ctx-delete-permanently"));
+    expect(onDeletePanePermanently).toHaveBeenCalledWith("a");
   });
 });

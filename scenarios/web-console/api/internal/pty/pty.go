@@ -18,3 +18,5 @@ type (
 	LaunchSpec = sessioncore.LaunchSpec
 	Factory    = sessioncore.Factory
 )
+
+var ErrUnsupported = sessioncore.ErrUnsupported

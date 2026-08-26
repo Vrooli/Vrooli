@@ -1,4 +1,15 @@
 import type { ModifierState, ToolbarKey } from "../consts/toolbar-keys";
+import sharedKeyMap from "../../../shared/terminal-keymap.json";
+
+export const NAMED_KEY_BYTES: ReadonlyMap<string, string> = new Map(
+  sharedKeyMap.map((entry) => [entry.name, String.fromCharCode(...entry.bytes)]),
+);
+
+export function namedKeySequence(name: string, modifiers: { alt?: boolean } = {}): string | undefined {
+  const bytes = NAMED_KEY_BYTES.get(name.trim().toLowerCase());
+  if (!bytes) return undefined;
+  return modifiers.alt ? ESC + bytes : bytes;
+}
 
 /** The single owner of terminal escape sequences and control bytes emitted by the UI. */
 export const ESC = "\x1b";
@@ -72,4 +83,19 @@ export function applyModifiers(input: string, mods: ModifierState): { data: stri
 export function mouseWheelSequence(up: boolean, col: number, row: number): string {
   const button = up ? 64 : 65;
   return `${CSI}<${button};${col + 1};${row + 1}M`;
+}
+
+/**
+ * Returns true when xterm emitted a mouse-tracking report. These bytes are
+ * terminal-client controls, not shell input, and must use the best-effort
+ * control lane regardless of whether they came from a wheel, touch gesture,
+ * or another pointing device.
+ */
+export function isMouseTrackingSequence(data: string): boolean {
+  if (data.length < 6 || data.charCodeAt(0) !== 0x1b || data[1] !== "[") {
+    return false;
+  }
+  if (data[2] === "M") return data.length >= 6;
+  if (data[2] !== "<") return false;
+  return /^\x1b\[<\d+;\d+;\d+[Mm]$/.test(data);
 }

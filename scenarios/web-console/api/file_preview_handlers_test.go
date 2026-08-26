@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -106,6 +107,87 @@ func TestFilePreview_GetTextContent_RejectsMedia(t *testing.T) {
 	}
 	if _, err := newFilePreviewAdapter(srv).GetTextContent(context.Background(), sessionID, res.PreviewID); err == nil {
 		t.Fatal("expected GetTextContent to reject an image preview")
+	}
+}
+
+func TestFilePreview_ListDirectoryProjectsBoundedEntries(t *testing.T) {
+	root := t.TempDir()
+	if err := os.Mkdir(filepath.Join(root, "docs"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "docs", "README.md"), []byte("read me"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	srv := newFilePreviewTestServer(t, root)
+	sessionID := newPreviewSession(t, srv)
+	resolved := resolvePreview(t, srv, sessionID, filepath.Join(root, "docs"))
+
+	result, err := newFilePreviewAdapter(srv).ListDirectory(context.Background(), filePreviewH.ListInput{
+		SessionID: sessionID,
+		PreviewID: resolved.PreviewID,
+		Sort:      string(filepreview.SortName),
+		PageSize:  20,
+	})
+	if err != nil {
+		t.Fatalf("list directory: %v", err)
+	}
+	if result.ResolvedPath != filepath.Join(root, "docs") || len(result.Entries) != 1 {
+		t.Fatalf("result path=%q entries=%d", result.ResolvedPath, len(result.Entries))
+	}
+	entry := result.Entries[0]
+	if entry.Name != "README.md" || entry.EntryType != string(filepreview.EntryTypeFile) || !entry.CanPreview {
+		t.Fatalf("unexpected entry: %+v", entry)
+	}
+}
+
+func TestFilePreview_ListDirectoryRejectsFileAndUnknownPreview(t *testing.T) {
+	root := t.TempDir()
+	if err := os.WriteFile(filepath.Join(root, "README.md"), []byte("read me"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	srv := newFilePreviewTestServer(t, root)
+	sessionID := newPreviewSession(t, srv)
+	resolved := resolvePreview(t, srv, sessionID, "README.md")
+	adapter := newFilePreviewAdapter(srv)
+
+	if _, err := adapter.ListDirectory(context.Background(), filePreviewH.ListInput{
+		SessionID: sessionID,
+		PreviewID: resolved.PreviewID,
+	}); err == nil {
+		t.Fatal("expected file preview to reject directory listing")
+	}
+	if _, err := adapter.ListDirectory(context.Background(), filePreviewH.ListInput{
+		SessionID: sessionID,
+		PreviewID: "missing",
+	}); err == nil {
+		t.Fatal("expected unknown preview to be rejected")
+	}
+}
+
+func TestMapFilePreviewErrorPreservesStableReasonSentinels(t *testing.T) {
+	cases := []struct {
+		code   filepreview.Code
+		signal error
+	}{
+		{filepreview.CodeInvalid, filePreviewH.ErrInvalidArgument},
+		{filepreview.CodeNotAllowed, filePreviewH.ErrPermissionDenied},
+		{filepreview.CodeNotPreviewable, filePreviewH.ErrPreviewUnavailable},
+		{filepreview.CodeNotFound, filePreviewH.ErrNotFound},
+		{filepreview.CodeUnresolvable, filePreviewH.ErrNotFound},
+		{filepreview.CodeStale, filePreviewH.ErrStale},
+	}
+	for _, tc := range cases {
+		mapped := mapFilePreviewError(&filepreview.Error{Code: tc.code, Message: "stable reason"})
+		if !errors.Is(mapped, tc.signal) || mapped.Error() != "stable reason: "+tc.signal.Error() {
+			t.Fatalf("code=%q mapped=%v", tc.code, mapped)
+		}
+	}
+	plain := errors.New("plain error")
+	if got := mapFilePreviewError(plain); !errors.Is(got, plain) {
+		t.Fatalf("plain error was not preserved: %v", got)
+	}
+	if got := mapFilePreviewError(&filepreview.Error{Code: filepreview.CodeInternal, Message: "internal"}); got.Error() != "internal" {
+		t.Fatalf("unexpected internal mapping: %v", got)
 	}
 }
 

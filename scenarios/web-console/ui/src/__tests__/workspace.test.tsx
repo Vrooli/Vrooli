@@ -1,5 +1,6 @@
+import { renderWithProviders as render } from "../test-utils";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { screen, fireEvent, waitFor } from "@testing-library/react";
 import { forwardRef } from "react";
 import Workspace from "../components/Workspace";
 import { strings } from "../consts/strings";
@@ -119,6 +120,7 @@ vi.mock("../hooks/useSessionManager", () => ({
     removePane: mockRemovePane,
     handleExit: mockHandleExit,
     sendToActiveTerminal: mockSendToActiveTerminal,
+    submitToActiveTerminal: mockSendToActiveTerminal,
     focusActiveTerminal: mockFocusActiveTerminal,
     registerTerminalRef: mockRegisterTerminalRef,
   }),
@@ -163,6 +165,7 @@ const mockStoreState = {
   displayMode: "grid",
   settingsModalOpen: false,
   aiModalOpen: false,
+  aiSuggestActive: false,
   groups: [],
   sidebarView: "list" as const,
   sidebarSortMode: "manual" as const,
@@ -192,6 +195,7 @@ const mockStoreActions = {
   setDisplayMode: vi.fn(),
   setSettingsModalOpen: vi.fn(),
   setAiModalOpen: vi.fn(),
+  setAiSuggestActive: vi.fn(),
   setTabContextMenu: vi.fn(),
   setSidebarView: vi.fn(),
   setSidebarSortMode: vi.fn(),
@@ -205,7 +209,7 @@ vi.mock("../stores/useWorkspaceStore", () => {
     return selector ? selector(fullState) : fullState;
   };
   useWorkspaceStoreMock.getState = () => ({ ...mockStoreState, ...mockStoreActions });
-  return { useWorkspaceStore: useWorkspaceStoreMock };
+  return { useWorkspaceStore: useWorkspaceStoreMock, useEffectiveFontSize: () => 14 };
 });
 
 // Mock child components to isolate Workspace layout logic
@@ -254,25 +258,34 @@ vi.mock("../components/TerminalLauncher", () => ({
 }));
 
 vi.mock("../components/MobileToolbar", () => ({
-  default: forwardRef<HTMLDivElement, { visible?: boolean }>(function MockMobileToolbar({ visible = true }, ref) {
+  default: forwardRef<HTMLDivElement, { visible?: boolean; onOpenAi?: () => void; onAiSuggestExecute?: (cmd: string) => void }>(function MockMobileToolbar({ visible = true, onOpenAi, onAiSuggestExecute }, ref) {
     if (!visible) return null;
-    return <div ref={ref} data-testid="mock-mobile-toolbar" />;
+    return <div ref={ref} data-testid="mock-mobile-toolbar">
+      {onOpenAi && <button data-testid="mock-mobile-ai" onClick={onOpenAi}>AI</button>}
+      {onAiSuggestExecute && <button data-testid="mock-mobile-ai-execute" onClick={() => onAiSuggestExecute("pwd")}>Execute</button>}
+    </div>;
   }),
 }));
 
 vi.mock("../components/AiInput", () => ({
-  default: vi.fn(() => <div data-testid="mock-ai-input" />),
+  default: vi.fn(({ onExecute }: { onExecute?: (command: string) => void }) => <div data-testid="mock-ai-input">
+    {onExecute && <button data-testid="mock-ai-execute" onClick={() => onExecute("echo ai")}>Execute</button>}
+  </div>),
 }));
 
 vi.mock("../components/FloatingToolbar", () => ({
-  default: vi.fn(({ onOpenSettings, onNewTerminal, onOpenLauncher, isCreating: creating }: {
+  default: vi.fn(({ onOpenSettings, onOpenAi, onNewTerminal, onOpenLauncher, onExpandComposer, isCreating: creating }: {
     onOpenSettings: () => void;
+    onOpenAi?: () => void;
     onNewTerminal: () => void; onOpenLauncher: () => void; isCreating: boolean;
+    onExpandComposer?: () => void;
   }) => (
     <div data-testid="floating-toolbar">
       <button data-testid="toolbar-settings" onClick={onOpenSettings}>Settings</button>
+      {onOpenAi && <button data-testid="toolbar-ai" onClick={onOpenAi}>AI</button>}
       <button data-testid="toolbar-new" onClick={onNewTerminal} disabled={creating}>New</button>
       <button data-testid="toolbar-launcher" onClick={onOpenLauncher}>Launcher</button>
+      {onExpandComposer && <button data-testid="toolbar-expand" onClick={onExpandComposer}>Expand</button>}
     </div>
   )),
 }));
@@ -303,6 +316,7 @@ describe("Workspace", () => {
     mockStoreState.isMinimapVisible = true;
     mockStoreState.displayMode = "grid";
     mockStoreState.settingsModalOpen = false;
+    mockStoreState.aiSuggestActive = false;
     mockStoreState.groups = [];
     mockStoreState.plusButtonBehavior = "launcher";
     mockStoreState.defaultHeaderColor = "transparent";
@@ -428,6 +442,25 @@ describe("Workspace", () => {
     expect(screen.getByTestId("mock-launcher")).toBeTruthy();
   });
 
+  it("routes floating settings and launcher lifecycle callbacks", async () => {
+    hookState.panes = [{ session: mockSession }];
+    mockStoreState.panes = [{ sessionId: mockSession.id, name: "/bin/bash", headerColor: "transparent" }];
+    touchControlsState.needsTouchControls = true;
+    render(<Workspace />);
+    fireEvent.click(screen.getByTestId("toolbar-settings"));
+    expect(mockStoreActions.setSettingsModalOpen).toHaveBeenCalledWith(true);
+    fireEvent.click(screen.getByTestId("toolbar-ai"));
+    expect(mockStoreActions.setAiModalOpen).toHaveBeenCalledWith(true);
+    fireEvent.click(screen.getByTestId("toolbar-expand"));
+    fireEvent.click(screen.getByTestId("toolbar-launcher"));
+    fireEvent.click(screen.getByTestId("mock-launcher-launch"));
+    await waitFor(() => expect(mockLaunchSession).toHaveBeenCalled());
+    const aiExecuteButtons = screen.getAllByTestId("mock-ai-execute");
+    expect(aiExecuteButtons.length).toBeGreaterThan(0);
+    fireEvent.click(aiExecuteButtons[0]!);
+    fireEvent.click(screen.getByTestId("mock-mobile-ai"));
+  });
+
   it("shows error banner in pane view when createError exists", () => {
     hookState.panes = [{ session: mockSession }];
     mockStoreState.panes = [{ sessionId: mockSession.id, name: "/bin/bash", headerColor: "transparent" }];
@@ -489,6 +522,21 @@ describe("Workspace", () => {
     const toggleShell = screen.getByTitle(strings.workspace.switchToMessagesTitle).parentElement;
     expect(toggleShell?.className).toContain("end-2");
     expect(toggleShell?.className).toContain("top-2.5");
+
+    fireEvent.click(screen.getByTestId("workspace-toggle-view"));
+    expect(useConversationStore.getState().viewModes[mockSession.id]).toBe("messages");
+  });
+
+  it("responds to a viewport resize while panes are mounted", () => {
+    hookState.panes = [{ session: mockSession }];
+    mockStoreState.panes = [{ sessionId: mockSession.id, name: "/bin/bash", headerColor: "transparent" }];
+    const originalWidth = window.innerWidth;
+    render(<Workspace />);
+
+    Object.defineProperty(window, "innerWidth", { configurable: true, value: 500 });
+    fireEvent(window, new Event("resize"));
+    expect(screen.getByTestId("pane-grid")).toBeTruthy();
+    Object.defineProperty(window, "innerWidth", { configurable: true, value: originalWidth });
   });
 
   it("renders terminal headers for panes", () => {

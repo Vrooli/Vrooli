@@ -1,5 +1,6 @@
+import { renderWithProviders as render } from "../test-utils";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, fireEvent, act } from "@testing-library/react";
+import { screen, fireEvent, act } from "@testing-library/react";
 import TabBar from "../components/TabBar";
 import { useWorkspaceStore, type PaneMetadata, type TabGroupMeta } from "../stores/useWorkspaceStore";
 
@@ -207,5 +208,32 @@ describe("TabBar reorder sync", () => {
       active_pane: "b",
       pane_order: ["a", "b", "c"],
     });
+  });
+
+  it("renders pane and group accents in the tab strip", () => {
+    const panes = makePanes("colored", "grouped");
+    panes[0]!.headerColor = "#ff7a7a";
+    panes[1]!.groupId = "g1";
+    useWorkspaceStore.setState({
+      panes,
+      activePane: "colored",
+      groups: [{ id: "g1", name: "Work", color: "#7aa0ff", isCollapsed: false }],
+    });
+
+    render(
+      <TabBar
+        panes={panes}
+        activePane="colored"
+        onNewTerminal={vi.fn()}
+        onOpenLauncher={vi.fn()}
+        onClosePane={vi.fn()}
+        onDeletePanePermanently={vi.fn()}
+      />,
+    );
+
+    const colored = screen.getByTestId("tab-colored");
+    const grouped = screen.getByTestId("tab-grouped");
+    expect(colored.querySelector("span")?.getAttribute("style")).toContain("rgb(255, 122, 122)");
+    expect(grouped.querySelector("span")?.getAttribute("style")).toContain("rgb(122, 160, 255)");
   });
 });

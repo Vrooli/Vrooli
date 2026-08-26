@@ -122,6 +122,7 @@ export interface MockTerminal {
   cols: number;
   rows: number;
   write: ReturnType<typeof vi.fn>;
+  onWriteParsed: ReturnType<typeof vi.fn>;
   onData: ReturnType<typeof vi.fn>;
   written: string[];
   /** Simulate user typing in the terminal. */
@@ -168,6 +169,7 @@ export function createMockTerminal(): MockTerminal {
     cols: 80,
     rows: 24,
     write: vi.fn((data: string) => written.push(data)),
+    onWriteParsed: vi.fn(() => ({ dispose: vi.fn() })),
     onData: vi.fn((cb: (data: string) => void) => {
       dataCallbacks.push(cb);
       return { dispose: vi.fn() };

@@ -1,5 +1,5 @@
 import { useCallback, useState } from "react";
-import { ClipboardPaste, Copy, Image, TextSelect, Trash2, Volume2 } from "lucide-react";
+import { ClipboardPaste, Copy, Image, MousePointer2, TextSelect, Trash2, Volume2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import ContextMenuBase, { contextMenuItemClass } from "./ContextMenuBase";
 import { strings } from "../consts/strings";
@@ -33,6 +33,9 @@ interface TerminalContextMenuProps {
   onClear: () => void;
   onUploadImage?: () => void;
   onSpeak?: () => void;
+  /** Present only for a persistent tmux-backed pane. */
+  mouseMode?: boolean;
+  onToggleMouseMode?: (enabled: boolean) => void;
   onClose: () => void;
 }
 
@@ -64,6 +67,8 @@ export default function TerminalContextMenu({
   onClear,
   onUploadImage,
   onSpeak,
+  mouseMode,
+  onToggleMouseMode,
   onClose,
 }: TerminalContextMenuProps) {
   const { t } = useTranslation();
@@ -158,6 +163,17 @@ export default function TerminalContextMenu({
         >
           <Image className="h-4 w-4 shrink-0" />
           {t(strings.terminalContextMenu.uploadImage)}
+        </button>
+      )}
+      {onToggleMouseMode && mouseMode !== undefined && (
+        <button
+          data-testid="ctx-mouse-mode"
+          className={contextMenuItemClass}
+          aria-pressed={mouseMode}
+          onClick={() => onToggleMouseMode(!mouseMode)}
+        >
+          <MousePointer2 className="h-4 w-4 shrink-0" />
+          {mouseMode ? "Disable tmux mouse mode (this pane only)" : "Enable tmux mouse mode (this pane only)"}
         </button>
       )}
       <button

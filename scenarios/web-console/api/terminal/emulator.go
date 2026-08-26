@@ -7,17 +7,19 @@
 
 package terminal
 
+import "web-console/internal/config"
+
 // Options configures a new Emulator.
 type Options struct {
 	Cols, Rows      int
-	ScrollbackLines int // soft cap on retained normal-buffer lines; default 10_000
+	ScrollbackLines int // soft cap on retained normal-buffer lines; default ten-thousand
 }
 
 // Default constants surface in config docs and tests.
 const (
 	DefaultCols            = 80
 	DefaultRows            = 24
-	DefaultScrollbackLines = 10_000
+	DefaultScrollbackLines = config.DefaultTerminalScrollbackLines
 	MinScrollbackLines     = 100
 	MaxScrollbackLines     = 100_000
 )

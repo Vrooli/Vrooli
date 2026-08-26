@@ -110,13 +110,13 @@ The UI provides contextual recovery hints for known WS error messages:
 
 ### Sync Warning (Data-Loss Notification)
 
-When a client's output channel falls behind (e.g. slow WebSocket consumer, network congestion), the server coalesces frames into a pending buffer instead of dropping them. After the configured threshold (`WC_COALESCE_NOTIFY_THRESHOLD`, default 5) of coalesced frames, a `sync_warning` message is sent:
+When a client's output channel falls behind (e.g. slow WebSocket consumer, network congestion), the server coalesces frames into a pending buffer instead of dropping them. After the configured threshold (`WC_COALESCE_NOTIFY_THRESHOLD`, default 5) of coalesced frames, a `sync_warning` message is sent to pane chrome:
 
 ```json
 {"type": "sync_warning", "coalesced_frames": 7}
 ```
 
-The client renders a yellow warning in the terminal: `[Warning: 7 output frames coalesced — terminal may lag]`. Coalesced data is automatically delivered when the consumer catches up. If the pending buffer grows beyond the fixed cap (`pendingBufferMax`), the oldest bytes are truncated; the next snapshot replay (on reconnect) restores correct state. This is informational, not an error — the session continues normally.
+The client keeps this diagnostic out of the emulator/xterm buffer and exposes recovery through pane status chrome. Coalesced data is automatically delivered when the consumer catches up. If the pending buffer grows beyond the fixed cap (`pendingBufferMax`), the oldest bytes are truncated; the next snapshot replay (on reconnect) restores correct state. This is informational, not an error — the session continues normally.
 
 ### Authoritative Size Info (Informational)
 

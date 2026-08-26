@@ -1,5 +1,6 @@
+import { renderWithProviders as render } from "../test-utils";
 import { describe, it, expect, vi } from "vitest";
-import { render, act, fireEvent, screen } from "@testing-library/react";
+import { act, fireEvent, screen } from "@testing-library/react";
 import { useState } from "react";
 import FullScreenComposer from "../components/FullScreenComposer";
 import { useComposerDraft } from "../hooks/useComposerDraft";
@@ -27,7 +28,7 @@ function Harness({ interim = "", initialOpen = true }: HarnessProps) {
       open={open}
       onClose={vi.fn()}
       draft={draft}
-      onInput={((): GateResult => ({ status: "sent", seq: 1 })) as never}
+      onInput={((): GateResult => ({ status: "sent", offset: 1 })) as never}
       onFocusTerminal={vi.fn()}
       interimTranscript={interim}
     />

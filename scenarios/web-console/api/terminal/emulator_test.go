@@ -205,6 +205,27 @@ func TestInvalidScrollbackOptionsClamped(t *testing.T) {
 	}
 }
 
+func TestControlSequencesCoverCursorErasureAndScrollDirections(t *testing.T) {
+	e := New(Options{Cols: 12, Rows: 4, ScrollbackLines: 20})
+	feed(t, e, "abcdef")
+	feed(t, e, "\x1b[1;3H\x1b[2K") // erase the whole current row
+	if strings.Contains(screenText(e.activeScreen()), "abcdef") {
+		t.Fatal("EL did not erase the current row")
+	}
+	feed(t, e, "line1\r\nline2\r\nline3")
+	feed(t, e, "\x1b[2;3H\x1b[1K")         // erase to cursor
+	feed(t, e, "\x1b[2;1H\x1b[K")          // erase from cursor
+	feed(t, e, "\x1b[2;1H\x1b[2P")         // delete characters
+	feed(t, e, "\x1b[2;1H\x1b[2@")         // insert characters
+	feed(t, e, "\x1b7x\x1b8")              // save and restore cursor
+	feed(t, e, "\x1b[2;3r\x1b[3;1H\x1bM")  // reverse index at top of region
+	feed(t, e, "\x1b[2;3r\x1b[2;1H\x1b[T") // scroll region down
+	feed(t, e, "\x1b]0;title\x07")         // OSC title is intentionally ignored
+	if _, err := e.Feed([]byte("\x1b[?25l\x1b[?25h")); err != nil {
+		t.Fatalf("mode controls returned error: %v", err)
+	}
+}
+
 // TestECHErasesCharsInPlace covers the ECH (`\x1b[N X`) sequence used
 // heavily by TUI coding agents (Claude Code, vim, etc.) to wipe stale
 // cells before redrawing. Without this, the snapshot retains ghost

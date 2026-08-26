@@ -46,7 +46,7 @@ describe("shared audio substrate boundary", () => {
 
   it("keeps orchestration in the shared browser package", () => {
     const hook = readFileSync(join(AUDIO_ROOT, "hooks", "useVoiceCore.ts"), "utf8");
-    expect(hook).toContain('from "./useVoiceInput"');
+    expect(hook).toContain('from "@vrooli/react-component-library/useVoiceInput/3.0.0"');
     expect(hook).toContain("useAdoptedVoiceInput");
     expect(hook).not.toContain("const INITIAL_STATE");
     expect(hook).not.toContain("useState(");

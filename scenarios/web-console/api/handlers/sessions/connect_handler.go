@@ -87,6 +87,7 @@ func (h *connectHandler) Create(ctx context.Context, req *connect.Request[sessio
 		DisplayLabel:         req.Msg.GetDisplayLabel(),
 		TargetID:             req.Msg.GetTargetId(),
 		WorkingDir:           req.Msg.GetWorkingDir(),
+		TmuxMouseMode:        req.Msg.GetTmuxMouseMode(),
 		IdempotencyKey:       req.Header().Get(idempotencyHeader),
 	}
 	if req.Msg.GetHasPolicy() && req.Msg.GetPolicy() != nil {

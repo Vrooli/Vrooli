@@ -1,5 +1,53 @@
 {
   "selectors": {
+    "library.usevoiceinput.root": {
+      "testId": "usevoiceinput",
+      "selector": "[data-testid=\"usevoiceinput\"]"
+    },
+    "library.voiceinputbutton.root": {
+      "testId": "voice-fixture-state",
+      "selector": "[data-testid=\"voice-fixture-state\"]"
+    },
+    "library.voiceinputbutton.id2": {
+      "testId": "voiceinputbutton",
+      "selector": "[data-testid=\"voiceinputbutton\"]"
+    },
+    "library.foundations.visual-recipes.root": {
+      "testId": "foundations.visual-recipes",
+      "selector": "[data-testid=\"foundations.visual-recipes\"]"
+    },
+    "library.foundations.tokens.root": {
+      "testId": "foundations.tokens",
+      "selector": "[data-testid=\"foundations.tokens\"]"
+    },
+    "library.controls.pressable.root": {
+      "testId": "controls.pressable",
+      "selector": "[data-testid=\"controls.pressable\"]"
+    },
+    "library.controls.icon-button.root": {
+      "testId": "controls.icon-button",
+      "selector": "[data-testid=\"controls.icon-button\"]"
+    },
+    "library.drawershell.root": {
+      "testId": "drawershell",
+      "selector": "[data-testid=\"drawershell\"]"
+    },
+    "library.controlbase.root": {
+      "testId": "controlbase",
+      "selector": "[data-testid=\"controlbase\"]"
+    },
+    "library.forms.color-picker.root": {
+      "testId": "forms.color-picker",
+      "selector": "[data-testid=\"forms.color-picker\"]"
+    },
+    "library.forms.color-picker.id2": {
+      "testId": "selected-color",
+      "selector": "[data-testid=\"selected-color\"]"
+    },
+    "library.controls.button.root": {
+      "testId": "controls.button",
+      "selector": "[data-testid=\"controls.button\"]"
+    },
     "workspace.paneGrid": {
       "testId": "pane-grid",
       "selector": "[data-testid=\"pane-grid\"]"

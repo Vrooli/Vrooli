@@ -4,7 +4,7 @@ import type { KeyComboStep } from "../consts/key-combos";
 
 describe("sendComboSequence", () => {
   it("single-step combo calls onInput once", async () => {
-    const onInput = vi.fn(() => ({ status: "sent" as const, seq: 1 }));
+    const onInput = vi.fn(() => ({ status: "sent" as const, offset: 1 }));
     const fakeDelay = vi.fn(() => Promise.resolve());
     const steps: KeyComboStep[] = [{ data: "\x03" }];
 
@@ -17,7 +17,7 @@ describe("sendComboSequence", () => {
 
   it("multi-step combo calls onInput in order with correct data", async () => {
     const calls: string[] = [];
-    const onInput = vi.fn((data: string) => { calls.push(data); return { status: "sent" as const, seq: 1 }; });
+    const onInput = vi.fn((data: string) => { calls.push(data); return { status: "sent" as const, offset: 1 }; });
     const fakeDelay = vi.fn(() => Promise.resolve());
     const steps: KeyComboStep[] = [
       { data: "\x03" },
@@ -31,7 +31,7 @@ describe("sendComboSequence", () => {
   });
 
   it("calls delay with correct delayMs values", async () => {
-    const onInput = vi.fn(() => ({ status: "sent" as const, seq: 1 }));
+    const onInput = vi.fn(() => ({ status: "sent" as const, offset: 1 }));
     const fakeDelay = vi.fn(() => Promise.resolve());
     const steps: KeyComboStep[] = [
       { data: "\x03" },
@@ -47,7 +47,7 @@ describe("sendComboSequence", () => {
   });
 
   it("skips delay for steps without delayMs or delayMs: 0", async () => {
-    const onInput = vi.fn(() => ({ status: "sent" as const, seq: 1 }));
+    const onInput = vi.fn(() => ({ status: "sent" as const, offset: 1 }));
     const fakeDelay = vi.fn(() => Promise.resolve());
     const steps: KeyComboStep[] = [
       { data: "\x03" },

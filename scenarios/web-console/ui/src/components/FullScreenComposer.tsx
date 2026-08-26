@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from "react"
 import { ImagePlus, Loader2, SendHorizontal } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { ConfirmDialog } from "./ConfirmDialog";
-import { DrawerShell } from "./DrawerShell";
+import { DrawerShell } from "@vrooli/react-component-library/DrawerShell/1.0.0";
 import { AttachmentPreviewTray, type ComposerAttachment } from "./composer/AttachmentPreviewTray";
 import InterimTranscriptOverlay from "./composer/InterimTranscriptOverlay";
 import { strings } from "../consts/strings";
@@ -10,7 +10,7 @@ import { cn } from "../lib/classnames";
 import { composeComposerPayload } from "../lib/composerPayload";
 import type { ComposerDraft } from "../hooks/useComposerDraft";
 import type { GateResult, InputIntent } from "./terminal/inputGate";
-import type { InputSettlementCallback } from "../hooks/terminal/useStdinAck";
+import type { InputSettlementCallback } from "../hooks/terminal/useStdinStream";
 
 type ComposerSendStatus = "idle" | "uploading" | "sending" | "queued" | "failed";
 
@@ -24,9 +24,9 @@ interface FullScreenComposerProps {
   /** Inject the composed payload into the active terminal via the input gate. */
   onInput: (data: string, intent: Exclude<InputIntent, "control">) => GateResult;
   /** Subscribe to per-send settlement so we only clear+minimize on ok. */
-  subscribeInputSettled?: (cb: (seq: number, ok: boolean, reason?: string) => void) => () => void;
-  /** Await settlement for the exact sequence returned by onInput. */
-  awaitSeq?: (seq: number, cb: InputSettlementCallback) => () => void;
+  subscribeInputSettled?: (cb: (offset: number, ok: boolean, reason?: string) => void) => () => void;
+  /** Await settlement for the exact byte offset returned by onInput. */
+  awaitOffset?: (offset: number, cb: InputSettlementCallback) => () => void;
   /** Move focus to the active terminal (e.g. after a successful send). */
   onFocusTerminal?: () => void;
 
@@ -70,7 +70,7 @@ export default function FullScreenComposer({
   draft,
   onInput,
   subscribeInputSettled,
-  awaitSeq,
+  awaitOffset,
   onFocusTerminal,
   mic,
   interimTranscript = "",
@@ -230,9 +230,9 @@ export default function FullScreenComposer({
       setErrorMsg(t(strings.composer.sendFailed));
     };
 
-    if (awaitSeq) {
+    if (awaitOffset) {
       settlementUnsubRef.current?.();
-      settlementUnsubRef.current = awaitSeq(result.seq, (ok) => {
+      settlementUnsubRef.current = awaitOffset(result.offset, (ok) => {
         settlementUnsubRef.current = null;
         if (ok) finalizeSuccess();
         else finalizeFailure();
@@ -246,7 +246,7 @@ export default function FullScreenComposer({
     hasAttachments,
     resolveAttachmentPaths,
     onInput,
-    awaitSeq,
+    awaitOffset,
     onClearAttachments,
     onClose,
     onFocusTerminal,

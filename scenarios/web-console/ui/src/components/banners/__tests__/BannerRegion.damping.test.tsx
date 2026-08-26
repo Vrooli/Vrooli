@@ -1,5 +1,6 @@
+import { renderWithProviders as render } from "../../../test-utils";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { act, render, screen } from "@testing-library/react";
+import { act, screen } from "@testing-library/react";
 import BannerRegion from "../BannerRegion";
 import type { BannerDescriptor } from "../types";
 

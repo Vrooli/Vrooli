@@ -1,204 +1,208 @@
 {
-  "description": "Browser terminal supports interactive CLIs with PTY resize, cursor reporting, binary-safe I/O, and reconnect-safe input handling",
-  "module_id": "MOD-P0-002",
-  "prd_ref": "OT-P0-002",
-  "priority": "P0",
+  "_metadata": {
+    "last_validated_at": "2026-08-25T17:35:46-04:00"
+  },
   "requirements": [
     {
-      "category": "core",
-      "children": ["REQ-P0-002b", "REQ-P0-002c", "REQ-P0-002d"],
-      "description": "Go API manages PTY sessions: create shell process with pty.StartWithSize, track sessions by ID, support concurrent sessions, clean up on termination.",
       "id": "REQ-P0-002a",
-      "prd_ref": "OT-P0-002",
-      "status": "in_progress",
       "title": "PTY Session Backend",
-      "validation": [
-        {
-          "notes": "Session create returns valid ID and starts shell",
-          "phase": "unit",
-          "ref": "api/session_test.go:TestSessionManager_Create",
-          "status": "passing",
-          "type": "test"
-        },
-        {
-          "notes": "Concurrent sessions do not interfere",
-          "phase": "unit",
-          "ref": "api/session_test.go:TestSessionManager_ConcurrentSessions",
-          "status": "passing",
-          "type": "test"
-        },
-        {
-          "notes": "PTY factory creates and manages process lifecycle",
-          "phase": "unit",
-          "ref": "api/pty_test.go:TestFakePTY_CreateAndGet",
-          "status": "passing",
-          "type": "test"
-        },
-        {
-          "notes": "Shell resolution falls back to $SHELL env",
-          "phase": "unit",
-          "ref": "api/decision_boundary_test.go:TestResolveShell_FallsBackToSHELL",
-          "status": "passing",
-          "type": "test"
-        }
-      ]
-    },
-    {
-      "category": "core",
-      "children": ["REQ-P0-002b-i"],
-      "description": "WebSocket endpoint streams bidirectional I/O between browser and PTY. JSON message protocol with stdin, stdout, resize, exit, error, ping/pong types.",
-      "id": "REQ-P0-002b",
+      "status": "complete",
       "prd_ref": "OT-P0-002",
-      "status": "in_progress",
-      "title": "WebSocket I/O Streaming",
+      "category": "core",
+      "description": "Go API manages PTY sessions: create shell process with pty.StartWithSize, track sessions by ID, support concurrent sessions, clean up on termination.",
+      "children": [
+        "REQ-P0-002b",
+        "REQ-P0-002c",
+        "REQ-P0-002d"
+      ],
       "validation": [
         {
-          "notes": "Subscribe/broadcast delivers PTY output to connected clients",
+          "type": "test",
+          "ref": "api/session_test.go:TestSessionManager_Create",
           "phase": "unit",
-          "ref": "api/session_test.go:TestSession_SubscribeAndBroadcast",
-          "status": "passing",
-          "type": "test"
-        },
-        {
-          "notes": "Terminal transport keeps reconnecting through a prolonged server restart",
-          "phase": "unit",
-          "ref": "ui/src/hooks/terminal/useTerminalTransport.test.ts",
-          "status": "passing",
-          "type": "test"
-        },
-        {
-          "notes": "Server-side WebSocket tests cover open, resize, stdout, exit, error, input, cleanup, and malformed messages",
-          "phase": "unit",
-          "ref": "api/terminal_ws_test.go",
-          "status": "passing",
-          "type": "test"
-        },
-        {
-          "notes": "BAS case launches terminal command and verifies websocket traffic plus rendered command marker",
-          "phase": "integration",
-          "ref": "bas/cases/01-foundation/01-terminal/launch-custom-command-executes.json",
           "status": "implemented",
-          "type": "automation"
+          "notes": "Session create returns valid ID and starts shell"
         },
         {
-          "notes": "BAS case sends keyboard stdin to an empty shell and verifies stdout round-trip marker",
-          "phase": "integration",
-          "ref": "bas/cases/01-foundation/01-terminal/interactive-stdin-roundtrip.json",
+          "type": "test",
+          "ref": "api/session_test.go:TestSessionManager_ConcurrentSessions",
+          "phase": "unit",
           "status": "implemented",
-          "type": "automation"
+          "notes": "Concurrent sessions do not interfere"
+        },
+        {
+          "type": "test",
+          "ref": "api/pty_test.go:TestFakePTY_CreateAndGet",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "PTY factory creates and manages process lifecycle"
+        },
+        {
+          "type": "test",
+          "ref": "api/decision_boundary_test.go:TestResolveShell_FallsBackToSHELL",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Shell resolution falls back to $SHELL env"
         }
       ]
     },
     {
+      "id": "REQ-P0-002b",
+      "title": "WebSocket I/O Streaming",
+      "status": "complete",
+      "prd_ref": "OT-P0-002",
+      "category": "core",
+      "description": "WebSocket endpoint streams bidirectional I/O between browser and PTY. JSON message protocol with stdin, stdout, resize, exit, error, ping/pong types.",
+      "children": [
+        "REQ-P0-002b-i"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/session_test.go:TestSession_SubscribeAndBroadcast",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Subscribe/broadcast delivers PTY output to connected clients"
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/hooks/terminal/useTerminalTransport.test.ts",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Terminal transport keeps reconnecting through a prolonged server restart"
+        },
+        {
+          "type": "test",
+          "ref": "api/terminal_ws_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Server-side WebSocket tests cover open, resize, stdout, exit, error, input, cleanup, and malformed messages"
+        },
+        {
+          "type": "automation",
+          "ref": "bas/cases/01-foundation/01-terminal/launch-custom-command-executes.json",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "BAS case launches terminal command and verifies websocket traffic plus rendered command marker"
+        },
+        {
+          "type": "automation",
+          "ref": "bas/cases/01-foundation/01-terminal/interactive-stdin-roundtrip.json",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "BAS case sends keyboard stdin to an empty shell and verifies stdout round-trip marker"
+        }
+      ]
+    },
+    {
+      "id": "REQ-P0-002b-i",
+      "title": "Binary-Safe I/O Protocol",
+      "status": "complete",
+      "prd_ref": "OT-P0-002",
       "category": "core",
       "description": "Binary-safe I/O protocol transmits raw bytes without encoding corruption. JSON message framing preserves binary payloads.",
-      "id": "REQ-P0-002b-i",
-      "prd_ref": "OT-P0-002",
-      "status": "in_progress",
-      "title": "Binary-Safe I/O Protocol",
       "validation": [
         {
-          "notes": "WebSocket framing and terminal payload handling preserve raw terminal data",
-          "phase": "unit",
+          "type": "test",
           "ref": "api/terminal_ws_test.go",
-          "status": "passing",
-          "type": "test"
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "WebSocket framing and terminal payload handling preserve raw terminal data"
         }
       ]
     },
     {
+      "id": "REQ-P0-002c",
+      "title": "Terminal Resize Handling",
+      "status": "complete",
+      "prd_ref": "OT-P0-002",
       "category": "core",
       "description": "Terminal resize messages propagate from browser to PTY via pty.Setsize. SIGWINCH handling ensures interactive CLIs (vim, htop) reflow correctly.",
-      "id": "REQ-P0-002c",
-      "prd_ref": "OT-P0-002",
-      "status": "in_progress",
-      "title": "Terminal Resize Handling",
       "validation": [
         {
-          "notes": "Test PTY resize handling with Setsize",
-          "phase": "unit",
+          "type": "test",
           "ref": "api/session_test.go:TestSessionManager_Resize",
-          "status": "passing",
-          "type": "test"
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Test PTY resize handling with Setsize"
         },
         {
-          "notes": "Fake PTY resize delegates to SetSize",
-          "phase": "unit",
+          "type": "test",
           "ref": "api/pty_test.go:TestFakePTY_Resize",
-          "status": "passing",
-          "type": "test"
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Fake PTY resize delegates to SetSize"
         },
         {
-          "notes": "A non-leader cannot apply a declared grid",
-          "phase": "unit",
+          "type": "test",
           "ref": "api/session_test.go:TestSession_NonLeaderResizeIsRejected",
-          "status": "passing",
-          "type": "test"
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "A non-leader cannot apply a declared grid"
         },
         {
-          "notes": "Every connected viewer receives authoritative size_info",
-          "phase": "unit",
+          "type": "test",
           "ref": "api/terminal_ws_test.go:TestTerminalWS_SecondClientReceivesSizeInfo",
-          "status": "passing",
-          "type": "test"
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Every connected viewer receives authoritative size_info"
         }
       ]
     },
     {
+      "id": "REQ-P0-002d",
+      "title": "xterm.js Terminal Rendering",
+      "status": "complete",
+      "prd_ref": "OT-P0-002",
       "category": "ui",
       "description": "xterm.js terminal emulator renders PTY output with full ANSI/cursor support. Addon fitAddon auto-sizes terminal to container.",
-      "id": "REQ-P0-002d",
-      "prd_ref": "OT-P0-002",
-      "status": "in_progress",
-      "title": "xterm.js Terminal Rendering",
       "validation": [
         {
-          "notes": "ANSI escape codes available for terminal output formatting",
-          "phase": "unit",
+          "type": "test",
           "ref": "ui/src/__tests__/ansi.test.ts:all values are non-empty strings",
-          "status": "passing",
-          "type": "test"
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "ANSI escape codes available for terminal output formatting"
         },
         {
-          "notes": "Terminal pane selector registered in selector registry",
-          "phase": "unit",
+          "type": "test",
           "ref": "ui/src/__tests__/selectors.test.ts:exposes terminal pane selector",
-          "status": "passing",
-          "type": "test"
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Terminal pane selector registered in selector registry"
         },
         {
-          "notes": "ErrorBoundary renders fallback on crash, resets on Try Again click",
-          "phase": "unit",
+          "type": "test",
           "ref": "ui/src/__tests__/error-boundary.test.tsx",
-          "status": "passing",
-          "type": "test"
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "ErrorBoundary renders fallback on crash, resets on Try Again click"
         }
       ]
     },
     {
+      "id": "REQ-P0-002e",
+      "title": "Multi-Device Follower Presentation",
+      "status": "complete",
+      "prd_ref": "OT-P0-002",
       "category": "ui",
       "description": "Followers faithfully present the shared terminal grid with adaptive device framing and an explicit Take over affordance.",
-      "id": "REQ-P0-002e",
-      "prd_ref": "OT-P0-002",
-      "status": "in_progress",
-      "title": "Multi-Device Follower Presentation",
       "validation": [
         {
-          "notes": "Device chrome renders its takeover action at each adaptive tier",
-          "phase": "unit",
+          "type": "test",
           "ref": "ui/src/components/__tests__/DeviceFrame.test.tsx",
-          "status": "passing",
-          "type": "test"
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Device chrome renders its takeover action at each adaptive tier"
         },
         {
-          "notes": "Follower geometry remains bounded and selects adaptive chrome",
-          "phase": "unit",
+          "type": "test",
           "ref": "ui/src/lib/followerViewport.test.ts",
-          "status": "passing",
-          "type": "test"
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Follower geometry remains bounded and selects adaptive chrome"
         }
       ]
     }
-  ],
-  "title": "Production-Grade Web Terminal Fidelity"
+  ]
 }

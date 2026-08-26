@@ -8,6 +8,7 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/vrooli/api-core/connectx"
+	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	registryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/registry"
@@ -31,12 +32,13 @@ func (h *targetCatalogRPC) List(_ context.Context, _ *connect.Request[targetsv1.
 	for _, target := range all {
 		targets = append(targets, targetToProto(target))
 	}
-	return connect.NewResponse(&targetsv1.ListResponse{
-		State:          state,
-		Targets:        targets,
-		Message:        message,
-		RecoveryAction: action,
-	}), nil
+	projected := &targetsv1.ListResponse{
+		State:   state,
+		Targets: targets,
+		Message: message,
+	}
+	setCatalogText(projected, "recovery_action", action)
+	return connect.NewResponse(projected), nil
 }
 
 func (h *targetCatalogRPC) Get(_ context.Context, req *connect.Request[targetsv1.GetRequest]) (*connect.Response[targetsv1.GetResponse], error) {
@@ -55,7 +57,7 @@ func (h *targetCatalogRPC) Doctor(ctx context.Context, req *connect.Request[targ
 	target := response.Msg.GetTarget()
 	summary := "target is dispatchable"
 	if !target.GetDispatchable() {
-		summary = target.GetFailureRung()
+		summary = targetText(target, "failure_rung")
 		if summary == "" {
 			summary = "target is not dispatchable"
 		}
@@ -90,9 +92,8 @@ func localTerminalTarget() remoteTerminalTarget {
 		Status:          "LOCAL",
 		Online:          true,
 		Available:       true,
-		State:           "dispatchable",
+		Availability:    "dispatchable",
 		SurvivesRestart: true,
-		Readiness:       []string{"local Web Console process available"},
 		ReadinessFacts: []remoteReadinessFact{{
 			Key: "local_process", Label: "Web Console process", Passed: true, Detail: "This machine is available to the Web Console",
 		}},
@@ -149,12 +150,12 @@ func remoteCatalogState(targets []remoteTerminalTarget) (targetsv1.CatalogState,
 			"Register a node with vrooli-bridge, then refresh this catalog."
 	}
 	if len(targets) == 1 && !targets[0].Available {
-		failure := strings.ToLower(targets[0].FailureRung)
+		failure := strings.ToLower(targets[0].DispatchReason)
 		switch {
 		case strings.Contains(failure, "credential") || strings.Contains(failure, "configured"):
 			return targetsv1.CatalogState_CATALOG_STATE_UNCONFIGURED,
 				"Remote nodes are not configured for this Web Console.",
-				targets[0].RecoveryAction
+				targets[0].OperatorAction
 		case strings.Contains(failure, "registry"):
 			return targetsv1.CatalogState_CATALOG_STATE_REGISTRY_ERROR,
 				"Bridge is configured, but its node registry could not be read.",
@@ -174,16 +175,11 @@ func targetToProto(target remoteTerminalTarget) *sharedv1.Target {
 	for _, fact := range target.ReadinessFacts {
 		facts = append(facts, &sharedv1.ReadinessFact{Key: fact.Key, Label: fact.Label, Passed: fact.Passed, Detail: fact.Detail})
 	}
-	if len(facts) == 0 {
-		for _, fact := range target.Readiness {
-			facts = append(facts, &sharedv1.ReadinessFact{Key: fact, Label: fact, Passed: target.Available, Detail: fact})
-		}
-	}
 	var lastSeen *timestamppb.Timestamp
 	if !target.LastSeenAt.IsZero() {
 		lastSeen = timestamppb.New(target.LastSeenAt)
 	}
-	return &sharedv1.Target{
+	projected := &sharedv1.Target{
 		Id:              target.ID,
 		Kind:            target.Kind,
 		Label:           target.Label,
@@ -196,10 +192,42 @@ func targetToProto(target remoteTerminalTarget) *sharedv1.Target {
 		LastSeenAt:      lastSeen,
 		Readiness:       facts,
 		Dispatchable:    target.Available,
-		FailureRung:     target.FailureRung,
-		State:           targetProtoState(target.State),
-		RecoveryAction:  target.RecoveryAction,
+		State:           targetProtoState(target.Availability),
 		SurvivesRestart: target.SurvivesRestart,
+	}
+	setTargetText(projected, "failure_rung", target.DispatchReason)
+	setTargetText(projected, "recovery_action", target.OperatorAction)
+	return projected
+}
+
+func setTargetText(target *sharedv1.Target, name, value string) {
+	if target == nil || value == "" {
+		return
+	}
+	field := target.ProtoReflect().Descriptor().Fields().ByName(protoreflect.Name(name))
+	if field != nil && field.Kind() == protoreflect.StringKind {
+		target.ProtoReflect().Set(field, protoreflect.ValueOfString(value))
+	}
+}
+
+func targetText(target *sharedv1.Target, name string) string {
+	if target == nil {
+		return ""
+	}
+	field := target.ProtoReflect().Descriptor().Fields().ByName(protoreflect.Name(name))
+	if field == nil || field.Kind() != protoreflect.StringKind {
+		return ""
+	}
+	return target.ProtoReflect().Get(field).String()
+}
+
+func setCatalogText(response *targetsv1.ListResponse, name, value string) {
+	if response == nil || value == "" {
+		return
+	}
+	field := response.ProtoReflect().Descriptor().Fields().ByName(protoreflect.Name(name))
+	if field != nil && field.Kind() == protoreflect.StringKind {
+		response.ProtoReflect().Set(field, protoreflect.ValueOfString(value))
 	}
 }
 

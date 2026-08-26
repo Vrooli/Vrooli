@@ -1,7 +1,11 @@
+import { renderWithProviders as render } from "../test-utils";
 import { describe, expect, it } from "vitest";
 import { readFileSync, readdirSync, statSync, existsSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { screen } from "@testing-library/react";
+import { createElement } from "react";
+import { MicReadinessIndicator } from "../audio-integration/MicReadinessIndicator";
 
 /**
  * Audio adoption boundary guard.
@@ -42,6 +46,13 @@ function walk(dir: string, out: string[] = []): string[] {
 const IMPORT_RE = /\bfrom\s+["']([^"']+)["']/g;
 
 describe("frontend audio adoption boundary", () => {
+  it("renders the mic readiness state with caller labels", () => {
+    const { rerender } = render(createElement(MicReadinessIndicator, { state: "granted" }));
+    expect(screen.getByRole("status")).toHaveTextContent("Microphone ready");
+    rerender(createElement(MicReadinessIndicator, { state: "denied", labels: { denied: "No microphone" } }));
+    expect(screen.getByRole("status")).toHaveTextContent("No microphone");
+  });
+
   it("the audio-integration folder exists with the expected entry points", () => {
     expect(existsSync(AUDIO_SURFACE)).toBe(true);
     expect(existsSync(join(AUDIO_SURFACE, "index.ts"))).toBe(true);

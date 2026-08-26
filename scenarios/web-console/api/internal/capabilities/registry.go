@@ -4,6 +4,7 @@
 package capabilities
 
 import (
+	"runtime"
 	"time"
 
 	capabilityregistry "github.com/vrooli/vrooli/packages/capability-registry-go"
@@ -34,9 +35,10 @@ const (
 	ActionKindScenarioStart   = capabilityregistry.ActionKindScenarioStart
 	ActionKindScenarioRestart = capabilityregistry.ActionKindScenarioRestart
 	ActionKindOwnerGuidance   = capabilityregistry.ActionKindOwnerGuidance
+	PlatformUnsupported       = capabilityregistry.PlatformUnsupported
 )
 
-var Known = []Def{
+var knownCatalogue = []Def{
 	{
 		ID: audiotools.CapabilitySlug, Name: "Audio Tools",
 		Description:    "Shared audio capability scenario: STT, TTS, summarization, provider routing, BYOK/LPBS/local tiers, adoptable UI",
@@ -55,6 +57,33 @@ var Known = []Def{
 		},
 		Platform: capabilityregistry.PlatformVerdict{Support: capabilityregistry.PlatformDegraded, Reason: "optional audio capability depends on the selected provider and host media path"},
 	},
+	{ID: "ollama", Name: "Ollama", Description: "Local model runtime used by optional AI features", DependencyKind: DependencyResource, DependencySlug: "ollama"},
+	{ID: "openrouter", Name: "OpenRouter", Description: "Hosted model provider used by optional AI features", DependencyKind: DependencyResource, DependencySlug: "openrouter"},
+	{ID: "session-backend-standard", Name: "Standard Terminal Sessions", Description: "Local PTY terminal sessions", DependencyKind: DependencyResource, DependencySlug: "session-backend-standard"},
+	{ID: "session-backend-persistent", Name: "Persistent Terminal Sessions", Description: "tmux-backed terminal sessions that survive API restarts", DependencyKind: DependencyResource, DependencySlug: "session-backend-persistent"},
+	{ID: "vrooli-bridge", Name: "Remote Terminals", Description: "Bridged terminal sessions on registered nodes", DependencyKind: DependencyScenario, DependencySlug: "vrooli-bridge", ActionKind: ActionKindScenarioStart, ActionLabel: "Start Bridge", OperatorCommand: "vrooli scenario start vrooli-bridge --json"},
+}
+
+// Known is the catalogue for the current host. Platform-specific backend
+// verdicts are applied at construction time so the same registry contract is
+// honest on Windows without making Linux callers pretend tmux exists there.
+var Known = KnownForPlatform(runtime.GOOS)
+
+func KnownForPlatform(goos string) []Def {
+	defs := make([]Def, len(knownCatalogue))
+	copy(defs, knownCatalogue)
+	if goos != "windows" {
+		return defs
+	}
+	for i := range defs {
+		switch defs[i].ID {
+		case "session-backend-standard":
+			defs[i].Platform = capabilityregistry.PlatformVerdict{Support: capabilityregistry.PlatformUnsupported, Reason: "no PTY implementation for this platform"}
+		case "session-backend-persistent":
+			defs[i].Platform = capabilityregistry.PlatformVerdict{Support: capabilityregistry.PlatformUnsupported, Reason: "tmux is not available on this platform"}
+		}
+	}
+	return defs
 }
 
 func NewRegistry(defs []Def, checkers map[string]Checker, cacheTTL time.Duration) *Registry {

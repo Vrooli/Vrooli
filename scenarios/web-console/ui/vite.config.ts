@@ -28,7 +28,7 @@ export default defineConfig({
     // Node cannot resolve. Inlining routes the import back through Vite, whose
     // resolver probes extensions the same way the app bundle does. Without
     // this, every test that touches the audio integration fails to collect.
-    server: { deps: { inline: [/@vrooli\/audio-capture-browser/] } },
+    server: { deps: { inline: [/@vrooli\/(audio-capture-browser|react-component-library)/] } },
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json-summary', 'json'],
@@ -59,6 +59,7 @@ export default defineConfig({
       thresholds: {
         lines: 85,
         functions: 85,
+        branches: 85,
         statements: 85,
       }
     }

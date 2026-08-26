@@ -184,3 +184,15 @@ func TestLifecycleActionServicePassesSlugAsSingleArg(t *testing.T) {
 		t.Fatalf("slug arg = %q, want single original argument", got)
 	}
 }
+
+func TestExecCommandRunnerCapturesSuccessAndFailure(t *testing.T) {
+	runner := ExecCommandRunner{}
+	success, err := runner.Run(context.Background(), "sh", "-c", "printf success")
+	if err != nil || string(success.Stdout) != "success" || success.ExitCode != 0 {
+		t.Fatalf("success = %+v, err=%v", success, err)
+	}
+	failure, err := runner.Run(context.Background(), "sh", "-c", "printf failure >&2; exit 7")
+	if err == nil || string(failure.Stderr) != "failure" || failure.ExitCode != 7 {
+		t.Fatalf("failure = %+v, err=%v", failure, err)
+	}
+}

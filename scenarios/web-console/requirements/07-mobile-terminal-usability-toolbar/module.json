@@ -1,76 +1,78 @@
 {
-  "description": "Floating keyboard toolbar provides required terminal keys/chords for practical mobile usage",
-  "module_id": "MOD-P0-007",
-  "prd_ref": "OT-P0-007",
-  "priority": "P0",
+  "_metadata": {
+    "last_validated_at": "2026-08-25T17:35:46-04:00"
+  },
   "requirements": [
     {
-      "category": "ui",
-      "children": ["REQ-P0-007b"],
-      "description": "Floating toolbar component renders above mobile keyboard with essential terminal keys (Ctrl, Alt, Tab, Esc, arrows). Does not overlap terminal viewport.",
       "id": "REQ-P0-007a",
-      "prd_ref": "OT-P0-007",
-      "status": "in_progress",
       "title": "Floating Toolbar Component",
-      "validation": [
-        {
-          "notes": "Toolbar exports TOOLBAR_KEYS with essential terminal keys",
-          "phase": "unit",
-          "ref": "ui/src/__tests__/toolbar.test.ts",
-          "status": "passing",
-          "type": "test"
-        },
-        {
-          "notes": "Toolbar container selector registered",
-          "phase": "unit",
-          "ref": "ui/src/__tests__/selectors.test.ts:exposes toolbar container selector",
-          "status": "passing",
-          "type": "test"
-        }
-      ]
-    },
-    {
-      "category": "ui",
-      "children": ["REQ-P0-007b-i"],
-      "description": "Toolbar keys inject correct escape sequences into active terminal. Chord support (Ctrl+C, Ctrl+D, Ctrl+Z) works reliably.",
-      "id": "REQ-P0-007b",
+      "status": "complete",
       "prd_ref": "OT-P0-007",
-      "status": "in_progress",
-      "title": "Terminal Key/Chord Mapping",
+      "category": "ui",
+      "description": "Floating toolbar component renders above mobile keyboard with essential terminal keys (Ctrl, Alt, Tab, Esc, arrows). Does not overlap terminal viewport.",
+      "children": [
+        "REQ-P0-007b"
+      ],
       "validation": [
         {
-          "notes": "All chord sequences (Ctrl+C/D/Z) produce correct escape codes",
+          "type": "test",
+          "ref": "ui/src/__tests__/toolbar.test.ts",
           "phase": "unit",
-          "ref": "ui/src/__tests__/toolbar-keys.test.ts",
-          "status": "passing",
-          "type": "test"
+          "status": "implemented",
+          "notes": "Toolbar exports TOOLBAR_KEYS with essential terminal keys"
         },
         {
-          "notes": "Arrow keys and special keys send correct ANSI sequences",
+          "type": "test",
+          "ref": "ui/src/__tests__/selectors.test.ts:exposes toolbar container selector",
           "phase": "unit",
-          "ref": "ui/src/__tests__/toolbar-keys.test.ts",
-          "status": "passing",
-          "type": "test"
+          "status": "implemented",
+          "notes": "Toolbar container selector registered"
         }
       ]
     },
     {
+      "id": "REQ-P0-007b",
+      "title": "Terminal Key/Chord Mapping",
+      "status": "complete",
+      "prd_ref": "OT-P0-007",
+      "category": "ui",
+      "description": "Toolbar keys inject correct escape sequences into active terminal. Chord support (Ctrl+C, Ctrl+D, Ctrl+Z) works reliably.",
+      "children": [
+        "REQ-P0-007b-i"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "ui/src/__tests__/toolbar-keys.test.ts",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "All chord sequences (Ctrl+C/D/Z) produce correct escape codes"
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/__tests__/toolbar-keys.test.ts",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Arrow keys and special keys send correct ANSI sequences"
+        }
+      ]
+    },
+    {
+      "id": "REQ-P0-007b-i",
+      "title": "Chord Sequence Reliability",
+      "status": "complete",
+      "prd_ref": "OT-P0-007",
       "category": "ui",
       "description": "Chord sequences (Ctrl+C, Ctrl+D, Ctrl+Z) reliably produce correct escape codes under rapid input and concurrent terminal sessions.",
-      "id": "REQ-P0-007b-i",
-      "prd_ref": "OT-P0-007",
-      "status": "in_progress",
-      "title": "Chord Sequence Reliability",
       "validation": [
         {
-          "notes": "All chord sequences produce correct escape codes",
-          "phase": "unit",
+          "type": "test",
           "ref": "ui/src/__tests__/toolbar-keys.test.ts",
-          "status": "passing",
-          "type": "test"
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "All chord sequences produce correct escape codes"
         }
       ]
     }
-  ],
-  "title": "Mobile Terminal Usability Toolbar"
+  ]
 }

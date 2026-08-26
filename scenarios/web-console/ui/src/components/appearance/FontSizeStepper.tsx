@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Plus, Minus } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { FONT_SIZE_MIN, FONT_SIZE_MAX, clampFontSize } from "../../lib/fontSizeUtils";
+import { FONT_SIZE_MIN, FONT_SIZE_MAX, FONT_SIZE_STEP, clampFontSize } from "../../lib/fontSizeUtils";
 import { strings } from "../../consts/strings";
 import { Button } from "../ui/button";
 
@@ -45,7 +45,7 @@ export default function FontSizeStepper({
           size="icon"
           className="h-8 w-8"
           disabled={currentSize <= FONT_SIZE_MIN}
-          onClick={() => onChangeSize(currentSize - 1)}
+          onClick={() => onChangeSize(currentSize - FONT_SIZE_STEP)}
         >
           <Minus className="h-3 w-3" />
         </Button>
@@ -73,7 +73,7 @@ export default function FontSizeStepper({
           size="icon"
           className="h-8 w-8"
           disabled={currentSize >= FONT_SIZE_MAX}
-          onClick={() => onChangeSize(currentSize + 1)}
+          onClick={() => onChangeSize(currentSize + FONT_SIZE_STEP)}
         >
           <Plus className="h-3 w-3" />
         </Button>

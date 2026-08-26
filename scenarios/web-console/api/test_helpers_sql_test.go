@@ -114,11 +114,6 @@ func sanitizeTestIdentifier(name string) string {
 	return s
 }
 
-func tmuxCmdForSocket(socket string, args ...string) *exec.Cmd {
-	fullArgs := append([]string{"-L", socket}, args...)
-	return exec.Command("tmux", fullArgs...)
-}
-
 func requireIsolatedTmux(t *testing.T) string {
 	t.Helper()
 	if _, err := exec.LookPath("tmux"); err != nil {

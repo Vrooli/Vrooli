@@ -21,6 +21,10 @@ func (emptySessionManager) Create(context.Context, string, uint16, uint16, backe
 func (emptySessionManager) CreateWithWorkingDir(context.Context, string, uint16, uint16, backend.ID, *policy.Policy, string) (*session.Session, error) {
 	return nil, session.ErrBackendUnavailable
 }
+
+func (emptySessionManager) CreateWithOptions(context.Context, string, uint16, uint16, backend.ID, *policy.Policy, string, bool) (*session.Session, error) {
+	return nil, session.ErrBackendUnavailable
+}
 func (emptySessionManager) Get(string) (*session.Session, bool)   { return nil, false }
 func (emptySessionManager) List() []*session.Session              { return nil }
 func (emptySessionManager) Delete(context.Context, string) error  { return nil }
@@ -29,48 +33,17 @@ func (emptySessionManager) RecoveryProgress() session.RecoveryProgress {
 	return session.RecoveryProgress{InProgress: true, Total: 1, StartedAt: time.Now()}
 }
 
-type fakeRemoteService struct{}
-
-func (fakeRemoteService) Create(context.Context, CreateInput) (Session, error) {
-	return Session{ID: "remote:s"}, nil
-}
-
-func (fakeRemoteService) List(context.Context) ([]Session, error) {
-	return []Session{{ID: "remote:s"}}, nil
-}
-
-func (fakeRemoteService) Get(context.Context, string) (Session, error) {
-	return Session{ID: "remote:s"}, nil
-}
-func (fakeRemoteService) Delete(context.Context, string) error { return nil }
-
 func TestAdapterErrorAndRemotePaths(t *testing.T) {
 	ctx := context.Background()
 	a := &Adapter{Manager: emptySessionManager{}}
 	if _, err := a.Create(ctx, CreateInput{Backend: "standard", Policy: Policy{Mode: "bad"}, HasPolicy: true}); !errors.Is(err, ErrInvalidArgument) {
 		t.Fatalf("invalid policy: %v", err)
 	}
-	if _, err := a.Create(ctx, CreateInput{TargetID: "remote:node"}); !errors.Is(err, ErrRemoteUnavailable) {
+	if _, err := a.Create(ctx, CreateInput{TargetID: "node"}); !errors.Is(err, ErrRemoteUnavailable) {
 		t.Fatalf("remote without service: %v", err)
-	}
-	a.Remote = fakeRemoteService{}
-	if got, err := a.Create(ctx, CreateInput{TargetID: "remote:node", IdempotencyKey: "k"}); err != nil || got.ID != "remote:s" {
-		t.Fatalf("remote create: %+v %v", got, err)
-	}
-	if got, err := a.List(ctx); err != nil || len(got) != 1 {
-		t.Fatalf("remote list: %+v %v", got, err)
-	}
-	if got, err := a.Get(ctx, "remote:s"); err != nil || got.ID != "remote:s" {
-		t.Fatalf("remote get: %+v %v", got, err)
-	}
-	if err := a.Delete(ctx, "remote:s"); err != nil {
-		t.Fatal(err)
 	}
 	if _, err := a.Get(ctx, "missing"); !errors.Is(err, ErrNotFound) {
 		t.Fatalf("missing get: %v", err)
-	}
-	if got, err := a.List(ctx); err != nil || len(got) != 1 {
-		t.Fatalf("live list: %+v %v", got, err)
 	}
 	if stat := a.RecoveryStatus(ctx); !stat.InProgress || stat.Total != 1 || stat.StartedAtUnixMs == 0 {
 		t.Fatalf("recovery: %+v", stat)

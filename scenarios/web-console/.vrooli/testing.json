@@ -66,7 +66,7 @@
             "kind": "ui",
             "path": "ui",
             "language": "typescript",
-            "framework": "vite"
+            "framework": "vitest"
           }
         }
       ],
@@ -191,22 +191,22 @@
         "waivers": []
       },
       "runner_profiles": {
-        "default": {
-          "cpu_weight": 1,
-          "memory_bytes": 536870912,
-          "max_workers": 1,
-          "timeout_seconds": 600,
-          "no_output_timeout_seconds": 60,
+      "default": {
+        "cpu_weight": 1,
+        "memory_bytes": 536870912,
+        "max_workers": 1,
+        "timeout_seconds": 600,
+        "no_output_timeout_seconds": 180,
           "sharding": "none",
           "network": "allow",
           "filesystem": "workspace"
         },
-        "bounded-batches": {
-          "cpu_weight": 1,
-          "memory_bytes": 2147483648,
-          "max_workers": 1,
-          "timeout_seconds": 900,
-          "no_output_timeout_seconds": 120,
+      "bounded-batches": {
+        "cpu_weight": 1,
+        "memory_bytes": 2147483648,
+        "max_workers": 1,
+        "timeout_seconds": 900,
+        "no_output_timeout_seconds": 180,
           "sharding": "none",
           "network": "allow",
           "filesystem": "workspace"

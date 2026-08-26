@@ -3,6 +3,7 @@ import { Check, CopyCheck, RotateCcw, Settings2, Sparkles } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import {
   useWorkspaceStore,
+  useEffectiveFontSize,
   type AppearanceProperty,
 } from "../stores/useWorkspaceStore";
 import { useWorkspaceSync } from "../hooks/useWorkspaceSync";
@@ -11,7 +12,7 @@ import { cn } from "../lib/classnames";
 import { strings } from "../consts/strings";
 import { Button } from "./ui/button";
 import { ConfirmDialog } from "./ConfirmDialog";
-import { DrawerShell } from "./DrawerShell";
+import { DrawerShell } from "@vrooli/react-component-library/DrawerShell/1.0.0";
 import { SettingsCard } from "./settings/primitives";
 import AppearancePreview from "./appearance/AppearancePreview";
 import HeaderColorPicker from "./appearance/HeaderColorPicker";
@@ -35,6 +36,7 @@ export default function AppearanceModal() {
   const setPaneTheme = useWorkspaceStore((s) => s.setPaneTheme);
   const setPaneFontSize = useWorkspaceStore((s) => s.setPaneFontSize);
   const setDeviceFontSize = useWorkspaceStore((s) => s.setDeviceFontSize);
+  const clearDeviceFontSize = useWorkspaceStore((s) => s.clearDeviceFontSize);
   const applyAppearance = useWorkspaceStore((s) => s.applyAppearance);
   const defaultHeaderColor = useWorkspaceStore((s) => s.defaultHeaderColor);
   const defaultThemeId = useWorkspaceStore((s) => s.defaultThemeId);
@@ -58,15 +60,16 @@ export default function AppearanceModal() {
   }, [feedback]);
 
   const pane = panes.find((p) => p.sessionId === appearanceModalPane);
+  const sessionId = appearanceModalPane ?? "";
+  const currentFontSize = useEffectiveFontSize(sessionId);
 
   const close = useCallback(() => setAppearanceModalPane(null), [setAppearanceModalPane]);
 
   if (!appearanceModalPane || !pane) return null;
 
-  const sessionId = pane.sessionId;
+  const paneSessionId = pane.sessionId;
   const currentColor = pane.headerColor;
   const currentThemeId = pane.themeId ?? DEFAULT_THEME_ID;
-  const currentFontSize = pane.fontSize ?? 14;
   const otherPaneIds = panes
     .filter((p) => p.sessionId !== sessionId)
     .map((p) => p.sessionId);
@@ -114,10 +117,11 @@ export default function AppearanceModal() {
   };
 
   const handleResetToDefaults = () => {
-    setPaneColor(sessionId, defaultHeaderColor);
-    setPaneTheme(sessionId, defaultThemeId);
-    setPaneFontSize(sessionId, defaultFontSize);
-    syncPaneUpdate(sessionId, {
+    clearDeviceFontSize(paneSessionId);
+    setPaneColor(paneSessionId, defaultHeaderColor);
+    setPaneTheme(paneSessionId, defaultThemeId);
+    setPaneFontSize(paneSessionId, defaultFontSize);
+    syncPaneUpdate(paneSessionId, {
       header_color: defaultHeaderColor,
       theme_id: defaultThemeId,
       font_size: defaultFontSize,
@@ -189,24 +193,24 @@ export default function AppearanceModal() {
           <HeaderColorPicker
             currentColor={currentColor}
             onSelectColor={(color) => {
-              setPaneColor(sessionId, color);
-              syncPaneUpdate(sessionId, { header_color: color });
+              setPaneColor(paneSessionId, color);
+              syncPaneUpdate(paneSessionId, { header_color: color });
             }}
             testIdPrefix="appearance"
           />
           <ThemePicker
             currentThemeId={currentThemeId}
             onSelectTheme={(themeId) => {
-              setPaneTheme(sessionId, themeId);
-              syncPaneUpdate(sessionId, { theme_id: themeId });
+              setPaneTheme(paneSessionId, themeId);
+              syncPaneUpdate(paneSessionId, { theme_id: themeId });
             }}
             testIdPrefix="appearance"
           />
           <FontSizeStepper
             currentSize={currentFontSize}
             onChangeSize={(size) => {
-              setDeviceFontSize(sessionId, size);
-              syncPaneUpdate(sessionId, { font_size: size });
+              setDeviceFontSize(paneSessionId, size);
+              syncPaneUpdate(paneSessionId, { font_size: size });
             }}
             testIdPrefix="appearance"
           />

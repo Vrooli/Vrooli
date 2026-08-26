@@ -1,3 +1,4 @@
+import { renderWithProviders as render } from "../test-utils";
 /**
  * ErrorBanner accessibility regression test.
  *
@@ -10,7 +11,7 @@
  * landmark/locale-switcher tests would belong with their owners.
  */
 import { afterEach, beforeEach, describe, it } from "vitest";
-import { render, cleanup } from "@testing-library/react";
+import { cleanup } from "@testing-library/react";
 
 import ErrorBanner from "./ErrorBanner";
 import { setLocale } from "../i18n";

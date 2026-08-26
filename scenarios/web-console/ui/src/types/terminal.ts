@@ -26,7 +26,13 @@ export interface TerminalMessage {
     | "history_end"
     | "conversation_event_ack"
     | "session_ready"
-    | "stdin_ack";
+    | "stdin_ack"
+    | "hello"
+    | "resync"
+    | "snapshot_notice"
+    | "echo_state"
+    | "mouse_mode";
+
   /** Terminal I/O payload (stdin input or stdout output). */
   data?: string;
   /** New terminal width for resize messages. */
@@ -41,12 +47,18 @@ export interface TerminalMessage {
   source?: string;
   stage?: string;
   backend?: string;
-  /** Client-assigned sequence number for stdin messages; echoed in stdin_ack. */
-  seq?: number;
+	/** UTF-8 byte offset of a reliable stdin frame. */
+  offset?: number;
+  /** Highest contiguous reliable stdin byte offset accepted by the server. */
+  accepted_through?: number;
+  /** Highest reliable stdin byte offset known by the reconnecting client. */
+  have_through?: number;
   /** Per-message success flag (used by stdin_ack). */
   ok?: boolean;
   /** Generation counter echoed in session_ready for the wsGen barrier. */
   gen?: number;
+  /** Version of the terminal WebSocket contract. */
+  protocol_version?: string;
   /**
    * Stdin-frame discriminator. "keystroke" (default) routes through
    * `tmux send-keys -l --` on the persistent backend; "bulk_text" routes
@@ -59,8 +71,9 @@ export interface TerminalMessage {
    * Typed error code on stdin_ack frames when ok=false. The UI maps
    * these to user-visible messages. Known values:
    *   - "tmux_write_failed"
-   *   - "pty_closed"
-   *   - "not_ready"
+	 *   - "pty_closed"
+	 *   - "offset_gap"
+	 *   - "unreconcilable"
    */
   reason?: StdinAckReason;
 	/** Per-connection size-lease state carried by size_info. */
@@ -68,10 +81,19 @@ export interface TerminalMessage {
 	leaderDevice?: string;
 	holdsLease?: boolean;
 	viewerCount?: number;
+	/** Server-owned predictive-input authorization. Unknown is fail-closed. */
+	echo_known?: boolean;
+	echo_enabled?: boolean;
+	in_alt_buffer?: boolean;
+	cursor_at_line_end?: boolean;
+	/** Persistent-pane tmux mouse capture state, when the backend supports it. */
+	mouse_mode?: boolean;
+	mouse_mode_known?: boolean;
 }
 
 /** Typed reason codes for stdin_ack.ok=false frames. */
 export type StdinAckReason =
   | "tmux_write_failed"
   | "pty_closed"
-  | "not_ready";
+  | "offset_gap"
+  | "unreconcilable";

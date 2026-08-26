@@ -1,5 +1,6 @@
+import { renderWithProviders as render } from "../test-utils";
 import { describe, it, expect, vi } from "vitest";
-import { render, fireEvent, screen } from "@testing-library/react";
+import { fireEvent, screen } from "@testing-library/react";
 import { ConfirmDialog } from "../components/ConfirmDialog";
 
 function renderConfirm(props: Partial<Parameters<typeof ConfirmDialog>[0]> = {}) {

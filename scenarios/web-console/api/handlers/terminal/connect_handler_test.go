@@ -19,10 +19,12 @@ type fakeTerminalService struct {
 func (f *fakeTerminalService) GetScreen(context.Context, string, bool) (ScreenView, error) {
 	return ScreenView{Cols: 2, Rows: 1, Cells: [][]Cell{{{Rune: 'x', SGR: SGR{FG: 1, Bold: true}}}}, Cursor: Cursor{X: 1}, PlainText: "x"}, f.err
 }
+
 func (f *fakeTerminalService) SendInput(_ context.Context, _ string, in InputRequest) (int, error) {
 	f.last = in
 	return 3, f.err
 }
+
 func (f *fakeTerminalService) WaitIdle(context.Context, string, time.Duration, time.Duration) (WaitIdleResult, error) {
 	return WaitIdleResult{Reason: WaitIdleReasonIdle, Waited: time.Second}, nil
 }

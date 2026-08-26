@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import { getConversationSession } from "../api/conversation";
 import { useConversationStore } from "../stores/useConversationStore";
 
-const HYDRATION_RETRY_DELAYS_MS = [1000, 3000, 10000];
+const HYDRATION_RETRY_DELAYS_MS = [1000, 3000, 10 * 1000];
 
 /**
  * useConversationHydration ensures every known session has its conversation

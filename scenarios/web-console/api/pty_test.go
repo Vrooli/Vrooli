@@ -15,11 +15,13 @@ import (
 	"web-console/backends/codex"
 	"web-console/internal/pty"
 	"web-console/internal/ptyfake"
+
+	"github.com/vrooli/repo-contract-go/repocontracttest"
 )
 
 func TestDefaultPTYFactory_HonoursLaunchWorkingDir(t *testing.T) {
 	if runtime.GOOS != "linux" {
-		t.Skip("working-directory process fact is only measured on Linux")
+		repocontracttest.SkipPlatform(t, "working-directory process fact is only measured on Linux")
 	}
 	dir := t.TempDir()
 	p, err := defaultPTYFactory(pty.LaunchSpec{Shell: "/bin/sh", Cols: 80, Rows: 24, WorkingDir: dir})
@@ -283,6 +285,7 @@ func TestFilterServiceEnv_RemovesHostTerminalVars(t *testing.T) {
 		"TMUX_PANE=%0",
 		"TERM_PROGRAM=tmux",
 		"TERM_PROGRAM_VERSION=3.4",
+		"NO_COLOR=1",
 		"PATH=/usr/bin",
 	}
 	got := filterServiceEnv(env)
@@ -290,12 +293,30 @@ func TestFilterServiceEnv_RemovesHostTerminalVars(t *testing.T) {
 	for _, v := range got {
 		name, _, _ := strings.Cut(v, "=")
 		switch name {
-		case "TMUX", "TMUX_PANE", "TERM_PROGRAM", "TERM_PROGRAM_VERSION":
+		case "TMUX", "TMUX_PANE", "TERM_PROGRAM", "TERM_PROGRAM_VERSION", "NO_COLOR":
 			t.Errorf("host-terminal var should be filtered out: %s", v)
 		}
 	}
 	if len(got) != 2 {
 		t.Errorf("expected 2 env vars (HOME, PATH), got %d: %v", len(got), got)
+	}
+}
+
+func TestBuildSessionEnv_AllowsChildColors(t *testing.T) {
+	t.Setenv("NO_COLOR", "1")
+	t.Setenv("TERM", "dumb")
+
+	got := buildSessionEnv(pty.LaunchSpec{})
+	for _, entry := range got {
+		name, value, _ := strings.Cut(entry, "=")
+		switch name {
+		case "NO_COLOR":
+			t.Fatalf("NO_COLOR leaked into child environment: %q", entry)
+		case "TERM":
+			if value != "xterm-256color" {
+				t.Fatalf("TERM = %q, want xterm-256color", value)
+			}
+		}
 	}
 }
 
@@ -329,7 +350,7 @@ func TestFilterServiceEnv_RemovesLifecycleVars(t *testing.T) {
 // can emit session_ready without an extra round-trip.
 func TestRealPTY_ProbeReady_Synchronous(t *testing.T) {
 	if runtime.GOOS == "windows" {
-		t.Skip("PTY tests unsupported on Windows")
+		repocontracttest.SkipPlatform(t, "PTY tests unsupported on Windows")
 	}
 	p := &realPTY{}
 	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)

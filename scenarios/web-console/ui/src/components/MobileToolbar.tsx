@@ -6,7 +6,7 @@ import { useTranslation } from "react-i18next";
 import { TOOLBAR_KEYS, ESC_KEY, TAB_KEY, ENTER_KEY, ARROW_UP, ARROW_DOWN, ARROW_LEFT, ARROW_RIGHT, type ToolbarKey, applyModifiers } from "../consts/toolbar-keys";
 import { strings } from "../consts/strings";
 import type { GateResult, InputIntent } from "./terminal/inputGate";
-import type { InputSettlementCallback } from "../hooks/terminal/useStdinAck";
+import type { InputSettlementCallback } from "../hooks/terminal/useStdinStream";
 import { useWorkspaceStore } from "../stores/useWorkspaceStore";
 import { cn } from "../lib/classnames";
 import KeyComboPicker from "./KeyComboPicker";
@@ -138,9 +138,9 @@ interface MobileToolbarProps {
    * after `ok === true` arrives; on `ok === false` the toolbar surfaces
    * "Send failed — retry" and restores the draft for editing.
    */
-  subscribeInputSettled?: (cb: (seq: number, ok: boolean, reason?: string) => void) => () => void;
-  /** Await settlement for the exact sequence returned by onInput. */
-  awaitSeq?: (seq: number, cb: InputSettlementCallback) => () => void;
+  subscribeInputSettled?: (cb: (offset: number, ok: boolean, reason?: string) => void) => () => void;
+  /** Await settlement for the exact byte offset returned by onInput. */
+  awaitOffset?: (offset: number, cb: InputSettlementCallback) => () => void;
   /** Subscribe to pending-queue-changed notifications for the unsent pill. */
   subscribePendingInput?: (cb: () => void) => () => void;
   /** Snapshot the active terminal's pending (unsent) input queue. */
@@ -183,7 +183,7 @@ interface MobileToolbarProps {
 export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function MobileToolbar({
   onInput,
   subscribeInputSettled,
-  awaitSeq,
+  awaitOffset,
   subscribePendingInput,
   getPendingInputSnapshot,
   onFocusTerminal,
@@ -434,7 +434,7 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
       // The input was not sent immediately. Reason tells us why:
       //   - "not-ready"  — session_ready hasn't arrived; flushes later.
       //   - "ws-closed"  — socket is reconnecting; flushes on next open.
-      //   - "paused"     — gate held it back (mouse-tracking mode etc.).
+      //   - "paused"     — an explicit higher-level pause held it back.
       // Preserve the draft (user sees the pending-input pill).
       showStatus("queued");
       onFocusTerminal?.();
@@ -462,9 +462,9 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
       showStatus("failed");
     };
 
-    if (awaitSeq) {
+    if (awaitOffset) {
       settlementUnsubRef.current?.();
-      settlementUnsubRef.current = awaitSeq(result.seq, (ok) => {
+      settlementUnsubRef.current = awaitOffset(result.offset, (ok) => {
         settlementUnsubRef.current = null;
         if (ok) finalizeSuccess();
         else finalizeFailure();
@@ -478,7 +478,7 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
     // After submitting a command, focus the terminal so the user can
     // immediately see and interact with the output.
     onFocusTerminal?.();
-  }, [onInput, draft, showStatus, onFocusTerminal, clearModifiers, viewMode, onSwitchToTerminal, awaitSeq]);
+  }, [onInput, draft, showStatus, onFocusTerminal, clearModifiers, viewMode, onSwitchToTerminal, awaitOffset]);
 
   if (!visible) return null;
 

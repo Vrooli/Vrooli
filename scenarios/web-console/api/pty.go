@@ -157,6 +157,10 @@ var serviceEnvVars = map[string]struct{}{
 	"TMUX_PANE":                {},
 	"TERM_PROGRAM":             {},
 	"TERM_PROGRAM_VERSION":     {},
+	// NO_COLOR belongs to the web-console host environment, not to the
+	// interactive child. Keeping it would make color-aware CLI programs
+	// suppress ANSI output even though the child is attached to a real PTY.
+	"NO_COLOR": {},
 }
 
 // filterServiceEnv removes service-specific environment variables that

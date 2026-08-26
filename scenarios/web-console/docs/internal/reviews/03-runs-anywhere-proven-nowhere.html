@@ -1,0 +1,419 @@
+<title>Runs Anywhere, Proven Nowhere</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@500;600;700&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap">
+
+<style>
+:root {
+  --ground:#eef2f4; --surface:#ffffff; --surface-2:#f6f9fa;
+  --line:#d3dde2; --line-strong:#b3c3cb;
+  --ink:#16212b; --ink-2:#47606e; --ink-3:#748894;
+  --accent:#0d6a86; --accent-soft:#d9ecf2; --accent-ink:#0a4f65;
+  --crit:#a32f30; --crit-soft:#f6e0e0;
+  --warn:#97620d; --warn-soft:#f8ebd5;
+  --ok:#2b6f4e; --ok-soft:#dcefe4;
+  --shadow:0 1px 2px rgba(22,33,43,.06), 0 8px 24px -18px rgba(22,33,43,.5);
+  --f-display:"IBM Plex Sans Condensed","Helvetica Neue",Arial,sans-serif;
+  --f-body:"IBM Plex Sans",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,"SF Mono",Menlo,monospace;
+  --measure:68ch; --pad:clamp(1.25rem,4vw,3rem);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --ground:#0d151b; --surface:#141f27; --surface-2:#18242d;
+    --line:#26353f; --line-strong:#3a4d59;
+    --ink:#dde7ec; --ink-2:#9db0bb; --ink-3:#71858f;
+    --accent:#4fb4d0; --accent-soft:#12333f; --accent-ink:#8ad2e6;
+    --crit:#e08181; --crit-soft:#3a1f20;
+    --warn:#d9a75a; --warn-soft:#3a2c14;
+    --ok:#74c79b; --ok-soft:#16321f;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 10px 30px -20px rgba(0,0,0,.9);
+  }
+}
+:root[data-theme="dark"] {
+  --ground:#0d151b; --surface:#141f27; --surface-2:#18242d;
+  --line:#26353f; --line-strong:#3a4d59;
+  --ink:#dde7ec; --ink-2:#9db0bb; --ink-3:#71858f;
+  --accent:#4fb4d0; --accent-soft:#12333f; --accent-ink:#8ad2e6;
+  --crit:#e08181; --crit-soft:#3a1f20;
+  --warn:#d9a75a; --warn-soft:#3a2c14;
+  --ok:#74c79b; --ok-soft:#16321f;
+  --shadow:0 1px 2px rgba(0,0,0,.4), 0 10px 30px -20px rgba(0,0,0,.9);
+}
+* { box-sizing:border-box; }
+body { margin:0; background:var(--ground); color:var(--ink); font-family:var(--f-body); font-size:16px; line-height:1.6; -webkit-font-smoothing:antialiased; }
+.wrap { max-width:1180px; margin:0 auto; padding:var(--pad); display:flex; flex-direction:column; gap:clamp(2.5rem,6vw,4.5rem); }
+
+h1,h2,h3,h4 { font-family:var(--f-display); text-wrap:balance; margin:0; line-height:1.12; }
+h1 { font-size:clamp(2.3rem,5.6vw,3.8rem); font-weight:700; letter-spacing:-.022em; }
+h2 { font-size:clamp(1.45rem,3vw,2rem); font-weight:700; letter-spacing:-.014em; }
+h3 { font-size:1.13rem; font-weight:600; }
+h4 { font-size:.95rem; font-weight:600; }
+p { margin:0; max-width:var(--measure); }
+.eyebrow { font-family:var(--f-mono); font-size:.70rem; font-weight:500; letter-spacing:.16em; text-transform:uppercase; color:var(--accent); }
+.lede { font-size:clamp(1.02rem,1.6vw,1.16rem); color:var(--ink-2); max-width:62ch; }
+code,.mono { font-family:var(--f-mono); font-size:.855em; }
+code { background:var(--surface-2); border:1px solid var(--line); border-radius:3px; padding:.08em .34em; color:var(--accent-ink); overflow-wrap:anywhere; }
+a { color:var(--accent); }
+a:focus-visible { outline:2px solid var(--accent); outline-offset:3px; }
+
+.masthead { display:flex; flex-direction:column; gap:1.4rem; padding-top:clamp(.5rem,3vw,2rem); }
+.mast-rule { display:flex; align-items:baseline; gap:1rem; border-bottom:2px solid var(--ink); padding-bottom:.6rem; }
+.mast-rule .eyebrow { color:var(--ink-2); }
+.mast-rule .spacer { flex:1; }
+.mast-meta { font-family:var(--f-mono); font-size:.72rem; color:var(--ink-3); }
+
+.verdict { display:grid; grid-template-columns:repeat(auto-fit,minmax(190px,1fr)); gap:1px; background:var(--line); border:1px solid var(--line); border-radius:4px; overflow:hidden; }
+.verdict > div { background:var(--surface); padding:1rem 1.1rem; display:flex; flex-direction:column; gap:.3rem; }
+.verdict dt { font-family:var(--f-mono); font-size:.67rem; letter-spacing:.13em; text-transform:uppercase; color:var(--ink-3); }
+.verdict dd { margin:0; font-family:var(--f-display); font-size:1.75rem; font-weight:700; line-height:1; }
+.verdict dd.ok { color:var(--ok); } .verdict dd.bad { color:var(--crit); } .verdict dd.mid { color:var(--warn); }
+.verdict .note { font-size:.79rem; color:var(--ink-2); line-height:1.42; }
+
+section { display:flex; flex-direction:column; gap:1.4rem; }
+.sec-head { display:flex; flex-direction:column; gap:.55rem; border-top:1px solid var(--line-strong); padding-top:1.1rem; }
+.sec-head .row { display:flex; align-items:baseline; gap:.9rem; flex-wrap:wrap; }
+.tag { font-family:var(--f-mono); font-size:.72rem; font-weight:600; color:var(--surface); background:var(--ink); padding:.18rem .45rem; border-radius:2px; letter-spacing:.06em; }
+.tag.ok { background:var(--ok); } .tag.crit { background:var(--crit); }
+
+/* ladder */
+.ladder { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:1px; background:var(--line); border:1px solid var(--line); border-radius:4px; overflow:hidden; }
+.rung { background:var(--surface); padding:.75rem .85rem; display:flex; flex-direction:column; gap:.22rem; }
+.rung .rn { font-family:var(--f-mono); font-size:.72rem; font-weight:600; color:var(--ink); }
+.rung .rd { font-size:.74rem; color:var(--ink-3); line-height:1.4; }
+.rung.here { background:var(--crit-soft); }
+.rung.here .rn { color:var(--crit); }
+.rung.here .rd { color:color-mix(in srgb,var(--crit) 72%,var(--ink)); }
+.rung.target { background:var(--ok-soft); }
+.rung.target .rn { color:var(--ok); }
+
+/* matrix */
+.tablewrap { overflow-x:auto; border:1px solid var(--line); border-radius:5px; background:var(--surface); box-shadow:var(--shadow); }
+table { border-collapse:collapse; width:100%; min-width:760px; font-size:.845rem; }
+thead th { text-align:left; font-family:var(--f-mono); font-weight:600; font-size:.67rem; letter-spacing:.11em; text-transform:uppercase; color:var(--ink-3); padding:.7rem .85rem; background:var(--surface-2); border-bottom:1px solid var(--line-strong); white-space:nowrap; }
+tbody td { padding:.68rem .85rem; border-bottom:1px solid var(--line); vertical-align:top; color:var(--ink-2); }
+tbody tr:last-child td { border-bottom:none; }
+tbody td:first-child { color:var(--ink); font-family:var(--f-mono); font-size:.78rem; white-space:nowrap; }
+.pill { display:inline-block; font-family:var(--f-mono); font-size:.64rem; font-weight:600; letter-spacing:.07em; text-transform:uppercase; padding:.13rem .38rem; border-radius:2px; border:1px solid transparent; white-space:nowrap; margin-bottom:.25rem; }
+.pill.sup { background:var(--ok-soft); color:var(--ok); border-color:color-mix(in srgb,var(--ok) 35%,transparent); }
+.pill.bv  { background:var(--warn-soft); color:var(--warn); border-color:color-mix(in srgb,var(--warn) 35%,transparent); }
+.pill.un  { background:var(--crit-soft); color:var(--crit); border-color:color-mix(in srgb,var(--crit) 35%,transparent); }
+.pill.na  { background:var(--surface-2); color:var(--ink-3); border-color:var(--line-strong); }
+td .m { font-family:var(--f-mono); font-size:.73rem; color:var(--ink-3); display:block; line-height:1.45; overflow-wrap:anywhere; }
+
+/* findings */
+.findings { display:grid; grid-template-columns:repeat(auto-fill,minmax(330px,1fr)); gap:1rem; }
+.finding { background:var(--surface); border:1px solid var(--line); border-top:3px solid var(--line-strong); border-radius:4px; padding:1.05rem 1.15rem 1.15rem; display:flex; flex-direction:column; gap:.6rem; box-shadow:var(--shadow); }
+.finding.crit { border-top-color:var(--crit); }
+.finding.warn { border-top-color:var(--warn); }
+.finding.note { border-top-color:var(--accent); }
+.f-head { display:flex; flex-wrap:wrap; align-items:center; gap:.5rem; }
+.chip { font-family:var(--f-mono); font-size:.63rem; font-weight:600; letter-spacing:.1em; text-transform:uppercase; padding:.16rem .4rem; border-radius:2px; border:1px solid transparent; white-space:nowrap; }
+.chip.c { background:var(--crit-soft); color:var(--crit); border-color:color-mix(in srgb,var(--crit) 35%,transparent); }
+.chip.w { background:var(--warn-soft); color:var(--warn); border-color:color-mix(in srgb,var(--warn) 35%,transparent); }
+.chip.n { background:var(--accent-soft); color:var(--accent-ink); border-color:color-mix(in srgb,var(--accent) 35%,transparent); }
+.chip.os { background:transparent; color:var(--ink-3); border-color:var(--line-strong); }
+.finding p { font-size:.88rem; color:var(--ink-2); max-width:none; }
+.finding .sym { font-size:.845rem; color:var(--ink); background:var(--surface-2); border-left:2px solid var(--line-strong); padding:.5rem .7rem; border-radius:0 3px 3px 0; }
+.finding .sym b { font-family:var(--f-display); font-size:.69rem; letter-spacing:.1em; text-transform:uppercase; color:var(--ink-3); display:block; margin-bottom:.15rem; }
+.refs { display:flex; flex-wrap:wrap; gap:.35rem; margin-top:auto; padding-top:.3rem; }
+.ref { font-family:var(--f-mono); font-size:.67rem; color:var(--ink-3); background:var(--surface-2); border:1px solid var(--line); padding:.12rem .38rem; border-radius:2px; overflow-wrap:anywhere; }
+
+.trace { background:var(--surface); border:1px solid var(--line); border-radius:4px; padding:.9rem 1rem; overflow-x:auto; box-shadow:var(--shadow); }
+.trace pre { margin:0; font-family:var(--f-mono); font-size:.74rem; line-height:1.7; color:var(--ink-2); white-space:pre; }
+.trace .hi { color:var(--crit); font-weight:600; }
+.trace .go { color:var(--ok); }
+.trace .dim { color:var(--ink-3); }
+
+.goodgrid { display:grid; grid-template-columns:repeat(auto-fill,minmax(290px,1fr)); gap:.6rem; }
+.good { background:var(--surface); border:1px solid var(--line); border-left:3px solid var(--ok); border-radius:0 4px 4px 0; padding:.75rem .9rem; display:flex; flex-direction:column; gap:.2rem; }
+.good .gn { font-family:var(--f-mono); font-size:.75rem; color:var(--ink); }
+.good .gd { font-size:.79rem; color:var(--ink-3); line-height:1.45; }
+
+.moves { display:flex; flex-direction:column; gap:1px; background:var(--line); border:1px solid var(--line); border-radius:5px; overflow:hidden; }
+.move { background:var(--surface); padding:1rem 1.2rem; display:grid; grid-template-columns:auto 1fr; gap:1rem; align-items:start; }
+.move .num { font-family:var(--f-display); font-size:1.4rem; font-weight:700; color:var(--accent); line-height:1; font-variant-numeric:tabular-nums; padding-top:.12rem; }
+.move .body { display:flex; flex-direction:column; gap:.3rem; }
+.move p { font-size:.875rem; color:var(--ink-2); max-width:none; }
+.move .kills { font-family:var(--f-mono); font-size:.69rem; color:var(--ink-3); }
+
+.callout { border:1px solid color-mix(in srgb,var(--accent) 30%,var(--line)); background:var(--accent-soft); border-left:3px solid var(--accent); border-radius:0 4px 4px 0; padding:1rem 1.2rem; display:flex; flex-direction:column; gap:.4rem; }
+.callout .eyebrow { color:var(--accent-ink); }
+.callout p { color:color-mix(in srgb,var(--accent-ink) 82%,var(--ink)); max-width:none; font-size:.89rem; }
+
+footer { border-top:1px solid var(--line-strong); padding:1.4rem 0 3rem; color:var(--ink-3); font-size:.8rem; display:flex; flex-direction:column; gap:.3rem; }
+@media (max-width:700px){ .move{grid-template-columns:1fr;gap:.4rem;} }
+@media (prefers-reduced-motion:reduce){ *{animation:none!important;transition:none!important;} }
+</style>
+
+<div class="wrap">
+
+  <header class="masthead">
+    <div class="mast-rule">
+      <span class="eyebrow">web-console · portability · pass 3</span>
+      <span class="spacer"></span>
+      <span class="mast-meta">2026-08-24</span>
+    </div>
+    <h1>Runs Anywhere, Proven Nowhere</h1>
+    <p class="lede">web-console cross-compiles cleanly for macOS and Windows today — I verified both this session. What it does not have is a single machine-readable statement of what actually works on those platforms, and the one place the answer is written down in prose is already out of date. The portability problem here is not missing code. It is missing <em>declaration</em>, and a handful of host assumptions that fail loudly on the machine you didn't test on.</p>
+
+    <dl class="verdict">
+      <div><dt>Cross-compile</dt><dd class="ok">2 / 2</dd><span class="note"><code>darwin/arm64</code> and <code>windows/amd64</code> both build with zero errors, verified this session</span></div>
+      <div><dt>Declared capabilities</dt><dd class="bad">0</dd><span class="note">web-console authors no <code>platform_capabilities</code> block; 3 of 121 scenarios in the repo do</span></div>
+      <div><dt>Windows session backends</dt><dd class="bad">0</dd><span class="note">no PTY implementation and no tmux — and the launcher does not say so</span></div>
+      <div><dt>Real-host qualification</dt><dd class="mid">Linux only</dd><span class="note">macOS and Windows are “reasoned from source” by the scenario's own admission</span></div>
+    </dl>
+  </header>
+
+  <!-- ===== DECLARATION GAP ===== -->
+  <section>
+    <div class="sec-head">
+      <div class="row"><span class="tag crit">GAP</span><h2>The repo has a portability ladder. web-console is not on it.</h2></div>
+      <p><code>internal/deployability</code> defines a closed vocabulary for what a scenario claims per operating system, plus a qualification ranking over those claims. The point of the ladder is that “we think it works” and “we ran it” are different rungs and must not be written the same way.</p>
+    </div>
+
+    <div class="ladder">
+      <div class="rung"><span class="rn">supported</span><span class="rd">Runs, measured on real hardware.</span></div>
+      <div class="rung target"><span class="rn">build-verified</span><span class="rd">Cross-compiles and passes fixtures; never run on that platform. <b>Where web-console honestly sits for macOS.</b></span></div>
+      <div class="rung"><span class="rn">experimental</span><span class="rd">Wired, behaviour unproven.</span></div>
+      <div class="rung"><span class="rn">partial</span><span class="rd">Runs with known functional limits.</span></div>
+      <div class="rung"><span class="rn">unsupported</span><span class="rd">Deliberately out of scope. <b>The honest answer for Windows today.</b></span></div>
+      <div class="rung here"><span class="rn">undeclared</span><span class="rd">Nothing authored, so nothing proven — and the loader synthesizes <code>unsupported</code>. <b>Where web-console is now.</b></span></div>
+    </div>
+
+    <p>The scenario's actual portability record is a single sentence inside a <code>notes</code> string on the tmux host-tool declaration — a field no resolver reads:</p>
+
+    <div class="trace">
+<pre><span class="dim">scenarios/web-console/.vrooli/service.json → hostTools[0].notes</span>
+"Platform support: Linux is supported (measured on the current host);
+ <span class="hi">macOS is reasoned from source and runs without live session
+ working-directory inspection, so relative file preview reports an error</span>;
+ Windows is reasoned from source and unsupported because no PTY
+ implementation exists."</pre>
+    </div>
+
+    <div class="callout">
+      <span class="eyebrow">And the highlighted clause is already wrong</span>
+      <p><code>packages/platform-go/process_darwin.go</code> implements <code>processWorkingDir</code> via <code>lsof -a -p &lt;pid&gt; -d cwd -Fn</code>. macOS <em>does</em> have live working-directory inspection, and has for some time. On the tmux backend it was never needed anyway — <code>CurrentDir</code> asks tmux for <code>#{pane_current_path}</code>, which is portable. This is the failure mode of prose declarations in one line: the code moved, the sentence did not, and nothing could have caught it.</p>
+    </div>
+  </section>
+
+  <!-- ===== MATRIX ===== -->
+  <section>
+    <div class="sec-head">
+      <div class="row"><span class="tag">MATRIX</span><h2>What actually works, per platform</h2></div>
+      <p>This is the block that should be authored into <code>platform_capabilities</code>. Statuses below are what the evidence supports today — not aspirations.</p>
+    </div>
+
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>Capability</th><th>Linux</th><th>macOS</th><th>Windows</th></tr></thead>
+        <tbody>
+          <tr>
+            <td>terminal-standard-pty</td>
+            <td><span class="pill sup">supported</span><span class="m">creack/pty, measured</span></td>
+            <td><span class="pill bv">build-verified</span><span class="m">same code path, darwin BSD ptys; cross-builds, never run</span></td>
+            <td><span class="pill un">unsupported</span><span class="m"><code>hostSupportsPTY=false</code> via build tag; no ConPTY path wired</span></td>
+          </tr>
+          <tr>
+            <td>terminal-persistent-tmux</td>
+            <td><span class="pill sup">supported</span><span class="m">capability-probed at startup</span></td>
+            <td><span class="pill bv">build-verified</span><span class="m">tmux exists via brew; socket lives under <code>$TMPDIR</code> — see finding 3</span></td>
+            <td><span class="pill un">unsupported</span><span class="m">no tmux on Windows</span></td>
+          </tr>
+          <tr>
+            <td>session-working-dir</td>
+            <td><span class="pill sup">supported</span><span class="m">procfs</span></td>
+            <td><span class="pill bv">build-verified</span><span class="m"><code>lsof</code> subprocess per call; present by default on macOS</span></td>
+            <td><span class="pill un">unsupported</span><span class="m">returns <code>ErrUnsupported</code>; tmux path would have covered it, but tmux is absent too</span></td>
+          </tr>
+          <tr>
+            <td>tmux-cgroup-isolation</td>
+            <td><span class="pill sup">supported</span><span class="m"><code>systemd-run --user --scope</code></span></td>
+            <td><span class="pill na">n/a</span><span class="m">probe gates on <code>GOOS==linux</code>; falls through to plain <code>new-session</code></span></td>
+            <td><span class="pill na">n/a</span><span class="m">same fallback</span></td>
+          </tr>
+          <tr>
+            <td>shell-resolution</td>
+            <td><span class="pill sup">supported</span><span class="m"><code>$SHELL</code> → <code>/bin/sh</code></span></td>
+            <td><span class="pill bv">build-verified</span><span class="m">same path; <code>/bin/zsh</code> resolves normally</span></td>
+            <td><span class="pill un">unproven</span><span class="m">powershell branch is unreachable whenever Git Bash sets <code>SHELL</code> — see finding 1</span></td>
+          </tr>
+          <tr>
+            <td>host-os-identification</td>
+            <td><span class="pill sup">supported</span><span class="m"><code>/etc/os-release</code></span></td>
+            <td><span class="pill bv">degrades</span><span class="m">returns empty string, no error — correct behaviour</span></td>
+            <td><span class="pill bv">degrades</span><span class="m">same</span></td>
+          </tr>
+          <tr>
+            <td>terminal-cell-metrics</td>
+            <td><span class="pill bv">unqualified</span><span class="m">font stack names no OS system font on any platform — see finding 5</span></td>
+            <td><span class="pill bv">unqualified</span><span class="m">falls back to Courier via generic <code>monospace</code></span></td>
+            <td><span class="pill bv">unqualified</span><span class="m">falls back to Consolas / Courier New</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ===== FINDINGS ===== -->
+  <section>
+    <div class="sec-head">
+      <div class="row"><span class="tag crit">DEFECTS</span><h2>Host assumptions that will bite on an untested machine</h2></div>
+    </div>
+
+    <div class="findings">
+
+      <article class="finding crit">
+        <div class="f-head"><span class="chip c">critical</span><span class="chip os">all platforms</span></div>
+        <h3>Config load panics on a machine-specific env var</h3>
+        <p><code>resolveShellChecked</code> is written correctly — it returns a typed <code>ErrShellUnavailable</code>. Its caller <code>resolveShell()</code> throws that away and <code>panic</code>s, and it is invoked from the config-defaults constructor. Any host where <code>$SHELL</code> names a binary that is not on <code>PATH</code> kills the API at startup with a stack trace instead of a diagnosis.</p>
+        <div class="sym"><b>The Windows case in particular</b>Git Bash and MSYS set <code>SHELL=/usr/bin/bash</code> — a POSIX path <code>exec.LookPath</code> cannot resolve on Windows. So the carefully-written <code>powershell.exe</code> branch is reached only when <code>SHELL</code> is unset, which is precisely when Git Bash is <em>not</em> installed. On a developer Windows box the likely outcome is a panic, not a fallback.</p></div>
+        <div class="refs"><span class="ref">config.go:175–204</span><span class="ref">config.go:113</span><span class="ref">config.go:146</span></div>
+      </article>
+
+      <article class="finding crit">
+        <div class="f-head"><span class="chip c">critical</span><span class="chip os">linux · macos</span></div>
+        <h3>The tmux capability probe runs against the wrong tmux server</h3>
+        <p>Every tmux operation in the scenario goes through <code>tmuxCmd()</code>, which prepends <code>-L wc</code> to pin the dedicated socket — the comment calls this mandatory. The availability probe does not use it. <code>defaultCheckTmuxAvailable</code> calls <code>exec.Command(path, args...)</code> directly, so it creates and kills a probe session on <b>the user's default tmux server</b>.</p>
+        <div class="sym"><b>Three consequences</b>It answers a question about a server the scenario never uses. It starts the user's tmux server as a side effect of web-console booting. And <code>set-buffer -b vrooli-probe-buffer</code> is never deleted — <code>paste-buffer -p</code> is called without <code>-d</code> — so it leaves a named buffer behind in the user's own tmux session.</div>
+        <div class="refs"><span class="ref">internal/backend/backend.go:128–167</span><span class="ref">pty_tmux.go:478</span></div>
+      </article>
+
+      <article class="finding crit">
+        <div class="f-head"><span class="chip c">critical</span><span class="chip os">macos</span></div>
+        <h3>On macOS the tmux socket location depends on who started the process</h3>
+        <p><code>tmux -L wc</code> resolves the socket under the per-user temp directory. On Linux that is a stable <code>/tmp/tmux-$UID</code>. On macOS it is <code>$TMPDIR</code>, which differs between a login shell and a process started by <code>launchd</code> — the same user gets different, unrelated paths.</p>
+        <div class="sym"><b>Failure mode</b>Persistent sessions survive the restart, and the API cannot see them. <code>DiscoverTmuxSessions</code> returns nothing, recovery finds nothing, and every pane the user left running is silently orphaned. <code>TMPDIR</code> is not pinned, and not in the <code>serviceEnvVars</code> filter list, so the socket path is inherited from whatever launched the API.</div>
+        <div class="refs"><span class="ref">pty_tmux.go:458</span><span class="ref">pty.go serviceEnvVars</span></div>
+      </article>
+
+      <article class="finding warn">
+        <div class="f-head"><span class="chip w">major</span><span class="chip os">windows</span></div>
+        <h3>Zero available backends renders identically to one</h3>
+        <p>The launcher computes <code>showBackendSelector = backends.length &gt; 1</code>. On Windows the filtered list is <em>empty</em>, which takes the same branch as “exactly one backend, no choice needed”: the selector is hidden and the launcher looks normal. The user presses Launch and the failure surfaces from the API, without the reason string the backend registry already computed — <code>"no PTY implementation for this platform"</code>.</p>
+        <div class="sym"><b>The information exists</b>Every <code>Descriptor</code> carries <code>Available</code> and <code>Reason</code>, and the reason reaches the UI in <code>session_backends</code>. Nothing renders it. Honest degradation is a two-line change at the point where the list is empty.</div>
+        <div class="refs"><span class="ref">TerminalLauncher.tsx:179–182</span><span class="ref">backend_registry.go:39–44</span></div>
+      </article>
+
+      <article class="finding warn">
+        <div class="f-head"><span class="chip w">major</span><span class="chip os">all platforms</span></div>
+        <h3>The terminal font stack contains no font that ships with any OS</h3>
+        <p><code>'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace</code>. None of the three named faces is present on a stock macOS, Windows or Linux install — they are developer installs. So most users land on the generic <code>monospace</code> keyword, which resolves to Courier on macOS and Consolas or Courier New on Windows.</p>
+        <div class="sym"><b>Why this is a portability bug, not a taste issue</b>xterm.js derives cell width from the resolved font. A different fallback per OS means a different cell size, which means a <em>different computed grid</em> for the same window dimensions — and the PTY is then sized differently on each machine. With the size-lease feature, two viewers on different operating systems disagree about the grid for the same session by construction.</div>
+        <div class="refs"><span class="ref">consts/config.ts:73</span><span class="ref">TerminalPane.tsx:618</span></div>
+      </article>
+
+      <article class="finding warn">
+        <div class="f-head"><span class="chip w">major</span><span class="chip os">linux · macos</span></div>
+        <h3>Every persistent session is born in mouse-tracking mode</h3>
+        <p><code>applyTmuxOptions</code> sets <code>mouse on</code> unconditionally on session creation. That is the exact condition that routes scrolling down the remote, round-trip-bound path documented in the previous review — so the network-dependent scroll velocity is not an edge case triggered by a TUI, it is the <b>default state of every tmux-backed pane</b> on every platform.</p>
+        <div class="sym"><b>Cross-platform angle</b>tmux mouse behaviour and copy-mode entry differ across tmux builds, and macOS commonly runs a different tmux minor version than the Linux host this was tuned on. Making mouse mode a deliberate, surfaced setting removes both the performance coupling and a source of per-machine divergence.</div>
+        <div class="refs"><span class="ref">pty_tmux.go:552–566</span></div>
+      </article>
+
+      <article class="finding note">
+        <div class="f-head"><span class="chip n">consistency</span><span class="chip os">all platforms</span></div>
+        <h3>Three scrollback depths for one scrollback</h3>
+        <p>tmux keeps <code>history-limit 50000</code>, the server emulator keeps 10 000 lines, and xterm.js keeps 10 000. A user scrolling a tmux-backed pane can reach content the emulator no longer holds, so what survives a reconnect depends on which layer answered — and the reachable depth differs by backend.</p>
+        <div class="refs"><span class="ref">pty_tmux.go:556</span><span class="ref">config.go:108</span><span class="ref">terminalConfig.ts:7</span></div>
+      </article>
+
+      <article class="finding note">
+        <div class="f-head"><span class="chip n">hygiene</span><span class="chip os">all platforms</span></div>
+        <h3>The probe forks tmux before it consults its own cache</h3>
+        <p><code>defaultCheckTmuxAvailable</code> keys its cache on the version string, which it obtains by running <code>tmux -V</code> — so the cache never avoids a fork, only the six probe commands. Minor on Linux; on a machine where process creation is expensive (Windows, constrained containers) the pattern is worth inverting.</p>
+        <div class="refs"><span class="ref">internal/backend/backend.go:133–147</span></div>
+      </article>
+
+    </div>
+  </section>
+
+  <!-- ===== WHAT'S RIGHT ===== -->
+  <section>
+    <div class="sec-head">
+      <div class="row"><span class="tag ok">MODEL</span><h2>The patterns already here that should be generalized</h2></div>
+      <p>This scenario has better portability instincts than most. Three of these are genuinely the right answer and should be named as the house pattern rather than left as local cleverness.</p>
+    </div>
+
+    <div class="goodgrid">
+      <div class="good"><span class="gn">Capability probing, not version parsing</span><span class="gd">The tmux probe actually executes <code>-e</code>, <code>resize-window -x -y</code>, <code>paste-buffer -p</code>, <code>send-keys -X cancel</code>, <code>#{pane_in_mode}</code> and <code>#{pane_dead_status}</code>, and reports which one failed. That is strictly better than comparing a version string, and it is the single most portable thing in the codebase. Fix its socket and make it the template.</span></div>
+      <div class="good"><span class="gn">Gated privilege with a real fallback</span><span class="gd"><code>systemdRunUsable()</code> checks <code>GOOS</code> and <code>LookPath</code>, logs the result once, and falls through to plain <code>new-session</code>. Linux gets cgroup isolation; nobody else pays for it or fails because of it.</span></div>
+      <div class="good"><span class="gn">Per-OS files with an explicit unsupported</span><span class="gd"><code>platform-go</code> splits <code>process_linux</code> / <code>process_darwin</code> / <code>process_windows</code> and returns a typed <code>ErrUnsupported</code> rather than a zero value. Absence is a fact, not a failure — the comment says so, and the code means it.</span></div>
+      <div class="good"><span class="gn">Clipboard as a capability boundary</span><span class="gd"><code>lib/clipboard.ts</code> declares one seam, tries the async Clipboard API, falls back to the gesture-bound <code>execCommand</code> path, and returns typed <code>unsupported</code>/<code>denied</code>/<code>failed</code>. Exactly the shape every browser-capability difference should take.</span></div>
+      <div class="good"><span class="gn">Windows-aware shell defaults</span><span class="gd"><code>resolveShellChecked</code> already branches on <code>GOOS</code>, uses <code>LookPath</code>, and absolutizes the result. The logic is right; only the panicking wrapper above it is wrong.</span></div>
+      <div class="good"><span class="gn">Optional host tools, declared</span><span class="gd">tmux is <code>required: false</code> with a stated reason and a documented fallback. The scenario boots without it.</span></div>
+    </div>
+  </section>
+
+  <!-- ===== MOVES ===== -->
+  <section>
+    <div class="sec-head">
+      <div class="row"><span class="tag">MOVES</span><h2>Getting to portable-and-provable</h2></div>
+    </div>
+
+    <div class="moves">
+      <div class="move">
+        <div class="num">1</div>
+        <div class="body">
+          <h4>Author the <code>platform_capabilities</code> block and delete the prose</h4>
+          <p>Use the matrix above as the starting content. One entry per capability, three OS keys each, with <code>status</code>, <code>mechanism</code> and <code>evidence</code> — following the shape <code>system-monitor</code> already uses. Then remove the platform sentence from the tmux <code>notes</code> field so there is exactly one record, and it is the one tooling reads. This is the change that converts every other item here from folklore into something CI can regress.</p>
+          <p class="kills">retires: stale prose · undeclared-means-unsupported · “does it work on a Mac?” being a conversation instead of a query</p>
+        </div>
+      </div>
+      <div class="move">
+        <div class="num">2</div>
+        <div class="body">
+          <h4>Probe the socket you will actually use</h4>
+          <p>Route <code>defaultCheckTmuxAvailable</code> through <code>tmuxCmd()</code> so the probe targets <code>-L wc</code>, and add <code>-d</code> to the probe's <code>paste-buffer</code> so it leaves nothing behind. Then pin the socket explicitly with <code>-S &lt;scenario-state-dir&gt;/tmux.sock</code> instead of <code>-L</code>, which removes the <code>$TMPDIR</code> dependency and makes the macOS launchd-vs-login-shell divergence structurally impossible rather than merely unlikely.</p>
+          <p class="kills">retires: probing the wrong server · buffer leak into the user's tmux · silent session orphaning on macOS</p>
+        </div>
+      </div>
+      <div class="move">
+        <div class="num">3</div>
+        <div class="body">
+          <h4>Never panic on host state</h4>
+          <p>Make <code>resolveShell</code> return its error to the caller and let config load report a typed startup failure — or degrade to a probed default. A host whose <code>$SHELL</code> is unusable is a supportable condition with a clear message, not a crash. Audit for the same shape elsewhere: any <code>panic</code> reachable from reading the environment, the filesystem, or <code>PATH</code> is a portability bug wearing a different hat.</p>
+          <p class="kills">retires: startup crashes on Git Bash, minimal containers, and service-manager environments</p>
+        </div>
+      </div>
+      <div class="move">
+        <div class="num">4</div>
+        <div class="body">
+          <h4>Make degradation legible from capability to pixel</h4>
+          <p>The backend registry already computes <code>Available</code> and a human <code>Reason</code>, and ships both to the client. Render them: when the filtered backend list is empty, show the reason instead of a launcher that looks ready. Same rule for any capability the matrix marks unsupported — the user should learn it from the UI, not from a failed launch.</p>
+          <p class="kills">retires: Windows users discovering the platform matrix by trial</p>
+        </div>
+      </div>
+      <div class="move">
+        <div class="num">5</div>
+        <div class="body">
+          <h4>Give the font stack an OS ladder, then assert cell metrics</h4>
+          <p>Append real system fallbacks — <code>ui-monospace, SFMono-Regular, Menlo</code> for macOS, <code>Consolas</code> for Windows, <code>'DejaVu Sans Mono', 'Liberation Mono'</code> for Linux — so every platform lands on a designed monospace instead of Courier. Better still, ship one webfont with the app so cell geometry is identical everywhere, and add a test that asserts a known grid for a known pixel size.</p>
+          <p class="kills">retires: per-OS grid divergence · cross-platform size-lease disagreement</p>
+        </div>
+      </div>
+      <div class="move">
+        <div class="num">6</div>
+        <div class="body">
+          <h4>Climb the ladder with evidence, not edits</h4>
+          <p><code>make check</code> already runs <code>cross-compile</code>, which is what keeps <code>build-verified</code> honest. To reach <code>supported</code> on macOS you need something a cross-build cannot give: run the Go unit suites under <code>darwin</code>, then a scripted manual pass on real hardware covering session create, detach, restart, recover, resize, paste and scroll. Record the result as the <code>evidence</code> string on the capability entry. A status that changes without its evidence changing is the thing the ladder exists to prevent.</p>
+          <p class="kills">retires: status drift · “supported” meaning “nobody has complained yet”</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <div class="row"><span class="tag">SCOPE</span><h2>One decision to make first</h2></div>
+    </div>
+    <p>Windows is the fork in the road. Today it is honestly unsupported: no PTY, no tmux, no backend. Making it work means wiring ConPTY behind the <code>hostSupportsPTY</code> build tag and accepting that persistence has no tmux equivalent — a real project, not a fix. The alternative is to declare <code>unsupported</code> in the capability block and render that in the launcher, which is a day of work and leaves nobody confused. <b>Both are defensible; drifting between them is not.</b> Everything else in this review points the same way on all three platforms, so pick the Windows answer and the rest of the matrix stops being ambiguous.</p>
+  </section>
+
+  <footer>
+    <span>Third review pass over <span class="mono">scenarios/web-console</span> · companions: <span class="mono">Terminal Signal Path</span>, <span class="mono">Scroll, Zoom, Redraw</span>.</span>
+    <span>Read-only. Cross-compiles were executed; no files were modified. Line references are from the working tree on branch <span class="mono">agi</span>.</span>
+  </footer>
+
+</div>

@@ -5,7 +5,7 @@ import type { ConversationEvent } from "../api/conversation";
 import { strings } from "../consts/strings";
 import { cn } from "../lib/classnames";
 import { writeText } from "../lib/clipboard";
-import { DrawerShell } from "./DrawerShell";
+import { DrawerShell } from "@vrooli/react-component-library/DrawerShell/1.0.0";
 import {
   buildMessageExport,
   DEFAULT_MESSAGE_EXPORT_FORMAT,

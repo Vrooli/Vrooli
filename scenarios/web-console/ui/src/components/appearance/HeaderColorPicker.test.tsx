@@ -1,6 +1,7 @@
+import { renderWithProviders as render } from "../../test-utils";
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { useState } from "react";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { screen, fireEvent } from "@testing-library/react";
 import HeaderColorPicker from "./HeaderColorPicker";
 import { useWorkspaceStore } from "../../stores/useWorkspaceStore";
 

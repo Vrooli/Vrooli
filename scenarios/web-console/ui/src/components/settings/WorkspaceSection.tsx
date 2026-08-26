@@ -36,6 +36,15 @@ export default function WorkspaceSection() {
   const setKeepScreenAwake = useWorkspaceStore((state) => state.setKeepScreenAwake);
   const adaptiveChrome = useWorkspaceStore((state) => state.adaptiveChrome);
   const setAdaptiveChrome = useWorkspaceStore((state) => state.setAdaptiveChrome);
+  const touchScrollSensitivity = useWorkspaceStore((state) => state.touchScrollSensitivity);
+  const wheelScrollSensitivity = useWorkspaceStore((state) => state.wheelScrollSensitivity);
+  const setTouchScrollSensitivity = useWorkspaceStore((state) => state.setTouchScrollSensitivity);
+  const setWheelScrollSensitivity = useWorkspaceStore((state) => state.setWheelScrollSensitivity);
+  const tmuxMouseMode = useWorkspaceStore((state) => state.tmuxMouseMode);
+  const setTmuxMouseMode = useWorkspaceStore((state) => state.setTmuxMouseMode);
+  const predictionLatencyThresholdMs = useWorkspaceStore((state) => state.predictionLatencyThresholdMs);
+  const setPredictionLatencyThresholdMs = useWorkspaceStore((state) => state.setPredictionLatencyThresholdMs);
+  const resetScrollSensitivities = useWorkspaceStore((state) => state.resetScrollSensitivities);
   const wakeLockStatus = useWakeLockStatus((s) => s.status);
   const capabilities = useSecureContextCapabilities();
   const unavailableCapabilities = Object.entries(capabilities)
@@ -154,6 +163,52 @@ export default function WorkspaceSection() {
               checked={adaptiveChrome}
               onClick={() => setAdaptiveChrome(!adaptiveChrome)}
             />
+          )}
+        />
+        <SettingsRow
+          label="Touch scroll sensitivity"
+          hint="Adjust finger and trackpad scrolling independently."
+          control={(
+            <label className="flex items-center gap-2 text-xs text-wc-text-secondary">
+              <input aria-label="Touch scroll sensitivity" type="range" min="0.1" max="4" step="0.1" value={touchScrollSensitivity} onChange={(event) => setTouchScrollSensitivity(Number(event.target.value))} />
+              {touchScrollSensitivity.toFixed(1)}
+            </label>
+          )}
+        />
+        <SettingsRow
+          label="Wheel scroll sensitivity"
+          hint="Adjust mouse-wheel scrolling independently."
+          control={(
+            <label className="flex items-center gap-2 text-xs text-wc-text-secondary">
+              <input aria-label="Wheel scroll sensitivity" type="range" min="0.1" max="4" step="0.1" value={wheelScrollSensitivity} onChange={(event) => setWheelScrollSensitivity(Number(event.target.value))} />
+              {wheelScrollSensitivity.toFixed(1)}
+            </label>
+          )}
+        />
+        <div className="flex justify-end">
+          <Button type="button" variant="outline" size="sm" onClick={resetScrollSensitivities}>
+            Reset scroll sensitivities
+          </Button>
+        </div>
+        <SettingsRow
+          label="tmux mouse mode for new persistent panes"
+          hint="When enabled, new persistent panes let tmux capture mouse scrolling. Existing panes keep their current setting."
+          control={(
+            <SettingsToggle
+              testId="tmux-mouse-mode-default-toggle"
+              checked={tmuxMouseMode}
+              onClick={() => setTmuxMouseMode(!tmuxMouseMode)}
+            />
+          )}
+        />
+        <SettingsRow
+          label="Prediction latency threshold"
+          hint="Underline speculative characters only when round-trip latency exceeds this value."
+          control={(
+            <label className="flex items-center gap-2 text-xs text-wc-text-secondary">
+              <input aria-label="Prediction latency threshold" type="range" min="0" max="1000" step="5" value={predictionLatencyThresholdMs} onChange={(event) => setPredictionLatencyThresholdMs(Number(event.target.value))} />
+              {predictionLatencyThresholdMs} ms
+            </label>
           )}
         />
         <SettingsRow

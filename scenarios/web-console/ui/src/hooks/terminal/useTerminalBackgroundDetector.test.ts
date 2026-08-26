@@ -1,3 +1,4 @@
+import { renderWithProviders as render } from "../../test-utils";
 import { act, renderHook } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -38,6 +39,10 @@ describe("useTerminalBackgroundDetector", () => {
     unmount();
 
     const rendered = renderHook(() => useTerminalBackgroundDetector(stub.term as never, { enabled: true, defaultBackground: "#000000", onColor }));
+    act(() => { vi.advanceTimersByTime(200); });
+    expect(onColor).toHaveBeenLastCalledWith("#000000");
+    Object.defineProperty(document, "visibilityState", { configurable: true, value: "visible" });
+    act(() => { document.dispatchEvent(new Event("visibilitychange")); });
     act(() => { vi.advanceTimersByTime(200); });
     expect(onColor).toHaveBeenLastCalledWith("#000000");
     stub.fireOsc(11, "rgb:aa/bb/cc");

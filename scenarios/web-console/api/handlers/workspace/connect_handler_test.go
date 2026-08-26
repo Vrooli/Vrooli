@@ -25,6 +25,7 @@ func (f *fakeWorkspaceService) DeletePane(context.Context, string) {}
 func (f *fakeWorkspaceService) CreateGroup(context.Context, string, string) (Group, error) {
 	return f.group, f.err
 }
+
 func (f *fakeWorkspaceService) UpdateGroup(context.Context, UpdateGroupRequest) (Group, error) {
 	return f.group, f.err
 }

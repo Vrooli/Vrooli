@@ -3,12 +3,14 @@ package main
 import (
 	"strings"
 	"testing"
+
+	"web-console/cli/internal/testutil"
 )
 
 func TestNewAppConstructs(t *testing.T) {
 	app, err := NewApp()
 	if err != nil {
-		t.Fatalf("NewApp() error: %v", err)
+		t.Fatal(testutil.ErrorMessage(err, "NewApp()"))
 	}
 	if app == nil || app.core == nil || app.core.CLI == nil {
 		t.Fatal("NewApp() returned an incomplete app")
@@ -18,7 +20,7 @@ func TestNewAppConstructs(t *testing.T) {
 func TestRunVersion(t *testing.T) {
 	app, err := NewApp()
 	if err != nil {
-		t.Fatalf("NewApp() error: %v", err)
+		t.Fatal(testutil.ErrorMessage(err, "NewApp()"))
 	}
 	// --version is handled by cli-core; it must not return an error and must not
 	// touch the network (no NeedsAPI path triggered).
@@ -30,7 +32,7 @@ func TestRunVersion(t *testing.T) {
 func TestRunHelpListsMigratedDomains(t *testing.T) {
 	app, err := NewApp()
 	if err != nil {
-		t.Fatalf("NewApp() error: %v", err)
+		t.Fatal(testutil.ErrorMessage(err, "NewApp()"))
 	}
 	// The standard help text lists all registered command groups and
 	// subcommand groups. We assert the migrated domains are wired up.
@@ -51,7 +53,7 @@ func TestMetadata(t *testing.T) {
 func TestStandardScenarioPaths(t *testing.T) {
 	app, err := NewApp()
 	if err != nil {
-		t.Fatalf("NewApp failed: %v", err)
+		t.Fatal(testutil.ErrorMessage(err, "NewApp"))
 	}
 	tests := []struct {
 		input string
@@ -74,7 +76,7 @@ func TestBuiltInStatusCommandRegistered(t *testing.T) {
 
 	app, err := NewApp()
 	if err != nil {
-		t.Fatalf("NewApp failed: %v", err)
+		t.Fatal(testutil.ErrorMessage(err, "NewApp"))
 	}
 
 	if err := app.Run([]string{"configure", "api_base", "http://127.0.0.1:1"}); err != nil {

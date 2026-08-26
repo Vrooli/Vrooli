@@ -1,4 +1,5 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { renderWithProviders as render } from "../../test-utils";
+import { fireEvent, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it } from "vitest";
 import { act, useRef } from "react";
 import { useResizablePanel } from "../useResizablePanel";

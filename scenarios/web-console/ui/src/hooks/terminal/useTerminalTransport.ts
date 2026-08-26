@@ -31,6 +31,8 @@ export type ConnectionState = "idle" | "connecting" | "open" | "closed";
 export interface TransportHandle {
   /** Attempt an immediate ws.send. Returns true iff the browser accepted it. */
   sendJson: (msg: TerminalMessage) => boolean;
+  /** Send reliable frames whenever the socket is open; cumulative offsets provide the replay barrier. */
+  sendReliableJson: (msg: TerminalMessage) => boolean;
   /** Returns the current generation (monotonic per successful open). */
   currentGen: () => number;
   /** Subscribe to incoming messages. Returns an unsubscribe function. */
@@ -183,10 +185,10 @@ export function useTerminalTransport({
     };
   }, [url, createSocket]);
 
-  const sendJson = useCallback((msg: TerminalMessage): boolean => {
+  const send = useCallback((msg: TerminalMessage, respectHighWater: boolean): boolean => {
     const ws = wsRef.current;
     if (!ws || ws.readyState !== WebSocket.OPEN) return false;
-    if (ws.bufferedAmount > WS_SEND_HIGH_WATER) return false;
+    if (respectHighWater && ws.bufferedAmount > WS_SEND_HIGH_WATER) return false;
     try {
       ws.send(JSON.stringify(msg));
       return true;
@@ -195,6 +197,9 @@ export function useTerminalTransport({
       return false;
     }
   }, []);
+
+  const sendJson = useCallback((msg: TerminalMessage): boolean => send(msg, true), [send]);
+  const sendReliableJson = useCallback((msg: TerminalMessage): boolean => send(msg, false), [send]);
 
   const subscribe = useCallback((listener: (msg: TerminalMessage) => void) => {
     messageSubsRef.current.add(listener);
@@ -213,5 +218,5 @@ export function useTerminalTransport({
   const currentGen = useCallback(() => genRef.current, []);
   const state = useCallback(() => stateRef.current, []);
 
-  return { sendJson, currentGen, subscribe, onStateChange, state };
+  return { sendJson, sendReliableJson, currentGen, subscribe, onStateChange, state };
 }

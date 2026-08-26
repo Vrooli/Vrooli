@@ -456,6 +456,23 @@ func TestSessionManager_Create_DefaultBackend(t *testing.T) {
 	}
 }
 
+func TestSessionManager_CreateWithOptions_PropagatesTmuxMouseMode(t *testing.T) {
+	var captured pty.LaunchSpec
+	sm := NewManagerWithFactory(func(spec pty.LaunchSpec) (pty.PTY, error) {
+		captured = spec
+		return ptyfake.NewFakePTYWithOutput(), nil
+	})
+
+	sess, err := sm.CreateWithOptions(context.Background(), "", 80, 24, "", nil, "", true)
+	if err != nil {
+		t.Fatalf("CreateWithOptions: %v", err)
+	}
+	defer func() { _ = sm.Delete(context.Background(), sess.ID) }()
+	if !captured.TmuxMouseMode {
+		t.Fatal("launch spec lost the requested tmux mouse mode")
+	}
+}
+
 func TestSessionManager_Create_WithRegistry_UnknownBackend(t *testing.T) {
 	reg := backend.New()
 	reg.Register(backend.Descriptor{ID: backend.Standard, Available: true},

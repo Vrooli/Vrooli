@@ -2,17 +2,15 @@ package main
 
 import (
 	"context"
-	"errors"
 	"strings"
 	"testing"
+	"time"
 
 	"connectrpc.com/connect"
 	"google.golang.org/protobuf/encoding/protojson"
 
-	sessionsH "web-console/handlers/sessions"
-	intsessions "web-console/internal/sessions"
-
 	registryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/registry"
+	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/shared"
 	targetsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/targets"
 )
 
@@ -20,7 +18,7 @@ func readyRemoteTarget() remoteTerminalTarget {
 	return remoteTerminalTarget{
 		ID: "bridge-node:node-a", Kind: "bridge-node", Label: "Build node A",
 		OS: "linux", Arch: "amd64", NodeID: "node-a", Revision: "r1",
-		Status: "ONLINE", Online: true, Available: true, State: "dispatchable",
+		Status: "ONLINE", Online: true, Available: true, Availability: "dispatchable",
 		BaseURL: "https://bridge.internal", OwnerToken: "LocalSession secret-owner", ReauthToken: "secret-reauth",
 		ReadinessFacts: []remoteReadinessFact{{Key: "dispatch", Label: "Dispatchable", Passed: true, Detail: "ready"}},
 	}
@@ -63,8 +61,8 @@ func TestRemoteCatalogStateDistinguishesConfigurationFailures(t *testing.T) {
 		want   targetsv1.CatalogState
 	}{
 		{name: "configured empty", want: targetsv1.CatalogState_CATALOG_STATE_CONFIGURED_EMPTY},
-		{name: "unconfigured", remote: []remoteTerminalTarget{{FailureRung: "bridge credentials not configured"}}, want: targetsv1.CatalogState_CATALOG_STATE_UNCONFIGURED},
-		{name: "registry error", remote: []remoteTerminalTarget{{FailureRung: "Bridge registry unavailable"}}, want: targetsv1.CatalogState_CATALOG_STATE_REGISTRY_ERROR},
+		{name: "unconfigured", remote: []remoteTerminalTarget{{DispatchReason: "bridge credentials not configured"}}, want: targetsv1.CatalogState_CATALOG_STATE_UNCONFIGURED},
+		{name: "registry error", remote: []remoteTerminalTarget{{DispatchReason: "Bridge registry unavailable"}}, want: targetsv1.CatalogState_CATALOG_STATE_REGISTRY_ERROR},
 	}
 
 	for _, tt := range tests {
@@ -74,6 +72,26 @@ func TestRemoteCatalogStateDistinguishesConfigurationFailures(t *testing.T) {
 				t.Fatalf("remoteCatalogState() = %s, want %s", state, tt.want)
 			}
 		})
+	}
+}
+
+func TestRemoteTargetExistsAndOffersBridgeActionWithoutConfiguration(t *testing.T) {
+	t.Setenv("VROOLI_OPERATOR_SESSION_DIR", t.TempDir())
+	t.Setenv("WEB_CONSOLE_BRIDGE_URL", "")
+	t.Setenv("WEB_CONSOLE_BRIDGE_NODE_ID", "")
+	t.Setenv("WEB_CONSOLE_BRIDGE_OWNER_TOKEN", "")
+	t.Setenv("WEB_CONSOLE_BRIDGE_REAUTH_TOKEN", "")
+
+	srv := &Server{}
+	target, ok := srv.targetByID("bridge-node:")
+	if !ok {
+		t.Fatal("remote target disappeared when Bridge is unconfigured")
+	}
+	if target.Available || target.DispatchReason != "Bridge URL is not configured" {
+		t.Fatalf("target status = %+v", target)
+	}
+	if target.Capability.ActionLabel != "Start Bridge" || target.Capability.ReasonCode != "bridge_url_missing" {
+		t.Fatalf("target capability = %+v", target.Capability)
 	}
 }
 
@@ -87,88 +105,104 @@ func TestTargetStateForNodeSurfacesNeedsUpdate(t *testing.T) {
 	}
 }
 
-func TestTypedRemoteSessionLifecycleAndUnavailableTarget(t *testing.T) {
-	remote := readyRemoteTarget()
-	unavailable := remote
-	unavailable.ID = "bridge-node:offline"
-	unavailable.Label = "Offline node"
-	unavailable.Available = false
-	unavailable.State = "offline"
-	unavailable.FailureRung = "heartbeat freshness"
-	srv := &Server{
-		remoteSessions:      &remoteTerminalRegistry{sessions: make(map[string]remoteTerminalSession)},
-		remoteTargetCatalog: func() []remoteTerminalTarget { return []remoteTerminalTarget{remote, unavailable} },
+func TestTargetCatalogProjectsReadinessAndRecoveryText(t *testing.T) {
+	node := &registryv1.Node{
+		Kind:                  registryv1.NodeKind_NODE_KIND_AGENT,
+		RegistryRecordPresent: true,
+		Online:                true,
+		HeartbeatFresh:        true,
+		ChannelHeld:           true,
+		ProtocolCompatible:    true,
+		Dispatchable:          false,
+	}
+	facts := readinessFactsForNode(node)
+	if len(facts) != 5 || facts[0].Passed != true || facts[4].Passed != false {
+		t.Fatalf("readiness facts = %+v", facts)
+	}
+	if got := recoveryActionForNode(node, "protocol compatibility"); !strings.Contains(got, "Update") {
+		t.Fatalf("protocol recovery action = %q", got)
+	}
+	if got := recoveryActionForNode(&registryv1.Node{Kind: registryv1.NodeKind_NODE_KIND_CONTROL_PLANE}, "other"); !strings.Contains(got, "does not host") {
+		t.Fatalf("controller recovery action = %q", got)
 	}
 
-	created, err := srv.Create(context.Background(), sessionsH.CreateInput{
-		TargetID:             remote.ID,
-		LaunchCommand:        "codex login --device-auth",
-		ExecuteLaunchCommand: true,
-		WorkingDir:           "/workspaces/demo",
+	for _, tc := range []struct {
+		state string
+		want  sharedv1.TargetState
+	}{
+		{"dispatchable", sharedv1.TargetState_TARGET_STATE_DISPATCHABLE},
+		{"offline", sharedv1.TargetState_TARGET_STATE_OFFLINE},
+		{"needs-update", sharedv1.TargetState_TARGET_STATE_NEEDS_UPDATE},
+		{"unavailable", sharedv1.TargetState_TARGET_STATE_UNAVAILABLE},
+	} {
+		if got := targetProtoState(tc.state); got != tc.want {
+			t.Errorf("targetProtoState(%q) = %v, want %v", tc.state, got, tc.want)
+		}
+	}
+	projected := targetToProto(remoteTerminalTarget{
+		ID: "node", Availability: "offline", DispatchReason: "heartbeat freshness",
+		OperatorAction: "reconnect", LastSeenAt: time.Now(), ReadinessFacts: facts,
 	})
-	if err != nil {
-		t.Fatalf("remote Create() error = %v", err)
+	if targetText(projected, "failure_rung") != "heartbeat freshness" || targetText(projected, "recovery_action") != "reconnect" {
+		t.Fatalf("target text projection = %q/%q", targetText(projected, "failure_rung"), targetText(projected, "recovery_action"))
 	}
-	if !strings.HasPrefix(created.ID, "remote:") || created.Target == nil || created.Target.GetId() != remote.ID {
-		t.Fatalf("created session missing target metadata: %+v", created)
-	}
-	if created.SurvivesRestart {
-		t.Fatal("remote session incorrectly promises restart durability")
-	}
-
-	listed, err := srv.List(context.Background())
-	if err != nil || len(listed) != 1 || listed[0].ID != created.ID {
-		t.Fatalf("List() = %#v, error = %v", listed, err)
-	}
-	got, err := srv.Get(context.Background(), created.ID)
-	if err != nil || got.Target == nil || got.Target.GetLabel() != remote.Label {
-		t.Fatalf("Get() = %#v, error = %v", got, err)
-	}
-	if err := srv.Delete(context.Background(), created.ID); err != nil {
-		t.Fatalf("Delete() error = %v", err)
-	}
-	if _, err := srv.Get(context.Background(), created.ID); !errors.Is(err, sessionsH.ErrNotFound) {
-		t.Fatalf("Get() after Delete() error = %v, want ErrNotFound", err)
-	}
-
-	_, err = srv.Create(context.Background(), sessionsH.CreateInput{TargetID: unavailable.ID})
-	if !errors.Is(err, sessionsH.ErrTargetUnavailable) {
-		t.Fatalf("unavailable Create() error = %v, want ErrTargetUnavailable", err)
-	}
-	if listed, listErr := srv.List(context.Background()); listErr != nil || len(listed) != 0 {
-		t.Fatalf("unavailable create changed registry: %#v, error = %v", listed, listErr)
+	if targetText(nil, "failure_rung") != "" {
+		t.Fatal("nil target text should be empty")
 	}
 }
 
-func TestTypedRemoteCreateIsReplaySafeAndPreservesTargetMetadata(t *testing.T) {
-	remote := readyRemoteTarget()
-	srv := &Server{
-		remoteSessions:      &remoteTerminalRegistry{sessions: make(map[string]remoteTerminalSession)},
-		remoteTargetCatalog: func() []remoteTerminalTarget { return []remoteTerminalTarget{remote} },
+func TestTargetStateForNodeReportsDispatchAndAvailabilityStates(t *testing.T) {
+	if got := targetStateForNode(&registryv1.Node{}, true); got != "dispatchable" {
+		t.Fatalf("dispatchable state = %q", got)
 	}
-	adapter := &sessionsH.Adapter{Remote: srv, Idempotency: intsessions.NewIdempotencyCache()}
-	in := sessionsH.CreateInput{TargetID: remote.ID, IdempotencyKey: "remote-create-replay", WorkingDir: "/workspaces/demo"}
-	first, err := adapter.Create(context.Background(), in)
-	if err != nil {
-		t.Fatalf("first remote create: %v", err)
+	if got := targetStateForNode(&registryv1.Node{Status: registryv1.NodeStatus_NODE_STATUS_OFFLINE}, false); got != "offline" {
+		t.Fatalf("offline status state = %q", got)
 	}
-	second, err := adapter.Create(context.Background(), in)
-	if err != nil {
-		t.Fatalf("replayed remote create: %v", err)
+	if got := targetStateForNode(&registryv1.Node{Online: false, HeartbeatFresh: true}, false); got != "offline" {
+		t.Fatalf("offline node state = %q", got)
 	}
-	if second.ID != first.ID {
-		t.Fatalf("replayed remote create returned %q, want original %q", second.ID, first.ID)
+	if got := targetStateForNode(&registryv1.Node{Online: true, HeartbeatFresh: false}, false); got != "offline" {
+		t.Fatalf("stale heartbeat state = %q", got)
 	}
-	if second.Target == nil || second.Target.GetId() != remote.ID {
-		t.Fatalf("replayed remote create lost target metadata: %+v", second.Target)
+	if got := targetStateForNode(&registryv1.Node{Online: true, HeartbeatFresh: true}, false); got != "unavailable" {
+		t.Fatalf("unavailable state = %q", got)
 	}
-	if _, err := adapter.Create(context.Background(), sessionsH.CreateInput{
-		TargetID: remote.ID, IdempotencyKey: in.IdempotencyKey, WorkingDir: "/workspaces/other",
-	}); !errors.Is(err, sessionsH.ErrIdempotencyConflict) {
-		t.Fatalf("reused key with different request error = %v, want ErrIdempotencyConflict", err)
+}
+
+func TestTargetCatalogGetAndDoctorExplainFailures(t *testing.T) {
+	srv := &Server{remoteTargetCatalog: func() []remoteTerminalTarget {
+		return []remoteTerminalTarget{{ID: "node", Label: "Node", Availability: "offline", DispatchReason: "heartbeat freshness"}}
+	}}
+	h := &targetCatalogRPC{server: srv}
+	if response, err := h.Get(context.Background(), connect.NewRequest(&targetsv1.GetRequest{Id: "local"})); err != nil || response.Msg.GetTarget().GetId() != "local" {
+		t.Fatalf("Get local = %v/%v", response, err)
 	}
-	listed, err := srv.List(context.Background())
-	if err != nil || len(listed) != 1 {
-		t.Fatalf("remote registry after replay = %#v, error = %v; want one session", listed, err)
+	if _, err := h.Get(context.Background(), connect.NewRequest(&targetsv1.GetRequest{Id: "missing"})); connect.CodeOf(err) != connect.CodeNotFound {
+		t.Fatalf("Get missing error = %v", err)
+	}
+	response, err := h.Doctor(context.Background(), connect.NewRequest(&targetsv1.DoctorRequest{Id: "node"}))
+	if err != nil || response.Msg.GetSummary() != "heartbeat freshness" {
+		t.Fatalf("Doctor unavailable = %v/%v", response, err)
+	}
+	if response, err := h.Doctor(context.Background(), connect.NewRequest(&targetsv1.DoctorRequest{Id: "local"})); err != nil || response.Msg.GetSummary() != "target is dispatchable" {
+		t.Fatalf("Doctor local = %v/%v", response, err)
+	}
+}
+
+func TestTargetCatalogTextHelpersIgnoreNilAndUnknownFields(t *testing.T) {
+	setTargetText(nil, "failure_rung", "ignored")
+	setCatalogText(nil, "recovery_action", "ignored")
+	target := &sharedv1.Target{}
+	setTargetText(target, "unknown_field", "ignored")
+	setTargetText(target, "failure_rung", "failure")
+	if targetText(target, "failure_rung") != "failure" || targetText(target, "unknown_field") != "" {
+		t.Fatalf("target text = %q/%q", targetText(target, "failure_rung"), targetText(target, "unknown_field"))
+	}
+	response := &targetsv1.ListResponse{}
+	setCatalogText(response, "unknown_field", "ignored")
+	setCatalogText(response, "recovery_action", "recover")
+	wire, err := protojson.Marshal(response)
+	if err != nil || !strings.Contains(string(wire), `"recoveryAction":"recover"`) {
+		t.Fatalf("catalog recovery action wire = %s (err=%v)", wire, err)
 	}
 }

@@ -1548,8 +1548,10 @@ type ReportPressureResponse struct {
 	Reason string `protobuf:"bytes,8,opt,name=reason,proto3" json:"reason,omitempty"`
 	// Whether autonomous apply is currently permitted at all.
 	AutonomousApplyEnabled bool `protobuf:"varint,9,opt,name=autonomous_apply_enabled,json=autonomousApplyEnabled,proto3" json:"autonomous_apply_enabled,omitempty"`
-	unknownFields          protoimpl.UnknownFields
-	sizeCache              protoimpl.SizeCache
+	// Scenario QA bug reference filed for a warning-band unbounded owner, when present.
+	BugReference  string `protobuf:"bytes,10,opt,name=bug_reference,json=bugReference,proto3" json:"bug_reference,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ReportPressureResponse) Reset() {
@@ -1643,6 +1645,13 @@ func (x *ReportPressureResponse) GetAutonomousApplyEnabled() bool {
 		return x.AutonomousApplyEnabled
 	}
 	return false
+}
+
+func (x *ReportPressureResponse) GetBugReference() string {
+	if x != nil {
+		return x.BugReference
+	}
+	return ""
 }
 
 var File_storage_manager_v1_cleanup_cleanup_proto protoreflect.FileDescriptor
@@ -1762,7 +1771,7 @@ const file_storage_manager_v1_cleanup_cleanup_proto_rawDesc = "" +
 	"\tpartition\x18\x02 \x01(\tR\tpartition\x12!\n" +
 	"\fused_percent\x18\x03 \x01(\x01R\vusedPercent\x12C\n" +
 	"\x04band\x18\x04 \x01(\x0e2/.vrooli.cleanup_manager.v1.cleanup.PressureBandR\x04band\x12'\n" +
-	"\x0favailable_bytes\x18\x05 \x01(\x03R\x0eavailableBytes\"\xc1\x03\n" +
+	"\x0favailable_bytes\x18\x05 \x01(\x03R\x0eavailableBytes\"\xe6\x03\n" +
 	"\x16ReportPressureResponse\x12C\n" +
 	"\x04band\x18\x01 \x01(\x0e2/.vrooli.cleanup_manager.v1.cleanup.PressureBandR\x04band\x12I\n" +
 	"\x06action\x18\x02 \x01(\x0e21.vrooli.cleanup_manager.v1.cleanup.PressureActionR\x06action\x12\x17\n" +
@@ -1772,7 +1781,9 @@ const file_storage_manager_v1_cleanup_cleanup_proto_rawDesc = "" +
 	"\x11providers_applied\x18\x06 \x03(\tR\x10providersApplied\x12-\n" +
 	"\x12providers_withheld\x18\a \x03(\tR\x11providersWithheld\x12\x16\n" +
 	"\x06reason\x18\b \x01(\tR\x06reason\x128\n" +
-	"\x18autonomous_apply_enabled\x18\t \x01(\bR\x16autonomousApplyEnabled*|\n" +
+	"\x18autonomous_apply_enabled\x18\t \x01(\bR\x16autonomousApplyEnabled\x12#\n" +
+	"\rbug_reference\x18\n" +
+	" \x01(\tR\fbugReference*|\n" +
 	"\fPressureBand\x12\x1d\n" +
 	"\x19PRESSURE_BAND_UNSPECIFIED\x10\x00\x12\x19\n" +
 	"\x15PRESSURE_BAND_WARNING\x10\x01\x12\x16\n" +

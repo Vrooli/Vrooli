@@ -1,5 +1,6 @@
+import { renderWithProviders as render } from "../test-utils";
 import { describe, it, expect, vi, afterEach, beforeEach } from "vitest";
-import { render, screen, fireEvent, act, cleanup } from "@testing-library/react";
+import { screen, fireEvent, act, cleanup } from "@testing-library/react";
 import { apiBaseMock, mockFetchSuccess } from "../test-utils";
 
 // Mock external dependencies
@@ -46,8 +47,8 @@ vi.mock("../hooks/terminal/useTerminalSession", () => {
   // Stable references so dep arrays in TerminalPane do not re-run
   // effects every render and trigger the unmount-save path.
 
-  const gate = { submit: vi.fn(() => ({ status: "sent" as const, seq: 1 })), dispose: vi.fn(), canAcceptPaste: () => true };
-  const submitInput = vi.fn(() => ({ status: "sent" as const, seq: 1 }));
+  const gate = { submit: vi.fn(() => ({ status: "sent" as const, offset: 1 })), dispose: vi.fn() };
+  const submitInput = vi.fn(() => ({ status: "sent" as const, offset: 1 }));
   const sendResize = vi.fn();
   const getServerSize = vi.fn(() => null);
   const subscribeInputSettled = vi.fn(() => () => {});
@@ -87,12 +88,15 @@ vi.mock("../stores/useWorkspaceStore", () => {
     ttsBackendPreference: "auto" as const,
     autoTtsEnabled: false,
     deviceFontSize: {},
+    setPendingInputBuffer: vi.fn(),
+    consumePendingInputBuffer: vi.fn(() => undefined),
     setPendingInputDraft: vi.fn(),
     consumePendingInputDraft: vi.fn(() => undefined),
   };
   return {
     useWorkspaceStore: (selector?: (s: typeof store) => unknown) =>
       selector ? selector(store) : store,
+    useEffectiveFontSize: () => 14,
   };
 });
 vi.mock("../hooks/useTextToSpeech", () => ({

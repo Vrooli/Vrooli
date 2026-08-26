@@ -1,7 +1,8 @@
+import { renderWithProviders as render } from "../test-utils";
 import { describe, it, expect, vi, afterEach, beforeEach } from "vitest";
-import { render, screen, act, cleanup } from "@testing-library/react";
+import { screen, act, cleanup } from "@testing-library/react";
 import { apiBaseMock } from "../test-utils";
-import type { InputFailureReason } from "../hooks/terminal/useStdinAck";
+import type { InputFailureReason } from "../hooks/terminal/useStdinStream";
 
 /**
  * The pane must tell the user when input the backend refused is gone —
@@ -51,14 +52,14 @@ vi.mock("@xterm/addon-web-links", () => ({
   WebLinksAddon: vi.fn().mockImplementation(() => ({ dispose: vi.fn() })),
 }));
 
-// Captured settlement listeners, so a test can settle a seq the way the
+// Captured settlement listeners, so a test can settle a offset the way the
 // server (or the client's own timeout) would.
 const settledListeners = new Set<
-  (seq: number, ok: boolean, reason?: InputFailureReason) => void
+  (offset: number, ok: boolean, reason?: InputFailureReason) => void
 >();
 
-function settle(seq: number, ok: boolean, reason?: InputFailureReason): void {
-  for (const cb of settledListeners) cb(seq, ok, reason);
+function settle(offset: number, ok: boolean, reason?: InputFailureReason): void {
+  for (const cb of settledListeners) cb(offset, ok, reason);
 }
 
 vi.mock("../hooks/terminal/useTerminalSession", () => {
@@ -67,17 +68,16 @@ vi.mock("../hooks/terminal/useTerminalSession", () => {
   // per render re-runs those effects forever and the test OOMs rather
   // than failing with anything readable.
   const gate = {
-    submit: vi.fn(() => ({ status: "sent" as const, seq: 1 })),
+    submit: vi.fn(() => ({ status: "sent" as const, offset: 1 })),
     dispose: vi.fn(),
-    canAcceptPaste: () => true,
   };
-  const submitInput = vi.fn(() => ({ status: "sent" as const, seq: 1 }));
+  const submitInput = vi.fn(() => ({ status: "sent" as const, offset: 1 }));
   const sendResize = vi.fn();
   const getServerSize = vi.fn(() => null);
   const subscribePendingInput = vi.fn(() => () => {});
   const getPendingInputSnapshot = vi.fn(() => []);
   const subscribeInputSettled = vi.fn(
-    (cb: (seq: number, ok: boolean, reason?: InputFailureReason) => void) => {
+    (cb: (offset: number, ok: boolean, reason?: InputFailureReason) => void) => {
       settledListeners.add(cb);
       return () => settledListeners.delete(cb);
     },
@@ -115,12 +115,15 @@ vi.mock("../stores/useWorkspaceStore", () => {
     ttsBackendPreference: "auto" as const,
     autoTtsEnabled: false,
     deviceFontSize: {},
+    setPendingInputBuffer: vi.fn(),
+    consumePendingInputBuffer: vi.fn(() => undefined),
     setPendingInputDraft: vi.fn(),
     consumePendingInputDraft: vi.fn(() => undefined),
   };
   return {
     useWorkspaceStore: (selector?: (s: typeof store) => unknown) =>
       selector ? selector(store) : store,
+    useEffectiveFontSize: () => 14,
   };
 });
 vi.mock("../hooks/useTextToSpeech", () => ({
@@ -161,17 +164,6 @@ describe("TerminalPane rejected-input reporting", () => {
     });
 
     expect(screen.getByTestId("input-error")).toBeTruthy();
-  });
-
-  it("stays silent for failures the client retries", async () => {
-    render(<TerminalPane sessionId="s1" />);
-
-    await act(async () => {
-      settle(1, false, "ack-timeout");
-      settle(2, false, "connection-closed");
-    });
-
-    expect(screen.queryByTestId("input-error")).toBeNull();
   });
 
   it("stays silent when input succeeds", async () => {

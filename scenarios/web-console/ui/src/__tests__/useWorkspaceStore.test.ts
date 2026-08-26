@@ -81,6 +81,16 @@ describe("useWorkspaceStore", () => {
     });
   });
 
+  describe("pane status", () => {
+    it("stores transient status outside the terminal buffer and clears it with the pane", () => {
+      useWorkspaceStore.getState().addPane("sess-status", "bash");
+      useWorkspaceStore.getState().setPaneStatus("sess-status", { kind: "disconnected" });
+      expect(useWorkspaceStore.getState().paneStatuses["sess-status"]).toEqual({ kind: "disconnected" });
+      useWorkspaceStore.getState().removePane("sess-status");
+      expect(useWorkspaceStore.getState().paneStatuses["sess-status"]).toBeUndefined();
+    });
+  });
+
   describe("renamePaneById", () => {
     it("renames a pane", () => {
       useWorkspaceStore.getState().addPane("sess-1", "bash");
@@ -465,6 +475,38 @@ describe("useWorkspaceStore", () => {
       expect(migrated.defaultHeaderColor).toBe("#ff6b6b");
       expect(migrated.recentCombos).toEqual(["ctrl-c"]);
       expect(migrated.displayMode).toBe("sidebar");
+    });
+  });
+
+  describe("persist migration from the original snapshot", () => {
+    it("upgrades legacy preferences through every historical migration boundary", () => {
+      const migrate = useWorkspaceStore.persist.getOptions().migrate;
+      expect(migrate).toBeDefined();
+      if (!migrate) throw new Error("migrate function missing");
+
+      const migrated = migrate(
+        {
+          voiceShortcut: "Alt+Space",
+          panes: [{ sessionId: "stale" }],
+          activePane: "stale",
+          commandPrefix: "/wake",
+          vadSilenceTimeoutMs: 900,
+          segmentSilenceMs: 700,
+        },
+        0,
+      ) as Record<string, unknown>;
+
+      expect(migrated.voiceShortcut).toBe("Ctrl+Shift+Space");
+      expect(migrated.ttsVoice).toBe("");
+      expect(migrated.ttsRate).toBe(1);
+      expect(migrated.ttsPitch).toBe(1);
+      expect(migrated.panes).toBeUndefined();
+      expect(migrated.activePane).toBeUndefined();
+      expect(migrated.commandPrefix).toBeUndefined();
+      expect(migrated.startMutedOnLoad).toBe(true);
+      expect(migrated.vadSilenceTimeoutMs).toBeUndefined();
+      expect(migrated.segmentSilenceMs).toBeUndefined();
+      expect(migrated.predictionLatencyThresholdMs).toBe(20);
     });
   });
 

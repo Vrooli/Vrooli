@@ -1,5 +1,6 @@
+import { renderWithProviders as render } from "../../test-utils";
 import { describe, it, expect, vi } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { screen, fireEvent } from "@testing-library/react";
 import { BannerHarness } from "../banners/__tests__/harness";
 import { summarizeErrorBanner } from "../banners/descriptors";
 import type { SummarizeErrorState } from "../../types/summarize";

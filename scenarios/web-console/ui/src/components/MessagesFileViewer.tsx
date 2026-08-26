@@ -5,7 +5,7 @@ import { useTranslation } from "react-i18next";
 import { strings } from "../consts/strings";
 import { basename as pathBasename, pathCrumbs } from "../lib/paths";
 import { writeText } from "../lib/clipboard";
-import { DrawerShell } from "./DrawerShell";
+import { DrawerShell } from "@vrooli/react-component-library/DrawerShell/1.0.0";
 import { rendererForKind } from "./file-preview/renderers";
 import type { DirectorySort, PreviewState } from "./file-preview/types";
 

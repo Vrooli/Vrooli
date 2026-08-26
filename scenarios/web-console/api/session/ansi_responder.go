@@ -82,10 +82,7 @@ func (s *Session) runAnsiResponder(events <-chan terminal.ControlEvent) {
 //	DA1     →  \x1b[?1;2c                  (VT100 with advanced video)
 //	DA3     →  \x1bP!|00000000\x1b\\       (empty report ID, DCS-wrapped)
 //	XTVER   →  \x1bP!|00000000\x1b\\       (same as DA3)
-//	DECRQM  →  \x1b[?2026;0$y              (mode 2026 not recognized;
-//	                                         see ansi_responder.go in
-//	                                         package main for the
-//	                                         rationale this superseded)
+//	DECRQM  →  no reply; xterm.js owns synchronized-output capability state.
 func ansiReplyFor(ev terminal.ControlEvent) []byte {
 	if ev.Kind != terminal.EventCSIQuery {
 		return nil
@@ -106,14 +103,6 @@ func ansiReplyFor(ev terminal.ControlEvent) []byte {
 		// the legacy DA3 path because the previous responder did.
 		if ev.Private && len(ev.Params) == 1 && ev.Params[0] == 0 {
 			return []byte("\x1bP!|00000000\x1b\\")
-		}
-		return nil
-	case 'p':
-		// CSI ? 2026 $ p — DECRQM for synchronized output. The $
-		// intermediate is consumed by the parser; we identify the
-		// query by (private, 2026, p).
-		if ev.Private && len(ev.Params) == 1 && ev.Params[0] == 2026 {
-			return []byte("\x1b[?2026;0$y")
 		}
 		return nil
 	}

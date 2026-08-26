@@ -1,13 +1,14 @@
+import { renderWithProviders as render } from "../test-utils";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, act, fireEvent, screen } from "@testing-library/react";
+import { act, fireEvent, screen } from "@testing-library/react";
 import { useState } from "react";
 import FullScreenComposer from "../components/FullScreenComposer";
 import { composeComposerPayload } from "../lib/composerPayload";
 import { useComposerDraft } from "../hooks/useComposerDraft";
 import type { GateResult } from "../components/terminal/inputGate";
-import type { InputSettlementCallback } from "../hooks/terminal/useStdinAck";
+import type { InputSettlementCallback } from "../hooks/terminal/useStdinStream";
 
-type SettledCb = (seq: number, ok: boolean) => void;
+type SettledCb = (offset: number, ok: boolean) => void;
 
 function makeSettlement() {
   const subs = new Set<SettledCb>();
@@ -24,17 +25,17 @@ function makeSettlement() {
 interface HarnessProps {
   onInput?: (data: string, source: string) => GateResult;
   subscribe?: (cb: SettledCb) => () => void;
-  awaitSeq?: (seq: number, cb: InputSettlementCallback) => () => void;
+  awaitOffset?: (offset: number, cb: InputSettlementCallback) => () => void;
   initialOpen?: boolean;
 }
 
-function Harness({ onInput = () => ({ status: "sent", seq: 1 }), subscribe, initialOpen = true }: HarnessProps) {
+function Harness({ onInput = () => ({ status: "sent", offset: 1 }), subscribe, initialOpen = true }: HarnessProps) {
   const draft = useComposerDraft("sess-composer");
   const [open, setOpen] = useState(initialOpen);
   const settlement = makeSettlement();
-  const awaitSeq = (seq: number, cb: InputSettlementCallback) => {
+  const awaitOffset = (offset: number, cb: InputSettlementCallback) => {
     const source = subscribe ?? settlement.subscribe;
-    return source((ackSeq, ok) => { if (ackSeq === seq) cb(ok); });
+    return source((ackSeq, ok) => { if (ackSeq === offset) cb(ok); });
   };
   return (
     <>
@@ -45,7 +46,7 @@ function Harness({ onInput = () => ({ status: "sent", seq: 1 }), subscribe, init
         draft={draft}
         onInput={onInput as never}
         subscribeInputSettled={subscribe}
-        awaitSeq={awaitSeq}
+        awaitOffset={awaitOffset}
         onFocusTerminal={vi.fn()}
       />
     </>
@@ -111,7 +112,7 @@ describe("FullScreenComposer", () => {
   });
 
   it("sends through onInput and clears+minimizes only on ok settlement", () => {
-    const onInput = vi.fn(() => ({ status: "sent" as const, seq: 1 }));
+    const onInput = vi.fn(() => ({ status: "sent" as const, offset: 1 }));
     const settlement = makeSettlement();
     render(<Harness onInput={onInput} subscribe={settlement.subscribe} />);
 
@@ -132,7 +133,7 @@ describe("FullScreenComposer", () => {
   });
 
   it("keeps draft open and surfaces error on ok=false", () => {
-    const onInput = vi.fn(() => ({ status: "sent" as const, seq: 1 }));
+    const onInput = vi.fn(() => ({ status: "sent" as const, offset: 1 }));
     const settlement = makeSettlement();
     render(<Harness onInput={onInput} subscribe={settlement.subscribe} />);
 
@@ -148,7 +149,7 @@ describe("FullScreenComposer", () => {
   });
 
   it("does nothing when send is pressed with an empty draft", () => {
-    const onInput = vi.fn(() => ({ status: "sent" as const, seq: 1 }));
+    const onInput = vi.fn(() => ({ status: "sent" as const, offset: 1 }));
     render(<Harness onInput={onInput} />);
     fireEvent.click(screen.getByTestId("composer-send"));
     expect(onInput).not.toHaveBeenCalled();

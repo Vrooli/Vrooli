@@ -1,28 +1,22 @@
 package session
 
-// broadcast.go: Output fan-out, per-client delivery, coalesce-on-slow-client,
-// pending-buffer trim, and SIGWINCH-based recovery when a trim happens.
+// broadcast.go: Output fan-out, per-client delivery, and emulator resync when
+// a slow client falls too far behind.
 //
 // This file owns:
 //   - ClientInfo         (per-subscriber flow-control state)
 //   - (*Session).broadcast, .deliver, .notifyIfThreshold
 //   - (*Session).FlushPending
-//   - (*Session).maybeSIGWINCHRecovery
+//   - (*Session).Resync, .CompleteResync
 //
 // PTY bytes flow through the per-session terminal.Emulator (the durable
 // state) and then to subscribed clients as live frames. The emulator is
 // the source of truth for replay; per-client coalesce buffering only
 // absorbs short bursts when a client falls behind.
 
-import (
-	"time"
-
-	"web-console/internal/backend"
-)
-
-// pendingBufferMax is the maximum bytes of coalesced output retained
-// per slow client. When exceeded, oldest bytes are truncated; the next
-// snapshot replay restores correct state.
+// pendingBufferMax is the maximum bytes of coalesced output retained per slow
+// client. When exceeded, the unsafe fragment is discarded and the emulator
+// snapshot is sent instead.
 const pendingBufferMax = 1 << 20 // 1 MiB
 
 // HistoryChunkSize is the maximum bytes per WebSocket frame when
@@ -36,10 +30,11 @@ const HistoryChunkSize = 64 * 1024
 // The WebSocket output forwarder calls FlushPending after each successful
 // write to drain coalesced data back into the channel.
 type ClientInfo struct {
-	pending         []byte   // coalesced data awaiting consumer drain
-	pendingTrimmed  bool     // set when pending buffer was trimmed; triggers SIGWINCH after drain
-	CoalescedFrames int      // count of coalesced frames (observability)
-	NotifyCh        chan int // receives cumulative coalesced count when threshold crossed
+	pending          []byte   // coalesced data awaiting consumer drain
+	resyncRequested  bool     // set when coalesced output is discarded
+	resyncGeneration uint64   // identifies the request being served
+	CoalescedFrames  int      // count of coalesced frames (observability)
+	NotifyCh         chan int // receives cumulative coalesced count when threshold crossed
 	// SizeCh carries the authoritative terminal grid. It is deliberately
 	// separate from PTY output so a slow output consumer cannot make a viewer
 	// retain a stale terminal size.
@@ -61,31 +56,20 @@ func (s *Session) broadcast(data []byte) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	// Feed the durable emulator with RAW PTY bytes so its parser sees
-	// every CSI query — including DECRQM 2026 ($p), which the
-	// client-bound sanitizer strips. The ANSI responder observes the
-	// emulator's ControlEvent stream and answers queries server-side;
+	// every CSI query. The ANSI responder observes the emulator's
+	// ControlEvent stream and answers only the server-owned query set;
 	// if the emulator never saw the query, the reply never fires.
 	_, _ = s.emu.Feed(data)
 	s.snapshotCacheDirty = true
-	prevAlt := s.inAltBuffer
-	s.inAltBuffer = s.emu.InAltBuffer()
-	if prevAlt != s.inAltBuffer {
-		s.lastAltBufferTransition = time.Now()
-	}
-	bctrace("broadcast", s.ID, data, "clients=%d alt=%v", len(s.clients), s.inAltBuffer)
+	bctrace("broadcast", s.ID, data, "clients=%d", len(s.clients))
 	s.markFrame()
 	if len(s.clients) == 0 {
 		return
 	}
-	// Sanitize only the client copy. The emulator already saw the raw
-	// bytes; xterm.js gets the cleaned stream (DEC mode 2026 sequences
-	// stripped — see sanitize.go for the xterm.js v6 crash rationale).
-	clientData := sanitizeForClient(data)
-	if len(clientData) == 0 {
-		return
-	}
-	cp := make([]byte, len(clientData))
-	copy(cp, clientData)
+	// The emulator and every client receive the same bytes. xterm.js owns
+	// synchronized-output capability state and must see the framing intact.
+	cp := make([]byte, len(data))
+	copy(cp, data)
 	for ch, info := range s.clients {
 		s.deliver(ch, info, cp)
 	}
@@ -95,12 +79,18 @@ func (s *Session) broadcast(data []byte) {
 // deliver sends data to a client channel, coalescing into the pending buffer
 // when the channel is full. Must be called with s.mu held.
 func (s *Session) deliver(ch chan []byte, info *ClientInfo, data []byte) {
+	if info.resyncRequested {
+		info.CoalescedFrames++
+		s.notifyIfThreshold(info)
+		return
+	}
 	if len(info.pending) > 0 {
 		info.pending = append(info.pending, data...)
 		info.CoalescedFrames++
 		if len(info.pending) > pendingBufferMax {
-			info.pending = info.pending[len(info.pending)-pendingBufferMax:]
-			info.pendingTrimmed = true
+			info.pending = nil
+			info.resyncRequested = true
+			info.resyncGeneration++
 		}
 		s.notifyIfThreshold(info)
 		return
@@ -130,12 +120,12 @@ func (s *Session) notifyIfThreshold(info *ClientInfo) {
 // to resume normal per-frame delivery. Data is chunked at HistoryChunkSize
 // to prevent browser UI freezes from single large WebSocket messages.
 // DOC: docs/internal/SEAMS.md#3-domain-session-lifecycle
-func (s *Session) FlushPending(ch chan []byte) {
+func (s *Session) FlushPending(ch chan []byte) bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	info, ok := s.clients[ch]
 	if !ok || len(info.pending) == 0 {
-		return
+		return ok && info.resyncRequested
 	}
 	for len(info.pending) > 0 {
 		end := HistoryChunkSize
@@ -148,44 +138,37 @@ func (s *Session) FlushPending(ch chan []byte) {
 		case ch <- chunk:
 			info.pending = info.pending[end:]
 		default:
-			return
+			return info.resyncRequested
 		}
 	}
 	info.pending = nil
 	info.CoalescedFrames = 0
-	if info.pendingTrimmed {
-		info.pendingTrimmed = false
-		s.maybeSIGWINCHRecovery()
-	}
+	return info.resyncRequested
 }
 
-// altBufferSettleWindow is the duration after an alt-buffer enter or
-// exit during which SIGWINCH recovery is still refused. Heavy TUIs
-// (Claude Code, vim) briefly flicker out of the alt screen between
-// render cycles; a SIGWINCH landing in one of those windows makes the
-// TUI redraw its status row to the pane's NORMAL buffer, which tmux
-// captures into scrollback.
-const altBufferSettleWindow = 5 * time.Second
+// Resync returns the authoritative emulator snapshot requested for a slow
+// client. The generation lets completion avoid clearing a newer request that
+// arrived while this snapshot was being written.
+func (s *Session) Resync(ch chan []byte) ([]byte, uint64, bool) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	info, ok := s.clients[ch]
+	if !ok || !info.resyncRequested {
+		return nil, 0, false
+	}
+	if s.snapshotCacheDirty || s.snapshotCache == nil {
+		s.snapshotCache = s.emu.Snapshot()
+		s.snapshotCacheDirty = false
+	}
+	return append([]byte(nil), s.snapshotCache...), info.resyncGeneration, true
+}
 
-// maybeSIGWINCHRecovery fires SIGWINCH after a coalesce trim so
-// well-behaved shells redraw, recovering from the trim. Suppressed when
-// the foreground process is — or has recently been — in the alt
-// buffer, on the persistent (tmux) backend, or within the cooldown
-// window. Must be called with s.mu held.
-func (s *Session) maybeSIGWINCHRecovery() {
-	if s.Backend == backend.Persistent {
-		return
+// CompleteResync clears exactly the generation that was written. A newer
+// overflow request remains pending for the next flush.
+func (s *Session) CompleteResync(ch chan []byte, generation uint64) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if info, ok := s.clients[ch]; ok && info.resyncGeneration == generation {
+		info.resyncRequested = false
 	}
-	if s.inAltBuffer {
-		return
-	}
-	now := time.Now()
-	if !s.lastAltBufferTransition.IsZero() && now.Sub(s.lastAltBufferTransition) < altBufferSettleWindow {
-		return
-	}
-	if s.sigwinchCooldown > 0 && now.Sub(s.lastSIGWINCHRecovery) < s.sigwinchCooldown {
-		return
-	}
-	s.lastSIGWINCHRecovery = now
-	_ = s.pty.SetSize(s.Cols, s.Rows)
 }

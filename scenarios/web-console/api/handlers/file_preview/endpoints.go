@@ -71,7 +71,7 @@ var Endpoints = []module.EndpointDescriptor{
 		Path:        filepreviewconnect.FilePreviewServiceListDirectoryProcedure,
 		Method:      "POST",
 		Summary:     "List one page of a resolved directory",
-		Description: "Returns a bounded, sorted page of a directory previously resolved by Resolve, keyed by its opaque preview id. Entries are classified from their extension alone so a page costs no file reads. Pages are capped (1000 max, 200 default) and the scan stops at 50000 entries; size and date sorts are limited to 5000 entries and downgrade to a name sort with a warning above that. The continuation token pins the directory mtime, so a directory that changes mid-walk aborts rather than silently skipping entries.",
+		Description: "Returns a bounded, sorted page of a directory previously resolved by Resolve, keyed by its opaque preview id. Entries are classified from their extension alone so a page costs no file reads. Pages are capped (1000 max, 200 default) and the scan stops at fifty-thousand entries; size and date sorts are limited to 5000 entries and downgrade to a name sort with a warning above that. The continuation token pins the directory mtime, so a directory that changes mid-walk aborts rather than silently skipping entries.",
 		Category:    "file_preview",
 		Response: &module.Schema{
 			Type: "object",

@@ -56,7 +56,7 @@ func TestGreenfield_NoRawSetSizeOutsideGatedPaths(t *testing.T) {
 				continue
 			}
 			switch enclosing := findEnclosingFunc(lines, i); enclosing {
-			case "maybeSIGWINCHRecovery", "Resize", "applyResizeLocked":
+			case "Resize", "applyResizeLocked":
 			default:
 				t.Errorf("%s:%d SetSize outside gated path (enclosing func=%q)", file, i+1, enclosing)
 			}
@@ -92,6 +92,65 @@ func TestGreenfield_PTYInterfaceHasNoLegacyWrite(t *testing.T) {
 	}
 	if regexp.MustCompile(`\n\s*Write\(p \[\]byte\) \(int, error\)`).Match(data) {
 		t.Fatal("session-core PTY interface still declares legacy Write")
+	}
+}
+
+func TestGreenfield_NoMouseRoutingPredicateInAPI(t *testing.T) {
+	files, err := walkModuleGoFiles(".")
+	if err != nil {
+		t.Fatal(err)
+	}
+	re := regexp.MustCompile(`isMouseTrackingSequence`)
+	for _, file := range files {
+		data, err := os.ReadFile(file)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if re.Match(data) {
+			t.Errorf("%s contains browser-owned mouse routing predicate", file)
+		}
+	}
+}
+
+func TestGreenfield_TerminalHasOneWebSocketUpgrade(t *testing.T) {
+	files, err := walkModuleGoFiles(".")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	terminalUpgradeFunctions := 0
+	terminalUpgradeCalls := 0
+	for _, file := range files {
+		data, err := os.ReadFile(file)
+		if err != nil {
+			t.Fatal(err)
+		}
+		lines := strings.Split(string(data), "\n")
+		for i, line := range lines {
+			if !strings.Contains(line, "websocket.Upgrader") && !strings.Contains(line, ".Upgrade(w, r, nil)") {
+				continue
+			}
+			fn := findEnclosingFunc(lines, i)
+			if strings.Contains(fn, "Terminal") || fn == "handleTerminalWS" {
+				if strings.Contains(line, "websocket.Upgrader") {
+					terminalUpgradeFunctions++
+				}
+				if strings.Contains(line, ".Upgrade(w, r, nil)") {
+					terminalUpgradeCalls++
+				}
+			}
+		}
+	}
+	if terminalUpgradeFunctions != 1 || terminalUpgradeCalls != 1 {
+		t.Fatalf("terminal WebSocket upgrade sites = declarations %d, calls %d; want one of each", terminalUpgradeFunctions, terminalUpgradeCalls)
+	}
+
+	mainSource, err := os.ReadFile("main.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if count := strings.Count(string(mainSource), "WS:     s.handleTerminalWS"); count != 1 {
+		t.Fatalf("terminal WebSocket route registrations = %d, want exactly one", count)
 	}
 }
 
@@ -161,5 +220,29 @@ func TestGreenfield_OrchestrationRoutesThroughAudioPorts(t *testing.T) {
 				t.Errorf("%s bypasses the audioports seam: %s", file, pattern)
 			}
 		}
+	}
+}
+
+func TestGreenfield_UIWritesOnlyServerTerminalBytes(t *testing.T) {
+	root := filepath.Join("..", "ui", "src")
+	operatorWrite := regexp.MustCompile(`\b(?:terminal|t)\.write\(\s*["'\x60]`)
+	err := filepath.WalkDir(root, func(path string, entry os.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		if entry.IsDir() || (filepath.Ext(path) != ".ts" && filepath.Ext(path) != ".tsx") {
+			return nil
+		}
+		data, err := os.ReadFile(path)
+		if err != nil {
+			return err
+		}
+		if operatorWrite.Match(data) {
+			t.Errorf("%s writes an operator string into the terminal buffer", path)
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
 	}
 }

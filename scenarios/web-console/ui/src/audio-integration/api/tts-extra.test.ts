@@ -9,6 +9,7 @@ import {
   listTTSSummarizeModels,
   reportTTSPlayStart,
   reportTTSEvent,
+  synthesizeTTS,
   synthesizeTTSWithMetrics,
   updateTTSConfig,
   updateTTSSummarizeConfig,
@@ -44,6 +45,7 @@ describe("TTS API adapters", () => {
     const result = await synthesizeTTSWithMetrics("hello", "v", 1, undefined, { eventId: "e", chunkIndex: 2, version: "active" });
     expect(result.blob.type).toBe("audio/wav");
     expect(result.metrics.totalChars).toBe(5);
+    await expect(synthesizeTTS("hello", "v", 1)).resolves.toBeInstanceOf(Blob);
     expect(synth).toHaveBeenCalledWith(expect.objectContaining({ text: "hello", eventId: "e", chunkIndex: 2 }), expect.objectContaining({ headers: { "x-tts-request-id": expect.any(String) } }));
 
     synth.mockRejectedValueOnce(new Error("offline"));

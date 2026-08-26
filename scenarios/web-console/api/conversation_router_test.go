@@ -1,8 +1,22 @@
 package main
 
 import (
+	"context"
+	"errors"
 	"testing"
+
+	"web-console/integrations/audiotools"
+	"web-console/internal/audioports"
 )
+
+type testSummarizer struct {
+	out audioports.SummarizeOutput
+	err error
+}
+
+func (s testSummarizer) Summarize(context.Context, audioports.SummarizeInput) (audioports.SummarizeOutput, error) {
+	return s.out, s.err
+}
 
 // conversation_router_test.go: post-audio-tools-adoption.
 //
@@ -49,5 +63,34 @@ func TestAppendUserConversationEvent_UnknownSession(t *testing.T) {
 	result := srv.AppendUser("hello", "nonexistent", "test")
 	if result.Appended {
 		t.Error("expected failure for unknown session")
+	}
+}
+
+func TestSummarizeHelpersAndAsyncPaths(t *testing.T) {
+	if got := splitIntoSpeechParagraphs(" one \n\n\n two "); len(got) != 2 || got[0] != "one" || got[1] != "two" {
+		t.Fatalf("paragraphs = %#v", got)
+	}
+	if splitIntoSpeechParagraphs(" \n\n") != nil {
+		t.Fatal("blank summary should produce no paragraphs")
+	}
+	for _, err := range []error{audiotools.ErrTimeout, audiotools.ErrUnavailable, audiotools.ErrFailedPrecondition, errors.New("detail")} {
+		if got := summarizeErrorMessage(err); got == "" {
+			t.Fatalf("empty summary error for %v", err)
+		}
+	}
+	if summarizeErrorMessage(nil) != "" {
+		t.Fatal("nil summary error was not empty")
+	}
+
+	srv := newFakeTestServer()
+	event := ConversationEvent{ID: "event-1", Text: "this is long enough"}
+	srv.summarizer = testSummarizer{out: audioports.SummarizeOutput{Text: "first\n\nsecond", Latency: 5}}
+	srv.asyncSummarizeAndNotify(event, "missing-session", SummarizeAutoPolicy{Enabled: false, CharThreshold: 1})
+	srv.asyncSummarizeAndNotify(event, "missing-session", SummarizeAutoPolicy{Enabled: true, CharThreshold: 100})
+	srv.asyncSummarizeAndNotify(event, "missing-session", SummarizeAutoPolicy{Enabled: true, CharThreshold: 1})
+	srv.summarizer = testSummarizer{err: audiotools.ErrTimeout}
+	srv.asyncSummarizeAndNotify(event, "missing-session", SummarizeAutoPolicy{Enabled: true, CharThreshold: 1})
+	if result := conversationAppendFailure("code", "reason", "source", "session"); result.Appended || result.Code != "code" {
+		t.Fatalf("failure result = %#v", result)
 	}
 }

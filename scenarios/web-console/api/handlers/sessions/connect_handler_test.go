@@ -15,15 +15,19 @@ type fakeSessionsService struct{}
 func (fakeSessionsService) Create(context.Context, CreateInput) (Session, error) {
 	return Session{ID: "s1", Shell: "/bin/sh", CreatedAt: "now", Cols: 80, Rows: 24, Backend: "standard", Policy: Policy{Mode: "ttl", Duration: "1h"}, Origin: "ui"}, nil
 }
+
 func (fakeSessionsService) List(context.Context) ([]Session, error) {
 	return []Session{{ID: "s1", Origin: "programmatic"}}, nil
 }
+
 func (fakeSessionsService) ListArchived(context.Context) ([]ArchivedSession, error) {
 	return []ArchivedSession{{ID: "a1", RestoreState: RestoreStateReopenable}, {ID: "a2", RestoreState: RestoreStateReadOnly}, {ID: "a3", RestoreState: RestoreStateNothingToRestore}}, nil
 }
+
 func (fakeSessionsService) RecoveryStatus(context.Context) RecoveryStatus {
 	return RecoveryStatus{InProgress: true, Total: 3, Recovered: 1, AwaitingRecovery: 1, Adopted: 1, StartedAtUnixMs: 10, CompletedAtUnixMs: 20}
 }
+
 func (fakeSessionsService) Get(context.Context, string) (Session, error) {
 	return Session{ID: "s1", Origin: "remote", TrackingDegraded: true}, nil
 }
@@ -46,9 +50,11 @@ func (fakeSessionsService) DismissRecoverable(context.Context, string) error { r
 func (fakeSessionsService) Recover(context.Context, RecoverInput) (RecoverResult, error) {
 	return RecoverResult{OldSessionID: "old", NewSessionID: "new", AgentType: "codex", CommandSent: "resume", CodexHomeCopied: true}, nil
 }
+
 func (fakeSessionsService) GetPolicy(context.Context, string) (PolicyView, error) {
 	return PolicyView{SessionID: "s1", Policy: Policy{Mode: "ttl", Duration: "1h"}, ExpiresAt: "later", TTLSeconds: 60, HasExpiry: true}, nil
 }
+
 func (fakeSessionsService) UpdatePolicy(context.Context, string, Policy) (PolicyView, error) {
 	return PolicyView{SessionID: "s1", Policy: Policy{Mode: "never"}}, nil
 }

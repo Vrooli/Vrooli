@@ -2,11 +2,13 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"reflect"
 	"strings"
 	"testing"
 	"time"
 
+	"web-console/internal/config"
 	"web-console/internal/pty"
 )
 
@@ -80,6 +82,45 @@ func TestTmuxPTYFactory_UsesLaunchSpecWorkingDir(t *testing.T) {
 	}
 }
 
+func TestTmuxPTYTerminalEchoStateTracksPaneEcho(t *testing.T) {
+	requireIsolatedTmux(t)
+
+	spec := pty.LaunchSpec{
+		SessionID: "echo-state",
+		Shell:     "/bin/sh",
+		Cols:      80,
+		Rows:      24,
+	}
+	opened, err := tmuxPTYFactory(spec)
+	if err != nil {
+		t.Fatalf("tmuxPTYFactory failed: %v", err)
+	}
+	p := opened.(*tmuxPTY)
+	defer func() {
+		_ = p.WriteInput([]byte("stty echo\n"), pty.KindKeystroke)
+		_ = p.Kill()
+	}()
+
+	state, err := p.TerminalEchoState()
+	if err != nil || !state.Known || !state.EchoEnabled {
+		t.Fatalf("initial echo state = %+v, err=%v; want known/enabled", state, err)
+	}
+	if err := p.WriteInput([]byte("stty -echo\n"), pty.KindKeystroke); err != nil {
+		t.Fatalf("disable echo: %v", err)
+	}
+	deadline := time.Now().Add(2 * time.Second)
+	for {
+		state, err = p.TerminalEchoState()
+		if err == nil && state.Known && !state.EchoEnabled {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("echo state did not become disabled: %+v, err=%v", state, err)
+		}
+		time.Sleep(25 * time.Millisecond)
+	}
+}
+
 // TestTmuxPTYFactory_PropagatesSessionEnvIntoPane is the end-to-end
 // guarantee for mid-session attribution inside tmux: a pane running in
 // this session must see WC_WEB_CONSOLE_SESSION_ID set to THIS session's
@@ -129,11 +170,10 @@ func TestTmuxPTYFactory_PropagatesSessionEnvIntoPane(t *testing.T) {
 	}
 }
 
-// TestTmuxPTYFactory_EnablesMouseMode verifies that tmuxPTYFactory enables
-// the tmux "mouse" option so that mouse wheel scrolling works in xterm.js.
-// Without mouse mode, tmux manages its own viewport and xterm.js has no
-// scrollback buffer — mouse wheel events are silently discarded.
-func TestTmuxPTYFactory_EnablesMouseMode(t *testing.T) {
+// TestTmuxPTYFactory_DisablesMouseMode verifies that persistent panes default
+// to local xterm scrolling. Mouse mode is an explicit per-session choice;
+// enabling it is deliberately not an implicit side effect of persistence.
+func TestTmuxPTYFactory_DisablesMouseMode(t *testing.T) {
 	requireIsolatedTmux(t)
 
 	spec := pty.LaunchSpec{
@@ -160,8 +200,50 @@ func TestTmuxPTYFactory_EnablesMouseMode(t *testing.T) {
 	}
 
 	got := strings.TrimSpace(string(out))
-	if got != "mouse on" {
-		t.Errorf("expected tmux mouse option to be 'mouse on', got %q", got)
+	if got != "mouse off" {
+		t.Errorf("expected tmux mouse option to be 'mouse off', got %q", got)
+	}
+}
+
+func TestTmuxPTYFactory_UsesRequestedMouseMode(t *testing.T) {
+	requireIsolatedTmux(t)
+
+	p, err := tmuxPTYFactory(pty.LaunchSpec{
+		SessionID:     "test-mouse-mode-on",
+		Shell:         "/bin/sh",
+		Cols:          80,
+		Rows:          24,
+		TmuxMouseMode: true,
+	})
+	if err != nil {
+		t.Fatalf("tmuxPTYFactory failed: %v", err)
+	}
+	defer func() { _ = p.Kill() }()
+	defer p.Close()
+	sessionName := tmuxSessionPrefix + "test-mouse-mode-on"
+	defer func() { _ = tmuxCmd("kill-session", "-t", sessionName).Run() }()
+
+	out, err := tmuxCmd("show-options", "-t", sessionName, "mouse").Output()
+	if err != nil {
+		t.Fatalf("tmux show-options failed: %v", err)
+	}
+	if got := strings.TrimSpace(string(out)); got != "mouse on" {
+		t.Fatalf("mouse mode = %q, want mouse on", got)
+	}
+
+	controller, ok := p.(interface{ SetMouseMode(bool) error })
+	if !ok {
+		t.Fatal("tmux PTY does not expose per-pane mouse control")
+	}
+	if err := controller.SetMouseMode(false); err != nil {
+		t.Fatalf("disable mouse mode: %v", err)
+	}
+	out, err = tmuxCmd("show-options", "-t", sessionName, "mouse").Output()
+	if err != nil {
+		t.Fatalf("tmux show-options after toggle failed: %v", err)
+	}
+	if got := strings.TrimSpace(string(out)); got != "mouse off" {
+		t.Fatalf("mouse mode after toggle = %q, want mouse off", got)
 	}
 }
 
@@ -194,8 +276,9 @@ func TestTmuxPTYFactory_SetsHistoryLimit(t *testing.T) {
 	}
 
 	got := strings.TrimSpace(string(out))
-	if got != "history-limit 50000" {
-		t.Errorf("expected tmux history-limit to be 'history-limit 50000', got %q", got)
+	want := fmt.Sprintf("history-limit %d", config.DefaultTerminalScrollbackLines)
+	if got != want {
+		t.Errorf("expected tmux history-limit to be %q, got %q", want, got)
 	}
 }
 

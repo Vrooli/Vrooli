@@ -3,6 +3,7 @@ package terminal
 import (
 	"context"
 	"errors"
+	"fmt"
 	"testing"
 
 	"web-console/session"
@@ -29,7 +30,7 @@ func TestAdapterRejectsMissingSessionsAndMapsHelpers(t *testing.T) {
 	if !sgr.Bold || sgr.FG != 1 || sgr.BG != 2 {
 		t.Fatalf("sgr mapping = %#v", sgr)
 	}
-	if isUnknownKeyError(nil) || isUnknownKeyError(errors.New("other")) || !isUnknownKeyError(errors.New("unknown key FOO")) {
-		t.Fatal("unknown key classifier mismatch")
+	if isUnknownKeyError(nil) || isUnknownKeyError(errors.New("other")) || !isUnknownKeyError(fmt.Errorf("%w FOO", session.ErrUnknownKey)) {
+		t.Fatal("unrecognized-key classifier mismatch")
 	}
 }

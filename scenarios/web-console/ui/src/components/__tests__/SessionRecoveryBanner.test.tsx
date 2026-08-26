@@ -1,5 +1,6 @@
+import { renderWithProviders as render } from "../../test-utils";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
 import BannerRegion from "../banners/BannerRegion";
 import { useSessionRecoveryBanner } from "../banners/useRecoveryBanners";
 import { INSTANT_DAMPING } from "../banners/damping";

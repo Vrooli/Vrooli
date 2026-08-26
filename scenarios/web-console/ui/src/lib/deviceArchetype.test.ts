@@ -4,7 +4,9 @@ describe("device archetypes", () => {
   it("derives frames only from the grid", () => {
     expect(archetypeForGrid(45, 30, 0.5)).toBe("phone");
     expect(orientationForGrid(45, 30, 0.5)).toBe("portrait");
+    expect(archetypeForGrid(100, 38, 0.5)).toBe("tablet");
     expect(archetypeForGrid(100, 24, 0.5)).toBe("laptop");
+    expect(archetypeForGrid(150, 30, 0.5)).toBe("monitor");
     expect(archetypeForGrid(240, 30, 0.5)).toBe("ultrawide");
   });
 });

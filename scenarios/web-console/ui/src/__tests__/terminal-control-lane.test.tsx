@@ -1,5 +1,5 @@
 import { act, renderHook } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useTerminalTouch } from "../hooks/useTerminalTouch";
 
 function touchEvent(type: "touchstart" | "touchmove", x: number, y: number): Event {
@@ -16,6 +16,9 @@ function touchEvent(type: "touchstart" | "touchmove", x: number, y: number): Eve
 }
 
 describe("terminal control lane", () => {
+  beforeEach(() => vi.useFakeTimers());
+  afterEach(() => vi.useRealTimers());
+
   it("sends mouse-wheel controls without entering the reliable submit path", () => {
     const container = document.createElement("div");
     const screen = document.createElement("div");
@@ -45,6 +48,9 @@ describe("terminal control lane", () => {
     act(() => container.dispatchEvent(touchEvent("touchstart", 100, 200)));
     act(() => container.dispatchEvent(touchEvent("touchmove", 100, 160)));
     act(() => container.dispatchEvent(touchEvent("touchmove", 100, 140)));
+    act(() => {
+      vi.runOnlyPendingTimers();
+    });
 
     expect(sendControl).toHaveBeenCalled();
     expect(sendControl.mock.calls[0]?.[0]).toMatch(/^\x1b\[</);

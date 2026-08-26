@@ -35,6 +35,7 @@ interface FakeTerminal {
   rows: number;
   reset: () => void;
   write: (s: string) => void;
+  onWriteParsed: () => { dispose: () => void };
   buffer: { active: object; alternate: object };
   written: string[];
   resetCalls: number;
@@ -48,6 +49,7 @@ function makeFakeTerminal(): FakeTerminal {
     cols: 80,
     rows: 24,
     onData: vi.fn(() => ({ dispose: vi.fn() })),
+    onWriteParsed: vi.fn(() => ({ dispose: vi.fn() })),
     buffer: { active: normal, alternate: alt },
     written,
     resetCalls: 0,

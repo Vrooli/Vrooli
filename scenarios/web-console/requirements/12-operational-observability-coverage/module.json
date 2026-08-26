@@ -1,6 +1,6 @@
 {
   "_metadata": {
-    "last_validated_at": "2026-08-19T17:55:51-04:00"
+    "last_validated_at": "2026-08-25T11:16:20-04:00"
   },
   "requirements": [
     {
@@ -18,7 +18,7 @@
           "type": "test",
           "ref": "api/events_test.go:TestEventLogger_AllEventTypes",
           "phase": "unit",
-          "status": "not_implemented",
+          "status": "failing",
           "notes": "Verify all lifecycle events emitted"
         },
         {
@@ -39,21 +39,21 @@
           "type": "test",
           "ref": "api/events_test.go:TestHandleEvents_InvalidLimitFallback",
           "phase": "unit",
-          "status": "not_implemented",
+          "status": "failing",
           "notes": "Invalid limit param falls back to default"
         },
         {
           "type": "test",
           "ref": "api/events_test.go:TestEventLogger_SubscriberNotification",
           "phase": "unit",
-          "status": "not_implemented",
+          "status": "failing",
           "notes": "Subscribers receive emitted events in real time"
         },
         {
           "type": "test",
           "ref": "api/events_test.go:TestHandleEvents_LimitCappedAt1000",
           "phase": "unit",
-          "status": "not_implemented",
+          "status": "failing",
           "notes": "Events endpoint caps limit at 1000 for safety"
         }
       ]
@@ -80,14 +80,14 @@
           "type": "test",
           "ref": "api/metrics_test.go:TestMetrics_AtomicConcurrency",
           "phase": "unit",
-          "status": "not_implemented",
+          "status": "failing",
           "notes": "Atomic counters under concurrent load"
         },
         {
           "type": "test",
           "ref": "api/metrics_test.go:TestMetrics_PerformanceOverhead",
           "phase": "performance",
-          "status": "planned",
+          "status": "failing",
           "notes": "No performance impact from logging (\u003c1ms overhead)"
         }
       ]
@@ -104,7 +104,7 @@
           "type": "test",
           "ref": "api/metrics_test.go:TestMetrics_PerformanceOverhead",
           "phase": "performance",
-          "status": "planned",
+          "status": "failing",
           "notes": "Performance overhead benchmark passes"
         }
       ]

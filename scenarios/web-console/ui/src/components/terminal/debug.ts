@@ -5,7 +5,7 @@
  * snapshots of:
  *   - connection state (per session)
  *   - pending stdin queue
- *   - pending-ack map size
+ *   - pending reliable-input count
  *   - current alt-buffer state
  *   - last N coalesce events
  *
@@ -20,7 +20,7 @@ export interface TerminalDebugSessionSnapshot {
   connectionState: string;
   wsGen: number;
   pendingInput: number;
-  pendingAcks: number;
+  pendingReliableInput: number;
   altBuffer: boolean;
 }
 

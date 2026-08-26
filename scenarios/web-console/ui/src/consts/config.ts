@@ -71,7 +71,7 @@ export const TERMINAL_FONT_SIZE = 14;
  * correct terminal rendering. The first available font is used.
  */
 export const TERMINAL_FONT_FAMILY =
-  "'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace";
+  "'Web Console JetBrains Mono', ui-monospace, 'SFMono-Regular', Menlo, Consolas, 'DejaVu Sans Mono', 'Liberation Mono', monospace";
 
 // ---------------------------------------------------------------------------
 // Terminal Defaults

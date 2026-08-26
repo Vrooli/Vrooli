@@ -12,6 +12,14 @@ import (
 	"strconv"
 )
 
+// DefaultTerminalScrollbackLines is the one production scrollback depth used
+// by the emulator and persistent backend. UI clients must retain at least
+// this many lines when replaying a snapshot.
+const DefaultTerminalScrollbackLines = 10_000
+
+// DefaultMaxSnapshotBytes bounds one reconnect/resync replay.
+const DefaultMaxSnapshotBytes = 2 * 1024 * 1024
+
 // Config holds all tunable levers for the web-console API.
 // Each field maps to an environment variable with a sane default.
 // See docs/reference/configuration.md for full documentation.
@@ -19,8 +27,12 @@ type Config struct {
 	// TerminalScrollbackLines is the number of decoded scrollback lines the
 	// per-session terminal emulator retains. Replayed via the snapshot
 	// stream on every (re)connect.
-	// Env: WC_TERMINAL_SCROLLBACK_LINES | Default: 10000 | Range: 100–100000
+	// Env: WC_TERMINAL_SCROLLBACK_LINES | Default: ten-thousand | Range: 100–100 thousand
 	TerminalScrollbackLines int
+
+	// MaxSnapshotBytes is the maximum ANSI byte stream sent for one replay.
+	// Env: WC_MAX_SNAPSHOT_BYTES | Default: 2097152 | Range: 65536–16777216
+	MaxSnapshotBytes int
 
 	// PTYReadBuffer is the byte size of the buffer used to read PTY output.
 	// Env: WC_PTY_READ_BUFFER | Default: 4096 | Range: 512–65536
@@ -76,11 +88,6 @@ type Config struct {
 	// Env: WC_COALESCE_NOTIFY_THRESHOLD | Default: 5 | Range: 1–1000
 	CoalesceNotifyThreshold int
 
-	// SIGWINCHCooldownMs is the minimum interval in milliseconds between
-	// SIGWINCH-based coalesce-trim recoveries per session.
-	// Env: WC_SIGWINCH_COOLDOWN_MS | Default: 1000 | Range: 0–30000
-	SIGWINCHCooldownMs int
-
 	// DefaultCWD is the working directory used for newly spawned shell sessions.
 	// Env: WC_DEFAULT_CWD | Default: derived from environment/runtime
 	DefaultCWD string
@@ -104,20 +111,21 @@ type Config struct {
 
 // Default returns the default configuration with all sane defaults.
 func Default() Config {
+	shell, _ := resolveShell()
 	return Config{
-		TerminalScrollbackLines:   10_000,
+		TerminalScrollbackLines:   DefaultTerminalScrollbackLines,
+		MaxSnapshotBytes:          DefaultMaxSnapshotBytes,
 		PTYReadBuffer:             4096,
 		WSBufferSize:              4096,
 		DefaultCols:               80,
 		DefaultRows:               24,
-		DefaultShell:              resolveShell(),
+		DefaultShell:              shell,
 		MaxSessions:               0,
 		ArchiveMessageLessAgeDays: 0,
 		ArchiveAgentHomeAgeDays:   0,
 		ArchiveMaxBytes:           0,
 		ClientChannelBuffer:       256,
 		CoalesceNotifyThreshold:   5,
-		SIGWINCHCooldownMs:        1000,
 		DefaultCWD:                resolveWorkingDir(),
 		DefaultBackend:            "auto",
 		DefaultPolicyMode:         "never",
@@ -131,6 +139,7 @@ func Load() Config {
 	cfg := Default()
 
 	cfg.TerminalScrollbackLines = envInt("WC_TERMINAL_SCROLLBACK_LINES", cfg.TerminalScrollbackLines, 100, 100_000)
+	cfg.MaxSnapshotBytes = envInt("WC_MAX_SNAPSHOT_BYTES", cfg.MaxSnapshotBytes, 64*1024, 16*1024*1024)
 	cfg.PTYReadBuffer = envInt("WC_PTY_READ_BUFFER", cfg.PTYReadBuffer, 512, 65536)
 	cfg.WSBufferSize = envInt("WC_WS_BUFFER_SIZE", cfg.WSBufferSize, 512, 65536)
 	cfg.DefaultCols = uint16(envInt("WC_DEFAULT_COLS", int(cfg.DefaultCols), 20, 500))
@@ -141,9 +150,9 @@ func Load() Config {
 	cfg.ArchiveMaxBytes = envInt64("WC_ARCHIVE_MAX_BYTES", cfg.ArchiveMaxBytes, 0, 1<<62)
 	cfg.ClientChannelBuffer = envInt("WC_CLIENT_CHANNEL_BUFFER", cfg.ClientChannelBuffer, 8, 1024)
 	cfg.CoalesceNotifyThreshold = envInt("WC_COALESCE_NOTIFY_THRESHOLD", cfg.CoalesceNotifyThreshold, 1, 1000)
-	cfg.SIGWINCHCooldownMs = envInt("WC_SIGWINCH_COOLDOWN_MS", cfg.SIGWINCHCooldownMs, 0, 30000)
 
-	cfg.DefaultShell = resolveShell()
+	shell, _ := resolveShell()
+	cfg.DefaultShell = shell
 	cfg.DefaultCWD = resolveWorkingDir()
 
 	if v := os.Getenv("WC_DEFAULT_BACKEND"); v != "" {
@@ -159,39 +168,57 @@ func Load() Config {
 	return cfg
 }
 
+// LoadChecked is the startup-safe form of Load. It preserves the historical
+// Load API for callers that cannot return an error while exposing the typed
+// host-configuration failure to lifecycle owners.
+func LoadChecked() (Config, error) {
+	cfg := Load()
+	shell, err := resolveShell()
+	if err != nil {
+		cfg.DefaultShell = ""
+		return cfg, err
+	}
+	cfg.DefaultShell = shell
+	return cfg, nil
+}
+
 // ResolveWorkingDir is the exported entry point for callers outside this
 // package that need the same working-directory resolution logic.
 func ResolveWorkingDir() string { return resolveWorkingDir() }
 
 // ResolveShell is the exported entry point for callers that need the same
 // shell-resolution logic.
-func ResolveShell() string { return resolveShell() }
+func ResolveShell() string {
+	shell, _ := resolveShell()
+	return shell
+}
 
 var ErrShellUnavailable = fmt.Errorf("web-console shell is unavailable")
 
 // resolveShell determines which shell binary to use:
 //
-//	WC_DEFAULT_SHELL  →  $SHELL  →  powershell.exe (Windows) or /bin/sh
-func resolveShell() string {
-	shell, err := resolveShellChecked()
-	if err != nil {
-		panic(err)
-	}
-	return shell
+//	WC_DEFAULT_SHELL  →  powershell.exe (Windows) or $SHELL → /bin/sh
+var shellLookPath = exec.LookPath
+
+func resolveShell() (string, error) {
+	return resolveShellForOS(runtime.GOOS)
 }
 
-func resolveShellChecked() (string, error) {
+func resolveShellForOS(goos string) (string, error) {
 	requested := ""
 	if v := os.Getenv("WC_DEFAULT_SHELL"); v != "" {
 		requested = v
+	} else if goos == "windows" {
+		// Git Bash commonly exports a POSIX SHELL path that cannot be resolved
+		// by Windows exec.LookPath. Prefer the native shell unless the caller
+		// explicitly selected WC_DEFAULT_SHELL.
+		requested = "powershell.exe"
 	} else if v := os.Getenv("SHELL"); v != "" {
 		requested = v
-	} else if runtime.GOOS == "windows" {
-		requested = "powershell.exe"
 	} else {
 		requested = "/bin/sh"
 	}
-	resolved, err := exec.LookPath(requested)
+	resolved, err := shellLookPath(requested)
 	if err != nil {
 		return "", fmt.Errorf("%w: %q: %v", ErrShellUnavailable, requested, err)
 	}

@@ -155,7 +155,7 @@ are available and the URL is valid.
 **Owner**: [CODE: ui/src/hooks/terminal/useTerminalSession.ts] (client), [CODE: api/terminal_ws.go] (server)
 - `useTerminalSession` — Composes three focused hooks and exposes a single surface:
   - [CODE: ui/src/hooks/terminal/useTerminalTransport.ts] owns the WebSocket lifecycle (connect, reconnect backoff, visibility-aware defer) and a monotonic `wsGen` counter.
-  - [CODE: ui/src/hooks/terminal/useStdinAck.ts] owns the seq/ack protocol, pending-input queue, and the **wsGen write barrier** that tags each in-flight payload with the generation it was sent on.
+  - [CODE: ui/src/hooks/terminal/useStdinStream.ts] owns cumulative UTF-8 offsets, the offline pending-input queue, reconnect reconciliation, and replay.
   - The session hook wires session_ready gating, history_end replay, and `pty_state` → local-echo enable/disable into a shared `TerminalInputGate`.
 - `terminal_ws.go` — Server-side WebSocket upgrade, message framing, PTY I/O bridging, ping/pong. Emits `session_ready{gen}`, `history_end{total_bytes, resumed}`, and `pty_state{altBuffer}` in addition to stdout/sync_warning/stdin_ack.
 - Key invariant: every stdin path (xterm.onData, mobile toolbar, paste, voice, upload) flows through the same gate (§2c), so a single state-aware decision point governs whether a byte goes to the PTY or is held.
@@ -166,7 +166,7 @@ are available and the URL is valid.
   - `{status: "sent", seq}` — handed to the WebSocket stack.
   - `{status: "queued", reason}` — pending; flushes on next session_ready. Reasons: `"not-ready"`, `"ws-closed"`, `"paused"`.
   - `{status: "rejected", reason}` — refused. Reasons: `"empty"`, `"disposed"`.
-- Paste source is held (`queued:paused`) while xterm is in a mouse-tracking mode so pasted bytes do not feed a mouse-consuming TUI as fake events.
+- Paste source uses the same reliable stdin lane as every other operator payload. Mouse-report bytes are the only xterm input routed to the best-effort control lane; paste is never held in a second mouse-mode queue.
 - Every consumer imports the gate result type; there is no `boolean`-returning shortcut. See `greenfield-assertions.test.ts` for the enforcing tests.
 
 ### 2b. Conversation Ingestion

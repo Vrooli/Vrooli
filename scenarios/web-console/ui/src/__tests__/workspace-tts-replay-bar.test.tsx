@@ -1,3 +1,4 @@
+import { renderWithProviders as render } from "../test-utils";
 /**
  * Tests for the persistent TTS replay bar in Workspace.
  *
@@ -7,7 +8,7 @@
  * to the messages view.
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent, act, waitFor } from "@testing-library/react";
+import { screen, fireEvent, act, waitFor } from "@testing-library/react";
 import { forwardRef, useImperativeHandle } from "react";
 import type { TerminalPaneHandle } from "../components/TerminalPane";
 import type { ConversationEvent } from "../api/conversation";
@@ -123,6 +124,7 @@ vi.mock("../stores/useWorkspaceStore", () => ({
   useWorkspaceStore: (selector?: (state: Record<string, unknown>) => unknown) => {
     return selector ? selector(mockStoreState) : mockStoreState;
   },
+  useEffectiveFontSize: () => 14,
 }));
 
 vi.mock("../stores/useConversationStore", () => {
@@ -152,26 +154,11 @@ vi.mock("../components/TerminalPane", () => ({
     captured.onSpeakingEventChange = onSpeakingEventChange;
     captured.onTtsSpeakingChange = onTtsSpeakingChange;
     useImperativeHandle(ref, () => ({
-      submitInput: vi.fn().mockReturnValue({ status: "sent", seq: 1 }),
-      sendControl: vi.fn().mockReturnValue(true),
-      copySelection: vi.fn().mockResolvedValue(true),
-      pasteFromClipboard: vi.fn().mockResolvedValue(true),
-      scrollTerminal: vi.fn(),
-      focus: vi.fn(),
-      stopTts: vi.fn(),
-      speakText: vi.fn(),
-      speakSequence: vi.fn().mockResolvedValue(undefined),
-      pauseTts: vi.fn(),
-      resumeTts: vi.fn(),
-      seekTts: vi.fn(),
-      setTtsPlaybackRate: vi.fn(),
-      setTtsVolume: vi.fn(),
-      setTtsMuted: vi.fn(),
-      getTtsState: vi.fn().mockReturnValue(null),
-      subscribeInputSettled: vi.fn(() => () => {}),
-      awaitSeq: vi.fn(() => () => {}),
-      subscribePendingInput: vi.fn(() => () => {}),
-      getPendingInputSnapshot: vi.fn(() => []),
+      input: { submit: vi.fn().mockReturnValue({ status: "sent", offset: 1 }), subscribeSettled: vi.fn(() => () => {}), awaitOffset: vi.fn(() => () => {}) },
+      control: { send: vi.fn().mockReturnValue(true), scroll: vi.fn(), focus: vi.fn() },
+      selection: { copy: vi.fn().mockResolvedValue(true), paste: vi.fn().mockResolvedValue(true) },
+      pendingInput: { subscribe: vi.fn(() => () => {}), snapshot: vi.fn(() => []) },
+      playback: { stop: vi.fn(), speak: vi.fn(), pause: vi.fn(), resume: vi.fn(), seek: vi.fn(), setPlaybackRate: vi.fn(), setVolume: vi.fn(), setMuted: vi.fn(), getState: vi.fn().mockReturnValue(null) },
     }));
     return <div data-testid={`mock-terminal-${sessionId}`}>Terminal {sessionId}</div>;
   }),

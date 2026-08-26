@@ -56,6 +56,18 @@ const updateMock = vi.fn<(req: UpdateStreamConfigArg) => Promise<{ config: Recor
 const getMock = vi.fn();
 const wwUpdateMock = vi.fn<(req: UpdateWakeWordTemplateRequest) => Promise<{ config: unknown }>>();
 const wwGetMock = vi.fn<() => Promise<{ config: unknown }>>();
+const rpcMocks = {
+  deleteWakeWordTemplate: vi.fn(),
+  getSpeakerConfig: vi.fn(),
+  updateSpeakerConfig: vi.fn(),
+  getSpeakerStatus: vi.fn(),
+  listSpeakerProfiles: vi.fn(),
+  enrollSpeakerProfile: vi.fn(),
+  clearSpeakerProfileBinding: vi.fn(),
+  unbindSpeakerProfile: vi.fn(),
+  deleteSpeakerProfile: vi.fn(),
+  transcribe: vi.fn(),
+};
 
 vi.mock("@connectrpc/connect", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@connectrpc/connect")>();
@@ -66,13 +78,7 @@ vi.mock("@connectrpc/connect", async (importOriginal) => {
       updateStreamConfig: updateMock,
       getWakeWordConfig: wwGetMock,
       updateWakeWordTemplate: wwUpdateMock,
-      deleteWakeWordTemplate: vi.fn(),
-      getSpeakerVerificationStatus: vi.fn(),
-      getSpeakerVerificationConfig: vi.fn(),
-      updateSpeakerVerificationConfig: vi.fn(),
-      enrollSpeakerVerification: vi.fn(),
-      deleteSpeakerVerificationProfile: vi.fn(),
-      transcribe: vi.fn(),
+      ...rpcMocks,
     }),
   };
 });
@@ -308,5 +314,100 @@ describe("getWakeWordConfig", () => {
     // Not cast to engine features.
     expect(first).not.toHaveProperty("data");
     expect(first).not.toHaveProperty("kind");
+  });
+});
+
+describe("voice runtime and speaker API adapters", () => {
+  beforeEach(() => {
+    Object.values(rpcMocks).forEach((mock) => mock.mockReset());
+  });
+
+  it("transcribes with and without speaker filtering and retries transient failures", async () => {
+    const blob = fakeBlob(new Uint8Array([4, 5]), "audio/wav");
+    rpcMocks.transcribe.mockResolvedValue({ text: "heard" });
+    const { transcribeAudio, transcribeAudioBypassFilter } = await import("./voice");
+    await expect(transcribeAudio(blob, "en")).resolves.toBe("heard");
+    await expect(transcribeAudioBypassFilter(blob)).resolves.toBe("heard");
+    expect(rpcMocks.transcribe.mock.calls[0]?.[0]).toMatchObject({
+      language: "en", skipSpeakerVerification: false, format: AudioFormat.WAV,
+    });
+    expect(rpcMocks.transcribe.mock.calls[1]?.[0]).toMatchObject({
+      language: "", skipSpeakerVerification: true, format: AudioFormat.WAV,
+    });
+
+    rpcMocks.transcribe.mockReset();
+    rpcMocks.transcribe
+      .mockRejectedValueOnce(new Error("temporary"))
+      .mockResolvedValueOnce({ text: "recovered" });
+    const { transcribeAudioWithRetry } = await import("./voice");
+    await expect(transcribeAudioWithRetry(blob, 2)).resolves.toBe("recovered");
+    expect(rpcMocks.transcribe).toHaveBeenCalledTimes(2);
+	}, 10 * 1000);
+
+  it("rejects after exhausting retry attempts", async () => {
+    const blob = fakeBlob(new Uint8Array([1]), "audio/ogg");
+    const failure = new Error("permanent");
+    rpcMocks.transcribe.mockRejectedValue(failure);
+    const { transcribeAudioWithRetry } = await import("./voice");
+    await expect(transcribeAudioWithRetry(blob, 1)).rejects.toBe(failure);
+  });
+
+  it("maps speaker configuration, status, profiles, enrollment, and mutations", async () => {
+    const config = { enabled: true, profileIds: ["p1"], threshold: 0.8, mode: 1, rejectBehavior: 1, fallbackWithoutVerification: true };
+    rpcMocks.getSpeakerConfig.mockResolvedValue({ config });
+    rpcMocks.updateSpeakerConfig.mockResolvedValue({ config });
+    rpcMocks.getSpeakerStatus.mockResolvedValue({ status: {
+      config, capability: 1, capabilityLabel: "ready", resourceReady: true,
+      profileConfigured: true, profileExists: true, profileCount: 1, profiles: [],
+      info: { backend: "x", model: "m", device: "cpu", sampleRate: 16000, version: "1", embeddingDim: 3 },
+    }});
+    rpcMocks.listSpeakerProfiles.mockResolvedValue({ profiles: [{
+      id: "p1",
+      displayName: "Me",
+      createdAt: { seconds: 1, nanos: 0 },
+      updatedAt: { seconds: 2, nanos: 0 },
+      modelName: "m",
+      embeddingDim: 3,
+      sampleRate: 16000,
+      enrollmentAudioSeconds: 2,
+      notes: "n",
+    }] });
+    rpcMocks.enrollSpeakerProfile.mockResolvedValue({
+      enrollment: { profileId: "p1", displayName: "Me", embeddingDim: 3, sampleRate: 16000, enrollmentAudioSeconds: 2, modelName: "m" },
+      config,
+    });
+    rpcMocks.clearSpeakerProfileBinding.mockResolvedValue({ config });
+    rpcMocks.unbindSpeakerProfile.mockResolvedValue({ config });
+    rpcMocks.deleteSpeakerProfile.mockResolvedValue({ config });
+    const {
+      getSpeakerVerificationConfig, updateSpeakerVerificationConfig, getSpeakerVerificationStatus,
+      listSpeakerVerificationProfiles, enrollSpeakerVerificationProfile,
+      clearSpeakerVerificationProfile, removeSpeakerVerificationProfile, deleteSpeakerVerificationProfile,
+    } = await import("./voice");
+
+    await expect(getSpeakerVerificationConfig()).resolves.toMatchObject({ enabled: true, profileIds: ["p1"] });
+    await expect(updateSpeakerVerificationConfig({ enabled: true, profileIds: ["p1"], threshold: 0.8, mode: "filter", rejectBehavior: "show-muted", fallbackWithoutVerification: true })).resolves.toMatchObject({ enabled: true });
+    await expect(getSpeakerVerificationStatus()).resolves.toMatchObject({ resourceReady: true, profileCount: 1, info: { sample_rate: 16000 } });
+    await expect(listSpeakerVerificationProfiles()).resolves.toMatchObject([{
+      id: "p1",
+      display_name: "Me",
+      created_at: new Date(1000).toISOString(),
+      updated_at: new Date(2000).toISOString(),
+    }]);
+    await expect(enrollSpeakerVerificationProfile({ audioBlob: fakeBlob(new Uint8Array([1, 2]), "audio/webm"), profileId: "p1", displayName: "Me", notes: "n", addToActive: true, enable: true })).resolves.toMatchObject({ enrollment: { profile_id: "p1", display_name: "Me" } });
+    await expect(clearSpeakerVerificationProfile()).resolves.toMatchObject({ enabled: true });
+    await expect(removeSpeakerVerificationProfile("p1")).resolves.toMatchObject({ enabled: true });
+    await expect(deleteSpeakerVerificationProfile("p1")).resolves.toMatchObject({ enabled: true });
+    expect(rpcMocks.updateSpeakerConfig.mock.calls[0]?.[0].updateMask.paths).toEqual([
+      "enabled", "profile_ids", "threshold", "mode", "reject_behavior", "fallback_without_verification",
+    ]);
+  });
+
+  it("deletes wake-word configuration and handles absent speaker status", async () => {
+    rpcMocks.deleteWakeWordTemplate.mockResolvedValue({ config: { configured: false } });
+    const { deleteWakeWordConfig, getSpeakerVerificationStatus } = await import("./voice");
+    await expect(deleteWakeWordConfig()).resolves.toEqual({ configured: false, template: null });
+    rpcMocks.getSpeakerStatus.mockResolvedValue({ status: undefined });
+    await expect(getSpeakerVerificationStatus()).rejects.toThrow("speaker status response missing status field");
   });
 });

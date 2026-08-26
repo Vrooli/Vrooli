@@ -44,9 +44,8 @@ func TestAnsiReplyFor_XTVersion(t *testing.T) {
 func TestAnsiReplyFor_DECRQM2026(t *testing.T) {
 	// CSI ? 2026 $ p — private '?', params [2026], final 'p'.
 	ev := terminal.ControlEvent{Kind: terminal.EventCSIQuery, Private: true, Final: 'p', Params: []int{2026}}
-	want := []byte("\x1b[?2026;0$y")
-	if got := ansiReplyFor(ev); !bytes.Equal(got, want) {
-		t.Errorf("DECRQM 2026: got %q want %q", got, want)
+	if got := ansiReplyFor(ev); got != nil {
+		t.Errorf("DECRQM 2026 should be answered by xterm.js, got %q", got)
 	}
 }
 
@@ -101,9 +100,6 @@ func TestAnsiReplyFor_FromEmulatorParser_ClaudeStartup(t *testing.T) {
 
 	if !bytes.Contains(combined, []byte("\x1bP!|00000000\x1b\\")) {
 		t.Errorf("missing DA3/XTVERSION reply in %q", combined)
-	}
-	if !bytes.Contains(combined, []byte("\x1b[?2026;0$y")) {
-		t.Errorf("missing DECRQM 2026 reply in %q", combined)
 	}
 	if !bytes.Contains(combined, []byte("\x1b[?1;2c")) {
 		t.Errorf("missing DA1 reply in %q", combined)

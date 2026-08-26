@@ -1,0 +1,535 @@
+<title>Scroll, Zoom, Redraw</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@500;600;700&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap">
+
+<style>
+:root {
+  --ground:      #eef2f4;
+  --surface:     #ffffff;
+  --surface-2:   #f6f9fa;
+  --line:        #d3dde2;
+  --line-strong: #b3c3cb;
+  --ink:         #16212b;
+  --ink-2:       #47606e;
+  --ink-3:       #748894;
+  --accent:      #0d6a86;
+  --accent-soft: #d9ecf2;
+  --accent-ink:  #0a4f65;
+  --crit:        #a32f30;
+  --crit-soft:   #f6e0e0;
+  --warn:        #97620d;
+  --warn-soft:   #f8ebd5;
+  --ok:          #2b6f4e;
+  --ok-soft:     #dcefe4;
+  --shadow:      0 1px 2px rgba(22,33,43,.06), 0 8px 24px -18px rgba(22,33,43,.5);
+
+  --f-display: "IBM Plex Sans Condensed", "Helvetica Neue", Arial, sans-serif;
+  --f-body:    "IBM Plex Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --f-mono:    "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+
+  --measure: 68ch;
+  --pad: clamp(1.25rem, 4vw, 3rem);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --ground:      #0d151b;
+    --surface:     #141f27;
+    --surface-2:   #18242d;
+    --line:        #26353f;
+    --line-strong: #3a4d59;
+    --ink:         #dde7ec;
+    --ink-2:       #9db0bb;
+    --ink-3:       #71858f;
+    --accent:      #4fb4d0;
+    --accent-soft: #12333f;
+    --accent-ink:  #8ad2e6;
+    --crit:        #e08181;
+    --crit-soft:   #3a1f20;
+    --warn:        #d9a75a;
+    --warn-soft:   #3a2c14;
+    --ok:          #74c79b;
+    --ok-soft:     #16321f;
+    --shadow:      0 1px 2px rgba(0,0,0,.4), 0 10px 30px -20px rgba(0,0,0,.9);
+  }
+}
+
+:root[data-theme="dark"] {
+  --ground:      #0d151b;
+  --surface:     #141f27;
+  --surface-2:   #18242d;
+  --line:        #26353f;
+  --line-strong: #3a4d59;
+  --ink:         #dde7ec;
+  --ink-2:       #9db0bb;
+  --ink-3:       #71858f;
+  --accent:      #4fb4d0;
+  --accent-soft: #12333f;
+  --accent-ink:  #8ad2e6;
+  --crit:        #e08181;
+  --crit-soft:   #3a1f20;
+  --warn:        #d9a75a;
+  --warn-soft:   #3a2c14;
+  --ok:          #74c79b;
+  --ok-soft:     #16321f;
+  --shadow:      0 1px 2px rgba(0,0,0,.4), 0 10px 30px -20px rgba(0,0,0,.9);
+}
+
+* { box-sizing: border-box; }
+body {
+  margin: 0; background: var(--ground); color: var(--ink);
+  font-family: var(--f-body); font-size: 16px; line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+.wrap { max-width: 1180px; margin: 0 auto; padding: var(--pad); display: flex; flex-direction: column; gap: clamp(2.5rem, 6vw, 4.5rem); }
+
+h1,h2,h3,h4 { font-family: var(--f-display); text-wrap: balance; margin: 0; line-height: 1.12; }
+h1 { font-size: clamp(2.3rem, 5.6vw, 3.7rem); font-weight: 700; letter-spacing: -.022em; }
+h2 { font-size: clamp(1.45rem, 3vw, 2rem); font-weight: 700; letter-spacing: -.014em; }
+h3 { font-size: 1.13rem; font-weight: 600; letter-spacing: -.006em; }
+h4 { font-size: .95rem; font-weight: 600; }
+p { margin: 0; max-width: var(--measure); }
+.eyebrow { font-family: var(--f-mono); font-size: .70rem; font-weight: 500; letter-spacing: .16em; text-transform: uppercase; color: var(--accent); }
+.lede { font-size: clamp(1.02rem, 1.6vw, 1.16rem); color: var(--ink-2); max-width: 62ch; }
+code, .mono { font-family: var(--f-mono); font-size: .855em; }
+code { background: var(--surface-2); border: 1px solid var(--line); border-radius: 3px; padding: .08em .34em; color: var(--accent-ink); overflow-wrap: anywhere; }
+a { color: var(--accent); }
+a:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+
+.masthead { display: flex; flex-direction: column; gap: 1.4rem; padding-top: clamp(.5rem, 3vw, 2rem); }
+.mast-rule { display: flex; align-items: baseline; gap: 1rem; border-bottom: 2px solid var(--ink); padding-bottom: .6rem; }
+.mast-rule .eyebrow { color: var(--ink-2); }
+.mast-rule .spacer { flex: 1; }
+.mast-meta { font-family: var(--f-mono); font-size: .72rem; color: var(--ink-3); }
+
+section { display: flex; flex-direction: column; gap: 1.4rem; }
+.sec-head { display: flex; flex-direction: column; gap: .55rem; border-top: 1px solid var(--line-strong); padding-top: 1.1rem; }
+.sec-head .row { display: flex; align-items: baseline; gap: .9rem; flex-wrap: wrap; }
+.tag { font-family: var(--f-mono); font-size: .72rem; font-weight: 600; color: var(--surface); background: var(--ink); padding: .18rem .45rem; border-radius: 2px; letter-spacing: .06em; }
+.tag.crit { background: var(--crit); }
+
+/* report card */
+.report { background: var(--surface); border: 1px solid var(--line); border-radius: 5px; box-shadow: var(--shadow); overflow: hidden; }
+.report > header { padding: 1rem 1.2rem; background: var(--surface-2); border-bottom: 1px solid var(--line); display: flex; flex-direction: column; gap: .3rem; }
+.report > header .said { font-style: italic; color: var(--ink-2); font-size: .92rem; }
+.report > header .said b { font-family: var(--f-display); font-style: normal; font-size: .68rem; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-3); display: block; margin-bottom: .2rem; }
+.report .body { padding: 1.2rem; display: flex; flex-direction: column; gap: 1.1rem; }
+
+/* three-lane comparison */
+.lanes3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: 4px; overflow: hidden; }
+.lane3 { background: var(--surface); padding: .9rem 1rem; display: flex; flex-direction: column; gap: .45rem; }
+.lane3 .lt { font-family: var(--f-mono); font-size: .73rem; font-weight: 600; color: var(--ink); }
+.lane3 .chain { display: flex; flex-direction: column; gap: .22rem; }
+.lane3 .step { font-family: var(--f-mono); font-size: .69rem; color: var(--ink-2); padding-left: .8rem; position: relative; line-height: 1.45; overflow-wrap: anywhere; }
+.lane3 .step::before { content: "→"; position: absolute; left: 0; color: var(--ink-3); }
+.lane3 .verdict { margin-top: auto; padding-top: .5rem; font-size: .76rem; font-weight: 600; }
+.lane3.good .verdict { color: var(--ok); }
+.lane3.bad .verdict { color: var(--crit); }
+.lane3.mid .verdict { color: var(--warn); }
+.lane3.bad { background: color-mix(in srgb, var(--crit-soft) 45%, var(--surface)); }
+
+.cause { border-left: 3px solid var(--line-strong); padding: .1rem 0 .1rem 1rem; display: flex; flex-direction: column; gap: .3rem; }
+.cause.primary { border-left-color: var(--crit); }
+.cause h4 { color: var(--ink); }
+.cause p { font-size: .89rem; color: var(--ink-2); max-width: none; }
+.cause .ev { font-family: var(--f-mono); font-size: .68rem; color: var(--ink-3); }
+
+.fixbox { background: var(--accent-soft); border: 1px solid color-mix(in srgb, var(--accent) 28%, var(--line)); border-left: 3px solid var(--accent); border-radius: 0 4px 4px 0; padding: .95rem 1.1rem; display: flex; flex-direction: column; gap: .5rem; }
+.fixbox .eyebrow { color: var(--accent-ink); }
+.fixbox ul { margin: 0; padding-left: 1.1rem; display: flex; flex-direction: column; gap: .3rem; }
+.fixbox li { font-size: .875rem; color: color-mix(in srgb, var(--accent-ink) 80%, var(--ink)); }
+.fixbox li b { color: var(--accent-ink); }
+
+/* trace */
+.trace { background: var(--surface); border: 1px solid var(--line); border-radius: 4px; padding: .9rem 1rem; overflow-x: auto; }
+.trace pre { margin: 0; font-family: var(--f-mono); font-size: .74rem; line-height: 1.7; color: var(--ink-2); white-space: pre; }
+.trace .hi { color: var(--crit); font-weight: 600; }
+.trace .ok { color: var(--ok); }
+.trace .dim { color: var(--ink-3); }
+
+/* tables */
+.tablewrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 5px; background: var(--surface); box-shadow: var(--shadow); }
+table { border-collapse: collapse; width: 100%; min-width: 700px; font-size: .85rem; }
+thead th { text-align: left; font-family: var(--f-mono); font-weight: 600; font-size: .67rem; letter-spacing: .11em; text-transform: uppercase; color: var(--ink-3); padding: .7rem .85rem; background: var(--surface-2); border-bottom: 1px solid var(--line-strong); white-space: nowrap; }
+tbody td { padding: .68rem .85rem; border-bottom: 1px solid var(--line); vertical-align: top; color: var(--ink-2); }
+tbody tr:last-child td { border-bottom: none; }
+tbody td:first-child { color: var(--ink); font-weight: 500; }
+td .m { font-family: var(--f-mono); font-size: .78rem; color: var(--ink-3); display: block; margin-top: .2rem; overflow-wrap: anywhere; }
+
+/* dead code list */
+.deadgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: .6rem; }
+.dead { background: var(--surface); border: 1px solid var(--line); border-radius: 4px; padding: .7rem .85rem; display: flex; flex-direction: column; gap: .2rem; }
+.dead .dn { font-family: var(--f-mono); font-size: .76rem; color: var(--ink); overflow-wrap: anywhere; }
+.dead .dd { font-size: .78rem; color: var(--ink-3); line-height: 1.45; }
+
+.moves { display: flex; flex-direction: column; gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: 5px; overflow: hidden; }
+.move { background: var(--surface); padding: 1rem 1.2rem; display: grid; grid-template-columns: auto 1fr; gap: 1rem; align-items: start; }
+.move .num { font-family: var(--f-display); font-size: 1.4rem; font-weight: 700; color: var(--accent); line-height: 1; font-variant-numeric: tabular-nums; padding-top: .12rem; }
+.move .body { display: flex; flex-direction: column; gap: .3rem; }
+.move p { font-size: .875rem; color: var(--ink-2); max-width: none; }
+.move .kills { font-family: var(--f-mono); font-size: .69rem; color: var(--ink-3); }
+
+.callout { border: 1px solid color-mix(in srgb, var(--warn) 30%, var(--line)); background: var(--warn-soft); border-left: 3px solid var(--warn); border-radius: 0 4px 4px 0; padding: .95rem 1.15rem; display: flex; flex-direction: column; gap: .4rem; }
+.callout .eyebrow { color: var(--warn); }
+.callout p { color: color-mix(in srgb, var(--warn) 70%, var(--ink)); max-width: none; font-size: .89rem; }
+
+footer { border-top: 1px solid var(--line-strong); padding: 1.4rem 0 3rem; color: var(--ink-3); font-size: .8rem; display: flex; flex-direction: column; gap: .3rem; }
+
+@media (max-width: 700px) { .move { grid-template-columns: 1fr; gap: .4rem; } }
+@media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+</style>
+
+<div class="wrap">
+
+  <header class="masthead">
+    <div class="mast-rule">
+      <span class="eyebrow">web-console · terminal subsystem · pass 2</span>
+      <span class="spacer"></span>
+      <span class="mast-meta">2026-08-24</span>
+    </div>
+    <h1>Scroll, Zoom, Redraw</h1>
+    <p class="lede">Three reported symptoms, traced to source — plus a consolidation inventory for the terminal subsystem. All three turn out to be the same shape of bug: one user-facing behaviour implemented two or three times, in different layers, with no shared authority between them.</p>
+  </header>
+
+  <!-- ========== SCROLL ========== -->
+  <section>
+    <div class="sec-head">
+      <div class="row"><span class="tag crit">SCROLL</span><h2>Scrolling is three implementations wearing one gesture</h2></div>
+    </div>
+
+    <div class="report">
+      <header>
+        <p class="said"><b>Reported</b>“Scrolling velocity changes based on connection speed. Touch scrolling and trackpad/mouse scrolling are very different speeds and there is no way to adjust them.”</p>
+      </header>
+      <div class="body">
+        <p>Both halves are accurate, and they have the same cause. Whether scrolling is a <em>local</em> operation or a <em>network</em> operation depends on whether the foreground program has mouse tracking on — and which of the two network paths you get depends on whether you used a finger or a wheel.</p>
+
+        <div class="lanes3">
+          <div class="lane3 good">
+            <span class="lt">Any device · mouse tracking OFF</span>
+            <div class="chain">
+              <span class="step">touch: <code>scrollTerminal()</code> · wheel: xterm native</span>
+              <span class="step"><code>term.scrollLines(n)</code></span>
+              <span class="step">renders immediately</span>
+            </div>
+            <span class="verdict">Local. Instant. Network-independent.</span>
+          </div>
+          <div class="lane3 mid">
+            <span class="lt">Touch · mouse tracking ON</span>
+            <div class="chain">
+              <span class="step"><code>sendControl()</code> — one frame <em>per line</em>, per rAF tick</span>
+              <span class="step">WS <code>control</code> frame · unacked, best-effort</span>
+              <span class="step"><code>ptmx.Write</code> → tmux client</span>
+              <span class="step">app redraws → output → render</span>
+            </div>
+            <span class="verdict">Remote. Round-trip bound. Dropped silently above 1 MiB buffered.</span>
+          </div>
+          <div class="lane3 bad">
+            <span class="lt">Wheel / trackpad · mouse tracking ON</span>
+            <div class="chain">
+              <span class="step">xterm <code>CoreMouseService</code> → SGR report</span>
+              <span class="step"><code>triggerDataEvent</code> → <code>onData</code></span>
+              <span class="step"><code>submitInput(data, "typing")</code> — the <em>reliable acked lane</em></span>
+              <span class="step">seq + 2 s ack timer + retry-on-timeout</span>
+              <span class="step">tmux: <code>display-message</code> + <code>send-keys -l</code></span>
+            </div>
+            <span class="verdict">Remote, acked, retried, and delivered to the wrong recipient.</span>
+          </div>
+        </div>
+
+        <div class="cause primary">
+          <h4>The wheel path lost its routing guard</h4>
+          <p>xterm emits SGR mouse reports through <code>onData</code>, the same event as keystrokes. <code>useTerminalSession</code> forwards everything from <code>onData</code> as <code>intent: "typing"</code>. Only <code>useTerminalTouch</code> was taught to use the control lane; the wheel path was never updated. On the tmux backend the mouse report is then handed to <code>send-keys -l</code>, which delivers it to the pane's <em>program</em> instead of the tmux <em>client</em> — precisely the failure the codebase used to guard against.</p>
+          <p class="ev">The guard's doc comment is still in the tree, describing a function that no longer exists: <code>pty_tmux.go:151</code> — “Routing these via send-keys would deliver them to the pane's shell, which does not understand them, and mobile scroll would silently break.” The comment survived the refactor; the enforcement did not.</p>
+        </div>
+
+        <div class="cause">
+          <h4>Momentum decays per frame, not per unit time</h4>
+          <p><code>startMomentum</code> multiplies velocity by <code>TOUCH_SCROLL_DECEL = 0.95</code> once per <code>requestAnimationFrame</code>, and converts to lines with a fixed <code>×16 ms</code> assumption in <code>onTouchMove</code>. On a 120 Hz phone the loop runs twice as often, so one flick travels roughly twice as far and takes half as long to stop as the same flick on a 60 Hz display. Nothing in the loop reads elapsed time.</p>
+          <p class="ev">useTerminalTouch.ts — <code>startMomentum</code>, <code>onTouchMove</code> velocity calc · consts/config.ts:152</p>
+        </div>
+
+        <div class="cause">
+          <h4>Velocity is generated open-loop while rendering is closed-loop</h4>
+          <p>In mouse-tracking mode the momentum animation keeps emitting wheel events at frame rate regardless of whether any of them have been rendered yet. The visible scroll only advances when the app processes the event and its redraw comes back. On a fast link the two rates roughly match; on a slow one the client races ahead, the frames pile up in <code>bufferedAmount</code>, and past 1 MiB <code>sendJson</code> starts returning <code>false</code> — which <code>sendControl</code> ignores, so the events are dropped without a trace. That is the connection-speed dependence, exactly.</p>
+          <p class="ev">useTerminalTouch.ts:234 (per-line send loop) · useTerminalTransport.ts <code>WS_SEND_HIGH_WATER</code> · useTerminalSession.ts <code>sendControl</code> discards the boolean</p>
+        </div>
+
+        <div class="cause">
+          <h4>There is no sensitivity control at any layer</h4>
+          <p>xterm exposes <code>scrollSensitivity</code>, <code>fastScrollSensitivity</code> and <code>smoothScrollDuration</code>; none is set, so wheel scrolling runs on library defaults. Touch scrolling divides pixel delta by measured cell height with its own compile-time constants. The two calibrations were never compared to each other, and neither is reachable from settings.</p>
+          <p class="ev">TerminalPane.tsx:618 (Terminal options) · consts/config.ts:135–155</p>
+        </div>
+
+        <div class="fixbox">
+          <span class="eyebrow">What to build</span>
+          <ul>
+            <li><b>One scroll seam.</b> A single <code>scrollBy(lines, source)</code> owned by the session layer. It decides local-vs-remote once, and both touch and wheel call it. Detect mouse-tracking byte sequences in <code>onData</code> and divert them to the control lane there, so the routing rule lives in one place instead of being re-derived per input device.</li>
+            <li><b>Batch and rate-limit remote scroll.</b> Accumulate wheel deltas over a frame and emit one control payload carrying the repeat count, capped to a sane events-per-second. Never one WebSocket frame per line.</li>
+            <li><b>Close the loop.</b> Stop generating momentum events while frames are unacknowledged or <code>bufferedAmount</code> is elevated — decay to zero instead of queueing into a link that cannot keep up.</li>
+            <li><b>Time-normalize momentum.</b> Decay as <code>v *= DECEL ** (dt / 16)</code> so a flick behaves the same at 60 Hz and 120 Hz.</li>
+            <li><b>Ship sensitivity settings.</b> Independent multipliers for touch and wheel, since they are physically different gestures, persisted per device alongside font size.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========== ZOOM ========== -->
+  <section>
+    <div class="sec-head">
+      <div class="row"><span class="tag crit">ZOOM</span><h2>Font size has three sources of truth; the stepper reads one and writes another</h2></div>
+    </div>
+
+    <div class="report">
+      <header>
+        <p class="said"><b>Reported</b>“You can change the terminal text size in the customization dialog, but the plus/minus buttons are broken, and it'd be convenient if there was proper pinch-to-zoom.”</p>
+      </header>
+      <div class="body">
+        <p>The stepper is a correctly written controlled component. It is wired to two different pieces of state.</p>
+
+        <div class="trace">
+<pre><span class="dim">// TerminalPane.tsx:211 — what the terminal actually renders</span>
+paneFontSize = <span class="hi">deviceFontSize[sessionId]</span> ?? pane.fontSize ?? 14
+
+<span class="dim">// AppearanceModal.tsx:69 — what the stepper displays</span>
+currentFontSize = <span class="ok">pane.fontSize</span> ?? 14
+
+<span class="dim">// AppearanceModal.tsx:206 — what the stepper writes</span>
+&lt;FontSizeStepper currentSize={<span class="ok">currentFontSize</span>}
+                 onChangeSize={(size) =&gt; <span class="hi">setDeviceFontSize</span>(sessionId, size)} /&gt;
+
+<span class="dim">// FontSizeStepper.tsx:48 — the button</span>
+onClick={() =&gt; onChangeSize(<span class="ok">currentSize</span> + 1)}</pre>
+        </div>
+
+        <p>So the first click works and every click after it does nothing:</p>
+
+        <div class="trace">
+<pre><span class="dim">click +</span>  onChangeSize(14 + 1) → deviceFontSize = 15  <span class="ok">terminal grows to 15</span>
+         currentSize still reads pane.fontSize    <span class="hi">display still says 14</span>
+<span class="dim">click +</span>  onChangeSize(14 + 1) → deviceFontSize = 15  <span class="hi">identical value, no change</span>
+<span class="dim">click −</span>  onChangeSize(14 − 1) → deviceFontSize = 13  <span class="hi">jumps 15 → 13</span></pre>
+        </div>
+
+        <div class="cause primary">
+          <h4>Three stores, one setting</h4>
+          <p><code>pane.fontSize</code>, <code>deviceFontSize[sessionId]</code> and <code>defaultFontSize</code> all describe terminal text size. The render path prefers the device override, so whichever writer runs last is not necessarily the one that wins. “Reset to defaults” has the same defect from the other direction: it calls <code>setPaneFontSize</code>, which the device override then shadows — so once the stepper has been touched, reset is visually inert.</p>
+          <p class="ev">AppearanceModal.tsx:119 · stores/useWorkspaceStore.ts:404–413 · TerminalPane.tsx:211</p>
+        </div>
+
+        <div class="cause">
+          <h4>“Apply to other panes” propagates the stale value</h4>
+          <p><code>buildPayload()</code> sends <code>font_size: currentFontSize</code> — the pane value the stepper never updates. Applying appearance to open panes therefore pushes the size the user started with, not the one they just chose.</p>
+          <p class="ev">AppearanceModal.tsx:89</p>
+        </div>
+
+        <div class="cause">
+          <h4>The test asserts the call, not the outcome</h4>
+          <p><code>appearance-modal.test.tsx:304</code> checks that <code>setPaneFontSize</code> was called with <code>("sess-1", 14)</code>. It passes. Nothing asserts that the displayed value moved, that a second click changes anything, or that the terminal's effective size followed. This is why a visibly broken control has green coverage.</p>
+        </div>
+
+        <div class="cause">
+          <h4>Pinch is not partially implemented — it is entirely absent</h4>
+          <p><code>onTouchStart</code> returns immediately unless <code>e.touches.length === 1</code>, and the effect sets <code>touchAction: "none"</code> on the xterm screen, which also suppresses the browser's native pinch. So two-finger gestures reach nothing today. Adding it is a new gesture state, not a tweak — and it must write to the same single authority the stepper writes to, or it will reproduce this same bug in a second place.</p>
+          <p class="ev">useTerminalTouch.ts <code>onTouchStart</code> · <code>screenEl.style.touchAction</code></p>
+        </div>
+
+        <div class="fixbox">
+          <span class="eyebrow">What to build</span>
+          <ul>
+            <li><b>Collapse to one authority.</b> Pick <code>deviceFontSize</code> as the per-device effective value with <code>pane.fontSize</code> as the synced/shared default, and expose a single selector — <code>useEffectiveFontSize(sessionId)</code> — that every reader and the stepper both use. Delete the third path or make it explicitly “the default for new panes”.</li>
+            <li><b>Use the constant that already exists.</b> <code>FONT_SIZE_STEP</code> is defined in <code>fontSizeUtils.ts</code> and referenced nowhere; the stepper hardcodes <code>± 1</code>.</li>
+            <li><b>Pinch as a real gesture state.</b> Track two touch points, compute scale from initial-to-current distance ratio, map to font delta with a dead zone (ignore scale within roughly ±3 %) so a two-finger scroll does not resize, clamp through <code>clampFontSize</code>, and <b>commit on gesture end</b> — every font change triggers a <code>fit()</code> and a resize frame, so a per-frame commit means a resize storm to the PTY.</li>
+            <li><b>Fix the test to assert effect.</b> Two clicks should produce two different displayed values and two different effective sizes.</li>
+          </ul>
+        </div>
+
+        <div class="callout">
+          <span class="eyebrow">Also worth knowing</span>
+          <p>The font-size effect at <code>TerminalPane.tsx:713</code> begins with <code>if (followerFrame) return;</code>. A pane that does not hold the size lease ignores font changes entirely — the follower layout effect sets the size from the device frame instead. Whatever you build for zoom needs a defined answer for followers, or the control will look broken again on the second device.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========== REDRAW ========== -->
+  <section>
+    <div class="sec-head">
+      <div class="row"><span class="tag crit">REDRAW</span><h2>Why agents corrupt and an empty shell does not</h2></div>
+    </div>
+
+    <div class="report">
+      <header>
+        <p class="said"><b>Reported</b>“Typing in an empty terminal works perfectly, but the text and cursor position very often get wonky and broken in interactive terminals like Claude Code.”</p>
+      </header>
+      <div class="body">
+        <p>That contrast is the diagnostic. Something in the path is correct for a shell that echoes exactly what you typed, and wrong for a program that repositions the cursor and repaints. There are four candidates and the first one explains the symptom precisely.</p>
+
+        <div class="cause primary">
+          <h4>Predictive local echo stays switched on inside agent TUIs</h4>
+          <p>Local echo is disabled only while the app is in the alternate screen buffer. That check runs <b>once</b>, on the <code>history_end</code> frame, and is never re-evaluated — nothing subscribes to xterm's <code>buffer.onBufferChange</code>. Agent CLIs like Claude Code render in the <em>normal</em> buffer, so the check reads “not alt” and predictions stay enabled for the life of the connection.</p>
+          <p>Then, on every printable keystroke, the controller writes the character at xterm's current cursor while the agent is independently moving that cursor to repaint its input box. The prediction never matches the server bytes, and the mismatch branch drops the predictions <b>without erasing anything</b> — the comment claims xterm repaints from scrollback, which it does not do. The phantom character stays, the column is now wrong, and the next repaint lands offset.</p>
+          <p>In bash the server echoes back exactly the character you typed, the prediction matches, it is consumed silently, and the whole mechanism is invisible. That is why an empty terminal is perfect.</p>
+          <p class="ev">useTerminalSession.ts:340–345 (one-shot alt check) · lib/localEcho.ts:104–121 (mismatch, no erase) · useTerminalSession.ts:417</p>
+        </div>
+
+        <div class="cause">
+          <h4>Coalesce trim cuts the byte stream at an arbitrary offset</h4>
+          <p>When a client falls behind, output is coalesced into a 1 MiB per-client buffer. On overflow the buffer is re-sliced from the tail — a cut at whatever byte offset the arithmetic lands on, routinely mid-escape-sequence and mid-UTF-8. The truncated remainder is then written straight into xterm, whose parser consumes the fragment as garbage and can be left in a wrong SGR or cursor state.</p>
+          <p>The designed recovery is a SIGWINCH to make the app redraw — and <code>maybeSIGWINCHRecovery</code> returns immediately on the persistent backend. So on tmux-backed sessions, a trim has <em>no</em> recovery path at all. Bursty agent output is exactly the traffic that triggers it.</p>
+          <p class="ev">session/broadcast.go:100–106 (trim) · session/broadcast.go:176 (persistent backend returns early)</p>
+        </div>
+
+        <div class="cause">
+          <h4>Synchronized-output framing is stripped from the client stream</h4>
+          <p><code>sanitizeForClient</code> removes <code>\x1b[?2026h</code> / <code>\x1b[?2026l</code>, and the ANSI responder tells apps that mode 2026 is unsupported. That is a deliberate, documented workaround for an xterm.js v6 parser crash and for mobile timer throttling — but the consequence is that every atomic repaint an agent emits is rendered progressively instead. Partial frames become visible as tearing during redraw, which reads to a user as exactly the same “wonky” symptom.</p>
+          <p class="ev">session/sanitize.go · session/ansi_responder.go <code>ansiReplyFor</code></p>
+        </div>
+
+        <div class="cause">
+          <h4>One class of terminal query is answered by nobody</h4>
+          <p>The client strips terminal replies from the input stream with <code>/\x1b\[[\x30-\x3f]*[\x20-\x2f]*[cnRy]/</code> — which includes <code>R</code>, the cursor-position report, and <code>n</code>, device status. The server-side responder answers only <code>c</code>, <code>q</code> and <code>p</code> finals, and is skipped entirely on the persistent backend because tmux answers for its own panes. On the <em>standard</em> backend a program that asks “where is the cursor?” gets xterm's answer thrown away by the client and no substitute from the server.</p>
+          <p class="ev">useTerminalSession.ts:64 (<code>RE_TERMINAL_RESPONSE</code>) · session/ansi_responder.go (no <code>n</code> case) · session/ansi_responder.go:45 (skipped when persistent)</p>
+        </div>
+
+        <div class="fixbox">
+          <span class="eyebrow">What to build</span>
+          <ul>
+            <li><b>Fix the echo gate first.</b> Cheapest change with the largest effect: subscribe to <code>buffer.onBufferChange</code> so the alt-buffer decision is live, and treat any unmatched prediction as a hard reset. Better still, given the password-prompt hazard from the first review — delete predictive echo and measure whether anyone notices.</li>
+            <li><b>Resync from the emulator instead of poking the app.</b> The server holds a complete, correct screen. On a trim, send that client a fresh snapshot and let it <code>reset()</code> — deterministic, backend-independent, and it retires the SIGWINCH heuristic, its alt-buffer settle window, and its cooldown. The <code>sync_warning</code> banner becomes a resync notice instead of a warning that something may be wrong with no way to fix it.</li>
+            <li><b>Never cut a stream mid-sequence.</b> If the buffer must be trimmed, trim to a parser-safe boundary — or drop the buffer entirely and resync, which is simpler and now cheap.</li>
+            <li><b>Make the query contract symmetrical.</b> Whatever the client strips, the server must answer, on both backends. Today the strip list and the reply list were written independently and do not match.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========== CONSOLIDATION ========== -->
+  <section>
+    <div class="sec-head">
+      <div class="row"><span class="tag">CONSOLIDATE</span><h2>Duplication inventory</h2></div>
+      <p>Every row is one behaviour implemented more than once. The pattern is consistent enough to be predictive: where this subsystem has two implementations of something, they have already diverged.</p>
+    </div>
+
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>Behaviour</th><th>Implemented in</th><th>How they diverged</th><th>Merge</th></tr></thead>
+        <tbody>
+          <tr>
+            <td>Key name → bytes<span class="m">terminalKeys.ts · handlers/terminal/keymap.go</span></td>
+            <td>TypeScript for the browser lane, Go for the RPC lane</td>
+            <td>Go has F1–F12 and Alt-prefixing; TS has none. TS has modified arrows (<code>CSI 1;mod X</code>); Go has none. The same logical keypress from an agent and from the toolbar produces different bytes.</td>
+            <td>One generated table from a single data file, or make the browser send key <em>names</em> and let the server resolve them.</td>
+          </tr>
+          <tr>
+            <td>ANSI filtering<span class="m">session/sanitize.go · terminal/strip.go · stripTerminalResponses()</span></td>
+            <td>Server output strip, server plain-text strip, client input strip</td>
+            <td>Three hand-rolled matchers over an escape-sequence language, none stateful, alongside a real parser in <code>terminal/parser.go</code> that already handles all of it correctly.</td>
+            <td>Route filtering through the parser. The client-side regex in particular is doing protocol work in a place that cannot see stream state.</td>
+          </tr>
+          <tr>
+            <td>Font size<span class="m">pane.fontSize · deviceFontSize · defaultFontSize</span></td>
+            <td>Three store slices, one rendered value</td>
+            <td>Reader prefers the device override; two of three writers are shadowed by it. See ZOOM above.</td>
+            <td>One effective-value selector; the others become explicitly-named defaults.</td>
+          </tr>
+          <tr>
+            <td>Scroll<span class="m">useTerminalTouch · xterm native wheel</span></td>
+            <td>Custom touch gesture engine, library wheel handling</td>
+            <td>Different lanes, different calibration, different network behaviour, no shared sensitivity. See SCROLL above.</td>
+            <td>One <code>scrollBy(lines, source)</code> seam.</td>
+          </tr>
+          <tr>
+            <td>Client WS protocol<span class="m">terminal_ws.go · remote_terminal.go</span></td>
+            <td>Local sessions and bridged remote targets</td>
+            <td>Remote lacks control frames, lease handling, snapshot replay, intent, keepalive and read deadlines.</td>
+            <td>A versioned protocol package plus one conformance suite both must pass.</td>
+          </tr>
+          <tr>
+            <td>Screen read<span class="m">Session.Screen() + Session.PlainText()</span></td>
+            <td><code>Adapter.GetScreen</code> calls both, back to back</td>
+            <td>Each takes and releases <code>s.mu</code> independently, so output landing between them makes the returned cell grid and plain text describe <em>different moments</em>. Both are full deep copies of the same grid, so the RPC also pays for two allocations.</td>
+            <td>One locked read returning both projections. This is the API coding agents use to decide what to type — a torn read here is worse than it looks.</td>
+          </tr>
+          <tr>
+            <td>Error typing<span class="m">isUnknownKeyError()</span></td>
+            <td>Prefix-matching <code>"unknown key "</code> on an error string across a package boundary</td>
+            <td>The comment concedes it is a contract: “if it changes, session and this adapter must change together.”</td>
+            <td>A sentinel error in <code>session</code> plus <code>errors.Is</code>.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ========== DEAD CODE ========== -->
+  <section>
+    <div class="sec-head">
+      <div class="row"><span class="tag">REMOVE</span><h2>Dead weight, verified</h2></div>
+      <p>Each of these has zero production consumers or describes something that no longer exists. Individually trivial; collectively they are what makes the subsystem read as larger and more careful than it is.</p>
+    </div>
+
+    <div class="deadgrid">
+      <div class="dead"><span class="dn">legacy mouse-tracking detector</span><span class="dd">Full doc comment in <code>pty_tmux.go:151</code>; the function is gone. <code>WriteInput</code>'s comment still documents its routing exception. Actively misleading — it describes the guard whose absence causes the wheel bug.</span></div>
+      <div class="dead"><span class="dn">canAcceptPaste()</span><span class="dd">Exported on <code>TerminalInputGate</code>, implemented, never called by production code — the accessor for the paste-queue condition nothing monitors.</span></div>
+      <div class="dead"><span class="dn">FONT_SIZE_STEP</span><span class="dd">Defined in <code>fontSizeUtils.ts</code>, referenced nowhere. The stepper hardcodes <code>± 1</code>.</span></div>
+      <div class="dead"><span class="dn">InputGateOptions.isPaused</span><span class="dd">Supported by the gate, never supplied — <code>createInputGate</code> is constructed without it, so the “paused” queue reason is unreachable.</span></div>
+      <div class="dead"><span class="dn">StdinAckReasonNotReady · invalid_input</span><span class="dd">Declared as server constants and documented in the protocol table; the server emits neither. One is client-only, one is “reserved”.</span></div>
+      <div class="dead"><span class="dn">"close" message type</span><span class="dd">Handled by <code>remote_terminal.go</code>'s input loop; absent from the TypeScript <code>TerminalMessage</code> union, so no client can send it.</span></div>
+      <div class="dead"><span class="dn">pendingAcks: 0</span><span class="dd">The debug probe publishes a hardcoded zero for in-flight acks — the one number that would have made the ack-timeout behaviour visible during debugging.</span></div>
+      <div class="dead"><span class="dn">appendOutputProbe</span><span class="dd">Concatenates and re-slices a 12 000-character string on every live output frame, in production, ungated by any debug flag.</span></div>
+    </div>
+  </section>
+
+  <!-- ========== STRUCTURAL ========== -->
+  <section>
+    <div class="sec-head">
+      <div class="row"><span class="tag">REORG</span><h2>Two reorganizations worth doing</h2></div>
+    </div>
+
+    <div class="moves">
+      <div class="move">
+        <div class="num">1</div>
+        <div class="body">
+          <h4>Decompose TerminalPane along its actual seams</h4>
+          <p>880 lines and a 20-method imperative handle, because it was the only place holding a <code>Terminal</code> instance. The seams are already visible in the file: <b>xterm lifecycle + fit</b> (init effect, <code>scrollAwareFit</code>, ResizeObserver, <code>maybeSendResize</code>), <b>follower presentation</b> (<code>followerFrame</code>, the layout effect, <code>DeviceFrame</code>), <b>speech</b> (<code>ensureSpeechChunks</code>, auto-TTS baseline, every <code>tts*</code> handle method), <b>attachments</b> (upload, drag-drop, paste-capture, file input) and <b>selection UI</b> (context menu, input-error banner). Each becomes a hook or a sibling component taking the terminal as a prop; the handle shrinks to input, focus and selection.</p>
+          <p class="kills">unblocks: testing any one concern in isolation · stops the next feature landing here by default</p>
+        </div>
+      </div>
+      <div class="move">
+        <div class="num">2</div>
+        <div class="body">
+          <h4>Stop re-rendering the pane on every resize frame</h4>
+          <p>The ResizeObserver callback calls <code>setPaneSize</code> unconditionally on every tick — the <code>requestAnimationFrame</code> guard protects <code>scrollAwareFit</code> but not the state update. So a mobile keyboard animation or a drag-resize re-renders the entire pane subtree, TTS state and context menu included, once per frame. Move <code>setPaneSize</code> inside the rAF, and only set it when the value actually changed.</p>
+          <p class="kills">retires: resize jank that gets misread as terminal lag</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <div class="row"><span class="tag">ORDER</span><h2>If you only do four things</h2></div>
+    </div>
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>Do</th><th>Fixes</th><th>Size</th></tr></thead>
+        <tbody>
+          <tr><td>Subscribe to <code>buffer.onBufferChange</code> for the echo gate — or delete predictive echo</td><td>Agent TUI text and cursor corruption; cleartext at password prompts</td><td>Hours</td></tr>
+          <tr><td>Unify font size behind one effective-value selector</td><td>Stepper, reset, and apply-to-panes all at once</td><td>Hours</td></tr>
+          <tr><td>Divert mouse-tracking sequences out of <code>onData</code> into the control lane, batched and rate-limited</td><td>Wheel scrolling in agents; scroll speed varying with link quality</td><td>Days</td></tr>
+          <tr><td>Resync from the emulator snapshot on coalesce trim</td><td>Corruption after output bursts; retires the SIGWINCH heuristic entirely</td><td>Days</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <footer>
+    <span>Second review pass over <span class="mono">scenarios/web-console</span> · companion to <span class="mono">Terminal Signal Path</span>.</span>
+    <span>Read-only. No files were modified. Line references are from the working tree on branch <span class="mono">agi</span>.</span>
+  </footer>
+
+</div>

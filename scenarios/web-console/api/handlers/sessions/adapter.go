@@ -28,6 +28,7 @@ import (
 type SessionManager interface {
 	Create(ctx context.Context, shell string, cols, rows uint16, backend backend.ID, policy *policy.Policy) (*session.Session, error)
 	CreateWithWorkingDir(ctx context.Context, shell string, cols, rows uint16, backend backend.ID, policy *policy.Policy, workingDir string) (*session.Session, error)
+	CreateWithOptions(ctx context.Context, shell string, cols, rows uint16, backend backend.ID, policy *policy.Policy, workingDir string, tmuxMouseMode bool) (*session.Session, error)
 	Get(id string) (*session.Session, bool)
 	List() []*session.Session
 	Delete(ctx context.Context, id string) error
@@ -141,11 +142,7 @@ func (a *Adapter) Create(ctx context.Context, in CreateInput) (Session, error) {
 
 	var sess *session.Session
 	var err error
-	if strings.TrimSpace(in.WorkingDir) != "" {
-		sess, err = a.Manager.CreateWithWorkingDir(ctx, in.Shell, uint16(in.Cols), uint16(in.Rows), bid, policyPtr, in.WorkingDir)
-	} else {
-		sess, err = a.Manager.Create(ctx, in.Shell, uint16(in.Cols), uint16(in.Rows), bid, policyPtr)
-	}
+	sess, err = a.Manager.CreateWithOptions(ctx, in.Shell, uint16(in.Cols), uint16(in.Rows), bid, policyPtr, in.WorkingDir, in.TmuxMouseMode)
 	if err != nil {
 		return Session{}, mapCreateError(err)
 	}
@@ -558,12 +555,6 @@ func (a *Adapter) RecoveryStatus(ctx context.Context) RecoveryStatus {
 }
 
 func (a *Adapter) Get(ctx context.Context, id string) (Session, error) {
-	if strings.HasPrefix(id, "remote:") {
-		if a.Remote == nil {
-			return Session{}, fmt.Errorf("%w: remote session service is not configured", ErrRemoteUnavailable)
-		}
-		return a.Remote.Get(ctx, id)
-	}
 	sess, ok := a.Manager.Get(id)
 	if !ok {
 		return Session{}, fmt.Errorf("session %q: %w", sanitizeID(id), ErrNotFound)
@@ -578,12 +569,6 @@ func (a *Adapter) Get(ctx context.Context, id string) (Session, error) {
 }
 
 func (a *Adapter) Delete(ctx context.Context, id string) error {
-	if strings.HasPrefix(id, "remote:") {
-		if a.Remote == nil {
-			return fmt.Errorf("%w: remote session service is not configured", ErrRemoteUnavailable)
-		}
-		return a.Remote.Delete(ctx, id)
-	}
 	a.cancelArchiveTimer(id)
 	_, managed := a.Manager.Get(id)
 	persisted := false
@@ -986,12 +971,13 @@ func createFingerprint(in CreateInput) string {
 		DisplayLabel         string
 		TargetID             string
 		WorkingDir           string
+		TmuxMouseMode        bool
 	}{
 		Shell: in.Shell, Cols: in.Cols, Rows: in.Rows, Backend: in.Backend,
 		Policy: in.Policy, HasPolicy: in.HasPolicy, LaunchCommand: in.LaunchCommand,
 		ExecuteLaunchCommand: in.ExecuteLaunchCommand, AgentType: in.AgentType,
 		Origin: in.Origin, Owner: in.Owner, DisplayLabel: in.DisplayLabel,
-		TargetID: in.TargetID, WorkingDir: in.WorkingDir,
+		TargetID: in.TargetID, WorkingDir: in.WorkingDir, TmuxMouseMode: in.TmuxMouseMode,
 	})
 	digest := sha256.Sum256(payload)
 	return hex.EncodeToString(digest[:])

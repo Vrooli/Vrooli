@@ -1,6 +1,7 @@
+import { renderWithProviders as render } from "../../test-utils";
 import { createRef } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { render, screen, cleanup } from "@testing-library/react";
+import { screen, cleanup } from "@testing-library/react";
 import SessionSidebar from "../SessionSidebar";
 import { buildOriginBucketedNavigation, type OriginBucketNavigation } from "../../lib/workspaceNavigation";
 import { useWorkspaceStore, type PaneMetadata } from "../../stores/useWorkspaceStore";

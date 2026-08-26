@@ -116,7 +116,7 @@ describe("refreshConversationSession", () => {
   });
 
   it("hydrateSession preserves WS-appended events that arrived during the in-flight GET", () => {
-    // Simulate the race: WS event seq=3 lands first via appendEvent.
+    // Simulate the race: WS event offset=3 lands first via appendEvent.
     useConversationStore.getState().appendEvent(makeEvent("e3", 3, "live"));
 
     // Then the initial GET response returns events 1..2 — these were the only

@@ -1,5 +1,6 @@
+import { renderWithProviders as render } from "../../test-utils";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { screen, fireEvent, waitFor } from "@testing-library/react";
 import KeyComboPicker from "../KeyComboPicker";
 import { useWorkspaceStore } from "../../stores/useWorkspaceStore";
 
@@ -12,7 +13,7 @@ beforeEach(() => {
 
 describe("KeyComboPicker", () => {
   const defaultProps = {
-    onInput: vi.fn(() => ({ status: "sent" as const, seq: 1 })),
+    onInput: vi.fn(() => ({ status: "sent" as const, offset: 1 })),
     onFocusTerminal: vi.fn(),
   };
 
@@ -53,7 +54,7 @@ describe("KeyComboPicker", () => {
   });
 
   it("tapping a combo calls onInput and closes sheet", async () => {
-    const onInput = vi.fn(() => ({ status: "sent" as const, seq: 1 }));
+    const onInput = vi.fn(() => ({ status: "sent" as const, offset: 1 }));
     render(<KeyComboPicker onInput={onInput} onFocusTerminal={vi.fn()} />);
     fireEvent.click(screen.getByTestId("combo-picker-trigger"));
     fireEvent.click(screen.getByTestId("combo-item-ctrl-c"));
@@ -91,7 +92,7 @@ describe("KeyComboPicker", () => {
 
   it("calls onFocusTerminal after selecting a combo", async () => {
     const onFocusTerminal = vi.fn();
-    render(<KeyComboPicker onInput={vi.fn(() => ({ status: "sent" as const, seq: 1 }))} onFocusTerminal={onFocusTerminal} />);
+    render(<KeyComboPicker onInput={vi.fn(() => ({ status: "sent" as const, offset: 1 }))} onFocusTerminal={onFocusTerminal} />);
     fireEvent.click(screen.getByTestId("combo-picker-trigger"));
     fireEvent.click(screen.getByTestId("combo-item-ctrl-c"));
 

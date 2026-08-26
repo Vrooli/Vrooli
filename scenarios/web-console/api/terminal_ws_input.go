@@ -16,6 +16,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"strings"
 	"sync"
 
 	"web-console/internal/events"
@@ -53,12 +54,39 @@ func (s *Server) dispatchInputMessage(
 		if !sess.HoldsLease(client) {
 			_ = sess.AcquireLease(client, session.LeaseReasonInput)
 		}
+		accepted := sess.AcceptedThrough()
+		switch {
+		case msg.Offset > accepted:
+			_ = writeTerminalJSON(conn, writeMu, TerminalMessage{
+				Type:            MsgTypeStdinAck,
+				AcceptedThrough: accepted,
+				Reason:          StdinAckReasonOffsetGap,
+				Data:            "stdin offset is ahead of the session's accepted prefix",
+			})
+			return inputDispatchResult{}
+		case msg.Offset < accepted:
+			// The frame was already accepted before a reconnect or duplicate
+			// delivery. Ack the current prefix without writing it twice.
+			_ = writeTerminalJSON(conn, writeMu, TerminalMessage{
+				Type:            MsgTypeStdinAck,
+				Ok:              true,
+				AcceptedThrough: accepted,
+			})
+			return inputDispatchResult{}
+		}
 		in := session.InputText(msg.Data).WithSource("ws")
 		if msg.Intent == StdinIntentBulkText {
 			in = in.AsPaste()
 		}
-		writeErr := sess.SendInput(in)
-		ackMsg := TerminalMessage{Type: MsgTypeStdinAck, Seq: msg.Seq, Ok: writeErr == nil}
+		written, writeErr := sess.SendInputCount(in)
+		if writeErr == nil {
+			accepted = sess.AdvanceAcceptedThrough(int64(written))
+		}
+		ackMsg := TerminalMessage{
+			Type:            MsgTypeStdinAck,
+			Ok:              writeErr == nil,
+			AcceptedThrough: accepted,
+		}
 		if writeErr != nil {
 			ackMsg.Data = writeErr.Error()
 			switch {
@@ -72,9 +100,7 @@ func (s *Server) dispatchInputMessage(
 				ackMsg.Reason = StdinAckReasonTmuxWriteFailed
 			}
 		}
-		writeMu.Lock()
-		_ = conn.WriteJSON(ackMsg)
-		writeMu.Unlock()
+		_ = writeTerminalJSON(conn, writeMu, ackMsg)
 		if writeErr != nil {
 			log.Printf("ws[%s]: PTY write failed: %v", sessionID, writeErr)
 			// Only a dead PTY is fatal to the connection. A backend
@@ -84,26 +110,46 @@ func (s *Server) dispatchInputMessage(
 				return inputDispatchResult{Close: true, CloseReason: "Terminal process is not accepting input"}
 			}
 		}
+	case MsgTypeHello:
+		accepted := sess.AcceptedThrough()
+		if msg.HaveThrough > accepted {
+			_ = writeTerminalJSON(conn, writeMu, TerminalMessage{
+				Type:            MsgTypeStdinAck,
+				AcceptedThrough: accepted,
+				Reason:          StdinAckReasonUnreconcilable,
+				Data:            "client reliable-input prefix is ahead of the session",
+			})
+		}
 	case MsgTypeControl:
 		// Synthetic terminal bytes are intentionally best-effort. They bypass
-		// the stdin sequence/ack queue and are written directly through the
+		// reliable-input queue and are written directly through the
 		// PTY's control kind so a reconnect cannot replay stale gestures.
 		if err := sess.SendInput(session.InputRaw([]byte(msg.Data)).WithSource("ws-control").WithKind(pty.KindControl)); err != nil {
 			log.Printf("ws[%s]: best-effort control write failed: %v", sessionID, err)
 		}
+	case MsgTypeMouseMode:
+		mode := strings.TrimSpace(strings.ToLower(msg.Data))
+		if mode != "on" && mode != "off" {
+			_ = writeTerminalJSON(conn, writeMu, TerminalMessage{Type: MsgTypeMouseMode, Data: "unsupported", Reason: "mouse mode must be on or off"})
+			break
+		}
+		enabled := mode == "on"
+		if err := sess.SetMouseMode(enabled); err != nil {
+			_ = writeTerminalJSON(conn, writeMu, TerminalMessage{Type: MsgTypeMouseMode, Data: "unsupported", Reason: err.Error()})
+			break
+		}
+		_ = writeTerminalJSON(conn, writeMu, TerminalMessage{Type: MsgTypeMouseMode, Data: mode, Ok: true})
 	case MsgTypeResize:
 		if msg.Cols > 0 && msg.Rows > 0 {
 			sess.DeclareSize(client, uint16(msg.Cols), uint16(msg.Rows))
 			if sess.HoldsLease(client) {
 				_ = sess.Resize(client, uint16(msg.Cols), uint16(msg.Rows))
 			}
-			writeMu.Lock()
-			_ = conn.WriteJSON(TerminalMessage{
+			_ = writeTerminalJSON(conn, writeMu, TerminalMessage{
 				Type: MsgTypeResizeInfo,
 				Cols: msg.Cols,
 				Rows: msg.Rows,
 			})
-			writeMu.Unlock()
 			// [REQ:P1-004a] Emit resize event
 			s.events.Emit(events.PaneResized, sessionID, map[string]string{
 				"cols": fmt.Sprintf("%d", msg.Cols),
@@ -120,17 +166,13 @@ func (s *Server) dispatchInputMessage(
 		// immediate, ordered acknowledgement that it now owns the lease; the
 		// broadcast remains responsible for updating every other viewer.
 		cols, rows, leader, leaderDevice, holdsLease, viewerCount := sess.SizeLeaseState(client)
-		writeMu.Lock()
-		_ = conn.WriteJSON(TerminalMessage{
+		_ = writeTerminalJSON(conn, writeMu, TerminalMessage{
 			Type: MsgTypeSizeInfo, Cols: int(cols), Rows: int(rows),
 			Leader: leader, LeaderDevice: leaderDevice, HoldsLease: holdsLease,
 			ViewerCount: viewerCount,
 		})
-		writeMu.Unlock()
 	case MsgTypePing:
-		writeMu.Lock()
-		_ = conn.WriteJSON(TerminalMessage{Type: MsgTypePong})
-		writeMu.Unlock()
+		_ = writeTerminalJSON(conn, writeMu, TerminalMessage{Type: MsgTypePong})
 	case MsgTypeConversationAck:
 		if msg.EventID == "" || msg.Source == "" || msg.Stage == "" {
 			return inputDispatchResult{CloseReason: "Invalid TTS acknowledgment"}

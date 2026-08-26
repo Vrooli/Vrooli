@@ -195,18 +195,48 @@ class CapabilityEntry(_message.Message):
     def __init__(self, capability: _Optional[str] = ..., situation: _Optional[_Union[CapabilitySituation, str]] = ..., situation_reason: _Optional[str] = ..., platforms: _Optional[_Iterable[_Union[PlatformEntry, _Mapping]]] = ...) -> None: ...
 
 class Grid(_message.Message):
-    __slots__ = ("capabilities", "manifest_root", "manifests_read", "computed_at", "observed_safeguards")
+    __slots__ = ("capabilities", "manifest_root", "manifests_read", "computed_at", "observed_safeguards", "native_evidence")
     CAPABILITIES_FIELD_NUMBER: _ClassVar[int]
     MANIFEST_ROOT_FIELD_NUMBER: _ClassVar[int]
     MANIFESTS_READ_FIELD_NUMBER: _ClassVar[int]
     COMPUTED_AT_FIELD_NUMBER: _ClassVar[int]
     OBSERVED_SAFEGUARDS_FIELD_NUMBER: _ClassVar[int]
+    NATIVE_EVIDENCE_FIELD_NUMBER: _ClassVar[int]
     capabilities: _containers.RepeatedCompositeFieldContainer[CapabilityEntry]
     manifest_root: str
     manifests_read: int
     computed_at: _timestamp_pb2.Timestamp
     observed_safeguards: _containers.RepeatedCompositeFieldContainer[ObservedSafeguard]
-    def __init__(self, capabilities: _Optional[_Iterable[_Union[CapabilityEntry, _Mapping]]] = ..., manifest_root: _Optional[str] = ..., manifests_read: _Optional[int] = ..., computed_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., observed_safeguards: _Optional[_Iterable[_Union[ObservedSafeguard, _Mapping]]] = ...) -> None: ...
+    native_evidence: _containers.RepeatedCompositeFieldContainer[NativeEvidence]
+    def __init__(self, capabilities: _Optional[_Iterable[_Union[CapabilityEntry, _Mapping]]] = ..., manifest_root: _Optional[str] = ..., manifests_read: _Optional[int] = ..., computed_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., observed_safeguards: _Optional[_Iterable[_Union[ObservedSafeguard, _Mapping]]] = ..., native_evidence: _Optional[_Iterable[_Union[NativeEvidence, _Mapping]]] = ...) -> None: ...
+
+class NativeEvidence(_message.Message):
+    __slots__ = ("kind", "host_os", "architecture", "commit", "generated_at", "passed", "source", "run_id", "host", "surface", "artifact_uri", "capabilities")
+    KIND_FIELD_NUMBER: _ClassVar[int]
+    HOST_OS_FIELD_NUMBER: _ClassVar[int]
+    ARCHITECTURE_FIELD_NUMBER: _ClassVar[int]
+    COMMIT_FIELD_NUMBER: _ClassVar[int]
+    GENERATED_AT_FIELD_NUMBER: _ClassVar[int]
+    PASSED_FIELD_NUMBER: _ClassVar[int]
+    SOURCE_FIELD_NUMBER: _ClassVar[int]
+    RUN_ID_FIELD_NUMBER: _ClassVar[int]
+    HOST_FIELD_NUMBER: _ClassVar[int]
+    SURFACE_FIELD_NUMBER: _ClassVar[int]
+    ARTIFACT_URI_FIELD_NUMBER: _ClassVar[int]
+    CAPABILITIES_FIELD_NUMBER: _ClassVar[int]
+    kind: str
+    host_os: HostOS
+    architecture: str
+    commit: str
+    generated_at: _timestamp_pb2.Timestamp
+    passed: bool
+    source: str
+    run_id: str
+    host: str
+    surface: str
+    artifact_uri: str
+    capabilities: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, kind: _Optional[str] = ..., host_os: _Optional[_Union[HostOS, str]] = ..., architecture: _Optional[str] = ..., commit: _Optional[str] = ..., generated_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., passed: _Optional[bool] = ..., source: _Optional[str] = ..., run_id: _Optional[str] = ..., host: _Optional[str] = ..., surface: _Optional[str] = ..., artifact_uri: _Optional[str] = ..., capabilities: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class ObservedSafeguard(_message.Message):
     __slots__ = ("name", "capability", "capability_role", "platforms", "support_class", "execution_state", "notes", "observed_at")

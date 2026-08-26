@@ -1,17 +1,19 @@
 package main
 
 import (
+	"bytes"
 	"context"
+	"fmt"
 	"log"
 	"net/http"
-	"strings"
 	"sync"
 	"time"
 
+	"web-console/internal/config"
 	"web-console/internal/events"
+	"web-console/internal/wireproto"
 	"web-console/session"
 
-	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
 )
 
@@ -25,93 +27,88 @@ var wsPingPeriod = 30 * time.Second
 // as a ready-fail rather than a per-message ack timeout.
 var probeReadyTimeout = 3 * time.Second
 
-// DOC: docs/concepts/ARCHITECTURE.md#terminal-io
-// DOC: docs/internal/ERROR_SEMANTICS.md#websocket-error-protocol
-// WebSocket message types for terminal I/O.
-// [REQ:P0-002b] WebSocket I/O Streaming
-const (
-	MsgTypeStdin       = "stdin"
-	MsgTypeStdout      = "stdout"
-	MsgTypeResize      = "resize"
-	MsgTypeResizeInfo  = "resize_info"
-	MsgTypeSizeInfo    = "size_info"
-	MsgTypeTakeLease   = "take_lease"
-	MsgTypeExit        = "exit"
-	MsgTypeError       = "error"
-	MsgTypePing        = "ping"
-	MsgTypePong        = "pong"
-	MsgTypeSyncWarning = "sync_warning"
-	// MsgTypeHistoryEnd signals that all buffered history chunks have been
-	// sent and subsequent stdout messages are live PTY output. The client
-	// uses this to batch-render history in a single write, avoiding the
-	// visible "fast-forward replay" effect on page load/refresh.
-	MsgTypeHistoryEnd = "history_end"
-	// MsgTypeConversationAck records browser-side delivery/playback progress.
-	// This is a client→server INPUT message (playback telemetry); the terminal
-	// WS keeps it even though conversation events themselves now stream over
-	// the global SSE channel (/api/v1/events/stream), not this socket.
-	MsgTypeConversationAck = "conversation_event_ack"
-	// MsgTypeSessionReady is emitted exactly once per WS connection after the
-	// PTY is confirmed to accept writes (ProbeReady). Until the client sees
-	// this, stdin must stay in the pending queue.
-	MsgTypeSessionReady = "session_ready"
-	// MsgTypeStdinAck is echoed for every stdin message the server
-	// processes. Seq matches the client-assigned sequence; Ok reports
-	// whether the backend accepted the bytes. On Ok=false, Reason
-	// carries a typed error code (see StdinAckReason*).
-	MsgTypeStdinAck = "stdin_ack"
-	// MsgTypeControl carries synthetic terminal bytes such as mouse input.
-	// It deliberately has no sequence number, acknowledgement, or replay.
-	MsgTypeControl = "control"
+// wsWriteTimeout bounds every terminal JSON write, including snapshot replay.
+const wsWriteTimeout = 10 * time.Second
+
+func writeTerminalJSON(conn *websocket.Conn, writeMu *sync.Mutex, msg TerminalMessage) error {
+	writeMu.Lock()
+	defer writeMu.Unlock()
+	if err := conn.SetWriteDeadline(time.Now().Add(wsWriteTimeout)); err != nil {
+		return err
+	}
+	return conn.WriteJSON(msg)
+}
+
+// Keep the historical package-main names as aliases while the wire contract
+// itself lives in the transport-independent protocol package.
+type TerminalMessage = wireproto.TerminalMessage
+
+// Legacy package-main variables keep older tests and integrations source
+// compatible. The protocol values themselves are declared only in wireproto.
+var (
+	MsgTypeStdin                  = wireproto.MsgTypeStdin
+	MsgTypeStdout                 = wireproto.MsgTypeStdout
+	MsgTypeResize                 = wireproto.MsgTypeResize
+	MsgTypeResizeInfo             = wireproto.MsgTypeResizeInfo
+	MsgTypeSizeInfo               = wireproto.MsgTypeSizeInfo
+	MsgTypeTakeLease              = wireproto.MsgTypeTakeLease
+	MsgTypeExit                   = wireproto.MsgTypeExit
+	MsgTypeError                  = wireproto.MsgTypeError
+	MsgTypePing                   = wireproto.MsgTypePing
+	MsgTypePong                   = wireproto.MsgTypePong
+	MsgTypeSyncWarning            = wireproto.MsgTypeSyncWarning
+	MsgTypeHistoryEnd             = wireproto.MsgTypeHistoryEnd
+	MsgTypeConversationAck        = wireproto.MsgTypeConversationAck
+	MsgTypeSessionReady           = wireproto.MsgTypeSessionReady
+	MsgTypeStdinAck               = wireproto.MsgTypeStdinAck
+	MsgTypeControl                = wireproto.MsgTypeControl
+	MsgTypeHello                  = wireproto.MsgTypeHello
+	MsgTypeResync                 = wireproto.MsgTypeResync
+	MsgTypeSnapshotNotice         = wireproto.MsgTypeSnapshotNotice
+	MsgTypeEchoState              = wireproto.MsgTypeEchoState
+	MsgTypeMouseMode              = wireproto.MsgTypeMouseMode
+	StdinIntentTyping             = wireproto.StdinIntentTyping
+	StdinIntentBulkText           = wireproto.StdinIntentBulkText
+	StdinIntentNamedKey           = wireproto.StdinIntentNamedKey
+	StdinAckReasonTmuxWriteFailed = wireproto.StdinAckReasonTmuxFailed
+	StdinAckReasonPTYClosed       = wireproto.StdinAckReasonPTYClosed
+	StdinAckReasonOffsetGap       = wireproto.StdinAckReasonOffsetGap
+	StdinAckReasonUnreconcilable  = wireproto.StdinAckReasonUnreconcilable
+	ProtocolVersion               = wireproto.ProtocolVersion
 )
 
-// StdinIntent values carry the semantic intent chosen by the UI source.
-const (
-	StdinIntentTyping   = "typing"
-	StdinIntentBulkText = "bulk_text"
-	StdinIntentNamedKey = "named_key"
-)
-
-// StdinAckReason* are the typed reason codes the server emits on
-// stdin_ack when Ok=false. The UI maps these to user-visible messages.
-const (
-	StdinAckReasonTmuxWriteFailed = "tmux_write_failed"
-	StdinAckReasonPTYClosed       = "pty_closed"
-	StdinAckReasonNotReady        = "not_ready"
-)
-
-// TerminalMessage is the WebSocket JSON message format.
-type TerminalMessage struct {
-	Type            string `json:"type"`
-	Data            string `json:"data,omitempty"`
-	Cols            int    `json:"cols,omitempty"`
-	Rows            int    `json:"rows,omitempty"`
-	Code            int    `json:"code,omitempty"`
-	CoalescedFrames int    `json:"coalesced_frames,omitempty"`
-	EventID         string `json:"eventId,omitempty"`
-	Source          string `json:"source,omitempty"`
-	Stage           string `json:"stage,omitempty"`
-	Backend         string `json:"backend,omitempty"`
-	// Seq is the client-assigned sequence number for stdin messages; the
-	// server echoes it in the matching stdin_ack. Opaque to the server.
-	Seq int64 `json:"seq,omitempty"`
-	// Ok reports whether a server-acknowledged action succeeded (used by
-	// stdin_ack).
-	Ok bool `json:"ok,omitempty"`
-	// Gen is the per-connection generation counter. The server echoes it
-	// in session_ready; clients use it to decide whether a re-enqueued
-	// payload belongs to the current connection (see wsGen write barrier
-	Gen int64 `json:"gen,omitempty"`
-	// Intent carries the semantic stdin intent. Empty or unknown values
-	// default to typing for forward compatibility.
-	Intent string `json:"intent,omitempty"`
-	// Reason is the typed error code populated on stdin_ack frames when
-	// Ok=false (and unset when Ok=true). See StdinAckReason*.
-	Reason       string `json:"reason,omitempty"`
-	Leader       string `json:"leader,omitempty"`
-	LeaderDevice string `json:"leaderDevice,omitempty"`
-	HoldsLease   bool   `json:"holdsLease"`
-	ViewerCount  int    `json:"viewerCount,omitempty"`
+// boundSnapshot keeps the newest complete line region and resets the renderer
+// before it receives the suffix. The notice is a separate frame so it cannot
+// become terminal content or corrupt a full-screen application.
+func boundSnapshot(snapshot []byte, maxBytes int) ([]byte, int, bool) {
+	if maxBytes <= 0 || len(snapshot) <= maxBytes {
+		return snapshot, 0, false
+	}
+	reset := []byte("\x1bc")
+	if maxBytes <= len(reset) {
+		return append([]byte(nil), reset[:maxBytes]...), bytes.Count(snapshot, []byte{'\n'}), true
+	}
+	cut := len(snapshot)
+	payloadMax := maxBytes - len(reset)
+	// Choose the oldest complete line whose suffix fits. This avoids both
+	// partial UTF-8/escape data and arbitrary mid-line cuts.
+	for boundary := 0; boundary < len(snapshot); {
+		relative := bytes.IndexByte(snapshot[boundary:], '\n')
+		if relative < 0 {
+			break
+		}
+		boundary += relative + 1
+		if len(snapshot)-boundary <= payloadMax {
+			cut = boundary
+			break
+		}
+	}
+	trimmed := snapshot[cut:]
+	droppedLines := bytes.Count(snapshot[:cut], []byte{'\n'})
+	bounded := make([]byte, 0, len(reset)+len(trimmed))
+	bounded = append(bounded, reset...)
+	bounded = append(bounded, trimmed...)
+	return bounded, droppedLines, true
 }
 
 // handleTerminalWS upgrades to WebSocket and bridges bidirectional I/O between
@@ -123,14 +120,6 @@ type TerminalMessage struct {
 // via the writerDone channel.
 // [REQ:P0-002b] WebSocket I/O Streaming
 func (s *Server) handleTerminalWS(w http.ResponseWriter, r *http.Request) {
-	if remote, ok := s.remoteForRequest(r); ok {
-		s.handleRemoteTerminalWS(w, r, remote)
-		return
-	}
-	if strings.HasPrefix(mux.Vars(r)["id"], "remote:") {
-		writeCatalogError(w, "session_not_found", "Remote session not found")
-		return
-	}
 	sess := s.lookupSession(w, r)
 	if sess == nil {
 		return
@@ -201,9 +190,7 @@ func (s *Server) handleTerminalWS(w http.ResponseWriter, r *http.Request) {
 	defer cancel()
 
 	sendError := func(msg string) {
-		writeMu.Lock()
-		_ = conn.WriteJSON(TerminalMessage{Type: MsgTypeError, Data: msg})
-		writeMu.Unlock()
+		_ = writeTerminalJSON(conn, &writeMu, TerminalMessage{Type: MsgTypeError, Data: msg})
 	}
 
 	// Output forwarder: snapshot → PTY output → WebSocket client.
@@ -221,25 +208,48 @@ func (s *Server) handleTerminalWS(w http.ResponseWriter, r *http.Request) {
 		// reproduces the current (screen, alt-buffer, scrollback) triple
 		// before any live frame arrives. Chunked at session.HistoryChunkSize so
 		// no single JSON message stalls the renderer.
-		writeMu.Lock()
-		for off := 0; off < len(sub.Snapshot); off += session.HistoryChunkSize {
-			end := off + session.HistoryChunkSize
-			if end > len(sub.Snapshot) {
-				end = len(sub.Snapshot)
+		snapshot, droppedLines, truncated := boundSnapshot(sub.Snapshot, config.Load().MaxSnapshotBytes)
+		if truncated {
+			if err := writeTerminalJSON(conn, &writeMu, TerminalMessage{Type: MsgTypeSnapshotNotice, Data: fmt.Sprintf("%d scrollback lines omitted", droppedLines)}); err != nil {
+				return
 			}
-			if err := conn.WriteJSON(TerminalMessage{Type: MsgTypeStdout, Data: string(sub.Snapshot[off:end])}); err != nil {
-				writeMu.Unlock()
+		}
+		for off := 0; off < len(snapshot); off += session.HistoryChunkSize {
+			end := off + session.HistoryChunkSize
+			if end > len(snapshot) {
+				end = len(snapshot)
+			}
+			if err := writeTerminalJSON(conn, &writeMu, TerminalMessage{Type: MsgTypeStdout, Data: string(snapshot[off:end])}); err != nil {
 				return
 			}
 			s.metrics.WSMessagesSent.Add(1)
 		}
-		_ = conn.WriteJSON(TerminalMessage{Type: MsgTypeHistoryEnd})
-		cols, rows, leader, leaderDevice, holdsLease, viewerCount := sess.SizeLeaseState(sub.OutputCh)
-		if err := conn.WriteJSON(TerminalMessage{Type: MsgTypeSizeInfo, Cols: int(cols), Rows: int(rows), Leader: leader, LeaderDevice: leaderDevice, HoldsLease: holdsLease, ViewerCount: viewerCount}); err != nil {
-			writeMu.Unlock()
+		if err := writeTerminalJSON(conn, &writeMu, TerminalMessage{Type: MsgTypeHistoryEnd}); err != nil {
 			return
 		}
-		writeMu.Unlock()
+		var lastEchoState session.EchoState
+		haveEchoState := false
+		emitEchoState := func() bool {
+			state, stateErr := sess.EchoState()
+			if stateErr != nil {
+				state = session.EchoState{}
+			}
+			if haveEchoState && state == lastEchoState {
+				return true
+			}
+			lastEchoState, haveEchoState = state, true
+			return writeTerminalJSON(conn, &writeMu, TerminalMessage{
+				Type: MsgTypeEchoState, EchoKnown: state.Known, EchoEnabled: state.EchoEnabled,
+				InAltBuffer: state.InAltBuffer, CursorAtLineEnd: state.CursorAtLineEnd,
+			}) == nil
+		}
+		if !emitEchoState() {
+			return
+		}
+		cols, rows, leader, leaderDevice, holdsLease, viewerCount := sess.SizeLeaseState(sub.OutputCh)
+		if err := writeTerminalJSON(conn, &writeMu, TerminalMessage{Type: MsgTypeSizeInfo, Cols: int(cols), Rows: int(rows), Leader: leader, LeaderDevice: leaderDevice, HoldsLease: holdsLease, ViewerCount: viewerCount}); err != nil {
+			return
+		}
 
 		// Server-side WebSocket keepalive: send a ping every 30s to prevent
 		// reverse proxies (Cloudflare tunnel default idle timeout ~100s) from
@@ -258,29 +268,56 @@ func (s *Server) handleTerminalWS(w http.ResponseWriter, r *http.Request) {
 				}
 			case data, ok := <-sub.OutputCh:
 				if !ok {
-					writeMu.Lock()
-					_ = conn.WriteJSON(TerminalMessage{Type: MsgTypeExit, Code: sess.ExitCode()})
-					writeMu.Unlock()
+					_ = writeTerminalJSON(conn, &writeMu, TerminalMessage{Type: MsgTypeExit, Code: sess.ExitCode()})
 					return
 				}
-				writeMu.Lock()
-				err := conn.WriteJSON(TerminalMessage{
+				err := writeTerminalJSON(conn, &writeMu, TerminalMessage{
 					Type: MsgTypeStdout,
 					Data: string(data),
 				})
-				writeMu.Unlock()
 				s.metrics.WSMessagesSent.Add(1)
 				if err != nil {
 					return
 				}
-				sess.FlushPending(sub.OutputCh)
+				if !emitEchoState() {
+					return
+				}
+				if sess.FlushPending(sub.OutputCh) {
+					snapshot, generation, ok := sess.Resync(sub.OutputCh)
+					if !ok {
+						continue
+					}
+					snapshot, droppedLines, truncated := boundSnapshot(snapshot, config.Load().MaxSnapshotBytes)
+					if err := writeTerminalJSON(conn, &writeMu, TerminalMessage{Type: MsgTypeResync}); err != nil {
+						return
+					}
+					if truncated {
+						if err := writeTerminalJSON(conn, &writeMu, TerminalMessage{Type: MsgTypeSnapshotNotice, Data: fmt.Sprintf("%d scrollback lines omitted", droppedLines)}); err != nil {
+							return
+						}
+					}
+					for off := 0; off < len(snapshot); off += session.HistoryChunkSize {
+						end := off + session.HistoryChunkSize
+						if end > len(snapshot) {
+							end = len(snapshot)
+						}
+						if err := writeTerminalJSON(conn, &writeMu, TerminalMessage{Type: MsgTypeStdout, Data: string(snapshot[off:end])}); err != nil {
+							return
+						}
+					}
+					if err := writeTerminalJSON(conn, &writeMu, TerminalMessage{Type: MsgTypeHistoryEnd}); err != nil {
+						return
+					}
+					if !emitEchoState() {
+						return
+					}
+					sess.CompleteResync(sub.OutputCh, generation)
+				}
 			case coalesced := <-sub.NotifyCh:
-				writeMu.Lock()
-				_ = conn.WriteJSON(TerminalMessage{
+				_ = writeTerminalJSON(conn, &writeMu, TerminalMessage{
 					Type:            MsgTypeSyncWarning,
 					CoalescedFrames: coalesced,
 				})
-				writeMu.Unlock()
 				s.metrics.WSMessagesSent.Add(1)
 			case size, ok := <-sub.SizeCh:
 				if !ok {
@@ -290,9 +327,7 @@ func (s *Server) handleTerminalWS(w http.ResponseWriter, r *http.Request) {
 				if cols != size[0] || rows != size[1] {
 					continue
 				}
-				writeMu.Lock()
-				err := conn.WriteJSON(TerminalMessage{Type: MsgTypeSizeInfo, Cols: int(cols), Rows: int(rows), Leader: leader, LeaderDevice: leaderDevice, HoldsLease: holdsLease, ViewerCount: viewerCount})
-				writeMu.Unlock()
+				err := writeTerminalJSON(conn, &writeMu, TerminalMessage{Type: MsgTypeSizeInfo, Cols: int(cols), Rows: int(rows), Leader: leader, LeaderDevice: leaderDevice, HoldsLease: holdsLease, ViewerCount: viewerCount})
 				if err != nil {
 					return
 				}
@@ -318,14 +353,18 @@ func (s *Server) handleTerminalWS(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeMu.Lock()
-	if err := conn.WriteJSON(TerminalMessage{Type: MsgTypeSessionReady, Gen: wsGen}); err != nil {
-		writeMu.Unlock()
+	mouseMode, mouseModeErr := sess.MouseMode()
+	if err := writeTerminalJSON(conn, &writeMu, TerminalMessage{
+		Type:            MsgTypeSessionReady,
+		Gen:             wsGen,
+		AcceptedThrough: sess.AcceptedThrough(),
+		ProtocolVersion: ProtocolVersion,
+		MouseMode:       mouseMode,
+		MouseModeKnown:  mouseModeErr == nil,
+	}); err != nil {
 		log.Printf("ws[%s]: failed to send session_ready: %v", sessionID, err)
 		return
 	}
-	writeMu.Unlock()
-
 	// Input loop: WebSocket client → PTY stdin / resize / ping-pong.
 	// When this returns, defer cancel() signals the output forwarder to
 	// exit. Per-message handling lives in terminal_ws_input.go so the

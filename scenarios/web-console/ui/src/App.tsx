@@ -34,7 +34,7 @@ export default function App() {
     retry: HEALTH_RETRY_COUNT,
     retryDelay: HEALTH_RETRY_DELAY_MS,
     // Keep polling so banner auto-clears when connection recovers
-    refetchInterval: (query) => query.state.status === "error" ? 10_000 : false,
+	refetchInterval: (query) => query.state.status === "error" ? 10 * 1000 : false,
   });
   const capabilitiesQuery = useCapabilities();
   const { isLoading, error, isFetching } = healthQuery;

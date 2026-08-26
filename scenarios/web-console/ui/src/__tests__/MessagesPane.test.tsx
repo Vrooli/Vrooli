@@ -1,5 +1,6 @@
+import { renderWithProviders as render } from "../test-utils";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { act, render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { act, screen, fireEvent, waitFor } from "@testing-library/react";
 import MessagesPane from "../components/MessagesPane";
 import { strings } from "../consts/strings";
 import { useConversationStore } from "../stores/useConversationStore";
@@ -1068,7 +1069,7 @@ describe("MessagesPane", () => {
         // e101 was 0px from the viewport top before prepend. It is moved to
         // its new virtual index rather than leaving the user at the top of
         // the newly inserted page.
-        expect(scrollTop).toBeGreaterThan(10_000);
+		expect(scrollTop).toBeGreaterThan(10 * 1000);
       } finally {
         Element.prototype.getBoundingClientRect = originalGetBoundingClientRect;
       }

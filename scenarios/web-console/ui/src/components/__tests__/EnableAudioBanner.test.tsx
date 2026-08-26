@@ -1,6 +1,7 @@
+import { renderWithProviders as render } from "../../test-utils";
 import { describe, it, expect, vi } from "vitest";
 import { useState } from "react";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { screen, fireEvent, waitFor } from "@testing-library/react";
 import { useTranslation } from "react-i18next";
 import BannerRegion from "../banners/BannerRegion";
 import { enableAudioBanner } from "../banners/descriptors";

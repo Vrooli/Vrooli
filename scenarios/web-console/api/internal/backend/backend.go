@@ -4,7 +4,9 @@ package backend
 
 import (
 	"fmt"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"sync"
 	"time"
@@ -19,6 +21,7 @@ type ID string
 const (
 	Standard   ID = "standard"
 	Persistent ID = "persistent"
+	Remote     ID = "remote"
 )
 
 // Descriptor describes a session backend's capabilities and availability.
@@ -130,7 +133,8 @@ func defaultCheckTmuxAvailable() (bool, string) {
 	if err != nil {
 		return false, "tmux is not installed"
 	}
-	out, err := exec.Command(path, "-V").Output()
+	socket := tmuxProbeSocketPath()
+	out, err := exec.Command(path, "-S", socket, "-V").Output()
 	if err != nil {
 		return false, fmt.Sprintf("tmux version check failed: %v", err)
 	}
@@ -139,32 +143,55 @@ func defaultCheckTmuxAvailable() (bool, string) {
 		return false, fmt.Sprintf("unexpected tmux version output: %q", version)
 	}
 
+	cacheKey := version + "\x00" + socket
 	tmuxProbeMu.Lock()
-	if cached, ok := tmuxProbeCache[version]; ok {
+	if cached, ok := tmuxProbeCache[cacheKey]; ok {
 		tmuxProbeMu.Unlock()
 		return cached.available, cached.reason
 	}
 	tmuxProbeMu.Unlock()
 
 	name := fmt.Sprintf("vrooli-web-console-probe-%d", time.Now().UnixNano())
-	defer func() { _ = tmuxProbeCommand(path, "kill-session", "-t", name) }()
-	if reason := runTmuxProbeCommand(path, "new-session", "-d", "-s", name, "-e", "K=V"); reason != "" {
-		return cacheTmuxProbe(version, false, reason)
-	}
-	commands := [][]string{
-		{"resize-window", "-t", name, "-x", "80", "-y", "24"},
-		{"set-buffer", "-b", "vrooli-probe-buffer", "probe"},
-		{"paste-buffer", "-p", "-b", "vrooli-probe-buffer", "-t", name},
-		{"send-keys", "-t", name, "-X", "cancel"},
-		{"display-message", "-t", name, "-p", "#{pane_in_mode}"},
-		{"display-message", "-t", name, "-p", "#{pane_dead_status}"},
-	}
-	for _, command := range commands {
+	defer func() { _ = tmuxProbeCommand(path, "-S", socket, "kill-session", "-t", name) }()
+	defer func() {
+		_ = tmuxProbeCommand(path, "-S", socket, "delete-buffer", "-b", "vrooli-probe-buffer")
+	}()
+	for _, command := range tmuxProbeCommands(socket, name) {
 		if reason := runTmuxProbeCommand(path, command...); reason != "" {
-			return cacheTmuxProbe(version, false, reason)
+			return cacheTmuxProbe(cacheKey, false, reason)
 		}
 	}
-	return cacheTmuxProbe(version, true, "")
+	return cacheTmuxProbe(cacheKey, true, "")
+}
+
+// tmuxProbeCommands is the complete command list used after the version
+// check. Keeping the socket flag in this builder makes it hard for a future
+// probe step to accidentally touch the operator's default tmux server.
+func tmuxProbeCommands(socket, session string) [][]string {
+	return [][]string{
+		{"-S", socket, "new-session", "-d", "-s", session, "-e", "K=V"},
+		{"-S", socket, "resize-window", "-t", session, "-x", "80", "-y", "24"},
+		{"-S", socket, "set-buffer", "-b", "vrooli-probe-buffer", "probe"},
+		{"-S", socket, "paste-buffer", "-d", "-p", "-b", "vrooli-probe-buffer", "-t", session},
+		{"-S", socket, "display-message", "-t", session, "-p", "#{pane_in_mode}"},
+		{"-S", socket, "display-message", "-t", session, "-p", "#{pane_dead_status}"},
+	}
+}
+
+func tmuxProbeSocketPath() string {
+	if socket := strings.TrimSpace(os.Getenv("WC_TMUX_SOCKET")); socket != "" {
+		if absolute, err := filepath.Abs(socket); err == nil {
+			_ = os.MkdirAll(filepath.Dir(absolute), 0o755)
+			return absolute
+		}
+	}
+	root := strings.TrimSpace(os.Getenv("WC_SESSION_STATE_ROOT"))
+	if root == "" {
+		root = filepath.Join(os.TempDir(), "vrooli-web-console")
+	}
+	path := filepath.Join(root, "tmux", "wc.sock")
+	_ = os.MkdirAll(filepath.Dir(path), 0o755)
+	return path
 }
 
 func runTmuxProbeCommand(path string, args ...string) string {

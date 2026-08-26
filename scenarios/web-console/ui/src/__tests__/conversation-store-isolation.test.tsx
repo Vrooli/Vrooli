@@ -1,5 +1,6 @@
+import { renderWithProviders as render } from "../test-utils";
 import { describe, it, expect, beforeEach } from "vitest";
-import { render, act } from "@testing-library/react";
+import { act } from "@testing-library/react";
 import {
   useConversationStore,
   getSessionConversationEvents,

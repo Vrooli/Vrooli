@@ -2,6 +2,17 @@
 @tailwind components;
 @tailwind utilities;
 
+/* The terminal grid must be measured against the same face on every host.
+ * The font is bundled by @fontsource and emitted by Vite from this origin;
+ * `block` prevents xterm's first fit from observing a fallback face. */
+@font-face {
+  font-family: "Web Console JetBrains Mono";
+  src: url("@fontsource/jetbrains-mono/files/jetbrains-mono-latin-400-normal.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: block;
+}
+
 :root {
   color-scheme: dark;
 

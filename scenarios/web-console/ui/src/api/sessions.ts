@@ -309,6 +309,7 @@ export async function createSession(opts?: {
 	display_label?: string;
 	target_id?: string;
 	working_dir?: string;
+	tmux_mouse_mode?: boolean;
 	idempotency_key?: string;
 }): Promise<SessionInfo> {
   const resp = await sessionsClient.create({
@@ -323,6 +324,7 @@ export async function createSession(opts?: {
     displayLabel: opts?.display_label ?? "",
 	targetId: opts?.target_id ?? "",
 	workingDir: opts?.working_dir ?? "",
+	tmuxMouseMode: opts?.tmux_mouse_mode ?? false,
     // First-party UI client: tag provenance explicitly so an origin-less
     // create (which the server normalizes to programmatic) can only come from
     // a non-UI caller.
@@ -381,16 +383,11 @@ export async function deleteSession(id: string): Promise<void> {
 }
 
 export async function archiveSession(id: string): Promise<void> {
-	if (id.startsWith("remote:")) {
-		await sessionsClient.delete({ id });
-    return;
-  }
   await sessionsClient.archive({ id });
   window.dispatchEvent(new CustomEvent("web-console:archive-changed"));
 }
 
 export async function unarchiveSession(id: string): Promise<void> {
-  if (id.startsWith("remote:")) return;
   await sessionsClient.unarchive({ id });
   window.dispatchEvent(new CustomEvent("web-console:archive-changed"));
 }

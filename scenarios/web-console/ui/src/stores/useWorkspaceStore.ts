@@ -31,6 +31,11 @@ export interface PaneMetadata {
   manuallyUnread: boolean;
 }
 
+export interface PendingInputDraftEntry {
+  data: string;
+  intent: "typing" | "bulk_text" | "named_key";
+}
+
 export type DisplayMode = "grid" | "tabs" | "sidebar";
 export type ToolbarLayout = "compact" | "expanded";
 export type PlusButtonBehavior = "launcher" | "new-terminal";
@@ -56,6 +61,13 @@ export interface TabContextMenuState {
   sessionId: string;
   position: { x: number; y: number };
 }
+
+export type TerminalPaneStatus =
+  | { kind: "reconnected"; detail?: string }
+  | { kind: "disconnected"; detail?: string }
+  | { kind: "resynced"; detail?: string }
+  | { kind: "session-ended"; detail?: string }
+  | { kind: "error"; detail: string };
 
 /** The pane appearance properties that can be propagated to other sessions. */
 export type AppearanceProperty = "headerColor" | "themeId" | "fontSize";
@@ -134,6 +146,13 @@ interface WorkspaceState {
   /** Tint the app chrome (status bar, top bar, toolbar, sidebar) to match the
    *  focused terminal's background in single-focus (tabs/sidebar) modes. */
   adaptiveChrome: boolean;
+  /** Independent physical scroll calibration for touch and wheel input. */
+  touchScrollSensitivity: number;
+  wheelScrollSensitivity: number;
+  /** Default tmux mouse capture for newly-created persistent panes. */
+  tmuxMouseMode: boolean;
+  /** RTT above which speculative terminal characters receive the pending style. */
+  predictionLatencyThresholdMs: number;
   /** Mobile toolbar modifier key toggles (Ctrl/Alt/Shift). Not persisted. */
   modifiers: ModifierState;
   groups: TabGroupMeta[];
@@ -148,9 +167,13 @@ interface WorkspaceState {
    *  (offscreen sessions are unmounted to keep cost flat in N) and re-injected
    *  on remount. Ephemeral — not persisted. */
   pendingInputDrafts: Record<string, string>;
+	/** Ordered unsent entries retained across offscreen pane unmounts. */
+	pendingInputBuffers: Record<string, PendingInputDraftEntry[]>;
 	/** Local terminal font preferences; intentionally never sent to the workspace API. */
-  deviceFontSize: Record<string, number>;
+	deviceFontSize: Record<string, number>;
 	viewerCounts: Record<string, number>;
+	/** Transient operator status rendered in pane chrome, never in xterm. */
+	paneStatuses: Record<string, TerminalPaneStatus>;
 }
 
 interface WorkspaceActions {
@@ -212,6 +235,8 @@ interface WorkspaceActions {
   setSidebarView: (view: SidebarView) => void;
   setSidebarOriginTab: (tab: SidebarOriginTab) => void;
   setAdaptiveChrome: (enabled: boolean) => void;
+  setTouchScrollSensitivity: (value: number) => void;
+  setWheelScrollSensitivity: (value: number) => void;
   toggleModifier: (key: keyof ModifierState) => void;
   clearModifiers: () => void;
   setGroups: (groups: TabGroupMeta[]) => void;
@@ -237,11 +262,27 @@ interface WorkspaceActions {
   setPendingInputDraft: (sessionId: string, draft: string) => void;
   /** Read and clear a session's stashed input (returns undefined if none). */
   consumePendingInputDraft: (sessionId: string) => string | undefined;
-	setDeviceFontSize: (sessionId: string, size: number) => void;
-	setViewerCount: (sessionId: string, count: number) => void;
+	setPendingInputBuffer: (sessionId: string, entries: PendingInputDraftEntry[]) => void;
+	consumePendingInputBuffer: (sessionId: string) => PendingInputDraftEntry[] | undefined;
+  setDeviceFontSize: (sessionId: string, size: number) => void;
+	clearDeviceFontSize: (sessionId: string) => void;
+  setViewerCount: (sessionId: string, count: number) => void;
+	setPaneStatus: (sessionId: string, status: TerminalPaneStatus | null) => void;
+  setTmuxMouseMode: (enabled: boolean) => void;
+  setPredictionLatencyThresholdMs: (value: number) => void;
+  resetScrollSensitivities: () => void;
 }
 
 export type WorkspaceStore = WorkspaceState & WorkspaceActions;
+
+/** Single read authority for the effective terminal font size. */
+export function useEffectiveFontSize(sessionId: string): number {
+  return useWorkspaceStore((state) =>
+    state.deviceFontSize[sessionId] ??
+    state.panes.find((pane) => pane.sessionId === sessionId)?.fontSize ??
+    TERMINAL_FONT_SIZE,
+  );
+}
 
 /**
  * Apply a group-membership change to one pane and restore the block invariant
@@ -317,10 +358,16 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
       sidebarView: "list",
       sidebarOriginTab: "ui",
       adaptiveChrome: true,
+	  touchScrollSensitivity: 1,
+	  wheelScrollSensitivity: 1,
+	  tmuxMouseMode: false,
+      predictionLatencyThresholdMs: 20,
       modifiers: { ctrl: false, alt: false, shift: false },
       pendingInputDrafts: {},
+		pendingInputBuffers: {},
 		deviceFontSize: {},
 		viewerCounts: {},
+		paneStatuses: {},
       groups: [],
       tabContextMenu: null,
       manageGroupsTarget: null,
@@ -344,6 +391,11 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
       setSidebarView: (view) => set({ sidebarView: view }),
       setSidebarOriginTab: (tab) => set({ sidebarOriginTab: tab }),
       setAdaptiveChrome: (enabled) => set({ adaptiveChrome: enabled }),
+	  setTouchScrollSensitivity: (value) => set({ touchScrollSensitivity: Math.max(0.1, Math.min(4, value)) }),
+	  setWheelScrollSensitivity: (value) => set({ wheelScrollSensitivity: Math.max(0.1, Math.min(4, value)) }),
+	  setTmuxMouseMode: (enabled) => set({ tmuxMouseMode: enabled }),
+	  setPredictionLatencyThresholdMs: (value) => set({ predictionLatencyThresholdMs: Math.max(0, Math.min(1000, value)) }),
+	  resetScrollSensitivities: () => set({ touchScrollSensitivity: 1, wheelScrollSensitivity: 1 }),
 
       addPane: (sessionId, name, activate, supportsMessagesView = false) =>
         set((state) => {
@@ -372,11 +424,17 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
         set((state) => {
           const pendingInputDrafts = { ...state.pendingInputDrafts };
           delete pendingInputDrafts[sessionId];
+			const pendingInputBuffers = { ...state.pendingInputBuffers };
+			delete pendingInputBuffers[sessionId];
+			const paneStatuses = { ...state.paneStatuses };
+			delete paneStatuses[sessionId];
           return {
             panes: state.panes.filter((p) => p.sessionId !== sessionId),
             activePane:
               state.activePane === sessionId ? null : state.activePane,
             pendingInputDrafts,
+			pendingInputBuffers,
+			paneStatuses,
           };
         }),
 
@@ -411,7 +469,18 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
 		setDeviceFontSize: (sessionId, size) => set((state) => ({
 			deviceFontSize: { ...state.deviceFontSize, [sessionId]: clampFontSize(size) },
 		})),
+		clearDeviceFontSize: (sessionId) => set((state) => {
+			const next = { ...state.deviceFontSize };
+			delete next[sessionId];
+			return { deviceFontSize: next };
+		}),
 		setViewerCount: (sessionId, count) => set((state) => ({ viewerCounts: { ...state.viewerCounts, [sessionId]: count } })),
+		setPaneStatus: (sessionId, status) => set((state) => {
+			const paneStatuses = { ...state.paneStatuses };
+			if (status) paneStatuses[sessionId] = status;
+			else delete paneStatuses[sessionId];
+			return { paneStatuses };
+		}),
 
       movePaneToIndex: (sessionId, newIndex) =>
         set((state) => {
@@ -519,6 +588,23 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
         });
         return draft;
       },
+		setPendingInputBuffer: (sessionId, entries) =>
+			set((state) => {
+				const next = { ...state.pendingInputBuffers };
+				if (entries.length > 0) next[sessionId] = entries.map((entry) => ({ ...entry }));
+				else delete next[sessionId];
+				return { pendingInputBuffers: next };
+			}),
+		consumePendingInputBuffer: (sessionId) => {
+			const entries = get().pendingInputBuffers[sessionId];
+			if (!entries) return undefined;
+			set((state) => {
+				const next = { ...state.pendingInputBuffers };
+				delete next[sessionId];
+				return { pendingInputBuffers: next };
+			});
+			return entries.map((entry) => ({ ...entry }));
+		},
       setGroups: (groups) => set({ groups }),
       addGroup: (group) => set((state) => ({ groups: [...state.groups, group] })),
       removeGroup: (groupId) => set((state) => ({
@@ -561,7 +647,7 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
     }),
     {
       name: "wc-workspace",
-      version: 18,
+      version: 22,
       migrate: (persisted, version) => {
         const state = persisted as Record<string, unknown>;
         if (version < 1) {
@@ -638,6 +724,16 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
         if (version < 18) {
           state.sidebarView ??= "list";
         }
+        if (version < 19) {
+          state.touchScrollSensitivity ??= 1;
+          state.wheelScrollSensitivity ??= 1;
+        }
+        if (version < 21) {
+          state.tmuxMouseMode ??= false;
+        }
+        if (version < 22) {
+          state.predictionLatencyThresholdMs ??= 20;
+        }
         return state as unknown as WorkspaceState & WorkspaceActions;
       },
       partialize: (state) => ({
@@ -674,6 +770,10 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
         sidebarView: state.sidebarView,
         sidebarOriginTab: state.sidebarOriginTab,
         adaptiveChrome: state.adaptiveChrome,
+        touchScrollSensitivity: state.touchScrollSensitivity,
+        wheelScrollSensitivity: state.wheelScrollSensitivity,
+        tmuxMouseMode: state.tmuxMouseMode,
+        predictionLatencyThresholdMs: state.predictionLatencyThresholdMs,
         keepScreenAwake: state.keepScreenAwake,
       }),
     },

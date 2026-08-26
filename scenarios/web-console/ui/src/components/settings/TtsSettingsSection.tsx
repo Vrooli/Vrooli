@@ -432,7 +432,7 @@ export default function TtsSettingsSection() {
                 data-testid="summarize-threshold"
                 type="number"
                 min={100}
-                max={10000}
+                max={10 * 1000}
                 step={100}
                 value={summarizeSettings.config?.charThreshold ?? 500}
                 onChange={(e) => {

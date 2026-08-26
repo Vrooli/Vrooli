@@ -79,7 +79,7 @@ export const useConversationStore = create<ConversationStoreState & Conversation
     // Merge with anything appendEvent already added while the GET was in
     // flight — naively replacing would drop live WS events that arrived
     // after the request but before the response, leaving a permanent
-    // sequence gap (refresh uses max seq as since_sequence and never
+    // sequence gap (refresh uses max offset as since_sequence and never
     // backfills lower events). See useConversationSession mount effect.
     const existing = state.sessions[sessionId];
     if (!existing || existing.events.length === 0) {

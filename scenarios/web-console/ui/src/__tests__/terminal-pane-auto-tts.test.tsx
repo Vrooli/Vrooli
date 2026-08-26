@@ -1,5 +1,6 @@
+import { renderWithProviders as render } from "../test-utils";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, act, cleanup } from "@testing-library/react";
+import { act, cleanup } from "@testing-library/react";
 import { apiBaseMock } from "../test-utils";
 import { useConversationStore } from "../stores/useConversationStore";
 import type { ConversationEvent } from "../api/conversation";
@@ -51,8 +52,8 @@ vi.mock("../hooks/useTextToSpeech", () => ({
 // So we mock the session hook (no WS conversation callbacks anymore) and drive
 // tests by appending events to the real conversation store.
 vi.mock("../hooks/terminal/useTerminalSession", () => {
-  const gate = { submit: vi.fn(() => ({ status: "sent" as const, seq: 1 })), dispose: vi.fn(), canAcceptPaste: () => true };
-  const submitInput = vi.fn(() => ({ status: "sent" as const, seq: 1 }));
+  const gate = { submit: vi.fn(() => ({ status: "sent" as const, offset: 1 })), dispose: vi.fn() };
+  const submitInput = vi.fn(() => ({ status: "sent" as const, offset: 1 }));
   return {
     useTerminalSession: () => ({
       submitInput,
@@ -130,6 +131,8 @@ const storeState: Record<string, unknown> = {
   panes: [{ sessionId: "tts-test", name: "test", headerColor: "transparent", themeId: "default", fontSize: 14, groupId: null }],
   activePane: "tts-test",
   renamePaneById: vi.fn(),
+  setPendingInputBuffer: vi.fn(),
+  consumePendingInputBuffer: vi.fn(() => undefined),
   setPendingInputDraft: vi.fn(),
   consumePendingInputDraft: vi.fn(() => undefined),
 };
@@ -137,6 +140,7 @@ const storeState: Record<string, unknown> = {
 vi.mock("../stores/useWorkspaceStore", () => ({
   useWorkspaceStore: (selector?: (s: Record<string, unknown>) => unknown) =>
     selector ? selector(storeState) : storeState,
+  useEffectiveFontSize: () => 14,
 }));
 
 const { default: TerminalPane } = await import("../components/TerminalPane");

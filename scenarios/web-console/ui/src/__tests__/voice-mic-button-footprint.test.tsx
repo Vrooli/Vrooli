@@ -1,5 +1,6 @@
+import { renderWithProviders as render } from "../test-utils";
 import { describe, it, expect, vi } from "vitest";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, screen } from "@testing-library/react";
 import VoiceMicButton from "../components/VoiceMicButton";
 import { BannerHarness } from "../components/banners/__tests__/harness";
 import {

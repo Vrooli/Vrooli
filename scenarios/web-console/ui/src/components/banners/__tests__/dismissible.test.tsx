@@ -1,5 +1,6 @@
+import { renderWithProviders as render } from "../../../test-utils";
 import { describe, expect, it, vi } from "vitest";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, screen } from "@testing-library/react";
 import { useTranslation } from "react-i18next";
 import BannerRegion from "../BannerRegion";
 import { INSTANT_DAMPING } from "../damping";

@@ -1,0 +1,648 @@
+<title>Terminal Signal Path</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@500;600;700&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap">
+
+<style>
+:root {
+  /* Light: cool instrument paper, neutrals biased toward the petrol accent */
+  --ground:      #eef2f4;
+  --surface:     #ffffff;
+  --surface-2:   #f6f9fa;
+  --line:        #d3dde2;
+  --line-strong: #b3c3cb;
+  --ink:         #16212b;
+  --ink-2:       #47606e;
+  --ink-3:       #748894;
+  --accent:      #0d6a86;
+  --accent-soft: #d9ecf2;
+  --accent-ink:  #0a4f65;
+  --crit:        #a32f30;
+  --crit-soft:   #f6e0e0;
+  --warn:        #97620d;
+  --warn-soft:   #f8ebd5;
+  --ok:          #2b6f4e;
+  --ok-soft:     #dcefe4;
+  --shadow:      0 1px 2px rgba(22,33,43,.06), 0 8px 24px -18px rgba(22,33,43,.5);
+
+  --f-display: "IBM Plex Sans Condensed", "Helvetica Neue", Arial, sans-serif;
+  --f-body:    "IBM Plex Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --f-mono:    "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+
+  --measure: 68ch;
+  --pad: clamp(1.25rem, 4vw, 3rem);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --ground:      #0d151b;
+    --surface:     #141f27;
+    --surface-2:   #18242d;
+    --line:        #26353f;
+    --line-strong: #3a4d59;
+    --ink:         #dde7ec;
+    --ink-2:       #9db0bb;
+    --ink-3:       #71858f;
+    --accent:      #4fb4d0;
+    --accent-soft: #12333f;
+    --accent-ink:  #8ad2e6;
+    --crit:        #e08181;
+    --crit-soft:   #3a1f20;
+    --warn:        #d9a75a;
+    --warn-soft:   #3a2c14;
+    --ok:          #74c79b;
+    --ok-soft:     #16321f;
+    --shadow:      0 1px 2px rgba(0,0,0,.4), 0 10px 30px -20px rgba(0,0,0,.9);
+  }
+}
+
+:root[data-theme="dark"] {
+  --ground:      #0d151b;
+  --surface:     #141f27;
+  --surface-2:   #18242d;
+  --line:        #26353f;
+  --line-strong: #3a4d59;
+  --ink:         #dde7ec;
+  --ink-2:       #9db0bb;
+  --ink-3:       #71858f;
+  --accent:      #4fb4d0;
+  --accent-soft: #12333f;
+  --accent-ink:  #8ad2e6;
+  --crit:        #e08181;
+  --crit-soft:   #3a1f20;
+  --warn:        #d9a75a;
+  --warn-soft:   #3a2c14;
+  --ok:          #74c79b;
+  --ok-soft:     #16321f;
+  --shadow:      0 1px 2px rgba(0,0,0,.4), 0 10px 30px -20px rgba(0,0,0,.9);
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--ground);
+  color: var(--ink);
+  font-family: var(--f-body);
+  font-size: 16px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+.wrap {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: var(--pad);
+  display: flex;
+  flex-direction: column;
+  gap: clamp(2.5rem, 6vw, 4.5rem);
+}
+
+/* ---------- type ---------- */
+h1, h2, h3, h4 { font-family: var(--f-display); text-wrap: balance; margin: 0; line-height: 1.12; }
+h1 { font-size: clamp(2.4rem, 6vw, 4rem); font-weight: 700; letter-spacing: -.022em; }
+h2 { font-size: clamp(1.5rem, 3.2vw, 2.1rem); font-weight: 700; letter-spacing: -.014em; }
+h3 { font-size: 1.16rem; font-weight: 600; letter-spacing: -.006em; }
+h4 { font-size: .95rem; font-weight: 600; }
+p  { margin: 0; max-width: var(--measure); }
+
+.eyebrow {
+  font-family: var(--f-mono);
+  font-size: .70rem;
+  font-weight: 500;
+  letter-spacing: .16em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+.lede { font-size: clamp(1.02rem, 1.6vw, 1.16rem); color: var(--ink-2); max-width: 62ch; }
+code, .mono { font-family: var(--f-mono); font-size: .855em; }
+code {
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  padding: .08em .34em;
+  color: var(--accent-ink);
+  overflow-wrap: anywhere;
+}
+a { color: var(--accent); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+a:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+
+/* ---------- masthead ---------- */
+.masthead { display: flex; flex-direction: column; gap: 1.5rem; padding-top: clamp(.5rem, 3vw, 2rem); }
+.mast-rule {
+  display: flex; align-items: baseline; gap: 1rem;
+  border-bottom: 2px solid var(--ink); padding-bottom: .6rem;
+}
+.mast-rule .eyebrow { color: var(--ink-2); }
+.mast-rule .spacer { flex: 1; height: 1px; }
+.mast-meta { font-family: var(--f-mono); font-size: .72rem; color: var(--ink-3); letter-spacing: .04em; }
+
+.verdict {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 1px;
+  background: var(--line);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  overflow: hidden;
+}
+.verdict > div { background: var(--surface); padding: 1rem 1.1rem; display: flex; flex-direction: column; gap: .3rem; }
+.verdict dt { font-family: var(--f-mono); font-size: .68rem; letter-spacing: .13em; text-transform: uppercase; color: var(--ink-3); }
+.verdict dd { margin: 0; font-family: var(--f-display); font-size: 1.9rem; font-weight: 700; line-height: 1; font-variant-numeric: tabular-nums; }
+.verdict .note { font-size: .8rem; color: var(--ink-2); line-height: 1.4; }
+
+/* ---------- sections ---------- */
+section { display: flex; flex-direction: column; gap: 1.5rem; }
+.sec-head { display: flex; flex-direction: column; gap: .55rem; border-top: 1px solid var(--line-strong); padding-top: 1.1rem; }
+.sec-head .row { display: flex; align-items: baseline; gap: .9rem; flex-wrap: wrap; }
+.stage-no {
+  font-family: var(--f-mono); font-size: .72rem; font-weight: 600;
+  color: var(--surface); background: var(--ink);
+  padding: .18rem .45rem; border-radius: 2px; letter-spacing: .06em;
+}
+
+/* ---------- schematic: two lanes ---------- */
+.schematic {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  box-shadow: var(--shadow);
+  overflow-x: auto;
+  padding: 1.4rem;
+}
+.lane-grid { min-width: 720px; display: flex; flex-direction: column; gap: .55rem; }
+.lane-label {
+  display: flex; align-items: center; gap: .5rem;
+  font-family: var(--f-mono); font-size: .69rem; letter-spacing: .13em;
+  text-transform: uppercase; color: var(--ink-3);
+}
+.lane-label b { color: var(--ink-2); font-weight: 600; }
+.lane {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  align-items: stretch;
+  gap: 0;
+}
+.node {
+  position: relative;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  padding: .6rem .7rem;
+  display: flex; flex-direction: column; gap: .18rem;
+  min-height: 76px;
+}
+.node + .node { border-left: none; }
+.node .n-t { font-family: var(--f-mono); font-size: .74rem; font-weight: 600; color: var(--ink); line-height: 1.3; overflow-wrap: anywhere; }
+.node .n-s { font-size: .72rem; color: var(--ink-3); line-height: 1.35; }
+.node.choke { background: var(--crit-soft); border-color: color-mix(in srgb, var(--crit) 40%, transparent); z-index: 1; }
+.node.choke .n-t { color: var(--crit); }
+.node.choke .n-s { color: color-mix(in srgb, var(--crit) 75%, var(--ink)); }
+.node.edge { background: var(--accent-soft); border-color: color-mix(in srgb, var(--accent) 35%, transparent); }
+.node.edge .n-t { color: var(--accent-ink); }
+
+.flowmark {
+  display: flex; align-items: center; gap: .4rem;
+  font-family: var(--f-mono); font-size: .68rem; letter-spacing: .1em;
+  text-transform: uppercase; color: var(--ink-3);
+}
+.flowmark .bar { flex: 1; height: 1px; background: repeating-linear-gradient(90deg, var(--line-strong) 0 6px, transparent 6px 11px); }
+
+.legend { display: flex; flex-wrap: wrap; gap: 1.1rem; font-size: .78rem; color: var(--ink-2); }
+.legend span { display: inline-flex; align-items: center; gap: .4rem; }
+.swatch { width: .8rem; height: .8rem; border-radius: 2px; border: 1px solid var(--line-strong); display: inline-block; }
+.swatch.c { background: var(--crit-soft); border-color: var(--crit); }
+.swatch.e { background: var(--accent-soft); border-color: var(--accent); }
+.swatch.n { background: var(--surface-2); }
+
+/* ---------- tables ---------- */
+.tablewrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 5px; background: var(--surface); box-shadow: var(--shadow); }
+table { border-collapse: collapse; width: 100%; min-width: 640px; font-size: .855rem; }
+thead th {
+  text-align: left; font-family: var(--f-mono); font-weight: 600;
+  font-size: .68rem; letter-spacing: .11em; text-transform: uppercase;
+  color: var(--ink-3); padding: .7rem .85rem; background: var(--surface-2);
+  border-bottom: 1px solid var(--line-strong); white-space: nowrap;
+}
+tbody td { padding: .68rem .85rem; border-bottom: 1px solid var(--line); vertical-align: top; color: var(--ink-2); }
+tbody tr:last-child td { border-bottom: none; }
+tbody td:first-child { color: var(--ink); font-family: var(--f-mono); font-size: .8rem; white-space: nowrap; }
+
+/* ---------- queue diagram ---------- */
+.queuebox { background: var(--surface); border: 1px solid var(--line); border-radius: 5px; box-shadow: var(--shadow); padding: 1.4rem; overflow-x: auto; }
+.queue-grid { min-width: 660px; display: grid; grid-template-columns: 1.15fr auto 1fr; gap: 1.2rem; align-items: center; }
+.feeders { display: flex; flex-direction: column; gap: .4rem; }
+.feeder {
+  display: grid; grid-template-columns: 1fr auto; gap: .6rem; align-items: center;
+  border: 1px solid var(--line); border-left: 3px solid var(--warn);
+  background: var(--surface-2); padding: .45rem .6rem; border-radius: 3px;
+}
+.feeder .fn { font-family: var(--f-mono); font-size: .74rem; color: var(--ink); }
+.feeder .fw { font-size: .7rem; color: var(--ink-3); text-align: right; }
+.sink { display: flex; flex-direction: column; gap: .55rem; align-items: center; text-align: center; }
+.bucket {
+  border: 1px dashed var(--line-strong); background: var(--surface-2);
+  border-radius: 4px; padding: .85rem .9rem; width: 100%;
+}
+.bucket .bt { font-family: var(--f-mono); font-size: .76rem; font-weight: 600; color: var(--ink); }
+.bucket .bs { font-size: .74rem; color: var(--ink-3); margin-top: .2rem; }
+.valve {
+  border: 1px solid var(--crit); background: var(--crit-soft); color: var(--crit);
+  border-radius: 3px; padding: .55rem .7rem; font-family: var(--f-mono); font-size: .74rem;
+  text-align: center; width: 100%;
+}
+.valve b { display: block; font-size: .68rem; letter-spacing: .1em; text-transform: uppercase; opacity: .8; margin-bottom: .15rem; }
+.arrowcol { display: flex; flex-direction: column; align-items: center; gap: .3rem; color: var(--ink-3); font-family: var(--f-mono); font-size: 1.3rem; }
+
+/* ---------- findings ---------- */
+.findings { display: grid; grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); gap: 1rem; }
+.finding {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-top: 3px solid var(--line-strong);
+  border-radius: 4px;
+  padding: 1.05rem 1.15rem 1.15rem;
+  display: flex; flex-direction: column; gap: .6rem;
+  box-shadow: var(--shadow);
+}
+.finding.sev-crit { border-top-color: var(--crit); }
+.finding.sev-warn { border-top-color: var(--warn); }
+.finding.sev-note { border-top-color: var(--accent); }
+.f-head { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; }
+.chip {
+  font-family: var(--f-mono); font-size: .64rem; font-weight: 600;
+  letter-spacing: .1em; text-transform: uppercase;
+  padding: .16rem .4rem; border-radius: 2px; border: 1px solid transparent; white-space: nowrap;
+}
+.chip.crit { background: var(--crit-soft); color: var(--crit); border-color: color-mix(in srgb, var(--crit) 35%, transparent); }
+.chip.warn { background: var(--warn-soft); color: var(--warn); border-color: color-mix(in srgb, var(--warn) 35%, transparent); }
+.chip.note { background: var(--accent-soft); color: var(--accent-ink); border-color: color-mix(in srgb, var(--accent) 35%, transparent); }
+.chip.area { background: transparent; color: var(--ink-3); border-color: var(--line-strong); }
+.finding h3 { margin-top: .1rem; }
+.finding p { font-size: .885rem; color: var(--ink-2); max-width: none; }
+.finding .sym { font-size: .85rem; color: var(--ink); background: var(--surface-2); border-left: 2px solid var(--line-strong); padding: .5rem .7rem; border-radius: 0 3px 3px 0; }
+.finding .sym b { font-family: var(--f-display); font-size: .7rem; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-3); display: block; margin-bottom: .15rem; }
+.refs { display: flex; flex-wrap: wrap; gap: .35rem; margin-top: auto; padding-top: .3rem; }
+.ref {
+  font-family: var(--f-mono); font-size: .68rem; color: var(--ink-3);
+  background: var(--surface-2); border: 1px solid var(--line);
+  padding: .12rem .38rem; border-radius: 2px; overflow-wrap: anywhere;
+}
+
+/* ---------- moves ---------- */
+.moves { display: flex; flex-direction: column; gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: 5px; overflow: hidden; }
+.move { background: var(--surface); padding: 1.05rem 1.2rem; display: grid; grid-template-columns: auto 1fr; gap: 1rem; align-items: start; }
+.move .num { font-family: var(--f-display); font-size: 1.5rem; font-weight: 700; color: var(--accent); line-height: 1; font-variant-numeric: tabular-nums; padding-top: .1rem; }
+.move .body { display: flex; flex-direction: column; gap: .35rem; }
+.move h4 { color: var(--ink); }
+.move p { font-size: .885rem; color: var(--ink-2); max-width: none; }
+.move .kills { font-family: var(--f-mono); font-size: .7rem; color: var(--ink-3); }
+
+/* ---------- callout ---------- */
+.callout {
+  border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--line));
+  background: var(--accent-soft);
+  border-left: 3px solid var(--accent);
+  border-radius: 0 4px 4px 0;
+  padding: 1rem 1.2rem;
+  display: flex; flex-direction: column; gap: .4rem;
+}
+.callout .eyebrow { color: var(--accent-ink); }
+.callout p { color: color-mix(in srgb, var(--accent-ink) 82%, var(--ink)); max-width: none; font-size: .9rem; }
+
+.quote {
+  border-left: 3px solid var(--line-strong);
+  padding-left: 1rem;
+  font-family: var(--f-mono);
+  font-size: .82rem;
+  color: var(--ink-2);
+  line-height: 1.55;
+}
+
+footer { border-top: 1px solid var(--line-strong); padding: 1.4rem 0 3rem; color: var(--ink-3); font-size: .8rem; display: flex; flex-direction: column; gap: .3rem; }
+
+@media (max-width: 700px) {
+  .queue-grid { grid-template-columns: 1fr; }
+  .arrowcol { flex-direction: row; }
+  .move { grid-template-columns: 1fr; gap: .4rem; }
+}
+@media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+</style>
+
+<div class="wrap">
+
+  <header class="masthead">
+    <div class="mast-rule">
+      <span class="eyebrow">web-console · terminal subsystem</span>
+      <span class="spacer"></span>
+      <span class="mast-meta">read-only review · 2026-08-24</span>
+    </div>
+    <h1>Terminal Signal Path</h1>
+    <p class="lede">How bytes actually move between xterm.js and a PTY in this scenario — and the structural reasons input misbehaves. The implementation is unusually well documented and carefully reasoned; the problems that remain are not sloppiness, they are three or four design decisions whose consequences compound.</p>
+
+    <dl class="verdict">
+      <div><dt>Input lanes</dt><dd>5</dd><span class="note">typing, bulk_text, named_key, control, and the Connect RPC — converging on one <code>SendInput</code> seam</span></div>
+      <div><dt>Server protocol impls</dt><dd>2</dd><span class="note">local and remote WebSocket handlers speak the same client protocol independently; only one is complete</span></div>
+      <div><dt>Queue drain triggers</dt><dd>1</dd><span class="note">five code paths fill the pending-input queue; exactly one event empties it, and it is unrelated to all five</span></div>
+      <div><dt>Forks per keystroke</dt><dd>2</dd><span class="note">on the tmux backend every character spawns <code>display-message</code> then <code>send-keys</code></span></div>
+    </dl>
+  </header>
+
+  <!-- ============ 1. THE MAP ============ -->
+  <section>
+    <div class="sec-head">
+      <div class="row"><span class="stage-no">MAP</span><h2>Two lanes, three shared chokepoints</h2></div>
+      <p>Output and input are separate pipelines with separate failure modes, but they meet at three places. Every compounding bug in this subsystem is a chokepoint problem: something slow in the output lane starves the input lane, and the input lane's recovery logic then does damage.</p>
+    </div>
+
+    <div class="schematic">
+      <div class="lane-grid">
+
+        <div class="lane-label"><b>Output lane</b> — PTY → browser · server emulator is the source of truth</div>
+        <div class="lane">
+          <div class="node edge"><span class="n-t">PTY / tmux pane</span><span class="n-s">shell, TUI, agent CLI</span></div>
+          <div class="node"><span class="n-t">readLoop</span><span class="n-s">4 KiB reads, split at UTF-8 rune boundaries</span></div>
+          <div class="node choke"><span class="n-t">s.mu ①</span><span class="n-s">held across emulator Feed + sanitize + copy + fan-out</span></div>
+          <div class="node"><span class="n-t">terminal.Emulator</span><span class="n-s">full VT parse → screen + alt + 10k scrollback</span></div>
+          <div class="node"><span class="n-t">per-client coalesce</span><span class="n-s">1 MiB pending buffer, trim + SIGWINCH recovery</span></div>
+          <div class="node choke"><span class="n-t">writeMu ②</span><span class="n-s">one mutex for every JSON frame — no write deadline</span></div>
+          <div class="node edge"><span class="n-t">xterm.js</span><span class="n-s">pure renderer, DOM backend</span></div>
+        </div>
+
+        <div class="flowmark"><span class="bar"></span><span>shared session state</span><span class="bar"></span></div>
+
+        <div class="lane-label"><b>Input lane</b> — browser → PTY · client owns sequencing, retry, and echo</div>
+        <div class="lane">
+          <div class="node edge"><span class="n-t">xterm.onData</span><span class="n-s">one frame per keystroke, no coalescing</span></div>
+          <div class="node"><span class="n-t">LocalEchoController</span><span class="n-s">predicts printable chars, cannot un-write</span></div>
+          <div class="node choke"><span class="n-t">inputGate ③</span><span class="n-s">sends, or drops into a queue with no scheduler</span></div>
+          <div class="node"><span class="n-t">useStdinAck</span><span class="n-s">per-payload seq + 2 s ack timer + auto-retry</span></div>
+          <div class="node choke"><span class="n-t">writeMu ②</span><span class="n-s">stdin_ack queues behind stdout writes</span></div>
+          <div class="node choke"><span class="n-t">s.mu ①</span><span class="n-s">applyInput must take the same lock the parser holds</span></div>
+          <div class="node edge"><span class="n-t">PTY.WriteInput</span><span class="n-s">ptmx.Write, or 2 tmux subprocesses</span></div>
+        </div>
+
+      </div>
+    </div>
+
+    <div class="legend">
+      <span><i class="swatch e"></i> boundary of the system</span>
+      <span><i class="swatch n"></i> ordinary stage</span>
+      <span><i class="swatch c"></i> shared chokepoint — appears in both lanes</span>
+    </div>
+
+    <div class="callout">
+      <span class="eyebrow">The compounding chain</span>
+      <p>A slow or backgrounded browser tab stops draining its WebSocket. <b>②</b> <code>writeMu</code> is held by the output forwarder with no write deadline set anywhere in the server, so <code>stdin_ack</code> cannot be written. The client's 2 s ack timer fires, declares the keystroke lost, and re-queues it — even though the server already wrote those bytes to the shell. The re-queued payload then waits for the next reconnect before it is sent, because the queue's only drain trigger is <code>session_ready</code>. The user sees characters vanish, then a burst of duplicated, out-of-order input minutes later.</p>
+    </div>
+  </section>
+
+  <!-- ============ 2. LANES ============ -->
+  <section>
+    <div class="sec-head">
+      <div class="row"><span class="stage-no">LANES</span><h2>Where each kind of input actually goes</h2></div>
+      <p>The intent vocabulary is genuinely good design — it is what lets the tmux backend pick a mode-safe delivery path per payload. The problem is that intent is load-bearing in three places and silently discarded in two others.</p>
+    </div>
+
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>Lane</th><th>Producer</th><th>Standard PTY</th><th>tmux backend</th><th>Acked</th></tr></thead>
+        <tbody>
+          <tr><td>typing</td><td><code>xterm.onData</code> — every keystroke and Ctrl+V paste</td><td><code>ptmx.Write</code></td><td><code>send-keys -l</code>, after a <code>display-message</code> mode probe; &gt;8 KiB falls to the buffer path unbracketed</td><td>yes</td></tr>
+          <tr><td>bulk_text</td><td>context menu, mobile toolbar, composer, AI input, image upload</td><td><code>ptmx.Write</code></td><td><code>load-buffer</code> → <code>paste-buffer -d -p</code></td><td>yes</td></tr>
+          <tr><td>named_key</td><td>key-combo picker, combo sequences</td><td><code>ptmx.Write</code></td><td>same as typing</td><td>yes</td></tr>
+          <tr><td>control</td><td>touch scroll / wheel in mouse-tracking mode</td><td colspan="2">raw write to the attach master — deliberately unsequenced, unacked, never replayed</td><td>no</td></tr>
+          <tr><td>RPC</td><td><code>TerminalService/SendInput</code> — agents and CLI</td><td colspan="2">resolves named keys via <code>DefaultKeyMap</code>, then the same <code>SendInput</code> seam</td><td>n/a</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p>Two places lose it. On pane unmount, every queued payload is <code>join("")</code>-ed into one string and re-submitted on the next mount as <code>bulk_text</code> — so a queued Ctrl+C comes back as literal bracketed-paste text. And the remote-target handler never reads <code>intent</code> at all.</p>
+  </section>
+
+  <!-- ============ 3. QUEUE ============ -->
+  <section>
+    <div class="sec-head">
+      <div class="row"><span class="stage-no">CORE</span><h2>The queue with no scheduler</h2></div>
+      <p>This is the single most consequential structure in the input path. Five conditions push payloads into the pending queue. One event drains it — <code>session_ready</code>, which only fires when a WebSocket connects. None of the five filling conditions causes a reconnect, so none of them causes a drain.</p>
+    </div>
+
+    <div class="queuebox">
+      <div class="queue-grid">
+        <div class="feeders">
+          <div class="feeder"><span class="fn">bulk_text while xterm is in mouse-tracking mode</span><span class="fw">gate holds it</span></div>
+          <div class="feeder"><span class="fn">2 s ack timeout elapsed</span><span class="fw">re-enqueued</span></div>
+          <div class="feeder"><span class="fn">WS close, matching generation</span><span class="fw">re-enqueued</span></div>
+          <div class="feeder"><span class="fn">ws.bufferedAmount &gt; 1 MiB</span><span class="fw">refused, queued</span></div>
+          <div class="feeder"><span class="fn">session_ready not yet observed</span><span class="fw">queued</span></div>
+        </div>
+
+        <div class="arrowcol"><span>→</span></div>
+
+        <div class="sink">
+          <div class="bucket">
+            <div class="bt">pendingInputRef — 64 entries</div>
+            <div class="bs">FIFO. Overflow drops the <b>oldest</b> entries, so the stream is silently truncated from the front rather than rejected.</div>
+          </div>
+          <div class="valve"><b>only drain</b>flush() — one production call site, inside the <code>session_ready</code> handler</div>
+        </div>
+      </div>
+    </div>
+
+    <p>The visible consequence: paste into any mouse-tracking TUI — Claude Code, vim, tmux with mouse on — is captured by the gate, queued, and never delivered. Nothing watches for the TUI to leave mouse mode. The gate even exports a <code>canAcceptPaste()</code> accessor for exactly this, and no production code consumes it. The payload sits until the socket happens to reconnect, at which point it lands in whatever the shell is doing then.</p>
+
+    <div class="quote">TERMINAL-INPUT-PROTOCOL.md, “subscribeInputSettled contract”, path 2:<br>“<code>stdin_ack(seq, ok=false)</code> arrives → <code>cb(seq, false)</code>. Payload is automatically re-enqueued.”<br><br>→ <code>acceptAck()</code> notifies and returns. It does not re-enqueue. The documented contract and the shipped behaviour disagree on the one path a reviewer is most likely to trust.</div>
+  </section>
+
+  <!-- ============ 4. FINDINGS ============ -->
+  <section>
+    <div class="sec-head">
+      <div class="row"><span class="stage-no">FINDINGS</span><h2>What is structurally wrong</h2></div>
+      <p>Ordered by how much downstream behaviour each one explains. Severity is about blast radius, not effort.</p>
+    </div>
+
+    <div class="findings">
+
+      <article class="finding sev-crit">
+        <div class="f-head"><span class="chip crit">critical</span><span class="chip area">correctness</span></div>
+        <h3>At-least-once retry on a stream that is not idempotent</h3>
+        <p>Each keystroke is treated as an independently retryable datagram: its own sequence number, its own 2 s timer, automatic re-send on timeout or close. Terminal input is an ordered byte stream where re-delivery means re-execution. A retried payload is also appended to the <em>tail</em> of the queue, so it arrives after everything typed since — retry corrupts order as well as content.</p>
+        <div class="sym"><b>Their own docs say so</b>“WebSocket stdin messages — PTY input is inherently non-idempotent (typing <code>ls\n</code> twice runs the command twice). No sequence tracking is implemented.” The reasoning in INVARIANTS.md is right; the code stopped matching it.</div>
+        <div class="refs"><span class="ref">useStdinAck.ts:180</span><span class="ref">useStdinAck.ts:248</span><span class="ref">docs/internal/INVARIANTS.md</span></div>
+      </article>
+
+      <article class="finding sev-crit">
+        <div class="f-head"><span class="chip crit">critical</span><span class="chip area">reliability</span></div>
+        <h3>No write deadline anywhere on the WebSocket</h3>
+        <p><code>SetWriteDeadline</code> appears in no non-test file in <code>api/</code>. Only the keepalive <code>WriteControl</code> ping carries a 5 s bound; every <code>WriteJSON</code> can block indefinitely while holding <code>writeMu</code>. One stalled peer wedges the output forwarder, the ack path, and therefore the input loop — the server has no mechanism to notice or shed it.</p>
+        <div class="sym"><b>Why it matters here</b>This is the mechanism that converts a slow client into duplicated shell commands, by starving <code>stdin_ack</code> past the client's 2 s budget.</div>
+        <div class="refs"><span class="ref">api/terminal_ws.go</span><span class="ref">api/remote_terminal.go</span></div>
+      </article>
+
+      <article class="finding sev-crit">
+        <div class="f-head"><span class="chip crit">critical</span><span class="chip area">maintainability</span></div>
+        <h3>One client protocol, two independent server implementations</h3>
+        <p><code>remote_terminal.go</code> reimplements the browser-facing protocol for bridged targets and has already drifted: no <code>control</code> frames (mouse and touch scroll are dead), no <code>take_lease</code> (the client's in-flight flag latches on), no snapshot replay (it writes <code>history_end</code> immediately, so reconnect shows an empty screen despite a comment promising the scrollback contract), no <code>intent</code>, no keepalive ping, no read deadline, an unbounded <code>pending</code> map, and a <code>"close"</code> message type the TypeScript union cannot express.</p>
+        <div class="sym"><b>Root cause</b>There is no protocol package. <code>TerminalMessage</code> is a 20-field optional-everything struct in <code>package main</code>, and nothing forces two implementations to agree.</div>
+        <div class="refs"><span class="ref">remote_terminal.go:419–575</span><span class="ref">terminal_ws.go:30–120</span></div>
+      </article>
+
+      <article class="finding sev-crit">
+        <div class="f-head"><span class="chip crit">critical</span><span class="chip area">performance</span></div>
+        <h3>Two subprocess spawns per typed character</h3>
+        <p>On the persistent backend, <code>deliverTyping</code> runs <code>tmux display-message</code> to probe <code>#{pane_in_mode}</code>, then <code>tmux send-keys</code>. Both are fresh <code>exec.Command</code> invocations with a full client handshake over the tmux socket. Steady typing at 10 cps is 20 process spawns per second per pane, each on the latency path of an acked round trip. Momentum scroll is worse: one WebSocket frame and one raw write <em>per line</em>, per animation frame, unbatched.</p>
+        <div class="sym"><b>Why it was built this way</b>Correct, and well argued — <code>send-keys -l</code> alone does not escape copy-mode. The mechanism is right; paying for it per character is the problem.</div>
+        <div class="refs"><span class="ref">pty_tmux.go:176</span><span class="ref">pty_tmux.go:224</span><span class="ref">useTerminalTouch.ts:234</span></div>
+      </article>
+
+      <article class="finding sev-warn">
+        <div class="f-head"><span class="chip warn">major</span><span class="chip area">performance</span></div>
+        <h3>One mutex covers parsing, fan-out, and PTY writes</h3>
+        <p><code>broadcast()</code> holds <code>s.mu</code> across the full VT parse of every output frame, the sanitizer pass, the copy, and the per-client delivery loop. <code>applyInput()</code> needs the same lock just to read the PTY pointer. So keystrokes queue behind emulator work during heavy output — and <code>Screen()</code>, <code>PlainText()</code> and the RPC read path contend on it too.</p>
+        <div class="sym"><b>Shape of the fix</b>The lock is protecting two unrelated things. Emulator + client-set state wants one mutex; the PTY handle wants an <code>atomic.Pointer</code> so writes never block on parsing.</div>
+        <div class="refs"><span class="ref">session/broadcast.go:61–95</span><span class="ref">session/session.go:165</span></div>
+      </article>
+
+      <article class="finding sev-warn">
+        <div class="f-head"><span class="chip warn">major</span><span class="chip area">correctness</span><span class="chip area">privacy</span></div>
+        <h3>Local echo can predict but cannot retract</h3>
+        <p>On a mismatch the controller drops its predictions and passes the server bytes through unchanged. The comment says it “trusts xterm.js to repaint from scrollback” — xterm.js does no such thing; nothing repaints. Characters echoed on a wrong prediction stay on screen.</p>
+        <div class="sym"><b>Concrete case</b>At a <code>sudo</code> or SSH password prompt the shell echoes nothing, so every typed character is predicted, drawn, and never withdrawn. The password renders in cleartext until the line scrolls away. There is no echo-state awareness (termios ECHO) and no visual marking of unconfirmed text.</div>
+        <div class="refs"><span class="ref">lib/localEcho.ts:104–121</span><span class="ref">useTerminalSession.ts:417</span></div>
+      </article>
+
+      <article class="finding sev-warn">
+        <div class="f-head"><span class="chip warn">major</span><span class="chip area">reliability</span></div>
+        <h3>The client sanitizer is stateless across read boundaries</h3>
+        <p><code>sanitizeForClient</code> strips DEC mode 2026 sequences with a substring match on each PTY read independently. A <code>\x1b[?2026h</code> that straddles two reads is not matched, reaches xterm.js v6, and kills that terminal's parser — the documented failure is a permanently blank pane. UTF-8 splitting is buffered across reads; escape sequences are not.</p>
+        <div class="sym"><b>Available lever</b>A correct stateful scanner already exists one line above: the emulator parses this same stream. The client-bound copy is the only consumer doing byte matching by hand.</div>
+        <div class="refs"><span class="ref">session/sanitize.go:37</span><span class="ref">session/session_io.go:150</span></div>
+      </article>
+
+      <article class="finding sev-warn">
+        <div class="f-head"><span class="chip warn">major</span><span class="chip area">performance</span></div>
+        <h3>Full scrollback replay blocks stdin on every connect</h3>
+        <p>Every WebSocket open re-serializes up to 10 000 scrollback lines with SGR into one ANSI snapshot and streams it in 64 KiB frames — routinely megabytes. The forwarder takes <code>writeMu</code> once for the whole loop, and <code>session_ready</code> waits on that lock, so the user cannot type until the entire replay has flushed. With no write deadline and no cap on snapshot bytes, a mobile reconnect on a weak link can hang input for as long as the link takes.</p>
+        <div class="sym"><b>Missing primitive</b>There is no resume-from-offset. Reconnect is always a full replay, never a delta, even when the client already has the scrollback.</div>
+        <div class="refs"><span class="ref">terminal_ws.go:224–246</span><span class="ref">terminal_ws.go:321</span></div>
+      </article>
+
+      <article class="finding sev-warn">
+        <div class="f-head"><span class="chip warn">major</span><span class="chip area">fidelity</span></div>
+        <h3>UI status text is injected into the byte stream</h3>
+        <p><code>[Reconnected]</code>, <code>[Disconnected]</code>, <code>[Session ended]</code>, the coalescing warning and error hints are written straight into xterm's buffer. The server's emulator — the declared source of truth — never sees those bytes. They corrupt alt-buffer TUIs mid-render, pollute selection and copy, shift the grid, and vanish on the next snapshot, so client and server disagree about screen contents by construction.</p>
+        <div class="sym"><b>Cheapest structural fix on this page</b>Pane chrome already exists for the pending-input pill and the input-rejected banner. Route status there and the in-band writes disappear entirely.</div>
+        <div class="refs"><span class="ref">useTerminalSession.ts:225</span><span class="ref">useTerminalSession.ts:240</span><span class="ref">useTerminalSession.ts:354</span></div>
+      </article>
+
+      <article class="finding sev-warn">
+        <div class="f-head"><span class="chip warn">major</span><span class="chip area">correctness</span></div>
+        <h3>Unmount flattens the queue and loses intent</h3>
+        <p>On unmount the pane concatenates every queued payload into a single string and stores it as a draft; on remount it is submitted as one <code>bulk_text</code>. Boundaries between payloads are gone, control bytes become pasted text, and the tmux paste path may bracket the result. Combined with the 64-entry cap dropping the oldest entries, the queue can silently reorder and mangle input it was built to protect.</p>
+        <div class="refs"><span class="ref">TerminalPane.tsx:386–394</span><span class="ref">useStdinAck.ts:161</span></div>
+      </article>
+
+      <article class="finding sev-note">
+        <div class="f-head"><span class="chip note">maturity</span><span class="chip area">docs</span></div>
+        <h3>The protocol spec has drifted from the code in four places</h3>
+        <p>The documentation here is a real asset — it is why this review could go deep quickly. That makes the drift costly, because reviewers trust it. <code>ok=false</code> does not re-enqueue as documented. INVARIANTS.md says sequence tracking is not implemented. <code>pty_tmux.go</code> carries the full doc comment for a legacy mouse-tracking detector, a function that no longer exists, and <code>WriteInput</code> still documents a mouse-routing exception that <code>KindControl</code> replaced. Two <code>reason</code> codes are specified and never emitted by the server.</p>
+        <div class="sym"><b>Missing mechanism</b>The greenfield tests pin forbidden <em>shapes</em>. Nothing pins the protocol document to the wire, and the contract is unversioned.</div>
+        <div class="refs"><span class="ref">TERMINAL-INPUT-PROTOCOL.md</span><span class="ref">pty_tmux.go:100–160</span></div>
+      </article>
+
+      <article class="finding sev-note">
+        <div class="f-head"><span class="chip note">maturity</span><span class="chip area">maintainability</span></div>
+        <h3>TerminalPane owns eleven unrelated concerns</h3>
+        <p>880 lines covering xterm lifecycle, fit and scroll preservation, follower device framing, touch gestures, TTS playback and chunking, voice shortcuts, image upload, drag-and-drop, context menu, conversation events and adaptive chrome — exposed through a 20-method imperative handle. The session hook underneath it is clean; the component is where every feature landed because it was the only place holding a <code>Terminal</code>.</p>
+        <div class="refs"><span class="ref">TerminalPane.tsx</span></div>
+      </article>
+
+      <article class="finding sev-note">
+        <div class="f-head"><span class="chip note">minor</span><span class="chip area">performance</span></div>
+        <h3>Two always-on costs that read as debug code</h3>
+        <p><code>appendOutputProbe</code> concatenates and re-slices a 12 000-char string on <em>every</em> live output frame in production, ungated by any debug flag. And no GPU renderer is installed — <code>addon-webgl</code> is absent, so xterm runs its DOM backend against a 10 000-line scrollback.</p>
+        <div class="refs"><span class="ref">useTerminalSession.ts:41</span><span class="ref">ui/package.json</span></div>
+      </article>
+
+    </div>
+  </section>
+
+  <!-- ============ 5. MOVES ============ -->
+  <section>
+    <div class="sec-head">
+      <div class="row"><span class="stage-no">MOVES</span><h2>Structural changes, in dependency order</h2></div>
+      <p>Each one removes a class of bug rather than an instance. The first two together retire most of what is listed above.</p>
+    </div>
+
+    <div class="moves">
+
+      <div class="move">
+        <div class="num">1</div>
+        <div class="body">
+          <h4>Make input a stream, not a queue of messages</h4>
+          <p>Give the connection a single monotonic byte offset. The client appends to a send buffer and tracks what it has written; the server acknowledges a cumulative <em>bytes-accepted</em> offset, not per-payload sequence numbers. Retransmission happens once, on reconnect, from the acknowledged offset — never on a timer, never out of order. Delete the per-payload timers, the 64-entry cap, the tail re-enqueue, and the unmount flattening along with them.</p>
+          <p class="kills">retires: retry duplication · reordering · the stranded queue · intent loss on unmount · silent oldest-first truncation</p>
+        </div>
+      </div>
+
+      <div class="move">
+        <div class="num">2</div>
+        <div class="body">
+          <h4>Extract the wire protocol into one package with a conformance suite</h4>
+          <p>Move <code>TerminalMessage</code>, the frame constants, and the reason codes out of <code>package main</code> into a versioned protocol package, and make both the local and bridged handlers satisfy one shared test suite: session_ready ordering, snapshot then history_end, control frames unacked, lease frames answered, unknown types ignored. Divergence becomes a failing test instead of a silently broken remote target.</p>
+          <p class="kills">retires: remote-target feature gaps · protocol/doc drift · unversioned contract</p>
+        </div>
+      </div>
+
+      <div class="move">
+        <div class="num">3</div>
+        <div class="body">
+          <h4>Put deadlines and bounds on every blocking edge</h4>
+          <p>Write deadlines on all <code>WriteJSON</code> calls; a bound on snapshot bytes with the oldest scrollback dropped rather than an unbounded replay; timeouts on the tmux subprocess calls. A peer that cannot keep up should be disconnected with a typed reason, not allowed to wedge a shared mutex.</p>
+          <p class="kills">retires: half-open wedges · ack starvation · unbounded connect-time input block</p>
+        </div>
+      </div>
+
+      <div class="move">
+        <div class="num">4</div>
+        <div class="body">
+          <h4>Hold a persistent tmux control-mode client per session</h4>
+          <p>Replace the per-keystroke <code>display-message</code> + <code>send-keys</code> spawn pair with one long-lived <code>tmux -C</code> connection, tracking pane mode from its event stream instead of probing for it. Coalesce <code>onData</code> in a short window client-side so a fast typist produces frames, not one frame per character, and batch wheel events into a single control payload.</p>
+          <p class="kills">retires: fork storm on typing · scroll frame flood · a large share of input latency</p>
+        </div>
+      </div>
+
+      <div class="move">
+        <div class="num">5</div>
+        <div class="body">
+          <h4>Decide what local echo is for, then commit</h4>
+          <p>It is currently a half-implementation: it predicts but cannot retract, and it draws characters that may only have been queued. Either delete it — the round trip is sub-millisecond on a local socket and the queue-aware failure modes go with it — or implement it properly: track echo state, render predictions in a distinct style, and erase on mismatch. The password-prompt case makes the middle ground untenable.</p>
+          <p class="kills">retires: stuck phantom characters · cleartext at non-echoing prompts</p>
+        </div>
+      </div>
+
+      <div class="move">
+        <div class="num">6</div>
+        <div class="body">
+          <h4>Split the session lock and move status out of the stream</h4>
+          <p>Separate the emulator/client-set mutex from the PTY handle so writes never wait on parsing. Move <code>[Reconnected]</code> and its siblings into pane chrome so the terminal buffer contains only bytes the server's emulator also saw. Both are small, self-contained, and restore an invariant the architecture already claims.</p>
+          <p class="kills">retires: typing stalls under heavy output · client/server screen divergence</p>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <div class="row"><span class="stage-no">NOTE</span><h2>What is already right</h2></div>
+    </div>
+    <p>Worth being explicit, because the findings list is long and the baseline is not weak. The server-authoritative emulator with snapshot replay is the correct architecture and most web terminals do not have it. The intent vocabulary, the mode-cancel reasoning behind <code>send-keys -X cancel</code>, the separation of the argv ceiling from paste semantics, the size-lease model for multi-viewer panes, the UTF-8 boundary buffering, the tmux re-attach backoff, and the decision to route synthetic control bytes outside the reliable lane are all things someone thought hard about and wrote down. The failures above are what happens when a well-reasoned design accumulates a second delivery mechanism, a second server implementation, and a recovery layer whose assumptions nothing re-checks.</p>
+  </section>
+
+  <footer>
+    <span>Read-only review of <span class="mono">scenarios/web-console</span> · api/ and ui/src/ on branch <span class="mono">agi</span>.</span>
+    <span>No files were modified. Line references are from the working tree at time of review.</span>
+  </footer>
+
+</div>

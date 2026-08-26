@@ -61,11 +61,11 @@ describe("greenfield: terminal-session rework", () => {
     expect(offenders).toEqual([]);
   });
 
-  it("does not write \\b \\b erase sequences from local echo reconciliation", () => {
-    // The plan explicitly removes \b \b erasure; xterm repaints from
-    // the server-authoritative stream instead.
-    const content = readIf(join(SRC_ROOT, "lib", "localEcho.ts"));
-    expect(content).not.toMatch(/"\\b \\b"/);
+  it("does not reintroduce a terminal-buffer prediction writer", () => {
+    const offenders = PROD_FILES.filter((p) =>
+      /terminal\.write\([^)]*(?:predict|echo)/i.test(readIf(p)),
+    );
+    expect(offenders).toEqual([]);
   });
 
   it("defines sendInput / trySendStdin nowhere (submitInput via gate is the single path)", () => {

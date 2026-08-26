@@ -277,7 +277,7 @@ class ReportPressureRequest(_message.Message):
     def __init__(self, source_scenario: _Optional[str] = ..., partition: _Optional[str] = ..., used_percent: _Optional[float] = ..., band: _Optional[_Union[PressureBand, str]] = ..., available_bytes: _Optional[int] = ...) -> None: ...
 
 class ReportPressureResponse(_message.Message):
-    __slots__ = ("band", "action", "plan_id", "estimated_bytes", "reclaimed_bytes", "providers_applied", "providers_withheld", "reason", "autonomous_apply_enabled")
+    __slots__ = ("band", "action", "plan_id", "estimated_bytes", "reclaimed_bytes", "providers_applied", "providers_withheld", "reason", "autonomous_apply_enabled", "bug_reference")
     BAND_FIELD_NUMBER: _ClassVar[int]
     ACTION_FIELD_NUMBER: _ClassVar[int]
     PLAN_ID_FIELD_NUMBER: _ClassVar[int]
@@ -287,6 +287,7 @@ class ReportPressureResponse(_message.Message):
     PROVIDERS_WITHHELD_FIELD_NUMBER: _ClassVar[int]
     REASON_FIELD_NUMBER: _ClassVar[int]
     AUTONOMOUS_APPLY_ENABLED_FIELD_NUMBER: _ClassVar[int]
+    BUG_REFERENCE_FIELD_NUMBER: _ClassVar[int]
     band: PressureBand
     action: PressureAction
     plan_id: str
@@ -296,4 +297,5 @@ class ReportPressureResponse(_message.Message):
     providers_withheld: _containers.RepeatedScalarFieldContainer[str]
     reason: str
     autonomous_apply_enabled: bool
-    def __init__(self, band: _Optional[_Union[PressureBand, str]] = ..., action: _Optional[_Union[PressureAction, str]] = ..., plan_id: _Optional[str] = ..., estimated_bytes: _Optional[int] = ..., reclaimed_bytes: _Optional[int] = ..., providers_applied: _Optional[_Iterable[str]] = ..., providers_withheld: _Optional[_Iterable[str]] = ..., reason: _Optional[str] = ..., autonomous_apply_enabled: _Optional[bool] = ...) -> None: ...
+    bug_reference: str
+    def __init__(self, band: _Optional[_Union[PressureBand, str]] = ..., action: _Optional[_Union[PressureAction, str]] = ..., plan_id: _Optional[str] = ..., estimated_bytes: _Optional[int] = ..., reclaimed_bytes: _Optional[int] = ..., providers_applied: _Optional[_Iterable[str]] = ..., providers_withheld: _Optional[_Iterable[str]] = ..., reason: _Optional[str] = ..., autonomous_apply_enabled: _Optional[bool] = ..., bug_reference: _Optional[str] = ...) -> None: ...

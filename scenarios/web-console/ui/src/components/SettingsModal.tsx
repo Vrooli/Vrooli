@@ -6,7 +6,7 @@ import { useWorkspaceStore } from "../stores/useWorkspaceStore";
 import type { SessionInfo } from "../api/sessions";
 import { cn } from "../lib/classnames";
 import { strings } from "../consts/strings";
-import { DrawerShell } from "./DrawerShell";
+import { DrawerShell } from "@vrooli/react-component-library/DrawerShell/1.0.0";
 import IntegrationsSection from "./settings/IntegrationsSection";
 import NewPaneDefaultsSection from "./settings/NewPaneDefaultsSection";
 import SessionManagementSection from "./settings/SessionManagementSection";

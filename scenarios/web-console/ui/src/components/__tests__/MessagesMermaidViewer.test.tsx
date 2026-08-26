@@ -1,5 +1,6 @@
+import { renderWithProviders as render } from "../../test-utils";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, screen } from "@testing-library/react";
 
 import MessagesMermaidViewer from "../MessagesMermaidViewer";
 

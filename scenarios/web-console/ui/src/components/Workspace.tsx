@@ -174,7 +174,7 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
     handleExit: sessionHandleExit,
     submitToActiveTerminal,
     subscribeActiveInputSettled,
-    awaitActiveInputSeq,
+    awaitActiveInputOffset,
     subscribeActivePendingInput,
     getActivePendingInputSnapshot,
     copySelectionOnPane,
@@ -652,15 +652,15 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
   );
 
   const handleSubscribeInputSettled = useCallback(
-    (cb: (seq: number, ok: boolean) => void) =>
+    (cb: (offset: number, ok: boolean) => void) =>
       subscribeActiveInputSettled(workspace.activePane ?? undefined, cb),
     [subscribeActiveInputSettled, workspace.activePane],
   );
 
-  const handleAwaitInputSeq = useCallback(
-    (seq: number, cb: Parameters<NonNullable<React.ComponentProps<typeof MobileToolbar>["awaitSeq"]>>[1]) =>
-      awaitActiveInputSeq(workspace.activePane ?? undefined, seq, cb),
-    [awaitActiveInputSeq, workspace.activePane],
+  const handleAwaitInputOffset = useCallback(
+    (offset: number, cb: Parameters<NonNullable<React.ComponentProps<typeof MobileToolbar>["awaitOffset"]>>[1]) =>
+      awaitActiveInputOffset(workspace.activePane ?? undefined, offset, cb),
+    [awaitActiveInputOffset, workspace.activePane],
   );
 
   const handleSubscribePendingInput = useCallback(
@@ -1875,7 +1875,7 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
           visible={needsTouchControls}
           onInput={handleSendToTerminal}
           subscribeInputSettled={handleSubscribeInputSettled}
-          awaitSeq={handleAwaitInputSeq}
+          awaitOffset={handleAwaitInputOffset}
           subscribePendingInput={handleSubscribePendingInput}
           getPendingInputSnapshot={handleGetPendingInputSnapshot}
           onFocusTerminal={handleFocusTerminal}
@@ -1934,7 +1934,7 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
         draft={composerDraft}
         onInput={handleSendToTerminal}
         subscribeInputSettled={handleSubscribeInputSettled}
-        awaitSeq={handleAwaitInputSeq}
+        awaitOffset={handleAwaitInputOffset}
         onFocusTerminal={handleFocusTerminal}
         interimTranscript={voiceInput.partialTranscript}
         attachments={composerAttachments.attachments}

@@ -1,3 +1,5 @@
+import { librarySelectors } from "./selectors.library.js";
+export { librarySelectors };
 // DOC: docs/internal/SEAMS.md
 /**
  * Vrooli Ascension selector registry
@@ -546,7 +548,7 @@ const dynamicSelectorDefinitions: DynamicSelectorTree = {
   },
 };
 
-const registry = createSelectorRegistry(literalSelectors, dynamicSelectorDefinitions);
+const registry = createSelectorRegistry({ library: librarySelectors, ...literalSelectors }, dynamicSelectorDefinitions);
 
 export const selectors = registry.selectors;
 export type Selectors = typeof selectors;

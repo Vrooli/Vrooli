@@ -88,6 +88,70 @@ function fireTouchEvent(
   return event;
 }
 
+function fireMultiTouchEvent(
+  container: HTMLElement,
+  type: "touchstart" | "touchmove" | "touchend",
+  touches: Array<{ identifier: number; clientX: number; clientY: number }>,
+) {
+  const touchObjects = touches.map((touch) => ({
+    ...touch,
+    pageX: touch.clientX,
+    pageY: touch.clientY,
+    screenX: touch.clientX,
+    screenY: touch.clientY,
+    target: container,
+    radiusX: 0,
+    radiusY: 0,
+    rotationAngle: 0,
+    force: 0,
+  } as unknown as Touch));
+  const event = new Event(type, { bubbles: true, cancelable: true }) as Event & {
+    touches: Touch[];
+    changedTouches: Touch[];
+    targetTouches: Touch[];
+  };
+  Object.defineProperty(event, "touches", { value: type === "touchend" ? [] : touchObjects });
+  Object.defineProperty(event, "changedTouches", { value: touchObjects });
+  Object.defineProperty(event, "targetTouches", { value: type === "touchend" ? [] : touchObjects });
+  act(() => container.dispatchEvent(event));
+  return event;
+}
+
+function fireTouchEventAtTarget(
+  target: HTMLElement,
+  container: HTMLElement,
+  type: "touchstart" | "touchmove" | "touchend",
+  opts: { clientX?: number; clientY?: number; identifier?: number } = {},
+) {
+  const identifier = opts.identifier ?? 0;
+  const clientX = opts.clientX ?? 100;
+  const clientY = opts.clientY ?? 100;
+  const touch = {
+    identifier,
+    clientX,
+    clientY,
+    pageX: clientX,
+    pageY: clientY,
+    screenX: clientX,
+    screenY: clientY,
+    target,
+    radiusX: 0,
+    radiusY: 0,
+    rotationAngle: 0,
+    force: 0,
+  } as unknown as Touch;
+  const event = new Event(type, { bubbles: true, cancelable: true }) as Event & {
+    touches: Touch[];
+    changedTouches: Touch[];
+    targetTouches: Touch[];
+  };
+  Object.defineProperty(event, "touches", { value: type === "touchend" ? [] : [touch] });
+  Object.defineProperty(event, "changedTouches", { value: [touch] });
+  Object.defineProperty(event, "targetTouches", { value: type === "touchend" ? [] : [touch] });
+  act(() => target.dispatchEvent(event));
+  return event;
+}
+
 function makeHookArgs(
   terminal: MockTerminal | null,
   container: HTMLDivElement,
@@ -355,6 +419,40 @@ describe("useTerminalTouch", () => {
     expect(terminal.scrollLines.mock.calls.length).toBeGreaterThan(0);
   });
 
+  it("previews a pinch font-size change and commits it once on release", () => {
+    const onFontSizeCommit = vi.fn();
+    const onFontSizePreview = vi.fn();
+    (terminal as unknown as { options: { fontSize: number } }).options = { fontSize: 14 };
+
+    renderHook(() => useTerminalTouch({
+      ...makeHookArgs(terminal, container),
+      fontSize: 14,
+      onFontSizeCommit,
+      onFontSizePreview,
+    }));
+
+    fireMultiTouchEvent(container, "touchstart", [
+      { identifier: 1, clientX: 100, clientY: 100 },
+    ]);
+    fireMultiTouchEvent(container, "touchstart", [
+      { identifier: 1, clientX: 100, clientY: 100 },
+      { identifier: 2, clientX: 200, clientY: 100 },
+    ]);
+    fireMultiTouchEvent(container, "touchmove", [
+      { identifier: 1, clientX: 80, clientY: 100 },
+      { identifier: 2, clientX: 220, clientY: 100 },
+    ]);
+
+    expect((terminal as unknown as { options: { fontSize: number } }).options.fontSize).toBeGreaterThan(14);
+    expect(onFontSizePreview.mock.calls.at(-1)?.[0]).toBeGreaterThan(14);
+    expect(onFontSizeCommit).not.toHaveBeenCalled();
+
+    fireMultiTouchEvent(container, "touchend", []);
+    expect(onFontSizeCommit).toHaveBeenCalledTimes(1);
+    expect(onFontSizeCommit.mock.calls[0]?.[0]).toBeGreaterThan(14);
+    expect(onFontSizePreview).toHaveBeenLastCalledWith(null);
+  });
+
   it("new touchstart cancels momentum", () => {
     renderHook(() =>
       useTerminalTouch(makeHookArgs(terminal, container)),
@@ -542,6 +640,24 @@ describe("useTerminalTouch", () => {
     expect(success).toBe(false);
   });
 
+  it("copySelection returns false without a terminal and tolerates a missing screen", async () => {
+    const withoutTerminal = renderHook(() =>
+      useTerminalTouch(makeHookArgs(null, container)),
+    );
+    await expect(withoutTerminal.result.current.copySelection()).resolves.toBe(false);
+    withoutTerminal.unmount();
+
+    const { result } = renderHook(() =>
+      useTerminalTouch(makeHookArgs(terminal, container)),
+    );
+    screen.remove();
+    fireTouchEvent(container, "touchstart", { clientX: 100, clientY: 200 });
+    fireTouchEvent(container, "touchmove", { clientX: 100, clientY: 180 });
+    fireTouchEvent(container, "touchmove", { clientX: 100, clientY: 160 });
+    expect(terminal.scrollLines).not.toHaveBeenCalled();
+    expect(result.current.hasSelection).toBe(false);
+  });
+
   it("clearSelection calls terminal.clearSelection and resets state", () => {
     const { result } = renderHook(() =>
       useTerminalTouch(makeHookArgs(terminal, container)),
@@ -572,6 +688,191 @@ describe("useTerminalTouch", () => {
 
     vi.advanceTimersByTime(TOUCH_DOUBLE_TAP_MS + 50);
     expect(terminal.focus).toHaveBeenCalled();
+  });
+
+  it("ignores moves and ends for touches that are not being tracked", () => {
+    renderHook(() => useTerminalTouch(makeHookArgs(terminal, container)));
+
+    fireTouchEvent(container, "touchmove", { identifier: 99 });
+    fireTouchEvent(container, "touchstart", { identifier: 1, clientY: 100 });
+    fireTouchEvent(container, "touchmove", { identifier: 0, clientY: 50 });
+    fireTouchEvent(container, "touchend", { identifier: 0, clientY: 50 });
+    expect(terminal.focus).not.toHaveBeenCalled();
+  });
+
+  it("does not intercept touches that begin inside the context menu or backdrop", () => {
+    const backdrop = document.createElement("div");
+    backdrop.dataset.testid = "ctx-backdrop";
+    container.appendChild(backdrop);
+    renderHook(() => useTerminalTouch(makeHookArgs(terminal, container)));
+
+    fireTouchEventAtTarget(backdrop, container, "touchstart", { clientX: 50, clientY: 50 });
+    fireTouchEventAtTarget(backdrop, container, "touchend", { clientX: 50, clientY: 50 });
+    expect(terminal.focus).not.toHaveBeenCalled();
+  });
+
+  it("handles invalid pinch tracking and zero-distance gestures", () => {
+    const onFontSizeCommit = vi.fn();
+    (terminal as unknown as { options: { fontSize: number } }).options = { fontSize: 14 };
+    renderHook(() => useTerminalTouch({
+      ...makeHookArgs(terminal, container),
+      fontSize: 14,
+      onFontSizeCommit,
+    }));
+
+    fireMultiTouchEvent(container, "touchstart", [
+      { identifier: 1, clientX: 100, clientY: 100 },
+      { identifier: 2, clientX: 100, clientY: 100 },
+    ]);
+    fireMultiTouchEvent(container, "touchmove", [
+      { identifier: 1, clientX: 90, clientY: 100 },
+      { identifier: 3, clientX: 110, clientY: 100 },
+    ]);
+    fireMultiTouchEvent(container, "touchend", []);
+
+    expect(onFontSizeCommit).not.toHaveBeenCalled();
+    expect((terminal as unknown as { options: { fontSize: number } }).options.fontSize).toBe(14);
+  });
+
+  it("ignores a multi-touch start when pinch handling is unavailable", () => {
+    renderHook(() => useTerminalTouch(makeHookArgs(terminal, container)));
+    fireMultiTouchEvent(container, "touchstart", [
+      { identifier: 1, clientX: 100, clientY: 100 },
+      { identifier: 2, clientX: 200, clientY: 100 },
+    ]);
+    expect(terminal.focus).not.toHaveBeenCalled();
+  });
+
+  it("ignores a touchstart whose touch list contains no touch object", () => {
+    renderHook(() => useTerminalTouch(makeHookArgs(terminal, container)));
+    const event = new Event("touchstart", { bubbles: true, cancelable: true }) as Event & {
+      touches: Touch[];
+      changedTouches: Touch[];
+      targetTouches: Touch[];
+    };
+    Object.defineProperty(event, "touches", { value: [undefined] });
+    Object.defineProperty(event, "changedTouches", { value: [] });
+    Object.defineProperty(event, "targetTouches", { value: [] });
+    act(() => container.dispatchEvent(event));
+    expect(terminal.focus).not.toHaveBeenCalled();
+  });
+
+  it("cancels the already-cancelled long-press timer when resetting scrolling", () => {
+    const { unmount } = renderHook(() => useTerminalTouch(makeHookArgs(terminal, container)));
+    fireTouchEvent(container, "touchstart", { clientX: 100, clientY: 200 });
+    fireTouchEvent(container, "touchmove", { clientX: 100, clientY: 180 });
+    vi.advanceTimersByTime(16);
+    fireTouchEvent(container, "touchmove", { clientX: 100, clientY: 130 });
+    // Unmount invokes resetGesture while the scrolling state's timer is
+    // already null, covering the cleanup path after clearTimeout.
+    unmount();
+    expect(terminal.scrollLines).toHaveBeenCalled();
+  });
+
+  it("routes tracked scrolling through the injected control sender in mouse mode", () => {
+    const sendControl = vi.fn().mockReturnValue(true);
+    (terminal as unknown as { modes: { mouseTrackingMode: string } }).modes = { mouseTrackingMode: "sgr" };
+    const { unmount: unmountWithSender } = renderHook(() => useTerminalTouch({
+      ...makeHookArgs(terminal, container),
+      sendControl,
+    }));
+    fireTouchEvent(container, "touchstart", { clientX: 100, clientY: 200 });
+    fireTouchEvent(container, "touchmove", { clientX: 100, clientY: 160 });
+    vi.advanceTimersByTime(16);
+    fireTouchEvent(container, "touchmove", { clientX: 100, clientY: 120 });
+    vi.advanceTimersByTime(16);
+    expect(sendControl).toHaveBeenCalled();
+    unmountWithSender();
+
+    const noSenderTerminal = createMockTerminal();
+    (noSenderTerminal as unknown as { modes: { mouseTrackingMode: string } }).modes = { mouseTrackingMode: "sgr" };
+    const { unmount } = renderHook(() => useTerminalTouch(makeHookArgs(noSenderTerminal, container)));
+    fireTouchEvent(container, "touchstart", { clientX: 100, clientY: 200 });
+    fireTouchEvent(container, "touchmove", { clientX: 100, clientY: 160 });
+    vi.advanceTimersByTime(16);
+    fireTouchEvent(container, "touchmove", { clientX: 100, clientY: 120 });
+    vi.advanceTimersByTime(16);
+    unmount();
+  });
+
+  it("stops momentum cleanly when the injected clock advances past the decay threshold", () => {
+    let clock = 0;
+    renderHook(() => useTerminalTouch({
+      ...makeHookArgs(terminal, container),
+      now: () => clock,
+    }));
+    fireTouchEvent(container, "touchstart", { clientX: 100, clientY: 300 });
+    clock = 1;
+    fireTouchEvent(container, "touchmove", { clientX: 100, clientY: 100 });
+    vi.advanceTimersByTime(16);
+    clock = 2;
+    fireTouchEvent(container, "touchmove", { clientX: 100, clientY: 0 });
+    fireTouchEvent(container, "touchend", { clientX: 100, clientY: 0 });
+	clock = 10 * 1000;
+    vi.advanceTimersByTime(16);
+    expect(terminal.scrollLines).toHaveBeenCalled();
+  });
+
+  it("ignores a double tap when the buffer line has disappeared", () => {
+    terminal.buffer.active.getLine = vi.fn().mockReturnValue(undefined);
+    renderHook(() => useTerminalTouch(makeHookArgs(terminal, container)));
+    fireTouchEvent(container, "touchstart", { clientX: 75, clientY: 20 });
+    vi.advanceTimersByTime(50);
+    fireTouchEvent(container, "touchend", { clientX: 75, clientY: 20 });
+    vi.advanceTimersByTime(100);
+    fireTouchEvent(container, "touchstart", { clientX: 75, clientY: 20 });
+    expect(terminal.select).not.toHaveBeenCalled();
+  });
+
+  it("ignores a stale long-press callback after the gesture has returned idle", () => {
+    const clearTimeoutSpy = vi.spyOn(globalThis, "clearTimeout").mockImplementation(() => undefined);
+    renderHook(() => useTerminalTouch(makeHookArgs(terminal, container)));
+    fireTouchEvent(container, "touchstart", { clientX: 50, clientY: 40 });
+    fireTouchEvent(container, "touchend", { clientX: 50, clientY: 40 });
+    act(() => vi.advanceTimersByTime(TOUCH_LONG_PRESS_MS + 10));
+    clearTimeoutSpy.mockRestore();
+    expect(terminal.select).not.toHaveBeenCalled();
+  });
+
+  it("covers backward selection, zero-time samples, and textarea focus intent", () => {
+    const textarea = { inputMode: "none" };
+    (terminal as unknown as { textarea: typeof textarea }).textarea = textarea;
+    renderHook(() => useTerminalTouch(makeHookArgs(terminal, container)));
+
+    fireTouchEvent(container, "touchstart", { clientX: 50, clientY: 40 });
+    act(() => vi.advanceTimersByTime(TOUCH_LONG_PRESS_MS + 10));
+    fireTouchEvent(container, "touchmove", { clientX: 0, clientY: 40 });
+    expect(terminal.select).toHaveBeenLastCalledWith(0, 2, 6);
+    fireTouchEvent(container, "touchend", { clientX: 0, clientY: 40 });
+
+    fireTouchEvent(container, "touchstart", { clientX: 100, clientY: 200 });
+    fireTouchEvent(container, "touchmove", { clientX: 100, clientY: 180 });
+    fireTouchEvent(container, "touchmove", { clientX: 100, clientY: 160 });
+    expect(textarea.inputMode).toBe("none");
+
+    fireTouchEvent(container, "touchend", { clientX: 100, clientY: 160 });
+    fireTouchEvent(container, "touchstart", { clientX: 100, clientY: 100 });
+    fireTouchEvent(container, "touchend", { clientX: 100, clientY: 100 });
+    expect(textarea.inputMode).toBe("");
+  });
+
+  it("opens the context menu on a double tap when a callback is provided", () => {
+    const onContextMenu = vi.fn();
+    terminal.buffer.active.getLine = vi.fn().mockReturnValue({
+      translateToString: vi.fn().mockReturnValue("hello world"),
+    });
+    renderHook(() => useTerminalTouch({
+      ...makeHookArgs(terminal, container),
+      onContextMenu,
+    }));
+
+    fireTouchEvent(container, "touchstart", { clientX: 75, clientY: 20 });
+    vi.advanceTimersByTime(50);
+    fireTouchEvent(container, "touchend", { clientX: 75, clientY: 20 });
+    vi.advanceTimersByTime(100);
+    fireTouchEvent(container, "touchstart", { clientX: 75, clientY: 20 });
+
+    expect(onContextMenu).toHaveBeenCalledWith(75, 20);
   });
 
   it("movement during pending scrolls, then long-press timer reclaims for selection", () => {

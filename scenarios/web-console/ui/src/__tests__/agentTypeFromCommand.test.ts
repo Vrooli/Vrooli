@@ -20,6 +20,14 @@ describe("agentTypeFromCommand", () => {
   it("classifies launcher-backed shortcuts", () => {
     expect(agentTypeFromCommand("if command -v vrooli-agent-launcher >/dev/null 2>&1; then exec vrooli-agent-launcher --agent codex -- --yolo; fi; exec codex --yolo")).toBe("codex");
     expect(agentTypeFromCommand("vrooli-agent-launcher --agent=opencode --")).toBe("opencode");
+    expect(agentTypeFromCommand("vrooli-agent-launcher --agent=claude-code --")).toBe("claude");
+    expect(agentTypeFromCommand("vrooli-agent-launcher --agent grok --")).toBe("grok");
+  });
+
+  it("classifies every governed runner spelling", () => {
+    expect(agentTypeFromCommand("vrooli agent launch --runner=claude-code")).toBe("claude");
+    expect(agentTypeFromCommand("vrooli agent launch --runner opencode")).toBe("opencode");
+    expect(agentTypeFromCommand("vrooli agent launch --runner grok")).toBe("grok");
   });
 
   it("is case-insensitive and trims surrounding whitespace", () => {

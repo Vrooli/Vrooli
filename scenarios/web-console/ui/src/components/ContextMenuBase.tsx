@@ -1,5 +1,5 @@
 import { useLayoutEffect, useRef, useState, type ReactNode } from "react";
-import { useEscapeKey } from "../hooks/useEscapeKey";
+import { useEscapeKey } from "@vrooli/react-component-library/useEscapeKey/1.0.0";
 import { useFloatingPosition } from "../hooks/useFloatingPosition";
 
 interface ContextMenuBaseProps {

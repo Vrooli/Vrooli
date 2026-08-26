@@ -1,6 +1,6 @@
 import { Check, Pipette, Plus, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import ColorPicker from "./ColorPicker";
+import ColorPicker from "@vrooli/react-component-library/ColorPicker/1.0.0";
 import { HEADER_COLORS } from "../../consts/config";
 import { strings } from "../../consts/strings";
 import { parsePaneColor, serializePaneColor } from "../../lib/paneColor";

@@ -214,4 +214,6 @@ message ReportPressureResponse {
   string reason = 8;
   // Whether autonomous apply is currently permitted at all.
   bool autonomous_apply_enabled = 9;
+  // Scenario QA bug reference filed for a warning-band unbounded owner, when present.
+  string bug_reference = 10;
 }

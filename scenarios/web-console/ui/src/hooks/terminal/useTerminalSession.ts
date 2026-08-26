@@ -1,11 +1,12 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Terminal } from "@xterm/xterm";
 import { buildSessionWsUrl } from "../../api/sessions";
 import { refreshConversationSession } from "../../hooks/useConversationSession";
-import { ANSI } from "../../lib/ansi";
-import { LocalEchoController } from "../../lib/localEcho";
+import { isMouseTrackingSequence } from "../../lib/terminalKeys";
+import { createScrollController } from "../../lib/terminalScroll";
+import { createPredictionOverlay, type PredictionOverlay } from "../../lib/predictionOverlay";
 import { applyModifiers } from "../../consts/toolbar-keys";
-import { useWorkspaceStore } from "../../stores/useWorkspaceStore";
+import { useWorkspaceStore, type TerminalPaneStatus } from "../../stores/useWorkspaceStore";
 import {
   createInputGate,
   type GateResult,
@@ -20,13 +21,17 @@ import {
   type SocketFactory,
 } from "./useTerminalTransport";
 import {
-  useStdinAck,
+  useStdinStream,
   type InputSettledListener,
   type InputSettlementCallback,
   type PendingInputEntry,
-} from "./useStdinAck";
+} from "./useStdinStream";
 
 const MAX_OUTPUT_PROBE_CHARS = 12000;
+const TERMINAL_DEBUG_ENABLED = (() => {
+  const env = (import.meta as unknown as { env?: Record<string, string | undefined> }).env;
+  return env?.VITE_WC_TERMINAL_DEBUG === "1" || env?.VITE_WC_TERMINAL_DEBUG === "true";
+})();
 
 /** Maps known WS error messages to user-facing recovery hints. */
 const WS_ERROR_RECOVERY: Record<string, string> = {
@@ -37,8 +42,8 @@ const WS_ERROR_RECOVERY: Record<string, string> = {
     "The terminal session did not confirm readiness in time. Reconnect or reopen this pane.",
 };
 
-function appendOutputProbe(sessionId: string, data: string): void {
-  if (typeof window === "undefined" || !data) return;
+export function appendOutputProbe(sessionId: string, data: string): void {
+  if (!TERMINAL_DEBUG_ENABLED || typeof window === "undefined" || !data) return;
   const probeWindow = window as Window & {
     __wc_terminal_output?: Record<string, string>;
   };
@@ -60,10 +65,10 @@ function appendOutputProbe(sessionId: string, data: string): void {
  * api/ansi_responder.go).
  */
 // eslint-disable-next-line no-control-regex -- intentionally matches CSI ESC byte
-const RE_TERMINAL_RESPONSE = /\x1b\[[\x30-\x3f]*[\x20-\x2f]*[cnRy]/g;
+const RE_TERMINAL_RESPONSE = /\x1b\[[\x30-\x3f]*[\x20-\x2f]*[cnRypY]/g;
 // eslint-disable-next-line no-control-regex -- intentionally matches OSC framing
 const RE_OSC_COLOR_REPLY = /\x1b\][^\x07\x1b]*?rgb:[^\x07\x1b]*(?:\x07|\x1b\\)/g;
-function stripTerminalResponses(s: string): string {
+export function stripTerminalResponses(s: string): string {
   if (s.indexOf("\x1b") === -1) return s;
   return s.replace(RE_TERMINAL_RESPONSE, "").replace(RE_OSC_COLOR_REPLY, "");
 }
@@ -73,14 +78,22 @@ export interface UseTerminalSessionOptions {
   terminal: Terminal | null;
   onExit?: (sessionId: string) => void;
   onReady?: () => void;
+  onStatus?: (status: TerminalPaneStatus | null) => void;
+  predictionContainer?: HTMLElement | null;
   createSocket?: SocketFactory;
 }
+
+export type { TerminalPaneStatus } from "../../stores/useWorkspaceStore";
 
 export interface UseTerminalSessionResult {
   /** Single-path input entry used by every UI source. */
   submitInput: (data: string, intent: Exclude<InputIntent, "control">) => GateResult;
   /** Send best-effort synthetic terminal bytes outside the reliable lane. */
   sendControl: (data: string) => boolean;
+  /** Set tmux mouse capture for this persistent pane; null means unsupported. */
+  setMouseMode: (enabled: boolean) => boolean;
+  mouseMode: boolean | null;
+  scrollBy: (lines: number, source: "touch" | "wheel" | "programmatic") => void;
   gate: TerminalInputGate;
   sendResize: (cols: number, rows: number) => void;
 	getServerSize: () => { cols: number; rows: number } | null;
@@ -89,7 +102,7 @@ export interface UseTerminalSessionResult {
 	leaderDevice: string;
 	takeLease: () => void;
   subscribeInputSettled: (cb: InputSettledListener) => () => void;
-  awaitSeq: (seq: number, cb: InputSettlementCallback) => () => void;
+  awaitOffset: (offset: number, cb: InputSettlementCallback) => () => void;
   subscribePendingInput: (cb: () => void) => () => void;
   getPendingInputSnapshot: () => readonly PendingInputEntry[];
   /**
@@ -111,8 +124,7 @@ export interface UseTerminalSessionResult {
  * useTerminalSession is the protocol orchestrator for a single
  * terminal pane. It composes:
  *   - useTerminalTransport (WebSocket lifecycle)
- *   - useStdinAck         (seq/ack, queue, wsGen write barrier)
- *   - LocalEchoController (predictive echo)
+ *   - useStdinStream      (cumulative-offset queue and reconnect replay)
  *   - TerminalInputGate   (single-path input decision layer)
  *
  * Wire flow on every WS open (fresh OR reconnect):
@@ -133,6 +145,8 @@ export function useTerminalSession({
   terminal,
   onExit,
   onReady,
+  onStatus,
+  predictionContainer,
   createSocket,
 }: UseTerminalSessionOptions): UseTerminalSessionResult {
   const sessionReadyRef = useRef(false);
@@ -141,13 +155,18 @@ export function useTerminalSession({
   // stays disabled so the snapshot's alt-buffer markers / TUI paint render
   // cleanly.
   const inSnapshotRef = useRef(true);
+  const predictionOverlayRef = useRef<PredictionOverlay | null>(null);
+	const predictionSentAtRef = useRef(new Map<number, number>());
+	const predictionLatencyEmaRef = useRef(0);
+	const echoStateRef = useRef({ known: false, enabled: false, inAltBuffer: false, cursorAtLineEnd: false });
 	const serverSizeRef = useRef<{ cols: number; rows: number } | null>(null);
 	// This is deliberately separate from serverSizeRef. A follower renders the
 	// leader's grid, but must retain its own most recently declared grid so an
 	// explicit Take over can resize the PTY for the device that requested it.
 	const declaredSizeRef = useRef<{ cols: number; rows: number } | null>(null);
 	const leaseRequestInFlightRef = useRef(false);
-	const [serverSize, setServerSize] = useState<{ cols: number; rows: number } | null>(null);
+  const [serverSize, setServerSize] = useState<{ cols: number; rows: number } | null>(null);
+	const [mouseMode, setMouseMode] = useState<boolean | null>(null);
 	const [holdsLease, setHoldsLease] = useState(true);
 	const [leaderDevice, setLeaderDevice] = useState("");
 
@@ -158,9 +177,7 @@ export function useTerminalSession({
 
   const wsUrl = buildSessionWsUrl(sessionId, typeof window === "undefined" ? undefined : deviceIdentity());
 
-  const localEchoRef = useRef(new LocalEchoController());
-
-  // Transport is constructed first; the stdin-ack and session layer
+  // Transport is constructed first; the stdin stream and session layer
   // consult transport.currentGen() and transport.sendJson().
   const transportRef = useRef<ReturnType<typeof useTerminalTransport> | null>(
     null,
@@ -172,14 +189,13 @@ export function useTerminalSession({
     [],
   );
   const sendFrame = useCallback(
-    (msg: TerminalMessage): boolean => transportRef.current?.sendJson(msg) ?? false,
+    (msg: TerminalMessage): boolean => transportRef.current?.sendReliableJson(msg) ?? false,
     [],
   );
 
-  const stdin = useStdinAck({
+  const stdin = useStdinStream({
     sendFrame,
     isSessionReady,
-    currentGen,
   });
 
   const gate: TerminalInputGate = useRef(
@@ -188,23 +204,18 @@ export function useTerminalSession({
         send: stdin.send,
         enqueue: stdin.enqueue,
       },
-      getTerminal: () => terminalRef.current,
     }),
   ).current;
 
-  // Hold the terminal in a ref so the gate's getTerminal closure always
-  // sees the latest instance.
+  // Hold the terminal in a ref so transport callbacks always see the latest
+  // instance.
   const terminalRef = useRef<Terminal | null>(terminal);
   terminalRef.current = terminal;
 
   const onTransportOpen = useCallback((wasReconnect: boolean, _gen: number) => {
     sessionReadyRef.current = false;
-    localEchoRef.current.reset();
-    // Local echo stays disabled during snapshot replay; the server's
-    // emulator state — including alt-buffer — is restored as bytes hit
-    // xterm, so any echo decision must wait until live mode.
-    localEchoRef.current.enabled = false;
-    stdin.resetForNewConnection(currentGen());
+		echoStateRef.current = { known: false, enabled: false, inAltBuffer: false, cursorAtLineEnd: false };
+    stdin.resetForNewConnection();
     inSnapshotRef.current = true;
 
     const t = terminalRef.current;
@@ -221,25 +232,24 @@ export function useTerminalSession({
       t.clear();
       declaredSizeRef.current = { cols: t.cols, rows: t.rows };
       transportRef.current?.sendJson({ type: "resize", cols: t.cols, rows: t.rows });
-      if (wasReconnect) {
-        t.write(`\r\n${ANSI.gray}[Reconnected]${ANSI.reset}\r\n`);
-      }
+      predictionOverlayRef.current?.clear();
+		predictionSentAtRef.current.clear();
+		predictionLatencyEmaRef.current = 0;
+      if (wasReconnect) onStatus?.({ kind: "reconnected" });
     }
     if (wasReconnect) {
       void refreshConversationSession(sessionId);
     }
     onReadyRef.current?.();
-  }, [stdin, currentGen, sessionId]);
+  }, [onStatus, sessionId, stdin]);
 
   const onTransportClose = useCallback(() => {
     sessionReadyRef.current = false;
-    localEchoRef.current.reset();
     stdin.handleClose();
-    const t = terminalRef.current;
-    if (t) {
-      t.write(`\r\n${ANSI.gray}[Disconnected]${ANSI.reset}\r\n`);
-    }
-  }, [stdin]);
+    predictionOverlayRef.current?.clear();
+	predictionSentAtRef.current.clear();
+    onStatus?.({ kind: "disconnected" });
+  }, [onStatus, stdin]);
 
   const transport = useTerminalTransport({
     url: wsUrl,
@@ -252,6 +262,21 @@ export function useTerminalSession({
   const sendControl = useCallback(
     (data: string): boolean => transport.sendJson({ type: "control", data }),
     [transport],
+  );
+
+  const requestMouseMode = useCallback(
+    (enabled: boolean): boolean => transport.sendJson({ type: "mouse_mode", data: enabled ? "on" : "off" }),
+    [transport],
+  );
+
+  const scrollController = useMemo(
+    () => createScrollController(() => terminalRef.current, sendControl, {
+      getSensitivity: (source) => {
+        const state = useWorkspaceStore.getState();
+        return source === "touch" ? state.touchScrollSensitivity : state.wheelScrollSensitivity;
+      },
+    }),
+    [sendControl],
   );
 
   const requestLease = useCallback((explicit = false) => {
@@ -308,13 +333,63 @@ export function useTerminalSession({
         case "session_ready": {
           sessionReadyRef.current = true;
           wsGenAtReadyRef.current = msg.gen ?? transport.currentGen();
+			setMouseMode(msg.mouse_mode_known ? msg.mouse_mode === true : null);
+          stdin.reconcile(msg.accepted_through ?? 0);
+          predictionOverlayRef.current?.retireThrough(msg.accepted_through ?? 0);
+          stdin.replay();
           stdin.flush();
           break;
         }
         case "stdin_ack": {
-          stdin.acceptAck(msg.seq ?? 0, msg.ok === true, msg.reason);
+          const acceptedThrough = msg.accepted_through ?? 0;
+          const now = performance.now();
+          for (const [offset, sentAt] of predictionSentAtRef.current) {
+            if (offset <= acceptedThrough) {
+              const sample = Math.max(0, now - sentAt);
+              predictionLatencyEmaRef.current = predictionLatencyEmaRef.current === 0
+                ? sample
+                : predictionLatencyEmaRef.current * 0.75 + sample * 0.25;
+              predictionSentAtRef.current.delete(offset);
+            }
+          }
+          stdin.acknowledge(msg.accepted_through ?? 0, msg.ok === true, msg.reason);
+		  if (msg.ok) {
+			const active = terminalRef.current?.buffer.active;
+			predictionOverlayRef.current?.retireThrough(
+			  acceptedThrough,
+			  active && typeof active.cursorX === "number" && typeof active.cursorY === "number"
+				? { col: active.cursorX, row: active.cursorY }
+				: undefined,
+			);
+		  } else {
+			predictionOverlayRef.current?.clear();
+		  }
           break;
         }
+		case "echo_state": {
+			const previous = echoStateRef.current;
+			echoStateRef.current = {
+				known: msg.echo_known === true,
+				enabled: msg.echo_enabled === true,
+				inAltBuffer: msg.in_alt_buffer === true,
+				cursorAtLineEnd: msg.cursor_at_line_end === true,
+			};
+			if (
+				previous.known !== echoStateRef.current.known ||
+				previous.enabled !== echoStateRef.current.enabled ||
+				previous.inAltBuffer !== echoStateRef.current.inAltBuffer ||
+				previous.cursorAtLineEnd !== echoStateRef.current.cursorAtLineEnd
+			) {
+				predictionOverlayRef.current?.clear();
+				predictionSentAtRef.current.clear();
+			}
+			break;
+		}
+		case "mouse_mode": {
+			if (msg.data === "on" || msg.data === "off") setMouseMode(msg.data === "on");
+			else if (msg.data === "unsupported") setMouseMode(null);
+			break;
+		}
         case "stdout": {
           if (!msg.data) break;
           const t = terminalRef.current;
@@ -326,54 +401,51 @@ export function useTerminalSession({
             // server's emulator state at subscribe time.
             t.write(msg.data);
           } else {
-            const processed = localEchoRef.current.processOutput(msg.data);
-            if (processed) t.write(processed);
             appendOutputProbe(sessionId, msg.data);
+            t.write(msg.data);
           }
+          scrollController.notifyOutput();
           break;
         }
         case "history_end": {
           inSnapshotRef.current = false;
-          // Re-enable local echo only when not in alt-buffer. xterm
-          // exposes the active buffer; we read it after the snapshot has
-          // been drained so the decision reflects post-replay state.
+          break;
+        }
+        case "resync": {
           const t = terminalRef.current;
           if (t) {
-            const inAlt = t.buffer.active === t.buffer.alternate;
-            localEchoRef.current.enabled = !inAlt;
+            t.reset();
+            t.clear();
           }
+          predictionOverlayRef.current?.clear();
+		  predictionSentAtRef.current.clear();
+          inSnapshotRef.current = true;
+          onStatus?.({ kind: "resynced" });
+          break;
+        }
+        case "snapshot_notice": {
+          onStatus?.({ kind: "resynced", detail: msg.data ?? "Scrollback was truncated for replay" });
           break;
         }
         case "exit": {
           inSnapshotRef.current = false;
           const code = msg.code ?? 0;
-          const label =
-            code === 0
-              ? `${ANSI.gray}[Session ended]`
-              : `${ANSI.red}[Session ended with exit code ${code}]`;
-          terminalRef.current?.write(`\r\n${label}${ANSI.reset}\r\n`);
+          onStatus?.({
+            kind: "session-ended",
+            detail: code === 0 ? "Session ended" : `Session ended with exit code ${code}`,
+          });
           onExitRef.current?.(sessionId);
           break;
         }
         case "error": {
-          terminalRef.current?.write(
-            `\r\n${ANSI.red}[Error: ${msg.data}]${ANSI.reset}\r\n`,
-          );
           const hint = WS_ERROR_RECOVERY[msg.data ?? ""] ?? "";
-          if (hint) {
-            terminalRef.current?.write(
-              `${ANSI.gray}  ${hint}${ANSI.reset}\r\n`,
-            );
-          }
+          onStatus?.({ kind: "error", detail: hint || msg.data || "Terminal error" });
           break;
         }
         case "sync_warning": {
-          localEchoRef.current.reset();
-          const coalesced = msg.coalesced_frames ?? 0;
-          terminalRef.current?.write(
-            `\r\n${ANSI.yellow}[Warning: ${coalesced} output frames coalesced — terminal may lag]${ANSI.reset}\r\n` +
-              `${ANSI.gray}  Output will catch up automatically.${ANSI.reset}\r\n`,
-          );
+          // Coalescing is an internal recovery signal. It is deliberately
+          // not written into the emulator/xterm stream; a resync frame owns
+          // recovery and pane chrome will own operator-facing status.
           break;
         }
         case "size_info": {
@@ -398,13 +470,27 @@ export function useTerminalSession({
       }
     });
     return unsubscribe;
-  }, [transport, sessionId, stdin]);
+  }, [onStatus, sessionId, stdin, transport]);
 
-  // xterm.onData → gate.submit (single path). localEcho prediction
-  // still runs on printable single chars before dispatch.
+  useEffect(() => {
+    if (!terminal || !predictionContainer) return;
+    const overlay = createPredictionOverlay(terminal, predictionContainer);
+    predictionOverlayRef.current = overlay;
+    return () => {
+      if (predictionOverlayRef.current === overlay) predictionOverlayRef.current = null;
+      overlay.dispose();
+    };
+  }, [predictionContainer, terminal]);
+
+  // xterm.onData → gate.submit (single path). Prediction is rendered as a
+  // non-mutating overlay elsewhere; xterm remains the server-state renderer.
   useEffect(() => {
     if (!terminal) return;
     const disposable = terminal.onData((rawData) => {
+	  if (isMouseTrackingSequence(rawData)) {
+	    sendControl(rawData);
+	    return;
+	  }
       const mods = useWorkspaceStore.getState().modifiers;
       const hasModifier = mods.ctrl || mods.alt || mods.shift;
       let data = stripTerminalResponses(rawData);
@@ -414,14 +500,35 @@ export function useTerminalSession({
         data = modified;
         useWorkspaceStore.getState().clearModifiers();
       }
-      const echo = localEchoRef.current.handleInput(data);
-      if (echo) terminal.write(echo);
-	  submitInput(data, "typing");
+	  const result = submitInput(data, "typing");
+      const currentTerminal = terminalRef.current;
+      if (
+        result.status === "sent" &&
+        data.length === 1 &&
+        data >= " " &&
+        data !== "\x7f" &&
+		  currentTerminal?.buffer.active === currentTerminal?.buffer.normal &&
+			echoStateRef.current.known &&
+			echoStateRef.current.enabled &&
+			echoStateRef.current.cursorAtLineEnd
+      ) {
+        if (!currentTerminal) return;
+        const active = currentTerminal.buffer.active;
+		predictionSentAtRef.current.set(result.offset, performance.now());
+		const threshold = useWorkspaceStore.getState().predictionLatencyThresholdMs;
+		predictionOverlayRef.current?.add(
+		  data,
+		  active.cursorX,
+		  active.cursorY,
+		  result.offset,
+		  predictionLatencyEmaRef.current > threshold,
+		);
+      }
     });
     return () => {
       disposable.dispose();
     };
-	}, [terminal, submitInput]);
+	}, [terminal, sendControl, submitInput]);
 
   // Cleanup on unmount.
   useEffect(() => {
@@ -443,7 +550,7 @@ export function useTerminalSession({
         connectionState: transport.state(),
         wsGen: transport.currentGen(),
         pendingInput: stdin.getPendingSnapshot().length,
-        pendingAcks: 0,
+        pendingReliableInput: stdin.getPendingInputCount(),
         altBuffer: t ? t.buffer.active === t.buffer.alternate : false,
       });
     };
@@ -470,6 +577,9 @@ export function useTerminalSession({
   return {
     submitInput,
     sendControl,
+    setMouseMode: requestMouseMode,
+    mouseMode,
+    scrollBy: scrollController.scrollBy,
     gate,
 		sendResize,
 		getServerSize,
@@ -478,7 +588,7 @@ export function useTerminalSession({
 		leaderDevice,
 		takeLease,
     subscribeInputSettled: stdin.subscribeInputSettled,
-    awaitSeq: stdin.awaitSeq,
+    awaitOffset: stdin.awaitOffset,
     subscribePendingInput: stdin.subscribePendingInput,
     getPendingInputSnapshot: stdin.getPendingSnapshot,
     sendConversationAck,

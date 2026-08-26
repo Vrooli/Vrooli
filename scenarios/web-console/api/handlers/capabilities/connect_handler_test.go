@@ -3,11 +3,17 @@ package capabilities
 import (
 	"context"
 	"errors"
+	"io"
+	"log"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 	"time"
 
 	"connectrpc.com/connect"
+	"github.com/gorilla/mux"
 
+	"web-console/internal/backend"
 	internalcaps "web-console/internal/capabilities"
 
 	capabilitiesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/capabilities"
@@ -97,6 +103,7 @@ type projectionService struct{ *fakeService }
 func (p *projectionService) Resolve(context.Context) Snapshot {
 	return Snapshot{Timestamp: "now", DefaultBackend: "standard", Capabilities: []CapabilityState{{ID: "audio", Name: "Audio", Features: []string{"stt"}, Status: "available"}}, BackendOptions: []BackendOption{{ID: "tmux", DisplayName: "tmux", Available: true}}}
 }
+
 func (p *projectionService) Liveness(context.Context) Snapshot {
 	return Snapshot{Timestamp: "live", Capabilities: []CapabilityState{{ID: "audio", Status: "available"}}}
 }
@@ -189,4 +196,98 @@ func TestAdapterRunActionInvalidatesCacheAndReturnsFreshSnapshot(t *testing.T) {
 		}
 	}
 	t.Fatal("audio-tools missing from refreshed snapshot")
+}
+
+func TestAdapterProjectsBackendOptionsAndSupportsDescribeAndLiveness(t *testing.T) {
+	registry := internalcaps.NewRegistry(
+		[]internalcaps.Def{{ID: "audio", Name: "Audio", Description: "Audio capability", DependencyKind: internalcaps.DependencyScenario, DependencySlug: "audio"}},
+		map[string]internalcaps.Checker{"audio": &adapterResultChecker{result: internalcaps.CheckResult{
+			Status:  internalcaps.StatusAvailable,
+			Message: "ready",
+		}}},
+		0,
+	)
+	backends := backend.New()
+	backends.Register(backend.Descriptor{
+		ID:              backend.Standard,
+		DisplayName:     "Standard",
+		Description:     "local PTY",
+		SurvivesRestart: false,
+		Available:       true,
+		Reason:          "",
+	}, nil)
+	adapter := &Adapter{
+		Registry:        registry,
+		BackendRegistry: backends,
+		DefaultBackend:  func() string { return string(backend.Standard) },
+		Logger:          log.New(io.Discard, "", 0),
+	}
+
+	described, err := adapter.Describe(context.Background())
+	if err != nil || len(described) == 0 {
+		t.Fatalf("Describe = %d bytes, %v", len(described), err)
+	}
+	resolved := adapter.Resolve(context.Background())
+	if resolved.DefaultBackend != string(backend.Standard) || len(resolved.BackendOptions) != 1 {
+		t.Fatalf("Resolve = %+v", resolved)
+	}
+	live := adapter.Liveness(context.Background())
+	if len(live.Capabilities) != 1 || live.Timestamp == "" {
+		t.Fatalf("Liveness = %+v", live)
+	}
+
+	if _, err := (&Adapter{}).Describe(context.Background()); err == nil {
+		t.Fatal("nil adapter registry should fail Describe")
+	}
+}
+
+func TestModuleMountsDescribeRouteAndReportsUnavailableServices(t *testing.T) {
+	checkers := make(map[string]internalcaps.Checker, len(internalcaps.Known))
+	for _, def := range internalcaps.Known {
+		checkers[def.ID] = &internalcaps.StaticChecker{Available: func() (bool, string) { return true, "available" }}
+	}
+	adapter := &Adapter{Registry: internalcaps.NewRegistry(internalcaps.Known, checkers, 0)}
+	router := mux.NewRouter()
+	Module(adapter, nil).Mount(router)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/capabilities/describe", nil)
+	resp := httptest.NewRecorder()
+	router.ServeHTTP(resp, req)
+	if resp.Code != http.StatusOK || resp.Body.Len() == 0 {
+		t.Fatalf("describe response = %d, %d bytes", resp.Code, resp.Body.Len())
+	}
+
+	missing := mux.NewRouter()
+	Module(&fakeService{}, nil).Mount(missing)
+	missingReq := httptest.NewRequest(http.MethodGet, "/api/v1/capabilities/describe", nil)
+	missingResp := httptest.NewRecorder()
+	missing.ServeHTTP(missingResp, missingReq)
+	if missingResp.Code != http.StatusServiceUnavailable {
+		t.Fatalf("missing describer status = %d", missingResp.Code)
+	}
+}
+
+func TestIntegrationSurfaceProjectsTheRealKnownCatalogue(t *testing.T) {
+	checkers := make(map[string]internalcaps.Checker, len(internalcaps.Known))
+	for _, def := range internalcaps.Known {
+		checkers[def.ID] = &internalcaps.StaticChecker{
+			Available: func() (bool, string) { return true, "available" },
+		}
+	}
+	registry := internalcaps.NewRegistry(internalcaps.Known, checkers, 0)
+	adapter := &Adapter{Registry: registry}
+
+	snapshot := adapter.Resolve(context.Background())
+	got := make(map[string]bool, len(snapshot.Capabilities))
+	for _, capability := range snapshot.Capabilities {
+		got[capability.ID] = true
+	}
+	for _, id := range []string{"audio-tools", "vrooli-bridge", "ollama", "openrouter"} {
+		if !got[id] {
+			t.Fatalf("integration surface omitted %q; got %v", id, got)
+		}
+	}
+	if len(snapshot.Capabilities) != len(internalcaps.Known) {
+		t.Fatalf("integration surface projected %d capabilities, want %d", len(snapshot.Capabilities), len(internalcaps.Known))
+	}
 }

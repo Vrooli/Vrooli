@@ -20,7 +20,7 @@ import {
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Button } from "./ui/button";
-import { DrawerShell } from "./DrawerShell";
+import { DrawerShell } from "@vrooli/react-component-library/DrawerShell/1.0.0";
 import { strings } from "../consts/strings";
 import { DEFAULT_SHORTCUTS, type ShortcutEntry } from "../consts/shortcuts";
 import { shortcutsClient } from "../api/shortcuts";
@@ -180,6 +180,8 @@ export default function TerminalLauncher({
     ? BACKEND_OPTIONS.filter((backend) => availableBackends.some((available) => available.id === backend.id && available.available))
     : BACKEND_OPTIONS;
   const showBackendSelector = backends.length > 1;
+  const noBackendAvailable = backends.length === 0;
+  const backendUnavailableReason = availableBackends?.find((backend) => !backend.available)?.reason ?? "No terminal backend is available on this host.";
 
   const buildLaunchOptions = useCallback((command?: string): LaunchOptions => {
     const parsed = parsePolicySelection(selectedPolicyKey);
@@ -193,10 +195,10 @@ export default function TerminalLauncher({
   }, [defaultBackend, selected, selectedBackend, selectedPolicyKey, workingDir]);
 
   const handleLaunchCustom = useCallback(() => {
-    if (!customCommand.trim() || !selected.available) return;
+    if (!customCommand.trim() || !selected.available || noBackendAvailable) return;
     onLaunch(buildLaunchOptions(customCommand.trim()));
     setCustomCommand("");
-  }, [buildLaunchOptions, customCommand, onLaunch, selected.available]);
+  }, [buildLaunchOptions, customCommand, noBackendAvailable, onLaunch, selected.available]);
 
   const handleTargetKeyDown = useCallback((event: KeyboardEvent, currentID: string) => {
     const isHome = event.key === "Home";
@@ -238,6 +240,13 @@ export default function TerminalLauncher({
             <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-wc-accent">{t(strings.terminalLauncher.eyebrow)}</div>
             <p className="mt-1 text-sm leading-5 text-wc-text-muted">{t(strings.terminalLauncher.description)}</p>
           </header>
+
+          {noBackendAvailable && (
+            <div data-testid="launcher-no-backend" role="alert" className="flex gap-3 rounded-xl border border-rose-400/25 bg-rose-400/10 p-3 text-sm text-rose-100">
+              <XCircle className="mt-0.5 h-4 w-4 shrink-0 text-rose-300" aria-hidden />
+              <span>{backendUnavailableReason}</span>
+            </div>
+          )}
 
           <section aria-labelledby="launcher-locations-heading" className="space-y-3">
             <div className="flex items-center justify-between gap-3">
@@ -333,7 +342,7 @@ export default function TerminalLauncher({
               type="button"
               data-testid="launcher-empty-shell"
               onClick={() => { onLaunch(buildLaunchOptions()); }}
-              disabled={isCreating || !selected.available}
+              disabled={isCreating || !selected.available || noBackendAvailable}
               className={optionCardClass}
             >
               <Terminal className="h-5 w-5 shrink-0 text-wc-accent" aria-hidden />
@@ -345,7 +354,7 @@ export default function TerminalLauncher({
               type="button"
               data-testid="launcher-codex-sign-in"
               onClick={() => { onLaunch(buildLaunchOptions(codexDeviceAuthCommand)); }}
-              disabled={isCreating || !selected.available}
+              disabled={isCreating || !selected.available || noBackendAvailable}
               className={optionCardClass}
             >
               <ShieldIcon />
@@ -357,7 +366,7 @@ export default function TerminalLauncher({
               <div className="space-y-2">
                 <div className="px-1 text-xs font-semibold uppercase tracking-wider text-wc-text-faint">{t(strings.terminalLauncher.shortcuts)}</div>
                 {shortcuts.filter((shortcut) => shortcut.command !== codexDeviceAuthCommand).map((shortcut) => (
-                  <button key={shortcut.command} type="button" data-testid={`launcher-shortcut-${slugify(shortcut.label)}`} onClick={() => { onLaunch(buildLaunchOptions(shortcut.command)); }} disabled={isCreating || !selected.available} className={optionCardClass}>
+                  <button key={shortcut.command} type="button" data-testid={`launcher-shortcut-${slugify(shortcut.label)}`} onClick={() => { onLaunch(buildLaunchOptions(shortcut.command)); }} disabled={isCreating || !selected.available || noBackendAvailable} className={optionCardClass}>
                     <Zap className="h-5 w-5 shrink-0 text-yellow-400" aria-hidden />
                     <div className="min-w-0 flex-1"><div className="font-medium text-wc-text-primary">{shortcut.label}</div><div className="truncate text-sm text-wc-text-muted">{shortcut.description || shortcut.command}</div></div>
                   </button>
@@ -370,7 +379,7 @@ export default function TerminalLauncher({
             <div className="px-1 text-xs font-semibold uppercase tracking-wider text-wc-text-faint">{t(strings.terminalLauncher.customCommand)}</div>
             <div className="flex flex-col gap-2 sm:flex-row">
               <input data-testid="launcher-custom-input" type="text" value={customCommand} onChange={(event) => { setCustomCommand(event.target.value); }} onKeyDown={(event) => { if (event.key === "Enter") handleLaunchCustom(); }} placeholder={t(strings.terminalLauncher.commandPlaceholder)} className="min-h-11 min-w-0 flex-1 rounded-lg border border-wc-default bg-wc-surface-input px-3 text-sm text-wc-text-primary outline-none placeholder:text-wc-text-faint focus:border-wc-accent" />
-              <Button data-testid="launcher-custom-launch" size="sm" onClick={handleLaunchCustom} disabled={isCreating || !customCommand.trim() || !selected.available}>{t(strings.terminalLauncher.launch)}</Button>
+              <Button data-testid="launcher-custom-launch" size="sm" onClick={handleLaunchCustom} disabled={isCreating || !customCommand.trim() || !selected.available || noBackendAvailable}>{t(strings.terminalLauncher.launch)}</Button>
             </div>
           </section>
 

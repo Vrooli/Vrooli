@@ -96,9 +96,10 @@ The cache uses opportunistic eviction (triggered when size > 100 entries).
    would require prompt hashing and cache invalidation policy, which is out of scope.
 
 2. **WebSocket stdin messages** — PTY input is inherently non-idempotent (typing "ls\n" twice
-   runs the command twice). No sequence tracking is implemented because the WebSocket protocol
-   provides ordered delivery within a single connection, and reconnection replays terminal
-   output (via offline buffer) rather than replaying input.
+   runs the command twice). Reliable stdin uses cumulative UTF-8 byte offsets and a per-session
+   accepted prefix. Reconnect replays only the unaccepted suffix; control frames are best-effort
+   and never enter the reliable stream. An offset below the released prefix is unreconcilable and
+   is surfaced without replay.
 
 ## Speaker Verification Invariants
 

@@ -34,20 +34,6 @@ type sessionsConnectIface interface {
 	UpdatePolicy(context.Context, *connect.Request[sessionsv1.UpdatePolicyRequest]) (*connect.Response[sessionsv1.UpdatePolicyResponse], error)
 }
 
-func callArchive(t *testing.T, srv *Server, id string) error {
-	t.Helper()
-	_, err := newSessionsConnectHandlerForServer(srv).Archive(context.Background(),
-		connect.NewRequest(&sessionsv1.ArchiveRequest{Id: id}))
-	return err
-}
-
-func callUnarchive(t *testing.T, srv *Server, id string) error {
-	t.Helper()
-	_, err := newSessionsConnectHandlerForServer(srv).Unarchive(context.Background(),
-		connect.NewRequest(&sessionsv1.UnarchiveRequest{Id: id}))
-	return err
-}
-
 func newSessionsConnectHandlerForServer(srv *Server) sessionsConnectIface {
 	return sessionsH.NewConnectHandler(sessionsH.Deps{Service: &sessionsH.Adapter{
 		Manager:             srv.sessions,

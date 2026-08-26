@@ -7,6 +7,64 @@ import (
 	"testing"
 )
 
+func TestStaticChecker_ConfigurationAndProbeResults(t *testing.T) {
+	for _, tc := range []struct {
+		name    string
+		checker *StaticChecker
+		status  Status
+		msg     string
+	}{
+		{name: "nil", checker: nil, status: StatusUnavailable, msg: "host capability probe is not configured"},
+		{name: "missing probe", checker: &StaticChecker{}, status: StatusUnavailable, msg: "host capability probe is not configured"},
+		{name: "available", checker: &StaticChecker{Available: func() (bool, string) { return true, "ignored" }}, status: StatusAvailable, msg: "available"},
+		{name: "unavailable", checker: &StaticChecker{Available: func() (bool, string) { return false, "not installed" }}, status: StatusUnavailable, msg: "not installed"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			status, msg := tc.checker.Check(context.Background())
+			if status != tc.status || msg != tc.msg {
+				t.Fatalf("Check() = (%q, %q), want (%q, %q)", status, msg, tc.status, tc.msg)
+			}
+		})
+	}
+}
+
+func TestBridgeChecker_ProbeOutcomes(t *testing.T) {
+	tests := []struct {
+		name       string
+		statusCode int
+		wantStatus Status
+		wantMsg    string
+	}{
+		{name: "healthy", statusCode: http.StatusOK, wantStatus: StatusAvailable, wantMsg: "Bridge is reachable and ready"},
+		{name: "unhealthy", statusCode: http.StatusBadGateway, wantStatus: StatusUnavailable, wantMsg: "Bridge registry is unreachable"},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if r.URL.Path != "/health" || r.Header.Get("Authorization") != "owner" || r.Header.Get("X-Bridge-Owner-Reauth") != "reauth" {
+					t.Fatalf("probe request = %s %s auth=%q reauth=%q", r.Method, r.URL.Path, r.Header.Get("Authorization"), r.Header.Get("X-Bridge-Owner-Reauth"))
+				}
+				w.WriteHeader(tc.statusCode)
+			}))
+			defer srv.Close()
+
+			result := (&BridgeChecker{BaseURL: srv.URL, OwnerToken: "owner", ReauthToken: "reauth", Probe: true}).CheckResult(context.Background())
+			if result.Status != tc.wantStatus || result.Message != tc.wantMsg {
+				t.Fatalf("result = %+v, want status=%q message=%q", result, tc.wantStatus, tc.wantMsg)
+			}
+		})
+	}
+
+	configured := (&BridgeChecker{BaseURL: " https://bridge.test/ ", OwnerToken: "LocalSession owner", Probe: false}).CheckResult(context.Background())
+	if configured.Status != StatusAvailable || configured.Message != "Bridge is configured" {
+		t.Fatalf("configured result = %+v", configured)
+	}
+	refused := (&BridgeChecker{BaseURL: "http://127.0.0.1:1", OwnerToken: "owner", ReauthToken: "reauth", Probe: true}).CheckResult(context.Background())
+	if refused.ReasonCode != "bridge_unreachable" {
+		t.Fatalf("refused reason = %q", refused.ReasonCode)
+	}
+}
+
 func TestResourceChecker_Healthy(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
@@ -77,6 +135,13 @@ func TestResourceChecker_ConnectionRefused(t *testing.T) {
 	}
 }
 
+func TestResourceChecker_InvalidURL(t *testing.T) {
+	status, msg := (&ResourceChecker{URL: "://bad"}).Check(context.Background())
+	if status != StatusUnavailable || msg == "" {
+		t.Fatalf("invalid URL result = (%q, %q)", status, msg)
+	}
+}
+
 // fakeWhisperServer / WhisperChecker / KokoroChecker tests removed in the
 // audio-tools adoption — the corresponding checker types were deleted
 // (audio-tools owns Whisper + Kokoro end-to-end now). Resource liveness
@@ -133,6 +198,13 @@ func TestOllamaChecker_ConnectionRefused(t *testing.T) {
 	}
 	if msg != "Ollama is not responding" {
 		t.Errorf("message = %q, want %q", msg, "Ollama is not responding")
+	}
+}
+
+func TestOllamaChecker_InvalidURL(t *testing.T) {
+	status, msg := (&OllamaChecker{BaseURL: "://bad"}).Check(context.Background())
+	if status != StatusUnavailable || msg == "" {
+		t.Fatalf("invalid URL result = (%q, %q)", status, msg)
 	}
 }
 
@@ -199,6 +271,18 @@ func TestOpenRouterChecker_ConnectionRefused(t *testing.T) {
 	}
 	if msg != "OpenRouter is not reachable" {
 		t.Errorf("message = %q, want %q", msg, "OpenRouter is not reachable")
+	}
+}
+
+func TestOpenRouterChecker_UnexpectedStatus(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusTooManyRequests)
+	}))
+	defer srv.Close()
+
+	status, msg := (&OpenRouterChecker{APIKey: "key", BaseURL: srv.URL}).Check(context.Background())
+	if status != StatusUnavailable || msg != "OpenRouter returned unexpected status" {
+		t.Fatalf("result = (%q, %q)", status, msg)
 	}
 }
 

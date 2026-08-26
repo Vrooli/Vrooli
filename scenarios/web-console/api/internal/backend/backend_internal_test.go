@@ -1,6 +1,9 @@
 package backend
 
 import (
+	"errors"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"web-console/internal/pty"
@@ -26,6 +29,43 @@ func TestRegistry_RegisterAndGet(t *testing.T) {
 
 	if _, ok := reg.Get("nonexistent"); ok {
 		t.Error("expected false for unregistered backend")
+	}
+}
+
+func TestResolveAutoAndTmuxProbeHelpers(t *testing.T) {
+	reg := New()
+	reg.Register(Descriptor{ID: Standard, Available: true}, nil)
+	if got := reg.ResolveAuto(); got != Standard {
+		t.Fatalf("ResolveAuto without persistent = %q", got)
+	}
+	reg.Register(Descriptor{ID: Persistent, Available: true}, nil)
+	if got := reg.ResolveAuto(); got != Persistent {
+		t.Fatalf("ResolveAuto with persistent = %q", got)
+	}
+
+	t.Setenv("WC_TMUX_SOCKET", filepath.Join(t.TempDir(), "nested", "socket"))
+	path := tmuxProbeSocketPath()
+	if path == "" {
+		t.Fatal("tmux probe path is empty")
+	}
+	if _, err := os.Stat(filepath.Dir(path)); err != nil {
+		t.Fatalf("probe directory was not created: %v", err)
+	}
+	old := tmuxProbeCommand
+	t.Cleanup(func() { tmuxProbeCommand = old })
+	tmuxProbeCommand = func(string, ...string) error { return nil }
+	if reason := runTmuxProbeCommand("tmux", "-V"); reason != "" {
+		t.Fatalf("successful probe command returned %q", reason)
+	}
+	if available, reason := cacheTmuxProbe("test-version", true, ""); !available || reason != "" {
+		t.Fatalf("cache success = %v/%q", available, reason)
+	}
+	if available, reason := cacheTmuxProbe("test-version-fail", false, "failed"); available || reason != "failed" {
+		t.Fatalf("cache failure = %v/%q", available, reason)
+	}
+	tmuxProbeCommand = func(string, ...string) error { return errors.New("no") }
+	if reason := runTmuxProbeCommand("tmux", "send-keys"); reason == "" {
+		t.Fatal("failed probe command returned no reason")
 	}
 }
 

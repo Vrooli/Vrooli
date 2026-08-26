@@ -38,8 +38,7 @@ func (a *Adapter) GetScreen(_ context.Context, sessionID string, includeScrollba
 	if err != nil {
 		return ScreenView{}, err
 	}
-	view := sess.Screen()
-	plain := sess.PlainText(includeScrollback)
+	view, plain := sess.ScreenWithText(includeScrollback)
 	cells := make([][]Cell, len(view.Cells))
 	for y, row := range view.Cells {
 		out := make([]Cell, len(row))
@@ -72,16 +71,11 @@ func (a *Adapter) SendInput(_ context.Context, sessionID string, in InputRequest
 	case InputVariantText:
 		input = session.InputText(in.Text)
 	case InputVariantKeys:
-		keyMap := DefaultKeyMap{}
-		var raw []byte
+		keys := make([]session.Key, 0, len(in.Keys))
 		for _, k := range in.Keys {
-			bytes, ok := keyMap.Bytes(session.Key{Name: k.Name, Ctrl: k.Ctrl, Alt: k.Alt, Shift: k.Shift})
-			if !ok {
-				return 0, fmt.Errorf("unknown key %q: %w", k.Name, ErrInvalidArgument)
-			}
-			raw = append(raw, bytes...)
+			keys = append(keys, session.Key{Name: k.Name, Ctrl: k.Ctrl, Alt: k.Alt, Shift: k.Shift})
 		}
-		input = session.InputRaw(raw)
+		input = session.InputKeys(keys...)
 	case InputVariantRaw:
 		input = session.InputRaw(in.Raw)
 	default:
@@ -95,7 +89,7 @@ func (a *Adapter) SendInput(_ context.Context, sessionID string, in InputRequest
 		source = "terminal-rpc"
 	}
 	input = input.WithSource(source)
-	n, err := sess.SendInputCount(input)
+	n, err := sess.SendInputCountWithKeyMap(input, DefaultKeyMap{})
 	if err != nil {
 		if isUnknownKeyError(err) {
 			return 0, fmt.Errorf("%v: %w", err, ErrInvalidArgument)
@@ -134,18 +128,7 @@ func sgrToHandler(s terminal.SGR) SGR {
 	}
 }
 
-// isUnknownKeyError detects the session.SendInput error for unrecognized
-// key names. The string prefix is the contract; if it changes,
-// session and this adapter must change together.
+// isUnknownKeyError detects the typed session error for an unrecognized key.
 func isUnknownKeyError(err error) bool {
-	if err == nil {
-		return false
-	}
-	var unknown interface{ Error() string }
-	if !errors.As(err, &unknown) {
-		return false
-	}
-	msg := unknown.Error()
-	const prefix = "unknown key "
-	return len(msg) >= len(prefix) && msg[:len(prefix)] == prefix
+	return errors.Is(err, session.ErrUnknownKey)
 }

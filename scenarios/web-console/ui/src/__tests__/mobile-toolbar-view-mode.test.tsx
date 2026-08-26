@@ -1,9 +1,10 @@
+import { renderWithProviders as render } from "../test-utils";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { screen, fireEvent } from "@testing-library/react";
 import MobileToolbar from "../components/MobileToolbar";
 
 const baseProps = {
-  onInput: vi.fn(() => ({ status: "sent" as const, seq: 1 })),
+  onInput: vi.fn(() => ({ status: "sent" as const, offset: 1 })),
   onFocusTerminal: vi.fn(),
   activeSessionId: "sess-1",
   voice: {
@@ -151,5 +152,20 @@ describe("MobileToolbar viewMode", () => {
     expect(() => {
       fireEvent.click(screen.getByTestId("mobile-command-submit"));
     }).not.toThrow();
+  });
+
+  it("shows voice command suggestions and routes confirm or dismiss", () => {
+    const onCommandConfirm = vi.fn();
+    const onCommandDismiss = vi.fn();
+    const suggestion = { id: "s1", commandId: "list-files", description: "List files", confidence: 0.9, rawText: "list files", timestamp: 1, args: {} };
+    const first = render(<MobileToolbar {...baseProps} voice={{ ...baseProps.voice, commandSuggestion: suggestion, onCommandConfirm, onCommandDismiss }} />);
+    expect(screen.getByTestId("voice-command-suggestion")).toHaveTextContent("List files");
+    fireEvent.click(screen.getByTestId("voice-command-confirm"));
+    expect(onCommandConfirm).toHaveBeenCalledWith(suggestion);
+
+    first.unmount();
+    render(<MobileToolbar {...baseProps} voice={{ ...baseProps.voice, commandSuggestion: suggestion, onCommandConfirm, onCommandDismiss }} />);
+    fireEvent.click(screen.getByTestId("voice-command-dismiss"));
+    expect(onCommandDismiss).toHaveBeenCalledWith(suggestion);
   });
 });

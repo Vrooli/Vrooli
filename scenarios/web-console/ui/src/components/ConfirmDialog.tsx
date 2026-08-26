@@ -1,7 +1,7 @@
 import { useEffect, useId, useRef, type ReactNode } from "react";
 
-import { useEscapeKey } from "../hooks/useEscapeKey";
-import { useFocusTrap } from "../hooks/useFocusTrap";
+import { useEscapeKey } from "@vrooli/react-component-library/useEscapeKey/1.0.0";
+import { useFocusTrap } from "@vrooli/react-component-library/useFocusTrap/1.0.0";
 import { cn } from "../lib/classnames";
 
 interface ConfirmDialogProps {

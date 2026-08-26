@@ -2,6 +2,7 @@ package session
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -69,6 +70,43 @@ func TestSession_Screen_AfterPTYOutput(t *testing.T) {
 	}
 }
 
+func TestSession_ScreenWithTextKeepsGridAndTextTogetherDuringOutput(t *testing.T) {
+	sess, fake, _ := newPipedSession(t)
+
+	stop := make(chan struct{})
+	defer close(stop)
+	go func() {
+		for i := 0; ; i++ {
+			select {
+			case <-stop:
+				return
+			default:
+			}
+			_, _ = fmt.Fprintf(fake.OutW, "frame-%03d\r\n", i%1000)
+			time.Sleep(time.Microsecond)
+		}
+	}()
+
+	for i := 0; i < 100; i++ {
+		view, plain := sess.ScreenWithText(false)
+		var rows []string
+		for _, row := range view.Cells {
+			end := len(row)
+			for end > 0 && row[end-1].Rune == ' ' {
+				end--
+			}
+			runes := make([]rune, end)
+			for x := 0; x < end; x++ {
+				runes[x] = row[x].Rune
+			}
+			rows = append(rows, string(runes))
+		}
+		if got := strings.Join(rows, "\n"); got != plain {
+			t.Fatalf("torn screen read at iteration %d: view text %q != plain text %q", i, got, plain)
+		}
+	}
+}
+
 func TestSession_WaitIdle_BecomesIdle(t *testing.T) {
 	sess, _, _ := newPipedSession(t)
 
@@ -116,6 +154,41 @@ func TestSession_WaitIdle_TimeoutWhileActive(t *testing.T) {
 	}
 	if reason != "timeout" {
 		t.Errorf("reason: got %q, want %q", reason, "timeout")
+	}
+}
+
+func TestSession_SizeLeaseTransfersAndResizes(t *testing.T) {
+	sess, _, _ := newPipedSession(t)
+	first := sess.Subscribe()
+	second := sess.Subscribe()
+	defer sess.Unsubscribe(second.OutputCh)
+
+	sess.DeclareSize(first.OutputCh, 100, 30)
+	sess.SetClientDevice(first.OutputCh, "laptop", "Laptop")
+	if err := sess.AcquireLease(first.OutputCh, LeaseReasonExplicit); err != nil {
+		t.Fatalf("AcquireLease(first): %v", err)
+	}
+	if !sess.HoldsLease(first.OutputCh) {
+		t.Fatal("first client does not hold lease")
+	}
+	cols, rows, leader, label, holds, viewers := sess.SizeLeaseState(first.OutputCh)
+	if cols != 100 || rows != 30 || leader != "laptop" || label != "Laptop" || !holds || viewers != 2 {
+		t.Fatalf("lease state = %d x %d, leader=%q/%q holds=%v viewers=%d", cols, rows, leader, label, holds, viewers)
+	}
+	if err := sess.Resize(second.OutputCh, 120, 40); err != ErrLeaseNotHeld {
+		t.Fatalf("follower Resize error = %v, want %v", err, ErrLeaseNotHeld)
+	}
+	if err := sess.Resize(first.OutputCh, 120, 40); err != nil {
+		t.Fatalf("leader Resize: %v", err)
+	}
+	sess.DeclareSize(second.OutputCh, 90, 25)
+	if err := sess.AcquireLease(second.OutputCh, LeaseReasonInput); err != nil {
+		t.Fatalf("AcquireLease(second): %v", err)
+	}
+	sess.Unsubscribe(first.OutputCh)
+	cols, rows, leader, label, holds, viewers = sess.SizeLeaseState(second.OutputCh)
+	if cols != 90 || rows != 25 || leader != "" || label != "" || !holds || viewers != 1 {
+		t.Fatalf("transferred lease state = %d x %d, leader=%q/%q holds=%v viewers=%d", cols, rows, leader, label, holds, viewers)
 	}
 }
 

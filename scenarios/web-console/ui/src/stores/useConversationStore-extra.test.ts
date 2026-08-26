@@ -46,6 +46,73 @@ describe("conversation store state transitions", () => {
     store.mergeEvents("s", [], undefined);
     expect(getSessionConversationEventsFallback(useConversationStore.getState(), "s")).toHaveLength(2);
   });
+
+  it("preserves a live event when hydration returns a different baseline", () => {
+    const store = useConversationStore.getState();
+    store.appendEvent(event("live", 3));
+    store.hydrateSession("s", [event("baseline", 1)], { lastSeenSequence: 0, lastListenedSequence: 0 });
+    expect(useConversationStore.getState().sessions.s?.events.map((item) => item.id)).toEqual(["baseline", "live"]);
+  });
+
+  it("covers empty and duplicate prepend/merge paths and recomputes cursor metadata", () => {
+    const store = useConversationStore.getState();
+    store.prependEvents("new", [], { oldestSequence: 0, hasOlder: false, totalCount: 0 });
+    store.prependEvents("new", [event("e1", 1)], { oldestSequence: 1, hasOlder: false, totalCount: 1 });
+    store.prependEvents("new", [event("e1", 1)], { oldestSequence: 1, hasOlder: false, totalCount: 1 });
+    store.mergeEvents("new", [event("e1", 1)], { lastSeenSequence: 1, lastListenedSequence: 0 });
+    store.updateCursor("new", { lastSeenSequence: 1 });
+    expect(getSessionUnreadCount(useConversationStore.getState(), "new")).toBe(0);
+
+    useConversationStore.setState({
+      sessions: { empty: { events: [], cursor: { lastSeenSequence: 0, lastListenedSequence: 0 }, hydrated: false } },
+      viewModes: {},
+    });
+    useConversationStore.getState().mergeEvents("empty", [], undefined);
+    expect(useConversationStore.getState().sessions.empty?.hydrated).toBe(true);
+  });
+
+  it("updates only existing events and supports sessions without cached metadata", () => {
+    const store = useConversationStore.getState();
+    store.updateEvent("missing", "e1", { summarized: true });
+    store.hydrateSession("s", [event("e1", 1)], { lastSeenSequence: 0, lastListenedSequence: 0 });
+    store.updateEvent("s", "missing", { summarized: true });
+    store.updateEvent("s", "e1", { summarized: false });
+    expect(useConversationStore.getState().sessions.s?.events[0]?.summarized).toBe(false);
+
+    useConversationStore.setState({
+      sessions: {
+        legacy: { events: [event("e2", 2), event("e4", 4)], cursor: { lastSeenSequence: 0, lastListenedSequence: 0 }, hydrated: true },
+      },
+      viewModes: {},
+    });
+    expect(getSessionRefetchSinceSequence(useConversationStore.getState(), "legacy")).toBe(0);
+    useConversationStore.setState({
+      sessions: {
+        legacy: { events: [event("e1", 1), event("e2", 2)], cursor: { lastSeenSequence: 0, lastListenedSequence: 0 }, hydrated: true },
+      },
+      viewModes: {},
+    });
+    expect(getSessionRefetchSinceSequence(useConversationStore.getState(), "legacy")).toBe(2);
+  });
+
+  it("reports missing, prefix, gap, and contiguous selector cases", () => {
+    const state = useConversationStore.getState();
+    expect(getSessionUnlistenedEvents(state, "missing")).toEqual([]);
+    expect(getSessionUnreadCount(state, "missing")).toBe(0);
+    expect(getSessionRefetchSinceSequence(state, "missing")).toBe(0);
+
+    useConversationStore.setState({
+      sessions: {
+        prefix: { events: [event("e3", 3)], cursor: { lastSeenSequence: 0, lastListenedSequence: 0 }, hydrated: true },
+        gap: { events: [event("e1", 1), event("e3", 3)], cursor: { lastSeenSequence: 0, lastListenedSequence: 0 }, hydrated: true },
+        contiguous: { events: [event("e1", 1), event("e2", 2)], cursor: { lastSeenSequence: 0, lastListenedSequence: 0 }, hydrated: true },
+      },
+      viewModes: {},
+    });
+    expect(getSessionRefetchSinceSequence(useConversationStore.getState(), "prefix")).toBe(0);
+    expect(getSessionRefetchSinceSequence(useConversationStore.getState(), "gap")).toBe(1);
+    expect(getSessionRefetchSinceSequence(useConversationStore.getState(), "contiguous")).toBe(2);
+  });
 });
 
 function getSessionConversationEventsFallback(state: ReturnType<typeof useConversationStore.getState>, id: string) {

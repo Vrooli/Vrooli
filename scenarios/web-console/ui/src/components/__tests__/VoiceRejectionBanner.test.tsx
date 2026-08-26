@@ -1,8 +1,9 @@
+import { renderWithProviders as render } from "../../test-utils";
 // Tests for the voice-rejection banner descriptor, rendered through
 // BannerRegion the way Workspace renders it.
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { screen, fireEvent } from "@testing-library/react";
 import { BannerHarness } from "../banners/__tests__/harness";
 import { voiceRejectionBanner } from "../banners/descriptors";
 import type { VoiceRejection } from "../../audio-integration";

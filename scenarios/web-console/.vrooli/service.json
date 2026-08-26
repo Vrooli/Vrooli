@@ -14,6 +14,14 @@
           "max_age": "30d",
           "rationale": "Retain session transcripts for 30 days for user recovery; owner cleanup protects active sessions."
         }
+      },
+      "uploads": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "cache",
+        "regenerable": false,
+        "subpath": "uploads",
+        "rationale": "User-provided attachments are written beneath the cache-class upload root and are owned by web-console for request-scoped cleanup."
       }
     },
     "rationale": "The session tree is owner-managed durable state; cleanup is delegated to web-console so active sessions remain protected."

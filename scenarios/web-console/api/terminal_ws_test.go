@@ -28,6 +28,45 @@ func wsURL(s *httptest.Server, path string) string {
 	return "ws" + strings.TrimPrefix(s.URL, "http") + path
 }
 
+func TestBoundSnapshotKeepsNewestCompleteLines(t *testing.T) {
+	got, dropped, truncated := boundSnapshot([]byte("old-1\nold-2\nnew-1\nnew-2\n"), 14)
+	if !truncated {
+		t.Fatal("expected snapshot to be truncated")
+	}
+	if dropped != 2 {
+		t.Fatalf("dropped lines = %d, want 2", dropped)
+	}
+	if string(got) != "\x1bcnew-1\nnew-2\n" {
+		t.Fatalf("bounded snapshot = %q", got)
+	}
+	if strings.Contains(string(got), "old-") {
+		t.Fatalf("bounded snapshot retained old content: %q", got)
+	}
+}
+
+func TestBoundSnapshotDoesNotEmitPartialLine(t *testing.T) {
+	got, dropped, truncated := boundSnapshot([]byte("a very long line without a terminator"), 8)
+	if !truncated || dropped != 0 {
+		t.Fatalf("truncation = %v dropped = %d", truncated, dropped)
+	}
+	if string(got) != "\x1bc" {
+		t.Fatalf("partial line was emitted: %q", got)
+	}
+}
+
+func TestBoundSnapshotRespectsTotalByteCap(t *testing.T) {
+	got, _, truncated := boundSnapshot([]byte("old line\nnew line\n"), 12)
+	if !truncated {
+		t.Fatal("expected snapshot to be truncated")
+	}
+	if len(got) > 12 {
+		t.Fatalf("bounded snapshot length = %d, want <= 12: %q", len(got), got)
+	}
+	if !strings.HasSuffix(string(got), "new line\n") {
+		t.Fatalf("bounded snapshot lost the newest complete line: %q", got)
+	}
+}
+
 // setupWSServer creates a test server with routes registered for WebSocket testing.
 func setupWSServer(t *testing.T) (*httptest.Server, *Server) {
 	t.Helper()
@@ -149,7 +188,7 @@ func skipHistoryEnd(t *testing.T, conn *websocket.Conn) {
 			sawSessionReady = true
 		case MsgTypeSizeInfo:
 			sawSizeInfo = true
-		case MsgTypeStdout, MsgTypeResizeInfo, MsgTypeSyncWarning:
+		case MsgTypeStdout, MsgTypeResizeInfo, MsgTypeSyncWarning, MsgTypeEchoState:
 			// Non-handshake traffic that may arrive before the handshake
 			// completes (snapshot frames, early shell prompt).
 		default:
@@ -399,7 +438,7 @@ func TestHandleTerminalWS_InvalidJSON(t *testing.T) {
 }
 
 // Every stdin message must receive a matching stdin_ack carrying the
-// client-assigned seq number with ok=true when the PTY write succeeds.
+// cumulative accepted byte offset when the PTY write succeeds.
 func TestHandleTerminalWS_StdinAck_Success(t *testing.T) {
 	ts, srv := setupWSServer(t)
 	sessID := createTestSession(t, ts, srv)
@@ -411,32 +450,61 @@ func TestHandleTerminalWS_StdinAck_Success(t *testing.T) {
 	defer conn.Close()
 	skipHistoryEnd(t, conn)
 
-	for _, seq := range []int64{1, 2, 3} {
-		if err := conn.WriteJSON(TerminalMessage{Type: MsgTypeStdin, Data: "x", Seq: seq}); err != nil {
-			t.Fatalf("write stdin seq=%d: %v", seq, err)
+	for _, offset := range []int64{0, 1, 2} {
+		if err := conn.WriteJSON(TerminalMessage{Type: MsgTypeStdin, Data: "x", Offset: offset}); err != nil {
+			t.Fatalf("write stdin offset=%d: %v", offset, err)
 		}
 		_ = conn.SetReadDeadline(time.Now().Add(3 * time.Second))
 		var gotAck bool
 		for !gotAck {
 			var resp TerminalMessage
 			if err := conn.ReadJSON(&resp); err != nil {
-				t.Fatalf("read ack seq=%d: %v", seq, err)
+				t.Fatalf("read ack offset=%d: %v", offset, err)
 			}
 			switch resp.Type {
 			case MsgTypeStdinAck:
-				if resp.Seq != seq {
-					t.Errorf("seq=%d: ack echoed seq=%d", seq, resp.Seq)
+				if resp.AcceptedThrough != offset+1 {
+					t.Errorf("offset=%d: ack accepted_through=%d, want %d", offset, resp.AcceptedThrough, offset+1)
 				}
 				if !resp.Ok {
-					t.Errorf("seq=%d: expected ok=true", seq)
+					t.Errorf("offset=%d: expected ok=true", offset)
 				}
 				gotAck = true
 			case MsgTypeStdout, MsgTypeResizeInfo, MsgTypeSyncWarning:
 				// Shell prompt echo or similar — keep reading until ack.
 			default:
-				t.Fatalf("seq=%d: unexpected message type=%s", seq, resp.Type)
+				t.Fatalf("offset=%d: unexpected message type=%s", offset, resp.Type)
 			}
 		}
+	}
+}
+
+// A reconnecting client must not convince the server to skip bytes it never
+// accepted. The refusal is cumulative and must not trigger a replay.
+func TestHandleTerminalWS_HelloAheadOfServerIsRefused(t *testing.T) {
+	ts, srv := setupWSServer(t)
+	sessID := createTestSession(t, ts, srv)
+
+	conn, _, err := (&websocket.Dialer{}).Dial(wsURL(ts, "/api/v1/sessions/"+sessID+"/ws"), nil)
+	if err != nil {
+		t.Fatalf("ws dial: %v", err)
+	}
+	defer conn.Close()
+	skipHistoryEnd(t, conn)
+
+	if err := conn.WriteJSON(TerminalMessage{Type: MsgTypeHello, HaveThrough: 1}); err != nil {
+		t.Fatalf("write hello: %v", err)
+	}
+	ack := readUntilType(t, conn, MsgTypeStdinAck)
+	if ack.Ok || ack.AcceptedThrough != 0 || ack.Reason != StdinAckReasonUnreconcilable {
+		t.Fatalf("ahead hello ack = %+v, want rejected unreconcilable at zero", ack)
+	}
+
+	// No stdin frame was accepted, so the server must not emit a replay or
+	// advance the session's reliable input prefix.
+	got, ok := srv.sessions.Get(sessID)
+	if !ok || got == nil || got.AcceptedThrough() != 0 {
+		t.Fatalf("session accepted_through advanced after refused hello")
 	}
 }
 
@@ -685,7 +753,7 @@ func TestHandleTerminalWS_HistoryEnd_NoHistory(t *testing.T) {
 		switch msg.Type {
 		case MsgTypeHistoryEnd:
 			sawHistoryEnd = true
-		case MsgTypeSessionReady, MsgTypeStdout:
+		case MsgTypeSessionReady, MsgTypeStdout, MsgTypeEchoState:
 			// Snapshot stdout frames + handshake sibling are allowed.
 		default:
 			t.Errorf("unexpected message type before history_end: %q", msg.Type)

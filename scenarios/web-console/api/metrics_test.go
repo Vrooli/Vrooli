@@ -143,7 +143,7 @@ func TestMetrics_PerformanceOverhead(t *testing.T) {
 		}
 	})
 
-	// 10000 iterations should complete very quickly; atomic ops are <100ns each
+	// Ten-thousand iterations should complete very quickly; atomic ops are <100ns each
 	nsPerOp := start.NsPerOp()
 	if nsPerOp > 1_000_000 { // 1ms threshold
 		t.Errorf("metrics overhead too high: %d ns/op (threshold: 1,000,000 ns)", nsPerOp)

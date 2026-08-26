@@ -13,6 +13,7 @@ import (
 	"web-console/internal/ptyfake"
 
 	"github.com/gorilla/mux"
+	"github.com/vrooli/repo-contract-go/repocontracttest"
 )
 
 // newHookTestServer returns a minimally-wired Server suitable for testing
@@ -53,7 +54,7 @@ func newHookTestServer(token string) *Server {
 // See docs/guides/CONVERSATION_TRACKING.md for the user-facing contract.
 func TestCodexTailer_AttributesMidSessionRolloutToCorrectSession(t *testing.T) {
 	if runtime.GOOS == "windows" {
-		t.Skip("codex tailer relies on Unix path semantics")
+		repocontracttest.SkipPlatform(t, "codex tailer relies on Unix path semantics")
 	}
 	t.Setenv("HOME", t.TempDir())
 

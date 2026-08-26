@@ -552,9 +552,80 @@ extraction prep.
   would mutate browser state against user-owned sessions; deterministic
   component and API regressions are the authoritative evidence for this repair.
 
+## Terminal fidelity plan closeout status (2026-08-25)
+
+**Closed in the current implementation:** cumulative UTF-8 offset reconciliation
+replaces timer-based stdin retries; prediction is an overlay rather than a write to
+the xterm buffer; mouse-tracking bytes use the single control-lane predicate;
+terminal status is rendered in pane chrome; the terminal pane is split into focused
+session, lifecycle, selection, attachment, speech, and follower seams; local and
+bridged sessions use the same session manager and terminal WebSocket; and the
+integration catalogue now has live checkers for audio-tools, vrooli-bridge, Ollama,
+OpenRouter, and both session backends.
+
+**Still open:** the immutable GCT baseline collection is terminally unavailable because
+the source changed during both capture attempts. The latest server-owned Test Genie run
+`20260825-124448-3feddfc4` remains usable for comparison: it is 14/23 passed, and the
+comparison against `20260825-120927-25345d78` reports 14 clean, 9 pre-existing, and 0
+regressed common phases; six newer descriptor phases are non-comparable. Portability
+passes after the provider learned the canonical `platform_status` manifest. The Linux
+host still cannot supply macOS or Windows runtime measurements, so those rows retain
+explicit source/cross-build reasons. Quantitative gates show 75.7% Go service and 75.4%
+Go CLI. The six API and six CLI cross-build cells and the three shared package suites
+are green. The lifecycle owner starts web-console healthy and the live integration
+catalogue contains audio-tools, Ollama, OpenRouter, both session backends, and Remote
+Terminals; Remote Terminals is correctly unavailable without a bridge URL. The current
+UI suite shards all pass (188 files / 1,728 tests), and an Istanbul-merged aggregate
+reports 88.70% lines/statements, 86.53% functions, and 84.41% branches. Root
+`make cross-compile` passes on the rerun after a transient proto-health termination.
+Remaining scenario findings are named in the comparison rather than silently treated as
+fixed. The input protocol is now offset-only: the old sequence/ack and paste-gate
+compatibility symbols are absent, and programmatic viewport correction uses the shared
+terminal scroll seam.
+
+The required measured-behaviour ledger is explicit about unavailable evidence:
+
+The closing validation attempt on 2026-08-25 recorded runs
+`20260825-174447-0df374df` and `20260825-175107-7ad93721`. The first stopped at
+provider startup while the per-user `vrooli` binary was being rebuilt. The
+second executed 22 of 23 phases: 9 passed, 13 failed, and 1 was skipped. Its
+comparison with `20260825-124448-3feddfc4` marked UI health, docs, soak,
+performance, unit, workflow, business, experience, security, and proto as
+pre-existing; portability remained unavailable because
+`scenario-dependency-analyzer` could not start its unhealthy Ollama
+dependency. Storage also found the existing control-plane key tree outside the
+scenario's declared roots. The cache-class `uploads` root is now declared in
+`.vrooli/service.json`, matching the upload writer; the control-plane key
+finding remains outside this scenario's ownership boundary. The Phase 1 run
+`20260825-034457-c7651d3d` is not present in the Test Genie index, so a direct
+comparison to that immutable baseline remains unavailable.
+
+Follow-up validation on 2026-08-25 recorded run `20260825-181025-07fdd7d5`: 13 phases
+passed, 9 failed, and 1 was skipped. Portability, dependencies, API, unit, quality,
+architecture, and the terminal protocol checks remained green. The UI-health failure
+still reports its standing `visual_status_bar_color_mismatch`; this is the browser
+chrome declaration check, not terminal ANSI output. The terminal color report was
+traced to the host `NO_COLOR=1` environment leaking into PTY and tmux children while
+`TERM` was already `xterm-256color`. `filterServiceEnv` now removes `NO_COLOR` for both
+backends, a regression test covers the complete child environment, and the live tmux
+server was cleared so new sessions inherit color-capable defaults.
+
+| Row | Before | After/current | Disposition |
+|---|---|---|---|
+| tmux keystroke-to-echo latency | blocked: no pre-change harness | blocked: no repeatable latency instrument | No honest before/after number can be produced on this host. |
+| tmux subprocesses per typed character | blocked: no pre-change process capture | blocked: no process-count instrument | The plan's required `strace`-class capture was not available as a durable baseline. |
+| fixed-flick scroll distance at 60/120 Hz | blocked: no pre-change device/BAS trace | blocked: no 60/120 Hz device capture | Injectable-clock tests cover logic; they are not device measurements. |
+| full-scrollback snapshot bytes/duration | blocked: no pre-change benchmark | blocked: protocol tests emit no benchmark | Snapshot ordering/completeness is tested, but benchmark numbers are not inferred. |
+| bridgePTY resident memory per session | blocked: no pre-change remote allocation capture | blocked: no controlled remote-node run | The local bridge fixture proves protocol behavior, not production memory cost. |
+| fixed-window grid on Linux/macOS/Windows | blocked: no comparable pre-change grids | Linux: source/font-gated only; macOS/Windows: blocked | Cross-build/source evidence is marked reasoned-from-source, not runtime qualification. |
+
 ## Work ladder
 
+- Blocker: none. The terminal-fidelity work remains active at W3; the baseline failures are evidence to compare against after implementation, not a reason to stop.
+- Measured: 2026-08-25.
 - Rung: W3 (implementation)
-- Evidence: W0 comparison remains aligned: goals `hosted-cloud-tier-foundation` and `portal-front-door` do not contradict archive interaction and transcript rendering, while `OT-P0-003` and `OT-P0-008` require durable session continuity and drawer controls. W1 passes with `business-health validate scenario web-console`; W2 passes with `vrooli scenario requirements validate web-console`. Focused Go archive tests, 20 focused UI tests, UI type-check, and the full 151-batch UI suite pass. Post-repair Test Genie run `20260819-023400-0f81f8fa` matches baseline `20260819-020735-1597f6ee`: 10 of 23 phases pass and the same 13 scenario-wide phases fail, so the archive repair introduced no maturity regression.
-- Blocker: the requested archive repair is complete; progression beyond W3 remains blocked by pre-existing scenario-wide Test Genie findings and provider-unavailable evidence outside this repair's scope.
-- Measured: 2026-08-19.
+- Evidence: W0 comparison remains aligned: goals `hosted-cloud-tier-foundation` and `portal-front-door` do not contradict archive interaction and transcript rendering, while `OT-P0-003` and `OT-P0-008` require durable session continuity and drawer controls. W1 passes with `business-health validate scenario web-console`; W2 passes with `vrooli scenario requirements validate web-console`. For the terminal-fidelity plan, the latest server-owned Test Genie run `20260825-132544-d6fc96ac` recorded 14 pass, 9 fail, and 0 skipped; comparison against `20260825-124448-3feddfc4` reports 14 clean and 9 pre-existing phases with zero regressions, while immutable baseline capture was unavailable. Focused evidence includes cumulative UTF-8 stdin stream tests, terminal key and scroll-controller tests, prediction-overlay tests, live six-entry capability API/REST catalogues, server-start catalogue regression coverage, UI type-check through the lifecycle build, 188 UI shard files / 1,728 UI tests passing, Istanbul-merged UI coverage of 88.70% lines and 86.53% functions, service/CLI coverage, shared package tests, all six API plus six CLI cross-build cells, a passing root `make cross-compile`, and shared local/bridge protocol conformance. The live catalogue returns Audio Tools, Ollama, OpenRouter, Standard Terminal Sessions, Persistent Terminal Sessions, and Remote Terminals (`vrooli-bridge`) with checker-derived statuses.
+- Blocker: none. The terminal-fidelity work remains active at W3; the baseline failures and coverage shortfall are evidence to close, not a reason to stop.
+- Measured: 2026-08-25.
+- Blocker: none. The terminal-fidelity work remains active at W3; the baseline failures are evidence to compare against after implementation, not a reason to stop.
+- Measured: 2026-08-25.

@@ -133,7 +133,7 @@ func TestIsExpired_Performance(t *testing.T) {
 	created := time.Now().Add(-30 * time.Minute)
 
 	start := time.Now()
-	for i := 0; i < 10000; i++ {
+	for i := 0; i < 10*1000; i++ {
 		policy.IsExpired(created, pol)
 	}
 	elapsed := time.Since(start)

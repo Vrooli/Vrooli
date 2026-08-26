@@ -59,7 +59,8 @@ func (s *Session) readLoop() {
 		n, err := p.Read(buf)
 		if n > 0 {
 			data := buf[:n]
-			// ANSI terminal-query replies (DA1/DA3/XTVERSION/DECRQM 2026)
+			// ANSI terminal-query replies (DA1/DA3/XTVERSION) are handled
+			// server-side; xterm owns synchronized-output DECRQM state.
 			// are produced by the responder goroutine started in
 			// startAnsiResponder() — it subscribes to the emulator's
 			// ControlEvent channel and writes replies through SendInput.

@@ -1,11 +1,15 @@
 package session
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 
 	"web-console/internal/pty"
 )
+
+// ErrUnknownKey is stable across the session/handler package boundary.
+var ErrUnknownKey = errors.New("unknown key")
 
 // inputVariant tags a SessionInput's payload kind.
 type inputVariant uint8
@@ -115,7 +119,7 @@ func (in SessionInput) resolveBytes(km KeyMap) ([]byte, error) {
 		for _, k := range in.keys {
 			b, ok := km.Bytes(k)
 			if !ok {
-				return nil, fmt.Errorf("unknown key %q", keyDisplay(k))
+				return nil, fmt.Errorf("%w %q", ErrUnknownKey, keyDisplay(k))
 			}
 			buf = append(buf, b...)
 		}

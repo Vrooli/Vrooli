@@ -1,4 +1,5 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { renderWithProviders as render } from "../test-utils";
+import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import ArchiveDrawer from "../components/ArchiveDrawer";
@@ -99,6 +100,27 @@ describe("ArchiveDrawer", () => {
     const reader = await screen.findByTestId("archive-reader-props");
     expect(reader).toHaveAttribute("data-session", "archive-1");
     expect(reader).toHaveAttribute("data-read-only", "true");
+  });
+
+  it("exports and permanently deletes the selected archive behind confirmation", async () => {
+    mocks.getConversationRange.mockResolvedValue({ events: [{ id: "event-1" }] });
+    mocks.deleteSession.mockResolvedValue(undefined);
+    const onClose = vi.fn();
+    render(<ArchiveDrawer open onClose={onClose} activeSessionId="live-1" onSendToComposer={vi.fn()} onReopened={vi.fn()} />);
+
+    fireEvent.click(await screen.findByTestId("archive-session-archive-1"));
+    await screen.findByTestId("archive-reader-props");
+    fireEvent.click(screen.getByRole("button", { name: "archiveDrawer.export" }));
+    await waitFor(() => expect(mocks.getConversationRange).toHaveBeenCalledWith("archive-1", 1, 12));
+
+    fireEvent.click(screen.getByRole("button", { name: "archiveDrawer.delete" }));
+    expect(screen.getByTestId("archive-delete-dialog")).toBeInTheDocument();
+    fireEvent.click(screen.getByTestId("archive-delete-cancel"));
+    expect(screen.queryByTestId("archive-delete-dialog")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "archiveDrawer.delete" }));
+    fireEvent.click(screen.getByTestId("archive-delete-confirm"));
+    await waitFor(() => expect(mocks.deleteSession).toHaveBeenCalledWith("archive-1"));
+    expect(onClose).not.toHaveBeenCalled();
   });
 
   it("honors an archive selected from the sidebar", async () => {

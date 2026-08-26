@@ -8,7 +8,7 @@ import { orderPanesByGroupBlocks } from "../lib/workspaceNavigation";
 import { DEFAULT_COLS, DEFAULT_ROWS, ERROR_AUTO_DISMISS_MS } from "../consts/config";
 import type { TerminalPaneHandle } from "../components/TerminalPane";
 import type { GateResult, InputIntent } from "../components/terminal/inputGate";
-import type { InputSettlementCallback, InputSettledListener } from "./terminal/useStdinAck";
+import type { InputSettlementCallback, InputSettledListener } from "./terminal/useStdinStream";
 import { ttsPlaybackRegistry } from "../audio-integration";
 
 function newLaunchIdempotencyKey(): string {
@@ -275,6 +275,7 @@ export function useSessionManager() {
     policy?: { mode: PolicyMode; duration?: string };
 	 target?: TerminalTarget;
 	workingDir?: string;
+	tmuxMouseMode?: boolean;
   }) => {
     const command = opts?.command;
     // Replay guard: if a creation is already in-flight, skip silently.
@@ -295,6 +296,7 @@ export function useSessionManager() {
         agent_type: agentTypeFromCommand(command),
 			target_id: opts?.target && opts.target.kind !== "local" ? opts.target.id : undefined,
 			working_dir: opts?.workingDir,
+			tmux_mouse_mode: opts?.tmuxMouseMode ?? useWorkspaceStore.getState().tmuxMouseMode,
 			owner: opts?.target && opts.target.kind !== "local" ? `target:${opts.target.id}` : undefined,
 			display_label: opts?.target?.label,
 			idempotency_key: newLaunchIdempotencyKey(),
@@ -335,8 +337,8 @@ export function useSessionManager() {
     try {
       await archiveSession(sessionId);
       releasePaneLocally(sessionId);
-      if (!sessionId.startsWith("remote:")) archivedUndoRef.current.set(sessionId, pane);
-      return sessionId.startsWith("remote:") ? "removed" : "undoable";
+      archivedUndoRef.current.set(sessionId, pane);
+      return "undoable";
     } catch {
       return "failed";
     }
@@ -430,7 +432,7 @@ export function useSessionManager() {
       if (target) {
         const handle = terminalRefs.current.get(target);
         if (handle) {
-          return handle.submitInput(data, intent);
+          return handle.input.submit(data, intent);
         }
       }
       return { status: "rejected", reason: "disposed" };
@@ -444,17 +446,17 @@ export function useSessionManager() {
       if (!target) return () => {};
       const handle = terminalRefs.current.get(target);
       if (!handle) return () => {};
-      return handle.subscribeInputSettled(cb);
+      return handle.input.subscribeSettled(cb);
     },
     [panes],
   );
 
-  const awaitActiveInputSeq = useCallback(
-    (targetId: string | undefined, seq: number, cb: InputSettlementCallback): () => void => {
+  const awaitActiveInputOffset = useCallback(
+    (targetId: string | undefined, offset: number, cb: InputSettlementCallback): () => void => {
       const target = targetId ?? panes[panes.length - 1]?.session.id;
       if (!target) return () => {};
       const handle = terminalRefs.current.get(target);
-      return handle?.awaitSeq(seq, cb) ?? (() => {});
+      return handle?.input.awaitOffset(offset, cb) ?? (() => {});
     },
     [panes],
   );
@@ -465,7 +467,7 @@ export function useSessionManager() {
       if (!target) return () => {};
       const handle = terminalRefs.current.get(target);
       if (!handle) return () => {};
-      return handle.subscribePendingInput(cb);
+      return handle.pendingInput.subscribe(cb);
     },
     [panes],
   );
@@ -475,31 +477,31 @@ export function useSessionManager() {
       const target = targetId ?? panes[panes.length - 1]?.session.id;
       if (!target) return [];
       const handle = terminalRefs.current.get(target);
-      return handle?.getPendingInputSnapshot() ?? [];
+      return handle?.pendingInput.snapshot() ?? [];
     },
     [panes],
   );
 
   const copySelectionOnPane = useCallback(async (sessionId?: string): Promise<boolean> => {
     const target = sessionId ?? panes[panes.length - 1]?.session.id;
-    return target ? (await terminalRefs.current.get(target)?.copySelection()) ?? false : false;
+    return target ? (await terminalRefs.current.get(target)?.selection.copy()) ?? false : false;
   }, [panes]);
 
   const pasteFromClipboardOnPane = useCallback(async (sessionId?: string): Promise<boolean> => {
     const target = sessionId ?? panes[panes.length - 1]?.session.id;
-    return target ? (await terminalRefs.current.get(target)?.pasteFromClipboard()) ?? false : false;
+    return target ? (await terminalRefs.current.get(target)?.selection.paste()) ?? false : false;
   }, [panes]);
 
   const scrollTerminalOnPane = useCallback((lines: number, sessionId?: string): void => {
     const target = sessionId ?? panes[panes.length - 1]?.session.id;
-    if (target) terminalRefs.current.get(target)?.scrollTerminal(lines);
+    if (target) terminalRefs.current.get(target)?.control.scroll(lines);
   }, [panes]);
 
   const focusActiveTerminal = useCallback(
     (targetId?: string) => {
       const target = targetId ?? panes[panes.length - 1]?.session.id;
       if (target) {
-        terminalRefs.current.get(target)?.focus();
+        terminalRefs.current.get(target)?.control.focus();
       }
     },
     [panes],
@@ -520,7 +522,7 @@ export function useSessionManager() {
     (targetId?: string) => {
       const target = targetId ?? panes[panes.length - 1]?.session.id;
       if (target) {
-        terminalRefs.current.get(target)?.stopTts();
+        terminalRefs.current.get(target)?.playback.stop();
       }
     },
     [panes],
@@ -528,56 +530,56 @@ export function useSessionManager() {
 
   const speakTextOnPane = useCallback(
     (sessionId: string, text: string, paragraphs?: string[], opts?: { eventId?: string; version?: "active" | "original"; initiatedBy?: "auto" | "manual" }) => {
-      return terminalRefs.current.get(sessionId)?.speakText(text, paragraphs, opts) ?? Promise.resolve(undefined);
+      return terminalRefs.current.get(sessionId)?.playback.speak(text, paragraphs, opts) ?? Promise.resolve(undefined);
     },
     [],
   );
 
   const pauseTtsOnPane = useCallback(
     (sessionId: string) => {
-      terminalRefs.current.get(sessionId)?.pauseTts();
+      terminalRefs.current.get(sessionId)?.playback.pause();
     },
     [],
   );
 
   const resumeTtsOnPane = useCallback(
     (sessionId: string) => {
-      terminalRefs.current.get(sessionId)?.resumeTts();
+      terminalRefs.current.get(sessionId)?.playback.resume();
     },
     [],
   );
 
   const seekTtsOnPane = useCallback(
     (sessionId: string, seconds: number) => {
-      terminalRefs.current.get(sessionId)?.seekTts(seconds);
+      terminalRefs.current.get(sessionId)?.playback.seek(seconds);
     },
     [],
   );
 
   const setTtsPlaybackRateOnPane = useCallback(
     (sessionId: string, rate: number) => {
-      terminalRefs.current.get(sessionId)?.setTtsPlaybackRate(rate);
+      terminalRefs.current.get(sessionId)?.playback.setPlaybackRate(rate);
     },
     [],
   );
 
   const setTtsVolumeOnPane = useCallback(
     (sessionId: string, level: number) => {
-      terminalRefs.current.get(sessionId)?.setTtsVolume(level);
+      terminalRefs.current.get(sessionId)?.playback.setVolume(level);
     },
     [],
   );
 
   const setTtsMutedOnPane = useCallback(
     (sessionId: string, next: boolean) => {
-      terminalRefs.current.get(sessionId)?.setTtsMuted(next);
+      terminalRefs.current.get(sessionId)?.playback.setMuted(next);
     },
     [],
   );
 
   const getTtsStateOnPane = useCallback(
     (sessionId: string) => {
-      return terminalRefs.current.get(sessionId)?.getTtsState() ?? null;
+      return terminalRefs.current.get(sessionId)?.playback.getState() ?? null;
     },
     [],
   );
@@ -599,7 +601,7 @@ export function useSessionManager() {
     handleExit,
     submitToActiveTerminal,
     subscribeActiveInputSettled,
-    awaitActiveInputSeq,
+    awaitActiveInputOffset,
     subscribeActivePendingInput,
     getActivePendingInputSnapshot,
     copySelectionOnPane,

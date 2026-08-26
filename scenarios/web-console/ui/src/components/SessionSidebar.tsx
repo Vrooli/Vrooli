@@ -12,7 +12,7 @@ import { useResizablePanel } from "../hooks/useResizablePanel";
 import { useWorkspaceStore } from "../stores/useWorkspaceStore";
 import { useWorkspaceSync } from "../hooks/useWorkspaceSync";
 import { useGroupActions } from "../hooks/useGroupActions";
-import { useEscapeKey } from "../hooks/useEscapeKey";
+import { useEscapeKey } from "@vrooli/react-component-library/useEscapeKey/1.0.0";
 import { Button } from "./ui/button";
 import TabContextMenu from "./TabContextMenu";
 import GroupContextMenu from "./GroupContextMenu";

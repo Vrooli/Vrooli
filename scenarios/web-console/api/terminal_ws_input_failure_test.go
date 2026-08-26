@@ -91,7 +91,7 @@ func TestDispatchInput_PayloadRejection_KeepsConnectionOpen(t *testing.T) {
 	ts, sessionID := serverWithFailingPTY(t, errors.New("tmux send-keys failed: command too long"))
 	conn := dialSessionWS(t, ts, sessionID)
 
-	if err := conn.WriteJSON(TerminalMessage{Type: MsgTypeStdin, Data: "some payload", Seq: 1}); err != nil {
+	if err := conn.WriteJSON(TerminalMessage{Type: MsgTypeStdin, Data: "some payload", Offset: 0}); err != nil {
 		t.Fatalf("send stdin: %v", err)
 	}
 
@@ -102,8 +102,8 @@ func TestDispatchInput_PayloadRejection_KeepsConnectionOpen(t *testing.T) {
 	if ack.Reason != StdinAckReasonTmuxWriteFailed {
 		t.Errorf("stdin_ack.reason = %q, want %q", ack.Reason, StdinAckReasonTmuxWriteFailed)
 	}
-	if ack.Seq != 1 {
-		t.Errorf("stdin_ack.seq = %d, want 1", ack.Seq)
+	if ack.AcceptedThrough != 0 {
+		t.Errorf("stdin_ack.accepted_through = %d, want 0", ack.AcceptedThrough)
 	}
 
 	// The real assertion: the connection survived. A ping round-trip
@@ -124,7 +124,7 @@ func TestDispatchInput_DeadPTY_ClosesConnection(t *testing.T) {
 	ts, sessionID := serverWithFailingPTY(t, errPTYClosed)
 	conn := dialSessionWS(t, ts, sessionID)
 
-	if err := conn.WriteJSON(TerminalMessage{Type: MsgTypeStdin, Data: "some payload", Seq: 1}); err != nil {
+	if err := conn.WriteJSON(TerminalMessage{Type: MsgTypeStdin, Data: "some payload", Offset: 0}); err != nil {
 		t.Fatalf("send stdin: %v", err)
 	}
 

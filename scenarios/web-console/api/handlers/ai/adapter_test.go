@@ -18,6 +18,7 @@ type adapterBackend struct {
 func (b *adapterBackend) ExecuteCommand(context.Context, string) (string, string, error) {
 	return b.commandRaw, "local", b.err
 }
+
 func (b *adapterBackend) ExecuteSuggest(context.Context, string) (string, string, error) {
 	return b.suggestRaw, "local", b.err
 }
@@ -69,5 +70,13 @@ func TestAdapterGenerateSuggestAndConfig(t *testing.T) {
 	b.err = errors.New("provider down")
 	if _, _, err := a.Generate(context.Background(), "x", ""); err == nil {
 		t.Fatal("expected generation error")
+	}
+}
+
+func TestAdapterGetHealth(t *testing.T) {
+	want := []ProviderHealth{{Name: "local", Available: true}}
+	got := (&Adapter{Backend: &adapterBackend{health: want}}).GetHealth(context.Background())
+	if len(got) != 1 || got[0].Name != "local" || !got[0].Available {
+		t.Fatalf("health=%+v", got)
 	}
 }

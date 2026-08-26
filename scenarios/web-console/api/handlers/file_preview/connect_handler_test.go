@@ -14,9 +14,11 @@ type fakePreviewService struct{ err error }
 func (f fakePreviewService) Resolve(context.Context, ResolveInput) (ResolveResult, error) {
 	return ResolveResult{PreviewID: "p1", InputPath: "src/a.go:4", ResolvedPath: "/tmp/a.go", Basename: "a.go", Line: 4, HasLine: true, ResolutionBasis: "cwd", Kind: "code", MIMEType: "text/plain", SizeBytes: 8, CanPreview: true, CanDownload: true, SupportsRange: true, TextContentAvailable: true, BlobURL: "/blob", Warnings: []string{"warning"}}, f.err
 }
+
 func (f fakePreviewService) GetTextContent(context.Context, string, string) (TextResult, error) {
 	return TextResult{ResolvedPath: "/tmp/a.go", Kind: "markdown", MIMEType: "text/markdown", Content: "# hi", Truncated: true, Line: 2, HasLine: true}, f.err
 }
+
 func (f fakePreviewService) ListDirectory(context.Context, ListInput) (ListResult, error) {
 	return ListResult{ResolvedPath: "/tmp", ParentPath: "/", Entries: []ListEntry{{Name: "a.go", EntryType: "file", Kind: "code", CanPreview: true}}, TotalEntries: 2, Truncated: true, NextPageToken: "next", EffectiveSort: "name", Warnings: []string{"warn"}}, f.err
 }

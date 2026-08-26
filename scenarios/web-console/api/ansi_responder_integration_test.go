@@ -203,7 +203,7 @@ sys.stdout.flush()
 	if !strings.Contains(line, "P!|") {
 		t.Errorf("missing DA3 reply in: %q", line)
 	}
-	if !strings.Contains(line, "2026") {
-		t.Errorf("missing DECRQM 2026 reply in: %q", line)
+	if strings.Contains(line, "2026") {
+		t.Errorf("unexpected DECRQM 2026 reply in ordinary PTY input: %q", line)
 	}
 }

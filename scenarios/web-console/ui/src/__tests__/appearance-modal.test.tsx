@@ -1,5 +1,6 @@
+import { renderWithProviders as render } from "../test-utils";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { screen, fireEvent } from "@testing-library/react";
 import AppearanceModal from "../components/AppearanceModal";
 import { HEADER_COLORS } from "../consts/config";
 import { strings } from "../consts/strings";
@@ -20,6 +21,8 @@ const mockStoreState: Record<string, unknown> = {
   setPaneTheme: vi.fn(),
   setPaneFontSize: vi.fn(),
   setDeviceFontSize: vi.fn(),
+  clearDeviceFontSize: vi.fn(),
+  deviceFontSize: {} as Record<string, number>,
   applyAppearance: vi.fn(),
   defaultHeaderColor: "transparent",
   defaultThemeId: "slate-ocean",
@@ -31,6 +34,11 @@ const mockStoreState: Record<string, unknown> = {
 vi.mock("../stores/useWorkspaceStore", () => ({
   useWorkspaceStore: (selector: (state: Record<string, unknown>) => unknown) =>
     selector(mockStoreState),
+  useEffectiveFontSize: (sessionId: string) => {
+    const pane = mockStoreState.panes as Array<{ sessionId: string; fontSize?: number }>;
+    const overrides = mockStoreState.deviceFontSize as Record<string, number>;
+    return overrides[sessionId] ?? pane.find((item) => item.sessionId === sessionId)?.fontSize ?? 14;
+  },
 }));
 
 vi.mock("../hooks/useWorkspaceSync", () => ({
@@ -51,6 +59,8 @@ describe("AppearanceModal", () => {
     mockStoreState.setPaneTheme = vi.fn();
     mockStoreState.setPaneFontSize = vi.fn();
     mockStoreState.setDeviceFontSize = vi.fn();
+    mockStoreState.clearDeviceFontSize = vi.fn();
+    mockStoreState.deviceFontSize = {};
     mockStoreState.setAppearanceModalPane = vi.fn();
     mockStoreState.applyAppearance = vi.fn();
     mockStoreState.setSettingsModalOpen = vi.fn();
@@ -140,6 +150,21 @@ describe("AppearanceModal", () => {
     expect(mockSyncPaneUpdate).toHaveBeenCalledWith("sess-1", { font_size: 15 });
   });
 
+  it("renders each of five consecutive font increments", () => {
+    mockStoreState.appearanceModalPane = "sess-1";
+    mockStoreState.setDeviceFontSize = vi.fn((sessionId: string, size: number) => {
+      mockStoreState.deviceFontSize = { [sessionId]: size };
+    });
+    const view = render(<AppearanceModal />);
+
+    expect((screen.getByTestId("appearance-font-value") as HTMLInputElement).value).toBe("14");
+    for (const size of [15, 16, 17, 18, 19]) {
+      fireEvent.click(screen.getByTestId("appearance-font-increase"));
+      view.rerender(<AppearanceModal />);
+      expect((screen.getByTestId("appearance-font-value") as HTMLInputElement).value).toBe(String(size));
+    }
+  });
+
   it("font decrease button calls setDeviceFontSize", () => {
     mockStoreState.appearanceModalPane = "sess-1";
     render(<AppearanceModal />);
@@ -212,6 +237,29 @@ describe("AppearanceModal", () => {
       header_color: "transparent",
       theme_id: "slate-ocean",
       font_size: 14,
+    });
+    await screen.findByTestId("appearance-apply-feedback");
+  });
+
+  it("apply-to-open syncs the effective size selected by the user", async () => {
+    mockStoreState.panes = [
+      { sessionId: "sess-1", name: "bash", headerColor: "transparent", themeId: "slate-ocean", fontSize: 14 },
+      { sessionId: "sess-2", name: "zsh", headerColor: "#ff7a7a", themeId: "dracula", fontSize: 16 },
+    ];
+    mockStoreState.appearanceModalPane = "sess-1";
+    mockStoreState.setDeviceFontSize = vi.fn((sessionId: string, size: number) => {
+      mockStoreState.deviceFontSize = { [sessionId]: size };
+    });
+    const view = render(<AppearanceModal />);
+    fireEvent.click(screen.getByTestId("appearance-font-increase"));
+    view.rerender(<AppearanceModal />);
+    fireEvent.click(screen.getByTestId("appearance-apply-open"));
+    fireEvent.click(screen.getByTestId("appearance-apply-confirm"));
+
+    expect(mockSyncPaneUpdates).toHaveBeenCalledWith(["sess-2"], {
+      header_color: "transparent",
+      theme_id: "slate-ocean",
+      font_size: 15,
     });
     await screen.findByTestId("appearance-apply-feedback");
   });
@@ -309,6 +357,26 @@ describe("AppearanceModal", () => {
     });
   });
 
+  it("reset-to-defaults clears the device override after the stepper was used", () => {
+    mockStoreState.appearanceModalPane = "sess-1";
+    mockStoreState.setDeviceFontSize = vi.fn((sessionId: string, size: number) => {
+      mockStoreState.deviceFontSize = { [sessionId]: size };
+    });
+    mockStoreState.clearDeviceFontSize = vi.fn((sessionId: string) => {
+      const next = { ...(mockStoreState.deviceFontSize as Record<string, number>) };
+      delete next[sessionId];
+      mockStoreState.deviceFontSize = next;
+    });
+    const view = render(<AppearanceModal />);
+    fireEvent.click(screen.getByTestId("appearance-font-increase"));
+    view.rerender(<AppearanceModal />);
+    expect((screen.getByTestId("appearance-font-value") as HTMLInputElement).value).toBe("15");
+    fireEvent.click(screen.getByTestId("appearance-reset-defaults"));
+    view.rerender(<AppearanceModal />);
+    expect((screen.getByTestId("appearance-font-value") as HTMLInputElement).value).toBe("14");
+    expect(mockStoreState.clearDeviceFontSize).toHaveBeenCalledWith("sess-1");
+  });
+
   it("manage-defaults link closes the modal and deep-links settings", () => {
     mockStoreState.appearanceModalPane = "sess-1";
     render(<AppearanceModal />);
@@ -338,5 +406,18 @@ describe("AppearanceModal", () => {
     fireEvent.blur(input);
     expect(mockStoreState.setDeviceFontSize).toHaveBeenCalledWith("sess-1", 24);
     expect(mockSyncPaneUpdate).toHaveBeenCalledWith("sess-1", { font_size: 24 });
+  });
+
+  it("commits a typed font size on Enter", () => {
+    mockStoreState.panes = [
+      { sessionId: "sess-1", name: "bash", headerColor: "transparent", themeId: "slate-ocean", fontSize: 16 },
+    ];
+    mockStoreState.appearanceModalPane = "sess-1";
+    render(<AppearanceModal />);
+    const input = screen.getByTestId("appearance-font-value") as HTMLInputElement;
+    fireEvent.change(input, { target: { value: "18" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+    expect(mockStoreState.setDeviceFontSize).toHaveBeenCalledWith("sess-1", 18);
+    expect(mockSyncPaneUpdate).toHaveBeenCalledWith("sess-1", { font_size: 18 });
   });
 });

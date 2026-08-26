@@ -1,12 +1,13 @@
+import { renderWithProviders as render } from "../test-utils";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, act, fireEvent, screen, renderHook } from "@testing-library/react";
+import { act, fireEvent, screen, renderHook } from "@testing-library/react";
 import { useState } from "react";
 import FullScreenComposer from "../components/FullScreenComposer";
 import { useComposerDraft } from "../hooks/useComposerDraft";
 import { useComposerAttachments } from "../hooks/useComposerAttachments";
 import type { GateResult } from "../components/terminal/inputGate";
 
-type SettledCb = (seq: number, ok: boolean) => void;
+type SettledCb = (offset: number, ok: boolean) => void;
 
 function makeSettlement() {
   const subs = new Set<SettledCb>();
@@ -31,7 +32,7 @@ interface HarnessProps {
   resolve?: () => Promise<string[]>;
 }
 
-function AttachHarness({ onInput = () => ({ status: "sent", seq: 1 }), subscribe, resolve }: HarnessProps) {
+function AttachHarness({ onInput = () => ({ status: "sent", offset: 1 }), subscribe, resolve }: HarnessProps) {
   const draft = useComposerDraft("sess-att");
   const att = useComposerAttachments();
   const [open, setOpen] = useState(true);
@@ -100,7 +101,7 @@ describe("FullScreenComposer — staged attachments", () => {
   });
 
   it("composes ONE payload = text + resolved paths in order, then clears on ok", async () => {
-    const onInput = vi.fn(() => ({ status: "sent" as const, seq: 1 }));
+    const onInput = vi.fn(() => ({ status: "sent" as const, offset: 1 }));
     const settlement = makeSettlement();
     const resolve = vi.fn(async () => ["/up/a.png", "/up/b.png"]);
     render(<AttachHarness onInput={onInput} subscribe={settlement.subscribe} resolve={resolve} />);
@@ -124,7 +125,7 @@ describe("FullScreenComposer — staged attachments", () => {
   });
 
   it("keeps attachments + text and shows error when upload fails", async () => {
-    const onInput = vi.fn(() => ({ status: "sent" as const, seq: 1 }));
+    const onInput = vi.fn(() => ({ status: "sent" as const, offset: 1 }));
     const resolve = vi.fn(async () => {
       throw new Error("upload boom");
     });

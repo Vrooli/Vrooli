@@ -28,7 +28,7 @@ const policy = (over: Partial<BannerDamping> = {}) => (): BannerDamping => ({
   enterAfterMs: 200,
   minVisibleMs: 1_000,
   exitAfterMs: 400,
-  flapWindowMs: 10_000,
+	flapWindowMs: 10 * 1000,
   flapThreshold: 2,
   flapBackoffFactor: 2,
   maxExitAfterMs: 6_400,

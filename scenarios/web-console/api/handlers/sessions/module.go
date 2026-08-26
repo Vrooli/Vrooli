@@ -182,6 +182,9 @@ type CreateInput struct {
 	DisplayLabel string
 	TargetID     string
 	WorkingDir   string
+	// TmuxMouseMode is the creation-time mouse capture choice for persistent
+	// sessions. Other backends ignore it.
+	TmuxMouseMode bool
 }
 
 // RecoverInput bundles inputs for the recovery RPC.

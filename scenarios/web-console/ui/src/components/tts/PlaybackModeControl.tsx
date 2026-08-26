@@ -5,7 +5,7 @@ import { useTranslation } from "react-i18next";
 import { cn } from "../../lib/classnames";
 import { strings } from "../../consts/strings";
 import { useAnchoredPopoverPosition, type FloatingPlacement } from "../../hooks/useFloatingPosition";
-import { useEscapeKey } from "../../hooks/useEscapeKey";
+import { useEscapeKey } from "@vrooli/react-component-library/useEscapeKey/1.0.0";
 
 export type SummarizationLevel = "light" | "moderate" | "heavy";
 

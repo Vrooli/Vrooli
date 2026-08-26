@@ -1,4 +1,5 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { renderWithProviders as render } from "../../test-utils";
+import { fireEvent, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { DeviceFrame } from "../terminal/DeviceFrame";
 const rect = { x: 0, y: 0, width: 300, height: 200, fontSize: 12, scale: 1 };

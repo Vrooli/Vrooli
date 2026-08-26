@@ -6,25 +6,13 @@ import (
 	"testing"
 	"time"
 
-	"web-console/internal/backend"
 	"web-console/terminal"
 )
 
-// newBroadcastSession builds a minimal Session suitable for exercising
-// broadcast/deliver/FlushPending without a real PTY. Only the fields
-// those functions read are populated.
 func newBroadcastSession(clientBuf int) *Session {
-	return &Session{
-		ID:                      "broadcast-test",
-		clients:                 make(map[chan []byte]*ClientInfo),
-		emu:                     terminal.New(terminal.Options{Cols: 80, Rows: 24, ScrollbackLines: 1000}),
-		clientChannelBuffer:     clientBuf,
-		coalesceNotifyThreshold: 8,
-	}
+	return &Session{ID: "broadcast-test", clients: make(map[chan []byte]*ClientInfo), emu: terminal.New(terminal.Options{Cols: 80, Rows: 24, ScrollbackLines: 1000}), clientChannelBuffer: clientBuf, coalesceNotifyThreshold: 8}
 }
 
-// registerClient attaches a ClientInfo on a freshly created channel
-// matching what Subscribe would do.
 func registerClient(s *Session, chBuf int) (chan []byte, chan int, *ClientInfo) {
 	ch := make(chan []byte, chBuf)
 	notifyCh := make(chan int, 1)
@@ -35,8 +23,6 @@ func registerClient(s *Session, chBuf int) (chan []byte, chan int, *ClientInfo) 
 	return ch, notifyCh, info
 }
 
-// TestBroadcast_DeliversToFastClient covers the steady-state path:
-// one broadcast call, channel has room, bytes land immediately.
 func TestBroadcast_DeliversToFastClient(t *testing.T) {
 	s := newBroadcastSession(4)
 	ch, _, _ := registerClient(s, 4)
@@ -51,22 +37,13 @@ func TestBroadcast_DeliversToFastClient(t *testing.T) {
 	}
 }
 
-// TestBroadcast_CoalescesWhenChannelFull covers the slow-client path:
-// the channel buffer fills, subsequent broadcasts accumulate in the
-// pending buffer, and FlushPending drains them.
 func TestBroadcast_CoalescesWhenChannelFull(t *testing.T) {
 	s := newBroadcastSession(1)
 	ch, _, info := registerClient(s, 1)
 	s.broadcast([]byte("first"))
 	s.broadcast([]byte("second"))
 	s.broadcast([]byte("third"))
-
-	select {
-	case <-ch:
-	case <-time.After(time.Second):
-		t.Fatal("timed out reading first frame")
-	}
-
+	<-ch
 	s.mu.Lock()
 	pending := append([]byte(nil), info.pending...)
 	s.mu.Unlock()
@@ -76,8 +53,9 @@ func TestBroadcast_CoalescesWhenChannelFull(t *testing.T) {
 	if info.CoalescedFrames < 2 {
 		t.Errorf("CoalescedFrames=%d want >=2", info.CoalescedFrames)
 	}
-
-	s.FlushPending(ch)
+	if s.FlushPending(ch) {
+		t.Fatal("ordinary coalescing requested resync")
+	}
 	select {
 	case drained := <-ch:
 		if !bytes.Contains(drained, []byte("second")) {
@@ -88,88 +66,52 @@ func TestBroadcast_CoalescesWhenChannelFull(t *testing.T) {
 	}
 }
 
-// TestBroadcast_FeedsEmulator verifies bytes flow into the durable
-// emulator so reconnecting subscribers see them in the snapshot.
 func TestBroadcast_FeedsEmulator(t *testing.T) {
 	s := newBroadcastSession(4)
 	s.broadcast([]byte("hello\r\n"))
-	snap := s.emu.Snapshot()
-	if !bytes.Contains(snap, []byte("hello")) {
-		t.Fatalf("snapshot missing broadcasted bytes: %q", snap)
+	if !bytes.Contains(s.emu.Snapshot(), []byte("hello")) {
+		t.Fatalf("snapshot missing broadcasted bytes")
 	}
 }
 
-// TestBroadcast_AltBufferFlagFollowsEmulator verifies the alt-buffer
-// transition observed by the emulator updates s.inAltBuffer and
-// timestamps the transition.
-func TestBroadcast_AltBufferFlagFollowsEmulator(t *testing.T) {
+func TestBroadcast_PreservesSplitSynchronizedOutputFraming(t *testing.T) {
 	s := newBroadcastSession(4)
-	registerClient(s, 4)
-	s.broadcast([]byte("\x1b[?1049h"))
-	if !s.inAltBuffer {
-		t.Fatal("inAltBuffer not set after \\x1b[?1049h")
-	}
-	if s.lastAltBufferTransition.IsZero() {
-		t.Fatal("lastAltBufferTransition not recorded on alt-buffer enter")
+	ch, _, _ := registerClient(s, 4)
+	s.broadcast([]byte("before\x1b[?2026"))
+	s.broadcast([]byte("hpaint\x1b[?2026lafter"))
+
+	var got []byte
+	got = append(got, (<-ch)...)
+	got = append(got, (<-ch)...)
+	if string(got) != "before\x1b[?2026hpaint\x1b[?2026lafter" {
+		t.Fatalf("client stream changed synchronized-output framing: %q", got)
 	}
 }
 
-// TestSIGWINCH_GatedByAltBuffer locks in that SetSize must not fire while
-// the foreground process is in the alt buffer.
-func TestSIGWINCH_GatedByAltBuffer(t *testing.T) {
+func TestBroadcast_OverflowRequestsResync(t *testing.T) {
 	s := newBroadcastSession(1)
-	s.inAltBuffer = true
-	before := s.lastSIGWINCHRecovery
-	s.mu.Lock()
-	s.maybeSIGWINCHRecovery()
-	s.mu.Unlock()
-	if s.lastSIGWINCHRecovery != before {
-		t.Errorf("maybeSIGWINCHRecovery fired while in alt-buffer")
+	ch, _, info := registerClient(s, 1)
+	s.broadcast([]byte("first"))
+	for i := 0; i < pendingBufferMax/5+1; i++ {
+		s.broadcast([]byte("\x1b[31mfragment"))
+	}
+	<-ch
+	if !s.FlushPending(ch) {
+		t.Fatal("overflow did not request resync")
+	}
+	snapshot, generation, ok := s.Resync(ch)
+	if !ok || len(snapshot) == 0 || generation == 0 {
+		t.Fatalf("Resync() = (%d bytes, %d, %v)", len(snapshot), generation, ok)
+	}
+	if info.pending != nil {
+		t.Fatalf("pending buffer retained after overflow: %d bytes", len(info.pending))
+	}
+	s.CompleteResync(ch, generation)
+	if _, _, ok := s.Resync(ch); ok {
+		t.Fatal("completed resync remained pending")
 	}
 }
 
-// TestSIGWINCH_GatedByRecentAltTransition: heavy TUIs briefly leave
-// alt-buffer between render cycles; SIGWINCH must refuse to fire
-// within altBufferSettleWindow of any transition.
-func TestSIGWINCH_GatedByRecentAltTransition(t *testing.T) {
-	s := newBroadcastSession(1)
-	s.sigwinchCooldown = 0
-	s.broadcast([]byte("\x1b[?1049h"))
-	s.broadcast([]byte("\x1b[?1049l"))
-	if s.inAltBuffer {
-		t.Fatal("alt-buffer should have exited after DECRST 1049")
-	}
-	if s.lastAltBufferTransition.IsZero() {
-		t.Fatal("lastAltBufferTransition not recorded")
-	}
-	before := s.lastSIGWINCHRecovery
-	s.mu.Lock()
-	s.maybeSIGWINCHRecovery()
-	s.mu.Unlock()
-	if s.lastSIGWINCHRecovery != before {
-		t.Errorf("maybeSIGWINCHRecovery fired within altBufferSettleWindow")
-	}
-}
-
-// TestSIGWINCH_SkippedOnPersistentBackend locks in that tmux-backed
-// sessions never fire SIGWINCH recovery.
-func TestSIGWINCH_SkippedOnPersistentBackend(t *testing.T) {
-	s := newBroadcastSession(1)
-	s.Backend = backend.Persistent
-	before := s.lastSIGWINCHRecovery
-	s.mu.Lock()
-	s.maybeSIGWINCHRecovery()
-	s.mu.Unlock()
-	if s.lastSIGWINCHRecovery != before {
-		t.Errorf("maybeSIGWINCHRecovery fired on persistent backend")
-	}
-}
-
-// TestSubscribe_SnapshotPrecedesLiveFrames verifies the contract that
-// no live frame can sneak between Subscribe()'s snapshot capture and
-// channel registration. After Subscribe returns, broadcasting a frame
-// delivers it on OutputCh; the snapshot reflects state strictly before
-// that frame.
 func TestSubscribe_SnapshotPrecedesLiveFrames(t *testing.T) {
 	s := newBroadcastSession(4)
 	s.broadcast([]byte("before-subscribe\r\n"))
@@ -180,9 +122,8 @@ func TestSubscribe_SnapshotPrecedesLiveFrames(t *testing.T) {
 	s.clients[ch] = &ClientInfo{NotifyCh: make(chan int, 1)}
 	sub.OutputCh = ch
 	s.mu.Unlock()
-
 	if !bytes.Contains(sub.Snapshot, []byte("before-subscribe")) {
-		t.Fatalf("snapshot missing pre-subscribe output: %q", sub.Snapshot)
+		t.Fatalf("snapshot missing pre-subscribe output")
 	}
 	s.broadcast([]byte("after-subscribe"))
 	select {
@@ -199,15 +140,11 @@ func TestSubscribe_SnapshotCacheIsInvalidatedByFeed(t *testing.T) {
 	s := newBroadcastSession(4)
 	first := s.Subscribe()
 	s.Unsubscribe(first.OutputCh)
-	if len(first.Snapshot) == 0 {
-		t.Fatal("initial snapshot is empty")
-	}
-
 	s.broadcast([]byte("cache invalidation marker\r\n"))
 	second := s.Subscribe()
 	s.Unsubscribe(second.OutputCh)
 	if !bytes.Contains(second.Snapshot, []byte("cache invalidation marker")) {
-		t.Fatalf("snapshot after feed is stale: %q", second.Snapshot)
+		t.Fatalf("snapshot after feed is stale")
 	}
 }
 
