@@ -1,0 +1,31 @@
+{
+  "catalogId": "overlays.bottom-sheet",
+  "deprecatedVersions": [],
+  "description": "Shared overlay presentation for BottomSheet.",
+  "designStyles": [
+    {
+      "affinity": "native",
+      "reason": "token-native operational-console baseline",
+      "styleId": "vrooli-default"
+    }
+  ],
+  "displayName": "BottomSheet",
+  "draft": "",
+  "entry": "BottomSheet.tsx",
+  "evictedVersions": [
+    "1.0.3",
+    "1.0.2",
+    "1.0.1",
+    "1.0.0",
+    "0.1.0"
+  ],
+  "kind": "control",
+  "latest": "1.1.4",
+  "libraryId": "react-component-library:BottomSheet",
+  "tags": [
+    "overlay",
+    "accessibility",
+    "responsive",
+    "token-bound"
+  ]
+}

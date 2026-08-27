@@ -7,7 +7,7 @@
     "1.0.4",
     "1.0.6"
   ],
-  "description": "",
+  "description": "The metric surface combining a stat with optional visualization, actions, status, explanation, and responsive layout that keeps the number legible at every width.",
   "designStyles": [
     {
       "affinity": "native",

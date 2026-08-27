@@ -15,7 +15,7 @@
   "deprecatedVersions": [
     "1.0.1"
   ],
-  "description": "",
+  "description": "An adapter-driven attachment surface with independent upload, scanning, retry, cancellation, preview, removal, and offline states.",
   "designStyles": [
     {
       "affinity": "native",

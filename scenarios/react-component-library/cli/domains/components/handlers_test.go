@@ -571,14 +571,15 @@ func TestComponentsContentSet_FromFile(t *testing.T) {
 
 	ctx, out := cliapptest.NewCapturedRunContext(core, cliapp.ArgSchema{
 		Positionals: []cliapp.Positional{{Name: "id", Required: true}, {Name: "file", Required: true}},
-		Flags:       []cliapp.Flag{{Name: "expected-sha256"}},
+		Flags:       []cliapp.Flag{{Name: "path"}, {Name: "expected-sha256"}},
 	}, cliapptest.TestRunContextOptions{
 		Positionals: map[string]string{"id": "abc", "file": tmpFile},
-		Flags:       map[string]string{"expected-sha256": "stale"},
+		Flags:       map[string]string{"path": "story.json", "expected-sha256": "stale"},
 	})
 	require.NoError(t, h.contentSet(ctx))
 	require.Len(t, svc.contentSetReqs, 1)
 	require.Equal(t, "abc", svc.contentSetReqs[0].Id)
+	require.Equal(t, "story.json", svc.contentSetReqs[0].Path)
 	require.Equal(t, "// rewritten\n", svc.contentSetReqs[0].Content)
 	require.Equal(t, "stale", svc.contentSetReqs[0].ExpectedSha256)
 	require.Contains(t, out.String(), "sha256=deadbeef")
@@ -664,15 +665,25 @@ func TestComponentsManifestUpdate_ForwardsMetadata(t *testing.T) {
 			{Name: "latest-version"},
 			{Name: "draft-version"},
 			{Name: "deprecated-versions"},
+			{Name: "catalog-id"},
+			{Name: "replaced-by"},
+			{Name: "clear-supplemental-justification"},
+			{Name: "clear-catalog-id"},
+			{Name: "dependencies"},
 		},
 	}, cliapptest.TestRunContextOptions{
 		Positionals: map[string]string{"component-id": "cmp-1"},
 		Flags: map[string]string{
-			"display-name":        "Header",
-			"description":         "Updated",
-			"tags":                "layout,nav",
-			"latest-version":      "1.0.0",
-			"deprecated-versions": "0.1.0",
+			"display-name":                     "Header",
+			"description":                      "Updated",
+			"tags":                             "layout,nav",
+			"latest-version":                   "1.0.0",
+			"deprecated-versions":              "0.1.0",
+			"catalog-id":                       "navigation.header",
+			"replaced-by":                      "navigation.page,navigation.sidebar",
+			"clear-supplemental-justification": "true",
+			"clear-catalog-id":                 "true",
+			"dependencies":                     "react-component-library:FullPageDrawer@1.0.3,react-component-library:BottomSheet@1.0.2",
 		},
 	})
 
@@ -680,6 +691,13 @@ func TestComponentsManifestUpdate_ForwardsMetadata(t *testing.T) {
 	require.Len(t, svc.manifestReqs, 1)
 	require.Equal(t, []string{"layout", "nav"}, svc.manifestReqs[0].Tags)
 	require.Equal(t, []string{"0.1.0"}, svc.manifestReqs[0].DeprecatedVersions)
+	require.Equal(t, "navigation.header", svc.manifestReqs[0].CatalogId)
+	require.Equal(t, []string{"navigation.page", "navigation.sidebar"}, svc.manifestReqs[0].ReplacedBy)
+	require.True(t, svc.manifestReqs[0].ClearSupplementalJustification)
+	require.True(t, svc.manifestReqs[0].ClearCatalogId)
+	require.Equal(t, "react-component-library:FullPageDrawer", svc.manifestReqs[0].Dependencies[0].LibraryId)
+	require.Equal(t, "1.0.3", svc.manifestReqs[0].Dependencies[0].Version)
+	require.Equal(t, "react-component-library:BottomSheet", svc.manifestReqs[0].Dependencies[1].LibraryId)
 }
 
 func writeFile(path, body string) error {

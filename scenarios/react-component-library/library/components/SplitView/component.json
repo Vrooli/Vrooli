@@ -3,7 +3,7 @@
   "assetKind": "component",
   "catalogId": "navigation.split-view",
   "dependencies": [],
-  "description": "",
+  "description": "A composed navigation workspace that keeps primary and secondary regions meaningful across breakpoints.",
   "designStyles": [
     {
       "affinity": "native",

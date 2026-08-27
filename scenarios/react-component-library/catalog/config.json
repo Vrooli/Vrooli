@@ -646,6 +646,24 @@
       "runner": { "react-vite": "react-component-library catalog gates manifest-identity" }
     },
     {
+      "id": "manifest-metadata",
+      "attribution": "corpus",
+      "rung": "implemented",
+      "appliesTo": ["foundation", "runtime-hook", "runtime-service", "primitive", "component", "pattern", "page-template", "navigation"],
+      "blocking": true,
+      "description": "Every library manifest has a usable description and no transitional supplemental or self-referential catalog metadata.",
+      "runner": { "react-vite": "react-component-library catalog gates manifest-metadata" }
+    },
+    {
+      "id": "overlay-surface-composition",
+      "attribution": "corpus",
+      "rung": "implemented",
+      "appliesTo": ["component", "pattern"],
+      "blocking": true,
+      "description": "Overlay dialog, alertdialog, and menu roles compose the shared overlay behavior substrate or carry a reviewed opt-out reason.",
+      "runner": { "react-vite": "react-component-library catalog gates overlay-surface-composition" }
+    },
+    {
       "id": "shared-style-ownership",
       "attribution": "corpus",
       "rung": "implemented",
@@ -671,6 +689,24 @@
       "blocking": true,
       "description": "Published assets do not emit consumer-specific palette classes.",
       "runner": { "react-vite": "react-component-library catalog gates foreign-token-classes" }
+    },
+    {
+      "id": "utility-class",
+      "attribution": "corpus",
+      "rung": "implemented",
+      "appliesTo": ["primitive", "component", "pattern", "page-template", "navigation"],
+      "blocking": true,
+      "description": "Published assets emit no library-owned utility classes; temporary debt is bounded by a shrink-only allowlist.",
+      "runner": { "react-vite": "react-component-library catalog gates utility-class" }
+    },
+    {
+      "id": "consumer-pin",
+      "attribution": "corpus",
+      "rung": "implemented",
+      "appliesTo": ["primitive", "component", "pattern", "page-template", "navigation"],
+      "blocking": true,
+      "description": "Every scenario pin resolves to a present, supported, portable library version.",
+      "runner": { "react-vite": "react-component-library catalog gates consumer-pin" }
     },
     {
       "id": "deprecated-import",

@@ -7,7 +7,6 @@
  * @deps {"react":"^18","lucide-react":"^0.424.0"}
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
-import { StyleSheet } from "@vrooli/react-component-library/StyleSheet/1.0.0";
 import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
 
 import { X } from "lucide-react";
@@ -69,7 +68,7 @@ export const Dialog = withClassName(function Dialog({
 
   return (
     <div data-rcl-dialog className="rcl-dialog">
-      <StyleSheet name="dialog-1-2-2" css={dialogStyles} />
+      <style data-rcl-dialog-styles dangerouslySetInnerHTML={{ __html: dialogStyles }} />
       <button
         data-testid="overlays.dialog"
         type="button"

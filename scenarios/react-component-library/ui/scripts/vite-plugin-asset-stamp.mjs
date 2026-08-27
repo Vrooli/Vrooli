@@ -618,6 +618,7 @@ export function buildStampReport({ declared, stamped, generatedAt }) {
 
 export default function assetStampPlugin(options = {}) {
   let scenarioRoot = options.scenarioRoot;
+  let reportFile = options.reportFile;
   const exemptions = readExemptions(options.exemptionFile || defaultExemptionsPath);
   const stampMap = readStampMap(options.mapFile || defaultMapPath);
   let adoptedIndex = new Map();
@@ -629,6 +630,7 @@ export default function assetStampPlugin(options = {}) {
     enforce: "pre",
     configResolved(config) {
       scenarioRoot ||= dirname(config.root);
+      reportFile ||= join(config.build.outDir, "asset-stamp-report.json");
       const componentsRoot = options.componentsRoot || join(config.root, "src", "components");
       adoptedIndex = buildAdoptedIndex(componentsRoot);
       declared = new Map([
@@ -659,11 +661,11 @@ export default function assetStampPlugin(options = {}) {
         stamped,
         generatedAt: new Date().toISOString(),
       });
-      const directory = join(scenarioRoot, "coverage");
+      const directory = dirname(reportFile);
       try {
         mkdirSync(directory, { recursive: true });
         writeFileSync(
-          join(directory, "asset-stamp-report.json"),
+          reportFile,
           `${JSON.stringify(report, null, 2)}\n`,
         );
       } catch {

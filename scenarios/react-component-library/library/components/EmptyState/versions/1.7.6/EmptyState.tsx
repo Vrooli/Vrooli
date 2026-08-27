@@ -13,7 +13,7 @@ import { useStrings } from "@vrooli/react-component-library/useLocale/1.0.1";
 import { useId, type CSSProperties, type ReactNode } from "react";
 import { Button, type ButtonProps } from "@vrooli/react-component-library/Button/2.0.0";
 import { ButtonGroup } from "@vrooli/react-component-library/ButtonGroup/1.1.1";
-import { Card, CardContent } from "@vrooli/react-component-library/Card/1.1.0";
+import { Card, CardContent } from "@vrooli/react-component-library/Card/1.2.2";
 import { Container } from "@vrooli/react-component-library/Container/1.1.2";
 import { Heading } from "@vrooli/react-component-library/Heading/1.1.0";
 import { Stack } from "@vrooli/react-component-library/Stack/1.2.1";

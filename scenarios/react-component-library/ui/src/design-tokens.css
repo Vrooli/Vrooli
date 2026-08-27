@@ -1,4 +1,5 @@
 :root {
+  --breakpoint-md: 48rem;
   --app-background: var(--color-background);
   --app-shell: var(--color-shell);
   --app-surface: var(--color-surface);
@@ -71,6 +72,34 @@
   --control-icon-size-xl: 20px;
   --control-icon-size-icon: 16px;
   --control-icon-size: var(--control-icon-size-md);
+
+  /* Host viewport contract.
+   *
+   * `env(safe-area-inset-*)` and `100dvh` describe the layout viewport. An
+   * application that owns its own scrolling, keyboard handling, or chrome has
+   * usually already narrowed the region a surface may occupy, and an overlay
+   * that trusts the raw environment then lands on neither edge. These six
+   * properties are the seam: the defaults below are the raw environment, and a
+   * host that knows better assigns them on the document element. Library
+   * surfaces read only these names, never `env()` directly.
+   *
+   * Mirrored in `BaseStyles` so a consumer that has not copied this ramp still
+   * resolves the defaults. */
+  --rcl-safe-top: env(safe-area-inset-top, 0px);
+  --rcl-safe-right: env(safe-area-inset-right, 0px);
+  --rcl-safe-bottom: env(safe-area-inset-bottom, 0px);
+  --rcl-safe-left: env(safe-area-inset-left, 0px);
+  --rcl-keyboard-inset: 0px;
+  --rcl-viewport-height: 100dvh;
+
+  /* Overlay geometry. The drawer gap is the strip a full-page drawer leaves
+   * uncovered at the top so a pointer has somewhere to dismiss it. */
+  --overlay-drawer-top-gap: var(--space-2xl);
+  --overlay-grabber-inline: 2.25rem;
+  --overlay-grabber-block: 0.25rem;
+  --overlay-dialog-sm: 24rem;
+  --overlay-dialog-md: 32rem;
+  --overlay-dialog-lg: 48rem;
   --badge-border: var(--color-border);
   --border-focus: 2px;
   --color-danger-foreground-inverse: #ffffff;
@@ -151,8 +180,13 @@
   --text-title-tracking: -0.01em;
   --tracking-caps: 0.08em;
   --tracking-tight: -0.01em;
-  --wc-kb-height: 2.5rem;
-  --wc-safe-top: env(safe-area-inset-top, 0px);
+  /* Retained only for the DrawerShell compatibility delegate, which still
+   * reads this consumer-namespaced name. Every other surface reads
+   * --rcl-keyboard-inset. The published default was 2.5rem, which gave any
+   * adopter that copied this ramp without setting it a permanent 40px offset
+   * on every keyboard-avoiding overlay; a keyboard that is not open has no
+   * height. Remove this line once DrawerShell delegates. */
+  --wc-kb-height: 0px;
   --text-display-size: 32px;
   --text-display-line: 38px;
   --text-title-size: 24px;
@@ -215,10 +249,14 @@
   --sidebar-min-width: 16.25rem;
   --sidebar-max-width: 30rem;
   color-scheme: light;
+  /* rcl:tokens:begin */
+  --control-height: initial;
+  --control-height-lg: initial;
+  --control-height-sm: initial;
+  --elev-: initial;
+  --space-: initial;
+  /* rcl:tokens:end */
 }
-/* rcl:tokens:begin */
-/* managed token declarations are synchronized from adoption requirements */
-/* rcl:tokens:end */
 
 :root[data-resolved-theme="dark"],
 .dark {

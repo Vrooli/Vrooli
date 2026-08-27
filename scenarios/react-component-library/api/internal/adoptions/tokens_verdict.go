@@ -11,6 +11,7 @@ import (
 )
 
 var scenarioTokenDeclarationRE = regexp.MustCompile(`(--[A-Za-z0-9_-]+)\s*:`)
+var scenarioRuntimeTokenWriteRE = regexp.MustCompile(`\.setProperty\s*\(\s*["'](--[A-Za-z0-9_-]+)["']`)
 
 // TokenVerdict is the read-only styling-contract result for an adoption
 // closure. Required is the exact derived set; RequiredPatterns represents
@@ -40,6 +41,10 @@ func (e ErrAdoptionTokensUnsatisfied) Error() string {
 
 type ScenarioTokenInventoryReader interface {
 	DeclaredTokens(ctx context.Context, scenario string) ([]string, error)
+}
+
+type ScenarioRuntimeTokenInventoryReader interface {
+	RuntimeWrittenTokens(ctx context.Context, scenario string) ([]string, error)
 }
 
 func (s *service) resolveTokenVerdict(ctx context.Context, closure components.ClosureReport, scenario string) (TokenVerdict, error) {

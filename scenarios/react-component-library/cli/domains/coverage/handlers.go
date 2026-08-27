@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	corestorage "github.com/vrooli/api-core/storage"
 	"github.com/vrooli/cli-core/cliapp"
 )
 
@@ -81,7 +82,11 @@ func run(args []string) error {
 		}
 	}
 	if root == "" {
-		root = findCoverageRoot()
+		var err error
+		root, err = findCoverageRoot()
+		if err != nil {
+			return err
+		}
 	}
 	report, err := plan(root, !apply)
 	if err != nil {
@@ -214,16 +219,19 @@ func isRetained(path string) bool {
 	return base == "verdicts.json" || strings.Contains(path, "verdict") || strings.Contains(path, "evaluator") || strings.Contains(path, "calibration") || strings.Contains(path, "hash") || strings.Contains(path, "timing")
 }
 
-func findCoverageRoot() string {
+func findCoverageRoot() (string, error) {
 	if value := strings.TrimSpace(os.Getenv("VROOLI_REACT_COMPONENT_LIBRARY_COVERAGE")); value != "" {
-		return value
+		return value, nil
 	}
-	wd, _ := os.Getwd()
-	for current := wd; current != filepath.Dir(current); current = filepath.Dir(current) {
-		candidate := filepath.Join(current, "scenarios", "react-component-library", "coverage")
-		if _, err := os.Stat(filepath.Join(current, "scenarios", "react-component-library")); err == nil {
-			return candidate
-		}
+	resolver, err := corestorage.NewResolver(corestorage.ResolverConfig{AppID: "vrooli", Profile: corestorage.ProfileAuto})
+	if err != nil {
+		return "", fmt.Errorf("resolve coverage storage: %w", err)
 	}
-	return filepath.Join(wd, "coverage")
+	root, err := resolver.ArtifactPath(corestorage.Options{ScenarioID: "react-component-library"}, corestorage.ArtifactRef{
+		Owner: "react-component-library", Domain: "gates", Class: corestorage.ClassState,
+	})
+	if err != nil {
+		return "", fmt.Errorf("resolve coverage root: %w", err)
+	}
+	return root, nil
 }

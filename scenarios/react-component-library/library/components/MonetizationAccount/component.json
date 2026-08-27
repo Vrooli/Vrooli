@@ -1,11 +1,13 @@
 {
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "component",
-  "catalogId": "react-component-library:MonetizationAccount",
   "deprecatedVersions": [
-    "1.0.2"
+    "1.0.2",
+    "1.0.3",
+    "1.0.4",
+    "1.0.1"
   ],
-  "description": "",
+  "description": "Shared account surface primitives for paid scenarios.",
   "designStyles": [
     {
       "affinity": "native",
@@ -26,7 +28,7 @@
     "1.0.2"
   ],
   "kind": "surface",
-  "latest": "1.0.3",
+  "latest": "1.0.5",
   "libraryId": "react-component-library:MonetizationAccount",
   "requires": [
     {

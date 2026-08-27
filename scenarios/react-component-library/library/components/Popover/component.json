@@ -43,7 +43,7 @@
   "deprecatedVersions": [
     "1.1.1"
   ],
-  "description": "",
+  "description": "The collision-aware anchored surface with focus management, pointer-safe interaction corridors, arrow positioning, nested layering, and a responsive fallback presentation.",
   "designStyles": [
     {
       "affinity": "native",
@@ -60,7 +60,7 @@
     "1.1.1"
   ],
   "kind": "overlay",
-  "latest": "1.1.2",
+  "latest": "1.2.3",
   "libraryId": "react-component-library:Popover",
   "slot": "ui-pattern",
   "tags": [

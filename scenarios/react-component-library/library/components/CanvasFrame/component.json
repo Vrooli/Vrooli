@@ -1,11 +1,10 @@
 {
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "component",
-  "catalogId": "react-component-library:CanvasFrame",
   "deprecatedVersions": [
     "1.0.0"
   ],
-  "description": "",
+  "description": "The shared preview substrate that owns fit, background, and specimen placement for focus and canvas views.",
   "designStyles": [
     {
       "affinity": "native",

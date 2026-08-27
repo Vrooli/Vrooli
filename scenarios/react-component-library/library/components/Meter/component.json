@@ -4,7 +4,7 @@
   "deprecatedVersions": [
     "1.0.0"
   ],
-  "description": "",
+  "description": "A semantic bounded-value meter for capacity, quota, strength, and health.",
   "designStyles": [
     {
       "affinity": "native",

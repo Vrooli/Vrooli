@@ -1,0 +1,73 @@
+{
+  "$schema": "../../../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "bindings": {
+    "elements": {
+      "navigation": {
+        "selector": "navigation"
+      }
+    }
+  },
+  "claims": [
+    {
+      "elements": ["navigation"],
+      "id": "nav-present",
+      "statement": "The fixed navigation exposes a named navigation landmark and destinations.",
+      "states": ["mobile-primary", "disabled-item", "long-labels"],
+      "tier": "machine",
+      "type": "element-present"
+    },
+    {
+      "id": "tap-targets",
+      "statement": "Every interactive destination meets the minimum mobile tap target.",
+      "states": ["mobile-primary", "disabled-item", "long-labels"],
+      "tier": "machine",
+      "type": "tap-target-size"
+    },
+    {
+      "id": "safe-area",
+      "statement": "Navigation items remain clear of the mobile unsafe bottom area.",
+      "states": ["mobile-primary", "disabled-item", "long-labels"],
+      "tier": "machine",
+      "type": "safe-area-tap-targets"
+    },
+    {
+      "id": "no-overflow",
+      "statement": "Long labels do not create document-level horizontal scrolling.",
+      "states": ["mobile-primary", "disabled-item", "long-labels"],
+      "tier": "machine",
+      "type": "no-document-horizontal-overflow"
+    }
+  ],
+  "component": {
+    "id": "bottom-nav",
+    "purpose": "A fixed compact navigation surface with current-page semantics, stable tap targets, and safe-area support.",
+    "storyRef": "../../library/components/BottomNav/versions/1.4.0/story.json",
+    "title": "BottomNav"
+  },
+  "elements": [
+    {
+      "description": "The fixed navigation landmark.",
+      "id": "navigation",
+      "role": "navigation"
+    }
+  ],
+  "kind": "experience-component",
+  "schemaVersion": "1.1.0",
+  "states": [
+    {
+      "description": "Primary mobile destinations are available.",
+      "example": "mobile-primary",
+      "id": "mobile-primary"
+    },
+    {
+      "description": "Disabled destinations remain announced and non-operable.",
+      "example": "disabled-item",
+      "id": "disabled-item"
+    },
+    {
+      "description": "Long labels remain bounded within item geometry.",
+      "example": "long-labels",
+      "id": "long-labels"
+    }
+  ]
+}

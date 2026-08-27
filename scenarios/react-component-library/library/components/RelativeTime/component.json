@@ -6,7 +6,7 @@
   "deprecatedVersions": [
     "1.0.2"
   ],
-  "description": "",
+  "description": "A semantic time value that presents a concise relative label while preserving machine-readable date context.",
   "designStyles": [
     {
       "affinity": "native",

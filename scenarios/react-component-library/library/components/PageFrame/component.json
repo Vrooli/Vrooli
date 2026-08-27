@@ -1,11 +1,11 @@
 {
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
-  "catalogId": "react-component-library:PageFrame",
   "category": "navigation",
   "deprecatedVersions": [
-    "1.0.0"
+    "1.0.0",
+    "1.0.1"
   ],
-  "description": "",
+  "description": "A route-content boundary that gives navigation and page specimens a real responsive document context.",
   "designStyles": [
     {
       "affinity": "native",
@@ -18,7 +18,7 @@
     "1.0.0"
   ],
   "kind": "shell",
-  "latest": "1.0.1",
+  "latest": "1.0.2",
   "libraryId": "react-component-library:PageFrame",
   "slot": "layout-nav",
   "tags": [

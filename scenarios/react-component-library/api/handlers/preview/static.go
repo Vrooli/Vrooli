@@ -13,6 +13,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -140,11 +141,35 @@ func (h *HarnessHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "preview: requested design kit is unavailable", http.StatusInternalServerError)
 		return
 	}
+	consumer := strings.TrimSpace(r.URL.Query().Get("consumer"))
+	contrastFloor := ""
+	if consumer != "" {
+		consumerCSS, consumerErr := previewConsumerCSS(h.repoRoot, consumer)
+		if consumerErr != nil {
+			h.logger.Printf("preview.harness consumer %q: %v", consumer, consumerErr)
+			http.Error(w, "preview: requested consumer context is unavailable: "+consumerErr.Error(), http.StatusUnprocessableEntity)
+			return
+		}
+		contrastFloor, consumerErr = previewConsumerContrastFloor(h.repoRoot, consumer)
+		if consumerErr != nil {
+			h.logger.Printf("preview.harness consumer %q: %v", consumer, consumerErr)
+			http.Error(w, "preview: requested consumer context is unavailable: "+consumerErr.Error(), http.StatusUnprocessableEntity)
+			return
+		}
+		// Consumer CSS intentionally follows the neutral preview kit. The
+		// composition contract asks the browser to resolve the asset through the
+		// consumer's real cascade, including its root token overrides.
+		css += "\n/* rcl:consumer-context:" + consumer + " */\n" + consumerCSS
+	}
 	direction := strings.ToLower(strings.TrimSpace(r.URL.Query().Get("dir")))
 	if direction != "rtl" && direction != "ltr" {
 		direction = ""
 	}
-	doc := renderHarnessHTML(id, bundle, story, css, strings.EqualFold(strings.TrimSpace(r.URL.Query().Get("view")), "canvas"), direction)
+	theme := strings.ToLower(strings.TrimSpace(r.URL.Query().Get("theme")))
+	if theme != "light" && theme != "dark" {
+		theme = ""
+	}
+	doc := renderHarnessHTML(id, bundle, story, css, strings.EqualFold(strings.TrimSpace(r.URL.Query().Get("view")), "canvas"), direction, consumer, theme, contrastFloor)
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.Header().Set("Cache-Control", "no-store")
 	// Same-origin: the host iframe controls the `src`, and same-origin
@@ -471,6 +496,18 @@ func renderHarnessHTML(id string, b internalpreview.Bundle, ex harnessStory, des
 	if len(galleryMode) > 1 {
 		direction, _ = galleryMode[1].(string)
 	}
+	consumer := ""
+	if len(galleryMode) > 2 {
+		consumer, _ = galleryMode[2].(string)
+	}
+	theme := ""
+	if len(galleryMode) > 3 {
+		theme, _ = galleryMode[3].(string)
+	}
+	contrastFloor := ""
+	if len(galleryMode) > 4 {
+		contrastFloor, _ = galleryMode[4].(string)
+	}
 	if direction != "rtl" && direction != "ltr" {
 		direction = ""
 	}
@@ -483,6 +520,14 @@ func renderHarnessHTML(id string, b internalpreview.Bundle, ex harnessStory, des
 		sb.WriteString(` dir="`)
 		sb.WriteString(direction)
 		sb.WriteString(`"`)
+	}
+	if theme == "light" || theme == "dark" {
+		sb.WriteString(` data-resolved-theme="`)
+		sb.WriteString(theme)
+		sb.WriteString(`"`)
+	}
+	if theme == "dark" {
+		sb.WriteString(` class="dark"`)
 	}
 	sb.WriteString(`>
 <head>
@@ -499,6 +544,12 @@ func renderHarnessHTML(id string, b internalpreview.Bundle, ex harnessStory, des
 	sb.WriteString(`" />
 <meta name="story-id" content="`)
 	sb.WriteString(html.EscapeString(ex.Name))
+	sb.WriteString(`" />
+<meta name="consumer-context" content="`)
+	sb.WriteString(html.EscapeString(consumer))
+	sb.WriteString(`" />
+<meta name="consumer-contrast-floor" content="`)
+	sb.WriteString(html.EscapeString(contrastFloor))
 	sb.WriteString(`" />
 <style>
 `)
@@ -992,4 +1043,80 @@ func previewDesignSystemCSS(repoRoot, kit string) (string, error) {
 	previewCSSCache.modified = modified
 	previewCSSCache.css = string(tokens) + "\n" + string(utilities)
 	return previewCSSCache.css, nil
+}
+
+// previewConsumerCSS reads a scenario's current build output and source-owned
+// token bridge directly. It never copies either artifact into RCL: the named
+// scenario remains the sole source of truth for the cascade under test.
+func previewConsumerCSS(repoRoot, consumer string) (string, error) {
+	if consumer == "" || strings.Contains(consumer, ".") || strings.ContainsAny(consumer, `/\\`) {
+		return "", fmt.Errorf("invalid consumer %q", consumer)
+	}
+	uiRoot := filepath.Join(repoRoot, "scenarios", consumer, "ui")
+	tokensPath := filepath.Join(uiRoot, "src", "design-tokens.css")
+	tokens, err := os.ReadFile(tokensPath)
+	if err != nil {
+		return "", fmt.Errorf("read source token bridge: %w", err)
+	}
+	bundlePaths, err := filepath.Glob(filepath.Join(uiRoot, "dist", "assets", "*.css"))
+	if err != nil || len(bundlePaths) == 0 {
+		return "", fmt.Errorf("compiled CSS bundle is missing; build scenarios/%s first", consumer)
+	}
+	var newestBundle int64
+	var css strings.Builder
+	for _, path := range bundlePaths {
+		info, statErr := os.Stat(path)
+		if statErr != nil {
+			return "", fmt.Errorf("stat compiled CSS %s: %w", filepath.Base(path), statErr)
+		}
+		if info.ModTime().UnixNano() > newestBundle {
+			newestBundle = info.ModTime().UnixNano()
+		}
+		data, readErr := os.ReadFile(path)
+		if readErr != nil {
+			return "", fmt.Errorf("read compiled CSS %s: %w", filepath.Base(path), readErr)
+		}
+		css.Write(data)
+		css.WriteByte('\n')
+	}
+	var newestSource int64
+	err = filepath.Walk(filepath.Join(uiRoot, "src"), func(path string, info os.FileInfo, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		if !info.IsDir() && info.ModTime().UnixNano() > newestSource {
+			newestSource = info.ModTime().UnixNano()
+		}
+		return nil
+	})
+	if err != nil {
+		return "", fmt.Errorf("inspect consumer sources: %w", err)
+	}
+	if newestSource > newestBundle {
+		return "", fmt.Errorf("compiled CSS is older than consumer source; rebuild scenarios/%s", consumer)
+	}
+	return string(tokens) + "\n" + css.String(), nil
+}
+
+// previewConsumerContrastFloor keeps contrast acceptance coupled to the
+// consumer-owned token contract. Browser workflows read the emitted meta value
+// instead of duplicating a threshold that could drift from token-map.json.
+func previewConsumerContrastFloor(repoRoot, consumer string) (string, error) {
+	if consumer == "" || strings.Contains(consumer, ".") || strings.ContainsAny(consumer, `/\\`) {
+		return "", fmt.Errorf("invalid consumer %q", consumer)
+	}
+	data, err := os.ReadFile(filepath.Join(repoRoot, "scenarios", consumer, "ui", "token-map.json"))
+	if err != nil {
+		return "", fmt.Errorf("read consumer token map: %w", err)
+	}
+	var tokenMap struct {
+		ContrastFloor float64 `json:"contrast_floor"`
+	}
+	if err := json.Unmarshal(data, &tokenMap); err != nil {
+		return "", fmt.Errorf("parse consumer token map: %w", err)
+	}
+	if tokenMap.ContrastFloor <= 0 {
+		return "", fmt.Errorf("consumer token map has no positive contrast_floor")
+	}
+	return strconv.FormatFloat(tokenMap.ContrastFloor, 'f', -1, 64), nil
 }

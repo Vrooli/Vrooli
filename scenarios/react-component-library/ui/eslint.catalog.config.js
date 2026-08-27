@@ -6,13 +6,22 @@ import reactHooks from "eslint-plugin-react-hooks";
 import tseslint from "typescript-eslint";
 import { designSystem } from "./eslint-rules/index.js";
 
+const catalogTSConfig = process.env.RCL_CATALOG_TSCONFIG;
+
+if (!catalogTSConfig) {
+  throw new Error(
+    "RCL_CATALOG_TSCONFIG must name the generated catalog TypeScript project; " +
+      "run catalog lint through scripts/catalog-conformance.mjs",
+  );
+}
+
 export default tseslint.config(
   {
     ignores: [
       "dist",
       "node_modules",
       "coverage",
-      ".catalog-tsconfig.generated.json",
+      ".catalog-conformance-*",
     ],
   },
   {
@@ -21,12 +30,16 @@ export default tseslint.config(
       ...tseslint.configs.strictTypeChecked,
       jsxA11y.flatConfigs.strict,
     ],
-    files: ["../library/{foundations,hooks,services,primitives,components}/**/*.{ts,tsx}", "library/{foundations,hooks,services,primitives,components}/**/*.{ts,tsx}"],
+    files: [
+      "../library/{foundations,hooks,services,primitives,components}/**/*.{ts,tsx}",
+      "library/{foundations,hooks,services,primitives,components}/**/*.{ts,tsx}",
+      "**/.catalog-conformance-*/library/{foundations,hooks,services,primitives,components}/**/*.{ts,tsx}",
+    ],
     languageOptions: {
       ecmaVersion: 2020,
       globals: globals.browser,
       parserOptions: {
-        project: ["./.catalog-tsconfig.generated.json"],
+        project: [catalogTSConfig],
         tsconfigRootDir: import.meta.dirname,
       },
     },
@@ -39,7 +52,7 @@ export default tseslint.config(
       "import/resolver": {
         typescript: {
           alwaysTryTypes: true,
-          project: "./.catalog-tsconfig.generated.json",
+          project: catalogTSConfig,
         },
       },
     },

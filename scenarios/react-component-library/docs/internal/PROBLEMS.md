@@ -103,6 +103,11 @@ a migration handoff with a planned retirement path back into
 
 ## Work ladder
 
+- Rung: W3 / R0 (overlay contract and styling portability execution)
+- Evidence: W0 remains aligned with goals `design-language-foundation` and `react-component-library-adoption-integrity`; `business-health validate scenario react-component-library` and `vrooli scenario requirements validate react-component-library` both pass. Baseline run `20260827-043742-0085352a` is terminal and records the pre-existing red implementation baseline that this plan must compare against while it builds the missing portability and overlay behavior.
+- Blocker: None. The work is implementation and hardening at W3; inherited suite failures remain baseline evidence rather than permission to weaken the plan's acceptance bar.
+- Measured: 2026-08-27.
+
 - Rung: W3 (2026-08-27 cold version tier implementation)
 - Evidence: The ledger now separates `materialized` and `evicted` presence, restores evicted files through a hash-verified atomic materializer, preserves evicted rows across reindex, sees evicted source imports, exposes reconcile/materialize/archive/doctor surfaces, and wires adoption lifecycle hooks. Focused Go tests, CLI tests, UI type-check, focused UI tests, package build, and `sync-exports:check` pass. Browser Automation Studio captured the corrected desktop shell at `/tmp/rcl-ui-20260827-fixed-shell-2/64d0272a-dcfe-4196-85e6-c9e845fc3d8d/screenshots/step-01-40a5b0aa-7c09-4b97-928d-a5d500d6b2fc.png` after a real grid-placement defect was fixed at the consumer boundary.
 - Blocker: The live corpus still contains pre-existing released source/ledger hash mismatches and 15 authored version paths absent from the ledger, so full-corpus eviction and the strict no-overlay package census remain withheld. The scenario baseline also remains red on inherited phases; the adoptions staleness test reports its existing reviewed-divergence allowlist entries.

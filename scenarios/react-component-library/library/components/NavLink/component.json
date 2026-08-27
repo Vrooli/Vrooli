@@ -7,7 +7,7 @@
     "1.0.4",
     "1.0.6"
   ],
-  "description": "",
+  "description": "The router-adaptable navigation link with exact or partial active matching, pending state during navigation, prefetch policy, icons, badges, and disabled semantics.",
   "designStyles": [
     {
       "affinity": "native",

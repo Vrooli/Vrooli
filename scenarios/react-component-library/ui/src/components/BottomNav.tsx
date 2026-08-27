@@ -2,4 +2,4 @@
  * @vrooliComponentSource navigation.bottom-navigation
  * Compatibility facade for the adopted navigation asset.
  */
-export * from "@vrooli/react-component-library/BottomNav/1.3.0";
+export * from "@vrooli/react-component-library/BottomNav/1";

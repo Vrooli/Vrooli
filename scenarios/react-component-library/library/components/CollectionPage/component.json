@@ -6,7 +6,7 @@
   "deprecatedVersions": [
     "1.0.3"
   ],
-  "description": "",
+  "description": "A collection template with URL-ready filtering, data-source-owned records, and recovery states.",
   "designStyles": [
     {
       "affinity": "native",

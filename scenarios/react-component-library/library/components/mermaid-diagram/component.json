@@ -1,10 +1,10 @@
 {
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
-  "catalogId": "react-component-library:mermaid-diagram",
   "deprecatedVersions": [
-    "0.3.1"
+    "0.3.1",
+    "0.1.1"
   ],
-  "description": "",
+  "description": "Mermaid diagram source preview with an expand seam.",
   "designStyles": [
     {
       "affinity": "native",
@@ -16,7 +16,8 @@
   "draft": "",
   "entry": "MermaidDiagram.tsx",
   "evictedVersions": [
-    "0.3.1"
+    "0.3.1",
+    "0.1.1"
   ],
   "kind": "surface",
   "latest": "0.3.2",
@@ -24,6 +25,5 @@
   "tags": [
     "markdown",
     "mermaid"
-  ],
-  "x-supplementalJustification": "Pre-catalog diagram renderer retained as a supplemental content integration seam."
+  ]
 }

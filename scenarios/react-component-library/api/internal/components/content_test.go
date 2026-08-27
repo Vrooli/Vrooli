@@ -213,6 +213,39 @@ func TestFSContentStore_MaterializeIsIdempotentAndConcurrencySafe(t *testing.T) 
 	}
 }
 
+func TestFSContentStore_MaterializeRepairsDivergentWorkingTreeFromVerifiedMirror(t *testing.T) {
+	root := t.TempDir()
+	version := materializeFixture()
+	destination := filepath.Join(root, "library/components/Button/versions/1.0.0")
+	if err := os.MkdirAll(destination, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(destination, "Button.tsx"), []byte("mutated\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(destination, "unexpected.ts"), []byte("stale\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	result, err := NewFSContentStore(root).Materialize(context.Background(), version, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.AlreadyPresent || result.FilesWritten != 1 {
+		t.Fatalf("repair result = %+v", result)
+	}
+	got, err := os.ReadFile(filepath.Join(destination, "Button.tsx"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(got) != version.Files[0].Content {
+		t.Fatalf("repaired source = %q", got)
+	}
+	if _, err := os.Stat(filepath.Join(destination, "unexpected.ts")); !os.IsNotExist(err) {
+		t.Fatalf("unexpected file survived exact repair: %v", err)
+	}
+}
+
 func TestFSContentStore_MaterializeAbortsOnHashMismatch(t *testing.T) {
 	root := t.TempDir()
 	version := materializeFixture()

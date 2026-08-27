@@ -6,7 +6,7 @@
   "deprecatedVersions": [
     "1.0.4"
   ],
-  "description": "",
+  "description": "A compact pass, fail, and unmeasured verdict census.",
   "designStyles": [
     {
       "affinity": "native",

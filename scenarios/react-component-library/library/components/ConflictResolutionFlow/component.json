@@ -20,7 +20,7 @@
     "1.0.3",
     "1.0.5"
   ],
-  "description": "",
+  "description": "The concurrency workflow comparing local and remote change, explaining what conflicts, supporting field-level resolution, and retrying against the current version.",
   "designStyles": [
     {
       "affinity": "native",

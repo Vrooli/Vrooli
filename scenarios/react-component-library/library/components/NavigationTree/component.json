@@ -7,7 +7,7 @@
     "1.1.4",
     "1.1.6"
   ],
-  "description": "",
+  "description": "The hierarchical navigation collection with expansion, selection, keyboard traversal, lazily loaded children, filtering, virtualization, persisted open state, and accessible tree semantics.",
   "designStyles": [
     {
       "affinity": "native",

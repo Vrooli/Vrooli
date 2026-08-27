@@ -1,10 +1,10 @@
 {
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
-  "catalogId": "react-component-library:markdown-renderer",
   "deprecatedVersions": [
-    "0.3.2"
+    "0.3.2",
+    "0.1.1"
   ],
-  "description": "",
+  "description": "Syntax-highlighted fenced code block with bounded cache and copy feedback.",
   "designStyles": [
     {
       "affinity": "native",
@@ -13,15 +13,18 @@
     }
   ],
   "displayName": "Markdown Renderer",
-  "kind": "surface",
   "draft": "",
   "entry": "MarkdownRenderer.tsx",
-  "latest": "0.3.3",
+  "evictedVersions": [
+    "0.3.3",
+    "0.1.1"
+  ],
+  "kind": "surface",
+  "latest": "0.4.0",
   "libraryId": "react-component-library:markdown-renderer",
   "tags": [
     "markdown",
     "rendering",
     "gfm"
-  ],
-  "x-supplementalJustification": "Pre-catalog content renderer retained as a supplemental integration seam until markdown policy is a catalog contract."
+  ]
 }

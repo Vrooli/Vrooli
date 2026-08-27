@@ -7,7 +7,7 @@
     "1.0.1",
     "1.0.3"
   ],
-  "description": "",
+  "description": "The semantic collection with sections, item actions, selection, keyboard navigation, loading placeholders, separators, and responsive density.",
   "designStyles": [
     {
       "affinity": "native",

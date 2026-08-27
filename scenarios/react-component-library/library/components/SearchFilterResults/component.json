@@ -7,7 +7,7 @@
   "deprecatedVersions": [
     "1.0.2"
   ],
-  "description": "",
+  "description": "A URL-ready search and filter composition that separates no-match emptiness from loading and error states.",
   "designStyles": [
     {
       "affinity": "native",

@@ -6,7 +6,7 @@
   "deprecatedVersions": [
     "1.1.4"
   ],
-  "description": "",
+  "description": "One composed navigation contract owning sidebar-to-drawer, modal-to-bottom-sheet, and header-to-bottom-navigation transformations.",
   "designStyles": [
     {
       "affinity": "native",

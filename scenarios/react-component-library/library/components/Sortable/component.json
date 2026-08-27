@@ -28,7 +28,7 @@
     "1.0.3",
     "1.0.5"
   ],
-  "description": "",
+  "description": "The reorder controller with collision strategies, animated displacement, keyboard operation, nested containers, optimistic persistence, and rollback when the write fails.",
   "designStyles": [
     {
       "affinity": "native",

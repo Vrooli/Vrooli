@@ -70,7 +70,8 @@ func (s *FSContentStore) Root() string { return s.root }
 // place. The mutex covers same-process concurrent callers; the destination
 // existence check makes retries safe after another process wins the race.
 func (s *FSContentStore) Materialize(_ context.Context, v ComponentVersion, into string) (MaterializeResult, error) {
-	if strings.TrimSpace(into) == "" {
+	repairWorkingTree := strings.TrimSpace(into) == ""
+	if repairWorkingTree {
 		into = s.root
 	}
 	root, err := filepath.Abs(into)
@@ -95,24 +96,29 @@ func (s *FSContentStore) Materialize(_ context.Context, v ComponentVersion, into
 	}
 	materializeMu.Lock()
 	defer materializeMu.Unlock()
+	repairExisting := false
 	if entries, statErr := os.ReadDir(destination); statErr == nil {
 		if len(entries) == 0 {
-			return MaterializeResult{}, fmt.Errorf("materialization destination %q already exists but is empty", destination)
+			repairExisting = true
 		}
-		for _, file := range v.Files {
-			body, readErr := os.ReadFile(filepath.Join(destination, file.Path))
-			if readErr != nil {
-				return MaterializeResult{}, fmt.Errorf("existing materialization %q is incomplete: %w", destination, readErr)
-			}
-			actual := digest(body)
-			if actual != file.ContentSHA256 {
-				return MaterializeResult{}, fmt.Errorf("existing materialization %q differs for %s: got %s, want %s", destination, file.Path, actual, file.ContentSHA256)
+		if !repairExisting {
+			for _, file := range v.Files {
+				body, readErr := os.ReadFile(filepath.Join(destination, file.Path))
+				if readErr != nil || digest(body) != file.ContentSHA256 {
+					repairExisting = true
+					break
+				}
 			}
 		}
 		if len(entries) != len(v.Files) {
-			return MaterializeResult{}, fmt.Errorf("existing materialization %q contains unexpected files", destination)
+			repairExisting = true
 		}
-		return MaterializeResult{Directory: filepath.ToSlash(destination), AlreadyPresent: true}, nil
+		if !repairExisting {
+			return MaterializeResult{Directory: filepath.ToSlash(destination), AlreadyPresent: true}, nil
+		}
+		if !repairWorkingTree {
+			return MaterializeResult{}, fmt.Errorf("existing materialization %q differs from the durable mirror", destination)
+		}
 	} else if statErr != nil && !os.IsNotExist(statErr) {
 		return MaterializeResult{}, fmt.Errorf("inspect materialization destination %q: %w", destination, statErr)
 	}
@@ -134,13 +140,35 @@ func (s *FSContentStore) Materialize(_ context.Context, v ComponentVersion, into
 			return MaterializeResult{}, fmt.Errorf("write materialized file %q: %w", file.Path, err)
 		}
 	}
+	backup := ""
+	if repairExisting {
+		backupDir, backupErr := os.MkdirTemp(filepath.Dir(destination), ".vrooli-materialize-backup-")
+		if backupErr != nil {
+			return MaterializeResult{}, fmt.Errorf("reserve materialization backup: %w", backupErr)
+		}
+		if removeErr := os.Remove(backupDir); removeErr != nil {
+			return MaterializeResult{}, fmt.Errorf("prepare materialization backup: %w", removeErr)
+		}
+		backup = backupDir
+		if renameErr := os.Rename(destination, backup); renameErr != nil {
+			return MaterializeResult{}, fmt.Errorf("back up divergent materialization: %w", renameErr)
+		}
+	}
 	if err := os.Rename(temporary, destination); err != nil {
+		if backup != "" {
+			_ = os.Rename(backup, destination)
+		}
 		if os.IsExist(err) {
 			return MaterializeResult{Directory: filepath.ToSlash(destination), AlreadyPresent: true}, nil
 		}
 		return MaterializeResult{}, fmt.Errorf("commit materialized version %s@%s: %w", v.LibraryID, v.Version, err)
 	}
 	committed = true
+	if backup != "" {
+		if err := os.RemoveAll(backup); err != nil {
+			return MaterializeResult{}, fmt.Errorf("remove repaired materialization backup: %w", err)
+		}
+	}
 	return MaterializeResult{Directory: filepath.ToSlash(destination), FilesWritten: len(v.Files)}, nil
 }
 
@@ -607,7 +635,8 @@ func (s *FSContentStore) UpdateManifest(_ context.Context, c Component, in Updat
 	setManifestField(manifest, &order, "libraryId", c.LibraryID)
 	displayName := firstNonEmpty(strings.TrimSpace(in.DisplayName), stringField(manifest, "displayName"), c.DisplayName, c.Slug)
 	setManifestField(manifest, &order, "displayName", displayName)
-	setManifestField(manifest, &order, "description", strings.TrimSpace(in.Description))
+	description := firstNonEmpty(strings.TrimSpace(in.Description), stringField(manifest, "description"), c.Description)
+	setManifestField(manifest, &order, "description", description)
 	if in.Tags != nil {
 		setManifestField(manifest, &order, "tags", cleanTags(in.Tags))
 	} else if _, ok := manifest["tags"]; !ok {
@@ -617,12 +646,60 @@ func (s *FSContentStore) UpdateManifest(_ context.Context, c Component, in Updat
 	if latest == "" {
 		return ErrInvalidHeader{SourcePath: manifestPath, Field: "latest", Reason: "required"}
 	}
-	setManifestField(manifest, &order, "latest", latest)
-	setManifestField(manifest, &order, "draft", strings.TrimSpace(in.DraftVersion))
+	if !in.PreserveVersionPointers {
+		setManifestField(manifest, &order, "latest", latest)
+		setManifestField(manifest, &order, "draft", strings.TrimSpace(in.DraftVersion))
+	}
 	if in.DeprecatedVersions != nil {
 		setManifestField(manifest, &order, "deprecatedVersions", cleanTags(in.DeprecatedVersions))
 	} else if _, ok := manifest["deprecatedVersions"]; !ok {
 		setManifestField(manifest, &order, "deprecatedVersions", []string{})
+	}
+	// A version cannot simultaneously be present in the authored source tree
+	// and declared cold-tier. Repair that interrupted-lifecycle state whenever
+	// the governed manifest writer already has the asset open. Materialized
+	// bytes are authoritative here: archive removes the directory before it
+	// records evictedVersions, so overlap can only be stale metadata.
+	if in.ReconcileEvictedVersions {
+		setManifestField(manifest, &order, "evictedVersions", cleanTags(in.EvictedVersions))
+	}
+	if rawEvicted, ok := manifest["evictedVersions"]; ok {
+		var evicted []string
+		if err := json.Unmarshal(rawEvicted, &evicted); err != nil {
+			return ErrInvalidHeader{SourcePath: manifestPath, Field: "evictedVersions", Reason: "must be an array of versions"}
+		}
+		retained := evicted[:0]
+		for _, version := range evicted {
+			versionDir := filepath.Join(filepath.Dir(abs), "versions", strings.TrimSpace(version))
+			if info, statErr := os.Stat(versionDir); statErr == nil && info.IsDir() {
+				continue
+			}
+			retained = append(retained, version)
+		}
+		setManifestField(manifest, &order, "evictedVersions", cleanTags(retained))
+	}
+	if catalogID := strings.TrimSpace(in.CatalogID); catalogID != "" {
+		setManifestField(manifest, &order, "catalogId", catalogID)
+	}
+	if in.ClearCatalogID {
+		delete(manifest, "catalogId")
+	}
+	if in.ReplacedBy != nil {
+		setManifestField(manifest, &order, "replacedBy", cleanTags(in.ReplacedBy))
+	}
+	if in.Dependencies != nil {
+		type dependencyDocument struct {
+			LibraryID string `json:"libraryId"`
+			Version   string `json:"version"`
+		}
+		dependencies := make([]dependencyDocument, 0, len(in.Dependencies))
+		for _, dependency := range in.Dependencies {
+			dependencies = append(dependencies, dependencyDocument{LibraryID: strings.TrimSpace(dependency.LibraryID), Version: strings.TrimSpace(dependency.Version)})
+		}
+		setManifestField(manifest, &order, "dependencies", dependencies)
+	}
+	if in.ClearSupplementalJustification {
+		delete(manifest, "x-supplementalJustification")
 	}
 	if _, ok := manifest["designStyles"]; !ok {
 		setManifestField(manifest, &order, "designStyles", []sourceDesignAffinity{{

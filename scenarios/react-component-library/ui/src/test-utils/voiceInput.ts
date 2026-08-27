@@ -6,7 +6,7 @@ import type {
   VoiceInputEvent,
   VoiceInputMedia,
   VoiceInputTerminalReason,
-} from "@vrooli/react-component-library/useVoiceInput/1.0.0";
+} from "../../../library/hooks/useVoiceInput/versions/1.0.0/useVoiceInput";
 
 export class FakeVoiceCapture implements VoiceInputCapture {
   stopped = 0;

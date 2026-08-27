@@ -7,7 +7,7 @@
     "1.0.3",
     "1.0.5"
   ],
-  "description": "",
+  "description": "The search field with debouncing, in-flight cancellation, recent queries, clear action, keyboard shortcut binding, loading feedback, and optional suggestions.",
   "designStyles": [
     {
       "affinity": "native",

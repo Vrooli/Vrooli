@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
+	"github.com/vrooli/api-core/storage"
 	catalogv1 "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/catalog"
 	"react-component-library/internal/catalogcoverage"
 )
@@ -137,7 +138,8 @@ func countGates(gates []struct {
 	Blocking    bool     `json:"blocking"`
 	Attribution string   `json:"attribution"`
 	AppliesTo   []string `json:"appliesTo"`
-}, predicate func(readinessConfigFileGate) bool) int {
+}, predicate func(readinessConfigFileGate) bool,
+) int {
 	n := 0
 	for _, gate := range gates {
 		if predicate(readinessConfigFileGate{ID: gate.ID, Blocking: gate.Blocking, Attribution: gate.Attribution}) {
@@ -178,9 +180,18 @@ func validReadinessRung(value string) bool {
 }
 
 func readinessRun(repoRoot string) *catalogv1.ReadinessRun {
-	coverageDir := filepath.Join(repoRoot, "scenarios", "react-component-library", "coverage")
-	findingsData, findingsErr := os.ReadFile(filepath.Join(coverageDir, "latest", "findings.json"))
-	manifestData, manifestErr := os.ReadFile(filepath.Join(coverageDir, "latest", "manifest.json"))
+	resolver, err := storage.NewResolver(storage.ResolverConfig{AppID: "vrooli", Profile: storage.ProfileAuto})
+	if err != nil {
+		return &catalogv1.ReadinessRun{EvidenceAge: "invalid"}
+	}
+	gateRoot, err := resolver.ArtifactPath(storage.Options{ScenarioID: "react-component-library"}, storage.ArtifactRef{
+		Owner: "react-component-library", Domain: "gates", Class: storage.ClassState,
+	})
+	if err != nil {
+		return &catalogv1.ReadinessRun{EvidenceAge: "invalid"}
+	}
+	findingsData, findingsErr := os.ReadFile(filepath.Join(gateRoot, "latest", "findings.json"))
+	manifestData, manifestErr := os.ReadFile(filepath.Join(gateRoot, "latest", "manifest.json"))
 	if findingsErr != nil && manifestErr != nil {
 		return &catalogv1.ReadinessRun{EvidenceAge: "missing"}
 	}
@@ -207,7 +218,7 @@ func readinessRun(repoRoot string) *catalogv1.ReadinessRun {
 	}
 	startedAt := manifest.StartedAt
 	if startedAt == "" {
-		startedAt = readinessIndexStartedAt(coverageDir, runID)
+		startedAt = readinessIndexStartedAt(gateRoot, runID)
 	}
 	completed := runID != "" && completedAt != "" && !strings.HasPrefix(completedAt, "0001-")
 	age := "unknown"

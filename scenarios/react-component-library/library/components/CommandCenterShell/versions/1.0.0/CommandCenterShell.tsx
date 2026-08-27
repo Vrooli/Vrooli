@@ -5,8 +5,8 @@
  * @deps {"react":"^18"}
  */
 import type { ReactNode } from "react";
-import { AsyncPanel } from "../../../AsyncPanel/versions/1.0.0/AsyncPanel";
-import type { ExperienceSurfaceState } from "../../../ExperienceSurface/versions/1.0.0/ExperienceSurface";
+import { AsyncPanel } from "../../../AsyncPanel/versions/1.0.2/AsyncPanel";
+import type { ExperienceSurfaceState } from "../../../ExperienceSurface/versions/1.0.2/ExperienceSurface";
 import { commandCenterShellStyles } from "./styles";
 
 export interface CommandCenterMetric {

@@ -1,5 +1,4 @@
 /** @vrooliComponentSource primitives.avatar */
-import { StyleSheet } from "@vrooli/react-component-library/StyleSheet/1.0.0";
 import { useMemo, type CSSProperties, type ReactNode } from "react";
 import { ProgressiveImage } from "../../../../primitives/ProgressiveImage/versions/1.0.0/ProgressiveImage";
 import { Text } from "../../../../primitives/Text/versions/1.0.0/Text";
@@ -41,7 +40,7 @@ const styles = `
 [data-rcl-avatar-group] { display: inline-flex; align-items: center; padding-inline-start: var(--space-3xs); }
 [data-rcl-avatar-group] > [data-rcl-avatar-shell], [data-rcl-avatar-group] > [data-rcl-avatar], [data-rcl-avatar-group] > [data-rcl-avatar-overflow] { margin-inline-start: calc(var(--space-xs) * -1); }
 [data-rcl-avatar-overflow] { display: grid; place-items: center; inline-size: var(--space-xl); block-size: var(--space-xl); border: var(--border-hairline) solid var(--color-border); border-radius: var(--radius-pill); background: var(--color-surface-muted); color: var(--color-muted-foreground); box-shadow: 0 0 0 var(--space-3xs) var(--color-surface); font: var(--text-caption); font-weight: 700; }
-
+@media (forced-colors: active) { [data-rcl-avatar] { border-color: CanvasText; background: Canvas; color: CanvasText; box-shadow: 0 0 0 var(--space-3xs) Canvas; } [data-rcl-avatar-fallback], [data-rcl-avatar-overflow] { border: var(--border-hairline) solid CanvasText; background: Canvas; color: CanvasText; } [data-rcl-avatar-presence] { border-color: Canvas; background: Highlight; } }
 `;
 
 function initials(name: string) {
@@ -70,7 +69,10 @@ export function Avatar({
     presenceLabel ?? `${name} is ${presence ?? "offline"}`;
   return (
     <>
-      <StyleSheet name="avatar-1-0-0-1" css={styles} />
+      <style
+        data-rcl-avatar-styles
+        dangerouslySetInnerHTML={{ __html: styles }}
+      />
       <span data-rcl-avatar-shell>
         <span
           data-rcl-avatar
@@ -130,7 +132,10 @@ export function AvatarGroup({
   const overflow = Math.max(0, items.length - visible.length);
   return (
     <>
-      <StyleSheet name="avatar-1-0-0-2" css={styles} />
+      <style
+        data-rcl-avatar-group-styles
+        dangerouslySetInnerHTML={{ __html: styles }}
+      />
       <div
         data-rcl-avatar-group
         role="group"

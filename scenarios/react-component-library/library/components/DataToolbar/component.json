@@ -16,7 +16,7 @@
   "deprecatedVersions": [
     "1.0.3"
   ],
-  "description": "",
+  "description": "A responsive collection control surface that composes query, filters, saved views, sorting, freshness, density, and recovery actions into one accessible grammar.",
   "designStyles": [
     {
       "affinity": "native",

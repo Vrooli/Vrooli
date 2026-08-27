@@ -24,7 +24,7 @@
     "1.0.1",
     "1.0.3"
   ],
-  "description": "",
+  "description": "The human-in-the-loop decision surface presenting the proposed action, its target, scope, consequences, alternatives, expiry, and resulting approval state.",
   "designStyles": [
     {
       "affinity": "native",

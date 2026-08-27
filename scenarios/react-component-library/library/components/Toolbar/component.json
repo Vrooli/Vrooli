@@ -21,7 +21,7 @@
     "1.0.2",
     "1.0.4"
   ],
-  "description": "",
+  "description": "The composite action row with roving focus, logical groups, separators, overflow menu, responsive collapse, and shortcut hints.",
   "designStyles": [
     {
       "affinity": "native",

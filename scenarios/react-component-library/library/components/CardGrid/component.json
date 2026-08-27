@@ -6,13 +6,13 @@
   "dependencies": [
     {
       "libraryId": "react-component-library:Card",
-      "version": "1.1.0"
+      "version": "1.2.2"
     }
   ],
   "deprecatedVersions": [
     "1.0.0"
   ],
-  "description": "",
+  "description": "A responsive card arrangement that establishes a raised surface context for repeated records.",
   "designStyles": [
     {
       "affinity": "native",
@@ -33,7 +33,7 @@
     "1.0.0"
   ],
   "kind": "surface",
-  "latest": "1.0.1",
+  "latest": "1.0.2",
   "libraryId": "react-component-library:CardGrid",
   "slot": "ui-pattern",
   "tags": [

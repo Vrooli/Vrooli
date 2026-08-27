@@ -13,9 +13,21 @@
           "max_bytes": "256MiB",
           "rationale": "Component-test evidence is retained by version with five recent payloads plus pinned first-pass/first-fail evidence; a 256MiB ceiling bounds the measured multi-stage payload workload while preserving rollup counters."
         }
+      },
+      "gate_evidence": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "state",
+        "subpath": "gates",
+        "regenerable": false,
+        "rationale": "Gate ledgers, stamp reports, and baseline captures are durable recorded verdicts; 1212269 bytes were measured on 2026-08-27.",
+        "budget": {
+          "max_bytes": "256MiB",
+          "rationale": "The durable gate cohort measured 1212269 bytes on 2026-08-27; 256 MiB allows long-lived verdict history without authorizing deletion."
+        }
       }
     },
-    "rationale": "Storage surfaces are declared from observed canonical scenario directories; external resource databases are not claimed by this scenario."
+    "rationale": "Storage surfaces include component data and durable gate evidence in the scenario state class."
   },
   "service": {
     "parent": "vrooli",

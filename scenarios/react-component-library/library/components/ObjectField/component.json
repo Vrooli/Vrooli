@@ -12,7 +12,7 @@
     "1.0.1",
     "1.0.3"
   ],
-  "description": "",
+  "description": "The nested-object field grouping child fields, collapsing sections, summarizing nested errors, supporting optional objects, and preserving per-field subscriptions.",
   "designStyles": [
     {
       "affinity": "native",

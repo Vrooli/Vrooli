@@ -6,7 +6,7 @@
   "deprecatedVersions": [
     "1.0.1"
   ],
-  "description": "",
+  "description": "A readable before-and-after surface that keeps change direction and context visible.",
   "designStyles": [
     {
       "affinity": "native",

@@ -1,0 +1,26 @@
+{
+  "deprecatedVersions": [],
+  "description": "Hydration-safe shared overlay portal owned by the layer manager.",
+  "designStyles": [
+    {
+      "affinity": "native",
+      "reason": "token-native operational-console baseline",
+      "styleId": "vrooli-default"
+    }
+  ],
+  "displayName": "Portal",
+  "draft": "",
+  "entry": "Portal.tsx",
+  "evictedVersions": [
+    "1.1.0",
+    "1.0.0"
+  ],
+  "kind": "control",
+  "latest": "1.1.1",
+  "libraryId": "react-component-library:Portal",
+  "tags": [
+    "runtime",
+    "overlay",
+    "accessibility"
+  ]
+}

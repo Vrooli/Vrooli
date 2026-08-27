@@ -1,0 +1,47 @@
+{
+  "claims": [
+    {
+      "id": "activity-contained",
+      "statement": "Supporting lifecycle states remain contained to the activity region and preserve the primary asset task.",
+      "tier": "manual",
+      "type": "manual-review"
+    }
+  ],
+  "component": {
+    "id": "asset-detail-shell",
+    "purpose": "Keep preview, metadata, actions, and supporting lifecycle activity usable as one responsive asset-detail composition.",
+    "title": "Asset Detail Shell"
+  },
+  "contract": {
+    "kind": "rcl-component-experience-contract",
+    "provenance": "react-component-library/AssetDetailShell@1.1.2",
+    "schema": "scenario-experience-spec/v1"
+  },
+  "states": [
+    {
+      "description": "The primary asset detail and supporting activity are ready.",
+      "example": "ready-detail",
+      "id": "ready-detail"
+    },
+    {
+      "description": "Supporting activity is partial while the primary detail remains usable.",
+      "example": "activity-partial",
+      "id": "activity-partial"
+    },
+    {
+      "description": "Supporting activity is loading without replacing primary content.",
+      "example": "activity-loading",
+      "id": "activity-loading"
+    },
+    {
+      "description": "Supporting activity has no records.",
+      "example": "activity-empty",
+      "id": "activity-empty"
+    },
+    {
+      "description": "Supporting activity reports an error without hiding primary content.",
+      "example": "activity-error",
+      "id": "activity-error"
+    }
+  ]
+}

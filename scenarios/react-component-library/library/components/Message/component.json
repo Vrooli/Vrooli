@@ -23,7 +23,7 @@
   "deprecatedVersions": [
     "1.0.3"
   ],
-  "description": "",
+  "description": "A structured conversational item that keeps identity, content, evidence, activity, recovery, and actions in one readable surface.",
   "designStyles": [
     {
       "affinity": "native",

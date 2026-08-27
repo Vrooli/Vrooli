@@ -9,6 +9,8 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+
+	"react-component-library/internal/utilityclass"
 )
 
 const (
@@ -55,6 +57,13 @@ func (s *service) IngestComponent(ctx context.Context, in IngestComponentInput) 
 		return IngestComponentResult{}, err
 	}
 	raw := unit[0].Content
+	if hits := utilityclass.EmitsAny(raw); len(hits) > 0 {
+		classes := make([]string, 0, len(hits))
+		for _, hit := range hits {
+			classes = append(classes, hit.Class+" ("+hit.Category+")")
+		}
+		return IngestComponentResult{}, fmt.Errorf("ingest refused utility-class-emitting source: %s; rewrite with a module stylesheet and semantic custom properties as demonstrated by DrawerShell/1.1.2", strings.Join(classes, ", "))
+	}
 	displayName := strings.TrimSpace(in.DisplayName)
 	if displayName == "" {
 		displayName = in.Slug

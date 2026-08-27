@@ -12,7 +12,7 @@
       "version": "1.0.0"
     }
   ],
-  "description": "",
+  "description": "A keyed FLIP layout boundary that animates displacement without tweening layout properties.",
   "designStyles": [
     {
       "affinity": "native",

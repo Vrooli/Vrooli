@@ -1,21 +1,29 @@
 {
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
-  "catalogId": "react-component-library:AssetDetailShell",
   "category": "layout",
   "dependencies": [
     {
       "libraryId": "react-component-library:AsyncPanel",
-      "version": "1.0.0"
+      "version": "1.0.2"
     },
     {
       "libraryId": "react-component-library:ClassMerge",
+      "version": "1.0.1"
+    },
+    {
+      "libraryId": "react-component-library:ExperienceSurface",
+      "version": "1.0.2"
+    },
+    {
+      "libraryId": "react-component-library:StyleSheet",
       "version": "1.0.0"
     }
   ],
   "deprecatedVersions": [
-    "1.1.0"
+    "1.1.0",
+    "1.1.1"
   ],
-  "description": "",
+  "description": "A responsive asset-detail composition with preview, metadata, and lifecycle-aware supporting activity.",
   "designStyles": [
     {
       "affinity": "native",
@@ -23,9 +31,12 @@
     }
   ],
   "displayName": "Asset Detail Shell",
-  "kind": "shell",
   "draft": "",
-  "latest": "1.1.1",
+  "evictedVersions": [
+    "1.1.0"
+  ],
+  "kind": "shell",
+  "latest": "1.1.2",
   "libraryId": "react-component-library:AssetDetailShell",
   "slot": "ui-pattern",
   "tags": [
@@ -34,6 +45,5 @@
     "preview",
     "metadata",
     "experience"
-  ],
-  "x-supplementalJustification": "Pre-catalog operational composition retained as a supplemental asset until the page-template and detail-surface vocabulary is promoted."
+  ]
 }

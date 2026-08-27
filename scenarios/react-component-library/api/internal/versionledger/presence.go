@@ -3,6 +3,7 @@ package versionledger
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"react-component-library/internal/components"
 )
@@ -56,6 +57,14 @@ func (r *PresenceReconciler) ReconcilePresence(ctx context.Context, componentID 
 			return err
 		}
 		for _, row := range rows {
+			if strings.EqualFold(string(row.Status), "retired") {
+				if apply && row.Presence != "evicted" {
+					if _, err := r.ledger.Transition(ctx, asset.ID, row.Version, "retired", true); err != nil {
+						return fmt.Errorf("reclaim retired %s@%s: %w", asset.LibraryID, row.Version, err)
+					}
+				}
+				continue
+			}
 			_, unreachable := safe[asset.ID][row.Version]
 			if unreachable && row.Presence != "evicted" {
 				if !apply {

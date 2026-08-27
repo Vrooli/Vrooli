@@ -1,0 +1,51 @@
+{
+  "$schema": "../../../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "bindings": {
+    "elements": {
+      "surface": {
+        "selector": "alertdialog"
+      }
+    }
+  },
+  "claims": [
+    {
+      "elements": ["surface"],
+      "id": "alertdialog-present",
+      "statement": "Every state exposes a named alertdialog landmark.",
+      "states": ["default", "submitting", "request-error"],
+      "tier": "machine",
+      "type": "element-present"
+    }
+  ],
+  "component": {
+    "id": "overlays.alert-dialog",
+    "purpose": "A consequential decision surface that defaults focus to the safe action.",
+    "title": "AlertDialog"
+  },
+  "elements": [
+    {
+      "description": "The consequential modal decision.",
+      "id": "surface",
+      "role": "alertdialog"
+    }
+  ],
+  "kind": "experience-component",
+  "schemaVersion": "1.1.0",
+  "states": [
+    {
+      "description": "A consequential confirmation.",
+      "example": "default",
+      "id": "default"
+    },
+    {
+      "description": "Actions are disabled while work is pending.",
+      "example": "submitting",
+      "id": "submitting"
+    },
+    {
+      "description": "A request failure is announced without losing context.",
+      "example": "request-error",
+      "id": "request-error"
+    }
+  ]
+}

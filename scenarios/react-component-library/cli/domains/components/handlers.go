@@ -524,17 +524,30 @@ func (h *handlers) versionPublish(ctx cliapp.RunContext) error {
 
 func (h *handlers) manifestUpdate(ctx cliapp.RunContext) error {
 	req := &componentsv1.UpdateComponentManifestRequest{
-		ComponentId:   ctx.Positional("component-id"),
-		DisplayName:   ctx.Flag("display-name"),
-		Description:   ctx.Flag("description"),
-		LatestVersion: ctx.Flag("latest-version"),
-		DraftVersion:  ctx.Flag("draft-version"),
+		ComponentId:                    ctx.Positional("component-id"),
+		DisplayName:                    ctx.Flag("display-name"),
+		Description:                    ctx.Flag("description"),
+		LatestVersion:                  ctx.Flag("latest-version"),
+		DraftVersion:                   ctx.Flag("draft-version"),
+		CatalogId:                      ctx.Flag("catalog-id"),
+		ClearSupplementalJustification: ctx.Flag("clear-supplemental-justification") != "",
+		ClearCatalogId:                 ctx.Flag("clear-catalog-id") != "",
 	}
 	if rawTags := ctx.Flag("tags"); rawTags != "" {
 		req.Tags = splitCSV(rawTags)
 	}
 	if raw := ctx.Flag("deprecated-versions"); raw != "" {
 		req.DeprecatedVersions = splitCSV(raw)
+	}
+	if raw := ctx.Flag("replaced-by"); raw != "" {
+		req.ReplacedBy = splitCSV(raw)
+	}
+	if raw := ctx.Flag("dependencies"); raw != "" {
+		dependencies, err := parseManifestDependencies(raw)
+		if err != nil {
+			return err
+		}
+		req.Dependencies = dependencies
 	}
 	resp, err := h.client.UpdateComponentManifest(context.Background(), connect.NewRequest(req))
 	if err != nil {
@@ -548,6 +561,19 @@ func (h *handlers) manifestUpdate(ctx cliapp.RunContext) error {
 		ResultsHeading: "Component",
 		Results:        []string{formatComponent(resp.Msg.Component)},
 	})
+}
+
+func parseManifestDependencies(raw string) ([]*componentsv1.AssetDependency, error) {
+	items := splitCSV(raw)
+	out := make([]*componentsv1.AssetDependency, 0, len(items))
+	for _, item := range items {
+		separator := strings.LastIndex(item, "@")
+		if separator <= 0 || separator == len(item)-1 {
+			return nil, fmt.Errorf("--dependencies entries must use libraryId@version: %q", item)
+		}
+		out = append(out, &componentsv1.AssetDependency{LibraryId: strings.TrimSpace(item[:separator]), Version: strings.TrimSpace(item[separator+1:])})
+	}
+	return out, nil
 }
 
 func splitCSV(raw string) []string {
@@ -687,6 +713,7 @@ func (h *handlers) contentSet(ctx cliapp.RunContext) error {
 	}
 	req := &componentsv1.UpdateComponentContentRequest{
 		Id:             id,
+		Path:           ctx.Flag("path"),
 		Content:        string(body),
 		ExpectedSha256: ctx.Flag("expected-sha256"),
 	}

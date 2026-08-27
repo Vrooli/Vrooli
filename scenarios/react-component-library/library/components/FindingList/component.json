@@ -6,7 +6,7 @@
   "deprecatedVersions": [
     "1.0.8"
   ],
-  "description": "",
+  "description": "An actionable list of gate findings with severity, identity, and remediation.",
   "designStyles": [
     {
       "affinity": "native",

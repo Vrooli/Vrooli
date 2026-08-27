@@ -16,7 +16,7 @@
     "1.0.3",
     "1.0.5"
   ],
-  "description": "",
+  "description": "The searchable selection field supporting local or remote options, typeahead, creation of new values, result highlighting, virtualization, async cancellation, and accessible active-option reporting.",
   "designStyles": [
     {
       "affinity": "native",

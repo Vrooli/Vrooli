@@ -28,6 +28,12 @@ func NewSQLiteRepository(db *sql.DB, clk schedule.Clock) Repository {
 	// provide a portable ADD COLUMN IF NOT EXISTS, so the one-time migration
 	// is intentionally idempotent by accepting the duplicate-column result.
 	_, _ = db.Exec(`ALTER TABLE adoption_records ADD COLUMN mode TEXT NOT NULL DEFAULT 'copied'`)
+	// adoption_files is a soft-owned child table. Older Delete implementations
+	// removed only the parent row, leaving provenance ghosts that could keep an
+	// otherwise unused library version permanently materialized. Reconcile that
+	// historical state at construction while the transactional Delete below
+	// prevents it from returning.
+	_, _ = db.Exec(`DELETE FROM adoption_files WHERE NOT EXISTS (SELECT 1 FROM adoption_records WHERE adoption_records.id = adoption_files.adoption_id)`)
 	return &sqliteRepository{db: db, clock: clk}
 }
 
@@ -353,13 +359,24 @@ func (s *sqliteRepository) listFiles(ctx context.Context, adoptionID string) ([]
 }
 
 func (s *sqliteRepository) Delete(ctx context.Context, id string) error {
-	res, err := s.db.ExecContext(ctx, `DELETE FROM adoption_records WHERE id = ?`, id)
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin adoption delete %q: %w", id, err)
+	}
+	defer func() { _ = tx.Rollback() }()
+	if _, err := tx.ExecContext(ctx, `DELETE FROM adoption_files WHERE adoption_id = ?`, id); err != nil {
+		return fmt.Errorf("delete adoption files %q: %w", id, err)
+	}
+	res, err := tx.ExecContext(ctx, `DELETE FROM adoption_records WHERE id = ?`, id)
 	if err != nil {
 		return fmt.Errorf("delete adoption %q: %w", id, err)
 	}
 	n, _ := res.RowsAffected()
 	if n == 0 {
 		return ErrAdoptionNotFound{ID: id}
+	}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit adoption delete %q: %w", id, err)
 	}
 	return nil
 }

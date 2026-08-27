@@ -30,10 +30,15 @@ type fakeLibrary struct {
 
 func (f *fakeLibrary) Get(_ context.Context, id string) (components.Component, error) {
 	c, ok := f.byID[id]
-	if !ok {
-		return components.Component{}, components.ErrComponentNotFound{IDOrLibraryID: id}
+	if ok {
+		return c, nil
 	}
-	return c, nil
+	for _, component := range f.byID {
+		if component.LibraryID == id {
+			return component, nil
+		}
+	}
+	return components.Component{}, components.ErrComponentNotFound{IDOrLibraryID: id}
 }
 
 func (f *fakeLibrary) GetByLibraryID(_ context.Context, libraryID string) (components.Component, error) {

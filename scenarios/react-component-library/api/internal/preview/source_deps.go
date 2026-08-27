@@ -60,6 +60,16 @@ func (s *service) scanImportedSourceDeclarations(versionFiles []components.Compo
 		out = append(out, fields...)
 		for _, match := range sourceImportRE.FindAllStringSubmatch(source, -1) {
 			importPath := match[1]
+			if resolved, ok := resolveCatalogAssetSourceImport(libraryRoot, importPath); ok {
+				child, readErr := readSourceImport(resolved, virtual)
+				if readErr != nil {
+					return readErr
+				}
+				if err := visit(resolved, child); err != nil {
+					return err
+				}
+				continue
+			}
 			if !strings.HasPrefix(importPath, ".") {
 				continue
 			}
@@ -86,6 +96,30 @@ func (s *service) scanImportedSourceDeclarations(versionFiles []components.Compo
 		return nil, err
 	}
 	return out, nil
+}
+
+// resolveCatalogAssetSourceImport follows exact, immutable package imports
+// back to their catalog source. The preview bundler intentionally inlines
+// these imports from the governed package build, but that compiled JavaScript
+// no longer carries the source asset's @deps header. Following the same import
+// here keeps the browser import map complete for transitive externals such as
+// ClassMerge's clsx and tailwind-merge dependencies.
+func resolveCatalogAssetSourceImport(libraryRoot, importPath string) (string, bool) {
+	const prefix = "@vrooli/react-component-library/"
+	if !strings.HasPrefix(importPath, prefix) {
+		return "", false
+	}
+	parts := strings.Split(strings.TrimPrefix(importPath, prefix), "/")
+	if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
+		return "", false
+	}
+	return versionedAssetFile(
+		libraryRoot,
+		parts[0],
+		parts[1],
+		[]string{"components", "foundations", "hooks", "primitives", "services"},
+		[]string{".tsx", ".ts", ".jsx", ".js"},
+	)
 }
 
 func resolveSourceImport(dir, importPath string, virtual map[string]string) (string, bool) {

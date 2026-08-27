@@ -410,10 +410,11 @@ func isHTMLTag(value string) bool {
 }
 
 func findRepoRoot() string {
-	coverageRoot := findCoverageRoot()
-	root := filepath.Dir(filepath.Dir(filepath.Dir(coverageRoot)))
-	if _, err := os.Stat(filepath.Join(root, "scenarios", "react-component-library")); err == nil {
-		return root
+	wd, _ := os.Getwd()
+	for current := wd; current != filepath.Dir(current); current = filepath.Dir(current) {
+		if _, err := os.Stat(filepath.Join(current, "scenarios", "react-component-library")); err == nil {
+			return current
+		}
 	}
 	return "."
 }

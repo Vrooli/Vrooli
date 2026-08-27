@@ -1,20 +1,15 @@
 {
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
-  "catalogId": "react-component-library:VoiceInputButton",
   "category": "inputs",
-  "dependencies": [
-    {
-      "libraryId": "react-component-library:IconButton",
-      "version": "2.0.0"
-    },
-    {
-      "kind": "requires",
-      "libraryId": "react-component-library:ClassMerge",
-      "version": "1.0.0"
-    }
+  "dependencies": [],
+  "deprecatedVersions": [
+    "4.1.0",
+    "4.2.0",
+    "4.2.1",
+    "4.3.0",
+    "3.0.0"
   ],
-  "deprecatedVersions": ["4.1.0", "4.2.0", "4.2.1"],
-  "description": "",
+  "description": "Accessible token-bound microphone control for a useVoiceInput lifecycle.",
   "designStyles": [
     {
       "affinity": "native",
@@ -26,10 +21,15 @@
     }
   ],
   "displayName": "Voice Input Button",
-  "kind": "input",
   "draft": "",
   "entry": "VoiceInputButton.tsx",
-  "latest": "4.3.0",
+  "evictedVersions": [
+    "3.0.0",
+    "4.2.0",
+    "4.1.0"
+  ],
+  "kind": "input",
+  "latest": "4.3.1",
   "libraryId": "react-component-library:VoiceInputButton",
   "slot": "ui-primitive",
   "tags": [
@@ -37,6 +37,5 @@
     "microphone",
     "input",
     "accessibility"
-  ],
-  "x-supplementalJustification": "Pre-catalog voice control retained as a supplemental asset because its browser capability contract is still being promoted."
+  ]
 }

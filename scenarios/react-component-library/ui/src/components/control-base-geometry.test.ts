@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 import { screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createElement } from "react";
-import { ControlBase } from "@vrooli/react-component-library/ControlBase/1.1.0";
+import { ControlBase } from "@vrooli/react-component-library/ControlBase/1/1.1.0";
 import { renderWithProviders } from "../test-utils";
 
 const directory = path.dirname(fileURLToPath(import.meta.url));

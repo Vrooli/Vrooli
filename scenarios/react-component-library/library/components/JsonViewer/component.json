@@ -6,7 +6,7 @@
   "deprecatedVersions": [
     "1.0.4"
   ],
-  "description": "",
+  "description": "A bounded structured-data viewer with readable overflow and machine-honest semantics.",
   "designStyles": [
     {
       "affinity": "native",

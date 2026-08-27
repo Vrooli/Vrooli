@@ -1,0 +1,55 @@
+{
+  "claims": [
+    {
+      "id": "surface-lifecycle-preserved",
+      "statement": "Every panel state is exposed through the embedded ExperienceSurface lifecycle attributes.",
+      "states": ["loading", "ready", "empty", "partial", "error"],
+      "tier": "manual",
+      "type": "manual-review"
+    },
+    {
+      "id": "terminal-status-announced",
+      "statement": "Loading, partial, and error states provide a polite status announcement.",
+      "states": ["loading", "partial", "error"],
+      "tier": "manual",
+      "type": "manual-review"
+    }
+  ],
+  "component": {
+    "id": "async-panel",
+    "purpose": "Present a meaningful region's loading, ready, empty, partial, or error state while preserving the ExperienceSurface lifecycle contract.",
+    "title": "Async Panel"
+  },
+  "contract": {
+    "kind": "rcl-component-experience-contract",
+    "provenance": "react-component-library/AsyncPanel@1.0.0",
+    "schema": "scenario-experience-spec/v1"
+  },
+  "states": [
+    {
+      "description": "The panel announces that content is loading.",
+      "example": "loading",
+      "id": "loading"
+    },
+    {
+      "description": "The panel renders usable primary content.",
+      "example": "ready",
+      "id": "ready"
+    },
+    {
+      "description": "The panel completed successfully without applicable content.",
+      "example": "empty",
+      "id": "empty"
+    },
+    {
+      "description": "The panel is usable while explaining unavailable supporting information.",
+      "example": "partial",
+      "id": "partial"
+    },
+    {
+      "description": "The panel announces a terminal error and can provide retry.",
+      "example": "error",
+      "id": "error"
+    }
+  ]
+}

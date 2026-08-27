@@ -160,7 +160,11 @@ func (h *handlers) transition(ctx cliapp.RunContext, method string) error {
 	if method == "retire" || method == "archive" {
 		confirm = ctx.Flag("confirm") != ""
 	}
-	req := &versionsv1.VersionLifecycleRequest{ComponentId: ctx.Positional("component-id"), Version: ctx.Positional("version"), Confirm: confirm, PlanHash: ctx.Flag("plan-hash")}
+	planHash := ""
+	if ctx.FlagDeclared("plan-hash") {
+		planHash = ctx.Flag("plan-hash")
+	}
+	req := &versionsv1.VersionLifecycleRequest{ComponentId: ctx.Positional("component-id"), Version: ctx.Positional("version"), Confirm: confirm, PlanHash: planHash}
 	var resp *connect.Response[versionsv1.VersionLifecycleResponse]
 	var err error
 	switch method {

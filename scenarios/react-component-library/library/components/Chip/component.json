@@ -6,7 +6,7 @@
   "deprecatedVersions": [
     "1.0.2"
   ],
-  "description": "",
+  "description": "A compact selectable token that preserves a full touch target while remaining visually quiet in dense collections.",
   "designStyles": [
     {
       "affinity": "native",

@@ -4,7 +4,7 @@
   "deprecatedVersions": [
     "0.3.2"
   ],
-  "description": "",
+  "description": "Inline code token renderer with copy affordance.",
   "designStyles": [
     {
       "affinity": "native",

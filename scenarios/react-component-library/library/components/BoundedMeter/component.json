@@ -5,7 +5,7 @@
     "1.0.2",
     "1.0.4"
   ],
-  "description": "",
+  "description": "The bounded-value visualization for capacity, quota, strength, or health, using semantic thresholds and explicitly not implying task progress.",
   "designStyles": [
     {
       "affinity": "native",

@@ -11,7 +11,7 @@ import { translate } from "../../../../hooks/useLocale/versions/1.0.1/useLocale"
 import { useId, type CSSProperties, type ReactNode } from "react";
 import { Button, type ButtonProps } from "../../../Button/versions/2.2.0/Button";
 import { ButtonGroup } from "../../../ButtonGroup/versions/1.1.1/ButtonGroup";
-import { Card, CardContent } from "../../../Card/versions/1.1.0/Card";
+import { Card, CardContent } from "../../../Card/versions/1.2.2/Card";
 import { Container } from "../../../../primitives/Container/versions/1.1.2/Container";
 import { Heading } from "../../../../primitives/Heading/versions/1.1.0/Heading";
 import { Stack } from "../../../../primitives/Stack/versions/1.2.1/Stack";

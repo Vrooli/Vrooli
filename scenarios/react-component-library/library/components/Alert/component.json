@@ -19,7 +19,7 @@
   "deprecatedVersions": [
     "1.0.1"
   ],
-  "description": "",
+  "description": "A semantic local message surface for information, success, warning, or error with resilient actions and dismissal.",
   "designStyles": [
     {
       "affinity": "native",

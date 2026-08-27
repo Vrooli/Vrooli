@@ -1,11 +1,10 @@
 {
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "component",
-  "catalogId": "react-component-library:PreviewInspector",
   "deprecatedVersions": [
     "1.0.0"
   ],
-  "description": "",
+  "description": "A dismissible slide-over for props, inspector details, and preview events.",
   "designStyles": [
     {
       "affinity": "native",

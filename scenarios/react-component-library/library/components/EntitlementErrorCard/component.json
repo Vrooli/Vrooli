@@ -5,7 +5,7 @@
   "deprecatedVersions": [
     "1.0.2"
   ],
-  "description": "",
+  "description": "Stable paid-surface error presentation.",
   "designStyles": [
     {
       "affinity": "native",

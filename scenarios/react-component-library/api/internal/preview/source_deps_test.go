@@ -27,3 +27,22 @@ func TestScanImportedSourceDeclarationsFollowsRelativeImports(t *testing.T) {
 	require.Equal(t, "clsx", fields[0].DepName)
 	require.Equal(t, "^2.1.0", fields[0].VersionRange)
 }
+
+func TestScanImportedSourceDeclarationsFollowsVersionPinnedCatalogImports(t *testing.T) {
+	root := t.TempDir()
+	entryDir := filepath.Join(root, "scenarios", "react-component-library", "library", "components", "Root", "versions", "1.0.0")
+	dependencyPath := filepath.Join(root, "scenarios", "react-component-library", "library", "foundations", "ClassMerge", "versions", "1.0.2", "ClassMerge.tsx")
+	require.NoError(t, os.MkdirAll(entryDir, 0o755))
+	require.NoError(t, os.MkdirAll(filepath.Dir(dependencyPath), 0o755))
+	require.NoError(t, os.WriteFile(dependencyPath, []byte("/**\n * @deps {\"clsx\": \"^2.1.0\", \"tailwind-merge\": \"^2.2.0\"}\n */\nexport const cn = true;\n"), 0o644))
+
+	svc := &service{repoRoot: root}
+	fields, err := svc.scanImportedSourceDeclarations([]components.ComponentVersionFile{{
+		Path:    "Root.tsx",
+		Content: "import { cn } from \"@vrooli/react-component-library/ClassMerge/1.0.2\";\nexport { cn };",
+	}}, "components/Root/versions/1.0.0/Root.tsx")
+	require.NoError(t, err)
+	require.Len(t, fields, 2)
+	require.Equal(t, "clsx", fields[0].DepName)
+	require.Equal(t, "tailwind-merge", fields[1].DepName)
+}

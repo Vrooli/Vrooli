@@ -1,6 +1,5 @@
 {
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
-  "catalogId": "react-component-library:ControlBase",
   "category": "actions",
   "dependencies": [
     {
@@ -13,7 +12,7 @@
     "1.0.0",
     "1.0.1"
   ],
-  "description": "",
+  "description": "Shared semantic control primitive for consistent sizing, density, focus, hover, and disabled behavior.",
   "designStyles": [
     {
       "affinity": "native",
@@ -21,15 +20,17 @@
     }
   ],
   "displayName": "Control Base",
-  "kind": "control",
   "draft": "",
-  "latest": "1.0.1",
+  "evictedVersions": [
+    "1.0.1"
+  ],
+  "kind": "control",
+  "latest": "1.1.0",
   "libraryId": "react-component-library:ControlBase",
   "slot": "ui-primitive",
   "tags": [
     "control",
     "primitive",
     "accessibility"
-  ],
-  "x-supplementalJustification": "Shared implementation primitive used by catalog controls; retained separately because it is an internal implementation seam, not a user-facing catalog asset."
+  ]
 }

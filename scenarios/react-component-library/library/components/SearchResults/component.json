@@ -6,7 +6,7 @@
   "deprecatedVersions": [
     "1.0.4"
   ],
-  "description": "",
+  "description": "A results surface that distinguishes no matches from an empty collection and preserves query context.",
   "designStyles": [
     {
       "affinity": "native",

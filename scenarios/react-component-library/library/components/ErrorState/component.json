@@ -12,7 +12,7 @@
     "1.0.4",
     "1.0.6"
   ],
-  "description": "",
+  "description": "The recoverable failure composition with a plain-language explanation, a diagnostic-detail policy, retry, alternative actions, and support context that leaks nothing sensitive.",
   "designStyles": [
     {
       "affinity": "native",

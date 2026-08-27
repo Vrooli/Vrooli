@@ -16,7 +16,7 @@
     "1.0.3",
     "1.0.5"
   ],
-  "description": "",
+  "description": "The protection workflow intercepting navigation or dismissal and offering save, discard, continue editing, or background preservation of the work in progress.",
   "designStyles": [
     {
       "affinity": "native",

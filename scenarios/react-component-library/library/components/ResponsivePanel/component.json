@@ -6,7 +6,7 @@
   "deprecatedVersions": [
     "1.1.3"
   ],
-  "description": "",
+  "description": "One responsive layered panel contract that preserves open state while moving between desktop and mobile presentations.",
   "designStyles": [
     {
       "affinity": "native",
@@ -31,5 +31,8 @@
     "overlay",
     "responsive",
     "token-bound"
+  ],
+  "replacedBy": [
+    "navigation.sidebar"
   ]
 }

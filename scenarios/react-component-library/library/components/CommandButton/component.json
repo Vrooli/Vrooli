@@ -16,7 +16,7 @@
   "deprecatedVersions": [
     "1.0.1"
   ],
-  "description": "",
+  "description": "An async-aware action button with stable dimensions, acknowledged progress, recovery, and retry.",
   "designStyles": [
     {
       "affinity": "native",

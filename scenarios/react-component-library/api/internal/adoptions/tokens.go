@@ -5,6 +5,8 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+
+	"react-component-library/internal/utilityclass"
 )
 
 // TokenTranslation records a semantic design-token rewrite that happened at
@@ -38,8 +40,6 @@ type TokenMapping struct {
 	ContrastFloor float64                     `json:"contrast_floor"`
 	ContrastPairs []TokenContrastPair         `json:"contrast_pairs"`
 }
-
-var designTokenClassRE = regexp.MustCompile(`(?:bg|text|border|ring|outline|divide)-app-[a-z0-9-]+(?:/[0-9]+)?`)
 
 var (
 	tokenRoleRE   = regexp.MustCompile(`^app-[a-z0-9-]+$`)
@@ -123,7 +123,8 @@ func TranslateDesignTokens(body, targetNamespace string, supplied ...TokenMappin
 		mapping = supplied[0]
 	}
 	roles := map[string]struct{}{}
-	for _, class := range designTokenClassRE.FindAllString(body, -1) {
+	classes := semanticAppClasses(body)
+	for _, class := range classes {
 		parts := strings.SplitN(class, "-app-", 2)
 		if len(parts) == 2 {
 			roles["app-"+strings.Split(parts[1], "/")[0]] = struct{}{}
@@ -147,15 +148,16 @@ func TranslateDesignTokens(body, targetNamespace string, supplied ...TokenMappin
 		}
 	}
 	translations := map[string]TokenTranslation{}
-	out := designTokenClassRE.ReplaceAllStringFunc(body, func(class string) string {
+	out := body
+	for _, class := range classes {
 		parts := strings.SplitN(class, "-app-", 2)
 		if len(parts) != 2 {
-			return class
+			continue
 		}
 		base := "app-" + strings.Split(parts[1], "/")[0]
 		mapped, exists := resolved[base]
 		if !exists {
-			return class
+			continue
 		}
 		if ns == "wc" {
 			prefix := parts[0]
@@ -190,14 +192,28 @@ func TranslateDesignTokens(body, targetNamespace string, supplied ...TokenMappin
 			mappedClass += class[slash:]
 		}
 		translations[class] = TokenTranslation{From: class, To: mappedClass}
-		return mappedClass
-	})
+		out = strings.ReplaceAll(out, class, mappedClass)
+	}
 	result := make([]TokenTranslation, 0, len(translations))
 	for _, translation := range translations {
 		result = append(result, translation)
 	}
 	sort.Slice(result, func(i, j int) bool { return result[i].From < result[j].From })
 	return out, result, nil
+}
+
+func semanticAppClasses(source string) []string {
+	seen := map[string]bool{}
+	var classes []string
+	for _, hit := range utilityclass.EmitsAny(source) {
+		if !strings.Contains(hit.Class, "-app-") || seen[hit.Class] {
+			continue
+		}
+		seen[hit.Class] = true
+		classes = append(classes, hit.Class)
+	}
+	sort.Strings(classes)
+	return classes
 }
 
 // CrossBoundaryImport reports counterfeit adoptions: a provenance-tagged

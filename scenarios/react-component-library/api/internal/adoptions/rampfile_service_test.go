@@ -16,7 +16,10 @@ import (
 
 var testRampTokenRE = regexp.MustCompile(`--[A-Za-z0-9_-]+`)
 
-type rampTokenInventory struct{ files *fakeFiles }
+type rampTokenInventory struct {
+	files   *fakeFiles
+	runtime []string
+}
 
 type contractCoverageVerdicts map[string]string
 
@@ -30,7 +33,11 @@ func (r rampTokenInventory) TokenNamespace(context.Context, string) (string, err
 
 func (r rampTokenInventory) DeclaredTokens(_ context.Context, scenario string) ([]string, error) {
 	raw := r.files.bytes[scenario+"::ui/src/design-tokens.css"]
-	return testRampTokenRE.FindAllString(string(raw), -1), nil
+	return append(testRampTokenRE.FindAllString(string(raw), -1), r.runtime...), nil
+}
+
+func (r rampTokenInventory) RuntimeWrittenTokens(context.Context, string) ([]string, error) {
+	return append([]string(nil), r.runtime...), nil
 }
 
 func newRampService(ramp string) (adoptions.Service, *fakeFiles) {
@@ -144,6 +151,48 @@ func TestSyncScenarioTokensUsesLatestReleasedVersion(t *testing.T) {
 	require.Equal(t, []string{"--color-latest"}, result.Added)
 	require.NotContains(t, result.Added, "--color-old")
 	require.Contains(t, string(files.bytes["target::ui/src/design-tokens.css"]), "--color-latest: initial;")
+}
+
+func TestSyncScenarioTokensResolvesReindexedComponentByStableLibraryID(t *testing.T) {
+	repo := adoptmocks.NewFakeRepository()
+	repo.Seed(adoptions.Adoption{
+		ID: "adoption-1", ComponentID: "stale-component-uuid", LibraryID: "rcl:Button", Scenario: "target", AdoptedPath: "ui/src/Button.tsx", AdoptedVersion: "1.0.0",
+	})
+	lib := &fakeLibrary{
+		byID: map[string]components.Component{
+			"current-component-uuid": {ID: "current-component-uuid", LibraryID: "rcl:Button", LatestVersion: "1.1.0"},
+		},
+		versions: map[string]components.ComponentVersion{
+			"current-component-uuid@1.1.0": {
+				ComponentID: "current-component-uuid", LibraryID: "rcl:Button", Version: "1.1.0",
+				Status: components.VersionStatusReleased, SourcePath: "Button.tsx",
+				RequiredTokens: []string{"--color-current"},
+			},
+		},
+	}
+	files := &fakeFiles{bytes: map[string][]byte{}}
+	svc := adoptions.NewService(repo, lib, files, scheduletest.New(time.Unix(0, 0)))
+	adoptions.SetTokenNamespaceReader(svc, rampTokenInventory{files: files})
+
+	result, err := svc.SyncScenarioTokens(context.Background(), adoptions.TokenSyncInput{Scenario: "target"})
+	require.NoError(t, err)
+	require.Equal(t, []string{"--color-current"}, result.Added)
+}
+
+func TestSyncScenarioTokensRemovesRuntimeOwnedPropertyFromManagedRamp(t *testing.T) {
+	ramp := `:root {
+/* rcl:tokens:begin */
+  --wc-kb-height: 2.5rem;
+/* rcl:tokens:end */
+}`
+	svc, files := newRampServiceWithTokens(ramp, []string{"--wc-kb-height"})
+	adoptions.SetTokenNamespaceReader(svc, rampTokenInventory{files: files, runtime: []string{"--wc-kb-height"}})
+
+	result, err := svc.SyncScenarioTokens(context.Background(), adoptions.TokenSyncInput{Scenario: "target"})
+	require.NoError(t, err)
+	require.True(t, result.Changed)
+	require.Empty(t, result.Added)
+	require.NotContains(t, string(files.bytes["target::ui/src/design-tokens.css"]), "--wc-kb-height:")
 }
 
 func TestPruneScenarioTokensMissingFileIsEmpty(t *testing.T) {

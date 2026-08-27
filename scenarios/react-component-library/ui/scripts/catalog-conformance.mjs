@@ -1,5 +1,5 @@
-import { execFileSync } from "node:child_process";
-import { existsSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { spawn } from "node:child_process";
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -14,8 +14,11 @@ const assetRoots = [
 ];
 const eslintBin = path.join(uiDir, "node_modules", "eslint", "bin", "eslint.js");
 const typescriptBin = path.join(uiDir, "node_modules", "typescript", "bin", "tsc");
-const generatedTSConfig = path.join(uiDir, ".catalog-tsconfig.generated.json");
-const generatedCatalogSources = [];
+// Keep the isolated project beneath uiDir so TypeScript's normal ancestor-based
+// node_modules lookup remains valid and ESLint can lint disposable sources
+// without treating them as outside the scenario boundary.
+const scratchDir = mkdtempSync(path.join(uiDir, ".catalog-conformance-"));
+const generatedTSConfig = path.join(scratchDir, "catalog-tsconfig.json");
 const packageRoot = path.resolve(uiDir, "../../../packages/react-component-library");
 const packageManifest = readJSON(path.join(packageRoot, "package.json"));
 
@@ -128,16 +131,16 @@ function writeGeneratedTSConfig(outputPath, files) {
     outputPath,
     `${JSON.stringify(
       {
-        extends: "./tsconfig.catalog.json",
+        extends: path.join(uiDir, "tsconfig.catalog.json"),
         compilerOptions: {
           paths: { ...(catalogConfig.compilerOptions?.paths ?? {}), ...packagePaths },
         },
-        files: ["./src/catalog-story-harness.d.ts", ...files],
+        files: [path.join(uiDir, "src/catalog-story-harness.d.ts"), ...files],
         include: [
-          "./src",
-          "../library/components/BottomNav/versions/1.0.0/BottomNav.tsx",
-          "../library/components/SidebarShell/versions/1.0.0/SidebarShell.tsx",
-          "../library/components/ExperienceSurface/versions/1.0.0/ExperienceSurface.tsx",
+          path.join(uiDir, "src"),
+          path.join(scenarioDir, "library/components/BottomNav/versions/1.0.0/BottomNav.tsx"),
+          path.join(scenarioDir, "library/components/SidebarShell/versions/1.0.0/SidebarShell.tsx"),
+          path.join(scenarioDir, "library/components/ExperienceSurface/versions/1.0.0/ExperienceSurface.tsx"),
         ],
       },
       null,
@@ -161,6 +164,28 @@ function needsDisposableSource(file) {
 }
 
 const disposableSources = new Map();
+const disposablePaths = new Map();
+
+function prepareDisposablePaths(files) {
+  for (const file of files.filter(needsDisposableSource)) {
+    const sourcePath = path.resolve(uiDir, file.uiRelative);
+    const generatedPath = path.join(scratchDir, file.scenarioRelative).replace(
+      /\.tsx$/,
+      ".catalog-check.tsx",
+    );
+    mkdirSync(path.dirname(generatedPath), { recursive: true });
+    disposablePaths.set(sourcePath, generatedPath);
+  }
+}
+
+function resolveDisposableImport(sourcePath, specifier) {
+  const resolved = path.resolve(path.dirname(sourcePath), specifier);
+  for (const candidate of [resolved, `${resolved}.tsx`, `${resolved}.ts`]) {
+    const disposablePath = disposablePaths.get(candidate);
+    if (disposablePath) return disposablePath;
+  }
+  return resolved;
+}
 
 function disposableSource(file) {
   if (!needsDisposableSource(file)) return file;
@@ -171,7 +196,10 @@ function disposableSource(file) {
   // This keeps conformance tooling honest about released source immutability
   // while allowing old examples to type-check against the current contract.
   const sourcePath = path.resolve(uiDir, file.uiRelative);
-  const generatedPath = sourcePath.replace(/\.tsx$/, ".catalog-check.tsx");
+  const generatedPath = disposablePaths.get(sourcePath);
+  if (!generatedPath) {
+    throw new Error(`missing scratch path for disposable catalog source ${sourcePath}`);
+  }
   let source = readFileSync(sourcePath, "utf8");
   const isBottomNavVersion = file.uiRelative.includes(
     "/library/components/BottomNav/versions/1.3.3/",
@@ -195,7 +223,7 @@ function disposableSource(file) {
     "@vrooli/react-component-library/ClassMerge/1.0.2",
   );
   source = source.replaceAll(
-    "@vrooli/react-component-library/DrawerShell/1.0.0",
+    "@vrooli/react-component-library/DrawerShell/1.1.3",
     "@vrooli/react-component-library/useFocusTrap/1.0.0",
   );
   source = source.replaceAll(
@@ -226,8 +254,12 @@ function disposableSource(file) {
     "compute={(values) => values.subtotal * (1 + values.taxRate)}",
     'compute={(values) => values.subtotal * (1 + (typeof values.taxRate === "number" ? values.taxRate : 0))}',
   );
+  source = source.replace(
+    /(\b(?:from\s*|import\s*\()\s*)(["'])(\.{1,2}\/[^"']+)\2/g,
+    (_match, prefix, quote, specifier) =>
+      `${prefix}${quote}${resolveDisposableImport(sourcePath, specifier).split(path.sep).join("/")}${quote}`,
+  );
   writeFileSync(generatedPath, source);
-  generatedCatalogSources.push(generatedPath);
   const generated = {
     ...file,
     uiRelative: path.relative(uiDir, generatedPath).split(path.sep).join("/"),
@@ -238,19 +270,39 @@ function disposableSource(file) {
 }
 
 function typeScriptCheckFiles(files) {
-  return files.map((file) => disposableSource(file).uiRelative);
+  return files.map((file) => path.resolve(uiDir, disposableSource(file).uiRelative));
 }
 
 function eslintCheckFiles(files) {
-  return files.map((file) => disposableSource(file).scenarioRelative);
+  return files.map((file) => path.resolve(scenarioDir, disposableSource(file).scenarioRelative));
 }
 
-function run(command, args, cwd = uiDir) {
-  execFileSync(command, args, { cwd, stdio: "inherit" });
+async function run(command, args, cwd = uiDir, environment = {}) {
+  const label = path.basename(args[0] ?? command);
+  const child = spawn(command, args, {
+    cwd,
+    env: { ...process.env, ...environment },
+    stdio: "inherit",
+  });
+  const heartbeat = setInterval(() => {
+    console.log(`[catalog-conformance] ${label} is still running`);
+  }, 10_000);
+  try {
+    await new Promise((resolve, reject) => {
+      child.once("error", reject);
+      child.once("exit", (code, signal) => {
+        if (code === 0) resolve();
+        else reject(new Error(`${label} exited with ${code ?? signal ?? "unknown status"}`));
+      });
+    });
+  } finally {
+    clearInterval(heartbeat);
+  }
 }
 
 const mode = process.argv[2] ?? "check";
 const files = catalogFiles();
+prepareDisposablePaths(files);
 const typeScriptFiles = ["type-check", "lint", "check"].includes(mode)
   ? typeScriptCheckFiles(files)
   : files.map((file) => file.uiRelative);
@@ -259,13 +311,14 @@ const eslintFiles = mode === "lint" || mode === "check" ? eslintCheckFiles(files
 try {
   writeGeneratedTSConfig(generatedTSConfig, typeScriptFiles);
   if (mode === "type-check" || mode === "check") {
-    run(process.execPath, [typescriptBin, "--noEmit", "--project", ".catalog-tsconfig.generated.json"]);
+    await run(process.execPath, [typescriptBin, "--noEmit", "--project", generatedTSConfig]);
   }
   if (mode === "lint" || mode === "check") {
-    run(
+    await run(
       process.execPath,
       [eslintBin, "--config", "ui/eslint.catalog.config.js", "--no-ignore", ...eslintFiles],
       scenarioDir,
+      { RCL_CATALOG_TSCONFIG: generatedTSConfig },
     );
   }
   if (!["type-check", "lint", "check"].includes(mode)) {
@@ -275,8 +328,5 @@ try {
     console.log("[REQ:CC-001] Catalog conformance passed for every declared component version.");
   }
 } finally {
-  rmSync(generatedTSConfig, { force: true });
-  for (const generatedPath of generatedCatalogSources) {
-    rmSync(generatedPath, { force: true });
-  }
+  rmSync(scratchDir, { force: true, recursive: true });
 }

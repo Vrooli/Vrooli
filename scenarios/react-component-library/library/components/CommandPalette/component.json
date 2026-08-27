@@ -12,7 +12,7 @@
     "1.0.3",
     "1.0.5"
   ],
-  "description": "",
+  "description": "The global or scoped command interface with fuzzy search, recent actions, categories, keyboard navigation, argument collection, async execution, and command history.",
   "designStyles": [
     {
       "affinity": "native",
@@ -34,7 +34,7 @@
     "1.0.3"
   ],
   "kind": "overlay",
-  "latest": "1.0.6",
+  "latest": "1.1.4",
   "libraryId": "react-component-library:CommandPalette",
   "requires": [
     {

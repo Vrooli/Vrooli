@@ -70,6 +70,7 @@ func (f *FakeRepository) Upsert(ctx context.Context, in components.UpsertInput) 
 		f.libToID[in.LibraryID] = id
 	}
 	c := components.Component{
+		CatalogID:     in.CatalogID,
 		ID:            id,
 		LibraryID:     in.LibraryID,
 		Slug:          in.Slug,

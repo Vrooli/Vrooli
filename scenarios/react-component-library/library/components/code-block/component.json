@@ -4,7 +4,7 @@
   "deprecatedVersions": [
     "0.3.2"
   ],
-  "description": "",
+  "description": "Code block with language label and copy feedback.",
   "designStyles": [
     {
       "affinity": "native",

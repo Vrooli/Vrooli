@@ -257,6 +257,7 @@ type ComponentManifest struct {
 // service callers inside this greenfield scenario. New index code uses
 // ComponentManifest directly.
 type UpsertInput struct {
+	CatalogID     string
 	LibraryID     string
 	Slug          string
 	DisplayName   string
@@ -580,13 +581,24 @@ func (e ErrVersionCheckFailed) Error() string {
 }
 
 type UpdateComponentManifestInput struct {
-	ComponentID        string
-	DisplayName        string
-	Description        string
-	Tags               []string
-	LatestVersion      string
-	DraftVersion       string
-	DeprecatedVersions []string
+	ComponentID                    string
+	DisplayName                    string
+	Description                    string
+	Tags                           []string
+	LatestVersion                  string
+	DraftVersion                   string
+	DeprecatedVersions             []string
+	CatalogID                      string
+	ReplacedBy                     []string
+	ClearSupplementalJustification bool
+	ClearCatalogID                 bool
+	PreserveVersionPointers        bool
+	Dependencies                   []AssetDependency
+	// ReconcileEvictedVersions asks the governed manifest writer to replace
+	// evictedVersions with the durable ledger's exact cold-tier set. The value
+	// is internal lifecycle state, never accepted directly from transport.
+	ReconcileEvictedVersions bool
+	EvictedVersions          []string
 }
 
 // ErrComponentNotFound is the typed sentinel handlers translate to a

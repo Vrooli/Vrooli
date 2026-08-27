@@ -6,7 +6,7 @@
   "deprecatedVersions": [
     "1.0.4"
   ],
-  "description": "",
+  "description": "The route content boundary that owns navigation, focus placement, and generic route state composition.",
   "designStyles": [
     {
       "affinity": "native",

@@ -7,7 +7,7 @@
     "1.0.4",
     "1.0.6"
   ],
-  "description": "",
+  "description": "The responsive title region carrying breadcrumbs, description, metadata, primary and overflow actions, optional tabs, and compact behavior as the page scrolls.",
   "designStyles": [
     {
       "affinity": "native",

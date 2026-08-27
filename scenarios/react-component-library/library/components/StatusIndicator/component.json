@@ -6,7 +6,7 @@
   "deprecatedVersions": [
     "1.0.2"
   ],
-  "description": "",
+  "description": "A compact live status signal with explicit semantic states and accessible status output.",
   "designStyles": [
     {
       "affinity": "native",

@@ -8,7 +8,7 @@
     "1.0.3",
     "1.0.5"
   ],
-  "description": "",
+  "description": "The form-level error summary grouping actionable failures, linking to the fields they concern, taking focus at the right moment, and avoiding duplication of every field message.",
   "designStyles": [
     {
       "affinity": "native",

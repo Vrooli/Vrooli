@@ -7,7 +7,7 @@
     "1.0.6",
     "1.0.8"
   ],
-  "description": "",
+  "description": "A bounded score summary with an explicit threshold and accessible value.",
   "designStyles": [
     {
       "affinity": "native",

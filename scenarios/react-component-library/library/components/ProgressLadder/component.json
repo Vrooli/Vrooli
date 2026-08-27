@@ -6,7 +6,7 @@
   "deprecatedVersions": [
     "1.0.4"
   ],
-  "description": "",
+  "description": "A rung-by-rung maturity ladder showing achieved and target states.",
   "designStyles": [
     {
       "affinity": "native",

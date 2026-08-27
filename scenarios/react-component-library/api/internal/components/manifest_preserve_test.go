@@ -44,6 +44,7 @@ func TestFSContentStore_UpdateManifestPreservesAllFields(t *testing.T) {
     }
   ],
   "customAuthorField": "keep-me",
+  "x-supplementalJustification": "temporary",
   "latest": "1.1.1",
   "draft": "",
   "deprecatedVersions": []
@@ -64,7 +65,8 @@ func TestFSContentStore_UpdateManifestPreservesAllFields(t *testing.T) {
 	// Simulate a release version-create bumping latest 1.1.1 -> 1.1.2.
 	require.NoError(t, store.UpdateManifest(context.Background(), c, UpdateComponentManifestInput{
 		ComponentID: c.ID, DisplayName: c.DisplayName, Description: c.Description,
-		Tags: c.Tags, LatestVersion: "1.1.2",
+		Tags: c.Tags, LatestVersion: "1.1.2", CatalogID: "data-display.table",
+		ReplacedBy: []string{"data-display.grid"}, ClearSupplementalJustification: true,
 	}))
 
 	raw, err := os.ReadFile(abs)
@@ -84,14 +86,56 @@ func TestFSContentStore_UpdateManifestPreservesAllFields(t *testing.T) {
 	require.Contains(t, got, "fileSlots")
 	require.Equal(t, "hook", got["fileSlots"].(map[string]any)["useTableState.ts"])
 	require.Equal(t, "keep-me", got["customAuthorField"], "unknown author keys must survive")
+	require.Equal(t, "data-display.table", got["catalogId"])
+	require.Equal(t, []any{"data-display.grid"}, got["replacedBy"])
+	require.NotContains(t, got, "x-supplementalJustification")
 	require.Contains(t, got, "draft", "an explicit empty draft key is preserved")
 	require.Equal(t, "ui-pattern", got["slot"])
 	require.Equal(t, "data-display", got["category"])
+
+	require.NoError(t, store.UpdateManifest(context.Background(), c, UpdateComponentManifestInput{
+		LatestVersion: "1.1.2", ClearCatalogID: true,
+	}))
+	raw, err = os.ReadFile(abs)
+	require.NoError(t, err)
+	got = map[string]any{}
+	require.NoError(t, json.Unmarshal(raw, &got))
+	require.NotContains(t, got, "catalogId")
 
 	// Field order is preserved: designStyles and the author field still precede latest.
 	rawStr := string(raw)
 	require.Less(t, strings.Index(rawStr, `"designStyles"`), strings.Index(rawStr, `"latest"`))
 	require.Less(t, strings.Index(rawStr, `"customAuthorField"`), strings.Index(rawStr, `"latest"`))
+}
+
+func TestFSContentStore_UpdateManifestClearsStaleEvictedMarkerForMaterializedVersion(t *testing.T) {
+	root := t.TempDir()
+	manifestRel := filepath.ToSlash(filepath.Join("components", "card", "component.json"))
+	base := filepath.Join(root, "components", "card")
+	require.NoError(t, os.MkdirAll(filepath.Join(base, "versions", "1.2.0"), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(base, "component.json"), []byte(`{
+  "libraryId": "react-component-library:Card",
+  "displayName": "Card",
+  "description": "Surface.",
+  "latest": "1.2.1",
+  "draft": "",
+  "deprecatedVersions": ["1.2.0"],
+  "evictedVersions": ["1.1.0", "1.2.0"]
+}
+`), 0o600))
+
+	store := NewFSContentStore(root)
+	c := Component{Slug: "card", ManifestPath: manifestRel, LibraryID: "react-component-library:Card", LatestVersion: "1.2.1"}
+	require.NoError(t, store.UpdateManifest(context.Background(), c, UpdateComponentManifestInput{
+		Description: "Surface.", ReconcileEvictedVersions: true, EvictedVersions: []string{"1.1.0", "1.2.0"},
+	}))
+
+	raw, err := os.ReadFile(filepath.Join(base, "component.json"))
+	require.NoError(t, err)
+	var got map[string]any
+	require.NoError(t, json.Unmarshal(raw, &got))
+	require.Equal(t, []any{"1.1.0"}, got["evictedVersions"])
+	require.Equal(t, []any{"1.2.0"}, got["deprecatedVersions"], "retirement status remains independent of placement")
 }
 
 // TestFSContentStore_CreateVersionPreservesDesignStyles proves the end-to-end

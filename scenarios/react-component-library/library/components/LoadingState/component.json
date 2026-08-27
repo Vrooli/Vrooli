@@ -12,7 +12,7 @@
     "1.0.4",
     "1.0.6"
   ],
-  "description": "",
+  "description": "The full-region loading composition selecting skeletons, placeholders, or progress based on the expected content structure and the operation's likely duration.",
   "designStyles": [
     {
       "affinity": "native",

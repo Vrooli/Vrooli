@@ -14,12 +14,11 @@
   "kind": "input",
   "latest": "3.0.0",
   "libraryId": "react-component-library:useVoiceInput",
-  "catalogId": "react-component-library:useVoiceInput",
   "tags": [
     "voice",
     "microphone",
     "accessibility",
     "lifecycle"
   ],
-  "x-supplementalJustification": "Pre-catalog browser capability hook retained as a supplemental runtime seam until the voice port is promoted."
+  "deprecatedVersions": []
 }

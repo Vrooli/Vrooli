@@ -6,7 +6,7 @@
   "deprecatedVersions": [
     "1.0.4"
   ],
-  "description": "",
+  "description": "A compact labeled metric list with numerator and denominator context.",
   "designStyles": [
     {
       "affinity": "native",

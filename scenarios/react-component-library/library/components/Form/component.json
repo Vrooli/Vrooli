@@ -7,7 +7,7 @@
   "deprecatedVersions": [
     "1.0.0"
   ],
-  "description": "",
+  "description": "A token-bound form shell that coordinates validation, submission, save state, and accessible status announcements.",
   "designStyles": [
     {
       "affinity": "native",

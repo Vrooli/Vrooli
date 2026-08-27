@@ -11,7 +11,7 @@
   "deprecatedVersions": [
     "1.0.1"
   ],
-  "description": "",
+  "description": "A store-backed repeating field with constrained add, duplicate, remove, and keyboard-safe reorder actions.",
   "designStyles": [
     {
       "affinity": "native",

@@ -44,6 +44,7 @@ const tagSep = ","
 
 func (s *sqliteRepository) Upsert(ctx context.Context, in UpsertInput) (Component, error) {
 	manifest := ComponentManifest{
+		CatalogID:     in.CatalogID,
 		LibraryID:     in.LibraryID,
 		Slug:          in.Slug,
 		DisplayName:   in.DisplayName,

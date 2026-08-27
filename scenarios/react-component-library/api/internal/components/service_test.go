@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -55,6 +56,35 @@ func TestService_UpdateVersionContentAtFormatsDraftJSONWithoutMutatingRelease(t 
 	draftStory, err := os.ReadFile(filepath.Join(root, "components", "Button", "versions", draft.Version.Version, "story.json"))
 	require.NoError(t, err)
 	require.Equal(t, written.Body, string(draftStory))
+}
+
+func TestService_UpdateContentTargetsActiveDraftAndPreservesRelease(t *testing.T) {
+	repo := mocks.NewFakeRepository()
+	root := t.TempDir()
+	svc := components.NewServiceWithContent(repo, components.NewFSContentStore(root))
+	_, err := svc.InitializeComponent(context.Background(), components.InitializeComponentInput{
+		LibraryID: "react-component-library:Button", Slug: "Button", DisplayName: "Button",
+		InitialVersion: "1.0.0", InitialSource: "export function Button() { return <button>released</button>; }",
+		ScaffoldExamples: true,
+	})
+	require.NoError(t, err)
+	draft, err := svc.(components.AuthoringService).BeginComponentVersion(context.Background(), components.BeginComponentVersionInput{
+		Component: "react-component-library:Button", Bump: "patch",
+	})
+	require.NoError(t, err)
+
+	written, err := svc.UpdateContent(context.Background(), "react-component-library:Button", components.WriteContentInput{
+		Body: "export function Button() { return <button>draft</button>; }",
+	})
+	require.NoError(t, err)
+	require.Contains(t, written.SourcePath, draft.Version.Version)
+
+	released, err := os.ReadFile(filepath.Join(root, "components", "Button", "versions", "1.0.0", "Button.tsx"))
+	require.NoError(t, err)
+	require.Contains(t, string(released), "released")
+	draftSource, err := os.ReadFile(filepath.Join(root, "components", "Button", "versions", draft.Version.Version, "Button.tsx"))
+	require.NoError(t, err)
+	require.Contains(t, string(draftSource), "draft")
 }
 
 func TestService_UpdateVersionContentAtRefusesReleasedVersion(t *testing.T) {
@@ -113,6 +143,53 @@ func TestService_GetAcceptsLibraryIDOrInternalID(t *testing.T) {
 	byLibraryID, err := svc.Get(context.Background(), created.LibraryID)
 	require.NoError(t, err)
 	require.Equal(t, byID.ID, byLibraryID.ID)
+}
+
+func TestService_UpdateManifestRepairsAuthoredComponentMissingFromIndex(t *testing.T) {
+	repo := mocks.NewFakeRepository()
+	root := t.TempDir()
+	assetRoot := filepath.Join(root, "components", "ControlBase")
+	require.NoError(t, os.MkdirAll(filepath.Join(assetRoot, "versions", "1.0.0"), 0o755))
+	require.NoError(t, os.MkdirAll(filepath.Join(assetRoot, "versions", "1.1.0"), 0o755))
+	manifest := `{
+  "libraryId": "react-component-library:ControlBase",
+  "displayName": "Control Base",
+  "description": "Shared control primitive.",
+  "kind": "control",
+  "latest": "1.0.0",
+  "draft": "",
+  "deprecatedVersions": ["1.0.0"],
+  "tags": ["control"]
+}
+`
+	require.NoError(t, os.WriteFile(filepath.Join(assetRoot, "component.json"), []byte(manifest), 0o600))
+	for _, version := range []string{"1.0.0", "1.1.0"} {
+		source := fmt.Sprintf(`/**
+ * @libraryId react-component-library:ControlBase
+ * @displayName Control Base
+ * @description Shared control primitive.
+ * @version %s
+ * @tags ["control"]
+ */
+export function ControlBase() { return null; }
+`, version)
+		require.NoError(t, os.WriteFile(filepath.Join(assetRoot, "versions", version, "ControlBase.tsx"), []byte(source), 0o600))
+	}
+
+	svc := components.NewServiceWithContent(repo, components.NewFSContentStore(root))
+	updated, err := svc.UpdateComponentManifest(context.Background(), components.UpdateComponentManifestInput{
+		ComponentID:        "react-component-library:ControlBase",
+		LatestVersion:      "1.1.0",
+		DeprecatedVersions: []string{"1.0.0"},
+	})
+	require.NoError(t, err)
+	require.Equal(t, "1.1.0", updated.LatestVersion)
+
+	raw, err := os.ReadFile(filepath.Join(assetRoot, "component.json"))
+	require.NoError(t, err)
+	var got map[string]any
+	require.NoError(t, json.Unmarshal(raw, &got))
+	require.Equal(t, "1.1.0", got["latest"])
 }
 
 func TestAuthoringWorkflowBeginsChecksAndPublishesByLibraryID(t *testing.T) {
@@ -424,7 +501,7 @@ func TestService_IngestComponentCreatesIndexedDraftAndReportsFindings(t *testing
 		require.Equal(t, "web-console", scenario)
 		require.Equal(t, "ui/src/components/DrawerShell.tsx", sourceFile)
 		return []byte(`import { useNavigate } from "react-router-dom";
-export default function DrawerShell() { const navigate = useNavigate(); return <div className="bg-red-500" onClick={() => navigate("/")} />; }`), nil
+export default function DrawerShell({ className }) { const navigate = useNavigate(); return <div className={className} onClick={() => navigate("/")} />; }`), nil
 	}))
 
 	got, err := svc.IngestComponent(context.Background(), components.IngestComponentInput{
@@ -438,7 +515,29 @@ export default function DrawerShell() { const navigate = useNavigate(); return <
 	require.FileExists(t, filepath.Join(root, got.ManifestPath))
 	require.FileExists(t, filepath.Join(root, got.SourcePath))
 	require.Contains(t, got.ChecklistPath, "de-scenario-ification")
-	require.Len(t, got.Findings, 2)
+	require.Len(t, got.Findings, 1)
+}
+
+func TestService_IngestComponentRefusesUtilityClasses(t *testing.T) {
+	repo := mocks.NewFakeRepository()
+	root := t.TempDir()
+	svc := components.NewServiceWithContent(repo, components.NewFSContentStore(root))
+	source := `export default function Panel() { return <div className="z-wc-drawer" />; }`
+	components.SetScenarioSourceReader(svc, scenarioSourceReaderFunc(func(context.Context, string, string) ([]byte, error) {
+		return []byte(source), nil
+	}))
+
+	_, err := svc.IngestComponent(context.Background(), components.IngestComponentInput{
+		Scenario: "web-console", SourceFile: "ui/src/components/Panel.tsx", Slug: "panel",
+	})
+	require.ErrorContains(t, err, "z-wc-drawer")
+	require.ErrorContains(t, err, "DrawerShell/1.1.2")
+
+	source = `export default function Panel({ className }) { return <div className={className} style={{ zIndex: "var(--layer-drawer)" }} />; }`
+	_, err = svc.IngestComponent(context.Background(), components.IngestComponentInput{
+		Scenario: "web-console", SourceFile: "ui/src/components/Panel.tsx", Slug: "panel",
+	})
+	require.NoError(t, err)
 }
 
 // TestService_IngestScaffoldsCatalogMetadataContract asserts a fresh harvest
@@ -451,7 +550,7 @@ func TestService_IngestScaffoldsCatalogMetadataContract(t *testing.T) {
 	root := t.TempDir()
 	svc := components.NewServiceWithContent(repo, components.NewFSContentStore(root))
 	components.SetScenarioSourceReader(svc, scenarioSourceReaderFunc(func(_ context.Context, _, _ string) ([]byte, error) {
-		return []byte(`export default function Panel() { return <div className="rounded-control p-2">Panel</div>; }`), nil
+		return []byte(`export default function Panel({ className }) { return <div className={className}>Panel</div>; }`), nil
 	}))
 
 	got, err := svc.IngestComponent(context.Background(), components.IngestComponentInput{

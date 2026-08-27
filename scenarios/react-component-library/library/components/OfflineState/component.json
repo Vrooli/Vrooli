@@ -12,7 +12,7 @@
     "1.0.2",
     "1.0.4"
   ],
-  "description": "",
+  "description": "The connectivity composition explaining what still works offline, what has been queued, when the surface last synchronized, and what reconnection will do.",
   "designStyles": [
     {
       "affinity": "native",

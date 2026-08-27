@@ -6,7 +6,7 @@
   "deprecatedVersions": [
     "1.0.4"
   ],
-  "description": "",
+  "description": "An ordered activity surface that makes actor, action, and sequence legible.",
   "designStyles": [
     {
       "affinity": "native",

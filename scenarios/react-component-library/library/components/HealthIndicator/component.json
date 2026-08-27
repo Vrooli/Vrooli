@@ -6,7 +6,7 @@
   "deprecatedVersions": [
     "1.0.2"
   ],
-  "description": "",
+  "description": "A semantic health label with score, staleness, and non-color status treatment.",
   "designStyles": [
     {
       "affinity": "native",

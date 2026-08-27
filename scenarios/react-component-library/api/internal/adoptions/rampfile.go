@@ -7,6 +7,8 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+
+	"react-component-library/internal/components"
 )
 
 const (
@@ -50,6 +52,9 @@ func parseRampFile(raw string) (rampFile, error) {
 	end := strings.Index(raw, tokenRampEnd)
 	switch {
 	case begin < 0 && end < 0:
+		if prefix, suffix, ok := splitRootBlock(raw); ok {
+			return rampFile{prefix: prefix, suffix: suffix}, nil
+		}
 		return rampFile{prefix: raw}, nil
 	case begin < 0 || end < 0:
 		return rampFile{}, fmt.Errorf("token ramp must contain both %s and %s", tokenRampBegin, tokenRampEnd)
@@ -57,7 +62,35 @@ func parseRampFile(raw string) (rampFile, error) {
 		return rampFile{}, fmt.Errorf("token ramp markers are out of order")
 	}
 	managedStart := begin + len(tokenRampBegin)
-	return rampFile{prefix: raw[:begin], managed: raw[managedStart:end], suffix: raw[end+len(tokenRampEnd):]}, nil
+	prefix := raw[:begin]
+	managed := raw[managedStart:end]
+	suffix := raw[end+len(tokenRampEnd):]
+	if strings.Count(prefix, "{") <= strings.Count(prefix, "}") {
+		if rootPrefix, rootSuffix, ok := splitRootBlock(prefix + suffix); ok {
+			return rampFile{prefix: rootPrefix, managed: managed, suffix: rootSuffix}, nil
+		}
+	}
+	return rampFile{prefix: prefix, managed: managed, suffix: suffix}, nil
+}
+
+func splitRootBlock(raw string) (string, string, bool) {
+	root := regexp.MustCompile(`:root\s*\{`).FindStringIndex(raw)
+	if root == nil {
+		return "", "", false
+	}
+	depth := 0
+	for index := root[1] - 1; index < len(raw); index++ {
+		switch raw[index] {
+		case '{':
+			depth++
+		case '}':
+			depth--
+			if depth == 0 {
+				return raw[:index], raw[index:], true
+			}
+		}
+	}
+	return "", "", false
 }
 
 func (r rampFile) render() string {
@@ -97,6 +130,21 @@ func (s *service) SyncScenarioTokens(ctx context.Context, in TokenSyncInput) (To
 	for _, match := range rampDeclarationRE.FindAllStringSubmatch(ramp.managed, -1) {
 		managed[match[1]] = strings.TrimSpace(match[2])
 	}
+	runtimeOwned := map[string]struct{}{}
+	runtimeCollisionRemoved := false
+	if reader, ok := s.tokenInventory.(ScenarioRuntimeTokenInventoryReader); ok {
+		properties, runtimeErr := reader.RuntimeWrittenTokens(ctx, scenario)
+		if runtimeErr != nil {
+			return TokenSyncResult{}, runtimeErr
+		}
+		for _, property := range properties {
+			runtimeOwned[property] = struct{}{}
+			if _, exists := managed[property]; exists {
+				runtimeCollisionRemoved = true
+			}
+			delete(managed, property)
+		}
+	}
 	outside := make(map[string]struct{})
 	for _, part := range []string{ramp.prefix, ramp.suffix} {
 		for _, match := range scenarioTokenDeclarationRE.FindAllStringSubmatch(part, -1) {
@@ -126,7 +174,7 @@ func (s *service) SyncScenarioTokens(ctx context.Context, in TokenSyncInput) (To
 	}
 	sort.Strings(result.Collisions)
 	ramp.managed = renderRampDeclarations(managed)
-	result.Changed = len(result.Added) > 0 || !strings.Contains(string(raw), tokenRampBegin)
+	result.Changed = len(result.Added) > 0 || runtimeCollisionRemoved || !strings.Contains(string(raw), tokenRampBegin)
 	if result.Changed && !in.DryRun {
 		if _, err := s.files.Write(ctx, scenario, tokenRampPath, []byte(ramp.render())); err != nil {
 			return TokenSyncResult{}, err
@@ -189,6 +237,14 @@ func (s *service) requiredTokensForScenario(ctx context.Context, scenario string
 	required := make(map[string]struct{})
 	for _, row := range rows {
 		root, err := s.library.Get(ctx, row.ComponentID)
+		var missing components.ErrComponentNotFound
+		if errors.As(err, &missing) && strings.TrimSpace(row.LibraryID) != "" {
+			// Component UUIDs are projection identities and can change when the
+			// source catalog is rebuilt. Adoption rows also retain the stable
+			// manifest library ID, so resolve through it instead of making a
+			// catalog reindex permanently break token synchronization.
+			root, err = s.library.Get(ctx, row.LibraryID)
+		}
 		if err != nil {
 			return nil, err
 		}
@@ -199,7 +255,7 @@ func (s *service) requiredTokensForScenario(ctx context.Context, scenario string
 		if strings.TrimSpace(root.LatestVersion) != "" {
 			versionName = root.LatestVersion
 		}
-		version, err := s.library.GetVersion(ctx, row.ComponentID, versionName)
+		version, err := s.library.GetVersion(ctx, root.ID, versionName)
 		if err != nil {
 			return nil, err
 		}

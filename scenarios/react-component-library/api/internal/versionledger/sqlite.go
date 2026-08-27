@@ -322,7 +322,7 @@ func (r *Repository) RetireCandidates(ctx context.Context, componentID string) (
 	if err != nil {
 		return nil, fmt.Errorf("build source reference graph: %w", err)
 	}
-	query := `SELECT c.id, c.library_id, v.version, v.status FROM components c JOIN component_versions v ON v.component_id = c.id WHERE v.version <> c.latest_version AND v.version <> c.draft_version AND lower(v.status) NOT LIKE 'draft%' AND lower(v.status) <> 'retired' AND NOT EXISTS (SELECT 1 FROM adoption_records a WHERE a.component_id = c.id AND a.adopted_version = v.version) AND NOT EXISTS (SELECT 1 FROM adoption_files f WHERE f.source_library_id = c.library_id AND f.source_version = v.version) AND NOT EXISTS (SELECT 1 FROM component_asset_dependencies d WHERE d.library_id = c.library_id AND d.version = v.version)`
+	query := `SELECT c.id, c.library_id, v.version, v.status FROM components c JOIN component_versions v ON v.component_id = c.id WHERE v.version <> c.latest_version AND v.version <> c.draft_version AND lower(v.status) NOT LIKE 'draft%' AND lower(v.status) <> 'retired' AND NOT EXISTS (SELECT 1 FROM adoption_records a WHERE a.component_id = c.id AND a.adopted_version = v.version AND lower(COALESCE(a.mode, 'copied')) <> 'ejected') AND NOT EXISTS (SELECT 1 FROM adoption_files f JOIN adoption_records a ON a.id = f.adoption_id WHERE f.source_library_id = c.library_id AND f.source_version = v.version AND lower(COALESCE(a.mode, 'copied')) <> 'ejected') AND NOT EXISTS (SELECT 1 FROM component_asset_dependencies d WHERE d.library_id = c.library_id AND d.version = v.version)`
 	args := []any{}
 	if componentID != "" {
 		query += " AND (c.id = ? OR c.library_id = ?)"
@@ -355,44 +355,66 @@ func (r *Repository) Transition(ctx context.Context, componentID, version, state
 	if err := r.db.QueryRowContext(ctx, `SELECT c.id, c.library_id, v.version, v.status, v.source_path, c.latest_version, c.draft_version, c.manifest_path FROM components c JOIN component_versions v ON v.component_id=c.id WHERE (c.id=? OR c.library_id=?) AND v.version=?`, componentID, componentID, version).Scan(&c.ComponentID, &c.LibraryID, &c.Version, &c.Status, &sourcePath, &latest, &draft, &manifestPath); err != nil {
 		return c, err
 	}
-	if version == latest || version == draft {
+	presence := "materialized"
+	_ = r.db.QueryRowContext(ctx, `SELECT COALESCE(presence, 'materialized') FROM component_versions WHERE component_id=? AND version=?`, c.ComponentID, version).Scan(&presence)
+	assetRetirement := state == "retired" && version == latest
+	if state == "retired" && strings.EqualFold(c.Status, "retired") {
+		if !confirm {
+			return c, fmt.Errorf("retiring a version requires --confirm")
+		}
+		return c, r.reclaimRetiredMaterialization(ctx, c, sourcePath, manifestPath)
+	}
+	if version == draft || version == latest && !assetRetirement {
 		return c, fmt.Errorf("version %s is latest or draft and cannot be retired", version)
 	}
 	if state == "retired" {
 		if !confirm {
 			return c, fmt.Errorf("retiring a version requires --confirm")
 		}
-		candidates, err := r.RetireCandidates(ctx, componentID)
-		if err != nil {
-			return c, err
-		}
-		allowed := false
-		for _, candidate := range candidates {
-			if candidate.Version == version {
-				allowed = true
-				break
+		if assetRetirement {
+			if err := r.validateAssetRetirement(ctx, c, draft, manifestPath); err != nil {
+				return c, err
 			}
-		}
-		if !allowed {
-			return c, fmt.Errorf("version %s is still referenced and is not safe to retire", version)
+		} else {
+			candidates, err := r.RetireCandidates(ctx, componentID)
+			if err != nil {
+				return c, err
+			}
+			allowed := false
+			for _, candidate := range candidates {
+				if candidate.Version == version {
+					allowed = true
+					break
+				}
+			}
+			if !allowed {
+				return c, fmt.Errorf("version %s is still referenced and is not safe to retire", version)
+			}
 		}
 		// Record the retirement in the manifest before removing its source
 		// directory. The manifest is the durable catalog declaration and must
 		// retain the version even after its implementation is retired.
-		if err := r.updateManifest(manifestPath, version); err != nil {
-			return c, err
+		if !assetRetirement {
+			if err := r.updateManifest(manifestPath, version); err != nil {
+				return c, err
+			}
 		}
 		path := filepath.Clean(filepath.Join(r.sourceRoot, sourcePath))
 		root := filepath.Clean(r.sourceRoot) + string(os.PathSeparator)
 		if !strings.HasPrefix(path, root) {
 			return c, fmt.Errorf("refusing to retire path outside library root")
 		}
-		backup := r.retiredSourcePath(c.LibraryID, version)
-		if err := os.MkdirAll(filepath.Dir(backup), 0o755); err != nil {
-			return c, err
-		}
-		_ = os.RemoveAll(backup)
-		if err := os.Rename(filepath.Dir(path), backup); err != nil {
+		versionDir := filepath.Dir(path)
+		if _, err := os.Stat(versionDir); err == nil {
+			backup := r.retiredSourcePath(c.LibraryID, version)
+			if err := os.MkdirAll(filepath.Dir(backup), 0o755); err != nil {
+				return c, err
+			}
+			_ = os.RemoveAll(backup)
+			if err := os.Rename(versionDir, backup); err != nil {
+				return c, err
+			}
+		} else if !errors.Is(err, os.ErrNotExist) || !strings.EqualFold(presence, "evicted") && !strings.EqualFold(c.Status, "deprecated") && !strings.EqualFold(c.Status, "archived") {
 			return c, err
 		}
 		now := time.Now().UTC().Format(time.RFC3339Nano)
@@ -401,6 +423,25 @@ func (r *Repository) Transition(ctx context.Context, componentID, version, state
 		}
 		if _, err := r.db.ExecContext(ctx, `UPDATE component_versions SET status='retired' WHERE component_id=? AND version=?`, c.ComponentID, version); err != nil {
 			return c, err
+		}
+		if !assetRetirement {
+			if err := r.updateManifestArray(manifestPath, "evictedVersions", version); err != nil {
+				return c, err
+			}
+			if _, err := r.db.ExecContext(ctx, `UPDATE component_versions SET presence='evicted' WHERE component_id=? AND version=?`, c.ComponentID, version); err != nil {
+				return c, err
+			}
+		}
+		if assetRetirement {
+			manifest := filepath.Clean(filepath.Join(r.sourceRoot, manifestPath))
+			if !strings.HasPrefix(manifest, root) {
+				return c, fmt.Errorf("refusing to retire manifest outside library root")
+			}
+			if err := os.Remove(manifest); err != nil {
+				return c, fmt.Errorf("remove retired asset manifest: %w", err)
+			}
+			_ = os.Remove(filepath.Dir(versionDir))
+			_ = os.Remove(filepath.Dir(manifest))
 		}
 		return c, nil
 	}
@@ -434,6 +475,156 @@ func (r *Repository) Transition(ctx context.Context, componentID, version, state
 	}
 	c.Status = state
 	return c, nil
+}
+
+func (r *Repository) reclaimRetiredMaterialization(ctx context.Context, c Candidate, sourcePath, manifestPath string) error {
+	versionDir := filepath.Clean(filepath.Join(r.sourceRoot, filepath.Dir(sourcePath)))
+	root := filepath.Clean(r.sourceRoot) + string(os.PathSeparator)
+	if !strings.HasPrefix(versionDir, root) {
+		return fmt.Errorf("refusing to retire path outside library root")
+	}
+	if _, err := os.Stat(versionDir); err == nil {
+		if err := r.verifyVersionDirectory(ctx, c, versionDir); err != nil {
+			return err
+		}
+		backup := r.retiredSourcePath(c.LibraryID, c.Version)
+		if _, backupErr := os.Stat(backup); errors.Is(backupErr, os.ErrNotExist) {
+			if err := os.MkdirAll(filepath.Dir(backup), 0o755); err != nil {
+				return err
+			}
+			if err := os.Rename(versionDir, backup); err != nil {
+				return err
+			}
+		} else if backupErr != nil {
+			return backupErr
+		} else if err := os.RemoveAll(versionDir); err != nil {
+			return err
+		}
+	} else if !errors.Is(err, os.ErrNotExist) {
+		return err
+	}
+	if err := r.updateManifestArray(manifestPath, "evictedVersions", c.Version); err != nil {
+		return err
+	}
+	if _, err := r.db.ExecContext(ctx, `UPDATE component_versions SET status='retired', presence='evicted' WHERE component_id=? AND version=?`, c.ComponentID, c.Version); err != nil {
+		return err
+	}
+	_, err := r.db.ExecContext(ctx, `UPDATE version_ledger SET lifecycle_state='retired' WHERE library_id=? AND version=?`, c.LibraryID, c.Version)
+	return err
+}
+
+func (r *Repository) verifyVersionDirectory(ctx context.Context, c Candidate, versionDir string) error {
+	rows, err := r.db.QueryContext(ctx, `SELECT path, content_sha256 FROM component_version_files WHERE version_id=(SELECT id FROM component_versions WHERE component_id=? AND version=?) ORDER BY path`, c.ComponentID, c.Version)
+	if err != nil {
+		return fmt.Errorf("read retirement mirror: %w", err)
+	}
+	defer rows.Close()
+	expected := map[string]string{}
+	for rows.Next() {
+		var path, digest string
+		if err := rows.Scan(&path, &digest); err != nil {
+			return err
+		}
+		expected[filepath.Clean(filepath.FromSlash(path))] = digest
+	}
+	if err := rows.Err(); err != nil {
+		return err
+	}
+	if len(expected) == 0 {
+		return fmt.Errorf("cannot retire %s@%s: file mirror is empty", c.LibraryID, c.Version)
+	}
+	seen := map[string]struct{}{}
+	if err := filepath.WalkDir(versionDir, func(path string, entry os.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		if entry.IsDir() {
+			return nil
+		}
+		rel, err := filepath.Rel(versionDir, path)
+		if err != nil {
+			return err
+		}
+		digest, ok := expected[filepath.Clean(rel)]
+		if !ok {
+			return ErrEvictionMirrorMismatch{LibraryID: c.LibraryID, Version: c.Version, Path: filepath.ToSlash(rel), Expected: "absent", Actual: "unexpected"}
+		}
+		body, err := os.ReadFile(path)
+		if err != nil {
+			return err
+		}
+		actual := fmt.Sprintf("%x", sha256.Sum256(body))
+		if actual != digest {
+			return ErrEvictionMirrorMismatch{LibraryID: c.LibraryID, Version: c.Version, Path: filepath.ToSlash(rel), Expected: digest, Actual: actual}
+		}
+		seen[filepath.Clean(rel)] = struct{}{}
+		return nil
+	}); err != nil {
+		return err
+	}
+	for path, digest := range expected {
+		if _, ok := seen[path]; !ok {
+			return ErrEvictionMirrorMismatch{LibraryID: c.LibraryID, Version: c.Version, Path: filepath.ToSlash(path), Expected: digest, Actual: "missing"}
+		}
+	}
+	return nil
+}
+
+func (r *Repository) validateAssetRetirement(ctx context.Context, c Candidate, draft, manifestPath string) error {
+	if strings.TrimSpace(draft) != "" {
+		return fmt.Errorf("asset %s has active draft %s", c.LibraryID, draft)
+	}
+	manifest := filepath.Clean(filepath.Join(r.sourceRoot, manifestPath))
+	root := filepath.Clean(r.sourceRoot) + string(os.PathSeparator)
+	if !strings.HasPrefix(manifest, root) {
+		return fmt.Errorf("refusing to inspect manifest outside library root")
+	}
+	data, err := os.ReadFile(manifest)
+	if err != nil {
+		return err
+	}
+	var doc struct {
+		ReplacedBy []string `json:"replacedBy"`
+	}
+	if err := json.Unmarshal(data, &doc); err != nil {
+		return err
+	}
+	if len(doc.ReplacedBy) == 0 {
+		return fmt.Errorf("asset %s cannot retire its latest version without replacedBy metadata", c.LibraryID)
+	}
+	var remaining int
+	if err := r.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM component_versions WHERE component_id=? AND version<>? AND lower(status)<>'retired'`, c.ComponentID, c.Version).Scan(&remaining); err != nil {
+		return err
+	}
+	if remaining != 0 {
+		return fmt.Errorf("asset %s still has %d non-retired historical version(s)", c.LibraryID, remaining)
+	}
+	queries := []string{
+		`SELECT COUNT(*) FROM adoption_records WHERE component_id=? AND adopted_version=?`,
+		`SELECT COUNT(*) FROM adoption_files WHERE source_library_id=? AND source_version=?`,
+		`SELECT COUNT(*) FROM component_asset_dependencies WHERE library_id=? AND version=?`,
+	}
+	for index, query := range queries {
+		identity := c.ComponentID
+		if index > 0 {
+			identity = c.LibraryID
+		}
+		var count int
+		if err := r.db.QueryRowContext(ctx, query, identity, c.Version).Scan(&count); err != nil {
+			return err
+		}
+		if count != 0 {
+			return fmt.Errorf("version %s is still referenced and is not safe to retire", c.Version)
+		}
+	}
+	refs, err := r.sourceReferences(ctx)
+	if err != nil {
+		return fmt.Errorf("build source reference graph: %w", err)
+	}
+	if len(refs[sourceReferenceKey(c.LibraryID, c.Version)]) != 0 {
+		return fmt.Errorf("version %s is still referenced and is not safe to retire", c.Version)
+	}
+	return nil
 }
 
 func (r *Repository) evictVersion(ctx context.Context, c Candidate, version, manifestPath, suppliedPlanHash, scopeComponentID string) error {

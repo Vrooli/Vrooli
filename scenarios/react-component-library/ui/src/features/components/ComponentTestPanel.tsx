@@ -29,7 +29,7 @@ import { OverlayCanvas } from "../../../../library/components/OverlayCanvas/vers
 import {
   EvidenceCarousel,
   type EvidenceItem,
-} from "../../../../library/components/EvidenceCarousel/versions/1.0.9/EvidenceCarousel";
+} from "../../../../library/components/EvidenceCarousel/versions/1.0.14/EvidenceCarousel";
 
 type VerdictTone = "success" | "danger" | "warning" | "neutral";
 

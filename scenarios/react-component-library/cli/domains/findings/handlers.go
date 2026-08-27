@@ -4,9 +4,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"path/filepath"
 	"strings"
 
+	corestorage "github.com/vrooli/api-core/storage"
 	"github.com/vrooli/cli-core/cliapp"
 	"react-component-library/cli/internal/findingledger"
 )
@@ -40,7 +40,16 @@ func run(args []string) error {
 		}
 	}
 	if root == "" {
-		root = filepath.Join("coverage", "findings", "ledger.json")
+		resolver, err := corestorage.NewResolver(corestorage.ResolverConfig{AppID: "vrooli", Profile: corestorage.ProfileAuto})
+		if err != nil {
+			return fmt.Errorf("resolve findings storage: %w", err)
+		}
+		root, err = resolver.ArtifactPath(corestorage.Options{ScenarioID: "react-component-library"}, corestorage.ArtifactRef{
+			Owner: "react-component-library", Domain: "gates", Class: corestorage.ClassState, Segments: []string{"findings", "ledger.json"},
+		})
+		if err != nil {
+			return fmt.Errorf("resolve findings ledger: %w", err)
+		}
 	}
 	data, err := os.ReadFile(root)
 	if os.IsNotExist(err) {

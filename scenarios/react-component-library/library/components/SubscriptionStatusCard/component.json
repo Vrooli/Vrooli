@@ -5,7 +5,7 @@
   "deprecatedVersions": [
     "1.0.2"
   ],
-  "description": "",
+  "description": "Hosted account status and lease-backed balance.",
   "designStyles": [
     {
       "affinity": "native",

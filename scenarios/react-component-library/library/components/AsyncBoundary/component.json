@@ -15,7 +15,7 @@
   "deprecatedVersions": [
     "1.0.3"
   ],
-  "description": "",
+  "description": "A stable async state boundary that preserves structure while pending, failed, or retryable content changes.",
   "designStyles": [
     {
       "affinity": "native",

@@ -20,7 +20,7 @@
     "1.0.3",
     "1.0.5"
   ],
-  "description": "",
+  "description": "The reusable calendar surface supporting single, multiple, range, week, and month selection with localization, constraints, keyboard navigation, and virtualized month rendering.",
   "designStyles": [
     {
       "affinity": "native",

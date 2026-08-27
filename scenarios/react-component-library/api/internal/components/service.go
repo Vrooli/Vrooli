@@ -2,6 +2,7 @@ package components
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -242,6 +243,17 @@ func (s *service) GetContentAt(ctx context.Context, id, path string) (Content, e
 	if err != nil {
 		return Content{}, err
 	}
+	draftVersion := strings.TrimSpace(c.DraftVersion)
+	if draftVersion != "" {
+		draft, draftErr := s.repo.GetVersion(ctx, c.ID, draftVersion)
+		if draftErr != nil {
+			return Content{}, fmt.Errorf("resolve active draft %s@%s: %w", c.LibraryID, draftVersion, draftErr)
+		}
+		if draft.Status != VersionStatusDraft {
+			return Content{}, ErrInvalidHeader{SourcePath: draft.SourcePath, Field: "draft", Reason: "active draft pointer does not resolve to a mutable draft"}
+		}
+		c.SourcePath = draft.SourcePath
+	}
 	if path != "" {
 		store, ok := s.content.(PathContentStore)
 		if !ok {
@@ -428,6 +440,20 @@ func (s *service) UpdateContentAt(ctx context.Context, id, path string, in Write
 	if err != nil {
 		return Content{}, err
 	}
+	draftVersion := strings.TrimSpace(c.DraftVersion)
+	if draftVersion == "" {
+		return Content{}, ErrInvalidHeader{SourcePath: c.ManifestPath, Field: "draft", Reason: "released component versions are immutable; begin a draft before writing content"}
+	}
+	draft, err := s.repo.GetVersion(ctx, c.ID, draftVersion)
+	if err != nil {
+		return Content{}, fmt.Errorf("resolve active draft %s@%s: %w", c.LibraryID, draftVersion, err)
+	}
+	if draft.Status != VersionStatusDraft {
+		return Content{}, ErrInvalidHeader{SourcePath: draft.SourcePath, Field: "draft", Reason: "active draft pointer does not resolve to a mutable draft"}
+	}
+	// The component projection intentionally points at latest for consumers.
+	// Authoring writes must instead bind to the explicit mutable draft.
+	c.SourcePath = draft.SourcePath
 	// JSON is a source artifact, not an opaque text blob. Normalize it at the
 	// write boundary so story contracts, experience contracts, and companion
 	// metadata remain deterministic regardless of which authoring surface wrote
@@ -822,15 +848,158 @@ func (s *service) UpdateComponentManifest(ctx context.Context, in UpdateComponen
 	}
 	c, err := s.Get(ctx, in.ComponentID)
 	if err != nil {
-		return Component{}, err
+		var notFound ErrComponentNotFound
+		if !errors.As(err, &notFound) {
+			return Component{}, err
+		}
+		// A malformed version pointer can make a manifest intentionally fail
+		// indexing. Manifest repair must still remain available through the
+		// governed command surface, otherwise the only recovery path is a direct
+		// catalog-file edit. Resolve the authored identity from disk for this
+		// narrow not-indexed case; the normal index below remains the authority
+		// that accepts or rejects the repaired manifest.
+		c, err = s.resolveAuthoredManifestComponent(in.ComponentID)
+		if err != nil {
+			return Component{}, err
+		}
+	}
+	metadataOnly := strings.TrimSpace(in.LatestVersion) == "" && strings.TrimSpace(in.DraftVersion) == ""
+	in.PreserveVersionPointers = metadataOnly
+	// The durable ledger, not a stale manifest marker, owns cold-tier truth.
+	// This also makes a metadata-only governed update recover an authored asset
+	// whose registry projection was lost: unverifiable evicted markers are
+	// cleared instead of permanently preventing the asset from re-indexing.
+	in.ReconcileEvictedVersions = true
+	if strings.TrimSpace(c.ID) != "" {
+		versions, listErr := s.repo.ListVersions(ctx, c.ID, 100000)
+		if listErr != nil {
+			return Component{}, listErr
+		}
+		for _, version := range versions {
+			if version.Presence == "evicted" {
+				in.EvictedVersions = append(in.EvictedVersions, version.Version)
+			}
+		}
 	}
 	if err := s.source.UpdateManifest(ctx, c, in); err != nil {
 		return Component{}, err
+	}
+	if metadataOnly {
+		headers := make(map[string]string, len(c.Headers)+1)
+		for key, value := range c.Headers {
+			headers[key] = value
+		}
+		catalogID := c.CatalogID
+		if value := strings.TrimSpace(in.CatalogID); value != "" {
+			catalogID = value
+		}
+		if in.ClearCatalogID {
+			catalogID = ""
+			delete(headers, "catalogId")
+		} else if catalogID != "" {
+			headers["catalogId"] = catalogID
+		}
+		displayName := firstNonEmpty(strings.TrimSpace(in.DisplayName), c.DisplayName, c.Slug)
+		description := firstNonEmpty(strings.TrimSpace(in.Description), c.Description)
+		tags := append([]string(nil), c.Tags...)
+		if in.Tags != nil {
+			tags = cleanTags(in.Tags)
+		}
+		dependencies := append([]AssetDependency(nil), c.Dependencies...)
+		if in.Dependencies != nil {
+			dependencies = append([]AssetDependency(nil), in.Dependencies...)
+		}
+		return s.repo.Upsert(ctx, UpsertInput{
+			CatalogID: catalogID, LibraryID: c.LibraryID, Slug: c.Slug,
+			DisplayName: displayName, Description: description, Slot: c.Slot, Category: c.Category,
+			ManifestPath: c.ManifestPath, SourcePath: c.SourcePath, Version: c.Version,
+			LatestVersion: c.LatestVersion, DraftVersion: c.DraftVersion, Tags: tags, Headers: headers,
+			DesignStyles: c.DesignStyles, AssetKind: c.AssetKind, Dependencies: dependencies,
+		})
 	}
 	if _, err := NewIndexer(s.repo, s.source.Root(), nil).IndexManifest(ctx, c.ManifestPath); err != nil {
 		return Component{}, err
 	}
 	return s.Get(ctx, in.ComponentID)
+}
+
+func (s *service) resolveAuthoredManifestComponent(componentID string) (Component, error) {
+	wanted := strings.TrimSpace(componentID)
+	if wanted == "" {
+		return Component{}, ErrComponentNotFound{IDOrLibraryID: componentID}
+	}
+	type authoredManifest struct {
+		CatalogID   string   `json:"catalogId"`
+		LibraryID   string   `json:"libraryId"`
+		DisplayName string   `json:"displayName"`
+		Description string   `json:"description"`
+		Slot        string   `json:"slot"`
+		Category    string   `json:"category"`
+		Latest      string   `json:"latest"`
+		Draft       string   `json:"draft"`
+		Tags        []string `json:"tags"`
+		AssetKind   string   `json:"assetKind"`
+	}
+
+	root := s.source.Root()
+	var found *Component
+	err := filepath.WalkDir(root, func(path string, entry os.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		if entry.IsDir() {
+			if entry.Name() == "versions" || entry.Name() == "node_modules" || strings.HasPrefix(entry.Name(), ".") && path != root {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		if entry.Name() != "component.json" {
+			return nil
+		}
+		raw, readErr := os.ReadFile(path)
+		if readErr != nil {
+			return readErr
+		}
+		var manifest authoredManifest
+		if decodeErr := json.Unmarshal(raw, &manifest); decodeErr != nil || strings.TrimSpace(manifest.LibraryID) != wanted {
+			return nil
+		}
+		relative, relErr := filepath.Rel(root, path)
+		if relErr != nil {
+			return relErr
+		}
+		manifestPath := filepath.ToSlash(relative)
+		assetKind, kindErr := assetKindForManifestPath(manifestPath, manifest.AssetKind)
+		if kindErr != nil {
+			return kindErr
+		}
+		if found != nil {
+			return ErrInvalidHeader{SourcePath: manifestPath, Field: "libraryId", Reason: "duplicates another authored manifest"}
+		}
+		component := Component{
+			CatalogID:     strings.TrimSpace(manifest.CatalogID),
+			LibraryID:     strings.TrimSpace(manifest.LibraryID),
+			Slug:          filepath.Base(filepath.Dir(path)),
+			DisplayName:   strings.TrimSpace(manifest.DisplayName),
+			Description:   strings.TrimSpace(manifest.Description),
+			Slot:          strings.TrimSpace(manifest.Slot),
+			Category:      strings.TrimSpace(manifest.Category),
+			LatestVersion: strings.TrimSpace(manifest.Latest),
+			DraftVersion:  strings.TrimSpace(manifest.Draft),
+			ManifestPath:  manifestPath,
+			Tags:          append([]string(nil), manifest.Tags...),
+			AssetKind:     assetKind,
+		}
+		found = &component
+		return nil
+	})
+	if err != nil {
+		return Component{}, err
+	}
+	if found == nil {
+		return Component{}, ErrComponentNotFound{IDOrLibraryID: componentID}
+	}
+	return *found, nil
 }
 
 // errNoContentStore signals that the service was constructed without a

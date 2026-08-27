@@ -12,10 +12,12 @@
   ],
   "displayName": "useSwipe",
   "kind": "surface",
-  "latest": "1.0.0",
+  "latest": "2.0.2",
   "libraryId": "react-component-library:useSwipe",
   "tags": [
     "runtime",
     "accessibility"
-  ]
+  ],
+  "draft": "",
+  "deprecatedVersions": []
 }

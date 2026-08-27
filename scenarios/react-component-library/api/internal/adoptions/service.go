@@ -1638,11 +1638,12 @@ func NewFSScenarioFileReader(root string) *FSScenarioFileReader {
 }
 
 var (
-	_ ScenarioFileReader           = (*FSScenarioFileReader)(nil)
-	_ ScenarioProvenanceScanner    = (*FSScenarioFileReader)(nil)
-	_ ScenarioCandidateScanner     = (*FSScenarioFileReader)(nil)
-	_ ScenarioTokenNamespaceReader = (*FSScenarioFileReader)(nil)
-	_ ScenarioTokenInventoryReader = (*FSScenarioFileReader)(nil)
+	_ ScenarioFileReader                  = (*FSScenarioFileReader)(nil)
+	_ ScenarioProvenanceScanner           = (*FSScenarioFileReader)(nil)
+	_ ScenarioCandidateScanner            = (*FSScenarioFileReader)(nil)
+	_ ScenarioTokenNamespaceReader        = (*FSScenarioFileReader)(nil)
+	_ ScenarioTokenInventoryReader        = (*FSScenarioFileReader)(nil)
+	_ ScenarioRuntimeTokenInventoryReader = (*FSScenarioFileReader)(nil)
 )
 
 // TokenNamespace reads the consumer's declared semantic namespace. The
@@ -1726,6 +1727,11 @@ func (r *FSScenarioFileReader) DeclaredTokens(_ context.Context, scenario string
 				declared[match[1]] = struct{}{}
 			}
 		}
+		for _, match := range scenarioRuntimeTokenWriteRE.FindAllStringSubmatch(string(raw), -1) {
+			if len(match) == 2 {
+				declared[match[1]] = struct{}{}
+			}
+		}
 		return nil
 	})
 	if err != nil {
@@ -1733,6 +1739,51 @@ func (r *FSScenarioFileReader) DeclaredTokens(_ context.Context, scenario string
 	}
 	result := make([]string, 0, len(declared))
 	for property := range declared {
+		result = append(result, property)
+	}
+	sort.Strings(result)
+	return result, nil
+}
+
+// RuntimeWrittenTokens reports properties whose value is owned by application
+// state rather than by the static design-token ramp. Token sync removes these
+// from its managed region so a stale default cannot race the runtime writer.
+func (r *FSScenarioFileReader) RuntimeWrittenTokens(_ context.Context, scenario string) ([]string, error) {
+	base := filepath.Join(r.root, scenario, "ui", "src")
+	written := map[string]struct{}{}
+	if _, err := os.Stat(base); err != nil {
+		if os.IsNotExist(err) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	err := filepath.WalkDir(base, func(path string, entry os.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		if entry.IsDir() {
+			return nil
+		}
+		ext := strings.ToLower(filepath.Ext(path))
+		if ext != ".ts" && ext != ".tsx" && ext != ".js" && ext != ".jsx" {
+			return nil
+		}
+		raw, err := os.ReadFile(path)
+		if err != nil {
+			return err
+		}
+		for _, match := range scenarioRuntimeTokenWriteRE.FindAllStringSubmatch(string(raw), -1) {
+			if len(match) == 2 {
+				written[match[1]] = struct{}{}
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, fmt.Errorf("scan runtime token writers for scenario %q: %w", scenario, err)
+	}
+	result := make([]string, 0, len(written))
+	for property := range written {
 		result = append(result, property)
 	}
 	sort.Strings(result)

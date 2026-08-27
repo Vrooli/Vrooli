@@ -14,11 +14,11 @@ func TestTranslateDesignTokensUsesConsumerVocabulary(t *testing.T) {
 		"app-muted-foreground": {Target: "wc-text-muted", CSSVariable: "--wc-text-muted"},
 		"app-border":           {Target: "wc-default", CSSVariable: "--wc-border-default"},
 	}}
-	body, translations, err := adoptions.TranslateDesignTokens("bg-app-primary text-app-muted-foreground border-app-border", "wc", mapping)
+	body, translations, err := adoptions.TranslateDesignTokens(`<div className="bg-app-primary text-app-muted-foreground border-app-border" />`, "wc", mapping)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if body != "bg-wc-accent-active text-wc-text-muted border-wc-default" {
+	if body != `<div className="bg-wc-accent-active text-wc-text-muted border-wc-default" />` {
 		t.Fatalf("translated body = %q", body)
 	}
 	if len(translations) != 3 {
@@ -27,7 +27,7 @@ func TestTranslateDesignTokensUsesConsumerVocabulary(t *testing.T) {
 }
 
 func TestTranslateDesignTokensFailsForUnknownNamespace(t *testing.T) {
-	_, _, err := adoptions.TranslateDesignTokens("bg-app-primary", "unknown", adoptions.TokenMapping{Namespace: "unknown", Roles: map[string]adoptions.TokenRoleMapping{
+	_, _, err := adoptions.TranslateDesignTokens(`<div className="bg-app-primary" />`, "unknown", adoptions.TokenMapping{Namespace: "unknown", Roles: map[string]adoptions.TokenRoleMapping{
 		"app-primary": {Target: "unknown-primary", CSSVariable: "--unknown-primary"},
 	}})
 	if err == nil || !strings.Contains(err.Error(), "not governed") {

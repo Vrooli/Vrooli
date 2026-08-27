@@ -1,0 +1,48 @@
+{
+  "bindings": {
+    "elements": {
+      "table": {
+        "note": "The table fixture uses the semantic table element.",
+        "selector": "table"
+      }
+    }
+  },
+  "claims": [
+    {
+      "elements": ["table"],
+      "id": "table-present",
+      "statement": "The data table exposes its declared table element.",
+      "tier": "machine",
+      "type": "element-present"
+    },
+    {
+      "id": "table-no-document-overflow",
+      "statement": "The table remains contained within the document viewport.",
+      "tier": "machine",
+      "type": "no-document-horizontal-overflow"
+    }
+  ],
+  "component": {
+    "id": "data-table",
+    "purpose": "Present searchable, selectable data with responsive recovery states.",
+    "title": "Data Table"
+  },
+  "contract": {
+    "kind": "rcl-component-experience-contract",
+    "provenance": "react-component-library:DataTable@1.4.0",
+    "schema": "scenario-experience-spec/v1"
+  },
+  "elements": [
+    {
+      "id": "table",
+      "name": "Data table",
+      "role": "table"
+    }
+  ],
+  "states": [
+    {
+      "example": "default",
+      "id": "default"
+    }
+  ]
+}

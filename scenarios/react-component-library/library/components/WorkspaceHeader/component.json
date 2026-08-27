@@ -1,6 +1,5 @@
 {
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
-  "catalogId": "react-component-library:WorkspaceHeader",
   "category": "navigation",
   "dependencies": [
     {
@@ -11,7 +10,7 @@
   "deprecatedVersions": [
     "1.0.0"
   ],
-  "description": "",
+  "description": "A responsive page header with navigation, context, and action slots for operational workspaces.",
   "designStyles": [
     {
       "affinity": "native",
@@ -29,6 +28,5 @@
     "header",
     "workspace",
     "navigation"
-  ],
-  "x-supplementalJustification": "Pre-catalog workspace chrome retained as a supplemental composition pending the navigation vocabulary decision."
+  ]
 }

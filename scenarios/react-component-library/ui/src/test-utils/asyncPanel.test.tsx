@@ -1,11 +1,11 @@
 import { fireEvent, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { renderWithProviders } from "@vrooli/api-base/testing";
-import { AsyncPanel } from "@vrooli/react-component-library/AsyncPanel/1.0.0";
-import { AsyncPanel as AssetDetailAsyncPanel } from "@vrooli/react-component-library/AsyncPanel/1.0.0";
-import { AsyncPanel as InspectorAsyncPanel } from "@vrooli/react-component-library/AsyncPanel/1.0.0";
-import { AssetDetailShell } from "@vrooli/react-component-library/AssetDetailShell/1.1.0";
-import { InspectorLayout } from "@vrooli/react-component-library/InspectorLayout/1.1.0";
+import { AsyncPanel } from "@vrooli/react-component-library/AsyncPanel/1/1.0.0";
+import { AsyncPanel as AssetDetailAsyncPanel } from "@vrooli/react-component-library/AsyncPanel/1/1.0.0";
+import { AsyncPanel as InspectorAsyncPanel } from "@vrooli/react-component-library/AsyncPanel/1/1.0.0";
+import { AssetDetailShell } from "@vrooli/react-component-library/AssetDetailShell/1/1.1.0";
+import { InspectorLayout } from "@vrooli/react-component-library/InspectorLayout/1/1.1.0";
 
 describe("AsyncPanel", () => {
   it.each([

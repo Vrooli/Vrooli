@@ -5,7 +5,7 @@
   "deprecatedVersions": [
     "1.0.2"
   ],
-  "description": "",
+  "description": "Accessible palette, recent-color, gradient, and native custom-color picker.",
   "designStyles": [
     {
       "affinity": "native",

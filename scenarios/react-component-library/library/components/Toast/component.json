@@ -21,7 +21,7 @@
     "1.0.3",
     "1.0.5"
   ],
-  "description": "",
+  "description": "The transient notification rendered through the shared toast service, with queueing, deduplication, in-place updates, action affordances, timeout policy, and announcement.",
   "designStyles": [
     {
       "affinity": "native",

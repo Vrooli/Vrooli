@@ -1,0 +1,32 @@
+{
+  "catalogId": "overlays.context-menu",
+  "deprecatedVersions": [],
+  "description": "Shared overlay presentation for ContextMenu.",
+  "designStyles": [
+    {
+      "affinity": "native",
+      "reason": "token-native operational-console baseline",
+      "styleId": "vrooli-default"
+    }
+  ],
+  "displayName": "ContextMenu",
+  "draft": "",
+  "entry": "ContextMenu.tsx",
+  "evictedVersions": [
+    "1.1.0",
+    "1.0.3",
+    "1.0.2",
+    "1.0.1",
+    "1.0.0",
+    "0.1.0"
+  ],
+  "kind": "control",
+  "latest": "1.1.2",
+  "libraryId": "react-component-library:ContextMenu",
+  "tags": [
+    "overlay",
+    "accessibility",
+    "responsive",
+    "token-bound"
+  ]
+}

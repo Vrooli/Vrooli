@@ -7,7 +7,7 @@
     "1.0.10",
     "1.0.12"
   ],
-  "description": "",
+  "description": "A labeled measured-versus-required bar for evidence panels.",
   "designStyles": [
     {
       "affinity": "native",

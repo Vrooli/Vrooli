@@ -149,3 +149,15 @@ func TestVersionsDiff_RendersSummaryAndRows(t *testing.T) {
 	require.Contains(t, body, "1.0.0 → 1.0.1 : +2 / -1")
 	require.Contains(t, body, "alpha")
 }
+
+func TestRetireSchemaDoesNotRequireCleanupPlanHash(t *testing.T) {
+	core := clitest.NewTestApp(t, connectAPI(t, &versionsService{}))
+	ctx, _ := cliapptest.NewCapturedRunContext(core, cliapp.ArgSchema{
+		Positionals: []cliapp.Positional{{Name: "component-id"}, {Name: "version"}},
+		Flags:       []cliapp.Flag{{Name: "confirm"}},
+	}, cliapptest.TestRunContextOptions{
+		Positionals: map[string]string{"component-id": "cmp-btn", "version": "1.0.0"},
+		Flags:       map[string]string{"confirm": "yes"},
+	})
+	require.False(t, ctx.FlagDeclared("plan-hash"))
+}

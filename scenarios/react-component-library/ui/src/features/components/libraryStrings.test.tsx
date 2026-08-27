@@ -1,5 +1,5 @@
 import { render, screen } from "@testing-library/react";
-import { LibraryStringsProvider, defineStrings, useStrings } from "@vrooli/react-component-library/useLocale/1.0.1";
+import { LibraryStringsProvider, defineStrings, useStrings } from "@vrooli/react-component-library/useLocale/1/1.0.1";
 
 function Probe() {
   return <span>{useStrings("controls.example.save", "Save changes")}</span>;

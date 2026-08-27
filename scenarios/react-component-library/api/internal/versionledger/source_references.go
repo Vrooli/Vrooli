@@ -234,7 +234,7 @@ func (r *Repository) workbenchSourceReferences(byVersion map[string][]VersionRef
 // scenario. The adoption ledger is the authority for attribution; filesystem
 // layout is used only to resolve the importing file and its relative target.
 func (r *Repository) adoptedSourceReferences(ctx context.Context) (map[string][]VersionReference, error) {
-	rows, err := r.db.QueryContext(ctx, `SELECT f.adoption_id, a.scenario, f.adopted_path, f.source_library_id, f.source_version FROM adoption_files f JOIN adoption_records a ON a.id = f.adoption_id WHERE f.source_library_id <> '' AND f.source_version <> ''`)
+	rows, err := r.db.QueryContext(ctx, `SELECT f.adoption_id, a.scenario, f.adopted_path, f.source_library_id, f.source_version FROM adoption_files f JOIN adoption_records a ON a.id = f.adoption_id WHERE f.source_library_id <> '' AND f.source_version <> '' AND lower(COALESCE(a.mode, 'copied')) <> 'ejected'`)
 	if err != nil {
 		if strings.Contains(strings.ToLower(err.Error()), "no such table") || strings.Contains(strings.ToLower(err.Error()), "no such column") {
 			return map[string][]VersionReference{}, nil

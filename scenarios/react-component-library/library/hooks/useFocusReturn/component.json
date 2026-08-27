@@ -12,10 +12,12 @@
   ],
   "displayName": "useFocusReturn",
   "kind": "surface",
-  "latest": "1.0.0",
+  "latest": "1.1.0",
   "libraryId": "react-component-library:useFocusReturn",
   "tags": [
     "runtime",
     "accessibility"
-  ]
+  ],
+  "draft": "",
+  "deprecatedVersions": []
 }

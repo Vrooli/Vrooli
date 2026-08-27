@@ -2,17 +2,13 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "catalogId": "primitives.card",
   "category": "surfaces",
-  "dependencies": [
-    {
-      "kind": "requires",
-      "libraryId": "react-component-library:ClassMerge",
-      "version": "1.0.0"
-    }
-  ],
+  "dependencies": [],
   "deprecatedVersions": [
-    "1.2.0"
+    "1.2.0",
+    "1.2.1",
+    "1.1.0"
   ],
-  "description": "",
+  "description": "Compact token-bound card primitives for repeated records, focused tools, and modal content.",
   "designStyles": [
     {
       "affinity": "native",
@@ -29,11 +25,9 @@
   ],
   "displayName": "Card",
   "draft": "",
-  "evictedVersions": [
-    "1.2.0"
-  ],
+  "evictedVersions": [],
   "kind": "surface",
-  "latest": "1.2.1",
+  "latest": "1.2.2",
   "libraryId": "react-component-library:Card",
   "slot": "ui-primitive",
   "tags": [

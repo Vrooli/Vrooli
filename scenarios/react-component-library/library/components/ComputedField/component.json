@@ -3,7 +3,7 @@
   "assetKind": "component",
   "catalogId": "forms.computed-field",
   "dependencies": [],
-  "description": "",
+  "description": "A store-driven read-only field that recalculates from affected values and communicates calculated versus edited state.",
   "designStyles": [
     {
       "affinity": "native",

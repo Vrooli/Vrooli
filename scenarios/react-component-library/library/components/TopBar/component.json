@@ -6,7 +6,7 @@
   "deprecatedVersions": [
     "1.0.4"
   ],
-  "description": "",
+  "description": "A stable application header region that adapts its navigation affordances by viewport.",
   "designStyles": [
     {
       "affinity": "native",

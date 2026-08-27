@@ -6,7 +6,7 @@
   "deprecatedVersions": [
     "1.0.1"
   ],
-  "description": "",
+  "description": "A locale primitive exposing formatting, collation, segmentation, calendar behavior, and localized accessibility labels through the localization adapter.",
   "designStyles": [
     {
       "affinity": "native",

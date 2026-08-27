@@ -12,7 +12,7 @@
   "deprecatedVersions": [
     "1.0.3"
   ],
-  "description": "",
+  "description": "A keyboard-operable tab navigation surface with stable active state and responsive overflow.",
   "designStyles": [
     {
       "affinity": "native",
@@ -25,7 +25,7 @@
     "1.0.3"
   ],
   "kind": "shell",
-  "latest": "1.0.4",
+  "latest": "1.1.0",
   "libraryId": "react-component-library:Tabs",
   "tags": [
     "navigation",

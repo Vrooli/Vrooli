@@ -20,7 +20,7 @@
     "1.0.3",
     "1.0.5"
   ],
-  "description": "",
+  "description": "The responsive chart framework standardizing axes, legends, tooltips, value formatting, selection, theme integration, keyboard summaries, and every generic data state around a pluggable rendering engine.",
   "designStyles": [
     {
       "affinity": "native",

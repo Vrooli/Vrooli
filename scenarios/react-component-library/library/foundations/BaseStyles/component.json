@@ -6,8 +6,20 @@
   "displayName": "Base Styles",
   "kind": "surface",
   "description": "Shared control reset, accessibility treatments, and sizing tokens.",
-  "latest": "1.0.0",
+  "latest": "1.2.0",
   "libraryId": "react-component-library:BaseStyles",
   "slot": "foundation",
-  "tags": ["styles", "controls", "accessibility"]
+  "tags": [
+    "styles",
+    "controls",
+    "accessibility"
+  ],
+  "draft": "",
+  "designStyles": [
+    {
+      "styleId": "vrooli-default",
+      "affinity": "native",
+      "reason": "token-native operational-console baseline"
+    }
+  ]
 }

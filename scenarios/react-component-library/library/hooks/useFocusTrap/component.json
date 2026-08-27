@@ -16,11 +16,13 @@
   ],
   "displayName": "useFocusTrap",
   "kind": "overlay",
-  "latest": "1.0.0",
+  "latest": "1.1.0",
   "libraryId": "react-component-library:useFocusTrap",
   "tags": [
     "accessibility",
     "focus",
     "overlay"
-  ]
+  ],
+  "draft": "",
+  "deprecatedVersions": []
 }

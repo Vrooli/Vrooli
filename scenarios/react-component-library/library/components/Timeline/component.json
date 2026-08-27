@@ -6,7 +6,7 @@
   "deprecatedVersions": [
     "1.0.4"
   ],
-  "description": "",
+  "description": "A chronological surface that preserves event order and readable detail in dense histories.",
   "designStyles": [
     {
       "affinity": "native",

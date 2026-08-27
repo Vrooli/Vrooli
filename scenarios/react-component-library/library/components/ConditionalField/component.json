@@ -3,7 +3,7 @@
   "assetKind": "component",
   "catalogId": "forms.conditional-field",
   "dependencies": [],
-  "description": "",
+  "description": "A form field boundary driven by store values with explicit hide, disable, and reset behavior.",
   "designStyles": [
     {
       "affinity": "native",

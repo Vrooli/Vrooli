@@ -7,7 +7,7 @@
     "1.0.10",
     "1.0.12"
   ],
-  "description": "",
+  "description": "A runtime budget bar for mount and rerender cost.",
   "designStyles": [
     {
       "affinity": "native",

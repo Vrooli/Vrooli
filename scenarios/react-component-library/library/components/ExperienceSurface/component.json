@@ -1,11 +1,11 @@
 {
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
-  "catalogId": "react-component-library:ExperienceSurface",
   "category": "feedback",
   "deprecatedVersions": [
-    "1.0.0"
+    "1.0.0",
+    "1.0.1"
   ],
-  "description": "",
+  "description": "Semantic lifecycle boundary for independently meaningful UI regions.",
   "designStyles": [
     {
       "affinity": "native",
@@ -13,9 +13,9 @@
     }
   ],
   "displayName": "Experience Surface",
-  "kind": "surface",
   "draft": "",
-  "latest": "1.0.1",
+  "kind": "surface",
+  "latest": "1.0.2",
   "libraryId": "react-component-library:ExperienceSurface",
   "slot": "ui-pattern",
   "tags": [
@@ -23,6 +23,5 @@
     "lifecycle",
     "surface",
     "accessibility"
-  ],
-  "x-supplementalJustification": "Experience validation boundary retained as a supplemental runtime composition rather than a visual catalog asset."
+  ]
 }

@@ -11,7 +11,7 @@
   "deprecatedVersions": [
     "1.0.1"
   ],
-  "description": "",
+  "description": "A scoped command system that keeps registration, keyboard invocation, discovery, execution, history, and recovery in one coherent workflow.",
   "designStyles": [
     {
       "affinity": "native",

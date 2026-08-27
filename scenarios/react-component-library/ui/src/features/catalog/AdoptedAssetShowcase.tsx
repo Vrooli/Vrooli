@@ -2,9 +2,9 @@ import { useState } from "react";
 
 import { Button } from "../../components/Button";
 import { EmptyState } from "../../components/EmptyState";
-import { Drawer } from "@vrooli/react-component-library/Drawer/1.0.0";
+import { FullPageDrawer } from "@vrooli/react-component-library/FullPageDrawer/1";
 import { Icon } from "@vrooli/react-component-library/Icon/1.1.0";
-import { Pressable } from "@vrooli/react-component-library/Pressable/1.0.0";
+import { Pressable } from "@vrooli/react-component-library/Pressable/1/1.0.0";
 import { Text } from "@vrooli/react-component-library/Text/1.0.0";
 
 /**
@@ -71,16 +71,18 @@ export function AdoptedAssetShowcase() {
         />
       </div>
 
-      <Drawer open={drawerOpen} onClose={() => setDrawerOpen(false)}>
+      <FullPageDrawer
+        open={drawerOpen}
+        onClose={() => setDrawerOpen(false)}
+        title="Fixture drawer"
+        closeLabel="Close fixture drawer"
+      >
         <div>
-          <Text as="h3" textStyle="heading">
-            Fixture drawer
-          </Text>
           <Text as="p" textStyle="body" tone="muted" className="mt-space-3xs">
-            This overlay is rendered from the adopted Drawer contract.
+            This overlay is rendered from the adopted FullPageDrawer contract.
           </Text>
         </div>
-      </Drawer>
+      </FullPageDrawer>
     </section>
   );
 }

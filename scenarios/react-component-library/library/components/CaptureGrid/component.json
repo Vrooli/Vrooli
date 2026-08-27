@@ -6,7 +6,7 @@
   "deprecatedVersions": [
     "1.0.4"
   ],
-  "description": "",
+  "description": "A responsive matrix of declared viewport and theme evidence captures.",
   "designStyles": [
     {
       "affinity": "native",

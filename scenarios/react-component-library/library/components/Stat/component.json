@@ -7,7 +7,7 @@
     "1.0.1",
     "1.0.3"
   ],
-  "description": "",
+  "description": "The focused metric with value, label, comparison, trend, confidence, loading treatment, locale-aware formatting, and accessible context for what the number means.",
   "designStyles": [
     {
       "affinity": "native",

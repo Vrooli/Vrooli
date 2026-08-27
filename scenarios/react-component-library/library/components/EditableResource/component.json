@@ -24,7 +24,7 @@
     "1.0.3",
     "1.0.5"
   ],
-  "description": "",
+  "description": "The read-and-edit workflow coordinating optimistic changes, validation, autosave, dirty-state protection, conflict handling, cancellation, and success feedback in place.",
   "designStyles": [
     {
       "affinity": "native",

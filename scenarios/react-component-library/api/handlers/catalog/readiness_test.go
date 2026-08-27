@@ -11,7 +11,8 @@ import (
 
 func TestReadinessRunReadsLatestManifestAndFindings(t *testing.T) {
 	root := t.TempDir()
-	dir := filepath.Join(root, "scenarios", "react-component-library", "coverage", "latest")
+	t.Setenv("VROOLI_STORAGE_ROOT", root)
+	dir := filepath.Join(root, "state", "vrooli", "react-component-library", "gates", "latest")
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -33,7 +34,8 @@ func TestReadinessRunReadsLatestManifestAndFindings(t *testing.T) {
 
 func TestReadinessRunPrefersManifestIdentityOverStaleFindings(t *testing.T) {
 	root := t.TempDir()
-	dir := filepath.Join(root, "scenarios", "react-component-library", "coverage", "latest")
+	t.Setenv("VROOLI_STORAGE_ROOT", root)
+	dir := filepath.Join(root, "state", "vrooli", "react-component-library", "gates", "latest")
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		t.Fatal(err)
 	}

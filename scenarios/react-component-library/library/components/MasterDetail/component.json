@@ -16,7 +16,7 @@
     "1.0.3",
     "1.0.5"
   ],
-  "description": "",
+  "description": "The coordinated collection-and-detail layout preserving selection, scroll position, route state, and transition continuity, and drilling in rather than splitting on compact viewports.",
   "designStyles": [
     {
       "affinity": "native",

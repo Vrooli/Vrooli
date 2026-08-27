@@ -6,7 +6,7 @@ import { Alert } from "@vrooli/react-component-library/Alert/1.0.2";
 import { type CaptureCell } from "@vrooli/react-component-library/CaptureGrid/1.0.5";
 import { BoundedMeter } from "@vrooli/react-component-library/BoundedMeter/1.0.5";
 import { BulkActionBar } from "@vrooli/react-component-library/BulkActionBar/1.0.4";
-import { DataTable, type DataTableColumn } from "@vrooli/react-component-library/DataTable/1.3.6";
+import { DataTable, type DataTableColumn } from "@vrooli/react-component-library/DataTable/1";
 import { DiffViewer } from "@vrooli/react-component-library/DiffViewer/1.0.2";
 import { FindingList, type Finding } from "@vrooli/react-component-library/FindingList/1.0.9";
 import { Select } from "@vrooli/react-component-library/Select/1.1.1";

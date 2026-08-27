@@ -6,7 +6,7 @@
   "deprecatedVersions": [
     "1.0.2"
   ],
-  "description": "",
+  "description": "A semantic key-value surface for readable resource metadata across narrow and wide layouts.",
   "designStyles": [
     {
       "affinity": "native",

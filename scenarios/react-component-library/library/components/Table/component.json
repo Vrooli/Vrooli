@@ -3,7 +3,7 @@
   "assetKind": "component",
   "catalogId": "data-display.table",
   "dependencies": [],
-  "description": "",
+  "description": "A semantic tabular surface with honest headings and responsive overflow boundaries.",
   "designStyles": [
     {
       "affinity": "native",

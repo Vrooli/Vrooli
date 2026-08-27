@@ -1,0 +1,47 @@
+{
+  "claims": [
+    {
+      "id": "canvas-remains-primary",
+      "statement": "Inspector lifecycle states remain contained and never replace the primary canvas task.",
+      "tier": "manual",
+      "type": "manual-review"
+    }
+  ],
+  "component": {
+    "id": "inspector-layout",
+    "purpose": "Keep the primary canvas usable while a responsive inspector presents its independent lifecycle state.",
+    "title": "Inspector Layout"
+  },
+  "contract": {
+    "kind": "rcl-component-experience-contract",
+    "provenance": "react-component-library/InspectorLayout@1.1.2",
+    "schema": "scenario-experience-spec/v1"
+  },
+  "states": [
+    {
+      "description": "The inspector is ready beside the primary canvas.",
+      "example": "ready-inspector",
+      "id": "ready-inspector"
+    },
+    {
+      "description": "The inspector has no applicable detail.",
+      "example": "empty-inspector",
+      "id": "empty-inspector"
+    },
+    {
+      "description": "The inspector loads without replacing the canvas.",
+      "example": "loading-inspector",
+      "id": "loading-inspector"
+    },
+    {
+      "description": "The inspector is usable with supporting information unavailable.",
+      "example": "partial-inspector",
+      "id": "partial-inspector"
+    },
+    {
+      "description": "The inspector reports an error while preserving the canvas.",
+      "example": "error-inspector",
+      "id": "error-inspector"
+    }
+  ]
+}

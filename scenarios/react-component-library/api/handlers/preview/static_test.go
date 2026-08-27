@@ -3,6 +3,8 @@ package preview
 import (
 	"net/http/httptest"
 	"net/url"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -12,6 +14,38 @@ import (
 	internaldeps "react-component-library/internal/deps"
 	internalpreview "react-component-library/internal/preview"
 )
+
+func TestPreviewConsumerCSSReadsLiveTokenBridgeAndCompiledBundle(t *testing.T) {
+	repo := t.TempDir()
+	ui := filepath.Join(repo, "scenarios", "plain-consumer", "ui")
+	require.NoError(t, os.MkdirAll(filepath.Join(ui, "src"), 0o755))
+	require.NoError(t, os.MkdirAll(filepath.Join(ui, "dist", "assets"), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(ui, "src", "design-tokens.css"), []byte(":root{--color-surface:#fff}"), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(ui, "dist", "assets", "index.css"), []byte(".consumer-shell{display:grid}"), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(ui, "token-map.json"), []byte(`{"contrast_floor":4.5}`), 0o644))
+
+	css, err := previewConsumerCSS(repo, "plain-consumer")
+	require.NoError(t, err)
+	require.Contains(t, css, "--color-surface:#fff")
+	require.Contains(t, css, ".consumer-shell{display:grid}")
+	floor, err := previewConsumerContrastFloor(repo, "plain-consumer")
+	require.NoError(t, err)
+	require.Equal(t, "4.5", floor)
+}
+
+func TestPreviewConsumerCSSRejectsPathTraversalAndMissingBuild(t *testing.T) {
+	_, err := previewConsumerCSS(t.TempDir(), "../outside")
+	require.ErrorContains(t, err, "invalid consumer")
+
+	repo := t.TempDir()
+	ui := filepath.Join(repo, "scenarios", "not-built", "ui", "src")
+	require.NoError(t, os.MkdirAll(ui, 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(ui, "design-tokens.css"), []byte(":root{}"), 0o644))
+	_, err = previewConsumerCSS(repo, "not-built")
+	require.ErrorContains(t, err, "compiled CSS bundle is missing")
+	_, err = previewConsumerContrastFloor(repo, "../outside")
+	require.ErrorContains(t, err, "invalid consumer")
+}
 
 func TestPreviewStorySheetIDsIsBoundedAndDeduplicated(t *testing.T) {
 	req := httptest.NewRequest("GET", "/preview/x/harness.html?stories=default,loading,default,error,extra", nil)
@@ -27,6 +61,11 @@ func TestStorySheetPublishesTheSharedReadinessMarker(t *testing.T) {
 	require.Contains(t, storySheetJavaScript, `readiness.dataset.previewReadinessMarker`)
 	require.Contains(t, storySheetJavaScript, `readiness.dataset.previewReady`)
 	require.Contains(t, storySheetJavaScript, `setState("ready", "passed")`)
+}
+
+func TestHarnessPublishesConsumerContrastFloor(t *testing.T) {
+	html := renderHarnessHTML("component", internalpreview.Bundle{}, harnessStory{}, "", false, "", "plain-consumer", "light", "4.5")
+	require.Contains(t, html, `<meta name="consumer-contrast-floor" content="4.5" />`)
 }
 
 const testPreviewCSS = `:root { --color-primary: #2563eb; } .bg-app-primary { background: var(--color-primary); } .rounded-control { border-radius: var(--radius-control); }`
@@ -156,6 +195,23 @@ func TestRenderHarnessHTMLGalleryModeBoundsTheEmbeddedSurface(t *testing.T) {
 	require.Contains(t, html, `.rcl-preview-gallery #root`)
 	require.Contains(t, html, `.rcl-preview-gallery .rcl-preview-specimen`)
 	require.Contains(t, html, `height: 100%; overflow: auto;`)
+}
+
+func TestRenderHarnessHTMLAppliesExplicitThemeToDocument(t *testing.T) {
+	darkHTML := renderHarnessHTML("cmp-1", internalpreview.Bundle{
+		JS:         "export default function Demo() { return null }",
+		SourcePath: "components/Demo.tsx",
+		SHA256:     "sha",
+	}, harnessStory{}, testPreviewCSS, false, "", "web-console", "dark")
+	require.Contains(t, darkHTML, `<html lang="en" data-resolved-theme="dark" class="dark">`)
+
+	lightHTML := renderHarnessHTML("cmp-1", internalpreview.Bundle{
+		JS:         "export default function Demo() { return null }",
+		SourcePath: "components/Demo.tsx",
+		SHA256:     "sha",
+	}, harnessStory{}, testPreviewCSS, false, "", "web-console", "light")
+	require.Contains(t, lightHTML, `<html lang="en" data-resolved-theme="light">`)
+	require.NotContains(t, lightHTML, `data-resolved-theme="light" class="dark"`)
 }
 
 func TestRenderHarnessHTMLShowsImportMapDiagnostics(t *testing.T) {

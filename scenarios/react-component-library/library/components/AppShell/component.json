@@ -7,7 +7,7 @@
     "1.0.3",
     "1.0.5"
   ],
-  "description": "",
+  "description": "The top-level application frame coordinating navigation, content, overlay hosting, safe areas, responsive breakpoints, skip links, and persistent workspace regions.",
   "designStyles": [
     {
       "affinity": "native",

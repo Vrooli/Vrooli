@@ -2,7 +2,17 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "catalogId": "forms.textarea",
   "category": "forms",
-  "deprecatedVersions": [],
+  "dependencies": [
+    {
+      "kind": "requires",
+      "libraryId": "react-component-library:ClassMerge",
+      "version": "1.0.0"
+    }
+  ],
+  "deprecatedVersions": [
+    "1.0.0",
+    "1.0.1"
+  ],
   "description": "Token-bound multiline text input with mobile-safe sizing and accessible focus styling.",
   "designStyles": [
     {
@@ -19,20 +29,17 @@
     }
   ],
   "displayName": "Textarea",
-  "kind": "input",
   "draft": "",
-  "latest": "1.0.1",
+  "evictedVersions": [
+    "1.0.0",
+    "1.0.1"
+  ],
+  "kind": "input",
+  "latest": "1.0.2",
   "libraryId": "react-component-library:Textarea",
   "slot": "ui-primitive",
   "tags": [
     "form",
     "interactive"
-  ],
-  "dependencies": [
-    {
-      "kind": "requires",
-      "libraryId": "react-component-library:ClassMerge",
-      "version": "1.0.0"
-    }
   ]
 }

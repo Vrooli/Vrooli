@@ -1,0 +1,128 @@
+{
+  "bindings": {
+    "elements": {
+      "close": {
+        "testid": "overlays.responsive-dialog.close"
+      },
+      "grabber": {
+        "testid": "overlays.responsive-dialog.grabber"
+      },
+      "subheader": {
+        "testid": "overlays.responsive-dialog.subheader"
+      },
+      "surface": {
+        "testid": "overlays.responsive-dialog"
+      }
+    }
+  },
+  "claims": [
+    {
+      "elements": ["surface"],
+      "id": "tap-target-size",
+      "statement": "The ResponsiveDialog surface satisfies the tap-target-size contract claim.",
+      "tier": "machine",
+      "type": "tap-target-size"
+    },
+    {
+      "elements": ["surface"],
+      "id": "content-not-clipped",
+      "statement": "The ResponsiveDialog surface satisfies the content-not-clipped contract claim.",
+      "tier": "machine",
+      "type": "content-not-clipped"
+    },
+    {
+      "elements": ["surface"],
+      "id": "state-contrast",
+      "statement": "The ResponsiveDialog surface satisfies the state-contrast contract claim.",
+      "tier": "machine",
+      "type": "state-contrast"
+    },
+    {
+      "elements": ["surface"],
+      "id": "padding",
+      "statement": "The ResponsiveDialog surface satisfies the padding contract claim.",
+      "tier": "machine",
+      "type": "padding"
+    },
+    {
+      "elements": ["surface"],
+      "id": "keyboard-reachable",
+      "statement": "The ResponsiveDialog surface satisfies the keyboard-reachable contract claim.",
+      "tier": "machine",
+      "type": "keyboard-reachable"
+    },
+    {
+      "elements": ["surface"],
+      "id": "size-parity",
+      "statement": "The ResponsiveDialog surface satisfies the size-parity contract claim.",
+      "tier": "machine",
+      "type": "size-parity"
+    },
+    {
+      "elements": ["close"],
+      "id": "close-tap-target",
+      "statement": "The close button meets the comfortable tap target in both presentations.",
+      "tier": "machine",
+      "type": "tap-target-size"
+    }
+  ],
+  "component": {
+    "id": "overlays.responsive-dialog",
+    "purpose": "A bounded form or decision: a bottom sheet on small viewports, a centered card above the medium breakpoint.",
+    "title": "ResponsiveDialog"
+  },
+  "contract": {
+    "kind": "rcl-component-experience-contract",
+    "provenance": "react-component-library:ResponsiveDialog@1.1.3",
+    "schema": "scenario-experience-spec/v1"
+  },
+  "elements": [
+    {
+      "description": "The dialog panel.",
+      "id": "surface",
+      "role": "dialog"
+    },
+    {
+      "description": "The drag affordance on the sheet presentation.",
+      "id": "grabber",
+      "role": "button"
+    },
+    {
+      "description": "The header close button.",
+      "id": "close",
+      "role": "button"
+    },
+    {
+      "description": "The full-bleed band above the scroll region.",
+      "id": "subheader",
+      "role": "generic"
+    }
+  ],
+  "states": [
+    {
+      "description": "The small-viewport sheet.",
+      "example": "sheet",
+      "id": "sheet"
+    },
+    {
+      "description": "The large centered card.",
+      "example": "large-card",
+      "id": "large-card"
+    },
+    {
+      "description": "Unpadded content beneath a full-bleed subheader.",
+      "example": "flush-content",
+      "id": "flush-content"
+    },
+    {
+      "description": "A footer holding the committing action.",
+      "example": "with-footer",
+      "id": "with-footer"
+    },
+    {
+      "description": "Uncontrolled input preserved across the presentation change.",
+      "example": "preserved-input",
+      "id": "preserved-input"
+    }
+  ]
+}

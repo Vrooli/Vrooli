@@ -7,7 +7,7 @@
     "1.0.3",
     "1.0.5"
   ],
-  "description": "",
+  "description": "The navigation and dismissal guard detecting meaningful unsaved changes and offering save, discard, continue editing, or background preservation before the work is lost.",
   "designStyles": [
     {
       "affinity": "native",

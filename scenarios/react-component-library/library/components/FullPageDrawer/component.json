@@ -1,0 +1,30 @@
+{
+  "catalogId": "overlays.full-page-drawer",
+  "deprecatedVersions": [],
+  "description": "Shared overlay presentation for FullPageDrawer.",
+  "designStyles": [
+    {
+      "affinity": "native",
+      "reason": "token-native operational-console baseline",
+      "styleId": "vrooli-default"
+    }
+  ],
+  "displayName": "FullPageDrawer",
+  "draft": "",
+  "entry": "FullPageDrawer.tsx",
+  "evictedVersions": [
+    "1.0.2",
+    "1.0.1",
+    "1.0.0",
+    "0.1.0"
+  ],
+  "kind": "control",
+  "latest": "1.1.5",
+  "libraryId": "react-component-library:FullPageDrawer",
+  "tags": [
+    "overlay",
+    "accessibility",
+    "responsive",
+    "token-bound"
+  ]
+}

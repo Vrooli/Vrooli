@@ -13,7 +13,7 @@
     "1.0.2",
     "1.0.4"
   ],
-  "description": "",
+  "description": "The single-selection collection with roving focus, optional card-style options carrying descriptions, disabled choices, responsive layout, and animated selection.",
   "designStyles": [
     {
       "affinity": "native",

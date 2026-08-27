@@ -6,7 +6,7 @@
   "deprecatedVersions": [
     "1.0.1"
   ],
-  "description": "",
+  "description": "A safe, typed file summary with status, metadata, preview fallback, and keyboard-operable actions.",
   "designStyles": [
     {
       "affinity": "native",

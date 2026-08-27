@@ -1,0 +1,262 @@
+{
+  "metadata": {
+    "name": "responsive-dialog-web-console-mobile",
+    "description": "Renders ResponsiveDialog@1.0.5 inside web-console's current compiled CSS and token contract at 390x844; emits semantic-tree, computed-style, token, contrast, focus, portal, target, viewport, trace, and light/dark screenshot evidence.",
+    "requirement": "OVERLAY-COMPOSITION",
+    "version": "2",
+    "labels": {
+      "reset": "none",
+      "surface": "overlay-composition",
+      "asset": "ResponsiveDialog",
+      "consumer": "web-console",
+      "viewport": "mobile",
+      "generated_by": "tools/generate-overlay-composition-workflows.mjs",
+      "requirements_json": "[\"OVERLAY-COMPOSITION\",\"TC-004\",\"TC-006\"]"
+    },
+    "execution_mode": "EXECUTION_MODE_OBSERVER"
+  },
+  "settings": {
+    "viewport_width": 390,
+    "viewport_height": 844
+  },
+  "nodes": [
+    {
+      "id": "navigate",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "react-component-library",
+          "scenario_path": "/preview/react-component-library:ResponsiveDialog/harness.html?version=1.0.5&story=mobile-open&consumer=web-console&theme=light",
+          "wait_until": "NAVIGATE_WAIT_EVENT_DOMCONTENTLOADED",
+          "timeout_ms": 30000
+        },
+        "metadata": {
+          "label": "Open ResponsiveDialog in web-console mobile context"
+        }
+      }
+    },
+    {
+      "id": "wait-surface",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "[data-rcl-responsive-dialog-panel], [role=\"dialog\"]",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        },
+        "metadata": {
+          "label": "Wait for the overlay surface"
+        }
+      },
+      "execution_settings": {
+        "wait_after_ms": 300
+      }
+    },
+    {
+      "id": "prime-keyboard-focus",
+      "action": {
+        "type": "ACTION_TYPE_KEYBOARD",
+        "keyboard": {
+          "keys": [
+            "Tab"
+          ]
+        },
+        "metadata": {
+          "label": "Enter keyboard modality and expose the focus-visible treatment"
+        }
+      }
+    },
+    {
+      "id": "measure-light",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "(() => {\n    const surface = document.querySelector(\"[data-rcl-responsive-dialog-panel], [role=\\\"dialog\\\"]\");\n    if (!surface) return { ok: false, reason: \"surface missing\" };\n    const rootStyle = getComputedStyle(document.documentElement);\n    const style = getComputedStyle(surface);\n    const rect = surface.getBoundingClientRect();\n    const visible = style.display !== \"none\" && style.visibility !== \"hidden\" && rect.width > 0 && rect.height > 0;\n    const interactiveSelector = 'button,[href],input,select,textarea,[role=\"button\"],[tabindex]:not([tabindex=\"-1\"])';\n    const controls = [...surface.querySelectorAll(interactiveSelector)].filter((element) => {\n      const bounds = element.getBoundingClientRect();\n      const computed = getComputedStyle(element);\n      return bounds.width > 0 && bounds.height > 0 && computed.display !== \"none\" && computed.visibility !== \"hidden\";\n    });\n    const tapMin = parseFloat(rootStyle.getPropertyValue(\"--tap-target-min\")) || 44;\n    const undersized = controls.flatMap((element) => {\n      const bounds = element.getBoundingClientRect();\n      return bounds.width < tapMin || bounds.height < tapMin\n        ? [{ tag: element.tagName.toLowerCase(), name: element.getAttribute(\"aria-label\") || element.textContent?.trim().slice(0, 60) || \"\", width: bounds.width, height: bounds.height }]\n        : [];\n    });\n    const labelledBy = (surface.getAttribute(\"aria-labelledby\") || \"\").split(/\\s+/).filter(Boolean).map((id) => document.getElementById(id)?.textContent?.trim() || \"\").filter(Boolean).join(\" \");\n    const accessibleName = surface.getAttribute(\"aria-label\") || labelledBy || \"\";\n    const expectedRole = \"dialog\";\n    const actualRole = surface.getAttribute(\"role\") || \"\";\n    const parseColor = (value) => {\n      const match = value.match(/[\\d.]+/g);\n      if (!match || match.length < 3) return null;\n      return { r: Number(match[0]), g: Number(match[1]), b: Number(match[2]), a: match[3] === undefined ? 1 : Number(match[3]) };\n    };\n    const opaque = (foreground, background) => foreground.a >= 1 ? foreground : ({\n      r: foreground.r * foreground.a + background.r * (1 - foreground.a),\n      g: foreground.g * foreground.a + background.g * (1 - foreground.a),\n      b: foreground.b * foreground.a + background.b * (1 - foreground.a),\n      a: 1,\n    });\n    const luminance = (color) => {\n      const channel = (value) => { const normalized = value / 255; return normalized <= 0.04045 ? normalized / 12.92 : ((normalized + 0.055) / 1.055) ** 2.4; };\n      return 0.2126 * channel(color.r) + 0.7152 * channel(color.g) + 0.0722 * channel(color.b);\n    };\n    const pageBackground = parseColor(getComputedStyle(document.body).backgroundColor) || { r: 255, g: 255, b: 255, a: 1 };\n    const background = parseColor(style.backgroundColor);\n    const foreground = parseColor(style.color);\n    const resolvedBackground = background ? opaque(background, pageBackground) : null;\n    const resolvedForeground = foreground && resolvedBackground ? opaque(foreground, resolvedBackground) : null;\n    const contrastRatio = resolvedBackground && resolvedForeground\n      ? ((Math.max(luminance(resolvedBackground), luminance(resolvedForeground)) + 0.05) / (Math.min(luminance(resolvedBackground), luminance(resolvedForeground)) + 0.05))\n      : 0;\n    const contrastFloor = Number(document.querySelector('meta[name=\"consumer-contrast-floor\"]')?.content || 0);\n    const active = document.activeElement;\n    const activeStyle = active instanceof Element ? getComputedStyle(active) : null;\n    const focusIndicator = !!activeStyle && surface.contains(active) && (\n      (activeStyle.outlineStyle !== \"none\" && parseFloat(activeStyle.outlineWidth) > 0) ||\n      (activeStyle.boxShadow !== \"none\" && activeStyle.boxShadow !== \"\")\n    );\n    const tokenNames = [\"--color-foreground\", \"--color-surface\", \"--color-surface-raised\", \"--tap-target-min\", \"--color-focus\"];\n    const tokenValues = Object.fromEntries(tokenNames.map((name) => [name, rootStyle.getPropertyValue(name).trim()]));\n    const tokensResolved = Object.values(tokenValues).every(Boolean);\n    const styleResolved = style.backgroundColor !== \"rgba(0, 0, 0, 0)\" && style.backgroundColor !== \"transparent\" && style.color !== \"rgba(0, 0, 0, 0)\";\n    const portalBoundary = !document.querySelector(\"#root\")?.contains(surface);\n    const semanticTree = [surface, ...surface.querySelectorAll(\"[role],button,input,select,textarea,a[href]\")].slice(0, 32).map((element) => ({\n      role: element.getAttribute(\"role\") || ({ BUTTON: \"button\", INPUT: \"textbox\", SELECT: \"combobox\", TEXTAREA: \"textbox\", A: \"link\" }[element.tagName] || \"generic\"),\n      name: element.getAttribute(\"aria-label\") || (element.getAttribute(\"aria-labelledby\") || \"\").split(/\\s+/).filter(Boolean).map((id) => document.getElementById(id)?.textContent?.trim() || \"\").filter(Boolean).join(\" \") || element.textContent?.trim().replace(/\\s+/g, \" \").slice(0, 100) || \"\",\n    }));\n    const presentationHost = surface.closest(\"[data-presentation]\") || surface.closest(\"[data-responsive]\") || surface;\n    const presentation = presentationHost.getAttribute(\"data-presentation\") || presentationHost.getAttribute(\"data-responsive\") || \"fixed\";\n    const ok = visible && actualRole === expectedRole && accessibleName.length > 0 && undersized.length === 0 && tokensResolved && styleResolved && portalBoundary && contrastFloor > 0 && contrastRatio >= contrastFloor && focusIndicator;\n    document.body.dataset.compositionLight = ok ? \"yes\" : \"no\";\n    document.body.dataset.lightSurface = style.backgroundColor;\n    document.body.dataset.lightForeground = style.color;\n    return {\n      ok, asset: \"ResponsiveDialog\", consumer: \"web-console\", viewport: [innerWidth, innerHeight], expectedViewport: [390, 844],\n      visible, actualRole, expectedRole, accessibleName, controls: controls.length, undersized, tapMin, contrastRatio, contrastFloor,\n      focusIndicator, activeName: active instanceof Element ? active.getAttribute(\"aria-label\") || active.textContent?.trim().slice(0, 80) || active.tagName : \"\",\n      tokenValues, tokensResolved, styleResolved, portalBoundary, presentation, semanticTree,\n      surfaceStyle: { color: style.color, backgroundColor: style.backgroundColor, position: style.position, zIndex: style.zIndex, borderRadius: style.borderRadius },\n    };\n  })()",
+          "store_result": "lightEvidence"
+        },
+        "metadata": {
+          "label": "Emit light-theme semantic, style, token, contrast, focus, portal, target, and viewport evidence"
+        }
+      }
+    },
+    {
+      "id": "capture-light",
+      "action": {
+        "type": "ACTION_TYPE_SCREENSHOT",
+        "screenshot": {
+          "full_page": true
+        },
+        "metadata": {
+          "label": "Capture light-theme composition evidence"
+        }
+      }
+    },
+    {
+      "id": "focus-last-control",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "(() => { const surface = document.querySelector(\"[data-rcl-responsive-dialog-panel], [role=\\\"dialog\\\"]\"); const controls = [...(surface?.querySelectorAll('button,[href],input,select,textarea,[role=\"button\"],[tabindex]:not([tabindex=\"-1\"])') || [])].filter((element) => { const bounds = element.getBoundingClientRect(); const style = getComputedStyle(element); return bounds.width > 0 && bounds.height > 0 && style.display !== \"none\" && style.visibility !== \"hidden\"; }); controls.at(-1)?.focus(); return { count: controls.length, focused: document.activeElement?.getAttribute(\"aria-label\") || document.activeElement?.textContent?.trim().slice(0, 80) || \"\" }; })()",
+          "store_result": "focusCycleStart"
+        },
+        "metadata": {
+          "label": "Focus the final control before cycling past the surface boundary"
+        }
+      }
+    },
+    {
+      "id": "cycle-focus",
+      "action": {
+        "type": "ACTION_TYPE_KEYBOARD",
+        "keyboard": {
+          "keys": [
+            "Tab"
+          ]
+        },
+        "metadata": {
+          "label": "Cycle focus past the final control"
+        }
+      }
+    },
+    {
+      "id": "measure-focus-containment",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "(() => { const surface = document.querySelector(\"[data-rcl-responsive-dialog-panel], [role=\\\"dialog\\\"]\"); const contained = !!surface?.contains(document.activeElement); document.body.dataset.focusContained = contained ? \"yes\" : \"no\"; return { contained, activeRole: document.activeElement?.getAttribute(\"role\") || document.activeElement?.tagName || \"\", activeName: document.activeElement?.getAttribute(\"aria-label\") || document.activeElement?.textContent?.trim().slice(0, 80) || \"\" }; })()",
+          "store_result": "focusContainmentEvidence"
+        },
+        "metadata": {
+          "label": "Emit keyboard focus-containment evidence"
+        }
+      }
+    },
+    {
+      "id": "assert-focus-containment",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "body[data-focus-contained=\"yes\"]",
+          "mode": "ASSERTION_MODE_EXISTS",
+          "timeout_ms": 5000,
+          "failure_message": "ResponsiveDialog allowed keyboard focus to escape its open surface in web-console at 390x844."
+        },
+        "metadata": {
+          "label": "Keyboard focus remains in the open surface"
+        }
+      }
+    },
+    {
+      "id": "measure-dark",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "(() => {\n    document.documentElement.classList.add(\"dark\");\n    document.documentElement.dataset.resolvedTheme = \"dark\";\n    document.documentElement.style.colorScheme = \"dark\";\n    const surface = document.querySelector(\"[data-rcl-responsive-dialog-panel], [role=\\\"dialog\\\"]\");\n    if (!surface) return { ok: false, reason: \"surface missing\" };\n    const style = getComputedStyle(surface);\n    const lightBackground = document.body.dataset.lightSurface || \"\";\n    const lightForeground = document.body.dataset.lightForeground || \"\";\n    const darkBackground = style.backgroundColor;\n    const darkForeground = style.color;\n    const changed = lightBackground !== darkBackground || lightForeground !== darkForeground;\n    const ok = document.body.dataset.compositionLight === \"yes\" && changed;\n    document.body.dataset.compositionValid = ok ? \"yes\" : \"no\";\n    return { ok, changed, lightBackground, darkBackground, lightForeground, darkForeground, viewport: [innerWidth, innerHeight] };\n  })()",
+          "store_result": "darkEvidence"
+        },
+        "metadata": {
+          "label": "Switch theme and emit dark-parity evidence"
+        }
+      },
+      "execution_settings": {
+        "wait_after_ms": 150
+      }
+    },
+    {
+      "id": "assert-composition",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "body[data-composition-valid=\"yes\"]",
+          "mode": "ASSERTION_MODE_EXISTS",
+          "timeout_ms": 5000,
+          "failure_message": "ResponsiveDialog failed semantic, styling, token, contrast, focus, portal, target, viewport, or theme checks for web-console at 390x844."
+        },
+        "metadata": {
+          "label": "Composition contract holds"
+        }
+      }
+    },
+    {
+      "id": "capture-dark",
+      "action": {
+        "type": "ACTION_TYPE_SCREENSHOT",
+        "screenshot": {
+          "full_page": true
+        },
+        "metadata": {
+          "label": "Capture dark-theme composition evidence"
+        }
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "source": "navigate",
+      "target": "wait-surface",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e2",
+      "source": "wait-surface",
+      "target": "prime-keyboard-focus",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e3",
+      "source": "prime-keyboard-focus",
+      "target": "measure-light",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e4",
+      "source": "measure-light",
+      "target": "capture-light",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e5",
+      "source": "capture-light",
+      "target": "focus-last-control",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e6",
+      "source": "focus-last-control",
+      "target": "cycle-focus",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e7",
+      "source": "cycle-focus",
+      "target": "measure-focus-containment",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e8",
+      "source": "measure-focus-containment",
+      "target": "assert-focus-containment",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e9",
+      "source": "assert-focus-containment",
+      "target": "measure-dark",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e10",
+      "source": "measure-dark",
+      "target": "assert-composition",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e11",
+      "source": "assert-composition",
+      "target": "capture-dark",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    }
+  ]
+}

@@ -16,7 +16,7 @@
     "1.0.1",
     "1.0.3"
   ],
-  "description": "",
+  "description": "The direct-manipulation primitive with pointer capture, keyboard dragging, constraints, drag handles, cancellation, velocity reporting, position announcements, and overlay support.",
   "designStyles": [
     {
       "affinity": "native",

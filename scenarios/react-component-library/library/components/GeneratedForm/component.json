@@ -43,7 +43,7 @@
   "deprecatedVersions": [
     "1.0.1"
   ],
-  "description": "",
+  "description": "A schema-driven form that compiles sections, field relationships, validation, nested objects, arrays, and derived values into one coherent runtime.",
   "designStyles": [
     {
       "affinity": "native",

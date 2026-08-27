@@ -2,8 +2,8 @@ import { type ReactNode, useCallback, useEffect, useRef, useState } from "react"
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
 
 import { AppShell as LibraryAppShell } from "@vrooli/react-component-library/AppShell/1.0.6";
-import { SidebarShell } from "@vrooli/react-component-library/SidebarShell/2.0.0";
-import { BottomNav } from "@vrooli/react-component-library/BottomNav/1.3.0";
+import { SidebarShell } from "@vrooli/react-component-library/SidebarShell/2";
+import { BottomNav } from "@vrooli/react-component-library/BottomNav/1";
 import { WorkspaceHeader } from "../WorkspaceHeader";
 import { useIsMobile } from "../../hooks/useMediaQuery";
 import { useTranslation } from "../../i18n";

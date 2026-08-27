@@ -7,7 +7,7 @@
   "deprecatedVersions": [
     "1.0.1"
   ],
-  "description": "",
+  "description": "A responsive action row for form submission, reset, cancel, and pending states.",
   "designStyles": [
     {
       "affinity": "native",

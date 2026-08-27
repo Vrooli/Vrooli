@@ -4,8 +4,11 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -19,6 +22,119 @@ func liveRoot(t *testing.T) string {
 		t.Fatal(err)
 	}
 	return filepath.Clean(filepath.Join(wd, "..", "..", "..", "..", ".."))
+}
+
+func TestValidateNoUtilityClassesDistinguishesClassBearingSource(t *testing.T) {
+	tests := []struct {
+		name       string
+		source     string
+		wantDefect bool
+	}{
+		{name: "token-bound", source: `export const X = ({ className }) => <div className={className} />`},
+		{name: "responsive", source: `export const X = () => <div className="md:inset-x-8" />`, wantDefect: true},
+		{name: "foreign-palette", source: `export const X = () => <div className="bg-wc-backdrop" />`, wantDefect: true},
+		{name: "custom-utility", source: `export const X = () => <div className="touch-target" />`, wantDefect: true},
+		{name: "stylesheet-literal", source: "const styles = `[data-x] .bg-wc-backdrop { display: grid; }`\nexport const X = ({ className }) => <div className={className} />"},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			root := t.TempDir()
+			path := filepath.Join(root, "scenarios", "react-component-library", "library", "components", "X", "versions", "1.0.0", "X.tsx")
+			if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(path, []byte(test.source), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			result, err := ValidateNoUtilityClasses(root)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got := len(result.Findings) > 0; got != test.wantDefect {
+				t.Fatalf("findings = %+v, want defect %v", result.Findings, test.wantDefect)
+			}
+		})
+	}
+}
+
+func TestLiveUtilityClassAllowlistIsExactAndShrinkOnly(t *testing.T) {
+	root := liveRoot(t)
+	result, err := ValidateNoUtilityClasses(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(result.Findings) != 0 {
+		t.Fatalf("unallowlisted or stale utility debt: %+v", result.Findings)
+	}
+	data, err := os.ReadFile(filepath.Join(root, "scenarios", "react-component-library", "library", "utility-class-allowlist.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var allowlist utilityClassAllowance
+	if err := json.Unmarshal(data, &allowlist); err != nil {
+		t.Fatal(err)
+	}
+	maxData, err := os.ReadFile(filepath.Join(root, "scenarios", "react-component-library", "library", "utility-class-allowlist.max"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	maximum, err := strconv.Atoi(strings.TrimSpace(string(maxData)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(allowlist.Entries) > maximum {
+		t.Fatalf("utility allowlist grew to %d entries above shrink-only maximum %d", len(allowlist.Entries), maximum)
+	}
+	if len(result.InformationalFindings) != len(allowlist.Entries) {
+		t.Fatalf("observed allowlisted debt = %d, entries = %d", len(result.InformationalFindings), len(allowlist.Entries))
+	}
+}
+
+func TestValidateConsumerPinsNamesEveryDefectAndConsumer(t *testing.T) {
+	root := t.TempDir()
+	assetRoot := filepath.Join(root, "scenarios", "react-component-library", "library", "components", "Fixture")
+	versionRoot := filepath.Join(assetRoot, "versions", "1.0.0")
+	if err := os.MkdirAll(versionRoot, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	manifest := `{"libraryId":"react-component-library:Fixture","catalogId":"calibration.fixture","latest":"2.0.0","deprecatedVersions":["1.0.0"]}`
+	if err := os.WriteFile(filepath.Join(assetRoot, "component.json"), []byte(manifest), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(versionRoot, "Fixture.tsx"), []byte(`export const Fixture = () => <div className="md:inset-x-8" />`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	for _, scenario := range []string{"alpha", "beta"} {
+		path := filepath.Join(root, "scenarios", scenario, "ui", "src", "App.tsx")
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		source := `import { Fixture } from "@vrooli/react-component-library/Fixture/1.0.0"; export const App = Fixture;`
+		if err := os.WriteFile(path, []byte(source), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	missingPath := filepath.Join(root, "scenarios", "alpha", "ui", "src", "Missing.tsx")
+	if err := os.WriteFile(missingPath, []byte(`import "@vrooli/react-component-library/Missing/9.9.9";`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	result, err := ValidateConsumerPins(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	codes := map[string]bool{}
+	for _, finding := range result.Findings {
+		codes[finding.Code] = true
+		if strings.Contains(finding.Message, "Fixture@1.0.0") && (!strings.Contains(finding.Message, "alpha") || !strings.Contains(finding.Message, "beta")) {
+			t.Fatalf("grouped finding omitted a consumer: %+v", finding)
+		}
+	}
+	for _, code := range []string{"catalog.consumer-pin.deprecated", "catalog.consumer-pin.stale-major", "catalog.consumer-pin.utility-class", "catalog.consumer-pin.missing"} {
+		if !codes[code] {
+			t.Fatalf("missing %s in %+v", code, result.Findings)
+		}
+	}
 }
 
 func TestValidateSelectorCoverageLiveCorpusIsMeasuredAcrossExportedVersions(t *testing.T) {
@@ -103,6 +219,52 @@ func TestValidateManifestIdentityRejectsOmittedCatalogID(t *testing.T) {
 	}
 }
 
+func TestValidateManifestMetadataLiveCorpus(t *testing.T) {
+	root, err := filepath.Abs("../../../../../")
+	if err != nil {
+		t.Fatal(err)
+	}
+	result, err := ValidateManifestMetadata(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(result.Findings) != 0 {
+		t.Fatalf("manifest metadata findings = %+v", result.Findings)
+	}
+}
+
+func TestValidateOverlaySurfaceCompositionAcceptsSharedCoreAndReasonedOptOut(t *testing.T) {
+	root := t.TempDir()
+	base := filepath.Join(root, "scenarios", "react-component-library", "library", "components")
+	fixtures := []struct {
+		name     string
+		manifest string
+		source   string
+	}{
+		{name: "Composed", manifest: `{"libraryId":"react-component-library:Composed","catalogId":"overlays.composed","category":"overlays","latest":"1.0.0"}`, source: `import { useOverlaySurface } from "x"; export function Composed(){ useOverlaySurface({open:true}); return <section role="dialog" /> }`},
+		{name: "OptOut", manifest: `{"libraryId":"react-component-library:OptOut","catalogId":"overlays.opt-out","category":"overlays","latest":"1.0.0","overlaySurfaceOptOutReason":"Static semantics-only example; it never opens or dismisses."}`, source: `export function OptOut(){ return <section role="dialog" /> }`},
+	}
+	for _, fixture := range fixtures {
+		dir := filepath.Join(base, fixture.name, "versions", "1.0.0")
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(base, fixture.name, "component.json"), []byte(fixture.manifest), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(dir, fixture.name+".tsx"), []byte(fixture.source), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	result, err := ValidateOverlaySurfaceComposition(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(result.Findings) != 0 {
+		t.Fatalf("overlay composition findings = %+v", result.Findings)
+	}
+}
+
 func TestLibraryManifestIdentitiesResolvesVersionedSourceManifest(t *testing.T) {
 	root := t.TempDir()
 	assetDir := filepath.Join(root, "scenarios", "react-component-library", "library", "components", "Fixture")
@@ -172,6 +334,46 @@ func TestReleasedVersionImmutableRejectsSyntheticDrift(t *testing.T) {
 	}
 	if result.Findings[0].Code != "catalog.released_version_immutable" {
 		t.Fatalf("finding = %+v", result.Findings[0])
+	}
+}
+
+func TestReleasedVersionImmutableRejectsEmptyIndexWithoutEvidence(t *testing.T) {
+	root := t.TempDir()
+	result, err := ValidateReleasedVersionImmutable(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Inspected != 0 || len(result.RunnerError) == 0 {
+		t.Fatalf("result = %+v, want explicit zero-evidence runner error", result)
+	}
+}
+
+func TestReleasedVersionImmutableFallsBackToHashLedgerAndDetectsOneByteMutation(t *testing.T) {
+	root := t.TempDir()
+	libraryRoot := filepath.Join(root, "scenarios", "react-component-library", "library")
+	sourcePath := filepath.Join(libraryRoot, "components", "Fixture", "versions", "1.0.0", "Fixture.tsx")
+	if err := os.MkdirAll(filepath.Dir(sourcePath), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	released := []byte("export const Fixture = () => null;\n")
+	if err := os.WriteFile(sourcePath, released, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	digest := sha256.Sum256(released)
+	ledger := fmt.Sprintf(`{"schemaVersion":1,"entries":[{"path":"components/Fixture/versions/1.0.0/Fixture.tsx","sha256":"%s"}]}`, hex.EncodeToString(digest[:]))
+	if err := os.WriteFile(filepath.Join(libraryRoot, "released-version-hashes.json"), []byte(ledger), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	clean, err := ValidateReleasedVersionImmutable(root)
+	if err != nil || clean.Inspected != 1 || len(clean.Findings) != 0 {
+		t.Fatalf("clean fallback = %+v, err=%v", clean, err)
+	}
+	if err := os.WriteFile(sourcePath, append(released, ' '), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	drifted, err := ValidateReleasedVersionImmutable(root)
+	if err != nil || len(drifted.Findings) != 1 {
+		t.Fatalf("drifted fallback = %+v, err=%v", drifted, err)
 	}
 }
 

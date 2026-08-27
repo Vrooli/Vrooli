@@ -7,7 +7,32 @@ The library has two related but distinct contracts:
 * Raw CSS custom properties use the library's single retained vocabulary:
   `--color-*`, `--space-*`, `--radius-*`, `--text-*`, `--elev-*`, `--dur-*`,
   `--ease-*`, and the other published ramp families. Library source must not
-  reference the retired `--app-*` CSS-property prefix.
+  reference the retired `--app-*` CSS-property prefix, and it must not adopt a
+  consumer's namespace: `--wc-kb-height` survives in the ramp only because the
+  deprecated `DrawerShell` delegate still reads it, and it is the reason the
+  host viewport contract below exists under a library-owned name.
+
+## Host viewport contract
+
+Six properties are not design tokens but facts a host reports about the
+viewport it is actually giving the library:
+
+| Property | Meaning |
+| --- | --- |
+| `--rcl-viewport-height` | usable height of the visible viewport |
+| `--rcl-safe-top` | top inset that content must clear |
+| `--rcl-safe-right` | right inset that content must clear |
+| `--rcl-safe-bottom` | bottom inset that content must clear |
+| `--rcl-safe-left` | left inset that content must clear |
+| `--rcl-keyboard-inset` | height the software keyboard currently occupies |
+
+`BaseStyles` publishes defaults equal to the raw environment (`env(safe-area-inset-*)`
+and `100dvh`), so a host that says nothing keeps today's behavior. A host that
+manages its own scrolling, keyboard handling, or chrome assigns them on the
+root element — `web-console` does this from `useAppViewport()` — and every
+library surface then resolves the viewport the way that application already
+has. Library source reads only these names; a surface that calls `env()` or
+`100dvh` directly is describing a viewport nobody promised it.
 
 An adopted file must not silently retain a token class its Tailwind config
 cannot emit, nor a raw CSS property the target scenario does not declare.

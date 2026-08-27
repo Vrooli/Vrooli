@@ -15,7 +15,7 @@
   "deprecatedVersions": [
     "2.2.0"
   ],
-  "description": "",
+  "description": "Token-bound accessible action button with variant and size styling.",
   "designStyles": [
     {
       "affinity": "native",

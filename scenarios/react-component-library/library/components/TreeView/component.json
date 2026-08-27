@@ -7,7 +7,7 @@
     "1.0.3",
     "1.0.5"
   ],
-  "description": "",
+  "description": "The hierarchical collection with lazily loaded nodes, expansion, selection, keyboard traversal, drag reordering, filtering, virtualization, and accessible tree semantics.",
   "designStyles": [
     {
       "affinity": "native",

@@ -10,7 +10,7 @@
   "deprecatedVersions": [
     "2.0.0"
   ],
-  "description": "",
+  "description": "Accessible icon-only action control.",
   "designStyles": [
     {
       "affinity": "native",

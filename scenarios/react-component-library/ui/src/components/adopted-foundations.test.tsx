@@ -1,12 +1,13 @@
 import { readFileSync, readdirSync } from "node:fs";
 import { dirname, join, relative, sep } from "node:path";
 import { fileURLToPath } from "node:url";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { describe, expect, it } from "vitest";
-import { screen } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
-import { Drawer } from "./Drawer";
+import { FullPageDrawer } from "@vrooli/react-component-library/FullPageDrawer/1";
+import { useFocusTrap } from "@vrooli/react-component-library/useFocusTrap/1";
 import { EmptyState } from "./EmptyState";
 import { Icon } from "./Icon";
 import { Pressable } from "./Pressable";
@@ -29,16 +30,47 @@ function FoundationFixture() {
       <button type="button" onClick={() => setOpen(true)}>
         Open fixture drawer
       </button>
-      <Drawer open={open} onClose={() => setOpen(false)}>
+      <FullPageDrawer
+        open={open}
+        onClose={() => setOpen(false)}
+        title="Drawer fixture"
+        closeLabel="Close drawer"
+      >
         <Text as="h2" textStyle="title">
           Drawer fixture
         </Text>
-      </Drawer>
+      </FullPageDrawer>
     </>
   );
 }
 
+function DelayedFocusTrapFixture() {
+  const panelRef = useRef<HTMLDivElement>(null);
+  const [portalMounted, setPortalMounted] = useState(false);
+  useFocusTrap(true, panelRef);
+  useEffect(() => setPortalMounted(true), []);
+
+  return portalMounted ? (
+    <div ref={panelRef} role="dialog" aria-label="Delayed portal">
+      <button type="button">First delayed action</button>
+      <button type="button">Last delayed action</button>
+    </div>
+  ) : null;
+}
+
 describe("adopted foundation entry points", () => {
+  it("contains focus when a portal assigns the surface ref after the trap effect starts", async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<DelayedFocusTrapFixture />);
+
+    const first = await screen.findByRole("button", { name: "First delayed action" });
+    const last = screen.getByRole("button", { name: "Last delayed action" });
+    last.focus();
+    await user.tab();
+
+    expect(first).toHaveFocus();
+  });
+
   it("expose the shared semantics and state transitions", async () => {
     const user = userEvent.setup();
     renderWithProviders(<FoundationFixture />);
@@ -57,15 +89,19 @@ describe("adopted foundation entry points", () => {
     );
 
     await user.click(screen.getByRole("button", { name: "Open fixture drawer" }));
-    expect(screen.getByRole("dialog", { name: "Drawer" })).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "Close" }));
-    expect(screen.queryByRole("dialog", { name: "Drawer" })).not.toBeInTheDocument();
+    expect(screen.getByRole("dialog", { name: "Drawer fixture" })).toBeInTheDocument();
+    await user.click(screen.getByTestId("overlays.full-page-drawer.close"));
+    await waitFor(() =>
+      expect(screen.queryByRole("dialog", { name: "Drawer fixture" })).not.toBeInTheDocument(),
+    );
   });
 
-  it("keeps the drawer fallback content available for minimal consumers", () => {
+  it("keeps the drawer content available for minimal consumers", () => {
     renderWithProviders(
       <>
-        <Drawer open side="left" presentation="non-modal" />
+        <FullPageDrawer open title="Drawer" closeLabel="Close drawer">
+          Drawer content
+        </FullPageDrawer>
         <Text style={{ letterSpacing: "0.02em" }} textStyle="caption" truncate balance numeric>
           Styled metadata
         </Text>
@@ -82,7 +118,10 @@ describe("adopted foundation entry points", () => {
     expect(screen.getByRole("dialog", { name: "Drawer" })).toHaveTextContent("Drawer content");
     expect(screen.getByText("Styled metadata")).toHaveAttribute("data-text-truncate", "true");
     expect(screen.getByText("String style")).toHaveAttribute("data-text-style", "body");
-    expect(screen.getByRole("button", { name: "Create" })).toBeInTheDocument();
+    // The open modal correctly makes background siblings inert; this assertion
+    // checks that the sibling composition remains mounted without pretending it
+    // should be exposed in the accessibility tree while the drawer is open.
+    expect(screen.getByText("Create")).toBeInTheDocument();
   });
 });
 

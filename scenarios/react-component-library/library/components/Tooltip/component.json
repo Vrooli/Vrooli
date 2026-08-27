@@ -3,7 +3,7 @@
   "deprecatedVersions": [
     "1.0.1"
   ],
-  "description": "",
+  "description": "A concise, accessible explanation attached to a focusable trigger.",
   "designStyles": [
     {
       "affinity": "native",

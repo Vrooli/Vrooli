@@ -99,12 +99,20 @@ func GateRunnerFor(gate string) GateRunner {
 		return ValidateRestyleContract
 	case "manifest-identity":
 		return ValidateManifestIdentity
+	case "manifest-metadata":
+		return ValidateManifestMetadata
+	case "overlay-surface-composition":
+		return ValidateOverlaySurfaceComposition
 	case "shared-style-ownership":
 		return ValidateSharedStyleOwnership
 	case "style-injection":
 		return ValidateStyleInjection
 	case "foreign-token-classes":
 		return ValidateForeignTokenClasses
+	case "utility-class":
+		return ValidateNoUtilityClasses
+	case "consumer-pin":
+		return ValidateConsumerPins
 	case "deprecated-import":
 		return ValidateDeprecatedImports
 	case "provenance-stamp":
@@ -295,6 +303,19 @@ func materializeFixture(root, gate string, fixture CalibrationFixture) (string, 
 			return "", func() {}, err
 		}
 		if err := os.WriteFile(filepath.Join(controlDir, "ControlBase.tsx"), []byte("export const ControlBase = () => null;\n"), 0o644); err != nil {
+			cleanup()
+			return "", func() {}, err
+		}
+	}
+	if fixture.Mutation == "consumer-pin" {
+		consumerPath := filepath.Join(tmp, "scenarios", "calibration-adopter", "ui", "src", "Consumer.tsx")
+		if err := os.MkdirAll(filepath.Dir(consumerPath), 0o755); err != nil {
+			cleanup()
+			return "", func() {}, err
+		}
+		name := calibrationDirectoryName(fixture.AssetID)
+		source := fmt.Sprintf("import { %s } from \"@vrooli/react-component-library/%s/9.9.9\";\nexport const Consumer = %s;\n", name, name, name)
+		if err := os.WriteFile(consumerPath, []byte(source), 0o644); err != nil {
 			cleanup()
 			return "", func() {}, err
 		}

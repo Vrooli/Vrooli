@@ -1,0 +1,28 @@
+{
+  "claims": [
+    {
+      "id": "contract-present",
+      "statement": "The hook exposes its documented public behavior through a stable versioned entrypoint.",
+      "states": ["default"],
+      "tier": "manual",
+      "type": "manual-review"
+    }
+  ],
+  "component": {
+    "id": "use-focus-return",
+    "purpose": "Returns focus to the invoking element when a transient surface closes.",
+    "title": "Focus return"
+  },
+  "contract": {
+    "kind": "rcl-component-experience-contract",
+    "provenance": "react-component-library:useFocusReturn@1.1.0",
+    "schema": "scenario-experience-spec/v1"
+  },
+  "states": [
+    {
+      "description": "The default contract.",
+      "example": "default",
+      "id": "default"
+    }
+  ]
+}

@@ -21,7 +21,7 @@
     "1.0.1",
     "1.0.3"
   ],
-  "description": "",
+  "description": "The resource-list pattern with querying, sorting, filtering, selection, row actions, pagination, every generic state, and responsive row-or-card presentation.",
   "designStyles": [
     {
       "affinity": "native",

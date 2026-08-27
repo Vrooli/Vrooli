@@ -15,7 +15,7 @@
   "deprecatedVersions": [
     "1.0.3"
   ],
-  "description": "",
+  "description": "A forgiving reversible-action surface with expiry, rollback progress, and recovery when undo fails.",
   "designStyles": [
     {
       "affinity": "native",

@@ -30,6 +30,34 @@ import { configureTestProviders } from "@vrooli/api-base/testing";
 import { ThemeProvider } from "./components/theme/ThemeProvider";
 import { createElement } from "react";
 
+// jsdom does not implement matchMedia, while the released overlay core uses it
+// to read reduced-motion preference during render. Install a neutral browser
+// contract once; tests that exercise breakpoint changes replace it locally.
+if (typeof window.matchMedia !== "function") {
+  Object.defineProperty(window, "matchMedia", {
+    configurable: true,
+    writable: true,
+    value: (query: string): MediaQueryList => ({
+      matches: false,
+      media: query,
+      onchange: null,
+      addEventListener: () => undefined,
+      removeEventListener: () => undefined,
+      addListener: () => undefined,
+      removeListener: () => undefined,
+      dispatchEvent: () => false,
+    }),
+  });
+}
+
+// useScrollLock restores the captured offset on teardown. jsdom deliberately
+// omits scrolling, so provide the browser seam without mutating layout state.
+Object.defineProperty(window, "scrollTo", {
+  configurable: true,
+  writable: true,
+  value: () => undefined,
+});
+
 configureTestProviders((children) => createElement(ThemeProvider, null, children));
 
 let consoleError: ReturnType<typeof vi.spyOn>;

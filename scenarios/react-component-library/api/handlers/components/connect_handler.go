@@ -323,14 +323,26 @@ func (h *connectHandler) CreateComponentVersion(ctx context.Context, req *connec
 }
 
 func (h *connectHandler) UpdateComponentManifest(ctx context.Context, req *connect.Request[componentsv1.UpdateComponentManifestRequest]) (*connect.Response[componentsv1.UpdateComponentManifestResponse], error) {
+	dependencies := make([]components.AssetDependency, 0, len(req.Msg.Dependencies))
+	for _, dependency := range req.Msg.Dependencies {
+		if dependency == nil {
+			continue
+		}
+		dependencies = append(dependencies, components.AssetDependency{LibraryID: dependency.LibraryId, Version: dependency.Version})
+	}
 	out, err := h.deps.Service.UpdateComponentManifest(ctx, components.UpdateComponentManifestInput{
-		ComponentID:        req.Msg.ComponentId,
-		DisplayName:        req.Msg.DisplayName,
-		Description:        req.Msg.Description,
-		Tags:               append([]string(nil), req.Msg.Tags...),
-		LatestVersion:      req.Msg.LatestVersion,
-		DraftVersion:       req.Msg.DraftVersion,
-		DeprecatedVersions: append([]string(nil), req.Msg.DeprecatedVersions...),
+		ComponentID:                    req.Msg.ComponentId,
+		DisplayName:                    req.Msg.DisplayName,
+		Description:                    req.Msg.Description,
+		Tags:                           append([]string(nil), req.Msg.Tags...),
+		LatestVersion:                  req.Msg.LatestVersion,
+		DraftVersion:                   req.Msg.DraftVersion,
+		DeprecatedVersions:             append([]string(nil), req.Msg.DeprecatedVersions...),
+		CatalogID:                      req.Msg.CatalogId,
+		ReplacedBy:                     append([]string(nil), req.Msg.ReplacedBy...),
+		ClearSupplementalJustification: req.Msg.ClearSupplementalJustification,
+		ClearCatalogID:                 req.Msg.ClearCatalogId,
+		Dependencies:                   dependencies,
 	})
 	if err != nil {
 		connectErr := components.ToConnectError(err)

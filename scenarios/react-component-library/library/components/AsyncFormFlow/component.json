@@ -24,7 +24,7 @@
     "1.0.3",
     "1.0.5"
   ],
-  "description": "",
+  "description": "The create-or-edit workflow covering initial load, validation, submission, progress, server-error mapping, success, retry, cancellation, and the navigation that follows.",
   "designStyles": [
     {
       "affinity": "native",

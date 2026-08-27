@@ -7,7 +7,7 @@
     "1.1.2",
     "1.1.4"
   ],
-  "description": "",
+  "description": "The coordinated group of related actions sharing borders and focus movement, with responsive collapse into an overflow menu and consistent disabled treatment.",
   "designStyles": [
     {
       "affinity": "native",

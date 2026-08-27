@@ -6,7 +6,7 @@
   "deprecatedVersions": [
     "1.0.2"
   ],
-  "description": "",
+  "description": "A compatibility delegate to Tabs, retained so existing pins keep resolving.",
   "designStyles": [
     {
       "affinity": "native",
@@ -19,8 +19,11 @@
     "1.0.2"
   ],
   "kind": "shell",
-  "latest": "1.0.3",
+  "latest": "1.1.1",
   "libraryId": "react-component-library:ScrollableTabs",
+  "replacedBy": [
+    "navigation.tabs"
+  ],
   "tags": [
     "navigation",
     "responsive",

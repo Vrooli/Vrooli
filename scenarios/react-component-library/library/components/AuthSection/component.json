@@ -5,7 +5,7 @@
   "deprecatedVersions": [
     "1.0.2"
   ],
-  "description": "",
+  "description": "Shared sign-in and sign-out actions.",
   "designStyles": [
     {
       "affinity": "native",

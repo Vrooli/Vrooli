@@ -16,7 +16,7 @@ function model(source: string) {
 
 const resolved = {
   resolved: true,
-  specifier: "@vrooli/react-component-library/Button/2.0.0",
+  specifier: "@vrooli/react-component-library/Button/2",
   assetId: "controls.button",
   libraryId: "react-component-library:Button",
   version: "2.2.0",
@@ -31,7 +31,7 @@ describe("library import Monaco providers", () => {
     const resolve = vi.fn().mockResolvedValue(resolved);
     const provider = createLibraryImportHoverProvider(resolve);
     const hover = await provider.provideHover(
-      model('import { Button } from "@vrooli/react-component-library/Button/2.0.0";'),
+      model('import { Button } from "@vrooli/react-component-library/Button/2";'),
       { lineNumber: 1, column: 48 } as never,
       undefined as never,
     );
@@ -58,7 +58,7 @@ describe("library import Monaco providers", () => {
       loaded.push(uri.toString());
     });
     const definition = await provider.provideDefinition(
-      model('import { Button } from "@vrooli/react-component-library/Button/2.0.0";'),
+      model('import { Button } from "@vrooli/react-component-library/Button/2";'),
       { lineNumber: 1, column: 48 } as never,
       undefined as never,
     );

@@ -24,7 +24,7 @@
     "1.0.1",
     "1.0.3"
   ],
-  "description": "",
+  "description": "The detail pattern with header, metadata, sections, history, contextual actions, permission handling, responsive inspector, and editable regions.",
   "designStyles": [
     {
       "affinity": "native",

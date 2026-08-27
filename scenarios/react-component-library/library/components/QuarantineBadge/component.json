@@ -6,7 +6,7 @@
   "deprecatedVersions": [
     "1.0.3"
   ],
-  "description": "",
+  "description": "A visible non-discriminating gate quarantine state.",
   "designStyles": [
     {
       "affinity": "native",
@@ -15,9 +15,7 @@
   ],
   "displayName": "QuarantineBadge",
   "draft": "",
-  "evictedVersions": [
-    "1.0.3"
-  ],
+  "evictedVersions": [],
   "kind": "control",
   "latest": "1.0.4",
   "libraryId": "react-component-library:QuarantineBadge",

@@ -134,6 +134,31 @@ func TestSQLiteRepository_GetNotFound(t *testing.T) {
 	require.True(t, errors.As(err, &nf))
 }
 
+func TestSQLiteRepository_DeleteRemovesOwnedFileRows(t *testing.T) {
+	repo, _ := newAdoptionsDB(t)
+	ctx := context.Background()
+	input := adoptions.CreateInput{
+		ID:             "replaceable-adoption",
+		ComponentID:    "cmp-delete",
+		LibraryID:      "react-component-library:Card",
+		Scenario:       "consumer",
+		AdoptedPath:    "ui/src/Card.tsx",
+		AdoptedVersion: "1.0.0",
+		Files: []adoptions.AdoptionFile{{
+			LibraryPath: "Card.tsx", AdoptedPath: "ui/src/Card.tsx",
+			SourceLibraryID: "react-component-library:Card", SourceVersion: "1.0.0",
+		}},
+	}
+	_, err := repo.Create(ctx, input)
+	require.NoError(t, err)
+	require.NoError(t, repo.Delete(ctx, input.ID))
+
+	// Reusing the same adoption id and path exercises the child-row primary
+	// key. It fails if Delete leaves the old adoption_files row behind.
+	_, err = repo.Create(ctx, input)
+	require.NoError(t, err)
+}
+
 func TestSQLiteRepository_ListFiltersAndOrders(t *testing.T) {
 	repo, clk := newAdoptionsDB(t)
 	ctx := context.Background()

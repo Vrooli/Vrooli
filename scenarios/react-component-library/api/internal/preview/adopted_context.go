@@ -2,9 +2,10 @@ package preview
 
 import (
 	"fmt"
-	"regexp"
 	"sort"
 	"strings"
+
+	"react-component-library/internal/utilityclass"
 )
 
 // ConsumerTokenSet is the explicit vocabulary supplied by an adopter preview.
@@ -21,19 +22,17 @@ type UndefinedToken struct {
 	Token string
 }
 
-var semanticUtilityRE = regexp.MustCompile(`(?:bg|text|border|ring|outline|divide)-([a-z][a-z0-9-]+)(?:/[0-9]+)?`)
-
 // ValidateAdoptedContext is the fail-closed gate used by adopted-context
 // preview. It scans the same semantic utility classes shipped by the asset and
 // reports every missing consumer token in stable order.
 func ValidateAdoptedContext(source string, set ConsumerTokenSet) []UndefinedToken {
 	seen := map[string]struct{}{}
 	var missing []UndefinedToken
-	for _, match := range semanticUtilityRE.FindAllStringSubmatch(source, -1) {
-		if len(match) < 2 {
+	for _, hit := range utilityclass.EmitsAny(source) {
+		class, token, ok := semanticToken(hit.Class)
+		if !ok {
 			continue
 		}
-		class, token := match[0], match[1]
 		if _, ok := set.Tokens[token]; ok {
 			continue
 		}
@@ -51,6 +50,21 @@ func ValidateAdoptedContext(source string, set ConsumerTokenSet) []UndefinedToke
 		return missing[i].Token < missing[j].Token
 	})
 	return missing
+}
+
+func semanticToken(class string) (string, string, bool) {
+	base := class
+	if colon := strings.LastIndex(base, ":"); colon >= 0 {
+		base = base[colon+1:]
+	}
+	for _, prefix := range []string{"bg-", "text-", "border-", "ring-", "outline-", "divide-"} {
+		if !strings.HasPrefix(base, prefix) {
+			continue
+		}
+		token := strings.SplitN(strings.TrimPrefix(base, prefix), "/", 2)[0]
+		return class, token, token != ""
+	}
+	return "", "", false
 }
 
 func AdoptedContextError(set ConsumerTokenSet, missing []UndefinedToken) error {

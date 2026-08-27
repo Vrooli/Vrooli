@@ -6,7 +6,7 @@
   "deprecatedVersions": [
     "1.0.4"
   ],
-  "description": "",
+  "description": "A compact text value with a clear copy affordance and stable feedback state.",
   "designStyles": [
     {
       "affinity": "native",

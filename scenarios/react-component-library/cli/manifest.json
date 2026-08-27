@@ -1281,6 +1281,26 @@
             {
               "name": "deprecated-versions",
               "description": "Comma-separated deprecated versions"
+            },
+            {
+              "name": "catalog-id",
+              "description": "Stable catalog asset id"
+            },
+            {
+              "name": "replaced-by",
+              "description": "Comma-separated successor catalog asset ids"
+            },
+            {
+              "name": "clear-supplemental-justification",
+              "description": "Remove x-supplementalJustification"
+            },
+            {
+              "name": "clear-catalog-id",
+              "description": "Remove catalogId when no catalog asset exists"
+            },
+            {
+              "name": "dependencies",
+              "description": "Comma-separated exact libraryId@version dependencies"
             }
           ],
           "binding": {
@@ -1338,6 +1358,10 @@
             }
           ],
           "flags": [
+            {
+              "name": "path",
+              "description": "Draft companion artifact name (for example story.json or styles.ts)"
+            },
             {
               "name": "expected-sha256",
               "description": "Optimistic-concurrency guard; must match the current on-disk digest"

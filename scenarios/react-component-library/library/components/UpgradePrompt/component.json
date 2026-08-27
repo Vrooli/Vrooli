@@ -5,7 +5,7 @@
   "deprecatedVersions": [
     "1.0.2"
   ],
-  "description": "",
+  "description": "Hosted upgrade prompt for a gated capability.",
   "designStyles": [
     {
       "affinity": "native",

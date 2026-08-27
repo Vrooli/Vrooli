@@ -10,7 +10,7 @@
       "requirements_json": "[\"TC-006\"]",
       "calibration": "expected-failure"
     },
-    "execution_mode": "observer"
+    "execution_mode": "EXECUTION_MODE_OBSERVER"
   },
   "settings": {
     "viewport_width": 1400,

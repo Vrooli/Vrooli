@@ -1,6 +1,5 @@
 {
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
-  "catalogId": "react-component-library:StyleSheet",
   "assetKind": "foundation",
   "deprecatedVersions": [],
   "displayName": "Style Sheet",
@@ -9,5 +8,16 @@
   "latest": "1.0.0",
   "libraryId": "react-component-library:StyleSheet",
   "slot": "foundation",
-  "tags": ["styles", "ssr", "head"]
+  "tags": [
+    "styles",
+    "ssr",
+    "head"
+  ],
+  "designStyles": [
+    {
+      "styleId": "vrooli-default",
+      "affinity": "native",
+      "reason": "token-native operational-console baseline"
+    }
+  ]
 }

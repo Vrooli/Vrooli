@@ -22,6 +22,7 @@ import (
 
 	"react-component-library/internal/components"
 	"react-component-library/internal/graphreconcile"
+	"react-component-library/internal/utilityclass"
 )
 
 // Finding is one gate defect. Message states what is wrong; Remediation states
@@ -416,7 +417,7 @@ func ValidateReleasedVersionImmutable(root string) (Result, error) {
 	dbPath := filepath.Join(root, "scenarios", "react-component-library", "data", "react-component-library.db")
 	db, err := openGateDB(context.Background(), dbPath)
 	if err != nil {
-		return Result{}, fmt.Errorf("open component index: %w", err)
+		return validateReleasedVersionHashLedger(root)
 	}
 	defer db.Close()
 	return ValidateReleasedVersionImmutableWithDB(root, db)
@@ -439,7 +440,7 @@ func ValidateReleasedVersionImmutableWithDB(root string, db queryContexter) (Res
 	}
 	rows, err := db.QueryContext(context.Background(), `SELECT v.status, v.source_path, v.content_sha256 FROM component_versions v WHERE v.status = 'released'`)
 	if err != nil {
-		return Result{}, fmt.Errorf("read released version hashes: %w", err)
+		return validateReleasedVersionHashLedger(root)
 	}
 	defer rows.Close()
 	result := Result{}
@@ -483,7 +484,71 @@ func ValidateReleasedVersionImmutableWithDB(root string, db queryContexter) (Res
 	if err := rows.Err(); err != nil {
 		return Result{}, err
 	}
+	if result.Inspected == 0 {
+		return validateReleasedVersionHashLedger(root)
+	}
 	return nonEmpty(result, "released-version-immutable"), nil
+}
+
+type releasedVersionHashLedger struct {
+	SchemaVersion int `json:"schemaVersion"`
+	Entries       []struct {
+		Path   string `json:"path"`
+		SHA256 string `json:"sha256"`
+	} `json:"entries"`
+}
+
+func validateReleasedVersionHashLedger(root string) (Result, error) {
+	ledgerPath := filepath.Join(root, "scenarios", "react-component-library", "library", "released-version-hashes.json")
+	data, err := os.ReadFile(ledgerPath)
+	if err != nil {
+		return Result{RunnerError: []Finding{{
+			Code: "catalog.released_version_immutable", AssetID: "__corpus__.released-version-hashes", File: repoRel(root, ledgerPath),
+			Message:     "component index is unavailable or empty and the released-version hash ledger cannot be read",
+			Remediation: "Restore library/released-version-hashes.json; an immutability gate must never pass without a byte oracle.", DocsRef: "docs/concepts/ARCHITECTURE.md#versioning",
+		}}}, nil
+	}
+	var ledger releasedVersionHashLedger
+	if err := json.Unmarshal(data, &ledger); err != nil {
+		return Result{}, fmt.Errorf("decode released-version hash ledger: %w", err)
+	}
+	result := Result{Inspected: len(ledger.Entries)}
+	if len(ledger.Entries) == 0 {
+		result.RunnerError = append(result.RunnerError, Finding{
+			Code: "catalog.released_version_immutable", AssetID: "__corpus__.released-version-hashes", File: repoRel(root, ledgerPath),
+			Message: "released-version hash ledger contains zero entries", Remediation: "Regenerate the ledger from every released version file; zero inspected inputs is not immutability evidence.", DocsRef: "docs/concepts/ARCHITECTURE.md#versioning",
+		})
+		return result, nil
+	}
+	for _, entry := range ledger.Entries {
+		path := filepath.Join(root, "scenarios", "react-component-library", "library", filepath.FromSlash(entry.Path))
+		raw, err := os.ReadFile(path)
+		if err != nil {
+			result.Findings = append(result.Findings, Finding{
+				Code: "catalog.released_version_immutable", AssetID: implementationName(path), File: filepath.ToSlash(filepath.Join("library", entry.Path)),
+				Message: fmt.Sprintf("released file cannot be read: %v", err), Remediation: "Restore the released file or retire the version through the governed lifecycle.", DocsRef: "docs/concepts/ARCHITECTURE.md#versioning",
+			})
+			continue
+		}
+		sum := sha256.Sum256(raw)
+		current := hex.EncodeToString(sum[:])
+		if current == entry.SHA256 {
+			continue
+		}
+		result.Findings = append(result.Findings, Finding{
+			Code: "catalog.released_version_immutable", AssetID: implementationName(path), File: filepath.ToSlash(filepath.Join("library", entry.Path)),
+			Message:     fmt.Sprintf("released file changed after ledger capture: recorded %s, current %s", shortHash(entry.SHA256), shortHash(current)),
+			Remediation: "Revert the released file and publish the change as a new version; never update the ledger to bless an in-place mutation.", DocsRef: "docs/concepts/ARCHITECTURE.md#versioning",
+		})
+	}
+	return nonEmpty(result, "released-version-immutable"), nil
+}
+
+func shortHash(value string) string {
+	if len(value) <= 12 {
+		return value
+	}
+	return value[:12]
 }
 
 type assetDoc struct {
@@ -818,15 +883,119 @@ func ValidateManifestIdentity(root string) (Result, error) {
 	return nonEmpty(result, "manifest-identity"), nil
 }
 
+// ValidateManifestMetadata keeps authored assets discoverable and prevents
+// transitional catalog escape hatches from becoming permanent public state.
+func ValidateManifestMetadata(root string) (Result, error) {
+	result := Result{}
+	for _, kind := range []string{"components"} {
+		paths, err := filepath.Glob(filepath.Join(root, "scenarios", "react-component-library", "library", kind, "*", "component.json"))
+		if err != nil {
+			return Result{}, err
+		}
+		for _, manifest := range paths {
+			data, err := os.ReadFile(manifest)
+			if err != nil {
+				return Result{}, err
+			}
+			var doc struct {
+				LibraryID                 string `json:"libraryId"`
+				CatalogID                 string `json:"catalogId"`
+				Description               string `json:"description"`
+				SupplementalJustification string `json:"x-supplementalJustification"`
+			}
+			if err := json.Unmarshal(data, &doc); err != nil {
+				return Result{}, err
+			}
+			result.Inspected++
+			assetID := strings.TrimSpace(doc.CatalogID)
+			if assetID == "" {
+				assetID = doc.LibraryID
+			}
+			switch {
+			case strings.TrimSpace(doc.SupplementalJustification) != "":
+				result.Findings = append(result.Findings, Finding{Code: "catalog.manifest_metadata", AssetID: assetID, File: repoRel(root, manifest), Message: "manifest carries x-supplementalJustification", Remediation: "Register the asset against its catalog projection or remove the transitional justification.", DocsRef: "docs/reference/overlay-selection.md"})
+			case strings.TrimSpace(doc.Description) == "":
+				result.Findings = append(result.Findings, Finding{Code: "catalog.manifest_metadata", AssetID: assetID, File: repoRel(root, manifest), Message: "manifest description is empty", Remediation: "Add a concise description of the asset's user-visible responsibility.", DocsRef: "docs/reference/overlay-selection.md"})
+			case strings.HasPrefix(strings.TrimSpace(doc.CatalogID), "react-component-library:"):
+				result.Findings = append(result.Findings, Finding{Code: "catalog.manifest_metadata", AssetID: doc.CatalogID, File: repoRel(root, manifest), Message: "manifest uses a self-referential catalogId", Remediation: "Use the stable domain catalog id, or clear catalogId when no projection exists.", DocsRef: "docs/concepts/ARCHITECTURE.md#catalog-graph-projection"})
+			}
+		}
+	}
+	return nonEmpty(result, "manifest-metadata"), nil
+}
+
+var overlayRoleRE = regexp.MustCompile(`role\s*=\s*["'](?:dialog|alertdialog|menu)["']`)
+
+// ValidateOverlaySurfaceComposition keeps modal and menu behavior on the
+// shared overlay substrate. An opt-out is permitted only when the manifest
+// carries a non-empty reason, making the exception reviewable.
+func ValidateOverlaySurfaceComposition(root string) (Result, error) {
+	result := Result{}
+	paths, err := filepath.Glob(filepath.Join(root, "scenarios", "react-component-library", "library", "components", "*", "component.json"))
+	if err != nil {
+		return Result{}, err
+	}
+	for _, manifest := range paths {
+		data, err := os.ReadFile(manifest)
+		if err != nil {
+			return Result{}, err
+		}
+		var doc struct {
+			LibraryID                  string `json:"libraryId"`
+			CatalogID                  string `json:"catalogId"`
+			Category                   string `json:"category"`
+			Latest                     string `json:"latest"`
+			Draft                      string `json:"draft"`
+			OverlaySurfaceOptOutReason string `json:"overlaySurfaceOptOutReason"`
+		}
+		if err := json.Unmarshal(data, &doc); err != nil {
+			return Result{}, err
+		}
+		if doc.Category != "overlays" && !strings.HasPrefix(doc.CatalogID, "overlays.") {
+			continue
+		}
+		assetID := strings.TrimSpace(doc.CatalogID)
+		if assetID == "" {
+			assetID = doc.LibraryID
+		}
+		for _, version := range []string{doc.Latest, doc.Draft} {
+			version = strings.TrimSpace(version)
+			if version == "" {
+				continue
+			}
+			versionDir := filepath.Join(filepath.Dir(manifest), "versions", version)
+			entries, readErr := os.ReadDir(versionDir)
+			if readErr != nil {
+				return Result{}, readErr
+			}
+			for _, entry := range entries {
+				if entry.IsDir() || !(strings.HasSuffix(entry.Name(), ".tsx") || strings.HasSuffix(entry.Name(), ".ts")) {
+					continue
+				}
+				path := filepath.Join(versionDir, entry.Name())
+				source, readErr := os.ReadFile(path)
+				if readErr != nil {
+					return Result{}, readErr
+				}
+				result.Inspected++
+				if overlayRoleRE.Match(source) && !bytes.Contains(source, []byte("useOverlaySurface")) && strings.TrimSpace(doc.OverlaySurfaceOptOutReason) == "" {
+					result.Findings = append(result.Findings, Finding{Code: "catalog.overlay_surface_composition", AssetID: assetID, File: repoRel(root, path), Message: "overlay role is implemented without useOverlaySurface", Remediation: "Compose useOverlaySurface, or add overlaySurfaceOptOutReason with a concrete non-overlay rationale.", DocsRef: "docs/reference/overlay-contract.md"})
+				}
+			}
+		}
+	}
+	return nonEmpty(result, "overlay-surface-composition"), nil
+}
+
 var (
 	styleTagRE             = regexp.MustCompile(`(?s)<style\b`)
 	sharedMotionRE         = regexp.MustCompile(`(?is)@media\s*\(\s*prefers-reduced-motion\s*:`)
 	sharedForcedColorsRE   = regexp.MustCompile(`(?is)@media\s*\(\s*forced-colors\s*:\s*active\s*\)`)
 	sharedFocusRE          = regexp.MustCompile(`(?is)[^{}]*:focus-visible[^{}]*\{`)
 	sharedVisuallyHiddenRE = regexp.MustCompile(`(?is)clip-path\s*:\s*inset\s*\(\s*50%`)
-	foreignPaletteClassRE  = regexp.MustCompile(`(?:^|[\s"'` + "`" + `])(?:border|bg|text|from|to|via)-app-[A-Za-z0-9_-]+`)
 	componentSourceRE      = regexp.MustCompile(`(?m)@vrooliComponentSource\s+([^*\s]+)`)
 	libraryImportRE        = regexp.MustCompile(`@vrooli/react-component-library/([^/\s'";]+)/([^/\s'";]+)`)
+	scenarioRCLPinRE       = regexp.MustCompile(`@vrooli/react-component-library/([^/\s'";]+)/([0-9]+(?:\.[0-9]+){0,2})`)
 )
 
 // ValidateSharedStyleOwnership keeps cross-cutting rules in BaseStyles. An
@@ -864,16 +1033,120 @@ func ValidateStyleInjection(root string) (Result, error) {
 	})
 }
 
-// ValidateForeignTokenClasses protects published assets from consumer-only
-// Tailwind palettes. The app-* family is intentionally seeded first; adding a
-// new forbidden family should be a reviewed change to this gate.
+// ValidateForeignTokenClasses is the compatibility name for the superseded
+// palette-only gate. Keep it delegated so existing catalog evidence and
+// calibration fixtures retain their stable gate identity.
 func ValidateForeignTokenClasses(root string) (Result, error) {
-	return validateActiveSources(root, "foreign-token-classes", func(_ assetDoc, source string) defect {
-		if match := foreignPaletteClassRE.FindString(source); match != "" {
-			return defect{Message: fmt.Sprintf("emits consumer-specific palette class %q", strings.TrimSpace(match)), Remediation: "Replace the consumer palette utility with a published semantic token or a component data-attribute rule.", DocsRef: "docs/concepts/ARCHITECTURE.md#design-tokens"}
+	result, err := validateNoUtilityClasses(root, "foreign-token-classes")
+	return result, err
+}
+
+type utilityClassAllowance struct {
+	SchemaVersion int `json:"schemaVersion"`
+	Expires       string
+	Entries       []struct {
+		Path     string
+		Reason   string
+		ClosedBy string
+	}
+}
+
+// ValidateNoUtilityClasses enforces the package portability boundary across
+// every released source file. The allowlist is explicit migration debt and is
+// surfaced as informational evidence; any unlisted hit is blocking.
+func ValidateNoUtilityClasses(root string) (Result, error) {
+	return validateNoUtilityClasses(root, "utility-class")
+}
+
+func validateNoUtilityClasses(root, gate string) (Result, error) {
+	allowlistPath := filepath.Join(root, "scenarios", "react-component-library", "library", "utility-class-allowlist.json")
+	data, err := os.ReadFile(allowlistPath)
+	if err != nil && !os.IsNotExist(err) {
+		return Result{}, err
+	}
+	var allowlist utilityClassAllowance
+	if len(data) > 0 {
+		if err := json.Unmarshal(data, &allowlist); err != nil {
+			return Result{}, fmt.Errorf("decode utility-class allowlist: %w", err)
 		}
-		return ok()
+	}
+	allowed := make(map[string]bool, len(allowlist.Entries))
+	for _, entry := range allowlist.Entries {
+		allowed[filepath.ToSlash(filepath.Clean(entry.Path))] = true
+	}
+	sources, err := allLibrarySources(root)
+	if err != nil {
+		return Result{}, err
+	}
+	runtimeSources := sources[:0]
+	for _, path := range sources {
+		base := strings.ToLower(filepath.Base(path))
+		if strings.HasPrefix(base, "story.") || strings.Contains(base, ".test.") || strings.Contains(base, ".spec.") {
+			continue
+		}
+		runtimeSources = append(runtimeSources, path)
+	}
+	result := Result{Inspected: len(runtimeSources)}
+	observedAllowed := map[string]bool{}
+	for _, path := range runtimeSources {
+		source, err := os.ReadFile(path)
+		if err != nil {
+			return Result{}, err
+		}
+		rel := repoRel(root, path)
+		versionPath := libraryVersionPath(rel)
+		for _, hit := range utilityclass.EmitsAny(string(source)) {
+			finding := Finding{
+				Code:        "catalog." + gate,
+				AssetID:     implementationName(path),
+				File:        rel,
+				Line:        lineOf(source, hit.Class),
+				Category:    hit.Category,
+				Message:     fmt.Sprintf("emits utility class %q (%s)", hit.Class, hit.Category),
+				Remediation: "Replace library-owned utility classes with a module stylesheet and semantic custom properties; consumer-supplied className values may pass through unchanged.",
+				DocsRef:     "docs/reference/style-ownership.md",
+			}
+			if allowed[versionPath] {
+				if !observedAllowed[versionPath] {
+					observedAllowed[versionPath] = true
+					finding.Message = fmt.Sprintf("allow-listed utility-class debt remains in %s", versionPath)
+					result.InformationalFindings = append(result.InformationalFindings, finding)
+				}
+				continue
+			}
+			result.Findings = append(result.Findings, finding)
+		}
+	}
+	for path := range allowed {
+		if observedAllowed[path] {
+			continue
+		}
+		result.Findings = append(result.Findings, Finding{
+			Code:        "catalog." + gate + ".stale-allowance",
+			AssetID:     "__corpus__.utility-class-allowlist",
+			File:        repoRel(root, allowlistPath),
+			Message:     fmt.Sprintf("allowlist entry %q no longer covers an emitted utility class", path),
+			Remediation: "Remove the stale entry and lower utility-class-allowlist.max.",
+			DocsRef:     "docs/reference/style-ownership.md",
+		})
+	}
+	sort.Slice(result.Findings, func(i, j int) bool {
+		if result.Findings[i].File == result.Findings[j].File {
+			return result.Findings[i].Line < result.Findings[j].Line
+		}
+		return result.Findings[i].File < result.Findings[j].File
 	})
+	return nonEmpty(result, gate), nil
+}
+
+func libraryVersionPath(path string) string {
+	parts := strings.Split(filepath.ToSlash(path), "/")
+	for index := 0; index+4 < len(parts); index++ {
+		if parts[index] == "library" && parts[index+3] == "versions" {
+			return strings.Join(parts[index:index+5], "/")
+		}
+	}
+	return ""
 }
 
 // ValidateDeprecatedImports checks the active catalog source against its own
@@ -903,6 +1176,222 @@ func ValidateDeprecatedImports(root string) (Result, error) {
 		}
 	}
 	return nonEmpty(result, "deprecated-import"), nil
+}
+
+type consumerPin struct {
+	Asset     string
+	Version   string
+	Scenarios map[string]bool
+	Files     []string
+}
+
+type consumerPinManifest struct {
+	CatalogID          string   `json:"catalogId"`
+	LibraryID          string   `json:"libraryId"`
+	Latest             string   `json:"latest"`
+	DeprecatedVersions []string `json:"deprecatedVersions"`
+	Root               string
+}
+
+// ValidateConsumerPins inspects the exact asset-version surface imported by
+// scenarios and groups each defect with every affected consumer.
+func ValidateConsumerPins(root string) (Result, error) {
+	manifests, err := consumerPinManifests(root)
+	if err != nil {
+		return Result{}, err
+	}
+	pins, err := scenarioConsumerPins(root)
+	if err != nil {
+		return Result{}, err
+	}
+	result := Result{Inspected: len(pins)}
+	for _, pin := range pins {
+		manifest, exists := manifests[pin.Asset]
+		assetID := "__corpus__.consumer-pins"
+		if exists {
+			assetID = manifest.CatalogID
+			if assetID == "" {
+				assetID = manifest.LibraryID
+			}
+		}
+		scenarios := sortedStringMapKeys(pin.Scenarios)
+		location := ""
+		if len(pin.Files) > 0 {
+			location = pin.Files[0]
+		}
+		add := func(suffix, message, remediation string) {
+			result.Findings = append(result.Findings, Finding{
+				Code: "catalog.consumer-pin." + suffix, AssetID: assetID, File: location,
+				Message:     fmt.Sprintf("%s@%s consumed by %s: %s", pin.Asset, pin.Version, strings.Join(scenarios, ", "), message),
+				Remediation: remediation, DocsRef: "docs/reference/style-ownership.md",
+			})
+		}
+		if !exists {
+			add("missing", "asset manifest does not exist", "Restore the published asset or migrate every named consumer to an existing asset.")
+			continue
+		}
+		resolved, versionRoot := resolveConsumerPinVersion(manifest, pin.Version)
+		if resolved == "" {
+			add("missing", "published version does not exist", "Migrate every named consumer to a version present in the asset manifest and version tree.")
+			continue
+		}
+		if contains(manifest.DeprecatedVersions, resolved) {
+			add("deprecated", "version is deprecated", "Migrate every named consumer to a non-deprecated version in the same supported major.")
+		}
+		if versionMajor(resolved) < versionMajor(manifest.Latest) {
+			add("stale-major", fmt.Sprintf("latest is %s", manifest.Latest), "Migrate every named consumer to the current supported major, then use a major-scoped import.")
+		}
+		emits := false
+		if err := filepath.WalkDir(versionRoot, func(path string, entry os.DirEntry, walkErr error) error {
+			if walkErr != nil || emits || entry.IsDir() {
+				return walkErr
+			}
+			base := strings.ToLower(filepath.Base(path))
+			ext := strings.ToLower(filepath.Ext(path))
+			if (ext != ".ts" && ext != ".tsx" && ext != ".js" && ext != ".jsx") || strings.HasPrefix(base, "story.") || strings.Contains(base, ".test.") || strings.Contains(base, ".spec.") {
+				return nil
+			}
+			raw, err := os.ReadFile(path)
+			if err != nil {
+				return err
+			}
+			emits = len(utilityclass.EmitsAny(string(raw))) > 0
+			return nil
+		}); err != nil {
+			return Result{}, err
+		}
+		if emits {
+			add("utility-class", "version emits library-owned utility classes", "Publish a token-bound version and migrate every named consumer; a Tailwind content glob is only a temporary bridge.")
+		}
+	}
+	return nonEmpty(result, "consumer-pin"), nil
+}
+
+func consumerPinManifests(root string) (map[string]consumerPinManifest, error) {
+	result := map[string]consumerPinManifest{}
+	libraryRoot := filepath.Join(root, "scenarios", "react-component-library", "library")
+	for _, kind := range []string{"foundations", "hooks", "services", "primitives", "components"} {
+		paths, err := filepath.Glob(filepath.Join(libraryRoot, kind, "*", "component.json"))
+		if err != nil {
+			return nil, err
+		}
+		for _, path := range paths {
+			raw, err := os.ReadFile(path)
+			if err != nil {
+				return nil, err
+			}
+			var manifest consumerPinManifest
+			if err := json.Unmarshal(raw, &manifest); err != nil {
+				return nil, err
+			}
+			manifest.Root = filepath.Dir(path)
+			result[filepath.Base(filepath.Dir(path))] = manifest
+		}
+	}
+	return result, nil
+}
+
+func scenarioConsumerPins(root string) ([]consumerPin, error) {
+	byKey := map[string]*consumerPin{}
+	scenariosRoot := filepath.Join(root, "scenarios")
+	err := filepath.WalkDir(scenariosRoot, func(path string, entry os.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		if entry.IsDir() {
+			return nil
+		}
+		rel, err := filepath.Rel(scenariosRoot, path)
+		if err != nil {
+			return err
+		}
+		parts := strings.Split(filepath.ToSlash(rel), "/")
+		if len(parts) < 4 || parts[1] != "ui" || parts[2] != "src" {
+			return nil
+		}
+		ext := strings.ToLower(filepath.Ext(path))
+		if ext != ".ts" && ext != ".tsx" && ext != ".js" && ext != ".jsx" {
+			return nil
+		}
+		raw, err := os.ReadFile(path)
+		if err != nil {
+			return err
+		}
+		for _, match := range scenarioRCLPinRE.FindAllStringSubmatch(string(raw), -1) {
+			key := match[1] + "@" + match[2]
+			pin := byKey[key]
+			if pin == nil {
+				pin = &consumerPin{Asset: match[1], Version: match[2], Scenarios: map[string]bool{}}
+				byKey[key] = pin
+			}
+			pin.Scenarios[parts[0]] = true
+			pin.Files = appendUnique(pin.Files, repoRel(root, path))
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	keys := make([]string, 0, len(byKey))
+	for key := range byKey {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	result := make([]consumerPin, 0, len(keys))
+	for _, key := range keys {
+		result = append(result, *byKey[key])
+	}
+	return result, nil
+}
+
+func resolveConsumerPinVersion(manifest consumerPinManifest, pin string) (string, string) {
+	versionsRoot := filepath.Join(manifest.Root, "versions")
+	if strings.Count(pin, ".") == 0 {
+		entries, _ := os.ReadDir(versionsRoot)
+		var candidates []string
+		for _, entry := range entries {
+			if entry.IsDir() && strings.HasPrefix(entry.Name(), pin+".") {
+				candidates = append(candidates, entry.Name())
+			}
+		}
+		sort.Slice(candidates, func(i, j int) bool { return semverParts(candidates[i]) > semverParts(candidates[j]) })
+		if len(candidates) == 0 {
+			return "", ""
+		}
+		pin = candidates[0]
+	}
+	path := filepath.Join(versionsRoot, pin)
+	if info, err := os.Stat(path); err != nil || !info.IsDir() {
+		return "", ""
+	}
+	return pin, path
+}
+
+func semverParts(version string) int64 {
+	parts := strings.Split(version, ".")
+	var value int64
+	for index := 0; index < 3; index++ {
+		value *= 1_000_000
+		if index < len(parts) {
+			number, _ := strconv.ParseInt(parts[index], 10, 64)
+			value += number
+		}
+	}
+	return value
+}
+
+func versionMajor(version string) int {
+	major, _ := strconv.Atoi(strings.SplitN(version, ".", 2)[0])
+	return major
+}
+
+func sortedStringMapKeys(values map[string]bool) []string {
+	keys := make([]string, 0, len(values))
+	for key := range values {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	return keys
 }
 
 func allLibrarySources(root string) ([]string, error) {

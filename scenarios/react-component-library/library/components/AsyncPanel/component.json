@@ -1,11 +1,21 @@
 {
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
-  "catalogId": "react-component-library:AsyncPanel",
   "category": "feedback",
-  "deprecatedVersions": [
-    "1.0.0"
+  "dependencies": [
+    {
+      "libraryId": "react-component-library:ClassMerge",
+      "version": "1.0.1"
+    },
+    {
+      "libraryId": "react-component-library:ExperienceSurface",
+      "version": "1.0.2"
+    }
   ],
-  "description": "",
+  "deprecatedVersions": [
+    "1.0.0",
+    "1.0.1"
+  ],
+  "description": "Composable presentation for an ExperienceSurface lifecycle without prescribing page layout.",
   "designStyles": [
     {
       "affinity": "native",
@@ -13,9 +23,10 @@
     }
   ],
   "displayName": "Async Panel",
-  "kind": "surface",
   "draft": "",
-  "latest": "1.0.1",
+  "evictedVersions": [],
+  "kind": "surface",
+  "latest": "1.0.2",
   "libraryId": "react-component-library:AsyncPanel",
   "slot": "ui-pattern",
   "tags": [
@@ -25,6 +36,5 @@
     "empty",
     "error",
     "retry"
-  ],
-  "x-supplementalJustification": "Pre-catalog lifecycle composition retained as a supplemental asset; its behavior is covered by the experience-surface contract."
+  ]
 }

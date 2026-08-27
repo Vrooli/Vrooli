@@ -1,0 +1,75 @@
+{
+  "bindings": {
+    "elements": {
+      "control": {
+        "selector": "[data-testid]"
+      }
+    }
+  },
+  "claims": [
+    {
+      "elements": ["control"],
+      "id": "tap-target-size",
+      "statement": "The FullPageDrawer example satisfies the tap-target-size contract claim.",
+      "tier": "machine",
+      "type": "tap-target-size"
+    },
+    {
+      "elements": ["control"],
+      "id": "content-not-clipped",
+      "statement": "The FullPageDrawer example satisfies the content-not-clipped contract claim.",
+      "tier": "machine",
+      "type": "content-not-clipped"
+    },
+    {
+      "elements": ["control"],
+      "id": "state-contrast",
+      "statement": "The FullPageDrawer example satisfies the state-contrast contract claim.",
+      "tier": "machine",
+      "type": "state-contrast"
+    },
+    {
+      "elements": ["control"],
+      "id": "padding",
+      "statement": "The FullPageDrawer example satisfies the padding contract claim.",
+      "tier": "machine",
+      "type": "padding"
+    },
+    {
+      "elements": ["control"],
+      "id": "keyboard-reachable",
+      "statement": "The FullPageDrawer example satisfies the keyboard-reachable contract claim.",
+      "tier": "machine",
+      "type": "keyboard-reachable"
+    },
+    {
+      "elements": ["control"],
+      "id": "size-parity",
+      "statement": "The FullPageDrawer example satisfies the size-parity contract claim.",
+      "tier": "machine",
+      "type": "size-parity"
+    }
+  ],
+  "component": {
+    "id": "fullpagedrawer",
+    "purpose": "Kind-based experience contract scaffold.",
+    "title": "FullPageDrawer"
+  },
+  "contract": {
+    "kind": "rcl-component-experience-contract",
+    "provenance": "react-component-library:FullPageDrawer@1.0.0",
+    "schema": "scenario-experience-spec/v1"
+  },
+  "elements": [
+    {
+      "id": "control",
+      "role": "generic"
+    }
+  ],
+  "states": [
+    {
+      "example": "default",
+      "id": "closed"
+    }
+  ]
+}

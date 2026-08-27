@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+
+	corestorage "github.com/vrooli/api-core/storage"
 )
 
 // StampState is the build-time disposition of one catalog asset's DOM marker.
@@ -64,13 +66,39 @@ func (r StampReport) Measurable(assetID string) bool {
 
 func LoadStampReport(root string) (StampReport, error) {
 	report := StampReport{States: map[string]StampState{}, Reasons: map[string]string{}}
-	path := filepath.Join(root, "scenarios", "react-component-library", "coverage", "asset-stamp-report.json")
+	resolver, err := corestorage.NewResolver(corestorage.ResolverConfig{AppID: "vrooli", Profile: corestorage.ProfileAuto})
+	if err != nil {
+		return report, err
+	}
+	path, err := resolver.ArtifactPath(corestorage.Options{ScenarioID: "react-component-library"}, corestorage.ArtifactRef{
+		Owner: "react-component-library", Domain: "gates", Class: corestorage.ClassState, Segments: []string{"asset-stamp-report.json"},
+	})
+	if err != nil {
+		return report, err
+	}
 	raw, err := os.ReadFile(path)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return report, nil
+			// The UI build emits the report into its build output without
+			// learning the state-class location. The owning API promotes that
+			// payload into governed state on first use.
+			buildReport := filepath.Join(root, "ui", "dist", "asset-stamp-report.json")
+			raw, err = os.ReadFile(buildReport)
+			if os.IsNotExist(err) {
+				return report, nil
+			}
+			if err != nil {
+				return report, err
+			}
+			if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
+				return report, err
+			}
+			if err := os.WriteFile(path, raw, 0o600); err != nil {
+				return report, err
+			}
+		} else {
+			return report, err
 		}
-		return report, err
 	}
 	var document stampReportDocument
 	if err := json.Unmarshal(raw, &document); err != nil {

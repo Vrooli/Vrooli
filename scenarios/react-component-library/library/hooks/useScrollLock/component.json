@@ -12,10 +12,12 @@
   ],
   "displayName": "useScrollLock",
   "kind": "surface",
-  "latest": "1.0.0",
+  "latest": "2.0.0",
   "libraryId": "react-component-library:useScrollLock",
   "tags": [
     "runtime",
     "accessibility"
-  ]
+  ],
+  "draft": "",
+  "deprecatedVersions": []
 }

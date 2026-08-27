@@ -25,8 +25,8 @@ CREATE TABLE component_versions (
   version TEXT NOT NULL,
   status TEXT NOT NULL
 );
-CREATE TABLE adoption_records (component_id TEXT, adopted_version TEXT);
-CREATE TABLE adoption_files (source_library_id TEXT, source_version TEXT);
+CREATE TABLE adoption_records (id TEXT, component_id TEXT, library_id TEXT, adopted_version TEXT, mode TEXT NOT NULL DEFAULT 'copied', scenario TEXT NOT NULL DEFAULT '', adopted_path TEXT NOT NULL DEFAULT '');
+CREATE TABLE adoption_files (adoption_id TEXT, source_library_id TEXT, source_version TEXT, adopted_path TEXT NOT NULL DEFAULT '');
 CREATE TABLE component_asset_dependencies (library_id TEXT, version TEXT);
 INSERT INTO components(id, library_id, latest_version, draft_version)
 VALUES ('component-1', 'library-1', '3.0.0', '2.0.0');
@@ -54,14 +54,14 @@ func TestPlanAndApplyCleanupRequiresExactPlanAndPreservesLedger(t *testing.T) {
 	require.NoError(t, os.WriteFile(filepath.Join(oldDir, "button.tsx"), []byte("old"), 0o644))
 	_, err := database.ExecContext(context.Background(), `
 CREATE TABLE components (id TEXT PRIMARY KEY, library_id TEXT NOT NULL, latest_version TEXT NOT NULL, draft_version TEXT NOT NULL, manifest_path TEXT NOT NULL);
-CREATE TABLE component_versions (id TEXT PRIMARY KEY, component_id TEXT NOT NULL, library_id TEXT NOT NULL, version TEXT NOT NULL, status TEXT NOT NULL, source_path TEXT NOT NULL, created_at TEXT NOT NULL, released_at TEXT NOT NULL);
-CREATE TABLE adoption_records (component_id TEXT, library_id TEXT, adopted_version TEXT);
-CREATE TABLE adoption_files (source_library_id TEXT, source_version TEXT);
+CREATE TABLE component_versions (id TEXT PRIMARY KEY, component_id TEXT NOT NULL, library_id TEXT NOT NULL, version TEXT NOT NULL, status TEXT NOT NULL, source_path TEXT NOT NULL, created_at TEXT NOT NULL, released_at TEXT NOT NULL, presence TEXT NOT NULL DEFAULT 'materialized');
+CREATE TABLE adoption_records (id TEXT, component_id TEXT, library_id TEXT, adopted_version TEXT, mode TEXT NOT NULL DEFAULT 'copied', scenario TEXT NOT NULL DEFAULT '', adopted_path TEXT NOT NULL DEFAULT '');
+CREATE TABLE adoption_files (adoption_id TEXT, source_library_id TEXT, source_version TEXT, adopted_path TEXT NOT NULL DEFAULT '');
 CREATE TABLE component_asset_dependencies (library_id TEXT, version TEXT);
 CREATE TABLE version_ledger (library_id TEXT NOT NULL, version TEXT NOT NULL, retired_at TEXT NOT NULL DEFAULT '', lifecycle_state TEXT NOT NULL DEFAULT '', PRIMARY KEY (library_id, version));
 INSERT INTO components VALUES ('component-1', 'library-1', '2.0.0', '', 'components/button/component.json');
-INSERT INTO component_versions VALUES ('version-old', 'component-1', 'library-1', '1.0.0', 'deprecated', 'components/button/versions/1.0.0/button.tsx', '2025-01-01T00:00:00Z', '2025-01-02T00:00:00Z');
-INSERT INTO component_versions VALUES ('version-latest', 'component-1', 'library-1', '2.0.0', 'released', 'components/button/versions/2.0.0/button.tsx', '2026-01-01T00:00:00Z', '2026-01-02T00:00:00Z');
+INSERT INTO component_versions VALUES ('version-old', 'component-1', 'library-1', '1.0.0', 'deprecated', 'components/button/versions/1.0.0/button.tsx', '2025-01-01T00:00:00Z', '2025-01-02T00:00:00Z', 'materialized');
+INSERT INTO component_versions VALUES ('version-latest', 'component-1', 'library-1', '2.0.0', 'released', 'components/button/versions/2.0.0/button.tsx', '2026-01-01T00:00:00Z', '2026-01-02T00:00:00Z', 'materialized');
 INSERT INTO version_ledger(library_id, version, lifecycle_state) VALUES ('library-1', '1.0.0', 'deprecated'), ('library-1', '2.0.0', 'released');
 `)
 	require.NoError(t, err)
@@ -116,14 +116,14 @@ func TestTransitionRetireCanBeRestoredByArchive(t *testing.T) {
 	require.NoError(t, os.WriteFile(manifest, []byte(`{"deprecatedVersions":[]}`), 0o644))
 	_, err := database.ExecContext(context.Background(), `
 CREATE TABLE components (id TEXT PRIMARY KEY, library_id TEXT NOT NULL, latest_version TEXT NOT NULL, draft_version TEXT NOT NULL, manifest_path TEXT NOT NULL);
-CREATE TABLE component_versions (component_id TEXT NOT NULL, library_id TEXT NOT NULL, version TEXT NOT NULL, status TEXT NOT NULL, source_path TEXT NOT NULL, created_at TEXT NOT NULL, released_at TEXT NOT NULL);
-CREATE TABLE adoption_records (component_id TEXT, adopted_version TEXT);
-CREATE TABLE adoption_files (source_library_id TEXT, source_version TEXT);
+CREATE TABLE component_versions (component_id TEXT NOT NULL, library_id TEXT NOT NULL, version TEXT NOT NULL, status TEXT NOT NULL, source_path TEXT NOT NULL, created_at TEXT NOT NULL, released_at TEXT NOT NULL, presence TEXT NOT NULL DEFAULT 'materialized');
+CREATE TABLE adoption_records (id TEXT, component_id TEXT, library_id TEXT, adopted_version TEXT, mode TEXT NOT NULL DEFAULT 'copied', scenario TEXT NOT NULL DEFAULT '', adopted_path TEXT NOT NULL DEFAULT '');
+CREATE TABLE adoption_files (adoption_id TEXT, source_library_id TEXT, source_version TEXT, adopted_path TEXT NOT NULL DEFAULT '');
 CREATE TABLE component_asset_dependencies (library_id TEXT, version TEXT);
 CREATE TABLE version_ledger (library_id TEXT NOT NULL, version TEXT NOT NULL, retired_at TEXT NOT NULL DEFAULT '', lifecycle_state TEXT NOT NULL DEFAULT '', PRIMARY KEY (library_id, version));
 INSERT INTO components VALUES ('component-1', 'library-1', '2.0.0', '', 'components/button/component.json');
-INSERT INTO component_versions VALUES ('component-1', 'library-1', '1.0.0', 'released', 'components/button/versions/1.0.0/button.tsx', '2025-01-01T00:00:00Z', '2025-01-02T00:00:00Z');
-INSERT INTO component_versions VALUES ('component-1', 'library-1', '2.0.0', 'released', 'components/button/versions/2.0.0/button.tsx', '2026-01-01T00:00:00Z', '2026-01-02T00:00:00Z');
+INSERT INTO component_versions VALUES ('component-1', 'library-1', '1.0.0', 'released', 'components/button/versions/1.0.0/button.tsx', '2025-01-01T00:00:00Z', '2025-01-02T00:00:00Z', 'materialized');
+INSERT INTO component_versions VALUES ('component-1', 'library-1', '2.0.0', 'released', 'components/button/versions/2.0.0/button.tsx', '2026-01-01T00:00:00Z', '2026-01-02T00:00:00Z', 'materialized');
 INSERT INTO version_ledger(library_id, version, lifecycle_state) VALUES ('library-1', '1.0.0', 'released'), ('library-1', '2.0.0', 'released');
 `)
 	require.NoError(t, err)
@@ -143,6 +143,58 @@ INSERT INTO version_ledger(library_id, version, lifecycle_state) VALUES ('librar
 	require.Equal(t, "archived", lifecycle)
 }
 
+func TestTransitionRetiresReplacementBackedAssetAfterHistoricalVersions(t *testing.T) {
+	database := databasetest.NewSQLite(t)
+	root := t.TempDir()
+	versionDir := filepath.Join(root, "components", "OldDrawer", "versions", "1.0.0")
+	manifest := filepath.Join(root, "components", "OldDrawer", "component.json")
+	require.NoError(t, os.MkdirAll(versionDir, 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(versionDir, "OldDrawer.tsx"), []byte("export const OldDrawer = true;"), 0o644))
+	require.NoError(t, os.WriteFile(manifest, []byte(`{"libraryId":"react-component-library:OldDrawer","latest":"1.0.0","deprecatedVersions":[],"replacedBy":["overlays.full-page-drawer"]}`), 0o644))
+	_, err := database.ExecContext(context.Background(), `
+CREATE TABLE components (id TEXT PRIMARY KEY, library_id TEXT NOT NULL, latest_version TEXT NOT NULL, draft_version TEXT NOT NULL, manifest_path TEXT NOT NULL);
+CREATE TABLE component_versions (component_id TEXT NOT NULL, library_id TEXT NOT NULL, version TEXT NOT NULL, status TEXT NOT NULL, source_path TEXT NOT NULL, created_at TEXT NOT NULL, released_at TEXT NOT NULL);
+CREATE TABLE adoption_records (id TEXT, component_id TEXT, library_id TEXT, adopted_version TEXT, mode TEXT NOT NULL DEFAULT 'copied', scenario TEXT NOT NULL DEFAULT '', adopted_path TEXT NOT NULL DEFAULT '');
+CREATE TABLE adoption_files (adoption_id TEXT, source_library_id TEXT, source_version TEXT, adopted_path TEXT NOT NULL DEFAULT '');
+CREATE TABLE component_asset_dependencies (library_id TEXT, version TEXT);
+CREATE TABLE version_ledger (library_id TEXT NOT NULL, version TEXT NOT NULL, retired_at TEXT NOT NULL DEFAULT '', lifecycle_state TEXT NOT NULL DEFAULT '', PRIMARY KEY (library_id, version));
+INSERT INTO components VALUES ('old-drawer', 'react-component-library:OldDrawer', '1.0.0', '', 'components/OldDrawer/component.json');
+INSERT INTO component_versions VALUES ('old-drawer', 'react-component-library:OldDrawer', '1.0.0', 'released', 'components/OldDrawer/versions/1.0.0/OldDrawer.tsx', '2026-01-01T00:00:00Z', '2026-01-02T00:00:00Z');
+INSERT INTO version_ledger(library_id, version, lifecycle_state) VALUES ('react-component-library:OldDrawer', '1.0.0', 'released');
+`)
+	require.NoError(t, err)
+	repo := NewRepository(database, root)
+	_, err = repo.Transition(context.Background(), "old-drawer", "1.0.0", "retired", true)
+	require.NoError(t, err)
+	require.NoDirExists(t, filepath.Join(root, "components", "OldDrawer"))
+	require.DirExists(t, repo.retiredSourcePath("react-component-library:OldDrawer", "1.0.0"))
+	var status string
+	require.NoError(t, database.QueryRowContext(context.Background(), `SELECT status FROM component_versions WHERE component_id='old-drawer'`).Scan(&status))
+	require.Equal(t, "retired", status)
+}
+
+func TestTransitionRejectsLatestVersionWithoutAssetReplacement(t *testing.T) {
+	database := databasetest.NewSQLite(t)
+	root := t.TempDir()
+	versionDir := filepath.Join(root, "components", "Current", "versions", "1.0.0")
+	require.NoError(t, os.MkdirAll(versionDir, 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(versionDir, "Current.tsx"), []byte("export const Current = true;"), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(root, "components", "Current", "component.json"), []byte(`{"latest":"1.0.0","deprecatedVersions":[]}`), 0o644))
+	_, err := database.ExecContext(context.Background(), `
+CREATE TABLE components (id TEXT PRIMARY KEY, library_id TEXT NOT NULL, latest_version TEXT NOT NULL, draft_version TEXT NOT NULL, manifest_path TEXT NOT NULL);
+CREATE TABLE component_versions (component_id TEXT NOT NULL, library_id TEXT NOT NULL, version TEXT NOT NULL, status TEXT NOT NULL, source_path TEXT NOT NULL, created_at TEXT NOT NULL, released_at TEXT NOT NULL);
+CREATE TABLE adoption_records (id TEXT, component_id TEXT, library_id TEXT, adopted_version TEXT, mode TEXT NOT NULL DEFAULT 'copied', scenario TEXT NOT NULL DEFAULT '', adopted_path TEXT NOT NULL DEFAULT '');
+CREATE TABLE adoption_files (adoption_id TEXT, source_library_id TEXT, source_version TEXT, adopted_path TEXT NOT NULL DEFAULT '');
+CREATE TABLE component_asset_dependencies (library_id TEXT, version TEXT);
+INSERT INTO components VALUES ('current', 'react-component-library:Current', '1.0.0', '', 'components/Current/component.json');
+INSERT INTO component_versions VALUES ('current', 'react-component-library:Current', '1.0.0', 'released', 'components/Current/versions/1.0.0/Current.tsx', '2026-01-01T00:00:00Z', '2026-01-02T00:00:00Z');
+`)
+	require.NoError(t, err)
+	_, err = NewRepository(database, root).Transition(context.Background(), "current", "1.0.0", "retired", true)
+	require.ErrorContains(t, err, "without replacedBy metadata")
+	require.DirExists(t, filepath.Join(root, "components", "Current"))
+}
+
 func TestPlanCleanupProtectsVersionsReferencedBySurvivingSource(t *testing.T) {
 	database := databasetest.NewSQLite(t)
 	root := t.TempDir()
@@ -155,8 +207,8 @@ func TestPlanCleanupProtectsVersionsReferencedBySurvivingSource(t *testing.T) {
 	_, err := database.ExecContext(context.Background(), `
 CREATE TABLE components (id TEXT PRIMARY KEY, library_id TEXT NOT NULL, latest_version TEXT NOT NULL, draft_version TEXT NOT NULL, manifest_path TEXT NOT NULL);
 CREATE TABLE component_versions (component_id TEXT NOT NULL, library_id TEXT NOT NULL, version TEXT NOT NULL, status TEXT NOT NULL, source_path TEXT NOT NULL, created_at TEXT NOT NULL, released_at TEXT NOT NULL);
-CREATE TABLE adoption_records (component_id TEXT, library_id TEXT, adopted_version TEXT);
-CREATE TABLE adoption_files (source_library_id TEXT, source_version TEXT);
+CREATE TABLE adoption_records (id TEXT, component_id TEXT, library_id TEXT, adopted_version TEXT, mode TEXT NOT NULL DEFAULT 'copied', scenario TEXT NOT NULL DEFAULT '', adopted_path TEXT NOT NULL DEFAULT '');
+CREATE TABLE adoption_files (adoption_id TEXT, source_library_id TEXT, source_version TEXT, adopted_path TEXT NOT NULL DEFAULT '');
 CREATE TABLE component_asset_dependencies (library_id TEXT, version TEXT);
 INSERT INTO components VALUES ('morphing-icon', 'react-component-library:MorphingIcon', '2.0.7', '', 'primitives/MorphingIcon/component.json');
 INSERT INTO component_versions VALUES ('morphing-icon', 'react-component-library:MorphingIcon', '2.0.0', 'released', 'primitives/MorphingIcon/versions/2.0.0/MorphingIcon.tsx', '2025-01-01T00:00:00Z', '2025-01-02T00:00:00Z');
@@ -214,8 +266,8 @@ CREATE TABLE components (
   draft_version TEXT NOT NULL
 );
 CREATE TABLE component_versions (component_id TEXT NOT NULL, version TEXT NOT NULL, status TEXT NOT NULL);
-CREATE TABLE adoption_records (component_id TEXT, adopted_version TEXT);
-CREATE TABLE adoption_files (source_library_id TEXT, source_version TEXT);
+CREATE TABLE adoption_records (id TEXT, component_id TEXT, library_id TEXT, adopted_version TEXT, mode TEXT NOT NULL DEFAULT 'copied', scenario TEXT NOT NULL DEFAULT '', adopted_path TEXT NOT NULL DEFAULT '');
+CREATE TABLE adoption_files (adoption_id TEXT, source_library_id TEXT, source_version TEXT, adopted_path TEXT NOT NULL DEFAULT '');
 CREATE TABLE component_asset_dependencies (library_id TEXT, version TEXT);
 INSERT INTO components(id, library_id, latest_version, draft_version) VALUES ('component-1', 'library-1', '2.0.0', '');
 INSERT INTO component_versions(component_id, version, status) VALUES ('component-1', '1.0.0', 'deprecated'), ('component-1', '2.0.0', 'released');
@@ -238,20 +290,53 @@ CREATE TABLE components (
   draft_version TEXT NOT NULL
 );
 CREATE TABLE component_versions (component_id TEXT NOT NULL, version TEXT NOT NULL, status TEXT NOT NULL);
-CREATE TABLE adoption_records (component_id TEXT, adopted_version TEXT);
-CREATE TABLE adoption_files (source_library_id TEXT, source_version TEXT);
+CREATE TABLE adoption_records (id TEXT, component_id TEXT, library_id TEXT, adopted_version TEXT, mode TEXT NOT NULL DEFAULT 'copied', scenario TEXT NOT NULL DEFAULT '', adopted_path TEXT NOT NULL DEFAULT '');
+CREATE TABLE adoption_files (adoption_id TEXT, source_library_id TEXT, source_version TEXT, adopted_path TEXT NOT NULL DEFAULT '');
 CREATE TABLE component_asset_dependencies (library_id TEXT, version TEXT);
 INSERT INTO components(id, library_id, latest_version, draft_version)
 VALUES ('component-1', 'react-component-library:Button', '2.0.0', '');
 INSERT INTO component_versions(component_id, version, status) VALUES
   ('component-1', '1.2.0', 'released'),
   ('component-1', '2.0.0', 'released');
-INSERT INTO adoption_files(source_library_id, source_version)
-VALUES ('react-component-library:Button', '1.2.0');
+INSERT INTO adoption_records(id, component_id, library_id, adopted_version, mode)
+VALUES ('adoption-1', 'component-1', 'react-component-library:Button', '1.2.0', 'linked');
+INSERT INTO adoption_files(adoption_id, source_library_id, source_version)
+VALUES ('adoption-1', 'react-component-library:Button', '1.2.0');
 `)
 	require.NoError(t, err)
 
 	candidates, err := NewRepository(database, t.TempDir()).RetireCandidates(context.Background(), "react-component-library:Button")
 	require.NoError(t, err)
 	require.Empty(t, candidates, "a linked adopter pin must keep the version out of retirement candidates")
+}
+
+func TestRetireCandidatesIgnoreDeclaredEjectedForkProvenance(t *testing.T) {
+	database := databasetest.NewSQLite(t)
+	_, err := database.ExecContext(context.Background(), `
+CREATE TABLE components (
+  id TEXT PRIMARY KEY,
+  library_id TEXT NOT NULL,
+  latest_version TEXT NOT NULL,
+  draft_version TEXT NOT NULL
+);
+CREATE TABLE component_versions (component_id TEXT NOT NULL, version TEXT NOT NULL, status TEXT NOT NULL);
+CREATE TABLE adoption_records (id TEXT, component_id TEXT, library_id TEXT, adopted_version TEXT, mode TEXT NOT NULL DEFAULT 'copied', scenario TEXT NOT NULL DEFAULT '', adopted_path TEXT NOT NULL DEFAULT '');
+CREATE TABLE adoption_files (adoption_id TEXT, source_library_id TEXT, source_version TEXT, adopted_path TEXT NOT NULL DEFAULT '');
+CREATE TABLE component_asset_dependencies (library_id TEXT, version TEXT);
+INSERT INTO components(id, library_id, latest_version, draft_version)
+VALUES ('component-1', 'react-component-library:Input', '1.1.2', '');
+INSERT INTO component_versions(component_id, version, status) VALUES
+  ('component-1', '1.1.0', 'released'),
+  ('component-1', '1.1.2', 'released');
+INSERT INTO adoption_records(id, component_id, library_id, adopted_version, mode, scenario, adopted_path)
+VALUES ('fork-1', 'component-1', 'react-component-library:Input', '1.1.0', 'ejected', 'consumer', 'ui/src/Input.tsx');
+INSERT INTO adoption_files(adoption_id, source_library_id, source_version, adopted_path)
+VALUES ('fork-1', 'react-component-library:Input', '1.1.0', 'ui/src/Input.tsx');
+`)
+	require.NoError(t, err)
+
+	candidates, err := NewRepository(database, t.TempDir()).RetireCandidates(context.Background(), "react-component-library:Input")
+	require.NoError(t, err)
+	require.Len(t, candidates, 1, "an explicitly ejected fork owns its bytes and must not pin the upstream materialization")
+	require.Equal(t, "1.1.0", candidates[0].Version)
 }
