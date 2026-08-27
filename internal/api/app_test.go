@@ -25,6 +25,7 @@ import (
 	"github.com/vrooli/vrooli/internal/scenario"
 	testscenario "github.com/vrooli/vrooli/internal/scenario/scenariotest"
 	"github.com/vrooli/vrooli/internal/scenarioruntime"
+	"github.com/vrooli/vrooli/internal/shell/shelltest"
 )
 
 // writeAPITestRegistryRuntime seeds an authoritative registry runtime for the
@@ -319,7 +320,7 @@ func TestListResourcesReturnsTypedStatusPayload(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("PATH", "/usr/bin:/bin")
 	testscenario.WriteProjectResourceConfig(t, root, "redis", true)
-	testresource.WriteExternalCLIResourceFixture(t, root, "redis", "#!/usr/bin/env bash\nexit 0\n")
+	testresource.WriteExternalCLIResourceFixture(t, root, "redis", shelltest.BashShebang()+"exit 0\n")
 
 	app := New(root, home)
 	rec := httptest.NewRecorder()

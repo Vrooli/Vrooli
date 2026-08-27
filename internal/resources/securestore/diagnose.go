@@ -5,6 +5,11 @@ import (
 	"runtime"
 )
 
+const (
+	diagnoseAbsent      = "absent"
+	diagnoseUnavailable = "unavailable"
+)
+
 // Diagnosis is the operator-facing account of this host's credential backend.
 // It carries no credential value and no key name, so it is safe to print in
 // full anywhere.
@@ -24,7 +29,7 @@ type Diagnosis struct {
 	KeyStore string `json:"key_store,omitempty"`
 	// Available is true when a read reached the backend.
 	Available bool `json:"available"`
-	// Condition is "available", "unavailable", or "absent".
+	// Condition is "available", diagnoseUnavailable, or diagnoseAbsent.
 	Condition string `json:"condition"`
 	// Explanation names the host condition in operator terms — a uid/session
 	// mismatch, a headless host with no Secret Service, a missing adapter.
@@ -102,7 +107,7 @@ func remediationFor(err error) string {
 }
 
 // WriteConditionNotChecked is the write condition of a read-only diagnosis. It
-// is distinct from "unavailable" on purpose: not knowing whether a store can be
+// is distinct from diagnoseUnavailable on purpose: not knowing whether a store can be
 // written is not the same as knowing it cannot.
 const WriteConditionNotChecked = "not-checked"
 
@@ -163,11 +168,11 @@ func diagnoseStore(store Store, checkWrites bool) Diagnosis {
 	} else {
 		diagnosis.Available = false
 		if errors.Is(err, ErrAbsent) {
-			diagnosis.Condition = "absent"
+			diagnosis.Condition = diagnoseAbsent
 			diagnosis.Explanation = err.Error()
 			diagnosis.Fix = absentBackendFixFor(store)
 		} else {
-			diagnosis.Condition = "unavailable"
+			diagnosis.Condition = diagnoseUnavailable
 			diagnosis.Explanation = err.Error()
 			// The condition that was actually detected names its own remedy
 			// first. Only when nothing does do we fall back to the session
@@ -188,7 +193,7 @@ func diagnoseStore(store Store, checkWrites bool) Diagnosis {
 		}
 	}
 	if errors.Is(err, ErrAbsent) {
-		diagnosis.WriteCondition = "absent"
+		diagnosis.WriteCondition = diagnoseAbsent
 		diagnosis.WriteExplanation = "the backend is absent, so a write probe cannot run"
 		diagnosis.WriteFix = diagnosis.Fix
 		return diagnosis
@@ -221,11 +226,11 @@ func diagnoseStore(store Store, checkWrites bool) Diagnosis {
 func conditionFor(err error) string {
 	switch {
 	case errors.Is(err, ErrAbsent):
-		return "absent"
+		return diagnoseAbsent
 	case errors.Is(err, ErrUnavailable):
-		return "unavailable"
+		return diagnoseUnavailable
 	default:
-		return "unavailable"
+		return diagnoseUnavailable
 	}
 }
 

@@ -12,7 +12,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file vrooli-bridge/v1/pairing/pairing.proto.
  */
 export const file_vrooli_bridge_v1_pairing_pairing: GenFile = /*@__PURE__*/
-  fileDesc("CiZ2cm9vbGktYnJpZGdlL3YxL3BhaXJpbmcvcGFpcmluZy5wcm90bxIfdnJvb2xpLnZyb29saV9icmlkZ2UudjEucGFpcmluZyJOChxSZWdpc3RlckVuY3J5cHRpb25LZXlSZXF1ZXN0Eg8KB25vZGVfaWQYASABKAkSHQoVZW5jcnlwdGlvbl9wdWJsaWNfa2V5GAIgASgJIlcKHVJlZ2lzdGVyRW5jcnlwdGlvbktleVJlc3BvbnNlEg8KB25vZGVfaWQYASABKAkSEQoJYWxnb3JpdGhtGAIgASgJEhIKCnJlZ2lzdGVyZWQYAyABKAgiTAoXSXNzdWVQYWlyaW5nQ29kZVJlcXVlc3QSDAoEbmFtZRgBIAEoCRIOCgZzY29wZXMYAiADKAkSEwoLdHRsX3NlY29uZHMYAyABKAMiegoYSXNzdWVQYWlyaW5nQ29kZVJlc3BvbnNlEgwKBGNvZGUYASABKAkSIAoYY29udHJvbF9wbGFuZV9wdWJsaWNfa2V5GAIgASgJEi4KCmV4cGlyZXNfYXQYAyABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wIpEBChhSZWRlZW1QYWlyaW5nQ29kZVJlcXVlc3QSDAoEY29kZRgBIAEoCRIXCg9ub2RlX3B1YmxpY19rZXkYAiABKAkSDAoEbmFtZRgDIAEoCRIKCgJvcxgEIAEoCRIMCgRhcmNoGAUgASgJEhAKCGVuZHBvaW50GAYgASgJEhQKDGNhcGFiaWxpdGllcxgHIAMoCSJOChlSZWRlZW1QYWlyaW5nQ29kZVJlc3BvbnNlEg8KB25vZGVfaWQYASABKAkSIAoYY29udHJvbF9wbGFuZV9wdWJsaWNfa2V5GAIgASgJIoABChVSZXF1ZXN0UGFpcmluZ1JlcXVlc3QSFwoPbm9kZV9wdWJsaWNfa2V5GAEgASgJEgwKBG5hbWUYAiABKAkSCgoCb3MYAyABKAkSDAoEYXJjaBgEIAEoCRIQCghlbmRwb2ludBgFIAEoCRIUCgxjYXBhYmlsaXRpZXMYBiADKAkicwoWUmVxdWVzdFBhaXJpbmdSZXNwb25zZRISCgpyZXF1ZXN0X2lkGAEgASgJEkUKBnN0YXR1cxgCIAEoDjI1LnZyb29saS52cm9vbGlfYnJpZGdlLnYxLnBhaXJpbmcuUGFpcmluZ1JlcXVlc3RTdGF0dXMiTAoVQXBwcm92ZVBhaXJpbmdSZXF1ZXN0EhIKCnJlcXVlc3RfaWQYASABKAkSDwoHYXBwcm92ZRgCIAEoCBIOCgZzY29wZXMYAyADKAkicAoWQXBwcm92ZVBhaXJpbmdSZXNwb25zZRIPCgdub2RlX2lkGAEgASgJEkUKBnN0YXR1cxgCIAEoDjI1LnZyb29saS52cm9vbGlfYnJpZGdlLnYxLnBhaXJpbmcuUGFpcmluZ1JlcXVlc3RTdGF0dXMipAIKDlBhaXJpbmdSZXF1ZXN0EgoKAmlkGAEgASgJEgwKBG5hbWUYAiABKAkSCgoCb3MYAyABKAkSDAoEYXJjaBgEIAEoCRIQCghlbmRwb2ludBgFIAEoCRIUCgxjYXBhYmlsaXRpZXMYBiADKAkSRQoGc3RhdHVzGAcgASgOMjUudnJvb2xpLnZyb29saV9icmlkZ2UudjEucGFpcmluZy5QYWlyaW5nUmVxdWVzdFN0YXR1cxIuCgpjcmVhdGVkX2F0GAggASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIuCgpkZWNpZGVkX2F0GAkgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIPCgdub2RlX2lkGAogASgJIjUKGkxpc3RQYWlyaW5nUmVxdWVzdHNSZXF1ZXN0EhcKD2luY2x1ZGVfZGVjaWRlZBgBIAEoCCJgChtMaXN0UGFpcmluZ1JlcXVlc3RzUmVzcG9uc2USQQoIcmVxdWVzdHMYASADKAsyLy52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5wYWlyaW5nLlBhaXJpbmdSZXF1ZXN0KqwBChRQYWlyaW5nUmVxdWVzdFN0YXR1cxImCiJQQUlSSU5HX1JFUVVFU1RfU1RBVFVTX1VOU1BFQ0lGSUVEEAASIgoeUEFJUklOR19SRVFVRVNUX1NUQVRVU19QRU5ESU5HEAESIwofUEFJUklOR19SRVFVRVNUX1NUQVRVU19BUFBST1ZFRBACEiMKH1BBSVJJTkdfUkVRVUVTVF9TVEFUVVNfUkVKRUNURUQQAzLbBgoOUGFpcmluZ1NlcnZpY2UShwEKEElzc3VlUGFpcmluZ0NvZGUSOC52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5wYWlyaW5nLklzc3VlUGFpcmluZ0NvZGVSZXF1ZXN0GjkudnJvb2xpLnZyb29saV9icmlkZ2UudjEucGFpcmluZy5Jc3N1ZVBhaXJpbmdDb2RlUmVzcG9uc2USigEKEVJlZGVlbVBhaXJpbmdDb2RlEjkudnJvb2xpLnZyb29saV9icmlkZ2UudjEucGFpcmluZy5SZWRlZW1QYWlyaW5nQ29kZVJlcXVlc3QaOi52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5wYWlyaW5nLlJlZGVlbVBhaXJpbmdDb2RlUmVzcG9uc2USgQEKDlJlcXVlc3RQYWlyaW5nEjYudnJvb2xpLnZyb29saV9icmlkZ2UudjEucGFpcmluZy5SZXF1ZXN0UGFpcmluZ1JlcXVlc3QaNy52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5wYWlyaW5nLlJlcXVlc3RQYWlyaW5nUmVzcG9uc2USgQEKDkFwcHJvdmVQYWlyaW5nEjYudnJvb2xpLnZyb29saV9icmlkZ2UudjEucGFpcmluZy5BcHByb3ZlUGFpcmluZ1JlcXVlc3QaNy52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5wYWlyaW5nLkFwcHJvdmVQYWlyaW5nUmVzcG9uc2USkAEKE0xpc3RQYWlyaW5nUmVxdWVzdHMSOy52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5wYWlyaW5nLkxpc3RQYWlyaW5nUmVxdWVzdHNSZXF1ZXN0GjwudnJvb2xpLnZyb29saV9icmlkZ2UudjEucGFpcmluZy5MaXN0UGFpcmluZ1JlcXVlc3RzUmVzcG9uc2USlgEKFVJlZ2lzdGVyRW5jcnlwdGlvbktleRI9LnZyb29saS52cm9vbGlfYnJpZGdlLnYxLnBhaXJpbmcuUmVnaXN0ZXJFbmNyeXB0aW9uS2V5UmVxdWVzdBo+LnZyb29saS52cm9vbGlfYnJpZGdlLnYxLnBhaXJpbmcuUmVnaXN0ZXJFbmNyeXB0aW9uS2V5UmVzcG9uc2VCVFpSZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby92cm9vbGktYnJpZGdlL3YxL3BhaXJpbmc7cGFpcmluZ192MWIGcHJvdG8z", [file_google_protobuf_timestamp]);
+  fileDesc("CiZ2cm9vbGktYnJpZGdlL3YxL3BhaXJpbmcvcGFpcmluZy5wcm90bxIfdnJvb2xpLnZyb29saV9icmlkZ2UudjEucGFpcmluZyJOChxSZWdpc3RlckVuY3J5cHRpb25LZXlSZXF1ZXN0Eg8KB25vZGVfaWQYASABKAkSHQoVZW5jcnlwdGlvbl9wdWJsaWNfa2V5GAIgASgJIlcKHVJlZ2lzdGVyRW5jcnlwdGlvbktleVJlc3BvbnNlEg8KB25vZGVfaWQYASABKAkSEQoJYWxnb3JpdGhtGAIgASgJEhIKCnJlZ2lzdGVyZWQYAyABKAgiTAoXSXNzdWVQYWlyaW5nQ29kZVJlcXVlc3QSDAoEbmFtZRgBIAEoCRIOCgZzY29wZXMYAiADKAkSEwoLdHRsX3NlY29uZHMYAyABKAMiegoYSXNzdWVQYWlyaW5nQ29kZVJlc3BvbnNlEgwKBGNvZGUYASABKAkSIAoYY29udHJvbF9wbGFuZV9wdWJsaWNfa2V5GAIgASgJEi4KCmV4cGlyZXNfYXQYAyABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wIpEBChhSZWRlZW1QYWlyaW5nQ29kZVJlcXVlc3QSDAoEY29kZRgBIAEoCRIXCg9ub2RlX3B1YmxpY19rZXkYAiABKAkSDAoEbmFtZRgDIAEoCRIKCgJvcxgEIAEoCRIMCgRhcmNoGAUgASgJEhAKCGVuZHBvaW50GAYgASgJEhQKDGNhcGFiaWxpdGllcxgHIAMoCSJOChlSZWRlZW1QYWlyaW5nQ29kZVJlc3BvbnNlEg8KB25vZGVfaWQYASABKAkSIAoYY29udHJvbF9wbGFuZV9wdWJsaWNfa2V5GAIgASgJIoABChVSZXF1ZXN0UGFpcmluZ1JlcXVlc3QSFwoPbm9kZV9wdWJsaWNfa2V5GAEgASgJEgwKBG5hbWUYAiABKAkSCgoCb3MYAyABKAkSDAoEYXJjaBgEIAEoCRIQCghlbmRwb2ludBgFIAEoCRIUCgxjYXBhYmlsaXRpZXMYBiADKAkijwEKFlJlcXVlc3RQYWlyaW5nUmVzcG9uc2USEgoKcmVxdWVzdF9pZBgBIAEoCRJFCgZzdGF0dXMYAiABKA4yNS52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5wYWlyaW5nLlBhaXJpbmdSZXF1ZXN0U3RhdHVzEhoKEmNvbmZpcm1hdGlvbl93b3JkcxgDIAMoCSIuChhHZXRQYWlyaW5nUmVxdWVzdFJlcXVlc3QSEgoKcmVxdWVzdF9pZBgBIAEoCSJ/ChlHZXRQYWlyaW5nUmVxdWVzdFJlc3BvbnNlEkAKB3JlcXVlc3QYASABKAsyLy52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5wYWlyaW5nLlBhaXJpbmdSZXF1ZXN0EiAKGGNvbnRyb2xfcGxhbmVfcHVibGljX2tleRgCIAEoCSJoChVBcHByb3ZlUGFpcmluZ1JlcXVlc3QSEgoKcmVxdWVzdF9pZBgBIAEoCRIPCgdhcHByb3ZlGAIgASgIEg4KBnNjb3BlcxgDIAMoCRIaChJjb25maXJtYXRpb25fd29yZHMYBCADKAkicAoWQXBwcm92ZVBhaXJpbmdSZXNwb25zZRIPCgdub2RlX2lkGAEgASgJEkUKBnN0YXR1cxgCIAEoDjI1LnZyb29saS52cm9vbGlfYnJpZGdlLnYxLnBhaXJpbmcuUGFpcmluZ1JlcXVlc3RTdGF0dXMiwAIKDlBhaXJpbmdSZXF1ZXN0EgoKAmlkGAEgASgJEgwKBG5hbWUYAiABKAkSCgoCb3MYAyABKAkSDAoEYXJjaBgEIAEoCRIQCghlbmRwb2ludBgFIAEoCRIUCgxjYXBhYmlsaXRpZXMYBiADKAkSRQoGc3RhdHVzGAcgASgOMjUudnJvb2xpLnZyb29saV9icmlkZ2UudjEucGFpcmluZy5QYWlyaW5nUmVxdWVzdFN0YXR1cxIuCgpjcmVhdGVkX2F0GAggASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIuCgpkZWNpZGVkX2F0GAkgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIPCgdub2RlX2lkGAogASgJEhoKEmNvbmZpcm1hdGlvbl93b3JkcxgLIAMoCSI1ChpMaXN0UGFpcmluZ1JlcXVlc3RzUmVxdWVzdBIXCg9pbmNsdWRlX2RlY2lkZWQYASABKAgipAEKG0xpc3RQYWlyaW5nUmVxdWVzdHNSZXNwb25zZRJBCghyZXF1ZXN0cxgBIAMoCzIvLnZyb29saS52cm9vbGlfYnJpZGdlLnYxLnBhaXJpbmcuUGFpcmluZ1JlcXVlc3QSQgoHcHJlc2V0cxgCIAMoCzIxLnZyb29saS52cm9vbGlfYnJpZGdlLnYxLnBhaXJpbmcuUGVybWlzc2lvblByZXNldCJYChBQZXJtaXNzaW9uUHJlc2V0EgwKBG5hbWUYASABKAkSEwoLZGVzY3JpcHRpb24YAiABKAkSDgoGc2NvcGVzGAMgAygJEhEKCXdpdGhob2xkcxgEIAMoCSqsAQoUUGFpcmluZ1JlcXVlc3RTdGF0dXMSJgoiUEFJUklOR19SRVFVRVNUX1NUQVRVU19VTlNQRUNJRklFRBAAEiIKHlBBSVJJTkdfUkVRVUVTVF9TVEFUVVNfUEVORElORxABEiMKH1BBSVJJTkdfUkVRVUVTVF9TVEFUVVNfQVBQUk9WRUQQAhIjCh9QQUlSSU5HX1JFUVVFU1RfU1RBVFVTX1JFSkVDVEVEEAMy6AcKDlBhaXJpbmdTZXJ2aWNlEocBChBJc3N1ZVBhaXJpbmdDb2RlEjgudnJvb2xpLnZyb29saV9icmlkZ2UudjEucGFpcmluZy5Jc3N1ZVBhaXJpbmdDb2RlUmVxdWVzdBo5LnZyb29saS52cm9vbGlfYnJpZGdlLnYxLnBhaXJpbmcuSXNzdWVQYWlyaW5nQ29kZVJlc3BvbnNlEooBChFSZWRlZW1QYWlyaW5nQ29kZRI5LnZyb29saS52cm9vbGlfYnJpZGdlLnYxLnBhaXJpbmcuUmVkZWVtUGFpcmluZ0NvZGVSZXF1ZXN0GjoudnJvb2xpLnZyb29saV9icmlkZ2UudjEucGFpcmluZy5SZWRlZW1QYWlyaW5nQ29kZVJlc3BvbnNlEoEBCg5SZXF1ZXN0UGFpcmluZxI2LnZyb29saS52cm9vbGlfYnJpZGdlLnYxLnBhaXJpbmcuUmVxdWVzdFBhaXJpbmdSZXF1ZXN0GjcudnJvb2xpLnZyb29saV9icmlkZ2UudjEucGFpcmluZy5SZXF1ZXN0UGFpcmluZ1Jlc3BvbnNlEooBChFHZXRQYWlyaW5nUmVxdWVzdBI5LnZyb29saS52cm9vbGlfYnJpZGdlLnYxLnBhaXJpbmcuR2V0UGFpcmluZ1JlcXVlc3RSZXF1ZXN0GjoudnJvb2xpLnZyb29saV9icmlkZ2UudjEucGFpcmluZy5HZXRQYWlyaW5nUmVxdWVzdFJlc3BvbnNlEoEBCg5BcHByb3ZlUGFpcmluZxI2LnZyb29saS52cm9vbGlfYnJpZGdlLnYxLnBhaXJpbmcuQXBwcm92ZVBhaXJpbmdSZXF1ZXN0GjcudnJvb2xpLnZyb29saV9icmlkZ2UudjEucGFpcmluZy5BcHByb3ZlUGFpcmluZ1Jlc3BvbnNlEpABChNMaXN0UGFpcmluZ1JlcXVlc3RzEjsudnJvb2xpLnZyb29saV9icmlkZ2UudjEucGFpcmluZy5MaXN0UGFpcmluZ1JlcXVlc3RzUmVxdWVzdBo8LnZyb29saS52cm9vbGlfYnJpZGdlLnYxLnBhaXJpbmcuTGlzdFBhaXJpbmdSZXF1ZXN0c1Jlc3BvbnNlEpYBChVSZWdpc3RlckVuY3J5cHRpb25LZXkSPS52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5wYWlyaW5nLlJlZ2lzdGVyRW5jcnlwdGlvbktleVJlcXVlc3QaPi52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5wYWlyaW5nLlJlZ2lzdGVyRW5jcnlwdGlvbktleVJlc3BvbnNlQlRaUmdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vdnJvb2xpLWJyaWRnZS92MS9wYWlyaW5nO3BhaXJpbmdfdjFiBnByb3RvMw", [file_google_protobuf_timestamp]);
 
 /**
  * @generated from message vrooli.vrooli_bridge.v1.pairing.RegisterEncryptionKeyRequest
@@ -284,6 +284,11 @@ export type RequestPairingResponse = Message<"vrooli.vrooli_bridge.v1.pairing.Re
    * @generated from field: vrooli.vrooli_bridge.v1.pairing.PairingRequestStatus status = 2;
    */
   status: PairingRequestStatus;
+
+  /**
+   * @generated from field: repeated string confirmation_words = 3;
+   */
+  confirmationWords: string[];
 };
 
 /**
@@ -292,6 +297,45 @@ export type RequestPairingResponse = Message<"vrooli.vrooli_bridge.v1.pairing.Re
  */
 export const RequestPairingResponseSchema: GenMessage<RequestPairingResponse> = /*@__PURE__*/
   messageDesc(file_vrooli_bridge_v1_pairing_pairing, 7);
+
+/**
+ * @generated from message vrooli.vrooli_bridge.v1.pairing.GetPairingRequestRequest
+ */
+export type GetPairingRequestRequest = Message<"vrooli.vrooli_bridge.v1.pairing.GetPairingRequestRequest"> & {
+  /**
+   * @generated from field: string request_id = 1;
+   */
+  requestId: string;
+};
+
+/**
+ * Describes the message vrooli.vrooli_bridge.v1.pairing.GetPairingRequestRequest.
+ * Use `create(GetPairingRequestRequestSchema)` to create a new message.
+ */
+export const GetPairingRequestRequestSchema: GenMessage<GetPairingRequestRequest> = /*@__PURE__*/
+  messageDesc(file_vrooli_bridge_v1_pairing_pairing, 8);
+
+/**
+ * @generated from message vrooli.vrooli_bridge.v1.pairing.GetPairingRequestResponse
+ */
+export type GetPairingRequestResponse = Message<"vrooli.vrooli_bridge.v1.pairing.GetPairingRequestResponse"> & {
+  /**
+   * @generated from field: vrooli.vrooli_bridge.v1.pairing.PairingRequest request = 1;
+   */
+  request?: PairingRequest | undefined;
+
+  /**
+   * @generated from field: string control_plane_public_key = 2;
+   */
+  controlPlanePublicKey: string;
+};
+
+/**
+ * Describes the message vrooli.vrooli_bridge.v1.pairing.GetPairingRequestResponse.
+ * Use `create(GetPairingRequestResponseSchema)` to create a new message.
+ */
+export const GetPairingRequestResponseSchema: GenMessage<GetPairingRequestResponse> = /*@__PURE__*/
+  messageDesc(file_vrooli_bridge_v1_pairing_pairing, 9);
 
 /**
  * ApprovePairingRequest is the owner's decision on a pending request.
@@ -317,6 +361,13 @@ export type ApprovePairingRequest = Message<"vrooli.vrooli_bridge.v1.pairing.App
    * @generated from field: repeated string scopes = 3;
    */
   scopes: string[];
+
+  /**
+   * The owner must confirm the key-derived words shown by the joining machine.
+   *
+   * @generated from field: repeated string confirmation_words = 4;
+   */
+  confirmationWords: string[];
 };
 
 /**
@@ -324,7 +375,7 @@ export type ApprovePairingRequest = Message<"vrooli.vrooli_bridge.v1.pairing.App
  * Use `create(ApprovePairingRequestSchema)` to create a new message.
  */
 export const ApprovePairingRequestSchema: GenMessage<ApprovePairingRequest> = /*@__PURE__*/
-  messageDesc(file_vrooli_bridge_v1_pairing_pairing, 8);
+  messageDesc(file_vrooli_bridge_v1_pairing_pairing, 10);
 
 /**
  * @generated from message vrooli.vrooli_bridge.v1.pairing.ApprovePairingResponse
@@ -348,7 +399,7 @@ export type ApprovePairingResponse = Message<"vrooli.vrooli_bridge.v1.pairing.Ap
  * Use `create(ApprovePairingResponseSchema)` to create a new message.
  */
 export const ApprovePairingResponseSchema: GenMessage<ApprovePairingResponse> = /*@__PURE__*/
-  messageDesc(file_vrooli_bridge_v1_pairing_pairing, 9);
+  messageDesc(file_vrooli_bridge_v1_pairing_pairing, 11);
 
 /**
  * PairingRequest is a pending/decided join request surfaced to the owner.
@@ -407,6 +458,11 @@ export type PairingRequest = Message<"vrooli.vrooli_bridge.v1.pairing.PairingReq
    * @generated from field: string node_id = 10;
    */
   nodeId: string;
+
+  /**
+   * @generated from field: repeated string confirmation_words = 11;
+   */
+  confirmationWords: string[];
 };
 
 /**
@@ -414,7 +470,7 @@ export type PairingRequest = Message<"vrooli.vrooli_bridge.v1.pairing.PairingReq
  * Use `create(PairingRequestSchema)` to create a new message.
  */
 export const PairingRequestSchema: GenMessage<PairingRequest> = /*@__PURE__*/
-  messageDesc(file_vrooli_bridge_v1_pairing_pairing, 10);
+  messageDesc(file_vrooli_bridge_v1_pairing_pairing, 12);
 
 /**
  * @generated from message vrooli.vrooli_bridge.v1.pairing.ListPairingRequestsRequest
@@ -433,7 +489,7 @@ export type ListPairingRequestsRequest = Message<"vrooli.vrooli_bridge.v1.pairin
  * Use `create(ListPairingRequestsRequestSchema)` to create a new message.
  */
 export const ListPairingRequestsRequestSchema: GenMessage<ListPairingRequestsRequest> = /*@__PURE__*/
-  messageDesc(file_vrooli_bridge_v1_pairing_pairing, 11);
+  messageDesc(file_vrooli_bridge_v1_pairing_pairing, 13);
 
 /**
  * @generated from message vrooli.vrooli_bridge.v1.pairing.ListPairingRequestsResponse
@@ -443,6 +499,11 @@ export type ListPairingRequestsResponse = Message<"vrooli.vrooli_bridge.v1.pairi
    * @generated from field: repeated vrooli.vrooli_bridge.v1.pairing.PairingRequest requests = 1;
    */
   requests: PairingRequest[];
+
+  /**
+   * @generated from field: repeated vrooli.vrooli_bridge.v1.pairing.PermissionPreset presets = 2;
+   */
+  presets: PermissionPreset[];
 };
 
 /**
@@ -450,7 +511,43 @@ export type ListPairingRequestsResponse = Message<"vrooli.vrooli_bridge.v1.pairi
  * Use `create(ListPairingRequestsResponseSchema)` to create a new message.
  */
 export const ListPairingRequestsResponseSchema: GenMessage<ListPairingRequestsResponse> = /*@__PURE__*/
-  messageDesc(file_vrooli_bridge_v1_pairing_pairing, 12);
+  messageDesc(file_vrooli_bridge_v1_pairing_pairing, 14);
+
+/**
+ * PermissionPreset is a catalog-derived enrollment posture. The server sends
+ * the concrete scopes so consoles never maintain a second authorization
+ * vocabulary. The first preset is the narrow default selected by the UI.
+ *
+ * @generated from message vrooli.vrooli_bridge.v1.pairing.PermissionPreset
+ */
+export type PermissionPreset = Message<"vrooli.vrooli_bridge.v1.pairing.PermissionPreset"> & {
+  /**
+   * @generated from field: string name = 1;
+   */
+  name: string;
+
+  /**
+   * @generated from field: string description = 2;
+   */
+  description: string;
+
+  /**
+   * @generated from field: repeated string scopes = 3;
+   */
+  scopes: string[];
+
+  /**
+   * @generated from field: repeated string withholds = 4;
+   */
+  withholds: string[];
+};
+
+/**
+ * Describes the message vrooli.vrooli_bridge.v1.pairing.PermissionPreset.
+ * Use `create(PermissionPresetSchema)` to create a new message.
+ */
+export const PermissionPresetSchema: GenMessage<PermissionPreset> = /*@__PURE__*/
+  messageDesc(file_vrooli_bridge_v1_pairing_pairing, 15);
 
 /**
  * PairingRequestStatus is the lifecycle of a request/approve enrollment.
@@ -535,6 +632,18 @@ export const PairingService: GenService<{
     methodKind: "unary";
     input: typeof RequestPairingRequestSchema;
     output: typeof RequestPairingResponseSchema;
+  },
+  /**
+   * GetPairingRequest is the open polling leg of request/approve enrollment.
+   * It returns the decision and, after approval, the node id and control-plane
+   * key the joining agent must persist before opening its authenticated channel.
+   *
+   * @generated from rpc vrooli.vrooli_bridge.v1.pairing.PairingService.GetPairingRequest
+   */
+  getPairingRequest: {
+    methodKind: "unary";
+    input: typeof GetPairingRequestRequestSchema;
+    output: typeof GetPairingRequestResponseSchema;
   },
   /**
    * ApprovePairing approves (or rejects) a pending pairing request, minting the

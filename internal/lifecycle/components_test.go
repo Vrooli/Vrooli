@@ -10,6 +10,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/vrooli/vrooli/internal/packagegov"
+	packagefixture "github.com/vrooli/vrooli/internal/packagegov/packagegovtest"
 	"github.com/vrooli/vrooli/internal/scenario"
 )
 
@@ -67,23 +69,95 @@ func TestInstallInputDigestGateSkipsUnchangedInputs(t *testing.T) {
 	}
 	component := scenario.Component{Build: scenario.ComponentBuild{Kind: "go_module", Dir: "api"}}
 	spec := BuilderSpec{Kind: "go_module", Install: []string{"go", "mod", "download"}, InstallInputs: []string{"go.mod", "go.sum"}}
-	needed, _, err := installNeeded(root, component, spec)
+	needed, _, err := installNeeded(root, root, component, spec)
 	if err != nil || !needed {
 		t.Fatalf("first installNeeded = %t, %v; want true", needed, err)
 	}
-	if err := recordInstallDigest(root, component, spec); err != nil {
+	if err := recordInstallDigest(root, root, component, spec); err != nil {
 		t.Fatal(err)
 	}
-	needed, _, err = installNeeded(root, component, spec)
+	needed, _, err = installNeeded(root, root, component, spec)
 	if err != nil || needed {
 		t.Fatalf("unchanged installNeeded = %t, %v; want false", needed, err)
 	}
 	if err := os.WriteFile(filepath.Join(root, "api", "go.sum"), []byte("sum-v2\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	needed, _, err = installNeeded(root, component, spec)
+	needed, _, err = installNeeded(root, root, component, spec)
 	if err != nil || !needed {
 		t.Fatalf("changed installNeeded = %t, %v; want true", needed, err)
+	}
+}
+
+func TestInstallInputDigestIncludesGovernedSharedPackageOutputs(t *testing.T) {
+	repoRoot := t.TempDir()
+	for _, name := range []string{"common.schema.json", "package.schema.json"} {
+		data, err := os.ReadFile(filepath.Join("..", "..", ".vrooli", "schemas", name))
+		if err != nil {
+			t.Fatal(err)
+		}
+		schemaDir := filepath.Join(repoRoot, ".vrooli", "schemas")
+		if err := os.MkdirAll(schemaDir, 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(schemaDir, name), data, 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	packagefixture.WritePackageManifest(t, repoRoot, "shared", packagefixture.PackageManifest(
+		"shared",
+		packagefixture.WithPackageModuleIdentifiers("@local/shared"),
+		packagefixture.WithPackageGenerateCommands(packagegov.CommandSpec{
+			Name:    "build",
+			Run:     []string{"echo", "build"},
+			Outputs: []string{"dist/index.js"},
+		}),
+	))
+	sharedOutput := filepath.Join(repoRoot, "packages", "shared", "dist", "index.js")
+	if err := os.MkdirAll(filepath.Dir(sharedOutput), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(sharedOutput, []byte("v1\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	scenarioRoot := filepath.Join(repoRoot, "scenarios", "demo")
+	uiRoot := filepath.Join(scenarioRoot, "ui")
+	if err := os.MkdirAll(uiRoot, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	packagefixture.WriteNodePackageManifest(t, filepath.Join(uiRoot, "package.json"), packagefixture.NodePackageManifest{
+		Name: "demo-ui",
+		Dependencies: map[string]string{
+			"@local/shared": "file:../../../packages/shared",
+		},
+	})
+
+	component := scenario.Component{Build: scenario.ComponentBuild{Kind: "pnpm_vite", Dir: "ui"}}
+	spec := BuilderSpec{
+		Kind:                     "pnpm_vite",
+		Install:                  []string{"pnpm", "install"},
+		InstallInputs:            []string{"package.json"},
+		FollowsWorkspaceFileDeps: true,
+	}
+	needed, _, err := installNeeded(repoRoot, scenarioRoot, component, spec)
+	if err != nil || !needed {
+		t.Fatalf("first installNeeded = %t, %v; want true", needed, err)
+	}
+	if err := recordInstallDigest(repoRoot, scenarioRoot, component, spec); err != nil {
+		t.Fatal(err)
+	}
+	needed, _, err = installNeeded(repoRoot, scenarioRoot, component, spec)
+	if err != nil || needed {
+		t.Fatalf("unchanged installNeeded = %t, %v; want false", needed, err)
+	}
+	if err := os.WriteFile(sharedOutput, []byte("v2\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	needed, _, err = installNeeded(repoRoot, scenarioRoot, component, spec)
+	if err != nil || !needed {
+		t.Fatalf("shared output change installNeeded = %t, %v; want true", needed, err)
 	}
 }
 

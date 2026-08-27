@@ -1,6 +1,7 @@
 package lifecycle
 
 import (
+	"context"
 	"fmt"
 	"path/filepath"
 	"runtime"
@@ -9,6 +10,16 @@ import (
 
 	"github.com/vrooli/cli-core/cliutil"
 	"github.com/vrooli/vrooli/internal/scenario"
+)
+
+const (
+	componentsParameterA = 20
+)
+
+const (
+	componentsParameterB = 2
+	componentsParameterC = 394
+	componentsParameterD = 752
 )
 
 // BuilderSpec is the declarative build contract shared by Tier 1 freshness,
@@ -47,6 +58,7 @@ type BuilderSpec struct {
 	FollowsWorkspaceFileDeps bool
 	Reserved                 bool
 	freshness                func(string, string, scenario.Component, hostProbeDeps) ([]artifactFreshness, error)
+	freshnessContext         func(context.Context, string, string, scenario.Component, hostProbeDeps) ([]artifactFreshness, error)
 }
 
 // BuildModeEnvVar names the perf-build channel selector. performance-health's
@@ -70,10 +82,11 @@ var builderRegistry = map[string]BuilderSpec{
 		Environment:            map[string]string{"GOWORK": "off"},
 		Install:                []string{"go", "mod", "download"},
 		InstallInputs:          []string{"go.mod", "go.sum"},
-		MemoryReservationBytes: 394 << 20,
+		MemoryReservationBytes: componentsParameterC << componentsParameterA,
 		StagedOutput:           true,
 		Build:                  goModuleBuildArgv(),
 		freshness:              goModuleComponentFreshness,
+		freshnessContext:       goModuleComponentFreshnessContext,
 	},
 	"pnpm_vite": {
 		Kind:                     "pnpm_vite",
@@ -83,7 +96,7 @@ var builderRegistry = map[string]BuilderSpec{
 		Install:                  []string{"pnpm", "install", "--ignore-workspace"},
 		InstallInputs:            []string{"package.json", "pnpm-lock.yaml"},
 		InstallStateFile:         "node_modules/.modules.yaml",
-		MemoryReservationBytes:   752 << 20,
+		MemoryReservationBytes:   componentsParameterD << componentsParameterA,
 		StagedOutput:             true,
 		StageDirectory:           true,
 		StageArgs:                []string{"--outDir", "{stage_output_dir}"},
@@ -91,6 +104,7 @@ var builderRegistry = map[string]BuilderSpec{
 		ProfileBuild:             []string{"pnpm", "run", "build:profile"},
 		FollowsWorkspaceFileDeps: true,
 		freshness:                pnpmViteComponentFreshness,
+		freshnessContext:         pnpmViteComponentFreshnessContext,
 	},
 	"node_bundle": {
 		Kind:                     "node_bundle",
@@ -99,11 +113,12 @@ var builderRegistry = map[string]BuilderSpec{
 		Install:                  []string{"pnpm", "install", "--ignore-workspace"},
 		InstallInputs:            []string{"package.json", "pnpm-lock.yaml"},
 		InstallStateFile:         "node_modules/.modules.yaml",
-		MemoryReservationBytes:   752 << 20,
+		MemoryReservationBytes:   componentsParameterD << componentsParameterA,
 		Build:                    []string{"pnpm", "run", "build"},
 		ProfileBuild:             []string{"pnpm", "run", "build:profile"},
 		FollowsWorkspaceFileDeps: true,
 		freshness:                pnpmViteComponentFreshness,
+		freshnessContext:         pnpmViteComponentFreshnessContext,
 	},
 	// reuse remains in the registry vocabulary for schema compatibility with
 	// older manifests. Reuse components never execute a builder; componentArtifact
@@ -244,7 +259,7 @@ func resolveComponentValue(value, scenarioRoot, scenarioName string, components 
 		if endOffset < 0 {
 			return "", fmt.Errorf("unterminated component binary placeholder in %q", value)
 		}
-		end := start + endOffset + 2
+		end := start + endOffset + componentsParameterB
 		name := strings.TrimSpace(value[start+len("{{bin.") : start+endOffset])
 		artifact, err := componentArtifact(name, scenarioRoot, scenarioName, components, goos, map[string]bool{})
 		if err != nil {
@@ -346,7 +361,19 @@ func componentFreshnessArtifacts(appRoot, repoRoot string, component scenario.Co
 	return spec.freshness(appRoot, repoRoot, component, deps)
 }
 
+func componentFreshnessArtifactsContext(ctx context.Context, appRoot, repoRoot string, component scenario.Component, deps hostProbeDeps) ([]artifactFreshness, error) {
+	spec, ok := builderRegistry[strings.TrimSpace(component.Build.Kind)]
+	if !ok || spec.Reserved || spec.freshnessContext == nil {
+		return componentFreshnessArtifacts(appRoot, repoRoot, component, deps)
+	}
+	return spec.freshnessContext(ctx, appRoot, repoRoot, component, deps)
+}
+
 func goModuleComponentFreshness(appRoot, repoRoot string, component scenario.Component, deps hostProbeDeps) ([]artifactFreshness, error) {
+	return goModuleComponentFreshnessContext(context.Background(), appRoot, repoRoot, component, deps)
+}
+
+func goModuleComponentFreshnessContext(ctx context.Context, appRoot, repoRoot string, component scenario.Component, deps hostProbeDeps) ([]artifactFreshness, error) {
 	targets, err := componentBuildTargets("component", appRoot, filepath.Base(appRoot), component, BuilderSpec{
 		Kind:          "go_module",
 		DefaultOutput: goModuleDefaultOutput,
@@ -362,10 +389,17 @@ func goModuleComponentFreshness(appRoot, repoRoot string, component scenario.Com
 		}
 		declared = append(declared, filepath.ToSlash(rel))
 	}
-	return binariesFreshnessArtifacts(appRoot, repoRoot, scenario.ConditionCheck{Type: "binaries", Targets: declared}, deps)
+	return binariesFreshnessArtifactsContext(ctx, appRoot, repoRoot, scenario.ConditionCheck{Type: "binaries", Targets: declared}, deps)
 }
 
 func pnpmViteComponentFreshness(appRoot, repoRoot string, component scenario.Component, deps hostProbeDeps) ([]artifactFreshness, error) {
+	return pnpmViteComponentFreshnessContext(context.Background(), appRoot, repoRoot, component, deps)
+}
+
+func pnpmViteComponentFreshnessContext(ctx context.Context, appRoot, repoRoot string, component scenario.Component, deps hostProbeDeps) ([]artifactFreshness, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	dir := strings.TrimSpace(component.Build.Dir)
 	if dir == "" {
 		return nil, fmt.Errorf("build.dir is required")
@@ -388,7 +422,11 @@ func pnpmViteComponentFreshness(appRoot, repoRoot string, component scenario.Com
 	if specs, err := fileDependenciesWithDeps(filepath.Join(buildDir, "package.json"), deps); err == nil {
 		for _, spec := range specs {
 			resolved := resolveCheckPath(buildDir, strings.TrimPrefix(spec.Spec, "file:"))
-			inputs = append(inputs, uiFileDependencyFreshnessInputs(root, sourceDir, spec.Name, resolved, deps)...)
+			dependencyInputs, dependencyErr := uiFileDependencyFreshnessInputsContext(ctx, root, sourceDir, spec.Name, resolved, deps)
+			if dependencyErr != nil {
+				return nil, dependencyErr
+			}
+			inputs = append(inputs, dependencyInputs...)
 		}
 	}
 	keyInputs := uiBuildKeyInputs(deps)

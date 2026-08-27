@@ -12,6 +12,10 @@ import (
 )
 
 const (
+	handlerParameterF = 2
+)
+
+const (
 	sudoersPath   = "/etc/sudoers.d/vrooli-autoheal"
 	systemctlPath = "/usr/bin/systemctl"
 )
@@ -82,7 +86,7 @@ func (h handler) Apply(host hostreqkit.Host, status hostreqkit.ItemStatus, opts 
 		status.Notes = append(status.Notes, "sudoers validation failed; real drop-in was not touched: "+err.Error())
 		return status, nil
 	}
-	if err := hostreqkit.RunPrivilegedCommand(opts.SudoMode, "install", []string{"-m", "0440", tmp, sudoersPath}, opts); err != nil {
+	if err := hostreqkit.RunPrivilegedCommand(opts.SudoMode, "install", []string{"-m", "440", tmp, sudoersPath}, opts); err != nil {
 		status.ExecutionState = hostreqkit.ExecutionFailed
 		return status, nil
 	}
@@ -105,7 +109,7 @@ func buildSudoersContent(user string) string {
 		"systemd-networkd", "systemd-timesyncd", "gnome-remote-desktop",
 		"gnome-remote-desktop.service", "xrdp", "gdm", "gdm3", "lightdm", "sddm",
 	}
-	commands := make([]string, 0, len(units)*2)
+	commands := make([]string, 0, len(units)*handlerParameterF)
 	for _, unit := range units {
 		commands = append(commands,
 			fmt.Sprintf("%s start %s", systemctlPath, unit),

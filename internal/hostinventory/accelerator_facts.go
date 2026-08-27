@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/vrooli/binaryfetch"
+	"github.com/vrooli/vrooli/internal/hostreqspec"
 )
 
 // Backend names are the closed accelerator vocabulary the whole control plane
@@ -179,7 +180,7 @@ func (s Snapshot) hasCUDADevice() bool {
 	// this process can submit work, and the difference is the whole silent-CPU
 	// failure mode. Platforms with no enumerated node list keep the vendor-tool
 	// answer, because absence of the list means "not observed", not "denied".
-	if s.OS == "linux" && len(s.NvidiaDeviceNodes) > 0 {
+	if hostreqspec.PlatformFromGOOS(s.OS) == hostreqspec.PlatformLinux && len(s.NvidiaDeviceNodes) > 0 {
 		return len(s.OpenableDeviceNodes) > 0
 	}
 	return true
@@ -200,7 +201,7 @@ func (s Snapshot) OpenableDeviceNode(path string) bool {
 // Metal-capable on a supported macOS release, so the platform plus an
 // enumerated display device is the evidence.
 func (s Snapshot) hasMetalDevice() bool {
-	if s.OS != "darwin" {
+	if hostreqspec.PlatformFromGOOS(s.OS) != hostreqspec.PlatformMacOS {
 		return false
 	}
 	for _, gpu := range s.GPUs {

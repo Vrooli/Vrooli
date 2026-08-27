@@ -7,11 +7,14 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"os"
 	"path/filepath"
 	"sync"
 	"time"
+
+	"github.com/vrooli/vrooli/internal/tuning"
+
+	"github.com/vrooli/vrooli/internal/config"
 )
 
 const schemaVersion = 1
@@ -49,6 +52,7 @@ type fileEntry struct {
 	Value     json.RawMessage `json:"value"`
 }
 
+//nolint:gocyclo // host-fact reads distinguish cache, freshness, probe, decode, and persistence outcomes.
 func (r *Reader) Read(ctx context.Context, class string) (json.RawMessage, error) {
 	if r == nil || r.Probe == nil {
 		return nil, errors.New("host facts reader has no probe")
@@ -79,7 +83,7 @@ func (r *Reader) Read(ctx context.Context, class string) (json.RawMessage, error
 	// remove a lock created by another process.
 	lock := r.Path + ".lock"
 	for i := 0; i < 500; i++ {
-		f, err := os.OpenFile(lock, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o600)
+		f, err := os.OpenFile(lock, os.O_CREATE|os.O_EXCL|os.O_WRONLY, tuning.PermSecret)
 		if err == nil {
 			f.Close()
 			defer os.Remove(lock)
@@ -91,7 +95,7 @@ func (r *Reader) Read(ctx context.Context, class string) (json.RawMessage, error
 		select {
 		case <-ctx.Done():
 			return nil, ctx.Err()
-		case <-time.After(10 * time.Millisecond):
+		case <-time.After(tuning.HostFactsRetryInterval):
 		}
 		if e, ok := r.load(class); ok && e.Schema == schemaVersion && e.BootID == boot && now.Sub(e.FetchedAt) < ttl {
 			return append([]byte(nil), e.Value...), nil
@@ -130,7 +134,7 @@ func (r *Reader) load(class string) (entry, bool) {
 }
 
 func (r *Reader) store(class string, e entry) error {
-	if err := os.MkdirAll(filepath.Dir(r.Path), 0o700); err != nil {
+	if err := os.MkdirAll(filepath.Dir(r.Path), tuning.PermPrivateDir); err != nil {
 		return err
 	}
 	cached := file{Schema: schemaVersion, BootID: e.BootID, Entries: map[string]fileEntry{}}
@@ -145,11 +149,7 @@ func (r *Reader) store(class string, e entry) error {
 	if err != nil {
 		return err
 	}
-	tmp := fmt.Sprintf("%s.%d.tmp", r.Path, os.Getpid())
-	if err := os.WriteFile(tmp, b, 0o600); err != nil {
-		return err
-	}
-	return os.Rename(tmp, r.Path)
+	return config.WriteOwnedFileAtomic(r.Path, b, tuning.PermSecret)
 }
 
 func (r *Reader) readFile() (file, bool) {

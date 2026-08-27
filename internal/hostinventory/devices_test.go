@@ -7,6 +7,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/vrooli/vrooli/internal/shell/shelltest"
 )
 
 // materializeSysfs builds a sysfs tree in a temporary directory from a
@@ -86,7 +88,7 @@ func linuxDeviceCollector(t *testing.T, manifest string, commands CommandRunner)
 // two graphics controllers. Both must be enumerated, and neither may owe its
 // discovery to a vendor tool.
 func TestEnumerateGraphicsFindsBothControllersOnSwarminator(t *testing.T) {
-	collector := linuxDeviceCollector(t, "two-graphics.sysfs", fakeCommandRunner{})
+	collector := linuxDeviceCollector(t, "two-graphics.sysfs", &shelltest.Fake{})
 	snapshot, err := collector.CollectGPUFacts(context.Background())
 	if err != nil {
 		t.Fatalf("CollectGPUFacts() error = %v", err)
@@ -147,7 +149,7 @@ func TestEnumerateGraphicsFindsBothControllersOnSwarminator(t *testing.T) {
 }
 
 func TestEnumerateGraphicsFindsSingleController(t *testing.T) {
-	collector := linuxDeviceCollector(t, "one-graphics.sysfs", fakeCommandRunner{})
+	collector := linuxDeviceCollector(t, "one-graphics.sysfs", &shelltest.Fake{})
 	snapshot, err := collector.CollectGPUFacts(context.Background())
 	if err != nil {
 		t.Fatalf("CollectGPUFacts() error = %v", err)
@@ -168,7 +170,7 @@ func TestEnumerateGraphicsFindsSingleController(t *testing.T) {
 // with no driver bound and therefore no DRM node. It is still a device, and
 // its empty driver is a fact rather than a probe failure.
 func TestEnumerateGraphicsReportsUnboundDevice(t *testing.T) {
-	collector := linuxDeviceCollector(t, "no-driver.sysfs", fakeCommandRunner{})
+	collector := linuxDeviceCollector(t, "no-driver.sysfs", &shelltest.Fake{})
 	snapshot, err := collector.CollectGPUFacts(context.Background())
 	if err != nil {
 		t.Fatalf("CollectGPUFacts() error = %v", err)
@@ -198,7 +200,7 @@ func TestEnumerateGraphicsReportsUnboundDevice(t *testing.T) {
 // TestEnumerateGraphicsFindsNonPCIDevice proves the identity scheme does not
 // assume a PCI bus: an ARM SoC GPU is keyed on its firmware device-tree path.
 func TestEnumerateGraphicsFindsNonPCIDevice(t *testing.T) {
-	collector := linuxDeviceCollector(t, "soc-graphics.sysfs", fakeCommandRunner{})
+	collector := linuxDeviceCollector(t, "soc-graphics.sysfs", &shelltest.Fake{})
 	snapshot, err := collector.CollectGPUFacts(context.Background())
 	if err != nil {
 		t.Fatalf("CollectGPUFacts() error = %v", err)
@@ -217,7 +219,7 @@ func TestEnumerateGraphicsFindsNonPCIDevice(t *testing.T) {
 // reporting an empty device list as if it had looked.
 func TestEnumerateGraphicsReportsUnavailableProbe(t *testing.T) {
 	collector := Collector{
-		Commands:    fakeCommandRunner{},
+		Commands:    &shelltest.Fake{},
 		Files:       fakeFileReader{},
 		GOOS:        "linux",
 		GOARCH:      "amd64",
@@ -239,7 +241,7 @@ func TestEnumerateGraphicsReportsUnavailableProbe(t *testing.T) {
 }
 
 func TestEnumerateGraphicsReportsMissingNameDatabase(t *testing.T) {
-	collector := linuxDeviceCollector(t, "one-graphics.sysfs", fakeCommandRunner{})
+	collector := linuxDeviceCollector(t, "one-graphics.sysfs", &shelltest.Fake{})
 	collector.DeviceRoots.PCIIDs = []string{filepath.Join(t.TempDir(), "absent-pci.ids")}
 	snapshot, err := collector.CollectGPUFacts(context.Background())
 	if err != nil {
@@ -257,10 +259,10 @@ func TestEnumerateGraphicsReportsMissingNameDatabase(t *testing.T) {
 	}
 }
 
-func nvidiaCommands(busIDs string) fakeCommandRunner {
-	return fakeCommandRunner{
-		paths: map[string]string{"nvidia-smi": "/usr/bin/nvidia-smi"},
-		out: map[string][]byte{
+func nvidiaCommands(busIDs string) *shelltest.Fake {
+	return &shelltest.Fake{
+		Paths: map[string]string{"nvidia-smi": "/usr/bin/nvidia-smi"},
+		Outputs: map[string][]byte{
 			"nvidia-smi --query-gpu=index,name,uuid,driver_version,utilization.gpu,utilization.memory,memory.total,memory.used,temperature.gpu,fan.speed,power.draw,power.limit,clocks.sm,clocks.mem --format=csv,noheader,nounits": []byte("0, NVIDIA GeForce RTX 4070 Ti SUPER, GPU-3f249fa3, 580.65, 4, 1, 16376, 1024, 44, 0, 20, 285, 210, 405\n"),
 			"nvidia-smi --query-gpu=index,compute_cap --format=csv,noheader,nounits":                              []byte("0, 8.9\n"),
 			"nvidia-smi --query-gpu=index,pci.bus_id --format=csv,noheader,nounits":                               []byte(busIDs),
@@ -343,7 +345,7 @@ func TestCollectDevicesReportsPlatformStatus(t *testing.T) {
 		{goos: "windows", want: "unavailable"},
 	} {
 		t.Run(testCase.goos, func(t *testing.T) {
-			collector := Collector{Commands: fakeCommandRunner{}, Files: fakeFileReader{}, GOOS: testCase.goos, GOARCH: "arm64"}
+			collector := Collector{Commands: &shelltest.Fake{}, Files: fakeFileReader{}, GOOS: testCase.goos, GOARCH: "arm64"}
 			snapshot, err := collector.CollectGPUFacts(context.Background())
 			if err != nil {
 				t.Fatalf("CollectGPUFacts() error = %v", err)
@@ -361,9 +363,9 @@ func TestCollectDevicesReportsPlatformStatus(t *testing.T) {
 func TestCollectWindowsDevicesUsesPNPIdentity(t *testing.T) {
 	const output = "\r\nAdapterCompatibility=NVIDIA\r\nDriverVersion=32.0.15.6636\r\nName=NVIDIA GeForce RTX 4070 Ti SUPER\r\nPNPDeviceID=PCI\\VEN_10DE&DEV_2705&SUBSYS_89571043&REV_A1\\4&2E5A2E5B&0&0008\r\n\r\nAdapterCompatibility=Advanced Micro Devices, Inc.\r\nDriverVersion=31.0.24033.1003\r\nName=AMD Radeon(TM) Graphics\r\nPNPDeviceID=PCI\\VEN_1002&DEV_164E&SUBSYS_88771043&REV_C1\\4&1B2A7A18&0&0041\r\n\r\n"
 	collector := Collector{
-		Commands: fakeCommandRunner{
-			paths: map[string]string{"wmic": `C:\Windows\System32\wbem\WMIC.exe`},
-			out: map[string][]byte{
+		Commands: &shelltest.Fake{
+			Paths: map[string]string{"wmic": `C:\Windows\System32\wbem\WMIC.exe`},
+			Outputs: map[string][]byte{
 				"wmic path win32_VideoController get AdapterCompatibility,DriverVersion,Name,PNPDeviceID /Value": []byte(output),
 			},
 		},
@@ -395,9 +397,9 @@ func TestCollectWindowsDevicesUsesPNPIdentity(t *testing.T) {
 // graphics device".
 func TestCollectWindowsDevicesReportsUnrecognizedOutput(t *testing.T) {
 	collector := Collector{
-		Commands: fakeCommandRunner{
-			paths: map[string]string{"wmic": `C:\Windows\System32\wbem\WMIC.exe`},
-			out: map[string][]byte{
+		Commands: &shelltest.Fake{
+			Paths: map[string]string{"wmic": `C:\Windows\System32\wbem\WMIC.exe`},
+			Outputs: map[string][]byte{
 				"wmic path win32_VideoController get AdapterCompatibility,DriverVersion,Name,PNPDeviceID /Value": []byte("Node,AdapterCompatibility,Name\r\nHOST,NVIDIA,RTX\r\n"),
 			},
 		},

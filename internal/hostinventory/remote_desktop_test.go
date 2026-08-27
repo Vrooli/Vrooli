@@ -3,23 +3,9 @@ package hostinventory
 import (
 	"context"
 	"testing"
+
+	"github.com/vrooli/vrooli/internal/shell/shelltest"
 )
-
-type remoteDesktopFixtureRunner struct {
-	outputs map[string][]byte
-	errors  map[string]error
-}
-
-func (r remoteDesktopFixtureRunner) Run(_ context.Context, name string, args ...string) ([]byte, error) {
-	key := name
-	for _, arg := range args {
-		key += " " + arg
-	}
-	if err := r.errors[key]; err != nil {
-		return nil, err
-	}
-	return r.outputs[key], nil
-}
 
 func TestClassifyRemoteDesktopAgreementFixtures(t *testing.T) {
 	tests := []struct {
@@ -111,9 +97,9 @@ func TestClassifyRemoteDesktopAgreementFixtures(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			var facts RemoteDesktopCapability
 			if tt.name == "gnome user shared" {
-				facts = ClassifyRemoteDesktopWithDisplayAndUser(context.Background(), tt.os, tt.systemd, true, "alice", remoteDesktopFixtureRunner{outputs: tt.outputs})
+				facts = ClassifyRemoteDesktopWithDisplayAndUser(context.Background(), tt.os, tt.systemd, true, "alice", &shelltest.Fake{Outputs: tt.outputs})
 			} else {
-				facts = ClassifyRemoteDesktop(context.Background(), tt.os, tt.systemd, remoteDesktopFixtureRunner{outputs: tt.outputs})
+				facts = ClassifyRemoteDesktop(context.Background(), tt.os, tt.systemd, &shelltest.Fake{Outputs: tt.outputs})
 			}
 			if facts.SelectedProvider != tt.wantProvider {
 				t.Fatalf("SelectedProvider = %q, want %q; facts=%#v", facts.SelectedProvider, tt.wantProvider, facts)

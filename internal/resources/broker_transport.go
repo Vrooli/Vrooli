@@ -14,6 +14,28 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/vrooli/vrooli/internal/tuning"
+)
+
+const (
+	brokerTransportHttp    = "http"
+	brokerTransportRestart = "restart"
+	brokerTransportStop    = "stop"
+	brokerTransportStart   = "start"
+)
+
+const (
+	brokerTransportLogs = "logs"
+)
+
+const (
+	brokerTransportParameterA = 10
+)
+
+const (
+	brokerTransportParameterB = 32
+	brokerTransportParameterC = 8
 )
 
 // BrokerControlServer exposes the narrow broker authority surface over a
@@ -104,7 +126,7 @@ func StartBrokerControlServer(listener net.Listener, broker *Broker, credentials
 	mux.HandleFunc("/v1/authorize-management", control.authorizeManagement)
 	mux.HandleFunc("/v1/credentials", control.issueCredential)
 	mux.HandleFunc("/v1/manage", control.manage)
-	control.server = &http.Server{Handler: mux, ReadHeaderTimeout: 5 * time.Second}
+	control.server = &http.Server{Handler: mux, ReadHeaderTimeout: tuning.ServiceHealthTimeout}
 	go func() { _ = control.server.Serve(listener) }()
 	return control, nil
 }
@@ -168,7 +190,7 @@ func (s *BrokerControlServer) acquire(w http.ResponseWriter, request *http.Reque
 		return
 	}
 	var input acquireBrokerRequest
-	if err := json.NewDecoder(http.MaxBytesReader(w, request.Body, 8<<10)).Decode(&input); err != nil {
+	if err := json.NewDecoder(http.MaxBytesReader(w, request.Body, brokerTransportParameterC<<brokerTransportParameterA)).Decode(&input); err != nil {
 		http.Error(w, "invalid acquire request", http.StatusBadRequest)
 		return
 	}
@@ -177,7 +199,7 @@ func (s *BrokerControlServer) acquire(w http.ResponseWriter, request *http.Reque
 		http.Error(w, err.Error(), http.StatusForbidden)
 		return
 	}
-	writeBrokerJSON(w, lease)
+	writeBrokerResponse(w, lease)
 }
 
 func (s *BrokerControlServer) authorizeUse(w http.ResponseWriter, request *http.Request) {
@@ -186,7 +208,7 @@ func (s *BrokerControlServer) authorizeUse(w http.ResponseWriter, request *http.
 		return
 	}
 	var input authorizeUseBrokerRequest
-	if err := json.NewDecoder(http.MaxBytesReader(w, request.Body, 8<<10)).Decode(&input); err != nil {
+	if err := json.NewDecoder(http.MaxBytesReader(w, request.Body, brokerTransportParameterC<<brokerTransportParameterA)).Decode(&input); err != nil {
 		http.Error(w, "invalid use authorization request", http.StatusBadRequest)
 		return
 	}
@@ -195,7 +217,7 @@ func (s *BrokerControlServer) authorizeUse(w http.ResponseWriter, request *http.
 		http.Error(w, err.Error(), http.StatusForbidden)
 		return
 	}
-	writeBrokerJSON(w, instance)
+	writeBrokerResponse(w, instance)
 }
 
 func (s *BrokerControlServer) authorizeManagement(w http.ResponseWriter, request *http.Request) {
@@ -204,7 +226,7 @@ func (s *BrokerControlServer) authorizeManagement(w http.ResponseWriter, request
 		return
 	}
 	var input authorizeManagementBrokerRequest
-	if err := json.NewDecoder(http.MaxBytesReader(w, request.Body, 8<<10)).Decode(&input); err != nil {
+	if err := json.NewDecoder(http.MaxBytesReader(w, request.Body, brokerTransportParameterC<<brokerTransportParameterA)).Decode(&input); err != nil {
 		http.Error(w, "invalid management authorization request", http.StatusBadRequest)
 		return
 	}
@@ -213,7 +235,7 @@ func (s *BrokerControlServer) authorizeManagement(w http.ResponseWriter, request
 		http.Error(w, err.Error(), http.StatusForbidden)
 		return
 	}
-	writeBrokerJSON(w, instance)
+	writeBrokerResponse(w, instance)
 }
 
 func (s *BrokerControlServer) issueCredential(w http.ResponseWriter, request *http.Request) {
@@ -222,7 +244,7 @@ func (s *BrokerControlServer) issueCredential(w http.ResponseWriter, request *ht
 		return
 	}
 	var input issueCredentialBrokerRequest
-	if err := json.NewDecoder(http.MaxBytesReader(w, request.Body, 8<<10)).Decode(&input); err != nil {
+	if err := json.NewDecoder(http.MaxBytesReader(w, request.Body, brokerTransportParameterC<<brokerTransportParameterA)).Decode(&input); err != nil {
 		http.Error(w, "invalid credential request", http.StatusBadRequest)
 		return
 	}
@@ -238,7 +260,7 @@ func (s *BrokerControlServer) issueCredential(w http.ResponseWriter, request *ht
 		http.Error(w, err.Error(), http.StatusForbidden)
 		return
 	}
-	writeBrokerJSON(w, credential)
+	writeBrokerResponse(w, credential)
 }
 
 func (s *BrokerControlServer) manage(w http.ResponseWriter, request *http.Request) {
@@ -247,11 +269,11 @@ func (s *BrokerControlServer) manage(w http.ResponseWriter, request *http.Reques
 		return
 	}
 	var input manageBrokerRequest
-	if err := json.NewDecoder(http.MaxBytesReader(w, request.Body, 8<<10)).Decode(&input); err != nil {
+	if err := json.NewDecoder(http.MaxBytesReader(w, request.Body, brokerTransportParameterC<<brokerTransportParameterA)).Decode(&input); err != nil {
 		http.Error(w, "invalid management request", http.StatusBadRequest)
 		return
 	}
-	if input.Action != "start" && input.Action != "stop" && input.Action != "restart" && input.Action != "inspect" && input.Action != "logs" {
+	if input.Action != brokerTransportStart && input.Action != brokerTransportStop && input.Action != brokerTransportRestart && input.Action != "inspect" && input.Action != brokerTransportLogs {
 		http.Error(w, "unsupported management action", http.StatusBadRequest)
 		return
 	}
@@ -272,10 +294,10 @@ func (s *BrokerControlServer) manage(w http.ResponseWriter, request *http.Reques
 		http.Error(w, err.Error(), http.StatusConflict)
 		return
 	}
-	writeBrokerJSON(w, result)
+	writeBrokerResponse(w, result)
 }
 
-func writeBrokerJSON(w http.ResponseWriter, value any) {
+func writeBrokerResponse(w http.ResponseWriter, value any) {
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(value)
 }
@@ -292,11 +314,11 @@ func NewBrokerControlClient(credential BrokerControlCredential) (*BrokerControlC
 		return nil, fmt.Errorf("broker control scope and token are required")
 	}
 	endpoint, err := url.Parse(strings.TrimSpace(credential.Endpoint))
-	if err != nil || endpoint.Scheme != "http" || !isLoopbackHost(endpoint.Hostname()) {
+	if err != nil || endpoint.Scheme != brokerTransportHttp || !isLoopbackHost(endpoint.Hostname()) {
 		return nil, fmt.Errorf("broker control endpoint must be an HTTP loopback address")
 	}
 	credential.Endpoint = strings.TrimRight(credential.Endpoint, "/")
-	return &BrokerControlClient{credential: credential, httpClient: &http.Client{Timeout: 10 * time.Second}}, nil
+	return &BrokerControlClient{credential: credential, httpClient: &http.Client{Timeout: tuning.ControlPlaneClientTimeout}}, nil
 }
 
 func (c *BrokerControlClient) Acquire(ctx context.Context, resource string, ttl time.Duration) (Lease, error) {
@@ -358,7 +380,7 @@ func (c *BrokerControlClient) post(ctx context.Context, path string, input, outp
 	if response.StatusCode != http.StatusOK {
 		return fmt.Errorf("broker control request failed: %s", response.Status)
 	}
-	return json.NewDecoder(io.LimitReader(response.Body, 32<<10)).Decode(output)
+	return json.NewDecoder(io.LimitReader(response.Body, brokerTransportParameterB<<brokerTransportParameterA)).Decode(output)
 }
 
 func isLoopbackAddress(address net.Addr) bool {

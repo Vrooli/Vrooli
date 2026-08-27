@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/vrooli/repo-contract-go/repocontracttest"
+	"github.com/vrooli/vrooli/internal/shell/shelltest"
 )
 
 // A service unit records an absolute path and keeps running it across restarts
@@ -24,7 +25,7 @@ func TestExecutablePathPrefersTheInstalledCLIOverTheInstallingBinary(t *testing.
 	if err := os.MkdirAll(filepath.Dir(installed), 0o755); err != nil {
 		t.Fatalf("create bin dir: %v", err)
 	}
-	if err := os.WriteFile(installed, []byte("#!/bin/sh\nexit 0\n"), 0o755); err != nil {
+	if err := os.WriteFile(installed, []byte(shelltest.POSIXShebang()+"exit 0\n"), 0o755); err != nil {
 		t.Fatalf("write installed cli: %v", err)
 	}
 

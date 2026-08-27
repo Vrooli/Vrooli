@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+
+	"github.com/vrooli/vrooli/internal/tuning"
 )
 
 // Capture takes a restore point: it copies the scenario working tree (srcDir)
@@ -21,7 +23,7 @@ func Capture(srcDir, restorePointDest string, opts *CopyOptions) (CopyStats, err
 		return CopyStats{}, fmt.Errorf("baselinefloor: capture src: %w", err)
 	}
 	co := resolveCopyOptions(opts)
-	if err := os.MkdirAll(filepath.Dir(restorePointDest), 0o750); err != nil {
+	if err := os.MkdirAll(filepath.Dir(restorePointDest), tuning.PermGroupDir); err != nil {
 		return CopyStats{}, fmt.Errorf("baselinefloor: capture mkdir %q: %w", restorePointDest, err)
 	}
 	stats, err := CopyTree(srcDir, restorePointDest, co)
@@ -45,7 +47,7 @@ func Restore(restorePointSrc, destDir string, opts *CopyOptions) (CopyStats, err
 		return CopyStats{}, fmt.Errorf("baselinefloor: restore point: %w", err)
 	}
 	co := resolveCopyOptions(opts)
-	if err := os.MkdirAll(destDir, 0o750); err != nil {
+	if err := os.MkdirAll(destDir, tuning.PermGroupDir); err != nil {
 		return CopyStats{}, fmt.Errorf("baselinefloor: restore mkdir %q: %w", destDir, err)
 	}
 	stats, err := CopyTree(restorePointSrc, destDir, co)

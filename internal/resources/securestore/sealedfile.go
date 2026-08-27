@@ -12,8 +12,14 @@ import (
 	"path/filepath"
 	"sort"
 
+	"github.com/vrooli/vrooli/internal/tuning"
+
 	"github.com/vrooli/vrooli/internal/config"
 	"github.com/vrooli/vrooli/internal/credentialpolicy"
+)
+
+const (
+	sealedfileParameterA = 24
 )
 
 // The sealed file is the storage layer of the credential backend for hosts with
@@ -35,8 +41,8 @@ const (
 	// because "empty" would invite an overwrite that destroys every entry.
 	sealedFormatVersion = 1
 
-	sealedFilePerm = 0o600
-	sealedDirPerm  = 0o700
+	sealedFilePerm = tuning.PermSecret
+	sealedDirPerm  = tuning.PermPrivateDir
 
 	// dataKeyLen is AES-256. One random data key seals every entry and is never
 	// written unwrapped; each key-encryption provider stores its own wrap of it.
@@ -103,7 +109,7 @@ type sealedEntry struct {
 // data key. Every component is length-prefixed so no two different (service,
 // key) pairs can produce the same bytes.
 func entryAAD(version int, service, key string) []byte {
-	aad := make([]byte, 0, len(aeadContext)+len(service)+len(key)+24)
+	aad := make([]byte, 0, len(aeadContext)+len(service)+len(key)+sealedfileParameterA)
 	aad = appendLengthPrefixed(aad, []byte(aeadContext))
 	aad = binary.BigEndian.AppendUint32(aad, uint32(version))
 	aad = appendLengthPrefixed(aad, []byte(service))
@@ -275,8 +281,8 @@ func writeSealedFile(path string, file *sealedFile) error {
 	// group and other bits are touched: narrowing the owner's own access is not
 	// this function's business, and quietly re-granting owner write would
 	// defeat an operator who deliberately froze the directory.
-	if info, err := os.Stat(dir); err == nil && info.Mode().Perm()&0o077 != 0 {
-		if err := os.Chmod(dir, info.Mode().Perm()&^0o077); err != nil {
+	if info, err := os.Stat(dir); err == nil && info.Mode().Perm()&tuning.PermGroupAndOtherMask != 0 {
+		if err := os.Chmod(dir, info.Mode().Perm()&^tuning.PermGroupAndOtherMask); err != nil {
 			return fmt.Errorf("restrict credential store directory: %w", err)
 		}
 	}
@@ -286,38 +292,8 @@ func writeSealedFile(path string, file *sealedFile) error {
 		return err
 	}
 
-	temp, err := os.CreateTemp(dir, ".credentials-*.tmp")
-	if err != nil {
-		return fmt.Errorf("create credential store temporary file: %w", err)
-	}
-	tempName := temp.Name()
-	defer func() {
-		_ = temp.Close()
-		_ = os.Remove(tempName)
-	}()
-	if err := temp.Chmod(sealedFilePerm); err != nil {
-		return fmt.Errorf("restrict credential store temporary file: %w", err)
-	}
-	if _, err := temp.Write(data); err != nil {
-		return fmt.Errorf("write credential store: %w", err)
-	}
-	// Without the sync the rename can land while the contents have not, so a
-	// power loss replaces a good file with an empty one.
-	if err := temp.Sync(); err != nil {
-		return fmt.Errorf("flush credential store: %w", err)
-	}
-	if err := temp.Close(); err != nil {
-		return fmt.Errorf("close credential store: %w", err)
-	}
-	if err := os.Rename(tempName, path); err != nil {
+	if err := config.WriteOwnedFileAtomic(path, data, sealedFilePerm); err != nil {
 		return fmt.Errorf("replace credential store: %w", err)
-	}
-	// Rename gives the final file the temporary file's ownership. When a
-	// Vrooli command is run through sudo, that owner is root unless the write
-	// explicitly restores the invoking user's identity. Keep the encrypted
-	// store usable by the operator who owns the runtime home.
-	if err := config.ChownToInvokingUser(path); err != nil {
-		return fmt.Errorf("restore credential store ownership: %w", err)
 	}
 	return nil
 }

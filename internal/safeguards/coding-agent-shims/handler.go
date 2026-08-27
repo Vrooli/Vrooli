@@ -15,42 +15,53 @@
 // A shim is a real executable. It works in every shell, in non-interactive
 // contexts, and under execve, and it is the only form with a Windows story.
 //
-// # Why ~/.vrooli/bin
+// # Why ~/.vrooli/shims and not ~/.vrooli/bin
 //
-// That directory already exists, is already ahead of the agents' own install
-// directories on the PATH Vrooli sets up, and needs no privilege. Installing
-// here means the safeguard never touches a shell profile or a system path.
+// The aliases originally went into the shared install root, which needed no new
+// directory and was already on PATH. That convenience cost more than it saved.
+// A storage declaration describes one directory, and the safeguard's
+// declaration therefore described bin: five regenerable links, declared as a
+// 64MiB cache, over a shared root holding gigabytes of other components' build
+// output. Nothing about that is true of bin, and the untruth was load-bearing --
+// a declared budget is what the retention enforcer prunes to, and only a
+// hard-coded guard stood between that declaration and the install root.
+//
+// Owning a directory outright makes the declaration honest: everything in
+// ~/.vrooli/shims really is regenerable from the launcher binary, really does
+// fit in the declared budget, and really can be wiped without collateral. It
+// also decouples the aliases from a directory whose contents other installers
+// churn.
 //
 // # Why links to one binary
 //
 // vrooli-agent-launcher reads argv[0] to learn which agent it was invoked as
 // (see cliutil.ShimAliasFromArgv0), so a single binary serves every agent.
 // Adding an agent is a table entry, not another file to install and keep in
-// sync. On Unix the aliases are symlinks; on Windows they are copies, because
-// symlink creation there needs privilege this safeguard deliberately does not
-// ask for.
+// sync. On Unix the aliases are symlinks; on Windows they are hard links, which
+// need no privilege on NTFS while symlinks there do, falling back to copies on
+// filesystems that carry no hard links.
 //
 // # Failure posture
 //
 // Attribution is observability, never a gate. If the shim is missing the
 // operator simply gets an unattributed agent, which is why this safeguard is
-// low risk and its absence is reported rather than escalated.
+// low risk and its absence is reported rather than escalated. That posture is
+// also why the alias set is re-asserted on every control-plane start (see
+// EnsureInstalled) instead of only at setup time: a safeguard whose absence is
+// never escalated needs to repair itself, or it degrades silently and stays
+// degraded.
 package codingagentshims
 
 import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"runtime"
-	"strings"
 
 	"github.com/vrooli/cli-core/cliutil"
+	"github.com/vrooli/vrooli/internal/artifactledger"
 	"github.com/vrooli/vrooli/internal/hostreqkit"
 	"github.com/vrooli/vrooli/internal/hostreqspec"
 )
-
-// launcherBinary is the multi-call binary every alias links to.
-const launcherBinary = "vrooli-agent-launcher"
 
 type handler struct {
 	manifest hostreqkit.SafeguardManifest
@@ -65,104 +76,6 @@ func NewHandler(manifest hostreqkit.SafeguardManifest) hostreqkit.Handler {
 func (h handler) Name() string           { return h.manifest.Name }
 func (h handler) Kind() hostreqspec.Kind { return hostreqspec.KindSafeguard }
 
-// ShimDir returns the directory the aliases are installed into.
-func ShimDir() (string, error) {
-	home, err := shimHomeDir()
-	if err != nil {
-		return "", fmt.Errorf("resolve home directory: %w", err)
-	}
-	return filepath.Join(home, ".vrooli", "bin"), nil
-}
-
-var shimHomeDir = func() (string, error) {
-	if hostreqkit.RunningAsRootFn() {
-		return hostreqkit.InvokingUserHomeDir()
-	}
-	return os.UserHomeDir()
-}
-
-// executableName appends the platform's executable suffix.
-func executableName(name string) string {
-	if runtime.GOOS == "windows" {
-		return name + ".exe"
-	}
-	return name
-}
-
-// aliasPaths returns the launcher path and every alias path to install.
-func aliasPaths() (launcher string, aliases map[string]string, err error) {
-	dir, err := ShimDir()
-	if err != nil {
-		return "", nil, err
-	}
-	launcher = filepath.Join(dir, executableName(launcherBinary))
-	aliases = make(map[string]string, len(cliutil.CodingAgentAliases()))
-	for _, alias := range cliutil.CodingAgentAliases() {
-		aliases[alias] = filepath.Join(dir, executableName(alias))
-	}
-	return launcher, aliases, nil
-}
-
-// aliasInstalled reports whether path already routes to launcher. On Unix the
-// link target must match; on Windows the copy must be byte-identical, which is
-// also how a stale copy from an older build is detected.
-func aliasInstalled(path, launcher string) bool {
-	info, err := os.Lstat(path)
-	if err != nil {
-		return false
-	}
-	if runtime.GOOS == "windows" {
-		return sameFileContents(path, launcher)
-	}
-	if info.Mode()&os.ModeSymlink == 0 {
-		return false
-	}
-	target, err := os.Readlink(path)
-	if err != nil {
-		return false
-	}
-	if !filepath.IsAbs(target) {
-		target = filepath.Join(filepath.Dir(path), target)
-	}
-	return filepath.Clean(target) == filepath.Clean(launcher)
-}
-
-func sameFileContents(left, right string) bool {
-	leftData, err := os.ReadFile(left)
-	if err != nil {
-		return false
-	}
-	rightData, err := os.ReadFile(right)
-	if err != nil {
-		return false
-	}
-	if len(leftData) != len(rightData) {
-		return false
-	}
-	for i := range leftData {
-		if leftData[i] != rightData[i] {
-			return false
-		}
-	}
-	return true
-}
-
-// installAlias creates or repairs one alias. Replacing is done by removing
-// first so a stale link or an outdated copy is always superseded.
-func installAlias(path, launcher string) error {
-	if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
-		return fmt.Errorf("remove stale shim %s: %w", path, err)
-	}
-	if runtime.GOOS == "windows" {
-		data, err := os.ReadFile(launcher)
-		if err != nil {
-			return fmt.Errorf("read launcher: %w", err)
-		}
-		return os.WriteFile(path, data, 0o755)
-	}
-	return os.Symlink(launcher, path)
-}
-
 func (h handler) Inspect(host hostreqkit.Host, requirement hostreqspec.ResolvedRequirement) hostreqkit.ItemStatus {
 	status := hostreqkit.BaseStatus(requirement)
 	status.SupportClass = hostreqkit.SupportSupported
@@ -173,71 +86,35 @@ func (h handler) Inspect(host hostreqkit.Host, requirement hostreqspec.ResolvedR
 		return status
 	}
 
-	launcher, aliases, err := aliasPaths()
+	launcher, aliases, err := resolvePaths()
 	if err != nil {
 		return hostreqkit.InvalidConfigStatus(requirement, err.Error())
 	}
 
-	if _, err := os.Stat(launcher); err != nil {
+	if !launcherBuilt(launcher) {
 		// Nothing to link to yet. This is the normal state before the first
-		// build, so report it as pending work rather than a failure.
+		// build, so it is reported as pending work rather than a failure.
 		status.Notes = append(status.Notes,
 			"launcher not built yet at "+launcher+"; run `make install` before applying")
 		return status
 	}
 
-	missing := make([]string, 0, len(aliases))
-	for _, alias := range cliutil.CodingAgentAliases() {
-		if !aliasInstalled(aliases[alias], launcher) {
-			missing = append(missing, alias)
-		}
+	shimDir, err := ShimDir()
+	if err != nil {
+		return hostreqkit.InvalidConfigStatus(requirement, err.Error())
 	}
-	if len(missing) > 0 {
+
+	if missing := MissingAliases(aliases, launcher); len(missing) > 0 {
 		status.Notes = append(status.Notes,
-			"agent shims missing or stale: "+strings.Join(missing, ", ")+"; those agents run unattributed")
+			"agent shims missing or stale: "+describeAliases(missing)+"; those agents run unattributed")
 		return status
 	}
 
 	status.Applied = true
 	status.ExecutionState = hostreqkit.ExecutionAlreadyPresent
-	status.Notes = append(status.Notes, fmt.Sprintf("%d agent shims installed in %s", len(aliases), filepath.Dir(launcher)))
-	status.Notes = append(status.Notes, shadowingNote(filepath.Dir(launcher))...)
+	status.Notes = append(status.Notes, fmt.Sprintf("%d agent shims installed in %s", len(aliases), shimDir))
+	status.Notes = append(status.Notes, shadowingNote(shimDir)...)
 	return status
-}
-
-// shadowingNote warns when the shim directory is not ahead of the real agents
-// on PATH. The shims are installed correctly in that case but never run, and an
-// operator would otherwise see "installed" and wrong attribution at once.
-func shadowingNote(shimDir string) []string {
-	notes := make([]string, 0, 1)
-	for _, alias := range cliutil.CodingAgentAliases() {
-		resolved, err := cliutil.ResolveAgentBinaryExcluding(alias, "")
-		if err != nil {
-			continue
-		}
-		if filepath.Clean(filepath.Dir(resolved)) == filepath.Clean(shimDir) {
-			continue
-		}
-		if !pathPrefersShimDir(shimDir, filepath.Dir(resolved)) {
-			notes = append(notes, fmt.Sprintf(
-				"%s resolves to %s before the shim directory; PATH must list %s first for attribution to apply",
-				alias, resolved, shimDir))
-		}
-	}
-	return notes
-}
-
-// pathPrefersShimDir reports whether shimDir appears before other on PATH.
-func pathPrefersShimDir(shimDir, other string) bool {
-	for _, entry := range filepath.SplitList(os.Getenv("PATH")) {
-		switch filepath.Clean(entry) {
-		case filepath.Clean(shimDir):
-			return true
-		case filepath.Clean(other):
-			return false
-		}
-	}
-	return false
 }
 
 func (h handler) Apply(host hostreqkit.Host, status hostreqkit.ItemStatus, opts hostreqkit.EnsureOptions) (hostreqkit.ItemStatus, error) {
@@ -253,46 +130,139 @@ func (h handler) Apply(host hostreqkit.Host, status hostreqkit.ItemStatus, opts 
 		return status, nil
 	}
 
-	if status.Applied {
-		status.ExecutionState = hostreqkit.ExecutionAlreadyPresent
-		return status, nil
-	}
-
-	launcher, aliases, err := aliasPaths()
+	launcher, aliases, err := resolvePaths()
 	if err != nil {
 		status.ExecutionState = hostreqkit.ExecutionFailed
 		status.Notes = append(status.Notes, err.Error())
 		return status, nil
 	}
-	if _, err := os.Stat(launcher); err != nil {
+	if !launcherBuilt(launcher) {
 		status.ExecutionState = hostreqkit.ExecutionFailed
 		status.Notes = append(status.Notes, "launcher missing at "+launcher+"; build it before applying")
+		return status, nil
+	}
+	shimDir, err := ShimDir()
+	if err != nil {
+		status.ExecutionState = hostreqkit.ExecutionFailed
+		status.Notes = append(status.Notes, err.Error())
+		return status, nil
+	}
+
+	// Applying is not skipped when Inspect said the aliases were present: apply
+	// also retires aliases the previous layout left in the install root, and
+	// that migration has to run once on a host whose new-location shims are
+	// already correct.
+	missing := MissingAliases(aliases, launcher)
+	legacy, legacyErr := legacyAliasesPresent()
+	if legacyErr != nil {
+		status.ExecutionState = hostreqkit.ExecutionFailed
+		status.Notes = append(status.Notes, legacyErr.Error())
 		return status, nil
 	}
 
 	if opts.DryRun {
 		status.ExecutionState = hostreqkit.ExecutionWouldApply
-		status.Notes = append(status.Notes, fmt.Sprintf("dry-run: would install %d agent shims in %s", len(aliases), filepath.Dir(launcher)))
+		status.Notes = append(status.Notes, dryRunNote(missing, legacy, shimDir))
 		return status, nil
 	}
 
-	installed := make([]string, 0, len(aliases))
-	for _, alias := range cliutil.CodingAgentAliases() {
-		path := aliases[alias]
-		if aliasInstalled(path, launcher) {
-			continue
-		}
-		if err := installAlias(path, launcher); err != nil {
-			status.ExecutionState = hostreqkit.ExecutionFailed
-			status.Notes = append(status.Notes, "install shim "+alias+" failed: "+err.Error())
-			return status, nil
-		}
-		installed = append(installed, alias)
+	installed, err := EnsureInstalled()
+	if err != nil {
+		status.ExecutionState = hostreqkit.ExecutionFailed
+		status.Notes = append(status.Notes, "install agent shims failed: "+err.Error())
+		return status, nil
+	}
+
+	removed, err := RemoveLegacyAliases(removalLedger())
+	if err != nil {
+		// The new aliases are in place, so attribution already works. Retiring
+		// the old ones is cleanup; reporting it beats failing an applied item.
+		status.Notes = append(status.Notes, "retiring superseded shims failed: "+err.Error())
 	}
 
 	status.Applied = true
-	status.ExecutionState = hostreqkit.ExecutionApplied
-	status.Notes = append(status.Notes, "installed agent shims: "+strings.Join(installed, ", "))
-	status.Notes = append(status.Notes, shadowingNote(filepath.Dir(launcher))...)
+	if len(installed) == 0 && len(removed) == 0 {
+		status.ExecutionState = hostreqkit.ExecutionAlreadyPresent
+	} else {
+		status.ExecutionState = hostreqkit.ExecutionApplied
+	}
+	if len(installed) > 0 {
+		status.Notes = append(status.Notes, "installed agent shims: "+describeAliases(installed))
+	}
+	if len(removed) > 0 {
+		legacyDir, _ := LegacyShimDir()
+		status.Notes = append(status.Notes,
+			"retired superseded shims in "+legacyDir+": "+describeAliases(removed))
+	}
+	status.Notes = append(status.Notes, shadowingNote(shimDir)...)
 	return status, nil
+}
+
+// resolvePaths returns the launcher and the alias set in one step, so Inspect
+// and Apply cannot disagree about where either lives.
+func resolvePaths() (string, map[string]string, error) {
+	launcher, err := LauncherPath()
+	if err != nil {
+		return "", nil, err
+	}
+	aliases, err := AliasPaths()
+	if err != nil {
+		return "", nil, err
+	}
+	return launcher, aliases, nil
+}
+
+func dryRunNote(missing, legacy []string, shimDir string) string {
+	note := fmt.Sprintf("dry-run: would install %d agent shims in %s", len(missing), shimDir)
+	if len(missing) == 0 {
+		note = "dry-run: agent shims already present in " + shimDir
+	}
+	if len(legacy) > 0 {
+		note += "; would retire superseded shims: " + describeAliases(legacy)
+	}
+	return note
+}
+
+// legacyAliasesPresent lists aliases still installed in the shared install root.
+func legacyAliasesPresent() ([]string, error) {
+	legacyDir, err := LegacyShimDir()
+	if err != nil {
+		return nil, err
+	}
+	launcher, err := LauncherPath()
+	if err != nil {
+		return nil, err
+	}
+	present := make([]string, 0, len(cliutil.CodingAgentAliases()))
+	for _, alias := range cliutil.CodingAgentAliases() {
+		if aliasInstalled(filepath.Join(legacyDir, executableName(alias)), launcher) {
+			present = append(present, alias)
+		}
+	}
+	return present, nil
+}
+
+// launcherBuilt reports whether the multi-call binary exists to link to.
+func launcherBuilt(launcher string) bool {
+	_, err := os.Stat(launcher)
+	return err == nil
+}
+
+// removalLedger resolves the receipt ledger legacy-alias removal writes to.
+//
+// A nil ledger means the removal proceeds unrecorded. That is the wrong
+// direction in general, and it is the right one here: this is a best-effort
+// migration of an alias the operator no longer reaches, and refusing to tidy it
+// because the state directory is unavailable would leave two aliases for one
+// agent on PATH -- the more confusing outcome of the two.
+func removalLedger() *artifactledger.Ledger {
+	home, err := shimHomeDir()
+	if err != nil {
+		return nil
+	}
+	ledger, err := artifactledger.New(home)
+	if err != nil {
+		return nil
+	}
+	return ledger
 }

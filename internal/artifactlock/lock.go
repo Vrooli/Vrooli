@@ -11,6 +11,8 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/vrooli/vrooli/internal/tuning"
+
 	platform "github.com/vrooli/platform-go"
 	repocontract "github.com/vrooli/repo-contract-go"
 	"github.com/vrooli/vrooli/internal/config"
@@ -59,12 +61,12 @@ func AcquireWithPath(key string, pathFn func(string) (string, error)) (func(), e
 		mutex.Unlock()
 		return nil, fmt.Errorf("create artifact lock directory: %w", err)
 	}
-	file, err := os.OpenFile(path, os.O_CREATE|os.O_RDWR, 0o666)
+	file, err := os.OpenFile(path, os.O_CREATE|os.O_RDWR, tuning.PermLock)
 	if err != nil {
 		mutex.Unlock()
 		return nil, fmt.Errorf("open artifact lock %q: %w", path, err)
 	}
-	_ = os.Chmod(path, 0o666)
+	_ = os.Chmod(path, tuning.PermLock)
 	_ = config.ChownToInvokingUser(path)
 	releaseFile, err := platform.LockFile(file, false)
 	if err != nil {

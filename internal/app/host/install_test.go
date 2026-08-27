@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"testing"
 
+	"github.com/vrooli/vrooli/internal/cliout"
 	"github.com/vrooli/vrooli/internal/hostreqkit"
 )
 
@@ -22,7 +23,7 @@ func TestWriteHostInstallJSONContract(t *testing.T) {
 	}
 
 	var buf bytes.Buffer
-	if err := writeHostInstallJSON(&buf, status); err != nil {
+	if err := cliout.WriteProtoJSON(&buf, hostInstallStatusResponse(status)); err != nil {
 		t.Fatalf("writeHostInstallJSON: %v", err)
 	}
 	var got map[string]any

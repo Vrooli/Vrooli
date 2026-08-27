@@ -1,11 +1,8 @@
 package hygienecli
 
 import (
-	"io"
-
 	hygieneapp "github.com/vrooli/vrooli/internal/app/hygiene"
 	"github.com/vrooli/vrooli/internal/cli/contractcli"
-	"github.com/vrooli/vrooli/internal/cliout"
 	cliv1 "github.com/vrooli/vrooli/packages/proto/gen/go/cli/v1"
 )
 
@@ -140,8 +137,4 @@ func sharedDriftReportMessage(report *hygieneapp.DependencyFreshnessCompatReport
 		})
 	}
 	return msg
-}
-
-func writeHygieneReportJSON(w io.Writer, report hygieneapp.Report) error {
-	return cliout.WriteProtoJSON(w, HygieneReportMessage(report))
 }

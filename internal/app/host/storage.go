@@ -7,6 +7,7 @@ import (
 
 	"github.com/vrooli/vrooli/internal/cli/commandtree"
 	"github.com/vrooli/vrooli/internal/cli/rootcli"
+	"github.com/vrooli/vrooli/internal/cliout"
 	"github.com/vrooli/vrooli/internal/config"
 	"github.com/vrooli/vrooli/internal/hostinventory"
 	"github.com/vrooli/vrooli/internal/resources/securestore"
@@ -79,14 +80,15 @@ func (app *App) runHostStorageCommand(ctx *CommandContext, args []string) error 
 		return err
 	}
 	if ctx.Globals.JSON || parsed.HasFlag("--json") {
-		return writeHostJSON(ctx.Stdout, struct {
+		return cliout.WriteJSONValue(ctx.Stdout, struct {
 			Candidates      []hostinventory.StorageCandidate `json:"candidates"`
 			ProtectedRoots  []string                         `json:"protected_roots"`
 			RepositoryRoots []string                         `json:"repository_roots"`
 		}{Candidates: candidates, ProtectedRoots: protected, RepositoryRoots: repositoryRoots})
 	}
+	rows := make([][]string, 0, len(candidates))
 	for _, candidate := range candidates {
-		fmt.Fprintf(ctx.Stdout, "%s\t%s\t%s\t%s\n", candidate.Status, candidate.Kind, candidate.Location, candidate.Remediation)
+		rows = append(rows, []string{candidate.Status, candidate.Kind, candidate.Location, candidate.Remediation})
 	}
-	return nil
+	return cliout.WriteSection(ctx.Stdout, cliout.Section{Rows: rows})
 }

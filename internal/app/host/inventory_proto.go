@@ -1,10 +1,8 @@
 package hostapp
 
 import (
-	"io"
 	"time"
 
-	"github.com/vrooli/vrooli/internal/cliout"
 	"github.com/vrooli/vrooli/internal/hostinventory"
 	cliv1 "github.com/vrooli/vrooli/packages/proto/gen/go/cli/v1"
 )
@@ -148,11 +146,6 @@ func formatTime(t time.Time) string {
 		return ""
 	}
 	return t.Format(time.RFC3339Nano)
-}
-
-// writeHostSnapshotJSON emits the host-inventory wire contract as JSON.
-func writeHostSnapshotJSON(w io.Writer, s hostinventory.Snapshot) error {
-	return cliout.WriteProtoJSON(w, hostSnapshotResponse(s))
 }
 
 // hostDeviceResponses maps the device-tree enumeration onto the wire contract.

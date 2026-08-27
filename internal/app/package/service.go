@@ -109,6 +109,7 @@ func (s Service) Test(name string) (RunResponse, error) {
 	return s.runLifecycle(name, "test")
 }
 
+//nolint:gocyclo // refresh retains distinct setup, rebuild, restart, and shared-consumer outcomes.
 func (s Service) Refresh(req RefreshRequest) (RefreshResponse, error) {
 	noRestart := req.NoRestart || !req.Interactive
 	item, err := s.Info(req.PackageName)

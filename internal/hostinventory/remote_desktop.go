@@ -3,17 +3,27 @@ package hostinventory
 import (
 	"context"
 	"strings"
-	"time"
+
+	"github.com/vrooli/vrooli/internal/hostreqspec"
+	"github.com/vrooli/vrooli/internal/tuning"
+
+	"github.com/vrooli/vrooli/internal/shell"
 )
 
-const remoteDesktopProbeTimeout = 5 * time.Second
+const (
+	remoteDesktopActive = "active"
+)
+
+const (
+	remoteDesktopParameterA = 3
+)
+
+const remoteDesktopProbeTimeout = tuning.ServiceHealthTimeout
 
 // RemoteDesktopCommandRunner is the minimal command seam needed by the
 // shared provider classifier. It intentionally has no path lookup or mutation
 // operations.
-type RemoteDesktopCommandRunner interface {
-	Run(context.Context, string, ...string) ([]byte, error)
-}
+type RemoteDesktopCommandRunner = shell.Runner
 
 // ProbeRemoteDesktopCredentials reads the provider's non-secret status output
 // through the shared host-inventory command boundary. Callers may pass the
@@ -49,11 +59,13 @@ func classifyRemoteDesktopWithDisplay(ctx context.Context, osName string, system
 	return classifyRemoteDesktopWithDisplayAndUser(ctx, osName, systemd, displayAttached, "", commands)
 }
 
+//nolint:gocyclo // desktop classification is a finite provider/display/user state matrix.
 func classifyRemoteDesktopWithDisplayAndUser(ctx context.Context, osName string, systemd, displayAttached bool, sessionUser string, commands RemoteDesktopCommandRunner) RemoteDesktopCapability {
 	osName = strings.ToLower(strings.TrimSpace(osName))
-	providers := make([]RemoteDesktopProvider, 0, 3)
-	switch osName {
-	case "linux":
+	hostOS := hostreqspec.PlatformFromGOOS(osName)
+	providers := make([]RemoteDesktopProvider, 0, remoteDesktopParameterA)
+	switch hostOS {
+	case hostreqspec.PlatformLinux:
 		daemonSystem, daemonUser := daemonModes(ctx, commands)
 		var systemEnabled, systemActive string
 		if systemd {
@@ -61,8 +73,8 @@ func classifyRemoteDesktopWithDisplayAndUser(ctx context.Context, osName string,
 			systemActive = boundedValue(ctx, commands, "systemctl", "is-active", "gnome-remote-desktop.service")
 			providers = append(providers, RemoteDesktopProvider{
 				Name:           "gnome-system",
-				Present:        systemEnabled == "enabled" || systemEnabled == "static" || systemActive == "active" || daemonSystem,
-				Active:         systemActive == "active" || daemonSystem,
+				Present:        systemEnabled == "enabled" || systemEnabled == "static" || systemActive == remoteDesktopActive || daemonSystem,
+				Active:         systemActive == remoteDesktopActive || daemonSystem,
 				ProbeSucceeded: systemEnabled != "" || systemActive != "" || daemonSystem || daemonUser,
 			})
 		}
@@ -90,10 +102,10 @@ func classifyRemoteDesktopWithDisplayAndUser(ctx context.Context, osName string,
 		providers = append(providers, RemoteDesktopProvider{
 			Name:           "xrdp",
 			Present:        xrdpPresent,
-			Active:         xrdpPresent && boundedValue(ctx, commands, "systemctl", "is-active", "xrdp.service") == "active",
+			Active:         xrdpPresent && boundedValue(ctx, commands, "systemctl", "is-active", "xrdp.service") == remoteDesktopActive,
 			ProbeSucceeded: xrdpPresent,
 		})
-	case "windows":
+	case hostreqspec.PlatformWindows:
 		output, err := boundedCommand(ctx, commands, "sc.exe", "query", "TermService")
 		text := string(output)
 		providers = append(providers, RemoteDesktopProvider{
@@ -102,7 +114,7 @@ func classifyRemoteDesktopWithDisplayAndUser(ctx context.Context, osName string,
 			Active:         err == nil && strings.Contains(text, "RUNNING"),
 			ProbeSucceeded: err == nil,
 		})
-	case "darwin", "macos":
+	case hostreqspec.PlatformMacOS:
 		_, err := boundedCommand(ctx, commands, "launchctl", "print", "system/com.apple.screensharing")
 		providers = append(providers, RemoteDesktopProvider{
 			Name:           "macos-screen-sharing",
@@ -180,7 +192,7 @@ func userUnitState(ctx context.Context, commands RemoteDesktopCommandRunner, ses
 		"systemctl", "--user",
 	}
 	enabled = boundedValue(ctx, commands, "env", append(append([]string{}, env...), "is-enabled", "gnome-remote-desktop.service")...) == "enabled"
-	active = boundedValue(ctx, commands, "env", append(append([]string{}, env...), "is-active", "gnome-remote-desktop.service")...) == "active"
+	active = boundedValue(ctx, commands, "env", append(append([]string{}, env...), "is-active", "gnome-remote-desktop.service")...) == remoteDesktopActive
 	return enabled, active
 }
 

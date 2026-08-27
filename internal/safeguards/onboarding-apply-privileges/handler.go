@@ -49,7 +49,7 @@ func (h handler) Inspect(host hostreqkit.Host, requirement hostreqspec.ResolvedR
 		status.ExecutionState = hostreqkit.ExecutionAlreadyPresent
 		return status
 	case hostreqkit.FileComparisonUnreadable:
-		// A sudoers drop-in is 0440 root:root by necessity — sudo refuses to
+		// A sudoers drop-in is mode 440 root:root by necessity — sudo refuses to
 		// read one that is more permissive — so every unprivileged inspection
 		// lands here on a correctly installed grant. Reporting that as missing
 		// made a required item permanently unsatisfiable for `setup status`,
@@ -105,7 +105,7 @@ func (h handler) Apply(host hostreqkit.Host, status hostreqkit.ItemStatus, opts 
 		status.Notes = append(status.Notes, "sudoers validation failed; grant was not written: "+err.Error())
 		return status, nil
 	}
-	if err := hostreqkit.RunPrivilegedCommand(opts.SudoMode, "install", []string{"-m", "0440", tmp, grantPath}, opts); err != nil {
+	if err := hostreqkit.RunPrivilegedCommand(opts.SudoMode, "install", []string{"-m", "440", tmp, grantPath}, opts); err != nil {
 		status.ExecutionState = hostreqkit.ExecutionFailed
 		status.Notes = append(status.Notes, "install onboarding apply grant: "+err.Error())
 		return status, nil

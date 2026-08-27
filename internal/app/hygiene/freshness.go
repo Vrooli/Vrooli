@@ -7,7 +7,8 @@ import (
 	"fmt"
 	"os/exec"
 	"strings"
-	"time"
+
+	"github.com/vrooli/vrooli/internal/tuning"
 )
 
 // Test-freshness check: asks test-genie whether the scenarios touched by the
@@ -17,7 +18,7 @@ import (
 // --fail-on error), and every infrastructure failure (test-genie CLI not
 // installed, API down, timeout, not a git repo) degrades to a passing
 // info-severity "skipped" check rather than a finding.
-const freshnessCheckBudget = 5 * time.Second
+const freshnessCheckBudget = tuning.ServiceHealthTimeout
 
 var errNoTestGenieCLI = errors.New("test-genie CLI not installed")
 

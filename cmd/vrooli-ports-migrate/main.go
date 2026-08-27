@@ -25,6 +25,17 @@ import (
 )
 
 const (
+	mndMainNumberValue9 = 9
+)
+
+const (
+	mndMainNumberOctal644 = 0o644
+	mndMainNumberValue2   = 2
+	mndMainNumberValue3   = 3
+	mndMainNumberValue41  = 41
+)
+
+const (
 	oldRangeLow  = 35000
 	oldRangeHigh = 39999
 	shift        = -15000
@@ -68,7 +79,7 @@ func main() {
 	root, err := resolveRepoRoot(*repoRoot)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "error:", err)
-		os.Exit(2)
+		os.Exit(mndMainNumberValue2)
 	}
 
 	rep, err := runMigration(root, *apply)
@@ -89,7 +100,7 @@ func main() {
 	}
 
 	if len(rep.Collisions) > 0 {
-		os.Exit(3)
+		os.Exit(mndMainNumberValue3)
 	}
 }
 
@@ -227,7 +238,7 @@ func processManifest(root, path string, apply bool) (manifestResult, error) {
 
 	if apply {
 		newContent := applyChanges(raw, changes)
-		if err := os.WriteFile(path, newContent, 0o644); err != nil {
+		if err := os.WriteFile(path, newContent, mndMainNumberOctal644); err != nil {
 			return res, err
 		}
 	}
@@ -284,7 +295,7 @@ func collectChanges(scenario, path string, ports map[string]map[string]json.RawM
 
 func shiftRange(raw string) (string, bool) {
 	parts := strings.Split(strings.TrimSpace(raw), "-")
-	if len(parts) != 2 {
+	if len(parts) != mndMainNumberValue2 {
 		return raw, false
 	}
 	lo, err := strconv.Atoi(strings.TrimSpace(parts[0]))
@@ -545,7 +556,7 @@ func printHumanReport(out *os.File, rep report, applied bool) {
 				flag = "yes"
 			}
 			fmt.Fprintf(out, "%-41s %-9s %-6s %-14s %-14s %s\n",
-				truncate(m.Scenario, 41), truncate(ch.PortKey, 9), ch.Field, ch.OldValue, ch.NewValue, flag)
+				truncate(m.Scenario, mndMainNumberValue41), truncate(ch.PortKey, mndMainNumberValue9), ch.Field, ch.OldValue, ch.NewValue, flag)
 		}
 	}
 

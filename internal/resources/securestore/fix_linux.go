@@ -11,6 +11,8 @@ import (
 	"strconv"
 	"strings"
 	"syscall"
+
+	"github.com/vrooli/vrooli/internal/tuning"
 )
 
 func absentBackendFix() string {
@@ -120,7 +122,7 @@ func tpmDeviceGrant() (tpmGrant, bool) {
 		// Only a group-readable device can be fixed by joining a group. If the
 		// mode grants the group nothing, membership would change nothing and
 		// saying otherwise would waste the operator's time.
-		if info.Mode().Perm()&0o060 == 0 {
+		if info.Mode().Perm()&tuning.PermGroupReadWrite == 0 {
 			continue
 		}
 		gid := int(stat.Gid)

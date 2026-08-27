@@ -22,59 +22,69 @@ import (
 	resourcedeployment "github.com/vrooli/vrooli/packages/resource-deployment"
 )
 
+const (
+	manifestExternalCli = "external-cli"
+)
+
+const (
+	manifestNativeCli   = "native-cli"
+	manifestUnsupported = "unsupported"
+)
+
 const SchemaPath = ".vrooli/schemas/resource.schema.json"
 
 var AllowedDrivers = []string{
 	"docker-service",
 	"compose-service",
-	"external-cli",
+	manifestExternalCli,
 	"cloud-api",
 	"desktop-app",
 	"manual",
-	"native-cli",
+	manifestNativeCli,
 	"managed-service",
 }
 
 var (
-	AllowedPlatformSupportStates = []string{"supported", "build-verified", "partial", "unsupported"}
+	AllowedPlatformSupportStates = []string{"supported", "build-verified", "partial", manifestUnsupported}
 	AllowedHealthCheckKinds      = []string{"readiness", "liveness"}
 )
 
 type ResourceManifest struct {
-	Schema                string                                 `json:"$schema,omitempty"`
-	Name                  string                                 `json:"name"`
-	DisplayName           string                                 `json:"display_name,omitempty"`
-	Description           string                                 `json:"description,omitempty"`
-	CLI                   *scenario.CLIConfig                    `json:"cli"`
-	LegacyRepoDataAllowed bool                                   `json:"legacy_repo_data_allowed,omitempty"`
-	Storage               *ResourceStorage                       `json:"storage,omitempty"`
-	DurableData           *ResourceDurableData                   `json:"durable_data,omitempty"`
-	Template              string                                 `json:"template,omitempty"`
-	Driver                string                                 `json:"driver"`
-	ComposeFile           string                                 `json:"compose_file,omitempty"`
-	Binary                string                                 `json:"binary,omitempty"`
-	VersionArgs           []string                               `json:"version_args,omitempty"`
-	Endpoint              string                                 `json:"endpoint,omitempty"`
-	Credentials           ResourceCredentials                    `json:"credentials,omitempty"`
-	OperatorCapabilities  []operatorcapability.ManifestReference `json:"operator_capabilities,omitempty"`
-	Privilege             hostreqspec.Privilege                  `json:"privilege"`
-	Bundling              hostreqspec.Bundling                   `json:"bundling"`
-	Category              string                                 `json:"category,omitempty"`
-	Requirements          ResourceRequirements                   `json:"requirements"`
-	Platforms             ResourcePlatforms                      `json:"platforms,omitempty"`
-	Dependencies          []string                               `json:"dependencies,omitempty"`
-	Ports                 []ResourcePort                         `json:"ports,omitempty"`
-	HealthChecks          []ResourceHealthCheck                  `json:"health_checks,omitempty"`
-	Install               ResourceInstall                        `json:"install,omitempty"`
-	Runtime               ResourceRuntime                        `json:"runtime,omitempty"`
-	DependencySchema      json.RawMessage                        `json:"dependency_schema,omitempty"`
-	EnvironmentExports    ResourceEnvironmentExports             `json:"environment_exports,omitempty"`
-	Orchestration         ResourceOrchestration                  `json:"orchestration,omitempty"`
-	Lifecycle             ResourceLifecycle                      `json:"lifecycle,omitempty"`
-	Capabilities          ResourceManifestCapabilities           `json:"capabilities,omitempty"`
-	TemplateVersion       string                                 `json:"template_version,omitempty"`
-	HostTools             []hostreqspec.Declaration              `json:"hostTools,omitempty"`
-	HostSafeguards        []hostreqspec.Declaration              `json:"hostSafeguards,omitempty"`
+	Schema                 string                                 `json:"$schema,omitempty"`
+	Name                   string                                 `json:"name"`
+	DisplayName            string                                 `json:"display_name,omitempty"`
+	Description            string                                 `json:"description,omitempty"`
+	CLI                    *scenario.CLIConfig                    `json:"cli"`
+	LegacyRepoDataAllowed  bool                                   `json:"legacy_repo_data_allowed,omitempty"`
+	Storage                *ResourceStorage                       `json:"storage,omitempty"`
+	DurableData            *ResourceDurableData                   `json:"durable_data,omitempty"`
+	Template               string                                 `json:"template,omitempty"`
+	Driver                 string                                 `json:"driver"`
+	ComposeServiceOverride *ComposeServiceOverride                `json:"compose_service_override,omitempty"`
+	ComposeFile            string                                 `json:"compose_file,omitempty"`
+	Binary                 string                                 `json:"binary,omitempty"`
+	VersionArgs            []string                               `json:"version_args,omitempty"`
+	Endpoint               string                                 `json:"endpoint,omitempty"`
+	Credentials            ResourceCredentials                    `json:"credentials,omitempty"`
+	OperatorCapabilities   []operatorcapability.ManifestReference `json:"operator_capabilities,omitempty"`
+	Privilege              hostreqspec.Privilege                  `json:"privilege"`
+	Bundling               hostreqspec.Bundling                   `json:"bundling"`
+	Category               string                                 `json:"category,omitempty"`
+	Requirements           ResourceRequirements                   `json:"requirements"`
+	Platforms              ResourcePlatforms                      `json:"platforms,omitempty"`
+	Dependencies           []string                               `json:"dependencies,omitempty"`
+	Ports                  []ResourcePort                         `json:"ports,omitempty"`
+	HealthChecks           []ResourceHealthCheck                  `json:"health_checks,omitempty"`
+	Install                ResourceInstall                        `json:"install,omitempty"`
+	Runtime                ResourceRuntime                        `json:"runtime,omitempty"`
+	DependencySchema       json.RawMessage                        `json:"dependency_schema,omitempty"`
+	EnvironmentExports     ResourceEnvironmentExports             `json:"environment_exports,omitempty"`
+	Orchestration          ResourceOrchestration                  `json:"orchestration,omitempty"`
+	Lifecycle              ResourceLifecycle                      `json:"lifecycle,omitempty"`
+	Capabilities           ResourceManifestCapabilities           `json:"capabilities,omitempty"`
+	TemplateVersion        string                                 `json:"template_version,omitempty"`
+	HostTools              []hostreqspec.Declaration              `json:"hostTools,omitempty"`
+	HostSafeguards         []hostreqspec.Declaration              `json:"hostSafeguards,omitempty"`
 	// Acceleration is the resource's single accelerator declaration: which
 	// backends it can run on, how strictly it needs one, and what it reserves.
 	// It is the only accelerator surface; nothing else in the manifest says
@@ -99,6 +109,15 @@ type ResourceManifest struct {
 	// for dynamic env values the static fields cannot express — e.g.
 	// hardware-aware model selection for whisper.
 	RuntimeEnvCommand *ResourceRuntimeEnvCommand `json:"runtime_env_command,omitempty"`
+}
+
+// ComposeServiceOverride is a temporary, operator-owned exception to the
+// closed resource compose-service policy. It must be explicit and dated; the
+// deployability declaration gate validates those fields before a resource can
+// claim the exception.
+type ComposeServiceOverride struct {
+	Reason   string `json:"reason"`
+	ReviewBy string `json:"review_by"`
 }
 
 // ResourceRequirements is the authored resource footprint consumed by
@@ -371,6 +390,7 @@ func Load(path string) (ResourceManifest, error) {
 	return manifest, nil
 }
 
+//nolint:gocyclo // manifest validation aggregates independent contract rules without hiding them behind dispatch layers.
 func Validate(manifest ResourceManifest) error {
 	if strings.TrimSpace(manifest.Name) == "" {
 		return fmt.Errorf("name is required")
@@ -429,7 +449,7 @@ func Validate(manifest ResourceManifest) error {
 		return err
 	}
 	if manifest.ProviderPolicy != nil {
-		if manifest.Driver != "external-cli" && manifest.Driver != "native-cli" {
+		if manifest.Driver != manifestExternalCli && manifest.Driver != manifestNativeCli {
 			return fmt.Errorf("provider_policy is only supported by external-cli and native-cli resources")
 		}
 		if _, err := manifest.ProviderPolicy.ResolveProvider(resourcedeployment.ProviderRequest{}); err != nil {
@@ -451,7 +471,7 @@ func Validate(manifest ResourceManifest) error {
 		if strings.TrimSpace(manifest.ComposeFile) == "" {
 			return fmt.Errorf("compose_file is required for compose-service resources")
 		}
-	case "external-cli", "native-cli":
+	case manifestExternalCli, manifestNativeCli:
 		if strings.TrimSpace(manifest.Binary) == "" {
 			return fmt.Errorf("binary is required for %s resources", manifest.Driver)
 		}
@@ -524,30 +544,31 @@ func Validate(manifest ResourceManifest) error {
 }
 
 var (
-	AllowedDeploymentSupports = []string{"supported", "conditional", "degraded", "unsupported"}
+	AllowedDeploymentSupports = []string{"supported", "conditional", "degraded", manifestUnsupported}
 	AllowedDeploymentModes    = []string{"bundled-client", "bundled-service", "native-host-tool", "docker-desktop", "remote-service", "manual"}
 	AllowedDeploymentArchs    = []string{"amd64", "arm64"}
 )
 
+//nolint:gocyclo // deployment validation covers the manifest platform and artifact state matrix.
 func validateDeployment(manifest ResourceManifest) error {
 	requirementNames, err := registeredRequirementNames()
 	if err != nil {
 		return err
 	}
 	platformSupport := map[string]string{
-		"linux":   strings.TrimSpace(manifest.Platforms.Linux),
-		"macos":   strings.TrimSpace(manifest.Platforms.MacOS),
-		"windows": strings.TrimSpace(manifest.Platforms.Windows),
+		string(hostreqspec.PlatformLinux):   strings.TrimSpace(manifest.Platforms.Linux),
+		"macos":                             strings.TrimSpace(manifest.Platforms.MacOS),
+		string(hostreqspec.PlatformWindows): strings.TrimSpace(manifest.Platforms.Windows),
 	}
 	for profileName, profile := range manifest.Deployment.Profiles {
 		if strings.TrimSpace(profileName) == "" {
 			return fmt.Errorf("deployment profile name must not be empty")
 		}
-		for platform, target := range map[string]*ResourceDeploymentTarget{"linux": profile.Linux, "macos": profile.MacOS, "windows": profile.Windows} {
+		for platform, target := range map[string]*ResourceDeploymentTarget{string(hostreqspec.PlatformLinux): profile.Linux, string(hostreqspec.PlatformMacOS): profile.MacOS, string(hostreqspec.PlatformWindows): profile.Windows} {
 			if target == nil {
 				return fmt.Errorf("deployment.profiles.%s.%s is required", profileName, platform)
 			}
-			if platformSupport[platform] == "unsupported" && target.Support != "unsupported" {
+			if platformSupport[platform] == manifestUnsupported && target.Support != manifestUnsupported {
 				return fmt.Errorf("deployment.profiles.%s.%s.support %q contradicts platforms.%s \"unsupported\"", profileName, platform, target.Support, platform)
 			}
 			if !slices.Contains(AllowedDeploymentSupports, target.Support) {
@@ -559,7 +580,7 @@ func validateDeployment(manifest ResourceManifest) error {
 			if !deploymentModeAllowedForDriver(manifest.Driver, target.Mode) {
 				return fmt.Errorf("deployment.profiles.%s.%s.mode %q is not permitted for %s", profileName, platform, target.Mode, manifest.Driver)
 			}
-			if target.Support == "unsupported" {
+			if target.Support == manifestUnsupported {
 				if strings.TrimSpace(target.Reason) == "" {
 					return fmt.Errorf("deployment.profiles.%s.%s.reason is required for unsupported targets", profileName, platform)
 				}
@@ -680,14 +701,14 @@ func validateTargetRequirements(profile, platform string, requirements []string,
 // artifact/host requirements before its individual profile is accepted.
 func deploymentModeAllowedForDriver(driver, mode string) bool {
 	allowed := map[string][]string{
-		"cloud-api":       {"bundled-client", "remote-service"},
-		"native-cli":      {"native-host-tool", "bundled-client", "manual"},
-		"docker-service":  {"docker-desktop", "manual"},
-		"compose-service": {"docker-desktop", "manual"},
-		"external-cli":    {"native-host-tool", "bundled-client", "manual"},
-		"managed-service": {"bundled-service", "remote-service", "manual"},
-		"desktop-app":     {"native-host-tool", "manual"},
-		"manual":          {"manual"},
+		"cloud-api":         {"bundled-client", "remote-service"},
+		manifestNativeCli:   {"native-host-tool", "bundled-client", "manual"},
+		"docker-service":    {"docker-desktop", "manual"},
+		"compose-service":   {"docker-desktop", "manual"},
+		manifestExternalCli: {"native-host-tool", "bundled-client", "manual"},
+		"managed-service":   {"bundled-service", "remote-service", "manual"},
+		"desktop-app":       {"native-host-tool", "manual"},
+		"manual":            {"manual"},
 	}
 	return slices.Contains(allowed[driver], mode)
 }
@@ -701,7 +722,7 @@ func validateDurableData(driver string, dd *ResourceDurableData) error {
 		return nil
 	}
 	switch strings.TrimSpace(driver) {
-	case "external-cli", "native-cli", "desktop-app", "manual", "managed-service":
+	case manifestExternalCli, manifestNativeCli, "desktop-app", "manual", "managed-service":
 		// Host-filesystem-bearing drivers may declare durable host data.
 	default:
 		return fmt.Errorf("durable_data is only valid for host-filesystem drivers (external-cli, native-cli, desktop-app, manual), not %q", driver)
@@ -906,25 +927,19 @@ func validateEnvironmentExports(manifest ResourceManifest) error {
 }
 
 func CurrentPlatform() string {
-	switch runtime.GOOS {
-	case "linux":
-		return "linux"
-	case "darwin":
-		return "macos"
-	case "windows":
-		return "windows"
-	default:
-		return runtime.GOOS
+	if platform := hostreqspec.PlatformFromGOOS(runtime.GOOS); platform != "" {
+		return string(platform)
 	}
+	return runtime.GOOS
 }
 
 func (platforms ResourcePlatforms) SupportForCurrentPlatform() string {
 	switch CurrentPlatform() {
-	case "linux":
+	case string(hostreqspec.PlatformLinux):
 		return strings.TrimSpace(platforms.Linux)
-	case "macos":
+	case string(hostreqspec.PlatformMacOS):
 		return strings.TrimSpace(platforms.MacOS)
-	case "windows":
+	case string(hostreqspec.PlatformWindows):
 		return strings.TrimSpace(platforms.Windows)
 	default:
 		return ""

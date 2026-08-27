@@ -1,13 +1,8 @@
 package contractcli
 
 import (
-	"io"
-
-	"google.golang.org/protobuf/proto"
-
 	repocontract "github.com/vrooli/repo-contract-go"
 	contractapp "github.com/vrooli/vrooli/internal/app/contract"
-	"github.com/vrooli/vrooli/internal/cliout"
 	cliv1 "github.com/vrooli/vrooli/packages/proto/gen/go/cli/v1"
 )
 
@@ -121,24 +116,4 @@ func contractMatchGlobOutputMessage(output contractapp.MatchGlobOutput) *cliv1.C
 		Path:    output.Path,
 		Matched: output.Matched,
 	}
-}
-
-func writeContractValidationJSON(w io.Writer, output contractapp.ValidationOutput) error {
-	return writeContractMessage(w, ContractValidationOutputMessage(output))
-}
-
-func writeContractShowJSON(w io.Writer, output contractapp.ShowOutput) error {
-	return writeContractMessage(w, contractShowOutputMessage(output))
-}
-
-func writeContractResolveScenarioJSON(w io.Writer, output contractapp.ResolveScenarioOutput) error {
-	return writeContractMessage(w, contractResolveScenarioOutputMessage(output))
-}
-
-func writeContractMatchGlobJSON(w io.Writer, output contractapp.MatchGlobOutput) error {
-	return writeContractMessage(w, contractMatchGlobOutputMessage(output))
-}
-
-func writeContractMessage(w io.Writer, msg proto.Message) error {
-	return cliout.WriteProtoJSON(w, msg)
 }

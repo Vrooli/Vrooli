@@ -8,6 +8,11 @@ import (
 	"strings"
 )
 
+const (
+	commandtreeParameterA = 2
+	commandtreeParameterB = 26
+)
+
 type RootPolicy struct {
 	RequiresRoot      bool
 	CanRunWithoutRoot func(args []string) bool
@@ -299,8 +304,8 @@ func HelpText(title, command, fallbackDescription string, help Help, schema ArgS
 	}
 	builder.WriteString("  --help, -h")
 	if len(options) > 0 {
-		padding := 26 - len("--help, -h")
-		if padding < 2 {
+		padding := commandtreeParameterB - len("--help, -h")
+		if padding < commandtreeParameterA {
 			padding = 2
 		}
 		builder.WriteString(strings.Repeat(" ", padding))
@@ -333,8 +338,8 @@ func renderOptions(w io.Writer, options []OptionArg) {
 		synopsis := optionSynopsis(option)
 		_, _ = io.WriteString(w, "  "+synopsis)
 		if description := strings.TrimSpace(option.Description); description != "" {
-			padding := 26 - len(synopsis)
-			if padding < 2 {
+			padding := commandtreeParameterB - len(synopsis)
+			if padding < commandtreeParameterA {
 				padding = 2
 			}
 			_, _ = io.WriteString(w, strings.Repeat(" ", padding)+description)

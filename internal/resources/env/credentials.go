@@ -10,6 +10,10 @@ import (
 	manifestpkg "github.com/vrooli/vrooli/internal/resources/manifest"
 )
 
+const (
+	credentialsParameterC = 2
+)
+
 // CredentialGapReason names why a declared credential is not usable right now.
 // The three reasons map one-to-one onto the credential-authority taxonomy and
 // each one carries a different operator action.
@@ -305,7 +309,7 @@ func mergeProviderState(current, next credentialauthority.ProviderState) credent
 	severity := map[credentialauthority.ProviderState]int{
 		credentialauthority.ProviderAvailable:   0,
 		credentialauthority.ProviderUnavailable: 1,
-		credentialauthority.ProviderAbsent:      2,
+		credentialauthority.ProviderAbsent:      credentialsParameterC,
 	}
 	if severity[next] > severity[current] {
 		return next

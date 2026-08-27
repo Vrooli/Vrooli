@@ -10,6 +10,8 @@ import (
 	"net/url"
 	"strings"
 	"time"
+
+	"github.com/vrooli/vrooli/internal/tuning"
 )
 
 // VaultCredentialIssuer turns an already-authorized broker lease into a
@@ -54,7 +56,7 @@ func (i VaultCredentialIssuer) IssueScopedCredential(instance ManagedInstance, l
 	}
 	client := i.HTTPClient
 	if client == nil {
-		client = &http.Client{Timeout: 10 * time.Second}
+		client = &http.Client{Timeout: tuning.ControlPlaneClientTimeout}
 	}
 	policyName, policy := i.policyForScope(lease.Scope)
 	if err := vaultJSONRequest(client, instance.Endpoint, "/v1/sys/policies/acl/"+policyName, managementToken, http.MethodPut, map[string]string{"policy": policy}, nil); err != nil {

@@ -6,12 +6,15 @@ import (
 	"io"
 	"time"
 
+	"github.com/vrooli/vrooli/internal/tuning"
+
 	repocontract "github.com/vrooli/repo-contract-go"
 	"github.com/vrooli/vrooli/internal/config"
 	"github.com/vrooli/vrooli/internal/hostreqkit"
 	"github.com/vrooli/vrooli/internal/projectstate"
 )
 
+//nolint:gocyclo // ownership migration coordinates discovery, confirmation, mutation, and recovery reporting.
 func runOwnershipMigration(locator projectstate.Locator, stdout, stderr io.Writer) error {
 	ledger, err := projectstate.LoadMigrationLedger(locator)
 	if err != nil {
@@ -75,7 +78,7 @@ func runOwnershipMigration(locator projectstate.Locator, stdout, stderr io.Write
 		_, _ = fmt.Fprintln(stdout, "Filesystem ownership migration: setup was not elevated; migration deferred.")
 		return nil
 	}
-	deadline := time.Now().Add(30 * time.Minute)
+	deadline := time.Now().Add(tuning.RepairDeadline)
 	for _, class := range ownershipMigrationClasses {
 		if containsMigrationClass(record.Completed, class) {
 			continue

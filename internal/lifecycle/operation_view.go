@@ -7,6 +7,10 @@ import (
 	"github.com/vrooli/vrooli/internal/scenarioruntime"
 )
 
+const (
+	operationViewStart = "start"
+)
+
 // Reader-side evaluation of a start-operation record (plan Phase 3 step 4):
 // classify the record honestly (a running record with a dead initiator is
 // abandoned, never trusted), derive an ETA from recorded phase-duration
@@ -86,7 +90,7 @@ func (v StartOperationView) InFlightSummary() string {
 	}
 	operation := v.Operation
 	if operation == "" {
-		operation = "start"
+		operation = operationViewStart
 	}
 	line := operation + " in progress"
 	if v.InitiatorPID > 0 {
@@ -194,7 +198,7 @@ func EvaluateStartOperation(op scenarioruntime.StartOperation, isPIDRunning func
 //   - develop and health always run, so missing history for either makes the
 //     whole ETA unknown;
 //   - setup runs conditionally: it counts when it is already running or when
-//     the operation is a restart (setup is forced); a "start" that has not
+//     the operation is a restart (setup is forced); a operationViewStart that has not
 //     entered setup may skip it, so it is excluded rather than guessed.
 func estimateRemaining(steps []scenarioruntime.StartOperationStep, op scenarioruntime.StartOperation, now time.Time, estimates map[string]time.Duration) (time.Duration, bool) {
 	stepState := map[string]scenarioruntime.StartOperationStep{}

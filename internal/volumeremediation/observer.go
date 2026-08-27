@@ -11,6 +11,12 @@ import (
 	"strings"
 )
 
+const (
+	observerParameterA = 4
+	observerParameterB = 512
+	observerParameterC = 62
+)
+
 // HostObserver reads volume state from the host without elevation and without
 // writing. Its roots are injectable so the Linux evidence paths can be tested
 // on any platform against fixture trees.
@@ -126,7 +132,7 @@ func (o *HostObserver) linuxMountEntry(devicePath string) (mountpoint, fstype st
 	want := o.resolve(devicePath)
 	for _, line := range strings.Split(string(data), "\n") {
 		fields := strings.Fields(line)
-		if len(fields) < 4 {
+		if len(fields) < observerParameterA {
 			continue
 		}
 		if o.resolve(fields[0]) != want {
@@ -155,10 +161,10 @@ func (o *HostObserver) linuxDeviceSize(name string) int64 {
 		return 0
 	}
 	sectors, err := strconv.ParseInt(strings.TrimSpace(string(data)), 10, 64)
-	if err != nil || sectors <= 0 || sectors > (1<<62)/512 {
+	if err != nil || sectors <= 0 || sectors > (1<<observerParameterC)/512 {
 		return 0
 	}
-	return sectors * 512
+	return sectors * observerParameterB
 }
 
 func (o *HostObserver) linuxDeviceReadOnly(name string) bool {

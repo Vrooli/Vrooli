@@ -13,6 +13,13 @@ import (
 	"github.com/vrooli/vrooli/internal/workloadowner"
 )
 
+const (
+	hostParameterA = 1024
+	hostParameterB = 2700
+)
+
+const safeguardCommand = "safeguard"
+
 // Run dispatches `vrooli host`.
 func (app *App) Run(ctx *CommandContext, args []string) error {
 	return app.runHostCommand(ctx, args)
@@ -61,27 +68,28 @@ func (app *App) runWorkloadCommand(ctx *CommandContext, args []string) error {
 	if declarationErr != nil {
 		observed.Unread = append(observed.Unread, "declarations: "+declarationErr.Error())
 	}
-	observed.Report = workloadowner.Classify(observed.Observed, declarations, posture, 2700)
+	observed.Report = workloadowner.Classify(observed.Observed, declarations, posture, hostParameterB)
 	workloadowner.RedactForPosture(&observed.Report)
 	if ctx.Globals.JSON || containsArg(args, "--json") {
-		return writeHostJSON(ctx.Stdout, observed)
+		return cliout.WriteJSONValue(ctx.Stdout, observed)
 	}
 	rows := append([]workloadowner.Finding{}, observed.Report.Declared...)
 	rows = append(rows, observed.Report.Findings...)
 	rows = append(rows, observed.Report.Informational...)
+	outputRows := make([][]string, 0, len(rows)+len(observed.Unread))
 	for _, finding := range rows {
-		_, _ = fmt.Fprintf(ctx.Stdout, "%s\t%s\t%s\t%s\n", finding.Class, finding.Kind, finding.Name, finding.Reason)
+		outputRows = append(outputRows, []string{string(finding.Class), finding.Kind, finding.Name, finding.Reason})
 		for _, evidence := range finding.Evidence {
-			_, _ = fmt.Fprintf(ctx.Stdout, "\t evidence: %s\n", evidence)
+			outputRows = append(outputRows, []string{"", " evidence: " + evidence})
 		}
 		if finding.ProposedAction != "" {
-			_, _ = fmt.Fprintf(ctx.Stdout, "\t proposed_action: %s\n", finding.ProposedAction)
+			outputRows = append(outputRows, []string{"", " proposed_action: " + finding.ProposedAction})
 		}
 	}
 	for _, note := range observed.Unread {
-		_, _ = fmt.Fprintf(ctx.Stdout, "unread\t%s\n", note)
+		outputRows = append(outputRows, []string{"unread", note})
 	}
-	return nil
+	return cliout.WriteSection(ctx.Stdout, cliout.Section{Rows: outputRows})
 }
 
 func containsArg(args []string, wanted string) bool {
@@ -98,20 +106,20 @@ func (app *App) runHostCommand(ctx *CommandContext, args []string) error {
 		commandtree.RenderHelp(ctx.Stdout, commandtree.Help{Title: "Vrooli Host", Description: "Inspect local host facts through internal/hostinventory.", Usage: "vrooli host <command> [options]", DefaultGroup: "Host Commands"}, []commandtree.Spec[string]{hostInventorySpec(), hostInstallSpec(), hostSafeguardSpec(), hostVolumeSpec(), hostStorageCandidatesSpec()})
 		return nil
 	}
-	switch args[0] {
-	case "inventory":
-		return app.runHostInventoryCommand(ctx, args[1:])
-	case "install":
-		return app.runHostInstallCommand(ctx, args[1:])
-	case "safeguard":
-		return app.runHostSafeguardCommand(ctx, args[1:])
-	case "volume":
-		return app.runHostVolumeCommand(ctx, args[1:])
-	case "storage":
-		return app.runHostStorageCommand(ctx, args[1:])
-	default:
-		return rootcli.NewUnknownCommandError(args[0], []string{"inventory", "install", "safeguard", "volume", "storage"})
+	handlers := map[string]func([]string) error{
+		"inventory": func(args []string) error { return app.runHostInventoryCommand(ctx, args) },
+		"install":   func(args []string) error { return app.runHostInstallCommand(ctx, args) },
+		safeguardCommand: func(args []string) error {
+			return app.runHostSafeguardCommand(ctx, args)
+		},
+		"volume":  func(args []string) error { return app.runHostVolumeCommand(ctx, args) },
+		"storage": func(args []string) error { return app.runHostStorageCommand(ctx, args) },
 	}
+	handler, ok := handlers[args[0]]
+	if !ok {
+		return rootcli.NewUnknownCommandError(args[0], []string{"inventory", "install", safeguardCommand, "volume", "storage"})
+	}
+	return handler(args[1:])
 }
 
 func hostInventorySpec() commandtree.Spec[string] {
@@ -140,17 +148,17 @@ func (app *App) runHostInventoryCommand(ctx *CommandContext, args []string) erro
 		return nil
 	}
 	if ctx.Globals.JSON || parsed.HasFlag("--json") {
-		return writeHostSnapshotJSON(ctx.Stdout, snapshot)
+		return cliout.WriteProtoJSON(ctx.Stdout, hostSnapshotResponse(snapshot))
 	}
 	_, _ = fmt.Fprintf(ctx.Stdout, "OS: %s/%s\n", snapshot.OS, snapshot.Arch)
 	_, _ = fmt.Fprintf(ctx.Stdout, "CPU cores: %d\n", snapshot.CPU.Cores)
-	_, _ = fmt.Fprintf(ctx.Stdout, "Memory total: %d MB\n", snapshot.Memory.TotalBytes/1024/1024)
+	_, _ = fmt.Fprintf(ctx.Stdout, "Memory total: %d MB\n", snapshot.Memory.TotalBytes/1024/hostParameterA)
 	_, _ = fmt.Fprintf(ctx.Stdout, "NVIDIA GPU: %s\n", cliout.BoolLabel(snapshot.HasNvidiaGPU()))
 	_, _ = fmt.Fprintf(ctx.Stdout, "Docker NVIDIA runtime: %s\n", cliout.BoolLabel(snapshot.HasDockerNvidiaRuntime()))
 	if len(snapshot.GPUs) > 0 {
 		_, _ = fmt.Fprintln(ctx.Stdout, "GPUs:")
 		for _, gpu := range snapshot.GPUs {
-			_, _ = fmt.Fprintf(ctx.Stdout, "- %s (%d MB, source=%s)\n", gpu.Name, gpu.VRAMBytes/1024/1024, gpu.Source)
+			_, _ = fmt.Fprintf(ctx.Stdout, "- %s (%d MB, source=%s)\n", gpu.Name, gpu.VRAMBytes/1024/hostParameterA, gpu.Source)
 		}
 	}
 	if len(snapshot.Warnings) > 0 {
@@ -175,16 +183,16 @@ func hostInventoryField(snapshot hostinventory.Snapshot, field string) (string, 
 	case "first_gpu_summary":
 		for _, gpu := range snapshot.GPUs {
 			if gpu.Name != "" {
-				return fmt.Sprintf("%s,%d,%d", gpu.Name, gpu.VRAMUsedBytes/1024/1024, gpu.VRAMBytes/1024/1024), nil
+				return fmt.Sprintf("%s,%d,%d", gpu.Name, gpu.VRAMUsedBytes/1024/hostParameterA, gpu.VRAMBytes/1024/hostParameterA), nil
 			}
 		}
 		return "", nil
 	case "cpu_cores":
 		return fmt.Sprintf("%d", snapshot.CPU.Cores), nil
 	case "memory_total_mb":
-		return fmt.Sprintf("%d", snapshot.Memory.TotalBytes/1024/1024), nil
+		return fmt.Sprintf("%d", snapshot.Memory.TotalBytes/1024/hostParameterA), nil
 	case "memory_available_mb":
-		return fmt.Sprintf("%d", snapshot.Memory.AvailableBytes/1024/1024), nil
+		return fmt.Sprintf("%d", snapshot.Memory.AvailableBytes/1024/hostParameterA), nil
 	default:
 		return "", fmt.Errorf("unknown host inventory field %q", field)
 	}

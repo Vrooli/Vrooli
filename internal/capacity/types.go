@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"time"
+
+	"github.com/vrooli/vrooli/internal/tuning"
 )
 
 // SchemaVersion is the capacity ledger schema version, stamped into the SQLite
@@ -74,23 +76,23 @@ const (
 
 // DefaultHeartbeatTTL bounds how long a claim survives without a heartbeat
 // before the stale sweep expires it. Mirrors scenarioruntime's default.
-const DefaultHeartbeatTTL = 30 * time.Second
+const DefaultHeartbeatTTL = tuning.StandardOperationTimeout
 
 // DefaultIdleGrace is how long a claim must report activity_state=="idle"
 // before it becomes reclaim-eligible. Age alone never triggers reclaim; this is
 // only the dwell time AFTER the work-owner has reported idle.
-const DefaultIdleGrace = 60 * time.Second
+const DefaultIdleGrace = tuning.ReachabilityTimeout
 
 // DefaultSweepInterval is the target cadence for the opportunistic resident-claim
 // sweep (§8.6). The always-on maintenance pass drives Sweep on lifecycle
 // activity; the opportunistic sweeps on admission/list/reconcile are debounced to
 // this interval so rapid reads do not re-collect the GPU snapshot on every call.
-const DefaultSweepInterval = 15 * time.Second
+const DefaultSweepInterval = tuning.CredentialServiceTimeout
 
 // DefaultDegradeDebounce is the minimum dwell between two degrade actuations of
 // the same target, preventing a flapping requester from thrashing a resident
 // server's VRAM (§8.8 anti-thrash).
-const DefaultDegradeDebounce = 30 * time.Second
+const DefaultDegradeDebounce = tuning.StandardOperationTimeout
 
 // DefaultUpshiftHeadroom is the free VRAM (bytes) that must be available before
 // the actuator may upshift a degraded, idle claim back toward its preferred step
@@ -101,7 +103,7 @@ const DefaultUpshiftHeadroom = 2 * 1024 * 1024 * 1024 // 2 GiB
 // high-water mark (§Phase 2 sampling): a recorded peak loses half its value each
 // half-life so a stale spike does not pin a reservation forever, yet a single
 // idle reading never erases a real working-set peak.
-const DefaultObservedPeakHalflife = 10 * time.Minute
+const DefaultObservedPeakHalflife = tuning.LongOperationBudget
 
 // DefaultRecommendHeadroomPct is the safety margin (percent) added above a
 // claim's observed peak when right-sizing recommends a smaller reservation
@@ -123,7 +125,7 @@ const DefaultSwapPressureThreshold = 50
 // claims hold no capacity; they are kept briefly so a `capacity list` right after
 // a release/expire still shows recent history, then pruned so the ledger does not
 // accumulate dead rows.
-const DefaultTerminalRetention = 24 * time.Hour
+const DefaultTerminalRetention = tuning.DailyRetentionWindow
 
 // GCResult reports what terminal-claim GC pruned: the number of rows deleted and
 // the sum of their last-recorded amount_bytes (informational — terminal claims

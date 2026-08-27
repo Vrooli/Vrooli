@@ -8,6 +8,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vrooli/vrooli/internal/tuning"
+
 	repocontract "github.com/vrooli/repo-contract-go"
 	"github.com/vrooli/vrooli/internal/config"
 )
@@ -106,7 +108,7 @@ func SelectBackend(backend, reason string) error {
 	if err != nil {
 		return fmt.Errorf("encode credential backend selection: %w", err)
 	}
-	if err := config.WriteOwnedFile(path, append(data, '\n'), 0o600); err != nil {
+	if err := config.WriteOwnedFile(path, append(data, '\n'), tuning.PermSecret); err != nil {
 		return fmt.Errorf("write credential backend selection: %w", err)
 	}
 	return nil
@@ -118,6 +120,8 @@ func SelectBackend(backend, reason string) error {
 // Existing values in the destination are never overwritten with a different
 // value, and values written during a failed migration are rolled back when
 // they did not exist before the attempt.
+//
+//nolint:gocyclo // backend reselection handles migration ordering, capability, and per-entry failure outcomes.
 func ReselectBackend(entries []MigrationEntry) (MigrationReceipt, error) {
 	current, found, err := SelectedBackend()
 	if err != nil {

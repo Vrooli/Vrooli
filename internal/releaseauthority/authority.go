@@ -25,9 +25,16 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/vrooli/vrooli/internal/tuning"
+
 	"github.com/vrooli/binaryfetch"
+	"github.com/vrooli/vrooli/internal/config"
 	"github.com/vrooli/vrooli/internal/credentialauthority"
 	resourcedeployment "github.com/vrooli/vrooli/packages/resource-deployment"
+)
+
+const (
+	authorityParameterB = 3072
 )
 
 const (
@@ -70,7 +77,7 @@ func (a *Authority) Initialize(root string, replaceTrustAnchor bool) (Status, er
 		return Status{}, err
 	}
 	if !configured {
-		key, err = rsa.GenerateKey(rand.Reader, 3072)
+		key, err = rsa.GenerateKey(rand.Reader, authorityParameterB)
 		if err != nil {
 			return Status{}, fmt.Errorf("generate release authority key: %w", err)
 		}
@@ -93,7 +100,7 @@ func (a *Authority) Initialize(root string, replaceTrustAnchor bool) (Status, er
 // Regenerate replaces the private key and trust anchor together. It is a
 // destructive trust-root reset and is deliberately separate from Initialize.
 func (a *Authority) Regenerate(root string) (Status, error) {
-	key, err := rsa.GenerateKey(rand.Reader, 3072)
+	key, err := rsa.GenerateKey(rand.Reader, authorityParameterB)
 	if err != nil {
 		return Status{}, fmt.Errorf("generate replacement release authority key: %w", err)
 	}
@@ -170,7 +177,7 @@ func (a *Authority) SignStage(root, stage string, overwrite bool) (resourcedeplo
 	} else {
 		flags |= os.O_EXCL
 	}
-	file, err := os.OpenFile(path, flags, 0o644)
+	file, err := os.OpenFile(path, flags, tuning.PermFile)
 	if err != nil {
 		return resourcedeployment.ReleaseSignature{}, fmt.Errorf("create release signature: %w", err)
 	}
@@ -229,7 +236,7 @@ func (a *Authority) AddEvidence(stage, source, name, role, osName, arch, provena
 	}
 	defer in.Close()
 	destination := filepath.Join(stage, name)
-	out, err := os.OpenFile(destination, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o644)
+	out, err := os.OpenFile(destination, os.O_WRONLY|os.O_CREATE|os.O_EXCL, tuning.PermFile)
 	if err != nil {
 		return resourcedeployment.ReleaseArtifact{}, fmt.Errorf("create staged evidence: %w", err)
 	}
@@ -254,7 +261,7 @@ func (a *Authority) AddEvidence(stage, source, name, role, osName, arch, provena
 	if err != nil {
 		return resourcedeployment.ReleaseArtifact{}, err
 	}
-	if err := os.WriteFile(filepath.Join(stage, "release-manifest.json"), append(canonical, '\n'), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(stage, "release-manifest.json"), append(canonical, '\n'), tuning.PermFile); err != nil {
 		return resourcedeployment.ReleaseArtifact{}, fmt.Errorf("write release manifest: %w", err)
 	}
 	if err := os.Remove(filepath.Join(stage, "release-manifest.sig.json")); err != nil && !os.IsNotExist(err) {
@@ -397,29 +404,8 @@ func replacePowerShellModulus(contents, modulus string) (string, error) {
 }
 
 func writeAtomically(updates map[string][]byte) error {
-	temporary := make(map[string]string, len(updates))
 	for path, contents := range updates {
-		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-			return err
-		}
-		file, err := os.CreateTemp(filepath.Dir(path), ".vrooli-release-anchor-*")
-		if err != nil {
-			return err
-		}
-		if _, err = file.Write(contents); err == nil {
-			err = file.Chmod(0o644)
-		}
-		if closeErr := file.Close(); err == nil {
-			err = closeErr
-		}
-		if err != nil {
-			_ = os.Remove(file.Name())
-			return err
-		}
-		temporary[path] = file.Name()
-	}
-	for path, temporaryPath := range temporary {
-		if err := os.Rename(temporaryPath, path); err != nil {
+		if err := config.WriteOwnedFileAtomic(path, contents, tuning.PermFile); err != nil {
 			return fmt.Errorf("publish release trust anchor %s: %w", path, err)
 		}
 	}

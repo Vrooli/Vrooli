@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/vrooli/vrooli/internal/lifecycle"
+	"github.com/vrooli/vrooli/internal/repocontractmeta"
 	"github.com/vrooli/vrooli/internal/scenario"
 )
 
@@ -72,7 +73,7 @@ func CheckScenarioManifest(path string) ([]ConformanceFinding, error) {
 // service manifest under root. The report includes the number of manifests so
 // a skipped or unexpectedly added scenario cannot look like a clean fleet.
 func CheckScenarioFleet(root string) (ScenarioManifestReport, error) {
-	scenariosRoot := filepath.Join(root, "scenarios")
+	scenariosRoot := filepath.Join(root, repocontractmeta.ScenarioDir)
 	entries, err := os.ReadDir(scenariosRoot)
 	if err != nil {
 		return ScenarioManifestReport{}, err
@@ -82,7 +83,7 @@ func CheckScenarioFleet(root string) (ScenarioManifestReport, error) {
 		if !entry.IsDir() {
 			continue
 		}
-		path := filepath.Join(scenariosRoot, entry.Name(), ".vrooli", "service.json")
+		path := filepath.Join(scenariosRoot, entry.Name(), repocontractmeta.ProjectConfigDir, "service.json")
 		if _, err := os.Stat(path); os.IsNotExist(err) {
 			continue
 		} else if err != nil {

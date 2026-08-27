@@ -1,0 +1,5 @@
+{
+  "schemaVersion": 1,
+  "ratchet": true,
+  "metrics": {"os_rename_outside_config": {"budget": 2, "baseline": 1}}
+}

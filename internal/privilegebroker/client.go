@@ -7,6 +7,16 @@ import (
 	"io"
 	"net"
 	"time"
+
+	"github.com/vrooli/vrooli/internal/tuning"
+)
+
+const (
+	clientParameterA = 10
+)
+
+const (
+	clientParameterB = 64
 )
 
 // Client sends one validated request per connection to the setup-installed
@@ -22,7 +32,7 @@ type Client struct {
 func NewClient() *Client {
 	return &Client{
 		SocketPath: DefaultSocketPath,
-		Timeout:    2 * time.Minute,
+		Timeout:    tuning.ExtendedOperationTimeout,
 		dial: func(ctx context.Context, socket string) (net.Conn, error) {
 			var dialer net.Dialer
 			return dialer.DialContext(ctx, "unix", socket)
@@ -36,7 +46,7 @@ func (c *Client) Available() bool {
 	if c == nil {
 		return false
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), tuning.ShortOperationDeadline)
 	defer cancel()
 	conn, err := c.dialer()(ctx, c.socket())
 	if err != nil {
@@ -58,7 +68,7 @@ func (c *Client) Do(ctx context.Context, req Request) (Result, error) {
 	}
 	timeout := c.Timeout
 	if timeout <= 0 {
-		timeout = 2 * time.Minute
+		timeout = tuning.ExtendedOperationTimeout
 	}
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
@@ -75,7 +85,7 @@ func (c *Client) Do(ctx context.Context, req Request) (Result, error) {
 		return Result{}, fmt.Errorf("send broker request: %w", err)
 	}
 	var result Result
-	if err := json.NewDecoder(io.LimitReader(conn, 64<<10)).Decode(&result); err != nil {
+	if err := json.NewDecoder(io.LimitReader(conn, clientParameterB<<clientParameterA)).Decode(&result); err != nil {
 		return Result{}, fmt.Errorf("read broker response: %w", err)
 	}
 	return result, nil

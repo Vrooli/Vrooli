@@ -11,9 +11,17 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vrooli/vrooli/internal/repocontractmeta"
+	"github.com/vrooli/vrooli/internal/tuning"
+
 	platform "github.com/vrooli/platform-go"
 	repocontract "github.com/vrooli/repo-contract-go"
 	"github.com/vrooli/vrooli/internal/config"
+)
+
+const (
+	processParameterA = 2
+	processParameterB = 24
 )
 
 type Record struct {
@@ -65,7 +73,7 @@ func ScenarioProcessDir(home, name string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return filepath.Join(root, "scenarios", name), nil
+	return filepath.Join(root, repocontractmeta.ScenarioDir, name), nil
 }
 
 // ScenarioLogsDir resolves <home>/.vrooli/logs/scenarios/<name>.
@@ -74,7 +82,7 @@ func ScenarioLogsDir(home, name string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return filepath.Join(root, "scenarios", name), nil
+	return filepath.Join(root, repocontractmeta.ScenarioDir, name), nil
 }
 
 // ScenarioLifecycleLogPath resolves <home>/.vrooli/logs/<name>.log.
@@ -103,7 +111,7 @@ func ScenarioStateDir(home string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return filepath.Join(root, "scenarios"), nil
+	return filepath.Join(root, repocontractmeta.ScenarioDir), nil
 }
 
 func WriteScenarioRecord(home, name, step string, record Record) error {
@@ -132,12 +140,12 @@ func WriteScenarioRecord(home, name, step string, record Record) error {
 	data = append(data, '\n')
 
 	recordPath := filepath.Join(processDir, step+".json")
-	if err := config.WriteOwnedFile(recordPath, data, 0o644); err != nil {
+	if err := config.WriteOwnedFile(recordPath, data, tuning.PermFile); err != nil {
 		return fmt.Errorf("write %s: %w", recordPath, err)
 	}
 
 	pidPath := filepath.Join(processDir, step+".pid")
-	if err := config.WriteOwnedFile(pidPath, []byte(strconv.Itoa(record.PID)+"\n"), 0o644); err != nil {
+	if err := config.WriteOwnedFile(pidPath, []byte(strconv.Itoa(record.PID)+"\n"), tuning.PermFile); err != nil {
 		return fmt.Errorf("write %s: %w", pidPath, err)
 	}
 	return nil
@@ -245,7 +253,7 @@ func DiscoverRunningScenarios(home string, valid func(string) bool) ([]ScenarioR
 	if err != nil {
 		return nil, err
 	}
-	processRoot := filepath.Join(processesRoot, "scenarios")
+	processRoot := filepath.Join(processesRoot, repocontractmeta.ScenarioDir)
 	entries, err := os.ReadDir(processRoot)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -338,7 +346,7 @@ func parseEnvironmentEntries(data []byte) map[string]string {
 		if len(entry) == 0 {
 			continue
 		}
-		parts := bytes.SplitN(entry, []byte{'='}, 2)
+		parts := bytes.SplitN(entry, []byte{'='}, processParameterA)
 		if len(parts) != 2 || len(parts[0]) == 0 {
 			continue
 		}
@@ -354,10 +362,10 @@ func humanDuration(duration time.Duration) string {
 	switch {
 	case duration < time.Hour:
 		return fmt.Sprintf("%.0fm", duration.Minutes())
-	case duration < 24*time.Hour:
+	case duration < tuning.DailyRetentionWindow:
 		return fmt.Sprintf("%.1fh", duration.Hours())
 	default:
-		return fmt.Sprintf("%.1fd", duration.Hours()/24)
+		return fmt.Sprintf("%.1fd", duration.Hours()/processParameterB)
 	}
 }
 

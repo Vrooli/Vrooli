@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/vrooli/vrooli/internal/hostreqkit"
+	"github.com/vrooli/vrooli/internal/hostreqkit/hostreqkittest"
 	"github.com/vrooli/vrooli/internal/hostreqspec"
 )
 
@@ -19,7 +20,9 @@ type unitState struct {
 	Enabled, Active, Masked bool
 }
 
-func stubAll(t *testing.T) (cmds *[]capturedCommand, units map[string]*unitState, restore func()) {
+var stubAll = mcelogStubAll
+
+func mcelogStubAll(t *testing.T) (cmds *[]capturedCommand, units map[string]*unitState, restore func()) {
 	t.Helper()
 	origRun := hostreqkit.RunCommandFn
 	origCombined := hostreqkit.CombinedOutputFn
@@ -209,32 +212,12 @@ func TestApplyDryRunNotInstalled(t *testing.T) {
 }
 
 func TestApplyShortCircuitsOnSupportClasses(t *testing.T) {
-	cases := []struct {
-		name string
-		sc   hostreqkit.SupportClass
-		want hostreqkit.ExecutionState
-	}{
-		{"unsupported", hostreqkit.SupportUnsupported, hostreqkit.ExecutionUnsupported},
-		{"not_applicable", hostreqkit.SupportNotApplicable, hostreqkit.ExecutionNotApplicable},
-		{"manual_only", hostreqkit.SupportManualOnly, hostreqkit.ExecutionManualActionRequired},
-	}
-	for _, c := range cases {
-		t.Run(c.name, func(t *testing.T) {
-			cmds, _, restore := stubAll(t)
-			defer restore()
-			st := hostreqkit.ItemStatus{SupportClass: c.sc}
-			out, err := newHandler().Apply(aptHost(), st, hostreqkit.EnsureOptions{})
-			if err != nil {
-				t.Fatalf("Apply: %v", err)
-			}
-			if out.ExecutionState != c.want {
-				t.Errorf("ExecutionState = %q, want %q", out.ExecutionState, c.want)
-			}
-			if len(*cmds) != 0 {
-				t.Errorf("commands ran: %v", *cmds)
-			}
-		})
-	}
+	hostreqkittest.RunApplyShortCircuitCases(t, func(t *testing.T, support hostreqkit.SupportClass) (hostreqkit.ItemStatus, int, error) {
+		cmds, _, restore := stubAll(t)
+		defer restore()
+		out, err := newHandler().Apply(aptHost(), hostreqkit.ItemStatus{SupportClass: support}, hostreqkit.EnsureOptions{})
+		return out, len(*cmds), err
+	})
 }
 
 func TestInspectSupersedesWhenNoAptCandidateAndRasdaemonActive(t *testing.T) {
@@ -305,16 +288,6 @@ func TestApplySupersedesOnInstallFailureWhenRasdaemonActive(t *testing.T) {
 	}
 	if !strings.Contains(strings.Join(out.Notes, " | "), "superseded by rasdaemon") {
 		t.Errorf("notes missing supersede note: %v", out.Notes)
-	}
-}
-
-func TestNameAndKind(t *testing.T) {
-	h := newHandler()
-	if h.Name() != "mcelog" {
-		t.Errorf("Name = %q", h.Name())
-	}
-	if h.Kind() != hostreqspec.KindTool {
-		t.Errorf("Kind = %q", h.Kind())
 	}
 }
 

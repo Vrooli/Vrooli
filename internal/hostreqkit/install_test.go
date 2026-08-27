@@ -237,15 +237,8 @@ func TestWithSudoRootSkipsWrap(t *testing.T) {
 }
 
 func TestWithSudoSkipMode(t *testing.T) {
-	restore := stubLookups(t)
+	restore := stubAvailableSudo(t)
 	defer restore()
-
-	LookPathFn = func(name string) (string, error) {
-		if name == "sudo" {
-			return "/usr/bin/sudo", nil
-		}
-		return "", os.ErrNotExist
-	}
 
 	_, _, err := WithSudo("skip", "apt-get", []string{"install"})
 	if err == nil || !strings.Contains(err.Error(), "skip") {
@@ -254,15 +247,8 @@ func TestWithSudoSkipMode(t *testing.T) {
 }
 
 func TestWithSudoErrorMode(t *testing.T) {
-	restore := stubLookups(t)
+	restore := stubAvailableSudo(t)
 	defer restore()
-
-	LookPathFn = func(name string) (string, error) {
-		if name == "sudo" {
-			return "/usr/bin/sudo", nil
-		}
-		return "", os.ErrNotExist
-	}
 
 	_, _, err := WithSudo("error", "apt-get", []string{"install"})
 	if err == nil || !strings.Contains(err.Error(), "error") {
@@ -271,15 +257,8 @@ func TestWithSudoErrorMode(t *testing.T) {
 }
 
 func TestWithSudoInvalidMode(t *testing.T) {
-	restore := stubLookups(t)
+	restore := stubAvailableSudo(t)
 	defer restore()
-
-	LookPathFn = func(name string) (string, error) {
-		if name == "sudo" {
-			return "/usr/bin/sudo", nil
-		}
-		return "", os.ErrNotExist
-	}
 
 	_, _, err := WithSudo("bogus", "apt-get", []string{"install"})
 	if err == nil || !strings.Contains(err.Error(), "invalid sudo mode") {
@@ -288,10 +267,8 @@ func TestWithSudoInvalidMode(t *testing.T) {
 }
 
 func TestWithSudoUnavailableFailsClosed(t *testing.T) {
-	restore := stubLookups(t)
+	restore := stubUnavailableLookups(t)
 	defer restore()
-
-	LookPathFn = func(string) (string, error) { return "", os.ErrNotExist }
 
 	_, _, err := WithSudo("ask", "apt-get", []string{"install", "-y", "jq"})
 	if !errors.Is(err, ErrElevationUnavailable) {
@@ -300,10 +277,8 @@ func TestWithSudoUnavailableFailsClosed(t *testing.T) {
 }
 
 func TestWithSudoUnavailableErrorModeFailsClosed(t *testing.T) {
-	restore := stubLookups(t)
+	restore := stubUnavailableLookups(t)
 	defer restore()
-
-	LookPathFn = func(string) (string, error) { return "", os.ErrNotExist }
 
 	_, _, err := WithSudo("error", "apt-get", []string{"install", "-y", "jq"})
 	if !errors.Is(err, ErrElevationUnavailable) {
@@ -312,10 +287,8 @@ func TestWithSudoUnavailableErrorModeFailsClosed(t *testing.T) {
 }
 
 func TestWithSudoUnavailableSkipModeFailsClosed(t *testing.T) {
-	restore := stubLookups(t)
+	restore := stubUnavailableLookups(t)
 	defer restore()
-
-	LookPathFn = func(string) (string, error) { return "", os.ErrNotExist }
 
 	_, _, err := WithSudo("skip", "apt-get", []string{"install"})
 	if !errors.Is(err, ErrElevationUnavailable) {
@@ -376,14 +349,8 @@ func TestWithSudoElevationMatrixNeverFailsOpen(t *testing.T) {
 }
 
 func TestWithSudoSkipModeReturnsTypedSentinel(t *testing.T) {
-	restore := stubLookups(t)
+	restore := stubAvailableSudo(t)
 	defer restore()
-	LookPathFn = func(name string) (string, error) {
-		if name == "sudo" {
-			return "/usr/bin/sudo", nil
-		}
-		return "", os.ErrNotExist
-	}
 
 	_, _, err := WithSudo("skip", "apt-get", []string{"install"})
 	if !IsSudoSkipped(err) {
@@ -392,14 +359,8 @@ func TestWithSudoSkipModeReturnsTypedSentinel(t *testing.T) {
 }
 
 func TestWithSudoErrorModeReturnsTypedSentinel(t *testing.T) {
-	restore := stubLookups(t)
+	restore := stubAvailableSudo(t)
 	defer restore()
-	LookPathFn = func(name string) (string, error) {
-		if name == "sudo" {
-			return "/usr/bin/sudo", nil
-		}
-		return "", os.ErrNotExist
-	}
 
 	_, _, err := WithSudo("error", "apt-get", []string{"install"})
 	if !IsSudoSkipped(err) {

@@ -1,4 +1,5 @@
 // Helpers for handlers that perform per-user installs (go install, npm
+
 // install, file writes under $HOME) when the vrooli process itself may be
 // running as root via sudo.
 //
@@ -49,6 +50,10 @@ import (
 	osuser "os/user"
 	"strconv"
 	"strings"
+)
+
+const (
+	sudoUserRoot = "root"
 )
 
 // InvokingUser returns the username of the operator whose intent we should
@@ -151,7 +156,7 @@ func InvokingUserCommand(name string, args ...string) (string, []string) {
 		commandArgs = append(busArgs, commandArgs...)
 		name = "env"
 	}
-	if RunningAsRootFn() && user != "" && user != "root" {
+	if RunningAsRootFn() && user != "" && user != sudoUserRoot {
 		return "sudo", append([]string{"-u", user, "-H", "--", name}, commandArgs...)
 	}
 	return name, commandArgs
@@ -197,7 +202,7 @@ var lookupHomeFromPasswdFn = func(user string) string {
 // password; the elevation is silent and synchronous.
 func RunAsInvokingUser(name string, args []string, opts EnsureOptions) error {
 	user := InvokingUser()
-	if !RunningAsRootFn() || user == "" || user == "root" {
+	if !RunningAsRootFn() || user == "" || user == sudoUserRoot {
 		return RunCommandFn(name, args, opts)
 	}
 	wrapped := append([]string{"-u", user, "-H", "--", name}, args...)
@@ -209,7 +214,7 @@ func RunAsInvokingUser(name string, args []string, opts EnsureOptions) error {
 // an argument, environment variable, or temporary file.
 func RunAsInvokingUserWithInput(name string, args []string, input string, opts EnsureOptions) error {
 	user := InvokingUser()
-	if !RunningAsRootFn() || user == "" || user == "root" {
+	if !RunningAsRootFn() || user == "" || user == sudoUserRoot {
 		return RunCommandInputFn(name, args, input, opts)
 	}
 	wrapped := append([]string{"-u", user, "-H", "--", name}, args...)

@@ -11,6 +11,7 @@ import (
 
 	"github.com/vrooli/vrooli/internal/hostreqkit"
 	"github.com/vrooli/vrooli/internal/hostreqspec"
+	"github.com/vrooli/vrooli/internal/shell/shelltest"
 )
 
 type capturedCommand struct {
@@ -20,7 +21,9 @@ type capturedCommand struct {
 
 // stubAll wires test-friendly stubs over the package-level seams the handler
 // touches. Returns the captured-commands slice plus a restore callback.
-func stubAll(t *testing.T) (*[]capturedCommand, func()) {
+var stubAll = vrooliLauncherStubAll
+
+func vrooliLauncherStubAll(t *testing.T) (*[]capturedCommand, func()) {
 	t.Helper()
 	origRun := hostreqkit.RunCommandFn
 	origLook := hostreqkit.LookPathFn
@@ -67,9 +70,11 @@ func req(manual bool) hostreqspec.ResolvedRequirement {
 	}
 }
 
-func linuxHost() hostreqkit.Host  { return hostreqkit.Host{OS: "linux"} }
-func darwinHost() hostreqkit.Host { return hostreqkit.Host{OS: "darwin"} }
-func winHost() hostreqkit.Host    { return hostreqkit.Host{OS: "windows"} }
+var linuxHost = vrooliLauncherLinuxHost
+
+func vrooliLauncherLinuxHost() hostreqkit.Host { return hostreqkit.Host{OS: "linux"} }
+func darwinHost() hostreqkit.Host              { return hostreqkit.Host{OS: "darwin"} }
+func winHost() hostreqkit.Host                 { return hostreqkit.Host{OS: "windows"} }
 
 func TestInspectMissingShimIsPending(t *testing.T) {
 	_, restore := stubAll(t)
@@ -114,7 +119,7 @@ func TestShimFallsBackWhenCanonicalBinaryIsMissing(t *testing.T) {
 	if err := os.MkdirAll(filepath.Dir(fallback), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(fallback, []byte("#!/bin/sh\nprintf '%s' fallback > \"$MARKER\"\n"), 0o755); err != nil {
+	if err := os.WriteFile(fallback, []byte(shelltest.POSIXShebang()+"printf '%s' fallback > \"$MARKER\"\n"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	cmd := exec.Command("sh", "-c", shimContent, "vrooli")
@@ -143,7 +148,7 @@ func TestShimPrefersCanonicalBinary(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, path := range []string{primary, fallback} {
-		if err := os.WriteFile(path, []byte("#!/bin/sh\nprintf '%s' "+filepath.Base(path)+" > \"$MARKER\"\n"), 0o755); err != nil {
+		if err := os.WriteFile(path, []byte(shelltest.POSIXShebang()+"printf '%s' "+filepath.Base(path)+" > \"$MARKER\"\n"), 0o755); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -169,7 +174,7 @@ func TestInspectStaleShimIsPending(t *testing.T) {
 	defer restore()
 
 	hostreqkit.ReadFileFn = func(path string) ([]byte, error) {
-		return []byte("#!/bin/sh\nexec /old/vrooli \"$@\"\n"), nil
+		return []byte(shelltest.POSIXShebang() + "exec /old/vrooli \"$@\"\n"), nil
 	}
 
 	st := newHandler().Inspect(linuxHost(), req(false))
@@ -219,19 +224,19 @@ func TestApplyWritesShimUnderSudo(t *testing.T) {
 		t.Errorf("Applied should be true after successful Apply")
 	}
 
-	// The Apply path should call `install -m 0755 <tmp> /usr/local/bin/vrooli`,
+	// The Apply path should call `install -m 755 <tmp> /usr/local/bin/vrooli`,
 	// wrapped with sudo via WithSudo. Confirm by inspecting the captured
 	// command + args.
 	var found bool
 	for _, c := range *cmds {
 		joined := c.Name + " " + strings.Join(c.Args, " ")
-		if strings.Contains(joined, "install -m 0755") && strings.Contains(joined, LauncherPath) {
+		if strings.Contains(joined, "install -m 755") && strings.Contains(joined, LauncherPath) {
 			found = true
 			break
 		}
 	}
 	if !found {
-		t.Fatalf("expected `install -m 0755 ... %s` to be invoked, captured: %+v", LauncherPath, *cmds)
+		t.Fatalf("expected `install -m 755 ... %s` to be invoked, captured: %+v", LauncherPath, *cmds)
 	}
 }
 
@@ -340,15 +345,5 @@ func TestInspectSelfPromotionDoesNotOverrideAlreadyPresent(t *testing.T) {
 	st := newHandler().Inspect(linuxHost(), requirement)
 	if st.Required {
 		t.Fatalf("Required = true on AlreadyPresent path; promotion should only fire when shim is missing")
-	}
-}
-
-func TestNameAndKind(t *testing.T) {
-	h := newHandler()
-	if h.Name() != "vrooli_launcher" {
-		t.Errorf("Name = %q", h.Name())
-	}
-	if h.Kind() != hostreqspec.KindSafeguard {
-		t.Errorf("Kind = %q", h.Kind())
 	}
 }

@@ -1,4 +1,5 @@
 // Package hostpresentation classifies the presentation capability of the
+
 // session that invoked Vrooli. It deliberately describes the session, not the
 // host: a graphical host reached over SSH is still a remote shell.
 package hostpresentation
@@ -11,7 +12,14 @@ import (
 	"os/exec"
 	"runtime"
 	"strings"
-	"time"
+
+	"github.com/vrooli/vrooli/internal/tuning"
+
+	"github.com/vrooli/vrooli/internal/shell"
+)
+
+const (
+	hostpresentationYes = "yes"
 )
 
 type Kind string
@@ -36,8 +44,7 @@ type Capability struct {
 
 type Probe interface {
 	Env(string) string
-	LookPath(string) (string, error)
-	Run(ctx context.Context, name string, args ...string) ([]byte, error)
+	shell.Runner
 }
 
 type defaultProbe struct{}
@@ -81,7 +88,7 @@ func DetectWith(ctx context.Context, p Probe) Capability {
 	if p == nil {
 		p = defaultProbe{}
 	}
-	ctx, cancel := context.WithTimeout(ctx, 2*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, tuning.ShortOperationDeadline)
 	defer cancel()
 	return detectWithOS(ctx, p, runtime.GOOS)
 }
@@ -123,6 +130,7 @@ func detectLinux(ctx context.Context, p Probe) Capability {
 	return detectLinuxWithUID(ctx, p, effectiveUID())
 }
 
+//nolint:gocyclo // Linux presentation detection is an OS, display, session, and user capability matrix.
 func detectLinuxWithUID(ctx context.Context, p Probe, uid int) Capability {
 	evidence := []string{}
 	wslVersion, wslErr := probeRun(ctx, p, "file-read", "/proc/version")
@@ -150,7 +158,7 @@ func detectLinuxWithUID(ctx context.Context, p Probe, uid int) Capability {
 				return degraded(KindHeadless, "session probe timed out", evidence)
 			}
 			name, kind, remote := loginctlFields(string(info))
-			if infoErr == nil && name == p.Env("SUDO_USER") && (kind == "x11" || kind == "wayland") && remote != "yes" {
+			if infoErr == nil && name == p.Env("SUDO_USER") && (kind == "x11" || kind == "wayland") && remote != hostpresentationYes {
 				return capability(KindLocalGraphical, true, "elevated setup uses the invoking user's graphical session", evidence...)
 			}
 		}
@@ -166,7 +174,7 @@ func detectLinuxWithUID(ctx context.Context, p Probe, uid int) Capability {
 		if err != nil && isTimeout(err) {
 			return degraded(KindHeadless, "session probe timed out", evidence)
 		}
-		if remoteValue != "yes" && sshConnection == "" {
+		if remoteValue != hostpresentationYes && sshConnection == "" {
 			return capability(KindLocalGraphical, true, "local graphical session", evidence...)
 		}
 		if sshConnection != "" {
@@ -232,7 +240,7 @@ func degraded(kind Kind, reason string, evidence []string) Capability {
 }
 
 func probeRun(ctx context.Context, p Probe, name string, args ...string) ([]byte, error) {
-	probeCtx, cancel := context.WithTimeout(ctx, 750*time.Millisecond)
+	probeCtx, cancel := context.WithTimeout(ctx, tuning.HostPresentationProbeTimeout)
 	defer cancel()
 	return p.Run(probeCtx, name, args...)
 }
@@ -252,7 +260,7 @@ func firstNonEmpty(values ...string) string {
 
 func isTruthy(value string) bool {
 	switch strings.ToLower(strings.TrimSpace(value)) {
-	case "1", "true", "yes", "on":
+	case "1", "true", hostpresentationYes, "on":
 		return true
 	default:
 		return false

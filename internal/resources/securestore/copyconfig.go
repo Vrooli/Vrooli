@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/vrooli/vrooli/internal/tuning"
 )
 
 // CopyConfig is non-secret configuration for the encrypted-store escrow. The
@@ -24,7 +26,7 @@ type CopyConfig struct {
 	ObjectStoreSessionField   string        `json:"object_store_session_field,omitempty"`
 }
 
-const DefaultCopyInterval = 15 * time.Minute
+const DefaultCopyInterval = tuning.CopyRetentionWindow
 
 func (c CopyConfig) Validate() error {
 	if !c.Enabled {

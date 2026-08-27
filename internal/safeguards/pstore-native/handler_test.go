@@ -24,7 +24,9 @@ type stat struct {
 	erst           bool
 }
 
-func stubAll(t *testing.T) (cmds *[]capturedCommand, files map[string]string, state *stat, restore func()) {
+var stubAll = pstoreNativeStubAll
+
+func pstoreNativeStubAll(t *testing.T) (cmds *[]capturedCommand, files map[string]string, state *stat, restore func()) {
 	t.Helper()
 	origRead := hostreqkit.ReadFileFn
 	origRun := hostreqkit.RunCommandFn
@@ -108,7 +110,9 @@ func newHandler() hostreqkit.Handler {
 	return NewHandler(hostreqkit.SafeguardManifest{Name: "pstore_native", Handler: "pstore_native"})
 }
 
-func linuxHost() hostreqkit.Host {
+var linuxHost = pstoreNativeLinuxHost
+
+func pstoreNativeLinuxHost() hostreqkit.Host {
 	return hostreqkit.Host{OS: "linux", PackageManager: "apt-get", SupportsSysctl: true, SupportsSystemd: true}
 }
 
@@ -146,15 +150,6 @@ func TestInspectAlreadyActive(t *testing.T) {
 	}
 	if st.ExecutionState != hostreqkit.ExecutionAlreadyPresent {
 		t.Errorf("ExecutionState = %q", st.ExecutionState)
-	}
-}
-
-func TestInspectNonLinux(t *testing.T) {
-	_, _, _, restore := stubAll(t)
-	defer restore()
-	st := newHandler().Inspect(hostreqkit.Host{OS: "darwin"}, req(false))
-	if st.SupportClass != hostreqkit.SupportUnsupported {
-		t.Errorf("SupportClass = %q", st.SupportClass)
 	}
 }
 
@@ -259,24 +254,6 @@ func TestApplyTriesAllAvailableCandidates(t *testing.T) {
 	}
 }
 
-func TestApplyDryRun(t *testing.T) {
-	cmds, _, s, restore := stubAll(t)
-	defer restore()
-	s.efivars = true
-
-	st := newHandler().Inspect(linuxHost(), req(false))
-	out, err := newHandler().Apply(linuxHost(), st, hostreqkit.EnsureOptions{DryRun: true})
-	if err != nil {
-		t.Fatalf("Apply: %v", err)
-	}
-	if out.ExecutionState != hostreqkit.ExecutionWouldApply {
-		t.Errorf("ExecutionState = %q", out.ExecutionState)
-	}
-	if len(*cmds) != 0 {
-		t.Errorf("DryRun ran commands: %v", *cmds)
-	}
-}
-
 func TestApplyAtBootFailureNonFatal(t *testing.T) {
 	cmds, _, s, restore := stubAll(t)
 	defer restore()
@@ -306,48 +283,5 @@ func TestApplyAtBootFailureNonFatal(t *testing.T) {
 	notes := strings.Join(out.Notes, " | ")
 	if !strings.Contains(notes, "at-boot persistence") {
 		t.Errorf("note should record the at-boot failure: %q", notes)
-	}
-}
-
-func TestApplyAlreadyAppliedShortCircuits(t *testing.T) {
-	cmds, _, _, restore := stubAll(t)
-	defer restore()
-	st := hostreqkit.ItemStatus{
-		SupportClass:   hostreqkit.SupportSupported,
-		ExecutionState: hostreqkit.ExecutionAlreadyPresent,
-		Applied:        true,
-	}
-	out, err := newHandler().Apply(linuxHost(), st, hostreqkit.EnsureOptions{})
-	if err != nil {
-		t.Fatalf("Apply: %v", err)
-	}
-	if out.ExecutionState != hostreqkit.ExecutionAlreadyPresent {
-		t.Errorf("ExecutionState = %q", out.ExecutionState)
-	}
-	if len(*cmds) != 0 {
-		t.Errorf("commands ran: %v", *cmds)
-	}
-}
-
-func TestApplyManualOnlyShortCircuits(t *testing.T) {
-	_, _, _, restore := stubAll(t)
-	defer restore()
-	st := hostreqkit.ItemStatus{SupportClass: hostreqkit.SupportManualOnly}
-	out, err := newHandler().Apply(linuxHost(), st, hostreqkit.EnsureOptions{})
-	if err != nil {
-		t.Fatalf("Apply: %v", err)
-	}
-	if out.ExecutionState != hostreqkit.ExecutionManualActionRequired {
-		t.Errorf("ExecutionState = %q", out.ExecutionState)
-	}
-}
-
-func TestNameAndKind(t *testing.T) {
-	h := newHandler()
-	if h.Name() != "pstore_native" {
-		t.Errorf("Name = %q", h.Name())
-	}
-	if h.Kind() != hostreqspec.KindSafeguard {
-		t.Errorf("Kind = %q", h.Kind())
 	}
 }

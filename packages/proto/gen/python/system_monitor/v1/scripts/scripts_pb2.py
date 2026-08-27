@@ -26,7 +26,7 @@ from google.api import annotations_pb2 as google_dot_api_dot_annotations__pb2
 from google.protobuf import timestamp_pb2 as google_dot_protobuf_dot_timestamp__pb2
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\'system-monitor/v1/scripts/scripts.proto\x12 vrooli.system_monitor.v1.scripts\x1a\x1cgoogle/api/annotations.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\x8e\x03\n\x13InvestigationScript\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n\x04name\x18\x02 \x01(\tR\x04name\x12 \n\x0b\x64\x65scription\x18\x03 \x01(\tR\x0b\x64\x65scription\x12\x1a\n\x08\x63\x61tegory\x18\x04 \x01(\tR\x08\x63\x61tegory\x12\x39\n\ncreated_at\x18\x05 \x01(\x0b\x32\x1a.google.protobuf.TimestampR\tcreatedAt\x12\x39\n\nupdated_at\x18\x06 \x01(\x0b\x32\x1a.google.protobuf.TimestampR\tupdatedAt\x12\x16\n\x06\x61uthor\x18\x07 \x01(\tR\x06\x61uthor\x12\x18\n\x07\x65nabled\x18\x08 \x01(\x08R\x07\x65nabled\x12%\n\x0e\x65xecution_mode\x18\r \x01(\tR\rexecutionMode\x12%\n\x0erequired_tools\x18\x0e \x03(\tR\rrequiredTools\x12\x1f\n\x0bskip_reason\x18\x0f \x01(\tR\nskipReason\"\xea\x04\n\x0fScriptExecution\x12\x1b\n\tscript_id\x18\x01 \x01(\tR\x08scriptId\x12!\n\x0c\x65xecution_id\x18\x02 \x01(\tR\x0b\x65xecutionId\x12O\n\x06status\x18\x03 \x01(\x0e\x32\x37.vrooli.system_monitor.v1.scripts.ScriptExecutionStatusR\x06status\x12\x39\n\nstarted_at\x18\x04 \x01(\x0b\x32\x1a.google.protobuf.TimestampR\tstartedAt\x12\x42\n\x0c\x63ompleted_at\x18\x05 \x01(\x0b\x32\x1a.google.protobuf.TimestampH\x00R\x0b\x63ompletedAt\x88\x01\x01\x12\x16\n\x06output\x18\x06 \x01(\tR\x06output\x12\x14\n\x05\x65rror\x18\x07 \x01(\tR\x05\x65rror\x12 \n\texit_code\x18\x08 \x01(\x05H\x01R\x08\x65xitCode\x88\x01\x01\x12\x16\n\x06stdout\x18\t \x01(\tR\x06stdout\x12\x16\n\x06stderr\x18\n \x01(\tR\x06stderr\x12\x1b\n\ttimed_out\x18\x0b \x01(\x08R\x08timedOut\x12.\n\x10\x64uration_seconds\x18\x0c \x01(\x01H\x02R\x0f\x64urationSeconds\x88\x01\x01\x12%\n\x0e\x65xecution_mode\x18\r \x01(\tR\rexecutionMode\x12\x1f\n\x0bskip_reason\x18\x0e \x01(\tR\nskipReasonB\x0f\n\r_completed_atB\x0c\n\n_exit_codeB\x13\n\x11_duration_seconds\"\x14\n\x12ListScriptsRequest\"f\n\x13ListScriptsResponse\x12O\n\x07scripts\x18\x01 \x03(\x0b\x32\x35.vrooli.system_monitor.v1.scripts.InvestigationScriptR\x07scripts\"\"\n\x10GetScriptRequest\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\"|\n\x11GetScriptResponse\x12M\n\x06script\x18\x01 \x01(\x0b\x32\x35.vrooli.system_monitor.v1.scripts.InvestigationScriptR\x06script\x12\x18\n\x07\x63ontent\x18\x02 \x01(\tR\x07\x63ontent\"?\n\x13UpdateScriptRequest\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\x12\x18\n\x07\x63ontent\x18\x02 \x01(\tR\x07\x63ontent\"Q\n\x14\x45xecuteScriptRequest\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\x12\x1d\n\x07\x63ontent\x18\x02 \x01(\tH\x00R\x07\x63ontent\x88\x01\x01\x42\n\n\x08_content\"h\n\x15\x45xecuteScriptResponse\x12O\n\texecution\x18\x01 \x01(\x0b\x32\x31.vrooli.system_monitor.v1.scripts.ScriptExecutionR\texecution*\xd5\x01\n\x15ScriptExecutionStatus\x12\'\n#SCRIPT_EXECUTION_STATUS_UNSPECIFIED\x10\x00\x12#\n\x1fSCRIPT_EXECUTION_STATUS_RUNNING\x10\x01\x12%\n!SCRIPT_EXECUTION_STATUS_COMPLETED\x10\x02\x12\"\n\x1eSCRIPT_EXECUTION_STATUS_FAILED\x10\x03\x12#\n\x1fSCRIPT_EXECUTION_STATUS_SKIPPED\x10\x04\x32\xc1\x05\n\x0eScriptsService\x12\xa2\x01\n\x0bListScripts\x12\x34.vrooli.system_monitor.v1.scripts.ListScriptsRequest\x1a\x35.vrooli.system_monitor.v1.scripts.ListScriptsResponse\"&\x82\xd3\xe4\x93\x02 \x12\x1e/api/v1/investigations/scripts\x12\xa1\x01\n\tGetScript\x12\x32.vrooli.system_monitor.v1.scripts.GetScriptRequest\x1a\x33.vrooli.system_monitor.v1.scripts.GetScriptResponse\"+\x82\xd3\xe4\x93\x02%\x12#/api/v1/investigations/scripts/{id}\x12\xaa\x01\n\x0cUpdateScript\x12\x35.vrooli.system_monitor.v1.scripts.UpdateScriptRequest\x1a\x33.vrooli.system_monitor.v1.scripts.GetScriptResponse\".\x82\xd3\xe4\x93\x02(\x1a#/api/v1/investigations/scripts/{id}:\x01*\x12\xb8\x01\n\rExecuteScript\x12\x36.vrooli.system_monitor.v1.scripts.ExecuteScriptRequest\x1a\x37.vrooli.system_monitor.v1.scripts.ExecuteScriptResponse\"6\x82\xd3\xe4\x93\x02\x30\"+/api/v1/investigations/scripts/{id}/execute:\x01*BRZPgithub.com/vrooli/vrooli/packages/proto/gen/go/system-monitor/v1/scripts;scriptsb\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\'system-monitor/v1/scripts/scripts.proto\x12 vrooli.system_monitor.v1.scripts\x1a\x1cgoogle/api/annotations.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xc4\x03\n\x13InvestigationScript\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n\x04name\x18\x02 \x01(\tR\x04name\x12 \n\x0b\x64\x65scription\x18\x03 \x01(\tR\x0b\x64\x65scription\x12\x1a\n\x08\x63\x61tegory\x18\x04 \x01(\tR\x08\x63\x61tegory\x12\x39\n\ncreated_at\x18\x05 \x01(\x0b\x32\x1a.google.protobuf.TimestampR\tcreatedAt\x12\x39\n\nupdated_at\x18\x06 \x01(\x0b\x32\x1a.google.protobuf.TimestampR\tupdatedAt\x12\x16\n\x06\x61uthor\x18\x07 \x01(\tR\x06\x61uthor\x12\x18\n\x07\x65nabled\x18\x08 \x01(\x08R\x07\x65nabled\x12%\n\x0e\x65xecution_mode\x18\r \x01(\tR\rexecutionMode\x12%\n\x0erequired_tools\x18\x0e \x03(\tR\rrequiredTools\x12\x1f\n\x0bskip_reason\x18\x0f \x01(\tR\nskipReason\x12\x1c\n\tplatforms\x18\x10 \x03(\tR\tplatforms\x12\x16\n\x06source\x18\x11 \x01(\tR\x06source\"\xea\x04\n\x0fScriptExecution\x12\x1b\n\tscript_id\x18\x01 \x01(\tR\x08scriptId\x12!\n\x0c\x65xecution_id\x18\x02 \x01(\tR\x0b\x65xecutionId\x12O\n\x06status\x18\x03 \x01(\x0e\x32\x37.vrooli.system_monitor.v1.scripts.ScriptExecutionStatusR\x06status\x12\x39\n\nstarted_at\x18\x04 \x01(\x0b\x32\x1a.google.protobuf.TimestampR\tstartedAt\x12\x42\n\x0c\x63ompleted_at\x18\x05 \x01(\x0b\x32\x1a.google.protobuf.TimestampH\x00R\x0b\x63ompletedAt\x88\x01\x01\x12\x16\n\x06output\x18\x06 \x01(\tR\x06output\x12\x14\n\x05\x65rror\x18\x07 \x01(\tR\x05\x65rror\x12 \n\texit_code\x18\x08 \x01(\x05H\x01R\x08\x65xitCode\x88\x01\x01\x12\x16\n\x06stdout\x18\t \x01(\tR\x06stdout\x12\x16\n\x06stderr\x18\n \x01(\tR\x06stderr\x12\x1b\n\ttimed_out\x18\x0b \x01(\x08R\x08timedOut\x12.\n\x10\x64uration_seconds\x18\x0c \x01(\x01H\x02R\x0f\x64urationSeconds\x88\x01\x01\x12%\n\x0e\x65xecution_mode\x18\r \x01(\tR\rexecutionMode\x12\x1f\n\x0bskip_reason\x18\x0e \x01(\tR\nskipReasonB\x0f\n\r_completed_atB\x0c\n\n_exit_codeB\x13\n\x11_duration_seconds\"\x14\n\x12ListScriptsRequest\"f\n\x13ListScriptsResponse\x12O\n\x07scripts\x18\x01 \x03(\x0b\x32\x35.vrooli.system_monitor.v1.scripts.InvestigationScriptR\x07scripts\"\"\n\x10GetScriptRequest\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\"|\n\x11GetScriptResponse\x12M\n\x06script\x18\x01 \x01(\x0b\x32\x35.vrooli.system_monitor.v1.scripts.InvestigationScriptR\x06script\x12\x18\n\x07\x63ontent\x18\x02 \x01(\tR\x07\x63ontent\"?\n\x13UpdateScriptRequest\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\x12\x18\n\x07\x63ontent\x18\x02 \x01(\tR\x07\x63ontent\"Q\n\x14\x45xecuteScriptRequest\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\x12\x1d\n\x07\x63ontent\x18\x02 \x01(\tH\x00R\x07\x63ontent\x88\x01\x01\x42\n\n\x08_content\"h\n\x15\x45xecuteScriptResponse\x12O\n\texecution\x18\x01 \x01(\x0b\x32\x31.vrooli.system_monitor.v1.scripts.ScriptExecutionR\texecution\"\x81\x01\n\x14InvestigationFinding\x12\x1a\n\x08severity\x18\x01 \x01(\tR\x08severity\x12\x12\n\x04\x63ode\x18\x02 \x01(\tR\x04\x63ode\x12\x18\n\x07summary\x18\x03 \x01(\tR\x07summary\x12\x1f\n\x0b\x64\x65tail_json\x18\x04 \x01(\tR\ndetailJson\"\xe7\x04\n\x10InvestigationRun\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\x12\x19\n\x08\x65ntry_id\x18\x02 \x01(\tR\x07\x65ntryId\x12%\n\x0e\x65xecution_mode\x18\x03 \x01(\tR\rexecutionMode\x12\x16\n\x06status\x18\x04 \x01(\tR\x06status\x12\x1f\n\x0bskip_reason\x18\x05 \x01(\tR\nskipReason\x12\x1b\n\texit_code\x18\x06 \x01(\x05R\x08\x65xitCode\x12\x1b\n\ttimed_out\x18\x07 \x01(\x08R\x08timedOut\x12\x39\n\nstarted_at\x18\x08 \x01(\x0b\x32\x1a.google.protobuf.TimestampR\tstartedAt\x12=\n\x0c\x63ompleted_at\x18\t \x01(\x0b\x32\x1a.google.protobuf.TimestampR\x0b\x63ompletedAt\x12)\n\x10\x64uration_seconds\x18\n \x01(\x01R\x0f\x64urationSeconds\x12\x17\n\x07host_os\x18\x0b \x01(\tR\x06hostOs\x12\x1b\n\thost_arch\x18\x0c \x01(\tR\x08hostArch\x12\x1f\n\x0bresult_json\x18\r \x01(\tR\nresultJson\x12\x1f\n\x0bstderr_tail\x18\x0e \x01(\tR\nstderrTail\x12\x1d\n\nanomaly_id\x18\x0f \x01(\tR\tanomalyId\x12R\n\x08\x66indings\x18\x10 \x03(\x0b\x32\x36.vrooli.system_monitor.v1.scripts.InvestigationFindingR\x08\x66indings\"X\n\x0fListRunsRequest\x12\x19\n\x08\x65ntry_id\x18\x01 \x01(\tR\x07\x65ntryId\x12\x14\n\x05since\x18\x02 \x01(\tR\x05since\x12\x14\n\x05limit\x18\x03 \x01(\x05R\x05limit\"Z\n\x10ListRunsResponse\x12\x46\n\x04runs\x18\x01 \x03(\x0b\x32\x32.vrooli.system_monitor.v1.scripts.InvestigationRunR\x04runs\"\x1f\n\rGetRunRequest\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\"V\n\x0eGetRunResponse\x12\x44\n\x03run\x18\x01 \x01(\x0b\x32\x32.vrooli.system_monitor.v1.scripts.InvestigationRunR\x03run\"+\n\x10PruneRunsRequest\x12\x17\n\x07\x64ry_run\x18\x01 \x01(\x08R\x06\x64ryRun\"F\n\x11PruneRunsResponse\x12\x18\n\x07\x64\x65leted\x18\x01 \x01(\x03R\x07\x64\x65leted\x12\x17\n\x07\x64ry_run\x18\x02 \x01(\x08R\x06\x64ryRun*\xd5\x01\n\x15ScriptExecutionStatus\x12\'\n#SCRIPT_EXECUTION_STATUS_UNSPECIFIED\x10\x00\x12#\n\x1fSCRIPT_EXECUTION_STATUS_RUNNING\x10\x01\x12%\n!SCRIPT_EXECUTION_STATUS_COMPLETED\x10\x02\x12\"\n\x1eSCRIPT_EXECUTION_STATUS_FAILED\x10\x03\x12#\n\x1fSCRIPT_EXECUTION_STATUS_SKIPPED\x10\x04\x32\x97\t\n\x0eScriptsService\x12\xa2\x01\n\x0bListScripts\x12\x34.vrooli.system_monitor.v1.scripts.ListScriptsRequest\x1a\x35.vrooli.system_monitor.v1.scripts.ListScriptsResponse\"&\x82\xd3\xe4\x93\x02 \x12\x1e/api/v1/investigations/scripts\x12\xa1\x01\n\tGetScript\x12\x32.vrooli.system_monitor.v1.scripts.GetScriptRequest\x1a\x33.vrooli.system_monitor.v1.scripts.GetScriptResponse\"+\x82\xd3\xe4\x93\x02%\x12#/api/v1/investigations/scripts/{id}\x12\xaa\x01\n\x0cUpdateScript\x12\x35.vrooli.system_monitor.v1.scripts.UpdateScriptRequest\x1a\x33.vrooli.system_monitor.v1.scripts.GetScriptResponse\".\x82\xd3\xe4\x93\x02(\x1a#/api/v1/investigations/scripts/{id}:\x01*\x12\xb8\x01\n\rExecuteScript\x12\x36.vrooli.system_monitor.v1.scripts.ExecuteScriptRequest\x1a\x37.vrooli.system_monitor.v1.scripts.ExecuteScriptResponse\"6\x82\xd3\xe4\x93\x02\x30\"+/api/v1/investigations/scripts/{id}/execute:\x01*\x12\x96\x01\n\x08ListRuns\x12\x31.vrooli.system_monitor.v1.scripts.ListRunsRequest\x1a\x32.vrooli.system_monitor.v1.scripts.ListRunsResponse\"#\x82\xd3\xe4\x93\x02\x1d\x12\x1b/api/v1/investigations/runs\x12\x95\x01\n\x06GetRun\x12/.vrooli.system_monitor.v1.scripts.GetRunRequest\x1a\x30.vrooli.system_monitor.v1.scripts.GetRunResponse\"(\x82\xd3\xe4\x93\x02\"\x12 /api/v1/investigations/runs/{id}\x12\xa2\x01\n\tPruneRuns\x12\x32.vrooli.system_monitor.v1.scripts.PruneRunsRequest\x1a\x33.vrooli.system_monitor.v1.scripts.PruneRunsResponse\",\x82\xd3\xe4\x93\x02&\"!/api/v1/investigations/runs/prune:\x01*BRZPgithub.com/vrooli/vrooli/packages/proto/gen/go/system-monitor/v1/scripts;scriptsb\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -42,26 +42,48 @@ if not _descriptor._USE_C_DESCRIPTORS:
   _globals['_SCRIPTSSERVICE'].methods_by_name['UpdateScript']._serialized_options = b'\202\323\344\223\002(\032#/api/v1/investigations/scripts/{id}:\001*'
   _globals['_SCRIPTSSERVICE'].methods_by_name['ExecuteScript']._loaded_options = None
   _globals['_SCRIPTSSERVICE'].methods_by_name['ExecuteScript']._serialized_options = b'\202\323\344\223\0020\"+/api/v1/investigations/scripts/{id}/execute:\001*'
-  _globals['_SCRIPTEXECUTIONSTATUS']._serialized_start=1705
-  _globals['_SCRIPTEXECUTIONSTATUS']._serialized_end=1918
+  _globals['_SCRIPTSSERVICE'].methods_by_name['ListRuns']._loaded_options = None
+  _globals['_SCRIPTSSERVICE'].methods_by_name['ListRuns']._serialized_options = b'\202\323\344\223\002\035\022\033/api/v1/investigations/runs'
+  _globals['_SCRIPTSSERVICE'].methods_by_name['GetRun']._loaded_options = None
+  _globals['_SCRIPTSSERVICE'].methods_by_name['GetRun']._serialized_options = b'\202\323\344\223\002\"\022 /api/v1/investigations/runs/{id}'
+  _globals['_SCRIPTSSERVICE'].methods_by_name['PruneRuns']._loaded_options = None
+  _globals['_SCRIPTSSERVICE'].methods_by_name['PruneRuns']._serialized_options = b'\202\323\344\223\002&\"!/api/v1/investigations/runs/prune:\001*'
+  _globals['_SCRIPTEXECUTIONSTATUS']._serialized_start=2929
+  _globals['_SCRIPTEXECUTIONSTATUS']._serialized_end=3142
   _globals['_INVESTIGATIONSCRIPT']._serialized_start=141
-  _globals['_INVESTIGATIONSCRIPT']._serialized_end=539
-  _globals['_SCRIPTEXECUTION']._serialized_start=542
-  _globals['_SCRIPTEXECUTION']._serialized_end=1160
-  _globals['_LISTSCRIPTSREQUEST']._serialized_start=1162
-  _globals['_LISTSCRIPTSREQUEST']._serialized_end=1182
-  _globals['_LISTSCRIPTSRESPONSE']._serialized_start=1184
-  _globals['_LISTSCRIPTSRESPONSE']._serialized_end=1286
-  _globals['_GETSCRIPTREQUEST']._serialized_start=1288
-  _globals['_GETSCRIPTREQUEST']._serialized_end=1322
-  _globals['_GETSCRIPTRESPONSE']._serialized_start=1324
-  _globals['_GETSCRIPTRESPONSE']._serialized_end=1448
-  _globals['_UPDATESCRIPTREQUEST']._serialized_start=1450
-  _globals['_UPDATESCRIPTREQUEST']._serialized_end=1513
-  _globals['_EXECUTESCRIPTREQUEST']._serialized_start=1515
-  _globals['_EXECUTESCRIPTREQUEST']._serialized_end=1596
-  _globals['_EXECUTESCRIPTRESPONSE']._serialized_start=1598
-  _globals['_EXECUTESCRIPTRESPONSE']._serialized_end=1702
-  _globals['_SCRIPTSSERVICE']._serialized_start=1921
-  _globals['_SCRIPTSSERVICE']._serialized_end=2626
+  _globals['_INVESTIGATIONSCRIPT']._serialized_end=593
+  _globals['_SCRIPTEXECUTION']._serialized_start=596
+  _globals['_SCRIPTEXECUTION']._serialized_end=1214
+  _globals['_LISTSCRIPTSREQUEST']._serialized_start=1216
+  _globals['_LISTSCRIPTSREQUEST']._serialized_end=1236
+  _globals['_LISTSCRIPTSRESPONSE']._serialized_start=1238
+  _globals['_LISTSCRIPTSRESPONSE']._serialized_end=1340
+  _globals['_GETSCRIPTREQUEST']._serialized_start=1342
+  _globals['_GETSCRIPTREQUEST']._serialized_end=1376
+  _globals['_GETSCRIPTRESPONSE']._serialized_start=1378
+  _globals['_GETSCRIPTRESPONSE']._serialized_end=1502
+  _globals['_UPDATESCRIPTREQUEST']._serialized_start=1504
+  _globals['_UPDATESCRIPTREQUEST']._serialized_end=1567
+  _globals['_EXECUTESCRIPTREQUEST']._serialized_start=1569
+  _globals['_EXECUTESCRIPTREQUEST']._serialized_end=1650
+  _globals['_EXECUTESCRIPTRESPONSE']._serialized_start=1652
+  _globals['_EXECUTESCRIPTRESPONSE']._serialized_end=1756
+  _globals['_INVESTIGATIONFINDING']._serialized_start=1759
+  _globals['_INVESTIGATIONFINDING']._serialized_end=1888
+  _globals['_INVESTIGATIONRUN']._serialized_start=1891
+  _globals['_INVESTIGATIONRUN']._serialized_end=2506
+  _globals['_LISTRUNSREQUEST']._serialized_start=2508
+  _globals['_LISTRUNSREQUEST']._serialized_end=2596
+  _globals['_LISTRUNSRESPONSE']._serialized_start=2598
+  _globals['_LISTRUNSRESPONSE']._serialized_end=2688
+  _globals['_GETRUNREQUEST']._serialized_start=2690
+  _globals['_GETRUNREQUEST']._serialized_end=2721
+  _globals['_GETRUNRESPONSE']._serialized_start=2723
+  _globals['_GETRUNRESPONSE']._serialized_end=2809
+  _globals['_PRUNERUNSREQUEST']._serialized_start=2811
+  _globals['_PRUNERUNSREQUEST']._serialized_end=2854
+  _globals['_PRUNERUNSRESPONSE']._serialized_start=2856
+  _globals['_PRUNERUNSRESPONSE']._serialized_end=2926
+  _globals['_SCRIPTSSERVICE']._serialized_start=3145
+  _globals['_SCRIPTSSERVICE']._serialized_end=4320
 # @@protoc_insertion_point(module_scope)

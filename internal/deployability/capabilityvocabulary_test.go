@@ -6,12 +6,13 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"testing"
 
 	"github.com/santhosh-tekuri/jsonschema/v5"
 )
 
-//go:generate go run ./cmd/capability-vocabulary --root ../..
+//go:generate go run ./internal/deployability/cmd/capability-vocabulary --root ../..
 
 // TestCapabilitySchemaEnumsFollowTheSingleVocabulary is the repository
 // contract for capability names. Schemas are consumer artifacts; the JSON
@@ -49,6 +50,22 @@ func TestVocabularyPoliciesValidateAgainstSchema(t *testing.T) {
 	}
 	if err := schema.Validate(document); err != nil {
 		t.Fatalf("capability vocabulary does not validate against its schema: %v", err)
+	}
+}
+
+func TestValidatePlatformPolicyDeclarationsRejectsBareNoEquivalent(t *testing.T) {
+	root := t.TempDir()
+	writeJSONForVocabularyTest(t, filepath.Join(root, ".vrooli", "capability-vocabulary.json"), `{"platform_policies":{"example":{"windows":"no_equivalent_ever"}}}`)
+	if err := ValidatePlatformPolicyDeclarations(root); err == nil || !strings.Contains(err.Error(), "rationale and review_by") {
+		t.Fatalf("bare no_equivalent_ever policy error = %v", err)
+	}
+}
+
+func TestValidatePlatformPolicyDeclarationsRejectsCircularRationale(t *testing.T) {
+	root := t.TempDir()
+	writeJSONForVocabularyTest(t, filepath.Join(root, ".vrooli", "capability-vocabulary.json"), `{"platform_policies":{"example":{"windows":{"status":"no_equivalent_ever","rationale":"no implementation is wired by vrooli","review_by":"2027-08-26"}}}}`)
+	if err := ValidatePlatformPolicyDeclarations(root); err == nil || !strings.Contains(err.Error(), "circular phrase") {
+		t.Fatalf("circular no_equivalent_ever policy error = %v", err)
 	}
 }
 

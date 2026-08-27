@@ -4,6 +4,7 @@ import "path/filepath"
 
 const (
 	ProjectConfigDir         = ".vrooli"
+	ScenarioDir              = "scenarios"
 	ServiceManifestFilename  = "service.json"
 	ServiceManifestPathname  = ProjectConfigDir + "/" + ServiceManifestFilename
 	ResourceManifestFilename = "resource.json"

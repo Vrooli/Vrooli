@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"encoding/json"
 	"testing"
+
+	"github.com/vrooli/vrooli/internal/cliout"
 )
 
 func TestRunHelpUsesCapabilityContract(t *testing.T) {
@@ -18,11 +20,11 @@ func TestRunHelpUsesCapabilityContract(t *testing.T) {
 
 func TestWriteCapabilityValuePreservesObjectShape(t *testing.T) {
 	var output bytes.Buffer
-	if err := writeCapabilityValue(&output, struct {
+	if err := cliout.WriteJSONValue(&output, struct {
 		State string `json:"state"`
 		Count int    `json:"count"`
 	}{State: "degraded", Count: 0}); err != nil {
-		t.Fatalf("writeCapabilityValue: %v", err)
+		t.Fatalf("WriteJSONValue: %v", err)
 	}
 	var got map[string]any
 	if err := json.Unmarshal(output.Bytes(), &got); err != nil {

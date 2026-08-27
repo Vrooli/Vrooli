@@ -8,6 +8,8 @@ import (
 	"runtime"
 	"strings"
 
+	"github.com/vrooli/vrooli/internal/tuning"
+
 	platform "github.com/vrooli/platform-go"
 	repocontract "github.com/vrooli/repo-contract-go"
 )
@@ -100,7 +102,7 @@ func isExecutableFile(path string) bool {
 	if runtime.GOOS == "windows" {
 		return true
 	}
-	return info.Mode().Perm()&0o111 != 0
+	return info.Mode().Perm()&tuning.PermExecuteMask != 0
 }
 
 func InstallService(ctx context.Context, opts ServiceInstallOptions) (ServiceInstallResult, error) {

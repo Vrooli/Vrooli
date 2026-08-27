@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/vrooli/vrooli/internal/tuning"
+
 	runtimestorage "github.com/vrooli/vrooli/internal/resources/runtime/storage"
 	"github.com/vrooli/vrooli/internal/resources/securestore"
 )
@@ -95,7 +97,7 @@ func OpenUserResourceHost(store securestore.Store, ownerScope string) (*UserReso
 	if err != nil {
 		return nil, err
 	}
-	paths, err := runtimestorage.EnsureAllDirs(resolver, runtimestorage.Options{ResourceID: userResourceHostID}, 0o700)
+	paths, err := runtimestorage.EnsureAllDirs(resolver, runtimestorage.Options{ResourceID: userResourceHostID}, tuning.PermPrivateDir)
 	if err != nil {
 		return nil, err
 	}

@@ -1,13 +1,10 @@
 package credentials
 
 import (
-	"encoding/json"
 	"io"
 	"os"
 
 	"github.com/vrooli/vrooli/internal/cli/rootcli"
-	"github.com/vrooli/vrooli/internal/cliout"
-	"google.golang.org/protobuf/types/known/structpb"
 )
 
 // CommandContext is the narrow command boundary used by the credential
@@ -42,23 +39,4 @@ func (app *App) Run(ctx *CommandContext, args []string) error {
 // RunBreakGlass dispatches the break-glass command group.
 func (app *App) RunBreakGlass(ctx *CommandContext, args []string) error {
 	return app.runBreakGlassCommandWithInput(ctx, args, ctx.Input())
-}
-
-// writeCredentialJSON preserves the established object-shaped JSON contract
-// while routing it through protobuf JSON. The source values are status and
-// address metadata only; secret material is never accepted by this renderer.
-func writeCredentialJSON(w io.Writer, value any) error {
-	raw, err := json.Marshal(value)
-	if err != nil {
-		return err
-	}
-	var object map[string]any
-	if err := json.Unmarshal(raw, &object); err != nil {
-		return err
-	}
-	payload, err := structpb.NewStruct(object)
-	if err != nil {
-		return err
-	}
-	return cliout.WriteProtoJSON(w, payload)
 }

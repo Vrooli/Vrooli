@@ -24,7 +24,7 @@ DIFF_OP_ADD: DiffOp
 DIFF_OP_EMPTY: DiffOp
 
 class Version(_message.Message):
-    __slots__ = ("id", "component_id", "library_id", "version", "content_sha256", "changelog_md", "recorded_at", "status", "source_path", "released_at", "created_at", "required_tokens", "required_token_patterns")
+    __slots__ = ("id", "component_id", "library_id", "version", "content_sha256", "changelog_md", "recorded_at", "status", "source_path", "released_at", "created_at", "required_tokens", "required_token_patterns", "presence")
     ID_FIELD_NUMBER: _ClassVar[int]
     COMPONENT_ID_FIELD_NUMBER: _ClassVar[int]
     LIBRARY_ID_FIELD_NUMBER: _ClassVar[int]
@@ -38,6 +38,7 @@ class Version(_message.Message):
     CREATED_AT_FIELD_NUMBER: _ClassVar[int]
     REQUIRED_TOKENS_FIELD_NUMBER: _ClassVar[int]
     REQUIRED_TOKEN_PATTERNS_FIELD_NUMBER: _ClassVar[int]
+    PRESENCE_FIELD_NUMBER: _ClassVar[int]
     id: str
     component_id: str
     library_id: str
@@ -51,15 +52,18 @@ class Version(_message.Message):
     created_at: _timestamp_pb2.Timestamp
     required_tokens: _containers.RepeatedScalarFieldContainer[str]
     required_token_patterns: _containers.RepeatedScalarFieldContainer[str]
-    def __init__(self, id: _Optional[str] = ..., component_id: _Optional[str] = ..., library_id: _Optional[str] = ..., version: _Optional[str] = ..., content_sha256: _Optional[str] = ..., changelog_md: _Optional[str] = ..., recorded_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., status: _Optional[str] = ..., source_path: _Optional[str] = ..., released_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., required_tokens: _Optional[_Iterable[str]] = ..., required_token_patterns: _Optional[_Iterable[str]] = ...) -> None: ...
+    presence: str
+    def __init__(self, id: _Optional[str] = ..., component_id: _Optional[str] = ..., library_id: _Optional[str] = ..., version: _Optional[str] = ..., content_sha256: _Optional[str] = ..., changelog_md: _Optional[str] = ..., recorded_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., status: _Optional[str] = ..., source_path: _Optional[str] = ..., released_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., required_tokens: _Optional[_Iterable[str]] = ..., required_token_patterns: _Optional[_Iterable[str]] = ..., presence: _Optional[str] = ...) -> None: ...
 
 class ListVersionsRequest(_message.Message):
-    __slots__ = ("component_id", "limit")
+    __slots__ = ("component_id", "limit", "all")
     COMPONENT_ID_FIELD_NUMBER: _ClassVar[int]
     LIMIT_FIELD_NUMBER: _ClassVar[int]
+    ALL_FIELD_NUMBER: _ClassVar[int]
     component_id: str
     limit: int
-    def __init__(self, component_id: _Optional[str] = ..., limit: _Optional[int] = ...) -> None: ...
+    all: bool
+    def __init__(self, component_id: _Optional[str] = ..., limit: _Optional[int] = ..., all: _Optional[bool] = ...) -> None: ...
 
 class ListVersionsResponse(_message.Message):
     __slots__ = ("versions",)

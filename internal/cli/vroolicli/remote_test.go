@@ -1,6 +1,10 @@
 package vroolicli
 
-import "testing"
+import (
+	"testing"
+
+	registryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/registry"
+)
 
 func TestRelayTimeoutArgMirrorsForwardedLifecycleCeiling(t *testing.T) {
 	if got := relayTimeoutArg([]string{"--best-effort", "--timeout", "600", "--json"}); got != "600" {
@@ -22,9 +26,9 @@ func TestRelayTimeoutArgIgnoresInvalidOrMissingValues(t *testing.T) {
 }
 
 func TestSelectBridgeNodePrefersTheOnlyReadyRecord(t *testing.T) {
-	id, err := selectBridgeNode([]bridgeNodeSummary{
-		{ID: "old", Name: "minimouse", Online: false},
-		{ID: "ready", Name: "minimouse", Online: true, Dispatchable: true},
+	id, err := selectBridgeNode([]*registryv1.Node{
+		{Id: "old", Name: "minimouse", Online: false},
+		{Id: "ready", Name: "minimouse", Online: true, Dispatchable: true},
 	}, "minimouse")
 	if err != nil {
 		t.Fatalf("selectBridgeNode: %v", err)
@@ -35,9 +39,9 @@ func TestSelectBridgeNodePrefersTheOnlyReadyRecord(t *testing.T) {
 }
 
 func TestSelectBridgeNodeUsesNewestOfflineRecordForAuthoritativeReason(t *testing.T) {
-	id, err := selectBridgeNode([]bridgeNodeSummary{
-		{ID: "one", Name: "minimouse"},
-		{ID: "two", Name: "minimouse"},
+	id, err := selectBridgeNode([]*registryv1.Node{
+		{Id: "one", Name: "minimouse"},
+		{Id: "two", Name: "minimouse"},
 	}, "minimouse")
 	if err != nil {
 		t.Fatalf("selectBridgeNode: %v", err)

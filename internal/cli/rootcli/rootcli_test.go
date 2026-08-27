@@ -3,6 +3,7 @@ package rootcli
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"io"
 	"log/slog"
 	"strings"
@@ -11,8 +12,94 @@ import (
 	"github.com/vrooli/vrooli/internal/cli/clipolicy"
 	"github.com/vrooli/vrooli/internal/cli/scenariocli"
 	"github.com/vrooli/vrooli/internal/cli/topcli"
+	"github.com/vrooli/vrooli/internal/cliout"
 	"github.com/vrooli/vrooli/internal/vroolierr"
 )
+
+func TestBindService(t *testing.T) {
+	t.Run("constructor error", func(t *testing.T) {
+		var parsed bool
+		wantErr := errors.New("construct failed")
+		handler := BindService(
+			func(struct{}) io.Writer { return io.Discard },
+			func(struct{}) (cliout.Format, struct{}, error) { return "", struct{}{}, wantErr },
+			func(struct{}, []string) (struct{}, error) {
+				parsed = true
+				return struct{}{}, nil
+			},
+			func(struct{}, struct{}) (string, error) { return "", nil },
+			func(io.Writer, cliout.Format, string) error { return nil },
+		)
+		if err := handler(struct{}{}, nil); !errors.Is(err, wantErr) {
+			t.Fatalf("error = %v, want %v", err, wantErr)
+		}
+		if parsed {
+			t.Fatal("parser ran after service construction failed")
+		}
+	})
+
+	t.Run("service constructs before parse error", func(t *testing.T) {
+		order := make([]string, 0, 2)
+		wantErr := errors.New("parse failed")
+		handler := BindService(
+			func(struct{}) io.Writer { return io.Discard },
+			func(struct{}) (cliout.Format, string, error) {
+				order = append(order, "construct")
+				return cliout.FormatJSON, "service", nil
+			},
+			func(struct{}, []string) (int, error) {
+				order = append(order, "parse")
+				return 0, wantErr
+			},
+			func(string, int) (string, error) { return "", nil },
+			func(io.Writer, cliout.Format, string) error { return nil },
+		)
+		if err := handler(struct{}{}, nil); !errors.Is(err, wantErr) {
+			t.Fatalf("error = %v, want %v", err, wantErr)
+		}
+		if got, want := strings.Join(order, ","), "construct,parse"; got != want {
+			t.Fatalf("order = %q, want %q", got, want)
+		}
+	})
+
+	t.Run("call error", func(t *testing.T) {
+		wantErr := errors.New("call failed")
+		handler := BindService(
+			func(struct{}) io.Writer { return io.Discard },
+			func(struct{}) (cliout.Format, string, error) { return cliout.FormatJSON, "service", nil },
+			func(struct{}, []string) (int, error) { return 7, nil },
+			func(string, int) (string, error) { return "", wantErr },
+			func(io.Writer, cliout.Format, string) error { return nil },
+		)
+		if err := handler(struct{}{}, nil); !errors.Is(err, wantErr) {
+			t.Fatalf("error = %v, want %v", err, wantErr)
+		}
+	})
+
+	t.Run("success renders constructor format", func(t *testing.T) {
+		var gotFormat cliout.Format
+		var gotResponse string
+		handler := BindService(
+			func(struct{}) io.Writer { return io.Discard },
+			func(struct{}) (cliout.Format, int, error) { return cliout.FormatJSON, 3, nil },
+			func(struct{}, []string) (string, error) { return "request", nil },
+			func(service int, request string) (string, error) {
+				return request + "-" + fmt.Sprint(service), nil
+			},
+			func(_ io.Writer, format cliout.Format, response string) error {
+				gotFormat = format
+				gotResponse = response
+				return nil
+			},
+		)
+		if err := handler(struct{}{}, nil); err != nil {
+			t.Fatalf("handler returned error: %v", err)
+		}
+		if gotFormat != cliout.FormatJSON || gotResponse != "request-3" {
+			t.Fatalf("rendered format/response = %q/%q", gotFormat, gotResponse)
+		}
+	})
+}
 
 func TestParseArgsSeparatesGlobalsAndCommand(t *testing.T) {
 	parsed, err := ParseArgs([]string{"--json", "--verbose", "scenario", "list"})

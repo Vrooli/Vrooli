@@ -9,6 +9,10 @@ import (
 	"strings"
 )
 
+const (
+	discoveryParameterA = 3
+)
+
 type packageJSON struct {
 	Scripts              map[string]string `json:"scripts"`
 	Dependencies         map[string]string `json:"dependencies"`
@@ -341,7 +345,7 @@ func parseGoMod(content string) parsedGoMod {
 
 func parseGoRequireLine(bucket map[string]string, line string) {
 	matches := goModRequireLinePattern.FindStringSubmatch(line)
-	if len(matches) != 3 {
+	if len(matches) != discoveryParameterA {
 		return
 	}
 	bucket[matches[1]] = matches[2]
@@ -349,7 +353,7 @@ func parseGoRequireLine(bucket map[string]string, line string) {
 
 func parseGoReplaceLine(bucket map[string]string, line string) {
 	matches := goModReplaceLinePattern.FindStringSubmatch(line)
-	if len(matches) != 3 {
+	if len(matches) != discoveryParameterA {
 		return
 	}
 	bucket[matches[1]] = matches[2]

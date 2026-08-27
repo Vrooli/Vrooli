@@ -155,6 +155,8 @@ message ValidateTargetRequest {
   // access. The target.root remains the stable repo-relative identity.
   string path = 3;
   repeated string capability_subset = 4;
+  // Repository-contract exclusions expressed as repo-relative globs.
+  repeated string exclude = 5;
 }
 
 message ValidateTargetResponse {

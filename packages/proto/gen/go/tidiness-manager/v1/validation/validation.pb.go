@@ -108,15 +108,16 @@ func (x *TidinessScanResponse) GetAssessment() *v1.MaturityAssessment {
 }
 
 type TidinessScanSummary struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	TotalFindings int32                  `protobuf:"varint,1,opt,name=total_findings,json=totalFindings,proto3" json:"total_findings,omitempty"`
-	LongFiles     int32                  `protobuf:"varint,2,opt,name=long_files,json=longFiles,proto3" json:"long_files,omitempty"`
-	Complexity    int32                  `protobuf:"varint,3,opt,name=complexity,proto3" json:"complexity,omitempty"`
-	Duplication   int32                  `protobuf:"varint,4,opt,name=duplication,proto3" json:"duplication,omitempty"`
-	TechDebt      int32                  `protobuf:"varint,5,opt,name=tech_debt,json=techDebt,proto3" json:"tech_debt,omitempty"`
-	Coupling      int32                  `protobuf:"varint,6,opt,name=coupling,proto3" json:"coupling,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state               protoimpl.MessageState `protogen:"open.v1"`
+	TotalFindings       int32                  `protobuf:"varint,1,opt,name=total_findings,json=totalFindings,proto3" json:"total_findings,omitempty"`
+	LongFiles           int32                  `protobuf:"varint,2,opt,name=long_files,json=longFiles,proto3" json:"long_files,omitempty"`
+	Complexity          int32                  `protobuf:"varint,3,opt,name=complexity,proto3" json:"complexity,omitempty"`
+	Duplication         int32                  `protobuf:"varint,4,opt,name=duplication,proto3" json:"duplication,omitempty"`
+	TechDebt            int32                  `protobuf:"varint,5,opt,name=tech_debt,json=techDebt,proto3" json:"tech_debt,omitempty"`
+	Coupling            int32                  `protobuf:"varint,6,opt,name=coupling,proto3" json:"coupling,omitempty"`
+	DuplicationLineDebt int32                  `protobuf:"varint,7,opt,name=duplication_line_debt,json=duplicationLineDebt,proto3" json:"duplication_line_debt,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
 }
 
 func (x *TidinessScanSummary) Reset() {
@@ -187,6 +188,13 @@ func (x *TidinessScanSummary) GetTechDebt() int32 {
 func (x *TidinessScanSummary) GetCoupling() int32 {
 	if x != nil {
 		return x.Coupling
+	}
+	return 0
+}
+
+func (x *TidinessScanSummary) GetDuplicationLineDebt() int32 {
+	if x != nil {
+		return x.DuplicationLineDebt
 	}
 	return 0
 }
@@ -362,7 +370,7 @@ const file_tidiness_manager_v1_validation_validation_proto_rawDesc = "" +
 	"\asummary\x18\x05 \x01(\v2:.vrooli.tidiness_manager.v1.validation.TidinessScanSummaryR\asummary\x12=\n" +
 	"\n" +
 	"assessment\x18\x06 \x01(\v2\x1d.common.v1.MaturityAssessmentR\n" +
-	"assessment\"\xd6\x01\n" +
+	"assessment\"\x8a\x02\n" +
 	"\x13TidinessScanSummary\x12%\n" +
 	"\x0etotal_findings\x18\x01 \x01(\x05R\rtotalFindings\x12\x1d\n" +
 	"\n" +
@@ -372,7 +380,8 @@ const file_tidiness_manager_v1_validation_validation_proto_rawDesc = "" +
 	"complexity\x12 \n" +
 	"\vduplication\x18\x04 \x01(\x05R\vduplication\x12\x1b\n" +
 	"\ttech_debt\x18\x05 \x01(\x05R\btechDebt\x12\x1a\n" +
-	"\bcoupling\x18\x06 \x01(\x05R\bcoupling\"\x82\x04\n" +
+	"\bcoupling\x18\x06 \x01(\x05R\bcoupling\x122\n" +
+	"\x15duplication_line_debt\x18\a \x01(\x05R\x13duplicationLineDebt\"\x82\x04\n" +
 	"\x0fTidinessFinding\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x17\n" +
 	"\arule_id\x18\x02 \x01(\tR\x06ruleId\x12\x1a\n" +

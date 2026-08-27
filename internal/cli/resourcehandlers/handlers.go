@@ -93,9 +93,10 @@ func buildResourceAccelerationCommandHandlers[C any](deps HandlerDeps[C]) map[st
 	return commandtree.BuildHandlerMap(buildResourceAccelerationCommandTable(deps))
 }
 
+//nolint:gocyclo // resource command registration is a declarative table with independent capability branches.
 func buildResourceCommandTable[C any](deps HandlerDeps[C]) []commandtree.Spec[rootcli.ResourceHandler[C]] {
 	handlerMap := map[resourcecli.CommandID]rootcli.ResourceHandler[C]{
-		resourcecli.CommandList: bindResourceCommand(deps,
+		resourcecli.CommandList: rootcli.BindResourceCommand(deps.Stdout,
 			func(args []string) (resourcecli.NoArgsRequest, error) { return parseResourceListRequest(args) },
 			func(ctx C, controller *resources.Controller, req resourcecli.NoArgsRequest) (cliout.Format, resourceListResponse, error) {
 				_ = req
@@ -114,7 +115,7 @@ func buildResourceCommandTable[C any](deps HandlerDeps[C]) []commandtree.Spec[ro
 			},
 			renderResourceListResponse,
 		),
-		resourcecli.CommandStatus: bindResourceCommand(deps,
+		resourcecli.CommandStatus: rootcli.BindResourceCommand(deps.Stdout,
 			func(args []string) (resourcecli.StatusRequest, error) { return parseResourceStatusRequest(args) },
 			func(ctx C, controller *resources.Controller, req resourcecli.StatusRequest) (cliout.Format, resourceStatusResponse, error) {
 				if err := ensureNamedResourceCLI(deps, ctx, req.Name); err != nil {
@@ -138,7 +139,7 @@ func buildResourceCommandTable[C any](deps HandlerDeps[C]) []commandtree.Spec[ro
 			},
 			renderResourceStatusResponse,
 		),
-		resourcecli.CommandValidate: bindResourceCommand(deps,
+		resourcecli.CommandValidate: rootcli.BindResourceCommand(deps.Stdout,
 			func(args []string) (resourcecli.ValidateRequest, error) { return parseResourceValidateRequest(args) },
 			func(ctx C, controller *resources.Controller, req resourcecli.ValidateRequest) (cliout.Format, resources.ResourceValidationReport, error) {
 				report, err := newResourceCommandService(deps, ctx, controller).Validate(req.Name)
@@ -159,7 +160,7 @@ func buildResourceCommandTable[C any](deps HandlerDeps[C]) []commandtree.Spec[ro
 		resourcecli.CommandRestart:   singleResourceControlHandler(deps, "restart"),
 		resourcecli.CommandStop:      singleResourceControlHandler(deps, "stop"),
 		resourcecli.CommandLogs:      singleResourceControlHandler(deps, "logs"),
-		resourcecli.CommandStartAll: bindResourceCommand(deps,
+		resourcecli.CommandStartAll: rootcli.BindResourceCommand(deps.Stdout,
 			func(args []string) (resourcecli.NoArgsRequest, error) { return parseResourceStartAllRequest(args) },
 			func(ctx C, controller *resources.Controller, req resourcecli.NoArgsRequest) (cliout.Format, resourceapp.ControlReportResponse, error) {
 				_ = req
@@ -175,7 +176,7 @@ func buildResourceCommandTable[C any](deps HandlerDeps[C]) []commandtree.Spec[ro
 			},
 			renderResourceControlReportResponse,
 		),
-		resourcecli.CommandStopAll: bindResourceCommand(deps,
+		resourcecli.CommandStopAll: rootcli.BindResourceCommand(deps.Stdout,
 			func(args []string) (resourcecli.NoArgsRequest, error) { return parseResourceStopAllRequest(args) },
 			func(ctx C, controller *resources.Controller, req resourcecli.NoArgsRequest) (cliout.Format, resourceapp.ControlReportResponse, error) {
 				_ = req
@@ -193,7 +194,7 @@ func buildResourceCommandTable[C any](deps HandlerDeps[C]) []commandtree.Spec[ro
 		),
 		resourcecli.CommandEnable:  resourceToggleHandler(deps, true),
 		resourcecli.CommandDisable: resourceToggleHandler(deps, false),
-		resourcecli.CommandInfo: bindResourceCommand(deps,
+		resourcecli.CommandInfo: rootcli.BindResourceCommand(deps.Stdout,
 			func(args []string) (resourcecli.NameRequest, error) { return parseResourceInfoRequest(args) },
 			func(ctx C, controller *resources.Controller, req resourcecli.NameRequest) (cliout.Format, resources.Status, error) {
 				if err := ensureNamedResourceCLI(deps, ctx, req.Name); err != nil {
@@ -211,7 +212,7 @@ func buildResourceCommandTable[C any](deps HandlerDeps[C]) []commandtree.Spec[ro
 			},
 			resourcecli.WriteInfo,
 		),
-		resourcecli.CommandUpstreamCheck: bindResourceCommand(deps,
+		resourcecli.CommandUpstreamCheck: rootcli.BindResourceCommand(deps.Stdout,
 			parseResourceUpstreamCheckRequest,
 			func(ctx C, controller *resources.Controller, req resourcecli.UpstreamCheckRequest) (cliout.Format, upstreamcheck.AggregateReport, error) {
 				_ = controller
@@ -229,7 +230,7 @@ func buildResourceCommandTable[C any](deps HandlerDeps[C]) []commandtree.Spec[ro
 			},
 			resourcecli.WriteUpstreamCheck,
 		),
-		resourcecli.CommandDeprecate: bindResourceCommand(deps,
+		resourcecli.CommandDeprecate: rootcli.BindResourceCommand(deps.Stdout,
 			func(args []string) (resourcecli.NameRequest, error) { return parseResourceDeprecateRequest(args) },
 			func(ctx C, controller *resources.Controller, req resourcecli.NameRequest) (cliout.Format, resources.DeprecationReport, error) {
 				report, err := newResourceCommandService(deps, ctx, controller).Deprecate(req.Name)
@@ -244,7 +245,7 @@ func buildResourceCommandTable[C any](deps HandlerDeps[C]) []commandtree.Spec[ro
 			},
 			resourcecli.WriteDeprecationReport,
 		),
-		resourcecli.CommandListDeprecated: bindResourceCommand(deps,
+		resourcecli.CommandListDeprecated: rootcli.BindResourceCommand(deps.Stdout,
 			func(args []string) (resourcecli.NoArgsRequest, error) {
 				return parseResourceListDeprecatedRequest(args)
 			},
@@ -262,7 +263,7 @@ func buildResourceCommandTable[C any](deps HandlerDeps[C]) []commandtree.Spec[ro
 			},
 			resourcecli.WriteDeprecatedList,
 		),
-		resourcecli.CommandArchiveToBlueprint: bindResourceCommand(deps,
+		resourcecli.CommandArchiveToBlueprint: rootcli.BindResourceCommand(deps.Stdout,
 			func(args []string) (resourcecli.NameRequest, error) {
 				return parseResourceArchiveToBlueprintRequest(args)
 			},
@@ -279,7 +280,7 @@ func buildResourceCommandTable[C any](deps HandlerDeps[C]) []commandtree.Spec[ro
 			},
 			resourcecli.WriteBlueprintArchiveReport,
 		),
-		resourcecli.CommandListBlueprintArchived: bindResourceCommand(deps,
+		resourcecli.CommandListBlueprintArchived: rootcli.BindResourceCommand(deps.Stdout,
 			func(args []string) (resourcecli.NoArgsRequest, error) {
 				return parseResourceListBlueprintArchivedRequest(args)
 			},
@@ -297,7 +298,7 @@ func buildResourceCommandTable[C any](deps HandlerDeps[C]) []commandtree.Spec[ro
 			},
 			resourcecli.WriteBlueprintArchivedList,
 		),
-		resourcecli.CommandRestore: bindResourceCommand(deps,
+		resourcecli.CommandRestore: rootcli.BindResourceCommand(deps.Stdout,
 			func(args []string) (resourcecli.NameRequest, error) { return parseResourceRestoreRequest(args) },
 			func(ctx C, controller *resources.Controller, req resourcecli.NameRequest) (cliout.Format, resources.RestoreReport, error) {
 				report, err := newResourceCommandService(deps, ctx, controller).Restore(req.Name)
@@ -312,7 +313,7 @@ func buildResourceCommandTable[C any](deps HandlerDeps[C]) []commandtree.Spec[ro
 			},
 			resourcecli.WriteRestoreReport,
 		),
-		resourcecli.CommandRestoreBlueprint: bindResourceCommand(deps,
+		resourcecli.CommandRestoreBlueprint: rootcli.BindResourceCommand(deps.Stdout,
 			func(args []string) (resourcecli.NameRequest, error) {
 				return parseResourceRestoreBlueprintRequest(args)
 			},
@@ -350,7 +351,7 @@ func buildResourceCommandTable[C any](deps HandlerDeps[C]) []commandtree.Spec[ro
 
 func buildResourceBlueprintCommandTable[C any](deps HandlerDeps[C]) []commandtree.Spec[rootcli.ResourceHandler[C]] {
 	handlerMap := map[resourcecli.BlueprintCommandID]rootcli.ResourceHandler[C]{
-		resourcecli.BlueprintCommandList: bindResourceCommand(deps,
+		resourcecli.BlueprintCommandList: rootcli.BindResourceCommand(deps.Stdout,
 			func(args []string) (resourcecli.NoArgsRequest, error) { return parseResourceBlueprintListRequest(args) },
 			func(ctx C, controller *resources.Controller, req resourcecli.NoArgsRequest) (cliout.Format, []resources.Blueprint, error) {
 				_ = req
@@ -366,7 +367,7 @@ func buildResourceBlueprintCommandTable[C any](deps HandlerDeps[C]) []commandtre
 			},
 			resourcecli.WriteBlueprintList,
 		),
-		resourcecli.BlueprintCommandInfo: bindResourceCommand(deps,
+		resourcecli.BlueprintCommandInfo: rootcli.BindResourceCommand(deps.Stdout,
 			func(args []string) (resourcecli.NameRequest, error) { return parseResourceBlueprintInfoRequest(args) },
 			func(ctx C, controller *resources.Controller, req resourcecli.NameRequest) (cliout.Format, resources.Blueprint, error) {
 				item, err := newResourceCommandService(deps, ctx, controller).BlueprintInfo(req.Name)
@@ -381,7 +382,7 @@ func buildResourceBlueprintCommandTable[C any](deps HandlerDeps[C]) []commandtre
 			},
 			resourcecli.WriteBlueprintInfo,
 		),
-		resourcecli.BlueprintCommandSearch: bindResourceCommand(deps,
+		resourcecli.BlueprintCommandSearch: rootcli.BindResourceCommand(deps.Stdout,
 			func(args []string) (resourcecli.BlueprintSearchRequest, error) {
 				return parseResourceBlueprintSearchRequest(args)
 			},
@@ -398,7 +399,7 @@ func buildResourceBlueprintCommandTable[C any](deps HandlerDeps[C]) []commandtre
 			},
 			renderResourceBlueprintSearchResponse,
 		),
-		resourcecli.BlueprintCommandValidate: bindResourceCommand(deps,
+		resourcecli.BlueprintCommandValidate: rootcli.BindResourceCommand(deps.Stdout,
 			func(args []string) (resourcecli.NoArgsRequest, error) {
 				return parseResourceBlueprintValidateRequest(args)
 			},
@@ -422,46 +423,34 @@ func buildResourceBlueprintCommandTable[C any](deps HandlerDeps[C]) []commandtre
 
 func buildResourceArchiveCommandTable[C any](deps HandlerDeps[C]) []commandtree.Spec[rootcli.ResourceHandler[C]] {
 	handlerMap := map[resourcecli.ArchiveCommandID]rootcli.ResourceHandler[C]{
-		resourcecli.ArchiveCommandGC: bindResourceCommand(deps,
-			func(args []string) (resourcecli.NoArgsRequest, error) { return parseResourceArchiveGCRequest(args) },
-			func(ctx C, controller *resources.Controller, req resourcecli.NoArgsRequest) (cliout.Format, resources.ArchiveGCReport, error) {
-				_ = req
-				report, err := controller.GarbageCollectDeprecatedArchives(TimeNowForArchiveGC())
-				if err != nil {
-					return "", resources.ArchiveGCReport{}, err
-				}
-				format, err := deps.OutputFormat(ctx)
-				if err != nil {
-					return "", resources.ArchiveGCReport{}, err
-				}
-				return format, report, nil
-			},
-			func(w io.Writer, format cliout.Format, report resources.ArchiveGCReport) error {
-				return resourcecli.WriteArchiveGCReport(w, format, report, "deprecated resource")
-			},
-		),
-		resourcecli.ArchiveCommandGCBlueprints: bindResourceCommand(deps,
-			func(args []string) (resourcecli.NoArgsRequest, error) {
-				return parseResourceArchiveBlueprintGCRequest(args)
-			},
-			func(ctx C, controller *resources.Controller, req resourcecli.NoArgsRequest) (cliout.Format, resources.ArchiveGCReport, error) {
-				_ = req
-				report, err := controller.GarbageCollectBlueprintArchives(TimeNowForArchiveGC())
-				if err != nil {
-					return "", resources.ArchiveGCReport{}, err
-				}
-				format, err := deps.OutputFormat(ctx)
-				if err != nil {
-					return "", resources.ArchiveGCReport{}, err
-				}
-				return format, report, nil
-			},
-			func(w io.Writer, format cliout.Format, report resources.ArchiveGCReport) error {
-				return resourcecli.WriteArchiveGCReport(w, format, report, "blueprint resource")
-			},
-		),
+		resourcecli.ArchiveCommandGC:           archiveGCCommand(deps, parseResourceArchiveGCRequest, (*resources.Controller).GarbageCollectDeprecatedArchives, "deprecated resource"),
+		resourcecli.ArchiveCommandGCBlueprints: archiveGCCommand(deps, parseResourceArchiveBlueprintGCRequest, (*resources.Controller).GarbageCollectBlueprintArchives, "blueprint resource"),
 	}
 	return commandtree.BindSpecs(resourcecli.ArchiveCommandSpecs(), handlerMap)
+}
+
+func archiveGCCommand[C any](
+	deps HandlerDeps[C],
+	parse func([]string) (resourcecli.NoArgsRequest, error),
+	collect func(*resources.Controller, time.Time) (resources.ArchiveGCReport, error),
+	label string,
+) rootcli.ResourceHandler[C] {
+	return rootcli.BindResourceCommand(deps.Stdout, parse,
+		func(ctx C, controller *resources.Controller, _ resourcecli.NoArgsRequest) (cliout.Format, resources.ArchiveGCReport, error) {
+			report, err := collect(controller, TimeNowForArchiveGC())
+			if err != nil {
+				return "", resources.ArchiveGCReport{}, err
+			}
+			format, err := deps.OutputFormat(ctx)
+			if err != nil {
+				return "", resources.ArchiveGCReport{}, err
+			}
+			return format, report, nil
+		},
+		func(w io.Writer, format cliout.Format, report resources.ArchiveGCReport) error {
+			return resourcecli.WriteArchiveGCReport(w, format, report, label)
+		},
+	)
 }
 
 func buildResourceSchemaCommandTable[C any](deps HandlerDeps[C]) []commandtree.Spec[rootcli.ResourceHandler[C]] {
@@ -543,45 +532,44 @@ func buildResourceAccelerationCommandTable[C any](deps HandlerDeps[C]) []command
 // bottom: what was declared, what the host reaches, what was selected and why,
 // where the process landed, and the command that repairs a failing row.
 func writeAccelerationExplanation(w io.Writer, format cliout.Format, result resources.AccelerationExplanation) error {
-	if format == cliout.FormatJSON {
-		return cliout.WriteJSON(w, result)
-	}
-	_, _ = fmt.Fprintf(w, "Resource: %s\n", result.Resource)
-	if len(result.Declared) == 0 {
-		_, _ = fmt.Fprintln(w, "Declared backends: none (this resource does no accelerated work)")
-	} else {
-		_, _ = fmt.Fprintf(w, "Declared backends: %s (require: %s)\n", strings.Join(result.Declared, ", "), result.Require)
-	}
-	_, _ = fmt.Fprintf(w, "Host backends:     %s\n", strings.Join(result.HostBackends, ", "))
-	_, _ = fmt.Fprintln(w, "Host facts:")
-	for _, key := range sortedKeys(result.Facts) {
-		_, _ = fmt.Fprintf(w, "- %s=%s\n", key, result.Facts[key])
-	}
-	if len(result.Considered) > 0 {
-		_, _ = fmt.Fprintln(w, "Backend verdicts:")
-		for _, verdict := range result.Considered {
-			mark := "unreachable"
-			if verdict.Ready {
-				mark = "ready"
-			}
-			_, _ = fmt.Fprintf(w, "- %-7s %-11s %s\n", verdict.Backend, mark, verdict.Reason)
+	return cliout.RenderJSONOr(w, format, func(w io.Writer) error { return cliout.WriteJSON(w, result) }, func(w io.Writer) error {
+		_, _ = fmt.Fprintf(w, "Resource: %s\n", result.Resource)
+		if len(result.Declared) == 0 {
+			_, _ = fmt.Fprintln(w, "Declared backends: none (this resource does no accelerated work)")
+		} else {
+			_, _ = fmt.Fprintf(w, "Declared backends: %s (require: %s)\n", strings.Join(result.Declared, ", "), result.Require)
 		}
-		_, _ = fmt.Fprintf(w, "Selected: %s\n", result.Selected)
-	}
-	if result.Placement != nil {
-		_, _ = fmt.Fprintf(w, "Placement: declared=%s observed=%s state=%s\n", result.Placement.Declared, orUnknown(string(result.Placement.Observed)), result.Placement.State)
-		_, _ = fmt.Fprintf(w, "  target: %s\n", result.Placement.Target)
-		_, _ = fmt.Fprintf(w, "  reason: %s\n", result.Placement.Reason)
-	} else if len(result.Declared) > 0 {
-		_, _ = fmt.Fprintln(w, "Placement: not running, so there is nothing to verify")
-	}
-	if result.Claim != nil {
-		_, _ = fmt.Fprintf(w, "Claim: %s preferred=%d floor=%d priority=%s\n", result.Claim.ResourceKind, result.Claim.PreferredBytes, result.Claim.FloorBytes, result.Claim.Priority)
-	}
-	if result.Remediation != "" {
-		_, _ = fmt.Fprintf(w, "Remediation: %s\n", result.Remediation)
-	}
-	return nil
+		_, _ = fmt.Fprintf(w, "Host backends:     %s\n", strings.Join(result.HostBackends, ", "))
+		_, _ = fmt.Fprintln(w, "Host facts:")
+		for _, key := range sortedKeys(result.Facts) {
+			_, _ = fmt.Fprintf(w, "- %s=%s\n", key, result.Facts[key])
+		}
+		if len(result.Considered) > 0 {
+			_, _ = fmt.Fprintln(w, "Backend verdicts:")
+			for _, verdict := range result.Considered {
+				mark := "unreachable"
+				if verdict.Ready {
+					mark = "ready"
+				}
+				_, _ = fmt.Fprintf(w, "- %-7s %-11s %s\n", verdict.Backend, mark, verdict.Reason)
+			}
+			_, _ = fmt.Fprintf(w, "Selected: %s\n", result.Selected)
+		}
+		if result.Placement != nil {
+			_, _ = fmt.Fprintf(w, "Placement: declared=%s observed=%s state=%s\n", result.Placement.Declared, orUnknown(string(result.Placement.Observed)), result.Placement.State)
+			_, _ = fmt.Fprintf(w, "  target: %s\n", result.Placement.Target)
+			_, _ = fmt.Fprintf(w, "  reason: %s\n", result.Placement.Reason)
+		} else if len(result.Declared) > 0 {
+			_, _ = fmt.Fprintln(w, "Placement: not running, so there is nothing to verify")
+		}
+		if result.Claim != nil {
+			_, _ = fmt.Fprintf(w, "Claim: %s preferred=%d floor=%d priority=%s\n", result.Claim.ResourceKind, result.Claim.PreferredBytes, result.Claim.FloorBytes, result.Claim.Priority)
+		}
+		if result.Remediation != "" {
+			_, _ = fmt.Fprintf(w, "Remediation: %s\n", result.Remediation)
+		}
+		return nil
+	})
 }
 
 func orUnknown(value string) string {
@@ -747,41 +735,40 @@ func acquisitionFactProvenance(snapshot hostinventory.Snapshot) map[string]hosti
 }
 
 func writeResourceAcquisitionExplanation(w io.Writer, format cliout.Format, result resourceAcquisitionExplanation) error {
-	if format == cliout.FormatJSON {
-		return cliout.WriteJSON(w, result)
-	}
-	_, _ = fmt.Fprintf(w, "Resource: %s\n", result.Resource)
-	_, _ = fmt.Fprintln(w, "Facts:")
-	for key, value := range result.Facts {
-		_, _ = fmt.Fprintf(w, "- %s=%s\n", key, value)
-	}
-	if result.Acquisition == nil {
-		_, _ = fmt.Fprintln(w, "Acquisition: not declared")
+	return cliout.RenderJSONOr(w, format, func(w io.Writer) error { return cliout.WriteJSON(w, result) }, func(w io.Writer) error {
+		_, _ = fmt.Fprintf(w, "Resource: %s\n", result.Resource)
+		_, _ = fmt.Fprintln(w, "Facts:")
+		for key, value := range result.Facts {
+			_, _ = fmt.Fprintf(w, "- %s=%s\n", key, value)
+		}
+		if result.Acquisition == nil {
+			_, _ = fmt.Fprintln(w, "Acquisition: not declared")
+			return nil
+		}
+		_, _ = fmt.Fprintln(w, "Candidates:")
+		for _, candidate := range result.Resolution.Candidates {
+			selection := ""
+			if candidate.Selected {
+				selection = " [selected]"
+			}
+			_, _ = fmt.Fprintf(w, "- #%d when=%v: %s%s\n", candidate.Index, candidate.When, candidate.Reason, selection)
+		}
+		if result.Closure != nil {
+			_, _ = fmt.Fprintf(w, "Runtime closure: %s\n", result.Closure.State)
+			if len(result.Closure.Unresolved) > 0 {
+				_, _ = fmt.Fprintf(w, "  unresolved: %s\n", strings.Join(result.Closure.Unresolved, ", "))
+			}
+			if result.Closure.Reason != "" {
+				_, _ = fmt.Fprintf(w, "  reason: %s\n", result.Closure.Reason)
+			}
+		}
+		if result.Resolution.Selected >= 0 {
+			_, _ = fmt.Fprintf(w, "Selected candidate: #%d\n", result.Resolution.Selected)
+		} else {
+			_, _ = fmt.Fprintln(w, "Selected candidate: none")
+		}
 		return nil
-	}
-	_, _ = fmt.Fprintln(w, "Candidates:")
-	for _, candidate := range result.Resolution.Candidates {
-		selection := ""
-		if candidate.Selected {
-			selection = " [selected]"
-		}
-		_, _ = fmt.Fprintf(w, "- #%d when=%v: %s%s\n", candidate.Index, candidate.When, candidate.Reason, selection)
-	}
-	if result.Closure != nil {
-		_, _ = fmt.Fprintf(w, "Runtime closure: %s\n", result.Closure.State)
-		if len(result.Closure.Unresolved) > 0 {
-			_, _ = fmt.Fprintf(w, "  unresolved: %s\n", strings.Join(result.Closure.Unresolved, ", "))
-		}
-		if result.Closure.Reason != "" {
-			_, _ = fmt.Fprintf(w, "  reason: %s\n", result.Closure.Reason)
-		}
-	}
-	if result.Resolution.Selected >= 0 {
-		_, _ = fmt.Fprintf(w, "Selected candidate: #%d\n", result.Resolution.Selected)
-	} else {
-		_, _ = fmt.Fprintln(w, "Selected candidate: none")
-	}
-	return nil
+	})
 }
 
 func newResourceCommandService[C any](deps HandlerDeps[C], ctx C, controller *resources.Controller) resourceapp.Service {
@@ -790,23 +777,6 @@ func newResourceCommandService[C any](deps HandlerDeps[C], ctx C, controller *re
 		Stdout:    deps.Stdout(ctx),
 		Stderr:    deps.Stderr(ctx),
 	}
-}
-
-func bindResourceCommand[C any, Req any, Resp any](
-	deps HandlerDeps[C],
-	parse func(args []string) (Req, error),
-	run func(ctx C, controller *resources.Controller, req Req) (cliout.Format, Resp, error),
-	render func(w io.Writer, format cliout.Format, resp Resp) error,
-) rootcli.ResourceHandler[C] {
-	return rootcli.BindResourceCommand(deps.Stdout,
-		func(ctx C, args []string) (Req, error) {
-			return parse(args)
-		},
-		func(controller *resources.Controller, ctx C, req Req) (cliout.Format, Resp, error) {
-			return run(ctx, controller, req)
-		},
-		render,
-	)
 }
 
 func runResourceSubcommandSet[C any](
@@ -1094,30 +1064,29 @@ func renderResourceListResponse(w io.Writer, format cliout.Format, resp resource
 }
 
 func renderResourceValidateResponse(w io.Writer, format cliout.Format, report resources.ResourceValidationReport) error {
-	if format == cliout.FormatJSON {
-		return resourcecli.WriteValidationReportJSON(w, report)
-	}
-	status := "passed"
-	if !report.Passed {
-		status = "failed"
-	}
-	if _, err := io.WriteString(w, "Resource validation "+status+"\n"); err != nil {
-		return err
-	}
-	for _, item := range report.Items {
-		if len(item.Issues) == 0 {
-			continue
+	return cliout.RenderJSONOr(w, format, func(w io.Writer) error { return resourcecli.WriteValidationReportJSON(w, report) }, func(w io.Writer) error {
+		status := "passed"
+		if !report.Passed {
+			status = "failed"
 		}
-		if _, err := io.WriteString(w, "- "+item.Name+"\n"); err != nil {
+		if _, err := io.WriteString(w, "Resource validation "+status+"\n"); err != nil {
 			return err
 		}
-		for _, issue := range item.Issues {
-			if _, err := io.WriteString(w, "  ["+issue.Severity+"] "+issue.Message+"\n"); err != nil {
+		for _, item := range report.Items {
+			if len(item.Issues) == 0 {
+				continue
+			}
+			if _, err := io.WriteString(w, "- "+item.Name+"\n"); err != nil {
 				return err
 			}
+			for _, issue := range item.Issues {
+				if _, err := io.WriteString(w, "  ["+issue.Severity+"] "+issue.Message+"\n"); err != nil {
+					return err
+				}
+			}
 		}
-	}
-	return nil
+		return nil
+	})
 }
 
 func renderResourceControlReportResponse(w io.Writer, format cliout.Format, resp resourceapp.ControlReportResponse) error {

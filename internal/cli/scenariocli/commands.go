@@ -16,6 +16,10 @@ import (
 	"github.com/vrooli/vrooli/internal/scenarioruntime"
 )
 
+const (
+	commandsHelp = "--help"
+)
+
 // instanceOption is the shared `--instance <variant>` flag that lets every
 // scenario-addressing command target a named instance (e.g. a shadow). It is
 // sugar for the canonical `name@variant` argument; both resolve through the one
@@ -315,14 +319,13 @@ type ValidateEnvResponse struct {
 }
 
 func RenderDeleteResponse(w io.Writer, format cliout.Format, resp DeleteResponse) error {
-	if format == cliout.FormatJSON {
-		return cliout.WriteJSON(w, resp)
-	}
-	_, err := fmt.Fprintf(w, "Deleted scenario %s; removed %d installed CLI artifact(s).\n", resp.Name, resp.RemovedArtifacts)
-	if err == nil && len(resp.SkippedArtifacts) > 0 {
-		_, err = fmt.Fprintf(w, "Skipped locked CLI artifact(s): %s\n", strings.Join(resp.SkippedArtifacts, ", "))
-	}
-	return err
+	return cliout.RenderJSONOr(w, format, func(w io.Writer) error { return cliout.WriteJSON(w, resp) }, func(w io.Writer) error {
+		_, err := fmt.Fprintf(w, "Deleted scenario %s; removed %d installed CLI artifact(s).\n", resp.Name, resp.RemovedArtifacts)
+		if err == nil && len(resp.SkippedArtifacts) > 0 {
+			_, err = fmt.Fprintf(w, "Skipped locked CLI artifact(s): %s\n", strings.Join(resp.SkippedArtifacts, ", "))
+		}
+		return err
+	})
 }
 
 func ParseScenarioNameAndJSON(command string, defaultJSON bool, args []string) (string, bool, error) {
@@ -417,7 +420,7 @@ func ParseScenarioSingleStartArgs(command string, defaultJSON bool, args []strin
 
 func ParseStartRequest(globalsJSON bool, args []string) (StartRequest, error) {
 	for _, arg := range args {
-		if arg == "--help" || arg == "-h" {
+		if arg == commandsHelp || arg == "-h" {
 			return StartRequest{}, clipolicy.CommandHelpOnly(commandHelpText(CommandStart))
 		}
 	}
@@ -484,7 +487,7 @@ func ParseScreenshotRequest(globalsJSON bool, args []string) (ScreenshotRequest,
 
 func ParseRestartRequest(globalsJSON bool, args []string) (RestartRequest, error) {
 	for _, arg := range args {
-		if arg == "--help" || arg == "-h" {
+		if arg == commandsHelp || arg == "-h" {
 			return RestartRequest{}, clipolicy.CommandHelpOnly(commandHelpText(CommandRestart))
 		}
 	}
@@ -576,22 +579,21 @@ func ParseValidateEnvRequest(globalsJSON bool, args []string) (ValidateEnvReques
 }
 
 func RenderValidateEnvResponse(w io.Writer, format cliout.Format, resp ValidateEnvResponse) error {
-	if format == cliout.FormatJSON {
-		return writeScenarioEnvValidationJSON(w, resp.Report)
-	}
-	status := "passed"
-	if !resp.Report.Passed {
-		status = "failed"
-	}
-	if _, err := fmt.Fprintf(w, "Scenario env validation %s for %s\n", status, resp.Report.Scenario); err != nil {
-		return err
-	}
-	for _, issue := range resp.Report.Issues {
-		if _, err := fmt.Fprintf(w, "- [%s] %s\n", issue.Severity, issue.Message); err != nil {
+	return cliout.RenderJSONOr(w, format, func(w io.Writer) error { return cliout.WriteProtoJSON(w, ScenarioEnvValidationResponse(resp.Report)) }, func(w io.Writer) error {
+		status := "passed"
+		if !resp.Report.Passed {
+			status = "failed"
+		}
+		if _, err := fmt.Fprintf(w, "Scenario env validation %s for %s\n", status, resp.Report.Scenario); err != nil {
 			return err
 		}
-	}
-	return nil
+		for _, issue := range resp.Report.Issues {
+			if _, err := fmt.Fprintf(w, "- [%s] %s\n", issue.Severity, issue.Message); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
 }
 
 func ParsePhaseArgs(command string, args []string) (string, lifecycle.PhaseOptions, error) {
@@ -638,7 +640,7 @@ func ParseSetupRequest(globalsJSON bool, args []string) (SetupRequest, error) {
 	jsonFlag := globalsJSON
 	for _, arg := range args {
 		switch arg {
-		case "--help", "-h":
+		case commandsHelp, "-h":
 			return SetupRequest{}, clipolicy.CommandHelpOnly(commandHelpText(CommandSetup))
 		case "--json":
 			jsonFlag = true
@@ -659,7 +661,7 @@ func ParseTestArgs(_, _ bool, args []string) (TestRequest, error) {
 }
 
 func ParseTestRequest(globalsJSON, globalsVerbose bool, args []string) (TestRequest, error) {
-	if len(args) > 0 && (args[0] == "--help" || args[0] == "-h") {
+	if len(args) > 0 && (args[0] == commandsHelp || args[0] == "-h") {
 		return TestRequest{}, clipolicy.CommandHelpOnly(TestHelpText())
 	}
 	return ParseTestArgs(globalsJSON, globalsVerbose, args)
@@ -725,7 +727,7 @@ func ParseOpenRequest(globalsJSON bool, args []string) (OpenRequest, error) {
 func RenderRequirementsResponse(w io.Writer, format cliout.Format, _ struct{}) error { return nil }
 
 func ParseRequirementsRequest(args []string) (RequirementsRequest, error) {
-	if len(args) == 0 || args[0] == "help" || args[0] == "--help" || args[0] == "-h" {
+	if len(args) == 0 || args[0] == "help" || args[0] == commandsHelp || args[0] == "-h" {
 		return RequirementsRequest{}, clipolicy.CommandHelpOnly(RequirementsHelpText())
 	}
 	req := RequirementsRequest{Args: append([]string(nil), args...)}

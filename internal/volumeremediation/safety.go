@@ -8,6 +8,10 @@ import (
 	"strings"
 )
 
+const (
+	safetyParameterA = 256
+)
+
 // supportedFilesystems is the allowlist of filesystems this package will act
 // on. Membership means a repair adapter exists and its behaviour is understood
 // — not merely that the name is spelled correctly. An unlisted filesystem is
@@ -57,7 +61,7 @@ func validateDevicePath(path string) error {
 	if path == "" {
 		return ErrInvalid{Field: "device.path", Reason: "required"}
 	}
-	if len(path) > 256 {
+	if len(path) > safetyParameterA {
 		return ErrInvalid{Field: "device.path", Reason: "implausibly long"}
 	}
 	if strings.Contains(path, "..") {

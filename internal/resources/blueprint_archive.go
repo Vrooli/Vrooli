@@ -9,6 +9,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vrooli/vrooli/internal/repocontractmeta"
+	"github.com/vrooli/vrooli/internal/tuning"
+
 	"github.com/vrooli/vrooli/internal/config"
 )
 
@@ -156,7 +159,7 @@ func (c *Controller) RestoreBlueprintArchivedResource(name string) (BlueprintRes
 	if err := os.RemoveAll(destRoot); err != nil {
 		return BlueprintRestoreReport{}, fmt.Errorf("clear restored path %s: %w", destRoot, err)
 	}
-	if err := os.MkdirAll(destRoot, 0o755); err != nil {
+	if err := os.MkdirAll(destRoot, tuning.PermDir); err != nil {
 		return BlueprintRestoreReport{}, fmt.Errorf("create restored path %s: %w", destRoot, err)
 	}
 
@@ -250,7 +253,7 @@ func (c *Controller) appendBlueprintArchivedResource(item BlueprintArchivedResou
 
 func (c *Controller) writeBlueprintArchivedResources(items []BlueprintArchivedResource) error {
 	path := filepath.Join(c.Root, filepath.FromSlash(blueprintArchivedResourcesPath))
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(path), tuning.PermDir); err != nil {
 		return fmt.Errorf("create blueprint archived metadata dir %s: %w", filepath.Dir(path), err)
 	}
 	data, err := json.MarshalIndent(BlueprintArchivedResourceList{Resources: items}, "", "  ")
@@ -258,7 +261,7 @@ func (c *Controller) writeBlueprintArchivedResources(items []BlueprintArchivedRe
 		return err
 	}
 	data = append(data, '\n')
-	return os.WriteFile(path, data, 0o644)
+	return os.WriteFile(path, data, tuning.PermFile)
 }
 
 func (c *Controller) validateBlueprintArchiveCandidate(name string) error {
@@ -301,7 +304,7 @@ func (c *Controller) projectResourceFlags(name string) (enabled bool, required b
 }
 
 func (c *Controller) scenarioResourceReferenceCount(name string) (int, error) {
-	scenariosRoot := filepath.Join(c.Root, "scenarios")
+	scenariosRoot := filepath.Join(c.Root, repocontractmeta.ScenarioDir)
 	total := 0
 	err := filepath.WalkDir(scenariosRoot, func(path string, d os.DirEntry, walkErr error) error {
 		if walkErr != nil {
@@ -310,7 +313,7 @@ func (c *Controller) scenarioResourceReferenceCount(name string) (int, error) {
 		if d.IsDir() {
 			return nil
 		}
-		if filepath.Base(path) != "service.json" || filepath.Base(filepath.Dir(path)) != ".vrooli" {
+		if filepath.Base(path) != "service.json" || filepath.Base(filepath.Dir(path)) != repocontractmeta.ProjectConfigDir {
 			return nil
 		}
 		used, err := scenarioManifestUsesResource(path, name)

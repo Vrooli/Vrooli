@@ -10,6 +10,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vrooli/vrooli/internal/repocontractmeta"
+	"github.com/vrooli/vrooli/internal/tuning"
+
 	"github.com/gorilla/mux"
 
 	"github.com/vrooli/vrooli/internal/lifecycle"
@@ -20,8 +23,12 @@ import (
 	"github.com/vrooli/vrooli/internal/vroolierr"
 )
 
+const (
+	handlersAppsScenarioNotFound = "scenario_not_found"
+)
+
 func (a *App) isProtected(path string) bool {
-	_, err := os.Stat(filepath.Join(path, ".vrooli", ".protected"))
+	_, err := os.Stat(filepath.Join(path, repocontractmeta.ProjectConfigDir, ".protected"))
 	return err == nil
 }
 
@@ -122,11 +129,11 @@ func (a *App) ProtectApp(w http.ResponseWriter, r *http.Request) {
 		respondError(w, newAPIError(http.StatusNotFound, "app_not_found", "app not found", err))
 		return
 	}
-	protectDir := filepath.Join(appPath, ".vrooli")
-	_ = os.MkdirAll(protectDir, 0o755)
+	protectDir := filepath.Join(appPath, repocontractmeta.ProjectConfigDir)
+	_ = os.MkdirAll(protectDir, tuning.PermDir)
 	protectFile := filepath.Join(protectDir, ".protected")
 	content := fmt.Sprintf("Protected on %s\n", time.Now().UTC().Format(time.RFC3339))
-	_ = os.WriteFile(protectFile, []byte(content), 0o644)
+	_ = os.WriteFile(protectFile, []byte(content), tuning.PermFile)
 	a.logInfo("App protection marker written", "app", name)
 	respondSuccess(w, http.StatusOK, map[string]bool{"protected": true})
 }
@@ -202,7 +209,7 @@ func (a *App) GetAppLogs(w http.ResponseWriter, r *http.Request) {
 		code := "scenario_logs_unavailable"
 		if !exists {
 			status = http.StatusNotFound
-			code = "scenario_not_found"
+			code = handlersAppsScenarioNotFound
 		}
 		a.logError("Scenario logs request failed", err, logx.AttrScenario, name, logx.AttrOperation, "scenario_logs")
 		respondError(w, newAPIError(status, code, fmt.Sprintf("failed to get logs for %s", name), err))
@@ -260,7 +267,7 @@ func (a *App) GetDetailedAppStatus(w http.ResponseWriter, r *http.Request) {
 	name := mux.Vars(r)["name"]
 	item, _, details, err := a.loadScenarioRuntime(name)
 	if err != nil {
-		if vroolierr.Code(err, "") == "scenario_not_found" {
+		if vroolierr.Code(err, "") == handlersAppsScenarioNotFound {
 			a.logInfo("Detailed app status requested for missing app; returning stopped payload", "app", name)
 			respondSuccess(w, http.StatusOK, stoppedAppData{Name: name, Status: "stopped", Processes: 0, Runtime: "N/A", Ports: map[string]int{}})
 			return

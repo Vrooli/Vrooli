@@ -9,6 +9,11 @@ import (
 	"strings"
 )
 
+const (
+	attributionLinuxParameterA = 3
+	attributionLinuxParameterB = 64
+)
+
 // procCgroupSource resolves a container ID from /proc/<pid>/cgroup on linux.
 type procCgroupSource struct {
 	procRoot string // overridable for tests; defaults to /proc
@@ -41,9 +46,9 @@ func parseCgroupContainerID(contents string) (string, bool) {
 			continue
 		}
 		// The path is the last colon-separated field.
-		parts := strings.SplitN(line, ":", 3)
+		parts := strings.SplitN(line, ":", attributionLinuxParameterA)
 		path := line
-		if len(parts) == 3 {
+		if len(parts) == attributionLinuxParameterA {
 			path = parts[2]
 		}
 		if id, ok := containerIDFromPath(path); ok {
@@ -68,7 +73,7 @@ func containerIDFromPath(path string) (string, bool) {
 
 // isContainerID reports whether a token looks like a 64-char hex container ID.
 func isContainerID(s string) bool {
-	if len(s) != 64 {
+	if len(s) != attributionLinuxParameterB {
 		return false
 	}
 	for _, r := range s {

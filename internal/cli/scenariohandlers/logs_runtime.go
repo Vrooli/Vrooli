@@ -10,10 +10,19 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vrooli/vrooli/internal/tuning"
+
 	. "github.com/vrooli/vrooli/internal/cli/scenariocli" //nolint:revive // scenariohandlers is a thin glue layer over scenariocli; dot-import keeps wiring readable.
 	"github.com/vrooli/vrooli/internal/process"
 	"github.com/vrooli/vrooli/internal/scenario"
 	"github.com/vrooli/vrooli/internal/scenarioexec"
+)
+
+const (
+	logsRuntimeParameterA = 10
+	logsRuntimeParameterB = 100
+	logsRuntimeParameterC = 2
+	logsRuntimeParameterD = 50
 )
 
 type scenarioStepLogInfo struct {
@@ -120,13 +129,13 @@ func showScenarioRuntimeLogs(home, name string, opts LogOptions, stdout io.Write
 	if opts.Follow {
 		if !opts.ForceFollow && !scenarioexec.WriterSupportsStreaming(stdout) {
 			writeScenarioLogSnapshotNotice(stdout)
-			return writeScenarioLogTail(stdout, paths, logTailLines(opts, 50))
+			return writeScenarioLogTail(stdout, paths, logTailLines(opts, logsRuntimeParameterD))
 		}
 		_, _ = fmt.Fprintf(stdout, "Following runtime logs for scenario '%s'\n", name)
-		return followScenarioLogFiles(stdout, paths, logTailLines(opts, 10))
+		return followScenarioLogFiles(stdout, paths, logTailLines(opts, logsRuntimeParameterA))
 	}
 	_, _ = fmt.Fprintf(stdout, "Recent runtime logs for scenario '%s'\n\n", name)
-	return writeScenarioLogTail(stdout, paths, logTailLines(opts, 50))
+	return writeScenarioLogTail(stdout, paths, logTailLines(opts, logsRuntimeParameterD))
 }
 
 func showScenarioStepLog(home, name string, opts LogOptions, stdout io.Writer) error {
@@ -154,13 +163,13 @@ func showScenarioStepLog(home, name string, opts LogOptions, stdout io.Writer) e
 	if opts.Follow {
 		if !opts.ForceFollow && !scenarioexec.WriterSupportsStreaming(stdout) {
 			writeScenarioLogSnapshotNotice(stdout)
-			return writeScenarioLogTail(stdout, []string{path}, logTailLines(opts, 100))
+			return writeScenarioLogTail(stdout, []string{path}, logTailLines(opts, logsRuntimeParameterB))
 		}
 		_, _ = fmt.Fprintf(stdout, "Following log for step '%s' in scenario '%s'\n", opts.StepName, name)
-		return followScenarioLogFiles(stdout, []string{path}, logTailLines(opts, 10))
+		return followScenarioLogFiles(stdout, []string{path}, logTailLines(opts, logsRuntimeParameterA))
 	}
 	_, _ = fmt.Fprintf(stdout, "Recent log for step '%s' in scenario '%s'\n\n", opts.StepName, name)
-	return writeScenarioLogTail(stdout, []string{path}, logTailLines(opts, 100))
+	return writeScenarioLogTail(stdout, []string{path}, logTailLines(opts, logsRuntimeParameterB))
 }
 
 func showScenarioLifecycleLog(root, home, name string, opts LogOptions, stdout, stderr io.Writer) error {
@@ -178,16 +187,16 @@ func showScenarioLifecycleLog(root, home, name string, opts LogOptions, stdout, 
 	if opts.Follow {
 		if !opts.ForceFollow && !scenarioexec.WriterSupportsStreaming(stdout) {
 			writeScenarioLogSnapshotNotice(stdout)
-			if err := writeScenarioLogTail(stdout, []string{path}, logTailLines(opts, 100)); err != nil {
+			if err := writeScenarioLogTail(stdout, []string{path}, logTailLines(opts, logsRuntimeParameterB)); err != nil {
 				return err
 			}
 			return writeScenarioLogDiscovery(root, home, name, stdout, stderr)
 		}
 		_, _ = fmt.Fprintf(stdout, "Following lifecycle log for scenario '%s'\n", name)
-		return followScenarioLogFiles(stdout, []string{path}, logTailLines(opts, 10))
+		return followScenarioLogFiles(stdout, []string{path}, logTailLines(opts, logsRuntimeParameterA))
 	}
 	_, _ = fmt.Fprintf(stdout, "Recent lifecycle execution for scenario '%s'\n\n", name)
-	if err := writeScenarioLogTail(stdout, []string{path}, logTailLines(opts, 100)); err != nil {
+	if err := writeScenarioLogTail(stdout, []string{path}, logTailLines(opts, logsRuntimeParameterB)); err != nil {
 		return err
 	}
 	return writeScenarioLogDiscovery(root, home, name, stdout, stderr)
@@ -257,8 +266,8 @@ func writeScenarioLogDiscovery(root, home, name string, stdout, stderr io.Writer
 			if _, ok := seen[key]; ok {
 				continue
 			}
-			parts := strings.SplitN(key, ":", 2)
-			if len(parts) == 2 {
+			parts := strings.SplitN(key, ":", logsRuntimeParameterC)
+			if len(parts) == logsRuntimeParameterC {
 				_, _ = fmt.Fprintf(stdout, "  %s (%s) [missing]\n", parts[0], parts[1])
 			}
 		}
@@ -402,7 +411,7 @@ func followScenarioLogFiles(w io.Writer, paths []string, initialLines int) error
 			}
 		}
 		if !progress {
-			time.Sleep(250 * time.Millisecond)
+			time.Sleep(tuning.FastHealthPollInterval)
 		}
 	}
 }

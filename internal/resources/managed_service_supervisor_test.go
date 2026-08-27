@@ -12,7 +12,6 @@ import (
 	"time"
 
 	resourcedeployment "github.com/vrooli/vrooli/packages/resource-deployment"
-	"golang.org/x/sys/unix"
 )
 
 func TestManagedServiceSupervisorStartsVerifiedArtifactAndStops(t *testing.T) {
@@ -125,12 +124,12 @@ func TestManagedServiceSupervisorAppliesDeclaredProcessLimits(t *testing.T) {
 	// large virtual ranges. CUDA is the case that bit us: llama.cpp reserves a
 	// 32 GiB VMM pool on first inference, which a 60%-of-RAM address-space cap
 	// rejects with "CUDA error: out of memory" even on an otherwise idle GPU.
-	var got unix.Rlimit
-	if err := unix.Prlimit(state.PID, unix.RLIMIT_AS, nil, &got); err != nil {
+	got, err := readAddressSpaceLimit(state.PID)
+	if err != nil {
 		t.Fatalf("read RLIMIT_AS: %v", err)
 	}
-	var self unix.Rlimit
-	if err := unix.Prlimit(os.Getpid(), unix.RLIMIT_AS, nil, &self); err != nil {
+	self, err := readAddressSpaceLimit(os.Getpid())
+	if err != nil {
 		t.Fatalf("read our own RLIMIT_AS: %v", err)
 	}
 	if got != self {

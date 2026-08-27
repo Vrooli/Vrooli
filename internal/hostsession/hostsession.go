@@ -9,6 +9,8 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/vrooli/vrooli/internal/tuning"
+
 	repocontract "github.com/vrooli/repo-contract-go"
 	"github.com/vrooli/vrooli/internal/config"
 	"github.com/vrooli/vrooli/internal/hostreqspec"
@@ -86,7 +88,7 @@ func persistentFallbackSession(home string) (string, error) {
 		return "", fmt.Errorf("generate host session fallback token: %w", err)
 	}
 	token := hex.EncodeToString(raw[:])
-	if err := config.WriteOwnedFile(path, []byte(token+"\n"), 0o600); err != nil {
+	if err := config.WriteOwnedFile(path, []byte(token+"\n"), tuning.PermSecret); err != nil {
 		return "", fmt.Errorf("write host session fallback token: %w", err)
 	}
 	return token, nil

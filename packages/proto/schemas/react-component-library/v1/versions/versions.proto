@@ -50,12 +50,16 @@ message Version {
 	// own source files. Derived at catalog index time.
 	repeated string required_tokens = 12;
 	repeated string required_token_patterns = 13;
+	// Storage placement independent of lifecycle status: materialized or evicted.
+	string presence = 14;
 }
 
 message ListVersionsRequest {
   string component_id = 1;
   // Max rows newest-first. 0 = server default.
   int32 limit = 2;
+  // When true, list every recorded version across the catalog.
+  bool all = 3;
 }
 
 message ListVersionsResponse {

@@ -95,7 +95,7 @@ func (app *App) runHostSafeguardCommand(ctx *CommandContext, args []string) erro
 		return fmt.Errorf("host safeguard %q: %w", name, err)
 	}
 	if jsonOut {
-		if err := writeHostJSON(ctx.Stdout, status); err != nil {
+		if err := cliout.WriteJSONValue(ctx.Stdout, status); err != nil {
 			return err
 		}
 	} else {
@@ -113,7 +113,7 @@ func renderInvariantCoverage(output io.Writer, jsonOut bool) error {
 		return err
 	}
 	if jsonOut {
-		return writeHostJSON(output, report)
+		return cliout.WriteJSONValue(output, report)
 	}
 	_, err = fmt.Fprintf(output, "sites walked: %d; invariants declared: %d; invariants evaluated: %d\n", report.SitesWalked, report.InvariantsDeclared, report.InvariantsEvaluated)
 	for _, gap := range report.Gaps {
@@ -130,14 +130,13 @@ func renderHostStateAudit(output io.Writer, jsonOut bool) error {
 		return err
 	}
 	if jsonOut {
-		return writeHostJSON(output, report)
+		return cliout.WriteJSONValue(output, report)
 	}
+	rows := make([][]string, 0, len(report.Findings))
 	for _, finding := range report.Findings {
-		if _, writeErr := fmt.Fprintf(output, "%s\t%s\t%s\n", finding.Kind, finding.Path, finding.Reason); writeErr != nil {
-			return writeErr
-		}
+		rows = append(rows, []string{string(finding.Kind), finding.Path, finding.Reason})
 	}
-	return nil
+	return cliout.WriteSection(output, cliout.Section{Rows: rows})
 }
 
 func renderPortabilityBacklog(output io.Writer, jsonOut bool) error {
@@ -146,7 +145,7 @@ func renderPortabilityBacklog(output io.Writer, jsonOut bool) error {
 		return err
 	}
 	if jsonOut {
-		return writeHostJSON(output, report)
+		return cliout.WriteJSONValue(output, report)
 	}
 	_, err = fmt.Fprintf(output, "not_implemented safeguards: %d/%d\n", report.NotImplemented, report.Total)
 	for _, entry := range report.Entries {
@@ -174,12 +173,13 @@ func renderSafeguardList(output io.Writer, jsonOut bool) error {
 		return err
 	}
 	if jsonOut {
-		return writeHostJSON(output, entries)
+		return cliout.WriteJSONValue(output, entries)
 	}
+	rows := make([][]string, 0, len(entries))
 	for _, entry := range entries {
-		fmt.Fprintf(output, "%s\t%s\t%s\t%s\t%s\n", entry.Name, entry.Capability, entry.CapabilityRole, strings.Join(entry.Platforms, ","), entry.ObservedState)
+		rows = append(rows, []string{entry.Name, entry.Capability, entry.CapabilityRole, strings.Join(entry.Platforms, ","), entry.ObservedState})
 	}
-	return nil
+	return cliout.WriteSection(output, cliout.Section{Rows: rows})
 }
 
 func listSafeguards() ([]safeguardListEntry, error) {
@@ -259,7 +259,7 @@ func (app *App) runHostInstallCommand(ctx *CommandContext, args []string) error 
 	}
 
 	if jsonOut {
-		if err := writeHostInstallJSON(ctx.Stdout, status); err != nil {
+		if err := cliout.WriteProtoJSON(ctx.Stdout, hostInstallStatusResponse(status)); err != nil {
 			return err
 		}
 	} else {
@@ -317,8 +317,4 @@ func hostInstallStatusResponse(status hostreqkit.ItemStatus) *cliv1.CliHostInsta
 		Notes:          status.Notes,
 		Ok:             hostInstallOK(status),
 	}
-}
-
-func writeHostInstallJSON(w io.Writer, status hostreqkit.ItemStatus) error {
-	return cliout.WriteProtoJSON(w, hostInstallStatusResponse(status))
 }

@@ -10,6 +10,16 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
+
+	"github.com/vrooli/vrooli/internal/tuning"
+)
+
+const (
+	brokerParameterA = 10
+)
+
+const (
+	brokerParameterB = 16
 )
 
 // Config is deliberately small: setup owns all filesystem and systemd policy.
@@ -49,7 +59,7 @@ func (b *Broker) Serve(ctx context.Context) error {
 	if os.Geteuid() != 0 {
 		return fmt.Errorf("privilege broker must run as root")
 	}
-	if err := os.MkdirAll(filepath.Dir(b.config.SocketPath), 0o750); err != nil {
+	if err := os.MkdirAll(filepath.Dir(b.config.SocketPath), tuning.PermGroupDir); err != nil {
 		return fmt.Errorf("create socket directory: %w", err)
 	}
 	if err := os.Remove(b.config.SocketPath); err != nil && !errors.Is(err, os.ErrNotExist) {
@@ -63,7 +73,7 @@ func (b *Broker) Serve(ctx context.Context) error {
 		_ = listener.Close()
 		_ = os.Remove(b.config.SocketPath)
 	}()
-	if err := os.Chmod(b.config.SocketPath, 0o660); err != nil {
+	if err := os.Chmod(b.config.SocketPath, tuning.PermSocket); err != nil {
 		return fmt.Errorf("set socket mode: %w", err)
 	}
 	if b.config.SocketGID >= 0 {
@@ -95,7 +105,7 @@ func (b *Broker) handle(ctx context.Context, conn *net.UnixConn) {
 		_ = json.NewEncoder(conn).Encode(NewFailure("", "", "caller_not_authorized"))
 		return
 	}
-	decoder := json.NewDecoder(io.LimitReader(conn, 16<<10))
+	decoder := json.NewDecoder(io.LimitReader(conn, brokerParameterB<<brokerParameterA))
 	decoder.DisallowUnknownFields()
 	var req Request
 	if err := decoder.Decode(&req); err != nil {
@@ -144,10 +154,10 @@ func (b *Broker) audit(uid uint32, req Request, result Result) {
 	if b.config.AuditPath == "" {
 		return
 	}
-	if err := os.MkdirAll(filepath.Dir(b.config.AuditPath), 0o750); err != nil {
+	if err := os.MkdirAll(filepath.Dir(b.config.AuditPath), tuning.PermGroupDir); err != nil {
 		return
 	}
-	f, err := os.OpenFile(b.config.AuditPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o600)
+	f, err := os.OpenFile(b.config.AuditPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, tuning.PermSecret)
 	if err != nil {
 		return
 	}

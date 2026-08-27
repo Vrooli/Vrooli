@@ -117,14 +117,16 @@
       "evidence": null
     },
     "macos": {
-      "status": "not_applicable",
-      "mechanism": "handler",
-      "evidence": "This safeguard has no implementation for the macOS host mechanism; the capability is not applicable on this host OS."
+      "status": "not_implemented",
+      "evidence": "The macOS remote-session provider is not wired into this safeguard yet; the host mechanism is the screen-lock policy surface.",
+      "mechanism": "screen_lock_policy",
+      "since": "2026-08-26"
     },
     "windows": {
-      "status": "not_applicable",
-      "mechanism": "handler",
-      "evidence": "This safeguard has no implementation for the Windows host mechanism; the capability is not applicable on this host OS."
+      "status": "not_implemented",
+      "evidence": "The Windows remote-session provider is not wired into this safeguard yet; the host mechanism is Group Policy for remote sessions.",
+      "mechanism": "group_policy_remote_session",
+      "since": "2026-08-26"
     }
   },
   "risk_class": "reload_live"

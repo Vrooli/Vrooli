@@ -13,6 +13,7 @@ import (
 
 	"github.com/santhosh-tekuri/jsonschema/v5"
 	repocontract "github.com/vrooli/repo-contract-go"
+	"github.com/vrooli/vrooli/internal/repocontractmeta"
 )
 
 const manifestRelPath = ".vrooli/package.json"
@@ -195,7 +196,7 @@ func loadPackageManifestSchema(repoRoot string) (*jsonschema.Schema, error) {
 }
 
 func packageSchemaDir(repoRoot string) (string, error) {
-	candidate := filepath.Join(filepath.Clean(repoRoot), ".vrooli", "schemas")
+	candidate := filepath.Join(filepath.Clean(repoRoot), repocontractmeta.ProjectConfigDir, "schemas")
 	if _, err := os.Stat(filepath.Join(candidate, "package.schema.json")); err == nil {
 		return candidate, nil
 	}
@@ -204,13 +205,14 @@ func packageSchemaDir(repoRoot string) (string, error) {
 	if !ok {
 		return "", fmt.Errorf("unable to determine package schema path")
 	}
-	fallback := filepath.Clean(filepath.Join(filepath.Dir(currentFile), "..", "..", ".vrooli", "schemas"))
+	fallback := filepath.Clean(filepath.Join(filepath.Dir(currentFile), "..", "..", repocontractmeta.ProjectConfigDir, "schemas"))
 	if _, err := os.Stat(filepath.Join(fallback, "package.schema.json")); err != nil {
 		return "", fmt.Errorf("package schema not found in %s or %s", candidate, fallback)
 	}
 	return fallback, nil
 }
 
+//nolint:gocyclo // manifest semantics validate independent package identity, dependency, and artifact rules.
 func validateManifestSemantics(item Package) []ValidationIssue {
 	var issues []ValidationIssue
 

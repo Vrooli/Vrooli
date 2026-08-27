@@ -13,6 +13,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/vrooli/vrooli/internal/tuning"
+
 	repocontract "github.com/vrooli/repo-contract-go"
 	"github.com/vrooli/vrooli/internal/config"
 )
@@ -127,10 +129,10 @@ func Replace(requests []Request) error {
 	if err != nil {
 		return err
 	}
-	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+	if err := os.MkdirAll(filepath.Dir(path), tuning.PermPrivateDir); err != nil {
 		return err
 	}
-	return os.WriteFile(path, append(data, '\n'), 0o600)
+	return os.WriteFile(path, append(data, '\n'), tuning.PermSecret)
 }
 
 func Enqueue(request Request) error {
@@ -200,6 +202,8 @@ func Resolve(answers []Answer) error {
 // The callback receives values only in memory; callers must not persist the
 // map or include it in diagnostics. If apply fails, the request remains
 // pending so the operator can retry without losing the decision.
+//
+//nolint:gocyclo // operator input resolution preserves validation, defaulting, conflict, and apply outcomes.
 func ResolveWith(answers []Answer, apply func(map[string]string) error) (map[string]string, error) {
 	queue, err := Load()
 	if err != nil {

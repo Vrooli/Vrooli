@@ -22,10 +22,17 @@ import (
 	"github.com/vrooli/vrooli/internal/network"
 	"github.com/vrooli/vrooli/internal/orchestrator"
 	"github.com/vrooli/vrooli/internal/privilegebroker"
+	"github.com/vrooli/vrooli/internal/repocontractmeta"
 	"github.com/vrooli/vrooli/internal/resources"
 	"github.com/vrooli/vrooli/internal/scenario"
 	"github.com/vrooli/vrooli/internal/shell"
 	"github.com/vrooli/vrooli/internal/vroolierr"
+)
+
+const (
+	projectParameterA = 3
+	projectParameterB = 400
+	projectParameterC = 8
 )
 
 type Controller struct {
@@ -142,7 +149,7 @@ func (c *Controller) RunProjectPhase(phase string, args []string) error {
 		return &vroolierr.Error{
 			Code:       "project_phase_native_only",
 			Category:   "Usage",
-			HTTPStatus: 400,
+			HTTPStatus: projectParameterB,
 			Message:    fmt.Sprintf("project lifecycle phase %q is native-only and cannot run via the generic phase runner", phase),
 			Hint:       fmt.Sprintf("Use `vrooli %s` instead of the generic project lifecycle endpoint.", phase),
 		}
@@ -156,7 +163,7 @@ func (c *Controller) RunProjectPhase(phase string, args []string) error {
 		return &vroolierr.Error{
 			Code:       "project_phase_not_defined",
 			Category:   "Usage",
-			HTTPStatus: 400,
+			HTTPStatus: projectParameterB,
 			Message:    fmt.Sprintf("project lifecycle phase %q is not defined in %s", phase, project.ServicePath),
 			Hint:       "Define the phase in .vrooli/service.json or run a supported lifecycle command.",
 		}
@@ -230,7 +237,7 @@ func (c *Controller) Doctor() (DoctorReport, error) {
 }
 
 func (c *Controller) DoctorWithOptions(options DoctorOptions) (DoctorReport, error) {
-	checks := make([]DoctorCheck, 0, 8)
+	checks := make([]DoctorCheck, 0, projectParameterC)
 	for _, name := range []string{"jq", "curl", "git", "docker", "go", "lsof", "tput"} {
 		status := "missing"
 		message := ""
@@ -252,7 +259,7 @@ func (c *Controller) DoctorWithOptions(options DoctorOptions) (DoctorReport, err
 		Status: apiPortStatus(apiPort),
 	})
 
-	servicePath := filepath.Join(c.Root, ".vrooli", "service.json")
+	servicePath := filepath.Join(c.Root, repocontractmeta.ProjectConfigDir, "service.json")
 	if _, err := os.Stat(servicePath); err == nil {
 		checks = append(checks, DoctorCheck{Name: "service_json", Status: "present"})
 	} else {
@@ -412,13 +419,13 @@ func (c *Controller) cliInstallLocationChecks() ([]DoctorCheck, error) {
 
 func summarizeHostReqFindings(name string, findings []hostreqcheck.Finding, code hostreqcheck.FindingCode) DoctorCheck {
 	count := 0
-	samples := make([]string, 0, 3)
+	samples := make([]string, 0, projectParameterA)
 	for _, finding := range findings {
 		if finding.Code != code {
 			continue
 		}
 		count++
-		if len(samples) < 3 {
+		if len(samples) < projectParameterA {
 			samples = append(samples, fmt.Sprintf("%s/%s:%s", finding.OwnerKind, finding.OwnerName, finding.Requirement))
 		}
 	}
@@ -437,7 +444,7 @@ func summarizeCLIInstallStatuses(name string, statuses []cliinstall.InstallLocat
 		return DoctorCheck{Name: name, Status: "ok", Message: "no managed CLIs discovered"}
 	}
 
-	samples := make([]string, 0, 3)
+	samples := make([]string, 0, projectParameterA)
 	nonCanonical := 0
 	notInstalled := 0
 	notOnPath := 0
@@ -445,17 +452,17 @@ func summarizeCLIInstallStatuses(name string, statuses []cliinstall.InstallLocat
 		switch {
 		case status.PathMismatch():
 			nonCanonical++
-			if len(samples) < 3 {
+			if len(samples) < projectParameterA {
 				samples = append(samples, fmt.Sprintf("%s resolved to non-canonical path %s (canonical: %s)", status.Command, status.ResolvedPath, status.CanonicalPath))
 			}
 		case !status.CanonicalExists:
 			notInstalled++
-			if len(samples) < 3 {
+			if len(samples) < projectParameterA {
 				samples = append(samples, fmt.Sprintf("%s is not installed in the canonical path %s", status.Command, status.CanonicalPath))
 			}
 		case !status.Resolved:
 			notOnPath++
-			if len(samples) < 3 {
+			if len(samples) < projectParameterA {
 				samples = append(samples, fmt.Sprintf("%s is installed canonically at %s but not currently resolvable on PATH", status.Command, status.CanonicalPath))
 			}
 		}
@@ -469,7 +476,7 @@ func summarizeCLIInstallStatuses(name string, statuses []cliinstall.InstallLocat
 		}
 	}
 
-	parts := make([]string, 0, 3)
+	parts := make([]string, 0, projectParameterA)
 	if nonCanonical > 0 {
 		parts = append(parts, fmt.Sprintf("%d resolve to non-canonical paths", nonCanonical))
 	}
@@ -492,9 +499,9 @@ func summarizeDiscoveryFailures(name string, failures []discovery.Failure) Docto
 	if len(failures) == 0 {
 		return DoctorCheck{Name: name, Status: "ok"}
 	}
-	samples := make([]string, 0, 3)
+	samples := make([]string, 0, projectParameterA)
 	for _, failure := range failures {
-		if len(samples) >= 3 {
+		if len(samples) >= projectParameterA {
 			break
 		}
 		samples = append(samples, fmt.Sprintf("%s: %s", failure.Name, failure.Error))
@@ -553,7 +560,7 @@ func (c *Controller) Stop(opts StopOptions) (control.StopReport, error) {
 		case target == "all":
 			scenarioResult, err := c.Scenarios.StopAll()
 			if err != nil {
-				failed = append(failed, control.Failed("scenarios", err))
+				failed = append(failed, control.Failed(repocontractmeta.ScenarioDir, err))
 			} else {
 				stopped = append(stopped, scenarioResult.Stopped...)
 				failed = append(failed, scenarioResult.Failed...)
@@ -565,10 +572,10 @@ func (c *Controller) Stop(opts StopOptions) (control.StopReport, error) {
 				stopped = append(stopped, resourceResult.Stopped...)
 				failed = append(failed, resourceResult.Failed...)
 			}
-		case target == "scenarios":
+		case target == repocontractmeta.ScenarioDir:
 			scenarioResult, err := c.Scenarios.StopAll()
 			if err != nil {
-				failed = append(failed, control.Failed("scenarios", err))
+				failed = append(failed, control.Failed(repocontractmeta.ScenarioDir, err))
 			} else {
 				stopped = append(stopped, scenarioResult.Stopped...)
 				failed = append(failed, scenarioResult.Failed...)
@@ -620,7 +627,7 @@ func (c *Controller) Stop(opts StopOptions) (control.StopReport, error) {
 }
 
 func LoadProject(root string) (scenario.Scenario, error) {
-	servicePath := filepath.Join(root, ".vrooli", "service.json")
+	servicePath := filepath.Join(root, repocontractmeta.ProjectConfigDir, "service.json")
 	manifest, err := scenario.ReadService(servicePath)
 	if err != nil {
 		return scenario.Scenario{}, fmt.Errorf("read project service manifest: %w", err)

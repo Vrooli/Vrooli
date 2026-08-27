@@ -7,7 +7,9 @@
   },
   "description": "Grant the operator account access to the TPM so the encrypted credential store opens unattended after a reboot",
   "handler": "tpm_credential_access",
-  "platforms": ["linux"],
+  "platforms": [
+    "linux"
+  ],
   "risk": "medium",
   "privilege": "elevated",
   "bundling": "prohibited",
@@ -41,13 +43,13 @@
     },
     "macos": {
       "status": "not_applicable",
-      "mechanism": "handler",
-      "evidence": "This safeguard has no implementation for the macOS host mechanism; the capability is not applicable on this host OS."
+      "evidence": "Windows does not expose the Linux host interface used by safeguard tpm_credential_access; the platform has a distinct host security and lifecycle model.",
+      "review_by": "2027-08-26"
     },
     "windows": {
       "status": "not_applicable",
-      "mechanism": "handler",
-      "evidence": "This safeguard has no implementation for the Windows host mechanism; the capability is not applicable on this host OS."
+      "evidence": "Windows does not expose the Linux host interface used by safeguard tpm_credential_access; the platform has a distinct host security and lifecycle model.",
+      "review_by": "2027-08-26"
     }
   },
   "risk_class": "reload_live"

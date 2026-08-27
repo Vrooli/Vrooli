@@ -9,9 +9,15 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/vrooli/vrooli/internal/tuning"
+
 	platform "github.com/vrooli/platform-go"
 	"github.com/vrooli/vrooli/internal/config"
 	"github.com/vrooli/vrooli/internal/process"
+)
+
+const (
+	scenarioLockParameterA = 64
 )
 
 // scenarioLockDirName is the subdirectory under Home where per-scenario
@@ -138,13 +144,13 @@ func (r *Runner) acquireScenarioLockWithMode(name string, blocking bool) (func()
 	}
 
 	lockDir := filepath.Join(home, scenarioLockDirName)
-	if err := os.MkdirAll(lockDir, 0o755); err != nil {
+	if err := os.MkdirAll(lockDir, tuning.PermDir); err != nil {
 		mu.Unlock()
 		return nil, fmt.Errorf("create scenario lock dir: %w", err)
 	}
 	lockPath := filepath.Join(lockDir, "scenario-"+sanitizeScenarioName(name)+".lock")
 
-	f, err := lockFileOpenFn(lockPath, os.O_RDWR|os.O_CREATE, 0o644)
+	f, err := lockFileOpenFn(lockPath, os.O_RDWR|os.O_CREATE, tuning.PermFile)
 	if err != nil {
 		mu.Unlock()
 		return nil, fmt.Errorf("open scenario lock %s: %w", lockPath, err)
@@ -183,7 +189,7 @@ func readLockHolderPID(f *os.File) int {
 	if _, err := f.Seek(0, 0); err != nil {
 		return 0
 	}
-	buf := make([]byte, 64)
+	buf := make([]byte, scenarioLockParameterA)
 	n, _ := f.Read(buf)
 	if n <= 0 {
 		return 0

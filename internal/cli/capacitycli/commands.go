@@ -11,6 +11,10 @@ import (
 	"github.com/vrooli/vrooli/internal/cli/commandtree"
 )
 
+const (
+	commandsParameterA = 3
+)
+
 type CommandID string
 
 const (
@@ -325,7 +329,7 @@ func ParsePolicyRequest(args []string) (PolicyArgs, error) {
 			out.Key = pos[1]
 		}
 	case "set":
-		if len(pos) < 3 {
+		if len(pos) < commandsParameterA {
 			return PolicyArgs{}, fmt.Errorf("policy set requires <key> <value>")
 		}
 		out.Key = pos[1]

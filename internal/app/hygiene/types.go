@@ -132,11 +132,13 @@ type Report struct {
 }
 
 type Request struct {
-	FixSafe          bool
-	Plans            bool
-	FailOn           Severity
-	IncludePlans     bool
-	IncludeContract  bool
-	IncludeDrift     bool
-	IncludeFreshness bool
+	FixSafe                 bool
+	Plans                   bool
+	FailOn                  Severity
+	IncludePlans            bool
+	IncludeContract         bool
+	IncludeDrift            bool
+	IncludeFreshness        bool
+	IncludeTidiness         bool
+	RequireTidinessProvider bool
 }

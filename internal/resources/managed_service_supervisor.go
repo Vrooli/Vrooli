@@ -15,6 +15,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vrooli/vrooli/internal/tuning"
+
 	platform "github.com/vrooli/platform-go"
 	repocontract "github.com/vrooli/repo-contract-go"
 	"github.com/vrooli/vrooli/internal/process"
@@ -75,7 +77,7 @@ func managedServiceSupervisorFor(resource string) (*ManagedServiceSupervisor, ru
 	if err != nil {
 		return nil, runtimestorage.Paths{}, err
 	}
-	paths, err := runtimestorage.EnsureAllDirs(resolver, runtimestorage.Options{ResourceID: resource}, 0o700)
+	paths, err := runtimestorage.EnsureAllDirs(resolver, runtimestorage.Options{ResourceID: resource}, tuning.PermPrivateDir)
 	if err != nil {
 		return nil, runtimestorage.Paths{}, err
 	}
@@ -117,10 +119,10 @@ func (s *ManagedServiceSupervisor) Start(artifactPath string, artifact resourced
 	if running {
 		return existing, nil
 	}
-	if err := os.MkdirAll(filepath.Dir(s.logPath), 0o700); err != nil {
+	if err := os.MkdirAll(filepath.Dir(s.logPath), tuning.PermPrivateDir); err != nil {
 		return ManagedServiceState{}, fmt.Errorf("create managed-service log directory: %w", err)
 	}
-	logFile, err := os.OpenFile(s.logPath, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o600)
+	logFile, err := os.OpenFile(s.logPath, os.O_CREATE|os.O_APPEND|os.O_WRONLY, tuning.PermSecret)
 	if err != nil {
 		return ManagedServiceState{}, fmt.Errorf("open managed-service log: %w", err)
 	}
@@ -215,7 +217,7 @@ func (s *ManagedServiceSupervisor) stop(ctx context.Context, signal os.Signal) e
 	} else if err := s.terminate(state.PID); err != nil {
 		return fmt.Errorf("stop managed-service process: %w", err)
 	}
-	ticker := time.NewTicker(25 * time.Millisecond)
+	ticker := time.NewTicker(tuning.FastPersistenceRetryInterval)
 	defer ticker.Stop()
 	for s.isRunning(state.PID) {
 		select {
@@ -226,7 +228,7 @@ func (s *ManagedServiceSupervisor) stop(ctx context.Context, signal os.Signal) e
 			if err := s.forceStop(state.PID); err != nil && s.isRunning(state.PID) {
 				return fmt.Errorf("wait for managed-service shutdown: %w; forceful escalation failed: %v", ctx.Err(), err)
 			}
-			forceCtx, forceCancel := context.WithTimeout(context.Background(), 2*time.Second)
+			forceCtx, forceCancel := context.WithTimeout(context.Background(), tuning.ShortOperationDeadline)
 			forceErr := s.waitUntilStopped(forceCtx, state.PID)
 			forceCancel()
 			if forceErr != nil {
@@ -249,7 +251,7 @@ func (s *ManagedServiceSupervisor) stop(ctx context.Context, signal os.Signal) e
 }
 
 func (s *ManagedServiceSupervisor) waitUntilStopped(ctx context.Context, pid int) error {
-	ticker := time.NewTicker(25 * time.Millisecond)
+	ticker := time.NewTicker(tuning.FastPersistenceRetryInterval)
 	defer ticker.Stop()
 	for s.isRunning(pid) {
 		select {
@@ -290,7 +292,7 @@ func (s *ManagedServiceSupervisor) Attest(endpoint, controlCapability string) (O
 	}
 	now := s.now().UTC()
 	proof := managedServiceAttestationProof(state, endpoint, controlCapability)
-	return OwnershipAttestation{InstanceID: state.InstanceID, ArtifactSHA256: state.ArtifactSHA256, Endpoint: endpoint, ControlCapability: controlCapability, IssuedAt: now, ExpiresAt: now.Add(30 * 24 * time.Hour), Proof: proof}, nil
+	return OwnershipAttestation{InstanceID: state.InstanceID, ArtifactSHA256: state.ArtifactSHA256, Endpoint: endpoint, ControlCapability: controlCapability, IssuedAt: now, ExpiresAt: now.Add(tuning.ArtifactRetentionWindow), Proof: proof}, nil
 }
 
 func managedServiceAttestationProof(state ManagedServiceState, endpoint, controlCapability string) string {
@@ -303,7 +305,7 @@ func verifyManagedServiceAttestation(resource string, attestation OwnershipAttes
 		return fmt.Errorf("managed-service ownership attestation is incomplete")
 	}
 	now := time.Now()
-	if !attestation.ExpiresAt.After(now) || attestation.IssuedAt.After(now.Add(time.Minute)) || attestation.ExpiresAt.Sub(attestation.IssuedAt) > 31*24*time.Hour {
+	if !attestation.ExpiresAt.After(now) || attestation.IssuedAt.After(now.Add(time.Minute)) || attestation.ExpiresAt.Sub(attestation.IssuedAt) > tuning.AttestationValidityWindow {
 		return fmt.Errorf("managed-service ownership attestation is stale or invalid")
 	}
 	supervisor, _, err := managedServiceSupervisorFor(resource)
@@ -415,7 +417,7 @@ func (s *ManagedServiceSupervisor) writeState(state ManagedServiceState) error {
 	if err != nil {
 		return err
 	}
-	return runtimestorage.WriteFileAtomic(s.statePath, data, 0o600)
+	return runtimestorage.WriteFileAtomic(s.statePath, data, tuning.PermSecret)
 }
 
 func managedServiceArtifactPath(controller *Controller, manifest ResourceManifest) (string, error) {

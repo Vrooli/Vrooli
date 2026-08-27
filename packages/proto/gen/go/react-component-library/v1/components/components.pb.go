@@ -1488,9 +1488,11 @@ func (x *ComponentExperienceEvidence) GetMeasurement() *contract.ClaimMeasuremen
 }
 
 // IndexComponentsRequest triggers a re-walk of the configured source root.
-// Currently parameter-less; future filters (subtree, dry-run) land here.
 type IndexComponentsRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Skip the reachability-derived materialization reconciliation after the
+	// index. The default keeps the registry and working tree converged.
+	NoReconcile   bool `protobuf:"varint,1,opt,name=no_reconcile,json=noReconcile,proto3" json:"no_reconcile,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1523,6 +1525,13 @@ func (x *IndexComponentsRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use IndexComponentsRequest.ProtoReflect.Descriptor instead.
 func (*IndexComponentsRequest) Descriptor() ([]byte, []int) {
 	return file_react_component_library_v1_components_components_proto_rawDescGZIP(), []int{14}
+}
+
+func (x *IndexComponentsRequest) GetNoReconcile() bool {
+	if x != nil {
+		return x.NoReconcile
+	}
+	return false
 }
 
 // IndexComponentsResponse summarises the index pass.
@@ -4897,8 +4906,9 @@ const file_react_component_library_v1_components_components_proto_rawDesc = "" +
 	"\x0eviewport_width\x18\t \x01(\x05R\rviewportWidth\x12'\n" +
 	"\x0fviewport_height\x18\n" +
 	" \x01(\x05R\x0eviewportHeight\x12Y\n" +
-	"\vmeasurement\x18\v \x01(\v27.vrooli.experience_manager.v1.contract.ClaimMeasurementR\vmeasurement\"\x18\n" +
-	"\x16IndexComponentsRequest\"\xd6\x01\n" +
+	"\vmeasurement\x18\v \x01(\v27.vrooli.experience_manager.v1.contract.ClaimMeasurementR\vmeasurement\";\n" +
+	"\x16IndexComponentsRequest\x12!\n" +
+	"\fno_reconcile\x18\x01 \x01(\bR\vnoReconcile\"\xd6\x01\n" +
 	"\x17IndexComponentsResponse\x12\x18\n" +
 	"\ascanned\x18\x01 \x01(\x05R\ascanned\x12\x18\n" +
 	"\aindexed\x18\x02 \x01(\x05R\aindexed\x12\x18\n" +

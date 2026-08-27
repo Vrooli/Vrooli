@@ -11,6 +11,8 @@ import (
 	"time"
 	"unicode"
 
+	"github.com/vrooli/vrooli/internal/tuning"
+
 	repocontract "github.com/vrooli/repo-contract-go"
 	"github.com/vrooli/vrooli/internal/config"
 )
@@ -191,7 +193,7 @@ func SaveMigrationLedger(l Locator, ledger MigrationLedger) error {
 	if _, err := config.EnsureOwnedDir(l.SetupStateDir()); err != nil {
 		return err
 	}
-	return config.WriteOwnedFileAtomic(l.MigrationLedgerPath(), append(data, '\n'), 0o644)
+	return config.WriteOwnedFileAtomic(l.MigrationLedgerPath(), append(data, '\n'), tuning.PermFile)
 }
 
 // ActiveSetupPath is the best-effort, versioned in-progress setup record.
@@ -314,5 +316,5 @@ func MarkConfigurationComplete(home, root, selectionDigest string) error {
 	if err != nil {
 		return err
 	}
-	return config.WriteOwnedFile(locator.ConfigurationCompletePath(), append(data, '\n'), 0o644)
+	return config.WriteOwnedFile(locator.ConfigurationCompletePath(), append(data, '\n'), tuning.PermFile)
 }

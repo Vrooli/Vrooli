@@ -6,6 +6,10 @@ import (
 	"strings"
 )
 
+const (
+	capabilityControl = "control"
+)
+
 // CapabilityImplementation describes one tool or safeguard at the resolver
 // boundary. The manifest loader supplies these declarations; the resolver
 // never knows the fleet's object names.
@@ -65,6 +69,8 @@ type CapabilityResolution struct {
 	Evidence        *Evidence            `json:"evidence,omitempty"`
 	Implementer     string               `json:"implementer,omitempty"`
 	Mechanism       string               `json:"mechanism,omitempty"`
+	Since           string               `json:"since,omitempty"`
+	ReviewBy        string               `json:"review_by,omitempty"`
 	Reason          string               `json:"reason"`
 	Controls        []string             `json:"controls,omitempty"`
 	Absent          []string             `json:"absent,omitempty"`
@@ -82,6 +88,8 @@ type capabilityCandidate struct {
 // second catalog. Every member of the platform status vocabulary gets an
 // explicit outcome; an unrecognised token is a terminal invalid verdict rather
 // than a silent downgrade.
+//
+//nolint:gocyclo // capability resolution evaluates role, platform, status, and evidence precedence explicitly.
 func ResolveCapability(implementations []CapabilityImplementation, capability string, os HostOS) CapabilityResolution {
 	capability = strings.TrimSpace(capability)
 	result := CapabilityResolution{Capability: capability, OS: os, Qualification: QualificationUndeclared}
@@ -97,6 +105,8 @@ func ResolveCapability(implementations []CapabilityImplementation, capability st
 	}
 
 	var unwired []string
+	var unwiredSince, unwiredReview string
+	var ineligibleReview string
 	var ineligible bool
 	var candidates []capabilityCandidate
 	var controls []capabilityCandidate
@@ -123,11 +133,11 @@ func ResolveCapability(implementations []CapabilityImplementation, capability st
 			result.Declarers = declarerDetails(implementations, capability, os, resolved)
 			return result
 		}
-		if implementation.Role == "control" && name != "" && status != StatusUnsupported && status != StatusNotImplemented && status != StatusNotApplicable {
+		if implementation.Role == capabilityControl && name != "" && status != StatusUnsupported && status != StatusNotImplemented && status != StatusNotApplicable {
 			controls = append(controls, capabilityCandidate{implementation: implementation, qualification: status.Qualification()})
 			resolved[name] = true
 		}
-		if implementation.Role == "control" {
+		if implementation.Role == capabilityControl {
 			continue
 		}
 		named := strings.TrimSpace(implementation.Name) != ""
@@ -142,21 +152,36 @@ func ResolveCapability(implementations []CapabilityImplementation, capability st
 			// exactly the unwired case: the mechanism is described, the code is not.
 			if mechanism := strings.TrimSpace(platform.Mechanism); mechanism != "" {
 				unwired = append(unwired, mechanism)
+				if unwiredSince == "" {
+					unwiredSince = strings.TrimSpace(platform.Since)
+					unwiredReview = strings.TrimSpace(platform.ReviewBy)
+				}
 			}
 		case StatusUnsupported:
 			if mechanism := strings.TrimSpace(platform.Mechanism); mechanism != "" {
 				unwired = append(unwired, mechanism)
+				if unwiredSince == "" {
+					unwiredSince = strings.TrimSpace(platform.Since)
+					unwiredReview = strings.TrimSpace(platform.ReviewBy)
+				}
 				continue
 			}
 			ineligible = true
 		case StatusNotImplemented:
 			if mechanism := strings.TrimSpace(platform.Mechanism); mechanism != "" {
 				unwired = append(unwired, mechanism)
+				if unwiredSince == "" {
+					unwiredSince = strings.TrimSpace(platform.Since)
+					unwiredReview = strings.TrimSpace(platform.ReviewBy)
+				}
 				continue
 			}
 			ineligible = true
 		case StatusNotApplicable:
 			ineligible = true
+			if ineligibleReview == "" {
+				ineligibleReview = strings.TrimSpace(platform.ReviewBy)
+			}
 		}
 	}
 	if len(candidates) > 0 {
@@ -177,6 +202,8 @@ func ResolveCapability(implementations []CapabilityImplementation, capability st
 		}
 		result.Implementer = winner.implementation.Name
 		result.Mechanism = strings.TrimSpace(winner.implementation.Platforms[os].Mechanism)
+		result.Since = strings.TrimSpace(winner.implementation.Platforms[os].Since)
+		result.ReviewBy = strings.TrimSpace(winner.implementation.Platforms[os].ReviewBy)
 		result.Evidence = winner.implementation.Platforms[os].Evidence
 		result.Reason = winner.qualification.Reason()
 		result.Controls = sortedNames(controls)
@@ -226,6 +253,8 @@ func ResolveCapability(implementations []CapabilityImplementation, capability st
 		sort.Strings(unwired)
 		result.Status = CapabilityUnwired
 		result.Mechanism = unwired[0]
+		result.Since = unwiredSince
+		result.ReviewBy = unwiredReview
 		result.Qualification = QualificationUndeclared
 		result.Reason = "a mechanism is named but no implementation is declared for this host OS"
 		result.Controls = sortedNames(controls)
@@ -237,6 +266,7 @@ func ResolveCapability(implementations []CapabilityImplementation, capability st
 	if ineligible {
 		result.Status = CapabilityIneligible
 		result.Qualification = QualificationIneligible
+		result.ReviewBy = ineligibleReview
 		result.Reason = QualificationIneligible.Reason()
 		result.Absent = absentNames(declarers, resolved)
 		result.AbsentControls, result.AbsentProviders = absentByRole(implementations, capability, os, resolved)
@@ -279,7 +309,7 @@ func declarerDetails(implementations []CapabilityImplementation, capability stri
 func countControls(implementations []CapabilityImplementation, capability string, os HostOS) int {
 	count := 0
 	for _, implementation := range implementations {
-		if strings.TrimSpace(implementation.Capability) == capability && implementation.Role == "control" && strings.TrimSpace(implementation.Name) != "" {
+		if strings.TrimSpace(implementation.Capability) == capability && implementation.Role == capabilityControl && strings.TrimSpace(implementation.Name) != "" {
 			if _, declared := implementation.Platforms[os]; !declared {
 				continue
 			}
@@ -301,7 +331,7 @@ func absentByRole(implementations []CapabilityImplementation, capability string,
 			continue
 		}
 		seen[name] = struct{}{}
-		if implementation.Role == "control" {
+		if implementation.Role == capabilityControl {
 			controls = append(controls, name)
 		} else {
 			providers = append(providers, name)

@@ -9,6 +9,7 @@ import (
 
 	"github.com/vrooli/vrooli/internal/cli/rootcli"
 	"github.com/vrooli/vrooli/internal/scenariostale"
+	"github.com/vrooli/vrooli/internal/shell/shelltest"
 )
 
 func TestExtractCompletenessScenarioHandlesScoreSubcommands(t *testing.T) {
@@ -130,7 +131,7 @@ func scaffoldScenarioTree(t *testing.T) (string, string) {
 	if err := os.WriteFile(filepath.Join(scenarioDir, "api", "main.go"), []byte("package main\nfunc main(){}\n"), 0o644); err != nil {
 		t.Fatalf("write main.go: %v", err)
 	}
-	if err := os.WriteFile(filepath.Join(scenarioDir, "api", "foo-api"), []byte("#!/bin/sh\n"), 0o755); err != nil {
+	if err := os.WriteFile(filepath.Join(scenarioDir, "api", "foo-api"), []byte(shelltest.POSIXShebang()+""), 0o755); err != nil {
 		t.Fatalf("write binary: %v", err)
 	}
 	return root, name

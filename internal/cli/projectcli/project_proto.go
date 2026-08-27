@@ -2,7 +2,6 @@ package projectcli
 
 import (
 	"encoding/json"
-	"io"
 	"time"
 
 	"google.golang.org/protobuf/types/known/structpb"
@@ -59,7 +58,7 @@ func projectAnyValue(v any) *structpb.Value {
 	if v == nil {
 		return nil
 	}
-	val, err := structpb.NewValue(v)
+	val, err := cliout.NewJSONValue(v)
 	if err != nil {
 		return nil
 	}
@@ -239,10 +238,6 @@ func projectProcessSnapshot(s maintenance.ProcessSnapshot) *cliv1.ProjectProcess
 	return out
 }
 
-func writeProjectStatusJSON(w io.Writer, report project.StatusReport) error {
-	return cliout.WriteProtoJSON(w, ProjectStatusResponseMessage(report))
-}
-
 // ---------------------------------------------------------------------------
 // `vrooli doctor --json`
 // ---------------------------------------------------------------------------
@@ -260,10 +255,6 @@ func ProjectDoctorResponseMessage(checks []project.DoctorCheck) *cliv1.ProjectDo
 	return out
 }
 
-func writeProjectDoctorJSON(w io.Writer, checks []project.DoctorCheck) error {
-	return cliout.WriteProtoJSON(w, ProjectDoctorResponseMessage(checks))
-}
-
 // ---------------------------------------------------------------------------
 // stop / orphans-kill / locks-clean reports — WriteSuccessJSON(w, "data", report)
 // ---------------------------------------------------------------------------
@@ -271,10 +262,6 @@ func writeProjectDoctorJSON(w io.Writer, checks []project.DoctorCheck) error {
 // ProjectStopResponseMessage maps a control.StopReport onto the "data" envelope.
 func ProjectStopResponseMessage(report control.StopReport) *cliv1.ProjectStopResponse {
 	return &cliv1.ProjectStopResponse{Success: true, Data: projectStopReport(report)}
-}
-
-func writeProjectStopJSON(w io.Writer, report control.StopReport) error {
-	return cliout.WriteProtoJSON(w, ProjectStopResponseMessage(report))
 }
 
 // ---------------------------------------------------------------------------
@@ -300,14 +287,6 @@ func ProjectOrphansDryRunResponseMessage(list []maintenance.SystemProcess) *cliv
 	return &cliv1.ProjectOrphansDryRunResponse{Success: true, DryRun: dry}
 }
 
-func writeProjectOrphansJSON(w io.Writer, list []maintenance.SystemProcess) error {
-	return cliout.WriteProtoJSON(w, ProjectOrphansResponseMessage(list))
-}
-
-func writeProjectOrphansDryRunJSON(w io.Writer, list []maintenance.SystemProcess) error {
-	return cliout.WriteProtoJSON(w, ProjectOrphansDryRunResponseMessage(list))
-}
-
 // ---------------------------------------------------------------------------
 // `vrooli locks --json` (list mode) — WriteSuccessFields(registry_claims)
 // ---------------------------------------------------------------------------
@@ -320,10 +299,6 @@ func ProjectLocksResponseMessage(claims []maintenance.RuntimeClaimInfo) *cliv1.P
 		out.RegistryClaims = append(out.RegistryClaims, projectRuntimeClaim(claim))
 	}
 	return out
-}
-
-func writeProjectLocksJSON(w io.Writer, claims []maintenance.RuntimeClaimInfo) error {
-	return cliout.WriteProtoJSON(w, ProjectLocksResponseMessage(claims))
 }
 
 // ---------------------------------------------------------------------------
@@ -409,10 +384,6 @@ func projectTemplateFailedRun(run templatevalidation.FailedRun) *cliv1.ProjectTe
 	return out
 }
 
-func writeProjectTemplateCleanupJSON(w io.Writer, result templatevalidation.CleanupResult) error {
-	return cliout.WriteProtoJSONCamel(w, ProjectTemplateCleanupResponseMessage(result))
-}
-
 // ---------------------------------------------------------------------------
 // `vrooli diagnose-port --json` — WriteSuccessJSON(w, "diagnostic", diagnostic)
 // ---------------------------------------------------------------------------
@@ -470,8 +441,4 @@ func projectRuntimeProcessRef(ref maintenance.RuntimeProcessRefInfo) *cliv1.Proj
 		Status:         ref.Status,
 		PidRunning:     projectBoolPtrValue(ref.PIDRunning),
 	}
-}
-
-func writeProjectPortDiagnosticJSON(w io.Writer, d maintenance.PortDiagnostic) error {
-	return cliout.WriteProtoJSON(w, ProjectPortDiagnosticResponseMessage(d))
 }

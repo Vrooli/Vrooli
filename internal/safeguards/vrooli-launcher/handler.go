@@ -245,7 +245,7 @@ func (h handler) Apply(host hostreqkit.Host, status hostreqkit.ItemStatus, opts 
 	}
 
 	// InstallManagedExecutable handles the temp-file + sudo install pattern
-	// (mode 0755, since this is an executable shim). On --sudo-mode=skip
+	// (mode 755, since this is an executable shim). On --sudo-mode=skip
 	// the call returns ErrSudoSkipped, which the runtime's apply loop
 	// detects and tags as BlockingNeedsSudo so the renderer routes the
 	// item into the "Needs sudo" group with an actionable hint.

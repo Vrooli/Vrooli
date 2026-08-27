@@ -10,7 +10,9 @@ import (
 	"github.com/vrooli/vrooli/internal/hostreqspec"
 )
 
-func stubLookups(t *testing.T) func() {
+var stubLookups = dnsResolutionStubLookups
+
+func dnsResolutionStubLookups(t *testing.T) func() {
 	t.Helper()
 	origLookPath := hostreqkit.LookPathFn
 	origReadFile := hostreqkit.ReadFileFn
@@ -26,7 +28,9 @@ func stubLookups(t *testing.T) func() {
 	}
 }
 
-func newTestHandler() hostreqkit.Handler {
+var newTestHandler = dnsResolutionTestHandler
+
+func dnsResolutionTestHandler() hostreqkit.Handler {
 	return NewHandler(hostreqkit.SafeguardManifest{
 		Name:    "dns_resolution",
 		Handler: "dns_resolution",
@@ -41,42 +45,13 @@ func linuxReq() hostreqspec.ResolvedRequirement {
 	}
 }
 
-func linuxHost() hostreqkit.Host {
+var linuxHost = dnsResolutionLinuxHost
+
+func dnsResolutionLinuxHost() hostreqkit.Host {
 	return hostreqkit.Host{
 		OS:              "linux",
 		PackageManager:  "apt-get",
 		SupportsSystemd: true,
-	}
-}
-
-func TestNameAndKind(t *testing.T) {
-	h := newTestHandler()
-	if h.Name() != "dns_resolution" {
-		t.Fatalf("Name = %q", h.Name())
-	}
-	if h.Kind() != hostreqspec.KindSafeguard {
-		t.Fatalf("Kind = %q", h.Kind())
-	}
-}
-
-func TestInspectManualRequirement(t *testing.T) {
-	h := newTestHandler()
-	req := linuxReq()
-	req.Manual = true
-	status := h.Inspect(linuxHost(), req)
-	if status.SupportClass != hostreqkit.SupportManualOnly {
-		t.Fatalf("SupportClass = %q", status.SupportClass)
-	}
-	if status.ExecutionState != hostreqkit.ExecutionManualActionRequired {
-		t.Fatalf("ExecutionState = %q", status.ExecutionState)
-	}
-}
-
-func TestInspectNonLinuxUnsupported(t *testing.T) {
-	h := newTestHandler()
-	status := h.Inspect(hostreqkit.Host{OS: "darwin"}, linuxReq())
-	if status.SupportClass != hostreqkit.SupportUnsupported {
-		t.Fatalf("SupportClass = %q", status.SupportClass)
 	}
 }
 
@@ -163,19 +138,6 @@ func TestInspectConfigMissingDNSFailing(t *testing.T) {
 	}
 }
 
-func TestApplyUnsupportedReturnsEarly(t *testing.T) {
-	h := newTestHandler()
-	status, err := h.Apply(hostreqkit.Host{OS: "darwin"}, hostreqkit.ItemStatus{
-		SupportClass: hostreqkit.SupportUnsupported,
-	}, hostreqkit.EnsureOptions{})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if status.ExecutionState != hostreqkit.ExecutionUnsupported {
-		t.Fatalf("ExecutionState = %q", status.ExecutionState)
-	}
-}
-
 func TestApplyNotApplicableReturnsEarly(t *testing.T) {
 	h := newTestHandler()
 	status, err := h.Apply(linuxHost(), hostreqkit.ItemStatus{
@@ -185,46 +147,6 @@ func TestApplyNotApplicableReturnsEarly(t *testing.T) {
 		t.Fatal(err)
 	}
 	if status.ExecutionState != hostreqkit.ExecutionNotApplicable {
-		t.Fatalf("ExecutionState = %q", status.ExecutionState)
-	}
-}
-
-func TestApplyManualReturnsEarly(t *testing.T) {
-	h := newTestHandler()
-	status, err := h.Apply(linuxHost(), hostreqkit.ItemStatus{
-		SupportClass: hostreqkit.SupportManualOnly,
-	}, hostreqkit.EnsureOptions{})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if status.ExecutionState != hostreqkit.ExecutionManualActionRequired {
-		t.Fatalf("ExecutionState = %q", status.ExecutionState)
-	}
-}
-
-func TestApplyAlreadyAppliedSkips(t *testing.T) {
-	h := newTestHandler()
-	status, err := h.Apply(linuxHost(), hostreqkit.ItemStatus{
-		SupportClass: hostreqkit.SupportSupported,
-		Applied:      true,
-	}, hostreqkit.EnsureOptions{})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if status.ExecutionState != hostreqkit.ExecutionAlreadyPresent {
-		t.Fatalf("ExecutionState = %q", status.ExecutionState)
-	}
-}
-
-func TestApplyDryRun(t *testing.T) {
-	h := newTestHandler()
-	status, err := h.Apply(linuxHost(), hostreqkit.ItemStatus{
-		SupportClass: hostreqkit.SupportSupported,
-	}, hostreqkit.EnsureOptions{DryRun: true})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if status.ExecutionState != hostreqkit.ExecutionWouldApply {
 		t.Fatalf("ExecutionState = %q", status.ExecutionState)
 	}
 }

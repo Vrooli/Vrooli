@@ -6,7 +6,10 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/vrooli/vrooli/internal/tuning"
+
 	platform "github.com/vrooli/platform-go"
+	"github.com/vrooli/vrooli/internal/config"
 )
 
 // PreserveRootBinaryFallback keeps the last known-good root control-plane
@@ -37,7 +40,7 @@ func PreserveRootBinaryFallback(executable string) error {
 	}
 
 	fallbackDir := filepath.Join(filepath.Dir(filepath.Dir(executable)), "libexec")
-	if err := os.MkdirAll(fallbackDir, 0o755); err != nil {
+	if err := os.MkdirAll(fallbackDir, tuning.PermDir); err != nil {
 		return err
 	}
 	fallback := filepath.Join(fallbackDir, base+".previous")
@@ -74,7 +77,11 @@ func PreserveRootBinaryFallback(executable string) error {
 	if err := tmp.Close(); err != nil {
 		return err
 	}
-	if err := os.Rename(tmpPath, fallback); err != nil {
+	data, err := os.ReadFile(tmpPath)
+	if err != nil {
+		return err
+	}
+	if err := config.WriteOwnedFileAtomic(fallback, data, info.Mode().Perm()); err != nil {
 		return err
 	}
 	return nil
@@ -85,7 +92,7 @@ func PreserveRootBinaryFallback(executable string) error {
 // this lock or they can replace the same path concurrently.
 func AcquireBinaryInstallLock(executable string) (func(), error) {
 	lockPath := executable + ".lock"
-	f, err := openFileFn(lockPath, os.O_RDWR|os.O_CREATE, 0o644)
+	f, err := openFileFn(lockPath, os.O_RDWR|os.O_CREATE, tuning.PermFile)
 	if err != nil {
 		return nil, fmt.Errorf("open lock %s: %w", lockPath, err)
 	}

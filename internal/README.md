@@ -32,12 +32,21 @@ internal/cli/<family>cli     command registration and CLI-facing types
 internal/cli/<family>handlers handler wiring and command behavior
 ```
 
-The established small-family shape covers authentication, capacity, contract,
-hygiene, package, project, recovery, resource, and scenario commands. New
-families should follow the same shape when the application layer contains real
-orchestration. A thin pass-through package is not a reason to add a layer; the
-larger resource and safeguard subsystems may bind directly to their CLI layer
-when that is the honest ownership boundary.
+All thirteen command families use the same boundary shape: an application
+package owns transport-free orchestration, a `<family>cli` package owns command
+types and rendering, and a `<family>handlers` package binds root context and
+dispatches through the two canonical rootcli entry points: `BindService` for
+service-backed commands and `BindResourceCommand` when a resource controller
+must be injected. These are one binding dialect owned by `rootcli`; no family
+defines a private `bind*` adapter. The families are
+authentication, capability, capacity, contract, credentials, host, hygiene,
+package, project, recovery, resource, runtime, and scenario.
+
+Manifest-backed families keep their manifest loader inside the service passed
+to `BindService`; this preserves the manifest as the command contract without
+creating a second dispatcher. Resource commands use the sibling canonical
+`BindResourceCommand` entry point when a resource controller must be injected.
+There are no package-local binding dialects or pass-through binders.
 
 ## App-layer responsibility
 
@@ -71,3 +80,19 @@ import-alias migration whose only benefit would be directory tidiness.
 subsystems (`env`, `runtime`, `manifest`, and `control`) are imported through
 compound aliases at call sites. That history is a warning against repeating
 the pattern for the cross-cutting host, credential, and scenario families.
+
+## Test fixture boundaries
+
+Cross-domain test setup belongs to `internal/testenv`: process identity,
+runtime homes, and repository trees derived from `repo-contract-go`. Domain
+fixtures remain with their owning packages:
+
+- `internal/shell/shelltest` owns shell executable stubs.
+- `internal/process/processtest` owns process-record fixtures.
+- `internal/scenario/scenariotest` owns scenario manifests and services.
+- `internal/resources/resourcestest` owns resource fixtures.
+- `internal/packagegov/packagegovtest` owns package-governance manifests.
+- `internal/hostreqkit/hostreqkittest` owns host-requirement conformance suites.
+
+Domain fixture packages may build on `testenv`; `testenv` must not absorb their
+domain-specific fixture vocabulary.

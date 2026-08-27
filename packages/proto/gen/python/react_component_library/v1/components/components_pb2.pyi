@@ -288,8 +288,10 @@ class ComponentExperienceEvidence(_message.Message):
     def __init__(self, claim_id: _Optional[str] = ..., verdict: _Optional[str] = ..., state_id: _Optional[str] = ..., example_name: _Optional[str] = ..., capture_ref: _Optional[str] = ..., checked_at: _Optional[str] = ..., message: _Optional[str] = ..., viewport: _Optional[str] = ..., viewport_width: _Optional[int] = ..., viewport_height: _Optional[int] = ..., measurement: _Optional[_Union[_contract_pb2.ClaimMeasurement, _Mapping]] = ...) -> None: ...
 
 class IndexComponentsRequest(_message.Message):
-    __slots__ = ()
-    def __init__(self) -> None: ...
+    __slots__ = ("no_reconcile",)
+    NO_RECONCILE_FIELD_NUMBER: _ClassVar[int]
+    no_reconcile: bool
+    def __init__(self, no_reconcile: _Optional[bool] = ...) -> None: ...
 
 class IndexComponentsResponse(_message.Message):
     __slots__ = ("scanned", "indexed", "skipped", "deleted", "errors", "library_ids", "warnings")

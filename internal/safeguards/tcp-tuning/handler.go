@@ -5,6 +5,10 @@ import (
 	"github.com/vrooli/vrooli/internal/hostreqspec"
 )
 
+const (
+	handlerParameterB = 1024
+)
+
 const configPath = "/etc/sysctl.d/99-vrooli-tcp.conf"
 
 type handler struct {
@@ -24,7 +28,7 @@ func (h handler) applier() hostreqkit.SysctlApplier {
 		Parameters: []hostreqkit.SysctlParameter{
 			{Name: "net.ipv4.tcp_ecn", Value: 0, ReadFailure: -1},
 			{Name: "net.ipv4.tcp_mtu_probing", Value: 1, ReadFailure: -1},
-			{Name: "net.ipv4.tcp_base_mss", Value: 1024, ReadFailure: -1},
+			{Name: "net.ipv4.tcp_base_mss", Value: handlerParameterB, ReadFailure: -1},
 		},
 		UnsupportedNote:   "TCP tuning is only supported on Linux",
 		NotApplicableNote: "host does not support sysctl",

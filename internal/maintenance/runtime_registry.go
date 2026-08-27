@@ -52,6 +52,7 @@ func openRuntimeRegistryIfPresent(home string) (runtimeMaintenanceStore, func(),
 	return store, func() { _ = store.Close() }, nil
 }
 
+//nolint:gocyclo // runtime claim listing reconciles store, listener, ownership, and stale-state branches.
 func listRuntimeClaims(ctx context.Context, store runtimeMaintenanceStore, port int, scenarioName string, hostListenerInUse bool) ([]RuntimeClaimInfo, error) {
 	claims, err := store.ListPortClaims(ctx, scenarioruntime.PortClaimFilter{
 		Scenario: scenarioName,
@@ -222,6 +223,7 @@ type PortReclaimCandidate struct {
 	PID      int
 }
 
+//nolint:gocyclo // cleanup distinguishes every registry ownership and freshness outcome before mutation.
 func expireNonAuthoritativeRegistryState(ctx context.Context, store runtimeMaintenanceStore) ([]control.ResultItem, []PortReclaimCandidate, error) {
 	host, err := hostsession.DefaultProvider{}.Current(ctx, "")
 	if err != nil {

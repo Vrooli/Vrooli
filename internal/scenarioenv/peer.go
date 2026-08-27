@@ -21,7 +21,7 @@ type peerStore interface {
 
 type StoreFactory func(context.Context, string) (peerStore, error)
 
-// Write atomically publishes a mode-0600 peer record.
+// Write atomically publishes a mode-tuning.PermSecret peer record.
 func Write(home string, record PeerRecord) error {
 	return peerrecord.Write(home, record)
 }

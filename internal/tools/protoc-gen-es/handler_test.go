@@ -8,7 +8,9 @@ import (
 	"testing"
 
 	"github.com/vrooli/vrooli/internal/hostreqkit"
+	"github.com/vrooli/vrooli/internal/hostreqkit/hostreqkittest"
 	"github.com/vrooli/vrooli/internal/hostreqspec"
+	"github.com/vrooli/vrooli/internal/shell/shelltest"
 )
 
 var testManifest = hostreqkit.ToolManifest{
@@ -23,7 +25,9 @@ var testManifest = hostreqkit.ToolManifest{
 
 func newHandler() hostreqkit.Handler { return NewHandler(testManifest) }
 
-func baseRequirement() hostreqspec.ResolvedRequirement {
+var baseRequirement = protocGenESBaseRequirement
+
+func protocGenESBaseRequirement() hostreqspec.ResolvedRequirement {
 	return hostreqspec.ResolvedRequirement{Name: "protoc-gen-es", Kind: hostreqspec.KindTool}
 }
 
@@ -33,30 +37,7 @@ func baseRequirement() hostreqspec.ResolvedRequirement {
 // ~/.local/bin. Tests that need a specific home should override
 // hostreqkit.ReadFileFn after stub() returns.
 func stub(t *testing.T) (string, func()) {
-	t.Helper()
-	origLookPath := hostreqkit.LookPathFn
-	origCombinedOutput := hostreqkit.CombinedOutputFn
-	origRunCommand := hostreqkit.RunCommandFn
-	origReadFile := hostreqkit.ReadFileFn
-	origRoot := hostreqkit.RunningAsRootFn
-
-	tmp := t.TempDir()
-	hostreqkit.RunningAsRootFn = func() bool { return false }
-	t.Setenv("USER", "alice")
-	t.Setenv("HOME", tmp)
-	hostreqkit.ReadFileFn = func(path string) ([]byte, error) {
-		if path == "/etc/passwd" {
-			return []byte("alice:x:1000:1000:Alice:" + tmp + ":/bin/sh\n"), nil
-		}
-		return nil, os.ErrNotExist
-	}
-	return tmp, func() {
-		hostreqkit.LookPathFn = origLookPath
-		hostreqkit.CombinedOutputFn = origCombinedOutput
-		hostreqkit.RunCommandFn = origRunCommand
-		hostreqkit.ReadFileFn = origReadFile
-		hostreqkit.RunningAsRootFn = origRoot
-	}
+	return hostreqkittest.StubInvokingUser(t)
 }
 
 // fakeFSExec emulates the small set of shell commands the protoc-gen-es
@@ -76,16 +57,6 @@ func fakeFSExec(name string, args []string) error {
 	return errors.New("fakeFSExec: unsupported " + name + " " + strings.Join(args, " "))
 }
 
-func TestNameAndKind(t *testing.T) {
-	h := newHandler()
-	if h.Name() != "protoc-gen-es" {
-		t.Fatalf("Name = %q", h.Name())
-	}
-	if h.Kind() != hostreqspec.KindTool {
-		t.Fatalf("Kind = %q", h.Kind())
-	}
-}
-
 func TestInspectMissingNpmIsUnsupported(t *testing.T) {
 	_, restore := stub(t)
 	defer restore()
@@ -99,19 +70,16 @@ func TestInspectMissingNpmIsUnsupported(t *testing.T) {
 func TestInspectNpmPresentEnablesInstall(t *testing.T) {
 	_, restore := stub(t)
 	defer restore()
-	hostreqkit.LookPathFn = func(name string) (string, error) {
-		if name == "npm" {
-			return "/usr/bin/npm", nil
+	hostreqkittest.RunInstallSupportedProbe(t, func() {
+		hostreqkit.LookPathFn = func(name string) (string, error) {
+			if name == "npm" {
+				return "/usr/bin/npm", nil
+			}
+			return "", os.ErrNotExist
 		}
-		return "", os.ErrNotExist
-	}
-	status := newHandler().Inspect(hostreqkit.Host{OS: "linux"}, baseRequirement())
-	if !status.InstallSupported {
-		t.Fatal("InstallSupported should be true with npm available")
-	}
-	if !strings.Contains(status.PackageName, "@2.12.0") {
-		t.Fatalf("PackageName = %q; want pinned version", status.PackageName)
-	}
+	}, func() hostreqkit.ItemStatus {
+		return newHandler().Inspect(hostreqkit.Host{OS: "linux"}, baseRequirement())
+	}, "@2.12.0")
 }
 
 func TestApplyDryRunMentionsNpmInstall(t *testing.T) {
@@ -129,18 +97,7 @@ func TestApplyDryRunMentionsNpmInstall(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Apply: %v", err)
 	}
-	if out.ExecutionState != hostreqkit.ExecutionWouldInstall {
-		t.Fatalf("ExecutionState = %q", out.ExecutionState)
-	}
-	matched := false
-	for _, n := range out.Notes {
-		if strings.Contains(n, "npm install") && strings.Contains(n, "@2.12.0") {
-			matched = true
-		}
-	}
-	if !matched {
-		t.Fatalf("dry-run note should mention `npm install ...@2.12.0`, got %v", out.Notes)
-	}
+	hostreqkittest.AssertDryRunNote(t, out, "@2.12.0")
 }
 
 func TestApplyInstallsAndSymlinks(t *testing.T) {
@@ -168,7 +125,7 @@ func TestApplyInstallsAndSymlinks(t *testing.T) {
 			if err := os.MkdirAll(binDir, 0o755); err != nil {
 				return err
 			}
-			return os.WriteFile(binPath, []byte("#!/bin/sh\necho 2.12.0\n"), 0o755)
+			return os.WriteFile(binPath, []byte(shelltest.POSIXShebang()+"echo 2.12.0\n"), 0o755)
 		}
 		// mkdir -p / ln -sfn flow through fakeFSExec so the test
 		// exercises the real filesystem boundary.

@@ -12,6 +12,10 @@ import (
 	"github.com/vrooli/vrooli/internal/resources/securestore"
 )
 
+const (
+	authorityParameterA = 2
+)
+
 const credentialService = "vrooli.credentials.v1"
 
 // The credential failure taxonomy. Three conditions exist on a real host and
@@ -110,7 +114,7 @@ func ParseIdentity(raw string) (Identity, error) {
 		return "", fmt.Errorf("credential logical identity is required and must be namespaced")
 	}
 	parts := strings.Split(value, "/")
-	if len(parts) < 2 {
+	if len(parts) < authorityParameterA {
 		return "", fmt.Errorf("credential logical identity must be namespaced")
 	}
 	for _, part := range parts {

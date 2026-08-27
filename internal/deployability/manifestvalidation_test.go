@@ -1,6 +1,9 @@
 package deployability
 
 import (
+	"encoding/json"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -137,5 +140,93 @@ func TestValidateManifestDeclarationsRejectsAMalformedVocabulary(t *testing.T) {
 	}
 	if err := ValidateManifestDeclarations(nil, []string{" "}); err == nil {
 		t.Fatal("expected an empty vocabulary entry to be rejected")
+	}
+}
+
+func TestValidateManifestDeclarationsRejectsClosedCellMechanismAndMissingReview(t *testing.T) {
+	declaration := ManifestDeclaration{
+		Path: "internal/safeguards/example/safeguard.json", Name: "example", Capability: "host-metrics", Role: "control",
+		Platforms: map[string]PlatformDeclaration{"windows": {
+			Status: string(StatusNotApplicable), Mechanism: "handler", EvidenceRaw: `"Windows has no equivalent"`,
+		}},
+	}
+	err := ValidateManifestDeclarations([]ManifestDeclaration{declaration}, []string{"host-metrics"})
+	if err == nil || !strings.Contains(err.Error(), "not_applicable") {
+		t.Fatalf("expected closed-cell contract rejection, got %v", err)
+	}
+}
+
+func TestValidateManifestDeclarationsRejectsUnwiredGenericAndCircularClaim(t *testing.T) {
+	declaration := ManifestDeclaration{
+		Path: "internal/safeguards/example/safeguard.json", Name: "example", Capability: "host-metrics", Role: "control",
+		Platforms: map[string]PlatformDeclaration{"windows": {
+			Status: string(StatusNotImplemented), Mechanism: "handler", Since: "2026-01-01", EvidenceRaw: `"no implementation for the Windows host mechanism"`,
+		}},
+	}
+	err := ValidateManifestDeclarations([]ManifestDeclaration{declaration}, []string{"host-metrics"})
+	if err == nil || !strings.Contains(err.Error(), "generic handler") {
+		t.Fatalf("expected unwired mechanism rejection, got %v", err)
+	}
+}
+
+// TestDeclarationFixturesStayExecutable keeps the negative examples named by
+// the portability plan on disk. Inline examples are useful unit tests, but
+// they do not protect the reviewed fixture corpus from being deleted or
+// drifting away from the manifest shape that the repository gate reads.
+func TestDeclarationFixturesStayExecutable(t *testing.T) {
+	root := filepath.Join("testdata", "declarations")
+	cases := []struct {
+		name     string
+		contains string
+	}{
+		{name: "not_applicable-with-mechanism.json", contains: "not_applicable with mechanism"},
+		{name: "not_implemented-without-mechanism.json", contains: "not_implemented without mechanism"},
+		{name: "circular-evidence.json", contains: "circular evidence phrase"},
+	}
+	for _, testCase := range cases {
+		t.Run(testCase.name, func(t *testing.T) {
+			path := filepath.Join(root, testCase.name)
+			data, err := os.ReadFile(path)
+			if err != nil {
+				t.Fatal(err)
+			}
+			var fixture struct {
+				Path       string `json:"path"`
+				Name       string `json:"name"`
+				Capability string `json:"capability"`
+				Role       string `json:"capability_role"`
+				Platforms  map[string]struct {
+					Status    string          `json:"status"`
+					Mechanism string          `json:"mechanism"`
+					Since     string          `json:"since"`
+					ReviewBy  string          `json:"review_by"`
+					Evidence  json.RawMessage `json:"evidence"`
+				} `json:"platform_status"`
+			}
+			if err := json.Unmarshal(data, &fixture); err != nil {
+				t.Fatal(err)
+			}
+			declarations := make(map[string]PlatformDeclaration, len(fixture.Platforms))
+			for hostOS, platform := range fixture.Platforms {
+				declarations[hostOS] = PlatformDeclaration{
+					Status: platform.Status, Mechanism: platform.Mechanism,
+					Since: platform.Since, ReviewBy: platform.ReviewBy,
+					EvidenceRaw: string(platform.Evidence),
+				}
+			}
+			err = ValidateManifestDeclarations([]ManifestDeclaration{{
+				Path: fixture.Path, Name: fixture.Name, Capability: fixture.Capability,
+				Role: fixture.Role, Platforms: declarations,
+			}}, []string{fixture.Capability})
+			if err == nil {
+				t.Fatal("negative declaration fixture unexpectedly validated")
+			}
+			if !strings.Contains(err.Error(), fixture.Path) {
+				t.Fatalf("failure does not name fixture manifest path %q: %v", fixture.Path, err)
+			}
+			if !strings.Contains(err.Error(), testCase.contains) {
+				t.Fatalf("failure does not name expected defect %q: %v", testCase.contains, err)
+			}
+		})
 	}
 }

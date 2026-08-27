@@ -9,6 +9,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vrooli/vrooli/internal/tuning"
+
 	repocontract "github.com/vrooli/repo-contract-go"
 )
 
@@ -78,6 +80,7 @@ func NewRepairService() RepairService {
 	return RepairService{ResolveRoot: resolveManagedRoot}
 }
 
+//nolint:gocyclo // ordered repair phases encode distinct ownership, rollback, and verification outcomes.
 func (s RepairService) Repair(ctx context.Context, req RepairRequest) (RepairResult, error) {
 	started := time.Now()
 	result := RepairResult{Scope: req.Scope, Status: RepairComplete}
@@ -88,7 +91,7 @@ func (s RepairService) Repair(ctx context.Context, req RepairRequest) (RepairRes
 		req.MaxEntries = 1_000_000
 	}
 	if req.Deadline.IsZero() {
-		req.Deadline = time.Now().Add(30 * time.Minute)
+		req.Deadline = time.Now().Add(tuning.RepairDeadline)
 	}
 	if s.ResolveRoot == nil {
 		s.ResolveRoot = resolveManagedRoot

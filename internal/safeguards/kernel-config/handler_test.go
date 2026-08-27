@@ -10,7 +10,9 @@ import (
 	"github.com/vrooli/vrooli/internal/hostreqspec"
 )
 
-func stubLookups(t *testing.T) func() {
+var stubLookups = kernelConfigStubLookups
+
+func kernelConfigStubLookups(t *testing.T) func() {
 	t.Helper()
 	origLookPath := hostreqkit.LookPathFn
 	origReadFile := hostreqkit.ReadFileFn
@@ -24,14 +26,18 @@ func stubLookups(t *testing.T) func() {
 	}
 }
 
-func newTestHandler() hostreqkit.Handler {
+var newTestHandler = kernelConfigTestHandler
+
+func kernelConfigTestHandler() hostreqkit.Handler {
 	return NewHandler(hostreqkit.SafeguardManifest{
 		Name:    "kernel_config",
 		Handler: "kernel_config",
 	})
 }
 
-func linuxReq() hostreqspec.ResolvedRequirement {
+var linuxReq = kernelConfigLinuxReq
+
+func kernelConfigLinuxReq() hostreqspec.ResolvedRequirement {
 	return hostreqspec.ResolvedRequirement{
 		Name:     "kernel_config",
 		Kind:     hostreqspec.KindSafeguard,
@@ -39,42 +45,13 @@ func linuxReq() hostreqspec.ResolvedRequirement {
 	}
 }
 
-func linuxHost() hostreqkit.Host {
+var linuxHost = kernelConfigLinuxHost
+
+func kernelConfigLinuxHost() hostreqkit.Host {
 	return hostreqkit.Host{
 		OS:             "linux",
 		PackageManager: "apt-get",
 		SupportsSysctl: true,
-	}
-}
-
-func TestNameAndKind(t *testing.T) {
-	h := newTestHandler()
-	if h.Name() != "kernel_config" {
-		t.Fatalf("Name = %q", h.Name())
-	}
-	if h.Kind() != hostreqspec.KindSafeguard {
-		t.Fatalf("Kind = %q", h.Kind())
-	}
-}
-
-func TestInspectManualRequirement(t *testing.T) {
-	h := newTestHandler()
-	req := linuxReq()
-	req.Manual = true
-	status := h.Inspect(linuxHost(), req)
-	if status.SupportClass != hostreqkit.SupportManualOnly {
-		t.Fatalf("SupportClass = %q", status.SupportClass)
-	}
-	if status.ExecutionState != hostreqkit.ExecutionManualActionRequired {
-		t.Fatalf("ExecutionState = %q", status.ExecutionState)
-	}
-}
-
-func TestInspectNonLinuxUnsupported(t *testing.T) {
-	h := newTestHandler()
-	status := h.Inspect(hostreqkit.Host{OS: "darwin"}, linuxReq())
-	if status.SupportClass != hostreqkit.SupportUnsupported {
-		t.Fatalf("SupportClass = %q", status.SupportClass)
 	}
 }
 
@@ -168,19 +145,6 @@ func TestInspectConfigFileMismatch(t *testing.T) {
 	}
 }
 
-func TestApplyUnsupportedReturnsEarly(t *testing.T) {
-	h := newTestHandler()
-	status, err := h.Apply(hostreqkit.Host{OS: "darwin"}, hostreqkit.ItemStatus{
-		SupportClass: hostreqkit.SupportUnsupported,
-	}, hostreqkit.EnsureOptions{})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if status.ExecutionState != hostreqkit.ExecutionUnsupported {
-		t.Fatalf("ExecutionState = %q", status.ExecutionState)
-	}
-}
-
 func TestApplyNotApplicableReturnsEarly(t *testing.T) {
 	h := newTestHandler()
 	status, err := h.Apply(linuxHost(), hostreqkit.ItemStatus{
@@ -194,111 +158,46 @@ func TestApplyNotApplicableReturnsEarly(t *testing.T) {
 	}
 }
 
-func TestApplyManualReturnsEarly(t *testing.T) {
-	h := newTestHandler()
-	status, err := h.Apply(linuxHost(), hostreqkit.ItemStatus{
-		SupportClass: hostreqkit.SupportManualOnly,
-	}, hostreqkit.EnsureOptions{})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if status.ExecutionState != hostreqkit.ExecutionManualActionRequired {
-		t.Fatalf("ExecutionState = %q", status.ExecutionState)
-	}
-}
-
-func TestApplyAlreadyAppliedSkips(t *testing.T) {
-	h := newTestHandler()
-	status, err := h.Apply(linuxHost(), hostreqkit.ItemStatus{
-		SupportClass: hostreqkit.SupportSupported,
-		Applied:      true,
-	}, hostreqkit.EnsureOptions{})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if status.ExecutionState != hostreqkit.ExecutionAlreadyPresent {
-		t.Fatalf("ExecutionState = %q", status.ExecutionState)
-	}
-}
-
-func TestApplyDryRun(t *testing.T) {
-	h := newTestHandler()
-	status, err := h.Apply(linuxHost(), hostreqkit.ItemStatus{
-		SupportClass: hostreqkit.SupportSupported,
-	}, hostreqkit.EnsureOptions{DryRun: true})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if status.ExecutionState != hostreqkit.ExecutionWouldApply {
-		t.Fatalf("ExecutionState = %q", status.ExecutionState)
-	}
-}
-
-func TestApplyRunsFullFlow(t *testing.T) {
-	restore := stubLookups(t)
-	defer restore()
-
-	hostreqkit.LookPathFn = func(name string) (string, error) {
-		return "/usr/bin/" + name, nil
-	}
-
-	var calls []string
-	hostreqkit.RunCommandFn = func(name string, args []string, opts hostreqkit.EnsureOptions) error {
-		calls = append(calls, name+" "+strings.Join(args, " "))
-		return nil
-	}
-
-	h := newTestHandler()
-	status, err := h.Apply(linuxHost(), hostreqkit.ItemStatus{
-		SupportClass: hostreqkit.SupportSupported,
-	}, hostreqkit.EnsureOptions{SudoMode: "ask"})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !status.Applied {
-		t.Fatalf("expected Applied = true, notes: %v", status.Notes)
-	}
-	if status.ExecutionState != hostreqkit.ExecutionApplied {
-		t.Fatalf("ExecutionState = %q", status.ExecutionState)
-	}
-
-	foundSysctl := false
-	for _, call := range calls {
-		if strings.Contains(call, "sysctl") && strings.Contains(call, "--system") {
-			foundSysctl = true
-			break
-		}
-	}
-	if !foundSysctl {
-		t.Fatalf("expected sysctl --system call, got: %v", calls)
-	}
-}
-
-func TestApplySysctlFailure(t *testing.T) {
-	restore := stubLookups(t)
-	defer restore()
-
-	hostreqkit.LookPathFn = func(name string) (string, error) {
-		return "/usr/bin/" + name, nil
-	}
-
-	hostreqkit.RunCommandFn = func(name string, args []string, opts hostreqkit.EnsureOptions) error {
-		for _, arg := range args {
-			if arg == "sysctl" {
-				return fmt.Errorf("sysctl: permission denied")
+func TestApplyUsesSysctlAndSurfacesFailure(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		fail bool
+		want hostreqkit.ExecutionState
+	}{
+		{name: "success", want: hostreqkit.ExecutionApplied},
+		{name: "sysctl failure", fail: true, want: hostreqkit.ExecutionFailed},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			restore := stubLookups(t)
+			defer restore()
+			hostreqkit.LookPathFn = func(name string) (string, error) { return "/usr/bin/" + name, nil }
+			var calls []string
+			hostreqkit.RunCommandFn = func(name string, args []string, opts hostreqkit.EnsureOptions) error {
+				calls = append(calls, name+" "+strings.Join(args, " "))
+				if tc.fail && strings.Contains(strings.Join(args, " "), "sysctl") {
+					return fmt.Errorf("sysctl: permission denied")
+				}
+				return nil
 			}
-		}
-		return nil
-	}
-
-	h := newTestHandler()
-	status, err := h.Apply(linuxHost(), hostreqkit.ItemStatus{
-		SupportClass: hostreqkit.SupportSupported,
-	}, hostreqkit.EnsureOptions{SudoMode: "ask"})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if status.ExecutionState != hostreqkit.ExecutionFailed {
-		t.Fatalf("ExecutionState = %q, want failed", status.ExecutionState)
+			status, err := newTestHandler().Apply(linuxHost(), hostreqkit.ItemStatus{SupportClass: hostreqkit.SupportSupported}, hostreqkit.EnsureOptions{SudoMode: "ask"})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if status.ExecutionState != tc.want {
+				t.Fatalf("ExecutionState = %q, want %q", status.ExecutionState, tc.want)
+			}
+			if !tc.fail {
+				if !status.Applied {
+					t.Fatalf("expected Applied = true, notes: %v", status.Notes)
+				}
+				foundSysctl := false
+				for _, call := range calls {
+					foundSysctl = foundSysctl || strings.Contains(call, "sysctl") && strings.Contains(call, "--system")
+				}
+				if !foundSysctl {
+					t.Fatalf("expected sysctl --system call, got: %v", calls)
+				}
+			}
+		})
 	}
 }

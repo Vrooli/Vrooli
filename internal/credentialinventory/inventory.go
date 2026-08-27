@@ -13,6 +13,7 @@ import (
 
 	"github.com/vrooli/vrooli/internal/credentialauthority"
 	"github.com/vrooli/vrooli/internal/credentialspec"
+	"github.com/vrooli/vrooli/internal/repocontractmeta"
 	"github.com/vrooli/vrooli/internal/resources"
 	"github.com/vrooli/vrooli/internal/resources/catalog"
 	resourceenv "github.com/vrooli/vrooli/internal/resources/env"
@@ -56,7 +57,7 @@ type SystemEntry struct {
 // index; values are never opened. The release-authority reference is stable
 // and is included even on hosts whose backend does not expose an index.
 func ManagedSystemEntries(root string) []SystemEntry {
-	if _, err := os.Stat(filepath.Join(root, ".vrooli")); err != nil {
+	if _, err := os.Stat(filepath.Join(root, repocontractmeta.ProjectConfigDir)); err != nil {
 		return nil
 	}
 	seen := map[string]SystemEntry{}
@@ -95,6 +96,8 @@ func ManagedSystemEntries(root string) []SystemEntry {
 
 // Collect returns configured credential addresses and the required addresses
 // that are declared but absent. It never returns a credential value.
+//
+//nolint:gocyclo // inventory collection merges independent provider, filesystem, and verification outcomes.
 func Collect(root string) (Result, error) {
 	if strings.TrimSpace(root) == "" {
 		return Result{}, nil
@@ -178,7 +181,7 @@ func Collect(root string) (Result, error) {
 	// declaration from, so the project manifest is their authoritative owner.
 	// Read it through the same manifest parser as scenarios so credential
 	// uniqueness and descriptor validation cannot drift between the two paths.
-	projectManifestPath := filepath.Join(root, ".vrooli", "service.json")
+	projectManifestPath := filepath.Join(root, repocontractmeta.ProjectConfigDir, "service.json")
 	if projectManifest, projectErr := scenario.ReadService(projectManifestPath); projectErr == nil {
 		if len(projectManifest.Credentials.All()) > 0 {
 			if err := add("project", projectManifest.Credentials); err != nil {

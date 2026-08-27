@@ -8,18 +8,24 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vrooli/vrooli/internal/tuning"
+
 	"github.com/vrooli/vrooli/internal/resources/securestore"
 	credentialauthority "github.com/vrooli/vrooli/packages/credential-authority-go"
 	resourcedeployment "github.com/vrooli/vrooli/packages/resource-deployment"
 	vaultbootstrap "github.com/vrooli/vrooli/packages/vaultbootstrap-go"
 )
 
+const (
+	vaultBootstrapVault = "vault"
+)
+
 func init() {
-	registerManagedSharedBootstrapper("vault", func(ctx context.Context, host *UserResourceHost, instance ManagedInstance, appScope string) error {
+	registerManagedSharedBootstrapper(vaultBootstrapVault, func(ctx context.Context, host *UserResourceHost, instance ManagedInstance, appScope string) error {
 		_, err := host.EnsureVault(ctx, instance, appScope, HTTPVaultBootstrapper{})
 		return err
 	})
-	registerManagedPrivateBootstrapper("vault", bootstrapPrivateVault)
+	registerManagedPrivateBootstrapper(vaultBootstrapVault, bootstrapPrivateVault)
 }
 
 // privateVaultSecureStore is injectable only to make the resource-native
@@ -114,7 +120,7 @@ func bootstrapPrivateVault(ctx context.Context, state ManagedServiceState, endpo
 	if err := securestore.ProbeWritable(store); err != nil {
 		return fmt.Errorf("private Vault requires operating-system secure storage: %w", err)
 	}
-	instance := ManagedInstance{ID: state.InstanceID, Resource: "vault", Provider: resourcedeployment.ProviderManagedPrivate, Endpoint: endpoint}
+	instance := ManagedInstance{ID: state.InstanceID, Resource: vaultBootstrapVault, Provider: resourcedeployment.ProviderManagedPrivate, Endpoint: endpoint}
 	bootstrap := HTTPVaultBootstrapper{}
 	if err := waitForVaultBootstrapReachability(ctx, endpoint); err != nil {
 		return err
@@ -156,7 +162,7 @@ func bootstrapPrivateVault(ctx context.Context, state ManagedServiceState, endpo
 	if err := ensureVaultKVv2(ctx, endpoint, material.RootToken); err != nil {
 		return fmt.Errorf("configure private Vault KV v2: %w", err)
 	}
-	lease := Lease{ID: "private-bootstrap-" + state.InstanceID, InstanceID: state.InstanceID, Scope: "private-bootstrap", ExpiresAt: time.Now().Add(5 * time.Minute)}
+	lease := Lease{ID: "private-bootstrap-" + state.InstanceID, InstanceID: state.InstanceID, Scope: "private-bootstrap", ExpiresAt: time.Now().Add(tuning.LongOperationTimeout)}
 	credential, err := (VaultCredentialIssuer{ManagementToken: func(ManagedInstance) (string, error) { return material.RootToken, nil }}).IssueScopedCredential(instance, lease)
 	if err != nil {
 		return fmt.Errorf("issue private Vault scoped credential: %w", err)
@@ -179,7 +185,7 @@ func (h *UserResourceHost) StartVaultBrokerControl(listener net.Listener, creden
 		return nil, err
 	}
 	issuer := VaultCredentialIssuer{ManagementToken: h.VaultManagementToken}
-	if err := server.RegisterCredentialIssuer("vault", issuer); err != nil {
+	if err := server.RegisterCredentialIssuer(vaultBootstrapVault, issuer); err != nil {
 		_ = server.Close(context.Background())
 		return nil, err
 	}
@@ -197,7 +203,7 @@ func (h *UserResourceHost) StartVaultBrokerControlWithLifecycle(listener net.Lis
 	}
 	lifecycle, err := NewManagedServiceOwnerLifecycle(controller, manifest)
 	if err == nil {
-		err = server.RegisterOwnerLifecycle("vault", lifecycle)
+		err = server.RegisterOwnerLifecycle(vaultBootstrapVault, lifecycle)
 	}
 	if err != nil {
 		_ = server.Close(context.Background())
@@ -275,11 +281,13 @@ func ClassifyVaultSealStatus(initialized, sealed bool) VaultLifecycleState {
 // EnsureVault stores Vault recovery material before the shared instance is
 // leasable. It is recovery-safe: an initialized instance is unsealed using
 // secure material, while a fresh instance initializes once.
+//
+//nolint:gocyclo // Vault bootstrap preserves readiness, initialization, policy, and recovery transitions.
 func (h *UserResourceHost) EnsureVault(ctx context.Context, instance ManagedInstance, appScope string, bootstrap VaultBootstrapper) (ManagedInstance, error) {
 	if h == nil || h.Broker == nil || h.Secrets == nil || bootstrap == nil {
 		return ManagedInstance{}, fmt.Errorf("user resource host is incomplete")
 	}
-	if instance.Resource != "vault" || instance.Provider != resourcedeployment.ProviderManagedShared || instance.OwnerScope != h.OwnerScope || !isLoopbackManagedEndpoint(instance.Endpoint) {
+	if instance.Resource != vaultBootstrapVault || instance.Provider != resourcedeployment.ProviderManagedShared || instance.OwnerScope != h.OwnerScope || !isLoopbackManagedEndpoint(instance.Endpoint) {
 		return ManagedInstance{}, fmt.Errorf("Vault user-host instance is not a verified owned loopback service")
 	}
 	if h.VerifyAttestation != nil {
@@ -344,7 +352,7 @@ func (h *UserResourceHost) EnsureVault(ctx context.Context, instance ManagedInst
 		ID:         "bootstrap-" + instance.ID,
 		InstanceID: instance.ID,
 		Scope:      appScope,
-		ExpiresAt:  time.Now().Add(5 * time.Minute),
+		ExpiresAt:  time.Now().Add(tuning.LongOperationTimeout),
 	}
 	credential, err := (VaultCredentialIssuer{ManagementToken: h.VaultManagementToken}).IssueScopedCredential(instance, lease)
 	if err != nil {
@@ -372,14 +380,14 @@ func ensureVaultKVv2(ctx context.Context, endpoint, managementToken string) erro
 }
 
 func waitForVaultBootstrapReachability(parent context.Context, endpoint string) error {
-	return vaultbootstrap.Client{Endpoint: endpoint}.WaitReachable(parent, 60*time.Second)
+	return vaultbootstrap.Client{Endpoint: endpoint}.WaitReachable(parent, tuning.ReachabilityTimeout)
 }
 
 // VaultManagementToken is the only bridge from secure storage to Vault's
 // resource-native credential issuer. It never serializes the token into
 // broker state or host status.
 func (h *UserResourceHost) VaultManagementToken(instance ManagedInstance) (string, error) {
-	if h == nil || h.Secrets == nil || instance.Resource != "vault" {
+	if h == nil || h.Secrets == nil || instance.Resource != vaultBootstrapVault {
 		return "", fmt.Errorf("Vault management token is unavailable")
 	}
 	material, found, err := loadVaultBootstrapMaterial(h.Secrets, instance.ID)

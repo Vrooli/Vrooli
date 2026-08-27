@@ -7,6 +7,13 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/vrooli/vrooli/internal/hostreqspec"
+)
+
+const (
+	acceleratorProbesNoDevices   = "no_devices"
+	acceleratorProbesUnsupported = "unsupported"
 )
 
 // rocmComputeNodes are the kernel interfaces the ROCm runtime opens. /dev/kfd
@@ -17,7 +24,7 @@ var rocmComputeNodes = []string{"/dev/kfd"}
 // vulkanICDDirs are the well-known per-platform directories a Vulkan loader
 // reads installable client driver manifests from.
 var vulkanICDDirs = map[string][]string{
-	"linux": {
+	string(hostreqspec.PlatformLinux): {
 		"/usr/share/vulkan/icd.d",
 		"/usr/local/share/vulkan/icd.d",
 		"/etc/vulkan/icd.d",
@@ -51,11 +58,11 @@ func (c Collector) collectROCm(_ context.Context, snap *Snapshot, observedAt tim
 	path, err := c.Commands.LookPath(ToolROCmSMI)
 	snap.RuntimeTools[ToolROCmSMI] = Tool{Present: err == nil, Path: path}
 
-	if snap.OS != "linux" {
+	if hostreqspec.PlatformFromGOOS(snap.OS) != hostreqspec.PlatformLinux {
 		// ROCm's kernel compute interface is Linux-only. Every other platform
-		// reports "unsupported" rather than "no devices", so a consumer can
+		// reports acceleratorProbesUnsupported rather than "no devices", so a consumer can
 		// tell "cannot have it here" from "could, but does not".
-		snap.ProbeStatuses["rocm"] = "unsupported"
+		snap.ProbeStatuses["rocm"] = acceleratorProbesUnsupported
 		return
 	}
 	nodes := make([]string, 0, len(rocmComputeNodes))
@@ -68,7 +75,7 @@ func (c Collector) collectROCm(_ context.Context, snap *Snapshot, observedAt tim
 	snap.ROCmDeviceNodes = nodes
 	snap.OpenableDeviceNodes = appendOpenableNodes(snap.OpenableDeviceNodes, nodes)
 	if len(nodes) == 0 {
-		snap.ProbeStatuses["rocm"] = "no_devices"
+		snap.ProbeStatuses["rocm"] = acceleratorProbesNoDevices
 		return
 	}
 	snap.ProbeStatuses["rocm"] = "ok"
@@ -87,7 +94,7 @@ func (c Collector) collectROCm(_ context.Context, snap *Snapshot, observedAt tim
 func (c Collector) collectVulkanICDs(snap *Snapshot, observedAt time.Time) {
 	dirs, supported := vulkanICDDirs[snap.OS]
 	if !supported || len(dirs) == 0 {
-		snap.ProbeStatuses["vulkan"] = "unsupported"
+		snap.ProbeStatuses["vulkan"] = acceleratorProbesUnsupported
 		return
 	}
 	var manifests []string
@@ -101,7 +108,7 @@ func (c Collector) collectVulkanICDs(snap *Snapshot, observedAt time.Time) {
 	sort.Strings(manifests)
 	snap.VulkanICDs = manifests
 	if len(manifests) == 0 {
-		snap.ProbeStatuses["vulkan"] = "no_devices"
+		snap.ProbeStatuses["vulkan"] = acceleratorProbesNoDevices
 		return
 	}
 	snap.ProbeStatuses["vulkan"] = "ok"

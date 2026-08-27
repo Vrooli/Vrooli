@@ -13,7 +13,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file system-monitor/v1/scripts/scripts.proto.
  */
 export const file_system_monitor_v1_scripts_scripts: GenFile = /*@__PURE__*/
-  fileDesc("CidzeXN0ZW0tbW9uaXRvci92MS9zY3JpcHRzL3NjcmlwdHMucHJvdG8SIHZyb29saS5zeXN0ZW1fbW9uaXRvci52MS5zY3JpcHRzIpwCChNJbnZlc3RpZ2F0aW9uU2NyaXB0EgoKAmlkGAEgASgJEgwKBG5hbWUYAiABKAkSEwoLZGVzY3JpcHRpb24YAyABKAkSEAoIY2F0ZWdvcnkYBCABKAkSLgoKY3JlYXRlZF9hdBgFIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASLgoKdXBkYXRlZF9hdBgGIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASDgoGYXV0aG9yGAcgASgJEg8KB2VuYWJsZWQYCCABKAgSFgoOZXhlY3V0aW9uX21vZGUYDSABKAkSFgoOcmVxdWlyZWRfdG9vbHMYDiADKAkSEwoLc2tpcF9yZWFzb24YDyABKAki1AMKD1NjcmlwdEV4ZWN1dGlvbhIRCglzY3JpcHRfaWQYASABKAkSFAoMZXhlY3V0aW9uX2lkGAIgASgJEkcKBnN0YXR1cxgDIAEoDjI3LnZyb29saS5zeXN0ZW1fbW9uaXRvci52MS5zY3JpcHRzLlNjcmlwdEV4ZWN1dGlvblN0YXR1cxIuCgpzdGFydGVkX2F0GAQgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBI1Cgxjb21wbGV0ZWRfYXQYBSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wSACIAQESDgoGb3V0cHV0GAYgASgJEg0KBWVycm9yGAcgASgJEhYKCWV4aXRfY29kZRgIIAEoBUgBiAEBEg4KBnN0ZG91dBgJIAEoCRIOCgZzdGRlcnIYCiABKAkSEQoJdGltZWRfb3V0GAsgASgIEh0KEGR1cmF0aW9uX3NlY29uZHMYDCABKAFIAogBARIWCg5leGVjdXRpb25fbW9kZRgNIAEoCRITCgtza2lwX3JlYXNvbhgOIAEoCUIPCg1fY29tcGxldGVkX2F0QgwKCl9leGl0X2NvZGVCEwoRX2R1cmF0aW9uX3NlY29uZHMiFAoSTGlzdFNjcmlwdHNSZXF1ZXN0Il0KE0xpc3RTY3JpcHRzUmVzcG9uc2USRgoHc2NyaXB0cxgBIAMoCzI1LnZyb29saS5zeXN0ZW1fbW9uaXRvci52MS5zY3JpcHRzLkludmVzdGlnYXRpb25TY3JpcHQiHgoQR2V0U2NyaXB0UmVxdWVzdBIKCgJpZBgBIAEoCSJrChFHZXRTY3JpcHRSZXNwb25zZRJFCgZzY3JpcHQYASABKAsyNS52cm9vbGkuc3lzdGVtX21vbml0b3IudjEuc2NyaXB0cy5JbnZlc3RpZ2F0aW9uU2NyaXB0Eg8KB2NvbnRlbnQYAiABKAkiMgoTVXBkYXRlU2NyaXB0UmVxdWVzdBIKCgJpZBgBIAEoCRIPCgdjb250ZW50GAIgASgJIkQKFEV4ZWN1dGVTY3JpcHRSZXF1ZXN0EgoKAmlkGAEgASgJEhQKB2NvbnRlbnQYAiABKAlIAIgBAUIKCghfY29udGVudCJdChVFeGVjdXRlU2NyaXB0UmVzcG9uc2USRAoJZXhlY3V0aW9uGAEgASgLMjEudnJvb2xpLnN5c3RlbV9tb25pdG9yLnYxLnNjcmlwdHMuU2NyaXB0RXhlY3V0aW9uKtUBChVTY3JpcHRFeGVjdXRpb25TdGF0dXMSJwojU0NSSVBUX0VYRUNVVElPTl9TVEFUVVNfVU5TUEVDSUZJRUQQABIjCh9TQ1JJUFRfRVhFQ1VUSU9OX1NUQVRVU19SVU5OSU5HEAESJQohU0NSSVBUX0VYRUNVVElPTl9TVEFUVVNfQ09NUExFVEVEEAISIgoeU0NSSVBUX0VYRUNVVElPTl9TVEFUVVNfRkFJTEVEEAMSIwofU0NSSVBUX0VYRUNVVElPTl9TVEFUVVNfU0tJUFBFRBAEMsEFCg5TY3JpcHRzU2VydmljZRKiAQoLTGlzdFNjcmlwdHMSNC52cm9vbGkuc3lzdGVtX21vbml0b3IudjEuc2NyaXB0cy5MaXN0U2NyaXB0c1JlcXVlc3QaNS52cm9vbGkuc3lzdGVtX21vbml0b3IudjEuc2NyaXB0cy5MaXN0U2NyaXB0c1Jlc3BvbnNlIiaC0+STAiASHi9hcGkvdjEvaW52ZXN0aWdhdGlvbnMvc2NyaXB0cxKhAQoJR2V0U2NyaXB0EjIudnJvb2xpLnN5c3RlbV9tb25pdG9yLnYxLnNjcmlwdHMuR2V0U2NyaXB0UmVxdWVzdBozLnZyb29saS5zeXN0ZW1fbW9uaXRvci52MS5zY3JpcHRzLkdldFNjcmlwdFJlc3BvbnNlIiuC0+STAiUSIy9hcGkvdjEvaW52ZXN0aWdhdGlvbnMvc2NyaXB0cy97aWR9EqoBCgxVcGRhdGVTY3JpcHQSNS52cm9vbGkuc3lzdGVtX21vbml0b3IudjEuc2NyaXB0cy5VcGRhdGVTY3JpcHRSZXF1ZXN0GjMudnJvb2xpLnN5c3RlbV9tb25pdG9yLnYxLnNjcmlwdHMuR2V0U2NyaXB0UmVzcG9uc2UiLoLT5JMCKDoBKhojL2FwaS92MS9pbnZlc3RpZ2F0aW9ucy9zY3JpcHRzL3tpZH0SuAEKDUV4ZWN1dGVTY3JpcHQSNi52cm9vbGkuc3lzdGVtX21vbml0b3IudjEuc2NyaXB0cy5FeGVjdXRlU2NyaXB0UmVxdWVzdBo3LnZyb29saS5zeXN0ZW1fbW9uaXRvci52MS5zY3JpcHRzLkV4ZWN1dGVTY3JpcHRSZXNwb25zZSI2gtPkkwIwOgEqIisvYXBpL3YxL2ludmVzdGlnYXRpb25zL3NjcmlwdHMve2lkfS9leGVjdXRlQlJaUGdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vc3lzdGVtLW1vbml0b3IvdjEvc2NyaXB0cztzY3JpcHRzYgZwcm90bzM", [file_google_api_annotations, file_google_protobuf_timestamp]);
+  fileDesc("CidzeXN0ZW0tbW9uaXRvci92MS9zY3JpcHRzL3NjcmlwdHMucHJvdG8SIHZyb29saS5zeXN0ZW1fbW9uaXRvci52MS5zY3JpcHRzIr8CChNJbnZlc3RpZ2F0aW9uU2NyaXB0EgoKAmlkGAEgASgJEgwKBG5hbWUYAiABKAkSEwoLZGVzY3JpcHRpb24YAyABKAkSEAoIY2F0ZWdvcnkYBCABKAkSLgoKY3JlYXRlZF9hdBgFIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASLgoKdXBkYXRlZF9hdBgGIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASDgoGYXV0aG9yGAcgASgJEg8KB2VuYWJsZWQYCCABKAgSFgoOZXhlY3V0aW9uX21vZGUYDSABKAkSFgoOcmVxdWlyZWRfdG9vbHMYDiADKAkSEwoLc2tpcF9yZWFzb24YDyABKAkSEQoJcGxhdGZvcm1zGBAgAygJEg4KBnNvdXJjZRgRIAEoCSLUAwoPU2NyaXB0RXhlY3V0aW9uEhEKCXNjcmlwdF9pZBgBIAEoCRIUCgxleGVjdXRpb25faWQYAiABKAkSRwoGc3RhdHVzGAMgASgOMjcudnJvb2xpLnN5c3RlbV9tb25pdG9yLnYxLnNjcmlwdHMuU2NyaXB0RXhlY3V0aW9uU3RhdHVzEi4KCnN0YXJ0ZWRfYXQYBCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEjUKDGNvbXBsZXRlZF9hdBgFIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXBIAIgBARIOCgZvdXRwdXQYBiABKAkSDQoFZXJyb3IYByABKAkSFgoJZXhpdF9jb2RlGAggASgFSAGIAQESDgoGc3Rkb3V0GAkgASgJEg4KBnN0ZGVychgKIAEoCRIRCgl0aW1lZF9vdXQYCyABKAgSHQoQZHVyYXRpb25fc2Vjb25kcxgMIAEoAUgCiAEBEhYKDmV4ZWN1dGlvbl9tb2RlGA0gASgJEhMKC3NraXBfcmVhc29uGA4gASgJQg8KDV9jb21wbGV0ZWRfYXRCDAoKX2V4aXRfY29kZUITChFfZHVyYXRpb25fc2Vjb25kcyIUChJMaXN0U2NyaXB0c1JlcXVlc3QiXQoTTGlzdFNjcmlwdHNSZXNwb25zZRJGCgdzY3JpcHRzGAEgAygLMjUudnJvb2xpLnN5c3RlbV9tb25pdG9yLnYxLnNjcmlwdHMuSW52ZXN0aWdhdGlvblNjcmlwdCIeChBHZXRTY3JpcHRSZXF1ZXN0EgoKAmlkGAEgASgJImsKEUdldFNjcmlwdFJlc3BvbnNlEkUKBnNjcmlwdBgBIAEoCzI1LnZyb29saS5zeXN0ZW1fbW9uaXRvci52MS5zY3JpcHRzLkludmVzdGlnYXRpb25TY3JpcHQSDwoHY29udGVudBgCIAEoCSIyChNVcGRhdGVTY3JpcHRSZXF1ZXN0EgoKAmlkGAEgASgJEg8KB2NvbnRlbnQYAiABKAkiRAoURXhlY3V0ZVNjcmlwdFJlcXVlc3QSCgoCaWQYASABKAkSFAoHY29udGVudBgCIAEoCUgAiAEBQgoKCF9jb250ZW50Il0KFUV4ZWN1dGVTY3JpcHRSZXNwb25zZRJECglleGVjdXRpb24YASABKAsyMS52cm9vbGkuc3lzdGVtX21vbml0b3IudjEuc2NyaXB0cy5TY3JpcHRFeGVjdXRpb24iXAoUSW52ZXN0aWdhdGlvbkZpbmRpbmcSEAoIc2V2ZXJpdHkYASABKAkSDAoEY29kZRgCIAEoCRIPCgdzdW1tYXJ5GAMgASgJEhMKC2RldGFpbF9qc29uGAQgASgJIrsDChBJbnZlc3RpZ2F0aW9uUnVuEgoKAmlkGAEgASgJEhAKCGVudHJ5X2lkGAIgASgJEhYKDmV4ZWN1dGlvbl9tb2RlGAMgASgJEg4KBnN0YXR1cxgEIAEoCRITCgtza2lwX3JlYXNvbhgFIAEoCRIRCglleGl0X2NvZGUYBiABKAUSEQoJdGltZWRfb3V0GAcgASgIEi4KCnN0YXJ0ZWRfYXQYCCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEjAKDGNvbXBsZXRlZF9hdBgJIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASGAoQZHVyYXRpb25fc2Vjb25kcxgKIAEoARIPCgdob3N0X29zGAsgASgJEhEKCWhvc3RfYXJjaBgMIAEoCRITCgtyZXN1bHRfanNvbhgNIAEoCRITCgtzdGRlcnJfdGFpbBgOIAEoCRISCgphbm9tYWx5X2lkGA8gASgJEkgKCGZpbmRpbmdzGBAgAygLMjYudnJvb2xpLnN5c3RlbV9tb25pdG9yLnYxLnNjcmlwdHMuSW52ZXN0aWdhdGlvbkZpbmRpbmciQQoPTGlzdFJ1bnNSZXF1ZXN0EhAKCGVudHJ5X2lkGAEgASgJEg0KBXNpbmNlGAIgASgJEg0KBWxpbWl0GAMgASgFIlQKEExpc3RSdW5zUmVzcG9uc2USQAoEcnVucxgBIAMoCzIyLnZyb29saS5zeXN0ZW1fbW9uaXRvci52MS5zY3JpcHRzLkludmVzdGlnYXRpb25SdW4iGwoNR2V0UnVuUmVxdWVzdBIKCgJpZBgBIAEoCSJRCg5HZXRSdW5SZXNwb25zZRI/CgNydW4YASABKAsyMi52cm9vbGkuc3lzdGVtX21vbml0b3IudjEuc2NyaXB0cy5JbnZlc3RpZ2F0aW9uUnVuIiMKEFBydW5lUnVuc1JlcXVlc3QSDwoHZHJ5X3J1bhgBIAEoCCI1ChFQcnVuZVJ1bnNSZXNwb25zZRIPCgdkZWxldGVkGAEgASgDEg8KB2RyeV9ydW4YAiABKAgq1QEKFVNjcmlwdEV4ZWN1dGlvblN0YXR1cxInCiNTQ1JJUFRfRVhFQ1VUSU9OX1NUQVRVU19VTlNQRUNJRklFRBAAEiMKH1NDUklQVF9FWEVDVVRJT05fU1RBVFVTX1JVTk5JTkcQARIlCiFTQ1JJUFRfRVhFQ1VUSU9OX1NUQVRVU19DT01QTEVURUQQAhIiCh5TQ1JJUFRfRVhFQ1VUSU9OX1NUQVRVU19GQUlMRUQQAxIjCh9TQ1JJUFRfRVhFQ1VUSU9OX1NUQVRVU19TS0lQUEVEEAQylwkKDlNjcmlwdHNTZXJ2aWNlEqIBCgtMaXN0U2NyaXB0cxI0LnZyb29saS5zeXN0ZW1fbW9uaXRvci52MS5zY3JpcHRzLkxpc3RTY3JpcHRzUmVxdWVzdBo1LnZyb29saS5zeXN0ZW1fbW9uaXRvci52MS5zY3JpcHRzLkxpc3RTY3JpcHRzUmVzcG9uc2UiJoLT5JMCIBIeL2FwaS92MS9pbnZlc3RpZ2F0aW9ucy9zY3JpcHRzEqEBCglHZXRTY3JpcHQSMi52cm9vbGkuc3lzdGVtX21vbml0b3IudjEuc2NyaXB0cy5HZXRTY3JpcHRSZXF1ZXN0GjMudnJvb2xpLnN5c3RlbV9tb25pdG9yLnYxLnNjcmlwdHMuR2V0U2NyaXB0UmVzcG9uc2UiK4LT5JMCJRIjL2FwaS92MS9pbnZlc3RpZ2F0aW9ucy9zY3JpcHRzL3tpZH0SqgEKDFVwZGF0ZVNjcmlwdBI1LnZyb29saS5zeXN0ZW1fbW9uaXRvci52MS5zY3JpcHRzLlVwZGF0ZVNjcmlwdFJlcXVlc3QaMy52cm9vbGkuc3lzdGVtX21vbml0b3IudjEuc2NyaXB0cy5HZXRTY3JpcHRSZXNwb25zZSIugtPkkwIoOgEqGiMvYXBpL3YxL2ludmVzdGlnYXRpb25zL3NjcmlwdHMve2lkfRK4AQoNRXhlY3V0ZVNjcmlwdBI2LnZyb29saS5zeXN0ZW1fbW9uaXRvci52MS5zY3JpcHRzLkV4ZWN1dGVTY3JpcHRSZXF1ZXN0GjcudnJvb2xpLnN5c3RlbV9tb25pdG9yLnYxLnNjcmlwdHMuRXhlY3V0ZVNjcmlwdFJlc3BvbnNlIjaC0+STAjA6ASoiKy9hcGkvdjEvaW52ZXN0aWdhdGlvbnMvc2NyaXB0cy97aWR9L2V4ZWN1dGUSlgEKCExpc3RSdW5zEjEudnJvb2xpLnN5c3RlbV9tb25pdG9yLnYxLnNjcmlwdHMuTGlzdFJ1bnNSZXF1ZXN0GjIudnJvb2xpLnN5c3RlbV9tb25pdG9yLnYxLnNjcmlwdHMuTGlzdFJ1bnNSZXNwb25zZSIjgtPkkwIdEhsvYXBpL3YxL2ludmVzdGlnYXRpb25zL3J1bnMSlQEKBkdldFJ1bhIvLnZyb29saS5zeXN0ZW1fbW9uaXRvci52MS5zY3JpcHRzLkdldFJ1blJlcXVlc3QaMC52cm9vbGkuc3lzdGVtX21vbml0b3IudjEuc2NyaXB0cy5HZXRSdW5SZXNwb25zZSIogtPkkwIiEiAvYXBpL3YxL2ludmVzdGlnYXRpb25zL3J1bnMve2lkfRKiAQoJUHJ1bmVSdW5zEjIudnJvb2xpLnN5c3RlbV9tb25pdG9yLnYxLnNjcmlwdHMuUHJ1bmVSdW5zUmVxdWVzdBozLnZyb29saS5zeXN0ZW1fbW9uaXRvci52MS5zY3JpcHRzLlBydW5lUnVuc1Jlc3BvbnNlIiyC0+STAiY6ASoiIS9hcGkvdjEvaW52ZXN0aWdhdGlvbnMvcnVucy9wcnVuZUJSWlBnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL3N5c3RlbS1tb25pdG9yL3YxL3NjcmlwdHM7c2NyaXB0c2IGcHJvdG8z", [file_google_api_annotations, file_google_protobuf_timestamp]);
 
 /**
  * InvestigationScript represents a reusable investigation script.
@@ -98,6 +98,20 @@ export type InvestigationScript = Message<"vrooli.system_monitor.v1.scripts.Inve
    * @generated from field: string skip_reason = 15;
    */
   skipReason: string;
+
+  /**
+   * Host platforms on which the entry has a native backend or shell contract.
+   *
+   * @generated from field: repeated string platforms = 16;
+   */
+  platforms: string[];
+
+  /**
+   * builtin or operator.
+   *
+   * @generated from field: string source = 17;
+   */
+  source: string;
 };
 
 /**
@@ -382,6 +396,247 @@ export const ExecuteScriptResponseSchema: GenMessage<ExecuteScriptResponse> = /*
   messageDesc(file_system_monitor_v1_scripts_scripts, 8);
 
 /**
+ * @generated from message vrooli.system_monitor.v1.scripts.InvestigationFinding
+ */
+export type InvestigationFinding = Message<"vrooli.system_monitor.v1.scripts.InvestigationFinding"> & {
+  /**
+   * @generated from field: string severity = 1;
+   */
+  severity: string;
+
+  /**
+   * @generated from field: string code = 2;
+   */
+  code: string;
+
+  /**
+   * @generated from field: string summary = 3;
+   */
+  summary: string;
+
+  /**
+   * @generated from field: string detail_json = 4;
+   */
+  detailJson: string;
+};
+
+/**
+ * Describes the message vrooli.system_monitor.v1.scripts.InvestigationFinding.
+ * Use `create(InvestigationFindingSchema)` to create a new message.
+ */
+export const InvestigationFindingSchema: GenMessage<InvestigationFinding> = /*@__PURE__*/
+  messageDesc(file_system_monitor_v1_scripts_scripts, 9);
+
+/**
+ * @generated from message vrooli.system_monitor.v1.scripts.InvestigationRun
+ */
+export type InvestigationRun = Message<"vrooli.system_monitor.v1.scripts.InvestigationRun"> & {
+  /**
+   * @generated from field: string id = 1;
+   */
+  id: string;
+
+  /**
+   * @generated from field: string entry_id = 2;
+   */
+  entryId: string;
+
+  /**
+   * @generated from field: string execution_mode = 3;
+   */
+  executionMode: string;
+
+  /**
+   * @generated from field: string status = 4;
+   */
+  status: string;
+
+  /**
+   * @generated from field: string skip_reason = 5;
+   */
+  skipReason: string;
+
+  /**
+   * @generated from field: int32 exit_code = 6;
+   */
+  exitCode: number;
+
+  /**
+   * @generated from field: bool timed_out = 7;
+   */
+  timedOut: boolean;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp started_at = 8;
+   */
+  startedAt?: Timestamp | undefined;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp completed_at = 9;
+   */
+  completedAt?: Timestamp | undefined;
+
+  /**
+   * @generated from field: double duration_seconds = 10;
+   */
+  durationSeconds: number;
+
+  /**
+   * @generated from field: string host_os = 11;
+   */
+  hostOs: string;
+
+  /**
+   * @generated from field: string host_arch = 12;
+   */
+  hostArch: string;
+
+  /**
+   * @generated from field: string result_json = 13;
+   */
+  resultJson: string;
+
+  /**
+   * @generated from field: string stderr_tail = 14;
+   */
+  stderrTail: string;
+
+  /**
+   * @generated from field: string anomaly_id = 15;
+   */
+  anomalyId: string;
+
+  /**
+   * @generated from field: repeated vrooli.system_monitor.v1.scripts.InvestigationFinding findings = 16;
+   */
+  findings: InvestigationFinding[];
+};
+
+/**
+ * Describes the message vrooli.system_monitor.v1.scripts.InvestigationRun.
+ * Use `create(InvestigationRunSchema)` to create a new message.
+ */
+export const InvestigationRunSchema: GenMessage<InvestigationRun> = /*@__PURE__*/
+  messageDesc(file_system_monitor_v1_scripts_scripts, 10);
+
+/**
+ * @generated from message vrooli.system_monitor.v1.scripts.ListRunsRequest
+ */
+export type ListRunsRequest = Message<"vrooli.system_monitor.v1.scripts.ListRunsRequest"> & {
+  /**
+   * @generated from field: string entry_id = 1;
+   */
+  entryId: string;
+
+  /**
+   * @generated from field: string since = 2;
+   */
+  since: string;
+
+  /**
+   * @generated from field: int32 limit = 3;
+   */
+  limit: number;
+};
+
+/**
+ * Describes the message vrooli.system_monitor.v1.scripts.ListRunsRequest.
+ * Use `create(ListRunsRequestSchema)` to create a new message.
+ */
+export const ListRunsRequestSchema: GenMessage<ListRunsRequest> = /*@__PURE__*/
+  messageDesc(file_system_monitor_v1_scripts_scripts, 11);
+
+/**
+ * @generated from message vrooli.system_monitor.v1.scripts.ListRunsResponse
+ */
+export type ListRunsResponse = Message<"vrooli.system_monitor.v1.scripts.ListRunsResponse"> & {
+  /**
+   * @generated from field: repeated vrooli.system_monitor.v1.scripts.InvestigationRun runs = 1;
+   */
+  runs: InvestigationRun[];
+};
+
+/**
+ * Describes the message vrooli.system_monitor.v1.scripts.ListRunsResponse.
+ * Use `create(ListRunsResponseSchema)` to create a new message.
+ */
+export const ListRunsResponseSchema: GenMessage<ListRunsResponse> = /*@__PURE__*/
+  messageDesc(file_system_monitor_v1_scripts_scripts, 12);
+
+/**
+ * @generated from message vrooli.system_monitor.v1.scripts.GetRunRequest
+ */
+export type GetRunRequest = Message<"vrooli.system_monitor.v1.scripts.GetRunRequest"> & {
+  /**
+   * @generated from field: string id = 1;
+   */
+  id: string;
+};
+
+/**
+ * Describes the message vrooli.system_monitor.v1.scripts.GetRunRequest.
+ * Use `create(GetRunRequestSchema)` to create a new message.
+ */
+export const GetRunRequestSchema: GenMessage<GetRunRequest> = /*@__PURE__*/
+  messageDesc(file_system_monitor_v1_scripts_scripts, 13);
+
+/**
+ * @generated from message vrooli.system_monitor.v1.scripts.GetRunResponse
+ */
+export type GetRunResponse = Message<"vrooli.system_monitor.v1.scripts.GetRunResponse"> & {
+  /**
+   * @generated from field: vrooli.system_monitor.v1.scripts.InvestigationRun run = 1;
+   */
+  run?: InvestigationRun | undefined;
+};
+
+/**
+ * Describes the message vrooli.system_monitor.v1.scripts.GetRunResponse.
+ * Use `create(GetRunResponseSchema)` to create a new message.
+ */
+export const GetRunResponseSchema: GenMessage<GetRunResponse> = /*@__PURE__*/
+  messageDesc(file_system_monitor_v1_scripts_scripts, 14);
+
+/**
+ * @generated from message vrooli.system_monitor.v1.scripts.PruneRunsRequest
+ */
+export type PruneRunsRequest = Message<"vrooli.system_monitor.v1.scripts.PruneRunsRequest"> & {
+  /**
+   * @generated from field: bool dry_run = 1;
+   */
+  dryRun: boolean;
+};
+
+/**
+ * Describes the message vrooli.system_monitor.v1.scripts.PruneRunsRequest.
+ * Use `create(PruneRunsRequestSchema)` to create a new message.
+ */
+export const PruneRunsRequestSchema: GenMessage<PruneRunsRequest> = /*@__PURE__*/
+  messageDesc(file_system_monitor_v1_scripts_scripts, 15);
+
+/**
+ * @generated from message vrooli.system_monitor.v1.scripts.PruneRunsResponse
+ */
+export type PruneRunsResponse = Message<"vrooli.system_monitor.v1.scripts.PruneRunsResponse"> & {
+  /**
+   * @generated from field: int64 deleted = 1;
+   */
+  deleted: bigint;
+
+  /**
+   * @generated from field: bool dry_run = 2;
+   */
+  dryRun: boolean;
+};
+
+/**
+ * Describes the message vrooli.system_monitor.v1.scripts.PruneRunsResponse.
+ * Use `create(PruneRunsResponseSchema)` to create a new message.
+ */
+export const PruneRunsResponseSchema: GenMessage<PruneRunsResponse> = /*@__PURE__*/
+  messageDesc(file_system_monitor_v1_scripts_scripts, 16);
+
+/**
  * ScriptExecutionStatus represents the state of a script execution.
  *
  * @generated from enum vrooli.system_monitor.v1.scripts.ScriptExecutionStatus
@@ -474,6 +729,30 @@ export const ScriptsService: GenService<{
     methodKind: "unary";
     input: typeof ExecuteScriptRequestSchema;
     output: typeof ExecuteScriptResponseSchema;
+  },
+  /**
+   * @generated from rpc vrooli.system_monitor.v1.scripts.ScriptsService.ListRuns
+   */
+  listRuns: {
+    methodKind: "unary";
+    input: typeof ListRunsRequestSchema;
+    output: typeof ListRunsResponseSchema;
+  },
+  /**
+   * @generated from rpc vrooli.system_monitor.v1.scripts.ScriptsService.GetRun
+   */
+  getRun: {
+    methodKind: "unary";
+    input: typeof GetRunRequestSchema;
+    output: typeof GetRunResponseSchema;
+  },
+  /**
+   * @generated from rpc vrooli.system_monitor.v1.scripts.ScriptsService.PruneRuns
+   */
+  pruneRuns: {
+    methodKind: "unary";
+    input: typeof PruneRunsRequestSchema;
+    output: typeof PruneRunsResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_system_monitor_v1_scripts_scripts, 0);

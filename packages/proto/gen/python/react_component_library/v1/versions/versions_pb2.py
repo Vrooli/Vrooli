@@ -25,7 +25,7 @@ _sym_db = _symbol_database.Default()
 from google.protobuf import timestamp_pb2 as google_dot_protobuf_dot_timestamp__pb2
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n2react-component-library/v1/versions/versions.proto\x12*vrooli.react_component_library.v1.versions\x1a\x1fgoogle/protobuf/timestamp.proto\"\x92\x04\n\x07Version\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\x12!\n\x0c\x63omponent_id\x18\x02 \x01(\tR\x0b\x63omponentId\x12\x1d\n\nlibrary_id\x18\x07 \x01(\tR\tlibraryId\x12\x18\n\x07version\x18\x03 \x01(\tR\x07version\x12%\n\x0e\x63ontent_sha256\x18\x04 \x01(\tR\rcontentSha256\x12!\n\x0c\x63hangelog_md\x18\x05 \x01(\tR\x0b\x63hangelogMd\x12?\n\x0brecorded_at\x18\x06 \x01(\x0b\x32\x1a.google.protobuf.TimestampB\x02\x18\x01R\nrecordedAt\x12\x16\n\x06status\x18\x08 \x01(\tR\x06status\x12\x1f\n\x0bsource_path\x18\t \x01(\tR\nsourcePath\x12;\n\x0breleased_at\x18\n \x01(\x0b\x32\x1a.google.protobuf.TimestampR\nreleasedAt\x12\x39\n\ncreated_at\x18\x0b \x01(\x0b\x32\x1a.google.protobuf.TimestampR\tcreatedAt\x12\'\n\x0frequired_tokens\x18\x0c \x03(\tR\x0erequiredTokens\x12\x36\n\x17required_token_patterns\x18\r \x03(\tR\x15requiredTokenPatterns\"N\n\x13ListVersionsRequest\x12!\n\x0c\x63omponent_id\x18\x01 \x01(\tR\x0b\x63omponentId\x12\x14\n\x05limit\x18\x02 \x01(\x05R\x05limit\"g\n\x14ListVersionsResponse\x12O\n\x08versions\x18\x01 \x03(\x0b\x32\x33.vrooli.react_component_library.v1.versions.VersionR\x08versions\"y\n\x11GetVersionRequest\x12!\n\x0c\x63omponent_id\x18\x01 \x01(\tR\x0b\x63omponentId\x12\x18\n\x07version\x18\x02 \x01(\tR\x07version\x12\'\n\x0finclude_content\x18\x03 \x01(\x08R\x0eincludeContent\"}\n\x12GetVersionResponse\x12M\n\x07version\x18\x01 \x01(\x0b\x32\x33.vrooli.react_component_library.v1.versions.VersionR\x07version\x12\x18\n\x07\x63ontent\x18\x02 \x01(\tR\x07\x63ontent\"\x83\x01\n\x08\x44iffCell\x12\x1f\n\x0bline_number\x18\x01 \x01(\x05R\nlineNumber\x12\x12\n\x04text\x18\x02 \x01(\tR\x04text\x12\x42\n\x02op\x18\x03 \x01(\x0e\x32\x32.vrooli.react_component_library.v1.versions.DiffOpR\x02op\"\x9f\x01\n\x07\x44iffRow\x12H\n\x04left\x18\x01 \x01(\x0b\x32\x34.vrooli.react_component_library.v1.versions.DiffCellR\x04left\x12J\n\x05right\x18\x02 \x01(\x0b\x32\x34.vrooli.react_component_library.v1.versions.DiffCellR\x05right\"\\\n\x13\x44iffVersionsRequest\x12!\n\x0c\x63omponent_id\x18\x01 \x01(\tR\x0b\x63omponentId\x12\x12\n\x04\x66rom\x18\x02 \x01(\tR\x04\x66rom\x12\x0e\n\x02to\x18\x03 \x01(\tR\x02to\"\xd3\x01\n\x14\x44iffVersionsResponse\x12G\n\x04rows\x18\x01 \x03(\x0b\x32\x33.vrooli.react_component_library.v1.versions.DiffRowR\x04rows\x12\x1c\n\tadditions\x18\x02 \x01(\x05R\tadditions\x12\x1a\n\x08removals\x18\x03 \x01(\x05R\x08removals\x12\x1d\n\nfrom_label\x18\x04 \x01(\tR\tfromLabel\x12\x19\n\x08to_label\x18\x05 \x01(\tR\x07toLabel*l\n\x06\x44iffOp\x12\x17\n\x13\x44IFF_OP_UNSPECIFIED\x10\x00\x12\x11\n\rDIFF_OP_EQUAL\x10\x01\x12\x12\n\x0e\x44IFF_OP_REMOVE\x10\x02\x12\x0f\n\x0b\x44IFF_OP_ADD\x10\x03\x12\x11\n\rDIFF_OP_EMPTY\x10\x04\x32\xc7\x03\n\x0fVersionsService\x12\x91\x01\n\x0cListVersions\x12?.vrooli.react_component_library.v1.versions.ListVersionsRequest\x1a@.vrooli.react_component_library.v1.versions.ListVersionsResponse\x12\x8b\x01\n\nGetVersion\x12=.vrooli.react_component_library.v1.versions.GetVersionRequest\x1a>.vrooli.react_component_library.v1.versions.GetVersionResponse\x12\x91\x01\n\x0c\x44iffVersions\x12?.vrooli.react_component_library.v1.versions.DiffVersionsRequest\x1a@.vrooli.react_component_library.v1.versions.DiffVersionsResponseB`Z^github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/versions;versions_v1b\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n2react-component-library/v1/versions/versions.proto\x12*vrooli.react_component_library.v1.versions\x1a\x1fgoogle/protobuf/timestamp.proto\"\xae\x04\n\x07Version\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\x12!\n\x0c\x63omponent_id\x18\x02 \x01(\tR\x0b\x63omponentId\x12\x1d\n\nlibrary_id\x18\x07 \x01(\tR\tlibraryId\x12\x18\n\x07version\x18\x03 \x01(\tR\x07version\x12%\n\x0e\x63ontent_sha256\x18\x04 \x01(\tR\rcontentSha256\x12!\n\x0c\x63hangelog_md\x18\x05 \x01(\tR\x0b\x63hangelogMd\x12?\n\x0brecorded_at\x18\x06 \x01(\x0b\x32\x1a.google.protobuf.TimestampB\x02\x18\x01R\nrecordedAt\x12\x16\n\x06status\x18\x08 \x01(\tR\x06status\x12\x1f\n\x0bsource_path\x18\t \x01(\tR\nsourcePath\x12;\n\x0breleased_at\x18\n \x01(\x0b\x32\x1a.google.protobuf.TimestampR\nreleasedAt\x12\x39\n\ncreated_at\x18\x0b \x01(\x0b\x32\x1a.google.protobuf.TimestampR\tcreatedAt\x12\'\n\x0frequired_tokens\x18\x0c \x03(\tR\x0erequiredTokens\x12\x36\n\x17required_token_patterns\x18\r \x03(\tR\x15requiredTokenPatterns\x12\x1a\n\x08presence\x18\x0e \x01(\tR\x08presence\"`\n\x13ListVersionsRequest\x12!\n\x0c\x63omponent_id\x18\x01 \x01(\tR\x0b\x63omponentId\x12\x14\n\x05limit\x18\x02 \x01(\x05R\x05limit\x12\x10\n\x03\x61ll\x18\x03 \x01(\x08R\x03\x61ll\"g\n\x14ListVersionsResponse\x12O\n\x08versions\x18\x01 \x03(\x0b\x32\x33.vrooli.react_component_library.v1.versions.VersionR\x08versions\"y\n\x11GetVersionRequest\x12!\n\x0c\x63omponent_id\x18\x01 \x01(\tR\x0b\x63omponentId\x12\x18\n\x07version\x18\x02 \x01(\tR\x07version\x12\'\n\x0finclude_content\x18\x03 \x01(\x08R\x0eincludeContent\"}\n\x12GetVersionResponse\x12M\n\x07version\x18\x01 \x01(\x0b\x32\x33.vrooli.react_component_library.v1.versions.VersionR\x07version\x12\x18\n\x07\x63ontent\x18\x02 \x01(\tR\x07\x63ontent\"\x83\x01\n\x08\x44iffCell\x12\x1f\n\x0bline_number\x18\x01 \x01(\x05R\nlineNumber\x12\x12\n\x04text\x18\x02 \x01(\tR\x04text\x12\x42\n\x02op\x18\x03 \x01(\x0e\x32\x32.vrooli.react_component_library.v1.versions.DiffOpR\x02op\"\x9f\x01\n\x07\x44iffRow\x12H\n\x04left\x18\x01 \x01(\x0b\x32\x34.vrooli.react_component_library.v1.versions.DiffCellR\x04left\x12J\n\x05right\x18\x02 \x01(\x0b\x32\x34.vrooli.react_component_library.v1.versions.DiffCellR\x05right\"\\\n\x13\x44iffVersionsRequest\x12!\n\x0c\x63omponent_id\x18\x01 \x01(\tR\x0b\x63omponentId\x12\x12\n\x04\x66rom\x18\x02 \x01(\tR\x04\x66rom\x12\x0e\n\x02to\x18\x03 \x01(\tR\x02to\"\xd3\x01\n\x14\x44iffVersionsResponse\x12G\n\x04rows\x18\x01 \x03(\x0b\x32\x33.vrooli.react_component_library.v1.versions.DiffRowR\x04rows\x12\x1c\n\tadditions\x18\x02 \x01(\x05R\tadditions\x12\x1a\n\x08removals\x18\x03 \x01(\x05R\x08removals\x12\x1d\n\nfrom_label\x18\x04 \x01(\tR\tfromLabel\x12\x19\n\x08to_label\x18\x05 \x01(\tR\x07toLabel*l\n\x06\x44iffOp\x12\x17\n\x13\x44IFF_OP_UNSPECIFIED\x10\x00\x12\x11\n\rDIFF_OP_EQUAL\x10\x01\x12\x12\n\x0e\x44IFF_OP_REMOVE\x10\x02\x12\x0f\n\x0b\x44IFF_OP_ADD\x10\x03\x12\x11\n\rDIFF_OP_EMPTY\x10\x04\x32\xc7\x03\n\x0fVersionsService\x12\x91\x01\n\x0cListVersions\x12?.vrooli.react_component_library.v1.versions.ListVersionsRequest\x1a@.vrooli.react_component_library.v1.versions.ListVersionsResponse\x12\x8b\x01\n\nGetVersion\x12=.vrooli.react_component_library.v1.versions.GetVersionRequest\x1a>.vrooli.react_component_library.v1.versions.GetVersionResponse\x12\x91\x01\n\x0c\x44iffVersions\x12?.vrooli.react_component_library.v1.versions.DiffVersionsRequest\x1a@.vrooli.react_component_library.v1.versions.DiffVersionsResponseB`Z^github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/versions;versions_v1b\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -35,26 +35,26 @@ if not _descriptor._USE_C_DESCRIPTORS:
   _globals['DESCRIPTOR']._serialized_options = b'Z^github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/versions;versions_v1'
   _globals['_VERSION'].fields_by_name['recorded_at']._loaded_options = None
   _globals['_VERSION'].fields_by_name['recorded_at']._serialized_options = b'\030\001'
-  _globals['_DIFFOP']._serialized_start=1703
-  _globals['_DIFFOP']._serialized_end=1811
+  _globals['_DIFFOP']._serialized_start=1749
+  _globals['_DIFFOP']._serialized_end=1857
   _globals['_VERSION']._serialized_start=132
-  _globals['_VERSION']._serialized_end=662
-  _globals['_LISTVERSIONSREQUEST']._serialized_start=664
-  _globals['_LISTVERSIONSREQUEST']._serialized_end=742
-  _globals['_LISTVERSIONSRESPONSE']._serialized_start=744
-  _globals['_LISTVERSIONSRESPONSE']._serialized_end=847
-  _globals['_GETVERSIONREQUEST']._serialized_start=849
-  _globals['_GETVERSIONREQUEST']._serialized_end=970
-  _globals['_GETVERSIONRESPONSE']._serialized_start=972
-  _globals['_GETVERSIONRESPONSE']._serialized_end=1097
-  _globals['_DIFFCELL']._serialized_start=1100
-  _globals['_DIFFCELL']._serialized_end=1231
-  _globals['_DIFFROW']._serialized_start=1234
-  _globals['_DIFFROW']._serialized_end=1393
-  _globals['_DIFFVERSIONSREQUEST']._serialized_start=1395
-  _globals['_DIFFVERSIONSREQUEST']._serialized_end=1487
-  _globals['_DIFFVERSIONSRESPONSE']._serialized_start=1490
-  _globals['_DIFFVERSIONSRESPONSE']._serialized_end=1701
-  _globals['_VERSIONSSERVICE']._serialized_start=1814
-  _globals['_VERSIONSSERVICE']._serialized_end=2269
+  _globals['_VERSION']._serialized_end=690
+  _globals['_LISTVERSIONSREQUEST']._serialized_start=692
+  _globals['_LISTVERSIONSREQUEST']._serialized_end=788
+  _globals['_LISTVERSIONSRESPONSE']._serialized_start=790
+  _globals['_LISTVERSIONSRESPONSE']._serialized_end=893
+  _globals['_GETVERSIONREQUEST']._serialized_start=895
+  _globals['_GETVERSIONREQUEST']._serialized_end=1016
+  _globals['_GETVERSIONRESPONSE']._serialized_start=1018
+  _globals['_GETVERSIONRESPONSE']._serialized_end=1143
+  _globals['_DIFFCELL']._serialized_start=1146
+  _globals['_DIFFCELL']._serialized_end=1277
+  _globals['_DIFFROW']._serialized_start=1280
+  _globals['_DIFFROW']._serialized_end=1439
+  _globals['_DIFFVERSIONSREQUEST']._serialized_start=1441
+  _globals['_DIFFVERSIONSREQUEST']._serialized_end=1533
+  _globals['_DIFFVERSIONSRESPONSE']._serialized_start=1536
+  _globals['_DIFFVERSIONSRESPONSE']._serialized_end=1747
+  _globals['_VERSIONSSERVICE']._serialized_start=1860
+  _globals['_VERSIONSSERVICE']._serialized_end=2315
 # @@protoc_insertion_point(module_scope)

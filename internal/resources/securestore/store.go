@@ -10,6 +10,10 @@ import (
 	"fmt"
 )
 
+const (
+	storeParameterA = 16
+)
+
 // The three transport-level conditions a credential backend can be in. They
 // stay distinct all the way to the operator because each one has a different
 // fix: repair the session, install a backend, or provision the value.
@@ -68,7 +72,7 @@ func (s unavailableStore) AdapterName() string {
 
 // Unavailable returns a fail-closed store for a host whose credential facility
 // exists but cannot be verified right now. Callers must surface this as a
-// conditional target limitation; they must not replace it with a 0600
+// conditional target limitation; they must not replace it with a tuning.PermSecret
 // plaintext file.
 func Unavailable(reason string) Store { return unavailableStore{reason: reason, kind: ErrUnavailable} }
 
@@ -113,7 +117,7 @@ func ProbeWritable(store Store) error {
 	if store == nil {
 		return fmt.Errorf("%w: credential store is not configured", ErrAbsent)
 	}
-	bytes := make([]byte, 16)
+	bytes := make([]byte, storeParameterA)
 	if _, err := rand.Read(bytes); err != nil {
 		return fmt.Errorf("generate secure-store probe key: %w", err)
 	}

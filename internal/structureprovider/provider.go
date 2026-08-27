@@ -14,6 +14,9 @@ import (
 	"sync"
 	"time"
 
+	"github.com/vrooli/vrooli/internal/repocontractmeta"
+	"github.com/vrooli/vrooli/internal/tuning"
+
 	"connectrpc.com/connect"
 	"github.com/vrooli/api-core/discovery"
 	contractapp "github.com/vrooli/vrooli/internal/app/contract"
@@ -28,7 +31,7 @@ const (
 	// Validation is one shared RPC per declared repository target. Keep the
 	// caller deadline large enough for a complete fleet traversal; per-request
 	// HTTP work is still bounded by this same context.
-	DefaultTimeout = 2 * time.Minute
+	DefaultTimeout = tuning.ExtendedOperationTimeout
 )
 
 // ErrUnavailable identifies a missing or unreachable structure-health
@@ -174,7 +177,7 @@ func enumerateTargets(root string) []validationTarget {
 			}
 		}
 	}
-	addDirs(commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_SCENARIO, "scenarios")
+	addDirs(commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_SCENARIO, repocontractmeta.ScenarioDir)
 	addDirs(commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_RESOURCE, "resources")
 	addDirs(commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_TOOL, filepath.Join("internal", "tools"))
 	addDirs(commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_SAFEGUARD, filepath.Join("internal", "safeguards"))
@@ -260,7 +263,7 @@ func outputFromResponses(root string, responses []*scenariovalidationv1.Validate
 		Schema:  contractapp.ValidationCheck{Passed: schemaPassed, Message: schemaMessage},
 		Report: contractapp.Report{
 			Root:         root,
-			ContractPath: filepath.Join(root, ".vrooli", "repo-contract.json"),
+			ContractPath: filepath.Join(root, repocontractmeta.ProjectConfigDir, "repo-contract.json"),
 			Success:      success,
 			Checks:       checks,
 		},

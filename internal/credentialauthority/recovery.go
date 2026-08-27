@@ -14,7 +14,15 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vrooli/vrooli/internal/tuning"
+
 	"github.com/vrooli/vrooli/internal/credentialpolicy"
+)
+
+const (
+	recoveryParameterA = 2
+	recoveryParameterB = 3
+	recoveryParameterC = 32
 )
 
 // RecoveryEntry identifies a value to include in an encrypted recovery
@@ -126,7 +134,7 @@ func (a *Authority) read(identity Identity, field string) (string, error) {
 }
 
 func encryptRecovery(plain []byte, passphrase string) ([]byte, error) {
-	salt := make([]byte, 32)
+	salt := make([]byte, recoveryParameterC)
 	if _, err := rand.Read(salt); err != nil {
 		return nil, err
 	}
@@ -134,7 +142,7 @@ func encryptRecovery(plain []byte, passphrase string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	sealed, err := credentialpolicy.Seal(key, plain, "recovery-bundle", 3)
+	sealed, err := credentialpolicy.Seal(key, plain, "recovery-bundle", recoveryParameterB)
 	if err != nil {
 		return nil, err
 	}
@@ -151,12 +159,12 @@ func decryptRecovery(bundle []byte, passphrase string) ([]byte, error) {
 	switch envelope.Version {
 	case 1:
 		// Version 1 had no KDF metadata and is fixed to the original policy.
-	case 2:
+	case recoveryParameterA:
 		if envelope.KDF != "pbkdf2-sha256" || envelope.Iterations <= 0 {
 			return nil, fmt.Errorf("unsupported recovery KDF policy")
 		}
 		iterations = envelope.Iterations
-	case 3:
+	case recoveryParameterB:
 		if envelope.KDF != "pbkdf2-sha256" || envelope.Iterations <= 0 || envelope.Purpose != "recovery-bundle" {
 			return nil, fmt.Errorf("unsupported recovery envelope policy")
 		}
@@ -208,7 +216,7 @@ func decryptRecovery(bundle []byte, passphrase string) ([]byte, error) {
 }
 
 func recoveryKey(passphrase string, salt []byte, iterations int) ([]byte, error) {
-	return pbkdf2.Key(sha256.New, passphrase, salt, iterations, 32)
+	return pbkdf2.Key(sha256.New, passphrase, salt, iterations, recoveryParameterC)
 }
 
 // RecoveryManifest describes what a bundle contains, without exposing any
@@ -312,10 +320,10 @@ func WriteRecoveryReceiptWithMetadata(stateDir, bundlePath string, entries []Rec
 	if err != nil {
 		return err
 	}
-	if err := os.MkdirAll(stateDir, 0o700); err != nil {
+	if err := os.MkdirAll(stateDir, tuning.PermPrivateDir); err != nil {
 		return err
 	}
-	return os.WriteFile(filepath.Join(stateDir, recoveryReceiptFile), encoded, 0o600)
+	return os.WriteFile(filepath.Join(stateDir, recoveryReceiptFile), encoded, tuning.PermSecret)
 }
 
 // ReadRecoveryReceipt returns the last recorded export. found is false when no

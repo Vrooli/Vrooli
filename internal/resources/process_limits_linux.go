@@ -7,6 +7,8 @@ import (
 	"os"
 	"strconv"
 
+	"github.com/vrooli/vrooli/internal/tuning"
+
 	resourcedeployment "github.com/vrooli/vrooli/packages/resource-deployment"
 )
 
@@ -41,7 +43,7 @@ func applyManagedServiceProcessLimits(pid int, limits *resourcedeployment.Proces
 	}
 	if limits.OOMScoreAdjust != 0 {
 		path := "/proc/" + strconv.Itoa(pid) + "/oom_score_adj"
-		if err := os.WriteFile(path, []byte(strconv.Itoa(limits.OOMScoreAdjust)), 0o600); err != nil {
+		if err := os.WriteFile(path, []byte(strconv.Itoa(limits.OOMScoreAdjust)), tuning.PermSecret); err != nil {
 			return fmt.Errorf("set oom_score_adj: %w", err)
 		}
 	}

@@ -7,6 +7,9 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/vrooli/vrooli/internal/repocontractmeta"
+	"github.com/vrooli/vrooli/internal/tuning"
+
 	"github.com/vrooli/vrooli/internal/scenariostale"
 )
 
@@ -21,16 +24,16 @@ import (
 //
 // Matched by base name at any depth, against both directories and files.
 var defaultExcludes = map[string]struct{}{
-	"node_modules":            {},
-	"dist":                    {},
-	"coverage":                {},
-	".git":                    {},
-	".vrooli":                 {},
-	"generated":               {},
-	scenariostale.SidecarFile: {}, // ".build-fingerprint.json"
-	".turbo":                  {},
-	".next":                   {},
-	"__pycache__":             {},
+	"node_modules":                    {},
+	"dist":                            {},
+	"coverage":                        {},
+	".git":                            {},
+	repocontractmeta.ProjectConfigDir: {},
+	"generated":                       {},
+	scenariostale.SidecarFile:         {}, // ".build-fingerprint.json"
+	".turbo":                          {},
+	".next":                           {},
+	"__pycache__":                     {},
 }
 
 // DefaultExcludes returns a fresh copy of the restore-point exclude set so a
@@ -116,7 +119,7 @@ func CopyTree(src, dst string, opts CopyOptions) (CopyStats, error) {
 
 		switch {
 		case d.IsDir():
-			mode := fs.FileMode(0o750)
+			mode := fs.FileMode(tuning.PermGroupDir)
 			if fi, statErr := d.Info(); statErr == nil {
 				mode = fi.Mode().Perm()
 			}
@@ -168,7 +171,7 @@ func CopyTree(src, dst string, opts CopyOptions) (CopyStats, error) {
 // the number of bytes written (0 for a successful reflink, which copies no bytes
 // through userspace).
 func copyRegularFile(src, dst string, mode fs.FileMode, reflink bool) (bool, int64, error) {
-	if err := os.MkdirAll(filepath.Dir(dst), 0o750); err != nil {
+	if err := os.MkdirAll(filepath.Dir(dst), tuning.PermGroupDir); err != nil {
 		return false, 0, fmt.Errorf("copytree: mkdir parent of %q: %w", dst, err)
 	}
 	if reflink {
@@ -220,7 +223,7 @@ func copySymlink(src, dst string) error {
 	if err != nil {
 		return fmt.Errorf("copytree: readlink %q: %w", src, err)
 	}
-	if err := os.MkdirAll(filepath.Dir(dst), 0o750); err != nil {
+	if err := os.MkdirAll(filepath.Dir(dst), tuning.PermGroupDir); err != nil {
 		return fmt.Errorf("copytree: mkdir parent of %q: %w", dst, err)
 	}
 	if err := os.Remove(dst); err != nil && !os.IsNotExist(err) {

@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "scenario": "tidiness-manager",
-  "input_digest": "sha256:9dff374435eb4f1956865152ee5f8d723726096b7ce263d55e314d77f830509c",
+  "input_digest": "sha256:15d59efd45fd7544a7443db5c2e6d7af9097e7583af552be29ad24d888995f96",
   "input_files": [
     "schemas/common/v1/maturity.proto",
     "schemas/common/v1/validation_target.proto",
@@ -18,12 +18,12 @@
     }
   },
   "outputs": {
-    "gen/go/tidiness-manager/v1/validation/validation.pb.go": "sha256:54826435e7d786dd893e79d3407f5ec15cf3268672b92366489529a53a0e703b",
+    "gen/go/tidiness-manager/v1/validation/validation.pb.go": "sha256:8e95d5fe4c4cb8c3be737579770a9f257316950796d0199801e6a4c0affdb63f",
     "gen/python/tidiness_manager/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "gen/python/tidiness_manager/v1/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "gen/python/tidiness_manager/v1/validation/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-    "gen/python/tidiness_manager/v1/validation/validation_pb2.py": "sha256:f96016f5f5bcb038bed70324812870cb402bd190d4d84809141b5eb214a920fe",
-    "gen/python/tidiness_manager/v1/validation/validation_pb2.pyi": "sha256:25dd0ebaa61c8dce5b49ee8e35524f19c6528f0e51ee07cfc5b60df0ce8f0ad6",
-    "gen/typescript/tidiness-manager/v1/validation/validation_pb.ts": "sha256:baca58e658cdac97dfc6560f0fefa7092ee6f9752bddfd814c2402af69971d05"
+    "gen/python/tidiness_manager/v1/validation/validation_pb2.py": "sha256:7574a71b8336dd54d116e0f427ee83f35a0a156c6ca13634275088c2197ae262",
+    "gen/python/tidiness_manager/v1/validation/validation_pb2.pyi": "sha256:03561e59b26ce50e8d95753a73c0fe532f5e43650e4a81da343e50b37b5c5f43",
+    "gen/typescript/tidiness-manager/v1/validation/validation_pb.ts": "sha256:bb73cd461582c1b275198e25e375811e05cc72c2bee35d403386926b38b45ab2"
   }
 }

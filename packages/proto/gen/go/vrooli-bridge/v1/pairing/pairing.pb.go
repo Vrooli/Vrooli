@@ -565,10 +565,11 @@ type RequestPairingResponse struct {
 	// The pending request id the owner approves; the node polls this until
 	// approved, then receives its node id + the CP key (ApprovePairing result is
 	// surfaced to the node out of band / on a follow-up redeem).
-	RequestId     string               `protobuf:"bytes,1,opt,name=request_id,json=requestId,proto3" json:"request_id,omitempty"`
-	Status        PairingRequestStatus `protobuf:"varint,2,opt,name=status,proto3,enum=vrooli.vrooli_bridge.v1.pairing.PairingRequestStatus" json:"status,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	RequestId         string               `protobuf:"bytes,1,opt,name=request_id,json=requestId,proto3" json:"request_id,omitempty"`
+	Status            PairingRequestStatus `protobuf:"varint,2,opt,name=status,proto3,enum=vrooli.vrooli_bridge.v1.pairing.PairingRequestStatus" json:"status,omitempty"`
+	ConfirmationWords []string             `protobuf:"bytes,3,rep,name=confirmation_words,json=confirmationWords,proto3" json:"confirmation_words,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
 }
 
 func (x *RequestPairingResponse) Reset() {
@@ -615,6 +616,109 @@ func (x *RequestPairingResponse) GetStatus() PairingRequestStatus {
 	return PairingRequestStatus_PAIRING_REQUEST_STATUS_UNSPECIFIED
 }
 
+func (x *RequestPairingResponse) GetConfirmationWords() []string {
+	if x != nil {
+		return x.ConfirmationWords
+	}
+	return nil
+}
+
+type GetPairingRequestRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	RequestId     string                 `protobuf:"bytes,1,opt,name=request_id,json=requestId,proto3" json:"request_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetPairingRequestRequest) Reset() {
+	*x = GetPairingRequestRequest{}
+	mi := &file_vrooli_bridge_v1_pairing_pairing_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetPairingRequestRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetPairingRequestRequest) ProtoMessage() {}
+
+func (x *GetPairingRequestRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_vrooli_bridge_v1_pairing_pairing_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetPairingRequestRequest.ProtoReflect.Descriptor instead.
+func (*GetPairingRequestRequest) Descriptor() ([]byte, []int) {
+	return file_vrooli_bridge_v1_pairing_pairing_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *GetPairingRequestRequest) GetRequestId() string {
+	if x != nil {
+		return x.RequestId
+	}
+	return ""
+}
+
+type GetPairingRequestResponse struct {
+	state                 protoimpl.MessageState `protogen:"open.v1"`
+	Request               *PairingRequest        `protobuf:"bytes,1,opt,name=request,proto3" json:"request,omitempty"`
+	ControlPlanePublicKey string                 `protobuf:"bytes,2,opt,name=control_plane_public_key,json=controlPlanePublicKey,proto3" json:"control_plane_public_key,omitempty"`
+	unknownFields         protoimpl.UnknownFields
+	sizeCache             protoimpl.SizeCache
+}
+
+func (x *GetPairingRequestResponse) Reset() {
+	*x = GetPairingRequestResponse{}
+	mi := &file_vrooli_bridge_v1_pairing_pairing_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetPairingRequestResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetPairingRequestResponse) ProtoMessage() {}
+
+func (x *GetPairingRequestResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_vrooli_bridge_v1_pairing_pairing_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetPairingRequestResponse.ProtoReflect.Descriptor instead.
+func (*GetPairingRequestResponse) Descriptor() ([]byte, []int) {
+	return file_vrooli_bridge_v1_pairing_pairing_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *GetPairingRequestResponse) GetRequest() *PairingRequest {
+	if x != nil {
+		return x.Request
+	}
+	return nil
+}
+
+func (x *GetPairingRequestResponse) GetControlPlanePublicKey() string {
+	if x != nil {
+		return x.ControlPlanePublicKey
+	}
+	return ""
+}
+
 // ApprovePairingRequest is the owner's decision on a pending request.
 type ApprovePairingRequest struct {
 	state     protoimpl.MessageState `protogen:"open.v1"`
@@ -622,14 +726,16 @@ type ApprovePairingRequest struct {
 	// True approves and mints the node; false rejects it.
 	Approve bool `protobuf:"varint,2,opt,name=approve,proto3" json:"approve,omitempty"`
 	// Granted verb-namespace scopes (applied on approval).
-	Scopes        []string `protobuf:"bytes,3,rep,name=scopes,proto3" json:"scopes,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Scopes []string `protobuf:"bytes,3,rep,name=scopes,proto3" json:"scopes,omitempty"`
+	// The owner must confirm the key-derived words shown by the joining machine.
+	ConfirmationWords []string `protobuf:"bytes,4,rep,name=confirmation_words,json=confirmationWords,proto3" json:"confirmation_words,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
 }
 
 func (x *ApprovePairingRequest) Reset() {
 	*x = ApprovePairingRequest{}
-	mi := &file_vrooli_bridge_v1_pairing_pairing_proto_msgTypes[8]
+	mi := &file_vrooli_bridge_v1_pairing_pairing_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -641,7 +747,7 @@ func (x *ApprovePairingRequest) String() string {
 func (*ApprovePairingRequest) ProtoMessage() {}
 
 func (x *ApprovePairingRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_vrooli_bridge_v1_pairing_pairing_proto_msgTypes[8]
+	mi := &file_vrooli_bridge_v1_pairing_pairing_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -654,7 +760,7 @@ func (x *ApprovePairingRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ApprovePairingRequest.ProtoReflect.Descriptor instead.
 func (*ApprovePairingRequest) Descriptor() ([]byte, []int) {
-	return file_vrooli_bridge_v1_pairing_pairing_proto_rawDescGZIP(), []int{8}
+	return file_vrooli_bridge_v1_pairing_pairing_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *ApprovePairingRequest) GetRequestId() string {
@@ -678,6 +784,13 @@ func (x *ApprovePairingRequest) GetScopes() []string {
 	return nil
 }
 
+func (x *ApprovePairingRequest) GetConfirmationWords() []string {
+	if x != nil {
+		return x.ConfirmationWords
+	}
+	return nil
+}
+
 type ApprovePairingResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Set when approved: the minted node id.
@@ -689,7 +802,7 @@ type ApprovePairingResponse struct {
 
 func (x *ApprovePairingResponse) Reset() {
 	*x = ApprovePairingResponse{}
-	mi := &file_vrooli_bridge_v1_pairing_pairing_proto_msgTypes[9]
+	mi := &file_vrooli_bridge_v1_pairing_pairing_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -701,7 +814,7 @@ func (x *ApprovePairingResponse) String() string {
 func (*ApprovePairingResponse) ProtoMessage() {}
 
 func (x *ApprovePairingResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_vrooli_bridge_v1_pairing_pairing_proto_msgTypes[9]
+	mi := &file_vrooli_bridge_v1_pairing_pairing_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -714,7 +827,7 @@ func (x *ApprovePairingResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ApprovePairingResponse.ProtoReflect.Descriptor instead.
 func (*ApprovePairingResponse) Descriptor() ([]byte, []int) {
-	return file_vrooli_bridge_v1_pairing_pairing_proto_rawDescGZIP(), []int{9}
+	return file_vrooli_bridge_v1_pairing_pairing_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *ApprovePairingResponse) GetNodeId() string {
@@ -744,14 +857,15 @@ type PairingRequest struct {
 	CreatedAt    *timestamppb.Timestamp `protobuf:"bytes,8,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
 	DecidedAt    *timestamppb.Timestamp `protobuf:"bytes,9,opt,name=decided_at,json=decidedAt,proto3" json:"decided_at,omitempty"`
 	// The minted node id once approved.
-	NodeId        string `protobuf:"bytes,10,opt,name=node_id,json=nodeId,proto3" json:"node_id,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	NodeId            string   `protobuf:"bytes,10,opt,name=node_id,json=nodeId,proto3" json:"node_id,omitempty"`
+	ConfirmationWords []string `protobuf:"bytes,11,rep,name=confirmation_words,json=confirmationWords,proto3" json:"confirmation_words,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
 }
 
 func (x *PairingRequest) Reset() {
 	*x = PairingRequest{}
-	mi := &file_vrooli_bridge_v1_pairing_pairing_proto_msgTypes[10]
+	mi := &file_vrooli_bridge_v1_pairing_pairing_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -763,7 +877,7 @@ func (x *PairingRequest) String() string {
 func (*PairingRequest) ProtoMessage() {}
 
 func (x *PairingRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_vrooli_bridge_v1_pairing_pairing_proto_msgTypes[10]
+	mi := &file_vrooli_bridge_v1_pairing_pairing_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -776,7 +890,7 @@ func (x *PairingRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PairingRequest.ProtoReflect.Descriptor instead.
 func (*PairingRequest) Descriptor() ([]byte, []int) {
-	return file_vrooli_bridge_v1_pairing_pairing_proto_rawDescGZIP(), []int{10}
+	return file_vrooli_bridge_v1_pairing_pairing_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *PairingRequest) GetId() string {
@@ -849,6 +963,13 @@ func (x *PairingRequest) GetNodeId() string {
 	return ""
 }
 
+func (x *PairingRequest) GetConfirmationWords() []string {
+	if x != nil {
+		return x.ConfirmationWords
+	}
+	return nil
+}
+
 type ListPairingRequestsRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// When true, include already-decided requests; default returns only pending.
@@ -859,7 +980,7 @@ type ListPairingRequestsRequest struct {
 
 func (x *ListPairingRequestsRequest) Reset() {
 	*x = ListPairingRequestsRequest{}
-	mi := &file_vrooli_bridge_v1_pairing_pairing_proto_msgTypes[11]
+	mi := &file_vrooli_bridge_v1_pairing_pairing_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -871,7 +992,7 @@ func (x *ListPairingRequestsRequest) String() string {
 func (*ListPairingRequestsRequest) ProtoMessage() {}
 
 func (x *ListPairingRequestsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_vrooli_bridge_v1_pairing_pairing_proto_msgTypes[11]
+	mi := &file_vrooli_bridge_v1_pairing_pairing_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -884,7 +1005,7 @@ func (x *ListPairingRequestsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListPairingRequestsRequest.ProtoReflect.Descriptor instead.
 func (*ListPairingRequestsRequest) Descriptor() ([]byte, []int) {
-	return file_vrooli_bridge_v1_pairing_pairing_proto_rawDescGZIP(), []int{11}
+	return file_vrooli_bridge_v1_pairing_pairing_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *ListPairingRequestsRequest) GetIncludeDecided() bool {
@@ -897,13 +1018,14 @@ func (x *ListPairingRequestsRequest) GetIncludeDecided() bool {
 type ListPairingRequestsResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Requests      []*PairingRequest      `protobuf:"bytes,1,rep,name=requests,proto3" json:"requests,omitempty"`
+	Presets       []*PermissionPreset    `protobuf:"bytes,2,rep,name=presets,proto3" json:"presets,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ListPairingRequestsResponse) Reset() {
 	*x = ListPairingRequestsResponse{}
-	mi := &file_vrooli_bridge_v1_pairing_pairing_proto_msgTypes[12]
+	mi := &file_vrooli_bridge_v1_pairing_pairing_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -915,7 +1037,7 @@ func (x *ListPairingRequestsResponse) String() string {
 func (*ListPairingRequestsResponse) ProtoMessage() {}
 
 func (x *ListPairingRequestsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_vrooli_bridge_v1_pairing_pairing_proto_msgTypes[12]
+	mi := &file_vrooli_bridge_v1_pairing_pairing_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -928,12 +1050,90 @@ func (x *ListPairingRequestsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListPairingRequestsResponse.ProtoReflect.Descriptor instead.
 func (*ListPairingRequestsResponse) Descriptor() ([]byte, []int) {
-	return file_vrooli_bridge_v1_pairing_pairing_proto_rawDescGZIP(), []int{12}
+	return file_vrooli_bridge_v1_pairing_pairing_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *ListPairingRequestsResponse) GetRequests() []*PairingRequest {
 	if x != nil {
 		return x.Requests
+	}
+	return nil
+}
+
+func (x *ListPairingRequestsResponse) GetPresets() []*PermissionPreset {
+	if x != nil {
+		return x.Presets
+	}
+	return nil
+}
+
+// PermissionPreset is a catalog-derived enrollment posture. The server sends
+// the concrete scopes so consoles never maintain a second authorization
+// vocabulary. The first preset is the narrow default selected by the UI.
+type PermissionPreset struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	Description   string                 `protobuf:"bytes,2,opt,name=description,proto3" json:"description,omitempty"`
+	Scopes        []string               `protobuf:"bytes,3,rep,name=scopes,proto3" json:"scopes,omitempty"`
+	Withholds     []string               `protobuf:"bytes,4,rep,name=withholds,proto3" json:"withholds,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PermissionPreset) Reset() {
+	*x = PermissionPreset{}
+	mi := &file_vrooli_bridge_v1_pairing_pairing_proto_msgTypes[15]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PermissionPreset) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PermissionPreset) ProtoMessage() {}
+
+func (x *PermissionPreset) ProtoReflect() protoreflect.Message {
+	mi := &file_vrooli_bridge_v1_pairing_pairing_proto_msgTypes[15]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PermissionPreset.ProtoReflect.Descriptor instead.
+func (*PermissionPreset) Descriptor() ([]byte, []int) {
+	return file_vrooli_bridge_v1_pairing_pairing_proto_rawDescGZIP(), []int{15}
+}
+
+func (x *PermissionPreset) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *PermissionPreset) GetDescription() string {
+	if x != nil {
+		return x.Description
+	}
+	return ""
+}
+
+func (x *PermissionPreset) GetScopes() []string {
+	if x != nil {
+		return x.Scopes
+	}
+	return nil
+}
+
+func (x *PermissionPreset) GetWithholds() []string {
+	if x != nil {
+		return x.Withholds
 	}
 	return nil
 }
@@ -979,19 +1179,27 @@ const file_vrooli_bridge_v1_pairing_pairing_proto_rawDesc = "" +
 	"\x02os\x18\x03 \x01(\tR\x02os\x12\x12\n" +
 	"\x04arch\x18\x04 \x01(\tR\x04arch\x12\x1a\n" +
 	"\bendpoint\x18\x05 \x01(\tR\bendpoint\x12\"\n" +
-	"\fcapabilities\x18\x06 \x03(\tR\fcapabilities\"\x86\x01\n" +
+	"\fcapabilities\x18\x06 \x03(\tR\fcapabilities\"\xb5\x01\n" +
 	"\x16RequestPairingResponse\x12\x1d\n" +
 	"\n" +
 	"request_id\x18\x01 \x01(\tR\trequestId\x12M\n" +
-	"\x06status\x18\x02 \x01(\x0e25.vrooli.vrooli_bridge.v1.pairing.PairingRequestStatusR\x06status\"h\n" +
+	"\x06status\x18\x02 \x01(\x0e25.vrooli.vrooli_bridge.v1.pairing.PairingRequestStatusR\x06status\x12-\n" +
+	"\x12confirmation_words\x18\x03 \x03(\tR\x11confirmationWords\"9\n" +
+	"\x18GetPairingRequestRequest\x12\x1d\n" +
+	"\n" +
+	"request_id\x18\x01 \x01(\tR\trequestId\"\x9f\x01\n" +
+	"\x19GetPairingRequestResponse\x12I\n" +
+	"\arequest\x18\x01 \x01(\v2/.vrooli.vrooli_bridge.v1.pairing.PairingRequestR\arequest\x127\n" +
+	"\x18control_plane_public_key\x18\x02 \x01(\tR\x15controlPlanePublicKey\"\x97\x01\n" +
 	"\x15ApprovePairingRequest\x12\x1d\n" +
 	"\n" +
 	"request_id\x18\x01 \x01(\tR\trequestId\x12\x18\n" +
 	"\aapprove\x18\x02 \x01(\bR\aapprove\x12\x16\n" +
-	"\x06scopes\x18\x03 \x03(\tR\x06scopes\"\x80\x01\n" +
+	"\x06scopes\x18\x03 \x03(\tR\x06scopes\x12-\n" +
+	"\x12confirmation_words\x18\x04 \x03(\tR\x11confirmationWords\"\x80\x01\n" +
 	"\x16ApprovePairingResponse\x12\x17\n" +
 	"\anode_id\x18\x01 \x01(\tR\x06nodeId\x12M\n" +
-	"\x06status\x18\x02 \x01(\x0e25.vrooli.vrooli_bridge.v1.pairing.PairingRequestStatusR\x06status\"\xf6\x02\n" +
+	"\x06status\x18\x02 \x01(\x0e25.vrooli.vrooli_bridge.v1.pairing.PairingRequestStatusR\x06status\"\xa5\x03\n" +
 	"\x0ePairingRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x0e\n" +
@@ -1005,20 +1213,28 @@ const file_vrooli_bridge_v1_pairing_pairing_proto_rawDesc = "" +
 	"\n" +
 	"decided_at\x18\t \x01(\v2\x1a.google.protobuf.TimestampR\tdecidedAt\x12\x17\n" +
 	"\anode_id\x18\n" +
-	" \x01(\tR\x06nodeId\"E\n" +
+	" \x01(\tR\x06nodeId\x12-\n" +
+	"\x12confirmation_words\x18\v \x03(\tR\x11confirmationWords\"E\n" +
 	"\x1aListPairingRequestsRequest\x12'\n" +
-	"\x0finclude_decided\x18\x01 \x01(\bR\x0eincludeDecided\"j\n" +
+	"\x0finclude_decided\x18\x01 \x01(\bR\x0eincludeDecided\"\xb7\x01\n" +
 	"\x1bListPairingRequestsResponse\x12K\n" +
-	"\brequests\x18\x01 \x03(\v2/.vrooli.vrooli_bridge.v1.pairing.PairingRequestR\brequests*\xac\x01\n" +
+	"\brequests\x18\x01 \x03(\v2/.vrooli.vrooli_bridge.v1.pairing.PairingRequestR\brequests\x12K\n" +
+	"\apresets\x18\x02 \x03(\v21.vrooli.vrooli_bridge.v1.pairing.PermissionPresetR\apresets\"~\n" +
+	"\x10PermissionPreset\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12 \n" +
+	"\vdescription\x18\x02 \x01(\tR\vdescription\x12\x16\n" +
+	"\x06scopes\x18\x03 \x03(\tR\x06scopes\x12\x1c\n" +
+	"\twithholds\x18\x04 \x03(\tR\twithholds*\xac\x01\n" +
 	"\x14PairingRequestStatus\x12&\n" +
 	"\"PAIRING_REQUEST_STATUS_UNSPECIFIED\x10\x00\x12\"\n" +
 	"\x1ePAIRING_REQUEST_STATUS_PENDING\x10\x01\x12#\n" +
 	"\x1fPAIRING_REQUEST_STATUS_APPROVED\x10\x02\x12#\n" +
-	"\x1fPAIRING_REQUEST_STATUS_REJECTED\x10\x032\xdb\x06\n" +
+	"\x1fPAIRING_REQUEST_STATUS_REJECTED\x10\x032\xe8\a\n" +
 	"\x0ePairingService\x12\x87\x01\n" +
 	"\x10IssuePairingCode\x128.vrooli.vrooli_bridge.v1.pairing.IssuePairingCodeRequest\x1a9.vrooli.vrooli_bridge.v1.pairing.IssuePairingCodeResponse\x12\x8a\x01\n" +
 	"\x11RedeemPairingCode\x129.vrooli.vrooli_bridge.v1.pairing.RedeemPairingCodeRequest\x1a:.vrooli.vrooli_bridge.v1.pairing.RedeemPairingCodeResponse\x12\x81\x01\n" +
-	"\x0eRequestPairing\x126.vrooli.vrooli_bridge.v1.pairing.RequestPairingRequest\x1a7.vrooli.vrooli_bridge.v1.pairing.RequestPairingResponse\x12\x81\x01\n" +
+	"\x0eRequestPairing\x126.vrooli.vrooli_bridge.v1.pairing.RequestPairingRequest\x1a7.vrooli.vrooli_bridge.v1.pairing.RequestPairingResponse\x12\x8a\x01\n" +
+	"\x11GetPairingRequest\x129.vrooli.vrooli_bridge.v1.pairing.GetPairingRequestRequest\x1a:.vrooli.vrooli_bridge.v1.pairing.GetPairingRequestResponse\x12\x81\x01\n" +
 	"\x0eApprovePairing\x126.vrooli.vrooli_bridge.v1.pairing.ApprovePairingRequest\x1a7.vrooli.vrooli_bridge.v1.pairing.ApprovePairingResponse\x12\x90\x01\n" +
 	"\x13ListPairingRequests\x12;.vrooli.vrooli_bridge.v1.pairing.ListPairingRequestsRequest\x1a<.vrooli.vrooli_bridge.v1.pairing.ListPairingRequestsResponse\x12\x96\x01\n" +
 	"\x15RegisterEncryptionKey\x12=.vrooli.vrooli_bridge.v1.pairing.RegisterEncryptionKeyRequest\x1a>.vrooli.vrooli_bridge.v1.pairing.RegisterEncryptionKeyResponseBTZRgithub.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/pairing;pairing_v1b\x06proto3"
@@ -1036,7 +1252,7 @@ func file_vrooli_bridge_v1_pairing_pairing_proto_rawDescGZIP() []byte {
 }
 
 var file_vrooli_bridge_v1_pairing_pairing_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_vrooli_bridge_v1_pairing_pairing_proto_msgTypes = make([]protoimpl.MessageInfo, 13)
+var file_vrooli_bridge_v1_pairing_pairing_proto_msgTypes = make([]protoimpl.MessageInfo, 16)
 var file_vrooli_bridge_v1_pairing_pairing_proto_goTypes = []any{
 	(PairingRequestStatus)(0),             // 0: vrooli.vrooli_bridge.v1.pairing.PairingRequestStatus
 	(*RegisterEncryptionKeyRequest)(nil),  // 1: vrooli.vrooli_bridge.v1.pairing.RegisterEncryptionKeyRequest
@@ -1047,38 +1263,45 @@ var file_vrooli_bridge_v1_pairing_pairing_proto_goTypes = []any{
 	(*RedeemPairingCodeResponse)(nil),     // 6: vrooli.vrooli_bridge.v1.pairing.RedeemPairingCodeResponse
 	(*RequestPairingRequest)(nil),         // 7: vrooli.vrooli_bridge.v1.pairing.RequestPairingRequest
 	(*RequestPairingResponse)(nil),        // 8: vrooli.vrooli_bridge.v1.pairing.RequestPairingResponse
-	(*ApprovePairingRequest)(nil),         // 9: vrooli.vrooli_bridge.v1.pairing.ApprovePairingRequest
-	(*ApprovePairingResponse)(nil),        // 10: vrooli.vrooli_bridge.v1.pairing.ApprovePairingResponse
-	(*PairingRequest)(nil),                // 11: vrooli.vrooli_bridge.v1.pairing.PairingRequest
-	(*ListPairingRequestsRequest)(nil),    // 12: vrooli.vrooli_bridge.v1.pairing.ListPairingRequestsRequest
-	(*ListPairingRequestsResponse)(nil),   // 13: vrooli.vrooli_bridge.v1.pairing.ListPairingRequestsResponse
-	(*timestamppb.Timestamp)(nil),         // 14: google.protobuf.Timestamp
+	(*GetPairingRequestRequest)(nil),      // 9: vrooli.vrooli_bridge.v1.pairing.GetPairingRequestRequest
+	(*GetPairingRequestResponse)(nil),     // 10: vrooli.vrooli_bridge.v1.pairing.GetPairingRequestResponse
+	(*ApprovePairingRequest)(nil),         // 11: vrooli.vrooli_bridge.v1.pairing.ApprovePairingRequest
+	(*ApprovePairingResponse)(nil),        // 12: vrooli.vrooli_bridge.v1.pairing.ApprovePairingResponse
+	(*PairingRequest)(nil),                // 13: vrooli.vrooli_bridge.v1.pairing.PairingRequest
+	(*ListPairingRequestsRequest)(nil),    // 14: vrooli.vrooli_bridge.v1.pairing.ListPairingRequestsRequest
+	(*ListPairingRequestsResponse)(nil),   // 15: vrooli.vrooli_bridge.v1.pairing.ListPairingRequestsResponse
+	(*PermissionPreset)(nil),              // 16: vrooli.vrooli_bridge.v1.pairing.PermissionPreset
+	(*timestamppb.Timestamp)(nil),         // 17: google.protobuf.Timestamp
 }
 var file_vrooli_bridge_v1_pairing_pairing_proto_depIdxs = []int32{
-	14, // 0: vrooli.vrooli_bridge.v1.pairing.IssuePairingCodeResponse.expires_at:type_name -> google.protobuf.Timestamp
+	17, // 0: vrooli.vrooli_bridge.v1.pairing.IssuePairingCodeResponse.expires_at:type_name -> google.protobuf.Timestamp
 	0,  // 1: vrooli.vrooli_bridge.v1.pairing.RequestPairingResponse.status:type_name -> vrooli.vrooli_bridge.v1.pairing.PairingRequestStatus
-	0,  // 2: vrooli.vrooli_bridge.v1.pairing.ApprovePairingResponse.status:type_name -> vrooli.vrooli_bridge.v1.pairing.PairingRequestStatus
-	0,  // 3: vrooli.vrooli_bridge.v1.pairing.PairingRequest.status:type_name -> vrooli.vrooli_bridge.v1.pairing.PairingRequestStatus
-	14, // 4: vrooli.vrooli_bridge.v1.pairing.PairingRequest.created_at:type_name -> google.protobuf.Timestamp
-	14, // 5: vrooli.vrooli_bridge.v1.pairing.PairingRequest.decided_at:type_name -> google.protobuf.Timestamp
-	11, // 6: vrooli.vrooli_bridge.v1.pairing.ListPairingRequestsResponse.requests:type_name -> vrooli.vrooli_bridge.v1.pairing.PairingRequest
-	3,  // 7: vrooli.vrooli_bridge.v1.pairing.PairingService.IssuePairingCode:input_type -> vrooli.vrooli_bridge.v1.pairing.IssuePairingCodeRequest
-	5,  // 8: vrooli.vrooli_bridge.v1.pairing.PairingService.RedeemPairingCode:input_type -> vrooli.vrooli_bridge.v1.pairing.RedeemPairingCodeRequest
-	7,  // 9: vrooli.vrooli_bridge.v1.pairing.PairingService.RequestPairing:input_type -> vrooli.vrooli_bridge.v1.pairing.RequestPairingRequest
-	9,  // 10: vrooli.vrooli_bridge.v1.pairing.PairingService.ApprovePairing:input_type -> vrooli.vrooli_bridge.v1.pairing.ApprovePairingRequest
-	12, // 11: vrooli.vrooli_bridge.v1.pairing.PairingService.ListPairingRequests:input_type -> vrooli.vrooli_bridge.v1.pairing.ListPairingRequestsRequest
-	1,  // 12: vrooli.vrooli_bridge.v1.pairing.PairingService.RegisterEncryptionKey:input_type -> vrooli.vrooli_bridge.v1.pairing.RegisterEncryptionKeyRequest
-	4,  // 13: vrooli.vrooli_bridge.v1.pairing.PairingService.IssuePairingCode:output_type -> vrooli.vrooli_bridge.v1.pairing.IssuePairingCodeResponse
-	6,  // 14: vrooli.vrooli_bridge.v1.pairing.PairingService.RedeemPairingCode:output_type -> vrooli.vrooli_bridge.v1.pairing.RedeemPairingCodeResponse
-	8,  // 15: vrooli.vrooli_bridge.v1.pairing.PairingService.RequestPairing:output_type -> vrooli.vrooli_bridge.v1.pairing.RequestPairingResponse
-	10, // 16: vrooli.vrooli_bridge.v1.pairing.PairingService.ApprovePairing:output_type -> vrooli.vrooli_bridge.v1.pairing.ApprovePairingResponse
-	13, // 17: vrooli.vrooli_bridge.v1.pairing.PairingService.ListPairingRequests:output_type -> vrooli.vrooli_bridge.v1.pairing.ListPairingRequestsResponse
-	2,  // 18: vrooli.vrooli_bridge.v1.pairing.PairingService.RegisterEncryptionKey:output_type -> vrooli.vrooli_bridge.v1.pairing.RegisterEncryptionKeyResponse
-	13, // [13:19] is the sub-list for method output_type
-	7,  // [7:13] is the sub-list for method input_type
-	7,  // [7:7] is the sub-list for extension type_name
-	7,  // [7:7] is the sub-list for extension extendee
-	0,  // [0:7] is the sub-list for field type_name
+	13, // 2: vrooli.vrooli_bridge.v1.pairing.GetPairingRequestResponse.request:type_name -> vrooli.vrooli_bridge.v1.pairing.PairingRequest
+	0,  // 3: vrooli.vrooli_bridge.v1.pairing.ApprovePairingResponse.status:type_name -> vrooli.vrooli_bridge.v1.pairing.PairingRequestStatus
+	0,  // 4: vrooli.vrooli_bridge.v1.pairing.PairingRequest.status:type_name -> vrooli.vrooli_bridge.v1.pairing.PairingRequestStatus
+	17, // 5: vrooli.vrooli_bridge.v1.pairing.PairingRequest.created_at:type_name -> google.protobuf.Timestamp
+	17, // 6: vrooli.vrooli_bridge.v1.pairing.PairingRequest.decided_at:type_name -> google.protobuf.Timestamp
+	13, // 7: vrooli.vrooli_bridge.v1.pairing.ListPairingRequestsResponse.requests:type_name -> vrooli.vrooli_bridge.v1.pairing.PairingRequest
+	16, // 8: vrooli.vrooli_bridge.v1.pairing.ListPairingRequestsResponse.presets:type_name -> vrooli.vrooli_bridge.v1.pairing.PermissionPreset
+	3,  // 9: vrooli.vrooli_bridge.v1.pairing.PairingService.IssuePairingCode:input_type -> vrooli.vrooli_bridge.v1.pairing.IssuePairingCodeRequest
+	5,  // 10: vrooli.vrooli_bridge.v1.pairing.PairingService.RedeemPairingCode:input_type -> vrooli.vrooli_bridge.v1.pairing.RedeemPairingCodeRequest
+	7,  // 11: vrooli.vrooli_bridge.v1.pairing.PairingService.RequestPairing:input_type -> vrooli.vrooli_bridge.v1.pairing.RequestPairingRequest
+	9,  // 12: vrooli.vrooli_bridge.v1.pairing.PairingService.GetPairingRequest:input_type -> vrooli.vrooli_bridge.v1.pairing.GetPairingRequestRequest
+	11, // 13: vrooli.vrooli_bridge.v1.pairing.PairingService.ApprovePairing:input_type -> vrooli.vrooli_bridge.v1.pairing.ApprovePairingRequest
+	14, // 14: vrooli.vrooli_bridge.v1.pairing.PairingService.ListPairingRequests:input_type -> vrooli.vrooli_bridge.v1.pairing.ListPairingRequestsRequest
+	1,  // 15: vrooli.vrooli_bridge.v1.pairing.PairingService.RegisterEncryptionKey:input_type -> vrooli.vrooli_bridge.v1.pairing.RegisterEncryptionKeyRequest
+	4,  // 16: vrooli.vrooli_bridge.v1.pairing.PairingService.IssuePairingCode:output_type -> vrooli.vrooli_bridge.v1.pairing.IssuePairingCodeResponse
+	6,  // 17: vrooli.vrooli_bridge.v1.pairing.PairingService.RedeemPairingCode:output_type -> vrooli.vrooli_bridge.v1.pairing.RedeemPairingCodeResponse
+	8,  // 18: vrooli.vrooli_bridge.v1.pairing.PairingService.RequestPairing:output_type -> vrooli.vrooli_bridge.v1.pairing.RequestPairingResponse
+	10, // 19: vrooli.vrooli_bridge.v1.pairing.PairingService.GetPairingRequest:output_type -> vrooli.vrooli_bridge.v1.pairing.GetPairingRequestResponse
+	12, // 20: vrooli.vrooli_bridge.v1.pairing.PairingService.ApprovePairing:output_type -> vrooli.vrooli_bridge.v1.pairing.ApprovePairingResponse
+	15, // 21: vrooli.vrooli_bridge.v1.pairing.PairingService.ListPairingRequests:output_type -> vrooli.vrooli_bridge.v1.pairing.ListPairingRequestsResponse
+	2,  // 22: vrooli.vrooli_bridge.v1.pairing.PairingService.RegisterEncryptionKey:output_type -> vrooli.vrooli_bridge.v1.pairing.RegisterEncryptionKeyResponse
+	16, // [16:23] is the sub-list for method output_type
+	9,  // [9:16] is the sub-list for method input_type
+	9,  // [9:9] is the sub-list for extension type_name
+	9,  // [9:9] is the sub-list for extension extendee
+	0,  // [0:9] is the sub-list for field type_name
 }
 
 func init() { file_vrooli_bridge_v1_pairing_pairing_proto_init() }
@@ -1092,7 +1315,7 @@ func file_vrooli_bridge_v1_pairing_pairing_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_vrooli_bridge_v1_pairing_pairing_proto_rawDesc), len(file_vrooli_bridge_v1_pairing_pairing_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   13,
+			NumMessages:   16,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

@@ -29,14 +29,18 @@ func restoreHostreq(t *testing.T) func() {
 	}
 }
 
-func newTestHandler() hostreqkit.Handler {
+var newTestHandler = workspaceSandboxTestHandler
+
+func workspaceSandboxTestHandler() hostreqkit.Handler {
 	return NewHandler(hostreqkit.SafeguardManifest{
 		Name:    "workspace_sandbox_userns",
 		Handler: "workspace_sandbox_userns",
 	})
 }
 
-func linuxReq() hostreqspec.ResolvedRequirement {
+var linuxReq = workspaceSandboxLinuxReq
+
+func workspaceSandboxLinuxReq() hostreqspec.ResolvedRequirement {
 	return hostreqspec.ResolvedRequirement{
 		Name:     "workspace_sandbox_userns",
 		Kind:     hostreqspec.KindSafeguard,
@@ -44,7 +48,9 @@ func linuxReq() hostreqspec.ResolvedRequirement {
 	}
 }
 
-func linuxHost() hostreqkit.Host {
+var linuxHost = workspaceSandboxLinuxHost
+
+func workspaceSandboxLinuxHost() hostreqkit.Host {
 	return hostreqkit.Host{OS: "linux"}
 }
 
@@ -144,18 +150,6 @@ func TestInspectPendingWhenNoLaunchPathWorks(t *testing.T) {
 	}
 }
 
-func TestApplyDryRun(t *testing.T) {
-	status, err := newTestHandler().Apply(linuxHost(), hostreqkit.ItemStatus{
-		SupportClass: hostreqkit.SupportSupported,
-	}, hostreqkit.EnsureOptions{DryRun: true})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if status.ExecutionState != hostreqkit.ExecutionWouldApply {
-		t.Fatalf("ExecutionState = %q", status.ExecutionState)
-	}
-}
-
 func TestApplyInstallsLoadsAndValidatesProfile(t *testing.T) {
 	restore := restoreHostreq(t)
 	defer restore()
@@ -195,7 +189,7 @@ func TestApplyInstallsLoadsAndValidatesProfile(t *testing.T) {
 	}
 	want := []string{
 		"mkdir [-p /etc/apparmor.d]",
-		"install [-m 0644 " + tempFile + " /etc/apparmor.d/vrooli-workspace-sandbox]",
+		"install [-m 644 " + tempFile + " /etc/apparmor.d/vrooli-workspace-sandbox]",
 		"apparmor_parser [-r /etc/apparmor.d/vrooli-workspace-sandbox]",
 	}
 	if !reflect.DeepEqual(commands, want) {

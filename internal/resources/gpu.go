@@ -4,7 +4,8 @@ import (
 	"context"
 	"os"
 	"strings"
-	"time"
+
+	"github.com/vrooli/vrooli/internal/tuning"
 
 	"github.com/vrooli/vrooli/internal/gpuaccess"
 	"github.com/vrooli/vrooli/internal/hostinventory"
@@ -95,7 +96,7 @@ func VerifyContainerGPU(ctx context.Context, containerName, probe string) (GPUAc
 // uses the shared host inventory authority so resource overlays do not own
 // private host-probe logic.
 func nvidiaProbe(ctx context.Context) bool {
-	probeCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	probeCtx, cancel := context.WithTimeout(ctx, tuning.ServiceHealthTimeout)
 	defer cancel()
 	snapshot, err := collectGPUInventory(probeCtx)
 	if err != nil {

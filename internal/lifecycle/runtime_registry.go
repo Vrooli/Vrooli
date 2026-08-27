@@ -292,7 +292,7 @@ func (s runtimeRegistrySession) recordHealth(ctx context.Context, item scenario.
 	})
 	lifecycleStatus := runtimeHealthStatus(healthStatus)
 	if lifecycleStatus != scenarioruntime.HealthStatusUnknown && shouldPreferLifecycleHealthStatus(snapshot) {
-		readiness := healthStatus == "healthy" || healthStatus == "degraded" || healthStatus == "running"
+		readiness := healthStatus == WaitVerdictHealthy || healthStatus == scenarioruntime.HealthStatusDegraded || healthStatus == WaitVerdictRunning
 		snapshot.Status = lifecycleStatus
 		snapshot.Readiness = &readiness
 	}
@@ -361,7 +361,7 @@ func (s runtimeRegistrySession) publishPeerRecord(ctx context.Context, home stri
 	}
 	ownerPID := 0
 	for _, ref := range refs {
-		if ref.Status == "running" && ref.PID != nil && *ref.PID > 0 {
+		if ref.Status == WaitVerdictRunning && ref.PID != nil && *ref.PID > 0 {
 			ownerPID = *ref.PID
 			break
 		}
@@ -557,7 +557,7 @@ func runtimeHealthStatus(status string) string {
 	switch strings.TrimSpace(status) {
 	case "healthy":
 		return scenarioruntime.HealthStatusHealthy
-	case "degraded":
+	case scenarioruntime.HealthStatusDegraded:
 		return scenarioruntime.HealthStatusDegraded
 	case "unhealthy":
 		return scenarioruntime.HealthStatusUnhealthy

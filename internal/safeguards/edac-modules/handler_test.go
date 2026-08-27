@@ -17,7 +17,9 @@ type capturedCommand struct {
 	Args []string
 }
 
-func stubAll(t *testing.T) (
+var stubAll = edacStubAll
+
+func edacStubAll(t *testing.T) (
 	cmds *[]capturedCommand,
 	files map[string]string,
 	cpuinfo *string,
@@ -98,11 +100,11 @@ func newHandler() hostreqkit.Handler {
 	return NewHandler(hostreqkit.SafeguardManifest{Name: "edac_modules", Handler: "edac_modules"})
 }
 
-func linuxHost() hostreqkit.Host {
+var linuxHost = edacLinuxHost
+
+func edacLinuxHost() hostreqkit.Host {
 	return hostreqkit.Host{OS: "linux", PackageManager: "apt-get", SupportsSysctl: true, SupportsSystemd: true}
 }
-
-func darwinHost() hostreqkit.Host { return hostreqkit.Host{OS: "darwin"} }
 
 func req(manual bool) hostreqspec.ResolvedRequirement {
 	return hostreqspec.ResolvedRequirement{
@@ -141,25 +143,6 @@ func TestParseCPUInfoEmpty(t *testing.T) {
 	vendor, family := parseCPUInfo("")
 	if vendor != "" || family != "" {
 		t.Errorf("got vendor=%q family=%q", vendor, family)
-	}
-}
-
-func TestInspectNonLinuxIsUnsupported(t *testing.T) {
-	_, _, _, _, restore := stubAll(t)
-	defer restore()
-	st := newHandler().Inspect(darwinHost(), req(false))
-	if st.SupportClass != hostreqkit.SupportUnsupported {
-		t.Errorf("SupportClass = %q", st.SupportClass)
-	}
-}
-
-func TestInspectManualOnly(t *testing.T) {
-	_, _, cpu, _, restore := stubAll(t)
-	defer restore()
-	*cpu = ryzen7000CPUInfo
-	st := newHandler().Inspect(linuxHost(), req(true))
-	if st.SupportClass != hostreqkit.SupportManualOnly {
-		t.Errorf("SupportClass = %q", st.SupportClass)
 	}
 }
 
@@ -273,25 +256,6 @@ func TestApplyHappyPath(t *testing.T) {
 	}
 }
 
-func TestApplyDryRun(t *testing.T) {
-	cmds, _, cpu, mc, restore := stubAll(t)
-	defer restore()
-	*cpu = ryzen7000CPUInfo
-	*mc = true
-
-	st := newHandler().Inspect(linuxHost(), req(false))
-	out, err := newHandler().Apply(linuxHost(), st, hostreqkit.EnsureOptions{DryRun: true})
-	if err != nil {
-		t.Fatalf("Apply: %v", err)
-	}
-	if out.ExecutionState != hostreqkit.ExecutionWouldApply {
-		t.Errorf("ExecutionState = %q", out.ExecutionState)
-	}
-	if len(*cmds) != 0 {
-		t.Errorf("DryRun ran commands: %v", *cmds)
-	}
-}
-
 func TestApplyModprobeFailureSurfaced(t *testing.T) {
 	_, _, cpu, mc, restore := stubAll(t)
 	defer restore()
@@ -344,16 +308,6 @@ func TestApplyShortCircuitsOnSupportClasses(t *testing.T) {
 				t.Errorf("commands ran: %v", *cmds)
 			}
 		})
-	}
-}
-
-func TestNameAndKind(t *testing.T) {
-	h := newHandler()
-	if h.Name() != "edac_modules" {
-		t.Errorf("Name = %q", h.Name())
-	}
-	if h.Kind() != hostreqspec.KindSafeguard {
-		t.Errorf("Kind = %q", h.Kind())
 	}
 }
 

@@ -11,11 +11,12 @@ import (
 	"github.com/vrooli/cli-core/cliutil"
 	"github.com/vrooli/vrooli/internal/hostreqkit"
 	"github.com/vrooli/vrooli/internal/hostreqspec"
+	"github.com/vrooli/vrooli/internal/shell/shelltest"
 )
 
 // newHandlerForTest redirects HOME so the safeguard installs into a temporary
 // tree, and returns the shim directory it will use.
-func newHandlerForTest(t *testing.T) (hostreqkit.Handler, string) {
+func newHandlerForTest(t *testing.T) (hostreqkit.Handler, string, string) {
 	t.Helper()
 	home := t.TempDir()
 	t.Setenv("HOME", home)
@@ -23,13 +24,13 @@ func newHandlerForTest(t *testing.T) (hostreqkit.Handler, string) {
 	if err := os.MkdirAll(binDir, 0o755); err != nil {
 		t.Fatalf("mkdir bin: %v", err)
 	}
-	return NewHandler(hostreqkit.SafeguardManifest{Name: "coding_agent_shims"}), binDir
+	return NewHandler(hostreqkit.SafeguardManifest{Name: "coding_agent_shims"}), binDir, filepath.Join(home, ".vrooli", "shims")
 }
 
 func writeLauncher(t *testing.T, binDir string) string {
 	t.Helper()
 	launcher := filepath.Join(binDir, launcherBinary)
-	if err := os.WriteFile(launcher, []byte("#!/bin/sh\nexit 0\n"), 0o755); err != nil {
+	if err := os.WriteFile(launcher, []byte(shelltest.POSIXShebang()+"exit 0\n"), 0o755); err != nil {
 		t.Fatalf("write launcher: %v", err)
 	}
 	return launcher
@@ -40,7 +41,7 @@ func requirement() hostreqspec.ResolvedRequirement {
 }
 
 func TestInspectReportsPendingWhenLauncherIsNotBuilt(t *testing.T) {
-	handler, _ := newHandlerForTest(t)
+	handler, _, _ := newHandlerForTest(t)
 
 	status := handler.Inspect(hostreqkit.Host{OS: "linux"}, requirement())
 
@@ -65,13 +66,13 @@ func TestShimDirUsesInvokingUserHomeWhenElevated(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ShimDir() error = %v", err)
 	}
-	if got != "/home/alice/.vrooli/bin" {
+	if got != filepath.Join("/home/alice", ".vrooli", "shims") {
 		t.Fatalf("ShimDir() = %q, want invoking user's path", got)
 	}
 }
 
 func TestApplyInstallsOneAliasPerSupportedAgent(t *testing.T) {
-	handler, binDir := newHandlerForTest(t)
+	handler, binDir, shimDir := newHandlerForTest(t)
 	launcher := writeLauncher(t, binDir)
 
 	status := handler.Inspect(hostreqkit.Host{OS: "linux"}, requirement())
@@ -84,7 +85,7 @@ func TestApplyInstallsOneAliasPerSupportedAgent(t *testing.T) {
 	}
 
 	for _, alias := range cliutil.CodingAgentAliases() {
-		path := filepath.Join(binDir, alias)
+		path := filepath.Join(shimDir, alias)
 		target, err := os.Readlink(path)
 		if err != nil {
 			t.Errorf("alias %q was not installed: %v", alias, err)
@@ -102,12 +103,15 @@ func TestApplyInstallsOneAliasPerSupportedAgent(t *testing.T) {
 }
 
 func TestApplyRepairsAnAliasPointingSomewhereElse(t *testing.T) {
-	handler, binDir := newHandlerForTest(t)
+	handler, binDir, shimDir := newHandlerForTest(t)
 	launcher := writeLauncher(t, binDir)
 
-	// A leftover from an older layout, or an unrelated tool that claimed the
-	// name. Either way the safeguard owns this path and must reclaim it.
-	stale := filepath.Join(binDir, "codex")
+	// A leftover from an older launcher path, or an unrelated tool that claimed
+	// the name. Either way the safeguard owns this path and must reclaim it.
+	if err := os.MkdirAll(shimDir, 0o755); err != nil {
+		t.Fatalf("mkdir shims: %v", err)
+	}
+	stale := filepath.Join(shimDir, "codex")
 	if err := os.Symlink("/bin/false", stale); err != nil {
 		t.Fatalf("seed stale alias: %v", err)
 	}
@@ -133,7 +137,7 @@ func TestApplyRepairsAnAliasPointingSomewhereElse(t *testing.T) {
 }
 
 func TestApplyDryRunChangesNothing(t *testing.T) {
-	handler, binDir := newHandlerForTest(t)
+	handler, binDir, shimDir := newHandlerForTest(t)
 	writeLauncher(t, binDir)
 
 	status := handler.Inspect(hostreqkit.Host{OS: "linux"}, requirement())
@@ -145,14 +149,14 @@ func TestApplyDryRunChangesNothing(t *testing.T) {
 		t.Fatalf("execution state = %v, want ExecutionWouldApply", status.ExecutionState)
 	}
 	for _, alias := range cliutil.CodingAgentAliases() {
-		if _, err := os.Lstat(filepath.Join(binDir, alias)); err == nil {
+		if _, err := os.Lstat(filepath.Join(shimDir, alias)); err == nil {
 			t.Fatalf("dry run installed alias %q", alias)
 		}
 	}
 }
 
 func TestApplyIsIdempotent(t *testing.T) {
-	handler, binDir := newHandlerForTest(t)
+	handler, binDir, shimDir := newHandlerForTest(t)
 	writeLauncher(t, binDir)
 
 	for range 3 {
@@ -162,12 +166,13 @@ func TestApplyIsIdempotent(t *testing.T) {
 		}
 	}
 
-	entries, err := os.ReadDir(binDir)
+	entries, err := os.ReadDir(shimDir)
 	if err != nil {
 		t.Fatalf("read shim dir: %v", err)
 	}
-	// One launcher plus exactly one alias per agent, no accumulation.
-	if want := len(cliutil.CodingAgentAliases()) + 1; len(entries) != want {
+	// Exactly one alias per agent and no staging leftovers, however many times
+	// apply runs. The launcher itself stays in the install root.
+	if want := len(cliutil.CodingAgentAliases()); len(entries) != want {
 		names := make([]string, 0, len(entries))
 		for _, entry := range entries {
 			names = append(names, entry.Name())

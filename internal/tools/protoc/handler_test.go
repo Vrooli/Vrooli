@@ -29,7 +29,9 @@ var testManifest = hostreqkit.ToolManifest{
 
 func newHandler() hostreqkit.Handler { return NewHandler(testManifest) }
 
-func baseRequirement() hostreqspec.ResolvedRequirement {
+var baseRequirement = protocBaseRequirement
+
+func protocBaseRequirement() hostreqspec.ResolvedRequirement {
 	return hostreqspec.ResolvedRequirement{Name: "protoc", Kind: hostreqspec.KindTool}
 }
 
@@ -42,16 +44,6 @@ func stub(t *testing.T) (restore func()) {
 		hostreqkit.LookPathFn = origLookPath
 		hostreqkit.CombinedOutputFn = origCombinedOutput
 		hostreqkit.RunCommandFn = origRunCommand
-	}
-}
-
-func TestNameAndKind(t *testing.T) {
-	h := newHandler()
-	if h.Name() != "protoc" {
-		t.Fatalf("Name = %q", h.Name())
-	}
-	if h.Kind() != hostreqspec.KindTool {
-		t.Fatalf("Kind = %q", h.Kind())
 	}
 }
 

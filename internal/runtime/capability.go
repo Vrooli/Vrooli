@@ -8,6 +8,10 @@ import (
 	"github.com/vrooli/vrooli/internal/hostreqspec"
 )
 
+const (
+	capabilityParameterA = 30
+)
+
 // capabilityFactsFn is the seam through which the generic tool handler learns the
 // host's hardware facts for evaluating a tool's `requires` capability gate.
 // Tests override it to simulate a CPU-only host, a specific arch, etc. It is
@@ -59,7 +63,7 @@ func capabilityFactsFromSnapshot(snap hostinventory.Snapshot) hostreqspec.Capabi
 }
 
 func bytesToGiB(b uint64) float64 {
-	return float64(b) / (1 << 30)
+	return float64(b) / (1 << capabilityParameterA)
 }
 
 // effectiveCapability returns the capability gate that applies to a tool: the

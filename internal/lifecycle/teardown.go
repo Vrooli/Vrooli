@@ -3,7 +3,8 @@ package lifecycle
 import (
 	"context"
 	"fmt"
-	"time"
+
+	"github.com/vrooli/vrooli/internal/tuning"
 
 	"github.com/vrooli/vrooli/internal/process"
 )
@@ -151,8 +152,8 @@ func (r *Runner) waitForInstanceReleased(ctx context.Context, name, variant stri
 var (
 	// Termination grace is a deadline, not a mandatory delay. A process that
 	// exits on the first poll makes teardown return on that first observation.
-	teardownTerminatePolicy = AwaitPolicy{Timeout: 2 * time.Second, Interval: 100 * time.Millisecond}
-	teardownForcePolicy     = AwaitPolicy{Timeout: 2 * time.Second, Interval: 100 * time.Millisecond}
-	restartReleasePolicy    = AwaitPolicy{Timeout: 2 * time.Second, Interval: 100 * time.Millisecond}
-	backgroundLaunchPolicy  = AwaitPolicy{Timeout: 2 * time.Second, Interval: 50 * time.Millisecond}
+	teardownTerminatePolicy = AwaitPolicy{Timeout: tuning.ShortOperationDeadline, Interval: tuning.LifecyclePollInterval}
+	teardownForcePolicy     = AwaitPolicy{Timeout: tuning.ShortOperationDeadline, Interval: tuning.LifecyclePollInterval}
+	restartReleasePolicy    = AwaitPolicy{Timeout: tuning.ShortOperationDeadline, Interval: tuning.LifecyclePollInterval}
+	backgroundLaunchPolicy  = AwaitPolicy{Timeout: tuning.ShortOperationDeadline, Interval: tuning.BackgroundLaunchPollInterval}
 )

@@ -14,6 +14,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vrooli/vrooli/internal/tuning"
+
 	"github.com/vrooli/vrooli/internal/artifactlease"
 	"github.com/vrooli/vrooli/internal/artifactledger"
 
@@ -21,6 +23,11 @@ import (
 	repocontract "github.com/vrooli/repo-contract-go"
 	"github.com/vrooli/vrooli/internal/config"
 	"github.com/vrooli/vrooli/internal/discovery"
+	"github.com/vrooli/vrooli/internal/hostreqspec"
+)
+
+const (
+	installationGoModule = "go_module"
 )
 
 func (m *Manager) install(ctx context.Context, item InstallableCLI) error {
@@ -114,7 +121,7 @@ func (m *Manager) writeInstallMetadata(item InstallableCLI, meta InstallMetadata
 		return err
 	}
 	data = append(data, '\n')
-	return config.WriteOwnedFile(m.InstallMetadataPath(item), data, 0o644)
+	return config.WriteOwnedFile(m.InstallMetadataPath(item), data, tuning.PermFile)
 }
 
 func (m *Manager) computeInstallFingerprint(item InstallableCLI) (string, error) {
@@ -147,14 +154,14 @@ func (item InstallableCLI) FreshnessSpec() (cliutil.FreshnessSpec, error) {
 	switch item.Kind {
 	case KindScenario:
 		switch item.CLI.Adapter.Kind {
-		case "go_module":
+		case installationGoModule:
 			return cliutil.CanonicalScenarioGoModuleFreshnessSpec(item.ScenarioPath, item.ModulePath, item.BinaryName, customInputs), nil
 		default:
 			return cliutil.FreshnessSpec{}, fmt.Errorf("unsupported scenario CLI adapter kind %q", item.CLI.Adapter.Kind)
 		}
 	case KindResource:
 		switch item.CLI.Adapter.Kind {
-		case "go_module":
+		case installationGoModule:
 			return cliutil.CanonicalResourceGoModuleFreshnessSpec(item.ResourcePath, item.ModulePath, item.BinaryName, customInputs), nil
 		default:
 			return cliutil.FreshnessSpec{}, fmt.Errorf("unsupported resource CLI adapter kind %q", item.CLI.Adapter.Kind)
@@ -212,7 +219,7 @@ func (GoInstaller) Install(ctx context.Context, item InstallableCLI, installDir 
 			return errors.New("scenario CLI manifest is required")
 		}
 		switch item.CLI.Adapter.Kind {
-		case "go_module":
+		case installationGoModule:
 			return runGoModuleInstaller(ctx, item, installDir)
 		default:
 			return fmt.Errorf("unsupported scenario CLI adapter kind %q", item.CLI.Adapter.Kind)
@@ -222,7 +229,7 @@ func (GoInstaller) Install(ctx context.Context, item InstallableCLI, installDir 
 			return errors.New("resource CLI manifest is required")
 		}
 		switch item.CLI.Adapter.Kind {
-		case "go_module":
+		case installationGoModule:
 			return runGoModuleInstaller(ctx, item, installDir)
 		default:
 			return fmt.Errorf("unsupported resource CLI adapter kind %q", item.CLI.Adapter.Kind)
@@ -307,7 +314,7 @@ func sameInstallPath(a, b string) bool {
 	if a == "" || b == "" {
 		return false
 	}
-	if runtime.GOOS == "windows" {
+	if hostreqspec.PlatformFromGOOS(runtime.GOOS) == hostreqspec.PlatformWindows {
 		return strings.EqualFold(a, b)
 	}
 	return a == b

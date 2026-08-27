@@ -8,7 +8,12 @@ import (
 	"strings"
 
 	"github.com/vrooli/vrooli/internal/cli/rootcli"
+	"github.com/vrooli/vrooli/internal/repocontractmeta"
 	"github.com/vrooli/vrooli/internal/scenariostale"
+)
+
+const (
+	staleCheckParameterA = 3
 )
 
 // staleCheckEnvVar lets tests and CI disable the warning without threading the
@@ -38,7 +43,7 @@ func emitScenarioStaleWarning(stderr io.Writer, root, scenarioName string, globa
 	if strings.ContainsAny(scenarioName, "/\\") {
 		return
 	}
-	scenarioDir := filepath.Join(strings.TrimSpace(root), "scenarios", scenarioName)
+	scenarioDir := filepath.Join(strings.TrimSpace(root), repocontractmeta.ScenarioDir, scenarioName)
 	info, err := os.Stat(scenarioDir)
 	if err != nil || !info.IsDir() {
 		return
@@ -72,7 +77,7 @@ func emitScenarioStaleWarning(stderr io.Writer, root, scenarioName string, globa
 //nolint:unused // reached only via generic scenariohandlers; unused linter can't trace through instantiations.
 func extractCompletenessScenario(args []string) string {
 	positional := stripCompletenessFlags(args)
-	if len(positional) < 3 {
+	if len(positional) < staleCheckParameterA {
 		return ""
 	}
 	if positional[0] != "score" {

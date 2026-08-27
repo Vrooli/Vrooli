@@ -1,11 +1,6 @@
 package packagecli
 
 import (
-	"io"
-
-	"google.golang.org/protobuf/proto"
-
-	"github.com/vrooli/vrooli/internal/cliout"
 	"github.com/vrooli/vrooli/internal/packagegov"
 	cliv1 "github.com/vrooli/vrooli/packages/proto/gen/go/cli/v1"
 )
@@ -174,9 +169,4 @@ func PackageRefreshResponse(resp RefreshResponse) *cliv1.PackageRefreshResponse 
 		})
 	}
 	return &cliv1.PackageRefreshResponse{Success: true, Refresh: result}
-}
-
-// writePackageJSON marshals a package wire-contract message and writes it.
-func writePackageJSON(w io.Writer, msg proto.Message) error {
-	return cliout.WriteProtoJSON(w, msg)
 }

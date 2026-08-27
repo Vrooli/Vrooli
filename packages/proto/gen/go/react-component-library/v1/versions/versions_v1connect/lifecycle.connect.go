@@ -57,6 +57,21 @@ const (
 	// VersionLifecycleServiceRetireVersionProcedure is the fully-qualified name of the
 	// VersionLifecycleService's RetireVersion RPC.
 	VersionLifecycleServiceRetireVersionProcedure = "/vrooli.react_component_library.v1.versions.VersionLifecycleService/RetireVersion"
+	// VersionLifecycleServiceMaterializeVersionProcedure is the fully-qualified name of the
+	// VersionLifecycleService's MaterializeVersion RPC.
+	VersionLifecycleServiceMaterializeVersionProcedure = "/vrooli.react_component_library.v1.versions.VersionLifecycleService/MaterializeVersion"
+	// VersionLifecycleServiceReconcilePresenceProcedure is the fully-qualified name of the
+	// VersionLifecycleService's ReconcilePresence RPC.
+	VersionLifecycleServiceReconcilePresenceProcedure = "/vrooli.react_component_library.v1.versions.VersionLifecycleService/ReconcilePresence"
+	// VersionLifecycleServiceExportArchiveProcedure is the fully-qualified name of the
+	// VersionLifecycleService's ExportArchive RPC.
+	VersionLifecycleServiceExportArchiveProcedure = "/vrooli.react_component_library.v1.versions.VersionLifecycleService/ExportArchive"
+	// VersionLifecycleServiceImportArchiveProcedure is the fully-qualified name of the
+	// VersionLifecycleService's ImportArchive RPC.
+	VersionLifecycleServiceImportArchiveProcedure = "/vrooli.react_component_library.v1.versions.VersionLifecycleService/ImportArchive"
+	// VersionLifecycleServiceDoctorProcedure is the fully-qualified name of the
+	// VersionLifecycleService's Doctor RPC.
+	VersionLifecycleServiceDoctorProcedure = "/vrooli.react_component_library.v1.versions.VersionLifecycleService/Doctor"
 )
 
 // VersionLifecycleServiceClient is a client for the
@@ -70,6 +85,11 @@ type VersionLifecycleServiceClient interface {
 	DeprecateVersion(context.Context, *connect.Request[versions.VersionLifecycleRequest]) (*connect.Response[versions.VersionLifecycleResponse], error)
 	ArchiveVersion(context.Context, *connect.Request[versions.VersionLifecycleRequest]) (*connect.Response[versions.VersionLifecycleResponse], error)
 	RetireVersion(context.Context, *connect.Request[versions.VersionLifecycleRequest]) (*connect.Response[versions.VersionLifecycleResponse], error)
+	MaterializeVersion(context.Context, *connect.Request[versions.MaterializeVersionRequest]) (*connect.Response[versions.MaterializeVersionResponse], error)
+	ReconcilePresence(context.Context, *connect.Request[versions.ReconcilePresenceRequest]) (*connect.Response[versions.ReconcilePresenceResponse], error)
+	ExportArchive(context.Context, *connect.Request[versions.ArchiveRequest]) (*connect.Response[versions.ArchiveResponse], error)
+	ImportArchive(context.Context, *connect.Request[versions.ImportArchiveRequest]) (*connect.Response[versions.ArchiveResponse], error)
+	Doctor(context.Context, *connect.Request[versions.DoctorRequest]) (*connect.Response[versions.DoctorResponse], error)
 }
 
 // NewVersionLifecycleServiceClient constructs a client for the
@@ -132,6 +152,36 @@ func NewVersionLifecycleServiceClient(httpClient connect.HTTPClient, baseURL str
 			connect.WithSchema(versionLifecycleServiceMethods.ByName("RetireVersion")),
 			connect.WithClientOptions(opts...),
 		),
+		materializeVersion: connect.NewClient[versions.MaterializeVersionRequest, versions.MaterializeVersionResponse](
+			httpClient,
+			baseURL+VersionLifecycleServiceMaterializeVersionProcedure,
+			connect.WithSchema(versionLifecycleServiceMethods.ByName("MaterializeVersion")),
+			connect.WithClientOptions(opts...),
+		),
+		reconcilePresence: connect.NewClient[versions.ReconcilePresenceRequest, versions.ReconcilePresenceResponse](
+			httpClient,
+			baseURL+VersionLifecycleServiceReconcilePresenceProcedure,
+			connect.WithSchema(versionLifecycleServiceMethods.ByName("ReconcilePresence")),
+			connect.WithClientOptions(opts...),
+		),
+		exportArchive: connect.NewClient[versions.ArchiveRequest, versions.ArchiveResponse](
+			httpClient,
+			baseURL+VersionLifecycleServiceExportArchiveProcedure,
+			connect.WithSchema(versionLifecycleServiceMethods.ByName("ExportArchive")),
+			connect.WithClientOptions(opts...),
+		),
+		importArchive: connect.NewClient[versions.ImportArchiveRequest, versions.ArchiveResponse](
+			httpClient,
+			baseURL+VersionLifecycleServiceImportArchiveProcedure,
+			connect.WithSchema(versionLifecycleServiceMethods.ByName("ImportArchive")),
+			connect.WithClientOptions(opts...),
+		),
+		doctor: connect.NewClient[versions.DoctorRequest, versions.DoctorResponse](
+			httpClient,
+			baseURL+VersionLifecycleServiceDoctorProcedure,
+			connect.WithSchema(versionLifecycleServiceMethods.ByName("Doctor")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -145,6 +195,11 @@ type versionLifecycleServiceClient struct {
 	deprecateVersion     *connect.Client[versions.VersionLifecycleRequest, versions.VersionLifecycleResponse]
 	archiveVersion       *connect.Client[versions.VersionLifecycleRequest, versions.VersionLifecycleResponse]
 	retireVersion        *connect.Client[versions.VersionLifecycleRequest, versions.VersionLifecycleResponse]
+	materializeVersion   *connect.Client[versions.MaterializeVersionRequest, versions.MaterializeVersionResponse]
+	reconcilePresence    *connect.Client[versions.ReconcilePresenceRequest, versions.ReconcilePresenceResponse]
+	exportArchive        *connect.Client[versions.ArchiveRequest, versions.ArchiveResponse]
+	importArchive        *connect.Client[versions.ImportArchiveRequest, versions.ArchiveResponse]
+	doctor               *connect.Client[versions.DoctorRequest, versions.DoctorResponse]
 }
 
 // ListVersionLedger calls
@@ -194,6 +249,35 @@ func (c *versionLifecycleServiceClient) RetireVersion(ctx context.Context, req *
 	return c.retireVersion.CallUnary(ctx, req)
 }
 
+// MaterializeVersion calls
+// vrooli.react_component_library.v1.versions.VersionLifecycleService.MaterializeVersion.
+func (c *versionLifecycleServiceClient) MaterializeVersion(ctx context.Context, req *connect.Request[versions.MaterializeVersionRequest]) (*connect.Response[versions.MaterializeVersionResponse], error) {
+	return c.materializeVersion.CallUnary(ctx, req)
+}
+
+// ReconcilePresence calls
+// vrooli.react_component_library.v1.versions.VersionLifecycleService.ReconcilePresence.
+func (c *versionLifecycleServiceClient) ReconcilePresence(ctx context.Context, req *connect.Request[versions.ReconcilePresenceRequest]) (*connect.Response[versions.ReconcilePresenceResponse], error) {
+	return c.reconcilePresence.CallUnary(ctx, req)
+}
+
+// ExportArchive calls
+// vrooli.react_component_library.v1.versions.VersionLifecycleService.ExportArchive.
+func (c *versionLifecycleServiceClient) ExportArchive(ctx context.Context, req *connect.Request[versions.ArchiveRequest]) (*connect.Response[versions.ArchiveResponse], error) {
+	return c.exportArchive.CallUnary(ctx, req)
+}
+
+// ImportArchive calls
+// vrooli.react_component_library.v1.versions.VersionLifecycleService.ImportArchive.
+func (c *versionLifecycleServiceClient) ImportArchive(ctx context.Context, req *connect.Request[versions.ImportArchiveRequest]) (*connect.Response[versions.ArchiveResponse], error) {
+	return c.importArchive.CallUnary(ctx, req)
+}
+
+// Doctor calls vrooli.react_component_library.v1.versions.VersionLifecycleService.Doctor.
+func (c *versionLifecycleServiceClient) Doctor(ctx context.Context, req *connect.Request[versions.DoctorRequest]) (*connect.Response[versions.DoctorResponse], error) {
+	return c.doctor.CallUnary(ctx, req)
+}
+
 // VersionLifecycleServiceHandler is an implementation of the
 // vrooli.react_component_library.v1.versions.VersionLifecycleService service.
 type VersionLifecycleServiceHandler interface {
@@ -205,6 +289,11 @@ type VersionLifecycleServiceHandler interface {
 	DeprecateVersion(context.Context, *connect.Request[versions.VersionLifecycleRequest]) (*connect.Response[versions.VersionLifecycleResponse], error)
 	ArchiveVersion(context.Context, *connect.Request[versions.VersionLifecycleRequest]) (*connect.Response[versions.VersionLifecycleResponse], error)
 	RetireVersion(context.Context, *connect.Request[versions.VersionLifecycleRequest]) (*connect.Response[versions.VersionLifecycleResponse], error)
+	MaterializeVersion(context.Context, *connect.Request[versions.MaterializeVersionRequest]) (*connect.Response[versions.MaterializeVersionResponse], error)
+	ReconcilePresence(context.Context, *connect.Request[versions.ReconcilePresenceRequest]) (*connect.Response[versions.ReconcilePresenceResponse], error)
+	ExportArchive(context.Context, *connect.Request[versions.ArchiveRequest]) (*connect.Response[versions.ArchiveResponse], error)
+	ImportArchive(context.Context, *connect.Request[versions.ImportArchiveRequest]) (*connect.Response[versions.ArchiveResponse], error)
+	Doctor(context.Context, *connect.Request[versions.DoctorRequest]) (*connect.Response[versions.DoctorResponse], error)
 }
 
 // NewVersionLifecycleServiceHandler builds an HTTP handler from the service implementation. It
@@ -262,6 +351,36 @@ func NewVersionLifecycleServiceHandler(svc VersionLifecycleServiceHandler, opts 
 		connect.WithSchema(versionLifecycleServiceMethods.ByName("RetireVersion")),
 		connect.WithHandlerOptions(opts...),
 	)
+	versionLifecycleServiceMaterializeVersionHandler := connect.NewUnaryHandler(
+		VersionLifecycleServiceMaterializeVersionProcedure,
+		svc.MaterializeVersion,
+		connect.WithSchema(versionLifecycleServiceMethods.ByName("MaterializeVersion")),
+		connect.WithHandlerOptions(opts...),
+	)
+	versionLifecycleServiceReconcilePresenceHandler := connect.NewUnaryHandler(
+		VersionLifecycleServiceReconcilePresenceProcedure,
+		svc.ReconcilePresence,
+		connect.WithSchema(versionLifecycleServiceMethods.ByName("ReconcilePresence")),
+		connect.WithHandlerOptions(opts...),
+	)
+	versionLifecycleServiceExportArchiveHandler := connect.NewUnaryHandler(
+		VersionLifecycleServiceExportArchiveProcedure,
+		svc.ExportArchive,
+		connect.WithSchema(versionLifecycleServiceMethods.ByName("ExportArchive")),
+		connect.WithHandlerOptions(opts...),
+	)
+	versionLifecycleServiceImportArchiveHandler := connect.NewUnaryHandler(
+		VersionLifecycleServiceImportArchiveProcedure,
+		svc.ImportArchive,
+		connect.WithSchema(versionLifecycleServiceMethods.ByName("ImportArchive")),
+		connect.WithHandlerOptions(opts...),
+	)
+	versionLifecycleServiceDoctorHandler := connect.NewUnaryHandler(
+		VersionLifecycleServiceDoctorProcedure,
+		svc.Doctor,
+		connect.WithSchema(versionLifecycleServiceMethods.ByName("Doctor")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/vrooli.react_component_library.v1.versions.VersionLifecycleService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case VersionLifecycleServiceListVersionLedgerProcedure:
@@ -280,6 +399,16 @@ func NewVersionLifecycleServiceHandler(svc VersionLifecycleServiceHandler, opts 
 			versionLifecycleServiceArchiveVersionHandler.ServeHTTP(w, r)
 		case VersionLifecycleServiceRetireVersionProcedure:
 			versionLifecycleServiceRetireVersionHandler.ServeHTTP(w, r)
+		case VersionLifecycleServiceMaterializeVersionProcedure:
+			versionLifecycleServiceMaterializeVersionHandler.ServeHTTP(w, r)
+		case VersionLifecycleServiceReconcilePresenceProcedure:
+			versionLifecycleServiceReconcilePresenceHandler.ServeHTTP(w, r)
+		case VersionLifecycleServiceExportArchiveProcedure:
+			versionLifecycleServiceExportArchiveHandler.ServeHTTP(w, r)
+		case VersionLifecycleServiceImportArchiveProcedure:
+			versionLifecycleServiceImportArchiveHandler.ServeHTTP(w, r)
+		case VersionLifecycleServiceDoctorProcedure:
+			versionLifecycleServiceDoctorHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -319,4 +448,24 @@ func (UnimplementedVersionLifecycleServiceHandler) ArchiveVersion(context.Contex
 
 func (UnimplementedVersionLifecycleServiceHandler) RetireVersion(context.Context, *connect.Request[versions.VersionLifecycleRequest]) (*connect.Response[versions.VersionLifecycleResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.react_component_library.v1.versions.VersionLifecycleService.RetireVersion is not implemented"))
+}
+
+func (UnimplementedVersionLifecycleServiceHandler) MaterializeVersion(context.Context, *connect.Request[versions.MaterializeVersionRequest]) (*connect.Response[versions.MaterializeVersionResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.react_component_library.v1.versions.VersionLifecycleService.MaterializeVersion is not implemented"))
+}
+
+func (UnimplementedVersionLifecycleServiceHandler) ReconcilePresence(context.Context, *connect.Request[versions.ReconcilePresenceRequest]) (*connect.Response[versions.ReconcilePresenceResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.react_component_library.v1.versions.VersionLifecycleService.ReconcilePresence is not implemented"))
+}
+
+func (UnimplementedVersionLifecycleServiceHandler) ExportArchive(context.Context, *connect.Request[versions.ArchiveRequest]) (*connect.Response[versions.ArchiveResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.react_component_library.v1.versions.VersionLifecycleService.ExportArchive is not implemented"))
+}
+
+func (UnimplementedVersionLifecycleServiceHandler) ImportArchive(context.Context, *connect.Request[versions.ImportArchiveRequest]) (*connect.Response[versions.ArchiveResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.react_component_library.v1.versions.VersionLifecycleService.ImportArchive is not implemented"))
+}
+
+func (UnimplementedVersionLifecycleServiceHandler) Doctor(context.Context, *connect.Request[versions.DoctorRequest]) (*connect.Response[versions.DoctorResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.react_component_library.v1.versions.VersionLifecycleService.Doctor is not implemented"))
 }

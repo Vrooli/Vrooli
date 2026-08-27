@@ -11,6 +11,13 @@ import (
 	"strings"
 )
 
+const (
+	devicesSysfsParameterA = 1024
+	devicesSysfsParameterB = 64
+	devicesSysfsParameterC = 16
+	devicesSysfsParameterD = 4
+)
+
 // sysfsDeviceEnumerator reads the Linux device tree. It is a plain filesystem
 // reader with an injectable root so the enumeration is exercised by checked-in
 // fixtures on hosts that have none of the hardware.
@@ -107,7 +114,7 @@ func (e sysfsDeviceEnumerator) enumerateGraphics() deviceEnumerationResult {
 	}
 	sort.Strings(busRoots)
 
-	devices := make([]Device, 0, 4)
+	devices := make([]Device, 0, devicesSysfsParameterD)
 	for _, busRoot := range busRoots {
 		found, warnings := e.walkBus(devicesDir, busRoot)
 		devices = append(devices, found...)
@@ -240,7 +247,7 @@ func sysfsDeviceID(devicesDir, path string) string {
 func sysfsBaseClass(path string, uevent map[string]string) (uint64, bool) {
 	if raw := uevent["PCI_CLASS"]; raw != "" {
 		if value, err := strconv.ParseUint(strings.TrimPrefix(raw, "0x"), 16, 32); err == nil {
-			return value >> 16, true
+			return value >> devicesSysfsParameterC, true
 		}
 	}
 	data, err := os.ReadFile(filepath.Join(path, "class"))
@@ -251,7 +258,7 @@ func sysfsBaseClass(path string, uevent map[string]string) (uint64, bool) {
 	if err != nil {
 		return 0, false
 	}
-	return value >> 16, true
+	return value >> devicesSysfsParameterC, true
 }
 
 func readSysfsUevent(path string) map[string]string {
@@ -357,6 +364,8 @@ func (e sysfsDeviceEnumerator) resolveNames(result *deviceEnumerationResult) {
 // readPCIIDs scans the pci.ids database for exactly the vendor and device
 // identifiers the enumerated devices carry. It reads line by line and stops as
 // soon as every wanted pair is resolved so a 1.4MB database costs little.
+//
+//nolint:gocyclo // PCI identification handles file, record, vendor, class, and malformed-input branches.
 func readPCIIDs(path string, devices []Device) (map[string]string, map[string]string, error) {
 	file, err := os.Open(path)
 	if err != nil {
@@ -378,7 +387,7 @@ func readPCIIDs(path string, devices []Device) (map[string]string, map[string]st
 	models := map[string]string{}
 
 	scanner := bufio.NewScanner(file)
-	scanner.Buffer(make([]byte, 0, 64*1024), 1024*1024)
+	scanner.Buffer(make([]byte, 0, devicesSysfsParameterB*devicesSysfsParameterA), devicesSysfsParameterA*devicesSysfsParameterA)
 	currentVendor := ""
 	for scanner.Scan() {
 		line := scanner.Text()

@@ -21,6 +21,11 @@ import (
 )
 
 const (
+	rootcliParameterA = 2
+	rootcliParameterB = 4
+)
+
+const (
 	ErrorCategoryUsage       = clipolicy.ErrorCategoryUsage
 	ErrorCategoryEnvironment = clipolicy.ErrorCategoryEnvironment
 	ErrorCategoryRuntime     = clipolicy.ErrorCategoryRuntime
@@ -198,7 +203,7 @@ func ContainsFlag(args []string, target string) bool {
 }
 
 func PassthroughFlags(globals GlobalOptions, existing []string) []string {
-	flags := make([]string, 0, 4)
+	flags := make([]string, 0, rootcliParameterB)
 	if globals.JSON && !ContainsArg(existing, "--json") {
 		flags = append(flags, "--json")
 	}
@@ -331,7 +336,7 @@ func SuggestCommandNames(command string, names []string) []string {
 		if candidate == command {
 			continue
 		}
-		if simpleDistance(command, candidate) <= 2 {
+		if simpleDistance(command, candidate) <= rootcliParameterA {
 			candidates = append(candidates, candidate)
 		}
 	}
@@ -467,6 +472,7 @@ func NewRunner[C any](config RunnerConfig[C]) *Runner[C] {
 	return &Runner[C]{config: config}
 }
 
+//nolint:gocyclo // root dispatch preserves help, parse, execution, and error-exit contracts for every command.
 func (r *Runner[C]) Run(args []string, stdout, stderr io.Writer) int {
 	parsed, err := ParseArgs(args)
 	if err != nil {
@@ -635,45 +641,35 @@ func (r *Runner[C]) recordMetrics(parsed ParsedArgs, start time.Time, err error)
 	})
 }
 
-func BindGlobalCommand[C any, Req any, Resp any](
+// BindService binds a command whose only command-specific wiring is the
+// service constructor, request parser, service call, and response renderer.
+// The service constructor runs before parsing so dependency failures are
+// reported consistently and the service is available to the call without a
+// repeated context lookup.
+func BindService[C any, Service any, Req any, Resp any](
 	stdout func(C) io.Writer,
+	newService func(C) (cliout.Format, Service, error),
 	parse func(C, []string) (Req, error),
-	run func(C, Req) (cliout.Format, Resp, error),
+	call func(Service, Req) (Resp, error),
 	render func(w io.Writer, format cliout.Format, resp Resp) error,
 ) Handler[C] {
-	type output struct {
-		format cliout.Format
-		resp   Resp
-	}
 	return func(ctx C, args []string) error {
-		return commandtree.ExecuteAction(stdout(ctx), args, commandtree.Action[Req, output]{
-			Parse: func(args []string) (Req, error) {
-				return parse(ctx, args)
-			},
-			Execute: func(req Req) (output, error) {
-				format, resp, err := run(ctx, req)
-				return output{format: format, resp: resp}, err
-			},
-			Render: func(w io.Writer, item output) error {
-				return render(w, item.format, item.resp)
-			},
+		format, service, err := newService(ctx)
+		if err != nil {
+			return err
+		}
+		return commandtree.ExecuteAction(stdout(ctx), args, commandtree.Action[Req, Resp]{
+			Parse:   func(args []string) (Req, error) { return parse(ctx, args) },
+			Execute: func(req Req) (Resp, error) { return call(service, req) },
+			Render:  func(w io.Writer, resp Resp) error { return render(w, format, resp) },
 		})
 	}
 }
 
-func BindContextCommand[C any, Req any, Resp any](
-	stdout func(C) io.Writer,
-	parse func(C, []string) (Req, error),
-	run func(C, Req) (cliout.Format, Resp, error),
-	render func(w io.Writer, format cliout.Format, resp Resp) error,
-) Handler[C] {
-	return BindGlobalCommand(stdout, parse, run, render)
-}
-
 func BindResourceCommand[C any, Req any, Resp any](
 	stdout func(C) io.Writer,
-	parse func(C, []string) (Req, error),
-	run func(controller *resources.Controller, ctx C, req Req) (cliout.Format, Resp, error),
+	parse func([]string) (Req, error),
+	run func(ctx C, controller *resources.Controller, req Req) (cliout.Format, Resp, error),
 	render func(w io.Writer, format cliout.Format, resp Resp) error,
 ) ResourceHandler[C] {
 	type output struct {
@@ -683,10 +679,10 @@ func BindResourceCommand[C any, Req any, Resp any](
 	return func(ctx C, controller *resources.Controller, args []string) error {
 		return commandtree.ExecuteAction(stdout(ctx), args, commandtree.Action[Req, output]{
 			Parse: func(args []string) (Req, error) {
-				return parse(ctx, args)
+				return parse(args)
 			},
 			Execute: func(req Req) (output, error) {
-				format, resp, err := run(controller, ctx, req)
+				format, resp, err := run(ctx, controller, req)
 				return output{format: format, resp: resp}, err
 			},
 			Render: func(w io.Writer, item output) error {

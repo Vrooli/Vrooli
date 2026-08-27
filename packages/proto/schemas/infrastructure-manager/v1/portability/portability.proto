@@ -146,11 +146,18 @@ message ObservedDeclarer {
   string reason = 4;
 }
 
+message PlatformSituation {
+  HostOS host_os = 1;
+  CapabilitySituation situation = 2;
+  string reason = 3;
+}
+
 message CapabilityEntry {
   string capability = 1;
   CapabilitySituation situation = 2;
   string situation_reason = 3;
   repeated PlatformEntry platforms = 4;
+  repeated PlatformSituation platform_situations = 5;
 }
 
 // Grid is the whole readout. manifest_root is reported on every response
@@ -163,6 +170,38 @@ message Grid {
   google.protobuf.Timestamp computed_at = 4;
   repeated ObservedSafeguard observed_safeguards = 5;
   repeated NativeEvidence native_evidence = 6;
+  repeated ResourceArchitectureClaim resources = 7;
+  PlatformSkipBudget skip_budget = 8;
+}
+
+message ResourceArchitectureStatus {
+  string architecture = 1;
+  string support = 2;
+  string reason = 3;
+}
+
+message ResourcePlatformClaim {
+  HostOS host_os = 1;
+  string support = 2;
+  repeated ResourceArchitectureStatus architectures = 3;
+  bool mismatch = 4;
+  string reason = 5;
+}
+
+message ResourceArchitectureClaim {
+  string name = 1;
+  string driver = 2;
+  string acquisition_kind = 3;
+  repeated ResourcePlatformClaim platforms = 4;
+}
+
+message PlatformSkipBudget {
+  bool available = 1;
+  int32 measured = 2;
+  map<string, int32> budgets = 3;
+  string reason = 4;
+  string ratchet_direction = 5;
+  bool last_run_within_budget = 6;
 }
 
 // NativeEvidence is the durable qualification surface observed by a runner.

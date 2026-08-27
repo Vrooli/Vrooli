@@ -2,6 +2,13 @@ package deployability
 
 import "strings"
 
+const (
+	platformstatusParameterA = 2
+	platformstatusParameterB = 3
+	platformstatusParameterC = 4
+	platformstatusParameterD = 5
+)
+
 // PlatformStatus is the closed vocabulary a manifest may author for a single
 // host OS. Every token below is authored somewhere in the repository or is
 // synthesized by a loader; nothing else is accepted, because a token the
@@ -63,10 +70,10 @@ const (
 var qualificationRanks = map[Qualification]int{
 	QualificationUndeclared:    0,
 	QualificationIneligible:    1,
-	QualificationDegraded:      2,
-	QualificationUnqualified:   3,
-	QualificationBuildVerified: 4,
-	QualificationQualified:     5,
+	QualificationDegraded:      platformstatusParameterA,
+	QualificationUnqualified:   platformstatusParameterB,
+	QualificationBuildVerified: platformstatusParameterC,
+	QualificationQualified:     platformstatusParameterD,
 }
 
 var qualificationReasons = map[Qualification]string{

@@ -13,6 +13,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/vrooli/cliresolve"
 	contractapp "github.com/vrooli/vrooli/internal/app/contract"
 	packageapp "github.com/vrooli/vrooli/internal/app/package"
 	projectapp "github.com/vrooli/vrooli/internal/app/project"
@@ -258,17 +259,16 @@ func WriteVersion(w io.Writer, root string, globals rootcli.GlobalOptions, info 
 	if err != nil {
 		return err
 	}
-	if format == cliout.FormatJSON {
-		return writeCliVersionJSON(w, versionOutput{
-			CLIVersion:      info.CLIVersion,
-			PlatformVersion: info.PlatformVersion,
-			Root:            root,
+	return cliout.RenderJSONOr(w, format,
+		func(w io.Writer) error {
+			return cliout.WriteProtoJSON(w, cliVersionMessage(versionOutput{CLIVersion: info.CLIVersion, PlatformVersion: info.PlatformVersion, Root: root}))
+		},
+		func(w io.Writer) error {
+			_, _ = fmt.Fprintf(w, "Vrooli CLI v%s\n", info.CLIVersion)
+			_, _ = fmt.Fprintf(w, "Vrooli Platform v%s\n", info.PlatformVersion)
+			_, _ = fmt.Fprintf(w, "Root: %s\n", root)
+			return nil
 		})
-	}
-	_, _ = fmt.Fprintf(w, "Vrooli CLI v%s\n", info.CLIVersion)
-	_, _ = fmt.Fprintf(w, "Vrooli Platform v%s\n", info.PlatformVersion)
-	_, _ = fmt.Fprintf(w, "Root: %s\n", root)
-	return nil
 }
 
 func (app *App) resolveRoot() (string, error) {
@@ -521,7 +521,7 @@ func (app *App) resolveScenarioCLIExecutable(root, home, name string) (string, e
 	} else if err := manager.EnsureScenarioCLI(name); err != nil {
 		return "", err
 	}
-	return manager.InstalledBinaryPath(item), nil
+	return cliresolve.New(home).Executable(item.BinaryName)
 }
 
 func (app *App) openScenarioURL(url string) error {
@@ -633,6 +633,7 @@ func (app *App) runLifecycleProtectCommand(ctx *CommandContext, args []string) e
 	return nil
 }
 
+//nolint:gocyclo // top-level command registration is a declarative dispatch table with explicit command families.
 func (app *App) buildTopLevelHandlerMap() map[topcli.CommandID]rootcli.Handler[*CommandContext] {
 	handlers := map[topcli.CommandID]rootcli.Handler[*CommandContext]{
 		topcli.CommandSetup: projectcli.SetupHandler(commandStdout, func(ctx *CommandContext, opts projectsetup.Options) error { return ctx.app.runTopLevelSetup(ctx, opts) }),

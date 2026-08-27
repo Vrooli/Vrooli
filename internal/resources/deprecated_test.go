@@ -9,13 +9,14 @@ import (
 
 	manifestpkg "github.com/vrooli/vrooli/internal/resources/manifest"
 	testresource "github.com/vrooli/vrooli/internal/resources/resourcestest"
+	"github.com/vrooli/vrooli/internal/shell/shelltest"
 )
 
 func TestDeprecateResourceArchivesAndRemovesActiveState(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()
 	writeResourceConfig(t, root, "fixture", true)
-	testresource.WriteResourceCLI(t, root, "fixture", "#!/usr/bin/env bash\nexit 0\n")
+	testresource.WriteResourceCLI(t, root, "fixture", shelltest.BashShebang()+"exit 0\n")
 
 	controller := NewController(root, home)
 	report, err := controller.DeprecateResource("fixture")
@@ -51,7 +52,7 @@ func TestRestoreDeprecatedResourceWritesQuarantinedCopy(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()
 	writeResourceConfig(t, root, "fixture", true)
-	testresource.WriteResourceCLI(t, root, "fixture", "#!/usr/bin/env bash\nexit 0\n")
+	testresource.WriteResourceCLI(t, root, "fixture", shelltest.BashShebang()+"exit 0\n")
 
 	controller := NewController(root, home)
 	if _, err := controller.DeprecateResource("fixture"); err != nil {
@@ -130,8 +131,8 @@ func TestDiscoverExcludesDeprecatedResources(t *testing.T) {
 			Image: "active:1.0.0",
 		}),
 	))
-	testresource.WriteResourceCLI(t, root, "active", "#!/usr/bin/env bash\nexit 0\n")
-	testresource.WriteResourceCLI(t, root, "deprecated-fixture", "#!/usr/bin/env bash\nexit 0\n")
+	testresource.WriteResourceCLI(t, root, "active", shelltest.BashShebang()+"exit 0\n")
+	testresource.WriteResourceCLI(t, root, "deprecated-fixture", shelltest.BashShebang()+"exit 0\n")
 	writeDeprecatedMetadata(t, root, DeprecatedResource{
 		Name:                "deprecated-fixture",
 		DeprecatedAt:        "2026-04-11",

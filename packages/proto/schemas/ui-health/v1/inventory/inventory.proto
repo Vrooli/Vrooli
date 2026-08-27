@@ -33,6 +33,8 @@ service InventoryService {
   // canonical ComponentProvenance + WidgetDeclaration + indexable SurfaceRecord
   // values keyed by file path.
   rpc ScanScenario(ScanScenarioRequest) returns (ScanScenarioResponse);
+  // Scan validates the supplied asset subjects without walking unrelated UI.
+  rpc Scan(ScanRequest) returns (ScanResponse);
 }
 
 message ScanScenarioRequest {
@@ -58,4 +60,26 @@ message ScanScenarioResponse {
   repeated vrooli.ui_health.v1.contracts.provenance.ComponentProvenance provenance = 2;
   repeated vrooli.ui_health.v1.contracts.widget.WidgetDeclaration widgets = 3;
   repeated SurfaceRecord surfaces = 4;
+}
+
+message Subject {
+  string kind = 1;
+  string id = 2;
+  string version = 3;
+  string fingerprint = 4;
+}
+
+message ScanRequest {
+  repeated Subject subjects = 1;
+}
+
+message SubjectFindings {
+  Subject subject = 1;
+  repeated vrooli.ui_health.v1.contracts.provenance.ComponentProvenance provenance = 2;
+  repeated vrooli.ui_health.v1.contracts.widget.WidgetDeclaration widgets = 3;
+  repeated SurfaceRecord surfaces = 4;
+}
+
+message ScanResponse {
+  repeated SubjectFindings findings = 1;
 }

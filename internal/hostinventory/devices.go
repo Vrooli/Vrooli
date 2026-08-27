@@ -6,6 +6,12 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/vrooli/vrooli/internal/hostreqspec"
+)
+
+const (
+	devicesUnavailable = "unavailable"
 )
 
 // DeviceClass is the applicability-relevant category of a host device. It
@@ -32,7 +38,7 @@ const (
 // (card0, renderD128) is never an identity. The address form per platform is:
 //
 //   - Linux: "pci:<domain>:<bus>:<device>.<function>" (for example
-//     "pci:0000:01:00.0"), taken from the device's PCI_SLOT_NAME in sysfs.
+//     "pci:tuning.PermNone:01:00.0"), taken from the device's PCI_SLOT_NAME in sysfs.
 //     Devices that are not on a PCI bus — SoC GPUs on ARM boards, for example
 //     — use "sysfs:<path under /sys/devices>", which is the firmware-assigned
 //     device-tree path and is equally durable.
@@ -115,8 +121,8 @@ func (s Snapshot) Device(id string) (Device, bool) {
 // implementation reports that it could not look, which is a different fact
 // from looking and finding nothing.
 func (c Collector) collectDevices(ctx context.Context, snap *Snapshot, observedAt time.Time) {
-	switch snap.OS {
-	case "linux":
+	switch hostreqspec.PlatformFromGOOS(snap.OS) {
+	case hostreqspec.PlatformLinux:
 		enumerator := sysfsEnumerator(c.DeviceRoots)
 		result := enumerator.enumerateGraphics()
 		snap.Warnings = append(snap.Warnings, result.Warnings...)
@@ -142,9 +148,9 @@ func (c Collector) collectDevices(ctx context.Context, snap *Snapshot, observedA
 				File:       result.NamesFile,
 			}
 		}
-	case "windows":
+	case hostreqspec.PlatformWindows:
 		c.collectWindowsDevices(ctx, snap, observedAt)
-	case "darwin":
+	case hostreqspec.PlatformMacOS:
 		// Recorded scheme, not yet implemented: see the Device doc comment.
 		// Reporting unimplemented keeps "I could not look" distinguishable
 		// from "I looked and there is no GPU".
@@ -158,7 +164,7 @@ func (c Collector) collectWindowsDevices(ctx context.Context, snap *Snapshot, ob
 	path, err := c.Commands.LookPath("wmic")
 	snap.RuntimeTools["wmic"] = Tool{Present: err == nil, Path: path}
 	if err != nil {
-		snap.ProbeStatuses["device_tree"] = "unavailable"
+		snap.ProbeStatuses["device_tree"] = devicesUnavailable
 		return
 	}
 	const command = "wmic path win32_VideoController get AdapterCompatibility,DriverVersion,Name,PNPDeviceID /Value"
@@ -178,7 +184,7 @@ func (c Collector) collectWindowsDevices(ctx context.Context, snap *Snapshot, ob
 			snap.ProbeStatuses["device_tree"] = "unrecognized_output"
 			return
 		}
-		snap.ProbeStatuses["device_tree"] = "no_devices"
+		snap.ProbeStatuses["device_tree"] = collectorNoDevices
 		return
 	}
 	snap.Devices = append(snap.Devices, devices...)
@@ -208,7 +214,7 @@ func (c Collector) linkNvidiaDevices(ctx context.Context, snap *Snapshot, observ
 	out, err := c.Commands.Run(ctx, "nvidia-smi", query, "--format=csv,noheader,nounits")
 	if err != nil {
 		snap.Warnings = append(snap.Warnings, fmt.Sprintf("nvidia-smi query pci bus id: %v", err))
-		snap.ProbeStatuses["device_tree_nvidia_enrichment"] = "failed"
+		snap.ProbeStatuses["device_tree_nvidia_enrichment"] = string(IntegrityProbeFailed)
 		return
 	}
 	addresses := ParseNvidiaPCIBusIDCSV(string(out))
@@ -250,7 +256,7 @@ func (c Collector) linkNvidiaDevices(ctx context.Context, snap *Snapshot, observ
 		return
 	}
 	if matched == 0 {
-		snap.ProbeStatuses["device_tree_nvidia_enrichment"] = "no_devices"
+		snap.ProbeStatuses["device_tree_nvidia_enrichment"] = collectorNoDevices
 		return
 	}
 	snap.ProbeStatuses["device_tree_nvidia_enrichment"] = "ok"

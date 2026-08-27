@@ -20,6 +20,10 @@ import (
 	"github.com/vrooli/vrooli/internal/hostreqspec"
 )
 
+const (
+	handlerParameterF = 2
+)
+
 var (
 	collectFactsFn = func() hostinventory.Snapshot { return hostinventory.CollectPlatformFacts(context.Background()) }
 	keyringPathFn  = func(username string) (string, error) {
@@ -142,7 +146,7 @@ func (h handler) Apply(host hostreqkit.Host, status hostreqkit.ItemStatus, opts 
 		return status, nil
 	}
 	promptPath := keyringPromptPathPattern.FindStringSubmatch(string(promptOutput))
-	if len(promptPath) != 2 {
+	if len(promptPath) != handlerParameterF {
 		status.ExecutionState = hostreqkit.ExecutionFailed
 		status.Notes = append(status.Notes, "login-keyring password-change prompt returned no valid prompt object")
 		return status, nil

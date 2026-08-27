@@ -9,6 +9,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vrooli/vrooli/internal/tuning"
+
 	"github.com/vrooli/vrooli/internal/hostinventory"
 )
 
@@ -22,7 +24,7 @@ const keyringUnit = "gnome-keyring-daemon.service"
 // that is itself wedged must not convert a bounded repair into a hang — the
 // whole reason this ladder exists is that an unbounded probe was costing eight
 // seconds on every test run.
-const unitProbeTimeout = 3 * time.Second
+const unitProbeTimeout = tuning.HealthCheckTimeout
 
 // reloadMargin is added to the unit's own stop timeout to get the restart
 // budget, and reloadFallback is used when that timeout cannot be read.
@@ -36,8 +38,8 @@ const unitProbeTimeout = 3 * time.Second
 // is the same class of defect as the false green this ladder was built to
 // remove, so the budget follows the unit rather than a guess.
 const (
-	reloadMargin   = 20 * time.Second
-	reloadFallback = 2 * time.Minute
+	reloadMargin   = tuning.ReloadFallbackGracePeriod
+	reloadFallback = tuning.ExtendedOperationTimeout
 )
 
 func platformReloadCredentialDaemon(ctx context.Context) ReloadOutcome {

@@ -42,3 +42,39 @@ class ScanScenarioResponse(_message.Message):
     widgets: _containers.RepeatedCompositeFieldContainer[_widget_pb2.WidgetDeclaration]
     surfaces: _containers.RepeatedCompositeFieldContainer[SurfaceRecord]
     def __init__(self, scenario: _Optional[str] = ..., provenance: _Optional[_Iterable[_Union[_provenance_pb2.ComponentProvenance, _Mapping]]] = ..., widgets: _Optional[_Iterable[_Union[_widget_pb2.WidgetDeclaration, _Mapping]]] = ..., surfaces: _Optional[_Iterable[_Union[SurfaceRecord, _Mapping]]] = ...) -> None: ...
+
+class Subject(_message.Message):
+    __slots__ = ("kind", "id", "version", "fingerprint")
+    KIND_FIELD_NUMBER: _ClassVar[int]
+    ID_FIELD_NUMBER: _ClassVar[int]
+    VERSION_FIELD_NUMBER: _ClassVar[int]
+    FINGERPRINT_FIELD_NUMBER: _ClassVar[int]
+    kind: str
+    id: str
+    version: str
+    fingerprint: str
+    def __init__(self, kind: _Optional[str] = ..., id: _Optional[str] = ..., version: _Optional[str] = ..., fingerprint: _Optional[str] = ...) -> None: ...
+
+class ScanRequest(_message.Message):
+    __slots__ = ("subjects",)
+    SUBJECTS_FIELD_NUMBER: _ClassVar[int]
+    subjects: _containers.RepeatedCompositeFieldContainer[Subject]
+    def __init__(self, subjects: _Optional[_Iterable[_Union[Subject, _Mapping]]] = ...) -> None: ...
+
+class SubjectFindings(_message.Message):
+    __slots__ = ("subject", "provenance", "widgets", "surfaces")
+    SUBJECT_FIELD_NUMBER: _ClassVar[int]
+    PROVENANCE_FIELD_NUMBER: _ClassVar[int]
+    WIDGETS_FIELD_NUMBER: _ClassVar[int]
+    SURFACES_FIELD_NUMBER: _ClassVar[int]
+    subject: Subject
+    provenance: _containers.RepeatedCompositeFieldContainer[_provenance_pb2.ComponentProvenance]
+    widgets: _containers.RepeatedCompositeFieldContainer[_widget_pb2.WidgetDeclaration]
+    surfaces: _containers.RepeatedCompositeFieldContainer[SurfaceRecord]
+    def __init__(self, subject: _Optional[_Union[Subject, _Mapping]] = ..., provenance: _Optional[_Iterable[_Union[_provenance_pb2.ComponentProvenance, _Mapping]]] = ..., widgets: _Optional[_Iterable[_Union[_widget_pb2.WidgetDeclaration, _Mapping]]] = ..., surfaces: _Optional[_Iterable[_Union[SurfaceRecord, _Mapping]]] = ...) -> None: ...
+
+class ScanResponse(_message.Message):
+    __slots__ = ("findings",)
+    FINDINGS_FIELD_NUMBER: _ClassVar[int]
+    findings: _containers.RepeatedCompositeFieldContainer[SubjectFindings]
+    def __init__(self, findings: _Optional[_Iterable[_Union[SubjectFindings, _Mapping]]] = ...) -> None: ...

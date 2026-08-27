@@ -35,19 +35,25 @@ func WriteProtoJSONCamel(w io.Writer, msg proto.Message) error {
 // output seam. It is intended for legacy root commands whose result types do
 // not yet have a dedicated protobuf contract.
 func WriteJSONValue(w io.Writer, value any) error {
-	raw, err := json.Marshal(value)
-	if err != nil {
-		return err
-	}
-	var decoded any
-	if err := json.Unmarshal(raw, &decoded); err != nil {
-		return err
-	}
-	message, err := structpb.NewValue(decoded)
+	message, err := NewJSONValue(value)
 	if err != nil {
 		return err
 	}
 	return WriteProtoJSON(w, message)
+}
+
+// NewJSONValue converts an arbitrary JSON-shaped value to the protobuf value
+// used by the canonical CLI renderer.
+func NewJSONValue(value any) (*structpb.Value, error) {
+	raw, err := json.Marshal(value)
+	if err != nil {
+		return nil, err
+	}
+	var decoded any
+	if err := json.Unmarshal(raw, &decoded); err != nil {
+		return nil, err
+	}
+	return structpb.NewValue(decoded)
 }
 
 func writeProtoJSON(w io.Writer, msg proto.Message, useProtoNames bool) error {

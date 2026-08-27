@@ -15,10 +15,17 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vrooli/vrooli/internal/repocontractmeta"
+	"github.com/vrooli/vrooli/internal/tuning"
+
 	repocontract "github.com/vrooli/repo-contract-go"
 
 	"github.com/vrooli/vrooli/internal/packagegov"
 	"github.com/vrooli/vrooli/internal/scenario"
+)
+
+const (
+	sharedPackagesParameterA = 2
 )
 
 const sharedPackageProvisioningDisabledEnv = "VROOLI_DISABLE_SHARED_PACKAGE_PROVISIONING"
@@ -85,7 +92,7 @@ func ProvisionGeneratedPackages(repoRoot, home string, stdout, logWriter io.Writ
 			continue
 		}
 		packageRoot := filepath.Join(packagesRoot, entry.Name())
-		if _, err := os.Stat(filepath.Join(packageRoot, ".vrooli", "package.json")); err != nil {
+		if _, err := os.Stat(filepath.Join(packageRoot, repocontractmeta.ProjectConfigDir, "package.json")); err != nil {
 			if os.IsNotExist(err) {
 				continue
 			}
@@ -226,7 +233,7 @@ func loadGovernedPackage(repoRoot, dependencyRoot string) (packagegov.Package, s
 	}
 
 	for candidate := dependencyRoot; pathUnderRoot(packagesRoot, candidate) && candidate != packagesRoot; candidate = filepath.Dir(candidate) {
-		manifestPath := filepath.Join(candidate, ".vrooli", "package.json")
+		manifestPath := filepath.Join(candidate, repocontractmeta.ProjectConfigDir, "package.json")
 		if _, err := os.Stat(manifestPath); err != nil {
 			if os.IsNotExist(err) {
 				continue
@@ -549,7 +556,7 @@ func writeSharedPackageStamp(stampPath, packageName, commandName, digest, output
 	if stampPath == "" {
 		return nil
 	}
-	if err := os.MkdirAll(filepath.Dir(stampPath), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(stampPath), tuning.PermDir); err != nil {
 		return err
 	}
 	data, err := json.Marshal(sharedPackageStamp{
@@ -563,7 +570,7 @@ func writeSharedPackageStamp(stampPath, packageName, commandName, digest, output
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(stampPath, data, 0o644)
+	return os.WriteFile(stampPath, data, tuning.PermFile)
 }
 
 func declaredOutputFiles(root string, patterns []string) ([]string, error) {
@@ -574,7 +581,7 @@ func declaredOutputFiles(root string, patterns []string) ([]string, error) {
 			return nil, fmt.Errorf("output pattern %q must be relative", pattern)
 		}
 		if strings.Contains(filepath.ToSlash(pattern), "/**") {
-			prefix := strings.SplitN(filepath.ToSlash(pattern), "/**", 2)[0]
+			prefix := strings.SplitN(filepath.ToSlash(pattern), "/**", sharedPackagesParameterA)[0]
 			base := filepath.Join(root, filepath.FromSlash(prefix))
 			if err := filepath.WalkDir(base, func(filePath string, entry fs.DirEntry, err error) error {
 				if err != nil {

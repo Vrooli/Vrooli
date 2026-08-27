@@ -10,6 +10,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vrooli/vrooli/internal/repocontractmeta"
+	"github.com/vrooli/vrooli/internal/tuning"
+
 	repocontract "github.com/vrooli/repo-contract-go"
 	"github.com/vrooli/vrooli/internal/control"
 	"github.com/vrooli/vrooli/internal/hostsession"
@@ -18,6 +21,10 @@ import (
 	"github.com/vrooli/vrooli/internal/process"
 	"github.com/vrooli/vrooli/internal/scenarioruntime"
 	"github.com/vrooli/vrooli/internal/templatevalidation"
+)
+
+const (
+	maintenanceParameterA = 5
 )
 
 type Controller struct {
@@ -116,7 +123,7 @@ type PortPolicyReport struct {
 
 // terminalPortClaimRetention is how long expired/released registry claim rows
 // are kept for forensics before `vrooli cleanup locks` deletes them.
-const terminalPortClaimRetention = 14 * 24 * time.Hour
+const terminalPortClaimRetention = tuning.TerminalClaimRetention
 
 var (
 	inspectPortListenersFn    = network.InspectPortListeners
@@ -282,7 +289,7 @@ func (c *Controller) KillOrphans() (control.StopReport, error) {
 			failed = append(failed, control.Failed(strconv.Itoa(item.PID), err))
 			continue
 		}
-		time.Sleep(150 * time.Millisecond)
+		time.Sleep(tuning.MaintenanceSettleDelay)
 		if process.IsPIDRunning(item.PID) {
 			// Re-validate again: 150ms is long enough for the kernel to recycle
 			// a PID on a busy box. Only escalate to SIGKILL while the PID still
@@ -329,7 +336,7 @@ func (c *Controller) reclaimSquattedPort(candidate PortReclaimCandidate) (contro
 	if err := killProcessFn(candidate.PID, false); err != nil && !isMissingProcessError(err) {
 		return control.Failed(name, err), false
 	}
-	time.Sleep(150 * time.Millisecond)
+	time.Sleep(tuning.MaintenanceSettleDelay)
 	if pidIsRunningFn(candidate.PID) && c.stillVrooliOrphan(candidate.PID) {
 		if err := killProcessFn(candidate.PID, true); err != nil && !isMissingProcessError(err) {
 			return control.Failed(name, err), false
@@ -393,7 +400,7 @@ func (c *Controller) cleanStaleScenarioRecords() ([]control.ResultItem, error) {
 	if err != nil {
 		return nil, err
 	}
-	root := filepath.Join(processesDir, "scenarios")
+	root := filepath.Join(processesDir, repocontractmeta.ScenarioDir)
 	entries, err := os.ReadDir(root)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -498,8 +505,9 @@ func describePortPolicy(port int) PortPolicyReport {
 	}
 }
 
+//nolint:gocyclo // maintenance recommendations enumerate independent listener, ownership, and remediation findings.
 func buildRecommendations(port int, diagnostic PortDiagnostic) []string {
-	recommendations := make([]string, 0, 5)
+	recommendations := make([]string, 0, maintenanceParameterA)
 	if diagnostic.PortPolicy.InsideEphemeralRange {
 		recommendations = append(recommendations, fmt.Sprintf(
 			"Port %d sits inside the OS ephemeral range %d-%d (source=%s); see docs/reference/port-allocation.md and run `go run ./cmd/vrooli-ports-migrate` to move it into a canonical band.",
@@ -722,7 +730,7 @@ func looksLikeVrooliProcess(root, home string, entry processTableEntry) bool {
 	// vite inside scenarios/<name>/ui).
 	if _, isInterpreter := interpreterExeBasenames[basename]; isInterpreter && cwd != "" {
 		for _, prefix := range []string{
-			filepath.Join(root, "scenarios") + string(filepath.Separator),
+			filepath.Join(root, repocontractmeta.ScenarioDir) + string(filepath.Separator),
 			filepath.Join(root, "resources") + string(filepath.Separator),
 		} {
 			if strings.HasPrefix(cwd, prefix) {
@@ -760,7 +768,7 @@ func processPathBase(path string) string {
 func vrooliOwnedPrefixes(root, home string) []string {
 	sep := string(filepath.Separator)
 	prefixes := []string{
-		filepath.Join(root, "scenarios") + sep,
+		filepath.Join(root, repocontractmeta.ScenarioDir) + sep,
 		filepath.Join(root, "resources") + sep,
 		filepath.Join(root, "bin") + sep,
 		filepath.Join(root, "packages") + sep,

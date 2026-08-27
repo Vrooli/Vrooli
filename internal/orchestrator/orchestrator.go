@@ -149,7 +149,7 @@ func (s *Service) Running() ([]ScenarioView, error) {
 
 	running := make([]ScenarioView, 0, len(items))
 	for _, item := range items {
-		if item.Status == "running" {
+		if item.Status == scenarioruntime.StatusRunning {
 			running = append(running, item)
 		}
 	}

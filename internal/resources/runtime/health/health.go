@@ -11,6 +11,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vrooli/vrooli/internal/tuning"
+
 	manifestpkg "github.com/vrooli/vrooli/internal/resources/manifest"
 	"github.com/vrooli/vrooli/internal/shell"
 )
@@ -104,7 +106,7 @@ func checkName(check manifestpkg.ResourceHealthCheck) string {
 }
 
 func RunCheck(ctx context.Context, check manifestpkg.ResourceHealthCheck, cfg Config) (Result, error) {
-	timeout := 5 * time.Second
+	timeout := tuning.ServiceHealthTimeout
 	if check.TimeoutSeconds > 0 {
 		timeout = time.Duration(check.TimeoutSeconds) * time.Second
 	}

@@ -3,6 +3,8 @@ package hostreqcheck
 import (
 	"encoding/json"
 	"fmt"
+	"go/scanner"
+	"go/token"
 	"os"
 	"path/filepath"
 	"sort"
@@ -11,6 +13,7 @@ import (
 	"github.com/vrooli/vrooli/internal/hostreq"
 	"github.com/vrooli/vrooli/internal/hostreqkit"
 	"github.com/vrooli/vrooli/internal/hostreqspec"
+	"github.com/vrooli/vrooli/internal/repocontractmeta"
 	"github.com/vrooli/vrooli/internal/resources"
 	"github.com/vrooli/vrooli/internal/runtime"
 	"github.com/vrooli/vrooli/internal/scenario"
@@ -253,13 +256,46 @@ func sourceRequiresElevation(dir string) bool {
 		if err != nil {
 			return nil
 		}
-		text := string(data)
-		if strings.Contains(text, "sudo") || strings.Contains(text, "/etc/") || strings.Contains(text, "/usr/") || strings.Contains(text, "/var/") {
+		if sourceTextRequiresElevation(data, filepath.Ext(path)) {
 			requires = true
 		}
 		return nil
 	})
 	return requires
+}
+
+// sourceTextRequiresElevation examines executable source tokens rather than
+// raw file text. Comments describe behavior and must not be treated as proof
+// that a handler performs privileged work.
+func sourceTextRequiresElevation(data []byte, extension string) bool {
+	if extension != ".go" {
+		for _, line := range strings.Split(string(data), "\n") {
+			line = strings.TrimSpace(line)
+			if line == "" || strings.HasPrefix(line, "#") {
+				continue
+			}
+			if strings.Contains(line, "sudo") || strings.Contains(line, "/etc/") || strings.Contains(line, "/usr/") || strings.Contains(line, "/var/") {
+				return true
+			}
+		}
+		return false
+	}
+
+	var fileSet token.FileSet
+	var tokens scanner.Scanner
+	tokens.Init(fileSet.AddFile("source.go", -1, len(data)), data, nil, 0)
+	for {
+		_, kind, literal := tokens.Scan()
+		if kind == token.EOF {
+			return false
+		}
+		if kind == token.IDENT && literal == "sudo" {
+			return true
+		}
+		if kind == token.STRING && (strings.Contains(literal, "sudo") || strings.Contains(literal, "/etc/") || strings.Contains(literal, "/usr/") || strings.Contains(literal, "/var/")) {
+			return true
+		}
+	}
 }
 
 func isSystemPath(path string) bool {
@@ -272,7 +308,7 @@ func privilegeFinding(kind, name, path string, declared hostreqspec.Privilege, e
 }
 
 func loadOwners(root, home string) ([]ownerManifest, error) {
-	rootManifestPath := filepath.Join(root, ".vrooli", "service.json")
+	rootManifestPath := filepath.Join(root, repocontractmeta.ProjectConfigDir, "service.json")
 	rootManifest, err := scenario.ReadService(rootManifestPath)
 	if err != nil {
 		return nil, fmt.Errorf("load root manifest: %w", err)

@@ -8,13 +8,19 @@ import (
 	"io"
 	"os/exec"
 	"strings"
-	"time"
+
+	"github.com/vrooli/vrooli/internal/tuning"
 
 	batchcontrol "github.com/vrooli/vrooli/internal/control"
 	"github.com/vrooli/vrooli/internal/discovery"
 	"github.com/vrooli/vrooli/internal/resources/catalog"
 	manifestpkg "github.com/vrooli/vrooli/internal/resources/manifest"
 	"github.com/vrooli/vrooli/internal/vroolierr"
+)
+
+const (
+	serviceParameterE = 404
+	serviceParameterF = 409
 )
 
 const (
@@ -161,7 +167,7 @@ func (s *Service) Status(name string, fast bool) (Status, error) {
 			Code:       "resource_not_found",
 			Resource:   name,
 			Category:   "Usage",
-			HTTPStatus: 404,
+			HTTPStatus: serviceParameterE,
 			Message:    fmt.Sprintf("resource %q not found", name),
 		}
 	}
@@ -198,7 +204,7 @@ func (s *Service) validateActiveResource(name string, forStatus bool) error {
 			Code:       "resource_deprecated",
 			Resource:   name,
 			Category:   "Usage",
-			HTTPStatus: 409,
+			HTTPStatus: serviceParameterF,
 			Message:    message,
 		}
 	}
@@ -213,7 +219,7 @@ func (s *Service) validateActiveResource(name string, forStatus bool) error {
 			Code:       "resource_blueprint_archived",
 			Resource:   name,
 			Category:   "Usage",
-			HTTPStatus: 409,
+			HTTPStatus: serviceParameterF,
 			Message:    message,
 		}
 	}
@@ -233,9 +239,9 @@ func (s *Service) runNativeResourceCommand(item catalog.Resource, operation stri
 	// artifacts in addition to the launch binary. Lifecycle operations remain
 	// short-bounded, while an explicit install gets enough time for a cold
 	// model acquisition on a constrained connection.
-	timeout := 2 * time.Minute
+	timeout := tuning.ExtendedOperationTimeout
 	if operation == "install" {
-		timeout = 30 * time.Minute
+		timeout = tuning.RepairDeadline
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
@@ -324,13 +330,14 @@ func (s *Service) StopAll(stdout, stderr io.Writer) (batchcontrol.StopReport, er
 	}, nil
 }
 
+//nolint:gocyclo // resource status combines driver selection, health, lifecycle, and fast-path outcomes.
 func (s *Service) StatusForResource(item catalog.Resource, fast bool) (Status, error) {
 	if item.ManifestPath != "" && item.ControlMode == "manifest-native" {
 		manifest, err := s.LoadManifestFn(item.ManifestPath)
 		if err != nil {
 			return Status{}, err
 		}
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), tuning.StandardOperationTimeout)
 		defer cancel()
 		return s.DriverStatusFn(ctx, item, manifest, fast)
 	}
@@ -351,7 +358,7 @@ func (s *Service) StatusForResource(item catalog.Resource, fast bool) (Status, e
 		return status, nil
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), tuning.StandardOperationTimeout)
 	defer cancel()
 	origCmd := cmd
 	cmd = exec.CommandContext(ctx, origCmd.Path, origCmd.Args[1:]...)

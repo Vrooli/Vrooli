@@ -15,7 +15,10 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
-	"time"
+
+	"github.com/vrooli/vrooli/internal/tuning"
+
+	"github.com/vrooli/vrooli/internal/config"
 )
 
 // Spec describes one user-owned upstream CLI installation.
@@ -111,7 +114,7 @@ func BlockingSystemInstall(binary, managedBinDir string, lookPath func(string) (
 	if err != nil {
 		return "", err
 	}
-	if info.Mode().Perm()&0o200 == 0 {
+	if info.Mode().Perm()&tuning.PermOwnerWrite == 0 {
 		return resolved, nil
 	}
 	return "", nil
@@ -131,11 +134,11 @@ func Install(ctx context.Context, spec Spec) error {
 	if strings.TrimSpace(spec.Binary) == "" || strings.TrimSpace(spec.BinDir) == "" {
 		return fmt.Errorf("binary and bin directory are required")
 	}
-	if err := os.MkdirAll(spec.BinDir, 0o755); err != nil {
+	if err := os.MkdirAll(spec.BinDir, tuning.PermDir); err != nil {
 		return fmt.Errorf("create install directory: %w", err)
 	}
 	if spec.DataDir != "" {
-		if err := os.MkdirAll(spec.DataDir, 0o700); err != nil {
+		if err := os.MkdirAll(spec.DataDir, tuning.PermPrivateDir); err != nil {
 			return fmt.Errorf("create data directory: %w", err)
 		}
 	}
@@ -210,7 +213,7 @@ func download(ctx context.Context, url, target, archiveEntry string) error {
 	if err != nil {
 		return err
 	}
-	response, err := (&http.Client{Timeout: 10 * time.Minute}).Do(request)
+	response, err := (&http.Client{Timeout: tuning.LongOperationBudget}).Do(request)
 	if err != nil {
 		return fmt.Errorf("download %s: %w", url, err)
 	}
@@ -237,11 +240,20 @@ func download(ctx context.Context, url, target, archiveEntry string) error {
 	case strings.HasSuffix(url, ".zip"):
 		return extractZip(tmpName, target, archiveEntry)
 	default:
-		if err := os.Chmod(tmpName, 0o755); err != nil {
-			return err
-		}
-		return os.Rename(tmpName, target)
+		return writeDownloadedFile(target, tmpName)
 	}
+}
+
+func writeDownloadedFile(target, source string) error {
+	info, err := os.Stat(source)
+	if err != nil {
+		return err
+	}
+	data, err := os.ReadFile(source)
+	if err != nil {
+		return err
+	}
+	return config.WriteOwnedFileAtomic(target, data, info.Mode().Perm())
 }
 
 func extractTarGz(path, target, wanted string) error {
@@ -311,12 +323,12 @@ func writeExecutable(target string, source io.Reader) error {
 		_ = tmp.Close()
 		return err
 	}
-	if err := tmp.Chmod(0o755); err != nil {
+	if err := tmp.Chmod(tuning.PermDir); err != nil {
 		_ = tmp.Close()
 		return err
 	}
 	if err := tmp.Close(); err != nil {
 		return err
 	}
-	return os.Rename(tmpName, target)
+	return writeDownloadedFile(target, tmpName)
 }

@@ -40,13 +40,13 @@
     },
     "macos": {
       "status": "not_applicable",
-      "mechanism": "handler",
-      "evidence": "This safeguard has no implementation for the macOS host mechanism; the capability is not applicable on this host OS."
+      "evidence": "Windows does not expose the Linux host interface used by safeguard login_keyring_unlock; the platform has a distinct host security and lifecycle model.",
+      "review_by": "2027-08-26"
     },
     "windows": {
       "status": "not_applicable",
-      "mechanism": "handler",
-      "evidence": "This safeguard has no implementation for the Windows host mechanism; the capability is not applicable on this host OS."
+      "evidence": "Windows does not expose the Linux host interface used by safeguard login_keyring_unlock; the platform has a distinct host security and lifecycle model.",
+      "review_by": "2027-08-26"
     }
   },
   "risk_class": "reload_live"

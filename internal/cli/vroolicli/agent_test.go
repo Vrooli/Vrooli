@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/vrooli/vrooli/internal/shell/shelltest"
 )
 
 func TestAgentRunnerBinaryAllowlist(t *testing.T) {
@@ -44,7 +46,7 @@ func TestRunAgentCommandUsesTypedRunnerArguments(t *testing.T) {
 		t.Run(test.runner, func(t *testing.T) {
 			argsPath := filepath.Join(dir, test.runner+"-args")
 			script := filepath.Join(dir, test.runner)
-			contents := "#!/bin/sh\nprintf '%s\\n' \"$@\" > \"" + argsPath + "\"\n"
+			contents := shelltest.POSIXShebang() + "printf '%s\\n' \"$@\" > \"" + argsPath + "\"\n"
 			if err := os.WriteFile(script, []byte(contents), 0o700); err != nil {
 				t.Fatal(err)
 			}

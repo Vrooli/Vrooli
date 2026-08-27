@@ -58,6 +58,7 @@ type ReconcileResult struct {
 	Claims         []ReconciledClaim
 }
 
+//nolint:gocyclo // runtime reconciliation evaluates ownership, health, lease, and desired-state transitions.
 func ReconcileRuntime(in ReconcileInput) ReconcileResult {
 	result := ReconcileResult{
 		Instance:       in.Instance,

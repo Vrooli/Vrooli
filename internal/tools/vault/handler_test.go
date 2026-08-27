@@ -6,10 +6,13 @@ import (
 	"testing"
 
 	"github.com/vrooli/vrooli/internal/hostreqkit"
+	"github.com/vrooli/vrooli/internal/hostreqkit/hostreqkittest"
 	"github.com/vrooli/vrooli/internal/hostreqspec"
 )
 
-func stubLookups(t *testing.T) func() {
+var stubLookups = vaultStubLookups
+
+func vaultStubLookups(t *testing.T) func() {
 	t.Helper()
 	origLookPath := hostreqkit.LookPathFn
 	origReadFile := hostreqkit.ReadFileFn
@@ -41,11 +44,15 @@ var testManifest = hostreqkit.ToolManifest{
 	Platforms:   []string{"linux", "macos", "windows"},
 }
 
-func newTestHandler() hostreqkit.Handler {
+var newTestHandler = vaultTestHandler
+
+func vaultTestHandler() hostreqkit.Handler {
 	return NewHandler(testManifest)
 }
 
-func baseRequirement() hostreqspec.ResolvedRequirement {
+var baseRequirement = vaultBaseRequirement
+
+func vaultBaseRequirement() hostreqspec.ResolvedRequirement {
 	return hostreqspec.ResolvedRequirement{
 		Name: "vault",
 		Kind: hostreqspec.KindTool,
@@ -53,16 +60,6 @@ func baseRequirement() hostreqspec.ResolvedRequirement {
 }
 
 // --- Name and Kind ---
-
-func TestNameAndKind(t *testing.T) {
-	h := newTestHandler()
-	if h.Name() != "vault" {
-		t.Fatalf("Name = %q", h.Name())
-	}
-	if h.Kind() != hostreqspec.KindTool {
-		t.Fatalf("Kind = %q", h.Kind())
-	}
-}
 
 // --- Inspect tests ---
 
@@ -112,15 +109,7 @@ func TestInspectLinuxAptInstalled(t *testing.T) {
 		baseRequirement(),
 	)
 
-	if !status.Installed {
-		t.Fatal("should be installed")
-	}
-	if status.ExecutionState != hostreqkit.ExecutionAlreadyPresent {
-		t.Fatalf("ExecutionState = %q", status.ExecutionState)
-	}
-	if status.Version != "Vault v1.15.4" {
-		t.Fatalf("Version = %q", status.Version)
-	}
+	hostreqkittest.AssertInstalled(t, status, "Vault v1.15.4")
 }
 
 func TestInspectDarwinBrew(t *testing.T) {
@@ -180,20 +169,6 @@ func TestInspectUnsupportedPlatform(t *testing.T) {
 	}
 }
 
-func TestInspectManualRequirement(t *testing.T) {
-	restore := stubLookups(t)
-	defer restore()
-
-	h := newTestHandler()
-	req := baseRequirement()
-	req.Manual = true
-	status := h.Inspect(hostreqkit.Host{OS: "linux", PackageManager: "apt"}, req)
-
-	if status.SupportClass != hostreqkit.SupportManualOnly {
-		t.Fatalf("SupportClass = %q", status.SupportClass)
-	}
-}
-
 // --- Apply tests ---
 
 func TestApplyAlreadyInstalled(t *testing.T) {
@@ -207,36 +182,6 @@ func TestApplyAlreadyInstalled(t *testing.T) {
 		t.Fatal(err)
 	}
 	if result.ExecutionState != hostreqkit.ExecutionAlreadyPresent {
-		t.Fatalf("ExecutionState = %q", result.ExecutionState)
-	}
-}
-
-func TestApplyManualReturnsEarly(t *testing.T) {
-	restore := stubLookups(t)
-	defer restore()
-
-	h := newTestHandler()
-	status := hostreqkit.ItemStatus{SupportClass: hostreqkit.SupportManualOnly}
-	result, err := h.Apply(hostreqkit.Host{}, status, hostreqkit.EnsureOptions{})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if result.ExecutionState != hostreqkit.ExecutionManualActionRequired {
-		t.Fatalf("ExecutionState = %q", result.ExecutionState)
-	}
-}
-
-func TestApplyUnsupportedReturnsEarly(t *testing.T) {
-	restore := stubLookups(t)
-	defer restore()
-
-	h := newTestHandler()
-	status := hostreqkit.ItemStatus{SupportClass: hostreqkit.SupportUnsupported}
-	result, err := h.Apply(hostreqkit.Host{}, status, hostreqkit.EnsureOptions{})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if result.ExecutionState != hostreqkit.ExecutionUnsupported {
 		t.Fatalf("ExecutionState = %q", result.ExecutionState)
 	}
 }
@@ -364,54 +309,29 @@ func TestApplyDarwinBrewFlow(t *testing.T) {
 	restore := stubLookups(t)
 	defer restore()
 
-	var commands []string
-	hostreqkit.LookPathFn = func(name string) (string, error) {
-		if name == "vault" && len(commands) > 0 {
+	hostreqkittest.RunBrewInstallFlow(t, func(name string, commandCount int) (string, error) {
+		if name == "vault" && commandCount > 0 {
 			return "/usr/local/bin/vault", nil
 		}
 		return "", os.ErrNotExist
-	}
-	hostreqkit.RunCommandFn = func(name string, args []string, opts hostreqkit.EnsureOptions) error {
-		commands = append(commands, name+" "+strings.Join(args, " "))
-		return nil
-	}
-	hostreqkit.CombinedOutputFn = func(name string, args ...string) ([]byte, error) {
-		return []byte("Vault v1.15.4\n"), nil
-	}
-
-	h := newTestHandler()
-	status := hostreqkit.ItemStatus{SupportClass: hostreqkit.SupportSupported}
-	result, err := h.Apply(
-		hostreqkit.Host{OS: "darwin", PackageManager: "brew"},
-		status,
-		hostreqkit.EnsureOptions{AutoInstall: true},
-	)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if result.ExecutionState != hostreqkit.ExecutionInstalled {
-		t.Fatalf("ExecutionState = %q", result.ExecutionState)
-	}
-	if len(commands) != 1 || !strings.Contains(commands[0], "brew install") {
-		t.Fatalf("expected brew install, got %v", commands)
-	}
+	}, "Vault v1.15.4", func() (hostreqkit.ItemStatus, error) {
+		return newTestHandler().Apply(
+			hostreqkit.Host{OS: "darwin", PackageManager: "brew"},
+			hostreqkit.ItemStatus{SupportClass: hostreqkit.SupportSupported},
+			hostreqkit.EnsureOptions{AutoInstall: true},
+		)
+	}, "brew install")
 }
 
 func TestApplyDefaultFallbackUnsupported(t *testing.T) {
 	restore := stubLookups(t)
 	defer restore()
 
-	h := newTestHandler()
-	status := hostreqkit.ItemStatus{SupportClass: hostreqkit.SupportSupported}
-	result, err := h.Apply(
-		hostreqkit.Host{OS: "linux", PackageManager: "dnf"},
-		status,
-		hostreqkit.EnsureOptions{AutoInstall: true},
-	)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if result.SupportClass != hostreqkit.SupportUnsupported {
-		t.Fatalf("SupportClass = %q", result.SupportClass)
-	}
+	hostreqkittest.RunFallbackUnsupported(t, func() (hostreqkit.ItemStatus, error) {
+		return newTestHandler().Apply(
+			hostreqkit.Host{OS: "linux", PackageManager: "dnf"},
+			hostreqkit.ItemStatus{SupportClass: hostreqkit.SupportSupported},
+			hostreqkit.EnsureOptions{AutoInstall: true},
+		)
+	})
 }

@@ -5,6 +5,8 @@ import (
 	"errors"
 	"strings"
 	"testing"
+
+	"github.com/vrooli/vrooli/internal/shell/shelltest"
 )
 
 type credentialStoreCommandFixture struct {
@@ -15,32 +17,31 @@ type credentialStoreCommandFixture struct {
 	loginError       error
 }
 
-func (f credentialStoreCommandFixture) LookPath(file string) (string, error) {
-	if file == "gdbus" || file == "id" {
-		return "/usr/bin/gdbus", nil
-	}
-	return "", errors.New("not found")
-}
-
-func (f credentialStoreCommandFixture) Run(_ context.Context, name string, args ...string) ([]byte, error) {
-	if name == "id" {
-		return []byte("1000\n"), nil
-	}
-	joined := strings.Join(args, " ")
-	switch {
-	case strings.Contains(joined, "NameHasOwner"):
-		return []byte(f.ownerOutput), nil
-	case strings.Contains(joined, "org.freedesktop.Secret.Service Collections"):
-		return []byte(f.collections), f.collectionsError
-	case strings.Contains(joined, "/collection/login"):
-		return []byte(f.loginOutput), f.loginError
-	default:
-		return nil, errors.New("unexpected credential-store probe: " + joined)
-	}
-}
-
 func credentialStoreFixture(f credentialStoreCommandFixture) Collector {
-	return Collector{Commands: f, GOOS: "linux"}
+	return Collector{Commands: &shelltest.Fake{
+		LookPathFunc: func(file string) (string, error) {
+			if file == "gdbus" || file == "id" {
+				return "/usr/bin/gdbus", nil
+			}
+			return "", errors.New("not found")
+		},
+		RunFunc: func(_ context.Context, name string, args ...string) ([]byte, error) {
+			if name == "id" {
+				return []byte("1000\n"), nil
+			}
+			joined := strings.Join(args, " ")
+			switch {
+			case strings.Contains(joined, "NameHasOwner"):
+				return []byte(f.ownerOutput), nil
+			case strings.Contains(joined, "org.freedesktop.Secret.Service Collections"):
+				return []byte(f.collections), f.collectionsError
+			case strings.Contains(joined, "/collection/login"):
+				return []byte(f.loginOutput), f.loginError
+			default:
+				return nil, errors.New("unexpected credential-store probe: " + joined)
+			}
+		},
+	}, GOOS: "linux"}
 }
 
 func TestProbeCredentialStoreStates(t *testing.T) {

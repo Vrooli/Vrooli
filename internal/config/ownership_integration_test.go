@@ -16,6 +16,8 @@ import (
 	"path/filepath"
 	"syscall"
 	"testing"
+
+	"github.com/vrooli/vrooli/internal/testenv"
 )
 
 func fileUID(t *testing.T, path string) uint32 {
@@ -80,7 +82,7 @@ func TestOwnedWriteEndsUpInvokerOwned(t *testing.T) {
 	}
 	// EnsureOwnedDir/WriteOwnedFile chown to hostreqkit.InvokingUserIDs(), which
 	// reads $SUDO_UID/$SUDO_GID. Set them and force the root-via-sudo detection.
-	t.Setenv("SUDO_USER", "ci")
+	testenv.SetSudoUser(t, "ci")
 	t.Setenv("SUDO_UID", "1000")
 	t.Setenv("SUDO_GID", "1000")
 
@@ -89,7 +91,7 @@ func TestOwnedWriteEndsUpInvokerOwned(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)
 	// Avoid the sudo /etc/passwd redirection so HomeDir() honors $HOME above.
-	t.Setenv("SUDO_USER", "")
+	testenv.SetSudoUser(t, "")
 
 	target := filepath.Join(home, ".vrooli", "state", "scenarios", "demo", "rec.json")
 	if err := WriteOwnedFile(target, []byte("{}"), 0o644); err != nil {

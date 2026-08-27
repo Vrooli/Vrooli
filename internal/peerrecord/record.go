@@ -12,7 +12,11 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vrooli/vrooli/internal/tuning"
+
 	platform "github.com/vrooli/platform-go"
+	"github.com/vrooli/vrooli/internal/config"
+	"github.com/vrooli/vrooli/internal/repocontractmeta"
 )
 
 const SchemaVersion = 1
@@ -29,7 +33,7 @@ type Record struct {
 }
 
 func Path(home, name string) string {
-	return filepath.Join(home, ".vrooli", "peers", name+".json")
+	return filepath.Join(home, repocontractmeta.ProjectConfigDir, "peers", name+".json")
 }
 
 func Write(home string, record Record) error {
@@ -40,11 +44,11 @@ func Write(home string, record Record) error {
 	if record.Ports == nil {
 		record.Ports = map[string]int{}
 	}
-	dir := filepath.Join(home, ".vrooli", "peers")
-	if err := os.MkdirAll(dir, 0o700); err != nil {
+	dir := filepath.Join(home, repocontractmeta.ProjectConfigDir, "peers")
+	if err := os.MkdirAll(dir, tuning.PermPrivateDir); err != nil {
 		return fmt.Errorf("create peer directory: %w", err)
 	}
-	if err := os.Chmod(dir, 0o700); err != nil {
+	if err := os.Chmod(dir, tuning.PermPrivateDir); err != nil {
 		return fmt.Errorf("secure peer directory: %w", err)
 	}
 	payload, err := json.MarshalIndent(record, "", "  ")
@@ -52,24 +56,7 @@ func Write(home string, record Record) error {
 		return err
 	}
 	payload = append(payload, '\n')
-	tmp, err := os.CreateTemp(dir, ".peer-*")
-	if err != nil {
-		return err
-	}
-	tmpName := tmp.Name()
-	defer os.Remove(tmpName)
-	if err := tmp.Chmod(0o600); err != nil {
-		_ = tmp.Close()
-		return err
-	}
-	if _, err := tmp.Write(payload); err != nil {
-		_ = tmp.Close()
-		return err
-	}
-	if err := tmp.Close(); err != nil {
-		return err
-	}
-	return os.Rename(tmpName, Path(home, record.Scenario))
+	return config.WriteOwnedFileAtomic(Path(home, record.Scenario), payload, tuning.PermSecret)
 }
 
 func Read(home, name string) (Record, error) {

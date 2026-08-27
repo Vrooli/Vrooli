@@ -9,6 +9,7 @@ import (
 	"github.com/vrooli/vrooli/internal/cli/hostcli"
 	"github.com/vrooli/vrooli/internal/cli/manifestdispatch"
 	"github.com/vrooli/vrooli/internal/cli/rootcli"
+	"github.com/vrooli/vrooli/internal/cliout"
 )
 
 // HandlerDeps supplies the root-context values needed by host commands.
@@ -19,29 +20,46 @@ type HandlerDeps[C any] struct {
 	Stderr  func(C) io.Writer
 }
 
+type hostService struct {
+	run func([]string) error
+}
+
 // RootHandler dispatches `vrooli host` through the host application.
 func RootHandler[C any](deps HandlerDeps[C]) rootcli.Handler[C] {
-	return func(ctx C, args []string) error {
-		commandCtx := &hostcli.Context{Root: deps.Root(ctx), Globals: deps.Globals(ctx), Stdout: deps.Stdout(ctx), Stderr: deps.Stderr(ctx)}
-		app := &hostapp.App{}
-		if len(args) == 0 || manifestdispatch.WantsHelp(args) {
-			return hostcli.Run(app, commandCtx, args)
-		}
-		group, err := cliapp.LoadFromManifest(climanifest.Bytes(), "host", hostBindings(app, commandCtx, []string{"inventory", "install", "safeguard", "volume", "storage"}))
-		if err != nil {
-			return err
-		}
-		core := cliapp.NewApp(cliapp.AppOptions{Name: "vrooli host", Commands: []cliapp.CommandGroup{{Commands: group.Subcommands}}})
-		return core.RunWithWriters(manifestdispatch.WithJSON(args, commandCtx.Globals.JSON), deps.Stdout(ctx), deps.Stderr(ctx))
-	}
+	return rootcli.BindService(deps.Stdout,
+		func(ctx C) (cliout.Format, hostService, error) {
+			commandCtx := &hostcli.Context{Root: deps.Root(ctx), Globals: deps.Globals(ctx), Stdout: deps.Stdout(ctx), Stderr: deps.Stderr(ctx)}
+			app := &hostapp.App{}
+			return cliout.FormatHuman, hostService{run: func(args []string) error {
+				if len(args) == 0 || manifestdispatch.WantsHelp(args) {
+					return hostcli.Run(app, commandCtx, args)
+				}
+				group, err := cliapp.LoadFromManifest(climanifest.Bytes(), "host", hostBindings(app, commandCtx, []string{"inventory", "install", "safeguard", "volume", "storage"}))
+				if err != nil {
+					return err
+				}
+				core := cliapp.NewApp(cliapp.AppOptions{Name: "vrooli host", Commands: []cliapp.CommandGroup{{Commands: group.Subcommands}}})
+				return core.RunWithWriters(manifestdispatch.WithJSON(args, commandCtx.Globals.JSON), deps.Stdout(ctx), deps.Stderr(ctx))
+			}}, nil
+		},
+		func(_ C, args []string) ([]string, error) { return args, nil },
+		func(service hostService, args []string) (struct{}, error) { return struct{}{}, service.run(args) },
+		func(io.Writer, cliout.Format, struct{}) error { return nil },
+	)
 }
 
 // WorkloadHandler dispatches `vrooli workload` through the host application.
 func WorkloadHandler[C any](deps HandlerDeps[C]) rootcli.Handler[C] {
-	return func(ctx C, args []string) error {
-		app := &hostapp.App{}
-		return hostcli.RunWorkload(app, &hostcli.Context{Root: deps.Root(ctx), Globals: deps.Globals(ctx), Stdout: deps.Stdout(ctx), Stderr: deps.Stderr(ctx)}, args)
-	}
+	return rootcli.BindService(deps.Stdout,
+		func(ctx C) (cliout.Format, hostService, error) {
+			app := &hostapp.App{}
+			commandCtx := &hostcli.Context{Root: deps.Root(ctx), Globals: deps.Globals(ctx), Stdout: deps.Stdout(ctx), Stderr: deps.Stderr(ctx)}
+			return cliout.FormatHuman, hostService{run: func(args []string) error { return hostcli.RunWorkload(app, commandCtx, args) }}, nil
+		},
+		func(_ C, args []string) ([]string, error) { return args, nil },
+		func(service hostService, args []string) (struct{}, error) { return struct{}{}, service.run(args) },
+		func(io.Writer, cliout.Format, struct{}) error { return nil },
+	)
 }
 
 func hostBindings(app *hostapp.App, ctx *hostcli.Context, names []string) map[string]func(cliapp.RunContext) error {

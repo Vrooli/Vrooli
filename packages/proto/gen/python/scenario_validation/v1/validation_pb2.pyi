@@ -123,16 +123,18 @@ class ValidateScenarioRequest(_message.Message):
     def __init__(self, scenario: _Optional[str] = ..., path: _Optional[str] = ..., include_execution: _Optional[bool] = ..., capability_subset: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class ValidateTargetRequest(_message.Message):
-    __slots__ = ("target", "include_execution", "path", "capability_subset")
+    __slots__ = ("target", "include_execution", "path", "capability_subset", "exclude")
     TARGET_FIELD_NUMBER: _ClassVar[int]
     INCLUDE_EXECUTION_FIELD_NUMBER: _ClassVar[int]
     PATH_FIELD_NUMBER: _ClassVar[int]
     CAPABILITY_SUBSET_FIELD_NUMBER: _ClassVar[int]
+    EXCLUDE_FIELD_NUMBER: _ClassVar[int]
     target: _validation_target_pb2.ValidationTarget
     include_execution: bool
     path: str
     capability_subset: _containers.RepeatedScalarFieldContainer[str]
-    def __init__(self, target: _Optional[_Union[_validation_target_pb2.ValidationTarget, _Mapping]] = ..., include_execution: _Optional[bool] = ..., path: _Optional[str] = ..., capability_subset: _Optional[_Iterable[str]] = ...) -> None: ...
+    exclude: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, target: _Optional[_Union[_validation_target_pb2.ValidationTarget, _Mapping]] = ..., include_execution: _Optional[bool] = ..., path: _Optional[str] = ..., capability_subset: _Optional[_Iterable[str]] = ..., exclude: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class ValidateTargetResponse(_message.Message):
     __slots__ = ("target", "status", "assessment", "native_detail", "metrics", "failure_classification")

@@ -10,6 +10,7 @@ import (
 
 	"github.com/vrooli/vrooli/internal/cli/rootcli"
 	"github.com/vrooli/vrooli/internal/cliinstall"
+	"github.com/vrooli/vrooli/internal/cliout"
 	"github.com/vrooli/vrooli/internal/runtimesupervisor"
 	"github.com/vrooli/vrooli/internal/scenarioruntime"
 )
@@ -117,7 +118,7 @@ func (app *App) statusSupervisor(ctx *CommandContext, args []string) error {
 		return err
 	}
 	if jsonOutput {
-		return writeSupervisorStatusJSON(ctx.Stdout, report)
+		return cliout.WriteProtoJSON(ctx.Stdout, supervisorStatusMessage(report))
 	}
 	_, _ = fmt.Fprintf(ctx.Stdout, "Runtime supervisor: %s\n", report.Status)
 	if report.StatusReason != "" {
@@ -179,7 +180,7 @@ func (app *App) installSupervisor(ctx *CommandContext, args []string) error {
 		return fmt.Errorf("record runtime supervisor install: %w", err)
 	}
 	if ctx.Globals.JSON {
-		return writeSupervisorServiceResultJSON(ctx.Stdout, result)
+		return cliout.WriteProtoJSON(ctx.Stdout, supervisorServiceResultMessage(result))
 	}
 	_, _ = fmt.Fprintf(ctx.Stdout, "Installed runtime supervisor service: %s\n", result.UnitPath)
 	_, _ = fmt.Fprintf(ctx.Stdout, "  Runs: %s\n", result.Executable)
@@ -219,7 +220,7 @@ func (app *App) uninstallSupervisor(ctx *CommandContext, args []string) error {
 		return err
 	}
 	if ctx.Globals.JSON {
-		return writeSupervisorServiceResultJSON(ctx.Stdout, result)
+		return cliout.WriteProtoJSON(ctx.Stdout, supervisorServiceResultMessage(result))
 	}
 	_, _ = fmt.Fprintf(ctx.Stdout, "Uninstalled runtime supervisor service: %s\n", result.UnitPath)
 	return nil

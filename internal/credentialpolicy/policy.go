@@ -13,6 +13,10 @@ import (
 	"strings"
 )
 
+const (
+	policyParameterB = 16
+)
+
 const RecoveryPBKDF2Iterations = 600_000
 
 // Envelope is the algorithm-independent portion of a credential envelope.
@@ -89,7 +93,7 @@ func Open(key []byte, envelope Envelope) ([]byte, error) {
 // AdditionalData is exported for compatibility readers that need to compose a
 // larger context (for example a provider name inside a key-wrap purpose).
 func AdditionalData(version int, purpose string) []byte {
-	result := make([]byte, 0, len(envelopeContext)+len(purpose)+16)
+	result := make([]byte, 0, len(envelopeContext)+len(purpose)+policyParameterB)
 	result = appendLengthPrefixed(result, []byte(envelopeContext))
 	result = binary.BigEndian.AppendUint32(result, uint32(version))
 	return appendLengthPrefixed(result, []byte(purpose))

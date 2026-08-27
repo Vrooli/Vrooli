@@ -6,6 +6,10 @@ import (
 	"strings"
 )
 
+const (
+	attributionParameterA = 12
+)
+
 // Attribution maps an observed PID to the owner (container/scenario/resource)
 // responsible for it. Best-effort: OwnerID is "unknown" when it cannot be
 // resolved (e.g. a host process, or a non-linux platform).
@@ -139,7 +143,7 @@ func isAllDigits(s string) bool {
 
 func shortContainerID(id string) string {
 	id = strings.TrimSpace(id)
-	if len(id) > 12 {
+	if len(id) > attributionParameterA {
 		return id[:12]
 	}
 	return id

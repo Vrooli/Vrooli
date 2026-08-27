@@ -1,4 +1,4 @@
-//go:build !windows
+//go:build linux
 
 // These tests cover the seam that had no coverage before: the real stdio path,
 // where the agent inherits this process's own file descriptors. Every other

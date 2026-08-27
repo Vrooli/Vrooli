@@ -10,6 +10,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vrooli/vrooli/internal/scenarioruntime"
+	"github.com/vrooli/vrooli/internal/tuning"
+
 	platform "github.com/vrooli/platform-go"
 	repocontract "github.com/vrooli/repo-contract-go"
 	"github.com/vrooli/vrooli/internal/config"
@@ -53,7 +56,7 @@ type CompanionStatus struct {
 	Failure string `json:"failure,omitempty"`
 }
 
-const companionCrashWindow = 10 * time.Minute
+const companionCrashWindow = tuning.LongOperationBudget
 
 // companionDir resolves <home>/.vrooli/processes/resources/<resource> (the
 // runtime-home processes authority), creating it owned by the operator.
@@ -98,7 +101,7 @@ func startCompanion(resourceName string, c ResourceCompanion, recoveryAttempts i
 		return fmt.Errorf("resolve %q on PATH: %w", c.Command, err)
 	}
 	logPath := filepath.Join(dir, c.Name+".log")
-	logf, err := os.OpenFile(logPath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o644)
+	logf, err := os.OpenFile(logPath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, tuning.PermFile)
 	if err != nil {
 		return err
 	}
@@ -117,7 +120,7 @@ func startCompanion(resourceName string, c ResourceCompanion, recoveryAttempts i
 	// Detach: the companion outlives this short-lived control process.
 	_ = cmd.Process.Release()
 	clearCompanionFailure(dir, c.Name)
-	return os.WriteFile(pidPath, []byte(strconv.Itoa(pid)), 0o644)
+	return os.WriteFile(pidPath, []byte(strconv.Itoa(pid)), tuning.PermFile)
 }
 
 func terminateCompanion(pid int) error {
@@ -180,7 +183,7 @@ func downCompanions(statuses []CompanionStatus) []CompanionStatus {
 
 func companionDownMessage(resourceName string, down []CompanionStatus) string {
 	if len(down) == 0 {
-		return "healthy"
+		return scenarioruntime.HealthStatusHealthy
 	}
 	parts := make([]string, 0, len(down))
 	for _, status := range down {
@@ -237,7 +240,7 @@ func recordCompanionCrashAttempt(dir, name string, recoveryAttempts int) error {
 	attempts := recentCompanionAttempts(companionAttemptsPath(dir, name), now)
 	if len(attempts) >= recoveryAttempts {
 		message := fmt.Sprintf("crash-loop cap reached: %d respawn attempts within %s", recoveryAttempts, companionCrashWindow)
-		if err := os.WriteFile(companionFailedPath(dir, name), []byte(message), 0o644); err != nil {
+		if err := os.WriteFile(companionFailedPath(dir, name), []byte(message), tuning.PermFile); err != nil {
 			return err
 		}
 		appendCompanionLog(dir, name, "companion supervisor: "+message+"\n")
@@ -276,7 +279,7 @@ func writeCompanionAttempts(path string, attempts []time.Time) error {
 	for _, at := range attempts {
 		lines = append(lines, strconv.FormatInt(at.UnixNano(), 10))
 	}
-	return os.WriteFile(path, []byte(strings.Join(lines, "\n")+"\n"), 0o644)
+	return os.WriteFile(path, []byte(strings.Join(lines, "\n")+"\n"), tuning.PermFile)
 }
 
 func readCompanionFailure(dir, name string) (bool, string) {
@@ -298,7 +301,7 @@ func clearCompanionFailure(dir, name string) {
 
 func appendCompanionLog(dir, name, line string) {
 	logPath := filepath.Join(dir, name+".log")
-	logf, err := os.OpenFile(logPath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o644)
+	logf, err := os.OpenFile(logPath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, tuning.PermFile)
 	if err != nil {
 		return
 	}

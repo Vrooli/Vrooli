@@ -18,6 +18,9 @@ import (
 	"sync"
 	"time"
 
+	"github.com/vrooli/vrooli/internal/repocontractmeta"
+	"github.com/vrooli/vrooli/internal/tuning"
+
 	"github.com/vrooli/envkit-go"
 	"github.com/vrooli/vrooli/internal/capacity"
 	"github.com/vrooli/vrooli/internal/cliinstall"
@@ -38,6 +41,10 @@ import (
 	"github.com/vrooli/vrooli/internal/scenario"
 	"github.com/vrooli/vrooli/internal/scenarioenv"
 	"github.com/vrooli/vrooli/internal/scenarioruntime"
+)
+
+const (
+	lifecycleParameterA = 2
 )
 
 type Runner struct {
@@ -179,6 +186,10 @@ type hostProbeDeps struct {
 	// packages it actually compiles), falling back to the static replace-dir walk
 	// when it is nil or returns an error. Tests inject canned JSON.
 	goListJSON func(dir string) ([]byte, error)
+	// goListJSONContext is the cancellation-aware form used by a bounded
+	// lifecycle start. The legacy seam above remains for callers without a
+	// lifecycle context.
+	goListJSONContext func(context.Context, string) ([]byte, error)
 	// goEnv resolves the named `go env` determinants to their effective values
 	// (toolchain defaults + overrides actually in effect), returning only keys
 	// with a non-empty value. It is the build-environment seam: the freshness
@@ -226,6 +237,7 @@ func defaultHostProbeDeps() hostProbeDeps {
 		userHomeDir:        os.UserHomeDir,
 		walkDir:            filepath.WalkDir,
 		goListJSON:         defaultGoListJSON,
+		goListJSONContext:  defaultGoListJSONContext,
 		goEnv:              defaultGoEnv,
 		nodeVersion:        defaultNodeVersion,
 		recognizeArtifact:  recognizeArtifact,
@@ -238,11 +250,15 @@ func defaultHostProbeDeps() hostProbeDeps {
 // toolchain from stalling a scenario start; on any failure the caller falls back
 // to the static input walk, so an error here is never fatal.
 func defaultGoListJSON(dir string) ([]byte, error) {
+	return defaultGoListJSONContext(context.Background(), dir)
+}
+
+func defaultGoListJSONContext(parent context.Context, dir string) ([]byte, error) {
 	goBin, err := exec.LookPath("go")
 	if err != nil {
 		return nil, err
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(parent, tuning.StandardOperationTimeout)
 	defer cancel()
 	cmd := exec.CommandContext(ctx, goBin, "list", "-deps", "-json", ".")
 	cmd.Dir = dir
@@ -345,6 +361,7 @@ func (r *Runner) environmentProfile() string {
 	return hostreq.NormalizeEnvironment(r.Environment)
 }
 
+//nolint:gocyclo // runtime dependency assembly retains optional-resource and compatibility fallbacks.
 func (r *Runner) runtimeDeps() lifecycleDeps {
 	deps := r.deps
 	defaults := defaultLifecycleDeps()
@@ -638,7 +655,7 @@ func (r *Runner) startScenario(item scenario.Scenario, opts StartOptions, sessio
 		// serving process. A failed setup therefore returns without taking a
 		// healthy instance offline; the later artifact-swap phase will make the
 		// output write itself atomic for concurrently served UI bundles.
-		if observed.View.Authoritative && string(observed.View.Instance.Status) != "failed" {
+		if observed.View.Authoritative && string(observed.View.Instance.Status) != scenarioruntime.StatusFailed {
 			if err := r.prepareReplacementArtifacts(ctxOrBackground(opts.Context), item, observed.View); err != nil {
 				return Result{}, err
 			}
@@ -663,7 +680,7 @@ func ctxOrBackground(ctx context.Context) context.Context {
 func (r *Runner) prepareReplacementArtifacts(ctx context.Context, item scenario.Scenario, view registryRuntimeView) error {
 	env := envFromRuntimeView(item.Manifest, view)
 	if _, err := r.runWithLifecycleLog(startLifecycleLogContext(item.Slug, "stage", "setup"), func(logWriter, childWriter io.Writer) error {
-		_, execErr := r.executePhaseDetailed(ctx, item, "setup", env, logWriter, childWriter)
+		_, execErr := r.executePhaseDetailed(ctx, item, "setup", env, logWriter, childWriter, false)
 		return execErr
 	}); err != nil {
 		return fmt.Errorf("prepare replacement artifacts for %s: %w", item.Slug, err)
@@ -677,6 +694,8 @@ func (r *Runner) prepareReplacementArtifacts(ctx context.Context, item scenario.
 // environment, setup (when needed), develop, health gate, registry
 // finalization, and supervisor handoff. It owns the failure rollback for
 // side effects it created.
+//
+//nolint:gocyclo // start execution preserves dependency, setup, process, timeout, and ownership transitions.
 func (r *Runner) executeStart(item scenario.Scenario, opts StartOptions, forceSetup bool, session *startSession, failedDeps, failedResources []string) (result Result, err error) {
 	ctx := session.context()
 	cleanupOnError := false
@@ -739,7 +758,7 @@ func (r *Runner) executeStart(item scenario.Scenario, opts StartOptions, forceSe
 		}
 		if err := runtimeSession.keepLeaseAlive(ctx, r.leaseRenewalWarning(item, "setup"), func() error {
 			_, err := r.runWithLifecycleLog(startLifecycleLogContext(item.Slug, opts.Operation, "setup"), func(logWriter, childWriter io.Writer) error {
-				_, err := r.executePhaseDetailed(ctx, item, "setup", env.EnvVars, logWriter, childWriter)
+				_, err := r.executePhaseDetailed(ctx, item, "setup", env.EnvVars, logWriter, childWriter, forceSetup)
 				return err
 			})
 			return err
@@ -764,7 +783,7 @@ func (r *Runner) executeStart(item scenario.Scenario, opts StartOptions, forceSe
 	}
 	if err := runtimeSession.keepLeaseAlive(ctx, r.leaseRenewalWarning(item, "develop"), func() error {
 		_, err := r.runWithLifecycleLog(startLifecycleLogContext(item.Slug, opts.Operation, "develop"), func(logWriter, childWriter io.Writer) error {
-			_, err := r.executePhaseDetailed(ctx, item, "develop", env.EnvVars, logWriter, childWriter)
+			_, err := r.executePhaseDetailed(ctx, item, "develop", env.EnvVars, logWriter, childWriter, false)
 			return err
 		})
 		return err
@@ -1219,7 +1238,7 @@ func (r *Runner) verifyPortsReleasedContext(ctx context.Context, key scenariorun
 	scenarioName := key.Slug()
 	deps := r.runtimeDeps()
 	stillBound := make(map[int][]int)
-	err := AwaitContext(ctx, r.awaitClock(), AwaitPolicy{Timeout: 2 * time.Second, Interval: 100 * time.Millisecond}, func() (bool, error) {
+	err := AwaitContext(ctx, r.awaitClock(), AwaitPolicy{Timeout: tuning.ShortOperationDeadline, Interval: tuning.LifecyclePollInterval}, func() (bool, error) {
 		stillBound = make(map[int][]int)
 		for port := range portsToCheck {
 			got, err := deps.listeningPIDs(port)
@@ -1411,7 +1430,7 @@ func (r *Runner) loadScenario(name, customPath string) (scenario.Scenario, error
 		}
 		resolved = abs
 	}
-	servicePath := filepath.Join(resolved, ".vrooli", "service.json")
+	servicePath := filepath.Join(resolved, repocontractmeta.ProjectConfigDir, "service.json")
 	manifest, err := scenario.ReadService(servicePath)
 	if err != nil {
 		return scenario.Scenario{}, err
@@ -1435,6 +1454,7 @@ func stepConditionsMet(item scenario.Scenario, condition *scenario.Condition, en
 	return stepConditionsMetWithDeps(item, condition, env, defaultHostProbeDeps())
 }
 
+//nolint:gocyclo // lifecycle conditions combine independent dependency and process predicates.
 func stepConditionsMetWithDeps(item scenario.Scenario, condition *scenario.Condition, env map[string]string, deps hostProbeDeps) (bool, string, error) {
 	if condition == nil {
 		return true, "", nil
@@ -1475,7 +1495,7 @@ func stepConditionsMetWithDeps(item scenario.Scenario, condition *scenario.Condi
 		}
 	}
 	if jsonSpec := condition.JSONPathExists; jsonSpec != "" {
-		ok, err := jsonPathExistsWithDeps(checkPath(strings.SplitN(jsonSpec, ":", 2)[0]), jsonSpec, deps)
+		ok, err := jsonPathExistsWithDeps(checkPath(strings.SplitN(jsonSpec, ":", lifecycleParameterA)[0]), jsonSpec, deps)
 		if err != nil {
 			return false, "", err
 		}
@@ -1519,8 +1539,8 @@ func stepConditionsMetWithDeps(item scenario.Scenario, condition *scenario.Condi
 }
 
 func jsonPathExistsWithDeps(filePath, spec string, deps hostProbeDeps) (bool, error) {
-	parts := strings.SplitN(spec, ":", 2)
-	if len(parts) != 2 {
+	parts := strings.SplitN(spec, ":", lifecycleParameterA)
+	if len(parts) != lifecycleParameterA {
 		return false, nil
 	}
 
@@ -1609,7 +1629,10 @@ func localReplacePathsWithDeps(goModPath string, deps hostProbeDeps) ([]string, 
 // 4400+-module node_modules sweep and keeps the result deterministic. The
 // returned path is the offending file, which callers thread into honest
 // "what changed" reason strings.
-func firstFileNewerWithDeps(root, target string, deps hostProbeDeps, include func(path string, d fs.DirEntry) bool) (string, bool) {
+func firstFileNewerWithDepsContext(ctx context.Context, root, target string, deps hostProbeDeps, include func(path string, d fs.DirEntry) bool) (string, bool) {
+	if err := ctx.Err(); err != nil {
+		return "", false
+	}
 	if _, err := deps.stat(root); err != nil {
 		return "", false
 	}
@@ -1621,6 +1644,9 @@ func firstFileNewerWithDeps(root, target string, deps hostProbeDeps, include fun
 
 	var offender string
 	walkErr := deps.walkDir(root, func(path string, d fs.DirEntry, err error) error {
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			return ctxErr
+		}
 		if err != nil {
 			return nil
 		}

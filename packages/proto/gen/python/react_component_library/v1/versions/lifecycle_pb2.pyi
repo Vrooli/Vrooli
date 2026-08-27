@@ -15,7 +15,7 @@ class ListVersionLedgerRequest(_message.Message):
     def __init__(self, library_id: _Optional[str] = ..., window: _Optional[str] = ...) -> None: ...
 
 class VersionLedgerRow(_message.Message):
-    __slots__ = ("library_id", "version", "created_at", "released_at", "retired_at", "lifecycle_state", "gate_pass_count", "gate_fail_count", "test_runs", "test_pass_rate", "adoption_current", "adoption_peak", "file_count", "lines_of_code", "dependency_count")
+    __slots__ = ("library_id", "version", "created_at", "released_at", "retired_at", "lifecycle_state", "gate_pass_count", "gate_fail_count", "test_runs", "test_pass_rate", "adoption_current", "adoption_peak", "file_count", "lines_of_code", "dependency_count", "presence")
     LIBRARY_ID_FIELD_NUMBER: _ClassVar[int]
     VERSION_FIELD_NUMBER: _ClassVar[int]
     CREATED_AT_FIELD_NUMBER: _ClassVar[int]
@@ -31,6 +31,7 @@ class VersionLedgerRow(_message.Message):
     FILE_COUNT_FIELD_NUMBER: _ClassVar[int]
     LINES_OF_CODE_FIELD_NUMBER: _ClassVar[int]
     DEPENDENCY_COUNT_FIELD_NUMBER: _ClassVar[int]
+    PRESENCE_FIELD_NUMBER: _ClassVar[int]
     library_id: str
     version: str
     created_at: str
@@ -46,7 +47,8 @@ class VersionLedgerRow(_message.Message):
     file_count: int
     lines_of_code: int
     dependency_count: int
-    def __init__(self, library_id: _Optional[str] = ..., version: _Optional[str] = ..., created_at: _Optional[str] = ..., released_at: _Optional[str] = ..., retired_at: _Optional[str] = ..., lifecycle_state: _Optional[str] = ..., gate_pass_count: _Optional[int] = ..., gate_fail_count: _Optional[int] = ..., test_runs: _Optional[int] = ..., test_pass_rate: _Optional[float] = ..., adoption_current: _Optional[int] = ..., adoption_peak: _Optional[int] = ..., file_count: _Optional[int] = ..., lines_of_code: _Optional[int] = ..., dependency_count: _Optional[int] = ...) -> None: ...
+    presence: str
+    def __init__(self, library_id: _Optional[str] = ..., version: _Optional[str] = ..., created_at: _Optional[str] = ..., released_at: _Optional[str] = ..., retired_at: _Optional[str] = ..., lifecycle_state: _Optional[str] = ..., gate_pass_count: _Optional[int] = ..., gate_fail_count: _Optional[int] = ..., test_runs: _Optional[int] = ..., test_pass_rate: _Optional[float] = ..., adoption_current: _Optional[int] = ..., adoption_peak: _Optional[int] = ..., file_count: _Optional[int] = ..., lines_of_code: _Optional[int] = ..., dependency_count: _Optional[int] = ..., presence: _Optional[str] = ...) -> None: ...
 
 class ListVersionLedgerResponse(_message.Message):
     __slots__ = ("rows",)
@@ -79,14 +81,16 @@ class ListRetireCandidatesResponse(_message.Message):
     def __init__(self, candidates: _Optional[_Iterable[_Union[RetireCandidate, _Mapping]]] = ...) -> None: ...
 
 class VersionLifecycleRequest(_message.Message):
-    __slots__ = ("component_id", "version", "confirm")
+    __slots__ = ("component_id", "version", "confirm", "plan_hash")
     COMPONENT_ID_FIELD_NUMBER: _ClassVar[int]
     VERSION_FIELD_NUMBER: _ClassVar[int]
     CONFIRM_FIELD_NUMBER: _ClassVar[int]
+    PLAN_HASH_FIELD_NUMBER: _ClassVar[int]
     component_id: str
     version: str
     confirm: bool
-    def __init__(self, component_id: _Optional[str] = ..., version: _Optional[str] = ..., confirm: _Optional[bool] = ...) -> None: ...
+    plan_hash: str
+    def __init__(self, component_id: _Optional[str] = ..., version: _Optional[str] = ..., confirm: _Optional[bool] = ..., plan_hash: _Optional[str] = ...) -> None: ...
 
 class VersionLifecycleResponse(_message.Message):
     __slots__ = ("version", "lifecycle_state")
@@ -95,6 +99,119 @@ class VersionLifecycleResponse(_message.Message):
     version: RetireCandidate
     lifecycle_state: str
     def __init__(self, version: _Optional[_Union[RetireCandidate, _Mapping]] = ..., lifecycle_state: _Optional[str] = ...) -> None: ...
+
+class MaterializeVersionRequest(_message.Message):
+    __slots__ = ("component_id", "version", "all", "into")
+    COMPONENT_ID_FIELD_NUMBER: _ClassVar[int]
+    VERSION_FIELD_NUMBER: _ClassVar[int]
+    ALL_FIELD_NUMBER: _ClassVar[int]
+    INTO_FIELD_NUMBER: _ClassVar[int]
+    component_id: str
+    version: str
+    all: bool
+    into: str
+    def __init__(self, component_id: _Optional[str] = ..., version: _Optional[str] = ..., all: _Optional[bool] = ..., into: _Optional[str] = ...) -> None: ...
+
+class MaterializedVersion(_message.Message):
+    __slots__ = ("component_id", "library_id", "version", "directory", "files_written", "already_present")
+    COMPONENT_ID_FIELD_NUMBER: _ClassVar[int]
+    LIBRARY_ID_FIELD_NUMBER: _ClassVar[int]
+    VERSION_FIELD_NUMBER: _ClassVar[int]
+    DIRECTORY_FIELD_NUMBER: _ClassVar[int]
+    FILES_WRITTEN_FIELD_NUMBER: _ClassVar[int]
+    ALREADY_PRESENT_FIELD_NUMBER: _ClassVar[int]
+    component_id: str
+    library_id: str
+    version: str
+    directory: str
+    files_written: int
+    already_present: bool
+    def __init__(self, component_id: _Optional[str] = ..., library_id: _Optional[str] = ..., version: _Optional[str] = ..., directory: _Optional[str] = ..., files_written: _Optional[int] = ..., already_present: _Optional[bool] = ...) -> None: ...
+
+class MaterializeVersionResponse(_message.Message):
+    __slots__ = ("versions",)
+    VERSIONS_FIELD_NUMBER: _ClassVar[int]
+    versions: _containers.RepeatedCompositeFieldContainer[MaterializedVersion]
+    def __init__(self, versions: _Optional[_Iterable[_Union[MaterializedVersion, _Mapping]]] = ...) -> None: ...
+
+class ReconcilePresenceRequest(_message.Message):
+    __slots__ = ("component_id", "apply")
+    COMPONENT_ID_FIELD_NUMBER: _ClassVar[int]
+    APPLY_FIELD_NUMBER: _ClassVar[int]
+    component_id: str
+    apply: bool
+    def __init__(self, component_id: _Optional[str] = ..., apply: _Optional[bool] = ...) -> None: ...
+
+class ReconcilePresenceResponse(_message.Message):
+    __slots__ = ("evict", "materialize", "unchanged", "applied")
+    EVICT_FIELD_NUMBER: _ClassVar[int]
+    MATERIALIZE_FIELD_NUMBER: _ClassVar[int]
+    UNCHANGED_FIELD_NUMBER: _ClassVar[int]
+    APPLIED_FIELD_NUMBER: _ClassVar[int]
+    evict: _containers.RepeatedCompositeFieldContainer[RetireCandidate]
+    materialize: _containers.RepeatedCompositeFieldContainer[RetireCandidate]
+    unchanged: _containers.RepeatedCompositeFieldContainer[RetireCandidate]
+    applied: bool
+    def __init__(self, evict: _Optional[_Iterable[_Union[RetireCandidate, _Mapping]]] = ..., materialize: _Optional[_Iterable[_Union[RetireCandidate, _Mapping]]] = ..., unchanged: _Optional[_Iterable[_Union[RetireCandidate, _Mapping]]] = ..., applied: _Optional[bool] = ...) -> None: ...
+
+class ArchiveRequest(_message.Message):
+    __slots__ = ("path",)
+    PATH_FIELD_NUMBER: _ClassVar[int]
+    path: str
+    def __init__(self, path: _Optional[str] = ...) -> None: ...
+
+class ImportArchiveRequest(_message.Message):
+    __slots__ = ("path", "overwrite")
+    PATH_FIELD_NUMBER: _ClassVar[int]
+    OVERWRITE_FIELD_NUMBER: _ClassVar[int]
+    path: str
+    overwrite: bool
+    def __init__(self, path: _Optional[str] = ..., overwrite: _Optional[bool] = ...) -> None: ...
+
+class ArchiveResponse(_message.Message):
+    __slots__ = ("path", "schema_version", "row_counts", "checksum")
+    class RowCountsEntry(_message.Message):
+        __slots__ = ("key", "value")
+        KEY_FIELD_NUMBER: _ClassVar[int]
+        VALUE_FIELD_NUMBER: _ClassVar[int]
+        key: str
+        value: int
+        def __init__(self, key: _Optional[str] = ..., value: _Optional[int] = ...) -> None: ...
+    PATH_FIELD_NUMBER: _ClassVar[int]
+    SCHEMA_VERSION_FIELD_NUMBER: _ClassVar[int]
+    ROW_COUNTS_FIELD_NUMBER: _ClassVar[int]
+    CHECKSUM_FIELD_NUMBER: _ClassVar[int]
+    path: str
+    schema_version: int
+    row_counts: _containers.ScalarMap[str, int]
+    checksum: str
+    def __init__(self, path: _Optional[str] = ..., schema_version: _Optional[int] = ..., row_counts: _Optional[_Mapping[str, int]] = ..., checksum: _Optional[str] = ...) -> None: ...
+
+class DoctorRequest(_message.Message):
+    __slots__ = ()
+    def __init__(self) -> None: ...
+
+class DoctorIssue(_message.Message):
+    __slots__ = ("library_id", "version", "path", "expected_sha256", "actual_sha256", "reason")
+    LIBRARY_ID_FIELD_NUMBER: _ClassVar[int]
+    VERSION_FIELD_NUMBER: _ClassVar[int]
+    PATH_FIELD_NUMBER: _ClassVar[int]
+    EXPECTED_SHA256_FIELD_NUMBER: _ClassVar[int]
+    ACTUAL_SHA256_FIELD_NUMBER: _ClassVar[int]
+    REASON_FIELD_NUMBER: _ClassVar[int]
+    library_id: str
+    version: str
+    path: str
+    expected_sha256: str
+    actual_sha256: str
+    reason: str
+    def __init__(self, library_id: _Optional[str] = ..., version: _Optional[str] = ..., path: _Optional[str] = ..., expected_sha256: _Optional[str] = ..., actual_sha256: _Optional[str] = ..., reason: _Optional[str] = ...) -> None: ...
+
+class DoctorResponse(_message.Message):
+    __slots__ = ("issues",)
+    ISSUES_FIELD_NUMBER: _ClassVar[int]
+    issues: _containers.RepeatedCompositeFieldContainer[DoctorIssue]
+    def __init__(self, issues: _Optional[_Iterable[_Union[DoctorIssue, _Mapping]]] = ...) -> None: ...
 
 class CleanupScope(_message.Message):
     __slots__ = ("component_id", "library_id", "older_than_days")

@@ -21,6 +21,17 @@ import (
 	resourcedeployment "github.com/vrooli/vrooli/packages/resource-deployment"
 )
 
+const (
+	literalResourceArtifactsDir     = "dir"
+	literalResourceArtifactsWindows = "windows"
+)
+
+const (
+	mndResourceArtifactsNumberOctal644 = 0o644
+	mndResourceArtifactsNumberOctal755 = 0o755
+	mndResourceArtifactsNumberValue3   = 3
+)
+
 // resourceArtifactManifest contains only the release-facing parts of a
 // resource contract. Resource deployment devices receive these already-built
 // and release-signed artifacts; this command is the sole source-build path.
@@ -66,7 +77,7 @@ const releaseArtifactMetadataFile = "release-artifact-metadata-v1.json"
 // a runtime fact is rejected instead of producing a bundle that cannot be
 // reproduced on a clean machine.
 func stageToolArtifacts(ctx context.Context, root, outDir string) error {
-	if err := os.MkdirAll(outDir, 0o755); err != nil {
+	if err := os.MkdirAll(outDir, mndResourceArtifactsNumberOctal755); err != nil {
 		return fmt.Errorf("create tool artifact output: %w", err)
 	}
 	var manifests []string
@@ -95,7 +106,7 @@ func stageToolArtifacts(ctx context.Context, root, outDir string) error {
 		if manifest.Bundling != "vendorable" || manifest.Acquisition == nil {
 			continue
 		}
-		for _, platform := range []resourcedeployment.Platform{{OS: "linux", Arch: "amd64"}, {OS: "linux", Arch: "arm64"}, {OS: "macos", Arch: "amd64"}, {OS: "macos", Arch: "arm64"}, {OS: "windows", Arch: "amd64"}} {
+		for _, platform := range []resourcedeployment.Platform{{OS: "linux", Arch: "amd64"}, {OS: "linux", Arch: "arm64"}, {OS: "macos", Arch: "amd64"}, {OS: "macos", Arch: "arm64"}, {OS: literalResourceArtifactsWindows, Arch: "amd64"}} {
 			factsOS := artifactOS(platform.OS)
 			target, err := manifest.Acquisition.Resolve(binaryfetch.Facts{"os": factsOS, "arch": platform.Arch})
 			if err != nil {
@@ -125,7 +136,7 @@ func stageToolArtifacts(ctx context.Context, root, outDir string) error {
 		}
 	}
 	sort.Strings(index)
-	return os.WriteFile(filepath.Join(outDir, "tool-artifacts-v1.txt"), []byte(strings.Join(index, "\n")+"\n"), 0o644)
+	return os.WriteFile(filepath.Join(outDir, "tool-artifacts-v1.txt"), []byte(strings.Join(index, "\n")+"\n"), mndResourceArtifactsNumberOctal644)
 }
 
 func stageAcquisitionTarget(ctx context.Context, declaredKind string, target binaryfetch.AcquisitionTarget, platform resourcedeployment.Platform, name, path, outDir string) error {
@@ -135,7 +146,7 @@ func stageAcquisitionTarget(ctx context.Context, declaredKind string, target bin
 	}
 	layout := strings.ToLower(strings.TrimSpace(target.Layout))
 	if kind == "oci-image" {
-		if layout == "dir" {
+		if layout == literalResourceArtifactsDir {
 			_, err := binaryfetch.FetchOCI(ctx, target, path, nil)
 			return err
 		}
@@ -143,7 +154,7 @@ func stageAcquisitionTarget(ctx context.Context, declaredKind string, target bin
 		return err
 	}
 	spec := binaryfetch.Target{Name: name, URL: target.URL, SHA256: target.SHA256, Archive: target.Archive, Layout: layout, BinPath: target.BinPath, Mode: target.Mode}
-	if layout == "dir" {
+	if layout == literalResourceArtifactsDir {
 		_, err := binaryfetch.FetchDir(ctx, spec, path, nil)
 		return err
 	}
@@ -177,7 +188,7 @@ func stageResourceArtifacts(ctx context.Context, root, outDir string) error {
 		}
 		targets = append(targets, resourceTargets...)
 	}
-	if err := os.MkdirAll(outDir, 0o755); err != nil {
+	if err := os.MkdirAll(outDir, mndResourceArtifactsNumberOctal755); err != nil {
 		return fmt.Errorf("create resource artifact output: %w", err)
 	}
 	index := make([]string, 0)
@@ -218,7 +229,7 @@ func stageResourceArtifacts(ctx context.Context, root, outDir string) error {
 		index = append(index, "doc-parse\tdeclared\tall\tall\tdoc-parse.wasm")
 		sort.Strings(index)
 	}
-	return os.WriteFile(filepath.Join(outDir, "resource-artifacts-v1.txt"), []byte(strings.Join(index, "\n")+"\n"), 0o644)
+	return os.WriteFile(filepath.Join(outDir, "resource-artifacts-v1.txt"), []byte(strings.Join(index, "\n")+"\n"), mndResourceArtifactsNumberOctal644)
 }
 
 func stageDocParseWASI(root, outDir string) error {
@@ -231,10 +242,10 @@ func stageDocParseWASI(root, outDir string) error {
 	if _, err := os.Stat(sidecar); err != nil {
 		return fmt.Errorf("doc-parse WASI artifact checksum is missing: %w", err)
 	}
-	if err := copyFile(source, filepath.Join(outDir, "doc-parse.wasm"), 0o755); err != nil {
+	if err := copyFile(source, filepath.Join(outDir, "doc-parse.wasm"), mndResourceArtifactsNumberOctal755); err != nil {
 		return fmt.Errorf("stage doc-parse WASI artifact: %w", err)
 	}
-	if err := copyFile(sidecar, filepath.Join(outDir, "doc-parse.wasm.sha256"), 0o644); err != nil {
+	if err := copyFile(sidecar, filepath.Join(outDir, "doc-parse.wasm.sha256"), mndResourceArtifactsNumberOctal644); err != nil {
 		return fmt.Errorf("stage doc-parse WASI checksum: %w", err)
 	}
 	if err := updateReleaseArtifactMetadata(outDir, "doc-parse.wasm", releaseArtifactMetadata{Role: "resource-data", Provenance: "vrooli-rust-build"}); err != nil {
@@ -258,6 +269,8 @@ func copyFile(source, destination string, mode os.FileMode) error {
 // signer must authorize. It intentionally does not create a signature: signing
 // authority is kept outside source builds, and consumers reject this directory
 // until SHA256SUMS.sig is supplied by that authority.
+//
+//nolint:gocyclo // release checksum emission handles deterministic traversal and independent file failures.
 func writeReleaseChecksumManifest(outDir string) error {
 	entries, err := os.ReadDir(outDir)
 	if err != nil {
@@ -292,7 +305,7 @@ func writeReleaseChecksumManifest(outDir string) error {
 		return fmt.Errorf("release artifact directory contains no artifacts")
 	}
 	sort.Strings(lines)
-	if err := os.WriteFile(filepath.Join(outDir, "SHA256SUMS"), []byte(strings.Join(lines, "\n")+"\n"), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(outDir, "SHA256SUMS"), []byte(strings.Join(lines, "\n")+"\n"), mndResourceArtifactsNumberOctal644); err != nil {
 		return err
 	}
 	artifacts := make([]resourcedeployment.ReleaseArtifact, 0, len(lines))
@@ -320,17 +333,17 @@ func writeReleaseChecksumManifest(outDir string) error {
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(filepath.Join(outDir, "release-manifest.json"), append(canonical, '\n'), 0o644)
+	return os.WriteFile(filepath.Join(outDir, "release-manifest.json"), append(canonical, '\n'), mndResourceArtifactsNumberOctal644)
 }
 
 func releaseArtifactPlatform(name string) (string, string) {
 	stem := strings.TrimSuffix(name, ".exe")
 	parts := strings.Split(stem, "_")
-	if len(parts) < 3 {
+	if len(parts) < mndResourceArtifactsNumberValue3 {
 		return "", ""
 	}
 	osName, arch := parts[len(parts)-2], parts[len(parts)-1]
-	if osName != "linux" && osName != "darwin" && osName != "windows" {
+	if osName != "linux" && osName != "darwin" && osName != literalResourceArtifactsWindows {
 		return "", ""
 	}
 	return osName, arch
@@ -359,7 +372,7 @@ func resourceArtifactBuildTargets(manifest resourceArtifactManifest) ([]resource
 		return nil, fmt.Errorf("bundled resource artifacts require prebuilt distribution and Go module adapter")
 	}
 	var targets []resourceBuildTarget
-	for _, platform := range []string{"linux", "macos", "windows"} {
+	for _, platform := range []string{"linux", "macos", literalResourceArtifactsWindows} {
 		target, found := manifest.Deployment.Target("desktop", platform, "")
 		if !found || target.Support == "unsupported" || !strings.HasPrefix(target.Mode, "bundled-") {
 			continue
@@ -394,7 +407,7 @@ func buildResourceController(ctx context.Context, resourceDir string, target res
 	if err != nil {
 		return err
 	}
-	if err := os.WriteFile(filepath.Join(outDir, target.Artifact+".manifest.json"), manifestData, 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(outDir, target.Artifact+".manifest.json"), manifestData, mndResourceArtifactsNumberOctal644); err != nil {
 		return err
 	}
 	metadata, err := json.Marshal(struct {
@@ -413,9 +426,10 @@ func buildResourceController(ctx context.Context, resourceDir string, target res
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(filepath.Join(outDir, target.Artifact+".build.json"), append(metadata, '\n'), 0o644)
+	return os.WriteFile(filepath.Join(outDir, target.Artifact+".build.json"), append(metadata, '\n'), mndResourceArtifactsNumberOctal644)
 }
 
+//nolint:gocyclo // artifact staging preserves the archive, binary, checksum, and platform fallback matrix.
 func stageManagedServiceArtifact(ctx context.Context, manifest resourceArtifactManifest, resourceRoot, outDir string, platform resourcedeployment.Platform) (stagedManagedServiceArtifact, error) {
 	if manifest.ManagedService == nil || manifest.ManagedService.Acquisition == nil {
 		return stagedManagedServiceArtifact{}, fmt.Errorf("managed-service %s must declare acquisition", manifest.Name)
@@ -448,7 +462,7 @@ func stageManagedServiceArtifact(ctx context.Context, manifest resourceArtifactM
 	// For file-layout archives, bin_path locates the executable inside the
 	// downloaded archive and Fetch extracts it to the staged file. It is not a
 	// launch-time entry path; only a directory artifact retains EntryPath.
-	if layout == "dir" && target.BinPath != "" {
+	if layout == literalResourceArtifactsDir && target.BinPath != "" {
 		artifact.EntryPath = strings.TrimPrefix(filepath.ToSlash(target.BinPath), "/")
 	}
 	name, err := artifact.BundleArtifactForPlatform(platform.OS, platform.Arch)
@@ -464,7 +478,7 @@ func stageManagedServiceArtifact(ctx context.Context, manifest resourceArtifactM
 			return stagedManagedServiceArtifact{}, fmt.Errorf("compose managed service %s: %w", manifest.Name, err)
 		}
 	} else if strings.EqualFold(strings.TrimSpace(manifest.ManagedService.Acquisition.Kind), "oci-image") {
-		if layout == "dir" {
+		if layout == literalResourceArtifactsDir {
 			if _, err := binaryfetch.FetchOCIForPlatform(ctx, target, path, artifactOS(platform.OS), platform.Arch, nil); err != nil {
 				return stagedManagedServiceArtifact{}, err
 			}
@@ -475,7 +489,7 @@ func stageManagedServiceArtifact(ctx context.Context, manifest resourceArtifactM
 		}
 	} else {
 		spec := binaryfetch.Target{Name: name, URL: target.URL, SHA256: target.SHA256, Archive: target.Archive, Layout: layout, BinPath: target.BinPath, Mode: target.Mode}
-		if layout == "dir" {
+		if layout == literalResourceArtifactsDir {
 			if _, err := binaryfetch.FetchDir(ctx, spec, path, nil); err != nil {
 				return stagedManagedServiceArtifact{}, err
 			}
@@ -536,7 +550,7 @@ func composeAcquisitionTarget(ctx context.Context, target binaryfetch.Acquisitio
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(filepath.Join(artifactRoot, ".vrooli-compose-manifest.json"), append(data, '\n'), 0o644)
+	return os.WriteFile(filepath.Join(artifactRoot, ".vrooli-compose-manifest.json"), append(data, '\n'), mndResourceArtifactsNumberOctal644)
 }
 
 func fileSHA256(path string) (string, error) {
@@ -572,7 +586,7 @@ func runComposeStep(ctx context.Context, step binaryfetch.ComposeStep, resourceR
 		if info, err := os.Stat(lockfile); err != nil || info.IsDir() {
 			return fmt.Errorf("lockfile %q is unavailable for target %s: %w", step.Lockfile, platform, err)
 		}
-		if err := os.MkdirAll(dest, 0o755); err != nil {
+		if err := os.MkdirAll(dest, mndResourceArtifactsNumberOctal755); err != nil {
 			return err
 		}
 		pythonPlatform := uvPlatform(platform)
@@ -610,7 +624,7 @@ func flattenComposePrefix(root, prefix string) error {
 	if err := os.Rename(root, flat); err != nil {
 		return err
 	}
-	if err := os.MkdirAll(root, 0o755); err != nil {
+	if err := os.MkdirAll(root, mndResourceArtifactsNumberOctal755); err != nil {
 		return err
 	}
 	entries, err := os.ReadDir(filepath.Join(flat, filepath.FromSlash(prefix)))
@@ -637,7 +651,7 @@ func uvPlatform(platform resourcedeployment.Platform) string {
 			return "aarch64-apple-darwin"
 		}
 		return "x86_64-apple-darwin"
-	case "windows":
+	case literalResourceArtifactsWindows:
 		return "x86_64-pc-windows-msvc"
 	default:
 		return platform.OS + "-" + platform.Arch
@@ -663,7 +677,7 @@ func updateReleaseArtifactMetadata(outDir, name string, metadata releaseArtifact
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(path, append(data, '\n'), 0o644)
+	return os.WriteFile(path, append(data, '\n'), mndResourceArtifactsNumberOctal644)
 }
 
 func readReleaseArtifactMetadata(outDir, name string) (releaseArtifactMetadata, bool) {
@@ -709,7 +723,7 @@ func artifactOS(platform string) string {
 
 func toolArtifactName(name string, platform resourcedeployment.Platform) string {
 	suffix := ""
-	if platform.OS == "windows" {
+	if platform.OS == literalResourceArtifactsWindows {
 		suffix = ".exe"
 	}
 	return fmt.Sprintf("tool_%s_%s_%s%s", name, artifactOS(platform.OS), platform.Arch, suffix)

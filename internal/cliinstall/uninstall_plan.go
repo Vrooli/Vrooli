@@ -14,7 +14,17 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vrooli/vrooli/internal/repocontractmeta"
+	"github.com/vrooli/vrooli/internal/tuning"
+
 	"github.com/vrooli/vrooli/internal/config"
+)
+
+const (
+	uninstallPlanParameterA = 16
+	uninstallPlanParameterB = 2
+	uninstallPlanParameterC = 3
+	uninstallPlanParameterD = 4
 )
 
 func (s *uninstallService) Plan(request UninstallRequest) (UninstallPlan, error) {
@@ -88,12 +98,13 @@ func (s *uninstallService) Plan(request UninstallRequest) (UninstallPlan, error)
 	if err != nil {
 		return UninstallPlan{}, fmt.Errorf("encode uninstall plan: %w", err)
 	}
-	if err := config.WriteOwnedFile(path, append(data, '\n'), 0o600); err != nil {
+	if err := config.WriteOwnedFile(path, append(data, '\n'), tuning.PermSecret); err != nil {
 		return UninstallPlan{}, fmt.Errorf("write uninstall plan: %w", err)
 	}
 	return plan, nil
 }
 
+//nolint:gocyclo // uninstall applies ordered artifact ownership and rollback decisions across install records.
 func (s *uninstallService) Apply(request UninstallRequest) (RemovalReceipt, error) {
 	if request.Mode != UninstallApplyMode || !isPlanID(request.PlanID) {
 		return RemovalReceipt{}, &SafetyError{Code: "plan_required", Detail: "--apply requires a valid plan id"}
@@ -251,7 +262,7 @@ func (s *uninstallService) writeUninstallPlan(plan UninstallPlan) error {
 	if err != nil {
 		return fmt.Errorf("encode uninstall plan progress: %w", err)
 	}
-	return config.WriteOwnedFile(path, append(data, '\n'), 0o600)
+	return config.WriteOwnedFile(path, append(data, '\n'), tuning.PermSecret)
 }
 
 func receiptEntryApplied(applied []RemovalReceiptEntry, entry InstallEntry) bool {
@@ -423,14 +434,15 @@ func containerRemovalRank(kind InstallEntryKind) int {
 	case EntryContainer:
 		return 1
 	case EntryVolume:
-		return 2
+		return uninstallPlanParameterB
 	case EntryImage:
-		return 3
+		return uninstallPlanParameterC
 	default:
-		return 4
+		return uninstallPlanParameterD
 	}
 }
 
+//nolint:gocyclo // record normalization handles legacy field aliases and mutually exclusive ownership forms.
 func normalizeRecord(record InstallRecord) InstallRecord {
 	if record.Version == 0 {
 		record.Version = installRecordVersion
@@ -574,7 +586,7 @@ func validateRuntimeProviders(providers []RuntimeProviderProvenance) error {
 
 func emptyInstallRecord(home string) InstallRecord {
 	home = filepath.Clean(home)
-	return InstallRecord{Version: installRecordVersion, Prefix: filepath.Join(home, ".vrooli"), Entries: []InstallEntry{}, RuntimeProviders: []RuntimeProviderProvenance{}}
+	return InstallRecord{Version: installRecordVersion, Prefix: filepath.Join(home, repocontractmeta.ProjectConfigDir), Entries: []InstallEntry{}, RuntimeProviders: []RuntimeProviderProvenance{}}
 }
 
 func validateEntry(entry InstallEntry, home string) error {
@@ -724,7 +736,7 @@ func digestRecord(record InstallRecord) string {
 }
 
 func newPlanID() (string, error) {
-	raw := make([]byte, 16)
+	raw := make([]byte, uninstallPlanParameterA)
 	if _, err := rand.Read(raw); err != nil {
 		return "", fmt.Errorf("generate uninstall plan id: %w", err)
 	}

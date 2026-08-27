@@ -4,6 +4,12 @@ import (
 	"context"
 	"errors"
 	"time"
+
+	"github.com/vrooli/vrooli/internal/tuning"
+)
+
+const (
+	awaitParameterA = 3
 )
 
 // This file is the single wait/poll primitive for scenario lifecycle
@@ -135,19 +141,19 @@ var (
 	// load-bearing: the degraded-grace decision happens one tick past an
 	// exact-deadline evaluation.
 	healthWaitDefaultPolicy = AwaitPolicy{
-		Timeout:             30 * time.Second,
-		Interval:            500 * time.Millisecond,
+		Timeout:             tuning.StandardOperationTimeout,
+		Interval:            tuning.HealthProbeInterval,
 		ExpireStrictlyAfter: true,
 	}
 	// healthWaitMaxInterval caps manifest-declared poll intervals so a huge
 	// interval cannot starve the health deadline of evaluations.
-	healthWaitMaxInterval = 2 * time.Second
+	healthWaitMaxInterval = tuning.ShortOperationDeadline
 	// registryHealthRetryPolicy is the bounded data-plane probe retry used
 	// before condemning a registry-authoritative running instance: a single
 	// dropped probe must not trigger a stop+rebuild+restart.
 	registryHealthRetryPolicy = AwaitPolicy{
-		MaxAttempts: 3,
-		Interval:    1 * time.Second,
+		MaxAttempts: awaitParameterA,
+		Interval:    tuning.ShortOperationTimeout,
 	}
 	// supervisionAttachPolicy bounds how long a start waits for the runtime
 	// supervisor to register a session it can hand ownership to. A supervisor
@@ -156,27 +162,27 @@ var (
 	// fallback — finishing with lifecycle ownership — is the old behavior, not
 	// a failure.
 	supervisionAttachPolicy = AwaitPolicy{
-		Timeout:  3 * time.Second,
-		Interval: 250 * time.Millisecond,
+		Timeout:  tuning.HealthCheckTimeout,
+		Interval: tuning.FastHealthPollInterval,
 	}
 	// resourceReadyPolicy bounds the post-start readiness wait for a resource
 	// dependency.
 	resourceReadyPolicy = AwaitPolicy{
-		Timeout:  30 * time.Second,
-		Interval: 500 * time.Millisecond,
+		Timeout:  tuning.StandardOperationTimeout,
+		Interval: tuning.HealthProbeInterval,
 	}
 	// scenarioReadinessPolicy bounds derived component readiness. The manifest's
 	// startup_grace_period overrides Timeout; it is a failure ceiling, never a
 	// leading delay. The 250ms interval is shared by every component in a run.
 	scenarioReadinessPolicy = AwaitPolicy{
-		Timeout:  30 * time.Second,
-		Interval: 250 * time.Millisecond,
+		Timeout:  tuning.StandardOperationTimeout,
+		Interval: tuning.FastHealthPollInterval,
 	}
 	// dependencyLockPolicy bounds how long a start waits for a transitive
 	// dependency's lifecycle lock held by a concurrent invocation.
 	dependencyLockPolicy = AwaitPolicy{
-		Timeout:  2 * time.Minute,
-		Interval: 500 * time.Millisecond,
+		Timeout:  tuning.ExtendedOperationTimeout,
+		Interval: tuning.HealthProbeInterval,
 	}
 	// dependencyBestEffortLockPolicy bounds contention for an optional
 	// try_start dependency. The parent scenario has a valid degraded mode, so
@@ -184,20 +190,20 @@ var (
 	// the optional capability. The readiness check still reuses the dependency
 	// immediately when the concurrent owner finishes within this window.
 	dependencyBestEffortLockPolicy = AwaitPolicy{
-		Timeout:  10 * time.Second,
-		Interval: 500 * time.Millisecond,
+		Timeout:  tuning.ControlPlaneClientTimeout,
+		Interval: tuning.HealthProbeInterval,
 	}
 	// dependencyBestEffortStartTimeout bounds the optional dependency's own
 	// recursive start. A cold optional dependency may need setup/build work;
 	// the parent still has a valid degraded contract and must remain available
 	// when that work exceeds this short capability budget.
-	dependencyBestEffortStartTimeout = 15 * time.Second
+	dependencyBestEffortStartTimeout = tuning.CredentialServiceTimeout
 	// SandboxStartPolicy bounds the orchestrator's wait for a scenario to
 	// report running after a sandbox host-lifecycle proxy start. Exported for
 	// internal/orchestrator, which owns no wait loops of its own.
 	SandboxStartPolicy = AwaitPolicy{
-		Timeout:             30 * time.Second,
-		Interval:            500 * time.Millisecond,
+		Timeout:             tuning.StandardOperationTimeout,
+		Interval:            tuning.HealthProbeInterval,
 		ExpireStrictlyAfter: true,
 	}
 )

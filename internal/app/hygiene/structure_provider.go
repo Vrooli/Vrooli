@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/vrooli/vrooli/internal/tuning"
+
 	"github.com/vrooli/vrooli/internal/structureprovider"
 )
 
@@ -14,7 +16,7 @@ const structureProviderID = "structure-health"
 // target walk remains available to contract validation, but duplicating that
 // fleet traversal here made a short structural gate depend on unrelated
 // resource and code-facts work.
-const structureProviderBudget = 30 * time.Second
+const structureProviderBudget = tuning.StandardOperationTimeout
 
 type structureProvider struct {
 	root   string

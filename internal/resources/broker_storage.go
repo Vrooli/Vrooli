@@ -6,6 +6,10 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+
+	"github.com/vrooli/vrooli/internal/tuning"
+
+	"github.com/vrooli/vrooli/internal/config"
 )
 
 type BrokerState struct {
@@ -37,18 +41,14 @@ func (s FileBrokerStore) Load() (BrokerState, error) {
 }
 
 func (s FileBrokerStore) Save(state BrokerState) error {
-	if err := os.MkdirAll(filepath.Dir(s.Path), 0o700); err != nil {
+	if err := os.MkdirAll(filepath.Dir(s.Path), tuning.PermPrivateDir); err != nil {
 		return fmt.Errorf("create broker state directory: %w", err)
 	}
 	data, err := json.Marshal(state)
 	if err != nil {
 		return fmt.Errorf("encode broker state: %w", err)
 	}
-	tmp := s.Path + ".tmp"
-	if err := os.WriteFile(tmp, data, 0o600); err != nil {
-		return fmt.Errorf("write broker state: %w", err)
-	}
-	if err := os.Rename(tmp, s.Path); err != nil {
+	if err := config.WriteOwnedFileAtomic(s.Path, data, tuning.PermSecret); err != nil {
 		return fmt.Errorf("commit broker state: %w", err)
 	}
 	return nil

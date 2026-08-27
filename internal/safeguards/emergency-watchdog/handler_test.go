@@ -13,13 +13,16 @@ import (
 	"github.com/vrooli/repo-contract-go/repocontracttest"
 	"github.com/vrooli/vrooli/internal/hostreqkit"
 	"github.com/vrooli/vrooli/internal/hostreqspec"
+	"github.com/vrooli/vrooli/internal/shell/shelltest"
 )
 
 func testManifest() hostreqkit.SafeguardManifest {
 	return hostreqkit.SafeguardManifest{Name: "emergency_watchdog"}
 }
 
-func linuxHost() hostreqkit.Host {
+var linuxHost = emergencyWatchdogLinuxHost
+
+func emergencyWatchdogLinuxHost() hostreqkit.Host {
 	return hostreqkit.Host{OS: "linux", SupportsSystemd: true}
 }
 
@@ -54,7 +57,7 @@ func TestDefaultsMatchManifest(t *testing.T) {
 	}
 }
 
-func TestInspectNonLinuxUnsupported(t *testing.T) {
+func TestInspectNonLinuxReportsMechanism(t *testing.T) {
 	status := NewHandler(testManifest()).Inspect(hostreqkit.Host{OS: "darwin"}, req())
 	if status.SupportClass != hostreqkit.SupportUnsupported && status.SupportClass != hostreqkit.SupportManualOnly && status.SupportClass != hostreqkit.SupportNotApplicable {
 		t.Fatalf("SupportClass = %q, want unsupported, manual-only, or not-applicable", status.SupportClass)
@@ -206,7 +209,7 @@ func sandbox(t *testing.T, s settings, unitsActive bool, cpuAvg10 string) (scrip
 	if unitsActive {
 		activeExit = "0"
 	}
-	writeExec(t, filepath.Join(binDir, "systemctl"), "#!/bin/sh\n"+
+	writeExec(t, filepath.Join(binDir, "systemctl"), shelltest.POSIXShebang()+""+
 		"for a in \"$@\"; do case \"$a\" in is-active) exit "+activeExit+";; restart) echo \"restart $*\" >> \""+root+"/restarts\"; exit 0;; esac; done\nexit 0\n")
 	// storage-manager absent is a supported condition; keep it that way.
 
@@ -219,7 +222,7 @@ func sandbox(t *testing.T, s settings, unitsActive bool, cpuAvg10 string) (scrip
 		}
 	}
 	body = strings.ReplaceAll(body, "/proc/pressure/cpu", pressurePath)
-	body = strings.Replace(body, "#!/bin/sh\n", "#!/bin/sh\nPATH=\""+binDir+":$PATH\"\n", 1)
+	body = strings.Replace(body, shelltest.POSIXShebang()+"", shelltest.POSIXShebang()+"PATH=\""+binDir+":$PATH\"\n", 1)
 
 	script = filepath.Join(root, "watchdog.sh")
 	writeExec(t, script, body)

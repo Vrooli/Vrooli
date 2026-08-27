@@ -66,9 +66,10 @@
       "evidence": null
     },
     "windows": {
-      "status": "not_applicable",
-      "mechanism": "handler",
-      "evidence": "This safeguard has no implementation for the Windows host mechanism; the capability is not applicable on this host OS."
+      "status": "not_implemented",
+      "evidence": "The Windows launcher provider is not wired into this safeguard yet; the host mechanism is the Windows process creation surface.",
+      "mechanism": "windows_process_launcher",
+      "since": "2026-08-26"
     }
   },
   "risk_class": "restore_absent"

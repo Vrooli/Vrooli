@@ -132,6 +132,7 @@ func (rec *startOperationRecorder) close() {
 	rec.store = nil
 }
 
+//nolint:gocyclo // operation publishing maps event, phase, terminal, and persistence states to one record.
 func (rec *startOperationRecorder) Publish(ev ProgressEvent) {
 	if rec == nil || rec.store == nil {
 		return

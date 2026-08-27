@@ -36,6 +36,7 @@ import (
 	"github.com/vrooli/vrooli/internal/scenario"
 	testscenario "github.com/vrooli/vrooli/internal/scenario/scenariotest"
 	"github.com/vrooli/vrooli/internal/scenarioruntime"
+	"github.com/vrooli/vrooli/internal/testenv"
 )
 
 // AI_CHECK: GO_MIGRATION_TEST_QUALITY=9 | LAST: 2026-04-13
@@ -56,6 +57,38 @@ func newLifecycleRunnerForTest(t *testing.T, root, home string, mutate func(*lif
 		t.Fatalf("newRunnerWithDeps: %v", err)
 	}
 	return runner
+}
+
+func newRunnerForEnsureResourceFailure(t *testing.T, root, home, failure string) *Runner {
+	t.Helper()
+	return newLifecycleRunnerForTest(t, root, home, func(deps *lifecycleDeps) {
+		deps.resourceStatus = func(name string, _ bool) (resourcecontrol.Status, error) {
+			healthy := true
+			return resourcecontrol.Status{Resource: resources.Resource{Name: name}, Running: true, Healthy: &healthy}, nil
+		}
+		deps.resourceManifest = func(_ string) (resourcemanifest.ResourceManifest, error) {
+			return resourcemanifest.ResourceManifest{
+				Capabilities: resourcemanifest.ResourceManifestCapabilities{SupportsEnsure: true},
+			}, nil
+		}
+		deps.runResourceCLI = func(_ string, _ []string, _, _ io.Writer) error {
+			return errors.New(failure)
+		}
+	})
+}
+
+func newRunnerForUnavailableResource(t *testing.T, root, home string, now *time.Time) *Runner {
+	t.Helper()
+	return newLifecycleRunnerForTest(t, root, home, func(deps *lifecycleDeps) {
+		deps.resourceStatus = func(name string, fast bool) (resourcecontrol.Status, error) {
+			return resourcecontrol.Status{Resource: resources.Resource{Name: name}, Running: false, StatusCode: resourcecontrol.StatusCodeUnavailable}, nil
+		}
+		deps.runResource = func(name string, args []string, stdout, stderr io.Writer) error {
+			return nil
+		}
+		deps.now = func() time.Time { return *now }
+		deps.sleep = func(d time.Duration) { *now = now.Add(resourceReadyPolicy.Timeout) }
+	})
 }
 
 func intPtr(value int) *int {
@@ -622,16 +655,7 @@ func TestEnsureResourceDependenciesBlocksRequiredUnavailableResource(t *testing.
 	))
 
 	now := time.Unix(0, 0)
-	runner := newLifecycleRunnerForTest(t, root, home, func(deps *lifecycleDeps) {
-		deps.resourceStatus = func(name string, fast bool) (resourcecontrol.Status, error) {
-			return resourcecontrol.Status{Resource: resources.Resource{Name: name}, Running: false, StatusCode: resourcecontrol.StatusCodeUnavailable}, nil
-		}
-		deps.runResource = func(name string, args []string, stdout, stderr io.Writer) error {
-			return nil
-		}
-		deps.now = func() time.Time { return now }
-		deps.sleep = func(d time.Duration) { now = now.Add(resourceReadyPolicy.Timeout) }
-	})
+	runner := newRunnerForUnavailableResource(t, root, home, &now)
 	item, err := scenario.Load(root, "alpha", scenario.SandboxEnv{})
 	if err != nil {
 		t.Fatalf("Load(alpha): %v", err)
@@ -928,8 +952,9 @@ func TestEnsureResourceDependenciesSkipsEnsureWhenConfigEmpty(t *testing.T) {
 }
 
 func TestEnsureResourceDependenciesFailsRequiredDependencyWhenEnsureFails(t *testing.T) {
-	root := t.TempDir()
-	home := t.TempDir()
+	tree := testenv.NewRepositoryTree(t, "alpha")
+	root := tree.Root
+	home := testenv.RuntimeHome(t)
 	writeLifecycleFixtureManifest(t, root, testscenario.ScenarioServiceManifest(
 		"alpha",
 		testscenario.WithDependencies(scenario.Dependencies{
@@ -944,20 +969,7 @@ func TestEnsureResourceDependenciesFailsRequiredDependencyWhenEnsureFails(t *tes
 		}),
 	))
 
-	runner := newLifecycleRunnerForTest(t, root, home, func(deps *lifecycleDeps) {
-		deps.resourceStatus = func(name string, _ bool) (resourcecontrol.Status, error) {
-			healthy := true
-			return resourcecontrol.Status{Resource: resources.Resource{Name: name}, Running: true, Healthy: &healthy}, nil
-		}
-		deps.resourceManifest = func(_ string) (resourcemanifest.ResourceManifest, error) {
-			return resourcemanifest.ResourceManifest{
-				Capabilities: resourcemanifest.ResourceManifestCapabilities{SupportsEnsure: true},
-			}, nil
-		}
-		deps.runResourceCLI = func(_ string, _ []string, _, _ io.Writer) error {
-			return errors.New("pull failed")
-		}
-	})
+	runner := newRunnerForEnsureResourceFailure(t, root, home, "pull failed")
 	item, err := scenario.Load(root, "alpha", scenario.SandboxEnv{})
 	if err != nil {
 		t.Fatalf("Load(alpha): %v", err)
@@ -969,8 +981,9 @@ func TestEnsureResourceDependenciesFailsRequiredDependencyWhenEnsureFails(t *tes
 }
 
 func TestEnsureResourceDependenciesContinuesOnEnsureFailureWhenBestEffort(t *testing.T) {
-	root := t.TempDir()
-	home := t.TempDir()
+	tree := testenv.NewRepositoryTree(t, "alpha")
+	root := tree.Root
+	home := testenv.RuntimeHome(t)
 	writeLifecycleFixtureManifest(t, root, testscenario.ScenarioServiceManifest(
 		"alpha",
 		testscenario.WithDependencies(scenario.Dependencies{
@@ -986,20 +999,7 @@ func TestEnsureResourceDependenciesContinuesOnEnsureFailureWhenBestEffort(t *tes
 		}),
 	))
 
-	runner := newLifecycleRunnerForTest(t, root, home, func(deps *lifecycleDeps) {
-		deps.resourceStatus = func(name string, _ bool) (resourcecontrol.Status, error) {
-			healthy := true
-			return resourcecontrol.Status{Resource: resources.Resource{Name: name}, Running: true, Healthy: &healthy}, nil
-		}
-		deps.resourceManifest = func(_ string) (resourcemanifest.ResourceManifest, error) {
-			return resourcemanifest.ResourceManifest{
-				Capabilities: resourcemanifest.ResourceManifestCapabilities{SupportsEnsure: true},
-			}, nil
-		}
-		deps.runResourceCLI = func(_ string, _ []string, _, _ io.Writer) error {
-			return errors.New("transient pull failure")
-		}
-	})
+	runner := newRunnerForEnsureResourceFailure(t, root, home, "transient pull failure")
 	item, err := scenario.Load(root, "alpha", scenario.SandboxEnv{})
 	if err != nil {
 		t.Fatalf("Load(alpha): %v", err)
@@ -1026,16 +1026,7 @@ func TestRunnerStartContinuesWithTryStartResourceDependency(t *testing.T) {
 	))
 
 	now := time.Unix(0, 0)
-	runner := newLifecycleRunnerForTest(t, root, home, func(deps *lifecycleDeps) {
-		deps.resourceStatus = func(name string, fast bool) (resourcecontrol.Status, error) {
-			return resourcecontrol.Status{Resource: resources.Resource{Name: name}, Running: false, StatusCode: resourcecontrol.StatusCodeUnavailable}, nil
-		}
-		deps.runResource = func(name string, args []string, stdout, stderr io.Writer) error {
-			return nil
-		}
-		deps.now = func() time.Time { return now }
-		deps.sleep = func(d time.Duration) { now = now.Add(resourceReadyPolicy.Timeout) }
-	})
+	runner := newRunnerForUnavailableResource(t, root, home, &now)
 
 	result, err := runner.Start("alpha", StartOptions{})
 	if err != nil {

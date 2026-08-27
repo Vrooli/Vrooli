@@ -9,6 +9,10 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/vrooli/vrooli/internal/tuning"
+
+	"github.com/vrooli/vrooli/internal/config"
 )
 
 const (
@@ -71,7 +75,7 @@ func MarkerPath(tempRoot string) string {
 
 func WriteMarker(marker RunMarker) error {
 	path := MarkerPath(marker.TempRoot)
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(path), tuning.PermDir); err != nil {
 		return err
 	}
 	data, err := json.MarshalIndent(marker, "", "  ")
@@ -79,11 +83,7 @@ func WriteMarker(marker RunMarker) error {
 		return err
 	}
 	data = append(data, '\n')
-	tmp := path + ".tmp"
-	if err := os.WriteFile(tmp, data, 0o644); err != nil {
-		return err
-	}
-	return os.Rename(tmp, path)
+	return config.WriteOwnedFileAtomic(path, data, tuning.PermFile)
 }
 
 func ReadMarker(path string) (RunMarker, error) {

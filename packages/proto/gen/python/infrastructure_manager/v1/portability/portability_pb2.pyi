@@ -182,33 +182,108 @@ class ObservedDeclarer(_message.Message):
     reason: str
     def __init__(self, name: _Optional[str] = ..., state: _Optional[str] = ..., qualification: _Optional[_Union[Qualification, str]] = ..., reason: _Optional[str] = ...) -> None: ...
 
+class PlatformSituation(_message.Message):
+    __slots__ = ("host_os", "situation", "reason")
+    HOST_OS_FIELD_NUMBER: _ClassVar[int]
+    SITUATION_FIELD_NUMBER: _ClassVar[int]
+    REASON_FIELD_NUMBER: _ClassVar[int]
+    host_os: HostOS
+    situation: CapabilitySituation
+    reason: str
+    def __init__(self, host_os: _Optional[_Union[HostOS, str]] = ..., situation: _Optional[_Union[CapabilitySituation, str]] = ..., reason: _Optional[str] = ...) -> None: ...
+
 class CapabilityEntry(_message.Message):
-    __slots__ = ("capability", "situation", "situation_reason", "platforms")
+    __slots__ = ("capability", "situation", "situation_reason", "platforms", "platform_situations")
     CAPABILITY_FIELD_NUMBER: _ClassVar[int]
     SITUATION_FIELD_NUMBER: _ClassVar[int]
     SITUATION_REASON_FIELD_NUMBER: _ClassVar[int]
     PLATFORMS_FIELD_NUMBER: _ClassVar[int]
+    PLATFORM_SITUATIONS_FIELD_NUMBER: _ClassVar[int]
     capability: str
     situation: CapabilitySituation
     situation_reason: str
     platforms: _containers.RepeatedCompositeFieldContainer[PlatformEntry]
-    def __init__(self, capability: _Optional[str] = ..., situation: _Optional[_Union[CapabilitySituation, str]] = ..., situation_reason: _Optional[str] = ..., platforms: _Optional[_Iterable[_Union[PlatformEntry, _Mapping]]] = ...) -> None: ...
+    platform_situations: _containers.RepeatedCompositeFieldContainer[PlatformSituation]
+    def __init__(self, capability: _Optional[str] = ..., situation: _Optional[_Union[CapabilitySituation, str]] = ..., situation_reason: _Optional[str] = ..., platforms: _Optional[_Iterable[_Union[PlatformEntry, _Mapping]]] = ..., platform_situations: _Optional[_Iterable[_Union[PlatformSituation, _Mapping]]] = ...) -> None: ...
 
 class Grid(_message.Message):
-    __slots__ = ("capabilities", "manifest_root", "manifests_read", "computed_at", "observed_safeguards", "native_evidence")
+    __slots__ = ("capabilities", "manifest_root", "manifests_read", "computed_at", "observed_safeguards", "native_evidence", "resources", "skip_budget")
     CAPABILITIES_FIELD_NUMBER: _ClassVar[int]
     MANIFEST_ROOT_FIELD_NUMBER: _ClassVar[int]
     MANIFESTS_READ_FIELD_NUMBER: _ClassVar[int]
     COMPUTED_AT_FIELD_NUMBER: _ClassVar[int]
     OBSERVED_SAFEGUARDS_FIELD_NUMBER: _ClassVar[int]
     NATIVE_EVIDENCE_FIELD_NUMBER: _ClassVar[int]
+    RESOURCES_FIELD_NUMBER: _ClassVar[int]
+    SKIP_BUDGET_FIELD_NUMBER: _ClassVar[int]
     capabilities: _containers.RepeatedCompositeFieldContainer[CapabilityEntry]
     manifest_root: str
     manifests_read: int
     computed_at: _timestamp_pb2.Timestamp
     observed_safeguards: _containers.RepeatedCompositeFieldContainer[ObservedSafeguard]
     native_evidence: _containers.RepeatedCompositeFieldContainer[NativeEvidence]
-    def __init__(self, capabilities: _Optional[_Iterable[_Union[CapabilityEntry, _Mapping]]] = ..., manifest_root: _Optional[str] = ..., manifests_read: _Optional[int] = ..., computed_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., observed_safeguards: _Optional[_Iterable[_Union[ObservedSafeguard, _Mapping]]] = ..., native_evidence: _Optional[_Iterable[_Union[NativeEvidence, _Mapping]]] = ...) -> None: ...
+    resources: _containers.RepeatedCompositeFieldContainer[ResourceArchitectureClaim]
+    skip_budget: PlatformSkipBudget
+    def __init__(self, capabilities: _Optional[_Iterable[_Union[CapabilityEntry, _Mapping]]] = ..., manifest_root: _Optional[str] = ..., manifests_read: _Optional[int] = ..., computed_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., observed_safeguards: _Optional[_Iterable[_Union[ObservedSafeguard, _Mapping]]] = ..., native_evidence: _Optional[_Iterable[_Union[NativeEvidence, _Mapping]]] = ..., resources: _Optional[_Iterable[_Union[ResourceArchitectureClaim, _Mapping]]] = ..., skip_budget: _Optional[_Union[PlatformSkipBudget, _Mapping]] = ...) -> None: ...
+
+class ResourceArchitectureStatus(_message.Message):
+    __slots__ = ("architecture", "support", "reason")
+    ARCHITECTURE_FIELD_NUMBER: _ClassVar[int]
+    SUPPORT_FIELD_NUMBER: _ClassVar[int]
+    REASON_FIELD_NUMBER: _ClassVar[int]
+    architecture: str
+    support: str
+    reason: str
+    def __init__(self, architecture: _Optional[str] = ..., support: _Optional[str] = ..., reason: _Optional[str] = ...) -> None: ...
+
+class ResourcePlatformClaim(_message.Message):
+    __slots__ = ("host_os", "support", "architectures", "mismatch", "reason")
+    HOST_OS_FIELD_NUMBER: _ClassVar[int]
+    SUPPORT_FIELD_NUMBER: _ClassVar[int]
+    ARCHITECTURES_FIELD_NUMBER: _ClassVar[int]
+    MISMATCH_FIELD_NUMBER: _ClassVar[int]
+    REASON_FIELD_NUMBER: _ClassVar[int]
+    host_os: HostOS
+    support: str
+    architectures: _containers.RepeatedCompositeFieldContainer[ResourceArchitectureStatus]
+    mismatch: bool
+    reason: str
+    def __init__(self, host_os: _Optional[_Union[HostOS, str]] = ..., support: _Optional[str] = ..., architectures: _Optional[_Iterable[_Union[ResourceArchitectureStatus, _Mapping]]] = ..., mismatch: _Optional[bool] = ..., reason: _Optional[str] = ...) -> None: ...
+
+class ResourceArchitectureClaim(_message.Message):
+    __slots__ = ("name", "driver", "acquisition_kind", "platforms")
+    NAME_FIELD_NUMBER: _ClassVar[int]
+    DRIVER_FIELD_NUMBER: _ClassVar[int]
+    ACQUISITION_KIND_FIELD_NUMBER: _ClassVar[int]
+    PLATFORMS_FIELD_NUMBER: _ClassVar[int]
+    name: str
+    driver: str
+    acquisition_kind: str
+    platforms: _containers.RepeatedCompositeFieldContainer[ResourcePlatformClaim]
+    def __init__(self, name: _Optional[str] = ..., driver: _Optional[str] = ..., acquisition_kind: _Optional[str] = ..., platforms: _Optional[_Iterable[_Union[ResourcePlatformClaim, _Mapping]]] = ...) -> None: ...
+
+class PlatformSkipBudget(_message.Message):
+    __slots__ = ("available", "measured", "budgets", "reason", "ratchet_direction", "last_run_within_budget")
+    class BudgetsEntry(_message.Message):
+        __slots__ = ("key", "value")
+        KEY_FIELD_NUMBER: _ClassVar[int]
+        VALUE_FIELD_NUMBER: _ClassVar[int]
+        key: str
+        value: int
+        def __init__(self, key: _Optional[str] = ..., value: _Optional[int] = ...) -> None: ...
+    AVAILABLE_FIELD_NUMBER: _ClassVar[int]
+    MEASURED_FIELD_NUMBER: _ClassVar[int]
+    BUDGETS_FIELD_NUMBER: _ClassVar[int]
+    REASON_FIELD_NUMBER: _ClassVar[int]
+    RATCHET_DIRECTION_FIELD_NUMBER: _ClassVar[int]
+    LAST_RUN_WITHIN_BUDGET_FIELD_NUMBER: _ClassVar[int]
+    available: bool
+    measured: int
+    budgets: _containers.ScalarMap[str, int]
+    reason: str
+    ratchet_direction: str
+    last_run_within_budget: bool
+    def __init__(self, available: _Optional[bool] = ..., measured: _Optional[int] = ..., budgets: _Optional[_Mapping[str, int]] = ..., reason: _Optional[str] = ..., ratchet_direction: _Optional[str] = ..., last_run_within_budget: _Optional[bool] = ...) -> None: ...
 
 class NativeEvidence(_message.Message):
     __slots__ = ("kind", "host_os", "architecture", "commit", "generated_at", "passed", "source", "run_id", "host", "surface", "artifact_uri", "capabilities")

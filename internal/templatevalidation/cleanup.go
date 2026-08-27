@@ -8,9 +8,11 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/vrooli/vrooli/internal/tuning"
 )
 
-const DefaultCleanupOlderThan = 24 * time.Hour
+const DefaultCleanupOlderThan = tuning.DailyRetentionWindow
 
 type CleanupOptions struct {
 	RepoRoot        string

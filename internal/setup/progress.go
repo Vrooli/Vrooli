@@ -12,6 +12,8 @@ import (
 	"time"
 
 	"github.com/vrooli/vrooli/internal/config"
+	"github.com/vrooli/vrooli/internal/logx"
+	"github.com/vrooli/vrooli/internal/tuning"
 )
 
 // SetupPhase is the stable machine-facing identity of a setup stage. Labels
@@ -240,14 +242,14 @@ func newProgressCoordinator(w io.Writer, opts progressOptions) *progressCoordina
 	}
 	first := opts.FirstHeartbeat
 	if first <= 0 {
-		first = 10 * time.Second
+		first = tuning.ControlPlaneClientTimeout
 	}
 	every := opts.HeartbeatEvery
 	if every <= 0 {
-		every = 30 * time.Second
+		every = tuning.StandardOperationTimeout
 	}
 	format := strings.ToLower(strings.TrimSpace(os.Getenv("VROOLI_SETUP_PROGRESS_FORMAT")))
-	jsonOutput := opts.JSON || format == "json" || format == "ndjson"
+	jsonOutput := opts.JSON || format == string(logx.FormatJSON) || format == "ndjson"
 	quiet := format == "quiet" || strings.EqualFold(strings.TrimSpace(os.Getenv("VROOLI_SETUP_PROGRESS")), "quiet")
 	host, _ := os.Hostname()
 	return &progressCoordinator{sink: &writerSink{w: w, json: jsonOutput, quiet: quiet}, now: now, firstHeartbeat: first, heartbeatEvery: every, dryRun: opts.DryRun, statePath: opts.StatePath, runID: fmt.Sprintf("setup-%d-%d", os.Getpid(), now().UnixNano()), host: host, pid: os.Getpid(), phase: setupPhases[0]}
@@ -294,23 +296,7 @@ func (p *progressCoordinator) writeState(state activeSetupState) {
 	if _, err := config.EnsureOwnedDir(filepath.Dir(p.statePath)); err != nil {
 		return
 	}
-	tmp, err := os.CreateTemp(filepath.Dir(p.statePath), ".active-setup-*")
-	if err != nil {
-		return
-	}
-	tmpPath := tmp.Name()
-	defer os.Remove(tmpPath)
-	if _, err = tmp.Write(append(b, '\n')); err != nil {
-		_ = tmp.Close()
-		return
-	}
-	_ = tmp.Chmod(0o600)
-	if err = tmp.Close(); err != nil {
-		return
-	}
-	if err := os.Rename(tmpPath, p.statePath); err == nil {
-		_ = config.ChownToInvokingUser(p.statePath)
-	}
+	_ = config.WriteOwnedFileAtomic(p.statePath, append(b, '\n'), tuning.PermSecret)
 }
 
 func (p *progressCoordinator) Start() {
@@ -430,7 +416,7 @@ func renderActiveSetupState(w io.Writer, path string, now time.Time) {
 		age = 0
 	}
 	status := state.Status
-	if status == "running" && age > 5*time.Minute && !processIdentityAlive(state.PID, state.Host) {
+	if status == "running" && age > tuning.LongOperationTimeout && !processIdentityAlive(state.PID, state.Host) {
 		status = "possibly stale"
 	}
 	_, _ = fmt.Fprintf(w, "[INFO]    Last setup run: %s (%s, updated %s ago)\n", state.RunID, status, formatDuration(age))

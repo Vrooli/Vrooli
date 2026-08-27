@@ -10,7 +10,8 @@ import (
 	"regexp"
 	"strings"
 	"sync"
-	"time"
+
+	"github.com/vrooli/vrooli/internal/tuning"
 )
 
 // nativeDefault uses libsecret's Secret Service command client. If no desktop
@@ -42,7 +43,7 @@ func (*secretToolStore) AdapterName() string { return "libsecret" }
 // A failure here is recoverable and an operator can see it. A hang is neither,
 // and it takes autoheal down with it, since a supervisor that blocks on a
 // credential read cannot repair the thing that is blocking it.
-const secretToolTimeout = 15 * time.Second
+const secretToolTimeout = tuning.CredentialServiceTimeout
 
 var collectionPathPattern = regexp.MustCompile(`/org/freedesktop/secrets/collection/[A-Za-z0-9_.-]+`)
 

@@ -39,14 +39,16 @@
       "evidence": null
     },
     "macos": {
-      "status": "not_applicable",
-      "mechanism": "handler",
-      "evidence": "This safeguard has no implementation for the macOS host mechanism; the capability is not applicable on this host OS."
+      "status": "not_implemented",
+      "evidence": "The macOS clock provider is not wired into this safeguard yet; the host mechanism is clock_gettime through the system clock APIs.",
+      "mechanism": "system_clock_gettime",
+      "since": "2026-08-26"
     },
     "windows": {
-      "status": "not_applicable",
-      "mechanism": "handler",
-      "evidence": "This safeguard has no implementation for the Windows host mechanism; the capability is not applicable on this host OS."
+      "status": "not_implemented",
+      "evidence": "The Windows clock provider is not wired into this safeguard yet; the host mechanism is GetSystemTimePreciseAsFileTime.",
+      "mechanism": "GetSystemTimePreciseAsFileTime",
+      "since": "2026-08-26"
     }
   },
   "risk_class": "restore_absent"

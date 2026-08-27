@@ -59,6 +59,9 @@ const (
 	// CatalogServiceGetHealthOverviewProcedure is the fully-qualified name of the CatalogService's
 	// GetHealthOverview RPC.
 	CatalogServiceGetHealthOverviewProcedure = "/vrooli.react_component_library.v1.catalog.CatalogService/GetHealthOverview"
+	// CatalogServiceGetReadinessProcedure is the fully-qualified name of the CatalogService's
+	// GetReadiness RPC.
+	CatalogServiceGetReadinessProcedure = "/vrooli.react_component_library.v1.catalog.CatalogService/GetReadiness"
 	// CatalogServiceCaptureEvidenceProcedure is the fully-qualified name of the CatalogService's
 	// CaptureEvidence RPC.
 	CatalogServiceCaptureEvidenceProcedure = "/vrooli.react_component_library.v1.catalog.CatalogService/CaptureEvidence"
@@ -76,6 +79,7 @@ type CatalogServiceClient interface {
 	GetAssetPortContract(context.Context, *connect.Request[catalog.GetAssetPortContractRequest]) (*connect.Response[catalog.GetAssetPortContractResponse], error)
 	GetScoreHistory(context.Context, *connect.Request[catalog.GetScoreHistoryRequest]) (*connect.Response[catalog.GetScoreHistoryResponse], error)
 	GetHealthOverview(context.Context, *connect.Request[catalog.GetHealthOverviewRequest]) (*connect.Response[catalog.GetHealthOverviewResponse], error)
+	GetReadiness(context.Context, *connect.Request[catalog.GetReadinessRequest]) (*connect.Response[catalog.GetReadinessResponse], error)
 	CaptureEvidence(context.Context, *connect.Request[catalog.CaptureEvidenceRequest]) (*connect.Response[catalog.CaptureEvidenceResponse], error)
 }
 
@@ -145,6 +149,12 @@ func NewCatalogServiceClient(httpClient connect.HTTPClient, baseURL string, opts
 			connect.WithSchema(catalogServiceMethods.ByName("GetHealthOverview")),
 			connect.WithClientOptions(opts...),
 		),
+		getReadiness: connect.NewClient[catalog.GetReadinessRequest, catalog.GetReadinessResponse](
+			httpClient,
+			baseURL+CatalogServiceGetReadinessProcedure,
+			connect.WithSchema(catalogServiceMethods.ByName("GetReadiness")),
+			connect.WithClientOptions(opts...),
+		),
 		captureEvidence: connect.NewClient[catalog.CaptureEvidenceRequest, catalog.CaptureEvidenceResponse](
 			httpClient,
 			baseURL+CatalogServiceCaptureEvidenceProcedure,
@@ -165,6 +175,7 @@ type catalogServiceClient struct {
 	getAssetPortContract  *connect.Client[catalog.GetAssetPortContractRequest, catalog.GetAssetPortContractResponse]
 	getScoreHistory       *connect.Client[catalog.GetScoreHistoryRequest, catalog.GetScoreHistoryResponse]
 	getHealthOverview     *connect.Client[catalog.GetHealthOverviewRequest, catalog.GetHealthOverviewResponse]
+	getReadiness          *connect.Client[catalog.GetReadinessRequest, catalog.GetReadinessResponse]
 	captureEvidence       *connect.Client[catalog.CaptureEvidenceRequest, catalog.CaptureEvidenceResponse]
 }
 
@@ -217,6 +228,11 @@ func (c *catalogServiceClient) GetHealthOverview(ctx context.Context, req *conne
 	return c.getHealthOverview.CallUnary(ctx, req)
 }
 
+// GetReadiness calls vrooli.react_component_library.v1.catalog.CatalogService.GetReadiness.
+func (c *catalogServiceClient) GetReadiness(ctx context.Context, req *connect.Request[catalog.GetReadinessRequest]) (*connect.Response[catalog.GetReadinessResponse], error) {
+	return c.getReadiness.CallUnary(ctx, req)
+}
+
 // CaptureEvidence calls vrooli.react_component_library.v1.catalog.CatalogService.CaptureEvidence.
 func (c *catalogServiceClient) CaptureEvidence(ctx context.Context, req *connect.Request[catalog.CaptureEvidenceRequest]) (*connect.Response[catalog.CaptureEvidenceResponse], error) {
 	return c.captureEvidence.CallUnary(ctx, req)
@@ -234,6 +250,7 @@ type CatalogServiceHandler interface {
 	GetAssetPortContract(context.Context, *connect.Request[catalog.GetAssetPortContractRequest]) (*connect.Response[catalog.GetAssetPortContractResponse], error)
 	GetScoreHistory(context.Context, *connect.Request[catalog.GetScoreHistoryRequest]) (*connect.Response[catalog.GetScoreHistoryResponse], error)
 	GetHealthOverview(context.Context, *connect.Request[catalog.GetHealthOverviewRequest]) (*connect.Response[catalog.GetHealthOverviewResponse], error)
+	GetReadiness(context.Context, *connect.Request[catalog.GetReadinessRequest]) (*connect.Response[catalog.GetReadinessResponse], error)
 	CaptureEvidence(context.Context, *connect.Request[catalog.CaptureEvidenceRequest]) (*connect.Response[catalog.CaptureEvidenceResponse], error)
 }
 
@@ -298,6 +315,12 @@ func NewCatalogServiceHandler(svc CatalogServiceHandler, opts ...connect.Handler
 		connect.WithSchema(catalogServiceMethods.ByName("GetHealthOverview")),
 		connect.WithHandlerOptions(opts...),
 	)
+	catalogServiceGetReadinessHandler := connect.NewUnaryHandler(
+		CatalogServiceGetReadinessProcedure,
+		svc.GetReadiness,
+		connect.WithSchema(catalogServiceMethods.ByName("GetReadiness")),
+		connect.WithHandlerOptions(opts...),
+	)
 	catalogServiceCaptureEvidenceHandler := connect.NewUnaryHandler(
 		CatalogServiceCaptureEvidenceProcedure,
 		svc.CaptureEvidence,
@@ -324,6 +347,8 @@ func NewCatalogServiceHandler(svc CatalogServiceHandler, opts ...connect.Handler
 			catalogServiceGetScoreHistoryHandler.ServeHTTP(w, r)
 		case CatalogServiceGetHealthOverviewProcedure:
 			catalogServiceGetHealthOverviewHandler.ServeHTTP(w, r)
+		case CatalogServiceGetReadinessProcedure:
+			catalogServiceGetReadinessHandler.ServeHTTP(w, r)
 		case CatalogServiceCaptureEvidenceProcedure:
 			catalogServiceCaptureEvidenceHandler.ServeHTTP(w, r)
 		default:
@@ -369,6 +394,10 @@ func (UnimplementedCatalogServiceHandler) GetScoreHistory(context.Context, *conn
 
 func (UnimplementedCatalogServiceHandler) GetHealthOverview(context.Context, *connect.Request[catalog.GetHealthOverviewRequest]) (*connect.Response[catalog.GetHealthOverviewResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.react_component_library.v1.catalog.CatalogService.GetHealthOverview is not implemented"))
+}
+
+func (UnimplementedCatalogServiceHandler) GetReadiness(context.Context, *connect.Request[catalog.GetReadinessRequest]) (*connect.Response[catalog.GetReadinessResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.react_component_library.v1.catalog.CatalogService.GetReadiness is not implemented"))
 }
 
 func (UnimplementedCatalogServiceHandler) CaptureEvidence(context.Context, *connect.Request[catalog.CaptureEvidenceRequest]) (*connect.Response[catalog.CaptureEvidenceResponse], error) {

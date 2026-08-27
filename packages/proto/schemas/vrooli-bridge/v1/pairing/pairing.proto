@@ -60,6 +60,11 @@ service PairingService {
   // credential yet); rate/uniqueness is enforced server-side.
   rpc RequestPairing(RequestPairingRequest) returns (RequestPairingResponse);
 
+  // GetPairingRequest is the open polling leg of request/approve enrollment.
+  // It returns the decision and, after approval, the node id and control-plane
+  // key the joining agent must persist before opening its authenticated channel.
+  rpc GetPairingRequest(GetPairingRequestRequest) returns (GetPairingRequestResponse);
+
   // ApprovePairing approves (or rejects) a pending pairing request, minting the
   // node the same way a redeemed code does. Owner-gated.
   rpc ApprovePairing(ApprovePairingRequest) returns (ApprovePairingResponse);
@@ -167,6 +172,16 @@ message RequestPairingResponse {
   // surfaced to the node out of band / on a follow-up redeem).
   string request_id = 1;
   PairingRequestStatus status = 2;
+  repeated string confirmation_words = 3;
+}
+
+message GetPairingRequestRequest {
+  string request_id = 1;
+}
+
+message GetPairingRequestResponse {
+  PairingRequest request = 1;
+  string control_plane_public_key = 2;
 }
 
 // ApprovePairingRequest is the owner's decision on a pending request.
@@ -178,6 +193,9 @@ message ApprovePairingRequest {
 
   // Granted verb-namespace scopes (applied on approval).
   repeated string scopes = 3;
+
+  // The owner must confirm the key-derived words shown by the joining machine.
+  repeated string confirmation_words = 4;
 }
 
 message ApprovePairingResponse {
@@ -199,6 +217,7 @@ message PairingRequest {
   google.protobuf.Timestamp decided_at = 9;
   // The minted node id once approved.
   string node_id = 10;
+  repeated string confirmation_words = 11;
 }
 
 message ListPairingRequestsRequest {
@@ -208,4 +227,15 @@ message ListPairingRequestsRequest {
 
 message ListPairingRequestsResponse {
   repeated PairingRequest requests = 1;
+  repeated PermissionPreset presets = 2;
+}
+
+// PermissionPreset is a catalog-derived enrollment posture. The server sends
+// the concrete scopes so consoles never maintain a second authorization
+// vocabulary. The first preset is the narrow default selected by the UI.
+message PermissionPreset {
+  string name = 1;
+  string description = 2;
+  repeated string scopes = 3;
+  repeated string withholds = 4;
 }

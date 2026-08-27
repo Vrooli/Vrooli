@@ -9,6 +9,7 @@ import (
 	"github.com/vrooli/vrooli/internal/cli/manifestdispatch"
 	"github.com/vrooli/vrooli/internal/cli/rootcli"
 	"github.com/vrooli/vrooli/internal/cli/runtimecli"
+	"github.com/vrooli/vrooli/internal/cliout"
 )
 
 // HandlerDeps supplies the root-context values needed by runtime commands.
@@ -23,24 +24,35 @@ type HandlerDeps[C any] struct {
 	Version     func(C) string
 }
 
+type runtimeService struct {
+	run func([]string) error
+}
+
 // RootHandler dispatches `vrooli runtime` through the runtime application.
 func RootHandler[C any](deps HandlerDeps[C]) rootcli.Handler[C] {
-	return func(ctx C, args []string) error {
-		commandCtx := &runtimecli.Context{Root: deps.Root(ctx), Globals: deps.Globals(ctx), Stdin: deps.Stdin(ctx), Stdout: deps.Stdout(ctx), Stderr: deps.Stderr(ctx), HomeDirFn: func() (string, error) { return deps.HomeDir(ctx) }}
-		app := &runtimeapp.App{Version: deps.Version(ctx), ResolveRootFn: func() (string, error) { return deps.ResolveRoot(ctx) }}
-		if len(args) == 0 || manifestdispatch.WantsHelp(args) {
-			return runtimecli.Run(app, commandCtx, args)
-		}
-		if args[0] == "recovery" {
-			return runRecoveryManifest(app, commandCtx, args[1:], deps.Stdout(ctx), deps.Stderr(ctx))
-		}
-		group, err := cliapp.LoadFromManifest(climanifest.Bytes(), "supervisor", runtimeBindings(app, commandCtx, []string{"supervisor"}, []string{"run", "status", "install", "uninstall"}))
-		if err != nil {
-			return err
-		}
-		core := cliapp.NewApp(cliapp.AppOptions{Name: "vrooli runtime", SubcommandGroups: []cliapp.SubcommandGroup{group}})
-		return core.RunWithWriters(manifestdispatch.WithJSON(args, commandCtx.Globals.JSON), deps.Stdout(ctx), deps.Stderr(ctx))
-	}
+	return rootcli.BindService(deps.Stdout,
+		func(ctx C) (cliout.Format, runtimeService, error) {
+			commandCtx := &runtimecli.Context{Root: deps.Root(ctx), Globals: deps.Globals(ctx), Stdin: deps.Stdin(ctx), Stdout: deps.Stdout(ctx), Stderr: deps.Stderr(ctx), HomeDirFn: func() (string, error) { return deps.HomeDir(ctx) }}
+			app := &runtimeapp.App{Version: deps.Version(ctx), ResolveRootFn: func() (string, error) { return deps.ResolveRoot(ctx) }}
+			return cliout.FormatHuman, runtimeService{run: func(args []string) error {
+				if len(args) == 0 || manifestdispatch.WantsHelp(args) {
+					return runtimecli.Run(app, commandCtx, args)
+				}
+				if args[0] == "recovery" {
+					return runRecoveryManifest(app, commandCtx, args[1:], deps.Stdout(ctx), deps.Stderr(ctx))
+				}
+				group, err := cliapp.LoadFromManifest(climanifest.Bytes(), "supervisor", runtimeBindings(app, commandCtx, []string{"supervisor"}, []string{"run", "status", "install", "uninstall"}))
+				if err != nil {
+					return err
+				}
+				core := cliapp.NewApp(cliapp.AppOptions{Name: "vrooli runtime", SubcommandGroups: []cliapp.SubcommandGroup{group}})
+				return core.RunWithWriters(manifestdispatch.WithJSON(args, commandCtx.Globals.JSON), deps.Stdout(ctx), deps.Stderr(ctx))
+			}}, nil
+		},
+		func(_ C, args []string) ([]string, error) { return args, nil },
+		func(service runtimeService, args []string) (struct{}, error) { return struct{}{}, service.run(args) },
+		func(io.Writer, cliout.Format, struct{}) error { return nil },
+	)
 }
 
 func runRecoveryManifest(app *runtimeapp.App, ctx *runtimecli.Context, args []string, stdout, stderr io.Writer) error {

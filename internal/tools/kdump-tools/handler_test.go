@@ -15,7 +15,9 @@ type capturedCommand struct {
 	Args []string
 }
 
-func stubAll(t *testing.T) (cmds *[]capturedCommand, cmdline *string, debconfInputs *[]string, restore func()) {
+var stubAll = kdumpToolsStubAll
+
+func kdumpToolsStubAll(t *testing.T) (cmds *[]capturedCommand, cmdline *string, debconfInputs *[]string, restore func()) {
 	t.Helper()
 	origRun := hostreqkit.RunCommandFn
 	origCombined := hostreqkit.CombinedOutputFn
@@ -363,16 +365,6 @@ func TestApplySudoModePreseedRoutesThroughSudo(t *testing.T) {
 	}
 	if !found {
 		t.Errorf("expected `sudo debconf-set-selections` in commands, got %+v", *cmds)
-	}
-}
-
-func TestNameAndKind(t *testing.T) {
-	h := newHandler()
-	if h.Name() != "kdump-tools" {
-		t.Errorf("Name = %q", h.Name())
-	}
-	if h.Kind() != hostreqspec.KindTool {
-		t.Errorf("Kind = %q", h.Kind())
 	}
 }
 

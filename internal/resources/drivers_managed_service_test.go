@@ -20,6 +20,7 @@ import (
 	"github.com/vrooli/binaryfetch"
 	"github.com/vrooli/vrooli/internal/resources/securestore"
 	"github.com/vrooli/vrooli/internal/scenario"
+	"github.com/vrooli/vrooli/internal/shell/shelltest"
 	resourcedeployment "github.com/vrooli/vrooli/packages/resource-deployment"
 	vaultbootstrap "github.com/vrooli/vrooli/packages/vaultbootstrap-go"
 )
@@ -456,7 +457,7 @@ func TestManagedDiscoveredExecutableRequiresExplicitAbsoluteExecutable(t *testin
 
 func TestVerifyManagedDiscoveredVersionRejectsMismatch(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "candidate")
-	if err := os.WriteFile(path, []byte("#!/bin/sh\necho vault 1.17.6\n"), 0o700); err != nil {
+	if err := os.WriteFile(path, []byte(shelltest.POSIXShebang()+"echo vault 1.17.6\n"), 0o700); err != nil {
 		t.Fatal(err)
 	}
 	if err := verifyManagedDiscoveredVersion(context.Background(), path, "1.17.6"); err != nil {

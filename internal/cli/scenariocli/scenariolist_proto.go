@@ -1,9 +1,6 @@
 package scenariocli
 
 import (
-	"io"
-
-	"github.com/vrooli/vrooli/internal/cliout"
 	"github.com/vrooli/vrooli/internal/discovery"
 	cliv1 "github.com/vrooli/vrooli/packages/proto/gen/go/cli/v1"
 )
@@ -50,9 +47,4 @@ func ScenarioListResponse(items []ListItemOutput, runningCount int, failures []d
 		})
 	}
 	return resp
-}
-
-// writeScenarioListJSON emits the scenario-list wire contract as JSON.
-func writeScenarioListJSON(w io.Writer, resp ListResponse) error {
-	return cliout.WriteProtoJSON(w, ScenarioListResponse(resp.Items, resp.RunningCount, resp.Failures))
 }

@@ -28,6 +28,7 @@ import (
 	"github.com/vrooli/vrooli/internal/scenario"
 	testscenario "github.com/vrooli/vrooli/internal/scenario/scenariotest"
 	"github.com/vrooli/vrooli/internal/shell"
+	"github.com/vrooli/vrooli/internal/shell/shelltest"
 )
 
 func TestRunSetupReportsFailureInsteadOfCompletion(t *testing.T) {
@@ -100,7 +101,7 @@ func TestEnsureBootstrapPackageManagerInstallsHomebrewOnFreshDarwin(t *testing.T
 		case "curl":
 			for index, arg := range spec.Args {
 				if arg == "-o" && index+1 < len(spec.Args) {
-					return os.WriteFile(spec.Args[index+1], []byte("#!/bin/bash\n"), 0o700)
+					return os.WriteFile(spec.Args[index+1], []byte(shelltest.BashShebang()+""), 0o700)
 				}
 			}
 			t.Fatal("curl did not receive an output path")
@@ -416,7 +417,7 @@ func TestRecoverHostToolPATHFindsOffPathGo(t *testing.T) {
 	if err := os.MkdirAll(goBin, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(goBin, "go"), []byte("#!/bin/sh\nexit 0\n"), 0o755); err != nil {
+	if err := os.WriteFile(filepath.Join(goBin, "go"), []byte(shelltest.POSIXShebang()+"exit 0\n"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	t.Setenv("PATH", t.TempDir())
@@ -1092,7 +1093,7 @@ func TestRunDevelopRunsSetupWhenNeededAndStartsNativeServices(t *testing.T) {
 	home := t.TempDir()
 	projectScenario := writeProjectFixture(t, root)
 	testresource.WritePortRegistry(t, root, nil)
-	testkitgo.WriteExecutable(t, filepath.Join(root, ".vrooli", "build", "vrooli-api"), "#!/usr/bin/env bash\nexit 0\n")
+	testkitgo.WriteExecutable(t, filepath.Join(root, ".vrooli", "build", "vrooli-api"), shelltest.BashShebang()+"exit 0\n")
 	t.Setenv("VROOLI_API_PORT", "18096")
 	t.Setenv("VROOLI_API_PORT", "18095")
 
@@ -1173,7 +1174,7 @@ func TestRunDevelopSkipsSetupWhenMarkerExists(t *testing.T) {
 	home := t.TempDir()
 	projectScenario := writeProjectFixture(t, root)
 	testresource.WritePortRegistry(t, root, nil)
-	testkitgo.WriteExecutable(t, filepath.Join(root, ".vrooli", "build", "vrooli-api"), "#!/usr/bin/env bash\nexit 0\n")
+	testkitgo.WriteExecutable(t, filepath.Join(root, ".vrooli", "build", "vrooli-api"), shelltest.BashShebang()+"exit 0\n")
 	if err := writeSetupCompleteMarker(t, home, root); err != nil {
 		t.Fatalf("write setup marker: %v", err)
 	}
@@ -1214,7 +1215,7 @@ func TestRunDevelopSkipsOrchestratorWhenScenariosAreNone(t *testing.T) {
 	home := t.TempDir()
 	projectScenario := writeProjectFixture(t, root)
 	testresource.WritePortRegistry(t, root, nil)
-	testkitgo.WriteExecutable(t, filepath.Join(root, ".vrooli", "build", "vrooli-api"), "#!/usr/bin/env bash\nexit 0\n")
+	testkitgo.WriteExecutable(t, filepath.Join(root, ".vrooli", "build", "vrooli-api"), shelltest.BashShebang()+"exit 0\n")
 	if err := writeSetupCompleteMarker(t, home, root); err != nil {
 		t.Fatalf("write setup marker: %v", err)
 	}
@@ -1248,7 +1249,7 @@ func TestRunDevelopTriggersOnboardingFallback(t *testing.T) {
 	home := t.TempDir()
 	projectScenario := writeProjectFixture(t, root)
 	testresource.WritePortRegistry(t, root, nil)
-	testkitgo.WriteExecutable(t, filepath.Join(root, ".vrooli", "build", "vrooli-api"), "#!/usr/bin/env bash\nexit 0\n")
+	testkitgo.WriteExecutable(t, filepath.Join(root, ".vrooli", "build", "vrooli-api"), shelltest.BashShebang()+"exit 0\n")
 	if err := writeSetupCompleteMarker(t, home, root); err != nil {
 		t.Fatalf("write setup marker: %v", err)
 	}

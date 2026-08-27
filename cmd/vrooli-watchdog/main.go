@@ -17,11 +17,22 @@ import (
 	"time"
 
 	repocontract "github.com/vrooli/repo-contract-go"
+	"github.com/vrooli/vrooli/internal/config"
 	"github.com/vrooli/vrooli/internal/hostinventory"
 	"github.com/vrooli/vrooli/internal/hostpressure"
 	"github.com/vrooli/vrooli/internal/operatorstate"
 	"github.com/vrooli/vrooli/internal/resources"
 	"github.com/vrooli/vrooli/internal/workloadowner"
+)
+
+const (
+	mndMainNumberOctal600  = 0o600
+	mndMainNumberOctal700  = 0o700
+	mndMainNumberValue1024 = 1024
+	mndMainNumberValue120  = 120
+	mndMainNumberValue2    = 2
+	mndMainNumberValue5    = 5
+	mndMainNumberValue60   = 60
 )
 
 type output struct {
@@ -70,11 +81,11 @@ func main() {
 	}
 	if !*reportOnly && !*reclaim {
 		fmt.Fprintln(os.Stderr, "choose --report-only or the explicit operator action --reclaim")
-		os.Exit(2)
+		os.Exit(mndMainNumberValue2)
 	}
 	if *reportOnly && *reclaim {
 		fmt.Fprintln(os.Stderr, "--report-only and --reclaim are mutually exclusive")
-		os.Exit(2)
+		os.Exit(mndMainNumberValue2)
 	}
 	thresholds := readThresholds()
 	o := output{CapturedAt: time.Now().UTC(), Evidence: map[string][]string{}, Thresholds: thresholds}
@@ -88,7 +99,7 @@ func main() {
 	} else {
 		if *reclaim {
 			fmt.Fprintln(os.Stderr, "--reclaim requires live host readings; fixtures are report-only")
-			os.Exit(2)
+			os.Exit(mndMainNumberValue2)
 		}
 		if err := fromFixture(*fixtures, &o); err != nil {
 			fmt.Fprintln(os.Stderr, err)
@@ -138,7 +149,7 @@ func reclaimOne(ctx context.Context, snapshot hostpressure.PressureSnapshot, thr
 		}
 	}
 	decision, err := hostpressure.ReclaimOne(ctx, snapshot.Processes, candidates, hostpressure.ReclaimPolicy{
-		SwapToResident: 2,
+		SwapToResident: mndMainNumberValue2,
 		MinimumSwapped: minimumReclaimSwapBytes,
 		Saturated: func(context.Context) (bool, error) {
 			value, ok := snapshot.CPUPressure.Number()
@@ -232,8 +243,8 @@ func addLiveWorkloadFindings(o *output, thresholds thresholdSource) {
 		o.Workloads = &report
 		cached = workloadCache{CapturedAt: time.Now().UTC(), Report: report}
 		if encoded, encodeErr := json.Marshal(cached); encodeErr == nil {
-			if makeErr := os.MkdirAll(filepath.Dir(cachePath), 0o700); makeErr == nil {
-				_ = os.WriteFile(cachePath, encoded, 0o600)
+			if makeErr := os.MkdirAll(filepath.Dir(cachePath), mndMainNumberOctal700); makeErr == nil {
+				_ = os.WriteFile(cachePath, encoded, mndMainNumberOctal600)
 			}
 		}
 	}
@@ -271,16 +282,19 @@ func writeDisposalProposal(proposal disposalProposal) {
 	}
 	path := disposalProposalPath()
 	if info, err := os.Stat(path); err == nil && info.Size() > 1<<20 {
-		_ = os.Rename(path, path+".previous")
+		if previous, readErr := os.ReadFile(path); readErr == nil {
+			_ = config.WriteOwnedFileAtomic(path+".previous", previous, mndMainNumberOctal600)
+			_ = config.WriteOwnedFileAtomic(path, nil, mndMainNumberOctal600)
+		}
 	}
-	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+	if err := os.MkdirAll(filepath.Dir(path), mndMainNumberOctal700); err != nil {
 		return
 	}
 	b, err := json.Marshal(proposal)
 	if err != nil {
 		return
 	}
-	f, err := os.OpenFile(path, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o600)
+	f, err := os.OpenFile(path, os.O_CREATE|os.O_APPEND|os.O_WRONLY, mndMainNumberOctal600)
 	if err != nil {
 		return
 	}
@@ -296,7 +310,7 @@ var buildVersion = "dev"
 func addLiveWatchdogFindings(o *output, thresholds thresholdSource) {
 	if available, used, err := diskSpace(); err != nil {
 		o.Evidence["disk-space"] = []string{"disk space probe: " + err.Error()}
-	} else if sustainedFailure("last-disk", available < maxDiskFloorMB, 120*time.Second) {
+	} else if sustainedFailure("last-disk", available < maxDiskFloorMB, mndMainNumberValue120*time.Second) {
 		add(o, "disk-space", fmt.Sprintf("%d MB available is below the %d MB emergency floor", available, maxDiskFloorMB), []string{"statfs:" + watchMount(), fmt.Sprintf("used_percent=%.1f", used)})
 	}
 
@@ -329,7 +343,7 @@ func declaredUnits() []string {
 }
 
 func unitActive(unit string) (bool, string) {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), mndMainNumberValue5*time.Second)
 	defer cancel()
 	switch current := strings.ToLower(runtimeGOOS()); current {
 	case "linux":
@@ -391,48 +405,45 @@ func saveForkState(snapshot hostpressure.PressureSnapshot) {
 		return
 	}
 	path := forkStatePath()
-	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+	if err := os.MkdirAll(filepath.Dir(path), mndMainNumberOctal700); err != nil {
 		return
 	}
 	b, err := json.Marshal(forkState{Counter: snapshot.ForkCounter, Captured: snapshot.CapturedAt})
 	if err != nil {
 		return
 	}
-	tmp := path + fmt.Sprintf(".%d.tmp", os.Getpid())
-	if err := os.WriteFile(tmp, b, 0o600); err == nil {
-		_ = os.Rename(tmp, path)
-	}
+	_ = config.WriteOwnedFileAtomic(path, b, mndMainNumberOctal600)
 }
 
 func addLiveFindings(o *output, thresholds thresholdSource) {
 	cpuFinding := false
 	if v, ok := o.Readings.CPUPressure.Number(); ok && v >= thresholds.CPUPressurePercent {
-		cpuFinding = sustainedFailure("last-cpu-pressure", true, 60*time.Second)
+		cpuFinding = sustainedFailure("last-cpu-pressure", true, mndMainNumberValue60*time.Second)
 	}
 	if cpuFinding {
 		v, _ := o.Readings.CPUPressure.Number()
 		add(o, "cpu-pressure", fmt.Sprintf("CPU pressure %.1f%% meets or exceeds SB14 bar", v), []string{o.Readings.CPUPressure.Provenance})
 	} else if _, ok := o.Readings.CPUPressure.Number(); ok {
-		_ = sustainedFailure("last-cpu-pressure", false, 60*time.Second)
+		_ = sustainedFailure("last-cpu-pressure", false, mndMainNumberValue60*time.Second)
 	}
 	forkFinding := false
 	if v, ok := o.Readings.ForkRate.Number(); ok && v >= thresholds.ForksPerSecond {
-		forkFinding = sustainedFailure("last-fork-rate", true, 60*time.Second)
+		forkFinding = sustainedFailure("last-fork-rate", true, mndMainNumberValue60*time.Second)
 	}
 	if forkFinding {
 		v, _ := o.Readings.ForkRate.Number()
 		add(o, "fork-rate", fmt.Sprintf("%.1f forks/s exceeds SB16 bar", v), []string{o.Readings.ForkRate.Provenance})
 	} else if _, ok := o.Readings.ForkRate.Number(); ok {
-		_ = sustainedFailure("last-fork-rate", false, 60*time.Second)
+		_ = sustainedFailure("last-fork-rate", false, mndMainNumberValue60*time.Second)
 	}
-	stranded := hostpressure.Stranded(o.Readings.Processes, 2)
+	stranded := hostpressure.Stranded(o.Readings.Processes, mndMainNumberValue2)
 	var strandedBytes uint64
 	for _, p := range stranded {
 		strandedBytes += p.Swapped
 	}
-	strandedFinding := float64(strandedBytes)/(1024*1024) >= thresholds.StrandedMemoryMB && len(stranded) > 0
-	if sustainedFailure("last-stranded-memory", strandedFinding, 60*time.Second) {
-		add(o, "stranded-memory", fmt.Sprintf("%.0f MB stranded across %d idle processes; top holder %s", float64(strandedBytes)/(1024*1024), len(stranded), stranded[0].Name), []string{"/proc/*/status"})
+	strandedFinding := float64(strandedBytes)/(mndMainNumberValue1024*mndMainNumberValue1024) >= thresholds.StrandedMemoryMB && len(stranded) > 0
+	if sustainedFailure("last-stranded-memory", strandedFinding, mndMainNumberValue60*time.Second) {
+		add(o, "stranded-memory", fmt.Sprintf("%.0f MB stranded across %d idle processes; top holder %s", float64(strandedBytes)/(mndMainNumberValue1024*mndMainNumberValue1024), len(stranded), stranded[0].Name), []string{"/proc/*/status"})
 	}
 }
 
@@ -460,8 +471,8 @@ func sustainedFailure(name string, failing bool, sustain time.Duration) bool {
 	if state.FirstObserved.IsZero() || now.Before(state.FirstObserved) {
 		state.FirstObserved = now
 		if data, err := json.Marshal(state); err == nil {
-			if err := os.MkdirAll(filepath.Dir(path), 0o700); err == nil {
-				_ = os.WriteFile(path, data, 0o600)
+			if err := os.MkdirAll(filepath.Dir(path), mndMainNumberOctal700); err == nil {
+				_ = os.WriteFile(path, data, mndMainNumberOctal600)
 			}
 		}
 		return false
@@ -526,6 +537,7 @@ func add(o *output, name, reason string, evidence []string) {
 	o.Evidence[name] = evidence
 }
 
+//nolint:gocyclo // fixture loading combines schema, process, and diagnostic compatibility branches.
 func fromFixture(root string, o *output) error {
 	first := filepath.Join(root, "proc-stat-t0")
 	second := filepath.Join(root, "proc-stat-t1")
@@ -602,7 +614,7 @@ func fromFixture(root string, o *output) error {
 		report := workloadowner.Classify(observed, declarations, workloadowner.WholeHost, o.Thresholds.CrashLoopsPerHour)
 		o.Workloads = &report
 	}
-	stranded := hostpressure.Stranded(o.Readings.Processes, 2)
+	stranded := hostpressure.Stranded(o.Readings.Processes, mndMainNumberValue2)
 	if len(stranded) > 0 {
 		add(o, "stranded-memory", fmt.Sprintf("%s holds %d swapped bytes", stranded[0].Name, stranded[0].Swapped), []string{"procs.tsv"})
 	}
@@ -642,7 +654,7 @@ func fixtureCounter(path, key string) (uint64, bool) {
 		return 0, false
 	}
 	for _, field := range strings.Fields(string(b)) {
-		parts := strings.SplitN(field, "=", 2)
+		parts := strings.SplitN(field, "=", mndMainNumberValue2)
 		if len(parts) == 2 && parts[0] == key {
 			n, parseErr := strconv.ParseUint(parts[1], 10, 64)
 			return n, parseErr == nil
@@ -659,7 +671,7 @@ func loadProcesses(path string) ([]hostpressure.Process, error) {
 	var out []hostpressure.Process
 	for _, l := range strings.Split(strings.TrimSpace(string(b)), "\n") {
 		f := strings.Split(l, "\t")
-		if len(f) != 5 {
+		if len(f) != mndMainNumberValue5 {
 			continue
 		}
 		pid, _ := strconv.ParseInt(f[0], 10, 64)

@@ -9,6 +9,7 @@ import (
 	repocontracttest "github.com/vrooli/repo-contract-go/repocontracttest"
 	testkitgo "github.com/vrooli/repo-contract-go/repocontracttest"
 	packagegov "github.com/vrooli/vrooli/internal/packagegov"
+	"github.com/vrooli/vrooli/internal/repocontractmeta"
 )
 
 type PackageManifestOption func(*packagegov.Manifest)
@@ -141,7 +142,7 @@ func WritePackageManifest(t *testing.T, root, name string, manifest packagegov.M
 	if strings.TrimSpace(manifest.Package.Name) == "" {
 		manifest.Package.Name = name
 	}
-	testkitgo.WriteJSON(t, filepath.Join(root, "packages", name, ".vrooli", "package.json"), manifest)
+	testkitgo.WriteJSON(t, filepath.Join(root, "packages", name, repocontractmeta.ProjectConfigDir, "package.json"), manifest)
 }
 
 func WriteNodePackageManifest(t *testing.T, path string, manifest NodePackageManifest) {
@@ -151,12 +152,12 @@ func WriteNodePackageManifest(t *testing.T, path string, manifest NodePackageMan
 
 func WriteScenarioUIPackageManifest(t *testing.T, root, scenarioName string, manifest NodePackageManifest) {
 	t.Helper()
-	WriteNodePackageManifest(t, filepath.Join(root, "scenarios", scenarioName, "ui", "package.json"), manifest)
+	WriteNodePackageManifest(t, filepath.Join(root, repocontractmeta.ScenarioDir, scenarioName, "ui", "package.json"), manifest)
 }
 
 func WriteTemplateScenarioUIPackageManifest(t *testing.T, root, templateName string, manifest NodePackageManifest) {
 	t.Helper()
-	WriteNodePackageManifest(t, filepath.Join(root, "templates", "scenarios", templateName, "ui", "package.json"), manifest)
+	WriteNodePackageManifest(t, filepath.Join(root, "templates", repocontractmeta.ScenarioDir, templateName, "ui", "package.json"), manifest)
 }
 
 func defaultPackageDisplayName(name string) string {

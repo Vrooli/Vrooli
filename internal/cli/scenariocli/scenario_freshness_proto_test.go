@@ -43,7 +43,7 @@ func TestParseFreshnessRequest(t *testing.T) {
 
 func TestWriteScenarioFreshnessJSONShape(t *testing.T) {
 	var buf bytes.Buffer
-	if err := writeScenarioFreshnessJSON(&buf, sampleFreshnessReport()); err != nil {
+	if err := cliout.WriteProtoJSON(&buf, ScenarioFreshnessResponseProto(sampleFreshnessReport())); err != nil {
 		t.Fatalf("write: %v", err)
 	}
 	var decoded map[string]any

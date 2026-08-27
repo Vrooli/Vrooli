@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	repocontract "github.com/vrooli/repo-contract-go"
+	"github.com/vrooli/vrooli/internal/repocontractmeta"
 )
 
 type dependencyInventory struct {
@@ -31,7 +32,7 @@ func buildDependencyInventory(root string, packages []Package) (dependencyInvent
 	if err != nil {
 		return dependencyInventory{}, err
 	}
-	scenarioRoot, err := contract.TopLevelDir(root, "scenarios")
+	scenarioRoot, err := contract.TopLevelDir(root, repocontractmeta.ScenarioDir)
 	if err != nil {
 		return dependencyInventory{}, err
 	}

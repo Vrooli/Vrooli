@@ -12,6 +12,10 @@ import (
 	"github.com/vrooli/vrooli/internal/portspec"
 )
 
+const (
+	validatePortsParameterA = 2
+)
+
 // PortValidationMode controls how the ephemeral-overlap validator reacts to
 // findings. The default (empty string) behaves as ModeFatal.
 type PortValidationMode string
@@ -143,7 +147,7 @@ func checkPortRange(name string, port Port, eph portspec.EphemeralRange) string 
 
 func parsePortRange(raw string) (int, int, error) {
 	parts := strings.Split(raw, "-")
-	if len(parts) != 2 {
+	if len(parts) != validatePortsParameterA {
 		return 0, 0, fmt.Errorf("expected start-end")
 	}
 	lo, err := strconv.Atoi(strings.TrimSpace(parts[0]))

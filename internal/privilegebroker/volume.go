@@ -9,6 +9,10 @@ import (
 	"strings"
 )
 
+const (
+	volumeParameterA = 2
+)
+
 // Volume evidence sources. They are package variables so tests can substitute
 // fixture trees without the broker growing a general configuration surface.
 var (
@@ -94,7 +98,7 @@ func volumeMountpoint(device string) (string, bool) {
 	want := resolveVolumePath(device)
 	for _, line := range strings.Split(string(data), "\n") {
 		fields := strings.Fields(line)
-		if len(fields) < 2 {
+		if len(fields) < volumeParameterA {
 			continue
 		}
 		if resolveVolumePath(fields[0]) == want {
@@ -174,7 +178,7 @@ func volumeExitAcceptable(filesystem string, exitCode int, err error) bool {
 	switch volumeFilesystems[strings.ToLower(strings.TrimSpace(filesystem))] {
 	case "ext":
 		// 0 clean, 1 errors corrected, 2 corrected and a reboot is advised.
-		return exitCode <= 2
+		return exitCode <= volumeParameterA
 	case "vfat":
 		// 0 clean, 1 errors corrected.
 		return exitCode <= 1

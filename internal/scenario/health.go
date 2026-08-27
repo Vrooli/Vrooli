@@ -11,8 +11,15 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/vrooli/vrooli/internal/tuning"
 )
 
+const (
+	healthParameterA = 2
+)
+
+//nolint:gocyclo // health checks preserve HTTP, process, port, and retry failure semantics.
 func PerformHealthCheck(check HealthCheck, ports map[string]int) error {
 	switch strings.TrimSpace(check.Type) {
 	case "", "http":
@@ -26,7 +33,7 @@ func PerformHealthCheck(check HealthCheck, ports map[string]int) error {
 
 		timeout := time.Duration(check.Timeout) * time.Millisecond
 		if timeout == 0 {
-			timeout = 5 * time.Second
+			timeout = tuning.ServiceHealthTimeout
 		}
 
 		client := &http.Client{Timeout: timeout}
@@ -52,7 +59,7 @@ func PerformHealthCheck(check HealthCheck, ports map[string]int) error {
 
 		timeout := time.Duration(check.Timeout) * time.Millisecond
 		if timeout == 0 {
-			timeout = 5 * time.Second
+			timeout = tuning.ServiceHealthTimeout
 		}
 
 		client := &http.Client{Timeout: timeout}
@@ -74,7 +81,7 @@ func PerformHealthCheck(check HealthCheck, ports map[string]int) error {
 	case "postgres":
 		timeout := time.Duration(check.Timeout) * time.Millisecond
 		if timeout == 0 {
-			timeout = 3 * time.Second
+			timeout = tuning.HealthCheckTimeout
 		}
 
 		address := "127.0.0.1:5432"
@@ -174,7 +181,7 @@ func scanSandboxScenarioNames(root string, env SandboxEnv) ([]string, error) {
 		return scanScenarioNames(env.Merged)
 	case strings.HasPrefix(scope, prefix+"/"):
 		name := strings.TrimPrefix(scope, prefix+"/")
-		name = strings.SplitN(name, "/", 2)[0]
+		name = strings.SplitN(name, "/", healthParameterA)[0]
 		resolved := ResolveMergedPath(root, name, env.Scope, env.Merged)
 		if _, err := os.Stat(filepath.Join(resolved, filepath.FromSlash(defaultScenarioServiceRelPath))); err == nil {
 			return []string{name}, nil

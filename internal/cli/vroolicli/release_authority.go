@@ -9,6 +9,7 @@ import (
 	"github.com/vrooli/vrooli/internal/cli/commandtree"
 	"github.com/vrooli/vrooli/internal/cliout"
 	"github.com/vrooli/vrooli/internal/credentialauthority"
+	"github.com/vrooli/vrooli/internal/logx"
 	"github.com/vrooli/vrooli/internal/releaseauthority"
 )
 
@@ -98,14 +99,14 @@ func releaseAuthorityStatus(ctx *CommandContext, authority *releaseauthority.Aut
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
-	if len(fs.Args()) != 0 || (format != "text" && format != "json") {
+	if len(fs.Args()) != 0 || (format != string(logx.FormatText) && format != string(logx.FormatJSON)) {
 		return fmt.Errorf("release-authority status accepts only --format text or json")
 	}
 	status, err := authority.Status(ctx.Root)
 	if err != nil {
 		return err
 	}
-	if format == "json" || ctx.Globals.JSON {
+	if format == string(logx.FormatJSON) || ctx.Globals.JSON {
 		return cliout.WriteJSONValue(ctx.Stdout, status)
 	}
 	return renderReleaseAuthorityStatus(ctx, status)

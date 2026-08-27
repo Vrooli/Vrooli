@@ -9,6 +9,8 @@ import (
 	"strconv"
 	"strings"
 	"syscall"
+
+	"github.com/vrooli/vrooli/internal/tuning"
 )
 
 // The Secret Service is reached over a session bus, so libsecret depends on two
@@ -68,7 +70,7 @@ func planSessionRepair(uid int, getenv func(string) string, stat func(string) pa
 	ownBus := filepath.Join(ownDir, "bus")
 
 	dirFact := stat(ownDir)
-	if !dirFact.exists || !dirFact.mode.IsDir() || dirFact.uid != uid || dirFact.mode.Perm()&0o077 != 0 {
+	if !dirFact.exists || !dirFact.mode.IsDir() || dirFact.uid != uid || dirFact.mode.Perm()&tuning.PermGroupAndOtherMask != 0 {
 		return sessionRepair{}, false
 	}
 	busFact := stat(ownBus)
@@ -164,7 +166,7 @@ func sessionRuntimeDir() (string, bool) {
 	uid := os.Getuid()
 	dir := filepath.Join(runtimeRoot, strconv.Itoa(uid))
 	fact := statPathFact(dir)
-	if !fact.exists || !fact.mode.IsDir() || fact.uid != uid || fact.mode.Perm()&0o077 != 0 {
+	if !fact.exists || !fact.mode.IsDir() || fact.uid != uid || fact.mode.Perm()&tuning.PermGroupAndOtherMask != 0 {
 		return "", false
 	}
 	return dir, true

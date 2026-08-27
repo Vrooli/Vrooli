@@ -7,6 +7,10 @@ import (
 	"github.com/vrooli/vrooli/internal/cli/clipolicy"
 )
 
+const (
+	argsParameterA = 2
+)
+
 type ParsedArgs struct {
 	Positionals []string
 	flags       map[string][]string
@@ -96,7 +100,7 @@ func ParseSinglePositional(command, helpText, name string, args []string) (strin
 }
 
 func optionIndex(schema ArgSchema) map[string]OptionArg {
-	index := make(map[string]OptionArg, len(schema.Options)*2)
+	index := make(map[string]OptionArg, len(schema.Options)*argsParameterA)
 	for _, option := range schema.Options {
 		index[option.Name] = option
 		for _, alias := range option.Aliases {
@@ -110,7 +114,7 @@ func splitOptionToken(arg string) (string, string, bool) {
 	if !strings.Contains(arg, "=") {
 		return arg, "", false
 	}
-	parts := strings.SplitN(arg, "=", 2)
+	parts := strings.SplitN(arg, "=", argsParameterA)
 	return parts[0], parts[1], true
 }
 

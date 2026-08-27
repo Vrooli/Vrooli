@@ -25,20 +25,22 @@ class TidinessScanResponse(_message.Message):
     def __init__(self, scenario: _Optional[str] = ..., status: _Optional[str] = ..., findings: _Optional[_Iterable[_Union[TidinessFinding, _Mapping]]] = ..., violations: _Optional[_Iterable[_Union[TidinessFinding, _Mapping]]] = ..., summary: _Optional[_Union[TidinessScanSummary, _Mapping]] = ..., assessment: _Optional[_Union[_maturity_pb2.MaturityAssessment, _Mapping]] = ...) -> None: ...
 
 class TidinessScanSummary(_message.Message):
-    __slots__ = ("total_findings", "long_files", "complexity", "duplication", "tech_debt", "coupling")
+    __slots__ = ("total_findings", "long_files", "complexity", "duplication", "tech_debt", "coupling", "duplication_line_debt")
     TOTAL_FINDINGS_FIELD_NUMBER: _ClassVar[int]
     LONG_FILES_FIELD_NUMBER: _ClassVar[int]
     COMPLEXITY_FIELD_NUMBER: _ClassVar[int]
     DUPLICATION_FIELD_NUMBER: _ClassVar[int]
     TECH_DEBT_FIELD_NUMBER: _ClassVar[int]
     COUPLING_FIELD_NUMBER: _ClassVar[int]
+    DUPLICATION_LINE_DEBT_FIELD_NUMBER: _ClassVar[int]
     total_findings: int
     long_files: int
     complexity: int
     duplication: int
     tech_debt: int
     coupling: int
-    def __init__(self, total_findings: _Optional[int] = ..., long_files: _Optional[int] = ..., complexity: _Optional[int] = ..., duplication: _Optional[int] = ..., tech_debt: _Optional[int] = ..., coupling: _Optional[int] = ...) -> None: ...
+    duplication_line_debt: int
+    def __init__(self, total_findings: _Optional[int] = ..., long_files: _Optional[int] = ..., complexity: _Optional[int] = ..., duplication: _Optional[int] = ..., tech_debt: _Optional[int] = ..., coupling: _Optional[int] = ..., duplication_line_debt: _Optional[int] = ...) -> None: ...
 
 class TidinessFinding(_message.Message):
     __slots__ = ("id", "rule_id", "scenario", "file_path", "symbol", "line_number", "category", "severity", "title", "description", "evidence", "why_it_matters", "recommended_remediation", "remediation", "campaign_group_hint")

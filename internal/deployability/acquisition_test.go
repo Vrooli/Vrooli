@@ -6,6 +6,21 @@ import (
 	"github.com/vrooli/binaryfetch"
 )
 
+func TestHostOSFromGOOS(t *testing.T) {
+	tests := map[string]HostOS{
+		"linux":   HostOSLinux,
+		"darwin":  HostOSMacOS,
+		"macos":   HostOSMacOS,
+		"windows": HostOSWindows,
+		"solaris": "",
+	}
+	for goos, want := range tests {
+		if got := HostOSFromGOOS(goos); got != want {
+			t.Errorf("HostOSFromGOOS(%q) = %q, want %q", goos, got, want)
+		}
+	}
+}
+
 func TestValidateAcquisitionCoverageRequiresEveryClaimedPlatform(t *testing.T) {
 	declaration := AcquisitionCoverageDeclaration{
 		Name:             "fixture",

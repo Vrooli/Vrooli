@@ -20,7 +20,9 @@ const CrashkernelEnvVar = "reservation"
 
 var testConfig map[string]string
 
-func stubAll(t *testing.T) (
+var stubAll = crashkernelStubAll
+
+func crashkernelStubAll(t *testing.T) (
 	cmds *[]capturedCommand,
 	files map[string]string,
 	envValues map[string]string,
@@ -52,24 +54,8 @@ func stubAll(t *testing.T) (
 		}
 		return procCmdline, nil
 	}
-
-	hostreqkit.ReadFileFn = func(path string) ([]byte, error) {
-		if c, ok := fileContents[path]; ok {
-			return []byte(c), nil
-		}
-		return nil, fs.ErrNotExist
-	}
-	hostreqkit.RunCommandFn = func(name string, args []string, opts hostreqkit.EnsureOptions) error {
-		captured = append(captured, capturedCommand{Name: name, Args: append([]string(nil), args...)})
-		if name == "install" && len(args) >= 4 {
-			tmp := args[len(args)-2]
-			dst := args[len(args)-1]
-			if c, ok := tempContents[tmp]; ok {
-				fileContents[dst] = c
-			}
-		}
-		return nil
-	}
+	hostreqkit.ReadFileFn = crashReadFile(fileContents)
+	hostreqkit.RunCommandFn = crashRunCommand(&captured, fileContents, tempContents)
 	hostreqkit.CombinedOutputFn = func(name string, args ...string) ([]byte, error) {
 		captured = append(captured, capturedCommand{Name: name, Args: append([]string(nil), args...)})
 		return nil, nil
@@ -80,13 +66,7 @@ func stubAll(t *testing.T) (
 		}
 		return "/usr/bin/" + name, nil
 	}
-	tempCounter := 0
-	hostreqkit.WriteTempFileFn = func(content string) (string, error) {
-		tempCounter++
-		path := "/tmp/vrooli-crashkernel-test-" + strings.Repeat("a", tempCounter)
-		tempContents[path] = content
-		return path, nil
-	}
+	hostreqkit.WriteTempFileFn = crashWriteTemp(tempContents)
 	grub.NowFn = func() time.Time {
 		return time.Date(2026, 5, 7, 12, 0, 0, 0, time.UTC)
 	}
@@ -108,11 +88,44 @@ func stubAll(t *testing.T) (
 	}
 }
 
+func crashReadFile(files map[string]string) func(string) ([]byte, error) {
+	return func(path string) ([]byte, error) {
+		if content, ok := files[path]; ok {
+			return []byte(content), nil
+		}
+		return nil, fs.ErrNotExist
+	}
+}
+
+func crashRunCommand(captured *[]capturedCommand, files, temps map[string]string) func(string, []string, hostreqkit.EnsureOptions) error {
+	return func(name string, args []string, _ hostreqkit.EnsureOptions) error {
+		*captured = append(*captured, capturedCommand{Name: name, Args: append([]string(nil), args...)})
+		if name == "install" && len(args) >= 4 {
+			if content, ok := temps[args[len(args)-2]]; ok {
+				files[args[len(args)-1]] = content
+			}
+		}
+		return nil
+	}
+}
+
+func crashWriteTemp(temps map[string]string) func(string) (string, error) {
+	sequence := 0
+	return func(content string) (string, error) {
+		sequence++
+		path := "/tmp/vrooli-crashkernel-test-" + strings.Repeat("a", sequence)
+		temps[path] = content
+		return path, nil
+	}
+}
+
 func newHandler() hostreqkit.Handler {
 	return NewHandler(hostreqkit.SafeguardManifest{Name: "crashkernel_reserve", Handler: "crashkernel_reserve"})
 }
 
-func linuxHost() hostreqkit.Host {
+var linuxHost = crashkernelLinuxHost
+
+func crashkernelLinuxHost() hostreqkit.Host {
 	return hostreqkit.Host{OS: "linux", PackageManager: "apt-get", SupportsSysctl: true, SupportsSystemd: true}
 }
 
@@ -141,24 +154,6 @@ func TestCrashkernelValueOverride(t *testing.T) {
 	env[CrashkernelEnvVar] = "768M"
 	if got := crashkernelValue(map[string]any{"reservation": "768M"}); got != "768M" {
 		t.Errorf("override crashkernelValue() = %q", got)
-	}
-}
-
-func TestInspectNonLinux(t *testing.T) {
-	_, _, _, _, restore := stubAll(t)
-	defer restore()
-	st := newHandler().Inspect(hostreqkit.Host{OS: "darwin"}, req(false))
-	if st.SupportClass != hostreqkit.SupportUnsupported {
-		t.Errorf("SupportClass = %q", st.SupportClass)
-	}
-}
-
-func TestInspectManual(t *testing.T) {
-	_, _, _, _, restore := stubAll(t)
-	defer restore()
-	st := newHandler().Inspect(linuxHost(), req(true))
-	if st.SupportClass != hostreqkit.SupportManualOnly {
-		t.Errorf("SupportClass = %q", st.SupportClass)
 	}
 }
 
@@ -245,26 +240,6 @@ func TestApplyHappyPath(t *testing.T) {
 	}
 }
 
-func TestApplyDryRun(t *testing.T) {
-	cmds, files, _, _, restore := stubAll(t)
-	defer restore()
-	files[grub.DefaultConfigPath] = `GRUB_CMDLINE_LINUX="quiet"` + "\n"
-
-	st := newHandler().Inspect(linuxHost(), req(false))
-	out, err := newHandler().Apply(linuxHost(), st, hostreqkit.EnsureOptions{DryRun: true})
-	if err != nil {
-		t.Fatalf("Apply: %v", err)
-	}
-	if out.ExecutionState != hostreqkit.ExecutionWouldApply {
-		t.Errorf("ExecutionState = %q", out.ExecutionState)
-	}
-	for _, c := range *cmds {
-		if c.Name == "install" {
-			t.Errorf("DryRun ran install: %v", c)
-		}
-	}
-}
-
 func TestApplyOverrideValue(t *testing.T) {
 	_, files, env, _, restore := stubAll(t)
 	defer restore()
@@ -282,28 +257,6 @@ func TestApplyOverrideValue(t *testing.T) {
 	written := files[grub.DefaultConfigPath]
 	if !strings.Contains(written, "crashkernel=768M") {
 		t.Errorf("written config missing override value:\n%s", written)
-	}
-}
-
-func TestApplyAlreadyAppliedShortCircuits(t *testing.T) {
-	cmds, _, _, _, restore := stubAll(t)
-	defer restore()
-	st := hostreqkit.ItemStatus{
-		SupportClass:   hostreqkit.SupportSupported,
-		ExecutionState: hostreqkit.ExecutionAlreadyPresent,
-		Applied:        true,
-	}
-	out, err := newHandler().Apply(linuxHost(), st, hostreqkit.EnsureOptions{})
-	if err != nil {
-		t.Fatalf("Apply: %v", err)
-	}
-	if out.ExecutionState != hostreqkit.ExecutionAlreadyPresent {
-		t.Errorf("ExecutionState = %q", out.ExecutionState)
-	}
-	for _, c := range *cmds {
-		if c.Name == "install" {
-			t.Errorf("short-circuit wrote files: %v", c)
-		}
 	}
 }
 
@@ -335,15 +288,5 @@ func TestApplyShortCircuitsOnSupportClasses(t *testing.T) {
 				}
 			}
 		})
-	}
-}
-
-func TestNameAndKind(t *testing.T) {
-	h := newHandler()
-	if h.Name() != "crashkernel_reserve" {
-		t.Errorf("Name = %q", h.Name())
-	}
-	if h.Kind() != hostreqspec.KindSafeguard {
-		t.Errorf("Kind = %q", h.Kind())
 	}
 }

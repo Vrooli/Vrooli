@@ -17,6 +17,7 @@ import (
 
 	"github.com/vrooli/vrooli/internal/artifactlease"
 	"github.com/vrooli/vrooli/internal/artifactledger"
+	"github.com/vrooli/vrooli/internal/shell/shelltest"
 
 	"github.com/vrooli/cli-core/cliutil"
 	platform "github.com/vrooli/platform-go"
@@ -279,8 +280,8 @@ func TestDiscoverResourceCLIDoesNotInferShellScriptFromLayoutWithoutEnabledManif
 	fixture := testkitgo.NewRepoFixture(t)
 	fixture.WriteRepoContract(t)
 	writeDisabledResourceCLIManifest(t, fixture.Root, "postgres")
-	testkitgo.WriteRelativeExecutable(t, fixture.Root, filepath.Join("resources", "postgres", "cli", "resource-postgres"), "#!/usr/bin/env bash\nexit 0\n")
-	testkitgo.WriteRelativeExecutable(t, fixture.Root, filepath.Join("resources", "postgres", "cli", "install.sh"), "#!/usr/bin/env bash\nexit 0\n")
+	testkitgo.WriteRelativeExecutable(t, fixture.Root, filepath.Join("resources", "postgres", "cli", "resource-postgres"), shelltest.BashShebang()+"exit 0\n")
+	testkitgo.WriteRelativeExecutable(t, fixture.Root, filepath.Join("resources", "postgres", "cli", "install.sh"), shelltest.BashShebang()+"exit 0\n")
 
 	manager := mustManager(t, fixture.Root, fixture.Home)
 	_, err := manager.DiscoverResourceCLI("postgres")
@@ -371,7 +372,7 @@ func TestInspectScenarioCLIInstallLocationReportsPathMismatch(t *testing.T) {
 		t.Fatalf("write canonical binary: %v", err)
 	}
 
-	other := testkitgo.WriteRelativeExecutable(t, fixture.Home, filepath.Join(".local", "bin", "alpha"), "#!/usr/bin/env bash\nexit 0\n")
+	other := testkitgo.WriteRelativeExecutable(t, fixture.Home, filepath.Join(".local", "bin", "alpha"), shelltest.BashShebang()+"exit 0\n")
 	status, err := manager.InspectScenarioCLIInstallLocation("alpha", func(string) (string, error) {
 		return other, nil
 	})
@@ -723,7 +724,7 @@ func TestInstalledScenarioCLINames(t *testing.T) {
 
 	writeExec := func(name string, mode os.FileMode) {
 		t.Helper()
-		if err := os.WriteFile(filepath.Join(binDir, name), []byte("#!/bin/sh\n"), mode); err != nil {
+		if err := os.WriteFile(filepath.Join(binDir, name), []byte(shelltest.POSIXShebang()+""), mode); err != nil {
 			t.Fatalf("write %s: %v", name, err)
 		}
 	}

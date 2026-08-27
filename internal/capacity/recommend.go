@@ -2,6 +2,10 @@ package capacity
 
 import "fmt"
 
+const (
+	recommendParameterA = 100
+)
+
 // Recommendation is one advisory right-sizing suggestion (§Phase 4, contract C7).
 // It is NEVER auto-applied — it is a signal a human/operator acts on, comparing a
 // claim's declared reservation against what it actually peaked at.
@@ -41,7 +45,7 @@ func Recommend(claims []CapacityClaim, policy Policy) []Recommendation {
 		if c.ObservedAt == nil || c.ObservedPeakBytes <= 0 || c.PreferredBytes <= 0 {
 			continue // no usable sample yet — stay silent
 		}
-		suggested := c.ObservedPeakBytes + c.ObservedPeakBytes*int64(pct)/100
+		suggested := c.ObservedPeakBytes + c.ObservedPeakBytes*int64(pct)/recommendParameterA
 		if suggested < c.FloorBytes {
 			suggested = c.FloorBytes
 		}

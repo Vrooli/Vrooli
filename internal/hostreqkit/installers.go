@@ -7,7 +7,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"time"
+
+	"github.com/vrooli/vrooli/internal/tuning"
 
 	"github.com/vrooli/vrooli/internal/hostreqspec"
 )
@@ -43,13 +44,13 @@ func (i AptRepoInstaller) Inspect(host Host, requirement hostreqspec.ResolvedReq
 	}
 
 	switch {
-	case host.OS == "linux" && (host.PackageManager == "apt" || host.PackageManager == "apt-get"):
+	case hostreqspec.PlatformFromGOOS(host.OS) == hostreqspec.PlatformLinux && (host.PackageManager == helpersApt || host.PackageManager == helpersAptGet):
 		status.PackageName = i.AptPackage
 		status.InstallSupported = true
-	case host.OS == "darwin" && host.PackageManager == "brew":
+	case hostreqspec.PlatformFromGOOS(host.OS) == hostreqspec.PlatformMacOS && host.PackageManager == helpersBrew:
 		status.PackageName = i.Manifest.Packages["brew"]
 		status.InstallSupported = true
-	case host.OS == "windows" && host.PackageManager == "winget":
+	case hostreqspec.PlatformFromGOOS(host.OS) == hostreqspec.PlatformWindows && host.PackageManager == helpersWinget:
 		status.PackageName = i.Manifest.Packages["winget"]
 		status.InstallSupported = status.PackageName != ""
 	default:
@@ -76,11 +77,11 @@ func (i AptRepoInstaller) Apply(host Host, status ItemStatus, opts EnsureOptions
 	}
 
 	switch {
-	case host.OS == "linux" && (host.PackageManager == "apt" || host.PackageManager == "apt-get"):
+	case hostreqspec.PlatformFromGOOS(host.OS) == hostreqspec.PlatformLinux && (host.PackageManager == "apt" || host.PackageManager == "apt-get"):
 		if err := i.installLinux(host, opts); err != nil {
 			return status, err
 		}
-	case host.OS == "darwin" && host.PackageManager == "brew":
+	case hostreqspec.PlatformFromGOOS(host.OS) == hostreqspec.PlatformMacOS && host.PackageManager == "brew":
 		packageName := status.PackageName
 		if packageName == "" {
 			packageName = i.Manifest.Packages["brew"]
@@ -92,7 +93,7 @@ func (i AptRepoInstaller) Apply(host Host, status ItemStatus, opts EnsureOptions
 		if err := RunInstallCommand(command, args, opts); err != nil {
 			return status, err
 		}
-	case host.OS == "windows" && host.PackageManager == "winget":
+	case hostreqspec.PlatformFromGOOS(host.OS) == hostreqspec.PlatformWindows && host.PackageManager == "winget":
 		packageName := status.PackageName
 		if packageName == "" {
 			packageName = i.Manifest.Packages["winget"]
@@ -129,11 +130,11 @@ func (i AptRepoInstaller) ApplyWithNotes(host Host, status ItemStatus, opts Ensu
 	if opts.DryRun {
 		status.ExecutionState = ExecutionWouldInstall
 		switch {
-		case host.OS == "linux" && (host.PackageManager == "apt" || host.PackageManager == "apt-get"):
+		case hostreqspec.PlatformFromGOOS(host.OS) == hostreqspec.PlatformLinux && (host.PackageManager == "apt" || host.PackageManager == "apt-get"):
 			status.Notes = append(status.Notes, i.AptDryRunNotes...)
-		case host.OS == "darwin" && host.PackageManager == "brew":
+		case hostreqspec.PlatformFromGOOS(host.OS) == hostreqspec.PlatformMacOS && host.PackageManager == "brew":
 			status.Notes = append(status.Notes, i.BrewDryRunNote+" "+i.Manifest.Packages["brew"])
-		case host.OS == "windows" && host.PackageManager == "winget":
+		case hostreqspec.PlatformFromGOOS(host.OS) == hostreqspec.PlatformWindows && host.PackageManager == "winget":
 			status.Notes = append(status.Notes, i.WingetDryRunNote+" "+i.Manifest.Packages["winget"])
 		default:
 			status.SupportClass = SupportUnsupported
@@ -153,6 +154,7 @@ func (i AptRepoInstaller) ApplyWithNotes(host Host, status ItemStatus, opts Ensu
 	return result, nil
 }
 
+//nolint:gocyclo // APT installation preserves repository, key, package, and rollback failure paths.
 func (i AptRepoInstaller) installLinux(host Host, opts EnsureOptions) error {
 	keyData, err := i.downloadKey()
 	if err != nil {
@@ -220,10 +222,10 @@ func (i AptRepoInstaller) installLinux(host Host, opts EnsureOptions) error {
 			return err
 		}
 	}
-	if err := RunPrivilegedCommand(opts.SudoMode, "install", []string{"-m", "0644", installKeyPath, i.KeyringPath}, opts); err != nil {
+	if err := RunPrivilegedCommand(opts.SudoMode, "install", []string{"-m", "644", installKeyPath, i.KeyringPath}, opts); err != nil {
 		return err
 	}
-	if err := RunPrivilegedCommand(opts.SudoMode, "install", []string{"-m", "0644", sourceTempPath, i.SourcePath}, opts); err != nil {
+	if err := RunPrivilegedCommand(opts.SudoMode, "install", []string{"-m", "644", sourceTempPath, i.SourcePath}, opts); err != nil {
 		return err
 	}
 	if err := RunPrivilegedCommand(opts.SudoMode, "apt-get", []string{"update", "-qq"}, opts); err != nil {
@@ -243,7 +245,7 @@ func (i AptRepoInstaller) downloadKey() ([]byte, error) {
 	if strings.TrimSpace(i.KeyURL) == "" {
 		return nil, fmt.Errorf("apt repository signing key URL is empty")
 	}
-	client := &http.Client{Timeout: 30 * time.Second}
+	client := &http.Client{Timeout: tuning.StandardOperationTimeout}
 	response, err := client.Get(i.KeyURL)
 	if err != nil {
 		return nil, fmt.Errorf("download apt repository signing key: %w", err)
@@ -458,7 +460,7 @@ func (a SysctlApplier) Inspect(host Host, requirement hostreqspec.ResolvedRequir
 		}
 		return status
 	}
-	if host.OS != "linux" {
+	if hostreqspec.PlatformFromGOOS(host.OS) != hostreqspec.PlatformLinux {
 		status.SupportClass = SupportUnsupported
 		status.ExecutionState = ExecutionUnsupported
 		status.Notes = append(status.Notes, a.UnsupportedNote)
@@ -568,10 +570,10 @@ func InstallUserFile(path, content string, opts EnsureOptions) error {
 		return fmt.Errorf("prepare file: %w", err)
 	}
 	defer os.Remove(tmp)
-	if err := os.Chmod(tmp, 0o644); err != nil {
+	if err := os.Chmod(tmp, tuning.PermFile); err != nil {
 		return fmt.Errorf("make file readable: %w", err)
 	}
-	if err := RunAsInvokingUser("install", []string{"-m", "0644", tmp, path}, opts); err != nil {
+	if err := RunAsInvokingUser("install", []string{"-m", "644", tmp, path}, opts); err != nil {
 		return fmt.Errorf("install file: %w", err)
 	}
 	return nil

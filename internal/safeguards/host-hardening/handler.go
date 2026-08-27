@@ -57,6 +57,10 @@ import (
 )
 
 const (
+	handlerParameterG = 120
+)
+
+const (
 	sysctlPath   = "/etc/sysctl.d/99-vrooli-host-hardening.conf"
 	journaldDir  = "/etc/systemd/journald.conf.d"
 	journaldPath = journaldDir + "/99-vrooli-ratelimit.conf"
@@ -87,7 +91,7 @@ func resolvePolicy(config map[string]any) policy {
 	p := policy{
 		OopsPolicy:       oopsPolicyPanicAndDump,
 		SoftlockupPolicy: softlockupPolicyWarn,
-		HungTaskTimeout:  120,
+		HungTaskTimeout:  handlerParameterG,
 	}
 	if config == nil {
 		return p

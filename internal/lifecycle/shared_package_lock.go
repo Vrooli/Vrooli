@@ -13,10 +13,12 @@ import (
 	"sync"
 	"time"
 
+	"github.com/vrooli/vrooli/internal/tuning"
+
 	platform "github.com/vrooli/platform-go"
 )
 
-const sharedPackageLockPollInterval = 250 * time.Millisecond
+const sharedPackageLockPollInterval = tuning.FastHealthPollInterval
 
 var inProcessSharedPackageLocks sync.Map // map[home\x00canonical-root]*sync.Mutex
 
@@ -54,7 +56,7 @@ func acquireSharedPackageLockContext(ctx context.Context, home, packageName, pac
 	waitLogged := false
 	muLocked := false
 	lockErr := error(nil)
-	if err := AwaitContext(ctx, AwaitClock{Now: time.Now, Sleep: time.Sleep}, AwaitPolicy{Timeout: 24 * time.Hour, Interval: sharedPackageLockPollInterval}, func() (bool, error) {
+	if err := AwaitContext(ctx, AwaitClock{Now: time.Now, Sleep: time.Sleep}, AwaitPolicy{Timeout: tuning.DailyRetentionWindow, Interval: sharedPackageLockPollInterval}, func() (bool, error) {
 		if mu.TryLock() {
 			muLocked = true
 			return true, nil
@@ -72,19 +74,19 @@ func acquireSharedPackageLockContext(ctx context.Context, home, packageName, pac
 	}
 
 	lockDir := filepath.Join(home, scenarioLockDirName)
-	if err := os.MkdirAll(lockDir, 0o755); err != nil {
+	if err := os.MkdirAll(lockDir, tuning.PermDir); err != nil {
 		mu.Unlock()
 		return nil, fmt.Errorf("create shared package lock dir: %w", err)
 	}
 	lockPath := sharedPackageLockPath(lockDir, canonicalRoot)
-	file, err := os.OpenFile(lockPath, os.O_RDWR|os.O_CREATE, 0o644)
+	file, err := os.OpenFile(lockPath, os.O_RDWR|os.O_CREATE, tuning.PermFile)
 	if err != nil {
 		mu.Unlock()
 		return nil, fmt.Errorf("open shared package lock %s: %w", lockPath, err)
 	}
 
 	var release func()
-	if err := AwaitContext(ctx, AwaitClock{Now: time.Now, Sleep: time.Sleep}, AwaitPolicy{Timeout: 24 * time.Hour, Interval: sharedPackageLockPollInterval}, func() (bool, error) {
+	if err := AwaitContext(ctx, AwaitClock{Now: time.Now, Sleep: time.Sleep}, AwaitPolicy{Timeout: tuning.DailyRetentionWindow, Interval: sharedPackageLockPollInterval}, func() (bool, error) {
 		releaseFile, err := lockFileFn(file, true)
 		if err == nil {
 			if _, err := file.Seek(0, 0); err == nil {

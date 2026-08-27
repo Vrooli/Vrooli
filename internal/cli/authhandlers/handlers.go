@@ -22,6 +22,10 @@ type HandlerDeps[C any] struct {
 	Probes func(C) []authapp.SignInProbe
 }
 
+type statusService struct {
+	probes []authapp.SignInProbe
+}
+
 func RootHandler[C any](deps HandlerDeps[C]) rootcli.Handler[C] {
 	commandHandlers := commandtree.BuildHandlerMap(buildCommandTable(deps))
 	return func(ctx C, args []string) error {
@@ -37,21 +41,23 @@ func buildCommandTable[C any](deps HandlerDeps[C]) []commandtree.Spec[rootcli.Ha
 }
 
 func statusHandler[C any](deps HandlerDeps[C]) rootcli.Handler[C] {
-	return rootcli.BindGlobalCommand(deps.Stdout,
-		func(ctx C, args []string) (authcli.StatusRequest, error) {
-			return authcli.ParseStatusRequest(args)
-		},
-		func(ctx C, req authcli.StatusRequest) (cliout.Format, authapp.Report, error) {
+	return rootcli.BindService(deps.Stdout,
+		func(ctx C) (cliout.Format, statusService, error) {
 			probes := authapp.DefaultProbes()
 			if deps.Probes != nil {
 				probes = deps.Probes(ctx)
 			}
-			report := authapp.Run(context.Background(), probes, authapp.ProbeOptions{CheckExpiry: req.CheckExpiry})
 			format, err := deps.OutputFormat(ctx)
 			if err != nil {
-				return "", authapp.Report{}, err
+				return "", statusService{}, err
 			}
-			return format, report, nil
+			return format, statusService{probes: probes}, nil
+		},
+		func(ctx C, args []string) (authcli.StatusRequest, error) {
+			return authcli.ParseStatusRequest(args)
+		},
+		func(service statusService, req authcli.StatusRequest) (authapp.Report, error) {
+			return authapp.Run(context.Background(), service.probes, authapp.ProbeOptions{CheckExpiry: req.CheckExpiry}), nil
 		},
 		authcli.RenderStatus,
 	)

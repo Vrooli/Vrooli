@@ -15,7 +15,7 @@ func TestSystemdUnitRunsOnlyInternalBrokerWithExplicitCallerIdentity(t *testing.
 		"--socket /run/vrooli/privilege-broker.sock",
 		"--allowed-uid 1000",
 		"--socket-gid 1000",
-		"RuntimeDirectoryMode=0755",
+		"RuntimeDirectoryMode=755",
 		"NoNewPrivileges=true",
 		"ProtectSystem=strict",
 		"LogsDirectory=vrooli",

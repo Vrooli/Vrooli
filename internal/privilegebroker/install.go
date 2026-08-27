@@ -3,7 +3,6 @@ package privilegebroker
 import (
 	"context"
 	"fmt"
-	"io"
 	"net"
 	"os"
 	"os/exec"
@@ -12,6 +11,10 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+
+	"github.com/vrooli/vrooli/internal/tuning"
+
+	"github.com/vrooli/vrooli/internal/config"
 )
 
 const (
@@ -73,7 +76,7 @@ func (i Installer) Install(ctx context.Context) (SetupStatus, error) {
 	if err := i.Copy(i.Executable, installedBinary); err != nil {
 		return SetupStatus{}, fmt.Errorf("install broker executable: %w", err)
 	}
-	if err := os.WriteFile(servicePath, []byte(systemdUnitWithRuntimeHome(installedBinary, uid, gid, runtimeRoot)), 0o644); err != nil {
+	if err := os.WriteFile(servicePath, []byte(systemdUnitWithRuntimeHome(installedBinary, uid, gid, runtimeRoot)), tuning.PermFile); err != nil {
 		return SetupStatus{}, fmt.Errorf("write broker systemd unit: %w", err)
 	}
 	if err := os.Chown(servicePath, 0, 0); err != nil {
@@ -129,9 +132,9 @@ ExecStart=%s __privilege-broker serve --socket %s --allowed-uid %d --socket-gid 
 Restart=on-failure
 RestartSec=2s
 RuntimeDirectory=vrooli
-RuntimeDirectoryMode=0755
+RuntimeDirectoryMode=755
 LogsDirectory=vrooli
-LogsDirectoryMode=0750
+LogsDirectoryMode=750
 NoNewPrivileges=true
 PrivateTmp=true
 ProtectHome=false
@@ -175,38 +178,12 @@ func copyRootOwned(source, destination string) error {
 // resolve destination to the new binary; opening destination with O_TRUNC would
 // instead fail with ETXTBSY and leave setup unable to repair the broker.
 func copyAtomically(source, destination string, chown func(string, int, int) error) error {
-	input, err := os.Open(source)
+	data, err := os.ReadFile(source)
 	if err != nil {
 		return err
 	}
-	defer input.Close()
-	if err := os.MkdirAll(filepath.Dir(destination), 0o755); err != nil {
+	if err := config.WriteOwnedFileAtomic(destination, data, tuning.PermDir); err != nil {
 		return err
 	}
-	output, err := os.CreateTemp(filepath.Dir(destination), "."+filepath.Base(destination)+".tmp-")
-	if err != nil {
-		return err
-	}
-	temporary := output.Name()
-	defer func() { _ = os.Remove(temporary) }()
-	if err := output.Chmod(0o755); err != nil {
-		_ = output.Close()
-		return err
-	}
-	_, copyErr := io.Copy(output, input)
-	syncErr := output.Sync()
-	closeErr := output.Close()
-	if copyErr != nil {
-		return copyErr
-	}
-	if syncErr != nil {
-		return syncErr
-	}
-	if closeErr != nil {
-		return closeErr
-	}
-	if err := chown(temporary, 0, 0); err != nil {
-		return err
-	}
-	return os.Rename(temporary, destination)
+	return chown(destination, 0, 0)
 }

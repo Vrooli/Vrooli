@@ -11,9 +11,15 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vrooli/vrooli/internal/tuning"
+
 	"github.com/vrooli/binaryfetch"
 	resourcecontrol "github.com/vrooli/vrooli/internal/resources/control"
 	resourcedeployment "github.com/vrooli/vrooli/packages/resource-deployment"
+)
+
+const (
+	managedServiceInstallFactsParameterA = 12
 )
 
 // installFactsFile is the sidecar written beside a staged artifact. It records
@@ -109,7 +115,7 @@ func shortDigest(digest string) string {
 	if digest == "" {
 		return "(none)"
 	}
-	if len(digest) <= 12 {
+	if len(digest) <= managedServiceInstallFactsParameterA {
 		return digest
 	}
 	return digest[:12]
@@ -146,10 +152,10 @@ func writeInstallFacts(artifactPath, resource string, facts binaryfetch.Facts, t
 		return err
 	}
 	path := installFactsPath(artifactPath)
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(path), tuning.PermDir); err != nil {
 		return err
 	}
-	return os.WriteFile(path, append(data, '\n'), 0o644)
+	return os.WriteFile(path, append(data, '\n'), tuning.PermFile)
 }
 
 // readInstallFacts reads the sidecar. ok is false with a nil error when no

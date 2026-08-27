@@ -7,6 +7,8 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/vrooli/vrooli/internal/tuning"
+
 	repocontract "github.com/vrooli/repo-contract-go"
 	"github.com/vrooli/vrooli/internal/config"
 )
@@ -108,7 +110,7 @@ func (r *Recorder) Record(e Event) {
 		r.ensureReadme(dir)
 		r.readmeDone = true
 	}
-	f, err := os.OpenFile(r.path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
+	f, err := os.OpenFile(r.path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, tuning.PermFile)
 	if err != nil {
 		r.report(err)
 		return
@@ -138,7 +140,7 @@ func (r *Recorder) ensureReadme(dir string) {
 	if _, err := os.Stat(readmePath); err == nil {
 		return
 	}
-	_ = config.WriteOwnedFile(readmePath, []byte(readmeContent), 0o644)
+	_ = config.WriteOwnedFile(readmePath, []byte(readmeContent), tuning.PermFile)
 }
 
 func (r *Recorder) report(err error) {

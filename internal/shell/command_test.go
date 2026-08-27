@@ -1,78 +1,35 @@
 package shell
 
 import (
-	"bytes"
+	"context"
+	"errors"
+	"os/exec"
 	"strings"
 	"testing"
 )
 
-func TestStderrTailKeepsLastNLines(t *testing.T) {
-	tail := NewStderrTail(3)
-	tail.Write([]byte("one\ntwo\nthree\nfour\nfive\n"))
-	got := tail.Tail()
-	want := []string{"three", "four", "five"}
-	if len(got) != len(want) {
-		t.Fatalf("Tail() = %v, want %v", got, want)
+func TestOSRunnerLookPath(t *testing.T) {
+	runner := OSRunner{}
+	path, err := runner.LookPath("go")
+	if err != nil || path == "" {
+		t.Fatalf("LookPath(go) = %q, %v", path, err)
 	}
-	for i := range want {
-		if got[i] != want[i] {
-			t.Fatalf("Tail()[%d] = %q, want %q", i, got[i], want[i])
-		}
+
+	if _, err := runner.LookPath("vrooli-command-that-does-not-exist"); !errors.Is(err, exec.ErrNotFound) {
+		t.Fatalf("LookPath(missing) error = %v, want exec.ErrNotFound", err)
 	}
 }
 
-func TestStderrTailHandlesPartialAndCRLF(t *testing.T) {
-	tail := NewStderrTail(2)
-	tail.Write([]byte("alpha\r\n"))
-	tail.Write([]byte("brav"))
-	tail.Write([]byte("o\r\nchar"))
-	got := tail.String()
-	if !strings.Contains(got, "bravo") {
-		t.Fatalf("missing bravo in %q", got)
-	}
-	if !strings.Contains(got, "char") {
-		t.Fatalf("partial trailing line should be retained: %q", got)
-	}
-	for _, line := range tail.Tail() {
-		if strings.HasSuffix(line, "\r") {
-			t.Fatalf("CR not stripped from %q", line)
-		}
-	}
-}
+func TestOSRunnerRun(t *testing.T) {
+	runner := OSRunner{}
 
-func TestStderrTailZeroMaxFallsBackToTen(t *testing.T) {
-	tail := NewStderrTail(0)
-	for i := 0; i < 15; i++ {
-		tail.Write([]byte("line\n"))
+	output, err := runner.Run(context.Background(), "sh", "-c", "printf success")
+	if err != nil || string(output) != "success" {
+		t.Fatalf("Run(success) = %q, %v", output, err)
 	}
-	if got := len(tail.Tail()); got != 10 {
-		t.Fatalf("len(Tail()) = %d, want 10", got)
-	}
-}
 
-func TestCommandUsesProvidedSpec(t *testing.T) {
-	var stdout bytes.Buffer
-	cmd := Command(Spec{
-		Name:   "echo",
-		Args:   []string{"hello"},
-		Dir:    "/tmp",
-		Env:    []string{"A=B"},
-		Stdout: &stdout,
-	})
-
-	if cmd.Path == "" || cmd.Args[0] != "echo" {
-		t.Fatalf("cmd.Path = %q", cmd.Path)
-	}
-	if len(cmd.Args) != 2 || cmd.Args[1] != "hello" {
-		t.Fatalf("cmd.Args = %#v", cmd.Args)
-	}
-	if cmd.Dir != "/tmp" {
-		t.Fatalf("cmd.Dir = %q", cmd.Dir)
-	}
-	if len(cmd.Env) != 1 || cmd.Env[0] != "A=B" {
-		t.Fatalf("cmd.Env = %#v", cmd.Env)
-	}
-	if cmd.Stdout != &stdout {
-		t.Fatal("expected stdout writer to be preserved")
+	output, err = runner.Run(context.Background(), "sh", "-c", "printf failure >&2; exit 7")
+	if err == nil || !strings.Contains(string(output), "failure") {
+		t.Fatalf("Run(failure) = %q, %v; want non-zero error and stderr", output, err)
 	}
 }

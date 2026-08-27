@@ -19,6 +19,7 @@ import (
 	"github.com/vrooli/vrooli/internal/scenario"
 	testscenario "github.com/vrooli/vrooli/internal/scenario/scenariotest"
 	"github.com/vrooli/vrooli/internal/scenarioruntime"
+	"github.com/vrooli/vrooli/internal/shell/shelltest"
 )
 
 // AI_CHECK: GO_MIGRATION_TEST_QUALITY=3 | LAST: 2026-04-13
@@ -96,7 +97,7 @@ func TestStatusAggregatesResourcesAndScenarios(t *testing.T) {
 		Binary:    "resource-redis",
 		Platforms: manifestpkg.ResourcePlatforms{Linux: "supported"},
 	})
-	testresource.WriteExternalCLIResourceFixture(t, root, "redis", "#!/usr/bin/env bash\nexit 0\n")
+	testresource.WriteExternalCLIResourceFixture(t, root, "redis", shelltest.BashShebang()+"exit 0\n")
 	seedRunningScenario(t, home, "alpha")
 
 	controller := New(root, home, io.Discard, io.Discard)
@@ -292,7 +293,7 @@ func TestDoctorReportsNonCanonicalCLIInstallLocations(t *testing.T) {
 	if err := os.MkdirAll(filepath.Join(home, ".vrooli", "bin"), 0o755); err != nil {
 		t.Fatalf("mkdir canonical bin: %v", err)
 	}
-	if err := os.WriteFile(filepath.Join(home, ".vrooli", "bin", "alpha"), []byte("#!/usr/bin/env bash\n"), 0o755); err != nil {
+	if err := os.WriteFile(filepath.Join(home, ".vrooli", "bin", "alpha"), []byte(shelltest.BashShebang()+""), 0o755); err != nil {
 		t.Fatalf("write canonical cli: %v", err)
 	}
 
@@ -409,7 +410,7 @@ func TestStatusSupportsResourceAndScenarioFilters(t *testing.T) {
 		Binary:    "resource-redis",
 		Platforms: manifestpkg.ResourcePlatforms{Linux: "supported"},
 	})
-	testresource.WriteExternalCLIResourceFixture(t, root, "redis", "#!/usr/bin/env bash\nexit 0\n")
+	testresource.WriteExternalCLIResourceFixture(t, root, "redis", shelltest.BashShebang()+"exit 0\n")
 	seedRunningScenario(t, home, "alpha")
 
 	controller := New(root, home, io.Discard, io.Discard)

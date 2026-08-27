@@ -32,164 +32,123 @@ func RootHandler[C any](deps HandlerDeps[C]) rootcli.Handler[C] {
 }
 
 func buildCommandTable[C any](deps HandlerDeps[C]) []commandtree.Spec[rootcli.Handler[C]] {
+	serviceFactory := func(ctx C) (cliout.Format, recoveryapp.Service, error) { return newService(deps, ctx) }
 	handlerMap := map[recoverycli.CommandID]rootcli.Handler[C]{
-		recoverycli.CommandCapture: rootcli.BindGlobalCommand(deps.Stdout,
+		recoverycli.CommandCapture: recoveryCommand(deps.Stdout,
+			serviceFactory,
 			func(ctx C, args []string) (recoveryapp.CaptureRequest, error) {
 				return recoverycli.ParseCaptureRequest(args)
 			},
-			func(ctx C, req recoveryapp.CaptureRequest) (cliout.Format, recoveryapp.CaptureOutput, error) {
-				format, service, err := newService(deps, ctx)
-				if err != nil {
-					return "", recoveryapp.CaptureOutput{}, err
-				}
-				resp, err := service.Capture(req)
-				return format, resp, err
+			func(service recoveryapp.Service, req recoveryapp.CaptureRequest) (recoveryapp.CaptureOutput, error) {
+				return service.Capture(req)
 			},
 			recoverycli.RenderCapture,
 		),
-		recoverycli.CommandRestore: rootcli.BindGlobalCommand(deps.Stdout,
+		recoverycli.CommandRestore: recoveryCommand(deps.Stdout,
+			serviceFactory,
 			func(ctx C, args []string) (recoveryapp.RestoreRequest, error) {
 				return recoverycli.ParseRestoreRequest(args)
 			},
-			func(ctx C, req recoveryapp.RestoreRequest) (cliout.Format, recoveryapp.RestoreOutput, error) {
-				format, service, err := newService(deps, ctx)
-				if err != nil {
-					return "", recoveryapp.RestoreOutput{}, err
-				}
-				resp, err := service.Restore(req)
-				return format, resp, err
+			func(service recoveryapp.Service, req recoveryapp.RestoreRequest) (recoveryapp.RestoreOutput, error) {
+				return service.Restore(req)
 			},
 			recoverycli.RenderRestore,
 		),
-		recoverycli.CommandWrite: rootcli.BindGlobalCommand(deps.Stdout,
+		recoverycli.CommandWrite: recoveryCommand(deps.Stdout,
+			serviceFactory,
 			func(ctx C, args []string) (recoveryapp.WriteRequest, error) {
 				return recoverycli.ParseWriteRequest(args)
 			},
-			func(ctx C, req recoveryapp.WriteRequest) (cliout.Format, recoveryapp.EngagementView, error) {
-				format, service, err := newService(deps, ctx)
-				if err != nil {
-					return "", recoveryapp.EngagementView{}, err
-				}
-				resp, err := service.WriteEngagement(req)
-				return format, resp, err
+			func(service recoveryapp.Service, req recoveryapp.WriteRequest) (recoveryapp.EngagementView, error) {
+				return service.WriteEngagement(req)
 			},
 			recoverycli.RenderEngagement,
 		),
-		recoverycli.CommandShow: rootcli.BindGlobalCommand(deps.Stdout,
+		recoverycli.CommandShow: recoveryCommand(deps.Stdout,
+			serviceFactory,
 			func(ctx C, args []string) (recoveryapp.Ref, error) {
 				return recoverycli.ParseRefRequest(recoverycli.CommandShow, "recovery show", args)
 			},
-			func(ctx C, req recoveryapp.Ref) (cliout.Format, recoveryapp.EngagementView, error) {
-				format, service, err := newService(deps, ctx)
-				if err != nil {
-					return "", recoveryapp.EngagementView{}, err
-				}
-				resp, err := service.ShowEngagement(req)
-				return format, resp, err
-			},
+			recoveryapp.Service.ShowEngagement,
 			recoverycli.RenderEngagement,
 		),
-		recoverycli.CommandList: rootcli.BindGlobalCommand(deps.Stdout,
+		recoverycli.CommandList: recoveryCommand(deps.Stdout,
+			serviceFactory,
 			func(ctx C, args []string) (recoveryapp.Ref, error) {
 				_, err := recoverycli.ParseRefRequest(recoverycli.CommandList, "recovery list", args)
 				return recoveryapp.Ref{}, err
 			},
-			func(ctx C, _ recoveryapp.Ref) (cliout.Format, recoveryapp.ListOutput, error) {
-				format, service, err := newService(deps, ctx)
-				if err != nil {
-					return "", recoveryapp.ListOutput{}, err
-				}
-				resp, err := service.ListEngagements()
-				return format, resp, err
+			func(service recoveryapp.Service, _ recoveryapp.Ref) (recoveryapp.ListOutput, error) {
+				return service.ListEngagements()
 			},
 			recoverycli.RenderList,
 		),
-		recoverycli.CommandTouch: rootcli.BindGlobalCommand(deps.Stdout,
+		recoverycli.CommandTouch: recoveryCommand(deps.Stdout,
+			serviceFactory,
 			func(ctx C, args []string) (recoveryapp.Ref, error) {
 				return recoverycli.ParseRefRequest(recoverycli.CommandTouch, "recovery touch", args)
 			},
-			func(ctx C, req recoveryapp.Ref) (cliout.Format, recoveryapp.EngagementView, error) {
-				format, service, err := newService(deps, ctx)
-				if err != nil {
-					return "", recoveryapp.EngagementView{}, err
-				}
-				resp, err := service.Touch(req)
-				return format, resp, err
-			},
+			recoveryapp.Service.Touch,
 			recoverycli.RenderEngagement,
 		),
-		recoverycli.CommandSetTTL: rootcli.BindGlobalCommand(deps.Stdout,
+		recoverycli.CommandSetTTL: recoveryCommand(deps.Stdout,
+			serviceFactory,
 			func(ctx C, args []string) (recoveryapp.SetTTLRequest, error) {
 				return recoverycli.ParseSetTTLRequest(args)
 			},
-			func(ctx C, req recoveryapp.SetTTLRequest) (cliout.Format, recoveryapp.EngagementView, error) {
-				format, service, err := newService(deps, ctx)
-				if err != nil {
-					return "", recoveryapp.EngagementView{}, err
-				}
-				resp, err := service.SetTTL(req)
-				return format, resp, err
-			},
+			recoveryapp.Service.SetTTL,
 			recoverycli.RenderEngagement,
 		),
-		recoverycli.CommandSetMode: rootcli.BindGlobalCommand(deps.Stdout,
+		recoverycli.CommandSetMode: recoveryCommand(deps.Stdout,
+			serviceFactory,
 			func(ctx C, args []string) (recoveryapp.SetModeRequest, error) {
 				return recoverycli.ParseSetModeRequest(args)
 			},
-			func(ctx C, req recoveryapp.SetModeRequest) (cliout.Format, recoveryapp.EngagementView, error) {
-				format, service, err := newService(deps, ctx)
-				if err != nil {
-					return "", recoveryapp.EngagementView{}, err
-				}
-				resp, err := service.SetMode(req)
-				return format, resp, err
-			},
+			recoveryapp.Service.SetMode,
 			recoverycli.RenderEngagement,
 		),
-		recoverycli.CommandClean: rootcli.BindGlobalCommand(deps.Stdout,
+		recoverycli.CommandClean: recoveryCommand(deps.Stdout,
+			serviceFactory,
 			func(ctx C, args []string) (recoveryapp.Ref, error) {
 				return recoverycli.ParseRefRequest(recoverycli.CommandClean, "recovery clean", args)
 			},
-			func(ctx C, req recoveryapp.Ref) (cliout.Format, recoveryapp.CleanOutput, error) {
-				format, service, err := newService(deps, ctx)
-				if err != nil {
-					return "", recoveryapp.CleanOutput{}, err
-				}
-				resp, err := service.Clean(req)
-				return format, resp, err
+			func(service recoveryapp.Service, req recoveryapp.Ref) (recoveryapp.CleanOutput, error) {
+				return service.Clean(req)
 			},
 			recoverycli.RenderClean,
 		),
-		recoverycli.CommandMigrate: rootcli.BindGlobalCommand(deps.Stdout,
+		recoverycli.CommandMigrate: recoveryCommand(deps.Stdout,
+			serviceFactory,
 			func(ctx C, args []string) (recoveryapp.MigrateRequest, error) {
 				return recoverycli.ParseMigrateRequest(args)
 			},
-			func(ctx C, req recoveryapp.MigrateRequest) (cliout.Format, recoveryapp.MigrateOutput, error) {
-				format, service, err := newService(deps, ctx)
-				if err != nil {
-					return "", recoveryapp.MigrateOutput{}, err
-				}
-				resp, err := service.Migrate(req)
-				return format, resp, err
+			func(service recoveryapp.Service, req recoveryapp.MigrateRequest) (recoveryapp.MigrateOutput, error) {
+				return service.Migrate(req)
 			},
 			recoverycli.RenderMigrate,
 		),
-		recoverycli.CommandNamespace: rootcli.BindGlobalCommand(deps.Stdout,
+		recoverycli.CommandNamespace: recoveryCommand(deps.Stdout,
+			serviceFactory,
 			func(ctx C, args []string) (recoveryapp.NamespaceRequest, error) {
 				return recoverycli.ParseNamespaceRequest(args)
 			},
-			func(ctx C, req recoveryapp.NamespaceRequest) (cliout.Format, recoveryapp.NamespaceOutput, error) {
-				format, service, err := newService(deps, ctx)
-				if err != nil {
-					return "", recoveryapp.NamespaceOutput{}, err
-				}
-				resp, err := service.Namespace(req)
-				return format, resp, err
+			func(service recoveryapp.Service, req recoveryapp.NamespaceRequest) (recoveryapp.NamespaceOutput, error) {
+				return service.Namespace(req)
 			},
 			recoverycli.RenderNamespace,
 		),
 	}
 	return commandtree.BindSpecs(recoverycli.CommandSpecs(), handlerMap)
+}
+
+func recoveryCommand[C any, Req any, Resp any](
+	stdout func(C) io.Writer,
+	serviceFactory func(C) (cliout.Format, recoveryapp.Service, error),
+	parse func(C, []string) (Req, error),
+	call func(recoveryapp.Service, Req) (Resp, error),
+	render func(io.Writer, cliout.Format, Resp) error,
+) rootcli.Handler[C] {
+	return rootcli.BindService(stdout, serviceFactory, parse, call, render)
 }
 
 func newService[C any](deps HandlerDeps[C], ctx C) (cliout.Format, recoveryapp.Service, error) {

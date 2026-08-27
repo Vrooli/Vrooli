@@ -6,6 +6,10 @@ import (
 	"strings"
 )
 
+const (
+	commandsNtfs = "ntfs"
+)
+
 // Backend names an execution path. Which one serves a request depends on what
 // the host actually offers, and the answer is recorded in every result so an
 // operator can tell how a change was made.
@@ -112,7 +116,7 @@ func nativeToolCommand(req Request, state State) ([]string, error) {
 // family. Every one of these is the tool's explicit no-action mode.
 func checkArgs(family, device string) ([]string, error) {
 	switch family {
-	case "ntfs":
+	case commandsNtfs:
 		return []string{"ntfsfix", "-n", device}, nil
 	case "ext":
 		return []string{"e2fsck", "-f", "-n", device}, nil
@@ -134,7 +138,7 @@ func checkArgs(family, device string) ([]string, error) {
 // repair as proof the data is intact.
 func repairArgs(family, device string) ([]string, error) {
 	switch family {
-	case "ntfs":
+	case commandsNtfs:
 		return []string{"ntfsfix", "-d", device}, nil
 	case "ext":
 		return []string{"e2fsck", "-f", "-y", device}, nil

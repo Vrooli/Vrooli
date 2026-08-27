@@ -7,6 +7,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/vrooli/vrooli/internal/shell/shelltest"
 )
 
 func TestCheckNoSourcesReturnsNoSourcesStatus(t *testing.T) {
@@ -221,8 +223,8 @@ func scaffoldScenario(t *testing.T) string {
 	dir := t.TempDir()
 	writeFile(t, filepath.Join(dir, "api", "main.go"), "package main\nfunc main(){}\n")
 	writeFile(t, filepath.Join(dir, "cli", "main.go"), "package main\nfunc main(){}\n")
-	writeExecutable(t, filepath.Join(dir, "api", "foo-api"), "#!/bin/sh\nexit 0\n")
-	writeExecutable(t, filepath.Join(dir, "cli", "foo"), "#!/bin/sh\nexit 0\n")
+	writeExecutable(t, filepath.Join(dir, "api", "foo-api"), shelltest.POSIXShebang()+"exit 0\n")
+	writeExecutable(t, filepath.Join(dir, "cli", "foo"), shelltest.POSIXShebang()+"exit 0\n")
 	return dir
 }
 

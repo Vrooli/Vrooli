@@ -21,6 +21,11 @@ type HandlerDeps[C any] struct {
 	TestGenieRunner    func(C, string, io.Writer, io.Writer) error
 }
 
+type packageService struct {
+	packageapp.Service
+	format cliout.Format
+}
+
 func RootHandler[C any](deps HandlerDeps[C]) rootcli.Handler[C] {
 	handlers := buildCommandHandlers(deps)
 	return func(ctx C, args []string) error {
@@ -34,56 +39,43 @@ func buildCommandHandlers[C any](deps HandlerDeps[C]) map[string]rootcli.Handler
 
 func buildCommandTable[C any](deps HandlerDeps[C]) []commandtree.Spec[rootcli.Handler[C]] {
 	handlerMap := map[packagecli.CommandID]rootcli.Handler[C]{
-		packagecli.CommandList: rootcli.BindGlobalCommand(deps.Stdout,
+		packagecli.CommandList: rootcli.BindService(deps.Stdout, newServiceFor(deps),
 			func(ctx C, args []string) (packagecli.ListRequest, error) { return packagecli.ParseListRequest(args) },
-			func(ctx C, req packagecli.ListRequest) (cliout.Format, packagecli.ListResponse, error) {
-				_ = req
-				format, err := deps.OutputFormat(ctx)
+			func(service packageService, req packagecli.ListRequest) (packagecli.ListResponse, error) {
+				items, issues, err := service.List()
 				if err != nil {
-					return "", packagecli.ListResponse{}, err
+					return packagecli.ListResponse{}, err
 				}
-				items, issues, err := packageapp.Service{Root: deps.Root(ctx)}.List()
-				if err != nil {
-					return "", packagecli.ListResponse{}, err
-				}
-				if len(issues) > 0 && format != cliout.FormatJSON {
+				if len(issues) > 0 && service.format != cliout.FormatJSON {
 					for _, issue := range issues {
-						_, _ = io.WriteString(deps.Stderr(ctx), "warning: "+issue.Message+"\n")
+						_, _ = io.WriteString(service.Stderr, "warning: "+issue.Message+"\n")
 					}
 				}
-				return format, packagecli.ListResponse{Packages: items}, nil
+				return packagecli.ListResponse{Packages: items}, nil
 			},
 			packagecli.RenderList,
 		),
-		packagecli.CommandInfo: rootcli.BindGlobalCommand(deps.Stdout,
+		packagecli.CommandInfo: rootcli.BindService(deps.Stdout, newServiceFor(deps),
 			func(ctx C, args []string) (packagecli.InfoRequest, error) { return packagecli.ParseInfoRequest(args) },
-			func(ctx C, req packagecli.InfoRequest) (cliout.Format, packagegov.Package, error) {
-				format, err := deps.OutputFormat(ctx)
+			func(service packageService, req packagecli.InfoRequest) (packagegov.Package, error) {
+				item, err := service.Info(req.Name)
 				if err != nil {
-					return "", packagegov.Package{}, err
+					return packagegov.Package{}, rootcli.UsageErrorf("package info", "%s", err.Error())
 				}
-				item, err := packageapp.Service{Root: deps.Root(ctx)}.Info(req.Name)
-				if err != nil {
-					return "", packagegov.Package{}, rootcli.UsageErrorf("package info", "%s", err.Error())
-				}
-				return format, item, nil
+				return item, nil
 			},
 			packagecli.RenderInfo,
 		),
-		packagecli.CommandDependents: rootcli.BindGlobalCommand(deps.Stdout,
+		packagecli.CommandDependents: rootcli.BindService(deps.Stdout, newServiceFor(deps),
 			func(ctx C, args []string) (packagecli.DependentsRequest, error) {
 				return packagecli.ParseDependentsRequest(args)
 			},
-			func(ctx C, req packagecli.DependentsRequest) (cliout.Format, packagecli.DependentsResponse, error) {
-				format, err := deps.OutputFormat(ctx)
+			func(service packageService, req packagecli.DependentsRequest) (packagecli.DependentsResponse, error) {
+				item, report, err := service.Dependents(req.Name)
 				if err != nil {
-					return "", packagecli.DependentsResponse{}, err
+					return packagecli.DependentsResponse{}, rootcli.UsageErrorf("package dependents", "%s", err.Error())
 				}
-				item, report, err := packageapp.Service{Root: deps.Root(ctx)}.Dependents(req.Name)
-				if err != nil {
-					return "", packagecli.DependentsResponse{}, rootcli.UsageErrorf("package dependents", "%s", err.Error())
-				}
-				return format, packagecli.DependentsResponse{
+				return packagecli.DependentsResponse{
 					PackageName: item.Name,
 					Dependents:  report.Dependents,
 					Issues:      report.Issues,
@@ -91,76 +83,60 @@ func buildCommandTable[C any](deps HandlerDeps[C]) []commandtree.Spec[rootcli.Ha
 			},
 			packagecli.RenderDependents,
 		),
-		packagecli.CommandBuild: rootcli.BindGlobalCommand(deps.Stdout,
+		packagecli.CommandBuild: rootcli.BindService(deps.Stdout, newServiceFor(deps),
 			func(ctx C, args []string) (packagecli.RunRequest, error) {
 				return packagecli.ParseRunRequest("build", args)
 			},
-			func(ctx C, req packagecli.RunRequest) (cliout.Format, packagecli.RunResponse, error) {
-				format, err := deps.OutputFormat(ctx)
+			func(service packageService, req packagecli.RunRequest) (packagecli.RunResponse, error) {
+				resp, err := service.Build(req.Name)
 				if err != nil {
-					return "", packagecli.RunResponse{}, err
+					return packagecli.RunResponse{}, err
 				}
-				resp, err := newService(deps, ctx, format).Build(req.Name)
-				if err != nil {
-					return "", packagecli.RunResponse{}, err
-				}
-				return format, packagecli.RunResponse(resp), nil
+				return packagecli.RunResponse(resp), nil
 			},
 			packagecli.RenderRun,
 		),
-		packagecli.CommandGenerate: rootcli.BindGlobalCommand(deps.Stdout,
+		packagecli.CommandGenerate: rootcli.BindService(deps.Stdout, newServiceFor(deps),
 			func(ctx C, args []string) (packagecli.RunRequest, error) {
 				return packagecli.ParseRunRequest("generate", args)
 			},
-			func(ctx C, req packagecli.RunRequest) (cliout.Format, packagecli.RunResponse, error) {
-				format, err := deps.OutputFormat(ctx)
+			func(service packageService, req packagecli.RunRequest) (packagecli.RunResponse, error) {
+				resp, err := service.Generate(req.Name)
 				if err != nil {
-					return "", packagecli.RunResponse{}, err
+					return packagecli.RunResponse{}, err
 				}
-				resp, err := newService(deps, ctx, format).Generate(req.Name)
-				if err != nil {
-					return "", packagecli.RunResponse{}, err
-				}
-				return format, packagecli.RunResponse(resp), nil
+				return packagecli.RunResponse(resp), nil
 			},
 			packagecli.RenderRun,
 		),
-		packagecli.CommandTest: rootcli.BindGlobalCommand(deps.Stdout,
+		packagecli.CommandTest: rootcli.BindService(deps.Stdout, newServiceFor(deps),
 			func(ctx C, args []string) (packagecli.RunRequest, error) {
 				return packagecli.ParseRunRequest("test", args)
 			},
-			func(ctx C, req packagecli.RunRequest) (cliout.Format, packagecli.RunResponse, error) {
-				format, err := deps.OutputFormat(ctx)
+			func(service packageService, req packagecli.RunRequest) (packagecli.RunResponse, error) {
+				resp, err := service.Test(req.Name)
 				if err != nil {
-					return "", packagecli.RunResponse{}, err
+					return packagecli.RunResponse{}, err
 				}
-				resp, err := newService(deps, ctx, format).Test(req.Name)
-				if err != nil {
-					return "", packagecli.RunResponse{}, err
-				}
-				return format, packagecli.RunResponse(resp), nil
+				return packagecli.RunResponse(resp), nil
 			},
 			packagecli.RenderRun,
 		),
-		packagecli.CommandRefresh: rootcli.BindGlobalCommand(deps.Stdout,
+		packagecli.CommandRefresh: rootcli.BindService(deps.Stdout, newServiceFor(deps),
 			func(ctx C, args []string) (packagecli.RefreshRequest, error) {
 				return packagecli.ParseRefreshRequest(args)
 			},
-			func(ctx C, req packagecli.RefreshRequest) (cliout.Format, packagecli.RefreshResponse, error) {
-				format, err := deps.OutputFormat(ctx)
-				if err != nil {
-					return "", packagecli.RefreshResponse{}, err
-				}
-				resp, err := newService(deps, ctx, format).Refresh(packageapp.RefreshRequest{
+			func(service packageService, req packagecli.RefreshRequest) (packagecli.RefreshResponse, error) {
+				resp, err := service.Refresh(packageapp.RefreshRequest{
 					PackageName: req.Name,
 					Target:      req.Target,
 					NoRestart:   req.NoRestart,
 					Interactive: req.Interactive,
 				})
 				if err != nil {
-					return "", packagecli.RefreshResponse{}, err
+					return packagecli.RefreshResponse{}, err
 				}
-				return format, packagecli.RefreshResponse{
+				return packagecli.RefreshResponse{
 					PackageName: resp.PackageName,
 					Items:       toCLIRefreshItems(resp.Items),
 				}, nil
@@ -172,10 +148,20 @@ func buildCommandTable[C any](deps HandlerDeps[C]) []commandtree.Spec[rootcli.Ha
 	return commandtree.BindSpecs(packagecli.CommandSpecs(), handlerMap)
 }
 
+func newServiceFor[C any](deps HandlerDeps[C]) func(C) (cliout.Format, packageService, error) {
+	return func(ctx C) (cliout.Format, packageService, error) {
+		format, err := deps.OutputFormat(ctx)
+		if err != nil {
+			return "", packageService{}, err
+		}
+		return format, packageService{Service: newService(deps, ctx, format), format: format}, nil
+	}
+}
+
 func newService[C any](deps HandlerDeps[C], ctx C, format cliout.Format) packageapp.Service {
 	stdout := deps.Stdout(ctx)
 	stderr := deps.Stderr(ctx)
-	if format == cliout.FormatJSON {
+	if format != cliout.FormatHuman {
 		stdout = stderr
 	}
 	return packageapp.Service{

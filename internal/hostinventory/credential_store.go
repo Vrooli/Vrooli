@@ -5,12 +5,15 @@ import (
 	"errors"
 	"strings"
 	"time"
+
+	"github.com/vrooli/vrooli/internal/hostreqspec"
+	"github.com/vrooli/vrooli/internal/tuning"
 )
 
 const (
-	credentialStoreOwnerTimeout       = 1 * time.Second
-	credentialStoreCollectionsTimeout = 3 * time.Second
-	credentialStoreCollectionTimeout  = 1 * time.Second
+	credentialStoreOwnerTimeout       = tuning.ShortOperationTimeout
+	credentialStoreCollectionsTimeout = tuning.HealthCheckTimeout
+	credentialStoreCollectionTimeout  = tuning.ShortOperationTimeout
 )
 
 // CredentialStoreStatus probes the current user's Secret Service without
@@ -24,7 +27,7 @@ func CredentialStoreStatus(ctx context.Context) CredentialStoreCapability {
 // probeCredentialStore performs a real Secret Service property read. Peer.Ping
 // is intentionally not used: a wedged service can answer it successfully.
 func probeCredentialStore(ctx context.Context, c Collector, user string) CredentialStoreCapability {
-	if c.GOOS != "linux" {
+	if hostreqspec.PlatformFromGOOS(c.GOOS) != hostreqspec.PlatformLinux {
 		return CredentialStoreCapability{State: "unsupported", Reason: "Secret Service probing is Linux-only"}
 	}
 	if !c.commandAvailable("gdbus") {

@@ -36,6 +36,8 @@ const (
 	// InventoryServiceScanScenarioProcedure is the fully-qualified name of the InventoryService's
 	// ScanScenario RPC.
 	InventoryServiceScanScenarioProcedure = "/vrooli.ui_health.v1.inventory.InventoryService/ScanScenario"
+	// InventoryServiceScanProcedure is the fully-qualified name of the InventoryService's Scan RPC.
+	InventoryServiceScanProcedure = "/vrooli.ui_health.v1.inventory.InventoryService/Scan"
 )
 
 // InventoryServiceClient is a client for the vrooli.ui_health.v1.inventory.InventoryService
@@ -46,6 +48,8 @@ type InventoryServiceClient interface {
 	// canonical ComponentProvenance + WidgetDeclaration + indexable SurfaceRecord
 	// values keyed by file path.
 	ScanScenario(context.Context, *connect.Request[inventory.ScanScenarioRequest]) (*connect.Response[inventory.ScanScenarioResponse], error)
+	// Scan validates the supplied asset subjects without walking unrelated UI.
+	Scan(context.Context, *connect.Request[inventory.ScanRequest]) (*connect.Response[inventory.ScanResponse], error)
 }
 
 // NewInventoryServiceClient constructs a client for the
@@ -66,17 +70,29 @@ func NewInventoryServiceClient(httpClient connect.HTTPClient, baseURL string, op
 			connect.WithSchema(inventoryServiceMethods.ByName("ScanScenario")),
 			connect.WithClientOptions(opts...),
 		),
+		scan: connect.NewClient[inventory.ScanRequest, inventory.ScanResponse](
+			httpClient,
+			baseURL+InventoryServiceScanProcedure,
+			connect.WithSchema(inventoryServiceMethods.ByName("Scan")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // inventoryServiceClient implements InventoryServiceClient.
 type inventoryServiceClient struct {
 	scanScenario *connect.Client[inventory.ScanScenarioRequest, inventory.ScanScenarioResponse]
+	scan         *connect.Client[inventory.ScanRequest, inventory.ScanResponse]
 }
 
 // ScanScenario calls vrooli.ui_health.v1.inventory.InventoryService.ScanScenario.
 func (c *inventoryServiceClient) ScanScenario(ctx context.Context, req *connect.Request[inventory.ScanScenarioRequest]) (*connect.Response[inventory.ScanScenarioResponse], error) {
 	return c.scanScenario.CallUnary(ctx, req)
+}
+
+// Scan calls vrooli.ui_health.v1.inventory.InventoryService.Scan.
+func (c *inventoryServiceClient) Scan(ctx context.Context, req *connect.Request[inventory.ScanRequest]) (*connect.Response[inventory.ScanResponse], error) {
+	return c.scan.CallUnary(ctx, req)
 }
 
 // InventoryServiceHandler is an implementation of the
@@ -87,6 +103,8 @@ type InventoryServiceHandler interface {
 	// canonical ComponentProvenance + WidgetDeclaration + indexable SurfaceRecord
 	// values keyed by file path.
 	ScanScenario(context.Context, *connect.Request[inventory.ScanScenarioRequest]) (*connect.Response[inventory.ScanScenarioResponse], error)
+	// Scan validates the supplied asset subjects without walking unrelated UI.
+	Scan(context.Context, *connect.Request[inventory.ScanRequest]) (*connect.Response[inventory.ScanResponse], error)
 }
 
 // NewInventoryServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -102,10 +120,18 @@ func NewInventoryServiceHandler(svc InventoryServiceHandler, opts ...connect.Han
 		connect.WithSchema(inventoryServiceMethods.ByName("ScanScenario")),
 		connect.WithHandlerOptions(opts...),
 	)
+	inventoryServiceScanHandler := connect.NewUnaryHandler(
+		InventoryServiceScanProcedure,
+		svc.Scan,
+		connect.WithSchema(inventoryServiceMethods.ByName("Scan")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/vrooli.ui_health.v1.inventory.InventoryService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case InventoryServiceScanScenarioProcedure:
 			inventoryServiceScanScenarioHandler.ServeHTTP(w, r)
+		case InventoryServiceScanProcedure:
+			inventoryServiceScanHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -117,4 +143,8 @@ type UnimplementedInventoryServiceHandler struct{}
 
 func (UnimplementedInventoryServiceHandler) ScanScenario(context.Context, *connect.Request[inventory.ScanScenarioRequest]) (*connect.Response[inventory.ScanScenarioResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.ui_health.v1.inventory.InventoryService.ScanScenario is not implemented"))
+}
+
+func (UnimplementedInventoryServiceHandler) Scan(context.Context, *connect.Request[inventory.ScanRequest]) (*connect.Response[inventory.ScanResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.ui_health.v1.inventory.InventoryService.Scan is not implemented"))
 }

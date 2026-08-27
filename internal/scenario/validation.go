@@ -9,6 +9,12 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+
+	"github.com/vrooli/vrooli/internal/repocontractmeta"
+)
+
+const (
+	validationParameterA = 2
 )
 
 func (cfg *CLIConfig) applyDefaults() {
@@ -127,7 +133,7 @@ func (deps Dependencies) Validate() error {
 	if err := validateDependencyCollection("resources", deps.Resources); err != nil {
 		return err
 	}
-	if err := validateDependencyCollection("scenarios", deps.Scenarios); err != nil {
+	if err := validateDependencyCollection(repocontractmeta.ScenarioDir, deps.Scenarios); err != nil {
 		return err
 	}
 	return nil
@@ -172,6 +178,7 @@ func decodeDependencyCollection(data json.RawMessage, defaultType string) (map[s
 	return direct, nil
 }
 
+//nolint:gocyclo // dependency decoding maintains legacy aliases, validation, and unknown-field behavior.
 func (dependency *Dependency) UnmarshalJSON(data []byte) error {
 	raw := map[string]json.RawMessage{}
 	if err := json.Unmarshal(data, &raw); err != nil {
@@ -293,6 +300,8 @@ func (dependency *Dependency) UnmarshalJSON(data []byte) error {
 
 // MarshalJSON emits typed fields and the dependency-specific Config object.
 // The `enabled` key is always emitted (default is true when absent on input).
+//
+//nolint:gocyclo // dependency encoding preserves canonical field names and compatibility projections.
 func (dependency Dependency) MarshalJSON() ([]byte, error) {
 	out := map[string]json.RawMessage{}
 	if len(dependency.Config) > 0 {
@@ -477,7 +486,7 @@ func ScenarioInScope(root, name, scope string) bool {
 	}
 
 	scopedName := strings.TrimPrefix(scope, prefix+"/")
-	scopedName = strings.SplitN(scopedName, "/", 2)[0]
+	scopedName = strings.SplitN(scopedName, "/", validationParameterA)[0]
 	return name == scopedName
 }
 

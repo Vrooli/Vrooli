@@ -17,6 +17,12 @@ import (
 	"github.com/vrooli/vrooli/internal/orchestrator"
 	"github.com/vrooli/vrooli/internal/resources"
 	scenariomodel "github.com/vrooli/vrooli/internal/scenario"
+	"github.com/vrooli/vrooli/internal/scenarioruntime"
+)
+
+const (
+	serviceParameterB = 124
+	serviceParameterC = 2
 )
 
 type EnvironmentValidator interface {
@@ -143,13 +149,13 @@ func (s Service) List(req ListRequest) (ListResponse, error) {
 	}
 	for _, item := range inventory.Items {
 		status := "available"
-		if item.Details.Status == "running" {
+		if item.Details.Status == scenarioruntime.StatusRunning {
 			status = item.Details.Status
 			resp.RunningCount++
 		}
 
 		listPorts := []ListPortOutput{}
-		if req.IncludePorts && item.Details.Status == "running" {
+		if req.IncludePorts && item.Details.Status == scenarioruntime.StatusRunning {
 			listPorts = RuntimePortOutputs(item.Details.PortBindings)
 		}
 
@@ -250,9 +256,9 @@ func VerdictExitCode(verdict string) int {
 	case lifecycle.WaitVerdictHealthy, lifecycle.WaitVerdictRunning:
 		return 0
 	case lifecycle.WaitVerdictDegraded:
-		return 2
+		return serviceParameterC
 	case lifecycle.WaitVerdictTimeout:
-		return 124
+		return serviceParameterB
 	default:
 		return 1
 	}
@@ -308,7 +314,7 @@ func (s Service) Port(req PortRequest) (PortResponse, error) {
 	portsMap := CopyIntMap(detail.Details.Ports)
 
 	if req.PortName == "" {
-		if detail.Details.Status != "running" || len(portsMap) == 0 {
+		if detail.Details.Status != scenarioruntime.StatusRunning || len(portsMap) == 0 {
 			errMessage := noRunningRuntimePortsMessage(req.ScenarioName, detail.Details.Status, len(detail.Details.PortBindings))
 			if req.JSON {
 				return PortResponse{List: &PortListOutput{
@@ -331,7 +337,7 @@ func (s Service) Port(req PortRequest) (PortResponse, error) {
 		return PortResponse{List: list}, nil
 	}
 
-	if detail.Details.Status != "running" {
+	if detail.Details.Status != scenarioruntime.StatusRunning {
 		errMessage := noRunningRuntimePortsMessage(req.ScenarioName, detail.Details.Status, len(detail.Details.PortBindings))
 		if req.JSON {
 			return PortResponse{Single: &PortSingleOutput{
@@ -371,7 +377,7 @@ func noRunningRuntimePortsMessage(scenarioName string, status string, bindingCou
 	if trimmedStatus == "" {
 		trimmedStatus = "unknown"
 	}
-	if bindingCount > 0 && trimmedStatus != "running" {
+	if bindingCount > 0 && trimmedStatus != scenarioruntime.StatusRunning {
 		return fmt.Sprintf("runtime registry for scenario %q is %s with %d port binding(s), but only running runtimes expose ports; check `vrooli runtime supervisor status` and restart the scenario if needed", scenarioName, trimmedStatus, bindingCount)
 	}
 	return fmt.Sprintf("no running runtime ports found for scenario %q", scenarioName)
@@ -403,7 +409,7 @@ func (s Service) hostPort(req PortRequest) (PortResponse, error) {
 
 func parsePort(output string) (int, error) {
 	match := regexp.MustCompile(`\b(\d{2,5})\b`).FindStringSubmatch(output)
-	if len(match) < 2 {
+	if len(match) < serviceParameterC {
 		return 0, fmt.Errorf("host port proxy returned no port in %q", strings.TrimSpace(output))
 	}
 	port, err := strconv.Atoi(match[1])

@@ -14,6 +14,17 @@ import (
 	"github.com/vrooli/vrooli/internal/gpuaccess"
 	resourcecontrol "github.com/vrooli/vrooli/internal/resources/control"
 	manifestpkg "github.com/vrooli/vrooli/internal/resources/manifest"
+	"github.com/vrooli/vrooli/internal/scenarioruntime"
+)
+
+const (
+	accelBridgeManagedService = "managed-service"
+)
+
+const (
+	accelBridgeComposeService = "compose-service"
+	accelBridgeDockerService  = "docker-service"
+	accelBridgeNativeCli      = "native-cli"
 )
 
 // This file is the only place internal/resources and internal/accel meet.
@@ -99,7 +110,7 @@ func resourceArtifactPrefix(manifest ResourceManifest) string {
 // has no placement to read.
 func placementTargetFor(ctx context.Context, controller *Controller, manifest ResourceManifest) (accel.PlacementTarget, bool, error) {
 	switch manifest.Driver {
-	case "compose-service":
+	case accelBridgeComposeService:
 		services, err := inspectComposeServices(ctx, controller, manifest)
 		if err != nil {
 			return nil, false, fmt.Errorf("verify accelerator placement for %s: inspect compose services: %w", manifest.Name, err)
@@ -113,7 +124,7 @@ func placementTargetFor(ctx context.Context, controller *Controller, manifest Re
 		}
 		return target, true, nil
 
-	case "docker-service":
+	case accelBridgeDockerService:
 		state, exists, err := inspectDockerContainer(ctx, controller, manifest)
 		if err != nil {
 			return nil, false, fmt.Errorf("verify accelerator placement for %s: inspect container: %w", manifest.Name, err)
@@ -123,7 +134,7 @@ func placementTargetFor(ctx context.Context, controller *Controller, manifest Re
 		}
 		return accel.Container{Name: dockerContainerName(manifest)}, true, nil
 
-	case "managed-service", "native-cli":
+	case accelBridgeManagedService, accelBridgeNativeCli:
 		process := accel.HostProcess{
 			Name:             manifest.Name,
 			ExecutablePrefix: resourceArtifactPrefix(manifest),
@@ -262,7 +273,7 @@ func applyGPUOverride(readiness accel.ReadinessResult, spec accel.Spec) (accel.R
 
 // applyHealthToStatus is the single place a health verdict becomes a status
 // object, so every driver reports mode drift the same way. Without it each
-// driver would decide independently what "healthy" means for a resource that is
+// driver would decide independently what a healthy resource means, so this bridge
 // serving from the wrong device.
 func applyHealthToStatus(status Status, health HealthResult) Status {
 	healthy := health.Healthy
@@ -279,7 +290,7 @@ func applyHealthToStatus(status Status, health HealthResult) Status {
 	switch {
 	case health.PlacementUndetermined && healthy:
 		status.StatusCode = resourcecontrol.StatusCodePlacementUndetermined
-		status.Health = "healthy"
+		status.Health = scenarioruntime.HealthStatusHealthy
 		if status.Message == "" {
 			status.Message = "healthy; placement undetermined: " + health.ModeReason
 		}
@@ -290,9 +301,9 @@ func applyHealthToStatus(status Status, health HealthResult) Status {
 		status.StatusCode = resourcecontrol.StatusCodeModeDrift
 		status.Health = "degraded"
 	case healthy:
-		status.Health = "healthy"
+		status.Health = scenarioruntime.HealthStatusHealthy
 	default:
-		status.Health = "unhealthy"
+		status.Health = scenarioruntime.HealthStatusUnhealthy
 	}
 	return status
 }

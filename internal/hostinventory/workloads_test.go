@@ -3,6 +3,8 @@ package hostinventory
 import (
 	"context"
 	"testing"
+
+	"github.com/vrooli/vrooli/internal/shell/shelltest"
 )
 
 func TestParseSS(t *testing.T) {
@@ -43,9 +45,9 @@ func TestParseSCQueryAndWindowsNetstat(t *testing.T) {
 
 func TestCollectWorkloadsIncludesRestartEvidenceAndUnreadStates(t *testing.T) {
 	docker := "/usr/bin/docker"
-	c := Collector{GOOS: "linux", Commands: fakeCommandRunner{
-		paths: map[string]string{"docker": docker, "systemctl": "/usr/bin/systemctl", "ss": "/usr/bin/ss"},
-		out: map[string][]byte{
+	c := Collector{GOOS: "linux", Commands: &shelltest.Fake{
+		Paths: map[string]string{"docker": docker, "systemctl": "/usr/bin/systemctl", "ss": "/usr/bin/ss"},
+		Outputs: map[string][]byte{
 			docker + " ps -a --format {{json .}}": []byte(`{"Names":"airbyte-abctl-control-plane","Image":"kindest/node:v1.32.2","State":"running"}
 `),
 			docker + " inspect --format {{.Name}}\t{{.RestartCount}} airbyte-abctl-control-plane": []byte("/airbyte-abctl-control-plane\t191985\n"),

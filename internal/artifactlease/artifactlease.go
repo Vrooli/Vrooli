@@ -43,7 +43,13 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vrooli/vrooli/internal/tuning"
+
 	"github.com/vrooli/api-core/storage"
+)
+
+const (
+	artifactleaseParameterA = 2
 )
 
 // Suffix is appended to an artifact path to locate its lease.
@@ -59,7 +65,7 @@ const Schema = "vrooli.artifact-lease/1"
 // test run, or scenario regeneration under concurrent agents, and the cost is
 // only disk. The backlog that motivated this work was roughly 2GB against 436GB
 // free, so the conservative direction is close to free.
-const DefaultGrace = 24 * time.Hour
+const DefaultGrace = tuning.DailyRetentionWindow
 
 // MinObservations is how many independent sightings of an absence are required
 // before it may be acted on. One observation is a sample; two separated by the
@@ -131,7 +137,7 @@ func Save(lease Lease) error {
 	if err != nil {
 		return fmt.Errorf("encode lease for %s: %w", filepath.Base(lease.Artifact), err)
 	}
-	return storage.WriteFileAtomic(Path(lease.Artifact), append(data, '\n'), 0o600)
+	return storage.WriteFileAtomic(Path(lease.Artifact), append(data, '\n'), tuning.PermSecret)
 }
 
 // Claim records a fresh installation: new bytes were written to this path.
@@ -299,7 +305,7 @@ func Renew(artifact string, owner Owner, ownerModule string, ttl time.Duration, 
 	}
 
 	expiry := parseTime(lease.ExpiresAt)
-	stillFresh := !expiry.IsZero() && now.Add(ttl/2).Before(expiry)
+	stillFresh := !expiry.IsZero() && now.Add(ttl/artifactleaseParameterA).Before(expiry)
 	if stillFresh && lease.OwnerMissingSince == "" && lease.Observations == 0 {
 		return lease, nil
 	}

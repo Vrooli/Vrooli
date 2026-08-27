@@ -9,6 +9,7 @@ import (
 
 	"github.com/vrooli/vrooli/internal/hostpresentation"
 	"github.com/vrooli/vrooli/internal/onboardinghandoff"
+	"github.com/vrooli/vrooli/internal/testenv"
 )
 
 func prepareHandoffFixture(t *testing.T, capability hostpresentation.Capability) (*setupService, string, string) {
@@ -147,7 +148,7 @@ func TestStartOnboardingScenarioDoesNotUseOperatorSessionWhenUnprivileged(t *tes
 		operatorLaunches++
 		return nil
 	}
-	t.Setenv("SUDO_USER", "operator")
+	testenv.SetSudoUser(t, "operator")
 
 	if err := startOnboardingScenario(t.TempDir(), "/bin/true"); err != nil {
 		t.Fatalf("startOnboardingScenario: %v", err)

@@ -8,6 +8,8 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/vrooli/vrooli/internal/config"
 )
 
 // GNOME Keyring stores a passwordless keyring in GKeyFile's textual format,
@@ -603,28 +605,8 @@ func backupKeyringFile(path string, contents []byte, mode os.FileMode) (string, 
 // writeFileAtomic replaces a file through a temporary in the same directory, so
 // a crash mid-write leaves the original rather than a truncated keyring.
 func writeFileAtomic(path string, contents []byte, mode os.FileMode) error {
-	dir := filepath.Dir(path)
-	temp, err := os.CreateTemp(dir, filepath.Base(path)+".repair-*")
-	if err != nil {
-		return fmt.Errorf("create temporary file: %w", err)
+	if err := config.WriteOwnedFileAtomic(path, contents, mode); err != nil {
+		return fmt.Errorf("write keyring file: %w", err)
 	}
-	tempName := temp.Name()
-	defer func() { _ = os.Remove(tempName) }()
-
-	if err := temp.Chmod(mode); err != nil {
-		_ = temp.Close()
-		return fmt.Errorf("set permissions: %w", err)
-	}
-	if _, err := temp.Write(contents); err != nil {
-		_ = temp.Close()
-		return fmt.Errorf("write: %w", err)
-	}
-	if err := temp.Sync(); err != nil {
-		_ = temp.Close()
-		return fmt.Errorf("sync: %w", err)
-	}
-	if err := temp.Close(); err != nil {
-		return fmt.Errorf("close: %w", err)
-	}
-	return os.Rename(tempName, path)
+	return nil
 }

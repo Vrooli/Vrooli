@@ -4,14 +4,15 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
+
+	"github.com/vrooli/vrooli/internal/tuning"
 
 	"github.com/vrooli/vrooli/internal/config"
 )
 
 const (
-	DefaultDirPerm  = 0o755
-	DefaultFilePerm = 0o644
+	DefaultDirPerm  = tuning.PermDir
+	DefaultFilePerm = tuning.PermFile
 )
 
 func EnsureAllDirs(r *Resolver, opts Options, perm os.FileMode) (Paths, error) {
@@ -88,55 +89,5 @@ func WriteFileAtomic(path string, data []byte, perm os.FileMode) error {
 	if perm == 0 {
 		perm = DefaultFilePerm
 	}
-	// Route managed runtime-home writes through the control-plane seam. It
-	// preserves explicit modes, same-directory atomic replacement, and
-	// sudo-aware ownership without making this shared storage package a host
-	// remediation implementation.
-	if isOutsideVrooliRuntimeHome(path) {
-		// Resource storage may legitimately live in an XDG path outside the
-		// Vrooli runtime home. Preserve that existing portable atomic contract.
-		return writeFileAtomicUnmanaged(path, data, perm)
-	}
 	return config.WriteOwnedFileAtomic(path, data, perm)
-}
-
-func writeFileAtomicUnmanaged(path string, data []byte, perm os.FileMode) error {
-	dir := filepath.Dir(path)
-	if err := os.MkdirAll(dir, DefaultDirPerm); err != nil {
-		return &Error{Kind: ErrResolve, Message: "ensure parent dir", Details: dir, Err: err}
-	}
-	tmp, err := os.CreateTemp(dir, ".tmp-*")
-	if err != nil {
-		return &Error{Kind: ErrResolve, Message: "create temp file", Details: dir, Err: err}
-	}
-	tmpName := tmp.Name()
-	defer os.Remove(tmpName)
-	if _, err := tmp.Write(data); err != nil {
-		tmp.Close()
-		return &Error{Kind: ErrResolve, Message: "write temp file", Details: tmpName, Err: err}
-	}
-	if err := tmp.Chmod(perm); err != nil {
-		tmp.Close()
-		return &Error{Kind: ErrResolve, Message: "chmod temp file", Details: tmpName, Err: err}
-	}
-	if err := tmp.Sync(); err != nil {
-		tmp.Close()
-		return &Error{Kind: ErrResolve, Message: "sync temp file", Details: tmpName, Err: err}
-	}
-	if err := tmp.Close(); err != nil {
-		return &Error{Kind: ErrResolve, Message: "close temp file", Details: tmpName, Err: err}
-	}
-	if err := os.Rename(tmpName, path); err != nil {
-		return &Error{Kind: ErrResolve, Message: "rename temp file", Details: path, Err: err}
-	}
-	return nil
-}
-
-func isOutsideVrooliRuntimeHome(path string) bool {
-	home, err := config.VrooliHome()
-	if err != nil {
-		return true
-	}
-	path, home = filepath.Clean(path), filepath.Clean(home)
-	return path != home && !strings.HasPrefix(path, home+string(filepath.Separator))
 }

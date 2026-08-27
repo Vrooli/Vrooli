@@ -3,24 +3,17 @@ package workloadowner
 import (
 	"context"
 	"fmt"
-	"os/exec"
 	"runtime"
+
+	"github.com/vrooli/vrooli/internal/shell"
 )
 
 // CommandRunner is the deliberately small seam used by the live enumerator.
 // It keeps the ownership classifier testable without giving it a host-repair
 // capability.
-type CommandRunner interface {
-	LookPath(string) (string, error)
-	Run(context.Context, string, ...string) ([]byte, error)
-}
+type CommandRunner = shell.Runner
 
-type systemCommandRunner struct{}
-
-func (systemCommandRunner) LookPath(name string) (string, error) { return exec.LookPath(name) }
-func (systemCommandRunner) Run(ctx context.Context, name string, args ...string) ([]byte, error) {
-	return exec.CommandContext(ctx, name, args...).Output()
-}
+type systemCommandRunner = shell.OSRunner
 
 type LiveReport struct {
 	Report       Report     `json:"report"`

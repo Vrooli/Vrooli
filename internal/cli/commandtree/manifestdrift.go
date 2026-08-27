@@ -5,6 +5,10 @@ import (
 	"strings"
 )
 
+const (
+	manifestdriftParameterA = 2
+)
+
 // CommandNode is a command-tree registration node. A node with children is a
 // command group; a node without children is an invocable leaf command.
 type CommandNode struct {
@@ -76,7 +80,7 @@ func insertCommandPath(nodes []CommandNode, parts []string) []CommandNode {
 }
 
 func uniqueStrings(values []string) []string {
-	if len(values) < 2 {
+	if len(values) < manifestdriftParameterA {
 		return values
 	}
 	out := values[:1]

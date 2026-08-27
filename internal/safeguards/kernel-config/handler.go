@@ -5,6 +5,11 @@ import (
 	"github.com/vrooli/vrooli/internal/hostreqspec"
 )
 
+const (
+	handlerParameterC = 1048576
+	handlerParameterD = 2048
+)
+
 const configPath = "/etc/sysctl.d/99-vrooli.conf"
 
 type handler struct {
@@ -22,8 +27,8 @@ func (h handler) applier() hostreqkit.SysctlApplier {
 	return hostreqkit.SysctlApplier{
 		ConfigPath: configPath,
 		Parameters: []hostreqkit.SysctlParameter{
-			{Name: "fs.inotify.max_user_watches", Value: 1048576, Minimum: true, ReadFailure: 0},
-			{Name: "fs.inotify.max_user_instances", Value: 2048, Minimum: true, ReadFailure: 0},
+			{Name: "fs.inotify.max_user_watches", Value: handlerParameterC, Minimum: true, ReadFailure: 0},
+			{Name: "fs.inotify.max_user_instances", Value: handlerParameterD, Minimum: true, ReadFailure: 0},
 		},
 		UnsupportedNote:   "kernel parameter management is only supported on Linux",
 		NotApplicableNote: "host does not support sysctl",

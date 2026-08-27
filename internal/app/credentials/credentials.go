@@ -12,13 +12,19 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vrooli/vrooli/internal/repocontractmeta"
+	"github.com/vrooli/vrooli/internal/tuning"
+
 	"connectrpc.com/connect"
+	"github.com/vrooli/nodeclient"
 	repocontract "github.com/vrooli/repo-contract-go"
 	"github.com/vrooli/vrooli/internal/cli/commandtree"
+	"github.com/vrooli/vrooli/internal/cliout"
 	"github.com/vrooli/vrooli/internal/config"
 	"github.com/vrooli/vrooli/internal/credentialauthority"
 	"github.com/vrooli/vrooli/internal/credentialinventory"
 	"github.com/vrooli/vrooli/internal/credentialspec"
+	"github.com/vrooli/vrooli/internal/logx"
 	"github.com/vrooli/vrooli/internal/resources"
 	"github.com/vrooli/vrooli/internal/resources/catalog"
 	resourceenv "github.com/vrooli/vrooli/internal/resources/env"
@@ -26,6 +32,18 @@ import (
 	"github.com/vrooli/vrooli/internal/scenario"
 	grantv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/credentialgrant"
 	grantv1connect "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/credentialgrant/credentialgrant_v1connect"
+)
+
+const (
+	credentialsText = "text"
+)
+
+const (
+	credentialsParameterA = 1024
+)
+
+const (
+	credentialsParameterB = 64
 )
 
 // runCredentialsCommand owns all local credential writes. Values are accepted
@@ -36,26 +54,21 @@ func (app *App) runCredentialsCommand(ctx *CommandContext, args []string) error 
 		fmt.Fprintln(ctx.Stdout, "Usage:\n  vrooli credentials doctor [--check-writes] [--format json]\n  vrooli credentials list [--format json]\n  vrooli credentials delete --identity <namespace/name> --field <field> --yes\n  vrooli credentials provision --identity <namespace/name> --field <field>\n  vrooli credentials status --identity <namespace/name> --field <field> [--format json]\n  vrooli credentials store <status|init|unlock|lock|rewrap|change-passphrase|copy>\n  vrooli credentials keyring <status|inspect|repair|unlock>\n  vrooli credentials recovery export --entry <identity>:<field> --output <bundle>\n  vrooli credentials recovery verify --input <bundle>\n  vrooli credentials recovery restore --input <bundle>\n\nAt a terminal, credential provision, store, keyring, and recovery commands prompt securely inside vrooli. Automation may provide secrets on standard input. Credential values, store passphrases, and recovery passphrases are never printed.\n`credentials store` manages the encrypted backend used on a host with no native credential store.")
 		return nil
 	}
-	switch args[0] {
-	case "doctor":
-		return credentialsDoctor(ctx, args[1:])
-	case "list":
-		return listCredentials(ctx, args[1:])
-	case "delete":
-		return deleteCredential(ctx, args[1:])
-	case "provision":
-		return provisionCredential(ctx, args[1:], os.Stdin)
-	case "status":
-		return credentialStatus(ctx, args[1:])
-	case "store":
-		return credentialsStore(ctx, args[1:], os.Stdin)
-	case "keyring":
-		return credentialsKeyring(ctx, args[1:], os.Stdin)
-	case "recovery":
-		return recoveryCredentials(ctx, args[1:], os.Stdin)
-	default:
+	handlers := map[string]func([]string) error{
+		"doctor":    func(args []string) error { return credentialsDoctor(ctx, args) },
+		"list":      func(args []string) error { return listCredentials(ctx, args) },
+		"delete":    func(args []string) error { return deleteCredential(ctx, args) },
+		"provision": func(args []string) error { return provisionCredential(ctx, args, os.Stdin) },
+		"status":    func(args []string) error { return credentialStatus(ctx, args) },
+		"store":     func(args []string) error { return credentialsStore(ctx, args, os.Stdin) },
+		"keyring":   func(args []string) error { return credentialsKeyring(ctx, args, os.Stdin) },
+		"recovery":  func(args []string) error { return recoveryCredentials(ctx, args, os.Stdin) },
+	}
+	handler, ok := handlers[args[0]]
+	if !ok {
 		return fmt.Errorf("unknown credentials command %q", args[0])
 	}
+	return handler(args[1:])
 }
 
 type credentialListReport struct {
@@ -71,11 +84,11 @@ type credentialListReport struct {
 func listCredentials(ctx *CommandContext, args []string) error {
 	fs := flag.NewFlagSet("credentials list", flag.ContinueOnError)
 	fs.SetOutput(io.Discard)
-	format := fs.String("format", "text", "output format: text or json")
+	format := fs.String("format", credentialsText, "output format: text or json")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
-	if len(fs.Args()) != 0 || (*format != "text" && *format != "json") {
+	if len(fs.Args()) != 0 || (*format != credentialsText && *format != string(logx.FormatJSON)) {
 		return fmt.Errorf("credentials list accepts only --format text|json")
 	}
 	entries, err := collectCredentialEntries(ctx.Root)
@@ -92,8 +105,8 @@ func listCredentials(ctx *CommandContext, args []string) error {
 		RequiredAbsent:   recovery.RequiredAbsent,
 		Credentials:      entries,
 	}
-	if *format == "json" {
-		return writeCredentialJSON(ctx.Stdout, report)
+	if *format == string(logx.FormatJSON) {
+		return cliout.WriteJSONValue(ctx.Stdout, report)
 	}
 	fmt.Fprintf(ctx.Stdout, "Credential addresses (%d; basis=distinct_addresses; managed_instances_included=true)\n", report.CredentialCount)
 	fmt.Fprintf(ctx.Stdout, "Declaration sites: %d (basis=declaration_sites)\n", report.DeclarationSites)
@@ -167,11 +180,11 @@ func credentialAuthority() (*credentialauthority.Authority, error) {
 func credentialSelectorFlags(name string, args []string, withFormat bool) (credentialauthority.Identity, string, string, error) {
 	fs := flag.NewFlagSet(name, flag.ContinueOnError)
 	fs.SetOutput(io.Discard)
-	identityRaw, field, format := "", "", "text"
+	identityRaw, field, format := "", "", credentialsText
 	fs.StringVar(&identityRaw, "identity", "", "logical credential identity")
 	fs.StringVar(&field, "field", "value", "credential field")
 	if withFormat {
-		fs.StringVar(&format, "format", "text", "output format: text or json")
+		fs.StringVar(&format, "format", credentialsText, "output format: text or json")
 	}
 	if err := fs.Parse(args); err != nil {
 		return "", "", "", err
@@ -188,7 +201,7 @@ func credentialSelectorFlags(name string, args []string, withFormat bool) (crede
 		return "", "", "", fmt.Errorf("credential field is required")
 	}
 	format = strings.TrimSpace(format)
-	if format != "text" && format != "json" {
+	if format != credentialsText && format != string(logx.FormatJSON) {
 		return "", "", "", fmt.Errorf("%s format must be text or json", name)
 	}
 	return identity, field, format, nil
@@ -211,7 +224,7 @@ func provisionCredential(ctx *CommandContext, args []string, input io.Reader) er
 	if err := authority.Put(identity, field, strings.TrimSpace(string(value))); err != nil {
 		return err
 	}
-	if wasConfigured && strings.TrimSpace(os.Getenv("VROOLI_BRIDGE_URL")) != "" {
+	if wasConfigured {
 		if generation, rotateErr := rotateBridgeCredentialAddress(context.Background(), string(identity), field); rotateErr != nil {
 			_, _ = fmt.Fprintf(ctx.Stderr, "Credential stored locally, but bridge generation fanout was deferred: %v\n", rotateErr)
 		} else {
@@ -244,7 +257,7 @@ func readCredentialValue(input io.Reader, prompt io.Writer) (string, error) {
 		`provide the value on standard input to vrooli credentials provision`); err != nil {
 		return "", err
 	}
-	value, err := io.ReadAll(io.LimitReader(input, 64*1024))
+	value, err := io.ReadAll(io.LimitReader(input, credentialsParameterB*credentialsParameterA))
 	if err != nil {
 		return "", fmt.Errorf("read credential input: %w", err)
 	}
@@ -256,9 +269,10 @@ func readCredentialValue(input io.Reader, prompt io.Writer) (string, error) {
 }
 
 func rotateBridgeCredentialAddress(ctx context.Context, logicalID, field string) (int64, error) {
-	baseURL := strings.TrimRight(strings.TrimSpace(os.Getenv("VROOLI_BRIDGE_URL")), "/")
-	if baseURL == "" {
-		return 0, fmt.Errorf("VROOLI_BRIDGE_URL is not configured")
+	bridgeClient := nodeclient.New(nodeclient.Config{Token: os.Getenv("VROOLI_BRIDGE_API_TOKEN")})
+	baseURL, err := bridgeClient.ResolveURL(ctx)
+	if err != nil {
+		return 0, fmt.Errorf("resolve vrooli-bridge endpoint: %w", err)
 	}
 	token := strings.TrimSpace(os.Getenv("VROOLI_BRIDGE_API_TOKEN"))
 	transport := bearerRoundTripper{base: http.DefaultTransport, token: token}
@@ -294,8 +308,8 @@ func credentialStatus(ctx *CommandContext, args []string) error {
 		return err
 	}
 	status := authority.Status(identity, field)
-	if format == "json" {
-		return writeCredentialJSON(ctx.Stdout, status)
+	if format == string(logx.FormatJSON) {
+		return cliout.WriteJSONValue(ctx.Stdout, status)
 	}
 	// The provider state travels with the answer so `configured: false` can
 	// never be misread as "the operator never set this" while the store is down.
@@ -322,6 +336,8 @@ type credentialEntries []string
 // function is what `recovery export --all` selects from, so a declaration this
 // inventory misses is a credential no bundle ever captures. Before scenarios
 // could declare, tunnel-manager's Cloudflare token was exactly that.
+//
+//nolint:gocyclo // credential collection reconciles provider, filesystem, metadata, and malformed-entry outcomes.
 func collectCredentialEntries(root string) ([]credentialEntry, error) {
 	if strings.TrimSpace(root) == "" {
 		return nil, nil
@@ -399,7 +415,7 @@ func collectCredentialEntries(root string) ([]credentialEntry, error) {
 	// this declaration source because they have no scenario directory; keeping
 	// it in the control-plane inventory makes recovery and the CLI agree on
 	// remote-desktop credential addresses.
-	projectManifestPath := filepath.Join(root, ".vrooli", "service.json")
+	projectManifestPath := filepath.Join(root, repocontractmeta.ProjectConfigDir, "service.json")
 	if projectManifest, projectErr := scenario.ReadService(projectManifestPath); projectErr == nil {
 		if len(projectManifest.Credentials.All()) > 0 {
 			gaps, gapErr := resourceenv.ResolveScenarioCredentialGaps("project", projectManifest.Credentials)
@@ -551,16 +567,16 @@ func recoveryCredentials(ctx *CommandContext, args []string, input io.Reader) er
 		fmt.Fprintln(ctx.Stdout, "Usage:\n  vrooli credentials recovery export --entry <identity>:<field> --output <bundle> [--format json]\n  vrooli credentials recovery export --all --output <bundle> [--format json]\n  vrooli credentials recovery verify --input <bundle> [--format json]\n  vrooli credentials recovery restore --input <bundle>\n\nAt a terminal, these commands prompt securely inside vrooli for the recovery passphrase. Automation may provide it on standard input. `verify` proves a bundle opens and lists what it would restore, without writing anything or printing a value.\n--all captures every configured credential declared by a resource or scenario manifest, plus the unseal key of every live managed Vault instance. A Vault unseal key is irreplaceable: without it the instance stays sealed and its contents are gone. Root tokens are deliberately excluded — Vault regenerates one from the unseal key, so a bundle carrying both would widen the blast radius for nothing.")
 		return nil
 	}
-	switch args[0] {
-	case "export":
-		return exportCredentialRecovery(ctx, args[1:], input)
-	case "verify":
-		return verifyCredentialRecovery(ctx, args[1:], input)
-	case "restore":
-		return restoreCredentialRecovery(ctx, args[1:], input)
-	default:
+	handlers := map[string]func([]string) error{
+		"export":  func(args []string) error { return exportCredentialRecovery(ctx, args, input) },
+		"verify":  func(args []string) error { return verifyCredentialRecovery(ctx, args, input) },
+		"restore": func(args []string) error { return restoreCredentialRecovery(ctx, args, input) },
+	}
+	handler, ok := handlers[args[0]]
+	if !ok {
 		return fmt.Errorf("unknown credentials recovery command %q", args[0])
 	}
+	return handler(args[1:])
 }
 
 // recoveryStateDir resolves where the export receipt lives, through the repo
@@ -586,7 +602,7 @@ func recoveryPassphrase(input io.Reader, prompt io.Writer) (string, error) {
 		`provide the recovery passphrase on standard input to vrooli credentials recovery`); err != nil {
 		return "", err
 	}
-	value, err := io.ReadAll(io.LimitReader(input, 64*1024))
+	value, err := io.ReadAll(io.LimitReader(input, credentialsParameterB*credentialsParameterA))
 	if err != nil {
 		return "", fmt.Errorf("read recovery passphrase: %w", err)
 	}
@@ -597,17 +613,18 @@ func recoveryPassphrase(input io.Reader, prompt io.Writer) (string, error) {
 	return passphrase, nil
 }
 
+//nolint:gocyclo // recovery export branches by provider, encryption, and artifact verification state.
 func exportCredentialRecovery(ctx *CommandContext, args []string, input io.Reader) error {
 	fs := flag.NewFlagSet("credentials recovery export", flag.ContinueOnError)
 	fs.SetOutput(io.Discard)
 	var entries credentialEntries
 	output := ""
 	all := false
-	format := "text"
+	format := credentialsText
 	fs.Var(&entries, "entry", "credential entry in identity:field form; repeat for each entry")
 	fs.StringVar(&output, "output", "", "new encrypted recovery bundle path")
 	fs.BoolVar(&all, "all", false, "include every configured credential declared by a resource manifest")
-	fs.StringVar(&format, "format", "text", "output format: text or json")
+	fs.StringVar(&format, "format", credentialsText, "output format: text or json")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
@@ -621,7 +638,7 @@ func exportCredentialRecovery(ctx *CommandContext, args []string, input io.Reade
 		return fmt.Errorf("recovery export requires at least one --entry or --all")
 	}
 	format = strings.TrimSpace(format)
-	if format != "text" && format != "json" {
+	if format != credentialsText && format != string(logx.FormatJSON) {
 		return fmt.Errorf("credentials recovery export format must be text or json")
 	}
 	selected := make([]credentialauthority.RecoveryEntry, 0, len(entries))
@@ -683,7 +700,7 @@ func exportCredentialRecovery(ctx *CommandContext, args []string, input io.Reade
 		return err
 	}
 	output = filepath.Clean(output)
-	file, err := os.OpenFile(output, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600)
+	file, err := os.OpenFile(output, os.O_WRONLY|os.O_CREATE|os.O_EXCL, tuning.PermSecret)
 	if err != nil {
 		return fmt.Errorf("create recovery bundle: %w", err)
 	}
@@ -704,8 +721,8 @@ func exportCredentialRecovery(ctx *CommandContext, args []string, input io.Reade
 		_ = credentialauthority.WriteRecoveryReceipt(stateDir, output, selected, time.Now())
 	}
 
-	if format == "json" {
-		return writeCredentialJSON(ctx.Stdout, struct {
+	if format == string(logx.FormatJSON) {
+		return cliout.WriteJSONValue(ctx.Stdout, struct {
 			Written int      `json:"written"`
 			Skipped []string `json:"skipped"`
 		}{Written: len(selected), Skipped: skipped})
@@ -734,9 +751,9 @@ func exportCredentialRecovery(ctx *CommandContext, args []string, input io.Reade
 func verifyCredentialRecovery(ctx *CommandContext, args []string, input io.Reader) error {
 	fs := flag.NewFlagSet("credentials recovery verify", flag.ContinueOnError)
 	fs.SetOutput(io.Discard)
-	path, format := "", "text"
+	path, format := "", credentialsText
 	fs.StringVar(&path, "input", "", "encrypted recovery bundle path")
-	fs.StringVar(&format, "format", "text", "output format: text or json")
+	fs.StringVar(&format, "format", credentialsText, "output format: text or json")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
@@ -744,7 +761,7 @@ func verifyCredentialRecovery(ctx *CommandContext, args []string, input io.Reade
 		return fmt.Errorf("recovery verify requires --input")
 	}
 	format = strings.TrimSpace(format)
-	if format != "text" && format != "json" {
+	if format != credentialsText && format != string(logx.FormatJSON) {
 		return fmt.Errorf("credentials recovery verify format must be text or json")
 	}
 	passphrase, err := recoveryPassphrase(input, ctx.Stderr)
@@ -759,8 +776,8 @@ func verifyCredentialRecovery(ctx *CommandContext, args []string, input io.Reade
 	if err != nil {
 		return err
 	}
-	if format == "json" {
-		return writeCredentialJSON(ctx.Stdout, manifest)
+	if format == string(logx.FormatJSON) {
+		return cliout.WriteJSONValue(ctx.Stdout, manifest)
 	}
 	if _, err := fmt.Fprintf(ctx.Stdout,
 		"Recovery bundle opens. It holds %d credential(s) and would restore:\n", len(manifest.Entries)); err != nil {

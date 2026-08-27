@@ -1,10 +1,7 @@
 package authcli
 
 import (
-	"io"
-
 	authapp "github.com/vrooli/vrooli/internal/app/auth"
-	"github.com/vrooli/vrooli/internal/cliout"
 	cliv1 "github.com/vrooli/vrooli/packages/proto/gen/go/cli/v1"
 )
 
@@ -23,8 +20,4 @@ func authStatusResponse(report authapp.Report) *cliv1.AuthStatusResponse {
 		})
 	}
 	return &cliv1.AuthStatusResponse{Success: true, Data: data}
-}
-
-func writeAuthStatusJSON(w io.Writer, report authapp.Report) error {
-	return cliout.WriteProtoJSON(w, authStatusResponse(report))
 }

@@ -1,4 +1,5 @@
 // Package durablebackup adapts the public data-backup-manager evidence
+
 // surface into the provider-neutral capability catalog. It reports state only;
 // backup, restore, and drill execution remain owned by data-backup-manager.
 package durablebackup
@@ -12,8 +13,19 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vrooli/vrooli/internal/tuning"
+
 	"github.com/vrooli/cli-core/cliutil"
 	"github.com/vrooli/vrooli/internal/operatorcapability"
+)
+
+const (
+	providerVerified = "verified"
+)
+
+const (
+	providerParameterA = 4
+	providerParameterB = 50
 )
 
 const (
@@ -22,7 +34,7 @@ const (
 	// productionRequestTimeout bounds each evidence request when the caller is
 	// a control-plane CLI with no request-scoped deadline. A degraded DBM must
 	// produce a degraded capability status, not hang onboarding indefinitely.
-	productionRequestTimeout = 5 * time.Second
+	productionRequestTimeout = tuning.ServiceHealthTimeout
 )
 
 // DrillEvidence is the metadata needed to prove that a recovery drill
@@ -80,7 +92,7 @@ func (p *Provider) Descriptor() operatorcapability.Descriptor {
 		Policy:      operatorcapability.Policy{Idempotent: true, Retryable: true, Remediation: "Start data-backup-manager and resolve its reported destination, coverage, or drill remediation."},
 		Evidence: operatorcapability.EvidenceContract{
 			Kinds:          []string{"durable-backup-coverage", "recovery-drill"},
-			RequiredFields: []string{"artifact_identity", "coverage", "checksum", "observed_at", "verified"},
+			RequiredFields: []string{"artifact_identity", "coverage", "checksum", "observed_at", providerVerified},
 			SecretFree:     true,
 			Freshness:      "coverage and the latest verified drill must be current in data-backup-manager",
 		},
@@ -104,7 +116,7 @@ func (p *Provider) Discover(ctx context.Context) (operatorcapability.Status, err
 
 	status := operatorcapability.Status{Descriptor: p.Descriptor(), State: operatorcapability.StateReady, UpdatedAt: p.now().UTC()}
 	status.Evidence = evidenceReferences(evidence, p.now())
-	remediation := make([]string, 0, 4)
+	remediation := make([]string, 0, providerParameterA)
 	if evidence.Registered == 0 {
 		remediation = append(remediation, "register the intended durable sources")
 	}
@@ -120,7 +132,7 @@ func (p *Provider) Discover(ctx context.Context) (operatorcapability.Status, err
 	if evidence.Sensitive > 0 {
 		remediation = append(remediation, fmt.Sprintf("explicitly review %d sensitive source suggestion(s)", evidence.Sensitive))
 	}
-	if evidence.Drill.Status != "verified" || strings.TrimSpace(evidence.Drill.Checksum) == "" {
+	if evidence.Drill.Status != providerVerified || strings.TrimSpace(evidence.Drill.Checksum) == "" {
 		remediation = append(remediation, "run a recovery drill; a snapshot alone is not recovery evidence")
 	}
 	if len(remediation) > 0 {
@@ -146,7 +158,7 @@ func evidenceReferences(e Evidence, now time.Time) []operatorcapability.Evidence
 			SourceGeneration: e.Drill.SnapshotID,
 			Checksum:         e.Drill.Checksum,
 			ObservedAt:       e.Drill.ObservedAt,
-			Verified:         e.Drill.Status == "verified" && e.Drill.Checksum != "",
+			Verified:         e.Drill.Status == providerVerified && e.Drill.Checksum != "",
 			Remediation:      e.Drill.Status,
 		})
 	}
@@ -207,7 +219,7 @@ func fetchProduction(ctx context.Context, resolvePort func() string) (Evidence, 
 			FinishedAt  *time.Time `json:"finishedAt"`
 		} `json:"drills"`
 	}
-	err = postJSON(ctx, httpClient, baseURL+"/vrooli.data_backup_manager.v1.drills.RecoveryDrillsService/ListDrills", map[string]any{"pageSize": 50}, &drillResponse)
+	err = postJSON(ctx, httpClient, baseURL+"/vrooli.data_backup_manager.v1.drills.RecoveryDrillsService/ListDrills", map[string]any{"pageSize": providerParameterB}, &drillResponse)
 	if err != nil {
 		return Evidence{}, fmt.Errorf("read data-backup-manager recovery drills: %w", err)
 	}
@@ -219,7 +231,7 @@ func fetchProduction(ctx context.Context, resolvePort func() string) (Evidence, 
 	}
 	latest := drillResponse.Drills[0]
 	evidence.Drill = DrillEvidence{ID: latest.ID, SnapshotID: latest.SnapshotID, RestoreID: latest.RestoreID, Status: normalizeStatus(latest.Status), ObservedAt: drillTime(latest.FinishedAt, latest.StartedAt, latest.RequestedAt)}
-	if evidence.Drill.Status == "verified" && latest.RestoreID != "" {
+	if evidence.Drill.Status == providerVerified && latest.RestoreID != "" {
 		var restoreResponse struct {
 			Restore *struct {
 				Checksum   string     `json:"checksum"`

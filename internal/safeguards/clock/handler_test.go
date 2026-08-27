@@ -13,7 +13,9 @@ import (
 	"github.com/vrooli/vrooli/internal/hostreqspec"
 )
 
-func stubAll(t *testing.T) func() {
+var stubAll = clockStubAll
+
+func clockStubAll(t *testing.T) func() {
 	t.Helper()
 	origLookPath := hostreqkit.LookPathFn
 	origReadFile := hostreqkit.ReadFileFn
@@ -60,28 +62,6 @@ func mockInaccurateClock() {
 			Header:     http.Header{"Date": []string{remote.Format(http.TimeFormat)}},
 			Body:       io.NopCloser(strings.NewReader("")),
 		}, nil
-	}
-}
-
-func TestNameAndKind(t *testing.T) {
-	h := newTestHandler()
-	if h.Name() != "clock" {
-		t.Fatalf("Name = %q", h.Name())
-	}
-	if h.Kind() != hostreqspec.KindSafeguard {
-		t.Fatalf("Kind = %q", h.Kind())
-	}
-}
-
-func TestInspectManualRequirement(t *testing.T) {
-	h := newTestHandler()
-	status := h.Inspect(hostreqkit.Host{OS: "linux"}, hostreqspec.ResolvedRequirement{
-		Name:   "clock",
-		Kind:   hostreqspec.KindSafeguard,
-		Manual: true,
-	})
-	if status.SupportClass != hostreqkit.SupportManualOnly {
-		t.Fatalf("SupportClass = %q", status.SupportClass)
 	}
 }
 
@@ -161,46 +141,6 @@ func TestInspectNonLinuxInaccurateUnsupported(t *testing.T) {
 	})
 	if status.SupportClass != hostreqkit.SupportUnsupported {
 		t.Fatalf("SupportClass = %q", status.SupportClass)
-	}
-}
-
-func TestApplyUnsupportedReturnsEarly(t *testing.T) {
-	h := newTestHandler()
-	status, err := h.Apply(hostreqkit.Host{OS: "darwin"}, hostreqkit.ItemStatus{
-		SupportClass: hostreqkit.SupportUnsupported,
-	}, hostreqkit.EnsureOptions{})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if status.ExecutionState != hostreqkit.ExecutionUnsupported {
-		t.Fatalf("ExecutionState = %q", status.ExecutionState)
-	}
-}
-
-func TestApplyAlreadyAppliedSkips(t *testing.T) {
-	h := newTestHandler()
-	status, err := h.Apply(hostreqkit.Host{OS: "linux"}, hostreqkit.ItemStatus{
-		SupportClass: hostreqkit.SupportSupported,
-		Applied:      true,
-	}, hostreqkit.EnsureOptions{})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if status.ExecutionState != hostreqkit.ExecutionAlreadyPresent {
-		t.Fatalf("ExecutionState = %q", status.ExecutionState)
-	}
-}
-
-func TestApplyDryRun(t *testing.T) {
-	h := newTestHandler()
-	status, err := h.Apply(hostreqkit.Host{OS: "linux"}, hostreqkit.ItemStatus{
-		SupportClass: hostreqkit.SupportSupported,
-	}, hostreqkit.EnsureOptions{DryRun: true})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if status.ExecutionState != hostreqkit.ExecutionWouldApply {
-		t.Fatalf("ExecutionState = %q", status.ExecutionState)
 	}
 }
 

@@ -9,6 +9,8 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/vrooli/vrooli/internal/tuning"
+
 	"github.com/vrooli/vrooli/internal/hostreqkit"
 )
 
@@ -57,11 +59,11 @@ func applyNative(goos string, p paths, status hostreqkit.ItemStatus, opts hostre
 		status.Notes = append(status.Notes, "the invoking user's GUI launchd domain is unavailable; this user LaunchAgent is not applicable to the current SSH/headless session")
 		return status, nil
 	}
-	if err := os.MkdirAll(filepath.Dir(p.LaunchAgent), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(p.LaunchAgent), tuning.PermDir); err != nil {
 		status.ExecutionState = hostreqkit.ExecutionFailed
 		return status, err
 	}
-	if err := os.WriteFile(p.LaunchAgent, []byte(launchAgentContent(p.Binary, p.Home)), 0o644); err != nil {
+	if err := os.WriteFile(p.LaunchAgent, []byte(launchAgentContent(p.Binary, p.Home)), tuning.PermFile); err != nil {
 		status.ExecutionState = hostreqkit.ExecutionFailed
 		return status, err
 	}

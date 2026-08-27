@@ -44,6 +44,7 @@ func uninstallArgSchema() commandtree.ArgSchema {
 	}}
 }
 
+//nolint:gocyclo // uninstall coordinates confirmation, plan execution, reporting, and cleanup failure policies.
 func (app *App) runUninstallCommand(ctx *CommandContext, args []string) error {
 	parsed, err := commandtree.ParseArgs("uninstall", uninstallHelpText, uninstallArgSchema(), args)
 	if err != nil {
@@ -148,13 +149,9 @@ func (app *App) runUninstallCommand(ctx *CommandContext, args []string) error {
 		}
 	}
 	if ctx.Globals.JSON {
-		return writeUninstallJSON(ctx.Stdout, output)
+		return cliout.WriteJSONValue(ctx.Stdout, output)
 	}
 	return writeUninstallHuman(ctx.Stdout, output)
-}
-
-func writeUninstallJSON(w io.Writer, value any) error {
-	return cliout.WriteJSONValue(w, value)
 }
 
 func writeUninstallHuman(w io.Writer, value any) error {

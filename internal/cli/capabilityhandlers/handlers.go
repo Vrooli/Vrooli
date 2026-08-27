@@ -9,6 +9,7 @@ import (
 	"github.com/vrooli/vrooli/internal/cli/capabilitycli"
 	"github.com/vrooli/vrooli/internal/cli/manifestdispatch"
 	"github.com/vrooli/vrooli/internal/cli/rootcli"
+	"github.com/vrooli/vrooli/internal/cliout"
 )
 
 // HandlerDeps supplies root-context values needed by capability commands.
@@ -20,24 +21,35 @@ type HandlerDeps[C any] struct {
 	Stderr  func(C) io.Writer
 }
 
+type capabilityService struct {
+	run func([]string) error
+}
+
 // RootHandler dispatches `vrooli capability` through the capability app.
 func RootHandler[C any](deps HandlerDeps[C]) rootcli.Handler[C] {
-	return func(ctx C, args []string) error {
-		commandCtx := &capabilitycli.Context{Root: deps.Root(ctx), Globals: deps.Globals(ctx), Stdin: deps.Stdin(ctx), Stdout: deps.Stdout(ctx), Stderr: deps.Stderr(ctx)}
-		app := &capabilityapp.App{}
-		if len(args) == 0 || manifestdispatch.WantsHelp(args) {
-			return capabilitycli.Run(app, commandCtx, args)
-		}
-		if args[0] != "ledger" && args[0] != "fleet" {
-			return capabilitycli.Run(app, commandCtx, args)
-		}
-		group, err := cliapp.LoadFromManifest(climanifest.Bytes(), "capability", capabilityBindings(app, commandCtx, []string{"ledger", "fleet"}))
-		if err != nil {
-			return err
-		}
-		core := cliapp.NewApp(cliapp.AppOptions{Name: "vrooli capability", Commands: []cliapp.CommandGroup{{Commands: group.Subcommands}}})
-		return core.RunWithWriters(manifestdispatch.WithJSON(args, commandCtx.Globals.JSON), deps.Stdout(ctx), deps.Stderr(ctx))
-	}
+	return rootcli.BindService(deps.Stdout,
+		func(ctx C) (cliout.Format, capabilityService, error) {
+			commandCtx := &capabilitycli.Context{Root: deps.Root(ctx), Globals: deps.Globals(ctx), Stdin: deps.Stdin(ctx), Stdout: deps.Stdout(ctx), Stderr: deps.Stderr(ctx)}
+			app := &capabilityapp.App{}
+			return cliout.FormatHuman, capabilityService{run: func(args []string) error {
+				if len(args) == 0 || manifestdispatch.WantsHelp(args) {
+					return capabilitycli.Run(app, commandCtx, args)
+				}
+				if args[0] != "ledger" && args[0] != "fleet" {
+					return capabilitycli.Run(app, commandCtx, args)
+				}
+				group, err := cliapp.LoadFromManifest(climanifest.Bytes(), "capability", capabilityBindings(app, commandCtx, []string{"ledger", "fleet"}))
+				if err != nil {
+					return err
+				}
+				core := cliapp.NewApp(cliapp.AppOptions{Name: "vrooli capability", Commands: []cliapp.CommandGroup{{Commands: group.Subcommands}}})
+				return core.RunWithWriters(manifestdispatch.WithJSON(args, commandCtx.Globals.JSON), deps.Stdout(ctx), deps.Stderr(ctx))
+			}}, nil
+		},
+		func(_ C, args []string) ([]string, error) { return args, nil },
+		func(service capabilityService, args []string) (struct{}, error) { return struct{}{}, service.run(args) },
+		func(io.Writer, cliout.Format, struct{}) error { return nil },
+	)
 }
 
 func capabilityBindings(app *capabilityapp.App, ctx *capabilitycli.Context, names []string) map[string]func(cliapp.RunContext) error {

@@ -21,11 +21,11 @@ func (r *Runner) waitForHealth(ctx context.Context, item scenario.Scenario, env 
 	}
 	health := item.Manifest.HealthConfig()
 	if err := r.awaitScenarioReadiness(ctx, item, env); err != nil {
-		return "unhealthy", err
+		return scenarioruntime.HealthStatusUnhealthy, err
 	}
 	if health == nil || len(health.Checks) == 0 {
-		r.logInfo("Scenario has no health checks; treating as running", logx.AttrScenario, item.Slug, logx.AttrStatus, "running")
-		return "running", nil
+		r.logInfo("Scenario has no health checks; treating as running", logx.AttrScenario, item.Slug, logx.AttrStatus, scenarioruntime.StatusRunning)
+		return scenarioruntime.StatusRunning, nil
 	}
 	ports := healthPortsFromEnv(item.Manifest, env)
 	r.logDebug("Waiting for scenario health", logx.AttrScenario, item.Slug, logx.AttrChecks, len(health.Checks), logx.AttrPorts, ports)
@@ -33,7 +33,7 @@ func (r *Runner) waitForHealth(ctx context.Context, item scenario.Scenario, env 
 	var lastStatus string
 	err := AwaitContext(ctx, r.awaitClock(), healthAwaitPolicy(health.Timeout, health.Interval), func() (bool, error) {
 		lastStatus = scenario.EvaluateHealth(health, ports)
-		return lastStatus == "healthy", nil
+		return lastStatus == scenarioruntime.HealthStatusHealthy, nil
 	})
 	if err == nil {
 		r.logInfo("Scenario reported healthy", logx.AttrScenario, item.Slug, logx.AttrStatus, lastStatus)
@@ -41,7 +41,7 @@ func (r *Runner) waitForHealth(ctx context.Context, item scenario.Scenario, env 
 	}
 	// Deadline expiry. Degraded-after-timeout is a success path: non-critical
 	// checks failing must not fail the start.
-	if lastStatus == "degraded" {
+	if lastStatus == scenarioruntime.HealthStatusDegraded {
 		r.logWarn("Scenario health checks degraded after timeout", logx.AttrScenario, item.Slug, logx.AttrStatus, lastStatus)
 		return lastStatus, nil
 	}
@@ -113,7 +113,7 @@ func (r *Runner) isRegistryRuntimeHealthy(item scenario.Scenario, view registryR
 	// before trusting a port probe. Reconciliation keeps an instance authoritative
 	// for the whole heartbeat TTL even if its owner died mid-window, so a foreign
 	// process squatting a bound port could answer the manifest probe and read as
-	// "healthy" while the real owner is gone. When the recorded owner PID is known
+	// healthHealthy while the real owner is gone. When the recorded owner PID is known
 	// and not running, the data plane belongs to an orphan, not this instance —
 	// report unhealthy no matter who answers the port. Unknown owner PID (nil) or
 	// an unavailable liveness probe is NOT condemned (positive bad evidence only).

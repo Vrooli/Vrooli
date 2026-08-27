@@ -69,8 +69,7 @@ var nonArtifactReceivers = map[string]bool{
 // Adding one is a design decision; if a future exemption really means "routing
 // this is inconvenient", it belongs in the seam instead.
 var seamExemptions = map[string]string{
-	"manager.go:AtomicInstall": "removes only its own staging temp file, which no other process has ever seen",
-	"uninstall_plan.go:Apply":  "dispatches to the Remover interface; the production implementation (fileRemover) routes through the seam, and tests inject a recorder that touches no disk",
+	"uninstall_plan.go:Apply": "dispatches to the Remover interface; the production implementation (fileRemover) routes through the seam, and tests inject a recorder that touches no disk",
 }
 
 // TestRemovalsGoThroughTheSeam keeps the mutation seam a seam.

@@ -12,6 +12,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vrooli/vrooli/internal/tuning"
+
 	repocontract "github.com/vrooli/repo-contract-go"
 	"github.com/vrooli/vrooli/internal/config"
 )
@@ -186,7 +188,7 @@ func (c *Controller) RestoreDeprecatedResource(name string) (RestoreReport, erro
 	if err := os.RemoveAll(destRoot); err != nil {
 		return RestoreReport{}, fmt.Errorf("clear restored path %s: %w", destRoot, err)
 	}
-	if err := os.MkdirAll(destRoot, 0o755); err != nil {
+	if err := os.MkdirAll(destRoot, tuning.PermDir); err != nil {
 		return RestoreReport{}, fmt.Errorf("create restored path %s: %w", destRoot, err)
 	}
 
@@ -280,7 +282,7 @@ func (c *Controller) appendDeprecatedResource(item DeprecatedResource) error {
 
 func (c *Controller) writeDeprecatedResources(items []DeprecatedResource) error {
 	path := filepath.Join(c.Root, filepath.FromSlash(deprecatedResourcesPath))
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(path), tuning.PermDir); err != nil {
 		return fmt.Errorf("create deprecated resource metadata dir %s: %w", filepath.Dir(path), err)
 	}
 	data, err := json.MarshalIndent(DeprecatedResourceList{Resources: items}, "", "  ")
@@ -288,7 +290,7 @@ func (c *Controller) writeDeprecatedResources(items []DeprecatedResource) error 
 		return err
 	}
 	data = append(data, '\n')
-	return os.WriteFile(path, data, 0o644)
+	return os.WriteFile(path, data, tuning.PermFile)
 }
 
 func (c *Controller) collectArchiveSources(name string) (archiveCollection, error) {
@@ -351,7 +353,7 @@ func (c *Controller) removeResourceDirectory(name string) error {
 				return fmt.Errorf("remove resource directory %s: %w", path, err)
 			}
 			target := filepath.Join(remnantsRoot, fmt.Sprintf("%s-%s", time.Now().UTC().Format("20060102-150405"), name))
-			if renameErr := os.Rename(path, target); renameErr == nil {
+			if renameErr := os.Rename(path, target); renameErr == nil { //nolint:forbidigo // intentional directory archival
 				return nil
 			}
 			return fmt.Errorf("remove resource directory %s: %w", path, err)
@@ -385,7 +387,7 @@ func (c *Controller) removeResourceConfigEntry(name string) error {
 		return err
 	}
 	updated = append(updated, '\n')
-	return os.WriteFile(configPath, updated, 0o644)
+	return os.WriteFile(configPath, updated, tuning.PermFile)
 }
 
 func (c *Controller) serviceConfigEntry(name string) (map[string]any, bool, error) {
@@ -549,16 +551,16 @@ func archiveSkipReason(rel string) (string, bool) {
 }
 
 func writeArchive(dir string, sources []archiveSource) (string, error) {
-	if err := os.MkdirAll(filepath.Join(dir, "files"), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Join(dir, "files"), tuning.PermDir); err != nil {
 		return "", fmt.Errorf("create archive files dir %s: %w", filepath.Join(dir, "files"), err)
 	}
 	hash := sha256.New()
 	for _, source := range sources {
 		target := filepath.Join(dir, "files", source.targetPath)
-		if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
+		if err := os.MkdirAll(filepath.Dir(target), tuning.PermDir); err != nil {
 			return "", fmt.Errorf("create archive path %s: %w", filepath.Dir(target), err)
 		}
-		if err := os.WriteFile(target, source.bytes, 0o644); err != nil {
+		if err := os.WriteFile(target, source.bytes, tuning.PermFile); err != nil {
 			return "", fmt.Errorf("write archive file %s: %w", target, err)
 		}
 		_, _ = io.WriteString(hash, filepath.ToSlash(source.targetPath))
@@ -577,7 +579,7 @@ func writeJSONMetadata(path string, item any) error {
 		return err
 	}
 	data = append(data, '\n')
-	return os.WriteFile(path, data, 0o644)
+	return os.WriteFile(path, data, tuning.PermFile)
 }
 
 func copyDir(src, dst string) error {
@@ -591,12 +593,12 @@ func copyDir(src, dst string) error {
 		}
 		target := filepath.Join(dst, rel)
 		if d.IsDir() {
-			return os.MkdirAll(target, 0o755)
+			return os.MkdirAll(target, tuning.PermDir)
 		}
 		data, err := os.ReadFile(path)
 		if err != nil {
 			return err
 		}
-		return os.WriteFile(target, data, 0o644)
+		return os.WriteFile(target, data, tuning.PermFile)
 	})
 }

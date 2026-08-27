@@ -102,22 +102,40 @@ class RequestPairingRequest(_message.Message):
     def __init__(self, node_public_key: _Optional[str] = ..., name: _Optional[str] = ..., os: _Optional[str] = ..., arch: _Optional[str] = ..., endpoint: _Optional[str] = ..., capabilities: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class RequestPairingResponse(_message.Message):
-    __slots__ = ("request_id", "status")
+    __slots__ = ("request_id", "status", "confirmation_words")
     REQUEST_ID_FIELD_NUMBER: _ClassVar[int]
     STATUS_FIELD_NUMBER: _ClassVar[int]
+    CONFIRMATION_WORDS_FIELD_NUMBER: _ClassVar[int]
     request_id: str
     status: PairingRequestStatus
-    def __init__(self, request_id: _Optional[str] = ..., status: _Optional[_Union[PairingRequestStatus, str]] = ...) -> None: ...
+    confirmation_words: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, request_id: _Optional[str] = ..., status: _Optional[_Union[PairingRequestStatus, str]] = ..., confirmation_words: _Optional[_Iterable[str]] = ...) -> None: ...
+
+class GetPairingRequestRequest(_message.Message):
+    __slots__ = ("request_id",)
+    REQUEST_ID_FIELD_NUMBER: _ClassVar[int]
+    request_id: str
+    def __init__(self, request_id: _Optional[str] = ...) -> None: ...
+
+class GetPairingRequestResponse(_message.Message):
+    __slots__ = ("request", "control_plane_public_key")
+    REQUEST_FIELD_NUMBER: _ClassVar[int]
+    CONTROL_PLANE_PUBLIC_KEY_FIELD_NUMBER: _ClassVar[int]
+    request: PairingRequest
+    control_plane_public_key: str
+    def __init__(self, request: _Optional[_Union[PairingRequest, _Mapping]] = ..., control_plane_public_key: _Optional[str] = ...) -> None: ...
 
 class ApprovePairingRequest(_message.Message):
-    __slots__ = ("request_id", "approve", "scopes")
+    __slots__ = ("request_id", "approve", "scopes", "confirmation_words")
     REQUEST_ID_FIELD_NUMBER: _ClassVar[int]
     APPROVE_FIELD_NUMBER: _ClassVar[int]
     SCOPES_FIELD_NUMBER: _ClassVar[int]
+    CONFIRMATION_WORDS_FIELD_NUMBER: _ClassVar[int]
     request_id: str
     approve: bool
     scopes: _containers.RepeatedScalarFieldContainer[str]
-    def __init__(self, request_id: _Optional[str] = ..., approve: _Optional[bool] = ..., scopes: _Optional[_Iterable[str]] = ...) -> None: ...
+    confirmation_words: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, request_id: _Optional[str] = ..., approve: _Optional[bool] = ..., scopes: _Optional[_Iterable[str]] = ..., confirmation_words: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class ApprovePairingResponse(_message.Message):
     __slots__ = ("node_id", "status")
@@ -128,7 +146,7 @@ class ApprovePairingResponse(_message.Message):
     def __init__(self, node_id: _Optional[str] = ..., status: _Optional[_Union[PairingRequestStatus, str]] = ...) -> None: ...
 
 class PairingRequest(_message.Message):
-    __slots__ = ("id", "name", "os", "arch", "endpoint", "capabilities", "status", "created_at", "decided_at", "node_id")
+    __slots__ = ("id", "name", "os", "arch", "endpoint", "capabilities", "status", "created_at", "decided_at", "node_id", "confirmation_words")
     ID_FIELD_NUMBER: _ClassVar[int]
     NAME_FIELD_NUMBER: _ClassVar[int]
     OS_FIELD_NUMBER: _ClassVar[int]
@@ -139,6 +157,7 @@ class PairingRequest(_message.Message):
     CREATED_AT_FIELD_NUMBER: _ClassVar[int]
     DECIDED_AT_FIELD_NUMBER: _ClassVar[int]
     NODE_ID_FIELD_NUMBER: _ClassVar[int]
+    CONFIRMATION_WORDS_FIELD_NUMBER: _ClassVar[int]
     id: str
     name: str
     os: str
@@ -149,7 +168,8 @@ class PairingRequest(_message.Message):
     created_at: _timestamp_pb2.Timestamp
     decided_at: _timestamp_pb2.Timestamp
     node_id: str
-    def __init__(self, id: _Optional[str] = ..., name: _Optional[str] = ..., os: _Optional[str] = ..., arch: _Optional[str] = ..., endpoint: _Optional[str] = ..., capabilities: _Optional[_Iterable[str]] = ..., status: _Optional[_Union[PairingRequestStatus, str]] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., decided_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., node_id: _Optional[str] = ...) -> None: ...
+    confirmation_words: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, id: _Optional[str] = ..., name: _Optional[str] = ..., os: _Optional[str] = ..., arch: _Optional[str] = ..., endpoint: _Optional[str] = ..., capabilities: _Optional[_Iterable[str]] = ..., status: _Optional[_Union[PairingRequestStatus, str]] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., decided_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., node_id: _Optional[str] = ..., confirmation_words: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class ListPairingRequestsRequest(_message.Message):
     __slots__ = ("include_decided",)
@@ -158,7 +178,21 @@ class ListPairingRequestsRequest(_message.Message):
     def __init__(self, include_decided: _Optional[bool] = ...) -> None: ...
 
 class ListPairingRequestsResponse(_message.Message):
-    __slots__ = ("requests",)
+    __slots__ = ("requests", "presets")
     REQUESTS_FIELD_NUMBER: _ClassVar[int]
+    PRESETS_FIELD_NUMBER: _ClassVar[int]
     requests: _containers.RepeatedCompositeFieldContainer[PairingRequest]
-    def __init__(self, requests: _Optional[_Iterable[_Union[PairingRequest, _Mapping]]] = ...) -> None: ...
+    presets: _containers.RepeatedCompositeFieldContainer[PermissionPreset]
+    def __init__(self, requests: _Optional[_Iterable[_Union[PairingRequest, _Mapping]]] = ..., presets: _Optional[_Iterable[_Union[PermissionPreset, _Mapping]]] = ...) -> None: ...
+
+class PermissionPreset(_message.Message):
+    __slots__ = ("name", "description", "scopes", "withholds")
+    NAME_FIELD_NUMBER: _ClassVar[int]
+    DESCRIPTION_FIELD_NUMBER: _ClassVar[int]
+    SCOPES_FIELD_NUMBER: _ClassVar[int]
+    WITHHOLDS_FIELD_NUMBER: _ClassVar[int]
+    name: str
+    description: str
+    scopes: _containers.RepeatedScalarFieldContainer[str]
+    withholds: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, name: _Optional[str] = ..., description: _Optional[str] = ..., scopes: _Optional[_Iterable[str]] = ..., withholds: _Optional[_Iterable[str]] = ...) -> None: ...

@@ -14,7 +14,9 @@ func testManifest() hostreqkit.SafeguardManifest {
 	return hostreqkit.SafeguardManifest{Name: "kdump_observability"}
 }
 
-func linuxHost() hostreqkit.Host {
+var linuxHost = kdumpObservabilityLinuxHost
+
+func kdumpObservabilityLinuxHost() hostreqkit.Host {
 	return hostreqkit.Host{OS: "linux", SupportsSystemd: true}
 }
 
@@ -71,13 +73,6 @@ func TestRetainVmcoresRejectsUnsafeValues(t *testing.T) {
 	}
 }
 
-func TestInspectNonLinuxUnsupported(t *testing.T) {
-	status := NewHandler(testManifest()).Inspect(hostreqkit.Host{OS: "darwin"}, req())
-	if status.SupportClass != hostreqkit.SupportUnsupported {
-		t.Fatalf("SupportClass = %q, want unsupported", status.SupportClass)
-	}
-}
-
 func TestInspectRequiresSystemd(t *testing.T) {
 	host := linuxHost()
 	host.SupportsSystemd = false
@@ -126,11 +121,11 @@ func TestCollectorHonoursRetentionSetting(t *testing.T) {
 // point is a narrow channel to the observability group.
 func TestExportedArtifactsAreGroupScoped(t *testing.T) {
 	script := collectorContent(defaultRetainVmcores)
-	if !strings.Contains(script, `chmod 0640`) {
-		t.Error("exported files should be 0640")
+	if !strings.Contains(script, `chmod 640`) {
+		t.Error("exported files should be 640")
 	}
-	if !strings.Contains(script, `install -d -o root -g "$group" -m 0750 "$dst"`) {
-		t.Error("export directory should be 0750 root:vrooli-observability")
+	if !strings.Contains(script, `install -d -o root -g "$group" -m 750 "$dst"`) {
+		t.Error("export directory should be 750 root:vrooli-observability")
 	}
 }
 

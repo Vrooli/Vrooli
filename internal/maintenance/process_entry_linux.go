@@ -10,6 +10,10 @@ import (
 	"strings"
 )
 
+const (
+	processEntryLinuxParameterA = 4
+)
+
 // readProcessEntry reads a single process's table entry straight from /proc,
 // fork-free. /proc/<pid>/stat is world-readable, so this also works for
 // processes owned by other users.
@@ -49,7 +53,7 @@ func parseProcStatEntry(stat []byte) (processTableEntry, bool) {
 	comm := text[open+1 : closing]
 	fields := strings.Fields(text[closing+1:])
 	// fields: [0]=state [1]=ppid [2]=pgrp [3]=session ...
-	if len(fields) < 4 {
+	if len(fields) < processEntryLinuxParameterA {
 		return processTableEntry{}, false
 	}
 	ppid, err := strconv.Atoi(fields[1])

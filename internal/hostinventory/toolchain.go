@@ -8,6 +8,14 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/vrooli/vrooli/internal/hostreqspec"
+)
+
+const (
+	toolchainParameterA = 2
+	toolchainParameterB = 3
+	toolchainParameterC = 4
 )
 
 // Mobile delivery ramps need to know which build and device toolchains a host
@@ -52,7 +60,7 @@ var simulatorRuntimePattern = regexp.MustCompile(`SimRuntime\.(iOS|watchOS|tvOS|
 // absent elsewhere, and recording an empty probe there would misrepresent a
 // terminal fact as a missing measurement.
 func (c Collector) collectAppleToolchain(ctx context.Context, snap *Snapshot, observedAt time.Time) {
-	if snap.OS != "darwin" {
+	if hostreqspec.PlatformFromGOOS(snap.OS) != hostreqspec.PlatformMacOS {
 		return
 	}
 
@@ -136,7 +144,7 @@ func (c Collector) collectAndroidToolchain(ctx context.Context, snap *Snapshot, 
 	switch {
 	case found == 0:
 		snap.ProbeStatuses[ProbeAndroidToolchain] = "tool_not_present"
-	case found < 4:
+	case found < toolchainParameterC:
 		snap.ProbeStatuses[ProbeAndroidToolchain] = "partial"
 	default:
 		snap.ProbeStatuses[ProbeAndroidToolchain] = "ok"
@@ -181,7 +189,7 @@ func pathIfPresent(path string, present bool) string {
 // the caller reports an unknown version rather than inventing one.
 func ParseXcodeVersion(output string) string {
 	match := xcodeVersionPattern.FindStringSubmatch(output)
-	if len(match) < 2 {
+	if len(match) < toolchainParameterA {
 		return ""
 	}
 	return match[1]
@@ -195,7 +203,7 @@ func ParseSimulatorRuntimes(output string) []string {
 	seen := make(map[string]struct{}, len(matches))
 	runtimes := make([]string, 0, len(matches))
 	for _, match := range matches {
-		if len(match) < 3 {
+		if len(match) < toolchainParameterB {
 			continue
 		}
 		runtime := match[1] + " " + strings.ReplaceAll(match[2], "-", ".")

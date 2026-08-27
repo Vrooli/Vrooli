@@ -13,6 +13,12 @@ import (
 	"github.com/vrooli/vrooli/internal/hostinventory"
 	"github.com/vrooli/vrooli/internal/hostreqkit"
 	"github.com/vrooli/vrooli/internal/hostreqspec"
+	"github.com/vrooli/vrooli/internal/shell/shelltest"
+)
+
+const (
+	handlerParameterA = 100
+	handlerParameterB = 1024
 )
 
 // ── Static protection files (always applied on Linux with sysctl/systemd) ────
@@ -295,8 +301,8 @@ func applyDesktopProtection(host hostreqkit.Host, opts hostreqkit.EnsureOptions)
 	// a single write of the new value — stream the bytes via tee with
 	// stderr suppressed and skip the call entirely if the file is missing.
 	cgroupPath := fmt.Sprintf("/sys/fs/cgroup/user.slice/user-%d.slice", desktopUID)
-	minBytes := strconv.Itoa(alloc.desktopMinMB * 1024 * 1024)
-	lowBytes := strconv.Itoa(alloc.desktopLowMB * 1024 * 1024)
+	minBytes := strconv.Itoa(alloc.desktopMinMB * 1024 * handlerParameterB)
+	lowBytes := strconv.Itoa(alloc.desktopLowMB * 1024 * handlerParameterB)
 	writeCgroupValue := func(path, value string) {
 		if _, err := os.Stat(path); err != nil {
 			return
@@ -364,18 +370,18 @@ func calculateMemory() (memoryAllocation, error) {
 		return memoryAllocation{}, fmt.Errorf("host inventory reported no total memory")
 	}
 
-	memMB := int(snapshot.Memory.TotalBytes / 1024 / 1024)
+	memMB := int(snapshot.Memory.TotalBytes / 1024 / handlerParameterB)
 
-	dMin := memMB * desktopMinPercent / 100
+	dMin := memMB * desktopMinPercent / handlerParameterA
 	if dMin < desktopMinMB {
 		dMin = desktopMinMB
 	}
 	dLow := dMin + desktopBufferMB
 
-	wHigh := memMB * workloadHighPercent / 100
-	wMax := memMB * workloadMaxPercent / 100
+	wHigh := memMB * workloadHighPercent / handlerParameterA
+	wMax := memMB * workloadMaxPercent / handlerParameterA
 
-	swapGB := memMB / 1024
+	swapGB := memMB / handlerParameterB
 	if swapGB > maxSwapGB {
 		swapGB = maxSwapGB
 	}
@@ -395,12 +401,12 @@ func readCurrentSwapGB() int {
 	if err != nil {
 		return 0
 	}
-	return int(snapshot.Swap.TotalBytes / 1024 / 1024 / 1024)
+	return int(snapshot.Swap.TotalBytes / 1024 / 1024 / handlerParameterB)
 }
 
 func hostSnapshot() (hostinventory.Snapshot, error) {
 	collector := hostinventory.SystemCollector()
-	collector.Commands = hostInventoryNoopCommandRunner{}
+	collector.Commands = &shelltest.Fake{}
 	collector.Files = hostReqFileReader{}
 	collector.GOOS = "linux"
 	return collector.Collect(context.Background())
@@ -410,16 +416,6 @@ type hostReqFileReader struct{}
 
 func (hostReqFileReader) ReadFile(path string) ([]byte, error) {
 	return hostreqkit.ReadFileFn(path)
-}
-
-type hostInventoryNoopCommandRunner struct{}
-
-func (hostInventoryNoopCommandRunner) LookPath(string) (string, error) {
-	return "", os.ErrNotExist
-}
-
-func (hostInventoryNoopCommandRunner) Run(context.Context, string, ...string) ([]byte, error) {
-	return nil, os.ErrNotExist
 }
 
 // ── Content generators ───────────────────────────────────────────────────────

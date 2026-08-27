@@ -11,9 +11,21 @@ import (
 	"strings"
 
 	"github.com/vrooli/binaryfetch"
+	"github.com/vrooli/vrooli/internal/hostreqspec"
 	manifestpkg "github.com/vrooli/vrooli/internal/resources/manifest"
 	resourcedeployment "github.com/vrooli/vrooli/packages/resource-deployment"
 )
+
+const (
+	fleetContractUnsupported = "unsupported"
+)
+
+const fleetContractDir = "dir"
+
+// externalAcquisitionGOOSDarwin is the GOOS spelling required by binary
+// acquisition targets. It is intentionally distinct from the normalized
+// host-platform spelling "macos" used by manifests.
+const externalAcquisitionGOOSDarwin = "darwin"
 
 var digestPattern = regexp.MustCompile(`@sha256:[0-9a-fA-F]{64}$`)
 
@@ -93,19 +105,19 @@ func CheckFleetContract(root string) error {
 // fleet claim, and an unsupported fleet claim cannot hide a usable profile.
 func checkPlatformProfileClaims(name string, manifest manifestpkg.ResourceManifest) error {
 	violations := make([]string, 0)
-	for _, osName := range []string{"linux", "macos", "windows"} {
+	for _, osName := range []string{string(hostreqspec.PlatformLinux), string(hostreqspec.PlatformMacOS), string(hostreqspec.PlatformWindows)} {
 		claim := strings.ToLower(strings.TrimSpace(platformClaim(manifest.Platforms, osName)))
 		target, found := manifest.Deployment.Target("desktop", osName, "")
 		if !found || claim == "" {
 			continue
 		}
-		if target.Support != "unsupported" && claim == "unsupported" {
+		if target.Support != fleetContractUnsupported && claim == fleetContractUnsupported {
 			violations = append(violations, fmt.Sprintf("%s declares %s unsupported but its desktop profile is %s", name, osName, target.Support))
 		}
-		if target.Support != "unsupported" && len(target.Architectures) == 0 {
+		if target.Support != fleetContractUnsupported && len(target.Architectures) == 0 {
 			violations = append(violations, fmt.Sprintf("%s declares %s %q but its desktop profile has no architectures", name, osName, claim))
 		}
-		if target.Support == "unsupported" && len(target.Limitations) == 0 && len(target.Evidence) == 0 {
+		if target.Support == fleetContractUnsupported && len(target.Limitations) == 0 && len(target.Evidence) == 0 {
 			violations = append(violations, fmt.Sprintf("%s declares %s unsupported without limitations or evidence", name, osName))
 		}
 	}
@@ -136,17 +148,17 @@ func checkPlatformClaims(resourceRoot string, names []string) error {
 			// claim against; other checks own that case.
 			continue
 		}
-		for _, osName := range []string{"linux", "macos", "windows"} {
+		for _, osName := range []string{string(hostreqspec.PlatformLinux), string(hostreqspec.PlatformMacOS), string(hostreqspec.PlatformWindows)} {
 			claim := strings.ToLower(strings.TrimSpace(platformClaim(manifest.Platforms, osName)))
 			if claim == "" {
 				continue
 			}
 			reachable := acquisitionReaches(service.Acquisition, osName)
 			switch {
-			case claim != "unsupported" && !reachable:
+			case claim != fleetContractUnsupported && !reachable:
 				violations = append(violations, fmt.Sprintf(
 					"%s declares %s %q but no acquisition target serves that platform", name, osName, claim))
-			case claim == "unsupported" && reachable:
+			case claim == fleetContractUnsupported && reachable:
 				violations = append(violations, fmt.Sprintf(
 					"%s declares %s unsupported but an acquisition target serves that platform", name, osName))
 			}
@@ -170,8 +182,8 @@ func checkPlatformClaims(resourceRoot string, names []string) error {
 // explicitly unsupported CPU fallback and would report a real route as missing.
 func acquisitionReaches(acquisition *binaryfetch.Acquisition, osName string) bool {
 	factsOS := osName
-	if factsOS == "macos" {
-		factsOS = "darwin"
+	if hostreqspec.PlatformFromGOOS(factsOS) == hostreqspec.PlatformMacOS {
+		factsOS = externalAcquisitionGOOSDarwin
 	}
 	for _, target := range acquisition.Targets {
 		if strings.TrimSpace(target.Unsupported) != "" {
@@ -187,9 +199,9 @@ func acquisitionReaches(acquisition *binaryfetch.Acquisition, osName string) boo
 
 func platformClaim(platforms manifestpkg.ResourcePlatforms, osName string) string {
 	switch osName {
-	case "linux":
+	case string(hostreqspec.PlatformLinux):
 		return platforms.Linux
-	case "macos":
+	case string(hostreqspec.PlatformMacOS):
 		return platforms.MacOS
 	case "windows":
 		return platforms.Windows
@@ -209,17 +221,18 @@ func checkHealthKinds(name string, checks []manifestpkg.ResourceHealthCheck) err
 	return nil
 }
 
+//nolint:gocyclo // managed-artifact checks cover the contract state matrix without hiding diagnostics.
 func checkManagedArtifact(name string, manifest manifestpkg.ResourceManifest) error {
 	service := manifest.ManagedService
 	if service == nil {
 		return nil
 	}
-	for _, osName := range []string{"linux", "macos", "windows"} {
+	for _, osName := range []string{string(hostreqspec.PlatformLinux), string(hostreqspec.PlatformMacOS), string(hostreqspec.PlatformWindows)} {
 		target, found := manifest.Deployment.Target("desktop", osName, "")
 		if !found {
 			return fmt.Errorf("resource %s deployment profile does not declare %s", name, osName)
 		}
-		if target.Support == "unsupported" {
+		if target.Support == fleetContractUnsupported {
 			if strings.TrimSpace(target.Reason) == "" {
 				return fmt.Errorf("resource %s unsupported %s target has no reason", name, osName)
 			}
@@ -231,7 +244,10 @@ func checkManagedArtifact(name string, manifest manifestpkg.ResourceManifest) er
 		if service.Acquisition == nil {
 			return fmt.Errorf("resource %s managed artifact has no acquisition contract for claimed %s", name, osName)
 		}
-		if manifest.Bundling == "vendorable" {
+		// Managed-service artifacts may be composed on the host from a
+		// hardware-predicated target and still be bundled after acquisition.
+		// Other vendorable surfaces must remain build-time deterministic.
+		if manifest.Bundling == "vendorable" && manifest.Driver != "managed-service" {
 			for index, candidate := range service.Acquisition.Targets {
 				if !binaryfetch.UsesOnlyBuildTimeFacts(candidate) {
 					return fmt.Errorf("resource %s vendorable acquisition target %d for %s uses runtime facts", name, index, osName)
@@ -244,8 +260,8 @@ func checkManagedArtifact(name string, manifest manifestpkg.ResourceManifest) er
 				return err
 			}
 			factsOS := platform.OS
-			if factsOS == "macos" {
-				factsOS = "darwin"
+			if hostreqspec.PlatformFromGOOS(factsOS) == hostreqspec.PlatformMacOS {
+				factsOS = externalAcquisitionGOOSDarwin
 			}
 			acquired, err := service.Acquisition.Resolve(binaryfetch.Facts{"os": factsOS, "arch": arch})
 			if err != nil {
@@ -264,10 +280,10 @@ func checkManagedArtifact(name string, manifest manifestpkg.ResourceManifest) er
 			if err != nil {
 				return fmt.Errorf("resource %s managed artifact %s: %w", name, platform, err)
 			}
-			if acquired.Layout != "dir" && acquired.Archive == "none" && !strings.EqualFold(strings.TrimSpace(acquired.SHA256), strings.TrimSpace(artifact.SHA256)) {
+			if acquired.Layout != fleetContractDir && acquired.Archive == "none" && !strings.EqualFold(strings.TrimSpace(acquired.SHA256), strings.TrimSpace(artifact.SHA256)) {
 				return fmt.Errorf("resource %s download/artifact digest mismatch for %s", name, platform)
 			}
-			if !binaryfetch.UsesOnlyBuildTimeFacts(acquired) && manifest.Bundling == "vendorable" {
+			if !binaryfetch.UsesOnlyBuildTimeFacts(acquired) && manifest.Bundling == "vendorable" && manifest.Driver != "managed-service" {
 				return fmt.Errorf("resource %s vendorable acquisition for %s uses runtime facts", name, platform)
 			}
 		}

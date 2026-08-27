@@ -8,6 +8,19 @@ import (
 	"time"
 )
 
+const (
+	policyBatch       = "batch"
+	policyInteractive = "interactive"
+)
+
+const (
+	policyService = "service"
+)
+
+const (
+	policyParameterA = 1024
+)
+
 // Enforce modes (plan §8.5, §7 Phase 3). The lifecycle admission hook keys off
 // these. Default is advisory.
 const (
@@ -113,10 +126,10 @@ var AccelReprobeModes = []string{AccelReprobeOff, AccelReprobeReport, AccelRepro
 // preempt disabled, auto-stop off.
 func DefaultPolicy() Policy {
 	return Policy{
-		TrackingThreshold:      256 * 1024 * 1024, // 256 MiB
+		TrackingThreshold:      256 * 1024 * policyParameterA, // 256 MiB
 		IdleGrace:              DefaultIdleGrace,
 		DefaultHeartbeatTTL:    DefaultHeartbeatTTL,
-		ReconcileWarnThreshold: 512 * 1024 * 1024, // 512 MiB drift
+		ReconcileWarnThreshold: 512 * 1024 * policyParameterA, // 512 MiB drift
 		Enforce:                EnforceAdvisory,
 		PreemptEnabled:         false,
 		AutoStopAllowlist:      nil,
@@ -198,6 +211,8 @@ func (p Policy) Get(key string) (string, error) {
 
 // withKey returns a copy of the policy with one key set from its string value,
 // validating the value. Unknown keys and malformed values are rejected.
+//
+//nolint:gocyclo // claim policy resolves an explicit resource-kind and state decision matrix.
 func (p Policy) withKey(key, value string) (Policy, error) {
 	out := p
 	switch key {
@@ -260,7 +275,7 @@ func (p Policy) withKey(key, value string) (Policy, error) {
 	case "idle_yield_floor":
 		v := strings.TrimSpace(value)
 		switch v {
-		case "interactive", "service", "batch":
+		case policyInteractive, policyService, policyBatch:
 			out.IdleYieldFloor = ParsePriorityTier(v)
 		default:
 			return p, fmt.Errorf("%w: idle_yield_floor must be one of interactive|service|batch", ErrInvalidClaim)

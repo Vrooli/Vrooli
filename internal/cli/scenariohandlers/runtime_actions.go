@@ -15,6 +15,10 @@ import (
 	"github.com/vrooli/vrooli/internal/lifecycle"
 )
 
+const (
+	runtimeActionsParameterA = 124
+)
+
 func StartResponse(run func(StartRequest) ([]scenarioapp.LifecycleItemOutput, error), req StartRequest) (cliout.Format, []LifecycleItemOutput, error) {
 	items, err := run(req)
 	return cliout.FormatHuman, toCLILifecycleItems(items), err
@@ -123,7 +127,7 @@ func runWithStartCeiling(timeoutSeconds int, stderr io.Writer, reattachName stri
 	case <-timer.C:
 		cancel()
 		fmt.Fprintf(stderr, "scenario start: --timeout ceiling (%ds) elapsed; detaching. The orchestration stops with this process, but the operation record stays honest — resume with `vrooli scenario start %s` or attach with `vrooli scenario wait %s --json`.\n", timeoutSeconds, reattachName, reattachName)
-		return nil, VerdictExitError{Code: 124}
+		return nil, VerdictExitError{Code: runtimeActionsParameterA}
 	}
 }
 

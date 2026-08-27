@@ -15,6 +15,8 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/vrooli/vrooli/internal/tuning"
+
 	"github.com/vrooli/vrooli/internal/accel"
 	"github.com/vrooli/vrooli/internal/cliinstall"
 	manifestpkg "github.com/vrooli/vrooli/internal/resources/manifest"
@@ -22,6 +24,10 @@ import (
 	runtimelogs "github.com/vrooli/vrooli/internal/resources/runtime/logs"
 	runtimestorage "github.com/vrooli/vrooli/internal/resources/runtime/storage"
 	"github.com/vrooli/vrooli/internal/shell"
+)
+
+const (
+	driversDockerRuntimeTcp = "tcp"
 )
 
 func inspectDockerContainer(ctx context.Context, controller *Controller, manifest ResourceManifest) (dockerState, bool, error) {
@@ -110,6 +116,7 @@ func recordDockerImageArtifact(controller *Controller, manifest ResourceManifest
 	return nil
 }
 
+//nolint:gocyclo // Docker startup preserves runtime detection, restart, health, and warning outcomes.
 func startDockerService(ctx context.Context, controller *Controller, manifest ResourceManifest, restart bool, warning io.Writer) error {
 	if err := gateAcceleratorReadiness(ctx, manifest, warning); err != nil {
 		return err
@@ -318,7 +325,7 @@ func hostPortInUse(hostIP string, port int, protocol string) bool {
 		_ = packetConn.Close()
 		return false
 	default:
-		listener, err := net.Listen("tcp", address)
+		listener, err := net.Listen(driversDockerRuntimeTcp, address)
 		if err != nil {
 			return isAddressInUse(err)
 		}
@@ -370,7 +377,7 @@ func buildDockerRunArgs(ctx context.Context, controller *Controller, manifest Re
 		source := resolveDockerVolumeSource(controller, manifest, resourceDir, volume)
 		if volumeSourceLooksLikeFile(volume) {
 			parent := filepath.Dir(source)
-			if err := os.MkdirAll(parent, 0o755); err != nil {
+			if err := os.MkdirAll(parent, tuning.PermDir); err != nil {
 				return nil, fmt.Errorf("create volume source parent %s: %w", parent, err)
 			}
 			if _, err := os.Stat(source); os.IsNotExist(err) {
@@ -381,7 +388,7 @@ func buildDockerRunArgs(ctx context.Context, controller *Controller, manifest Re
 				_ = file.Close()
 			}
 		} else {
-			if err := os.MkdirAll(source, 0o755); err != nil {
+			if err := os.MkdirAll(source, tuning.PermDir); err != nil {
 				return nil, fmt.Errorf("create volume source %s: %w", source, err)
 			}
 		}
@@ -468,7 +475,7 @@ func validateExistingDockerMounts(ctx context.Context, controller *Controller, m
 
 func dockerPublishPort(port ResourcePort, hostPort int) string {
 	container := strconv.Itoa(port.Container)
-	if protocol := dockerPortProtocol(port); protocol != "" && protocol != "tcp" {
+	if protocol := dockerPortProtocol(port); protocol != "" && protocol != driversDockerRuntimeTcp {
 		container += "/" + protocol
 	}
 	published := strconv.Itoa(hostPort) + ":" + container
@@ -481,7 +488,7 @@ func dockerPublishPort(port ResourcePort, hostPort int) string {
 func dockerPortProtocol(port ResourcePort) string {
 	protocol := strings.ToLower(strings.TrimSpace(port.Protocol))
 	if protocol == "" {
-		return "tcp"
+		return driversDockerRuntimeTcp
 	}
 	return protocol
 }
@@ -546,7 +553,7 @@ func runDockerLifecycleCommandReal(ctx context.Context, controller *Controller, 
 		Stdout: stdout,
 		Stderr: stderr,
 	})
-	runCtx, cancel := context.WithTimeout(ctx, 2*time.Minute)
+	runCtx, cancel := context.WithTimeout(ctx, tuning.ExtendedOperationTimeout)
 	defer cancel()
 	if err := cmd.Start(); err != nil {
 		return err
@@ -593,7 +600,7 @@ func harvestRuntimeEnvCommand(ctx context.Context, manifest ResourceManifest) []
 	}
 	timeout := time.Duration(spec.TimeoutSeconds) * time.Second
 	if timeout <= 0 {
-		timeout = 5 * time.Second
+		timeout = tuning.ServiceHealthTimeout
 	}
 	cctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
@@ -649,7 +656,7 @@ func composeCommand(ctx context.Context, controller *Controller, manifest Resour
 		Stdout: stdout,
 		Stderr: stderr,
 	})
-	runCtx, cancel := context.WithTimeout(ctx, 2*time.Minute)
+	runCtx, cancel := context.WithTimeout(ctx, tuning.ExtendedOperationTimeout)
 	defer cancel()
 	if err := cmd.Start(); err != nil {
 		return err

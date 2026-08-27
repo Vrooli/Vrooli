@@ -8,6 +8,7 @@ import (
 
 	"github.com/vrooli/vrooli/internal/hostreqkit"
 	"github.com/vrooli/vrooli/internal/hostreqspec"
+	"github.com/vrooli/vrooli/internal/shell/shelltest"
 )
 
 func newHandler() hostreqkit.Handler {
@@ -20,8 +21,10 @@ func req(manual bool) hostreqspec.ResolvedRequirement {
 	}
 }
 
-func linuxHost() hostreqkit.Host { return hostreqkit.Host{OS: "linux"} }
-func winHost() hostreqkit.Host   { return hostreqkit.Host{OS: "windows"} }
+var linuxHost = pathHygieneLinuxHost
+
+func pathHygieneLinuxHost() hostreqkit.Host { return hostreqkit.Host{OS: "linux"} }
+func winHost() hostreqkit.Host              { return hostreqkit.Host{OS: "windows"} }
 
 // withHome points the handler at a temporary home and a fixed PATH, and
 // restores the package seams afterwards.
@@ -203,7 +206,7 @@ func TestInspectReportsAShadowingBinaryWithoutRemovingIt(t *testing.T) {
 		}
 	}
 	stale := filepath.Join(goBin, "vrooli")
-	if err := os.WriteFile(stale, []byte("#!/bin/sh\n"), 0o755); err != nil {
+	if err := os.WriteFile(stale, []byte(shelltest.POSIXShebang()+""), 0o755); err != nil {
 		t.Fatalf("write stale binary: %v", err)
 	}
 	managed, _ := Rewrite("")

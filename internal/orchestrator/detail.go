@@ -12,9 +12,16 @@ import (
 	"github.com/vrooli/vrooli/internal/hostlifecycle"
 	"github.com/vrooli/vrooli/internal/lifecycle"
 	"github.com/vrooli/vrooli/internal/process"
+	"github.com/vrooli/vrooli/internal/repocontractmeta"
 	"github.com/vrooli/vrooli/internal/scenario"
 	"github.com/vrooli/vrooli/internal/scenarioruntime"
 	"github.com/vrooli/vrooli/internal/vroolierr"
+)
+
+const (
+	detailParameterA = 400
+	detailParameterB = 404
+	detailParameterC = 409
 )
 
 type Detail struct {
@@ -160,7 +167,7 @@ func (s *Service) Detail(name string) (Detail, error) {
 			Code:       "scenario_not_found",
 			Category:   "Usage",
 			Message:    fmt.Sprintf("scenario %q not found", name),
-			HTTPStatus: 404,
+			HTTPStatus: detailParameterB,
 		}
 	}
 	return detail, nil
@@ -173,9 +180,9 @@ func (s *Service) Detail(name string) (Detail, error) {
 func (s *Service) DetailAtPath(name, path string) (Detail, error) {
 	cleanPath := filepath.Clean(path)
 	if path == "" || cleanPath == "." {
-		return Detail{}, &vroolierr.Error{Code: "scenario_path_required", Category: "Usage", Message: "scenario path is required", HTTPStatus: 400}
+		return Detail{}, &vroolierr.Error{Code: "scenario_path_required", Category: "Usage", Message: "scenario path is required", HTTPStatus: detailParameterA}
 	}
-	manifestPath := filepath.Join(cleanPath, ".vrooli", "service.json")
+	manifestPath := filepath.Join(cleanPath, repocontractmeta.ProjectConfigDir, "service.json")
 	manifest, err := scenario.ReadService(manifestPath)
 	if err != nil {
 		return Detail{}, fmt.Errorf("load scenario %q at %q: %w", name, cleanPath, err)
@@ -274,7 +281,7 @@ func (s *Service) startResultFromLiveDetail(name string, alreadyRunning bool) (S
 			// Retried through the policy bound; only the final look is surfaced.
 			return false, nil
 		}
-		return detail.Details.Status == "running", nil
+		return detail.Details.Status == scenarioruntime.StatusRunning, nil
 	})
 	if awaitErr != nil {
 		if lastErr != nil {
@@ -322,12 +329,12 @@ func (s *Service) ResolvePort(name, requested string) (ResolvedPort, error) {
 	if err != nil {
 		return ResolvedPort{}, err
 	}
-	if detail.Details.Status != "running" {
+	if detail.Details.Status != scenarioruntime.StatusRunning {
 		return ResolvedPort{}, &vroolierr.Error{
 			Code:       "scenario_not_running",
 			Category:   "Runtime",
 			Message:    fmt.Sprintf("scenario %q is not running", name),
-			HTTPStatus: 409,
+			HTTPStatus: detailParameterC,
 		}
 	}
 
@@ -348,7 +355,7 @@ func (s *Service) ResolvePort(name, requested string) (ResolvedPort, error) {
 			Code:       "scenario_port_not_found",
 			Category:   "Usage",
 			Message:    fmt.Sprintf("no port %q found for scenario %q", requested, name),
-			HTTPStatus: 404,
+			HTTPStatus: detailParameterB,
 		}
 	}
 
@@ -364,7 +371,7 @@ func (s *Service) ResolvePort(name, requested string) (ResolvedPort, error) {
 func (s *Service) viewForDetail(detail Detail) ScenarioView {
 	status := detail.Details.Status
 	health := any(nil)
-	if status == "running" {
+	if status == scenarioruntime.StatusRunning {
 		health = detail.Details.Health
 	}
 	return ScenarioView{

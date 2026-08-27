@@ -56,4 +56,5 @@ message PlatformVerdict {
   string blocking_dependency = 4;
   bool derived = 5;
   bool overridden = 6;
+  string reason_code = 7;
 }

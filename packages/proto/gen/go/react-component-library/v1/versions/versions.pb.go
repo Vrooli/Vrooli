@@ -104,8 +104,10 @@ type Version struct {
 	// own source files. Derived at catalog index time.
 	RequiredTokens        []string `protobuf:"bytes,12,rep,name=required_tokens,json=requiredTokens,proto3" json:"required_tokens,omitempty"`
 	RequiredTokenPatterns []string `protobuf:"bytes,13,rep,name=required_token_patterns,json=requiredTokenPatterns,proto3" json:"required_token_patterns,omitempty"`
-	unknownFields         protoimpl.UnknownFields
-	sizeCache             protoimpl.SizeCache
+	// Storage placement independent of lifecycle status: materialized or evicted.
+	Presence      string `protobuf:"bytes,14,opt,name=presence,proto3" json:"presence,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *Version) Reset() {
@@ -230,11 +232,20 @@ func (x *Version) GetRequiredTokenPatterns() []string {
 	return nil
 }
 
+func (x *Version) GetPresence() string {
+	if x != nil {
+		return x.Presence
+	}
+	return ""
+}
+
 type ListVersionsRequest struct {
 	state       protoimpl.MessageState `protogen:"open.v1"`
 	ComponentId string                 `protobuf:"bytes,1,opt,name=component_id,json=componentId,proto3" json:"component_id,omitempty"`
 	// Max rows newest-first. 0 = server default.
-	Limit         int32 `protobuf:"varint,2,opt,name=limit,proto3" json:"limit,omitempty"`
+	Limit int32 `protobuf:"varint,2,opt,name=limit,proto3" json:"limit,omitempty"`
+	// When true, list every recorded version across the catalog.
+	All           bool `protobuf:"varint,3,opt,name=all,proto3" json:"all,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -281,6 +292,13 @@ func (x *ListVersionsRequest) GetLimit() int32 {
 		return x.Limit
 	}
 	return 0
+}
+
+func (x *ListVersionsRequest) GetAll() bool {
+	if x != nil {
+		return x.All
+	}
+	return false
 }
 
 type ListVersionsResponse struct {
@@ -705,7 +723,7 @@ var File_react_component_library_v1_versions_versions_proto protoreflect.FileDes
 
 const file_react_component_library_v1_versions_versions_proto_rawDesc = "" +
 	"\n" +
-	"2react-component-library/v1/versions/versions.proto\x12*vrooli.react_component_library.v1.versions\x1a\x1fgoogle/protobuf/timestamp.proto\"\x92\x04\n" +
+	"2react-component-library/v1/versions/versions.proto\x12*vrooli.react_component_library.v1.versions\x1a\x1fgoogle/protobuf/timestamp.proto\"\xae\x04\n" +
 	"\aVersion\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12!\n" +
 	"\fcomponent_id\x18\x02 \x01(\tR\vcomponentId\x12\x1d\n" +
@@ -725,10 +743,12 @@ const file_react_component_library_v1_versions_versions_proto_rawDesc = "" +
 	"\n" +
 	"created_at\x18\v \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12'\n" +
 	"\x0frequired_tokens\x18\f \x03(\tR\x0erequiredTokens\x126\n" +
-	"\x17required_token_patterns\x18\r \x03(\tR\x15requiredTokenPatterns\"N\n" +
+	"\x17required_token_patterns\x18\r \x03(\tR\x15requiredTokenPatterns\x12\x1a\n" +
+	"\bpresence\x18\x0e \x01(\tR\bpresence\"`\n" +
 	"\x13ListVersionsRequest\x12!\n" +
 	"\fcomponent_id\x18\x01 \x01(\tR\vcomponentId\x12\x14\n" +
-	"\x05limit\x18\x02 \x01(\x05R\x05limit\"g\n" +
+	"\x05limit\x18\x02 \x01(\x05R\x05limit\x12\x10\n" +
+	"\x03all\x18\x03 \x01(\bR\x03all\"g\n" +
 	"\x14ListVersionsResponse\x12O\n" +
 	"\bversions\x18\x01 \x03(\v23.vrooli.react_component_library.v1.versions.VersionR\bversions\"y\n" +
 	"\x11GetVersionRequest\x12!\n" +

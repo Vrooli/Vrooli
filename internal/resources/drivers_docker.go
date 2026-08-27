@@ -11,7 +11,24 @@ import (
 	"strings"
 
 	"github.com/vrooli/vrooli/internal/accel"
+	"github.com/vrooli/vrooli/internal/logx"
 	manifestpkg "github.com/vrooli/vrooli/internal/resources/manifest"
+	"github.com/vrooli/vrooli/internal/scenarioruntime"
+)
+
+const (
+	driversDockerHealthChecksFailed = "health checks failed"
+	driversDockerInstall            = "install"
+	driversDockerStatus             = "status"
+	driversDockerUninstall          = "uninstall"
+)
+
+const (
+	driversDockerUnsupported = "unsupported"
+)
+
+const (
+	driversDockerParameterA = 3
 )
 
 const StatusCodeUnsupportedPlatform = "unsupported_platform"
@@ -38,7 +55,7 @@ func driverForManifest(manifest ResourceManifest) (resourceDriver, error) {
 		return externalCLIDriver{}, nil
 	case "native-cli":
 		return nativeCLIDriver{}, nil
-	case "managed-service":
+	case accelBridgeManagedService:
 		return managedServiceDriver{}, nil
 	case "cloud-api":
 		return cloudAPIDriver{}, nil
@@ -52,7 +69,7 @@ func ensureSupportedPlatform(manifest ResourceManifest) error {
 	if support == "" {
 		return nil
 	}
-	if support == "unsupported" {
+	if support == driversDockerUnsupported {
 		return fmt.Errorf("resource %q is unsupported on %s", manifest.Name, manifestpkg.CurrentPlatform())
 	}
 	return nil
@@ -66,11 +83,12 @@ type composeServiceDriver struct{}
 
 func (composeServiceDriver) Name() string { return "compose-service" }
 
+//nolint:gocyclo // compose status preserves runtime, health, manifest, and unavailable-service states.
 func (composeServiceDriver) Status(ctx context.Context, controller *Controller, item Resource, manifest ResourceManifest, fast bool) (Status, error) {
 	status := Status{
 		Resource:   item,
 		StatusCode: StatusCodeOK,
-		Message:    "stopped",
+		Message:    scenarioruntime.StatusStopped,
 	}
 	if err := ensureSupportedPlatform(manifest); err != nil {
 		status.StatusCode = StatusCodeUnsupportedPlatform
@@ -101,7 +119,7 @@ func (composeServiceDriver) Status(ctx context.Context, controller *Controller, 
 		} else if exists {
 			service := composeServiceState{Service: manifest.Name, State: "exited"}
 			if state.Running {
-				service.State = "running"
+				service.State = scenarioruntime.StatusRunning
 			}
 			services = []composeServiceState{service}
 		} else {
@@ -112,7 +130,7 @@ func (composeServiceDriver) Status(ctx context.Context, controller *Controller, 
 
 	status.Installed = true
 	for _, service := range services {
-		if strings.EqualFold(strings.TrimSpace(service.State), "running") {
+		if strings.EqualFold(strings.TrimSpace(service.State), scenarioruntime.StatusRunning) {
 			status.Running = true
 			break
 		}
@@ -120,16 +138,16 @@ func (composeServiceDriver) Status(ctx context.Context, controller *Controller, 
 	if !status.Running {
 		healthy := false
 		status.Healthy = &healthy
-		status.Health = "stopped"
-		status.Message = "stopped"
+		status.Health = scenarioruntime.StatusStopped
+		status.Message = scenarioruntime.StatusStopped
 		return status, nil
 	}
 	mode, gpuReason, gpuState := observedGPUStatus(ctx, controller, manifest, services)
 
 	healthy := true
 	status.Healthy = &healthy
-	status.Health = "running"
-	status.Message = "running"
+	status.Health = scenarioruntime.StatusRunning
+	status.Message = scenarioruntime.StatusRunning
 	if mode != "" {
 		status.Raw = statusRawWithMode(status.Raw, mode, gpuState, gpuReason)
 	}
@@ -137,7 +155,7 @@ func (composeServiceDriver) Status(ctx context.Context, controller *Controller, 
 		health, err := controller.runResourceHealthChecks(ctx, manifest)
 		if err != nil {
 			status.StatusCode = StatusCodeCommandError
-			status.Message = "health checks failed"
+			status.Message = driversDockerHealthChecksFailed
 			status.ProbeError = err.Error()
 			return status, nil
 		}
@@ -153,7 +171,7 @@ func (composeServiceDriver) Status(ctx context.Context, controller *Controller, 
 		status.Raw = statusRawWithCompanions(status.Raw, companions)
 		healthy = false
 		status.Healthy = &healthy
-		status.Health = "unhealthy"
+		status.Health = scenarioruntime.HealthStatusUnhealthy
 		status.Message = companionDownMessage(manifest.Name, down)
 		return status, nil
 	} else if len(companions) > 0 {
@@ -164,11 +182,11 @@ func (composeServiceDriver) Status(ctx context.Context, controller *Controller, 
 		status.Healthy = &healthy
 	}
 	if healthy {
-		status.Health = "healthy"
-		status.Message = "healthy"
+		status.Health = scenarioruntime.HealthStatusHealthy
+		status.Message = scenarioruntime.HealthStatusHealthy
 	} else {
-		status.Health = "unhealthy"
-		status.Message = "unhealthy"
+		status.Health = scenarioruntime.HealthStatusUnhealthy
+		status.Message = scenarioruntime.HealthStatusUnhealthy
 	}
 	if mode != "" {
 		status.Message = fmt.Sprintf("%s (mode: %s)", status.Message, mode)
@@ -224,6 +242,7 @@ func observedGPUStatus(ctx context.Context, controller *Controller, manifest Res
 	return observed, placement.Reason, string(placement.State)
 }
 
+//nolint:gocyclo // compose execution handles action, dependency, process, and diagnostic branches.
 func (d composeServiceDriver) Run(ctx context.Context, controller *Controller, item Resource, manifest ResourceManifest, action string, args []string, stdout, stderr io.Writer) error {
 	if err := ensureSupportedPlatform(manifest); err != nil {
 		return &Error{
@@ -236,31 +255,31 @@ func (d composeServiceDriver) Run(ctx context.Context, controller *Controller, i
 	}
 
 	switch action {
-	case "status":
+	case driversDockerStatus:
 		status, err := d.Status(ctx, controller, item, manifest, !containsString(args, "--no-fast"))
 		if err != nil {
 			return err
 		}
-		if containsString(args, "--format") && nextArgValue(args, "--format") == "json" {
+		if containsString(args, "--format") && nextArgValue(args, "--format") == string(logx.FormatJSON) {
 			companions, _ := companionStatuses(manifest.Name, manifest.Companions)
 			return json.NewEncoder(stdout).Encode(map[string]any{
-				"installed":  status.Installed,
-				"running":    status.Running,
-				"healthy":    status.Healthy,
-				"health":     status.Health,
-				"message":    status.Message,
-				"raw":        status.Raw,
-				"companions": companions,
+				"installed":                   status.Installed,
+				scenarioruntime.StatusRunning: status.Running,
+				"healthy":                     status.Healthy,
+				"health":                      status.Health,
+				"message":                     status.Message,
+				"raw":                         status.Raw,
+				"companions":                  companions,
 			})
 		}
 		_, err = fmt.Fprintf(stdout, "%s: %s\n", item.Name, status.Message)
 		return err
-	case "install":
+	case driversDockerInstall:
 		if err := composeCommand(ctx, controller, manifest, io.Discard, stderr, "pull"); err == nil {
 			return nil
 		}
 		return composeCommand(ctx, controller, manifest, io.Discard, stderr, "build")
-	case "start":
+	case brokerTransportStart:
 		if err := gateAcceleratorReadiness(ctx, manifest, stderr); err != nil {
 			return err
 		}
@@ -287,7 +306,7 @@ func (d composeServiceDriver) Run(ctx context.Context, controller *Controller, i
 			}
 		}
 		return verifyStartedPlacement(ctx, controller, manifest, stderr)
-	case "restart":
+	case brokerTransportRestart:
 		if err := gateAcceleratorReadiness(ctx, manifest, stderr); err != nil {
 			return err
 		}
@@ -309,13 +328,13 @@ func (d composeServiceDriver) Run(ctx context.Context, controller *Controller, i
 			}
 		}
 		return verifyStartedPlacement(ctx, controller, manifest, stderr)
-	case "stop":
+	case brokerTransportStop:
 		stopCompanions(manifest.Name, manifest.Companions, stderr)
 		return composeCommand(ctx, controller, manifest, io.Discard, io.Discard, "stop")
-	case "uninstall":
+	case driversDockerUninstall:
 		stopCompanions(manifest.Name, manifest.Companions, stderr)
 		return composeCommand(ctx, controller, manifest, io.Discard, io.Discard, "down", "-v", "--remove-orphans")
-	case "logs":
+	case driversCliLogs:
 		return composeCommand(ctx, controller, manifest, stdout, stderr, "logs")
 	default:
 		return &Error{
@@ -332,7 +351,7 @@ func (dockerServiceDriver) Status(ctx context.Context, controller *Controller, i
 	status := Status{
 		Resource:   item,
 		StatusCode: StatusCodeOK,
-		Message:    "stopped",
+		Message:    scenarioruntime.StatusStopped,
 	}
 
 	if err := ensureSupportedPlatform(manifest); err != nil {
@@ -361,7 +380,7 @@ func (dockerServiceDriver) Status(ctx context.Context, controller *Controller, i
 			status.Running = true
 			healthy := true
 			status.Healthy = &healthy
-			status.Health = "healthy"
+			status.Health = scenarioruntime.HealthStatusHealthy
 			status.Message = "healthy (external)"
 			if _, accelerated := accelSpecFor(manifest); accelerated {
 				mode, reason, state := observedGPUStatus(ctx, controller, manifest, nil)
@@ -377,19 +396,19 @@ func (dockerServiceDriver) Status(ctx context.Context, controller *Controller, i
 	status.Running = state.Running
 	if state.Running {
 		healthy := true
-		status.Health = "running"
+		status.Health = scenarioruntime.StatusRunning
 		if len(manifest.HealthChecks) > 0 {
 			health, err := controller.runResourceHealthChecks(ctx, manifest)
 			if err != nil {
 				status.StatusCode = StatusCodeCommandError
-				status.Message = "health checks failed"
+				status.Message = driversDockerHealthChecksFailed
 				status.ProbeError = err.Error()
 				return status, nil
 			}
 			status = applyHealthToStatus(status, health)
 			healthy = health.Healthy
 		} else {
-			status.Message = "running"
+			status.Message = scenarioruntime.StatusRunning
 			status.Healthy = &healthy
 			serving := healthy
 			status.Serving = &serving
@@ -401,16 +420,16 @@ func (dockerServiceDriver) Status(ctx context.Context, controller *Controller, i
 			if state != string(accel.StateOK) {
 				healthy = false
 				status.Healthy = &healthy
-				status.Health = "unhealthy"
-				status.Message = "unhealthy" + fmt.Sprintf(" (mode: %s)", mode)
+				status.Health = scenarioruntime.HealthStatusUnhealthy
+				status.Message = scenarioruntime.HealthStatusUnhealthy + fmt.Sprintf(" (mode: %s)", mode)
 			}
 		}
 		if healthy {
-			status.Health = "healthy"
-			status.Message = "healthy"
+			status.Health = scenarioruntime.HealthStatusHealthy
+			status.Message = scenarioruntime.HealthStatusHealthy
 		} else {
-			status.Health = "unhealthy"
-			status.Message = "unhealthy"
+			status.Health = scenarioruntime.HealthStatusUnhealthy
+			status.Message = scenarioruntime.HealthStatusUnhealthy
 		}
 		status = appendOllamaProcessor(ctx, controller, manifest, status)
 		return status, nil
@@ -420,8 +439,8 @@ func (dockerServiceDriver) Status(ctx context.Context, controller *Controller, i
 		status.Running = true
 		healthy := true
 		status.Healthy = &healthy
-		status.Health = "healthy"
-		status.Message = "healthy (external)"
+		status.Health = scenarioruntime.HealthStatusHealthy
+		status.Message = scenarioruntime.HealthStatusHealthy + " (external)"
 		if _, accelerated := accelSpecFor(manifest); accelerated {
 			mode, reason, state := observedGPUStatus(ctx, controller, manifest, nil)
 			status.Raw = statusRawWithMode(status.Raw, mode, state, reason)
@@ -429,8 +448,8 @@ func (dockerServiceDriver) Status(ctx context.Context, controller *Controller, i
 			if state != string(accel.StateOK) {
 				healthy = false
 				status.Healthy = &healthy
-				status.Health = "unhealthy"
-				status.Message = "unhealthy" + fmt.Sprintf(" (mode: %s)", mode)
+				status.Health = scenarioruntime.HealthStatusUnhealthy
+				status.Message = scenarioruntime.HealthStatusUnhealthy + fmt.Sprintf(" (mode: %s)", mode)
 			}
 		}
 		return status, nil
@@ -438,8 +457,8 @@ func (dockerServiceDriver) Status(ctx context.Context, controller *Controller, i
 
 	healthy := false
 	status.Healthy = &healthy
-	status.Health = "stopped"
-	status.Message = "stopped"
+	status.Health = scenarioruntime.StatusStopped
+	status.Message = scenarioruntime.StatusStopped
 	return status, nil
 }
 
@@ -468,7 +487,7 @@ func appendOllamaProcessor(ctx context.Context, controller *Controller, manifest
 		if hasGPU, ok := payload["has_gpu_model"].(bool); ok && !hasGPU {
 			unhealthy := false
 			status.Healthy = &unhealthy
-			status.Health = "unhealthy"
+			status.Health = scenarioruntime.HealthStatusUnhealthy
 		}
 	}
 	status.Raw, _ = json.Marshal(raw)
@@ -488,38 +507,38 @@ func (d dockerServiceDriver) Run(ctx context.Context, controller *Controller, it
 	}
 
 	switch action {
-	case "status":
+	case driversDockerStatus:
 		status, err := d.Status(ctx, controller, item, manifest, !containsString(args, "--no-fast"))
 		if err != nil {
 			return err
 		}
-		if containsString(args, "--format") && nextArgValue(args, "--format") == "json" {
+		if containsString(args, "--format") && nextArgValue(args, "--format") == string(logx.FormatJSON) {
 			return json.NewEncoder(stdout).Encode(map[string]any{
-				"installed": status.Installed,
-				"running":   status.Running,
-				"healthy":   status.Healthy,
-				"health":    status.Health,
-				"message":   status.Message,
-				"raw":       status.Raw,
+				"installed":                   status.Installed,
+				scenarioruntime.StatusRunning: status.Running,
+				"healthy":                     status.Healthy,
+				"health":                      status.Health,
+				"message":                     status.Message,
+				"raw":                         status.Raw,
 			})
 		}
 		_, err = fmt.Fprintf(stdout, "%s: %s\n", item.Name, status.Message)
 		return err
-	case "install":
+	case driversDockerInstall:
 		imageBefore := inspectDockerArtifact(ctx, controller, "image", manifest.Runtime.Image)
 		if err := ensureDockerImage(ctx, controller, manifest); err != nil {
 			return err
 		}
 		return recordDockerImageArtifact(controller, manifest, imageBefore)
-	case "start":
+	case brokerTransportStart:
 		return startDockerService(ctx, controller, manifest, false, stderr)
-	case "restart":
+	case brokerTransportRestart:
 		return startDockerService(ctx, controller, manifest, true, stderr)
-	case "stop":
+	case brokerTransportStop:
 		return stopDockerService(ctx, controller, manifest)
-	case "uninstall":
+	case driversDockerUninstall:
 		return uninstallDockerService(ctx, controller, manifest)
-	case "logs":
+	case driversCliLogs:
 		return dockerCommand(ctx, controller, stdout, stderr, "logs", dockerContainerName(manifest))
 	default:
 		return &Error{
@@ -572,7 +591,7 @@ func composeFilePath(controller *Controller, manifest ResourceManifest) string {
 }
 
 func inspectComposeServices(ctx context.Context, controller *Controller, manifest ResourceManifest) ([]composeServiceState, error) {
-	output, err := composeOutput(ctx, controller, manifest, "ps", "-a", "--format", "json")
+	output, err := composeOutput(ctx, controller, manifest, "ps", "-a", "--format", string(logx.FormatJSON))
 	if err != nil {
 		return nil, err
 	}
@@ -625,7 +644,7 @@ func inspectComposeFallbackContainer(ctx context.Context, controller *Controller
 
 func composeFallbackContainerNames(manifest ResourceManifest) []string {
 	seen := map[string]struct{}{}
-	names := make([]string, 0, 3)
+	names := make([]string, 0, driversDockerParameterA)
 	for _, name := range []string{
 		strings.TrimSpace(manifest.Runtime.ContainerName),
 		strings.TrimSpace(manifest.Name),

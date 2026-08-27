@@ -10,6 +10,7 @@ import (
 
 	"connectrpc.com/connect"
 	scenarioapp "github.com/vrooli/vrooli/internal/app/scenario"
+	"github.com/vrooli/vrooli/internal/cliout"
 	"github.com/vrooli/vrooli/internal/process"
 	"github.com/vrooli/vrooli/internal/scenarioruntime"
 	cliv1 "github.com/vrooli/vrooli/packages/proto/gen/go/cli/v1"
@@ -208,7 +209,7 @@ func statusSingleMessage(output scenarioapp.StatusSingleOutput) *cliv1.ScenarioS
 	}
 	health := structpb.NewNullValue()
 	if item.Health != nil {
-		if value, err := structpb.NewValue(item.Health); err == nil {
+		if value, err := cliout.NewJSONValue(item.Health); err == nil {
 			health = value
 		}
 	}

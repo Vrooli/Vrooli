@@ -8,6 +8,8 @@ import (
 	"runtime"
 	"strings"
 
+	"github.com/vrooli/vrooli/internal/tuning"
+
 	"github.com/vrooli/api-core/scenariocli"
 	"github.com/vrooli/platform-go"
 	repocontract "github.com/vrooli/repo-contract-go"
@@ -44,7 +46,7 @@ func IsExecutable(path string) bool {
 	if err != nil || info.IsDir() {
 		return false
 	}
-	return info.Mode()&0o111 != 0
+	return info.Mode()&tuning.PermExecuteMask != 0
 }
 
 func WriterSupportsStreaming(w io.Writer) bool {

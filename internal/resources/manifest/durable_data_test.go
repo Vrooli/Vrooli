@@ -19,6 +19,16 @@ func baseExternalCLI() ResourceManifest {
 
 func boolPtr(b bool) *bool { return &b }
 
+func assertDurableDataRejected(t *testing.T, mutate func(*ResourceManifest), want string) {
+	t.Helper()
+	manifest := baseExternalCLI()
+	mutate(&manifest)
+	err := Validate(manifest)
+	if err == nil || !strings.Contains(err.Error(), want) {
+		t.Fatalf("expected %q rejection, got %v", want, err)
+	}
+}
+
 func TestValidateAcceptsDurableDataOnExternalCLI(t *testing.T) {
 	m := baseExternalCLI()
 	m.DurableData = &ResourceDurableData{
@@ -36,53 +46,42 @@ func TestValidateAcceptsDurableDataOnExternalCLI(t *testing.T) {
 }
 
 func TestValidateRejectsDurableDataOnContainerDriver(t *testing.T) {
-	m := baseExternalCLI()
-	m.Driver = "docker-service"
-	m.DurableData = &ResourceDurableData{
-		Entries: map[string]DurableDataEntry{"x": {Path: "x", Kind: "dir"}},
-	}
-	err := Validate(m)
-	if err == nil || !strings.Contains(err.Error(), "durable_data is only valid for host-filesystem drivers") {
-		t.Fatalf("expected host-only driver rejection, got %v", err)
-	}
+	assertDurableDataRejected(t, func(m *ResourceManifest) {
+		m.Driver = "docker-service"
+		m.DurableData = &ResourceDurableData{
+			Entries: map[string]DurableDataEntry{"x": {Path: "x", Kind: "dir"}},
+		}
+	}, "durable_data is only valid for host-filesystem drivers")
 }
 
 func TestValidateRejectsDurableDataEmptyEntries(t *testing.T) {
-	m := baseExternalCLI()
-	m.DurableData = &ResourceDurableData{Base: "$HOME/.claude", Entries: map[string]DurableDataEntry{}}
-	if err := Validate(m); err == nil || !strings.Contains(err.Error(), "entries must not be empty") {
-		t.Fatalf("expected empty-entries rejection, got %v", err)
-	}
+	assertDurableDataRejected(t, func(m *ResourceManifest) {
+		m.DurableData = &ResourceDurableData{Base: "$HOME/.claude", Entries: map[string]DurableDataEntry{}}
+	}, "entries must not be empty")
 }
 
 func TestValidateRejectsDurableDataBadKind(t *testing.T) {
-	m := baseExternalCLI()
-	m.DurableData = &ResourceDurableData{
-		Entries: map[string]DurableDataEntry{"x": {Path: "x", Kind: "symlink"}},
-	}
-	if err := Validate(m); err == nil || !strings.Contains(err.Error(), "kind must be") {
-		t.Fatalf("expected bad-kind rejection, got %v", err)
-	}
+	assertDurableDataRejected(t, func(m *ResourceManifest) {
+		m.DurableData = &ResourceDurableData{
+			Entries: map[string]DurableDataEntry{"x": {Path: "x", Kind: "symlink"}},
+		}
+	}, "kind must be")
 }
 
 func TestValidateRejectsDurableDataTraversalPath(t *testing.T) {
-	m := baseExternalCLI()
-	m.DurableData = &ResourceDurableData{
-		Entries: map[string]DurableDataEntry{"x": {Path: "../escape", Kind: "dir"}},
-	}
-	if err := Validate(m); err == nil || !strings.Contains(err.Error(), "parent traversal") {
-		t.Fatalf("expected traversal rejection, got %v", err)
-	}
+	assertDurableDataRejected(t, func(m *ResourceManifest) {
+		m.DurableData = &ResourceDurableData{
+			Entries: map[string]DurableDataEntry{"x": {Path: "../escape", Kind: "dir"}},
+		}
+	}, "parent traversal")
 }
 
 func TestValidateRejectsDurableDataAbsolutePath(t *testing.T) {
-	m := baseExternalCLI()
-	m.DurableData = &ResourceDurableData{
-		Entries: map[string]DurableDataEntry{"x": {Path: "/etc/passwd", Kind: "file"}},
-	}
-	if err := Validate(m); err == nil || !strings.Contains(err.Error(), "no leading slash") {
-		t.Fatalf("expected absolute-path rejection, got %v", err)
-	}
+	assertDurableDataRejected(t, func(m *ResourceManifest) {
+		m.DurableData = &ResourceDurableData{
+			Entries: map[string]DurableDataEntry{"x": {Path: "/etc/passwd", Kind: "file"}},
+		}
+	}, "no leading slash")
 }
 
 func TestValidateRejectsDurableDataBadBaseToken(t *testing.T) {

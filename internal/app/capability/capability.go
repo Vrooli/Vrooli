@@ -17,14 +17,28 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
+const (
+	capabilityDocker = "docker"
+)
+
+const (
+	capabilityBlocked  = "blocked"
+	capabilityFleet    = "fleet"
+	capabilityHelp     = "--help"
+	capabilityJson     = "--json"
+	capabilityPeerless = "peerless"
+	capabilityDesktop  = "desktop"
+	capabilityUpgrades = "upgrades"
+)
+
 // Run dispatches `vrooli capability`.
 func (app *App) Run(ctx *CommandContext, args []string) error {
 	return app.runCapabilityCommand(ctx, args)
 }
 
 func (app *App) runCapabilityCommand(ctx *CommandContext, args []string) error {
-	if len(args) == 0 || args[0] == "--help" || args[0] == "-h" {
-		fmt.Fprintln(ctx.Stdout, "Usage: vrooli capability ledger|fleet [query] [--json]\n  vrooli capability conformance [--json]\n  vrooli capability catalog|status [--json]\n  vrooli capability preview|apply [--json] < action JSON")
+	if len(args) == 0 || args[0] == capabilityHelp || args[0] == "-h" {
+		fmt.Fprintln(ctx.Stdout, "Usage: vrooli capability ledger|fleet [query] [--json]\n  vrooli capability conformance [--json|--declarations-only]\n  vrooli capability catalog|status [--json]\n  vrooli capability preview|apply [--json] < action JSON")
 		return nil
 	}
 	if args[0] == "conformance" {
@@ -33,20 +47,20 @@ func (app *App) runCapabilityCommand(ctx *CommandContext, args []string) error {
 	if args[0] == "catalog" || args[0] == "status" || args[0] == "preview" || args[0] == "apply" {
 		return app.runCapabilityWorkflow(ctx, args)
 	}
-	if args[0] != "ledger" && args[0] != "fleet" {
+	if args[0] != "ledger" && args[0] != capabilityFleet {
 		return fmt.Errorf("unknown capability command %q", args[0])
 	}
 	jsonOutput := ctx.Globals.JSON
 	query := ""
 	for _, arg := range args[1:] {
 		switch strings.TrimSpace(arg) {
-		case "--json":
+		case capabilityJson:
 			jsonOutput = true
-		case "--help", "-h":
+		case capabilityHelp, "-h":
 			fmt.Fprintln(ctx.Stdout, "Usage: vrooli capability ledger|fleet [query] [--json]\n  vrooli capability catalog|status [--json]\n  vrooli capability preview|apply [--json] < action JSON")
 			return nil
-		case "blocked", "docker", "peerless", "upgrades", "desktop":
-			if args[0] != "fleet" {
+		case capabilityBlocked, capabilityDocker, capabilityPeerless, capabilityUpgrades, capabilityDesktop:
+			if args[0] != capabilityFleet {
 				return fmt.Errorf("query %q is only valid for capability fleet", arg)
 			}
 			query = strings.TrimSpace(arg)
@@ -60,7 +74,7 @@ func (app *App) runCapabilityCommand(ctx *CommandContext, args []string) error {
 	requestCtx, cancel := context.WithTimeout(context.Background(), capabilityRequestTimeout)
 	defer cancel()
 
-	if args[0] == "fleet" {
+	if args[0] == capabilityFleet {
 		readout, err := fetchCapabilityFleet(requestCtx)
 		if err != nil {
 			return reportCapabilityDegraded(ctx, jsonOutput, err)
@@ -76,29 +90,40 @@ func (app *App) runCapabilityCommand(ctx *CommandContext, args []string) error {
 
 func (app *App) runCapabilityConformanceCommand(ctx *CommandContext, args []string) error {
 	jsonOutput := ctx.Globals.JSON
+	declarationsOnly := false
 	for _, arg := range args {
 		switch strings.TrimSpace(arg) {
-		case "--json":
+		case capabilityJson:
 			jsonOutput = true
-		case "--help", "-h":
-			fmt.Fprintln(ctx.Stdout, "Usage: vrooli capability conformance [--json]")
+		case "--declarations-only":
+			declarationsOnly = true
+		case capabilityHelp, "-h":
+			fmt.Fprintln(ctx.Stdout, "Usage: vrooli capability conformance [--json|--declarations-only]")
 			return nil
 		default:
 			return fmt.Errorf("unknown capability conformance option %q", arg)
 		}
 	}
-	report, err := deployability.CheckRepository(context.Background(), ctx.Root)
+	var report deployability.ConformanceReport
+	var err error
+	if declarationsOnly {
+		findings, checkErr := deployability.CheckResourceDeclarations(ctx.Root)
+		report = deployability.ConformanceReport{Findings: findings}
+		err = checkErr
+	} else {
+		report, err = deployability.CheckRepository(context.Background(), ctx.Root)
+	}
 	if err != nil {
 		return fmt.Errorf("capability conformance: %w", err)
 	}
 	if jsonOutput {
-		if err := writeCapabilityValue(ctx.Stdout, report); err != nil {
+		if err := cliout.WriteJSONValue(ctx.Stdout, report); err != nil {
 			return err
 		}
 	} else {
 		fmt.Fprintf(ctx.Stdout, "checked_targets=%d findings=%d\n", len(report.Targets), len(report.Findings))
 		for _, finding := range report.Findings {
-			fmt.Fprintf(ctx.Stdout, "%s [%s] %s\n", finding.ManifestPath, finding.OS, finding.Message)
+			fmt.Fprintf(ctx.Stdout, "%s [%s/%s] %s\n", finding.ManifestPath, finding.OS, finding.Architecture, finding.Message)
 		}
 	}
 	if len(report.Findings) > 0 {
@@ -117,7 +142,7 @@ func reportCapabilityDegraded(ctx *CommandContext, jsonOutput bool, err error) e
 		return err
 	}
 	if jsonOutput {
-		if encodeErr := writeCapabilityValue(ctx.Stdout, newCapabilityDegradedReadout(degraded)); encodeErr != nil {
+		if encodeErr := cliout.WriteJSONValue(ctx.Stdout, newCapabilityDegradedReadout(degraded)); encodeErr != nil {
 			return encodeErr
 		}
 	}
@@ -126,7 +151,7 @@ func reportCapabilityDegraded(ctx *CommandContext, jsonOutput bool, err error) e
 
 func renderCapabilityGrid(ctx *CommandContext, jsonOutput bool, grid *portabilityv1.Grid) error {
 	if jsonOutput {
-		return writeCapabilityJSON(ctx, grid)
+		return cliout.WriteProtoJSON(ctx.Stdout, grid)
 	}
 	fmt.Fprintf(ctx.Stdout, "manifest_root=%s manifests_read=%d\n", grid.GetManifestRoot(), grid.GetManifestsRead())
 	for _, entry := range grid.GetCapabilities() {
@@ -158,9 +183,9 @@ func renderCapabilityFleet(ctx *CommandContext, jsonOutput bool, query string, r
 	if jsonOutput {
 		var value proto.Message = readout
 		switch query {
-		case "blocked":
+		case capabilityBlocked:
 			value = &portabilityv1.FleetReadout{BlockedByOs: readout.GetBlockedByOs()}
-		case "docker":
+		case capabilityDocker:
 			value = &portabilityv1.FleetReadout{DockerBlocked: readout.GetDockerBlocked()}
 		case "peerless":
 			value = &portabilityv1.FleetReadout{Peerless: readout.GetPeerless()}
@@ -169,13 +194,13 @@ func renderCapabilityFleet(ctx *CommandContext, jsonOutput bool, query string, r
 		case "desktop":
 			value = &portabilityv1.FleetReadout{DesktopBundling: readout.GetDesktopBundling()}
 		}
-		return writeCapabilityJSON(ctx, value)
+		return cliout.WriteProtoJSON(ctx.Stdout, value)
 	}
 	switch query {
-	case "blocked":
+	case capabilityBlocked:
 		fmt.Fprintf(ctx.Stdout, "blocked_by_os=%d\n", len(readout.GetBlockedByOs()))
 		return nil
-	case "docker":
+	case capabilityDocker:
 		fmt.Fprintf(ctx.Stdout, "docker_blocked=%d\n", len(readout.GetDockerBlocked()))
 		return nil
 	case "peerless":
@@ -193,13 +218,6 @@ func renderCapabilityFleet(ctx *CommandContext, jsonOutput bool, query string, r
 	return nil
 }
 
-// writeCapabilityJSON emits the owner's proto message through protojson so the
-// CLI's JSON is the wire contract, not a second hand-written shape that can
-// drift from it.
-func writeCapabilityJSON(ctx *CommandContext, message proto.Message) error {
-	return cliout.WriteProtoJSON(ctx.Stdout, message)
-}
-
 func enumToken(full, prefix string) string {
 	return strings.ToLower(strings.TrimPrefix(full, prefix))
 }
@@ -209,9 +227,9 @@ func (app *App) runCapabilityWorkflow(ctx *CommandContext, args []string) error 
 	jsonOutput := ctx.Globals.JSON
 	for _, arg := range args[1:] {
 		switch strings.TrimSpace(arg) {
-		case "--json":
+		case capabilityJson:
 			jsonOutput = true
-		case "--help", "-h":
+		case capabilityHelp, "-h":
 			fmt.Fprintln(ctx.Stdout, "Usage: vrooli capability catalog|status [--json]\n  vrooli capability preview|apply [--json] < action JSON")
 			return nil
 		default:
@@ -232,12 +250,13 @@ func (app *App) runCapabilityWorkflow(ctx *CommandContext, args []string) error 
 			return err
 		}
 		if jsonOutput {
-			return writeCapabilityValue(ctx.Stdout, statuses)
+			return cliout.WriteJSONValue(ctx.Stdout, statuses)
 		}
+		rows := make([][]string, 0, len(statuses))
 		for _, status := range statuses {
-			fmt.Fprintf(ctx.Stdout, "%s\t%s\t%s\n", status.Descriptor.ID, status.State, firstNonEmpty(status.Remediation, status.Descriptor.Remediation))
+			rows = append(rows, []string{status.Descriptor.ID, string(status.State), firstNonEmpty(status.Remediation, status.Descriptor.Remediation)})
 		}
-		return nil
+		return cliout.WriteSection(ctx.Stdout, cliout.Section{Rows: rows})
 	}
 	input := ctx.Stdin
 	if input == nil {
@@ -260,7 +279,7 @@ func (app *App) runCapabilityWorkflow(ctx *CommandContext, args []string) error 
 		output, err = registry.Apply(context.Background(), request)
 	}
 	if jsonOutput {
-		if encodeErr := writeCapabilityValue(ctx.Stdout, output); encodeErr != nil {
+		if encodeErr := cliout.WriteJSONValue(ctx.Stdout, output); encodeErr != nil {
 			return encodeErr
 		}
 	} else {

@@ -71,7 +71,7 @@ func (h handler) Inspect(host hostreqkit.Host, requirement hostreqspec.ResolvedR
 	status.Installed = false
 	status.ExecutionState = hostreqkit.ExecutionPending
 	status.Notes = append(status.Notes, dockerHealthNotes(host, health)...)
-	if host.OS == "linux" && host.SupportsSystemd && !health.PermissionDenied {
+	if hostreqspec.PlatformFromGOOS(host.OS) == hostreqspec.PlatformLinux && host.SupportsSystemd && !health.PermissionDenied {
 		status.BlockingReason = hostreqkit.BlockingNeedsSudo
 	}
 	if health.PermissionDenied {
@@ -117,14 +117,14 @@ func (h handler) Apply(host hostreqkit.Host, status hostreqkit.ItemStatus, opts 
 	if decision.Provider == ProviderColima {
 		return h.ensureColima(host, status, opts, decision)
 	}
-	if decision.Provider == ProviderWindowsManual || decision.Provider == "" || (host.OS != "linux" && decision.Provider != ProviderRemoteDaemon) {
+	if decision.Provider == ProviderWindowsManual || decision.Provider == "" || (hostreqspec.PlatformFromGOOS(host.OS) != hostreqspec.PlatformLinux && decision.Provider != ProviderRemoteDaemon) {
 		status.Installed = false
 		status.ExecutionState = hostreqkit.ExecutionManualActionRequired
 		status.BlockingReason = hostreqkit.BlockingManual
 		status.Notes = append(status.Notes, decision.ManualAction)
 		return status, nil
 	}
-	if host.OS != "linux" || !host.SupportsSystemd {
+	if hostreqspec.PlatformFromGOOS(host.OS) != hostreqspec.PlatformLinux || !host.SupportsSystemd {
 		status.Installed = false
 		status.ExecutionState = hostreqkit.ExecutionManualActionRequired
 		status.BlockingReason = hostreqkit.BlockingManual
@@ -334,7 +334,7 @@ func dockerHealthNotes(host hostreqkit.Host, health dockerhost.Health) []string 
 		return notes
 	}
 	switch {
-	case host.OS == "linux" && host.SupportsSystemd:
+	case hostreqspec.PlatformFromGOOS(host.OS) == hostreqspec.PlatformLinux && host.SupportsSystemd:
 		notes = append(notes, "Re-run as `sudo vrooli setup` or pass --sudo-mode=ask to repair and start Docker")
 	case host.OS == "darwin" || host.OS == "windows":
 		notes = append(notes, "Start a Docker-compatible container runtime, then re-run `vrooli setup`")

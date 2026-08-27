@@ -88,6 +88,23 @@ type Spec struct {
 	Stderr  io.Writer
 }
 
+// Runner is the shared boundary for observing external commands. Run returns
+// combined standard output and standard error so callers retain diagnostic
+// output when a probe exits unsuccessfully.
+type Runner interface {
+	LookPath(name string) (string, error)
+	Run(ctx context.Context, name string, args ...string) ([]byte, error)
+}
+
+// OSRunner executes commands through the operating system.
+type OSRunner struct{}
+
+func (OSRunner) LookPath(name string) (string, error) { return LookPath(name) }
+
+func (OSRunner) Run(ctx context.Context, name string, args ...string) ([]byte, error) {
+	return CombinedOutput(Spec{Context: ctx, Name: name, Args: args})
+}
+
 func Command(spec Spec) *exec.Cmd {
 	var cmd *exec.Cmd
 	if spec.Context != nil {

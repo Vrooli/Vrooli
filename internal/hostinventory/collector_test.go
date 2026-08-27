@@ -7,31 +7,9 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/vrooli/vrooli/internal/shell/shelltest"
 )
-
-type fakeCommandRunner struct {
-	paths map[string]string
-	out   map[string][]byte
-	errs  map[string]error
-}
-
-func (f fakeCommandRunner) LookPath(file string) (string, error) {
-	if path, ok := f.paths[file]; ok {
-		return path, nil
-	}
-	return "", errors.New("not found")
-}
-
-func (f fakeCommandRunner) Run(ctx context.Context, name string, args ...string) ([]byte, error) {
-	key := name
-	for _, arg := range args {
-		key += " " + arg
-	}
-	if err, ok := f.errs[key]; ok {
-		return nil, err
-	}
-	return f.out[key], nil
-}
 
 type fakeFileReader map[string][]byte
 
@@ -49,12 +27,12 @@ func (f fixedClock) Now() time.Time { return time.Time(f) }
 func TestCollectLinuxSnapshot(t *testing.T) {
 	now := time.Date(2026, 6, 10, 12, 0, 0, 0, time.UTC)
 	c := Collector{
-		Commands: fakeCommandRunner{
-			paths: map[string]string{
+		Commands: &shelltest.Fake{
+			Paths: map[string]string{
 				"nvidia-smi": "/usr/bin/nvidia-smi",
 				"docker":     "/usr/bin/docker",
 			},
-			out: map[string][]byte{
+			Outputs: map[string][]byte{
 				"nvidia-smi --query-gpu=index,name,uuid,driver_version,utilization.gpu,utilization.memory,memory.total,memory.used,temperature.gpu,fan.speed,power.draw,power.limit,clocks.sm,clocks.mem --format=csv,noheader,nounits": []byte("0, NVIDIA RTX 4090, GPU-abc, 555.42, 35, 20, 24564, 4096, 65, 40, 180, 450, 2100, 10000\n"),
 				"nvidia-smi --query-gpu=index,compute_cap --format=csv,noheader,nounits":                              []byte("0, 8.9\n"),
 				"nvidia-smi --query-gpu=index,pci.bus_id --format=csv,noheader,nounits":                               []byte("0, 00000000:01:00.0\n"),
@@ -121,7 +99,7 @@ func TestCollectLinuxSnapshot(t *testing.T) {
 
 func TestCollectGPUReportsAbsentNvidiaDevice(t *testing.T) {
 	c := Collector{
-		Commands:    fakeCommandRunner{},
+		Commands:    &shelltest.Fake{},
 		GOOS:        "linux",
 		GOARCH:      "amd64",
 		DeviceRoots: DeviceRoots{Sysfs: materializeSysfs(t, "one-graphics.sysfs")},
@@ -141,7 +119,7 @@ func TestCollectGPUReportsAbsentNvidiaDevice(t *testing.T) {
 
 func TestCollectGPUReportsUnsupportedPlatform(t *testing.T) {
 	c := Collector{
-		Commands: fakeCommandRunner{},
+		Commands: &shelltest.Fake{},
 		GOOS:     "plan9",
 		GOARCH:   "amd64",
 	}
@@ -179,9 +157,9 @@ func TestCollectPlatformFactsWaylandPolicyUsesOneDistinguishingInputPerCase(t *t
 				files[path] = content
 			}
 			c := Collector{
-				Commands: fakeCommandRunner{
-					paths: map[string]string{"systemctl": "/usr/bin/systemctl", "loginctl": "/usr/bin/loginctl", "cloudflared": "/usr/bin/cloudflared"},
-					out: map[string][]byte{
+				Commands: &shelltest.Fake{
+					Paths: map[string]string{"systemctl": "/usr/bin/systemctl", "loginctl": "/usr/bin/loginctl", "cloudflared": "/usr/bin/cloudflared"},
+					Outputs: map[string][]byte{
 						"loginctl show-session self -p Type --value":           []byte("x11\n"),
 						"loginctl show-session self -p Seat --value":           []byte("seat0\n"),
 						"systemctl show display-manager.service -p Id --value": []byte("gdm3.service\n"),
@@ -208,7 +186,7 @@ func TestCollectPlatformFactsWaylandPolicyUsesOneDistinguishingInputPerCase(t *t
 
 func TestCollectPlatformFactsReadsAutoLoginFromDisplayPolicy(t *testing.T) {
 	c := Collector{
-		Commands: fakeCommandRunner{},
+		Commands: &shelltest.Fake{},
 		Files: platformFiles{
 			"/etc/gdm3/custom.conf": []byte("[daemon]\nAutomaticLoginEnable=true\nAutomaticLogin=alice\n"),
 		},
@@ -253,7 +231,7 @@ func (f platformFiles) Glob(pattern string) []string {
 
 func TestCollectPlatformFactsReportsAttachedDisplay(t *testing.T) {
 	c := Collector{
-		Commands: fakeCommandRunner{},
+		Commands: &shelltest.Fake{},
 		Files: platformFiles{
 			"/sys/class/drm/card0-HDMI-A-1/status": []byte("connected\n"),
 		},
@@ -271,11 +249,11 @@ func TestCollectPlatformFactsReportsAttachedDisplay(t *testing.T) {
 func TestCollectDarwinGPUFromSystemProfiler(t *testing.T) {
 	now := time.Date(2026, 6, 10, 12, 0, 0, 0, time.UTC)
 	c := Collector{
-		Commands: fakeCommandRunner{
-			paths: map[string]string{
+		Commands: &shelltest.Fake{
+			Paths: map[string]string{
 				"system_profiler": "/usr/sbin/system_profiler",
 			},
-			out: map[string][]byte{
+			Outputs: map[string][]byte{
 				"system_profiler SPDisplaysDataType": []byte("Graphics/Displays:\n    Chipset Model: Apple M3 Pro\n"),
 				"sysctl -n hw.memsize":               []byte("34359738368\n"),
 			},
@@ -300,11 +278,11 @@ func TestCollectDarwinGPUFromSystemProfiler(t *testing.T) {
 func TestCollectWindowsGPUFromWMIC(t *testing.T) {
 	now := time.Date(2026, 6, 10, 12, 0, 0, 0, time.UTC)
 	c := Collector{
-		Commands: fakeCommandRunner{
-			paths: map[string]string{
+		Commands: &shelltest.Fake{
+			Paths: map[string]string{
 				"wmic": "C:\\Windows\\System32\\wbem\\wmic.exe",
 			},
-			out: map[string][]byte{
+			Outputs: map[string][]byte{
 				"wmic ComputerSystem get TotalPhysicalMemory /Value": []byte("TotalPhysicalMemory=17179869184\n"),
 				"wmic path win32_VideoController get name":           []byte("Name\nNVIDIA GeForce RTX 3080\nMicrosoft Basic Display Adapter\n"),
 			},

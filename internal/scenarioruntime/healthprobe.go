@@ -10,8 +10,14 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vrooli/vrooli/internal/tuning"
+
 	apihealth "github.com/vrooli/api-core/health"
 	"github.com/vrooli/vrooli/internal/scenario"
+)
+
+const (
+	healthprobeParameterA = 4096
 )
 
 type HealthProbe struct {
@@ -101,7 +107,7 @@ func (p HealthProbe) Probe(ctx context.Context, in HealthProbeInput) HealthSnaps
 	snapshot.LatencyMillis = &latency
 	snapshot.SchemaValid = schemaValid
 	snapshot.ResponseJSON = responseJSON
-	snapshot.Error = boundString(strings.Join(failures, "; "), 4096)
+	snapshot.Error = boundString(strings.Join(failures, "; "), healthprobeParameterA)
 	return snapshot
 }
 
@@ -201,7 +207,7 @@ func healthTimeout(health *scenario.HealthConfig) time.Duration {
 	if health != nil && health.Timeout > 0 {
 		return time.Duration(health.Timeout) * time.Millisecond
 	}
-	return 5 * time.Second
+	return tuning.ServiceHealthTimeout
 }
 
 func isRecognizedHealthResponse(resp apihealth.Response) bool {

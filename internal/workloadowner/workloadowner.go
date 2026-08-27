@@ -9,6 +9,12 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/vrooli/vrooli/internal/repocontractmeta"
+)
+
+const (
+	workloadownerParameterA = 2
 )
 
 // DeclarationsFromRoot derives the live container declarations from the
@@ -23,7 +29,7 @@ func DeclarationsFromRoot(root string) ([]Declaration, error) {
 			} `json:"resources"`
 		} `json:"dependencies"`
 	}
-	b, err := os.ReadFile(filepath.Join(root, ".vrooli", "service.json"))
+	b, err := os.ReadFile(filepath.Join(root, repocontractmeta.ProjectConfigDir, "service.json"))
 	if err != nil {
 		return nil, fmt.Errorf("read enabled resource state: %w", err)
 	}
@@ -236,8 +242,8 @@ func ParseDockerPS(data []byte) ([]Workload, error) {
 func ParseDockerInspectRestartCounts(data []byte) map[string]float64 {
 	counts := make(map[string]float64)
 	for _, line := range strings.Split(strings.TrimSpace(string(data)), "\n") {
-		fields := strings.SplitN(strings.TrimSpace(line), "\t", 2)
-		if len(fields) != 2 {
+		fields := strings.SplitN(strings.TrimSpace(line), "\t", workloadownerParameterA)
+		if len(fields) != workloadownerParameterA {
 			continue
 		}
 		name := strings.TrimPrefix(strings.TrimSpace(fields[0]), "/")

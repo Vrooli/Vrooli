@@ -7,20 +7,19 @@ import (
 	manifest "github.com/vrooli/vrooli/internal/resources/manifest"
 )
 
-// Feature: a compose resource's accelerator overlay survives the migration
+// Feature: a native managed resource selects an accelerator artifact
 //
 //	As kokoro
-//	I want my GPU compose overlay and pinned image to reach the driver
-//	So that declaring an accelerator still changes how I am started.
+//	I want GPU facts to select a checksum-pinned native artifact
+//	So that declaring an accelerator changes acquisition without Docker.
 
-// Scenario: kokoro's overlay and image pin live on its cuda backend config.
-func TestComposeResourceCarriesItsOverlayOnTheCUDABackend(t *testing.T) {
+// Scenario: kokoro uses a composed native target instead of a compose overlay.
+func TestNativeResourceUsesTargetSelectionInsteadOfComposeOverlay(t *testing.T) {
 	cases := []struct {
 		resource    string
-		overlay     string
 		imageEnvKey string
 	}{
-		{resource: "kokoro", overlay: "docker/docker-compose.gpu.yml", imageEnvKey: "KOKORO_IMAGE"},
+		{resource: "kokoro", imageEnvKey: "KOKORO_IMAGE"},
 	}
 
 	for _, tc := range cases {
@@ -42,14 +41,17 @@ func TestComposeResourceCarriesItsOverlayOnTheCUDABackend(t *testing.T) {
 				t.Fatal("the resource declares no cuda backend config")
 			}
 
-			// Then the overlay the compose driver layers on is there
-			if cuda.ComposeOverlay != tc.overlay {
-				t.Fatalf("cuda.compose_overlay = %q, want %q", cuda.ComposeOverlay, tc.overlay)
+			// Then no retired compose overlay is carried into the native path.
+			if cuda.ComposeOverlay != "" {
+				t.Fatalf("cuda.compose_overlay = %q, want empty native overlay", cuda.ComposeOverlay)
 			}
-			// And the pinned image env survives, so the accelerated variant is
-			// still selected by digest rather than by tag
-			if _, present := cuda.Env[tc.imageEnvKey]; !present {
-				t.Fatalf("cuda.env = %v, want it to carry %s", cuda.Env, tc.imageEnvKey)
+			// And the retired image selector is absent; the acquisition target
+			// carries the digest and the GPU predicate instead.
+			if _, present := cuda.Env[tc.imageEnvKey]; present {
+				t.Fatalf("cuda.env = %v, must not carry retired %s", cuda.Env, tc.imageEnvKey)
+			}
+			if len(m.ManagedService.Acquisition.Targets) == 0 || m.ManagedService.Acquisition.Targets[0].Kind != "" || m.ManagedService.Acquisition.Targets[0].Compose == nil {
+				t.Fatal("expected a composed native acquisition target")
 			}
 			// And the resource still falls back to the CPU rather than failing
 			if declaration.EffectiveRequire() != manifest.RequirePreferred {

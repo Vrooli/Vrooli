@@ -5,10 +5,12 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/vrooli/vrooli/internal/tuning"
+
 	"github.com/vrooli/vrooli/internal/hostreqkit"
 )
 
-const defaultVrooliDirPerm = 0o755
+const defaultVrooliDirPerm = tuning.PermDir
 
 // RepairIdentity returns the only identity that a managed runtime-home repair
 // may target: the sudo invoking user when present, otherwise the current
@@ -182,4 +184,38 @@ func missingAncestors(dir string) []string {
 		p = parent
 	}
 	return missing
+}
+
+// CommitOwnedPathAtomic moves a same-directory staging path over its final
+// name, repairing ownership on both sides.
+//
+// It is the link-shaped counterpart to WriteOwnedFileAtomic. That function
+// commits managed *content*, and cannot express committing a symlink or a hard
+// link, because it only knows how to write bytes. Both belong here for the same
+// reason: replacing a managed path is where a sudo'd vrooli most easily leaves
+// a root-owned artifact in the operator's home, and where a non-atomic
+// implementation most easily leaves nothing at all.
+//
+// Ownership is repaired before the rename so the path is never briefly visible
+// under the wrong owner, and again afterwards because the destination inode is
+// what the operator's own later commands must be able to replace. Lchown is
+// used throughout, so a symlink's own ownership is fixed rather than its
+// target's.
+//
+// staging must already exist and sit in the same directory as path; a rename
+// across filesystems is not atomic and is not what callers want here.
+func CommitOwnedPathAtomic(staging, path string) error {
+	if filepath.Dir(filepath.Clean(staging)) != filepath.Dir(filepath.Clean(path)) {
+		return fmt.Errorf("config: staging path %s must sit beside %s", staging, path)
+	}
+	if _, err := os.Lstat(staging); err != nil {
+		return fmt.Errorf("config: staging path unusable: %w", err)
+	}
+	if err := chownPathToInvokingUser(staging); err != nil {
+		return err
+	}
+	if err := os.Rename(staging, path); err != nil {
+		return err
+	}
+	return chownPathToInvokingUser(path)
 }

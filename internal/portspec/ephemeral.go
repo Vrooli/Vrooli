@@ -9,7 +9,12 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
-	"time"
+
+	"github.com/vrooli/vrooli/internal/tuning"
+)
+
+const (
+	ephemeralParameterA = 2
 )
 
 // ianaDynamicStart and ianaDynamicEnd are the RFC 6335 dynamic/private range.
@@ -117,7 +122,7 @@ func readLinuxEphemeral(_ context.Context) (EphemeralRange, error) {
 
 func parseLinuxEphemeral(raw string) (EphemeralRange, error) {
 	fields := strings.Fields(strings.TrimSpace(raw))
-	if len(fields) < 2 {
+	if len(fields) < ephemeralParameterA {
 		return EphemeralRange{}, fmt.Errorf("unexpected ip_local_port_range output: %q", raw)
 	}
 	lo, err := strconv.Atoi(fields[0])
@@ -135,7 +140,7 @@ func parseLinuxEphemeral(raw string) (EphemeralRange, error) {
 }
 
 func readDarwinEphemeral(ctx context.Context) (EphemeralRange, error) {
-	cctx, cancel := context.WithTimeout(ctx, 2*time.Second)
+	cctx, cancel := context.WithTimeout(ctx, tuning.ShortOperationDeadline)
 	defer cancel()
 	out, err := exec.CommandContext(cctx, "sysctl", "-n",
 		"net.inet.ip.portrange.first", "net.inet.ip.portrange.last").Output()
@@ -147,7 +152,7 @@ func readDarwinEphemeral(ctx context.Context) (EphemeralRange, error) {
 
 func parseDarwinEphemeral(raw string) (EphemeralRange, error) {
 	lines := strings.Split(strings.TrimSpace(raw), "\n")
-	if len(lines) < 2 {
+	if len(lines) < ephemeralParameterA {
 		return EphemeralRange{}, fmt.Errorf("unexpected sysctl output: %q", raw)
 	}
 	lo, err := strconv.Atoi(strings.TrimSpace(lines[0]))
@@ -165,7 +170,7 @@ func parseDarwinEphemeral(raw string) (EphemeralRange, error) {
 }
 
 func readWindowsEphemeral(ctx context.Context) (EphemeralRange, error) {
-	cctx, cancel := context.WithTimeout(ctx, 3*time.Second)
+	cctx, cancel := context.WithTimeout(ctx, tuning.HealthCheckTimeout)
 	defer cancel()
 	out, err := exec.CommandContext(cctx, "netsh", "int", "ipv4", "show", "dynamicport", "tcp").Output()
 	if err != nil {

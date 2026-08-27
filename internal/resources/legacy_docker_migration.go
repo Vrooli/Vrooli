@@ -10,7 +10,13 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vrooli/vrooli/internal/tuning"
+
 	"github.com/vrooli/vrooli/internal/hostreqkit"
+)
+
+const (
+	legacyDockerMigrationParameterA = 3
 )
 
 // legacyDockerContainer is intentionally smaller than Docker's full inspect
@@ -74,11 +80,11 @@ func migrateLegacyDockerStorage(ctx context.Context, controller *Controller, man
 	backupDir := ""
 	if foreign {
 		backupDir = legacyStorageBackupPath(mountPath)
-		if err := os.Rename(mountPath, backupDir); err != nil {
+		if err := os.Rename(mountPath, backupDir); err != nil { //nolint:forbidigo // intentional directory migration
 			return fmt.Errorf("preserve legacy %s storage at %s: %w", manifest.Name, backupDir, err)
 		}
-		if err := os.Mkdir(mountPath, 0o700); err != nil {
-			_ = os.Rename(backupDir, mountPath)
+		if err := os.Mkdir(mountPath, tuning.PermPrivateDir); err != nil {
+			_ = os.Rename(backupDir, mountPath) //nolint:forbidigo // intentional directory rollback
 			return fmt.Errorf("create current-user %s storage: %w", manifest.Name, err)
 		}
 	}
@@ -88,7 +94,7 @@ func migrateLegacyDockerStorage(ctx context.Context, controller *Controller, man
 			return
 		}
 		_ = os.Remove(mountPath)
-		_ = os.Rename(backupDir, mountPath)
+		_ = os.Rename(backupDir, mountPath) //nolint:forbidigo // intentional directory rollback
 	}
 
 	if container.State.Running {
@@ -161,7 +167,7 @@ func legacyDockerStorageMounts(manifest ResourceManifest, dataDir string) []lega
 
 func legacyDockerContainerNames(manifest ResourceManifest) []string {
 	seen := map[string]struct{}{}
-	names := make([]string, 0, 3)
+	names := make([]string, 0, legacyDockerMigrationParameterA)
 	for _, name := range []string{
 		strings.TrimSpace(manifest.Runtime.ContainerName),
 		"vrooli-" + strings.TrimSpace(manifest.Name) + "-resource",

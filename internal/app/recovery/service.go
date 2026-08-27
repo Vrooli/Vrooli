@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"github.com/vrooli/vrooli/internal/baselinefloor"
+	"github.com/vrooli/vrooli/internal/repocontractmeta"
 )
 
 // Service composes the recovery-floor primitives for the CLI. Root is the
@@ -50,7 +51,7 @@ func (s Service) now() time.Time {
 // <root>/scenarios/<scenario>. This is the default capture source and restore
 // destination; callers pass an explicit path to override it.
 func (s Service) scenarioDir(scenario string) string {
-	return filepath.Join(s.Root, "scenarios", scenario)
+	return filepath.Join(s.Root, repocontractmeta.ScenarioDir, scenario)
 }
 
 // view wraps a manifest with the derived expiry fields the renderers and JSON

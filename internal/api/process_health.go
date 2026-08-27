@@ -11,11 +11,17 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vrooli/vrooli/internal/tuning"
+
 	"github.com/vrooli/vrooli/internal/maintenance"
 	"github.com/vrooli/vrooli/internal/process"
 	"github.com/vrooli/vrooli/internal/scenario"
 	"github.com/vrooli/vrooli/internal/shell"
 	"github.com/vrooli/vrooli/internal/vroolierr"
+)
+
+const (
+	processHealthParameterA = 2000
 )
 
 func (a *App) collectProcessHealthSnapshot() maintenance.HealthSnapshot {
@@ -77,7 +83,7 @@ func checkForkBomb() error {
 	if err != nil {
 		return err
 	}
-	if strings.Count(string(output), "\n") > 2000 {
+	if strings.Count(string(output), "\n") > processHealthParameterA {
 		return &vroolierr.Error{
 			Code:       "system_overload",
 			Category:   "Runtime",
@@ -134,7 +140,7 @@ func (a *App) PerformHealthCheck(check HealthCheckConfig, scenarioName string, p
 		}
 		timeout := time.Duration(check.Timeout) * time.Millisecond
 		if timeout == 0 {
-			timeout = 5 * time.Second
+			timeout = tuning.ServiceHealthTimeout
 		}
 		client := &http.Client{Timeout: timeout}
 		resp, err := client.Get(target)
@@ -154,7 +160,7 @@ func (a *App) PerformHealthCheck(check HealthCheckConfig, scenarioName string, p
 	case "postgres":
 		timeout := time.Duration(check.Timeout) * time.Millisecond
 		if timeout == 0 {
-			timeout = 3 * time.Second
+			timeout = tuning.HealthCheckTimeout
 		}
 		ctx, cancel := context.WithTimeout(context.Background(), timeout)
 		defer cancel()

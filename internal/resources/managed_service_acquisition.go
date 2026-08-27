@@ -13,12 +13,23 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vrooli/vrooli/internal/tuning"
+
 	"github.com/vrooli/binaryfetch"
 	"github.com/vrooli/envkit-go"
 	_ "github.com/vrooli/vrooli/internal/acquisition" // register the caller-owned tar.zst archive decoder
 	"github.com/vrooli/vrooli/internal/artifactlock"
+	"github.com/vrooli/vrooli/internal/config"
 	"github.com/vrooli/vrooli/internal/hostinventory"
 	resourcedeployment "github.com/vrooli/vrooli/packages/resource-deployment"
+)
+
+const (
+	managedServiceAcquisitionDir = "dir"
+)
+
+const (
+	managedServiceAcquisitionFile = "file"
 )
 
 // PruneManagedServiceArtifacts removes superseded versions from one resource's
@@ -94,6 +105,8 @@ func managedServiceAcquisitionTargetWithFacts(ctx context.Context, manifest Reso
 // ensureManagedServiceArtifact converges a declared managed service into the
 // user-owned artifact store. Existing bytes are always verified under the
 // shared artifact lock before a network operation is considered.
+//
+//nolint:gocyclo // acquisition preserves ordered archive, binary, and fallback artifact decisions.
 func ensureManagedServiceArtifact(ctx context.Context, controller *Controller, manifest ResourceManifest) error {
 	if manifest.ManagedService == nil {
 		return fmt.Errorf("managed_service is required")
@@ -150,17 +163,17 @@ func ensureManagedServiceArtifact(ctx context.Context, controller *Controller, m
 		layout = strings.ToLower(strings.TrimSpace(artifact.Layout))
 	}
 	if layout == "" {
-		layout = "file"
+		layout = managedServiceAcquisitionFile
 	}
 	mode := target.Mode
 	if mode == "" {
-		mode = "0755"
+		mode = "755"
 	}
 	// The kind is resolved per target, so one resource can stage an OCI
 	// filesystem tree on one platform and a published archive on another.
 	targetKind := manifest.ManagedService.Acquisition.EffectiveKind(target)
 	if targetKind == "oci-image" {
-		if layout == "dir" {
+		if layout == managedServiceAcquisitionDir {
 			if err := os.RemoveAll(path); err != nil {
 				return fmt.Errorf("clean %s artifact tree: %w", manifest.Name, err)
 			}
@@ -182,7 +195,7 @@ func ensureManagedServiceArtifact(ctx context.Context, controller *Controller, m
 			Name: name, URL: target.URL, SHA256: target.SHA256,
 			Archive: target.Archive, Layout: layout, BinPath: target.BinPath, Mode: mode,
 		}
-		if layout == "dir" {
+		if layout == managedServiceAcquisitionDir {
 			if _, err := binaryfetch.FetchDir(ctx, spec, path, nil); err != nil {
 				return fmt.Errorf("acquire %s artifact tree: %w", manifest.Name, err)
 			}
@@ -220,11 +233,12 @@ func recordManagedServiceInstallFacts(ctx context.Context, manifest ResourceMani
 	_ = writeInstallFacts(path, manifest.Name, snapshot.AcceleratorFacts(), target, artifact, time.Now())
 }
 
+//nolint:gocyclo // managed artifact composition preserves archive, binary, checksum, and filesystem outcomes.
 func composeManagedServiceArtifact(ctx context.Context, target binaryfetch.AcquisitionTarget, resourceRoot, artifactRoot string) error {
 	if err := os.RemoveAll(artifactRoot); err != nil {
 		return err
 	}
-	if err := os.MkdirAll(artifactRoot, 0o755); err != nil {
+	if err := os.MkdirAll(artifactRoot, tuning.PermDir); err != nil {
 		return err
 	}
 	for index, step := range target.Compose {
@@ -247,7 +261,7 @@ func composeManagedServiceArtifact(ctx context.Context, target binaryfetch.Acqui
 			}
 		case "python-wheels":
 			lockfile := filepath.Join(resourceRoot, filepath.FromSlash(step.Lockfile))
-			if err := os.MkdirAll(dest, 0o755); err != nil {
+			if err := os.MkdirAll(dest, tuning.PermDir); err != nil {
 				return err
 			}
 			arch := runtime.GOARCH
@@ -264,7 +278,10 @@ func composeManagedServiceArtifact(ctx context.Context, target binaryfetch.Acqui
 			if runtime.GOOS == "windows" {
 				platform = arch + "-pc-windows-msvc"
 			}
-			command := exec.CommandContext(ctx, "uv", "pip", "install", "--only-binary", ":all:", "--target", dest, "--requirement", lockfile, "--python-version", "3.12", "--python-platform", platform)
+			command, err := pythonWheelsCommand(ctx, step, dest, lockfile, platform)
+			if err != nil {
+				return err
+			}
 			command.Env = envkit.WithOverlay(envkit.Env(os.Environ()), envkit.Resource, envkit.Env{"UV_NO_PROGRESS=1"})
 			if output, err := command.CombinedOutput(); err != nil {
 				return fmt.Errorf("uv wheel resolution failed: %w: %s", err, strings.TrimSpace(string(output)))
@@ -285,6 +302,43 @@ func composeManagedServiceArtifact(ctx context.Context, target binaryfetch.Acqui
 	return writeManagedComposeManifest(target, artifactRoot, platformOS+"-"+runtime.GOARCH, resourceRoot)
 }
 
+func pythonWheelsCommand(ctx context.Context, step binaryfetch.ComposeStep, dest, lockfile, platform string) (*exec.Cmd, error) {
+	// The lock is the complete resolved closure. Installing without dependency
+	// re-resolution is important here: it prevents a package metadata edge from
+	// reintroducing an unqualified source distribution after the lock has
+	// selected a replacement wheel (Kokoro uses pyopenjtalk-plus for Linux).
+	args := []string{"pip", "install", "--no-deps", "--target", dest, "--requirement", lockfile, "--python-version", "3.12", "--python-platform", platform}
+	if !step.AllowSDists {
+		args = append(args, "--only-binary", ":all:")
+	}
+	if index := strings.TrimSpace(step.IndexURL); index != "" {
+		args = append(args, "--index-url", index)
+	}
+	for _, index := range step.ExtraIndexURLs {
+		args = append(args, "--extra-index-url", strings.TrimSpace(index))
+	}
+	// A CUDA wheel index and PyPI both publish packages such as torch. The
+	// default first-index strategy can reject a lock containing a local CUDA
+	// version after it sees the PyPI project page. The lock carries hashes, so
+	// considering all declared indexes is deterministic and still refuses any
+	// byte not present in that lock.
+	if strings.TrimSpace(step.IndexURL) != "" && len(step.ExtraIndexURLs) > 0 {
+		args = append(args, "--index-strategy", "unsafe-best-match")
+	}
+	data, err := os.ReadFile(lockfile)
+	if err != nil {
+		return nil, fmt.Errorf("read python wheel lockfile: %w", err)
+	}
+	hashed := strings.Contains(string(data), "--hash=sha256:")
+	if (strings.TrimSpace(step.IndexURL) != "" || len(step.ExtraIndexURLs) > 0) && !hashed {
+		return nil, fmt.Errorf("python-wheels index requires a hash-pinned lockfile")
+	}
+	if hashed {
+		args = append(args, "--require-hashes")
+	}
+	return exec.CommandContext(ctx, "uv", args...), nil
+}
+
 func copyManagedComposeSource(source, destination string) error {
 	info, err := os.Stat(source)
 	if err != nil {
@@ -293,7 +347,7 @@ func copyManagedComposeSource(source, destination string) error {
 	if info.IsDir() {
 		return fmt.Errorf("local compose source must be a file")
 	}
-	if err := os.MkdirAll(filepath.Dir(destination), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(destination), tuning.PermDir); err != nil {
 		return err
 	}
 	input, err := os.Open(source)
@@ -301,7 +355,7 @@ func copyManagedComposeSource(source, destination string) error {
 		return err
 	}
 	defer input.Close()
-	output, err := os.OpenFile(destination, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0o644)
+	output, err := os.OpenFile(destination, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, tuning.PermFile)
 	if err != nil {
 		return err
 	}
@@ -322,10 +376,10 @@ func flattenManagedComposePrefix(root, prefix string) error {
 		return fmt.Errorf("compose archive root %q is not a directory", prefix)
 	}
 	flat := root + ".flat"
-	if err := os.Rename(root, flat); err != nil {
+	if err := os.Rename(root, flat); err != nil { //nolint:forbidigo // intentional directory flattening
 		return err
 	}
-	if err := os.MkdirAll(root, 0o755); err != nil {
+	if err := os.MkdirAll(root, tuning.PermDir); err != nil {
 		return err
 	}
 	entries, err := os.ReadDir(filepath.Join(flat, filepath.FromSlash(prefix)))
@@ -333,7 +387,7 @@ func flattenManagedComposePrefix(root, prefix string) error {
 		return err
 	}
 	for _, entry := range entries {
-		if err := os.Rename(filepath.Join(flat, filepath.FromSlash(prefix), entry.Name()), filepath.Join(root, entry.Name())); err != nil {
+		if err := os.Rename(filepath.Join(flat, filepath.FromSlash(prefix), entry.Name()), filepath.Join(root, entry.Name())); err != nil { //nolint:forbidigo // intentional directory flattening
 			return err
 		}
 	}
@@ -367,7 +421,7 @@ func writeManagedComposeManifest(target binaryfetch.AcquisitionTarget, root, pla
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(filepath.Join(root, ".vrooli-compose-manifest.json"), append(data, '\n'), 0o644)
+	return os.WriteFile(filepath.Join(root, ".vrooli-compose-manifest.json"), append(data, '\n'), tuning.PermFile)
 }
 
 func managedFileSHA256(path string) (string, error) {
@@ -387,6 +441,8 @@ func managedFileSHA256(path string) (string, error) {
 // inputs below RESOURCE_DATA_DIR. They use the same host-fact selection and
 // digest verification as the launch artifact, but never become executable or
 // part of the supervisor's launch path.
+//
+//nolint:gocyclo // managed-service data acquisition coordinates declaration, cache, fetch, and verification states.
 func ensureManagedServiceDataArtifacts(ctx context.Context, controller *Controller, manifest ResourceManifest) error {
 	if manifest.ManagedService == nil || len(manifest.ManagedService.DataArtifacts) == 0 {
 		return nil
@@ -422,7 +478,7 @@ func ensureManagedServiceDataArtifacts(ctx context.Context, controller *Controll
 		}
 		layout := strings.ToLower(strings.TrimSpace(target.Layout))
 		if layout == "" {
-			layout = "file"
+			layout = managedServiceAcquisitionFile
 		}
 		if existingErr := binaryfetch.VerifyArtifact(path, layout, target.SHA256); existingErr == nil {
 			if err := writeDataArtifactChecksum(path, layout, target.SHA256); err != nil {
@@ -434,7 +490,7 @@ func ensureManagedServiceDataArtifacts(ctx context.Context, controller *Controll
 		// produced by vrooli-dist. Treat it as a vendored input, not as a
 		// source-build instruction, and still verify it against the manifest
 		// digest before copying it into the managed data root.
-		if layout == "file" {
+		if layout == managedServiceAcquisitionFile {
 			sourcePath := filepath.Join(controller.Root, "resources", manifest.Name, "artifacts", filepath.Base(cleanPath))
 			if err := binaryfetch.VerifyArtifact(sourcePath, layout, target.SHA256); err == nil {
 				if err := copyDataArtifact(sourcePath, cleanPath); err != nil {
@@ -453,7 +509,7 @@ func ensureManagedServiceDataArtifacts(ctx context.Context, controller *Controll
 			Name: filepath.Base(cleanPath), URL: target.URL, SHA256: target.SHA256,
 			Archive: target.Archive, Layout: layout, BinPath: target.BinPath, Mode: target.Mode,
 		}
-		if layout == "dir" {
+		if layout == managedServiceAcquisitionDir {
 			if _, err := binaryfetch.FetchDir(ctx, spec, cleanPath, nil); err != nil {
 				return fmt.Errorf("acquire %s data artifact tree: %w", declaration.Name, err)
 			}
@@ -473,7 +529,7 @@ func ensureManagedServiceDataArtifacts(ctx context.Context, controller *Controll
 }
 
 func copyDataArtifact(sourcePath, destinationPath string) error {
-	if err := os.MkdirAll(filepath.Dir(destinationPath), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(destinationPath), tuning.PermDir); err != nil {
 		return err
 	}
 	input, err := os.Open(sourcePath)
@@ -491,21 +547,25 @@ func copyDataArtifact(sourcePath, destinationPath string) error {
 		_ = temporary.Close()
 		return err
 	}
-	if err := temporary.Chmod(0o644); err != nil {
+	if err := temporary.Chmod(tuning.PermFile); err != nil {
 		_ = temporary.Close()
 		return err
 	}
 	if err := temporary.Close(); err != nil {
 		return err
 	}
-	return os.Rename(temporaryPath, destinationPath)
+	data, err := os.ReadFile(temporaryPath)
+	if err != nil {
+		return err
+	}
+	return config.WriteOwnedFileAtomic(destinationPath, data, tuning.PermFile)
 }
 
 func writeDataArtifactChecksum(path, layout, checksum string) error {
-	if strings.ToLower(strings.TrimSpace(layout)) != "file" || strings.TrimSpace(checksum) == "" {
+	if strings.ToLower(strings.TrimSpace(layout)) != managedServiceAcquisitionFile || strings.TrimSpace(checksum) == "" {
 		return nil
 	}
-	return os.WriteFile(path+".sha256", []byte(strings.TrimSpace(checksum)+"\n"), 0o644)
+	return os.WriteFile(path+".sha256", []byte(strings.TrimSpace(checksum)+"\n"), tuning.PermFile)
 }
 
 func managedServiceArtifactForTarget(manifest ResourceManifest, target binaryfetch.AcquisitionTarget) (resourcedeployment.ServiceArtifact, error) {
@@ -534,7 +594,7 @@ func managedServiceArtifactForTarget(manifest ResourceManifest, target binaryfet
 	}
 	// A file-layout archive uses bin_path only during extraction. The staged
 	// file is the launch artifact, so EntryPath is meaningful only for a tree.
-	if layout == "dir" && target.BinPath != "" {
+	if layout == managedServiceAcquisitionDir && target.BinPath != "" {
 		artifact.EntryPath = strings.TrimPrefix(filepath.ToSlash(target.BinPath), "/")
 	}
 	return artifact, nil

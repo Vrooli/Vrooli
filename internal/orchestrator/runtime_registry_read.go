@@ -324,7 +324,7 @@ func registryRuntimeDetails(manifest scenario.ServiceManifest, instance scenario
 	status := "stopped"
 	switch instance.Status {
 	case scenarioruntime.StatusRunning:
-		status = "running"
+		status = scenarioruntime.StatusRunning
 	case scenarioruntime.StatusStarting:
 		status = "starting"
 	case scenarioruntime.StatusFailed:
@@ -380,7 +380,7 @@ func recordsFromProcessRefs(scenarioName string, refs []scenarioruntime.ProcessR
 func countRunningProcessRefs(refs []scenarioruntime.ProcessRef) int {
 	count := 0
 	for _, ref := range refs {
-		if ref.Status == "" || ref.Status == "running" {
+		if ref.Status == "" || ref.Status == scenarioruntime.StatusRunning {
 			count++
 		}
 	}

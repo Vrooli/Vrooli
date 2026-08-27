@@ -54,57 +54,51 @@ func ScenarioFreshnessResponseProto(report lifecycle.FreshnessReport) *cliv1.Sce
 	}
 }
 
-func writeScenarioFreshnessJSON(w io.Writer, report lifecycle.FreshnessReport) error {
-	return cliout.WriteProtoJSON(w, ScenarioFreshnessResponseProto(report))
-}
-
 // RenderFreshnessResponse prints the freshness verdict. JSON emits the typed
 // proto contract; human output shows the overall verdict and any stale checks,
 // expanding to every check plus resolved dependency policies under --explain.
 func RenderFreshnessResponse(w io.Writer, format cliout.Format, resp FreshnessResponse) error {
-	if format == cliout.FormatJSON {
-		return writeScenarioFreshnessJSON(w, resp.Report)
-	}
-
-	report := resp.Report
-	overall := "fresh"
-	if report.Stale {
-		overall = "stale"
-	}
-	if _, err := fmt.Fprintf(w, "Scenario %s is %s\n", report.Scenario, overall); err != nil {
-		return err
-	}
-
-	for _, c := range report.Checks {
-		if !resp.Explain && !c.Stale {
-			continue
+	return cliout.RenderJSONOr(w, format, func(w io.Writer) error { return cliout.WriteProtoJSON(w, ScenarioFreshnessResponseProto(resp.Report)) }, func(w io.Writer) error {
+		report := resp.Report
+		overall := "fresh"
+		if report.Stale {
+			overall = "stale"
 		}
-		state := "fresh"
-		if c.Stale {
-			state = "stale"
+		if _, err := fmt.Fprintf(w, "Scenario %s is %s\n", report.Scenario, overall); err != nil {
+			return err
 		}
-		line := fmt.Sprintf("- [%s] %s: %s", c.CheckType, c.Target, state)
-		if c.Stale {
-			if c.File != "" {
-				line += fmt.Sprintf(" (%s: %s)", c.Cause, c.File)
-			} else if c.Cause != "" {
-				line += fmt.Sprintf(" (%s)", c.Cause)
+
+		for _, c := range report.Checks {
+			if !resp.Explain && !c.Stale {
+				continue
 			}
-		}
-		if _, err := fmt.Fprintln(w, line); err != nil {
-			return err
-		}
-	}
-
-	if resp.Explain && len(report.Dependencies) > 0 {
-		if _, err := fmt.Fprintln(w, "Dependency freshness policies:"); err != nil {
-			return err
-		}
-		for _, d := range report.Dependencies {
-			if _, err := fmt.Fprintf(w, "- %s: %s\n", d.Name, d.Policy); err != nil {
+			state := "fresh"
+			if c.Stale {
+				state = "stale"
+			}
+			line := fmt.Sprintf("- [%s] %s: %s", c.CheckType, c.Target, state)
+			if c.Stale {
+				if c.File != "" {
+					line += fmt.Sprintf(" (%s: %s)", c.Cause, c.File)
+				} else if c.Cause != "" {
+					line += fmt.Sprintf(" (%s)", c.Cause)
+				}
+			}
+			if _, err := fmt.Fprintln(w, line); err != nil {
 				return err
 			}
 		}
-	}
-	return nil
+
+		if resp.Explain && len(report.Dependencies) > 0 {
+			if _, err := fmt.Fprintln(w, "Dependency freshness policies:"); err != nil {
+				return err
+			}
+			for _, d := range report.Dependencies {
+				if _, err := fmt.Fprintf(w, "- %s: %s\n", d.Name, d.Policy); err != nil {
+					return err
+				}
+			}
+		}
+		return nil
+	})
 }

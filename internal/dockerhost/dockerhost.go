@@ -13,6 +13,10 @@ import (
 )
 
 const (
+	dockerhostWorkloadSlice = "workload.slice"
+)
+
+const (
 	DaemonConfigPath = "/etc/docker/daemon.json"
 
 	invalidDefaultCgroupParent = "default-cgroup-parent"
@@ -115,7 +119,7 @@ func ConfigHasWorkloadPolicy(path string) bool {
 		return false
 	}
 	parent, _ := cfg["cgroup-parent"].(string)
-	if parent != "workload.slice" {
+	if parent != dockerhostWorkloadSlice {
 		return false
 	}
 	return stringSliceContains(readExecOpts(cfg), "native.cgroupdriver=systemd")
@@ -133,8 +137,8 @@ func SanitizeDaemonConfig(path string, opts ConfigOptions, ensureOpts hostreqkit
 		result.RemovedInvalidKeys = append(result.RemovedInvalidKeys, invalidDefaultCgroupParent)
 	}
 	if opts.ApplyWorkloadCgroupPolicy {
-		if cfg["cgroup-parent"] != "workload.slice" {
-			cfg["cgroup-parent"] = "workload.slice"
+		if cfg["cgroup-parent"] != dockerhostWorkloadSlice {
+			cfg["cgroup-parent"] = dockerhostWorkloadSlice
 			result.Changed = true
 		}
 		execOpts := readExecOpts(cfg)

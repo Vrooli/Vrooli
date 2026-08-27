@@ -8,11 +8,33 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
-	"time"
+
+	"github.com/vrooli/vrooli/internal/tuning"
 
 	repocontract "github.com/vrooli/repo-contract-go"
 	"github.com/vrooli/vrooli/internal/hostreqspec"
 	"github.com/vrooli/vrooli/internal/shell"
+)
+
+const (
+	helpersAptGet = "apt-get"
+	helpersApk    = "apk"
+	helpersApt    = "apt"
+	helpersBrew   = "brew"
+	helpersDnf    = "dnf"
+	helpersPacman = "pacman"
+	helpersWinget = "winget"
+	helpersScoop  = "scoop"
+)
+
+const (
+	helpersChoco = "choco"
+	helpersSudo  = "sudo"
+	helpersYum   = "yum"
+)
+
+const (
+	helpersParameterA = 10
 )
 
 var (
@@ -32,7 +54,7 @@ var (
 	// stalling setup indefinitely; new probes should pass their caller context
 	// through CombinedOutputContextFn.
 	CombinedOutputFn = func(name string, args ...string) ([]byte, error) {
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), tuning.StandardOperationTimeout)
 		defer cancel()
 		return CombinedOutputContextFn(ctx, name, args...)
 	}
@@ -50,7 +72,7 @@ var (
 	}
 
 	RunCommandFn = func(name string, args []string, opts EnsureOptions) error {
-		tail := shell.NewStderrTail(10)
+		tail := shell.NewStderrTail(helpersParameterA)
 		stderr := io.MultiWriter(writerOrDiscard(opts.Stderr), tail)
 		err := shell.Run(shell.Spec{
 			Name:   name,
@@ -71,7 +93,7 @@ var (
 	// operator flows that must drop back to the invoking user without putting a
 	// secret in argv or a temporary file.
 	RunCommandInputFn = func(name string, args []string, input string, opts EnsureOptions) error {
-		tail := shell.NewStderrTail(10)
+		tail := shell.NewStderrTail(helpersParameterA)
 		stderr := io.MultiWriter(writerOrDiscard(opts.Stderr), tail)
 		err := shell.Run(shell.Spec{
 			Name:   name,
@@ -411,16 +433,17 @@ func RunInstallCommand(command string, args []string, opts EnsureOptions) error 
 	return RunCommandFn(command, args, opts)
 }
 
+//nolint:gocyclo // package-manager selection preserves the explicit platform fallback matrix.
 func inferredPackageInstall(command string, args []string) (InstallProvenanceRequest, bool) {
 	manager := strings.ToLower(strings.TrimSpace(command))
-	if manager == "sudo" && len(args) > 0 {
+	if manager == helpersSudo && len(args) > 0 {
 		manager = strings.ToLower(strings.TrimSpace(args[0]))
 		args = args[1:]
 	}
 	if manager == "env" {
 		for i, arg := range args {
 			candidate := strings.ToLower(strings.TrimSpace(arg))
-			if candidate == "apt-get" || candidate == "apt" || candidate == "dnf" || candidate == "yum" || candidate == "brew" || candidate == "winget" || candidate == "pacman" || candidate == "apk" {
+			if candidate == helpersAptGet || candidate == helpersApt || candidate == helpersDnf || candidate == helpersYum || candidate == helpersBrew || candidate == helpersWinget || candidate == helpersPacman || candidate == helpersApk {
 				manager = candidate
 				args = args[i+1:]
 				break
@@ -428,9 +451,9 @@ func inferredPackageInstall(command string, args []string) (InstallProvenanceReq
 		}
 	}
 	if manager == "homebrew" {
-		manager = "brew"
+		manager = helpersBrew
 	}
-	if manager != "apt" && manager != "apt-get" && manager != "dnf" && manager != "yum" && manager != "brew" && manager != "winget" && manager != "pacman" && manager != "apk" && manager != "choco" && manager != "scoop" {
+	if manager != helpersApt && manager != helpersAptGet && manager != helpersDnf && manager != helpersYum && manager != helpersBrew && manager != helpersWinget && manager != helpersPacman && manager != helpersApk && manager != helpersChoco && manager != helpersScoop {
 		return InstallProvenanceRequest{}, false
 	}
 	actionIndex := -1
@@ -559,14 +582,14 @@ func probePackageState(manager, packageName string) (PackageObservation, string,
 	var command string
 	var args []string
 	switch manager {
-	case "brew", "homebrew":
-		command, args = "brew", []string{"list", "--versions", packageName}
-	case "apt", "apt-get":
+	case helpersBrew, "homebrew":
+		command, args = helpersBrew, []string{"list", "--versions", packageName}
+	case helpersApt, helpersAptGet:
 		command, args = "dpkg-query", []string{"-W", "-f=${Version}", packageName}
-	case "dnf", "yum":
+	case helpersDnf, helpersYum:
 		command, args = manager, []string{"list", "installed", packageName}
-	case "winget":
-		command, args = "winget", []string{"list", "--id", packageName, "--exact"}
+	case helpersWinget:
+		command, args = helpersWinget, []string{"list", "--id", packageName, "--exact"}
 	default:
 		return PackageUnknown, "", fmt.Errorf("unsupported package manager %q", manager)
 	}
@@ -607,7 +630,7 @@ func RunPrivilegedCommandWithOutput(sudoMode, command string, args []string, run
 	if err != nil {
 		return nil, err
 	}
-	if command == "sudo" {
+	if command == helpersSudo {
 		args = append([]string{"-n"}, args...)
 	}
 	return run(command, args...)
@@ -650,12 +673,12 @@ func InstallManagedContent(path, content, sudoMode string, opts EnsureOptions) e
 		return fmt.Errorf("prepare managed content for %s: %w", path, err)
 	}
 	defer os.Remove(tempPath)
-	return RunPrivilegedCommand(sudoMode, "install", []string{"-m", "0644", tempPath, path}, opts)
+	return RunPrivilegedCommand(sudoMode, "install", []string{"-m", "644", tempPath, path}, opts)
 }
 
 // InstallManagedExecutable is the executable-bit sibling of
-// InstallManagedContent. The only difference is the install mode (0755 vs
-// 0644) — they're separate functions, not a single mode-parameterised one,
+// InstallManagedContent. The only difference is the install mode (755 vs
+// 644) — they're separate functions, not a single mode-parameterised one,
 // so the call site is explicit about whether the file being written is data
 // or an executable. Reading
 // `InstallManagedExecutable("/usr/local/bin/vrooli", shim, ...)` makes the
@@ -672,7 +695,7 @@ func InstallManagedExecutable(path, content, sudoMode string, opts EnsureOptions
 		return fmt.Errorf("prepare managed executable for %s: %w", path, err)
 	}
 	defer os.Remove(tempPath)
-	return RunPrivilegedCommand(sudoMode, "install", []string{"-m", "0755", tempPath, path}, opts)
+	return RunPrivilegedCommand(sudoMode, "install", []string{"-m", "755", tempPath, path}, opts)
 }
 
 // RunVerificationCheck runs the post-action verification defined in a manifest
@@ -714,7 +737,7 @@ const (
 	// FileComparisonAbsent means the file does not exist.
 	FileComparisonAbsent FileComparison = "absent"
 	// FileComparisonUnreadable means the file exists but this process may not
-	// read it. Root-owned managed files such as sudoers drop-ins are 0440
+	// read it. Root-owned managed files such as sudoers drop-ins are mode 440
 	// root:root by necessity, so every unprivileged inspection lands here.
 	FileComparisonUnreadable FileComparison = "unreadable"
 )

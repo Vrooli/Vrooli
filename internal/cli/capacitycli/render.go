@@ -11,136 +11,121 @@ import (
 
 // RenderClaim renders a claim admission result.
 func RenderClaim(w io.Writer, format cliout.Format, resp capacityapp.ClaimOutput) error {
-	if format == cliout.FormatJSON {
-		return cliout.WriteJSON(w, resp)
-	}
-	v := resp.Verdict
-	_, _ = fmt.Fprintf(w, "claim %s\n", resp.Claim.ClaimID)
-	_, _ = fmt.Fprintf(w, "  verdict: %s", v.Kind)
-	if v.Step != "" {
-		_, _ = fmt.Fprintf(w, " (step %s)", v.Step)
-	}
-	_, _ = fmt.Fprintf(w, "  granted: %s\n", humanBytes(v.GrantedBytes))
-	_, _ = fmt.Fprintf(w, "  owner: %s/%s  priority: %s  enforce: %s\n", resp.Claim.OwnerKind, resp.Claim.OwnerID, resp.Claim.PriorityTier, resp.Enforce)
-	if v.Reason != "" {
-		_, _ = fmt.Fprintf(w, "  reason: %s\n", v.Reason)
-	}
-	for _, warn := range v.Warnings {
-		_, _ = fmt.Fprintf(w, "  ⚠ %s\n", warn)
-	}
-	return nil
+	return cliout.RenderJSONOr(w, format, func(w io.Writer) error { return cliout.WriteJSON(w, resp) }, func(w io.Writer) error {
+		v := resp.Verdict
+		_, _ = fmt.Fprintf(w, "claim %s\n", resp.Claim.ClaimID)
+		_, _ = fmt.Fprintf(w, "  verdict: %s", v.Kind)
+		if v.Step != "" {
+			_, _ = fmt.Fprintf(w, " (step %s)", v.Step)
+		}
+		_, _ = fmt.Fprintf(w, "  granted: %s\n", humanBytes(v.GrantedBytes))
+		_, _ = fmt.Fprintf(w, "  owner: %s/%s  priority: %s  enforce: %s\n", resp.Claim.OwnerKind, resp.Claim.OwnerID, resp.Claim.PriorityTier, resp.Enforce)
+		if v.Reason != "" {
+			_, _ = fmt.Fprintf(w, "  reason: %s\n", v.Reason)
+		}
+		for _, warn := range v.Warnings {
+			_, _ = fmt.Fprintf(w, "  ⚠ %s\n", warn)
+		}
+		return nil
+	})
 }
 
 // RenderClaimView renders a single claim (heartbeat/activity/degrade/release).
 func RenderClaimView(w io.Writer, format cliout.Format, resp capacityapp.ClaimView) error {
-	if format == cliout.FormatJSON {
-		return cliout.WriteJSON(w, resp)
-	}
-	_, _ = fmt.Fprintf(w, "%s\t%s/%s\t%s\tactivity=%s\tidle=%s\tgen=%d\t%s\n",
-		resp.ClaimID, resp.OwnerKind, resp.OwnerID, resp.Status, resp.ActivityState, resp.IdleReclaimState, resp.Generation, humanBytes(resp.AmountBytes))
-	return nil
+	return cliout.RenderJSONOr(w, format, func(w io.Writer) error { return cliout.WriteJSON(w, resp) }, func(w io.Writer) error {
+		return cliout.WriteSection(w, cliout.Section{Rows: [][]string{{
+			resp.ClaimID, resp.OwnerKind + "/" + resp.OwnerID, resp.Status,
+			"activity=" + resp.ActivityState, "idle=" + resp.IdleReclaimState,
+			fmt.Sprintf("gen=%d", resp.Generation), humanBytes(resp.AmountBytes),
+		}}})
+	})
 }
 
 // RenderList renders the claim listing.
 func RenderList(w io.Writer, format cliout.Format, resp capacityapp.ListOutput) error {
-	if format == cliout.FormatJSON {
-		return cliout.WriteJSON(w, resp)
-	}
-	if len(resp.Claims) == 0 {
-		_, _ = fmt.Fprintln(w, "no capacity claims")
-		return nil
-	}
-	for _, c := range resp.Claims {
-		_, _ = fmt.Fprintf(w, "%s\t%s/%s\t%s\t%s\tprio=%s\tprotected=%t\tidle=%s\tgranted=%s\tobserved=%s\tpeak=%s\n",
-			c.ClaimID, c.OwnerKind, c.OwnerID, c.ResourceKind, c.Status, c.PriorityTier, c.Protected,
-			c.IdleReclaimState, humanBytes(c.AmountBytes), humanBytes(c.ObservedBytes), humanBytes(c.ObservedPeakBytes))
-	}
-	return nil
+	return cliout.RenderJSONOr(w, format, func(w io.Writer) error { return cliout.WriteJSON(w, resp) }, func(w io.Writer) error {
+		rows := make([][]string, 0, len(resp.Claims))
+		for _, c := range resp.Claims {
+			rows = append(rows, []string{
+				c.ClaimID, c.OwnerKind + "/" + c.OwnerID, c.ResourceKind, c.Status,
+				"prio=" + c.PriorityTier, fmt.Sprintf("protected=%t", c.Protected), "idle=" + c.IdleReclaimState,
+				"granted=" + humanBytes(c.AmountBytes), "observed=" + humanBytes(c.ObservedBytes), "peak=" + humanBytes(c.ObservedPeakBytes),
+			})
+		}
+		return cliout.WriteSection(w, cliout.Section{Empty: cliout.EmptyLabel("capacity claims"), Rows: rows})
+	})
 }
 
 // RenderReconcile renders reconciliation findings.
 func RenderReconcile(w io.Writer, format cliout.Format, resp capacityapp.ReconcileOutput) error {
-	if format == cliout.FormatJSON {
-		return cliout.WriteJSON(w, resp)
-	}
-	if len(resp.Findings) == 0 {
-		_, _ = fmt.Fprintln(w, "no GPU consumers above tracking threshold")
-		return nil
-	}
-	for _, f := range resp.Findings {
-		marker := " "
-		if f.Severity == "warn" {
-			marker = "⚠"
+	return cliout.RenderJSONOr(w, format, func(w io.Writer) error { return cliout.WriteJSON(w, resp) }, func(w io.Writer) error {
+		rows := make([][]string, 0, len(resp.Findings))
+		for _, f := range resp.Findings {
+			marker := " "
+			if f.Severity == "warn" {
+				marker = "⚠"
+			}
+			rows = append(rows, []string{
+				marker + " " + strings.ToUpper(f.Class), f.OwnerID, f.Message,
+				fmt.Sprintf("pid=%d", f.PID), "observed=" + humanBytes(f.ObservedBytes),
+			})
 		}
-		_, _ = fmt.Fprintf(w, "%s %s\t%s\t%s\tpid=%d\tobserved=%s\n",
-			marker, strings.ToUpper(f.Class), f.OwnerID, f.Message, f.PID, humanBytes(f.ObservedBytes))
-	}
-	return nil
+		return cliout.WriteSection(w, cliout.Section{Empty: "no GPU consumers above tracking threshold", Rows: rows})
+	})
 }
 
 // RenderSweep renders the presence-driven sweep result.
 func RenderSweep(w io.Writer, format cliout.Format, resp capacityapp.SweepOutput) error {
-	if format == cliout.FormatJSON {
-		return cliout.WriteJSON(w, resp)
-	}
-	if len(resp.Refreshed) == 0 && len(resp.Expired) == 0 && len(resp.Adopted) == 0 && len(resp.IdleUnloadCandidates) == 0 {
-		_, _ = fmt.Fprintln(w, "no resident claims refreshed, expired, or adopted")
-		return nil
-	}
-	for _, c := range resp.Refreshed {
-		_, _ = fmt.Fprintf(w, "refreshed\t%s\t%s\n", c.OwnerID, c.ClaimID)
-	}
-	for _, c := range resp.Adopted {
-		_, _ = fmt.Fprintf(w, "adopted\t%s\t%s\n", c.OwnerID, c.ClaimID)
-	}
-	for _, c := range resp.Expired {
-		_, _ = fmt.Fprintf(w, "expired\t%s\t%s\n", c.OwnerID, c.ClaimID)
-	}
-	for _, c := range resp.IdleUnloadCandidates {
-		_, _ = fmt.Fprintf(w, "would-idle-unload (advisory)\t%s\t%s\t->%s\n", c.OwnerID, c.ClaimID, c.Status)
-	}
-	return nil
+	return cliout.RenderJSONOr(w, format, func(w io.Writer) error { return cliout.WriteJSON(w, resp) }, func(w io.Writer) error {
+		rows := make([][]string, 0, len(resp.Refreshed)+len(resp.Adopted)+len(resp.Expired)+len(resp.IdleUnloadCandidates))
+		for _, c := range resp.Refreshed {
+			rows = append(rows, []string{"refreshed", c.OwnerID, c.ClaimID})
+		}
+		for _, c := range resp.Adopted {
+			rows = append(rows, []string{"adopted", c.OwnerID, c.ClaimID})
+		}
+		for _, c := range resp.Expired {
+			rows = append(rows, []string{"expired", c.OwnerID, c.ClaimID})
+		}
+		for _, c := range resp.IdleUnloadCandidates {
+			rows = append(rows, []string{"would-idle-unload (advisory)", c.OwnerID, c.ClaimID, "->" + c.Status})
+		}
+		return cliout.WriteSection(w, cliout.Section{Empty: "no resident claims refreshed, expired, or adopted", Rows: rows})
+	})
 }
 
 // RenderGC renders the terminal-claim GC result.
 func RenderGC(w io.Writer, format cliout.Format, resp capacityapp.GCOutput) error {
-	if format == cliout.FormatJSON {
-		return cliout.WriteJSON(w, resp)
-	}
-	if resp.Pruned == 0 {
-		_, _ = fmt.Fprintf(w, "no terminal claims past retention %s to prune\n", resp.RetentionSpent)
+	return cliout.RenderJSONOr(w, format, func(w io.Writer) error { return cliout.WriteJSON(w, resp) }, func(w io.Writer) error {
+		if resp.Pruned == 0 {
+			_, _ = fmt.Fprintf(w, "no terminal claims past retention %s to prune\n", resp.RetentionSpent)
+			return nil
+		}
+		_, _ = fmt.Fprintf(w, "pruned %d terminal claim(s) (%s) past retention %s\n", resp.Pruned, humanBytes(resp.Bytes), resp.RetentionSpent)
 		return nil
-	}
-	_, _ = fmt.Fprintf(w, "pruned %d terminal claim(s) (%s) past retention %s\n", resp.Pruned, humanBytes(resp.Bytes), resp.RetentionSpent)
-	return nil
+	})
 }
 
 // RenderRecommend renders advisory right-sizing suggestions.
 func RenderRecommend(w io.Writer, format cliout.Format, resp capacityapp.RecommendOutput) error {
-	if format == cliout.FormatJSON {
-		return cliout.WriteJSON(w, resp)
-	}
-	if len(resp.Recommendations) == 0 {
-		_, _ = fmt.Fprintln(w, "no right-sizing recommendations (claims are right-sized, or lack observed-peak data)")
-		return nil
-	}
-	for _, r := range resp.Recommendations {
-		_, _ = fmt.Fprintf(w, "%s\t%s\treserve=%s\tpeak=%s\tsuggest=%s\tsaves=%s\n",
-			r.OwnerID, r.ClaimID, humanBytes(r.PreferredBytes), humanBytes(r.ObservedPeakBytes),
-			humanBytes(r.SuggestedBytes), humanBytes(r.SavingsBytes))
-	}
-	return nil
+	return cliout.RenderJSONOr(w, format, func(w io.Writer) error { return cliout.WriteJSON(w, resp) }, func(w io.Writer) error {
+		rows := make([][]string, 0, len(resp.Recommendations))
+		for _, r := range resp.Recommendations {
+			rows = append(rows, []string{r.OwnerID, r.ClaimID, "reserve=" + humanBytes(r.PreferredBytes), "peak=" + humanBytes(r.ObservedPeakBytes), "suggest=" + humanBytes(r.SuggestedBytes), "saves=" + humanBytes(r.SavingsBytes)})
+		}
+		return cliout.WriteSection(w, cliout.Section{Empty: "no right-sizing recommendations (claims are right-sized, or lack observed-peak data)", Rows: rows})
+	})
 }
 
 // RenderPolicy renders policy levers.
 func RenderPolicy(w io.Writer, format cliout.Format, resp capacityapp.PolicyOutput) error {
-	if format == cliout.FormatJSON {
-		return cliout.WriteJSON(w, resp)
-	}
-	for _, e := range resp.Entries {
-		_, _ = fmt.Fprintf(w, "%s\t%s\n", e.Key, e.Value)
-	}
-	return nil
+	return cliout.RenderJSONOr(w, format, func(w io.Writer) error { return cliout.WriteJSON(w, resp) }, func(w io.Writer) error {
+		rows := make([][]string, 0, len(resp.Entries))
+		for _, e := range resp.Entries {
+			rows = append(rows, []string{e.Key, e.Value})
+		}
+		return cliout.WriteSection(w, cliout.Section{Rows: rows})
+	})
 }
 
 func humanBytes(b int64) string {

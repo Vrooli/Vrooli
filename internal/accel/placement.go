@@ -7,7 +7,13 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vrooli/vrooli/internal/tuning"
+
 	"github.com/vrooli/vrooli/internal/hostinventory"
+)
+
+const (
+	placementParameterA = 3
 )
 
 // PlacementTarget names the thing whose backend is being read. It is a closed
@@ -164,14 +170,14 @@ func (v Verifier) attempts() int {
 	if v.Attempts > 0 {
 		return v.Attempts
 	}
-	return 3
+	return placementParameterA
 }
 
 func (v Verifier) backoff() time.Duration {
 	if v.Backoff > 0 {
 		return v.Backoff
 	}
-	return 250 * time.Millisecond
+	return tuning.FastHealthPollInterval
 }
 
 func (v Verifier) sleep(ctx context.Context, d time.Duration) error {

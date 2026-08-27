@@ -4,7 +4,8 @@ import (
 	"context"
 	"fmt"
 	"net/http"
-	"time"
+
+	"github.com/vrooli/vrooli/internal/tuning"
 
 	"connectrpc.com/connect"
 	"github.com/vrooli/api-core/discovery"
@@ -20,7 +21,7 @@ const capabilityScenario = "infrastructure-manager"
 // capabilityRequestTimeout bounds one delegated read. The grid walks the
 // repository's manifest tree, so it is slower than a status ping and still
 // bounded: an unbounded wait would turn a wedged scenario into a wedged CLI.
-const capabilityRequestTimeout = 30 * time.Second
+const capabilityRequestTimeout = tuning.StandardOperationTimeout
 
 // capabilityDegradedError is the explicit degraded state. The control plane
 // reports that it could not reach the owner and names the command that fixes

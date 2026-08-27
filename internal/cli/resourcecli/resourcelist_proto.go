@@ -1,9 +1,6 @@
 package resourcecli
 
 import (
-	"io"
-
-	"github.com/vrooli/vrooli/internal/cliout"
 	"github.com/vrooli/vrooli/internal/discovery"
 	"github.com/vrooli/vrooli/internal/resources"
 	cliv1 "github.com/vrooli/vrooli/packages/proto/gen/go/cli/v1"
@@ -49,6 +46,3 @@ func ResourceListResponse(items []resources.Resource, failures []discovery.Failu
 }
 
 // writeResourceListJSON emits the resource-list wire contract as JSON.
-func writeResourceListJSON(w io.Writer, items []resources.Resource, failures []discovery.Failure) error {
-	return cliout.WriteProtoJSON(w, ResourceListResponse(items, failures))
-}

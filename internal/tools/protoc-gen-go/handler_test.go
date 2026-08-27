@@ -9,6 +9,8 @@ import (
 
 	"github.com/vrooli/vrooli/internal/hostreqkit"
 	"github.com/vrooli/vrooli/internal/hostreqspec"
+	"github.com/vrooli/vrooli/internal/shell/shelltest"
+	"github.com/vrooli/vrooli/internal/testenv"
 )
 
 var testManifest = hostreqkit.ToolManifest{
@@ -23,7 +25,9 @@ var testManifest = hostreqkit.ToolManifest{
 
 func newHandler() hostreqkit.Handler { return NewHandler(testManifest) }
 
-func baseRequirement() hostreqspec.ResolvedRequirement {
+var baseRequirement = protocGenGoBaseRequirement
+
+func protocGenGoBaseRequirement() hostreqspec.ResolvedRequirement {
 	return hostreqspec.ResolvedRequirement{Name: "protoc-gen-go", Kind: hostreqspec.KindTool}
 }
 
@@ -62,16 +66,6 @@ func fakeFSExec(name string, args []string) error {
 		}
 	}
 	return errors.New("fakeFSExec: unsupported command " + name + " " + strings.Join(args, " "))
-}
-
-func TestNameAndKind(t *testing.T) {
-	h := newHandler()
-	if h.Name() != "protoc-gen-go" {
-		t.Fatalf("Name = %q", h.Name())
-	}
-	if h.Kind() != hostreqspec.KindTool {
-		t.Fatalf("Kind = %q", h.Kind())
-	}
 }
 
 func TestInspectAlreadyInstalled(t *testing.T) {
@@ -211,7 +205,7 @@ func TestApplyInvokesGoInstallAndSymlinks(t *testing.T) {
 			}
 			goInstallArgs = append([]string(nil), args...)
 			// Simulate `go install` writing the binary.
-			return os.WriteFile(binPath, []byte("#!/bin/sh\n"), 0o755)
+			return os.WriteFile(binPath, []byte(shelltest.POSIXShebang()+""), 0o755)
 		}
 		// mkdir -p, ln -sfn run via RunAsInvokingUser → emulate via
 		// fakeFSExec so the test exercises the real filesystem boundary.
@@ -252,7 +246,7 @@ func TestApplyDropsPrivilegesWhenRoot(t *testing.T) {
 
 	tmpHome := t.TempDir()
 	hostreqkit.RunningAsRootFn = func() bool { return true }
-	t.Setenv("SUDO_USER", "alice")
+	testenv.SetSudoUser(t, "alice")
 	hostreqkit.ReadFileFn = func(path string) ([]byte, error) {
 		if path == "/etc/passwd" {
 			return []byte("alice:x:1000:1000:Alice:" + tmpHome + ":/bin/sh\n"), nil
@@ -286,7 +280,7 @@ func TestApplyDropsPrivilegesWhenRoot(t *testing.T) {
 				if a == "--" && i+1 < len(args) {
 					inner, innerArgs := args[i+1], args[i+2:]
 					if inner == "go" && len(innerArgs) >= 1 && innerArgs[0] == "install" {
-						return os.WriteFile(binPath, []byte("#!/bin/sh\n"), 0o755)
+						return os.WriteFile(binPath, []byte(shelltest.POSIXShebang()+""), 0o755)
 					}
 					return fakeFSExec(inner, innerArgs)
 				}

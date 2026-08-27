@@ -7,8 +7,16 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/vrooli/vrooli/internal/tuning"
+
+	"github.com/vrooli/vrooli/internal/config"
 	"github.com/vrooli/vrooli/internal/hostreqkit"
 	"github.com/vrooli/vrooli/internal/hostreqspec"
+)
+
+const (
+	handlerParameterF = 2
+	handlerParameterE = 3
 )
 
 // startupFiles are the shell startup files the safeguard manages, in the
@@ -175,13 +183,13 @@ func (h handler) observePath(home string) []string {
 	if strings.TrimSpace(pathEnv) == "" {
 		return nil
 	}
-	notes := make([]string, 0, 2)
+	notes := make([]string, 0, handlerParameterF)
 
 	if total, unique := EntryCount(pathEnv), UniqueEntryCount(pathEnv); total > unique {
 		dups := DuplicateEntries(pathEnv)
-		worst := make([]string, 0, 3)
+		worst := make([]string, 0, handlerParameterE)
 		for i, d := range dups {
-			if i == 3 {
+			if i == handlerParameterE {
 				break
 			}
 			worst = append(worst, fmt.Sprintf("%s x%d", d.Dir, d.Count))
@@ -266,26 +274,9 @@ func (h handler) Apply(host hostreqkit.Host, status hostreqkit.ItemStatus, opts 
 // truncated startup file behind — a half-written ~/.profile would break
 // every new login shell on the host.
 func writeFileAtomic(path, content string) error {
-	mode := os.FileMode(0o644)
+	mode := os.FileMode(tuning.PermFile)
 	if info, err := statFn(path); err == nil {
 		mode = info.Mode().Perm()
 	}
-	dir := filepath.Dir(path)
-	tmp, err := os.CreateTemp(dir, filepath.Base(path)+".vrooli-*")
-	if err != nil {
-		return err
-	}
-	tmpName := tmp.Name()
-	defer os.Remove(tmpName)
-	if _, err := tmp.WriteString(content); err != nil {
-		tmp.Close()
-		return err
-	}
-	if err := tmp.Close(); err != nil {
-		return err
-	}
-	if err := os.Chmod(tmpName, mode); err != nil {
-		return err
-	}
-	return os.Rename(tmpName, path)
+	return config.WriteOwnedFileAtomic(path, []byte(content), mode)
 }

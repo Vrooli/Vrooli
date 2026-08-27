@@ -3,6 +3,8 @@ package resources
 import (
 	"path/filepath"
 
+	"github.com/vrooli/vrooli/internal/tuning"
+
 	runtimestorage "github.com/vrooli/vrooli/internal/resources/runtime/storage"
 	vaultbootstrap "github.com/vrooli/vrooli/packages/vaultbootstrap-go"
 )
@@ -60,7 +62,7 @@ func LiveVaultUnsealKeyEntries() []VaultUnsealKeyEntry {
 	if err != nil {
 		return nil
 	}
-	paths, err := runtimestorage.EnsureAllDirs(resolver, runtimestorage.Options{ResourceID: userResourceHostID}, 0o700)
+	paths, err := runtimestorage.EnsureAllDirs(resolver, runtimestorage.Options{ResourceID: userResourceHostID}, tuning.PermPrivateDir)
 	if err != nil {
 		return nil
 	}

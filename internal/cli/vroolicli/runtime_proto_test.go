@@ -6,17 +6,19 @@ import (
 	"testing"
 	"time"
 
+	"github.com/vrooli/vrooli/internal/app/runtime"
+	"github.com/vrooli/vrooli/internal/cliout"
 	"github.com/vrooli/vrooli/internal/runtimesupervisor"
 )
 
 // TestCliVersionJSONContract pins the `vrooli --version --json` wire shape.
 func TestCliVersionJSONContract(t *testing.T) {
 	var buf bytes.Buffer
-	if err := writeCliVersionJSON(&buf, versionOutput{
+	if err := cliout.WriteProtoJSON(&buf, cliVersionMessage(versionOutput{
 		CLIVersion:      "1.4.2",
 		PlatformVersion: "1.4.3",
 		Root:            "/srv/vrooli",
-	}); err != nil {
+	})); err != nil {
 		t.Fatalf("writeCliVersionJSON: %v", err)
 	}
 
@@ -65,7 +67,7 @@ func TestCliSupervisorStatusJSONContract(t *testing.T) {
 	}
 
 	var buf bytes.Buffer
-	if err := writeCliSupervisorStatusJSON(&buf, report); err != nil {
+	if err := runtimeapp.WriteSupervisorStatusJSON(&buf, report); err != nil {
 		t.Fatalf("writeCliSupervisorStatusJSON: %v", err)
 	}
 
@@ -120,7 +122,7 @@ func TestCliSupervisorStatusJSONContract(t *testing.T) {
 // TestCliSupervisorServiceResultJSONContract pins the install/uninstall shape.
 func TestCliSupervisorServiceResultJSONContract(t *testing.T) {
 	var buf bytes.Buffer
-	if err := writeCliSupervisorServiceResultJSON(&buf, runtimesupervisor.ServiceInstallResult{
+	if err := runtimeapp.WriteSupervisorServiceResultJSON(&buf, runtimesupervisor.ServiceInstallResult{
 		UnitName: "vrooli-runtime-supervisor.service",
 		UnitPath: "/home/u/.config/systemd/user/vrooli-runtime-supervisor.service",
 		Scope:    "user",

@@ -1,12 +1,10 @@
 package scenariocli
 
 import (
-	"io"
 	"time"
 
 	"github.com/vrooli/vrooli/internal/lifecycle"
 
-	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/structpb"
 
 	"github.com/vrooli/vrooli/internal/cliout"
@@ -65,7 +63,7 @@ func scenarioPortMessages(ports []ListPortOutput) []*cliv1.ScenarioPort {
 // preserving the additive contract rather than failing the whole render.
 func scenarioStatusItem(item StatusItemOutput) *cliv1.ScenarioStatusItem {
 	var health *structpb.Value
-	if v, err := structpb.NewValue(item.Health); err == nil {
+	if v, err := cliout.NewJSONValue(item.Health); err == nil {
 		health = v
 	}
 	return &cliv1.ScenarioStatusItem{
@@ -258,10 +256,6 @@ func ScenarioEnvValidationResponse(report resources.ScenarioEnvValidationReport)
 	}
 }
 
-func writeScenarioEnvValidationJSON(w io.Writer, report resources.ScenarioEnvValidationReport) error {
-	return marshalScenarioStatus(w, ScenarioEnvValidationResponse(report))
-}
-
 // scenarioRuntimeData maps an InfoRuntimeData onto its proto message.
 func scenarioRuntimeData(rt InfoRuntimeData) *cliv1.ScenarioRuntimeData {
 	msg := &cliv1.ScenarioRuntimeData{
@@ -315,10 +309,6 @@ func ScenarioStatusListResponse(items []StatusItemOutput, failures []discovery.F
 	return resp
 }
 
-func writeScenarioStatusListJSON(w io.Writer, items []StatusItemOutput, failures []discovery.Failure) error {
-	return marshalScenarioStatus(w, ScenarioStatusListResponse(items, failures))
-}
-
 // -----------------------------------------------------------------------------
 // `scenario status <name>` (single form)
 // -----------------------------------------------------------------------------
@@ -334,10 +324,6 @@ func ScenarioStatusSingleResponse(out StatusSingleOutput) *cliv1.ScenarioStatusS
 	}
 }
 
-func writeScenarioStatusSingleJSON(w io.Writer, out StatusSingleOutput) error {
-	return marshalScenarioStatus(w, ScenarioStatusSingleResponse(out))
-}
-
 // -----------------------------------------------------------------------------
 // `scenario info`
 // -----------------------------------------------------------------------------
@@ -350,10 +336,6 @@ func ScenarioInfoResponse(out InfoOutput) *cliv1.ScenarioInfoResponse {
 		Scenario: scenarioInfoData(out.Scenario),
 		Runtime:  scenarioRuntimeData(out.Runtime),
 	}
-}
-
-func writeScenarioInfoJSON(w io.Writer, out InfoOutput) error {
-	return marshalScenarioStatus(w, ScenarioInfoResponse(out))
 }
 
 // -----------------------------------------------------------------------------
@@ -372,10 +354,6 @@ func ScenarioPortSingleResponse(out PortSingleOutput) *cliv1.ScenarioPortSingle 
 	}
 }
 
-func writeScenarioPortSingleJSON(w io.Writer, out PortSingleOutput) error {
-	return marshalScenarioStatus(w, ScenarioPortSingleResponse(out))
-}
-
 // ScenarioPortListResponse maps a PortListOutput onto its wire contract.
 func ScenarioPortListResponse(out PortListOutput) *cliv1.ScenarioPortList {
 	return &cliv1.ScenarioPortList{
@@ -385,14 +363,4 @@ func ScenarioPortListResponse(out PortListOutput) *cliv1.ScenarioPortList {
 		Metadata: copyInt32Map(out.Metadata),
 		Error:    out.Error,
 	}
-}
-
-func writeScenarioPortListJSON(w io.Writer, out PortListOutput) error {
-	return marshalScenarioStatus(w, ScenarioPortListResponse(out))
-}
-
-// marshalScenarioStatus marshals a status-domain proto message and writes it
-// (newline-terminated) to w.
-func marshalScenarioStatus(w io.Writer, msg proto.Message) error {
-	return cliout.WriteProtoJSON(w, msg)
 }

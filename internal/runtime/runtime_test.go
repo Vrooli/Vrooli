@@ -514,12 +514,12 @@ func TestRemoteSessionProtectionApplyRunsManagedScript(t *testing.T) {
 	}
 	expected := []string{
 		"mkdir -p " + filepath.Dir(remoteSessionSysctlPath),
-		"install -m 0644",
+		"install -m 644",
 		"sysctl --system",
 		"mkdir -p " + remoteSessionSystemdDir,
 		"mkdir -p " + remoteSessionLogindDir,
-		"install -m 0644",
-		"install -m 0644",
+		"install -m 644",
+		"install -m 644",
 		"systemctl daemon-reload",
 	}
 	for _, needle := range expected {

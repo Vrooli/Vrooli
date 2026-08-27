@@ -9,6 +9,9 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/vrooli/vrooli/internal/repocontractmeta"
+	"github.com/vrooli/vrooli/internal/tuning"
+
 	repocontracttest "github.com/vrooli/repo-contract-go/repocontracttest"
 	testkitgo "github.com/vrooli/repo-contract-go/repocontracttest"
 	hostreqspec "github.com/vrooli/vrooli/internal/hostreqspec"
@@ -255,7 +258,7 @@ func WriteResourceCLIGoMod(t *testing.T, root, name, module string) {
 
 func WriteMalformedResourceManifest(t *testing.T, root, name, raw string) {
 	t.Helper()
-	testkitgo.WriteMalformedJSON(t, manifestpkg.DefaultPath(root, name), raw, 0o644)
+	testkitgo.WriteMalformedJSON(t, manifestpkg.DefaultPath(root, name), raw, tuning.PermFile)
 }
 
 func ReadResourceManifest(t *testing.T, root, name string) manifestpkg.ResourceManifest {
@@ -311,7 +314,7 @@ func WritePortRegistryState(t *testing.T, root string, registry resourceenv.Port
 
 	ports := cloneIntMap(registry.ResourcePorts)
 	ranges := cloneStringMap(registry.ReservedRanges)
-	testkitgo.WriteJSON(t, filepath.Join(root, ".vrooli", "test-port-registry.json"), resourceenv.PortRegistry{
+	testkitgo.WriteJSON(t, filepath.Join(root, repocontractmeta.ProjectConfigDir, "test-port-registry.json"), resourceenv.PortRegistry{
 		ResourcePorts:  ports,
 		ReservedRanges: ranges,
 	})
@@ -319,7 +322,7 @@ func WritePortRegistryState(t *testing.T, root string, registry resourceenv.Port
 
 func WriteResourceRegistryEntry(t *testing.T, root, name string) {
 	t.Helper()
-	testkitgo.WriteJSON(t, filepath.Join(root, ".vrooli", "resource-registry", name+".json"), map[string]any{
+	testkitgo.WriteJSON(t, filepath.Join(root, repocontractmeta.ProjectConfigDir, "resource-registry", name+".json"), map[string]any{
 		"name": name,
 	})
 }
@@ -340,7 +343,7 @@ func WriteResourcesSchema(t *testing.T, root string, propertyNames ...string) {
 	for _, name := range propertyNames {
 		properties[name] = map[string]any{}
 	}
-	testkitgo.WriteJSON(t, filepath.Join(root, ".vrooli", "schemas", "resources.schema.json"), map[string]any{
+	testkitgo.WriteJSON(t, filepath.Join(root, repocontractmeta.ProjectConfigDir, "schemas", "resources.schema.json"), map[string]any{
 		"$id": "https://vrooli.com/schemas/resources.schema.json",
 		"definitions": map[string]any{
 			"resourceConfig": map[string]any{
@@ -354,7 +357,7 @@ func WriteResourcesSchema(t *testing.T, root string, propertyNames ...string) {
 
 func WriteResourceDefinitionsMetadata(t *testing.T, root string) {
 	t.Helper()
-	testkitgo.WriteJSON(t, filepath.Join(root, ".vrooli", "schemas", "resource-definitions.json"), map[string]any{
+	testkitgo.WriteJSON(t, filepath.Join(root, repocontractmeta.ProjectConfigDir, "schemas", "resource-definitions.json"), map[string]any{
 		"definitions": map[string]any{
 			"resourceSchemas": map[string]any{},
 		},

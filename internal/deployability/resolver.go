@@ -10,6 +10,8 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+
+	"github.com/vrooli/vrooli/internal/hostreqspec"
 )
 
 type HostOS string
@@ -19,6 +21,23 @@ const (
 	HostOSMacOS   HostOS = "macos"
 	HostOSWindows HostOS = "windows"
 )
+
+// HostOSFromGOOS converts the Go runtime namespace to the deployment
+// vocabulary. Go calls Apple's platform "darwin"; deployment declarations
+// intentionally call it "macos". Unknown values return the zero HostOS so a
+// caller cannot accidentally treat an unrecognized runtime as supported.
+func HostOSFromGOOS(goos string) HostOS {
+	switch hostreqspec.PlatformFromGOOS(goos) {
+	case hostreqspec.PlatformLinux:
+		return HostOSLinux
+	case hostreqspec.PlatformMacOS:
+		return HostOSMacOS
+	case hostreqspec.PlatformWindows:
+		return HostOSWindows
+	default:
+		return ""
+	}
+}
 
 type Bundling string
 
@@ -76,7 +95,11 @@ type GPURequirement struct{ MinCUDACompute string }
 type PlatformDeclaration struct {
 	Status    string
 	Mechanism string
+	Since     string
+	ReviewBy  string
 	Evidence  *Evidence
+	// EvidenceRaw preserves string evidence for manifest-contract validation.
+	EvidenceRaw string
 }
 
 // Evidence identifies the concrete run and host behind a claim above the
@@ -192,6 +215,7 @@ func Resolve(input ResolutionInput) Resolution {
 	return result
 }
 
+//nolint:gocyclo // dependency resolution preserves delivery-tier, platform, evidence, and cycle outcomes.
 func resolveDependency(dependency DependencyDeclaration, tier DeliveryTier, os HostOS, arch string, facts map[string]string, stack map[string]struct{}) DependencyResult {
 	result := DependencyResult{Kind: strings.TrimSpace(dependency.Kind), Name: strings.TrimSpace(dependency.Name), Required: dependency.Required, Verdict: VerdictEligible}
 	if result.Kind == "" || result.Name == "" {

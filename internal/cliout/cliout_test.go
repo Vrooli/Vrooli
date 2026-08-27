@@ -181,13 +181,52 @@ func TestRenderTableRequiresWriter(t *testing.T) {
 	}
 }
 
-func TestRenderTableNoHeadersIsNoOp(t *testing.T) {
+func TestRenderTableWithoutHeadersRendersRows(t *testing.T) {
 	var buffer bytes.Buffer
 	if err := RenderTable(&buffer, nil, [][]string{{"alpha"}}); err != nil {
 		t.Fatalf("RenderTable: %v", err)
 	}
-	if buffer.Len() != 0 {
-		t.Fatalf("expected no output when headers are omitted, got %q", buffer.String())
+	if got := buffer.String(); got != "alpha\n" {
+		t.Fatalf("expected rows without headers, got %q", got)
+	}
+}
+
+func TestWriteSectionJSON(t *testing.T) {
+	var buffer bytes.Buffer
+	called := false
+	err := WriteSection(&buffer, Section{Format: FormatJSON, JSON: func() error {
+		called = true
+		return WriteJSON(&buffer, map[string]string{"status": "ok"})
+	}})
+	if err != nil || !called || !strings.Contains(buffer.String(), `"status": "ok"`) {
+		t.Fatalf("WriteSection JSON = called=%t output=%q err=%v", called, buffer.String(), err)
+	}
+}
+
+func TestWriteSectionEmpty(t *testing.T) {
+	var buffer bytes.Buffer
+	if err := WriteSection(&buffer, Section{Empty: EmptyLabel("claims")}); err != nil {
+		t.Fatalf("WriteSection empty: %v", err)
+	}
+	if got := buffer.String(); got != "no claims\n" {
+		t.Fatalf("unexpected empty output: %q", got)
+	}
+}
+
+func TestWriteSectionRaggedRowsAlign(t *testing.T) {
+	var buffer bytes.Buffer
+	if err := WriteSection(&buffer, Section{
+		Headers: []string{"Name", "Status"},
+		Rows:    [][]string{{"short", "ok"}, {"a-much-longer-name", "ready"}},
+	}); err != nil {
+		t.Fatalf("WriteSection table: %v", err)
+	}
+	lines := strings.Split(strings.TrimSuffix(buffer.String(), "\n"), "\n")
+	if len(lines) != 3 || !strings.Contains(lines[0], "Name") || !strings.Contains(lines[2], "ready") {
+		t.Fatalf("unexpected ragged table: %q", buffer.String())
+	}
+	if !strings.Contains(lines[0], "  Status") || !strings.Contains(lines[1], "  ok") {
+		t.Fatalf("expected aligned second column: %q", buffer.String())
 	}
 }
 

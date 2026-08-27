@@ -8,7 +8,13 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
-	"time"
+
+	"github.com/vrooli/vrooli/internal/tidinessprovider"
+	"github.com/vrooli/vrooli/internal/tuning"
+)
+
+const (
+	serviceParameterA = 4
 )
 
 type Service struct {
@@ -17,6 +23,7 @@ type Service struct {
 	PlanReconciler            PlanReconciler
 	DependencyFreshnessRunner DependencyFreshnessRunner
 	StructureProvider         Provider
+	TidinessProvider          Provider
 }
 
 func (s Service) Run(req Request) (Report, error) {
@@ -27,17 +34,25 @@ func (s Service) Run(req Request) (Report, error) {
 	if req.FailOn == "" {
 		req.FailOn = SeverityError
 	}
-	if !req.IncludeContract && !req.IncludePlans && !req.IncludeDrift && !req.IncludeFreshness {
+	if !req.IncludeContract && !req.IncludePlans && !req.IncludeDrift && !req.IncludeFreshness && !req.IncludeTidiness {
 		req.IncludeContract = true
 		req.IncludePlans = true
 		req.IncludeDrift = true
 		req.IncludeFreshness = true
+		req.IncludeTidiness = true
 	}
 	report := Report{Root: root, Success: true}
 
 	if req.IncludeContract {
 		registry := NewRegistry(s.structureProvider(), s.layoutProvider())
 		if err := registry.Run(context.Background(), req, &report, structureProviderID, layoutProviderID); err != nil {
+			return Report{}, err
+		}
+	}
+
+	if req.IncludeTidiness {
+		registry := NewRegistry(s.tidinessProvider())
+		if err := registry.Run(context.Background(), req, &report, tidinessProviderID); err != nil {
 			return Report{}, err
 		}
 	}
@@ -68,7 +83,7 @@ func (s Service) planProvider() Provider {
 	reconciler := s.PlanReconciler
 	var reconcileErr error
 	if reconciler == nil {
-		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), tuning.HealthCheckTimeout)
 		defer cancel()
 		if resolved, err := NewDefaultPlanReconciler(ctx); err == nil {
 			reconciler = resolved
@@ -88,6 +103,13 @@ func errorString(err error) string {
 		return ""
 	}
 	return err.Error()
+}
+
+func (s Service) tidinessProvider() Provider {
+	if s.TidinessProvider != nil {
+		return s.TidinessProvider
+	}
+	return tidinessProvider{root: s.Root, client: tidinessprovider.NewDefault()}
 }
 
 func contractFinding(name, message string) Finding {
@@ -146,7 +168,7 @@ func gitStatuses(root string) map[string]string {
 	data, err := cmd.Output()
 	if err == nil {
 		for _, line := range strings.Split(string(data), "\n") {
-			if len(line) < 4 {
+			if len(line) < serviceParameterA {
 				continue
 			}
 			status := strings.TrimSpace(line[:2])

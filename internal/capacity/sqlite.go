@@ -15,8 +15,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/vrooli/vrooli/internal/tuning"
+
 	repocontract "github.com/vrooli/repo-contract-go"
 	"github.com/vrooli/vrooli/internal/config"
+
 	// Importing modernc.org/sqlite registers the pure-Go SQLite driver.
 	sqlite "modernc.org/sqlite"
 	sqlite3 "modernc.org/sqlite/lib"
@@ -24,8 +27,8 @@ import (
 
 const (
 	capacityTxRetryAttempts = 5
-	capacityTxRetryBase     = 25 * time.Millisecond
-	capacityTxRetryMax      = 250 * time.Millisecond
+	capacityTxRetryBase     = tuning.FastPersistenceRetryInterval
+	capacityTxRetryMax      = tuning.FastHealthPollInterval
 )
 
 // Config configures the capacity ledger store.

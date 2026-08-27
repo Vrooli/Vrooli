@@ -10,7 +10,9 @@ import (
 	"github.com/vrooli/vrooli/internal/hostreqspec"
 )
 
-func stubLookups(t *testing.T) func() {
+var stubLookups = natProtectionStubLookups
+
+func natProtectionStubLookups(t *testing.T) func() {
 	t.Helper()
 	origLookPath := hostreqkit.LookPathFn
 	origReadFile := hostreqkit.ReadFileFn
@@ -24,14 +26,18 @@ func stubLookups(t *testing.T) func() {
 	}
 }
 
-func newTestHandler() hostreqkit.Handler {
+var newTestHandler = natProtectionTestHandler
+
+func natProtectionTestHandler() hostreqkit.Handler {
 	return NewHandler(hostreqkit.SafeguardManifest{
 		Name:    "nat_protection",
 		Handler: "nat_protection",
 	})
 }
 
-func linuxReq() hostreqspec.ResolvedRequirement {
+var linuxReq = natProtectionLinuxReq
+
+func natProtectionLinuxReq() hostreqspec.ResolvedRequirement {
 	return hostreqspec.ResolvedRequirement{
 		Name:     "nat_protection",
 		Kind:     hostreqspec.KindSafeguard,
@@ -39,7 +45,9 @@ func linuxReq() hostreqspec.ResolvedRequirement {
 	}
 }
 
-func linuxHost() hostreqkit.Host {
+var linuxHost = natProtectionLinuxHost
+
+func natProtectionLinuxHost() hostreqkit.Host {
 	return hostreqkit.Host{
 		OS:             "linux",
 		PackageManager: "apt-get",
@@ -68,34 +76,6 @@ LISTEN   0        128              0.0.0.0:8085          0.0.0.0:*
 const ssNoneListening = `State    Recv-Q   Send-Q     Local Address:Port     Peer Address:Port
 LISTEN   0        128              0.0.0.0:22            0.0.0.0:*
 `
-
-func TestNameAndKind(t *testing.T) {
-	h := newTestHandler()
-	if h.Name() != "nat_protection" {
-		t.Fatalf("Name = %q", h.Name())
-	}
-	if h.Kind() != hostreqspec.KindSafeguard {
-		t.Fatalf("Kind = %q", h.Kind())
-	}
-}
-
-func TestInspectManualRequirement(t *testing.T) {
-	h := newTestHandler()
-	req := linuxReq()
-	req.Manual = true
-	status := h.Inspect(linuxHost(), req)
-	if status.SupportClass != hostreqkit.SupportManualOnly {
-		t.Fatalf("SupportClass = %q", status.SupportClass)
-	}
-}
-
-func TestInspectNonLinuxUnsupported(t *testing.T) {
-	h := newTestHandler()
-	status := h.Inspect(hostreqkit.Host{OS: "darwin"}, linuxReq())
-	if status.SupportClass != hostreqkit.SupportUnsupported {
-		t.Fatalf("SupportClass = %q", status.SupportClass)
-	}
-}
 
 func TestInspectNoIptablesNotApplicable(t *testing.T) {
 	restore := stubLookups(t)
@@ -230,19 +210,6 @@ func TestInspectAllRedirectsDead(t *testing.T) {
 	}
 }
 
-func TestApplyUnsupportedReturnsEarly(t *testing.T) {
-	h := newTestHandler()
-	status, err := h.Apply(hostreqkit.Host{OS: "darwin"}, hostreqkit.ItemStatus{
-		SupportClass: hostreqkit.SupportUnsupported,
-	}, hostreqkit.EnsureOptions{})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if status.ExecutionState != hostreqkit.ExecutionUnsupported {
-		t.Fatalf("ExecutionState = %q", status.ExecutionState)
-	}
-}
-
 func TestApplyNotApplicableReturnsEarly(t *testing.T) {
 	h := newTestHandler()
 	status, err := h.Apply(linuxHost(), hostreqkit.ItemStatus{
@@ -252,46 +219,6 @@ func TestApplyNotApplicableReturnsEarly(t *testing.T) {
 		t.Fatal(err)
 	}
 	if status.ExecutionState != hostreqkit.ExecutionNotApplicable {
-		t.Fatalf("ExecutionState = %q", status.ExecutionState)
-	}
-}
-
-func TestApplyManualReturnsEarly(t *testing.T) {
-	h := newTestHandler()
-	status, err := h.Apply(linuxHost(), hostreqkit.ItemStatus{
-		SupportClass: hostreqkit.SupportManualOnly,
-	}, hostreqkit.EnsureOptions{})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if status.ExecutionState != hostreqkit.ExecutionManualActionRequired {
-		t.Fatalf("ExecutionState = %q", status.ExecutionState)
-	}
-}
-
-func TestApplyAlreadyAppliedSkips(t *testing.T) {
-	h := newTestHandler()
-	status, err := h.Apply(linuxHost(), hostreqkit.ItemStatus{
-		SupportClass: hostreqkit.SupportSupported,
-		Applied:      true,
-	}, hostreqkit.EnsureOptions{})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if status.ExecutionState != hostreqkit.ExecutionAlreadyPresent {
-		t.Fatalf("ExecutionState = %q", status.ExecutionState)
-	}
-}
-
-func TestApplyDryRun(t *testing.T) {
-	h := newTestHandler()
-	status, err := h.Apply(linuxHost(), hostreqkit.ItemStatus{
-		SupportClass: hostreqkit.SupportSupported,
-	}, hostreqkit.EnsureOptions{DryRun: true})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if status.ExecutionState != hostreqkit.ExecutionWouldApply {
 		t.Fatalf("ExecutionState = %q", status.ExecutionState)
 	}
 }

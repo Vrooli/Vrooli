@@ -9,7 +9,7 @@ import (
 // Handler exposes the cross-OS gate as an HTTP endpoint deployment-manager's
 // promotion flow (or an operator) can call. A nil gate means bridge is not
 // configured; the handler then responds 503 so the route is inert until
-// VROOLI_BRIDGE_URL is wired.
+// the shared node client is wired.
 type Handler struct {
 	gate *Gate
 }
@@ -25,7 +25,7 @@ func NewHandler(gate *Gate) *Handler { return &Handler{gate: gate} }
 func (h *Handler) Evaluate(w http.ResponseWriter, r *http.Request) {
 	if h.gate == nil {
 		writeJSON(w, http.StatusServiceUnavailable, map[string]string{
-			"error": "cross-OS deployment gate is not configured; set VROOLI_BRIDGE_URL to the vrooli-bridge control plane to enable it",
+			"error": "cross-OS deployment gate is not configured; wire the shared Bridge node client to enable it",
 		})
 		return
 	}

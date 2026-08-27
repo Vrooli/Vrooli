@@ -19,6 +19,12 @@ import (
 	"github.com/vrooli/vrooli/internal/scenarioruntime"
 )
 
+const (
+	dependenciesParameterA = 2
+	dependenciesParameterB = 3
+	dependenciesParameterC = 8
+)
+
 type dependencyDecision struct {
 	policy            string
 	freshnessPolicy   string
@@ -34,7 +40,7 @@ type dependencyDecision struct {
 // rejected, so at least one of {not running, unhealthy, setup needed} always
 // holds — there is no "nothing changed" arm to fall through to.
 func dependencyRestartReason(running bool, healthy bool, setupNeeded bool, setupReasons []string) string {
-	reasons := make([]string, 0, 3)
+	reasons := make([]string, 0, dependenciesParameterB)
 	switch {
 	case !running:
 		reasons = append(reasons, "not running")
@@ -52,7 +58,7 @@ func dependencyRestartReason(running bool, healthy bool, setupNeeded bool, setup
 }
 
 func resourceDependencyStartReason(status resourcecontrol.Status) string {
-	reasons := make([]string, 0, 3)
+	reasons := make([]string, 0, dependenciesParameterB)
 	if !status.Running {
 		reasons = append(reasons, "not running")
 	}
@@ -129,6 +135,7 @@ func (r *Runner) ensureDependencies(item scenario.Scenario, opts StartOptions, s
 	return failed, nil
 }
 
+//nolint:gocyclo // dependency startup preserves freshness, ownership, and failure-policy branches.
 func (r *Runner) ensureDependency(ctx context.Context, item scenario.Scenario, opts StartOptions, session *startSession, index int, dependencyName string, total int) (string, error) {
 	if ctx == nil {
 		ctx = context.Background()
@@ -196,22 +203,28 @@ func (r *Runner) ensureDependency(ctx context.Context, item scenario.Scenario, o
 		session.markReady(dependencyName)
 		return "", nil
 	}
-	// Reuse is gated on FRESHNESS only: a running, healthy dependency must
-	// not be bounced because a provisioning check (e.g. an empty data/
-	// dir) reports "not populated". Provisioning is handled if the dep is
-	// actually (re)started, never as a reason to restart a healthy one.
-	freshnessStale, freshnessReasons, err := r.freshnessStaleCached(dependencyItem, dependencyForceSetup, session)
-	if err != nil {
-		if decision.continueOnFailure {
-			r.logWarn("Dependency setup check failed; continuing in best-effort mode",
-				logx.AttrScenario, item.Slug,
-				logx.AttrDependency, dependencyName,
-				logx.AttrOperation, "setup_needed_dependency",
-				"error", err.Error(),
-			)
-			return dependencyName, nil
+	// Reuse is gated on FRESHNESS only when a running, healthy dependency could
+	// actually be reused. A stopped or unhealthy dependency must be started
+	// regardless of its artifact freshness, and walking its source tree before
+	// that decision can consume the entire optional-dependency budget (or block
+	// on a broken toolchain). Provisioning is handled if the dep is actually
+	// (re)started, never as a reason to delay a required start.
+	var freshnessStale bool
+	var freshnessReasons []string
+	if dependencyRunning && strictHealthy {
+		freshnessStale, freshnessReasons, err = r.freshnessStaleCached(dependencyItem, dependencyForceSetup, session)
+		if err != nil {
+			if decision.continueOnFailure {
+				r.logWarn("Dependency setup check failed; continuing in best-effort mode",
+					logx.AttrScenario, item.Slug,
+					logx.AttrDependency, dependencyName,
+					logx.AttrOperation, "setup_needed_dependency",
+					"error", err.Error(),
+				)
+				return dependencyName, nil
+			}
+			return "", err
 		}
-		return "", err
 	}
 	if dependencyRunning && strictHealthy && !freshnessStale {
 		r.publish(ProgressEvent{Kind: EventDependencyReused, Scenario: item.Slug, Dependency: dependencyName, Index: index + 1, Total: total})
@@ -256,6 +269,11 @@ func (r *Runner) ensureDependency(ctx context.Context, item scenario.Scenario, o
 	)
 
 	dependencyOpts := opts
+	// The optional dependency has its own bounded degraded-start context. Keep
+	// that context on StartOptions as well as on the recursive start session:
+	// nested lifecycle paths use StartOptions for preflight, teardown, and
+	// artifact work, and must not inherit the parent's much longer ceiling.
+	dependencyOpts.Context = ctx
 	dependencyOpts.CustomPath = ""
 	dependencyOpts.CleanStale = false
 	// Dependencies are shared live infrastructure: a shadow scenario adopts
@@ -343,18 +361,18 @@ func dependencyConcurrencyLimit(item scenario.Scenario) int {
 	// the safe bound for a fan-out whose siblings can be heterogeneous.
 	_ = item
 	if maxReservation <= 0 {
-		return 2
+		return dependenciesParameterA
 	}
 	facts, err := hostinventory.HostMemoryFacts()
 	if err != nil || !facts.Trustworthy || facts.AvailableBytes == 0 {
-		return 2
+		return dependenciesParameterA
 	}
 	limit := int(facts.AvailableBytes / uint64(maxReservation))
 	if limit < 1 {
 		return 1
 	}
-	if limit > 8 {
-		return 8
+	if limit > dependenciesParameterC {
+		return dependenciesParameterC
 	}
 	return limit
 }
@@ -486,7 +504,7 @@ func (r *Runner) rebuildDependencyArtifactsContext(ctx context.Context, item sce
 	}
 	env := envFromRuntimeView(item.Manifest, view)
 	if _, err := r.runWithLifecycleLog(startLifecycleLogContext(item.Slug, "rebuild", "setup"), func(logWriter, childWriter io.Writer) error {
-		_, execErr := r.executePhaseDetailed(ctx, item, "setup", env, logWriter, childWriter)
+		_, execErr := r.executePhaseDetailed(ctx, item, "setup", env, logWriter, childWriter, false)
 		return execErr
 	}); err != nil {
 		return err

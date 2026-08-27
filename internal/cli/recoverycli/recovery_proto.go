@@ -1,14 +1,10 @@
 package recoverycli
 
 import (
-	"io"
 	"time"
-
-	"google.golang.org/protobuf/proto"
 
 	recoveryapp "github.com/vrooli/vrooli/internal/app/recovery"
 	"github.com/vrooli/vrooli/internal/baselinefloor"
-	"github.com/vrooli/vrooli/internal/cliout"
 	cliv1 "github.com/vrooli/vrooli/packages/proto/gen/go/cli/v1"
 )
 
@@ -130,10 +126,4 @@ func RecoveryNamespaceResponse(resp recoveryapp.NamespaceOutput) *cliv1.Recovery
 		DataDirName:      resp.DataDirName,
 		StorageNamespace: resp.StorageNamespace,
 	}
-}
-
-// writeRecoveryJSON marshals a recovery wire message and writes it with a
-// trailing newline.
-func writeRecoveryJSON(w io.Writer, msg proto.Message) error {
-	return cliout.WriteProtoJSON(w, msg)
 }

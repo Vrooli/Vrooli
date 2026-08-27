@@ -104,7 +104,13 @@ func TestInspectNoNvidiaHardwareIsNotApplicable(t *testing.T) {
 func newHandler() hostreqkit.Handler {
 	return NewHandler(hostreqkit.SafeguardManifest{Name: "nvidia_driver", Handler: "nvidia_driver"})
 }
-func linuxHost() hostreqkit.Host { return hostreqkit.Host{OS: "linux", PackageManager: "apt-get"} }
+
+var linuxHost = nvidiaLinuxHost
+
+func nvidiaLinuxHost() hostreqkit.Host {
+	return hostreqkit.Host{OS: "linux", PackageManager: "apt-get"}
+}
+
 func requirement() hostreqspec.ResolvedRequirement {
 	return hostreqspec.ResolvedRequirement{Name: "nvidia_driver", Kind: hostreqspec.KindSafeguard, Required: true}
 }

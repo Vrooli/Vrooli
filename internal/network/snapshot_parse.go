@@ -9,6 +9,12 @@ import (
 	"strings"
 )
 
+const (
+	snapshotParseParameterA = 2
+	snapshotParseParameterB = 32
+	snapshotParseParameterC = 4
+)
+
 // The parsers below are platform-neutral pure functions over captured tool
 // output so they stay unit-testable on every GOOS; the per-platform capture
 // entry points live in snapshot_{linux,darwin,windows,other}.go. Anything
@@ -18,7 +24,7 @@ import (
 // parseProcNetTCPListenPorts extracts local ports of sockets in LISTEN state
 // (st == 0A) from /proc/net/tcp{,6} content. Malformed lines are skipped.
 func parseProcNetTCPListenPorts(data []byte) []int {
-	out := make([]int, 0, 32)
+	out := make([]int, 0, snapshotParseParameterB)
 	scanner := bufio.NewScanner(bytes.NewReader(data))
 	for scanner.Scan() {
 		fields := strings.Fields(scanner.Text())
@@ -55,7 +61,7 @@ func parseSSListenerAttribution(output []byte, labelFor func(pid int) string) ma
 	for scanner.Scan() {
 		line := scanner.Text()
 		fields := strings.Fields(line)
-		if len(fields) < 4 {
+		if len(fields) < snapshotParseParameterC {
 			continue
 		}
 		sep := strings.LastIndex(fields[3], ":")
@@ -84,7 +90,7 @@ func parseSSUsersToken(line string, labelFor func(pid int) string) []SnapshotLis
 	if end := strings.LastIndex(segment, "))"); end >= 0 {
 		segment = segment[:end]
 	}
-	listeners := make([]SnapshotListener, 0, 2)
+	listeners := make([]SnapshotListener, 0, snapshotParseParameterA)
 	for _, entry := range strings.Split(segment, "),(") {
 		name := ""
 		pid := 0
@@ -148,7 +154,7 @@ func pidIsZombie(pid int) bool {
 // The local-address port is the segment after the LAST dot (darwin uses dots
 // as address separators).
 func parseNetstatListenPorts(output []byte) []int {
-	out := make([]int, 0, 32)
+	out := make([]int, 0, snapshotParseParameterB)
 	scanner := bufio.NewScanner(bytes.NewReader(output))
 	for scanner.Scan() {
 		fields := strings.Fields(scanner.Text())
@@ -182,7 +188,7 @@ func parseLsofFieldAttribution(output []byte) map[int][]SnapshotListener {
 	scanner := bufio.NewScanner(bytes.NewReader(output))
 	for scanner.Scan() {
 		line := scanner.Text()
-		if len(line) < 2 {
+		if len(line) < snapshotParseParameterA {
 			continue
 		}
 		switch line[0] {

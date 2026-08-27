@@ -10,6 +10,18 @@ import (
 
 type Kind string
 
+// Platform is the normalized host-platform vocabulary shared by host
+// requirement probes. It is intentionally below deployability so low-level
+// collectors can use typed platform decisions without importing the higher
+// deployment rule package.
+type Platform string
+
+const (
+	PlatformLinux   Platform = "linux"
+	PlatformMacOS   Platform = "macos"
+	PlatformWindows Platform = "windows"
+)
+
 // OperatorChoice records the durable decision, if any, for an optional host
 // requirement. The explicit third state matters: an absent entry means the
 // operator has not answered yet, while false means the operator declined.
@@ -141,6 +153,8 @@ type CapabilityFacts struct {
 // Conservative by design: an unmet condition is an advisory skip, never a hard
 // failure — a CPU fallback can still be offered. Unknown VRAM (0) is treated as
 // "not GPU-viable" so a VRAM floor never over-claims.
+//
+//nolint:gocyclo // requirement evaluation combines capability, version, platform, and evidence predicates.
 func (c *CapabilityRequirement) Evaluate(facts CapabilityFacts) (bool, string) {
 	if c.IsZero() {
 		return true, ""
@@ -337,6 +351,21 @@ func NormalizePlatform(value string) string {
 		return "macos"
 	default:
 		return value
+	}
+}
+
+// PlatformFromGOOS converts Go's runtime namespace into the normalized host
+// platform vocabulary. Unknown values return the zero Platform.
+func PlatformFromGOOS(value string) Platform {
+	switch NormalizePlatform(value) {
+	case string(PlatformLinux):
+		return PlatformLinux
+	case string(PlatformMacOS):
+		return PlatformMacOS
+	case string(PlatformWindows):
+		return PlatformWindows
+	default:
+		return ""
 	}
 }
 

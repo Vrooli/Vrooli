@@ -1,4 +1,5 @@
 // Package emergencywatchdog installs the last-line-of-defense watchdog: the
+
 // portable vrooli-watchdog binary plus the native scheduler that runs it every
 // five minutes (systemd on Linux, launchd on macOS, and Task Scheduler on
 // Windows).
@@ -28,7 +29,11 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
-	"time"
+
+	"github.com/vrooli/vrooli/internal/repocontractmeta"
+	"github.com/vrooli/vrooli/internal/tuning"
+
+	"github.com/vrooli/vrooli/internal/config"
 
 	repocontract "github.com/vrooli/repo-contract-go"
 	"github.com/vrooli/vrooli/internal/hostreqkit"
@@ -95,8 +100,8 @@ func resolvePaths(home string) paths {
 	}
 	return paths{
 		Home:        home,
-		Binary:      filepath.Join(home, ".vrooli", "libexec", binaryName),
-		Script:      filepath.Join(home, ".vrooli", "libexec", "emergency-watchdog.sh"),
+		Binary:      filepath.Join(home, repocontractmeta.ProjectConfigDir, "libexec", binaryName),
+		Script:      filepath.Join(home, repocontractmeta.ProjectConfigDir, "libexec", "emergency-watchdog.sh"),
 		ServiceUnit: filepath.Join(home, ".config", "systemd", "user", serviceName),
 		TimerUnit:   filepath.Join(home, ".config", "systemd", "user", timerName),
 		LaunchAgent: filepath.Join(home, "Library", "LaunchAgents", "com.vrooli.emergency-watchdog.plist"),
@@ -140,15 +145,15 @@ func (h handler) Inspect(host hostreqkit.Host, requirement hostreqspec.ResolvedR
 		status.ExecutionState = hostreqkit.ExecutionManualActionRequired
 		return status
 	}
-	if host.OS != "linux" && !nativeSchedulerAvailable(host.OS) {
-		schedule := watchdoginstall.For(host.OS, 5*time.Minute)
+	if hostreqspec.PlatformFromGOOS(host.OS) != hostreqspec.PlatformLinux && !nativeSchedulerAvailable(host.OS) {
+		schedule := watchdoginstall.For(host.OS, tuning.LongOperationTimeout)
 		status.SupportClass = hostreqkit.SupportUnsupported
 		status.ExecutionState = hostreqkit.ExecutionUnsupported
 		status.Notes = append(status.Notes,
 			"the native scheduler for "+host.OS+" is unavailable: "+schedule.Remediation)
 		return status
 	}
-	if host.OS == "linux" && !host.SupportsSystemd {
+	if hostreqspec.PlatformFromGOOS(host.OS) == hostreqspec.PlatformLinux && !host.SupportsSystemd {
 		status.SupportClass = hostreqkit.SupportUnsupported
 		status.ExecutionState = hostreqkit.ExecutionUnsupported
 		status.Notes = append(status.Notes, "the emergency watchdog requires systemd user service/timer support")
@@ -170,7 +175,7 @@ func (h handler) Inspect(host hostreqkit.Host, requirement hostreqspec.ResolvedR
 
 	p := resolvePaths(home)
 	resolved := resolveSettings(requirement.Config)
-	if host.OS != "linux" {
+	if hostreqspec.PlatformFromGOOS(host.OS) != hostreqspec.PlatformLinux {
 		pending := nativePending(host.OS, p)
 		if len(pending) == 0 {
 			status.Applied = true
@@ -252,7 +257,7 @@ func (h handler) Apply(host hostreqkit.Host, status hostreqkit.ItemStatus, opts 
 		status.Notes = append(status.Notes, "degraded: previous watchdog binary was preserved: "+err.Error())
 		return status, nil
 	}
-	if host.OS != "linux" {
+	if hostreqspec.PlatformFromGOOS(host.OS) != hostreqspec.PlatformLinux {
 		return applyNative(host.OS, p, status, opts)
 	}
 
@@ -296,7 +301,7 @@ func (h handler) Apply(host hostreqkit.Host, status hostreqkit.ItemStatus, opts 
 func serviceContent(p paths) string {
 	setpoint := ""
 	if root, err := repocontract.ResolveRepoRoot(); err == nil {
-		setpoint = filepath.Join(root, "scenarios", "infrastructure-manager", "setpoint", "reliability-setpoint.json")
+		setpoint = filepath.Join(root, repocontractmeta.ScenarioDir, "infrastructure-manager", "setpoint", "reliability-setpoint.json")
 	}
 	setpointEnv := ""
 	if setpoint != "" {
@@ -331,10 +336,11 @@ func buildAndInstallWatchdog(p paths) error {
 	if err := buildWatchdogFn(root, tmp); err != nil {
 		return err
 	}
-	if err := os.Chmod(tmp, 0o755); err != nil {
-		return fmt.Errorf("mark watchdog executable: %w", err)
+	data, err := os.ReadFile(tmp)
+	if err != nil {
+		return fmt.Errorf("read built watchdog: %w", err)
 	}
-	if err := os.Rename(tmp, p.Binary); err != nil {
+	if err := config.WriteOwnedFileAtomic(p.Binary, data, tuning.PermDir); err != nil {
 		return fmt.Errorf("install watchdog atomically: %w", err)
 	}
 	return nil

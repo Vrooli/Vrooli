@@ -42,6 +42,9 @@ const (
 	// PairingServiceRequestPairingProcedure is the fully-qualified name of the PairingService's
 	// RequestPairing RPC.
 	PairingServiceRequestPairingProcedure = "/vrooli.vrooli_bridge.v1.pairing.PairingService/RequestPairing"
+	// PairingServiceGetPairingRequestProcedure is the fully-qualified name of the PairingService's
+	// GetPairingRequest RPC.
+	PairingServiceGetPairingRequestProcedure = "/vrooli.vrooli_bridge.v1.pairing.PairingService/GetPairingRequest"
 	// PairingServiceApprovePairingProcedure is the fully-qualified name of the PairingService's
 	// ApprovePairing RPC.
 	PairingServiceApprovePairingProcedure = "/vrooli.vrooli_bridge.v1.pairing.PairingService/ApprovePairing"
@@ -72,6 +75,10 @@ type PairingServiceClient interface {
 	// its request sits pending until the owner approves it. Open (the node has no
 	// credential yet); rate/uniqueness is enforced server-side.
 	RequestPairing(context.Context, *connect.Request[pairing.RequestPairingRequest]) (*connect.Response[pairing.RequestPairingResponse], error)
+	// GetPairingRequest is the open polling leg of request/approve enrollment.
+	// It returns the decision and, after approval, the node id and control-plane
+	// key the joining agent must persist before opening its authenticated channel.
+	GetPairingRequest(context.Context, *connect.Request[pairing.GetPairingRequestRequest]) (*connect.Response[pairing.GetPairingRequestResponse], error)
 	// ApprovePairing approves (or rejects) a pending pairing request, minting the
 	// node the same way a redeemed code does. Owner-gated.
 	ApprovePairing(context.Context, *connect.Request[pairing.ApprovePairingRequest]) (*connect.Response[pairing.ApprovePairingResponse], error)
@@ -114,6 +121,12 @@ func NewPairingServiceClient(httpClient connect.HTTPClient, baseURL string, opts
 			connect.WithSchema(pairingServiceMethods.ByName("RequestPairing")),
 			connect.WithClientOptions(opts...),
 		),
+		getPairingRequest: connect.NewClient[pairing.GetPairingRequestRequest, pairing.GetPairingRequestResponse](
+			httpClient,
+			baseURL+PairingServiceGetPairingRequestProcedure,
+			connect.WithSchema(pairingServiceMethods.ByName("GetPairingRequest")),
+			connect.WithClientOptions(opts...),
+		),
 		approvePairing: connect.NewClient[pairing.ApprovePairingRequest, pairing.ApprovePairingResponse](
 			httpClient,
 			baseURL+PairingServiceApprovePairingProcedure,
@@ -140,6 +153,7 @@ type pairingServiceClient struct {
 	issuePairingCode      *connect.Client[pairing.IssuePairingCodeRequest, pairing.IssuePairingCodeResponse]
 	redeemPairingCode     *connect.Client[pairing.RedeemPairingCodeRequest, pairing.RedeemPairingCodeResponse]
 	requestPairing        *connect.Client[pairing.RequestPairingRequest, pairing.RequestPairingResponse]
+	getPairingRequest     *connect.Client[pairing.GetPairingRequestRequest, pairing.GetPairingRequestResponse]
 	approvePairing        *connect.Client[pairing.ApprovePairingRequest, pairing.ApprovePairingResponse]
 	listPairingRequests   *connect.Client[pairing.ListPairingRequestsRequest, pairing.ListPairingRequestsResponse]
 	registerEncryptionKey *connect.Client[pairing.RegisterEncryptionKeyRequest, pairing.RegisterEncryptionKeyResponse]
@@ -158,6 +172,11 @@ func (c *pairingServiceClient) RedeemPairingCode(ctx context.Context, req *conne
 // RequestPairing calls vrooli.vrooli_bridge.v1.pairing.PairingService.RequestPairing.
 func (c *pairingServiceClient) RequestPairing(ctx context.Context, req *connect.Request[pairing.RequestPairingRequest]) (*connect.Response[pairing.RequestPairingResponse], error) {
 	return c.requestPairing.CallUnary(ctx, req)
+}
+
+// GetPairingRequest calls vrooli.vrooli_bridge.v1.pairing.PairingService.GetPairingRequest.
+func (c *pairingServiceClient) GetPairingRequest(ctx context.Context, req *connect.Request[pairing.GetPairingRequestRequest]) (*connect.Response[pairing.GetPairingRequestResponse], error) {
+	return c.getPairingRequest.CallUnary(ctx, req)
 }
 
 // ApprovePairing calls vrooli.vrooli_bridge.v1.pairing.PairingService.ApprovePairing.
@@ -195,6 +214,10 @@ type PairingServiceHandler interface {
 	// its request sits pending until the owner approves it. Open (the node has no
 	// credential yet); rate/uniqueness is enforced server-side.
 	RequestPairing(context.Context, *connect.Request[pairing.RequestPairingRequest]) (*connect.Response[pairing.RequestPairingResponse], error)
+	// GetPairingRequest is the open polling leg of request/approve enrollment.
+	// It returns the decision and, after approval, the node id and control-plane
+	// key the joining agent must persist before opening its authenticated channel.
+	GetPairingRequest(context.Context, *connect.Request[pairing.GetPairingRequestRequest]) (*connect.Response[pairing.GetPairingRequestResponse], error)
 	// ApprovePairing approves (or rejects) a pending pairing request, minting the
 	// node the same way a redeemed code does. Owner-gated.
 	ApprovePairing(context.Context, *connect.Request[pairing.ApprovePairingRequest]) (*connect.Response[pairing.ApprovePairingResponse], error)
@@ -232,6 +255,12 @@ func NewPairingServiceHandler(svc PairingServiceHandler, opts ...connect.Handler
 		connect.WithSchema(pairingServiceMethods.ByName("RequestPairing")),
 		connect.WithHandlerOptions(opts...),
 	)
+	pairingServiceGetPairingRequestHandler := connect.NewUnaryHandler(
+		PairingServiceGetPairingRequestProcedure,
+		svc.GetPairingRequest,
+		connect.WithSchema(pairingServiceMethods.ByName("GetPairingRequest")),
+		connect.WithHandlerOptions(opts...),
+	)
 	pairingServiceApprovePairingHandler := connect.NewUnaryHandler(
 		PairingServiceApprovePairingProcedure,
 		svc.ApprovePairing,
@@ -258,6 +287,8 @@ func NewPairingServiceHandler(svc PairingServiceHandler, opts ...connect.Handler
 			pairingServiceRedeemPairingCodeHandler.ServeHTTP(w, r)
 		case PairingServiceRequestPairingProcedure:
 			pairingServiceRequestPairingHandler.ServeHTTP(w, r)
+		case PairingServiceGetPairingRequestProcedure:
+			pairingServiceGetPairingRequestHandler.ServeHTTP(w, r)
 		case PairingServiceApprovePairingProcedure:
 			pairingServiceApprovePairingHandler.ServeHTTP(w, r)
 		case PairingServiceListPairingRequestsProcedure:
@@ -283,6 +314,10 @@ func (UnimplementedPairingServiceHandler) RedeemPairingCode(context.Context, *co
 
 func (UnimplementedPairingServiceHandler) RequestPairing(context.Context, *connect.Request[pairing.RequestPairingRequest]) (*connect.Response[pairing.RequestPairingResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.vrooli_bridge.v1.pairing.PairingService.RequestPairing is not implemented"))
+}
+
+func (UnimplementedPairingServiceHandler) GetPairingRequest(context.Context, *connect.Request[pairing.GetPairingRequestRequest]) (*connect.Response[pairing.GetPairingRequestResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.vrooli_bridge.v1.pairing.PairingService.GetPairingRequest is not implemented"))
 }
 
 func (UnimplementedPairingServiceHandler) ApprovePairing(context.Context, *connect.Request[pairing.ApprovePairingRequest]) (*connect.Response[pairing.ApprovePairingResponse], error) {

@@ -9,6 +9,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vrooli/vrooli/internal/tuning"
+
 	"github.com/vrooli/cli-core/cliutil"
 
 	"github.com/vrooli/vrooli/internal/cli/commandtree"
@@ -71,7 +73,7 @@ func ParkScenarioWait(stderr io.Writer, slug string) (message string, parked boo
 // re-wait timestamp file, 30s window, stderr warning). Mirrored rather than
 // extracted because test-genie changes are out of scope for the wait-contract
 // plan; unify into cli-core/cliutil as a follow-up.
-const eagerScenarioWaitWindow = 30 * time.Second
+const eagerScenarioWaitWindow = tuning.StandardOperationTimeout
 
 func scenarioWaitStatePath() string {
 	base, err := os.UserCacheDir()
@@ -90,14 +92,14 @@ func readScenarioWaitAttempts(path string) map[string]int64 {
 }
 
 func writeScenarioWaitAttempts(path string, attempts map[string]int64) {
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(path), tuning.PermDir); err != nil {
 		return
 	}
 	data, err := json.MarshalIndent(attempts, "", "  ")
 	if err != nil {
 		return
 	}
-	_ = os.WriteFile(path, data, 0o644)
+	_ = os.WriteFile(path, data, tuning.PermFile)
 }
 
 // WarnIfEagerScenarioWait warns (stderr) when a wait for the same scenario
@@ -161,11 +163,7 @@ func RenderWaitResponse(w io.Writer, format cliout.Format, resp WaitResponse) er
 		_, err := fmt.Fprintln(w, resp.ParkedMessage)
 		return err
 	}
-	if format == cliout.FormatJSON {
-		if err := marshalScenarioStatus(w, ScenarioWaitResponseMessage(resp)); err != nil {
-			return err
-		}
-	} else {
+	if err := cliout.RenderJSONOr(w, format, func(w io.Writer) error { return cliout.WriteProtoJSON(w, ScenarioWaitResponseMessage(resp)) }, func(w io.Writer) error {
 		suffix := ""
 		if resp.Error != "" {
 			suffix = ": " + resp.Error
@@ -173,6 +171,9 @@ func RenderWaitResponse(w io.Writer, format cliout.Format, resp WaitResponse) er
 		if _, err := fmt.Fprintf(w, "%s: %s (source=%s, waited %ds)%s\n", resp.Scenario, resp.Verdict, resp.Source, resp.WaitedSeconds, suffix); err != nil {
 			return err
 		}
+		return nil
+	}); err != nil {
+		return err
 	}
 	if resp.ExitCode != 0 {
 		return VerdictExitError{Code: resp.ExitCode}

@@ -19,6 +19,7 @@ type Request struct {
 	ContractOnly bool
 	PlansOnly    bool
 	DriftOnly    bool
+	TidinessOnly bool
 	NoDrift      bool
 	NoFreshness  bool
 }
@@ -47,6 +48,7 @@ func CommandSpec() commandtree.Spec[string] {
 				{Name: "--next", Description: "Show only recommended next commands and actions"},
 				{Name: "--plans-only", Description: "Run only plan lifecycle hygiene checks"},
 				{Name: "--contract-only", Description: "Run only repository contract hygiene checks"},
+				{Name: "--tidiness-only", Description: "Run only control-plane tidiness checks and require the provider"},
 				{Name: "--drift-only", Description: "Run only SDA-backed dependency freshness hygiene"},
 				{Name: "--no-drift", Description: "Skip SDA-backed dependency freshness hygiene"},
 				{Name: "--no-freshness", Description: "Skip the advisory test-freshness check (changed scenarios vs test-genie runs)"},
@@ -89,16 +91,17 @@ func ParseRequest(args []string) (Request, error) {
 	}
 	plansOnly := parsed.HasFlag("--plans-only")
 	contractOnly := parsed.HasFlag("--contract-only")
+	tidinessOnly := parsed.HasFlag("--tidiness-only")
 	driftOnly := parsed.HasFlag("--drift-only")
 	noDrift := parsed.HasFlag("--no-drift")
 	onlyCount := 0
-	for _, set := range []bool{plansOnly, contractOnly, driftOnly} {
+	for _, set := range []bool{plansOnly, contractOnly, driftOnly, tidinessOnly} {
 		if set {
 			onlyCount++
 		}
 	}
 	if onlyCount > 1 {
-		return Request{}, fmt.Errorf("--plans-only, --contract-only, and --drift-only are mutually exclusive")
+		return Request{}, fmt.Errorf("--plans-only, --contract-only, --drift-only, and --tidiness-only are mutually exclusive")
 	}
 	if driftOnly && noDrift {
 		return Request{}, fmt.Errorf("--drift-only and --no-drift are mutually exclusive")
@@ -111,84 +114,85 @@ func ParseRequest(args []string) (Request, error) {
 		PlansOnly:    plansOnly,
 		ContractOnly: contractOnly,
 		DriftOnly:    driftOnly,
+		TidinessOnly: tidinessOnly,
 		NoDrift:      noDrift,
 		NoFreshness:  parsed.HasFlag("--no-freshness"),
 	}, nil
 }
 
+//nolint:gocyclo // hygiene output has distinct human, JSON, and mode-specific rendering contracts.
 func Render(w io.Writer, format cliout.Format, report hygieneapp.Report, mode OutputMode) error {
-	if format == cliout.FormatJSON {
-		return writeHygieneReportJSON(w, report)
-	}
-	if mode == OutputModeNext {
-		renderNextSteps(w, report, false)
+	return cliout.RenderJSONOr(w, format, func(w io.Writer) error { return cliout.WriteProtoJSON(w, HygieneReportMessage(report)) }, func(w io.Writer) error {
+		if mode == OutputModeNext {
+			renderNextSteps(w, report, false)
+			return nil
+		}
+		status := "passed"
+		if !report.Success {
+			status = "failed"
+		}
+		_, _ = fmt.Fprintf(w, "Status: hygiene %s\n", status)
+		_, _ = fmt.Fprintf(w, "Root: %s\n", report.Root)
+		_, _ = fmt.Fprintf(w, "Blocking issues: %d\n", report.BlockingFailures)
+		_, _ = fmt.Fprintf(w, "Warnings: %d\n", report.Warnings)
+		renderFindings(w, report)
+		if report.SharedDrift != nil {
+			renderDriftSummary(w, report.SharedDrift, mode)
+		}
+		if len(report.PlanCandidates) > 0 {
+			renderPlanSummary(w, report.PlanCandidates, mode)
+		}
+		if mode == OutputModeDetails && len(report.Checks) > 0 {
+			_, _ = fmt.Fprintln(w, "\nChecks:")
+			for _, check := range report.Checks {
+				state := "ok"
+				if !check.Passed {
+					state = "failed"
+				}
+				_, _ = fmt.Fprintf(w, "- %s: %s (%s)\n", check.Name, state, check.Message)
+			}
+		}
+		if len(report.FixesApplied) > 0 {
+			_, _ = fmt.Fprintln(w, "\nFixes applied:")
+			for _, fix := range report.FixesApplied {
+				_, _ = fmt.Fprintf(w, "- %s %s -> %s\n", planFixActionLabel(fix.Action), fix.Source, fix.Plan.Path)
+			}
+		}
+		if len(report.PlanReconcileOutcomes) > 0 {
+			_, _ = fmt.Fprintln(w, "\nPlan reconcile results:")
+			for _, outcome := range report.PlanReconcileOutcomes {
+				target := outcome.Plan.Path
+				if target == "" {
+					target = outcome.Mirror.Path
+				}
+				if target == "" {
+					target = outcome.Source
+				}
+				line := fmt.Sprintf("- %s %s", planFixActionLabel(outcome.Action), outcome.Source)
+				if target != "" && target != outcome.Source {
+					line += " -> " + target
+				}
+				if outcome.Mirror.Status != "" {
+					line += " [" + outcome.Mirror.Status + "]"
+				}
+				if outcome.SourceUntouched {
+					line += " (source untouched)"
+				}
+				if outcome.Error != "" {
+					line += ": " + outcome.Error
+				}
+				_, _ = fmt.Fprintln(w, line)
+			}
+		}
+		if len(report.ConfigFixes) > 0 {
+			_, _ = fmt.Fprintln(w, "\nConfig fixes applied:")
+			for _, fix := range report.ConfigFixes {
+				_, _ = fmt.Fprintf(w, "- %s\n", fix)
+			}
+		}
+		renderNextSteps(w, report, true)
 		return nil
-	}
-	status := "passed"
-	if !report.Success {
-		status = "failed"
-	}
-	_, _ = fmt.Fprintf(w, "Status: hygiene %s\n", status)
-	_, _ = fmt.Fprintf(w, "Root: %s\n", report.Root)
-	_, _ = fmt.Fprintf(w, "Blocking issues: %d\n", report.BlockingFailures)
-	_, _ = fmt.Fprintf(w, "Warnings: %d\n", report.Warnings)
-	renderFindings(w, report)
-	if report.SharedDrift != nil {
-		renderDriftSummary(w, report.SharedDrift, mode)
-	}
-	if len(report.PlanCandidates) > 0 {
-		renderPlanSummary(w, report.PlanCandidates, mode)
-	}
-	if mode == OutputModeDetails && len(report.Checks) > 0 {
-		_, _ = fmt.Fprintln(w, "\nChecks:")
-		for _, check := range report.Checks {
-			state := "ok"
-			if !check.Passed {
-				state = "failed"
-			}
-			_, _ = fmt.Fprintf(w, "- %s: %s (%s)\n", check.Name, state, check.Message)
-		}
-	}
-	if len(report.FixesApplied) > 0 {
-		_, _ = fmt.Fprintln(w, "\nFixes applied:")
-		for _, fix := range report.FixesApplied {
-			_, _ = fmt.Fprintf(w, "- %s %s -> %s\n", planFixActionLabel(fix.Action), fix.Source, fix.Plan.Path)
-		}
-	}
-	if len(report.PlanReconcileOutcomes) > 0 {
-		_, _ = fmt.Fprintln(w, "\nPlan reconcile results:")
-		for _, outcome := range report.PlanReconcileOutcomes {
-			target := outcome.Plan.Path
-			if target == "" {
-				target = outcome.Mirror.Path
-			}
-			if target == "" {
-				target = outcome.Source
-			}
-			line := fmt.Sprintf("- %s %s", planFixActionLabel(outcome.Action), outcome.Source)
-			if target != "" && target != outcome.Source {
-				line += " -> " + target
-			}
-			if outcome.Mirror.Status != "" {
-				line += " [" + outcome.Mirror.Status + "]"
-			}
-			if outcome.SourceUntouched {
-				line += " (source untouched)"
-			}
-			if outcome.Error != "" {
-				line += ": " + outcome.Error
-			}
-			_, _ = fmt.Fprintln(w, line)
-		}
-	}
-	if len(report.ConfigFixes) > 0 {
-		_, _ = fmt.Fprintln(w, "\nConfig fixes applied:")
-		for _, fix := range report.ConfigFixes {
-			_, _ = fmt.Fprintf(w, "- %s\n", fix)
-		}
-	}
-	renderNextSteps(w, report, true)
-	return nil
+	})
 }
 
 func renderFindings(w io.Writer, report hygieneapp.Report) {

@@ -16,7 +16,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file ui-health/v1/inventory/inventory.proto.
  */
 export const file_ui_health_v1_inventory_inventory: GenFile = /*@__PURE__*/
-  fileDesc("CiZ1aS1oZWFsdGgvdjEvaW52ZW50b3J5L2ludmVudG9yeS5wcm90bxIddnJvb2xpLnVpX2hlYWx0aC52MS5pbnZlbnRvcnkiJwoTU2NhblNjZW5hcmlvUmVxdWVzdBIQCghzY2VuYXJpbxgBIAEoCSKkAQoNU3VyZmFjZVJlY29yZBIQCghzY2VuYXJpbxgBIAEoCRIMCgRzbG90GAIgASgJEjUKBGtpbmQYAyABKA4yJy52cm9vbGkudWlfaGVhbHRoLnYxLnNlYXJjaC5TdXJmYWNlS2luZBIUCgxkaXNwbGF5X25hbWUYBCABKAkSEwoLZGVzY3JpcHRpb24YBSABKAkSEQoJZmlsZV9wYXRoGAYgASgJIoUCChRTY2FuU2NlbmFyaW9SZXNwb25zZRIQCghzY2VuYXJpbxgBIAEoCRJRCgpwcm92ZW5hbmNlGAIgAygLMj0udnJvb2xpLnVpX2hlYWx0aC52MS5jb250cmFjdHMucHJvdmVuYW5jZS5Db21wb25lbnRQcm92ZW5hbmNlEkgKB3dpZGdldHMYAyADKAsyNy52cm9vbGkudWlfaGVhbHRoLnYxLmNvbnRyYWN0cy53aWRnZXQuV2lkZ2V0RGVjbGFyYXRpb24SPgoIc3VyZmFjZXMYBCADKAsyLC52cm9vbGkudWlfaGVhbHRoLnYxLmludmVudG9yeS5TdXJmYWNlUmVjb3JkMosBChBJbnZlbnRvcnlTZXJ2aWNlEncKDFNjYW5TY2VuYXJpbxIyLnZyb29saS51aV9oZWFsdGgudjEuaW52ZW50b3J5LlNjYW5TY2VuYXJpb1JlcXVlc3QaMy52cm9vbGkudWlfaGVhbHRoLnYxLmludmVudG9yeS5TY2FuU2NlbmFyaW9SZXNwb25zZUJUWlJnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL3VpLWhlYWx0aC92MS9pbnZlbnRvcnk7aW52ZW50b3J5X3YxYgZwcm90bzM", [file_ui_health_v1_contracts_provenance_provenance, file_ui_health_v1_contracts_widget_widget, file_ui_health_v1_search_search]);
+  fileDesc("CiZ1aS1oZWFsdGgvdjEvaW52ZW50b3J5L2ludmVudG9yeS5wcm90bxIddnJvb2xpLnVpX2hlYWx0aC52MS5pbnZlbnRvcnkiJwoTU2NhblNjZW5hcmlvUmVxdWVzdBIQCghzY2VuYXJpbxgBIAEoCSKkAQoNU3VyZmFjZVJlY29yZBIQCghzY2VuYXJpbxgBIAEoCRIMCgRzbG90GAIgASgJEjUKBGtpbmQYAyABKA4yJy52cm9vbGkudWlfaGVhbHRoLnYxLnNlYXJjaC5TdXJmYWNlS2luZBIUCgxkaXNwbGF5X25hbWUYBCABKAkSEwoLZGVzY3JpcHRpb24YBSABKAkSEQoJZmlsZV9wYXRoGAYgASgJIoUCChRTY2FuU2NlbmFyaW9SZXNwb25zZRIQCghzY2VuYXJpbxgBIAEoCRJRCgpwcm92ZW5hbmNlGAIgAygLMj0udnJvb2xpLnVpX2hlYWx0aC52MS5jb250cmFjdHMucHJvdmVuYW5jZS5Db21wb25lbnRQcm92ZW5hbmNlEkgKB3dpZGdldHMYAyADKAsyNy52cm9vbGkudWlfaGVhbHRoLnYxLmNvbnRyYWN0cy53aWRnZXQuV2lkZ2V0RGVjbGFyYXRpb24SPgoIc3VyZmFjZXMYBCADKAsyLC52cm9vbGkudWlfaGVhbHRoLnYxLmludmVudG9yeS5TdXJmYWNlUmVjb3JkIkkKB1N1YmplY3QSDAoEa2luZBgBIAEoCRIKCgJpZBgCIAEoCRIPCgd2ZXJzaW9uGAMgASgJEhMKC2ZpbmdlcnByaW50GAQgASgJIkcKC1NjYW5SZXF1ZXN0EjgKCHN1YmplY3RzGAEgAygLMiYudnJvb2xpLnVpX2hlYWx0aC52MS5pbnZlbnRvcnkuU3ViamVjdCKnAgoPU3ViamVjdEZpbmRpbmdzEjcKB3N1YmplY3QYASABKAsyJi52cm9vbGkudWlfaGVhbHRoLnYxLmludmVudG9yeS5TdWJqZWN0ElEKCnByb3ZlbmFuY2UYAiADKAsyPS52cm9vbGkudWlfaGVhbHRoLnYxLmNvbnRyYWN0cy5wcm92ZW5hbmNlLkNvbXBvbmVudFByb3ZlbmFuY2USSAoHd2lkZ2V0cxgDIAMoCzI3LnZyb29saS51aV9oZWFsdGgudjEuY29udHJhY3RzLndpZGdldC5XaWRnZXREZWNsYXJhdGlvbhI+CghzdXJmYWNlcxgEIAMoCzIsLnZyb29saS51aV9oZWFsdGgudjEuaW52ZW50b3J5LlN1cmZhY2VSZWNvcmQiUAoMU2NhblJlc3BvbnNlEkAKCGZpbmRpbmdzGAEgAygLMi4udnJvb2xpLnVpX2hlYWx0aC52MS5pbnZlbnRvcnkuU3ViamVjdEZpbmRpbmdzMuwBChBJbnZlbnRvcnlTZXJ2aWNlEncKDFNjYW5TY2VuYXJpbxIyLnZyb29saS51aV9oZWFsdGgudjEuaW52ZW50b3J5LlNjYW5TY2VuYXJpb1JlcXVlc3QaMy52cm9vbGkudWlfaGVhbHRoLnYxLmludmVudG9yeS5TY2FuU2NlbmFyaW9SZXNwb25zZRJfCgRTY2FuEioudnJvb2xpLnVpX2hlYWx0aC52MS5pbnZlbnRvcnkuU2NhblJlcXVlc3QaKy52cm9vbGkudWlfaGVhbHRoLnYxLmludmVudG9yeS5TY2FuUmVzcG9uc2VCVFpSZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby91aS1oZWFsdGgvdjEvaW52ZW50b3J5O2ludmVudG9yeV92MWIGcHJvdG8z", [file_ui_health_v1_contracts_provenance_provenance, file_ui_health_v1_contracts_widget_widget, file_ui_health_v1_search_search]);
 
 /**
  * @generated from message vrooli.ui_health.v1.inventory.ScanScenarioRequest
@@ -117,6 +117,104 @@ export const ScanScenarioResponseSchema: GenMessage<ScanScenarioResponse> = /*@_
   messageDesc(file_ui_health_v1_inventory_inventory, 2);
 
 /**
+ * @generated from message vrooli.ui_health.v1.inventory.Subject
+ */
+export type Subject = Message<"vrooli.ui_health.v1.inventory.Subject"> & {
+  /**
+   * @generated from field: string kind = 1;
+   */
+  kind: string;
+
+  /**
+   * @generated from field: string id = 2;
+   */
+  id: string;
+
+  /**
+   * @generated from field: string version = 3;
+   */
+  version: string;
+
+  /**
+   * @generated from field: string fingerprint = 4;
+   */
+  fingerprint: string;
+};
+
+/**
+ * Describes the message vrooli.ui_health.v1.inventory.Subject.
+ * Use `create(SubjectSchema)` to create a new message.
+ */
+export const SubjectSchema: GenMessage<Subject> = /*@__PURE__*/
+  messageDesc(file_ui_health_v1_inventory_inventory, 3);
+
+/**
+ * @generated from message vrooli.ui_health.v1.inventory.ScanRequest
+ */
+export type ScanRequest = Message<"vrooli.ui_health.v1.inventory.ScanRequest"> & {
+  /**
+   * @generated from field: repeated vrooli.ui_health.v1.inventory.Subject subjects = 1;
+   */
+  subjects: Subject[];
+};
+
+/**
+ * Describes the message vrooli.ui_health.v1.inventory.ScanRequest.
+ * Use `create(ScanRequestSchema)` to create a new message.
+ */
+export const ScanRequestSchema: GenMessage<ScanRequest> = /*@__PURE__*/
+  messageDesc(file_ui_health_v1_inventory_inventory, 4);
+
+/**
+ * @generated from message vrooli.ui_health.v1.inventory.SubjectFindings
+ */
+export type SubjectFindings = Message<"vrooli.ui_health.v1.inventory.SubjectFindings"> & {
+  /**
+   * @generated from field: vrooli.ui_health.v1.inventory.Subject subject = 1;
+   */
+  subject?: Subject | undefined;
+
+  /**
+   * @generated from field: repeated vrooli.ui_health.v1.contracts.provenance.ComponentProvenance provenance = 2;
+   */
+  provenance: ComponentProvenance[];
+
+  /**
+   * @generated from field: repeated vrooli.ui_health.v1.contracts.widget.WidgetDeclaration widgets = 3;
+   */
+  widgets: WidgetDeclaration[];
+
+  /**
+   * @generated from field: repeated vrooli.ui_health.v1.inventory.SurfaceRecord surfaces = 4;
+   */
+  surfaces: SurfaceRecord[];
+};
+
+/**
+ * Describes the message vrooli.ui_health.v1.inventory.SubjectFindings.
+ * Use `create(SubjectFindingsSchema)` to create a new message.
+ */
+export const SubjectFindingsSchema: GenMessage<SubjectFindings> = /*@__PURE__*/
+  messageDesc(file_ui_health_v1_inventory_inventory, 5);
+
+/**
+ * @generated from message vrooli.ui_health.v1.inventory.ScanResponse
+ */
+export type ScanResponse = Message<"vrooli.ui_health.v1.inventory.ScanResponse"> & {
+  /**
+   * @generated from field: repeated vrooli.ui_health.v1.inventory.SubjectFindings findings = 1;
+   */
+  findings: SubjectFindings[];
+};
+
+/**
+ * Describes the message vrooli.ui_health.v1.inventory.ScanResponse.
+ * Use `create(ScanResponseSchema)` to create a new message.
+ */
+export const ScanResponseSchema: GenMessage<ScanResponse> = /*@__PURE__*/
+  messageDesc(file_ui_health_v1_inventory_inventory, 6);
+
+/**
  * @generated from service vrooli.ui_health.v1.inventory.InventoryService
  */
 export const InventoryService: GenService<{
@@ -132,6 +230,16 @@ export const InventoryService: GenService<{
     methodKind: "unary";
     input: typeof ScanScenarioRequestSchema;
     output: typeof ScanScenarioResponseSchema;
+  },
+  /**
+   * Scan validates the supplied asset subjects without walking unrelated UI.
+   *
+   * @generated from rpc vrooli.ui_health.v1.inventory.InventoryService.Scan
+   */
+  scan: {
+    methodKind: "unary";
+    input: typeof ScanRequestSchema;
+    output: typeof ScanResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_ui_health_v1_inventory_inventory, 0);

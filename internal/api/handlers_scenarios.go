@@ -9,7 +9,9 @@ import (
 	"github.com/gorilla/mux"
 
 	"github.com/vrooli/vrooli/internal/logx"
+	"github.com/vrooli/vrooli/internal/maintenance"
 	"github.com/vrooli/vrooli/internal/scenario"
+	"github.com/vrooli/vrooli/internal/scenarioruntime"
 )
 
 func (a *App) ListScenariosNative(w http.ResponseWriter, r *http.Request) {
@@ -46,7 +48,7 @@ func (a *App) ListScenariosNative(w http.ResponseWriter, r *http.Request) {
 		response["discovery_failures"] = report.Failures
 	}
 	var warnings []map[string]interface{}
-	if healthSnapshot.ZombieStatus != "healthy" && healthSnapshot.ZombieStatus != "normal" {
+	if healthSnapshot.ZombieStatus != scenarioruntime.HealthStatusHealthy && healthSnapshot.ZombieStatus != maintenance.ProcessHealthNormal {
 		warnings = append(warnings, map[string]interface{}{
 			"type":    "zombies",
 			"count":   healthSnapshot.ZombieCount,
@@ -55,7 +57,7 @@ func (a *App) ListScenariosNative(w http.ResponseWriter, r *http.Request) {
 			"message": fmt.Sprintf("System has %d zombie processes %s", healthSnapshot.ZombieCount, healthSnapshot.ZombieEmoji),
 		})
 	}
-	if healthSnapshot.OrphanStatus != "healthy" && healthSnapshot.OrphanStatus != "normal" {
+	if healthSnapshot.OrphanStatus != scenarioruntime.HealthStatusHealthy && healthSnapshot.OrphanStatus != maintenance.ProcessHealthNormal {
 		warnings = append(warnings, map[string]interface{}{
 			"type":    "orphans",
 			"count":   healthSnapshot.OrphanCount,

@@ -15,6 +15,10 @@ import (
 	"github.com/vrooli/vrooli/internal/hostreqspec"
 )
 
+const (
+	handlerParameterH = 24
+)
+
 var runners = []string{"codex", "claude-code", "opencode", "grok"}
 
 type catalog struct {
@@ -112,7 +116,7 @@ func validateAgainstLive(ctx context.Context, runner, path string, config ...map
 	if err != nil {
 		findings = append(findings, finding{Type: "invalid_observed_at", Message: "policy provenance observed_at is missing or invalid", Severity: "error"})
 	} else {
-		age := int(time.Since(observed).Hours() / 24)
+		age := int(time.Since(observed).Hours() / handlerParameterH)
 		if age > budget*2 {
 			findings = append(findings, finding{Type: "catalog_stale", Message: fmt.Sprintf("catalog age is %d days; staleness budget is %d days", age, budget), Severity: "error"})
 		} else if age > budget {
@@ -145,6 +149,7 @@ func validateAgainstLive(ctx context.Context, runner, path string, config ...map
 	return findings, nil
 }
 
+//nolint:gocyclo // policy discovery preserves tool, configuration, parse, and unavailable-result branches.
 func discover(ctx context.Context, runner string, config ...map[string]any) (map[string]bool, error) {
 	if len(config) > 0 {
 		if models, ok := configuredModels(config[0], runner); ok {

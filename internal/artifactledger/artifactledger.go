@@ -53,8 +53,15 @@ import (
 	"sync"
 	"time"
 
+	"github.com/vrooli/vrooli/internal/tuning"
+
 	platform "github.com/vrooli/platform-go"
 	repocontract "github.com/vrooli/repo-contract-go"
+)
+
+const (
+	artifactledgerParameterA = 12
+	artifactledgerParameterB = 8
 )
 
 // Schema identifies the receipt format. It is written into every record so a
@@ -161,7 +168,7 @@ var (
 // different processes that happen to share a pid across a reboot.
 func ProcessNonce() string {
 	processNonceOnce.Do(func() {
-		buffer := make([]byte, 8)
+		buffer := make([]byte, artifactledgerParameterB)
 		if _, err := rand.Read(buffer); err != nil {
 			processNonce = fmt.Sprintf("pid-%d", os.Getpid())
 			return
@@ -308,16 +315,8 @@ func (l *Ledger) Dir() string { return l.dir }
 // cannot be written, remove is never called: a removal this process cannot
 // account for must not happen.
 func (l *Ledger) Guard(removal Removal, remove func() error) error {
-	if remove == nil {
-		return fmt.Errorf("artifactledger: remove function is required")
-	}
-	if strings.TrimSpace(removal.Path) == "" {
-		return fmt.Errorf("artifactledger: removal path is required")
-	}
-	if strings.TrimSpace(removal.Predicate) == "" {
-		// A receipt without a rule records that something happened but not why,
-		// which is the state this package exists to end.
-		return fmt.Errorf("artifactledger: removal of %s needs a predicate naming the rule that authorized it", removal.Path)
+	if err := validateRemoval(removal, remove); err != nil {
+		return err
 	}
 
 	subject := filepath.Clean(strings.TrimSpace(removal.Subject))
@@ -341,7 +340,47 @@ func (l *Ledger) Guard(removal Removal, remove func() error) error {
 	}
 	defer release()
 
-	// Re-check under the lock. An artifact that is already absent produces no
+	return l.record(removal, remove)
+}
+
+// validateRemoval rejects a removal that could not produce a usable receipt.
+func validateRemoval(removal Removal, remove func() error) error {
+	if remove == nil {
+		return fmt.Errorf("artifactledger: remove function is required")
+	}
+	if strings.TrimSpace(removal.Path) == "" {
+		return fmt.Errorf("artifactledger: removal path is required")
+	}
+	if strings.TrimSpace(removal.Predicate) == "" {
+		// A receipt without a rule records that something happened but not why,
+		// which is the state this package exists to end.
+		return fmt.Errorf("artifactledger: removal of %s needs a predicate naming the rule that authorized it", removal.Path)
+	}
+	return nil
+}
+
+// Record wraps remove with the same intent/outcome receipts Guard writes, but
+// takes no artifact lock.
+//
+// Guard's lock is <subject>.lock, deliberately the same path the installer
+// locks, so install and removal exclude each other. That agreement is what
+// makes it right for install-root artifacts and wrong for bulk retention: a
+// retention cycle over a directory of N entries would leave N lock files
+// inside the very directory it manages, and those files become entries the
+// next cycle then has to account for. Callers whose exclusion comes from
+// somewhere else -- a single-threaded scheduler, an owner-scoped mutex -- use
+// Record and keep the audit trail without the lock discipline they do not
+// need.
+func (l *Ledger) Record(removal Removal, remove func() error) error {
+	if err := validateRemoval(removal, remove); err != nil {
+		return err
+	}
+	return l.record(removal, remove)
+}
+
+// record is the shared body: re-check, intent, verify, remove, outcome.
+func (l *Ledger) record(removal Removal, remove func() error) error {
+	// Re-check. An artifact that is already absent produces no
 	// records: the ledger describes removals, not attempts on empty space.
 	if _, err := os.Lstat(filepath.Clean(removal.Path)); err != nil {
 		if os.IsNotExist(err) {
@@ -426,7 +465,7 @@ var lockArtifact = func(subject string) (func(), error) {
 // interleaved partial line would corrupt the one record that says what
 // happened. O_APPEND alone is not sufficient across platforms.
 func (l *Ledger) append(receipt Receipt) error {
-	if err := os.MkdirAll(l.dir, 0o700); err != nil {
+	if err := os.MkdirAll(l.dir, tuning.PermPrivateDir); err != nil {
 		return fmt.Errorf("create receipt directory: %w", err)
 	}
 	path := filepath.Join(l.dir, receipt.RecordedAt[:10]+".jsonl")
@@ -442,7 +481,7 @@ func (l *Ledger) append(receipt Receipt) error {
 		return fmt.Errorf("encode receipt: %w", err)
 	}
 
-	file, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o600)
+	file, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, tuning.PermSecret)
 	if err != nil {
 		return fmt.Errorf("open receipt file: %w", err)
 	}
@@ -497,7 +536,7 @@ func (l *Ledger) Read() ([]Receipt, error) {
 }
 
 func newReceiptID() string {
-	buffer := make([]byte, 12)
+	buffer := make([]byte, artifactledgerParameterA)
 	if _, err := rand.Read(buffer); err != nil {
 		return fmt.Sprintf("rcpt-%d-%d", os.Getpid(), time.Now().UnixNano())
 	}

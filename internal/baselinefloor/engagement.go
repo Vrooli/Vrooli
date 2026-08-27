@@ -8,6 +8,10 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/vrooli/vrooli/internal/tuning"
+
+	"github.com/vrooli/vrooli/internal/config"
 )
 
 // Mode is the execution mode an engagement records.
@@ -112,7 +116,7 @@ func (s *Store) WriteManifest(m Manifest) error {
 		return err
 	}
 	dir := s.EngagementDir(m.Scenario, m.Slug)
-	if err := os.MkdirAll(dir, 0o750); err != nil {
+	if err := os.MkdirAll(dir, tuning.PermGroupDir); err != nil {
 		return fmt.Errorf("baselinefloor: mkdir engagement %q: %w", dir, err)
 	}
 	data, err := json.MarshalIndent(m, "", "  ")
@@ -122,22 +126,7 @@ func (s *Store) WriteManifest(m Manifest) error {
 	data = append(data, '\n')
 
 	final := s.ManifestPath(m.Scenario, m.Slug)
-	tmp, err := os.CreateTemp(dir, manifestFile+".tmp-*")
-	if err != nil {
-		return fmt.Errorf("baselinefloor: temp manifest: %w", err)
-	}
-	tmpName := tmp.Name()
-	if _, err := tmp.Write(data); err != nil {
-		_ = tmp.Close()
-		_ = os.Remove(tmpName)
-		return fmt.Errorf("baselinefloor: write manifest: %w", err)
-	}
-	if err := tmp.Close(); err != nil {
-		_ = os.Remove(tmpName)
-		return fmt.Errorf("baselinefloor: close manifest: %w", err)
-	}
-	if err := os.Rename(tmpName, final); err != nil {
-		_ = os.Remove(tmpName)
+	if err := config.WriteOwnedFileAtomic(final, data, tuning.PermSecret); err != nil {
 		return fmt.Errorf("baselinefloor: commit manifest %q: %w", final, err)
 	}
 	return nil

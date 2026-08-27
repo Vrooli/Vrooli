@@ -9,6 +9,10 @@ import (
 	"github.com/vrooli/vrooli/internal/privilegebroker"
 )
 
+const (
+	elevatedParameterA = 16
+)
+
 // BrokerElevated routes privileged filesystem actions through the
 // setup-installed privilege broker. It is the only elevation path in this
 // package: `vrooli setup` installs the broker, the broker validates every
@@ -98,7 +102,7 @@ func (b *BrokerElevated) requestID() string {
 	if b != nil && b.newRequestID != nil {
 		return b.newRequestID()
 	}
-	buf := make([]byte, 16)
+	buf := make([]byte, elevatedParameterA)
 	if _, err := rand.Read(buf); err != nil {
 		return "volume-remediation"
 	}

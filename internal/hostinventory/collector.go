@@ -13,15 +13,28 @@ import (
 	"sync"
 	"time"
 
+	"github.com/vrooli/vrooli/internal/hostreqspec"
+	"github.com/vrooli/vrooli/internal/repocontractmeta"
+	"github.com/vrooli/vrooli/internal/scenarioruntime"
+	"github.com/vrooli/vrooli/internal/tuning"
+
 	"github.com/vrooli/envkit-go"
 	platform "github.com/vrooli/platform-go"
 	"github.com/vrooli/vrooli/internal/hostfacts"
+	"github.com/vrooli/vrooli/internal/shell"
 )
 
-type CommandRunner interface {
-	LookPath(file string) (string, error)
-	Run(ctx context.Context, name string, args ...string) ([]byte, error)
-}
+const (
+	collectorNoDevices      = "no_devices"
+	collectorUnsupported    = "unsupported"
+	collectorToolNotPresent = "tool_not_present"
+)
+
+const (
+	collectorParameterA = 2
+)
+
+type CommandRunner = shell.Runner
 
 type EnvironmentCommandRunner interface {
 	RunWithEnv(ctx context.Context, env []string, name string, args ...string) ([]byte, error)
@@ -80,7 +93,7 @@ func runOSCommand(ctx context.Context, env []string, name string, args ...string
 	// The context must cancel the whole process group, not only a wrapper
 	// process, or a wedged child can retain CombinedOutput's pipe indefinitely.
 	command.Cancel = func() error { return terminateCommandProcessGroup(command) }
-	command.WaitDelay = 250 * time.Millisecond
+	command.WaitDelay = tuning.FastHealthPollInterval
 	return command.CombinedOutput()
 }
 
@@ -143,7 +156,7 @@ func sharedFactsReader() *hostfacts.Reader {
 	if err != nil || root == "" {
 		root = os.TempDir()
 	}
-	factsReader = &hostfacts.Reader{Path: filepath.Join(root, ".vrooli", "cache", "hostfacts.json"), TTL: map[string]time.Duration{"inventory": 30 * time.Second, "platform": 5 * time.Minute, "gpu": 2 * time.Minute, "workloads": 5 * time.Minute}, BootID: bootID, Probe: func(ctx context.Context, class string) (json.RawMessage, error) {
+	factsReader = &hostfacts.Reader{Path: filepath.Join(root, repocontractmeta.ProjectConfigDir, "cache", "hostfacts.json"), TTL: map[string]time.Duration{"inventory": tuning.StandardOperationTimeout, "platform": tuning.LongOperationTimeout, "gpu": tuning.ExtendedOperationTimeout, "workloads": tuning.LongOperationTimeout}, BootID: bootID, Probe: func(ctx context.Context, class string) (json.RawMessage, error) {
 		var s Snapshot
 		var err error
 		switch class {
@@ -171,7 +184,7 @@ func sharedFactsReader() *hostfacts.Reader {
 func bootID() string {
 	b, err := os.ReadFile("/proc/sys/kernel/random/boot_id")
 	if err != nil {
-		return "unknown"
+		return scenarioruntime.HealthStatusUnknown
 	}
 	return strings.TrimSpace(string(b))
 }
@@ -270,23 +283,23 @@ func (c Collector) withDefaults() Collector {
 }
 
 func (c Collector) collectLoad(snap *Snapshot, observedAt time.Time) {
-	if snap.OS != "linux" {
+	if hostreqspec.PlatformFromGOOS(snap.OS) != hostreqspec.PlatformLinux {
 		if collectPlatformLoad(snap, observedAt) {
 			return
 		}
-		snap.ProbeStatuses["load"] = "unsupported"
+		snap.ProbeStatuses["load"] = collectorUnsupported
 		return
 	}
 	data, err := c.Files.ReadFile("/proc/loadavg")
 	if err != nil {
 		snap.Warnings = append(snap.Warnings, fmt.Sprintf("read /proc/loadavg: %v", err))
-		snap.ProbeStatuses["load"] = "failed"
+		snap.ProbeStatuses["load"] = scenarioruntime.StatusFailed
 		return
 	}
 	load, err := ParseLinuxLoadavg(string(data), snap.CPU.Cores)
 	if err != nil {
 		snap.Warnings = append(snap.Warnings, err.Error())
-		snap.ProbeStatuses["load"] = "failed"
+		snap.ProbeStatuses["load"] = scenarioruntime.StatusFailed
 		return
 	}
 	snap.Load = load
@@ -301,18 +314,18 @@ func (c Collector) collectLoad(snap *Snapshot, observedAt time.Time) {
 }
 
 func (c Collector) collectMemory(snap *Snapshot, observedAt time.Time) {
-	switch snap.OS {
-	case "linux":
+	switch hostreqspec.PlatformFromGOOS(snap.OS) {
+	case hostreqspec.PlatformLinux:
 		data, err := c.Files.ReadFile("/proc/meminfo")
 		if err != nil {
 			snap.Warnings = append(snap.Warnings, fmt.Sprintf("read /proc/meminfo: %v", err))
-			snap.ProbeStatuses["memory"] = "failed"
+			snap.ProbeStatuses["memory"] = scenarioruntime.StatusFailed
 			return
 		}
 		mem, swap, err := ParseLinuxMeminfo(string(data))
 		if err != nil {
 			snap.Warnings = append(snap.Warnings, err.Error())
-			snap.ProbeStatuses["memory"] = "failed"
+			snap.ProbeStatuses["memory"] = scenarioruntime.StatusFailed
 			return
 		}
 		snap.Memory = mem
@@ -325,17 +338,17 @@ func (c Collector) collectMemory(snap *Snapshot, observedAt time.Time) {
 			Confidence: "high",
 			File:       "/proc/meminfo",
 		}
-	case "darwin":
+	case hostreqspec.PlatformMacOS:
 		out, err := c.Commands.Run(context.Background(), "sysctl", "-n", "hw.memsize")
 		if err != nil {
 			snap.Warnings = append(snap.Warnings, fmt.Sprintf("sysctl hw.memsize: %v", err))
-			snap.ProbeStatuses["memory"] = "failed"
+			snap.ProbeStatuses["memory"] = scenarioruntime.StatusFailed
 			return
 		}
 		total, err := ParseUintBytes(strings.TrimSpace(string(out)))
 		if err != nil {
 			snap.Warnings = append(snap.Warnings, fmt.Sprintf("parse hw.memsize: %v", err))
-			snap.ProbeStatuses["memory"] = "failed"
+			snap.ProbeStatuses["memory"] = scenarioruntime.StatusFailed
 			return
 		}
 		snap.Memory.TotalBytes = total
@@ -347,17 +360,17 @@ func (c Collector) collectMemory(snap *Snapshot, observedAt time.Time) {
 			Confidence: "high",
 			Command:    "sysctl -n hw.memsize",
 		}
-	case "windows":
+	case hostreqspec.PlatformWindows:
 		out, err := c.Commands.Run(context.Background(), "wmic", "ComputerSystem", "get", "TotalPhysicalMemory", "/Value")
 		if err != nil {
 			snap.Warnings = append(snap.Warnings, fmt.Sprintf("wmic TotalPhysicalMemory: %v", err))
-			snap.ProbeStatuses["memory"] = "failed"
+			snap.ProbeStatuses["memory"] = scenarioruntime.StatusFailed
 			return
 		}
 		total, err := ParseWindowsTotalPhysicalMemory(string(out))
 		if err != nil {
 			snap.Warnings = append(snap.Warnings, err.Error())
-			snap.ProbeStatuses["memory"] = "failed"
+			snap.ProbeStatuses["memory"] = scenarioruntime.StatusFailed
 			return
 		}
 		snap.Memory.TotalBytes = total
@@ -370,13 +383,14 @@ func (c Collector) collectMemory(snap *Snapshot, observedAt time.Time) {
 			Command:    "wmic ComputerSystem get TotalPhysicalMemory /Value",
 		}
 	default:
-		snap.ProbeStatuses["memory"] = "unsupported"
+		snap.ProbeStatuses["memory"] = collectorUnsupported
 	}
 }
 
 func (c Collector) collectNvidiaGPUs(ctx context.Context, snap *Snapshot, observedAt time.Time) {
-	if snap.OS != "linux" && snap.OS != "darwin" && snap.OS != "windows" {
-		snap.ProbeStatuses["nvidia_gpu"] = "unsupported"
+	hostOS := hostreqspec.PlatformFromGOOS(snap.OS)
+	if hostOS != hostreqspec.PlatformLinux && hostOS != hostreqspec.PlatformMacOS && hostOS != hostreqspec.PlatformWindows {
+		snap.ProbeStatuses["nvidia_gpu"] = collectorUnsupported
 		return
 	}
 	path, err := c.Commands.LookPath("nvidia-smi")
@@ -389,22 +403,22 @@ func (c Collector) collectNvidiaGPUs(ctx context.Context, snap *Snapshot, observ
 	out, err := c.Commands.Run(ctx, "nvidia-smi", query, "--format=csv,noheader,nounits")
 	if err != nil {
 		if strings.Contains(string(out), "No devices were found") {
-			snap.ProbeStatuses["nvidia_gpu"] = "no_devices"
+			snap.ProbeStatuses["nvidia_gpu"] = collectorNoDevices
 			return
 		}
 		snap.Warnings = append(snap.Warnings, fmt.Sprintf("nvidia-smi query gpu: %v", err))
-		snap.ProbeStatuses["nvidia_gpu"] = "failed"
+		snap.ProbeStatuses["nvidia_gpu"] = scenarioruntime.StatusFailed
 		return
 	}
 	gpus, warnings, err := ParseNvidiaDetailedGPUCSV(string(out))
 	if err != nil {
 		snap.Warnings = append(snap.Warnings, err.Error())
-		snap.ProbeStatuses["nvidia_gpu"] = "failed"
+		snap.ProbeStatuses["nvidia_gpu"] = scenarioruntime.StatusFailed
 		return
 	}
 	snap.GPUs = append(snap.GPUs, gpus...)
 	c.collectNvidiaComputeCapabilities(ctx, snap, observedAt)
-	if snap.OS == "linux" {
+	if hostreqspec.PlatformFromGOOS(snap.OS) == hostreqspec.PlatformLinux {
 		snap.NvidiaDeviceNodes = linuxNvidiaDeviceNodes()
 	}
 	snap.Warnings = append(snap.Warnings, warnings...)
@@ -424,7 +438,7 @@ func (c Collector) collectNvidiaComputeCapabilities(ctx context.Context, snap *S
 	out, err := c.Commands.Run(ctx, "nvidia-smi", query, "--format=csv,noheader,nounits")
 	if err != nil {
 		snap.Warnings = append(snap.Warnings, fmt.Sprintf("nvidia-smi query compute capability: %v", err))
-		snap.ProbeStatuses["nvidia_gpu_compute_capability"] = "failed"
+		snap.ProbeStatuses["nvidia_gpu_compute_capability"] = scenarioruntime.StatusFailed
 		return
 	}
 	capabilities := ParseNvidiaComputeCapabilityCSV(string(out))
@@ -463,13 +477,13 @@ func (c Collector) collectNvidiaGPUProcesses(ctx context.Context, snap *Snapshot
 			return
 		}
 		snap.Warnings = append(snap.Warnings, fmt.Sprintf("nvidia-smi query compute apps: %v", err))
-		snap.ProbeStatuses["nvidia_gpu_processes"] = "failed"
+		snap.ProbeStatuses["nvidia_gpu_processes"] = scenarioruntime.StatusFailed
 		return
 	}
 	processes, warnings, err := ParseNvidiaComputeAppsCSV(string(out))
 	if err != nil {
 		snap.Warnings = append(snap.Warnings, err.Error())
-		snap.ProbeStatuses["nvidia_gpu_processes"] = "failed"
+		snap.ProbeStatuses["nvidia_gpu_processes"] = scenarioruntime.StatusFailed
 		return
 	}
 	indexByUUID := map[string]int{}
@@ -505,7 +519,7 @@ func (c Collector) collectDockerGPU(ctx context.Context, snap *Snapshot, observe
 	out, err := c.Commands.Run(ctx, "docker", "info")
 	if err != nil {
 		snap.Warnings = append(snap.Warnings, fmt.Sprintf("docker info: %v", err))
-		snap.ProbeStatuses["docker_gpu"] = "failed"
+		snap.ProbeStatuses["docker_gpu"] = scenarioruntime.StatusFailed
 		return
 	}
 	snap.DockerGPU.NvidiaRuntime = DockerInfoHasNvidiaRuntime(string(out))
@@ -520,24 +534,24 @@ func (c Collector) collectDockerGPU(ctx context.Context, snap *Snapshot, observe
 }
 
 func (c Collector) collectDarwinGPUs(ctx context.Context, snap *Snapshot, observedAt time.Time) {
-	if snap.OS != "darwin" {
+	if hostreqspec.PlatformFromGOOS(snap.OS) != hostreqspec.PlatformMacOS {
 		return
 	}
 	path, err := c.Commands.LookPath("system_profiler")
 	snap.RuntimeTools["system_profiler"] = Tool{Present: err == nil, Path: path}
 	if err != nil {
-		snap.ProbeStatuses["darwin_gpu"] = "tool_not_present"
+		snap.ProbeStatuses["darwin_gpu"] = collectorToolNotPresent
 		return
 	}
 	out, err := c.Commands.Run(ctx, "system_profiler", "SPDisplaysDataType")
 	if err != nil {
 		snap.Warnings = append(snap.Warnings, fmt.Sprintf("system_profiler SPDisplaysDataType: %v", err))
-		snap.ProbeStatuses["darwin_gpu"] = "failed"
+		snap.ProbeStatuses["darwin_gpu"] = scenarioruntime.StatusFailed
 		return
 	}
 	gpus := ParseSystemProfilerGPUs(string(out))
 	if len(gpus) == 0 {
-		snap.ProbeStatuses["darwin_gpu"] = "no_devices"
+		snap.ProbeStatuses["darwin_gpu"] = collectorNoDevices
 		return
 	}
 	snap.GPUs = append(snap.GPUs, gpus...)
@@ -552,24 +566,24 @@ func (c Collector) collectDarwinGPUs(ctx context.Context, snap *Snapshot, observ
 }
 
 func (c Collector) collectWindowsGPUs(ctx context.Context, snap *Snapshot, observedAt time.Time) {
-	if snap.OS != "windows" {
+	if hostreqspec.PlatformFromGOOS(snap.OS) != hostreqspec.PlatformWindows {
 		return
 	}
 	path, err := c.Commands.LookPath("wmic")
 	snap.RuntimeTools["wmic"] = Tool{Present: err == nil, Path: path}
 	if err != nil {
-		snap.ProbeStatuses["windows_gpu"] = "tool_not_present"
+		snap.ProbeStatuses["windows_gpu"] = collectorToolNotPresent
 		return
 	}
 	out, err := c.Commands.Run(ctx, "wmic", "path", "win32_VideoController", "get", "name")
 	if err != nil {
 		snap.Warnings = append(snap.Warnings, fmt.Sprintf("wmic gpu: %v", err))
-		snap.ProbeStatuses["windows_gpu"] = "failed"
+		snap.ProbeStatuses["windows_gpu"] = scenarioruntime.StatusFailed
 		return
 	}
 	gpus := ParseWindowsGPUNames(string(out))
 	if len(gpus) == 0 {
-		snap.ProbeStatuses["windows_gpu"] = "no_devices"
+		snap.ProbeStatuses["windows_gpu"] = collectorNoDevices
 		return
 	}
 	snap.GPUs = append(snap.GPUs, gpus...)
@@ -584,13 +598,13 @@ func (c Collector) collectWindowsGPUs(ctx context.Context, snap *Snapshot, obser
 }
 
 func (c Collector) collectAppleSiliconGPU(snap *Snapshot, observedAt time.Time) {
-	if snap.OS != "darwin" || snap.Arch != "arm64" || snap.Memory.TotalBytes == 0 || len(snap.GPUs) > 0 {
+	if hostreqspec.PlatformFromGOOS(snap.OS) != hostreqspec.PlatformMacOS || snap.Arch != "arm64" || snap.Memory.TotalBytes == 0 || len(snap.GPUs) > 0 {
 		return
 	}
 	snap.GPUs = append(snap.GPUs, GPU{
 		Index:     len(snap.GPUs),
 		Name:      "Apple GPU (unified)",
-		VRAMBytes: snap.Memory.TotalBytes / 2,
+		VRAMBytes: snap.Memory.TotalBytes / collectorParameterA,
 		Source:    "darwin-unified-memory",
 	})
 	snap.FieldProvenance["gpus.apple_unified"] = Provenance{

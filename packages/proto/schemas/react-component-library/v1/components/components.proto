@@ -269,8 +269,11 @@ message ComponentExperienceEvidence {
 }
 
 // IndexComponentsRequest triggers a re-walk of the configured source root.
-// Currently parameter-less; future filters (subtree, dry-run) land here.
-message IndexComponentsRequest {}
+message IndexComponentsRequest {
+  // Skip the reachability-derived materialization reconciliation after the
+  // index. The default keeps the registry and working tree converged.
+  bool no_reconcile = 1;
+}
 
 // IndexComponentsResponse summarises the index pass.
 message IndexComponentsResponse {

@@ -43,7 +43,7 @@ func buildResolveCommandTable[C any](deps HandlerDeps[C]) []commandtree.Spec[roo
 }
 
 func validateHandler[C any](deps HandlerDeps[C]) rootcli.Handler[C] {
-	return bindContractCommand(deps,
+	return contractCommand(deps,
 		contractcli.ParseValidateRequest,
 		func(ctx C, _ contractcli.NoArgsRequest) (contractapp.ValidationOutput, error) {
 			return deps.Validate(ctx)
@@ -62,7 +62,7 @@ func validateHandler[C any](deps HandlerDeps[C]) rootcli.Handler[C] {
 }
 
 func showHandler[C any](deps HandlerDeps[C]) rootcli.Handler[C] {
-	return bindContractCommand(deps,
+	return contractCommand(deps,
 		contractcli.ParseShowRequest,
 		func(ctx C, _ contractcli.NoArgsRequest) (contractapp.ShowOutput, error) {
 			return deps.Service(ctx).Show()
@@ -81,7 +81,7 @@ func resolveHandler[C any](deps HandlerDeps[C]) rootcli.Handler[C] {
 }
 
 func resolveScenarioHandler[C any](deps HandlerDeps[C]) rootcli.Handler[C] {
-	return bindContractCommand(deps,
+	return contractCommand(deps,
 		contractcli.ParseResolveScenarioRequest,
 		func(ctx C, req contractapp.ResolveScenarioRequest) (contractapp.ResolveScenarioOutput, error) {
 			return deps.Service(ctx).ResolveScenario(req)
@@ -93,7 +93,7 @@ func resolveScenarioHandler[C any](deps HandlerDeps[C]) rootcli.Handler[C] {
 }
 
 func matchGlobHandler[C any](deps HandlerDeps[C]) rootcli.Handler[C] {
-	return bindContractCommand(deps,
+	return contractCommand(deps,
 		contractcli.ParseMatchGlobRequest,
 		func(ctx C, req contractapp.MatchGlobRequest) (contractapp.MatchGlobOutput, error) {
 			return deps.Service(ctx).MatchGlob(req)
@@ -104,7 +104,7 @@ func matchGlobHandler[C any](deps HandlerDeps[C]) rootcli.Handler[C] {
 	)
 }
 
-func bindContractCommand[C any, Req any, Resp any](
+func contractCommand[C any, Req any, Resp any](
 	deps HandlerDeps[C],
 	parse func([]string) (Req, error),
 	run func(C, Req) (Resp, error),
@@ -112,33 +112,41 @@ func bindContractCommand[C any, Req any, Resp any](
 	mapErr func(error) error,
 	after func(Resp) error,
 ) rootcli.Handler[C] {
-	return func(ctx C, args []string) error {
-		req, err := parse(args)
-		if err != nil {
-			if rootcli.HandleHelp(deps.Stdout(ctx), err) {
-				return nil
+	return rootcli.BindService(deps.Stdout,
+		func(ctx C) (cliout.Format, C, error) {
+			format, err := deps.OutputFormat(ctx)
+			if err != nil {
+				return "", ctx, err
 			}
-			return rootcli.UsageErrorf("", "%s", err.Error())
-		}
-		output, err := run(ctx, req)
-		if err != nil {
-			if mapErr != nil {
-				return mapErr(err)
+			return format, ctx, nil
+		},
+		func(ctx C, args []string) (Req, error) {
+			req, err := parse(args)
+			if err != nil {
+				if rootcli.HandleHelp(deps.Stdout(ctx), err) {
+					return req, nil
+				}
+				return req, rootcli.UsageErrorf("", "%s", err.Error())
 			}
-			return err
-		}
-		format, err := deps.OutputFormat(ctx)
-		if err != nil {
-			return err
-		}
-		if err := render(deps.Stdout(ctx), format, output); err != nil {
-			return err
-		}
-		if after != nil {
-			return after(output)
-		}
-		return nil
-	}
+			return req, nil
+		},
+		func(ctx C, req Req) (Resp, error) {
+			output, err := run(ctx, req)
+			if err != nil && mapErr != nil {
+				return output, mapErr(err)
+			}
+			return output, err
+		},
+		func(w io.Writer, format cliout.Format, output Resp) error {
+			if err := render(w, format, output); err != nil {
+				return err
+			}
+			if after != nil {
+				return after(output)
+			}
+			return nil
+		},
+	)
 }
 
 func rootError(err error) error {

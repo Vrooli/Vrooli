@@ -9,12 +9,14 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/vrooli/vrooli/internal/shell/shelltest"
 )
 
 func fakeSecretTool(t *testing.T, lookupExit int) {
 	t.Helper()
 	dir := t.TempDir()
-	script := "#!/bin/sh\nif [ \"$1\" = lookup ]; then\n"
+	script := shelltest.POSIXShebang() + "if [ \"$1\" = lookup ]; then\n"
 	if lookupExit == 0 {
 		script += "  printf 'healthy-value\\n'\n  exit 0\n"
 	} else {

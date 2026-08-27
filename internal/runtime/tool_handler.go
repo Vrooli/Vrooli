@@ -10,10 +10,13 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/vrooli/vrooli/internal/tuning"
+
 	"github.com/vrooli/binaryfetch"
 	repocontract "github.com/vrooli/repo-contract-go"
 	_ "github.com/vrooli/vrooli/internal/acquisition" // register the caller-owned tar.zst archive decoder
 	"github.com/vrooli/vrooli/internal/cliinstall"
+	"github.com/vrooli/vrooli/internal/config"
 	"github.com/vrooli/vrooli/internal/hostreqkit"
 	"github.com/vrooli/vrooli/internal/hostreqspec"
 	dockertool "github.com/vrooli/vrooli/internal/tools/docker"
@@ -98,6 +101,13 @@ func newGenericToolHandler(m hostreqkit.ToolManifest) hostreqkit.Handler {
 	return toolHandler{manifest: m}
 }
 
+// NewGenericToolHandler exposes the manifest-backed handler for conformance
+// tests owned by manifest-only tool directories. Production registry loading
+// continues to use the private constructor so registration remains centralized.
+func NewGenericToolHandler(m hostreqkit.ToolManifest) hostreqkit.Handler {
+	return newGenericToolHandler(m)
+}
+
 func (h toolHandler) Name() string           { return h.manifest.Name }
 func (h toolHandler) Kind() hostreqspec.Kind { return hostreqspec.KindTool }
 
@@ -175,7 +185,7 @@ func (h toolHandler) inspectPackage(host hostreqkit.Host, requirement hostreqspe
 		status.ExecutionState = hostreqkit.ExecutionManualActionRequired
 		status.InstallSupported = false
 	}
-	if installed {
+	if installed && !requirement.Manual {
 		status.ExecutionState = hostreqkit.ExecutionAlreadyPresent
 	}
 	if !installed {
@@ -217,13 +227,9 @@ func (h toolHandler) inspectFetch(host hostreqkit.Host, requirement hostreqspec.
 	if requirement.Manual {
 		status.SupportClass = hostreqkit.SupportManualOnly
 		status.InstallSupported = false
-		if installed {
-			status.ExecutionState = hostreqkit.ExecutionAlreadyPresent
-		} else {
-			status.ExecutionState = hostreqkit.ExecutionManualActionRequired
-			if h.manifest.InstallHint != "" {
-				status.Notes = append(status.Notes, h.manifest.InstallHint)
-			}
+		status.ExecutionState = hostreqkit.ExecutionManualActionRequired
+		if h.manifest.InstallHint != "" {
+			status.Notes = append(status.Notes, h.manifest.InstallHint)
 		}
 		return status
 	}
@@ -533,7 +539,7 @@ func (h toolHandler) installDir(spec binaryfetch.Target, binDir, command string,
 // resolve from any cwd) and execs the real binary, forwarding all args. On
 // Windows it writes a <command>.bat that prepends the dir to PATH instead.
 func writeLauncher(binDir, command, optDir, optBinPath string, runtimeEnv map[string]string) error {
-	if err := os.MkdirAll(binDir, 0o755); err != nil {
+	if err := os.MkdirAll(binDir, tuning.PermDir); err != nil {
 		return fmt.Errorf("create bin dir: %w", err)
 	}
 	dir := filepath.Dir(optBinPath)
@@ -541,7 +547,7 @@ func writeLauncher(binDir, command, optDir, optBinPath string, runtimeEnv map[st
 	if err != nil {
 		return err
 	}
-	if currentPlatformOS() == "windows" {
+	if hostreqspec.PlatformFromGOOS(currentPlatformOS()) == hostreqspec.PlatformWindows {
 		path := filepath.Join(binDir, command+".bat")
 		lines := []string{"@echo off", fmt.Sprintf("set \"PATH=%s;%%PATH%%\"", dir)}
 		for _, key := range sortedEnvKeys(resolvedEnv) {
@@ -562,32 +568,17 @@ func writeLauncher(binDir, command, optDir, optBinPath string, runtimeEnv map[st
 }
 
 func writeExecutableFileAtomic(path string, contents []byte) (err error) {
-	tmp, err := os.CreateTemp(filepath.Dir(path), "."+filepath.Base(path)+".tmp-*")
-	if err != nil {
-		return err
-	}
-	tmpPath := tmp.Name()
-	defer func() {
-		_ = tmp.Close()
-		_ = os.Remove(tmpPath)
-	}()
-	if err := tmp.Chmod(0o755); err != nil {
-		return err
-	}
-	if _, err := tmp.Write(contents); err != nil {
-		return err
-	}
-	if err := tmp.Close(); err != nil {
-		return err
-	}
-	if err := os.Rename(tmpPath, path); err != nil {
-		// Windows cannot replace an existing file with Rename. The install lock
-		// makes this fallback safe from competing managed installers.
-		if currentPlatformOS() != "windows" || os.Remove(path) != nil {
+	if err := config.WriteOwnedFileAtomic(path, contents, tuning.PermDir); err != nil {
+		// Windows cannot replace an existing file atomically. The install lock
+		// makes this narrow remove-and-replace fallback safe.
+		if hostreqspec.PlatformFromGOOS(currentPlatformOS()) != hostreqspec.PlatformWindows {
 			return err
 		}
-		if err := os.Rename(tmpPath, path); err != nil {
+		if removeErr := os.Remove(path); removeErr != nil {
 			return err
+		}
+		if retryErr := config.WriteOwnedFileAtomic(path, contents, tuning.PermDir); retryErr != nil {
+			return retryErr
 		}
 	}
 	return nil
@@ -700,7 +691,7 @@ func resolveFetchCommand(candidates []string) (string, bool) {
 
 func localFetchCommandPath(binDir, command string) string {
 	path := filepath.Join(binDir, command)
-	if currentPlatformOS() == "windows" {
+	if hostreqspec.PlatformFromGOOS(currentPlatformOS()) == hostreqspec.PlatformWindows {
 		return path + ".bat"
 	}
 	return path
@@ -776,7 +767,7 @@ func (h toolHandler) runtimeEnvironmentSatisfied(host hostreqkit.Host, status *h
 		return false
 	}
 	entryInfo, err := os.Stat(entryPath)
-	if err != nil || entryInfo.IsDir() || currentPlatformOS() != "windows" && entryInfo.Mode()&0o111 == 0 {
+	if err != nil || entryInfo.IsDir() || hostreqspec.PlatformFromGOOS(currentPlatformOS()) != hostreqspec.PlatformWindows && entryInfo.Mode()&tuning.PermExecuteMask == 0 {
 		status.Installed = false
 		status.ExecutionState = hostreqkit.ExecutionPending
 		status.InstallSupported = true
@@ -793,7 +784,7 @@ func (h toolHandler) runtimeEnvironmentSatisfied(host hostreqkit.Host, status *h
 	}
 	contents := string(launcher)
 	expectedEntry := shellSingleQuote(entryPath)
-	if currentPlatformOS() == "windows" {
+	if hostreqspec.PlatformFromGOOS(currentPlatformOS()) == hostreqspec.PlatformWindows {
 		expectedEntry = fmt.Sprintf("\"%s\"", entryPath)
 	}
 	if !strings.Contains(contents, expectedEntry) {
@@ -824,7 +815,7 @@ func managedToolEntryPath(optDir, binPath string) (string, error) {
 }
 
 func launcherEnvironmentAssignment(key, value string) string {
-	if currentPlatformOS() == "windows" {
+	if hostreqspec.PlatformFromGOOS(currentPlatformOS()) == hostreqspec.PlatformWindows {
 		return fmt.Sprintf("set \"%s=%s\"", key, value)
 	}
 	return "export " + key + "=" + shellSingleQuote(value)

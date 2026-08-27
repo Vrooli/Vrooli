@@ -228,3 +228,14 @@ func TestSourceElevationScanIgnoresTestFixtures(t *testing.T) {
 		t.Fatal("a system path in real handler source must still require elevation")
 	}
 }
+
+func TestSourceElevationScanIgnoresComments(t *testing.T) {
+	dir := t.TempDir()
+	commentOnly := "package example\n\n// sudo writes /etc/example and /var/lib/example.\nconst target = \"$HOME/.vrooli/shims\"\n"
+	if err := os.WriteFile(filepath.Join(dir, "handler.go"), []byte(commentOnly), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if sourceRequiresElevation(dir) {
+		t.Fatal("comments must not be treated as privileged source evidence")
+	}
+}

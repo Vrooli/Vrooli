@@ -1,4 +1,5 @@
 // Package credentialescrow owns the control-plane provider for encrypted
+
 // credential-store escrow and recovery. Consumers use the generic
 // operatorcapability contract; they do not import this package to render an
 // action.
@@ -17,12 +18,19 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vrooli/vrooli/internal/tuning"
+
+	"github.com/vrooli/vrooli/internal/config"
 	"github.com/vrooli/vrooli/internal/credentialauthority"
 	"github.com/vrooli/vrooli/internal/credentialinventory"
 	"github.com/vrooli/vrooli/internal/hostinventory"
 	"github.com/vrooli/vrooli/internal/operatorcapability"
 	"github.com/vrooli/vrooli/internal/resources/securestore"
 	kopiaregistry "github.com/vrooli/vrooli/packages/kopiaregistry-go"
+)
+
+const (
+	providerReady = "ready"
 )
 
 const (
@@ -159,6 +167,7 @@ func (p *storeProvider) Preview(ctx context.Context, inputs operatorcapability.I
 	}, nil
 }
 
+//nolint:gocyclo // escrow application coordinates provider, schedule, copy, and evidence state transitions.
 func (p *storeProvider) Apply(ctx context.Context, inputs operatorcapability.InputSet) (operatorcapability.Result, error) {
 	_ = ctx
 	passphrase, ok := inputs.Text("passphrase")
@@ -205,6 +214,7 @@ func (p *storeProvider) Apply(ctx context.Context, inputs operatorcapability.Inp
 	}, nil
 }
 
+//nolint:gocyclo // escrow discovery reports provider, schedule, storage, and evidence capability states.
 func (p *Provider) Discover(ctx context.Context) (operatorcapability.Status, error) {
 	_ = ctx
 	if p == nil {
@@ -334,7 +344,7 @@ func (p *Provider) verifyEvidence(store securestore.StoreStatus, receipt credent
 	if len(inventory.RequiredAbsent) > 0 || !coversAll(receipt.Entries, inventory.Entries) {
 		return false, nil, "recovery evidence does not cover every configured credential"
 	}
-	if copyConfig.Enabled && copyStatus.ScheduleState != "ready" {
+	if copyConfig.Enabled && copyStatus.ScheduleState != providerReady {
 		return false, []operatorcapability.EvidenceReference{{Kind: "encrypted-root-copy", ArtifactIdentity: artifactIdentity(copyStatus.Path), SourceGeneration: copyStatus.Generation, Checksum: copyStatus.Checksum, ObservedAt: copyStatus.VerifiedAt, Verified: true}, {Kind: "recovery-bundle", ArtifactIdentity: receipt.ArtifactIdentity, SourceGeneration: receipt.SourceGeneration, Checksum: receipt.Checksum, Coverage: recoveryCoverage(receipt.Entries), ObservedAt: receipt.VerifiedAt, Verified: true}, {Kind: "schedule", ArtifactIdentity: "native-schedule", ObservedAt: receipt.VerifiedAt, Verified: false, Remediation: copyStatus.Remediation}}, "artifacts are verified but the native refresh schedule is degraded"
 	}
 	return true, []operatorcapability.EvidenceReference{{Kind: "encrypted-root-copy", ArtifactIdentity: artifactIdentity(copyStatus.Path), SourceGeneration: copyStatus.Generation, Checksum: copyStatus.Checksum, ObservedAt: copyStatus.VerifiedAt, Verified: true}, {Kind: "recovery-bundle", ArtifactIdentity: receipt.ArtifactIdentity, SourceGeneration: receipt.SourceGeneration, Checksum: receipt.Checksum, Coverage: recoveryCoverage(receipt.Entries), ObservedAt: receipt.VerifiedAt, Verified: true}, {Kind: "schedule", ArtifactIdentity: "native-schedule", ObservedAt: receipt.VerifiedAt, Verified: true}}, ""
@@ -366,7 +376,7 @@ func (p *Provider) Preview(ctx context.Context, inputs operatorcapability.InputS
 			Candidates:   []operatorcapability.Candidate{{ID: sink, Kind: "s3-compatible", Label: sink, Location: sink, Status: "pending-validation", Risk: "object-store authority and repository containment are revalidated during apply"}},
 			Mutations:    []operatorcapability.Mutation{{ID: "encrypted-root-copy", Summary: "write and read back the encrypted credential-store root object", Reversible: true}, {ID: "recovery-bundle", Summary: "write and verify the encrypted recovery bundle object", Reversible: true}, {ID: "evidence-and-schedule", Summary: "record metadata-only evidence and install the native refresh schedule", Reversible: true}},
 			Remediation:  "Review the object-store reference, endpoint, and exact mutations before applying.",
-			ExpiresAt:    p.now().UTC().Add(10 * time.Minute),
+			ExpiresAt:    p.now().UTC().Add(tuning.LongOperationBudget),
 		}, nil
 	}
 	status, err := p.Discover(context.Background())
@@ -377,7 +387,7 @@ func (p *Provider) Preview(ctx context.Context, inputs operatorcapability.InputS
 	if selected == nil {
 		return operatorcapability.Preview{}, fmt.Errorf("escrow destination %q is not a discovered candidate", sink)
 	}
-	if selected.Status != "ready" {
+	if selected.Status != providerReady {
 		return operatorcapability.Preview{}, fmt.Errorf("escrow destination is not ready: %s", selected.Remediation)
 	}
 	return operatorcapability.Preview{
@@ -391,10 +401,11 @@ func (p *Provider) Preview(ctx context.Context, inputs operatorcapability.InputS
 			{ID: "evidence-and-schedule", Summary: "record metadata-only evidence and install the native refresh schedule", Reversible: true},
 		},
 		Remediation: "Review the selected sink and confirm the exact mutations before applying.",
-		ExpiresAt:   p.now().UTC().Add(10 * time.Minute),
+		ExpiresAt:   p.now().UTC().Add(tuning.LongOperationBudget),
 	}, nil
 }
 
+//nolint:gocyclo // escrow application coordinates provider, schedule, copy, and evidence state transitions.
 func (p *Provider) Apply(ctx context.Context, inputs operatorcapability.InputSet) (operatorcapability.Result, error) {
 	_ = ctx
 	sink, ok := inputs.Text("sink")
@@ -420,7 +431,7 @@ func (p *Provider) Apply(ctx context.Context, inputs operatorcapability.InputSet
 			return escrowFailure("discovery_failed", discoverErr.Error())
 		}
 		selected = findCandidate(status.Candidates, sink)
-		if selected == nil || selected.Status != "ready" {
+		if selected == nil || selected.Status != providerReady {
 			remediation := "re-discover storage candidates and choose a ready destination"
 			if selected != nil && selected.Remediation != "" {
 				remediation = selected.Remediation
@@ -528,7 +539,7 @@ func (p *Provider) Apply(ctx context.Context, inputs operatorcapability.InputSet
 	state := operatorcapability.StateReady
 	outcome := "escrow_ready"
 	remediation := "root copy and recovery bundle verified"
-	if scheduleErr != nil || !schedule.Supported || schedule.State != "ready" {
+	if scheduleErr != nil || !schedule.Supported || schedule.State != providerReady {
 		state = operatorcapability.StateDegraded
 		outcome = "escrow_ready_schedule_degraded"
 		remediation = schedule.Remediation
@@ -539,7 +550,7 @@ func (p *Provider) Apply(ctx context.Context, inputs operatorcapability.InputSet
 	return operatorcapability.Result{
 		CapabilityID: CapabilityID, State: state, Outcome: outcome, Retryable: true, Remediation: remediation,
 		Mutations:   []operatorcapability.Mutation{{ID: "encrypted-root-copy", Summary: "verified encrypted credential-store root copy", Reversible: true}, {ID: "recovery-bundle", Summary: fmt.Sprintf("verified recovery bundle covering %d entries", len(manifest.Entries)), Reversible: true}, {ID: "schedule", Summary: "recorded native schedule state", Reversible: true}},
-		Evidence:    []operatorcapability.EvidenceReference{{Kind: "encrypted-root-copy", ArtifactIdentity: artifactIdentity(copyStatus.Path), SourceGeneration: copyStatus.Generation, Checksum: copyStatus.Checksum, ObservedAt: copyStatus.VerifiedAt, Verified: copyStatus.Verification == "readback", Remediation: copyStatus.Remediation}, {Kind: "recovery-bundle", ArtifactIdentity: artifactIdentity(bundlePath), SourceGeneration: copyStatus.Generation, Checksum: hex.EncodeToString(bundleChecksum[:]), Coverage: recoveryCoverage(manifest.Entries), ObservedAt: now, Verified: true, Remediation: schedule.Remediation}, {Kind: "schedule", ArtifactIdentity: schedule.Provider, ObservedAt: schedule.UpdatedAt, Verified: schedule.State == "ready", Remediation: schedule.Remediation}},
+		Evidence:    []operatorcapability.EvidenceReference{{Kind: "encrypted-root-copy", ArtifactIdentity: artifactIdentity(copyStatus.Path), SourceGeneration: copyStatus.Generation, Checksum: copyStatus.Checksum, ObservedAt: copyStatus.VerifiedAt, Verified: copyStatus.Verification == "readback", Remediation: copyStatus.Remediation}, {Kind: "recovery-bundle", ArtifactIdentity: artifactIdentity(bundlePath), SourceGeneration: copyStatus.Generation, Checksum: hex.EncodeToString(bundleChecksum[:]), Coverage: recoveryCoverage(manifest.Entries), ObservedAt: now, Verified: true, Remediation: schedule.Remediation}, {Kind: "schedule", ArtifactIdentity: schedule.Provider, ObservedAt: schedule.UpdatedAt, Verified: schedule.State == providerReady, Remediation: schedule.Remediation}},
 		CompletedAt: now,
 	}, nil
 }
@@ -573,28 +584,10 @@ func ensureRecoveryBundle(path string, entries []credentialauthority.RecoveryEnt
 }
 
 func atomicSecretFile(path string, data []byte) error {
-	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+	if err := os.MkdirAll(filepath.Dir(path), tuning.PermPrivateDir); err != nil {
 		return err
 	}
-	temp, err := os.CreateTemp(filepath.Dir(path), ".recovery-bundle-*")
-	if err != nil {
-		return err
-	}
-	tempPath := temp.Name()
-	defer func() { _ = temp.Close(); _ = os.Remove(tempPath) }()
-	if err := temp.Chmod(0o600); err != nil {
-		return err
-	}
-	if _, err := temp.Write(data); err != nil {
-		return err
-	}
-	if err := temp.Sync(); err != nil {
-		return err
-	}
-	if err := temp.Close(); err != nil {
-		return err
-	}
-	return os.Rename(tempPath, path)
+	return config.WriteOwnedFileAtomic(path, data, tuning.PermSecret)
 }
 
 func coversAll(have, want []credentialauthority.RecoveryEntry) bool {

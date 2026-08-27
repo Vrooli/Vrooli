@@ -18,7 +18,9 @@ type capturedCommand struct {
 
 // stubAll swaps every package-level seam used by EnsureLoadAtBoot/Modprobe
 // for capturing fakes and returns a restore func plus accessors.
-func stubAll(t *testing.T) (cmds *[]capturedCommand, files map[string]string, restore func()) {
+var stubAll = modulesStubAll
+
+func modulesStubAll(t *testing.T) (cmds *[]capturedCommand, files map[string]string, restore func()) {
 	t.Helper()
 	origRead := hostreqkit.ReadFileFn
 	origRun := hostreqkit.RunCommandFn
@@ -42,7 +44,7 @@ func stubAll(t *testing.T) (cmds *[]capturedCommand, files map[string]string, re
 	}
 	hostreqkit.RunCommandFn = func(name string, args []string, opts hostreqkit.EnsureOptions) error {
 		captured = append(captured, capturedCommand{Name: name, Args: append([]string(nil), args...)})
-		// Simulate `install -m 0644 <tmp> <dst>` by capturing the tempfile
+		// Simulate `install -m 644 <tmp> <dst>` by capturing the tempfile
 		// contents under the destination path. This lets later FileContentMatches
 		// calls observe the write.
 		if name == "install" && len(args) >= 4 {

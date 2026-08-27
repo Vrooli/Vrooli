@@ -3,37 +3,12 @@ package hostinventory
 import (
 	"context"
 	"errors"
-	"os/exec"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/vrooli/vrooli/internal/shell/shelltest"
 )
-
-// fakeToolchainCommands lets a test state exactly which executables exist and
-// what they print, so toolchain assertions never depend on the host running the
-// test suite.
-type fakeToolchainCommands struct {
-	paths   map[string]string
-	outputs map[string]string
-	errs    map[string]error
-	calls   []string
-}
-
-func (f *fakeToolchainCommands) LookPath(file string) (string, error) {
-	if path, ok := f.paths[file]; ok {
-		return path, nil
-	}
-	return "", exec.ErrNotFound
-}
-
-func (f *fakeToolchainCommands) Run(_ context.Context, name string, args ...string) ([]byte, error) {
-	key := strings.TrimSpace(name + " " + strings.Join(args, " "))
-	f.calls = append(f.calls, key)
-	if err, ok := f.errs[key]; ok {
-		return nil, err
-	}
-	return []byte(f.outputs[key]), nil
-}
 
 func newToolchainCollector(goos string, commands CommandRunner) Collector {
 	return Collector{GOOS: goos, GOARCH: "amd64", Commands: commands}.withDefaults()
@@ -51,22 +26,22 @@ func newToolchainSnapshot(goos string) *Snapshot {
 func TestAppleToolchainIsNotProbedOnNonDarwinHosts(t *testing.T) {
 	// An Apple toolchain is categorically absent off darwin. Recording an empty
 	// probe would present a terminal fact as a missing measurement.
-	commands := &fakeToolchainCommands{paths: map[string]string{}}
+	commands := &shelltest.Fake{Paths: map[string]string{}}
 	snap := newToolchainSnapshot("linux")
 	newToolchainCollector("linux", commands).collectAppleToolchain(context.Background(), snap, time.Now())
 
 	if _, probed := snap.ProbeStatuses[ProbeAppleToolchain]; probed {
 		t.Fatalf("apple toolchain must not be probed on linux, got %v", snap.ProbeStatuses)
 	}
-	if len(commands.calls) != 0 {
-		t.Fatalf("expected no commands on linux, got %v", commands.calls)
+	if len(commands.Calls()) != 0 {
+		t.Fatalf("expected no commands on linux, got %v", commands.Calls())
 	}
 }
 
 func TestAppleToolchainReportsVersionAndSimulatorRuntimes(t *testing.T) {
-	commands := &fakeToolchainCommands{
-		paths: map[string]string{ToolXcodebuild: "/usr/bin/xcodebuild", ToolXcrun: "/usr/bin/xcrun"},
-		outputs: map[string]string{
+	commands := &shelltest.Fake{
+		Paths: map[string]string{ToolXcodebuild: "/usr/bin/xcodebuild", ToolXcrun: "/usr/bin/xcrun"},
+		OutputStrings: map[string]string{
 			"xcodebuild -version": "Xcode 26.1\nBuild version 17B55\n",
 			"xcrun simctl list runtimes": strings.Join([]string{
 				"== Runtimes ==",
@@ -94,9 +69,9 @@ func TestAppleToolchainReportsVersionAndSimulatorRuntimes(t *testing.T) {
 func TestAppleToolchainReportsFailureWhenXcodebuildIsUnusable(t *testing.T) {
 	// A present-but-unusable xcodebuild (unaccepted license, command-line tools
 	// only) must not read as a working toolchain.
-	commands := &fakeToolchainCommands{
-		paths: map[string]string{ToolXcodebuild: "/usr/bin/xcodebuild", ToolXcrun: "/usr/bin/xcrun"},
-		errs:  map[string]error{"xcodebuild -version": errors.New("requires Xcode, but active developer directory is a CommandLineTools instance")},
+	commands := &shelltest.Fake{
+		Paths:  map[string]string{ToolXcodebuild: "/usr/bin/xcodebuild", ToolXcrun: "/usr/bin/xcrun"},
+		Errors: map[string]error{"xcodebuild -version": errors.New("requires Xcode, but active developer directory is a CommandLineTools instance")},
 	}
 	snap := newToolchainSnapshot("darwin")
 	newToolchainCollector("darwin", commands).collectAppleToolchain(context.Background(), snap, time.Now())
@@ -115,9 +90,9 @@ func TestAppleToolchainReportsFailureWhenXcodebuildIsUnusable(t *testing.T) {
 func TestAppleToolchainReportsMissingSimulatorRuntimesWithoutFailing(t *testing.T) {
 	// On Intel hosts the universal runtime variant must be fetched explicitly,
 	// so "no runtimes installed" is a real observation, not a probe error.
-	commands := &fakeToolchainCommands{
-		paths: map[string]string{ToolXcodebuild: "/usr/bin/xcodebuild", ToolXcrun: "/usr/bin/xcrun"},
-		outputs: map[string]string{
+	commands := &shelltest.Fake{
+		Paths: map[string]string{ToolXcodebuild: "/usr/bin/xcodebuild", ToolXcrun: "/usr/bin/xcrun"},
+		OutputStrings: map[string]string{
 			"xcodebuild -version":        "Xcode 26.1\n",
 			"xcrun simctl list runtimes": "== Runtimes ==\n",
 		},
@@ -148,7 +123,7 @@ func TestAndroidToolchainReportsPartialAndAbsentStates(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			commands := &fakeToolchainCommands{paths: tt.paths}
+			commands := &shelltest.Fake{Paths: tt.paths}
 			snap := newToolchainSnapshot("linux")
 			newToolchainCollector("linux", commands).collectAndroidToolchain(context.Background(), snap, time.Now())
 
@@ -170,7 +145,7 @@ func TestKVMIsOnlyReportedOnLinux(t *testing.T) {
 	// macOS and Windows accelerate through their own hypervisors, so an absent
 	// /dev/kvm there is not a finding and must not be recorded as one.
 	snap := newToolchainSnapshot("darwin")
-	newToolchainCollector("darwin", &fakeToolchainCommands{paths: map[string]string{}}).
+	newToolchainCollector("darwin", &shelltest.Fake{Paths: map[string]string{}}).
 		collectAndroidToolchain(context.Background(), snap, time.Now())
 
 	if _, recorded := snap.RuntimeTools[ToolKVM]; recorded {

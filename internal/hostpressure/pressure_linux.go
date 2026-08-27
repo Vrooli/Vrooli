@@ -11,6 +11,10 @@ import (
 	"time"
 )
 
+const (
+	pressureLinuxParameterA = 2
+)
+
 const forkRateProvenance = "system-monitor:platform_forkrate_linux:/proc/stat"
 
 func collect(ctx context.Context, opts Options) PressureSnapshot {
@@ -129,7 +133,7 @@ func parseMeminfo(read func(string) ([]byte, error)) map[string]Reading {
 	}
 	for _, line := range strings.Split(string(b), "\n") {
 		parts := strings.Fields(line)
-		if len(parts) < 2 {
+		if len(parts) < pressureLinuxParameterA {
 			continue
 		}
 		v, e := strconv.ParseUint(parts[1], 10, 64)
@@ -172,7 +176,7 @@ func linuxProcesses(ctx context.Context, root string) (Reading, []Process) {
 		}
 		for _, line := range strings.Split(string(b), "\n") {
 			f := strings.Fields(line)
-			if len(f) < 2 {
+			if len(f) < pressureLinuxParameterA {
 				continue
 			}
 			switch f[0] {

@@ -16,6 +16,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vrooli/vrooli/internal/tuning"
+
 	"github.com/vrooli/envkit-go"
 	"github.com/vrooli/platform-go"
 	"github.com/vrooli/vrooli/internal/config"
@@ -25,6 +27,22 @@ import (
 	"github.com/vrooli/vrooli/internal/ports"
 	"github.com/vrooli/vrooli/internal/process"
 	"github.com/vrooli/vrooli/internal/scenario"
+	"github.com/vrooli/vrooli/internal/scenarioruntime"
+)
+
+const (
+	phasesTrue = "true"
+)
+
+const (
+	phasesDevelop = "develop"
+	phasesSetup   = "setup"
+)
+
+const (
+	phasesParameterA = 2
+	phasesParameterB = 3
+	phasesParameterC = 30000
 )
 
 type PhaseExecutionStatus string
@@ -150,14 +168,14 @@ func (r *Runner) RunPhaseDetailed(name, phaseName string, opts PhaseOptions) (Ph
 		}
 	}
 
-	env := make(map[string]string, len(envResult.EnvVars)+3)
+	env := make(map[string]string, len(envResult.EnvVars)+phasesParameterB)
 	for key, value := range envResult.EnvVars {
 		env[key] = value
 	}
 	if opts.ManageRuntime {
-		env["TEST_MANAGE_RUNTIME"] = "true"
+		env["TEST_MANAGE_RUNTIME"] = phasesTrue
 	} else if opts.AllowSkipMissingRuntime {
-		env["TEST_ALLOW_SKIP_MISSING_RUNTIME"] = "true"
+		env["TEST_ALLOW_SKIP_MISSING_RUNTIME"] = phasesTrue
 	}
 	if strings.TrimSpace(os.Getenv("GOWORK")) == "" {
 		mode := strings.ToLower(strings.TrimSpace(os.Getenv("VROOLI_SCENARIO_GOWORK")))
@@ -170,7 +188,7 @@ func (r *Runner) RunPhaseDetailed(name, phaseName string, opts PhaseOptions) (Ph
 	logPath, _ := process.ScenarioLifecycleLogPath(r.Home, item.Slug)
 	meta, runErr := r.runWithLifecycleLog(lifecycleLogContext{Scenario: item.Slug, Operation: "phase", Phase: phaseName, RunID: strings.TrimSpace(opts.RunID)}, func(logWriter, childWriter io.Writer) error {
 		var executeErr error
-		result, executeErr = r.executePhaseDetailed(ctx, item, phaseName, env, logWriter, childWriter)
+		result, executeErr = r.executePhaseDetailed(ctx, item, phaseName, env, logWriter, childWriter, false)
 		return executeErr
 	})
 	result.RunID = meta.RunID
@@ -202,7 +220,7 @@ func (r *Runner) RunPhaseDetailedContext(ctx context.Context, name, phaseName st
 
 func phaseRequiresBootstrap(phaseName string) bool {
 	switch strings.TrimSpace(phaseName) {
-	case "develop":
+	case phasesDevelop:
 		return true
 	default:
 		return false
@@ -218,10 +236,11 @@ func phaseRequiresBootstrap(phaseName string) bool {
 // verbosity, and a childWriter that tees to the log file plus the console
 // only at verbose — see runWithLifecycleLog.
 func (r *Runner) ExecutePhaseDetailed(item scenario.Scenario, phaseName string, env map[string]string, logWriter io.Writer, childWriter io.Writer) (PhaseResult, error) {
-	return r.executePhaseDetailed(context.Background(), item, phaseName, env, logWriter, childWriter)
+	return r.executePhaseDetailed(context.Background(), item, phaseName, env, logWriter, childWriter, false)
 }
 
-func (r *Runner) executePhaseDetailed(ctx context.Context, item scenario.Scenario, phaseName string, env map[string]string, logWriter io.Writer, childWriter io.Writer) (PhaseResult, error) {
+//nolint:gocyclo // phase execution coordinates setup, command, timeout, log, and cleanup outcomes.
+func (r *Runner) executePhaseDetailed(ctx context.Context, item scenario.Scenario, phaseName string, env map[string]string, logWriter io.Writer, childWriter io.Writer, forceSetup bool) (PhaseResult, error) {
 	if ctx == nil {
 		ctx = context.Background()
 	}
@@ -229,7 +248,7 @@ func (r *Runner) executePhaseDetailed(ctx context.Context, item scenario.Scenari
 		childWriter = logWriter
 	}
 	phase, ok := lookupPhase(item.Manifest, phaseName)
-	derivedComponentPhase := len(item.Manifest.Components) > 0 && (phaseName == "setup" || phaseName == "develop")
+	derivedComponentPhase := len(item.Manifest.Components) > 0 && (phaseName == phasesSetup || phaseName == phasesDevelop)
 	if !ok && !derivedComponentPhase {
 		r.logDebug("Scenario phase not defined", logx.AttrScenario, item.Slug, logx.AttrPhase, phaseName)
 		return undefinedPhaseResult(item.Slug, phaseName), nil
@@ -244,11 +263,11 @@ func (r *Runner) executePhaseDetailed(ctx context.Context, item scenario.Scenari
 		Defined:  true,
 		Status:   PhaseExecutionSkipped,
 	}
-	if phaseName == "setup" {
+	if phaseName == phasesSetup {
 		if err := r.provisionSharedPackages(ctx, item, env, logWriter, childWriter); err != nil {
 			return PhaseResult{}, err
 		}
-		built, err := r.buildDeclaredComponents(ctx, item, env, childWriter)
+		built, err := r.buildDeclaredComponents(ctx, item, env, childWriter, forceSetup)
 		if err != nil {
 			return result, err
 		}
@@ -348,11 +367,11 @@ func (r *Runner) executePhaseDetailed(ctx context.Context, item scenario.Scenari
 func declaredPhaseSteps(manifest scenario.ServiceManifest, phaseName string, authored []scenario.PhaseStep) []scenario.PhaseStep {
 	steps := make([]scenario.PhaseStep, 0, len(authored)+len(manifest.Components))
 	for _, step := range authored {
-		if phaseName != "setup" && phaseName != "develop" || len(step.Exec) > 0 {
+		if phaseName != phasesSetup && phaseName != phasesDevelop || len(step.Exec) > 0 {
 			steps = append(steps, step)
 		}
 	}
-	if phaseName != "develop" {
+	if phaseName != phasesDevelop {
 		return steps
 	}
 	for _, name := range orderedComponentNames(manifest.Components) {
@@ -413,7 +432,7 @@ func orderedComponentNames(components map[string]scenario.Component) []string {
 }
 
 func sortComponentNames(names []string, components map[string]scenario.Component) {
-	roleOrder := map[string]int{"api": 0, "worker": 1, "sidecar": 1, "ui": 2}
+	roleOrder := map[string]int{"api": 0, "worker": 1, "sidecar": 1, "ui": phasesParameterA}
 	sort.Slice(names, func(i, j int) bool {
 		left, leftOK := roleOrder[components[names[i]].Role]
 		right, rightOK := roleOrder[components[names[j]].Role]
@@ -430,7 +449,8 @@ func sortComponentNames(names []string, components map[string]scenario.Component
 	})
 }
 
-func (r *Runner) buildDeclaredComponents(ctx context.Context, item scenario.Scenario, env map[string]string, writer io.Writer) (int, error) {
+//nolint:gocyclo // component construction handles the manifest declared phase/component combinations.
+func (r *Runner) buildDeclaredComponents(ctx context.Context, item scenario.Scenario, env map[string]string, writer io.Writer, forceSetup bool) (int, error) {
 	executed := 0
 	registry := BuilderRegistry()
 	buildMode := BuildModeForEnv(env, os.Getenv)
@@ -454,9 +474,12 @@ func (r *Runner) buildDeclaredComponents(ctx context.Context, item scenario.Scen
 		if targetErr != nil {
 			return executed, targetErr
 		}
-		install, _, installErr := installNeeded(item.Path, component, spec)
+		install, _, installErr := installNeeded(r.Root, item.Path, component, spec)
 		if installErr != nil {
 			return executed, fmt.Errorf("component %s install inputs: %w", name, installErr)
+		}
+		if forceSetup && len(spec.Install) > 0 {
+			install = true
 		}
 		commandIndex := 0
 		if install {
@@ -472,10 +495,10 @@ func (r *Runner) buildDeclaredComponents(ctx context.Context, item scenario.Scen
 				CWD:  filepath.ToSlash(component.Build.Dir),
 				Env:  stepEnv,
 			}
-			if err := r.runForegroundStep(ctx, item, "setup", step, env, writer); err != nil {
+			if err := r.runForegroundStep(ctx, item, phasesSetup, step, env, writer); err != nil {
 				return executed, fmt.Errorf("build component %s: %w", name, err)
 			}
-			if err := recordInstallDigest(item.Path, component, spec); err != nil {
+			if err := recordInstallDigest(r.Root, item.Path, component, spec); err != nil {
 				return executed, fmt.Errorf("component %s install digest: %w", name, err)
 			}
 			executed++
@@ -530,7 +553,7 @@ func (r *Runner) buildDeclaredComponents(ctx context.Context, item scenario.Scen
 				CWD:  filepath.ToSlash(component.Build.Dir),
 				Env:  stepEnv,
 			}
-			if err := r.runForegroundStep(ctx, item, "setup", step, env, writer); err != nil {
+			if err := r.runForegroundStep(ctx, item, phasesSetup, step, env, writer); err != nil {
 				if cleanupStage != nil {
 					cleanupStage()
 				}
@@ -584,7 +607,7 @@ func (r *Runner) startTrackedProcess(item scenario.Scenario, phase string, step 
 
 func (r *Runner) startTrackedProcessContext(ctx context.Context, item scenario.Scenario, phase string, step scenario.PhaseStep, env map[string]string) error {
 	// Record/log directories are keyed by the instance record slug so two
-	// variants running the same step (e.g. "develop") never overwrite each
+	// variants running the same step (e.g. phasesDevelop) never overwrite each
 	// other's record/PID/log files. Live ⇒ bare slug (unchanged). See §1a / P1.
 	slug := recordSlug(item)
 	processID := fmt.Sprintf("vrooli.%s.%s.%s", phase, slug, step.Name)
@@ -597,10 +620,10 @@ func (r *Runner) startTrackedProcessContext(ctx context.Context, item scenario.S
 	}
 	logFile := filepath.Join(logDir, processID+".log")
 	if _, err := os.Stat(logFile); err == nil {
-		_ = os.Rename(logFile, logFile+".bak")
+		_ = os.Rename(logFile, logFile+".bak") //nolint:forbidigo // intentional log rotation
 	}
 
-	file, err := config.OpenOwnedFile(logFile, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0o644)
+	file, err := config.OpenOwnedFile(logFile, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, tuning.PermFile)
 	if err != nil {
 		return newPhaseStepError(item.Slug, phase, step.Name, logFile, err)
 	}
@@ -611,7 +634,7 @@ func (r *Runner) startTrackedProcessContext(ctx context.Context, item scenario.S
 	stepEnv = setEnvValue(stepEnv, "VROOLI_PHASE", phase)
 	stepEnv = setEnvValue(stepEnv, "VROOLI_SCENARIO", item.Slug)
 	stepEnv = setEnvValue(stepEnv, "VROOLI_STEP", step.Name)
-	stepEnv = setEnvValue(stepEnv, "VROOLI_LIFECYCLE_MANAGED", "true")
+	stepEnv = setEnvValue(stepEnv, "VROOLI_LIFECYCLE_MANAGED", phasesTrue)
 
 	declared, _, err := declaredCommandForStep(item, step, stepEnv)
 	if err != nil {
@@ -687,7 +710,7 @@ func (r *Runner) startTrackedProcessContext(ctx context.Context, item scenario.S
 	if err := AwaitContext(ctx, r.awaitClock(), backgroundLaunchPolicy, func() (bool, error) {
 		return r.runtimeDeps().isPIDRunning(cmd.Process.Pid), nil
 	}); err != nil {
-		record.Status = "failed"
+		record.Status = scenarioruntime.StatusFailed
 		_ = process.WriteScenarioRecord(r.Home, slug, step.Name, record)
 		r.releaseContainment(cmd.Process.Pid)
 		exitErr := backgroundProcessExitError(cmd, logFile)
@@ -735,10 +758,10 @@ func (r *Runner) awaitComponentReadinessNamed(scenarioSlug string, manifest scen
 	readiness := derivedReadiness(component)
 	timeout := time.Duration(readiness.TimeoutMS) * time.Millisecond
 	if timeout <= 0 {
-		timeout = 30 * time.Second
+		timeout = tuning.StandardOperationTimeout
 	}
 	var lastErr error
-	err := Await(r.awaitClock(), AwaitPolicy{Timeout: timeout, Interval: 250 * time.Millisecond}, func() (bool, error) {
+	err := Await(r.awaitClock(), AwaitPolicy{Timeout: timeout, Interval: tuning.FastHealthPollInterval}, func() (bool, error) {
 		lastErr = r.checkComponentReadinessNamed(scenarioSlug, manifest, name, component, env)
 		return lastErr == nil, nil
 	})
@@ -766,7 +789,7 @@ func checkComponentReadinessNamed(manifest scenario.ServiceManifest, name string
 	}
 	switch readiness.Type {
 	case "port_open":
-		conn, err := net.DialTimeout("tcp", net.JoinHostPort("127.0.0.1", strconv.Itoa(portValue)), 500*time.Millisecond)
+		conn, err := net.DialTimeout("tcp", net.JoinHostPort("127.0.0.1", strconv.Itoa(portValue)), tuning.HealthProbeInterval)
 		if err != nil {
 			return err
 		}
@@ -782,7 +805,7 @@ func checkComponentReadinessNamed(manifest scenario.ServiceManifest, name string
 		if !strings.HasPrefix(path, "/") {
 			path = "/" + path
 		}
-		client := http.Client{Timeout: 500 * time.Millisecond}
+		client := http.Client{Timeout: tuning.HealthProbeInterval}
 		response, err := client.Get(fmt.Sprintf("http://127.0.0.1:%d%s", portValue, path))
 		if err != nil {
 			return err
@@ -822,9 +845,9 @@ func derivedReadiness(component scenario.Component) *scenario.ComponentReadiness
 		return component.Run.Readiness
 	}
 	if strings.TrimSpace(component.Run.Port) != "" {
-		return &scenario.ComponentReadiness{Type: "port_open", TimeoutMS: 30000}
+		return &scenario.ComponentReadiness{Type: "port_open", TimeoutMS: phasesParameterC}
 	}
-	return &scenario.ComponentReadiness{Type: "process_alive", TimeoutMS: 30000}
+	return &scenario.ComponentReadiness{Type: "process_alive", TimeoutMS: phasesParameterC}
 }
 
 func envPortValue(envVar string, env map[string]string) (int, bool) {
@@ -1042,10 +1065,10 @@ func lifecycleStepEnv(phase string, overrides map[string]string) []string {
 		envValue(stepEnv, "LOCALAPPDATA"),
 	))
 	stepEnv = setEnvValue(stepEnv, "LIFECYCLE_PHASE", phase)
-	stepEnv = setEnvValue(stepEnv, "VROOLI_LIFECYCLE_MANAGED", "true")
-	if phase == "setup" {
-		stepEnv = setEnvValue(stepEnv, "CI", "true")
-		stepEnv = setEnvValue(stepEnv, "VROOLI_LIFECYCLE_NONINTERACTIVE", "true")
+	stepEnv = setEnvValue(stepEnv, "VROOLI_LIFECYCLE_MANAGED", phasesTrue)
+	if phase == phasesSetup {
+		stepEnv = setEnvValue(stepEnv, "CI", phasesTrue)
+		stepEnv = setEnvValue(stepEnv, "VROOLI_LIFECYCLE_NONINTERACTIVE", phasesTrue)
 	}
 	return stepEnv
 }
@@ -1058,13 +1081,13 @@ func lifecycleStepEnv(phase string, overrides map[string]string) []string {
 // at VerbosityVerbose. The log file always receives everything.
 func (r *Runner) runWithLifecycleLog(ctx lifecycleLogContext, fn func(logWriter, childWriter io.Writer) error) (RunMeta, error) {
 	if strings.TrimSpace(ctx.Scenario) == "" {
-		ctx.Scenario = "unknown"
+		ctx.Scenario = scenarioruntime.HealthStatusUnknown
 	}
 	if strings.TrimSpace(ctx.Operation) == "" {
 		ctx.Operation = "start"
 	}
 	if strings.TrimSpace(ctx.Phase) == "" {
-		ctx.Phase = "unknown"
+		ctx.Phase = scenarioruntime.HealthStatusUnknown
 	}
 	path, err := process.ScenarioLifecycleLogPath(r.Home, ctx.Scenario)
 	if err != nil {
@@ -1073,7 +1096,7 @@ func (r *Runner) runWithLifecycleLog(ctx lifecycleLogContext, fn func(logWriter,
 	if _, err := config.EnsureOwnedDir(filepath.Dir(path)); err != nil {
 		return RunMeta{}, err
 	}
-	file, err := config.OpenOwnedFile(path, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o644)
+	file, err := config.OpenOwnedFile(path, os.O_CREATE|os.O_APPEND|os.O_WRONLY, tuning.PermFile)
 	if err != nil {
 		return RunMeta{}, err
 	}
@@ -1124,7 +1147,7 @@ func writeLifecycleRunStart(w io.Writer, ctx lifecycleLogContext, runID string, 
 func writeLifecycleRunEnd(w io.Writer, ctx lifecycleLogContext, runID string, startedAt, endedAt time.Time, err error) {
 	status := "completed"
 	if err != nil {
-		status = "failed"
+		status = scenarioruntime.StatusFailed
 	}
 	_, _ = fmt.Fprintln(w)
 	_, _ = fmt.Fprintln(w, "=== VROOLI LIFECYCLE RUN END ===")
@@ -1163,9 +1186,9 @@ func firstErrorLine(err error) string {
 
 func lookupPhase(manifest scenario.ServiceManifest, phaseName string) (scenario.Phase, bool) {
 	switch phaseName {
-	case "setup":
+	case phasesSetup:
 		return manifest.Lifecycle.Setup, true
-	case "develop":
+	case phasesDevelop:
 		return manifest.Lifecycle.Develop, true
 	case "build":
 		return manifest.Lifecycle.Build, true

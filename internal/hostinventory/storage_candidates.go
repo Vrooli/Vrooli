@@ -10,6 +10,10 @@ import (
 	"strings"
 )
 
+const (
+	storageCandidatesRejected = "rejected"
+)
+
 type StorageCandidate struct {
 	ID                   string `json:"id"`
 	Kind                 string `json:"kind"`
@@ -61,17 +65,17 @@ func inspectStorageMount(mount storageMount, policy StoragePolicy) StorageCandid
 	candidate := StorageCandidate{Kind: mount.Kind, Location: location, Filesystem: mount.Filesystem, Status: "degraded", PhysicalIndependence: "unknown"}
 	candidate.StableIdentity = stableStorageIdentity(mount, "")
 	if location == "" || location == "." {
-		candidate.Status = "rejected"
+		candidate.Status = storageCandidatesRejected
 		candidate.Remediation = "the storage location is not a usable mount root"
 		return candidate
 	}
 	if containedByAny(location, policy.ProtectedRoots) {
-		candidate.Status = "rejected"
+		candidate.Status = storageCandidatesRejected
 		candidate.Remediation = "choose a destination outside the protected credential and state roots"
 		return candidate
 	}
 	if containedByAny(location, policy.RepositoryRoots) {
-		candidate.Status = "rejected"
+		candidate.Status = storageCandidatesRejected
 		candidate.Remediation = "choose a destination outside every registered backup repository"
 		return candidate
 	}
@@ -87,7 +91,7 @@ func inspectStorageMount(mount storageMount, policy StoragePolicy) StorageCandid
 		for _, root := range policy.ProtectedRoots {
 			if rootDevice, rootKnown := physicalDeviceIdentity(root); rootKnown && rootDevice == device {
 				candidate.PhysicalIndependence = "same-device"
-				candidate.Status = "rejected"
+				candidate.Status = storageCandidatesRejected
 				candidate.Risk = "same physical device as a protected source"
 				candidate.Remediation = "choose a destination on a different physical device"
 				return candidate
@@ -100,7 +104,7 @@ func inspectStorageMount(mount storageMount, policy StoragePolicy) StorageCandid
 		return candidate
 	}
 	if err := probeWritableDirectory(location); err != nil {
-		candidate.Status = "rejected"
+		candidate.Status = storageCandidatesRejected
 		candidate.Remediation = "choose a writable mounted destination and retry"
 		return candidate
 	}

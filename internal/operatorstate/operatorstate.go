@@ -21,6 +21,7 @@ import (
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/filerouting"
 	"github.com/vrooli/api-core/storage"
+	"github.com/vrooli/vrooli/internal/repocontractmeta"
 )
 
 const (
@@ -148,7 +149,7 @@ func (s *Service) Path(ctx context.Context) (string, error) {
 		return filepath.Join(root, StateFile), nil
 	}
 	if root := strings.TrimSpace(s.cfg.RepoRoot); root != "" {
-		return filepath.Join(root, filepath.Dir(filepath.Join(".vrooli", StateFile)), StateFile), nil
+		return filepath.Join(root, filepath.Dir(filepath.Join(repocontractmeta.ProjectConfigDir, StateFile)), StateFile), nil
 	}
 	if root := strings.TrimSpace(s.cfg.StorageRoot); root != "" {
 		return filepath.Join(root, StateFile), nil
@@ -315,7 +316,7 @@ func Default() Document {
 
 var knownFields = map[string]bool{
 	"$schema": true, "version": true, "updated_at": true, "trust_posture": true, "host_workload_posture": true,
-	"core": true, "active_profile": true, "scenarios": true, "resources": true,
+	"core": true, "active_profile": true, repocontractmeta.ScenarioDir: true, "resources": true,
 	"host_tools": true, "host_safeguards": true, "completion": true, "session": true,
 }
 

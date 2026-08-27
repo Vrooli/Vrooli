@@ -12,6 +12,10 @@ import (
 	"github.com/vrooli/vrooli/internal/scenarioruntime"
 )
 
+const (
+	recoveryControllerParameterA = 1000
+)
+
 // reconcileRecovery drives the durable recovery state machine. With no
 // pressure provider (or unknown pressure evidence) it deliberately does
 // nothing: missing telemetry is never interpreted as a pressure-clear signal.
@@ -93,6 +97,7 @@ func (s *Service) reconcileRecovery(ctx context.Context) (RecoveryReport, error)
 	return report, nil
 }
 
+//nolint:gocyclo // recovery dispatch coordinates pressure, lease, runtime, retry, and evidence outcomes.
 func (s *Service) dispatchRecovery(ctx context.Context, epoch scenarioruntime.PressureEpoch) (RecoveryReport, error) {
 	report := RecoveryReport{EpochID: epoch.EpochID}
 	policies, err := s.store.ListRecoveryPolicies(ctx, scenarioruntime.RecoveryPolicyFilter{})
@@ -104,7 +109,7 @@ func (s *Service) dispatchRecovery(ctx context.Context, epoch scenarioruntime.Pr
 		return report, fmt.Errorf("list instances for recovery: %w", err)
 	}
 	latest := latestInstances(instances)
-	decisions, err := s.store.ListRecoveryDecisions(ctx, scenarioruntime.RecoveryDecisionFilter{EpochID: epoch.EpochID, Limit: 1000})
+	decisions, err := s.store.ListRecoveryDecisions(ctx, scenarioruntime.RecoveryDecisionFilter{EpochID: epoch.EpochID, Limit: recoveryControllerParameterA})
 	if err != nil {
 		return report, fmt.Errorf("list recovery decisions: %w", err)
 	}

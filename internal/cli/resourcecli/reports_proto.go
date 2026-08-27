@@ -2,9 +2,7 @@ package resourcecli
 
 import (
 	"encoding/json"
-	"io"
 
-	"google.golang.org/protobuf/proto"
 	structpb "google.golang.org/protobuf/types/known/structpb"
 
 	"github.com/vrooli/vrooli/internal/cliout"
@@ -15,9 +13,6 @@ import (
 )
 
 // writeResourceReportJSON marshals a cli/v1 message and writes a trailing newline.
-func writeResourceReportJSON(w io.Writer, msg proto.Message) error {
-	return cliout.WriteProtoJSON(w, msg)
-}
 
 // --- shared converters --------------------------------------------------------
 
@@ -48,7 +43,7 @@ func boolValue(b *bool) *structpb.Value {
 	if b == nil {
 		return nil
 	}
-	v, err := structpb.NewValue(*b)
+	v, err := cliout.NewJSONValue(*b)
 	if err != nil {
 		return nil
 	}
@@ -64,7 +59,7 @@ func rawValue(raw json.RawMessage) *structpb.Value {
 	if err := json.Unmarshal(raw, &decoded); err != nil {
 		return nil
 	}
-	v, err := structpb.NewValue(decoded)
+	v, err := cliout.NewJSONValue(decoded)
 	if err != nil {
 		return nil
 	}

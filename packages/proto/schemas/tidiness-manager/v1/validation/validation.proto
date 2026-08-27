@@ -38,6 +38,7 @@ message TidinessScanSummary {
   int32 duplication = 4;
   int32 tech_debt = 5;
   int32 coupling = 6;
+  int32 duplication_line_debt = 7;
 }
 
 message TidinessFinding {

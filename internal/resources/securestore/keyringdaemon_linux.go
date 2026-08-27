@@ -13,6 +13,10 @@ import (
 	"time"
 )
 
+const (
+	keyringdaemonLinuxParameterA = 19
+)
+
 var (
 	keyringDaemonStartTime = readKeyringDaemonStartTime
 	procClockTicks         = readProcClockTicks
@@ -48,7 +52,7 @@ func readKeyringDaemonStartTime() (time.Time, bool) {
 			continue
 		}
 		fields := strings.Fields(string(stat)[closeParen+1:])
-		if len(fields) <= 19 {
+		if len(fields) <= keyringdaemonLinuxParameterA {
 			continue
 		}
 		ticks, err := strconv.ParseInt(fields[19], 10, 64)

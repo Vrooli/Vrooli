@@ -1,8 +1,6 @@
 package scenariocli
 
 import (
-	"io"
-
 	"github.com/vrooli/vrooli/internal/lifecycle"
 	cliv1 "github.com/vrooli/vrooli/packages/proto/gen/go/cli/v1"
 )
@@ -36,17 +34,13 @@ func scenarioLifecycleItem(item LifecycleItemOutput) *cliv1.ScenarioLifecycleIte
 // -----------------------------------------------------------------------------
 
 // ScenarioLifecycleResponse maps the lifecycle items payload onto its wire
-// contract (cliout.WriteSuccessJSON under the "scenarios" key).
+// contract (cliout.WriteSuccessJSON under the repocontractmeta.ScenarioDir key).
 func ScenarioLifecycleResponse(items []LifecycleItemOutput) *cliv1.ScenarioLifecycleResponse {
 	resp := &cliv1.ScenarioLifecycleResponse{Success: true}
 	for _, item := range items {
 		resp.Scenarios = append(resp.Scenarios, scenarioLifecycleItem(item))
 	}
 	return resp
-}
-
-func writeScenarioLifecycleJSON(w io.Writer, items []LifecycleItemOutput) error {
-	return marshalScenarioStatus(w, ScenarioLifecycleResponse(items))
 }
 
 // -----------------------------------------------------------------------------
@@ -73,10 +67,6 @@ func ScenarioBatchResponse(resp BatchResponse) *cliv1.ScenarioBatchResponse {
 	return &cliv1.ScenarioBatchResponse{Success: true, Data: data}
 }
 
-func writeScenarioBatchJSON(w io.Writer, resp BatchResponse) error {
-	return marshalScenarioStatus(w, ScenarioBatchResponse(resp))
-}
-
 // -----------------------------------------------------------------------------
 // `scenario setup`
 // -----------------------------------------------------------------------------
@@ -94,8 +84,4 @@ func ScenarioSetupResponse(result lifecycle.PhaseResult) *cliv1.ScenarioSetupRes
 			Skipped:  int32(result.SkippedSteps),
 		},
 	}
-}
-
-func writeScenarioSetupJSON(w io.Writer, result lifecycle.PhaseResult) error {
-	return marshalScenarioStatus(w, ScenarioSetupResponse(result))
 }

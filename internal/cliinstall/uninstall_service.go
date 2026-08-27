@@ -10,6 +10,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vrooli/vrooli/internal/tuning"
+
 	"github.com/vrooli/vrooli/internal/artifactledger"
 
 	"github.com/vrooli/api-core/cleanupplan"
@@ -530,7 +532,7 @@ func WriteInstallRecord(home string, record InstallRecord) error {
 	if err != nil {
 		return fmt.Errorf("encode install record: %w", err)
 	}
-	return config.WriteOwnedFile(path, append(data, '\n'), 0o600)
+	return config.WriteOwnedFile(path, append(data, '\n'), tuning.PermSecret)
 }
 
 // RecordInstallEntries merges explicit artifacts into the durable record. It

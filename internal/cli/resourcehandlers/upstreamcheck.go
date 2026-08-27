@@ -3,7 +3,8 @@ package resourcehandlers
 import (
 	"context"
 	"strings"
-	"time"
+
+	"github.com/vrooli/vrooli/internal/tuning"
 
 	"github.com/vrooli/cli-core/upstreamcheck"
 	"github.com/vrooli/vrooli/internal/cli/resourcecli"
@@ -55,7 +56,7 @@ func runUpstreamCheck(req resourcecli.UpstreamCheckRequest) (upstreamcheck.Aggre
 	if len(entries) == 0 {
 		return upstreamcheck.AggregateReport{}, false
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), tuning.StandardOperationTimeout)
 	defer cancel()
 	return upstreamcheck.RunAggregate(ctx, upstreamcheck.DefaultAggregateRunner, entries), true
 }

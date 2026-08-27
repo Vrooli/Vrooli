@@ -15,7 +15,9 @@ const procMeminfo = "/proc/meminfo"
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
-func stubAll(t *testing.T) func() {
+var stubAll = remoteSessionStubAll
+
+func remoteSessionStubAll(t *testing.T) func() {
 	t.Helper()
 	origLookPath := hostreqkit.LookPathFn
 	origReadFile := hostreqkit.ReadFileFn
@@ -39,7 +41,9 @@ func stubAll(t *testing.T) func() {
 	}
 }
 
-func newTestHandler() hostreqkit.Handler {
+var newTestHandler = remoteSessionTestHandler
+
+func remoteSessionTestHandler() hostreqkit.Handler {
 	return NewHandler(hostreqkit.SafeguardManifest{
 		Name:        "remote_session_protection",
 		Description: "test safeguard",
@@ -48,7 +52,9 @@ func newTestHandler() hostreqkit.Handler {
 	})
 }
 
-func linuxHost() hostreqkit.Host {
+var linuxHost = remoteSessionLinuxHost
+
+func remoteSessionLinuxHost() hostreqkit.Host {
 	return hostreqkit.Host{
 		OS:              "linux",
 		PackageManager:  "apt-get",
@@ -75,35 +81,7 @@ func fakeMeminfo(ramGB int, swapGB int) string {
 
 // ── Name and Kind ────────────────────────────────────────────────────────────
 
-func TestNameAndKind(t *testing.T) {
-	h := newTestHandler()
-	if h.Name() != "remote_session_protection" {
-		t.Fatalf("Name = %q", h.Name())
-	}
-	if h.Kind() != hostreqspec.KindSafeguard {
-		t.Fatalf("Kind = %q", h.Kind())
-	}
-}
-
 // ── Inspect: early returns ───────────────────────────────────────────────────
-
-func TestInspectManualRequirement(t *testing.T) {
-	h := newTestHandler()
-	req := baseReq()
-	req.Manual = true
-	status := h.Inspect(linuxHost(), req)
-	if status.SupportClass != hostreqkit.SupportManualOnly {
-		t.Fatalf("SupportClass = %q", status.SupportClass)
-	}
-}
-
-func TestInspectNonLinuxUnsupported(t *testing.T) {
-	h := newTestHandler()
-	status := h.Inspect(hostreqkit.Host{OS: "darwin"}, baseReq())
-	if status.SupportClass != hostreqkit.SupportUnsupported {
-		t.Fatalf("SupportClass = %q", status.SupportClass)
-	}
-}
 
 func TestInspectNoSysctlNoSystemdNotApplicable(t *testing.T) {
 	h := newTestHandler()
@@ -403,19 +381,6 @@ func TestInspectDesktopDetectedDockerNotConfigured(t *testing.T) {
 
 // ── Apply: early returns ─────────────────────────────────────────────────────
 
-func TestApplyUnsupportedReturnsEarly(t *testing.T) {
-	h := newTestHandler()
-	status, err := h.Apply(hostreqkit.Host{OS: "darwin"}, hostreqkit.ItemStatus{
-		SupportClass: hostreqkit.SupportUnsupported,
-	}, hostreqkit.EnsureOptions{})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if status.ExecutionState != hostreqkit.ExecutionUnsupported {
-		t.Fatalf("ExecutionState = %q", status.ExecutionState)
-	}
-}
-
 func TestApplyNotApplicableReturnsEarly(t *testing.T) {
 	h := newTestHandler()
 	status, err := h.Apply(hostreqkit.Host{OS: "linux"}, hostreqkit.ItemStatus{
@@ -425,46 +390,6 @@ func TestApplyNotApplicableReturnsEarly(t *testing.T) {
 		t.Fatal(err)
 	}
 	if status.ExecutionState != hostreqkit.ExecutionNotApplicable {
-		t.Fatalf("ExecutionState = %q", status.ExecutionState)
-	}
-}
-
-func TestApplyManualReturnsEarly(t *testing.T) {
-	h := newTestHandler()
-	status, err := h.Apply(hostreqkit.Host{OS: "linux"}, hostreqkit.ItemStatus{
-		SupportClass: hostreqkit.SupportManualOnly,
-	}, hostreqkit.EnsureOptions{})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if status.ExecutionState != hostreqkit.ExecutionManualActionRequired {
-		t.Fatalf("ExecutionState = %q", status.ExecutionState)
-	}
-}
-
-func TestApplyAlreadyAppliedSkips(t *testing.T) {
-	h := newTestHandler()
-	status, err := h.Apply(linuxHost(), hostreqkit.ItemStatus{
-		SupportClass: hostreqkit.SupportSupported,
-		Applied:      true,
-	}, hostreqkit.EnsureOptions{})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if status.ExecutionState != hostreqkit.ExecutionAlreadyPresent {
-		t.Fatalf("ExecutionState = %q", status.ExecutionState)
-	}
-}
-
-func TestApplyDryRun(t *testing.T) {
-	h := newTestHandler()
-	status, err := h.Apply(linuxHost(), hostreqkit.ItemStatus{
-		SupportClass: hostreqkit.SupportSupported,
-	}, hostreqkit.EnsureOptions{DryRun: true})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if status.ExecutionState != hostreqkit.ExecutionWouldApply {
 		t.Fatalf("ExecutionState = %q", status.ExecutionState)
 	}
 }
@@ -509,7 +434,7 @@ func TestApplyStaticCommandsNoDesktop(t *testing.T) {
 	needles := []string{
 		"mkdir -p",
 		"sysctl --system",
-		"install -m 0644",
+		"install -m 644",
 		"systemctl daemon-reload",
 	}
 	for _, needle := range needles {

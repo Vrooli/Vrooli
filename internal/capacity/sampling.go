@@ -9,6 +9,10 @@ import (
 	"github.com/vrooli/vrooli/internal/hostinventory"
 )
 
+const (
+	samplingParameterA = 0.5
+)
+
 // DecayedPeak folds a new observed sample into a decaying high-water mark
 // (contract C2 — VRAM is non-compressible, so we size to the peak, not an
 // average). The prior peak decays geometrically — losing half its value every
@@ -18,7 +22,7 @@ import (
 func DecayedPeak(prevPeak, observed int64, prevAt, now time.Time, halflife time.Duration) int64 {
 	decayed := prevPeak
 	if halflife > 0 && !prevAt.IsZero() && now.After(prevAt) {
-		factor := math.Pow(0.5, float64(now.Sub(prevAt))/float64(halflife))
+		factor := math.Pow(samplingParameterA, float64(now.Sub(prevAt))/float64(halflife))
 		decayed = int64(float64(prevPeak) * factor)
 	}
 	if decayed < 0 {

@@ -21,6 +21,10 @@ import (
 	"time"
 )
 
+const (
+	s3CopyParameterA = 4096
+)
+
 // ObjectStoreCredentials are resolved by the caller from the credential
 // authority and live only for the duration of one upload.
 type ObjectStoreCredentials struct {
@@ -134,7 +138,7 @@ func verifyS3Object(client *http.Client, objectURL string, expected []byte, regi
 	}
 	defer response.Body.Close()
 	if response.StatusCode < 200 || response.StatusCode >= 300 {
-		detail, _ := io.ReadAll(io.LimitReader(response.Body, 4096))
+		detail, _ := io.ReadAll(io.LimitReader(response.Body, s3CopyParameterA))
 		return "", fmt.Errorf("object-store readback returned %s: %s", response.Status, strings.TrimSpace(string(detail)))
 	}
 	actual, err := io.ReadAll(response.Body)
@@ -243,7 +247,7 @@ func putS3Object(client *http.Client, objectURL string, data []byte, region stri
 	}
 	defer response.Body.Close()
 	if response.StatusCode < 200 || response.StatusCode >= 300 {
-		detail, _ := io.ReadAll(io.LimitReader(response.Body, 4096))
+		detail, _ := io.ReadAll(io.LimitReader(response.Body, s3CopyParameterA))
 		return fmt.Errorf("object-store upload returned %s: %s", response.Status, strings.TrimSpace(string(detail)))
 	}
 	return nil

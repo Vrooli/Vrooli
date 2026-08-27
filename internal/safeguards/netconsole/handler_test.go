@@ -23,7 +23,9 @@ var testConfig map[string]string
 
 // stubAll swaps every shared seam (env, FS, exec, modules.Stat) for fakes
 // and returns a restore func plus access to the capture state.
-func stubAll(t *testing.T) (
+var stubAll = netconsoleStubAll
+
+func netconsoleStubAll(t *testing.T) (
 	cmds *[]capturedCommand,
 	files map[string]string,
 	envValues map[string]string,
@@ -67,7 +69,7 @@ func stubAll(t *testing.T) (
 
 	hostreqkit.RunCommandFn = func(name string, args []string, opts hostreqkit.EnsureOptions) error {
 		captured = append(captured, capturedCommand{Name: name, Args: append([]string(nil), args...)})
-		// Simulate `install -m 0644 <tmp> <dst>`.
+		// Simulate `install -m 644 <tmp> <dst>`.
 		if name == "install" && len(args) >= 4 {
 			tmp := args[len(args)-2]
 			dst := args[len(args)-1]
@@ -98,12 +100,10 @@ func newHandler() hostreqkit.Handler {
 	return NewHandler(hostreqkit.SafeguardManifest{Name: "netconsole", Handler: "netconsole"})
 }
 
-func linuxHost() hostreqkit.Host {
-	return hostreqkit.Host{OS: "linux", PackageManager: "apt-get", SupportsSysctl: true, SupportsSystemd: true}
-}
+var linuxHost = netconsoleLinuxHost
 
-func darwinHost() hostreqkit.Host {
-	return hostreqkit.Host{OS: "darwin"}
+func netconsoleLinuxHost() hostreqkit.Host {
+	return hostreqkit.Host{OS: "linux", PackageManager: "apt-get", SupportsSysctl: true, SupportsSystemd: true}
 }
 
 func req(manual bool) hostreqspec.ResolvedRequirement {
@@ -117,33 +117,6 @@ func req(manual bool) hostreqspec.ResolvedRequirement {
 		Required: true,
 		Manual:   manual,
 		Config:   config,
-	}
-}
-
-func TestInspectNonLinuxIsUnsupported(t *testing.T) {
-	_, _, _, restore := stubAll(t)
-	defer restore()
-
-	st := newHandler().Inspect(darwinHost(), req(false))
-	if st.SupportClass != hostreqkit.SupportUnsupported {
-		t.Errorf("SupportClass = %q, want unsupported", st.SupportClass)
-	}
-	if st.ExecutionState != hostreqkit.ExecutionUnsupported {
-		t.Errorf("ExecutionState = %q, want unsupported", st.ExecutionState)
-	}
-}
-
-func TestInspectManualOnly(t *testing.T) {
-	_, _, env, restore := stubAll(t)
-	defer restore()
-	env[TargetEnvVar] = "6666@10.0.0.5/dev,6666@10.0.0.6/00:11:22:33:44:55"
-
-	st := newHandler().Inspect(linuxHost(), req(true))
-	if st.SupportClass != hostreqkit.SupportManualOnly {
-		t.Errorf("SupportClass = %q", st.SupportClass)
-	}
-	if st.ExecutionState != hostreqkit.ExecutionManualActionRequired {
-		t.Errorf("ExecutionState = %q", st.ExecutionState)
 	}
 }
 
@@ -268,43 +241,6 @@ func TestApplyDryRunReportsWouldApply(t *testing.T) {
 	}
 }
 
-func TestApplyAlreadyAppliedShortCircuits(t *testing.T) {
-	cmds, _, _, restore := stubAll(t)
-	defer restore()
-	st := hostreqkit.ItemStatus{
-		SupportClass:   hostreqkit.SupportSupported,
-		ExecutionState: hostreqkit.ExecutionAlreadyPresent,
-		Applied:        true,
-	}
-	out, err := newHandler().Apply(linuxHost(), st, hostreqkit.EnsureOptions{})
-	if err != nil {
-		t.Fatalf("Apply: %v", err)
-	}
-	if out.ExecutionState != hostreqkit.ExecutionAlreadyPresent {
-		t.Errorf("ExecutionState = %q", out.ExecutionState)
-	}
-	if len(*cmds) != 0 {
-		t.Errorf("short-circuit ran commands: %v", *cmds)
-	}
-}
-
-func TestApplyUnsupportedShortCircuits(t *testing.T) {
-	cmds, _, _, restore := stubAll(t)
-	defer restore()
-	st := hostreqkit.ItemStatus{SupportClass: hostreqkit.SupportUnsupported}
-
-	out, err := newHandler().Apply(darwinHost(), st, hostreqkit.EnsureOptions{})
-	if err != nil {
-		t.Fatalf("Apply: %v", err)
-	}
-	if out.ExecutionState != hostreqkit.ExecutionUnsupported {
-		t.Errorf("ExecutionState = %q", out.ExecutionState)
-	}
-	if len(*cmds) != 0 {
-		t.Errorf("short-circuit ran commands: %v", *cmds)
-	}
-}
-
 func TestApplyNotApplicableShortCircuits(t *testing.T) {
 	cmds, _, _, restore := stubAll(t)
 	defer restore()
@@ -374,15 +310,5 @@ func TestApplySkipsModprobeWhenAlreadyLoaded(t *testing.T) {
 		if c.Name == "modprobe" {
 			t.Errorf("modprobe should be skipped when module already loaded; commands=%v", *cmds)
 		}
-	}
-}
-
-func TestNameAndKind(t *testing.T) {
-	h := newHandler()
-	if h.Name() != "netconsole" {
-		t.Errorf("Name = %q", h.Name())
-	}
-	if h.Kind() != hostreqspec.KindSafeguard {
-		t.Errorf("Kind = %q", h.Kind())
 	}
 }

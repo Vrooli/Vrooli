@@ -10,6 +10,14 @@ import (
 )
 
 const (
+	agentSafetyStopAll = "stop-all"
+)
+
+const (
+	agentSafetyParameterA = 2
+)
+
+const (
 	CodeDestructiveVrooliMaintenanceBlocked = "destructive_vrooli_maintenance_blocked"
 	destructiveMaintenanceMessage           = "refusing host-wide Vrooli maintenance from an agent sandbox"
 )
@@ -123,7 +131,7 @@ func destructiveVrooliArgs(args []string) bool {
 	}
 	switch args[0] {
 	case "cleanup":
-		if len(args) < 2 {
+		if len(args) < agentSafetyParameterA {
 			return false
 		}
 		switch args[1] {
@@ -136,12 +144,12 @@ func destructiveVrooliArgs(args []string) bool {
 		return len(args) > 1 && args[1] == "kill" && !hasFlag(args[2:], "--dry-run")
 	case "locks":
 		return len(args) > 1 && args[1] == "clean"
-	case "stop", "stop-all":
+	case "stop", agentSafetyStopAll:
 		return true
 	case "scenario":
-		return len(args) > 1 && args[1] == "stop-all"
+		return len(args) > 1 && args[1] == agentSafetyStopAll
 	case "resource":
-		return len(args) > 1 && (args[1] == "stop-all" || args[1] == "stop")
+		return len(args) > 1 && (args[1] == agentSafetyStopAll || args[1] == "stop")
 	}
 	return false
 }

@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	repocontract "github.com/vrooli/repo-contract-go"
+	"github.com/vrooli/vrooli/internal/repocontractmeta"
 )
 
 type scenarioContractPaths interface {
@@ -21,13 +22,13 @@ var contractPaths scenarioContractPaths = repoContractPaths{}
 type repoContractPaths struct{}
 
 func (repoContractPaths) ScenarioBaseDir(root string) string {
-	fallback := filepath.Join(root, "scenarios")
+	fallback := filepath.Join(root, repocontractmeta.ScenarioDir)
 
 	contract, err := repocontract.LoadDefault(root)
 	if err != nil {
 		return fallback
 	}
-	path, err := contract.TopLevelDir(root, "scenarios")
+	path, err := contract.TopLevelDir(root, repocontractmeta.ScenarioDir)
 	if err != nil {
 		return fallback
 	}
@@ -38,7 +39,7 @@ func (repoContractPaths) ScenarioRootPath(root, name string) string {
 	if path, err := repocontract.ResolveScenarioPath(root, name); err == nil {
 		return filepath.Clean(path)
 	}
-	return filepath.Clean(filepath.Join(root, "scenarios", name))
+	return filepath.Clean(filepath.Join(root, repocontractmeta.ScenarioDir, name))
 }
 
 func (repoContractPaths) ScenarioServicePath(root, name, scenarioPath string) string {
@@ -51,7 +52,7 @@ func (repoContractPaths) ScenarioServicePath(root, name, scenarioPath string) st
 func (repoContractPaths) ScenarioDirName(root string) string {
 	contract, err := repocontract.LoadDefault(root)
 	if err != nil {
-		return "scenarios"
+		return repocontractmeta.ScenarioDir
 	}
 	return filepath.ToSlash(contract.Layout().ScenarioDir)
 }
@@ -59,7 +60,7 @@ func (repoContractPaths) ScenarioDirName(root string) string {
 func (repoContractPaths) ScenarioScopePrefix(root string) string {
 	contract, err := repocontract.LoadDefault(root)
 	if err != nil {
-		return "scenarios"
+		return repocontractmeta.ScenarioDir
 	}
 	prefix := filepath.ToSlash(contract.SandboxScenarioScopePrefix())
 	prefix = strings.TrimSuffix(prefix, "/")

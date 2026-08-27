@@ -8,6 +8,7 @@ import (
 
 	repocontract "github.com/vrooli/repo-contract-go"
 	"github.com/vrooli/vrooli/internal/hostreqkit"
+	"github.com/vrooli/vrooli/internal/repocontractmeta"
 )
 
 const (
@@ -108,7 +109,7 @@ func VrooliScopedPath(key string, params map[string]string) (string, error) {
 }
 
 func RepoConfigDir(root string) string {
-	return filepath.Join(root, ".vrooli")
+	return filepath.Join(root, repocontractmeta.ProjectConfigDir)
 }
 
 func TemplateBaseDir(root string) string {
@@ -118,7 +119,7 @@ func TemplateBaseDir(root string) string {
 		}
 		return filepath.Clean(filepath.Join(root, filepath.FromSlash(override)))
 	}
-	return filepath.Join(root, "templates", "scenarios")
+	return filepath.Join(root, "templates", repocontractmeta.ScenarioDir)
 }
 
 func DesignBaseDir(root string) string {

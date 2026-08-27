@@ -19,6 +19,14 @@ import (
 )
 
 const (
+	resolverLocalhost = "localhost"
+)
+
+const (
+	resolverParameterA = 2
+)
+
+const (
 	testPortRegistryPath = ".vrooli/test-port-registry.json"
 )
 
@@ -326,6 +334,7 @@ func resolveRequestedEnvValues(
 	return values, warnings, nil
 }
 
+//nolint:gocyclo // resource manifest validation aggregates independent environment and dependency rules.
 func ValidateResourceManifest(root string, resourceManifest manifestpkg.ResourceManifest) []string {
 	issues := []string{}
 	portNames := map[string]struct{}{}
@@ -389,7 +398,7 @@ func ValidateResourceManifest(root string, resourceManifest manifestpkg.Resource
 		}
 		matches := templatePattern.FindAllStringSubmatch(derived.Template, -1)
 		for _, match := range matches {
-			if len(match) < 2 {
+			if len(match) < resolverParameterA {
 				continue
 			}
 			if _, exists := baseValues[match[1]]; !exists &&
@@ -609,7 +618,7 @@ func applyFallbackDefaults(resourceName string, values map[string]string, hostPo
 	switch resourceName {
 	case "postgres":
 		if strings.TrimSpace(values["POSTGRES_HOST"]) == "" {
-			values["POSTGRES_HOST"] = "localhost"
+			values["POSTGRES_HOST"] = resolverLocalhost
 		}
 		if strings.TrimSpace(values["POSTGRES_SSLMODE"]) == "" {
 			values["POSTGRES_SSLMODE"] = "disable"
@@ -621,15 +630,15 @@ func applyFallbackDefaults(resourceName string, values map[string]string, hostPo
 		}
 	case "redis":
 		if strings.TrimSpace(values["REDIS_HOST"]) == "" {
-			values["REDIS_HOST"] = "localhost"
+			values["REDIS_HOST"] = resolverLocalhost
 		}
 	case "qdrant":
 		if strings.TrimSpace(values["QDRANT_HOST"]) == "" {
-			values["QDRANT_HOST"] = "localhost"
+			values["QDRANT_HOST"] = resolverLocalhost
 		}
 	case "ollama":
 		if strings.TrimSpace(values["OLLAMA_HOST"]) == "" {
-			values["OLLAMA_HOST"] = "localhost"
+			values["OLLAMA_HOST"] = resolverLocalhost
 		}
 	}
 }

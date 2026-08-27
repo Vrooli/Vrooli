@@ -30,6 +30,10 @@ import (
 )
 
 const (
+	setupNone = "none"
+)
+
+const (
 	defaultEnvironment = "development"
 	defaultAPIPort     = 8092
 	onboardingSlug     = "vrooli-onboarding"
@@ -206,10 +210,12 @@ func newSetupService(deps setupDeps) *setupService {
 	return &setupService{deps: deps}
 }
 
+//nolint:gocyclo // setup orchestrates independent resource, capability, and phase outcomes.
 func RunSetupWithOptions(root, home string, opts Options, stdout, stderr io.Writer) error {
 	return newSetupService(defaultSetupDeps(root)).RunSetupWithOptions(root, home, opts, stdout, stderr)
 }
 
+//nolint:gocyclo // setup orchestrates independent resource, capability, and phase outcomes.
 func (s *setupService) RunSetupWithOptions(root, home string, opts Options, stdout, stderr io.Writer) (err error) {
 	var terminalReport vrooliruntime.Report
 	var terminalReportErr error
@@ -388,7 +394,7 @@ func (s *setupService) RunSetupWithOptions(root, home string, opts Options, stdo
 	}
 	progress.CompletePhase()
 	progress.StartPhase(PhaseCLI)
-	if strings.TrimSpace(opts.Resources) == "none" {
+	if strings.TrimSpace(opts.Resources) == setupNone {
 		progress.Operation("Skipping resource CLI synchronization")
 		_, _ = fmt.Fprintln(stdout, "[INFO]    Skipping resource CLI schema synchronization (resources=none)")
 	} else {
@@ -549,7 +555,7 @@ func installSelectedCLIs(manager cliInstallManager, resourceSelector, scenarioSe
 	}
 	resources := strings.TrimSpace(resourceSelector)
 	switch resources {
-	case "none":
+	case setupNone:
 	case "", "enabled":
 		operation("Refreshing enabled resource CLIs")
 		if err := manager.InstallEnabledResourceCLIs(); err != nil {
@@ -566,7 +572,7 @@ func installSelectedCLIs(manager cliInstallManager, resourceSelector, scenarioSe
 
 	scenarios := strings.TrimSpace(scenarioSelector)
 	switch scenarios {
-	case "", "none":
+	case "", setupNone:
 	case "all":
 		operation("Refreshing all scenario CLIs")
 		if err := manager.InstallAllScenarioCLIs(); err != nil {

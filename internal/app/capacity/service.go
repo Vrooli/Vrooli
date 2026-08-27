@@ -14,6 +14,7 @@ import (
 	"time"
 
 	engine "github.com/vrooli/vrooli/internal/capacity"
+	"github.com/vrooli/vrooli/internal/repocontractmeta"
 )
 
 // Store is the ledger surface the service needs (the engine's two repositories
@@ -720,7 +721,7 @@ func (s Service) resourceInstalled(resource string) bool {
 	// compose or docker resource keeps its declared data directory. Either is
 	// evidence the resource exists here.
 	for _, candidate := range []string{
-		filepath.Join(home, ".vrooli", "artifacts", resource),
+		filepath.Join(home, repocontractmeta.ProjectConfigDir, "artifacts", resource),
 		filepath.Join(root, "resources", resource, "data"),
 	} {
 		if info, err := os.Stat(candidate); err == nil && info.IsDir() {

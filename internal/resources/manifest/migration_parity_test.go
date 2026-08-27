@@ -140,13 +140,21 @@ func TestMigrationParityAgainstTheNormalisedLegacyForm(t *testing.T) {
 			if cuda.MinCompute != wantCompute {
 				t.Fatalf("%s cuda.min_compute = %q, legacy requirements.gpu said %q", name, cuda.MinCompute, wantCompute)
 			}
-			// gpu.compose_overlay -> acceleration.cuda.compose_overlay
+			// Native managed services resolve GPU-specific acquisition targets
+			// directly. A legacy Docker overlay is therefore intentionally not
+			// carried into the authored acceleration block.
 			// gpu.env_overrides   -> acceleration.cuda.env
 			wantOverlay := ""
 			wantEnv := map[string]string{}
 			if surfaces.GPU != nil {
-				wantOverlay = surfaces.GPU.ComposeOverlay
 				wantEnv = surfaces.GPU.EnvOverrides
+			}
+			for key := range wantEnv {
+				// Image selectors belonged to the retired container deployment;
+				// native acquisition selects a checksum-pinned target instead.
+				if strings.HasSuffix(key, "_IMAGE") {
+					delete(wantEnv, key)
+				}
 			}
 			if cuda.ComposeOverlay != wantOverlay {
 				t.Fatalf("%s cuda.compose_overlay = %q, legacy gpu block said %q", name, cuda.ComposeOverlay, wantOverlay)

@@ -12,8 +12,12 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vrooli/vrooli/internal/repocontractmeta"
+	"github.com/vrooli/vrooli/internal/tuning"
+
 	platform "github.com/vrooli/platform-go"
 	"github.com/vrooli/vrooli/internal/config"
+	"github.com/vrooli/vrooli/internal/scenarioruntime"
 	"github.com/vrooli/vrooli/internal/shell"
 )
 
@@ -40,11 +44,11 @@ const (
 
 var (
 	// Fingerprint is populated at build time via -ldflags.
-	Fingerprint = "unknown"
+	Fingerprint = scenarioruntime.HealthStatusUnknown
 	// GitCommit is populated at build time via -ldflags.
-	GitCommit = "unknown"
+	GitCommit = scenarioruntime.HealthStatusUnknown
 	// BuildTime is populated at build time via -ldflags.
-	BuildTime = "unknown"
+	BuildTime = scenarioruntime.HealthStatusUnknown
 )
 
 var (
@@ -73,22 +77,22 @@ var (
 	openFileFn = func(name string, flag int, perm os.FileMode) (*os.File, error) {
 		return os.OpenFile(name, flag, perm)
 	}
-	// renameFn moves the freshly built binary into place; injectable so tests
-	// can assert the temp-file/atomic-rename invariant directly.
-	renameFn = os.Rename
+	// renameFn commits a prepared file through the canonical owned-write seam;
+	// it remains injectable so tests can assert the atomic-install invariant.
+	renameFn = replaceManagedFile
 	// debugWriter is the destination for VROOLI_FINGERPRINT_DEBUG dumps. Tests
 	// override it; production code leaves it pointing at os.Stderr.
 	debugWriter io.Writer = os.Stderr
 )
 
 var skippedDirs = map[string]struct{}{
-	".git":         {},
-	".vrooli":      {},
-	"build":        {},
-	"coverage":     {},
-	"dist":         {},
-	"node_modules": {},
-	"tmp":          {},
+	".git":                            {},
+	repocontractmeta.ProjectConfigDir: {},
+	"build":                           {},
+	"coverage":                        {},
+	"dist":                            {},
+	"node_modules":                    {},
+	"tmp":                             {},
 }
 
 // FingerprintOptions controls how source fingerprint requests validate their
@@ -468,7 +472,7 @@ func CheckStaleness() (StaleCheck, error) {
 	}
 
 	status.Stale = status.EmbeddedFingerprint == "" ||
-		status.EmbeddedFingerprint == "unknown" ||
+		status.EmbeddedFingerprint == scenarioruntime.HealthStatusUnknown ||
 		status.CurrentFingerprint != status.EmbeddedFingerprint
 	return status, nil
 }
@@ -505,13 +509,14 @@ func SidecarMatches(executable, currentFingerprint string) bool {
 	return strings.TrimSpace(string(contents)) == currentFingerprint
 }
 
-// WriteSidecarFingerprint writes <executable>.fp atomically via temp-file +
-// os.Rename. Its mtime is clamped to at least the binary mtime so copied or
+// WriteSidecarFingerprint writes <executable>.fp atomically via a temp file and
+// replacement. Its mtime is clamped to at least the binary mtime so copied or
 // reproducibly timestamped binaries remain fresh even under clock skew.
 func WriteSidecarFingerprint(executable, fingerprint string) error {
 	sidecar := executable + ".fp"
 	tmp := fmt.Sprintf("%s.tmp.%d", sidecar, os.Getpid())
-	if err := os.WriteFile(tmp, []byte(fingerprint+"\n"), 0o644); err != nil {
+	defer os.Remove(tmp)
+	if err := os.WriteFile(tmp, []byte(fingerprint+"\n"), tuning.PermFile); err != nil {
 		return err
 	}
 	if err := renameFn(tmp, sidecar); err != nil {
@@ -528,12 +533,24 @@ func WriteSidecarFingerprint(executable, fingerprint string) error {
 	return nil
 }
 
+func replaceManagedFile(source, destination string) error {
+	info, err := os.Stat(source)
+	if err != nil {
+		return err
+	}
+	data, err := os.ReadFile(source)
+	if err != nil {
+		return err
+	}
+	return config.WriteOwnedFileAtomic(destination, data, info.Mode().Perm())
+}
+
 // RebuildAndReexec rebuilds the current binary from source and re-execs it.
 //
 // Concurrency: a host-wide flock at <executable>.lock serializes concurrent
 // rebuilders so two sibling processes (e.g. autoheal subprocesses, or any two
 // `vrooli` invocations on a stale tree) cannot race on `go build -o
-// <executable>`. The install is atomic via temp-file + os.Rename, so an
+// <executable>`. The install is atomic via a temp file and replacement, so an
 // in-flight exec on the executable always sees a complete binary.
 func RebuildAndReexec(argv []string) error {
 	root, err := ResolveSourceRoot()
@@ -576,13 +593,13 @@ func RebuildAndReexec(argv []string) error {
 	}
 
 	gitCommit := strings.TrimSpace(GitCommit)
-	if gitCommit == "" || gitCommit == "unknown" {
+	if gitCommit == "" || gitCommit == scenarioruntime.HealthStatusUnknown {
 		if output, cmdErr := commandOutputFn(root, "git", "rev-parse", "HEAD"); cmdErr == nil {
 			gitCommit = strings.TrimSpace(string(output))
 		}
 	}
 	if gitCommit == "" {
-		gitCommit = "unknown"
+		gitCommit = scenarioruntime.HealthStatusUnknown
 	}
 
 	buildTime := nowFunc().Format(time.RFC3339)
@@ -599,6 +616,7 @@ func RebuildAndReexec(argv []string) error {
 		_ = os.Remove(tempPath)
 		return fmt.Errorf("rebuild %s: %w", buildTarget, err)
 	}
+	defer os.Remove(tempPath)
 	_ = PreserveRootBinaryFallback(executable)
 	if err := renameFn(tempPath, executable); err != nil {
 		_ = os.Remove(tempPath)

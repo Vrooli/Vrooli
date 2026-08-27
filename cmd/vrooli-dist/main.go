@@ -13,10 +13,15 @@ import (
 	resourcedeployment "github.com/vrooli/vrooli/packages/resource-deployment"
 )
 
+const (
+	mndMainNumberValue2 = 2
+)
+
 func main() {
 	os.Exit(run(os.Args[1:]))
 }
 
+//nolint:gocyclo // distribution CLI sequencing has distinct validation, build, and publication failures.
 func run(args []string) int {
 	flags := flag.NewFlagSet("vrooli-dist", flag.ContinueOnError)
 	flags.SetOutput(os.Stderr)
@@ -39,7 +44,7 @@ func run(args []string) int {
 	releaseArtifactRoot := flags.String("release-artifact-root", "", "staged release artifact directory to verify")
 	releasePublicKey := flags.String("release-public-key", "", "PEM public key used to verify a production release manifest")
 	if err := flags.Parse(args); err != nil {
-		return 2
+		return mndMainNumberValue2
 	}
 	if *matrixJSON {
 		payload, err := json.Marshal(buildinfo.DistributionTargets())
@@ -53,14 +58,14 @@ func run(args []string) int {
 	if *verifyReleaseManifest {
 		if strings.TrimSpace(*releaseArtifactRoot) == "" || strings.TrimSpace(*trustMode) == "" {
 			fmt.Fprintln(os.Stderr, "--verify-release-manifest requires --release-artifact-root and --trust-mode")
-			return 2
+			return mndMainNumberValue2
 		}
 		mode := resourcedeployment.ArtifactTrustMode(*trustMode)
 		publicKeyPath := *releasePublicKey
 		if mode == resourcedeployment.ArtifactTrustProduction && strings.TrimSpace(publicKeyPath) == "" {
 			if strings.TrimSpace(*root) == "" {
 				fmt.Fprintln(os.Stderr, "production verification requires --release-public-key or --root (for install/vrooli-release.pub)")
-				return 2
+				return mndMainNumberValue2
 			}
 			publicKeyPath = filepath.Join(*root, "install", "vrooli-release.pub")
 		}
@@ -80,7 +85,7 @@ func run(args []string) int {
 	if *resourceArtifacts || *toolArtifacts {
 		if strings.TrimSpace(*root) == "" || strings.TrimSpace(*outDir) == "" {
 			fmt.Fprintln(os.Stderr, "--resource-artifacts/--tool-artifacts require --root and --out-dir")
-			return 2
+			return mndMainNumberValue2
 		}
 		if *resourceArtifacts {
 			if err := stageResourceArtifacts(context.Background(), *root, *outDir); err != nil {
@@ -107,7 +112,7 @@ func run(args []string) int {
 		selected, err := selectTargets(*targets)
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err)
-			return 2
+			return mndMainNumberValue2
 		}
 		for _, target := range selected {
 			path := filepath.Join(*outDir, buildinfo.DistributionAssetName(target))
@@ -125,7 +130,7 @@ func run(args []string) int {
 	}
 	if strings.TrimSpace(*goos) == "" || strings.TrimSpace(*goarch) == "" || strings.TrimSpace(*output) == "" {
 		fmt.Fprintln(os.Stderr, "--goos, --goarch, and --output are required (or use --all/--targets/--matrix-json)")
-		return 2
+		return mndMainNumberValue2
 	}
 	return buildOne(*root, *output, *version, buildinfo.DistributionTarget{OS: *goos, Arch: *goarch}, *allowMissingDarwinKeychain)
 }

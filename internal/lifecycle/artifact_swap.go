@@ -5,6 +5,8 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/vrooli/vrooli/internal/tuning"
+
 	platform "github.com/vrooli/platform-go"
 )
 
@@ -21,7 +23,7 @@ func stageArtifact(target string, directory bool) (stageRoot, staged string, cle
 }
 
 func swapArtifact(staged, target string) error {
-	if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(target), tuning.PermDir); err != nil {
 		return err
 	}
 	if err := platform.AtomicReplace(staged, target); err != nil {

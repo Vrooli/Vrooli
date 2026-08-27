@@ -7,7 +7,8 @@ import (
 	"io"
 	"net/http"
 	"strings"
-	"time"
+
+	"github.com/vrooli/vrooli/internal/tuning"
 
 	"google.golang.org/protobuf/encoding/protojson"
 
@@ -15,6 +16,13 @@ import (
 	plansapp "github.com/vrooli/vrooli/internal/app/plans"
 	plansv1 "github.com/vrooli/vrooli/packages/proto/gen/go/plan-manager/v1/plans"
 	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/plan-manager/v1/shared"
+)
+
+const (
+	planmanagerReconcilerConflict       = "conflict"
+	planmanagerReconcilerImported       = "imported"
+	planmanagerReconcilerMirrorRepaired = "mirror_repaired"
+	planmanagerReconcilerParseFailed    = "parse_failed"
 )
 
 const planManagerScenario = "plan-manager"
@@ -30,7 +38,7 @@ func NewDefaultPlanReconciler(ctx context.Context) (PlanReconciler, error) {
 		return nil, fmt.Errorf("%w: discover %s: %v", plansapp.ErrPlanManagerUnavailable, planManagerScenario, err)
 	}
 	return planManagerReconciler{
-		client:  &http.Client{Timeout: 10 * time.Second},
+		client:  &http.Client{Timeout: tuning.ControlPlaneClientTimeout},
 		baseURL: strings.TrimRight(url, "/"),
 	}, nil
 }
@@ -120,17 +128,17 @@ func reconcileActionString(action plansv1.ReconcileAction) string {
 	case plansv1.ReconcileAction_RECONCILE_ACTION_MIRROR_REPAIR_NEEDED:
 		return "mirror_repair_needed"
 	case plansv1.ReconcileAction_RECONCILE_ACTION_MIRROR_REPAIRED:
-		return "mirror_repaired"
+		return planmanagerReconcilerMirrorRepaired
 	case plansv1.ReconcileAction_RECONCILE_ACTION_IMPORT_PLANNED:
 		return "import_planned"
 	case plansv1.ReconcileAction_RECONCILE_ACTION_IMPORTED:
-		return "imported"
+		return planmanagerReconcilerImported
 	case plansv1.ReconcileAction_RECONCILE_ACTION_SKIPPED_DUPLICATE:
 		return "skipped_duplicate"
 	case plansv1.ReconcileAction_RECONCILE_ACTION_PARSE_FAILED:
-		return "parse_failed"
+		return planmanagerReconcilerParseFailed
 	case plansv1.ReconcileAction_RECONCILE_ACTION_CONFLICT:
-		return "conflict"
+		return planmanagerReconcilerConflict
 	default:
 		return ""
 	}

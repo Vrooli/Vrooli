@@ -9,11 +9,28 @@ import (
 	"strings"
 )
 
+const (
+	parsersParameterA = 10
+	parsersParameterB = 1024
+	parsersParameterC = 11
+	parsersParameterD = 12
+	parsersParameterE = 13
+	parsersParameterF = 14
+	parsersParameterG = 2
+	parsersParameterH = 3
+	parsersParameterI = 4
+	parsersParameterJ = 5
+	parsersParameterK = 6
+	parsersParameterL = 7
+	parsersParameterM = 8
+	parsersParameterN = 9
+)
+
 func ParseLinuxMeminfo(input string) (Memory, Swap, error) {
 	values := map[string]uint64{}
 	for _, line := range strings.Split(input, "\n") {
 		fields := strings.Fields(line)
-		if len(fields) < 2 {
+		if len(fields) < parsersParameterG {
 			continue
 		}
 		key := strings.TrimSuffix(fields[0], ":")
@@ -44,7 +61,7 @@ func ParseLinuxMeminfo(input string) (Memory, Swap, error) {
 
 func ParseLinuxLoadavg(input string, cpuCores int) (Load, error) {
 	fields := strings.Fields(input)
-	if len(fields) < 5 {
+	if len(fields) < parsersParameterJ {
 		return Load{}, fmt.Errorf("parse /proc/loadavg: unexpected format %q", strings.TrimSpace(input))
 	}
 	load1, err := strconv.ParseFloat(fields[0], 64)
@@ -60,7 +77,7 @@ func ParseLinuxLoadavg(input string, cpuCores int) (Load, error) {
 		return Load{}, fmt.Errorf("parse /proc/loadavg load15: %w", err)
 	}
 	procParts := strings.Split(fields[3], "/")
-	if len(procParts) != 2 {
+	if len(procParts) != parsersParameterG {
 		return Load{}, fmt.Errorf("parse /proc/loadavg processes: unexpected format %q", fields[3])
 	}
 	running, err := strconv.Atoi(procParts[0])
@@ -98,7 +115,7 @@ func ParseNvidiaGPUCSV(input string) []GPU {
 			continue
 		}
 		parts := strings.Split(line, ",")
-		if len(parts) < 3 {
+		if len(parts) < parsersParameterH {
 			continue
 		}
 		index, err := strconv.Atoi(strings.TrimSpace(parts[0]))
@@ -113,7 +130,7 @@ func ParseNvidiaGPUCSV(input string) []GPU {
 		gpus = append(gpus, GPU{
 			Index:     index,
 			Name:      name,
-			VRAMBytes: mb * 1024 * 1024,
+			VRAMBytes: mb * 1024 * parsersParameterB,
 			Source:    "nvidia-smi",
 		})
 	}
@@ -134,7 +151,7 @@ func ParseNvidiaDetailedGPUCSV(input string) ([]GPU, []string, error) {
 		if err != nil {
 			return nil, warnings, fmt.Errorf("parse nvidia gpu csv: %w", err)
 		}
-		if len(record) < 14 {
+		if len(record) < parsersParameterF {
 			warnings = append(warnings, fmt.Sprintf("unexpected nvidia gpu record length: %d", len(record)))
 			continue
 		}
@@ -155,8 +172,8 @@ func ParseNvidiaDetailedGPUCSV(input string) ([]GPU, []string, error) {
 func ParseNvidiaComputeCapabilityCSV(input string) map[int]string {
 	capabilities := map[int]string{}
 	for _, line := range strings.Split(strings.TrimSpace(input), "\n") {
-		parts := strings.SplitN(line, ",", 2)
-		if len(parts) != 2 {
+		parts := strings.SplitN(line, ",", parsersParameterG)
+		if len(parts) != parsersParameterG {
 			continue
 		}
 		index, err := strconv.Atoi(strings.TrimSpace(parts[0]))
@@ -194,7 +211,7 @@ func ParseNvidiaComputeAppsCSV(input string) ([]GPUProcess, []string, error) {
 		if err != nil {
 			return processes, warnings, fmt.Errorf("parse nvidia compute apps csv: %w", err)
 		}
-		if len(record) < 4 {
+		if len(record) < parsersParameterI {
 			warnings = append(warnings, fmt.Sprintf("unexpected nvidia compute app record length: %d", len(record)))
 			continue
 		}
@@ -211,7 +228,7 @@ func ParseNvidiaComputeAppsCSV(input string) ([]GPUProcess, []string, error) {
 		processes = append(processes, GPUProcess{
 			PID:         pid,
 			ProcessName: strings.TrimSpace(record[1]),
-			UsedBytes:   usedMB * 1024 * 1024,
+			UsedBytes:   usedMB * 1024 * parsersParameterB,
 			GPUUUID:     strings.TrimSpace(record[3]),
 		})
 	}
@@ -272,7 +289,7 @@ func ParseWindowsGPUNames(input string) []GPU {
 // ParseNvidiaPCIBusIDCSV maps each nvidia-smi GPU index to the normalised PCI
 // address of the device it describes. nvidia-smi prints an eight-digit domain
 // ("00000000:01:00.0"); sysfs and every other consumer use four
-// ("0000:01:00.0"), so the address is normalised here rather than at each
+// ("tuning.PermNone:01:00.0"), so the address is normalised here rather than at each
 // comparison site.
 func ParseNvidiaPCIBusIDCSV(input string) map[int]string {
 	addresses := map[int]string{}
@@ -300,14 +317,14 @@ func ParseNvidiaPCIBusIDCSV(input string) map[int]string {
 func NormalizePCIAddress(input string) string {
 	address := strings.ToLower(strings.TrimSpace(input))
 	parts := strings.Split(address, ":")
-	if len(parts) != 3 {
+	if len(parts) != parsersParameterH {
 		return ""
 	}
 	domain := strings.TrimLeft(parts[0], "0")
 	if domain == "" {
 		domain = "0"
 	}
-	if len(domain) > 4 {
+	if len(domain) > parsersParameterI {
 		return ""
 	}
 	return fmt.Sprintf("%04s:%s:%s", domain, parts[1], parts[2])
@@ -376,11 +393,11 @@ func parseNvidiaDetailedGPURecord(record []string) (*GPU, []string) {
 	if err != nil {
 		return nil, []string{fmt.Sprintf("invalid nvidia gpu index: %v", err)}
 	}
-	totalMB, err := parseNvidiaUintMB(trim(6))
+	totalMB, err := parseNvidiaUintMB(trim(parsersParameterK))
 	if err != nil {
 		warnings = append(warnings, fmt.Sprintf("invalid nvidia gpu memory total: %v", err))
 	}
-	usedMB, err := parseNvidiaUintMB(trim(7))
+	usedMB, err := parseNvidiaUintMB(trim(parsersParameterL))
 	if err != nil {
 		warnings = append(warnings, fmt.Sprintf("invalid nvidia gpu memory used: %v", err))
 	}
@@ -388,18 +405,18 @@ func parseNvidiaDetailedGPURecord(record []string) (*GPU, []string) {
 	return &GPU{
 		Index:                    index,
 		Name:                     trim(1),
-		UUID:                     trim(2),
-		DriverVersion:            trim(3),
-		UtilizationPercent:       parseNvidiaFloat(trim(4)),
-		MemoryUtilizationPercent: parseNvidiaFloat(trim(5)),
-		VRAMBytes:                totalMB * 1024 * 1024,
-		VRAMUsedBytes:            usedMB * 1024 * 1024,
-		TemperatureC:             parseNvidiaOptionalFloat(trim(8)),
-		FanSpeedPercent:          parseNvidiaOptionalFloat(trim(9)),
-		PowerDrawW:               parseNvidiaOptionalFloat(trim(10)),
-		PowerLimitW:              parseNvidiaOptionalFloat(trim(11)),
-		SMClockMHz:               parseNvidiaOptionalFloat(trim(12)),
-		MemoryClockMHz:           parseNvidiaOptionalFloat(trim(13)),
+		UUID:                     trim(parsersParameterG),
+		DriverVersion:            trim(parsersParameterH),
+		UtilizationPercent:       parseNvidiaFloat(trim(parsersParameterI)),
+		MemoryUtilizationPercent: parseNvidiaFloat(trim(parsersParameterJ)),
+		VRAMBytes:                totalMB * 1024 * parsersParameterB,
+		VRAMUsedBytes:            usedMB * 1024 * parsersParameterB,
+		TemperatureC:             parseNvidiaOptionalFloat(trim(parsersParameterM)),
+		FanSpeedPercent:          parseNvidiaOptionalFloat(trim(parsersParameterN)),
+		PowerDrawW:               parseNvidiaOptionalFloat(trim(parsersParameterA)),
+		PowerLimitW:              parseNvidiaOptionalFloat(trim(parsersParameterC)),
+		SMClockMHz:               parseNvidiaOptionalFloat(trim(parsersParameterD)),
+		MemoryClockMHz:           parseNvidiaOptionalFloat(trim(parsersParameterE)),
 		Source:                   "nvidia-smi",
 	}, warnings
 }

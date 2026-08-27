@@ -2,16 +2,16 @@ package hostpresentation
 
 import (
 	"context"
-	"errors"
 	"reflect"
 	"strings"
 	"testing"
+
+	"github.com/vrooli/vrooli/internal/shell/shelltest"
 )
 
 type fakeProbe struct {
-	env   map[string]string
-	run   map[string]fakeResult
-	calls []string
+	env map[string]string
+	*shelltest.Fake
 }
 
 type fakeResult struct {
@@ -21,22 +21,12 @@ type fakeResult struct {
 
 func (p *fakeProbe) Env(name string) string { return p.env[name] }
 
-func (p *fakeProbe) LookPath(string) (string, error) { return "/fake/tool", nil }
-
-func (p *fakeProbe) Run(ctx context.Context, name string, args ...string) ([]byte, error) {
-	key := strings.TrimSpace(name + " " + strings.Join(args, " "))
-	p.calls = append(p.calls, key)
-	if result, ok := p.run[key]; ok {
-		if result.err != nil {
-			return nil, result.err
-		}
-		return []byte(result.output), nil
-	}
-	return []byte("false"), nil
-}
-
 func probe(env map[string]string, run map[string]fakeResult) *fakeProbe {
-	return &fakeProbe{env: env, run: run}
+	results := make(map[string]shelltest.Result, len(run))
+	for key, result := range run {
+		results[key] = shelltest.Result{Output: []byte(result.output), Err: result.err}
+	}
+	return &fakeProbe{env: env, Fake: &shelltest.Fake{Results: results, LookPathFunc: func(string) (string, error) { return "/fake/tool", nil }}}
 }
 
 func TestDetectUniversalOverrides(t *testing.T) {
@@ -153,7 +143,7 @@ func TestDetectTimeoutIsDegradedAndUnreachable(t *testing.T) {
 func TestDetectUsesOnlyDeclaredProbeOperations(t *testing.T) {
 	p := probe(nil, map[string]fakeResult{"file-exists /.dockerenv": {output: "false"}, "file-read /proc/version": {output: "Linux"}})
 	_ = detectWithOS(context.Background(), p, "linux")
-	for _, call := range p.calls {
+	for _, call := range p.Calls() {
 		if !strings.HasPrefix(call, "file-exists ") && !strings.HasPrefix(call, "file-read ") && !strings.HasPrefix(call, "loginctl ") {
 			t.Fatalf("unexpected probe call %q", call)
 		}
@@ -161,21 +151,19 @@ func TestDetectUsesOnlyDeclaredProbeOperations(t *testing.T) {
 }
 
 func TestProbeBudgetPropagatesCancellation(t *testing.T) {
-	p := &blockingProbe{}
+	p := &blockingProbe{Fake: &shelltest.Fake{RunFunc: func(ctx context.Context, _ string, _ ...string) ([]byte, error) {
+		<-ctx.Done()
+		return nil, ctx.Err()
+	}}}
 	got := detectWithOS(context.Background(), p, "darwin")
 	if !got.Degraded || got.Reachable {
 		t.Fatalf("capability = %#v, want degraded/unreachable", got)
 	}
 }
 
-type blockingProbe struct{}
+type blockingProbe struct{ *shelltest.Fake }
 
-func (*blockingProbe) Env(string) string               { return "" }
-func (*blockingProbe) LookPath(string) (string, error) { return "", errors.New("not used") }
-func (*blockingProbe) Run(ctx context.Context, _ string, _ ...string) ([]byte, error) {
-	<-ctx.Done()
-	return nil, ctx.Err()
-}
+func (*blockingProbe) Env(string) string { return "" }
 
 func merge(left, right map[string]fakeResult) map[string]fakeResult {
 	result := map[string]fakeResult{}

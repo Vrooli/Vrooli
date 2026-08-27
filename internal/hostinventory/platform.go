@@ -8,6 +8,9 @@ import (
 	"runtime"
 	"strings"
 	"time"
+
+	"github.com/vrooli/vrooli/internal/hostreqspec"
+	"github.com/vrooli/vrooli/internal/scenarioruntime"
 )
 
 // CurrentPlatform returns the process host platform without running any
@@ -42,11 +45,11 @@ func (c Collector) collectPlatformFacts(ctx context.Context, snapshot *Snapshot,
 		snapshot.FieldProvenance[field] = Provenance{SourceKind: kind, Source: source, ObservedAt: observedAt, Confidence: "high", Command: command, File: file}
 	}
 
-	switch snapshot.OS {
-	case "linux":
+	switch hostreqspec.PlatformFromGOOS(snapshot.OS) {
+	case hostreqspec.PlatformLinux:
 		snapshot.SupportsSystemd = detectSystemd(c)
 		snapshot.SupportsSysctl = isDirectoryWith(c, "/etc/sysctl.d")
-		snapshot.InitSystem = "unknown"
+		snapshot.InitSystem = scenarioruntime.HealthStatusUnknown
 		if snapshot.SupportsSystemd {
 			snapshot.InitSystem = "systemd"
 		} else if strings.TrimSpace(c.readString("/proc/1/comm")) != "" {
@@ -75,7 +78,7 @@ func (c Collector) collectPlatformFacts(ctx context.Context, snapshot *Snapshot,
 		setPlatformProvenance("display_attached", "DRM connector status", SourceKindFile, "", "/sys/class/drm/*/status")
 		setPlatformProvenance("wayland", "display-manager policy", SourceKindDerived, "", displayPolicy.Path)
 		setPlatformProvenance("remote_desktop", "remote-desktop provider classifier", SourceKindDerived, "systemctl pgrep grdctl", "")
-	case "darwin":
+	case hostreqspec.PlatformMacOS:
 		snapshot.InitSystem = "launchd"
 		snapshot.SupportsSysctl = false
 		snapshot.SupportsSystemd = false
@@ -86,7 +89,7 @@ func (c Collector) collectPlatformFacts(ctx context.Context, snapshot *Snapshot,
 		snapshot.SupportsRDP = snapshot.RemoteDesktop.Supported
 		setPlatformProvenance("remote_desktop", "remote-desktop provider classifier", SourceKindDerived, "launchctl", "")
 		setPlatformProvenance("init_system", "launchctl", SourceKindCommand, "launchctl", "")
-	case "windows":
+	case hostreqspec.PlatformWindows:
 		snapshot.InitSystem = "windows-service-manager"
 		snapshot.SupportsSysctl = false
 		snapshot.SupportsSystemd = false
@@ -98,7 +101,7 @@ func (c Collector) collectPlatformFacts(ctx context.Context, snapshot *Snapshot,
 		setPlatformProvenance("remote_desktop", "remote-desktop provider classifier", SourceKindDerived, "sc.exe", "")
 		setPlatformProvenance("init_system", "Windows service manager", SourceKindRuntime, "", "")
 	default:
-		snapshot.InitSystem = "unknown"
+		snapshot.InitSystem = scenarioruntime.HealthStatusUnknown
 	}
 	snapshot.ProbeStatuses["platform_facts"] = "ok"
 }
@@ -192,7 +195,7 @@ var displayPolicyPaths = []string{
 }
 
 func (c Collector) displayPolicy() displayPolicy {
-	policy := displayPolicy{Preference: "unknown", Path: displayPolicyPaths[0]}
+	policy := displayPolicy{Preference: scenarioruntime.HealthStatusUnknown, Path: displayPolicyPaths[0]}
 	if _, err := c.Files.ReadFile("/run/udev/gdm-machine-has-vendor-nvidia-driver"); err == nil {
 		policy.NvidiaMarker = true
 	}
@@ -206,7 +209,7 @@ func (c Collector) displayPolicy() displayPolicy {
 		if strings.Contains(lower, "waylandenable=false") {
 			policy.WaylandOff = true
 		}
-		if policy.Preference == "unknown" {
+		if policy.Preference == scenarioruntime.HealthStatusUnknown {
 			if strings.Contains(lower, "preferreddisplayserver=xorg") {
 				policy.Preference = "xorg"
 			} else if strings.Contains(lower, "preferreddisplayserver=wayland") || strings.Contains(lower, "waylandenable=true") {

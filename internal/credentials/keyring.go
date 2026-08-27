@@ -1,4 +1,5 @@
 // Package credentials owns the control-plane keyring capability. The secure
+
 // store remains the format-specific implementation; this package is the seam
 // shared by CLI and scenario clients so neither grows a private repair copy.
 package credentials
@@ -15,6 +16,10 @@ import (
 	"github.com/vrooli/vrooli/internal/resources/securestore"
 )
 
+const (
+	keyringLocked = "locked"
+)
+
 type (
 	KeyringReport = securestore.KeyringReport
 	KeyringBackup = securestore.KeyringBackup
@@ -24,7 +29,7 @@ type KeyringVerdictState string
 
 const (
 	KeyringUnlocked     KeyringVerdictState = "unlocked"
-	KeyringLocked       KeyringVerdictState = "locked"
+	KeyringLocked       KeyringVerdictState = keyringLocked
 	KeyringFileRejected KeyringVerdictState = "file_rejected"
 	KeyringDaemonStale  KeyringVerdictState = "daemon_stale"
 	KeyringAbsent       KeyringVerdictState = "absent"
@@ -45,7 +50,7 @@ func DeriveKeyringVerdict(report KeyringReport, capability hostinventory.Credent
 	switch capability.State {
 	case "ready":
 		return KeyringVerdict{State: KeyringUnlocked, Reason: "Secret Service answered a login-collection read"}
-	case "locked":
+	case keyringLocked:
 		return KeyringVerdict{State: KeyringLocked, Reason: capability.Reason}
 	case "empty", "unavailable", "unsupported":
 		return KeyringVerdict{State: KeyringAbsent, Reason: capability.Reason}

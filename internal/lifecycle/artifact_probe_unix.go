@@ -2,14 +2,18 @@
 
 package lifecycle
 
-import "os"
+import (
+	"os"
+
+	"github.com/vrooli/vrooli/internal/tuning"
+)
 
 // hostRecognizeArtifact (Unix): a regular file is a runnable build artifact iff
 // it carries any execute bit. This is the only behavioral OS rule in the
 // freshness path; the decision logic in isRunnableArtifact consumes its evidence
 // without referencing runtime.GOOS.
 func hostRecognizeArtifact(_ string, info os.FileInfo) artifactEvidence {
-	return artifactEvidence{Known: true, Runnable: info.Mode()&0o111 != 0}
+	return artifactEvidence{Known: true, Runnable: info.Mode()&tuning.PermExecuteMask != 0}
 }
 
 // hostVolumeCaseEvidence (Unix/Linux): native filesystems are case-sensitive.

@@ -110,6 +110,8 @@ type AdmissionResult struct {
 // warns + records but NEVER blocks the start (a returned error is operational,
 // not a veto — the caller logs it and proceeds). When the resource declares no
 // capacity block, or enforcement is off, it is a complete no-op.
+//
+//nolint:gocyclo // admission evaluates resource identity, budget, lease, and contention outcomes explicitly.
 func AdmitResource(ctx context.Context, opts AdmitOptions) (AdmissionResult, error) {
 	enforceEnv := opts.EnforceEnv
 	if strings.TrimSpace(enforceEnv) == "" {

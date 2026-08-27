@@ -11,6 +11,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vrooli/vrooli/internal/tuning"
+
 	"github.com/vrooli/platform-go"
 	"github.com/vrooli/vrooli/internal/cli/rootcli"
 	"github.com/vrooli/vrooli/internal/config"
@@ -19,6 +21,10 @@ import (
 	"github.com/vrooli/vrooli/internal/projectstate"
 	"github.com/vrooli/vrooli/internal/scenario"
 	"github.com/vrooli/vrooli/internal/scenarioexec"
+)
+
+const (
+	onboardingUrl = "url"
 )
 
 func forceSetupApplies(slug string) bool {
@@ -72,7 +78,7 @@ func (s *setupService) runOnboardingHandoff(root, home string, opts Options, std
 	url, resolveErr := s.resolveOnboardingURL(executable)
 	result.URL = url
 	if resolveErr != nil {
-		result.Decision = "url"
+		result.Decision = onboardingUrl
 		result.Reason = "onboarding URL resolution timed out: " + resolveErr.Error()
 		printOnboardingURL(stdout, result, 0)
 		return result, nil
@@ -88,7 +94,7 @@ func (s *setupService) runOnboardingHandoff(root, home string, opts Options, std
 		_, _ = fmt.Fprintf(stdout, "[INFO]    Opening Vrooli onboarding at %s\n", url)
 		if err := s.deps.openOnboardingURL(url); err != nil {
 			_, _ = fmt.Fprintf(stderr, "[WARN]    Browser handoff failed: %v\n", err)
-			result.Decision = "url"
+			result.Decision = onboardingUrl
 			result.Reason = "browser handoff failed; URL handoff is available: " + err.Error()
 			printOnboardingURL(stdout, result, port)
 			return result, nil
@@ -103,7 +109,7 @@ func (s *setupService) runOnboardingHandoff(root, home string, opts Options, std
 			result.Reason = "interactive onboarding exited with an error: " + cliErr.Error()
 			return result, cliErr
 		}
-	case "url":
+	case onboardingUrl:
 		printOnboardingURL(stdout, result, port)
 	}
 	return result, nil
@@ -124,7 +130,7 @@ func effectiveOnboardingMode(explicit onboardinghandoff.Mode, prefs onboardingPr
 
 func decisionAction(action string) string {
 	if action == "" {
-		return "url"
+		return onboardingUrl
 	}
 	return action
 }
@@ -197,10 +203,10 @@ func saveOnboardingPreferences(path string, doc map[string]json.RawMessage, pref
 		return err
 	}
 	data = append(data, '\n')
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(path), tuning.PermDir); err != nil {
 		return err
 	}
-	return os.WriteFile(path, data, 0o644)
+	return os.WriteFile(path, data, tuning.PermFile)
 }
 
 func startOnboardingScenario(root, executable string) error {
@@ -217,7 +223,7 @@ func launchOnboardingAsOperator(root, executable string) error {
 	}
 	defer devNull.Close()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), tuning.StandardOperationTimeout)
 	defer cancel()
 	return platform.RunAsInvokingUserInSession(ctx, executable,
 		[]string{"scenario", "start", onboardingSlug},
@@ -225,9 +231,9 @@ func launchOnboardingAsOperator(root, executable string) error {
 }
 
 func (s *setupService) resolveOnboardingURL(executable string) (string, error) {
-	deadline := s.deps.now().Add(30 * time.Second)
+	deadline := s.deps.now().Add(tuning.StandardOperationTimeout)
 	for {
-		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), tuning.HealthCheckTimeout)
 		output, err := s.deps.onboardingPortCommandRunner(ctx, executable, "scenario", "port", onboardingSlug, "UI_PORT")
 		cancel()
 		text := strings.TrimSpace(string(output))
@@ -243,7 +249,7 @@ func (s *setupService) resolveOnboardingURL(executable string) (string, error) {
 			}
 			return "", fmt.Errorf("onboarding UI not ready: %s", text)
 		}
-		time.Sleep(1 * time.Second)
+		time.Sleep(tuning.ShortOperationTimeout)
 	}
 }
 
@@ -268,7 +274,7 @@ func markComplete(home, root string) error {
 		return err
 	}
 	data = append(data, '\n')
-	return config.WriteOwnedFile(locator.BootstrapCompletePath(), data, 0o644)
+	return config.WriteOwnedFile(locator.BootstrapCompletePath(), data, tuning.PermFile)
 }
 
 // runSetupStatus runs an inspection-only pass and prints the grouped overview.

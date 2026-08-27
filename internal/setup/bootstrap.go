@@ -16,8 +16,12 @@ import (
 	"github.com/vrooli/vrooli/internal/shell"
 )
 
+const (
+	bootstrapParameterA = 2
+)
+
 func bootstrapAwareRequirements(resolution hostreq.Resolution) hostreq.Resolution {
-	byName := make(map[string]hostreq.ResolvedRequirement, len(resolution.Tools)+2)
+	byName := make(map[string]hostreq.ResolvedRequirement, len(resolution.Tools)+bootstrapParameterA)
 	for _, requirement := range resolution.Tools {
 		name := strings.ToLower(strings.TrimSpace(requirement.Name))
 		if name == "" || name == "docker" {

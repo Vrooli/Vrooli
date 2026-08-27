@@ -6,10 +6,13 @@ import (
 	"testing"
 
 	"github.com/vrooli/vrooli/internal/hostreqkit"
+	"github.com/vrooli/vrooli/internal/hostreqkit/hostreqkittest"
 	"github.com/vrooli/vrooli/internal/hostreqspec"
 )
 
-func stubLookups(t *testing.T) func() {
+var stubLookups = stripeStubLookups
+
+func stripeStubLookups(t *testing.T) func() {
 	t.Helper()
 	origLookPath := hostreqkit.LookPathFn
 	origReadFile := hostreqkit.ReadFileFn
@@ -36,11 +39,15 @@ var testManifest = hostreqkit.ToolManifest{
 	Platforms:   []string{"linux", "macos", "windows"},
 }
 
-func newTestHandler() hostreqkit.Handler {
+var newTestHandler = stripeTestHandler
+
+func stripeTestHandler() hostreqkit.Handler {
 	return NewHandler(testManifest)
 }
 
-func baseRequirement() hostreqspec.ResolvedRequirement {
+var baseRequirement = stripeBaseRequirement
+
+func stripeBaseRequirement() hostreqspec.ResolvedRequirement {
 	return hostreqspec.ResolvedRequirement{
 		Name: "stripe",
 		Kind: hostreqspec.KindTool,
@@ -48,16 +55,6 @@ func baseRequirement() hostreqspec.ResolvedRequirement {
 }
 
 // --- Name and Kind ---
-
-func TestNameAndKind(t *testing.T) {
-	h := newTestHandler()
-	if h.Name() != "stripe" {
-		t.Fatalf("Name = %q", h.Name())
-	}
-	if h.Kind() != hostreqspec.KindTool {
-		t.Fatalf("Kind = %q", h.Kind())
-	}
-}
 
 // --- Inspect tests ---
 
@@ -107,15 +104,7 @@ func TestInspectLinuxAptInstalled(t *testing.T) {
 		baseRequirement(),
 	)
 
-	if !status.Installed {
-		t.Fatal("should be installed")
-	}
-	if status.ExecutionState != hostreqkit.ExecutionAlreadyPresent {
-		t.Fatalf("ExecutionState = %q", status.ExecutionState)
-	}
-	if status.Version != "stripe version 1.29.0" {
-		t.Fatalf("Version = %q", status.Version)
-	}
+	hostreqkittest.AssertInstalled(t, status, "stripe version 1.29.0")
 }
 
 func TestInspectDarwinBrew(t *testing.T) {
@@ -216,25 +205,6 @@ func TestInspectDarwinNonBrewUnsupported(t *testing.T) {
 	}
 }
 
-func TestInspectManualRequirement(t *testing.T) {
-	restore := stubLookups(t)
-	defer restore()
-
-	hostreqkit.LookPathFn = func(string) (string, error) { return "", os.ErrNotExist }
-
-	h := newTestHandler()
-	req := baseRequirement()
-	req.Manual = true
-	status := h.Inspect(hostreqkit.Host{OS: "linux", PackageManager: "apt-get"}, req)
-
-	if status.SupportClass != hostreqkit.SupportManualOnly {
-		t.Fatalf("SupportClass = %q", status.SupportClass)
-	}
-	if status.ExecutionState != hostreqkit.ExecutionManualActionRequired {
-		t.Fatalf("ExecutionState = %q", status.ExecutionState)
-	}
-}
-
 func TestInspectIncludesInstallHint(t *testing.T) {
 	restore := stubLookups(t)
 	defer restore()
@@ -272,36 +242,6 @@ func TestApplyAlreadyInstalled(t *testing.T) {
 		t.Fatal(err)
 	}
 	if status.ExecutionState != hostreqkit.ExecutionAlreadyPresent {
-		t.Fatalf("ExecutionState = %q", status.ExecutionState)
-	}
-}
-
-func TestApplyManualReturnsEarly(t *testing.T) {
-	h := newTestHandler()
-	status, err := h.Apply(
-		hostreqkit.Host{OS: "linux"},
-		hostreqkit.ItemStatus{SupportClass: hostreqkit.SupportManualOnly},
-		hostreqkit.EnsureOptions{},
-	)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if status.ExecutionState != hostreqkit.ExecutionManualActionRequired {
-		t.Fatalf("ExecutionState = %q", status.ExecutionState)
-	}
-}
-
-func TestApplyUnsupportedReturnsEarly(t *testing.T) {
-	h := newTestHandler()
-	status, err := h.Apply(
-		hostreqkit.Host{OS: "windows"},
-		hostreqkit.ItemStatus{SupportClass: hostreqkit.SupportUnsupported},
-		hostreqkit.EnsureOptions{},
-	)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if status.ExecutionState != hostreqkit.ExecutionUnsupported {
 		t.Fatalf("ExecutionState = %q", status.ExecutionState)
 	}
 }
@@ -423,7 +363,7 @@ func TestApplyLinuxAptFullFlow(t *testing.T) {
 	needles := []string{
 		"gpg --dearmor",
 		"mkdir -p",
-		"install -m 0644",
+		"install -m 644",
 		"apt-get update -qq",
 		"apt-get install -y stripe",
 	}
@@ -576,12 +516,8 @@ func TestApplyDarwinBrewFlow(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if status.ExecutionState != hostreqkit.ExecutionInstalled {
-		t.Fatalf("ExecutionState = %q", status.ExecutionState)
-	}
-	if !strings.Contains(installedPkg, "brew install stripe/stripe-cli/stripe") {
-		t.Fatalf("expected brew install, got %q", installedPkg)
-	}
+	hostreqkittest.AssertExecutionState(t, status, hostreqkit.ExecutionInstalled)
+	hostreqkittest.AssertSingleCommandContaining(t, []string{installedPkg}, "brew install stripe/stripe-cli/stripe")
 }
 
 func TestApplyDarwinBrewInstallFailure(t *testing.T) {

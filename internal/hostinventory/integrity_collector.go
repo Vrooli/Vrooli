@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"errors"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"regexp"
 	"runtime"
@@ -16,17 +15,24 @@ import (
 	"sync"
 	"time"
 
+	"github.com/vrooli/vrooli/internal/hostreqspec"
+	"github.com/vrooli/vrooli/internal/tuning"
+
 	platformgo "github.com/vrooli/platform-go"
 	"github.com/vrooli/vrooli/internal/hostcapability"
+	"github.com/vrooli/vrooli/internal/shell"
+)
+
+const (
+	integrityCollectorParameterA = 2
+	integrityCollectorParameterB = 300
+	integrityCollectorParameterC = 500
 )
 
 // IntegrityCommandRunner and IntegrityFileSystem are the control-plane seams
 // for host-integrity probes. They keep scenarios from owning host detection
 // while still allowing deterministic fixture tests.
-type IntegrityCommandRunner interface {
-	LookPath(string) (string, error)
-	CombinedOutput(context.Context, string, ...string) ([]byte, error)
-}
+type IntegrityCommandRunner = shell.Runner
 
 type IntegrityFileSystem interface {
 	ReadFile(string) ([]byte, error)
@@ -54,13 +60,6 @@ type IntegrityDefaultCollector struct {
 	now      func() time.Time
 }
 
-type nativeIntegrityCommands struct{}
-
-func (nativeIntegrityCommands) LookPath(name string) (string, error) { return exec.LookPath(name) }
-func (nativeIntegrityCommands) CombinedOutput(ctx context.Context, name string, args ...string) ([]byte, error) {
-	return exec.CommandContext(ctx, name, args...).CombinedOutput()
-}
-
 type nativeIntegrityFiles struct{}
 
 func (nativeIntegrityFiles) ReadFile(path string) ([]byte, error)       { return os.ReadFile(path) }
@@ -69,7 +68,7 @@ func (nativeIntegrityFiles) Stat(path string) (os.FileInfo, error)      { return
 
 func NewIntegrityCollector(options IntegrityCollectorOptions) *IntegrityDefaultCollector {
 	if options.Commands == nil {
-		options.Commands = nativeIntegrityCommands{}
+		options.Commands = shell.OSRunner{}
 	}
 	if options.Files == nil {
 		options.Files = nativeIntegrityFiles{}
@@ -111,13 +110,13 @@ func (c *CachedIntegrityCollector) Collect(ctx context.Context) (HostInventory, 
 func (c *IntegrityDefaultCollector) Collect(ctx context.Context) (HostInventory, error) {
 	now := c.now().UTC()
 	inv := HostInventory{CollectedAt: now, Platform: c.goos, OS: c.goos, Arch: c.goarch, ProbeStatus: map[string]IntegrityProbeState{}, ProbeErrors: map[string]string{}}
-	if c.goos != "linux" {
+	if hostreqspec.PlatformFromGOOS(c.goos) != hostreqspec.PlatformLinux {
 		setIntegrityProbe(&inv, "host", IntegrityProbeUnsupported, nil)
 		inv.Unsupported = append(inv.Unsupported, "detailed host-integrity probes are currently implemented on Linux")
 		inv.Fingerprint = Fingerprint(inv)
 		return inv, nil
 	}
-	ctx, cancel := context.WithTimeout(ctx, 8*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, tuning.IntegrityCollectionTimeout)
 	defer cancel()
 	inv.Kernel.Release = commandText(ctx, c.commands, "uname", "-r")
 	inv.Kernel.Version = commandText(ctx, c.commands, "uname", "-v")
@@ -200,7 +199,7 @@ func probeForError(err error) IntegrityProbeState {
 }
 
 func commandText(ctx context.Context, commands IntegrityCommandRunner, name string, args ...string) string {
-	out, err := commands.CombinedOutput(ctx, name, args...)
+	out, err := commands.Run(ctx, name, args...)
 	if err != nil {
 		return ""
 	}
@@ -225,7 +224,7 @@ func collectIntegrityDevices(ctx context.Context, c *IntegrityDefaultCollector, 
 		setIntegrityProbe(inv, "devices", IntegrityProbeUnsupported, err)
 		return nil
 	}
-	out, err := c.commands.CombinedOutput(ctx, "lspci", "-nnk")
+	out, err := c.commands.Run(ctx, "lspci", "-nnk")
 	if err != nil {
 		setIntegrityProbe(inv, "devices", IntegrityProbeDegraded, err)
 		return nil
@@ -284,29 +283,30 @@ func collectIntegrityRuntimes(ctx context.Context, c *IntegrityDefaultCollector)
 		tool := RuntimeToolInfo{Name: spec.name, Path: path}
 		if err != nil {
 			tool.Error = "not found"
-		} else if out, runErr := c.commands.CombinedOutput(ctx, spec.name, spec.args...); runErr != nil {
-			tool.Error = truncateIntegrity(string(out)+" "+runErr.Error(), 300)
+		} else if out, runErr := c.commands.Run(ctx, spec.name, spec.args...); runErr != nil {
+			tool.Error = truncateIntegrity(string(out)+" "+runErr.Error(), integrityCollectorParameterB)
 		} else {
 			tool.Callable = true
-			tool.Version = truncateIntegrity(string(out), 300)
+			tool.Version = truncateIntegrity(string(out), integrityCollectorParameterB)
 		}
 		tools = append(tools, tool)
 	}
 	return tools
 }
 
+//nolint:gocyclo // integrity collection merges package-manager, kernel, and verification state outcomes.
 func collectIntegrityPackages(ctx context.Context, c *IntegrityDefaultCollector, runningKernel string) PackageState {
 	if _, err := c.commands.LookPath("dpkg"); err == nil {
 		state := PackageState{Manager: "dpkg"}
-		out, err := c.commands.CombinedOutput(ctx, "dpkg-query", "-W", "-f=${db:Status-Abbrev} ${Package} ${Version}\n", "linux-image*", "linux-modules*", "nvidia-*", "amdgpu*", "mesa-*")
+		out, err := c.commands.Run(ctx, "dpkg-query", "-W", "-f=${db:Status-Abbrev} ${Package} ${Version}\n", "linux-image*", "linux-modules*", "nvidia-*", "amdgpu*", "mesa-*")
 		for _, line := range strings.Split(string(out), "\n") {
 			fields := strings.Fields(line)
-			if len(fields) < 2 {
+			if len(fields) < integrityCollectorParameterA {
 				continue
 			}
 			status, name := fields[0], fields[1]
 			version := ""
-			if len(fields) > 2 {
+			if len(fields) > integrityCollectorParameterA {
 				version = fields[2]
 			}
 			if strings.HasPrefix(status, "ii") {
@@ -319,7 +319,7 @@ func collectIntegrityPackages(ctx context.Context, c *IntegrityDefaultCollector,
 		if err != nil && len(state.Installed) == 0 {
 			state.BrokenOrHeld = append(state.BrokenOrHeld, "dpkg-query failed: "+err.Error())
 		}
-		if holds, holdErr := c.commands.CombinedOutput(ctx, "apt-mark", "showhold"); holdErr == nil {
+		if holds, holdErr := c.commands.Run(ctx, "apt-mark", "showhold"); holdErr == nil {
 			for _, line := range strings.Split(string(holds), "\n") {
 				if line = strings.TrimSpace(line); line != "" {
 					state.BrokenOrHeld = append(state.BrokenOrHeld, "held: "+line)
@@ -331,7 +331,7 @@ func collectIntegrityPackages(ctx context.Context, c *IntegrityDefaultCollector,
 	}
 	if _, err := c.commands.LookPath("rpm"); err == nil {
 		state := PackageState{Manager: "rpm"}
-		if out, runErr := c.commands.CombinedOutput(ctx, "rpm", "-qa", "kernel*", "kmod*", "akmod*", "nvidia*", "mesa*"); runErr == nil {
+		if out, runErr := c.commands.Run(ctx, "rpm", "-qa", "kernel*", "kmod*", "akmod*", "nvidia*", "mesa*"); runErr == nil {
 			for _, line := range strings.Split(string(out), "\n") {
 				if line = strings.TrimSpace(line); line != "" {
 					state.Installed = append(state.Installed, line)
@@ -343,14 +343,14 @@ func collectIntegrityPackages(ctx context.Context, c *IntegrityDefaultCollector,
 	}
 	if _, err := c.commands.LookPath("pacman"); err == nil {
 		state := PackageState{Manager: "pacman"}
-		if out, runErr := c.commands.CombinedOutput(ctx, "pacman", "-Q"); runErr == nil {
+		if out, runErr := c.commands.Run(ctx, "pacman", "-Q"); runErr == nil {
 			for _, line := range strings.Split(string(out), "\n") {
 				if strings.Contains(line, "linux") || strings.Contains(line, "nvidia") || strings.Contains(line, "mesa") {
 					state.Installed = append(state.Installed, strings.TrimSpace(line))
 				}
 			}
 		}
-		if out, runErr := c.commands.CombinedOutput(ctx, "pacman", "-Qu"); runErr == nil {
+		if out, runErr := c.commands.Run(ctx, "pacman", "-Qu"); runErr == nil {
 			for _, line := range strings.Split(string(out), "\n") {
 				if line = strings.TrimSpace(line); line != "" {
 					state.PendingUpgrades = append(state.PendingUpgrades, line)
@@ -400,8 +400,8 @@ func enrichIntegrityDrivers(ctx context.Context, c *IntegrityDefaultCollector, i
 		candidate := PackageCandidate{Name: driver.ExpectedModulePackage, Source: "apt-cache policy"}
 		if _, err := c.commands.LookPath("apt-cache"); err != nil {
 			candidate.Error = err.Error()
-		} else if out, err := c.commands.CombinedOutput(ctx, "apt-cache", "policy", driver.ExpectedModulePackage); err != nil {
-			candidate.Error = truncateIntegrity(string(out)+" "+err.Error(), 300)
+		} else if out, err := c.commands.Run(ctx, "apt-cache", "policy", driver.ExpectedModulePackage); err != nil {
+			candidate.Error = truncateIntegrity(string(out)+" "+err.Error(), integrityCollectorParameterB)
 		} else {
 			for _, line := range strings.Split(string(out), "\n") {
 				if strings.HasPrefix(strings.TrimSpace(line), "Candidate:") {
@@ -490,9 +490,9 @@ func collectIntegritySecureBoot(ctx context.Context, c *IntegrityDefaultCollecto
 		return state
 	}
 	state.Supported = true
-	out, err := c.commands.CombinedOutput(ctx, "mokutil", "--sb-state")
+	out, err := c.commands.Run(ctx, "mokutil", "--sb-state")
 	if err != nil {
-		state.Error = truncateIntegrity(string(out)+" "+err.Error(), 300)
+		state.Error = truncateIntegrity(string(out)+" "+err.Error(), integrityCollectorParameterB)
 		return state
 	}
 	state.Enabled = strings.Contains(strings.ToLower(string(out)), "secureboot enabled")
@@ -522,7 +522,7 @@ func collectIntegrityCrashEvidence(c *IntegrityDefaultCollector) CrashEvidencePr
 func collectIntegritySignals(ctx context.Context) []HostSignal {
 	result, err := platformgo.ReadHostLogs(platformgo.HostLogOptions{Arguments: []string{"--no-pager", "-k", "--since", "24 hours ago", "-p", "0..4", "-n", "50", "-r"}})
 	if err != nil {
-		return []HostSignal{{Source: "journal", Severity: "warning", Category: "probe_error", Message: truncateIntegrity(err.Error(), 300)}}
+		return []HostSignal{{Source: "journal", Severity: "warning", Category: "probe_error", Message: truncateIntegrity(err.Error(), integrityCollectorParameterB)}}
 	}
 	var signals []HostSignal
 	for _, line := range strings.Split(string(result.Raw), "\n") {
@@ -534,7 +534,7 @@ func collectIntegritySignals(ctx context.Context) []HostSignal {
 		if category == "" {
 			continue
 		}
-		signals = append(signals, HostSignal{Source: "journal", Severity: "warning", Category: category, Message: truncateIntegrity(line, 500)})
+		signals = append(signals, HostSignal{Source: "journal", Severity: "warning", Category: category, Message: truncateIntegrity(line, integrityCollectorParameterC)})
 	}
 	return signals
 }

@@ -1,11 +1,8 @@
 package runtimeapp
 
 import (
-	"encoding/json"
 	"io"
 	"time"
-
-	"google.golang.org/protobuf/types/known/structpb"
 
 	"github.com/vrooli/vrooli/internal/cliout"
 	"github.com/vrooli/vrooli/internal/runtimesupervisor"
@@ -31,40 +28,13 @@ func formatRFC3339Nano(t time.Time) string {
 	return t.Format(time.RFC3339Nano)
 }
 
-func writeSupervisorStatusJSON(w io.Writer, report runtimesupervisor.StatusReport) error {
-	return cliout.WriteProtoJSON(w, supervisorStatusMessage(report))
-}
-
 // WriteSupervisorStatusJSON exposes the typed supervisor status renderer to
 // the compatibility test seam and any future runtime CLI adapter.
 func WriteSupervisorStatusJSON(w io.Writer, report runtimesupervisor.StatusReport) error {
-	return writeSupervisorStatusJSON(w, report)
-}
-
-func writeSupervisorServiceResultJSON(w io.Writer, result runtimesupervisor.ServiceInstallResult) error {
-	return cliout.WriteProtoJSON(w, supervisorServiceResultMessage(result))
+	return cliout.WriteProtoJSON(w, supervisorStatusMessage(report))
 }
 
 // WriteSupervisorServiceResultJSON exposes the shared install/uninstall shape.
 func WriteSupervisorServiceResultJSON(w io.Writer, result runtimesupervisor.ServiceInstallResult) error {
-	return writeSupervisorServiceResultJSON(w, result)
-}
-
-// writeRuntimeJSON bridges legacy address-shaped recovery objects through the
-// protobuf JSON implementation until each recovery object has a stable public
-// cliv1 schema. It retains keys and never handles secrets.
-func writeRuntimeJSON(w io.Writer, value any) error {
-	raw, err := json.Marshal(value)
-	if err != nil {
-		return err
-	}
-	var object map[string]any
-	if err := json.Unmarshal(raw, &object); err != nil {
-		return err
-	}
-	payload, err := structpb.NewStruct(object)
-	if err != nil {
-		return err
-	}
-	return cliout.WriteProtoJSON(w, payload)
+	return cliout.WriteProtoJSON(w, supervisorServiceResultMessage(result))
 }

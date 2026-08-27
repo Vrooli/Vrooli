@@ -56,6 +56,12 @@ message InvestigationScript {
 
   // Populated when the declared execution path is unavailable on this host.
   string skip_reason = 15;
+
+  // Host platforms on which the entry has a native backend or shell contract.
+  repeated string platforms = 16;
+
+  // builtin or operator.
+  string source = 17;
 }
 
 // ScriptExecutionStatus represents the state of a script execution.
@@ -179,6 +185,46 @@ message ExecuteScriptResponse {
   ScriptExecution execution = 1;
 }
 
+message InvestigationFinding {
+  string severity = 1;
+  string code = 2;
+  string summary = 3;
+  string detail_json = 4;
+}
+
+message InvestigationRun {
+  string id = 1;
+  string entry_id = 2;
+  string execution_mode = 3;
+  string status = 4;
+  string skip_reason = 5;
+  int32 exit_code = 6;
+  bool timed_out = 7;
+  google.protobuf.Timestamp started_at = 8;
+  google.protobuf.Timestamp completed_at = 9;
+  double duration_seconds = 10;
+  string host_os = 11;
+  string host_arch = 12;
+  string result_json = 13;
+  string stderr_tail = 14;
+  string anomaly_id = 15;
+  repeated InvestigationFinding findings = 16;
+}
+
+message ListRunsRequest {
+  string entry_id = 1;
+  string since = 2;
+  int32 limit = 3;
+}
+
+message ListRunsResponse { repeated InvestigationRun runs = 1; }
+
+message GetRunRequest { string id = 1; }
+message GetRunResponse { InvestigationRun run = 1; }
+
+message PruneRunsRequest { bool dry_run = 1; }
+message PruneRunsResponse { int64 deleted = 1; bool dry_run = 2; }
+
 // ScriptsService provides the scripts RPC surface.
 service ScriptsService {
   // ListScripts returns available investigation scripts.
@@ -205,5 +251,17 @@ service ScriptsService {
       post: "/api/v1/investigations/scripts/{id}/execute"
       body: "*"
     };
+  }
+
+  rpc ListRuns(ListRunsRequest) returns (ListRunsResponse) {
+    option (google.api.http) = {get: "/api/v1/investigations/runs"};
+  }
+
+  rpc GetRun(GetRunRequest) returns (GetRunResponse) {
+    option (google.api.http) = {get: "/api/v1/investigations/runs/{id}"};
+  }
+
+  rpc PruneRuns(PruneRunsRequest) returns (PruneRunsResponse) {
+    option (google.api.http) = {post: "/api/v1/investigations/runs/prune" body: "*"};
   }
 }

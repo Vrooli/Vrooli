@@ -9,15 +9,22 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+
+	"github.com/vrooli/vrooli/internal/repocontractmeta"
+)
+
+const (
+	uninstallPlatformParameterA = 32
+	uninstallPlatformParameterB = 36
 )
 
 func isPlanID(id string) bool {
 	id = strings.TrimSpace(id)
-	if len(id) == 32 {
+	if len(id) == uninstallPlatformParameterA {
 		_, err := hex.DecodeString(id)
 		return err == nil
 	}
-	if len(id) != 36 {
+	if len(id) != uninstallPlatformParameterB {
 		return false
 	}
 	for index, r := range id {
@@ -37,7 +44,7 @@ func isPlanID(id string) bool {
 func mustInstallRecordPath(home string) string {
 	path, err := InstallRecordPath(home)
 	if err != nil {
-		return filepath.Join(filepath.Clean(home), ".vrooli", "state", "install-record.json")
+		return filepath.Join(filepath.Clean(home), repocontractmeta.ProjectConfigDir, "state", "install-record.json")
 	}
 	return path
 }

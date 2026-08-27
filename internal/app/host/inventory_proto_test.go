@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/vrooli/vrooli/internal/cliout"
 	"github.com/vrooli/vrooli/internal/hostinventory"
 )
 
@@ -44,7 +45,7 @@ func TestWriteHostSnapshotJSONContract(t *testing.T) {
 	}
 
 	var buf bytes.Buffer
-	if err := writeHostSnapshotJSON(&buf, snapshot); err != nil {
+	if err := cliout.WriteProtoJSON(&buf, hostSnapshotResponse(snapshot)); err != nil {
 		t.Fatalf("writeHostSnapshotJSON: %v", err)
 	}
 

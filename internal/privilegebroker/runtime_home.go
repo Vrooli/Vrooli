@@ -12,6 +12,10 @@ import (
 	"github.com/vrooli/vrooli/internal/config"
 )
 
+const (
+	runtimeHomeParameterA = 100_000
+)
+
 func executeRuntimeHomeRepair(ctx context.Context, subject RuntimeHomeSubject) Result {
 	root, err := runtimeHomeRootForSubject(subject)
 	if err != nil {
@@ -33,7 +37,7 @@ func executeRuntimeHomeRepairAt(ctx context.Context, subject RuntimeHomeSubject,
 	}}
 	result, err := service.Repair(ctx, config.RepairRequest{
 		Scope: config.RepairScope{RootClass: subject.Class}, ExpectedUID: subject.ExpectedUID,
-		ExpectedGID: subject.ExpectedGID, Apply: true, MaxEntries: 100_000,
+		ExpectedGID: subject.ExpectedGID, Apply: true, MaxEntries: runtimeHomeParameterA,
 	})
 	if err != nil {
 		return NewFailure("", ActionRuntimeHomeOwnershipRepair, "runtime_home_repair_failed")

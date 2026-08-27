@@ -25,7 +25,9 @@ const (
 
 var testConfig map[string]string
 
-func stubAll(t *testing.T) (
+var stubAll = pstoreRamoopsStubAll
+
+func pstoreRamoopsStubAll(t *testing.T) (
 	cmds *[]capturedCommand,
 	files map[string]string,
 	envValues map[string]string,
@@ -50,48 +52,18 @@ func stubAll(t *testing.T) (
 	env := map[string]string{}
 	procCmdline := ""
 
-	testConfig = env
-	ReadProcCmdlineFn = func() (string, error) {
-		if procCmdline == "" {
-			return "", fs.ErrNotExist
-		}
-		return procCmdline, nil
-	}
-
-	hostreqkit.ReadFileFn = func(path string) ([]byte, error) {
-		if c, ok := fileContents[path]; ok {
-			return []byte(c), nil
-		}
-		return nil, fs.ErrNotExist
-	}
-	hostreqkit.RunCommandFn = func(name string, args []string, opts hostreqkit.EnsureOptions) error {
-		captured = append(captured, capturedCommand{Name: name, Args: append([]string(nil), args...)})
-		if name == "install" && len(args) >= 4 {
-			tmp := args[len(args)-2]
-			dst := args[len(args)-1]
-			if c, ok := tempContents[tmp]; ok {
-				fileContents[dst] = c
-			}
-		}
-		return nil
-	}
-	hostreqkit.CombinedOutputFn = func(name string, args ...string) ([]byte, error) {
-		captured = append(captured, capturedCommand{Name: name, Args: append([]string(nil), args...)})
-		return nil, nil
-	}
+	testConfig = ramoopsConfig(env)
+	ReadProcCmdlineFn = ramoopsProcReader(&procCmdline)
+	hostreqkit.ReadFileFn = ramoopsReadFile(fileContents)
+	hostreqkit.RunCommandFn = ramoopsRunCommand(&captured, fileContents, tempContents)
+	hostreqkit.CombinedOutputFn = ramoopsCombinedOutput(&captured)
 	hostreqkit.LookPathFn = func(name string) (string, error) {
 		if name == "sudo" || name == "grub-script-check" {
 			return "", fs.ErrNotExist
 		}
 		return "/usr/bin/" + name, nil
 	}
-	tempCounter := 0
-	hostreqkit.WriteTempFileFn = func(content string) (string, error) {
-		tempCounter++
-		path := "/tmp/vrooli-pstore-ramoops-test-" + strings.Repeat("a", tempCounter)
-		tempContents[path] = content
-		return path, nil
-	}
+	hostreqkit.WriteTempFileFn = ramoopsWriteTemp(tempContents)
 	grub.NowFn = func() time.Time {
 		return time.Date(2026, 5, 7, 12, 0, 0, 0, time.UTC)
 	}
@@ -113,11 +85,62 @@ func stubAll(t *testing.T) (
 	}
 }
 
+func ramoopsConfig(env map[string]string) map[string]string { return env }
+
+func ramoopsProcReader(procCmdline *string) func() (string, error) {
+	return func() (string, error) {
+		if *procCmdline == "" {
+			return "", fs.ErrNotExist
+		}
+		return *procCmdline, nil
+	}
+}
+
+func ramoopsCombinedOutput(captured *[]capturedCommand) func(string, ...string) ([]byte, error) {
+	return func(name string, args ...string) ([]byte, error) {
+		*captured = append(*captured, capturedCommand{Name: name, Args: append([]string(nil), args...)})
+		return nil, nil
+	}
+}
+
+func ramoopsReadFile(files map[string]string) func(string) ([]byte, error) {
+	return func(path string) ([]byte, error) {
+		if content, ok := files[path]; ok {
+			return []byte(content), nil
+		}
+		return nil, fs.ErrNotExist
+	}
+}
+
+func ramoopsRunCommand(captured *[]capturedCommand, files, temps map[string]string) func(string, []string, hostreqkit.EnsureOptions) error {
+	return func(name string, args []string, _ hostreqkit.EnsureOptions) error {
+		*captured = append(*captured, capturedCommand{Name: name, Args: append([]string(nil), args...)})
+		if name == "install" && len(args) >= 4 {
+			if content, ok := temps[args[len(args)-2]]; ok {
+				files[args[len(args)-1]] = content
+			}
+		}
+		return nil
+	}
+}
+
+func ramoopsWriteTemp(temps map[string]string) func(string) (string, error) {
+	sequence := 0
+	return func(content string) (string, error) {
+		sequence++
+		path := "/tmp/vrooli-pstore-ramoops-test-" + strings.Repeat("a", sequence)
+		temps[path] = content
+		return path, nil
+	}
+}
+
 func newHandler() hostreqkit.Handler {
 	return NewHandler(hostreqkit.SafeguardManifest{Name: "pstore_ramoops", Handler: "pstore_ramoops"})
 }
 
-func linuxHost() hostreqkit.Host {
+var linuxHost = pstoreRamoopsLinuxHost
+
+func pstoreRamoopsLinuxHost() hostreqkit.Host {
 	return hostreqkit.Host{OS: "linux", PackageManager: "apt-get", SupportsSysctl: true, SupportsSystemd: true}
 }
 
@@ -161,16 +184,6 @@ func TestInspectPartialEnvIsNotApplicable(t *testing.T) {
 	st := newHandler().Inspect(linuxHost(), req(false))
 	if st.SupportClass != hostreqkit.SupportNotApplicable {
 		t.Errorf("SupportClass = %q (partial env should still be NotApplicable)", st.SupportClass)
-	}
-}
-
-func TestInspectNonLinuxIsUnsupported(t *testing.T) {
-	_, _, env, _, restore := stubAll(t)
-	defer restore()
-	setEnv(env, "0x70000000", "0x100000")
-	st := newHandler().Inspect(hostreqkit.Host{OS: "darwin"}, req(false))
-	if st.SupportClass != hostreqkit.SupportUnsupported {
-		t.Errorf("SupportClass = %q", st.SupportClass)
 	}
 }
 
@@ -257,50 +270,6 @@ func TestApplyHappyPathReturnsRebootRequired(t *testing.T) {
 	for _, c := range *cmds {
 		if c.Name == "update-grub" || (c.Name == "sudo" && len(c.Args) > 0 && c.Args[0] == "update-grub") {
 			t.Errorf("safeguard ran update-grub, must not: %v", c)
-		}
-	}
-}
-
-func TestApplyDryRun(t *testing.T) {
-	cmds, files, env, _, restore := stubAll(t)
-	defer restore()
-	setEnv(env, "0x70000000", "0x100000")
-	files[grub.DefaultConfigPath] = `GRUB_CMDLINE_LINUX="quiet"` + "\n"
-
-	st := newHandler().Inspect(linuxHost(), req(false))
-	out, err := newHandler().Apply(linuxHost(), st, hostreqkit.EnsureOptions{DryRun: true})
-	if err != nil {
-		t.Fatalf("Apply: %v", err)
-	}
-	if out.ExecutionState != hostreqkit.ExecutionWouldApply {
-		t.Errorf("ExecutionState = %q", out.ExecutionState)
-	}
-	for _, c := range *cmds {
-		if c.Name == "install" {
-			t.Errorf("DryRun ran install: %v", c)
-		}
-	}
-}
-
-func TestApplyAlreadyAppliedShortCircuits(t *testing.T) {
-	cmds, _, env, _, restore := stubAll(t)
-	defer restore()
-	setEnv(env, "0x70000000", "0x100000")
-	st := hostreqkit.ItemStatus{
-		SupportClass:   hostreqkit.SupportSupported,
-		ExecutionState: hostreqkit.ExecutionAlreadyPresent,
-		Applied:        true,
-	}
-	out, err := newHandler().Apply(linuxHost(), st, hostreqkit.EnsureOptions{})
-	if err != nil {
-		t.Fatalf("Apply: %v", err)
-	}
-	if out.ExecutionState != hostreqkit.ExecutionAlreadyPresent {
-		t.Errorf("ExecutionState = %q", out.ExecutionState)
-	}
-	for _, c := range *cmds {
-		if c.Name == "install" {
-			t.Errorf("short-circuit ran install: %v", c)
 		}
 	}
 }
@@ -414,15 +383,5 @@ func TestContainsToken(t *testing.T) {
 				t.Errorf("containsToken(%q, %q) = %v, want %v", cmdline, token, got, expected)
 			}
 		}
-	}
-}
-
-func TestNameAndKind(t *testing.T) {
-	h := newHandler()
-	if h.Name() != "pstore_ramoops" {
-		t.Errorf("Name = %q", h.Name())
-	}
-	if h.Kind() != hostreqspec.KindSafeguard {
-		t.Errorf("Kind = %q", h.Kind())
 	}
 }

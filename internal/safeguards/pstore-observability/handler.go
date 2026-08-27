@@ -13,9 +13,15 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vrooli/vrooli/internal/tuning"
+
 	"github.com/vrooli/vrooli/internal/daemonreload"
 	"github.com/vrooli/vrooli/internal/hostreqkit"
 	"github.com/vrooli/vrooli/internal/hostreqspec"
+)
+
+const (
+	handlerParameterE = 3
 )
 
 const (
@@ -145,7 +151,7 @@ func (h handler) Apply(host hostreqkit.Host, status hostreqkit.ItemStatus, opts 
 			if err := hostreqkit.RunPrivilegedCommand(opts.SudoMode, "chown", []string{"root:" + observabilityGroup, exportRoot, pstoreExportDir}, opts); err != nil {
 				return err
 			}
-			return hostreqkit.RunPrivilegedCommand(opts.SudoMode, "chmod", []string{"0750", exportRoot, pstoreExportDir}, opts)
+			return hostreqkit.RunPrivilegedCommand(opts.SudoMode, "chmod", []string{"750", exportRoot, pstoreExportDir}, opts)
 		}},
 		{"install collector", func() error {
 			return hostreqkit.InstallManagedExecutable(collectorPath, collectorContent(), opts.SudoMode, opts)
@@ -243,7 +249,7 @@ func dirModeGroupOK(path string) bool {
 	if err != nil || !info.IsDir() {
 		return false
 	}
-	if info.Mode().Perm() != 0o750 {
+	if info.Mode().Perm() != tuning.PermGroupDir {
 		return false
 	}
 	gid, ok := groupGID()
@@ -256,7 +262,7 @@ func groupGID() (uint32, bool) {
 		return 0, false
 	}
 	fields := strings.Split(strings.TrimSpace(string(out)), ":")
-	if len(fields) < 3 {
+	if len(fields) < handlerParameterE {
 		return 0, false
 	}
 	var gid uint64
@@ -293,7 +299,7 @@ dst="` + pstoreExportDir + `"
 group="` + observabilityGroup + `"
 manifest="$dst/` + manifestFilename + `"
 
-install -d -o root -g "$group" -m 0750 "$dst"
+install -d -o root -g "$group" -m 750 "$dst"
 count=0
 files_json=""
 
@@ -307,7 +313,7 @@ if [ -d "$src" ]; then
     tmp="$dst/.$name.tmp"
     if cp -- "$file" "$tmp"; then
       chown root:"$group" "$tmp"
-      chmod 0640 "$tmp"
+      chmod 640 "$tmp"
       mv -f -- "$tmp" "$dst/$name"
       size=$(wc -c < "$dst/$name" | tr -d ' ')
       if [ -n "$files_json" ]; then files_json="$files_json,"; fi
@@ -323,7 +329,7 @@ now=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 tmp_manifest="$dst/.manifest.tmp"
 printf '{"collectedAt":"%s","sourcePath":"%s","artifactCount":%s,"files":[%s]}\n' "$now" "$src" "$count" "$files_json" > "$tmp_manifest"
 chown root:"$group" "$tmp_manifest"
-chmod 0640 "$tmp_manifest"
+chmod 640 "$tmp_manifest"
 mv -f -- "$tmp_manifest" "$manifest"
 `
 }

@@ -13,12 +13,18 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vrooli/vrooli/internal/tuning"
+
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 
 	"github.com/vrooli/api-core/discovery"
 	plansv1 "github.com/vrooli/vrooli/packages/proto/gen/go/plan-manager/v1/plans"
 	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/plan-manager/v1/shared"
+)
+
+const (
+	planManagerClientParameterA = 500
 )
 
 const planManagerScenario = "plan-manager"
@@ -45,7 +51,7 @@ func NewDefaultPlanManagerClient(ctx context.Context) (PlanManagerClient, error)
 		return nil, fmt.Errorf("%w: discover %s: %v", ErrPlanManagerUnavailable, planManagerScenario, err)
 	}
 	return HTTPPlanManagerClient{
-		Client:  &http.Client{Timeout: 10 * time.Second},
+		Client:  &http.Client{Timeout: tuning.ControlPlaneClientTimeout},
 		BaseURL: strings.TrimRight(url, "/"),
 	}, nil
 }
@@ -169,7 +175,7 @@ func classifyPlanManagerStatus(baseURL string, status int, body string) error {
 		return fmt.Errorf("%w: %w: %s", ErrPlanManagerInvalid, ErrPlanManagerHTTPStatus, msg)
 	case status == http.StatusConflict:
 		return fmt.Errorf("%w: %w: %s", ErrPlanManagerConflict, ErrPlanManagerHTTPStatus, msg)
-	case status >= 500:
+	case status >= planManagerClientParameterA:
 		return fmt.Errorf("%w: %w: %s", ErrPlanManagerServer, ErrPlanManagerHTTPStatus, msg)
 	default:
 		return fmt.Errorf("%w: %s", ErrPlanManagerHTTPStatus, msg)

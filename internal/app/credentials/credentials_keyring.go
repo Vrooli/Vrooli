@@ -9,9 +9,21 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vrooli/vrooli/internal/tuning"
+
 	"github.com/vrooli/vrooli/internal/cli/commandtree"
+	"github.com/vrooli/vrooli/internal/cliout"
 	keyring "github.com/vrooli/vrooli/internal/credentials"
 	"github.com/vrooli/vrooli/internal/hostinventory"
+	"github.com/vrooli/vrooli/internal/logx"
+)
+
+const (
+	credentialsKeyringParameterA = 1024
+)
+
+const (
+	credentialsKeyringParameterB = 64
 )
 
 type credentialKeyringStatus struct {
@@ -35,24 +47,23 @@ func credentialsKeyring(ctx *CommandContext, args []string, input io.Reader) err
 			"Keyring inspection and repair never print credential values. Unlock prompts securely in the terminal.")
 		return nil
 	}
-	switch args[0] {
-	case "status":
-		return credentialsKeyringStatusCommand(ctx, args[1:])
-	case "inspect":
-		return credentialsKeyringFile(ctx, args[1:], false)
-	case "repair":
-		return credentialsKeyringRepair(ctx, args[1:])
-	case "unlock":
-		return credentialsKeyringUnlock(ctx, args[1:], input)
-	default:
+	handlers := map[string]func([]string) error{
+		"status":  func(args []string) error { return credentialsKeyringStatusCommand(ctx, args) },
+		"inspect": func(args []string) error { return credentialsKeyringFile(ctx, args, false) },
+		"repair":  func(args []string) error { return credentialsKeyringRepair(ctx, args) },
+		"unlock":  func(args []string) error { return credentialsKeyringUnlock(ctx, args, input) },
+	}
+	handler, ok := handlers[args[0]]
+	if !ok {
 		return fmt.Errorf("unknown credentials keyring command %q", args[0])
 	}
+	return handler(args[1:])
 }
 
 func keyringFormatAndPath(name string, args []string) (string, string, error) {
 	fs := flag.NewFlagSet(name, flag.ContinueOnError)
 	fs.SetOutput(io.Discard)
-	path, format := "", "text"
+	path, format := "", credentialsText
 	fs.StringVar(&path, "path", "", "keyring path")
 	fs.StringVar(&format, "format", "text", "output format: text or json")
 	if err := fs.Parse(args); err != nil {
@@ -62,7 +73,7 @@ func keyringFormatAndPath(name string, args []string) (string, string, error) {
 		return "", "", fmt.Errorf("%s accepts no positional arguments", name)
 	}
 	format = strings.TrimSpace(format)
-	if format != "text" && format != "json" {
+	if format != credentialsText && format != string(logx.FormatJSON) {
 		return "", "", fmt.Errorf("%s format must be text or json", name)
 	}
 	return path, format, nil
@@ -83,8 +94,8 @@ func credentialsKeyringStatusCommand(ctx *CommandContext, args []string) error {
 		State: string(verdict.State), Cause: verdict.Reason, Support: capability.Supported,
 		Remedy: credentialKeyringRemedy(string(verdict.State)),
 	}
-	if format == "json" {
-		return writeCredentialJSON(ctx.Stdout, status)
+	if format == string(logx.FormatJSON) {
+		return cliout.WriteJSONValue(ctx.Stdout, status)
 	}
 	fmt.Fprintf(ctx.Stdout, "Credential keyring: %s\n", status.State)
 	if status.Cause != "" {
@@ -150,8 +161,8 @@ func credentialsKeyringFile(ctx *CommandContext, args []string, repair bool) err
 	verdict := keyring.DeriveKeyringVerdict(report, capability)
 	report.Verdict = string(verdict.State)
 	report.VerdictReason = verdict.Reason
-	if format == "json" {
-		return writeCredentialJSON(ctx.Stdout, report)
+	if format == string(logx.FormatJSON) {
+		return cliout.WriteJSONValue(ctx.Stdout, report)
 	}
 	fmt.Fprintf(ctx.Stdout, "Keyring: %s\n  Format:   %s\n", report.Path, keyringFormatLabel(report.Format))
 	// Never print a verdict the inspection did not reach. An encrypted keyring
@@ -222,7 +233,7 @@ func keyringDaemonLabel(report keyring.KeyringReport) string {
 func credentialsKeyringRepair(ctx *CommandContext, args []string) error {
 	fs := flag.NewFlagSet("credentials keyring repair", flag.ContinueOnError)
 	fs.SetOutput(io.Discard)
-	path, format, retireBackup, offerOlderThan := "", "text", "", ""
+	path, format, retireBackup, offerOlderThan := "", credentialsText, "", ""
 	fs.StringVar(&path, "path", "", "keyring path")
 	fs.StringVar(&format, "format", "text", "output format: text or json")
 	fs.StringVar(&retireBackup, "retire-backup", "", "explicit keyring backup path to retire after the repair")
@@ -234,7 +245,7 @@ func credentialsKeyringRepair(ctx *CommandContext, args []string) error {
 		return fmt.Errorf("credentials keyring repair accepts no positional arguments")
 	}
 	format = strings.TrimSpace(format)
-	if format != "text" && format != "json" {
+	if format != credentialsText && format != string(logx.FormatJSON) {
 		return fmt.Errorf("credentials keyring repair format must be text or json")
 	}
 	var retirementThreshold time.Duration
@@ -245,7 +256,7 @@ func credentialsKeyringRepair(ctx *CommandContext, args []string) error {
 		}
 		retirementThreshold = parsedThreshold
 	}
-	repairCtx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
+	repairCtx, cancel := context.WithTimeout(context.Background(), tuning.CredentialRepairTimeout)
 	defer cancel()
 	report, err := keyring.RepairStore(repairCtx, path)
 	if err != nil {
@@ -258,8 +269,8 @@ func credentialsKeyringRepair(ctx *CommandContext, args []string) error {
 		report.Rungs = append(report.Rungs, keyring.Rung{Name: "retire_explicit_backup", Status: "repaired", Detail: "retired the explicitly named keyring backup"})
 	}
 	report.RetirementOffers = keyringRetirementOffers(report, retirementThreshold)
-	if format == "json" {
-		if err := writeCredentialJSON(ctx.Stdout, report); err != nil {
+	if format == string(logx.FormatJSON) {
+		if err := cliout.WriteJSONValue(ctx.Stdout, report); err != nil {
 			return err
 		}
 		return keyringRepairExit(report)
@@ -334,7 +345,7 @@ func credentialsKeyringUnlock(ctx *CommandContext, args []string, input io.Reade
 	if err != nil {
 		return err
 	}
-	unlockCtx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	unlockCtx, cancel := context.WithTimeout(context.Background(), tuning.ReloadFallbackGracePeriod)
 	defer cancel()
 	if err := keyring.Unlock(unlockCtx, strings.NewReader(passphrase)); err != nil {
 		return err
@@ -359,7 +370,7 @@ func keyringPassphrase(input io.Reader, prompt io.Writer) (string, error) {
 			return value, nil
 		}
 	}
-	value, err := io.ReadAll(io.LimitReader(input, 64*1024))
+	value, err := io.ReadAll(io.LimitReader(input, credentialsKeyringParameterB*credentialsKeyringParameterA))
 	if err != nil {
 		return "", fmt.Errorf("read login keyring passphrase: %w", err)
 	}

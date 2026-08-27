@@ -137,7 +137,7 @@ func (silentLifecycleError) ErrorSuggestions() []string { return nil }
 
 // withLifecycleFailureBlock wraps a run function so that any error
 // emits a failure block and is then returned as a silent error so the
-// root CLI does not re-print it. The signature matches the bindGlobal
+// root CLI does not re-print it. The signature matches the scenario binder
 // contract used by Start/Restart/Stop handlers.
 func withLifecycleFailureBlock[C any, Req any](
 	deps HandlerDeps[C],

@@ -12,8 +12,15 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vrooli/vrooli/internal/tuning"
+
 	"github.com/vrooli/vrooli/internal/shell"
 )
+
+// distributionTargetDarwinOS is the external release-artifact spelling. It
+// remains "darwin" because Go toolchains, release assets, and the keychain
+// cross-build contract use GOOS names rather than deployment manifest names.
+const distributionTargetDarwinOS = "darwin"
 
 // DistributionTarget is one supported prebuilt Vrooli CLI platform. This list
 // is the single source of truth consumed by the release workflow and bridge.
@@ -25,8 +32,8 @@ type DistributionTarget struct {
 var distributionTargets = []DistributionTarget{
 	{OS: "linux", Arch: "amd64"},
 	{OS: "linux", Arch: "arm64"},
-	{OS: "darwin", Arch: "amd64"},
-	{OS: "darwin", Arch: "arm64"},
+	{OS: distributionTargetDarwinOS, Arch: "amd64"},
+	{OS: distributionTargetDarwinOS, Arch: "arm64"},
 	{OS: "windows", Arch: "amd64"},
 	{OS: "windows", Arch: "arm64"},
 }
@@ -97,7 +104,7 @@ func BuildDistribution(ctx context.Context, options DistributionBuildOptions) (D
 	if !filepath.IsAbs(output) {
 		output = filepath.Join(root, output)
 	}
-	if err := os.MkdirAll(filepath.Dir(output), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(output), tuning.PermDir); err != nil {
 		return DistributionArtifact{}, fmt.Errorf("create distribution directory: %w", err)
 	}
 
@@ -215,10 +222,10 @@ func distributionOverlay(root string, target DistributionTarget) ([]string, func
 // ships a CLI with no credential backend at all. Linking the Security framework
 // needs the macOS SDK, so that build has to happen on a darwin host.
 func distributionCgoSetting(target DistributionTarget, allowMissingDarwinKeychain bool) (string, error) {
-	if target.OS != "darwin" {
+	if target.OS != distributionTargetDarwinOS {
 		return "0", nil
 	}
-	if runtime.GOOS == "darwin" {
+	if runtime.GOOS == distributionTargetDarwinOS {
 		return "1", nil
 	}
 	if allowMissingDarwinKeychain {
@@ -236,7 +243,7 @@ func distributionCgoSetting(target DistributionTarget, allowMissingDarwinKeychai
 // binary carries CGO_ENABLED in its build info, so this holds on any host and
 // cannot be defeated by an environment that quietly disabled cgo mid-build.
 func verifyDarwinKeychainLinked(output string, target DistributionTarget, allowMissingDarwinKeychain bool) error {
-	if target.OS != "darwin" || allowMissingDarwinKeychain {
+	if target.OS != distributionTargetDarwinOS || allowMissingDarwinKeychain {
 		return nil
 	}
 	info, err := gobuildinfo.ReadFile(output)

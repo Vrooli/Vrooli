@@ -83,13 +83,14 @@
     },
     "macos": {
       "status": "not_applicable",
-      "mechanism": "handler",
-      "evidence": "NVIDIA display hardware is not supported by current Mac hardware, so this Linux kernel-driver safeguard cannot apply."
+      "evidence": "Windows does not expose the Linux host interface used by safeguard nvidia_driver; the platform has a distinct host security and lifecycle model.",
+      "review_by": "2027-08-26"
     },
     "windows": {
       "status": "not_implemented",
-      "mechanism": "handler",
-      "evidence": "Windows driver-store and kernel-module management for NVIDIA hardware is a defined capability gap; no provider is wired yet."
+      "mechanism": "nvidia_driver_store",
+      "evidence": "The Windows NVIDIA provider is not wired into this safeguard yet; the host mechanism is the Windows driver store and kernel-mode display driver interface.",
+      "since": "2026-08-26"
     }
   },
   "risk_class": "boot_critical"

@@ -11,6 +11,16 @@ import (
 	"github.com/vrooli/vrooli/internal/cli/clipolicy"
 )
 
+const (
+	agentGrok = "grok"
+)
+
+const (
+	agentClaude   = "claude"
+	agentCodex    = "codex"
+	agentOpencode = "opencode"
+)
+
 // agentArgs is deliberately a repeatable argv surface. A coding-agent launch
 // is allowed to delegate to the selected executable, but it never accepts a
 // shell command string and never constructs one.
@@ -36,7 +46,7 @@ func (app *App) runAgentCommand(ctx *CommandContext, args []string) error {
 
 	fs := flag.NewFlagSet("vrooli agent launch", flag.ContinueOnError)
 	fs.SetOutput(ctx.Stderr)
-	runner := fs.String("runner", "claude", "coding-agent runner: claude, codex, opencode, or grok")
+	runner := fs.String("runner", agentClaude, "coding-agent runner: claude, codex, opencode, or grok")
 	prompt := fs.String("prompt", "", "optional non-interactive prompt")
 	cwd := fs.String("cwd", "", "optional working directory")
 	var extra agentArgs
@@ -78,12 +88,12 @@ func agentInvocationArgs(binary string, extra []string, prompt string) []string 
 		return args
 	}
 	switch binary {
-	case "claude":
+	case agentClaude:
 		return append(args, "-p", prompt)
-	case "opencode":
+	case agentOpencode:
 		args = append([]string{"run"}, args...)
 		return append(args, prompt)
-	case "codex", "grok":
+	case agentCodex, agentGrok:
 		return append(args, prompt)
 	default:
 		// agentRunnerBinary is the admission boundary. Keep this fallback
@@ -94,14 +104,14 @@ func agentInvocationArgs(binary string, extra []string, prompt string) []string 
 
 func agentRunnerBinary(name string) (string, error) {
 	switch strings.ToLower(strings.TrimSpace(name)) {
-	case "claude", "claude-code":
-		return "claude", nil
-	case "codex":
-		return "codex", nil
-	case "opencode":
-		return "opencode", nil
-	case "grok":
-		return "grok", nil
+	case agentClaude, "claude-code":
+		return agentClaude, nil
+	case agentCodex:
+		return agentCodex, nil
+	case agentOpencode:
+		return agentOpencode, nil
+	case agentGrok:
+		return agentGrok, nil
 	default:
 		return "", fmt.Errorf("unsupported coding-agent runner %q (supported: claude, claude-code, codex, opencode, grok)", name)
 	}

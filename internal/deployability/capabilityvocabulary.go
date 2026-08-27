@@ -8,13 +8,20 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"time"
+
+	"github.com/vrooli/vrooli/internal/repocontractmeta"
+)
+
+const (
+	capabilityvocabularyParameterA = 2
 )
 
 // CapabilityVocabulary reads the repository's single authored capability
 // vocabulary and returns a sorted, validated copy suitable for generated
 // schema artifacts.
 func CapabilityVocabulary(root string) ([]string, error) {
-	data, err := os.ReadFile(filepath.Join(root, ".vrooli", "capability-vocabulary.json"))
+	data, err := os.ReadFile(filepath.Join(root, repocontractmeta.ProjectConfigDir, "capability-vocabulary.json"))
 	if err != nil {
 		return nil, err
 	}
@@ -52,7 +59,7 @@ func CheckCapabilitySchemaEnums(root string) error {
 		return err
 	}
 	for _, schemaName := range []string{"safeguard.schema.json", "tool.schema.json"} {
-		path := filepath.Join(root, ".vrooli", "schemas", schemaName)
+		path := filepath.Join(root, repocontractmeta.ProjectConfigDir, "schemas", schemaName)
 		got, err := capabilitySchemaEnum(path)
 		if err != nil {
 			return err
@@ -61,10 +68,13 @@ func CheckCapabilitySchemaEnums(root string) error {
 			return fmt.Errorf("%s capability enum drifted from .vrooli/capability-vocabulary.json: got %v want %v", schemaName, got, want)
 		}
 	}
-	if err := checkPlatformPolicyEnums(filepath.Join(root, ".vrooli", "schemas", "capability-vocabulary.schema.json")); err != nil {
+	if err := checkPlatformPolicyEnums(filepath.Join(root, repocontractmeta.ProjectConfigDir, "schemas", "capability-vocabulary.schema.json")); err != nil {
 		return err
 	}
-	if err := checkPlatformStatusEnum(filepath.Join(root, ".vrooli", "schemas", "common.schema.json")); err != nil {
+	if err := ValidatePlatformPolicyDeclarations(root); err != nil {
+		return err
+	}
+	if err := checkPlatformStatusEnum(filepath.Join(root, repocontractmeta.ProjectConfigDir, "schemas", "common.schema.json")); err != nil {
 		return err
 	}
 	if err := CheckPlatformStatusSchemaRefs(root); err != nil {
@@ -75,6 +85,74 @@ func CheckCapabilitySchemaEnums(root string) error {
 	}
 	return nil
 }
+
+// ValidatePlatformPolicyDeclarations enforces the evidence contract for
+// operator-authored platform exclusions. A policy may preserve the compact
+// string form for no_work_required, but no_equivalent_ever must carry a dated,
+// platform-fact rationale so it cannot silently become a second implementation
+// catalogue.
+func ValidatePlatformPolicyDeclarations(root string) error {
+	path := filepath.Join(root, repocontractmeta.ProjectConfigDir, "capability-vocabulary.json")
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return err
+	}
+	var document struct {
+		PlatformPolicies map[string]map[string]json.RawMessage `json:"platform_policies"`
+	}
+	if err := json.Unmarshal(data, &document); err != nil {
+		return fmt.Errorf("parse %s: %w", path, err)
+	}
+	for capability, byOS := range document.PlatformPolicies {
+		if capability == "hardware-persistence" {
+			continue
+		}
+		for target, raw := range byOS {
+			var token string
+			if err := json.Unmarshal(raw, &token); err == nil {
+				if token == stringPolicyNoEquivalentEver {
+					return fmt.Errorf("%s platform policy %s/%s uses no_equivalent_ever without rationale and review_by", path, capability, target)
+				}
+				if token != stringPolicyNoWorkRequired {
+					return fmt.Errorf("%s platform policy %s/%s has unsupported value %q", path, capability, target, token)
+				}
+				continue
+			}
+			var value struct {
+				Status    string `json:"status"`
+				Rationale string `json:"rationale"`
+				ReviewBy  string `json:"review_by"`
+			}
+			if err := json.Unmarshal(raw, &value); err != nil {
+				return fmt.Errorf("%s platform policy %s/%s is not a token or object: %w", path, capability, target, err)
+			}
+			if value.Status != stringPolicyNoEquivalentEver && value.Status != stringPolicyNoWorkRequired {
+				return fmt.Errorf("%s platform policy %s/%s has unsupported status %q", path, capability, target, value.Status)
+			}
+			if value.Status != stringPolicyNoEquivalentEver {
+				continue
+			}
+			if strings.TrimSpace(value.Rationale) == "" || strings.TrimSpace(value.ReviewBy) == "" {
+				return fmt.Errorf("%s platform policy %s/%s no_equivalent_ever requires rationale and review_by", path, capability, target)
+			}
+			if _, err := time.Parse("2006-01-02", value.ReviewBy); err != nil {
+				return fmt.Errorf("%s platform policy %s/%s review_by %q is not an ISO date", path, capability, target, value.ReviewBy)
+			}
+			lower := strings.ToLower(value.Rationale)
+			for _, circular := range []string{"no implementation", "not applicable on this host os", "handler", "vrooli"} {
+				if strings.Contains(lower, circular) {
+					return fmt.Errorf("%s platform policy %s/%s rationale contains circular phrase %q", path, capability, target, circular)
+				}
+			}
+		}
+	}
+	return nil
+}
+
+const (
+	stringPolicyNoEquivalentEver = "no_equivalent_ever"
+	stringPolicyNoWorkRequired   = "no_work_required"
+)
 
 // CheckCapabilityManifestPlatformStatus is the retirement lint for the legacy
 // tool/safeguard platforms array. Capability resolution must consume an
@@ -127,7 +205,7 @@ func GenerateCapabilitySchemaEnums(root string) error {
 		return fmt.Errorf("marshal capability enum: %w", err)
 	}
 	for _, schemaName := range []string{"safeguard.schema.json", "tool.schema.json"} {
-		path := filepath.Join(root, ".vrooli", "schemas", schemaName)
+		path := filepath.Join(root, repocontractmeta.ProjectConfigDir, "schemas", schemaName)
 		data, err := os.ReadFile(path)
 		if err != nil {
 			return err
@@ -147,7 +225,7 @@ func GenerateCapabilitySchemaEnums(root string) error {
 			return err
 		}
 	}
-	path := filepath.Join(root, ".vrooli", "schemas", "capability-vocabulary.schema.json")
+	path := filepath.Join(root, repocontractmeta.ProjectConfigDir, "schemas", "capability-vocabulary.schema.json")
 	data, err := os.ReadFile(path)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -165,7 +243,7 @@ func GenerateCapabilitySchemaEnums(root string) error {
 			return err
 		}
 	}
-	commonPath := filepath.Join(root, ".vrooli", "schemas", "common.schema.json")
+	commonPath := filepath.Join(root, repocontractmeta.ProjectConfigDir, "schemas", "common.schema.json")
 	common, err := os.ReadFile(commonPath)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -239,9 +317,9 @@ func CheckPlatformStatusSchemaRefs(root string) error {
 	}
 	loaded := map[string]map[string]any{}
 	for _, check := range checks {
-		name := strings.SplitN(check.name, " ", 2)[0]
+		name := strings.SplitN(check.name, " ", capabilityvocabularyParameterA)[0]
 		if loaded[name] == nil {
-			data, err := os.ReadFile(filepath.Join(root, ".vrooli", "schemas", name))
+			data, err := os.ReadFile(filepath.Join(root, repocontractmeta.ProjectConfigDir, "schemas", name))
 			if err != nil {
 				return err
 			}

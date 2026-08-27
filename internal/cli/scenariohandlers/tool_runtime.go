@@ -12,7 +12,20 @@ import (
 	"github.com/vrooli/vrooli/internal/cli/rootcli"
 	. "github.com/vrooli/vrooli/internal/cli/scenariocli" //nolint:revive // scenariohandlers is a thin glue layer over scenariocli; dot-import keeps wiring readable.
 	"github.com/vrooli/vrooli/internal/cliout"
+	"github.com/vrooli/vrooli/internal/repocontractmeta"
 	"github.com/vrooli/vrooli/internal/scenarioexec"
+)
+
+const (
+	toolRuntimeHelp = "--help"
+)
+
+const (
+	toolRuntimeInit = "init"
+)
+
+const (
+	toolRuntimeParameterA = 2
 )
 
 func CompletenessHandler[C any](deps HandlerDeps[C]) func(C, []string) error {
@@ -40,12 +53,12 @@ func CompletenessHandler[C any](deps HandlerDeps[C]) func(C, []string) error {
 // `--color`) to appear BEFORE the subcommand name; subcommand-level flags
 // (`--json`, `--verbose`) are appended after the user args.
 func BuildScenarioCompletenessArgs(globals rootcli.GlobalOptions, args []string) []string {
-	prefix := make([]string, 0, 2)
+	prefix := make([]string, 0, toolRuntimeParameterA)
 	if globals.NoColor && !rootcli.ContainsArg(args, "--no-color") {
 		prefix = append(prefix, "--no-color")
 	}
 
-	commandArgs := make([]string, 0, len(prefix)+len(args)+2)
+	commandArgs := make([]string, 0, len(prefix)+len(args)+toolRuntimeParameterA)
 	commandArgs = append(commandArgs, prefix...)
 	commandArgs = append(commandArgs, args...)
 
@@ -64,7 +77,7 @@ func BuildScenarioCompletenessArgs(globals rootcli.GlobalOptions, args []string)
 // the run-coupled verbs stay with test-genie (`sync`, the evidence writer)
 // or read the artifact directly (`snapshot`).
 func RequirementsHandler[C any](deps HandlerDeps[C]) rootcli.Handler[C] {
-	return bindGlobal(deps.Stdout,
+	return scenarioServiceCommand(deps.Stdout,
 		func(ctx C, args []string) (RequirementsRequest, error) { return ParseRequirementsRequest(args) },
 		func(ctx C, req RequirementsRequest) (cliout.Format, struct{}, error) {
 			if req.Snapshot {
@@ -111,7 +124,7 @@ type requirementsRoute struct {
 // buildScenarioRequirementsRoute maps the legacy verb surface onto the two
 // owners. UX stays `vrooli scenario requirements <verb> <scenario> [flags]`.
 func buildScenarioRequirementsRoute(root string, globals rootcli.GlobalOptions, args []string) (requirementsRoute, error) {
-	known := map[string]struct{}{"report": {}, "validate": {}, "sync": {}, "manual-log": {}, "lint-prd": {}, "phase": {}, "phase-inspect": {}, "drift": {}, "init": {}}
+	known := map[string]struct{}{"report": {}, "validate": {}, "sync": {}, "manual-log": {}, "lint-prd": {}, "phase": {}, "phase-inspect": {}, "drift": {}, toolRuntimeInit: {}}
 	subcommand := args[0]
 	rest := args[1:]
 	if _, ok := known[subcommand]; !ok {
@@ -133,7 +146,7 @@ func buildBusinessHealthRequirementsRoute(root string, globals rootcli.GlobalOpt
 	for index := 0; index < len(args); index++ {
 		arg := args[index]
 		switch {
-		case arg == "--help" || arg == "-h":
+		case arg == toolRuntimeHelp || arg == "-h":
 			flags = append(flags, arg)
 		case strings.HasPrefix(arg, "-"):
 			flags = append(flags, arg)
@@ -147,13 +160,13 @@ func buildBusinessHealthRequirementsRoute(root string, globals rootcli.GlobalOpt
 			positionals = append(positionals, arg)
 		}
 	}
-	if rootcli.ContainsArg(flags, "--help") || rootcli.ContainsArg(flags, "-h") {
-		return requirementsRoute{args: append(requirementsVerbCommand(subcommand, "", nil, nil), "--help"), workdir: root}, nil
+	if rootcli.ContainsArg(flags, toolRuntimeHelp) || rootcli.ContainsArg(flags, "-h") {
+		return requirementsRoute{args: append(requirementsVerbCommand(subcommand, "", nil, nil), toolRuntimeHelp), workdir: root}, nil
 	}
 	if scenarioName == "" {
 		return requirementsRoute{}, rootcli.UsageErrorf("scenario requirements", "scenario requirements %s requires a scenario name", subcommand)
 	}
-	scenarioDir := filepath.Join(root, "scenarios", scenarioName)
+	scenarioDir := filepath.Join(root, repocontractmeta.ScenarioDir, scenarioName)
 	if info, err := os.Stat(scenarioDir); err != nil || !info.IsDir() {
 		return requirementsRoute{}, rootcli.UsageErrorf("scenario requirements", "scenario directory not found: %s", scenarioDir)
 	}
@@ -204,7 +217,7 @@ func requirementsVerbCommand(subcommand, scenario string, positionals, flags []s
 			out = append(out, "--phase", "all")
 		}
 		return out
-	case "init":
+	case toolRuntimeInit:
 		// The registry scaffold is the prd_missing_requirements fixer (the
 		// wizard is the richer authoring path).
 		return withScenario("fix", "apply", "--rules", "prd_missing_requirements")
@@ -233,7 +246,7 @@ func translateRequirementsFlags(subcommand string, flags []string) ([]string, er
 		case "--validated-by":
 			flag = "--by"
 		case "--validated-at", "--expires-in", "--expires-at", "--status", "--artifact", "--manifest", "--owner", "--template":
-			if subcommand == "manual-log" || subcommand == "init" {
+			if subcommand == "manual-log" || subcommand == toolRuntimeInit {
 				return nil, rootcli.UsageErrorf("scenario requirements", "%s no longer accepts %s: attestation time and expiry are stamped by business-health's policy (see business-health manual-log add --help)", subcommand, flag)
 			}
 		}
@@ -251,7 +264,7 @@ func buildScenarioRequirementsSubcommand(root string, globals rootcli.GlobalOpti
 	for index := 0; index < len(args); index++ {
 		arg := args[index]
 		switch {
-		case arg == "--help" || arg == "-h":
+		case arg == toolRuntimeHelp || arg == "-h":
 			commandArgs = append(commandArgs, arg)
 		case strings.HasPrefix(arg, "-"):
 			commandArgs = append(commandArgs, arg)
@@ -265,17 +278,17 @@ func buildScenarioRequirementsSubcommand(root string, globals rootcli.GlobalOpti
 			commandArgs = append(commandArgs, arg)
 		}
 	}
-	if rootcli.ContainsArg(commandArgs, "--help") || rootcli.ContainsArg(commandArgs, "-h") {
+	if rootcli.ContainsArg(commandArgs, toolRuntimeHelp) || rootcli.ContainsArg(commandArgs, "-h") {
 		return commandArgs, root, nil
 	}
 	if scenarioName == "" {
 		return nil, "", rootcli.UsageErrorf("scenario requirements", "scenario requirements %s requires a scenario name", subcommand)
 	}
-	scenarioDir := filepath.Join(root, "scenarios", scenarioName)
+	scenarioDir := filepath.Join(root, repocontractmeta.ScenarioDir, scenarioName)
 	if info, err := os.Stat(scenarioDir); err != nil || !info.IsDir() {
 		return nil, "", rootcli.UsageErrorf("scenario requirements", "scenario directory not found: %s", scenarioDir)
 	}
-	if subcommand != "init" {
+	if subcommand != toolRuntimeInit {
 		if info, err := os.Stat(filepath.Join(scenarioDir, "requirements")); err != nil || !info.IsDir() {
 			return nil, "", rootcli.UsageErrorf("scenario requirements", "scenario %s does not define requirements/", scenarioName)
 		}
@@ -303,7 +316,7 @@ func runScenarioRequirementsSnapshot(root string, args []string, stdout io.Write
 	scenarioName := ""
 	for _, arg := range args {
 		switch arg {
-		case "--help", "-h":
+		case toolRuntimeHelp, "-h":
 			commandtree.WriteHelp(stdout, RequirementsSnapshotHelpText())
 			return nil
 		default:
@@ -319,7 +332,7 @@ func runScenarioRequirementsSnapshot(root string, args []string, stdout io.Write
 	if scenarioName == "" {
 		return rootcli.UsageErrorf("scenario requirements snapshot", "scenario requirements snapshot requires a scenario name")
 	}
-	snapshotPath := filepath.Join(root, "scenarios", scenarioName, "coverage", "requirements-sync", "latest.json")
+	snapshotPath := filepath.Join(root, repocontractmeta.ScenarioDir, scenarioName, "coverage", "requirements-sync", "latest.json")
 	data, err := os.ReadFile(snapshotPath)
 	if err != nil {
 		if os.IsNotExist(err) {

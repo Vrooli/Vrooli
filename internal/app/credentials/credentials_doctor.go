@@ -12,8 +12,10 @@ import (
 	"github.com/vrooli/vrooli/internal/credentialspec"
 
 	repocontract "github.com/vrooli/repo-contract-go"
+	"github.com/vrooli/vrooli/internal/cliout"
 	"github.com/vrooli/vrooli/internal/config"
 	"github.com/vrooli/vrooli/internal/credentialauthority"
+	"github.com/vrooli/vrooli/internal/logx"
 	"github.com/vrooli/vrooli/internal/resources/securestore"
 )
 
@@ -288,10 +290,12 @@ func credentialLabelFor(entry credentialEntry) string {
 // credentialsDoctor explains this host's credential backend and then every
 // declared credential on it. It is the one command an operator runs when a
 // resource says its credential could not be read.
+//
+//nolint:gocyclo // credential diagnosis combines selection, provider, repair, and report-output branches.
 func credentialsDoctor(ctx *CommandContext, args []string) error {
 	fs := flag.NewFlagSet("credentials doctor", flag.ContinueOnError)
 	fs.SetOutput(io.Discard)
-	format := "text"
+	format := credentialsText
 	checkWrites := false
 	fs.StringVar(&format, "format", "text", "output format: text or json")
 	// Opt-in because the probe writes to the operator's real credential store.
@@ -307,7 +311,7 @@ func credentialsDoctor(ctx *CommandContext, args []string) error {
 		return fmt.Errorf("credentials doctor accepts no positional arguments")
 	}
 	format = strings.TrimSpace(format)
-	if format != "text" && format != "json" {
+	if format != credentialsText && format != string(logx.FormatJSON) {
 		return fmt.Errorf("credentials doctor format must be text or json")
 	}
 
@@ -320,8 +324,8 @@ func credentialsDoctor(ctx *CommandContext, args []string) error {
 		return err
 	}
 
-	if format == "json" {
-		return writeCredentialJSON(ctx.Stdout, struct {
+	if format == string(logx.FormatJSON) {
+		return cliout.WriteJSONValue(ctx.Stdout, struct {
 			Provider                 securestore.Diagnosis `json:"provider"`
 			Credentials              []credentialEntry     `json:"credentials"`
 			CredentialCount          int                   `json:"credential_count"`

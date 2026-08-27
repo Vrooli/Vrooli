@@ -11,6 +11,12 @@ import (
 	"time"
 )
 
+const (
+	startopParameterA = 0.50
+	startopParameterB = 0.90
+	startopParameterC = 1000
+)
+
 // Start-operation records (scenario-lifecycle-start-wait-contract plan,
 // Phase 3). A start operation is the durable, cross-process view of one
 // in-flight `vrooli scenario start|restart`: who is running it, which step it
@@ -457,12 +463,12 @@ WHERE status != ?`
 			if byScenario[recordScenario][key] == nil {
 				byScenario[recordScenario][key] = &timingSamples{scenario: recordScenario, operation: operation, step: step.Name}
 			}
-			byScenario[recordScenario][key].values = append(byScenario[recordScenario][key].values, float64(step.EndedAt.Sub(step.StartedAt).Microseconds())/1000)
+			byScenario[recordScenario][key].values = append(byScenario[recordScenario][key].values, float64(step.EndedAt.Sub(step.StartedAt).Microseconds())/startopParameterC)
 			if scenario == "" {
 				if byFleet[key] == nil {
 					byFleet[key] = &timingSamples{scenario: "fleet", operation: operation, step: step.Name}
 				}
-				byFleet[key].values = append(byFleet[key].values, float64(step.EndedAt.Sub(step.StartedAt).Microseconds())/1000)
+				byFleet[key].values = append(byFleet[key].values, float64(step.EndedAt.Sub(step.StartedAt).Microseconds())/startopParameterC)
 			}
 		}
 	}
@@ -536,8 +542,8 @@ func summarizeTimingSamples(values []*timingSamples) []StartTimingSummary {
 			Step:      sample.step,
 			Count:     len(sorted),
 			MeanMS:    total / float64(len(sorted)),
-			P50MS:     percentile(sorted, 0.50),
-			P90MS:     percentile(sorted, 0.90),
+			P50MS:     percentile(sorted, startopParameterA),
+			P90MS:     percentile(sorted, startopParameterB),
 			TotalMS:   total,
 			Share:     total / scopeTotal,
 		})

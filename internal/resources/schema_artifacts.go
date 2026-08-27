@@ -10,6 +10,9 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/vrooli/vrooli/internal/repocontractmeta"
+	"github.com/vrooli/vrooli/internal/tuning"
+
 	manifestpkg "github.com/vrooli/vrooli/internal/resources/manifest"
 )
 
@@ -114,10 +117,10 @@ func SyncSchemaArtifacts(root string) (ResourceSchemaSyncReport, error) {
 		ResourceCount:  resourceCount,
 		DefinitionPath: filepath.Join(root, filepath.FromSlash(resourceDefinitionsRelPath)),
 	}
-	if err := os.MkdirAll(filepath.Dir(report.DefinitionPath), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(report.DefinitionPath), tuning.PermDir); err != nil {
 		return ResourceSchemaSyncReport{}, fmt.Errorf("mkdir %s: %w", filepath.Dir(report.DefinitionPath), err)
 	}
-	if err := os.WriteFile(report.DefinitionPath, docBytes, 0o644); err != nil {
+	if err := os.WriteFile(report.DefinitionPath, docBytes, tuning.PermFile); err != nil {
 		return ResourceSchemaSyncReport{}, fmt.Errorf("write %s: %w", report.DefinitionPath, err)
 	}
 	report.WrittenPaths = append(report.WrittenPaths, report.DefinitionPath)
@@ -319,7 +322,7 @@ func findMissingScenarioResourceReferences(root string) ([]ScenarioResourceRefer
 	}
 	slices.Sort(resourceNames)
 
-	scenarioRoot := filepath.Join(root, "scenarios")
+	scenarioRoot := filepath.Join(root, repocontractmeta.ScenarioDir)
 	scenarioEntries, err := os.ReadDir(scenarioRoot)
 	if err != nil {
 		return nil, fmt.Errorf("read scenarios dir: %w", err)
@@ -329,7 +332,7 @@ func findMissingScenarioResourceReferences(root string) ([]ScenarioResourceRefer
 		if !entry.IsDir() {
 			continue
 		}
-		manifestPath := filepath.Join(scenarioRoot, entry.Name(), ".vrooli", "service.json")
+		manifestPath := filepath.Join(scenarioRoot, entry.Name(), repocontractmeta.ProjectConfigDir, "service.json")
 		data, err := os.ReadFile(manifestPath)
 		if err != nil {
 			if os.IsNotExist(err) {

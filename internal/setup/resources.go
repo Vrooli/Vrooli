@@ -11,6 +11,11 @@ import (
 	vrooliruntime "github.com/vrooli/vrooli/internal/runtime"
 )
 
+const (
+	resourcesEnabled = "enabled"
+	resourcesNone    = "none"
+)
+
 func (s *setupService) maybeInstallResources(root, home string, opts Options, stdout, stderr io.Writer, onOperation ...func(string)) ([]string, error) {
 	operation := func(label string) {}
 	if len(onOperation) > 0 && onOperation[0] != nil {
@@ -18,14 +23,14 @@ func (s *setupService) maybeInstallResources(root, home string, opts Options, st
 	}
 	selection := strings.TrimSpace(opts.Resources)
 	if selection == "" {
-		selection = "enabled"
+		selection = resourcesEnabled
 	}
-	if selection == "none" {
+	if selection == resourcesNone {
 		return nil, nil
 	}
 
 	controller := s.deps.resourceController(root, home)
-	if selection == "enabled" {
+	if selection == resourcesEnabled {
 		names, err := enabledResourceNames(root)
 		if err != nil {
 			return nil, err

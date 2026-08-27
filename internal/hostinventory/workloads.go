@@ -8,7 +8,13 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/vrooli/vrooli/internal/hostreqspec"
 	"github.com/vrooli/vrooli/internal/workloadowner"
+)
+
+const (
+	workloadsParameterA = 4
+	workloadsParameterB = 5
 )
 
 // CollectWorkloads serves ordinary callers from the shared cross-process
@@ -25,6 +31,8 @@ func CollectWorkloads(ctx context.Context) (WorkloadSnapshot, error) {
 // CollectWorkloads performs the deliberately opt-in workload census. It uses
 // at most one command for each registry and records unavailable registries as
 // unread rather than silently treating them as empty.
+//
+//nolint:gocyclo // workload collection combines runtime, process, container, and partial-observation states.
 func (c Collector) CollectWorkloads(ctx context.Context) (WorkloadSnapshot, error) {
 	c = c.withDefaults()
 	out := WorkloadSnapshot{}
@@ -61,8 +69,8 @@ func (c Collector) CollectWorkloads(ctx context.Context) (WorkloadSnapshot, erro
 		out.Unread = append(out.Unread, "containers: docker is unavailable")
 	}
 
-	switch c.GOOS {
-	case "linux":
+	switch hostreqspec.PlatformFromGOOS(c.GOOS) {
+	case hostreqspec.PlatformLinux:
 		if path, err := c.Commands.LookPath("systemctl"); err == nil {
 			// User units contain the Vrooli lifecycle and watchdog declarations;
 			// system units are retained for whole-host posture reporting. They are
@@ -91,7 +99,7 @@ func (c Collector) CollectWorkloads(ctx context.Context) (WorkloadSnapshot, erro
 		} else {
 			out.Unread = append(out.Unread, "listeners: ss is unavailable")
 		}
-	case "darwin":
+	case hostreqspec.PlatformMacOS:
 		if path, err := c.Commands.LookPath("launchctl"); err == nil {
 			data, runErr := c.Commands.Run(ctx, path, "list")
 			if runErr != nil {
@@ -114,7 +122,7 @@ func (c Collector) CollectWorkloads(ctx context.Context) (WorkloadSnapshot, erro
 		} else {
 			out.Unread = append(out.Unread, "listeners: netstat is unavailable")
 		}
-	case "windows":
+	case hostreqspec.PlatformWindows:
 		if path, err := c.Commands.LookPath("sc.exe"); err == nil {
 			data, runErr := c.Commands.Run(ctx, path, "query", "type=", "service", "state=", "all")
 			if runErr != nil {
@@ -207,7 +215,7 @@ func parseNetstat(data []byte, platform string) []ListeningPort {
 	var out []ListeningPort
 	for _, line := range strings.Split(string(data), "\n") {
 		fields := strings.Fields(line)
-		if len(fields) < 4 {
+		if len(fields) < workloadsParameterA {
 			continue
 		}
 		stateIndex := -1
@@ -264,7 +272,7 @@ func parseSS(data []byte) []ListeningPort {
 			continue
 		}
 		process := ""
-		if len(fields) > 5 {
+		if len(fields) > workloadsParameterB {
 			process = strings.Join(fields[5:], " ")
 		}
 		out = append(out, ListeningPort{Protocol: "tcp", Address: address, Port: port, Process: process, Evidence: "ss -ltnup"})

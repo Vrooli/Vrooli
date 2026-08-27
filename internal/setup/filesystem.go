@@ -10,10 +10,20 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vrooli/vrooli/internal/tuning"
+
 	repocontract "github.com/vrooli/repo-contract-go"
 	"github.com/vrooli/vrooli/internal/config"
 	"github.com/vrooli/vrooli/internal/hostreqkit"
 	"github.com/vrooli/vrooli/internal/projectstate"
+)
+
+const (
+	filesystemParameterA = 100_000
+)
+
+const (
+	filesystemParameterB = 4
 )
 
 func ensureProjectFilesystem(root, home string) error {
@@ -26,14 +36,14 @@ func ensureProjectFilesystem(root, home string) error {
 		filepath.Join(root, "data"),
 		filepath.Join(config.RepoConfigDir(root), "build"),
 	} {
-		if err := os.MkdirAll(path, 0o755); err != nil {
+		if err := os.MkdirAll(path, tuning.PermDir); err != nil {
 			return err
 		}
 	}
 	// Operator-home paths: resolve names from the runtime_home authority and
 	// route every create through the owned-write seam so a sudo'd setup never
 	// leaves root-owned dirs in the operator's home.
-	homeDirs := make([]string, 0, 4)
+	homeDirs := make([]string, 0, filesystemParameterB)
 	for _, key := range []string{repocontract.HomeKeyBin, repocontract.HomeKeyLogs, repocontract.HomeKeyProcesses} {
 		dir, err := repocontract.RuntimeHomeEntryPath(home, key)
 		if err != nil {
@@ -73,8 +83,8 @@ func ensureProjectFilesystemWithRecovery(root, home string) error {
 			ExpectedUID: uid,
 			ExpectedGID: gid,
 			Apply:       true,
-			MaxEntries:  100_000,
-			Deadline:    time.Now().Add(30 * time.Second),
+			MaxEntries:  filesystemParameterA,
+			Deadline:    time.Now().Add(tuning.StandardOperationTimeout),
 		})
 		if repairErr != nil || result.Failed > 0 || result.Status == config.RepairPartial {
 			if repairErr == nil {

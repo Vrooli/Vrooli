@@ -11,18 +11,40 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
-	"time"
+
+	"github.com/vrooli/vrooli/internal/tuning"
 
 	"github.com/vrooli/cli-core/cliutil"
 	repocontract "github.com/vrooli/repo-contract-go"
 	"github.com/vrooli/vrooli/internal/artifactlease"
 	"github.com/vrooli/vrooli/internal/artifactledger"
 	"github.com/vrooli/vrooli/internal/credentialauthority"
+	"github.com/vrooli/vrooli/internal/logx"
 	resourceenv "github.com/vrooli/vrooli/internal/resources/env"
 	manifestpkg "github.com/vrooli/vrooli/internal/resources/manifest"
 	"github.com/vrooli/vrooli/internal/scenario"
+	"github.com/vrooli/vrooli/internal/scenarioruntime"
 	"github.com/vrooli/vrooli/internal/shell"
 	resourcedeployment "github.com/vrooli/vrooli/packages/resource-deployment"
+)
+
+const (
+	driversCliLogs = "logs"
+)
+
+const (
+	driversCliHealthChecksFailed = "health checks failed"
+	driversCliInstall            = "install"
+	driversCliStatus             = "status"
+	driversCliUninstall          = "uninstall"
+)
+
+const (
+	driversCliParameterA = 10
+)
+
+const (
+	driversCliParameterB = 16
 )
 
 func volumeSourceLooksLikeFile(volume ResourceVolume) bool {
@@ -68,7 +90,7 @@ func (d externalCLIDriver) Status(ctx context.Context, controller *Controller, i
 		status.ProbeError = err.Error()
 		healthy := false
 		status.Healthy = &healthy
-		status.Health = "unhealthy"
+		status.Health = scenarioruntime.HealthStatusUnhealthy
 		return status, nil
 	}
 
@@ -76,7 +98,7 @@ func (d externalCLIDriver) Status(ctx context.Context, controller *Controller, i
 	status.Running = true
 	healthy := true
 	status.Healthy = &healthy
-	status.Health = "healthy"
+	status.Health = scenarioruntime.HealthStatusHealthy
 	status.Message = "available"
 
 	if fast {
@@ -86,16 +108,16 @@ func (d externalCLIDriver) Status(ctx context.Context, controller *Controller, i
 		health, err := controller.runResourceHealthChecks(ctx, manifest)
 		if err != nil {
 			status.StatusCode = StatusCodeCommandError
-			status.Message = "health checks failed"
+			status.Message = driversCliHealthChecksFailed
 			status.ProbeError = err.Error()
 			return status, nil
 		}
 		status = applyHealthToStatus(status, health)
 		if strings.TrimSpace(status.Message) == "" {
 			if health.Healthy {
-				status.Message = "healthy"
+				status.Message = scenarioruntime.HealthStatusHealthy
 			} else {
-				status.Message = "unhealthy"
+				status.Message = scenarioruntime.HealthStatusUnhealthy
 			}
 		}
 	}
@@ -115,12 +137,12 @@ func (d externalCLIDriver) Run(ctx context.Context, controller *Controller, item
 	}
 
 	switch action {
-	case "status":
+	case driversCliStatus:
 		status, err := d.Status(ctx, controller, item, manifest, !containsString(args, "--no-fast"))
 		if err != nil {
 			return err
 		}
-		if containsString(args, "--format") && nextArgValue(args, "--format") == "json" {
+		if containsString(args, "--format") && nextArgValue(args, "--format") == string(logx.FormatJSON) {
 			return json.NewEncoder(stdout).Encode(map[string]any{
 				"installed": status.Installed,
 				"running":   status.Running,
@@ -131,9 +153,9 @@ func (d externalCLIDriver) Run(ctx context.Context, controller *Controller, item
 		}
 		_, err = fmt.Fprintf(stdout, "%s: %s\n", item.Name, status.Message)
 		return err
-	case "install":
+	case driversCliInstall:
 		return runInstallCommand(ctx, controller, manifest)
-	case "start", "restart":
+	case brokerTransportStart, brokerTransportRestart:
 		status, err := d.Status(ctx, controller, item, manifest, false)
 		if err != nil {
 			return err
@@ -152,12 +174,12 @@ func (d externalCLIDriver) Run(ctx context.Context, controller *Controller, item
 			}
 		}
 		return runInstallCommand(ctx, controller, manifest)
-	case "stop":
+	case brokerTransportStop:
 		_, err := fmt.Fprintf(stdout, "%s does not run as a managed background service\n", item.Name)
 		return err
-	case "uninstall":
+	case driversCliUninstall:
 		return uninstallNativeCLI(controller, manifest)
-	case "logs":
+	case driversCliLogs:
 		if manifest.Capabilities.SupportsLogs {
 			candidates := managedLogCandidates(controller, manifest)
 			if len(candidates) > 0 {
@@ -194,7 +216,7 @@ func (d nativeCLIDriver) Status(ctx context.Context, controller *Controller, ite
 }
 
 func (d nativeCLIDriver) Run(ctx context.Context, controller *Controller, item Resource, manifest ResourceManifest, action string, args []string, stdout, stderr io.Writer) error {
-	if action == "start" || action == "restart" {
+	if action == brokerTransportStart || action == brokerTransportRestart {
 		status, err := d.Status(ctx, controller, item, manifest, false)
 		if err != nil {
 			return err
@@ -291,7 +313,7 @@ func (d cloudAPIDriver) Status(ctx context.Context, controller *Controller, item
 
 		healthy := false
 		status.Healthy = &healthy
-		status.Health = "unhealthy"
+		status.Health = scenarioruntime.HealthStatusUnhealthy
 		status.StatusCode = StatusCodeCommandError
 		status.Message = "credential declaration is invalid"
 		status.ProbeError = err.Error()
@@ -300,7 +322,7 @@ func (d cloudAPIDriver) Status(ctx context.Context, controller *Controller, item
 	if len(gaps.Missing) > 0 {
 		healthy := false
 		status.Healthy = &healthy
-		status.Health = "unhealthy"
+		status.Health = scenarioruntime.HealthStatusUnhealthy
 		status.Message = credentialGapMessage(gaps)
 		if gaps.Provider != credentialauthority.ProviderAvailable {
 
@@ -312,7 +334,7 @@ func (d cloudAPIDriver) Status(ctx context.Context, controller *Controller, item
 
 	healthy := true
 	status.Healthy = &healthy
-	status.Health = "healthy"
+	status.Health = scenarioruntime.HealthStatusHealthy
 
 	if fast {
 		return status, nil
@@ -321,16 +343,16 @@ func (d cloudAPIDriver) Status(ctx context.Context, controller *Controller, item
 		health, err := controller.runResourceHealthChecks(ctx, manifest)
 		if err != nil {
 			status.StatusCode = StatusCodeCommandError
-			status.Message = "health checks failed"
+			status.Message = driversCliHealthChecksFailed
 			status.ProbeError = err.Error()
 			return status, nil
 		}
 		status = applyHealthToStatus(status, health)
 		if strings.TrimSpace(status.Message) == "" {
 			if health.Healthy {
-				status.Message = "healthy"
+				status.Message = scenarioruntime.HealthStatusHealthy
 			} else {
-				status.Message = "unhealthy"
+				status.Message = scenarioruntime.HealthStatusUnhealthy
 			}
 		}
 	}
@@ -350,12 +372,12 @@ func (d cloudAPIDriver) Run(ctx context.Context, controller *Controller, item Re
 	}
 
 	switch action {
-	case "status":
+	case driversCliStatus:
 		status, err := d.Status(ctx, controller, item, manifest, !containsString(args, "--no-fast"))
 		if err != nil {
 			return err
 		}
-		if containsString(args, "--format") && nextArgValue(args, "--format") == "json" {
+		if containsString(args, "--format") && nextArgValue(args, "--format") == string(logx.FormatJSON) {
 			return json.NewEncoder(stdout).Encode(map[string]any{
 				"installed": status.Installed,
 				"running":   status.Running,
@@ -366,15 +388,15 @@ func (d cloudAPIDriver) Run(ctx context.Context, controller *Controller, item Re
 		}
 		_, err = fmt.Fprintf(stdout, "%s: %s\n", item.Name, status.Message)
 		return err
-	case "install":
+	case driversCliInstall:
 		return runInstallCommand(ctx, controller, manifest)
-	case "start", "restart":
+	case brokerTransportStart, brokerTransportRestart:
 		_, err := fmt.Fprintf(stdout, "%s is a hosted API and does not have a local start step\n", item.Name)
 		return err
-	case "stop":
+	case brokerTransportStop:
 		_, err := fmt.Fprintf(stdout, "%s is a hosted API and does not have a local stop step\n", item.Name)
 		return err
-	case "logs":
+	case driversCliLogs:
 		if manifest.Capabilities.SupportsLogs {
 			candidates := managedLogCandidates(controller, manifest)
 			if len(candidates) > 0 {
@@ -471,7 +493,7 @@ func runInstallCommand(ctx context.Context, controller *Controller, manifest Res
 		return nil
 	}
 
-	stderrTail := newTailBuffer(16 << 10)
+	stderrTail := newTailBuffer(driversCliParameterB << driversCliParameterA)
 	cmd := shell.Command(shell.Spec{
 		Name:   command[0],
 		Args:   command[1:],
@@ -480,7 +502,7 @@ func runInstallCommand(ctx context.Context, controller *Controller, manifest Res
 		Stdout: io.Discard,
 		Stderr: stderrTail,
 	})
-	runCtx, cancel := context.WithTimeout(ctx, 10*time.Minute)
+	runCtx, cancel := context.WithTimeout(ctx, tuning.LongOperationBudget)
 	defer cancel()
 	if err := cmd.Start(); err != nil {
 		return err
@@ -516,7 +538,7 @@ func runSourceBuild(ctx context.Context, controller *Controller, manifest Resour
 	installDir := filepath.Join(runtimeHome, "bin")
 	spec := cliutil.CanonicalResourceGoModuleFreshnessSpec(resourceRoot, moduleDir, manifest.CLI.Command, manifest.CLI.Freshness.Inputs)
 	args := cliutil.GoModuleInstallerArgs(moduleDir, manifestPath, manifest.CLI.Command, installDir, spec)
-	stderrTail := newTailBuffer(16 << 10)
+	stderrTail := newTailBuffer(driversCliParameterB << driversCliParameterA)
 	cmd := exec.CommandContext(ctx, "go", args...)
 	cmd.Dir = installerDir
 	cmd.Env = resourceEnvForResource(controller.Root, controller.Home, manifest.Name)

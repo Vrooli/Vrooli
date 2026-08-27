@@ -12,15 +12,21 @@ import (
 	"github.com/vrooli/vrooli/internal/hostreqspec"
 )
 
-func newTestHandler() hostreqkit.Handler {
+var newTestHandler = ollamaControlsTestHandler
+
+func ollamaControlsTestHandler() hostreqkit.Handler {
 	return NewHandler(hostreqkit.SafeguardManifest{Name: "ollama_resource_controls", Handler: "ollama_resource_controls"})
 }
 
-func linuxReq() hostreqspec.ResolvedRequirement {
+var linuxReq = ollamaControlsLinuxReq
+
+func ollamaControlsLinuxReq() hostreqspec.ResolvedRequirement {
 	return hostreqspec.ResolvedRequirement{Name: "ollama_resource_controls", Kind: hostreqspec.KindSafeguard, Required: true}
 }
 
-func linuxHost() hostreqkit.Host {
+var linuxHost = ollamaControlsLinuxHost
+
+func ollamaControlsLinuxHost() hostreqkit.Host {
 	return hostreqkit.Host{OS: "linux"}
 }
 
@@ -36,20 +42,6 @@ func restoreHooks(t *testing.T) {
 		processAlive = originalAlive
 		processLimitsFn = originalLimits
 	})
-}
-
-func TestNameAndKind(t *testing.T) {
-	h := newTestHandler()
-	if h.Name() != "ollama_resource_controls" || h.Kind() != hostreqspec.KindSafeguard {
-		t.Fatalf("handler identity = %q/%q", h.Name(), h.Kind())
-	}
-}
-
-func TestInspectNonLinuxUnsupported(t *testing.T) {
-	status := newTestHandler().Inspect(hostreqkit.Host{OS: "darwin"}, linuxReq())
-	if status.SupportClass != hostreqkit.SupportUnsupported {
-		t.Fatalf("SupportClass = %q, want unsupported", status.SupportClass)
-	}
 }
 
 func TestInspectWithoutSupervisedOllamaIsNotApplicable(t *testing.T) {

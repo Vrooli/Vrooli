@@ -11,6 +11,10 @@ import (
 	"time"
 )
 
+const (
+	hostPressureParameterA = 2
+)
+
 // HostPressureProvider reads the kernel's bounded pressure evidence for both
 // memory and CPU. It deliberately reports unknown on unsupported or degraded
 // hosts; recovery must never treat a missing /proc source as a pressure-clear
@@ -120,7 +124,7 @@ func psiSomeAvg10(raw string) (float64, bool) {
 			continue
 		}
 		for _, field := range fields[1:] {
-			parts := strings.SplitN(field, "=", 2)
+			parts := strings.SplitN(field, "=", hostPressureParameterA)
 			if len(parts) != 2 || parts[0] != "avg10" {
 				continue
 			}

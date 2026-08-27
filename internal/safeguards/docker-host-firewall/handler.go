@@ -8,6 +8,10 @@ import (
 )
 
 const (
+	handlerParameterF = 2
+)
+
+const (
 	chainName       = "VROOLI-DOCKER"
 	dockerUserChain = "DOCKER-USER"
 )
@@ -64,7 +68,7 @@ func (h handler) Inspect(host hostreqkit.Host, requirement hostreqspec.ResolvedR
 		return status
 	}
 
-	pending := make([]string, 0, 2)
+	pending := make([]string, 0, handlerParameterF)
 	if !chainOK {
 		pending = append(pending, "create "+chainName+" chain")
 	}

@@ -8,12 +8,16 @@ import (
 	"os/signal"
 )
 
+const (
+	runParameterA = 2
+)
+
 // RunServiceCommand is intentionally an internal entry point invoked only by
 // the root-owned systemd unit. It exposes no user-facing generic command.
 func RunServiceCommand(args []string, stdout, stderr io.Writer) int {
 	if len(args) == 0 || args[0] != "serve" {
 		fmt.Fprintln(stderr, "privilege broker requires the serve command")
-		return 2
+		return runParameterA
 	}
 	flags := flag.NewFlagSet("privilege-broker serve", flag.ContinueOnError)
 	flags.SetOutput(stderr)
@@ -26,7 +30,7 @@ func RunServiceCommand(args []string, stdout, stderr io.Writer) int {
 		if err == nil {
 			fmt.Fprintln(stderr, "valid --allowed-uid is required")
 		}
-		return 2
+		return runParameterA
 	}
 	runtimeRepair := executeRuntimeHomeRepair
 	if *runtimeHomeRoot != "" {

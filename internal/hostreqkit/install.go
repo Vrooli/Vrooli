@@ -9,6 +9,11 @@ import (
 	"github.com/vrooli/vrooli/internal/hostreqspec"
 )
 
+const (
+	installChoco = "choco"
+	installYum   = "yum"
+)
+
 // RunningAsRootFn reports whether the current process has effective UID 0.
 // When true, WithSudo skips the sudo wrap entirely — there's nothing to
 // escalate. Exposed as a var for tests that want to simulate non-root or
@@ -64,24 +69,24 @@ func IsSudoSkipped(err error) bool {
 }
 
 func InstallCommand(host Host, packageName, sudoMode string) (string, []string, error) {
-	switch host.OS {
-	case "linux":
+	switch hostreqspec.PlatformFromGOOS(host.OS) {
+	case hostreqspec.PlatformLinux:
 		return LinuxInstallCommand(host, packageName, sudoMode)
-	case "darwin":
+	case hostreqspec.PlatformMacOS:
 		switch strings.TrimSpace(host.PackageManager) {
-		case "brew":
-			return "brew", []string{"install", packageName}, nil
+		case helpersBrew:
+			return helpersBrew, []string{"install", packageName}, nil
 		default:
 			return "", nil, fmt.Errorf("automatic install is unavailable without Homebrew")
 		}
-	case "windows":
+	case hostreqspec.PlatformWindows:
 		switch strings.TrimSpace(host.PackageManager) {
-		case "winget":
-			return "winget", []string{"install", "--id", packageName, "--accept-package-agreements", "--accept-source-agreements"}, nil
-		case "choco":
-			return "choco", []string{"install", packageName, "-y"}, nil
-		case "scoop":
-			return "scoop", []string{"install", packageName}, nil
+		case helpersWinget:
+			return helpersWinget, []string{"install", "--id", packageName, "--accept-package-agreements", "--accept-source-agreements"}, nil
+		case installChoco:
+			return installChoco, []string{"install", packageName, "-y"}, nil
+		case helpersScoop:
+			return helpersScoop, []string{"install", packageName}, nil
 		default:
 			return "", nil, fmt.Errorf("automatic install is unavailable without a supported Windows package manager")
 		}
@@ -94,32 +99,32 @@ func InstallCommand(host Host, packageName, sudoMode string) (string, []string, 
 // elevation. Dry-run is an inspection operation and must not require sudo;
 // real execution always goes through InstallCommand and WithSudo.
 func InstallCommandPreview(host Host, packageName string) (string, []string, error) {
-	switch host.OS {
-	case "linux":
+	switch hostreqspec.PlatformFromGOOS(host.OS) {
+	case hostreqspec.PlatformLinux:
 		switch strings.TrimSpace(host.PackageManager) {
-		case "apt", "apt-get":
-			return "apt-get", []string{"install", "-y", packageName}, nil
-		case "dnf":
-			return "dnf", []string{"install", "-y", packageName}, nil
-		case "yum":
-			return "yum", []string{"install", "-y", packageName}, nil
+		case helpersApt, helpersAptGet:
+			return helpersAptGet, []string{"install", "-y", packageName}, nil
+		case helpersDnf:
+			return helpersDnf, []string{"install", "-y", packageName}, nil
+		case installYum:
+			return installYum, []string{"install", "-y", packageName}, nil
 		case "pacman":
 			return "pacman", []string{"-S", "--noconfirm", packageName}, nil
-		case "apk":
-			return "apk", []string{"add", packageName}, nil
-		case "brew":
-			return "brew", []string{"install", packageName}, nil
+		case helpersApk:
+			return helpersApk, []string{"add", packageName}, nil
+		case helpersBrew:
+			return helpersBrew, []string{"install", packageName}, nil
 		}
-	case "darwin":
-		if strings.TrimSpace(host.PackageManager) == "brew" {
-			return "brew", []string{"install", packageName}, nil
+	case hostreqspec.PlatformMacOS:
+		if strings.TrimSpace(host.PackageManager) == helpersBrew {
+			return helpersBrew, []string{"install", packageName}, nil
 		}
-	case "windows":
+	case hostreqspec.PlatformWindows:
 		switch strings.TrimSpace(host.PackageManager) {
-		case "winget":
-			return "winget", []string{"install", "--id", packageName, "--accept-package-agreements", "--accept-source-agreements"}, nil
-		case "choco":
-			return "choco", []string{"install", packageName, "-y"}, nil
+		case helpersWinget:
+			return helpersWinget, []string{"install", "--id", packageName, "--accept-package-agreements", "--accept-source-agreements"}, nil
+		case installChoco:
+			return installChoco, []string{"install", packageName, "-y"}, nil
 		case "scoop":
 			return "scoop", []string{"install", packageName}, nil
 		}
@@ -130,18 +135,18 @@ func InstallCommandPreview(host Host, packageName string) (string, []string, err
 func LinuxInstallCommand(host Host, packageName, sudoMode string) (string, []string, error) {
 	manager := strings.TrimSpace(host.PackageManager)
 	switch manager {
-	case "apt", "apt-get":
+	case helpersApt, helpersAptGet:
 		return WithSudo(sudoMode, "apt-get", []string{"install", "-y", packageName})
-	case "dnf":
-		return WithSudo(sudoMode, "dnf", []string{"install", "-y", packageName})
-	case "yum":
-		return WithSudo(sudoMode, "yum", []string{"install", "-y", packageName})
-	case "pacman":
-		return WithSudo(sudoMode, "pacman", []string{"-S", "--noconfirm", packageName})
-	case "apk":
-		return WithSudo(sudoMode, "apk", []string{"add", packageName})
-	case "brew":
-		return "brew", []string{"install", packageName}, nil
+	case helpersDnf:
+		return WithSudo(sudoMode, helpersDnf, []string{"install", "-y", packageName})
+	case installYum:
+		return WithSudo(sudoMode, installYum, []string{"install", "-y", packageName})
+	case helpersPacman:
+		return WithSudo(sudoMode, helpersPacman, []string{"-S", "--noconfirm", packageName})
+	case helpersApk:
+		return WithSudo(sudoMode, helpersApk, []string{"add", packageName})
+	case helpersBrew:
+		return helpersBrew, []string{"install", packageName}, nil
 	default:
 		return "", nil, fmt.Errorf("automatic install is unavailable without a supported package manager")
 	}
@@ -156,7 +161,7 @@ func WithSudo(mode, command string, args []string) (string, []string, error) {
 	if facts.Elevated {
 		return command, args, nil
 	}
-	if strings.EqualFold(strings.TrimSpace(facts.Platform), "windows") {
+	if hostreqspec.PlatformFromGOOS(facts.Platform) == hostreqspec.PlatformWindows {
 		return "", nil, fmt.Errorf("%w: run `%s %s` from an elevated Windows prompt", ErrElevationRequired, command, strings.Join(args, " "))
 	}
 	if facts.CanElevate {

@@ -4,6 +4,11 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"time"
+)
+
+const (
+	manifestvalidationNull = "null"
 )
 
 // ManifestDeclaration is the loader-neutral shape of one capability-bearing
@@ -58,6 +63,51 @@ func ValidateManifestDeclarations(declarations []ManifestDeclaration, vocabulary
 			if status.Qualification().Rank() > QualificationBuildVerified.Rank() && !declaration.Evidence.Complete() {
 				return fmt.Errorf("%s: capability manifest %q declares %s at status %s (qualification %s) without complete structured evidence", location, item.Name, osName, status, status.Qualification())
 			}
+			if err := validatePlatformDeclaration(location, item.Name, osName, status, declaration); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func validatePlatformDeclaration(location, name, osName string, status PlatformStatus, declaration PlatformDeclaration) error {
+	evidence := strings.TrimSpace(declaration.EvidenceRaw)
+	switch status {
+	case StatusNotApplicable:
+		if strings.TrimSpace(declaration.Mechanism) != "" {
+			return fmt.Errorf("%s: capability manifest %q declares %s as not_applicable with mechanism %q; closed cells cannot name an implementation mechanism", location, name, osName, declaration.Mechanism)
+		}
+		if strings.TrimSpace(declaration.ReviewBy) == "" {
+			return fmt.Errorf("%s: capability manifest %q declares %s as not_applicable without review_by", location, name, osName)
+		}
+		if _, err := time.Parse("2006-01-02", declaration.ReviewBy); err != nil {
+			return fmt.Errorf("%s: capability manifest %q declares %s with invalid review_by %q", location, name, osName, declaration.ReviewBy)
+		}
+		if evidence == "" || evidence == manifestvalidationNull || evidence == `""` {
+			return fmt.Errorf("%s: capability manifest %q declares %s as not_applicable without platform evidence", location, name, osName)
+		}
+	case StatusNotImplemented:
+		if strings.TrimSpace(declaration.Mechanism) == "" {
+			return fmt.Errorf("%s: capability manifest %q declares %s as not_implemented without mechanism", location, name, osName)
+		}
+		if strings.EqualFold(strings.TrimSpace(declaration.Mechanism), "handler") {
+			return fmt.Errorf("%s: capability manifest %q declares %s as not_implemented with generic handler mechanism", location, name, osName)
+		}
+		if strings.TrimSpace(declaration.Since) == "" {
+			return fmt.Errorf("%s: capability manifest %q declares %s as not_implemented without since", location, name, osName)
+		}
+		if _, err := time.Parse("2006-01-02", declaration.Since); err != nil {
+			return fmt.Errorf("%s: capability manifest %q declares %s with invalid since %q", location, name, osName, declaration.Since)
+		}
+		if evidence == "" || evidence == manifestvalidationNull || evidence == `""` {
+			return fmt.Errorf("%s: capability manifest %q declares %s as not_implemented without gap evidence", location, name, osName)
+		}
+	}
+	lower := strings.ToLower(evidence)
+	for _, phrase := range []string{"no implementation for the", "not applicable on this host os", "no implementation", "not implemented by vrooli"} {
+		if strings.Contains(lower, phrase) {
+			return fmt.Errorf("%s: capability manifest %q declares %s with circular evidence phrase %q", location, name, osName, phrase)
 		}
 	}
 	return nil

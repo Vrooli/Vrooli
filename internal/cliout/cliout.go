@@ -10,6 +10,20 @@ import (
 	"text/tabwriter"
 )
 
+// RenderJSONOr selects the JSON wire renderer or the human-readable renderer
+// for a command. Keeping the format decision here prevents each command from
+// growing a subtly different JSON prologue.
+func RenderJSONOr(w io.Writer, format Format, jsonRender func(io.Writer) error, humanRender func(io.Writer) error) error {
+	if format == FormatJSON {
+		return jsonRender(w)
+	}
+	return humanRender(w)
+}
+
+const (
+	clioutParameterA = 2
+)
+
 // Format describes the output mode requested by the caller.
 type Format string
 
@@ -72,22 +86,55 @@ func WriteJSON(w io.Writer, value any) error {
 	return encoder.Encode(value)
 }
 
+// Section describes one human-or-JSON output section. JSON is kept as a
+// callback so callers can preserve their existing response shape without
+// duplicating format branching around every renderer.
+type Section struct {
+	Format  Format
+	JSON    func() error
+	Empty   string
+	Headers []string
+	Rows    [][]string
+}
+
+// WriteSection owns the shared JSON, empty-state, and tabular rendering shape.
+func WriteSection(w io.Writer, section Section) error {
+	if w == nil {
+		return errors.New("writer is required")
+	}
+	if section.Format == FormatJSON {
+		if section.JSON == nil {
+			return errors.New("JSON writer is required")
+		}
+		return section.JSON()
+	}
+	if len(section.Rows) == 0 {
+		if section.Empty == "" {
+			return nil
+		}
+		_, err := fmt.Fprintln(w, section.Empty)
+		return err
+	}
+	return RenderTable(w, section.Headers, section.Rows)
+}
+
 // RenderTable writes a simple tab-aligned table.
 func RenderTable(w io.Writer, headers []string, rows [][]string) error {
 	if w == nil {
 		return errors.New("writer is required")
 	}
-	if len(headers) == 0 {
-		return nil
-	}
-
-	tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
-	if _, err := fmt.Fprintln(tw, strings.Join(headers, "\t")); err != nil {
-		return err
+	tw := tabwriter.NewWriter(w, 0, 0, clioutParameterA, ' ', 0)
+	if len(headers) > 0 {
+		if _, err := fmt.Fprintln(tw, strings.Join(headers, "\t")); err != nil {
+			return err
+		}
 	}
 	for _, row := range rows {
-		cells := make([]string, len(headers))
-		copy(cells, row)
+		cells := row
+		if len(headers) > 0 {
+			cells = make([]string, len(headers))
+			copy(cells, row)
+		}
 		if _, err := fmt.Fprintln(tw, strings.Join(cells, "\t")); err != nil {
 			return err
 		}
@@ -102,3 +149,6 @@ func BoolLabel(value bool) string {
 	}
 	return "no"
 }
+
+// EmptyLabel creates the shared noun-phrase form used for empty sections.
+func EmptyLabel(noun string) string { return "no " + noun }

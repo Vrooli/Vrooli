@@ -5,6 +5,11 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/vrooli/vrooli/internal/logx"
+	"github.com/vrooli/vrooli/internal/scenarioruntime"
+)
+
+const (
+	handlersSystemWarning = "warning"
 )
 
 func (a *App) ListResources(w http.ResponseWriter, r *http.Request) {
@@ -35,12 +40,12 @@ func (a *App) HandleLifecycle(w http.ResponseWriter, r *http.Request) {
 
 func (a *App) ProcessMetricsHandler(w http.ResponseWriter, r *http.Request) {
 	metrics := a.getEnhancedProcessMetrics()
-	metrics["status"] = "healthy"
+	metrics["status"] = scenarioruntime.HealthStatusHealthy
 	if zombies, ok := metrics["zombie_processes"].(int); ok && zombies > 5 {
-		metrics["status"] = "warning"
+		metrics["status"] = handlersSystemWarning
 	}
 	if orphans, ok := metrics["orphan_processes"].(int); ok && orphans > 3 {
-		metrics["status"] = "warning"
+		metrics["status"] = handlersSystemWarning
 	}
 	a.logInfo("Process metrics request completed", logx.AttrStatus, metrics["status"])
 	respondSuccess(w, http.StatusOK, metrics)
@@ -48,18 +53,18 @@ func (a *App) ProcessMetricsHandler(w http.ResponseWriter, r *http.Request) {
 
 func (a *App) HealthCheck(w http.ResponseWriter, r *http.Request) {
 	healthSnapshot := a.collectProcessHealthSnapshot()
-	overallStatus := "healthy"
+	overallStatus := scenarioruntime.HealthStatusHealthy
 	switch healthSnapshot.OverallStatus {
 	case "critical":
 		overallStatus = "unhealthy"
-	case "warning", "unknown":
+	case handlersSystemWarning, "unknown":
 		overallStatus = "degraded"
 	}
 	status := http.StatusOK
-	if overallStatus != "healthy" {
+	if overallStatus != scenarioruntime.HealthStatusHealthy {
 		status = http.StatusServiceUnavailable
 	}
-	if overallStatus != "healthy" {
+	if overallStatus != scenarioruntime.HealthStatusHealthy {
 		a.logWarn("Health check degraded", logx.AttrStatus, overallStatus)
 	}
 	respondJSON(w, status, map[string]interface{}{

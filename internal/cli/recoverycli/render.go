@@ -13,94 +13,80 @@ import (
 )
 
 func RenderCapture(w io.Writer, format cliout.Format, resp recoveryapp.CaptureOutput) error {
-	if format == cliout.FormatJSON {
-		return writeRecoveryJSON(w, RecoveryCaptureResponse(resp))
-	}
-	_, _ = fmt.Fprintf(w, "captured %s/%s\n", resp.Scenario, resp.Slug)
-	_, _ = fmt.Fprintf(w, "  source: %s\n", filepath.ToSlash(resp.Source))
-	_, _ = fmt.Fprintf(w, "  restore point: %s\n", filepath.ToSlash(resp.RestorePointPath))
-	printStats(w, resp.Stats)
-	return nil
+	return cliout.RenderJSONOr(w, format, func(w io.Writer) error { return cliout.WriteProtoJSON(w, RecoveryCaptureResponse(resp)) }, func(w io.Writer) error {
+		_, _ = fmt.Fprintf(w, "captured %s/%s\n", resp.Scenario, resp.Slug)
+		_, _ = fmt.Fprintf(w, "  source: %s\n", filepath.ToSlash(resp.Source))
+		_, _ = fmt.Fprintf(w, "  restore point: %s\n", filepath.ToSlash(resp.RestorePointPath))
+		printStats(w, resp.Stats)
+		return nil
+	})
 }
 
 func RenderRestore(w io.Writer, format cliout.Format, resp recoveryapp.RestoreOutput) error {
-	if format == cliout.FormatJSON {
-		return writeRecoveryJSON(w, RecoveryRestoreResponse(resp))
-	}
-	_, _ = fmt.Fprintf(w, "restored %s/%s\n", resp.Scenario, resp.Slug)
-	_, _ = fmt.Fprintf(w, "  restore point: %s\n", filepath.ToSlash(resp.RestorePointPath))
-	_, _ = fmt.Fprintf(w, "  dest: %s\n", filepath.ToSlash(resp.Dest))
-	printStats(w, resp.Stats)
-	return nil
+	return cliout.RenderJSONOr(w, format, func(w io.Writer) error { return cliout.WriteProtoJSON(w, RecoveryRestoreResponse(resp)) }, func(w io.Writer) error {
+		_, _ = fmt.Fprintf(w, "restored %s/%s\n", resp.Scenario, resp.Slug)
+		_, _ = fmt.Fprintf(w, "  restore point: %s\n", filepath.ToSlash(resp.RestorePointPath))
+		_, _ = fmt.Fprintf(w, "  dest: %s\n", filepath.ToSlash(resp.Dest))
+		printStats(w, resp.Stats)
+		return nil
+	})
 }
 
 func RenderEngagement(w io.Writer, format cliout.Format, resp recoveryapp.EngagementView) error {
-	if format == cliout.FormatJSON {
-		return writeRecoveryJSON(w, RecoveryEngagementResponse(resp))
-	}
-	printEngagement(w, resp)
-	return nil
+	return cliout.RenderJSONOr(w, format, func(w io.Writer) error { return cliout.WriteProtoJSON(w, RecoveryEngagementResponse(resp)) }, func(w io.Writer) error { printEngagement(w, resp); return nil })
 }
 
 func RenderList(w io.Writer, format cliout.Format, resp recoveryapp.ListOutput) error {
-	if format == cliout.FormatJSON {
-		return writeRecoveryJSON(w, RecoveryListResponse(resp))
-	}
-	if len(resp.Engagements) == 0 {
-		_, _ = fmt.Fprintln(w, "no active engagements")
-		return nil
-	}
-	for _, e := range resp.Engagements {
-		_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n",
-			engagementSlug(e.Manifest), e.Mode, e.Variant, ttlLabel(e), expiryLabel(e))
-	}
-	return nil
+	return cliout.RenderJSONOr(w, format, func(w io.Writer) error { return cliout.WriteProtoJSON(w, RecoveryListResponse(resp)) }, func(w io.Writer) error {
+		rows := make([][]string, 0, len(resp.Engagements))
+		for _, e := range resp.Engagements {
+			rows = append(rows, []string{engagementSlug(e.Manifest), string(e.Mode), e.Variant, ttlLabel(e), expiryLabel(e)})
+		}
+		return cliout.WriteSection(w, cliout.Section{Empty: cliout.EmptyLabel("active engagements"), Rows: rows})
+	})
 }
 
 func RenderClean(w io.Writer, format cliout.Format, resp recoveryapp.CleanOutput) error {
-	if format == cliout.FormatJSON {
-		return writeRecoveryJSON(w, RecoveryCleanResponse(resp))
-	}
-	_, _ = fmt.Fprintf(w, "cleaned %s/%s\n", resp.Scenario, resp.Slug)
-	_, _ = fmt.Fprintf(w, "  removed: %s\n", filepath.ToSlash(resp.EngagementDir))
-	return nil
+	return cliout.RenderJSONOr(w, format, func(w io.Writer) error { return cliout.WriteProtoJSON(w, RecoveryCleanResponse(resp)) }, func(w io.Writer) error {
+		_, _ = fmt.Fprintf(w, "cleaned %s/%s\n", resp.Scenario, resp.Slug)
+		_, _ = fmt.Fprintf(w, "  removed: %s\n", filepath.ToSlash(resp.EngagementDir))
+		return nil
+	})
 }
 
 func RenderMigrate(w io.Writer, format cliout.Format, resp recoveryapp.MigrateOutput) error {
-	if format == cliout.FormatJSON {
-		return writeRecoveryJSON(w, RecoveryMigrateResponse(resp))
-	}
-	if resp.FastPath {
-		_, _ = fmt.Fprintf(w, "no migrations for %s/%s — shape-unchanged fast path (DB handling skipped)\n", resp.Scenario, resp.Slug)
+	return cliout.RenderJSONOr(w, format, func(w io.Writer) error { return cliout.WriteProtoJSON(w, RecoveryMigrateResponse(resp)) }, func(w io.Writer) error {
+		if resp.FastPath {
+			_, _ = fmt.Fprintf(w, "no migrations for %s/%s — shape-unchanged fast path (DB handling skipped)\n", resp.Scenario, resp.Slug)
+			return nil
+		}
+		verb := "migrated"
+		if resp.DryRun {
+			verb = "dry-ran migrations for"
+		}
+		_, _ = fmt.Fprintf(w, "%s %s/%s (engine=%s)\n", verb, resp.Scenario, resp.Slug, resp.Engine)
+		if resp.Database != "" {
+			_, _ = fmt.Fprintf(w, "  database: %s\n", filepath.ToSlash(resp.Database))
+		}
+		_, _ = fmt.Fprintf(w, "  scripts: %d seen, %d applied, %d already-applied\n", resp.ScriptsSeen, len(resp.Applied), len(resp.Skipped))
+		if len(resp.Applied) > 0 {
+			_, _ = fmt.Fprintf(w, "  applied: %s\n", strings.Join(resp.Applied, ", "))
+		}
 		return nil
-	}
-	verb := "migrated"
-	if resp.DryRun {
-		verb = "dry-ran migrations for"
-	}
-	_, _ = fmt.Fprintf(w, "%s %s/%s (engine=%s)\n", verb, resp.Scenario, resp.Slug, resp.Engine)
-	if resp.Database != "" {
-		_, _ = fmt.Fprintf(w, "  database: %s\n", filepath.ToSlash(resp.Database))
-	}
-	_, _ = fmt.Fprintf(w, "  scripts: %d seen, %d applied, %d already-applied\n", resp.ScriptsSeen, len(resp.Applied), len(resp.Skipped))
-	if len(resp.Applied) > 0 {
-		_, _ = fmt.Fprintf(w, "  applied: %s\n", strings.Join(resp.Applied, ", "))
-	}
-	return nil
+	})
 }
 
 func RenderNamespace(w io.Writer, format cliout.Format, resp recoveryapp.NamespaceOutput) error {
-	if format == cliout.FormatJSON {
-		return writeRecoveryJSON(w, RecoveryNamespaceResponse(resp))
-	}
-	_, _ = fmt.Fprintf(w, "namespace: %s\n", resp.InstanceKey)
-	_, _ = fmt.Fprintf(w, "  variant: %s\n", resp.Variant)
-	_, _ = fmt.Fprintf(w, "  postgres db: %s\n", resp.PostgresDb)
-	if resp.DataDir != "" {
-		_, _ = fmt.Fprintf(w, "  data dir: %s\n", filepath.ToSlash(resp.DataDir))
-	}
-	_, _ = fmt.Fprintf(w, "  storage namespace: %s\n", resp.StorageNamespace)
-	return nil
+	return cliout.RenderJSONOr(w, format, func(w io.Writer) error { return cliout.WriteProtoJSON(w, RecoveryNamespaceResponse(resp)) }, func(w io.Writer) error {
+		_, _ = fmt.Fprintf(w, "namespace: %s\n", resp.InstanceKey)
+		_, _ = fmt.Fprintf(w, "  variant: %s\n", resp.Variant)
+		_, _ = fmt.Fprintf(w, "  postgres db: %s\n", resp.PostgresDb)
+		if resp.DataDir != "" {
+			_, _ = fmt.Fprintf(w, "  data dir: %s\n", filepath.ToSlash(resp.DataDir))
+		}
+		_, _ = fmt.Fprintf(w, "  storage namespace: %s\n", resp.StorageNamespace)
+		return nil
+	})
 }
 
 func printEngagement(w io.Writer, e recoveryapp.EngagementView) {

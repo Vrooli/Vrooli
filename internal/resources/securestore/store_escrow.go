@@ -9,6 +9,8 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/vrooli/vrooli/internal/config"
 )
 
 // StoreGeneration returns a stable, non-secret identifier for the current
@@ -217,26 +219,7 @@ func resolveExistingOrParent(path string) (string, error) {
 }
 
 func atomicCopy(destination string, data []byte) error {
-	dir := filepath.Dir(destination)
-	temp, err := os.CreateTemp(dir, ".secrets-*.tmp")
-	if err != nil {
-		return fmt.Errorf("create credential copy temporary file: %w", err)
-	}
-	tempName := temp.Name()
-	defer func() { _ = temp.Close(); _ = os.Remove(tempName) }()
-	if err := temp.Chmod(sealedFilePerm); err != nil {
-		return fmt.Errorf("restrict credential copy temporary file: %w", err)
-	}
-	if _, err := temp.Write(data); err != nil {
-		return fmt.Errorf("write credential copy: %w", err)
-	}
-	if err := temp.Sync(); err != nil {
-		return fmt.Errorf("flush credential copy: %w", err)
-	}
-	if err := temp.Close(); err != nil {
-		return fmt.Errorf("close credential copy: %w", err)
-	}
-	if err := os.Rename(tempName, destination); err != nil {
+	if err := config.WriteOwnedFileAtomic(destination, data, sealedFilePerm); err != nil {
 		return fmt.Errorf("replace credential copy: %w", err)
 	}
 	if err := RestrictCredentialFile(destination); err != nil {

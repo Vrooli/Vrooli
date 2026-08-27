@@ -6,10 +6,19 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/vrooli/vrooli/internal/repocontractmeta"
+	"github.com/vrooli/vrooli/internal/tuning"
+
 	repocontracttest "github.com/vrooli/repo-contract-go/repocontracttest"
 	testkitgo "github.com/vrooli/repo-contract-go/repocontracttest"
 	hostreqspec "github.com/vrooli/vrooli/internal/hostreqspec"
 	"github.com/vrooli/vrooli/internal/scenario"
+)
+
+const (
+	scenariofixtureParameterA = 1000
+	scenariofixtureParameterB = 250
+	scenariofixtureParameterC = 30000
 )
 
 type ScenarioServiceOption func(*scenario.ServiceManifest)
@@ -205,7 +214,7 @@ func WriteScenarioService(t *testing.T, root, name string, manifest scenario.Ser
 
 func WriteScenarioServiceAtPath(t *testing.T, path string, manifest scenario.ServiceManifest) {
 	t.Helper()
-	testkitgo.WriteJSON(t, filepath.Join(path, ".vrooli", "service.json"), manifest)
+	testkitgo.WriteJSON(t, filepath.Join(path, repocontractmeta.ProjectConfigDir, "service.json"), manifest)
 }
 
 func WriteScenarioCLIGoMod(t *testing.T, root, name, module string) {
@@ -213,17 +222,17 @@ func WriteScenarioCLIGoMod(t *testing.T, root, name, module string) {
 	if strings.TrimSpace(module) == "" {
 		module = name + "/cli"
 	}
-	testkitgo.WriteFile(t, filepath.Join(root, "scenarios", name, "cli", "go.mod"), "module "+module+"\n")
+	testkitgo.WriteFile(t, filepath.Join(root, repocontractmeta.ScenarioDir, name, "cli", "go.mod"), "module "+module+"\n")
 }
 
 func WriteMalformedProjectService(t *testing.T, root, raw string) {
 	t.Helper()
-	testkitgo.WriteMalformedJSON(t, scenario.ProjectServicePath(root), raw, 0o644)
+	testkitgo.WriteMalformedJSON(t, scenario.ProjectServicePath(root), raw, tuning.PermFile)
 }
 
 func WriteMalformedScenarioService(t *testing.T, root, name, raw string) {
 	t.Helper()
-	testkitgo.WriteMalformedJSON(t, scenario.ServicePath(root, name), raw, 0o644)
+	testkitgo.WriteMalformedJSON(t, scenario.ServicePath(root, name), raw, tuning.PermFile)
 }
 
 func ReadProjectService(t *testing.T, root string) scenario.ServiceManifest {
@@ -283,7 +292,7 @@ func WriteScenarioTemplateFixture(t *testing.T, templateBase, name string) {
 	t.Helper()
 	testkitgo.WriteJSON(t, filepath.Join(templateBase, name, "template.json"), ScenarioTemplateManifest(name))
 	testkitgo.WriteRelativeFile(t, filepath.Join(templateBase, name), "README.md", "# {{SCENARIO_DISPLAY_NAME}}\n\n{{SCENARIO_DESCRIPTION}}\n")
-	testkitgo.WriteJSON(t, filepath.Join(templateBase, name, ".vrooli", "service.json"), map[string]any{
+	testkitgo.WriteJSON(t, filepath.Join(templateBase, name, repocontractmeta.ProjectConfigDir, "service.json"), map[string]any{
 		"service": map[string]any{
 			"name":        "{{SCENARIO_ID}}",
 			"displayName": "{{SCENARIO_DISPLAY_NAME}}",
@@ -317,11 +326,11 @@ func LifecycleScenarioManifest(name string, fixedPort *int, dependency string) s
 					Type:     "http",
 					Target:   "http://127.0.0.1:${API_PORT}/health",
 					Critical: true,
-					Timeout:  1000,
+					Timeout:  scenariofixtureParameterA,
 				}},
-				StartupGracePeriod: 1000,
-				Timeout:            30000,
-				Interval:           250,
+				StartupGracePeriod: scenariofixtureParameterA,
+				Timeout:            scenariofixtureParameterC,
+				Interval:           scenariofixtureParameterB,
 			},
 			Setup: scenario.Phase{
 				Steps: []scenario.PhaseStep{{

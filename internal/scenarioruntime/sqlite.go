@@ -13,8 +13,11 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vrooli/vrooli/internal/tuning"
+
 	repocontract "github.com/vrooli/repo-contract-go"
 	"github.com/vrooli/vrooli/internal/config"
+
 	// Importing modernc.org/sqlite registers the pure-Go SQLite driver.
 	sqlite "modernc.org/sqlite"
 	sqlite3 "modernc.org/sqlite/lib"
@@ -24,8 +27,8 @@ const defaultBindHost = "127.0.0.1"
 
 const (
 	runtimeRegistryTxRetryAttempts = 5
-	runtimeRegistryTxRetryBase     = 25 * time.Millisecond
-	runtimeRegistryTxRetryMax      = 250 * time.Millisecond
+	runtimeRegistryTxRetryBase     = tuning.FastPersistenceRetryInterval
+	runtimeRegistryTxRetryMax      = tuning.FastHealthPollInterval
 )
 
 type Config struct {

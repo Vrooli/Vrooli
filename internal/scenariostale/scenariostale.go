@@ -22,6 +22,15 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/vrooli/vrooli/internal/tuning"
+
+	"github.com/vrooli/vrooli/internal/config"
+)
+
+const (
+	scenariostaleParameterA = 32
+	scenariostaleParameterB = 8
 )
 
 // Status classifies the outcome of a stale check.
@@ -214,7 +223,7 @@ func FormatWarning(r Result) string {
 }
 
 func collectSourceFiles(scenarioDir string) ([]fileEntry, error) {
-	files := make([]fileEntry, 0, 32)
+	files := make([]fileEntry, 0, scenariostaleParameterA)
 	for _, sub := range []string{"api", "cli"} {
 		base := filepath.Join(scenarioDir, sub)
 		info, err := os.Stat(base)
@@ -286,7 +295,7 @@ func aggregateFingerprint(files []fileEntry) string {
 }
 
 func computeBinarySignature(scenarioDir string) (string, int, error) {
-	parts := make([]string, 0, 8)
+	parts := make([]string, 0, scenariostaleParameterB)
 	count := 0
 	for _, sub := range []string{"api", "cli"} {
 		base := filepath.Join(scenarioDir, sub)
@@ -306,7 +315,7 @@ func computeBinarySignature(scenarioDir string) (string, int, error) {
 				continue
 			}
 			mode := info.Mode()
-			if mode&0o111 == 0 {
+			if mode&tuning.PermExecuteMask == 0 {
 				continue
 			}
 			name := info.Name()
@@ -352,15 +361,11 @@ func writeSidecar(path string, payload sidecarPayload) error {
 		return err
 	}
 	data = append(data, '\n')
-	tmp := path + ".tmp"
-	if err := os.WriteFile(tmp, data, 0o644); err != nil {
-		return err
-	}
-	return os.Rename(tmp, path)
+	return config.WriteOwnedFileAtomic(path, data, tuning.PermFile)
 }
 
 func diffFileHashes(stored, current map[string]string) []string {
-	changed := make([]string, 0, 8)
+	changed := make([]string, 0, scenariostaleParameterB)
 	seen := make(map[string]struct{}, len(stored))
 	for path, hash := range current {
 		seen[path] = struct{}{}

@@ -103,20 +103,16 @@ func LifecycleHandler[C any](stdout func(C) io.Writer, runProtect func(C, []stri
 }
 
 func StatusHandler[C any](stdout func(C) io.Writer, outputFormat func(C) (cliout.Format, error), run func(C, StatusRequest) (project.StatusReport, error)) rootcli.Handler[C] {
-	return rootcli.BindGlobalCommand(stdout,
+	return projectServiceCommand(stdout, outputFormat,
 		func(ctx C, args []string) (StatusRequest, error) {
 			return ParseStatusRequest(args)
 		},
-		func(ctx C, req StatusRequest) (cliout.Format, StatusResponse, error) {
+		func(ctx C, req StatusRequest) (StatusResponse, error) {
 			report, err := run(ctx, req)
 			if err != nil {
-				return "", StatusResponse{}, err
+				return StatusResponse{}, err
 			}
-			format, err := outputFormat(ctx)
-			if err != nil {
-				return "", StatusResponse{}, err
-			}
-			return format, StatusResponse{
+			return StatusResponse{
 				Options: StatusOptions{
 					ResourcesOnly: req.ResourcesOnly,
 					ScenariosOnly: req.ScenariosOnly,
@@ -129,120 +125,96 @@ func StatusHandler[C any](stdout func(C) io.Writer, outputFormat func(C) (cliout
 }
 
 func DoctorHandler[C any](stdout func(C) io.Writer, outputFormat func(C) (cliout.Format, error), run func(C, DoctorRequest) (project.DoctorReport, error)) rootcli.Handler[C] {
-	return rootcli.BindGlobalCommand(stdout,
+	return projectServiceCommand(stdout, outputFormat,
 		func(ctx C, args []string) (DoctorRequest, error) {
 			return ParseDoctorRequest(args)
 		},
-		func(ctx C, req DoctorRequest) (cliout.Format, project.DoctorReport, error) {
+		func(ctx C, req DoctorRequest) (project.DoctorReport, error) {
 			report, err := run(ctx, req)
 			if err != nil {
-				return "", project.DoctorReport{}, err
+				return project.DoctorReport{}, err
 			}
-			format, err := outputFormat(ctx)
-			if err != nil {
-				return "", project.DoctorReport{}, err
-			}
-			return format, report, nil
+			return report, nil
 		},
 		RenderDoctorResponse,
 	)
 }
 
 func StopHandler[C any](stdout func(C) io.Writer, outputFormat func(C) (cliout.Format, error), run func(C, StopRequest) (control.StopReport, error)) rootcli.Handler[C] {
-	return rootcli.BindGlobalCommand(stdout,
+	return projectServiceCommand(stdout, outputFormat,
 		func(ctx C, args []string) (StopRequest, error) {
 			return ParseStopRequest(args)
 		},
-		func(ctx C, req StopRequest) (cliout.Format, control.StopReport, error) {
+		func(ctx C, req StopRequest) (control.StopReport, error) {
 			report, err := run(ctx, req)
 			if err != nil {
-				return "", control.StopReport{}, err
+				return control.StopReport{}, err
 			}
-			format, err := outputFormat(ctx)
-			if err != nil {
-				return "", control.StopReport{}, err
-			}
-			return format, report, nil
+			return report, nil
 		},
 		RenderStopResponse,
 	)
 }
 
 func OrphansHandler[C any](stdout func(C) io.Writer, outputFormat func(C) (cliout.Format, error), run func(C, OrphansRequest) (OrphansResponse, error)) rootcli.Handler[C] {
-	return rootcli.BindGlobalCommand(stdout,
+	return projectServiceCommand(stdout, outputFormat,
 		func(ctx C, args []string) (OrphansRequest, error) {
 			return ParseOrphansRequest(args)
 		},
-		func(ctx C, req OrphansRequest) (cliout.Format, OrphansResponse, error) {
+		func(ctx C, req OrphansRequest) (OrphansResponse, error) {
 			resp, err := run(ctx, req)
 			if err != nil {
-				return "", OrphansResponse{}, err
+				return OrphansResponse{}, err
 			}
-			format, err := outputFormat(ctx)
-			if err != nil {
-				return "", OrphansResponse{}, err
-			}
-			return format, resp, nil
+			return resp, nil
 		},
 		RenderOrphansResponse,
 	)
 }
 
 func LocksHandler[C any](stdout func(C) io.Writer, outputFormat func(C) (cliout.Format, error), run func(C, LocksRequest) (LocksResponse, error)) rootcli.Handler[C] {
-	return rootcli.BindGlobalCommand(stdout,
+	return projectServiceCommand(stdout, outputFormat,
 		func(ctx C, args []string) (LocksRequest, error) {
 			return ParseLocksRequest(args)
 		},
-		func(ctx C, req LocksRequest) (cliout.Format, LocksResponse, error) {
+		func(ctx C, req LocksRequest) (LocksResponse, error) {
 			resp, err := run(ctx, req)
 			if err != nil {
-				return "", LocksResponse{}, err
+				return LocksResponse{}, err
 			}
-			format, err := outputFormat(ctx)
-			if err != nil {
-				return "", LocksResponse{}, err
-			}
-			return format, resp, nil
+			return resp, nil
 		},
 		RenderLocksResponse,
 	)
 }
 
 func DiagnosePortHandler[C any](stdout func(C) io.Writer, outputFormat func(C) (cliout.Format, error), run func(C, DiagnosePortRequest) (maintenance.PortDiagnostic, error)) rootcli.Handler[C] {
-	return rootcli.BindGlobalCommand(stdout,
+	return projectServiceCommand(stdout, outputFormat,
 		func(ctx C, args []string) (DiagnosePortRequest, error) {
 			return ParseDiagnosePortRequest(args)
 		},
-		func(ctx C, req DiagnosePortRequest) (cliout.Format, maintenance.PortDiagnostic, error) {
+		func(ctx C, req DiagnosePortRequest) (maintenance.PortDiagnostic, error) {
 			resp, err := run(ctx, req)
 			if err != nil {
-				return "", maintenance.PortDiagnostic{}, err
+				return maintenance.PortDiagnostic{}, err
 			}
-			format, err := outputFormat(ctx)
-			if err != nil {
-				return "", maintenance.PortDiagnostic{}, err
-			}
-			return format, resp, nil
+			return resp, nil
 		},
 		RenderPortDiagnostic,
 	)
 }
 
 func TemplateValidationCleanupHandler[C any](stdout func(C) io.Writer, outputFormat func(C) (cliout.Format, error), run func(C, TemplateValidationCleanupRequest) (TemplateValidationCleanupResponse, error)) rootcli.Handler[C] {
-	return rootcli.BindGlobalCommand(stdout,
+	return projectServiceCommand(stdout, outputFormat,
 		func(ctx C, args []string) (TemplateValidationCleanupRequest, error) {
 			return ParseTemplateValidationCleanupRequest(args)
 		},
-		func(ctx C, req TemplateValidationCleanupRequest) (cliout.Format, TemplateValidationCleanupResponse, error) {
+		func(ctx C, req TemplateValidationCleanupRequest) (TemplateValidationCleanupResponse, error) {
 			resp, err := run(ctx, req)
 			if err != nil {
-				return "", TemplateValidationCleanupResponse{}, err
+				return TemplateValidationCleanupResponse{}, err
 			}
-			format, err := outputFormat(ctx)
-			if err != nil {
-				return "", TemplateValidationCleanupResponse{}, err
-			}
-			return format, resp, nil
+			return resp, nil
 		},
 		RenderTemplateValidationCleanupResponse,
 	)
@@ -250,4 +222,25 @@ func TemplateValidationCleanupHandler[C any](stdout func(C) io.Writer, outputFor
 
 func renderHelp(w io.Writer, err error) bool {
 	return rootcli.HandleHelp(w, err)
+}
+
+func projectServiceCommand[C any, Req any, Resp any](
+	stdout func(C) io.Writer,
+	outputFormat func(C) (cliout.Format, error),
+	parse func(C, []string) (Req, error),
+	call func(C, Req) (Resp, error),
+	render func(io.Writer, cliout.Format, Resp) error,
+) rootcli.Handler[C] {
+	return rootcli.BindService(stdout,
+		func(ctx C) (cliout.Format, func(Req) (Resp, error), error) {
+			format, err := outputFormat(ctx)
+			if err != nil {
+				return "", nil, err
+			}
+			return format, func(req Req) (Resp, error) { return call(ctx, req) }, nil
+		},
+		parse,
+		func(call func(Req) (Resp, error), req Req) (Resp, error) { return call(req) },
+		render,
+	)
 }

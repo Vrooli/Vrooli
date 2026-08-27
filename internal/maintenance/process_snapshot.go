@@ -11,7 +11,28 @@ import (
 
 	repocontract "github.com/vrooli/repo-contract-go"
 	"github.com/vrooli/vrooli/internal/process"
+	"github.com/vrooli/vrooli/internal/repocontractmeta"
+	"github.com/vrooli/vrooli/internal/scenarioruntime"
 	"github.com/vrooli/vrooli/internal/shell"
+)
+
+const (
+	processSnapshot = "\u2705"
+)
+
+const (
+	processSnapshotCritical = "critical"
+	ProcessHealthNormal     = "normal"
+	processSnapshotValue    = processSnapshot
+	processSnapshotWarning  = "warning"
+)
+
+const (
+	processSnapshotParameterA = 10
+	processSnapshotParameterB = 20
+	processSnapshotParameterC = 25
+	processSnapshotParameterD = 5
+	processSnapshotParameterE = 6
 )
 
 type processTableEntry struct {
@@ -101,14 +122,14 @@ func (c *Controller) Snapshot() (ProcessSnapshot, error) {
 func (s ProcessSnapshot) HealthSnapshot() HealthSnapshot {
 	zombieStatus, zombieEmoji := interpretZombieStatus(s.ZombieProcesses)
 	orphanStatus, orphanEmoji := interpretOrphanStatus(s.OrphanProcesses)
-	overallStatus := "healthy"
+	overallStatus := scenarioruntime.HealthStatusHealthy
 	switch {
-	case zombieStatus == "critical" || orphanStatus == "critical":
-		overallStatus = "critical"
-	case zombieStatus == "warning" || orphanStatus == "warning":
-		overallStatus = "warning"
-	case zombieStatus == "normal" || orphanStatus == "normal":
-		overallStatus = "normal"
+	case zombieStatus == processSnapshotCritical || orphanStatus == processSnapshotCritical:
+		overallStatus = processSnapshotCritical
+	case zombieStatus == processSnapshotWarning || orphanStatus == processSnapshotWarning:
+		overallStatus = processSnapshotWarning
+	case zombieStatus == ProcessHealthNormal || orphanStatus == ProcessHealthNormal:
+		overallStatus = ProcessHealthNormal
 	}
 	return HealthSnapshot{
 		ZombieCount:   s.ZombieProcesses,
@@ -124,26 +145,26 @@ func (s ProcessSnapshot) HealthSnapshot() HealthSnapshot {
 func interpretZombieStatus(count int) (string, string) {
 	switch {
 	case count == 0:
-		return "healthy", "✅"
-	case count <= 5:
-		return "normal", "✅"
-	case count <= 20:
-		return "warning", "⚠️"
+		return scenarioruntime.HealthStatusHealthy, processSnapshot
+	case count <= processSnapshotParameterD:
+		return ProcessHealthNormal, processSnapshot
+	case count <= processSnapshotParameterB:
+		return processSnapshotWarning, "⚠️"
 	default:
-		return "critical", "🔴"
+		return processSnapshotCritical, "🔴"
 	}
 }
 
 func interpretOrphanStatus(count int) (string, string) {
 	switch {
 	case count == 0:
-		return "healthy", "✅"
-	case count <= 10:
-		return "normal", "✅"
-	case count <= 25:
-		return "warning", "⚠️"
+		return scenarioruntime.HealthStatusHealthy, processSnapshot
+	case count <= processSnapshotParameterA:
+		return ProcessHealthNormal, "✅"
+	case count <= processSnapshotParameterC:
+		return processSnapshotWarning, "⚠️"
 	default:
-		return "critical", "🔴"
+		return processSnapshotCritical, "🔴"
 	}
 }
 
@@ -157,7 +178,7 @@ func trackedProcessStats(home string, processTable map[int]processTableEntry) (m
 	if err != nil {
 		return nil, nil, 0, 0, err
 	}
-	processRoot := filepath.Join(processesDir, "scenarios")
+	processRoot := filepath.Join(processesDir, repocontractmeta.ScenarioDir)
 	entries, err := os.ReadDir(processRoot)
 	if err != nil {
 		if !os.IsNotExist(err) {
@@ -339,7 +360,7 @@ func parseProcessTableLine(line string) (processTableEntry, bool) {
 		return processTableEntry{}, false
 	}
 	fields := strings.Fields(line)
-	if len(fields) < 6 {
+	if len(fields) < processSnapshotParameterE {
 		return processTableEntry{}, false
 	}
 	pid, err := strconv.Atoi(fields[0])

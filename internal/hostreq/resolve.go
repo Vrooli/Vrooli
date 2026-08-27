@@ -9,6 +9,7 @@ import (
 	"github.com/vrooli/binaryfetch"
 	"github.com/vrooli/vrooli/internal/hostreqkit"
 	"github.com/vrooli/vrooli/internal/hostreqspec"
+	"github.com/vrooli/vrooli/internal/repocontractmeta"
 	"github.com/vrooli/vrooli/internal/resources"
 	"github.com/vrooli/vrooli/internal/scenario"
 )
@@ -73,7 +74,7 @@ func ResolveSafeguard(root, name, platform string) (ResolvedRequirement, error) 
 }
 
 func Resolve(root, home string, opts ResolveOptions) (Resolution, error) {
-	rootManifestPath := filepath.Join(root, ".vrooli", "service.json")
+	rootManifestPath := filepath.Join(root, repocontractmeta.ProjectConfigDir, "service.json")
 	rootManifest, err := scenario.ReadService(rootManifestPath)
 	if err != nil {
 		return Resolution{}, fmt.Errorf("load root manifest: %w", err)
@@ -153,7 +154,7 @@ func (s resolverState) addScenarioPaths(paths []string) error {
 		if path == "" {
 			continue
 		}
-		servicePath := filepath.Join(path, ".vrooli", "service.json")
+		servicePath := filepath.Join(path, repocontractmeta.ProjectConfigDir, "service.json")
 		manifest, err := scenario.ReadService(servicePath)
 		if err != nil {
 			return fmt.Errorf("load scenario at %q: %w", path, err)

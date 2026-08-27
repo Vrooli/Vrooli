@@ -7,6 +7,8 @@ import (
 
 	testkitgo "github.com/vrooli/repo-contract-go/repocontracttest"
 	resourceenv "github.com/vrooli/vrooli/internal/resources/env"
+	"github.com/vrooli/vrooli/internal/shell/shelltest"
+	"github.com/vrooli/vrooli/internal/testenv"
 )
 
 func TestWritePortRegistryCreatesFixtureFile(t *testing.T) {
@@ -57,7 +59,7 @@ func TestWriteFakeDockerInstallsDockerShimOnPath(t *testing.T) {
 
 func TestWriteExternalCLIResourceFixtureCreatesManifestAndBinary(t *testing.T) {
 	root := t.TempDir()
-	path := WriteExternalCLIResourceFixture(t, root, "redis", "#!/usr/bin/env bash\nexit 0\n")
+	path := WriteExternalCLIResourceFixture(t, root, "redis", shelltest.BashShebang()+"exit 0\n")
 
 	manifest := ReadResourceManifest(t, root, "redis")
 	if manifest.Driver != "external-cli" {
@@ -103,15 +105,10 @@ func TestWriteResourceTemplateManifestPersistsCanonicalPath(t *testing.T) {
 }
 
 func TestWriteResourceCLIGoModCreatesCanonicalPath(t *testing.T) {
-	root := t.TempDir()
+	tree := testenv.NewRepositoryTree(t, "fixture")
+	root := tree.Root
 	WriteResourceCLIGoMod(t, root, "redis", "")
 
 	path := filepath.Join(root, "resources", "redis", "cli", "go.mod")
-	data, err := os.ReadFile(path)
-	if err != nil {
-		t.Fatalf("read resource cli go.mod: %v", err)
-	}
-	if string(data) != "module resource-redis/cli\n" {
-		t.Fatalf("go.mod = %q", string(data))
-	}
+	testenv.AssertFileContents(t, path, "module resource-redis/cli\n")
 }

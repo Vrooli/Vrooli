@@ -71,17 +71,19 @@ class ScenarioPlatformVerdict(_message.Message):
     def __init__(self, scenario: _Optional[str] = ..., platforms: _Optional[_Iterable[_Union[PlatformVerdict, _Mapping]]] = ..., overridden: _Optional[bool] = ..., override_reason: _Optional[str] = ...) -> None: ...
 
 class PlatformVerdict(_message.Message):
-    __slots__ = ("host_os", "status", "reason", "blocking_dependency", "derived", "overridden")
+    __slots__ = ("host_os", "status", "reason", "blocking_dependency", "derived", "overridden", "reason_code")
     HOST_OS_FIELD_NUMBER: _ClassVar[int]
     STATUS_FIELD_NUMBER: _ClassVar[int]
     REASON_FIELD_NUMBER: _ClassVar[int]
     BLOCKING_DEPENDENCY_FIELD_NUMBER: _ClassVar[int]
     DERIVED_FIELD_NUMBER: _ClassVar[int]
     OVERRIDDEN_FIELD_NUMBER: _ClassVar[int]
+    REASON_CODE_FIELD_NUMBER: _ClassVar[int]
     host_os: str
     status: str
     reason: str
     blocking_dependency: str
     derived: bool
     overridden: bool
-    def __init__(self, host_os: _Optional[str] = ..., status: _Optional[str] = ..., reason: _Optional[str] = ..., blocking_dependency: _Optional[str] = ..., derived: _Optional[bool] = ..., overridden: _Optional[bool] = ...) -> None: ...
+    reason_code: str
+    def __init__(self, host_os: _Optional[str] = ..., status: _Optional[str] = ..., reason: _Optional[str] = ..., blocking_dependency: _Optional[str] = ..., derived: _Optional[bool] = ..., overridden: _Optional[bool] = ..., reason_code: _Optional[str] = ...) -> None: ...

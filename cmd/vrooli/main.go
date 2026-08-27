@@ -18,9 +18,14 @@ import (
 	"github.com/vrooli/vrooli/internal/hostreqkit"
 	"github.com/vrooli/vrooli/internal/lifecycle"
 	"github.com/vrooli/vrooli/internal/privilegebroker"
+	codingagentshims "github.com/vrooli/vrooli/internal/safeguards/coding-agent-shims"
 	"github.com/vrooli/vrooli/internal/scenarioexec"
 	projectsetup "github.com/vrooli/vrooli/internal/setup"
 	"github.com/vrooli/vrooli/internal/shell"
+)
+
+const (
+	mndMainNumberValue2 = 2
 )
 
 const cliVersion = "1.0.0"
@@ -48,6 +53,7 @@ func main() {
 	}
 	ensureUsableWorkingDirectory(os.Stderr)
 	recoverUserToolPath()
+	reassertCodingAgentShims()
 	installEngagementResolver(os.Stderr)
 	os.Exit(run(os.Args[1:], os.Stdout, os.Stderr))
 }
@@ -114,7 +120,7 @@ func ensureUsableWorkingDirectoryWith(seams workingDirSeams, stderr io.Writer) {
 }
 
 func reportUnusableWorkingDirectory(seams workingDirSeams, stderr io.Writer) {
-	candidates := make([]string, 0, 2)
+	candidates := make([]string, 0, mndMainNumberValue2)
 	if home, err := seams.homeDir(); err == nil && strings.TrimSpace(home) != "" {
 		candidates = append(candidates, home)
 	}
@@ -241,4 +247,30 @@ func newUninstaller(root, home string) (cliinstall.Uninstaller, error) {
 	}
 	deferredServiceNames := strings.Split(os.Getenv("VROOLI_BRIDGE_DEFER_SERVICE_STOPS"), ",")
 	return cliinstall.NewUninstallService(root, home, cliinstall.NewFileRemover(home, deferredServiceNames...), verify, cliinstall.WithBoundBreakGlassVerifier(boundVerify))
+}
+
+// reassertCodingAgentShims repairs the coding-agent alias set on process entry.
+//
+// The alias set is five links reconstructible from a binary already on disk, so
+// re-asserting it is cheaper than assuming nothing ever removes it -- and
+// something does: the shared install root is churned by many installers, and
+// the shims have already been observed to vanish from it with no record of what
+// took them. Repairing at the point of use rather than only at setup time is
+// what turns that from an outage lasting until the next `vrooli setup
+// --include-optional` into a gap lasting until the next `vrooli` command.
+//
+// It runs here, in the control-plane binary, and not in vrooli-agent-launcher.
+// The launcher is only reached through a shim, so a launcher-side repair could
+// never fix the case that matters: the shim being gone.
+//
+// Cost on a healthy host is one Stat for the launcher plus one Lstat per alias.
+// Every failure is silent by design. Attribution is observability, and a
+// process must not print a warning, slow down, or fail because an optional
+// convenience could not be repaired.
+func reassertCodingAgentShims() {
+	defer func() {
+		// Nothing in this path may take down a CLI invocation.
+		_ = recover()
+	}()
+	_, _ = codingagentshims.EnsureInstalled()
 }

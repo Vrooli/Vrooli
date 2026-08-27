@@ -2,7 +2,7 @@
 // crash dumps into small, group-readable panic summaries.
 //
 // kdump already writes everything needed to explain a panic, but writes it
-// where no scenario can read it: /var/crash/<stamp>/dmesg.<stamp> is mode 0600
+// where no scenario can read it: /var/crash/<stamp>/dmesg.<stamp> is mode 600
 // root, and the vmcore beside it is roughly the size of system RAM. On
 // 2026-08-19 this host panicked in the ntfs3 write path, kdump captured a
 // complete 5.8 GB dump, and nothing in Vrooli noticed — the evidence had to be
@@ -185,7 +185,7 @@ func (h handler) Apply(host hostreqkit.Host, status hostreqkit.ItemStatus, opts 
 			if err := hostreqkit.RunPrivilegedCommand(opts.SudoMode, "chown", []string{"root:" + observabilityGroup, exportRoot, crashExportDir}, opts); err != nil {
 				return err
 			}
-			return hostreqkit.RunPrivilegedCommand(opts.SudoMode, "chmod", []string{"0750", exportRoot, crashExportDir}, opts)
+			return hostreqkit.RunPrivilegedCommand(opts.SudoMode, "chmod", []string{"750", exportRoot, crashExportDir}, opts)
 		}},
 		{"install collector", func() error {
 			return hostreqkit.InstallManagedExecutable(collectorPath, collectorContent(retain), opts.SudoMode, opts)
@@ -313,14 +313,14 @@ retain=` + strconv.Itoa(retain) + `
 manifest="$dst/manifest.json"
 tail_lines=2000
 
-install -d -o root -g "$group" -m 0750 "$dst"
+install -d -o root -g "$group" -m 750 "$dst"
 
 publish() {
   # publish <source-file> <destination-name>
   tmp="$dst/.$2.tmp"
   if cp -- "$1" "$tmp" 2>/dev/null; then
     chown root:"$group" "$tmp"
-    chmod 0640 "$tmp"
+    chmod 640 "$tmp"
     mv -f -- "$tmp" "$dst/$2"
     return 0
   fi
@@ -353,7 +353,7 @@ for dir in "$src"/*; do
     tmp="$dst/.$stamp.dmesg.tmp"
     if tail -n "$tail_lines" -- "$dmesg_file" > "$tmp" 2>/dev/null; then
       chown root:"$group" "$tmp"
-      chmod 0640 "$tmp"
+    chmod 640 "$tmp"
       mv -f -- "$tmp" "$summary"
     else
       rm -f -- "$tmp"
@@ -377,7 +377,7 @@ tmp_manifest="$dst/.manifest.tmp"
 printf '{"collectedAt":"%s","sourcePath":"%s","retainVmcores":%s,"dumpCount":%s,"dumps":[%s]}\n' \
   "$now" "$src" "$retain" "$count" "$dumps_json" > "$tmp_manifest"
 chown root:"$group" "$tmp_manifest"
-chmod 0640 "$tmp_manifest"
+chmod 640 "$tmp_manifest"
 mv -f -- "$tmp_manifest" "$manifest"
 
 # Prune oldest vmcore directories beyond the retention count. Summaries stay.

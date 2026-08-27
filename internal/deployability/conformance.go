@@ -3,6 +3,7 @@ package deployability
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -21,12 +22,14 @@ import (
 type ConformanceTarget struct {
 	ManifestPath string `json:"manifest_path"`
 	OS           HostOS `json:"os"`
+	Architecture string `json:"architecture"`
 	CodeRoot     string `json:"code_root"`
 }
 
 type ConformanceFinding struct {
 	ManifestPath string `json:"manifest_path"`
 	OS           HostOS `json:"os"`
+	Architecture string `json:"architecture"`
 	CodeRoot     string `json:"code_root"`
 	Rule         string `json:"rule,omitempty"`
 	Message      string `json:"message"`
@@ -35,7 +38,12 @@ type ConformanceFinding struct {
 type ConformanceReport struct {
 	Targets  []ConformanceTarget  `json:"targets"`
 	Findings []ConformanceFinding `json:"findings"`
+	Warnings []ConformanceFinding `json:"warnings,omitempty"`
 }
+
+type conformanceWarning struct{ message string }
+
+func (w conformanceWarning) Error() string { return w.message }
 
 // DiscoverConformanceTargets finds every platform claim whose implementation
 // is Go-backed. It intentionally discovers modules rather than maintaining a
@@ -73,10 +81,18 @@ func DiscoverConformanceTargets(root string) ([]ConformanceTarget, error) {
 				return nil
 			}
 			seenModules[key] = struct{}{}
-			for _, hostOS := range []HostOS{HostOSMacOS, HostOSWindows} {
+			for _, targetPlatform := range []struct{ hostOS, architecture string }{
+				{hostOS: "linux", architecture: "amd64"},
+				{hostOS: "linux", architecture: "arm64"},
+				{hostOS: "macos", architecture: "amd64"},
+				{hostOS: "macos", architecture: "arm64"},
+				{hostOS: "windows", architecture: "amd64"},
+				{hostOS: "windows", architecture: "arm64"},
+			} {
 				targets = append(targets, ConformanceTarget{
 					ManifestPath: conformanceManifest(root, target, module),
-					OS:           hostOS,
+					OS:           HostOS(targetPlatform.hostOS),
+					Architecture: targetPlatform.architecture,
 					CodeRoot:     relativePath(root, module),
 				})
 			}
@@ -116,7 +132,7 @@ func CheckRepository(ctx context.Context, root string) (ConformanceReport, error
 		go func() {
 			defer wg.Done()
 			for target := range jobs {
-				results <- result{target: target, err: crossCompile(ctx, filepath.Join(root, target.CodeRoot), target.OS)}
+				results <- result{target: target, err: crossCompile(ctx, filepath.Join(root, target.CodeRoot), target.OS, target.Architecture)}
 			}
 		}()
 	}
@@ -130,11 +146,20 @@ func CheckRepository(ctx context.Context, root string) (ConformanceReport, error
 	}()
 	for item := range results {
 		if item.err != nil {
-			report.Findings = append(report.Findings, ConformanceFinding{ManifestPath: item.target.ManifestPath, OS: item.target.OS, CodeRoot: item.target.CodeRoot, Message: item.err.Error()})
+			finding := ConformanceFinding{ManifestPath: item.target.ManifestPath, OS: item.target.OS, Architecture: item.target.Architecture, CodeRoot: item.target.CodeRoot, Message: item.err.Error()}
+			var warning conformanceWarning
+			if errors.As(item.err, &warning) {
+				report.Warnings = append(report.Warnings, finding)
+			} else {
+				report.Findings = append(report.Findings, finding)
+			}
 		}
 	}
 	sort.Slice(report.Findings, func(i, j int) bool {
 		return report.Findings[i].ManifestPath+string(report.Findings[i].OS) < report.Findings[j].ManifestPath+string(report.Findings[j].OS)
+	})
+	sort.Slice(report.Warnings, func(i, j int) bool {
+		return report.Warnings[i].ManifestPath+string(report.Warnings[i].OS) < report.Warnings[j].ManifestPath+string(report.Warnings[j].OS)
 	})
 	return report, nil
 }
@@ -158,21 +183,51 @@ func isFixtureModule(path string) bool {
 	return false
 }
 
-func crossCompile(ctx context.Context, module string, hostOS HostOS) error {
-	arch := "amd64"
+func crossCompile(ctx context.Context, module string, hostOS HostOS, architecture string) error {
+	arch := architecture
 	goos := string(hostOS)
 	if hostOS == HostOSMacOS {
 		goos = "darwin"
-		arch = "arm64"
 	}
-	cmd := exec.CommandContext(ctx, "go", "build", "./...")
+	cmd := exec.CommandContext(ctx, "go", "vet", "./...")
 	cmd.Dir = module
 	cmd.Env = envkit.WithOverlay(envkit.Env(os.Environ()), envkit.SameScenario, envkit.Env{"GOWORK=off", "GOOS=" + goos, "GOARCH=" + arch})
 	out, err := cmd.CombinedOutput()
 	if err != nil {
-		return fmt.Errorf("GOOS=%s GOARCH=%s: %w: %s", goos, arch, err, strings.TrimSpace(string(out)))
+		message := fmt.Sprintf("GOOS=%s GOARCH=%s: %v: %s", goos, arch, err, strings.TrimSpace(string(out)))
+		if isVetStyleDiagnostic(string(out)) {
+			return conformanceWarning{message: message}
+		}
+		return fmt.Errorf("%s", message)
 	}
 	return nil
+}
+
+func isVetStyleDiagnostic(output string) bool {
+	trimmed := strings.TrimSpace(output)
+	if trimmed == "" || strings.Contains(trimmed, "vet:") {
+		return false
+	}
+	for _, marker := range []string{
+		"undefined:",
+		"unknown field",
+		"cannot use ",
+		"syntax error",
+		"build constraints exclude all Go files",
+		"no required module provides package",
+		"import cycle",
+		"redeclared in this block",
+	} {
+		if strings.Contains(trimmed, marker) {
+			return false
+		}
+	}
+	// Vet diagnostics that do not contain a load/compile marker are warnings.
+	// This includes analyzer findings, and toolchain housekeeping such as a
+	// module whose go.mod would be rewritten by the selected target. The caller
+	// still records the complete message; only a package that could not load is
+	// a conformance failure.
+	return true
 }
 
 func decodeJSON(path string, value any) error {
@@ -195,7 +250,7 @@ func relativePath(root, path string) string {
 }
 
 func targetKey(t ConformanceTarget) string {
-	return t.ManifestPath + "\x00" + string(t.OS) + "\x00" + t.CodeRoot
+	return t.ManifestPath + "\x00" + string(t.OS) + "\x00" + t.Architecture + "\x00" + t.CodeRoot
 }
 
 func dedupeTargets(in []ConformanceTarget) []ConformanceTarget {

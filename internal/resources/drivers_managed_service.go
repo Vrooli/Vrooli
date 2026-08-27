@@ -18,6 +18,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vrooli/vrooli/internal/tuning"
+
+	"github.com/vrooli/vrooli/internal/config"
 	"github.com/vrooli/vrooli/internal/credentialauthority"
 	"github.com/vrooli/vrooli/internal/resources/securestore"
 	resourcedeployment "github.com/vrooli/vrooli/packages/resource-deployment"
@@ -25,7 +28,7 @@ import (
 
 type managedServiceDriver struct{}
 
-func (managedServiceDriver) Name() string { return "managed-service" }
+func (managedServiceDriver) Name() string { return accelBridgeManagedService }
 
 // ManagedServiceOwnerLifecycle binds the broker's owner-only management
 // surface to the same verified driver used by the control plane. It accepts no
@@ -50,7 +53,7 @@ func (l ManagedServiceOwnerLifecycle) Manage(ctx context.Context, instance Manag
 	driver := managedServiceDriver{}
 	item := Resource{Name: l.Manifest.Name}
 	switch action {
-	case "start", "restart":
+	case brokerTransportStart, brokerTransportRestart:
 		var result any
 		err := withManagedServiceLifecycleLock(l.Manifest.Name, func() error {
 			if err := driver.runUserHosted(ctx, l.Controller, item, l.Manifest, action, io.Discard); err != nil {
@@ -61,7 +64,7 @@ func (l ManagedServiceOwnerLifecycle) Manage(ctx context.Context, instance Manag
 			return err
 		})
 		return result, err
-	case "stop":
+	case brokerTransportStop:
 		var result any
 		err := withManagedServiceLifecycleLock(l.Manifest.Name, func() error {
 			if err := driver.runPrivate(ctx, l.Controller, item, l.Manifest, action, io.Discard); err != nil {
@@ -202,6 +205,7 @@ func (d managedServiceDriver) withCompanionStatus(status Status, manifest Resour
 	return status, nil
 }
 
+//nolint:gocyclo // managed-service execution handles provider, process, health, and diagnostic action branches.
 func (d managedServiceDriver) Run(ctx context.Context, controller *Controller, item Resource, manifest ResourceManifest, action string, args []string, stdout, stderr io.Writer) error {
 	if err := ensureSupportedPlatform(manifest); err != nil {
 		return managedServiceDriverError(item.Name, action, "Platform", err)
@@ -229,7 +233,7 @@ func (d managedServiceDriver) Run(ctx context.Context, controller *Controller, i
 		return err
 	case "install":
 		return ensureManagedServiceArtifact(ctx, controller, manifest)
-	case "start", "restart", "stop", "uninstall", "logs":
+	case brokerTransportStart, brokerTransportRestart, brokerTransportStop, driversDockerUninstall, driversCliLogs:
 		mode, err := managedServiceProvider(manifest, args)
 		if err != nil {
 			return managedServiceDriverError(item.Name, action, "Provider", err)
@@ -242,20 +246,20 @@ func (d managedServiceDriver) Run(ctx context.Context, controller *Controller, i
 			defer release()
 		}
 		if mode == resourcedeployment.ProviderManagedShared {
-			if action == "start" || action == "restart" {
+			if action == brokerTransportStart || action == brokerTransportRestart {
 				if err := migrateLegacyDockerStorage(ctx, controller, manifest); err != nil {
 					return err
 				}
 			}
 			return d.runUserHosted(ctx, controller, item, manifest, action, stdout)
 		}
-		if mode == resourcedeployment.ProviderManagedDiscovered && (action == "start" || action == "restart") {
+		if mode == resourcedeployment.ProviderManagedDiscovered && (action == brokerTransportStart || action == brokerTransportRestart) {
 			return d.runDiscovered(ctx, controller, item, manifest, action, args)
 		}
 		if mode != resourcedeployment.ProviderManagedPrivate {
 			return managedServiceDriverError(item.Name, action, "Provider", fmt.Errorf("%s provider does not grant local lifecycle authority; use the broker or provider-specific client", mode))
 		}
-		if action == "start" || action == "restart" {
+		if action == brokerTransportStart || action == brokerTransportRestart {
 			if err := migrateLegacyDockerStorage(ctx, controller, manifest); err != nil {
 				return err
 			}
@@ -298,14 +302,14 @@ func (d managedServiceDriver) runUserHosted(ctx context.Context, controller *Con
 	// Calling runPrivate here would reject an intentionally uninitialized Vault
 	// before its secure bootstrapper can initialize it.
 	switch action {
-	case "start":
+	case brokerTransportStart:
 		if err := gateAcceleratorReadiness(ctx, manifest, os.Stderr); err != nil {
 			return err
 		}
 		if err := d.startPrivate(ctx, controller, manifest, supervisor); err != nil {
 			return err
 		}
-	case "restart":
+	case brokerTransportRestart:
 		stopCtx, cancel := managedServiceStopContext(ctx, manifest)
 		err := stopManagedService(stopCtx, manifest, supervisor)
 		cancel()
@@ -315,7 +319,7 @@ func (d managedServiceDriver) runUserHosted(ctx context.Context, controller *Con
 		if err := d.startPrivate(ctx, controller, manifest, supervisor); err != nil {
 			return err
 		}
-	case "stop", "uninstall", "logs":
+	case brokerTransportStop, driversDockerUninstall, driversCliLogs:
 		return d.runPrivate(ctx, controller, item, manifest, action, stdout)
 	default:
 		return fmt.Errorf("unsupported shared managed-service action %q", action)
@@ -372,7 +376,7 @@ func (d managedServiceDriver) statusAttachOnly(ctx context.Context, item Resourc
 	if err != nil {
 		return err
 	}
-	client := &http.Client{Timeout: 10 * time.Second}
+	client := &http.Client{Timeout: tuning.ControlPlaneClientTimeout}
 	response, err := client.Do(request)
 	if err != nil {
 		return managedServiceDriverError(item.Name, "status", "Provider", fmt.Errorf("attach-only endpoint health request failed: %w", err))
@@ -419,7 +423,7 @@ func (d managedServiceDriver) runPrivate(ctx context.Context, controller *Contro
 		return err
 	}
 	switch action {
-	case "start":
+	case brokerTransportStart:
 		if err := d.startPrivate(ctx, controller, manifest, supervisor); err != nil {
 			return err
 		}
@@ -439,7 +443,7 @@ func (d managedServiceDriver) runPrivate(ctx context.Context, controller *Contro
 			return err
 		}
 		return verifyStartedPlacement(ctx, controller, manifest, os.Stderr)
-	case "restart":
+	case brokerTransportRestart:
 		if err := gateAcceleratorReadiness(ctx, manifest, os.Stderr); err != nil {
 			return err
 		}
@@ -598,7 +602,7 @@ func materializeManagedServiceCredentialFiles(manifest ResourceManifest, env []s
 	if root == "" {
 		return nil, fmt.Errorf("managed-service credential files require RESOURCE_STATE_DIR")
 	}
-	if err := os.MkdirAll(root, 0o700); err != nil {
+	if err := os.MkdirAll(root, tuning.PermPrivateDir); err != nil {
 		return nil, fmt.Errorf("create managed-service credential runtime directory: %w", err)
 	}
 	authority, err := credentialauthority.DefaultAuthority()
@@ -632,39 +636,11 @@ func materializeManagedServiceCredentialFiles(manifest ResourceManifest, env []s
 			return nil, fmt.Errorf("managed-service credential file path must remain under RESOURCE_STATE_DIR")
 		}
 		destination := filepath.Join(root, relative)
-		if err := os.MkdirAll(filepath.Dir(destination), 0o700); err != nil {
+		if err := os.MkdirAll(filepath.Dir(destination), tuning.PermPrivateDir); err != nil {
 			cleanup()
 			return nil, fmt.Errorf("create managed-service credential directory: %w", err)
 		}
-		temporary, err := os.CreateTemp(filepath.Dir(destination), ".credential-*")
-		if err != nil {
-			cleanup()
-			return nil, fmt.Errorf("create managed-service credential file: %w", err)
-		}
-		temporaryName := temporary.Name()
-		ok := false
-		defer func() {
-			if !ok {
-				_ = os.Remove(temporaryName)
-			}
-		}()
-		if err := temporary.Chmod(0o600); err != nil {
-			cleanup()
-			_ = temporary.Close()
-			return nil, fmt.Errorf("restrict managed-service credential file: %w", err)
-		}
-		_, err = temporary.WriteString(value + "\n")
-		if err == nil {
-			err = temporary.Sync()
-		}
-		if closeErr := temporary.Close(); err == nil {
-			err = closeErr
-		}
-		if err != nil {
-			cleanup()
-			return nil, fmt.Errorf("write managed-service credential file: %w", err)
-		}
-		if err := os.Rename(temporaryName, destination); err != nil {
+		if err := config.WriteOwnedFileAtomic(destination, []byte(value+"\n"), tuning.PermSecret); err != nil {
 			cleanup()
 			return nil, fmt.Errorf("install managed-service credential file: %w", err)
 		}
@@ -673,7 +649,6 @@ func materializeManagedServiceCredentialFiles(manifest ResourceManifest, env []s
 			return nil, fmt.Errorf("restrict managed-service credential file: %w", err)
 		}
 		paths = append(paths, destination)
-		ok = true
 	}
 	return paths, nil
 }
@@ -844,7 +819,7 @@ func managedDiscoveredExecutable(args []string) (string, error) {
 		if err != nil {
 			return "", fmt.Errorf("read discovered executable: %w", err)
 		}
-		if info.IsDir() || info.Mode()&0o111 == 0 {
+		if info.IsDir() || info.Mode()&tuning.PermExecuteMask == 0 {
 			return "", fmt.Errorf("discovered executable is not executable")
 		}
 		return path, nil
@@ -925,10 +900,10 @@ func writeManagedServiceConfig(manifest ResourceManifest, env []string) error {
 	if rel, err := filepath.Rel(root, path); err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
 		return fmt.Errorf("managed-service config path escapes resource config root")
 	}
-	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+	if err := os.MkdirAll(filepath.Dir(path), tuning.PermPrivateDir); err != nil {
 		return err
 	}
-	return os.WriteFile(path, []byte(renderManagedServiceValue(config.Content, values)), 0o600)
+	return os.WriteFile(path, []byte(renderManagedServiceValue(config.Content, values)), tuning.PermSecret)
 }
 
 func runManagedServiceBootstrap(ctx context.Context, manifest ResourceManifest, artifactPath string, env []string) error {
@@ -971,10 +946,10 @@ func runManagedServiceBootstrap(ctx context.Context, manifest ResourceManifest, 
 			return fmt.Errorf("managed-service bootstrap password_file and RESOURCE_CONFIG_DIR are required")
 		}
 		passwordPath = filepath.Join(configRoot, filepath.FromSlash(bootstrap.PasswordFile))
-		if err := os.MkdirAll(filepath.Dir(passwordPath), 0o700); err != nil {
+		if err := os.MkdirAll(filepath.Dir(passwordPath), tuning.PermPrivateDir); err != nil {
 			return fmt.Errorf("create managed-service bootstrap secret directory: %w", err)
 		}
-		if err := os.WriteFile(passwordPath, []byte(password+"\n"), 0o600); err != nil {
+		if err := os.WriteFile(passwordPath, []byte(password+"\n"), tuning.PermSecret); err != nil {
 			return fmt.Errorf("write managed-service bootstrap secret: %w", err)
 		}
 		defer os.Remove(passwordPath)
@@ -1080,7 +1055,7 @@ func waitForManagedServiceHealth(parent context.Context, controller *Controller,
 				return fmt.Errorf("managed-service health check did not pass: %w", err)
 			}
 			return fmt.Errorf("managed-service health check did not pass before startup timeout")
-		case <-time.After(100 * time.Millisecond):
+		case <-time.After(tuning.LifecyclePollInterval):
 		}
 	}
 }

@@ -19,6 +19,7 @@ import (
 	"github.com/vrooli/vrooli/internal/scenario"
 	testscenario "github.com/vrooli/vrooli/internal/scenario/scenariotest"
 	"github.com/vrooli/vrooli/internal/scenarioexec"
+	"github.com/vrooli/vrooli/internal/shell/shelltest"
 )
 
 func newRuntimeTestApp(t *testing.T, root string) *App {
@@ -89,7 +90,7 @@ func TestLocateTestGenieCLIUsesManifestDrivenInstalledPath(t *testing.T) {
 	testkitgo.WriteFile(t, filepath.Join(root, "scenarios", "test-genie", "cli", "go.mod"), "module test-genie/cli\n")
 
 	app.EnsureScenarioCLIFn = func(root, home, name string) error { return nil }
-	expected := testkitgo.WriteRelativeExecutable(t, home, filepath.Join(".vrooli", "bin", "test-genie"), "#!/usr/bin/env bash\nexit 0\n")
+	expected := testkitgo.WriteRelativeExecutable(t, home, filepath.Join(".vrooli", "bin", "test-genie"), shelltest.BashShebang()+"exit 0\n")
 
 	path, err := app.LocateTestGenieCLI(root, home)
 	if err != nil {
@@ -149,7 +150,7 @@ func TestLaunchDetachedScenarioPropagatesExpectedArgsAndEnv(t *testing.T) {
 	app := newRuntimeTestApp(t, root)
 	argsPath := filepath.Join(root, "args.txt")
 	envPath := filepath.Join(root, "env.txt")
-	executable := testkitgo.WriteRelativeExecutable(t, root, filepath.Join("bin", "fake-vrooli"), "#!/usr/bin/env bash\nprintf '%s\\n' \"$@\" > "+argsPath+"\nenv | sort > "+envPath+"\n")
+	executable := testkitgo.WriteRelativeExecutable(t, root, filepath.Join("bin", "fake-vrooli"), shelltest.BashShebang()+"printf '%s\\n' \"$@\" > "+argsPath+"\nenv | sort > "+envPath+"\n")
 	app.ScenarioExecutableFn = func() (string, error) { return executable, nil }
 
 	t.Setenv("VROOLI_SANDBOX_ID", "sandbox-123")
@@ -241,7 +242,7 @@ func TestEnsureScenarioCLIWarnsWhenPreviousPathWasNonCanonical(t *testing.T) {
 		return os.WriteFile(path, []byte("installed"), 0o755)
 	}
 	lookups := 0
-	nonCanonical := testkitgo.WriteRelativeExecutable(t, home, filepath.Join(".local", "bin", "alpha"), "#!/usr/bin/env bash\nexit 0\n")
+	nonCanonical := testkitgo.WriteRelativeExecutable(t, home, filepath.Join(".local", "bin", "alpha"), shelltest.BashShebang()+"exit 0\n")
 	app.LookPathFn = func(file string) (string, error) {
 		lookups++
 		if lookups == 1 {

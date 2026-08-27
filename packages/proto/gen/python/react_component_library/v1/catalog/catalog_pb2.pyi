@@ -603,7 +603,7 @@ class GetHealthOverviewRequest(_message.Message):
     def __init__(self) -> None: ...
 
 class GetHealthOverviewResponse(_message.Message):
-    __slots__ = ("coverage", "history", "nodes", "edges", "promote", "quarantined_gates", "kind_mismatch_count", "instrument_moved_count", "kind_mismatches")
+    __slots__ = ("coverage", "history", "nodes", "edges", "promote", "quarantined_gates", "kind_mismatch_count", "instrument_moved_count", "kind_mismatches", "run", "config")
     COVERAGE_FIELD_NUMBER: _ClassVar[int]
     HISTORY_FIELD_NUMBER: _ClassVar[int]
     NODES_FIELD_NUMBER: _ClassVar[int]
@@ -613,6 +613,8 @@ class GetHealthOverviewResponse(_message.Message):
     KIND_MISMATCH_COUNT_FIELD_NUMBER: _ClassVar[int]
     INSTRUMENT_MOVED_COUNT_FIELD_NUMBER: _ClassVar[int]
     KIND_MISMATCHES_FIELD_NUMBER: _ClassVar[int]
+    RUN_FIELD_NUMBER: _ClassVar[int]
+    CONFIG_FIELD_NUMBER: _ClassVar[int]
     coverage: CoverageReport
     history: _containers.RepeatedCompositeFieldContainer[ScoreHistoryPoint]
     nodes: _containers.RepeatedCompositeFieldContainer[HealthNode]
@@ -622,7 +624,83 @@ class GetHealthOverviewResponse(_message.Message):
     kind_mismatch_count: int
     instrument_moved_count: int
     kind_mismatches: _containers.RepeatedCompositeFieldContainer[KindMismatch]
-    def __init__(self, coverage: _Optional[_Union[CoverageReport, _Mapping]] = ..., history: _Optional[_Iterable[_Union[ScoreHistoryPoint, _Mapping]]] = ..., nodes: _Optional[_Iterable[_Union[HealthNode, _Mapping]]] = ..., edges: _Optional[_Iterable[_Union[HealthEdge, _Mapping]]] = ..., promote: _Optional[_Iterable[_Union[CoverageRow, _Mapping]]] = ..., quarantined_gates: _Optional[_Iterable[str]] = ..., kind_mismatch_count: _Optional[int] = ..., instrument_moved_count: _Optional[int] = ..., kind_mismatches: _Optional[_Iterable[_Union[KindMismatch, _Mapping]]] = ...) -> None: ...
+    run: ReadinessRun
+    config: ReadinessConfig
+    def __init__(self, coverage: _Optional[_Union[CoverageReport, _Mapping]] = ..., history: _Optional[_Iterable[_Union[ScoreHistoryPoint, _Mapping]]] = ..., nodes: _Optional[_Iterable[_Union[HealthNode, _Mapping]]] = ..., edges: _Optional[_Iterable[_Union[HealthEdge, _Mapping]]] = ..., promote: _Optional[_Iterable[_Union[CoverageRow, _Mapping]]] = ..., quarantined_gates: _Optional[_Iterable[str]] = ..., kind_mismatch_count: _Optional[int] = ..., instrument_moved_count: _Optional[int] = ..., kind_mismatches: _Optional[_Iterable[_Union[KindMismatch, _Mapping]]] = ..., run: _Optional[_Union[ReadinessRun, _Mapping]] = ..., config: _Optional[_Union[ReadinessConfig, _Mapping]] = ...) -> None: ...
+
+class ReadinessRun(_message.Message):
+    __slots__ = ("run_id", "started_at", "completed_at", "completed", "evidence_age")
+    RUN_ID_FIELD_NUMBER: _ClassVar[int]
+    STARTED_AT_FIELD_NUMBER: _ClassVar[int]
+    COMPLETED_AT_FIELD_NUMBER: _ClassVar[int]
+    COMPLETED_FIELD_NUMBER: _ClassVar[int]
+    EVIDENCE_AGE_FIELD_NUMBER: _ClassVar[int]
+    run_id: str
+    started_at: str
+    completed_at: str
+    completed: bool
+    evidence_age: str
+    def __init__(self, run_id: _Optional[str] = ..., started_at: _Optional[str] = ..., completed_at: _Optional[str] = ..., completed: _Optional[bool] = ..., evidence_age: _Optional[str] = ...) -> None: ...
+
+class ReadinessConfig(_message.Message):
+    __slots__ = ("declared_floor", "achieved_rung", "rung_gap", "blocking_gates", "advisory_gates", "quarantined_gates", "attributable_gates", "corpus_gates")
+    DECLARED_FLOOR_FIELD_NUMBER: _ClassVar[int]
+    ACHIEVED_RUNG_FIELD_NUMBER: _ClassVar[int]
+    RUNG_GAP_FIELD_NUMBER: _ClassVar[int]
+    BLOCKING_GATES_FIELD_NUMBER: _ClassVar[int]
+    ADVISORY_GATES_FIELD_NUMBER: _ClassVar[int]
+    QUARANTINED_GATES_FIELD_NUMBER: _ClassVar[int]
+    ATTRIBUTABLE_GATES_FIELD_NUMBER: _ClassVar[int]
+    CORPUS_GATES_FIELD_NUMBER: _ClassVar[int]
+    declared_floor: str
+    achieved_rung: str
+    rung_gap: int
+    blocking_gates: int
+    advisory_gates: int
+    quarantined_gates: int
+    attributable_gates: int
+    corpus_gates: int
+    def __init__(self, declared_floor: _Optional[str] = ..., achieved_rung: _Optional[str] = ..., rung_gap: _Optional[int] = ..., blocking_gates: _Optional[int] = ..., advisory_gates: _Optional[int] = ..., quarantined_gates: _Optional[int] = ..., attributable_gates: _Optional[int] = ..., corpus_gates: _Optional[int] = ...) -> None: ...
+
+class ReadinessTriageRow(_message.Message):
+    __slots__ = ("gate", "asset_id", "message", "nearest_blocking_gate", "blocks_downstream", "weight")
+    GATE_FIELD_NUMBER: _ClassVar[int]
+    ASSET_ID_FIELD_NUMBER: _ClassVar[int]
+    MESSAGE_FIELD_NUMBER: _ClassVar[int]
+    NEAREST_BLOCKING_GATE_FIELD_NUMBER: _ClassVar[int]
+    BLOCKS_DOWNSTREAM_FIELD_NUMBER: _ClassVar[int]
+    WEIGHT_FIELD_NUMBER: _ClassVar[int]
+    gate: str
+    asset_id: str
+    message: str
+    nearest_blocking_gate: str
+    blocks_downstream: int
+    weight: float
+    def __init__(self, gate: _Optional[str] = ..., asset_id: _Optional[str] = ..., message: _Optional[str] = ..., nearest_blocking_gate: _Optional[str] = ..., blocks_downstream: _Optional[int] = ..., weight: _Optional[float] = ...) -> None: ...
+
+class GetReadinessRequest(_message.Message):
+    __slots__ = ("floor",)
+    FLOOR_FIELD_NUMBER: _ClassVar[int]
+    floor: str
+    def __init__(self, floor: _Optional[str] = ...) -> None: ...
+
+class GetReadinessResponse(_message.Message):
+    __slots__ = ("coverage", "run", "config", "triage", "next_steps", "verdict", "triage_omitted_count")
+    COVERAGE_FIELD_NUMBER: _ClassVar[int]
+    RUN_FIELD_NUMBER: _ClassVar[int]
+    CONFIG_FIELD_NUMBER: _ClassVar[int]
+    TRIAGE_FIELD_NUMBER: _ClassVar[int]
+    NEXT_STEPS_FIELD_NUMBER: _ClassVar[int]
+    VERDICT_FIELD_NUMBER: _ClassVar[int]
+    TRIAGE_OMITTED_COUNT_FIELD_NUMBER: _ClassVar[int]
+    coverage: CoverageReport
+    run: ReadinessRun
+    config: ReadinessConfig
+    triage: _containers.RepeatedCompositeFieldContainer[ReadinessTriageRow]
+    next_steps: _containers.RepeatedScalarFieldContainer[str]
+    verdict: str
+    triage_omitted_count: int
+    def __init__(self, coverage: _Optional[_Union[CoverageReport, _Mapping]] = ..., run: _Optional[_Union[ReadinessRun, _Mapping]] = ..., config: _Optional[_Union[ReadinessConfig, _Mapping]] = ..., triage: _Optional[_Iterable[_Union[ReadinessTriageRow, _Mapping]]] = ..., next_steps: _Optional[_Iterable[str]] = ..., verdict: _Optional[str] = ..., triage_omitted_count: _Optional[int] = ...) -> None: ...
 
 class KindMismatch(_message.Message):
     __slots__ = ("asset_id", "declared_kind", "derived_kind", "message")

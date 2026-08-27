@@ -12,6 +12,10 @@ import (
 	resourcedeployment "github.com/vrooli/vrooli/packages/resource-deployment"
 )
 
+const (
+	brokerHttp = "http"
+)
+
 // ManagedInstance is a broker-verified Vrooli-owned service. Endpoint alone is
 // intentionally not identity: callers can never register or reuse an arbitrary
 // local process merely because it answers on a familiar port.
@@ -183,6 +187,8 @@ func (b *Broker) Register(instance ManagedInstance) error {
 // discover endpoints: callers must have completed bootstrap/ownership
 // verification before this operation. Broker persistence contains only the
 // non-secret identity and scope list.
+//
+//nolint:gocyclo // broker registration distinguishes existing ownership, grants, persistence, and conflict states.
 func (b *Broker) RegisterOrGrantScope(instance ManagedInstance, scope string) (ManagedInstance, error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
@@ -238,7 +244,7 @@ func (b *Broker) RegisterOrGrantScope(instance ManagedInstance, scope string) (M
 
 func isLoopbackManagedEndpoint(raw string) bool {
 	endpoint, err := url.Parse(strings.TrimSpace(raw))
-	if err != nil || (endpoint.Scheme != "http" && endpoint.Scheme != "https") || endpoint.Hostname() == "" {
+	if err != nil || (endpoint.Scheme != brokerHttp && endpoint.Scheme != "https") || endpoint.Hostname() == "" {
 		return false
 	}
 	if strings.EqualFold(endpoint.Hostname(), "localhost") {

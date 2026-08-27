@@ -18,6 +18,8 @@ import (
 	"slices"
 	"strconv"
 
+	"github.com/vrooli/vrooli/internal/tuning"
+
 	"github.com/vrooli/vrooli/internal/hostreqkit"
 	"github.com/vrooli/vrooli/internal/hostreqspec"
 )
@@ -185,7 +187,7 @@ func grantableDevice() (device string, group string, found bool) {
 			continue
 		}
 		gid, ok := fileInfoGroupID(info)
-		if !ok || info.Mode().Perm()&0o060 == 0 {
+		if !ok || info.Mode().Perm()&tuning.PermGroupReadWrite == 0 {
 			continue
 		}
 		return candidate, groupLabel(int(gid)), true

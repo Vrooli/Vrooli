@@ -16,6 +16,11 @@ import (
 	"github.com/vrooli/vrooli/internal/vroolierr"
 )
 
+const (
+	lifecycleHelp   = "--help"
+	lifecycleStatus = "status"
+)
+
 func HelpOnlyWithoutRoot(args []string) bool {
 	return len(args) == 0 || commandtree.WantsHelp(args)
 }
@@ -76,7 +81,7 @@ type ProjectPhaseRequest struct {
 }
 
 func ParseStatusRequest(args []string) (StatusRequest, error) {
-	parsed, err := commandtree.ParseArgs("status", StatusHelpText(), statusArgSchema(), args)
+	parsed, err := commandtree.ParseArgs(lifecycleStatus, StatusHelpText(), statusArgSchema(), args)
 	if err != nil {
 		return StatusRequest{}, err
 	}
@@ -92,7 +97,7 @@ func ParseStatusRequest(args []string) (StatusRequest, error) {
 		req.Fast = true
 	}
 	if req.ResourcesOnly && req.ScenariosOnly {
-		return StatusRequest{}, clipolicy.UsageErrorf("status", "status accepts only one of --resources or --scenarios")
+		return StatusRequest{}, clipolicy.UsageErrorf(lifecycleStatus, "status accepts only one of --resources or --scenarios")
 	}
 	return req, nil
 }
@@ -130,7 +135,7 @@ func ParseOrphansRequest(args []string) (OrphansRequest, error) {
 		switch parsed.Positionals[0] {
 		case "kill":
 			req.Kill = true
-		case "help":
+		case lifecycleHelp:
 			return OrphansRequest{}, clipolicy.CommandHelpOnly(OrphansHelpText())
 		default:
 			return OrphansRequest{}, clipolicy.UnknownOptionError("orphans", parsed.Positionals[0])
@@ -160,7 +165,7 @@ func ParseLocksRequest(args []string) (LocksRequest, error) {
 			if req.ShowAll {
 				return LocksRequest{}, clipolicy.UsageErrorf("locks", "--all is only meaningful when listing claims, not with `clean`")
 			}
-		case "help":
+		case lifecycleHelp:
 			return LocksRequest{}, clipolicy.CommandHelpOnly(LocksHelpText())
 		default:
 			return LocksRequest{}, clipolicy.UnknownOptionError("locks", parsed.Positionals[0])
@@ -216,7 +221,7 @@ func ParseCleanupRequest(args []string) (CleanupRequest, error) {
 		forwarded = append(forwarded, "--run", value)
 	}
 	switch target {
-	case "help":
+	case lifecycleHelp:
 		return CleanupRequest{}, clipolicy.CommandHelpOnly(CleanupHelpText)
 	case "orphans", "locks", "template-validation":
 		return CleanupRequest{Target: target, Args: forwarded}, nil
@@ -253,12 +258,12 @@ func ParseTemplateValidationCleanupRequest(args []string) (TemplateValidationCle
 func ParseSetupOptions(args []string) (projectsetup.Options, error) {
 	if sub, rest, ok := extractSetupSubcommand(args); ok {
 		switch sub {
-		case "status":
+		case lifecycleStatus:
 			opts, err := parseLifecycleOptions("setup status", rest, SetupStatusHelpText())
 			if err != nil {
 				return projectsetup.Options{}, err
 			}
-			opts.Subcommand = "status"
+			opts.Subcommand = lifecycleStatus
 			return opts, nil
 		case "explain":
 			parsed, err := commandtree.ParseArgs("setup explain", SetupExplainHelpText(), setupExplainArgSchema(), rest)
@@ -278,7 +283,7 @@ func ParseSetupOptions(args []string) (projectsetup.Options, error) {
 	return parseLifecycleOptions("setup", args, SetupHelpText())
 }
 
-// extractSetupSubcommand detects the leading positional `status` or `explain`.
+// extractSetupSubcommand detects the leading positional lifecycleStatus or `explain`.
 // Args before any flag are inspected; once a `--flag` appears we stop scanning.
 func extractSetupSubcommand(args []string) (string, []string, bool) {
 	for i, arg := range args {
@@ -286,7 +291,7 @@ func extractSetupSubcommand(args []string) (string, []string, bool) {
 			return "", nil, false
 		}
 		switch arg {
-		case "status", "explain":
+		case lifecycleStatus, "explain":
 			rest := append([]string(nil), args[:i]...)
 			rest = append(rest, args[i+1:]...)
 			return arg, rest, true
@@ -324,14 +329,14 @@ func ParseBuildRequest(args []string) (NoArgsRequest, error) {
 }
 
 func ParseProjectPhaseRequest(phase string, args []string) (ProjectPhaseRequest, error) {
-	if len(args) > 0 && (args[0] == "--help" || args[0] == "-h") {
+	if len(args) > 0 && (args[0] == lifecycleHelp || args[0] == "-h") {
 		return ProjectPhaseRequest{}, clipolicy.CommandHelpOnly(ProjectPhaseHelpText(phase))
 	}
 	return ProjectPhaseRequest{Args: append([]string(nil), args...)}, nil
 }
 
 func ParseLifecycleRequest(args []string) (LifecycleRequest, error) {
-	if len(args) == 0 || args[0] == "--help" || args[0] == "-h" {
+	if len(args) == 0 || args[0] == lifecycleHelp || args[0] == "-h" {
 		return LifecycleRequest{}, clipolicy.CommandHelpOnly(LifecycleHelpText())
 	}
 	switch args[0] {
@@ -346,7 +351,7 @@ func ParseLifecycleProtectArgs(args []string) ([]string, error) {
 	if len(args) == 0 {
 		return nil, clipolicy.CommandHelpOnly(LifecycleProtectHelpText())
 	}
-	if args[0] == "--help" || args[0] == "-h" || args[0] == "help" {
+	if args[0] == lifecycleHelp || args[0] == "-h" {
 		return nil, clipolicy.CommandHelpOnly(LifecycleProtectHelpText())
 	}
 	if args[0] != "--" {

@@ -9,6 +9,7 @@ import (
 	"github.com/vrooli/vrooli/internal/cli/credentialscli"
 	"github.com/vrooli/vrooli/internal/cli/manifestdispatch"
 	"github.com/vrooli/vrooli/internal/cli/rootcli"
+	"github.com/vrooli/vrooli/internal/cliout"
 )
 
 // HandlerDeps supplies only the root-context values the credential boundary needs.
@@ -20,44 +21,62 @@ type HandlerDeps[C any] struct {
 	Stderr  func(C) io.Writer
 }
 
+type credentialService struct {
+	run func([]string) error
+}
+
 // RootHandler dispatches `vrooli credentials`.
 func RootHandler[C any](deps HandlerDeps[C]) rootcli.Handler[C] {
-	return func(ctx C, args []string) error {
-		commandCtx := &credentialscli.Context{
-			Root: deps.Root(ctx), Globals: deps.Globals(ctx), Stdin: deps.Stdin(ctx),
-			Stdout: deps.Stdout(ctx), Stderr: deps.Stderr(ctx),
-		}
-		app := &credentialsapp.App{}
-		if len(args) == 0 || manifestdispatch.WantsHelp(args) {
-			return credentialscli.Run(commandCtx, args)
-		}
-		groups, err := credentialGroups(app, commandCtx)
-		if err != nil {
-			return err
-		}
-		core := cliapp.NewApp(cliapp.AppOptions{Name: "vrooli credentials", SubcommandGroups: groups.subgroups, Commands: []cliapp.CommandGroup{{Commands: groups.root.Subcommands}}})
-		return core.RunWithWriters(manifestdispatch.WithJSON(args, commandCtx.Globals.JSON), deps.Stdout(ctx), deps.Stderr(ctx))
-	}
+	return rootcli.BindService(deps.Stdout,
+		func(ctx C) (cliout.Format, credentialService, error) {
+			commandCtx := &credentialscli.Context{
+				Root: deps.Root(ctx), Globals: deps.Globals(ctx), Stdin: deps.Stdin(ctx),
+				Stdout: deps.Stdout(ctx), Stderr: deps.Stderr(ctx),
+			}
+			app := &credentialsapp.App{}
+			return cliout.FormatHuman, credentialService{run: func(args []string) error {
+				if len(args) == 0 || manifestdispatch.WantsHelp(args) {
+					return credentialscli.Run(commandCtx, args)
+				}
+				groups, err := credentialGroups(app, commandCtx)
+				if err != nil {
+					return err
+				}
+				core := cliapp.NewApp(cliapp.AppOptions{Name: "vrooli credentials", SubcommandGroups: groups.subgroups, Commands: []cliapp.CommandGroup{{Commands: groups.root.Subcommands}}})
+				return core.RunWithWriters(manifestdispatch.WithJSON(args, commandCtx.Globals.JSON), deps.Stdout(ctx), deps.Stderr(ctx))
+			}}, nil
+		},
+		func(_ C, args []string) ([]string, error) { return args, nil },
+		func(service credentialService, args []string) (struct{}, error) { return struct{}{}, service.run(args) },
+		func(io.Writer, cliout.Format, struct{}) error { return nil },
+	)
 }
 
 // BreakGlassHandler dispatches `vrooli break-glass`.
 func BreakGlassHandler[C any](deps HandlerDeps[C]) rootcli.Handler[C] {
-	return func(ctx C, args []string) error {
-		commandCtx := &credentialscli.Context{
-			Root: deps.Root(ctx), Globals: deps.Globals(ctx), Stdin: deps.Stdin(ctx),
-			Stdout: deps.Stdout(ctx), Stderr: deps.Stderr(ctx),
-		}
-		app := &credentialsapp.App{}
-		if len(args) == 0 || manifestdispatch.WantsHelp(args) {
-			return credentialscli.RunBreakGlass(commandCtx, args)
-		}
-		group, err := cliapp.LoadFromManifest(climanifest.Bytes(), "break-glass", breakGlassBindings(app, commandCtx))
-		if err != nil {
-			return err
-		}
-		core := cliapp.NewApp(cliapp.AppOptions{Name: "vrooli break-glass", Commands: []cliapp.CommandGroup{{Commands: group.Subcommands}}})
-		return core.RunWithWriters(manifestdispatch.WithJSON(args, commandCtx.Globals.JSON), deps.Stdout(ctx), deps.Stderr(ctx))
-	}
+	return rootcli.BindService(deps.Stdout,
+		func(ctx C) (cliout.Format, credentialService, error) {
+			commandCtx := &credentialscli.Context{
+				Root: deps.Root(ctx), Globals: deps.Globals(ctx), Stdin: deps.Stdin(ctx),
+				Stdout: deps.Stdout(ctx), Stderr: deps.Stderr(ctx),
+			}
+			app := &credentialsapp.App{}
+			return cliout.FormatHuman, credentialService{run: func(args []string) error {
+				if len(args) == 0 || manifestdispatch.WantsHelp(args) {
+					return credentialscli.RunBreakGlass(commandCtx, args)
+				}
+				group, err := cliapp.LoadFromManifest(climanifest.Bytes(), "break-glass", breakGlassBindings(app, commandCtx))
+				if err != nil {
+					return err
+				}
+				core := cliapp.NewApp(cliapp.AppOptions{Name: "vrooli break-glass", Commands: []cliapp.CommandGroup{{Commands: group.Subcommands}}})
+				return core.RunWithWriters(manifestdispatch.WithJSON(args, commandCtx.Globals.JSON), deps.Stdout(ctx), deps.Stderr(ctx))
+			}}, nil
+		},
+		func(_ C, args []string) ([]string, error) { return args, nil },
+		func(service credentialService, args []string) (struct{}, error) { return struct{}{}, service.run(args) },
+		func(io.Writer, cliout.Format, struct{}) error { return nil },
+	)
 }
 
 type credentialGroupsResult struct {

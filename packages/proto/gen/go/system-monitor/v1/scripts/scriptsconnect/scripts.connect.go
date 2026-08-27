@@ -45,6 +45,13 @@ const (
 	// ScriptsServiceExecuteScriptProcedure is the fully-qualified name of the ScriptsService's
 	// ExecuteScript RPC.
 	ScriptsServiceExecuteScriptProcedure = "/vrooli.system_monitor.v1.scripts.ScriptsService/ExecuteScript"
+	// ScriptsServiceListRunsProcedure is the fully-qualified name of the ScriptsService's ListRuns RPC.
+	ScriptsServiceListRunsProcedure = "/vrooli.system_monitor.v1.scripts.ScriptsService/ListRuns"
+	// ScriptsServiceGetRunProcedure is the fully-qualified name of the ScriptsService's GetRun RPC.
+	ScriptsServiceGetRunProcedure = "/vrooli.system_monitor.v1.scripts.ScriptsService/GetRun"
+	// ScriptsServicePruneRunsProcedure is the fully-qualified name of the ScriptsService's PruneRuns
+	// RPC.
+	ScriptsServicePruneRunsProcedure = "/vrooli.system_monitor.v1.scripts.ScriptsService/PruneRuns"
 )
 
 // ScriptsServiceClient is a client for the vrooli.system_monitor.v1.scripts.ScriptsService service.
@@ -57,6 +64,9 @@ type ScriptsServiceClient interface {
 	UpdateScript(context.Context, *connect.Request[scripts.UpdateScriptRequest]) (*connect.Response[scripts.GetScriptResponse], error)
 	// ExecuteScript executes an investigation script.
 	ExecuteScript(context.Context, *connect.Request[scripts.ExecuteScriptRequest]) (*connect.Response[scripts.ExecuteScriptResponse], error)
+	ListRuns(context.Context, *connect.Request[scripts.ListRunsRequest]) (*connect.Response[scripts.ListRunsResponse], error)
+	GetRun(context.Context, *connect.Request[scripts.GetRunRequest]) (*connect.Response[scripts.GetRunResponse], error)
+	PruneRuns(context.Context, *connect.Request[scripts.PruneRunsRequest]) (*connect.Response[scripts.PruneRunsResponse], error)
 }
 
 // NewScriptsServiceClient constructs a client for the
@@ -95,6 +105,24 @@ func NewScriptsServiceClient(httpClient connect.HTTPClient, baseURL string, opts
 			connect.WithSchema(scriptsServiceMethods.ByName("ExecuteScript")),
 			connect.WithClientOptions(opts...),
 		),
+		listRuns: connect.NewClient[scripts.ListRunsRequest, scripts.ListRunsResponse](
+			httpClient,
+			baseURL+ScriptsServiceListRunsProcedure,
+			connect.WithSchema(scriptsServiceMethods.ByName("ListRuns")),
+			connect.WithClientOptions(opts...),
+		),
+		getRun: connect.NewClient[scripts.GetRunRequest, scripts.GetRunResponse](
+			httpClient,
+			baseURL+ScriptsServiceGetRunProcedure,
+			connect.WithSchema(scriptsServiceMethods.ByName("GetRun")),
+			connect.WithClientOptions(opts...),
+		),
+		pruneRuns: connect.NewClient[scripts.PruneRunsRequest, scripts.PruneRunsResponse](
+			httpClient,
+			baseURL+ScriptsServicePruneRunsProcedure,
+			connect.WithSchema(scriptsServiceMethods.ByName("PruneRuns")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -104,6 +132,9 @@ type scriptsServiceClient struct {
 	getScript     *connect.Client[scripts.GetScriptRequest, scripts.GetScriptResponse]
 	updateScript  *connect.Client[scripts.UpdateScriptRequest, scripts.GetScriptResponse]
 	executeScript *connect.Client[scripts.ExecuteScriptRequest, scripts.ExecuteScriptResponse]
+	listRuns      *connect.Client[scripts.ListRunsRequest, scripts.ListRunsResponse]
+	getRun        *connect.Client[scripts.GetRunRequest, scripts.GetRunResponse]
+	pruneRuns     *connect.Client[scripts.PruneRunsRequest, scripts.PruneRunsResponse]
 }
 
 // ListScripts calls vrooli.system_monitor.v1.scripts.ScriptsService.ListScripts.
@@ -126,6 +157,21 @@ func (c *scriptsServiceClient) ExecuteScript(ctx context.Context, req *connect.R
 	return c.executeScript.CallUnary(ctx, req)
 }
 
+// ListRuns calls vrooli.system_monitor.v1.scripts.ScriptsService.ListRuns.
+func (c *scriptsServiceClient) ListRuns(ctx context.Context, req *connect.Request[scripts.ListRunsRequest]) (*connect.Response[scripts.ListRunsResponse], error) {
+	return c.listRuns.CallUnary(ctx, req)
+}
+
+// GetRun calls vrooli.system_monitor.v1.scripts.ScriptsService.GetRun.
+func (c *scriptsServiceClient) GetRun(ctx context.Context, req *connect.Request[scripts.GetRunRequest]) (*connect.Response[scripts.GetRunResponse], error) {
+	return c.getRun.CallUnary(ctx, req)
+}
+
+// PruneRuns calls vrooli.system_monitor.v1.scripts.ScriptsService.PruneRuns.
+func (c *scriptsServiceClient) PruneRuns(ctx context.Context, req *connect.Request[scripts.PruneRunsRequest]) (*connect.Response[scripts.PruneRunsResponse], error) {
+	return c.pruneRuns.CallUnary(ctx, req)
+}
+
 // ScriptsServiceHandler is an implementation of the vrooli.system_monitor.v1.scripts.ScriptsService
 // service.
 type ScriptsServiceHandler interface {
@@ -137,6 +183,9 @@ type ScriptsServiceHandler interface {
 	UpdateScript(context.Context, *connect.Request[scripts.UpdateScriptRequest]) (*connect.Response[scripts.GetScriptResponse], error)
 	// ExecuteScript executes an investigation script.
 	ExecuteScript(context.Context, *connect.Request[scripts.ExecuteScriptRequest]) (*connect.Response[scripts.ExecuteScriptResponse], error)
+	ListRuns(context.Context, *connect.Request[scripts.ListRunsRequest]) (*connect.Response[scripts.ListRunsResponse], error)
+	GetRun(context.Context, *connect.Request[scripts.GetRunRequest]) (*connect.Response[scripts.GetRunResponse], error)
+	PruneRuns(context.Context, *connect.Request[scripts.PruneRunsRequest]) (*connect.Response[scripts.PruneRunsResponse], error)
 }
 
 // NewScriptsServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -170,6 +219,24 @@ func NewScriptsServiceHandler(svc ScriptsServiceHandler, opts ...connect.Handler
 		connect.WithSchema(scriptsServiceMethods.ByName("ExecuteScript")),
 		connect.WithHandlerOptions(opts...),
 	)
+	scriptsServiceListRunsHandler := connect.NewUnaryHandler(
+		ScriptsServiceListRunsProcedure,
+		svc.ListRuns,
+		connect.WithSchema(scriptsServiceMethods.ByName("ListRuns")),
+		connect.WithHandlerOptions(opts...),
+	)
+	scriptsServiceGetRunHandler := connect.NewUnaryHandler(
+		ScriptsServiceGetRunProcedure,
+		svc.GetRun,
+		connect.WithSchema(scriptsServiceMethods.ByName("GetRun")),
+		connect.WithHandlerOptions(opts...),
+	)
+	scriptsServicePruneRunsHandler := connect.NewUnaryHandler(
+		ScriptsServicePruneRunsProcedure,
+		svc.PruneRuns,
+		connect.WithSchema(scriptsServiceMethods.ByName("PruneRuns")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/vrooli.system_monitor.v1.scripts.ScriptsService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case ScriptsServiceListScriptsProcedure:
@@ -180,6 +247,12 @@ func NewScriptsServiceHandler(svc ScriptsServiceHandler, opts ...connect.Handler
 			scriptsServiceUpdateScriptHandler.ServeHTTP(w, r)
 		case ScriptsServiceExecuteScriptProcedure:
 			scriptsServiceExecuteScriptHandler.ServeHTTP(w, r)
+		case ScriptsServiceListRunsProcedure:
+			scriptsServiceListRunsHandler.ServeHTTP(w, r)
+		case ScriptsServiceGetRunProcedure:
+			scriptsServiceGetRunHandler.ServeHTTP(w, r)
+		case ScriptsServicePruneRunsProcedure:
+			scriptsServicePruneRunsHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -203,4 +276,16 @@ func (UnimplementedScriptsServiceHandler) UpdateScript(context.Context, *connect
 
 func (UnimplementedScriptsServiceHandler) ExecuteScript(context.Context, *connect.Request[scripts.ExecuteScriptRequest]) (*connect.Response[scripts.ExecuteScriptResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.system_monitor.v1.scripts.ScriptsService.ExecuteScript is not implemented"))
+}
+
+func (UnimplementedScriptsServiceHandler) ListRuns(context.Context, *connect.Request[scripts.ListRunsRequest]) (*connect.Response[scripts.ListRunsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.system_monitor.v1.scripts.ScriptsService.ListRuns is not implemented"))
+}
+
+func (UnimplementedScriptsServiceHandler) GetRun(context.Context, *connect.Request[scripts.GetRunRequest]) (*connect.Response[scripts.GetRunResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.system_monitor.v1.scripts.ScriptsService.GetRun is not implemented"))
+}
+
+func (UnimplementedScriptsServiceHandler) PruneRuns(context.Context, *connect.Request[scripts.PruneRunsRequest]) (*connect.Response[scripts.PruneRunsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.system_monitor.v1.scripts.ScriptsService.PruneRuns is not implemented"))
 }

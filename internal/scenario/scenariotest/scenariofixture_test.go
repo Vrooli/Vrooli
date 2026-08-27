@@ -7,6 +7,7 @@ import (
 
 	testkitgo "github.com/vrooli/repo-contract-go/repocontracttest"
 	"github.com/vrooli/vrooli/internal/scenario"
+	"github.com/vrooli/vrooli/internal/testenv"
 )
 
 func TestDefaultDisplayName(t *testing.T) {
@@ -90,15 +91,10 @@ func TestWriteScenarioTemplateFixturePersistsCanonicalTemplateFiles(t *testing.T
 }
 
 func TestWriteScenarioCLIGoModCreatesCanonicalPath(t *testing.T) {
-	root := t.TempDir()
+	tree := testenv.NewRepositoryTree(t, "alpha")
+	root := tree.Root
 	WriteScenarioCLIGoMod(t, root, "alpha", "")
 
 	path := filepath.Join(root, "scenarios", "alpha", "cli", "go.mod")
-	data, err := os.ReadFile(path)
-	if err != nil {
-		t.Fatalf("read scenario cli go.mod: %v", err)
-	}
-	if string(data) != "module alpha/cli\n" {
-		t.Fatalf("go.mod = %q", string(data))
-	}
+	testenv.AssertFileContents(t, path, "module alpha/cli\n")
 }

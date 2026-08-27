@@ -15,6 +15,10 @@ import (
 	vroolilauncher "github.com/vrooli/vrooli/internal/safeguards/vrooli-launcher"
 )
 
+const (
+	requirementsReportParameterA = 200
+)
+
 // vrooliLauncherStatFn / vrooliExecutableFn are test seams for vrooliInvocation.
 // Production maps them to os.Stat(LauncherPath) / os.Executable. Tests
 // override to simulate "shim present", "shim missing", or "executable
@@ -247,7 +251,7 @@ func renderGroupedItem(w io.Writer, marker string, item vrooliruntime.ItemStatus
 		headline = strings.TrimSpace(strings.Join(uniqueNonEmpty(item.Reasons), "; "))
 	}
 	if headline != "" {
-		_, _ = fmt.Fprintf(w, "  %s %-28s %s\n", marker, item.Name, truncateLine(headline, 200))
+		_, _ = fmt.Fprintf(w, "  %s %-28s %s\n", marker, item.Name, truncateLine(headline, requirementsReportParameterA))
 	} else {
 		_, _ = fmt.Fprintf(w, "  %s %s\n", marker, item.Name)
 	}

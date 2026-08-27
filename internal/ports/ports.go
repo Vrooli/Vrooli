@@ -22,6 +22,15 @@ import (
 	"github.com/vrooli/vrooli/internal/scenarioruntime"
 )
 
+const (
+	portsLive  = "live"
+	portsStale = "stale"
+)
+
+const (
+	portsParameterA = 2
+)
+
 func defaultHostBootID(ctx context.Context) (string, error) {
 	snap, err := hostsession.DefaultProvider{}.Current(ctx, "")
 	if err != nil {
@@ -504,7 +513,7 @@ func (m *Manager) acquireRuntimePortClaim(key scenarioruntime.InstanceKey, portS
 
 // preemptFixedPortConflict resolves an active registry claim that's blocking
 // a fixed-port acquire. It returns (preempted, kind, conflictingScenario, error).
-// `kind` is one of "stale" / "live" / "" (when no claim found).
+// `kind` is one of portsStale / portsLive / "" (when no claim found).
 //
 // Stale conflicts are finalized in place via FinalizeStuckInstance. Live
 // conflicts are stopped via the lifecycle Preempter callback when one is
@@ -527,7 +536,7 @@ func (m *Manager) preemptFixedPortConflict(ctx context.Context, options RuntimeC
 	// (defense in depth — the allocator already skips fixed ports for non-live).
 	conflictVariant := scenarioruntime.InstanceKey{Scenario: conflict.Scenario, Variant: conflict.Variant}.Normalize().Variant
 	if conflictVariant != key.Variant {
-		return false, "live", conflict.Scenario, nil
+		return false, portsLive, conflict.Scenario, nil
 	}
 	instance, err := options.Store.GetInstance(ctx, conflict.InstanceID)
 	if err != nil && !errors.Is(err, scenarioruntime.ErrNotFound) {
@@ -538,9 +547,9 @@ func (m *Manager) preemptFixedPortConflict(ctx context.Context, options RuntimeC
 		// Just release the orphan claim.
 		_, relErr := options.Store.ReleasePortClaim(ctx, conflict.ClaimID)
 		if relErr != nil && !errors.Is(relErr, scenarioruntime.ErrNotFound) {
-			return false, "stale", conflict.Scenario, relErr
+			return false, portsStale, conflict.Scenario, relErr
 		}
-		return true, "stale", conflict.Scenario, nil
+		return true, portsStale, conflict.Scenario, nil
 	}
 
 	currentBootID := resolveCurrentBootID(ctx, options)
@@ -552,19 +561,19 @@ func (m *Manager) preemptFixedPortConflict(ctx context.Context, options RuntimeC
 
 	if trigger, stale := classifyStuckInstance(instance, currentBootID, pidIsRunning, now); stale {
 		if err := scenarioruntime.FinalizeStuckInstance(ctx, options.Store, instance, trigger, now); err != nil {
-			return false, "stale", instance.Scenario, err
+			return false, portsStale, instance.Scenario, err
 		}
-		return true, "stale", instance.Scenario, nil
+		return true, portsStale, instance.Scenario, nil
 	}
 
 	// Live conflict — only preempt via the lifecycle hook.
 	if options.Preempter == nil {
-		return false, "live", instance.Scenario, nil
+		return false, portsLive, instance.Scenario, nil
 	}
 	if err := options.Preempter.StopScenario(ctx, instance.Scenario); err != nil {
-		return false, "live", instance.Scenario, err
+		return false, portsLive, instance.Scenario, err
 	}
-	return true, "live", instance.Scenario, nil
+	return true, portsLive, instance.Scenario, nil
 }
 
 // findActiveClaimOnPort returns the active (reserved or bound) registry claim
@@ -770,7 +779,7 @@ func runtimePortURL(portName string, port int) string {
 
 func parseRange(value string) (int, int, error) {
 	parts := strings.Split(strings.TrimSpace(value), "-")
-	if len(parts) != 2 {
+	if len(parts) != portsParameterA {
 		return 0, 0, fmt.Errorf("expected start-end range")
 	}
 	start, err := strconv.Atoi(strings.TrimSpace(parts[0]))

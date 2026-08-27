@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/vrooli/vrooli/internal/tuning"
+
 	"github.com/vrooli/vrooli/internal/logx"
 	"github.com/vrooli/vrooli/internal/scenario"
 	"github.com/vrooli/vrooli/internal/scenarioruntime"
@@ -77,20 +79,20 @@ var (
 	// scenarioWaitDefaultTimeout is the default `scenario wait` ceiling —
 	// generous because dependency-heavy restarts legitimately run for
 	// minutes; agents pass --timeout to tighten it.
-	scenarioWaitDefaultTimeout = 10 * time.Minute
+	scenarioWaitDefaultTimeout = tuning.LongOperationBudget
 	// attachPollPolicy paces reads of the operation record while attached to
 	// an in-flight start. Backoff caps at 2s: the record is a local SQLite
 	// read, but a multi-minute start does not need sub-second sampling.
 	attachPollPolicy = AwaitPolicy{
-		Interval:    500 * time.Millisecond,
-		MaxInterval: 2 * time.Second,
+		Interval:    tuning.HealthProbeInterval,
+		MaxInterval: tuning.ShortOperationDeadline,
 	}
 	// attachGracePolicy bounds how long a busy-lock caller waits for the
 	// lock holder's operation record to appear before concluding the holder
 	// is not a start (e.g. a concurrent stop) and surfacing ErrScenarioBusy.
 	attachGracePolicy = AwaitPolicy{
-		Timeout:  3 * time.Second,
-		Interval: 250 * time.Millisecond,
+		Timeout:  tuning.HealthCheckTimeout,
+		Interval: tuning.FastHealthPollInterval,
 	}
 )
 

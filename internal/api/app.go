@@ -18,6 +18,7 @@ import (
 	"github.com/vrooli/vrooli/internal/maintenance"
 	"github.com/vrooli/vrooli/internal/orchestrator"
 	"github.com/vrooli/vrooli/internal/project"
+	"github.com/vrooli/vrooli/internal/repocontractmeta"
 	"github.com/vrooli/vrooli/internal/resources"
 	"github.com/vrooli/vrooli/internal/shell"
 	"github.com/vrooli/vrooli/internal/vroolierr"
@@ -136,7 +137,7 @@ func NewWithServices(services *bootstrap.Services) *App {
 	app := &App{
 		Root:       filepath.Clean(services.Root),
 		Home:       filepath.Clean(services.Home),
-		AppsDir:    filepath.Join(filepath.Clean(services.Root), "scenarios"),
+		AppsDir:    filepath.Join(filepath.Clean(services.Root), repocontractmeta.ScenarioDir),
 		Services:   services,
 		Scenarios:  services.Orchestrator(),
 		Resources:  services.Resources(),
@@ -211,7 +212,7 @@ func (a *App) processSnapshot() (maintenance.ProcessSnapshot, error) {
 }
 
 func (a *App) ensureScenarioExists(name string) error {
-	scenarioPath := filepath.Join(a.Root, "scenarios", name)
+	scenarioPath := filepath.Join(a.Root, repocontractmeta.ScenarioDir, name)
 	if _, err := os.Stat(scenarioPath); err != nil {
 		return &vroolierr.Error{
 			Code:       "scenario_not_found",

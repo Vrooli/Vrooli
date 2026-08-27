@@ -17,7 +17,9 @@ func testRequirement(choice hostreqspec.OperatorChoice) hostreqspec.ResolvedRequ
 	}
 }
 
-func linuxHost() hostreqkit.Host { return hostreqkit.Host{OS: "linux"} }
+var linuxHost = loginKeyringLinuxHost
+
+func loginKeyringLinuxHost() hostreqkit.Host { return hostreqkit.Host{OS: "linux"} }
 
 func restoreSeams(t *testing.T) {
 	t.Helper()

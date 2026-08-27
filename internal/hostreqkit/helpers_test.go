@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/vrooli/vrooli/internal/hostreqspec"
+	"github.com/vrooli/vrooli/internal/shell/shelltest"
 )
 
 func stubLookups(t *testing.T) func() {
@@ -29,6 +30,25 @@ func stubLookups(t *testing.T) func() {
 		ProbePackageStateFn = origProbePackageState
 		RecordPackageInstallFn = origRecordPackageInstall
 	}
+}
+
+func stubAvailableSudo(t *testing.T) func() {
+	t.Helper()
+	restore := stubLookups(t)
+	LookPathFn = func(name string) (string, error) {
+		if name == "sudo" {
+			return "/usr/bin/sudo", nil
+		}
+		return "", os.ErrNotExist
+	}
+	return restore
+}
+
+func stubUnavailableLookups(t *testing.T) func() {
+	t.Helper()
+	restore := stubLookups(t)
+	LookPathFn = func(string) (string, error) { return "", os.ErrNotExist }
+	return restore
 }
 
 func TestBaseStatusCopiesSlices(t *testing.T) {
@@ -479,8 +499,8 @@ func TestInstallManagedContentWritesAndInstalls(t *testing.T) {
 		t.Fatal(err)
 	}
 	joined := strings.Join(gotArgs, " ")
-	if !strings.Contains(joined, "install -m 0644") {
-		t.Fatalf("args = %q, want install -m 0644", joined)
+	if !strings.Contains(joined, "install -m 644") {
+		t.Fatalf("args = %q, want install -m 644", joined)
 	}
 	if !strings.Contains(joined, "/etc/test.conf") {
 		t.Fatalf("args = %q, want target path /etc/test.conf", joined)
@@ -521,13 +541,13 @@ func TestInstallManagedExecutableUsesMode0755(t *testing.T) {
 		return nil
 	}
 
-	err := InstallManagedExecutable("/usr/local/bin/foo", "#!/bin/sh\necho hi\n", "ask", EnsureOptions{})
+	err := InstallManagedExecutable("/usr/local/bin/foo", shelltest.POSIXShebang()+"echo hi\n", "ask", EnsureOptions{})
 	if err != nil {
 		t.Fatal(err)
 	}
 	joined := strings.Join(gotArgs, " ")
-	if !strings.Contains(joined, "install -m 0755") {
-		t.Fatalf("args = %q, want install -m 0755", joined)
+	if !strings.Contains(joined, "install -m 755") {
+		t.Fatalf("args = %q, want install -m 755", joined)
 	}
 	if !strings.Contains(joined, "/usr/local/bin/foo") {
 		t.Fatalf("args = %q, want target path /usr/local/bin/foo", joined)

@@ -9,6 +9,9 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/vrooli/vrooli/internal/tuning"
+
+	"github.com/vrooli/vrooli/internal/config"
 	"github.com/vrooli/vrooli/internal/hostreqkit"
 	"github.com/vrooli/vrooli/internal/operatorinput"
 	"github.com/vrooli/vrooli/internal/runtime"
@@ -172,31 +175,14 @@ func writeSetupResult(path string, result SetupResult) error {
 		return nil
 	}
 	dir := filepath.Dir(path)
-	if err := os.MkdirAll(dir, 0o700); err != nil {
+	if err := os.MkdirAll(dir, tuning.PermPrivateDir); err != nil {
 		return fmt.Errorf("create setup result directory: %w", err)
 	}
 	payload, err := json.Marshal(result)
 	if err != nil {
 		return fmt.Errorf("marshal setup result: %w", err)
 	}
-	tmp, err := os.CreateTemp(dir, ".setup-result-*")
-	if err != nil {
-		return fmt.Errorf("create setup result: %w", err)
-	}
-	tmpPath := tmp.Name()
-	defer os.Remove(tmpPath)
-	if _, err := tmp.Write(append(payload, '\n')); err != nil {
-		tmp.Close()
-		return fmt.Errorf("write setup result: %w", err)
-	}
-	if err := tmp.Chmod(0o600); err != nil {
-		tmp.Close()
-		return fmt.Errorf("secure setup result: %w", err)
-	}
-	if err := tmp.Close(); err != nil {
-		return fmt.Errorf("close setup result: %w", err)
-	}
-	if err := os.Rename(tmpPath, path); err != nil {
+	if err := config.WriteOwnedFileAtomic(path, append(payload, '\n'), tuning.PermSecret); err != nil {
 		return fmt.Errorf("publish setup result: %w", err)
 	}
 	return nil

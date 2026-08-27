@@ -109,7 +109,11 @@ type InvestigationScript struct {
 	// Tools required by a shell-gated investigation on the current host.
 	RequiredTools []string `protobuf:"bytes,14,rep,name=required_tools,json=requiredTools,proto3" json:"required_tools,omitempty"`
 	// Populated when the declared execution path is unavailable on this host.
-	SkipReason    string `protobuf:"bytes,15,opt,name=skip_reason,json=skipReason,proto3" json:"skip_reason,omitempty"`
+	SkipReason string `protobuf:"bytes,15,opt,name=skip_reason,json=skipReason,proto3" json:"skip_reason,omitempty"`
+	// Host platforms on which the entry has a native backend or shell contract.
+	Platforms []string `protobuf:"bytes,16,rep,name=platforms,proto3" json:"platforms,omitempty"`
+	// builtin or operator.
+	Source        string `protobuf:"bytes,17,opt,name=source,proto3" json:"source,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -217,6 +221,20 @@ func (x *InvestigationScript) GetRequiredTools() []string {
 func (x *InvestigationScript) GetSkipReason() string {
 	if x != nil {
 		return x.SkipReason
+	}
+	return ""
+}
+
+func (x *InvestigationScript) GetPlatforms() []string {
+	if x != nil {
+		return x.Platforms
+	}
+	return nil
+}
+
+func (x *InvestigationScript) GetSource() string {
+	if x != nil {
+		return x.Source
 	}
 	return ""
 }
@@ -724,11 +742,531 @@ func (x *ExecuteScriptResponse) GetExecution() *ScriptExecution {
 	return nil
 }
 
+type InvestigationFinding struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Severity      string                 `protobuf:"bytes,1,opt,name=severity,proto3" json:"severity,omitempty"`
+	Code          string                 `protobuf:"bytes,2,opt,name=code,proto3" json:"code,omitempty"`
+	Summary       string                 `protobuf:"bytes,3,opt,name=summary,proto3" json:"summary,omitempty"`
+	DetailJson    string                 `protobuf:"bytes,4,opt,name=detail_json,json=detailJson,proto3" json:"detail_json,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *InvestigationFinding) Reset() {
+	*x = InvestigationFinding{}
+	mi := &file_system_monitor_v1_scripts_scripts_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *InvestigationFinding) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*InvestigationFinding) ProtoMessage() {}
+
+func (x *InvestigationFinding) ProtoReflect() protoreflect.Message {
+	mi := &file_system_monitor_v1_scripts_scripts_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use InvestigationFinding.ProtoReflect.Descriptor instead.
+func (*InvestigationFinding) Descriptor() ([]byte, []int) {
+	return file_system_monitor_v1_scripts_scripts_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *InvestigationFinding) GetSeverity() string {
+	if x != nil {
+		return x.Severity
+	}
+	return ""
+}
+
+func (x *InvestigationFinding) GetCode() string {
+	if x != nil {
+		return x.Code
+	}
+	return ""
+}
+
+func (x *InvestigationFinding) GetSummary() string {
+	if x != nil {
+		return x.Summary
+	}
+	return ""
+}
+
+func (x *InvestigationFinding) GetDetailJson() string {
+	if x != nil {
+		return x.DetailJson
+	}
+	return ""
+}
+
+type InvestigationRun struct {
+	state           protoimpl.MessageState  `protogen:"open.v1"`
+	Id              string                  `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	EntryId         string                  `protobuf:"bytes,2,opt,name=entry_id,json=entryId,proto3" json:"entry_id,omitempty"`
+	ExecutionMode   string                  `protobuf:"bytes,3,opt,name=execution_mode,json=executionMode,proto3" json:"execution_mode,omitempty"`
+	Status          string                  `protobuf:"bytes,4,opt,name=status,proto3" json:"status,omitempty"`
+	SkipReason      string                  `protobuf:"bytes,5,opt,name=skip_reason,json=skipReason,proto3" json:"skip_reason,omitempty"`
+	ExitCode        int32                   `protobuf:"varint,6,opt,name=exit_code,json=exitCode,proto3" json:"exit_code,omitempty"`
+	TimedOut        bool                    `protobuf:"varint,7,opt,name=timed_out,json=timedOut,proto3" json:"timed_out,omitempty"`
+	StartedAt       *timestamppb.Timestamp  `protobuf:"bytes,8,opt,name=started_at,json=startedAt,proto3" json:"started_at,omitempty"`
+	CompletedAt     *timestamppb.Timestamp  `protobuf:"bytes,9,opt,name=completed_at,json=completedAt,proto3" json:"completed_at,omitempty"`
+	DurationSeconds float64                 `protobuf:"fixed64,10,opt,name=duration_seconds,json=durationSeconds,proto3" json:"duration_seconds,omitempty"`
+	HostOs          string                  `protobuf:"bytes,11,opt,name=host_os,json=hostOs,proto3" json:"host_os,omitempty"`
+	HostArch        string                  `protobuf:"bytes,12,opt,name=host_arch,json=hostArch,proto3" json:"host_arch,omitempty"`
+	ResultJson      string                  `protobuf:"bytes,13,opt,name=result_json,json=resultJson,proto3" json:"result_json,omitempty"`
+	StderrTail      string                  `protobuf:"bytes,14,opt,name=stderr_tail,json=stderrTail,proto3" json:"stderr_tail,omitempty"`
+	AnomalyId       string                  `protobuf:"bytes,15,opt,name=anomaly_id,json=anomalyId,proto3" json:"anomaly_id,omitempty"`
+	Findings        []*InvestigationFinding `protobuf:"bytes,16,rep,name=findings,proto3" json:"findings,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *InvestigationRun) Reset() {
+	*x = InvestigationRun{}
+	mi := &file_system_monitor_v1_scripts_scripts_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *InvestigationRun) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*InvestigationRun) ProtoMessage() {}
+
+func (x *InvestigationRun) ProtoReflect() protoreflect.Message {
+	mi := &file_system_monitor_v1_scripts_scripts_proto_msgTypes[10]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use InvestigationRun.ProtoReflect.Descriptor instead.
+func (*InvestigationRun) Descriptor() ([]byte, []int) {
+	return file_system_monitor_v1_scripts_scripts_proto_rawDescGZIP(), []int{10}
+}
+
+func (x *InvestigationRun) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *InvestigationRun) GetEntryId() string {
+	if x != nil {
+		return x.EntryId
+	}
+	return ""
+}
+
+func (x *InvestigationRun) GetExecutionMode() string {
+	if x != nil {
+		return x.ExecutionMode
+	}
+	return ""
+}
+
+func (x *InvestigationRun) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+func (x *InvestigationRun) GetSkipReason() string {
+	if x != nil {
+		return x.SkipReason
+	}
+	return ""
+}
+
+func (x *InvestigationRun) GetExitCode() int32 {
+	if x != nil {
+		return x.ExitCode
+	}
+	return 0
+}
+
+func (x *InvestigationRun) GetTimedOut() bool {
+	if x != nil {
+		return x.TimedOut
+	}
+	return false
+}
+
+func (x *InvestigationRun) GetStartedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.StartedAt
+	}
+	return nil
+}
+
+func (x *InvestigationRun) GetCompletedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.CompletedAt
+	}
+	return nil
+}
+
+func (x *InvestigationRun) GetDurationSeconds() float64 {
+	if x != nil {
+		return x.DurationSeconds
+	}
+	return 0
+}
+
+func (x *InvestigationRun) GetHostOs() string {
+	if x != nil {
+		return x.HostOs
+	}
+	return ""
+}
+
+func (x *InvestigationRun) GetHostArch() string {
+	if x != nil {
+		return x.HostArch
+	}
+	return ""
+}
+
+func (x *InvestigationRun) GetResultJson() string {
+	if x != nil {
+		return x.ResultJson
+	}
+	return ""
+}
+
+func (x *InvestigationRun) GetStderrTail() string {
+	if x != nil {
+		return x.StderrTail
+	}
+	return ""
+}
+
+func (x *InvestigationRun) GetAnomalyId() string {
+	if x != nil {
+		return x.AnomalyId
+	}
+	return ""
+}
+
+func (x *InvestigationRun) GetFindings() []*InvestigationFinding {
+	if x != nil {
+		return x.Findings
+	}
+	return nil
+}
+
+type ListRunsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	EntryId       string                 `protobuf:"bytes,1,opt,name=entry_id,json=entryId,proto3" json:"entry_id,omitempty"`
+	Since         string                 `protobuf:"bytes,2,opt,name=since,proto3" json:"since,omitempty"`
+	Limit         int32                  `protobuf:"varint,3,opt,name=limit,proto3" json:"limit,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListRunsRequest) Reset() {
+	*x = ListRunsRequest{}
+	mi := &file_system_monitor_v1_scripts_scripts_proto_msgTypes[11]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListRunsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListRunsRequest) ProtoMessage() {}
+
+func (x *ListRunsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_system_monitor_v1_scripts_scripts_proto_msgTypes[11]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListRunsRequest.ProtoReflect.Descriptor instead.
+func (*ListRunsRequest) Descriptor() ([]byte, []int) {
+	return file_system_monitor_v1_scripts_scripts_proto_rawDescGZIP(), []int{11}
+}
+
+func (x *ListRunsRequest) GetEntryId() string {
+	if x != nil {
+		return x.EntryId
+	}
+	return ""
+}
+
+func (x *ListRunsRequest) GetSince() string {
+	if x != nil {
+		return x.Since
+	}
+	return ""
+}
+
+func (x *ListRunsRequest) GetLimit() int32 {
+	if x != nil {
+		return x.Limit
+	}
+	return 0
+}
+
+type ListRunsResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Runs          []*InvestigationRun    `protobuf:"bytes,1,rep,name=runs,proto3" json:"runs,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListRunsResponse) Reset() {
+	*x = ListRunsResponse{}
+	mi := &file_system_monitor_v1_scripts_scripts_proto_msgTypes[12]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListRunsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListRunsResponse) ProtoMessage() {}
+
+func (x *ListRunsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_system_monitor_v1_scripts_scripts_proto_msgTypes[12]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListRunsResponse.ProtoReflect.Descriptor instead.
+func (*ListRunsResponse) Descriptor() ([]byte, []int) {
+	return file_system_monitor_v1_scripts_scripts_proto_rawDescGZIP(), []int{12}
+}
+
+func (x *ListRunsResponse) GetRuns() []*InvestigationRun {
+	if x != nil {
+		return x.Runs
+	}
+	return nil
+}
+
+type GetRunRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetRunRequest) Reset() {
+	*x = GetRunRequest{}
+	mi := &file_system_monitor_v1_scripts_scripts_proto_msgTypes[13]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetRunRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetRunRequest) ProtoMessage() {}
+
+func (x *GetRunRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_system_monitor_v1_scripts_scripts_proto_msgTypes[13]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetRunRequest.ProtoReflect.Descriptor instead.
+func (*GetRunRequest) Descriptor() ([]byte, []int) {
+	return file_system_monitor_v1_scripts_scripts_proto_rawDescGZIP(), []int{13}
+}
+
+func (x *GetRunRequest) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+type GetRunResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Run           *InvestigationRun      `protobuf:"bytes,1,opt,name=run,proto3" json:"run,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetRunResponse) Reset() {
+	*x = GetRunResponse{}
+	mi := &file_system_monitor_v1_scripts_scripts_proto_msgTypes[14]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetRunResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetRunResponse) ProtoMessage() {}
+
+func (x *GetRunResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_system_monitor_v1_scripts_scripts_proto_msgTypes[14]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetRunResponse.ProtoReflect.Descriptor instead.
+func (*GetRunResponse) Descriptor() ([]byte, []int) {
+	return file_system_monitor_v1_scripts_scripts_proto_rawDescGZIP(), []int{14}
+}
+
+func (x *GetRunResponse) GetRun() *InvestigationRun {
+	if x != nil {
+		return x.Run
+	}
+	return nil
+}
+
+type PruneRunsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	DryRun        bool                   `protobuf:"varint,1,opt,name=dry_run,json=dryRun,proto3" json:"dry_run,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PruneRunsRequest) Reset() {
+	*x = PruneRunsRequest{}
+	mi := &file_system_monitor_v1_scripts_scripts_proto_msgTypes[15]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PruneRunsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PruneRunsRequest) ProtoMessage() {}
+
+func (x *PruneRunsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_system_monitor_v1_scripts_scripts_proto_msgTypes[15]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PruneRunsRequest.ProtoReflect.Descriptor instead.
+func (*PruneRunsRequest) Descriptor() ([]byte, []int) {
+	return file_system_monitor_v1_scripts_scripts_proto_rawDescGZIP(), []int{15}
+}
+
+func (x *PruneRunsRequest) GetDryRun() bool {
+	if x != nil {
+		return x.DryRun
+	}
+	return false
+}
+
+type PruneRunsResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Deleted       int64                  `protobuf:"varint,1,opt,name=deleted,proto3" json:"deleted,omitempty"`
+	DryRun        bool                   `protobuf:"varint,2,opt,name=dry_run,json=dryRun,proto3" json:"dry_run,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PruneRunsResponse) Reset() {
+	*x = PruneRunsResponse{}
+	mi := &file_system_monitor_v1_scripts_scripts_proto_msgTypes[16]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PruneRunsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PruneRunsResponse) ProtoMessage() {}
+
+func (x *PruneRunsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_system_monitor_v1_scripts_scripts_proto_msgTypes[16]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PruneRunsResponse.ProtoReflect.Descriptor instead.
+func (*PruneRunsResponse) Descriptor() ([]byte, []int) {
+	return file_system_monitor_v1_scripts_scripts_proto_rawDescGZIP(), []int{16}
+}
+
+func (x *PruneRunsResponse) GetDeleted() int64 {
+	if x != nil {
+		return x.Deleted
+	}
+	return 0
+}
+
+func (x *PruneRunsResponse) GetDryRun() bool {
+	if x != nil {
+		return x.DryRun
+	}
+	return false
+}
+
 var File_system_monitor_v1_scripts_scripts_proto protoreflect.FileDescriptor
 
 const file_system_monitor_v1_scripts_scripts_proto_rawDesc = "" +
 	"\n" +
-	"'system-monitor/v1/scripts/scripts.proto\x12 vrooli.system_monitor.v1.scripts\x1a\x1cgoogle/api/annotations.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\x8e\x03\n" +
+	"'system-monitor/v1/scripts/scripts.proto\x12 vrooli.system_monitor.v1.scripts\x1a\x1cgoogle/api/annotations.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xc4\x03\n" +
 	"\x13InvestigationScript\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12 \n" +
@@ -743,7 +1281,9 @@ const file_system_monitor_v1_scripts_scripts_proto_rawDesc = "" +
 	"\x0eexecution_mode\x18\r \x01(\tR\rexecutionMode\x12%\n" +
 	"\x0erequired_tools\x18\x0e \x03(\tR\rrequiredTools\x12\x1f\n" +
 	"\vskip_reason\x18\x0f \x01(\tR\n" +
-	"skipReason\"\xea\x04\n" +
+	"skipReason\x12\x1c\n" +
+	"\tplatforms\x18\x10 \x03(\tR\tplatforms\x12\x16\n" +
+	"\x06source\x18\x11 \x01(\tR\x06source\"\xea\x04\n" +
 	"\x0fScriptExecution\x12\x1b\n" +
 	"\tscript_id\x18\x01 \x01(\tR\bscriptId\x12!\n" +
 	"\fexecution_id\x18\x02 \x01(\tR\vexecutionId\x12O\n" +
@@ -783,18 +1323,65 @@ const file_system_monitor_v1_scripts_scripts_proto_rawDesc = "" +
 	"\n" +
 	"\b_content\"h\n" +
 	"\x15ExecuteScriptResponse\x12O\n" +
-	"\texecution\x18\x01 \x01(\v21.vrooli.system_monitor.v1.scripts.ScriptExecutionR\texecution*\xd5\x01\n" +
+	"\texecution\x18\x01 \x01(\v21.vrooli.system_monitor.v1.scripts.ScriptExecutionR\texecution\"\x81\x01\n" +
+	"\x14InvestigationFinding\x12\x1a\n" +
+	"\bseverity\x18\x01 \x01(\tR\bseverity\x12\x12\n" +
+	"\x04code\x18\x02 \x01(\tR\x04code\x12\x18\n" +
+	"\asummary\x18\x03 \x01(\tR\asummary\x12\x1f\n" +
+	"\vdetail_json\x18\x04 \x01(\tR\n" +
+	"detailJson\"\xe7\x04\n" +
+	"\x10InvestigationRun\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x19\n" +
+	"\bentry_id\x18\x02 \x01(\tR\aentryId\x12%\n" +
+	"\x0eexecution_mode\x18\x03 \x01(\tR\rexecutionMode\x12\x16\n" +
+	"\x06status\x18\x04 \x01(\tR\x06status\x12\x1f\n" +
+	"\vskip_reason\x18\x05 \x01(\tR\n" +
+	"skipReason\x12\x1b\n" +
+	"\texit_code\x18\x06 \x01(\x05R\bexitCode\x12\x1b\n" +
+	"\ttimed_out\x18\a \x01(\bR\btimedOut\x129\n" +
+	"\n" +
+	"started_at\x18\b \x01(\v2\x1a.google.protobuf.TimestampR\tstartedAt\x12=\n" +
+	"\fcompleted_at\x18\t \x01(\v2\x1a.google.protobuf.TimestampR\vcompletedAt\x12)\n" +
+	"\x10duration_seconds\x18\n" +
+	" \x01(\x01R\x0fdurationSeconds\x12\x17\n" +
+	"\ahost_os\x18\v \x01(\tR\x06hostOs\x12\x1b\n" +
+	"\thost_arch\x18\f \x01(\tR\bhostArch\x12\x1f\n" +
+	"\vresult_json\x18\r \x01(\tR\n" +
+	"resultJson\x12\x1f\n" +
+	"\vstderr_tail\x18\x0e \x01(\tR\n" +
+	"stderrTail\x12\x1d\n" +
+	"\n" +
+	"anomaly_id\x18\x0f \x01(\tR\tanomalyId\x12R\n" +
+	"\bfindings\x18\x10 \x03(\v26.vrooli.system_monitor.v1.scripts.InvestigationFindingR\bfindings\"X\n" +
+	"\x0fListRunsRequest\x12\x19\n" +
+	"\bentry_id\x18\x01 \x01(\tR\aentryId\x12\x14\n" +
+	"\x05since\x18\x02 \x01(\tR\x05since\x12\x14\n" +
+	"\x05limit\x18\x03 \x01(\x05R\x05limit\"Z\n" +
+	"\x10ListRunsResponse\x12F\n" +
+	"\x04runs\x18\x01 \x03(\v22.vrooli.system_monitor.v1.scripts.InvestigationRunR\x04runs\"\x1f\n" +
+	"\rGetRunRequest\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\"V\n" +
+	"\x0eGetRunResponse\x12D\n" +
+	"\x03run\x18\x01 \x01(\v22.vrooli.system_monitor.v1.scripts.InvestigationRunR\x03run\"+\n" +
+	"\x10PruneRunsRequest\x12\x17\n" +
+	"\adry_run\x18\x01 \x01(\bR\x06dryRun\"F\n" +
+	"\x11PruneRunsResponse\x12\x18\n" +
+	"\adeleted\x18\x01 \x01(\x03R\adeleted\x12\x17\n" +
+	"\adry_run\x18\x02 \x01(\bR\x06dryRun*\xd5\x01\n" +
 	"\x15ScriptExecutionStatus\x12'\n" +
 	"#SCRIPT_EXECUTION_STATUS_UNSPECIFIED\x10\x00\x12#\n" +
 	"\x1fSCRIPT_EXECUTION_STATUS_RUNNING\x10\x01\x12%\n" +
 	"!SCRIPT_EXECUTION_STATUS_COMPLETED\x10\x02\x12\"\n" +
 	"\x1eSCRIPT_EXECUTION_STATUS_FAILED\x10\x03\x12#\n" +
-	"\x1fSCRIPT_EXECUTION_STATUS_SKIPPED\x10\x042\xc1\x05\n" +
+	"\x1fSCRIPT_EXECUTION_STATUS_SKIPPED\x10\x042\x97\t\n" +
 	"\x0eScriptsService\x12\xa2\x01\n" +
 	"\vListScripts\x124.vrooli.system_monitor.v1.scripts.ListScriptsRequest\x1a5.vrooli.system_monitor.v1.scripts.ListScriptsResponse\"&\x82\xd3\xe4\x93\x02 \x12\x1e/api/v1/investigations/scripts\x12\xa1\x01\n" +
 	"\tGetScript\x122.vrooli.system_monitor.v1.scripts.GetScriptRequest\x1a3.vrooli.system_monitor.v1.scripts.GetScriptResponse\"+\x82\xd3\xe4\x93\x02%\x12#/api/v1/investigations/scripts/{id}\x12\xaa\x01\n" +
 	"\fUpdateScript\x125.vrooli.system_monitor.v1.scripts.UpdateScriptRequest\x1a3.vrooli.system_monitor.v1.scripts.GetScriptResponse\".\x82\xd3\xe4\x93\x02(:\x01*\x1a#/api/v1/investigations/scripts/{id}\x12\xb8\x01\n" +
-	"\rExecuteScript\x126.vrooli.system_monitor.v1.scripts.ExecuteScriptRequest\x1a7.vrooli.system_monitor.v1.scripts.ExecuteScriptResponse\"6\x82\xd3\xe4\x93\x020:\x01*\"+/api/v1/investigations/scripts/{id}/executeBRZPgithub.com/vrooli/vrooli/packages/proto/gen/go/system-monitor/v1/scripts;scriptsb\x06proto3"
+	"\rExecuteScript\x126.vrooli.system_monitor.v1.scripts.ExecuteScriptRequest\x1a7.vrooli.system_monitor.v1.scripts.ExecuteScriptResponse\"6\x82\xd3\xe4\x93\x020:\x01*\"+/api/v1/investigations/scripts/{id}/execute\x12\x96\x01\n" +
+	"\bListRuns\x121.vrooli.system_monitor.v1.scripts.ListRunsRequest\x1a2.vrooli.system_monitor.v1.scripts.ListRunsResponse\"#\x82\xd3\xe4\x93\x02\x1d\x12\x1b/api/v1/investigations/runs\x12\x95\x01\n" +
+	"\x06GetRun\x12/.vrooli.system_monitor.v1.scripts.GetRunRequest\x1a0.vrooli.system_monitor.v1.scripts.GetRunResponse\"(\x82\xd3\xe4\x93\x02\"\x12 /api/v1/investigations/runs/{id}\x12\xa2\x01\n" +
+	"\tPruneRuns\x122.vrooli.system_monitor.v1.scripts.PruneRunsRequest\x1a3.vrooli.system_monitor.v1.scripts.PruneRunsResponse\",\x82\xd3\xe4\x93\x02&:\x01*\"!/api/v1/investigations/runs/pruneBRZPgithub.com/vrooli/vrooli/packages/proto/gen/go/system-monitor/v1/scripts;scriptsb\x06proto3"
 
 var (
 	file_system_monitor_v1_scripts_scripts_proto_rawDescOnce sync.Once
@@ -809,7 +1396,7 @@ func file_system_monitor_v1_scripts_scripts_proto_rawDescGZIP() []byte {
 }
 
 var file_system_monitor_v1_scripts_scripts_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_system_monitor_v1_scripts_scripts_proto_msgTypes = make([]protoimpl.MessageInfo, 9)
+var file_system_monitor_v1_scripts_scripts_proto_msgTypes = make([]protoimpl.MessageInfo, 17)
 var file_system_monitor_v1_scripts_scripts_proto_goTypes = []any{
 	(ScriptExecutionStatus)(0),    // 0: vrooli.system_monitor.v1.scripts.ScriptExecutionStatus
 	(*InvestigationScript)(nil),   // 1: vrooli.system_monitor.v1.scripts.InvestigationScript
@@ -821,30 +1408,49 @@ var file_system_monitor_v1_scripts_scripts_proto_goTypes = []any{
 	(*UpdateScriptRequest)(nil),   // 7: vrooli.system_monitor.v1.scripts.UpdateScriptRequest
 	(*ExecuteScriptRequest)(nil),  // 8: vrooli.system_monitor.v1.scripts.ExecuteScriptRequest
 	(*ExecuteScriptResponse)(nil), // 9: vrooli.system_monitor.v1.scripts.ExecuteScriptResponse
-	(*timestamppb.Timestamp)(nil), // 10: google.protobuf.Timestamp
+	(*InvestigationFinding)(nil),  // 10: vrooli.system_monitor.v1.scripts.InvestigationFinding
+	(*InvestigationRun)(nil),      // 11: vrooli.system_monitor.v1.scripts.InvestigationRun
+	(*ListRunsRequest)(nil),       // 12: vrooli.system_monitor.v1.scripts.ListRunsRequest
+	(*ListRunsResponse)(nil),      // 13: vrooli.system_monitor.v1.scripts.ListRunsResponse
+	(*GetRunRequest)(nil),         // 14: vrooli.system_monitor.v1.scripts.GetRunRequest
+	(*GetRunResponse)(nil),        // 15: vrooli.system_monitor.v1.scripts.GetRunResponse
+	(*PruneRunsRequest)(nil),      // 16: vrooli.system_monitor.v1.scripts.PruneRunsRequest
+	(*PruneRunsResponse)(nil),     // 17: vrooli.system_monitor.v1.scripts.PruneRunsResponse
+	(*timestamppb.Timestamp)(nil), // 18: google.protobuf.Timestamp
 }
 var file_system_monitor_v1_scripts_scripts_proto_depIdxs = []int32{
-	10, // 0: vrooli.system_monitor.v1.scripts.InvestigationScript.created_at:type_name -> google.protobuf.Timestamp
-	10, // 1: vrooli.system_monitor.v1.scripts.InvestigationScript.updated_at:type_name -> google.protobuf.Timestamp
+	18, // 0: vrooli.system_monitor.v1.scripts.InvestigationScript.created_at:type_name -> google.protobuf.Timestamp
+	18, // 1: vrooli.system_monitor.v1.scripts.InvestigationScript.updated_at:type_name -> google.protobuf.Timestamp
 	0,  // 2: vrooli.system_monitor.v1.scripts.ScriptExecution.status:type_name -> vrooli.system_monitor.v1.scripts.ScriptExecutionStatus
-	10, // 3: vrooli.system_monitor.v1.scripts.ScriptExecution.started_at:type_name -> google.protobuf.Timestamp
-	10, // 4: vrooli.system_monitor.v1.scripts.ScriptExecution.completed_at:type_name -> google.protobuf.Timestamp
+	18, // 3: vrooli.system_monitor.v1.scripts.ScriptExecution.started_at:type_name -> google.protobuf.Timestamp
+	18, // 4: vrooli.system_monitor.v1.scripts.ScriptExecution.completed_at:type_name -> google.protobuf.Timestamp
 	1,  // 5: vrooli.system_monitor.v1.scripts.ListScriptsResponse.scripts:type_name -> vrooli.system_monitor.v1.scripts.InvestigationScript
 	1,  // 6: vrooli.system_monitor.v1.scripts.GetScriptResponse.script:type_name -> vrooli.system_monitor.v1.scripts.InvestigationScript
 	2,  // 7: vrooli.system_monitor.v1.scripts.ExecuteScriptResponse.execution:type_name -> vrooli.system_monitor.v1.scripts.ScriptExecution
-	3,  // 8: vrooli.system_monitor.v1.scripts.ScriptsService.ListScripts:input_type -> vrooli.system_monitor.v1.scripts.ListScriptsRequest
-	5,  // 9: vrooli.system_monitor.v1.scripts.ScriptsService.GetScript:input_type -> vrooli.system_monitor.v1.scripts.GetScriptRequest
-	7,  // 10: vrooli.system_monitor.v1.scripts.ScriptsService.UpdateScript:input_type -> vrooli.system_monitor.v1.scripts.UpdateScriptRequest
-	8,  // 11: vrooli.system_monitor.v1.scripts.ScriptsService.ExecuteScript:input_type -> vrooli.system_monitor.v1.scripts.ExecuteScriptRequest
-	4,  // 12: vrooli.system_monitor.v1.scripts.ScriptsService.ListScripts:output_type -> vrooli.system_monitor.v1.scripts.ListScriptsResponse
-	6,  // 13: vrooli.system_monitor.v1.scripts.ScriptsService.GetScript:output_type -> vrooli.system_monitor.v1.scripts.GetScriptResponse
-	6,  // 14: vrooli.system_monitor.v1.scripts.ScriptsService.UpdateScript:output_type -> vrooli.system_monitor.v1.scripts.GetScriptResponse
-	9,  // 15: vrooli.system_monitor.v1.scripts.ScriptsService.ExecuteScript:output_type -> vrooli.system_monitor.v1.scripts.ExecuteScriptResponse
-	12, // [12:16] is the sub-list for method output_type
-	8,  // [8:12] is the sub-list for method input_type
-	8,  // [8:8] is the sub-list for extension type_name
-	8,  // [8:8] is the sub-list for extension extendee
-	0,  // [0:8] is the sub-list for field type_name
+	18, // 8: vrooli.system_monitor.v1.scripts.InvestigationRun.started_at:type_name -> google.protobuf.Timestamp
+	18, // 9: vrooli.system_monitor.v1.scripts.InvestigationRun.completed_at:type_name -> google.protobuf.Timestamp
+	10, // 10: vrooli.system_monitor.v1.scripts.InvestigationRun.findings:type_name -> vrooli.system_monitor.v1.scripts.InvestigationFinding
+	11, // 11: vrooli.system_monitor.v1.scripts.ListRunsResponse.runs:type_name -> vrooli.system_monitor.v1.scripts.InvestigationRun
+	11, // 12: vrooli.system_monitor.v1.scripts.GetRunResponse.run:type_name -> vrooli.system_monitor.v1.scripts.InvestigationRun
+	3,  // 13: vrooli.system_monitor.v1.scripts.ScriptsService.ListScripts:input_type -> vrooli.system_monitor.v1.scripts.ListScriptsRequest
+	5,  // 14: vrooli.system_monitor.v1.scripts.ScriptsService.GetScript:input_type -> vrooli.system_monitor.v1.scripts.GetScriptRequest
+	7,  // 15: vrooli.system_monitor.v1.scripts.ScriptsService.UpdateScript:input_type -> vrooli.system_monitor.v1.scripts.UpdateScriptRequest
+	8,  // 16: vrooli.system_monitor.v1.scripts.ScriptsService.ExecuteScript:input_type -> vrooli.system_monitor.v1.scripts.ExecuteScriptRequest
+	12, // 17: vrooli.system_monitor.v1.scripts.ScriptsService.ListRuns:input_type -> vrooli.system_monitor.v1.scripts.ListRunsRequest
+	14, // 18: vrooli.system_monitor.v1.scripts.ScriptsService.GetRun:input_type -> vrooli.system_monitor.v1.scripts.GetRunRequest
+	16, // 19: vrooli.system_monitor.v1.scripts.ScriptsService.PruneRuns:input_type -> vrooli.system_monitor.v1.scripts.PruneRunsRequest
+	4,  // 20: vrooli.system_monitor.v1.scripts.ScriptsService.ListScripts:output_type -> vrooli.system_monitor.v1.scripts.ListScriptsResponse
+	6,  // 21: vrooli.system_monitor.v1.scripts.ScriptsService.GetScript:output_type -> vrooli.system_monitor.v1.scripts.GetScriptResponse
+	6,  // 22: vrooli.system_monitor.v1.scripts.ScriptsService.UpdateScript:output_type -> vrooli.system_monitor.v1.scripts.GetScriptResponse
+	9,  // 23: vrooli.system_monitor.v1.scripts.ScriptsService.ExecuteScript:output_type -> vrooli.system_monitor.v1.scripts.ExecuteScriptResponse
+	13, // 24: vrooli.system_monitor.v1.scripts.ScriptsService.ListRuns:output_type -> vrooli.system_monitor.v1.scripts.ListRunsResponse
+	15, // 25: vrooli.system_monitor.v1.scripts.ScriptsService.GetRun:output_type -> vrooli.system_monitor.v1.scripts.GetRunResponse
+	17, // 26: vrooli.system_monitor.v1.scripts.ScriptsService.PruneRuns:output_type -> vrooli.system_monitor.v1.scripts.PruneRunsResponse
+	20, // [20:27] is the sub-list for method output_type
+	13, // [13:20] is the sub-list for method input_type
+	13, // [13:13] is the sub-list for extension type_name
+	13, // [13:13] is the sub-list for extension extendee
+	0,  // [0:13] is the sub-list for field type_name
 }
 
 func init() { file_system_monitor_v1_scripts_scripts_proto_init() }
@@ -860,7 +1466,7 @@ func file_system_monitor_v1_scripts_scripts_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_system_monitor_v1_scripts_scripts_proto_rawDesc), len(file_system_monitor_v1_scripts_scripts_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   9,
+			NumMessages:   17,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

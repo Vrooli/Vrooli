@@ -33,6 +33,10 @@ import (
 )
 
 const (
+	handlerParameterI = 200
+)
+
+const (
 	// ProcCmdlinePath is the live kernel cmdline source. Tests override the
 	// read seam.
 	ProcCmdlinePath = "/proc/cmdline"
@@ -181,7 +185,7 @@ func (h handler) Inspect(host hostreqkit.Host, requirement hostreqspec.ResolvedR
 		// forcing a setup failure — the next vmcore attempt will tell us.
 		note := "kdump-tools service is active but `kdump-config status` reports not-ready; run `sudo kdump-config status` to diagnose"
 		if raw != "" {
-			note += " (output: " + truncate(raw, 200) + ")"
+			note += " (output: " + truncate(raw, handlerParameterI) + ")"
 		}
 		status.Notes = append(status.Notes, note)
 	}
@@ -199,6 +203,7 @@ func (h handler) Inspect(host hostreqkit.Host, requirement hostreqspec.ResolvedR
 	return status
 }
 
+//nolint:gocyclo // kdump remediation preserves capability, package, service, and verification outcomes.
 func (h handler) Apply(host hostreqkit.Host, status hostreqkit.ItemStatus, opts hostreqkit.EnsureOptions) (hostreqkit.ItemStatus, error) {
 	switch status.SupportClass {
 	case hostreqkit.SupportUnsupported:
@@ -313,7 +318,7 @@ func (h handler) Apply(host hostreqkit.Host, status hostreqkit.ItemStatus, opts 
 		// fixed by a reboot after crashkernel changes.
 		note := fmt.Sprintf("kdump-tools service active but `kdump-config status` reports not-ready; run `sudo %s-config status` after the next reboot to confirm", ServiceName)
 		if raw != "" {
-			note += " (output: " + truncate(raw, 200) + ")"
+			note += " (output: " + truncate(raw, handlerParameterI) + ")"
 		}
 		status.Notes = append(status.Notes, note)
 	}

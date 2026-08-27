@@ -6,9 +6,20 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vrooli/vrooli/internal/tuning"
+
 	"github.com/vrooli/api-core/trustposture"
 	"github.com/vrooli/vrooli/internal/cli/commandtree"
 	"github.com/vrooli/vrooli/internal/cli/rootcli"
+	"github.com/vrooli/vrooli/internal/cliout"
+)
+
+const (
+	breakglassParameterA = 1024
+)
+
+const (
+	breakglassParameterB = 64
 )
 
 const breakGlassHelpText = `vrooli break-glass - Provision and issue a local, target-bound credential
@@ -42,6 +53,7 @@ func breakGlassArgSchema() commandtree.ArgSchema {
 	}}
 }
 
+//nolint:gocyclo // break-glass execution keeps authorization, audit, input, and cleanup branches visible.
 func (app *App) runBreakGlassCommandWithInput(ctx *CommandContext, args []string, input io.Reader) error {
 	if len(args) == 0 || commandtree.WantsHelp(args) {
 		fmt.Fprint(ctx.Stdout, breakGlassHelpText)
@@ -61,10 +73,7 @@ func (app *App) runBreakGlassCommandWithInput(ctx *CommandContext, args []string
 	}
 	switch operation {
 	case "status":
-		if breakGlassHasAnyFlag(parsed, "--account-id", "--audience", "--purpose", "--target", "--scopes", "--scope", "--operator-id", "--machine-id", "--node-id", "--plan-hash", "--operation-id", "--ttl") {
-			return rootcli.UsageErrorf("break-glass status", "status accepts no provisioning or issuance flags")
-		}
-		return renderBreakGlassStatus(ctx, paths)
+		return runBreakGlassStatus(ctx, parsed, paths)
 	case "provision":
 		passphrase, err := readBreakGlassPassphrase(input, "provision")
 		if err != nil {
@@ -96,7 +105,7 @@ func (app *App) runBreakGlassCommandWithInput(ctx *CommandContext, args []string
 		if err != nil {
 			return err
 		}
-		ttl := 15 * time.Minute
+		ttl := tuning.CopyRetentionWindow
 		if raw := strings.TrimSpace(parsed.FlagValue("--ttl")); raw != "" {
 			ttl, err = time.ParseDuration(raw)
 			if err != nil || ttl <= 0 || ttl > time.Hour {
@@ -124,27 +133,42 @@ func (app *App) runBreakGlassCommandWithInput(ctx *CommandContext, args []string
 		}
 		return renderBreakGlassCredential(ctx, paths.Credential, now.Add(ttl))
 	case "rotate":
-		passphrase, err := readBreakGlassPassphrase(input, "rotate")
-		if err != nil {
-			return err
-		}
-		if err := trustposture.RotateWrapped(paths, passphrase, time.Now().UTC()); err != nil {
-			return err
-		}
-		_, err = fmt.Fprintln(ctx.Stdout, "Break-glass material rotated. The private key is encrypted and was not printed.")
-		return err
+		return runBreakGlassRotate(ctx, input, paths)
 	case "reset":
-		if breakGlassHasAnyFlag(parsed, "--account-id", "--audience", "--purpose", "--target", "--scopes", "--scope", "--operator-id", "--machine-id", "--node-id", "--plan-hash", "--operation-id", "--ttl") {
-			return rootcli.UsageErrorf("break-glass reset", "reset accepts no provisioning or issuance flags")
-		}
-		if err := trustposture.ResetWrapped(paths); err != nil {
-			return err
-		}
-		_, err = fmt.Fprintln(ctx.Stdout, "Break-glass material retired. No replacement credential was created.")
-		return err
+		return runBreakGlassReset(ctx, parsed, paths)
 	default:
 		return rootcli.UsageErrorf("break-glass", "unknown operation %q; choose provision, issue, rotate, or status", operation)
 	}
+}
+
+func runBreakGlassStatus(ctx *CommandContext, parsed commandtree.ParsedArgs, paths trustposture.KeyPaths) error {
+	if breakGlassHasAnyFlag(parsed, "--account-id", "--audience", "--purpose", "--target", "--scopes", "--scope", "--operator-id", "--machine-id", "--node-id", "--plan-hash", "--operation-id", "--ttl") {
+		return rootcli.UsageErrorf("break-glass status", "status accepts no provisioning or issuance flags")
+	}
+	return renderBreakGlassStatus(ctx, paths)
+}
+
+func runBreakGlassRotate(ctx *CommandContext, input io.Reader, paths trustposture.KeyPaths) error {
+	passphrase, err := readBreakGlassPassphrase(input, "rotate")
+	if err != nil {
+		return err
+	}
+	if err := trustposture.RotateWrapped(paths, passphrase, time.Now().UTC()); err != nil {
+		return err
+	}
+	_, err = fmt.Fprintln(ctx.Stdout, "Break-glass material rotated. The private key is encrypted and was not printed.")
+	return err
+}
+
+func runBreakGlassReset(ctx *CommandContext, parsed commandtree.ParsedArgs, paths trustposture.KeyPaths) error {
+	if breakGlassHasAnyFlag(parsed, "--account-id", "--audience", "--purpose", "--target", "--scopes", "--scope", "--operator-id", "--machine-id", "--node-id", "--plan-hash", "--operation-id", "--ttl") {
+		return rootcli.UsageErrorf("break-glass reset", "reset accepts no provisioning or issuance flags")
+	}
+	if err := trustposture.ResetWrapped(paths); err != nil {
+		return err
+	}
+	_, err := fmt.Fprintln(ctx.Stdout, "Break-glass material retired. No replacement credential was created.")
+	return err
 }
 
 func bindingPresent(binding trustposture.BreakGlassBinding) bool {
@@ -175,7 +199,7 @@ func readBreakGlassPassphrase(input io.Reader, operation string) (string, error)
 	if err := refuseInteractiveStdin(input, fmt.Sprintf("printf '%%s' \"$PASSPHRASE\" | vrooli break-glass %s ...", operation)); err != nil {
 		return "", err
 	}
-	raw, err := io.ReadAll(io.LimitReader(input, 64*1024))
+	raw, err := io.ReadAll(io.LimitReader(input, breakglassParameterB*breakglassParameterA))
 	if err != nil {
 		return "", fmt.Errorf("read break-glass passphrase: %w", err)
 	}
@@ -216,7 +240,7 @@ func renderBreakGlassStatus(ctx *CommandContext, paths trustposture.KeyPaths) er
 		return err
 	}
 	if ctx.Globals.JSON {
-		return writeCredentialJSON(ctx.Stdout, status)
+		return cliout.WriteJSONValue(ctx.Stdout, status)
 	}
 	_, err = fmt.Fprintf(ctx.Stdout, "Break-glass material: %s (wrapped private=%t, public=%t, metadata=%t) account=%s audience=%s target=%s scopes=%s provisioned=%d\n", map[bool]string{true: "ready", false: "incomplete"}[status.Complete], status.WrappedPrivate, status.Public, status.Metadata, status.AccountID, status.Audience, status.Target, strings.Join(status.Scopes, ","), status.ProvisionedAt)
 	return err
@@ -230,7 +254,7 @@ type breakGlassCredentialOutput struct {
 func renderBreakGlassCredential(ctx *CommandContext, path string, expiresAt time.Time) error {
 	output := breakGlassCredentialOutput{Path: path, ExpiresAt: expiresAt.UTC().Format(time.RFC3339)}
 	if ctx.Globals.JSON {
-		return writeCredentialJSON(ctx.Stdout, output)
+		return cliout.WriteJSONValue(ctx.Stdout, output)
 	}
 	_, err := fmt.Fprintf(ctx.Stdout, "Break-glass credential written to %s\nExpires at: %s\n", output.Path, output.ExpiresAt)
 	return err

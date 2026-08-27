@@ -35,14 +35,16 @@
       "evidence": null
     },
     "macos": {
-      "status": "not_applicable",
-      "mechanism": "handler",
-      "evidence": "This safeguard has no implementation for the macOS host mechanism; the capability is not applicable on this host OS."
+      "status": "not_implemented",
+      "evidence": "The macOS resource-limit provider is not wired into this safeguard yet; the host mechanism is launchd resource policy.",
+      "mechanism": "launchd_resource_limits",
+      "since": "2026-08-26"
     },
     "windows": {
-      "status": "not_applicable",
-      "mechanism": "handler",
-      "evidence": "This safeguard has no implementation for the Windows host mechanism; the capability is not applicable on this host OS."
+      "status": "not_implemented",
+      "evidence": "The Windows resource-limit provider is not wired into this safeguard yet; the host mechanism is Job Object limits.",
+      "mechanism": "job_object_limits",
+      "since": "2026-08-26"
     }
   },
   "risk_class": "restore_absent"

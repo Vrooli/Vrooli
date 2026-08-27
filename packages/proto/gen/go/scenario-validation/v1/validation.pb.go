@@ -589,8 +589,10 @@ type ValidateTargetRequest struct {
 	// access. The target.root remains the stable repo-relative identity.
 	Path             string   `protobuf:"bytes,3,opt,name=path,proto3" json:"path,omitempty"`
 	CapabilitySubset []string `protobuf:"bytes,4,rep,name=capability_subset,json=capabilitySubset,proto3" json:"capability_subset,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+	// Repository-contract exclusions expressed as repo-relative globs.
+	Exclude       []string `protobuf:"bytes,5,rep,name=exclude,proto3" json:"exclude,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ValidateTargetRequest) Reset() {
@@ -647,6 +649,13 @@ func (x *ValidateTargetRequest) GetPath() string {
 func (x *ValidateTargetRequest) GetCapabilitySubset() []string {
 	if x != nil {
 		return x.CapabilitySubset
+	}
+	return nil
+}
+
+func (x *ValidateTargetRequest) GetExclude() []string {
+	if x != nil {
+		return x.Exclude
 	}
 	return nil
 }
@@ -1868,12 +1877,13 @@ const file_scenario_validation_v1_validation_proto_rawDesc = "" +
 	"\bscenario\x18\x01 \x01(\tR\bscenario\x12\x12\n" +
 	"\x04path\x18\x02 \x01(\tR\x04path\x12+\n" +
 	"\x11include_execution\x18\x03 \x01(\bR\x10includeExecution\x12+\n" +
-	"\x11capability_subset\x18\x04 \x03(\tR\x10capabilitySubset\"\xba\x01\n" +
+	"\x11capability_subset\x18\x04 \x03(\tR\x10capabilitySubset\"\xd4\x01\n" +
 	"\x15ValidateTargetRequest\x123\n" +
 	"\x06target\x18\x01 \x01(\v2\x1b.common.v1.ValidationTargetR\x06target\x12+\n" +
 	"\x11include_execution\x18\x02 \x01(\bR\x10includeExecution\x12\x12\n" +
 	"\x04path\x18\x03 \x01(\tR\x04path\x12+\n" +
-	"\x11capability_subset\x18\x04 \x03(\tR\x10capabilitySubset\"\xfe\x02\n" +
+	"\x11capability_subset\x18\x04 \x03(\tR\x10capabilitySubset\x12\x18\n" +
+	"\aexclude\x18\x05 \x03(\tR\aexclude\"\xfe\x02\n" +
 	"\x16ValidateTargetResponse\x123\n" +
 	"\x06target\x18\x01 \x01(\v2\x1b.common.v1.ValidationTargetR\x06target\x12G\n" +
 	"\x06status\x18\x02 \x01(\x0e2/.vrooli.scenario_validation.v1.ValidationStatusR\x06status\x12=\n" +

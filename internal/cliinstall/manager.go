@@ -14,6 +14,10 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/vrooli/vrooli/internal/repocontractmeta"
+	"github.com/vrooli/vrooli/internal/tuning"
+
+	"github.com/vrooli/cliresolve"
 	repocontract "github.com/vrooli/repo-contract-go"
 	"github.com/vrooli/vrooli/internal/artifactlease"
 	"github.com/vrooli/vrooli/internal/artifactledger"
@@ -22,6 +26,14 @@ import (
 	"github.com/vrooli/vrooli/internal/discovery"
 	manifestpkg "github.com/vrooli/vrooli/internal/resources/manifest"
 	"github.com/vrooli/vrooli/internal/scenario"
+)
+
+const (
+	managerGoModule = "go_module"
+)
+
+const (
+	managerParameterA = 4
 )
 
 type Kind string
@@ -103,38 +115,28 @@ func AtomicInstall(src, dst string) error {
 	defer release()
 	_ = buildinfo.PreserveRootBinaryFallback(dst)
 
-	tmp := dst + ".new"
-	if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(dst), tuning.PermDir); err != nil {
 		return err
 	}
-	if err := os.Chmod(src, 0o755); err != nil {
+	// PermExecutable, not PermDir: they share a value today, and a directory
+	// constant applied to an executable is a claim that stops being true the
+	// day someone correctly tightens directory permissions.
+	if err := os.Chmod(src, tuning.PermExecutable); err != nil {
 		return err
 	}
 	in, err := os.Open(src)
 	if err != nil {
 		return err
 	}
-	out, err := os.OpenFile(tmp, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o755)
+	data, err := io.ReadAll(in)
+	closeErr := in.Close()
+	if err == nil {
+		err = closeErr
+	}
 	if err != nil {
-		_ = in.Close()
 		return err
 	}
-	_, copyErr := io.Copy(out, in)
-	if copyErr == nil {
-		copyErr = out.Sync()
-	}
-	if closeErr := out.Close(); copyErr == nil {
-		copyErr = closeErr
-	}
-	if closeErr := in.Close(); copyErr == nil {
-		copyErr = closeErr
-	}
-	if copyErr != nil {
-		_ = os.Remove(tmp)
-		return copyErr
-	}
-	if err := os.Rename(tmp, dst); err != nil {
-		_ = os.Remove(tmp)
+	if err := config.WriteOwnedFileAtomic(dst, data, tuning.PermExecutable); err != nil {
 		return err
 	}
 	return syncFile(filepath.Dir(dst))
@@ -240,7 +242,7 @@ func (m *Manager) ResolveScenarioCLIExecutable(name string) (string, error) {
 	if err := m.ensure(context.Background(), item); err != nil {
 		return "", err
 	}
-	return m.InstalledBinaryPath(item), nil
+	return cliresolve.New(m.Home).Executable(item.BinaryName)
 }
 
 func (m *Manager) InspectScenarioCLIInstallLocation(name string, lookPath func(string) (string, error)) (InstallLocationStatus, error) {
@@ -300,7 +302,7 @@ func (m *Manager) DiscoverScenarioCLI(name string) (InstallableCLI, error) {
 		CLI:          manifest.CLI,
 	}
 	switch manifest.CLI.Adapter.Kind {
-	case "go_module":
+	case managerGoModule:
 		item.ModulePath = filepath.Join(scenarioRoot, filepath.FromSlash(manifest.CLI.Adapter.ModuleDir))
 		if err := requireFile(filepath.Join(item.ModulePath, "go.mod")); err != nil {
 			return InstallableCLI{}, fmt.Errorf("discover scenario CLI %q: %w", name, err)
@@ -344,7 +346,7 @@ func (m *Manager) DiscoverResourceCLI(name string) (InstallableCLI, error) {
 		CLI:          manifest.CLI,
 	}
 	switch manifest.CLI.Adapter.Kind {
-	case "go_module":
+	case managerGoModule:
 		item.ModulePath = filepath.Join(resourceRoot, filepath.FromSlash(manifest.CLI.Adapter.ModuleDir))
 		if err := requireFile(filepath.Join(item.ModulePath, "go.mod")); err != nil {
 			return InstallableCLI{}, fmt.Errorf("discover resource CLI %q: %w", name, err)
@@ -372,7 +374,7 @@ func (m *Manager) DiscoverScenarioCLIReport() (DiscoveryReport, error) {
 	if err != nil {
 		return DiscoveryReport{}, err
 	}
-	scenarioDir, err := contract.TopLevelDir(m.Root, "scenarios")
+	scenarioDir, err := contract.TopLevelDir(m.Root, repocontractmeta.ScenarioDir)
 	if err != nil {
 		return DiscoveryReport{}, err
 	}
@@ -552,7 +554,7 @@ func (m *Manager) InstalledScenarioCLINames() ([]string, error) {
 			if err != nil {
 				continue
 			}
-			if info.Mode()&0o111 == 0 {
+			if info.Mode()&tuning.PermExecuteMask == 0 {
 				continue
 			}
 		}
@@ -648,7 +650,7 @@ func (m *Manager) installedBinaryCurrent(item InstallableCLI) (bool, error) {
 }
 
 func installedBinaryLooksRunnable(path string, item InstallableCLI) (bool, error) {
-	if item.CLI == nil || item.CLI.Adapter.Kind != "go_module" {
+	if item.CLI == nil || item.CLI.Adapter.Kind != managerGoModule {
 		return true, nil
 	}
 	file, err := os.Open(path)
@@ -660,7 +662,7 @@ func installedBinaryLooksRunnable(path string, item InstallableCLI) (bool, error
 	}
 	defer file.Close()
 
-	header := make([]byte, 4)
+	header := make([]byte, managerParameterA)
 	n, err := io.ReadFull(file, header)
 	if err != nil {
 		if errors.Is(err, io.ErrUnexpectedEOF) || errors.Is(err, io.EOF) {
@@ -684,7 +686,7 @@ func installedBinaryLooksRunnable(path string, item InstallableCLI) (bool, error
 }
 
 func isMachOMagic(header []byte) bool {
-	if len(header) < 4 {
+	if len(header) < managerParameterA {
 		return false
 	}
 	switch string(header[:4]) {

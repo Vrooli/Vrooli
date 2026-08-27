@@ -1,6 +1,7 @@
 package lifecycle
 
 import (
+	"context"
 	"fmt"
 	"sort"
 	"strings"
@@ -19,22 +20,30 @@ func forceSetupFor(opts StartOptions, slug string) bool {
 
 // setupNeededCached returns component build freshness, memoized through cache.
 func (r *Runner) setupNeededCached(item scenario.Scenario, force bool, session *startSession) (bool, []string, error) {
+	ctx := context.Background()
+	if session != nil {
+		ctx = session.context()
+	}
 	if session == nil {
-		return r.evaluateSetupChecks(item, force)
+		return r.evaluateSetupChecksContext(ctx, item, force)
 	}
 	return session.setupNeeded(item.Slug+"@"+item.Variant, force, func() (bool, []string, error) {
-		return r.evaluateSetupChecks(item, force)
+		return r.evaluateSetupChecksContext(ctx, item, force)
 	})
 }
 
 // freshnessStaleCached is the reuse-decision spelling of the same component
 // build freshness authority used by setupNeededCached.
 func (r *Runner) freshnessStaleCached(item scenario.Scenario, force bool, session *startSession) (bool, []string, error) {
+	ctx := context.Background()
+	if session != nil {
+		ctx = session.context()
+	}
 	if session == nil {
-		return r.evaluateSetupChecks(item, force)
+		return r.evaluateSetupChecksContext(ctx, item, force)
 	}
 	return session.setupNeeded(item.Slug+"@"+item.Variant, force, func() (bool, []string, error) {
-		return r.evaluateSetupChecks(item, force)
+		return r.evaluateSetupChecksContext(ctx, item, force)
 	})
 }
 
@@ -44,6 +53,10 @@ func (r *Runner) SetupNeeded(item scenario.Scenario, force bool) (bool, []string
 }
 
 func (r *Runner) evaluateSetupChecks(item scenario.Scenario, force bool) (bool, []string, error) {
+	return r.evaluateSetupChecksContext(context.Background(), item, force)
+}
+
+func (r *Runner) evaluateSetupChecksContext(ctx context.Context, item scenario.Scenario, force bool) (bool, []string, error) {
 	reasons := []string{}
 	if force {
 		reasons = append(reasons, "Forced rebuild (restart)")
@@ -56,16 +69,19 @@ func (r *Runner) evaluateSetupChecks(item scenario.Scenario, force bool) (bool, 
 	sort.Strings(componentNames)
 	deps := defaultHostProbeDeps()
 	for _, name := range componentNames {
+		if err := ctx.Err(); err != nil {
+			return false, nil, err
+		}
 		component := item.Manifest.Components[name]
 		if strings.TrimSpace(component.Build.Reuse) != "" {
 			continue
 		}
-		artifacts, err := componentFreshnessArtifacts(item.Path, r.Root, component, deps)
+		artifacts, err := componentFreshnessArtifactsContext(ctx, item.Path, r.Root, component, deps)
 		if err != nil {
 			return false, nil, fmt.Errorf("component %s freshness: %w", name, err)
 		}
 		for _, artifact := range artifacts {
-			verdict, err := r.evaluateArtifactFreshness(artifact, deps)
+			verdict, err := r.evaluateArtifactFreshnessContext(ctx, artifact, deps)
 			if err != nil {
 				return false, nil, err
 			}

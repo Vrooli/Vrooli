@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"time"
+
+	"github.com/vrooli/vrooli/internal/tuning"
 )
 
 const (
@@ -53,18 +55,18 @@ const (
 	SupervisionPolicyManaged = "managed"
 	SupervisionPolicyManual  = "manual"
 
-	DefaultHeartbeatTTL = 30 * time.Second
+	DefaultHeartbeatTTL = tuning.StandardOperationTimeout
 	// DefaultSupervisedLeaseTTL is the deadline written when ownership sits
 	// with a supervisor session rather than a lifecycle process. It is longer
 	// than DefaultHeartbeatTTL because one supervisor renews the whole fleet on
 	// a shared interval, so its window must absorb a slow tick and a restart.
 	// Shared here so the handover and the renewer cannot drift apart.
-	DefaultSupervisedLeaseTTL = 45 * time.Second
+	DefaultSupervisedLeaseTTL = tuning.SupervisorHealthInterval
 	// DefaultReservedClaimTTL bounds how long a reserved (not yet bound) port
 	// claim survives without renewal before any allocator may expire it. The
 	// lifecycle renews reserved claims alongside its instance heartbeats so a
 	// slow start (e.g. a long setup build) keeps its ports.
-	DefaultReservedClaimTTL       = 5 * time.Minute
+	DefaultReservedClaimTTL       = tuning.LongOperationTimeout
 	DefaultMaxHealthResponseBytes = 64 * 1024
 )
 

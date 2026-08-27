@@ -225,6 +225,230 @@ func (x *ScanScenarioResponse) GetSurfaces() []*SurfaceRecord {
 	return nil
 }
 
+type Subject struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Kind          string                 `protobuf:"bytes,1,opt,name=kind,proto3" json:"kind,omitempty"`
+	Id            string                 `protobuf:"bytes,2,opt,name=id,proto3" json:"id,omitempty"`
+	Version       string                 `protobuf:"bytes,3,opt,name=version,proto3" json:"version,omitempty"`
+	Fingerprint   string                 `protobuf:"bytes,4,opt,name=fingerprint,proto3" json:"fingerprint,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Subject) Reset() {
+	*x = Subject{}
+	mi := &file_ui_health_v1_inventory_inventory_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Subject) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Subject) ProtoMessage() {}
+
+func (x *Subject) ProtoReflect() protoreflect.Message {
+	mi := &file_ui_health_v1_inventory_inventory_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Subject.ProtoReflect.Descriptor instead.
+func (*Subject) Descriptor() ([]byte, []int) {
+	return file_ui_health_v1_inventory_inventory_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *Subject) GetKind() string {
+	if x != nil {
+		return x.Kind
+	}
+	return ""
+}
+
+func (x *Subject) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *Subject) GetVersion() string {
+	if x != nil {
+		return x.Version
+	}
+	return ""
+}
+
+func (x *Subject) GetFingerprint() string {
+	if x != nil {
+		return x.Fingerprint
+	}
+	return ""
+}
+
+type ScanRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Subjects      []*Subject             `protobuf:"bytes,1,rep,name=subjects,proto3" json:"subjects,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ScanRequest) Reset() {
+	*x = ScanRequest{}
+	mi := &file_ui_health_v1_inventory_inventory_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ScanRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ScanRequest) ProtoMessage() {}
+
+func (x *ScanRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_ui_health_v1_inventory_inventory_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ScanRequest.ProtoReflect.Descriptor instead.
+func (*ScanRequest) Descriptor() ([]byte, []int) {
+	return file_ui_health_v1_inventory_inventory_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *ScanRequest) GetSubjects() []*Subject {
+	if x != nil {
+		return x.Subjects
+	}
+	return nil
+}
+
+type SubjectFindings struct {
+	state         protoimpl.MessageState            `protogen:"open.v1"`
+	Subject       *Subject                          `protobuf:"bytes,1,opt,name=subject,proto3" json:"subject,omitempty"`
+	Provenance    []*provenance.ComponentProvenance `protobuf:"bytes,2,rep,name=provenance,proto3" json:"provenance,omitempty"`
+	Widgets       []*widget.WidgetDeclaration       `protobuf:"bytes,3,rep,name=widgets,proto3" json:"widgets,omitempty"`
+	Surfaces      []*SurfaceRecord                  `protobuf:"bytes,4,rep,name=surfaces,proto3" json:"surfaces,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SubjectFindings) Reset() {
+	*x = SubjectFindings{}
+	mi := &file_ui_health_v1_inventory_inventory_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SubjectFindings) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SubjectFindings) ProtoMessage() {}
+
+func (x *SubjectFindings) ProtoReflect() protoreflect.Message {
+	mi := &file_ui_health_v1_inventory_inventory_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SubjectFindings.ProtoReflect.Descriptor instead.
+func (*SubjectFindings) Descriptor() ([]byte, []int) {
+	return file_ui_health_v1_inventory_inventory_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *SubjectFindings) GetSubject() *Subject {
+	if x != nil {
+		return x.Subject
+	}
+	return nil
+}
+
+func (x *SubjectFindings) GetProvenance() []*provenance.ComponentProvenance {
+	if x != nil {
+		return x.Provenance
+	}
+	return nil
+}
+
+func (x *SubjectFindings) GetWidgets() []*widget.WidgetDeclaration {
+	if x != nil {
+		return x.Widgets
+	}
+	return nil
+}
+
+func (x *SubjectFindings) GetSurfaces() []*SurfaceRecord {
+	if x != nil {
+		return x.Surfaces
+	}
+	return nil
+}
+
+type ScanResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Findings      []*SubjectFindings     `protobuf:"bytes,1,rep,name=findings,proto3" json:"findings,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ScanResponse) Reset() {
+	*x = ScanResponse{}
+	mi := &file_ui_health_v1_inventory_inventory_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ScanResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ScanResponse) ProtoMessage() {}
+
+func (x *ScanResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_ui_health_v1_inventory_inventory_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ScanResponse.ProtoReflect.Descriptor instead.
+func (*ScanResponse) Descriptor() ([]byte, []int) {
+	return file_ui_health_v1_inventory_inventory_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *ScanResponse) GetFindings() []*SubjectFindings {
+	if x != nil {
+		return x.Findings
+	}
+	return nil
+}
+
 var File_ui_health_v1_inventory_inventory_proto protoreflect.FileDescriptor
 
 const file_ui_health_v1_inventory_inventory_proto_rawDesc = "" +
@@ -245,9 +469,26 @@ const file_ui_health_v1_inventory_inventory_proto_rawDesc = "" +
 	"provenance\x18\x02 \x03(\v2=.vrooli.ui_health.v1.contracts.provenance.ComponentProvenanceR\n" +
 	"provenance\x12Q\n" +
 	"\awidgets\x18\x03 \x03(\v27.vrooli.ui_health.v1.contracts.widget.WidgetDeclarationR\awidgets\x12H\n" +
-	"\bsurfaces\x18\x04 \x03(\v2,.vrooli.ui_health.v1.inventory.SurfaceRecordR\bsurfaces2\x8b\x01\n" +
+	"\bsurfaces\x18\x04 \x03(\v2,.vrooli.ui_health.v1.inventory.SurfaceRecordR\bsurfaces\"i\n" +
+	"\aSubject\x12\x12\n" +
+	"\x04kind\x18\x01 \x01(\tR\x04kind\x12\x0e\n" +
+	"\x02id\x18\x02 \x01(\tR\x02id\x12\x18\n" +
+	"\aversion\x18\x03 \x01(\tR\aversion\x12 \n" +
+	"\vfingerprint\x18\x04 \x01(\tR\vfingerprint\"Q\n" +
+	"\vScanRequest\x12B\n" +
+	"\bsubjects\x18\x01 \x03(\v2&.vrooli.ui_health.v1.inventory.SubjectR\bsubjects\"\xcf\x02\n" +
+	"\x0fSubjectFindings\x12@\n" +
+	"\asubject\x18\x01 \x01(\v2&.vrooli.ui_health.v1.inventory.SubjectR\asubject\x12]\n" +
+	"\n" +
+	"provenance\x18\x02 \x03(\v2=.vrooli.ui_health.v1.contracts.provenance.ComponentProvenanceR\n" +
+	"provenance\x12Q\n" +
+	"\awidgets\x18\x03 \x03(\v27.vrooli.ui_health.v1.contracts.widget.WidgetDeclarationR\awidgets\x12H\n" +
+	"\bsurfaces\x18\x04 \x03(\v2,.vrooli.ui_health.v1.inventory.SurfaceRecordR\bsurfaces\"Z\n" +
+	"\fScanResponse\x12J\n" +
+	"\bfindings\x18\x01 \x03(\v2..vrooli.ui_health.v1.inventory.SubjectFindingsR\bfindings2\xec\x01\n" +
 	"\x10InventoryService\x12w\n" +
-	"\fScanScenario\x122.vrooli.ui_health.v1.inventory.ScanScenarioRequest\x1a3.vrooli.ui_health.v1.inventory.ScanScenarioResponseBTZRgithub.com/vrooli/vrooli/packages/proto/gen/go/ui-health/v1/inventory;inventory_v1b\x06proto3"
+	"\fScanScenario\x122.vrooli.ui_health.v1.inventory.ScanScenarioRequest\x1a3.vrooli.ui_health.v1.inventory.ScanScenarioResponse\x12_\n" +
+	"\x04Scan\x12*.vrooli.ui_health.v1.inventory.ScanRequest\x1a+.vrooli.ui_health.v1.inventory.ScanResponseBTZRgithub.com/vrooli/vrooli/packages/proto/gen/go/ui-health/v1/inventory;inventory_v1b\x06proto3"
 
 var (
 	file_ui_health_v1_inventory_inventory_proto_rawDescOnce sync.Once
@@ -261,27 +502,39 @@ func file_ui_health_v1_inventory_inventory_proto_rawDescGZIP() []byte {
 	return file_ui_health_v1_inventory_inventory_proto_rawDescData
 }
 
-var file_ui_health_v1_inventory_inventory_proto_msgTypes = make([]protoimpl.MessageInfo, 3)
+var file_ui_health_v1_inventory_inventory_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
 var file_ui_health_v1_inventory_inventory_proto_goTypes = []any{
 	(*ScanScenarioRequest)(nil),            // 0: vrooli.ui_health.v1.inventory.ScanScenarioRequest
 	(*SurfaceRecord)(nil),                  // 1: vrooli.ui_health.v1.inventory.SurfaceRecord
 	(*ScanScenarioResponse)(nil),           // 2: vrooli.ui_health.v1.inventory.ScanScenarioResponse
-	(search.SurfaceKind)(0),                // 3: vrooli.ui_health.v1.search.SurfaceKind
-	(*provenance.ComponentProvenance)(nil), // 4: vrooli.ui_health.v1.contracts.provenance.ComponentProvenance
-	(*widget.WidgetDeclaration)(nil),       // 5: vrooli.ui_health.v1.contracts.widget.WidgetDeclaration
+	(*Subject)(nil),                        // 3: vrooli.ui_health.v1.inventory.Subject
+	(*ScanRequest)(nil),                    // 4: vrooli.ui_health.v1.inventory.ScanRequest
+	(*SubjectFindings)(nil),                // 5: vrooli.ui_health.v1.inventory.SubjectFindings
+	(*ScanResponse)(nil),                   // 6: vrooli.ui_health.v1.inventory.ScanResponse
+	(search.SurfaceKind)(0),                // 7: vrooli.ui_health.v1.search.SurfaceKind
+	(*provenance.ComponentProvenance)(nil), // 8: vrooli.ui_health.v1.contracts.provenance.ComponentProvenance
+	(*widget.WidgetDeclaration)(nil),       // 9: vrooli.ui_health.v1.contracts.widget.WidgetDeclaration
 }
 var file_ui_health_v1_inventory_inventory_proto_depIdxs = []int32{
-	3, // 0: vrooli.ui_health.v1.inventory.SurfaceRecord.kind:type_name -> vrooli.ui_health.v1.search.SurfaceKind
-	4, // 1: vrooli.ui_health.v1.inventory.ScanScenarioResponse.provenance:type_name -> vrooli.ui_health.v1.contracts.provenance.ComponentProvenance
-	5, // 2: vrooli.ui_health.v1.inventory.ScanScenarioResponse.widgets:type_name -> vrooli.ui_health.v1.contracts.widget.WidgetDeclaration
-	1, // 3: vrooli.ui_health.v1.inventory.ScanScenarioResponse.surfaces:type_name -> vrooli.ui_health.v1.inventory.SurfaceRecord
-	0, // 4: vrooli.ui_health.v1.inventory.InventoryService.ScanScenario:input_type -> vrooli.ui_health.v1.inventory.ScanScenarioRequest
-	2, // 5: vrooli.ui_health.v1.inventory.InventoryService.ScanScenario:output_type -> vrooli.ui_health.v1.inventory.ScanScenarioResponse
-	5, // [5:6] is the sub-list for method output_type
-	4, // [4:5] is the sub-list for method input_type
-	4, // [4:4] is the sub-list for extension type_name
-	4, // [4:4] is the sub-list for extension extendee
-	0, // [0:4] is the sub-list for field type_name
+	7,  // 0: vrooli.ui_health.v1.inventory.SurfaceRecord.kind:type_name -> vrooli.ui_health.v1.search.SurfaceKind
+	8,  // 1: vrooli.ui_health.v1.inventory.ScanScenarioResponse.provenance:type_name -> vrooli.ui_health.v1.contracts.provenance.ComponentProvenance
+	9,  // 2: vrooli.ui_health.v1.inventory.ScanScenarioResponse.widgets:type_name -> vrooli.ui_health.v1.contracts.widget.WidgetDeclaration
+	1,  // 3: vrooli.ui_health.v1.inventory.ScanScenarioResponse.surfaces:type_name -> vrooli.ui_health.v1.inventory.SurfaceRecord
+	3,  // 4: vrooli.ui_health.v1.inventory.ScanRequest.subjects:type_name -> vrooli.ui_health.v1.inventory.Subject
+	3,  // 5: vrooli.ui_health.v1.inventory.SubjectFindings.subject:type_name -> vrooli.ui_health.v1.inventory.Subject
+	8,  // 6: vrooli.ui_health.v1.inventory.SubjectFindings.provenance:type_name -> vrooli.ui_health.v1.contracts.provenance.ComponentProvenance
+	9,  // 7: vrooli.ui_health.v1.inventory.SubjectFindings.widgets:type_name -> vrooli.ui_health.v1.contracts.widget.WidgetDeclaration
+	1,  // 8: vrooli.ui_health.v1.inventory.SubjectFindings.surfaces:type_name -> vrooli.ui_health.v1.inventory.SurfaceRecord
+	5,  // 9: vrooli.ui_health.v1.inventory.ScanResponse.findings:type_name -> vrooli.ui_health.v1.inventory.SubjectFindings
+	0,  // 10: vrooli.ui_health.v1.inventory.InventoryService.ScanScenario:input_type -> vrooli.ui_health.v1.inventory.ScanScenarioRequest
+	4,  // 11: vrooli.ui_health.v1.inventory.InventoryService.Scan:input_type -> vrooli.ui_health.v1.inventory.ScanRequest
+	2,  // 12: vrooli.ui_health.v1.inventory.InventoryService.ScanScenario:output_type -> vrooli.ui_health.v1.inventory.ScanScenarioResponse
+	6,  // 13: vrooli.ui_health.v1.inventory.InventoryService.Scan:output_type -> vrooli.ui_health.v1.inventory.ScanResponse
+	12, // [12:14] is the sub-list for method output_type
+	10, // [10:12] is the sub-list for method input_type
+	10, // [10:10] is the sub-list for extension type_name
+	10, // [10:10] is the sub-list for extension extendee
+	0,  // [0:10] is the sub-list for field type_name
 }
 
 func init() { file_ui_health_v1_inventory_inventory_proto_init() }
@@ -295,7 +548,7 @@ func file_ui_health_v1_inventory_inventory_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_ui_health_v1_inventory_inventory_proto_rawDesc), len(file_ui_health_v1_inventory_inventory_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   3,
+			NumMessages:   7,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/vrooli/vrooli/internal/hostinventory"
+	"github.com/vrooli/vrooli/internal/shell/shelltest"
 )
 
 func TestCurrentLinuxSignalsComeFromHostInventory(t *testing.T) {
@@ -23,7 +24,7 @@ func TestCurrentLinuxSignalsComeFromHostInventory(t *testing.T) {
 
 func TestLinuxSystemdUsesThreeSignals(t *testing.T) {
 	collector := hostinventory.Collector{
-		Commands: fakePlatformCommands{systemctl: true},
+		Commands: &shelltest.Fake{Paths: map[string]string{"systemctl": "systemctl"}},
 		Files: fakePlatformFiles{
 			"/proc/1/comm":              []byte("systemd\n"),
 			"/run/systemd/system/.keep": []byte(""),
@@ -37,19 +38,6 @@ func TestLinuxSystemdUsesThreeSignals(t *testing.T) {
 	if !facts.SupportsSystemd {
 		t.Fatal("PID 1 systemd signal should enable systemd support")
 	}
-}
-
-type fakePlatformCommands struct{ systemctl bool }
-
-func (f fakePlatformCommands) LookPath(name string) (string, error) {
-	if f.systemctl && name == "systemctl" {
-		return name, nil
-	}
-	return "", os.ErrNotExist
-}
-
-func (f fakePlatformCommands) Run(_ context.Context, _ string, _ ...string) ([]byte, error) {
-	return nil, os.ErrNotExist
 }
 
 type fakePlatformFiles map[string][]byte

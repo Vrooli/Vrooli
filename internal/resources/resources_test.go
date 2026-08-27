@@ -21,6 +21,7 @@ import (
 	manifestpkg "github.com/vrooli/vrooli/internal/resources/manifest"
 	testresource "github.com/vrooli/vrooli/internal/resources/resourcestest"
 	testscenario "github.com/vrooli/vrooli/internal/scenario/scenariotest"
+	"github.com/vrooli/vrooli/internal/shell/shelltest"
 	resourcedeployment "github.com/vrooli/vrooli/packages/resource-deployment"
 )
 
@@ -52,7 +53,7 @@ func TestStatusForResourceCategorizesProbeFailures(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()
 	controller := NewController(root, home)
-	writeExecutableOnPath(t, "resource-fixture", "#!/usr/bin/env bash\nexit 0\n")
+	writeExecutableOnPath(t, "resource-fixture", shelltest.BashShebang()+"exit 0\n")
 
 	originalRun := runCommandResource
 	t.Cleanup(func() {
@@ -161,7 +162,7 @@ func TestStatusForResourceParsesStructuredPayload(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()
 	controller := NewController(root, home)
-	writeExecutableOnPath(t, "resource-fixture", "#!/usr/bin/env bash\nexit 0\n")
+	writeExecutableOnPath(t, "resource-fixture", shelltest.BashShebang()+"exit 0\n")
 
 	originalRun := runCommandResource
 	t.Cleanup(func() {
@@ -207,7 +208,7 @@ func TestRunReturnsCategorizedErrors(t *testing.T) {
 		t.Fatalf("resourceErr.Code = %q, want %q", resourceErr.Code, ErrorCodeCommandUnavailable)
 	}
 
-	writeExecutableOnPath(t, "resource-fixture", "#!/usr/bin/env bash\nexit 7\n")
+	writeExecutableOnPath(t, "resource-fixture", shelltest.BashShebang()+"exit 7\n")
 
 	err = controller.Run("fixture", []string{"stop"}, ioDiscard{}, ioDiscard{})
 	if !errors.As(err, &resourceErr) {
@@ -676,7 +677,7 @@ func TestStatusForManifestNativeExternalCLIResource(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()
 	testscenario.WriteProjectResourceConfig(t, root, "fixture", true)
-	commandPath := writeExecutableOnPath(t, "fixture-cli", "#!/usr/bin/env bash\nif [[ \"$1\" == \"--version\" ]]; then\n  echo 'fixture-cli 1.0.0'\n  exit 0\nfi\nexit 0\n")
+	commandPath := writeExecutableOnPath(t, "fixture-cli", shelltest.BashShebang()+"if [[ \"$1\" == \"--version\" ]]; then\n  echo 'fixture-cli 1.0.0'\n  exit 0\nfi\nexit 0\n")
 	testresource.WriteResourceManifest(t, root, "fixture", testresource.ResourceManifest(
 		"fixture",
 		testresource.WithResourceDriver("external-cli"),
@@ -725,11 +726,11 @@ func TestStatusForManifestNativeExternalCLIResourceUsesResourceScopedEnvForHealt
 	if expectedDataDir == "" {
 		t.Fatal("expected RESOURCE_DATA_DIR in resource env")
 	}
-	script := fmt.Sprintf("#!/usr/bin/env bash\nset -euo pipefail\n[[ \"$RESOURCE_DATA_DIR\" == %q ]]\n", expectedDataDir)
+	script := fmt.Sprintf(shelltest.BashShebang()+"set -euo pipefail\n[[ \"$RESOURCE_DATA_DIR\" == %q ]]\n", expectedDataDir)
 	if err := os.WriteFile(scriptPath, []byte(script), 0o755); err != nil {
 		t.Fatalf("write health script: %v", err)
 	}
-	writeExecutableOnPath(t, "fixture-cli", "#!/usr/bin/env bash\nexit 0\n")
+	writeExecutableOnPath(t, "fixture-cli", shelltest.BashShebang()+"exit 0\n")
 	testresource.WriteResourceManifest(t, root, "fixture", testresource.ResourceManifest(
 		"fixture",
 		testresource.WithResourceDriver("external-cli"),
@@ -761,7 +762,7 @@ func TestStatusForManifestNativeExternalCLIResourceMarksUnavailableWhenVersionPr
 	root := t.TempDir()
 	home := t.TempDir()
 	testscenario.WriteProjectResourceConfig(t, root, "fixture", true)
-	writeExecutableOnPath(t, "fixture-cli", "#!/usr/bin/env bash\nif [[ \"$1\" == \"--version\" ]]; then\n  exit 1\nfi\nexit 0\n")
+	writeExecutableOnPath(t, "fixture-cli", shelltest.BashShebang()+"if [[ \"$1\" == \"--version\" ]]; then\n  exit 1\nfi\nexit 0\n")
 	testresource.WriteResourceManifest(t, root, "fixture", testresource.ResourceManifest(
 		"fixture",
 		testresource.WithResourceDriver("external-cli"),
@@ -814,7 +815,7 @@ func TestRunManifestNativeExternalCLIInstallRejectsUnsupportedAction(t *testing.
 	)
 	manifest.CLI.Enabled = false
 	testresource.WriteResourceManifest(t, root, "fixture", manifest)
-	writeExecutableOnPath(t, "fixture-cli", "#!/usr/bin/env bash\necho 'fixture-cli 1.0.0'\n")
+	writeExecutableOnPath(t, "fixture-cli", shelltest.BashShebang()+"echo 'fixture-cli 1.0.0'\n")
 
 	controller := NewController(root, home)
 	if err := controller.Run("fixture", []string{"install"}, ioDiscard{}, ioDiscard{}); err != nil {
@@ -1031,7 +1032,7 @@ func TestProjectPhase5ResourcesAreManifestNative(t *testing.T) {
 	}
 	// And the driver kinds the fleet is built on each have at least one resource,
 	// so retiring the last one of a kind is a deliberate, visible change.
-	for _, driver := range []string{"managed-service", "compose-service", "external-cli", "cloud-api"} {
+	for _, driver := range []string{"managed-service", "external-cli", "cloud-api"} {
 		if drivers[driver] == 0 {
 			t.Fatalf("no discovered resource uses the %q driver; driver census = %v", driver, drivers)
 		}
@@ -1172,8 +1173,10 @@ func TestProjectMigratedResourcesUseNativeDrivers(t *testing.T) {
 	controller := NewController(root, t.TempDir())
 
 	expected := map[string]string{
-		"kokoro":  "compose-service",
-		"whisper": "managed-service",
+		"kokoro":               "managed-service",
+		"kyutai-stt":           "managed-service",
+		"speaker-verification": "managed-service",
+		"whisper":              "managed-service",
 	}
 
 	for name, driver := range expected {
@@ -1278,7 +1281,7 @@ func writeFakeDockerWithLegacyComposeContainer(t *testing.T) string {
 	dir := t.TempDir()
 	composeUpFile := filepath.Join(dir, "compose-up-called")
 	scriptPath := filepath.Join(dir, "docker")
-	script := fmt.Sprintf(`#!/usr/bin/env bash
+	script := shelltest.BashShebang() + fmt.Sprintf(`
 set -e
 cmd="${1:-}"
 shift || true

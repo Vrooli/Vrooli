@@ -386,6 +386,7 @@ type PlatformVerdict struct {
 	BlockingDependency string                 `protobuf:"bytes,4,opt,name=blocking_dependency,json=blockingDependency,proto3" json:"blocking_dependency,omitempty"`
 	Derived            bool                   `protobuf:"varint,5,opt,name=derived,proto3" json:"derived,omitempty"`
 	Overridden         bool                   `protobuf:"varint,6,opt,name=overridden,proto3" json:"overridden,omitempty"`
+	ReasonCode         string                 `protobuf:"bytes,7,opt,name=reason_code,json=reasonCode,proto3" json:"reason_code,omitempty"`
 	unknownFields      protoimpl.UnknownFields
 	sizeCache          protoimpl.SizeCache
 }
@@ -462,6 +463,13 @@ func (x *PlatformVerdict) GetOverridden() bool {
 	return false
 }
 
+func (x *PlatformVerdict) GetReasonCode() string {
+	if x != nil {
+		return x.ReasonCode
+	}
+	return ""
+}
+
 var File_scenario_dependency_analyzer_v1_platform_verdict_platform_verdict_proto protoreflect.FileDescriptor
 
 const file_scenario_dependency_analyzer_v1_platform_verdict_platform_verdict_proto_rawDesc = "" +
@@ -498,7 +506,7 @@ const file_scenario_dependency_analyzer_v1_platform_verdict_platform_verdict_pro
 	"\n" +
 	"overridden\x18\x03 \x01(\bR\n" +
 	"overridden\x12'\n" +
-	"\x0foverride_reason\x18\x04 \x01(\tR\x0eoverrideReason\"\xc5\x01\n" +
+	"\x0foverride_reason\x18\x04 \x01(\tR\x0eoverrideReason\"\xe6\x01\n" +
 	"\x0fPlatformVerdict\x12\x17\n" +
 	"\ahost_os\x18\x01 \x01(\tR\x06hostOs\x12\x16\n" +
 	"\x06status\x18\x02 \x01(\tR\x06status\x12\x16\n" +
@@ -507,7 +515,9 @@ const file_scenario_dependency_analyzer_v1_platform_verdict_platform_verdict_pro
 	"\aderived\x18\x05 \x01(\bR\aderived\x12\x1e\n" +
 	"\n" +
 	"overridden\x18\x06 \x01(\bR\n" +
-	"overridden2\xde\x01\n" +
+	"overridden\x12\x1f\n" +
+	"\vreason_code\x18\a \x01(\tR\n" +
+	"reasonCode2\xde\x01\n" +
 	"\x16PlatformVerdictService\x12\xc3\x01\n" +
 	"\x14ListPlatformVerdicts\x12T.vrooli.scenario_dependency_analyzer.v1.platform_verdict.ListPlatformVerdictsRequest\x1aU.vrooli.scenario_dependency_analyzer.v1.platform_verdict.ListPlatformVerdictsResponseBuZsgithub.com/vrooli/vrooli/packages/proto/gen/go/scenario-dependency-analyzer/v1/platform_verdict;platform_verdict_v1b\x06proto3"
 

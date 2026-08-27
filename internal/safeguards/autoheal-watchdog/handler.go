@@ -1,4 +1,5 @@
 // Package autohealwatchdog owns project-setup installation of autoheal's
+
 // native user scheduler. The scenario may observe this state, but it does not
 // own a second host-repair implementation.
 package autohealwatchdog
@@ -14,11 +15,16 @@ import (
 	repocontract "github.com/vrooli/repo-contract-go"
 	"github.com/vrooli/vrooli/internal/hostreqkit"
 	"github.com/vrooli/vrooli/internal/hostreqspec"
+	"github.com/vrooli/vrooli/internal/repocontractmeta"
+)
+
+const (
+	handlerDedicated = "dedicated"
 )
 
 const (
 	serviceName   = "vrooli-autoheal.service"
-	defaultPolicy = "dedicated"
+	defaultPolicy = handlerDedicated
 )
 
 type handler struct{ manifest hostreqkit.SafeguardManifest }
@@ -35,7 +41,7 @@ var (
 	commandOutputFn    = func(name string, args ...string) ([]byte, error) { return hostreqkit.CombinedOutputFn(name, args...) }
 	lingeringEnabledFn = lingeringEnabled
 	buildLoopFn        = func(root, output string, opts hostreqkit.EnsureOptions) error {
-		return hostreqkit.RunAsInvokingUser("go", []string{"-C", filepath.Join(root, "scenarios", "vrooli-autoheal"), "build", "-o", output, "./cli/loop"}, opts)
+		return hostreqkit.RunAsInvokingUser("go", []string{"-C", filepath.Join(root, repocontractmeta.ScenarioDir, "vrooli-autoheal"), "build", "-o", output, "./cli/loop"}, opts)
 	}
 )
 
@@ -87,7 +93,7 @@ func (h handler) Inspect(host hostreqkit.Host, requirement hostreqspec.ResolvedR
 		status.Notes = append(status.Notes, fmt.Sprintf("autoheal scheduler pending: enabled=%t active=%t", enabled, active))
 		return status
 	}
-	if bootPolicy(requirement.Config) == "dedicated" && host.OS == "linux" && !lingeringEnabledFn(hostreqkit.InvokingUser()) {
+	if bootPolicy(requirement.Config) == handlerDedicated && hostreqspec.PlatformFromGOOS(host.OS) == hostreqspec.PlatformLinux && !lingeringEnabledFn(hostreqkit.InvokingUser()) {
 		status.Notes = append(status.Notes, "user service is enabled but boot protection is incomplete: Linux lingering is disabled", recoveryNote())
 		return status
 	}
@@ -146,7 +152,7 @@ func (h handler) Apply(host hostreqkit.Host, status hostreqkit.ItemStatus, opts 
 		status.Notes = append(status.Notes, "native scheduler enable failed: "+err.Error(), recoveryNote())
 		return status, nil
 	}
-	if host.OS == "linux" && bootPolicy(status.Config) == "dedicated" {
+	if hostreqspec.PlatformFromGOOS(host.OS) == hostreqspec.PlatformLinux && bootPolicy(status.Config) == handlerDedicated {
 		if err := hostreqkit.RunPrivilegedCommand(opts.SudoMode, "loginctl", []string{"enable-linger", hostreqkit.InvokingUser()}, opts); err != nil {
 			status.ExecutionState = hostreqkit.ExecutionFailed
 			status.Notes = append(status.Notes, "Linux lingering enable failed: "+err.Error(), recoveryNote())
@@ -162,7 +168,7 @@ func (h handler) Apply(host hostreqkit.Host, status hostreqkit.ItemStatus, opts 
 }
 
 func supported(host hostreqkit.Host) bool {
-	return isMacOS(host.OS) || host.OS == "windows" || (host.OS == "linux" && host.SupportsSystemd)
+	return isMacOS(host.OS) || hostreqspec.PlatformFromGOOS(host.OS) == hostreqspec.PlatformWindows || (hostreqspec.PlatformFromGOOS(host.OS) == hostreqspec.PlatformLinux && host.SupportsSystemd)
 }
 
 func isMacOS(osName string) bool { return osName == "darwin" || osName == "macos" }
@@ -177,7 +183,7 @@ func guiLaunchdAvailable() bool {
 }
 
 func bootPolicy(config map[string]any) string {
-	if value, ok := config["boot_policy"].(string); ok && (value == "shared" || value == "dedicated") {
+	if value, ok := config["boot_policy"].(string); ok && (value == "shared" || value == handlerDedicated) {
 		return value
 	}
 	return defaultPolicy
@@ -189,10 +195,10 @@ func recoveryNote() string {
 
 func loopPath(root, osName string) string {
 	name := "vrooli-autoheal-loop"
-	if osName == "windows" {
+	if hostreqspec.PlatformFromGOOS(osName) == hostreqspec.PlatformWindows {
 		name += ".exe"
 	}
-	return filepath.Join(root, "scenarios", "vrooli-autoheal", "cli", name)
+	return filepath.Join(root, repocontractmeta.ScenarioDir, "vrooli-autoheal", "cli", name)
 }
 
 func nativeDefinition(osName, root, home string) (string, string, string, error) {
@@ -202,7 +208,7 @@ func nativeDefinition(osName, root, home string) (string, string, string, error)
 		name = "com.vrooli.autoheal"
 		path = filepath.Join(home, "Library", "LaunchAgents", name+".plist")
 	}
-	if osName == "windows" {
+	if hostreqspec.PlatformFromGOOS(osName) == hostreqspec.PlatformWindows {
 		name = "VrooliAutoheal"
 		path = filepath.Join(os.TempDir(), "vrooli-autoheal.xml")
 	}
@@ -210,7 +216,7 @@ func nativeDefinition(osName, root, home string) (string, string, string, error)
 	if isMacOS(osName) {
 		renderTarget = "macos"
 	}
-	content, err := platformgo.RenderWatchdogDefinition(renderTarget, platformgo.WatchdogDefinitionOptions{Root: root, Home: home, LoopBinary: loopPath(root, osName), VrooliBinary: filepath.Join(home, ".vrooli", "bin", "vrooli")})
+	content, err := platformgo.RenderWatchdogDefinition(renderTarget, platformgo.WatchdogDefinitionOptions{Root: root, Home: home, LoopBinary: loopPath(root, osName), VrooliBinary: filepath.Join(home, repocontractmeta.ProjectConfigDir, "bin", "vrooli")})
 	return content, path, name, err
 }
 
@@ -219,7 +225,7 @@ func asUserArgs(name string, args ...string) (string, []string) {
 }
 
 func schedulerState(osName, name string) (bool, bool, error) {
-	if osName != "linux" {
+	if hostreqspec.PlatformFromGOOS(osName) != hostreqspec.PlatformLinux {
 		return true, true, nil
 	}
 	cmd, args := asUserArgs("systemctl", "--user", "is-enabled", name)
@@ -233,7 +239,7 @@ func schedulerState(osName, name string) (bool, bool, error) {
 }
 
 func enableScheduler(osName, name, path string, opts hostreqkit.EnsureOptions) error {
-	if osName == "linux" {
+	if hostreqspec.PlatformFromGOOS(osName) == hostreqspec.PlatformLinux {
 		for _, args := range [][]string{{"--user", "daemon-reload"}, {"--user", "enable", "--now", name}} {
 			cmd, wrapped := asUserArgs("systemctl", args...)
 			if err := hostreqkit.RunCommandFn(cmd, wrapped, opts); err != nil {

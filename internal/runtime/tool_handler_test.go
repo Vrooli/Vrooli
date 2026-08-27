@@ -12,6 +12,7 @@ import (
 	"github.com/vrooli/binaryfetch"
 	"github.com/vrooli/vrooli/internal/hostreqkit"
 	"github.com/vrooli/vrooli/internal/hostreqspec"
+	"github.com/vrooli/vrooli/internal/shell/shelltest"
 	"github.com/vrooli/vrooli/internal/tools"
 )
 
@@ -303,7 +304,7 @@ func TestApplyFetch_SuccessViaStubFetcher(t *testing.T) {
 		fetched = spec
 		// Simulate the binary landing in ~/.vrooli/bin.
 		path := destDir + "/" + spec.Name
-		if err := writeFile(path, []byte("#!/bin/sh\necho ok\n")); err != nil {
+		if err := writeFile(path, []byte(shelltest.POSIXShebang()+"echo ok\n")); err != nil {
 			return "", err
 		}
 		return path, nil
@@ -416,7 +417,7 @@ func TestApplyFetch_DirLayoutWritesLauncher(t *testing.T) {
 			return "", err
 		}
 		entry := optDir + "/" + spec.BinPath
-		if err := writeFile(entry, []byte("#!/bin/sh\necho ok\n")); err != nil {
+		if err := writeFile(entry, []byte(shelltest.POSIXShebang()+"echo ok\n")); err != nil {
 			return "", err
 		}
 		return entry, nil
@@ -447,7 +448,7 @@ func TestApplyFetch_DirLayoutWritesLauncher(t *testing.T) {
 		t.Fatalf("launcher not written: %v", err)
 	}
 	script := string(data)
-	if !strings.HasPrefix(script, "#!/bin/sh") {
+	if !strings.HasPrefix(script, shelltest.POSIXShebang()) {
 		t.Fatalf("launcher missing shebang: %q", script)
 	}
 	if !strings.Contains(script, "LD_LIBRARY_PATH") {
@@ -518,7 +519,7 @@ func TestFetchToolUnrunnableVersionProbeIsNotAMismatch(t *testing.T) {
 	h := toolHandler{manifest: manifest}
 
 	const probeFailure = "go: cannot determine current directory: stat .: permission denied"
-	if err := writeFile(binDir+"/"+fetchTestTool, []byte("#!/bin/sh\necho '"+probeFailure+"' >&2\nexit 1\n")); err != nil {
+	if err := writeFile(binDir+"/"+fetchTestTool, []byte(shelltest.POSIXShebang()+"echo '"+probeFailure+"' >&2\nexit 1\n")); err != nil {
 		t.Fatal(err)
 	}
 
@@ -554,7 +555,7 @@ func TestFetchToolExactVersionMismatchIsRepairable(t *testing.T) {
 
 	// A stale release on the managed path must be treated as not ready, but
 	// still repairable by the verified release target.
-	if err := writeFile(binDir+"/"+fetchTestTool, []byte("#!/bin/sh\necho go version go1.25.0 linux/amd64\n")); err != nil {
+	if err := writeFile(binDir+"/"+fetchTestTool, []byte(shelltest.POSIXShebang()+"echo go version go1.25.0 linux/amd64\n")); err != nil {
 		t.Fatal(err)
 	}
 	status := h.Inspect(host, resolved(fetchTestTool))
@@ -571,7 +572,7 @@ func TestFetchToolExactVersionMismatchIsRepairable(t *testing.T) {
 		if err := os.MkdirAll(filepath.Dir(entry), 0o755); err != nil {
 			return "", err
 		}
-		if err := writeFile(entry, []byte("#!/bin/sh\necho go version go1.25.12 linux/amd64\n")); err != nil {
+		if err := writeFile(entry, []byte(shelltest.POSIXShebang()+"echo go version go1.25.12 linux/amd64\n")); err != nil {
 			return "", err
 		}
 		return entry, nil
@@ -604,10 +605,10 @@ func TestFetchToolRepairsLauncherMissingDeclaredRuntimeEnvironment(t *testing.T)
 	if err := os.MkdirAll(filepath.Dir(entry), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := writeFile(entry, []byte("#!/bin/sh\necho go version go1.25.12 linux/amd64\n")); err != nil {
+	if err := writeFile(entry, []byte(shelltest.POSIXShebang()+"echo go version go1.25.12 linux/amd64\n")); err != nil {
 		t.Fatal(err)
 	}
-	if err := writeFile(filepath.Join(binDir, fetchTestTool), []byte("#!/bin/sh\nexec '"+entry+"' \"$@\"\n")); err != nil {
+	if err := writeFile(filepath.Join(binDir, fetchTestTool), []byte(shelltest.POSIXShebang()+"exec '"+entry+"' \"$@\"\n")); err != nil {
 		t.Fatal(err)
 	}
 
@@ -630,10 +631,10 @@ func TestInspectFetch_DirLayoutInstalledWhenLauncherPresent(t *testing.T) {
 	if err := os.MkdirAll(filepath.Dir(entry), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := writeFile(entry, []byte("#!/bin/sh\nexit 0\n")); err != nil {
+	if err := writeFile(entry, []byte(shelltest.POSIXShebang()+"exit 0\n")); err != nil {
 		t.Fatal(err)
 	}
-	if err := writeFile(binDir+"/"+fetchTestTool, []byte("#!/bin/sh\nexec '"+entry+"' \"$@\"\n")); err != nil {
+	if err := writeFile(binDir+"/"+fetchTestTool, []byte(shelltest.POSIXShebang()+"exec '"+entry+"' \"$@\"\n")); err != nil {
 		t.Fatal(err)
 	}
 	h := toolHandler{manifest: dirReleaseManifest(fetchTestTool)}
@@ -648,7 +649,7 @@ func TestInspectFetch_DirLayoutRejectsDanglingLauncher(t *testing.T) {
 	withArch(t, "amd64")
 	binDir := withUserBin(t)
 	withUserOpt(t)
-	if err := writeFile(binDir+"/"+fetchTestTool, []byte("#!/bin/sh\nexec /missing/payload \"$@\"\n")); err != nil {
+	if err := writeFile(binDir+"/"+fetchTestTool, []byte(shelltest.POSIXShebang()+"exec /missing/payload \"$@\"\n")); err != nil {
 		t.Fatal(err)
 	}
 	h := toolHandler{manifest: dirReleaseManifest(fetchTestTool)}

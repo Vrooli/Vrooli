@@ -13,6 +13,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/vrooli/vrooli/internal/tuning"
+
 	"github.com/vrooli/envkit-go"
 	"github.com/vrooli/platform-go"
 	"github.com/vrooli/vrooli/internal/accel"
@@ -24,13 +26,17 @@ import (
 )
 
 const (
-	DefaultRenewInterval        = 10 * time.Second
+	serviceParameterD = 20
+)
+
+const (
+	DefaultRenewInterval        = tuning.ControlPlaneClientTimeout
 	DefaultLeaseTTL             = scenarioruntime.DefaultSupervisedLeaseTTL
-	DefaultHealthInterval       = 45 * time.Second
+	DefaultHealthInterval       = tuning.SupervisorHealthInterval
 	DefaultMaxHealthConcurrency = 16
 	DefaultBatchSize            = 250
-	DefaultRecoveryQuietPeriod  = 2 * time.Minute
-	DefaultRecoveryCooldown     = 5 * time.Minute
+	DefaultRecoveryQuietPeriod  = tuning.ExtendedOperationTimeout
+	DefaultRecoveryCooldown     = tuning.LongOperationTimeout
 	DefaultRecoveryConcurrency  = 1
 	DefaultPressureSomeAvg10    = 10.0
 	// DefaultPressureCPUSomeAvg10 is deliberately much higher than the memory
@@ -247,6 +253,7 @@ func (s *Service) logf(format string, args ...any) {
 	fmt.Fprintf(w, "%s runtime-supervisor: %s\n", s.now().Format(time.RFC3339), fmt.Sprintf(format, args...))
 }
 
+//nolint:gocyclo // each tick reconciles independent lease, health, process, and recovery states.
 func (s *Service) Tick(ctx context.Context) (TickReport, error) {
 	if err := s.ensureStarted(ctx); err != nil {
 		return TickReport{}, err
@@ -576,7 +583,7 @@ func (s *Service) Status(ctx context.Context) (StatusReport, error) {
 	if err != nil {
 		return StatusReport{}, fmt.Errorf("list runtime recovery policies: %w", err)
 	}
-	epochs, err := s.store.ListPressureEpochs(ctx, 20)
+	epochs, err := s.store.ListPressureEpochs(ctx, serviceParameterD)
 	if err != nil {
 		return StatusReport{}, fmt.Errorf("list runtime pressure epochs: %w", err)
 	}
@@ -1041,10 +1048,10 @@ func openSupervisorLog(homeDir string) (*os.File, error) {
 	if err != nil {
 		return nil, err
 	}
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(path), tuning.PermDir); err != nil {
 		return nil, fmt.Errorf("create runtime supervisor log dir: %w", err)
 	}
-	file, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o644)
+	file, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_APPEND, tuning.PermFile)
 	if err != nil {
 		return nil, fmt.Errorf("open runtime supervisor log: %w", err)
 	}

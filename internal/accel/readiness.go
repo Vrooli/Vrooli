@@ -10,6 +10,10 @@ import (
 	"github.com/vrooli/vrooli/internal/hostinventory"
 )
 
+const (
+	readinessUnsupported = "unsupported"
+)
+
 // ErrNoBackendReady is returned when a resource declares require:required and
 // the host can reach none of the non-CPU backends it named. Callers match on it
 // with errors.Is; the wrapping NoBackendReadyError carries the detail.
@@ -159,7 +163,7 @@ func unreachableReason(backend Backend, snapshot hostinventory.Snapshot) string 
 			return hostinventory.ToolNvidiaSMI + " reports no devices"
 		case "failed":
 			return "the " + hostinventory.ToolNvidiaSMI + " probe failed; the driver may be loaded without its device nodes"
-		case "unsupported":
+		case readinessUnsupported:
 			return "this platform has no NVIDIA probe"
 		}
 		return "the host reports no CUDA device"
@@ -170,14 +174,14 @@ func unreachableReason(backend Backend, snapshot hostinventory.Snapshot) string 
 		return "the host enumerated no Metal-capable device"
 	case BackendROCm:
 		switch status["rocm"] {
-		case "unsupported":
+		case readinessUnsupported:
 			return fmt.Sprintf("the ROCm kernel compute interface is Linux-only; this host is %s", snapshot.OS)
 		case "no_devices":
 			return "no ROCm kernel compute interface is present"
 		}
 		return "the host reports no ROCm device"
 	case BackendVulkan:
-		if status["vulkan"] == "unsupported" {
+		if status["vulkan"] == readinessUnsupported {
 			return fmt.Sprintf("no Vulkan loader location is known for %s", snapshot.OS)
 		}
 		return "the host has no Vulkan installable client driver manifest"

@@ -14,6 +14,7 @@ service CatalogService {
 	rpc GetAssetPortContract(GetAssetPortContractRequest) returns (GetAssetPortContractResponse);
 	rpc GetScoreHistory(GetScoreHistoryRequest) returns (GetScoreHistoryResponse);
 	rpc GetHealthOverview(GetHealthOverviewRequest) returns (GetHealthOverviewResponse);
+	rpc GetReadiness(GetReadinessRequest) returns (GetReadinessResponse);
 	rpc CaptureEvidence(CaptureEvidenceRequest) returns (CaptureEvidenceResponse);
 }
 
@@ -299,6 +300,50 @@ message GetHealthOverviewResponse {
 	int32 kind_mismatch_count = 7;
 	int32 instrument_moved_count = 8;
 	repeated KindMismatch kind_mismatches = 9;
+	ReadinessRun run = 10;
+	ReadinessConfig config = 11;
+}
+
+message ReadinessRun {
+	string run_id = 1;
+	string started_at = 2;
+	string completed_at = 3;
+	bool completed = 4;
+	string evidence_age = 5;
+}
+
+message ReadinessConfig {
+	string declared_floor = 1;
+	string achieved_rung = 2;
+	int32 rung_gap = 3;
+	int32 blocking_gates = 4;
+	int32 advisory_gates = 5;
+	int32 quarantined_gates = 6;
+	int32 attributable_gates = 7;
+	int32 corpus_gates = 8;
+}
+
+message ReadinessTriageRow {
+	string gate = 1;
+	string asset_id = 2;
+	string message = 3;
+	string nearest_blocking_gate = 4;
+	int32 blocks_downstream = 5;
+	double weight = 6;
+}
+
+message GetReadinessRequest {
+	string floor = 1;
+}
+
+message GetReadinessResponse {
+	CoverageReport coverage = 1;
+	ReadinessRun run = 2;
+	ReadinessConfig config = 3;
+	repeated ReadinessTriageRow triage = 4;
+	repeated string next_steps = 5;
+	string verdict = 6;
+	int32 triage_omitted_count = 7;
 }
 
 message KindMismatch {

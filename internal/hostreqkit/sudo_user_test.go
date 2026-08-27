@@ -5,6 +5,9 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/vrooli/vrooli/internal/shell/shelltest"
+	"github.com/vrooli/vrooli/internal/testenv"
 )
 
 func TestInvokingUserPrefersSudoUserWhenRoot(t *testing.T) {
@@ -12,7 +15,7 @@ func TestInvokingUserPrefersSudoUserWhenRoot(t *testing.T) {
 	defer func() { RunningAsRootFn = origRoot }()
 	RunningAsRootFn = func() bool { return true }
 
-	t.Setenv("SUDO_USER", "alice")
+	testenv.SetSudoUser(t, "alice")
 	t.Setenv("USER", "root")
 
 	if got := InvokingUser(); got != "alice" {
@@ -25,7 +28,7 @@ func TestInvokingUserIDsReadsSudoEnvWhenRoot(t *testing.T) {
 	defer func() { RunningAsRootFn = origRoot }()
 	RunningAsRootFn = func() bool { return true }
 
-	t.Setenv("SUDO_USER", "alice")
+	testenv.SetSudoUser(t, "alice")
 	t.Setenv("SUDO_UID", "1000")
 	t.Setenv("SUDO_GID", "1001")
 
@@ -57,7 +60,7 @@ func TestInvokingUserIDsNotOkCases(t *testing.T) {
 			origRoot := RunningAsRootFn
 			defer func() { RunningAsRootFn = origRoot }()
 			RunningAsRootFn = func() bool { return tc.root }
-			t.Setenv("SUDO_USER", tc.sudoUsr)
+			testenv.SetSudoUser(t, tc.sudoUsr)
 			t.Setenv("SUDO_UID", tc.uid)
 			t.Setenv("SUDO_GID", tc.gid)
 			if _, _, ok := InvokingUserIDs(); ok {
@@ -74,7 +77,7 @@ func TestInvokingUserFallsBackToUserWhenNotRoot(t *testing.T) {
 
 	// Even if SUDO_USER is set, when we're not root we report the
 	// current user — there's nothing to drop privileges from.
-	t.Setenv("SUDO_USER", "alice")
+	testenv.SetSudoUser(t, "alice")
 	t.Setenv("USER", "bob")
 
 	if got := InvokingUser(); got != "bob" {
@@ -90,7 +93,7 @@ func TestInvokingUserHomeDirReadsPasswd(t *testing.T) {
 		lookupHomeFromPasswdFn = origLookup
 	}()
 	RunningAsRootFn = func() bool { return true }
-	t.Setenv("SUDO_USER", "alice")
+	testenv.SetSudoUser(t, "alice")
 	t.Setenv("HOME", "/root")
 	lookupHomeFromPasswdFn = func(user string) string {
 		if user == "alice" {
@@ -136,7 +139,7 @@ func TestInvokingUserCommandTargetsElevatedOperatorBus(t *testing.T) {
 	origRoot := RunningAsRootFn
 	defer func() { RunningAsRootFn = origRoot }()
 	RunningAsRootFn = func() bool { return true }
-	t.Setenv("SUDO_USER", "alice")
+	testenv.SetSudoUser(t, "alice")
 	t.Setenv("SUDO_UID", "1000")
 	t.Setenv("SUDO_GID", "1000")
 
@@ -163,7 +166,7 @@ func TestRunAsInvokingUserNoOpWhenNotRoot(t *testing.T) {
 		RunCommandFn = origRun
 	}()
 	RunningAsRootFn = func() bool { return false }
-	t.Setenv("SUDO_USER", "")
+	testenv.SetSudoUser(t, "")
 	t.Setenv("USER", "alice")
 
 	var gotName string
@@ -193,7 +196,7 @@ func TestRunAsInvokingUserWithInputNoOpWhenNotRoot(t *testing.T) {
 		RunCommandInputFn = origRun
 	}()
 	RunningAsRootFn = func() bool { return false }
-	t.Setenv("SUDO_USER", "")
+	testenv.SetSudoUser(t, "")
 	t.Setenv("USER", "alice")
 
 	var gotName string
@@ -225,7 +228,7 @@ func TestRunAsInvokingUserDropsPrivilegesWhenRoot(t *testing.T) {
 		RunCommandFn = origRun
 	}()
 	RunningAsRootFn = func() bool { return true }
-	t.Setenv("SUDO_USER", "alice")
+	testenv.SetSudoUser(t, "alice")
 
 	var gotName string
 	var gotArgs []string
@@ -257,7 +260,7 @@ func TestRunAsInvokingUserNoOpWhenSudoUserIsRoot(t *testing.T) {
 		RunCommandFn = origRun
 	}()
 	RunningAsRootFn = func() bool { return true }
-	t.Setenv("SUDO_USER", "root")
+	testenv.SetSudoUser(t, "root")
 
 	var gotName string
 	RunCommandFn = func(name string, args []string, opts EnsureOptions) error {
@@ -301,7 +304,7 @@ func TestResolveCommandForInvokingUserProbesUserDirsWhenPATHMisses(t *testing.T)
 	if err := os.MkdirAll(tmp+"/go/bin", 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(tmp+"/go/bin/protoc-gen-go", []byte("#!/bin/sh\n"), 0o755); err != nil {
+	if err := os.WriteFile(tmp+"/go/bin/protoc-gen-go", []byte(shelltest.POSIXShebang()+""), 0o755); err != nil {
 		t.Fatal(err)
 	}
 
@@ -314,7 +317,7 @@ func TestResolveCommandForInvokingUserProbesUserDirsWhenPATHMisses(t *testing.T)
 		lookupHomeFromPasswdFn = origLookup
 	}()
 	RunningAsRootFn = func() bool { return true }
-	t.Setenv("SUDO_USER", "alice")
+	testenv.SetSudoUser(t, "alice")
 	lookupHomeFromPasswdFn = func(user string) string { return tmp }
 
 	cmd, ok := ResolveCommandForInvokingUser([]string{"protoc-gen-go"})

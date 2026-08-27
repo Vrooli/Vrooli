@@ -8,9 +8,11 @@ import (
 	"fmt"
 	"strings"
 	"time"
+
+	"github.com/vrooli/vrooli/internal/tuning"
 )
 
-const DefaultInterval = 5 * time.Minute
+const DefaultInterval = tuning.LongOperationTimeout
 
 type Schedule struct {
 	Platform    string

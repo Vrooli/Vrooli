@@ -11,11 +11,12 @@ import (
 	testresource "github.com/vrooli/vrooli/internal/resources/resourcestest"
 	"github.com/vrooli/vrooli/internal/scenario"
 	testscenario "github.com/vrooli/vrooli/internal/scenario/scenariotest"
+	"github.com/vrooli/vrooli/internal/shell/shelltest"
 )
 
 func writeResourceCLI(t *testing.T, root, name string) {
 	t.Helper()
-	testresource.WriteResourceCLI(t, root, name, "#!/usr/bin/env bash\nexit 0\n")
+	testresource.WriteResourceCLI(t, root, name, shelltest.BashShebang()+"exit 0\n")
 }
 
 func writeDeprecatedMetadata(t *testing.T, root string, items ...DeprecatedResource) {

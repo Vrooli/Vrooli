@@ -10,6 +10,8 @@ import (
 	"path/filepath"
 	"strings"
 	"syscall"
+
+	"github.com/vrooli/vrooli/internal/tuning"
 )
 
 func platformStorageMounts() ([]storageMount, error) {
@@ -122,7 +124,7 @@ func resolvePathForStorage(path string) (string, error) {
 }
 
 func probeWritableDirectory(path string) error {
-	if err := os.MkdirAll(path, 0o700); err != nil {
+	if err := os.MkdirAll(path, tuning.PermPrivateDir); err != nil {
 		return err
 	}
 	probe, err := os.CreateTemp(path, ".vrooli-escrow-probe-*")
@@ -130,7 +132,7 @@ func probeWritableDirectory(path string) error {
 		return err
 	}
 	name := probe.Name()
-	if err := probe.Chmod(0o600); err != nil {
+	if err := probe.Chmod(tuning.PermSecret); err != nil {
 		_ = probe.Close()
 		_ = os.Remove(name)
 		return err

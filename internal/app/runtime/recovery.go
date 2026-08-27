@@ -8,7 +8,12 @@ import (
 	"time"
 
 	"github.com/vrooli/vrooli/internal/cli/rootcli"
+	"github.com/vrooli/vrooli/internal/cliout"
 	"github.com/vrooli/vrooli/internal/scenarioruntime"
+)
+
+const (
+	recoveryParameterA = 2
 )
 
 func (app *App) runRuntimeRecovery(ctx *CommandContext, args []string) error {
@@ -31,12 +36,12 @@ func (app *App) runRuntimeRecovery(ctx *CommandContext, args []string) error {
 	if args[0] == "inspect" {
 		return inspectRuntimeRecovery(ctx, store, args[1:])
 	}
-	if len(args) < 2 {
+	if len(args) < recoveryParameterA {
 		return rootcli.UsageErrorf("runtime recovery policy", "expected set or list")
 	}
 	switch args[1] {
 	case "list":
-		if len(args) != 2 {
+		if len(args) != recoveryParameterA {
 			return rootcli.UsageErrorf("runtime recovery policy list", "list does not accept positional arguments")
 		}
 		policies, err := store.ListRecoveryPolicies(context.Background(), scenarioruntime.RecoveryPolicyFilter{})
@@ -84,7 +89,7 @@ func inspectRuntimeRecovery(ctx *CommandContext, store *scenarioruntime.SQLiteSt
 		return err
 	}
 	if jsonOutput {
-		return writeRuntimeJSON(ctx.Stdout, struct {
+		return cliout.WriteJSONValue(ctx.Stdout, struct {
 			Epochs    []scenarioruntime.PressureEpoch    `json:"epochs"`
 			Decisions []scenarioruntime.RecoveryDecision `json:"decisions"`
 		}{epochs, decisions})

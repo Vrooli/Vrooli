@@ -6,6 +6,8 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/vrooli/vrooli/internal/tuning"
+
 	"github.com/vrooli/vrooli/internal/hostreqkit"
 	"github.com/vrooli/vrooli/internal/hostreqspec"
 )
@@ -30,7 +32,7 @@ var syncMethods = []struct {
 
 // HTTPHeadFn is swappable for testing.
 var HTTPHeadFn = func(url string) (*http.Response, error) {
-	client := &http.Client{Timeout: 5 * time.Second}
+	client := &http.Client{Timeout: tuning.ServiceHealthTimeout}
 	return client.Head(url)
 }
 

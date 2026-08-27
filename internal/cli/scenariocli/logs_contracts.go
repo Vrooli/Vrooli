@@ -12,6 +12,7 @@ import (
 	repocontract "github.com/vrooli/repo-contract-go"
 	"github.com/vrooli/vrooli/internal/cli/commandtree"
 	"github.com/vrooli/vrooli/internal/process"
+	"github.com/vrooli/vrooli/internal/repocontractmeta"
 )
 
 type LogOptions struct {
@@ -75,7 +76,7 @@ func ShowLogsUsage(w io.Writer) error {
 	if err != nil {
 		return err
 	}
-	logsRoot := filepath.Join(logsDir, "scenarios")
+	logsRoot := filepath.Join(logsDir, repocontractmeta.ScenarioDir)
 	entries, err := os.ReadDir(logsRoot)
 	if err != nil {
 		if os.IsNotExist(err) {
