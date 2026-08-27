@@ -1,4 +1,9 @@
 {
+  "bindings": {
+    "elements": {
+      "surface": {"selector": "[data-testid]"}
+    }
+  },
   "claims": [
     {
       "id": "scope-before-consent",
@@ -22,11 +27,18 @@
       "type": "manual-review"
     },
     {
+      "contexts": [
+        {"id": "light", "story": "default-light"},
+        {"id": "dark", "story": "default-dark"}
+      ],
       "id": "dark-parity",
+      "metric": "background-color",
+      "require": "contexts-differ",
       "statement": "The decision surface remains readable across the declared kits and dark mode.",
       "states": ["default", "success", "request-error"],
-      "tier": "manual",
-      "type": "manual-review"
+      "subject": "surface",
+      "tier": "machine",
+      "type": "dark-parity"
     }
   ],
   "component": {
@@ -39,6 +51,9 @@
     "provenance": "react-component-library:ApprovalPrompt@1.0.0",
     "schema": "scenario-experience-spec/v1"
   },
+  "elements": [
+    {"id": "surface", "role": "region"}
+  ],
   "states": [
     {
       "description": "A scoped action awaits an explicit decision.",

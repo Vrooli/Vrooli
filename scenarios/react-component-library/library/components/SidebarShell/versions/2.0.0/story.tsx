@@ -71,8 +71,14 @@ export function KeyboardResize() {
   return <Rig />;
 }
 
+/**
+ * The drawer presentation. It is pinned to `overlay` rather than `responsive`
+ * so the story asserts the same anatomy at any harness width: `responsive`
+ * resolves to the persistent panel on a desktop-sized viewport, where the
+ * dialog role, backdrop and close button this story is about do not exist.
+ */
 export function DrawerOpen() {
-  return <Rig mode="responsive" mobileOpen />;
+  return <Rig mode="overlay" mobileOpen />;
 }
 
 export function LegacyHandle() {

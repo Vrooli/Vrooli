@@ -5,7 +5,7 @@ import { FilterBar } from "../../../FilterBar/versions/1.0.0/FilterBar";
 import {
   SearchResults,
   type SearchResultsState,
-} from "../../../SearchResults/versions/1.0.0/SearchResults";
+} from "../../../SearchResults/versions/1.0.5/SearchResults";
 import { useAbortableTask } from "../../../../hooks/useAbortableTask/versions/1.0.0/useAbortableTask";
 
 export interface SearchFilterResultsProps {

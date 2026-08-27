@@ -3,16 +3,6 @@
   "assetKind": "primitive",
   "catalogId": "motion.motion-primitive",
   "category": "motion",
-  "dependencies": [
-    {
-      "libraryId": "react-component-library:Presence",
-      "version": "1.0.0"
-    },
-    {
-      "libraryId": "react-component-library:useReducedMotion",
-      "version": "1.0.0"
-    }
-  ],
   "deprecatedVersions": [
     "1.0.0"
   ],

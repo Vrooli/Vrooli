@@ -2,13 +2,6 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "foundation",
   "catalogId": "foundations.icon-registry",
-  "dependencies": [
-    {
-      "kind": "requires",
-      "libraryId": "react-component-library:Tokens",
-      "version": "1.0.0"
-    }
-  ],
   "description": "A small semantic icon registry with consistent optical sizing and direction metadata.",
   "designStyles": [
     {

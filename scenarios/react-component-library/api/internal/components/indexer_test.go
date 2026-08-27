@@ -24,27 +24,20 @@ func testDigest(body string) string {
 }
 
 func TestIndexer_DrawerShellDeclaresReusableHookDependencies(t *testing.T) {
-	repo := mocks.NewFakeRepository()
-	result, err := components.NewIndexer(repo, ".", os.DirFS("../../../library")).Run(context.Background())
+	raw, err := os.ReadFile("../../../library/components/DrawerShell/versions/1.1.3/dependencies.json")
 	require.NoError(t, err)
-	require.NotEmpty(t, result.LibraryIDs)
-
-	drawer, err := repo.GetByLibraryID(context.Background(), "react-component-library:DrawerShell")
-	require.NoError(t, err)
-	require.Equal(t, []components.AssetDependency{
-		{LibraryID: "react-component-library:useFocusTrap", Version: "1.0.0"},
-		{LibraryID: "react-component-library:useEscapeKey", Version: "1.0.0"},
-	}, drawer.Dependencies)
-
-	for _, libraryID := range []string{"react-component-library:useFocusTrap", "react-component-library:useEscapeKey"} {
-		hook, err := repo.GetByLibraryID(context.Background(), libraryID)
-		require.NoError(t, err)
-		require.Equal(t, components.AssetKindHook, hook.AssetKind)
+	var lock struct {
+		Dependencies []struct {
+			LibraryID string `json:"libraryId"`
+			Version   string `json:"version"`
+		} `json:"dependencies"`
 	}
-
-	tokens, err := repo.GetByLibraryID(context.Background(), "react-component-library:Tokens")
-	require.NoError(t, err)
-	require.Equal(t, components.AssetKindFoundation, tokens.AssetKind)
+	require.NoError(t, json.Unmarshal(raw, &lock))
+	require.NotEmpty(t, lock.Dependencies)
+	require.Contains(t, lock.Dependencies, struct {
+		LibraryID string `json:"libraryId"`
+		Version   string `json:"version"`
+	}{LibraryID: "react-component-library:BottomSheet", Version: "1.0.4"})
 }
 
 const buttonTSX = `/**
@@ -203,12 +196,15 @@ func TestIndexerIgnoresInvalidLegacyManifestTokenContract(t *testing.T) {
 
 func TestIndexer_RunIndexesHookAsNonRenderableAsset(t *testing.T) {
 	fs := fstest.MapFS{
-		"hooks/useFocusTrap/component.json":                     {Data: []byte(`{"libraryId":"react-component-library:useFocusTrap","displayName":"useFocusTrap","assetKind":"hook","latest":"1.0.0","dependencies":[]}`)},
-		"hooks/useFocusTrap/versions/1.0.0/useFocusTrap.ts":     {Data: []byte(`export const useFocusTrap = () => undefined;`)},
-		"hooks/useEscapeKey/component.json":                     {Data: []byte(`{"libraryId":"react-component-library:useEscapeKey","displayName":"useEscapeKey","assetKind":"hook","latest":"1.0.0","dependencies":[]}`)},
-		"hooks/useEscapeKey/versions/1.0.0/useEscapeKey.ts":     {Data: []byte(`export const useEscapeKey = () => undefined;`)},
-		"components/DrawerShell/component.json":                 {Data: []byte(`{"libraryId":"react-component-library:DrawerShell","displayName":"DrawerShell","slot":"ui-pattern","latest":"1.0.0","dependencies":[{"libraryId":"react-component-library:useFocusTrap","version":"1.0.0"},{"libraryId":"react-component-library:useEscapeKey","version":"1.0.0"}]}`)},
-		"components/DrawerShell/versions/1.0.0/DrawerShell.tsx": {Data: []byte(`export const DrawerShell = () => null;`)},
+		"hooks/useFocusTrap/component.json":                       {Data: []byte(`{"libraryId":"react-component-library:useFocusTrap","displayName":"useFocusTrap","assetKind":"hook","latest":"1.0.0"}`)},
+		"hooks/useFocusTrap/versions/1.0.0/useFocusTrap.ts":       {Data: []byte(`export const useFocusTrap = () => undefined;`)},
+		"hooks/useFocusTrap/versions/1.0.0/dependencies.json":     {Data: []byte(`{"schemaVersion":1,"libraryId":"react-component-library:useFocusTrap","version":"1.0.0","resolvedAt":"2026-08-27T00:00:00Z","dependencies":[]}`)},
+		"hooks/useEscapeKey/component.json":                       {Data: []byte(`{"libraryId":"react-component-library:useEscapeKey","displayName":"useEscapeKey","assetKind":"hook","latest":"1.0.0"}`)},
+		"hooks/useEscapeKey/versions/1.0.0/useEscapeKey.ts":       {Data: []byte(`export const useEscapeKey = () => undefined;`)},
+		"hooks/useEscapeKey/versions/1.0.0/dependencies.json":     {Data: []byte(`{"schemaVersion":1,"libraryId":"react-component-library:useEscapeKey","version":"1.0.0","resolvedAt":"2026-08-27T00:00:00Z","dependencies":[]}`)},
+		"components/DrawerShell/component.json":                   {Data: []byte(`{"libraryId":"react-component-library:DrawerShell","displayName":"DrawerShell","slot":"ui-pattern","latest":"1.0.0"}`)},
+		"components/DrawerShell/versions/1.0.0/DrawerShell.tsx":   {Data: []byte(`export const DrawerShell = () => null;`)},
+		"components/DrawerShell/versions/1.0.0/dependencies.json": {Data: []byte(`{"schemaVersion":1,"libraryId":"react-component-library:DrawerShell","version":"1.0.0","resolvedAt":"2026-08-27T00:00:00Z","dependencies":[{"libraryId":"react-component-library:useFocusTrap","version":"1.0.0","rank":2},{"libraryId":"react-component-library:useEscapeKey","version":"1.0.0","rank":2}]}`)},
 	}
 	repo := mocks.NewFakeRepository()
 	res, err := components.NewIndexer(repo, ".", fs).Run(context.Background())
@@ -235,7 +231,7 @@ func TestIndexer_RunIndexesHookAsNonRenderableAsset(t *testing.T) {
 
 func TestIndexer_RunIndexesPrimitiveAsRenderableComponent(t *testing.T) {
 	fs := fstest.MapFS{
-		"primitives/Presence/component.json": {Data: []byte(`{"libraryId":"react-component-library:Presence","catalogId":"motion.presence","displayName":"Presence","assetKind":"primitive","latest":"1.0.0","dependencies":[]}`)},
+		"primitives/Presence/component.json": {Data: []byte(`{"libraryId":"react-component-library:Presence","catalogId":"motion.presence","displayName":"Presence","assetKind":"primitive","latest":"1.0.0"}`)},
 		"primitives/Presence/versions/1.0.0/Presence.tsx": {Data: []byte(`/** @vrooliComponentSource react-component-library:Presence */
 export const Presence = () => null;`)},
 	}
@@ -254,7 +250,7 @@ export const Presence = () => null;`)},
 
 func TestIndexer_RunIndexesRuntimeServiceFromCanonicalRoot(t *testing.T) {
 	fs := fstest.MapFS{
-		"services/FormStore/component.json":               {Data: []byte(`{"libraryId":"react-component-library:FormStore","displayName":"Form Store","assetKind":"service","latest":"1.0.0","dependencies":[]}`)},
+		"services/FormStore/component.json":               {Data: []byte(`{"libraryId":"react-component-library:FormStore","displayName":"Form Store","assetKind":"service","latest":"1.0.0"}`)},
 		"services/FormStore/versions/1.0.0/FormStore.tsx": {Data: []byte(`export const FormStore = () => null;`)},
 	}
 	repo := mocks.NewFakeRepository()

@@ -2,12 +2,6 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "component",
   "catalogId": "patterns.global-command-system",
-  "dependencies": [
-    {
-      "libraryId": "react-component-library:CommandPalette",
-      "version": "1.0.0"
-    }
-  ],
   "deprecatedVersions": [
     "1.0.1"
   ],

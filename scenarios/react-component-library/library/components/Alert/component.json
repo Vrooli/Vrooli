@@ -2,20 +2,6 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "component",
   "catalogId": "feedback.alert",
-  "dependencies": [
-    {
-      "libraryId": "react-component-library:Text",
-      "version": "1.0.0"
-    },
-    {
-      "libraryId": "react-component-library:Stack",
-      "version": "1.0.0"
-    },
-    {
-      "libraryId": "react-component-library:Icon",
-      "version": "1.0.0"
-    }
-  ],
   "deprecatedVersions": [
     "1.0.1"
   ],

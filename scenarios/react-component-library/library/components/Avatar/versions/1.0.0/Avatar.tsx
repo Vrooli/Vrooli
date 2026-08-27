@@ -1,6 +1,6 @@
 /** @vrooliComponentSource primitives.avatar */
 import { useMemo, type CSSProperties, type ReactNode } from "react";
-import { ProgressiveImage } from "../../../../primitives/ProgressiveImage/versions/1.0.0/ProgressiveImage";
+import { ProgressiveImage } from "../../../../primitives/ProgressiveImage/versions/1.1.7/ProgressiveImage";
 import { Text } from "../../../../primitives/Text/versions/1.0.0/Text";
 
 export type AvatarSize = "xs" | "sm" | "md" | "lg" | "xl";

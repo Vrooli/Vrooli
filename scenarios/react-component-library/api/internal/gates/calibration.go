@@ -69,12 +69,20 @@ func GateRunnerFor(gate string) GateRunner {
 		return ValidateVersionLiveness
 	case "lifecycle":
 		return ValidateLifecycle
+	case "self-hosting":
+		return ValidateSelfHosting
+	case "bas-genericity":
+		return ValidateBASGenericity
 	case "fixture-adversarial":
 		return ValidateFixtures
 	case "examples":
 		return ValidateExamples
 	case "graph-reconciled":
 		return ValidateGraphReconciled
+	case "release-provenance":
+		return ValidateReleaseProvenance
+	case "dependency-rank":
+		return ValidateDependencyRank
 	case "rtl":
 		return ValidateRTL
 	case "reduced-motion":
@@ -316,6 +324,48 @@ func materializeFixture(root, gate string, fixture CalibrationFixture) (string, 
 		name := calibrationDirectoryName(fixture.AssetID)
 		source := fmt.Sprintf("import { %s } from \"@vrooli/react-component-library/%s/9.9.9\";\nexport const Consumer = %s;\n", name, name, name)
 		if err := os.WriteFile(consumerPath, []byte(source), 0o644); err != nil {
+			cleanup()
+			return "", func() {}, err
+		}
+	}
+	if fixture.Mutation == "dependency-rank" {
+		library := filepath.Join(tmp, "scenarios", "react-component-library", "library")
+		primitive := filepath.Join(library, "primitives", "CalibrationPrimitive")
+		component := filepath.Join(library, "components", "CalibrationComponent")
+		if err := os.MkdirAll(filepath.Join(primitive, "versions", "1.0.0"), 0o755); err != nil {
+			cleanup()
+			return "", func() {}, err
+		}
+		if err := os.MkdirAll(filepath.Join(component, "versions", "1.0.0"), 0o755); err != nil {
+			cleanup()
+			return "", func() {}, err
+		}
+		if err := os.WriteFile(filepath.Join(primitive, "component.json"), []byte(`{"libraryId":"react-component-library:CalibrationPrimitive"}`), 0o644); err != nil {
+			cleanup()
+			return "", func() {}, err
+		}
+		if err := os.WriteFile(filepath.Join(component, "component.json"), []byte(`{"libraryId":"react-component-library:CalibrationComponent"}`), 0o644); err != nil {
+			cleanup()
+			return "", func() {}, err
+		}
+		lock := []byte(`{"libraryId":"react-component-library:CalibrationPrimitive","version":"1.0.0","dependencies":[{"libraryId":"react-component-library:CalibrationComponent","version":"1.0.0"}]}`)
+		if err := os.WriteFile(filepath.Join(primitive, "versions", "1.0.0", "dependencies.json"), lock, 0o644); err != nil {
+			cleanup()
+			return "", func() {}, err
+		}
+	}
+	if fixture.Mutation == "release-provenance" {
+		library := filepath.Join(tmp, "scenarios", "react-component-library", "library")
+		asset := filepath.Join(library, "components", "CalibrationBypass")
+		if err := os.MkdirAll(filepath.Join(asset, "versions", "1.0.0"), 0o755); err != nil {
+			cleanup()
+			return "", func() {}, err
+		}
+		if err := os.WriteFile(filepath.Join(asset, "component.json"), []byte(`{"libraryId":"react-component-library:CalibrationBypass"}`), 0o644); err != nil {
+			cleanup()
+			return "", func() {}, err
+		}
+		if err := os.WriteFile(filepath.Join(library, "release-provenance.json"), []byte(`{"schemaVersion":1,"entries":[]}`), 0o644); err != nil {
 			cleanup()
 			return "", func() {}, err
 		}

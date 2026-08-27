@@ -2,24 +2,6 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "component",
   "catalogId": "patterns.editable-resource",
-  "dependencies": [
-    {
-      "libraryId": "react-component-library:ResourceDetail",
-      "version": "1.0.0"
-    },
-    {
-      "libraryId": "react-component-library:Form",
-      "version": "1.0.0"
-    },
-    {
-      "libraryId": "react-component-library:UnsavedChangesFlow",
-      "version": "1.0.0"
-    },
-    {
-      "libraryId": "react-component-library:ConflictResolutionFlow",
-      "version": "1.0.0"
-    }
-  ],
   "deprecatedVersions": [
     "1.0.3",
     "1.0.5"

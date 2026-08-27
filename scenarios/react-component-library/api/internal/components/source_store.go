@@ -3,7 +3,9 @@ package components
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -12,6 +14,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"time"
 )
 
 const defaultInitialVersion = "0.1.0"
@@ -331,14 +334,24 @@ func (s *FSContentStore) CreateVersion(_ context.Context, c Component, in Create
 			}
 		}
 	}
+	if intent == VersionIntentRelease {
+		files, err = s.freezeReleaseDependencies(c, version, files)
+		if err != nil {
+			return "", err
+		}
+	}
 	if err := os.MkdirAll(filepath.Dir(sourceAbs), 0o755); err != nil {
 		return "", fmt.Errorf("create component version dir: %w", err)
 	}
 	versionDir := filepath.Dir(sourceAbs)
 	committed := false
+	var restoreLedger func() error
 	defer func() {
 		if !committed {
 			_ = os.RemoveAll(versionDir)
+			if restoreLedger != nil {
+				_ = restoreLedger()
+			}
 		}
 	}()
 	for _, file := range files {
@@ -385,6 +398,20 @@ func (s *FSContentStore) CreateVersion(_ context.Context, c Component, in Create
 			return "", err
 		}
 	}
+	if intent == VersionIntentRelease {
+		restoreHashes, hashErr := s.recordReleasedVersionHashes(versionDir)
+		if hashErr != nil {
+			return "", hashErr
+		}
+		restoreProvenance, provenanceErr := s.recordReleaseProvenance(c, version, in.FromVersion)
+		if provenanceErr != nil {
+			_ = restoreHashes()
+			return "", provenanceErr
+		}
+		restoreLedger = func() error {
+			return errors.Join(restoreHashes(), restoreProvenance())
+		}
+	}
 	update := UpdateComponentManifestInput{
 		ComponentID:        c.ID,
 		DisplayName:        c.DisplayName,
@@ -407,6 +434,238 @@ func (s *FSContentStore) CreateVersion(_ context.Context, c Component, in Create
 	}
 	committed = true
 	return sourcePath, nil
+}
+
+var libraryPackageSpecifier = regexp.MustCompile(`@vrooli/react-component-library/([A-Za-z][A-Za-z0-9-]*)(?:/(\d+(?:\.\d+\.\d+)?))?`)
+
+type frozenDependency struct {
+	LibraryID string `json:"libraryId"`
+	Version   string `json:"version"`
+	Rank      int    `json:"rank"`
+}
+
+type frozenDependencyLock struct {
+	SchemaVersion int                `json:"schemaVersion"`
+	LibraryID     string             `json:"libraryId"`
+	Version       string             `json:"version"`
+	ResolvedAt    string             `json:"resolvedAt"`
+	Dependencies  []frozenDependency `json:"dependencies"`
+}
+
+func (s *FSContentStore) freezeReleaseDependencies(c Component, version string, files []ComponentVersionFile) ([]ComponentVersionFile, error) {
+	dependencies := map[string]frozenDependency{}
+	for i := range files {
+		if ext := filepath.Ext(files[i].Path); ext != ".ts" && ext != ".tsx" {
+			continue
+		}
+		var resolveErr error
+		files[i].Content = libraryPackageSpecifier.ReplaceAllStringFunc(files[i].Content, func(specifier string) string {
+			if resolveErr != nil {
+				return specifier
+			}
+			match := libraryPackageSpecifier.FindStringSubmatch(specifier)
+			dependency, err := s.resolveSourceDependency(match[1], match[2])
+			if err != nil {
+				resolveErr = fmt.Errorf("freeze %s in %s: %w", specifier, files[i].Path, err)
+				return specifier
+			}
+			dependencies[dependency.LibraryID+"@"+dependency.Version] = dependency
+			return "@vrooli/react-component-library/" + match[1] + "/" + dependency.Version
+		})
+		if resolveErr != nil {
+			return nil, resolveErr
+		}
+	}
+	ordered := make([]frozenDependency, 0, len(dependencies))
+	for _, dependency := range dependencies {
+		ordered = append(ordered, dependency)
+	}
+	sort.Slice(ordered, func(i, j int) bool {
+		if ordered[i].LibraryID == ordered[j].LibraryID {
+			return ordered[i].Version < ordered[j].Version
+		}
+		return ordered[i].LibraryID < ordered[j].LibraryID
+	})
+	lock, err := json.MarshalIndent(frozenDependencyLock{SchemaVersion: 1, LibraryID: c.LibraryID, Version: version, ResolvedAt: time.Now().UTC().Format(time.RFC3339), Dependencies: ordered}, "", "  ")
+	if err != nil {
+		return nil, fmt.Errorf("encode frozen dependency lock: %w", err)
+	}
+	lock = append(lock, '\n')
+	for i := range files {
+		if files[i].Path == "dependencies.json" {
+			files[i].Content = string(lock)
+			return files, nil
+		}
+	}
+	return append(files, ComponentVersionFile{Path: "dependencies.json", Content: string(lock)}), nil
+}
+
+func (s *FSContentStore) resolveSourceDependency(name, requested string) (frozenDependency, error) {
+	ranks := map[string]int{"foundations": 1, "hooks": 2, "services": 2, "adapters": 2, "primitives": 3, "components": 4, "patterns": 5, "navigation": 5, "page-templates": 6}
+	for kind, rank := range ranks {
+		manifestPath := filepath.Join(s.root, kind, name, "component.json")
+		raw, err := os.ReadFile(manifestPath)
+		if os.IsNotExist(err) {
+			continue
+		}
+		if err != nil {
+			return frozenDependency{}, err
+		}
+		var manifest struct {
+			LibraryID          string   `json:"libraryId"`
+			DeprecatedVersions []string `json:"deprecatedVersions"`
+			EvictedVersions    []string `json:"evictedVersions"`
+		}
+		if err := json.Unmarshal(raw, &manifest); err != nil {
+			return frozenDependency{}, fmt.Errorf("decode %s: %w", manifestPath, err)
+		}
+		entries, err := os.ReadDir(filepath.Join(s.root, kind, name, "versions"))
+		if err != nil {
+			return frozenDependency{}, err
+		}
+		unavailable := map[string]bool{}
+		for _, value := range append(manifest.DeprecatedVersions, manifest.EvictedVersions...) {
+			unavailable[value] = true
+		}
+		var candidates []string
+		for _, entry := range entries {
+			candidate := entry.Name()
+			if entry.IsDir() && regexp.MustCompile(`^\d+\.\d+\.\d+$`).MatchString(candidate) && !unavailable[candidate] {
+				if requested == "" || candidate == requested || (!strings.Contains(requested, ".") && strings.HasPrefix(candidate, requested+".")) {
+					candidates = append(candidates, candidate)
+				}
+			}
+		}
+		if len(candidates) == 0 {
+			return frozenDependency{}, fmt.Errorf("%s has no active release matching %q", name, requested)
+		}
+		sort.Slice(candidates, func(i, j int) bool { return compareSemver(candidates[i], candidates[j]) < 0 })
+		return frozenDependency{LibraryID: manifest.LibraryID, Version: candidates[len(candidates)-1], Rank: rank}, nil
+	}
+	return frozenDependency{}, fmt.Errorf("unknown intra-library asset %s", name)
+}
+
+func compareSemver(left, right string) int {
+	var l, r [3]int
+	_, _ = fmt.Sscanf(left, "%d.%d.%d", &l[0], &l[1], &l[2])
+	_, _ = fmt.Sscanf(right, "%d.%d.%d", &r[0], &r[1], &r[2])
+	for i := range l {
+		if l[i] < r[i] {
+			return -1
+		}
+		if l[i] > r[i] {
+			return 1
+		}
+	}
+	return 0
+}
+
+func (s *FSContentStore) recordReleasedVersionHashes(versionDir string) (func() error, error) {
+	ledgerPath := filepath.Join(s.root, "released-version-hashes.json")
+	original, err := os.ReadFile(ledgerPath)
+	ledgerExisted := err == nil
+	if os.IsNotExist(err) {
+		original = []byte("{\n  \"schemaVersion\": 1,\n  \"entries\": []\n}\n")
+	} else if err != nil {
+		return nil, fmt.Errorf("read released-version hash ledger: %w", err)
+	}
+	var ledger struct {
+		SchemaVersion int `json:"schemaVersion"`
+		Entries       []struct {
+			Path   string `json:"path"`
+			SHA256 string `json:"sha256"`
+		} `json:"entries"`
+	}
+	if err := json.Unmarshal(original, &ledger); err != nil {
+		return nil, fmt.Errorf("decode released-version hash ledger: %w", err)
+	}
+	entries, err := os.ReadDir(versionDir)
+	if err != nil {
+		return nil, err
+	}
+	for _, entry := range entries {
+		if entry.IsDir() {
+			continue
+		}
+		raw, readErr := os.ReadFile(filepath.Join(versionDir, entry.Name()))
+		if readErr != nil {
+			return nil, readErr
+		}
+		digest := fmt.Sprintf("%x", sha256.Sum256(raw))
+		relative, relErr := filepath.Rel(s.root, filepath.Join(versionDir, entry.Name()))
+		if relErr != nil {
+			return nil, relErr
+		}
+		ledger.Entries = append(ledger.Entries, struct {
+			Path   string `json:"path"`
+			SHA256 string `json:"sha256"`
+		}{Path: filepath.ToSlash(relative), SHA256: digest})
+	}
+	sort.Slice(ledger.Entries, func(i, j int) bool { return ledger.Entries[i].Path < ledger.Entries[j].Path })
+	formatted, err := json.MarshalIndent(ledger, "", "  ")
+	if err != nil {
+		return nil, err
+	}
+	formatted = append(formatted, '\n')
+	if err := os.WriteFile(ledgerPath, formatted, 0o600); err != nil {
+		return nil, err
+	}
+	return func() error {
+		if !ledgerExisted {
+			return os.Remove(ledgerPath)
+		}
+		return os.WriteFile(ledgerPath, original, 0o600)
+	}, nil
+}
+
+type releaseProvenanceEntry struct {
+	LibraryID    string `json:"libraryId"`
+	Version      string `json:"version"`
+	DraftVersion string `json:"draftVersion,omitempty"`
+	PublishedAt  string `json:"publishedAt"`
+	Backfilled   bool   `json:"backfilled,omitempty"`
+}
+
+func (s *FSContentStore) recordReleaseProvenance(c Component, version, draftVersion string) (func() error, error) {
+	path := filepath.Join(s.root, "release-provenance.json")
+	original, err := os.ReadFile(path)
+	existed := err == nil
+	if os.IsNotExist(err) {
+		original = []byte("{\n  \"schemaVersion\": 1,\n  \"entries\": []\n}\n")
+	} else if err != nil {
+		return nil, fmt.Errorf("read release provenance ledger: %w", err)
+	}
+	var ledger struct {
+		SchemaVersion int                      `json:"schemaVersion"`
+		Entries       []releaseProvenanceEntry `json:"entries"`
+	}
+	if err := json.Unmarshal(original, &ledger); err != nil {
+		return nil, fmt.Errorf("decode release provenance ledger: %w", err)
+	}
+	ledger.Entries = append(ledger.Entries, releaseProvenanceEntry{
+		LibraryID: c.LibraryID, Version: version, DraftVersion: draftVersion,
+		PublishedAt: time.Now().UTC().Format(time.RFC3339),
+	})
+	sort.Slice(ledger.Entries, func(i, j int) bool {
+		if ledger.Entries[i].LibraryID == ledger.Entries[j].LibraryID {
+			return compareSemver(ledger.Entries[i].Version, ledger.Entries[j].Version) < 0
+		}
+		return ledger.Entries[i].LibraryID < ledger.Entries[j].LibraryID
+	})
+	formatted, err := json.MarshalIndent(ledger, "", "  ")
+	if err != nil {
+		return nil, err
+	}
+	formatted = append(formatted, '\n')
+	if err := os.WriteFile(path, formatted, 0o600); err != nil {
+		return nil, err
+	}
+	return func() error {
+		if !existed {
+			return os.Remove(path)
+		}
+		return os.WriteFile(path, original, 0o600)
+	}, nil
 }
 
 // formatSourceArtifacts delegates source formatting to the canonical Prettier
@@ -686,17 +945,6 @@ func (s *FSContentStore) UpdateManifest(_ context.Context, c Component, in Updat
 	}
 	if in.ReplacedBy != nil {
 		setManifestField(manifest, &order, "replacedBy", cleanTags(in.ReplacedBy))
-	}
-	if in.Dependencies != nil {
-		type dependencyDocument struct {
-			LibraryID string `json:"libraryId"`
-			Version   string `json:"version"`
-		}
-		dependencies := make([]dependencyDocument, 0, len(in.Dependencies))
-		for _, dependency := range in.Dependencies {
-			dependencies = append(dependencies, dependencyDocument{LibraryID: strings.TrimSpace(dependency.LibraryID), Version: strings.TrimSpace(dependency.Version)})
-		}
-		setManifestField(manifest, &order, "dependencies", dependencies)
 	}
 	if in.ClearSupplementalJustification {
 		delete(manifest, "x-supplementalJustification")

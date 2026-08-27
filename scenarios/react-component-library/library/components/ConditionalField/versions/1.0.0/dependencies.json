@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "libraryId": "react-component-library:ConditionalField",
+  "version": "1.0.0",
+  "resolvedAt": "2026-08-27T18:29:27.181Z",
+  "dependencies": [
+    {
+      "libraryId": "react-component-library:FormStore",
+      "version": "1.0.0",
+      "rank": 2
+    }
+  ]
+}

@@ -3,16 +3,6 @@
   "assetKind": "component",
   "catalogId": "data-display.data-toolbar",
   "category": "data-display",
-  "dependencies": [
-    {
-      "libraryId": "react-component-library:FilterBar",
-      "version": "1.0.0"
-    },
-    {
-      "libraryId": "react-component-library:Toolbar",
-      "version": "1.0.0"
-    }
-  ],
   "deprecatedVersions": [
     "1.0.3"
   ],

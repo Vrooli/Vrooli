@@ -9,7 +9,7 @@
       "surface": "component-harness",
       "spec_entry_id": "component-harness",
       "requirements_json": "[\"PR-001\"]",
-      "input_contract": "story_url:string"
+      "input_contract": "story_url:string,version:string,consumer:string,viewport:string,theme:string"
     },
     "execution_mode": "EXECUTION_MODE_OBSERVER"
   },

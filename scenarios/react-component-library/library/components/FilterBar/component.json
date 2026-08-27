@@ -2,20 +2,6 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "component",
   "catalogId": "data-display.filter-bar",
-  "dependencies": [
-    {
-      "libraryId": "react-component-library:SearchInput",
-      "version": "1.0.0"
-    },
-    {
-      "libraryId": "react-component-library:Chip",
-      "version": "1.0.0"
-    },
-    {
-      "libraryId": "react-component-library:Cluster",
-      "version": "1.0.0"
-    }
-  ],
   "deprecatedVersions": [
     "1.1.3"
   ],

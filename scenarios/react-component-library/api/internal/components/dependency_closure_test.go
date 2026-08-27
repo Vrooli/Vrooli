@@ -83,7 +83,7 @@ func TestResolveDependencyClosureIncludesVersionedFoundationDependencies(t *test
 
 func TestResolveDependencyClosureReportsMissingPinAndCycle(t *testing.T) {
 	root := Component{ID: "root", LibraryID: "rcl:Root", LatestVersion: "1.0.0", Dependencies: []AssetDependency{{LibraryID: "rcl:Missing", Version: "1.0.0"}}}
-	reader := closureReader{byID: map[string]Component{root.ID: root}, byLibrary: map[string]Component{}, versions: map[string]ComponentVersion{}}
+	reader := closureReader{byID: map[string]Component{root.ID: root}, byLibrary: map[string]Component{}, versions: map[string]ComponentVersion{"root@1.0.0": {ComponentID: root.ID, Version: "1.0.0"}}}
 	_, err := ResolveDependencyClosure(context.Background(), reader, root.ID, "")
 	var missing ErrAssetDependency
 	require.ErrorAs(t, err, &missing)
@@ -94,7 +94,10 @@ func TestResolveDependencyClosureReportsMissingPinAndCycle(t *testing.T) {
 	reader = closureReader{
 		byID:      map[string]Component{a.ID: a},
 		byLibrary: map[string]Component{a.LibraryID: a, b.LibraryID: b},
-		versions:  map[string]ComponentVersion{},
+		versions: map[string]ComponentVersion{
+			"a@1.0.0": {ComponentID: a.ID, Version: "1.0.0"},
+			"b@1.0.0": {ComponentID: b.ID, Version: "1.0.0"},
+		},
 	}
 	_, err = ResolveDependencyClosure(context.Background(), reader, a.ID, "")
 	var cycle ErrAssetDependencyCycle

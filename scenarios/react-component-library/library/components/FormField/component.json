@@ -2,16 +2,6 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "component",
   "catalogId": "forms.form-field",
-  "dependencies": [
-    {
-      "libraryId": "react-component-library:Stack",
-      "version": "1.0.0"
-    },
-    {
-      "libraryId": "react-component-library:Text",
-      "version": "1.0.0"
-    }
-  ],
   "description": "A complete accessible field composition with stable label, description, control, and error relationships.",
   "designStyles": [
     {

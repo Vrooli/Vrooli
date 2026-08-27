@@ -2,16 +2,6 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "component",
   "catalogId": "motion.auto-animate-layout",
-  "dependencies": [
-    {
-      "libraryId": "react-component-library:useReducedMotion",
-      "version": "1.0.0"
-    },
-    {
-      "libraryId": "react-component-library:LayoutGroup",
-      "version": "1.0.0"
-    }
-  ],
   "description": "A keyed FLIP layout boundary that animates displacement without tweening layout properties.",
   "designStyles": [
     {

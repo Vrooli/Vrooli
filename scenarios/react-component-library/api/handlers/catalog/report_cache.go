@@ -2,10 +2,14 @@ package catalog
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"io/fs"
 	"os"
 	"path/filepath"
+	"sort"
 	"sync"
 	"time"
 
@@ -40,6 +44,136 @@ type reportCache struct {
 	refreshing  bool
 }
 
+// assetFingerprint hashes the catalog declaration, active manifest, and the
+// complete latest-version source/lock tree for one asset. It is intentionally
+// content based: a checkout or rebase that preserves bytes must preserve the
+// cached verdict too.
+func assetFingerprint(repoRoot, assetID string) (string, error) {
+	root := filepath.Join(repoRoot, "scenarios", "react-component-library")
+	var paths []string
+	catalogPaths, _ := filepath.Glob(filepath.Join(root, "catalog", "assets", "*", "*.json"))
+	for _, path := range catalogPaths {
+		data, err := os.ReadFile(path)
+		if err != nil {
+			return "", err
+		}
+		var doc struct {
+			Asset struct {
+				ID string `json:"id"`
+			} `json:"asset"`
+		}
+		if json.Unmarshal(data, &doc) == nil && doc.Asset.ID == assetID {
+			paths = append(paths, path)
+		}
+	}
+	var manifestPaths []string
+	for _, libraryRoot := range []string{"foundations", "hooks", "services", "primitives", "components"} {
+		paths, globErr := filepath.Glob(filepath.Join(root, "library", libraryRoot, "*", "component.json"))
+		if globErr != nil {
+			return "", globErr
+		}
+		manifestPaths = append(manifestPaths, paths...)
+	}
+	for _, manifestPath := range manifestPaths {
+		data, err := os.ReadFile(manifestPath)
+		if err != nil {
+			return "", err
+		}
+		var manifest struct {
+			CatalogID string `json:"catalogId"`
+			Latest    string `json:"latest"`
+		}
+		if json.Unmarshal(data, &manifest) != nil || manifest.CatalogID != assetID {
+			continue
+		}
+		paths = append(paths, manifestPath)
+		versionRoot := filepath.Join(filepath.Dir(manifestPath), "versions", manifest.Latest)
+		_ = filepath.WalkDir(versionRoot, func(path string, entry fs.DirEntry, err error) error {
+			if err != nil {
+				return err
+			}
+			if !entry.IsDir() {
+				paths = append(paths, path)
+			}
+			return nil
+		})
+	}
+	sort.Strings(paths)
+	return hashInputs(repoRoot, paths)
+}
+
+func hashInputs(repoRoot string, paths []string) (string, error) {
+	hash := sha256.New()
+	for _, path := range paths {
+		data, err := os.ReadFile(path)
+		if err != nil {
+			return "", err
+		}
+		rel, err := filepath.Rel(repoRoot, path)
+		if err != nil {
+			return "", err
+		}
+		_, _ = hash.Write([]byte(filepath.ToSlash(rel)))
+		_, _ = hash.Write([]byte{0})
+		_, _ = hash.Write(data)
+		_, _ = hash.Write([]byte{0})
+	}
+	return hex.EncodeToString(hash.Sum(nil)), nil
+}
+
+// dependentAssetIDs returns the changed asset and every catalog asset whose
+// latest dependency lock names it. Dependents are derived from generated
+// locks, not from import text or a hand-maintained allowlist.
+func dependentAssetIDs(repoRoot, assetID string) ([]string, error) {
+	root := filepath.Join(repoRoot, "scenarios", "react-component-library")
+	assets, err := catalogcoverage.LoadCatalog(filepath.Join(root, "catalog"))
+	if err != nil {
+		return nil, err
+	}
+	impls, err := catalogcoverage.LoadImplementations(filepath.Join(root, "library"))
+	if err != nil {
+		return nil, err
+	}
+	targetLibrary := ""
+	idsByLibrary := map[string]string{}
+	for _, impl := range impls {
+		if impl.CatalogID != "" {
+			idsByLibrary[impl.LibraryID] = impl.CatalogID
+			if impl.CatalogID == assetID {
+				targetLibrary = impl.LibraryID
+			}
+		}
+	}
+	if targetLibrary == "" {
+		for _, asset := range assets {
+			if asset.ID == assetID {
+				for _, impl := range impls {
+					if impl.Name == asset.Name {
+						targetLibrary = impl.LibraryID
+					}
+				}
+			}
+		}
+	}
+	changed := map[string]bool{assetID: true}
+	for _, impl := range impls {
+		if impl.CatalogID == "" || impl.CatalogID == assetID {
+			continue
+		}
+		for _, dep := range impl.Dependencies {
+			if dep.LibraryID == targetLibrary {
+				changed[impl.CatalogID] = true
+			}
+		}
+	}
+	result := make([]string, 0, len(changed))
+	for id := range changed {
+		result = append(result, id)
+	}
+	sort.Strings(result)
+	return result, nil
+}
+
 func (c *reportCache) invalidate() {
 	c.mu.Lock()
 	c.report = nil
@@ -65,17 +199,17 @@ var fingerprintRoots = []string{
 	filepath.Join("scenarios", "react-component-library", "ui", "src"),
 }
 
-// fingerprint summarises the inputs by file count and newest modification time.
-// It is deliberately not a content hash: hashing every file in these trees
-// would reintroduce the per-request cost this cache exists to remove. The
-// tradeoff is that a change which preserves both mtime and file count is not
-// observed — in practice that means a deliberately backdated write, which no
-// normal edit or checkout produces.
+// fingerprint hashes the content and relative path of every verdict input.
+// Modification times are intentionally excluded: rebases, copies, and fresh
+// checkouts must not invalidate a report when the authored inputs are equal.
+// Paths are sorted before hashing so filesystem traversal order cannot change
+// the cache key.
 func fingerprint(repoRoot string) (string, error) {
-	var (
-		files  int
-		newest time.Time
-	)
+	type input struct {
+		path string
+		data []byte
+	}
+	var inputs []input
 	for _, relative := range fingerprintRoots {
 		root := filepath.Join(repoRoot, relative)
 		err := filepath.WalkDir(root, func(path string, entry fs.DirEntry, err error) error {
@@ -95,19 +229,35 @@ func fingerprint(repoRoot string) (string, error) {
 			}
 			info, statErr := entry.Info()
 			if statErr != nil {
+				return statErr
+			}
+			if !info.Mode().IsRegular() {
 				return nil
 			}
-			files++
-			if info.ModTime().After(newest) {
-				newest = info.ModTime()
+			data, readErr := os.ReadFile(path)
+			if readErr != nil {
+				return readErr
 			}
+			rel, relErr := filepath.Rel(repoRoot, path)
+			if relErr != nil {
+				return relErr
+			}
+			inputs = append(inputs, input{path: filepath.ToSlash(rel), data: data})
 			return nil
 		})
 		if err != nil && !os.IsNotExist(err) {
 			return "", fmt.Errorf("fingerprint %s: %w", relative, err)
 		}
 	}
-	return fmt.Sprintf("%d:%d", files, newest.UnixNano()), nil
+	sort.Slice(inputs, func(i, j int) bool { return inputs[i].path < inputs[j].path })
+	hash := sha256.New()
+	for _, item := range inputs {
+		_, _ = hash.Write([]byte(item.path))
+		_, _ = hash.Write([]byte{0})
+		_, _ = hash.Write(item.data)
+		_, _ = hash.Write([]byte{0})
+	}
+	return hex.EncodeToString(hash.Sum(nil)), nil
 }
 
 // get returns a report for the current inputs. A cache hit returns

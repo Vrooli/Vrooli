@@ -2,7 +2,6 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "hook",
   "catalogId": "hooks.use-outside-interaction",
-  "dependencies": [],
   "description": "Dismissal behavior for pointer, focus, and keyboard interactions outside a layered surface.",
   "designStyles": [
     {

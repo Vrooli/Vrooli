@@ -4,7 +4,7 @@ Use this flow when changing a React Component Library asset that already has
 adopters.
 
 1. Start a draft from the current release with
-   `react-component-library components version-begin <component-id> --bump patch`
+   `react-component-library components draft-begin <component-id> --bump patch`
    (or provide an explicit draft version). Work in the generated `*-draft.*`
    files; drafts are mutable and are not visible as released catalog versions.
 2. Run `react-component-library components refresh <component-id> --version <draft>`
@@ -17,7 +17,7 @@ adopters.
    The Files editor's JSON pretty toggle is presentation-only; saving/promotion
    remains the consistency boundary.
 4. Publish the draft only after validation with
-   `react-component-library components version-publish <component-id> --version <draft>`.
+   `react-component-library components draft-publish <component-id> --version <release>`.
    `CheckComponentVersion` validates the source, dependencies, story coverage,
    and any attached experience contract (including state-to-story references).
    Then run `react-component-library components index --json`. The indexer derives
@@ -43,6 +43,12 @@ adopters.
    target collisions are evaluated once.
 10. Record the evidence in the plan/work record: index result, gate results,
    preflight results, refresh/reapply outcomes, and any intentional override.
+
+Discard a rejected draft with
+`react-component-library catalog draft discard <component-id>`. Propagate a
+foundation update with `react-component-library components republish-dependents
+<asset> <version>`; it is a dry run unless `--apply` is supplied. Never create
+a release directory by hand: the blocking `release-provenance` gate rejects it.
 
 ## Importable adoption
 

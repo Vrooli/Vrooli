@@ -2,20 +2,6 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "component",
   "catalogId": "overlays.menu",
-  "dependencies": [
-    {
-      "libraryId": "react-component-library:Popover",
-      "version": "1.0.0"
-    },
-    {
-      "libraryId": "react-component-library:useRovingFocus",
-      "version": "1.0.0"
-    },
-    {
-      "libraryId": "react-component-library:useTypeahead",
-      "version": "1.0.0"
-    }
-  ],
   "deprecatedVersions": [
     "1.1.1"
   ],

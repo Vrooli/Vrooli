@@ -2,13 +2,6 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "component",
   "catalogId": "manipulation.split-pane",
-  "dependencies": [
-    {
-      "kind": "requires",
-      "libraryId": "react-component-library:Resizable",
-      "version": "2.0.0"
-    }
-  ],
   "deprecatedVersions": [
     "1.1.2",
     "1.1.4",

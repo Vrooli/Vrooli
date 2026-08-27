@@ -1,12 +1,6 @@
 {
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "category": "navigation",
-  "dependencies": [
-    {
-      "libraryId": "react-component-library:ClassMerge",
-      "version": "1.0.0"
-    }
-  ],
   "deprecatedVersions": [
     "1.0.0"
   ],

@@ -1,0 +1,11 @@
+{
+  "gate": "bas-genericity",
+  "assetId": "__corpus__.bas-genericity",
+  "kind": "corpus",
+  "runner": "external",
+  "requiredFailureCode": "catalog.bas_component_knowledge",
+  "description": "The workflow-health owner validates that seeded component knowledge is rejected.",
+  "source": "bas/cases",
+  "mutation": "seed a component name into a generic workflow",
+  "test": "workflow-health generic BAS gate"
+}

@@ -21,7 +21,7 @@
     "0.1.0"
   ],
   "kind": "control",
-  "latest": "1.1.2",
+  "latest": "1.2.2",
   "libraryId": "react-component-library:ContextMenu",
   "tags": [
     "overlay",

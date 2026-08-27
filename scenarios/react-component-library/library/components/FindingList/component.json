@@ -2,7 +2,6 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "component",
   "catalogId": "data-display.finding-list",
-  "dependencies": [],
   "deprecatedVersions": [
     "1.0.8"
   ],

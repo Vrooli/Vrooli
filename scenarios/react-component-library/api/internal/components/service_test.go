@@ -26,6 +26,86 @@ func TestService_UpsertRejectsBlankLibraryID(t *testing.T) {
 	require.Equal(t, int64(0), repo.UpsertCalls.Load())
 }
 
+func TestPublishFreezesBareLibrarySpecifierAndDependencyLock(t *testing.T) {
+	repo := mocks.NewFakeRepository()
+	root := t.TempDir()
+	svc := components.NewServiceWithContent(repo, components.NewFSContentStore(root))
+	for _, asset := range []string{"Stack", "Panel"} {
+		_, err := svc.InitializeComponent(context.Background(), components.InitializeComponentInput{
+			LibraryID: "react-component-library:" + asset, Slug: asset, DisplayName: asset,
+			InitialVersion: "1.0.0", InitialSource: "export function " + asset + "() { return null; }", ScaffoldExamples: true,
+		})
+		require.NoError(t, err)
+	}
+	authoring := svc.(components.AuthoringService)
+	draft, err := authoring.BeginComponentVersion(context.Background(), components.BeginComponentVersionInput{Component: "react-component-library:Panel", Bump: "patch"})
+	require.NoError(t, err)
+	writer := svc.(interface {
+		UpdateVersionContentAt(context.Context, string, string, string, components.WriteContentInput) (components.Content, error)
+	})
+	_, err = writer.UpdateVersionContentAt(context.Background(), "react-component-library:Panel", draft.Version.Version, "Panel.tsx", components.WriteContentInput{
+		Body: `import { Stack } from "@vrooli/react-component-library/Stack"; export function Panel() { return <Stack />; }`,
+	})
+	require.NoError(t, err)
+	released, err := authoring.PublishComponentVersion(context.Background(), components.PublishComponentVersionInput{Component: "react-component-library:Panel"})
+	require.NoError(t, err)
+
+	source, err := os.ReadFile(filepath.Join(root, "components", "Panel", "versions", released.Version.Version, "Panel.tsx"))
+	require.NoError(t, err)
+	require.Contains(t, string(source), "@vrooli/react-component-library/Stack/1.0.0")
+	lock, err := os.ReadFile(filepath.Join(root, "components", "Panel", "versions", released.Version.Version, "dependencies.json"))
+	require.NoError(t, err)
+	require.JSONEq(t, `{"schemaVersion":1,"libraryId":"react-component-library:Panel","version":"1.0.1","resolvedAt":"`+extractResolvedAt(t, lock)+`","dependencies":[{"libraryId":"react-component-library:Stack","version":"1.0.0","rank":4}]}`, string(lock))
+	ledger, err := os.ReadFile(filepath.Join(root, "released-version-hashes.json"))
+	require.NoError(t, err)
+	require.Contains(t, string(ledger), "components/Panel/versions/1.0.1/Panel.tsx")
+}
+
+func TestPublishPreservesExplicitLibraryPinAndOlderReleaseBytes(t *testing.T) {
+	repo := mocks.NewFakeRepository()
+	root := t.TempDir()
+	svc := components.NewServiceWithContent(repo, components.NewFSContentStore(root))
+	for _, asset := range []string{"Stack", "Panel"} {
+		_, err := svc.InitializeComponent(context.Background(), components.InitializeComponentInput{
+			LibraryID: "react-component-library:" + asset, Slug: asset, DisplayName: asset,
+			InitialVersion: "1.0.0", InitialSource: "export function " + asset + "() { return null; }", ScaffoldExamples: true,
+		})
+		require.NoError(t, err)
+	}
+	authoring := svc.(components.AuthoringService)
+	draft, err := authoring.BeginComponentVersion(context.Background(), components.BeginComponentVersionInput{Component: "react-component-library:Panel", Bump: "patch"})
+	require.NoError(t, err)
+	writer := svc.(interface {
+		UpdateVersionContentAt(context.Context, string, string, string, components.WriteContentInput) (components.Content, error)
+	})
+	_, err = writer.UpdateVersionContentAt(context.Background(), "react-component-library:Panel", draft.Version.Version, "Panel.tsx", components.WriteContentInput{
+		Body: `import { Stack } from "@vrooli/react-component-library/Stack/1.0.0"; export function Panel() { return <Stack />; }`,
+	})
+	require.NoError(t, err)
+	_, err = authoring.PublishComponentVersion(context.Background(), components.PublishComponentVersionInput{Component: "react-component-library:Panel"})
+	require.NoError(t, err)
+	panelBefore, err := os.ReadFile(filepath.Join(root, "components", "Panel", "versions", "1.0.1", "Panel.tsx"))
+	require.NoError(t, err)
+	require.Contains(t, string(panelBefore), "Stack/1.0.0")
+
+	stackDraft, err := authoring.BeginComponentVersion(context.Background(), components.BeginComponentVersionInput{Component: "react-component-library:Stack", Bump: "patch"})
+	require.NoError(t, err)
+	_, err = authoring.PublishComponentVersion(context.Background(), components.PublishComponentVersionInput{Component: "react-component-library:Stack", DraftVersion: stackDraft.Version.Version})
+	require.NoError(t, err)
+	panelAfter, err := os.ReadFile(filepath.Join(root, "components", "Panel", "versions", "1.0.1", "Panel.tsx"))
+	require.NoError(t, err)
+	require.Equal(t, panelBefore, panelAfter)
+}
+
+func extractResolvedAt(t *testing.T, raw []byte) string {
+	t.Helper()
+	var value struct {
+		ResolvedAt string `json:"resolvedAt"`
+	}
+	require.NoError(t, json.Unmarshal(raw, &value))
+	return value.ResolvedAt
+}
+
 func TestService_UpdateVersionContentAtFormatsDraftJSONWithoutMutatingRelease(t *testing.T) {
 	repo := mocks.NewFakeRepository()
 	root := t.TempDir()
@@ -297,19 +377,11 @@ func TestAuthoringCheckRefreshesSelectedManifestBeforeResolvingDependencies(t *t
 	})
 	require.NoError(t, err)
 
-	// Simulate an editor adding a library dependency after the draft was
+	// Simulate an editor adding a version-local dependency after the draft was
 	// indexed. Without the focused refresh, the stale registry row still
 	// reports an empty dependency closure and the check incorrectly passes.
-	manifestPath := filepath.Join(root, "components", "EmptyState", "component.json")
-	require.NoError(t, os.WriteFile(manifestPath, []byte(`{
-  "libraryId": "react-component-library:EmptyState",
-  "displayName": "Empty State",
-  "description": "Compact empty-state panel.",
-  "tags": ["feedback"],
-  "latest": "1.0.0",
-  "draft": "`+draft.Version.Version+`",
-  "dependencies": [{"libraryId":"react-component-library:MissingPrimitive","version":"1.0.0"}]
-}
+	lockPath := filepath.Join(root, "components", "EmptyState", "versions", draft.Version.Version, "dependencies.json")
+	require.NoError(t, os.WriteFile(lockPath, []byte(`{"schemaVersion":1,"libraryId":"react-component-library:EmptyState","version":"`+draft.Version.Version+`","resolvedAt":"2026-08-27T00:00:00Z","dependencies":[{"libraryId":"react-component-library:MissingPrimitive","version":"1.0.0","rank":3}]}
 `), 0o600))
 
 	checked, err := authoring.CheckComponentVersion(context.Background(), created.Component.LibraryID, draft.Version.Version)

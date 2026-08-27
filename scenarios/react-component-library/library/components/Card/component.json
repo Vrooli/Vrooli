@@ -2,7 +2,6 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "catalogId": "primitives.card",
   "category": "surfaces",
-  "dependencies": [],
   "deprecatedVersions": [
     "1.2.0",
     "1.2.1",

@@ -1080,6 +1080,10 @@ WHERE component_id = ? AND version = ?
 	if err != nil {
 		return ComponentVersion{}, err
 	}
+	v.Dependencies, v.DependencyLockPresent, err = dependenciesFromFiles(v.Files)
+	if err != nil {
+		return ComponentVersion{}, fmt.Errorf("decode dependency lock for %s@%s: %w", v.LibraryID, v.Version, err)
+	}
 	v.ExperienceContract = experienceContractFromFiles(v.Files)
 	v.RequiredTokens, err = s.listVersionRequiredTokens(ctx, v.ID)
 	if err != nil {
@@ -1094,6 +1098,24 @@ WHERE component_id = ? AND version = ?
 		return ComponentVersion{}, err
 	}
 	return v, nil
+}
+
+func dependenciesFromFiles(files []ComponentVersionFile) ([]AssetDependency, bool, error) {
+	for _, file := range files {
+		if file.Path != "dependencies.json" {
+			continue
+		}
+		var lock versionDependencyLock
+		if err := json.Unmarshal([]byte(file.Content), &lock); err != nil {
+			return nil, false, err
+		}
+		dependencies := make([]AssetDependency, 0, len(lock.Dependencies))
+		for _, dependency := range lock.Dependencies {
+			dependencies = append(dependencies, AssetDependency{LibraryID: strings.TrimSpace(dependency.LibraryID), Version: strings.TrimSpace(dependency.Version)})
+		}
+		return dependencies, true, nil
+	}
+	return nil, false, nil
 }
 
 func (s *sqliteRepository) SetVersionPresence(ctx context.Context, componentID, version, presence string) error {

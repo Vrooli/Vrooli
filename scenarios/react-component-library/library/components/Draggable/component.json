@@ -2,16 +2,6 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "component",
   "catalogId": "manipulation.draggable",
-  "dependencies": [
-    {
-      "libraryId": "react-component-library:useDrag",
-      "version": "1.0.0"
-    },
-    {
-      "libraryId": "react-component-library:useAnnounce",
-      "version": "1.0.0"
-    }
-  ],
   "deprecatedVersions": [
     "1.0.1",
     "1.0.3"

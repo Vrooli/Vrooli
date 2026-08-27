@@ -2,20 +2,6 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "primitive",
   "catalogId": "motion.morphing-icon",
-  "dependencies": [
-    {
-      "libraryId": "react-component-library:useReducedMotion",
-      "version": "1.0.0"
-    },
-    {
-      "libraryId": "react-component-library:Presence",
-      "version": "1.0.0"
-    },
-    {
-      "libraryId": "react-component-library:Icon",
-      "version": "1.0.0"
-    }
-  ],
   "deprecatedVersions": [
     "2.0.9"
   ],

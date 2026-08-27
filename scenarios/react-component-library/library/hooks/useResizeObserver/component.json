@@ -2,7 +2,6 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "hook",
   "catalogId": "hooks.use-resize-observer",
-  "dependencies": [],
   "description": "Observed border-box geometry for a ref-attached element, with an effect-owned observer.",
   "designStyles": [
     {

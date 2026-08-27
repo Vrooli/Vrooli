@@ -1,0 +1,38 @@
+{
+  "schemaVersion": 1,
+  "libraryId": "react-component-library:Popover",
+  "version": "1.0.0",
+  "resolvedAt": "2026-08-27T18:29:27.181Z",
+  "dependencies": [
+    {
+      "libraryId": "react-component-library:LayerManager",
+      "version": "1.0.0",
+      "rank": 2
+    },
+    {
+      "libraryId": "react-component-library:Presence",
+      "version": "1.0.0",
+      "rank": 3
+    },
+    {
+      "libraryId": "react-component-library:Surface",
+      "version": "1.0.0",
+      "rank": 3
+    },
+    {
+      "libraryId": "react-component-library:useControllableState",
+      "version": "1.0.0",
+      "rank": 2
+    },
+    {
+      "libraryId": "react-component-library:useEscapeKey",
+      "version": "1.0.0",
+      "rank": 2
+    },
+    {
+      "libraryId": "react-component-library:useOutsideInteraction",
+      "version": "1.0.0",
+      "rank": 2
+    }
+  ]
+}

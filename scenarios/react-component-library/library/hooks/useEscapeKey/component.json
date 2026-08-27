@@ -2,7 +2,6 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "hook",
   "catalogId": "hooks.use-escape-key",
-  "dependencies": [],
   "description": "Reusable Escape-key dismissal hook for accessible overlays.",
   "designStyles": [
     {

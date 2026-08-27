@@ -6,7 +6,6 @@
  * @tags ["runtime","overlay","accessibility"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
-// @ts-expect-error react-dom is supplied by the consuming React runtime.
 import { createPortal } from "react-dom";
 import type { ReactNode } from "react";
 import { useHydrated } from "@vrooli/react-component-library/useHydrated/1.0.0";

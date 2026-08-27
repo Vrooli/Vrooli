@@ -2,13 +2,6 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "catalogId": "forms.textarea",
   "category": "forms",
-  "dependencies": [
-    {
-      "kind": "requires",
-      "libraryId": "react-component-library:ClassMerge",
-      "version": "1.0.0"
-    }
-  ],
   "deprecatedVersions": [
     "1.0.0",
     "1.0.1"

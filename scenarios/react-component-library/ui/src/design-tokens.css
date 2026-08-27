@@ -95,6 +95,7 @@
   /* Overlay geometry. The drawer gap is the strip a full-page drawer leaves
    * uncovered at the top so a pointer has somewhere to dismiss it. */
   --overlay-drawer-top-gap: var(--space-2xl);
+  --overlay-menu-align: 0;
   --overlay-grabber-inline: 2.25rem;
   --overlay-grabber-block: 0.25rem;
   --overlay-dialog-sm: 24rem;
@@ -225,6 +226,8 @@
   --layer-dropdown: 200;
   --layer-overlay: 300;
   --layer-modal: 400;
+  --layer-menu: 610;
+  --layer-alert: 700;
   --layer-toast: 500;
   --layer-tooltip: 600;
   --border-hairline: 1px;

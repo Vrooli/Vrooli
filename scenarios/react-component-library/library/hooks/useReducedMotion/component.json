@@ -2,7 +2,6 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "hook",
   "catalogId": "hooks.use-reduced-motion",
-  "dependencies": [],
   "description": "Production-ready useReducedMotion hook with SSR-safe lifecycle behavior.",
   "designStyles": [
     {

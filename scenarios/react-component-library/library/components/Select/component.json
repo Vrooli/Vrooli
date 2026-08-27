@@ -27,12 +27,5 @@
   "tags": [
     "form",
     "interactive"
-  ],
-  "dependencies": [
-    {
-      "kind": "requires",
-      "libraryId": "react-component-library:ClassMerge",
-      "version": "1.0.0"
-    }
   ]
 }

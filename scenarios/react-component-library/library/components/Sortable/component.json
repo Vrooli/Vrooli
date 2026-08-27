@@ -2,28 +2,6 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "component",
   "catalogId": "manipulation.sortable",
-  "dependencies": [
-    {
-      "libraryId": "react-component-library:Draggable",
-      "version": "1.0.0"
-    },
-    {
-      "libraryId": "react-component-library:AutoAnimateLayout",
-      "version": "1.0.0"
-    },
-    {
-      "libraryId": "react-component-library:useOptimisticAction",
-      "version": "1.0.0"
-    },
-    {
-      "libraryId": "react-component-library:useDrag",
-      "version": "1.0.0"
-    },
-    {
-      "libraryId": "react-component-library:useAnnounce",
-      "version": "1.0.0"
-    }
-  ],
   "deprecatedVersions": [
     "1.0.3",
     "1.0.5"

@@ -2,24 +2,6 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "component",
   "catalogId": "ai.message",
-  "dependencies": [
-    {
-      "libraryId": "react-component-library:Text",
-      "version": "1.0.0"
-    },
-    {
-      "libraryId": "react-component-library:RelativeTime",
-      "version": "1.0.0"
-    },
-    {
-      "libraryId": "react-component-library:StatusIndicator",
-      "version": "1.0.0"
-    },
-    {
-      "libraryId": "react-component-library:Avatar",
-      "version": "1.0.0"
-    }
-  ],
   "deprecatedVersions": [
     "1.0.3"
   ],

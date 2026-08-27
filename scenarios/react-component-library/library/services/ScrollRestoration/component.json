@@ -2,7 +2,6 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "service",
   "catalogId": "navigation.scroll-restoration",
-  "dependencies": [],
   "description": "Scoped runtime service for predictable ScrollRestoration behavior.",
   "designStyles": [
     {

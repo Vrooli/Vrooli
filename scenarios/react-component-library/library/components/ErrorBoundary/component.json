@@ -2,12 +2,6 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "component",
   "catalogId": "feedback.error-boundary",
-  "dependencies": [
-    {
-      "libraryId": "react-component-library:ErrorState",
-      "version": "1.0.0"
-    }
-  ],
   "deprecatedVersions": [
     "1.0.3",
     "1.0.5"

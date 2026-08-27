@@ -49,7 +49,7 @@ import { ThemeSwitcher, type PreviewKit } from "./ThemeSwitcher";
 import { DEFAULT_ADOPTION_TEMPLATE } from "./adoptionTemplates";
 import { AssetWorkspace } from "../assets/AssetWorkspace";
 import type { DiffRow } from "../../api/versions";
-import { ExperienceSurface } from "@vrooli/react-component-library/ExperienceSurface/1/1.0.2";
+import { ExperienceSurface } from "@vrooli/react-component-library/ExperienceSurface/1.0.2";
 import { WorkspaceHeader } from "../../components/WorkspaceHeader";
 import { useShellNavigation } from "../../components/ShellNavigationContext";
 import {

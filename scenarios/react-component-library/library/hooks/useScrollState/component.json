@@ -2,7 +2,6 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "hook",
   "catalogId": "hooks.use-scroll-state",
-  "dependencies": [],
   "description": "Production-ready useScrollState hook with SSR-safe lifecycle behavior.",
   "designStyles": [
     {

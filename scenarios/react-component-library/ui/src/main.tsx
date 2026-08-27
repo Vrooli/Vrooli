@@ -1,4 +1,4 @@
-import { LibraryStringsProvider } from "@vrooli/react-component-library/useLocale/1/1.0.1";
+import { LibraryStringsProvider } from "@vrooli/react-component-library/useLocale/1.0.1";
 import { BaseStyles } from "@vrooli/react-component-library/BaseStyles/1.0.0";
 import { i18n } from "./i18n";
 import React from "react";

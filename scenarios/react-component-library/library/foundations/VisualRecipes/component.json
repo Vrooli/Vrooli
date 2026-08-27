@@ -2,18 +2,6 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "foundation",
   "catalogId": "foundations.visual-recipes",
-  "dependencies": [
-    {
-      "kind": "requires",
-      "libraryId": "react-component-library:Tokens",
-      "version": "1.0.0"
-    },
-    {
-      "kind": "requires",
-      "libraryId": "react-component-library:ClassMerge",
-      "version": "1.0.0"
-    }
-  ],
   "description": "",
   "designStyles": [
     {

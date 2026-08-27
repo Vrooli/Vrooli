@@ -566,6 +566,9 @@ func versionSourcePaths(versionDir string) []string {
 		matches, _ := filepath.Glob(filepath.Join(versionDir, extension))
 		paths = append(paths, matches...)
 	}
+	if lockPath := filepath.Join(versionDir, "dependencies.json"); fileExists(lockPath) {
+		paths = append(paths, lockPath)
+	}
 	sort.Strings(paths)
 	return paths
 }
@@ -574,19 +577,42 @@ func versionSourcePaths(versionDir string) []string {
 // recomputed catalog gates. Persisted rows are filtered by current revision.
 func MergedEvidence(ctx context.Context, root string, store *EvidenceStore) ([]GateEvidence, error) {
 	var runtimeDB *sql.DB
+	var persisted []GateEvidence
+	skipGates := map[string]bool{}
 	if store != nil {
 		runtimeDB = store.Database()
+		var err error
+		persisted, err = store.List(ctx)
+		if err != nil {
+			return nil, err
+		}
+		definitions, definitionErr := LoadGateDefinitions(filepath.Join(resolveScenarioRoot(root), "catalog", "config.json"))
+		if definitionErr != nil {
+			return nil, definitionErr
+		}
+		skipGates = freshAttributableGates(root, persisted, definitions)
 	}
-	computed, err := recomputeEvidence(root, runtimeDB)
+	computed, err := recomputeEvidenceWithSkip(root, runtimeDB, skipGates)
 	if err != nil {
 		return nil, err
 	}
 	if store == nil {
 		return computed, nil
 	}
-	persisted, err := store.List(ctx)
-	if err != nil {
-		return nil, err
+	if len(computed) > 0 {
+		var attributableRows []GateEvidence
+		for _, item := range computed {
+			if item.AssetID != "__corpus__" {
+				attributableRows = append(attributableRows, item)
+			}
+		}
+		if err := store.Save(ctx, attributableRows); err != nil {
+			return nil, err
+		}
+		persisted, err = store.List(ctx)
+		if err != nil {
+			return nil, err
+		}
 	}
 	for _, item := range persisted {
 		if item.AssetID == "__corpus__" && item.SourceRevision == "corpus" {
@@ -600,6 +626,92 @@ func MergedEvidence(ctx context.Context, root string, store *EvidenceStore) ([]G
 		computed = append(computed, item)
 	}
 	return computed, nil
+}
+
+// freshAttributableGates returns runners whose per-asset evidence is valid for
+// every applicable built asset. These runners can be omitted from the next
+// refresh; corpus runners continue because their result is not attributable to
+// an individual asset.
+func freshAttributableGates(root string, persisted []GateEvidence, definitions []GateDefinition) map[string]bool {
+	assets, err := LoadCatalog(filepath.Join(resolveScenarioRoot(root), "catalog"))
+	if err != nil {
+		return map[string]bool{}
+	}
+	impls, err := LoadImplementations(filepath.Join(resolveScenarioRoot(root), "library"))
+	if err != nil {
+		return map[string]bool{}
+	}
+	kindByAsset := make(map[string]string, len(assets))
+	for _, asset := range assets {
+		kindByAsset[asset.ID] = asset.Kind
+	}
+	built := make(map[string]bool, len(impls))
+	for _, impl := range impls {
+		if impl.CatalogID != "" {
+			built[impl.CatalogID] = true
+		}
+	}
+	byGateAsset := map[string]map[string]GateEvidence{}
+	for _, item := range persisted {
+		if item.AssetID == "__corpus__" {
+			continue
+		}
+		if byGateAsset[item.Gate] == nil {
+			byGateAsset[item.Gate] = map[string]GateEvidence{}
+		}
+		if current, ok := byGateAsset[item.Gate][item.AssetID]; !ok || item.RecordedAt > current.RecordedAt {
+			byGateAsset[item.Gate][item.AssetID] = item
+		}
+	}
+	fresh := map[string]bool{}
+	for _, definition := range definitions {
+		if definition.Attribution == "corpus" {
+			continue
+		}
+		complete := true
+		for assetID := range built {
+			if !containsKind(definition.AppliesTo, kindByAsset[assetID]) {
+				continue
+			}
+			item, ok := byGateAsset[definition.ID][assetID]
+			if !ok {
+				complete = false
+				break
+			}
+			revision, revisionErr := CurrentRevision(root, assetID)
+			if revisionErr != nil || revision != item.SourceRevision {
+				complete = false
+				break
+			}
+		}
+		if complete {
+			fresh[definition.ID] = true
+		}
+	}
+	return fresh
+}
+
+func freshTypesEvidenceComplete(root string, persisted []GateEvidence) bool {
+	impls, err := LoadImplementations(filepath.Join(resolveScenarioRoot(root), "library"))
+	if err != nil {
+		return false
+	}
+	want := map[string]bool{}
+	for _, impl := range impls {
+		if impl.CatalogID != "" {
+			want[impl.CatalogID] = true
+		}
+	}
+	for _, item := range persisted {
+		if item.Gate != "types" || !want[item.AssetID] {
+			continue
+		}
+		revision, revisionErr := CurrentRevision(root, item.AssetID)
+		if revisionErr == nil && revision == item.SourceRevision {
+			delete(want, item.AssetID)
+		}
+	}
+	return len(want) == 0
 }
 
 // MergeExperienceEvidence adds only evidence that is both declared by a
@@ -856,6 +968,10 @@ func RecomputeEvidence(root string) ([]GateEvidence, error) {
 }
 
 func recomputeEvidence(root string, runtimeDB *sql.DB) ([]GateEvidence, error) {
+	return recomputeEvidenceWithSkip(root, runtimeDB, nil)
+}
+
+func recomputeEvidenceWithSkip(root string, runtimeDB *sql.DB, skip map[string]bool) ([]GateEvidence, error) {
 	assets, err := LoadCatalog(filepath.Join(root, "scenarios", "react-component-library", "catalog"))
 	if err != nil {
 		return nil, err
@@ -875,8 +991,10 @@ func recomputeEvidence(root string, runtimeDB *sql.DB) ([]GateEvidence, error) {
 		return nil, err
 	}
 	runners := map[string]gates.Result{}
-	if runners["types"], err = gates.ValidateTypes(root); err != nil {
-		return nil, err
+	if !skip["types"] {
+		if runners["types"], err = gates.ValidateTypes(root); err != nil {
+			return nil, err
+		}
 	}
 	if runners["api"], err = gates.ValidateAPI(root); err != nil {
 		return nil, err
@@ -888,6 +1006,12 @@ func recomputeEvidence(root string, runtimeDB *sql.DB) ([]GateEvidence, error) {
 		return nil, err
 	}
 	if runners["version-liveness"], err = gates.ValidateVersionLiveness(root); err != nil {
+		return nil, err
+	}
+	if runners["release-provenance"], err = gates.ValidateReleaseProvenance(root); err != nil {
+		return nil, err
+	}
+	if runners["dependency-rank"], err = gates.ValidateDependencyRank(root); err != nil {
 		return nil, err
 	}
 	if runtimeDB != nil {
@@ -956,6 +1080,21 @@ func recomputeEvidence(root string, runtimeDB *sql.DB) ([]GateEvidence, error) {
 	if runners["integration"], err = gates.ValidateIntegration(root); err != nil {
 		return nil, err
 	}
+	// These corpus gates require the live catalog application and BAS tree.
+	// Sparse unit-test repositories intentionally omit those surfaces; do not
+	// turn their absence into a fabricated runner failure.
+	uiSourceRoot := filepath.Join(root, "scenarios", "react-component-library", "ui", "src")
+	if _, statErr := os.Stat(uiSourceRoot); statErr == nil {
+		if runners["self-hosting"], err = gates.ValidateSelfHosting(root); err != nil {
+			return nil, err
+		}
+	}
+	basRoot := filepath.Join(root, "scenarios", "react-component-library", "bas")
+	if _, statErr := os.Stat(basRoot); statErr == nil {
+		if runners["bas-genericity"], err = gates.ValidateBASGenericity(root); err != nil {
+			return nil, err
+		}
+	}
 	if runners["surface-discipline"], err = gates.ValidateSurfaceDiscipline(root); err != nil {
 		return nil, err
 	}
@@ -1009,6 +1148,9 @@ func recomputeEvidence(root string, runtimeDB *sql.DB) ([]GateEvidence, error) {
 				continue
 			}
 			gateName := definition.ID
+			if skip[gateName] {
+				continue
+			}
 			runner, ok := runners[gateName]
 			if !ok || quarantined[gateName] {
 				out = append(out, GateEvidence{AssetID: asset.ID, Target: target, Version: implByAsset[asset.ID].Latest, Gate: gateName, Result: "unmeasured", SourceRevision: revision})

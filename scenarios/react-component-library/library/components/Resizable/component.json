@@ -2,18 +2,6 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "component",
   "catalogId": "manipulation.resizable",
-  "dependencies": [
-    {
-      "kind": "requires",
-      "libraryId": "react-component-library:useResizablePanel",
-      "version": "1.0.0"
-    },
-    {
-      "kind": "requires",
-      "libraryId": "react-component-library:ResizeHandle",
-      "version": "1.0.0"
-    }
-  ],
   "deprecatedVersions": [
     "1.0.2",
     "1.0.3"

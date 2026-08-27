@@ -2,7 +2,6 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "foundation",
   "catalogId": "foundations.class-merge",
-  "dependencies": [],
   "description": "",
   "designStyles": [
     {

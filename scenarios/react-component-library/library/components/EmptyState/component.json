@@ -2,40 +2,6 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "catalogId": "feedback.empty-state",
   "category": "feedback",
-  "dependencies": [
-    {
-      "libraryId": "react-component-library:Card",
-      "version": "1.2.2"
-    },
-    {
-      "libraryId": "react-component-library:Button",
-      "version": "2.2.0"
-    },
-    {
-      "libraryId": "react-component-library:ButtonGroup",
-      "version": "1.1.1"
-    },
-    {
-      "libraryId": "react-component-library:Heading",
-      "version": "1.1.0"
-    },
-    {
-      "libraryId": "react-component-library:Container",
-      "version": "1.1.0"
-    },
-    {
-      "libraryId": "react-component-library:Stack",
-      "version": "1.2.1"
-    },
-    {
-      "libraryId": "react-component-library:Text",
-      "version": "1.1.0"
-    },
-    {
-      "libraryId": "react-component-library:ClassMerge",
-      "version": "1.0.0"
-    }
-  ],
   "deprecatedVersions": [
     "1.7.5",
     "1.1.0",

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -522,6 +523,58 @@ func (h *handlers) versionPublish(ctx cliapp.RunContext) error {
 	})
 }
 
+func (h *handlers) republishDependents(ctx cliapp.RunContext) error {
+	asset := strings.TrimSpace(ctx.Positional("asset"))
+	if !strings.Contains(asset, ":") {
+		asset = "react-component-library:" + asset
+	}
+	targetVersion := strings.TrimSpace(ctx.Positional("version"))
+	listed, err := h.client.ListComponents(context.Background(), connect.NewRequest(&componentsv1.ListComponentsRequest{Limit: 1000}))
+	if err != nil {
+		return cliapp.WrapAPIError("list dependent components", err, nil)
+	}
+	var dependents []*componentsv1.Component
+	for _, component := range listed.Msg.Components {
+		for _, dependency := range component.Dependencies {
+			if dependency.LibraryId == asset && dependency.Version != targetVersion {
+				dependents = append(dependents, component)
+				break
+			}
+		}
+	}
+	sort.Slice(dependents, func(i, j int) bool {
+		if dependents[i].AssetKind == dependents[j].AssetKind {
+			return dependents[i].LibraryId < dependents[j].LibraryId
+		}
+		return dependents[i].AssetKind < dependents[j].AssetKind
+	})
+	results := make([]string, 0, len(dependents))
+	apply := ctx.Flag("apply") != ""
+	for _, component := range dependents {
+		line := fmt.Sprintf("%s current=%s", component.LibraryId, component.LatestVersion)
+		if apply {
+			draft, beginErr := h.client.BeginComponentVersion(context.Background(), connect.NewRequest(&componentsv1.BeginComponentVersionRequest{Component: component.LibraryId, Bump: "patch"}))
+			if beginErr != nil {
+				return cliapp.WrapAPIError("begin dependent draft", beginErr, nil)
+			}
+			published, publishErr := h.client.PublishComponentVersion(context.Background(), connect.NewRequest(&componentsv1.PublishComponentVersionRequest{Component: component.LibraryId, DraftVersion: draft.Msg.Version.Version}))
+			if publishErr != nil {
+				return cliapp.WrapAPIError("publish dependent", publishErr, nil)
+			}
+			line += " published=" + published.Msg.Version.Version
+		}
+		results = append(results, line)
+	}
+	mode := "dry-run"
+	if apply {
+		mode = "applied"
+	}
+	return cliapp.RenderProtoList(ctx, listed.Msg, cliapp.ListReport{
+		Summary:        []string{fmt.Sprintf("Dependent republish %s: %d asset(s) reference an older %s release.", mode, len(dependents), asset)},
+		ResultsHeading: "Dependents in dependency-rank order", Results: results,
+	})
+}
+
 func (h *handlers) manifestUpdate(ctx cliapp.RunContext) error {
 	req := &componentsv1.UpdateComponentManifestRequest{
 		ComponentId:                    ctx.Positional("component-id"),
@@ -542,13 +595,6 @@ func (h *handlers) manifestUpdate(ctx cliapp.RunContext) error {
 	if raw := ctx.Flag("replaced-by"); raw != "" {
 		req.ReplacedBy = splitCSV(raw)
 	}
-	if raw := ctx.Flag("dependencies"); raw != "" {
-		dependencies, err := parseManifestDependencies(raw)
-		if err != nil {
-			return err
-		}
-		req.Dependencies = dependencies
-	}
 	resp, err := h.client.UpdateComponentManifest(context.Background(), connect.NewRequest(req))
 	if err != nil {
 		return cliapp.WrapAPIError("update component manifest", err, nil)
@@ -561,19 +607,6 @@ func (h *handlers) manifestUpdate(ctx cliapp.RunContext) error {
 		ResultsHeading: "Component",
 		Results:        []string{formatComponent(resp.Msg.Component)},
 	})
-}
-
-func parseManifestDependencies(raw string) ([]*componentsv1.AssetDependency, error) {
-	items := splitCSV(raw)
-	out := make([]*componentsv1.AssetDependency, 0, len(items))
-	for _, item := range items {
-		separator := strings.LastIndex(item, "@")
-		if separator <= 0 || separator == len(item)-1 {
-			return nil, fmt.Errorf("--dependencies entries must use libraryId@version: %q", item)
-		}
-		out = append(out, &componentsv1.AssetDependency{LibraryId: strings.TrimSpace(item[:separator]), Version: strings.TrimSpace(item[separator+1:])})
-	}
-	return out, nil
 }
 
 func splitCSV(raw string) []string {

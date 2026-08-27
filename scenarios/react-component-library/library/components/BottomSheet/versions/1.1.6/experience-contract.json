@@ -1,0 +1,128 @@
+{
+  "bindings": {
+    "elements": {
+      "close": {
+        "testid": "overlays.bottom-sheet.close"
+      },
+      "grabber": {
+        "testid": "overlays.bottom-sheet.grabber"
+      },
+      "subheader": {
+        "testid": "overlays.bottom-sheet.subheader"
+      },
+      "surface": {
+        "testid": "overlays.bottom-sheet"
+      }
+    }
+  },
+  "claims": [
+    {
+      "elements": ["surface"],
+      "id": "tap-target-size",
+      "statement": "The BottomSheet surface satisfies the tap-target-size contract claim.",
+      "tier": "machine",
+      "type": "tap-target-size"
+    },
+    {
+      "elements": ["surface"],
+      "id": "content-not-clipped",
+      "statement": "The BottomSheet surface satisfies the content-not-clipped contract claim.",
+      "tier": "machine",
+      "type": "content-not-clipped"
+    },
+    {
+      "elements": ["surface"],
+      "id": "state-contrast",
+      "statement": "The BottomSheet surface satisfies the state-contrast contract claim.",
+      "tier": "machine",
+      "type": "state-contrast"
+    },
+    {
+      "elements": ["surface"],
+      "id": "padding",
+      "statement": "The BottomSheet surface satisfies the padding contract claim.",
+      "tier": "machine",
+      "type": "padding"
+    },
+    {
+      "elements": ["surface"],
+      "id": "keyboard-reachable",
+      "statement": "The BottomSheet surface satisfies the keyboard-reachable contract claim.",
+      "tier": "machine",
+      "type": "keyboard-reachable"
+    },
+    {
+      "elements": ["surface"],
+      "id": "size-parity",
+      "statement": "The BottomSheet surface satisfies the size-parity contract claim.",
+      "tier": "machine",
+      "type": "size-parity"
+    },
+    {
+      "elements": ["grabber"],
+      "id": "grabber-tap-target",
+      "statement": "The drag affordance meets the comfortable tap target.",
+      "tier": "machine",
+      "type": "tap-target-size"
+    }
+  ],
+  "component": {
+    "id": "overlays.bottom-sheet",
+    "purpose": "A bottom-anchored sheet for a bounded task, dismissed by dragging its grabber.",
+    "title": "BottomSheet"
+  },
+  "contract": {
+    "kind": "rcl-component-experience-contract",
+    "provenance": "react-component-library:BottomSheet@1.1.6",
+    "schema": "scenario-experience-spec/v1"
+  },
+  "elements": [
+    {
+      "description": "The sheet panel.",
+      "id": "surface",
+      "role": "dialog"
+    },
+    {
+      "description": "The drag affordance.",
+      "id": "grabber",
+      "role": "button"
+    },
+    {
+      "description": "The optional header close button.",
+      "id": "close",
+      "role": "button"
+    },
+    {
+      "description": "The full-bleed band above the scroll region.",
+      "id": "subheader",
+      "role": "generic"
+    }
+  ],
+  "states": [
+    {
+      "description": "The default sheet.",
+      "example": "sheet",
+      "id": "sheet"
+    },
+    {
+      "description": "A sheet that also offers a close button.",
+      "example": "with-close-button",
+      "id": "with-close-button"
+    },
+    {
+      "description": "Unpadded content beneath a full-bleed subheader.",
+      "example": "flush-content",
+      "id": "flush-content"
+    },
+    {
+      "description": "A footer holding the committing action.",
+      "example": "with-footer",
+      "id": "with-footer"
+    },
+    {
+      "description": "The sheet raised above a reported keyboard.",
+      "example": "avoiding-keyboard",
+      "id": "avoiding-keyboard"
+    }
+  ]
+}

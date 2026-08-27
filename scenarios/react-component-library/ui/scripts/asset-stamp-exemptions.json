@@ -20,6 +20,36 @@
     "reason": "The foundation exports token data only; it has no DOM-owned root."
   },
   {
+    "asset": "foundations.base-styles",
+    "kind": "permanent",
+    "reason": "The foundation owns a stylesheet side effect and returns no DOM root to stamp."
+  },
+  {
+    "asset": "react-component-library:StyleSheet",
+    "kind": "permanent",
+    "reason": "The foundation owns stylesheet insertion behavior and returns no DOM root to stamp."
+  },
+  {
+    "asset": "react-component-library:Portal",
+    "kind": "permanent",
+    "reason": "Portal is an internal overlay transport without a standalone catalog identity or owned root; its consumers own the stamped surface."
+  },
+  {
+    "asset": "react-component-library:CanvasFrame",
+    "kind": "backlog",
+    "reason": "CanvasFrame is an internal preview surface without a standalone catalog entry."
+  },
+  {
+    "asset": "react-component-library:useOverlaySurface",
+    "kind": "permanent",
+    "reason": "useOverlaySurface is behavior-only overlay state without a standalone DOM root or catalog identity."
+  },
+  {
+    "asset": "react-component-library:useVoiceInput",
+    "kind": "permanent",
+    "reason": "useVoiceInput is behavior-only and does not own a DOM root or standalone catalog identity."
+  },
+  {
     "asset": "foundations.visual-recipes",
     "kind": "permanent",
     "reason": "The foundation exports recipes and token maps only; it has no DOM-owned root."
@@ -73,11 +103,6 @@
     "asset": "navigation.scroll-restoration",
     "kind": "permanent",
     "reason": "The service exports a scroll effect and does not render a DOM root."
-  },
-  {
-    "asset": "react-component-library:useVoiceInput",
-    "kind": "permanent",
-    "reason": "The hook has no DOM-owned root; behavior-only assets never carry a stamp."
   },
   {
     "asset": "monetization.auth-section",

@@ -2,7 +2,6 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "hook",
   "catalogId": "hooks.use-disclosure",
-  "dependencies": [],
   "description": "Production-ready useDisclosure hook with SSR-safe lifecycle behavior.",
   "designStyles": [
     {

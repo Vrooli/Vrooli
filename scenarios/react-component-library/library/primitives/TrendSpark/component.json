@@ -9,8 +9,10 @@
   "latest": "1.0.0",
   "deprecatedVersions": [],
   "entry": "TrendSpark.tsx",
-  "dependencies": [
-    { "libraryId": "react-component-library:ClassMerge", "version": "1.0.1" }
-  ],
-  "tags": ["primitive", "data-display", "visualization", "token-bound"]
+  "tags": [
+    "primitive",
+    "data-display",
+    "visualization",
+    "token-bound"
+  ]
 }

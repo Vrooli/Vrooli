@@ -2,7 +2,6 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "primitive",
   "catalogId": "primitives.container",
-  "dependencies": [],
   "deprecatedVersions": [
     "1.1.2"
   ],

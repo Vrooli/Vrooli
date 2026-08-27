@@ -2,7 +2,6 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "hook",
   "catalogId": "hooks.use-async-action",
-  "dependencies": [],
   "description": "Production-ready useAsyncAction hook with SSR-safe lifecycle behavior.",
   "designStyles": [
     {

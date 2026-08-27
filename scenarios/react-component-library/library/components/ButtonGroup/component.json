@@ -2,7 +2,6 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "component",
   "catalogId": "controls.button-group",
-  "dependencies": [],
   "deprecatedVersions": [
     "1.1.2",
     "1.1.4"

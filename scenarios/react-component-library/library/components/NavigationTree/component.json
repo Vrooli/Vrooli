@@ -2,7 +2,6 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "component",
   "catalogId": "navigation.navigation-tree",
-  "dependencies": [],
   "deprecatedVersions": [
     "1.1.4",
     "1.1.6"

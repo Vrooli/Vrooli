@@ -2,7 +2,6 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "service",
   "catalogId": "services.layer-manager",
-  "dependencies": [],
   "description": "Scoped runtime service for predictable LayerManager behavior.",
   "designStyles": [
     {

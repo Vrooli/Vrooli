@@ -2,7 +2,6 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "service",
   "catalogId": "services.shortcut-registry",
-  "dependencies": [],
   "description": "Scoped collision-aware shortcut registry with priority, scope, platform normalization, and conflict inspection.",
   "designStyles": [
     {

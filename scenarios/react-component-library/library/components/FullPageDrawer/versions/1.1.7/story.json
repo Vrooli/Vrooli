@@ -1,0 +1,80 @@
+{
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
+  "schemaVersion": 5,
+  "kind": "component",
+  "title": "FullPageDrawer",
+  "args": { "fields": [] },
+  "environment": { "fixtures": [] },
+  "stories": [
+    {
+      "id": "mobile-sheet",
+      "name": "Mobile sheet",
+      "role": "anatomy",
+      "mode": "live",
+      "args": {},
+      "composition": { "specimen": { "module": "./story.tsx", "export": "MobileSheet" } },
+      "expect": [
+        { "kind": "role", "role": "dialog" },
+        { "kind": "visible", "selector": "[data-testid='overlays.full-page-drawer']" },
+        { "kind": "visible", "selector": "[data-testid='overlays.full-page-drawer.grabber']" }
+      ]
+    },
+    {
+      "id": "desktop-card",
+      "name": "Desktop card",
+      "role": "boundary",
+      "mode": "live",
+      "args": {},
+      "composition": { "specimen": { "module": "./story.tsx", "export": "DesktopCard" } },
+      "expect": [
+        { "kind": "visible", "selector": "[data-testid='overlays.full-page-drawer.close']" }
+      ]
+    },
+    {
+      "id": "flush-content",
+      "name": "Flush content with subheader",
+      "role": "boundary",
+      "mode": "live",
+      "args": {},
+      "composition": {
+        "specimen": { "module": "./story.tsx", "export": "FlushContentWithSubheader" }
+      },
+      "expect": [
+        { "kind": "visible", "selector": "[data-testid='overlays.full-page-drawer.subheader']" }
+      ]
+    },
+    {
+      "id": "with-footer",
+      "name": "With footer",
+      "role": "boundary",
+      "mode": "live",
+      "args": {},
+      "composition": { "specimen": { "module": "./story.tsx", "export": "WithFooter" } },
+      "expect": [
+        { "kind": "visible", "selector": "[data-testid='overlays.full-page-drawer'] > footer" }
+      ]
+    },
+    {
+      "id": "long-body",
+      "name": "Long body",
+      "role": "boundary",
+      "mode": "live",
+      "args": {},
+      "composition": { "specimen": { "module": "./story.tsx", "export": "LongBody" } },
+      "expect": [
+        { "kind": "visible", "selector": "[data-testid='overlays.full-page-drawer']" }
+      ]
+    },
+    {
+      "id": "directed-initial-focus",
+      "name": "Directed initial focus",
+      "role": "boundary",
+      "mode": "live",
+      "args": {},
+      "composition": { "specimen": { "module": "./story.tsx", "export": "DirectedInitialFocus" } },
+      "expect": [
+        { "kind": "visible", "selector": "[data-testid='overlays.full-page-drawer'] input" }
+      ]
+    }
+  ]
+}

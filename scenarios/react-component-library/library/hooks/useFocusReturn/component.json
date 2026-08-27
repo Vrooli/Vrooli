@@ -2,7 +2,6 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "hook",
   "catalogId": "hooks.use-focus-return",
-  "dependencies": [],
   "description": "Production-ready useFocusReturn hook with SSR-safe lifecycle behavior.",
   "designStyles": [
     {

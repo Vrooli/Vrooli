@@ -103,7 +103,7 @@
           }
         }
       },
-      "experience-manager": {
+    "experience-manager": {
         "type": "scenario",
         "enabled": true,
         "required": false,
@@ -119,6 +119,12 @@
         "description": "Provides the shared UI inventory and provenance contracts used by RCL inventory adapters.",
         "degraded_behavior": "Catalog and component APIs remain available; cross-scenario UI inventory integration is unavailable until ui-health is healthy."
       }
+    },
+    "typescript-code-graph": {
+      "type": "scenario",
+      "enabled": true,
+      "required": true,
+      "description": "Supplies the parsed TypeScript import graph required by the blocking graph-reconciled catalog gate."
     },
     "resources": {}
   },

@@ -2,16 +2,6 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "catalogId": "overlays.full-page-drawer",
   "category": "overlays",
-  "dependencies": [
-    {
-      "libraryId": "react-component-library:BottomSheet",
-      "version": "1.0.4"
-    },
-    {
-      "libraryId": "react-component-library:FullPageDrawer",
-      "version": "1.0.3"
-    }
-  ],
   "deprecatedVersions": [
     "1.1.0",
     "1.1.1",

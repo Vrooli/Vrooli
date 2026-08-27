@@ -187,9 +187,10 @@ func pathWithin(root, candidate string) bool {
 	return err == nil && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator))
 }
 
-// ValidateGraphReconciled is intentionally non-blocking in catalog/config.json.
-// It makes pre-existing dependency drift measurable without pretending this
-// reporting phase repaired any manifest.
+// ValidateGraphReconciled is a blocking observation in catalog/config.json.
+// It never repairs a manifest, but every unavailable or divergent dependency
+// view must fail so the catalog cannot claim a trustworthy graph while its
+// source evidence is missing.
 func ValidateGraphReconciled(root string) (Result, error) {
 	report, err := graphreconcile.Reconcile(context.Background(), root)
 	if err != nil {
@@ -203,7 +204,7 @@ func ValidateGraphReconciled(root string) (Result, error) {
 		result.Findings = append(result.Findings, Finding{
 			Code: "catalog.graph_reconciled_unavailable", AssetID: "__corpus__.graph-reconciled",
 			Message:     fmt.Sprintf("imports-unavailable: %s", row.Cause),
-			Remediation: "Confirm typescript-code-graph is running and has indexed scenarios/react-component-library; until it does, dependency reconciliation is unmeasured rather than evidence of drift.",
+			Remediation: "Start typescript-code-graph and confirm it has indexed scenarios/react-component-library; the gate is blocking because an unavailable import graph cannot prove dependency reconciliation.",
 			DocsRef:     "docs/concepts/ARCHITECTURE.md#catalog-graph-projection",
 		})
 		return result, nil
@@ -212,15 +213,10 @@ func ValidateGraphReconciled(root string) (Result, error) {
 		if row.Verdict == graphreconcile.Reconciled {
 			continue
 		}
-		// ImportsUnavailable is a runner fault, not asset drift: the third view
-		// simply did not load, so no conclusion about this asset's edges is
-		// available either way. Reporting it with the drift remediation would
-		// send a reader auditing 410 healthy assets against a comparison that
-		// never ran.
-		remediation := "Bring the three dependency views into agreement: the requires edges in catalog/assets/, the dependencies[] pins in the asset's library/**/component.json, and the imports the source actually makes. Whichever two agree usually identifies the stale one. This gate is non-blocking because the drift predates it — it reports, and never edits library/ on your behalf."
+		remediation := "Bring the three dependency views into agreement: the requires edges in catalog/assets/, the dependencies[] pins in the asset's library/**/component.json, and the imports the source actually makes. Whichever two agree usually identifies the stale one. The gate reports and never edits library/ on your behalf."
 		switch row.Verdict {
 		case graphreconcile.ImportsUnavailable:
-			remediation = "This is a runner fault, not drift in this asset. The reconciler could not obtain an import graph from typescript-code-graph, so the source-import view is missing and no reconciliation verdict is possible. Confirm typescript-code-graph is running and has indexed scenarios/react-component-library; until it does, every asset reports this and none of them are evidence of a dependency problem."
+			remediation = "The reconciler could not obtain an import graph from typescript-code-graph, so the source-import view is missing and no reconciliation verdict is possible. Start the graph service and confirm it has indexed scenarios/react-component-library."
 		case graphreconcile.NotImplemented:
 			// The catalog is desired state, so this is the expected resting
 			// verdict for anything not built yet. It is reported for census,
@@ -236,6 +232,145 @@ func ValidateGraphReconciled(root string) (Result, error) {
 		})
 	}
 	return result, nil
+}
+
+// ValidateReleaseProvenance rejects release directories that did not pass
+// through the draft publisher. Historical releases carry an explicit
+// backfilled marker; new releases must name their draft and publication time.
+func ValidateReleaseProvenance(root string) (Result, error) {
+	libraryRoot := filepath.Join(root, "scenarios", "react-component-library", "library")
+	raw, err := os.ReadFile(filepath.Join(libraryRoot, "release-provenance.json"))
+	if err != nil {
+		return Result{RunnerError: []Finding{{
+			Code: "catalog.release_provenance_unavailable", AssetID: "__corpus__.release-provenance",
+			Message:     "release provenance ledger is unavailable: " + err.Error(),
+			Remediation: "Restore library/release-provenance.json; the bypass-prevention gate cannot pass without its durable ledger.",
+			DocsRef:     "docs/guides/asset-update-flow.md",
+		}}}, nil
+	}
+	var ledger struct {
+		Entries []struct {
+			LibraryID    string `json:"libraryId"`
+			Version      string `json:"version"`
+			DraftVersion string `json:"draftVersion"`
+			PublishedAt  string `json:"publishedAt"`
+			Backfilled   bool   `json:"backfilled"`
+		} `json:"entries"`
+	}
+	if err := json.Unmarshal(raw, &ledger); err != nil {
+		return Result{}, fmt.Errorf("decode release provenance ledger: %w", err)
+	}
+	recorded := map[string]bool{}
+	for _, entry := range ledger.Entries {
+		if strings.TrimSpace(entry.PublishedAt) == "" || (!entry.Backfilled && (!strings.Contains(entry.DraftVersion, "-") || strings.TrimSpace(entry.DraftVersion) == "")) {
+			continue
+		}
+		recorded[entry.LibraryID+"@"+entry.Version] = true
+	}
+	result := Result{}
+	manifests, err := filepath.Glob(filepath.Join(libraryRoot, "*", "*", "component.json"))
+	if err != nil {
+		return Result{}, err
+	}
+	for _, manifestPath := range manifests {
+		manifestRaw, readErr := os.ReadFile(manifestPath)
+		if readErr != nil {
+			return Result{}, readErr
+		}
+		var manifest struct {
+			LibraryID string `json:"libraryId"`
+		}
+		if err := json.Unmarshal(manifestRaw, &manifest); err != nil {
+			return Result{}, err
+		}
+		entries, readErr := os.ReadDir(filepath.Join(filepath.Dir(manifestPath), "versions"))
+		if readErr != nil {
+			continue
+		}
+		for _, entry := range entries {
+			if !entry.IsDir() || !regexp.MustCompile(`^\d+\.\d+\.\d+$`).MatchString(entry.Name()) {
+				continue
+			}
+			result.Inspected++
+			if recorded[manifest.LibraryID+"@"+entry.Name()] {
+				continue
+			}
+			result.Findings = append(result.Findings, Finding{
+				Code: "catalog.release_provenance_missing", AssetID: "__corpus__.release-provenance",
+				File:        repoRel(root, filepath.Join(filepath.Dir(manifestPath), "versions", entry.Name())),
+				Message:     fmt.Sprintf("released directory %s@%s has no valid publish or backfill record", manifest.LibraryID, entry.Name()),
+				Remediation: "Remove the bypass release and publish it through `react-component-library components draft publish`; never backfill a newly-created release.",
+				DocsRef:     "docs/guides/asset-update-flow.md",
+			})
+		}
+	}
+	return nonEmpty(result, "release-provenance"), nil
+}
+
+// ValidateDependencyRank enforces the composition direction over generated
+// per-version locks, which are the durable projection of real source imports.
+func ValidateDependencyRank(root string) (Result, error) {
+	libraryRoot := filepath.Join(root, "scenarios", "react-component-library", "library")
+	rankByKind := map[string]int{"foundations": 1, "hooks": 2, "services": 2, "adapters": 2, "primitives": 3, "components": 4, "patterns": 5, "navigation": 5, "page-templates": 6}
+	type assetRank struct {
+		rank int
+		kind string
+	}
+	byLibraryID := map[string]assetRank{}
+	manifests, _ := filepath.Glob(filepath.Join(libraryRoot, "*", "*", "component.json"))
+	for _, manifestPath := range manifests {
+		raw, err := os.ReadFile(manifestPath)
+		if err != nil {
+			return Result{}, err
+		}
+		var manifest struct {
+			LibraryID string `json:"libraryId"`
+		}
+		if err := json.Unmarshal(raw, &manifest); err != nil {
+			return Result{}, err
+		}
+		kind := filepath.Base(filepath.Dir(filepath.Dir(manifestPath)))
+		byLibraryID[manifest.LibraryID] = assetRank{rank: rankByKind[kind], kind: kind}
+	}
+	locks, _ := filepath.Glob(filepath.Join(libraryRoot, "*", "*", "versions", "*", "dependencies.json"))
+	result := Result{Inspected: len(locks)}
+	for _, lockPath := range locks {
+		raw, err := os.ReadFile(lockPath)
+		if err != nil {
+			return Result{}, err
+		}
+		var lock struct {
+			LibraryID    string `json:"libraryId"`
+			Version      string `json:"version"`
+			Dependencies []struct {
+				LibraryID string `json:"libraryId"`
+				Version   string `json:"version"`
+			} `json:"dependencies"`
+		}
+		if err := json.Unmarshal(raw, &lock); err != nil {
+			return Result{}, err
+		}
+		owner, ownerKnown := byLibraryID[lock.LibraryID]
+		if !ownerKnown || owner.rank == 0 {
+			continue
+		}
+		for _, dependency := range lock.Dependencies {
+			target, known := byLibraryID[dependency.LibraryID]
+			if !known {
+				continue
+			}
+			if target.kind != "fixtures" && target.kind != "generators" && target.rank <= owner.rank {
+				continue
+			}
+			result.Findings = append(result.Findings, Finding{
+				Code: "catalog.dependency_rank", AssetID: "__corpus__.dependency-rank", File: repoRel(root, lockPath),
+				Message:     fmt.Sprintf("%s@%s (%s rank %d) imports %s@%s (%s rank %d)", lock.LibraryID, lock.Version, owner.kind, owner.rank, dependency.LibraryID, dependency.Version, target.kind, target.rank),
+				Remediation: "Invert the dependency, extract a lower-rank seam, or remove the fixture/generator import from the composing asset; do not waive the edge.",
+				DocsRef:     "docs/concepts/ARCHITECTURE.md#catalog-composition-ranks",
+			})
+		}
+	}
+	return nonEmpty(result, "dependency-rank"), nil
 }
 
 var (
@@ -272,6 +407,32 @@ func ValidateVersionLiveness(root string) (Result, error) {
 	}
 	sort.Strings(sources)
 	result := Result{Inspected: len(sources)}
+	manifests, _ := filepath.Glob(filepath.Join(libraryRoot, "*", "*", "component.json"))
+	for _, manifestPath := range manifests {
+		raw, readErr := os.ReadFile(manifestPath)
+		if readErr != nil {
+			return Result{}, readErr
+		}
+		var manifest struct {
+			LibraryID       string   `json:"libraryId"`
+			EvictedVersions []string `json:"evictedVersions"`
+		}
+		if err := json.Unmarshal(raw, &manifest); err != nil {
+			return Result{}, err
+		}
+		for _, version := range manifest.EvictedVersions {
+			versionDir := filepath.Join(filepath.Dir(manifestPath), "versions", version)
+			if _, statErr := os.Stat(versionDir); statErr == nil {
+				result.Findings = append(result.Findings, Finding{
+					Code: "catalog.evicted_version_materialized", AssetID: "__corpus__.version-liveness",
+					File:        repoRel(root, versionDir),
+					Message:     fmt.Sprintf("evicted version remains materialized: %s@%s", manifest.LibraryID, version),
+					Remediation: "Reconcile every dependency lock, then remove the exact evicted directory through the version lifecycle cleanup flow.",
+					DocsRef:     "docs/concepts/ARCHITECTURE.md#version-lifecycle",
+				})
+			}
+		}
+	}
 	for _, path := range sources {
 		data, err := os.ReadFile(path)
 		if err != nil {
@@ -777,15 +938,32 @@ func ValidateI18n(root string) (Result, error) {
 // a stable test id rooted at the catalog asset identity. This keeps BAS flows
 // portable after the asset is copied into an adopting scenario.
 func ValidateSelectorCoverage(root string) (Result, error) {
-	return validateActiveSources(root, "selector-coverage", func(asset assetDoc, source string) defect {
+	factsIndex, indexErr := readSourceFactsIndex(root)
+	if indexErr != nil && !os.IsNotExist(indexErr) {
+		return Result{}, indexErr
+	}
+	return validateActiveSourcesWithPath(root, "selector-coverage", func(asset assetDoc, path, source string) defect {
+		factErr := indexErr
+		facts := []sourceFacts{}
+		if fact, ok := factsIndex[filepath.Clean(path)]; ok {
+			facts = []sourceFacts{fact}
+			factErr = nil
+		}
+		if factErr != nil && !os.IsNotExist(factErr) {
+			return defect{Message: factErr.Error(), Remediation: "Keep the shared AST facts analyzer available to selector validation.", DocsRef: "docs/concepts/ARCHITECTURE.md#automation-selectors"}
+		}
 		rootSelector := false
-		for _, tag := range jsxOpeningTags(source) {
-			if regexp.MustCompile(`\bdata-testid\s*=`).MatchString(tag) && strings.Contains(tag, asset.Asset.ID) {
-				rootSelector = true
-				break
+		for _, fact := range facts {
+			for _, element := range fact.Elements {
+				for _, value := range element.Attributes["data-testid"] {
+					if strings.Contains(value, asset.Asset.ID) {
+						rootSelector = true
+						break
+					}
+				}
 			}
 		}
-		if !rootSelector {
+		if !rootSelector && factErr != nil {
 			for _, match := range objectTestIDLiteral.FindAllStringSubmatch(source, -1) {
 				if len(match) > 1 && strings.Contains(match[1], asset.Asset.ID) {
 					rootSelector = true
@@ -799,6 +977,25 @@ func ValidateSelectorCoverage(root string) (Result, error) {
 				Remediation: fmt.Sprintf("Add data-testid=%q to the outermost rendered element, or derive the value from the catalog id.", asset.Asset.ID),
 				DocsRef:     "docs/concepts/ARCHITECTURE.md#automation-selectors",
 			}
+		}
+		for _, fact := range facts {
+			for _, element := range fact.Elements {
+				if element.Tag != "button" && element.Tag != "a" && element.Tag != "input" && element.Tag != "select" && element.Tag != "textarea" {
+					continue
+				}
+				testIDs := element.Attributes["data-testid"]
+				if len(testIDs) > 0 && strings.Contains(strings.Join(testIDs, " "), asset.Asset.ID) {
+					continue
+				}
+				return defect{
+					Message:     fmt.Sprintf("interactive <%s> has no data-testid derived from %s", element.Tag, asset.Asset.ID),
+					Remediation: fmt.Sprintf("Add data-testid=%q or a derived selector rooted at %s to the interactive element.", asset.Asset.ID, asset.Asset.ID),
+					DocsRef:     "docs/concepts/ARCHITECTURE.md#automation-selectors",
+				}
+			}
+		}
+		if factErr == nil {
+			return defect{}
 		}
 		for _, tag := range interactiveElements(source) {
 			match := interactiveElementStart.FindStringSubmatch(tag)
@@ -924,8 +1121,6 @@ func ValidateManifestMetadata(root string) (Result, error) {
 	return nonEmpty(result, "manifest-metadata"), nil
 }
 
-var overlayRoleRE = regexp.MustCompile(`role\s*=\s*["'](?:dialog|alertdialog|menu)["']`)
-
 // ValidateOverlaySurfaceComposition keeps modal and menu behavior on the
 // shared overlay substrate. An opt-out is permitted only when the manifest
 // carries a non-empty reason, making the exception reviewable.
@@ -978,7 +1173,11 @@ func ValidateOverlaySurfaceComposition(root string) (Result, error) {
 					return Result{}, readErr
 				}
 				result.Inspected++
-				if overlayRoleRE.Match(source) && !bytes.Contains(source, []byte("useOverlaySurface")) && strings.TrimSpace(doc.OverlaySurfaceOptOutReason) == "" {
+				overlayRole, factErr := sourceHasOverlayRole(root, path, source)
+				if factErr != nil {
+					return Result{}, factErr
+				}
+				if overlayRole && !bytes.Contains(source, []byte("useOverlaySurface")) && strings.TrimSpace(doc.OverlaySurfaceOptOutReason) == "" {
 					result.Findings = append(result.Findings, Finding{Code: "catalog.overlay_surface_composition", AssetID: assetID, File: repoRel(root, path), Message: "overlay role is implemented without useOverlaySurface", Remediation: "Compose useOverlaySurface, or add overlaySurfaceOptOutReason with a concrete non-overlay rationale.", DocsRef: "docs/reference/overlay-contract.md"})
 				}
 			}
@@ -1299,6 +1498,9 @@ func scenarioConsumerPins(root string) ([]consumerPin, error) {
 			return walkErr
 		}
 		if entry.IsDir() {
+			if entry.Name() == ".retired" {
+				return filepath.SkipDir
+			}
 			return nil
 		}
 		rel, err := filepath.Rel(scenariosRoot, path)
@@ -1401,6 +1603,9 @@ func allLibrarySources(root string) ([]string, error) {
 			return walkErr
 		}
 		if entry.IsDir() {
+			if entry.Name() == ".retired" {
+				return filepath.SkipDir
+			}
 			return nil
 		}
 		if ext := strings.ToLower(filepath.Ext(path)); ext == ".ts" || ext == ".tsx" {
@@ -2639,6 +2844,201 @@ func ValidateIntegration(root string) (Result, error) {
 	})
 }
 
+// ValidateSelfHosting measures whether the catalog application exercises the
+// published library surface. This is a corpus observation: the catalog app
+// is the consumer and the library asset set is the denominator.
+func ValidateSelfHosting(root string) (Result, error) {
+	uiRoot := filepath.Join(root, "scenarios", "react-component-library", "ui", "src")
+	policyPath := filepath.Join(root, "scenarios", "react-component-library", "catalog", "self-hosting-policy.json")
+	policyData, err := os.ReadFile(policyPath)
+	if err != nil {
+		return Result{RunnerError: []Finding{{
+			Code: "catalog.self_hosting_policy_unavailable", AssetID: "__corpus__.self-hosting",
+			Message:     "self-hosting policy is unavailable: " + err.Error(),
+			Remediation: "Restore catalog/self-hosting-policy.json with the reviewed coverage floor and explicit exemptions.",
+			DocsRef:     "docs/reference/composition-validation.md",
+		}}}, nil
+	}
+	var policy struct {
+		MinimumCovered int `json:"minimumCovered"`
+		Exemptions     []struct {
+			Pattern string `json:"pattern"`
+			Reason  string `json:"reason"`
+		} `json:"exemptions"`
+	}
+	if err := json.Unmarshal(policyData, &policy); err != nil {
+		return Result{}, fmt.Errorf("decode self-hosting policy: %w", err)
+	}
+	assets, err := loadLibraryAssets(root)
+	if err != nil {
+		return Result{}, err
+	}
+	consumed := map[string]bool{}
+	known := map[string]string{}
+	for _, asset := range assets {
+		if asset.Asset.ID != "" {
+			known[asset.Asset.Name] = asset.Asset.ID
+		}
+	}
+	files := 0
+	err = filepath.WalkDir(uiRoot, func(path string, entry os.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		if entry.IsDir() {
+			return nil
+		}
+		ext := strings.ToLower(filepath.Ext(path))
+		if ext != ".ts" && ext != ".tsx" && ext != ".js" && ext != ".jsx" {
+			return nil
+		}
+		files++
+		data, readErr := os.ReadFile(path)
+		if readErr != nil {
+			return readErr
+		}
+		for _, match := range libraryImportRE.FindAllStringSubmatch(string(data), -1) {
+			if assetID := known[match[1]]; assetID != "" {
+				consumed[assetID] = true
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		return Result{}, err
+	}
+	result := Result{Inspected: 1}
+	if files == 0 {
+		result.RunnerError = append(result.RunnerError, Finding{
+			Code: "catalog.self_hosting_no_sources", AssetID: "__corpus__.self-hosting",
+			Message:     "catalog application source tree contains no inspectable files",
+			Remediation: "Restore the catalog application source tree before measuring self-hosting.",
+			DocsRef:     "docs/internal/TESTING.md",
+		})
+		return result, nil
+	}
+	result.InformationalFindings = append(result.InformationalFindings, Finding{
+		Code: "catalog.self_hosting_measurement", AssetID: "__corpus__.self-hosting",
+		Message:     fmt.Sprintf("catalog application imports %d of %d implemented catalog assets across %d source files; floor is %d; exemptions: %d", len(consumed), len(known), files, policy.MinimumCovered, len(policy.Exemptions)),
+		Remediation: "Increase the reviewed coverage floor when a new asset is consumed. Add an exemption only for a documented surface outside the catalog application's remit.",
+		DocsRef:     "docs/concepts/ARCHITECTURE.md#catalog-graph-projection",
+	})
+	if len(consumed) < policy.MinimumCovered {
+		result.Findings = append(result.Findings, Finding{
+			Code: "catalog.self_hosting_uncovered", AssetID: "__corpus__.self-hosting",
+			Message:     fmt.Sprintf("catalog application consumes %d implemented assets, below the required floor of %d", len(consumed), policy.MinimumCovered),
+			Remediation: "Add real catalog application usage paths or lower the floor only through a reviewed policy change with a documented reason; keep this gate blocking.",
+			DocsRef:     "docs/concepts/ARCHITECTURE.md#catalog-graph-projection",
+		})
+	}
+	return result, nil
+}
+
+// ValidateBASGenericity keeps browser workflows capability-driven. Component
+// names and version query parameters belong in story/runner data, not in a
+// workflow file that must be copied for every asset.
+func ValidateBASGenericity(root string) (Result, error) {
+	libraryRoot := filepath.Join(root, "scenarios", "react-component-library", "library")
+	componentNames := map[string]bool{}
+	manifests, err := filepath.Glob(filepath.Join(libraryRoot, "*", "*", "component.json"))
+	if err != nil {
+		return Result{}, err
+	}
+	for _, manifestPath := range manifests {
+		data, readErr := os.ReadFile(manifestPath)
+		if readErr != nil {
+			return Result{}, readErr
+		}
+		var manifest struct{ DisplayName, LibraryID string }
+		if json.Unmarshal(data, &manifest) != nil {
+			continue
+		}
+		name := filepath.Base(filepath.Dir(manifestPath))
+		if name != "" {
+			componentNames[strings.ToLower(name)] = true
+		}
+		if manifest.DisplayName != "" {
+			componentNames[strings.ToLower(manifest.DisplayName)] = true
+		}
+	}
+	result := Result{}
+	for _, directory := range []string{"cases", "calibration"} {
+		base := filepath.Join(root, "scenarios", "react-component-library", "bas", directory)
+		err := filepath.WalkDir(base, func(path string, entry os.DirEntry, walkErr error) error {
+			if walkErr != nil {
+				if os.IsNotExist(walkErr) {
+					return nil
+				}
+				return walkErr
+			}
+			if entry.IsDir() || (filepath.Ext(path) != ".json" && filepath.Ext(path) != ".js") {
+				return nil
+			}
+			data, readErr := os.ReadFile(path)
+			if readErr != nil {
+				return readErr
+			}
+			result.Inspected++
+			text := strings.ToLower(string(data))
+			if strings.Contains(text, "version=") {
+				result.Findings = append(result.Findings, Finding{
+					Code: "catalog.bas_version_pin", AssetID: "__corpus__.bas-genericity", File: repoRel(root, path),
+					Message: "BAS workflow embeds a version query parameter", Remediation: "Pass the version through the generic runner input contract instead of encoding it in the workflow.", DocsRef: "docs/reference/composition-validation.md",
+				})
+			}
+			// Descriptions and labels are allowed to name a capability (for
+			// example, "overlay" or "surface"). Only structured asset-selection
+			// fields and package imports are identity-bearing BAS knowledge.
+			identityText := basIdentityText(data, path)
+			for name := range componentNames {
+				if regexp.MustCompile(`(^|[^a-z0-9])` + regexp.QuoteMeta(name) + `([^a-z0-9]|$)`).MatchString(strings.ToLower(identityText)) {
+					result.Findings = append(result.Findings, Finding{
+						Code: "catalog.bas_component_knowledge", AssetID: "__corpus__.bas-genericity", File: repoRel(root, path),
+						Message: fmt.Sprintf("BAS workflow contains component-specific name %q", name), Remediation: "Move asset selection into story capabilities and runner parameters; keep the workflow universal.", DocsRef: "docs/reference/composition-validation.md",
+					})
+					break
+				}
+			}
+			return nil
+		})
+		if err != nil {
+			return Result{}, err
+		}
+	}
+	return nonEmpty(result, "bas-genericity"), nil
+}
+
+func basIdentityText(data []byte, path string) string {
+	if filepath.Ext(path) != ".json" {
+		return string(data)
+	}
+	var value any
+	if json.Unmarshal(data, &value) != nil {
+		return ""
+	}
+	var values []string
+	var walk func(any, string)
+	walk = func(node any, key string) {
+		switch typed := node.(type) {
+		case map[string]any:
+			for childKey, child := range typed {
+				lower := strings.ToLower(childKey)
+				if strings.Contains(lower, "component") || strings.Contains(lower, "asset") || strings.Contains(lower, "library") || strings.Contains(lower, "story") || strings.Contains(lower, "package") {
+					walk(child, lower)
+				}
+			}
+		case []any:
+			for _, child := range typed {
+				walk(child, key)
+			}
+		case string:
+			values = append(values, typed)
+		}
+	}
+	walk(value, "")
+	return strings.Join(values, "\n")
+}
+
 // defect is what a source check reports. Remediation is required alongside
 // Message: a check that can describe a defect can describe its fix, and the
 // pair is what makes the finding actionable without a second investigation.
@@ -2647,6 +3047,12 @@ type defect struct{ Message, Remediation, DocsRef string }
 func ok() defect { return defect{} }
 
 func validateActiveSources(root, gate string, check func(asset assetDoc, source string) defect) (Result, error) {
+	return validateActiveSourcesWithPath(root, gate, func(asset assetDoc, _ string, source string) defect {
+		return check(asset, source)
+	})
+}
+
+func validateActiveSourcesWithPath(root, gate string, check func(asset assetDoc, path, source string) defect) (Result, error) {
 	assets, err := loadLibraryAssets(root)
 	if err != nil {
 		return Result{}, err
@@ -2679,7 +3085,7 @@ func validateActiveSources(root, gate string, check func(asset assetDoc, source 
 				return Result{}, err
 			}
 			result.InspectedVersions++
-			if d := check(asset, string(data)); d.Message != "" {
+			if d := check(asset, source.Path, string(data)); d.Message != "" {
 				result.Findings = append(result.Findings, Finding{
 					Code: "catalog." + gate, AssetID: asset.Asset.ID, File: repoRel(root, source.Path),
 					Message: fmt.Sprintf("%s (version %s)", d.Message, source.Version), Remediation: d.Remediation, DocsRef: d.DocsRef,

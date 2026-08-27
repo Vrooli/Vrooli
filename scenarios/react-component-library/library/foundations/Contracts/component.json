@@ -2,7 +2,6 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "foundation",
   "catalogId": "foundations.contracts",
-  "dependencies": [],
   "description": "Shared type contracts for controllable state, density, layers, focus, and async lifecycle.",
   "designStyles": [
     {

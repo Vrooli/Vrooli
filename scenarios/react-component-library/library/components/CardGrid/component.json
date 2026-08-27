@@ -3,12 +3,6 @@
   "assetKind": "component",
   "catalogId": "patterns.card-grid",
   "category": "patterns",
-  "dependencies": [
-    {
-      "libraryId": "react-component-library:Card",
-      "version": "1.2.2"
-    }
-  ],
   "deprecatedVersions": [
     "1.0.0"
   ],

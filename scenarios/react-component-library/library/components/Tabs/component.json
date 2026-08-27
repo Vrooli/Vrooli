@@ -2,13 +2,6 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "component",
   "catalogId": "navigation.tabs",
-  "dependencies": [
-    {
-      "kind": "requires",
-      "libraryId": "react-component-library:VisualRecipes",
-      "version": "1.0.0"
-    }
-  ],
   "deprecatedVersions": [
     "1.0.3"
   ],

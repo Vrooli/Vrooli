@@ -2,12 +2,6 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "component",
   "catalogId": "patterns.undoable-destructive-action",
-  "dependencies": [
-    {
-      "libraryId": "react-component-library:UndoBanner",
-      "version": "1.0.0"
-    }
-  ],
   "deprecatedVersions": [
     "1.0.3"
   ],

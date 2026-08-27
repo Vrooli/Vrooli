@@ -128,9 +128,62 @@
         "page-template",
         "navigation"
       ],
-      "blocking": false,
+      "blocking": true,
       "runner": {
         "react-vite": "react-component-library catalog gates graph-reconciled"
+      }
+    },
+    {
+      "id": "dependency-rank",
+      "attribution": "corpus",
+      "rung": "implemented",
+      "description": "Generated dependency locks obey the library composition rank and never target fixtures or generators.",
+      "appliesTo": [
+        "foundation",
+        "runtime-hook",
+        "runtime-service",
+        "adapter",
+        "primitive",
+        "component",
+        "pattern",
+        "navigation",
+        "page-template"
+      ],
+      "blocking": true,
+      "runner": {
+        "react-vite": "react-component-library catalog gates dependency-rank"
+      }
+    },
+    {
+      "id": "self-hosting",
+      "attribution": "corpus",
+      "rung": "production-ready",
+      "description": "The catalog application consumes the published library surface and reports uncovered assets explicitly.",
+      "appliesTo": [
+        "foundation",
+        "primitive",
+        "component",
+        "runtime-hook",
+        "runtime-service",
+        "adapter",
+        "pattern",
+        "navigation",
+        "page-template"
+      ],
+      "blocking": true,
+      "runner": {
+        "react-vite": "react-component-library catalog gates self-hosting"
+      }
+    },
+    {
+      "id": "bas-genericity",
+      "attribution": "corpus",
+      "rung": "verified",
+      "description": "Browser workflows select assets through generic capabilities and runner parameters, never embedded component names or versions.",
+      "appliesTo": ["foundation", "primitive", "component", "pattern", "navigation", "page-template"],
+      "blocking": true,
+      "runner": {
+        "react-vite": "react-component-library catalog gates bas-genericity"
       }
     },
     {
@@ -182,6 +235,27 @@
       "blocking": true,
       "runner": {
         "react-vite": "react-component-library catalog gates released-version-immutable"
+      }
+    },
+    {
+      "id": "release-provenance",
+      "attribution": "corpus",
+      "rung": "verified",
+      "description": "Every materialized release was published from a draft or carries an explicit historical backfill marker.",
+      "appliesTo": [
+        "foundation",
+        "primitive",
+        "component",
+        "runtime-hook",
+        "runtime-service",
+        "adapter",
+        "pattern",
+        "page-template",
+        "navigation"
+      ],
+      "blocking": true,
+      "runner": {
+        "react-vite": "react-component-library catalog gates release-provenance"
       }
     },
     {

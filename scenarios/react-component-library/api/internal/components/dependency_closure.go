@@ -159,7 +159,14 @@ func ResolveDependencyClosureReport(ctx context.Context, reader DependencyReader
 		}
 		state[key] = 1
 		path = append(path, key)
-		declarations := append([]AssetDependency(nil), asset.Dependencies...)
+		immutable, err := reader.GetVersion(ctx, asset.ID, version)
+		if err != nil {
+			return ErrAssetDependency{FromLibraryID: from, LibraryID: asset.LibraryID, Version: version, Cause: err}
+		}
+		declarations := append([]AssetDependency(nil), immutable.Dependencies...)
+		if !immutable.DependencyLockPresent {
+			declarations = append([]AssetDependency(nil), asset.Dependencies...)
+		}
 		sort.Slice(declarations, func(i, j int) bool {
 			if declarations[i].LibraryID == declarations[j].LibraryID {
 				return declarations[i].Version < declarations[j].Version
@@ -177,10 +184,6 @@ func ResolveDependencyClosureReport(ctx context.Context, reader DependencyReader
 			if err := visit(dependency, dep.Version, asset.LibraryID); err != nil {
 				return err
 			}
-		}
-		immutable, err := reader.GetVersion(ctx, asset.ID, version)
-		if err != nil {
-			return ErrAssetDependency{FromLibraryID: from, LibraryID: asset.LibraryID, Version: version, Cause: err}
 		}
 		resolved[key] = ResolvedAsset{Asset: asset, Version: immutable}
 		order = append(order, key)

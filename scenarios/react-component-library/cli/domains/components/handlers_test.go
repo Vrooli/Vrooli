@@ -669,7 +669,6 @@ func TestComponentsManifestUpdate_ForwardsMetadata(t *testing.T) {
 			{Name: "replaced-by"},
 			{Name: "clear-supplemental-justification"},
 			{Name: "clear-catalog-id"},
-			{Name: "dependencies"},
 		},
 	}, cliapptest.TestRunContextOptions{
 		Positionals: map[string]string{"component-id": "cmp-1"},
@@ -683,7 +682,6 @@ func TestComponentsManifestUpdate_ForwardsMetadata(t *testing.T) {
 			"replaced-by":                      "navigation.page,navigation.sidebar",
 			"clear-supplemental-justification": "true",
 			"clear-catalog-id":                 "true",
-			"dependencies":                     "react-component-library:FullPageDrawer@1.0.3,react-component-library:BottomSheet@1.0.2",
 		},
 	})
 
@@ -695,9 +693,6 @@ func TestComponentsManifestUpdate_ForwardsMetadata(t *testing.T) {
 	require.Equal(t, []string{"navigation.page", "navigation.sidebar"}, svc.manifestReqs[0].ReplacedBy)
 	require.True(t, svc.manifestReqs[0].ClearSupplementalJustification)
 	require.True(t, svc.manifestReqs[0].ClearCatalogId)
-	require.Equal(t, "react-component-library:FullPageDrawer", svc.manifestReqs[0].Dependencies[0].LibraryId)
-	require.Equal(t, "1.0.3", svc.manifestReqs[0].Dependencies[0].Version)
-	require.Equal(t, "react-component-library:BottomSheet", svc.manifestReqs[0].Dependencies[1].LibraryId)
 }
 
 func writeFile(path, body string) error {

@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "libraryId": "react-component-library:CartesianCharts",
+  "version": "1.0.5",
+  "resolvedAt": "2026-08-27T18:29:27.181Z",
+  "dependencies": [
+    {
+      "libraryId": "react-component-library:Chart",
+      "version": "1.0.0",
+      "rank": 4
+    },
+    {
+      "libraryId": "react-component-library:ClassMerge",
+      "version": "1.0.1",
+      "rank": 1
+    }
+  ]
+}

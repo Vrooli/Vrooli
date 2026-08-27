@@ -2,12 +2,6 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "service",
   "catalogId": "services.form-store",
-  "dependencies": [
-    {
-      "libraryId": "react-component-library:createScopedStore",
-      "version": "1.0.0"
-    }
-  ],
   "description": "Field-granular form state with validation, submission, autosave, and conflict coordination.",
   "designStyles": [
     {

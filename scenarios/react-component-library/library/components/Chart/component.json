@@ -2,20 +2,6 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "component",
   "catalogId": "visualization.chart",
-  "dependencies": [
-    {
-      "libraryId": "react-component-library:AsyncBoundary",
-      "version": "1.0.0"
-    },
-    {
-      "libraryId": "react-component-library:useLocale",
-      "version": "1.0.0"
-    },
-    {
-      "libraryId": "react-component-library:useElementRect",
-      "version": "1.0.0"
-    }
-  ],
   "deprecatedVersions": [
     "1.0.3",
     "1.0.5"

@@ -15,7 +15,7 @@ import { TreeView, type TreeNode } from "@vrooli/react-component-library/TreeVie
 import {
   ExperienceSurface,
   type ExperienceSurfaceState,
-} from "@vrooli/react-component-library/ExperienceSurface/1/1.0.2";
+} from "@vrooli/react-component-library/ExperienceSurface/1.0.2";
 import { CreateComponentDialog } from "../components/CreateComponentDialog";
 import { AdoptedAssetShowcase } from "./AdoptedAssetShowcase";
 import { workflowsClient } from "../../api/workflows";

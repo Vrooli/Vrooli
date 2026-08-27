@@ -2,7 +2,6 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "service",
   "catalogId": "services.undo-manager",
-  "dependencies": [],
   "description": "A scoped reversible-action history service with expiry, rollback progress, and recovery.",
   "designStyles": [
     {

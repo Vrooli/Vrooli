@@ -3,6 +3,12 @@
 Central UI/API/CLI for designing, previewing, versioning, applying, and
 tracking shared React UI components across Vrooli scenarios.
 
+> **Editing an existing asset:** begin with
+> `react-component-library components draft-begin <asset>`. Work only in the
+> generated draft, then use `components draft-publish`; never create or edit a
+> released version directory directly. See
+> [the asset update flow](docs/guides/asset-update-flow.md).
+
 This scenario provides
 the standard full-stack Vrooli scenario shape:
 

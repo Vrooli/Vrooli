@@ -1,7 +1,6 @@
 {
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "hook",
-  "dependencies": [],
   "description": "Shared browser PCM voice capture lifecycle bound to a scenario transport.",
   "designStyles": [
     {

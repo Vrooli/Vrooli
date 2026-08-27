@@ -37,6 +37,12 @@ func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup
 		"ComponentTestsService.GetComponentTestReport":   h.testShow,
 		"ComponentTestsService.ListComponentTestReports": h.testList,
 		"ComponentTestsService.SweepComponentTests":      h.sweep,
+		// Local binding: the manifest declares this command with
+		// binding.kind "local" and no handler name, so the loader keys it by
+		// the command name. It must be registered here like any other — a
+		// manifest command with no entry in this map is a startup panic, not
+		// a missing subcommand.
+		"republish-dependents": h.republishDependents,
 	}
 	group, err := cliapp.LoadFromManifest(manifest, GroupName, bindings)
 	if err != nil {

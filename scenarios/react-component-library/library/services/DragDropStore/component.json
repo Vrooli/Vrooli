@@ -2,12 +2,6 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "service",
   "catalogId": "services.drag-drop-store",
-  "dependencies": [
-    {
-      "libraryId": "react-component-library:createScopedStore",
-      "version": "1.0.0"
-    }
-  ],
   "description": "A scoped interaction store for active drag state, position, velocity, and keyboard movement.",
   "designStyles": [
     {

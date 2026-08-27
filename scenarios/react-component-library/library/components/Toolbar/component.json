@@ -3,20 +3,6 @@
   "assetKind": "component",
   "catalogId": "controls.toolbar",
   "category": "controls",
-  "dependencies": [
-    {
-      "libraryId": "react-component-library:ControlBase",
-      "version": "1.0.0"
-    },
-    {
-      "libraryId": "react-component-library:Toggle",
-      "version": "1.0.0"
-    },
-    {
-      "libraryId": "react-component-library:useRovingFocus",
-      "version": "1.0.0"
-    }
-  ],
   "deprecatedVersions": [
     "1.0.2",
     "1.0.4"

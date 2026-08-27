@@ -2,13 +2,6 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "catalogId": "overlays.dialog",
   "category": "overlays",
-  "dependencies": [
-    {
-      "kind": "requires",
-      "libraryId": "react-component-library:ClassMerge",
-      "version": "1.0.0"
-    }
-  ],
   "deprecatedVersions": [
     "1.2.1"
   ],

@@ -18,28 +18,6 @@
   "assetKind": "component",
   "catalogId": "overlays.popover",
   "category": "overlays",
-  "dependencies": [
-    {
-      "libraryId": "react-component-library:Surface",
-      "version": "1.0.0"
-    },
-    {
-      "libraryId": "react-component-library:Presence",
-      "version": "1.0.0"
-    },
-    {
-      "libraryId": "react-component-library:useOutsideInteraction",
-      "version": "1.0.0"
-    },
-    {
-      "libraryId": "react-component-library:useEscapeKey",
-      "version": "1.0.0"
-    },
-    {
-      "libraryId": "react-component-library:useControllableState",
-      "version": "1.0.0"
-    }
-  ],
   "deprecatedVersions": [
     "1.1.1"
   ],

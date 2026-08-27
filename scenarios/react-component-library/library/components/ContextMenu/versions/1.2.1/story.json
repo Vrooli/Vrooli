@@ -1,0 +1,60 @@
+{
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
+  "schemaVersion": 5,
+  "kind": "component",
+  "title": "ContextMenu",
+  "args": { "fields": [] },
+  "environment": { "fixtures": [] },
+  "stories": [
+    {
+      "id": "default",
+      "name": "Default",
+      "role": "anatomy",
+      "mode": "live",
+      "args": {},
+      "composition": { "specimen": { "module": "./story.tsx", "export": "Default" } },
+      "expect": [
+        { "kind": "visible", "selector": "[data-testid='overlays.context-menu']" },
+        { "kind": "visible", "selector": "[data-rcl-context-menu-item-wrap]" }
+      ]
+    },
+    {
+      "id": "at-pointer-position",
+      "name": "At pointer position",
+      "role": "boundary",
+      "mode": "live",
+      "args": {},
+      "composition": { "specimen": { "module": "./story.tsx", "export": "AtPointerPosition" } },
+      "expect": [{ "kind": "visible", "selector": "[data-testid='overlays.context-menu']" }]
+    },
+    {
+      "id": "grouped-with-shortcuts",
+      "name": "Grouped with shortcuts",
+      "role": "boundary",
+      "mode": "live",
+      "args": {},
+      "composition": { "specimen": { "module": "./story.tsx", "export": "GroupedWithShortcuts" } },
+      "expect": [
+        { "kind": "visible", "selector": "[data-rcl-context-menu-item-wrap][data-separator]" }
+      ]
+    },
+    {
+      "id": "with-checkable-item",
+      "name": "With checkable item",
+      "role": "boundary",
+      "mode": "live",
+      "args": {},
+      "composition": { "specimen": { "module": "./story.tsx", "export": "WithCheckableItem" } },
+      "expect": [{ "kind": "visible", "selector": "button[role='menuitemcheckbox']" }]
+    },
+    {
+      "id": "with-destructive-item",
+      "name": "With destructive item",
+      "role": "boundary",
+      "mode": "live",
+      "args": {},
+      "composition": { "specimen": { "module": "./story.tsx", "export": "WithDestructiveItem" } },
+      "expect": [{ "kind": "visible", "selector": "button[data-destructive]" }]
+    }
+  ]
+}

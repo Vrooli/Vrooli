@@ -1,12 +1,6 @@
 {
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "catalogId": "controls.icon-button",
-  "dependencies": [
-    {
-      "libraryId": "react-component-library:Pressable",
-      "version": "1.0.0"
-    }
-  ],
   "deprecatedVersions": [
     "2.0.0"
   ],

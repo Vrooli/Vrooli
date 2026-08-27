@@ -2,7 +2,6 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "component",
   "catalogId": "data-display.table",
-  "dependencies": [],
   "description": "A semantic tabular surface with honest headings and responsive overflow boundaries.",
   "designStyles": [
     {

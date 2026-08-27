@@ -111,10 +111,105 @@ func TestFingerprintChangesWhenSourceChanges(t *testing.T) {
 	}
 }
 
+func TestFingerprintChangesWhenContentChangesWithoutMtimeChange(t *testing.T) {
+	root := writeProbeTree(t)
+	path := filepath.Join(root, fingerprintRoots[1], "probe.json")
+	info, err := os.Stat(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	before, err := fingerprint(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, []byte(`{"changed":true}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chtimes(path, info.ModTime(), info.ModTime()); err != nil {
+		t.Fatal(err)
+	}
+	after, err := fingerprint(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if before == after {
+		t.Fatal("fingerprint did not change after content changed with the original mtime restored")
+	}
+}
+
 func TestFingerprintToleratesMissingTrees(t *testing.T) {
 	// A fresh checkout may not have every tree present; a missing directory is
 	// a legitimate state and must not fail the coverage request.
 	if _, err := fingerprint(t.TempDir()); err != nil {
 		t.Fatalf("fingerprint over an empty root should succeed, got %v", err)
+	}
+}
+
+func writeAssetCacheFixture(t *testing.T) string {
+	t.Helper()
+	root := t.TempDir()
+	scenarioRoot := filepath.Join(root, "scenarios", "react-component-library")
+	if err := os.MkdirAll(filepath.Join(scenarioRoot, "catalog", "assets", "controls"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(scenarioRoot, "catalog", "config.json"), []byte(`{"domains":[{"id":"controls","order":1}]}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	asset := func(id, name string) string {
+		return `{"kind":"catalog-asset","asset":{"id":"` + id + `","name":"` + name + `","kind":"component","domain":"controls","target":{"priority":"P1","maturity":"implemented"}}}`
+	}
+	for _, item := range []struct{ id, name string }{{"controls.button", "Button"}, {"controls.card", "Card"}} {
+		if err := os.WriteFile(filepath.Join(scenarioRoot, "catalog", "assets", "controls", item.name+".json"), []byte(asset(item.id, item.name)), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, item := range []struct {
+		name, catalogID, libraryID, dependency string
+	}{
+		{"Button", "controls.button", "react-component-library:Button", ""},
+		{"Card", "controls.card", "react-component-library:Card", "react-component-library:Button"},
+	} {
+		versionRoot := filepath.Join(scenarioRoot, "library", "components", item.name, "versions", "1.0.0")
+		if err := os.MkdirAll(versionRoot, 0o755); err != nil {
+			t.Fatal(err)
+		}
+		manifest := `{"libraryId":"` + item.libraryID + `","catalogId":"` + item.catalogID + `","latest":"1.0.0"}`
+		if item.dependency != "" {
+			manifest = `{"libraryId":"` + item.libraryID + `","catalogId":"` + item.catalogID + `","latest":"1.0.0","dependencies":[{"libraryId":"` + item.dependency + `","version":"1.0.0"}]}`
+		}
+		if err := os.WriteFile(filepath.Join(versionRoot, "component.tsx"), []byte("export const "+item.name+" = () => null;\n"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(scenarioRoot, "library", "components", item.name, "component.json"), []byte(manifest), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	return root
+}
+
+func TestAssetFingerprintAndDependentsFollowGeneratedLocks(t *testing.T) {
+	root := writeAssetCacheFixture(t)
+	before, err := assetFingerprint(root, "controls.button")
+	if err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(root, "scenarios", "react-component-library", "library", "components", "Button", "versions", "1.0.0", "component.tsx")
+	if err := os.WriteFile(path, []byte("export const Button = () => 'changed';\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	after, err := assetFingerprint(root, "controls.button")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if before == after {
+		t.Fatal("asset fingerprint did not change after source content changed")
+	}
+	dependents, err := dependentAssetIDs(root, "controls.button")
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []string{"controls.button", "controls.card"}
+	if len(dependents) != len(want) || dependents[0] != want[0] || dependents[1] != want[1] {
+		t.Fatalf("dependent assets = %#v, want %#v", dependents, want)
 	}
 }

@@ -2,7 +2,6 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "foundation",
   "catalogId": "foundations.tokens",
-  "dependencies": [],
   "description": "Typed semantic ramps shared by every Vrooli surface.",
   "designStyles": [
     {

@@ -1074,7 +1074,7 @@
           }
         },
         {
-          "name": "version-begin",
+          "name": "draft-begin",
           "description": "Begin one mutable component draft from the current release",
           "positionals": [
             {
@@ -1134,7 +1134,7 @@
           }
         },
         {
-          "name": "version-publish",
+          "name": "draft-publish",
           "description": "Validate and atomically publish the active component draft",
           "positionals": [
             {
@@ -1248,6 +1248,23 @@
           }
         },
         {
+          "name": "republish-dependents",
+          "description": "List or republish assets pinned to an older release of one dependency",
+          "positionals": [
+            {"name": "asset", "required": true, "description": "Dependency asset name or library id"},
+            {"name": "version", "required": true, "description": "Target dependency release"}
+          ],
+          "flags": [
+            {"name": "apply", "description": "Create and publish patch drafts; omission is a dry run", "local_only": true}
+          ],
+          "binding": {"kind": "local"},
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": ["network:internal", "filesystem:write"]
+          }
+        },
+        {
           "name": "manifest-update",
           "description": "Update component manifest metadata and version pointers",
           "positionals": [
@@ -1297,10 +1314,6 @@
             {
               "name": "clear-catalog-id",
               "description": "Remove catalogId when no catalog asset exists"
-            },
-            {
-              "name": "dependencies",
-              "description": "Comma-separated exact libraryId@version dependencies"
             }
           ],
           "binding": {
@@ -1683,14 +1696,6 @@
           "governance": {"effect": "write", "run_eligible": true, "permissions": ["network:internal", "filesystem:write"]}
         },
         {
-          "name": "evict",
-          "description": "Alias for archive: reversibly evict an unreferenced version",
-          "positionals": [{"name": "component-id", "required": true, "description": "Component id"}, {"name": "version", "required": true, "description": "Version"}],
-          "flags": [{"name": "plan-hash", "description": "Hash returned by plan-cleanup"}, {"name": "confirm", "description": "Confirm reversible eviction"}],
-          "binding": {"kind": "connect-rpc", "service": "VersionLifecycleService", "method": "ArchiveVersion"},
-          "governance": {"effect": "write", "run_eligible": true, "permissions": ["network:internal", "filesystem:write"]}
-        },
-        {
           "name": "retire",
           "description": "Reclaim an explicitly confirmed unreferenced version folder",
           "positionals": [{"name": "component-id", "required": true, "description": "Component id"}, {"name": "version", "required": true, "description": "Version"}],
@@ -2039,28 +2044,6 @@
             "effect": "write",
             "run_eligible": true,
             "permissions": ["network:internal", "filesystem:read", "filesystem:write"]
-          }
-        },
-        {
-          "name": "stories",
-          "description": "Lint every versioned story contract and specimen module",
-          "positionals": [
-            { "name": "action", "required": true, "description": "Action: lint", "local_only": true },
-            { "name": "gate", "description": "Internal gate selector; stories lint selects story-grammar", "local_only": true }
-          ],
-          "flags": [
-            { "name": "all", "bool": true, "description": "Run every declared catalog gate", "local_only": true },
-            { "name": "calibration-only", "bool": true, "description": "Run gate-owned planted-error fixtures without inspecting the corpus", "local_only": true }
-          ],
-          "binding": {
-            "kind": "connect-rpc",
-            "service": "CatalogService",
-            "method": "RunGate"
-          },
-          "governance": {
-            "effect": "read",
-            "run_eligible": true,
-            "permissions": ["network:internal", "filesystem:read"]
           }
         },
     {

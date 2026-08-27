@@ -2,7 +2,6 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "component",
   "catalogId": "overlays.alert-dialog",
-  "dependencies": [],
   "deprecatedVersions": [
     "1.0.2",
     "1.0.4"
@@ -29,7 +28,7 @@
     "1.0.2"
   ],
   "kind": "overlay",
-  "latest": "2.0.5",
+  "latest": "2.0.6",
   "libraryId": "react-component-library:AlertDialog",
   "tags": [
     "overlay",

@@ -2,44 +2,6 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "component",
   "catalogId": "forms.generated-form",
-  "dependencies": [
-    {
-      "libraryId": "react-component-library:Form",
-      "version": "1.0.0"
-    },
-    {
-      "libraryId": "react-component-library:FormField",
-      "version": "1.0.0"
-    },
-    {
-      "libraryId": "react-component-library:FormSection",
-      "version": "1.0.0"
-    },
-    {
-      "libraryId": "react-component-library:FormActions",
-      "version": "1.0.0"
-    },
-    {
-      "libraryId": "react-component-library:ValidationSummary",
-      "version": "1.0.0"
-    },
-    {
-      "libraryId": "react-component-library:ConditionalField",
-      "version": "1.0.0"
-    },
-    {
-      "libraryId": "react-component-library:ComputedField",
-      "version": "1.0.0"
-    },
-    {
-      "libraryId": "react-component-library:ArrayField",
-      "version": "1.0.0"
-    },
-    {
-      "libraryId": "react-component-library:ObjectField",
-      "version": "1.0.0"
-    }
-  ],
   "deprecatedVersions": [
     "1.0.1"
   ],

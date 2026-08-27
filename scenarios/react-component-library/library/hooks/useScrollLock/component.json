@@ -2,7 +2,6 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "hook",
   "catalogId": "hooks.use-scroll-lock",
-  "dependencies": [],
   "description": "Production-ready useScrollLock hook with SSR-safe lifecycle behavior.",
   "designStyles": [
     {

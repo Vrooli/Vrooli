@@ -1,2 +1,2 @@
 /** @vrooliComponentSource react-component-library:InspectorLayout */
-export * from "@vrooli/react-component-library/InspectorLayout/1/1.1.0";
+export * from "@vrooli/react-component-library/InspectorLayout/1.1.2";

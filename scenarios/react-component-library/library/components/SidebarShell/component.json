@@ -2,23 +2,6 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "catalogId": "navigation.sidebar",
   "category": "navigation",
-  "dependencies": [
-    {
-      "kind": "requires",
-      "libraryId": "react-component-library:useEscapeKey",
-      "version": "1.0.0"
-    },
-    {
-      "kind": "requires",
-      "libraryId": "react-component-library:useResizablePanel",
-      "version": "1.0.0"
-    },
-    {
-      "kind": "requires",
-      "libraryId": "react-component-library:ResizeHandle",
-      "version": "1.0.0"
-    }
-  ],
   "deprecatedVersions": [
     "1.3.1",
     "1.3.2"
@@ -41,12 +24,13 @@
   "displayName": "Sidebar Shell",
   "draft": "",
   "kind": "shell",
-  "latest": "2.0.0",
+  "latest": "2.4.0",
   "libraryId": "react-component-library:SidebarShell",
   "slot": "layout-nav",
   "tags": [
     "layout",
     "navigation",
     "responsive"
-  ]
+  ],
+  "evictedVersions": []
 }

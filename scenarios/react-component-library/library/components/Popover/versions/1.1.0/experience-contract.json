@@ -9,6 +9,14 @@
     "title": "Popover",
     "purpose": "Keep secondary actions anchored to their trigger without losing focus, layer, or responsive discipline."
   },
+  "bindings": {
+    "elements": {
+      "surface": {"selector": "[role=dialog]"}
+    }
+  },
+  "elements": [
+    {"id": "surface", "role": "dialog"}
+  ],
   "states": [
     {
       "id": "default",
@@ -24,9 +32,10 @@
   "claims": [
     {
       "id": "anchored-and-collision-aware",
-      "type": "manual-review",
+      "type": "focus-containment",
       "statement": "The surface measures its trigger, flips at viewport edges, clamps within safe margins, and keeps its arrow aligned to the trigger.",
-      "tier": "manual",
+      "tier": "machine",
+      "elements": ["surface"],
       "states": ["default", "interactive"]
     },
     {

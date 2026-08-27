@@ -3,7 +3,6 @@
   "assetKind": "component",
   "catalogId": "patterns.search-filter-results",
   "category": "patterns",
-  "dependencies": [],
   "deprecatedVersions": [
     "1.0.2"
   ],

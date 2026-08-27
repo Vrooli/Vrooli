@@ -2,12 +2,6 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "primitive",
   "catalogId": "primitives.progress",
-  "dependencies": [
-    {
-      "libraryId": "react-component-library:useReducedMotion",
-      "version": "1.0.0"
-    }
-  ],
   "deprecatedVersions": [
     "1.0.1",
     "1.0.3"

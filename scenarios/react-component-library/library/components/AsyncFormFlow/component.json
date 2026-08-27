@@ -2,24 +2,6 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "component",
   "catalogId": "patterns.async-form-flow",
-  "dependencies": [
-    {
-      "libraryId": "react-component-library:Form",
-      "version": "1.0.0"
-    },
-    {
-      "libraryId": "react-component-library:FormActions",
-      "version": "1.0.0"
-    },
-    {
-      "libraryId": "react-component-library:ValidationSummary",
-      "version": "1.0.0"
-    },
-    {
-      "libraryId": "react-component-library:AsyncBoundary",
-      "version": "1.0.0"
-    }
-  ],
   "deprecatedVersions": [
     "1.0.3",
     "1.0.5"

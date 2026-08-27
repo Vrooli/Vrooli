@@ -2,12 +2,6 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "component",
   "catalogId": "forms.form-section",
-  "dependencies": [
-    {
-      "libraryId": "react-component-library:CollapsibleRegion",
-      "version": "1.0.0"
-    }
-  ],
   "description": "A semantic form grouping with responsive rhythm, optional collapse, summaries, and visible validation counts.",
   "designStyles": [
     {

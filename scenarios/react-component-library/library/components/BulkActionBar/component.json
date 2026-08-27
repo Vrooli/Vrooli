@@ -2,16 +2,6 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "component",
   "catalogId": "data-display.bulk-action-bar",
-  "dependencies": [
-    {
-      "libraryId": "react-component-library:Button",
-      "version": "2.0.0"
-    },
-    {
-      "libraryId": "react-component-library:ButtonGroup",
-      "version": "1.0.0"
-    }
-  ],
   "deprecatedVersions": [
     "1.0.1",
     "1.0.3"

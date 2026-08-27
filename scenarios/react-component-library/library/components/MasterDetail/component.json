@@ -2,16 +2,6 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "component",
   "catalogId": "navigation.master-detail",
-  "dependencies": [
-    {
-      "libraryId": "react-component-library:SplitView",
-      "version": "1.0.0"
-    },
-    {
-      "libraryId": "react-component-library:useMediaQuery",
-      "version": "1.0.0"
-    }
-  ],
   "deprecatedVersions": [
     "1.0.3",
     "1.0.5"

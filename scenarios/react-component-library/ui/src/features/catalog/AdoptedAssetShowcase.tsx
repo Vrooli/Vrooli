@@ -4,7 +4,7 @@ import { Button } from "../../components/Button";
 import { EmptyState } from "../../components/EmptyState";
 import { FullPageDrawer } from "@vrooli/react-component-library/FullPageDrawer/1";
 import { Icon } from "@vrooli/react-component-library/Icon/1.1.0";
-import { Pressable } from "@vrooli/react-component-library/Pressable/1/1.0.0";
+import { Pressable } from "@vrooli/react-component-library/Pressable/1.0.0";
 import { Text } from "@vrooli/react-component-library/Text/1.0.0";
 
 /**

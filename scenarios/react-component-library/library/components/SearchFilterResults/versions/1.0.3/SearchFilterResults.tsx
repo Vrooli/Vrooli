@@ -15,7 +15,7 @@ import { FilterBar } from "@vrooli/react-component-library/FilterBar/1.0.0";
 import {
   SearchResults,
   type SearchResultsState,
-} from "@vrooli/react-component-library/SearchResults/1.0.4";
+} from "@vrooli/react-component-library/SearchResults/1.0.5";
 import { useAbortableTask } from "@vrooli/react-component-library/useAbortableTask/1.0.0";
 
 export interface SearchFilterResultsProps {

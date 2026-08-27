@@ -3,12 +3,6 @@
   "assetKind": "component",
   "catalogId": "controls.switch",
   "category": "controls",
-  "dependencies": [
-    {
-      "libraryId": "react-component-library:SelectionControl",
-      "version": "1.0.0"
-    }
-  ],
   "deprecatedVersions": [
     "1.0.2",
     "1.0.4"

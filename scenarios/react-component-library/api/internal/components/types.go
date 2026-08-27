@@ -162,6 +162,13 @@ type ComponentVersion struct {
 	Presence string
 	Headers  map[string]string
 	Files    []ComponentVersionFile
+	// Dependencies is the source-derived, immutable resolution recorded beside
+	// this version in dependencies.json. The component projection exposes the
+	// latest version's dependencies for compatibility with existing callers.
+	Dependencies []AssetDependency
+	// DependencyLockPresent distinguishes an intentionally empty generated lock
+	// from legacy in-memory callers that have not supplied version-local data.
+	DependencyLockPresent bool
 	// RequiredTokens is derived from this version's source at index time.
 	RequiredTokens []string
 	// RequiredTokenPatterns describes dynamic names selected at runtime.
@@ -248,9 +255,11 @@ type ComponentManifest struct {
 	Tags               []string
 	DesignStyles       []ComponentDesignAffinity
 	AssetKind          AssetKind
-	Dependencies       []AssetDependency
-	Expects            []string
-	Satisfies          []string
+	// Dependencies is derived from the latest version lock. It is not an
+	// authored component.json field.
+	Dependencies []AssetDependency
+	Expects      []string
+	Satisfies    []string
 }
 
 // UpsertInput is retained as a convenience alias for older tests and

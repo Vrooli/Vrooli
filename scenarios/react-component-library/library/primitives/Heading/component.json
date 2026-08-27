@@ -2,12 +2,6 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "primitive",
   "catalogId": "primitives.heading",
-  "dependencies": [
-    {
-      "libraryId": "react-component-library:Text",
-      "version": "1.1.0"
-    }
-  ],
   "deprecatedVersions": [
     "1.1.0"
   ],

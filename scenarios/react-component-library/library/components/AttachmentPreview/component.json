@@ -2,16 +2,6 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "component",
   "catalogId": "media.attachment-preview",
-  "dependencies": [
-    {
-      "libraryId": "react-component-library:FilePreview",
-      "version": "1.0.0"
-    },
-    {
-      "libraryId": "react-component-library:Progress",
-      "version": "1.0.0"
-    }
-  ],
   "deprecatedVersions": [
     "1.0.1"
   ],

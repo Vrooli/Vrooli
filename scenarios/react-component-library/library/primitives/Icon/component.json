@@ -2,16 +2,6 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "primitive",
   "catalogId": "primitives.icon",
-  "dependencies": [
-    {
-      "libraryId": "react-component-library:IconRegistry",
-      "version": "1.0.0"
-    },
-    {
-      "libraryId": "react-component-library:Tokens",
-      "version": "1.0.0"
-    }
-  ],
   "deprecatedVersions": [
     "1.1.2"
   ],

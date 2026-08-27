@@ -2,12 +2,6 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "component",
   "catalogId": "forms.object-field",
-  "dependencies": [
-    {
-      "libraryId": "react-component-library:FormSection",
-      "version": "1.0.0"
-    }
-  ],
   "deprecatedVersions": [
     "1.0.1",
     "1.0.3"

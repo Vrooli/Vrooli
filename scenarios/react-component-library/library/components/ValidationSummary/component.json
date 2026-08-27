@@ -3,7 +3,6 @@
   "assetKind": "component",
   "catalogId": "forms.validation-summary",
   "category": "forms",
-  "dependencies": [],
   "deprecatedVersions": [
     "1.0.3",
     "1.0.5"

@@ -12,6 +12,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/stretchr/testify/require"
 	_ "modernc.org/sqlite"
 )
 
@@ -262,6 +263,22 @@ func TestValidateOverlaySurfaceCompositionAcceptsSharedCoreAndReasonedOptOut(t *
 	}
 	if len(result.Findings) != 0 {
 		t.Fatalf("overlay composition findings = %+v", result.Findings)
+	}
+}
+
+func TestStructuredSourceFactsDetectComputedOverlayRole(t *testing.T) {
+	root := liveRoot(t)
+	path := filepath.Join(root, "scenarios", "react-component-library", "library", "components", "SidebarShell", "versions", "2.2.0", "SidebarShell.tsx")
+	source, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err := sourceHasOverlayRole(root, path, source)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !got {
+		t.Fatal("structured AST facts did not detect SidebarShell's computed dialog role")
 	}
 }
 
@@ -787,4 +804,90 @@ func TestFixtureGateRejectsDataSourceWithoutTypeArgument(t *testing.T) {
 	if len(result.Findings) != 1 || result.Findings[0].Code != "catalog.fixture_data_source" {
 		t.Fatalf("result = %+v", result)
 	}
+}
+
+func TestValidateDependencyRankRejectsPrimitiveImportingComponent(t *testing.T) {
+	root := t.TempDir()
+	library := filepath.Join(root, "scenarios", "react-component-library", "library")
+	primitive := filepath.Join(library, "primitives", "Stack")
+	component := filepath.Join(library, "components", "Dialog")
+	require.NoError(t, os.MkdirAll(filepath.Join(primitive, "versions", "1.0.0"), 0o755))
+	require.NoError(t, os.MkdirAll(filepath.Join(component, "versions", "1.0.0"), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(primitive, "component.json"), []byte(`{"libraryId":"react-component-library:Stack"}`), 0o600))
+	require.NoError(t, os.WriteFile(filepath.Join(component, "component.json"), []byte(`{"libraryId":"react-component-library:Dialog"}`), 0o600))
+	require.NoError(t, os.WriteFile(filepath.Join(primitive, "versions", "1.0.0", "dependencies.json"), []byte(`{"libraryId":"react-component-library:Stack","version":"1.0.0","dependencies":[{"libraryId":"react-component-library:Dialog","version":"1.0.0"}]}`), 0o600))
+
+	result, err := ValidateDependencyRank(root)
+	require.NoError(t, err)
+	require.Len(t, result.Findings, 1)
+	require.Equal(t, "catalog.dependency_rank", result.Findings[0].Code)
+}
+
+func TestLiveDependencyLocksObeyCompositionRank(t *testing.T) {
+	result, err := ValidateDependencyRank(liveRoot(t))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(result.Findings) > 0 {
+		t.Fatalf("dependency-rank findings: %+v", result.Findings)
+	}
+}
+
+func TestValidateReleaseProvenanceRejectsHandCreatedRelease(t *testing.T) {
+	root := t.TempDir()
+	library := filepath.Join(root, "scenarios", "react-component-library", "library")
+	asset := filepath.Join(library, "components", "Dialog")
+	require.NoError(t, os.MkdirAll(filepath.Join(asset, "versions", "1.0.0"), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(asset, "component.json"), []byte(`{"libraryId":"react-component-library:Dialog"}`), 0o600))
+	require.NoError(t, os.WriteFile(filepath.Join(library, "release-provenance.json"), []byte(`{"schemaVersion":1,"entries":[]}`), 0o600))
+
+	result, err := ValidateReleaseProvenance(root)
+	require.NoError(t, err)
+	require.Len(t, result.Findings, 1)
+	require.Equal(t, "catalog.release_provenance_missing", result.Findings[0].Code)
+}
+
+func TestLiveReleaseProvenanceCoversEveryMaterializedRelease(t *testing.T) {
+	result, err := ValidateReleaseProvenance(liveRoot(t))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(result.RunnerError) > 0 || len(result.Findings) > 0 {
+		t.Fatalf("release-provenance result: %+v", result)
+	}
+}
+
+func TestLiveSelfHostingDoesNotRegressBelowReviewedFloor(t *testing.T) {
+	result, err := ValidateSelfHosting(liveRoot(t))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(result.RunnerError) > 0 || len(result.Findings) > 0 {
+		t.Fatalf("self-hosting result: %+v", result)
+	}
+}
+
+func TestLiveBASIsCapabilityDriven(t *testing.T) {
+	result, err := ValidateBASGenericity(liveRoot(t))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(result.RunnerError) > 0 || len(result.Findings) > 0 {
+		t.Fatalf("bas-genericity result: %+v", result)
+	}
+}
+
+func TestBASGenericityRejectsAssetKnowledgeAndVersionPins(t *testing.T) {
+	root := t.TempDir()
+	manifest := filepath.Join(root, "scenarios", "react-component-library", "library", "components", "Button")
+	caseDir := filepath.Join(root, "scenarios", "react-component-library", "bas", "cases")
+	calibrationDir := filepath.Join(root, "scenarios", "react-component-library", "bas", "calibration")
+	require.NoError(t, os.MkdirAll(manifest, 0o755))
+	require.NoError(t, os.MkdirAll(caseDir, 0o755))
+	require.NoError(t, os.MkdirAll(calibrationDir, 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(manifest, "component.json"), []byte(`{"displayName":"Button"}`), 0o600))
+	require.NoError(t, os.WriteFile(filepath.Join(caseDir, "bad.json"), []byte(`{"url":"/story?version=1.0.0","asset":"Button"}`), 0o600))
+	result, err := ValidateBASGenericity(root)
+	require.NoError(t, err)
+	require.Len(t, result.Findings, 2)
 }

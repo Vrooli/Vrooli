@@ -2,7 +2,6 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "hook",
   "catalogId": "hooks.use-delayed-pending",
-  "dependencies": [],
   "description": "Production-ready useDelayedPending hook with SSR-safe lifecycle behavior.",
   "designStyles": [
     {

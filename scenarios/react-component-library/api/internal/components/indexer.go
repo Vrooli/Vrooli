@@ -126,6 +126,11 @@ func (idx *Indexer) Run(ctx context.Context) (IndexResult, error) {
 	if idx.fs == nil {
 		return result, fmt.Errorf("indexer has no filesystem configured")
 	}
+	if _, err := fs.Stat(idx.fs, "released-version-hashes.json"); err == nil {
+		if err := ValidateVersionDependencyLocks(idx.fs); err != nil {
+			return result, err
+		}
+	}
 	if _, err := idx.repo.RestoreEvictedStories(ctx); err != nil {
 		return result, fmt.Errorf("restore evicted story projections: %w", err)
 	}
@@ -249,9 +254,8 @@ type manifestFile struct {
 	// AssetKind is optional for backwards compatibility: the authored root is
 	// authoritative for legacy manifests. New manifests may state it explicitly
 	// as a guard against moving a manifest into the wrong root.
-	AssetKind    string            `json:"assetKind"`
-	Dependencies []AssetDependency `json:"dependencies"`
-	Entry        string            `json:"entry"`
+	AssetKind string `json:"assetKind"`
+	Entry     string `json:"entry"`
 	// FileSlots pins an explicit placement slot per version-unit basename
 	// (e.g. {"useFocusTrap.ts": "hook"}). Authoritative over the resolver's
 	// extension heuristic. Applies across all versions of the component.
@@ -291,10 +295,6 @@ func (idx *Indexer) buildManifestInput(path string) (IndexManifestInput, map[str
 	if assetKind == AssetKindHook && strings.TrimSpace(mf.Slot) != "" {
 		return IndexManifestInput{}, nil, errInvalidHeader(path, "slot", "hooks are non-renderable and must not declare a UI slot")
 	}
-	deps, err := normalizeAssetDependencies(path, mf.Dependencies)
-	if err != nil {
-		return IndexManifestInput{}, nil, err
-	}
 	manifest := ComponentManifest{
 		CatalogID:          strings.TrimSpace(mf.CatalogID),
 		LibraryID:          strings.TrimSpace(mf.LibraryID),
@@ -310,7 +310,6 @@ func (idx *Indexer) buildManifestInput(path string) (IndexManifestInput, map[str
 		EvictedVersions:    append([]string(nil), mf.EvictedVersions...),
 		Tags:               append([]string(nil), mf.Tags...),
 		AssetKind:          assetKind,
-		Dependencies:       deps,
 	}
 	designStyles, err := parseManifestDesignStyles(path, mf.DesignStyles)
 	if err != nil {
@@ -428,6 +427,13 @@ func (idx *Indexer) buildManifestInput(path string) (IndexManifestInput, map[str
 		if !entryFound {
 			return IndexManifestInput{}, nil, ErrInvalidHeader{SourcePath: versionPath, Field: "entry", Reason: "entry file not found"}
 		}
+		dependencies, lockFile, err := idx.readVersionDependencyLock(versionPath, manifest.LibraryID, version)
+		if err != nil {
+			return IndexManifestInput{}, nil, err
+		}
+		if lockFile != nil {
+			versionFiles = append(versionFiles, *lockFile)
+		}
 		experienceContract := ""
 		contractPath := filepath.ToSlash(filepath.Join(versionPath, "experience-contract.json"))
 		if rawContract, contractErr := fs.ReadFile(idx.fs, contractPath); contractErr == nil {
@@ -536,6 +542,8 @@ func (idx *Indexer) buildManifestInput(path string) (IndexManifestInput, map[str
 			ContentSHA256:         digestBytes(src),
 			Headers:               headers,
 			Files:                 versionFiles,
+			Dependencies:          dependencies,
+			DependencyLockPresent: lockFile != nil,
 			RequiredTokens:        ExtractRequiredTokens(versionFiles),
 			RequiredTokenPatterns: ExtractRequiredTokenPatterns(versionFiles),
 			ExperienceContract:    experienceContract,
@@ -568,6 +576,12 @@ func (idx *Indexer) buildManifestInput(path string) (IndexManifestInput, map[str
 	if !latestFound {
 		return IndexManifestInput{}, nil, ErrInvalidHeader{SourcePath: path, Field: "latest", Reason: "version folder not found"}
 	}
+	for _, indexedVersion := range versions {
+		if indexedVersion.Version == manifest.LatestVersion {
+			manifest.Dependencies = append([]AssetDependency(nil), indexedVersion.Dependencies...)
+			break
+		}
+	}
 	if manifest.DraftVersion != "" && !draftFound {
 		return IndexManifestInput{}, nil, ErrInvalidHeader{SourcePath: path, Field: "draft", Reason: "version folder not found"}
 	}
@@ -590,6 +604,52 @@ func (idx *Indexer) buildManifestInput(path string) (IndexManifestInput, map[str
 		}
 	}
 	return IndexManifestInput{Manifest: manifest, Versions: versions, Stories: stories, Headers: latestHeaders, Findings: findings, Warnings: warnings}, latestHeaders, nil
+}
+
+type versionDependencyLock struct {
+	SchemaVersion int    `json:"schemaVersion"`
+	LibraryID     string `json:"libraryId"`
+	Version       string `json:"version"`
+	ResolvedAt    string `json:"resolvedAt"`
+	Dependencies  []struct {
+		LibraryID string `json:"libraryId"`
+		Version   string `json:"version"`
+		Rank      int    `json:"rank"`
+	} `json:"dependencies"`
+}
+
+func (idx *Indexer) readVersionDependencyLock(versionPath, libraryID, version string) ([]AssetDependency, *ComponentVersionFile, error) {
+	lockPath := filepath.ToSlash(filepath.Join(versionPath, "dependencies.json"))
+	raw, err := fs.ReadFile(idx.fs, lockPath)
+	if errors.Is(err, fs.ErrNotExist) {
+		return nil, nil, nil
+	}
+	if err != nil {
+		return nil, nil, fmt.Errorf("read dependency lock %s: %w", lockPath, err)
+	}
+	var lock versionDependencyLock
+	if err := json.Unmarshal(raw, &lock); err != nil {
+		return nil, nil, ErrInvalidHeader{SourcePath: lockPath, Field: "dependencies.json", Reason: err.Error()}
+	}
+	if lock.SchemaVersion != 1 || strings.TrimSpace(lock.LibraryID) != libraryID || strings.TrimSpace(lock.Version) != version || strings.TrimSpace(lock.ResolvedAt) == "" {
+		return nil, nil, ErrInvalidHeader{SourcePath: lockPath, Field: "identity", Reason: "schemaVersion, libraryId, version and resolvedAt must match the owning version"}
+	}
+	seen := map[string]struct{}{}
+	dependencies := make([]AssetDependency, 0, len(lock.Dependencies))
+	for _, rawDependency := range lock.Dependencies {
+		dependency := AssetDependency{LibraryID: strings.TrimSpace(rawDependency.LibraryID), Version: strings.TrimSpace(rawDependency.Version)}
+		if dependency.LibraryID == "" || dependency.Version == "" || rawDependency.Rank < 1 || rawDependency.Rank > 6 {
+			return nil, nil, ErrInvalidHeader{SourcePath: lockPath, Field: "dependencies", Reason: "each dependency requires libraryId, version and rank 1-6"}
+		}
+		key := dependency.LibraryID + "\x00" + dependency.Version
+		if _, exists := seen[key]; exists {
+			return nil, nil, ErrInvalidHeader{SourcePath: lockPath, Field: "dependencies", Reason: "duplicate dependency " + dependency.LibraryID + "@" + dependency.Version}
+		}
+		seen[key] = struct{}{}
+		dependencies = append(dependencies, dependency)
+	}
+	file := &ComponentVersionFile{Path: "dependencies.json", Content: string(raw), ContentSHA256: digestBytes(raw)}
+	return dependencies, file, nil
 }
 
 func (idx *Indexer) catalogPorts(catalogID string) ([]string, []string, bool) {

@@ -1,24 +1,6 @@
 {
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "category": "layout",
-  "dependencies": [
-    {
-      "libraryId": "react-component-library:AsyncPanel",
-      "version": "1.0.2"
-    },
-    {
-      "libraryId": "react-component-library:ClassMerge",
-      "version": "1.0.1"
-    },
-    {
-      "libraryId": "react-component-library:ExperienceSurface",
-      "version": "1.0.2"
-    },
-    {
-      "libraryId": "react-component-library:StyleSheet",
-      "version": "1.0.0"
-    }
-  ],
   "deprecatedVersions": [
     "1.1.0",
     "1.1.1"

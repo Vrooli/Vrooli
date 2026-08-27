@@ -2,7 +2,6 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "component",
   "catalogId": "overlays.responsive-panel",
-  "dependencies": [],
   "deprecatedVersions": [
     "1.1.3"
   ],

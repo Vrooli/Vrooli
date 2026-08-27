@@ -2,12 +2,6 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "component",
   "catalogId": "forms.array-field",
-  "dependencies": [
-    {
-      "libraryId": "react-component-library:FormField",
-      "version": "1.0.0"
-    }
-  ],
   "deprecatedVersions": [
     "1.0.1"
   ],

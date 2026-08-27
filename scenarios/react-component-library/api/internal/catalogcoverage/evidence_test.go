@@ -89,6 +89,51 @@ func TestCurrentRevisionAcceptsRepositoryAndLibraryRoots(t *testing.T) {
 	require.Equal(t, fromRepository, fromLibrary)
 }
 
+func TestFreshTypesEvidenceCompleteSkipsOnlyFullyWarmCorpus(t *testing.T) {
+	root := t.TempDir()
+	assetDir := filepath.Join(root, "scenarios", "react-component-library", "catalog", "assets", "controls")
+	componentDir := filepath.Join(root, "scenarios", "react-component-library", "library", "components", "Button")
+	versionDir := filepath.Join(componentDir, "versions", "1.0.0")
+	require.NoError(t, os.MkdirAll(assetDir, 0o755))
+	require.NoError(t, os.MkdirAll(versionDir, 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(assetDir, "button.json"), []byte(`{"kind":"catalog-asset","asset":{"id":"controls.button","kind":"component"}}`), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(componentDir, "component.json"), []byte(`{"catalogId":"controls.button","latest":"1.0.0"}`), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(versionDir, "Button.tsx"), []byte("export const Button = () => null;"), 0o644))
+	revision, err := CurrentRevision(root, "controls.button")
+	require.NoError(t, err)
+
+	require.False(t, freshTypesEvidenceComplete(root, nil), "cold evidence must retain the toolchain path")
+	require.True(t, freshTypesEvidenceComplete(root, []GateEvidence{{AssetID: "controls.button", Gate: "types", Result: "pass", SourceRevision: revision}}))
+	require.False(t, freshTypesEvidenceComplete(root, []GateEvidence{{AssetID: "controls.button", Gate: "types", Result: "pass", SourceRevision: "stale"}}))
+}
+
+func TestFreshAttributableGatesRequireEveryBuiltAssetAtCurrentRevision(t *testing.T) {
+	root := t.TempDir()
+	assetDir := filepath.Join(root, "scenarios", "react-component-library", "catalog", "assets", "controls")
+	for _, name := range []string{"button", "card"} {
+		require.NoError(t, os.MkdirAll(filepath.Join(root, "scenarios", "react-component-library", "library", "components", name, "versions", "1.0.0"), 0o755))
+		require.NoError(t, os.MkdirAll(assetDir, 0o755))
+		require.NoError(t, os.WriteFile(filepath.Join(assetDir, name+".json"), []byte(`{"kind":"catalog-asset","asset":{"id":"controls.`+name+`","kind":"component"}}`), 0o644))
+		libraryName := map[string]string{"button": "Button", "card": "Card"}[name]
+		componentDir := filepath.Join(root, "scenarios", "react-component-library", "library", "components", name)
+		require.NoError(t, os.WriteFile(filepath.Join(componentDir, "component.json"), []byte(`{"catalogId":"controls.`+name+`","latest":"1.0.0"}`), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(componentDir, "versions", "1.0.0", libraryName+".tsx"), []byte("export const "+libraryName+" = () => null;"), 0o644))
+	}
+	buttonRevision, err := CurrentRevision(root, "controls.button")
+	require.NoError(t, err)
+	cardRevision, err := CurrentRevision(root, "controls.card")
+	require.NoError(t, err)
+	definitions := []GateDefinition{{ID: "types", Attribution: "attributable", AppliesTo: []string{"component"}}, {ID: "visual", Attribution: "attributable", AppliesTo: []string{"component"}}}
+	persisted := []GateEvidence{
+		{AssetID: "controls.button", Gate: "types", SourceRevision: buttonRevision, RecordedAt: "2026-01-02T00:00:00Z"},
+		{AssetID: "controls.card", Gate: "types", SourceRevision: cardRevision, RecordedAt: "2026-01-02T00:00:00Z"},
+		{AssetID: "controls.button", Gate: "visual", SourceRevision: buttonRevision, RecordedAt: "2026-01-02T00:00:00Z"},
+	}
+	fresh := freshAttributableGates(root, persisted, definitions)
+	require.True(t, fresh["types"])
+	require.False(t, fresh["visual"], "a gate is warm only when every applicable built asset has current evidence")
+}
+
 func TestRecomputeEvidenceDoesNotFabricateTypesPass(t *testing.T) {
 	root := t.TempDir()
 	assetDir := filepath.Join(root, "scenarios", "react-component-library", "catalog", "assets", "controls")

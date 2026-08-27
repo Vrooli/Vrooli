@@ -2,16 +2,6 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "component",
   "catalogId": "feedback.async-boundary",
-  "dependencies": [
-    {
-      "libraryId": "react-component-library:useAnnounce",
-      "version": "1.0.0"
-    },
-    {
-      "libraryId": "react-component-library:useNetworkStatus",
-      "version": "1.0.0"
-    }
-  ],
   "deprecatedVersions": [
     "1.0.3"
   ],

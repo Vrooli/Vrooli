@@ -1,7 +1,6 @@
 {
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "category": "inputs",
-  "dependencies": [],
   "deprecatedVersions": [
     "4.1.0",
     "4.2.0",

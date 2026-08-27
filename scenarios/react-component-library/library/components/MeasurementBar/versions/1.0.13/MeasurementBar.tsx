@@ -10,7 +10,7 @@ import { useStrings } from "@vrooli/react-component-library/useLocale/1.0.1";
 import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
 
 /** @vrooliComponentSource react-component-library:MeasurementBar */
-import { BoundedMeter } from "@vrooli/react-component-library/BoundedMeter/1.0.2";
+import { BoundedMeter } from "@vrooli/react-component-library/BoundedMeter/1.0.5";
 export interface MeasurementBarProps {
   label?: string;
   observed?: number;

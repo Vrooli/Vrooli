@@ -2,16 +2,6 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "component",
   "catalogId": "forms.combobox",
-  "dependencies": [
-    {
-      "libraryId": "react-component-library:Select",
-      "version": "1.1.0"
-    },
-    {
-      "libraryId": "react-component-library:AsyncOptionsField",
-      "version": "1.0.0"
-    }
-  ],
   "deprecatedVersions": [
     "1.0.3",
     "1.0.5"

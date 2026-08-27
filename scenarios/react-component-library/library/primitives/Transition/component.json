@@ -3,20 +3,6 @@
   "assetKind": "primitive",
   "catalogId": "motion.transition",
   "category": "motion",
-  "dependencies": [
-    {
-      "libraryId": "react-component-library:MotionPrimitive",
-      "version": "1.0.0"
-    },
-    {
-      "libraryId": "react-component-library:Presence",
-      "version": "1.0.0"
-    },
-    {
-      "libraryId": "react-component-library:useReducedMotion",
-      "version": "1.0.0"
-    }
-  ],
   "deprecatedVersions": [
     "1.0.2",
     "1.0.4"

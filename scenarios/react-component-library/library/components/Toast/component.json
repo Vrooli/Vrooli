@@ -3,20 +3,6 @@
   "assetKind": "component",
   "catalogId": "feedback.toast",
   "category": "feedback",
-  "dependencies": [
-    {
-      "libraryId": "react-component-library:Surface",
-      "version": "1.0.0"
-    },
-    {
-      "libraryId": "react-component-library:Presence",
-      "version": "1.0.0"
-    },
-    {
-      "libraryId": "react-component-library:useAnnounce",
-      "version": "1.0.0"
-    }
-  ],
   "deprecatedVersions": [
     "1.0.3",
     "1.0.5"

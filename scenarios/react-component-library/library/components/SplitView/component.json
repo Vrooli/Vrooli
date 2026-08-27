@@ -2,7 +2,6 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "component",
   "catalogId": "navigation.split-view",
-  "dependencies": [],
   "description": "A composed navigation workspace that keeps primary and secondary regions meaningful across breakpoints.",
   "designStyles": [
     {

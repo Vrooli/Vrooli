@@ -1,16 +1,6 @@
 {
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "category": "feedback",
-  "dependencies": [
-    {
-      "libraryId": "react-component-library:ClassMerge",
-      "version": "1.0.1"
-    },
-    {
-      "libraryId": "react-component-library:ExperienceSurface",
-      "version": "1.0.2"
-    }
-  ],
   "deprecatedVersions": [
     "1.0.0",
     "1.0.1"

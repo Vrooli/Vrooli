@@ -3,7 +3,6 @@
   "assetKind": "primitive",
   "catalogId": "primitives.aspect-ratio",
   "category": "layout",
-  "dependencies": [],
   "deprecatedVersions": [
     "1.0.0"
   ],

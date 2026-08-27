@@ -2,7 +2,6 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "component",
   "catalogId": "visualization.overlay-canvas",
-  "dependencies": [],
   "description": "A measured subject overlay that names implicated bounds.",
   "designStyles": [
     {

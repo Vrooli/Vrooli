@@ -2,7 +2,6 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "hook",
   "catalogId": "hooks.use-roving-focus",
-  "dependencies": [],
   "description": "Production-ready useRovingFocus hook with SSR-safe lifecycle behavior.",
   "designStyles": [
     {

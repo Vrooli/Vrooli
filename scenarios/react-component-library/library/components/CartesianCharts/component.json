@@ -2,7 +2,6 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "component",
   "catalogId": "visualization.cartesian-charts",
-  "dependencies": [],
   "deprecatedVersions": [
     "1.0.2",
     "1.0.4"

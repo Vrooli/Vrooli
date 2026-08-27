@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "libraryId": "react-component-library:IconButton",
+  "version": "2.0.1",
+  "resolvedAt": "2026-08-27T18:29:27.181Z",
+  "dependencies": [
+    {
+      "libraryId": "react-component-library:ClassMerge",
+      "version": "1.0.1",
+      "rank": 1
+    },
+    {
+      "libraryId": "react-component-library:ControlBase",
+      "version": "1.1.0",
+      "rank": 4
+    },
+    {
+      "libraryId": "react-component-library:Pressable",
+      "version": "1.0.1",
+      "rank": 4
+    }
+  ]
+}

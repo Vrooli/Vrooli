@@ -2,16 +2,6 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "component",
   "catalogId": "forms.async-options-field",
-  "dependencies": [
-    {
-      "libraryId": "react-component-library:useAbortableTask",
-      "version": "1.0.0"
-    },
-    {
-      "libraryId": "react-component-library:useRetry",
-      "version": "1.0.0"
-    }
-  ],
   "deprecatedVersions": [
     "1.0.3",
     "1.0.5"

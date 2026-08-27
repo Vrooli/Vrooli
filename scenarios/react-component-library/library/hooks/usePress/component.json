@@ -2,7 +2,6 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "hook",
   "catalogId": "hooks.use-press",
-  "dependencies": [],
   "description": "Production-ready usePress hook with SSR-safe lifecycle behavior.",
   "designStyles": [
     {
