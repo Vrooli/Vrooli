@@ -26,11 +26,11 @@
     },
     "macos": {
       "status": "unsupported",
-      "evidence": "No implementation is declared for this host OS."
+      "evidence": "This host OS has no declaration for the provider native command surface."
     },
     "windows": {
       "status": "unsupported",
-      "evidence": "No implementation is declared for this host OS."
+      "evidence": "This host OS has no declaration for the provider native command surface."
     }
   }
 }

@@ -1,4 +1,5 @@
 // Package remotedesktopaccess declares remote-desktop intent and reports what
+
 // the host can honestly provide. It never forces a display-manager policy.
 package remotedesktopaccess
 
@@ -13,6 +14,18 @@ import (
 	"github.com/vrooli/vrooli/internal/hostreqkit"
 	"github.com/vrooli/vrooli/internal/hostreqspec"
 	credentialauthority "github.com/vrooli/vrooli/packages/credential-authority-go"
+)
+
+const (
+	handlerGnomeHeadless      = "gnome-headless"
+	handlerWindowsTermservice = "windows-termservice"
+)
+
+const (
+	handlerGnomeSystem        = "gnome-system"
+	handlerGnomeUserShared    = "gnome-user-shared"
+	handlerMacosScreenSharing = "macos-screen-sharing"
+	handlerXrdp               = "xrdp"
 )
 
 const (
@@ -53,6 +66,7 @@ func NewHandler(manifest hostreqkit.SafeguardManifest) hostreqkit.Handler {
 func (h handler) Name() string           { return h.manifest.Name }
 func (h handler) Kind() hostreqspec.Kind { return hostreqspec.KindSafeguard }
 
+//nolint:gocyclo // remote desktop inspection is a provider, display, user, and capability state matrix.
 func (h handler) Inspect(host hostreqkit.Host, requirement hostreqspec.ResolvedRequirement) hostreqkit.ItemStatus {
 	status := hostreqkit.BaseStatus(requirement)
 	experience := configValue(requirement.Config, "experience", experienceObserve)
@@ -91,7 +105,7 @@ func (h handler) Inspect(host hostreqkit.Host, requirement hostreqspec.ResolvedR
 	// Keep the explicit Wayland policy diagnostic ahead of the generic
 	// availability check. A headless GNOME provider may be detected but still
 	// be unusable when the display manager explicitly disables Wayland.
-	if experience == experienceDirect && host.OS == "linux" && selected == "gnome-headless" && !facts.Wayland.Attainable {
+	if experience == experienceDirect && hostreqspec.PlatformFromGOOS(host.OS) == hostreqspec.PlatformLinux && selected == handlerGnomeHeadless && !facts.Wayland.Attainable {
 		status.SupportClass = hostreqkit.SupportUnsupported
 		status.ExecutionState = hostreqkit.ExecutionUnsupported
 		status.Notes = append(status.Notes, "direct-desktop is unsupported: "+facts.Wayland.Reason)
@@ -113,7 +127,7 @@ func (h handler) Inspect(host hostreqkit.Host, requirement hostreqspec.ResolvedR
 		status.Notes = append(status.Notes, fmt.Sprintf("provider %q is available for %s but is not currently active", selected, experience))
 		return status
 	}
-	if experience == experienceLogin && selected == "gnome-system" && observed.active {
+	if experience == experienceLogin && selected == handlerGnomeSystem && observed.active {
 		if !credentialsReadyFn() {
 			status.Notes = append(status.Notes, "system-mode GNOME Remote Desktop is active but its credentials are not configured in Vrooli's encrypted authority")
 			return status
@@ -123,7 +137,7 @@ func (h handler) Inspect(host hostreqkit.Host, requirement hostreqspec.ResolvedR
 		status.Notes = append(status.Notes, "system-mode GNOME Remote Desktop is enabled and active")
 		return status
 	}
-	if experience == experienceDirect && selected == "gnome-system" && observed.active {
+	if experience == experienceDirect && selected == handlerGnomeSystem && observed.active {
 		if !credentialsReadyFn() {
 			status.Notes = append(status.Notes, "system-mode GNOME Remote Desktop is active but its credentials are not configured in Vrooli's encrypted authority")
 			return status
@@ -133,8 +147,8 @@ func (h handler) Inspect(host hostreqkit.Host, requirement hostreqspec.ResolvedR
 		status.Notes = append(status.Notes, "system-mode GNOME Remote Desktop is active and delivers direct-desktop through the autologin session")
 		return status
 	}
-	if experience == experienceDirect && observed.active && selected != "gnome-system" {
-		if selected != "gnome-user-shared" || status.CredentialStoreState == "ready" {
+	if experience == experienceDirect && observed.active && selected != handlerGnomeSystem {
+		if selected != handlerGnomeUserShared || status.CredentialStoreState == "ready" {
 			status.Applied = true
 			status.ExecutionState = hostreqkit.ExecutionAlreadyPresent
 			status.Notes = append(status.Notes, fmt.Sprintf("provider %q is active and delivers direct-desktop", selected))
@@ -146,6 +160,7 @@ func (h handler) Inspect(host hostreqkit.Host, requirement hostreqspec.ResolvedR
 	return status
 }
 
+//nolint:gocyclo // safeguard application is a provider and display-mode state machine with distinct remediations.
 func (h handler) Apply(host hostreqkit.Host, status hostreqkit.ItemStatus, opts hostreqkit.EnsureOptions) (hostreqkit.ItemStatus, error) {
 	if status.ExecutionState != hostreqkit.ExecutionPending {
 		return status, nil
@@ -165,7 +180,7 @@ func (h handler) Apply(host hostreqkit.Host, status hostreqkit.ItemStatus, opts 
 		status.ExecutionState = hostreqkit.ExecutionAlreadyPresent
 		return status, nil
 	}
-	switchingFromSystem := host.OS == "linux" && status.SelectedProvider == "gnome-user-shared" && status.ObservedMode == "system"
+	switchingFromSystem := hostreqspec.PlatformFromGOOS(host.OS) == hostreqspec.PlatformLinux && status.SelectedProvider == handlerGnomeUserShared && status.ObservedMode == "system"
 	if (status.ObservedActive || switchingFromSystem) && !opts.MaintenanceWindow {
 		status.ExecutionState = hostreqkit.ExecutionManualActionRequired
 		status.BlockingReason = hostreqkit.BlockingNeedsMaintenanceWindow
@@ -175,7 +190,7 @@ func (h handler) Apply(host hostreqkit.Host, status hostreqkit.ItemStatus, opts 
 	var systemUsername, systemPassword string
 	// Evaluate every permission and host-state gate before the dry-run branch.
 	// This keeps a preview from claiming an apply that a real run would refuse.
-	if host.OS == "linux" && status.SelectedProvider == "gnome-system" {
+	if hostreqspec.PlatformFromGOOS(host.OS) == hostreqspec.PlatformLinux && status.SelectedProvider == handlerGnomeSystem {
 		if !status.ObservedActive && !permission("allow_enable_system", setupCommand()) {
 			return status, nil
 		}
@@ -189,7 +204,7 @@ func (h handler) Apply(host hostreqkit.Host, status hostreqkit.ItemStatus, opts 
 		if systemPassword, err = resolveCredentialFn(remoteDesktopID, "password"); err != nil {
 			return credentialProvisionRequired(&status, "password"), nil
 		}
-	} else if host.OS == "linux" && status.SelectedProvider == "gnome-user-shared" {
+	} else if hostreqspec.PlatformFromGOOS(host.OS) == hostreqspec.PlatformLinux && status.SelectedProvider == handlerGnomeUserShared {
 		if switchingFromSystem && !permission("allow_disable_system_unit", setupCommand()) {
 			return status, nil
 		}
@@ -212,11 +227,11 @@ func (h handler) Apply(host hostreqkit.Host, status hostreqkit.ItemStatus, opts 
 			status.Notes = append(status.Notes, "credential store is empty; enter credentials with "+credentialCommand())
 			return status, nil
 		}
-	} else if host.OS == "windows" && status.SelectedProvider == "windows-termservice" {
+	} else if hostreqspec.PlatformFromGOOS(host.OS) == hostreqspec.PlatformWindows && status.SelectedProvider == handlerWindowsTermservice {
 		if !permission("allow_enable_native_provider", setupCommand()) {
 			return status, nil
 		}
-	} else if (host.OS == "darwin" || host.OS == "macos") && status.SelectedProvider == "macos-screen-sharing" {
+	} else if hostreqspec.PlatformFromGOOS(host.OS) == hostreqspec.PlatformMacOS && status.SelectedProvider == handlerMacosScreenSharing {
 		if !permission("allow_enable_native_provider", setupCommand()) {
 			return status, nil
 		}
@@ -226,7 +241,7 @@ func (h handler) Apply(host hostreqkit.Host, status hostreqkit.ItemStatus, opts 
 		status.Notes = append(status.Notes, "dry-run: would enable the declared remote-desktop provider")
 		return status, nil
 	}
-	if host.OS == "linux" && status.SelectedProvider == "gnome-system" {
+	if hostreqspec.PlatformFromGOOS(host.OS) == hostreqspec.PlatformLinux && status.SelectedProvider == handlerGnomeSystem {
 		provisionOpts := opts
 		provisionOpts.Stdout = io.Discard
 		provisionOpts.Stderr = io.Discard
@@ -249,7 +264,7 @@ func (h handler) Apply(host hostreqkit.Host, status hostreqkit.ItemStatus, opts 
 		status.ExecutionState = hostreqkit.ExecutionApplied
 		return status, nil
 	}
-	if host.OS == "linux" && status.SelectedProvider == "gnome-user-shared" {
+	if hostreqspec.PlatformFromGOOS(host.OS) == hostreqspec.PlatformLinux && status.SelectedProvider == handlerGnomeUserShared {
 		if switchingFromSystem {
 			if err := runFn(opts.SudoMode, "systemctl", []string{"disable", "--now", "gnome-remote-desktop.service"}, opts); err != nil {
 				status.ExecutionState = hostreqkit.ExecutionFailed
@@ -267,7 +282,7 @@ func (h handler) Apply(host hostreqkit.Host, status hostreqkit.ItemStatus, opts 
 		status.Notes = append(status.Notes, "user-shared GNOME Remote Desktop enabled")
 		return status, nil
 	}
-	if host.OS == "windows" && status.SelectedProvider == "windows-termservice" {
+	if hostreqspec.PlatformFromGOOS(host.OS) == hostreqspec.PlatformWindows && status.SelectedProvider == handlerWindowsTermservice {
 		if err := runFn(opts.SudoMode, "sc.exe", []string{"config", "TermService", "start=", "auto"}, opts); err != nil {
 			status.ExecutionState = hostreqkit.ExecutionFailed
 			status.Notes = append(status.Notes, "configure Windows TermService failed: "+err.Error())
@@ -283,7 +298,7 @@ func (h handler) Apply(host hostreqkit.Host, status hostreqkit.ItemStatus, opts 
 		status.Notes = append(status.Notes, "Windows TermService enabled")
 		return status, nil
 	}
-	if host.OS == "darwin" || host.OS == "macos" {
+	if hostreqspec.PlatformFromGOOS(host.OS) == hostreqspec.PlatformMacOS {
 		if err := runFn(opts.SudoMode, "launchctl", []string{"enable", "system/com.apple.screensharing"}, opts); err != nil {
 			status.ExecutionState = hostreqkit.ExecutionFailed
 			status.Notes = append(status.Notes, "enable macOS Screen Sharing failed: "+err.Error())
@@ -306,8 +321,8 @@ func (h handler) Apply(host hostreqkit.Host, status hostreqkit.ItemStatus, opts 
 }
 
 func supportedOS(osName string) bool {
-	switch strings.ToLower(strings.TrimSpace(osName)) {
-	case "linux", "darwin", "macos", "windows":
+	switch hostreqspec.PlatformFromGOOS(osName) {
+	case hostreqspec.PlatformLinux, hostreqspec.PlatformMacOS, hostreqspec.PlatformWindows:
 		return true
 	default:
 		return false
@@ -320,7 +335,7 @@ func validExperience(value string) bool {
 
 func validProvider(value string) bool {
 	switch value {
-	case providerAuto, "gnome-system", "gnome-user-shared", "gnome-headless", "xrdp", "windows-termservice", "macos-screen-sharing":
+	case providerAuto, handlerGnomeSystem, handlerGnomeUserShared, handlerGnomeHeadless, handlerXrdp, handlerWindowsTermservice, handlerMacosScreenSharing:
 		return true
 	default:
 		return false
@@ -338,7 +353,7 @@ func selectProvider(osName, requested, experience string, facts hostinventory.Sn
 	if requested != providerAuto {
 		return requested, observeProvider(requested, osName, facts)
 	}
-	ordered := []string{"gnome-system", "gnome-user-shared", "gnome-headless", "xrdp", "windows-termservice", "macos-screen-sharing"}
+	ordered := []string{handlerGnomeSystem, handlerGnomeUserShared, handlerGnomeHeadless, handlerXrdp, handlerWindowsTermservice, handlerMacosScreenSharing}
 	for _, candidate := range ordered {
 		observation := observeProvider(candidate, osName, facts)
 		if (experience == experienceObserve && observation.present) ||
@@ -349,40 +364,42 @@ func selectProvider(osName, requested, experience string, facts hostinventory.Sn
 	return "", providerObservation{reason: "no provider detected"}
 }
 
+//nolint:gocyclo // provider observation maps platform, display, session, and evidence combinations.
 func observeProvider(provider, osName string, facts hostinventory.Snapshot) providerObservation {
 	osName = strings.ToLower(strings.TrimSpace(osName))
+	hostOS := hostreqspec.PlatformFromGOOS(osName)
 	observed, found := facts.RemoteDesktop.Provider(provider)
 	if found {
 		return providerObservation{present: observed.Present, active: observed.Active, available: observed.Present || providerAvailable(provider, osName, facts), reason: provider}
 	}
 	switch provider {
-	case "gnome-system":
-		if osName != "linux" || !facts.SupportsSystemd {
+	case handlerGnomeSystem:
+		if hostOS != hostreqspec.PlatformLinux || !facts.SupportsSystemd {
 			return providerObservation{reason: "systemd is unavailable"}
 		}
 		return providerObservation{available: true, reason: "system-mode GNOME Remote Desktop"}
-	case "gnome-headless":
-		if osName != "linux" || !facts.SupportsSystemd || !facts.Wayland.Attainable {
+	case handlerGnomeHeadless:
+		if hostOS != hostreqspec.PlatformLinux || !facts.SupportsSystemd || !facts.Wayland.Attainable {
 			return providerObservation{reason: "GNOME headless provider is Linux-only"}
 		}
 		return providerObservation{available: true, reason: "GNOME headless provider"}
-	case "gnome-user-shared":
-		if osName != "linux" || !facts.SupportsSystemd || !facts.DisplayAttached {
+	case handlerGnomeUserShared:
+		if hostOS != hostreqspec.PlatformLinux || !facts.SupportsSystemd || !facts.DisplayAttached {
 			return providerObservation{reason: "GNOME user-shared provider needs Linux systemd and an attached display"}
 		}
 		return providerObservation{available: true, reason: "GNOME user-shared provider"}
-	case "xrdp":
-		if osName != "linux" {
+	case handlerXrdp:
+		if hostOS != hostreqspec.PlatformLinux {
 			return providerObservation{reason: "xrdp is Linux-only"}
 		}
 		return providerObservation{reason: "xrdp provider"}
-	case "windows-termservice":
-		if osName != "windows" {
+	case handlerWindowsTermservice:
+		if hostOS != hostreqspec.PlatformWindows {
 			return providerObservation{reason: "TermService is Windows-only"}
 		}
 		return providerObservation{available: true, reason: "Windows TermService"}
-	case "macos-screen-sharing":
-		if osName != "darwin" && osName != "macos" {
+	case handlerMacosScreenSharing:
+		if hostOS != hostreqspec.PlatformMacOS {
 			return providerObservation{reason: "macOS Screen Sharing is macOS-only"}
 		}
 		return providerObservation{available: true, reason: "macOS Screen Sharing"}
@@ -392,17 +409,18 @@ func observeProvider(provider, osName string, facts hostinventory.Snapshot) prov
 }
 
 func providerAvailable(provider, osName string, facts hostinventory.Snapshot) bool {
+	hostOS := hostreqspec.PlatformFromGOOS(osName)
 	switch provider {
-	case "gnome-system":
-		return osName == "linux" && facts.SupportsSystemd
-	case "gnome-user-shared":
-		return osName == "linux" && facts.SupportsSystemd && facts.DisplayAttached
-	case "gnome-headless":
-		return osName == "linux" && facts.SupportsSystemd && facts.Wayland.Attainable
-	case "windows-termservice":
-		return osName == "windows"
-	case "macos-screen-sharing":
-		return osName == "darwin" || osName == "macos"
+	case handlerGnomeSystem:
+		return hostOS == hostreqspec.PlatformLinux && facts.SupportsSystemd
+	case handlerGnomeUserShared:
+		return hostOS == hostreqspec.PlatformLinux && facts.SupportsSystemd && facts.DisplayAttached
+	case handlerGnomeHeadless:
+		return hostOS == hostreqspec.PlatformLinux && facts.SupportsSystemd && facts.Wayland.Attainable
+	case handlerWindowsTermservice:
+		return hostOS == hostreqspec.PlatformWindows
+	case handlerMacosScreenSharing:
+		return hostOS == hostreqspec.PlatformMacOS
 	default:
 		return false
 	}
@@ -410,13 +428,13 @@ func providerAvailable(provider, osName string, facts hostinventory.Snapshot) bo
 
 func providerDelivers(provider, experience string, facts hostinventory.Snapshot) bool {
 	switch provider {
-	case "gnome-system":
+	case handlerGnomeSystem:
 		return experience == experienceLogin || experience == experienceDirect
-	case "gnome-user-shared":
+	case handlerGnomeUserShared:
 		return experience == experienceDirect && facts.DisplayAttached
-	case "gnome-headless":
+	case handlerGnomeHeadless:
 		return experience == experienceDirect && facts.Wayland.Attainable
-	case "xrdp", "windows-termservice", "macos-screen-sharing":
+	case handlerXrdp, handlerWindowsTermservice, handlerMacosScreenSharing:
 		return experience == experienceDirect
 	default:
 		return false
@@ -425,11 +443,11 @@ func providerDelivers(provider, experience string, facts hostinventory.Snapshot)
 
 func observedExperience(provider string, facts hostinventory.Snapshot) string {
 	switch provider {
-	case "gnome-system":
+	case handlerGnomeSystem:
 		return experienceLogin
-	case "gnome-user-shared":
+	case handlerGnomeUserShared:
 		return experienceDirect
-	case "gnome-headless":
+	case handlerGnomeHeadless:
 		if facts.Wayland.Attainable {
 			return experienceDirect
 		}

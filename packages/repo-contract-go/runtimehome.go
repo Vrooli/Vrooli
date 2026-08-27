@@ -26,6 +26,7 @@ const (
 	HomeKeySecrets    = "secrets"
 	HomeKeySecretsEnc = "secrets_enc"
 	HomeKeyBin        = "bin"
+	HomeKeyShims      = "shims"
 	HomeKeyCache      = "cache"
 	HomeKeyLogs       = "logs"
 	HomeKeyMetrics    = "metrics"

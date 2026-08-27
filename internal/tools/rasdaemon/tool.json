@@ -64,12 +64,12 @@
     "macos": {
       "status": "unsupported",
       "mechanism": "handler",
-      "evidence": "A mechanism exists but no implementation is wired for this host OS."
+      "evidence": "The host OS does not expose the provider native command surface in this tool package."
     },
     "windows": {
       "status": "unsupported",
       "mechanism": "handler",
-      "evidence": "A mechanism exists but no implementation is wired for this host OS."
+      "evidence": "The host OS does not expose the provider native command surface in this tool package."
     }
   }
 }

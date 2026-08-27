@@ -8,6 +8,25 @@ import (
 	"testing"
 )
 
+func TestVetStyleDiagnosticsSeparateLoadFailuresFromWarnings(t *testing.T) {
+	for _, testCase := range []struct {
+		name string
+		out  string
+		want bool
+	}{
+		{name: "module housekeeping", out: "go: updates to go.mod needed; to update it:\n\tgo mod tidy", want: true},
+		{name: "vet analyzer", out: "./main.go: fmt.Println arg list ends with redundant newline", want: true},
+		{name: "compile failure", out: "vet: ./main_test.go: undefined: healthHandler", want: false},
+		{name: "type failure", out: "./main_test.go: unknown field Scenario in struct literal", want: false},
+	} {
+		t.Run(testCase.name, func(t *testing.T) {
+			if got := isVetStyleDiagnostic(testCase.out); got != testCase.want {
+				t.Fatalf("isVetStyleDiagnostic(%q) = %t, want %t", testCase.out, got, testCase.want)
+			}
+		})
+	}
+}
+
 func TestDiscoverConformanceTargetsCoversAuthoredClaimsWithoutCountPinning(t *testing.T) {
 	root := t.TempDir()
 	writeRepoContract(t, root)
@@ -19,8 +38,8 @@ func TestDiscoverConformanceTargetsCoversAuthoredClaimsWithoutCountPinning(t *te
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(targets) != 2 {
-		t.Fatalf("discovered %d targets, want one per non-Linux platform for the module; %+v", len(targets), targets)
+	if len(targets) != 6 {
+		t.Fatalf("discovered %d targets, want the six declared OS/architecture cells; %+v", len(targets), targets)
 	}
 	for _, target := range targets {
 		if target.CodeRoot != "." {
@@ -40,8 +59,8 @@ func TestCheckRepositoryNamesCompilerFailureByManifestAndOS(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(report.Findings) != 2 {
-		t.Fatalf("got %d findings, want both non-Linux compiler failures: %+v", len(report.Findings), report.Findings)
+	if len(report.Findings) != 4 {
+		t.Fatalf("got %d findings, want every non-Linux/architecture compiler failure: %+v", len(report.Findings), report.Findings)
 	}
 	for _, finding := range report.Findings {
 		if finding.ManifestPath != "go.mod" {

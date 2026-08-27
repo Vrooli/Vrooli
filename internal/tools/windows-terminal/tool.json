@@ -1,0 +1,24 @@
+{
+  "$schema": "../../../.vrooli/schemas/tool.schema.json",
+  "name": "windows-terminal",
+  "storage": {
+    "entries": {},
+    "rationale": "Windows Terminal panes are host-session state; Vrooli does not persist terminal sessions."
+  },
+  "description": "Windows Terminal pane host for detachable operator workflows",
+  "commands": ["wt"],
+  "versionArgs": ["--version"],
+  "packages": {
+    "winget": "Microsoft.WindowsTerminal"
+  },
+  "installHint": "Install Windows Terminal from the Microsoft.WindowsTerminal winget package.",
+  "manual": true,
+  "bundling": "host-required",
+  "capability": "terminal-multiplexing",
+  "capability_role": "peer",
+  "platform_status": {
+    "linux": {"status": "unsupported", "evidence": "Windows Terminal panes are not a Linux terminal multiplexer."},
+    "macos": {"status": "unsupported", "evidence": "Windows Terminal panes are not a macOS terminal multiplexer."},
+    "windows": {"status": "build-verified", "mechanism": "wt.exe pane", "evidence": null}
+  }
+}
