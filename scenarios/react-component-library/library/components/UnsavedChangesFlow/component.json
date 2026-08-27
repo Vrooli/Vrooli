@@ -12,6 +12,10 @@
       "version": "1.0.0"
     }
   ],
+  "deprecatedVersions": [
+    "1.0.3",
+    "1.0.5"
+  ],
   "description": "",
   "designStyles": [
     {
@@ -28,25 +32,26 @@
     }
   ],
   "displayName": "UnsavedChangesFlow",
+  "draft": "",
+  "evictedVersions": [
+    "1.0.5",
+    "1.0.4",
+    "1.0.3"
+  ],
   "kind": "surface",
   "latest": "1.0.6",
   "libraryId": "react-component-library:UnsavedChangesFlow",
-  "tags": [
-    "recovery",
-    "forms",
-    "navigation",
-    "accessibility",
-    "token-bound"
-  ],
   "requires": [
     {
       "libraryId": "react-component-library:useLocale",
       "version": "1.0.0"
     }
   ],
-  "draft": "",
-  "deprecatedVersions": [
-    "1.0.3",
-    "1.0.5"
+  "tags": [
+    "recovery",
+    "forms",
+    "navigation",
+    "accessibility",
+    "token-bound"
   ]
 }

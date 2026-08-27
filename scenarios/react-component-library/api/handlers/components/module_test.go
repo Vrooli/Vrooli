@@ -33,6 +33,13 @@ type fakeExperienceReader struct {
 	component experience.Component
 }
 
+type presenceReconcilerRecorder struct{ calls int }
+
+func (r *presenceReconcilerRecorder) ReconcilePresence(context.Context, string, bool) error {
+	r.calls++
+	return nil
+}
+
 func (f *fakeExperienceReader) Get(_ context.Context, component experience.Component) (experience.Snapshot, error) {
 	f.component = component
 	return f.snapshot, nil
@@ -96,6 +103,19 @@ func TestModule_Shape(t *testing.T) {
 	r, _ := setupModule(t)
 	require.NotNil(t, r)
 	require.Len(t, components.Endpoints, 21, "components ships registry, authoring, ingest, style fit, styles, content, versions, import resolution, stories, and Preview frame endpoints")
+}
+
+func TestModule_IndexComponentsReconcilesUnlessSuppressed(t *testing.T) {
+	recorder := &presenceReconcilerRecorder{}
+	r, _ := setupModule(t, components.WithPresenceReconciler(recorder))
+
+	rw := callConnect(r, componentsconnect.ComponentsServiceIndexComponentsProcedure, `{}`)
+	require.Equal(t, http.StatusOK, rw.Code, rw.Body.String())
+	require.Equal(t, 1, recorder.calls)
+
+	rw = callConnect(r, componentsconnect.ComponentsServiceIndexComponentsProcedure, `{"noReconcile":true}`)
+	require.Equal(t, http.StatusOK, rw.Code, rw.Body.String())
+	require.Equal(t, 1, recorder.calls, "the explicit no_reconcile diagnostic path must skip tier movement")
 }
 
 func TestModule_PersistPreviewFrameCreatesVersionPinnedDraftStory(t *testing.T) {

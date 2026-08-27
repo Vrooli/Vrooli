@@ -51,6 +51,7 @@ type Service interface {
 	GetVersion(ctx context.Context, componentID, version string) (ComponentVersion, error)
 	ListStories(ctx context.Context, q StoryQuery) ([]ComponentStory, error)
 	GetVersionContent(ctx context.Context, componentID, version string) (Content, error)
+	MaterializeVersion(ctx context.Context, componentID, version, into string) error
 	ListDesignStyles(ctx context.Context) ([]DesignStyle, error)
 	ValidateDesignStyle(ctx context.Context, id string) error
 	ValidateStyleFit(ctx context.Context, componentID, version, scenario string) (StyleFitVerdict, error)
@@ -60,6 +61,28 @@ type Service interface {
 	IngestComponent(ctx context.Context, in IngestComponentInput) (IngestComponentResult, error)
 	CreateComponentVersion(ctx context.Context, in CreateComponentVersionInput) (CreateComponentVersionResult, error)
 	UpdateComponentManifest(ctx context.Context, in UpdateComponentManifestInput) (Component, error)
+}
+
+// Materializer is the narrow capability used by package/export consumers to
+// restore an immutable version without coupling them to the catalog service.
+type Materializer interface {
+	EnsureMaterialized(ctx context.Context, componentID, version, into string) (MaterializeResult, error)
+}
+
+// PresenceReconciler applies the reachability-derived materialization tier.
+// It is intentionally narrow so lifecycle domains can trigger the same
+// policy without depending on the versions transport package.
+type PresenceReconciler interface {
+	ReconcilePresence(ctx context.Context, componentID string, apply bool) error
+}
+
+// MaterializeResult reports the outcome of one idempotent restore.
+type MaterializeResult struct {
+	Version        string
+	Directory      string
+	FilesWritten   int
+	AlreadyPresent bool
+	Transient      bool
 }
 
 type AuthoringService interface {
@@ -326,6 +349,38 @@ func (s *service) GetVersionContent(ctx context.Context, componentID, version st
 	return Content{Body: v.Content, SourcePath: v.SourcePath, SHA256: v.ContentSHA256}, nil
 }
 
+func (s *service) MaterializeVersion(ctx context.Context, componentID, version, into string) error {
+	_, err := s.EnsureMaterialized(ctx, componentID, version, into)
+	return err
+}
+
+func (s *service) EnsureMaterialized(ctx context.Context, componentID, version, into string) (MaterializeResult, error) {
+	store, ok := s.content.(*FSContentStore)
+	if !ok {
+		return MaterializeResult{}, fmt.Errorf("materialization requires a filesystem content store")
+	}
+	c, err := s.Get(ctx, componentID)
+	if err != nil {
+		return MaterializeResult{}, err
+	}
+	v, err := s.repo.GetVersion(ctx, c.ID, strings.TrimSpace(version))
+	if err != nil {
+		return MaterializeResult{}, err
+	}
+	result, err := store.Materialize(ctx, v, into)
+	if err != nil {
+		return MaterializeResult{}, err
+	}
+	if strings.TrimSpace(into) == "" || filepath.Clean(into) == filepath.Clean(store.Root()) {
+		if err := s.repo.SetVersionPresence(ctx, c.ID, version, "materialized"); err != nil {
+			return MaterializeResult{}, err
+		}
+	}
+	result.Version = v.Version
+	result.Transient = strings.TrimSpace(into) != "" && filepath.Clean(into) != filepath.Clean(store.Root())
+	return result, nil
+}
+
 // GetVersionContentAt reads a companion source file beside an immutable
 // version entry. It intentionally is not part of Service: preview is the only
 // consumer and probes for this capability so existing service fakes stay small.
@@ -346,6 +401,11 @@ func (s *service) GetVersionContentAt(ctx context.Context, componentID, version,
 		entry = c.Slug + ".tsx"
 	}
 	c.SourcePath = v.SourcePath
+	if v.Presence == "evicted" {
+		if _, err := s.EnsureMaterialized(ctx, componentID, version, ""); err != nil {
+			return Content{}, err
+		}
+	}
 	if !strings.Contains(filepath.ToSlash(c.SourcePath), "/versions/") {
 		c.SourcePath = filepath.ToSlash(filepath.Join("components", c.Slug, "versions", v.Version, entry))
 	}

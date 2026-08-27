@@ -106,6 +106,13 @@ func vacuousAllowlistFindings(repoRoot string) []Finding {
 	for _, entry := range current.Entries {
 		contractPath := filepath.Join(scenarioRoot, filepath.FromSlash(entry.Path))
 		if _, err := os.Stat(contractPath); err != nil {
+			if isEvictedContract(scenarioRoot, entry.Path) {
+				// Eviction removes the working-tree projection but preserves
+				// the version identity and contract mirror in the registry.
+				// The allowlist entry is still valid; it is not an unknown
+				// contract merely because its bytes are cold.
+				continue
+			}
 			findings = append(findings, Finding{Code: "catalog.vacuous_allowlist_unknown_entry", Severity: "error", Location: entry.Path, Message: "allowlisted contract does not exist"})
 		}
 	}
@@ -130,6 +137,33 @@ func vacuousAllowlistFindings(repoRoot string) []Finding {
 		}
 	}
 	return findings
+}
+
+func isEvictedContract(scenarioRoot, relativePath string) bool {
+	clean := filepath.Clean(filepath.FromSlash(relativePath))
+	if filepath.Base(clean) != "experience-contract.json" {
+		return false
+	}
+	versionDir := filepath.Dir(clean)
+	version := filepath.Base(versionDir)
+	componentDir := filepath.Dir(filepath.Dir(versionDir))
+	manifestPath := filepath.Join(scenarioRoot, componentDir, "component.json")
+	data, err := os.ReadFile(manifestPath)
+	if err != nil {
+		return false
+	}
+	var manifest struct {
+		EvictedVersions []string `json:"evictedVersions"`
+	}
+	if json.Unmarshal(data, &manifest) != nil {
+		return false
+	}
+	for _, evicted := range manifest.EvictedVersions {
+		if strings.TrimSpace(evicted) == version {
+			return true
+		}
+	}
+	return false
 }
 
 func parseVacuousAllowlist(location string, data []byte) (vacuousAllowlistFile, []Finding) {

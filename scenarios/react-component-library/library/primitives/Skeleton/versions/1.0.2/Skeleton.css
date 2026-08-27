@@ -1,5 +1,0 @@
-[data-rcl-skeleton] {
-  min-height: var(--skeleton-line-height);
-  border-radius: var(--radius-sm);
-  background: var(--color-surface-muted);
-}

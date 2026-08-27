@@ -1,6 +1,9 @@
 package versionledger
 
-import "time"
+import (
+	"fmt"
+	"time"
+)
 
 type VersionLedger struct {
 	LibraryID       string
@@ -18,6 +21,7 @@ type VersionLedger struct {
 	FileCount       int
 	LinesOfCode     int
 	DependencyCount int
+	Presence         string
 }
 
 type CleanupScope struct {
@@ -48,4 +52,18 @@ type VersionReference struct {
 	Evidence        string
 	OwnerScenario   string
 	AdoptionID      string
+}
+
+// ErrEvictionMirrorMismatch prevents destructive removal when the durable
+// mirror no longer describes the bytes on disk.
+type ErrEvictionMirrorMismatch struct {
+	LibraryID string
+	Version   string
+	Path      string
+	Expected  string
+	Actual    string
+}
+
+func (e ErrEvictionMirrorMismatch) Error() string {
+	return fmt.Sprintf("cannot evict %s@%s: mirror mismatch at %s (expected %s, got %s)", e.LibraryID, e.Version, e.Path, e.Expected, e.Actual)
 }

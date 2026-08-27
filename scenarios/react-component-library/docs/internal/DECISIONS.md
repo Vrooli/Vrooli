@@ -149,6 +149,52 @@ Known unresolved issues belong in [`PROBLEMS.md`](PROBLEMS.md).
 |---|---|---|---|
 | 2026-08-05 | 2026-08-04 coupled `ControlBase` size scale | Radius is a kit property; all sizes use `rounded-control`. | The shared ramp makes the former size-to-radius binding non-portable. |
 
+## Cold version tier decisions
+
+### 2026-08-27 — Keep version identity durable while tiering its bytes
+
+The manifest and SQLite ledger retain every version identity and the complete
+per-file hash mirror. The working tree carries only the reachability-derived
+warm set, so history remains listable and diffable without six-figure source
+churn.
+
+### 2026-08-27 — Use one materializer boundary for all filesystem readers
+
+Components owns hash verification, complete-set validation, and atomic restore.
+Preview, content, package build, and export consumers do not each invent a
+database fallback or a different error policy.
+
+### 2026-08-27 — Treat reachability as the tier authority
+
+Latest, draft, adoption, dependency, and source-import references all use the
+existing ledger graph. Adoption lifecycle hooks invoke the same scoped
+reconciliation, making tier movement replay-safe and independent of operator
+memory.
+
+### 2026-08-27 — Preserve released immutability during projection repair
+
+Indexing never repairs a released hash by rewriting source. Existing source /
+ledger mismatches are surfaced as errors and withheld from automatic eviction
+until the owning release is repaired or explicitly retired.
+
+### 2026-08-27 — Bound evidence by measured payload workload
+
+Five recent reports plus first-pass/first-fail evidence remain useful, while a
+256 MiB SQLite payload ceiling prevents closure-heavy reports from growing the
+host-local database without bound. Rollup counters remain after payload trim.
+
+### Rejected alternatives
+
+- Age-based eviction was rejected because age does not establish reachability;
+  revisit only if graph computation needs a bounded pre-filter while retaining
+  the graph check.
+- Patch-chain source storage was rejected because replay and mid-chain edits
+  make recovery less trustworthy than the existing byte-exact mirror; revisit
+  if one archive becomes too large to carry.
+- Independent reader fallbacks were rejected because four implementations
+  would drift in hash, path, and error handling; revisit only if a reader must
+  operate without the components materializer service.
+
 ## Cross-References
 
 - [`../concepts/ARCHITECTURE.md`](../concepts/ARCHITECTURE.md) — system decisions

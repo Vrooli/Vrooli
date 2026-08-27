@@ -20,12 +20,8 @@
   "stories": [
     {
       "args": {
-        "primary": {
-          "$text": "Primary"
-        },
-        "secondary": {
-          "$text": "Secondary"
-        }
+        "primary": "Primary",
+        "secondary": "Secondary"
       },
       "expect": [
         {
@@ -40,12 +36,8 @@
     },
     {
       "args": {
-        "primary": {
-          "$text": "Primary"
-        },
-        "secondary": {
-          "$text": "Secondary"
-        }
+        "primary": "Primary",
+        "secondary": "Secondary"
       },
       "id": "long-content",
       "mode": "pinned",

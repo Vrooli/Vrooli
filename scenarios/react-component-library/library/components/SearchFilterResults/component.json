@@ -4,6 +4,9 @@
   "catalogId": "patterns.search-filter-results",
   "category": "patterns",
   "dependencies": [],
+  "deprecatedVersions": [
+    "1.0.2"
+  ],
   "description": "",
   "designStyles": [
     {
@@ -12,6 +15,10 @@
     }
   ],
   "displayName": "SearchFilterResults",
+  "draft": "",
+  "evictedVersions": [
+    "1.0.2"
+  ],
   "kind": "input",
   "latest": "1.0.3",
   "libraryId": "react-component-library:SearchFilterResults",
@@ -20,9 +27,5 @@
     "pattern",
     "data-source",
     "token-bound"
-  ],
-  "draft": "",
-  "deprecatedVersions": [
-    "1.0.2"
   ]
 }

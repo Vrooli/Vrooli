@@ -309,7 +309,7 @@ func TestComponentsIndex_HumanReport(t *testing.T) {
 	}}
 	core := clitest.NewTestApp(t, connectAPI(t, svc))
 	h := newHandlers(core)
-	ctx, out := cliapptest.NewCapturedRunContext(core, cliapp.ArgSchema{}, cliapptest.TestRunContextOptions{})
+	ctx, out := cliapptest.NewCapturedRunContext(core, cliapp.ArgSchema{Flags: []cliapp.Flag{{Name: "no-reconcile"}}}, cliapptest.TestRunContextOptions{})
 
 	require.NoError(t, h.index(ctx))
 	body := out.String()

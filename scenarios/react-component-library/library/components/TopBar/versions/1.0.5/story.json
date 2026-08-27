@@ -20,9 +20,7 @@
   "stories": [
     {
       "args": {
-        "children": {
-          "$text": "Workspace"
-        }
+        "children": "Workspace"
       },
       "expect": [
         {
@@ -37,9 +35,7 @@
     },
     {
       "args": {
-        "children": {
-          "$text": "Workspace"
-        }
+        "children": "Workspace"
       },
       "id": "long-content",
       "mode": "pinned",

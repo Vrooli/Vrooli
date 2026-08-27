@@ -28,8 +28,11 @@
     }
   ],
   "displayName": "CommandButton",
-  "kind": "control",
   "draft": "",
+  "evictedVersions": [
+    "1.0.1"
+  ],
+  "kind": "control",
   "latest": "1.0.2",
   "libraryId": "react-component-library:CommandButton",
   "slot": "ui-primitive",

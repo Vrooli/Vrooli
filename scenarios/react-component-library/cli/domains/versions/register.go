@@ -25,6 +25,11 @@ func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup
 		"VersionLifecycleService.DeprecateVersion":     func(ctx cliapp.RunContext) error { return h.transition(ctx, "deprecate") },
 		"VersionLifecycleService.ArchiveVersion":       func(ctx cliapp.RunContext) error { return h.transition(ctx, "archive") },
 		"VersionLifecycleService.RetireVersion":        func(ctx cliapp.RunContext) error { return h.transition(ctx, "retire") },
+		"VersionLifecycleService.MaterializeVersion":   h.materialize,
+		"VersionLifecycleService.ReconcilePresence":    h.reconcilePresence,
+		"VersionLifecycleService.ExportArchive":        h.exportArchive,
+		"VersionLifecycleService.ImportArchive":        h.importArchive,
+		"VersionLifecycleService.Doctor":               h.doctor,
 	}
 	group, err := cliapp.LoadFromManifest(manifest, GroupName, bindings)
 	if err != nil {

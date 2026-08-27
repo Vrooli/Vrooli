@@ -67,6 +67,7 @@ CREATE TABLE IF NOT EXISTS component_versions (
   indexed_at      TEXT NOT NULL,
   created_at      TEXT NOT NULL DEFAULT '',
   released_at     TEXT NOT NULL DEFAULT '',
+  presence        TEXT NOT NULL DEFAULT 'materialized',
   UNIQUE(component_id, version)
 );
 

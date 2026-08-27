@@ -13,8 +13,11 @@
     }
   ],
   "displayName": "Page Frame",
-  "kind": "shell",
   "draft": "",
+  "evictedVersions": [
+    "1.0.0"
+  ],
+  "kind": "shell",
   "latest": "1.0.1",
   "libraryId": "react-component-library:PageFrame",
   "slot": "layout-nav",

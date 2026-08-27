@@ -582,6 +582,8 @@ const literalSelectors = {
     itemChangelog: "versions-item-changelog",
     itemDiffButton: "versions-item-diff-button",
     table: "versions-table",
+    presenceBadge: "versions-presence-badge",
+    materializeButton: "versions-materialize-button",
     progressionPanel: "versions-progression-panel",
     diff: {
       card: "versions-diff-card",

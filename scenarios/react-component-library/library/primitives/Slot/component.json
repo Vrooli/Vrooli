@@ -3,6 +3,9 @@
   "assetKind": "primitive",
   "catalogId": "primitives.slot",
   "dependencies": [],
+  "deprecatedVersions": [
+    "1.0.0"
+  ],
   "description": "",
   "designStyles": [
     {
@@ -19,15 +22,15 @@
     }
   ],
   "displayName": "Slot",
+  "draft": "",
+  "evictedVersions": [
+    "1.0.0"
+  ],
   "kind": "surface",
   "latest": "1.0.1",
   "libraryId": "react-component-library:Slot",
   "tags": [
     "primitive",
     "token-bound"
-  ],
-  "draft": "",
-  "deprecatedVersions": [
-    "1.0.0"
   ]
 }

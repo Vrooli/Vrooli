@@ -13,20 +13,23 @@
     }
   ],
   "displayName": "CanvasFrame",
+  "draft": "",
+  "evictedVersions": [
+    "1.0.0"
+  ],
   "kind": "surface",
   "latest": "1.0.1",
   "libraryId": "react-component-library:CanvasFrame",
-  "slot": "ui-pattern",
-  "tags": [
-    "preview",
-    "layout",
-    "canvas"
-  ],
   "requires": [
     {
       "libraryId": "react-component-library:useLocale",
       "version": "1.0.0"
     }
   ],
-  "draft": ""
+  "slot": "ui-pattern",
+  "tags": [
+    "preview",
+    "layout",
+    "canvas"
+  ]
 }

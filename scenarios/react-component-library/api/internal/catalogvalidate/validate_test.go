@@ -99,6 +99,32 @@ func TestVacuousAllowlistRequiresReasonsAndDetectsGrowth(t *testing.T) {
 	}
 }
 
+func TestVacuousAllowlistAcceptsEvictedContract(t *testing.T) {
+	root := t.TempDir()
+	contractDir := filepath.Join(root, "scenarios", "react-component-library", "library", "components", "Button", "versions", "0.9.0")
+	if err := os.MkdirAll(contractDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	manifestPath := filepath.Join(root, "scenarios", "react-component-library", "library", "components", "Button", "component.json")
+	if err := os.WriteFile(manifestPath, []byte(`{"evictedVersions":["0.9.0"]}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	allowlistPath := filepath.Join(root, vacuousAllowlistRelativePath)
+	if err := os.MkdirAll(filepath.Dir(allowlistPath), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(allowlistPath, []byte(`{"schemaVersion":1,"entries":[{"path":"library/components/Button/versions/0.9.0/experience-contract.json","reason":"legacy"}]}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	findings := vacuousAllowlistFindings(root)
+	for _, finding := range findings {
+		if finding.Code == "catalog.vacuous_allowlist_unknown_entry" {
+			t.Fatalf("evicted contract was treated as unknown: %+v", findings)
+		}
+	}
+}
+
 func TestLiveCatalogValidation(t *testing.T) {
 	root, err := filepath.Abs(filepath.Join("..", "..", "..", "..", ".."))
 	if err != nil {

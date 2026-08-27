@@ -1,3 +1,0 @@
-[data-rcl-separator] { border: 0; background: var(--color-border); }
-[data-rcl-separator][data-orientation="horizontal"] { block-size: var(--separator-thickness); inline-size: 100%; }
-[data-rcl-separator][data-orientation="vertical"] { inline-size: var(--separator-thickness); block-size: 100%; }

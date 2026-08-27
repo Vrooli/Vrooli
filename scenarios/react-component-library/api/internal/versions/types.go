@@ -32,6 +32,7 @@ type Version struct {
 	ReleasedAt            time.Time
 	RequiredTokens        []string
 	RequiredTokenPatterns []string
+	Presence              string
 }
 
 // RecordInput is the DTO the recorder hands to the service. The

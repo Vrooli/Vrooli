@@ -39,6 +39,9 @@ func (s *service) Link(ctx context.Context, in LinkInput) (LinkResult, error) {
 	if version == "" {
 		return LinkResult{}, ErrInvalidAdoption{Field: "version", Reason: "component has no latest version"}
 	}
+	if err := s.ensureVersionMaterialized(ctx, component.ID, version); err != nil {
+		return LinkResult{}, err
+	}
 	versionInfo, err := s.library.GetVersion(ctx, component.ID, version)
 	if err != nil {
 		return LinkResult{}, err

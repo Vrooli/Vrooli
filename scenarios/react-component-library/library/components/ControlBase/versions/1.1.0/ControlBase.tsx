@@ -7,7 +7,7 @@
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
 /** @vrooliComponentSource react-component-library:ControlBase */
-import { forwardRef, useEffect, type ButtonHTMLAttributes, type CSSProperties, type ReactNode } from "react";
+import { forwardRef, type ButtonHTMLAttributes, type CSSProperties, type ReactNode } from "react";
 import { motionTransition } from "@vrooli/react-component-library/VisualRecipes/1.0.0";
 import { useLibraryStyleSheet } from "@vrooli/react-component-library/StyleSheet/1.0.0";
 
@@ -57,26 +57,21 @@ const styleSheet = `
 [data-rcl-control]:active:not(:disabled) { filter: brightness(0.98); transform: translateY(0) scale(0.985); transition-duration: var(--dur-instant); }
 [data-rcl-control][data-rcl-pending="true"] { cursor: progress; } [data-rcl-control]:disabled { cursor: not-allowed; opacity: max(var(--opacity-disabled), .68); }
 `;
-const warnedSizes = new Set<string>();
-
-function developmentBuild() {
-  const meta = import.meta as ImportMeta & { env: { DEV?: boolean } };
-  return meta.env.DEV || (typeof window !== "undefined" && /^(localhost|127\.0\.0\.1)$/.test(window.location.hostname));
-}
+// Resolved block size per rung, stated once so the DOM marking and the
+// catalog's geometry contract read the same numbers. A rung below the
+// comfortable tap target still renders; it marks itself instead, which keeps
+// the judgment with the design review that can act on it. Library code must
+// not branch on bundler-injected environment to decide whether to say so:
+// `import.meta.env` exists only under Vite and vite-node, so any such branch
+// is a render-time TypeError in the browsers this component actually ships to.
+const tapTargetMinimum = 44;
+const sizePixels: Record<ControlSize, number> = { xs: 32, sm: 36, md: 40, lg: 44, xl: 48, icon: 40, default: 40 };
 
 export const ControlBase = forwardRef<HTMLButtonElement, ControlBaseProps>(function ControlBase(
   { children, className, density = "comfortable", disabled, shape = "square", size = "md", style, type = "button", variant = "primary", ...props }, ref,
 ) {
   useLibraryStyleSheet("control-base", styleSheet);
   const testId = (props as ControlBaseProps & { "data-testid"?: string })["data-testid"];
-  useEffect(() => {
-    const value = { xs: 32, sm: 36, md: 40, lg: 44, xl: 48, icon: 40, default: 40 }[size];
-    const key = `${(props as { "data-rcl-component"?: string })["data-rcl-component"] ?? "ControlBase"}:${size}`;
-    if (developmentBuild() && value < 44 && !warnedSizes.has(key)) {
-      warnedSizes.add(key);
-      console.warn(`[react-component-library] ${key} resolves to ${value}px, below the 44px tap-target guidance.`);
-    }
-  }, [props, size]);
-  const belowTapTarget = size === "xs" || size === "sm" || size === "md" || size === "icon" || size === "default";
+  const belowTapTarget = sizePixels[size] < tapTargetMinimum;
   return <button {...props} ref={ref} type={type} disabled={disabled} data-testid={testId ?? "control-base-root"} data-rcl-control="true" data-control-density={density} data-control-shape={shape} data-control-size={size} data-control-variant={variant} data-control-below-tap-target={belowTapTarget ? "true" : undefined} className={className} style={{ ...variantStyles[variant], ...sizeStyles[size], gap: density === "compact" ? "var(--space-3xs)" : "var(--space-2xs)", borderRadius: shape === "pill" ? "var(--radius-pill)" : "var(--radius-control)", ...style }}>{children}</button>;
 });

@@ -41,6 +41,7 @@ describe("ProgressionPanel", () => {
         fileCount: 1,
         linesOfCode: 40,
         dependencyCount: 0,
+        presence: "materialized",
       },
       {
         libraryId: "react-component-library:Chart",
@@ -58,6 +59,7 @@ describe("ProgressionPanel", () => {
         fileCount: 1,
         linesOfCode: 32,
         dependencyCount: 0,
+        presence: "evicted",
       },
     ]);
 

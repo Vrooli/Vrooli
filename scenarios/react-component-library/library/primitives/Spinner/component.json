@@ -3,6 +3,10 @@
   "assetKind": "primitive",
   "catalogId": "primitives.spinner",
   "dependencies": [],
+  "deprecatedVersions": [
+    "1.0.1",
+    "1.0.3"
+  ],
   "description": "",
   "designStyles": [
     {
@@ -19,22 +23,23 @@
     }
   ],
   "displayName": "Spinner",
+  "draft": "",
+  "evictedVersions": [
+    "1.0.3",
+    "1.0.2",
+    "1.0.1"
+  ],
   "kind": "surface",
   "latest": "1.0.4",
   "libraryId": "react-component-library:Spinner",
-  "tags": [
-    "primitive",
-    "token-bound"
-  ],
   "requires": [
     {
       "libraryId": "react-component-library:useLocale",
       "version": "1.0.0"
     }
   ],
-  "draft": "",
-  "deprecatedVersions": [
-    "1.0.1",
-    "1.0.3"
+  "tags": [
+    "primitive",
+    "token-bound"
   ]
 }

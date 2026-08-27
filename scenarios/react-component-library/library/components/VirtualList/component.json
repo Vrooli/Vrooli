@@ -8,6 +8,10 @@
       "version": "1.0.0"
     }
   ],
+  "deprecatedVersions": [
+    "1.0.1",
+    "1.0.3"
+  ],
   "description": "",
   "designStyles": [
     {
@@ -24,9 +28,20 @@
     }
   ],
   "displayName": "VirtualList",
+  "draft": "",
+  "evictedVersions": [
+    "1.0.3",
+    "1.0.1"
+  ],
   "kind": "surface",
   "latest": "1.0.4",
   "libraryId": "react-component-library:VirtualList",
+  "requires": [
+    {
+      "libraryId": "react-component-library:useLocale",
+      "version": "1.0.0"
+    }
+  ],
   "tags": [
     "data-display",
     "virtualization",
@@ -34,16 +49,5 @@
     "accessibility",
     "responsive",
     "token-bound"
-  ],
-  "requires": [
-    {
-      "libraryId": "react-component-library:useLocale",
-      "version": "1.0.0"
-    }
-  ],
-  "draft": "",
-  "deprecatedVersions": [
-    "1.0.1",
-    "1.0.3"
   ]
 }

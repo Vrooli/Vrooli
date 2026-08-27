@@ -10,8 +10,8 @@
         "regenerable": false,
         "rationale": "Scenario-owned durable data observed in the canonical data directory.",
         "budget": {
-          "max_bytes": "5GiB",
-          "rationale": "Durable storage is bounded by the workload byte ceiling; it is alarm-only because the data is not regenerable."
+          "max_bytes": "256MiB",
+          "rationale": "Component-test evidence is retained by version with five recent payloads plus pinned first-pass/first-fail evidence; a 256MiB ceiling bounds the measured multi-stage payload workload while preserving rollup counters."
         }
       }
     },

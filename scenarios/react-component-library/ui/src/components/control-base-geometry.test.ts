@@ -64,7 +64,37 @@ describe("ControlBase documented geometry", () => {
     vi.restoreAllMocks();
   });
 
-  it("marks dense rungs and warns once without blocking rendering", () => {
+  // The tap-target rung is a property of the static size table, so it is
+  // asserted from the source rather than from a render-time console warning.
+  // The warning this replaced was gated on `import.meta.env.DEV`, which only
+  // exists under Vite and vite-node: the assertion passed here while every
+  // browser render threw. A contract the test runner can satisfy alone is not
+  // a contract the consumers get.
+  it("states each rung's pixels once and derives the tap-target marking from them", () => {
+    expect(controlBaseSource).toContain(
+      'const sizePixels: Record<ControlSize, number> = { xs: 32, sm: 36, md: 40, lg: 44, xl: 48, icon: 40, default: 40 };',
+    );
+    expect(controlBaseSource).toContain("const tapTargetMinimum = 44;");
+    expect(controlBaseSource).toContain("const belowTapTarget = sizePixels[size] < tapTargetMinimum;");
+
+    for (const rung of documentedRungs) {
+      const documented = Number(rung.pixels);
+      expect(controlBaseSource).toContain(`${rung.name}: ${documented},`);
+      expect(documented < 44).toBe(["xs", "sm", "md", "icon"].includes(rung.name));
+    }
+  });
+
+  it("never reads bundler-injected environment", () => {
+    // Vitest materializes the bundler env object; browsers do not. Library
+    // source that reads it is a render-time TypeError no suite here can
+    // reproduce, so the assertion is on code, not on prose about it.
+    const executable = controlBaseSource
+      .replace(/\/\*[\s\S]*?\*\//g, "")
+      .replace(/\/\/[^\n]*/g, "");
+    expect(executable).not.toContain("import.meta");
+  });
+
+  it("marks dense rungs in the DOM without blocking rendering", () => {
     const warning = vi.spyOn(console, "warn").mockImplementation(() => undefined);
     renderWithProviders(
       createElement(ControlBase, { size: "xs", children: "Compact action" }),
@@ -74,8 +104,16 @@ describe("ControlBase documented geometry", () => {
       "data-control-below-tap-target",
       "true",
     );
-    expect(warning).toHaveBeenCalledWith(
-      expect.stringContaining("ControlBase:xs resolves to 32px"),
+    expect(warning).not.toHaveBeenCalled();
+  });
+
+  it("leaves comfortable rungs unmarked", () => {
+    renderWithProviders(
+      createElement(ControlBase, { size: "lg", children: "Roomy action" }),
+    );
+
+    expect(screen.getByRole("button", { name: "Roomy action" })).not.toHaveAttribute(
+      "data-control-below-tap-target",
     );
   });
 

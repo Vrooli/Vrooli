@@ -13,9 +13,12 @@
     }
   ],
   "displayName": "Code Block",
-  "kind": "surface",
   "draft": "",
   "entry": "CodeBlock.tsx",
+  "evictedVersions": [
+    "0.3.2"
+  ],
+  "kind": "surface",
   "latest": "0.3.3",
   "libraryId": "react-component-library:code-block",
   "tags": [

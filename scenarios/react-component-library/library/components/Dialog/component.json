@@ -2,6 +2,13 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "catalogId": "overlays.dialog",
   "category": "overlays",
+  "dependencies": [
+    {
+      "kind": "requires",
+      "libraryId": "react-component-library:ClassMerge",
+      "version": "1.0.0"
+    }
+  ],
   "deprecatedVersions": [
     "1.2.1"
   ],
@@ -21,20 +28,16 @@
     }
   ],
   "displayName": "Dialog",
-  "kind": "overlay",
   "draft": "",
+  "evictedVersions": [
+    "1.2.1"
+  ],
+  "kind": "overlay",
   "latest": "1.2.2",
   "libraryId": "react-component-library:Dialog",
   "slot": "ui-pattern",
   "tags": [
     "overlay",
     "interactive"
-  ],
-  "dependencies": [
-    {
-      "kind": "requires",
-      "libraryId": "react-component-library:ClassMerge",
-      "version": "1.0.0"
-    }
   ]
 }

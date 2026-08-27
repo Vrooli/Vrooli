@@ -16,6 +16,9 @@
       "version": "1.0.0"
     }
   ],
+  "deprecatedVersions": [
+    "1.1.1"
+  ],
   "description": "",
   "designStyles": [
     {
@@ -32,6 +35,10 @@
     }
   ],
   "displayName": "Menu",
+  "draft": "",
+  "evictedVersions": [
+    "1.1.1"
+  ],
   "kind": "overlay",
   "latest": "1.1.2",
   "libraryId": "react-component-library:Menu",
@@ -42,9 +49,5 @@
     "typeahead",
     "accessibility",
     "token-bound"
-  ],
-  "draft": "",
-  "deprecatedVersions": [
-    "1.1.1"
   ]
 }

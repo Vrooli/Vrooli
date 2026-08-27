@@ -104,6 +104,10 @@ func (f *fakeComponentsService) CreateComponentVersion(context.Context, componen
 	panic("not called")
 }
 
+func (f *fakeComponentsService) MaterializeVersion(context.Context, string, string, string) error {
+	panic("not called")
+}
+
 func (f *fakeComponentsService) UpdateComponentManifest(context.Context, components.UpdateComponentManifestInput) (components.Component, error) {
 	panic("not called")
 }

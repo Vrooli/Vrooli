@@ -28,7 +28,7 @@ func (r *Repository) List(ctx context.Context, libraryID string) ([]VersionLedge
 }
 
 func (r *Repository) ListWindow(ctx context.Context, libraryID, window string) ([]VersionLedger, error) {
-	query := `SELECT library_id, version, created_at, released_at, retired_at, lifecycle_state, gate_pass_count, gate_fail_count, test_runs, test_pass_rate, adoption_current, adoption_peak, file_count, lines_of_code, dependency_count FROM version_ledger`
+	query := `SELECT l.library_id, l.version, l.created_at, l.released_at, l.retired_at, l.lifecycle_state, l.gate_pass_count, l.gate_fail_count, l.test_runs, l.test_pass_rate, l.adoption_current, l.adoption_peak, l.file_count, l.lines_of_code, l.dependency_count, COALESCE(v.presence, 'materialized') FROM version_ledger l LEFT JOIN component_versions v ON v.library_id = l.library_id AND v.version = l.version`
 	args := []any{}
 	filters := []string{}
 	if libraryID != "" {
@@ -52,7 +52,7 @@ func (r *Repository) ListWindow(ctx context.Context, libraryID, window string) (
 	for rows.Next() {
 		var v VersionLedger
 		var created, released, retired string
-		if err := rows.Scan(&v.LibraryID, &v.Version, &created, &released, &retired, &v.LifecycleState, &v.GatePassCount, &v.GateFailCount, &v.TestRuns, &v.TestPassRate, &v.AdoptionCurrent, &v.AdoptionPeak, &v.FileCount, &v.LinesOfCode, &v.DependencyCount); err != nil {
+		if err := rows.Scan(&v.LibraryID, &v.Version, &created, &released, &retired, &v.LifecycleState, &v.GatePassCount, &v.GateFailCount, &v.TestRuns, &v.TestPassRate, &v.AdoptionCurrent, &v.AdoptionPeak, &v.FileCount, &v.LinesOfCode, &v.DependencyCount, &v.Presence); err != nil {
 			return nil, err
 		}
 		v.CreatedAt = parseTime(created)
@@ -174,6 +174,9 @@ func (r *Repository) PlanCleanup(ctx context.Context, scope CleanupScope) ([]Cle
 	}
 	if err := rows.Err(); err != nil {
 		rows.Close()
+		return nil, "", err
+	}
+	if err := rows.Close(); err != nil {
 		return nil, "", err
 	}
 	rows.Close()
@@ -346,7 +349,7 @@ func (r *Repository) RetireCandidates(ctx context.Context, componentID string) (
 	return out, rows.Err()
 }
 
-func (r *Repository) Transition(ctx context.Context, componentID, version, state string, confirm bool) (Candidate, error) {
+func (r *Repository) Transition(ctx context.Context, componentID, version, state string, confirm bool, planHashes ...string) (Candidate, error) {
 	var c Candidate
 	var latest, draft, sourcePath, manifestPath string
 	if err := r.db.QueryRowContext(ctx, `SELECT c.id, c.library_id, v.version, v.status, v.source_path, c.latest_version, c.draft_version, c.manifest_path FROM components c JOIN component_versions v ON v.component_id=c.id WHERE (c.id=? OR c.library_id=?) AND v.version=?`, componentID, componentID, version).Scan(&c.ComponentID, &c.LibraryID, &c.Version, &c.Status, &sourcePath, &latest, &draft, &manifestPath); err != nil {
@@ -402,10 +405,22 @@ func (r *Repository) Transition(ctx context.Context, componentID, version, state
 		return c, nil
 	}
 	if state == "deprecated" || state == "archived" {
-		if state == "archived" {
+		if state == "archived" && strings.EqualFold(c.Status, "retired") {
 			if err := r.restoreRetiredSource(sourcePath, c.LibraryID, version); err != nil {
 				return c, err
 			}
+		} else if state == "archived" {
+			planHash := ""
+			if len(planHashes) > 0 {
+				planHash = planHashes[0]
+			}
+			if !confirm {
+				return c, fmt.Errorf("archiving a version requires --confirm")
+			}
+			if err := r.evictVersion(ctx, c, version, manifestPath, planHash, componentID); err != nil {
+				return c, err
+			}
+			return c, nil
 		}
 		if err := r.updateManifest(manifestPath, version); err != nil {
 			return c, err
@@ -419,6 +434,81 @@ func (r *Repository) Transition(ctx context.Context, componentID, version, state
 	}
 	c.Status = state
 	return c, nil
+}
+
+func (r *Repository) evictVersion(ctx context.Context, c Candidate, version, manifestPath, suppliedPlanHash, scopeComponentID string) error {
+	// Preserve the caller's scope spelling (UUID or stable library id) while
+	// recomputing the confirmation hash. PlanCleanup includes the scope in its
+	// hash, so silently replacing a library id with the resolved UUID would
+	// reject a valid operator plan.
+	items, currentPlanHash, err := r.PlanCleanup(ctx, CleanupScope{ComponentID: scopeComponentID})
+	if err != nil {
+		return err
+	}
+	// The RPC supplies its confirmation through the legacy Transition API. A
+	// direct archive call is intentionally rejected unless the caller uses the
+	// plan-aware helper below; this keeps old callers from accidentally gaining
+	// destructive behavior.
+	if suppliedPlanHash == "" || suppliedPlanHash != currentPlanHash {
+		return fmt.Errorf("archive plan changed or --plan-hash is missing; regenerate with versions plan-cleanup")
+	}
+	allowed := false
+	for _, item := range items {
+		if item.Candidate.Version == version && item.Eligible {
+			allowed = true
+			break
+		}
+	}
+	if !allowed {
+		return fmt.Errorf("version %s is still referenced and is not safe to archive", version)
+	}
+	var sourcePath string
+	if err := r.db.QueryRowContext(ctx, `SELECT source_path FROM component_versions WHERE component_id=? AND version=?`, c.ComponentID, version).Scan(&sourcePath); err != nil {
+		return err
+	}
+	versionDir := filepath.Clean(filepath.Join(r.sourceRoot, filepath.Dir(sourcePath)))
+	root := filepath.Clean(r.sourceRoot) + string(os.PathSeparator)
+	if !strings.HasPrefix(versionDir, root) {
+		return fmt.Errorf("refusing to archive path outside library root")
+	}
+	rows, err := r.db.QueryContext(ctx, `SELECT path, content_sha256 FROM component_version_files WHERE version_id=(SELECT id FROM component_versions WHERE component_id=? AND version=?) ORDER BY path`, c.ComponentID, version)
+	if err != nil {
+		return fmt.Errorf("read archive mirror: %w", err)
+	}
+	defer rows.Close()
+	checked := 0
+	for rows.Next() {
+		var path, expected string
+		if err := rows.Scan(&path, &expected); err != nil {
+			return err
+		}
+		actualBytes, readErr := os.ReadFile(filepath.Join(versionDir, filepath.FromSlash(path)))
+		if readErr != nil {
+			return ErrEvictionMirrorMismatch{LibraryID: c.LibraryID, Version: version, Path: path, Expected: expected, Actual: "missing"}
+		}
+		actual := fmt.Sprintf("%x", sha256.Sum256(actualBytes))
+		if actual != expected {
+			return ErrEvictionMirrorMismatch{LibraryID: c.LibraryID, Version: version, Path: path, Expected: expected, Actual: actual}
+		}
+		checked++
+	}
+	if err := rows.Err(); err != nil {
+		return err
+	}
+	if checked == 0 {
+		return fmt.Errorf("cannot archive %s@%s: file mirror is empty", c.LibraryID, version)
+	}
+	if err := os.RemoveAll(versionDir); err != nil {
+		return fmt.Errorf("remove archived version directory: %w", err)
+	}
+	if err := r.updateManifestArray(manifestPath, "evictedVersions", version); err != nil {
+		return err
+	}
+	if _, err := r.db.ExecContext(ctx, `UPDATE component_versions SET presence='evicted' WHERE component_id=? AND version=?`, c.ComponentID, version); err != nil {
+		return err
+	}
+	_, err = r.db.ExecContext(ctx, `UPDATE version_ledger SET lifecycle_state='archived' WHERE library_id=? AND version=?`, c.LibraryID, version)
+	return err
 }
 
 func (r *Repository) retiredSourcePath(libraryID, version string) string {
@@ -446,6 +536,10 @@ func (r *Repository) restoreRetiredSource(sourcePath, libraryID, version string)
 }
 
 func (r *Repository) updateManifest(manifestPath, version string) error {
+	return r.updateManifestArray(manifestPath, "deprecatedVersions", version)
+}
+
+func (r *Repository) updateManifestArray(manifestPath, field, version string) error {
 	path := filepath.Join(r.sourceRoot, manifestPath)
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -456,7 +550,7 @@ func (r *Repository) updateManifest(manifestPath, version string) error {
 		return err
 	}
 	values := []string{}
-	if raw, ok := doc["deprecatedVersions"].([]any); ok {
+	if raw, ok := doc[field].([]any); ok {
 		for _, value := range raw {
 			if v, ok := value.(string); ok {
 				values = append(values, v)
@@ -469,7 +563,7 @@ func (r *Repository) updateManifest(manifestPath, version string) error {
 		}
 	}
 	values = append(values, version)
-	doc["deprecatedVersions"] = values
+	doc[field] = values
 	out, err := json.MarshalIndent(doc, "", "  ")
 	if err != nil {
 		return err

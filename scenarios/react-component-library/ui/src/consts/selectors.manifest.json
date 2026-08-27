@@ -1,5 +1,229 @@
 {
   "selectors": {
+    "library.componentEditorExampleCard": {
+      "testId": "componentEditorExampleCard",
+      "selector": "[data-testid=\"componentEditorExampleCard\"]"
+    },
+    "library.previewSurface": {
+      "testId": "previewSurface",
+      "selector": "[data-testid=\"previewSurface\"]"
+    },
+    "library.experiencesurface.root": {
+      "testId": "experiencesurface",
+      "selector": "[data-testid=\"experiencesurface\"]"
+    },
+    "library.assetdetailshell.root": {
+      "testId": "assetdetailshell",
+      "selector": "[data-testid=\"assetdetailshell\"]"
+    },
+    "library.primitives.text.root": {
+      "testId": "primitives.text",
+      "selector": "[data-testid=\"primitives.text\"]"
+    },
+    "library.primitives.text.rclTextSample": {
+      "testId": "primitives.text.rcl-text-sample",
+      "selector": "[data-testid=\"primitives.text.rcl-text-sample\"]"
+    },
+    "library.primitives.icon.root": {
+      "testId": "primitives.icon",
+      "selector": "[data-testid=\"primitives.icon\"]"
+    },
+    "library.primitives.card.root": {
+      "testId": "primitives.card",
+      "selector": "[data-testid=\"primitives.card\"]"
+    },
+    "library.overlays.drawer.root": {
+      "testId": "overlays.drawer",
+      "selector": "[data-testid=\"overlays.drawer\"]"
+    },
+    "library.overlays.dialog.root": {
+      "testId": "overlays.dialog",
+      "selector": "[data-testid=\"overlays.dialog\"]"
+    },
+    "library.navigation.tabs.root": {
+      "testId": "navigation.tabs",
+      "selector": "[data-testid=\"navigation.tabs\"]"
+    },
+    "library.navigation.sidebar.root": {
+      "testId": "navigation.sidebar",
+      "selector": "[data-testid=\"navigation.sidebar\"]"
+    },
+    "library.navigation.sidebar.backdrop": {
+      "testId": "navigation.sidebar.backdrop",
+      "selector": "[data-testid=\"navigation.sidebar.backdrop\"]"
+    },
+    "library.navigation.sidebar.close": {
+      "testId": "navigation.sidebar.close",
+      "selector": "[data-testid=\"navigation.sidebar.close\"]"
+    },
+    "library.navigation.sidebar.resizeHandle": {
+      "testId": "navigation.sidebar.resize-handle",
+      "selector": "[data-testid=\"navigation.sidebar.resize-handle\"]"
+    },
+    "library.navigation.navigation-tree.root": {
+      "testId": "navigation.navigation-tree",
+      "selector": "[data-testid=\"navigation.navigation-tree\"]"
+    },
+    "library.navigation.nav-link.root": {
+      "testId": "navigation.nav-link",
+      "selector": "[data-testid=\"navigation.nav-link\"]"
+    },
+    "library.navigation.bottom-navigation.root": {
+      "testId": "navigation.bottom-navigation",
+      "selector": "[data-testid=\"navigation.bottom-navigation\"]"
+    },
+    "library.navigation.app-shell.root": {
+      "testId": "navigation.app-shell",
+      "selector": "[data-testid=\"navigation.app-shell\"]"
+    },
+    "library.navigation.app-shell.header": {
+      "testId": "navigation.app-shell.header",
+      "selector": "[data-testid=\"navigation.app-shell.header\"]"
+    },
+    "library.navigation.app-shell.main": {
+      "testId": "navigation.app-shell.main",
+      "selector": "[data-testid=\"navigation.app-shell.main\"]"
+    },
+    "library.navigation.app-shell.navigation": {
+      "testId": "navigation.app-shell.navigation",
+      "selector": "[data-testid=\"navigation.app-shell.navigation\"]"
+    },
+    "library.navigation.app-shell.skip": {
+      "testId": "navigation.app-shell.skip",
+      "selector": "[data-testid=\"navigation.app-shell.skip\"]"
+    },
+    "library.navigation.app-navigation.root": {
+      "testId": "navigation.app-navigation",
+      "selector": "[data-testid=\"navigation.app-navigation\"]"
+    },
+    "library.hooks.use-network-status.root": {
+      "testId": "hooks.use-network-status",
+      "selector": "[data-testid=\"hooks.use-network-status\"]"
+    },
+    "library.hooks.use-escape-key.root": {
+      "testId": "hooks.use-escape-key",
+      "selector": "[data-testid=\"hooks.use-escape-key\"]"
+    },
+    "library.hooks.use-announce.root": {
+      "testId": "hooks.use-announce",
+      "selector": "[data-testid=\"hooks.use-announce\"]"
+    },
+    "library.foundations.visual-recipes.root": {
+      "testId": "foundations.visual-recipes",
+      "selector": "[data-testid=\"foundations.visual-recipes\"]"
+    },
+    "library.foundations.tokens.root": {
+      "testId": "foundations.tokens",
+      "selector": "[data-testid=\"foundations.tokens\"]"
+    },
+    "library.foundations.icon-registry.root": {
+      "testId": "foundations.icon-registry",
+      "selector": "[data-testid=\"foundations.icon-registry\"]"
+    },
+    "library.forms.textarea.root": {
+      "testId": "forms.textarea",
+      "selector": "[data-testid=\"forms.textarea\"]"
+    },
+    "library.forms.textarea.probe": {
+      "testId": "forms.textarea.probe",
+      "selector": "[data-testid=\"forms.textarea.probe\"]"
+    },
+    "library.forms.textarea.t": {
+      "testId": "forms.textarea.t",
+      "selector": "[data-testid=\"forms.textarea.t\"]"
+    },
+    "library.forms.select.root": {
+      "testId": "forms.select",
+      "selector": "[data-testid=\"forms.select\"]"
+    },
+    "library.forms.input.root": {
+      "testId": "forms.input",
+      "selector": "[data-testid=\"forms.input\"]"
+    },
+    "library.feedback.empty-state.root": {
+      "testId": "feedback.empty-state",
+      "selector": "[data-testid=\"feedback.empty-state\"]"
+    },
+    "library.feedback.async-boundary.root": {
+      "testId": "feedback.async-boundary",
+      "selector": "[data-testid=\"feedback.async-boundary\"]"
+    },
+    "library.data-display.tree-view.root": {
+      "testId": "data-display.tree-view",
+      "selector": "[data-testid=\"data-display.tree-view\"]"
+    },
+    "library.data-display.table.root": {
+      "testId": "data-display.table",
+      "selector": "[data-testid=\"data-display.table\"]"
+    },
+    "library.data-display.data-table.root": {
+      "testId": "data-display.data-table",
+      "selector": "[data-testid=\"data-display.data-table\"]"
+    },
+    "library.data-display.data-table.content": {
+      "testId": "data-display.data-table.content",
+      "selector": "[data-testid=\"data-display.data-table.content\"]"
+    },
+    "library.controls.pressable.root": {
+      "testId": "controls.pressable",
+      "selector": "[data-testid=\"controls.pressable\"]"
+    },
+    "library.controls.icon-button.root": {
+      "testId": "controls.icon-button",
+      "selector": "[data-testid=\"controls.icon-button\"]"
+    },
+    "library.controls.button.root": {
+      "testId": "controls.button",
+      "selector": "[data-testid=\"controls.button\"]"
+    },
+    "library.controls.button.icon": {
+      "testId": "controls.button.icon",
+      "selector": "[data-testid=\"controls.button.icon\"]"
+    },
+    "library.controls.button.label": {
+      "testId": "controls.button.label",
+      "selector": "[data-testid=\"controls.button.label\"]"
+    },
+    "library.workspaceheader.root": {
+      "testId": "workspaceheader",
+      "selector": "[data-testid=\"workspaceheader\"]"
+    },
+    "library.workspaceheader.workspaceHeader": {
+      "testId": "workspaceheader.workspace-header",
+      "selector": "[data-testid=\"workspaceheader.workspace-header\"]"
+    },
+    "library.inspectorlayout.root": {
+      "testId": "inspectorlayout",
+      "selector": "[data-testid=\"inspectorlayout\"]"
+    },
+    "library.asyncpanel.root": {
+      "testId": "asyncpanel",
+      "selector": "[data-testid=\"asyncpanel\"]"
+    },
+    "library.voiceinputbutton.root": {
+      "testId": "voiceinputbutton",
+      "selector": "[data-testid=\"voiceinputbutton\"]"
+    },
+    "library.voiceinputbutton.voiceFixtureState": {
+      "testId": "voiceinputbutton.voice-fixture-state",
+      "selector": "[data-testid=\"voiceinputbutton.voice-fixture-state\"]"
+    },
+    "library.statusbadge.root": {
+      "testId": "statusbadge",
+      "selector": "[data-testid=\"statusbadge\"]"
+    },
+    "library.controlbase.root": {
+      "testId": "controlbase",
+      "selector": "[data-testid=\"controlbase\"]"
+    },
+    "library.commandcentershell.root": {
+      "testId": "commandcentershell",
+      "selector": "[data-testid=\"commandcentershell\"]"
+    },
+    "library.usevoiceinput.root": {
+      "testId": "usevoiceinput",
+      "selector": "[data-testid=\"usevoiceinput\"]"
+    },
     "app.title": {
       "testId": "app-title",
       "selector": "[data-testid=\"app-title\"]"
@@ -963,6 +1187,18 @@
     "versions.itemDiffButton": {
       "testId": "versions-item-diff-button",
       "selector": "[data-testid=\"versions-item-diff-button\"]"
+    },
+    "versions.table": {
+      "testId": "versions-table",
+      "selector": "[data-testid=\"versions-table\"]"
+    },
+    "versions.presenceBadge": {
+      "testId": "versions-presence-badge",
+      "selector": "[data-testid=\"versions-presence-badge\"]"
+    },
+    "versions.materializeButton": {
+      "testId": "versions-materialize-button",
+      "selector": "[data-testid=\"versions-materialize-button\"]"
     },
     "versions.progressionPanel": {
       "testId": "versions-progression-panel",

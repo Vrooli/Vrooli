@@ -14,18 +14,21 @@
     }
   ],
   "displayName": "EvidenceCarousel",
-  "kind": "surface",
   "draft": "",
+  "evictedVersions": [
+    "1.0.12"
+  ],
+  "kind": "surface",
   "latest": "1.0.13",
   "libraryId": "react-component-library:EvidenceCarousel",
-  "tags": [
-    "visualization",
-    "token-bound"
-  ],
   "requires": [
     {
       "libraryId": "react-component-library:useLocale",
       "version": "1.0.0"
     }
+  ],
+  "tags": [
+    "visualization",
+    "token-bound"
   ]
 }

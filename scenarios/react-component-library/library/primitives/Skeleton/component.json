@@ -3,6 +3,10 @@
   "assetKind": "primitive",
   "catalogId": "primitives.skeleton",
   "dependencies": [],
+  "deprecatedVersions": [
+    "1.0.1",
+    "1.0.3"
+  ],
   "description": "",
   "designStyles": [
     {
@@ -19,22 +23,23 @@
     }
   ],
   "displayName": "Skeleton",
+  "draft": "",
+  "evictedVersions": [
+    "1.0.3",
+    "1.0.2",
+    "1.0.1"
+  ],
   "kind": "surface",
   "latest": "1.0.4",
   "libraryId": "react-component-library:Skeleton",
-  "tags": [
-    "primitive",
-    "token-bound"
-  ],
   "requires": [
     {
       "libraryId": "react-component-library:useLocale",
       "version": "1.0.0"
     }
   ],
-  "draft": "",
-  "deprecatedVersions": [
-    "1.0.1",
-    "1.0.3"
+  "tags": [
+    "primitive",
+    "token-bound"
   ]
 }

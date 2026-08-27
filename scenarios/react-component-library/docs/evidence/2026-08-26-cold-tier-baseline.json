@@ -1,0 +1,3369 @@
+{
+  "captured_at": "2026-08-27T01:00:30Z",
+  "source": {
+    "scenario": "react-component-library",
+    "library_root": "scenarios/react-component-library/library",
+    "database": "~/.vrooli/data/vrooli/react-component-library/react-component-library.db",
+    "note": "Captured after immutable baseline synchronization and before cold-tier implementation edits. Existing source/ledger drift is recorded explicitly."
+  },
+  "version_dirs": 631,
+  "version_lines": 58729,
+  "latest_version_lines": 52936,
+  "retire_candidates": [
+    {
+      "component_id": "6ce517c2-4500-4589-856c-83a55e194034",
+      "library_id": "react-component-library:Alert",
+      "version": "1.0.1",
+      "status": "deprecated"
+    },
+    {
+      "component_id": "1913a0a7-21da-4f19-b2c1-2072f931e6a2",
+      "library_id": "react-component-library:AlertDialog",
+      "version": "1.0.2",
+      "status": "deprecated"
+    },
+    {
+      "component_id": "1913a0a7-21da-4f19-b2c1-2072f931e6a2",
+      "library_id": "react-component-library:AlertDialog",
+      "version": "1.0.3",
+      "status": "released"
+    },
+    {
+      "component_id": "1913a0a7-21da-4f19-b2c1-2072f931e6a2",
+      "library_id": "react-component-library:AlertDialog",
+      "version": "1.0.4",
+      "status": "deprecated"
+    },
+    {
+      "component_id": "1913a0a7-21da-4f19-b2c1-2072f931e6a2",
+      "library_id": "react-component-library:AlertDialog",
+      "version": "1.0.5",
+      "status": "released"
+    },
+    {
+      "component_id": "460bcd14-9b78-4cc9-b3d3-ba1a0060c726",
+      "library_id": "react-component-library:AppNavigation",
+      "version": "1.1.4",
+      "status": "deprecated"
+    },
+    {
+      "component_id": "5370e5cf-8b44-4975-a52f-6da8fe2fd66a",
+      "library_id": "react-component-library:AppShell",
+      "version": "1.0.3",
+      "status": "deprecated"
+    },
+    {
+      "component_id": "5370e5cf-8b44-4975-a52f-6da8fe2fd66a",
+      "library_id": "react-component-library:AppShell",
+      "version": "1.0.4",
+      "status": "released"
+    },
+    {
+      "component_id": "5370e5cf-8b44-4975-a52f-6da8fe2fd66a",
+      "library_id": "react-component-library:AppShell",
+      "version": "1.0.5",
+      "status": "deprecated"
+    },
+    {
+      "component_id": "751f669c-53ac-4ff8-bd3b-9d699587f4e6",
+      "library_id": "react-component-library:ApprovalPrompt",
+      "version": "1.0.1",
+      "status": "deprecated"
+    },
+    {
+      "component_id": "751f669c-53ac-4ff8-bd3b-9d699587f4e6",
+      "library_id": "react-component-library:ApprovalPrompt",
+      "version": "1.0.2",
+      "status": "released"
+    },
+    {
+      "component_id": "751f669c-53ac-4ff8-bd3b-9d699587f4e6",
+      "library_id": "react-component-library:ApprovalPrompt",
+      "version": "1.0.3",
+      "status": "deprecated"
+    },
+    {
+      "component_id": "e0c32cdb-46a8-4b00-9214-f8785627aec3",
+      "library_id": "react-component-library:ArrayField",
+      "version": "1.0.1",
+      "status": "deprecated"
+    },
+    {
+      "component_id": "8baafe4d-0da0-4a05-941b-aef660589644",
+      "library_id": "react-component-library:AsyncBoundary",
+      "version": "1.0.3",
+      "status": "deprecated"
+    },
+    {
+      "component_id": "0d78864f-c356-4afa-a0fa-9e3ffd8b29cb",
+      "library_id": "react-component-library:AsyncFormFlow",
+      "version": "1.0.3",
+      "status": "deprecated"
+    },
+    {
+      "component_id": "0d78864f-c356-4afa-a0fa-9e3ffd8b29cb",
+      "library_id": "react-component-library:AsyncFormFlow",
+      "version": "1.0.4",
+      "status": "released"
+    },
+    {
+      "component_id": "0d78864f-c356-4afa-a0fa-9e3ffd8b29cb",
+      "library_id": "react-component-library:AsyncFormFlow",
+      "version": "1.0.5",
+      "status": "deprecated"
+    },
+    {
+      "component_id": "ad9a1deb-3375-4591-b90f-04a01fe45218",
+      "library_id": "react-component-library:AsyncOptionsField",
+      "version": "1.0.3",
+      "status": "deprecated"
+    },
+    {
+      "component_id": "ad9a1deb-3375-4591-b90f-04a01fe45218",
+      "library_id": "react-component-library:AsyncOptionsField",
+      "version": "1.0.4",
+      "status": "released"
+    },
+    {
+      "component_id": "ad9a1deb-3375-4591-b90f-04a01fe45218",
+      "library_id": "react-component-library:AsyncOptionsField",
+      "version": "1.0.5",
+      "status": "deprecated"
+    },
+    {
+      "component_id": "1073ace6-4874-4785-9a53-763576907d3a",
+      "library_id": "react-component-library:AttachmentPreview",
+      "version": "1.0.1",
+      "status": "deprecated"
+    },
+    {
+      "component_id": "a027af01-90fe-461d-9631-dd98f9f276fd",
+      "library_id": "react-component-library:AuditTrail",
+      "version": "1.0.4",
+      "status": "deprecated"
+    },
+    {
+      "component_id": "465a8c5d-ea25-4eba-a1dc-e6037bc00a15",
+      "library_id": "react-component-library:AuthSection",
+      "version": "1.0.2",
+      "status": "deprecated"
+    },
+    {
+      "component_id": "d523f882-db5a-455a-812b-cfd43dc57c1a",
+      "library_id": "react-component-library:Avatar",
+      "version": "1.3.2",
+      "status": "deprecated"
+    },
+    {
+      "component_id": "d523f882-db5a-455a-812b-cfd43dc57c1a",
+      "library_id": "react-component-library:Avatar",
+      "version": "1.3.3",
+      "status": "released"
+    },
+    {
+      "component_id": "d523f882-db5a-455a-812b-cfd43dc57c1a",
+      "library_id": "react-component-library:Avatar",
+      "version": "1.3.4",
+      "status": "deprecated"
+    },
+    {
+      "component_id": "f8084812-cf0a-4d97-8662-cb52ab42d616",
+      "library_id": "react-component-library:BottomNav",
+      "version": "1.3.6",
+      "status": "deprecated"
+    },
+    {
+      "component_id": "2dfaaa06-9d49-4e5b-b1cf-57eecf8aec6f",
+      "library_id": "react-component-library:BoundedMeter",
+      "version": "1.0.2",
+      "status": "deprecated"
+    },
+    {
+      "component_id": "2dfaaa06-9d49-4e5b-b1cf-57eecf8aec6f",
+      "library_id": "react-component-library:BoundedMeter",
+      "version": "1.0.3",
+      "status": "released"
+    },
+    {
+      "component_id": "2dfaaa06-9d49-4e5b-b1cf-57eecf8aec6f",
+      "library_id": "react-component-library:BoundedMeter",
+      "version": "1.0.4",
+      "status": "deprecated"
+    },
+    {
+      "component_id": "3db97331-71fa-4e2e-811f-c10f717f7558",
+      "library_id": "react-component-library:BudgetBar",
+      "version": "1.0.10",
+      "status": "deprecated"
+    },
+    {
+      "component_id": "3db97331-71fa-4e2e-811f-c10f717f7558",
+      "library_id": "react-component-library:BudgetBar",
+      "version": "1.0.11",
+      "status": "released"
+    },
+    {
+      "component_id": "3db97331-71fa-4e2e-811f-c10f717f7558",
+      "library_id": "react-component-library:BudgetBar",
+      "version": "1.0.12",
+      "status": "deprecated"
+    },
+    {
+      "component_id": "5a648bf4-3d59-4a3c-807e-12997a9671ce",
+      "library_id": "react-component-library:BulkActionBar",
+      "version": "1.0.1",
+      "status": "deprecated"
+    },
+    {
+      "component_id": "5a648bf4-3d59-4a3c-807e-12997a9671ce",
+      "library_id": "react-component-library:BulkActionBar",
+      "version": "1.0.2",
+      "status": "released"
+    },
+    {
+      "component_id": "5a648bf4-3d59-4a3c-807e-12997a9671ce",
+      "library_id": "react-component-library:BulkActionBar",
+      "version": "1.0.3",
+      "status": "deprecated"
+    },
+    {
+      "component_id": "f3d53ffa-abc2-4237-9bc0-8c2bff448b7e",
+      "library_id": "react-component-library:ButtonGroup",
+      "version": "1.1.2",
+      "status": "deprecated"
+    },
+    {
+      "component_id": "f3d53ffa-abc2-4237-9bc0-8c2bff448b7e",
+      "library_id": "react-component-library:ButtonGroup",
+      "version": "1.1.3",
+      "status": "released"
+    },
+    {
+      "component_id": "f3d53ffa-abc2-4237-9bc0-8c2bff448b7e",
+      "library_id": "react-component-library:ButtonGroup",
+      "version": "1.1.4",
+      "status": "deprecated"
+    },
+    {
+      "component_id": "4d6b43de-5fea-424c-a687-f9644f4404de",
+      "library_id": "react-component-library:Calendar",
+      "version": "1.0.3",
+      "status": "deprecated"
+    },
+    {
+      "component_id": "4d6b43de-5fea-424c-a687-f9644f4404de",
+      "library_id": "react-component-library:Calendar",
+      "version": "1.0.4",
+      "status": "released"
+    },
+    {
+      "component_id": "4d6b43de-5fea-424c-a687-f9644f4404de",
+      "library_id": "react-component-library:Calendar",
+      "version": "1.0.5",
+      "status": "deprecated"
+    },
+    {
+      "component_id": "1d3f07b0-336c-4e99-b1bc-77f2df0a886d",
+      "library_id": "react-component-library:CanvasFrame",
+      "version": "1.0.0",
+      "status": "deprecated"
+    },
+    {
+      "component_id": "c7df41c8-86b4-464c-aec0-50c6a0561e47",
+      "library_id": "react-component-library:CaptureGrid",
+      "version": "1.0.4",
+      "status": "deprecated"
+    },
+    {
+      "component_id": "2e5ff550-bb9c-40f9-a24e-35fd8fa34a0d",
+      "library_id": "react-component-library:Card",
+      "version": "1.2.0",
+      "status": "deprecated"
+    },
+    {
+      "component_id": "dd1e4507-5bca-4ca5-b4ed-721eb9af2f38",
+      "library_id": "react-component-library:CardGrid",
+      "version": "1.0.0",
+      "status": "deprecated"
+    },
+    {
+      "component_id": "69828972-7fac-4a21-a47b-09f5ddd1a40e",
+      "library_id": "react-component-library:CartesianCharts",
+      "version": "1.0.3",
+      "status": "released"
+    },
+    {
+      "component_id": "69828972-7fac-4a21-a47b-09f5ddd1a40e",
+      "library_id": "react-component-library:CartesianCharts",
+      "version": "1.0.4",
+      "status": "deprecated"
+    },
+    {
+      "component_id": "2d6a0349-cdfb-4cf4-8ac0-0df7f4ad0cc3",
+      "library_id": "react-component-library:Chart",
+      "version": "1.0.3",
+      "status": "deprecated"
+    },
+    {
+      "component_id": "2d6a0349-cdfb-4cf4-8ac0-0df7f4ad0cc3",
+      "library_id": "react-component-library:Chart",
+      "version": "1.0.4",
+      "status": "released"
+    },
+    {
+      "component_id": "2d6a0349-cdfb-4cf4-8ac0-0df7f4ad0cc3",
+      "library_id": "react-component-library:Chart",
+      "version": "1.0.5",
+      "status": "deprecated"
+    },
+    {
+      "component_id": "f5f314c8-880a-4c19-93ef-3ff87291a630",
+      "library_id": "react-component-library:Checkbox",
+      "version": "1.0.2",
+      "status": "deprecated"
+    },
+    {
+      "component_id": "f5f314c8-880a-4c19-93ef-3ff87291a630",
+      "library_id": "react-component-library:Checkbox",
+      "version": "1.0.3",
+      "status": "released"
+    },
+    {
+      "component_id": "f5f314c8-880a-4c19-93ef-3ff87291a630",
+      "library_id": "react-component-library:Checkbox",
+      "version": "1.0.4",
+      "status": "deprecated"
+    },
+    {
+      "component_id": "5f8faad8-5627-4072-864c-cd7f441888dd",
+      "library_id": "react-component-library:Chip",
+      "version": "1.0.2",
+      "status": "deprecated"
+    },
+    {
+      "component_id": "cd06501f-81b4-44f8-8302-c278c808ed7e",
+      "library_id": "react-component-library:CollectionPage",
+      "version": "1.0.3",
+      "status": "deprecated"
+    },
+    {
+      "component_id": "244e4bfc-d98c-468b-a6d0-77a8bf95a6f7",
+      "library_id": "react-component-library:ColorPicker",
+      "version": "1.0.2",
+      "status": "deprecated"
+    },
+    {
+      "component_id": "16a7f7e9-df5d-4ba4-925b-363c34eead55",
+      "library_id": "react-component-library:Combobox",
+      "version": "1.0.3",
+      "status": "deprecated"
+    },
+    {
+      "component_id": "16a7f7e9-df5d-4ba4-925b-363c34eead55",
+      "library_id": "react-component-library:Combobox",
+      "version": "1.0.4",
+      "status": "released"
+    },
+    {
+      "component_id": "16a7f7e9-df5d-4ba4-925b-363c34eead55",
+      "library_id": "react-component-library:Combobox",
+      "version": "1.0.5",
+      "status": "deprecated"
+    },
+    {
+      "component_id": "e0fcacee-07d9-4b4f-8baf-d2e52e88f053",
+      "library_id": "react-component-library:CommandButton",
+      "version": "1.0.1",
+      "status": "deprecated"
+    },
+    {
+      "component_id": "a091cc6c-1f3f-473d-b797-44cf95daffc8",
+      "library_id": "react-component-library:CommandPalette",
+      "version": "1.0.3",
+      "status": "deprecated"
+    },
+    {
+      "component_id": "a091cc6c-1f3f-473d-b797-44cf95daffc8",
+      "library_id": "react-component-library:CommandPalette",
+      "version": "1.0.4",
+      "status": "released"
+    },
+    {
+      "component_id": "a091cc6c-1f3f-473d-b797-44cf95daffc8",
+      "library_id": "react-component-library:CommandPalette",
+      "version": "1.0.5",
+      "status": "deprecated"
+    },
+    {
+      "component_id": "d97d34df-d70b-4869-a6ff-a6547f214bfa",
+      "library_id": "react-component-library:ConflictResolutionFlow",
+      "version": "1.0.3",
+      "status": "deprecated"
+    },
+    {
+      "component_id": "d97d34df-d70b-4869-a6ff-a6547f214bfa",
+      "library_id": "react-component-library:ConflictResolutionFlow",
+      "version": "1.0.4",
+      "status": "released"
+    },
+    {
+      "component_id": "d97d34df-d70b-4869-a6ff-a6547f214bfa",
+      "library_id": "react-component-library:ConflictResolutionFlow",
+      "version": "1.0.5",
+      "status": "deprecated"
+    },
+    {
+      "component_id": "6f7e1b55-abfa-46e5-808c-f6580d3d0a90",
+      "library_id": "react-component-library:CopyableText",
+      "version": "1.0.4",
+      "status": "deprecated"
+    },
+    {
+      "component_id": "ba3160e0-faff-46cd-a8df-a2952f6c6498",
+      "library_id": "react-component-library:DashboardPage",
+      "version": "1.0.4",
+      "status": "deprecated"
+    },
+    {
+      "component_id": "edfa1ae7-3b17-4a2d-97ed-2a03f6d99dd2",
+      "library_id": "react-component-library:DataTable",
+      "version": "1.3.3",
+      "status": "deprecated"
+    },
+    {
+      "component_id": "edfa1ae7-3b17-4a2d-97ed-2a03f6d99dd2",
+      "library_id": "react-component-library:DataTable",
+      "version": "1.3.4",
+      "status": "released"
+    },
+    {
+      "component_id": "edfa1ae7-3b17-4a2d-97ed-2a03f6d99dd2",
+      "library_id": "react-component-library:DataTable",
+      "version": "1.3.5",
+      "status": "deprecated"
+    },
+    {
+      "component_id": "7dbe543d-98ca-4a70-8a7b-10644cf4cda5",
+      "library_id": "react-component-library:DataToolbar",
+      "version": "1.0.3",
+      "status": "deprecated"
+    },
+    {
+      "component_id": "06dd18c3-4dd3-47b6-b21f-263a862a66c4",
+      "library_id": "react-component-library:DescriptionList",
+      "version": "1.0.2",
+      "status": "deprecated"
+    },
+    {
+      "component_id": "ac56014e-afe8-4f68-af69-bf77f918ca1a",
+      "library_id": "react-component-library:DetailPage",
+      "version": "1.0.4",
+      "status": "deprecated"
+    },
+    {
+      "component_id": "51a057e2-b0d5-44cc-83f9-446c3bb2ca11",
+      "library_id": "react-component-library:Dialog",
+      "version": "1.2.1",
+      "status": "deprecated"
+    },
+    {
+      "component_id": "c3da3ade-2fcd-4834-8eac-5dcc1c52ca7e",
+      "library_id": "react-component-library:DiffViewer",
+      "version": "1.0.1",
+      "status": "deprecated"
+    },
+    {
+      "component_id": "1ef794fc-93f0-46a6-a3f9-4765363b8c82",
+      "library_id": "react-component-library:DirtyStateGuard",
+      "version": "1.0.3",
+      "status": "deprecated"
+    },
+    {
+      "component_id": "1ef794fc-93f0-46a6-a3f9-4765363b8c82",
+      "library_id": "react-component-library:DirtyStateGuard",
+      "version": "1.0.4",
+      "status": "released"
+    },
+    {
+      "component_id": "1ef794fc-93f0-46a6-a3f9-4765363b8c82",
+      "library_id": "react-component-library:DirtyStateGuard",
+      "version": "1.0.5",
+      "status": "deprecated"
+    },
+    {
+      "component_id": "9f7ebd00-69e6-413c-a50c-6fe9bdc79034",
+      "library_id": "react-component-library:Draggable",
+      "version": "1.0.1",
+      "status": "deprecated"
+    },
+    {
+      "component_id": "9f7ebd00-69e6-413c-a50c-6fe9bdc79034",
+      "library_id": "react-component-library:Draggable",
+      "version": "1.0.2",
+      "status": "released"
+    },
+    {
+      "component_id": "9f7ebd00-69e6-413c-a50c-6fe9bdc79034",
+      "library_id": "react-component-library:Draggable",
+      "version": "1.0.3",
+      "status": "deprecated"
+    },
+    {
+      "component_id": "869b0fe1-d7d7-4a59-8874-3a710a757775",
+      "library_id": "react-component-library:Drawer",
+      "version": "1.0.4",
+      "status": "deprecated"
+    },
+    {
+      "component_id": "82184056-92f2-47da-8962-c4ff5adaa6e1",
+      "library_id": "react-component-library:DrawerShell",
+      "version": "1.1.0",
+      "status": "deprecated"
+    },
+    {
+      "component_id": "82184056-92f2-47da-8962-c4ff5adaa6e1",
+      "library_id": "react-component-library:DrawerShell",
+      "version": "1.1.1",
+      "status": "released"
+    },
+    {
+      "component_id": "e797cf80-055f-49b6-880d-638fd34786ce",
+      "library_id": "react-component-library:EdgeFade",
+      "version": "1.0.0",
+      "status": "deprecated"
+    },
+    {
+      "component_id": "b3b3b92c-75c1-4a18-9858-2b58c93fe8c0",
+      "library_id": "react-component-library:EditableResource",
+      "version": "1.0.3",
+      "status": "deprecated"
+    },
+    {
+      "component_id": "b3b3b92c-75c1-4a18-9858-2b58c93fe8c0",
+      "library_id": "react-component-library:EditableResource",
+      "version": "1.0.4",
+      "status": "released"
+    },
+    {
+      "component_id": "b3b3b92c-75c1-4a18-9858-2b58c93fe8c0",
+      "library_id": "react-component-library:EditableResource",
+      "version": "1.0.5",
+      "status": "deprecated"
+    },
+    {
+      "component_id": "18fca2b5-51dd-41f5-a232-8b45ba499a35",
+      "library_id": "react-component-library:EmptyState",
+      "version": "1.7.5",
+      "status": "deprecated"
+    },
+    {
+      "component_id": "6a2f20fe-34a1-4c54-b9d8-02b807c109ae",
+      "library_id": "react-component-library:EntitlementErrorCard",
+      "version": "1.0.2",
+      "status": "deprecated"
+    },
+    {
+      "component_id": "9bc0965a-dda9-451e-a186-eff769f454dc",
+      "library_id": "react-component-library:ErrorBoundary",
+      "version": "1.0.3",
+      "status": "deprecated"
+    },
+    {
+      "component_id": "9bc0965a-dda9-451e-a186-eff769f454dc",
+      "library_id": "react-component-library:ErrorBoundary",
+      "version": "1.0.4",
+      "status": "released"
+    },
+    {
+      "component_id": "9bc0965a-dda9-451e-a186-eff769f454dc",
+      "library_id": "react-component-library:ErrorBoundary",
+      "version": "1.0.5",
+      "status": "deprecated"
+    },
+    {
+      "component_id": "d3bc1416-ae62-4fd5-9116-7633e976d3ad",
+      "library_id": "react-component-library:ErrorState",
+      "version": "1.0.4",
+      "status": "deprecated"
+    },
+    {
+      "component_id": "d3bc1416-ae62-4fd5-9116-7633e976d3ad",
+      "library_id": "react-component-library:ErrorState",
+      "version": "1.0.5",
+      "status": "released"
+    },
+    {
+      "component_id": "d3bc1416-ae62-4fd5-9116-7633e976d3ad",
+      "library_id": "react-component-library:ErrorState",
+      "version": "1.0.6",
+      "status": "deprecated"
+    },
+    {
+      "component_id": "ea251188-23ba-4914-ab51-148b00f9954c",
+      "library_id": "react-component-library:EvidenceCarousel",
+      "version": "1.0.12",
+      "status": "deprecated"
+    },
+    {
+      "component_id": "c6edc581-dbd8-422e-adcc-55dba7086e43",
+      "library_id": "react-component-library:FilePreview",
+      "version": "1.0.1",
+      "status": "deprecated"
+    },
+    {
+      "component_id": "35e4a1c1-d79e-4235-a050-0098847553ab",
+      "library_id": "react-component-library:FilterBar",
+      "version": "1.1.3",
+      "status": "deprecated"
+    },
+    {
+      "component_id": "84aef6b7-6ece-4c30-b4e2-fa6ca444de79",
+      "library_id": "react-component-library:FindingList",
+      "version": "1.0.8",
+      "status": "deprecated"
+    },
+    {
+      "component_id": "689ef8d2-8840-470e-9475-ac1bcbc559bb",
+      "library_id": "react-component-library:FocusTrapPanel",
+      "version": "1.0.0",
+      "status": "deprecated"
+    },
+    {
+      "component_id": "b5b974d6-4862-404b-810d-b61999b2fda0",
+      "library_id": "react-component-library:FormActions",
+      "version": "1.0.1",
+      "status": "deprecated"
+    },
+    {
+      "component_id": "65903941-15b5-4d45-9f09-b22e5ca62286",
+      "library_id": "react-component-library:GeneratedForm",
+      "version": "1.0.1",
+      "status": "deprecated"
+    },
+    {
+      "component_id": "d4017d15-d5a8-49ae-88c4-f53f74627804",
+      "library_id": "react-component-library:GlobalCommandSystem",
+      "version": "1.0.1",
+      "status": "deprecated"
+    },
+    {
+      "component_id": "009ed715-6a0e-42b2-8852-b0c13b9d7244",
+      "library_id": "react-component-library:HealthIndicator",
+      "version": "1.0.2",
+      "status": "deprecated"
+    },
+    {
+      "component_id": "79e112ec-630a-42ff-9d4e-78b6dec535a7",
+      "library_id": "react-component-library:Icon",
+      "version": "1.1.2",
+      "status": "deprecated"
+    },
+    {
+      "component_id": "207a0752-e30c-4ca1-bc54-43e0fccfba34",
+      "library_id": "react-component-library:Inline",
+      "version": "1.1.0",
+      "status": "deprecated"
+    },
+    {
+      "component_id": "7bd85289-c549-4b09-bb85-e949b1a5c2a6",
+      "library_id": "react-component-library:InspectorPanel",
+      "version": "1.0.4",
+      "status": "deprecated"
+    },
+    {
+      "component_id": "98c98e6c-be8d-498d-8b3c-04d04fcb4859",
+      "library_id": "react-component-library:JsonViewer",
+      "version": "1.0.4",
+      "status": "deprecated"
+    },
+    {
+      "component_id": "401c3e0c-2d2e-493e-9321-1d64ad46e964",
+      "library_id": "react-component-library:Link",
+      "version": "1.0.1",
+      "status": "deprecated"
+    },
+    {
+      "component_id": "9c2854dd-40b0-452a-bf65-7a61124deb5c",
+      "library_id": "react-component-library:List",
+      "version": "1.0.1",
+      "status": "deprecated"
+    },
+    {
+      "component_id": "9c2854dd-40b0-452a-bf65-7a61124deb5c",
+      "library_id": "react-component-library:List",
+      "version": "1.0.2",
+      "status": "released"
+    },
+    {
+      "component_id": "9c2854dd-40b0-452a-bf65-7a61124deb5c",
+      "library_id": "react-component-library:List",
+      "version": "1.0.3",
+      "status": "deprecated"
+    },
+    {
+      "component_id": "36b221a4-ad4d-494c-b401-c5e789a06300",
+      "library_id": "react-component-library:LoadingState",
+      "version": "1.0.4",
+      "status": "deprecated"
+    },
+    {
+      "component_id": "36b221a4-ad4d-494c-b401-c5e789a06300",
+      "library_id": "react-component-library:LoadingState",
+      "version": "1.0.5",
+      "status": "released"
+    },
+    {
+      "component_id": "36b221a4-ad4d-494c-b401-c5e789a06300",
+      "library_id": "react-component-library:LoadingState",
+      "version": "1.0.6",
+      "status": "deprecated"
+    },
+    {
+      "component_id": "40d00285-f04f-4209-b010-ae0006d8ad47",
+      "library_id": "react-component-library:MasterDetail",
+      "version": "1.0.3",
+      "status": "deprecated"
+    },
+    {
+      "component_id": "40d00285-f04f-4209-b010-ae0006d8ad47",
+      "library_id": "react-component-library:MasterDetail",
+      "version": "1.0.4",
+      "status": "released"
+    },
+    {
+      "component_id": "40d00285-f04f-4209-b010-ae0006d8ad47",
+      "library_id": "react-component-library:MasterDetail",
+      "version": "1.0.5",
+      "status": "deprecated"
+    },
+    {
+      "component_id": "ac37e12d-f8f2-4b7d-88c4-e5ce477074a6",
+      "library_id": "react-component-library:MeasurementBar",
+      "version": "1.0.10",
+      "status": "deprecated"
+    },
+    {
+      "component_id": "ac37e12d-f8f2-4b7d-88c4-e5ce477074a6",
+      "library_id": "react-component-library:MeasurementBar",
+      "version": "1.0.11",
+      "status": "released"
+    },
+    {
+      "component_id": "ac37e12d-f8f2-4b7d-88c4-e5ce477074a6",
+      "library_id": "react-component-library:MeasurementBar",
+      "version": "1.0.12",
+      "status": "deprecated"
+    },
+    {
+      "component_id": "41798918-2257-4284-9491-61d042c86d1e",
+      "library_id": "react-component-library:Menu",
+      "version": "1.1.1",
+      "status": "deprecated"
+    },
+    {
+      "component_id": "09cbaefa-8208-469b-b922-6f0de6383f3e",
+      "library_id": "react-component-library:Message",
+      "version": "1.0.3",
+      "status": "deprecated"
+    },
+    {
+      "component_id": "86777d5a-534b-498a-9ac1-b6ec3ebd80c5",
+      "library_id": "react-component-library:Meter",
+      "version": "1.0.0",
+      "status": "deprecated"
+    },
+    {
+      "component_id": "34c91a09-b5df-4db9-b0a4-130cbcd36390",
+      "library_id": "react-component-library:MetricBreakdown",
+      "version": "1.0.4",
+      "status": "deprecated"
+    },
+    {
+      "component_id": "dfaf886b-30eb-4988-826e-631dcd00089c",
+      "library_id": "react-component-library:MonetizationAccount",
+      "version": "1.0.2",
+      "status": "deprecated"
+    },
+    {
+      "component_id": "cb3578db-b46b-40dd-911d-6a878064b63f",
+      "library_id": "react-component-library:MorphingIcon",
+      "version": "2.0.9",
+      "status": "deprecated"
+    },
+    {
+      "component_id": "d984c5c1-cab4-403b-a347-0ac0b28b28af",
+      "library_id": "react-component-library:NavLink",
+      "version": "1.0.4",
+      "status": "deprecated"
+    },
+    {
+      "component_id": "d984c5c1-cab4-403b-a347-0ac0b28b28af",
+      "library_id": "react-component-library:NavLink",
+      "version": "1.0.5",
+      "status": "released"
+    },
+    {
+      "component_id": "d984c5c1-cab4-403b-a347-0ac0b28b28af",
+      "library_id": "react-component-library:NavLink",
+      "version": "1.0.6",
+      "status": "deprecated"
+    },
+    {
+      "component_id": "fed85412-406b-4743-af51-53d9531c326e",
+      "library_id": "react-component-library:NavigationTree",
+      "version": "1.1.4",
+      "status": "deprecated"
+    },
+    {
+      "component_id": "fed85412-406b-4743-af51-53d9531c326e",
+      "library_id": "react-component-library:NavigationTree",
+      "version": "1.1.5",
+      "status": "released"
+    },
+    {
+      "component_id": "fed85412-406b-4743-af51-53d9531c326e",
+      "library_id": "react-component-library:NavigationTree",
+      "version": "1.1.6",
+      "status": "deprecated"
+    },
+    {
+      "component_id": "10b81397-7181-40b5-97c0-f2b3f467e1a7",
+      "library_id": "react-component-library:NetworkGraph",
+      "version": "1.0.3",
+      "status": "deprecated"
+    },
+    {
+      "component_id": "e00ce2a0-60e6-4514-829d-4e96eb94fa13",
+      "library_id": "react-component-library:ObjectField",
+      "version": "1.0.1",
+      "status": "deprecated"
+    },
+    {
+      "component_id": "e00ce2a0-60e6-4514-829d-4e96eb94fa13",
+      "library_id": "react-component-library:ObjectField",
+      "version": "1.0.2",
+      "status": "released"
+    },
+    {
+      "component_id": "e00ce2a0-60e6-4514-829d-4e96eb94fa13",
+      "library_id": "react-component-library:ObjectField",
+      "version": "1.0.3",
+      "status": "deprecated"
+    },
+    {
+      "component_id": "35e08876-2bee-4a7f-9c89-31f2157eed33",
+      "library_id": "react-component-library:OfflineState",
+      "version": "1.0.2",
+      "status": "deprecated"
+    },
+    {
+      "component_id": "35e08876-2bee-4a7f-9c89-31f2157eed33",
+      "library_id": "react-component-library:OfflineState",
+      "version": "1.0.3",
+      "status": "released"
+    },
+    {
+      "component_id": "35e08876-2bee-4a7f-9c89-31f2157eed33",
+      "library_id": "react-component-library:OfflineState",
+      "version": "1.0.4",
+      "status": "deprecated"
+    },
+    {
+      "component_id": "aeea79e4-58bd-461e-bb0e-217de88bfe66",
+      "library_id": "react-component-library:OverlayCanvas",
+      "version": "1.0.10",
+      "status": "deprecated"
+    },
+    {
+      "component_id": "a00a40d1-4e75-42f3-a308-399887ea06eb",
+      "library_id": "react-component-library:Page",
+      "version": "1.0.4",
+      "status": "deprecated"
+    },
+    {
+      "component_id": "5dacdbfe-1e1c-42a8-8170-a607d8227567",
+      "library_id": "react-component-library:PageFrame",
+      "version": "1.0.0",
+      "status": "deprecated"
+    },
+    {
+      "component_id": "eca9f4f3-4760-4e5f-83f1-994b8d1cdd39",
+      "library_id": "react-component-library:PageHeader",
+      "version": "1.0.4",
+      "status": "deprecated"
+    },
+    {
+      "component_id": "eca9f4f3-4760-4e5f-83f1-994b8d1cdd39",
+      "library_id": "react-component-library:PageHeader",
+      "version": "1.0.5",
+      "status": "released"
+    },
+    {
+      "component_id": "eca9f4f3-4760-4e5f-83f1-994b8d1cdd39",
+      "library_id": "react-component-library:PageHeader",
+      "version": "1.0.6",
+      "status": "deprecated"
+    },
+    {
+      "component_id": "e10cf57b-a9f2-4565-8ce1-8f1a6b4e4a94",
+      "library_id": "react-component-library:PendingSyncBadge",
+      "version": "1.0.2",
+      "status": "deprecated"
+    },
+    {
+      "component_id": "78e76770-6079-434b-bd0d-a1a8f4777425",
+      "library_id": "react-component-library:PermissionState",
+      "version": "1.0.4",
+      "status": "deprecated"
+    },
+    {
+      "component_id": "4f09cee8-ff28-406d-8b2f-4ea9fb9da51f",
+      "library_id": "react-component-library:Popover",
+      "version": "1.1.1",
+      "status": "deprecated"
+    },
+    {
+      "component_id": "faeed4db-a6d9-4601-88ea-b58493f4a1bc",
+      "library_id": "react-component-library:PreviewDock",
+      "version": "1.0.0",
+      "status": "deprecated"
+    },
+    {
+      "component_id": "c143df3d-6b6d-48d5-9911-006fb3f52442",
+      "library_id": "react-component-library:PreviewInspector",
+      "version": "1.0.0",
+      "status": "deprecated"
+    },
+    {
+      "component_id": "c009e59e-a644-4e19-8ab3-fc5f685bfc2d",
+      "library_id": "react-component-library:Progress",
+      "version": "1.0.1",
+      "status": "deprecated"
+    },
+    {
+      "component_id": "c009e59e-a644-4e19-8ab3-fc5f685bfc2d",
+      "library_id": "react-component-library:Progress",
+      "version": "1.0.2",
+      "status": "released"
+    },
+    {
+      "component_id": "c009e59e-a644-4e19-8ab3-fc5f685bfc2d",
+      "library_id": "react-component-library:Progress",
+      "version": "1.0.3",
+      "status": "deprecated"
+    },
+    {
+      "component_id": "80811e9c-2737-4218-96f5-3010a950df8b",
+      "library_id": "react-component-library:ProgressLadder",
+      "version": "1.0.4",
+      "status": "deprecated"
+    },
+    {
+      "component_id": "6723f239-6e27-4ba9-985b-1b7ae7b77c7d",
+      "library_id": "react-component-library:ProgressiveImage",
+      "version": "1.1.4",
+      "status": "deprecated"
+    },
+    {
+      "component_id": "6723f239-6e27-4ba9-985b-1b7ae7b77c7d",
+      "library_id": "react-component-library:ProgressiveImage",
+      "version": "1.1.5",
+      "status": "released"
+    },
+    {
+      "component_id": "6723f239-6e27-4ba9-985b-1b7ae7b77c7d",
+      "library_id": "react-component-library:ProgressiveImage",
+      "version": "1.1.6",
+      "status": "deprecated"
+    },
+    {
+      "component_id": "50c5554e-3342-4b43-beed-7f80d9f50e29",
+      "library_id": "react-component-library:QuarantineBadge",
+      "version": "1.0.3",
+      "status": "deprecated"
+    },
+    {
+      "component_id": "813bda38-acec-4c7f-9e97-fd743f338254",
+      "library_id": "react-component-library:RadioGroup",
+      "version": "1.0.2",
+      "status": "deprecated"
+    },
+    {
+      "component_id": "813bda38-acec-4c7f-9e97-fd743f338254",
+      "library_id": "react-component-library:RadioGroup",
+      "version": "1.0.3",
+      "status": "released"
+    },
+    {
+      "component_id": "813bda38-acec-4c7f-9e97-fd743f338254",
+      "library_id": "react-component-library:RadioGroup",
+      "version": "1.0.4",
+      "status": "deprecated"
+    },
+    {
+      "component_id": "a581b86e-758e-48a9-b3e4-0d4a4628c9c8",
+      "library_id": "react-component-library:RelativeTime",
+      "version": "1.0.2",
+      "status": "deprecated"
+    },
+    {
+      "component_id": "fdd3160e-5907-4ddc-99af-a9f4f0071327",
+      "library_id": "react-component-library:Resizable",
+      "version": "1.0.2",
+      "status": "deprecated"
+    },
+    {
+      "component_id": "fdd3160e-5907-4ddc-99af-a9f4f0071327",
+      "library_id": "react-component-library:Resizable",
+      "version": "1.0.3",
+      "status": "deprecated"
+    },
+    {
+      "component_id": "d280eb45-82c7-4808-8f2c-5f866da9babb",
+      "library_id": "react-component-library:ResizableSidebar",
+      "version": "1.0.2",
+      "status": "deprecated"
+    },
+    {
+      "component_id": "d280eb45-82c7-4808-8f2c-5f866da9babb",
+      "library_id": "react-component-library:ResizableSidebar",
+      "version": "1.0.3",
+      "status": "deprecated"
+    },
+    {
+      "component_id": "79dece25-2a42-477d-9a1a-bcb6c5c54de6",
+      "library_id": "react-component-library:ResourceCollection",
+      "version": "1.0.1",
+      "status": "deprecated"
+    },
+    {
+      "component_id": "79dece25-2a42-477d-9a1a-bcb6c5c54de6",
+      "library_id": "react-component-library:ResourceCollection",
+      "version": "1.0.2",
+      "status": "released"
+    },
+    {
+      "component_id": "79dece25-2a42-477d-9a1a-bcb6c5c54de6",
+      "library_id": "react-component-library:ResourceCollection",
+      "version": "1.0.3",
+      "status": "deprecated"
+    },
+    {
+      "component_id": "79e7c88c-be0b-4d52-90a7-971bcb5a00ec",
+      "library_id": "react-component-library:ResourceDetail",
+      "version": "1.0.1",
+      "status": "deprecated"
+    },
+    {
+      "component_id": "79e7c88c-be0b-4d52-90a7-971bcb5a00ec",
+      "library_id": "react-component-library:ResourceDetail",
+      "version": "1.0.2",
+      "status": "released"
+    },
+    {
+      "component_id": "79e7c88c-be0b-4d52-90a7-971bcb5a00ec",
+      "library_id": "react-component-library:ResourceDetail",
+      "version": "1.0.3",
+      "status": "deprecated"
+    },
+    {
+      "component_id": "bd1ce7f1-4a18-4009-9567-242d53860ece",
+      "library_id": "react-component-library:ResponsivePanel",
+      "version": "1.1.3",
+      "status": "deprecated"
+    },
+    {
+      "component_id": "77c76f25-0440-4d82-a116-7229daa79a6d",
+      "library_id": "react-component-library:ScoreGauge",
+      "version": "1.0.2",
+      "status": "released"
+    },
+    {
+      "component_id": "77c76f25-0440-4d82-a116-7229daa79a6d",
+      "library_id": "react-component-library:ScoreGauge",
+      "version": "1.0.6",
+      "status": "deprecated"
+    },
+    {
+      "component_id": "77c76f25-0440-4d82-a116-7229daa79a6d",
+      "library_id": "react-component-library:ScoreGauge",
+      "version": "1.0.7",
+      "status": "released"
+    },
+    {
+      "component_id": "77c76f25-0440-4d82-a116-7229daa79a6d",
+      "library_id": "react-component-library:ScoreGauge",
+      "version": "1.0.8",
+      "status": "deprecated"
+    },
+    {
+      "component_id": "2f5912cc-06d4-4543-91bf-08db087897a8",
+      "library_id": "react-component-library:ScrollArea",
+      "version": "1.0.1",
+      "status": "deprecated"
+    },
+    {
+      "component_id": "2f5912cc-06d4-4543-91bf-08db087897a8",
+      "library_id": "react-component-library:ScrollArea",
+      "version": "1.0.2",
+      "status": "released"
+    },
+    {
+      "component_id": "2f5912cc-06d4-4543-91bf-08db087897a8",
+      "library_id": "react-component-library:ScrollArea",
+      "version": "1.0.3",
+      "status": "deprecated"
+    },
+    {
+      "component_id": "56ebae8f-234c-45e5-9b32-a977fa09a0aa",
+      "library_id": "react-component-library:ScrollableTabs",
+      "version": "1.0.2",
+      "status": "deprecated"
+    },
+    {
+      "component_id": "9ed25044-2bfb-497a-94bb-7086a84611af",
+      "library_id": "react-component-library:SearchFilterResults",
+      "version": "1.0.2",
+      "status": "deprecated"
+    },
+    {
+      "component_id": "aa7cd277-784b-4ece-a8f0-189b430fae01",
+      "library_id": "react-component-library:SearchInput",
+      "version": "1.0.3",
+      "status": "deprecated"
+    },
+    {
+      "component_id": "aa7cd277-784b-4ece-a8f0-189b430fae01",
+      "library_id": "react-component-library:SearchInput",
+      "version": "1.0.4",
+      "status": "released"
+    },
+    {
+      "component_id": "aa7cd277-784b-4ece-a8f0-189b430fae01",
+      "library_id": "react-component-library:SearchInput",
+      "version": "1.0.5",
+      "status": "deprecated"
+    },
+    {
+      "component_id": "fbc49bbc-06fd-4a87-9d47-40fdb94a96aa",
+      "library_id": "react-component-library:SearchResults",
+      "version": "1.0.4",
+      "status": "deprecated"
+    },
+    {
+      "component_id": "f86e8a51-89fc-4baa-b637-be6d39f9a71d",
+      "library_id": "react-component-library:Separator",
+      "version": "1.0.0",
+      "status": "deprecated"
+    },
+    {
+      "component_id": "3891c4f7-32ef-42e1-8549-14d7f55d8117",
+      "library_id": "react-component-library:Skeleton",
+      "version": "1.0.1",
+      "status": "deprecated"
+    },
+    {
+      "component_id": "3891c4f7-32ef-42e1-8549-14d7f55d8117",
+      "library_id": "react-component-library:Skeleton",
+      "version": "1.0.2",
+      "status": "released"
+    },
+    {
+      "component_id": "3891c4f7-32ef-42e1-8549-14d7f55d8117",
+      "library_id": "react-component-library:Skeleton",
+      "version": "1.0.3",
+      "status": "deprecated"
+    },
+    {
+      "component_id": "c3c0db0d-b4ae-4e6c-bb78-7a498da71f9d",
+      "library_id": "react-component-library:Slot",
+      "version": "1.0.0",
+      "status": "deprecated"
+    },
+    {
+      "component_id": "cca2a8ca-dea4-48f4-bbe0-44fb8a6a3399",
+      "library_id": "react-component-library:Sortable",
+      "version": "1.0.3",
+      "status": "deprecated"
+    },
+    {
+      "component_id": "cca2a8ca-dea4-48f4-bbe0-44fb8a6a3399",
+      "library_id": "react-component-library:Sortable",
+      "version": "1.0.4",
+      "status": "released"
+    },
+    {
+      "component_id": "cca2a8ca-dea4-48f4-bbe0-44fb8a6a3399",
+      "library_id": "react-component-library:Sortable",
+      "version": "1.0.5",
+      "status": "deprecated"
+    },
+    {
+      "component_id": "65e6541d-c23a-4012-9a52-4eddaf64ab30",
+      "library_id": "react-component-library:Spinner",
+      "version": "1.0.1",
+      "status": "deprecated"
+    },
+    {
+      "component_id": "65e6541d-c23a-4012-9a52-4eddaf64ab30",
+      "library_id": "react-component-library:Spinner",
+      "version": "1.0.2",
+      "status": "released"
+    },
+    {
+      "component_id": "65e6541d-c23a-4012-9a52-4eddaf64ab30",
+      "library_id": "react-component-library:Spinner",
+      "version": "1.0.3",
+      "status": "deprecated"
+    },
+    {
+      "component_id": "75bff783-d270-49f1-a1e8-10bd7fbf5fa0",
+      "library_id": "react-component-library:SplitPane",
+      "version": "1.1.2",
+      "status": "deprecated"
+    },
+    {
+      "component_id": "75bff783-d270-49f1-a1e8-10bd7fbf5fa0",
+      "library_id": "react-component-library:SplitPane",
+      "version": "1.1.3",
+      "status": "released"
+    },
+    {
+      "component_id": "75bff783-d270-49f1-a1e8-10bd7fbf5fa0",
+      "library_id": "react-component-library:SplitPane",
+      "version": "1.1.4",
+      "status": "deprecated"
+    },
+    {
+      "component_id": "75bff783-d270-49f1-a1e8-10bd7fbf5fa0",
+      "library_id": "react-component-library:SplitPane",
+      "version": "1.1.5",
+      "status": "deprecated"
+    },
+    {
+      "component_id": "41f067be-aeb0-4df8-8b83-2a227d0efb54",
+      "library_id": "react-component-library:Stat",
+      "version": "1.0.1",
+      "status": "deprecated"
+    },
+    {
+      "component_id": "41f067be-aeb0-4df8-8b83-2a227d0efb54",
+      "library_id": "react-component-library:Stat",
+      "version": "1.0.2",
+      "status": "released"
+    },
+    {
+      "component_id": "41f067be-aeb0-4df8-8b83-2a227d0efb54",
+      "library_id": "react-component-library:Stat",
+      "version": "1.0.3",
+      "status": "deprecated"
+    },
+    {
+      "component_id": "a1dedfae-9608-4142-b84c-3f8baf82e483",
+      "library_id": "react-component-library:StatCard",
+      "version": "1.0.4",
+      "status": "deprecated"
+    },
+    {
+      "component_id": "a1dedfae-9608-4142-b84c-3f8baf82e483",
+      "library_id": "react-component-library:StatCard",
+      "version": "1.0.5",
+      "status": "released"
+    },
+    {
+      "component_id": "a1dedfae-9608-4142-b84c-3f8baf82e483",
+      "library_id": "react-component-library:StatCard",
+      "version": "1.0.6",
+      "status": "deprecated"
+    },
+    {
+      "component_id": "57dc0ab9-dbf4-4289-8ca9-d9f00bc66381",
+      "library_id": "react-component-library:StatusIndicator",
+      "version": "1.0.2",
+      "status": "deprecated"
+    },
+    {
+      "component_id": "a800712e-5fc5-49f3-96c3-48cc147b335c",
+      "library_id": "react-component-library:StoryPalette",
+      "version": "1.0.0",
+      "status": "deprecated"
+    },
+    {
+      "component_id": "830af158-a145-4940-a890-ff5fbb2d814d",
+      "library_id": "react-component-library:SubscriptionStatusCard",
+      "version": "1.0.2",
+      "status": "deprecated"
+    },
+    {
+      "component_id": "9bea982c-71ba-4f3e-bb59-87fa2def51ae",
+      "library_id": "react-component-library:Switch",
+      "version": "1.0.2",
+      "status": "deprecated"
+    },
+    {
+      "component_id": "9bea982c-71ba-4f3e-bb59-87fa2def51ae",
+      "library_id": "react-component-library:Switch",
+      "version": "1.0.3",
+      "status": "released"
+    },
+    {
+      "component_id": "9bea982c-71ba-4f3e-bb59-87fa2def51ae",
+      "library_id": "react-component-library:Switch",
+      "version": "1.0.4",
+      "status": "deprecated"
+    },
+    {
+      "component_id": "a9a276dd-5d3d-4a3a-b256-a602915e3a73",
+      "library_id": "react-component-library:Tabs",
+      "version": "1.0.3",
+      "status": "deprecated"
+    },
+    {
+      "component_id": "6e140b29-eacf-46a1-bb26-6f43e4301ad1",
+      "library_id": "react-component-library:Timeline",
+      "version": "1.0.4",
+      "status": "deprecated"
+    },
+    {
+      "component_id": "fb40c947-ef86-4546-a8d5-9b7aed369c6a",
+      "library_id": "react-component-library:Toast",
+      "version": "1.0.3",
+      "status": "deprecated"
+    },
+    {
+      "component_id": "fb40c947-ef86-4546-a8d5-9b7aed369c6a",
+      "library_id": "react-component-library:Toast",
+      "version": "1.0.4",
+      "status": "released"
+    },
+    {
+      "component_id": "fb40c947-ef86-4546-a8d5-9b7aed369c6a",
+      "library_id": "react-component-library:Toast",
+      "version": "1.0.5",
+      "status": "deprecated"
+    },
+    {
+      "component_id": "fe545039-b82a-4134-b5af-42e11ebf5990",
+      "library_id": "react-component-library:Toolbar",
+      "version": "1.0.2",
+      "status": "deprecated"
+    },
+    {
+      "component_id": "fe545039-b82a-4134-b5af-42e11ebf5990",
+      "library_id": "react-component-library:Toolbar",
+      "version": "1.0.3",
+      "status": "released"
+    },
+    {
+      "component_id": "fe545039-b82a-4134-b5af-42e11ebf5990",
+      "library_id": "react-component-library:Toolbar",
+      "version": "1.0.4",
+      "status": "deprecated"
+    },
+    {
+      "component_id": "4399821e-0980-4337-81e3-c81c743da2d9",
+      "library_id": "react-component-library:TopBar",
+      "version": "1.0.4",
+      "status": "deprecated"
+    },
+    {
+      "component_id": "690ff0f6-0550-445a-8a0b-23c0aa612a01",
+      "library_id": "react-component-library:Transition",
+      "version": "1.0.2",
+      "status": "deprecated"
+    },
+    {
+      "component_id": "690ff0f6-0550-445a-8a0b-23c0aa612a01",
+      "library_id": "react-component-library:Transition",
+      "version": "1.0.3",
+      "status": "released"
+    },
+    {
+      "component_id": "690ff0f6-0550-445a-8a0b-23c0aa612a01",
+      "library_id": "react-component-library:Transition",
+      "version": "1.0.4",
+      "status": "deprecated"
+    },
+    {
+      "component_id": "5cb19ae2-84d6-441a-9a27-083b6a20582a",
+      "library_id": "react-component-library:TreeView",
+      "version": "1.0.3",
+      "status": "deprecated"
+    },
+    {
+      "component_id": "5cb19ae2-84d6-441a-9a27-083b6a20582a",
+      "library_id": "react-component-library:TreeView",
+      "version": "1.0.4",
+      "status": "released"
+    },
+    {
+      "component_id": "5cb19ae2-84d6-441a-9a27-083b6a20582a",
+      "library_id": "react-component-library:TreeView",
+      "version": "1.0.5",
+      "status": "deprecated"
+    },
+    {
+      "component_id": "352199d9-638a-4822-9869-200cb0b8b9af",
+      "library_id": "react-component-library:UndoBanner",
+      "version": "1.0.3",
+      "status": "deprecated"
+    },
+    {
+      "component_id": "4dc5a3fd-48cb-4694-b618-795ee650abb0",
+      "library_id": "react-component-library:UndoableDestructiveAction",
+      "version": "1.0.3",
+      "status": "deprecated"
+    },
+    {
+      "component_id": "c0b090de-375c-4ffa-9287-1666e8c66275",
+      "library_id": "react-component-library:UnsavedChangesFlow",
+      "version": "1.0.3",
+      "status": "deprecated"
+    },
+    {
+      "component_id": "c0b090de-375c-4ffa-9287-1666e8c66275",
+      "library_id": "react-component-library:UnsavedChangesFlow",
+      "version": "1.0.4",
+      "status": "released"
+    },
+    {
+      "component_id": "c0b090de-375c-4ffa-9287-1666e8c66275",
+      "library_id": "react-component-library:UnsavedChangesFlow",
+      "version": "1.0.5",
+      "status": "deprecated"
+    },
+    {
+      "component_id": "d225bbc9-ff5a-4ada-8bce-23bf1672f18c",
+      "library_id": "react-component-library:UpgradePrompt",
+      "version": "1.0.2",
+      "status": "deprecated"
+    },
+    {
+      "component_id": "159f573d-5076-4009-884e-18577d10cdfc",
+      "library_id": "react-component-library:ValidationSummary",
+      "version": "1.0.3",
+      "status": "deprecated"
+    },
+    {
+      "component_id": "159f573d-5076-4009-884e-18577d10cdfc",
+      "library_id": "react-component-library:ValidationSummary",
+      "version": "1.0.4",
+      "status": "released"
+    },
+    {
+      "component_id": "159f573d-5076-4009-884e-18577d10cdfc",
+      "library_id": "react-component-library:ValidationSummary",
+      "version": "1.0.5",
+      "status": "deprecated"
+    },
+    {
+      "component_id": "cd47e337-75ff-4260-8f4e-c23af265e372",
+      "library_id": "react-component-library:VerdictSummary",
+      "version": "1.0.4",
+      "status": "deprecated"
+    },
+    {
+      "component_id": "2af6721c-2e82-4f4d-b4ca-7635076ba2ac",
+      "library_id": "react-component-library:VirtualList",
+      "version": "1.0.1",
+      "status": "deprecated"
+    },
+    {
+      "component_id": "2af6721c-2e82-4f4d-b4ca-7635076ba2ac",
+      "library_id": "react-component-library:VirtualList",
+      "version": "1.0.2",
+      "status": "released"
+    },
+    {
+      "component_id": "2af6721c-2e82-4f4d-b4ca-7635076ba2ac",
+      "library_id": "react-component-library:VirtualList",
+      "version": "1.0.3",
+      "status": "deprecated"
+    },
+    {
+      "component_id": "769ecee0-993c-49c5-adab-6e9d20aac60c",
+      "library_id": "react-component-library:code-block",
+      "version": "0.3.2",
+      "status": "deprecated"
+    },
+    {
+      "component_id": "d96d02d1-071e-4daf-ae3d-e182862a33ce",
+      "library_id": "react-component-library:inline-code",
+      "version": "0.3.2",
+      "status": "deprecated"
+    },
+    {
+      "component_id": "6e1d6b34-bfbb-46d3-838d-f8a624f5225e",
+      "library_id": "react-component-library:mermaid-diagram",
+      "version": "0.3.1",
+      "status": "deprecated"
+    },
+    {
+      "component_id": "c1720dc6-7538-4cc6-bf0a-c39d07451440",
+      "library_id": "react-component-library:useLocale",
+      "version": "1.0.2",
+      "status": "released"
+    },
+    {
+      "component_id": "e8c6882b-192d-4dad-889a-9f12326f98b4",
+      "library_id": "react-component-library:useResizeObserver",
+      "version": "1.0.0",
+      "status": "released"
+    }
+  ],
+  "retire_candidate_summary": {
+    "count": 250,
+    "distinct_components": 137,
+    "files": 891,
+    "lines": 66311
+  },
+  "db_rows": {
+    "component_versions": 616,
+    "component_version_files": 2168,
+    "component_stories": 620,
+    "adoption_records": 395,
+    "component_test_reports": 2431
+  },
+  "db_bytes": {
+    "file": 309387264,
+    "dbstat_pages": {
+      "65": null,
+      "341": null,
+      "967": null,
+      "1697": null,
+      "67292": null
+    }
+  },
+  "export_surface": {
+    "keys": 848,
+    "lines": 3419
+  },
+  "adopter_scenarios": [
+    "asset-studio",
+    "audio-tools",
+    "backdrop-studio",
+    "browser-automation-studio",
+    "channel-manager",
+    "content-desk",
+    "device-control",
+    "document-manager",
+    "experience-manager",
+    "hello-mobile",
+    "infrastructure-manager",
+    "landing-page-business-suite",
+    "money-ledger",
+    "music-library",
+    "music-tools",
+    "notification-hub",
+    "offer-desk",
+    "persona",
+    "plan-manager",
+    "program-runtime",
+    "prose-studio",
+    "react-component-library",
+    "scenario-to-android",
+    "scenario-to-desktop",
+    "scenario-to-ios",
+    "scenario-to-plugin",
+    "signal-inbox",
+    "source-ledger",
+    "storage-manager",
+    "swarm-manager",
+    "template-manager",
+    "token-economy",
+    "treasury",
+    "vrooli-memory",
+    "web-console"
+  ],
+  "adopter_typecheck": {
+    "asset-studio": {
+      "command": "pnpm type-check",
+      "exit_code": 1,
+      "result": "failed"
+    },
+    "audio-tools": {
+      "command": "pnpm type-check",
+      "exit_code": 2,
+      "result": "failed"
+    },
+    "backdrop-studio": {
+      "command": "pnpm type-check",
+      "exit_code": 1,
+      "result": "failed"
+    },
+    "browser-automation-studio": {
+      "command": "pnpm type-check",
+      "exit_code": 0,
+      "result": "passed"
+    },
+    "channel-manager": {
+      "command": "pnpm type-check",
+      "exit_code": 1,
+      "result": "failed"
+    },
+    "content-desk": {
+      "command": "pnpm type-check",
+      "exit_code": 1,
+      "result": "failed"
+    },
+    "device-control": {
+      "command": "pnpm type-check",
+      "exit_code": 1,
+      "result": "failed"
+    },
+    "document-manager": {
+      "command": "pnpm type-check",
+      "exit_code": 1,
+      "result": "failed"
+    },
+    "experience-manager": {
+      "command": "pnpm type-check",
+      "exit_code": 2,
+      "result": "failed"
+    },
+    "hello-mobile": {
+      "command": "pnpm type-check",
+      "exit_code": 1,
+      "result": "failed"
+    },
+    "infrastructure-manager": {
+      "command": "pnpm type-check",
+      "exit_code": 2,
+      "result": "failed"
+    },
+    "landing-page-business-suite": {
+      "command": "pnpm type-check",
+      "exit_code": 2,
+      "result": "failed"
+    },
+    "money-ledger": {
+      "command": "pnpm type-check",
+      "exit_code": 1,
+      "result": "failed"
+    },
+    "music-library": {
+      "command": "pnpm type-check",
+      "exit_code": 1,
+      "result": "failed"
+    },
+    "music-tools": {
+      "command": "pnpm type-check",
+      "exit_code": 1,
+      "result": "failed"
+    },
+    "notification-hub": {
+      "command": "pnpm type-check",
+      "exit_code": 0,
+      "result": "passed"
+    },
+    "offer-desk": {
+      "command": "pnpm type-check",
+      "exit_code": 1,
+      "result": "failed"
+    },
+    "persona": {
+      "command": "pnpm type-check",
+      "exit_code": 1,
+      "result": "failed"
+    },
+    "plan-manager": {
+      "command": "pnpm type-check",
+      "exit_code": 2,
+      "result": "failed"
+    },
+    "program-runtime": {
+      "command": "pnpm type-check",
+      "exit_code": 2,
+      "result": "failed"
+    },
+    "prose-studio": {
+      "command": "pnpm type-check",
+      "exit_code": 1,
+      "result": "failed"
+    },
+    "react-component-library": {
+      "command": "pnpm type-check",
+      "exit_code": 0,
+      "result": "passed"
+    },
+    "scenario-to-android": {
+      "command": "pnpm type-check",
+      "exit_code": 1,
+      "result": "failed"
+    },
+    "scenario-to-desktop": {
+      "command": "pnpm type-check",
+      "exit_code": 1,
+      "result": "failed"
+    },
+    "scenario-to-ios": {
+      "command": "pnpm type-check",
+      "exit_code": 1,
+      "result": "failed"
+    },
+    "scenario-to-plugin": {
+      "command": "pnpm type-check",
+      "exit_code": 1,
+      "result": "failed"
+    },
+    "signal-inbox": {
+      "command": "pnpm type-check",
+      "exit_code": 1,
+      "result": "failed"
+    },
+    "source-ledger": {
+      "command": "pnpm type-check",
+      "exit_code": 1,
+      "result": "failed"
+    },
+    "storage-manager": {
+      "command": "pnpm type-check",
+      "exit_code": 1,
+      "result": "failed"
+    },
+    "swarm-manager": {
+      "command": "pnpm type-check",
+      "exit_code": 2,
+      "result": "failed"
+    },
+    "template-manager": {
+      "command": "pnpm type-check",
+      "exit_code": 2,
+      "result": "failed"
+    },
+    "token-economy": {
+      "command": "pnpm type-check",
+      "exit_code": 1,
+      "result": "failed"
+    },
+    "treasury": {
+      "command": "pnpm type-check",
+      "exit_code": 1,
+      "result": "failed"
+    },
+    "vrooli-memory": {
+      "command": "pnpm type-check",
+      "exit_code": 1,
+      "result": "failed"
+    },
+    "web-console": {
+      "command": "pnpm type-check",
+      "exit_code": 0,
+      "result": "passed"
+    }
+  },
+  "baseline_run": {
+    "run_id": "20260827-005332-aa60f9a9",
+    "verdict": "FAIL",
+    "phase_summary": {
+      "total": 24,
+      "passed": 18,
+      "failed": 6
+    },
+    "note": "Pre-change comprehensive baseline; failing phases are preserved for comparison."
+  },
+  "mirror_mismatches": [
+    {
+      "library_id": "react-component-library:Alert",
+      "version": "1.0.0",
+      "path": "Alert.tsx",
+      "expected_sha256": "0b46a9056c46d669924925dc53492d727b946bcd4f6917db8682c2161b164816",
+      "actual_sha256": "f873ebf53b432c4f5d336982c946bf1148e4aa9cda3741d797898c98c08ac75f"
+    },
+    {
+      "library_id": "react-component-library:Alert",
+      "version": "1.0.2",
+      "path": "Alert.tsx",
+      "expected_sha256": "92f660b42b708a3772e32204d6719fa08ee54370ab403c97ed35b58057ccbc29",
+      "actual_sha256": "7a382fff7d24c3a79d75258b64f27b8a6aa2a1e497ca9859e62705357c2feedf"
+    },
+    {
+      "library_id": "react-component-library:AlertDialog",
+      "version": "1.0.0",
+      "path": "AlertDialog.tsx",
+      "expected_sha256": "b453bed0fed99c43ebd62b13709e3af8243b883d6786fa8788e1e026de863d8a",
+      "actual_sha256": "3c39a827176fec9e5a680d8963df2bb7ceb1665eba481b82ed2efb6824e4384d"
+    },
+    {
+      "library_id": "react-component-library:AlertDialog",
+      "version": "1.0.3",
+      "path": "AlertDialog.tsx",
+      "expected_sha256": "3c09ea975c29411dfbd6b8fb31271f2081ba3eeb9674a054aeb11335ebc235f3",
+      "actual_sha256": "84081885e5c3f00faedd2576ce1da1b173a932c71f2716ab00790cb2bb737445"
+    },
+    {
+      "library_id": "react-component-library:AlertDialog",
+      "version": "1.0.5",
+      "path": "AlertDialog.tsx",
+      "expected_sha256": "780c9114c6af819b075906c128484e0d6cfba9ab1d00e33a10aefc9e3210e972",
+      "actual_sha256": "826e707860cd5d1b6f2cec0d46b570b98dfb18e56b3acfc779b5683c7119c401"
+    },
+    {
+      "library_id": "react-component-library:AlertDialog",
+      "version": "1.0.6",
+      "path": "AlertDialog.tsx",
+      "expected_sha256": "b51871c5c3415c9bf7c57831ab18f007adb8e3c4d48cf003fe2881b890c1eb84",
+      "actual_sha256": "ad637a82ff7402d013b37433758a8245da96daaa42df5313233bfb91b5e90664"
+    },
+    {
+      "library_id": "react-component-library:AppNavigation",
+      "version": "1.1.0",
+      "path": "AppNavigation.tsx",
+      "expected_sha256": "4b7339bac5ea3161c7220540110fe378e63f79f908f7b60ae87428fa549aa6ab",
+      "actual_sha256": "573e7cb55e74b48c3090cae29e371699c6c89d98c60dd58f968c868472af5c38"
+    },
+    {
+      "library_id": "react-component-library:AppNavigation",
+      "version": "1.1.5",
+      "path": "AppNavigation.tsx",
+      "expected_sha256": "84873e6512652ec2c661800fe7abf2986d7011db40d5d32e40a2f764bcaeb651",
+      "actual_sha256": "be5e7d9c11763ecde2c6b45d51b3f0478e116778b237d13e8a33f2b0b0c0a9e3"
+    },
+    {
+      "library_id": "react-component-library:AppShell",
+      "version": "1.0.0",
+      "path": "AppShell.tsx",
+      "expected_sha256": "2cf737c46aa9ffc910951b082c485b238b3597a69f03ff1498df58e31cc95eef",
+      "actual_sha256": "78d36ab9c5c4adbaf1da37083706e1790b649adea31e9f08dbff47da805cd9e7"
+    },
+    {
+      "library_id": "react-component-library:AppShell",
+      "version": "1.0.4",
+      "path": "AppShell.tsx",
+      "expected_sha256": "b1acd8a1132cf0211ad8bd18e25036d269912056305b97434e5fe51c66023744",
+      "actual_sha256": "c42797861cca2218d91a9a8d9ca69108e1b636c6a13ae2b3a0f6a14e0b8b24d0"
+    },
+    {
+      "library_id": "react-component-library:AppShell",
+      "version": "1.0.6",
+      "path": "AppShell.tsx",
+      "expected_sha256": "84593cdf32008a82f1c3cf6d8864891676eb1d4d3ecc7d4e5e2c112e5a859310",
+      "actual_sha256": "b5c63263ea46043f977a6bfdf74116fae83f717ac6139865f77e559601c69782"
+    },
+    {
+      "library_id": "react-component-library:ApprovalPrompt",
+      "version": "1.0.2",
+      "path": "ApprovalPrompt.tsx",
+      "expected_sha256": "d80dc506bb759899e49543af7b0b54aa69abd06ca7ad3004657bef108f30b651",
+      "actual_sha256": "c8ba5f31e7fb9b414327237e4e3f7585513147874202e3a8bfdad6844514ba85"
+    },
+    {
+      "library_id": "react-component-library:ApprovalPrompt",
+      "version": "1.0.4",
+      "path": "ApprovalPrompt.tsx",
+      "expected_sha256": "05732953d2904dee9ec8027a8d882db1e1f6d29ce102233cfcabc7b139f1ebb7",
+      "actual_sha256": "3d0c11d1dac6a4179023d8713c9e9665db295f0ccf6c98ed5ac3bc2fe4200c05"
+    },
+    {
+      "library_id": "react-component-library:ArrayField",
+      "version": "1.0.0",
+      "path": "ArrayField.tsx",
+      "expected_sha256": "7798699de572b41b51f401764fb63e39b5448fd48b73bcbac490f24fe544a53c",
+      "actual_sha256": "f656182b8290cb5bb03c69e116921b2d9aa034542193e2fe6d4ce92ca21214e7"
+    },
+    {
+      "library_id": "react-component-library:ArrayField",
+      "version": "1.0.2",
+      "path": "ArrayField.tsx",
+      "expected_sha256": "65922aadf1cfb675d64cec1d83446c0670199ef8daff19f8a46e22a02d446017",
+      "actual_sha256": "2b25824506b6cc2b60b4565244d9b61386311e6a8858830e1e492eccbf6973c7"
+    },
+    {
+      "library_id": "react-component-library:AspectRatio",
+      "version": "1.0.1",
+      "path": "AspectRatio.tsx",
+      "expected_sha256": "a96911e653d03733e3233f07106ef05443773694055619952adf74514858fa1b",
+      "actual_sha256": "090c48b8644ed8d637505907995eb0b52359c4437c38b03699f4953dfee549e1"
+    },
+    {
+      "library_id": "react-component-library:AssetDetailShell",
+      "version": "1.1.1",
+      "path": "AssetDetailShell.tsx",
+      "expected_sha256": "7a64937130991255dc8f0ccdaa8be3ccf326b8030978d9fd35eb3eef8cfbf7c9",
+      "actual_sha256": "75c7740f4a89502540485eccb7ea63e23661b6de382b5f12461d13db69c69d35"
+    },
+    {
+      "library_id": "react-component-library:AssetDetailShell",
+      "version": "1.1.1",
+      "path": "styles.ts",
+      "expected_sha256": "8ae7dfd06f5739cb5d943ed24e5d864346aef272b3e8a873287109ad51fa6e56",
+      "actual_sha256": "b2f832a19c41dc9e779f2a299bb00005114d9515f0401103d419fde1b5f12884"
+    },
+    {
+      "library_id": "react-component-library:AsyncBoundary",
+      "version": "1.0.0",
+      "path": "AsyncBoundary.tsx",
+      "expected_sha256": "f7576b33187e1852b4cc0877c0cf405443f7499a0d6ac613a9e1f2c6b24a5d1f",
+      "actual_sha256": "02911cc5ebbfc1775f1699b29aa45f0943b9c7f0efc54b960f349ff1f7642d0c"
+    },
+    {
+      "library_id": "react-component-library:AsyncBoundary",
+      "version": "1.0.1",
+      "path": "AsyncBoundary.tsx",
+      "expected_sha256": "16339f29c9d657123025ae2607c4e8bcdea8d7c7a4b57594e67c9c07cdece362",
+      "actual_sha256": "9c625570734458244ee74c9eec188e8f50f6012465d0e8c9794c1285fade4694"
+    },
+    {
+      "library_id": "react-component-library:AsyncBoundary",
+      "version": "1.0.4",
+      "path": "AsyncBoundary.tsx",
+      "expected_sha256": "d5c1e3d2dc13046f8675a71c7be035aac3243d7a22a4136938f3f06deed14ba3",
+      "actual_sha256": "89c082ba34030c2d701c185a9047baceae747272d2c3e0c9f9b0fa6d7253478e"
+    },
+    {
+      "library_id": "react-component-library:AsyncFormFlow",
+      "version": "1.0.4",
+      "path": "AsyncFormFlow.tsx",
+      "expected_sha256": "722f2d56e6470329a14f2d208459ffab3955b3438e6edeec5d390c129dc1877d",
+      "actual_sha256": "5ad753e84ee4477cdb41086c84a3289707482f0d97ae1de74185e81f5591d2c9"
+    },
+    {
+      "library_id": "react-component-library:AsyncFormFlow",
+      "version": "1.0.6",
+      "path": "AsyncFormFlow.tsx",
+      "expected_sha256": "0ab02fcf6760b35e61610cd6c52e70142063e07a326387b56e9a838f68043052",
+      "actual_sha256": "5ea4c18831d401de20d9a7c2f1866b7e496ab8afd7801ee68022a56f3bafe5f6"
+    },
+    {
+      "library_id": "react-component-library:AsyncOptionsField",
+      "version": "1.0.0",
+      "path": "AsyncOptionsField.tsx",
+      "expected_sha256": "323db08a2699686ba42cb43828bf8e4eed37189a33fb1ea7871099cad7c8262f",
+      "actual_sha256": "b7909c47ee3eb865e1586c1b7641029cafc49a96c9383c23dfa5984ef4d6e2c9"
+    },
+    {
+      "library_id": "react-component-library:AsyncOptionsField",
+      "version": "1.0.4",
+      "path": "AsyncOptionsField.tsx",
+      "expected_sha256": "97f906993adc354c7bcee75dbdb2100c031f8f91fed36b5bb2be1b0746256d25",
+      "actual_sha256": "593f2a60fdc6d15ddd3eab9d3f9d2c36ed25692d2d219d928be018fbc4c69cdb"
+    },
+    {
+      "library_id": "react-component-library:AsyncOptionsField",
+      "version": "1.0.6",
+      "path": "AsyncOptionsField.tsx",
+      "expected_sha256": "aaf5f3579f4d8854c230cdaea7170903001b9624741cd3ccd8fa98dcb7826d31",
+      "actual_sha256": "408205410b2f0431565f0ec90322896c67cc0f26bf01cc3a62b4244108dc2819"
+    },
+    {
+      "library_id": "react-component-library:AttachmentPreview",
+      "version": "1.0.2",
+      "path": "AttachmentPreview.tsx",
+      "expected_sha256": "0335b5e1b8e3da26e54eeec6110ace4c390df31e0174094aaef8a56aef79d064",
+      "actual_sha256": "85e3f59fca8fa16553befb25e1f8c2cdd52122094c712e3ffdd5ee1db762eef3"
+    },
+    {
+      "library_id": "react-component-library:AutoAnimateLayout",
+      "version": "1.0.1",
+      "path": "AutoAnimateLayout.tsx",
+      "expected_sha256": "2b598e979899d686971bc98e3536ac6e4aaf095fc9c669d5d2a9f7fd25b3c7bb",
+      "actual_sha256": "8b0f0c7c818e8c6e53935e7eaf10750388693dc665797d09ad16c45e073cd768"
+    },
+    {
+      "library_id": "react-component-library:Avatar",
+      "version": "1.0.0",
+      "path": "Avatar.tsx",
+      "expected_sha256": "dc325b794ce1702aed1fb42bb51643e15277c73e7a7fa9b593374151d14c93cb",
+      "actual_sha256": "415f4300fcfd9a16a10856c503192a854f60fce3095126bbb049cb2c6c419b18"
+    },
+    {
+      "library_id": "react-component-library:Avatar",
+      "version": "1.3.3",
+      "path": "Avatar.tsx",
+      "expected_sha256": "24be47199fd5f348d3fc4ec9d0e1d44a17d250422ace0f3cf68c27d4bf3f02ce",
+      "actual_sha256": "5684373c2fab5ab8b624eb50d7f0de65123c669512cc848d15d89a676bb980d0"
+    },
+    {
+      "library_id": "react-component-library:Avatar",
+      "version": "1.3.5",
+      "path": "Avatar.tsx",
+      "expected_sha256": "c93ea3ef757224a5a1f0777cec31fbb251b7014fee7bb36940da8045cc769344",
+      "actual_sha256": "246e9ccac9cfbff83b576f504246343175eb16c4aac382da3e704add226a36e8"
+    },
+    {
+      "library_id": "react-component-library:BottomNav",
+      "version": "1.3.0",
+      "path": "BottomNav.tsx",
+      "expected_sha256": "4a7627933ff5c73c1aaa1587549d66a9ce0172243f08ae13171c1d7ef43c9f0a",
+      "actual_sha256": "c0afed789f600d07d4dae62fcf6f0b1e32a0b792b4a067ec698bdf00b47a25cd"
+    },
+    {
+      "library_id": "react-component-library:BottomNav",
+      "version": "1.3.0",
+      "path": "styles.ts",
+      "expected_sha256": "c47b0abd7c03c3f56213d73e1154ad7615741105590f775315719b91571a3951",
+      "actual_sha256": "eeb453283745066e199a23464aa628c2679f3d054ac6599d391eca664e55d4ce"
+    },
+    {
+      "library_id": "react-component-library:BottomNav",
+      "version": "1.3.3",
+      "path": "BottomNav.tsx",
+      "expected_sha256": "df4c0cc37c45bd58b36336b9137c793d8542a9757563983556af5551b5992dda",
+      "actual_sha256": "8b574144704c4bc82c1b7807d13e34ba93badef155ff7ad69f4efaade0fb2d84"
+    },
+    {
+      "library_id": "react-component-library:BottomNav",
+      "version": "1.3.3",
+      "path": "styles.ts",
+      "expected_sha256": "c47b0abd7c03c3f56213d73e1154ad7615741105590f775315719b91571a3951",
+      "actual_sha256": "eeb453283745066e199a23464aa628c2679f3d054ac6599d391eca664e55d4ce"
+    },
+    {
+      "library_id": "react-component-library:BottomNav",
+      "version": "1.3.7",
+      "path": "BottomNav.tsx",
+      "expected_sha256": "57ef61105f3f7802b0e26b59640b53b3c915d53e765bb3661d8cf80f5d0c38a5",
+      "actual_sha256": "bfc688034224075729432080960842867170b6c5382aef3fa31bd8defd3de055"
+    },
+    {
+      "library_id": "react-component-library:BottomNav",
+      "version": "1.3.7",
+      "path": "styles.ts",
+      "expected_sha256": "c47b0abd7c03c3f56213d73e1154ad7615741105590f775315719b91571a3951",
+      "actual_sha256": "eeb453283745066e199a23464aa628c2679f3d054ac6599d391eca664e55d4ce"
+    },
+    {
+      "library_id": "react-component-library:BoundedMeter",
+      "version": "1.0.3",
+      "path": "BoundedMeter.tsx",
+      "expected_sha256": "988006af11d1847fe0c31efa2a30c6f397169500b9f2312f6c78446ec1b69005",
+      "actual_sha256": "2fb20414ddd19f448bb88d46c633d71eccd6aeed4ff54eddb582574320399c73"
+    },
+    {
+      "library_id": "react-component-library:BoundedMeter",
+      "version": "1.0.5",
+      "path": "BoundedMeter.tsx",
+      "expected_sha256": "06cf0df1691e45b3a2b3b6de6a9bdfcb8737cfe4a956ad5212f8f0526e764630",
+      "actual_sha256": "6205a448da8ab793dd3baaa5d480207fb7318ac762f17df279e774e39f891ba1"
+    },
+    {
+      "library_id": "react-component-library:BulkActionBar",
+      "version": "1.0.2",
+      "path": "BulkActionBar.tsx",
+      "expected_sha256": "0440a358cf10bf8bf5641c2b1411b38229b204d83ee2cd5b25d6458f9ae6f372",
+      "actual_sha256": "834615257a58f1baa399a70cf431c5370bd423a242c98585065dcc2403b5b4ef"
+    },
+    {
+      "library_id": "react-component-library:BulkActionBar",
+      "version": "1.0.4",
+      "path": "BulkActionBar.tsx",
+      "expected_sha256": "37826e622af072d4c8e757c61ad92c302e47dd92d73af9112f86687dd4f8b304",
+      "actual_sha256": "763afe42bf8b998b3a3612af07ee9931cd90b57aa999d3523f07990dcd927eac"
+    },
+    {
+      "library_id": "react-component-library:Button",
+      "version": "2.2.1",
+      "path": "Button.tsx",
+      "expected_sha256": "97121f19a3d26306e73c12632fa2c9d436d0c895490630865d755b73f7cb45e3",
+      "actual_sha256": "b00477be092d491d2a91de91efc890829a46070a19b2e3bd9cd32e6a2e14d243"
+    },
+    {
+      "library_id": "react-component-library:ButtonGroup",
+      "version": "1.0.0",
+      "path": "ButtonGroup.tsx",
+      "expected_sha256": "f347b54fb8a5279c2d8ee567db5c24eec6f5eea09e5a4f63e304731de321e83c",
+      "actual_sha256": "d4f18ffea0a52f629aa066b6597238f69712e561ba287eb2b412b28659750d0b"
+    },
+    {
+      "library_id": "react-component-library:ButtonGroup",
+      "version": "1.1.1",
+      "path": "ButtonGroup.tsx",
+      "expected_sha256": "3c4627ec928c086246383be4686a4ffb39d02f359ac60aabc98b5e14425a1e4e",
+      "actual_sha256": "3612a1eb9a0cb11bcc01815de5bbf1f4aa89e82b1ab30f8fdf6bd8e7be96b899"
+    },
+    {
+      "library_id": "react-component-library:ButtonGroup",
+      "version": "1.1.3",
+      "path": "ButtonGroup.tsx",
+      "expected_sha256": "23003d6ff7f092ac93c20a7ae58bdf14c86210c7962a50482324f697e43e4b3b",
+      "actual_sha256": "4375d2d1c2eb4254af6f17f4d6037e1ceb3770887c5bf92c1af53774f62ac2bf"
+    },
+    {
+      "library_id": "react-component-library:ButtonGroup",
+      "version": "1.1.5",
+      "path": "ButtonGroup.tsx",
+      "expected_sha256": "011d2f3c941028892ef0e75992124c04e1ebd274251a458c2e504397f7ea273d",
+      "actual_sha256": "114491b105846c590bd098d2a61785481dabe98763577e54bedb02b110efe5f1"
+    },
+    {
+      "library_id": "react-component-library:Calendar",
+      "version": "1.0.4",
+      "path": "Calendar.tsx",
+      "expected_sha256": "1a8b19a15d854479f5770f6d79e58be4ffe691a1911fcd50d5a2bccdb3359c28",
+      "actual_sha256": "f342808a8c35f63895bb282ad04635a8cf675c1a427b0e12be55971a4583e817"
+    },
+    {
+      "library_id": "react-component-library:Calendar",
+      "version": "1.0.6",
+      "path": "Calendar.tsx",
+      "expected_sha256": "7d3c8bfa891c0d573caa8d8b4d735c44f7ce96438debc2fc670ccc3187057254",
+      "actual_sha256": "703d0232ca2f8889fac4133134595ac0a87c9f86ce154bb6689d8e9647e5bdba"
+    },
+    {
+      "library_id": "react-component-library:Card",
+      "version": "1.1.0",
+      "path": "Card.tsx",
+      "expected_sha256": "b1b0f531870e089b1db5c5ddc70ee4bfbeb1a513e598a3711945fc2fe8b01d55",
+      "actual_sha256": "7d429e9a2f0ce0ab601e692215f4cf24915e0cd51aa93a3fa2d7a0db717ec099"
+    },
+    {
+      "library_id": "react-component-library:Card",
+      "version": "1.1.0",
+      "path": "styles.ts",
+      "expected_sha256": "e2426b66525ede3828ce2f028926e6b2576f7e014d380fc6a7a02728615ec4a5",
+      "actual_sha256": "e55244890f7206c21072e3e30eaf1df7764575ec7642d63c672e25d3589a2aa8"
+    },
+    {
+      "library_id": "react-component-library:Card",
+      "version": "1.2.1",
+      "path": "Card.tsx",
+      "expected_sha256": "5556b299f110fa7aef279176b9910fdc49556c9ee976e6e1ed0244ce8ab39eeb",
+      "actual_sha256": "3adfb32c2eafa38fa76d8b6f1d131b666f2bd96ae3dbc3ad3b8df1d5416972bc"
+    },
+    {
+      "library_id": "react-component-library:Card",
+      "version": "1.2.1",
+      "path": "styles.ts",
+      "expected_sha256": "e2426b66525ede3828ce2f028926e6b2576f7e014d380fc6a7a02728615ec4a5",
+      "actual_sha256": "e55244890f7206c21072e3e30eaf1df7764575ec7642d63c672e25d3589a2aa8"
+    },
+    {
+      "library_id": "react-component-library:CardGrid",
+      "version": "1.0.1",
+      "path": "CardGrid.tsx",
+      "expected_sha256": "fc20b6ce66296dbe27077cce672907e6d041385315d7496d736fa4df424d2148",
+      "actual_sha256": "a0294d9ec30aa4957dab8b2682584f35c7fae37d212d19ad188e29eb1106831d"
+    },
+    {
+      "library_id": "react-component-library:Chart",
+      "version": "1.0.0",
+      "path": "Chart.tsx",
+      "expected_sha256": "91ffdd4601c7cabf120433bb32eeaa5b4f13fd415d7cb986dc8db53708741545",
+      "actual_sha256": "356e053225a5ee142893009771eb320b7dd4781df59678d0c298d22a2b1d17be"
+    },
+    {
+      "library_id": "react-component-library:Chart",
+      "version": "1.0.1",
+      "path": "Chart.tsx",
+      "expected_sha256": "63f229963a28715e0e3c8659c335da83db3fdc8fb38948572fd87f0f0e0325e0",
+      "actual_sha256": "7645c05b520c4c4125b30f8d7cda725ba308c8d1c714e384eeb481ff254fbf7d"
+    },
+    {
+      "library_id": "react-component-library:Chart",
+      "version": "1.0.4",
+      "path": "Chart.tsx",
+      "expected_sha256": "9c76796b7dcec69f1f0dc21c5357dbb14b8ba725898bf24198602f9e909102e5",
+      "actual_sha256": "25cf377692c4334775d846ea813fb44b54c374d00f460487262973f4d0548d1e"
+    },
+    {
+      "library_id": "react-component-library:Chart",
+      "version": "1.0.6",
+      "path": "Chart.tsx",
+      "expected_sha256": "6cf6e1240d7a14664764698e6b811d17296cf127fbd41f697bc338675e1e83d7",
+      "actual_sha256": "d72a23399513ea152e6e979e10cf8b7e46ecacbc9052041d5b5fd7721e2b6492"
+    },
+    {
+      "library_id": "react-component-library:CollectionPage",
+      "version": "1.0.4",
+      "path": "CollectionPage.tsx",
+      "expected_sha256": "50a986637f2c83b52875d406babc91c0b29433fef9113f63a73ee697b4bfd67f",
+      "actual_sha256": "6c4e5ad244217b303e0b6730f72c813e6cdc3285bb55898c81a3e99c0204b6d9"
+    },
+    {
+      "library_id": "react-component-library:ColorPicker",
+      "version": "1.0.0",
+      "path": "ColorPicker.tsx",
+      "expected_sha256": "a675cade49f7bafc7808fc5cdcacdbea7b1ff61ca69830da9262f52dcc002843",
+      "actual_sha256": "38e8cba7efe44fdb953c191d66c08d79cd1e4f0871ac6257578018087968704e"
+    },
+    {
+      "library_id": "react-component-library:ColorPicker",
+      "version": "1.0.3",
+      "path": "ColorPicker.tsx",
+      "expected_sha256": "5d5b7d6bfbc327017ed120d233c821002b166de28794f8b3d652d2aeb3e28510",
+      "actual_sha256": "be43c7f712ff4fc9421866fef77c6cb84358e4f28eebe3a1f36882625f79a173"
+    },
+    {
+      "library_id": "react-component-library:Combobox",
+      "version": "1.0.4",
+      "path": "Combobox.tsx",
+      "expected_sha256": "287b754530eea7b5e07624b0c87cb44ca575efcae13cd115122b991a42460741",
+      "actual_sha256": "90238723d9083540e5362c414e0ecbcb04aec4951d0db250709c99888a0a90c0"
+    },
+    {
+      "library_id": "react-component-library:Combobox",
+      "version": "1.0.6",
+      "path": "Combobox.tsx",
+      "expected_sha256": "646d03932182fb55ee1845ff9ddef2aadc2fb0a6d1a797517d9db2a7206fe2a4",
+      "actual_sha256": "501d2b6be8e24d6c9934f1fcf1e7828d9de44779ffe5be2533a5add14b188b2b"
+    },
+    {
+      "library_id": "react-component-library:CommandButton",
+      "version": "1.0.2",
+      "path": "CommandButton.tsx",
+      "expected_sha256": "136b5aee55c3679573128c603ca7c1346ff8a25f9fe35650685e60bfa4aa6a8f",
+      "actual_sha256": "0848e8eabf17b46b66b18841ea76dd5c19d16fd929d47a4c4691b9f3b00092fa"
+    },
+    {
+      "library_id": "react-component-library:CommandCenterShell",
+      "version": "1.0.1",
+      "path": "CommandCenterShell.tsx",
+      "expected_sha256": "8ec0d4024a219c9937cc9b00f68fa7edddbe000a060fcd18f10605688550a02c",
+      "actual_sha256": "93d4050d04f1e3ed55019339f070dde5d5e3ba54024415a9bbb0c867766ac998"
+    },
+    {
+      "library_id": "react-component-library:CommandCenterShell",
+      "version": "1.0.1",
+      "path": "styles.ts",
+      "expected_sha256": "3645b9e97e5ac510886045b948f21e566fc50071cb85012bb1ac778883443b6f",
+      "actual_sha256": "a200c3a04d9ee0bc70ff5ef522c90c7fdb40f8ec2a803c42a5aead2daef68429"
+    },
+    {
+      "library_id": "react-component-library:CommandPalette",
+      "version": "1.0.0",
+      "path": "CommandPalette.tsx",
+      "expected_sha256": "ad580c406c5aec9a8111d4da48e1d9d2590e3b93e802f8c2bfc7ff76652cf2c7",
+      "actual_sha256": "376a2ed6eb41636a2aa6537e4a9cdde52cfb55799be529309dcb6e309aeb237b"
+    },
+    {
+      "library_id": "react-component-library:CommandPalette",
+      "version": "1.0.4",
+      "path": "CommandPalette.tsx",
+      "expected_sha256": "f1f467ac42f2c2cd9b865d41059ef08fe144d8d65e85ae4ecc7bf8ec040dc078",
+      "actual_sha256": "bda6ec86003382287663da751a98b84f414e77d9d419d5621eef7e220fbf4923"
+    },
+    {
+      "library_id": "react-component-library:CommandPalette",
+      "version": "1.0.6",
+      "path": "CommandPalette.tsx",
+      "expected_sha256": "53900c4366f58b7276e4f722a039549cf155b79f2841f55c36d9ae53051e634c",
+      "actual_sha256": "81b91aa2a77b70e0fdc9799748b4050ca734aef3a6d815972ded7e04f4d13664"
+    },
+    {
+      "library_id": "react-component-library:ComputedField",
+      "version": "1.0.1",
+      "path": "ComputedField.tsx",
+      "expected_sha256": "d72e44dcc40e5940638baff3bba596b3d5be4d710a253e10c029c18b6fc4730c",
+      "actual_sha256": "a92d9c8d070733d0556582d0eb73d9622adfb2a3eba9e52eb7aa55a873b1b736"
+    },
+    {
+      "library_id": "react-component-library:ConditionalField",
+      "version": "1.0.1",
+      "path": "ConditionalField.tsx",
+      "expected_sha256": "a578ee3be47b86286c1cba2e80aac6d0dae4a8a92471d7671d9f62f724b381fc",
+      "actual_sha256": "a54726b22267ca554c0a6a3f4abbc7b5b2108df0cb2aac8e738fa0abd3324203"
+    },
+    {
+      "library_id": "react-component-library:ConflictResolutionFlow",
+      "version": "1.0.0",
+      "path": "ConflictResolutionFlow.tsx",
+      "expected_sha256": "65c6cbca51239fc1cdb8f80ce38dca391b46c81252408c890affd86526e4f19a",
+      "actual_sha256": "dcce5d3726a37c3c91ebbe497bc16238c89f644429470ba85c3c548554c6007b"
+    },
+    {
+      "library_id": "react-component-library:ConflictResolutionFlow",
+      "version": "1.0.4",
+      "path": "ConflictResolutionFlow.tsx",
+      "expected_sha256": "3d3537e3ba3d5639b6cef0e5a8eb611a7372e610bb3d84c3436ead05ab2d327d",
+      "actual_sha256": "031dc856186706e0f2f71f144304cecb84681f079c3d56f1d1efc5faf6f8ac4b"
+    },
+    {
+      "library_id": "react-component-library:ConflictResolutionFlow",
+      "version": "1.0.6",
+      "path": "ConflictResolutionFlow.tsx",
+      "expected_sha256": "7987477b91ec4ed9aa62dd13d49f86f3bd71006551ec7d6724789085fdee7d5e",
+      "actual_sha256": "4433cf8fca4b26642ba56696be3a415daca84d5f0414e4d28f422e2767c9e944"
+    },
+    {
+      "library_id": "react-component-library:ControlBase",
+      "version": "1.0.0",
+      "path": "ControlBase.tsx",
+      "expected_sha256": "16389ca051fbbe63df470e938c61bf07028e2ccb4ab6a893f341ef697551c3d4",
+      "actual_sha256": "9b7dae1f1d6199bff33a7c6d999b81176186e262337e2cc75d4a0eecb3859bed"
+    },
+    {
+      "library_id": "react-component-library:ControlBase",
+      "version": "1.0.1",
+      "path": "ControlBase.tsx",
+      "expected_sha256": "cac2a96482390eda6b177c4bedbf4a8d0a7f913ce302533ba93d4577e0336f02",
+      "actual_sha256": "60275f439f2841b26fef01eefd4add12b59a3418c7a5dd26a228f653cb810545"
+    },
+    {
+      "library_id": "react-component-library:DataTable",
+      "version": "1.3.0",
+      "path": "DataTable.tsx",
+      "expected_sha256": "fb10ccc2dfd910d060a6ed46110c677388771c1ab56e0dcaa65ac19ed51862a5",
+      "actual_sha256": "5c6aa4ab1b16fc3d692f17780c9b7e9e1aaf5bc9b3a1cec27db30c76e5fda503"
+    },
+    {
+      "library_id": "react-component-library:DataTable",
+      "version": "1.3.1",
+      "path": "DataTable.tsx",
+      "expected_sha256": "54849fd46803f7909f5bcec9d3da38c2243715c5e1453ed092bd15dc74202d4a",
+      "actual_sha256": "5a98fdcf96cd0ae47b4f4a9ea6b283145bf5b6cf9eb41ab574a7f394f8acd2cd"
+    },
+    {
+      "library_id": "react-component-library:DataTable",
+      "version": "1.3.4",
+      "path": "DataTable.tsx",
+      "expected_sha256": "a7c3bfa57ab6263d6290d5ad6583ed339297e9aab654c80394a807df09f60eda",
+      "actual_sha256": "6006b8b2cfbf6d4f98a356be785575a90b966cd3beba1ec21018bb50d4061a06"
+    },
+    {
+      "library_id": "react-component-library:DataTable",
+      "version": "1.3.6",
+      "path": "DataTable.tsx",
+      "expected_sha256": "b1d70b9420a93ec60c7724db9c2afe9d44a755969745deff9ea1521dd1b105c2",
+      "actual_sha256": "4a9bd3b33c5b139f59bcba45a030c81ee1b0c636514aebf7f141e30e403140a8"
+    },
+    {
+      "library_id": "react-component-library:DataToolbar",
+      "version": "1.0.0",
+      "path": "DataToolbar.tsx",
+      "expected_sha256": "3fcf5494018a137f721c248d9981da20a3eac43df6a843fcecef1322a11ecbdf",
+      "actual_sha256": "e3492461dc912237cf56e69955ac10d749902b5371e040d5f66d2f24cba66aa8"
+    },
+    {
+      "library_id": "react-component-library:DataToolbar",
+      "version": "1.0.4",
+      "path": "DataToolbar.tsx",
+      "expected_sha256": "29ca464b14d22e95c2c57e3707722681f2a295517cbb902496536f3d5c20e677",
+      "actual_sha256": "b73fa94a17131af6b9413387f1cb02389217d0128162046dbe32c0e1c7efb576"
+    },
+    {
+      "library_id": "react-component-library:DescriptionList",
+      "version": "1.0.0",
+      "path": "DescriptionList.tsx",
+      "expected_sha256": "6e1a797231968f9f78c8aa22ade56b877387dc6076d9c03ce769aa6eb21e39bf",
+      "actual_sha256": "1aad4ab4f1345038b76cc0daf0dff9389a846d8fbb8fbf6ee4e6880f15b284e4"
+    },
+    {
+      "library_id": "react-component-library:DescriptionList",
+      "version": "1.0.3",
+      "path": "DescriptionList.tsx",
+      "expected_sha256": "a899db7be6ddc007827b50bcfb9be25246b20f814b84cef6de5a8e73fff6bdd2",
+      "actual_sha256": "02c7dbdf1f6316a0974859c72e6f32365209def62d2b1ce6f13189a49ab081fb"
+    },
+    {
+      "library_id": "react-component-library:Dialog",
+      "version": "1.1.0",
+      "path": "Dialog.tsx",
+      "expected_sha256": "5ac74dc8e5e06aab4cec656f8b02c3bf4899e42bdc6a7d38993f0339af975c82",
+      "actual_sha256": "87b60ce518683a12b8d75f5a8882765f89a7d1c5b381f241f627d8b5de0da229"
+    },
+    {
+      "library_id": "react-component-library:Dialog",
+      "version": "1.1.0",
+      "path": "styles.ts",
+      "expected_sha256": "9bb7312bcc32f50e31017dcb4a7c8e325f69d7dd72f7a819db14e6577aa9c3ea",
+      "actual_sha256": "36c3a984a230a9f71e5152d82c92ed344034ca8c81fede35bc616fbb37854103"
+    },
+    {
+      "library_id": "react-component-library:Dialog",
+      "version": "1.2.2",
+      "path": "Dialog.tsx",
+      "expected_sha256": "c7fd6526d3ed4d3b851bc41f36b29ee4015f0049e83ebf001bd682749e1f904f",
+      "actual_sha256": "d3e912c8ea5212b587c4c89373242150e3e396c904631dcea2b894b9502f8303"
+    },
+    {
+      "library_id": "react-component-library:Dialog",
+      "version": "1.2.2",
+      "path": "styles.ts",
+      "expected_sha256": "9bb7312bcc32f50e31017dcb4a7c8e325f69d7dd72f7a819db14e6577aa9c3ea",
+      "actual_sha256": "36c3a984a230a9f71e5152d82c92ed344034ca8c81fede35bc616fbb37854103"
+    },
+    {
+      "library_id": "react-component-library:DiffViewer",
+      "version": "1.0.0",
+      "path": "DiffViewer.tsx",
+      "expected_sha256": "03c526d88f83b5448fb412a5f59ae8732a5ed4df9e94016af4615e41d7e0bf42",
+      "actual_sha256": "3f1331ba38933a2d0bc9579f51c19221905028cacf6dbfef3dacad2c57980e26"
+    },
+    {
+      "library_id": "react-component-library:DiffViewer",
+      "version": "1.0.2",
+      "path": "DiffViewer.tsx",
+      "expected_sha256": "aa65c9381bcbd311cf7d93c6958f22bbcd25df97bf9fcf27fd33f38701234688",
+      "actual_sha256": "82a62efc67cc851ee5e622a13dca0bb2358cdd0581ef7a98c8a7c0fbfbad5aa5"
+    },
+    {
+      "library_id": "react-component-library:DirtyStateGuard",
+      "version": "1.0.0",
+      "path": "DirtyStateGuard.tsx",
+      "expected_sha256": "98531169fdae8ab78d8c5237503a61a1fb07891dffebbe99b5b42bc72171b1a2",
+      "actual_sha256": "6af02623593a8566a40d57942fb3719641f29b85cef245f184187080acccf7b2"
+    },
+    {
+      "library_id": "react-component-library:DirtyStateGuard",
+      "version": "1.0.1",
+      "path": "DirtyStateGuard.tsx",
+      "expected_sha256": "305bb8415170f66f0afc53e4691835f99f21372ecee8a16da8ea89f689b365db",
+      "actual_sha256": "4dbb246f991f25066f61c14d30f64676d0ea25a065f00ed2ceb048dea8394f27"
+    },
+    {
+      "library_id": "react-component-library:DirtyStateGuard",
+      "version": "1.0.4",
+      "path": "DirtyStateGuard.tsx",
+      "expected_sha256": "1642d3a98852981d98e0c3fac955b1bc3be7d5bae51895fee8a784445e02be25",
+      "actual_sha256": "bb45db99c943a15246b67feb2fe2078d8bd6f5885947d8b1f30cdf73175732df"
+    },
+    {
+      "library_id": "react-component-library:DirtyStateGuard",
+      "version": "1.0.6",
+      "path": "DirtyStateGuard.tsx",
+      "expected_sha256": "cee19f0da10185f59841c05a4ace4a509eb1c62e641d0e4f4984d8d243d52729",
+      "actual_sha256": "fa5e28856ff1fea82e648f35c4346e7cbc9802440e92b4f61dad5ae45e5b9d1a"
+    },
+    {
+      "library_id": "react-component-library:Draggable",
+      "version": "1.0.0",
+      "path": "Draggable.tsx",
+      "expected_sha256": "59a121384717a9827c46c84aff331a6fff16983eb541eb88ff60eb6cd370bcf5",
+      "actual_sha256": "f50fe34a496b9931f6f174c0c930d13f209a58526645a7f84ec1c3a7ef4c3687"
+    },
+    {
+      "library_id": "react-component-library:Draggable",
+      "version": "1.0.2",
+      "path": "Draggable.tsx",
+      "expected_sha256": "f8eb2e4b448ed63f5eead45dde8929db9841bc2e3181028bd17f3f97f6b83314",
+      "actual_sha256": "aa029b81c486e08acde09d018ca41c14ba397b654235c70fc6e49e9817d18e21"
+    },
+    {
+      "library_id": "react-component-library:Draggable",
+      "version": "1.0.4",
+      "path": "Draggable.tsx",
+      "expected_sha256": "572a21e7e7ceb894a0427cd078d09321cbfe7a69c515b66a62b3674638e61dff",
+      "actual_sha256": "ac0e446e87c4694970018161cd16204b900958e8e23300921b9d8edff42f5581"
+    },
+    {
+      "library_id": "react-component-library:DrawerShell",
+      "version": "1.1.1",
+      "path": "DrawerShell.tsx",
+      "expected_sha256": "fe4bebb26d505ab54383debc2d6985c351129cd98a3aa16d6038702893cc6064",
+      "actual_sha256": "d4d0d64c522b03dce73617ee44ae61d38308c8075dd3dd6e9c0c4dac5f7486a2"
+    },
+    {
+      "library_id": "react-component-library:DrawerShell",
+      "version": "1.1.1",
+      "path": "styles.ts",
+      "expected_sha256": "8e95d04c43764ba4cf10b8929d3e093b8062bbf3244d5da16913c87648039483",
+      "actual_sha256": "83ec1939f9f7ecdbf9e03d1a9d5bacb66e51f783d882ed1df6657233da5ba4a1"
+    },
+    {
+      "library_id": "react-component-library:DrawerShell",
+      "version": "1.1.2",
+      "path": "DrawerShell.tsx",
+      "expected_sha256": "6f8d9a422f0f77d142b7c5a4b9d4e4a285d5fa8b9f6136c0d6c82597f28732b3",
+      "actual_sha256": "b6799b0bfecd3585ea52d395b1dbe9d61de2749f09da40024cf65f22018ec8a7"
+    },
+    {
+      "library_id": "react-component-library:DrawerShell",
+      "version": "1.1.2",
+      "path": "styles.ts",
+      "expected_sha256": "dcc820ebef4307f9a3877001865455fc0db74f3e7b910e9333478ca04a121133",
+      "actual_sha256": "7625a8b38f4673b04ee282b681ffdbc753635fbfcc2326c16f15a862caaf4cf6"
+    },
+    {
+      "library_id": "react-component-library:EditableResource",
+      "version": "1.0.4",
+      "path": "EditableResource.tsx",
+      "expected_sha256": "771ae1c660f407d013af59a46199a1bbb5960117fd23ed247e84dfa082ffecf5",
+      "actual_sha256": "163b6a4fd8aa134799c03d3da6a89df6a7ac43e27c67d76acd8a1c91b2877b23"
+    },
+    {
+      "library_id": "react-component-library:EditableResource",
+      "version": "1.0.6",
+      "path": "EditableResource.tsx",
+      "expected_sha256": "59542e8e487c15ef680035c31609961ecac58636ee83d4b430492643bbeffdfd",
+      "actual_sha256": "701e2c219f47d3467ded3550ede07c73348b424da88b2e15a8905f5ec52a84da"
+    },
+    {
+      "library_id": "react-component-library:EmptyState",
+      "version": "1.2.0",
+      "path": "EmptyState.tsx",
+      "expected_sha256": "f84b7d3f4e8ed390ceda158e2da04b05dcb3450eae8c07c530bdf3f1f1905a73",
+      "actual_sha256": "ba4d42a81742c7aa2711c43878bd8560ed637cdddde214e57b3952c6f35d15a6"
+    },
+    {
+      "library_id": "react-component-library:EmptyState",
+      "version": "1.2.0",
+      "path": "styles.ts",
+      "expected_sha256": "3675e77e7bba30d5ee41b13e71592a38a3d563fb9d5bfaf07391c1a7c9e6ef1d",
+      "actual_sha256": "4b2bb15ff56b22c817d202b567c28bd83b1cbb83804d174baacbd5739f2fdd44"
+    },
+    {
+      "library_id": "react-component-library:FilePreview",
+      "version": "1.0.0",
+      "path": "FilePreview.tsx",
+      "expected_sha256": "c889e56c922e5d920cc878b5bdaf291c531884d4ffc0acec6fe30547344a0816",
+      "actual_sha256": "44d0dc6cf85c44c3c5eb0c01eae364b6f30e395a00d611139702cb95d2f23bb4"
+    },
+    {
+      "library_id": "react-component-library:FilePreview",
+      "version": "1.0.2",
+      "path": "FilePreview.tsx",
+      "expected_sha256": "9053a7d5d71b3e1ebaba2c5c025e1b361d1ef0af86b1ff2d2d4cc45c836b8de0",
+      "actual_sha256": "a354036fd50b0ab09f8951d2f79b05cbe03e7942b6fec47e8e945555920a9e95"
+    },
+    {
+      "library_id": "react-component-library:FilterBar",
+      "version": "1.0.0",
+      "path": "FilterBar.tsx",
+      "expected_sha256": "07c1a4ebe28b078499f6a3cdad3e10bc6c98a707f740a565657377ea96b51b2c",
+      "actual_sha256": "a982f2b932ad41813884c7ec68ad41cf16ca744f61f141e1485cc300adf402fc"
+    },
+    {
+      "library_id": "react-component-library:FilterBar",
+      "version": "1.1.4",
+      "path": "FilterBar.tsx",
+      "expected_sha256": "56eef5c3d81f1884fada1fdcf7f01000e0ce7c5145b506547693ce5cba7d443f",
+      "actual_sha256": "c818ae74f47d48ffbcbad559682230fd2378da8ce53e6b6ca97360a34b719c17"
+    },
+    {
+      "library_id": "react-component-library:Form",
+      "version": "1.0.1",
+      "path": "Form.tsx",
+      "expected_sha256": "74da76751b18bde7db36c264ff1b4c29a80eea0aa4dc8ce287942acab18b7d26",
+      "actual_sha256": "de70ffa9a14e71c2e41fef46c8c02d1bbe7761f02cfcad275775a27c79410c08"
+    },
+    {
+      "library_id": "react-component-library:FormActions",
+      "version": "1.0.0",
+      "path": "FormActions.tsx",
+      "expected_sha256": "c7585fcc615dffb8acc61f0100729454914731680661d27ecea4bb7b168fae18",
+      "actual_sha256": "05a86a61922e0cd293d4087a5c80ab28724be2646e7311b12ca8f39ce1bf067a"
+    },
+    {
+      "library_id": "react-component-library:FormActions",
+      "version": "1.0.2",
+      "path": "FormActions.tsx",
+      "expected_sha256": "d4fdc2978f18f1645c9798d20ea1d2c0cc4dbc9df0fbafd72521bc5754bc3cb3",
+      "actual_sha256": "adbab62f83675eba071113128f56301bcfe41d5bc43e3a42a8ac82cf061a1e82"
+    },
+    {
+      "library_id": "react-component-library:FormField",
+      "version": "1.0.1",
+      "path": "FormField.tsx",
+      "expected_sha256": "aae0b5c329ba4ba6d0e5f2a9ecf4ab7f567ca9b6b9fd7aae192a9b435a5dd2f2",
+      "actual_sha256": "01665a567c1198b1cedb6c39d3b59cb7e5d60eb0e139d896006f4b5198bc393a"
+    },
+    {
+      "library_id": "react-component-library:FormSection",
+      "version": "1.0.0",
+      "path": "FormSection.tsx",
+      "expected_sha256": "1eca4ca10ee3ab7df83a9150e240e0480f0088a88d43f6761b28e5e5cd92a334",
+      "actual_sha256": "f55521fbf44209c821d1958977879d2bc011c4769f15a01c9255bc31cc252512"
+    },
+    {
+      "library_id": "react-component-library:FormSection",
+      "version": "1.0.2",
+      "path": "FormSection.tsx",
+      "expected_sha256": "7193b6d0e5fb8b572d897ff05f97e6aea96a85d9cbea4de55d531503f6fddefc",
+      "actual_sha256": "ad66ce3ad6589eceeccc001e6e53bcb03494cb4488be9e9e47fd090ac07f6f3b"
+    },
+    {
+      "library_id": "react-component-library:GeneratedForm",
+      "version": "1.0.2",
+      "path": "GeneratedForm.tsx",
+      "expected_sha256": "020203aaa3d8ee3a3d9781f8de19276f5af375063706aee78aed26147dd9ea41",
+      "actual_sha256": "897ed136812a31aa76ceb02d240e892951ee35f1afdbd53dad05d276aed7954a"
+    },
+    {
+      "library_id": "react-component-library:GlobalCommandSystem",
+      "version": "1.0.2",
+      "path": "GlobalCommandSystem.tsx",
+      "expected_sha256": "5ed70885c7282ceadbd5f57052ab593abd5cca1cb4269a3ffac36175047560cf",
+      "actual_sha256": "23ddba4ecff57ff6e167c9855bf183fa0f064d17d26ef68786b88afe8b70b7e5"
+    },
+    {
+      "library_id": "react-component-library:IconButton",
+      "version": "2.0.1",
+      "path": "IconButton.tsx",
+      "expected_sha256": "8c690196319cbd1bed5d8e474ccb2b3587aee10352270ab2785d939f14afeae8",
+      "actual_sha256": "902df7f0785067d1900b075637ea5fec5d8abf99febb0d1b81140ded59e6ce43"
+    },
+    {
+      "library_id": "react-component-library:Input",
+      "version": "1.1.0",
+      "path": "Input.tsx",
+      "expected_sha256": "9f252ad6fdee171d8c67d6b5efb9461b2fa4ad3393e6483ea95a7b3de92832b1",
+      "actual_sha256": "f276eb9e1f400fd42b232c8b3cb5e81eb043524412e48953fe51517d31f5a38b"
+    },
+    {
+      "library_id": "react-component-library:Input",
+      "version": "1.1.1",
+      "path": "Input.tsx",
+      "expected_sha256": "a3d13699fe63ed8635158fc158b4afdd2f971e17ab2ae3e4498d9652c5b64636",
+      "actual_sha256": "077f9dc4c1adc292352e9897d6031af7e4ce61af5d6db30a81a0f90da1fe680e"
+    },
+    {
+      "library_id": "react-component-library:InspectorLayout",
+      "version": "1.1.1",
+      "path": "InspectorLayout.tsx",
+      "expected_sha256": "d00a93625200213cd9ae2da932645f8086d09664ec2d9ea78f0c42543b7ca323",
+      "actual_sha256": "83360bb2282a1c0f8fb5aa9f64048b836f9c631e12523072bcdb0247643f18c0"
+    },
+    {
+      "library_id": "react-component-library:InspectorLayout",
+      "version": "1.1.1",
+      "path": "styles.ts",
+      "expected_sha256": "b893efaadcaaa50288a45c6296a5a1ae940219cfc2615b8a2ad3129e0de401ec",
+      "actual_sha256": "b1916c830898671eb13d60a44f643ad62b12ed652988e40273497fd3b0e127c5"
+    },
+    {
+      "library_id": "react-component-library:List",
+      "version": "1.0.0",
+      "path": "List.tsx",
+      "expected_sha256": "587ec41e8529b62c71a91f5d1d00c58fe94b80b67751f15d2a65dfc47048e11c",
+      "actual_sha256": "6f040ff7ed9a710b1c140a924b9ac1412a0282d3993af4bf09ecd86ff71937f2"
+    },
+    {
+      "library_id": "react-component-library:List",
+      "version": "1.0.2",
+      "path": "List.tsx",
+      "expected_sha256": "5f5151ca0274444a104ca9eceab723dd87c5e2b49b22c11f263098e78a46762a",
+      "actual_sha256": "c7de1d74f6b415b6d6007544830a73ec1b78e3eab8377d1b46dc94de074b72be"
+    },
+    {
+      "library_id": "react-component-library:List",
+      "version": "1.0.4",
+      "path": "List.tsx",
+      "expected_sha256": "47fd3f6aa8b12900b9b398b1bf9f2542fa42b70e2f60c167bce1c1cf56e92c39",
+      "actual_sha256": "e05c521b8ad9ead7001a2c186e8430cce3da389dcdb5625f8b24776eaf228e75"
+    },
+    {
+      "library_id": "react-component-library:MasterDetail",
+      "version": "1.0.4",
+      "path": "MasterDetail.tsx",
+      "expected_sha256": "c4fe62766db78bc834eafbf9f67662eb16a92d4a5cdbf823eb7bce0a359e4739",
+      "actual_sha256": "dc9b16d0820bc0b79f9d93a68098fd483a01f73afd2c255efa48fc9da82da844"
+    },
+    {
+      "library_id": "react-component-library:MasterDetail",
+      "version": "1.0.6",
+      "path": "MasterDetail.tsx",
+      "expected_sha256": "583890d4d8cc3c5aa1f322ba53376d5d81a713e70c100cc1544b173b57f02652",
+      "actual_sha256": "5b6f532f5b70761b7f8ffa7efc4ca5ad427e1dd5842b076a8dcd2f589f516b87"
+    },
+    {
+      "library_id": "react-component-library:Menu",
+      "version": "1.1.2",
+      "path": "Menu.tsx",
+      "expected_sha256": "013a709d53828d355db3cfa77c0d1577ebff59515c3cea562fab34f28bb5365d",
+      "actual_sha256": "a395dcb4fb8d7dd0a8c3c62c2ff95195158e7c8bfc7b680d7cf3e73e38442a24"
+    },
+    {
+      "library_id": "react-component-library:Message",
+      "version": "1.0.4",
+      "path": "Message.tsx",
+      "expected_sha256": "9e3b61a91c8353d2e13ce47e220d4f68709d95d7ae54a49e805668fdfa8adf95",
+      "actual_sha256": "77ae9e88ab66623111cf575fad571c67328894b7c85d55b021a505f5f3c9aad6"
+    },
+    {
+      "library_id": "react-component-library:MotionPrimitive",
+      "version": "1.0.1",
+      "path": "MotionPrimitive.tsx",
+      "expected_sha256": "ea46cab58f0e8dbb8a665909596c177827c402d7dfe67681e8a2a253e6215816",
+      "actual_sha256": "75594c57884af6aa387ef0f0db29fa45c9880b90485a1da84ccb84b2bb9e495c"
+    },
+    {
+      "library_id": "react-component-library:NavLink",
+      "version": "1.0.0",
+      "path": "NavLink.tsx",
+      "expected_sha256": "b89af3aaf3e12776d06fe84044562ecdd64b3ed035e11578c812efb6a7e0d010",
+      "actual_sha256": "af2ec1bef53d3398f09064ba9eb535efef7c3ed0f79aa1726c1bec8fe15e9c14"
+    },
+    {
+      "library_id": "react-component-library:NavLink",
+      "version": "1.0.5",
+      "path": "NavLink.tsx",
+      "expected_sha256": "399aa299052c397a5f7c43ce04c319ed6efaf812d035c7d1ca602714f4acca12",
+      "actual_sha256": "547ca7b79500efa9bdb0a8f8cf6666b10de6b6928f6fc5c338499d86ec42ecd7"
+    },
+    {
+      "library_id": "react-component-library:NavLink",
+      "version": "1.0.7",
+      "path": "NavLink.tsx",
+      "expected_sha256": "7a8893d2734cae0e1362d55515765f214bd0ee97456879f00871b5e97cec1f07",
+      "actual_sha256": "013ebda82a10af2ff2a251c8559ddcd5055f1ab15cc8e85e6ef04177249302f8"
+    },
+    {
+      "library_id": "react-component-library:NavigationTree",
+      "version": "1.1.0",
+      "path": "NavigationTree.tsx",
+      "expected_sha256": "1e6b9517c884d79f15509aaea99a20f92585a8152ac6a86327a3ab90a0d52fe0",
+      "actual_sha256": "d11e5f769896a0c098d6291f269ecfc93b717f4444e73328c6f07cb1adb82f9b"
+    },
+    {
+      "library_id": "react-component-library:NavigationTree",
+      "version": "1.1.5",
+      "path": "NavigationTree.tsx",
+      "expected_sha256": "ebb9e96a4b8a37bcdf48ca4510e553bd6344b73e03b004dbd2c1d87984897a11",
+      "actual_sha256": "65bb35277b86d4f580265e32cbf025713f08bf4cb4fb7916a5e21828e0976047"
+    },
+    {
+      "library_id": "react-component-library:NavigationTree",
+      "version": "1.1.7",
+      "path": "NavigationTree.tsx",
+      "expected_sha256": "b053162d94c32d1bf7c063f0ac0a15974249f5d952de68f65a89dd66c8906224",
+      "actual_sha256": "3caf7bf1fdc80f7c85ac424aad7879e218a3f873f288eefa19e3f26f1cce8394"
+    },
+    {
+      "library_id": "react-component-library:ObjectField",
+      "version": "1.0.0",
+      "path": "ObjectField.tsx",
+      "expected_sha256": "4eb413d825a313a837b14e13e241a107b2cdbb1641c1cb944b9245a5aa5d6c1e",
+      "actual_sha256": "c45c7151a2583848cd0f115fb6f442fd187d6d67fc71c3b34073777f88bb1714"
+    },
+    {
+      "library_id": "react-component-library:ObjectField",
+      "version": "1.0.2",
+      "path": "ObjectField.tsx",
+      "expected_sha256": "894e1dbefa1c8386a2f9df2b27f87d54c0193d0adb8e8f263bdcc5f5274b330e",
+      "actual_sha256": "ec724cdfe916d358bf2528c6285d6b7751e683cfa9ad4301bb43d3ce8d07c9e7"
+    },
+    {
+      "library_id": "react-component-library:ObjectField",
+      "version": "1.0.4",
+      "path": "ObjectField.tsx",
+      "expected_sha256": "d56a0503eb8b749b423a95b64786096251f8ef25fe0e7bcbda5b632c0d01de38",
+      "actual_sha256": "720c946147a28be3ba93fca33dfdf94e628b4d54485e40272e32555f2855fd49"
+    },
+    {
+      "library_id": "react-component-library:OverlayCanvas",
+      "version": "1.0.10",
+      "path": "OverlayCanvas.tsx",
+      "expected_sha256": "c388ddf5c7f1058f20d67c8c4df7143f64c9c141f48dcb033980060f0496ed4b",
+      "actual_sha256": "744b80a03c1182bc52d391f1823a978362f828a087cb6803710866e7763f0a53"
+    },
+    {
+      "library_id": "react-component-library:OverlayCanvas",
+      "version": "1.0.11",
+      "path": "OverlayCanvas.tsx",
+      "expected_sha256": "6db4e3504da4369167b5d7b59692a3450b7f037b417ec90a87ff1385c2e66aa5",
+      "actual_sha256": "e917decdeb428ba166e59a565d622225982b1775fba84ea673004869ab7b6da4"
+    },
+    {
+      "library_id": "react-component-library:OverlayCanvas",
+      "version": "1.0.7",
+      "path": "OverlayCanvas.tsx",
+      "expected_sha256": "a6df8c2eca2b9f904197c579527c924b7c53716666293b5727e1bed8a5c399ab",
+      "actual_sha256": "c87773b09cd27af07f90859977e19f25ef0bc047cc01fe158d675f7930ff6986"
+    },
+    {
+      "library_id": "react-component-library:Page",
+      "version": "1.0.5",
+      "path": "Page.tsx",
+      "expected_sha256": "f24e70e4198c44898bba25473063c984370d82cf1547ddd4e356f29d8ba3b618",
+      "actual_sha256": "9fa3f3a2ebc34038603d60a4b3c3d2e185651779abf430232b2de83d52bbb381"
+    },
+    {
+      "library_id": "react-component-library:PageFrame",
+      "version": "1.0.1",
+      "path": "PageFrame.tsx",
+      "expected_sha256": "6b7d52e2289bc04aaeb8cedcff4c6eeb911b5b31d63a896d8dfde59eb6478c84",
+      "actual_sha256": "a4538e2f48754fbe776506651015dfe090939e7259e155134a1c7f9adbd23dda"
+    },
+    {
+      "library_id": "react-component-library:PageHeader",
+      "version": "1.0.0",
+      "path": "PageHeader.tsx",
+      "expected_sha256": "94e1c68a0c1daf75adc24f58cef5985da5f33f83ff3177c7dd2a5df7c281fe6c",
+      "actual_sha256": "aeab89ecc60fa320160bcdb8acbd132c64e453a1ebf71d089e4c3d2a7f5326dd"
+    },
+    {
+      "library_id": "react-component-library:PageHeader",
+      "version": "1.0.5",
+      "path": "PageHeader.tsx",
+      "expected_sha256": "ee631abe5262138e0c30d4f6bbc5f4b35342ac2428979e30757b066897b4a8ea",
+      "actual_sha256": "0a4434d2a43b0e7aa3a5d427755902211bf9d73803b1cab8a0f78cf640d49818"
+    },
+    {
+      "library_id": "react-component-library:PageHeader",
+      "version": "1.0.7",
+      "path": "PageHeader.tsx",
+      "expected_sha256": "83d2c5e6740e966e14100d055f00c7a65a18a8576564678ebf1ec223dc263342",
+      "actual_sha256": "261f82ce70d727abc274e9d883412e411d8a95ff9a46580425363b946ff0082e"
+    },
+    {
+      "library_id": "react-component-library:Popover",
+      "version": "1.0.0",
+      "path": "Popover.tsx",
+      "expected_sha256": "560a7b03ddf778aabf055fcd5b4a22396b1e89f57e76fd530969d44c5451371c",
+      "actual_sha256": "d2f51a1e5ed6bb1d28c9a69c55ece498a5f631585362475c823e885d86d04b8b"
+    },
+    {
+      "library_id": "react-component-library:Popover",
+      "version": "1.1.0",
+      "path": "Popover.tsx",
+      "expected_sha256": "4cb1de6971afbf94131591d43fffd20660c9a06f583981eb7e5e6e6585a6a208",
+      "actual_sha256": "577de5310fd1dd8bebede21795a3c455f924d7f772c9cfaa4a8c9062b9d3b1f1"
+    },
+    {
+      "library_id": "react-component-library:Popover",
+      "version": "1.1.2",
+      "path": "Popover.tsx",
+      "expected_sha256": "8e78f9946196eb3feec0aa6870f5556e836606fa96a552867b206ade3c6b9fef",
+      "actual_sha256": "745c23532fe6e55b3e82f3ef4cf7e959ed0fa930ef4d0ce88c98f128f7ac7a26"
+    },
+    {
+      "library_id": "react-component-library:Presence",
+      "version": "1.0.1",
+      "path": "Presence.tsx",
+      "expected_sha256": "24fe62c6659781a366daaceecb8d914b9c35786bd07f08c5acb8d365e981b20a",
+      "actual_sha256": "551698f6069025dc8b2625c041e2b996db8447db03c032682ca1db207f0fec78"
+    },
+    {
+      "library_id": "react-component-library:Pressable",
+      "version": "1.0.1",
+      "path": "Pressable.tsx",
+      "expected_sha256": "f0c54609a1b5e38440e0be249777cf836840e8d3f0d92705ed6aae13a2d37fbf",
+      "actual_sha256": "283cabc06beed31ada21cd85ced5a8be186362f5a2830acf33f3d188ed048337"
+    },
+    {
+      "library_id": "react-component-library:Progress",
+      "version": "1.0.0",
+      "path": "Progress.tsx",
+      "expected_sha256": "4dda26d65bb6b6372423b79af548f16ad275d6b3299846d9c4a4f22ec545c2c5",
+      "actual_sha256": "e844d907cb668e2f091addbecce65397b3347cc5091a1e74de043d4a1ad1709e"
+    },
+    {
+      "library_id": "react-component-library:Progress",
+      "version": "1.0.2",
+      "path": "Progress.tsx",
+      "expected_sha256": "de8666312cf44859bbf6f3712aa14f7c89c2105e1eec1c130e02b1d729711497",
+      "actual_sha256": "493b1ab4b492fdf34a8697ce9c3d8e041ef848f3f07c140e0c5aa63c26b33cf3"
+    },
+    {
+      "library_id": "react-component-library:Progress",
+      "version": "1.0.4",
+      "path": "Progress.tsx",
+      "expected_sha256": "f04039cceeff493e8119bb0d5fbae61fbd16f3977c43b61e70c0889d9e784913",
+      "actual_sha256": "56d0b755dfce6d8aacdc498d5af96f81f00e3934bae43e6089084579f8e6a537"
+    },
+    {
+      "library_id": "react-component-library:ProgressiveImage",
+      "version": "1.1.0",
+      "path": "ProgressiveImage.tsx",
+      "expected_sha256": "b4bdd66a05ed57d2c06d1b54019943ac092b847e30a44958e281594b38389610",
+      "actual_sha256": "cf86b93d34080eadc99e5ca9c521b6975999e8f5faf1ad52b1e15cf59e195610"
+    },
+    {
+      "library_id": "react-component-library:ProgressiveImage",
+      "version": "1.1.5",
+      "path": "ProgressiveImage.tsx",
+      "expected_sha256": "4a803d3da1ee197b986851e6e51dd55594b01e0fe14f128901a3a3b140962f2b",
+      "actual_sha256": "eaedc889a5a3453e03cbf453bb1f5aeb24d15ab3f14dd48c58bbee7fd64770c7"
+    },
+    {
+      "library_id": "react-component-library:ProgressiveImage",
+      "version": "1.1.7",
+      "path": "ProgressiveImage.tsx",
+      "expected_sha256": "ae498df34041bfdc6e8f80e7ffd6d29e4c2ee5bdbd51c3a1fcdb9a09c965a901",
+      "actual_sha256": "c898e992867d570de22081fcc5dac42b0bdc170ffa65811cd67a3e790692d193"
+    },
+    {
+      "library_id": "react-component-library:RadioGroup",
+      "version": "1.0.3",
+      "path": "RadioGroup.tsx",
+      "expected_sha256": "bfc36571588d6a6d63aac74bdffdc9b82820ce1dcad87e3bd4456a2e833911d6",
+      "actual_sha256": "062f4be5c19183fda61937a6380137d62da47486b536aaabd81bc358c870bb83"
+    },
+    {
+      "library_id": "react-component-library:RadioGroup",
+      "version": "1.0.5",
+      "path": "RadioGroup.tsx",
+      "expected_sha256": "5eb00866f4707ed9ecdfc6d8ecd49246136eb4e5103ff51dcaa7c5d45a31f02e",
+      "actual_sha256": "776d53c3af86d9761676377479454f1bc15e411defc845adc047d52a8a999d7f"
+    },
+    {
+      "library_id": "react-component-library:ResourceCollection",
+      "version": "1.0.2",
+      "path": "ResourceCollection.tsx",
+      "expected_sha256": "70e95659d96de481a90ab311563646b9960c4a0e67826ffa57aa0d40bc3681d0",
+      "actual_sha256": "b7c1274345aea779a8ae45d6189035dcbcace98db838ca3c7d4c1a1cf25be968"
+    },
+    {
+      "library_id": "react-component-library:ResourceCollection",
+      "version": "1.0.4",
+      "path": "ResourceCollection.tsx",
+      "expected_sha256": "d902c06ebd89a12d9ecf20d265cad755a92ac6dae04175012debfe1fb8a5cba3",
+      "actual_sha256": "ed239f1ee524d6123c08451dc31c3552a4d506525defe52b3e4ab98ada0c92d9"
+    },
+    {
+      "library_id": "react-component-library:ResourceDetail",
+      "version": "1.0.0",
+      "path": "ResourceDetail.tsx",
+      "expected_sha256": "f5a79f5e8d54a48f0a18950a34ae622d006ea7cee237ba3d1a66e433196a2bdb",
+      "actual_sha256": "8312c0e989195f4e6e21660a4769b33585b90dd10be05b5ba060f12d9c5e6b26"
+    },
+    {
+      "library_id": "react-component-library:ResourceDetail",
+      "version": "1.0.2",
+      "path": "ResourceDetail.tsx",
+      "expected_sha256": "d15a870d2b950425e761132249965e920298e60d7278a5da496142d7928a389c",
+      "actual_sha256": "26d3e0f83da3803bad508279a7e5bdd27526c5f98ec697125ccd90dacea69aa5"
+    },
+    {
+      "library_id": "react-component-library:ResourceDetail",
+      "version": "1.0.4",
+      "path": "ResourceDetail.tsx",
+      "expected_sha256": "a5c6118f6d1d8c1226b9835c05c408c51e955ba714100a0bb132476491a06eb9",
+      "actual_sha256": "7089b352bd29c4fde7c35b7532b681647d6e57c8c16824b2b03de3575b8be273"
+    },
+    {
+      "library_id": "react-component-library:ResponsivePanel",
+      "version": "1.1.4",
+      "path": "ResponsivePanel.tsx",
+      "expected_sha256": "9f404b92cf5b727a3a110a66374f0bcb777e742475f3d055bb4d51eb44d4475f",
+      "actual_sha256": "f7f8d50b1ba5a36287ad2aee2bbccceb68c380d2e969066b3f7f9eeff60b0c96"
+    },
+    {
+      "library_id": "react-component-library:ResponsivePanel",
+      "version": "1.1.4",
+      "path": "styles.ts",
+      "expected_sha256": "5722ff59b59651f590a7dd8294d99923879337224148ca93e94fb035bdb0096f",
+      "actual_sha256": "7d315de6e37436e96adfd3186b8d15756d3b33794e0d79e5a0309b578ca9d4cd"
+    },
+    {
+      "library_id": "react-component-library:SearchFilterResults",
+      "version": "1.0.0",
+      "path": "SearchFilterResults.tsx",
+      "expected_sha256": "ec878754608e65f05bf4cd925997a0d6b6dd5ebfb1dce7d6da91245a8ca6a299",
+      "actual_sha256": "7791cb537ede69cc91dbd4ed4d3452f9c1c1aab4bcec6da23ae00e27f1c67461"
+    },
+    {
+      "library_id": "react-component-library:SearchFilterResults",
+      "version": "1.0.3",
+      "path": "SearchFilterResults.tsx",
+      "expected_sha256": "b3217c66b8ebc29eba7222ddcc151b43482b522f10f17e99ec46809c4c550cd5",
+      "actual_sha256": "8e96a854f907bb4f9c3ae152fa82677586d96ea875917584ae938bfd46f90bea"
+    },
+    {
+      "library_id": "react-component-library:SearchResults",
+      "version": "1.0.5",
+      "path": "SearchResults.tsx",
+      "expected_sha256": "936ec39b10264d601d2b3a67502991d779df9f1ee0cea60ece5d9f840845c09c",
+      "actual_sha256": "4ec559f1b51a07f9eadb3d3c6edad23086d2705ec6d69b6461d7aa8c17507fd2"
+    },
+    {
+      "library_id": "react-component-library:Select",
+      "version": "1.1.0",
+      "path": "Select.tsx",
+      "expected_sha256": "17023d6a4832c82a2802e3a44be340bcef9a35f5a7c0d32b57cc378b0d4f2b23",
+      "actual_sha256": "9fabd8284fb54ff1a88e10e69a9962bb212ce5babfe32f6ab61f2973624ef767"
+    },
+    {
+      "library_id": "react-component-library:Select",
+      "version": "1.1.1",
+      "path": "Select.tsx",
+      "expected_sha256": "daf891e23b0753329c4a2e2be9682fc6a7b7a1149fcdeb55bd78a6e47fc035ad",
+      "actual_sha256": "c2bc32f320a196bed744af6c5df835da6e0bf04bf326f736ae2f07a10ef7e465"
+    },
+    {
+      "library_id": "react-component-library:SelectionControl",
+      "version": "1.0.0",
+      "path": "SelectionControl.tsx",
+      "expected_sha256": "c38cc75ad8e0f9d58ccb0ca7278c13c57d277f6f91effaf849421e7bd09a2390",
+      "actual_sha256": "041541522eb076052ffe100853cda9e64252040782642720f7d41601204eeccd"
+    },
+    {
+      "library_id": "react-component-library:SelectionControl",
+      "version": "1.0.1",
+      "path": "SelectionControl.tsx",
+      "expected_sha256": "e0d3ce67afec44d1a5bcce829f29933fdc640621ddd9c8f5c48473f4628fb37e",
+      "actual_sha256": "5f59af1e04c98640c61e8ca3640b630c76a8590c92f6328fcc4e08b33b51fb36"
+    },
+    {
+      "library_id": "react-component-library:SidebarShell",
+      "version": "1.2.0",
+      "path": "SidebarShell.tsx",
+      "expected_sha256": "188ba5132c97972f6a7bb0862ed7ab6ead2db831fdc19ebbdfd6233af82627d1",
+      "actual_sha256": "55e06283dd53b889aefa1eff4f4795f7ad4018ff75fdf189c1258dfb96ecdffc"
+    },
+    {
+      "library_id": "react-component-library:SidebarShell",
+      "version": "1.2.0",
+      "path": "styles.ts",
+      "expected_sha256": "c31b5829265f61dfedcec92e10ed98f3effd6bd1180bae5a9ee616806b766bc8",
+      "actual_sha256": "65868317ada752049f71a56e691bc16c3f6aea86ce0eda2c2ed5ecc4b8bfa895"
+    },
+    {
+      "library_id": "react-component-library:SidebarShell",
+      "version": "1.3.2",
+      "path": "SidebarShell.tsx",
+      "expected_sha256": "0edf9d586f8dfe33c8df2bf8f889264d2b545c2eb6fc5bcd4be6a5b62982cd10",
+      "actual_sha256": "f905b5c9d5e923b6d8638738744e9e5be20446103beec0ec1636f834b744f44e"
+    },
+    {
+      "library_id": "react-component-library:Sortable",
+      "version": "1.0.4",
+      "path": "Sortable.tsx",
+      "expected_sha256": "e340de68519f6a8ae615e5e7af6c509c5750787c177588b180e5e9a5fd2d982d",
+      "actual_sha256": "42b092c875da90ad11fdd917b6fe1fd75914a3b3072820be1949460e205fbf99"
+    },
+    {
+      "library_id": "react-component-library:Sortable",
+      "version": "1.0.6",
+      "path": "Sortable.tsx",
+      "expected_sha256": "628e9cf26eb8066bb1cc5f66fb1867bb8c395e0f1a7d1c05cdf1ecbc7a1c9ad5",
+      "actual_sha256": "eb553fdb630932172a4436cb306639af9b95a8a320174ca668052408024e431e"
+    },
+    {
+      "library_id": "react-component-library:SplitView",
+      "version": "1.0.1",
+      "path": "SplitView.tsx",
+      "expected_sha256": "4f6263b05eced1c5d5aede4bc67c95b95530815ba83adcebb69034f04749832a",
+      "actual_sha256": "ccd63ef09e264aedc1bf2d2026d6665f175827b8398fc2a6b9fbff774942bf21"
+    },
+    {
+      "library_id": "react-component-library:Stat",
+      "version": "1.0.2",
+      "path": "Stat.tsx",
+      "expected_sha256": "9e7b219bf23b320f28030ccc5b0ebc5a71edf9d758d4afaba87477587879dff1",
+      "actual_sha256": "6ae65c7ba7b309e41463f150a99a58c9c92e00bb6da244191da692b290dd81e5"
+    },
+    {
+      "library_id": "react-component-library:Stat",
+      "version": "1.0.4",
+      "path": "Stat.tsx",
+      "expected_sha256": "9dac87267ae632cf40407d2702c0c72a0ef5c1ec3282911276904c79e4c0e562",
+      "actual_sha256": "632f6b1d6a1c85d8dc48a5f4eefeba6785db2ffe1c3438a50fc408e64b84ebf4"
+    },
+    {
+      "library_id": "react-component-library:StatusBadge",
+      "version": "1.2.1",
+      "path": "StatusBadge.tsx",
+      "expected_sha256": "859e4fa7cf5b1af4399d27b53e3f402a967af12b4ce01e8d70515814c536577b",
+      "actual_sha256": "75352d9f471c3d9d9cf917537187def3b6db6634f8b8eb92459e1682d89c0b08"
+    },
+    {
+      "library_id": "react-component-library:StatusBadge",
+      "version": "1.2.1",
+      "path": "experience-contract.json",
+      "expected_sha256": "5093ca656d30e58362870a63017b8c400ba2cc0cba99912842ff8c21c8fce93e",
+      "actual_sha256": "c1c80b7b655dc2af52fc2511296e8287c982cd0d1f33026db45fa971cc3b8d60"
+    },
+    {
+      "library_id": "react-component-library:StatusBadge",
+      "version": "1.2.1",
+      "path": "styles.ts",
+      "expected_sha256": "a760758680c90def11bec2f3c1380309c9139459610fcfff68b4f15c5eb032c8",
+      "actual_sha256": "7a57dadb57b139e2003a5bbd0f7d00b3860569a70f9c86fe163f34e79ba1e5c6"
+    },
+    {
+      "library_id": "react-component-library:StatusIndicator",
+      "version": "1.0.0",
+      "path": "StatusIndicator.tsx",
+      "expected_sha256": "30d83e29c9ed46a6630b7dc822338867ec8750ce3f11ef4a428eff47b4d92c4f",
+      "actual_sha256": "f1964e35392111502eaba97fb76bf7fc4ce440d3b2b7e2802cb6ed48081f3d7a"
+    },
+    {
+      "library_id": "react-component-library:StatusIndicator",
+      "version": "1.0.3",
+      "path": "StatusIndicator.tsx",
+      "expected_sha256": "519cdae939cda154bae01a391bb1f2789e216e752f134a78610832e7daad82ce",
+      "actual_sha256": "cf57779e4fd9b3659a93098dc2bfc838aefc0f9e79f409a292f5916b0b526a7b"
+    },
+    {
+      "library_id": "react-component-library:Table",
+      "version": "1.0.1",
+      "path": "Table.tsx",
+      "expected_sha256": "4b451b4b37c05af2876da623a7c53f7a405d9669ef25efcc9865c0cb61783acf",
+      "actual_sha256": "0ac63d328d20f2ec1a21b51a63e22fd1a04255d48392a8f3c268933631a4b357"
+    },
+    {
+      "library_id": "react-component-library:Tabs",
+      "version": "1.0.0",
+      "path": "Tabs.tsx",
+      "expected_sha256": "86dbc0d466ef720576b93e2fd09f0126fe55ad9939beeb6ef40d65e4881ba063",
+      "actual_sha256": "5a8a589d022a8d950b5df6790b43f72933085689f2fedd0166aa34e339fa0fb1"
+    },
+    {
+      "library_id": "react-component-library:Tabs",
+      "version": "1.0.4",
+      "path": "Tabs.tsx",
+      "expected_sha256": "4f1a837e16ad67cda2f955d9671f320c2276038587391a507c4eacf44c46cdb0",
+      "actual_sha256": "beddfb0268f4350af9cf8d89f9ad37d0b7ed1ec611fa32cc3453ea8944a5f084"
+    },
+    {
+      "library_id": "react-component-library:Textarea",
+      "version": "1.0.0",
+      "path": "Textarea.tsx",
+      "expected_sha256": "d6bfb596a63f62d8ef6ec5daf84512cc633a48ecd0c9f21dd137ef8f3601e3ac",
+      "actual_sha256": "7717e09df4758bf4c219112a577e0c6d8be3282be03047a64b1d0ec85541de7b"
+    },
+    {
+      "library_id": "react-component-library:Textarea",
+      "version": "1.0.1",
+      "path": "Textarea.tsx",
+      "expected_sha256": "9b7a6e5381d455f55e08c4114e55cb1a362bcc87b497789d8d10bd19b64e8d9b",
+      "actual_sha256": "28135b274c3287eb96ddf4de325373952f837428083bc3ebf6448c16d676dd4d"
+    },
+    {
+      "library_id": "react-component-library:Toast",
+      "version": "1.0.4",
+      "path": "Toast.tsx",
+      "expected_sha256": "7acf1788d326f5068c39ce398bb1fa04b75fb680b0320562918f16bfe445ff69",
+      "actual_sha256": "814181e824017e7d52f75845f729181066c38ea6361510e99a64d9addabb38aa"
+    },
+    {
+      "library_id": "react-component-library:Toast",
+      "version": "1.0.6",
+      "path": "Toast.tsx",
+      "expected_sha256": "db6207ada538950e63323c7324578b4e22ab1d2f295663df074f55d4f05d0d9e",
+      "actual_sha256": "af1d61a849d16a117439a8640989ce6e575beca0050e236991e2d133971ce301"
+    },
+    {
+      "library_id": "react-component-library:Toggle",
+      "version": "1.0.1",
+      "path": "Toggle.tsx",
+      "expected_sha256": "50bbb71a101d584efabdf34b3196244dd343723e387cc24c56f5443079bf0b05",
+      "actual_sha256": "3f9937f4cfb157c7059ff024e423a7cf7efac82112d772675609c6e5f6df25f4"
+    },
+    {
+      "library_id": "react-component-library:Tokens",
+      "version": "1.0.0",
+      "path": "Tokens.tsx",
+      "expected_sha256": "2d6bafc607b47128180982d8f940356e8ac545313dd948b14c1e24ad7668c516",
+      "actual_sha256": "0a7dd6a9dfc29f134021b473981129b6debdfb1eb29b797ac1e155adee3b3fe4"
+    },
+    {
+      "library_id": "react-component-library:Toolbar",
+      "version": "1.0.0",
+      "path": "Toolbar.tsx",
+      "expected_sha256": "992bce235a00b6ae7f0a3d8fcc652d03f3c3b5589e052ca64f99987731625620",
+      "actual_sha256": "f8e26a8a08bb729af4574af135c294a98817e3104075017a8400eded5cf81e15"
+    },
+    {
+      "library_id": "react-component-library:Toolbar",
+      "version": "1.0.3",
+      "path": "Toolbar.tsx",
+      "expected_sha256": "968336d8714ecf27a5941f6ced379223c8b1a7ae0266e7507b917ce58dcca8aa",
+      "actual_sha256": "72344c92acec576f8f7891932c26289c6b49363b3c9d9aa79cb84948e36ca8d3"
+    },
+    {
+      "library_id": "react-component-library:Toolbar",
+      "version": "1.0.4",
+      "path": "Toolbar.tsx",
+      "expected_sha256": "9188ceeea3333dae182978a02f3834e0686d7c87ad3a8343682ae5f74f421ec9",
+      "actual_sha256": "55710dfe1e18d7d26001763a19f8cf7c1d1ace337665b05478b8f91083f6e91a"
+    },
+    {
+      "library_id": "react-component-library:Toolbar",
+      "version": "1.0.5",
+      "path": "Toolbar.tsx",
+      "expected_sha256": "1c69ecc3eae0c233edecbbdb553518230fb7b000a8a5142306f291d627d755d6",
+      "actual_sha256": "8d448c0183746a71c1ccde5d974c7e94205bae4b510f7fca89d365187227d595"
+    },
+    {
+      "library_id": "react-component-library:Tooltip",
+      "version": "1.0.2",
+      "path": "Tooltip.tsx",
+      "expected_sha256": "832ff3093a8fae9b518d9d8aa033fcffe4762d827e0cb90f48ab295b4736ec36",
+      "actual_sha256": "6a8b80b1e56924207e0fbd7641374de75c7fd5d6333558a32fbce45e191b0a76"
+    },
+    {
+      "library_id": "react-component-library:TreeView",
+      "version": "1.0.0",
+      "path": "TreeView.tsx",
+      "expected_sha256": "0d780b9681d488e414531e4c50e2adb52d8b9356c24e6b2960b5631c9c34f0a9",
+      "actual_sha256": "7030f6bf72475e1ce0ce9b87358af42d5eab8697b60fa316d6f496a85a478406"
+    },
+    {
+      "library_id": "react-component-library:TreeView",
+      "version": "1.0.4",
+      "path": "TreeView.tsx",
+      "expected_sha256": "3ba89f9c79ab4cde24e4b6f05f32cc5ccfd81dd56425817be4c3df34a5d3b089",
+      "actual_sha256": "13a68b9fad0c19932ff4ec1b97396e8fb95987ac057b2affb657a27b3cc55b5f"
+    },
+    {
+      "library_id": "react-component-library:TreeView",
+      "version": "1.0.6",
+      "path": "TreeView.tsx",
+      "expected_sha256": "f4a79d4d9e260bc60667e9d5feb87a925b93c5de2b3e56b9b9788a6f11b4d0fa",
+      "actual_sha256": "47ce66f71ef4eddcdc0a9225603029621cb5dcced7bd9d3461b0b25324a66e38"
+    },
+    {
+      "library_id": "react-component-library:UndoBanner",
+      "version": "1.0.0",
+      "path": "UndoBanner.tsx",
+      "expected_sha256": "0ae27081f6d307b503dd378e6a9acc07a25d6fb75fba84f49ddade063c5c477e",
+      "actual_sha256": "1bb6bebc3bc555e342bd5c1524b9cff74150e08fe33bcb80293d07008fdf4a7f"
+    },
+    {
+      "library_id": "react-component-library:UndoBanner",
+      "version": "1.0.4",
+      "path": "UndoBanner.tsx",
+      "expected_sha256": "d1cf8423cc5e563084ad7b8cbd4b1194c76c9ea8b040b92eee0ae706298b3d69",
+      "actual_sha256": "ea89d4f3169bf6c4ef159c2942956e394b6a0b849acac5ac5c9d4ab95a7a8930"
+    },
+    {
+      "library_id": "react-component-library:UndoableDestructiveAction",
+      "version": "1.0.4",
+      "path": "UndoableDestructiveAction.tsx",
+      "expected_sha256": "17d0d3ea184a50fcb17ef22749f1ece8108ac69036a503d0c4b9d6d1f29ed828",
+      "actual_sha256": "3a3909a9f335e49408bef6a97ee0331703179f14fa5d9fd5a1186d9c3fcc60c4"
+    },
+    {
+      "library_id": "react-component-library:ValidationSummary",
+      "version": "1.0.0",
+      "path": "ValidationSummary.tsx",
+      "expected_sha256": "ddfb3149888791f4d50200494b14fa8da0cffee4ffc08a023d66e3610e6d2675",
+      "actual_sha256": "d78ba5871ceff796b53c0b7dfc0753579e3f3c3b50febf33f312c74fe5838b66"
+    },
+    {
+      "library_id": "react-component-library:ValidationSummary",
+      "version": "1.0.4",
+      "path": "ValidationSummary.tsx",
+      "expected_sha256": "72ce2af74f26227b7bbe54bc6f31da63253b3c13353ead61df5b116a9341fcb0",
+      "actual_sha256": "1eac58372ab3accba0b6a6c751d66ec17efc281e5805377b3e99bd3f1e435151"
+    },
+    {
+      "library_id": "react-component-library:ValidationSummary",
+      "version": "1.0.6",
+      "path": "ValidationSummary.tsx",
+      "expected_sha256": "c81c2975d04025de0d119e92b25719da8647484ef333bca66a2ea4bcd643d410",
+      "actual_sha256": "07b32deb3b782b9946a57c82aecbe4e69e8c011c268ec5ccc3fc20f676cc63d8"
+    },
+    {
+      "library_id": "react-component-library:VirtualList",
+      "version": "1.0.2",
+      "path": "VirtualList.tsx",
+      "expected_sha256": "a006050737322bff2405ba6806e8959e42a5936bb5e4932923b901429b501584",
+      "actual_sha256": "ce9e1210766d5240a251031cea38f7c64467de257dbd4334f8cc4f18c617c317"
+    },
+    {
+      "library_id": "react-component-library:VirtualList",
+      "version": "1.0.4",
+      "path": "VirtualList.tsx",
+      "expected_sha256": "e862173301b66d467a3b6025c0ce118a44b28bf07b22d36647aec22416fa0504",
+      "actual_sha256": "b4d63ad3e7da42d7167f7d501988f7af9e2c0dc6a2a16abdbe7e974d06916e20"
+    },
+    {
+      "library_id": "react-component-library:VisualRecipes",
+      "version": "1.0.0",
+      "path": "VisualRecipes.tsx",
+      "expected_sha256": "c6dc5df5c70cba2137dc0af74be35acee4fdae44f914e43775e78a7bda9ffd57",
+      "actual_sha256": "5483614dbb322f8524f9fb3e57bc36634df2cb6c8352022818f84c4c0311d53f"
+    },
+    {
+      "library_id": "react-component-library:VisualRecipes",
+      "version": "1.0.1",
+      "path": "VisualRecipes.tsx",
+      "expected_sha256": "980d6513f008ed1e9c0c481cd1881bfe50b4d5fc2edcdd275847ea4b0cb74617",
+      "actual_sha256": "dc7717d742c7254bd9cd9f624d5e56d3ab50992f12f618912cbc33512237b361"
+    },
+    {
+      "library_id": "react-component-library:VoiceInputButton",
+      "version": "4.2.1",
+      "path": "VoiceInputButton.tsx",
+      "expected_sha256": "95c0a1934f6b72ab8eeeb41784e1089ad2f36e02061ad668e8c35ca8e265d6f6",
+      "actual_sha256": "7595f08da28778cfc554779116979445af4c07da74607039b1b075c6c120c307"
+    },
+    {
+      "library_id": "react-component-library:WorkspaceHeader",
+      "version": "1.0.1",
+      "path": "WorkspaceHeader.tsx",
+      "expected_sha256": "54ca545b1bee8f9a7b81dab6ecf91f45b5c387bd311bdf69110aee4ba8a47050",
+      "actual_sha256": "7e7b51840f7ee6ac0b66076e3c88c3e1afc65a41b8c7b46d919adc1b9167e893"
+    },
+    {
+      "library_id": "react-component-library:WorkspaceHeader",
+      "version": "1.0.1",
+      "path": "styles.ts",
+      "expected_sha256": "c71c6c033d70ad308b4099013feb82e39f827a8499efd475da6d7cba11d7f4a4",
+      "actual_sha256": "c0419c38994ff261662090c5b10a48e2df46417a49d90a1481ef7beff5bffe0c"
+    },
+    {
+      "library_id": "react-component-library:code-block",
+      "version": "0.3.3",
+      "path": "CodeBlock.tsx",
+      "expected_sha256": "abff00102b284d61cf71f708626e9d0ecb01d8ce87549ac98de4d77d7d3a2ab0",
+      "actual_sha256": "1a821e8b35c272ae18b7df89b47fba25d6ec019e0570f63c85c01897967cd545"
+    },
+    {
+      "library_id": "react-component-library:code-block",
+      "version": "0.3.3",
+      "path": "styles.ts",
+      "expected_sha256": "200b6aec816785b903c1bf3e5b2a921b36e2e527791f6dcc3844459ffba2737f",
+      "actual_sha256": "13d85a2fcba30d5f8d1ba955998bb68655d027fd1f26677d1c284e37f710e035"
+    },
+    {
+      "library_id": "react-component-library:inline-code",
+      "version": "0.3.3",
+      "path": "InlineCode.tsx",
+      "expected_sha256": "0cc12e8e3d3ad6b87d5cd52f2b7bdd1d18a54955c3d827ca83a9f5cd3b9d5ef0",
+      "actual_sha256": "2838934253517b57d1a906860ad1d8fdfcee6604b7c266490d383a70f2bcabaf"
+    },
+    {
+      "library_id": "react-component-library:inline-code",
+      "version": "0.3.3",
+      "path": "styles.ts",
+      "expected_sha256": "49269b3b88d205c5622433687e5cfc6a0177d93862340aa586ebf2849c4ea0ed",
+      "actual_sha256": "2329e3e3ad69d85051e887c764e04c62e7cd1b4a76adde80333d8796545df210"
+    },
+    {
+      "library_id": "react-component-library:markdown-renderer",
+      "version": "0.3.3",
+      "path": "CodeBlock.tsx",
+      "expected_sha256": "9daf1a50388f4e423ec362642194f6123f7e6dfccc6ec5553ddfff30c371fa02",
+      "actual_sha256": "60cde006a1edd43afdeb2e66a863ccdb7b994e756b221edb68b1176c1f203208"
+    },
+    {
+      "library_id": "react-component-library:markdown-renderer",
+      "version": "0.3.3",
+      "path": "InlineCode.tsx",
+      "expected_sha256": "fda7a038568aba8d4507a923e98bb8afeac1dd28873552d8c78e7a2b24dd2f2d",
+      "actual_sha256": "9333be860dc3e3bf7b41d4572444b3d17bb468af0889260ac705d58850757a96"
+    },
+    {
+      "library_id": "react-component-library:markdown-renderer",
+      "version": "0.3.3",
+      "path": "MarkdownRenderer.tsx",
+      "expected_sha256": "6b72f4bb9f031b9c8acddd5434065a5f2aa9143b36bfc0f5d446a2ec335915ee",
+      "actual_sha256": "43627ef295859a8f07cdf99b7d75f782c527ed2d7438237bc0ec9c2b98c48552"
+    },
+    {
+      "library_id": "react-component-library:markdown-renderer",
+      "version": "0.3.3",
+      "path": "MermaidDiagram.tsx",
+      "expected_sha256": "d593928d30d0e31ffd1c6bf5ddc7e284dc56978aeeb07f52dd5273193a0f4576",
+      "actual_sha256": "c989d36bf6cc8eaf892467dd1c569b94543ba56d0190a152d3447dbd028b2694"
+    },
+    {
+      "library_id": "react-component-library:markdown-renderer",
+      "version": "0.3.3",
+      "path": "markdownStyles.ts",
+      "expected_sha256": "3c3f2c2f83b125bd4c86624c148220fc78b8c8427d996f43503f439fad200688",
+      "actual_sha256": "b7459f85a99fd327e74341588c395dd09a8b9109d212fd5728e0f0ffb72254d4"
+    },
+    {
+      "library_id": "react-component-library:mermaid-diagram",
+      "version": "0.3.2",
+      "path": "MermaidDiagram.tsx",
+      "expected_sha256": "44ad34e6ce2c1b9354c1e9215f6bd31a223f3135557fa3e18da73737a65ec50f",
+      "actual_sha256": "cddf33b918aa32dcece81cd004a5c6eb55bc61b9042a804cda748911050231f8"
+    },
+    {
+      "library_id": "react-component-library:mermaid-diagram",
+      "version": "0.3.2",
+      "path": "styles.ts",
+      "expected_sha256": "3a15da35b6d9d0fcd8fe16a669c868a8cfbe2bbbe4c644d816b51382b2ad50a4",
+      "actual_sha256": "ab326172b87736da789f409e17e7e955ddcca5f650bb4b3b7130fec9b9b096a2"
+    }
+  ],
+  "mirror_summary": {
+    "mismatch_files": 227,
+    "mismatch_versions": 202,
+    "disposition": "Pre-existing ledger/source drift; eviction must refuse mismatched versions until the mirror or canonical source is reconciled."
+  },
+  "hazard_reindex_prune": {
+    "status": "pending",
+    "reason": "Requires a disposable injected-root fixture; no live tree or database was modified for this demonstration."
+  },
+  "hazard_reference_cascade": {
+    "status": "pending",
+    "reason": "Requires a disposable injected-root fixture; no live tree or database was modified for this demonstration."
+  }
+}

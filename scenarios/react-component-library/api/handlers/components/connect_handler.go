@@ -34,10 +34,11 @@ type Deps struct {
 	// to drive cross-domain consumers (currently the deps service's
 	// SyncForComponent — req 10). Nil = no observer; the indexer
 	// behaves exactly as before.
-	IndexObserver    components.UpsertObserver
-	ExperienceReader experience.Reader
-	VersionLedger    *versionledger.Repository
-	Preview          previewdomain.Service
+	IndexObserver      components.UpsertObserver
+	ExperienceReader   experience.Reader
+	VersionLedger      *versionledger.Repository
+	Preview            previewdomain.Service
+	PresenceReconciler components.PresenceReconciler
 }
 
 type connectHandler struct {
@@ -819,7 +820,7 @@ func (h *connectHandler) UpdateComponentContent(ctx context.Context, req *connec
 	}), nil
 }
 
-func (h *connectHandler) IndexComponents(ctx context.Context, _ *connect.Request[componentsv1.IndexComponentsRequest]) (*connect.Response[componentsv1.IndexComponentsResponse], error) {
+func (h *connectHandler) IndexComponents(ctx context.Context, req *connect.Request[componentsv1.IndexComponentsRequest]) (*connect.Response[componentsv1.IndexComponentsResponse], error) {
 	idx := components.NewIndexer(h.deps.Repo, h.deps.SourceRoot, nil)
 	if h.deps.IndexObserver != nil {
 		idx.SetUpsertObserver(h.deps.IndexObserver)
@@ -833,6 +834,12 @@ func (h *connectHandler) IndexComponents(ctx context.Context, _ *connect.Request
 		if err := h.deps.VersionLedger.Rebuild(ctx); err != nil {
 			h.deps.Logger.Printf("components.IndexComponents: rebuild version ledger: %v", err)
 			return nil, connect.NewError(connect.CodeInternal, err)
+		}
+	}
+	if h.deps.PresenceReconciler != nil && !req.Msg.GetNoReconcile() {
+		if err := h.deps.PresenceReconciler.ReconcilePresence(ctx, "", true); err != nil {
+			h.deps.Logger.Printf("components.IndexComponents: reconcile presence: %v", err)
+			return nil, connect.NewError(connect.CodeFailedPrecondition, err)
 		}
 	}
 	errs := make([]string, 0, len(res.Errors))

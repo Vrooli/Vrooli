@@ -3,6 +3,9 @@
   "assetKind": "component",
   "catalogId": "templates.collection-page",
   "dependencies": [],
+  "deprecatedVersions": [
+    "1.0.3"
+  ],
   "description": "",
   "designStyles": [
     {
@@ -11,23 +14,23 @@
     }
   ],
   "displayName": "CollectionPage",
+  "draft": "",
+  "evictedVersions": [
+    "1.0.3"
+  ],
   "kind": "surface",
   "latest": "1.0.4",
   "libraryId": "react-component-library:CollectionPage",
-  "tags": [
-    "template",
-    "page",
-    "data-source",
-    "token-bound"
-  ],
   "requires": [
     {
       "libraryId": "react-component-library:useLocale",
       "version": "1.0.0"
     }
   ],
-  "draft": "",
-  "deprecatedVersions": [
-    "1.0.3"
+  "tags": [
+    "template",
+    "page",
+    "data-source",
+    "token-bound"
   ]
 }

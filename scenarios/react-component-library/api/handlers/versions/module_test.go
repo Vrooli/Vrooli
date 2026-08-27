@@ -51,7 +51,7 @@ func setupModule(t *testing.T) (*mux.Router, internalversions.Service) {
 func TestModule_Shape(t *testing.T) {
 	r, _ := setupModule(t)
 	require.NotNil(t, r)
-	require.Len(t, versions.Endpoints, 11)
+	require.Len(t, versions.Endpoints, 16)
 }
 
 func TestModule_RecordListDiff(t *testing.T) {

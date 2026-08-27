@@ -151,7 +151,7 @@ func renderTestReport(ctx cliapp.RunContext, report *componenttestsv1.ComponentT
 // index calls ComponentsService.IndexComponents. The walk runs server-side;
 // the response carries the summary.
 func (h *handlers) index(ctx cliapp.RunContext) error {
-	resp, err := h.client.IndexComponents(context.Background(), connect.NewRequest(&componentsv1.IndexComponentsRequest{}))
+	resp, err := h.client.IndexComponents(context.Background(), connect.NewRequest(&componentsv1.IndexComponentsRequest{NoReconcile: ctx.BoolFlag("no-reconcile")}))
 	if err != nil {
 		return cliapp.WrapAPIError("index components", err, nil)
 	}

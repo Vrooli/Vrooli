@@ -13,20 +13,23 @@
     }
   ],
   "displayName": "StoryPalette",
+  "draft": "",
+  "evictedVersions": [
+    "1.0.0"
+  ],
   "kind": "surface",
   "latest": "1.0.1",
   "libraryId": "react-component-library:StoryPalette",
-  "slot": "ui-pattern",
-  "tags": [
-    "preview",
-    "navigation",
-    "responsive"
-  ],
   "requires": [
     {
       "libraryId": "react-component-library:useLocale",
       "version": "1.0.0"
     }
   ],
-  "draft": ""
+  "slot": "ui-pattern",
+  "tags": [
+    "preview",
+    "navigation",
+    "responsive"
+  ]
 }

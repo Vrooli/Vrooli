@@ -32,10 +32,19 @@
     }
   ],
   "displayName": "DataToolbar",
-  "kind": "control",
   "draft": "",
+  "evictedVersions": [
+    "1.0.3"
+  ],
+  "kind": "control",
   "latest": "1.0.4",
   "libraryId": "react-component-library:DataToolbar",
+  "requires": [
+    {
+      "libraryId": "react-component-library:useLocale",
+      "version": "1.0.0"
+    }
+  ],
   "slot": "ui-pattern",
   "tags": [
     "data-display",
@@ -44,11 +53,5 @@
     "responsive",
     "keyboard",
     "token-bound"
-  ],
-  "requires": [
-    {
-      "libraryId": "react-component-library:useLocale",
-      "version": "1.0.0"
-    }
   ]
 }

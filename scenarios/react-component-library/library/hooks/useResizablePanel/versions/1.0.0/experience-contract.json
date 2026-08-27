@@ -71,6 +71,15 @@
       "states": [
         "default"
       ]
+    },
+    {
+      "id": "ratio-ceiling",
+      "type": "manual-review",
+      "statement": "maxRatio caps the panel at a fraction of the measured container, applied alongside max and adjacentMin with the tightest winning. It is exercised in the browser preview only \u2014 jsdom reports a zero-sized container, so the hook falls back to its pixel maximum there and a jsdom story could not observe it.",
+      "tier": "aspirational",
+      "states": [
+        "default"
+      ]
     }
   ]
 }

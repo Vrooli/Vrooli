@@ -33,9 +33,7 @@
         "path": "onClose"
       },
       {
-        "default": {
-          "$text": "Drawer body content"
-        },
+        "default": "Drawer body content",
         "kind": "structured",
         "label": "Children",
         "path": "children"
@@ -50,9 +48,7 @@
   "stories": [
     {
       "args": {
-        "children": {
-          "$text": "Full-page drawer body content"
-        },
+        "children": "Full-page drawer body content",
         "open": true,
         "title": "Component details"
       },
@@ -80,9 +76,7 @@
     },
     {
       "args": {
-        "children": {
-          "$text": "Compact panel content"
-        },
+        "children": "Compact panel content",
         "open": true,
         "size": "compact",
         "title": "Appearance"
@@ -111,9 +105,7 @@
     },
     {
       "args": {
-        "children": {
-          "$text": "Body with supporting context"
-        },
+        "children": "Body with supporting context",
         "open": true,
         "title": "Edit prompt"
       },

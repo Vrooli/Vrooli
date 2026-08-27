@@ -15,18 +15,22 @@
     }
   ],
   "displayName": "ButtonGroup",
-  "kind": "control",
   "draft": "",
+  "evictedVersions": [
+    "1.1.4",
+    "1.1.2"
+  ],
+  "kind": "control",
   "latest": "1.1.5",
   "libraryId": "react-component-library:ButtonGroup",
-  "tags": [
-    "control",
-    "token-bound"
-  ],
   "requires": [
     {
       "libraryId": "react-component-library:useLocale",
       "version": "1.0.0"
     }
+  ],
+  "tags": [
+    "control",
+    "token-bound"
   ]
 }

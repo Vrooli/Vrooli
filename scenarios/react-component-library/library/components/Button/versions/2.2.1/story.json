@@ -3,9 +3,7 @@
   "args": {
     "fields": [
       {
-        "default": {
-          "$text": "Save changes"
-        },
+        "default": "Save changes",
         "format": "renderable-text",
         "kind": "structured",
         "label": "Label",
@@ -28,9 +26,7 @@
   "stories": [
     {
       "args": {
-        "children": {
-          "$text": "Save changes"
-        },
+        "children": "Save changes",
         "variant": "primary"
       },
       "composition": {
@@ -53,9 +49,7 @@
     },
     {
       "args": {
-        "children": {
-          "$text": "Continue"
-        },
+        "children": "Continue",
         "iconName": "arrowEnd",
         "size": "lg"
       },
@@ -79,9 +73,7 @@
     },
     {
       "args": {
-        "children": {
-          "$text": "Save changes"
-        },
+        "children": "Save changes",
         "disabled": true
       },
       "composition": {
@@ -104,9 +96,7 @@
     },
     {
       "args": {
-        "children": {
-          "$text": "Save changes"
-        },
+        "children": "Save changes",
         "variant": "primary"
       },
       "composition": {
@@ -134,9 +124,7 @@
     },
     {
       "args": {
-        "children": {
-          "$text": "Save changes"
-        },
+        "children": "Save changes",
         "variant": "primary"
       },
       "composition": {
@@ -181,9 +169,7 @@
     },
     {
       "args": {
-        "children": {
-          "$text": "Review and apply all pending workspace configuration changes"
-        }
+        "children": "Review and apply all pending workspace configuration changes"
       },
       "composition": {
         "specimen": {
@@ -215,9 +201,7 @@
     },
     {
       "args": {
-        "children": {
-          "$text": "Try again"
-        },
+        "children": "Try again",
         "variant": "primary"
       },
       "composition": {

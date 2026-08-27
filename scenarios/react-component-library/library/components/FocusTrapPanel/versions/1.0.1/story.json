@@ -9,9 +9,7 @@
         "path": "open"
       },
       {
-        "default": {
-          "$text": "Trapped panel content"
-        },
+        "default": "Trapped panel content",
         "kind": "structured",
         "label": "Content",
         "path": "children"
@@ -26,9 +24,7 @@
   "stories": [
     {
       "args": {
-        "children": {
-          "$text": "Trapped panel content"
-        },
+        "children": "Trapped panel content",
         "open": true
       },
       "expect": [
@@ -48,9 +44,7 @@
     },
     {
       "args": {
-        "children": {
-          "$text": "Trapped panel content"
-        },
+        "children": "Trapped panel content",
         "open": false
       },
       "expect": [

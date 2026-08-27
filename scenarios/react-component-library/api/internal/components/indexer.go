@@ -126,6 +126,9 @@ func (idx *Indexer) Run(ctx context.Context) (IndexResult, error) {
 	if idx.fs == nil {
 		return result, fmt.Errorf("indexer has no filesystem configured")
 	}
+	if _, err := idx.repo.RestoreEvictedStories(ctx); err != nil {
+		return result, fmt.Errorf("restore evicted story projections: %w", err)
+	}
 
 	walkErr := fs.WalkDir(idx.fs, ".", func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
@@ -258,6 +261,7 @@ type manifestFile struct {
 	Latest             string                   `json:"latest"`
 	Draft              string                   `json:"draft"`
 	DeprecatedVersions []string                 `json:"deprecatedVersions"`
+	EvictedVersions    []string                 `json:"evictedVersions"`
 }
 
 type manifestDesignAffinity struct {
@@ -303,6 +307,7 @@ func (idx *Indexer) buildManifestInput(path string) (IndexManifestInput, map[str
 		LatestVersion:      strings.TrimSpace(mf.Latest),
 		DraftVersion:       strings.TrimSpace(mf.Draft),
 		DeprecatedVersions: append([]string(nil), mf.DeprecatedVersions...),
+		EvictedVersions:    append([]string(nil), mf.EvictedVersions...),
 		Tags:               append([]string(nil), mf.Tags...),
 		AssetKind:          assetKind,
 		Dependencies:       deps,
@@ -328,7 +333,22 @@ func (idx *Indexer) buildManifestInput(path string) (IndexManifestInput, map[str
 	versionRoot := filepath.ToSlash(filepath.Join(filepath.Dir(path), "versions"))
 	entries, err := fs.ReadDir(idx.fs, versionRoot)
 	if err != nil {
-		return IndexManifestInput{}, nil, ErrInvalidHeader{SourcePath: path, Field: "versions", Reason: err.Error()}
+		if errors.Is(err, fs.ErrNotExist) && len(manifest.EvictedVersions) > 0 {
+			entries = nil
+		} else {
+			return IndexManifestInput{}, nil, ErrInvalidHeader{SourcePath: path, Field: "versions", Reason: err.Error()}
+		}
+	}
+	evicted := map[string]struct{}{}
+	for _, rawVersion := range manifest.EvictedVersions {
+		version := strings.TrimSpace(rawVersion)
+		if version == "" {
+			return IndexManifestInput{}, nil, ErrInvalidHeader{SourcePath: path, Field: "evictedVersions", Reason: "versions must not be empty"}
+		}
+		if _, exists := evicted[version]; exists {
+			return IndexManifestInput{}, nil, ErrInvalidHeader{SourcePath: path, Field: "evictedVersions", Reason: "duplicate version " + version}
+		}
+		evicted[version] = struct{}{}
 	}
 	deprecated := map[string]bool{}
 	for _, v := range manifest.DeprecatedVersions {
@@ -354,6 +374,9 @@ func (idx *Indexer) buildManifestInput(path string) (IndexManifestInput, map[str
 		}
 		version := strings.TrimSpace(entry.Name())
 		versionPath := filepath.ToSlash(filepath.Join(versionRoot, version))
+		if _, declaredEvicted := evicted[version]; declaredEvicted {
+			return IndexManifestInput{}, nil, ErrInvalidHeader{SourcePath: versionPath, Field: "evictedVersions", Reason: "version is both materialized on disk and declared evicted"}
+		}
 		files, err := fs.ReadDir(idx.fs, versionPath)
 		if err != nil {
 			return IndexManifestInput{}, nil, ErrInvalidHeader{SourcePath: versionPath, Field: "version", Reason: err.Error()}
@@ -368,7 +391,7 @@ func (idx *Indexer) buildManifestInput(path string) (IndexManifestInput, map[str
 			if f.Name() == "story.tsx" {
 				continue
 			}
-			if strings.HasSuffix(f.Name(), ".tsx") || strings.HasSuffix(f.Name(), ".ts") {
+			if strings.HasSuffix(f.Name(), ".tsx") || strings.HasSuffix(f.Name(), ".ts") || strings.HasSuffix(f.Name(), ".css") {
 				sourceFiles = append(sourceFiles, f)
 			}
 		}
@@ -517,12 +540,30 @@ func (idx *Indexer) buildManifestInput(path string) (IndexManifestInput, map[str
 			RequiredTokenPatterns: ExtractRequiredTokenPatterns(versionFiles),
 			ExperienceContract:    experienceContract,
 			ParityReport:          parity,
+			Presence:              "materialized",
 		})
 		story, storyFindings, _ := idx.readVersionStory(filepath.ToSlash(filepath.Join(versionPath, "story.json")), manifest.LibraryID, version, manifest.AssetKind)
 		if story != nil {
 			stories = append(stories, *story)
 		}
 		findings = append(findings, storyFindings...)
+	}
+	// Evicted versions are represented by their durable database mirror. They
+	// are deliberately not reconstructed from the working tree: their absence
+	// is the storage placement being indexed.
+	if len(evicted) > 0 {
+		component, err := idx.repo.GetByLibraryID(context.Background(), manifest.LibraryID)
+		if err != nil {
+			return IndexManifestInput{}, nil, ErrInvalidHeader{SourcePath: path, Field: "evictedVersions", Reason: "component has no ledger row for declared versions"}
+		}
+		for version := range evicted {
+			stored, err := idx.repo.GetVersion(context.Background(), component.ID, version)
+			if err != nil {
+				return IndexManifestInput{}, nil, ErrInvalidHeader{SourcePath: path, Field: "evictedVersions", Reason: "no ledger row for " + manifest.LibraryID + "@" + version}
+			}
+			stored.Presence = "evicted"
+			versions = append(versions, stored)
+		}
 	}
 	if !latestFound {
 		return IndexManifestInput{}, nil, ErrInvalidHeader{SourcePath: path, Field: "latest", Reason: "version folder not found"}
@@ -756,6 +797,9 @@ func validEntryExtension(name string, kind AssetKind) bool {
 	if kind == AssetKindHook {
 		return strings.HasSuffix(name, ".ts") && !strings.HasSuffix(name, ".tsx")
 	}
+	if kind == AssetKindFoundation {
+		return strings.HasSuffix(name, ".ts") || strings.HasSuffix(name, ".tsx")
+	}
 	return strings.HasSuffix(name, ".tsx")
 }
 
@@ -768,6 +812,9 @@ func isTestArtifact(name string) bool {
 func entryFileRequirement(kind AssetKind) string {
 	if kind == AssetKindHook {
 		return "TS file in the version folder"
+	}
+	if kind == AssetKindFoundation {
+		return "TS or TSX file in the version folder"
 	}
 	return "TSX file in the version folder"
 }

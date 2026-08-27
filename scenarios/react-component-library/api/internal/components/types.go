@@ -156,8 +156,12 @@ type ComponentVersion struct {
 	IndexedAt     time.Time
 	CreatedAt     time.Time
 	ReleasedAt    time.Time
-	Headers       map[string]string
-	Files         []ComponentVersionFile
+	// Presence describes storage placement independently of lifecycle status.
+	// Materialized versions have source files; evicted versions retain their
+	// immutable file mirror and can be restored by the materializer.
+	Presence string
+	Headers  map[string]string
+	Files    []ComponentVersionFile
 	// RequiredTokens is derived from this version's source at index time.
 	RequiredTokens []string
 	// RequiredTokenPatterns describes dynamic names selected at runtime.
@@ -240,6 +244,7 @@ type ComponentManifest struct {
 	LatestVersion      string
 	DraftVersion       string
 	DeprecatedVersions []string
+	EvictedVersions    []string
 	Tags               []string
 	DesignStyles       []ComponentDesignAffinity
 	AssetKind          AssetKind

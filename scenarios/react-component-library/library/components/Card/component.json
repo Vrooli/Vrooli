@@ -2,6 +2,13 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "catalogId": "primitives.card",
   "category": "surfaces",
+  "dependencies": [
+    {
+      "kind": "requires",
+      "libraryId": "react-component-library:ClassMerge",
+      "version": "1.0.0"
+    }
+  ],
   "deprecatedVersions": [
     "1.2.0"
   ],
@@ -21,20 +28,16 @@
     }
   ],
   "displayName": "Card",
-  "kind": "surface",
   "draft": "",
+  "evictedVersions": [
+    "1.2.0"
+  ],
+  "kind": "surface",
   "latest": "1.2.1",
   "libraryId": "react-component-library:Card",
   "slot": "ui-primitive",
   "tags": [
     "surface",
     "layout"
-  ],
-  "dependencies": [
-    {
-      "kind": "requires",
-      "libraryId": "react-component-library:ClassMerge",
-      "version": "1.0.0"
-    }
   ]
 }

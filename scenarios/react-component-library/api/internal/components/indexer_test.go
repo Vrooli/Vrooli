@@ -2,6 +2,8 @@ package components_test
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"os"
@@ -15,6 +17,11 @@ import (
 	"react-component-library/internal/components"
 	"react-component-library/internal/components/mocks"
 )
+
+func testDigest(body string) string {
+	sum := sha256.Sum256([]byte(body))
+	return hex.EncodeToString(sum[:])
+}
 
 func TestIndexer_DrawerShellDeclaresReusableHookDependencies(t *testing.T) {
 	repo := mocks.NewFakeRepository()
@@ -136,6 +143,31 @@ export const FocusTrap = () => cycle();`)},
 	require.Equal(t, "FocusTrap.tsx", version.Files[0].Path)
 	require.True(t, version.Files[0].IsEntry)
 	require.Equal(t, "focus.ts", version.Files[1].Path)
+}
+
+func TestIndexer_PreservesDeclaredEvictedVersionFromLedger(t *testing.T) {
+	ctx := context.Background()
+	repo := mocks.NewFakeRepository()
+	_, err := repo.UpsertManifest(ctx, components.IndexManifestInput{
+		Manifest: components.ComponentManifest{LibraryID: "react-component-library:ColdButton", Slug: "ColdButton", DisplayName: "Cold Button", LatestVersion: "1.0.0", AssetKind: components.AssetKindComponent},
+		Versions: []components.ComponentVersion{
+			{Version: "0.9.0", Status: components.VersionStatusReleased, Presence: "materialized", SourcePath: "components/ColdButton/versions/0.9.0/ColdButton.tsx", Content: "old", ContentSHA256: testDigest("old"), Files: []components.ComponentVersionFile{{Path: "ColdButton.tsx", Content: "old", ContentSHA256: testDigest("old"), IsEntry: true}}},
+			{Version: "1.0.0", Status: components.VersionStatusReleased, Presence: "materialized", SourcePath: "components/ColdButton/versions/1.0.0/ColdButton.tsx", Content: "new", ContentSHA256: testDigest("new"), Files: []components.ComponentVersionFile{{Path: "ColdButton.tsx", Content: "new", ContentSHA256: testDigest("new"), IsEntry: true}}},
+		},
+	})
+	require.NoError(t, err)
+	fs := fstest.MapFS{
+		"components/ColdButton/component.json":                {Data: []byte(`{"libraryId":"react-component-library:ColdButton","displayName":"Cold Button","entry":"ColdButton.tsx","latest":"1.0.0","deprecatedVersions":[],"evictedVersions":["0.9.0"]}`)},
+		"components/ColdButton/versions/1.0.0/ColdButton.tsx": {Data: []byte("new")},
+	}
+	result, err := components.NewIndexer(repo, ".", fs).Run(ctx)
+	require.NoError(t, err)
+	require.Equal(t, 1, result.Indexed)
+	component, err := repo.GetByLibraryID(ctx, "react-component-library:ColdButton")
+	require.NoError(t, err)
+	version, err := repo.GetVersion(ctx, component.ID, "0.9.0")
+	require.NoError(t, err)
+	require.Equal(t, "evicted", version.Presence)
 }
 
 func TestIndexerIgnoresLegacyManifestTokenContractAndUsesDerivedTokens(t *testing.T) {
@@ -657,6 +689,87 @@ func TestIndexer_RunEmitsRegistryOrphanFindingAndSweeps(t *testing.T) {
 	for _, f := range res2.Findings {
 		require.NotEqual(t, components.IndexFindingRegistryOrphan, f.Kind, "steady state must be orphan-free")
 	}
+}
+
+func TestReindexPreservesEvictedVersionRows(t *testing.T) {
+	d, repo, _ := newComponentsRawDB(t)
+	ctx := context.Background()
+	first := fstest.MapFS{
+		"components/Button/component.json":            {Data: []byte(manifest("react-component-library:Button", "Button", `[]`))},
+		"components/Button/versions/0.9.0/Button.tsx": {Data: []byte(buttonTSX)},
+		"components/Button/versions/0.9.0/story.json": {Data: []byte(`{"schemaVersion":5,"kind":"component","title":"Old Button","args":{"fields":[]},"environment":{"fixtures":[]},"stories":[{"id":"default","name":"Default","args":{}}]}`)},
+		"components/Button/versions/1.0.0/Button.tsx": {Data: []byte(buttonTSX)},
+		"components/Button/versions/1.0.0/story.json": {Data: []byte(`{"schemaVersion":5,"kind":"component","title":"Current Button","args":{"fields":[]},"environment":{"fixtures":[]},"stories":[{"id":"default","name":"Default","args":{}}]}`)},
+	}
+	_, err := components.NewIndexer(repo, ".", first).Run(ctx)
+	require.NoError(t, err)
+	component, err := repo.GetByLibraryID(ctx, "react-component-library:Button")
+	require.NoError(t, err)
+	_, err = d.ExecContext(ctx, `UPDATE component_versions SET presence='evicted' WHERE component_id=? AND version='0.9.0'`, component.ID)
+	require.NoError(t, err)
+	_, err = d.ExecContext(ctx, `DELETE FROM component_stories WHERE component_id=? AND version='0.9.0'`, component.ID)
+	require.NoError(t, err)
+
+	second := fstest.MapFS{
+		"components/Button/component.json":            {Data: []byte(`{"libraryId":"react-component-library:Button","displayName":"Button","slot":"ui-primitive","latest":"1.0.0","deprecatedVersions":[],"evictedVersions":["0.9.0"],"designStyles":[{"styleId":"vrooli-default","affinity":"native"}]}`)},
+		"components/Button/versions/1.0.0/Button.tsx": {Data: []byte(buttonTSX)},
+	}
+	_, err = components.NewIndexer(repo, ".", second).Run(ctx)
+	require.NoError(t, err)
+	storiesBefore := countRows(t, d, `SELECT COUNT(*) FROM component_stories WHERE component_id=?`, component.ID)
+	require.Equal(t, 1, storiesBefore, "materialized story is rebuilt from disk while evicted story remains durable")
+	var storyTitle string
+	require.NoError(t, d.QueryRowContext(ctx, `SELECT title FROM component_stories WHERE component_id=? AND version='0.9.0'`, component.ID).Scan(&storyTitle))
+	require.Equal(t, "Old Button", storyTitle)
+	versionsBefore := countRows(t, d, `SELECT COUNT(*) FROM component_versions WHERE component_id=?`, component.ID)
+	filesBefore := countRows(t, d, `SELECT COUNT(*) FROM component_version_files WHERE version_id IN (SELECT id FROM component_versions WHERE component_id=?)`, component.ID)
+	_, err = components.NewIndexer(repo, ".", second).Run(ctx)
+	require.NoError(t, err)
+	require.Equal(t, versionsBefore, countRows(t, d, `SELECT COUNT(*) FROM component_versions WHERE component_id=?`, component.ID))
+	require.Equal(t, filesBefore, countRows(t, d, `SELECT COUNT(*) FROM component_version_files WHERE version_id IN (SELECT id FROM component_versions WHERE component_id=?)`, component.ID))
+	require.Equal(t, storiesBefore, countRows(t, d, `SELECT COUNT(*) FROM component_stories WHERE component_id=?`, component.ID))
+	var presence string
+	require.NoError(t, d.QueryRowContext(ctx, `SELECT presence FROM component_versions WHERE component_id=? AND version='0.9.0'`, component.ID).Scan(&presence))
+	require.Equal(t, "evicted", presence)
+}
+
+func TestReindexDeletesMaterializedVersionMissingFromDisk(t *testing.T) {
+	d, repo, _ := newComponentsRawDB(t)
+	ctx := context.Background()
+	first := fstest.MapFS{
+		"components/Button/component.json":            {Data: []byte(manifest("react-component-library:Button", "Button", `[]`))},
+		"components/Button/versions/0.9.0/Button.tsx": {Data: []byte(buttonTSX)},
+		"components/Button/versions/1.0.0/Button.tsx": {Data: []byte(buttonTSX)},
+	}
+	_, err := components.NewIndexer(repo, ".", first).Run(ctx)
+	require.NoError(t, err)
+	component, err := repo.GetByLibraryID(ctx, "react-component-library:Button")
+	require.NoError(t, err)
+	second := fstest.MapFS{
+		"components/Button/component.json":            {Data: []byte(manifest("react-component-library:Button", "Button", `[]`))},
+		"components/Button/versions/1.0.0/Button.tsx": {Data: []byte(buttonTSX)},
+	}
+	result, err := components.NewIndexer(repo, ".", second).Run(ctx)
+	require.NoError(t, err)
+	require.NoError(t, err)
+	require.Equal(t, 1, countRows(t, d, `SELECT COUNT(*) FROM component_versions WHERE component_id=?`, component.ID))
+	require.Equal(t, 1, result.Indexed)
+}
+
+func TestSweepOrphansSkipsEvictedVersions(t *testing.T) {
+	d, repo, _ := newComponentsRawDB(t)
+	ctx := context.Background()
+	component, err := repo.UpsertManifest(ctx, components.IndexManifestInput{
+		Manifest: components.ComponentManifest{LibraryID: "react-component-library:Button", Slug: "Button", DisplayName: "Button", LatestVersion: "1.0.0"},
+		Versions: []components.ComponentVersion{{Version: "1.0.0", Status: components.VersionStatusReleased, SourcePath: "components/Button/versions/1.0.0/Button.tsx", Content: string(buttonTSX), ContentSHA256: testDigest(buttonTSX)}},
+	})
+	require.NoError(t, err)
+	_, err = d.ExecContext(ctx, `UPDATE component_versions SET presence='evicted' WHERE component_id=?`, component.ID)
+	require.NoError(t, err)
+	orphans, err := repo.SweepOrphans(ctx)
+	require.NoError(t, err)
+	require.Empty(t, orphans)
+	require.Equal(t, 1, countRows(t, d, `SELECT COUNT(*) FROM component_versions WHERE component_id=?`, component.ID))
 }
 
 // manifest builds a catalog-complete fixture (one declared affinity) so it does

@@ -8,6 +8,9 @@
       "version": "1.0.0"
     }
   ],
+  "deprecatedVersions": [
+    "1.0.0"
+  ],
   "description": "",
   "designStyles": [
     {
@@ -19,8 +22,12 @@
       "styleId": "vrooli-command-display"
     }
   ],
-  "entry": "FocusTrapPanel.tsx",
   "displayName": "FocusTrapPanel",
+  "draft": "",
+  "entry": "FocusTrapPanel.tsx",
+  "evictedVersions": [
+    "1.0.0"
+  ],
   "kind": "overlay",
   "latest": "1.0.1",
   "libraryId": "react-component-library:FocusTrapPanel",
@@ -30,9 +37,5 @@
     "accessibility",
     "focus"
   ],
-  "x-supplementalJustification": "Pre-catalog focus demonstration retained as a supplemental accessibility fixture surface.",
-  "draft": "",
-  "deprecatedVersions": [
-    "1.0.0"
-  ]
+  "x-supplementalJustification": "Pre-catalog focus demonstration retained as a supplemental accessibility fixture surface."
 }

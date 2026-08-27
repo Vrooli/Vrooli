@@ -5,8 +5,19 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"sync"
 	"testing"
 )
+
+func materializeFixture() ComponentVersion {
+	body := "export const Button = () => null;\n"
+	return ComponentVersion{
+		LibraryID:  "react-component-library:Button",
+		Version:    "1.0.0",
+		SourcePath: "library/components/Button/versions/1.0.0/Button.tsx",
+		Files:      []ComponentVersionFile{{Path: "Button.tsx", Content: body, ContentSHA256: digest([]byte(body)), IsEntry: true}},
+	}
+}
 
 // TestFSContentStore_RoundTrip exercises the happy path: read a known
 // file, write it back with a new body, read again to confirm the new
@@ -143,5 +154,94 @@ func TestFSContentStore_ReadMissingFile(t *testing.T) {
 	var esc ErrPathEscape
 	if errors.As(err, &esc) {
 		t.Fatalf("missing file must not classify as ErrPathEscape")
+	}
+}
+
+func TestFSContentStore_MaterializeRestoresByteIdenticalFiles(t *testing.T) {
+	root := t.TempDir()
+	version := materializeFixture()
+	result, err := NewFSContentStore(root).Materialize(context.Background(), version, "")
+	if err != nil {
+		t.Fatalf("Materialize: %v", err)
+	}
+	if result.FilesWritten != 1 || result.AlreadyPresent {
+		t.Fatalf("unexpected materialization result: %+v", result)
+	}
+	got, err := os.ReadFile(filepath.Join(root, "library/components/Button/versions/1.0.0/Button.tsx"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(got) != version.Files[0].Content || digest(got) != version.Files[0].ContentSHA256 {
+		t.Fatalf("materialized bytes differ: %q", got)
+	}
+}
+
+func TestFSContentStore_MaterializeIsIdempotentAndConcurrencySafe(t *testing.T) {
+	root := t.TempDir()
+	store := NewFSContentStore(root)
+	version := materializeFixture()
+	errs := make(chan error, 8)
+	var wg sync.WaitGroup
+	for i := 0; i < 8; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			_, err := store.Materialize(context.Background(), version, "")
+			errs <- err
+		}()
+	}
+	wg.Wait()
+	close(errs)
+	for err := range errs {
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	result, err := store.Materialize(context.Background(), version, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !result.AlreadyPresent || result.FilesWritten != 0 {
+		t.Fatalf("retry should report an existing complete directory: %+v", result)
+	}
+	entries, err := os.ReadDir(filepath.Dir(filepath.Join(root, version.SourcePath)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(entries) != 1 || entries[0].Name() != "Button.tsx" {
+		t.Fatalf("unexpected version directory contents: %+v", entries)
+	}
+}
+
+func TestFSContentStore_MaterializeAbortsOnHashMismatch(t *testing.T) {
+	root := t.TempDir()
+	version := materializeFixture()
+	version.Files[0].ContentSHA256 = "bad-hash"
+	_, err := NewFSContentStore(root).Materialize(context.Background(), version, "")
+	var mismatch ErrMaterializationHashMismatch
+	if !errors.As(err, &mismatch) {
+		t.Fatalf("expected hash mismatch, got %v", err)
+	}
+	if _, statErr := os.Stat(filepath.Join(root, "library/components/Button/versions/1.0.0")); !os.IsNotExist(statErr) {
+		t.Fatalf("hash failure created destination: %v", statErr)
+	}
+}
+
+func TestFSContentStore_MaterializeIntoLeavesWorkingTreeUnchanged(t *testing.T) {
+	root := t.TempDir()
+	target := t.TempDir()
+	version := materializeFixture()
+	result, err := NewFSContentStore(root).Materialize(context.Background(), version, target)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.FilesWritten != 1 {
+		t.Fatalf("expected one projected file: %+v", result)
+	}
+	if _, err := os.Stat(filepath.Join(root, "library/components/Button/versions/1.0.0")); !os.IsNotExist(err) {
+		t.Fatalf("projection touched working tree: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(target, "library/components/Button/versions/1.0.0/Button.tsx")); err != nil {
+		t.Fatalf("projection missing file: %v", err)
 	}
 }

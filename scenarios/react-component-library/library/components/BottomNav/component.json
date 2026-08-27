@@ -2,6 +2,13 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "catalogId": "navigation.bottom-navigation",
   "category": "navigation",
+  "dependencies": [
+    {
+      "kind": "requires",
+      "libraryId": "react-component-library:ClassMerge",
+      "version": "1.0.0"
+    }
+  ],
   "deprecatedVersions": [
     "1.3.6"
   ],
@@ -21,8 +28,11 @@
     }
   ],
   "displayName": "Bottom Nav",
-  "kind": "shell",
   "draft": "",
+  "evictedVersions": [
+    "1.3.6"
+  ],
+  "kind": "shell",
   "latest": "1.3.7",
   "libraryId": "react-component-library:BottomNav",
   "slot": "layout-nav",
@@ -30,12 +40,5 @@
     "layout",
     "navigation",
     "mobile"
-  ],
-  "dependencies": [
-    {
-      "kind": "requires",
-      "libraryId": "react-component-library:ClassMerge",
-      "version": "1.0.0"
-    }
   ]
 }

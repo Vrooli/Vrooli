@@ -121,6 +121,23 @@ func TestParseStoryContractRejectsLegacyFields(t *testing.T) {
 	}
 }
 
+func TestParseStoryContractRejectsRawTextNodes(t *testing.T) {
+	_, diagnostics := ParseStoryContract([]byte(`{
+		"schemaVersion": 5,
+		"kind": "component",
+		"args": {"fields": [{"path": "label", "kind": "text"}]},
+		"environment": {"fixtures": []},
+		"stories": [{"id": "default", "name": "Default", "args": {"label": {"$text": "hello"}}}]
+	}`))
+
+	for _, diagnostic := range diagnostics {
+		if diagnostic.Rule == "raw_text_node" {
+			return
+		}
+	}
+	t.Fatalf("diagnostics did not include raw_text_node: %v", diagnostics)
+}
+
 func TestParseStoryContractNamesRemovedStructuredTags(t *testing.T) {
 	_, diagnostics := ParseStoryContract([]byte(`{
   "schemaVersion": 5,

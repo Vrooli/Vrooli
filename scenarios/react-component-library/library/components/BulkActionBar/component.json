@@ -12,6 +12,10 @@
       "version": "1.0.0"
     }
   ],
+  "deprecatedVersions": [
+    "1.0.1",
+    "1.0.3"
+  ],
   "description": "",
   "designStyles": [
     {
@@ -28,25 +32,25 @@
     }
   ],
   "displayName": "BulkActionBar",
+  "draft": "",
+  "evictedVersions": [
+    "1.0.3",
+    "1.0.1"
+  ],
   "kind": "control",
   "latest": "1.0.4",
   "libraryId": "react-component-library:BulkActionBar",
-  "tags": [
-    "data-display",
-    "selection",
-    "async",
-    "recovery",
-    "token-bound"
-  ],
   "requires": [
     {
       "libraryId": "react-component-library:useLocale",
       "version": "1.0.0"
     }
   ],
-  "draft": "",
-  "deprecatedVersions": [
-    "1.0.1",
-    "1.0.3"
+  "tags": [
+    "data-display",
+    "selection",
+    "async",
+    "recovery",
+    "token-bound"
   ]
 }

@@ -97,6 +97,18 @@ set checked for released-source immutability. Never add a schema migration or
 compatibility fallback to make cleanup pass: fresh schemas are declared next
 to the code that interprets them.
 
+The warm working tree is a projection of that same ledger. Run
+`react-component-library versions reconcile-presence --json` to inspect the
+reachability-derived tier changes, then add `--apply` to evict unreferenced
+released versions or restore an evicted version. Eviction updates the owning
+`component.json` `evictedVersions` list and preserves the SQLite file mirror;
+it is reversible, unlike `versions retire`. `versions materialize <asset>
+<version>` restores bytes after verifying every stored hash, and all filesystem
+readers use the same materializer seam before reading an evicted version.
+Adoption link/apply/reapply/eject paths materialize their requested version
+before writing an adoption, while deleting the last adoption triggers scoped
+reconciliation.
+
 ## Worked bulk migration
 
 For a migration touching several related assets, open one draft per asset and

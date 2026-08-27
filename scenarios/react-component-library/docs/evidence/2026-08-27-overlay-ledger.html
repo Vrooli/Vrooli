@@ -1,0 +1,526 @@
+<title>The Overlay Ledger</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap">
+
+<style>
+:root{
+  --paper:#f4f5f7;--surface:#ffffff;--surface-sunk:#eaecef;
+  --ink:#14181d;--ink-2:#454e58;--ink-3:#6f7883;
+  --rule:#d6dae0;--rule-soft:#e6e9ed;
+  --accent:#0d6a72;--accent-soft:#d3e8e9;--accent-ink:#0a5158;
+  --bad:#a3282c;--bad-soft:#f5dedd;
+  --warn:#8a5a00;--warn-soft:#f7e7c8;
+  --good:#1c6b45;--good-soft:#d6ebdf;
+  --shadow:0 1px 2px rgba(20,24,29,.06),0 8px 24px rgba(20,24,29,.06);
+  --sans:"IBM Plex Sans",ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;
+  --display:"Archivo","IBM Plex Sans",ui-sans-serif,system-ui,sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  --measure:68ch;--page:1180px;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --paper:#0f1216;--surface:#161b21;--surface-sunk:#1d232a;
+  --ink:#e9edf1;--ink-2:#b0bac4;--ink-3:#7f8b97;
+  --rule:#2c343d;--rule-soft:#232a32;
+  --accent:#4fc9d2;--accent-soft:#12363a;--accent-ink:#8ee2e8;
+  --bad:#f08a86;--bad-soft:#3a1d1e;
+  --warn:#e0ad55;--warn-soft:#38290f;
+  --good:#6bc294;--good-soft:#143026;
+  --shadow:0 1px 2px rgba(0,0,0,.4),0 10px 30px rgba(0,0,0,.35);
+}}
+:root[data-theme="dark"]{
+  --paper:#0f1216;--surface:#161b21;--surface-sunk:#1d232a;
+  --ink:#e9edf1;--ink-2:#b0bac4;--ink-3:#7f8b97;
+  --rule:#2c343d;--rule-soft:#232a32;
+  --accent:#4fc9d2;--accent-soft:#12363a;--accent-ink:#8ee2e8;
+  --bad:#f08a86;--bad-soft:#3a1d1e;
+  --warn:#e0ad55;--warn-soft:#38290f;
+  --good:#6bc294;--good-soft:#143026;
+  --shadow:0 1px 2px rgba(0,0,0,.4),0 10px 30px rgba(0,0,0,.35);
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--sans);font-size:16px;line-height:1.62;-webkit-font-smoothing:antialiased}
+.wrap{max-width:var(--page);margin:0 auto;padding:0 28px 120px}
+.mast{padding:72px 0 0}
+.eyebrow{font-family:var(--mono);font-size:11.5px;font-weight:500;letter-spacing:.16em;text-transform:uppercase;color:var(--accent);margin:0 0 18px}
+h1{font-family:var(--display);font-weight:800;font-size:clamp(2.6rem,6.4vw,4.4rem);line-height:.96;letter-spacing:-.032em;margin:0 0 22px;text-wrap:balance;max-width:14ch}
+.dek{font-size:1.16rem;line-height:1.55;color:var(--ink-2);max-width:64ch;margin:0 0 8px}
+.dek strong{color:var(--ink);font-weight:600}
+section{margin-top:88px;scroll-margin-top:24px}
+.shead{display:flex;align-items:baseline;gap:16px;border-bottom:2px solid var(--ink);padding-bottom:12px;margin-bottom:30px}
+.snum{font-family:var(--mono);font-size:12px;font-weight:600;color:var(--accent);letter-spacing:.1em;flex:none;padding-top:4px}
+h2{font-family:var(--display);font-weight:700;font-size:clamp(1.5rem,3vw,2rem);letter-spacing:-.022em;line-height:1.12;margin:0;text-wrap:balance}
+h3{font-family:var(--display);font-weight:700;font-size:1.09rem;letter-spacing:-.012em;margin:40px 0 12px}
+h4{font-family:var(--display);font-weight:700;font-size:.98rem;margin:26px 0 8px}
+p{max-width:var(--measure);margin:0 0 16px}
+p.wide{max-width:none}
+code{font-family:var(--mono);font-size:.88em;background:var(--surface-sunk);padding:.1em .38em;border-radius:3px;color:var(--ink);word-break:break-word}
+.m{font-family:var(--mono);font-size:.88em}
+a{color:var(--accent);text-underline-offset:3px}
+a:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:2px}
+.tw{overflow-x:auto;margin:4px 0 0;border:1px solid var(--rule);border-radius:3px;background:var(--surface)}
+table{border-collapse:collapse;width:100%;font-size:14px;min-width:640px}
+th,td{text-align:left;padding:10px 15px;border-bottom:1px solid var(--rule-soft);vertical-align:top}
+thead th{font-family:var(--mono);font-size:10.5px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-3);background:var(--surface-sunk);border-bottom:1px solid var(--rule);white-space:nowrap}
+tbody tr:last-child td{border-bottom:none}
+tbody tr.grp td{background:var(--surface-sunk);font-family:var(--mono);font-size:10.5px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3);padding:7px 15px}
+td.num{font-family:var(--mono);font-variant-numeric:tabular-nums;white-space:nowrap;text-align:right}
+.path{font-family:var(--mono);font-size:12.5px;color:var(--ink-2)}
+.nm{font-family:var(--mono);font-size:13px;color:var(--ink);font-weight:500}
+.pill{display:inline-block;font-family:var(--mono);font-size:10.5px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;padding:3px 7px;border-radius:3px;white-space:nowrap}
+.pill.bad{background:var(--bad-soft);color:var(--bad)}
+.pill.warn{background:var(--warn-soft);color:var(--warn)}
+.pill.good{background:var(--good-soft);color:var(--good)}
+.pill.neut{background:var(--surface-sunk);color:var(--ink-3)}
+.pill.acc{background:var(--accent-soft);color:var(--accent-ink)}
+pre{font-family:var(--mono);font-size:12.5px;line-height:1.7;background:var(--surface);border:1px solid var(--rule);border-radius:3px;padding:17px 20px;overflow-x:auto;margin:0 0 18px;color:var(--ink-2)}
+pre b{color:var(--ink);font-weight:600}
+pre .cm{color:var(--ink-3);font-style:italic}
+pre .kw{color:var(--accent);font-weight:500}
+pre .del{color:var(--bad)}
+pre .add{color:var(--good)}
+.callout{background:var(--surface);border:1px solid var(--rule);border-left:3px solid var(--accent);border-radius:3px;padding:20px 24px;margin:26px 0;box-shadow:var(--shadow)}
+.callout.alarm{border-left-color:var(--bad)}
+.callout.warn{border-left-color:var(--warn)}
+.callout.good{border-left-color:var(--good)}
+.callout p:last-child{margin-bottom:0}
+.callout .lede{font-family:var(--display);font-weight:700;font-size:1.02rem;letter-spacing:-.01em;margin-bottom:8px}
+.graph{display:flex;flex-direction:column;gap:14px;margin:6px 0 0}
+.gnode{display:grid;grid-template-columns:190px 1fr;gap:18px;align-items:start;padding:14px 0;border-bottom:1px solid var(--rule-soft)}
+.gnode:first-child{border-top:1px solid var(--rule-soft)}
+.gname{font-family:var(--mono);font-size:13px;font-weight:600;color:var(--accent)}
+.gname small{display:block;font-family:var(--sans);font-size:11.5px;font-weight:400;color:var(--ink-3);letter-spacing:0;text-transform:none;margin-top:2px}
+.gbody{min-width:0}
+.gbody p{margin:0 0 6px;font-size:14px;color:var(--ink-2)}
+.gbody p:last-child{margin-bottom:0}
+.deps{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.gap{display:flex;flex-direction:column;gap:0}
+.grow{display:grid;grid-template-columns:34px 1fr;gap:16px;padding:18px 0;border-bottom:1px solid var(--rule-soft)}
+.grow:first-child{border-top:1px solid var(--rule-soft)}
+.gi{font-family:var(--mono);font-size:12px;font-weight:600;color:var(--ink-3);padding-top:3px}
+.grow h4{margin:0 0 5px;font-size:.99rem}
+.grow p{margin:0 0 8px;font-size:14px}
+.grow p:last-child{margin-bottom:0}
+.plan{display:flex;flex-direction:column}
+.step{display:grid;grid-template-columns:54px 1fr;gap:20px;padding:24px 0;border-bottom:1px solid var(--rule-soft)}
+.step:first-child{border-top:1px solid var(--rule-soft)}
+.sidx{font-family:var(--display);font-weight:800;font-size:1.5rem;color:var(--accent);line-height:1;padding-top:2px}
+.step h3{margin:0 0 6px;font-size:1.04rem}
+.step p{margin:0 0 10px;font-size:14.5px}
+.step p:last-child{margin-bottom:0}
+.tagrow{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+footer{margin-top:96px;padding-top:22px;border-top:1px solid var(--rule);font-size:13px;color:var(--ink-3);max-width:var(--measure)}
+@media (prefers-reduced-motion:reduce){*{animation-duration:.01ms !important;transition-duration:.01ms !important}}
+@media (max-width:720px){.gnode{grid-template-columns:1fr;gap:8px}.step{grid-template-columns:36px 1fr;gap:14px}.sidx{font-size:1.2rem}}
+</style>
+
+<div class="wrap">
+
+<header class="mast">
+  <p class="eyebrow">Third in the series · disposition and hardening</p>
+  <h1>The Overlay Ledger</h1>
+  <p class="dek">
+    I was wrong about one thing in the last document. I proposed inventing an <code>Overlay</code>
+    component with a <code>presentation</code> prop. <strong>That component is already specified</strong> —
+    it is <code>overlays.responsive-dialog</code>, a P0 asset with a written contract and fifteen
+    required capabilities, sitting in the catalog with no implementation. The work is not to design
+    the API. It is to build what the catalog already says should exist, and to retire the eight
+    things built around the hole.
+  </p>
+</header>
+
+<!-- ══════════════════════════════════════════════ -->
+<section>
+  <div class="shead"><span class="snum">01</span><h2>The catalog already answered your architecture question</h2></div>
+
+  <p><code>catalog/assets/overlays/</code> holds <strong>18 asset specifications</strong>. Nine have an implementation in <code>library/components/</code>. Nine do not. And the missing nine include every name that matters here.</p>
+
+<pre><span class="cm">catalog/assets/overlays/responsive-dialog.json</span>
+{
+  "asset": {
+    "id": <b>"overlays.responsive-dialog"</b>,  "name": "ResponsiveDialog",
+    "description": "The adaptive overlay presenting as a centered dialog on pointer-first
+       desktops and as a sheet or full-height drawer on constrained or touch-first viewports,
+       <b>without losing open state across the change</b>.",
+    "target": { "priority": <b>"P0"</b>, "maturity": <b>"production-ready"</b> }
+  },
+  "dependencies": { "requires": [
+    { "asset": <b>"overlays.dialog"</b>,        "reason": "Desktop presentation is the shared dialog." },
+    { "asset": <b>"overlays.bottom-sheet"</b>,  "reason": "Constrained presentation is the shared sheet." },
+    { "asset": <b>"hooks.use-media-query"</b>,  "reason": "Presentation selection is a behavioral
+                                            breakpoint, not a style one." }
+  ]},
+  "requiredCapabilities": [ "accessible-naming", "keyboard-operable", "focus-visible-indicator",
+    "layered-dismissal", "contrast-floor", "dark-parity", "reduced-motion",
+    "transition-class-conformance", "no-layout-animation", "responsive-transformation",
+    "focus-containment", "focus-restoration", "status-announced", "tap-target-size",
+    <b>"gesture-alternative"</b> ],
+  "rationale": "One of the two assets that carry a DESIGN.md responsive transformation as its own
+     contract: modal becomes sheet. <b>Preserving open state across the breakpoint is the part that is
+     easy to get wrong and invisible until a device rotates.</b>"
+}</pre>
+
+  <p class="wide">So: <strong>not one god component with a mode switch, and not fifteen siblings.</strong> A small composition graph, with one ergonomic front door that most callers use. That is a better design than what I proposed, and it has the advantage of already being blessed.</p>
+
+  <div class="graph">
+    <div class="gnode">
+      <div class="gname">overlays.responsive-dialog<small>The front door — 80% of call sites</small></div>
+      <div class="gbody">
+        <p>Composes <code>dialog</code> and <code>bottom-sheet</code>, selects between them with <code>useMediaQuery</code>, and — the part the spec singles out — <strong>keeps open state, focus and scroll position across the switch</strong>. A device rotation must not close the surface or lose the form.</p>
+        <div class="deps"><span class="pill bad">No implementation</span><span class="pill acc">P0</span></div>
+      </div>
+    </div>
+    <div class="gnode">
+      <div class="gname">overlays.dialog<small>Desktop half</small></div>
+      <div class="gbody">
+        <p>Centered modal card. Exists as <code>Dialog/1.2.2</code> but is not modal-safe: no focus trap, no scroll lock, escape via a bare window listener with no layer stack.</p>
+        <div class="deps"><span class="pill warn">Exists, unsound</span><span class="pill neut">1 consumer (RCL gallery)</span></div>
+      </div>
+    </div>
+    <div class="gnode">
+      <div class="gname">overlays.bottom-sheet<small>Mobile half</small></div>
+      <div class="gbody">
+        <p>Bottom-anchored sheet with a grab handle, swipe-to-dismiss and safe-area padding. The geometry exists inside <code>DrawerShell size="compact"</code>'s stylesheet but is not extractable — it is a media query, not a component.</p>
+        <div class="deps"><span class="pill bad">No implementation</span></div>
+      </div>
+    </div>
+    <div class="gnode">
+      <div class="gname">overlays.full-page-drawer<small>The other responsive transformation</small></div>
+      <div class="gbody">
+        <p>Full-height sheet on mobile, inset card on desktop. This is precisely what <code>DrawerShell size="full"</code> does today — off-catalog, under a different name, in ten web-console call sites.</p>
+        <div class="deps"><span class="pill bad">No implementation</span><span class="pill warn">Squatted by DrawerShell</span></div>
+      </div>
+    </div>
+    <div class="gnode">
+      <div class="gname">overlays.context-menu<small>The action-sheet gap</small></div>
+      <div class="gbody">
+        <p>Anchored menu on desktop, action sheet on mobile. Nothing implements the responsive half anywhere in the repo — web-console's local <code>ContextMenuBase</code> renders the same 140px popover on a phone.</p>
+        <div class="deps"><span class="pill bad">No implementation</span></div>
+      </div>
+    </div>
+    <div class="gnode">
+      <div class="gname">navigation.sidebar<small>The rail — already correct</small></div>
+      <div class="gbody">
+        <p><code>SidebarShell/2.0.0</code>. Properly catalogued, responsive by prop rather than by stylesheet, takes utility classes from the consumer. <strong>This is the model.</strong> 29 imports across 28 scenarios — the most-used overlay in the ecosystem by a wide margin.</p>
+        <div class="deps"><span class="pill good">Keep &amp; promote</span><span class="pill warn">25 scenarios a major behind</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="callout alarm">
+    <p class="lede">Why nobody found any of this</p>
+    <p><code>DrawerShell</code> and <code>FocusTrapPanel</code> carry <code>catalogId: "react-component-library:DrawerShell"</code> — <strong>self-referential IDs</strong>, meaning they are not registered against any catalog asset — plus an <code>x-supplementalJustification</code> that explicitly demotes them: <em>"the public catalog overlay is the adopted asset."</em></p>
+    <p>So the component that ten real call sites depend on is off-catalog and marked supplemental, while the catalog asset it should be registered against (<code>overlays.full-page-drawer</code>) has no implementation at all. The catalog and the library are two disconnected maps of the same territory, and the gates only read one of them.</p>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════ -->
+<section>
+  <div class="shead"><span class="snum">02</span><h2>The ledger: every overlay asset, decided</h2></div>
+
+  <p>Migration cost is the number that decides these. I counted every RCL import across all 35 consuming scenarios: <strong>twelve of the fifteen overlay implementations have zero external consumers.</strong> The consolidation is nearly free.</p>
+
+  <div class="tw">
+    <table>
+      <thead><tr><th>Asset</th><th>Version</th><th class="num">External<br>imports</th><th>Disposition</th><th>Notes</th></tr></thead>
+      <tbody>
+        <tr class="grp"><td colspan="5">Build — specified in the catalog, no implementation</td></tr>
+        <tr><td><span class="nm">ResponsiveDialog</span></td><td class="path">—</td><td class="num">—</td><td><span class="pill acc">Create</span></td><td>P0. The front door. Composes Dialog + BottomSheet + useMediaQuery, preserving open state across the breakpoint.</td></tr>
+        <tr><td><span class="nm">BottomSheet</span></td><td class="path">—</td><td class="num">—</td><td><span class="pill acc">Create</span></td><td>Extract from <code>DrawerShell size="compact"</code>'s stylesheet. Add grab handle + swipe.</td></tr>
+        <tr><td><span class="nm">FullPageDrawer</span></td><td class="path">—</td><td class="num">—</td><td><span class="pill acc">Create</span></td><td>Absorbs <code>DrawerShell size="full"</code>. Ten web-console call sites migrate here.</td></tr>
+        <tr><td><span class="nm">ContextMenu</span></td><td class="path">—</td><td class="num">—</td><td><span class="pill acc">Create</span></td><td>The only behavior in the matrix that exists nowhere. Promote web-console's <code>ContextMenuBase</code> and add the mobile action sheet.</td></tr>
+        <tr><td><span class="nm">Lightbox</span> · <span class="nm">HoverCard</span> · <span class="nm">Menubar</span> · <span class="nm">Spotlight</span> · <span class="nm">FloatingToolbar</span></td><td class="path">—</td><td class="num">—</td><td><span class="pill neut">Defer</span></td><td>Specified but nothing needs them yet. Leave unimplemented rather than stubbing — a stub is worse than a gap, as <code>Drawer</code> demonstrates.</td></tr>
+
+        <tr class="grp"><td colspan="5">Repair — real components with real defects</td></tr>
+        <tr><td><span class="nm">Dialog</span></td><td class="path">1.2.2</td><td class="num">0</td><td><span class="pill warn">Rewrite</span></td><td>Add focus trap, scroll lock, layer participation, <code>Presence</code> exit. Then it can serve as ResponsiveDialog's desktop half. Zero external consumers — rewrite freely.</td></tr>
+        <tr><td><span class="nm">AlertDialog</span></td><td class="path">1.0.6</td><td class="num">0</td><td><span class="pill warn">Replace</span></td><td>Replace the body with web-console's <code>ConfirmDialog</code>, which is strictly more correct. Net deletion.</td></tr>
+        <tr><td><span class="nm">SidebarShell</span></td><td class="path">2.0.0</td><td class="num">29</td><td><span class="pill good">Keep</span></td><td>The reference implementation. Migrate the 25 scenarios still on 1.2.0 — that is the single largest version-skew liability in the ecosystem.</td></tr>
+        <tr><td><span class="nm">Popover</span></td><td class="path">1.1.2</td><td class="num">0</td><td><span class="pill good">Keep</span></td><td>Solid: escape, layer stack, outside-interaction, Presence. Add focus containment for its modal uses.</td></tr>
+        <tr><td><span class="nm">Menu</span></td><td class="path">1.1.2</td><td class="num">0</td><td><span class="pill warn">Rework</span></td><td>Roving focus and typeahead are good. Becomes ContextMenu's desktop half; needs dismissal and layer wiring.</td></tr>
+        <tr><td><span class="nm">Toast</span> · <span class="nm">Tooltip</span></td><td class="path">1.0.6 · 1.0.2</td><td class="num">0</td><td><span class="pill good">Keep</span></td><td>Out of scope for the modal work. Toast should route through the existing <code>ToastManager</code> and <code>LiveAnnouncer</code>.</td></tr>
+
+        <tr class="grp"><td colspan="5">Consolidate — subsumed by the graph above</td></tr>
+        <tr><td><span class="nm">DrawerShell</span></td><td class="path">1.1.2</td><td class="num">10</td><td><span class="pill warn">Split &amp; retire</span></td><td>Becomes FullPageDrawer (<code>size="full"</code>) and BottomSheet (<code>size="compact"</code>). Keep as a deprecated alias through one release so web-console migrates on its own schedule.</td></tr>
+        <tr><td><span class="nm">ResponsivePanel</span></td><td class="path">1.1.4</td><td class="num">0</td><td><span class="pill warn">Harvest</span></td><td>The most complete behavior in the family — layer stack, scroll lock, focus return, controlled/uncontrolled. <strong>Harvest its internals into the shared core</strong>, then fold the component into SidebarShell, which does the same job with a better API.</td></tr>
+        <tr><td><span class="nm">FocusTrapPanel</span></td><td class="path">1.0.1</td><td class="num">0</td><td><span class="pill bad">Delete</span></td><td>31 lines wrapping <code>useFocusTrap</code>. Off-catalog. The hook is the asset.</td></tr>
+        <tr><td><span class="nm">InspectorPanel</span></td><td class="path">1.0.5</td><td class="num">0</td><td><span class="pill bad">Delete</span></td><td>45-line stub duplicating ResponsivePanel's intent.</td></tr>
+
+        <tr class="grp"><td colspan="5">Remove — stubs presenting as finished components</td></tr>
+        <tr><td><span class="nm">Drawer</span></td><td class="path">1.0.5</td><td class="num">0</td><td><span class="pill bad">Delete</span></td><td>58 lines. Declares <code>side</code> and <code>presentation</code> and uses neither. Only the RCL gallery imports it. <strong>It is the name people reach for first</strong> — leaving it is actively harmful.</td></tr>
+        <tr><td><span class="nm">OverlayCanvas</span></td><td class="path">1.0.11</td><td class="num">0</td><td><span class="pill neut">Recategorize</span></td><td>Catalogued as <code>visualization.overlay-canvas</code> — not an overlay at all. Remove it from the overlay conversation.</td></tr>
+        <tr><td><span class="nm">CommandPalette</span></td><td class="path">1.0.6</td><td class="num">0</td><td><span class="pill warn">Rebase</span></td><td>373 lines with no modal safety. Rebase on ResponsiveDialog rather than repairing in place.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>The shared behavior core these all sit on</h3>
+  <p>None of the above is worth doing without this first. The pieces exist; they are thin or unwired.</p>
+
+  <div class="tw">
+    <table>
+      <thead><tr><th>Asset</th><th>Now</th><th>Needs</th></tr></thead>
+      <tbody>
+        <tr><td><span class="nm">LayerManager</span></td><td>20-line array; tracks order</td><td><strong>Assign</strong> the z value, not just track order; own background <code>inert</code>; coordinate scroll lock. Today two stacked modals both get <code>--layer-modal</code> and DOM order decides.</td></tr>
+        <tr><td><span class="nm">useScrollLock</span></td><td><code>body.overflow = hidden</code></td><td>Nesting counter, iOS-safe implementation, scroll-position restore.</td></tr>
+        <tr><td><span class="nm">useSwipe</span></td><td>20-line stub; a tap fires a swipe</td><td>Distance threshold, velocity, drag-follow — or delete it. It is not a foundation to build on. Required by <code>gesture-alternative</code>.</td></tr>
+        <tr><td><span class="nm">Portal</span></td><td><strong>Does not exist</strong></td><td>See §04. <code>createPortal</code> appears nowhere in 486 component versions.</td></tr>
+        <tr><td><span class="nm">Presence</span></td><td>Exists; used by Popover, Toast, Tooltip, UndoBanner</td><td>Adopt in the modal surfaces so they animate out instead of vanishing.</td></tr>
+        <tr><td><span class="nm">useFocusReturn</span> · <span class="nm">useDisclosure</span> · <span class="nm">LiveAnnouncer</span></td><td>Zero consumers</td><td>Wire into the core, or delete. <code>useDisclosure</code> also ships a duplicate copy of <code>useControllableState</code> in the same file.</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════ -->
+<section>
+  <div class="shead"><span class="snum">03</span><h2>Generation A: the proper fix, and the gate that lets it happen</h2></div>
+
+  <p>First, the scale is larger than web-console. The Tailwind-in-library components are pinned across the ecosystem:</p>
+
+  <div class="tw">
+    <table>
+      <thead><tr><th>Generation-A component</th><th>Pinned version</th><th class="num">Scenarios</th><th>Effect</th></tr></thead>
+      <tbody>
+        <tr><td><span class="nm">BottomNav</span></td><td class="path">1.2.0</td><td class="num">27</td><td>Mobile navigation styled by whatever classes the consumer happens to use elsewhere</td></tr>
+        <tr><td><span class="nm">DataTable</span></td><td class="path">1.2.0</td><td class="num">18</td><td>10 className literals in library source, none emitted by any consumer's Tailwind build</td></tr>
+        <tr><td><span class="nm">markdown-renderer</span></td><td class="path">0.3.2</td><td class="num">13</td><td>CodeBlock chrome purged</td></tr>
+        <tr><td><span class="nm">DrawerShell</span></td><td class="path">1.0.0</td><td class="num">1</td><td>18 of 21 layout classes purged — the case in the first document</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>Three fixes, and only one of them is the real one</h3>
+
+  <div class="gap">
+    <div class="grow">
+      <div class="gi">A</div>
+      <div>
+        <h4>Add the package to every Tailwind <code>content</code> glob</h4>
+        <p>Restores the missing utilities immediately. But it keeps the coupling: the library's appearance depends on each consumer having Tailwind, configured compatibly, with matching theme extensions. A scenario without Tailwind cannot use the library at all. <strong>This is a bridge, not a fix</strong> — take it in week one, and give it an expiry date tied to fix B.</p>
+      </div>
+    </div>
+    <div class="grow">
+      <div class="gi">B</div>
+      <div>
+        <h4>Rewrite Generation A as Generation B — the actual fix</h4>
+        <p>A published component owns its own appearance: <code>data-rcl-*</code> attributes, a module-level stylesheet mounted through <code>StyleSheet</code>, every value from a published token. No build-tool coupling, works in any consumer, survives any bundler. 198 versions already do this; 12 do not. The library has already proven the pattern — <code>DrawerShell 1.0.0 → 1.1.2</code> is exactly this migration, done once and never rolled out to the rest.</p>
+      </div>
+    </div>
+    <div class="grow">
+      <div class="gi">C</div>
+      <div>
+        <h4>Invert class ownership for consumer-specific styling</h4>
+        <p>Some styling genuinely belongs to the app — where the sidebar sits in <em>its</em> shell, which z tier <em>its</em> overlay occupies. <code>SidebarShell</code> already handles this correctly with <code>className</code>, <code>panelClassName</code>, <code>contentClassName</code>, <code>backdropClassName</code>: web-console passes <code>"fixed inset-0 z-wc-drawer bg-black/55"</code> from its own <code>src/</code>, Tailwind sees it, it survives.</p>
+        <p><strong>That is the whole reason the sidebar didn't break when the drawers did</strong>, and it is the rule worth writing down: intrinsic appearance is the library's, placement in the host is the consumer's, and utility classes only ever appear in files the consumer's scanner reads.</p>
+      </div>
+    </div>
+  </div>
+
+  <h3>Prevention — and here is the good news</h3>
+  <p>You already have the gates. <code>api/internal/gates/gates.go</code> ships <code>ValidateForeignTokenClasses</code>, <code>ValidateStyleInjection</code>, <code>ValidateSharedStyleOwnership</code> and <code>ValidateReleasedVersionImmutable</code>. They didn't fire for three specific, small reasons.</p>
+
+<pre><span class="cm">gates.go:827 — why wc-* classes sailed through</span>
+foreignPaletteClassRE = regexp.MustCompile(
+  `(?:^|[\s"'` + "`" + `])(?:border|bg|text|from|to|via)-<b>app</b>-[A-Za-z0-9_-]+`)
+
+<span class="cm">This matches only the app-* palette family, and only 6 utility prefixes.</span>
+<span class="del">  bg-wc-backdrop      ✗ wrong family      z-wc-drawer      ✗ wrong family and prefix</span>
+<span class="del">  md:inset-x-8        ✗ not a palette class at all         touch-target  ✗ not a class pattern</span>
+<span class="cm">The gate's own comment says so: "The app-* family is intentionally seeded first;</span>
+<span class="cm">adding a new forbidden family should be a reviewed change to this gate."</span>
+<span class="cm">That review never happened, and the general utility problem was never in scope.</span></pre>
+
+  <div class="gap">
+    <div class="grow">
+      <div class="gi">1</div>
+      <div>
+        <h4>Widen the class gate from "foreign palette" to "any utility class"</h4>
+        <p>The correct rule is not <em>"don't use another app's palette"</em> — it is <strong>"a published component emits no utility classes at all."</strong> A library component's <code>className</code> should only ever be the value a consumer passed in. That is a stricter, simpler and far more checkable rule than an ever-growing family blocklist, and it makes the whole class of failure impossible rather than enumerating instances of it.</p>
+        <p>Land it with a dated allowlist for the 12 Generation-A versions, and delete entries as fix B rewrites them. An allowlist that only shrinks is a ratchet; one that can grow is the <code>vacuous-allowlist.json</code> problem again.</p>
+      </div>
+    </div>
+    <div class="grow">
+      <div class="gi">2</div>
+      <div>
+        <h4>Make the gates inspect the versions consumers actually import</h4>
+        <p><code>validateActiveSources</code> resolves each asset's <code>latest</code> plus <code>draft</code> and inspects only those. Web-console imports <code>DrawerShell/1.0.0</code>; <code>latest</code> is <code>1.1.2</code>. <strong>The gates have never looked at the file that is running in production.</strong> The same is true of <code>BottomNav/1.2.0</code> in 27 scenarios and <code>SidebarShell/1.2.0</code> in 25.</p>
+        <p>Add a second scope derived from real imports — walk every scenario's <code>ui/src</code>, collect the pinned specifiers, and run the same gates over that set. It is the same gate functions with a different file list, and it converts "the catalog is clean" into "what ships is clean."</p>
+      </div>
+    </div>
+    <div class="grow">
+      <div class="gi">3</div>
+      <div>
+        <h4>Give the immutability gate something to read</h4>
+        <p><code>ValidateReleasedVersionImmutable</code> queries <code>SELECT … FROM component_versions WHERE status = 'released'</code>. The database has <strong>zero tables</strong>, so it inspects zero rows and passes. That is why <code>Alert/1.0.0</code> could be edited in place. Either backfill the index from the filesystem at gate time, or make an empty index a hard failure — a gate that passes because it found nothing is worse than no gate.</p>
+      </div>
+    </div>
+    <div class="grow">
+      <div class="gi">4</div>
+      <div>
+        <h4>Close the ingest path that produced Generation A's worst case</h4>
+        <p><code>api/internal/components/ingest.go</code> lifts a component out of a scenario and writes a provenance header. It has been used <strong>exactly once</strong> — it produced <code>DrawerShell/1.0.0</code>, complete with <code>z-wc-drawer</code>, <code>touch-target</code> and web-console's safe-area variables. Its only styling check flags hard-coded colors; it does not translate or reject utility classes.</p>
+        <p>Either make ingest run the widened class gate and refuse, or retire the command. Ingestion without contract translation is how an app's private CSS becomes 35 scenarios' shared dependency.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════ -->
+<section>
+  <div class="shead"><span class="snum">04</span><h2>What else stands between this and production-ready</h2></div>
+
+  <p>Nine things I found this round that none of the earlier documents covered. The first is the most serious.</p>
+
+  <div class="gap">
+    <div class="grow">
+      <div class="gi">01</div>
+      <div>
+        <h4>No overlay portals. Not one, anywhere.</h4>
+        <p><code>createPortal</code> does not appear in any of RCL's 486 component versions. Every overlay renders inline in the React tree, which means <code>position: fixed</code> silently resolves against the nearest ancestor with <code>transform</code>, <code>filter</code>, <code>backdrop-filter</code>, <code>perspective</code>, <code>contain</code> or <code>will-change</code> — not the viewport. An ancestor's <code>overflow: hidden</code> clips it, and its <code>z-index</code> is trapped in that ancestor's stacking context regardless of <code>--layer-modal</code>.</p>
+        <p>web-console is full of transforms — drag, resize, pane animation — and has already hit this: it portals its <em>own</em> overlays (<code>AudioPlayerBar</code>, <code>MessageJumpList</code>, <code>KeyComboPicker</code>) with <code>createPortal</code>, but cannot portal <code>DrawerShell</code> because the library gives it no seam. A comment in <code>Workspace.tsx</code> calls the composer "a portaled DrawerShell overlay" — it is not portaled; it is hoisted, which is not the same thing.</p>
+        <p><strong>This is the highest-severity item in this document</strong> and it belongs in the shared core, not in each component.</p>
+      </div>
+    </div>
+    <div class="grow">
+      <div class="gi">02</div>
+      <div>
+        <h4>Nothing makes the background inert</h4>
+        <p>No component sets <code>inert</code> or <code>aria-hidden</code> on the content behind an open modal. A focus trap stops Tab; it does not stop a screen reader's virtual cursor, browser find-in-page, or a click that lands through a gap. <code>focus-containment</code> — a declared capability on every modal asset — is not satisfied by a trap alone.</p>
+      </div>
+    </div>
+    <div class="grow">
+      <div class="gi">03</div>
+      <div>
+        <h4>Duplicate <code>data-testid</code> within a single component</h4>
+        <p><code>Dialog</code> puts <code>data-testid="overlays.dialog"</code> on both the backdrop and the close button. <code>ResponsivePanel</code> puts <code>overlays.responsive-panel</code> on <strong>three</strong> elements; <code>AlertDialog</code> on two. <code>getByTestId</code> throws on multiple matches, so these components cannot be driven by their own testid convention. The testid is being used as a component identifier where it needs to be an element identifier.</p>
+      </div>
+    </div>
+    <div class="grow">
+      <div class="gi">04</div>
+      <div>
+        <h4>Hardcoded English in the localized library</h4>
+        <p>The library has a strings system — <code>useStrings</code>, <code>resolveStrings</code>, 91 files use it — and <code>DrawerShell/1.1.2</code> bypasses it: <code>closeAriaLabel = "Close drawer"</code>, <code>title = "Drawer"</code>, and <code>aria-label="Dismiss drawer backdrop"</code> as a bare literal <strong>with no prop to override it</strong>. <code>ResponsivePanel</code> does the same. There is a <code>ValidateI18n</code> gate; these are its subjects.</p>
+      </div>
+    </div>
+    <div class="grow">
+      <div class="gi">05</div>
+      <div>
+        <h4>Version skew is the ecosystem's largest latent break</h4>
+        <p><code>SidebarShell</code>: 25 scenarios on <code>1.2.0</code>, one on <code>1.3.1</code>, three on <code>2.0.0</code> — a major-version split across 28 consumers of the most-used overlay. <code>Button</code>: 117 on <code>1.2.0</code>, 13 across <code>2.x</code>. <code>BottomNav</code>: 27 on <code>1.2.0</code>. Every one of those pins is a version the gates do not inspect (§03.2), and a fix landing on <code>latest</code> reaches none of them.</p>
+      </div>
+    </div>
+    <div class="grow">
+      <div class="gi">06</div>
+      <div>
+        <h4>No breakpoint token</h4>
+        <p><code>@media (min-width: 768px)</code> in seven overlay stylesheets, <code>48rem</code> in three, <code>useMediaQuery("(max-width: 767px)")</code> in web-console's JS. Identical at a 16px root, divergent the moment a user scales text — so at 20px root some overlays flip to desktop and others don't, mid-layout. Publish <code>--breakpoint-md</code> and drive all three from it.</p>
+      </div>
+    </div>
+    <div class="grow">
+      <div class="gi">07</div>
+      <div>
+        <h4>Overlays cannot animate out</h4>
+        <p>Every one does <code>if (!open) return null</code>, so React unmounts on the frame the state flips and an exit transition is impossible by construction. <code>Presence</code> already solves this and four non-modal components use it. This is also what <code>no-layout-animation</code> and <code>reduced-motion</code> in the capability list are about.</p>
+      </div>
+    </div>
+    <div class="grow">
+      <div class="gi">08</div>
+      <div>
+        <h4>Two dependency dialects inside the library</h4>
+        <p><code>Button/1.2.0</code> imports <code>"../../../Pressable/versions/1.0.0/Pressable"</code> — a deep relative path. <code>Button/2.2.1</code> imports <code>"@vrooli/react-component-library/Pressable/1.0.0"</code>. Both compile. Only the second is visible to the dependency graph the manifests and gates reason over, so relative-path dependencies are invisible to closure analysis and token verdicts.</p>
+      </div>
+    </div>
+    <div class="grow">
+      <div class="gi">09</div>
+      <div>
+        <h4>Where the app is ahead of the library — three times now</h4>
+        <p><code>ConfirmDialog</code> is more correct than either catalog alert component. <code>ContextMenuBase</code> is the only context menu in the repo. web-console portals its own overlays because the library cannot. That is a pattern, not three coincidences: <strong>real usage is finding the requirements and there is no path back</strong>. The <code>ingest</code> command was supposed to be that path; it has been used once, badly. Fixing the flow matters as much as fixing the components.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════ -->
+<section>
+  <div class="shead"><span class="snum">05</span><h2>Definition of done — also already written</h2></div>
+
+  <p>You asked what "fully professional, production-ready" means here. The catalog answers that too, and more precisely than I would have.</p>
+
+  <p>Every overlay asset carries a <code>requiredCapabilities</code> list — 14 to 15 entries each — drawn from a governed vocabulary in <code>scenarios/experience-manager/capabilities/</code>. The definitions are good. Here is <code>focus-containment</code>, verbatim:</p>
+
+<pre>{
+  "id": "focus-containment",
+  "title": "Modal surfaces contain focus",
+  "description": "While a modal surface is open, keyboard focus cannot escape to the inert
+     content behind it, <b>including through nested overlays</b>.",
+  "proves": { "evidence": ["ax-tree"], "claimTypes": ["focus-contained"] },
+  "tierCeiling": <b>"machine"</b>,
+  "rationale": "<b>The library already ships useFocusTrap and FocusTrapPanel, so the behavior
+     exists in code with nothing asserting it holds.</b> Nested scopes are the case that
+     breaks in practice."
+}</pre>
+
+  <div class="callout good">
+    <p class="lede">The acceptance criteria are free; the evidence producer is the missing piece</p>
+    <p>The capabilities are declared <code>tierCeiling: "machine"</code> — checkable by machine — and they name the evidence type (<code>ax-tree</code>) and the claim (<code>focus-contained</code>). What does not exist is anything that produces that evidence. So <code>Dialog</code> declares <code>focus-containment</code> and has no focus trap, and nothing anywhere notices.</p>
+    <p>This dovetails exactly with the composition gate from the first document. One browser harness — render each asset inside each consuming scenario's real CSS — can emit ax-tree evidence for <code>focus-containment</code>, <code>focus-restoration</code>, <code>accessible-naming</code> and <code>status-announced</code>; computed-style evidence for <code>contrast-floor</code>, <code>tap-target-size</code>, <code>focus-visible-indicator</code> and <code>dark-parity</code>; and viewport evidence for <code>responsive-transformation</code>. That is one harness satisfying most of a bar that is <em>already specified for every asset</em>.</p>
+    <p><strong>Do not write a new definition of done.</strong> Point the harness at the one in the repo.</p>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════ -->
+<section>
+  <div class="shead"><span class="snum">06</span><h2>Sequencing</h2></div>
+
+  <p>Folding all three documents together. Nothing here is bigger than a session or two except step 5.</p>
+
+  <div class="plan">
+    <div class="step"><div class="sidx">1</div><div>
+      <h3>Stop the bleeding</h3>
+      <p>Tailwind <code>content</code> globs in all 95 configs (with a dated expiry). web-console's ten <code>DrawerShell</code> call sites to <code>1.1.2</code>. Mark <code>Drawer</code>, <code>InspectorPanel</code>, <code>FocusTrapPanel</code>, <code>OverlayCanvas</code> deprecated and strip the <code>x-supplementalJustification</code> that demotes <code>DrawerShell</code> below the stub replacing it.</p>
+      <div class="tagrow"><span class="pill good">Days</span><span class="pill good">Reversible</span></div>
+    </div></div>
+
+    <div class="step"><div class="sidx">2</div><div>
+      <h3>Make <code>BaseStyles</code> a dependency</h3>
+      <p>Unchanged and still the highest-leverage single change: import it from <code>ControlBase</code>, <code>Pressable</code> and every StyleSheet overlay. Retroactively repairs the −117 / −119 / −87 accessibility regression across all 34 consumers without touching any of them.</p>
+      <div class="tagrow"><span class="pill bad">Fixes a11y regression</span><span class="pill good">No consumer change</span></div>
+    </div></div>
+
+    <div class="step"><div class="sidx">3</div><div>
+      <h3>Fix the three gates so the next one can't land</h3>
+      <p>Widen the class gate to "no utility classes at all" with a shrink-only allowlist; add the real-imports scope so gates inspect pinned versions and not just <code>latest</code>; make an empty component index a hard failure. Gate or retire <code>ingest</code>. Small diffs, and they are what makes everything after this durable.</p>
+      <div class="tagrow"><span class="pill acc">Prevention</span><span class="pill neut">Existing gate seams</span></div>
+    </div></div>
+
+    <div class="step"><div class="sidx">4</div><div>
+      <h3>Build the shared overlay core</h3>
+      <p>Portal, layer manager with real z assignment and background <code>inert</code>, nesting-safe scroll lock, focus trap + return, <code>Presence</code> exit, a rewritten <code>useSwipe</code>, and a breakpoint token. Then wire it into <code>Dialog</code>, <code>AlertDialog</code> and <code>Popover</code> — the components already shipping as modals without it.</p>
+      <div class="tagrow"><span class="pill bad">Correctness</span><span class="pill neut">Prerequisite for step 5</span></div>
+    </div></div>
+
+    <div class="step"><div class="sidx">5</div><div>
+      <h3>Implement the catalog's missing overlays</h3>
+      <p><code>BottomSheet</code>, <code>FullPageDrawer</code>, <code>ResponsiveDialog</code>, <code>ContextMenu</code> — in that order, since each is the previous one's dependency. Split <code>DrawerShell</code> into the first two and keep it as a deprecated alias for one release. Harvest <code>ResponsivePanel</code> into the core and fold it into <code>SidebarShell</code>. Contribute <code>ConfirmDialog</code> back as <code>AlertDialog</code>.</p>
+      <div class="tagrow"><span class="pill warn">Largest step</span><span class="pill acc">Delivers the responsive dialog</span></div>
+    </div></div>
+
+    <div class="step"><div class="sidx">6</div><div>
+      <h3>Point a composition harness at the capability bar</h3>
+      <p>Render each asset inside each consuming scenario's compiled CSS, in a browser, and emit the ax-tree / computed-style / viewport evidence the capability definitions already ask for. This is simultaneously the missing overlay acceptance test, the missing token check, and the missing Tailwind-purge check — one harness, three open problems.</p>
+      <div class="tagrow"><span class="pill acc">Highest coverage value</span><span class="pill neut">Extends BAS</span></div>
+    </div></div>
+
+    <div class="step"><div class="sidx">7</div><div>
+      <h3>Immutability, then floating imports, then the skew cleanup</h3>
+      <p>Hash released versions and reject in-place edits. Then emit the three-subpath export map and move consumers to <code>./Component/&lt;major&gt;</code>. Then close the version skew — 25 scenarios on <code>SidebarShell/1.2.0</code>, 27 on <code>BottomNav/1.2.0</code>, 117 imports on <code>Button/1.2.0</code> — which is far cheaper once floating imports mean it never reopens.</p>
+      <div class="tagrow"><span class="pill neut">Order matters</span></div>
+    </div></div>
+  </div>
+</section>
+
+<footer>
+  <p>Measured on branch <code>agi</code> on 2026-08-26. Import counts are every <code>@vrooli/react-component-library/*</code> specifier across all <code>scenarios/*/ui/src</code> trees; catalog specifications read from <code>scenarios/react-component-library/catalog/assets/overlays/</code>; capability definitions from <code>scenarios/experience-manager/capabilities/</code>; gate behavior read from <code>api/internal/gates/gates.go</code> and <code>api/internal/components/ingest.go</code>. Dispositions are recommendations, not changes — nothing in the repo has been modified.</p>
+</footer>
+
+</div>

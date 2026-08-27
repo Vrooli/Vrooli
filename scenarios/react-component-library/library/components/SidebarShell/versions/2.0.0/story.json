@@ -3,8 +3,12 @@
   "schemaVersion": 5,
   "kind": "component",
   "title": "SidebarShell",
-  "args": { "fields": [] },
-  "environment": { "fixtures": [] },
+  "args": {
+    "fields": []
+  },
+  "environment": {
+    "fixtures": []
+  },
   "stories": [
     {
       "id": "default",
@@ -13,12 +17,34 @@
       "mode": "live",
       "description": "The shell owns the seam: no caller-supplied handle, width or handle-width constant.",
       "args": {},
-      "composition": { "specimen": { "module": "./story.tsx", "export": "Default" } },
-      "interactions": [{ "kind": "settle" }],
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "Default"
+        }
+      },
+      "interactions": [
+        {
+          "kind": "settle"
+        }
+      ],
       "expect": [
-        { "kind": "role", "role": "complementary", "name": "Navigation" },
-        { "kind": "role", "role": "separator", "name": "Resize Navigation" },
-        { "kind": "attribute", "selector": "[data-testid='navigation.sidebar-resize-handle']", "attribute": "aria-valuenow", "value": "240" }
+        {
+          "kind": "role",
+          "role": "complementary",
+          "name": "Navigation"
+        },
+        {
+          "kind": "role",
+          "role": "separator",
+          "name": "Resize Navigation"
+        },
+        {
+          "kind": "attribute",
+          "selector": "[data-testid='navigation.sidebar-resize-handle']",
+          "attribute": "aria-valuenow",
+          "value": "240"
+        }
       ]
     },
     {
@@ -28,15 +54,46 @@
       "mode": "live",
       "description": "The sidebar is resizable without a pointer, which is the part a hand-rolled handle invariably skips.",
       "args": {},
-      "composition": { "specimen": { "module": "./story.tsx", "export": "KeyboardResize" } },
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "KeyboardResize"
+        }
+      },
       "interactions": [
-        { "kind": "key", "target": { "role": "separator", "name": "Resize Navigation" }, "text": "ArrowRight" },
-        { "kind": "key", "target": { "role": "separator", "name": "Resize Navigation" }, "text": "ArrowRight" },
-        { "kind": "settle" }
+        {
+          "kind": "key",
+          "target": {
+            "role": "separator",
+            "name": "Resize Navigation"
+          },
+          "text": "ArrowRight"
+        },
+        {
+          "kind": "key",
+          "target": {
+            "role": "separator",
+            "name": "Resize Navigation"
+          },
+          "text": "ArrowRight"
+        },
+        {
+          "kind": "settle"
+        }
       ],
       "expect": [
-        { "kind": "attribute", "selector": "[data-testid='navigation.sidebar-resize-handle']", "attribute": "aria-valuenow", "value": "256" },
-        { "kind": "attribute", "selector": "[data-testid='navigation.sidebar-resize-handle']", "attribute": "aria-valuetext", "value": "Navigation 256 pixels" }
+        {
+          "kind": "attribute",
+          "selector": "[data-testid='navigation.sidebar-resize-handle']",
+          "attribute": "aria-valuenow",
+          "value": "256"
+        },
+        {
+          "kind": "attribute",
+          "selector": "[data-testid='navigation.sidebar-resize-handle']",
+          "attribute": "aria-valuetext",
+          "value": "Navigation 256 pixels"
+        }
       ]
     },
     {
@@ -46,12 +103,31 @@
       "mode": "live",
       "description": "The same shell as a modal drawer, so an adopting scenario never hand-rolls a second one.",
       "args": {},
-      "composition": { "specimen": { "module": "./story.tsx", "export": "DrawerOpen" } },
-      "interactions": [{ "kind": "settle" }],
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "DrawerOpen"
+        }
+      },
+      "interactions": [
+        {
+          "kind": "settle"
+        }
+      ],
       "expect": [
-        { "kind": "role", "role": "dialog", "name": "Navigation drawer" },
-        { "kind": "visible", "selector": "[data-testid='navigation.sidebar-backdrop']" },
-        { "kind": "visible", "selector": "[data-testid='navigation.sidebar-close']" }
+        {
+          "kind": "role",
+          "role": "dialog",
+          "name": "Navigation drawer"
+        },
+        {
+          "kind": "visible",
+          "selector": "[data-testid='navigation.sidebar-backdrop']"
+        },
+        {
+          "kind": "visible",
+          "selector": "[data-testid='navigation.sidebar-close']"
+        }
       ]
     },
     {
@@ -61,11 +137,27 @@
       "mode": "live",
       "description": "A caller still supplying its own handle keeps working for one release, at the derived test id.",
       "args": {},
-      "composition": { "specimen": { "module": "./story.tsx", "export": "LegacyHandle" } },
-      "interactions": [{ "kind": "settle" }],
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "LegacyHandle"
+        }
+      },
+      "interactions": [
+        {
+          "kind": "settle"
+        }
+      ],
       "expect": [
-        { "kind": "visible", "selector": "[data-testid='navigation.sidebar-resize-handle']" },
-        { "kind": "count", "selector": "[data-rcl-resize-handle]", "value": "0" }
+        {
+          "kind": "visible",
+          "selector": "[data-testid='navigation.sidebar-resize-handle']"
+        },
+        {
+          "kind": "count",
+          "selector": "[data-rcl-resize-handle]",
+          "value": "0"
+        }
       ]
     }
   ]

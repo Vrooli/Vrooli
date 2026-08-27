@@ -46,6 +46,12 @@ export interface UseResizablePanelOptions {
   defaultSize: number;
   /** Space the region on the other side of the separator must keep. */
   adjacentMin?: number;
+  /**
+   * Ceiling expressed as a fraction of the container, applied alongside `max`
+   * and `adjacentMin` — the tightest of the three wins. For panels whose rule
+   * is "never more than half the workspace" rather than a pixel maximum.
+   */
+  maxRatio?: number;
   /** Pixels per arrow press. */
   step?: number;
   /** Pixels per arrow press with Shift held. */
@@ -180,6 +186,7 @@ export function useResizablePanel(options: UseResizablePanelOptions): UseResizab
     max,
     defaultSize,
     adjacentMin = 0,
+    maxRatio,
     step = 8,
     coarseStep = 48,
     snapPoints,
@@ -235,8 +242,9 @@ export function useResizablePanel(options: UseResizablePanelOptions): UseResizab
     // rendering in a non-layout environment). Falling through to `max` keeps
     // the ceiling honest instead of pinning every panel to its minimum.
     if (!available || available <= 0) return max;
-    return Math.max(min, Math.min(max, available - adjacentMin));
-  }, [adjacentMin, axis, containerRect, max, min]);
+    const ratioCap = maxRatio === undefined ? max : Math.floor(available * maxRatio);
+    return Math.max(min, Math.min(max, ratioCap, available - adjacentMin));
+  }, [adjacentMin, axis, containerRect, max, maxRatio, min]);
 
   const writeLiveSize = useCallback(
     (next: number) => {

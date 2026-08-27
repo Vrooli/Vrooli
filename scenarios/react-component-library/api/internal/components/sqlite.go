@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"path"
 	"strings"
 	"time"
 
@@ -97,24 +98,48 @@ func (s *sqliteRepository) UpsertManifest(ctx context.Context, in IndexManifestI
 	if err != nil {
 		return Component{}, err
 	}
-	if _, err := s.db.ExecContext(ctx, `DELETE FROM component_version_files WHERE version_id IN (SELECT id FROM component_versions WHERE component_id = ?)`, c.ID); err != nil {
-		return Component{}, fmt.Errorf("clear component version files for %q: %w", c.ID, err)
-	}
-	if _, err := s.db.ExecContext(ctx, `DELETE FROM component_version_required_tokens WHERE version_id IN (SELECT id FROM component_versions WHERE component_id = ?)`, c.ID); err != nil {
-		return Component{}, fmt.Errorf("clear component version required tokens for %q: %w", c.ID, err)
-	}
-	if _, err := s.db.ExecContext(ctx, `DELETE FROM component_version_required_token_patterns WHERE version_id IN (SELECT id FROM component_versions WHERE component_id = ?)`, c.ID); err != nil {
-		return Component{}, fmt.Errorf("clear component version required token patterns for %q: %w", c.ID, err)
-	}
-	if _, err := s.db.ExecContext(ctx, `DELETE FROM component_version_parity_reports WHERE version_id IN (SELECT id FROM component_versions WHERE component_id = ?)`, c.ID); err != nil {
-		return Component{}, fmt.Errorf("clear component parity reports for %q: %w", c.ID, err)
-	}
 	existingVersions, err := s.versionMetadata(ctx, c.ID)
 	if err != nil {
 		return Component{}, err
 	}
-	if _, err := s.db.ExecContext(ctx, `DELETE FROM component_stories WHERE component_id = ?`, c.ID); err != nil {
+	versionPlaceholders := strings.TrimRight(strings.Repeat("?,", len(in.Versions)), ",")
+	refreshPredicate := "presence <> 'evicted'"
+	refreshArgs := []any{c.ID}
+	if versionPlaceholders != "" {
+		refreshPredicate += " OR version IN (" + versionPlaceholders + ")"
+		for _, v := range in.Versions {
+			refreshArgs = append(refreshArgs, v.Version)
+		}
+	}
+	if _, err := s.db.ExecContext(ctx, `DELETE FROM component_version_files WHERE version_id IN (SELECT id FROM component_versions WHERE component_id = ? AND (`+refreshPredicate+`))`, refreshArgs...); err != nil {
+		return Component{}, fmt.Errorf("clear component version files for %q: %w", c.ID, err)
+	}
+	if _, err := s.db.ExecContext(ctx, `DELETE FROM component_version_required_tokens WHERE version_id IN (SELECT id FROM component_versions WHERE component_id = ? AND (`+refreshPredicate+`))`, refreshArgs...); err != nil {
+		return Component{}, fmt.Errorf("clear component version required tokens for %q: %w", c.ID, err)
+	}
+	if _, err := s.db.ExecContext(ctx, `DELETE FROM component_version_required_token_patterns WHERE version_id IN (SELECT id FROM component_versions WHERE component_id = ? AND (`+refreshPredicate+`))`, refreshArgs...); err != nil {
+		return Component{}, fmt.Errorf("clear component version required token patterns for %q: %w", c.ID, err)
+	}
+	if _, err := s.db.ExecContext(ctx, `DELETE FROM component_version_parity_reports WHERE version_id IN (SELECT id FROM component_versions WHERE component_id = ? AND (`+refreshPredicate+`))`, refreshArgs...); err != nil {
+		return Component{}, fmt.Errorf("clear component parity reports for %q: %w", c.ID, err)
+	}
+	// Evicted versions are intentionally absent from the working tree. Their
+	// story projection is still durable registry data, so a reindex must not
+	// treat the absence of story.json on disk as deletion. Materialized
+	// versions remain rebuildable from the working tree and retain the old
+	// replacement behavior when their story disappears.
+	if _, err := s.db.ExecContext(ctx, `
+DELETE FROM component_stories
+WHERE component_id = ?
+  AND version NOT IN (
+	    SELECT version FROM component_versions
+	    WHERE component_id = ? AND presence = 'evicted'
+  )`, c.ID, c.ID); err != nil {
 		return Component{}, fmt.Errorf("clear component stories for %q: %w", c.ID, err)
+	}
+	evictedStories, err := s.restoreEvictedStories(ctx, c.ID, c.LibraryID)
+	if err != nil {
+		return Component{}, err
 	}
 	now := s.clock.Now().UTC()
 	for _, v := range in.Versions {
@@ -140,8 +165,8 @@ func (s *sqliteRepository) UpsertManifest(ctx context.Context, in IndexManifestI
 		}
 		if _, err := s.db.ExecContext(ctx, `
 INSERT INTO component_versions
-  (id, component_id, library_id, version, status, source_path, content, content_sha256, changelog_md, indexed_at, created_at, released_at)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+			  (id, component_id, library_id, version, status, source_path, content, content_sha256, changelog_md, indexed_at, created_at, released_at, presence)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 ON CONFLICT(component_id, version) DO UPDATE SET
   library_id = excluded.library_id,
   status = excluded.status,
@@ -150,12 +175,13 @@ ON CONFLICT(component_id, version) DO UPDATE SET
   content_sha256 = excluded.content_sha256,
   changelog_md = excluded.changelog_md,
   indexed_at = excluded.indexed_at,
+  presence = excluded.presence,
   released_at = CASE
     WHEN component_versions.released_at <> '' THEN component_versions.released_at
     ELSE excluded.released_at
   END
 `, v.ID, v.ComponentID, v.LibraryID, v.Version, string(v.Status), v.SourcePath, v.Content, v.ContentSHA256,
-			v.ChangelogMD, v.IndexedAt.UTC().Format(timeFormat), createdAt, releasedAt); err != nil {
+			v.ChangelogMD, v.IndexedAt.UTC().Format(timeFormat), createdAt, releasedAt, firstNonEmpty(v.Presence, "materialized")); err != nil {
 			return Component{}, fmt.Errorf("upsert component version %s@%s: %w", c.LibraryID, v.Version, err)
 		}
 		for _, file := range v.Files {
@@ -190,12 +216,12 @@ ON CONFLICT(component_id, version) DO UPDATE SET
 		for _, v := range in.Versions {
 			args = append(args, v.Version)
 		}
-		deleteStale := `DELETE FROM component_versions WHERE component_id = ? AND version NOT IN (` + placeholders + `)`
+		deleteStale := `DELETE FROM component_versions WHERE component_id = ? AND presence <> 'evicted' AND version NOT IN (` + placeholders + `)`
 		if _, err := s.db.ExecContext(ctx, deleteStale, args...); err != nil {
 			return Component{}, fmt.Errorf("reconcile stale component versions for %q: %w", c.ID, err)
 		}
 	}
-	for _, story := range in.Stories {
+	for _, story := range append(in.Stories, evictedStories...) {
 		if story.ID == "" {
 			story.ID = uuid.NewString()
 		}
@@ -225,6 +251,126 @@ ON CONFLICT(component_id, version) DO UPDATE SET
 		return Component{}, err
 	}
 	return s.Get(ctx, c.ID)
+}
+
+// RestoreEvictedStories rebuilds only projections that are absent. It runs
+// independently of manifest validation so an immutable-source mismatch on a
+// different component cannot prevent recovery of durable cold-tier metadata.
+func (s *sqliteRepository) RestoreEvictedStories(ctx context.Context) (int, error) {
+	rows, err := s.db.QueryContext(ctx, `SELECT id, library_id FROM components ORDER BY library_id`)
+	if err != nil {
+		return 0, fmt.Errorf("list components for evicted story restoration: %w", err)
+	}
+	type componentRef struct{ id, libraryID string }
+	var components []componentRef
+	for rows.Next() {
+		var ref componentRef
+		if err := rows.Scan(&ref.id, &ref.libraryID); err != nil {
+			_ = rows.Close()
+			return 0, fmt.Errorf("scan component for evicted story restoration: %w", err)
+		}
+		components = append(components, ref)
+	}
+	if err := rows.Err(); err != nil {
+		_ = rows.Close()
+		return 0, fmt.Errorf("iterate components for evicted story restoration: %w", err)
+	}
+	if err := rows.Close(); err != nil {
+		return 0, fmt.Errorf("close components for evicted story restoration: %w", err)
+	}
+
+	restored := 0
+	for _, ref := range components {
+		stories, err := s.restoreEvictedStories(ctx, ref.id, ref.libraryID)
+		if err != nil {
+			return restored, err
+		}
+		for _, story := range stories {
+			if _, err := s.db.ExecContext(ctx, `
+INSERT INTO component_stories (id, component_id, library_id, version, schema_version, kind, title, args_json, environment_json, stories_json, contract_json, source_path, indexed_at)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+ON CONFLICT(component_id, version) DO NOTHING
+`, story.ID, ref.id, ref.libraryID, story.Version, story.SchemaVersion, string(story.Kind), story.Title, story.ArgsJSON, story.EnvironmentJSON, story.StoriesJSON, story.ContractJSON, story.SourcePath, s.clock.Now().UTC().Format(timeFormat)); err != nil {
+				return restored, fmt.Errorf("restore component story %s@%s: %w", ref.libraryID, story.Version, err)
+			}
+			restored++
+		}
+	}
+	return restored, nil
+}
+
+// restoreEvictedStories repairs a missing typed story projection from the
+// durable story.json file mirror. This is deliberately scoped to evicted
+// versions: materialized versions are parsed by the filesystem indexer, while
+// evicted versions have no source path for that parser to read.
+func (s *sqliteRepository) restoreEvictedStories(ctx context.Context, componentID, libraryID string) ([]ComponentStory, error) {
+	rows, err := s.db.QueryContext(ctx, `
+SELECT v.version, v.source_path, f.content
+FROM component_versions v
+JOIN component_version_files f ON f.version_id = v.id AND f.path = 'story.json'
+LEFT JOIN component_stories story ON story.component_id = v.component_id AND story.version = v.version
+WHERE v.component_id = ? AND v.presence = 'evicted' AND story.id IS NULL
+ORDER BY v.version`, componentID)
+	if err != nil {
+		return nil, fmt.Errorf("find missing evicted story projections for %q: %w", libraryID, err)
+	}
+	type mirror struct {
+		version, sourcePath, content string
+	}
+	var mirrors []mirror
+	for rows.Next() {
+		var item mirror
+		if err := rows.Scan(&item.version, &item.sourcePath, &item.content); err != nil {
+			_ = rows.Close()
+			return nil, fmt.Errorf("scan evicted story mirror for %q: %w", libraryID, err)
+		}
+		mirrors = append(mirrors, item)
+	}
+	if err := rows.Err(); err != nil {
+		_ = rows.Close()
+		return nil, fmt.Errorf("iterate evicted story mirrors for %q: %w", libraryID, err)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, fmt.Errorf("close evicted story mirrors for %q: %w", libraryID, err)
+	}
+
+	stories := make([]ComponentStory, 0, len(mirrors))
+	for _, item := range mirrors {
+		contract, diagnostics := ParseStoryContract([]byte(item.content))
+		if contract == nil || len(storyErrors(diagnostics)) > 0 {
+			return nil, fmt.Errorf("restore evicted story %s@%s: durable story.json is invalid", libraryID, item.version)
+		}
+		args, err := json.Marshal(contract.Args)
+		if err != nil {
+			return nil, fmt.Errorf("encode evicted story args %s@%s: %w", libraryID, item.version, err)
+		}
+		environment, err := json.Marshal(contract.Environment)
+		if err != nil {
+			return nil, fmt.Errorf("encode evicted story environment %s@%s: %w", libraryID, item.version, err)
+		}
+		storyDefinitions, err := json.Marshal(contract.Stories)
+		if err != nil {
+			return nil, fmt.Errorf("encode evicted story definitions %s@%s: %w", libraryID, item.version, err)
+		}
+		normalized, err := json.Marshal(contract)
+		if err != nil {
+			return nil, fmt.Errorf("encode evicted story contract %s@%s: %w", libraryID, item.version, err)
+		}
+		stories = append(stories, ComponentStory{
+			ID:              uuid.NewString(),
+			LibraryID:       libraryID,
+			Version:         item.version,
+			SchemaVersion:   contract.SchemaVersion,
+			Kind:            contract.Kind,
+			Title:           contract.Title,
+			ArgsJSON:        string(args),
+			EnvironmentJSON: string(environment),
+			StoriesJSON:     string(storyDefinitions),
+			ContractJSON:    string(normalized),
+			SourcePath:      path.Join(path.Dir(item.sourcePath), "story.json"),
+		})
+	}
+	return stories, nil
 }
 
 func (s *sqliteRepository) checkReleasedVersionHashes(ctx context.Context, in IndexManifestInput) error {
@@ -265,10 +411,11 @@ type versionMetadata struct {
 	id         string
 	createdAt  string
 	releasedAt string
+	presence   string
 }
 
 func (s *sqliteRepository) versionMetadata(ctx context.Context, componentID string) (map[string]versionMetadata, error) {
-	rows, err := s.db.QueryContext(ctx, `SELECT id, version, created_at, released_at FROM component_versions WHERE component_id = ?`, componentID)
+	rows, err := s.db.QueryContext(ctx, `SELECT id, version, created_at, released_at, presence FROM component_versions WHERE component_id = ?`, componentID)
 	if err != nil {
 		return nil, fmt.Errorf("read existing component versions for %q: %w", componentID, err)
 	}
@@ -277,7 +424,7 @@ func (s *sqliteRepository) versionMetadata(ctx context.Context, componentID stri
 	for rows.Next() {
 		var version versionMetadata
 		var label string
-		if err := rows.Scan(&version.id, &label, &version.createdAt, &version.releasedAt); err != nil {
+		if err := rows.Scan(&version.id, &label, &version.createdAt, &version.releasedAt, &version.presence); err != nil {
 			return nil, fmt.Errorf("scan existing component version for %q: %w", componentID, err)
 		}
 		out[label] = version
@@ -868,7 +1015,7 @@ func (s *sqliteRepository) ListVersions(ctx context.Context, componentID string,
 		limit = 100
 	}
 	rows, err := s.db.QueryContext(ctx, `
-SELECT id, component_id, library_id, version, status, source_path, content, content_sha256, changelog_md, indexed_at, created_at, released_at
+SELECT id, component_id, library_id, version, status, source_path, content, content_sha256, changelog_md, indexed_at, created_at, released_at, presence
 FROM component_versions
 WHERE component_id = ?
 ORDER BY version DESC
@@ -917,7 +1064,7 @@ LIMIT ?
 
 func (s *sqliteRepository) GetVersion(ctx context.Context, componentID, version string) (ComponentVersion, error) {
 	row := s.db.QueryRowContext(ctx, `
-SELECT id, component_id, library_id, version, status, source_path, content, content_sha256, changelog_md, indexed_at, created_at, released_at
+SELECT id, component_id, library_id, version, status, source_path, content, content_sha256, changelog_md, indexed_at, created_at, released_at, presence
 FROM component_versions
 WHERE component_id = ? AND version = ?
 `, componentID, version)
@@ -946,6 +1093,16 @@ WHERE component_id = ? AND version = ?
 		return ComponentVersion{}, err
 	}
 	return v, nil
+}
+
+func (s *sqliteRepository) SetVersionPresence(ctx context.Context, componentID, version, presence string) error {
+	if presence != "materialized" && presence != "evicted" {
+		return fmt.Errorf("invalid version presence %q", presence)
+	}
+	if _, err := s.db.ExecContext(ctx, `UPDATE component_versions SET presence=? WHERE component_id=? AND version=?`, presence, componentID, version); err != nil {
+		return fmt.Errorf("set version presence: %w", err)
+	}
+	return nil
 }
 
 func experienceContractFromFiles(files []ComponentVersionFile) string {
@@ -1111,7 +1268,7 @@ func assetKindOrDefault(kind AssetKind) AssetKind {
 func scanComponentVersion(s rowScanner) (ComponentVersion, error) {
 	var v ComponentVersion
 	var statusRaw, indexedRaw, createdRaw, releasedRaw string
-	if err := s.Scan(&v.ID, &v.ComponentID, &v.LibraryID, &v.Version, &statusRaw, &v.SourcePath, &v.Content, &v.ContentSHA256, &v.ChangelogMD, &indexedRaw, &createdRaw, &releasedRaw); err != nil {
+	if err := s.Scan(&v.ID, &v.ComponentID, &v.LibraryID, &v.Version, &statusRaw, &v.SourcePath, &v.Content, &v.ContentSHA256, &v.ChangelogMD, &indexedRaw, &createdRaw, &releasedRaw, &v.Presence); err != nil {
 		return ComponentVersion{}, err
 	}
 	v.Status = ComponentVersionStatus(statusRaw)

@@ -30,8 +30,14 @@ type Repository interface {
 	ListVersions(ctx context.Context, componentID string, limit int) ([]ComponentVersion, error)
 
 	GetVersion(ctx context.Context, componentID, version string) (ComponentVersion, error)
+	SetVersionPresence(ctx context.Context, componentID, version, presence string) error
 
 	ListStories(ctx context.Context, q StoryQuery) ([]ComponentStory, error)
+
+	// RestoreEvictedStories rebuilds missing typed story projections from the
+	// durable story.json mirrors. It is safe to run before a full reindex and
+	// returns the number of projections restored.
+	RestoreEvictedStories(ctx context.Context) (int, error)
 
 	// DeleteMissing removes registry rows whose LibraryID is not in
 	// keep, cascading to that component's child rows (versions, files,

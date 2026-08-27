@@ -6,19 +6,35 @@
         "default": "body",
         "kind": "enum",
         "label": "Style",
-        "options": ["display", "title", "heading", "body", "label", "caption", "code", "overline"],
+        "options": [
+          "display",
+          "title",
+          "heading",
+          "body",
+          "label",
+          "caption",
+          "code",
+          "overline"
+        ],
         "path": "textStyle"
       },
       {
         "default": "default",
         "kind": "enum",
         "label": "Tone",
-        "options": ["default", "muted", "accent", "danger"],
+        "options": [
+          "default",
+          "muted",
+          "accent",
+          "danger"
+        ],
         "path": "tone"
       }
     ]
   },
-  "environment": {"fixtures": []},
+  "environment": {
+    "fixtures": []
+  },
   "kind": "component",
   "schemaVersion": 5,
   "stories": [
@@ -26,11 +42,26 @@
       "id": "anatomy",
       "name": "Default anatomy",
       "role": "anatomy",
-      "args": {"textStyle": "body", "tone": "default"},
-      "composition": {"specimen": {"module": "./story.tsx", "export": "TextAnatomy"}},
+      "args": {
+        "textStyle": "body",
+        "tone": "default"
+      },
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "TextAnatomy"
+        }
+      },
       "expect": [
-        {"kind": "role", "role": "heading", "name": "A clear typographic hierarchy"},
-        {"kind": "text", "value": "One component carries the reading rhythm across a surface."}
+        {
+          "kind": "role",
+          "role": "heading",
+          "name": "A clear typographic hierarchy"
+        },
+        {
+          "kind": "text",
+          "value": "One component carries the reading rhythm across a surface."
+        }
       ]
     },
     {
@@ -38,29 +69,91 @@
       "name": "Style scale",
       "role": "axis",
       "axis": "textStyle",
-      "covers": {"textStyle": ["display", "title", "heading", "body", "label", "caption", "code", "overline"]},
-      "args": {"textStyle": "body"},
-      "composition": {"specimen": {"module": "./story.tsx", "export": "TextScaleMatrix"}},
-      "expect": [{"kind": "role", "role": "heading", "name": "Eight bundled styles"}]
+      "covers": {
+        "textStyle": [
+          "display",
+          "title",
+          "heading",
+          "body",
+          "label",
+          "caption",
+          "code",
+          "overline"
+        ]
+      },
+      "args": {
+        "textStyle": "body"
+      },
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "TextScaleMatrix"
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "role": "heading",
+          "name": "Eight bundled styles"
+        }
+      ]
     },
     {
       "id": "tone",
       "name": "Semantic tones",
       "role": "axis",
       "axis": "tone",
-      "covers": {"tone": ["default", "muted", "accent", "danger"]},
-      "args": {"tone": "default"},
-      "composition": {"specimen": {"module": "./story.tsx", "export": "TextToneMatrix"}},
-      "expect": [{"kind": "role", "role": "heading", "name": "Four semantic tones"}]
+      "covers": {
+        "tone": [
+          "default",
+          "muted",
+          "accent",
+          "danger"
+        ]
+      },
+      "args": {
+        "tone": "default"
+      },
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "TextToneMatrix"
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "role": "heading",
+          "name": "Four semantic tones"
+        }
+      ]
     },
     {
       "id": "boundaries",
       "name": "Boundary conditions",
       "role": "boundary",
-      "states": ["empty", "truncate", "overflow", "forced-colors"],
-      "args": {"textStyle": "body"},
-      "composition": {"specimen": {"module": "./story.tsx", "export": "TextBoundaries"}},
-      "expect": [{"kind": "role", "role": "heading", "name": "Boundary conditions"}]
+      "states": [
+        "empty",
+        "truncate",
+        "overflow",
+        "forced-colors"
+      ],
+      "args": {
+        "textStyle": "body"
+      },
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "TextBoundaries"
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "role": "heading",
+          "name": "Boundary conditions"
+        }
+      ]
     }
   ]
 }

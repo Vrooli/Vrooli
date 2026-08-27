@@ -2,6 +2,9 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "component",
   "catalogId": "monetization.entitlement-error-card",
+  "deprecatedVersions": [
+    "1.0.2"
+  ],
   "description": "",
   "designStyles": [
     {
@@ -14,15 +17,15 @@
     }
   ],
   "displayName": "EntitlementErrorCard",
+  "draft": "",
+  "evictedVersions": [
+    "1.0.2"
+  ],
   "kind": "surface",
   "latest": "1.0.3",
   "libraryId": "react-component-library:EntitlementErrorCard",
   "tags": [
     "monetization",
     "errors"
-  ],
-  "draft": "",
-  "deprecatedVersions": [
-    "1.0.2"
   ]
 }

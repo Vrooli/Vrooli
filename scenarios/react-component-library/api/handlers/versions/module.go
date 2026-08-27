@@ -30,7 +30,7 @@ func Module(db *sql.DB, clk schedule.Clock, resolver versions.AdoptionResolver, 
 	return ModuleWithLedger(db, clk, resolver, logger, nil)
 }
 
-func ModuleWithLedger(db *sql.DB, clk schedule.Clock, resolver versions.AdoptionResolver, logger *log.Logger, ledger *versionledger.Repository) module.Module {
+func ModuleWithLedger(db *sql.DB, clk schedule.Clock, resolver versions.AdoptionResolver, logger *log.Logger, ledger *versionledger.Repository, componentServices ...components.Service) module.Module {
 	repo := versions.NewSQLiteRepository(db, clk)
 	svc := versions.NewService(repo, resolver)
 	h := NewConnectHandler(Deps{
@@ -38,6 +38,12 @@ func ModuleWithLedger(db *sql.DB, clk schedule.Clock, resolver versions.Adoption
 		Logger:  logger,
 		Ledger:  ledger,
 	})
+	if len(componentServices) > 0 {
+		h.deps.Components = componentServices[0]
+		if materializer, ok := componentServices[0].(components.Materializer); ok {
+			h.deps.Materializer = materializer
+		}
+	}
 	connectPath, connectHandler := versionsconnect.NewVersionsServiceHandler(h)
 	lifecyclePath, lifecycleHandler := versionsconnect.NewVersionLifecycleServiceHandler(h)
 	return module.Module{

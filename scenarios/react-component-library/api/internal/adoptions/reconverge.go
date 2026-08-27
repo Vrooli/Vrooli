@@ -3,6 +3,7 @@ package adoptions
 import (
 	"context"
 	"errors"
+	"fmt"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -27,6 +28,7 @@ func (s *service) Reconverge(ctx context.Context, in ReconvergeInput) (Reconverg
 		return ReconvergeResult{}, err
 	}
 	result := ReconvergeResult{}
+	movedComponents := map[string]struct{}{}
 	for _, row := range rows {
 		result.Scanned++
 		libStatus, localStatus, detail := s.computeStatus(ctx, row)
@@ -113,6 +115,7 @@ func (s *service) Reconverge(ctx context.Context, in ReconvergeInput) (Reconverg
 					outcome.Action = ReconvergeActionReapplied
 					outcome.TargetVersion = updated.AdoptedVersion
 					result.Reapplied++
+					movedComponents[row.ComponentID] = struct{}{}
 				}
 			}
 		default: // missing / unknown
@@ -120,6 +123,13 @@ func (s *service) Reconverge(ctx context.Context, in ReconvergeInput) (Reconverg
 			result.Skipped++
 		}
 		result.Outcomes = append(result.Outcomes, outcome)
+	}
+	if in.Apply && s.presence != nil {
+		for componentID := range movedComponents {
+			if err := s.presence.ReconcilePresence(ctx, componentID, true); err != nil {
+				return result, fmt.Errorf("reconcile presence after reconverging %s: %w", componentID, err)
+			}
+		}
 	}
 	return result, nil
 }

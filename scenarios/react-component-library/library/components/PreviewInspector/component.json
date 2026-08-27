@@ -13,20 +13,23 @@
     }
   ],
   "displayName": "PreviewInspector",
+  "draft": "",
+  "evictedVersions": [
+    "1.0.0"
+  ],
   "kind": "overlay",
   "latest": "1.0.1",
   "libraryId": "react-component-library:PreviewInspector",
-  "slot": "ui-pattern",
-  "tags": [
-    "preview",
-    "overlay",
-    "inspection"
-  ],
   "requires": [
     {
       "libraryId": "react-component-library:useLocale",
       "version": "1.0.0"
     }
   ],
-  "draft": ""
+  "slot": "ui-pattern",
+  "tags": [
+    "preview",
+    "overlay",
+    "inspection"
+  ]
 }

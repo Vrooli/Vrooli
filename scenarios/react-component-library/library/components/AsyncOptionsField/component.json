@@ -12,6 +12,10 @@
       "version": "1.0.0"
     }
   ],
+  "deprecatedVersions": [
+    "1.0.3",
+    "1.0.5"
+  ],
   "description": "",
   "designStyles": [
     {
@@ -28,9 +32,20 @@
     }
   ],
   "displayName": "AsyncOptionsField",
+  "draft": "",
+  "evictedVersions": [
+    "1.0.5",
+    "1.0.3"
+  ],
   "kind": "input",
   "latest": "1.0.6",
   "libraryId": "react-component-library:AsyncOptionsField",
+  "requires": [
+    {
+      "libraryId": "react-component-library:useLocale",
+      "version": "1.0.0"
+    }
+  ],
   "tags": [
     "forms",
     "async",
@@ -38,16 +53,5 @@
     "accessibility",
     "responsive",
     "token-bound"
-  ],
-  "requires": [
-    {
-      "libraryId": "react-component-library:useLocale",
-      "version": "1.0.0"
-    }
-  ],
-  "draft": "",
-  "deprecatedVersions": [
-    "1.0.3",
-    "1.0.5"
   ]
 }

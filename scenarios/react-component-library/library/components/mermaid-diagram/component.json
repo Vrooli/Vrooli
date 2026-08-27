@@ -13,9 +13,12 @@
     }
   ],
   "displayName": "Mermaid Diagram",
-  "kind": "surface",
   "draft": "",
   "entry": "MermaidDiagram.tsx",
+  "evictedVersions": [
+    "0.3.1"
+  ],
+  "kind": "surface",
   "latest": "0.3.2",
   "libraryId": "react-component-library:mermaid-diagram",
   "tags": [

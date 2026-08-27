@@ -33,21 +33,25 @@
     }
   ],
   "displayName": "Toast",
-  "kind": "surface",
   "draft": "",
+  "evictedVersions": [
+    "1.0.5",
+    "1.0.3"
+  ],
+  "kind": "surface",
   "latest": "1.0.6",
   "libraryId": "react-component-library:Toast",
+  "requires": [
+    {
+      "libraryId": "react-component-library:useLocale",
+      "version": "1.0.0"
+    }
+  ],
   "slot": "ui-pattern",
   "tags": [
     "feedback",
     "async",
     "accessibility",
     "token-bound"
-  ],
-  "requires": [
-    {
-      "libraryId": "react-component-library:useLocale",
-      "version": "1.0.0"
-    }
   ]
 }

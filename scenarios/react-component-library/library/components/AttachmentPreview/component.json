@@ -12,6 +12,9 @@
       "version": "1.0.0"
     }
   ],
+  "deprecatedVersions": [
+    "1.0.1"
+  ],
   "description": "",
   "designStyles": [
     {
@@ -28,6 +31,10 @@
     }
   ],
   "displayName": "AttachmentPreview",
+  "draft": "",
+  "evictedVersions": [
+    "1.0.1"
+  ],
   "kind": "surface",
   "latest": "1.0.2",
   "libraryId": "react-component-library:AttachmentPreview",
@@ -39,9 +46,5 @@
     "recovery",
     "responsive",
     "token-bound"
-  ],
-  "draft": "",
-  "deprecatedVersions": [
-    "1.0.1"
   ]
 }

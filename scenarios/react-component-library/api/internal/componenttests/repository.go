@@ -8,6 +8,11 @@ import (
 	"strings"
 )
 
+// reportPayloadCeiling is a workload-derived upper bound: it retains a
+// bounded five-row review window per version while allowing the catalog's
+// current 600+ version surface to keep one evidence payload per active row.
+const reportPayloadCeiling int64 = 256 * 1024 * 1024
+
 type Repository interface {
 	Save(context.Context, Report) error
 	Get(context.Context, string) (Report, error)
@@ -17,6 +22,21 @@ type Repository interface {
 type SQLiteRepository struct{ db *sql.DB }
 
 func NewSQLiteRepository(db *sql.DB) *SQLiteRepository { return &SQLiteRepository{db: db} }
+
+// EnforcePayloadCeiling applies the same byte retention policy used after a
+// report write. Startup calls this once so an existing database also converges
+// to the declared workload budget after the policy is introduced.
+func (r *SQLiteRepository) EnforcePayloadCeiling(ctx context.Context) error {
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = tx.Rollback() }()
+	if err := enforceReportPayloadCeiling(ctx, tx); err != nil {
+		return err
+	}
+	return tx.Commit()
+}
 
 func (r *SQLiteRepository) Save(ctx context.Context, report Report) error {
 	results, err := json.Marshal(struct {
@@ -48,6 +68,9 @@ verdict=excluded.verdict, results_json=excluded.results_json`, report.ID, report
 		}
 	}
 	if err = retainVersionReports(ctx, tx, report.RootComponentID, report.RootLibraryID, report.RootVersion); err != nil {
+		return err
+	}
+	if err = enforceReportPayloadCeiling(ctx, tx); err != nil {
 		return err
 	}
 	return tx.Commit()
@@ -123,6 +146,35 @@ WITH ranked AS (
 DELETE FROM component_test_reports
 WHERE id IN (SELECT id FROM ranked WHERE rank > 5)
 		AND id NOT IN (SELECT id FROM pinned)`, componentID, version, libraryID, version, libraryID, version)
+	return err
+}
+
+func enforceReportPayloadCeiling(ctx context.Context, tx *sql.Tx) error {
+	return enforceReportPayloadCeilingWithLimit(ctx, tx, reportPayloadCeiling)
+}
+
+func enforceReportPayloadCeilingWithLimit(ctx context.Context, tx *sql.Tx, ceiling int64) error {
+	// Select the oldest removable rows whose cumulative payload is at least
+	// the excess. One statement keeps startup and report writes bounded even
+	// when an older database accumulated hundreds of megabytes of evidence.
+	_, err := tx.ExecContext(ctx, `
+WITH totals AS (
+  SELECT COALESCE(SUM(length(results_json)), 0) AS bytes
+  FROM component_test_reports
+), removable AS (
+  SELECT r.id, length(r.results_json) AS payload_bytes,
+    SUM(length(r.results_json)) OVER (ORDER BY r.created_at ASC, r.id ASC) AS cumulative
+  FROM component_test_reports r
+  WHERE NOT EXISTS (
+    SELECT 1 FROM component_version_test_rollup v
+    WHERE v.first_pass_report_id = r.id OR v.first_fail_report_id = r.id
+  )
+), to_delete AS (
+  SELECT removable.id
+  FROM removable, totals
+  WHERE removable.cumulative - removable.payload_bytes < totals.bytes - ?
+)
+DELETE FROM component_test_reports WHERE id IN (SELECT id FROM to_delete)`, ceiling)
 	return err
 }
 

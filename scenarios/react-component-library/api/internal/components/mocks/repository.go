@@ -160,6 +160,8 @@ func (f *FakeRepository) GetByLibraryID(ctx context.Context, libraryID string) (
 	return f.items[id], nil
 }
 
+func (f *FakeRepository) RestoreEvictedStories(context.Context) (int, error) { return 0, nil }
+
 func (f *FakeRepository) List(ctx context.Context, q components.SearchQuery) ([]components.Component, error) {
 	f.ListCalls.Add(1)
 	if f.ListErr != nil {
@@ -359,6 +361,18 @@ func (f *FakeRepository) GetVersion(ctx context.Context, componentID, version st
 		return v, nil
 	}
 	return components.ComponentVersion{}, components.ErrComponentNotFound{IDOrLibraryID: componentID + "@" + version}
+}
+
+func (f *FakeRepository) SetVersionPresence(ctx context.Context, componentID, version, presence string) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	v, ok := f.versions[componentID][version]
+	if !ok {
+		return components.ErrComponentNotFound{IDOrLibraryID: componentID + "@" + version}
+	}
+	v.Presence = presence
+	f.versions[componentID][version] = v
+	return nil
 }
 
 func (f *FakeRepository) ListStories(ctx context.Context, q components.StoryQuery) ([]components.ComponentStory, error) {

@@ -15,18 +15,24 @@
     }
   ],
   "displayName": "ScoreGauge",
-  "kind": "surface",
   "draft": "",
+  "evictedVersions": [
+    "1.0.8",
+    "1.0.7",
+    "1.0.6",
+    "1.0.2"
+  ],
+  "kind": "surface",
   "latest": "1.0.9",
   "libraryId": "react-component-library:ScoreGauge",
-  "tags": [
-    "data-display",
-    "token-bound"
-  ],
   "requires": [
     {
       "libraryId": "react-component-library:useLocale",
       "version": "1.0.0"
     }
+  ],
+  "tags": [
+    "data-display",
+    "token-bound"
   ]
 }

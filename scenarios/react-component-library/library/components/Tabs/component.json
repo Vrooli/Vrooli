@@ -9,6 +9,9 @@
       "version": "1.0.0"
     }
   ],
+  "deprecatedVersions": [
+    "1.0.3"
+  ],
   "description": "",
   "designStyles": [
     {
@@ -17,15 +20,15 @@
     }
   ],
   "displayName": "Tabs",
+  "draft": "",
+  "evictedVersions": [
+    "1.0.3"
+  ],
   "kind": "shell",
   "latest": "1.0.4",
   "libraryId": "react-component-library:Tabs",
   "tags": [
     "navigation",
     "token-bound"
-  ],
-  "draft": "",
-  "deprecatedVersions": [
-    "1.0.3"
   ]
 }

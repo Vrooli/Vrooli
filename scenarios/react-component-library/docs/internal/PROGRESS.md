@@ -118,6 +118,10 @@ Use this table shape when appending entries.
 
 ```markdown
 | YYYY-MM-DD | author | done | Concise summary of the completed change |
+
+| 2026-08-27 | codex | partial | Implemented the cold version tier: presence-aware indexing, durable mirror materialization, reachability-driven eviction/reconciliation, archive/doctor surfaces, adoption lifecycle hooks, ledger-backed package exports, byte-bounded component-test evidence, raw story-text linting, cockpit presence controls, and the consumer-boundary AppShell layout repair found by Browser Automation Studio. The live corpus now has 208 safely evicted versions, 423 version directories, 621 story projections, and zero byte mismatches across the evicted mirror proof. Full closure remains blocked by pre-existing released source/ledger drift (42 candidates refuse safe eviction), 15 authored paths absent from the ledger, and inherited scenario-suite failures.
+
+| 2026-08-27 | codex | partial | Closing validation: the corrected shell remains captured in Browser Automation Studio, the live doctor reports no evicted-mirror problems, package export sync reports 621 versioned exports and zero broken imports, and a focused contracts rerun removes the new archive `--out` binding error. The comprehensive run `20260827-040235-59ec7d4a` remains FAIL on inherited contracts/storage/workflow/experience/security/unit phases; after its setup the live ledger is still 616 versions, 2,204 files, 621 stories, and 1,144 ledger rows, with 205 evicted and 411 materialized. Plan-owned baseline validation is queued but cannot read its producer collection (`baseline not found`).
 ```
 
 ## Cross-references

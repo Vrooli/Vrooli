@@ -3,6 +3,9 @@
   "assetKind": "component",
   "catalogId": "data-display.description-list",
   "dependencies": [],
+  "deprecatedVersions": [
+    "1.0.2"
+  ],
   "description": "",
   "designStyles": [
     {
@@ -11,15 +14,15 @@
     }
   ],
   "displayName": "DescriptionList",
+  "draft": "",
+  "evictedVersions": [
+    "1.0.2"
+  ],
   "kind": "surface",
   "latest": "1.0.3",
   "libraryId": "react-component-library:DescriptionList",
   "tags": [
     "data-display",
     "token-bound"
-  ],
-  "draft": "",
-  "deprecatedVersions": [
-    "1.0.2"
   ]
 }

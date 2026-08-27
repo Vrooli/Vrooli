@@ -8,6 +8,10 @@
       "version": "1.0.0"
     }
   ],
+  "deprecatedVersions": [
+    "1.0.2",
+    "1.0.4"
+  ],
   "description": "",
   "designStyles": [
     {
@@ -16,6 +20,12 @@
     }
   ],
   "displayName": "OfflineState",
+  "draft": "",
+  "evictedVersions": [
+    "1.0.4",
+    "1.0.3",
+    "1.0.2"
+  ],
   "kind": "surface",
   "latest": "1.0.5",
   "libraryId": "react-component-library:OfflineState",
@@ -23,10 +33,5 @@
     "feedback",
     "async",
     "token-bound"
-  ],
-  "draft": "",
-  "deprecatedVersions": [
-    "1.0.2",
-    "1.0.4"
   ]
 }

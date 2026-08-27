@@ -26,6 +26,7 @@
     "19-voice-input-capability/module.json",
     "20-component-test-runner/module.json",
     "21-story-contracts/module.json",
-    "22-version-ledger-and-progression/module.json"
+    "22-version-ledger-and-progression/module.json",
+    "23-cold-version-tier/module.json"
   ]
 }

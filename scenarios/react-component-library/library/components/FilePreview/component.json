@@ -3,6 +3,9 @@
   "assetKind": "component",
   "catalogId": "media.file-preview",
   "dependencies": [],
+  "deprecatedVersions": [
+    "1.0.1"
+  ],
   "description": "",
   "designStyles": [
     {
@@ -19,6 +22,10 @@
     }
   ],
   "displayName": "FilePreview",
+  "draft": "",
+  "evictedVersions": [
+    "1.0.1"
+  ],
   "kind": "surface",
   "latest": "1.0.2",
   "libraryId": "react-component-library:FilePreview",
@@ -28,9 +35,5 @@
     "status",
     "responsive",
     "token-bound"
-  ],
-  "draft": "",
-  "deprecatedVersions": [
-    "1.0.1"
   ]
 }

@@ -1,7 +1,0 @@
-[data-icon-size="sm"] { inline-size: var(--icon-size-sm); block-size: var(--icon-size-sm); }
-[data-icon-size="md"] { inline-size: var(--icon-size-md); block-size: var(--icon-size-md); }
-[data-icon-size="lg"] { inline-size: var(--icon-size-lg); block-size: var(--icon-size-lg); }
-[data-icon-tone="default"] { color: var(--color-foreground); }
-[data-icon-tone="muted"] { color: var(--color-muted-foreground); }
-[data-icon-tone="accent"] { color: var(--color-primary); }
-[data-icon-tone="danger"] { color: var(--color-danger); }

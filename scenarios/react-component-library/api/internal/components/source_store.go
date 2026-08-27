@@ -11,6 +11,7 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"sync"
 )
 
 const defaultInitialVersion = "0.1.0"
@@ -21,6 +22,23 @@ type SourceStore interface {
 	UpdateManifest(ctx context.Context, c Component, in UpdateComponentManifestInput) error
 	Root() string
 }
+
+// ErrMaterializationHashMismatch means the durable file mirror cannot be
+// trusted to recreate the requested version. Materialization is all-or-nothing
+// in this case: no destination directory is created.
+type ErrMaterializationHashMismatch struct {
+	LibraryID string
+	Version   string
+	Path      string
+	Expected  string
+	Actual    string
+}
+
+func (e ErrMaterializationHashMismatch) Error() string {
+	return fmt.Sprintf("cannot materialize %s@%s/%s: mirror hash %s does not match content hash %s", e.LibraryID, e.Version, e.Path, e.Expected, e.Actual)
+}
+
+var materializeMu sync.Mutex
 
 type sourceManifestFile struct {
 	LibraryID          string                 `json:"libraryId"`
@@ -34,6 +52,7 @@ type sourceManifestFile struct {
 	Latest             string                 `json:"latest"`
 	Draft              string                 `json:"draft,omitempty"`
 	DeprecatedVersions []string               `json:"deprecatedVersions"`
+	EvictedVersions    []string               `json:"evictedVersions,omitempty"`
 	DesignStyles       []sourceDesignAffinity `json:"designStyles"`
 }
 
@@ -44,6 +63,86 @@ type sourceDesignAffinity struct {
 }
 
 func (s *FSContentStore) Root() string { return s.root }
+
+// Materialize restores one version from the database mirror. Validation is
+// completed before any destination is touched, then the complete version unit
+// is written into a sibling temporary directory and atomically renamed into
+// place. The mutex covers same-process concurrent callers; the destination
+// existence check makes retries safe after another process wins the race.
+func (s *FSContentStore) Materialize(_ context.Context, v ComponentVersion, into string) (MaterializeResult, error) {
+	if strings.TrimSpace(into) == "" {
+		into = s.root
+	}
+	root, err := filepath.Abs(into)
+	if err != nil {
+		return MaterializeResult{}, err
+	}
+	if len(v.Files) == 0 {
+		return MaterializeResult{}, fmt.Errorf("cannot materialize %s@%s: file mirror is empty", v.LibraryID, v.Version)
+	}
+	for _, file := range v.Files {
+		if filepath.Base(file.Path) != file.Path || file.Path == "." || file.Path == ".." {
+			return MaterializeResult{}, ErrPathEscape{SourcePath: file.Path, Root: root}
+		}
+		actual := digest([]byte(file.Content))
+		if actual != file.ContentSHA256 {
+			return MaterializeResult{}, ErrMaterializationHashMismatch{LibraryID: v.LibraryID, Version: v.Version, Path: file.Path, Expected: file.ContentSHA256, Actual: actual}
+		}
+	}
+	destination := filepath.Join(root, filepath.FromSlash(filepath.Dir(v.SourcePath)))
+	if filepath.IsAbs(v.SourcePath) || destination != root && !strings.HasPrefix(destination, root+string(filepath.Separator)) {
+		return MaterializeResult{}, ErrPathEscape{SourcePath: v.SourcePath, Root: root}
+	}
+	materializeMu.Lock()
+	defer materializeMu.Unlock()
+	if entries, statErr := os.ReadDir(destination); statErr == nil {
+		if len(entries) == 0 {
+			return MaterializeResult{}, fmt.Errorf("materialization destination %q already exists but is empty", destination)
+		}
+		for _, file := range v.Files {
+			body, readErr := os.ReadFile(filepath.Join(destination, file.Path))
+			if readErr != nil {
+				return MaterializeResult{}, fmt.Errorf("existing materialization %q is incomplete: %w", destination, readErr)
+			}
+			actual := digest(body)
+			if actual != file.ContentSHA256 {
+				return MaterializeResult{}, fmt.Errorf("existing materialization %q differs for %s: got %s, want %s", destination, file.Path, actual, file.ContentSHA256)
+			}
+		}
+		if len(entries) != len(v.Files) {
+			return MaterializeResult{}, fmt.Errorf("existing materialization %q contains unexpected files", destination)
+		}
+		return MaterializeResult{Directory: filepath.ToSlash(destination), AlreadyPresent: true}, nil
+	} else if statErr != nil && !os.IsNotExist(statErr) {
+		return MaterializeResult{}, fmt.Errorf("inspect materialization destination %q: %w", destination, statErr)
+	}
+	if err := os.MkdirAll(filepath.Dir(destination), 0o755); err != nil {
+		return MaterializeResult{}, fmt.Errorf("create materialization parent: %w", err)
+	}
+	temporary, err := os.MkdirTemp(filepath.Dir(destination), ".vrooli-materialize-")
+	if err != nil {
+		return MaterializeResult{}, fmt.Errorf("create materialization temporary directory: %w", err)
+	}
+	committed := false
+	defer func() {
+		if !committed {
+			_ = os.RemoveAll(temporary)
+		}
+	}()
+	for _, file := range v.Files {
+		if err := os.WriteFile(filepath.Join(temporary, file.Path), []byte(file.Content), 0o600); err != nil {
+			return MaterializeResult{}, fmt.Errorf("write materialized file %q: %w", file.Path, err)
+		}
+	}
+	if err := os.Rename(temporary, destination); err != nil {
+		if os.IsExist(err) {
+			return MaterializeResult{Directory: filepath.ToSlash(destination), AlreadyPresent: true}, nil
+		}
+		return MaterializeResult{}, fmt.Errorf("commit materialized version %s@%s: %w", v.LibraryID, v.Version, err)
+	}
+	committed = true
+	return MaterializeResult{Directory: filepath.ToSlash(destination), FilesWritten: len(v.Files)}, nil
+}
 
 func (s *FSContentStore) InitializeComponent(_ context.Context, in InitializeComponentInput) (string, string, error) {
 	slug := normalizeSlug(firstNonEmpty(in.Slug, in.DisplayName, in.LibraryID))

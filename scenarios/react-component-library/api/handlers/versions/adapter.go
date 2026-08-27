@@ -22,6 +22,7 @@ func versionToProto(v versions.Version, _ bool) *versionsv1.Version {
 		SourcePath:            v.SourcePath,
 		RequiredTokens:        append([]string(nil), v.RequiredTokens...),
 		RequiredTokenPatterns: append([]string(nil), v.RequiredTokenPatterns...),
+		Presence:              v.Presence,
 	}
 	if !v.ReleasedAt.IsZero() {
 		out.ReleasedAt = timestamppb.New(v.ReleasedAt.UTC())

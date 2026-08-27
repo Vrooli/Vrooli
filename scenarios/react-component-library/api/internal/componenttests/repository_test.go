@@ -3,6 +3,7 @@ package componenttests
 import (
 	"context"
 	"database/sql"
+	"strings"
 	"testing"
 	"time"
 
@@ -49,6 +50,32 @@ func TestSQLiteRepositoryReadsLegacyResultsArray(t *testing.T) {
 	require.Len(t, reports, 1)
 	require.Equal(t, StageContract, reports[0].Results[0].Stage)
 	require.Empty(t, reports[0].Artifacts)
+}
+
+func TestSQLiteRepositoryPayloadCeilingEvictsOldUnpinnedEvidence(t *testing.T) {
+	database := db.NewSQLite(t)
+	require.NoError(t, apidb.EnsureSchemas(context.Background(), database, apidb.SchemaProviderFunc(localdb.SystemSchema), apidb.SchemaProviderFunc(internalcomponents.Schema)))
+	large := strings.Repeat("x", 20)
+	_, err := database.ExecContext(context.Background(), `
+INSERT INTO component_test_reports (id, component_id, root_library_id, root_version, include_closure, created_at, verdict, results_json) VALUES
+  ('old', 'button', 'rcl:Button', '1.0.0', 0, '2026-01-01T00:00:00Z', 'passed', ?),
+  ('pinned', 'button', 'rcl:Button', '1.0.0', 0, '2026-01-02T00:00:00Z', 'passed', ?),
+  ('new', 'button', 'rcl:Button', '1.0.0', 0, '2026-01-03T00:00:00Z', 'passed', ?);
+INSERT INTO component_version_test_rollup (library_id, version, first_pass_report_id) VALUES ('rcl:Button', '1.0.0', 'pinned');
+`, large, large, large)
+	require.NoError(t, err)
+	tx, err := database.BeginTx(context.Background(), nil)
+	require.NoError(t, err)
+	require.NoError(t, enforceReportPayloadCeilingWithLimit(context.Background(), tx, 45))
+	require.NoError(t, tx.Commit())
+	var count int
+	require.NoError(t, database.QueryRowContext(context.Background(), `SELECT COUNT(*) FROM component_test_reports`).Scan(&count))
+	require.Equal(t, 2, count)
+	var oldCount, pinnedCount int
+	require.NoError(t, database.QueryRowContext(context.Background(), `SELECT COUNT(*) FROM component_test_reports WHERE id='old'`).Scan(&oldCount))
+	require.NoError(t, database.QueryRowContext(context.Background(), `SELECT COUNT(*) FROM component_test_reports WHERE id='pinned'`).Scan(&pinnedCount))
+	require.Zero(t, oldCount)
+	require.Equal(t, 1, pinnedCount)
 }
 
 func TestSQLiteSweepRepositoryResumesDurableResults(t *testing.T) {

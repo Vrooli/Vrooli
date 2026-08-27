@@ -100,5 +100,10 @@ func init() {
 		module.EndpointDescriptor{ID: "versions_deprecate", Path: versionsconnect.VersionLifecycleServiceDeprecateVersionProcedure, Method: "POST", Summary: "Deprecate a version", Category: "versions"},
 		module.EndpointDescriptor{ID: "versions_archive", Path: versionsconnect.VersionLifecycleServiceArchiveVersionProcedure, Method: "POST", Summary: "Archive a version", Category: "versions"},
 		module.EndpointDescriptor{ID: "versions_retire", Path: versionsconnect.VersionLifecycleServiceRetireVersionProcedure, Method: "POST", Summary: "Retire an unreferenced version", Category: "versions"},
+		module.EndpointDescriptor{ID: "versions_materialize", Path: versionsconnect.VersionLifecycleServiceMaterializeVersionProcedure, Method: "POST", Summary: "Materialize version bytes from the durable mirror", Category: "versions"},
+		module.EndpointDescriptor{ID: "versions_reconcile_presence", Path: versionsconnect.VersionLifecycleServiceReconcilePresenceProcedure, Method: "POST", Summary: "Reconcile materialized and evicted version presence", Category: "versions"},
+		module.EndpointDescriptor{ID: "versions_export_archive", Path: versionsconnect.VersionLifecycleServiceExportArchiveProcedure, Method: "POST", Summary: "Export the version ledger archive", Category: "versions"},
+		module.EndpointDescriptor{ID: "versions_import_archive", Path: versionsconnect.VersionLifecycleServiceImportArchiveProcedure, Method: "POST", Summary: "Import the version ledger archive", Category: "versions"},
+		module.EndpointDescriptor{ID: "versions_doctor", Path: versionsconnect.VersionLifecycleServiceDoctorProcedure, Method: "POST", Summary: "Check evicted version mirror integrity", Category: "versions"},
 	)
 }

@@ -3,9 +3,7 @@
   "args": {
     "fields": [
       {
-        "default": {
-          "$text": "Save changes"
-        },
+        "default": "Save changes",
         "format": "renderable-text",
         "kind": "structured",
         "label": "Children",
@@ -60,9 +58,7 @@
   "stories": [
     {
       "args": {
-        "children": {
-          "$text": "Save"
-        },
+        "children": "Save",
         "size": "xs",
         "variant": "primary"
       },
@@ -80,9 +76,7 @@
     },
     {
       "args": {
-        "children": {
-          "$text": "Cancel"
-        },
+        "children": "Cancel",
         "size": "sm",
         "variant": "secondary"
       },
@@ -109,9 +103,7 @@
     },
     {
       "args": {
-        "children": {
-          "$text": "More"
-        },
+        "children": "More",
         "size": "md",
         "variant": "ghost"
       },
@@ -138,9 +130,7 @@
     },
     {
       "args": {
-        "children": {
-          "$text": "Delete"
-        },
+        "children": "Delete",
         "size": "icon",
         "variant": "danger"
       },

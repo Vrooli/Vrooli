@@ -15,18 +15,23 @@
     }
   ],
   "displayName": "MeasurementBar",
-  "kind": "surface",
   "draft": "",
+  "evictedVersions": [
+    "1.0.12",
+    "1.0.11",
+    "1.0.10"
+  ],
+  "kind": "surface",
   "latest": "1.0.13",
   "libraryId": "react-component-library:MeasurementBar",
-  "tags": [
-    "data-display",
-    "token-bound"
-  ],
   "requires": [
     {
       "libraryId": "react-component-library:useLocale",
       "version": "1.0.0"
     }
+  ],
+  "tags": [
+    "data-display",
+    "token-bound"
   ]
 }

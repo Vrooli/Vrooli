@@ -3,6 +3,10 @@
   "assetKind": "component",
   "catalogId": "overlays.alert-dialog",
   "dependencies": [],
+  "deprecatedVersions": [
+    "1.0.2",
+    "1.0.4"
+  ],
   "description": "",
   "designStyles": [
     {
@@ -19,6 +23,11 @@
     }
   ],
   "displayName": "AlertDialog",
+  "draft": "",
+  "evictedVersions": [
+    "1.0.4",
+    "1.0.2"
+  ],
   "kind": "overlay",
   "latest": "1.0.6",
   "libraryId": "react-component-library:AlertDialog",
@@ -28,10 +37,5 @@
     "destructive",
     "accessibility",
     "token-bound"
-  ],
-  "draft": "",
-  "deprecatedVersions": [
-    "1.0.2",
-    "1.0.4"
   ]
 }

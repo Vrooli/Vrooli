@@ -15,9 +15,7 @@
         "path": "preview"
       },
       {
-        "default": {
-          "$text": "dl"
-        },
+        "default": "dl",
         "kind": "structured",
         "label": "Metadata",
         "path": "metadata"
@@ -45,9 +43,7 @@
     {
       "args": {
         "activitySurfaceId": "asset-activity",
-        "metadata": {
-          "$text": "dl"
-        },
+        "metadata": "dl",
         "title": "Release artifact"
       },
       "expect": [

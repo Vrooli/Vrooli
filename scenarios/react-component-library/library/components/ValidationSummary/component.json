@@ -16,21 +16,25 @@
     }
   ],
   "displayName": "ValidationSummary",
-  "kind": "input",
   "draft": "",
+  "evictedVersions": [
+    "1.0.5",
+    "1.0.3"
+  ],
+  "kind": "input",
   "latest": "1.0.6",
   "libraryId": "react-component-library:ValidationSummary",
+  "requires": [
+    {
+      "libraryId": "react-component-library:useLocale",
+      "version": "1.0.0"
+    }
+  ],
   "slot": "ui-primitive",
   "tags": [
     "form",
     "validation",
     "accessibility",
     "recovery"
-  ],
-  "requires": [
-    {
-      "libraryId": "react-component-library:useLocale",
-      "version": "1.0.0"
-    }
   ]
 }

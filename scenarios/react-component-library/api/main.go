@@ -42,6 +42,7 @@ import (
 	adoptionsInternal "react-component-library/internal/adoptions"
 	catalogcoverageInternal "react-component-library/internal/catalogcoverage"
 	componentsInternal "react-component-library/internal/components"
+	componenttestsInternal "react-component-library/internal/componenttests"
 	depsInternal "react-component-library/internal/deps"
 	experienceInternal "react-component-library/internal/experience"
 	themesInternal "react-component-library/internal/themes"
@@ -167,6 +168,12 @@ func main() {
 	if err := database.EnsureSchemas(context.Background(), primaryDB, modules.AllSchemas()...); err != nil {
 		log.Fatalf("schema initialization failed: %v", err)
 	}
+	if err := componentsInternal.EnsureMigrations(context.Background(), primaryDB); err != nil {
+		log.Fatalf("components schema migration failed: %v", err)
+	}
+	if err := componenttestsInternal.NewSQLiteRepository(primaryDB).EnforcePayloadCeiling(context.Background()); err != nil {
+		log.Fatalf("component test payload retention failed: %v", err)
+	}
 
 	sourceRoot, err := componentsH.DefaultSourceRoot()
 	if err != nil {
@@ -205,6 +212,12 @@ func main() {
 
 	versionsResolver := versionsH.AdoptionResolverFromService(adoptionsSvc, scenariosReader)
 	versionsSvc := versionsH.BuildService(primaryDB, schedule.System(), versionsResolver)
+	var materializer componentsInternal.Materializer
+	if candidate, ok := componentsSvc.(componentsInternal.Materializer); ok {
+		materializer = candidate
+	}
+	presenceReconciler := versionledgerInternal.NewPresenceReconciler(versionLedger, componentsSvc, materializer)
+	adoptionsInternal.SetPresenceReconciler(adoptionsSvc, presenceReconciler)
 
 	// Wire post-save versions recording. Listener errors are logged
 	// inside the adapter; UpdateContent does not fail when recording
@@ -256,7 +269,7 @@ func main() {
 			),
 			adoptionsH.WithSuggestions(componentsSvc, depsSvc, inventoryScanner, scenariosRoot),
 		),
-		componentsH.ModuleFromService(componentsSvc, componentsRepo, sourceRoot, log.Default(), componentsH.WithIndexObserver(depsObserver), componentsH.WithExperienceReader(experienceInternal.NewReader(filepath.Dir(scenariosRoot))), componentsH.WithVersionLedger(versionLedger), componentsH.WithPreviewService(previewSvc)),
+		componentsH.ModuleFromService(componentsSvc, componentsRepo, sourceRoot, log.Default(), componentsH.WithIndexObserver(depsObserver), componentsH.WithExperienceReader(experienceInternal.NewReader(filepath.Dir(scenariosRoot))), componentsH.WithVersionLedger(versionLedger), componentsH.WithPreviewService(previewSvc), componentsH.WithPresenceReconciler(presenceReconciler)),
 		componentTestsH.ModuleWithGeneratedFixture(primaryDB, componentsSvc, adoptionsSvc, sourceRoot, log.Default()),
 		catalogH.ModuleWithCapture(filepath.Dir(scenariosRoot), primaryDB, componentsSvc, componentTestsH.NewBASCaptureExecutor()),
 		depsH.ModuleFromService(depsSvc, log.Default()),
@@ -264,7 +277,7 @@ func main() {
 		inventoryH.Module(log.Default(), scenariosRoot, inventoryH.AdoptionsServiceAdapter{Service: adoptionsSvc}, uimanifest.NewFSLoader(filepath.Dir(scenariosRoot))),
 		previewH.ModuleFromService(previewSvc, componentsSvc, log.Default(), filepath.Dir(scenariosRoot)),
 		themesH.ModuleFromService(themesSvc, log.Default()),
-		versionsH.ModuleWithLedger(primaryDB, schedule.System(), versionsResolver, log.Default(), versionLedger),
+		versionsH.ModuleWithLedger(primaryDB, schedule.System(), versionsResolver, log.Default(), versionLedger, componentsSvc),
 		workflowsH.ModuleWithReadiness(primaryDB, schedule.System(), workflowsInternal.NewAgentManagerDispatcher(), workflowsInternal.NewPromotionReadinessReader(componentsSvc, adoptionsSvc), log.Default()),
 	)
 

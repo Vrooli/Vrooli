@@ -21,9 +21,7 @@
         "path": "icon"
       },
       {
-        "default": {
-          "$text": "Create adoption"
-        },
+        "default": "Create adoption",
         "format": "renderable-text",
         "kind": "structured",
         "label": "Action label",
@@ -70,9 +68,7 @@
     },
     {
       "args": {
-        "actionLabel": {
-          "$text": "Create adoption"
-        },
+        "actionLabel": "Create adoption",
         "description": "Record a scenario adoption to track drift.",
         "title": "No adoptions yet"
       },

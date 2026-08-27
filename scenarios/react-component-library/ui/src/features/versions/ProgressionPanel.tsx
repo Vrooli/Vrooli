@@ -25,7 +25,7 @@ export function ProgressionPanel({ libraryId }: { libraryId: string }) {
     id: row.version,
     label: row.version,
     value: Math.round(row.testPassRate * 100),
-    detail: `${row.gatePassCount ?? 0} passing gates · ${row.adoptionCurrent ?? 0} current adopters${row.lifecycleState === "retired" ? " · retired" : ""}`,
+    detail: `${row.gatePassCount ?? 0} passing gates · ${row.adoptionCurrent ?? 0} current adopters${row.presence === "evicted" ? " · evicted from disk" : ""}${row.lifecycleState === "retired" ? " · retired" : ""}`,
   }));
   return (
     <section
@@ -111,6 +111,7 @@ export function ProgressionPanel({ libraryId }: { libraryId: string }) {
                     <th className="pb-space-xs font-medium">Quality</th>
                     <th className="pb-space-xs font-medium">Adoption</th>
                     <th className="pb-space-xs font-medium">Lifecycle</th>
+                    <th className="pb-space-xs font-medium">Presence</th>
                     <th className="pb-space-xs text-right font-medium">Size</th>
                   </tr>
                 </thead>
@@ -125,6 +126,11 @@ export function ProgressionPanel({ libraryId }: { libraryId: string }) {
                       <td className="py-space-xs">
                         <span className="rounded-pill bg-app-surface-muted px-space-2xs py-space-3xs">
                           {lifecycleLabel(row.lifecycleState)}
+                        </span>
+                      </td>
+                      <td className="py-space-xs">
+                        <span className="rounded-pill bg-app-surface-muted px-space-2xs py-space-3xs">
+                          {row.presence === "evicted" ? "⤓ evicted" : "● materialized"}
                         </span>
                       </td>
                       <td className="py-space-xs text-right font-mono text-app-muted-foreground">

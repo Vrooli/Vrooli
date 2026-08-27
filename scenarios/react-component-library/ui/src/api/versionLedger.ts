@@ -26,6 +26,7 @@ export interface VersionLedgerRow {
   fileCount: number;
   linesOfCode: number;
   dependencyCount: number;
+  presence: string;
 }
 export async function listVersionLedger(libraryId: string): Promise<VersionLedgerRow[]> {
   const response = await fetch(endpoint, {

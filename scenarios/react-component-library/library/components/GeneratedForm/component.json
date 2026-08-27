@@ -40,6 +40,9 @@
       "version": "1.0.0"
     }
   ],
+  "deprecatedVersions": [
+    "1.0.1"
+  ],
   "description": "",
   "designStyles": [
     {
@@ -56,6 +59,10 @@
     }
   ],
   "displayName": "GeneratedForm",
+  "draft": "",
+  "evictedVersions": [
+    "1.0.1"
+  ],
   "kind": "input",
   "latest": "1.0.2",
   "libraryId": "react-component-library:GeneratedForm",
@@ -66,9 +73,5 @@
     "validation",
     "responsive",
     "token-bound"
-  ],
-  "draft": "",
-  "deprecatedVersions": [
-    "1.0.1"
   ]
 }

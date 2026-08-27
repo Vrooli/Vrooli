@@ -16,9 +16,7 @@
         "required": true
       },
       {
-        "default": {
-          "$text": "Current"
-        },
+        "default": "Current",
         "kind": "structured",
         "label": "Label",
         "path": "children",
@@ -34,9 +32,7 @@
   "stories": [
     {
       "args": {
-        "children": {
-          "$text": "Current"
-        },
+        "children": "Current",
         "tone": "success"
       },
       "expect": [
@@ -52,9 +48,7 @@
     },
     {
       "args": {
-        "children": {
-          "$text": "Behind"
-        },
+        "children": "Behind",
         "tone": "warning"
       },
       "expect": [
@@ -79,9 +73,7 @@
     },
     {
       "args": {
-        "children": {
-          "$text": "Requires manual review"
-        },
+        "children": "Requires manual review",
         "tone": "info"
       },
       "expect": [
@@ -97,9 +89,7 @@
     },
     {
       "args": {
-        "children": {
-          "$text": "Blocked"
-        },
+        "children": "Blocked",
         "tone": "danger"
       },
       "expect": [

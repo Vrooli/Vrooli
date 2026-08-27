@@ -40,8 +40,12 @@
     }
   ],
   "displayName": "ApprovalPrompt",
-  "kind": "surface",
   "draft": "",
+  "evictedVersions": [
+    "1.0.3",
+    "1.0.1"
+  ],
+  "kind": "surface",
   "latest": "1.0.4",
   "libraryId": "react-component-library:ApprovalPrompt",
   "requires": [

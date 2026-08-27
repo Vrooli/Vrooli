@@ -635,6 +635,12 @@
         {
           "name": "index",
           "description": "Walk the source root and refresh the registry",
+          "flags": [
+            {
+              "name": "no-reconcile",
+              "description": "Skip reachability-based materialization reconciliation"
+            }
+          ],
           "binding": {
             "kind": "connect-rpc",
             "service": "ComponentsService",
@@ -1483,11 +1489,16 @@
           "positionals": [
             {
               "name": "component-id",
-              "required": true,
+              "required": false,
               "description": "Stable libraryId or catalog UUID"
             }
           ],
           "flags": [
+            {
+              "name": "all",
+              "bool": true,
+              "description": "List every recorded version across the catalog"
+            },
             {
               "name": "limit",
               "description": "Maximum number of rows (default 100)"
@@ -1641,8 +1652,17 @@
         },
         {
           "name": "archive",
-          "description": "Archive a deprecated version",
+          "description": "Reversibly evict an unreferenced version after mirror verification",
           "positionals": [{"name": "component-id", "required": true, "description": "Component id"}, {"name": "version", "required": true, "description": "Version"}],
+          "flags": [{"name": "plan-hash", "description": "Hash returned by plan-cleanup"}, {"name": "confirm", "description": "Confirm reversible eviction"}],
+          "binding": {"kind": "connect-rpc", "service": "VersionLifecycleService", "method": "ArchiveVersion"},
+          "governance": {"effect": "write", "run_eligible": true, "permissions": ["network:internal", "filesystem:write"]}
+        },
+        {
+          "name": "evict",
+          "description": "Alias for archive: reversibly evict an unreferenced version",
+          "positionals": [{"name": "component-id", "required": true, "description": "Component id"}, {"name": "version", "required": true, "description": "Version"}],
+          "flags": [{"name": "plan-hash", "description": "Hash returned by plan-cleanup"}, {"name": "confirm", "description": "Confirm reversible eviction"}],
           "binding": {"kind": "connect-rpc", "service": "VersionLifecycleService", "method": "ArchiveVersion"},
           "governance": {"effect": "write", "run_eligible": true, "permissions": ["network:internal", "filesystem:write"]}
         },
@@ -1653,6 +1673,44 @@
           "flags": [{"name": "confirm", "description": "Confirm destructive folder reclamation", "bind": {"field": "confirm"}}],
           "binding": {"kind": "connect-rpc", "service": "VersionLifecycleService", "method": "RetireVersion"},
           "governance": {"effect": "write", "run_eligible": false, "permissions": ["network:internal", "filesystem:write"]}
+        },
+        {
+          "name": "materialize",
+          "description": "Restore version bytes from the durable file mirror",
+          "positionals": [{"name": "component-id", "required": false, "description": "Component or library id"}, {"name": "version", "required": false, "description": "Version"}],
+          "flags": [{"name": "all", "bool": true, "description": "Materialize every recorded version"}, {"name": "into", "description": "Project into a separate directory"}],
+          "binding": {"kind": "connect-rpc", "service": "VersionLifecycleService", "method": "MaterializeVersion"},
+          "governance": {"effect": "write", "run_eligible": true, "permissions": ["network:internal", "filesystem:write"]}
+        },
+        {
+          "name": "reconcile-presence",
+          "description": "Report or apply the reachability-based materialized/evicted tier",
+          "flags": [
+            {"name": "component-id", "description": "Restrict reconciliation to one component or library id"},
+            {"name": "apply", "bool": true, "description": "Apply the reported tier changes"}
+          ],
+          "binding": {"kind": "connect-rpc", "service": "VersionLifecycleService", "method": "ReconcilePresence"},
+          "governance": {"effect": "write", "run_eligible": true, "permissions": ["network:internal", "filesystem:write"]}
+        },
+        {
+          "name": "export-archive",
+          "description": "Export the version ledger and immutable file mirror",
+          "flags": [{"name": "out", "required": true, "description": "Output archive path", "bind": {"field": "path"}, "bind_waiver": "The public --out flag is request data for the archive destination and intentionally maps to the proto path field."}],
+          "binding": {"kind": "connect-rpc", "service": "VersionLifecycleService", "method": "ExportArchive"},
+          "governance": {"effect": "write", "run_eligible": true, "permissions": ["network:internal", "filesystem:write"]}
+        },
+        {
+          "name": "import-archive",
+          "description": "Restore a version ledger archive into an empty database",
+          "flags": [{"name": "in", "required": true, "description": "Input archive path"}, {"name": "overwrite", "bool": true, "description": "Replace existing ledger rows"}],
+          "binding": {"kind": "connect-rpc", "service": "VersionLifecycleService", "method": "ImportArchive"},
+          "governance": {"effect": "write", "run_eligible": false, "permissions": ["network:internal", "filesystem:write"]}
+        },
+        {
+          "name": "doctor",
+          "description": "Report evicted versions with missing or mismatched mirror bytes",
+          "binding": {"kind": "connect-rpc", "service": "VersionLifecycleService", "method": "Doctor"},
+          "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]}
         }
       ]
     },

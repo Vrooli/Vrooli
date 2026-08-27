@@ -3,9 +3,7 @@
   "args": {
     "fields": [
       {
-        "default": {
-          "$text": "Save changes"
-        },
+        "default": "Save changes",
         "format": "renderable-text",
         "kind": "structured",
         "label": "Children",
@@ -84,9 +82,7 @@
   "stories": [
     {
       "args": {
-        "children": {
-          "$text": "Save"
-        },
+        "children": "Save",
         "variant": "primary"
       },
       "composition": {
@@ -109,9 +105,7 @@
     },
     {
       "args": {
-        "children": {
-          "$text": "Cancel"
-        },
+        "children": "Cancel",
         "variant": "secondary"
       },
       "composition": {
@@ -143,9 +137,7 @@
     },
     {
       "args": {
-        "children": {
-          "$text": "More"
-        },
+        "children": "More",
         "variant": "ghost"
       },
       "composition": {
@@ -179,9 +171,7 @@
     },
     {
       "args": {
-        "children": {
-          "$text": "Delete"
-        },
+        "children": "Delete",
         "variant": "danger"
       },
       "composition": {
@@ -211,9 +201,7 @@
     },
     {
       "args": {
-        "children": {
-          "$text": "Save changes"
-        },
+        "children": "Save changes",
         "disabled": true
       },
       "composition": {
@@ -243,9 +231,7 @@
     },
     {
       "args": {
-        "children": {
-          "$text": "XS"
-        },
+        "children": "XS",
         "size": "xs"
       },
       "composition": {
@@ -268,9 +254,7 @@
     },
     {
       "args": {
-        "children": {
-          "$text": "SM"
-        },
+        "children": "SM",
         "size": "sm"
       },
       "composition": {
@@ -293,9 +277,7 @@
     },
     {
       "args": {
-        "children": {
-          "$text": "MD"
-        },
+        "children": "MD",
         "size": "md"
       },
       "composition": {
@@ -318,9 +300,7 @@
     },
     {
       "args": {
-        "children": {
-          "$text": "LG"
-        },
+        "children": "LG",
         "size": "lg"
       },
       "composition": {
@@ -343,9 +323,7 @@
     },
     {
       "args": {
-        "children": {
-          "$text": "XL"
-        },
+        "children": "XL",
         "size": "xl"
       },
       "composition": {
@@ -368,9 +346,7 @@
     },
     {
       "args": {
-        "children": {
-          "$text": "•"
-        },
+        "children": "•",
         "size": "icon"
       },
       "composition": {
@@ -393,9 +369,7 @@
     },
     {
       "args": {
-        "children": {
-          "$text": "Comfortable"
-        },
+        "children": "Comfortable",
         "density": "comfortable"
       },
       "composition": {
@@ -418,9 +392,7 @@
     },
     {
       "args": {
-        "children": {
-          "$text": "Compact"
-        },
+        "children": "Compact",
         "density": "compact"
       },
       "composition": {
@@ -443,9 +415,7 @@
     },
     {
       "args": {
-        "children": {
-          "$text": "Square"
-        },
+        "children": "Square",
         "shape": "square"
       },
       "composition": {
@@ -468,9 +438,7 @@
     },
     {
       "args": {
-        "children": {
-          "$text": "Pill"
-        },
+        "children": "Pill",
         "shape": "pill"
       },
       "composition": {
@@ -493,9 +461,7 @@
     },
     {
       "args": {
-        "children": {
-          "$text": "Save"
-        },
+        "children": "Save",
         "size": "sm"
       },
       "composition": {

@@ -20,6 +20,10 @@
       "version": "1.0.0"
     }
   ],
+  "deprecatedVersions": [
+    "1.0.3",
+    "1.0.5"
+  ],
   "description": "",
   "designStyles": [
     {
@@ -36,9 +40,20 @@
     }
   ],
   "displayName": "EditableResource",
+  "draft": "",
+  "evictedVersions": [
+    "1.0.5",
+    "1.0.3"
+  ],
   "kind": "control",
   "latest": "1.0.6",
   "libraryId": "react-component-library:EditableResource",
+  "requires": [
+    {
+      "libraryId": "react-component-library:useLocale",
+      "version": "1.0.0"
+    }
+  ],
   "tags": [
     "patterns",
     "forms",
@@ -48,16 +63,5 @@
     "responsive",
     "accessibility",
     "token-bound"
-  ],
-  "requires": [
-    {
-      "libraryId": "react-component-library:useLocale",
-      "version": "1.0.0"
-    }
-  ],
-  "draft": "",
-  "deprecatedVersions": [
-    "1.0.3",
-    "1.0.5"
   ]
 }

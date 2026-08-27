@@ -14,21 +14,25 @@
     }
   ],
   "displayName": "BoundedMeter",
-  "kind": "surface",
   "draft": "",
   "entry": "BoundedMeter.tsx",
+  "evictedVersions": [
+    "1.0.4",
+    "1.0.2"
+  ],
+  "kind": "surface",
   "latest": "1.0.5",
   "libraryId": "react-component-library:BoundedMeter",
-  "tags": [
-    "primitive",
-    "token-bound",
-    "status",
-    "accessibility"
-  ],
   "requires": [
     {
       "libraryId": "react-component-library:useLocale",
       "version": "1.0.0"
     }
+  ],
+  "tags": [
+    "primitive",
+    "token-bound",
+    "status",
+    "accessibility"
   ]
 }

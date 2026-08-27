@@ -33,6 +33,7 @@ vi.mock("../../api/versionLedger", () => ({
     listRetireCandidates: vi.fn().mockResolvedValue({ candidates: [] }),
     retireVersion: vi.fn().mockResolvedValue({}),
     archiveVersion: vi.fn().mockResolvedValue({}),
+    materializeVersion: vi.fn().mockResolvedValue({}),
   },
 }));
 
@@ -88,6 +89,32 @@ describe("VersionsCard", () => {
     const shas = items.map((n) => n.textContent);
     expect(shas[0] ?? "").toContain("aaa111bbb222");
     expect(shas[1] ?? "").toContain("ddd333eee444");
+  });
+
+  it("labels an evicted version and materializes it on request", async () => {
+    const { versionsClient } = await import("../../api/versions");
+    const { versionLifecycleClient } = await import("../../api/versionLedger");
+    vi.mocked(versionsClient.listVersions).mockResolvedValueOnce(
+      makeListVersionsResponse({
+        versions: [makeVersion({ id: "v-cold", version: "0.9.0", presence: "evicted" })],
+      }),
+    );
+    renderWithProviders(<VersionsCard componentId="cmp-1" />);
+    await waitFor(() =>
+      expect(screen.getByTestId(`${selectors.versions.presenceBadge}-0.9.0`)).toBeInTheDocument(),
+    );
+    expect(screen.getByTestId(`${selectors.versions.presenceBadge}-0.9.0`)).toHaveTextContent(
+      "Evicted",
+    );
+    await userEvent
+      .setup()
+      .click(screen.getByTestId(`${selectors.versions.materializeButton}-0.9.0`));
+    await waitFor(() => {
+      expect(vi.mocked(versionLifecycleClient.materializeVersion)).toHaveBeenCalledWith({
+        componentId: "cmp-1",
+        version: "0.9.0",
+      });
+    });
   });
 
   it("forwards from/to into diffVersions and renders the response rows", async () => {
@@ -159,7 +186,10 @@ describe("VersionsCard", () => {
     const diff = makeDiffVersionsResponse({ fromLabel: "1.0.0", toLabel: "1.0.1" });
     vi.mocked(versionsClient.listVersions).mockResolvedValueOnce(
       makeListVersionsResponse({
-        versions: [makeVersion({ id: "v1", version: "1.0.0" }), makeVersion({ id: "v2", version: "1.0.1" })],
+        versions: [
+          makeVersion({ id: "v1", version: "1.0.0" }),
+          makeVersion({ id: "v2", version: "1.0.1" }),
+        ],
       }),
     );
     vi.mocked(versionsClient.diffVersions).mockResolvedValueOnce(diff);
@@ -233,6 +263,7 @@ describe("VersionsCard", () => {
         fileCount: 2,
         linesOfCode: 140,
         dependencyCount: 3,
+        presence: "materialized",
       },
     ]);
 
@@ -240,7 +271,9 @@ describe("VersionsCard", () => {
 
     await waitFor(() => expect(screen.getAllByTestId("data-display-version-row")).toHaveLength(1));
     expect(screen.getByTestId("version-health-2.0.0")).toHaveTextContent("unknown");
-    expect(screen.getByTestId("version-required-tokens-2.0.0")).toHaveTextContent("--color-primary");
+    expect(screen.getByTestId("version-required-tokens-2.0.0")).toHaveTextContent(
+      "--color-primary",
+    );
     expect(screen.getByTestId("data-display-verdict-summary")).toHaveTextContent("4 pass");
     expect(screen.getByTestId("versions-test-health")).toHaveTextContent("unknown");
     expect(screen.getByTestId("data-display-version-row")).toHaveTextContent("140 LOC");
@@ -311,13 +344,23 @@ describe("VersionsCard", () => {
     await user.click(screen.getAllByRole("button", { name: "Show version details" })[0]!);
 
     await waitFor(() => expect(screen.getByTestId("version-expanded-2.0.0")).toBeInTheDocument());
-    expect(screen.getByTestId("data-display-finding-list")).toHaveTextContent("content-not-clipped");
+    expect(screen.getByTestId("data-display-finding-list")).toHaveTextContent(
+      "content-not-clipped",
+    );
     expect(screen.getByTestId("version-expanded-2.0.0")).toHaveTextContent("web-console");
     expect(screen.getByTestId("version-expanded-2.0.0")).toHaveTextContent("forked");
     expect(screen.getByTestId("version-expanded-2.0.0")).toHaveTextContent("primary");
-    await waitFor(() => expect(screen.getByTestId("version-diff-summary-2.0.0")).toHaveTextContent("+4"));
-    expect(vi.mocked(listComponentTestReports)).toHaveBeenCalledWith({ componentId: "cmp-1", limit: 0 });
-    expect(vi.mocked(adoptionsClient.listAdoptions)).toHaveBeenCalledWith({ componentId: "cmp-1", limit: 0 });
+    await waitFor(() =>
+      expect(screen.getByTestId("version-diff-summary-2.0.0")).toHaveTextContent("+4"),
+    );
+    expect(vi.mocked(listComponentTestReports)).toHaveBeenCalledWith({
+      componentId: "cmp-1",
+      limit: 0,
+    });
+    expect(vi.mocked(adoptionsClient.listAdoptions)).toHaveBeenCalledWith({
+      componentId: "cmp-1",
+      limit: 0,
+    });
   });
 
   it("surfaces retire candidates and keeps the undo action available", async () => {
@@ -340,7 +383,9 @@ describe("VersionsCard", () => {
     );
 
     renderWithProviders(<VersionsCard componentId="cmp-1" />);
-    await waitFor(() => expect(screen.getByTestId("versions-retire-candidates")).toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.getByTestId("versions-retire-candidates")).toBeInTheDocument(),
+    );
     expect(screen.getByText(/0.9.0/)).toBeInTheDocument();
     expect(screen.getAllByRole("button", { name: "Review retire actions" })[0]).toBeInTheDocument();
   });

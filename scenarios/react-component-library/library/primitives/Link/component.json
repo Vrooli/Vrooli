@@ -3,6 +3,9 @@
   "assetKind": "primitive",
   "catalogId": "primitives.link",
   "dependencies": [],
+  "deprecatedVersions": [
+    "1.0.1"
+  ],
   "description": "",
   "designStyles": [
     {
@@ -19,15 +22,15 @@
     }
   ],
   "displayName": "Link",
+  "draft": "",
+  "evictedVersions": [
+    "1.0.1"
+  ],
   "kind": "control",
   "latest": "1.0.2",
   "libraryId": "react-component-library:Link",
   "tags": [
     "primitive",
     "token-bound"
-  ],
-  "draft": "",
-  "deprecatedVersions": [
-    "1.0.1"
   ]
 }

@@ -21,9 +21,7 @@
         "path": "onClose"
       },
       {
-        "default": {
-          "$text": "Full-page drawer body content"
-        },
+        "default": "Full-page drawer body content",
         "kind": "structured",
         "label": "Children",
         "path": "children"
@@ -68,9 +66,7 @@
   "stories": [
     {
       "args": {
-        "children": {
-          "$text": "Full-page drawer body content"
-        },
+        "children": "Full-page drawer body content",
         "open": true,
         "title": "Component details"
       },
@@ -98,9 +94,7 @@
     },
     {
       "args": {
-        "children": {
-          "$text": "Compact centered panel"
-        },
+        "children": "Compact centered panel",
         "open": true,
         "size": "compact",
         "title": "Appearance"
@@ -129,9 +123,7 @@
     },
     {
       "args": {
-        "children": {
-          "$text": "Body with a header action"
-        },
+        "children": "Body with a header action",
         "open": true,
         "title": "Edit prompt"
       },
@@ -159,9 +151,7 @@
     },
     {
       "args": {
-        "children": {
-          "$text": "Scrollable log content"
-        },
+        "children": "Scrollable log content",
         "open": true,
         "title": "Session log"
       },
@@ -189,9 +179,7 @@
     {
       "args": {
         "avoidKeyboard": true,
-        "children": {
-          "$text": "Composer body lifted above the keyboard"
-        },
+        "children": "Composer body lifted above the keyboard",
         "closeAriaLabel": "Close composer",
         "open": true,
         "title": "Message"

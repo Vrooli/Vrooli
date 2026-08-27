@@ -2,12 +2,120 @@
   "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
   "schemaVersion": 5,
   "kind": "component",
-  "args": { "fields": [{ "path": "state", "kind": "enum", "options": ["idle", "preparing", "recording", "recovering", "transcribing", "unavailable", "error"], "required": true }, { "path": "mode", "kind": "enum", "options": ["always-on", "timeout"], "required": true }, { "path": "size", "kind": "enum", "options": ["xs", "sm", "md", "lg", "xl", "icon"], "required": true }] },
-  "environment": { "fixtures": [] },
+  "args": {
+    "fields": [
+      {
+        "path": "state",
+        "kind": "enum",
+        "options": [
+          "idle",
+          "preparing",
+          "recording",
+          "recovering",
+          "transcribing",
+          "unavailable",
+          "error"
+        ],
+        "required": true
+      },
+      {
+        "path": "mode",
+        "kind": "enum",
+        "options": [
+          "always-on",
+          "timeout"
+        ],
+        "required": true
+      },
+      {
+        "path": "size",
+        "kind": "enum",
+        "options": [
+          "xs",
+          "sm",
+          "md",
+          "lg",
+          "xl",
+          "icon"
+        ],
+        "required": true
+      }
+    ]
+  },
+  "environment": {
+    "fixtures": []
+  },
   "stories": [
-    { "id": "idle", "name": "Idle", "role": "anatomy", "mode": "pinned", "args": { "state": "idle", "mode": "always-on", "size": "md" }, "expect": [{ "kind": "role", "role": "button" }] },
-    { "id": "recording", "name": "Recording with level", "role": "boundary", "mode": "pinned", "args": { "state": "recording", "mode": "always-on", "size": "md", "level": 0.5 }, "expect": [{ "kind": "visible", "selector": "[data-rcl-voice-level]" }] },
-    { "id": "timeout", "name": "Timeout ring", "role": "boundary", "mode": "pinned", "args": { "state": "recording", "mode": "timeout", "size": "lg", "timeoutProgress": 0.5 }, "expect": [{ "kind": "visible", "selector": "[data-rcl-voice-timeout-ring]" }] },
-    { "id": "size-scale", "name": "Documented size scale", "role": "axis", "axis": "size", "mode": "pinned", "args": { "state": "idle", "mode": "always-on", "size": "xs" }, "expect": [{ "kind": "visible", "selector": "[data-rcl-voice-input]" }] }
+    {
+      "id": "idle",
+      "name": "Idle",
+      "role": "anatomy",
+      "mode": "pinned",
+      "args": {
+        "state": "idle",
+        "mode": "always-on",
+        "size": "md"
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "role": "button"
+        }
+      ]
+    },
+    {
+      "id": "recording",
+      "name": "Recording with level",
+      "role": "boundary",
+      "mode": "pinned",
+      "args": {
+        "state": "recording",
+        "mode": "always-on",
+        "size": "md",
+        "level": 0.5
+      },
+      "expect": [
+        {
+          "kind": "visible",
+          "selector": "[data-rcl-voice-level]"
+        }
+      ]
+    },
+    {
+      "id": "timeout",
+      "name": "Timeout ring",
+      "role": "boundary",
+      "mode": "pinned",
+      "args": {
+        "state": "recording",
+        "mode": "timeout",
+        "size": "lg",
+        "timeoutProgress": 0.5
+      },
+      "expect": [
+        {
+          "kind": "visible",
+          "selector": "[data-rcl-voice-timeout-ring]"
+        }
+      ]
+    },
+    {
+      "id": "size-scale",
+      "name": "Documented size scale",
+      "role": "axis",
+      "axis": "size",
+      "mode": "pinned",
+      "args": {
+        "state": "idle",
+        "mode": "always-on",
+        "size": "xs"
+      },
+      "expect": [
+        {
+          "kind": "visible",
+          "selector": "[data-rcl-voice-input]"
+        }
+      ]
+    }
   ]
 }

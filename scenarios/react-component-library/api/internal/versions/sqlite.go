@@ -39,9 +39,9 @@ func (s *sqliteRepository) Insert(ctx context.Context, v Version) (Version, erro
 	}
 	if _, err := s.db.ExecContext(ctx, `
 INSERT INTO component_versions
-  (id, component_id, library_id, version, status, source_path, content, content_sha256, changelog_md, indexed_at, created_at, released_at)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-`, v.ID, v.ComponentID, v.LibraryID, v.Version, v.Status, v.SourcePath, v.Content, v.ContentSHA256, v.ChangelogMD, v.RecordedAt.UTC().Format(timeFormat), v.CreatedAt.UTC().Format(timeFormat), formatOptionalTime(v.ReleasedAt)); err != nil {
+  (id, component_id, library_id, version, status, source_path, content, content_sha256, changelog_md, indexed_at, created_at, released_at, presence)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+`, v.ID, v.ComponentID, v.LibraryID, v.Version, v.Status, v.SourcePath, v.Content, v.ContentSHA256, v.ChangelogMD, v.RecordedAt.UTC().Format(timeFormat), v.CreatedAt.UTC().Format(timeFormat), formatOptionalTime(v.ReleasedAt), firstNonEmpty(v.Presence, "materialized")); err != nil {
 		if isUniqueVersionError(err) {
 			return Version{}, ErrVersionExists{ComponentID: v.ComponentID, Version: v.Version}
 		}
@@ -67,7 +67,7 @@ func (s *sqliteRepository) List(ctx context.Context, q ListQuery) ([]Version, er
 		return nil, nil
 	}
 	rows, err := s.db.QueryContext(ctx, `
-SELECT id, component_id, library_id, version, status, source_path, content, content_sha256, changelog_md, indexed_at, created_at, released_at
+SELECT id, component_id, library_id, version, status, source_path, content, content_sha256, changelog_md, indexed_at, created_at, released_at, presence
 FROM component_versions
 WHERE (component_id = ? OR library_id = ?)
 `, q.ComponentID, q.ComponentID)
@@ -105,7 +105,7 @@ WHERE (component_id = ? OR library_id = ?)
 
 func (s *sqliteRepository) Get(ctx context.Context, componentID, version string) (Version, error) {
 	row := s.db.QueryRowContext(ctx, `
-SELECT id, component_id, library_id, version, status, source_path, content, content_sha256, changelog_md, indexed_at, created_at, released_at
+SELECT id, component_id, library_id, version, status, source_path, content, content_sha256, changelog_md, indexed_at, created_at, released_at, presence
 FROM component_versions
 WHERE (component_id = ? OR library_id = ?) AND version = ?
 ORDER BY version DESC, id ASC
@@ -174,7 +174,7 @@ func scanVersion(s rowScanner) (Version, error) {
 		createdAt  string
 		releasedAt string
 	)
-	if err := s.Scan(&v.ID, &v.ComponentID, &v.LibraryID, &v.Version, &v.Status, &v.SourcePath, &v.Content, &v.ContentSHA256, &v.ChangelogMD, &recordedAt, &createdAt, &releasedAt); err != nil {
+	if err := s.Scan(&v.ID, &v.ComponentID, &v.LibraryID, &v.Version, &v.Status, &v.SourcePath, &v.Content, &v.ContentSHA256, &v.ChangelogMD, &recordedAt, &createdAt, &releasedAt, &v.Presence); err != nil {
 		return Version{}, err
 	}
 	t, err := time.Parse(timeFormat, recordedAt)
@@ -197,6 +197,15 @@ func scanVersion(s rowScanner) (Version, error) {
 		v.ReleasedAt = rt
 	}
 	return v, nil
+}
+
+func firstNonEmpty(values ...string) string {
+	for _, value := range values {
+		if strings.TrimSpace(value) != "" {
+			return value
+		}
+	}
+	return ""
 }
 
 func isUniqueVersionError(err error) bool {

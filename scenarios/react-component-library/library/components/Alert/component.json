@@ -35,8 +35,11 @@
     }
   ],
   "displayName": "Alert",
-  "kind": "surface",
   "draft": "",
+  "evictedVersions": [
+    "1.0.1"
+  ],
+  "kind": "surface",
   "latest": "1.0.2",
   "libraryId": "react-component-library:Alert",
   "tags": [

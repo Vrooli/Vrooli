@@ -19,6 +19,8 @@ type sourceVersion struct {
 	libraryID string
 	version   string
 	status    string
+	presence  string
+	id        string
 	directory string
 }
 
@@ -28,22 +30,37 @@ type adoptedSourceFile struct {
 }
 
 func (r *Repository) sourceReferences(ctx context.Context) (map[string][]VersionReference, error) {
-	rows, err := r.db.QueryContext(ctx, `SELECT c.library_id, v.version, v.status, v.source_path FROM components c JOIN component_versions v ON v.component_id = c.id`)
+	rows, err := r.db.QueryContext(ctx, `SELECT c.library_id, v.version, v.status, v.presence, v.id, v.source_path FROM components c JOIN component_versions v ON v.component_id = c.id`)
+	legacyPresence := false
 	if err != nil {
 		// Lightweight lifecycle fixtures and pre-migration stores may not yet
 		// carry source_path. Their SQL reference checks remain valid; there is
 		// simply no source graph to inspect until the catalog is reindexed.
-		if strings.Contains(strings.ToLower(err.Error()), "no such column") {
+		if strings.Contains(strings.ToLower(err.Error()), "no such column: v.presence") {
+			rows, err = r.db.QueryContext(ctx, `SELECT c.library_id, v.version, v.status, v.source_path FROM components c JOIN component_versions v ON v.component_id = c.id`)
+			legacyPresence = true
+			if err != nil {
+				if strings.Contains(strings.ToLower(err.Error()), "no such column") {
+					return map[string][]VersionReference{}, nil
+				}
+				return nil, err
+			}
+		} else if strings.Contains(strings.ToLower(err.Error()), "no such column") {
 			return map[string][]VersionReference{}, nil
+		} else {
+			return nil, err
 		}
-		return nil, err
 	}
-	defer rows.Close()
 	var versions []sourceVersion
 	for rows.Next() {
 		var v sourceVersion
 		var sourcePath string
-		if err := rows.Scan(&v.libraryID, &v.version, &v.status, &sourcePath); err != nil {
+		if legacyPresence {
+			if err := rows.Scan(&v.libraryID, &v.version, &v.status, &sourcePath); err != nil {
+				return nil, err
+			}
+			v.presence = "materialized"
+		} else if err := rows.Scan(&v.libraryID, &v.version, &v.status, &v.presence, &v.id, &sourcePath); err != nil {
 			return nil, err
 		}
 		if strings.TrimSpace(sourcePath) == "" {
@@ -53,6 +70,10 @@ func (r *Repository) sourceReferences(ctx context.Context) (map[string][]Version
 		versions = append(versions, v)
 	}
 	if err := rows.Err(); err != nil {
+		rows.Close()
+		return nil, err
+	}
+	if err := rows.Close(); err != nil {
 		return nil, err
 	}
 
@@ -64,8 +85,33 @@ func (r *Repository) sourceReferences(ctx context.Context) (map[string][]Version
 		if strings.EqualFold(owner.status, "retired") {
 			continue
 		}
-		files := []string{}
-		if err := filepath.WalkDir(owner.directory, func(path string, entry os.DirEntry, walkErr error) error {
+		type sourceFile struct {
+			path string
+			body []byte
+		}
+		var sourceFiles []sourceFile
+		if strings.EqualFold(owner.presence, "evicted") {
+			mirrorRows, err := r.db.QueryContext(ctx, `SELECT path, content FROM component_version_files WHERE version_id = ? ORDER BY path`, owner.id)
+			if err != nil {
+				return nil, fmt.Errorf("read evicted source mirror for %s@%s: %w", owner.libraryID, owner.version, err)
+			}
+			for mirrorRows.Next() {
+				var path, content string
+				if err := mirrorRows.Scan(&path, &content); err != nil {
+					mirrorRows.Close()
+					return nil, fmt.Errorf("scan evicted source mirror for %s@%s: %w", owner.libraryID, owner.version, err)
+				}
+				sourceFiles = append(sourceFiles, sourceFile{path: filepath.Join(owner.directory, path), body: []byte(content)})
+			}
+			if err := mirrorRows.Err(); err != nil {
+				mirrorRows.Close()
+				return nil, err
+			}
+			mirrorRows.Close()
+			if len(sourceFiles) == 0 {
+				return nil, fmt.Errorf("evicted version %s@%s has no file mirror rows", owner.libraryID, owner.version)
+			}
+		} else if err := filepath.WalkDir(owner.directory, func(path string, entry os.DirEntry, walkErr error) error {
 			if walkErr != nil {
 				if os.IsNotExist(walkErr) {
 					return filepath.SkipDir
@@ -77,24 +123,27 @@ func (r *Repository) sourceReferences(ctx context.Context) (map[string][]Version
 			}
 			ext := strings.ToLower(filepath.Ext(path))
 			if ext == ".ts" || ext == ".tsx" || ext == ".js" || ext == ".jsx" {
-				files = append(files, path)
+				sourceFiles = append(sourceFiles, sourceFile{path: path})
 			}
 			return nil
 		}); err != nil {
 			return nil, fmt.Errorf("scan source references for %s@%s: %w", owner.libraryID, owner.version, err)
 		}
-		sort.Strings(files)
-		for _, file := range files {
-			body, err := os.ReadFile(file)
-			if err != nil {
-				return nil, fmt.Errorf("read source reference file %s: %w", file, err)
+		sort.Slice(sourceFiles, func(i, j int) bool { return sourceFiles[i].path < sourceFiles[j].path })
+		for _, file := range sourceFiles {
+			body := file.body
+			if body == nil {
+				body, err = os.ReadFile(file.path)
+				if err != nil {
+					return nil, fmt.Errorf("read source reference file %s: %w", file.path, err)
+				}
 			}
 			for _, match := range sourceImportRE.FindAllStringSubmatch(string(body), -1) {
 				specifier := match[1]
 				if !strings.HasPrefix(specifier, ".") {
 					continue
 				}
-				target := resolveSourceImport(filepath.Dir(file), specifier)
+				target := resolveSourceImport(filepath.Dir(file.path), specifier)
 				for _, targetVersion := range versions {
 					if targetVersion.libraryID == owner.libraryID && targetVersion.version == owner.version {
 						continue
@@ -103,7 +152,7 @@ func (r *Repository) sourceReferences(ctx context.Context) (map[string][]Version
 						continue
 					}
 					key := targetVersion.libraryID + "@" + targetVersion.version
-					rel, _ := filepath.Rel(r.sourceRoot, file)
+					rel, _ := filepath.Rel(r.sourceRoot, file.path)
 					ref := VersionReference{
 						Kind: "source-import", OwnerLibraryID: owner.libraryID, OwnerVersion: owner.version,
 						OwnerPath: filepath.ToSlash(rel), ImportSpecifier: specifier,

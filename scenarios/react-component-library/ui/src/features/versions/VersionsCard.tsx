@@ -44,21 +44,19 @@ function artifactIsImage(artifact: ComponentTestArtifact) {
 }
 
 function captureCells(report: ComponentTestReport | undefined, version: string): CaptureCell[] {
-  return (report?.artifacts ?? [])
-    .filter(artifactIsImage)
-    .map((artifact, index) => {
-      const label = artifact.storyId || artifact.label || `capture-${index + 1}`;
-      const result = report?.results.find(
-        (candidate) => candidate.version === version && candidate.subject === label,
-      );
-      return {
-        id: `${version}-${artifact.kind}-${artifact.storyId || index}`,
-        viewport: label.replace(/[:_-]?(screenshot|story-sheet)/gi, "").trim() || "default",
-        theme: /dark/i.test(label) ? "dark" : "light",
-        status: result?.verdict === "failed" ? "stale" : "pass",
-        captureRef: artifact.reference,
-      } satisfies CaptureCell;
-    });
+  return (report?.artifacts ?? []).filter(artifactIsImage).map((artifact, index) => {
+    const label = artifact.storyId || artifact.label || `capture-${index + 1}`;
+    const result = report?.results.find(
+      (candidate) => candidate.version === version && candidate.subject === label,
+    );
+    return {
+      id: `${version}-${artifact.kind}-${artifact.storyId || index}`,
+      viewport: label.replace(/[:_-]?(screenshot|story-sheet)/gi, "").trim() || "default",
+      theme: /dark/i.test(label) ? "dark" : "light",
+      status: result?.verdict === "failed" ? "stale" : "pass",
+      captureRef: artifact.reference,
+    } satisfies CaptureCell;
+  });
 }
 
 function reportFindings(report: ComponentTestReport | undefined, version: string): Finding[] {
@@ -101,6 +99,7 @@ export function VersionsCard({
   const [to, setTo] = useState("");
   const [retireActionsVisible, setRetireActionsVisible] = useState(false);
   const [expandedVersion, setExpandedVersion] = useState<string>();
+  const [materializeErrors, setMaterializeErrors] = useState<Record<string, string>>({});
 
   const historyQuery = useQuery<VersionHistoryRow[]>({
     queryKey: ["version-history", componentId],
@@ -144,6 +143,24 @@ export function VersionsCard({
       ]);
     },
   });
+  const materializeMutation = useMutation({
+    mutationFn: (version: string) =>
+      versionLifecycleClient.materializeVersion({ componentId, version }),
+    onSuccess: async (_, version) => {
+      setMaterializeErrors((errors) => {
+        const next = { ...errors };
+        delete next[version];
+        return next;
+      });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["version-history", componentId] }),
+        queryClient.invalidateQueries({ queryKey: ["retire-candidates", componentId] }),
+      ]);
+    },
+    onError: (error, version) => {
+      setMaterializeErrors((errors) => ({ ...errors, [version]: errorMessage(error, t) }));
+    },
+  });
 
   const versionOptions = useMemo(
     () => versions.map((v) => v.version).filter((v) => v.length > 0),
@@ -173,48 +190,88 @@ export function VersionsCard({
               : undefined;
           const thumbnailArtifact = (report?.artifacts ?? []).find(
             (candidate) =>
-              artifactIsImage(candidate) &&
-              /^(https?:\/\/|\/embedded\/)/.test(candidate.reference),
+              artifactIsImage(candidate) && /^(https?:\/\/|\/embedded\/)/.test(candidate.reference),
           );
+          const presence = version.presence || "materialized";
           return (
-            <VersionRow
-              version={version.version}
-              sha={version.contentSha256}
-              status={version.status}
-              createdAt={version.createdAt ? new Date(Number(version.createdAt.seconds) * 1000).toISOString() : undefined}
-              releasedAt={version.releasedAt ? new Date(Number(version.releasedAt.seconds) * 1000).toISOString() : undefined}
-              sourcePath={version.sourcePath}
-              requiredTokens={version.requiredTokens}
-              lifecycleState={ledger?.lifecycleState}
-              gatePassCount={ledger?.gatePassCount}
-              gateFailCount={ledger?.gateFailCount}
-              testRuns={ledger?.testRuns}
-              testPassRate={ledger?.testPassRate}
-              fileCount={ledger?.fileCount}
-              linesOfCode={ledger?.linesOfCode}
-              dependencyCount={ledger?.dependencyCount}
-              adoptionCurrent={ledger?.adoptionCurrent}
-              adoptionPeak={ledger?.adoptionPeak}
-              trend={ledger ? [ledger.adoptionCurrent, ledger.adoptionPeak] : undefined}
-              captures={captureCells(report, version.version)}
-              thumbnail={
-                thumbnailArtifact?.reference
-                  ? {
-                      src: thumbnailArtifact.reference,
-                      alt: `${version.version} captured state`,
-                    }
-                  : undefined
-              }
-              findings={reportFindings(report, version.version)}
-              adopters={adopterRows(history?.adopters ?? [])}
-              previousVersion={previousVersion}
-              diffSummary={diffSummary}
-              selected={selectedVersion === version.version}
-              onSelect={() => onSelectVersion?.(version.version)}
-              onExpandedChange={(expanded) =>
-                setExpandedVersion(expanded ? version.version : undefined)
-              }
-            />
+            <div className="space-y-space-2xs">
+              <div
+                data-testid={`${selectors.versions.presenceBadge}-${version.version}`}
+                aria-label={`${version.version} presence: ${presence}`}
+                className="flex items-center gap-space-2xs text-xs text-app-muted-foreground"
+              >
+                <span aria-hidden="true">{presence === "evicted" ? "⤓" : "●"}</span>
+                <span>
+                  {presence === "evicted"
+                    ? "Evicted — bytes remain in the ledger"
+                    : "Materialized — bytes are on disk"}
+                </span>
+                {presence === "evicted" ? (
+                  <button
+                    type="button"
+                    data-testid={`${selectors.versions.materializeButton}-${version.version}`}
+                    className="rounded-control border border-app-border px-space-xs py-space-2xs text-xs text-app-foreground"
+                    disabled={materializeMutation.isPending}
+                    onClick={() => materializeMutation.mutate(version.version)}
+                  >
+                    {materializeMutation.isPending
+                      ? "Materializing…"
+                      : `Materialize v${version.version}`}
+                  </button>
+                ) : null}
+              </div>
+              {materializeErrors[version.version] ? (
+                <p role="alert" className="text-xs text-app-danger">
+                  Could not materialize v{version.version}: {materializeErrors[version.version]}
+                </p>
+              ) : null}
+              <VersionRow
+                version={version.version}
+                sha={version.contentSha256}
+                status={version.status}
+                createdAt={
+                  version.createdAt
+                    ? new Date(Number(version.createdAt.seconds) * 1000).toISOString()
+                    : undefined
+                }
+                releasedAt={
+                  version.releasedAt
+                    ? new Date(Number(version.releasedAt.seconds) * 1000).toISOString()
+                    : undefined
+                }
+                sourcePath={version.sourcePath}
+                requiredTokens={version.requiredTokens}
+                lifecycleState={ledger?.lifecycleState}
+                gatePassCount={ledger?.gatePassCount}
+                gateFailCount={ledger?.gateFailCount}
+                testRuns={ledger?.testRuns}
+                testPassRate={ledger?.testPassRate}
+                fileCount={ledger?.fileCount}
+                linesOfCode={ledger?.linesOfCode}
+                dependencyCount={ledger?.dependencyCount}
+                adoptionCurrent={ledger?.adoptionCurrent}
+                adoptionPeak={ledger?.adoptionPeak}
+                trend={ledger ? [ledger.adoptionCurrent, ledger.adoptionPeak] : undefined}
+                captures={captureCells(report, version.version)}
+                thumbnail={
+                  thumbnailArtifact?.reference
+                    ? {
+                        src: thumbnailArtifact.reference,
+                        alt: `${version.version} captured state`,
+                      }
+                    : undefined
+                }
+                findings={reportFindings(report, version.version)}
+                adopters={adopterRows(history?.adopters ?? [])}
+                previousVersion={previousVersion}
+                diffSummary={diffSummary}
+                selected={selectedVersion === version.version}
+                onSelect={() => onSelectVersion?.(version.version)}
+                onExpandedChange={(expanded) =>
+                  setExpandedVersion(expanded ? version.version : undefined)
+                }
+              />
+            </div>
           );
         },
         searchValue: (version) => `${version.version} ${version.status} ${version.contentSha256}`,
@@ -277,7 +334,9 @@ export function VersionsCard({
           {errorMessage(historyQuery.error, t)}
         </p>
       )}
-      {!historyQuery.isLoading && versions.length === 0 && <p data-testid={selectors.versions.empty}>{t(strings.versions.empty)}</p>}
+      {!historyQuery.isLoading && versions.length === 0 && (
+        <p data-testid={selectors.versions.empty}>{t(strings.versions.empty)}</p>
+      )}
 
       {versions.length > 0 && (
         <>
@@ -292,7 +351,9 @@ export function VersionsCard({
                 label="Test health"
                 value={testPassRate * 100}
                 max={100}
-                valueText={measuredTests.length ? `${Math.round(testPassRate * 100)}% pass` : "unknown"}
+                valueText={
+                  measuredTests.length ? `${Math.round(testPassRate * 100)}% pass` : "unknown"
+                }
                 status={measuredTests.length ? `${testRuns} test runs` : "No test runs recorded"}
                 tone={measuredTests.length && testPassRate >= 0.9 ? "success" : "warning"}
                 testId="versions-test-health"
@@ -304,7 +365,11 @@ export function VersionsCard({
               <FindingList findings={tokenFindings} />
             </div>
           )}
-          <button type="button" className="mt-space-xs rounded-control border border-app-border px-space-xs py-space-2xs text-xs" onClick={() => onSelectVersion?.(undefined)}>
+          <button
+            type="button"
+            className="mt-space-xs rounded-control border border-app-border px-space-xs py-space-2xs text-xs"
+            onClick={() => onSelectVersion?.(undefined)}
+          >
             {t(strings.versions.currentSource)}
           </button>
           <div data-testid={selectors.versions.list} className="mt-space-xs">
@@ -340,11 +405,17 @@ export function VersionsCard({
             title="Versions are safe to retire"
             description={
               <span>
-                These versions are not latest or draft and have no recorded adopters, dependency pins, or source references: {retireCandidates.map((candidate) => candidate.version).join(", ")}.
+                These versions are not latest or draft and have no recorded adopters, dependency
+                pins, or source references:{" "}
+                {retireCandidates.map((candidate) => candidate.version).join(", ")}.
               </span>
             }
             actions={
-              <button type="button" className="h-control-compact rounded-control border border-app-border px-space-xs text-xs" onClick={() => setRetireActionsVisible((visible) => !visible)}>
+              <button
+                type="button"
+                className="h-control-compact rounded-control border border-app-border px-space-xs text-xs"
+                onClick={() => setRetireActionsVisible((visible) => !visible)}
+              >
                 {retireActionsVisible ? "Hide retire actions" : "Review retire actions"}
               </button>
             }
@@ -358,20 +429,28 @@ export function VersionsCard({
             onAction={() => setRetireActionsVisible(true)}
             onClear={() => setRetireActionsVisible(false)}
           />
-          {retireActionsVisible && retireCandidates.map((candidate) => (
-            <UndoableDestructiveAction
-              key={`${candidate.componentId}-${candidate.version}`}
-              itemLabel={`Version ${candidate.version}`}
-              description={`Retire ${candidate.version} after confirming it has no surviving references.`}
-              deleteLabel={`Retire ${candidate.version}`}
-              onDelete={async () => {
-                await retireMutation.mutateAsync({ componentId: candidate.componentId, version: candidate.version });
-              }}
-              onUndo={async () => {
-                await versionLifecycleClient.archiveVersion({ componentId: candidate.componentId, version: candidate.version, confirm: true });
-              }}
-            />
-          ))}
+          {retireActionsVisible &&
+            retireCandidates.map((candidate) => (
+              <UndoableDestructiveAction
+                key={`${candidate.componentId}-${candidate.version}`}
+                itemLabel={`Version ${candidate.version}`}
+                description={`Retire ${candidate.version} after confirming it has no surviving references.`}
+                deleteLabel={`Retire ${candidate.version}`}
+                onDelete={async () => {
+                  await retireMutation.mutateAsync({
+                    componentId: candidate.componentId,
+                    version: candidate.version,
+                  });
+                }}
+                onUndo={async () => {
+                  await versionLifecycleClient.archiveVersion({
+                    componentId: candidate.componentId,
+                    version: candidate.version,
+                    confirm: true,
+                  });
+                }}
+              />
+            ))}
         </div>
       )}
 

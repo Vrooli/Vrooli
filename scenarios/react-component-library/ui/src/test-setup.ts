@@ -23,6 +23,7 @@
  * easier to follow.
  */
 import "@testing-library/jest-dom/vitest";
+import { cleanup } from "@testing-library/react";
 import { afterEach, beforeEach, vi } from "vitest";
 import { i18n } from "./i18n";
 import { configureTestProviders } from "@vrooli/api-base/testing";
@@ -42,6 +43,17 @@ beforeEach(async () => {
 });
 
 afterEach(() => {
+  // Unmount every rendered tree before asserting on console output.
+  //
+  // The suite runs single-threaded, so one jsdom document is shared by every
+  // test file in the run. Without this, a file that does not register its own
+  // `cleanup()` leaks its DOM into every file after it, and the collision
+  // surfaces as "Found multiple elements by ..." in an unrelated test —
+  // 8 of 25 component files were relying on their neighbours to tidy up.
+  // Cleaning here rather than in a separate hook keeps unmount-time console
+  // errors inside the assertion below instead of escaping it.
+  cleanup();
+
   const errorCalls = consoleError.mock.calls;
   const warnCalls = consoleWarn.mock.calls;
   consoleError.mockRestore();

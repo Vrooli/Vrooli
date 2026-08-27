@@ -609,6 +609,25 @@ type service struct {
 	mappings       ScenarioTokenMappingReader
 	tokenInventory ScenarioTokenInventoryReader
 	manifestLoader uimanifest.Loader
+	presence       PresenceReconciler
+}
+
+// PresenceReconciler is the narrow lifecycle hook used after an adoption
+// changes reachability. The version-ledger package supplies the production
+// implementation; tests can inject a recorder or a failing reconciler.
+type PresenceReconciler interface {
+	ReconcilePresence(ctx context.Context, componentID string, apply bool) error
+}
+
+func (s *service) ensureVersionMaterialized(ctx context.Context, componentID, version string) error {
+	materializer, ok := s.library.(components.Materializer)
+	if !ok {
+		return nil
+	}
+	if _, err := materializer.EnsureMaterialized(ctx, componentID, version, ""); err != nil {
+		return fmt.Errorf("materialize %s@%s before adoption: %w", componentID, version, err)
+	}
+	return nil
 }
 
 // NewService constructs the production Service. reporter may be nil
@@ -652,6 +671,15 @@ func SetMaturityReader(svc Service, reader MaturityReader) {
 func SetContractCoverageReader(svc Service, reader ContractCoverageReader) {
 	if s, ok := svc.(*service); ok {
 		s.coverage = reader
+	}
+}
+
+// SetPresenceReconciler wires the scoped tier update used by adoption delete
+// and reconverge. A nil reconciler leaves the service compatible with focused
+// callers that do not construct the version-ledger domain.
+func SetPresenceReconciler(svc Service, reconciler PresenceReconciler) {
+	if s, ok := svc.(*service); ok {
+		s.presence = reconciler
 	}
 }
 
@@ -778,6 +806,9 @@ func (s *service) Apply(ctx context.Context, in ApplyInput) (ApplyResult, error)
 	}
 	if version == "" {
 		return ApplyResult{}, ErrInvalidAdoption{Field: "version", Reason: "component has no latest version"}
+	}
+	if err := s.ensureVersionMaterialized(ctx, cmp.ID, version); err != nil {
+		return ApplyResult{}, err
 	}
 	exists, err := s.files.Exists(ctx, in.Scenario, in.AdoptedPath)
 	if err != nil {
@@ -923,6 +954,9 @@ func (s *service) Preflight(ctx context.Context, in PreflightInput) (PreflightRe
 	version := strings.TrimSpace(in.Version)
 	if version == "" {
 		version = firstNonEmpty(root.LatestVersion, root.Version)
+	}
+	if err := s.ensureVersionMaterialized(ctx, componentID, version); err != nil {
+		return PreflightResult{}, err
 	}
 	v, err := s.library.GetVersion(ctx, componentID, version)
 	if err != nil {
@@ -1163,6 +1197,9 @@ func (s *service) Reapply(ctx context.Context, in ReapplyInput) (Adoption, strin
 		}
 		version = firstNonEmpty(cmp.LatestVersion, cmp.Version, row.AdoptedVersion)
 	}
+	if err := s.ensureVersionMaterialized(ctx, row.ComponentID, version); err != nil {
+		return Adoption{}, "", err
+	}
 	root, err := s.library.Get(ctx, row.ComponentID)
 	if err != nil {
 		return Adoption{}, "", err
@@ -1384,6 +1421,11 @@ func (s *service) DeleteWithOptions(ctx context.Context, id string, confirmRemov
 	}
 	if err := s.repo.Delete(ctx, row.ID); err != nil {
 		return result, err
+	}
+	if s.presence != nil {
+		if err := s.presence.ReconcilePresence(ctx, row.ComponentID, true); err != nil {
+			return result, fmt.Errorf("reconcile presence after deleting adoption %s@%s: %w", row.LibraryID, row.AdoptedVersion, err)
+		}
 	}
 	return result, nil
 }

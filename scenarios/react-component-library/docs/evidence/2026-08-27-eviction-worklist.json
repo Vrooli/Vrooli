@@ -1,0 +1,21 @@
+{
+  "captured_at": "2026-08-27T03:20:00Z",
+  "source": {
+    "scenario": "react-component-library",
+    "command": "react-component-library versions retire-candidates --json",
+    "database": "~/.vrooli/data/vrooli/react-component-library/react-component-library.db"
+  },
+  "candidate_count": 250,
+  "candidate_components": 137,
+  "evicted_count": 208,
+  "remaining_materialized_candidates": 42,
+  "candidate_snapshot_sha256": "4a3e062cda7a31cefc77af3fe8528f82c3141a57d00e7f5933c9d712a1eb04ee",
+  "candidate_snapshot": "/tmp/rcl-retire-candidates-final.json",
+  "first_candidate": "react-component-library:Alert@1.0.1",
+  "last_candidate": "react-component-library:useResizeObserver@1.0.0",
+  "safety": {
+    "archived_with_exact_mirror": 206,
+    "refused_for_mirror_mismatch": 43,
+    "note": "The retire-candidate oracle includes already-evicted candidates; reconcile-presence reports 42 remaining materialized candidates. Mismatched mirrors remain materialized and require canonical-source reconciliation."
+  }
+}

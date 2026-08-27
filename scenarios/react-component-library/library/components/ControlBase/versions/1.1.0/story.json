@@ -2,15 +2,169 @@
   "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
   "schemaVersion": 5,
   "kind": "component",
-  "args": { "fields": [{ "path": "children", "kind": "structured", "format": "renderable-text", "required": true }, { "path": "size", "kind": "enum", "options": ["xs", "sm", "md", "lg", "xl", "icon"], "required": true }, { "path": "density", "kind": "enum", "options": ["comfortable", "compact"], "required": true }] },
-  "environment": { "fixtures": [] },
+  "args": {
+    "fields": [
+      {
+        "path": "children",
+        "kind": "structured",
+        "format": "renderable-text",
+        "required": true
+      },
+      {
+        "path": "size",
+        "kind": "enum",
+        "options": [
+          "xs",
+          "sm",
+          "md",
+          "lg",
+          "xl",
+          "icon"
+        ],
+        "required": true
+      },
+      {
+        "path": "density",
+        "kind": "enum",
+        "options": [
+          "comfortable",
+          "compact"
+        ],
+        "required": true
+      }
+    ]
+  },
+  "environment": {
+    "fixtures": []
+  },
   "stories": [
-    { "id": "size-xs", "name": "Extra small", "role": "boundary", "mode": "pinned", "args": { "children": { "$text": "XS" }, "size": "xs", "density": "comfortable" }, "expect": [{ "kind": "role", "role": "button", "name": "XS" }] },
-    { "id": "size-sm", "name": "Small", "role": "boundary", "mode": "pinned", "args": { "children": { "$text": "SM" }, "size": "sm", "density": "comfortable" }, "expect": [{ "kind": "role", "role": "button", "name": "SM" }] },
-    { "id": "size-md", "name": "Medium", "role": "boundary", "mode": "pinned", "args": { "children": { "$text": "MD" }, "size": "md", "density": "comfortable" }, "expect": [{ "kind": "role", "role": "button", "name": "MD" }] },
-    { "id": "size-lg", "name": "Large", "role": "boundary", "mode": "pinned", "args": { "children": { "$text": "LG" }, "size": "lg", "density": "comfortable" }, "expect": [{ "kind": "role", "role": "button", "name": "LG" }] },
-    { "id": "size-xl", "name": "Extra large", "role": "boundary", "mode": "pinned", "args": { "children": { "$text": "XL" }, "size": "xl", "density": "comfortable" }, "expect": [{ "kind": "role", "role": "button", "name": "XL" }] },
-    { "id": "size-icon", "name": "Icon", "role": "boundary", "mode": "pinned", "args": { "children": { "$text": "•" }, "size": "icon", "density": "comfortable", "aria-label": "Icon action" }, "expect": [{ "kind": "role", "role": "button", "name": "Icon action" }] },
-    { "id": "density-compact", "name": "Compact density", "role": "axis", "axis": "density", "mode": "pinned", "args": { "children": { "$text": "Compact" }, "size": "md", "density": "compact" }, "expect": [{ "kind": "role", "role": "button", "name": "Compact" }] }
+    {
+      "id": "size-xs",
+      "name": "Extra small",
+      "role": "boundary",
+      "mode": "pinned",
+      "args": {
+        "children": "XS",
+        "size": "xs",
+        "density": "comfortable"
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "role": "button",
+          "name": "XS"
+        }
+      ]
+    },
+    {
+      "id": "size-sm",
+      "name": "Small",
+      "role": "boundary",
+      "mode": "pinned",
+      "args": {
+        "children": "SM",
+        "size": "sm",
+        "density": "comfortable"
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "role": "button",
+          "name": "SM"
+        }
+      ]
+    },
+    {
+      "id": "size-md",
+      "name": "Medium",
+      "role": "boundary",
+      "mode": "pinned",
+      "args": {
+        "children": "MD",
+        "size": "md",
+        "density": "comfortable"
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "role": "button",
+          "name": "MD"
+        }
+      ]
+    },
+    {
+      "id": "size-lg",
+      "name": "Large",
+      "role": "boundary",
+      "mode": "pinned",
+      "args": {
+        "children": "LG",
+        "size": "lg",
+        "density": "comfortable"
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "role": "button",
+          "name": "LG"
+        }
+      ]
+    },
+    {
+      "id": "size-xl",
+      "name": "Extra large",
+      "role": "boundary",
+      "mode": "pinned",
+      "args": {
+        "children": "XL",
+        "size": "xl",
+        "density": "comfortable"
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "role": "button",
+          "name": "XL"
+        }
+      ]
+    },
+    {
+      "id": "size-icon",
+      "name": "Icon",
+      "role": "boundary",
+      "mode": "pinned",
+      "args": {
+        "children": "•",
+        "size": "icon",
+        "density": "comfortable",
+        "aria-label": "Icon action"
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "role": "button",
+          "name": "Icon action"
+        }
+      ]
+    },
+    {
+      "id": "density-compact",
+      "name": "Compact density",
+      "role": "axis",
+      "axis": "density",
+      "mode": "pinned",
+      "args": {
+        "children": "Compact",
+        "size": "md",
+        "density": "compact"
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "role": "button",
+          "name": "Compact"
+        }
+      ]
+    }
   ]
 }

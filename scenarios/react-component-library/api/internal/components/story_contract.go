@@ -723,6 +723,7 @@ func validateStoryGrammar(pointer string, raw json.RawMessage, storyArgs bool) [
 		switch typed := current.(type) {
 		case map[string]any:
 			if text, ok := typed["$text"].(string); ok {
+				diagnostics = append(diagnostics, storyDiagnostic(currentPointer, "raw_text_node", "$text nodes are not part of the story contract grammar; use a string value or story.tsx composition instead"))
 				if _, isTag := storyHTMLTagNames[strings.ToLower(strings.TrimSpace(text))]; isTag {
 					diagnostics = append(diagnostics, storyDiagnostic(currentPointer, "raw_node_tag_name", fmt.Sprintf("$text value %q is an HTML tag name; move the React composition into story.tsx instead", text)))
 				}

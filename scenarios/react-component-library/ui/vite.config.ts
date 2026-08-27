@@ -1,6 +1,5 @@
 import { defineConfig, type UserConfig } from "vite";
 import react from "@vitejs/plugin-react";
-import { readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import stringsCodegen from "./scripts/vite-plugin-strings-codegen.mjs";
@@ -9,16 +8,14 @@ import assetStamp from "./scripts/vite-plugin-asset-stamp.mjs";
 const rootDir = dirname(fileURLToPath(import.meta.url));
 const libraryRoot = resolve(rootDir, "../library");
 const packageRoot = resolve(rootDir, "../../../packages/react-component-library");
-const packageManifest = JSON.parse(readFileSync(resolve(packageRoot, "package.json"), "utf8")) as {
-  exports?: Record<string, { import?: string }>;
-};
-const packageVersionAliases = Object.entries(packageManifest.exports ?? {})
-  .filter(([key]) => key.slice(2).split("/").length === 2)
-  .filter(([, entry]) => typeof entry.import === "string")
-  .map(([key, entry]) => ({
-    find: `@vrooli/react-component-library/${key.slice(2)}`,
-    replacement: resolve(packageRoot, entry.import as string),
-  }));
+// Vite does not expand Node's wildcard package-export target while it is
+// transforming source files outside the package. Mirror that one wildcard
+// with a regex alias so tests and the cockpit resolve both one-segment aliases
+// and versioned subpaths from the same generated export directory.
+const packageVersionAliases = [{
+  find: /^@vrooli\/react-component-library\/(.+)$/,
+  replacement: `${resolve(packageRoot, "dist/exports")}/$1.js`,
+}];
 const packageAlias = {
   react: resolve(rootDir, "node_modules/react"),
   "lucide-react": resolve(rootDir, "node_modules/lucide-react"),
@@ -125,6 +122,13 @@ export default defineConfig(({ mode }): UserConfig => {
       globals: true,
       environment: "jsdom",
       setupFiles: ["./src/test-setup.ts"],
+      // `renderWithProviders` mounts through @vrooli/api-base/testing. Left
+      // external, api-base resolves its own copy of @testing-library/react —
+      // two copies exist in this store — and RTL tracks mounted containers in
+      // module-level state, so a `cleanup()` called from this project's copy
+      // never unmounts what api-base rendered. Inlining api-base routes it
+      // through the alias below, leaving exactly one RTL and one registry.
+      server: { deps: { inline: [/@vrooli\/api-base/] } },
       // The corpus is one generated contract file with 728 sequential stories.
       // Keep it in one worker, and use a thread so the worker remains alive for
       // the complete run instead of exiting partway through the fork pool.

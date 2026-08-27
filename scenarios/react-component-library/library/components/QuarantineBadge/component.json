@@ -3,6 +3,9 @@
   "assetKind": "component",
   "catalogId": "feedback.quarantine-badge",
   "dependencies": [],
+  "deprecatedVersions": [
+    "1.0.3"
+  ],
   "description": "",
   "designStyles": [
     {
@@ -11,15 +14,15 @@
     }
   ],
   "displayName": "QuarantineBadge",
+  "draft": "",
+  "evictedVersions": [
+    "1.0.3"
+  ],
   "kind": "control",
   "latest": "1.0.4",
   "libraryId": "react-component-library:QuarantineBadge",
   "tags": [
     "feedback",
     "token-bound"
-  ],
-  "draft": "",
-  "deprecatedVersions": [
-    "1.0.3"
   ]
 }

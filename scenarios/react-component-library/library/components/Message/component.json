@@ -20,6 +20,9 @@
       "version": "1.0.0"
     }
   ],
+  "deprecatedVersions": [
+    "1.0.3"
+  ],
   "description": "",
   "designStyles": [
     {
@@ -36,24 +39,24 @@
     }
   ],
   "displayName": "Message",
+  "draft": "",
+  "evictedVersions": [
+    "1.0.3"
+  ],
   "kind": "surface",
   "latest": "1.0.4",
   "libraryId": "react-component-library:Message",
-  "tags": [
-    "ai",
-    "conversation",
-    "content",
-    "accessibility",
-    "token-bound"
-  ],
   "requires": [
     {
       "libraryId": "react-component-library:useLocale",
       "version": "1.0.0"
     }
   ],
-  "draft": "",
-  "deprecatedVersions": [
-    "1.0.3"
+  "tags": [
+    "ai",
+    "conversation",
+    "content",
+    "accessibility",
+    "token-bound"
   ]
 }

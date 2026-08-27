@@ -78,6 +78,13 @@ func WithPreviewService(service previewdomain.Service) ModuleOption {
 	return func(d *Deps) { d.Preview = service }
 }
 
+// WithPresenceReconciler makes a completed index converge the working-tree
+// projection with the reachability graph. The request-level no_reconcile flag
+// remains available for diagnostics and controlled migrations.
+func WithPresenceReconciler(reconciler components.PresenceReconciler) ModuleOption {
+	return func(d *Deps) { d.PresenceReconciler = reconciler }
+}
+
 func ModuleFromService(svc components.Service, repo components.Repository, sourceRoot string, logger *log.Logger, opts ...ModuleOption) module.Module {
 	d := Deps{
 		Service:    svc,

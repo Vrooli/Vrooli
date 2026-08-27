@@ -3,9 +3,7 @@
   "args": {
     "fields": [
       {
-        "default": {
-          "$text": "Continue"
-        },
+        "default": "Continue",
         "format": "renderable-text",
         "kind": "structured",
         "label": "Children",
@@ -78,9 +76,7 @@
   "stories": [
     {
       "args": {
-        "children": {
-          "$text": "Primary"
-        },
+        "children": "Primary",
         "variant": "primary"
       },
       "expect": [
@@ -97,9 +93,7 @@
     },
     {
       "args": {
-        "children": {
-          "$text": "Secondary"
-        },
+        "children": "Secondary",
         "variant": "secondary"
       },
       "expect": [
@@ -125,9 +119,7 @@
     },
     {
       "args": {
-        "children": {
-          "$text": "Ghost"
-        },
+        "children": "Ghost",
         "variant": "ghost"
       },
       "expect": [
@@ -155,9 +147,7 @@
     },
     {
       "args": {
-        "children": {
-          "$text": "Danger"
-        },
+        "children": "Danger",
         "variant": "danger"
       },
       "expect": [
@@ -181,9 +171,7 @@
     },
     {
       "args": {
-        "children": {
-          "$text": "XS"
-        },
+        "children": "XS",
         "size": "xs"
       },
       "expect": [
@@ -207,9 +195,7 @@
     },
     {
       "args": {
-        "children": {
-          "$text": "SM"
-        },
+        "children": "SM",
         "size": "sm"
       },
       "expect": [
@@ -226,9 +212,7 @@
     },
     {
       "args": {
-        "children": {
-          "$text": "MD"
-        },
+        "children": "MD",
         "size": "md"
       },
       "expect": [
@@ -245,9 +229,7 @@
     },
     {
       "args": {
-        "children": {
-          "$text": "LG"
-        },
+        "children": "LG",
         "size": "lg"
       },
       "expect": [
@@ -264,9 +246,7 @@
     },
     {
       "args": {
-        "children": {
-          "$text": "XL"
-        },
+        "children": "XL",
         "size": "xl"
       },
       "expect": [
@@ -284,9 +264,7 @@
     {
       "args": {
         "aria-label": "Icon action",
-        "children": {
-          "$text": "•"
-        },
+        "children": "•",
         "size": "icon"
       },
       "expect": [
@@ -303,9 +281,7 @@
     },
     {
       "args": {
-        "children": {
-          "$text": "Comfortable"
-        },
+        "children": "Comfortable",
         "density": "comfortable"
       },
       "expect": [
@@ -322,9 +298,7 @@
     },
     {
       "args": {
-        "children": {
-          "$text": "Compact"
-        },
+        "children": "Compact",
         "density": "compact"
       },
       "expect": [
@@ -341,9 +315,7 @@
     },
     {
       "args": {
-        "children": {
-          "$text": "Square"
-        },
+        "children": "Square",
         "shape": "square"
       },
       "expect": [
@@ -360,9 +332,7 @@
     },
     {
       "args": {
-        "children": {
-          "$text": "Pill"
-        },
+        "children": "Pill",
         "shape": "pill"
       },
       "expect": [

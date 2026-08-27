@@ -103,6 +103,16 @@ a migration handoff with a planned retirement path back into
 
 ## Work ladder
 
+- Rung: W3 (2026-08-27 cold version tier implementation)
+- Evidence: The ledger now separates `materialized` and `evicted` presence, restores evicted files through a hash-verified atomic materializer, preserves evicted rows across reindex, sees evicted source imports, exposes reconcile/materialize/archive/doctor surfaces, and wires adoption lifecycle hooks. Focused Go tests, CLI tests, UI type-check, focused UI tests, package build, and `sync-exports:check` pass. Browser Automation Studio captured the corrected desktop shell at `/tmp/rcl-ui-20260827-fixed-shell-2/64d0272a-dcfe-4196-85e6-c9e845fc3d8d/screenshots/step-01-40a5b0aa-7c09-4b97-928d-a5d500d6b2fc.png` after a real grid-placement defect was fixed at the consumer boundary.
+- Blocker: The live corpus still contains pre-existing released source/ledger hash mismatches and 15 authored version paths absent from the ledger, so full-corpus eviction and the strict no-overlay package census remain withheld. The scenario baseline also remains red on inherited phases; the adoptions staleness test reports its existing reviewed-divergence allowlist entries.
+- Measured: 2026-08-27.
+
+- Rung: W3 (2026-08-27 closing validation)
+- Evidence: Comprehensive run `20260827-040235-59ec7d4a` passed portability, structure, component-tests, agent-conformance, and templates. The focused contracts rerun `20260827-041517-9b9e92a2` removed the archive `--out` binding error; live doctor and package export synchronization remain clean. The corrected Browser Automation Studio capture proves the workbench shell is no longer collapsed into the right-hand column.
+- Blocker: The comprehensive run remains red on inherited contracts/storage/workflow/experience/security/unit findings; CLI still has the pre-existing duplicate `CatalogService.RunGate` binding. Plan validation cannot read its producer baseline (`baseline not found`). The post-suite live snapshot reports 205 evicted and 411 materialized versions because suite setup restored three versions; this is not a ledger-loss event.
+- Measured: 2026-08-27.
+
 - Rung: W3 (scenario suite remains baseline-red while the v4 plan surfaces are green)
 - Evidence: W0 comparison passes for the named design-language-foundation and react-component-library-adoption-integrity goals; business-health and requirements validation both pass. The governed run `20260825-030615-63ca5e63` passes 22/24 phases, including `ui-health` and `component-tests`, while `workflow` retains expected-element failures and `experience` retains capture/binding failures.
 - Blocker: No plan-specific implementation blocker identified; the remaining failures are inherited scenario-suite findings and must remain separated from the plan’s baseline-regression criterion.

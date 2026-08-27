@@ -3,6 +3,9 @@
   "assetKind": "component",
   "catalogId": "navigation.top-bar",
   "dependencies": [],
+  "deprecatedVersions": [
+    "1.0.4"
+  ],
   "description": "",
   "designStyles": [
     {
@@ -11,22 +14,22 @@
     }
   ],
   "displayName": "TopBar",
+  "draft": "",
+  "evictedVersions": [
+    "1.0.4"
+  ],
   "kind": "shell",
   "latest": "1.0.5",
   "libraryId": "react-component-library:TopBar",
-  "tags": [
-    "navigation",
-    "responsive",
-    "token-bound"
-  ],
   "requires": [
     {
       "libraryId": "react-component-library:useLocale",
       "version": "1.0.0"
     }
   ],
-  "draft": "",
-  "deprecatedVersions": [
-    "1.0.4"
+  "tags": [
+    "navigation",
+    "responsive",
+    "token-bound"
   ]
 }
