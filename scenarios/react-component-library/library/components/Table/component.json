@@ -11,6 +11,7 @@
     }
   ],
   "displayName": "Table",
+  "kind": "control",
   "latest": "1.0.1",
   "libraryId": "react-component-library:Table",
   "tags": [

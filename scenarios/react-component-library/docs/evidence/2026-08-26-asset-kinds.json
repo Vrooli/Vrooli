@@ -1,0 +1,900 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-08-26",
+  "source": "library/**/component.json",
+  "assets": [
+    {
+      "path": "library/components/Alert/component.json",
+      "kind": "surface"
+    },
+    {
+      "path": "library/components/AlertDialog/component.json",
+      "kind": "overlay"
+    },
+    {
+      "path": "library/components/AppNavigation/component.json",
+      "kind": "shell"
+    },
+    {
+      "path": "library/components/AppShell/component.json",
+      "kind": "shell"
+    },
+    {
+      "path": "library/components/ApprovalPrompt/component.json",
+      "kind": "surface"
+    },
+    {
+      "path": "library/components/ArrayField/component.json",
+      "kind": "input"
+    },
+    {
+      "path": "library/components/AssetDetailShell/component.json",
+      "kind": "shell"
+    },
+    {
+      "path": "library/components/AsyncBoundary/component.json",
+      "kind": "surface"
+    },
+    {
+      "path": "library/components/AsyncFormFlow/component.json",
+      "kind": "input"
+    },
+    {
+      "path": "library/components/AsyncOptionsField/component.json",
+      "kind": "input"
+    },
+    {
+      "path": "library/components/AsyncPanel/component.json",
+      "kind": "surface"
+    },
+    {
+      "path": "library/components/AttachmentPreview/component.json",
+      "kind": "surface"
+    },
+    {
+      "path": "library/components/AuditTrail/component.json",
+      "kind": "surface"
+    },
+    {
+      "path": "library/components/AuthSection/component.json",
+      "kind": "surface"
+    },
+    {
+      "path": "library/components/AutoAnimateLayout/component.json",
+      "kind": "shell"
+    },
+    {
+      "path": "library/components/Avatar/component.json",
+      "kind": "surface"
+    },
+    {
+      "path": "library/components/BottomNav/component.json",
+      "kind": "shell"
+    },
+    {
+      "path": "library/components/BoundedMeter/component.json",
+      "kind": "surface"
+    },
+    {
+      "path": "library/components/BudgetBar/component.json",
+      "kind": "surface"
+    },
+    {
+      "path": "library/components/BulkActionBar/component.json",
+      "kind": "control"
+    },
+    {
+      "path": "library/components/Button/component.json",
+      "kind": "control"
+    },
+    {
+      "path": "library/components/ButtonGroup/component.json",
+      "kind": "control"
+    },
+    {
+      "path": "library/components/Calendar/component.json",
+      "kind": "input"
+    },
+    {
+      "path": "library/components/CanvasFrame/component.json",
+      "kind": "surface"
+    },
+    {
+      "path": "library/components/CaptureGrid/component.json",
+      "kind": "surface"
+    },
+    {
+      "path": "library/components/Card/component.json",
+      "kind": "surface"
+    },
+    {
+      "path": "library/components/CardGrid/component.json",
+      "kind": "surface"
+    },
+    {
+      "path": "library/components/CartesianCharts/component.json",
+      "kind": "surface"
+    },
+    {
+      "path": "library/components/Chart/component.json",
+      "kind": "surface"
+    },
+    {
+      "path": "library/components/Checkbox/component.json",
+      "kind": "input"
+    },
+    {
+      "path": "library/components/Chip/component.json",
+      "kind": "control"
+    },
+    {
+      "path": "library/components/CollapsibleRegion/component.json",
+      "kind": "surface"
+    },
+    {
+      "path": "library/components/CollectionPage/component.json",
+      "kind": "surface"
+    },
+    {
+      "path": "library/components/ColorPicker/component.json",
+      "kind": "input"
+    },
+    {
+      "path": "library/components/Combobox/component.json",
+      "kind": "input"
+    },
+    {
+      "path": "library/components/CommandButton/component.json",
+      "kind": "control"
+    },
+    {
+      "path": "library/components/CommandCenterShell/component.json",
+      "kind": "shell"
+    },
+    {
+      "path": "library/components/CommandPalette/component.json",
+      "kind": "overlay"
+    },
+    {
+      "path": "library/components/ComputedField/component.json",
+      "kind": "input"
+    },
+    {
+      "path": "library/components/ConditionalField/component.json",
+      "kind": "input"
+    },
+    {
+      "path": "library/components/ConflictResolutionFlow/component.json",
+      "kind": "surface"
+    },
+    {
+      "path": "library/components/ControlBase/component.json",
+      "kind": "control"
+    },
+    {
+      "path": "library/components/CopyableText/component.json",
+      "kind": "surface"
+    },
+    {
+      "path": "library/components/DashboardPage/component.json",
+      "kind": "surface"
+    },
+    {
+      "path": "library/components/DataTable/component.json",
+      "kind": "control"
+    },
+    {
+      "path": "library/components/DataToolbar/component.json",
+      "kind": "control"
+    },
+    {
+      "path": "library/components/DescriptionList/component.json",
+      "kind": "surface"
+    },
+    {
+      "path": "library/components/DetailPage/component.json",
+      "kind": "surface"
+    },
+    {
+      "path": "library/components/Dialog/component.json",
+      "kind": "overlay"
+    },
+    {
+      "path": "library/components/DiffViewer/component.json",
+      "kind": "surface"
+    },
+    {
+      "path": "library/components/DirtyStateGuard/component.json",
+      "kind": "input"
+    },
+    {
+      "path": "library/components/Draggable/component.json",
+      "kind": "surface"
+    },
+    {
+      "path": "library/components/Drawer/component.json",
+      "kind": "overlay"
+    },
+    {
+      "path": "library/components/DrawerShell/component.json",
+      "kind": "overlay"
+    },
+    {
+      "path": "library/components/EditableResource/component.json",
+      "kind": "control"
+    },
+    {
+      "path": "library/components/EmptyState/component.json",
+      "kind": "surface"
+    },
+    {
+      "path": "library/components/EntitlementErrorCard/component.json",
+      "kind": "surface"
+    },
+    {
+      "path": "library/components/ErrorBoundary/component.json",
+      "kind": "surface"
+    },
+    {
+      "path": "library/components/ErrorState/component.json",
+      "kind": "surface"
+    },
+    {
+      "path": "library/components/EvidenceCarousel/component.json",
+      "kind": "surface"
+    },
+    {
+      "path": "library/components/ExperienceSurface/component.json",
+      "kind": "surface"
+    },
+    {
+      "path": "library/components/FilePreview/component.json",
+      "kind": "surface"
+    },
+    {
+      "path": "library/components/FilterBar/component.json",
+      "kind": "surface"
+    },
+    {
+      "path": "library/components/FindingList/component.json",
+      "kind": "surface"
+    },
+    {
+      "path": "library/components/FocusTrapPanel/component.json",
+      "kind": "overlay"
+    },
+    {
+      "path": "library/components/Form/component.json",
+      "kind": "input"
+    },
+    {
+      "path": "library/components/FormActions/component.json",
+      "kind": "input"
+    },
+    {
+      "path": "library/components/FormField/component.json",
+      "kind": "input"
+    },
+    {
+      "path": "library/components/FormSection/component.json",
+      "kind": "input"
+    },
+    {
+      "path": "library/components/GeneratedForm/component.json",
+      "kind": "input"
+    },
+    {
+      "path": "library/components/GlobalCommandSystem/component.json",
+      "kind": "surface"
+    },
+    {
+      "path": "library/components/HealthIndicator/component.json",
+      "kind": "surface"
+    },
+    {
+      "path": "library/components/IconButton/component.json",
+      "kind": "control"
+    },
+    {
+      "path": "library/components/Input/component.json",
+      "kind": "input"
+    },
+    {
+      "path": "library/components/InspectorLayout/component.json",
+      "kind": "shell"
+    },
+    {
+      "path": "library/components/InspectorPanel/component.json",
+      "kind": "overlay"
+    },
+    {
+      "path": "library/components/JsonViewer/component.json",
+      "kind": "surface"
+    },
+    {
+      "path": "library/components/List/component.json",
+      "kind": "surface"
+    },
+    {
+      "path": "library/components/LoadingState/component.json",
+      "kind": "surface"
+    },
+    {
+      "path": "library/components/MasterDetail/component.json",
+      "kind": "shell"
+    },
+    {
+      "path": "library/components/MeasurementBar/component.json",
+      "kind": "surface"
+    },
+    {
+      "path": "library/components/Menu/component.json",
+      "kind": "overlay"
+    },
+    {
+      "path": "library/components/Message/component.json",
+      "kind": "surface"
+    },
+    {
+      "path": "library/components/Meter/component.json",
+      "kind": "surface"
+    },
+    {
+      "path": "library/components/MetricBreakdown/component.json",
+      "kind": "surface"
+    },
+    {
+      "path": "library/components/MonetizationAccount/component.json",
+      "kind": "surface"
+    },
+    {
+      "path": "library/components/NavLink/component.json",
+      "kind": "shell"
+    },
+    {
+      "path": "library/components/NavigationTree/component.json",
+      "kind": "shell"
+    },
+    {
+      "path": "library/components/NetworkGraph/component.json",
+      "kind": "surface"
+    },
+    {
+      "path": "library/components/ObjectField/component.json",
+      "kind": "input"
+    },
+    {
+      "path": "library/components/OfflineState/component.json",
+      "kind": "surface"
+    },
+    {
+      "path": "library/components/OverlayCanvas/component.json",
+      "kind": "overlay"
+    },
+    {
+      "path": "library/components/Page/component.json",
+      "kind": "shell"
+    },
+    {
+      "path": "library/components/PageFrame/component.json",
+      "kind": "shell"
+    },
+    {
+      "path": "library/components/PageHeader/component.json",
+      "kind": "shell"
+    },
+    {
+      "path": "library/components/PendingSyncBadge/component.json",
+      "kind": "control"
+    },
+    {
+      "path": "library/components/PermissionState/component.json",
+      "kind": "surface"
+    },
+    {
+      "path": "library/components/Popover/component.json",
+      "kind": "overlay"
+    },
+    {
+      "path": "library/components/Pressable/component.json",
+      "kind": "control"
+    },
+    {
+      "path": "library/components/PreviewDock/component.json",
+      "kind": "surface"
+    },
+    {
+      "path": "library/components/PreviewInspector/component.json",
+      "kind": "overlay"
+    },
+    {
+      "path": "library/components/ProgressLadder/component.json",
+      "kind": "surface"
+    },
+    {
+      "path": "library/components/QuarantineBadge/component.json",
+      "kind": "control"
+    },
+    {
+      "path": "library/components/RadioGroup/component.json",
+      "kind": "input"
+    },
+    {
+      "path": "library/components/RelativeTime/component.json",
+      "kind": "surface"
+    },
+    {
+      "path": "library/components/Resizable/component.json",
+      "kind": "surface"
+    },
+    {
+      "path": "library/components/ResizableSidebar/component.json",
+      "kind": "shell"
+    },
+    {
+      "path": "library/components/ResourceCollection/component.json",
+      "kind": "surface"
+    },
+    {
+      "path": "library/components/ResourceDetail/component.json",
+      "kind": "surface"
+    },
+    {
+      "path": "library/components/ResponsivePanel/component.json",
+      "kind": "overlay"
+    },
+    {
+      "path": "library/components/ScoreGauge/component.json",
+      "kind": "surface"
+    },
+    {
+      "path": "library/components/ScrollableTabs/component.json",
+      "kind": "shell"
+    },
+    {
+      "path": "library/components/SearchFilterResults/component.json",
+      "kind": "input"
+    },
+    {
+      "path": "library/components/SearchInput/component.json",
+      "kind": "input"
+    },
+    {
+      "path": "library/components/SearchResults/component.json",
+      "kind": "input"
+    },
+    {
+      "path": "library/components/Select/component.json",
+      "kind": "input"
+    },
+    {
+      "path": "library/components/SidebarShell/component.json",
+      "kind": "shell"
+    },
+    {
+      "path": "library/components/Sortable/component.json",
+      "kind": "control"
+    },
+    {
+      "path": "library/components/SplitPane/component.json",
+      "kind": "surface"
+    },
+    {
+      "path": "library/components/SplitView/component.json",
+      "kind": "shell"
+    },
+    {
+      "path": "library/components/Stat/component.json",
+      "kind": "surface"
+    },
+    {
+      "path": "library/components/StatCard/component.json",
+      "kind": "surface"
+    },
+    {
+      "path": "library/components/StatusBadge/component.json",
+      "kind": "control"
+    },
+    {
+      "path": "library/components/StatusIndicator/component.json",
+      "kind": "surface"
+    },
+    {
+      "path": "library/components/StoryPalette/component.json",
+      "kind": "surface"
+    },
+    {
+      "path": "library/components/SubscriptionStatusCard/component.json",
+      "kind": "surface"
+    },
+    {
+      "path": "library/components/Switch/component.json",
+      "kind": "input"
+    },
+    {
+      "path": "library/components/Table/component.json",
+      "kind": "control"
+    },
+    {
+      "path": "library/components/Tabs/component.json",
+      "kind": "shell"
+    },
+    {
+      "path": "library/components/Textarea/component.json",
+      "kind": "input"
+    },
+    {
+      "path": "library/components/Timeline/component.json",
+      "kind": "surface"
+    },
+    {
+      "path": "library/components/Toast/component.json",
+      "kind": "surface"
+    },
+    {
+      "path": "library/components/Toggle/component.json",
+      "kind": "input"
+    },
+    {
+      "path": "library/components/Toolbar/component.json",
+      "kind": "control"
+    },
+    {
+      "path": "library/components/Tooltip/component.json",
+      "kind": "overlay"
+    },
+    {
+      "path": "library/components/TopBar/component.json",
+      "kind": "shell"
+    },
+    {
+      "path": "library/components/TreeView/component.json",
+      "kind": "control"
+    },
+    {
+      "path": "library/components/UndoBanner/component.json",
+      "kind": "surface"
+    },
+    {
+      "path": "library/components/UndoableDestructiveAction/component.json",
+      "kind": "control"
+    },
+    {
+      "path": "library/components/UnsavedChangesFlow/component.json",
+      "kind": "surface"
+    },
+    {
+      "path": "library/components/UpgradePrompt/component.json",
+      "kind": "surface"
+    },
+    {
+      "path": "library/components/ValidationSummary/component.json",
+      "kind": "input"
+    },
+    {
+      "path": "library/components/VerdictSummary/component.json",
+      "kind": "surface"
+    },
+    {
+      "path": "library/components/VirtualList/component.json",
+      "kind": "surface"
+    },
+    {
+      "path": "library/components/VoiceInputButton/component.json",
+      "kind": "input"
+    },
+    {
+      "path": "library/components/WorkspaceHeader/component.json",
+      "kind": "shell"
+    },
+    {
+      "path": "library/components/code-block/component.json",
+      "kind": "surface"
+    },
+    {
+      "path": "library/components/inline-code/component.json",
+      "kind": "surface"
+    },
+    {
+      "path": "library/components/markdown-renderer/component.json",
+      "kind": "surface"
+    },
+    {
+      "path": "library/components/mermaid-diagram/component.json",
+      "kind": "surface"
+    },
+    {
+      "path": "library/foundations/BaseStyles/component.json",
+      "kind": "surface"
+    },
+    {
+      "path": "library/foundations/ClassMerge/component.json",
+      "kind": "surface"
+    },
+    {
+      "path": "library/foundations/Contracts/component.json",
+      "kind": "surface"
+    },
+    {
+      "path": "library/foundations/IconRegistry/component.json",
+      "kind": "control"
+    },
+    {
+      "path": "library/foundations/StyleSheet/component.json",
+      "kind": "surface"
+    },
+    {
+      "path": "library/foundations/Tokens/component.json",
+      "kind": "surface"
+    },
+    {
+      "path": "library/foundations/VisualRecipes/component.json",
+      "kind": "surface"
+    },
+    {
+      "path": "library/hooks/useAbortableTask/component.json",
+      "kind": "control"
+    },
+    {
+      "path": "library/hooks/useAnnounce/component.json",
+      "kind": "surface"
+    },
+    {
+      "path": "library/hooks/useAsyncAction/component.json",
+      "kind": "control"
+    },
+    {
+      "path": "library/hooks/useControllableState/component.json",
+      "kind": "control"
+    },
+    {
+      "path": "library/hooks/useDelayedPending/component.json",
+      "kind": "surface"
+    },
+    {
+      "path": "library/hooks/useDirection/component.json",
+      "kind": "surface"
+    },
+    {
+      "path": "library/hooks/useDisclosure/component.json",
+      "kind": "surface"
+    },
+    {
+      "path": "library/hooks/useDrag/component.json",
+      "kind": "surface"
+    },
+    {
+      "path": "library/hooks/useElementRect/component.json",
+      "kind": "surface"
+    },
+    {
+      "path": "library/hooks/useEscapeKey/component.json",
+      "kind": "surface"
+    },
+    {
+      "path": "library/hooks/useFocusReturn/component.json",
+      "kind": "surface"
+    },
+    {
+      "path": "library/hooks/useFocusTrap/component.json",
+      "kind": "overlay"
+    },
+    {
+      "path": "library/hooks/useFocusVisible/component.json",
+      "kind": "surface"
+    },
+    {
+      "path": "library/hooks/useHover/component.json",
+      "kind": "surface"
+    },
+    {
+      "path": "library/hooks/useHydrated/component.json",
+      "kind": "surface"
+    },
+    {
+      "path": "library/hooks/useLocale/component.json",
+      "kind": "surface"
+    },
+    {
+      "path": "library/hooks/useMediaQuery/component.json",
+      "kind": "surface"
+    },
+    {
+      "path": "library/hooks/useNetworkStatus/component.json",
+      "kind": "surface"
+    },
+    {
+      "path": "library/hooks/useOptimisticAction/component.json",
+      "kind": "control"
+    },
+    {
+      "path": "library/hooks/useOutsideInteraction/component.json",
+      "kind": "control"
+    },
+    {
+      "path": "library/hooks/usePress/component.json",
+      "kind": "surface"
+    },
+    {
+      "path": "library/hooks/useReducedMotion/component.json",
+      "kind": "surface"
+    },
+    {
+      "path": "library/hooks/useResizeObserver/component.json",
+      "kind": "surface"
+    },
+    {
+      "path": "library/hooks/useRetry/component.json",
+      "kind": "surface"
+    },
+    {
+      "path": "library/hooks/useRovingFocus/component.json",
+      "kind": "surface"
+    },
+    {
+      "path": "library/hooks/useScrollLock/component.json",
+      "kind": "surface"
+    },
+    {
+      "path": "library/hooks/useScrollState/component.json",
+      "kind": "surface"
+    },
+    {
+      "path": "library/hooks/useSwipe/component.json",
+      "kind": "surface"
+    },
+    {
+      "path": "library/hooks/useTypeahead/component.json",
+      "kind": "surface"
+    },
+    {
+      "path": "library/hooks/useVoiceInput/component.json",
+      "kind": "input"
+    },
+    {
+      "path": "library/primitives/AspectRatio/component.json",
+      "kind": "shell"
+    },
+    {
+      "path": "library/primitives/Badge/component.json",
+      "kind": "control"
+    },
+    {
+      "path": "library/primitives/Cluster/component.json",
+      "kind": "surface"
+    },
+    {
+      "path": "library/primitives/Container/component.json",
+      "kind": "surface"
+    },
+    {
+      "path": "library/primitives/EdgeFade/component.json",
+      "kind": "surface"
+    },
+    {
+      "path": "library/primitives/Heading/component.json",
+      "kind": "surface"
+    },
+    {
+      "path": "library/primitives/Icon/component.json",
+      "kind": "control"
+    },
+    {
+      "path": "library/primitives/Inline/component.json",
+      "kind": "surface"
+    },
+    {
+      "path": "library/primitives/LayoutGroup/component.json",
+      "kind": "shell"
+    },
+    {
+      "path": "library/primitives/Link/component.json",
+      "kind": "control"
+    },
+    {
+      "path": "library/primitives/MorphingIcon/component.json",
+      "kind": "control"
+    },
+    {
+      "path": "library/primitives/MotionPrimitive/component.json",
+      "kind": "surface"
+    },
+    {
+      "path": "library/primitives/Presence/component.json",
+      "kind": "surface"
+    },
+    {
+      "path": "library/primitives/Progress/component.json",
+      "kind": "surface"
+    },
+    {
+      "path": "library/primitives/ProgressiveImage/component.json",
+      "kind": "surface"
+    },
+    {
+      "path": "library/primitives/ScrollArea/component.json",
+      "kind": "surface"
+    },
+    {
+      "path": "library/primitives/SelectionControl/component.json",
+      "kind": "input"
+    },
+    {
+      "path": "library/primitives/Separator/component.json",
+      "kind": "surface"
+    },
+    {
+      "path": "library/primitives/Skeleton/component.json",
+      "kind": "surface"
+    },
+    {
+      "path": "library/primitives/Slot/component.json",
+      "kind": "surface"
+    },
+    {
+      "path": "library/primitives/Spinner/component.json",
+      "kind": "surface"
+    },
+    {
+      "path": "library/primitives/Stack/component.json",
+      "kind": "surface"
+    },
+    {
+      "path": "library/primitives/Surface/component.json",
+      "kind": "surface"
+    },
+    {
+      "path": "library/primitives/Text/component.json",
+      "kind": "surface"
+    },
+    {
+      "path": "library/primitives/Transition/component.json",
+      "kind": "surface"
+    },
+    {
+      "path": "library/services/CommandRegistry/component.json",
+      "kind": "surface"
+    },
+    {
+      "path": "library/services/DragDropStore/component.json",
+      "kind": "surface"
+    },
+    {
+      "path": "library/services/FormStore/component.json",
+      "kind": "input"
+    },
+    {
+      "path": "library/services/LayerManager/component.json",
+      "kind": "surface"
+    },
+    {
+      "path": "library/services/LiveAnnouncer/component.json",
+      "kind": "surface"
+    },
+    {
+      "path": "library/services/ScrollRestoration/component.json",
+      "kind": "shell"
+    },
+    {
+      "path": "library/services/SelectionStore/component.json",
+      "kind": "input"
+    },
+    {
+      "path": "library/services/ShortcutRegistry/component.json",
+      "kind": "surface"
+    },
+    {
+      "path": "library/services/ToastManager/component.json",
+      "kind": "surface"
+    },
+    {
+      "path": "library/services/UndoManager/component.json",
+      "kind": "surface"
+    },
+    {
+      "path": "library/services/createScopedStore/component.json",
+      "kind": "surface"
+    }
+  ]
+}
+

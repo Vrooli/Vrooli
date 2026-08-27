@@ -36,6 +36,7 @@
     }
   ],
   "displayName": "AsyncFormFlow",
+  "kind": "input",
   "latest": "1.0.6",
   "libraryId": "react-component-library:AsyncFormFlow",
   "tags": [

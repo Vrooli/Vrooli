@@ -418,8 +418,11 @@ type InitializeComponentInput struct {
 	Slug        string
 	DisplayName string
 	Description string
-	Tags        []string
-	Slot        string
+	// Kind is the experience contract preset for this asset. It is separate
+	// from AssetKind, which describes the authored library directory.
+	Kind string
+	Tags []string
+	Slot string
 	// Category is catalog metadata persisted on the manifest. Ingest supplies
 	// it (defaulting when the harvester leaves it blank) so drafts land with the
 	// same catalog fields authored components carry.

@@ -2,11 +2,10 @@ import { type ReactNode, useCallback, useEffect, useRef, useState } from "react"
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
 
 import { AppShell as LibraryAppShell } from "@vrooli/react-component-library/AppShell/1.0.0";
-import { SidebarShell } from "@vrooli/react-component-library/SidebarShell/1.2.0";
+import { SidebarShell } from "@vrooli/react-component-library/SidebarShell/2.0.0";
 import { BottomNav } from "@vrooli/react-component-library/BottomNav/1.3.0";
 import { WorkspaceHeader } from "../WorkspaceHeader";
 import { useIsMobile } from "../../hooks/useMediaQuery";
-import { useResizablePanel } from "../../hooks/useResizablePanel";
 import { useTranslation } from "../../i18n";
 import { BarChart3, FolderTree, Menu, Settings as SettingsIcon, Sparkles } from "lucide-react";
 import { Link } from "react-router-dom";
@@ -54,17 +53,6 @@ export function ApplicationShell({ children }: Props) {
       setLauncherAction(requested);
     }
   }, [location.search]);
-
-  const { size: sidebarWidth, resizeHandleProps } = useResizablePanel({
-    containerRef: shellRef,
-    targetRef: sidebarRef,
-    minSize: 280,
-    maxSize: 480,
-    defaultSize: 340,
-    adjacentMinSize: 440,
-    handleWidth: 6,
-    storageKey: SIDEBAR_STORAGE,
-  });
 
   const closeDrawer = useCallback(() => setDrawerOpen(false), []);
   const openDrawer = useCallback(() => setDrawerOpen(true), []);
@@ -117,8 +105,19 @@ export function ApplicationShell({ children }: Props) {
           {t("app.brand", { defaultValue: "Component Library" })}
         </span>
       }
-      width={isMobile || desktopSidebarCollapsed ? undefined : sidebarWidth}
-      resizeHandleProps={isMobile ? undefined : resizeHandleProps}
+      resizable={
+        isMobile || desktopSidebarCollapsed
+          ? undefined
+          : {
+              containerRef: shellRef,
+              min: 280,
+              max: 480,
+              defaultSize: 340,
+              adjacentMin: 440,
+              storageKey: SIDEBAR_STORAGE,
+              panelName: t("nav.label", { defaultValue: "Primary navigation" }),
+            }
+      }
       contentClassName="flex min-w-0"
     >
       <SidebarContent

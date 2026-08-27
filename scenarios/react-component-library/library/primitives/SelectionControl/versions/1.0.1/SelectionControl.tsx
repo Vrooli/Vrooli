@@ -6,7 +6,8 @@
  * @tags ["primitive","selection","accessibility","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
-/** @vrooliComponentSource primitives.selection-control */
+/** @vrooliComponentSource react-component-library:SelectionControl */
+import { StyleSheet } from "@vrooli/react-component-library/StyleSheet/1.0.0";
 import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
 
 import {
@@ -56,16 +57,7 @@ const styleSheet = `
   box-shadow: 0 0 0 var(--space-3xs) color-mix(in srgb, var(--color-focus) 18%, transparent);
 }
 [data-rcl-selection-row][data-disabled="true"] { cursor: not-allowed; opacity: max(var(--opacity-disabled), .72); }
-[data-rcl-selection-input] {
-  position: absolute;
-  inline-size: 1px;
-  block-size: 1px;
-  margin: -1px;
-  overflow: hidden;
-  clip: rect(0 0 0 0);
-  clip-path: inset(50%);
-  white-space: nowrap;
-}
+
 [data-rcl-selection-indicator] {
   position: relative;
   display: grid;
@@ -146,13 +138,11 @@ const styleSheet = `
 [data-rcl-selection-description], [data-rcl-selection-error] { font: var(--text-caption); color: var(--color-muted-foreground); }
 [data-rcl-selection-error] { color: var(--color-danger); }
 [data-rcl-selection-row][data-invalid="true"] [data-rcl-selection-indicator] { border-color: var(--color-danger); }
-@media (prefers-reduced-motion: reduce) {
-  [data-rcl-selection-row], [data-rcl-selection-indicator], [data-rcl-selection-indicator]::after, [data-rcl-selection-indicator]::before { transition: none; }
-}
+
 `;
 
 function SelectionStyles() {
-  return <style data-rcl-selection-styles dangerouslySetInnerHTML={{ __html: styleSheet }} />;
+  return <StyleSheet name="selectioncontrol-1-0-1-1" css={styleSheet} />;
 }
 
 export const SelectionControl = withClassName(function SelectionControl({

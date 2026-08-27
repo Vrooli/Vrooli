@@ -28,6 +28,7 @@
     }
   ],
   "displayName": "Icon",
+  "kind": "control",
   "latest": "1.1.3",
   "libraryId": "react-component-library:Icon",
   "tags": [

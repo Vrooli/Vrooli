@@ -16,6 +16,7 @@
     }
   ],
   "displayName": "useOptimisticAction",
+  "kind": "control",
   "latest": "1.0.1",
   "libraryId": "react-component-library:useOptimisticAction",
   "tags": [

@@ -6,6 +6,7 @@
  * @tags ["manipulation","drag-drop","keyboard","motion","accessibility","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
+import { StyleSheet } from "@vrooli/react-component-library/StyleSheet/1.0.0";
 import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
 
 /** @vrooliComponentSource manipulation.draggable */
@@ -44,11 +45,10 @@ export interface DraggableProps {
 const styles = `
   [data-rcl-draggable] { position: relative; min-inline-size: 0; touch-action: none; cursor: grab; transform: translate3d(var(--rcl-drag-x), var(--rcl-drag-y), 0); transition: box-shadow var(--dur-quick, 160ms) var(--ease-standard, ease), opacity var(--dur-quick, 160ms) var(--ease-standard, ease); }
   [data-rcl-draggable]:hover { box-shadow: var(--elev-raised, 0 10px 24px rgb(15 23 42 / .12)); }
-  [data-rcl-draggable]:focus-visible { outline: 3px solid color-mix(in srgb, var(--color-focus, #2563eb) 42%, transparent); outline-offset: 4px; }
   [data-rcl-draggable][data-dragging="true"] { z-index: 5; cursor: grabbing; box-shadow: var(--elev-overlay, 0 18px 42px rgb(15 23 42 / .2)); transition: none; }
   [data-rcl-draggable][data-disabled="true"] { cursor: not-allowed; opacity: .58; }
-  [data-rcl-draggable-status] { position: absolute; inline-size: 1px; block-size: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
-  @media (prefers-reduced-motion: reduce) { [data-rcl-draggable] { transition: none; } }
+
+
 `;
 
 function clamp(position: DragPosition, bounds: DragBounds): DragPosition {
@@ -167,7 +167,7 @@ export const Draggable = withClassName(function Draggable({
   } as CSSProperties;
   return (
     <>
-      <style data-rcl-draggable-styles dangerouslySetInnerHTML={{ __html: styles }} />
+      <StyleSheet name="draggable-1-0-2-1" css={styles} />
       <div
         data-testid="manipulation.draggable"
         data-rcl-draggable

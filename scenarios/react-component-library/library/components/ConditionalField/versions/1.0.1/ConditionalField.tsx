@@ -7,6 +7,7 @@
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
 /** @vrooliComponentSource forms.conditional-field */
+import { StyleSheet } from "@vrooli/react-component-library/StyleSheet/1.0.0";
 import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
 
 import { useEffect, useState, type CSSProperties, type ReactNode } from "react";
@@ -31,7 +32,7 @@ const styles = `
   [data-rcl-conditional-field] { min-inline-size: 0; transition: opacity var(--dur-quick, 160ms) var(--ease-standard, ease); }
   [data-rcl-conditional-field][data-disabled="true"] { opacity: .56; }
   [data-rcl-conditional-field][data-disabled="true"] > * { pointer-events: none; }
-  @media (prefers-reduced-motion: reduce) { [data-rcl-conditional-field] { transition: none; } }
+
 `;
 
 function useStoreValues<TValues extends Record<string, unknown>>(store: FormStore<TValues>) {
@@ -74,7 +75,7 @@ export const ConditionalField = withClassName(function ConditionalField<
       data-disabled={!visible && mode === "disable"}
       aria-hidden={(!visible && mode === "hide") || undefined}
     >
-      <style data-rcl-conditional-field-styles dangerouslySetInnerHTML={{ __html: styles }} />
+      <StyleSheet name="conditionalfield-1-0-1-1" css={styles} />
       {children}
     </div>
   );

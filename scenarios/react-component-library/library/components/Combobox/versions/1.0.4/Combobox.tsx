@@ -6,6 +6,7 @@
  * @tags ["forms","selection","combobox","async","keyboard","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
+import { StyleSheet } from "@vrooli/react-component-library/StyleSheet/1.0.0";
 import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
 
 /** @vrooliComponentSource forms.combobox */
@@ -54,7 +55,6 @@ const styles = `
   [data-rcl-combobox-control] { position: relative; min-inline-size: 0; }
   [data-rcl-combobox-input] { box-sizing: border-box; inline-size: 100%; min-block-size: var(--tap-target-min, 44px); border: 1px solid var(--color-border, #cbd5e1); border-radius: var(--radius-control, .625rem); background: var(--color-surface, #fff); color: var(--color-foreground, #0f172a); padding: .625rem 2.75rem .625rem .875rem; font: var(--text-body, 400 .9375rem/1.4 system-ui, sans-serif); outline: none; transition: border-color var(--dur-quick, 160ms) var(--ease-standard, ease), box-shadow var(--dur-quick, 160ms) var(--ease-standard, ease); }
   [data-rcl-combobox-input]:hover:not(:disabled) { border-color: color-mix(in srgb, var(--color-primary, #2563eb) 48%, var(--color-border, #cbd5e1)); }
-  [data-rcl-combobox-input]:focus-visible { border-color: var(--color-primary, #2563eb); box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary, #2563eb) 22%, transparent); }
   [data-rcl-combobox-input][aria-expanded="true"] { border-end-start-radius: 0; border-end-end-radius: 0; }
   [data-rcl-combobox-input][aria-invalid="true"] { border-color: var(--color-danger, #dc2626); }
   [data-rcl-combobox-input]:disabled { cursor: not-allowed; opacity: .58; background: var(--color-surface-muted, #f1f5f9); }
@@ -66,7 +66,6 @@ const styles = `
   [data-rcl-combobox-option] { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: .625rem; inline-size: 100%; min-block-size: 2.875rem; box-sizing: border-box; border: 0; border-radius: var(--radius-control, .5rem); background: transparent; color: var(--color-foreground, #0f172a); padding: .625rem .75rem; text-align: start; font: inherit; cursor: pointer; }
   [data-rcl-combobox-option]:hover, [data-rcl-combobox-option][data-highlighted="true"] { background: color-mix(in srgb, var(--color-primary, #2563eb) 9%, var(--color-surface-raised, #fff)); }
   [data-rcl-combobox-option][aria-selected="true"] { background: color-mix(in srgb, var(--color-primary, #2563eb) 13%, var(--color-surface-raised, #fff)); color: var(--color-primary-strong, var(--color-primary, #2563eb)); }
-  [data-rcl-combobox-option]:focus-visible { outline: 3px solid color-mix(in srgb, var(--color-primary, #2563eb) 30%, transparent); outline-offset: -2px; }
   [data-rcl-combobox-option-copy] { display: grid; gap: .15rem; min-inline-size: 0; }
   [data-rcl-combobox-option-label] { overflow-wrap: anywhere; font-weight: 650; }
   [data-rcl-combobox-option-description] { color: var(--color-muted-foreground, #64748b); font: var(--text-caption, 400 .75rem/1rem system-ui, sans-serif); }
@@ -75,7 +74,7 @@ const styles = `
   [data-rcl-combobox-state] { padding: .75rem; }
   [data-rcl-combobox-create] { color: var(--color-primary, #2563eb); }
   [data-rcl-combobox-error] { color: var(--color-danger, #dc2626); font: var(--text-caption, 400 .75rem/1rem system-ui, sans-serif); }
-  @media (prefers-reduced-motion: reduce) { [data-rcl-combobox-input], [data-rcl-combobox-chevron] { transition: none; } }
+
 `;
 
 function optionID(listID: string, value: string) {
@@ -236,7 +235,7 @@ function LocalCombobox({
   };
   return (
     <div data-rcl-combobox data-open={open || undefined} className={className} style={style}>
-      <style data-rcl-combobox-styles dangerouslySetInnerHTML={{ __html: styles }} />
+      <StyleSheet name="combobox-1-0-4-1" css={styles} />
       <label data-rcl-combobox-label htmlFor={inputID}>
         <span>
           {label}

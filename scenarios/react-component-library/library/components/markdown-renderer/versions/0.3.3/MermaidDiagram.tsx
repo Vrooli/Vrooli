@@ -6,6 +6,7 @@
  * @tags ["markdown","mermaid","diagram"]
  * @deps {"react":"^18","mermaid":"^11.4.0"}
  */
+import { StyleSheet } from "@vrooli/react-component-library/StyleSheet/1.0.0";
 import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
 
 
@@ -36,10 +37,7 @@ export const MermaidDiagram = withClassName(function MermaidDiagram({
   const { copied, copy } = useCodeCopy();
   return (
     <section className="rcl-md__diagram" data-rcl-markdown>
-      <style
-        data-rcl-markdown-styles
-        dangerouslySetInnerHTML={{ __html: markdownStyles }}
-      />
+      <StyleSheet name="markdown-renderer-0-3-3-1" css={markdownStyles} />
       <header className="rcl-md__diagram-header">
         <div className="rcl-md__diagram-tabs">
           <button

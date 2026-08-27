@@ -10,6 +10,7 @@
  * @vrooliComponentSource react-component-library:NavigationTree
  * @deps {"react":"^18","lucide-react":"^0.424.0"}
  */
+import { StyleSheet } from "@vrooli/react-component-library/StyleSheet/1.0.0";
 import { resolveStrings, useStrings } from "@vrooli/react-component-library/useLocale/1.0.1";
 import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
 
@@ -45,10 +46,7 @@ export const NavigationTree = withClassName(function NavigationTree({
   const strings = useStrings();
   return (
     <>
-      <style
-        data-rcl-navigation-tree-styles
-        dangerouslySetInnerHTML={{ __html: navigationTreeStyles }}
-      />
+      <StyleSheet name="navigationtree-1-1-5-1" css={navigationTreeStyles} />
       <nav
         data-testid="navigation.navigation-tree"
         aria-label={strings("navigation.navigation-tree.primary-navigation", "Primary navigation")}

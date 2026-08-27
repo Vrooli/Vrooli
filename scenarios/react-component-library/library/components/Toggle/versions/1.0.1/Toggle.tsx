@@ -7,6 +7,7 @@
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
 /** @vrooliComponentSource controls.toggle */
+import { StyleSheet } from "@vrooli/react-component-library/StyleSheet/1.0.0";
 import {
   forwardRef,
   useState,
@@ -20,7 +21,7 @@ import {
   type ControlShape,
   type ControlSize,
   type ControlVariant,
-} from "@vrooli/react-component-library/ControlBase/1.0.0";
+} from "@vrooli/react-component-library/ControlBase/1.1.0";
 
 export interface ToggleProps
   extends Omit<ButtonHTMLAttributes<HTMLButtonElement>, "children" | "onClick"> {
@@ -40,11 +41,11 @@ const styleSheet = `
 [data-rcl-toggle] { transition: transform var(--dur-quick) var(--ease-standard), filter var(--dur-quick) var(--ease-standard), box-shadow var(--dur-quick) var(--ease-standard); }
 [data-rcl-toggle][data-state="on"] { box-shadow: 0 0 0 var(--space-3xs) color-mix(in srgb, var(--color-primary) 18%, transparent), var(--elev-raised); }
 [data-rcl-toggle][data-state="on"]::after { content: ""; position: absolute; inset: var(--space-3xs); border: var(--border-hairline) solid color-mix(in srgb, var(--color-primary-foreground) 24%, transparent); border-radius: inherit; pointer-events: none; }
-@media (prefers-reduced-motion: reduce) { [data-rcl-toggle] { transition: none; } }
+
 `;
 
 function ToggleStyles() {
-  return <style data-rcl-toggle-styles dangerouslySetInnerHTML={{ __html: styleSheet }} />;
+  return <StyleSheet name="toggle-1-0-1-1" css={styleSheet} />;
 }
 
 export const Toggle = forwardRef<HTMLButtonElement, ToggleProps>(function Toggle(

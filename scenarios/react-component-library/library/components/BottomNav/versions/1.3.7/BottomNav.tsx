@@ -7,6 +7,7 @@
  * @deps {"react":"^18"}
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
+import { StyleSheet } from "@vrooli/react-component-library/StyleSheet/1.0.0";
 import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
 
 import type { MouseEvent, ReactNode } from "react";
@@ -64,7 +65,7 @@ export const BottomNav = withClassName(function BottomNav({
 
   return (
     <>
-      <style data-rcl-bottom-nav-styles dangerouslySetInnerHTML={{ __html: bottomNavStyles }} />
+      <StyleSheet name="bottom-nav-1-3-7" css={bottomNavStyles} />
       <nav
         data-testid={testId}
         data-rcl-bottom-nav

@@ -16,9 +16,6 @@ export const responsivePanelStyles = `
 [data-rcl-responsive-panel-resize]::-webkit-slider-thumb { inline-size: var(--space-3xs); block-size: var(--space-lg); appearance: none; border: 0; border-radius: var(--radius-pill); background: transparent; }
 [data-rcl-responsive-panel-resize]::-moz-range-track { inline-size: var(--space-3xs); block-size: 100%; border-radius: var(--radius-pill); background: transparent; }
 [data-rcl-responsive-panel-resize]::-moz-range-thumb { inline-size: var(--space-3xs); block-size: var(--space-lg); border: 0; border-radius: var(--radius-pill); background: transparent; }
-[data-rcl-responsive-panel-resize]:hover, [data-rcl-responsive-panel-resize]:focus-visible { background: color-mix(in srgb, var(--color-primary) 20%, transparent); }
-[data-rcl-responsive-panel] :focus-visible, [data-rcl-responsive-panel-backdrop]:focus-visible { outline: var(--border-strong) solid var(--color-focus); outline-offset: var(--space-3xs); }
+[data-rcl-responsive-panel-resize]:hover { background: color-mix(in srgb, var(--color-primary) 20%, transparent); }
 @keyframes rcl-responsive-panel-enter { from { opacity: 0; transform: translateX(-100%); } to { opacity: 1; transform: translateX(0); } }
-@media (prefers-reduced-motion: reduce) { [data-rcl-responsive-panel][data-mobile="true"] { animation: none; } }
-@media (forced-colors: active) { [data-rcl-responsive-panel] { border-color: CanvasText; background: Canvas; color: CanvasText; } [data-rcl-responsive-panel-backdrop] { background: Canvas; opacity: .8; } }
 `;

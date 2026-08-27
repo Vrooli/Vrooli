@@ -6,6 +6,7 @@
  * @tags ["data","table","interactive","selection","responsive","recovery","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
+import { StyleSheet } from "@vrooli/react-component-library/StyleSheet/1.0.0";
 import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
 
 /** @vrooliComponentSource data-display.data-table */
@@ -122,7 +123,6 @@ const styles = `
 [data-rcl-data-table-query] label, [data-rcl-data-table-filter-label] { color: var(--color-muted-foreground); font: var(--text-overline); letter-spacing: .06em; text-transform: uppercase; }
 [data-rcl-data-table-query] input { box-sizing: border-box; min-block-size: var(--tap-target-min); inline-size: 100%; border: var(--border-hairline) solid var(--color-border); border-radius: var(--radius-control); background: var(--color-surface); color: var(--color-foreground); padding-inline: var(--space-sm); font: var(--text-body); }
 [data-rcl-data-table-query] input::placeholder { color: var(--color-muted-foreground); }
-[data-rcl-data-table-query] input:focus-visible, [data-rcl-data-table-controls] button:focus-visible, [data-rcl-data-table-controls] select:focus-visible, [data-rcl-data-table] input:focus-visible { outline: 3px solid color-mix(in srgb, var(--color-focus) 38%, transparent); outline-offset: 2px; }
 [data-rcl-data-table-filter-group] { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-2xs); }
 [data-rcl-data-table-filter-group] button, [data-rcl-data-table-page] button { min-block-size: var(--tap-target-min); border: var(--border-hairline) solid var(--color-border); border-radius: var(--radius-control); background: var(--color-surface); color: var(--color-muted-foreground); padding-inline: var(--space-sm); font: var(--text-label); cursor: pointer; transition: transform 160ms ease, border-color 160ms ease, background-color 160ms ease, color 160ms ease, box-shadow 160ms ease; }
 [data-rcl-data-table-filter-group] button:hover, [data-rcl-data-table-page] button:hover:not(:disabled) { transform: translateY(-1px); border-color: color-mix(in srgb, var(--color-primary) 42%, var(--color-border)); color: var(--color-foreground); box-shadow: var(--elev-raised); }
@@ -147,7 +147,6 @@ const styles = `
 [data-rcl-data-table-checkbox-hit]:has(input:checked)::before { border-color: var(--color-primary); background: var(--color-primary); }
 [data-rcl-data-table-checkbox-hit]:has(input:checked)::after { position: absolute; inline-size: .34rem; block-size: .64rem; border-block-end: var(--border-strong) solid var(--color-primary-foreground); border-inline-end: var(--border-strong) solid var(--color-primary-foreground); content: ""; transform: translateY(-.08rem) rotate(45deg); }
 [data-rcl-data-table-checkbox] { position: absolute; inset: 0; inline-size: 100%; block-size: 100%; margin: 0; cursor: pointer; opacity: 0; }
-[data-rcl-data-table-checkbox]:focus-visible { outline: var(--border-focus) solid var(--color-focus); outline-offset: var(--focus-ring-offset); }
 [data-rcl-data-table-row-selected] { background: color-mix(in srgb, var(--color-primary) 6%, var(--color-surface)); }
 [data-rcl-data-table-actions] { display: flex; flex-wrap: wrap; justify-content: end; gap: var(--space-2xs); }
 [data-rcl-data-table-actions] button { min-block-size: var(--tap-target-min); border: var(--border-hairline) solid var(--color-border); border-radius: var(--radius-control); background: var(--color-surface); color: var(--color-foreground); padding-inline: var(--space-xs); font: var(--text-label); cursor: pointer; transition: transform 160ms ease, border-color 160ms ease, color 160ms ease; }
@@ -172,8 +171,8 @@ const styles = `
 @media (max-width: 30rem) { [data-rcl-data-table-controls] { padding: var(--space-sm); } [data-rcl-data-table-filter-group] { grid-template-columns: minmax(0, 1fr); } [data-rcl-data-table-card-fields] div { grid-template-columns: minmax(0, 1fr); gap: var(--space-3xs); } [data-rcl-data-table-actions] { justify-content: start; } }
 @container (max-width: 52rem) { [data-rcl-data-table-query-row] { align-items: stretch; } [data-rcl-data-table-filter-group] { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); } [data-rcl-data-table-filter-group] button { inline-size: 100%; } [data-rcl-data-table-desktop] { display: none; } [data-rcl-data-table-card-list] { display: grid; gap: var(--space-xs); list-style: none; margin: 0; padding: 0; } [data-rcl-data-table-card-header] { display: grid; grid-template-columns: minmax(0, 1fr); } [data-rcl-data-table-card-header] [data-rcl-data-table-actions] { justify-content: start; } [data-rcl-data-table-page] { align-items: start; flex-direction: column; } [data-rcl-data-table-page-controls] { inline-size: 100%; } [data-rcl-data-table-page-controls] button { flex: 1 1 auto; } }
 @container (max-width: 30rem) { [data-rcl-data-table-controls] { padding: var(--space-sm); } [data-rcl-data-table-filter-group] { grid-template-columns: minmax(0, 1fr); } [data-rcl-data-table-card-fields] div { grid-template-columns: minmax(0, 1fr); gap: var(--space-3xs); } [data-rcl-data-table-actions] { justify-content: start; } }
-@media (prefers-reduced-motion: reduce) { [data-rcl-data-table] *, [data-rcl-data-table] *::before, [data-rcl-data-table] *::after { transition-duration: .01ms; } }
-@media (forced-colors: active) { [data-rcl-data-table-controls], [data-rcl-data-table-empty], [data-rcl-data-table-permission], [data-rcl-data-table-card], [data-rcl-data-table-filter-group] button, [data-rcl-data-table-page] button, [data-rcl-data-table-actions] button { border-color: CanvasText; background: Canvas; color: CanvasText; box-shadow: none; } [data-rcl-data-table-filter-group] button[aria-pressed="true"], [data-rcl-data-table-page] button[aria-current="page"] { border-color: Highlight; background: Highlight; color: HighlightText; } }
+
+
 @container (min-width: 30.01rem) and (max-width: 52rem) { [data-rcl-data-table-desktop] { display: block; } [data-rcl-data-table-card-list] { display: none; } }
 `;
 
@@ -712,7 +711,7 @@ export const DataTable = withClassName(function DataTable<Row>({
       style={style}
       ref={tableRef}
     >
-      <style data-rcl-data-table-styles dangerouslySetInnerHTML={{ __html: styles }} />
+      <StyleSheet name="datatable-1-3-4-1" css={styles} />
       {controls}
       <AsyncBoundary
         status={asyncStatus(status)}

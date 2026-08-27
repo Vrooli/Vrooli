@@ -17,6 +17,7 @@
     }
   ],
   "displayName": "Tabs",
+  "kind": "shell",
   "latest": "1.0.4",
   "libraryId": "react-component-library:Tabs",
   "tags": [

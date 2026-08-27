@@ -4,7 +4,7 @@
   "scenario": "react-component-library",
   "phase": "component-tests",
   "displayName": "Component Tests",
-  "description": "Runs version-pinned React component and hook contracts through the React Component Library provider.",
+  "description": "Runs version-pinned React component and hook contracts through the React Component Library provider. Control-plane scope is intentionally excluded because this provider validates React consumer surfaces and cannot meaningfully grade Go source.",
   "source": "validation-provider",
   "orderHint": 21,
   "timeout": "1200s",

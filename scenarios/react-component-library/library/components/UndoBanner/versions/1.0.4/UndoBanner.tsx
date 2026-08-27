@@ -6,6 +6,7 @@
  * @tags ["feedback","recovery","undo","accessibility","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
+import { StyleSheet } from "@vrooli/react-component-library/StyleSheet/1.0.0";
 import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
 
 /** @vrooliComponentSource feedback.undo-banner */
@@ -28,15 +29,14 @@ const styles = `
   [data-rcl-undo-detail] { color: var(--color-muted-foreground); font: var(--text-body-sm); overflow-wrap: anywhere; }
   [data-rcl-undo-action] { min-block-size: var(--tap-target-min); padding-inline: var(--space-md); border: 0; border-radius: var(--radius-control); background: var(--color-primary); color: var(--color-on-primary); cursor: pointer; font: var(--text-label); white-space: nowrap; }
   [data-rcl-undo-action]:hover { background: var(--color-primary-hover, var(--color-primary)); transform: translateY(-1px); }
-  [data-rcl-undo-action]:focus-visible, [data-rcl-undo-dismiss]:focus-visible { outline: var(--border-strong) solid var(--color-focus); outline-offset: var(--space-3xs); }
   [data-rcl-undo-action]:disabled { cursor: wait; opacity: .7; }
   [data-rcl-undo-dismiss] { align-self: start; inline-size: var(--tap-target-min); block-size: var(--tap-target-min); border: 0; border-radius: var(--radius-pill); background: transparent; color: var(--color-muted-foreground); cursor: pointer; font-size: 1.25rem; }
   [data-rcl-undo-dismiss]:hover { background: var(--color-surface-muted); color: var(--color-foreground); }
   [data-rcl-undo-progress] { grid-column: 1 / -1; block-size: 3px; overflow: hidden; border-radius: var(--radius-pill); background: var(--color-surface-muted); }
   [data-rcl-undo-progress]::before { display: block; block-size: 100%; inline-size: calc(var(--rcl-undo-progress) * 100%); background: var(--color-primary); content: ""; transition: inline-size var(--dur-quick) linear; }
   @media (max-width: 38rem) { [data-rcl-undo-viewport] { inset-inline: var(--space-sm); } [data-rcl-undo-banner] { grid-template-columns: auto minmax(0, 1fr); gap: var(--space-sm); padding: var(--space-sm); } [data-rcl-undo-action] { grid-column: 1 / -1; inline-size: 100%; } [data-rcl-undo-dismiss] { grid-column: 2; grid-row: 1; justify-self: end; } }
-  @media (prefers-reduced-motion: reduce) { [data-rcl-undo-action]:hover { transform: none; } [data-rcl-undo-progress]::before { transition: none; } }
-  @media (forced-colors: active) { [data-rcl-undo-banner] { border: 2px solid CanvasText; } [data-rcl-undo-action] { border: 1px solid ButtonText; } }
+
+
 `;
 
 function UndoGlyph({ status }: { status: UndoRecord["status"] }) {
@@ -174,7 +174,7 @@ export const UndoBanner = withClassName(function UndoBanner({ className, style }
   const visible = manager.records.filter((record) => record.status !== "expired");
   return (
     <>
-      <style data-rcl-undo-styles dangerouslySetInnerHTML={{ __html: styles }} />
+      <StyleSheet name="undobanner-1-0-4-1" css={styles} />
       <div
         data-rcl-undo-viewport
         className={className}

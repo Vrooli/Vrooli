@@ -1,0 +1,28 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "data-display.version-row",
+    "name": "VersionRow",
+    "kind": "component",
+    "surface": "raised",
+    "domain": "data-display",
+    "description": "Selectable version history row with lifecycle, adoption, test health, and source identity details.",
+    "targets": ["react-vite"],
+    "slot": "ui-primitive",
+    "delivery": "adopted",
+    "target": { "priority": "P1", "maturity": "scaffolded" }
+  },
+  "api": { "variants": {}, "modes": [], "parts": [] },
+  "dependencies": {
+    "requires": [
+      { "asset": "data-display.trend-spark", "reason": "Version history uses the shared compact trend primitive." },
+      { "asset": "primitives.badge", "reason": "Lifecycle is expressed through the shared semantic status pill." }
+    ],
+    "suggests": []
+  },
+  "requiredCapabilities": ["semantic-structure", "accessible-naming", "keyboard-operable", "no-horizontal-overflow"],
+  "requiredStates": ["default"],
+  "rationale": "One reusable row keeps version-history presentation consistent across detail and coverage surfaces."
+}

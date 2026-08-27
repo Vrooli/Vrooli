@@ -1,0 +1,13 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
+  "catalogId": "foundations.base-styles",
+  "assetKind": "foundation",
+  "deprecatedVersions": [],
+  "displayName": "Base Styles",
+  "kind": "surface",
+  "description": "Shared control reset, accessibility treatments, and sizing tokens.",
+  "latest": "1.0.0",
+  "libraryId": "react-component-library:BaseStyles",
+  "slot": "foundation",
+  "tags": ["styles", "controls", "accessibility"]
+}

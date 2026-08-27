@@ -24,6 +24,7 @@
     }
   ],
   "displayName": "UndoableDestructiveAction",
+  "kind": "control",
   "latest": "1.0.4",
   "libraryId": "react-component-library:UndoableDestructiveAction",
   "tags": [

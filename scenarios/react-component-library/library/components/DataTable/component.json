@@ -37,6 +37,7 @@
     }
   ],
   "displayName": "Data Table",
+  "kind": "control",
   "draft": "",
   "latest": "1.3.6",
   "libraryId": "react-component-library:DataTable",

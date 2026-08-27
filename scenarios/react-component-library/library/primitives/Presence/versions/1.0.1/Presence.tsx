@@ -7,6 +7,7 @@
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
 /** @vrooliComponentSource react-component-library:Presence */
+import { StyleSheet } from "@vrooli/react-component-library/StyleSheet/1.0.0";
 import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
 
 import {
@@ -84,10 +85,7 @@ const styles = `
     from { opacity: 1; transform: translateY(0) scale(1); }
     to { opacity: 0; transform: translateY(calc(var(--space-2xs, 8px) * -1)) scale(.985); }
   }
-  @media (prefers-reduced-motion: reduce) {
-    [data-rcl-presence][data-presence-phase="entering"],
-    [data-rcl-presence][data-presence-phase="exiting"] { animation: none; }
-  }
+
 `;
 
 export const Presence = withClassName(function Presence({
@@ -193,10 +191,7 @@ export const Presence = withClassName(function Presence({
       "data-presence-phase": phase,
       "data-presence-hidden": !mounted || undefined,
     },
-    createElement("style", {
-      "data-rcl-presence-styles": true,
-      dangerouslySetInnerHTML: { __html: styles },
-    }),
+    createElement(StyleSheet, { name: "presence", css: styles }),
     children,
   );
 });

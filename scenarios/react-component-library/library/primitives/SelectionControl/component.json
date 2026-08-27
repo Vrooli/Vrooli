@@ -1,7 +1,7 @@
 {
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "primitive",
-  "catalogId": "primitives.selection-control",
+  "catalogId": "react-component-library:SelectionControl",
   "category": "foundation",
   "dependencies": [],
   "deprecatedVersions": [
@@ -15,6 +15,7 @@
     }
   ],
   "displayName": "SelectionControl",
+  "kind": "input",
   "draft": "",
   "latest": "1.0.1",
   "libraryId": "react-component-library:SelectionControl",

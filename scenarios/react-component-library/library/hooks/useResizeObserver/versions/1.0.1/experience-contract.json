@@ -1,0 +1,39 @@
+{
+  "contract": {
+    "kind": "rcl-component-experience-contract",
+    "schema": "scenario-experience-spec/v1",
+    "provenance": "react-component-library:useResizeObserver@1.0.1"
+  },
+  "component": {
+    "id": "hooks.use-resize-observer",
+    "title": "Resize Observer",
+    "purpose": "Observed border-box geometry for a ref-attached element."
+  },
+  "states": [
+    {
+      "id": "default",
+      "example": "default",
+      "description": "The observer is owned by an effect keyed on the attached node."
+    }
+  ],
+  "claims": [
+    {
+      "id": "observer-disconnects",
+      "type": "manual-review",
+      "statement": "The observer is created and disconnected in an effect, not in a callback ref, because React 18 discards a cleanup returned from a callback ref.",
+      "tier": "manual",
+      "states": [
+        "default"
+      ]
+    },
+    {
+      "id": "border-box",
+      "type": "manual-review",
+      "statement": "The reported rect is the border box, matching what a caller clamping against a container measures.",
+      "tier": "manual",
+      "states": [
+        "default"
+      ]
+    }
+  ]
+}

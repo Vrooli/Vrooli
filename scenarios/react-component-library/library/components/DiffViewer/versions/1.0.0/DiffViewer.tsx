@@ -1,4 +1,5 @@
 /** @vrooliComponentSource data-display.diff-viewer */
+import { StyleSheet } from "@vrooli/react-component-library/StyleSheet/1.0.0";
 import type { CSSProperties } from "react";
 
 const styles = `
@@ -11,7 +12,7 @@ const styles = `
 [data-rcl-diff-viewer-value] { min-inline-size: 0; overflow-wrap: anywhere; color: var(--color-foreground, #0f172a); font: var(--text-body, 400 .9rem/1.45 system-ui, sans-serif); }
 [data-rcl-diff-viewer-value] del, [data-rcl-diff-viewer-value] ins { text-decoration-thickness: .12em; text-underline-offset: .16em; }
 @media (max-width: 38rem) { [data-rcl-diff-viewer-row] { grid-template-columns: 1fr; gap: var(--space-3xs, .2rem); } }
-@media (forced-colors: active) { [data-rcl-diff-viewer-row] { border-color: CanvasText; background: Canvas; color: CanvasText; } [data-rcl-diff-viewer-row="removed"] { border-inline-start-color: Mark; } [data-rcl-diff-viewer-row="added"] { border-inline-start-color: Highlight; } }
+
 `;
 
 export function DiffViewer({
@@ -32,10 +33,7 @@ export function DiffViewer({
       className={className}
       style={style}
     >
-      <style
-        data-rcl-diff-viewer-styles
-        dangerouslySetInnerHTML={{ __html: styles }}
-      />
+      <StyleSheet name="diffviewer-1-0-0-1" css={styles} />
       <figcaption>Version comparison</figcaption>
       <div data-rcl-diff-viewer-row="removed">
         <span data-rcl-diff-viewer-label>Previous version</span>

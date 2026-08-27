@@ -1,5 +1,6 @@
 {
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
+  "catalogId": "react-component-library:AssetDetailShell",
   "category": "layout",
   "dependencies": [
     {
@@ -22,6 +23,7 @@
     }
   ],
   "displayName": "Asset Detail Shell",
+  "kind": "shell",
   "draft": "",
   "latest": "1.1.1",
   "libraryId": "react-component-library:AssetDetailShell",

@@ -6,7 +6,7 @@
  * @tags ["control","primitive","accessibility"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
-/** @vrooliComponentSource controls.control-base */
+/** @vrooliComponentSource react-component-library:ControlBase */
 import { forwardRef, type ButtonHTMLAttributes, type CSSProperties, type ReactNode } from "react";
 import { motionTransition } from "@vrooli/react-component-library/VisualRecipes/1.0.0";
 

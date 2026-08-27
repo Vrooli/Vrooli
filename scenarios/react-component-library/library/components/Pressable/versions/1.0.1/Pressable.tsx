@@ -14,7 +14,8 @@ import {
   type ControlShape,
   type ControlSize,
   type ControlVariant,
-} from "@vrooli/react-component-library/ControlBase/1.0.0";
+} from "@vrooli/react-component-library/ControlBase/1.1.0";
+import { useLibraryStyleSheet } from "@vrooli/react-component-library/StyleSheet/1.0.0";
 
 const pressableStyles = `
 [data-rcl-pressable-content] { position: relative; display: inline-flex; align-items: center; min-inline-size: 0; max-inline-size: 100%; }
@@ -22,10 +23,9 @@ const pressableStyles = `
 [data-rcl-pressable-pending] { position: absolute; inset: 0; justify-content: center; visibility: hidden; white-space: nowrap; }
 [data-rcl-pressable][data-rcl-pending="true"] [data-rcl-pressable-label] { visibility: hidden; }
 [data-rcl-pressable][data-rcl-pending="true"] [data-rcl-pressable-pending] { visibility: visible; }
-[data-rcl-control][data-control-size="icon"] [data-rcl-pressable-pending] > span:not([data-rcl-pressable-spinner]) { position: absolute; inline-size: 1px; block-size: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+[data-rcl-control][data-control-size="icon"] [data-rcl-pressable-pending] > span:not([data-rcl-pressable-spinner]) { position: absolute; }
 [data-rcl-pressable-spinner] { inline-size: var(--space-sm); block-size: var(--space-sm); flex: 0 0 auto; border: var(--border-strong) solid color-mix(in srgb, currentColor 28%, transparent); border-block-start-color: currentColor; border-radius: var(--radius-pill); animation: rcl-pressable-spin var(--dur-moderate) linear infinite; }
 @keyframes rcl-pressable-spin { to { transform: rotate(360deg); } }
-@media (prefers-reduced-motion: reduce) { [data-rcl-pressable-spinner] { animation: none; } }
 `;
 
 export interface PressableProps extends Omit<ButtonHTMLAttributes<HTMLButtonElement>, "children"> {
@@ -56,10 +56,9 @@ export const Pressable = forwardRef<HTMLButtonElement, PressableProps>(function 
   ref,
 ) {
   const variant: ControlVariant = tone;
+  useLibraryStyleSheet("pressable", pressableStyles);
   return (
-    <>
-      <style data-rcl-pressable-styles dangerouslySetInnerHTML={{ __html: pressableStyles }} />
-      <ControlBase
+    <ControlBase
         data-testid="controls.pressable"
         {...props}
         disabled={disabled || pending}
@@ -84,10 +83,9 @@ export const Pressable = forwardRef<HTMLButtonElement, PressableProps>(function 
             aria-live="polite"
           >
             <span aria-hidden="true" data-rcl-pressable-spinner />
-            <span>{pendingLabel}</span>
+            <span className="rcl-visually-hidden">{pendingLabel}</span>
           </span>
         </span>
       </ControlBase>
-    </>
   );
 });

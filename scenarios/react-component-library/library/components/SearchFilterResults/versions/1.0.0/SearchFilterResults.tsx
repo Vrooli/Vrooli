@@ -1,4 +1,5 @@
 /** @vrooliComponentSource patterns.search-filter-results */
+import { StyleSheet } from "@vrooli/react-component-library/StyleSheet/1.0.0";
 import { useCallback, useRef, useState } from "react";
 import { FilterBar } from "../../../FilterBar/versions/1.0.0/FilterBar";
 import {
@@ -55,10 +56,7 @@ export function SearchFilterResults({
 
   return (
     <div data-rcl-search-filter-results>
-      <style
-        data-rcl-search-filter-results-styles
-        dangerouslySetInnerHTML={{ __html: styles }}
-      />
+      <StyleSheet name="searchfilterresults-1-0-0-1" css={styles} />
       <FilterBar
         query={draftQuery}
         onQueryChange={setDraftQuery}

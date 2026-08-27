@@ -19,6 +19,7 @@
     }
   ],
   "displayName": "Input",
+  "kind": "input",
   "draft": "",
   "latest": "1.1.1",
   "libraryId": "react-component-library:Input",

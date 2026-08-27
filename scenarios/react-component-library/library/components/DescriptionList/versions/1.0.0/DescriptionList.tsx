@@ -1,3 +1,4 @@
+import { StyleSheet } from "@vrooli/react-component-library/StyleSheet/1.0.0";
 /** @vrooliComponentSource data-display.description-list */
 const styles = `
 [data-rcl-description-list] { display: grid; margin: 0; border: 1px solid var(--color-border, #cbd5e1); border-radius: var(--radius-panel, .75rem); overflow: hidden; container-type: inline-size; }
@@ -6,7 +7,7 @@ const styles = `
 [data-rcl-description-list-term] { color: var(--color-muted-foreground, #64748b); overflow-wrap: anywhere; }
 [data-rcl-description-list-value] { min-width: 0; margin: 0; overflow-wrap: anywhere; font-weight: 600; }
 @container (max-width: 24rem) { [data-rcl-description-list-row] { grid-template-columns: 1fr; gap: var(--space-3xs, .25rem); } }
-@media (forced-colors: active) { [data-rcl-description-list] { border-color: CanvasText; } [data-rcl-description-list-row] { background: Canvas; color: CanvasText; } }
+
 `;
 
 export function DescriptionList({
@@ -16,10 +17,7 @@ export function DescriptionList({
 }) {
   return (
     <dl data-rcl-description-list>
-      <style
-        data-rcl-description-list-styles
-        dangerouslySetInnerHTML={{ __html: styles }}
-      />
+      <StyleSheet name="descriptionlist-1-0-0-1" css={styles} />
       {entries.map((entry, index) => (
         <div
           key={entry.term}

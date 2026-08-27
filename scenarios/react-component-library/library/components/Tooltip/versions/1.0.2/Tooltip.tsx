@@ -6,6 +6,7 @@
  * @tags ["overlay","accessible","interaction","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
+import { StyleSheet } from "@vrooli/react-component-library/StyleSheet/1.0.0";
 import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
 
 import {
@@ -42,9 +43,8 @@ const styles = `
 [data-rcl-tooltip][data-placement="start"] [data-rcl-tooltip-content]::after { inset-block-start: 50%; inset-block-end: auto; inset-inline-end: calc(var(--space-2xs, .5rem) * -1); inset-inline-start: auto; border-inline-start: 0; border-block-start: inherit; border-inline-end: inherit; border-block-end: inherit; transform: translateY(-50%) rotate(-45deg); }
 [data-rcl-tooltip][data-placement="end"] [data-rcl-tooltip-content] { inset-block-start: 50%; inset-inline-start: calc(100% + var(--space-2xs, .5rem)); inset-block-end: auto; transform: translateY(-50%); }
 [data-rcl-tooltip][data-placement="end"] [data-rcl-tooltip-content]::after { inset-block-start: 50%; inset-block-end: auto; inset-inline-start: calc(var(--space-2xs, .5rem) * -1); inset-block-end: auto; transform: translateY(-50%) rotate(135deg); }
-[data-rcl-tooltip] :focus-visible { outline: var(--border-strong, 2px) solid var(--color-focus, #2563eb); outline-offset: var(--space-3xs, .25rem); }
-@media (prefers-reduced-motion: reduce) { [data-rcl-tooltip-content] { transition: none; } }
-@media (forced-colors: active) { [data-rcl-tooltip-content] { border-color: CanvasText; background: CanvasText; color: Canvas; } [data-rcl-tooltip-content]::after { border-color: CanvasText; background: CanvasText; } }
+
+
 `;
 
 export type TooltipPlacement = "top" | "bottom" | "start" | "end";
@@ -126,7 +126,7 @@ export const Tooltip = withClassName(function Tooltip({
   return (
     <TooltipContext.Provider data-testid="overlays.tooltip" value={context}>
       <span data-rcl-tooltip data-placement={placement}>
-        <style data-rcl-tooltip-styles dangerouslySetInnerHTML={{ __html: styles }} />
+        <StyleSheet name="tooltip-1-0-2-1" css={styles} />
         {children}
       </span>
     </TooltipContext.Provider>

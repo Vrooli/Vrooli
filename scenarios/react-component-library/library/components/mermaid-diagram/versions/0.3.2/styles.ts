@@ -7,7 +7,4 @@ export const mermaidStyles = `
 [data-rcl-mermaid] .rcl-mermaid__body { overflow-x: auto; padding: var(--space-sm); color: var(--color-foreground); font: var(--text-body); }
 [data-rcl-mermaid] .rcl-mermaid__error { padding: var(--space-sm); color: var(--color-danger); font: var(--text-caption); }
 [data-rcl-mermaid] .rcl-mermaid__body > svg { display: block; max-inline-size: 100%; block-size: auto; margin-inline: auto; }
-[data-rcl-mermaid] :focus-visible { outline: 3px solid color-mix(in srgb, var(--color-focus) 38%, transparent); outline-offset: 2px; }
-@media (prefers-reduced-motion: reduce) { [data-rcl-mermaid] *, [data-rcl-mermaid] *::before, [data-rcl-mermaid] *::after { transition-duration: .01ms; } }
-@media (forced-colors: active) { [data-rcl-mermaid] { border-color: CanvasText; background: Canvas; color: CanvasText; } }
 `;

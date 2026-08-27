@@ -104,6 +104,45 @@ INSERT INTO version_ledger(library_id, version, lifecycle_state) VALUES ('librar
 	}
 }
 
+func TestTransitionRetireCanBeRestoredByArchive(t *testing.T) {
+	database := databasetest.NewSQLite(t)
+	root := t.TempDir()
+	oldDir := filepath.Join(root, "components/button/versions/1.0.0")
+	oldSource := filepath.Join(oldDir, "button.tsx")
+	manifest := filepath.Join(root, "components/button/component.json")
+	require.NoError(t, os.MkdirAll(oldDir, 0o755))
+	require.NoError(t, os.MkdirAll(filepath.Dir(manifest), 0o755))
+	require.NoError(t, os.WriteFile(oldSource, []byte("export const oldButton = true;"), 0o644))
+	require.NoError(t, os.WriteFile(manifest, []byte(`{"deprecatedVersions":[]}`), 0o644))
+	_, err := database.ExecContext(context.Background(), `
+CREATE TABLE components (id TEXT PRIMARY KEY, library_id TEXT NOT NULL, latest_version TEXT NOT NULL, draft_version TEXT NOT NULL, manifest_path TEXT NOT NULL);
+CREATE TABLE component_versions (component_id TEXT NOT NULL, library_id TEXT NOT NULL, version TEXT NOT NULL, status TEXT NOT NULL, source_path TEXT NOT NULL, created_at TEXT NOT NULL, released_at TEXT NOT NULL);
+CREATE TABLE adoption_records (component_id TEXT, adopted_version TEXT);
+CREATE TABLE adoption_files (source_library_id TEXT, source_version TEXT);
+CREATE TABLE component_asset_dependencies (library_id TEXT, version TEXT);
+CREATE TABLE version_ledger (library_id TEXT NOT NULL, version TEXT NOT NULL, retired_at TEXT NOT NULL DEFAULT '', lifecycle_state TEXT NOT NULL DEFAULT '', PRIMARY KEY (library_id, version));
+INSERT INTO components VALUES ('component-1', 'library-1', '2.0.0', '', 'components/button/component.json');
+INSERT INTO component_versions VALUES ('component-1', 'library-1', '1.0.0', 'released', 'components/button/versions/1.0.0/button.tsx', '2025-01-01T00:00:00Z', '2025-01-02T00:00:00Z');
+INSERT INTO component_versions VALUES ('component-1', 'library-1', '2.0.0', 'released', 'components/button/versions/2.0.0/button.tsx', '2026-01-01T00:00:00Z', '2026-01-02T00:00:00Z');
+INSERT INTO version_ledger(library_id, version, lifecycle_state) VALUES ('library-1', '1.0.0', 'released'), ('library-1', '2.0.0', 'released');
+`)
+	require.NoError(t, err)
+	repo := NewRepository(database, root)
+	_, err = repo.Transition(context.Background(), "component-1", "1.0.0", "retired", true)
+	require.NoError(t, err)
+	require.NoDirExists(t, oldDir)
+	require.DirExists(t, repo.retiredSourcePath("library-1", "1.0.0"))
+
+	_, err = repo.Transition(context.Background(), "component-1", "1.0.0", "archived", true)
+	require.NoError(t, err)
+	require.FileExists(t, oldSource)
+	var status, lifecycle string
+	require.NoError(t, database.QueryRowContext(context.Background(), `SELECT status FROM component_versions WHERE version='1.0.0'`).Scan(&status))
+	require.NoError(t, database.QueryRowContext(context.Background(), `SELECT lifecycle_state FROM version_ledger WHERE version='1.0.0'`).Scan(&lifecycle))
+	require.Equal(t, "archived", status)
+	require.Equal(t, "archived", lifecycle)
+}
+
 func TestPlanCleanupProtectsVersionsReferencedBySurvivingSource(t *testing.T) {
 	database := databasetest.NewSQLite(t)
 	root := t.TempDir()

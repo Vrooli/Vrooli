@@ -29,6 +29,7 @@
     }
   ],
   "displayName": "Toolbar",
+  "kind": "control",
   "draft": "",
   "latest": "1.0.5",
   "libraryId": "react-component-library:Toolbar",

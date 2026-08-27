@@ -1,5 +1,6 @@
 {
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
+  "catalogId": "react-component-library:AsyncPanel",
   "category": "feedback",
   "deprecatedVersions": [
     "1.0.0"
@@ -12,6 +13,7 @@
     }
   ],
   "displayName": "Async Panel",
+  "kind": "surface",
   "draft": "",
   "latest": "1.0.1",
   "libraryId": "react-component-library:AsyncPanel",

@@ -11,6 +11,7 @@
     }
   ],
   "displayName": "JsonViewer",
+  "kind": "surface",
   "latest": "1.0.5",
   "libraryId": "react-component-library:JsonViewer",
   "tags": [

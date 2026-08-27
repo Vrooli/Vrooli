@@ -7,6 +7,7 @@
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
 /** @vrooliComponentSource data-display.search-results */
+import { StyleSheet } from "@vrooli/react-component-library/StyleSheet/1.0.0";
 import { useStrings } from "@vrooli/react-component-library/useLocale/1.0.1";
 import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
 
@@ -36,9 +37,8 @@ const styles = `
 [data-rcl-search-results-state] { display: grid; gap: var(--space-xs); padding: var(--space-lg); border: var(--border-hairline) dashed var(--color-border); border-radius: var(--radius-panel); color: var(--color-muted-foreground); font: var(--text-body); }
 [data-rcl-search-results-state] strong { color: var(--color-foreground); font: var(--text-label); }
 [data-rcl-search-results-state] button { justify-self: start; min-block-size: var(--tap-target-min); border: var(--border-hairline) solid var(--color-primary); border-radius: var(--radius-control); background: var(--color-primary); color: var(--color-primary-foreground); padding-inline: var(--space-sm); font: var(--text-label); cursor: pointer; }
-[data-rcl-search-results-state] button:focus-visible { outline: 3px solid color-mix(in srgb, var(--color-focus) 38%, transparent); outline-offset: 2px; }
-@media (prefers-reduced-motion: reduce) { [data-rcl-search-results] *, [data-rcl-search-results] *::before, [data-rcl-search-results] *::after { animation-duration: .01ms; transition-duration: .01ms; } }
-@media (forced-colors: active) { [data-rcl-search-results-item], [data-rcl-search-results-state] { border-color: CanvasText; background: Canvas; color: CanvasText; box-shadow: none; } [data-rcl-search-results-state] button { border-color: Highlight; background: Highlight; color: HighlightText; } }
+
+
 `;
 
 export const SearchResults = withClassName(function SearchResults({
@@ -61,7 +61,7 @@ export const SearchResults = withClassName(function SearchResults({
       data-rcl-search-results
       aria-label={strings("data-display.search-results.search-results", "Search results")}
     >
-      <style data-rcl-search-results-styles dangerouslySetInnerHTML={{ __html: styles }} />
+      <StyleSheet name="searchresults-1-0-5-1" css={styles} />
       <header data-rcl-search-results-header>
         <h2 data-rcl-search-results-title>
           {strings("data-display.search-results.results", "Results")}

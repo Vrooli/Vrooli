@@ -4,7 +4,9 @@ import (
 	"context"
 	"crypto/sha256"
 	"database/sql"
+	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -382,7 +384,12 @@ func (r *Repository) Transition(ctx context.Context, componentID, version, state
 		if !strings.HasPrefix(path, root) {
 			return c, fmt.Errorf("refusing to retire path outside library root")
 		}
-		if err := os.RemoveAll(filepath.Dir(path)); err != nil {
+		backup := r.retiredSourcePath(c.LibraryID, version)
+		if err := os.MkdirAll(filepath.Dir(backup), 0o755); err != nil {
+			return c, err
+		}
+		_ = os.RemoveAll(backup)
+		if err := os.Rename(filepath.Dir(path), backup); err != nil {
 			return c, err
 		}
 		now := time.Now().UTC().Format(time.RFC3339Nano)
@@ -395,6 +402,11 @@ func (r *Repository) Transition(ctx context.Context, componentID, version, state
 		return c, nil
 	}
 	if state == "deprecated" || state == "archived" {
+		if state == "archived" {
+			if err := r.restoreRetiredSource(sourcePath, c.LibraryID, version); err != nil {
+				return c, err
+			}
+		}
 		if err := r.updateManifest(manifestPath, version); err != nil {
 			return c, err
 		}
@@ -407,6 +419,30 @@ func (r *Repository) Transition(ctx context.Context, componentID, version, state
 	}
 	c.Status = state
 	return c, nil
+}
+
+func (r *Repository) retiredSourcePath(libraryID, version string) string {
+	key := sha256.Sum256([]byte(libraryID + "@" + version))
+	return filepath.Join(r.sourceRoot, ".retired", hex.EncodeToString(key[:]))
+}
+
+func (r *Repository) restoreRetiredSource(sourcePath, libraryID, version string) error {
+	backup := r.retiredSourcePath(libraryID, version)
+	if _, err := os.Stat(backup); errors.Is(err, os.ErrNotExist) {
+		return nil
+	} else if err != nil {
+		return err
+	}
+	destination := filepath.Clean(filepath.Join(r.sourceRoot, sourcePath))
+	root := filepath.Clean(r.sourceRoot) + string(os.PathSeparator)
+	if !strings.HasPrefix(destination, root) {
+		return fmt.Errorf("refusing to restore path outside library root")
+	}
+	if err := os.MkdirAll(filepath.Dir(destination), 0o755); err != nil {
+		return err
+	}
+	_ = os.RemoveAll(filepath.Dir(destination))
+	return os.Rename(backup, filepath.Dir(destination))
 }
 
 func (r *Repository) updateManifest(manifestPath, version string) error {

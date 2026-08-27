@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 5,
+  "kind": "primitive",
+  "args": { "fields": [] },
+  "environment": { "fixtures": [] },
+  "stories": [
+    {
+      "id": "default",
+      "name": "Trend",
+      "role": "anatomy",
+      "mode": "pinned",
+      "args": {},
+      "expect": [{ "kind": "role", "role": "img", "name": "Adoption trend" }]
+    }
+  ]
+}

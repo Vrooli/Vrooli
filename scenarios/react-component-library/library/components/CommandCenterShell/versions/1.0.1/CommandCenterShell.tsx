@@ -7,6 +7,7 @@
  * @deps {"react":"^18"}
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
+import { StyleSheet } from "@vrooli/react-component-library/StyleSheet/1.0.0";
 import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
 
 import type { ReactNode } from "react";
@@ -59,10 +60,7 @@ export const CommandCenterShell = withClassName(function CommandCenterShell({
       data-rcl-command-center
       className={["rcl-command-center", className].filter(Boolean).join(" ")}
     >
-      <style
-        data-rcl-command-center-styles
-        dangerouslySetInnerHTML={{ __html: commandCenterShellStyles }}
-      />
+      <StyleSheet name="command-center-shell-1-0-1" css={commandCenterShellStyles} />
       <nav aria-label={`${title} navigation`} className="rcl-command-center__navigation">
         {navigation}
       </nav>

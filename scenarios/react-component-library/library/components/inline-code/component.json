@@ -13,6 +13,7 @@
     }
   ],
   "displayName": "Inline Code",
+  "kind": "surface",
   "draft": "",
   "entry": "InlineCode.tsx",
   "latest": "0.3.3",

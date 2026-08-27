@@ -11,6 +11,7 @@
     }
   ],
   "displayName": "List",
+  "kind": "surface",
   "latest": "1.0.4",
   "libraryId": "react-component-library:List",
   "tags": [

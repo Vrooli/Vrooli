@@ -162,6 +162,13 @@ func (h *handler) ListNextWork(ctx context.Context, req *connect.Request[catalog
 	return connect.NewResponse(&catalogv1.ListNextWorkResponse{Rows: out, Maturity: maturityProto(report), Lane: lane, Promote: rowsProto(promote), Build: rowsProto(build)}), nil
 }
 
+func minInt(left, right int) int {
+	if left < right {
+		return left
+	}
+	return right
+}
+
 func (h *handler) RunGate(ctx context.Context, req *connect.Request[catalogv1.RunGateRequest]) (*connect.Response[catalogv1.RunGateResponse], error) {
 	gate := strings.TrimSpace(req.Msg.GetGate())
 	definitions, definitionErr := catalogcoverage.LoadGateDefinitions(filepath.Join(h.repoRoot, "scenarios", "react-component-library", "catalog", "config.json"))
@@ -170,22 +177,53 @@ func (h *handler) RunGate(ctx context.Context, req *connect.Request[catalogv1.Ru
 	}
 	if req.Msg.GetAll() {
 		aggregate := &catalogv1.RunGateResponse{Gate: "all"}
-		for _, definition := range definitions {
-			result, runErr := h.RunGate(ctx, connect.NewRequest(&catalogv1.RunGateRequest{Gate: definition.ID, CalibrationOnly: req.Msg.GetCalibrationOnly()}))
-			if runErr != nil {
-				return nil, runErr
+		type gateResult struct {
+			index int
+			resp  *connect.Response[catalogv1.RunGateResponse]
+			err   error
+		}
+		jobs := make(chan int)
+		results := make(chan gateResult, len(definitions))
+		workerCount := minInt(4, len(definitions))
+		var workers sync.WaitGroup
+		for worker := 0; worker < workerCount; worker++ {
+			workers.Add(1)
+			go func() {
+				defer workers.Done()
+				for index := range jobs {
+					definition := definitions[index]
+					result, runErr := h.RunGate(ctx, connect.NewRequest(&catalogv1.RunGateRequest{Gate: definition.ID, CalibrationOnly: req.Msg.GetCalibrationOnly()}))
+					results <- gateResult{index: index, resp: result, err: runErr}
+				}
+			}()
+		}
+		go func() {
+			for index := range definitions {
+				jobs <- index
 			}
-			aggregate.InspectedFiles += result.Msg.InspectedFiles
-			aggregate.Findings = append(aggregate.Findings, result.Msg.Findings...)
-			aggregate.RunnerErrors = append(aggregate.RunnerErrors, result.Msg.RunnerErrors...)
-			aggregate.EvidenceRowsWritten += result.Msg.EvidenceRowsWritten
-			aggregate.Calibration = append(aggregate.Calibration, result.Msg.Calibration...)
-			aggregate.NonDiscriminating = aggregate.NonDiscriminating || result.Msg.NonDiscriminating
-			if len(result.Msg.SurfaceVerdictCounts) > 0 {
+			close(jobs)
+			workers.Wait()
+			close(results)
+		}()
+		ordered := make([]gateResult, len(definitions))
+		for result := range results {
+			ordered[result.index] = result
+		}
+		for _, result := range ordered {
+			if result.err != nil {
+				return nil, result.err
+			}
+			aggregate.InspectedFiles += result.resp.Msg.InspectedFiles
+			aggregate.Findings = append(aggregate.Findings, result.resp.Msg.Findings...)
+			aggregate.RunnerErrors = append(aggregate.RunnerErrors, result.resp.Msg.RunnerErrors...)
+			aggregate.EvidenceRowsWritten += result.resp.Msg.EvidenceRowsWritten
+			aggregate.Calibration = append(aggregate.Calibration, result.resp.Msg.Calibration...)
+			aggregate.NonDiscriminating = aggregate.NonDiscriminating || result.resp.Msg.NonDiscriminating
+			if len(result.resp.Msg.SurfaceVerdictCounts) > 0 {
 				if aggregate.SurfaceVerdictCounts == nil {
 					aggregate.SurfaceVerdictCounts = map[string]int32{}
 				}
-				for verdict, count := range result.Msg.SurfaceVerdictCounts {
+				for verdict, count := range result.resp.Msg.SurfaceVerdictCounts {
 					aggregate.SurfaceVerdictCounts[verdict] += count
 				}
 			}

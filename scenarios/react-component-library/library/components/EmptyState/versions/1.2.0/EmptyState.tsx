@@ -4,6 +4,7 @@
  * @status released
  * @deps {"react":"^18"}
  */
+import { StyleSheet } from "@vrooli/react-component-library/StyleSheet/1.0.0";
 import { useId, type ReactNode } from "react";
 import { emptyStateStyles } from "./styles";
 
@@ -25,10 +26,7 @@ export function EmptyState({
   const titleId = `rcl-empty-state-${useId().replace(/:/g, "")}-title`;
   return (
     <>
-      <style
-        data-rcl-empty-state-styles
-        dangerouslySetInnerHTML={{ __html: emptyStateStyles }}
-      />
+      <StyleSheet name="emptystate-1-2-0-1" css={emptyStateStyles} />
       <section
         data-rcl-empty-state
         className={className}

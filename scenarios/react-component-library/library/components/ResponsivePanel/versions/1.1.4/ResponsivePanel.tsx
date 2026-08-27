@@ -7,6 +7,7 @@
  * @deps {"react":"^18"}
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
+import { StyleSheet } from "@vrooli/react-component-library/StyleSheet/1.0.0";
 import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
 
 import { useStrings } from "@vrooli/react-component-library/useLocale/1.0.1";
@@ -203,10 +204,7 @@ export const ResponsivePanel = withClassName(function ResponsivePanel({
 
   return (
     <>
-      <style
-        data-rcl-responsive-panel-styles
-        dangerouslySetInnerHTML={{ __html: responsivePanelStyles }}
-      />
+      <StyleSheet name="responsivepanel-1-1-4-1" css={responsivePanelStyles} />
       <div
         data-rcl-responsive-panel-root
         data-mobile={isMobile ? "true" : "false"}

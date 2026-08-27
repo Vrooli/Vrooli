@@ -78,6 +78,27 @@ func TestVacuousRungDetectsMissingGate(t *testing.T) {
 	t.Fatalf("findings = %+v", findings)
 }
 
+func TestVacuousAllowlistRequiresReasonsAndDetectsGrowth(t *testing.T) {
+	_, findings := parseVacuousAllowlist("library/vacuous-allowlist.json", []byte(`{
+  "schemaVersion": 1,
+  "entries": [
+    {"path":"library/components/B/versions/1.0.0/experience-contract.json","reason":"legacy"},
+    {"path":"library/components/A/versions/1.0.0/experience-contract.json","reason":"legacy"},
+    {"path":"library/components/A/versions/1.0.0/experience-contract.json","reason":"duplicate"},
+    {"path":"library/components/C/versions/1.0.0/experience-contract.json","reason":""}
+  ]
+}`))
+	if len(findings) < 3 {
+		t.Fatalf("findings = %+v", findings)
+	}
+
+	current := []vacuousAllowlistEntry{{Path: "a"}, {Path: "b"}}
+	baseline := []vacuousAllowlistEntry{{Path: "a"}}
+	if got := allowlistGrowth(current, baseline); len(got) != 1 || got[0] != "b" {
+		t.Fatalf("allowlistGrowth = %v, want [b]", got)
+	}
+}
+
 func TestLiveCatalogValidation(t *testing.T) {
 	root, err := filepath.Abs(filepath.Join("..", "..", "..", "..", ".."))
 	if err != nil {

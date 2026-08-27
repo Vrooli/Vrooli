@@ -21,6 +21,7 @@
     }
   ],
   "displayName": "Card",
+  "kind": "surface",
   "draft": "",
   "latest": "1.2.1",
   "libraryId": "react-component-library:Card",

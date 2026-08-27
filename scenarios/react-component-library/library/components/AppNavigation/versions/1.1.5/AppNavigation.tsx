@@ -10,6 +10,7 @@
  * @vrooliComponentSource react-component-library:AppNavigation
  * @deps {"react":"^18","lucide-react":"^0.424.0"}
  */
+import { StyleSheet } from "@vrooli/react-component-library/StyleSheet/1.0.0";
 import { useStrings } from "@vrooli/react-component-library/useLocale/1.0.1";
 import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
 
@@ -41,15 +42,14 @@ const appNavigationStyles = `
 [data-rcl-app-navigation] [data-rcl-app-navigation-list] a[aria-current="page"] { background: color-mix(in srgb, var(--color-primary) 10%, var(--color-surface)); color: var(--color-foreground); font-weight: 650; box-shadow: inset var(--space-3xs) 0 var(--color-primary); }
 [data-rcl-app-navigation] [data-rcl-app-navigation-list] svg { inline-size: var(--icon-size-sm); block-size: var(--icon-size-sm); flex: 0 0 auto; color: var(--color-primary); }
 [data-rcl-app-navigation] [data-rcl-app-navigation-list] span { min-inline-size: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-[data-rcl-app-navigation] a:focus-visible { outline: var(--border-focus) solid var(--color-focus); outline-offset: var(--space-4xs); }
 [data-rcl-app-navigation][data-viewport-mode="mobile"] { border: 0; border-block-start: var(--border-hairline) solid var(--color-border); border-radius: 0; box-shadow: var(--elev-floating); padding: var(--space-2xs) var(--space-xs) calc(var(--space-2xs) + env(safe-area-inset-bottom, 0px)); }
 [data-rcl-app-navigation][data-viewport-mode="mobile"] [data-rcl-app-navigation-brand] { display: none; }
 [data-rcl-app-navigation][data-viewport-mode="mobile"] [data-rcl-app-navigation-list] { display: flex; justify-content: space-around; gap: var(--space-3xs); }
 [data-rcl-app-navigation][data-viewport-mode="mobile"] [data-rcl-app-navigation-list] a { min-inline-size: 0; flex: 1; justify-content: center; padding-inline: var(--space-2xs); }
 [data-rcl-app-navigation][data-viewport-mode="mobile"] [data-rcl-app-navigation-list] span { display: inline; }
 [data-rcl-app-navigation][data-viewport-mode="tablet"] { border-radius: 0 var(--radius-panel) var(--radius-panel) 0; }
-@media (prefers-reduced-motion: reduce) { [data-rcl-app-navigation] * { transition: none; } }
-@media (forced-colors: active) { [data-rcl-app-navigation] [data-rcl-app-navigation-list] a[aria-current="page"] { background: Highlight; color: HighlightText; } }
+
+
 `;
 
 type NavigationItem = {
@@ -104,10 +104,7 @@ export const AppNavigation = withClassName(function AppNavigation({
   const strings = useStrings();
   return (
     <>
-      <style
-        data-rcl-app-navigation-styles
-        dangerouslySetInnerHTML={{ __html: appNavigationStyles }}
-      />
+      <StyleSheet name="appnavigation-1-1-5-1" css={appNavigationStyles} />
       <div
         data-responsive-transformation="sidebar-to-drawer modal-to-bottom-sheet header-to-bottom-navigation"
         data-viewport-mode={mode}

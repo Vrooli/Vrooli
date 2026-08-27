@@ -11,6 +11,7 @@
     }
   ],
   "displayName": "ScrollableTabs",
+  "kind": "shell",
   "latest": "1.0.3",
   "libraryId": "react-component-library:ScrollableTabs",
   "tags": [

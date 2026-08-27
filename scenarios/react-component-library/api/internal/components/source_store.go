@@ -26,6 +26,7 @@ type sourceManifestFile struct {
 	LibraryID          string                 `json:"libraryId"`
 	DisplayName        string                 `json:"displayName"`
 	Description        string                 `json:"description"`
+	Kind               string                 `json:"kind"`
 	Tags               []string               `json:"tags"`
 	Slot               string                 `json:"slot,omitempty"`
 	Category           string                 `json:"category,omitempty"`
@@ -90,6 +91,7 @@ func (s *FSContentStore) InitializeComponent(_ context.Context, in InitializeCom
 		LibraryID:          libraryID,
 		DisplayName:        displayName,
 		Description:        strings.TrimSpace(in.Description),
+		Kind:               experienceKindOrDefault(in.Kind),
 		Tags:               cleanTags(in.Tags),
 		Slot:               strings.TrimSpace(in.Slot),
 		Category:           strings.TrimSpace(in.Category),
@@ -122,6 +124,9 @@ func (s *FSContentStore) InitializeComponent(_ context.Context, in InitializeCom
 	}
 	if in.ScaffoldExamples {
 		if err := scaffoldStoryFile(filepath.Dir(sourceAbs)); err != nil {
+			return "", "", err
+		}
+		if err := scaffoldExperienceContractFile(filepath.Dir(sourceAbs), mf.Kind, libraryID, displayName, version); err != nil {
 			return "", "", err
 		}
 	}

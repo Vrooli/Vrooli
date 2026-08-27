@@ -8,6 +8,7 @@
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
 import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
+import { useLibraryStyleSheet } from "@vrooli/react-component-library/StyleSheet/1.0.0";
 
 import type { HTMLAttributes, ReactNode } from "react";
 import { statusBadgeStyles } from "./styles";
@@ -25,13 +26,11 @@ export const StatusBadge = withClassName(function StatusBadge({
   tone = "neutral",
   ...props
 }: StatusBadgeProps) {
+  useLibraryStyleSheet("status-badge", statusBadgeStyles);
   return (
-    <>
-      <style data-rcl-status-badge-styles dangerouslySetInnerHTML={{ __html: statusBadgeStyles }} />
-      <span {...props} className={className} data-rcl-status-badge data-tone={tone}>
-        <span data-rcl-status-badge-indicator aria-hidden="true" />
-        <span data-rcl-status-badge-label>{children}</span>
-      </span>
-    </>
+    <span {...props} className={className} data-rcl-status-badge data-tone={tone}>
+      <span data-rcl-status-badge-indicator aria-hidden="true" />
+      <span data-rcl-status-badge-label>{children}</span>
+    </span>
   );
 });

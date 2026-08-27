@@ -1,2 +1,2 @@
 /** @vrooliComponentSource react-component-library:ControlBase */
-export * from "@vrooli/react-component-library/ControlBase/1.0.0";
+export * from "@vrooli/react-component-library/ControlBase/1.1.0";

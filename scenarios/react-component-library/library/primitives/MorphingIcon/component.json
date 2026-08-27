@@ -35,6 +35,7 @@
     }
   ],
   "displayName": "MorphingIcon",
+  "kind": "control",
   "draft": "",
   "latest": "2.0.10",
   "libraryId": "react-component-library:MorphingIcon",

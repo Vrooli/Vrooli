@@ -7,6 +7,7 @@
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
 /** @vrooliComponentSource controls.command-button */
+import { StyleSheet } from "@vrooli/react-component-library/StyleSheet/1.0.0";
 import { forwardRef, type CSSProperties, type ReactNode } from "react";
 import { Button, type ButtonProps } from "@vrooli/react-component-library/Button/2.0.0";
 import {
@@ -21,9 +22,9 @@ const styles = `
 [data-rcl-command-button-label][data-state="success"] { color: var(--color-success); }
 [data-rcl-command-button-label][data-state="error"] { color: var(--color-danger); }
 [data-rcl-command-button-spinner] { inline-size: var(--space-sm); block-size: var(--space-sm); flex: 0 0 auto; border: var(--border-strong) solid color-mix(in srgb, currentColor 28%, transparent); border-block-start-color: currentColor; border-radius: var(--radius-pill); animation: rcl-command-button-spin var(--dur-moderate) linear infinite; }
-[data-rcl-command-button-status] { position: absolute; inline-size: 1px; block-size: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+
 @keyframes rcl-command-button-spin { to { transform: rotate(360deg); } }
-@media (prefers-reduced-motion: reduce) { [data-rcl-command-button-spinner] { animation: none; } }
+
 `;
 
 export interface CommandButtonProps
@@ -75,7 +76,7 @@ export const CommandButton = forwardRef<HTMLButtonElement, CommandButtonProps>(
 
     return (
       <>
-        <style data-rcl-command-button-styles dangerouslySetInnerHTML={{ __html: styles }} />
+        <StyleSheet name="commandbutton-1-0-2-1" css={styles} />
         <Button
           data-testid="controls.command-button"
           {...props}

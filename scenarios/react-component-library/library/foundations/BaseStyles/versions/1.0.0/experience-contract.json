@@ -1,0 +1,8 @@
+{
+  "contract": { "kind": "rcl-component-experience-contract", "schema": "scenario-experience-spec/v1", "provenance": "react-component-library/BaseStyles@1.0.0" },
+  "component": { "id": "foundations.base-styles", "title": "Base Styles", "purpose": "Owns shared controls and accessibility styling." },
+  "states": [{ "id": "ready", "example": "ready", "description": "The foundation stylesheet is available." }],
+  "elements": [{ "id": "style", "role": "generic", "description": "The shared style foundation." }],
+  "claims": [{ "id": "foundation-contract", "type": "state-covered", "statement": "The foundation exposes shared reset, focus, motion, forced-colors, and visually-hidden rules.", "tier": "manual", "elements": ["style"] }],
+  "bindings": { "elements": { "style": { "testid": "base-styles" } } }
+}

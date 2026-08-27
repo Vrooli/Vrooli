@@ -1,0 +1,53 @@
+{
+  "contract": {
+    "kind": "rcl-component-experience-contract",
+    "schema": "scenario-experience-spec/v1",
+    "provenance": "react-component-library:ResizableSidebar@2.0.0"
+  },
+  "component": {
+    "id": "navigation.resizable-sidebar",
+    "title": "ResizableSidebar",
+    "purpose": "A sidebar-shaped preset over the shared resize primitive, not a second shell."
+  },
+  "states": [
+    {
+      "id": "default",
+      "example": "default",
+      "description": "Preset sidebar with pointer and keyboard resizing."
+    },
+    {
+      "id": "long-content",
+      "example": "long-content",
+      "description": "Content stays usable at the declared minimum."
+    }
+  ],
+  "claims": [
+    {
+      "id": "keyboard-operable",
+      "type": "keyboard-operable",
+      "tier": "machine",
+      "states": [
+        "long-content"
+      ],
+      "statement": "The sidebar is resizable from the keyboard, which is what separated this asset from its placeholder."
+    },
+    {
+      "id": "preset-not-duplicate",
+      "type": "manual-review",
+      "tier": "manual",
+      "states": [
+        "default"
+      ],
+      "statement": "All behavior comes from Resizable; this asset contributes defaults and a landmark, nothing else."
+    },
+    {
+      "id": "content-reflow",
+      "type": "no-document-horizontal-overflow",
+      "tier": "machine",
+      "states": [
+        "long-content"
+      ],
+      "statement": "Sidebar and content both reflow at the declared minimum without horizontal document overflow."
+    }
+  ]
+}

@@ -7,6 +7,7 @@
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
 /** @vrooliComponentSource overlays.popover */
+import { StyleSheet } from "@vrooli/react-component-library/StyleSheet/1.0.0";
 import {
   Children,
   cloneElement,
@@ -72,8 +73,7 @@ const styles = `
 [data-rcl-popover-content][data-placement^="right"] [data-rcl-popover-arrow], [data-rcl-popover-content][data-placement^="left"] [data-rcl-popover-arrow] { display: none; }
 [data-rcl-popover-trigger]:not([data-rcl-popover-trigger-as-child]) { min-block-size: var(--tap-target-min, 2.75rem); padding-inline: var(--space-md); border: 1px solid var(--color-border-strong, #94a3b8); border-radius: var(--radius-control, .625rem); background: var(--color-surface, #fff); color: var(--color-foreground, #0f172a); cursor: pointer; font: var(--text-label, 600 .8125rem/1.25rem system-ui, sans-serif); transition: background-color var(--dur-quick, 180ms) var(--ease-standard, ease), border-color var(--dur-quick, 180ms) var(--ease-standard, ease), box-shadow var(--dur-quick, 180ms) var(--ease-standard, ease); }
 [data-rcl-popover-trigger]:not([data-rcl-popover-trigger-as-child]):hover { background: var(--color-surface-raised, #f8fafc); border-color: var(--color-primary, #2563eb); }
-[data-rcl-popover-trigger]:focus-visible { outline: var(--border-strong, 2px) solid var(--color-focus, #2563eb); outline-offset: var(--space-3xs, 2px); box-shadow: 0 0 0 var(--space-3xs, 2px) color-mix(in srgb, var(--color-focus, #2563eb) 18%, transparent); }
-@media (prefers-reduced-motion: reduce) { [data-rcl-popover-content] { transition: none; } }
+
 @media (max-width: 38rem) {
   [data-rcl-popover-content][data-responsive="sheet"] { inset-block-start: auto; inset-block-end: calc(var(--space-sm) + env(safe-area-inset-bottom)); inset-inline: var(--space-sm); inline-size: auto; max-block-size: min(70vh, 32rem); transform-origin: bottom center; }
   [data-rcl-popover-content][data-responsive="sheet"] [data-rcl-popover-arrow] { display: none; }
@@ -130,10 +130,7 @@ export function Popover({
 
   return (
     <PopoverContext.Provider value={context}>
-      <style
-        data-rcl-popover-styles
-        dangerouslySetInnerHTML={{ __html: styles }}
-      />
+      <StyleSheet name="popover-1-1-0-1" css={styles} />
       <PopoverPositioner placement={placement}>
         <div data-rcl-popover data-placement={placement} data-open={open}>
           {children}

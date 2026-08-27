@@ -24,6 +24,7 @@
     }
   ],
   "displayName": "Presence",
+  "kind": "surface",
   "latest": "1.0.1",
   "libraryId": "react-component-library:Presence",
   "tags": [

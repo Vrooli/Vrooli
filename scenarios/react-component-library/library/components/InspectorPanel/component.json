@@ -11,6 +11,7 @@
     }
   ],
   "displayName": "InspectorPanel",
+  "kind": "overlay",
   "latest": "1.0.5",
   "libraryId": "react-component-library:InspectorPanel",
   "tags": [

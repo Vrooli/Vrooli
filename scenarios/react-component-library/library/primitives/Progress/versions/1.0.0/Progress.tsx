@@ -1,4 +1,5 @@
 /** @vrooliComponentSource primitives.progress */
+import { StyleSheet } from "@vrooli/react-component-library/StyleSheet/1.0.0";
 import type { CSSProperties, HTMLAttributes } from "react";
 import { useReducedMotion } from "../../../../hooks/useReducedMotion/versions/1.0.0/useReducedMotion";
 
@@ -80,10 +81,7 @@ const styles = `
   }
   [data-rcl-progress-value] { min-inline-size: 2.75rem; color: var(--color-muted-foreground, #64748b); text-align: end; font-variant-numeric: tabular-nums; }
   @keyframes rcl-progress-sweep { 0% { transform: translateX(-110%); } 100% { transform: translateX(260%); } }
-  @media (prefers-reduced-motion: reduce) {
-    [data-rcl-progress-layer], [data-rcl-progress-circle-fill] { transition: none; }
-    [data-rcl-progress][data-mode="indeterminate"] [data-rcl-progress-fill] { animation: none; transform: translateX(0); }
-  }
+
 `;
 
 const toneColors: Record<NonNullable<ProgressProps["tone"]>, string> = {
@@ -132,10 +130,7 @@ export function Progress({
 
   return (
     <>
-      <style
-        data-rcl-progress-styles
-        dangerouslySetInnerHTML={{ __html: styles }}
-      />
+      <StyleSheet name="progress-1-0-0-1" css={styles} />
       <div
         {...props}
         {...common}

@@ -7,6 +7,7 @@
  * @deps {"react":"^18"}
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
+import { StyleSheet } from "@vrooli/react-component-library/StyleSheet/1.0.0";
 import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
 
 import type { ReactNode } from "react";
@@ -40,10 +41,7 @@ export const WorkspaceHeader = withClassName(function WorkspaceHeader({
       data-rcl-workspace-header
       className={["rcl-workspace-header", className].filter(Boolean).join(" ")}
     >
-      <style
-        data-rcl-workspace-header-styles
-        dangerouslySetInnerHTML={{ __html: workspaceHeaderStyles }}
-      />
+      <StyleSheet name="workspace-header-1-0-1" css={workspaceHeaderStyles} />
       <div className="rcl-workspace-header__row">
         {leading ? <div className="rcl-workspace-header__leading">{leading}</div> : null}
         <div className="rcl-workspace-header__copy">

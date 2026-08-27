@@ -11,6 +11,7 @@
     }
   ],
   "displayName": "StatCard",
+  "kind": "surface",
   "latest": "1.0.7",
   "libraryId": "react-component-library:StatCard",
   "tags": [

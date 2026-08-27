@@ -1,0 +1,8 @@
+{
+  "contract": { "kind": "rcl-component-experience-contract", "schema": "scenario-experience-spec/v1", "provenance": "react-component-library/VoiceInputButton@4.3.0" },
+  "component": { "id": "voice-input-button", "title": "Voice Input Button", "purpose": "Voice lifecycle control with unclipped glyph and bounded overlays." },
+  "states": [{ "id": "idle", "example": "idle", "description": "Ready to begin voice input." }, { "id": "recording", "example": "recording", "description": "Captures live level without escaping the control radius." }, { "id": "timeout", "example": "timeout", "description": "Shows timeout progress inside the control." }],
+  "elements": [{ "id": "control", "role": "button", "description": "Voice input control." }],
+  "claims": [{ "id": "voice-content-not-clipped", "type": "content-not-clipped", "statement": "The voice control content remains visible at each documented size.", "tier": "machine", "elements": ["control"] }, { "id": "voice-size-parity", "type": "size-parity", "statement": "The voice control follows the shared size scale.", "tier": "machine", "elements": ["control", "control"] }],
+  "bindings": { "elements": { "control": { "testid": "voice-input-control" } } }
+}

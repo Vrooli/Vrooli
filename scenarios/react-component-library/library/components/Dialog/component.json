@@ -21,6 +21,7 @@
     }
   ],
   "displayName": "Dialog",
+  "kind": "overlay",
   "draft": "",
   "latest": "1.2.2",
   "libraryId": "react-component-library:Dialog",

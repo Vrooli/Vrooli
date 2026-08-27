@@ -1,7 +1,7 @@
 {
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "component",
-  "catalogId": "preview.inspector-drawer",
+  "catalogId": "react-component-library:PreviewInspector",
   "deprecatedVersions": [
     "1.0.0"
   ],
@@ -13,6 +13,7 @@
     }
   ],
   "displayName": "PreviewInspector",
+  "kind": "overlay",
   "latest": "1.0.1",
   "libraryId": "react-component-library:PreviewInspector",
   "slot": "ui-pattern",

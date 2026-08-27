@@ -33,6 +33,7 @@
     }
   ],
   "displayName": "Toast",
+  "kind": "surface",
   "draft": "",
   "latest": "1.0.6",
   "libraryId": "react-component-library:Toast",

@@ -1,4 +1,5 @@
 /** @vrooliComponentSource react-component-library:FilterBar */
+import { StyleSheet } from "@vrooli/react-component-library/StyleSheet/1.0.0";
 import { useState, type FormEvent } from "react";
 import { Chip } from "../../../Chip/versions/1.0.0/Chip";
 import { SearchInput } from "../../../SearchInput/versions/1.0.0/SearchInput";
@@ -33,7 +34,6 @@ const filterBarStyles = `
 .rcl-filter-bar__button { min-block-size: var(--tap-target-min); border: var(--border-hairline) solid var(--color-border); border-radius: var(--radius-control); padding-inline: var(--space-sm); font: var(--text-label); cursor: pointer; transition: transform 160ms ease, box-shadow 160ms ease, background-color 160ms ease, border-color 160ms ease; }
 .rcl-filter-bar__button:hover { transform: translateY(-1px); box-shadow: var(--elev-raised); }
 .rcl-filter-bar__button:active { transform: translateY(0); box-shadow: none; }
-.rcl-filter-bar__button:focus-visible { outline: 3px solid color-mix(in srgb, var(--color-focus) 38%, transparent); outline-offset: 2px; }
 .rcl-filter-bar__button--primary { border-color: var(--color-primary); background: var(--color-primary); color: var(--color-primary-foreground); }
 .rcl-filter-bar__button--quiet { background: var(--color-surface); color: var(--color-foreground); }
 .rcl-filter-bar__legend { margin-block-end: var(--space-2xs); color: var(--color-muted-foreground); font: var(--text-overline); letter-spacing: .06em; text-transform: uppercase; }
@@ -43,8 +43,8 @@ const filterBarStyles = `
   .rcl-filter-bar__actions { display: grid; grid-template-columns: minmax(0, 1fr); width: 100%; }
   .rcl-filter-bar__button { width: 100%; }
 }
-@media (prefers-reduced-motion: reduce) { .rcl-filter-bar__button { transition-duration: .01ms; } }
-@media (forced-colors: active) { .rcl-filter-bar, .rcl-filter-bar__button { border-color: CanvasText; background: Canvas; color: CanvasText; box-shadow: none; } .rcl-filter-bar__button--primary { background: Highlight; color: HighlightText; } }
+
+
 `;
 
 export function FilterBar({
@@ -103,7 +103,7 @@ export function FilterBar({
 
   return (
     <>
-      <style data-rcl-filter-bar-styles>{filterBarStyles}</style>
+      <StyleSheet name="filterbar-1-0-0-1" css={filterBarStyles} />
       <form
         role="search"
         aria-label={queryLabel}

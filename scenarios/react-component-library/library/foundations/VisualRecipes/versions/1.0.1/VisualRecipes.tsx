@@ -49,17 +49,17 @@ export const CONTROL_VARIANTS = {
 } as const;
 export const CONTROL_SIZES = {
   sm: recipe(
-    "min-h-[var(--control-height-sm)]",
+    "min-h-[var(--control-size-sm)]",
     "px-[var(--space-sm)]",
     "text-[var(--text-label)]",
   ),
   md: recipe(
-    `min-h-[${COMPONENT_TOKENS.controlHeight}]`,
+    "min-h-[var(--control-size-md)]",
     `px-[${COMPONENT_TOKENS.controlPadding}]`,
     `text-[${SEMANTIC_TOKENS.foreground}]`,
   ),
   lg: recipe(
-    "min-h-[var(--control-height-lg)]",
+    "min-h-[var(--control-size-lg)]",
     "px-[var(--space-md)]",
     "text-[var(--text-label)]",
   ),

@@ -6,6 +6,7 @@
  * @tags ["forms","async","recovery","offline","navigation","responsive","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
+import { StyleSheet } from "@vrooli/react-component-library/StyleSheet/1.0.0";
 import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
 
 /** @vrooliComponentSource patterns.async-form-flow */
@@ -82,7 +83,6 @@ const styles = `
   [data-rcl-async-form-description] { max-inline-size: 52ch; margin-block-start: var(--space-2xs, .5rem); color: var(--color-muted-foreground, #64748b); font: var(--text-body, 400 .875rem/1.4 system-ui, sans-serif); }
   [data-rcl-async-form-refresh] { flex: 0 0 auto; min-block-size: var(--tap-target-min, 44px); border: 1px solid var(--color-border-strong, #94a3b8); border-radius: var(--radius-control, .625rem); background: transparent; color: var(--color-foreground, #0f172a); padding-inline: var(--space-sm, .75rem); font: var(--text-label, 600 .8125rem/1rem system-ui, sans-serif); cursor: pointer; }
   [data-rcl-async-form-refresh]:hover { background: var(--color-surface-raised, #f8fafc); }
-  [data-rcl-async-form-refresh]:focus-visible, [data-rcl-async-form-empty-action]:focus-visible, [data-rcl-async-form-next]:focus-visible { outline: 3px solid color-mix(in srgb, var(--color-focus, #2563eb) 35%, transparent); outline-offset: 3px; }
   [data-rcl-async-form-content] { padding: var(--space-lg, 1.5rem); }
   [data-rcl-async-form-empty] { display: grid; gap: var(--space-xs, .75rem); place-items: start; padding: var(--space-lg, 1.25rem); border: 1px dashed var(--color-border-strong, #94a3b8); border-radius: var(--radius-control, .625rem); background: var(--color-surface-muted, #f8fafc); }
   [data-rcl-async-form-empty-title] { font: var(--text-subtitle, 650 1rem/1.35 system-ui, sans-serif); }
@@ -229,7 +229,7 @@ export const AsyncFormFlow = withClassName(function AsyncFormFlow<
 
   return (
     <>
-      <style data-rcl-async-form-flow-styles dangerouslySetInnerHTML={{ __html: styles }} />
+      <StyleSheet name="asyncformflow-1-0-4-1" css={styles} />
       <section className={className} style={style} data-rcl-async-form-flow>
         <header data-rcl-async-form-header>
           <div>

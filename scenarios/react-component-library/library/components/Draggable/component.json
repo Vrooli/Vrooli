@@ -28,6 +28,7 @@
     }
   ],
   "displayName": "Draggable",
+  "kind": "surface",
   "latest": "1.0.4",
   "libraryId": "react-component-library:Draggable",
   "tags": [

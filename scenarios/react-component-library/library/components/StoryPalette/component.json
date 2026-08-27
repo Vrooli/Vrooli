@@ -1,7 +1,7 @@
 {
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "component",
-  "catalogId": "preview.story-palette",
+  "catalogId": "react-component-library:StoryPalette",
   "deprecatedVersions": [
     "1.0.0"
   ],
@@ -13,6 +13,7 @@
     }
   ],
   "displayName": "StoryPalette",
+  "kind": "surface",
   "latest": "1.0.1",
   "libraryId": "react-component-library:StoryPalette",
   "slot": "ui-pattern",

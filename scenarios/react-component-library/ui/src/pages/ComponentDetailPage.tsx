@@ -7,14 +7,11 @@
  * of the bare id), and hands the rest off to `<ComponentEditor />`.
  * Closing the editor returns the user to the components list.
  */
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 
-import { adoptionsClient } from "../api/adoptions";
-import { Button } from "../components/Button";
 import { Tabs } from "@vrooli/react-component-library/Tabs/1.0.0";
-import { EmptyState } from "../components/EmptyState";
 import { StatusBadge } from "../components/StatusBadge";
 import {
   componentsClient,
@@ -25,11 +22,8 @@ import {
 import { selectors } from "../consts/selectors";
 import { strings } from "../consts/strings";
 import { ComponentEditor, type ComparisonSession } from "../features/components/ComponentEditor";
-import { AdoptionsCard } from "../features/adoptions/AdoptionsCard";
 import { ComponentExperiencePanel } from "../features/components/ComponentExperiencePanel";
-import { ComponentTestPanel } from "../features/components/ComponentTestPanel";
 import { VersionsCard } from "../features/versions/VersionsCard";
-import { ProgressionPanel } from "../features/versions/ProgressionPanel";
 import { VersionCleanupPanel } from "../features/versions/VersionCleanupPanel";
 import { RelationshipsPanel } from "../features/catalog/RelationshipsPanel";
 import { versionsClient } from "../api/versions";
@@ -51,13 +45,11 @@ function DetailTabs({
   active,
   onChange,
   versionCount,
-  adoptionCount,
   renderable = true,
 }: {
   active: InfoTab;
   onChange: (tab: InfoTab) => void;
   versionCount: number;
-  adoptionCount: number;
   renderable?: boolean;
 }) {
   const { t } = useTranslation();
@@ -72,17 +64,14 @@ function DetailTabs({
       : []),
     { id: "overview", label: t("componentDetail.info.overview", { defaultValue: "Overview" }) },
     { id: "files", label: t("components.editor.files", { defaultValue: "Files" }) },
-    { id: "tests", label: t("componentDetail.info.tests", { defaultValue: "Tests" }) },
     {
       id: "versions",
       label: t("componentDetail.info.versions", { defaultValue: "Versions" }),
       count: versionCount,
     },
-    { id: "progression", label: t(strings.componentDetail.progression.tab) },
     {
-      id: "adoptions",
-      label: t("componentDetail.info.adoptions", { defaultValue: "Adoptions" }),
-      count: adoptionCount,
+      id: "experience",
+      label: t("componentDetail.info.experience", { defaultValue: "Experience" }),
     },
     { id: "relationships", label: "Relationships" },
   ];
@@ -124,23 +113,6 @@ function tabForPane(pane: "details" | "files" | "preview", current: InfoTab): In
   return current === "files" || current === "preview" ? "overview" : current;
 }
 
-function statusTone(
-  library: number,
-  local: number,
-): "success" | "warning" | "danger" | "info" | "neutral" {
-  if (local === 2 || library === 2 || library === 3) return "warning";
-  if (local === 3 || library === 4) return "danger";
-  if (local === 4 || library === 5) return "info";
-  return library === 1 && local === 1 ? "success" : "neutral";
-}
-
-function statusLabel(library: number, local: number) {
-  const libraryLabel =
-    ["Unspecified", "Current", "Behind", "Deprecated", "Missing", "Unknown"][library] ?? "Unknown";
-  const localLabel = ["Unspecified", "Clean", "Modified", "Missing", "Unknown"][local] ?? "Unknown";
-  return `${libraryLabel} / ${localLabel}`;
-}
-
 function isHook(asset: CatalogAsset) {
   return (asset.assetKind as unknown) === 2 || (asset.assetKind as unknown) === "ASSET_KIND_HOOK";
 }
@@ -161,10 +133,6 @@ function HookWorkspace({
   onSelectedStoryChange: (story: string) => void;
 }) {
   const { t } = useTranslation();
-  const effective = useQuery({
-    queryKey: ["adoptions", "effective", asset.id],
-    queryFn: () => adoptionsClient.listEffectiveAdoptions({ componentId: asset.id, limit: 100 }),
-  });
   return (
     <div data-testid="hook-detail-page" className="flex min-h-0 flex-1 flex-col">
       <ComponentEditor
@@ -182,7 +150,6 @@ function HookWorkspace({
             active={tab}
             onChange={onTabChange}
             versionCount={asset.metrics?.versionCount ?? 0}
-            adoptionCount={asset.metrics?.effectiveAdoptionCount ?? 0}
             renderable={false}
           />
         }
@@ -219,12 +186,6 @@ function HookWorkspace({
                 <dd className="break-all font-mono">{asset.sourcePath || "—"}</dd>
               </dl>
             )}
-            {tab === "tests" && (
-              <ComponentTestPanel
-                componentId={asset.id}
-                version={asset.latestVersion || asset.version}
-              />
-            )}
             {tab === "versions" && (
               <div className="space-y-space-md">
                 <VersionCleanupPanel componentId={asset.id} compact />
@@ -233,46 +194,6 @@ function HookWorkspace({
                   onSelectVersion={() => undefined}
                   onCompare={() => undefined}
                 />
-              </div>
-            )}
-            {tab === "progression" && <ProgressionPanel libraryId={asset.libraryId || asset.id} />}
-            {tab === "adoptions" && (
-              <div data-testid="hook-effective-adoptions" className="space-y-space-2xs text-xs">
-                {effective.isLoading ? (
-                  <p className="text-app-muted-foreground">
-                    {t("componentDetail.info.adoptionsLoading", {
-                      defaultValue: "Loading adoptions…",
-                    })}
-                  </p>
-                ) : (effective.data?.adoptions ?? []).length === 0 ? (
-                  <EmptyState
-                    className="p-space-2xs text-xs"
-                    title={t("componentDetail.info.noAdoptions", {
-                      defaultValue: "No recorded usage.",
-                    })}
-                  />
-                ) : (
-                  <ul className="space-y-space-2xs">
-                    {(effective.data?.adoptions ?? []).map((entry) => (
-                      <li
-                        key={`${entry.sourceAssetId}:${entry.parentAdoption?.id}`}
-                        className="rounded-control border border-app-border p-space-2xs"
-                      >
-                        <p className="font-medium">
-                          {entry.mediated
-                            ? t("catalog.indirectUsage", { defaultValue: "Indirect usage" })
-                            : t("catalog.directUsage", { defaultValue: "Direct usage" })}
-                        </p>
-                        <p className="mt-space-3xs">
-                          {entry.parentAdoption?.scenario} · {entry.parentAdoption?.adoptedVersion}
-                        </p>
-                        <p className="mt-space-3xs font-mono text-app-muted-foreground">
-                          {entry.parentAdoption?.id}
-                        </p>
-                      </li>
-                    ))}
-                  </ul>
-                )}
               </div>
             )}
             {tab === "relationships" && <RelationshipsPanel assetId={asset.id} />}
@@ -286,7 +207,6 @@ function HookWorkspace({
 export function ComponentDetailPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const queryClient = useQueryClient();
   const { id } = useParams<{ id: string }>();
   const [search, setSearch] = useSearchParams();
   const [selectedVersion, setSelectedVersion] = useState<string | undefined>();
@@ -296,7 +216,6 @@ export function ComponentDetailPage() {
   const requestedPreviewView = search.get("view");
   const setInfoTab = (tab: InfoTab) =>
     setSearch(assetSearchForTab(tab, undefined, selectedStory), { replace: true });
-  const [selectedAdoptionID, setSelectedAdoptionID] = useState("");
   const [previewExperienceState, setPreviewExperienceState] = useState<
     "loading" | "partial" | "ready" | "error"
   >("loading");
@@ -366,7 +285,7 @@ export function ComponentDetailPage() {
     queryKey: ["components", "experience", id],
     queryFn: () => getComponentExperience(data?.component?.id ?? ""),
     enabled:
-      Boolean(id) && Boolean(data?.component) && (infoTab === "overview" || infoTab === "tests"),
+      Boolean(id) && Boolean(data?.component) && (infoTab === "overview" || infoTab === "experience"),
     retry: false,
   });
   const sourceContentQuery = useQuery({
@@ -381,17 +300,6 @@ export function ComponentDetailPage() {
       versionsClient.listVersions({ componentId: data?.component?.id ?? id ?? "", limit: 0 }),
     enabled: Boolean(data?.component),
     retry: false,
-  });
-
-  const adoptionsQuery = useQuery({
-    queryKey: ["adoptions", "component", id],
-    queryFn: () => adoptionsClient.listAdoptions({ componentId: id ?? "", limit: 0 }),
-    enabled: Boolean(id),
-  });
-  const refreshMutation = useMutation({
-    mutationFn: () => adoptionsClient.refreshAdoptions({ componentId: id ?? "" }),
-    onSuccess: () =>
-      void queryClient.invalidateQueries({ queryKey: ["adoptions", "component", id] }),
   });
 
   const loadedAsset = catalogAsset.data?.component ?? data?.component;
@@ -461,10 +369,6 @@ export function ComponentDetailPage() {
       indexedRelease?.contentSha256 &&
       sourceContentQuery.data.sha256 !== indexedRelease.contentSha256,
   );
-  const adoptions = adoptionsQuery.data?.adoptions ?? [];
-  const selectedAdoption =
-    adoptions.find((adoption) => adoption.id === selectedAdoptionID) ?? adoptions[0];
-
   return (
     <div
       data-testid="component-detail-page"
@@ -500,7 +404,6 @@ export function ComponentDetailPage() {
             active={infoTab}
             onChange={setInfoTab}
             versionCount={component.metrics?.versionCount ?? 0}
-            adoptionCount={component.metrics?.directAdoptionCount ?? adoptions.length}
           />
         }
         comparison={comparison}
@@ -528,13 +431,15 @@ export function ComponentDetailPage() {
                 </StatusBadge>
               )}
             </section>
+            {infoTab === "experience" && (
+              <ComponentExperiencePanel
+                experience={experienceQuery.data}
+                isLoading={experienceQuery.isLoading}
+                isError={experienceQuery.isError}
+              />
+            )}
             {infoTab === "overview" && (
               <>
-                <ComponentExperiencePanel
-                  experience={experienceQuery.data}
-                  isLoading={experienceQuery.isLoading}
-                  isError={experienceQuery.isError}
-                />
                 <section className="rounded-lg border border-app-border bg-app-surface-muted p-space-xs text-sm text-app-foreground">
                   <h3 className="font-medium">
                     {t("componentDetail.info.identity", { defaultValue: "Identity" })}
@@ -612,20 +517,6 @@ export function ComponentDetailPage() {
                 </section>
               </>
             )}
-            {infoTab === "tests" && (
-              <>
-                <ComponentTestPanel
-                  componentId={component.id}
-                  version={selectedVersion ?? component.latestVersion ?? component.version}
-                  experience={experienceQuery.data}
-                />
-                <ComponentExperiencePanel
-                  experience={experienceQuery.data}
-                  isLoading={experienceQuery.isLoading}
-                  isError={experienceQuery.isError}
-                />
-              </>
-            )}
             {infoTab === "versions" && (
               <div className="space-y-space-md">
                 <VersionCleanupPanel componentId={component.id} compact />
@@ -636,82 +527,6 @@ export function ComponentDetailPage() {
                   onCompare={setComparison}
                 />
               </div>
-            )}
-            {infoTab === "progression" && (
-              <ProgressionPanel libraryId={component.libraryId || component.id} />
-            )}
-            {infoTab === "adoptions" && (
-              <section
-                data-testid="component-detail-adoptions"
-                className="space-y-space-xs text-sm text-app-foreground"
-              >
-                <div className="flex items-center justify-between">
-                  <h3 className="font-medium">
-                    {t("componentDetail.info.adoptions", { defaultValue: "Adoptions" })}
-                  </h3>
-                  <Button
-                    size="sm"
-                    onClick={() => refreshMutation.mutate()}
-                    disabled={refreshMutation.isPending}
-                  >
-                    {refreshMutation.isPending
-                      ? t(strings.adoptions.refreshing)
-                      : t(strings.adoptions.refreshAction)}
-                  </Button>
-                </div>
-                {adoptionsQuery.isLoading ? (
-                  <p className="text-xs text-app-muted-foreground">
-                    {t("componentDetail.info.adoptionsLoading", {
-                      defaultValue: "Loading adoptions…",
-                    })}
-                  </p>
-                ) : adoptions.length === 0 ? (
-                  <EmptyState
-                    className="p-space-2xs text-xs"
-                    title={t("componentDetail.info.noAdoptions", {
-                      defaultValue: "No scenarios have adopted this component yet.",
-                    })}
-                  />
-                ) : (
-                  <div className="space-y-space-2xs">
-                    {adoptions.map((adoption) => (
-                      <Button
-                        key={adoption.id}
-                        type="button"
-                        variant="secondary"
-                        onClick={() => setSelectedAdoptionID(adoption.id)}
-                        className={`h-auto w-full rounded-control border p-space-2xs text-left ${selectedAdoption?.id === adoption.id ? "border-app-primary" : "border-app-border"}`}
-                      >
-                        <div className="flex items-center justify-between gap-space-2xs">
-                          <span className="font-medium">{adoption.scenario}</span>
-                          <StatusBadge
-                            tone={statusTone(adoption.libraryVersionStatus, adoption.localStatus)}
-                          >
-                            {statusLabel(adoption.libraryVersionStatus, adoption.localStatus)}
-                          </StatusBadge>
-                        </div>
-                        <p className="mt-space-3xs font-mono text-xs text-app-muted-foreground">
-                          {adoption.adoptedVersion} · {adoption.adoptedPath}
-                        </p>
-                      </Button>
-                    ))}
-                  </div>
-                )}
-                {selectedAdoption && (
-                  <ul
-                    data-testid="component-detail-adoption-file-tree"
-                    className="space-y-space-3xs rounded-control bg-app-background p-space-2xs font-mono text-xs text-app-muted-foreground"
-                  >
-                    {(selectedAdoption.files.length > 0
-                      ? selectedAdoption.files.map((file) => file.adoptedPath)
-                      : [selectedAdoption.adoptedPath]
-                    ).map((path) => (
-                      <li key={path}>{path}</li>
-                    ))}
-                  </ul>
-                )}
-                <AdoptionsCard componentId={component.id} suggestionsOnly />
-              </section>
             )}
             {infoTab === "relationships" && (
               <RelationshipsPanel assetId={loadedAsset?.catalogId ?? component.id} />

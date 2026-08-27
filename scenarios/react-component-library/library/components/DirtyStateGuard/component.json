@@ -19,6 +19,7 @@
     }
   ],
   "displayName": "DirtyStateGuard",
+  "kind": "input",
   "latest": "1.0.6",
   "libraryId": "react-component-library:DirtyStateGuard",
   "tags": [

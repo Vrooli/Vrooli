@@ -22,6 +22,7 @@
     }
   ],
   "displayName": "Inline",
+  "kind": "surface",
   "draft": "",
   "latest": "1.1.1",
   "libraryId": "react-component-library:Inline",

@@ -15,6 +15,7 @@
     }
   ],
   "displayName": "ScoreGauge",
+  "kind": "surface",
   "draft": "",
   "latest": "1.0.9",
   "libraryId": "react-component-library:ScoreGauge",

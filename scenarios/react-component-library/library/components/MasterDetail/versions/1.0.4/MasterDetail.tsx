@@ -6,6 +6,7 @@
  * @tags ["navigation","responsive","collection","detail","routing","accessibility","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
+import { StyleSheet } from "@vrooli/react-component-library/StyleSheet/1.0.0";
 import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
 
 /** @vrooliComponentSource navigation.master-detail */
@@ -69,7 +70,6 @@ const styles = `
 [data-rcl-master-detail-item] { display: grid; gap: var(--space-3xs, .2rem); inline-size: 100%; min-block-size: var(--tap-target-min, 44px); padding: var(--space-sm, .75rem); border: var(--border-hairline, 1px) solid transparent; border-radius: var(--radius-control, .625rem); background: transparent; color: inherit; text-align: start; cursor: pointer; transition: background var(--dur-quick, 160ms) var(--ease-standard, ease), border-color var(--dur-quick, 160ms) var(--ease-standard, ease), transform var(--dur-quick, 160ms) var(--ease-standard, ease); }
 [data-rcl-master-detail-item]:hover { border-color: var(--color-border, #cbd5e1); background: var(--color-surface-muted, #f1f5f9); }
 [data-rcl-master-detail-item][aria-current="true"] { border-color: color-mix(in srgb, var(--color-primary, #2563eb) 42%, var(--color-border, #cbd5e1)); background: color-mix(in srgb, var(--color-primary, #2563eb) 9%, var(--color-surface-raised, #fff)); }
-[data-rcl-master-detail-item]:focus-visible, [data-rcl-master-detail-back]:focus-visible { outline: 3px solid color-mix(in srgb, var(--color-focus, #2563eb) 36%, transparent); outline-offset: 2px; }
 [data-rcl-master-detail-item]:disabled { cursor: not-allowed; opacity: .5; }
 [data-rcl-master-detail-item-title] { overflow-wrap: anywhere; font: var(--text-label, 650 .9rem/1.35 system-ui, sans-serif); }
 [data-rcl-master-detail-item-summary] { overflow-wrap: anywhere; color: var(--color-muted-foreground, #64748b); font: var(--text-caption, 600 .75rem/1.35 system-ui, sans-serif); }
@@ -86,8 +86,8 @@ const styles = `
 [data-rcl-master-detail-state="loading"]::before { content: ""; inline-size: 1.3rem; block-size: 1.3rem; border: 2px solid currentColor; border-block-start-color: transparent; border-radius: 50%; animation: rcl-master-detail-spin .8s linear infinite; }
 @keyframes rcl-master-detail-spin { to { transform: rotate(360deg); } }
 @media (max-width: 52rem) { [data-rcl-master-detail] { gap: var(--space-sm, .75rem); } [data-rcl-master-detail-list] { max-block-size: none; } [data-rcl-master-detail-detail] { min-block-size: min(32rem, 70vh); padding: var(--space-md, 1rem); } }
-@media (prefers-reduced-motion: reduce) { [data-rcl-master-detail-item], [data-rcl-master-detail-state="loading"]::before { transition: none; animation: none; } }
-@media (forced-colors: active) { [data-rcl-master-detail-panel], [data-rcl-master-detail-item], [data-rcl-master-detail-back] { border-color: CanvasText; background: Canvas; color: CanvasText; box-shadow: none; } [data-rcl-master-detail-item][aria-current="true"] { outline: 2px solid Highlight; } }
+
+
 `;
 
 function State({ status, children }: { status: MasterDetailStatus; children: ReactNode }) {
@@ -259,7 +259,7 @@ export const MasterDetail = withClassName(function MasterDetail<T>({
 
   return (
     <section data-rcl-master-detail className={className} style={style} aria-label={label}>
-      <style data-rcl-master-detail-styles dangerouslySetInnerHTML={{ __html: styles }} />
+      <StyleSheet name="masterdetail-1-0-4-1" css={styles} />
       <header data-rcl-master-detail-header>
         <span data-rcl-master-detail-kicker>
           {resolveStrings("navigation.master-detail.collection-workspace", "Collection workspace")}

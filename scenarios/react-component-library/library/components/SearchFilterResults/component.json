@@ -12,6 +12,7 @@
     }
   ],
   "displayName": "SearchFilterResults",
+  "kind": "input",
   "latest": "1.0.3",
   "libraryId": "react-component-library:SearchFilterResults",
   "slot": "ui-pattern",

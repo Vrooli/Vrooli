@@ -19,10 +19,8 @@ export type AssetInfoTab =
   | "preview"
   | "overview"
   | "files"
-  | "tests"
   | "versions"
-  | "progression"
-  | "adoptions"
+  | "experience"
   | "relationships";
 export type AssetRouteState = {
   tab?: AssetInfoTab;
@@ -35,10 +33,8 @@ const assetTabs = new Set<AssetInfoTab>([
   "overview",
   "preview",
   "files",
-  "tests",
   "versions",
-  "progression",
-  "adoptions",
+  "experience",
   "relationships",
 ]);
 
@@ -46,7 +42,6 @@ export function assetPath(assetID: string, state: AssetRouteState = {}): string 
   const search = new URLSearchParams();
   if (state.tab && state.tab !== "preview") search.set("tab", state.tab);
   if (state.story) search.set("story", state.story);
-  if (state.testReport && state.tab === "tests") search.set("testReport", state.testReport);
   if (state.view) search.set("view", state.view);
   const serialized = search.toString();
   return `/assets/${encodeURIComponent(assetID)}${serialized ? `?${serialized}` : ""}`;
@@ -74,11 +69,12 @@ export function assetSearchForTab(tab: AssetInfoTab, reportID?: string, story?: 
   const search = new URLSearchParams();
   if (tab !== "preview") search.set("tab", tab);
   if (story) search.set("story", story);
-  if (tab === "tests" && reportID) search.set("testReport", reportID);
+  void reportID;
   const serialized = search.toString();
   return serialized ? `?${serialized}` : "";
 }
 
 export function assetTestReportPath(assetID: string, reportID: string): string {
-  return `${assetPath(assetID)}${assetSearchForTab("tests", reportID)}`;
+  void reportID;
+  return assetPath(assetID);
 }

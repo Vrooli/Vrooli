@@ -5,12 +5,12 @@ import type { editor } from "monaco-editor";
 import { Button } from "../../components/Button";
 import { IconButton } from "../../components/IconButton";
 import { Tabs } from "@vrooli/react-component-library/Tabs/1.0.0";
+import { DiffViewer } from "@vrooli/react-component-library/DiffViewer/1.0.2";
 import { selectors } from "../../consts/selectors";
 import { strings } from "../../consts/strings";
 import { useTranslation } from "../../i18n";
 import { AdoptionFileTree } from "./AdoptionFileTree";
 import { ADOPTION_TEMPLATES } from "./adoptionTemplates";
-import { VersionDiffViewer } from "../versions/VersionDiffViewer";
 import type { DiffRow } from "../../api/versions";
 import { useState, type ReactNode } from "react";
 import { Braces, FileCode2, Minus, Plus, RotateCcw, Save, X } from "lucide-react";
@@ -190,7 +190,10 @@ export function ComponentEditorSource({
         </div>
       ) : filesView === "diff" && comparison ? (
         <div className="min-h-0 flex-1 overflow-auto p-space-2xs">
-          <VersionDiffViewer rows={comparison.rows} />
+          <DiffViewer
+            before={comparison.rows.map((row) => row.left?.text ?? "").join("\n")}
+            after={comparison.rows.map((row) => row.right?.text ?? "").join("\n")}
+          />
         </div>
       ) : (
         <>

@@ -4,6 +4,7 @@
  * @status released
  * @deps {"react":"^18","lucide-react":"^0.424.0","react-component-library:useEscapeKey":"^1.0.0"}
  */
+import { StyleSheet } from "@vrooli/react-component-library/StyleSheet/1.0.0";
 import {
   type CSSProperties,
   type HTMLAttributes,
@@ -62,10 +63,7 @@ export const SidebarShell = forwardRef<HTMLDivElement, SidebarShellProps>(
     const style: CSSProperties = width ? { width } : {};
     return (
       <>
-        <style
-          data-rcl-sidebar-shell-styles=""
-          dangerouslySetInnerHTML={{ __html: sidebarShellStyles }}
-        />
+        <StyleSheet name="sidebarshell-1-2-0-1" css={sidebarShellStyles} />
         {isDialogOpen ? (
           <button
             type="button"

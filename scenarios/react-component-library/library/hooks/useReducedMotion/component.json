@@ -11,6 +11,7 @@
     }
   ],
   "displayName": "useReducedMotion",
+  "kind": "surface",
   "latest": "1.0.0",
   "libraryId": "react-component-library:useReducedMotion",
   "tags": [

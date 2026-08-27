@@ -6,6 +6,7 @@
  * @tags ["manipulation","sortable","keyboard","motion","async","accessibility","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
+import { StyleSheet } from "@vrooli/react-component-library/StyleSheet/1.0.0";
 import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
 
 /** @vrooliComponentSource manipulation.sortable */
@@ -57,14 +58,13 @@ const styles = `
 [data-rcl-sortable-handle] { display: grid; place-items: center; inline-size: var(--tap-target-min, 44px); block-size: var(--tap-target-min, 44px); border: var(--border-hairline, 1px) solid var(--color-border-strong, #94a3b8); border-radius: var(--radius-control, .625rem); background: var(--color-surface-muted, #f1f5f9); color: var(--color-muted-foreground, #64748b); font: var(--text-title, 700 1rem/1 system-ui, sans-serif); cursor: grab; touch-action: none; }
 [data-rcl-sortable-handle]:hover { border-color: var(--color-primary, #2563eb); color: var(--color-primary, #2563eb); }
 [data-rcl-sortable-handle]:active { cursor: grabbing; }
-[data-rcl-sortable-handle]:focus-visible { outline: 3px solid color-mix(in srgb, var(--color-focus, #2563eb) 36%, transparent); outline-offset: 3px; }
 [data-rcl-sortable-handle]:disabled { cursor: not-allowed; }
 [data-rcl-sortable-copy] { min-inline-size: 0; overflow-wrap: anywhere; }
 [data-rcl-sortable-status] { color: var(--color-muted-foreground, #64748b); font: var(--text-caption, 600 .75rem/1rem system-ui, sans-serif); }
 [data-rcl-sortable-action-status] { min-block-size: 1.25rem; color: var(--color-muted-foreground, #64748b); font: var(--text-caption, 600 .75rem/1rem system-ui, sans-serif); }
 @media (max-width: 34rem) { [data-rcl-sortable-item] { padding-inline: var(--space-xs, .625rem); } }
-@media (forced-colors: active) { [data-rcl-sortable-item], [data-rcl-sortable-handle] { border-color: CanvasText; background: Canvas; color: CanvasText; box-shadow: none; } [data-rcl-sortable-item][data-dragging="true"] { outline: 2px solid Highlight; } }
-@media (prefers-reduced-motion: reduce) { [data-rcl-sortable-item] { transition: none; } }
+
+
 `;
 
 function move<T>(items: SortableItem<T>[], from: number, to: number) {
@@ -202,7 +202,7 @@ export const Sortable = withClassName(function Sortable<T>({
   );
   return (
     <section data-rcl-sortable className={className} style={style} aria-label={label}>
-      <style data-rcl-sortable-styles dangerouslySetInnerHTML={{ __html: styles }} />
+      <StyleSheet name="sortable-1-0-6-1" css={styles} />
       <AutoAnimateLayout>
         <div data-rcl-sortable-list role="list" aria-label={label}>
           {items.map((item, index) => {

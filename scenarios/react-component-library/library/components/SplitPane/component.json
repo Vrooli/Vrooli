@@ -2,8 +2,19 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "component",
   "catalogId": "manipulation.split-pane",
-  "dependencies": [],
-  "description": "",
+  "dependencies": [
+    {
+      "kind": "requires",
+      "libraryId": "react-component-library:Resizable",
+      "version": "2.0.0"
+    }
+  ],
+  "deprecatedVersions": [
+    "1.1.2",
+    "1.1.4",
+    "1.1.5"
+  ],
+  "description": "Two panes and one draggable, keyboard-operable splitter on either orientation.",
   "designStyles": [
     {
       "affinity": "native",
@@ -11,16 +22,13 @@
     }
   ],
   "displayName": "SplitPane",
-  "latest": "1.1.5",
+  "draft": "",
+  "kind": "surface",
+  "latest": "2.0.0",
   "libraryId": "react-component-library:SplitPane",
   "tags": [
     "layout",
     "interaction",
     "token-bound"
-  ],
-  "draft": "",
-  "deprecatedVersions": [
-    "1.1.2",
-    "1.1.4"
   ]
 }

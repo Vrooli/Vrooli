@@ -1,7 +1,7 @@
 {
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "component",
-  "catalogId": "monetization.account-surface",
+  "catalogId": "react-component-library:MonetizationAccount",
   "deprecatedVersions": [
     "1.0.2"
   ],
@@ -21,6 +21,7 @@
     }
   ],
   "displayName": "MonetizationAccount",
+  "kind": "surface",
   "draft": "",
   "latest": "1.0.3",
   "libraryId": "react-component-library:MonetizationAccount",

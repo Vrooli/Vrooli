@@ -4,6 +4,7 @@
  * @status released
  * @deps {"react":"^18","lucide-react":"^0.424.0"}
  */
+import { StyleSheet } from "@vrooli/react-component-library/StyleSheet/1.0.0";
 import { X } from "lucide-react";
 import { type ReactNode, useEffect, useId } from "react";
 import { dialogStyles } from "./styles";
@@ -64,10 +65,7 @@ export function Dialog({
 
   return (
     <div data-rcl-dialog className="rcl-dialog">
-      <style
-        data-rcl-dialog-styles
-        dangerouslySetInnerHTML={{ __html: dialogStyles }}
-      />
+      <StyleSheet name="dialog-1-1-0-1" css={dialogStyles} />
       <button
         type="button"
         aria-label={closeLabel}

@@ -6,6 +6,7 @@
  * @tags ["form","color","appearance"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
+import { StyleSheet } from "@vrooli/react-component-library/StyleSheet/1.0.0";
 import { Check, Pipette, Plus, X, type LucideIcon } from "lucide-react";
 import { useState } from "react";
 import { isHexColor, isLightColor, parseColorValue, serializeColorValue } from "./colorUtils";
@@ -50,15 +51,14 @@ const styles = `
 [data-rcl-color-picker-swatch]:hover, [data-rcl-color-picker-slot]:hover, [data-rcl-color-picker-custom]:hover, [data-rcl-color-picker-transparent]:hover, [data-rcl-color-picker-remove]:hover { transform: translateY(-1px); box-shadow: var(--elev-raised); }
 [data-rcl-color-picker-swatch]:active, [data-rcl-color-picker-slot]:active, [data-rcl-color-picker-custom]:active, [data-rcl-color-picker-transparent]:active, [data-rcl-color-picker-remove]:active { transform: translateY(0) scale(.97); }
 [data-rcl-color-picker-swatch][data-selected="true"], [data-rcl-color-picker-slot][aria-pressed="true"], [data-rcl-color-picker-transparent][aria-pressed="true"], [data-rcl-color-picker-custom][data-selected="true"] { border-color: var(--color-primary); box-shadow: 0 0 0 var(--space-3xs) color-mix(in srgb, var(--color-primary) 30%, transparent); }
-[data-rcl-color-picker] button:focus-visible, [data-rcl-color-picker-custom]:focus-within { outline: 3px solid color-mix(in srgb, var(--color-focus) 38%, transparent); outline-offset: 3px; }
 [data-rcl-color-picker-add] { display: inline-flex; align-items: center; gap: var(--space-3xs); min-block-size: var(--tap-target-min); border: var(--border-hairline) dashed var(--color-border); border-radius: var(--radius-control); background: var(--color-surface); color: var(--color-foreground); padding-inline: var(--space-xs); font: var(--text-label); cursor: pointer; }
 [data-rcl-color-picker-mark] { inline-size: var(--space-sm); block-size: var(--space-sm); }
 [data-rcl-color-picker-input] { position: absolute; inset: 0; inline-size: 100%; block-size: 100%; cursor: pointer; opacity: 0; }
 [data-rcl-color-picker-recents] { display: grid; gap: var(--space-2xs); }
 [data-rcl-color-picker-recents] p { margin: 0; color: var(--color-muted-foreground); font: var(--text-caption); }
 [data-rcl-color-picker] [data-rcl-color-picker-swatch][data-selected="false"] { box-shadow: none; }
-@media (prefers-reduced-motion: reduce) { [data-rcl-color-picker] *, [data-rcl-color-picker] *::before, [data-rcl-color-picker] *::after { transition-duration: .01ms; } }
-@media (forced-colors: active) { [data-rcl-color-picker-swatch], [data-rcl-color-picker-slot], [data-rcl-color-picker-custom], [data-rcl-color-picker-transparent], [data-rcl-color-picker-remove], [data-rcl-color-picker-add] { border-color: CanvasText; background: Canvas; color: CanvasText; box-shadow: none; } [data-rcl-color-picker-swatch][data-selected="true"], [data-rcl-color-picker-slot][aria-pressed="true"], [data-rcl-color-picker-transparent][aria-pressed="true"] { border-color: Highlight; } }
+
+
 `;
 
 export default function ColorPicker({
@@ -121,7 +121,7 @@ export default function ColorPicker({
       data-rcl-color-picker
       aria-label={labels.heading ?? "Color picker"}
     >
-      <style data-rcl-color-picker-styles dangerouslySetInnerHTML={{ __html: styles }} />
+      <StyleSheet name="colorpicker-1-0-3-1" css={styles} />
       {labels.heading ? <h3 data-rcl-color-picker-heading>{labels.heading}</h3> : null}
       {allowGradient ? (
         <div data-rcl-color-picker-row>

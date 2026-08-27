@@ -1,5 +1,6 @@
 {
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
+  "catalogId": "react-component-library:PageFrame",
   "category": "navigation",
   "deprecatedVersions": [
     "1.0.0"
@@ -12,6 +13,7 @@
     }
   ],
   "displayName": "Page Frame",
+  "kind": "shell",
   "draft": "",
   "latest": "1.0.1",
   "libraryId": "react-component-library:PageFrame",

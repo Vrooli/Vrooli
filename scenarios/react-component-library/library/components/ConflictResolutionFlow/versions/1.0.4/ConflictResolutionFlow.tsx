@@ -6,6 +6,7 @@
  * @tags ["patterns","conflict","recovery","forms","accessibility","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
+import { StyleSheet } from "@vrooli/react-component-library/StyleSheet/1.0.0";
 import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
 
 /** @vrooliComponentSource patterns.conflict-resolution-flow */
@@ -67,10 +68,9 @@ const styles = `
 [data-rcl-conflict-flow-actions] button { min-block-size: var(--tap-target-min, 44px); padding: var(--space-2xs, .35rem) var(--space-sm, .75rem); border: var(--border-hairline, 1px) solid currentColor; border-radius: var(--radius-control, .625rem); background: transparent; color: var(--color-primary, #2563eb); cursor: pointer; font: var(--text-label, 650 .9rem/1.35 system-ui, sans-serif); }
 [data-rcl-conflict-flow-actions] button[type="submit"] { background: var(--color-primary, #2563eb); color: var(--color-on-primary, #fff); }
 [data-rcl-conflict-flow-actions] button:disabled { cursor: not-allowed; opacity: .52; }
-[data-rcl-conflict-flow-option]:focus-visible, [data-rcl-conflict-flow-actions] button:focus-visible { outline: 3px solid color-mix(in srgb, var(--color-focus, #2563eb) 36%, transparent); outline-offset: 2px; }
 @media (max-width: 38rem) { [data-rcl-conflict-flow-options] { grid-template-columns: 1fr; } [data-rcl-conflict-flow-actions] button { flex: 1 1 12rem; } }
-@media (prefers-reduced-motion: reduce) { [data-rcl-conflict-flow-option] { transition: none; } }
-@media (forced-colors: active) { [data-rcl-conflict-flow-field], [data-rcl-conflict-flow-option], [data-rcl-conflict-flow-actions] button { border-color: CanvasText; background: Canvas; color: CanvasText; box-shadow: none; } [data-rcl-conflict-flow-option][aria-pressed="true"] { outline: 2px solid Highlight; } }
+
+
 `;
 
 function printable<T>(field: ConflictField<T>, value: T) {
@@ -165,7 +165,7 @@ export const ConflictResolutionFlow = withClassName(function ConflictResolutionF
 
   return (
     <div data-rcl-conflict-flow className={className} style={style}>
-      <style data-rcl-conflict-flow-styles dangerouslySetInnerHTML={{ __html: styles }} />
+      <StyleSheet name="conflictresolutionflow-1-0-4-1" css={styles} />
       <Form
         title={<span data-rcl-conflict-flow-title>{title}</span>}
         description={<span data-rcl-conflict-flow-description>{description}</span>}

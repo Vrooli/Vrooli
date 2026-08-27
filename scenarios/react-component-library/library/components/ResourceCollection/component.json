@@ -33,6 +33,7 @@
     }
   ],
   "displayName": "Resource Collection",
+  "kind": "surface",
   "latest": "1.0.4",
   "libraryId": "react-component-library:ResourceCollection",
   "slot": "ui-pattern",

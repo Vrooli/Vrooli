@@ -5,7 +5,4 @@ export const codeBlockStyles = `
 [data-rcl-code-block] button:hover { background: color-mix(in srgb, var(--color-accent) 10%, transparent); }
 [data-rcl-code-block] .rcl-code-block__body { overflow-x: auto; padding: var(--space-sm); color: var(--color-foreground); font: var(--text-body); }
 [data-rcl-code-block] .rcl-code-block__body > pre, [data-rcl-code-block] .rcl-code-block__body pre { margin: 0; background: transparent; padding: 0; }
-[data-rcl-code-block] :focus-visible { outline: 3px solid color-mix(in srgb, var(--color-focus) 38%, transparent); outline-offset: 2px; }
-@media (prefers-reduced-motion: reduce) { [data-rcl-code-block] *, [data-rcl-code-block] *::before, [data-rcl-code-block] *::after { transition-duration: .01ms; } }
-@media (forced-colors: active) { [data-rcl-code-block] { border-color: CanvasText; background: Canvas; color: CanvasText; } }
 `;

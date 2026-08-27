@@ -18,7 +18,4 @@ export const markdownStyles = `
 [data-rcl-markdown] .rcl-md__diagram-actions, [data-rcl-markdown] .rcl-md__diagram-tabs { display: flex; align-items: center; gap: var(--space-xs); }
 [data-rcl-markdown] .rcl-md__diagram-header button[aria-pressed="true"] { color: var(--color-foreground); background: color-mix(in srgb, var(--color-accent) 12%, transparent); }
 [data-rcl-markdown] .rcl-md__error { padding: var(--space-sm); color: var(--color-danger); font: var(--text-caption); }
-[data-rcl-markdown] :focus-visible { outline: 3px solid color-mix(in srgb, var(--color-focus) 38%, transparent); outline-offset: 2px; }
-@media (prefers-reduced-motion: reduce) { [data-rcl-markdown] *, [data-rcl-markdown] *::before, [data-rcl-markdown] *::after { transition-duration: .01ms; } }
-@media (forced-colors: active) { [data-rcl-markdown].rcl-md__code, [data-rcl-markdown] .rcl-md__code, [data-rcl-markdown].rcl-md__diagram, [data-rcl-markdown] .rcl-md__diagram, [data-rcl-markdown] th, [data-rcl-markdown] td { border-color: CanvasText; background: Canvas; color: CanvasText; } }
 `;

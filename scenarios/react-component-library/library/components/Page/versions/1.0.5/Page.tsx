@@ -7,6 +7,7 @@
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
 /** @vrooliComponentSource react-component-library:Page */
+import { StyleSheet } from "@vrooli/react-component-library/StyleSheet/1.0.0";
 import { useStrings } from "@vrooli/react-component-library/useLocale/1.0.1";
 import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
 
@@ -34,7 +35,7 @@ export const Page = withClassName(function Page({
   const strings = useStrings();
   return (
     <>
-      <style data-rcl-page-styles dangerouslySetInnerHTML={{ __html: pageStyles }} />
+      <StyleSheet name="page-1-0-5-1" css={pageStyles} />
       <div data-testid="navigation.page" data-page-state={state} data-rcl-page>
         {navigation ? (
           <aside

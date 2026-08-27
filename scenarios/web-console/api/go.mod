@@ -10,6 +10,8 @@ require (
 	github.com/gorilla/mux v1.8.1
 	github.com/gorilla/websocket v1.5.3
 	github.com/vrooli/api-core v0.0.0
+	github.com/vrooli/cliresolve v0.0.0
+	github.com/vrooli/nodeclient v0.0.0
 	github.com/vrooli/platform-go v0.0.0
 	github.com/vrooli/vrooli v0.0.0
 	github.com/vrooli/vrooli/packages/capability-registry-go v0.0.0
@@ -36,6 +38,10 @@ require (
 )
 
 replace github.com/vrooli/api-core => ../../../packages/api-core
+
+replace github.com/vrooli/cliresolve => ../../../packages/cliresolve
+
+replace github.com/vrooli/nodeclient => ../../../packages/nodeclient
 
 replace github.com/vrooli/platform-go => ../../../packages/platform-go
 

@@ -16,6 +16,7 @@
     }
   ],
   "displayName": "LoadingState",
+  "kind": "surface",
   "latest": "1.0.7",
   "libraryId": "react-component-library:LoadingState",
   "tags": [

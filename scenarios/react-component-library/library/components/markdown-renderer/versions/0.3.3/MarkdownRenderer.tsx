@@ -7,6 +7,7 @@
  * @deps {"react":"^18","react-markdown":"^10.1.0","remark-gfm":"^4.0.1","shiki":"^4.3.1","mermaid":"^11.4.0"}
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
+import { StyleSheet } from "@vrooli/react-component-library/StyleSheet/1.0.0";
 import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
 
 import {
@@ -133,7 +134,7 @@ export const MarkdownRenderer = withClassName(function MarkdownRenderer({
         style={markdownTokens}
         data-rcl-markdown
       >
-        <style data-rcl-markdown-styles dangerouslySetInnerHTML={{ __html: markdownStyles }} />
+        <StyleSheet name="markdown-renderer-0-3-3" css={markdownStyles} />
         <ReactMarkdown remarkPlugins={[remarkGfm, remarkProsePaths]} components={components}>
           {content}
         </ReactMarkdown>

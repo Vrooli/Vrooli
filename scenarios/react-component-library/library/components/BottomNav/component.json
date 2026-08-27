@@ -21,6 +21,7 @@
     }
   ],
   "displayName": "Bottom Nav",
+  "kind": "shell",
   "draft": "",
   "latest": "1.3.7",
   "libraryId": "react-component-library:BottomNav",

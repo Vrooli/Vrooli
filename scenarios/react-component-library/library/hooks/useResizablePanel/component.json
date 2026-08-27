@@ -1,0 +1,21 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
+  "assetKind": "hook",
+  "catalogId": "hooks.use-resizable-panel",
+  "dependencies": [
+    { "kind": "requires", "libraryId": "react-component-library:useDrag", "version": "1.1.0" },
+    { "kind": "requires", "libraryId": "react-component-library:useElementRect", "version": "2.0.0" },
+    { "kind": "requires", "libraryId": "react-component-library:useDirection", "version": "1.0.0" }
+  ],
+  "description": "Pointer, keyboard and persistence behavior for one resizable panel on either logical axis.",
+  "designStyles": [
+    { "affinity": "native", "styleId": "vrooli-default" }
+  ],
+  "displayName": "useResizablePanel",
+  "kind": "surface",
+  "latest": "1.0.0",
+  "libraryId": "react-component-library:useResizablePanel",
+  "tags": ["runtime", "accessibility", "manipulation"],
+  "draft": "",
+  "deprecatedVersions": []
+}

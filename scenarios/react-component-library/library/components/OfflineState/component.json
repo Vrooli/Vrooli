@@ -16,6 +16,7 @@
     }
   ],
   "displayName": "OfflineState",
+  "kind": "surface",
   "latest": "1.0.5",
   "libraryId": "react-component-library:OfflineState",
   "tags": [

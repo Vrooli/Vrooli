@@ -3,7 +3,7 @@
   "assetKind": "hook",
   "catalogId": "hooks.use-drag",
   "dependencies": [],
-  "description": "Production-ready useDrag hook with SSR-safe lifecycle behavior.",
+  "description": "Pointer-capture drag controller with keyboard stepping, cancellation and stable handler identity.",
   "designStyles": [
     {
       "affinity": "native",
@@ -11,7 +11,8 @@
     }
   ],
   "displayName": "useDrag",
-  "latest": "1.0.0",
+  "kind": "surface",
+  "latest": "1.1.0",
   "libraryId": "react-component-library:useDrag",
   "tags": [
     "runtime",

@@ -52,6 +52,7 @@
     }
   ],
   "displayName": "Avatar",
+  "kind": "surface",
   "draft": "",
   "latest": "1.3.5",
   "libraryId": "react-component-library:Avatar",

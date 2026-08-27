@@ -1,5 +1,6 @@
 {
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
+  "catalogId": "react-component-library:mermaid-diagram",
   "deprecatedVersions": [
     "0.3.1"
   ],
@@ -12,6 +13,7 @@
     }
   ],
   "displayName": "Mermaid Diagram",
+  "kind": "surface",
   "draft": "",
   "entry": "MermaidDiagram.tsx",
   "latest": "0.3.2",

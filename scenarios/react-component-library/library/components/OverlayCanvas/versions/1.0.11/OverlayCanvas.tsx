@@ -79,7 +79,7 @@ export const OverlayCanvas = withClassName(function OverlayCanvas({
           type="button"
           className={`${CONTROL_VARIANTS.ghost} ${CONTROL_SIZES.md}`}
           data-bespoke="evidence disclosure remains a native action"
-          style={{ minHeight: "var(--control-height)" }}
+          style={{ minHeight: "var(--control-size-md)" }}
         >
           {strings("visualization.overlay-canvas.open-evidence", "Open evidence")}
         </button>

@@ -1,16 +1,33 @@
 /** @vrooliComponentSource data-display.data-table */
 import { useMemo, useState } from "react";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { Button } from "../../components/Button";
-import { EmptyState } from "../../components/EmptyState";
-import { Select } from "../../components/Select";
+import { Alert } from "@vrooli/react-component-library/Alert/1.0.2";
+import { type CaptureCell } from "@vrooli/react-component-library/CaptureGrid/1.0.5";
+import { BoundedMeter } from "@vrooli/react-component-library/BoundedMeter/1.0.5";
+import { BulkActionBar } from "@vrooli/react-component-library/BulkActionBar/1.0.4";
+import { DataTable, type DataTableColumn } from "@vrooli/react-component-library/DataTable/1.3.6";
+import { DiffViewer } from "@vrooli/react-component-library/DiffViewer/1.0.2";
+import { FindingList, type Finding } from "@vrooli/react-component-library/FindingList/1.0.9";
+import { Select } from "@vrooli/react-component-library/Select/1.1.1";
+import { Skeleton } from "@vrooli/react-component-library/Skeleton/1.0.4";
+import { UndoableDestructiveAction } from "@vrooli/react-component-library/UndoableDestructiveAction/1.0.4";
+import { VerdictSummary } from "@vrooli/react-component-library/VerdictSummary/1.0.5";
+import { VirtualList } from "@vrooli/react-component-library/VirtualList/1.0.4";
+import {
+  VersionRow,
+  type VersionAdopter,
+  type VersionDiffSummary,
+} from "@vrooli/react-component-library/VersionRow/1.0.0";
 import { selectors } from "../../consts/selectors";
 import { strings } from "../../consts/strings";
 import { useTranslation } from "../../i18n";
 import { versionsClient, type DiffVersionsResponse, type Version } from "../../api/versions";
+import { versionLifecycleClient } from "../../api/versionLedger";
+import type { Adoption } from "../../api/adoptions";
+import type { ComponentTestArtifact, ComponentTestReport } from "../../api/componentTests";
+import { listVersionHistory, type VersionHistoryRow } from "../../api/versionHistory";
 import { errorMessage } from "../../lib/errorMessage";
-import { VersionDiffViewer } from "./VersionDiffViewer";
 
 interface VersionsCardProps {
   componentId: string;
@@ -21,6 +38,49 @@ interface VersionsCardProps {
 }
 
 const EMPTY_VERSIONS: Version[] = [];
+
+function artifactIsImage(artifact: ComponentTestArtifact) {
+  return ["bas-screenshot", "screenshot", "bas-story-sheet"].includes(artifact.kind);
+}
+
+function captureCells(report: ComponentTestReport | undefined, version: string): CaptureCell[] {
+  return (report?.artifacts ?? [])
+    .filter(artifactIsImage)
+    .map((artifact, index) => {
+      const label = artifact.storyId || artifact.label || `capture-${index + 1}`;
+      const result = report?.results.find(
+        (candidate) => candidate.version === version && candidate.subject === label,
+      );
+      return {
+        id: `${version}-${artifact.kind}-${artifact.storyId || index}`,
+        viewport: label.replace(/[:_-]?(screenshot|story-sheet)/gi, "").trim() || "default",
+        theme: /dark/i.test(label) ? "dark" : "light",
+        status: result?.verdict === "failed" ? "stale" : "pass",
+        captureRef: artifact.reference,
+      } satisfies CaptureCell;
+    });
+}
+
+function reportFindings(report: ComponentTestReport | undefined, version: string): Finding[] {
+  return (report?.results ?? [])
+    .filter((result) => result.verdict !== "passed")
+    .map((result, index) => ({
+      id: `${version}-${result.stage}-${index}`,
+      assetId: result.subject || result.stage,
+      severity: result.verdict === "failed" ? "error" : "warning",
+      message: result.message || `${result.stage} is ${result.verdict}.`,
+      remediation: result.remediation,
+    }));
+}
+
+function adopterRows(adopters: Adoption[]): VersionAdopter[] {
+  return adopters.map((adopter) => ({
+    scenario: adopter.scenario || "unknown scenario",
+    adoptedVersion: adopter.adoptedVersion,
+    forkStatus: adopter.forkStatus || undefined,
+    statusDetail: adopter.statusDetail || undefined,
+  }));
+}
 
 /**
  * VersionsCard renders the version-history list for one component and
@@ -36,12 +96,15 @@ export function VersionsCard({
   onCompare,
 }: VersionsCardProps) {
   const { t } = useTranslation();
+  const queryClient = useQueryClient();
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
+  const [retireActionsVisible, setRetireActionsVisible] = useState(false);
+  const [expandedVersion, setExpandedVersion] = useState<string>();
 
-  const versionsQuery = useQuery({
-    queryKey: ["versions", componentId],
-    queryFn: () => versionsClient.listVersions({ componentId, limit: 0 }),
+  const historyQuery = useQuery<VersionHistoryRow[]>({
+    queryKey: ["version-history", componentId],
+    queryFn: () => listVersionHistory(componentId),
   });
 
   const diffMutation = useMutation({
@@ -49,12 +112,143 @@ export function VersionsCard({
     onSuccess: (diff) => onCompare?.(diff),
   });
 
-  const versions: Version[] = versionsQuery.data?.versions ?? EMPTY_VERSIONS;
+  const historyRows = historyQuery.data ?? [];
+  const versions: Version[] = historyRows.length
+    ? historyRows.map((row) => row.version)
+    : EMPTY_VERSIONS;
   const diff = diffMutation.data;
+  const expandedIndex = versions.findIndex((version) => version.version === expandedVersion);
+  const previousVersion = expandedIndex >= 0 ? versions[expandedIndex + 1]?.version : undefined;
+  const expandedDiffQuery = useQuery({
+    queryKey: ["version-history-diff", componentId, previousVersion, expandedVersion],
+    queryFn: () =>
+      versionsClient.diffVersions({
+        componentId,
+        from: previousVersion ?? "",
+        to: expandedVersion ?? "",
+      }),
+    enabled: Boolean(previousVersion && expandedVersion),
+  });
+  const retireCandidatesQuery = useQuery({
+    queryKey: ["retire-candidates", componentId],
+    queryFn: () => versionLifecycleClient.listRetireCandidates({ componentId }),
+    enabled: Boolean(componentId),
+  });
+  const retireMutation = useMutation({
+    mutationFn: (input: { componentId: string; version: string }) =>
+      versionLifecycleClient.retireVersion({ ...input, confirm: true }),
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["version-history", componentId] }),
+        queryClient.invalidateQueries({ queryKey: ["retire-candidates", componentId] }),
+      ]);
+    },
+  });
 
   const versionOptions = useMemo(
     () => versions.map((v) => v.version).filter((v) => v.length > 0),
     [versions],
+  );
+  const historyByVersion = useMemo(
+    () => new Map(historyRows.map((row) => [row.version.version, row] as const)),
+    [historyRows],
+  );
+  const columns = useMemo<DataTableColumn<Version>[]>(
+    () => [
+      {
+        id: "version",
+        header: "Version history",
+        accessor: (version) => {
+          const history = historyByVersion.get(version.version);
+          const ledger = history?.ledger;
+          const report = history?.testReport;
+          const diffSummary: VersionDiffSummary | undefined =
+            expandedVersion === version.version && expandedDiffQuery.data
+              ? {
+                  fromVersion: previousVersion ?? "",
+                  additions: expandedDiffQuery.data.additions,
+                  removals: expandedDiffQuery.data.removals,
+                  note: version.changelogMd || undefined,
+                }
+              : undefined;
+          const thumbnailArtifact = (report?.artifacts ?? []).find(
+            (candidate) =>
+              artifactIsImage(candidate) &&
+              /^(https?:\/\/|\/embedded\/)/.test(candidate.reference),
+          );
+          return (
+            <VersionRow
+              version={version.version}
+              sha={version.contentSha256}
+              status={version.status}
+              createdAt={version.createdAt ? new Date(Number(version.createdAt.seconds) * 1000).toISOString() : undefined}
+              releasedAt={version.releasedAt ? new Date(Number(version.releasedAt.seconds) * 1000).toISOString() : undefined}
+              sourcePath={version.sourcePath}
+              requiredTokens={version.requiredTokens}
+              lifecycleState={ledger?.lifecycleState}
+              gatePassCount={ledger?.gatePassCount}
+              gateFailCount={ledger?.gateFailCount}
+              testRuns={ledger?.testRuns}
+              testPassRate={ledger?.testPassRate}
+              fileCount={ledger?.fileCount}
+              linesOfCode={ledger?.linesOfCode}
+              dependencyCount={ledger?.dependencyCount}
+              adoptionCurrent={ledger?.adoptionCurrent}
+              adoptionPeak={ledger?.adoptionPeak}
+              trend={ledger ? [ledger.adoptionCurrent, ledger.adoptionPeak] : undefined}
+              captures={captureCells(report, version.version)}
+              thumbnail={
+                thumbnailArtifact?.reference
+                  ? {
+                      src: thumbnailArtifact.reference,
+                      alt: `${version.version} captured state`,
+                    }
+                  : undefined
+              }
+              findings={reportFindings(report, version.version)}
+              adopters={adopterRows(history?.adopters ?? [])}
+              previousVersion={previousVersion}
+              diffSummary={diffSummary}
+              selected={selectedVersion === version.version}
+              onSelect={() => onSelectVersion?.(version.version)}
+              onExpandedChange={(expanded) =>
+                setExpandedVersion(expanded ? version.version : undefined)
+              }
+            />
+          );
+        },
+        searchValue: (version) => `${version.version} ${version.status} ${version.contentSha256}`,
+      },
+    ],
+    [
+      expandedDiffQuery.data,
+      expandedVersion,
+      historyByVersion,
+      onSelectVersion,
+      previousVersion,
+      selectedVersion,
+    ],
+  );
+
+  const before = diff?.rows.map((row) => row.left?.text ?? "").join("\n") ?? "";
+  const after = diff?.rows.map((row) => row.right?.text ?? "").join("\n") ?? "";
+  const ledgerRows = historyRows.flatMap((row) => (row.ledger ? [row.ledger] : []));
+  const retireCandidates = retireCandidatesQuery.data?.candidates ?? [];
+  const gatePassCount = ledgerRows.reduce((sum, row) => sum + row.gatePassCount, 0);
+  const gateFailCount = ledgerRows.reduce((sum, row) => sum + row.gateFailCount, 0);
+  const testRuns = ledgerRows.reduce((sum, row) => sum + row.testRuns, 0);
+  const measuredTests = ledgerRows.filter((row) => row.testRuns > 0);
+  const testPassRate = measuredTests.length
+    ? measuredTests.reduce((sum, row) => sum + row.testPassRate, 0) / measuredTests.length
+    : 0;
+  const tokenFindings: Finding[] = versions.flatMap((version) =>
+    version.requiredTokens.map((token) => ({
+      id: `${version.version}-${token}`,
+      assetId: version.version,
+      severity: "warning",
+      message: `Requires shared token ${token}.`,
+      remediation: "Provide the token in the active library theme before adoption.",
+    })),
   );
 
   return (
@@ -72,87 +266,113 @@ export function VersionsCard({
         )}
       </header>
 
-      {versionsQuery.isLoading && (
-        <p data-testid={selectors.versions.loading} className="mt-space-xs text-app-foreground">
-          {t(strings.versions.loading)}
-        </p>
-      )}
-      {versionsQuery.error && (
-        <p data-testid={selectors.versions.error} className="mt-space-xs text-app-danger">
-          {errorMessage(versionsQuery.error, t)}
-        </p>
-      )}
-      {!versionsQuery.isLoading && versions.length === 0 && (
-        <div data-testid={selectors.versions.empty}>
-          <EmptyState
-            title={t(strings.versions.empty)}
-            className="mt-space-xs border-app-border bg-app-surface text-app-foreground"
-          />
+      {historyQuery.isLoading && (
+        <div data-testid={selectors.versions.loading} className="mt-space-xs">
+          <Skeleton label={t(strings.versions.loading)} style={{ minBlockSize: "6rem" }} />
+          <p className="sr-only">{t(strings.versions.loading)}</p>
         </div>
       )}
+      {historyQuery.error && (
+        <p data-testid={selectors.versions.error} className="mt-space-xs text-app-danger">
+          {errorMessage(historyQuery.error, t)}
+        </p>
+      )}
+      {!historyQuery.isLoading && versions.length === 0 && <p data-testid={selectors.versions.empty}>{t(strings.versions.empty)}</p>}
 
       {versions.length > 0 && (
         <>
-          <Button
-            type="button"
-            variant={selectedVersion ? "secondary" : "primary"}
-            className="mt-space-xs h-control-tight px-space-xs text-xs"
-            onClick={() => onSelectVersion?.(undefined)}
-          >
+          {ledgerRows.length > 0 && (
+            <div className="mt-space-sm grid gap-space-xs md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+              <VerdictSummary
+                pass={gatePassCount}
+                fail={gateFailCount}
+                unmeasured={ledgerRows.length - measuredTests.length}
+              />
+              <BoundedMeter
+                label="Test health"
+                value={testPassRate * 100}
+                max={100}
+                valueText={measuredTests.length ? `${Math.round(testPassRate * 100)}% pass` : "unknown"}
+                status={measuredTests.length ? `${testRuns} test runs` : "No test runs recorded"}
+                tone={measuredTests.length && testPassRate >= 0.9 ? "success" : "warning"}
+                testId="versions-test-health"
+              />
+            </div>
+          )}
+          {tokenFindings.length > 0 && (
+            <div className="mt-space-sm">
+              <FindingList findings={tokenFindings} />
+            </div>
+          )}
+          <button type="button" className="mt-space-xs rounded-control border border-app-border px-space-xs py-space-2xs text-xs" onClick={() => onSelectVersion?.(undefined)}>
             {t(strings.versions.currentSource)}
-          </Button>
-          <ul
-            data-testid={selectors.versions.list}
-            className="mt-space-xs space-y-space-2xs text-sm text-app-foreground"
-          >
-            {versions.map((v) => (
-              <li
-                key={v.id}
-                data-testid={selectors.versions.item}
-                className="rounded-lg border border-app-border p-space-xs"
-              >
-                <div className="flex items-baseline justify-between gap-space-xs">
-                  <span data-testid={selectors.versions.itemVersion} className="font-medium">
-                    {v.version
-                      ? t(strings.versions.versionLabel, { version: v.version })
-                      : "(no @version)"}
-                  </span>
-                  <span
-                    data-testid={selectors.versions.itemSha}
-                    className="font-mono text-xs text-app-muted-foreground"
-                  >
-                    {t(strings.versions.shaLabel, { sha: v.contentSha256.slice(0, 12) })}
-                  </span>
-                </div>
-                <div className="mt-space-3xs flex flex-wrap items-center gap-x-space-xs gap-y-space-3xs text-xs text-app-muted-foreground">
-                  <span data-testid={selectors.versions.itemRecordedAt}>
-                    {t(strings.versions.createdAt, {
-                      when: v.createdAt?.seconds
-                        ? new Date(Number(v.createdAt.seconds) * 1000).toLocaleString()
-                        : "",
-                    })}
-                  </span>
-                  {v.changelogMd && (
-                    <span data-testid={selectors.versions.itemChangelog}>{v.changelogMd}</span>
-                  )}
-                </div>
-                <span data-testid={selectors.versions.itemId} className="sr-only">
-                  {v.id}
-                </span>
-                <Button
-                  type="button"
-                  variant={selectedVersion === v.version ? "primary" : "secondary"}
-                  className="mt-space-2xs h-control-compact px-space-2xs text-xs"
-                  onClick={() => onSelectVersion?.(v.version)}
-                >
-                  {selectedVersion === v.version
-                    ? t(strings.versions.viewingVersion)
-                    : t(strings.versions.viewVersion)}
-                </Button>
-              </li>
-            ))}
-          </ul>
+          </button>
+          <div data-testid={selectors.versions.list} className="mt-space-xs">
+            {versions.length > 50 ? (
+              <VirtualList
+                items={versions}
+                getItemKey={(version) => version.id}
+                label={t(strings.versions.title)}
+                title={t(strings.versions.title)}
+                description={`${versions.length} versions`}
+                renderItem={(version) => columns[0]?.accessor(version) ?? null}
+              />
+            ) : (
+              <DataTable
+                rows={versions}
+                columns={columns}
+                getRowKey={(version) => version.id}
+                caption={t(strings.versions.title)}
+                tableTestId={selectors.versions.table}
+                hideQueryControls
+                hideDensityControl
+                emptyMessage={t(strings.versions.empty)}
+              />
+            )}
+          </div>
         </>
+      )}
+
+      {retireCandidates.length > 0 && (
+        <div className="mt-space-sm space-y-space-xs" data-testid="versions-retire-candidates">
+          <Alert
+            tone="warning"
+            title="Versions are safe to retire"
+            description={
+              <span>
+                These versions are not latest or draft and have no recorded adopters, dependency pins, or source references: {retireCandidates.map((candidate) => candidate.version).join(", ")}.
+              </span>
+            }
+            actions={
+              <button type="button" className="h-control-compact rounded-control border border-app-border px-space-xs text-xs" onClick={() => setRetireActionsVisible((visible) => !visible)}>
+                {retireActionsVisible ? "Hide retire actions" : "Review retire actions"}
+              </button>
+            }
+          />
+          <BulkActionBar
+            selectedCount={retireCandidates.length}
+            totalCount={retireCandidates.length}
+            actionLabel="Review retire actions"
+            selectionLabel={`${retireCandidates.length} safe retire candidate${retireCandidates.length === 1 ? "" : "s"}`}
+            scopeLabel="Each action keeps an undo path after the server confirms retirement."
+            onAction={() => setRetireActionsVisible(true)}
+            onClear={() => setRetireActionsVisible(false)}
+          />
+          {retireActionsVisible && retireCandidates.map((candidate) => (
+            <UndoableDestructiveAction
+              key={`${candidate.componentId}-${candidate.version}`}
+              itemLabel={`Version ${candidate.version}`}
+              description={`Retire ${candidate.version} after confirming it has no surviving references.`}
+              deleteLabel={`Retire ${candidate.version}`}
+              onDelete={async () => {
+                await retireMutation.mutateAsync({ componentId: candidate.componentId, version: candidate.version });
+              }}
+              onUndo={async () => {
+                await versionLifecycleClient.archiveVersion({ componentId: candidate.componentId, version: candidate.version, confirm: true });
+              }}
+            />
+          ))}
+        </div>
       )}
 
       <div
@@ -169,7 +389,7 @@ export function VersionsCard({
               data-testid={selectors.versions.diff.fromSelect}
               value={from}
               onChange={(e) => setFrom(e.target.value)}
-              className="min-h-control-tight w-field-short border-app-border bg-app-surface px-space-2xs py-space-3xs text-sm text-app-foreground"
+              className="w-field-short"
               options={versionOptions.map((version) => ({ value: version, label: version }))}
               placeholder="—"
             />
@@ -180,13 +400,14 @@ export function VersionsCard({
               data-testid={selectors.versions.diff.toSelect}
               value={to}
               onChange={(e) => setTo(e.target.value)}
-              className="min-h-control-tight w-field-short border-app-border bg-app-surface px-space-2xs py-space-3xs text-sm text-app-foreground"
+              className="w-field-short"
               options={versionOptions.map((version) => ({ value: version, label: version }))}
               placeholder="—"
             />
           </label>
-          <Button
+          <button
             data-testid={selectors.versions.diff.runButton}
+            type="button"
             onClick={() => diffMutation.mutate()}
             disabled={!from || !to || diffMutation.isPending}
             className="h-control-compact px-space-xs text-xs"
@@ -194,7 +415,7 @@ export function VersionsCard({
             {diffMutation.isPending
               ? t(strings.versions.diff.running)
               : t(strings.versions.diff.runAction)}
-          </Button>
+          </button>
         </div>
 
         {diffMutation.error && (
@@ -230,7 +451,7 @@ export function VersionsCard({
               })}
             </p>
             <div data-testid={selectors.versions.diff.table}>
-              <VersionDiffViewer rows={diff.rows} />
+              <DiffViewer before={before} after={after} />
             </div>
           </>
         )}

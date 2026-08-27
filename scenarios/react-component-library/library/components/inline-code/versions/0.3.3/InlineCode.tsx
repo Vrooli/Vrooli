@@ -7,6 +7,7 @@
  * @deps {"react":"^18"}
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
+import { StyleSheet } from "@vrooli/react-component-library/StyleSheet/1.0.0";
 import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
 
 import type { MouseEvent, ReactNode } from "react";
@@ -68,7 +69,7 @@ export const InlineCode = withClassName(function InlineCode({
     );
   return (
     <span className="rcl-inline" data-rcl-inline>
-      <style data-rcl-inline-styles dangerouslySetInnerHTML={{ __html: inlineCodeStyles }} />
+      <StyleSheet name="inline-code-0-3-3" css={inlineCodeStyles} />
       <code className={tokenClass}>{text}</code>
       <button
         data-testid="primitives.code"

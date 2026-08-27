@@ -27,6 +27,7 @@
     }
   ],
   "displayName": "Heading",
+  "kind": "surface",
   "draft": "",
   "latest": "1.1.1",
   "libraryId": "react-component-library:Heading",

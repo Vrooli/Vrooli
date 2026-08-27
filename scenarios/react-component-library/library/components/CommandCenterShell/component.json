@@ -1,5 +1,6 @@
 {
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
+  "catalogId": "react-component-library:CommandCenterShell",
   "category": "layout",
   "dependencies": [
     {
@@ -22,6 +23,7 @@
     }
   ],
   "displayName": "Command Center Shell",
+  "kind": "shell",
   "draft": "",
   "latest": "1.0.1",
   "libraryId": "react-component-library:CommandCenterShell",

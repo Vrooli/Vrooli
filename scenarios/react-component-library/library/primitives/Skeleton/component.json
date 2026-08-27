@@ -19,6 +19,7 @@
     }
   ],
   "displayName": "Skeleton",
+  "kind": "surface",
   "latest": "1.0.4",
   "libraryId": "react-component-library:Skeleton",
   "tags": [

@@ -6,6 +6,7 @@
  * @tags ["feedback","status","recovery","accessibility","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
+import { StyleSheet } from "@vrooli/react-component-library/StyleSheet/1.0.0";
 import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
 
 /** @vrooliComponentSource react-component-library:Alert */
@@ -51,10 +52,9 @@ const styles = `
 [data-rcl-alert-actions] > * { min-block-size: var(--tap-target-min, 44px); }
 [data-rcl-alert-close] { display: grid; place-items: center; inline-size: var(--tap-target-min, 44px); block-size: var(--tap-target-min, 44px); margin: calc(var(--space-2xs, 8px) * -1) calc(var(--space-2xs, 8px) * -1) 0 0; border: 0; border-radius: var(--radius-control, 8px); background: transparent; color: var(--color-muted-foreground, #64748b); cursor: pointer; }
 [data-rcl-alert-close]:hover { background: color-mix(in srgb, currentColor 10%, transparent); color: var(--color-foreground, #0f172a); }
-[data-rcl-alert-close]:focus-visible { outline: 3px solid var(--color-focus-ring, #2563eb); outline-offset: 2px; }
 [data-rcl-alert-close] svg { inline-size: var(--icon-size-sm, 16px); block-size: var(--icon-size-sm, 16px); }
 @media (max-width: 30rem) { [data-rcl-alert] { grid-template-columns: auto minmax(0, 1fr); padding: var(--space-sm, 12px); } [data-rcl-alert-close] { grid-column: 2; grid-row: 1; justify-self: end; } [data-rcl-alert-content] { padding-inline-end: var(--space-2xs, 8px); } [data-rcl-alert-actions] { grid-column: 2; } }
-@media (forced-colors: active) { [data-rcl-alert] { border-color: CanvasText; border-inline-start-color: Highlight; background: Canvas; } [data-rcl-alert-icon] { border: 1px solid CanvasText; background: Canvas; color: Highlight; } [data-rcl-alert-close] { color: CanvasText; } }
+
 `;
 
 export const Alert = withClassName(function Alert({
@@ -83,7 +83,7 @@ export const Alert = withClassName(function Alert({
       className={className}
       style={style}
     >
-      <style data-rcl-alert-styles>{styles}</style>
+      <StyleSheet name="alert-1-0-2-1" css={styles} />
       <div data-rcl-alert-icon aria-label={copy.label} role="img">
         <Icon name={copy.icon} />
       </div>

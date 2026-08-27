@@ -10,8 +10,5 @@ export const dialogStyles = `
 [data-rcl-dialog] button:hover { background: var(--color-surface-muted); color: var(--color-foreground); }
 [data-rcl-dialog] .rcl-dialog__body { min-block-size: 0; flex: 1; overflow: auto; padding: var(--space-md); }
 [data-rcl-dialog] .rcl-dialog__footer { border-block-start: var(--border-hairline) solid var(--color-border); padding: var(--space-sm) var(--space-md); }
-[data-rcl-dialog] :focus-visible { outline: 3px solid color-mix(in srgb, var(--color-focus) 38%, transparent); outline-offset: 2px; }
 @media (min-width: 768px) { [data-rcl-dialog] { align-items: center; padding: var(--space-md); } }
-@media (prefers-reduced-motion: reduce) { [data-rcl-dialog] *, [data-rcl-dialog] *::before, [data-rcl-dialog] *::after { transition-duration: .01ms; } }
-@media (forced-colors: active) { [data-rcl-dialog] .rcl-dialog__surface { border-color: CanvasText; background: Canvas; color: CanvasText; } [data-rcl-dialog] .rcl-dialog__backdrop { background: Canvas; opacity: .8; } }
 `;

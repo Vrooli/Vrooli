@@ -6,6 +6,7 @@
  * @tags ["form","object","nested","validation","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
+import { StyleSheet } from "@vrooli/react-component-library/StyleSheet/1.0.0";
 import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
 
 /** @vrooliComponentSource forms.object-field */
@@ -98,7 +99,7 @@ export const ObjectField = withClassName(function ObjectField<
       data-rcl-object-field
       data-field={String(field)}
     >
-      <style data-rcl-object-field-styles dangerouslySetInnerHTML={{ __html: styles }} />
+      <StyleSheet name="object-field-1-0-4" css={styles} />
       <FormSection
         title={title}
         description={description}

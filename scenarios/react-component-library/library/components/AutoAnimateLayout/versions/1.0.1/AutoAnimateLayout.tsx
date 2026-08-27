@@ -7,6 +7,7 @@
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
 /** @vrooliComponentSource motion.auto-animate-layout */
+import { StyleSheet } from "@vrooli/react-component-library/StyleSheet/1.0.0";
 import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
 
 import { useLayoutEffect, useRef, type CSSProperties, type ReactNode } from "react";
@@ -25,7 +26,7 @@ export interface AutoAnimateLayoutProps {
 const styles = `
 [data-rcl-auto-animate-layout] { min-inline-size: 0; }
 [data-rcl-auto-animate-layout] [data-layout-key] { will-change: transform; }
-@media (prefers-reduced-motion: reduce) { [data-rcl-auto-animate-layout] [data-layout-key] { will-change: auto; } }
+
 `;
 
 type RectSnapshot = {
@@ -108,7 +109,7 @@ export const AutoAnimateLayout = withClassName(function AutoAnimateLayout({
       className={className}
       style={style}
     >
-      <style data-rcl-auto-animate-layout-styles dangerouslySetInnerHTML={{ __html: styles }} />
+      <StyleSheet name="autoanimatelayout-1-0-1-1" css={styles} />
       <LayoutGroup>{children}</LayoutGroup>
     </div>
   );

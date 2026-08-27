@@ -1,4 +1,5 @@
 /** @vrooliComponentSource forms.validation-summary */
+import { StyleSheet } from "@vrooli/react-component-library/StyleSheet/1.0.0";
 import {
   useEffect,
   useId,
@@ -26,7 +27,6 @@ const styles = `
   [data-rcl-validation-summary-mark] { display: inline-grid; place-items: center; flex: 0 0 auto; inline-size: 1.25rem; block-size: 1.25rem; border: 1px solid currentColor; border-radius: 50%; font: 700 .75rem/1 system-ui, sans-serif; }
   [data-rcl-validation-summary-list] { display: grid; gap: var(--space-3xs, .25rem); margin: 0; padding-inline-start: calc(1.25rem + var(--space-xs, .625rem)); font: var(--text-body, 400 .875rem/1.375rem system-ui, sans-serif); }
   [data-rcl-validation-summary-list] a { color: var(--color-danger, #dc2626); text-decoration-thickness: .1em; text-underline-offset: .15em; }
-  [data-rcl-validation-summary-list] a:focus-visible { outline: 2px solid var(--color-focus, #2563eb); outline-offset: 3px; border-radius: .125rem; }
 `;
 
 function useFormSnapshot<TValues extends Record<string, unknown>>(
@@ -71,10 +71,7 @@ export function ValidationSummary<
   if (entries.length === 0) return null;
   return (
     <>
-      <style
-        data-rcl-validation-summary-styles
-        dangerouslySetInnerHTML={{ __html: styles }}
-      />
+      <StyleSheet name="validationsummary-1-0-0-1" css={styles} />
       <section
         className={className}
         style={style}

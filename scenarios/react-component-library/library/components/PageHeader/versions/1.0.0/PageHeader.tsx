@@ -1,4 +1,5 @@
 /** @vrooliComponentSource react-component-library:PageHeader */
+import { StyleSheet } from "@vrooli/react-component-library/StyleSheet/1.0.0";
 import type { ReactNode } from "react";
 
 const pageHeaderStyles = `
@@ -21,10 +22,7 @@ export function PageHeader({
 }) {
   return (
     <>
-      <style
-        data-rcl-page-header-styles=""
-        dangerouslySetInnerHTML={{ __html: pageHeaderStyles }}
-      />
+      <StyleSheet name="pageheader-1-0-0-1" css={pageHeaderStyles} />
       <header data-rcl-page-header="">
         <div data-rcl-page-header-copy="">
           <h1>{title}</h1>

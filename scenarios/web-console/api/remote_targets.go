@@ -13,11 +13,10 @@ import (
 	"strings"
 	"time"
 
-	"connectrpc.com/connect"
 	sharedsession "github.com/vrooli/api-core/operatorsession"
+	"github.com/vrooli/nodeclient"
 
 	registryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/registry"
-	registryconnect "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/registry/registry_v1connect"
 	"web-console/internal/capabilities"
 )
 
@@ -184,19 +183,19 @@ func configuredRemoteTargets() []remoteTerminalTarget {
 	client := &http.Client{Timeout: 3 * time.Second, Transport: bridgeOwnerTransport{
 		base: http.DefaultTransport, owner: base.OwnerToken, reauth: base.ReauthToken,
 	}}
-	registryClient := registryconnect.NewNodeRegistryServiceClient(client, base.BaseURL)
+	nodeClient := nodeclient.New(nodeclient.Config{HTTPClient: client, BridgeURL: base.BaseURL})
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
-	response, err := registryClient.ListNodes(ctx, connect.NewRequest(&registryv1.ListNodesRequest{}))
-	if err != nil || response == nil || response.Msg == nil {
+	nodes, err := nodeClient.List(ctx, 3*time.Second)
+	if err != nil {
 		base.Available = false
 		base.DispatchReason = "Bridge registry unavailable"
 		base.OperatorAction = "Check Bridge health and refresh the catalog"
 		base.Availability = "unavailable"
 		return []remoteTerminalTarget{base}
 	}
-	targets := make([]remoteTerminalTarget, 0, len(response.Msg.GetNodes()))
-	for _, node := range response.Msg.GetNodes() {
+	targets := make([]remoteTerminalTarget, 0, len(nodes))
+	for _, node := range nodes {
 		if node != nil {
 			targets = append(targets, targetFromRegistryNode(base, node))
 		}

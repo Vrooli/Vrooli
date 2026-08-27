@@ -1,4 +1,5 @@
 /** @vrooliComponentSource navigation.tabs */
+import { StyleSheet } from "@vrooli/react-component-library/StyleSheet/1.0.0";
 import {
   useLayoutEffect,
   useRef,
@@ -34,11 +35,10 @@ const styleSheet = `
 [data-rcl-tablist] { position: relative; display: flex; flex-wrap: wrap; min-width: 100%; gap: var(--space-3xs); border-bottom: var(--border-hairline) solid var(--color-border); }
 [data-rcl-tab] { position: relative; min-height: var(--tap-target-min); padding-inline: var(--space-sm); border: 0; border-radius: var(--radius-control) var(--radius-control) 0 0; background: transparent; color: var(--color-muted-foreground); cursor: pointer; font: inherit; font-weight: 650; white-space: nowrap; transition: ${motionTransition(["color", "background-color"], "interaction")}; }
 [data-rcl-tab]:hover { background: var(--color-surface-muted); color: var(--color-foreground); }
-[data-rcl-tab]:focus-visible { outline: var(--border-strong) solid var(--color-focus); outline-offset: calc(var(--space-3xs) * -1); }
 [data-rcl-tab][aria-selected="true"] { color: var(--color-primary); }
 [data-rcl-tab-badge] { display: inline-flex; min-inline-size: 1rem; align-items: center; justify-content: center; border-radius: var(--radius-pill); padding-inline: var(--space-3xs); padding-block: var(--space-3xs); background: color-mix(in srgb, var(--color-primary) 12%, transparent); color: var(--color-primary); font-size: 0.6875rem; line-height: 1; }
 [data-rcl-tab-indicator] { position: absolute; inset-block-end: 0; inline-size: 1px; block-size: var(--border-strong); border-radius: var(--radius-pill); background: var(--color-primary); pointer-events: none; transform-origin: left center; transition: ${motionTransition(["transform", "opacity"], "spring")}; will-change: transform, opacity; }
-@media (prefers-reduced-motion: reduce) { [data-rcl-tab], [data-rcl-tab-indicator] { transition: none; } }
+
 @media (max-width: 480px) { [data-rcl-tab] { padding-inline: var(--space-xs); } }
 `;
 
@@ -120,10 +120,7 @@ export function Tabs({
 
   return (
     <>
-      <style
-        data-rcl-tabs-styles
-        dangerouslySetInnerHTML={{ __html: styleSheet }}
-      />
+      <StyleSheet name="tabs-1-0-0-1" css={styleSheet} />
       <div data-rcl-tabs role="tablist" aria-label={ariaLabel}>
         <div ref={tablistRef} data-rcl-tab-list data-rcl-tablist>
           {normalizedItems.map((item, index) => {

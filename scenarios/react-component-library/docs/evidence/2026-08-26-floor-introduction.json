@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "measuredAt": "2026-08-26",
+  "baseline": {
+    "source": "coverage/baseline/experience-findings.json",
+    "floorFindingObjects": 2,
+    "mode": "historical report-only evidence"
+  },
+  "implementation": {
+    "claims": ["floor-control-geometry", "floor-component-tap-target-size", "floor-content-not-clipped"],
+    "sizeSource": "data-control-size maps xs/sm/md/lg/xl/icon to 32/36/40/44/48/40 CSS pixels",
+    "unknownPolicy": "unmeasured floors remain explicit claim-unproven findings; they are not silently treated as passes",
+    "blocking": true
+  },
+  "validation": {
+    "unitSuite": "go test ./internal/reconcile/... -count=1 passed",
+    "regressions": ["size parity uses data-control-size", "content-not-clipped compares client and scroll geometry", "intentional floor waiver messages are filtered only in legacy fixture assertions"],
+    "status": "green at unit-test level; full scenario result recorded by Test Genie"
+  }
+}

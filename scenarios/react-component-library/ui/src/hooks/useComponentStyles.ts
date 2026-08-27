@@ -47,11 +47,10 @@ function acquire(id: string, css: string): void {
   // no injection surface. This is the safe replacement for the per-instance
   // `<style dangerouslySetInnerHTML>` blocks these components used to render.
   element.textContent = css;
-  // Appended to the END of `document.head`, which is where the app's own
-  // stylesheets already live. Component sheets therefore stay after app CSS in
-  // document order and keep winning specificity ties exactly as they did when
-  // they rendered inline in the body.
-  document.head.appendChild(element);
+  // Put library rules before the app's own head stylesheets. Consumer classes
+  // can therefore win an equal-specificity cascade tie without depending on
+  // which component instance rendered first.
+  document.head.insertBefore(element, document.head.firstChild);
   registry.set(id, { element, refCount: 1 });
 }
 

@@ -11,6 +11,7 @@
     }
   ],
   "displayName": "CollectionPage",
+  "kind": "surface",
   "latest": "1.0.4",
   "libraryId": "react-component-library:CollectionPage",
   "tags": [

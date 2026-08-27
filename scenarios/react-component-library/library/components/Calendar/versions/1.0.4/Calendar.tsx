@@ -6,6 +6,7 @@
  * @tags ["forms","calendar","date","accessibility","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
+import { StyleSheet } from "@vrooli/react-component-library/StyleSheet/1.0.0";
 import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
 
 /** @vrooliComponentSource forms.calendar */
@@ -44,7 +45,6 @@ const styles = `
 [data-rcl-calendar-nav] { display: flex; gap: var(--space-2xs, .5rem); }
 [data-rcl-calendar-nav] button { display: grid; place-items: center; inline-size: var(--tap-target-min, 44px); block-size: var(--tap-target-min, 44px); border: var(--border-hairline, 1px) solid var(--color-border-strong, #94a3b8); border-radius: var(--radius-control, .625rem); background: var(--color-surface, #fff); color: var(--color-foreground, #0f172a); font: var(--text-title, 700 1rem/1 system-ui, sans-serif); cursor: pointer; }
 [data-rcl-calendar-nav] button:hover { border-color: var(--color-primary, #2563eb); color: var(--color-primary, #2563eb); }
-[data-rcl-calendar-nav] button:focus-visible, [data-rcl-calendar-day]:focus-visible { outline: 3px solid color-mix(in srgb, var(--color-focus, #2563eb) 34%, transparent); outline-offset: 2px; }
 [data-rcl-calendar-weekdays], [data-rcl-calendar-grid] { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: var(--space-3xs, .25rem); }
 [data-rcl-calendar-weekday] { padding-block: var(--space-2xs, .5rem); color: var(--color-muted-foreground, #64748b); text-align: center; font: var(--text-overline, 700 .6875rem/1rem system-ui, sans-serif); letter-spacing: .06em; text-transform: uppercase; }
 [data-rcl-calendar-day] { position: relative; display: grid; place-items: center; min-inline-size: 0; min-block-size: var(--tap-target-min, 44px); border: var(--border-hairline, 1px) solid transparent; border-radius: var(--radius-control, .625rem); background: transparent; color: var(--color-foreground, #0f172a); font: var(--text-label, 650 .8125rem/1.25rem system-ui, sans-serif); cursor: pointer; }
@@ -57,7 +57,7 @@ const styles = `
 [data-rcl-calendar-footer] { display: flex; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; gap: var(--space-xs, .625rem); color: var(--color-muted-foreground, #64748b); font: var(--text-caption, 600 .75rem/1rem system-ui, sans-serif); }
 [data-rcl-calendar-help] { max-inline-size: 38ch; }
 @media (max-width: 34rem) { [data-rcl-calendar] { padding: var(--space-sm, .75rem); } [data-rcl-calendar-weekdays], [data-rcl-calendar-grid] { gap: var(--space-3xs, .2rem); } [data-rcl-calendar-day] { min-block-size: 40px; } }
-@media (forced-colors: active) { [data-rcl-calendar], [data-rcl-calendar-nav] button, [data-rcl-calendar-day] { border-color: CanvasText; background: Canvas; color: CanvasText; box-shadow: none; } [data-rcl-calendar-day][data-selected="true"], [data-rcl-calendar-day][data-range-edge="true"] { background: Highlight; color: HighlightText; } }
+
 `;
 
 function startOfDay(date: Date) {
@@ -197,7 +197,7 @@ export const Calendar = withClassName(function Calendar({
       aria-label={label}
       dir={direction}
     >
-      <style data-rcl-calendar-styles dangerouslySetInnerHTML={{ __html: styles }} />
+      <StyleSheet name="calendar-1-0-4-1" css={styles} />
       <header data-rcl-calendar-header>
         <div data-rcl-calendar-heading>
           <span data-rcl-calendar-month>{formatter.format(currentMonth)}</span>

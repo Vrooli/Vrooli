@@ -1,4 +1,4 @@
-/** @vrooliComponentSource primitives.selection-control */
+/** @vrooliComponentSource react-component-library:SelectionControl */
 import {
   useEffect,
   useId,

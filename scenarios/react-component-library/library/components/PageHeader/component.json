@@ -11,6 +11,7 @@
     }
   ],
   "displayName": "PageHeader",
+  "kind": "shell",
   "latest": "1.0.7",
   "libraryId": "react-component-library:PageHeader",
   "tags": [

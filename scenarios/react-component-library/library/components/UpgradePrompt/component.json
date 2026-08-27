@@ -14,6 +14,7 @@
     }
   ],
   "displayName": "UpgradePrompt",
+  "kind": "surface",
   "latest": "1.0.3",
   "libraryId": "react-component-library:UpgradePrompt",
   "tags": [

@@ -11,6 +11,7 @@
     }
   ],
   "displayName": "ScrollRestoration",
+  "kind": "shell",
   "latest": "1.0.0",
   "libraryId": "react-component-library:ScrollRestoration",
   "tags": [

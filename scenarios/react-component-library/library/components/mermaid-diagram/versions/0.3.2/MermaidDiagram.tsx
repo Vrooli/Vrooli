@@ -7,6 +7,7 @@
  * @deps {"react":"^18","mermaid":"^11.4.0"}
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
+import { StyleSheet } from "@vrooli/react-component-library/StyleSheet/1.0.0";
 import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
 
 import { useState } from "react";
@@ -36,7 +37,7 @@ export const MermaidDiagram = withClassName(function MermaidDiagram({
   const { copied, copy } = useCodeCopy();
   return (
     <section className="rcl-mermaid" data-rcl-mermaid>
-      <style data-rcl-mermaid-styles dangerouslySetInnerHTML={{ __html: mermaidStyles }} />
+      <StyleSheet name="mermaid-diagram-0-3-2" css={mermaidStyles} />
       <header className="rcl-mermaid__header">
         <div className="rcl-mermaid__tabs">
           <button type="button" aria-pressed={!showSource} onClick={() => setShowSource(false)}>

@@ -7,6 +7,7 @@
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
 /** @vrooliComponentSource react-component-library:NavLink */
+import { StyleSheet } from "@vrooli/react-component-library/StyleSheet/1.0.0";
 import { useStrings } from "@vrooli/react-component-library/useLocale/1.0.1";
 import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
 
@@ -20,9 +21,8 @@ const navLinkStyles = `
 [data-rcl-nav-link] [data-rcl-nav-link-icon] { display: grid; flex: 0 0 auto; place-items: center; color: var(--color-muted-foreground); }
 [data-rcl-nav-link][aria-current="page"] [data-rcl-nav-link-icon] { color: var(--color-primary); }
 [data-rcl-nav-link] [data-rcl-nav-link-label] { min-inline-size: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-[data-rcl-nav-link]:focus-visible { outline: var(--border-focus) solid var(--color-focus); outline-offset: var(--space-4xs); }
-@media (prefers-reduced-motion: reduce) { [data-rcl-nav-link] { transition: none; } }
-@media (forced-colors: active) { [data-rcl-nav-link][aria-current="page"] { border-color: Highlight; background: Highlight; color: HighlightText; } [data-rcl-nav-link][aria-current="page"] [data-rcl-nav-link-icon] { color: HighlightText; } }
+
+
 `;
 
 export interface NavLinkProps {
@@ -44,7 +44,7 @@ export const NavLink = withClassName(function NavLink({
   label = label ?? libraryStrings("navigation.nav-link.home", "Home");
   return (
     <>
-      <style data-rcl-nav-link-styles dangerouslySetInnerHTML={{ __html: navLinkStyles }} />
+      <StyleSheet name="navlink-1-0-7-1" css={navLinkStyles} />
       <a
         data-testid="navigation.nav-link"
         href={href}

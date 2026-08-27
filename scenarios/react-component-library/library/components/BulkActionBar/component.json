@@ -28,6 +28,7 @@
     }
   ],
   "displayName": "BulkActionBar",
+  "kind": "control",
   "latest": "1.0.4",
   "libraryId": "react-component-library:BulkActionBar",
   "tags": [

@@ -6,6 +6,7 @@
  * @tags ["data-display","accessibility","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
+import { StyleSheet } from "@vrooli/react-component-library/StyleSheet/1.0.0";
 import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
 
 /**
@@ -59,7 +60,6 @@ const treeStyles = `
 [data-rcl-tree] { min-inline-size: 0; color: var(--color-foreground); }
 [data-rcl-tree] .rcl-tree-item { display: flex; min-block-size: var(--tap-target-min); min-inline-size: 0; align-items: center; gap: var(--space-2xs); border: var(--border-hairline) solid transparent; border-radius: var(--radius-control); color: var(--color-foreground); padding: var(--space-3xs) var(--space-xs); cursor: pointer; outline: none; transition: background-color var(--dur-quick) var(--ease-standard), border-color var(--dur-quick) var(--ease-standard), color var(--dur-quick) var(--ease-standard); }
 [data-rcl-tree] .rcl-tree-item:hover:not([aria-disabled="true"]) { background: var(--color-surface-muted); }
-[data-rcl-tree] .rcl-tree-item:focus-visible { border-color: var(--color-focus); outline: var(--border-strong) solid color-mix(in srgb, var(--color-focus) 30%, transparent); outline-offset: 1px; }
 [data-rcl-tree] .rcl-tree-item[aria-selected="true"] { border-color: color-mix(in srgb, var(--color-primary) 42%, var(--color-border)); background: color-mix(in srgb, var(--color-primary) 10%, var(--color-surface)); color: var(--color-foreground); }
 [data-rcl-tree] .rcl-tree-item[aria-disabled="true"] { cursor: not-allowed; opacity: var(--opacity-disabled); }
 [data-rcl-tree] .rcl-tree-children { margin-inline-start: var(--space-sm); border-inline-start: var(--border-hairline) solid var(--color-border-subtle); padding-inline-start: var(--space-2xs); }
@@ -70,8 +70,8 @@ const treeStyles = `
 [data-rcl-tree] .rcl-tree-label-main { min-inline-size: 0; overflow: hidden; flex: 1; text-overflow: ellipsis; white-space: nowrap; }
 [data-rcl-tree] .rcl-tree-label-meta { color: var(--color-muted-foreground); font: var(--text-caption); white-space: nowrap; }
 [data-rcl-tree] .rcl-tree-empty { border: var(--border-hairline) dashed var(--color-border); border-radius: var(--radius-control); color: var(--color-muted-foreground); padding: var(--space-sm); font: var(--text-body-sm); }
-@media (prefers-reduced-motion: reduce) { [data-rcl-tree] *, [data-rcl-tree] *::before, [data-rcl-tree] *::after { transition: none !important; } }
-@media (forced-colors: active) { [data-rcl-tree] .rcl-tree-item[aria-selected="true"] { border-color: Highlight; background: Highlight; color: HighlightText; } [data-rcl-tree] .rcl-tree-item { border-color: CanvasText; } }
+
+
 `;
 
 function defaultId(label: string, index: number) {
@@ -296,7 +296,7 @@ export const TreeView = withClassName(function TreeView({
 
   return (
     <div data-rcl-tree role="tree" aria-label={label}>
-      <style data-rcl-tree-styles dangerouslySetInnerHTML={{ __html: treeStyles }} />
+      <StyleSheet name="treeview-1-0-6-1" css={treeStyles} />
       {resolvedNodes.length ? (
         resolvedNodes.map((node) => renderNode({ node, level: 1 }))
       ) : (

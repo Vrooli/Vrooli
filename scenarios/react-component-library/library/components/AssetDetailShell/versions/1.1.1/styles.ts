@@ -11,8 +11,6 @@ export const assetDetailShellStyles = `
 [data-rcl-asset-detail-preview] > * { max-inline-size: 100%; }
 [data-rcl-asset-detail-metadata] { padding: var(--space-md); }
 [data-rcl-asset-detail-activity], .rcl-asset-detail-activity { padding: var(--space-md); }
-[data-rcl-asset-detail] :focus-visible { outline: var(--border-strong) solid var(--color-focus); outline-offset: var(--space-3xs); }
 @media (min-width: 60rem) { [data-rcl-asset-detail] { grid-template-columns: minmax(0, 1fr) minmax(0, min(var(--sidebar-width), 36%)); } }
 @media (max-width: 36rem) { [data-rcl-asset-detail] { padding: var(--space-sm); } [data-rcl-asset-detail-header] { align-items: flex-start; } [data-rcl-asset-detail-actions] { inline-size: 100%; } [data-rcl-asset-detail-actions] > button:not([data-rcl-control]), [data-rcl-asset-detail-actions] > a:not([data-rcl-control]) { flex: 1 1 auto; } }
-@media (forced-colors: active) { [data-rcl-asset-detail-preview], [data-rcl-asset-detail-metadata], [data-rcl-asset-detail-activity] { border-color: CanvasText; background: Canvas; box-shadow: none; } }
 `;

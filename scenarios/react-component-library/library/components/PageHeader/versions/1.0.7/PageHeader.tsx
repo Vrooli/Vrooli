@@ -7,6 +7,7 @@
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
 /** @vrooliComponentSource react-component-library:PageHeader */
+import { StyleSheet } from "@vrooli/react-component-library/StyleSheet/1.0.0";
 import { useStrings } from "@vrooli/react-component-library/useLocale/1.0.1";
 import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
 
@@ -34,10 +35,7 @@ export const PageHeader = withClassName(function PageHeader({
   title = title ?? libraryStrings("navigation.page-header.page", "Page");
   return (
     <>
-      <style
-        data-rcl-page-header-styles=""
-        dangerouslySetInnerHTML={{ __html: pageHeaderStyles }}
-      />
+      <StyleSheet name="pageheader-1-0-7-1" css={pageHeaderStyles} />
       <header data-testid="navigation.page-header" data-rcl-page-header="">
         <div data-rcl-page-header-copy="">
           <h1>{title}</h1>

@@ -11,6 +11,7 @@
     }
   ],
   "displayName": "DiffViewer",
+  "kind": "surface",
   "latest": "1.0.2",
   "libraryId": "react-component-library:DiffViewer",
   "tags": [

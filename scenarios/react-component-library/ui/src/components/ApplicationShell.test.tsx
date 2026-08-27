@@ -43,7 +43,7 @@ describe("AppShell", () => {
       { routerEntries: ["/"] },
     );
     expect(screen.getByTestId("app-shell")).toBeInTheDocument();
-    expect(screen.getByTestId("sidebar-shell")).toBeInTheDocument();
+    expect(screen.getByTestId("navigation.sidebar")).toBeInTheDocument();
     expect(screen.getByTestId("app-sidebar-content")).toBeInTheDocument();
     expect(screen.getByTestId("workspace-header")).toBeInTheDocument();
     expect(screen.queryByTestId("mobile-nav")).not.toBeInTheDocument();
@@ -98,7 +98,7 @@ describe("AppShell", () => {
     );
     await user.click(screen.getByTestId("sidebar-collapse"));
     expect(screen.getByTestId("workspace-header-open-sidebar")).toBeInTheDocument();
-    expect(screen.getByTestId("sidebar-shell")).toHaveAttribute("data-mode", "overlay");
+    expect(screen.getByTestId("navigation.sidebar")).toHaveAttribute("data-mode", "overlay");
     await user.click(screen.getByTestId("workspace-header-open-sidebar"));
     expect(screen.queryByTestId("workspace-header-open-sidebar")).not.toBeInTheDocument();
   });
@@ -153,7 +153,7 @@ describe("AppShell", () => {
       { routerEntries: ["/"] },
     );
 
-    expect(screen.getByTestId("sidebar-shell")).toBeInTheDocument();
+    expect(screen.getByTestId("navigation.sidebar")).toBeInTheDocument();
   });
 
   it("opens a full-width safe-area sidebar shell from the workspace header", async () => {
@@ -169,11 +169,11 @@ describe("AppShell", () => {
 
     await user.click(screen.getByTestId("workspace-header-open-sidebar"));
 
-    const shell = screen.getByTestId("sidebar-shell");
+    const shell = screen.getByTestId("navigation.sidebar");
     expect(shell).toHaveAttribute("role", "dialog");
     expect(shell).toHaveAttribute("data-mode", "responsive");
     expect(shell).toHaveAttribute("data-open", "true");
-    expect(screen.getByTestId("sidebar-shell-backdrop")).toBeInTheDocument();
+    expect(screen.getByTestId("navigation.sidebar-backdrop")).toBeInTheDocument();
   });
 
   it("opens the shared main-actions menu and exposes all three guided actions", async () => {

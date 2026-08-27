@@ -1,4 +1,5 @@
 /** @vrooliComponentSource react-component-library:Chart */
+import { StyleSheet } from "@vrooli/react-component-library/StyleSheet/1.0.0";
 import {
   useId,
   useMemo,
@@ -60,14 +61,13 @@ const styles = `
 [data-rcl-chart-legend] { display: flex; flex-wrap: wrap; gap: var(--space-2xs, 8px); padding: var(--space-sm, 12px) var(--space-lg, 24px) var(--space-lg, 24px); border-block-start: 1px solid var(--color-border, #cbd5e1); }
 [data-rcl-chart-legend] button { min-block-size: 2.75rem; display: inline-flex; align-items: center; gap: 8px; border: 1px solid var(--color-border, #cbd5e1); border-radius: var(--radius-control, 8px); padding: 0 10px; background: transparent; color: inherit; font: inherit; font-size: .8125rem; cursor: pointer; }
 [data-rcl-chart-legend] button:hover { background: var(--color-surface-muted, #f1f5f9); }
-[data-rcl-chart-legend] button:focus-visible { outline: 3px solid var(--color-focus-ring, #2563eb); outline-offset: 2px; }
 [data-rcl-chart-legend-mark] { inline-size: 9px; block-size: 9px; border-radius: 50%; background: var(--color-primary, #2563eb); }
 [data-rcl-chart-legend-value] { color: var(--color-muted-foreground, #64748b); }
-[data-rcl-chart-table] { position: absolute; inline-size: 1px; block-size: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+
 [data-rcl-chart-annotation] { margin: 0 var(--space-lg, 24px) var(--space-lg, 24px); padding: var(--space-xs, 12px); border-inline-start: 3px solid var(--color-primary, #2563eb); background: var(--color-surface-muted, #f1f5f9); color: var(--color-muted-foreground, #64748b); font: var(--text-caption, 600 .75rem/1.35 system-ui, sans-serif); }
 @media (max-width: 30rem) { [data-rcl-chart-header] { display: grid; align-items: start; padding: var(--space-md, 16px) var(--space-md, 16px) var(--space-sm, 12px); } [data-rcl-chart-title] { overflow-wrap: anywhere; } [data-rcl-chart-tooltip] { position: static; max-inline-size: none; margin-block-start: var(--space-sm, 12px); } [data-rcl-chart-plot] { min-block-size: 13rem; padding-inline: var(--space-sm, 12px); } [data-rcl-chart-plot] svg { block-size: 13rem; } [data-rcl-chart-legend] { padding-inline: var(--space-md, 16px); } [data-rcl-chart-legend] button { flex: 1 1 8rem; justify-content: center; } [data-rcl-chart-annotation] { margin-inline: var(--space-md, 16px); } }
-@media (forced-colors: active) { [data-rcl-chart-grid] { stroke: CanvasText; stroke-opacity: .45; } [data-rcl-chart-line], [data-rcl-chart-point] { stroke: Highlight; } [data-rcl-chart-area] { fill: Canvas; } [data-rcl-chart-legend-mark] { background: Highlight; } }
-@media (prefers-reduced-motion: reduce) { [data-rcl-chart-point] { transition: none; } }
+
+
 `;
 
 const defaultFormatter = (value: number, locale: string) =>
@@ -122,7 +122,7 @@ export function Chart({
 
   return (
     <div data-rcl-chart className={className} style={style}>
-      <style data-rcl-chart-styles>{styles}</style>
+      <StyleSheet name="chart-1-0-0-1" css={styles} />
       <AsyncBoundary
         status={boundaryStatus}
         retry={onRetry}

@@ -6,6 +6,7 @@
  * @tags ["pattern","data-source","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
+import { StyleSheet } from "@vrooli/react-component-library/StyleSheet/1.0.0";
 import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
 
 /** @vrooliComponentSource patterns.resource-detail */
@@ -74,7 +75,7 @@ const styles = `
 [data-rcl-resource-detail-partial] { padding: var(--space-xs, .625rem) var(--space-sm, .75rem); border-inline-start: 3px solid var(--color-warning, #d97706); border-radius: var(--radius-control, .625rem); background: color-mix(in srgb, var(--color-warning, #d97706) 8%, var(--color-surface-raised, #fff)); color: var(--color-foreground, #0f172a); font: var(--text-caption, 600 .75rem/1.35 system-ui, sans-serif); }
 @media (max-width: 52rem) { [data-rcl-resource-detail-grid] { grid-template-columns: 1fr; } }
 @media (max-width: 34rem) { [data-rcl-resource-detail] { gap: var(--space-md, 1rem); } [data-rcl-resource-detail-section] { padding: var(--space-sm, .75rem); } }
-@media (forced-colors: active) { [data-rcl-resource-detail-section], [data-rcl-resource-detail-message], [data-rcl-resource-detail-freshness] { border-color: CanvasText; background: Canvas; color: CanvasText; box-shadow: none; } }
+
 `;
 
 const boundaryStatus = (status: ResourceDetailStatus): AsyncBoundaryStatus => {
@@ -164,7 +165,7 @@ export const ResourceDetail = withClassName(function ResourceDetail({
   );
   return (
     <article data-rcl-resource-detail className={className} style={style}>
-      <style data-rcl-resource-detail-styles dangerouslySetInnerHTML={{ __html: styles }} />
+      <StyleSheet name="resourcedetail-1-0-4-1" css={styles} />
       <div data-rcl-resource-detail-header>
         <PageHeader title={title} description={description} actions={actions} />
         {freshness ? <span data-rcl-resource-detail-freshness>{freshness}</span> : null}

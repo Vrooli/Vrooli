@@ -1,4 +1,5 @@
 /** @vrooliComponentSource forms.object-field */
+import { StyleSheet } from "@vrooli/react-component-library/StyleSheet/1.0.0";
 import { useEffect, useState, type CSSProperties, type ReactNode } from "react";
 import { FormSection } from "../../../../components/FormSection/versions/1.0.0/FormSection";
 import type { FormStore } from "../../../../services/FormStore/versions/1.0.0/FormStore";
@@ -99,10 +100,7 @@ export function ObjectField<
       data-rcl-object-field
       data-field={String(field)}
     >
-      <style
-        data-rcl-object-field-styles
-        dangerouslySetInnerHTML={{ __html: styles }}
-      />
+      <StyleSheet name="objectfield-1-0-0-1" css={styles} />
       <FormSection
         title={title}
         description={description}

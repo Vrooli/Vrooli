@@ -11,6 +11,7 @@
     }
   ],
   "displayName": "useAbortableTask",
+  "kind": "control",
   "latest": "1.0.0",
   "libraryId": "react-component-library:useAbortableTask",
   "tags": [

@@ -1,4 +1,5 @@
 /** @vrooliComponentSource feedback.status-indicator */
+import { StyleSheet } from "@vrooli/react-component-library/StyleSheet/1.0.0";
 import type { CSSProperties } from "react";
 export type StatusCertainty =
   | "scheduled"
@@ -11,6 +12,13 @@ export type StatusUrgency =
   | "informational"
   | "actionable"
   | "critical";
+const statusIndicatorStyles = `
+[data-rcl-status-indicator] { display: inline-flex; align-items: center; gap: var(--space-2xs); border: var(--border-hairline) solid var(--rcl-status-tone); border-radius: var(--radius-pill); color: var(--rcl-status-tone); padding: var(--space-3xs) var(--space-xs); font-size: var(--text-body-sm-size); line-height: var(--text-body-sm-line); font-weight: 650; }
+[data-rcl-status-dot] { width: var(--space-2xs); height: var(--space-2xs); flex: 0 0 auto; border-radius: 50%; background: var(--rcl-status-tone); }
+[data-rcl-status-indicator][data-status="pending"] [data-rcl-status-dot] { animation: rcl-status-pulse var(--dur-deliberate) var(--ease-standard) infinite; }
+@keyframes rcl-status-pulse { 0%, 100% { opacity: .55; transform: scale(.84); } 50% { opacity: 1; transform: scale(1); } }
+
+`;
 export function StatusIndicator({
   status = "idle",
   label,
@@ -32,18 +40,7 @@ export function StatusIndicator({
           : "var(--color-muted-foreground)";
   return (
     <>
-      <style
-        data-rcl-status-indicator-styles
-        dangerouslySetInnerHTML={{
-          __html: `
-        [data-rcl-status-indicator] { display: inline-flex; align-items: center; gap: var(--space-2xs); border: var(--border-hairline) solid var(--rcl-status-tone); border-radius: var(--radius-pill); color: var(--rcl-status-tone); padding: var(--space-3xs) var(--space-xs); font-size: var(--text-body-sm-size); line-height: var(--text-body-sm-line); font-weight: 650; }
-        [data-rcl-status-dot] { width: var(--space-2xs); height: var(--space-2xs); flex: 0 0 auto; border-radius: 50%; background: var(--rcl-status-tone); }
-        [data-rcl-status-indicator][data-status="pending"] [data-rcl-status-dot] { animation: rcl-status-pulse var(--dur-deliberate) var(--ease-standard) infinite; }
-        @keyframes rcl-status-pulse { 0%, 100% { opacity: .55; transform: scale(.84); } 50% { opacity: 1; transform: scale(1); } }
-        @media (prefers-reduced-motion: reduce) { [data-rcl-status-indicator] [data-rcl-status-dot] { animation: none; } }
-      `,
-        }}
-      />
+      <StyleSheet name="status-indicator-1-0-0" css={statusIndicatorStyles} />
       <span
         role="status"
         data-rcl-status-indicator="true"

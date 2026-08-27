@@ -11,6 +11,7 @@
     }
   ],
   "displayName": "OverlayCanvas",
+  "kind": "overlay",
   "latest": "1.0.11",
   "libraryId": "react-component-library:OverlayCanvas",
   "tags": [

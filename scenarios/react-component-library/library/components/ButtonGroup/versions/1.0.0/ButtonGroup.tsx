@@ -1,4 +1,5 @@
 /** @vrooliComponentSource react-component-library:ButtonGroup */
+import { StyleSheet } from "@vrooli/react-component-library/StyleSheet/1.0.0";
 import type { ReactNode } from "react";
 import type { HTMLAttributes } from "react";
 
@@ -14,10 +15,7 @@ export function ButtonGroup({
 }: HTMLAttributes<HTMLDivElement> & { label?: string; children?: ReactNode }) {
   return (
     <>
-      <style
-        data-rcl-button-group-styles
-        dangerouslySetInnerHTML={{ __html: styles }}
-      />
+      <StyleSheet name="buttongroup-1-0-0-1" css={styles} />
       <div role="group" aria-label={label} data-rcl-button-group {...props}>
         {children}
       </div>

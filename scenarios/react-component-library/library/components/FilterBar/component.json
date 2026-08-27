@@ -27,6 +27,7 @@
     }
   ],
   "displayName": "FilterBar",
+  "kind": "surface",
   "draft": "",
   "latest": "1.1.4",
   "libraryId": "react-component-library:FilterBar",

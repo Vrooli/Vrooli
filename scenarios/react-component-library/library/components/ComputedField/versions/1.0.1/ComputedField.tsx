@@ -7,6 +7,7 @@
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
 /** @vrooliComponentSource forms.computed-field */
+import { StyleSheet } from "@vrooli/react-component-library/StyleSheet/1.0.0";
 import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
 
 import { useEffect, useState, type CSSProperties, type ReactNode } from "react";
@@ -66,7 +67,7 @@ export const ComputedField = withClassName(function ComputedField<
       style={style}
       data-rcl-computed-field
     >
-      <style data-rcl-computed-field-styles dangerouslySetInnerHTML={{ __html: styles }} />
+      <StyleSheet name="computed-field-1-0-1" css={styles} />
       <span data-rcl-computed-label>{label}</span>
       <output
         data-rcl-computed-output

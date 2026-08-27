@@ -1,0 +1,9 @@
+{
+  "schemaVersion": 1,
+  "measuredAt": "2026-08-26",
+  "contractFiles": 298,
+  "allowlistEntries": 229,
+  "allowlistPolicy": "Existing vacuous contracts may remain only with a reason; new or changed assets cannot be added to the allowlist.",
+  "changedAssetsWithoutAllowlist": ["components/ControlBase/versions/1.1.0", "components/VoiceInputButton/versions/4.3.0", "components/StatusBadge/versions/1.2.1", "components/DataTable/versions/1.3.6", "components/VersionRow/versions/1.0.0", "primitives/TrendSpark/versions/1.0.0"],
+  "validation": "catalogvalidate unit tests passed; scaffold contracts and vacuous allowlist ratchet are enforced"
+}

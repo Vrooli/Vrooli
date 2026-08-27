@@ -11,6 +11,7 @@
     }
   ],
   "displayName": "FindingList",
+  "kind": "surface",
   "latest": "1.0.9",
   "libraryId": "react-component-library:FindingList",
   "tags": [

@@ -1,4 +1,5 @@
 import { LibraryStringsProvider } from "@vrooli/react-component-library/useLocale/1.0.1";
+import { BaseStyles } from "@vrooli/react-component-library/BaseStyles/1.0.0";
 import { i18n } from "./i18n";
 import React from "react";
 import ReactDOM from "react-dom/client";
@@ -72,6 +73,7 @@ async function bootstrap() {
       <QueryClientProvider client={queryClient}>
         <ThemeProvider>
           <ErrorBoundary>
+            <BaseStyles />
             <BrowserRouter basename={normalizeRouterBasename(import.meta.env.BASE_URL)}>
               <React.Profiler id="App" onRender={onProfilerRender}>
                 <App />

@@ -6,6 +6,7 @@
  * @tags ["overlay","command","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
+import { StyleSheet } from "@vrooli/react-component-library/StyleSheet/1.0.0";
 import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
 
 /** @vrooliComponentSource overlays.command-palette */
@@ -54,7 +55,7 @@ const styles = `
 [data-rcl-command-palette-description] { margin: 0; color: var(--color-muted-foreground, #64748b); font: var(--text-body, 400 .875rem/1.4 system-ui, sans-serif); }
 [data-rcl-command-palette-search] { display: grid; grid-template-columns: minmax(0, 1fr); padding: var(--space-sm, .75rem) var(--space-lg, 1.5rem); border-block-end: var(--border-hairline, 1px) solid var(--color-border, #cbd5e1); }
 [data-rcl-command-palette-search] label { inline-size: 100%; }
-[data-rcl-command-palette-search] label > span { position: absolute; inline-size: 1px; block-size: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+
 [data-rcl-command-palette-search] input { min-block-size: var(--tap-target-min, 44px); border-color: var(--color-border-strong, #94a3b8); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-primary, #2563eb) 8%, transparent); }
 [data-rcl-command-palette-list] { display: grid; align-content: start; gap: var(--space-2xs, .35rem); min-block-size: 0; overflow: auto; padding: var(--space-sm, .75rem); overscroll-behavior: contain; }
 [data-rcl-command-palette-group] { display: grid; gap: var(--space-3xs, .2rem); }
@@ -62,7 +63,6 @@ const styles = `
 [data-rcl-command-palette-option] { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: var(--space-sm, .75rem); min-block-size: var(--tap-target-min, 44px); padding: var(--space-xs, .625rem) var(--space-sm, .75rem); border: var(--border-hairline, 1px) solid transparent; border-radius: var(--radius-control, .625rem); background: transparent; color: inherit; text-align: start; cursor: pointer; font: inherit; transition: background var(--dur-quick, 140ms) var(--ease-standard, ease), border-color var(--dur-quick, 140ms) var(--ease-standard, ease), transform var(--dur-quick, 140ms) var(--ease-standard, ease); }
 [data-rcl-command-palette-option]:hover, [data-rcl-command-palette-option][aria-selected="true"] { border-color: color-mix(in srgb, var(--color-primary, #2563eb) 36%, var(--color-border, #cbd5e1)); background: color-mix(in srgb, var(--color-primary, #2563eb) 9%, var(--color-surface-raised, #fff)); }
 [data-rcl-command-palette-option][aria-selected="true"] { transform: translateX(var(--space-3xs, .25rem)); }
-[data-rcl-command-palette-option]:focus-visible, [data-rcl-command-palette-close]:focus-visible, [data-rcl-command-palette-retry]:focus-visible { outline: 3px solid color-mix(in srgb, var(--color-focus, #2563eb) 38%, transparent); outline-offset: 2px; }
 [data-rcl-command-palette-option-copy] { display: grid; gap: var(--space-3xs, .25rem); min-inline-size: 0; }
 [data-rcl-command-palette-option-label] { overflow-wrap: anywhere; font: var(--text-label, 650 .875rem/1.3 system-ui, sans-serif); }
 [data-rcl-command-palette-option-description] { overflow-wrap: anywhere; color: var(--color-muted-foreground, #64748b); font: var(--text-caption, 400 .75rem/1.3 system-ui, sans-serif); }
@@ -78,8 +78,8 @@ const styles = `
 [data-rcl-command-palette-close] { min-block-size: var(--tap-target-min, 44px); padding-inline: var(--space-sm, .75rem); border: var(--border-hairline, 1px) solid var(--color-border, #cbd5e1); border-radius: var(--radius-control, .625rem); background: transparent; color: inherit; font: var(--text-label, 650 .8125rem/1.2 system-ui, sans-serif); cursor: pointer; }
 @keyframes rcl-command-palette-enter { from { opacity: 0; transform: translateY(calc(var(--space-sm, .75rem) * -1)) scale(.985); } to { opacity: 1; transform: translateY(0) scale(1); } }
 @media (max-width: 34rem) { [data-rcl-command-palette] { align-items: end; padding: 0; } [data-rcl-command-palette-panel] { inline-size: 100%; max-block-size: min(calc(100dvh - var(--space-sm, .75rem)), 48rem); border-block-end: 0; border-radius: var(--radius-panel, 1rem) var(--radius-panel, 1rem) 0 0; } [data-rcl-command-palette-header], [data-rcl-command-palette-search] { padding-inline: var(--space-md, 1rem); } [data-rcl-command-palette-footer] { padding-inline: var(--space-md, 1rem); } }
-@media (prefers-reduced-motion: reduce) { [data-rcl-command-palette-panel], [data-rcl-command-palette-option] { animation: none; transition: none; } [data-rcl-command-palette-option][aria-selected="true"] { transform: none; } }
-@media (forced-colors: active) { [data-rcl-command-palette-panel], [data-rcl-command-palette-option], [data-rcl-command-palette-key], [data-rcl-command-palette-option-shortcut] { border-color: CanvasText; background: Canvas; color: CanvasText; box-shadow: none; } [data-rcl-command-palette-backdrop] { background: CanvasText; opacity: .5; } }
+
+
 `;
 
 export const CommandPalette = withClassName(function CommandPalette({
@@ -190,7 +190,7 @@ export const CommandPalette = withClassName(function CommandPalette({
 
   return (
     <div data-rcl-command-palette className={className} style={style} data-status={state}>
-      <style data-rcl-command-palette-styles dangerouslySetInnerHTML={{ __html: styles }} />
+      <StyleSheet name="commandpalette-1-0-6-1" css={styles} />
       <button
         data-testid="overlays.command-palette"
         type="button"

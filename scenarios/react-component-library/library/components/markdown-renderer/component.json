@@ -1,5 +1,6 @@
 {
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
+  "catalogId": "react-component-library:markdown-renderer",
   "deprecatedVersions": [
     "0.3.2"
   ],
@@ -12,6 +13,7 @@
     }
   ],
   "displayName": "Markdown Renderer",
+  "kind": "surface",
   "draft": "",
   "entry": "MarkdownRenderer.tsx",
   "latest": "0.3.3",

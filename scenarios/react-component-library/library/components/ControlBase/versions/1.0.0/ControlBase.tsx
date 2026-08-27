@@ -1,4 +1,4 @@
-/** @vrooliComponentSource controls.control-base */
+/** @vrooliComponentSource react-component-library:ControlBase */
 import {
   forwardRef,
   type ButtonHTMLAttributes,

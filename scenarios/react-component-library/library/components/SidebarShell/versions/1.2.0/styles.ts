@@ -11,10 +11,7 @@ export const sidebarShellStyles = `
 [data-rcl-sidebar-shell] .rcl-sidebar-shell__icon { inline-size: var(--space-sm); block-size: var(--space-sm); }
 [data-rcl-sidebar-shell] .rcl-sidebar-shell__content { min-block-size: 0; min-inline-size: 0; flex: 1; overflow: auto; }
 [data-rcl-sidebar-shell] .rcl-sidebar-shell__resize { position: absolute; inset-block: 0; inset-inline-end: calc(var(--space-3xs) * -1); z-index: var(--layer-sticky); inline-size: var(--space-xs); border: 0; background: transparent; cursor: col-resize; }
-[data-rcl-sidebar-shell] .rcl-sidebar-shell__resize:hover, [data-rcl-sidebar-shell] .rcl-sidebar-shell__resize:focus-visible { background: color-mix(in srgb, var(--color-primary) 25%, transparent); }
+[data-rcl-sidebar-shell] .rcl-sidebar-shell__resize:hover { background: color-mix(in srgb, var(--color-primary) 25%, transparent); }
 [data-rcl-sidebar-backdrop] { position: fixed; inset: 0; z-index: calc(var(--layer-modal) - 1); border: 0; background: color-mix(in srgb, var(--color-shell) 60%, transparent); cursor: default; }
-[data-rcl-sidebar-shell] :focus-visible, [data-rcl-sidebar-backdrop]:focus-visible { outline: 3px solid color-mix(in srgb, var(--color-focus) 38%, transparent); outline-offset: 2px; }
 @media (min-width: 768px) { [data-rcl-sidebar-shell][data-mode="responsive"] { position: relative; inset: auto; z-index: auto; block-size: 100%; inline-size: auto; padding-block: 0; box-shadow: var(--elev-flat); transform: none; visibility: visible; } [data-rcl-sidebar-shell][data-mode="responsive"][data-open="false"] { transform: none; visibility: visible; } [data-rcl-sidebar-shell][data-mode="responsive"] .rcl-sidebar-shell__header { display: none; } [data-rcl-sidebar-shell][data-mode="overlay"] { inline-size: min(22rem, 100vw); max-inline-size: 22rem; } [data-rcl-sidebar-backdrop][data-mode="responsive"] { display: none; } }
-@media (prefers-reduced-motion: reduce) { [data-rcl-sidebar-shell] *, [data-rcl-sidebar-shell] *::before, [data-rcl-sidebar-shell] *::after, [data-rcl-sidebar-backdrop] { transition-duration: .01ms; } }
-@media (forced-colors: active) { [data-rcl-sidebar-shell] { border-color: CanvasText; background: Canvas; color: CanvasText; } [data-rcl-sidebar-backdrop] { background: Canvas; opacity: .8; } }
 `;

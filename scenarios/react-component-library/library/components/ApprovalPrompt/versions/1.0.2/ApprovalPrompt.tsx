@@ -6,6 +6,7 @@
  * @tags ["ai","approval","permission","accessibility","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
+import { StyleSheet } from "@vrooli/react-component-library/StyleSheet/1.0.0";
 import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
 
 /** @vrooliComponentSource ai.approval-prompt */
@@ -79,8 +80,8 @@ const styles = `
 [data-rcl-approval-actions] [data-control-slot="label"] { overflow: visible; text-overflow: clip; white-space: nowrap; }
 [data-rcl-approval-prompt][data-status="submitting"] [data-rcl-approval-consent], [data-rcl-approval-prompt][data-status="success"] [data-rcl-approval-consent] { border-color: var(--color-border); }
 @media (max-width: 42rem) { [data-rcl-approval-prompt] { padding: var(--space-md); } [data-rcl-approval-facts] { grid-template-columns: 1fr; } [data-rcl-approval-actions] { justify-content: stretch; } [data-rcl-approval-actions] > * { flex: 1 1 100%; } }
-@media (prefers-reduced-motion: reduce) { [data-rcl-approval-prompt] *, [data-rcl-approval-prompt] *::before, [data-rcl-approval-prompt] *::after { scroll-behavior: auto; transition-duration: 0.01ms; animation-duration: 0.01ms; } }
-@media (forced-colors: active) { [data-rcl-approval-prompt] { border-color: CanvasText; background: Canvas; color: CanvasText; } [data-rcl-approval-fact], [data-rcl-approval-consent] { border-color: CanvasText; background: Canvas; } [data-rcl-approval-consent-line] strong { color: Highlight; } [data-rcl-approval-expiry][data-expired="true"] { color: Mark; } }
+
+
 `;
 
 function expiryTimestamp(value: Date | number | string) {
@@ -229,7 +230,7 @@ export const ApprovalPrompt = withClassName(function ApprovalPrompt({
       className={className}
       style={style}
     >
-      <style data-rcl-approval-prompt-styles dangerouslySetInnerHTML={{ __html: styles }} />
+      <StyleSheet name="approvalprompt-1-0-2-1" css={styles} />
       <header data-rcl-approval-header>
         <div
           style={{

@@ -1,0 +1,8 @@
+{
+  "contract": { "kind": "rcl-component-experience-contract", "schema": "scenario-experience-spec/v1", "provenance": "react-component-library/StyleSheet@1.0.0" },
+  "component": { "id": "foundations.style-sheet", "title": "Style Sheet", "purpose": "Mounts one stable library stylesheet per document." },
+  "states": [{ "id": "mounted", "example": "mounted", "description": "A shared sheet is available to the document." }],
+  "elements": [{ "id": "sheet", "role": "generic", "description": "The document head stylesheet." }],
+  "claims": [{ "id": "idempotent", "type": "state-distinct", "statement": "The injector does not create duplicate sheets for repeated instances.", "tier": "manual", "elements": ["sheet"] }],
+  "bindings": { "elements": { "sheet": { "testid": "style-sheet" } } }
+}

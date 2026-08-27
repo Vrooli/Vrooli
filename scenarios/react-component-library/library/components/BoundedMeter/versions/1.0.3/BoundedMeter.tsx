@@ -6,6 +6,7 @@
  * @tags ["primitive","token-bound","status","accessibility"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
+import { StyleSheet } from "@vrooli/react-component-library/StyleSheet/1.0.0";
 import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
 
 /** @vrooliComponentSource react-component-library:BoundedMeter */
@@ -107,7 +108,7 @@ export const BoundedMeter = withClassName(function BoundedMeter({
 
   return (
     <>
-      <style data-rcl-bounded-meter-styles dangerouslySetInnerHTML={{ __html: styles }} />
+      <StyleSheet name="boundedmeter-1-0-3-1" css={styles} />
       <section
         {...sectionProps}
         className={`${SURFACE_ELEVATIONS.raised}${className ? ` ${className}` : ""}`}

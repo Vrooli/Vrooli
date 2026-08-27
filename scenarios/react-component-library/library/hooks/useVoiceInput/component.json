@@ -11,8 +11,10 @@
     }
   ],
   "displayName": "useVoiceInput",
+  "kind": "input",
   "latest": "3.0.0",
   "libraryId": "react-component-library:useVoiceInput",
+  "catalogId": "react-component-library:useVoiceInput",
   "tags": [
     "voice",
     "microphone",

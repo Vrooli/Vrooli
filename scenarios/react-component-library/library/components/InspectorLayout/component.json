@@ -1,5 +1,6 @@
 {
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
+  "catalogId": "react-component-library:InspectorLayout",
   "category": "layout",
   "dependencies": [
     {
@@ -22,6 +23,7 @@
     }
   ],
   "displayName": "Inspector Layout",
+  "kind": "shell",
   "draft": "",
   "latest": "1.1.1",
   "libraryId": "react-component-library:InspectorLayout",

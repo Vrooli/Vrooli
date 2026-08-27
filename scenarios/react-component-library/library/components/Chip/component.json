@@ -11,6 +11,7 @@
     }
   ],
   "displayName": "Chip",
+  "kind": "control",
   "latest": "1.0.3",
   "libraryId": "react-component-library:Chip",
   "tags": [

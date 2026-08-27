@@ -6,6 +6,7 @@
  * @tags ["data-display","selection","async","recovery","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
+import { StyleSheet } from "@vrooli/react-component-library/StyleSheet/1.0.0";
 import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
 
 /** @vrooliComponentSource data-display.bulk-action-bar */
@@ -72,8 +73,8 @@ const styles = `
 [data-rcl-bulk-action-bar-actions] { justify-content: end; }
 [data-rcl-bulk-action-bar-actions] [data-control-slot="label"] { overflow: visible; text-overflow: clip; white-space: nowrap; }
 @media (max-width: 38rem) { [data-rcl-bulk-action-bar] { padding: var(--space-sm); } [data-rcl-bulk-action-bar-header] { display: grid; } [data-rcl-bulk-action-bar-actions] { justify-content: stretch; } [data-rcl-bulk-action-bar-actions] > * { flex: 1 1 100%; } }
-@media (prefers-reduced-motion: reduce) { [data-rcl-bulk-action-bar] *, [data-rcl-bulk-action-bar] *::before, [data-rcl-bulk-action-bar] *::after { animation-duration: 0.01ms; transition-duration: 0.01ms; } }
-@media (forced-colors: active) { [data-rcl-bulk-action-bar] { border-color: CanvasText; border-inline-start-color: Highlight; background: Canvas; color: CanvasText; box-shadow: none; } [data-rcl-bulk-action-bar-status] { border: var(--border-hairline) solid CanvasText; background: Canvas; color: CanvasText; } }
+
+
 `;
 
 function statusCopy(status: BulkActionBarStatus) {
@@ -155,7 +156,7 @@ export const BulkActionBar = withClassName(function BulkActionBar({
       className={className}
       style={style}
     >
-      <style data-rcl-bulk-action-bar-styles dangerouslySetInnerHTML={{ __html: styles }} />
+      <StyleSheet name="bulkactionbar-1-0-4-1" css={styles} />
       <header data-rcl-bulk-action-bar-header>
         <div data-rcl-bulk-action-bar-title>
           <strong id={titleId}>

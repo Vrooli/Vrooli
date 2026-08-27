@@ -6,6 +6,7 @@
  * @tags ["patterns","recovery","destructive","undo","accessibility","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
+import { StyleSheet } from "@vrooli/react-component-library/StyleSheet/1.0.0";
 import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
 
 /** @vrooliComponentSource react-component-library:UndoableDestructiveAction */
@@ -43,14 +44,13 @@ const styles = `
   [data-rcl-undoable-action-controls] { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-xs); }
   [data-rcl-undoable-action-button], [data-rcl-undoable-action-retry] { min-block-size: var(--tap-target-min); box-sizing: border-box; border: var(--border-hairline) solid var(--color-danger); border-radius: var(--radius-control); background: var(--color-danger); color: var(--color-danger-foreground-inverse, #fff); padding-inline: var(--space-md); font: var(--text-label); cursor: pointer; transition: background-color var(--dur-quick) var(--ease-standard), border-color var(--dur-quick) var(--ease-standard), transform var(--dur-quick) var(--ease-standard); }
   [data-rcl-undoable-action-button]:hover, [data-rcl-undoable-action-retry]:hover { border-color: var(--color-danger-foreground); background: var(--color-danger-foreground); transform: translateY(-1px); }
-  [data-rcl-undoable-action-button]:focus-visible, [data-rcl-undoable-action-retry]:focus-visible { outline: var(--border-strong) solid var(--color-focus-ring); outline-offset: var(--space-3xs); }
   [data-rcl-undoable-action-button]:disabled, [data-rcl-undoable-action-retry]:disabled { cursor: wait; opacity: var(--opacity-disabled); }
   [data-rcl-undoable-action-status] { display: grid; gap: var(--space-3xs); min-inline-size: 0; padding: var(--space-sm); border-inline-start: var(--border-strong) solid var(--color-success); border-radius: var(--radius-control); background: color-mix(in srgb, var(--color-success) 10%, var(--color-surface)); color: var(--color-foreground); font: var(--text-body-sm); }
   [data-rcl-undoable-action][data-state="error"] [data-rcl-undoable-action-status] { border-inline-start-color: var(--color-danger); background: color-mix(in srgb, var(--color-danger) 9%, var(--color-surface)); }
   [data-rcl-undoable-action-status] strong { font: var(--text-label); }
   @media (max-width: 38rem) { [data-rcl-undoable-action] { padding: var(--space-sm); } [data-rcl-undoable-action-controls] > button { inline-size: 100%; } }
-  @media (prefers-reduced-motion: reduce) { [data-rcl-undoable-action-button]:hover, [data-rcl-undoable-action-retry]:hover { transform: none; } }
-  @media (forced-colors: active) { [data-rcl-undoable-action] { border: 2px solid CanvasText; } [data-rcl-undoable-action-button], [data-rcl-undoable-action-retry] { border: 2px solid ButtonText; background: ButtonFace; color: ButtonText; } [data-rcl-undoable-action-status] { border: 2px solid CanvasText; } }
+
+
 `;
 
 function ActionContent({
@@ -104,7 +104,7 @@ function ActionContent({
 
   return (
     <>
-      <style data-rcl-undoable-action-styles dangerouslySetInnerHTML={{ __html: styles }} />
+      <StyleSheet name="undoabledestructiveaction-1-0-4-1" css={styles} />
       <section
         data-rcl-undoable-action
         data-state={state}

@@ -1,5 +1,6 @@
 {
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
+  "catalogId": "react-component-library:FocusTrapPanel",
   "category": "overlays",
   "dependencies": [
     {
@@ -20,6 +21,7 @@
   ],
   "entry": "FocusTrapPanel.tsx",
   "displayName": "FocusTrapPanel",
+  "kind": "overlay",
   "latest": "1.0.1",
   "libraryId": "react-component-library:FocusTrapPanel",
   "slot": "ui-pattern",

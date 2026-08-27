@@ -7,6 +7,7 @@
  * @deps {"react":"^18","lucide-react":"^0.424.0","react-component-library:useEscapeKey":"^1.0.0"}
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
+import { StyleSheet } from "@vrooli/react-component-library/StyleSheet/1.0.0";
 import { type CSSProperties, type HTMLAttributes, type ReactNode, forwardRef } from "react";
 import { X } from "lucide-react";
 import { useEscapeKey } from "@vrooli/react-component-library/useEscapeKey/1.0.0";
@@ -58,10 +59,7 @@ export const SidebarShell = forwardRef<HTMLDivElement, SidebarShellProps>(functi
   const style: CSSProperties = width ? { width } : {};
   return (
     <>
-      <style
-        data-rcl-sidebar-shell-styles=""
-        dangerouslySetInnerHTML={{ __html: sidebarShellStyles }}
-      />
+      <StyleSheet name="sidebar-shell-1-3-2" css={sidebarShellStyles} />
       {isDialogOpen ? (
         <button
           type="button"

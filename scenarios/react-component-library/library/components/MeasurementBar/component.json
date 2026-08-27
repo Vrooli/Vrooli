@@ -15,6 +15,7 @@
     }
   ],
   "displayName": "MeasurementBar",
+  "kind": "surface",
   "draft": "",
   "latest": "1.0.13",
   "libraryId": "react-component-library:MeasurementBar",

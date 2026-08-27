@@ -22,6 +22,7 @@
     }
   ],
   "displayName": "Container",
+  "kind": "surface",
   "draft": "",
   "latest": "1.1.3",
   "libraryId": "react-component-library:Container",

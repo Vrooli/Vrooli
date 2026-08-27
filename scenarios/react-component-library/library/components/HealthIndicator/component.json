@@ -11,6 +11,7 @@
     }
   ],
   "displayName": "HealthIndicator",
+  "kind": "surface",
   "latest": "1.0.3",
   "libraryId": "react-component-library:HealthIndicator",
   "tags": [

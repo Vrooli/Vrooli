@@ -7,6 +7,7 @@
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
 /** @vrooliComponentSource react-component-library:DirtyStateGuard */
+import { StyleSheet } from "@vrooli/react-component-library/StyleSheet/1.0.0";
 import { useStrings } from "@vrooli/react-component-library/useLocale/1.0.1";
 import {
   forwardRef,
@@ -99,7 +100,6 @@ const styles = `
 [data-rcl-dirty-guard-note] { margin: 0; padding: var(--space-sm, 12px); border-radius: var(--radius-control, .5rem); background: var(--color-surface-muted, #f5f7fb); color: var(--color-muted-foreground, #64748b); font-size: 13px; line-height: 1.45; }
 [data-rcl-dirty-guard-actions] { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: var(--space-2xs, 8px); padding: var(--space-sm, 12px) var(--space-lg, 24px) var(--space-lg, 24px); }
 [data-rcl-dirty-guard-actions] button { min-block-size: 2.75rem; border-radius: var(--radius-control, .5rem); padding: 0 var(--space-sm, 12px); font: inherit; font-size: var(--font-size-sm, 14px); font-weight: 700; cursor: pointer; }
-[data-rcl-dirty-guard-actions] button:focus-visible { outline: 3px solid var(--color-focus-ring, #2563eb); outline-offset: 2px; }
 [data-rcl-dirty-guard-continue] { border: 1px solid var(--color-border, #cbd5e1); background: transparent; color: var(--color-foreground, #0f172a); }
 [data-rcl-dirty-guard-discard] { border: 1px solid var(--color-danger-border, #e7a8a8); background: transparent; color: var(--color-danger-foreground, #b42318); }
 [data-rcl-dirty-guard-save] { border: 0; background: var(--color-primary, #2563eb); color: var(--color-primary-foreground, #fff); }
@@ -111,7 +111,7 @@ const styles = `
   [data-rcl-dirty-guard-actions] { display: grid; grid-template-columns: 1fr; }
   [data-rcl-dirty-guard-actions] button { inline-size: 100%; }
 }
-@media (prefers-reduced-motion: reduce) { [data-rcl-dirty-guard-overlay] { animation: none; } }
+
 `;
 
 const buttonBase: CSSProperties = { minWidth: 96 };
@@ -255,7 +255,7 @@ export const DirtyStateGuard = forwardRef<DirtyStateGuardHandle, DirtyStateGuard
         style={style}
         data-dirty={isDirty ? "true" : "false"}
       >
-        <style data-rcl-dirty-guard-styles>{styles}</style>
+        <StyleSheet name="dirtystateguard-1-0-6-1" css={styles} />
         {children}
         {isOpen &&
           (renderPrompt ? (

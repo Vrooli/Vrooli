@@ -7,6 +7,7 @@
  * @deps {"react":"^18","shiki":"^4.3.1"}
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
+import { StyleSheet } from "@vrooli/react-component-library/StyleSheet/1.0.0";
 import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
 
 import { useEffect, useState } from "react";
@@ -96,7 +97,7 @@ export const CodeBlock = withClassName(function CodeBlock({
   const { copied, copy } = useCodeCopy();
   return (
     <section className={`rcl-code-block ${className ?? ""}`} data-rcl-code-block>
-      <style data-rcl-code-block-styles dangerouslySetInnerHTML={{ __html: codeBlockStyles }} />
+      <StyleSheet name="code-block-0-3-3" css={codeBlockStyles} />
       <header className="rcl-code-block__header">
         <span>{languageLabel(language)}</span>
         <button

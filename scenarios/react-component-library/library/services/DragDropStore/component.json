@@ -16,6 +16,7 @@
     }
   ],
   "displayName": "Drag Drop Store",
+  "kind": "surface",
   "latest": "1.0.0",
   "libraryId": "react-component-library:DragDropStore",
   "tags": [

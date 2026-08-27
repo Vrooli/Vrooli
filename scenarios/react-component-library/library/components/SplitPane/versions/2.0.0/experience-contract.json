@@ -1,0 +1,60 @@
+{
+  "contract": {
+    "kind": "rcl-component-experience-contract",
+    "schema": "scenario-experience-spec/v1",
+    "provenance": "react-component-library:SplitPane@2.0.0"
+  },
+  "component": {
+    "id": "manipulation.split-pane",
+    "title": "SplitPane",
+    "purpose": "Two panes and one splitter, in either orientation, composed from the shared resize primitive."
+  },
+  "states": [
+    {
+      "id": "default",
+      "example": "default",
+      "description": "Side-by-side panes with a vertical splitter."
+    },
+    {
+      "id": "vertical",
+      "example": "vertical",
+      "description": "Stacked panes with a horizontal splitter."
+    },
+    {
+      "id": "keyboard",
+      "example": "keyboard",
+      "description": "The splitter operated from the keyboard."
+    }
+  ],
+  "claims": [
+    {
+      "id": "keyboard-operable",
+      "type": "keyboard-operable",
+      "tier": "machine",
+      "states": [
+        "keyboard"
+      ],
+      "statement": "The splitter is focusable and fully operable by key."
+    },
+    {
+      "id": "composed-not-duplicated",
+      "type": "manual-review",
+      "tier": "manual",
+      "states": [
+        "default",
+        "vertical"
+      ],
+      "statement": "The splitter is the shared resize primitive, not a second implementation of one."
+    },
+    {
+      "id": "both-orientations",
+      "type": "manual-review",
+      "tier": "manual",
+      "states": [
+        "default",
+        "vertical"
+      ],
+      "statement": "Orientation maps straight through to the resize axis, so a grid splitter needs no separate component."
+    }
+  ]
+}

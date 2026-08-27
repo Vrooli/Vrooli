@@ -1,4 +1,5 @@
 /** @vrooliComponentSource react-component-library:List */
+import { StyleSheet } from "@vrooli/react-component-library/StyleSheet/1.0.0";
 import type { ReactNode } from "react";
 
 export interface ListItem {
@@ -58,10 +59,7 @@ export function List({
 }: ListProps) {
   return (
     <>
-      <style
-        data-rcl-list-styles
-        dangerouslySetInnerHTML={{ __html: styles }}
-      />
+      <StyleSheet name="list-1-0-0-1" css={styles} />
       <section
         className={className}
         style={style}

@@ -637,6 +637,60 @@
       "runner": { "react-vite": "react-component-library catalog gates restyle-contract" }
     },
     {
+      "id": "manifest-identity",
+      "attribution": "corpus",
+      "rung": "implemented",
+      "appliesTo": ["primitive", "component", "pattern", "page-template", "navigation"],
+      "blocking": true,
+      "description": "Every library manifest declares a stable catalog identity.",
+      "runner": { "react-vite": "react-component-library catalog gates manifest-identity" }
+    },
+    {
+      "id": "shared-style-ownership",
+      "attribution": "corpus",
+      "rung": "implemented",
+      "appliesTo": ["primitive", "component", "pattern", "page-template", "navigation"],
+      "blocking": true,
+      "description": "Cross-cutting focus, motion, forced-colors, and visually-hidden rules belong to the shared foundation.",
+      "runner": { "react-vite": "react-component-library catalog gates shared-style-ownership" }
+    },
+    {
+      "id": "style-injection",
+      "attribution": "corpus",
+      "rung": "implemented",
+      "appliesTo": ["primitive", "component", "pattern", "page-template", "navigation"],
+      "blocking": true,
+      "description": "Library components use the idempotent head-mounted stylesheet injector.",
+      "runner": { "react-vite": "react-component-library catalog gates style-injection" }
+    },
+    {
+      "id": "foreign-token-classes",
+      "attribution": "corpus",
+      "rung": "implemented",
+      "appliesTo": ["primitive", "component", "pattern", "page-template", "navigation"],
+      "blocking": true,
+      "description": "Published assets do not emit consumer-specific palette classes.",
+      "runner": { "react-vite": "react-component-library catalog gates foreign-token-classes" }
+    },
+    {
+      "id": "deprecated-import",
+      "attribution": "corpus",
+      "rung": "implemented",
+      "appliesTo": ["primitive", "component", "pattern", "page-template", "navigation"],
+      "blocking": true,
+      "description": "Library source does not pin a dependency to its deprecated version.",
+      "runner": { "react-vite": "react-component-library catalog gates deprecated-import" }
+    },
+    {
+      "id": "provenance-stamp",
+      "attribution": "corpus",
+      "rung": "implemented",
+      "appliesTo": ["primitive", "component", "pattern", "page-template", "navigation"],
+      "blocking": true,
+      "description": "Component source stamps identify the asset actually owned or adopted by the file.",
+      "runner": { "react-vite": "react-component-library catalog gates provenance-stamp" }
+    },
+    {
       "id": "story-grammar",
       "attribution": "corpus",
       "rung": "implemented",

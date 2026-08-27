@@ -12,6 +12,7 @@
     }
   ],
   "displayName": "Tooltip",
+  "kind": "overlay",
   "catalogId": "overlays.tooltip",
   "draft": "",
   "entry": "Tooltip.tsx",

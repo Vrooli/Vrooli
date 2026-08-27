@@ -1,5 +1,6 @@
 {
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
+  "catalogId": "react-component-library:StatusBadge",
   "category": "feedback",
   "deprecatedVersions": [
     "1.2.0"
@@ -20,6 +21,7 @@
     }
   ],
   "displayName": "Status Badge",
+  "kind": "control",
   "draft": "",
   "latest": "1.2.1",
   "libraryId": "react-component-library:StatusBadge",

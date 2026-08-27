@@ -15,6 +15,7 @@
     }
   ],
   "displayName": "ButtonGroup",
+  "kind": "control",
   "draft": "",
   "latest": "1.1.5",
   "libraryId": "react-component-library:ButtonGroup",

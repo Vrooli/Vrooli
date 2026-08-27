@@ -7,6 +7,7 @@
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
 /** @vrooliComponentSource controls.radio-group */
+import { StyleSheet } from "@vrooli/react-component-library/StyleSheet/1.0.0";
 import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
 
 import { useId, useState, type ReactNode } from "react";
@@ -39,11 +40,11 @@ const styleSheet = `
 [data-rcl-radio-options] { display: grid; gap: var(--space-2xs); min-inline-size: 0; }
 [data-rcl-radio-options][data-orientation="horizontal"] { grid-template-columns: repeat(auto-fit, minmax(min(100%, 11rem), 1fr)); }
 [data-rcl-radio-error] { color: var(--color-danger); font: var(--text-caption); }
-@media (prefers-reduced-motion: reduce) { [data-rcl-radio-group] * { transition-duration: 0s !important; } }
+
 `;
 
 function RadioGroupStyles() {
-  return <style data-rcl-radio-group-styles dangerouslySetInnerHTML={{ __html: styleSheet }} />;
+  return <StyleSheet name="radiogroup-1-0-5-1" css={styleSheet} />;
 }
 
 export const RadioGroup = withClassName(function RadioGroup({

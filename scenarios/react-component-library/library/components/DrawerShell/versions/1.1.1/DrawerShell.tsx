@@ -7,6 +7,7 @@
  * @deps {"react":"^18"}
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
+import { StyleSheet } from "@vrooli/react-component-library/StyleSheet/1.0.0";
 import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
 
 import { useEffect, useId, useRef, type ReactNode } from "react";
@@ -58,7 +59,7 @@ export const DrawerShell = withClassName(function DrawerShell({
 
   return (
     <>
-      <style data-rcl-drawer-shell-styles dangerouslySetInnerHTML={{ __html: drawerShellStyles }} />
+      <StyleSheet name="drawershell-1-1-1-1" css={drawerShellStyles} />
       <div data-rcl-drawer-shell-root>
         <button
           type="button"

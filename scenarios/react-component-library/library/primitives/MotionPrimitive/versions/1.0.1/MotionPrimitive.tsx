@@ -7,6 +7,7 @@
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
 /** @vrooliComponentSource motion.motion-primitive */
+import { StyleSheet } from "@vrooli/react-component-library/StyleSheet/1.0.0";
 import {
   createElement,
   forwardRef,
@@ -79,7 +80,7 @@ const motionStyles = `
 [data-rcl-motion][data-motion-variant="slide-inline"][data-motion-active="false"] { opacity: 0; transform: translateX(var(--space-sm, 12px)); }
 [data-rcl-motion][data-motion-variant="blur"][data-motion-active="false"] { opacity: 0; filter: blur(var(--space-2xs, 8px)); }
 [data-rcl-motion][data-motion-reduced="true"] { transition: none; animation: none; opacity: 1; transform: none; filter: none; }
-@media (prefers-reduced-motion: reduce) { [data-rcl-motion] { transition: none; } [data-rcl-motion][data-motion-active="false"] { opacity: 1; transform: none; filter: none; } }
+
 `;
 
 function resolveDuration(duration: MotionPrimitiveProps["duration"]) {
@@ -149,7 +150,7 @@ export const MotionPrimitive = forwardRef<HTMLElement, MotionPrimitiveProps>(
         "data-motion-reduced": reduced ? "true" : "false",
         "data-motion-no-layout-animation": true,
       },
-      <style data-rcl-motion-styles dangerouslySetInnerHTML={{ __html: motionStyles }} />,
+      <StyleSheet name="motionprimitive-1-0-1-1" css={motionStyles} />,
       children,
     );
   },

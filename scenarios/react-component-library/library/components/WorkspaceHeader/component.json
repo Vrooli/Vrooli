@@ -1,5 +1,6 @@
 {
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
+  "catalogId": "react-component-library:WorkspaceHeader",
   "category": "navigation",
   "dependencies": [
     {
@@ -18,6 +19,7 @@
     }
   ],
   "displayName": "Workspace Header",
+  "kind": "shell",
   "draft": "",
   "latest": "1.0.1",
   "libraryId": "react-component-library:WorkspaceHeader",

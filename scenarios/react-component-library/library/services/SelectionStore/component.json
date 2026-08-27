@@ -11,6 +11,7 @@
     }
   ],
   "displayName": "SelectionStore",
+  "kind": "input",
   "latest": "1.0.0",
   "libraryId": "react-component-library:SelectionStore",
   "tags": [

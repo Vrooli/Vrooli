@@ -3,7 +3,7 @@
   "assetKind": "hook",
   "catalogId": "hooks.use-resize-observer",
   "dependencies": [],
-  "description": "Production-ready useResizeObserver hook with SSR-safe lifecycle behavior.",
+  "description": "Observed border-box geometry for a ref-attached element, with an effect-owned observer.",
   "designStyles": [
     {
       "affinity": "native",
@@ -11,7 +11,8 @@
     }
   ],
   "displayName": "useResizeObserver",
-  "latest": "1.0.0",
+  "kind": "surface",
+  "latest": "1.0.1",
   "libraryId": "react-component-library:useResizeObserver",
   "tags": [
     "runtime",

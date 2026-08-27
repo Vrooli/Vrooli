@@ -7,6 +7,7 @@
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
 import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
+import { StyleSheet } from "@vrooli/react-component-library/StyleSheet/1.0.0";
 
 /** @vrooliComponentSource data-display.diff-viewer */
 import { useStrings } from "@vrooli/react-component-library/useLocale/1.0.1";
@@ -22,7 +23,7 @@ const styles = `
 [data-rcl-diff-viewer-value] { min-inline-size: 0; overflow-wrap: anywhere; color: var(--color-foreground, #0f172a); font: var(--text-body, 400 .9rem/1.45 system-ui, sans-serif); }
 [data-rcl-diff-viewer-value] del, [data-rcl-diff-viewer-value] ins { text-decoration-thickness: .12em; text-underline-offset: .16em; }
 @media (max-width: 38rem) { [data-rcl-diff-viewer-row] { grid-template-columns: 1fr; gap: var(--space-3xs, .2rem); } }
-@media (forced-colors: active) { [data-rcl-diff-viewer-row] { border-color: CanvasText; background: Canvas; color: CanvasText; } [data-rcl-diff-viewer-row="removed"] { border-inline-start-color: Mark; } [data-rcl-diff-viewer-row="added"] { border-inline-start-color: Highlight; } }
+
 `;
 
 export const DiffViewer = withClassName(function DiffViewer({
@@ -45,7 +46,7 @@ export const DiffViewer = withClassName(function DiffViewer({
       className={className}
       style={style}
     >
-      <style data-rcl-diff-viewer-styles dangerouslySetInnerHTML={{ __html: styles }} />
+      <StyleSheet name="diff-viewer" css={styles} />
       <figcaption>
         {strings("data-display.diff-viewer.version-comparison", "Version comparison")}
       </figcaption>

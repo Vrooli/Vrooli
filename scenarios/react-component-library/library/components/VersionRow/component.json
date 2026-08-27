@@ -1,0 +1,19 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
+  "assetKind": "component",
+  "catalogId": "data-display.version-row",
+  "libraryId": "react-component-library:VersionRow",
+  "displayName": "VersionRow",
+  "description": "A compact version-history row composed from published data-display assets.",
+  "kind": "surface",
+  "latest": "1.0.0",
+  "deprecatedVersions": [],
+  "entry": "VersionRow.tsx",
+  "dependencies": [
+    { "libraryId": "react-component-library:StatusBadge", "version": "1.2.1" },
+    { "libraryId": "react-component-library:RelativeTime", "version": "1.0.3" },
+    { "libraryId": "react-component-library:CopyableText", "version": "1.0.5" },
+    { "libraryId": "react-component-library:TrendSpark", "version": "1.0.0" }
+  ],
+  "tags": ["component", "data-display", "versions", "token-bound"]
+}

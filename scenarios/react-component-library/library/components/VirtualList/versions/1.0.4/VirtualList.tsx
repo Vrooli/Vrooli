@@ -6,6 +6,7 @@
  * @tags ["data-display","virtualization","performance","accessibility","responsive","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
+import { StyleSheet } from "@vrooli/react-component-library/StyleSheet/1.0.0";
 import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
 
 /** @vrooliComponentSource data-display.virtual-list */
@@ -166,7 +167,7 @@ export const VirtualList = withClassName(function VirtualList<T>({
 
   return (
     <>
-      <style data-rcl-virtual-list-styles dangerouslySetInnerHTML={{ __html: styles }} />
+      <StyleSheet name="virtual-list-1-0-4" css={styles} />
       <section
         data-testid="data-display.virtual-list"
         className={className}

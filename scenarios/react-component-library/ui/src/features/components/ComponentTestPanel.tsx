@@ -1076,7 +1076,7 @@ export function ComponentTestPanel({
             {reports.data.slice(1).map((report) => (
               <li key={report.id}>
                 <Link
-                  to={assetSearchForTab("tests", report.id)}
+                  to={assetSearchForTab("overview", report.id)}
                   className="flex items-center justify-between gap-space-xs rounded-control border border-app-border bg-app-surface px-space-xs py-space-2xs text-sm transition hover:bg-app-surface-muted focus:outline-none focus:ring-2 focus:ring-app-primary"
                   aria-label={`Open component test report ${report.id}`}
                 >

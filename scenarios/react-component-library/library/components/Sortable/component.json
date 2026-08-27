@@ -40,6 +40,7 @@
     }
   ],
   "displayName": "Sortable",
+  "kind": "control",
   "latest": "1.0.6",
   "libraryId": "react-component-library:Sortable",
   "tags": [

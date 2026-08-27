@@ -7,6 +7,7 @@
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
 /** @vrooliComponentSource react-component-library:AlertDialog */
+import { StyleSheet } from "@vrooli/react-component-library/StyleSheet/1.0.0";
 import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
 
 import { useEffect, useId, useRef, useState, type CSSProperties, type ReactNode } from "react";
@@ -44,14 +45,13 @@ const styles = `
 [data-rcl-alert-dialog-error] { margin: var(--space-sm, 12px) 0 0; padding: var(--space-sm, 12px); border: 1px solid var(--color-danger-border, #e7a8a8); border-radius: var(--radius-control, .5rem); background: var(--color-danger-subtle, #fff1f0); color: var(--color-danger-foreground, #b42318); font-size: 13px; line-height: 1.45; }
 [data-rcl-alert-dialog-actions] { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: var(--space-2xs, 8px); padding: var(--space-sm, 12px) var(--space-lg, 24px) var(--space-lg, 24px); }
 [data-rcl-alert-dialog-actions] button { min-block-size: 2.75rem; border-radius: var(--radius-control, .5rem); padding: 0 var(--space-sm, 12px); font: inherit; font-size: var(--font-size-sm, 14px); font-weight: 750; cursor: pointer; }
-[data-rcl-alert-dialog-actions] button:focus-visible { outline: 3px solid var(--color-focus-ring, #2563eb); outline-offset: 2px; }
 [data-rcl-alert-dialog-cancel] { border: 1px solid var(--color-border, #cbd5e1); background: transparent; color: inherit; }
 [data-rcl-alert-dialog-confirm] { border: 0; background: var(--color-primary, #2563eb); color: var(--color-primary-foreground, #fff); }
 [data-rcl-alert-dialog-confirm][data-destructive="true"] { background: var(--color-danger, #c9362b); color: var(--color-danger-foreground-inverse, #fff); }
 [data-rcl-alert-dialog-actions] button:disabled { cursor: wait; opacity: var(--opacity-disabled, .55); }
 @keyframes rcl-alert-dialog-in { from { opacity: 0; transform: translateY(6px) scale(.99); } to { opacity: 1; transform: none; } }
 @media (max-width: 480px) { [data-rcl-alert-dialog-layer] { align-items: end; padding: 0; } [data-rcl-alert-dialog] { max-height: calc(100dvh - 12px); border-radius: var(--radius-overlay, 1rem) var(--radius-overlay, 1rem) 0 0; } [data-rcl-alert-dialog-actions] { display: grid; grid-template-columns: 1fr; } [data-rcl-alert-dialog-actions] button { width: 100%; } }
-@media (prefers-reduced-motion: reduce) { [data-rcl-alert-dialog-layer] { animation: none; } }
+
 `;
 
 function focusable(container: HTMLElement) {
@@ -126,7 +126,7 @@ export const AlertDialog = withClassName(function AlertDialog({
 
   return (
     <div data-rcl-alert-dialog-layer style={style} aria-label={closeLabel}>
-      <style data-rcl-alert-dialog-styles>{styles}</style>
+      <StyleSheet name="alertdialog-1-0-5-1" css={styles} />
       <div
         ref={dialogRef}
         data-rcl-alert-dialog

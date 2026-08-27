@@ -22,13 +22,13 @@ describe("SidebarShell", () => {
       </SidebarShell>,
     );
 
-    const shell = screen.getByTestId("sidebar-shell");
+    const shell = screen.getByTestId("navigation.sidebar");
     expect(shell).toBeInTheDocument();
     expect(shell).toHaveAttribute("aria-label", "Primary navigation");
     expect(shell).toHaveStyle({ width: "320px" });
     expect(shell).not.toHaveAttribute("role", "dialog");
     expect(screen.getByTestId("shell-child")).toBeInTheDocument();
-    expect(screen.queryByTestId("sidebar-shell-backdrop")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("navigation.sidebar-backdrop")).not.toBeInTheDocument();
   });
 
   it("renders an open mobile dialog as a full-width safe-area sheet", () => {
@@ -44,7 +44,7 @@ describe("SidebarShell", () => {
       </SidebarShell>,
     );
 
-    const shell = screen.getByTestId("sidebar-shell");
+    const shell = screen.getByTestId("navigation.sidebar");
     expect(shell).toHaveAttribute("role", "dialog");
     expect(shell).toHaveAttribute("aria-modal", "true");
     expect(shell).toHaveAttribute("aria-label", "Navigation drawer");
@@ -67,8 +67,8 @@ describe("SidebarShell", () => {
       </SidebarShell>,
     );
 
-    await user.click(screen.getByTestId("sidebar-shell-backdrop"));
-    await user.click(screen.getByTestId("sidebar-shell-close"));
+    await user.click(screen.getByTestId("navigation.sidebar-backdrop"));
+    await user.click(screen.getByTestId("navigation.sidebar-close"));
     fireEvent.keyDown(window, { key: "Escape" });
 
     expect(onMobileClose).toHaveBeenCalledTimes(3);
@@ -91,7 +91,7 @@ describe("SidebarShell", () => {
       </SidebarShell>,
     );
 
-    const handle = screen.getByTestId("sidebar-shell-resize-handle");
+    const handle = screen.getByTestId("navigation.sidebar-resize-handle");
     expect(handle).toHaveAttribute("role", "separator");
     expect(handle).toHaveAttribute("aria-orientation", "vertical");
   });
@@ -111,11 +111,11 @@ describe("SidebarShell", () => {
       </SidebarShell>,
     );
 
-    const shell = screen.getByTestId("sidebar-shell");
+    const shell = screen.getByTestId("navigation.sidebar");
     expect(shell).toHaveAttribute("data-mode", "overlay");
     expect(shell).toHaveAttribute("role", "dialog");
     expect(shell).toHaveAttribute("data-open", "true");
-    expect(screen.getByTestId("sidebar-shell-backdrop")).toHaveAttribute("data-mode", "overlay");
+    expect(screen.getByTestId("navigation.sidebar-backdrop")).toHaveAttribute("data-mode", "overlay");
     expect(screen.getByTestId("mobile-shell-title")).toBeInTheDocument();
   });
 
@@ -137,15 +137,15 @@ describe("SidebarShell", () => {
       </SidebarShell>,
     );
 
-    const shell = screen.getByTestId("sidebar-shell");
+    const shell = screen.getByTestId("navigation.sidebar");
     expect(shell).toHaveAttribute("data-mode", "persistent");
     expect(shell).toHaveAttribute("role", "complementary");
     expect(shell).toHaveAttribute("aria-label", "Primary navigation");
     expect(shell).not.toHaveAttribute("aria-modal");
     expect(shell).toHaveStyle({ width: "360px" });
-    expect(screen.queryByTestId("sidebar-shell-backdrop")).not.toBeInTheDocument();
-    expect(screen.queryByTestId("sidebar-shell-close")).not.toBeInTheDocument();
-    expect(screen.getByTestId("sidebar-shell-resize-handle").className).not.toContain("md:block");
+    expect(screen.queryByTestId("navigation.sidebar-backdrop")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("navigation.sidebar-close")).not.toBeInTheDocument();
+    expect(screen.getByTestId("navigation.sidebar-resize-handle").className).not.toContain("md:block");
 
     fireEvent.keyDown(window, { key: "Escape" });
     expect(onMobileClose).not.toHaveBeenCalled();
@@ -166,7 +166,7 @@ describe("SidebarShell", () => {
 
     // The stylesheet is injected once into <head> by useComponentStyles rather
     // than rendered inline per instance; the rules it must declare are unchanged.
-    const styles = document.head.querySelector('style[data-rcl-style-id="rcl-sidebar-shell"]');
+    const styles = document.head.querySelector('style[data-rcl-sheet="rcl-sidebar-shell-2-0-0"]');
     expect(styles).not.toBeNull();
     expect(styles?.textContent).toContain(
       '[data-rcl-sidebar-shell][data-mode="responsive"][data-open="false"]',

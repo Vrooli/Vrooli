@@ -7,6 +7,7 @@
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
 /** @vrooliComponentSource primitives.aspect-ratio */
+import { StyleSheet } from "@vrooli/react-component-library/StyleSheet/1.0.0";
 import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
 
 import type { CSSProperties, HTMLAttributes, ReactNode } from "react";
@@ -33,7 +34,7 @@ export const AspectRatio = withClassName(function AspectRatio({
   const innerStyle = { blockSize: "100%", inlineSize: "100%", ...contentStyle };
   return (
     <>
-      <style data-rcl-aspect-ratio-styles dangerouslySetInnerHTML={{ __html: styles }} />
+      <StyleSheet name="aspect-ratio-1-0-1" css={styles} />
       <div
         data-testid="primitives.aspect-ratio"
         {...props}

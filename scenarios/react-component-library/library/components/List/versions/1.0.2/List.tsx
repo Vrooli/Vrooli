@@ -6,6 +6,7 @@
  * @tags ["data-display","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
+import { StyleSheet } from "@vrooli/react-component-library/StyleSheet/1.0.0";
 import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
 
 /** @vrooliComponentSource react-component-library:List */
@@ -66,7 +67,7 @@ export const List = withClassName(function List({
 }: ListProps) {
   return (
     <>
-      <style data-rcl-list-styles dangerouslySetInnerHTML={{ __html: styles }} />
+      <StyleSheet name="list-1-0-2-1" css={styles} />
       <section
         data-testid="data-display.list"
         className={className}

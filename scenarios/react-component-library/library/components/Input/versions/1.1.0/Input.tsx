@@ -4,6 +4,7 @@
  * @status released
  * @deps {"react":"^18"}
  */
+import { StyleSheet } from "@vrooli/react-component-library/StyleSheet/1.0.0";
 import { forwardRef, type InputHTMLAttributes } from "react";
 export const INPUT_MODES = ["controlled", "uncontrolled"] as const;
 export const INPUT_SIZES = ["sm", "md", "lg"] as const;
@@ -32,9 +33,8 @@ const styleSheet = `
 }
 [data-rcl-input]::placeholder { color: var(--color-muted-foreground); opacity: var(--opacity-muted); }
 [data-rcl-input]:hover:not(:disabled) { border-color: var(--color-primary); }
-[data-rcl-input]:focus-visible { border-color: var(--color-focus); outline: var(--border-strong) solid color-mix(in srgb, var(--color-focus) 30%, transparent); outline-offset: var(--space-3xs); }
 [data-rcl-input]:disabled { cursor: not-allowed; opacity: var(--opacity-disabled); }
-@media (prefers-reduced-motion: reduce) { [data-rcl-input] { transition: none; } }
+
 `;
 
 export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
@@ -43,10 +43,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
 ) {
   return (
     <>
-      <style
-        data-rcl-input-styles
-        dangerouslySetInnerHTML={{ __html: styleSheet }}
-      />
+      <StyleSheet name="input-1-1-0-1" css={styleSheet} />
       <input
         ref={ref}
         type={type}

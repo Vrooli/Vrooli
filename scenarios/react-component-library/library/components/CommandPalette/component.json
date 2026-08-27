@@ -24,6 +24,7 @@
     }
   ],
   "displayName": "CommandPalette",
+  "kind": "overlay",
   "latest": "1.0.6",
   "libraryId": "react-component-library:CommandPalette",
   "tags": [

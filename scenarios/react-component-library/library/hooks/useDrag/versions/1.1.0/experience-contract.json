@@ -1,0 +1,59 @@
+{
+  "contract": {
+    "kind": "rcl-component-experience-contract",
+    "schema": "scenario-experience-spec/v1",
+    "provenance": "react-component-library:useDrag@1.1.0"
+  },
+  "component": {
+    "id": "hooks.use-drag",
+    "title": "Drag",
+    "purpose": "Normalizes pointer movement for drag consumers and gives every gesture a keyboard equivalent."
+  },
+  "states": [
+    {
+      "id": "default",
+      "example": "default",
+      "description": "Keyboard pickup, movement and drop."
+    },
+    {
+      "id": "cancelled",
+      "example": "cancelled",
+      "description": "Escape ends the drag without committing."
+    },
+    {
+      "id": "disabled",
+      "example": "disabled",
+      "description": "Disabled controllers ignore every entry point."
+    }
+  ],
+  "claims": [
+    {
+      "id": "keyboard-alternative",
+      "type": "keyboard-operable",
+      "statement": "Space or Enter starts a drag, arrows move it by step (coarseStep with Shift), Enter commits and Escape cancels.",
+      "tier": "machine",
+      "states": [
+        "default",
+        "cancelled"
+      ]
+    },
+    {
+      "id": "stable-handlers",
+      "type": "manual-review",
+      "statement": "Returned handlers keep a stable identity across renders even when the caller passes an inline options object.",
+      "tier": "manual",
+      "states": [
+        "default"
+      ]
+    },
+    {
+      "id": "disabled-everywhere",
+      "type": "manual-review",
+      "statement": "The disabled flag is honoured on pointer down, move and up as well as on key down.",
+      "tier": "manual",
+      "states": [
+        "disabled"
+      ]
+    }
+  ]
+}

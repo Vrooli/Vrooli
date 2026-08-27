@@ -16,6 +16,7 @@
     }
   ],
   "displayName": "Form Store",
+  "kind": "input",
   "latest": "1.0.0",
   "libraryId": "react-component-library:FormStore",
   "tags": [

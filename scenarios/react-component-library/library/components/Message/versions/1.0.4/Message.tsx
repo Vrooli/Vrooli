@@ -6,6 +6,7 @@
  * @tags ["ai","conversation","content","accessibility","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
+import { StyleSheet } from "@vrooli/react-component-library/StyleSheet/1.0.0";
 import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
 
 /** @vrooliComponentSource ai.message */
@@ -107,7 +108,6 @@ const styles = `
 [data-rcl-message-action] { min-block-size: var(--tap-target-min, 44px); padding: var(--space-2xs, .5rem) var(--space-sm, .75rem); border: var(--border-hairline, 1px) solid var(--color-border-strong, #94a3b8); border-radius: var(--radius-control, .625rem); background: var(--color-surface, #fff); color: var(--color-foreground, #0f172a); font: var(--text-label, 650 .8125rem/1.25rem system-ui, sans-serif); cursor: pointer; }
 [data-rcl-message-action]:hover { border-color: var(--rcl-message-accent); color: var(--rcl-message-accent); }
 [data-rcl-message-action][data-primary="true"] { border-color: var(--rcl-message-accent); background: var(--rcl-message-accent); color: var(--color-primary-foreground, #fff); }
-[data-rcl-message-action]:focus-visible { outline: 3px solid color-mix(in srgb, var(--color-focus, #2563eb) 32%, transparent); outline-offset: 2px; }
 [data-rcl-message-action]:disabled { cursor: not-allowed; opacity: .58; }
 [data-rcl-message-list] { display: grid; gap: var(--space-2xs, .5rem); margin: 0; padding: 0; list-style: none; }
 [data-rcl-message-list-title] { margin-block-end: var(--space-2xs, .5rem); color: var(--color-muted-foreground, #64748b); font: var(--text-overline, 700 .6875rem/1rem system-ui, sans-serif); letter-spacing: .08em; text-transform: uppercase; }
@@ -119,8 +119,8 @@ const styles = `
 [data-rcl-message-divider] { block-size: var(--border-hairline, 1px); background: var(--color-border, #cbd5e1); }
 [data-rcl-message-footer] { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-xs, .625rem); color: var(--color-muted-foreground, #64748b); font: var(--text-caption, 600 .75rem/1rem system-ui, sans-serif); }
 @media (max-width: 34rem) { [data-rcl-message] { padding: var(--space-md, 1rem); } [data-rcl-message-header] { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: start; } [data-rcl-message-header] > [data-rcl-status-indicator] { grid-column: 2; justify-self: start; } [data-rcl-message-actor-line] { display: grid; gap: var(--space-3xs, .25rem); } [data-rcl-message-actions] { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); } [data-rcl-message-action] { inline-size: 100%; } }
-@media (forced-colors: active) { [data-rcl-message], [data-rcl-message-attachment], [data-rcl-message-citation], [data-rcl-message-error], [data-rcl-message-action] { border-color: CanvasText; background: Canvas; color: CanvasText; box-shadow: none; } [data-rcl-message-action][data-primary="true"] { background: Highlight; color: HighlightText; } [data-rcl-message-link] { color: LinkText; } }
-@media (prefers-reduced-motion: reduce) { [data-rcl-message] * { scroll-behavior: auto !important; } }
+
+
 `;
 
 function stateStatus(state: MessageState) {
@@ -229,7 +229,7 @@ export const Message = withClassName(function Message({
       aria-describedby={hasBody ? descriptionId : undefined}
       aria-busy={isLoading || undefined}
     >
-      <style data-rcl-message-styles dangerouslySetInnerHTML={{ __html: styles }} />
+      <StyleSheet name="message-1-0-4-1" css={styles} />
       <header data-rcl-message-header>
         <Avatar name={actor.name} src={actor.src} presence={actor.presence} size="sm" />
         <div data-rcl-message-actor>

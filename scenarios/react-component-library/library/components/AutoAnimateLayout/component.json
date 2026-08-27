@@ -28,6 +28,7 @@
     }
   ],
   "displayName": "AutoAnimateLayout",
+  "kind": "shell",
   "latest": "1.0.1",
   "libraryId": "react-component-library:AutoAnimateLayout",
   "tags": [

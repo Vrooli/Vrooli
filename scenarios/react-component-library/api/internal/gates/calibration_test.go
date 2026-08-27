@@ -26,6 +26,12 @@ func TestBlockingStaticCalibrationFixturesDiscriminate(t *testing.T) {
 		"console-clean":              ValidateConsoleClean,
 		"performance":                ValidatePerformance,
 		"restyle-contract":           ValidateRestyleContract,
+		"manifest-identity":          ValidateManifestIdentity,
+		"shared-style-ownership":     ValidateSharedStyleOwnership,
+		"style-injection":            ValidateStyleInjection,
+		"foreign-token-classes":      ValidateForeignTokenClasses,
+		"deprecated-import":          ValidateDeprecatedImports,
+		"provenance-stamp":           ValidateProvenanceStamp,
 		"story-distinctness":         ValidateStoryDistinctness,
 	}
 	for gate, runner := range runners {

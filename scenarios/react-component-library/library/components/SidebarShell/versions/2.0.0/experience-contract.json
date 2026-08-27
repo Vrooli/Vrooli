@@ -1,0 +1,48 @@
+{
+  "contract": {
+    "kind": "rcl-component-experience-contract",
+    "schema": "scenario-experience-spec/v1",
+    "provenance": "react-component-library:SidebarShell@2.0.0"
+  },
+  "component": {
+    "id": "navigation.sidebar",
+    "title": "Sidebar Shell",
+    "purpose": "One sidebar parent for both the desktop resizable panel and the mobile drawer, so an adopting scenario renders its navigation once."
+  },
+  "states": [
+    { "id": "default", "example": "default", "description": "Persistent desktop panel with the shell-owned resize seam." },
+    { "id": "keyboard-resize", "example": "keyboard-resize", "description": "Resized entirely from the keyboard." },
+    { "id": "drawer-open", "example": "drawer-open", "description": "The same shell as a modal drawer with backdrop and close control." },
+    { "id": "legacy-handle", "example": "legacy-handle", "description": "The deprecated caller-supplied handle path." }
+  ],
+  "claims": [
+    {
+      "id": "one-navigation-render",
+      "type": "manual-review",
+      "statement": "Desktop panel and mobile drawer are the same element in the same tree, so navigation content is authored and rendered once.",
+      "tier": "manual",
+      "states": ["default", "drawer-open"]
+    },
+    {
+      "id": "keyboard-operable",
+      "type": "keyboard-operable",
+      "statement": "The sidebar is resizable from the keyboard and the drawer closes on Escape.",
+      "tier": "machine",
+      "states": ["keyboard-resize", "drawer-open"]
+    },
+    {
+      "id": "derived-test-ids",
+      "type": "manual-review",
+      "statement": "Every part's test id derives from one testId prop, so an adopting scenario keeps its selector registry without re-implementing the element.",
+      "tier": "manual",
+      "states": ["default", "drawer-open", "legacy-handle"]
+    },
+    {
+      "id": "no-handle-geometry-in-callers",
+      "type": "manual-review",
+      "statement": "Callers pass bounds, not geometry: the hit-target width lives in one token read by both the paint and the clamp arithmetic.",
+      "tier": "manual",
+      "states": ["default"]
+    }
+  ]
+}

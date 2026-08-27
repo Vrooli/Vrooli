@@ -6,6 +6,7 @@
  * @tags ["media","files","status","responsive","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
+import { StyleSheet } from "@vrooli/react-component-library/StyleSheet/1.0.0";
 import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
 
 /** @vrooliComponentSource react-component-library:FilePreview */
@@ -48,12 +49,11 @@ const styles = `
 [data-rcl-file-preview-actions] { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: var(--space-2xs, 8px); }
 [data-rcl-file-preview-actions] button { min-block-size: 2.75rem; border: 1px solid var(--color-border, #cbd5e1); border-radius: var(--radius-control, .5rem); padding: 0 var(--space-xs, 8px); background: transparent; color: inherit; font: inherit; font-size: 12px; font-weight: 750; cursor: pointer; }
 [data-rcl-file-preview-actions] button:hover { background: var(--color-surface-muted, #f1f5f9); }
-[data-rcl-file-preview-actions] button:focus-visible { outline: 3px solid var(--color-focus-ring, #2563eb); outline-offset: 2px; }
 [data-rcl-file-preview-actions] button[data-primary="true"] { border-color: var(--color-primary, #2563eb); background: var(--color-primary, #2563eb); color: var(--color-primary-foreground, #fff); }
 [data-rcl-file-preview-actions] button[data-danger="true"] { border-color: var(--color-danger-border, #e7a8a8); color: var(--color-danger-foreground, #b42318); }
 @keyframes rcl-file-preview-pulse { 50% { opacity: .35; } }
 @media (max-width: 520px) { [data-rcl-file-preview] { grid-template-columns: auto minmax(0, 1fr); align-items: start; } [data-rcl-file-preview-actions] { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); width: 100%; } [data-rcl-file-preview-actions] button { width: 100%; } }
-@media (prefers-reduced-motion: reduce) { [data-rcl-file-preview][data-status="loading"] [data-rcl-file-preview-status]::before { animation: none; } }
+
 `;
 
 function formatBytes(bytes?: number) {
@@ -103,7 +103,7 @@ export const FilePreview = withClassName(function FilePreview({
       style={style}
       aria-describedby={statusId}
     >
-      <style data-rcl-file-preview-styles>{styles}</style>
+      <StyleSheet name="filepreview-1-0-2-1" css={styles} />
       <div data-rcl-file-preview-thumb aria-hidden={thumbnailUrl ? undefined : "true"}>
         {thumbnailUrl ? (
           <img src={thumbnailUrl} alt={thumbnailAlt ?? ""} />

@@ -7,6 +7,7 @@
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
 /** @vrooliComponentSource react-component-library:AsyncBoundary */
+import { StyleSheet } from "@vrooli/react-component-library/StyleSheet/1.0.0";
 import { useEffect, useId, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { useAnnounce } from "../../../../hooks/useAnnounce/versions/1.0.0/useAnnounce";
 import { useNetworkStatus } from "../../../../hooks/useNetworkStatus/versions/1.0.0/useNetworkStatus";
@@ -100,7 +101,6 @@ const styles = `
   [data-rcl-async-state-detail] { color: var(--rcl-async-muted); }
   [data-rcl-async-state-action] { flex: 0 0 auto; margin-inline-start: auto; min-block-size: var(--tap-target-min, 44px); border: 1px solid currentColor; border-radius: var(--radius-control, .5rem); background: transparent; color: inherit; padding-inline: var(--space-xs, .75rem); font: var(--text-label, 600 .8125rem/1rem system-ui, sans-serif); cursor: pointer; }
   [data-rcl-async-state-action]:hover { background: color-mix(in srgb, currentColor 10%, transparent); }
-  [data-rcl-async-state-action]:focus-visible { outline: 3px solid color-mix(in srgb, var(--color-focus, #2563eb) 35%, transparent); outline-offset: 2px; }
   [data-rcl-async-loading], [data-rcl-async-failure] {
     display: grid;
     min-block-size: 10rem;
@@ -112,7 +112,7 @@ const styles = `
   [data-rcl-async-loading-copy], [data-rcl-async-failure-copy] { display: grid; gap: var(--space-2xs, .5rem); max-inline-size: 38rem; }
   [data-rcl-async-loading-title], [data-rcl-async-failure-title] { font: var(--text-subtitle, 650 1rem/1.35 system-ui, sans-serif); }
   [data-rcl-async-muted] { color: var(--rcl-async-muted); font: var(--text-body, 400 .875rem/1.375rem system-ui, sans-serif); }
-  [data-rcl-async-description] { position: absolute; inline-size: 1px; block-size: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+
   [data-rcl-async-spinner] {
     inline-size: 1.5rem;
     block-size: 1.5rem;
@@ -139,14 +139,10 @@ const styles = `
   }
   [data-rcl-async-retry]:hover { filter: brightness(1.06); transform: translateY(-1px); }
   [data-rcl-async-retry]:active { transform: translateY(0) scale(.98); }
-  [data-rcl-async-retry]:focus-visible { outline: 3px solid color-mix(in srgb, var(--color-focus, #2563eb) 35%, transparent); outline-offset: 3px; }
   [data-rcl-async-retry][aria-busy="true"] { cursor: wait; opacity: .78; }
   @keyframes rcl-async-spin { to { transform: rotate(360deg); } }
   @keyframes rcl-async-shimmer { to { background-position: -200% 0; } }
-  @media (prefers-reduced-motion: reduce) {
-    [data-rcl-async-spinner], [data-rcl-async-skeleton-line] { animation: none; }
-    [data-rcl-async-retry] { transition: none; }
-  }
+
   @media (max-width: 30rem) {
     [data-rcl-async-state] { display: grid; grid-template-columns: auto minmax(0, 1fr); }
     [data-rcl-async-state-action] { grid-column: 2; justify-self: start; margin-inline-start: 0; }
@@ -301,7 +297,7 @@ export function AsyncBoundary({
 
   return (
     <>
-      <style data-rcl-async-boundary-styles dangerouslySetInnerHTML={{ __html: styles }} />
+      <StyleSheet name="asyncboundary-1-0-1-1" css={styles} />
       <section
         id={id}
         className={className}

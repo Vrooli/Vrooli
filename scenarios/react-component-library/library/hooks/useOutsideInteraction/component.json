@@ -11,6 +11,7 @@
     }
   ],
   "displayName": "useOutsideInteraction",
+  "kind": "control",
   "latest": "1.0.0",
   "libraryId": "react-component-library:useOutsideInteraction",
   "tags": [

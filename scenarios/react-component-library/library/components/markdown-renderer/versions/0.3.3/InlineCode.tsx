@@ -6,6 +6,7 @@
  * @tags ["markdown","code","inline"]
  * @deps {"react":"^18"}
  */
+import { StyleSheet } from "@vrooli/react-component-library/StyleSheet/1.0.0";
 import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
 
 
@@ -70,10 +71,7 @@ export const InlineCode = withClassName(function InlineCode({
     );
   return (
     <span className="rcl-md__inline" data-rcl-markdown>
-      <style
-        data-rcl-markdown-styles
-        dangerouslySetInnerHTML={{ __html: markdownStyles }}
-      />
+      <StyleSheet name="markdown-renderer-0-3-3-1" css={markdownStyles} />
       <code className={tokenClass}>{text}</code>
       <button
         type="button"

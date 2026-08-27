@@ -28,6 +28,7 @@
     }
   ],
   "displayName": "UnsavedChangesFlow",
+  "kind": "surface",
   "latest": "1.0.6",
   "libraryId": "react-component-library:UnsavedChangesFlow",
   "tags": [

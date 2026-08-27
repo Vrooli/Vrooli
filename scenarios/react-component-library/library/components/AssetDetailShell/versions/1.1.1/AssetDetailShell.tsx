@@ -7,6 +7,7 @@
  * @deps {"react":"^18"}
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
+import { StyleSheet } from "@vrooli/react-component-library/StyleSheet/1.0.0";
 import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
 
 import type { ReactNode } from "react";
@@ -47,10 +48,7 @@ export const AssetDetailShell = withClassName(function AssetDetailShell({
 }: AssetDetailShellProps) {
   return (
     <>
-      <style
-        data-rcl-asset-detail-shell-styles
-        dangerouslySetInnerHTML={{ __html: assetDetailShellStyles }}
-      />
+      <StyleSheet name="asset-detail-shell-1-1-1" css={assetDetailShellStyles} />
       <main data-rcl-asset-detail className={className}>
         <section data-rcl-asset-detail-primary>
           <header data-rcl-asset-detail-header>

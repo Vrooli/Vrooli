@@ -2,8 +2,18 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "component",
   "catalogId": "navigation.resizable-sidebar",
-  "dependencies": [],
-  "description": "",
+  "dependencies": [
+    {
+      "kind": "requires",
+      "libraryId": "react-component-library:Resizable",
+      "version": "2.0.0"
+    }
+  ],
+  "deprecatedVersions": [
+    "1.0.2",
+    "1.0.3"
+  ],
+  "description": "A sidebar preset over the shared resize primitive: navigation-shaped defaults, pointer and keyboard resizing, persisted width.",
   "designStyles": [
     {
       "affinity": "native",
@@ -11,15 +21,13 @@
     }
   ],
   "displayName": "ResizableSidebar",
-  "latest": "1.0.3",
+  "draft": "",
+  "kind": "shell",
+  "latest": "2.0.0",
   "libraryId": "react-component-library:ResizableSidebar",
   "tags": [
     "navigation",
     "responsive",
     "token-bound"
-  ],
-  "draft": "",
-  "deprecatedVersions": [
-    "1.0.2"
   ]
 }

@@ -6,6 +6,7 @@
  * @tags ["markdown","code","shiki"]
  * @deps {"react":"^18","shiki":"^4.3.1"}
  */
+import { StyleSheet } from "@vrooli/react-component-library/StyleSheet/1.0.0";
 import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
 
 
@@ -96,10 +97,7 @@ export const CodeBlock = withClassName(function CodeBlock({
   const { copied, copy } = useCodeCopy();
   return (
     <section className={`rcl-md__code ${className ?? ""}`} data-rcl-markdown>
-      <style
-        data-rcl-markdown-styles
-        dangerouslySetInnerHTML={{ __html: markdownStyles }}
-      />
+      <StyleSheet name="markdown-renderer-0-3-3-1" css={markdownStyles} />
       <header className="rcl-md__code-header">
         <span>{languageLabel(language)}</span>
         <button

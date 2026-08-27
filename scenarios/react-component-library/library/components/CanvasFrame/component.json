@@ -1,7 +1,7 @@
 {
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "component",
-  "catalogId": "preview.canvas-frame",
+  "catalogId": "react-component-library:CanvasFrame",
   "deprecatedVersions": [
     "1.0.0"
   ],
@@ -13,6 +13,7 @@
     }
   ],
   "displayName": "CanvasFrame",
+  "kind": "surface",
   "latest": "1.0.1",
   "libraryId": "react-component-library:CanvasFrame",
   "slot": "ui-pattern",

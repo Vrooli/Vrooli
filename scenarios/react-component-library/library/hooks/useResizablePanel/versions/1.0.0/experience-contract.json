@@ -1,0 +1,76 @@
+{
+  "contract": {
+    "kind": "rcl-component-experience-contract",
+    "schema": "scenario-experience-spec/v1",
+    "provenance": "react-component-library:useResizablePanel@1.0.0"
+  },
+  "component": {
+    "id": "hooks.use-resizable-panel",
+    "title": "Resizable Panel",
+    "purpose": "One behavior owner for every resizable region: pointer, keyboard, bounds, snapping, collapse and persistence."
+  },
+  "states": [
+    {
+      "id": "default",
+      "example": "default",
+      "description": "A bounded inline-axis panel reporting its size as a sentence."
+    },
+    {
+      "id": "keyboard",
+      "example": "keyboard",
+      "description": "Every reachable size is reachable from the keyboard."
+    },
+    {
+      "id": "persisted",
+      "example": "persisted",
+      "description": "An injected storage adapter seeds and receives the committed size."
+    }
+  ],
+  "claims": [
+    {
+      "id": "keyboard-operable",
+      "type": "keyboard-operable",
+      "statement": "Arrows step by a declared pixel amount, Shift coarsens, Home and End reach the bounds, PageUp and PageDown move between snap points, Enter restores the default.",
+      "tier": "machine",
+      "states": [
+        "keyboard"
+      ]
+    },
+    {
+      "id": "logical-geometry",
+      "type": "manual-review",
+      "statement": "Axis and edge are logical, so the same configuration resizes correctly under dir=rtl and on the block axis.",
+      "tier": "manual",
+      "states": [
+        "default"
+      ]
+    },
+    {
+      "id": "single-writer",
+      "type": "manual-review",
+      "statement": "The live drag writes one custom property and commits to React state once on release, so the rendered dimension has exactly one writer.",
+      "tier": "manual",
+      "states": [
+        "default"
+      ]
+    },
+    {
+      "id": "storage-adapter",
+      "type": "manual-review",
+      "statement": "Persistence goes through an injectable adapter; the localStorage default is a fallback, not a requirement.",
+      "tier": "manual",
+      "states": [
+        "persisted"
+      ]
+    },
+    {
+      "id": "pointer-drag-uncovered",
+      "type": "manual-review",
+      "statement": "The pointer path is exercised by unit tests rather than by these stories, because the story runner has no pointer-drag interaction kind.",
+      "tier": "aspirational",
+      "states": [
+        "default"
+      ]
+    }
+  ]
+}

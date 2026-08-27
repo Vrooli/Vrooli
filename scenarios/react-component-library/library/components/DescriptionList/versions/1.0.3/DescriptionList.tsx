@@ -7,6 +7,7 @@
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
 /** @vrooliComponentSource data-display.description-list */
+import { StyleSheet } from "@vrooli/react-component-library/StyleSheet/1.0.0";
 import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
 
 const styles = `
@@ -16,7 +17,7 @@ const styles = `
 [data-rcl-description-list-term] { color: var(--color-muted-foreground, #64748b); overflow-wrap: anywhere; }
 [data-rcl-description-list-value] { min-width: 0; margin: 0; overflow-wrap: anywhere; font-weight: 600; }
 @container (max-width: 24rem) { [data-rcl-description-list-row] { grid-template-columns: 1fr; gap: var(--space-3xs, .25rem); } }
-@media (forced-colors: active) { [data-rcl-description-list] { border-color: CanvasText; } [data-rcl-description-list-row] { background: Canvas; color: CanvasText; } }
+
 `;
 
 export const DescriptionList = withClassName(function DescriptionList({
@@ -26,7 +27,7 @@ export const DescriptionList = withClassName(function DescriptionList({
 }) {
   return (
     <dl data-testid="data-display.description-list" data-rcl-description-list>
-      <style data-rcl-description-list-styles dangerouslySetInnerHTML={{ __html: styles }} />
+      <StyleSheet name="descriptionlist-1-0-3-1" css={styles} />
       {entries.map((entry, index) => (
         <div key={entry.term} data-rcl-description-list-row data-row-index={index}>
           <dt data-rcl-description-list-term>{entry.term}</dt>

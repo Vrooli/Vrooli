@@ -37,6 +37,7 @@
     }
   ],
   "displayName": "Transition",
+  "kind": "surface",
   "draft": "",
   "latest": "1.0.5",
   "libraryId": "react-component-library:Transition",

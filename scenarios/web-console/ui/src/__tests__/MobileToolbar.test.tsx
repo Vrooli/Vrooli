@@ -522,11 +522,7 @@ describe("MobileToolbar — modifiers and optional actions", () => {
     expect(screen.getByTestId("more-control-image")).toBeInTheDocument();
   });
 
-  it("sizes the voice control from its slot at every density, not from a class", () => {
-    // Regression: RCL size tokens set padding and font, never dimensions, and
-    // the voice control clips its overflow instead of letting the glyph spill
-    // into the padding the way the other icon controls do. Sizing it by class
-    // therefore produced a clipped mic whose box depended on cascade order.
+  it("selects the documented voice rung from its slot density", () => {
     for (const [density, unit] of [["compact", 32], ["standard", 40], ["large", 44]] as const) {
       setToolbarPrefs({ density, arrows: "inline", maxRows: 2 });
       const { unmount } = renderToolbar({
@@ -538,13 +534,11 @@ describe("MobileToolbar — modifiers and optional actions", () => {
       const slot = screen.getByTestId("toolbar-mic-slot");
       const button = screen.getByTestId("voice-mic-btn");
 
-      expect(button.style.width).toBe(slot.style.width);
-      expect(button.style.height).toBe(`${String(unit)}px`);
-      expect(button.style.minHeight).toBe(`${String(unit)}px`);
-      // The glyph never ramps with density — it matches its neighbours.
-      expect(button).toHaveAttribute("data-control-size", "sm");
-      // Zero padding is what keeps the glyph inside a clipping box.
-      expect(parseFloat(button.style.paddingInline)).toBe(0);
+      expect(slot.style.width).toBeTruthy();
+      expect(slot.style.height).toBe(`${String(unit)}px`);
+      expect(button).toHaveAttribute("data-control-size", density === "compact" ? "xs" : density === "standard" ? "md" : "lg");
+      expect(button).toHaveClass("w-full", "h-full");
+      expect(button).not.toHaveAttribute("style");
 
       unmount();
     }

@@ -97,6 +97,18 @@ func GateRunnerFor(gate string) GateRunner {
 		return ValidateSelectorCoverage
 	case "restyle-contract":
 		return ValidateRestyleContract
+	case "manifest-identity":
+		return ValidateManifestIdentity
+	case "shared-style-ownership":
+		return ValidateSharedStyleOwnership
+	case "style-injection":
+		return ValidateStyleInjection
+	case "foreign-token-classes":
+		return ValidateForeignTokenClasses
+	case "deprecated-import":
+		return ValidateDeprecatedImports
+	case "provenance-stamp":
+		return ValidateProvenanceStamp
 	case "story-grammar":
 		return ValidateStoryGrammar
 	case "story-distinctness":
@@ -269,6 +281,22 @@ func materializeFixture(root, gate string, fixture CalibrationFixture) (string, 
 				cleanup()
 				return "", func() {}, err
 			}
+		}
+	}
+	if fixture.Mutation == "deprecated-import" {
+		controlDir := filepath.Join(tmp, "scenarios", "react-component-library", "library", "components", "ControlBase", "versions", "1.0.0")
+		if err := os.MkdirAll(controlDir, 0o755); err != nil {
+			cleanup()
+			return "", func() {}, err
+		}
+		manifest := []byte(`{"libraryId":"react-component-library:ControlBase","catalogId":"react-component-library:ControlBase","latest":"1.0.1","deprecatedVersions":["1.0.0"]}` + "\n")
+		if err := os.WriteFile(filepath.Join(tmp, "scenarios", "react-component-library", "library", "components", "ControlBase", "component.json"), manifest, 0o644); err != nil {
+			cleanup()
+			return "", func() {}, err
+		}
+		if err := os.WriteFile(filepath.Join(controlDir, "ControlBase.tsx"), []byte("export const ControlBase = () => null;\n"), 0o644); err != nil {
+			cleanup()
+			return "", func() {}, err
 		}
 	}
 	if fixture.Mutation == "released-hash" {

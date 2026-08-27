@@ -20,6 +20,7 @@
     }
   ],
   "displayName": "FormField",
+  "kind": "input",
   "latest": "1.0.1",
   "libraryId": "react-component-library:FormField",
   "tags": [

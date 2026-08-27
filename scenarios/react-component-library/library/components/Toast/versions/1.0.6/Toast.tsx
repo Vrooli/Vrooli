@@ -6,6 +6,7 @@
  * @tags ["feedback","async","accessibility","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
+import { StyleSheet } from "@vrooli/react-component-library/StyleSheet/1.0.0";
 import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
 
 /** @vrooliComponentSource feedback.toast */
@@ -33,7 +34,6 @@ const styles = `
 [data-rcl-toast-close], [data-rcl-toast-action] { min-block-size: var(--tap-target-min); border: 0; border-radius: var(--radius-control); background: transparent; color: var(--color-foreground); cursor: pointer; font: var(--text-label); }
 [data-rcl-toast-close] { inline-size: var(--tap-target-min); font-size: var(--text-title-size); }
 [data-rcl-toast-close]:hover, [data-rcl-toast-action]:hover { background: var(--color-surface-muted); }
-[data-rcl-toast-close]:focus-visible, [data-rcl-toast-action]:focus-visible { outline: var(--border-strong) solid var(--color-focus); outline-offset: var(--space-3xs); }
 @media (max-width: 38rem) { [data-rcl-toast-viewport] { inset-inline: var(--space-sm); inline-size: auto; } [data-rcl-toast] { padding: var(--space-sm); } }
 `;
 
@@ -101,7 +101,7 @@ export const Toast = withClassName(function Toast({ className, label, style }: T
   const manager = useToastManager();
   return (
     <>
-      <style data-rcl-toast-styles dangerouslySetInnerHTML={{ __html: styles }} />
+      <StyleSheet name="toast-1-0-6-1" css={styles} />
       <div className={className} style={style} data-rcl-toast-viewport aria-label={label}>
         {manager.toasts.map((toast) => (
           <ToastItem key={toast.id} toast={toast} onDismiss={() => manager.dismiss(toast.id)} />

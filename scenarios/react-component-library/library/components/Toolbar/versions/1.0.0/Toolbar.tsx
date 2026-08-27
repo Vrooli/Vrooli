@@ -1,4 +1,5 @@
 /** @vrooliComponentSource controls.toolbar */
+import { StyleSheet } from "@vrooli/react-component-library/StyleSheet/1.0.0";
 import {
   createRef,
   useRef,
@@ -58,15 +59,12 @@ const styleSheet = `
   [data-rcl-toolbar][aria-orientation="horizontal"] [data-rcl-toolbar-item] { flex: 1 1 calc(50% - var(--space-2xs)); min-inline-size: 0; }
   [data-rcl-toolbar][aria-orientation="horizontal"] [data-rcl-toolbar-item] > button { inline-size: 100%; min-width: var(--tap-target-min); }
 }
-@media (prefers-reduced-motion: reduce) { [data-rcl-toolbar] { scroll-behavior: auto; } }
+
 `;
 
 function ToolbarStyles() {
   return (
-    <style
-      data-rcl-toolbar-styles
-      dangerouslySetInnerHTML={{ __html: styleSheet }}
-    />
+    <StyleSheet name="toolbar-1-0-0-1" css={styleSheet} />
   );
 }
 

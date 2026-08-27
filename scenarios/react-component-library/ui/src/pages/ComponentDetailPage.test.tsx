@@ -132,6 +132,7 @@ describe("ComponentDetailPage", () => {
       expect(screen.getByTestId("component-detail-page")).toBeInTheDocument();
     });
     expect(screen.getByRole("tab", { name: "components.editor.files" })).toBeInTheDocument();
+    expect(screen.getAllByRole("tab")).toHaveLength(6);
     expect(screen.queryByTestId("monaco-stub")).not.toBeInTheDocument();
   });
 
@@ -144,7 +145,7 @@ describe("ComponentDetailPage", () => {
       { routerEntries: ["/components/cmp-42"] },
     );
 
-    await user.click(await screen.findByRole("tab", { name: "componentDetail.info.overview" }));
+    await user.click(await screen.findByRole("tab", { name: "componentDetail.info.experience" }));
     expect(await screen.findByTestId("component-experience-panel")).toHaveTextContent(
       "A named action is present.",
     );
@@ -173,7 +174,7 @@ describe("ComponentDetailPage", () => {
     expect(screen.getByTestId("component-detail-missing-id")).toBeInTheDocument();
   });
 
-  it("switches the information panel between overview, versions, and adoptions", async () => {
+  it("switches the information panel between overview and versions", async () => {
     const user = userEvent.setup();
     renderWithProviders(
       <Routes>
@@ -182,15 +183,14 @@ describe("ComponentDetailPage", () => {
       { routerEntries: ["/components/cmp-42"] },
     );
 
-    await screen.findByRole("tab", { name: "componentDetail.info.adoptions" });
+    await screen.findByRole("tab", { name: "componentDetail.info.versions" });
     expect(screen.getByRole("tab", { name: "components.editor.previewMode" })).toHaveAttribute(
       "aria-selected",
       "true",
     );
-    await user.click(screen.getByRole("tab", { name: "componentDetail.info.adoptions" }));
-    expect(screen.getByTestId("component-detail-adoptions")).toBeInTheDocument();
     await user.click(screen.getByRole("tab", { name: "componentDetail.info.versions" }));
-    expect(screen.queryByTestId("component-detail-adoptions")).not.toBeInTheDocument();
+    expect(screen.getByTestId("versions-card")).toBeInTheDocument();
+    expect(screen.queryByRole("tab", { name: "componentDetail.info.adoptions" })).not.toBeInTheDocument();
   });
 
   it("shows version and adoption totals in the detail tab notification bubbles", async () => {
@@ -213,9 +213,7 @@ describe("ComponentDetailPage", () => {
     expect(
       await screen.findByRole("tab", { name: "componentDetail.info.versions" }),
     ).toHaveTextContent("3");
-    expect(screen.getByRole("tab", { name: "componentDetail.info.adoptions" })).toHaveTextContent(
-      "2",
-    );
+    expect(screen.queryByRole("tab", { name: "componentDetail.info.adoptions" })).not.toBeInTheDocument();
   });
 
   it("links a component's shared hook dependencies from its overview", async () => {
@@ -294,8 +292,8 @@ describe("ComponentDetailPage", () => {
     await user.click(await screen.findByRole("tab", { name: "components.editor.files" }));
     expect(await screen.findByTestId("monaco-stub")).toBeInTheDocument();
     await user.click(screen.getByRole("tab", { name: "componentDetail.info.versions" }));
-    await user.click(screen.getByRole("tab", { name: "componentDetail.info.adoptions" }));
-    expect(screen.getByTestId("hook-effective-adoptions")).toBeInTheDocument();
+    expect(screen.getByTestId("hook-workspace-details")).toBeInTheDocument();
+    expect(screen.queryByRole("tab", { name: "componentDetail.info.adoptions" })).not.toBeInTheDocument();
   });
 
   it("renders loading while the component lookup is pending", () => {

@@ -6,6 +6,7 @@
  * @tags ["data-display","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
+import { StyleSheet } from "@vrooli/react-component-library/StyleSheet/1.0.0";
 import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
 
 /** @vrooliComponentSource react-component-library:Stat */
@@ -61,7 +62,7 @@ export const Stat = withClassName(function Stat({
   const strings = useStrings();
   return (
     <>
-      <style data-rcl-stat-styles dangerouslySetInnerHTML={{ __html: styles }} />
+      <StyleSheet name="stat-1-0-4-1" css={styles} />
       <article
         data-testid="data-display.stat"
         className={className}

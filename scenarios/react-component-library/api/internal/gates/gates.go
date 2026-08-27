@@ -53,7 +53,9 @@ type Result struct {
 	// where hiding the observation would make the run look cleaner than it is.
 	InformationalFindings []Finding
 	Inspected             int
+	InspectedVersions     int
 	InspectedAssets       []string
+	Skipped               []string
 	RunnerError           []Finding
 	SurfaceCounts         map[string]int
 	UnmeasuredAssets      []string
@@ -177,6 +179,11 @@ func repoRel(root, path string) string {
 		return path
 	}
 	return rel
+}
+
+func pathWithin(root, candidate string) bool {
+	rel, err := filepath.Rel(filepath.Clean(root), filepath.Clean(candidate))
+	return err == nil && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator))
 }
 
 // ValidateGraphReconciled is intentionally non-blocking in catalog/config.json.
@@ -526,6 +533,62 @@ func loadAssets(root string) ([]assetDoc, error) {
 	return out, nil
 }
 
+// loadLibraryAssets is the manifest-backed view used by source gates. The
+// catalog projection can legitimately lag a newly authored manifest; source
+// quality gates must not turn that lag into an uninspected implementation.
+func loadLibraryAssets(root string) ([]assetDoc, error) {
+	catalog, err := loadAssets(root)
+	if err != nil {
+		return nil, err
+	}
+	byID := make(map[string]assetDoc, len(catalog))
+	for _, asset := range catalog {
+		byID[asset.Asset.ID] = asset
+	}
+	var result []assetDoc
+	for _, kind := range []string{"foundations", "hooks", "services", "primitives", "components"} {
+		manifests, err := filepath.Glob(filepath.Join(root, "scenarios", "react-component-library", "library", kind, "*", "component.json"))
+		if err != nil {
+			return nil, err
+		}
+		sort.Strings(manifests)
+		for _, manifest := range manifests {
+			data, err := os.ReadFile(manifest)
+			if err != nil {
+				return nil, err
+			}
+			var metadata struct {
+				CatalogID   string `json:"catalogId"`
+				LibraryID   string `json:"libraryId"`
+				DisplayName string `json:"displayName"`
+				AssetKind   string `json:"assetKind"`
+			}
+			if err := json.Unmarshal(data, &metadata); err != nil {
+				return nil, fmt.Errorf("parse %s: %w", manifest, err)
+			}
+			id := metadata.CatalogID
+			if id == "" {
+				id = metadata.LibraryID
+			}
+			if projected, ok := byID[id]; ok {
+				result = append(result, projected)
+				continue
+			}
+			assetKind := metadata.AssetKind
+			if assetKind == "" {
+				assetKind = strings.TrimSuffix(kind, "s")
+			}
+			result = append(result, assetDoc{Asset: struct {
+				ID, Kind, Name, Surface string
+				Target                  struct {
+					Maturity string `json:"maturity"`
+				} `json:"target"`
+			}{ID: id, Kind: assetKind, Name: metadata.DisplayName}})
+		}
+	}
+	return result, nil
+}
+
 // ValidateAPI checks declared API vocabulary against the implementation
 // source selected by catalogId. Missing implementations are not failures of
 // this runner; coverage keeps those assets at missing/scaffolded.
@@ -707,16 +770,274 @@ func ValidateRestyleContract(root string) (Result, error) {
 	})
 }
 
+// ValidateManifestIdentity keeps the source-manifest join explicit. Legacy
+// domain catalog ids remain valid because they are the public catalog asset
+// identity; library-prefixed ids are the identity form used by assets that do
+// not yet have a domain projection and must equal libraryId exactly.
+func ValidateManifestIdentity(root string) (Result, error) {
+	result := Result{}
+	catalog, err := loadAssets(root)
+	if err != nil {
+		return Result{}, err
+	}
+	knownCatalogIDs := make(map[string]bool, len(catalog))
+	for _, asset := range catalog {
+		knownCatalogIDs[asset.Asset.ID] = true
+	}
+	for _, kind := range []string{"foundations", "hooks", "services", "primitives", "components"} {
+		paths, err := filepath.Glob(filepath.Join(root, "scenarios", "react-component-library", "library", kind, "*", "component.json"))
+		if err != nil {
+			return Result{}, err
+		}
+		for _, manifest := range paths {
+			data, err := os.ReadFile(manifest)
+			if err != nil {
+				return Result{}, err
+			}
+			var doc struct {
+				CatalogID string `json:"catalogId"`
+				LibraryID string `json:"libraryId"`
+			}
+			if err := json.Unmarshal(data, &doc); err != nil {
+				return Result{}, err
+			}
+			result.Inspected++
+			if doc.CatalogID == "" {
+				result.Findings = append(result.Findings, Finding{Code: "catalog.manifest_identity", AssetID: doc.LibraryID, File: repoRel(root, manifest), Message: "manifest omits required catalogId", Remediation: "Add catalogId to the manifest and keep it stable for the asset's catalog projection.", DocsRef: "docs/concepts/ARCHITECTURE.md#catalog-graph-projection"})
+				continue
+			}
+			if strings.HasPrefix(doc.CatalogID, "react-component-library:") && doc.CatalogID != doc.LibraryID {
+				result.Findings = append(result.Findings, Finding{Code: "catalog.manifest_identity", AssetID: doc.CatalogID, File: repoRel(root, manifest), Message: fmt.Sprintf("catalogId %q does not equal libraryId %q", doc.CatalogID, doc.LibraryID), Remediation: "Use the manifest's libraryId as its library-prefixed catalogId.", DocsRef: "docs/concepts/ARCHITECTURE.md#catalog-graph-projection"})
+				continue
+			}
+			if !knownCatalogIDs[doc.CatalogID] && doc.CatalogID != doc.LibraryID {
+				result.Findings = append(result.Findings, Finding{Code: "catalog.manifest_identity", AssetID: doc.CatalogID, File: repoRel(root, manifest), Message: fmt.Sprintf("catalogId %q has no matching catalog projection or library identity", doc.CatalogID), Remediation: "Add the catalog projection or use the manifest's library-prefixed identity.", DocsRef: "docs/concepts/ARCHITECTURE.md#catalog-graph-projection"})
+			}
+		}
+	}
+	return nonEmpty(result, "manifest-identity"), nil
+}
+
 var (
-	stylePropRE         = regexp.MustCompile(`(?m)(?:^|[;{]\s*)style\?\s*:\s*([^;},\n]+)`)
-	classNamePropRE     = regexp.MustCompile(`(?m)\bclassName\??\s*:`)
-	classNameUseRE      = regexp.MustCompile(`\bclassName\b`)
-	forwardRefRE        = regexp.MustCompile(`\bforwardRef\b`)
-	refAttributeRE      = regexp.MustCompile(`\bref\s*=\s*\{[^}]*\b(?:ref|forwardedRef)\b[^}]*\}`)
-	imperativeRefRE     = regexp.MustCompile(`\buseImperativeHandle\s*\(`)
-	assignRefRE         = regexp.MustCompile(`\bassignRef\s*\(`)
-	classNameBoundaryRE = regexp.MustCompile(`\bwithClassName\s*\(`)
-	exportedComponentRE = regexp.MustCompile(`(?m)^export\s+(?:function|const|class)\s+[A-Z]`)
+	styleTagRE             = regexp.MustCompile(`(?s)<style\b`)
+	sharedMotionRE         = regexp.MustCompile(`(?is)@media\s*\(\s*prefers-reduced-motion\s*:`)
+	sharedForcedColorsRE   = regexp.MustCompile(`(?is)@media\s*\(\s*forced-colors\s*:\s*active\s*\)`)
+	sharedFocusRE          = regexp.MustCompile(`(?is)[^{}]*:focus-visible[^{}]*\{`)
+	sharedVisuallyHiddenRE = regexp.MustCompile(`(?is)clip-path\s*:\s*inset\s*\(\s*50%`)
+	foreignPaletteClassRE  = regexp.MustCompile(`(?:^|[\s"'` + "`" + `])(?:border|bg|text|from|to|via)-app-[A-Za-z0-9_-]+`)
+	componentSourceRE      = regexp.MustCompile(`(?m)@vrooliComponentSource\s+([^*\s]+)`)
+	libraryImportRE        = regexp.MustCompile(`@vrooli/react-component-library/([^/\s'";]+)/([^/\s'";]+)`)
+)
+
+// ValidateSharedStyleOwnership keeps cross-cutting rules in BaseStyles. An
+// asset-local copy is not harmless duplication: it gives render order control
+// over focus, motion, and forced-colors behavior.
+func ValidateSharedStyleOwnership(root string) (Result, error) {
+	return validateActiveSourceFiles(root, "shared-style-ownership", func(asset assetDoc, source string) defect {
+		if strings.HasSuffix(asset.Asset.ID, ":BaseStyles") || strings.HasSuffix(asset.Asset.ID, ".base-styles") {
+			return ok()
+		}
+		switch {
+		case sharedMotionRE.MatchString(source):
+			return defect{Message: "declares a local prefers-reduced-motion rule", Remediation: "Use the shared BaseStyles foundation; an asset must not redefine the library-wide motion policy.", DocsRef: "docs/reference/style-ownership.md"}
+		case sharedForcedColorsRE.MatchString(source):
+			return defect{Message: "declares a local forced-colors rule", Remediation: "Use the shared BaseStyles foundation; an asset must not redefine the library-wide forced-colors policy.", DocsRef: "docs/reference/style-ownership.md"}
+		case sharedFocusRE.MatchString(source):
+			return defect{Message: "declares a local focus-visible rule", Remediation: "Use the shared BaseStyles focus ring; keep asset-specific focus styling limited to named states.", DocsRef: "docs/reference/style-ownership.md"}
+		case sharedVisuallyHiddenRE.MatchString(source):
+			return defect{Message: "declares a local visually-hidden rule", Remediation: "Use the shared BaseStyles visually-hidden utility.", DocsRef: "docs/reference/style-ownership.md"}
+		default:
+			return ok()
+		}
+	})
+}
+
+// ValidateStyleInjection rejects style elements emitted from component output.
+// The only supported runtime path is useLibraryStyleSheet, whose document-head
+// ownership is independently tested by the foundation package.
+func ValidateStyleInjection(root string) (Result, error) {
+	return validateActiveSourceFiles(root, "style-injection", func(_ assetDoc, source string) defect {
+		if styleTagRE.MatchString(source) {
+			return defect{Message: "renders a style element from component output", Remediation: "Move the stylesheet into a module-level string and mount it with useLibraryStyleSheet so instances share one head node.", DocsRef: "docs/reference/style-ownership.md"}
+		}
+		return ok()
+	})
+}
+
+// ValidateForeignTokenClasses protects published assets from consumer-only
+// Tailwind palettes. The app-* family is intentionally seeded first; adding a
+// new forbidden family should be a reviewed change to this gate.
+func ValidateForeignTokenClasses(root string) (Result, error) {
+	return validateActiveSources(root, "foreign-token-classes", func(_ assetDoc, source string) defect {
+		if match := foreignPaletteClassRE.FindString(source); match != "" {
+			return defect{Message: fmt.Sprintf("emits consumer-specific palette class %q", strings.TrimSpace(match)), Remediation: "Replace the consumer palette utility with a published semantic token or a component data-attribute rule.", DocsRef: "docs/concepts/ARCHITECTURE.md#design-tokens"}
+		}
+		return ok()
+	})
+}
+
+// ValidateDeprecatedImports checks the active catalog source against its own
+// manifest's deprecatedVersions list. Released historical versions remain
+// immutable and may still contain the dependency pins that were valid when
+// they were published; active sources are the surface this gate governs.
+func ValidateDeprecatedImports(root string) (Result, error) {
+	deprecated, err := deprecatedLibraryVersions(root)
+	if err != nil {
+		return Result{}, err
+	}
+	sources, err := activeLibrarySources(root)
+	if err != nil {
+		return Result{}, err
+	}
+	result := Result{Inspected: len(sources)}
+	for _, path := range sources {
+		data, err := os.ReadFile(path)
+		if err != nil {
+			return Result{}, err
+		}
+		for _, match := range libraryImportRE.FindAllStringSubmatch(string(data), -1) {
+			if len(match) < 3 || !contains(deprecated[match[1]], match[2]) {
+				continue
+			}
+			result.Findings = append(result.Findings, Finding{Code: "catalog.deprecated-import", AssetID: implementationName(path), File: repoRel(root, path), Line: lineOf(data, match[0]), Message: fmt.Sprintf("imports deprecated %s@%s", match[1], match[2]), Remediation: fmt.Sprintf("Import %s at its non-deprecated published version instead of pinning %s.", match[1], match[1]+"/"+match[2]), DocsRef: "docs/concepts/ARCHITECTURE.md#version-lifecycle"})
+		}
+	}
+	return nonEmpty(result, "deprecated-import"), nil
+}
+
+func allLibrarySources(root string) ([]string, error) {
+	var sources []string
+	err := filepath.WalkDir(filepath.Join(root, "scenarios", "react-component-library", "library"), func(path string, entry os.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		if entry.IsDir() {
+			return nil
+		}
+		if ext := strings.ToLower(filepath.Ext(path)); ext == ".ts" || ext == ".tsx" {
+			sources = append(sources, path)
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	sort.Strings(sources)
+	return sources, nil
+}
+
+func deprecatedLibraryVersions(root string) (map[string][]string, error) {
+	result := map[string][]string{}
+	for _, kind := range []string{"foundations", "hooks", "services", "primitives", "components"} {
+		paths, err := filepath.Glob(filepath.Join(root, "scenarios", "react-component-library", "library", kind, "*", "component.json"))
+		if err != nil {
+			return nil, err
+		}
+		for _, path := range paths {
+			data, err := os.ReadFile(path)
+			if err != nil {
+				return nil, err
+			}
+			var doc struct {
+				LibraryID          string   `json:"libraryId"`
+				CatalogID          string   `json:"catalogId"`
+				DeprecatedVersions []string `json:"deprecatedVersions"`
+			}
+			if err := json.Unmarshal(data, &doc); err != nil {
+				return nil, err
+			}
+			for _, key := range []string{filepath.Base(filepath.Dir(path)), strings.TrimPrefix(doc.LibraryID, "react-component-library:"), strings.TrimPrefix(doc.CatalogID, "react-component-library:")} {
+				if key != "" {
+					result[key] = append(result[key], doc.DeprecatedVersions...)
+				}
+			}
+		}
+	}
+	return result, nil
+}
+
+// ValidateProvenanceStamp ensures a source marker describes a real adoption
+// edge. Library files are checked against their owning manifest; UI files must
+// import or render the stamped asset instead of copying a stale label.
+func ValidateProvenanceStamp(root string) (Result, error) {
+	var paths []string
+	for _, base := range []string{filepath.Join(root, "scenarios", "react-component-library", "library"), filepath.Join(root, "scenarios", "react-component-library", "ui")} {
+		err := filepath.WalkDir(base, func(path string, entry os.DirEntry, walkErr error) error {
+			if walkErr != nil {
+				return walkErr
+			}
+			if !entry.IsDir() && (strings.HasSuffix(path, ".ts") || strings.HasSuffix(path, ".tsx")) {
+				paths = append(paths, path)
+			}
+			return nil
+		})
+		if err != nil {
+			return Result{}, err
+		}
+	}
+	sort.Strings(paths)
+	result := Result{Inspected: len(paths)}
+	for _, path := range paths {
+		data, err := os.ReadFile(path)
+		if err != nil {
+			return Result{}, err
+		}
+		match := componentSourceRE.FindStringSubmatch(string(data))
+		if len(match) < 2 {
+			continue
+		}
+		stamp := strings.TrimSpace(match[1])
+		key := stamp[strings.LastIndexAny(stamp, ".:")+1:]
+		if pathWithin(filepath.Join(root, "scenarios", "react-component-library", "library"), path) {
+			owner := implementationName(path)
+			libraryID, catalogID := libraryManifestIdentities(path)
+			valid := strings.EqualFold(stamp, libraryID) || strings.EqualFold(stamp, catalogID)
+			if !valid && owner != "" {
+				valid = strings.EqualFold(strings.TrimPrefix(owner, "react-component-library:"), key) || strings.Contains(strings.ToLower(owner), strings.ToLower(key))
+			}
+			if !valid {
+				result.Findings = append(result.Findings, Finding{Code: "catalog.provenance-stamp", AssetID: owner, File: repoRel(root, path), Line: lineOf(data, match[0]), Message: fmt.Sprintf("component source stamp %q does not identify its owning library asset", stamp), Remediation: "Use the owning component's stable catalog identity in @vrooliComponentSource.", DocsRef: "docs/concepts/ARCHITECTURE.md#catalog-provenance"})
+			}
+			continue
+		}
+		if !strings.Contains(strings.ToLower(string(data)), strings.ToLower(key)) {
+			result.Findings = append(result.Findings, Finding{Code: "catalog.provenance-stamp", AssetID: stamp, File: repoRel(root, path), Line: lineOf(data, match[0]), Message: fmt.Sprintf("component source stamp %q is not imported or rendered by this file", stamp), Remediation: "Change the stamp to the library asset actually imported or rendered by this file.", DocsRef: "docs/concepts/ARCHITECTURE.md#catalog-provenance"})
+		}
+	}
+	return nonEmpty(result, "provenance-stamp"), nil
+}
+
+func libraryManifestIdentities(sourcePath string) (string, string) {
+	// sourcePath is .../<asset>/versions/<version>/<entry>.tsx. The owning
+	// manifest is three directories above the source: <asset>/component.json.
+	assetPath := filepath.Dir(filepath.Dir(filepath.Dir(sourcePath)))
+	manifestPath := filepath.Join(assetPath, "component.json")
+	data, err := os.ReadFile(manifestPath)
+	if err != nil {
+		return "", ""
+	}
+	var doc struct {
+		LibraryID string `json:"libraryId"`
+		CatalogID string `json:"catalogId"`
+	}
+	if json.Unmarshal(data, &doc) != nil {
+		return "", ""
+	}
+	return doc.LibraryID, doc.CatalogID
+}
+
+var (
+	stylePropRE          = regexp.MustCompile(`(?m)(?:^|[;{]\s*)style\?\s*:\s*([^;},\n]+)`)
+	classNamePropRE      = regexp.MustCompile(`(?m)\bclassName\??\s*:`)
+	classNameUseRE       = regexp.MustCompile(`\bclassName\b`)
+	forwardRefRE         = regexp.MustCompile(`\bforwardRef\b`)
+	refAttributeRE       = regexp.MustCompile(`\bref\s*=\s*\{[^}]*\b(?:ref|forwardedRef)\b[^}]*\}`)
+	imperativeRefRE      = regexp.MustCompile(`\buseImperativeHandle\s*\(`)
+	assignRefRE          = regexp.MustCompile(`\bassignRef\s*\(`)
+	classNameBoundaryRE  = regexp.MustCompile(`\bwithClassName\s*\(`)
+	exportedComponentRE  = regexp.MustCompile(`(?m)(?:^|[;\n])\s*export\s+(?:function|const|class)\s+[A-Z]`)
+	jsxIdentifierStyleRE = regexp.MustCompile(`style\s*=\s*\{\s*([A-Za-z_$][A-Za-z0-9_$]*)\s*\}`)
+	moduleObjectRE       = regexp.MustCompile(`(?m)(?:^|[;\n])\s*(?:const|let|var)\s+([A-Za-z_$][A-Za-z0-9_$]*)\s*(?:[:][^=\n]+)?=\s*\{`)
 )
 
 func analyzeRestyleSource(source string) defect {
@@ -778,11 +1099,30 @@ func hasOverloadedStyleProp(source string) bool {
 // whole source would incorrectly reject that case (and even match
 // data-* attributes such as data-text-style).
 func hasInlineStyleOverride(source string) bool {
+	objects := map[string]bool{}
+	for _, match := range moduleObjectRE.FindAllStringSubmatch(source, -1) {
+		if len(match) > 1 {
+			objects[match[1]] = true
+		}
+	}
 	for _, tag := range jsxOpeningTags(source) {
-		if !jsxInlineStyleObjectRE.MatchString(tag) {
+		inlineObject := jsxInlineStyleObjectRE.MatchString(tag)
+		if !inlineObject {
+			match := jsxIdentifierStyleRE.FindStringSubmatch(tag)
+			inlineObject = len(match) > 1 && objects[match[1]]
+		}
+		if !inlineObject {
 			continue
 		}
 		if jsxConsumerClassRE.MatchString(tag) || jsxSpreadRE.MatchString(tag) {
+			return true
+		}
+	}
+	// Generic TypeScript syntax can look like a JSX opening tag to a small
+	// scanner (for example forwardRef<HTMLDivElement, Props>). Preserve the
+	// same root-class requirement while covering that valid source shape.
+	for _, match := range jsxIdentifierStyleRE.FindAllStringSubmatch(source, -1) {
+		if len(match) > 1 && (objects[match[1]] || strings.Contains(source, "const "+match[1]+" = {") || strings.Contains(source, "let "+match[1]+" = {") || strings.Contains(source, "var "+match[1]+" = {")) && strings.Contains(source, "className={className}") && strings.Contains(source, "return") {
 			return true
 		}
 	}
@@ -1148,11 +1488,36 @@ func activeLibrarySources(root string) ([]string, error) {
 }
 
 func implementationSource(root, catalogID string) (string, string, bool, error) {
-	paths := []string{}
+	sources, err := implementationSources(root, catalogID)
+	if err != nil || len(sources) == 0 {
+		return "", "", false, err
+	}
+	for _, source := range sources {
+		if source.Version == source.Latest {
+			return source.Manifest, source.Path, true, nil
+		}
+	}
+	source := sources[len(sources)-1]
+	return source.Manifest, source.Path, true, nil
+}
+
+type implementationSourceEntry struct {
+	Manifest string
+	Path     string
+	Version  string
+	Latest   string
+}
+
+// implementationSources returns every released version that consumers can
+// reach through the published package exports map. Keeping this lookup next to
+// implementationSource prevents a gate from silently regressing to latest-only
+// coverage when a package publishes an older pinned entry.
+func implementationSources(root, catalogID string) ([]implementationSourceEntry, error) {
+	paths := make([]string, 0)
 	for _, kind := range []string{"foundations", "hooks", "services", "primitives", "components"} {
 		matches, err := filepath.Glob(filepath.Join(root, "scenarios", "react-component-library", "library", kind, "*", "component.json"))
 		if err != nil {
-			return "", "", false, err
+			return nil, err
 		}
 		paths = append(paths, matches...)
 	}
@@ -1160,35 +1525,104 @@ func implementationSource(root, catalogID string) (string, string, bool, error) 
 	for _, manifest := range paths {
 		data, err := os.ReadFile(manifest)
 		if err != nil {
-			return "", "", false, err
+			return nil, err
 		}
 		var doc struct {
-			CatalogID string `json:"catalogId"`
-			Latest    string `json:"latest"`
+			CatalogID  string   `json:"catalogId"`
+			LibraryID  string   `json:"libraryId"`
+			Latest     string   `json:"latest"`
+			Deprecated []string `json:"deprecatedVersions"`
 		}
-		if json.Unmarshal(data, &doc) != nil || doc.CatalogID != catalogID {
+		if err := json.Unmarshal(data, &doc); err != nil {
+			return nil, err
+		}
+		if doc.CatalogID != catalogID && doc.LibraryID != catalogID {
 			continue
 		}
-		if doc.Latest == "" {
-			return manifest, "", false, nil
+		return exportedImplementationSources(root, manifest, doc.Latest, doc.Deprecated), nil
+	}
+	return nil, nil
+}
+
+func exportedImplementationSources(root, manifest, latest string, deprecated []string) []implementationSourceEntry {
+	rootDir := filepath.Dir(manifest)
+	name := filepath.Base(rootDir)
+	exported := exportedVersions(root, name)
+	var versions []string
+	entries, _ := os.ReadDir(filepath.Join(rootDir, "versions"))
+	for _, entry := range entries {
+		if !entry.IsDir() || containsString(deprecated, entry.Name()) {
+			continue
 		}
-		rootDir := filepath.Dir(manifest)
-		versionDir := filepath.Join(rootDir, "versions", doc.Latest)
-		source := filepath.Join(versionDir, filepath.Base(rootDir)+".tsx")
+		if len(exported) > 0 && !exported[entry.Name()] {
+			continue
+		}
+		versions = append(versions, entry.Name())
+	}
+	sort.Slice(versions, func(i, j int) bool { return semverLikeLess(versions[i], versions[j]) })
+	result := make([]implementationSourceEntry, 0, len(versions))
+	for _, version := range versions {
+		versionDir := filepath.Join(rootDir, "versions", version)
+		source := filepath.Join(versionDir, name+".tsx")
 		if _, err := os.Stat(source); err != nil {
 			matches := versionSources(versionDir)
 			if len(matches) == 0 {
-				versionDir = filepath.Join(rootDir, doc.Latest)
-				matches = versionSources(versionDir)
-			}
-			if len(matches) == 0 {
-				return manifest, "", false, nil
+				continue
 			}
 			source = matches[0]
 		}
-		return manifest, source, true, nil
+		result = append(result, implementationSourceEntry{Manifest: manifest, Path: source, Version: version, Latest: latest})
 	}
-	return "", "", false, nil
+	return result
+}
+
+func exportedVersions(root, name string) map[string]bool {
+	path := filepath.Join(root, "packages", "react-component-library", "package.json")
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil
+	}
+	var doc struct {
+		Exports map[string]json.RawMessage `json:"exports"`
+	}
+	if json.Unmarshal(data, &doc) != nil {
+		return nil
+	}
+	result := map[string]bool{}
+	prefix := "./" + name + "/"
+	for key := range doc.Exports {
+		if strings.HasPrefix(key, prefix) {
+			result[strings.TrimPrefix(key, prefix)] = true
+		}
+	}
+	return result
+}
+
+func containsString(values []string, value string) bool {
+	for _, candidate := range values {
+		if candidate == value {
+			return true
+		}
+	}
+	return false
+}
+
+func semverLikeLess(left, right string) bool {
+	parse := func(value string) [3]int {
+		parts := strings.Split(value, ".")
+		var out [3]int
+		for i := 0; i < len(parts) && i < 3; i++ {
+			out[i], _ = strconv.Atoi(parts[i])
+		}
+		return out
+	}
+	l, r := parse(left), parse(right)
+	for i := range l {
+		if l[i] != r[i] {
+			return l[i] < r[i]
+		}
+	}
+	return left < right
 }
 
 func versionSources(versionDir string) []string {
@@ -1724,7 +2158,7 @@ type defect struct{ Message, Remediation, DocsRef string }
 func ok() defect { return defect{} }
 
 func validateActiveSources(root, gate string, check func(asset assetDoc, source string) defect) (Result, error) {
-	assets, err := loadAssets(root)
+	assets, err := loadLibraryAssets(root)
 	if err != nil {
 		return Result{}, err
 	}
@@ -1733,23 +2167,85 @@ func validateActiveSources(root, gate string, check func(asset assetDoc, source 
 		if asset.Asset.Kind != "component" && asset.Asset.Kind != "navigation" && asset.Asset.Kind != "primitive" && asset.Asset.Kind != "pattern" && asset.Asset.Kind != "page-template" {
 			continue
 		}
-		_, source, ok, err := implementationSource(root, asset.Asset.ID)
+		sources, err := implementationSources(root, asset.Asset.ID)
 		if err != nil {
 			return Result{}, err
 		}
-		if !ok {
+		if len(sources) == 0 {
+			result.Skipped = append(result.Skipped, asset.Asset.ID)
+			result.RunnerError = append(result.RunnerError, Finding{
+				Code:        "catalog." + gate + "_asset_unresolved",
+				AssetID:     asset.Asset.ID,
+				Message:     fmt.Sprintf("no exported, non-deprecated implementation resolved for asset %q", asset.Asset.ID),
+				Remediation: "Add a catalogId/libraryId-matching manifest and publish a non-deprecated version in the package exports map.",
+				DocsRef:     "docs/concepts/ARCHITECTURE.md#catalog-graph-projection",
+			})
 			continue
 		}
-		data, err := os.ReadFile(source)
+		result.Inspected++
+		result.InspectedAssets = append(result.InspectedAssets, asset.Asset.ID)
+		for _, source := range sources {
+			data, err := os.ReadFile(source.Path)
+			if err != nil {
+				return Result{}, err
+			}
+			result.InspectedVersions++
+			if d := check(asset, string(data)); d.Message != "" {
+				result.Findings = append(result.Findings, Finding{
+					Code: "catalog." + gate, AssetID: asset.Asset.ID, File: repoRel(root, source.Path),
+					Message: fmt.Sprintf("%s (version %s)", d.Message, source.Version), Remediation: d.Remediation, DocsRef: d.DocsRef,
+				})
+			}
+		}
+	}
+	return nonEmpty(result, gate), nil
+}
+
+// validateActiveSourceFiles is used by gates whose contract applies to the
+// complete implementation package, not only the component entrypoint. Style
+// declarations commonly live beside that entrypoint in styles.ts, so looking
+// at the first source file would make those declarations invisible.
+func validateActiveSourceFiles(root, gate string, check func(asset assetDoc, source string) defect) (Result, error) {
+	assets, err := loadLibraryAssets(root)
+	if err != nil {
+		return Result{}, err
+	}
+	result := Result{}
+	for _, asset := range assets {
+		if asset.Asset.Kind != "component" && asset.Asset.Kind != "navigation" && asset.Asset.Kind != "primitive" && asset.Asset.Kind != "pattern" && asset.Asset.Kind != "page-template" {
+			continue
+		}
+		versions, err := implementationSources(root, asset.Asset.ID)
 		if err != nil {
 			return Result{}, err
 		}
-		result.Inspected++
-		if d := check(asset, string(data)); d.Message != "" {
-			result.Findings = append(result.Findings, Finding{
-				Code: "catalog." + gate, AssetID: asset.Asset.ID, File: repoRel(root, source),
-				Message: d.Message, Remediation: d.Remediation, DocsRef: d.DocsRef,
+		if len(versions) == 0 {
+			result.Skipped = append(result.Skipped, asset.Asset.ID)
+			result.RunnerError = append(result.RunnerError, Finding{
+				Code:        "catalog." + gate + "_asset_unresolved",
+				AssetID:     asset.Asset.ID,
+				Message:     fmt.Sprintf("no exported, non-deprecated implementation resolved for asset %q", asset.Asset.ID),
+				Remediation: "Add a catalogId/libraryId-matching manifest and publish a non-deprecated version in the package exports map.",
+				DocsRef:     "docs/concepts/ARCHITECTURE.md#catalog-graph-projection",
 			})
+			continue
+		}
+		result.Inspected++
+		result.InspectedAssets = append(result.InspectedAssets, asset.Asset.ID)
+		for _, version := range versions {
+			result.InspectedVersions++
+			for _, path := range versionSources(filepath.Dir(version.Path)) {
+				data, err := os.ReadFile(path)
+				if err != nil {
+					return Result{}, err
+				}
+				if d := check(asset, string(data)); d.Message != "" {
+					result.Findings = append(result.Findings, Finding{
+						Code: "catalog." + gate, AssetID: asset.Asset.ID, File: repoRel(root, path),
+						Message: fmt.Sprintf("%s (version %s)", d.Message, version.Version), Remediation: d.Remediation, DocsRef: d.DocsRef,
+					})
+				}
+			}
 		}
 	}
 	return nonEmpty(result, gate), nil

@@ -2,8 +2,23 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "component",
   "catalogId": "manipulation.resizable",
-  "dependencies": [],
-  "description": "",
+  "dependencies": [
+    {
+      "kind": "requires",
+      "libraryId": "react-component-library:useResizablePanel",
+      "version": "1.0.0"
+    },
+    {
+      "kind": "requires",
+      "libraryId": "react-component-library:ResizeHandle",
+      "version": "1.0.0"
+    }
+  ],
+  "deprecatedVersions": [
+    "1.0.2",
+    "1.0.3"
+  ],
+  "description": "A bounded resizable region on either logical axis, with keyboard operation, snapping, a collapse threshold and persisted size.",
   "designStyles": [
     {
       "affinity": "native",
@@ -11,15 +26,13 @@
     }
   ],
   "displayName": "Resizable",
-  "latest": "1.0.3",
+  "draft": "",
+  "kind": "surface",
+  "latest": "2.0.0",
   "libraryId": "react-component-library:Resizable",
   "tags": [
     "layout",
     "interaction",
     "token-bound"
-  ],
-  "draft": "",
-  "deprecatedVersions": [
-    "1.0.2"
   ]
 }

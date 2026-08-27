@@ -7,13 +7,14 @@
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
 /** @vrooliComponentSource controls.toolbar */
+import { StyleSheet } from "@vrooli/react-component-library/StyleSheet/1.0.0";
 import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
 
 import { createRef, useRef, useState, type ReactNode, type RefObject } from "react";
 import {
   ControlBase,
   type ControlVariant,
-} from "@vrooli/react-component-library/ControlBase/1.0.0";
+} from "@vrooli/react-component-library/ControlBase/1.1.0";
 import { Toggle } from "@vrooli/react-component-library/Toggle/1.0.0";
 import { useRovingFocus } from "@vrooli/react-component-library/useRovingFocus/1.0.0";
 
@@ -62,11 +63,11 @@ const styleSheet = `
   [data-rcl-toolbar][aria-orientation="horizontal"] [data-rcl-toolbar-item] { flex: 1 1 calc(50% - var(--space-2xs)); min-inline-size: 0; }
   [data-rcl-toolbar][aria-orientation="horizontal"] [data-rcl-toolbar-item] > button { inline-size: 100%; min-width: var(--tap-target-min); }
 }
-@media (prefers-reduced-motion: reduce) { [data-rcl-toolbar] { scroll-behavior: auto; } }
+
 `;
 
 function ToolbarStyles() {
-  return <style data-rcl-toolbar-styles dangerouslySetInnerHTML={{ __html: styleSheet }} />;
+  return <StyleSheet name="toolbar-1-0-3-1" css={styleSheet} />;
 }
 
 export const Toolbar = withClassName(function Toolbar({

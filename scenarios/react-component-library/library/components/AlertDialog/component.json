@@ -19,6 +19,7 @@
     }
   ],
   "displayName": "AlertDialog",
+  "kind": "overlay",
   "latest": "1.0.6",
   "libraryId": "react-component-library:AlertDialog",
   "tags": [

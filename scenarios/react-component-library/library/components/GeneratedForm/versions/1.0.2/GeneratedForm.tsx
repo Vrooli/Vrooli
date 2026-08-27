@@ -6,6 +6,7 @@
  * @tags ["form","generated","schema","validation","responsive","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
+import { StyleSheet } from "@vrooli/react-component-library/StyleSheet/1.0.0";
 import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
 
 /** @vrooliComponentSource forms.generated-form */
@@ -109,7 +110,6 @@ const styles = `
   [data-rcl-generated-form-section-fields] { display: grid; gap: var(--space-md, 1rem); min-inline-size: 0; }
   [data-rcl-generated-form-field] { min-inline-size: 0; }
   [data-rcl-generated-form-control] { box-sizing: border-box; display: block; inline-size: 100%; min-block-size: var(--tap-target-min, 44px); border: 1px solid var(--color-border, #cbd5e1); border-radius: var(--radius-control, .625rem); background: var(--color-surface, #fff); color: var(--color-foreground, #0f172a); padding-inline: var(--space-sm, .75rem); font: var(--text-body, 400 .875rem/1.375rem system-ui, sans-serif); }
-  [data-rcl-generated-form-control]:focus-visible { outline: 3px solid color-mix(in srgb, var(--color-focus, #2563eb) 30%, transparent); outline-offset: 2px; border-color: var(--color-primary, #2563eb); }
   textarea[data-rcl-generated-form-control] { min-block-size: 7rem; padding-block: var(--space-sm, .75rem); resize: vertical; }
   select[data-rcl-generated-form-control] { appearance: auto; }
   [data-rcl-generated-form-checkbox] { display: flex; align-items: center; gap: var(--space-xs, .625rem); min-block-size: var(--tap-target-min, 44px); color: var(--color-foreground, #0f172a); font: var(--text-body, 400 .875rem/1.375rem system-ui, sans-serif); }
@@ -306,7 +306,7 @@ export const GeneratedForm = withClassName(function GeneratedForm<
   ) as Partial<Record<keyof TValues, ReactNode>>;
   return (
     <div className={className} style={style} data-rcl-generated-form data-form-id={generatedId}>
-      <style data-rcl-generated-form-styles dangerouslySetInnerHTML={{ __html: styles }} />
+      <StyleSheet name="generatedform-1-0-2-1" css={styles} />
       <Form
         mode={resolvedMode}
         store={resolvedStore}

@@ -1,0 +1,15 @@
+{
+  "contract": {
+    "kind": "rcl-component-experience-contract",
+    "schema": "scenario-experience-spec/v1",
+    "provenance": "react-component-library:TrendSpark@1.0.0"
+  },
+  "component": { "id": "trend-spark", "title": "TrendSpark", "purpose": "Expose compact history without hiding the text alternative." },
+  "states": [{ "id": "default", "example": "default" }],
+  "elements": [{ "id": "trend", "role": "img", "name": "Adoption trend" }],
+  "claims": [
+    { "id": "trend-contained", "type": "no-document-horizontal-overflow", "statement": "The inline trend remains contained by its row.", "tier": "machine" },
+    { "id": "trend-spacing", "type": "manual-review", "statement": "The trend has a stable compact inline footprint.", "tier": "manual" }
+  ],
+  "bindings": { "elements": { "trend": { "testid": "data-display-trend-spark" } } }
+}

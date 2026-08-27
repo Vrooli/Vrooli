@@ -4,6 +4,7 @@
  * @status released
  * @deps {"react":"^18","clsx":"^2.1.1","tailwind-merge":"^2.3.0"}
  */
+import { StyleSheet } from "@vrooli/react-component-library/StyleSheet/1.0.0";
 import type { CSSProperties, HTMLAttributes, ReactNode } from "react";
 import { useSurfaceContext } from "../../../../foundations/Contracts/versions/1.0.0/Contracts";
 import { cardStyles } from "./styles";
@@ -47,10 +48,7 @@ export function Card({ children, className, ...props }: CardProps) {
       {...props}
       style={surfaceStyle}
     >
-      <style
-        data-rcl-card-styles
-        dangerouslySetInnerHTML={{ __html: cardStyles }}
-      />
+      <StyleSheet name="card-1-1-0-1" css={cardStyles} />
       {children}
     </div>
   );

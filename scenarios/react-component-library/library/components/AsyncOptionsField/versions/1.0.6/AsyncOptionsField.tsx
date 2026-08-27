@@ -6,6 +6,7 @@
  * @tags ["forms","async","combobox","accessibility","responsive","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
+import { StyleSheet } from "@vrooli/react-component-library/StyleSheet/1.0.0";
 import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
 
 /** @vrooliComponentSource forms.async-options-field */
@@ -82,7 +83,6 @@ const styles = `
   [data-rcl-async-options-input] { box-sizing: border-box; inline-size: 100%; min-block-size: var(--tap-target-min, 44px); border: 1px solid var(--color-border, #cbd5e1); border-radius: var(--radius-control, .625rem); background: var(--color-surface, #fff); color: var(--color-foreground, #0f172a); padding: .625rem 2.75rem .625rem .875rem; font: var(--text-body, 400 .9375rem/1.4 system-ui, sans-serif); outline: none; transition: border-color var(--dur-quick, 160ms) var(--ease-standard, ease), box-shadow var(--dur-quick, 160ms) var(--ease-standard, ease), background var(--dur-quick, 160ms) var(--ease-standard, ease); }
   [data-rcl-async-options-input]::placeholder { color: var(--color-muted-foreground, #64748b); opacity: .86; }
   [data-rcl-async-options-input]:hover:not(:disabled) { border-color: color-mix(in srgb, var(--color-primary, #2563eb) 48%, var(--color-border, #cbd5e1)); }
-  [data-rcl-async-options-input]:focus-visible { border-color: var(--color-primary, #2563eb); box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary, #2563eb) 22%, transparent); }
   [data-rcl-async-options-input][aria-expanded="true"] { border-end-start-radius: 0; border-end-end-radius: 0; }
   [data-rcl-async-options-input]:disabled { cursor: not-allowed; opacity: .58; background: var(--color-surface-muted, #f1f5f9); }
   [data-rcl-async-options-chevron] { position: absolute; inset-inline-end: .875rem; pointer-events: none; color: var(--color-muted-foreground, #64748b); font-size: 1rem; line-height: 1; transition: transform var(--dur-quick, 160ms) var(--ease-standard, ease); }
@@ -94,7 +94,6 @@ const styles = `
   [data-rcl-async-options-option] { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: .625rem; inline-size: 100%; min-block-size: 2.875rem; box-sizing: border-box; border: 0; border-radius: var(--radius-control, .5rem); background: transparent; color: var(--color-foreground, #0f172a); padding: .625rem .75rem; text-align: start; font: inherit; cursor: pointer; }
   [data-rcl-async-options-option]:hover, [data-rcl-async-options-option][data-highlighted="true"] { background: color-mix(in srgb, var(--color-primary, #2563eb) 9%, var(--color-surface-raised, #fff)); }
   [data-rcl-async-options-option][aria-selected="true"] { background: color-mix(in srgb, var(--color-primary, #2563eb) 13%, var(--color-surface-raised, #fff)); color: var(--color-primary-strong, var(--color-primary, #2563eb)); }
-  [data-rcl-async-options-option]:focus-visible { outline: 3px solid color-mix(in srgb, var(--color-primary, #2563eb) 30%, transparent); outline-offset: -2px; }
   [data-rcl-async-options-option]:disabled { cursor: not-allowed; opacity: .46; }
   [data-rcl-async-options-option-copy] { display: grid; gap: .15rem; min-inline-size: 0; }
   [data-rcl-async-options-option-label] { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 650; }
@@ -108,7 +107,7 @@ const styles = `
   [data-rcl-async-options-status] { min-block-size: 1rem; color: var(--color-muted-foreground, #64748b); font: var(--text-caption, 400 .75rem/1rem system-ui, sans-serif); }
   [data-rcl-async-options-spinner] { display: inline-block; inline-size: .9rem; block-size: .9rem; border: 2px solid color-mix(in srgb, currentColor 24%, transparent); border-block-start-color: currentColor; border-radius: 50%; animation: rcl-async-options-spin .75s linear infinite; vertical-align: -.15rem; }
   @keyframes rcl-async-options-spin { to { transform: rotate(360deg); } }
-  @media (prefers-reduced-motion: reduce) { [data-rcl-async-options-spinner] { animation: none; } [data-rcl-async-options-input], [data-rcl-async-options-chevron] { transition: none; } }
+
   @media (max-width: 30rem) { [data-rcl-async-options-list] { max-block-size: min(17rem, 36vh); } }
 `;
 
@@ -273,7 +272,7 @@ export const AsyncOptionsField = withClassName(function AsyncOptionsField({
 
   return (
     <div ref={rootRef} data-rcl-async-options className={className} style={style}>
-      <style>{styles}</style>
+      <StyleSheet name="asyncoptionsfield-1-0-6-1" css={styles} />
       <label data-rcl-async-options-label htmlFor={inputID}>
         <span>
           {label}

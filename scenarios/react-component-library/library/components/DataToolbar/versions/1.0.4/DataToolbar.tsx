@@ -6,6 +6,7 @@
  * @tags ["data-display","query","filters","responsive","keyboard","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
+import { StyleSheet } from "@vrooli/react-component-library/StyleSheet/1.0.0";
 import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
 
 /** @vrooliComponentSource data-display.data-toolbar */
@@ -77,17 +78,15 @@ const styles = `
 [data-rcl-data-toolbar-views] { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-3xs); min-inline-size: 0; }
 [data-rcl-data-toolbar-views] button { min-block-size: var(--tap-target-min); padding-inline: var(--space-xs); border: var(--border-hairline) solid transparent; border-radius: var(--radius-control); background: transparent; color: var(--color-muted-foreground); font: var(--text-label); cursor: pointer; }
 [data-rcl-data-toolbar-views] button:hover, [data-rcl-data-toolbar-views] button[aria-pressed="true"] { border-color: color-mix(in srgb, var(--color-primary) 35%, var(--color-border)); background: color-mix(in srgb, var(--color-primary) 9%, var(--color-surface)); color: var(--color-foreground); }
-[data-rcl-data-toolbar-views] button:focus-visible { outline: 3px solid color-mix(in srgb, var(--color-focus) 38%, transparent); outline-offset: 2px; }
 [data-rcl-data-toolbar-view-count] { margin-inline-start: var(--space-3xs); color: var(--color-muted-foreground); font: var(--text-caption); }
 [data-rcl-data-toolbar-controls] { display: flex; align-items: center; justify-content: start; flex-wrap: wrap; gap: var(--space-2xs); min-inline-size: 0; }
 [data-rcl-data-toolbar-controls] [data-control-slot="label"] { overflow: visible; text-overflow: clip; white-space: nowrap; }
 [data-rcl-data-toolbar-sort] { display: inline-flex; align-items: center; gap: var(--space-3xs); min-block-size: var(--tap-target-min); padding-inline: var(--space-xs); border: var(--border-hairline) solid var(--color-border); border-radius: var(--radius-control); background: var(--color-surface); color: var(--color-foreground); font: var(--text-label); }
 [data-rcl-data-toolbar-sort] label { color: var(--color-muted-foreground); font: var(--text-caption); }
 [data-rcl-data-toolbar-sort] select { min-block-size: calc(var(--tap-target-min) - var(--space-2xs)); max-inline-size: 12rem; border: 0; background: transparent; color: inherit; font: inherit; }
-[data-rcl-data-toolbar-sort] select:focus-visible { outline: 3px solid color-mix(in srgb, var(--color-focus) 38%, transparent); outline-offset: 2px; }
 @media (max-width: 34rem) { [data-rcl-data-toolbar-controls] { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); } [data-rcl-data-toolbar-controls] > * { min-inline-size: 0; inline-size: 100%; } [data-rcl-data-toolbar-controls] > [data-rcl-toolbar] { grid-column: 1 / -1; } [data-rcl-data-toolbar-sort] { grid-column: 1 / -1; justify-content: space-between; } [data-rcl-data-toolbar-sort] select { min-inline-size: 0; max-inline-size: 100%; } }
-@media (prefers-reduced-motion: reduce) { [data-rcl-data-toolbar] *, [data-rcl-data-toolbar] *::before, [data-rcl-data-toolbar] *::after { animation-duration: 0.01ms; transition-duration: 0.01ms; } }
-@media (forced-colors: active) { [data-rcl-data-toolbar-actions], [data-rcl-data-toolbar-status], [data-rcl-data-toolbar-sort], [data-rcl-data-toolbar-views] button { border-color: CanvasText; background: Canvas; color: CanvasText; box-shadow: none; } [data-rcl-data-toolbar-views] button[aria-pressed="true"] { border-color: Highlight; color: Highlight; } }
+
+
 `;
 
 function statusTone(status: DataToolbarStatus) {
@@ -184,7 +183,7 @@ export const DataToolbar = withClassName(function DataToolbar({
   ];
   return (
     <section data-rcl-data-toolbar className={className} style={style}>
-      <style data-rcl-data-toolbar-styles dangerouslySetInnerHTML={{ __html: styles }} />
+      <StyleSheet name="datatoolbar-1-0-4-1" css={styles} />
       <div data-rcl-data-toolbar-filter>
         <FilterBar
           query={query}

@@ -13,6 +13,7 @@
     }
   ],
   "displayName": "Code Block",
+  "kind": "surface",
   "draft": "",
   "entry": "CodeBlock.tsx",
   "latest": "0.3.3",

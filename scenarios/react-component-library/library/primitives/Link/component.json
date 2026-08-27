@@ -19,6 +19,7 @@
     }
   ],
   "displayName": "Link",
+  "kind": "control",
   "latest": "1.0.2",
   "libraryId": "react-component-library:Link",
   "tags": [

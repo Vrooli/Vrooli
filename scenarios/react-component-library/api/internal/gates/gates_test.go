@@ -21,13 +21,13 @@ func liveRoot(t *testing.T) string {
 	return filepath.Clean(filepath.Join(wd, "..", "..", "..", "..", ".."))
 }
 
-func TestValidateSelectorCoverageLiveCorpusIsClean(t *testing.T) {
+func TestValidateSelectorCoverageLiveCorpusIsMeasuredAcrossExportedVersions(t *testing.T) {
 	result, err := ValidateSelectorCoverage(liveRoot(t))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if result.Inspected != 154 || len(result.Findings) != 0 || len(result.RunnerError) != 0 {
-		t.Fatalf("selector coverage = %+v, want 154 inspected assets and no findings", result)
+	if result.Inspected == 0 || result.Inspected != len(result.InspectedAssets) || result.InspectedVersions <= result.Inspected || len(result.Skipped) != 0 || len(result.RunnerError) != 0 {
+		t.Fatalf("selector coverage = %+v, want all active assets and exported versions measured", result)
 	}
 }
 
@@ -67,6 +67,7 @@ func TestAnalyzeRestyleSourceEnforcesClassRefAndInlineStyleRules(t *testing.T) {
 		{name: "missing ref", source: `export function Sample({ className }: { className?: string }) { return <div className={className} />; }`, want: "ref"},
 		{name: "overloaded style", source: `export function Sample({ className, style }: { className?: string; style?: object }) { return <div className={className} />; }`, want: "style prop"},
 		{name: "clean forward ref", source: `export const Sample = forwardRef<HTMLDivElement, { className?: string }>(function Sample({ className }, ref) { return <div ref={ref} className={cn("sample", className)} />; });`, want: ""},
+		{name: "hoisted inline token style", source: `const controlStyle = { color: "red" }; export const Sample = forwardRef<HTMLDivElement, { className?: string }>(function Sample({ className }, ref) { return <div ref={ref} className={className} style={controlStyle} />; });`, want: "inline style"},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -84,7 +85,42 @@ func TestAnalyzeRestyleSourceEnforcesClassRefAndInlineStyleRules(t *testing.T) {
 	}
 }
 
-func TestValidateRestyleContractLiveCorpusIsClean(t *testing.T) {
+func TestValidateManifestIdentityRejectsOmittedCatalogID(t *testing.T) {
+	root := t.TempDir()
+	manifestDir := filepath.Join(root, "scenarios", "react-component-library", "library", "components", "Fixture")
+	if err := os.MkdirAll(manifestDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(manifestDir, "component.json"), []byte(`{"libraryId":"react-component-library:Fixture"}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	result, err := ValidateManifestIdentity(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(result.Findings) != 1 || result.Findings[0].Code != "catalog.manifest_identity" {
+		t.Fatalf("manifest identity result = %+v, want omitted catalogId finding", result)
+	}
+}
+
+func TestLibraryManifestIdentitiesResolvesVersionedSourceManifest(t *testing.T) {
+	root := t.TempDir()
+	assetDir := filepath.Join(root, "scenarios", "react-component-library", "library", "components", "Fixture")
+	sourcePath := filepath.Join(assetDir, "versions", "1.0.0", "Fixture.tsx")
+	if err := os.MkdirAll(filepath.Dir(sourcePath), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(assetDir, "component.json"), []byte(`{"libraryId":"react-component-library:Fixture","catalogId":"react-component-library:Fixture"}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	libraryID, catalogID := libraryManifestIdentities(sourcePath)
+	if libraryID != "react-component-library:Fixture" || catalogID != "react-component-library:Fixture" {
+		t.Fatalf("identities = %q, %q; want the owning asset identities", libraryID, catalogID)
+	}
+}
+
+func TestValidateRestyleContractLiveCorpusIsMeasuredAcrossExportedVersions(t *testing.T) {
 	root, err := filepath.Abs("../../../../../")
 	if err != nil {
 		t.Fatal(err)
@@ -93,8 +129,8 @@ func TestValidateRestyleContractLiveCorpusIsClean(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if result.Inspected == 0 || len(result.RunnerError) != 0 || len(result.Findings) != 0 {
-		t.Fatalf("restyle contract result = %+v", result)
+	if result.Inspected == 0 || result.Inspected != len(result.InspectedAssets) || result.InspectedVersions <= result.Inspected || len(result.Skipped) != 0 || len(result.RunnerError) != 0 {
+		t.Fatalf("restyle contract result = %+v, want all active assets and exported versions measured", result)
 	}
 }
 

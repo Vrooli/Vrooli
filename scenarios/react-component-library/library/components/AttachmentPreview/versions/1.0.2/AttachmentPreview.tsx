@@ -6,6 +6,7 @@
  * @tags ["media","files","upload","progress","recovery","responsive","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
+import { StyleSheet } from "@vrooli/react-component-library/StyleSheet/1.0.0";
 import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
 
 /** @vrooliComponentSource media.attachment-preview */
@@ -60,7 +61,6 @@ const styles = `
   [data-rcl-attachment-preview-status] > [data-rcl-attachment-preview-actions] { flex: 1 1 100%; }
   [data-rcl-attachment-preview-actions] { display: flex; flex-wrap: wrap; gap: var(--space-2xs, .5rem); margin-block-start: var(--space-2xs, .5rem); }
   [data-rcl-attachment-preview-action] { min-block-size: var(--tap-target-min, 44px); padding-inline: var(--space-sm, .75rem); border: 1px solid currentColor; border-radius: var(--radius-control, .625rem); background: transparent; color: inherit; font: var(--text-label, 650 .8125rem/1.25rem system-ui, sans-serif); cursor: pointer; }
-  [data-rcl-attachment-preview-action]:focus-visible { outline: 3px solid color-mix(in srgb, var(--color-focus, #2563eb) 30%, transparent); outline-offset: 2px; }
   [data-rcl-attachment-preview-action][data-primary="true"] { border-color: var(--color-primary, #2563eb); background: var(--color-primary, #2563eb); color: var(--color-primary-foreground, #fff); }
   @media (max-width: 34rem) { [data-rcl-attachment-preview-progress] { padding-inline: 0; } [data-rcl-attachment-preview-actions] { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); } [data-rcl-attachment-preview-action] { inline-size: 100%; } }
 `;
@@ -120,7 +120,7 @@ export const AttachmentPreview = withClassName(function AttachmentPreview({
       data-status={status}
       aria-label={`${name} attachment`}
     >
-      <style data-rcl-attachment-preview-styles dangerouslySetInnerHTML={{ __html: styles }} />
+      <StyleSheet name="attachmentpreview-1-0-2-1" css={styles} />
       <div data-rcl-attachment-preview-file>
         <FilePreview
           name={name}

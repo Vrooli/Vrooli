@@ -7,6 +7,7 @@
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
 /** @vrooliComponentSource forms.form */
+import { StyleSheet } from "@vrooli/react-component-library/StyleSheet/1.0.0";
 import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
 
 import {
@@ -121,7 +122,7 @@ export const Form = withClassName(function Form<TValues extends FormValues = For
 
   return (
     <>
-      <style data-rcl-form-styles dangerouslySetInnerHTML={{ __html: styles }} />
+      <StyleSheet name="form-1-0-1" css={styles} />
       <form
         data-testid="forms.form"
         {...props}

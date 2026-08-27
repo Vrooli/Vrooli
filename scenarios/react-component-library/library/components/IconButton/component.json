@@ -18,6 +18,7 @@
     }
   ],
   "displayName": "IconButton",
+  "kind": "control",
   "entry": "IconButton.tsx",
   "latest": "2.0.1",
   "libraryId": "react-component-library:IconButton",

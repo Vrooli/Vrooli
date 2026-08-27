@@ -6,6 +6,7 @@
  * @tags ["patterns","forms","async","recovery","conflict","responsive","accessibility","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
+import { StyleSheet } from "@vrooli/react-component-library/StyleSheet/1.0.0";
 import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
 
 /** @vrooliComponentSource patterns.editable-resource */
@@ -57,12 +58,11 @@ const styles = `
 [data-rcl-editable-resource-editor] label { display: grid; gap: var(--space-2xs, .35rem); color: var(--color-foreground, #0f172a); font: var(--text-label, 650 .8125rem/1.35 system-ui, sans-serif); }
 [data-rcl-editable-resource-editor] input, [data-rcl-editable-resource-editor] textarea, [data-rcl-editable-resource-editor] select { box-sizing: border-box; min-block-size: var(--tap-target-min, 44px); inline-size: 100%; padding: var(--space-xs, .625rem) var(--space-sm, .75rem); border: var(--border-hairline, 1px) solid var(--color-border-strong, #94a3b8); border-radius: var(--radius-control, .625rem); background: var(--color-surface, #fff); color: var(--color-foreground, #0f172a); font: var(--text-body, 400 .875rem/1.4 system-ui, sans-serif); }
 [data-rcl-editable-resource-editor] input::placeholder, [data-rcl-editable-resource-editor] textarea::placeholder { color: var(--color-muted-foreground, #64748b); opacity: 1; }
-[data-rcl-editable-resource-editor] input:focus-visible, [data-rcl-editable-resource-editor] textarea:focus-visible, [data-rcl-editable-resource-editor] select:focus-visible { outline: 3px solid color-mix(in srgb, var(--color-primary, #2563eb) 28%, transparent); outline-offset: 1px; border-color: var(--color-primary, #2563eb); }
 [data-rcl-editable-resource-actions] { display: flex; flex-wrap: wrap; gap: var(--space-xs, .625rem); }
 [data-rcl-editable-resource-actions] button { min-block-size: var(--tap-target-min, 44px); padding: var(--space-2xs, .35rem) var(--space-sm, .75rem); border: var(--border-hairline, 1px) solid currentColor; border-radius: var(--radius-control, .625rem); background: transparent; color: var(--color-primary, #2563eb); cursor: pointer; font: var(--text-label, 650 .9rem/1.35 system-ui, sans-serif); }
 [data-rcl-editable-resource-actions] button[type="submit"] { background: var(--color-primary, #2563eb); color: var(--color-primary-foreground, #fff); }
 [data-rcl-editable-resource-actions] button:disabled { cursor: not-allowed; opacity: .5; }
-@media (forced-colors: active) { [data-rcl-editable-resource-editor], [data-rcl-editable-resource-editor] input, [data-rcl-editable-resource-editor] textarea, [data-rcl-editable-resource-editor] select { border-color: CanvasText; background: Canvas; color: CanvasText; box-shadow: none; } }
+
 `;
 
 function same<T>(left: T, right: T) {
@@ -132,13 +132,13 @@ export const EditableResource = withClassName(function EditableResource<
   if (conflictFields?.length)
     return (
       <div data-rcl-editable-resource className={className} style={style}>
-        <style data-rcl-editable-resource-styles dangerouslySetInnerHTML={{ __html: styles }} />
+        <StyleSheet name="editableresource-1-0-4-1" css={styles} />
         <ConflictResolutionFlow fields={conflictFields} onResolve={onResolveConflict} />
       </div>
     );
   return (
     <div data-rcl-editable-resource className={className} style={style}>
-      <style data-rcl-editable-resource-styles dangerouslySetInnerHTML={{ __html: styles }} />
+      <StyleSheet name="editableresource-1-0-4-2" css={styles} />
       <UnsavedChangesFlow
         isDirty={dirty}
         onSave={save}

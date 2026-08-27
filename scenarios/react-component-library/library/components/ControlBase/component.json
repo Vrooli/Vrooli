@@ -1,5 +1,6 @@
 {
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
+  "catalogId": "react-component-library:ControlBase",
   "category": "actions",
   "dependencies": [
     {
@@ -8,9 +9,7 @@
       "version": "1.0.0"
     }
   ],
-  "deprecatedVersions": [
-    "1.0.0"
-  ],
+  "deprecatedVersions": ["1.0.0", "1.0.1"],
   "description": "",
   "designStyles": [
     {
@@ -19,8 +18,9 @@
     }
   ],
   "displayName": "Control Base",
+  "kind": "control",
   "draft": "",
-  "latest": "1.0.1",
+  "latest": "1.1.0",
   "libraryId": "react-component-library:ControlBase",
   "slot": "ui-primitive",
   "tags": [

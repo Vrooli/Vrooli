@@ -20,7 +20,7 @@ import { IconButton } from "@vrooli/react-component-library/IconButton/2.0.0";
 import type {
   ControlDensity,
   ControlSize,
-} from "@vrooli/react-component-library/ControlBase/1.0.0";
+} from "@vrooli/react-component-library/ControlBase/1.1.0";
 import { VoiceInputButtonGlyph as Glyph, type VoiceInputGlyphKind } from "./VoiceInputButtonGlyph";
 import { voiceInputButtonStyles } from "./styles";
 

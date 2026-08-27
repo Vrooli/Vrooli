@@ -12,6 +12,7 @@
     }
   ],
   "displayName": "Meter",
+  "kind": "surface",
   "catalogId": "primitives.meter",
   "entry": "Meter.tsx",
   "latest": "1.0.1",

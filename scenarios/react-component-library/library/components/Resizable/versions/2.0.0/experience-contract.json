@@ -1,0 +1,74 @@
+{
+  "contract": {
+    "kind": "rcl-component-experience-contract",
+    "schema": "scenario-experience-spec/v1",
+    "provenance": "react-component-library:Resizable@2.0.0"
+  },
+  "component": {
+    "id": "manipulation.resizable",
+    "title": "Resizable",
+    "purpose": "A bounded region a person can resize with a pointer or a keyboard, on either logical axis."
+  },
+  "states": [
+    {
+      "id": "default",
+      "example": "default",
+      "description": "Bounded inline-axis region."
+    },
+    {
+      "id": "axis-block",
+      "example": "axis-block",
+      "description": "The same component on the block axis."
+    },
+    {
+      "id": "keyboard",
+      "example": "keyboard",
+      "description": "Resized entirely from the keyboard."
+    },
+    {
+      "id": "collapsed",
+      "example": "collapsed",
+      "description": "Latched shut below its declared threshold."
+    }
+  ],
+  "claims": [
+    {
+      "id": "keyboard-operable",
+      "type": "keyboard-operable",
+      "tier": "machine",
+      "states": [
+        "keyboard",
+        "collapsed"
+      ],
+      "statement": "Arrows step, Home and End reach the bounds, PageUp and PageDown move between snap points, Enter restores the default."
+    },
+    {
+      "id": "both-axes",
+      "type": "manual-review",
+      "tier": "manual",
+      "states": [
+        "default",
+        "axis-block"
+      ],
+      "statement": "One implementation serves the inline and block axes; there is no second component for the other orientation."
+    },
+    {
+      "id": "content-reflow",
+      "type": "no-document-horizontal-overflow",
+      "tier": "machine",
+      "states": [
+        "default"
+      ],
+      "statement": "Both regions reflow at every reachable size without introducing horizontal document overflow."
+    },
+    {
+      "id": "pointer-drag-uncovered",
+      "type": "manual-review",
+      "tier": "aspirational",
+      "states": [
+        "default"
+      ],
+      "statement": "The pointer drag path is covered by the hook's unit tests rather than by these stories, because the story runner has no pointer-drag interaction kind."
+    }
+  ]
+}

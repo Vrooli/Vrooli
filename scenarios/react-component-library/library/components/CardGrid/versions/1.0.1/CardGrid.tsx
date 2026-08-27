@@ -7,6 +7,7 @@
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
 /** @vrooliComponentSource patterns.card-grid */
+import { StyleSheet } from "@vrooli/react-component-library/StyleSheet/1.0.0";
 import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
 
 import type { HTMLAttributes, ReactNode } from "react";
@@ -28,7 +29,7 @@ export const CardGrid = withClassName(function CardGrid({
   return (
     <SurfaceProvider data-testid="patterns.card-grid" value={{ elevation: "raised" }}>
       <div {...props} className={className} data-rcl-card-grid data-rcl-context-elevation="raised">
-        <style data-rcl-card-grid-styles dangerouslySetInnerHTML={{ __html: styles }} />
+        <StyleSheet name="card-grid-1-0-1" css={styles} />
         {children}
       </div>
     </SurfaceProvider>

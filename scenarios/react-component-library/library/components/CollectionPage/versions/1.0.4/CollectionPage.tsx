@@ -7,6 +7,7 @@
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
 import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
+import { StyleSheet } from "@vrooli/react-component-library/StyleSheet/1.0.0";
 
 /** @vrooliComponentSource react-component-library:CollectionPage */
 import { useStrings } from "@vrooli/react-component-library/useLocale/1.0.1";
@@ -35,6 +36,7 @@ const button = {
   font: "inherit",
   fontWeight: 700,
 };
+const collectionFilterStyles = `.rcl-collection-filter{box-sizing:border-box;display:flex;flex-wrap:wrap}.rcl-collection-filter input{box-sizing:border-box}.rcl-collection-filter button{box-sizing:border-box}@media (max-width:520px){.rcl-collection-filter{flex-direction:column}.rcl-collection-filter input{flex:0 1 auto !important}.rcl-collection-filter button{width:100%}}`;
 type State =
   | "loading"
   | "refreshing"
@@ -113,7 +115,7 @@ export const CollectionPage = withClassName(function CollectionPage({
   };
   return (
     <StateView state={state}>
-      <style>{`.rcl-collection-filter{box-sizing:border-box;display:flex;flex-wrap:wrap}.rcl-collection-filter input{box-sizing:border-box}.rcl-collection-filter button{box-sizing:border-box}@media (max-width:520px){.rcl-collection-filter{flex-direction:column}.rcl-collection-filter input{flex:0 1 auto !important}.rcl-collection-filter button{width:100%}}`}</style>
+      <StyleSheet name="collection-page-1-0-4-1" css={collectionFilterStyles} />
       <div style={{ display: "grid", gap: 16, minWidth: 0, width: "100%" }}>
         <header>
           <h1 style={{ margin: 0, fontSize: 24 }}>

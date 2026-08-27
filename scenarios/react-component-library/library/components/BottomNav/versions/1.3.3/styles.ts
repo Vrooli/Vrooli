@@ -9,7 +9,4 @@ export const bottomNavStyles = `
 [data-rcl-bottom-nav-item][data-disabled="true"], [data-rcl-bottom-nav-item]:disabled { cursor: not-allowed; opacity: .58; }
 [data-rcl-bottom-nav-icon] { display: grid; inline-size: var(--space-md); block-size: var(--space-md); flex: 0 0 auto; place-items: center; }
 [data-rcl-bottom-nav-label] { max-inline-size: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-[data-rcl-bottom-nav] :focus-visible { outline: var(--border-strong) solid var(--color-focus); outline-offset: calc(var(--space-3xs) * -1); }
-@media (prefers-reduced-motion: reduce) { [data-rcl-bottom-nav] *, [data-rcl-bottom-nav] *::before { transition: none; } }
-@media (forced-colors: active) { [data-rcl-bottom-nav] { border-color: CanvasText; background: Canvas; } [data-rcl-bottom-nav-item] { color: CanvasText; } [data-rcl-bottom-nav-item][data-active="true"]::before { background: CanvasText; } }
 `;

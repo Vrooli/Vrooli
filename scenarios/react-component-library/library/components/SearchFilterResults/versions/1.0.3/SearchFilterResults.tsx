@@ -7,6 +7,7 @@
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
 /** @vrooliComponentSource patterns.search-filter-results */
+import { StyleSheet } from "@vrooli/react-component-library/StyleSheet/1.0.0";
 import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
 
 import { useCallback, useRef, useState } from "react";
@@ -65,7 +66,7 @@ export const SearchFilterResults = withClassName(function SearchFilterResults({
 
   return (
     <div data-testid="patterns.search-filter-results" data-rcl-search-filter-results>
-      <style data-rcl-search-filter-results-styles dangerouslySetInnerHTML={{ __html: styles }} />
+      <StyleSheet name="search-filter-results-1-0-3" css={styles} />
       <FilterBar
         query={draftQuery}
         onQueryChange={setDraftQuery}

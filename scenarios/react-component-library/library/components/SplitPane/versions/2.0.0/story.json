@@ -1,0 +1,128 @@
+{
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
+  "schemaVersion": 5,
+  "kind": "component",
+  "title": "SplitPane",
+  "args": {
+    "fields": []
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "stories": [
+    {
+      "id": "default",
+      "name": "Two panes and a splitter",
+      "role": "anatomy",
+      "mode": "live",
+      "description": "A real splitter, replacing an auto-fit grid that had none.",
+      "args": {},
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "Default"
+        }
+      },
+      "interactions": [
+        {
+          "kind": "settle"
+        }
+      ],
+      "expect": [
+        {
+          "kind": "role",
+          "role": "separator",
+          "name": "Resize Needs review"
+        },
+        {
+          "kind": "text",
+          "value": "Needs review"
+        },
+        {
+          "kind": "text",
+          "value": "Ready to ship"
+        },
+        {
+          "kind": "attribute",
+          "selector": "[data-testid='manipulation.split-pane-handle']",
+          "attribute": "aria-valuenow",
+          "value": "280"
+        }
+      ]
+    },
+    {
+      "id": "vertical",
+      "name": "Stacked panes",
+      "role": "axis",
+      "axis": "orientation",
+      "covers": {
+        "orientation": [
+          "vertical"
+        ]
+      },
+      "mode": "live",
+      "description": "Orientation maps straight through to the resize axis.",
+      "args": {},
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "Vertical"
+        }
+      },
+      "interactions": [
+        {
+          "kind": "settle"
+        }
+      ],
+      "expect": [
+        {
+          "kind": "attribute",
+          "selector": "[data-testid='manipulation.split-pane-handle']",
+          "attribute": "data-axis",
+          "value": "block"
+        },
+        {
+          "kind": "attribute",
+          "selector": "[data-testid='manipulation.split-pane-handle']",
+          "attribute": "aria-orientation",
+          "value": "horizontal"
+        }
+      ]
+    },
+    {
+      "id": "keyboard",
+      "name": "Keyboard splitter",
+      "role": "boundary",
+      "mode": "live",
+      "description": "The splitter is operable without a pointer.",
+      "args": {},
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "Keyboard"
+        }
+      },
+      "interactions": [
+        {
+          "kind": "key",
+          "target": {
+            "role": "separator",
+            "name": "Resize Needs review"
+          },
+          "text": "Home"
+        },
+        {
+          "kind": "settle"
+        }
+      ],
+      "expect": [
+        {
+          "kind": "attribute",
+          "selector": "[data-testid='manipulation.split-pane-handle']",
+          "attribute": "aria-valuenow",
+          "value": "160"
+        }
+      ]
+    }
+  ]
+}

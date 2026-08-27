@@ -7,6 +7,7 @@
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
 /** @vrooliComponentSource forms.form-field */
+import { StyleSheet } from "@vrooli/react-component-library/StyleSheet/1.0.0";
 import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
 
 import {
@@ -88,7 +89,7 @@ export const FormField = withClassName(function FormField({
 
   return (
     <>
-      <style data-rcl-form-field-styles dangerouslySetInnerHTML={{ __html: styles }} />
+      <StyleSheet name="form-field-1-0-1" css={styles} />
       <div
         data-testid="forms.form-field"
         className={className}

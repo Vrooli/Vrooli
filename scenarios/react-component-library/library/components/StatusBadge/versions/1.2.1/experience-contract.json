@@ -1,21 +1,41 @@
 {
-  "schemaVersion": 1,
-  "componentId": "react-component-library:StatusBadge",
-  "version": "1.2.0",
-  "states": ["neutral", "success", "warning", "danger", "info", "long-label"],
-  "behaviors": [
+  "contract": {
+    "kind": "rcl-component-experience-contract",
+    "schema": "scenario-experience-spec/v1",
+    "provenance": "react-component-library:StatusBadge@1.2.1"
+  },
+  "component": {
+    "id": "status-badge",
+    "title": "Status Badge",
+    "purpose": "Expose a semantic status label with a non-color indicator."
+  },
+  "states": [
+    { "id": "success", "example": "success" },
+    { "id": "warning", "example": "warning" },
+    { "id": "danger", "example": "danger" }
+  ],
+  "elements": [
+    { "id": "badge", "role": "generic", "name": "Current status" }
+  ],
+  "claims": [
     {
-      "id": "semantic-tone",
-      "description": "Each tone uses a semantic token role and an accompanying indicator so status is not conveyed by color alone."
+      "id": "badge-present",
+      "type": "element-present",
+      "statement": "The status badge is present in each documented tone.",
+      "tier": "machine",
+      "elements": ["badge"]
     },
     {
-      "id": "bounded-label",
-      "description": "Long labels remain inside the badge footprint with ellipsis rather than forcing layout overflow."
+      "id": "badge-content-not-clipped",
+      "type": "content-not-clipped",
+      "statement": "The status label remains visible inside the badge.",
+      "tier": "machine",
+      "elements": ["badge"]
     }
   ],
-  "accessibility": [
-    "non-color status cue",
-    "forced colors",
-    "text-preserving truncation"
-  ]
+  "bindings": {
+    "elements": {
+      "badge": { "testid": "rcl-status-badge" }
+    }
+  }
 }

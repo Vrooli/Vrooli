@@ -29,6 +29,7 @@
     }
   ],
   "displayName": "ProgressiveImage",
+  "kind": "surface",
   "draft": "",
   "latest": "1.1.7",
   "libraryId": "react-component-library:ProgressiveImage",

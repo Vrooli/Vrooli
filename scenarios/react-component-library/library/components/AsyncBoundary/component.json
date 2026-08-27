@@ -20,6 +20,7 @@
     }
   ],
   "displayName": "AsyncBoundary",
+  "kind": "surface",
   "latest": "1.0.4",
   "libraryId": "react-component-library:AsyncBoundary",
   "tags": [

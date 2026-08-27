@@ -6,6 +6,7 @@
  * @tags ["form","layout","validation","responsive","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
+import { StyleSheet } from "@vrooli/react-component-library/StyleSheet/1.0.0";
 import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
 
 /** @vrooliComponentSource forms.form-section */
@@ -38,12 +39,11 @@ const styles = `
   [data-rcl-form-section-error-mark] { display: inline-grid; place-items: center; inline-size: 1.125rem; block-size: 1.125rem; border: 1px solid currentColor; border-radius: 50%; font-size: .6875rem; }
   [data-rcl-form-section-toggle] { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto; min-block-size: var(--tap-target-min, 44px); min-inline-size: var(--tap-target-min, 44px); margin: -.25rem -.25rem 0 0; border: 1px solid var(--color-border, #cbd5e1); border-radius: var(--radius-control, .625rem); background: transparent; color: var(--color-muted-foreground, #64748b); font: 700 1.125rem/1 system-ui, sans-serif; cursor: pointer; transition: background var(--dur-quick, 160ms) var(--ease-standard, ease), color var(--dur-quick, 160ms) var(--ease-standard, ease); }
   [data-rcl-form-section-toggle]:hover { background: color-mix(in srgb, var(--color-primary, #2563eb) 8%, transparent); color: var(--color-primary, #2563eb); }
-  [data-rcl-form-section-toggle]:focus-visible { outline: 3px solid color-mix(in srgb, var(--color-primary, #2563eb) 28%, transparent); outline-offset: 2px; }
   [data-rcl-form-section-toggle][aria-expanded="true"] { color: var(--color-primary, #2563eb); }
   [data-rcl-form-section-content] { display: grid; gap: var(--space-md, 1rem); padding: 0 var(--space-lg, 1.5rem) var(--space-lg, 1.5rem); }
   [data-rcl-form-section-content]::before { content: ""; block-size: 1px; background: var(--color-border, #cbd5e1); }
   @media (max-width: 30rem) { [data-rcl-form-section-header] { gap: var(--space-sm, .75rem); padding: var(--space-md, 1rem); } [data-rcl-form-section-content] { padding: 0 var(--space-md, 1rem) var(--space-md, 1rem); } [data-rcl-form-section-title] { font-size: .9375rem; } }
-  @media (prefers-reduced-motion: reduce) { [data-rcl-form-section-toggle] { transition: none; } }
+
 `;
 
 export const FormSection = withClassName(function FormSection({
@@ -72,7 +72,7 @@ export const FormSection = withClassName(function FormSection({
 
   return (
     <section className={className} style={style} data-rcl-form-section data-open={isOpen}>
-      <style data-rcl-form-section-styles dangerouslySetInnerHTML={{ __html: styles }} />
+      <StyleSheet name="formsection-1-0-2-1" css={styles} />
       <header data-rcl-form-section-header>
         <div data-rcl-form-section-heading>
           <div data-rcl-form-section-title>{title}</div>

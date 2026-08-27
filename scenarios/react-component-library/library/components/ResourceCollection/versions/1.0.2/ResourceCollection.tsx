@@ -6,6 +6,7 @@
  * @tags ["pattern","collection","resources","responsive","recovery","keyboard","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
+import { StyleSheet } from "@vrooli/react-component-library/StyleSheet/1.0.0";
 import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
 
 /** @vrooliComponentSource patterns.resource-collection */
@@ -87,8 +88,8 @@ const styles = `
 [data-rcl-resource-collection-status][data-tone="danger"] { border-color: color-mix(in srgb, var(--color-danger) 40%, var(--color-border)); }
 [data-rcl-resource-collection-status][data-tone="warning"] { border-color: color-mix(in srgb, var(--color-warning) 40%, var(--color-border)); }
 @container (max-width: 38rem) { [data-rcl-resource-collection-header] { align-items: start; flex-direction: column; } [data-rcl-resource-collection-aside] { inline-size: 100%; } }
-@media (prefers-reduced-motion: reduce) { [data-rcl-resource-collection] *, [data-rcl-resource-collection] *::before, [data-rcl-resource-collection] *::after { animation-duration: .01ms; transition-duration: .01ms; } }
-@media (forced-colors: active) { [data-rcl-resource-collection-status] { border-color: CanvasText; background: Canvas; color: CanvasText; } }
+
+
 `;
 
 function toolbarStatus(status: ResourceCollectionStatus): DataToolbarStatus {
@@ -218,7 +219,7 @@ export const ResourceCollection = withClassName(function ResourceCollection<Row>
       style={style}
       data-rcl-resource-collection-status={status}
     >
-      <style data-rcl-resource-collection-styles dangerouslySetInnerHTML={{ __html: styles }} />
+      <StyleSheet name="resourcecollection-1-0-2-1" css={styles} />
       <header data-rcl-resource-collection-header>
         <div data-rcl-resource-collection-heading>
           <span data-rcl-resource-collection-eyebrow>

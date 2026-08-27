@@ -2,6 +2,7 @@
  * @vrooliComponentSource react-component-library:NavigationTree
  * @deps {"react":"^18","lucide-react":"^0.424.0"}
  */
+import { StyleSheet } from "@vrooli/react-component-library/StyleSheet/1.0.0";
 import type { ReactNode } from "react";
 import { FolderTree } from "lucide-react";
 import { NavLink } from "../../../NavLink/versions/1.0.0/NavLink";
@@ -33,10 +34,7 @@ export function NavigationTree({
 }) {
   return (
     <>
-      <style
-        data-rcl-navigation-tree-styles
-        dangerouslySetInnerHTML={{ __html: navigationTreeStyles }}
-      />
+      <StyleSheet name="navigationtree-1-1-0-1" css={navigationTreeStyles} />
       <nav aria-label="Primary navigation" data-rcl-navigation-tree>
         <div data-rcl-navigation-tree-heading>
           <span data-rcl-navigation-tree-eyebrow>Library</span>

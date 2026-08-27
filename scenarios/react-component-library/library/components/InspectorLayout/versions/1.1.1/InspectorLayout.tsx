@@ -7,6 +7,7 @@
  * @deps {"react":"^18"}
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
+import { StyleSheet } from "@vrooli/react-component-library/StyleSheet/1.0.0";
 import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
 
 import type { ReactNode } from "react";
@@ -45,10 +46,7 @@ export const InspectorLayout = withClassName(function InspectorLayout({
 }: InspectorLayoutProps) {
   return (
     <>
-      <style
-        data-rcl-inspector-layout-styles
-        dangerouslySetInnerHTML={{ __html: inspectorLayoutStyles }}
-      />
+      <StyleSheet name="inspector-layout-1-1-1" css={inspectorLayoutStyles} />
       <main data-rcl-inspector-layout className={className}>
         <section aria-label={`${title} canvas`} data-rcl-inspector-canvas>
           {toolbar ? (

@@ -6,6 +6,7 @@
  * @tags ["control","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
+import { StyleSheet } from "@vrooli/react-component-library/StyleSheet/1.0.0";
 import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
 
 /** @vrooliComponentSource react-component-library:ButtonGroup */
@@ -41,7 +42,7 @@ export const ButtonGroup = withClassName(function ButtonGroup({
 }) {
   return (
     <>
-      <style data-rcl-button-group-styles dangerouslySetInnerHTML={{ __html: styles }} />
+      <StyleSheet name="buttongroup-1-1-3-1" css={styles} />
       <div
         data-testid="controls.button-group"
         role="group"

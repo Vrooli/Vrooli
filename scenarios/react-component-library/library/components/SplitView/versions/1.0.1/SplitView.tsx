@@ -7,6 +7,7 @@
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
 /** @vrooliComponentSource navigation.split-view */
+import { StyleSheet } from "@vrooli/react-component-library/StyleSheet/1.0.0";
 import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
 
 import type { CSSProperties, ReactNode } from "react";
@@ -15,7 +16,7 @@ const styles = `
 [data-rcl-split-view] { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-md, 1rem); align-items: start; min-inline-size: 0; }
 [data-rcl-split-view-region] { min-inline-size: 0; }
 @media (max-width: 48rem) { [data-rcl-split-view] { grid-template-columns: 1fr; } }
-@media (forced-colors: active) { [data-rcl-split-view-region] { forced-color-adjust: auto; } }
+
 `;
 
 export const SplitView = withClassName(function SplitView({
@@ -41,7 +42,7 @@ export const SplitView = withClassName(function SplitView({
       className={className}
       style={style}
     >
-      <style data-rcl-split-view-styles dangerouslySetInnerHTML={{ __html: styles }} />
+      <StyleSheet name="splitview-1-0-1-1" css={styles} />
       <section data-rcl-split-view-region aria-label={primaryLabel}>
         {primary}
       </section>

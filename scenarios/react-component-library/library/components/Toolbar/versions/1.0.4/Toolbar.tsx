@@ -13,7 +13,7 @@ import { createRef, useRef, useState, type ReactNode, type RefObject } from "rea
 import {
   ControlBase,
   type ControlVariant,
-} from "@vrooli/react-component-library/ControlBase/1.0.0";
+} from "@vrooli/react-component-library/ControlBase/1.1.0";
 import { Toggle } from "@vrooli/react-component-library/Toggle/1.0.0";
 import { useRovingFocus } from "@vrooli/react-component-library/useRovingFocus/1.0.0";
 

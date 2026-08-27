@@ -6,6 +6,7 @@
  * @tags ["overlay","menu","keyboard","typeahead","accessibility","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
+import { StyleSheet } from "@vrooli/react-component-library/StyleSheet/1.0.0";
 import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
 
 /** @vrooliComponentSource overlays.menu */
@@ -37,7 +38,6 @@ const styles = `
 [data-rcl-menu-submenu-arrow] { inline-size: var(--icon-size-sm); block-size: var(--icon-size-sm); flex: 0 0 auto; }
   [data-rcl-menu-content] { display: grid; gap: var(--space-3xs); min-inline-size: 13rem; padding: var(--space-2xs); }
   [data-rcl-menu-item], [data-rcl-menu-checkbox], [data-rcl-menu-radio] { display: grid; grid-template-columns: 1.25rem minmax(0, 1fr) auto; align-items: center; gap: var(--space-xs); min-block-size: var(--tap-target-min); padding: var(--space-xs) var(--space-sm); border: 0; border-radius: var(--radius-control); background: transparent; color: var(--color-foreground); cursor: pointer; font: var(--text-body-sm); text-align: start; }
-  [data-rcl-menu-item]:hover, [data-rcl-menu-item]:focus-visible, [data-rcl-menu-checkbox]:hover, [data-rcl-menu-checkbox]:focus-visible, [data-rcl-menu-radio]:hover, [data-rcl-menu-radio]:focus-visible { background: var(--color-surface-muted); outline: none; }
   [data-rcl-menu-item][data-disabled="true"], [data-rcl-menu-checkbox][data-disabled="true"], [data-rcl-menu-radio][data-disabled="true"] { cursor: not-allowed; opacity: .55; }
   [data-rcl-menu-indicator] { display: grid; place-items: center; color: var(--color-primary); font: var(--text-label); }
   [data-rcl-menu-label] { padding: var(--space-xs) var(--space-sm) var(--space-3xs); color: var(--color-muted-foreground); font: var(--text-overline); letter-spacing: .08em; text-transform: uppercase; }
@@ -47,7 +47,7 @@ const styles = `
   [data-rcl-menu-submenu-trigger] { inline-size: 100%; }
   [data-rcl-menu-submenu-trigger] [data-rcl-menu-submenu-arrow] { justify-self: end; color: var(--color-muted-foreground); transition: transform var(--dur-quick) var(--ease-standard); }
   [data-rcl-menu-submenu-trigger][aria-expanded="true"] [data-rcl-menu-submenu-arrow] { transform: rotate(90deg); color: var(--color-primary); }
-  @media (prefers-reduced-motion: reduce) { [data-rcl-menu-item], [data-rcl-menu-checkbox], [data-rcl-menu-radio] { transition: none; } }
+
 `;
 
 interface MenuRegistry {
@@ -78,7 +78,7 @@ export interface MenuProps {
 export const Menu = withClassName(function Menu({ children, ...props }: MenuProps) {
   return (
     <Popover {...props} placement="bottom-start">
-      <style data-rcl-menu-styles dangerouslySetInnerHTML={{ __html: styles }} />
+      <StyleSheet name="menu-1-1-2-1" css={styles} />
       {children}
     </Popover>
   );

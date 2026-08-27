@@ -7,6 +7,7 @@
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
 /** @vrooliComponentSource data-display.table */
+import { StyleSheet } from "@vrooli/react-component-library/StyleSheet/1.0.0";
 import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
 
 import type { CSSProperties, ReactNode } from "react";
@@ -29,8 +30,8 @@ const styles = `
 [data-rcl-table] tbody tr:last-child td { border-block-end: 0; }
 [data-rcl-table] tbody tr { transition: background-color 160ms ease; }
 [data-rcl-table] tbody tr:hover { background: color-mix(in srgb, var(--color-primary) 5%, var(--color-surface)); }
-@media (prefers-reduced-motion: reduce) { [data-rcl-table] tbody tr { transition-duration: .01ms; } }
-@media (forced-colors: active) { [data-rcl-table] { border-color: CanvasText; background: Canvas; color: CanvasText; box-shadow: none; } [data-rcl-table] th, [data-rcl-table] td { border-color: CanvasText; background: Canvas; color: CanvasText; } }
+
+
 `;
 
 export const Table = withClassName(function Table({
@@ -43,7 +44,7 @@ export const Table = withClassName(function Table({
   const columns = Object.keys(rows[0] || {});
   return (
     <div data-testid="data-display.table" data-rcl-table className={className} style={style}>
-      <style data-rcl-table-styles dangerouslySetInnerHTML={{ __html: styles }} />
+      <StyleSheet name="table-1-0-1-1" css={styles} />
       <div data-rcl-table-scroll>
         {children ?? (
           <table>

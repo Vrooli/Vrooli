@@ -55,6 +55,7 @@
     }
   ],
   "displayName": "Popover",
+  "kind": "overlay",
   "draft": "",
   "latest": "1.1.2",
   "libraryId": "react-component-library:Popover",

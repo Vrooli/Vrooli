@@ -96,6 +96,12 @@ function boxStyle(width: number, m: ToolbarMetrics): CSSProperties {
   return { width, height: m.unit, minWidth: width, minHeight: m.unit };
 }
 
+function voiceControlSize(m: ToolbarMetrics): VoiceMicButtonProps["size"] {
+  if (m.unit <= 32) return "xs";
+  if (m.unit <= 40) return "md";
+  return "lg";
+}
+
 function arrowLabel(key: ToolbarKey): string {
   switch (key.input) {
     case ARROW_UP.input:
@@ -363,22 +369,9 @@ export function renderToolbarControl(
           <VoiceMicButton
             {...ctx.voice}
             testId={tid("voice-mic-btn")}
-            // `size` selects the glyph, never the box — RCL's size tokens set
-            // padding and font, not dimensions. Held at "sm" (a 16px glyph) so
-            // the mic matches the lucide icons beside it, which are 16px at
-            // every density. Letting it ramp with density made the mic a
-            // different visual weight from its neighbours at 44px only.
-            size="sm"
+            size={voiceControlSize(m)}
             className="h-full w-full"
-            buttonClassName="flex items-center justify-center"
-            // The slot owns the box, so hand it over as inline style — RCL
-            // merges caller style last, whereas a utility class can lose the
-            // cascade to the library's own. Padding is zeroed because this
-            // control clips its overflow (`[data-rcl-voice-input]`) rather
-            // than letting the glyph spill into the padding the way the other
-            // icon controls do; RCL's own padding for these sizes is wider
-            // than a toolbar button, so the glyph was being cut off.
-            buttonStyle={{ ...boxStyle(slot.width, m), paddingInline: 0 }}
+            buttonClassName="flex h-full w-full items-center justify-center"
           />
         </div>
       );

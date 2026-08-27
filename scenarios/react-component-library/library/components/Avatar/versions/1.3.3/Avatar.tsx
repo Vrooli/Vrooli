@@ -6,6 +6,7 @@
  * @tags ["identity","media","accessibility","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
+import { StyleSheet } from "@vrooli/react-component-library/StyleSheet/1.0.0";
 import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
 
 /** @vrooliComponentSource primitives.avatar */
@@ -58,8 +59,8 @@ const styles = `
 [data-rcl-avatar-group] { display: inline-flex; align-items: center; padding-inline-start: var(--space-3xs); }
 [data-rcl-avatar-group] > [data-rcl-avatar-shell], [data-rcl-avatar-group] > [data-rcl-avatar], [data-rcl-avatar-group] > [data-rcl-avatar-overflow] { margin-inline-start: calc(var(--space-xs) * -1); }
 [data-rcl-avatar-overflow] { display: grid; place-items: center; box-sizing: border-box; inline-size: var(--space-xl); block-size: var(--space-xl); border: var(--border-hairline) solid var(--color-border); border-radius: var(--radius-pill); background: var(--color-surface-muted); color: var(--color-muted-foreground); box-shadow: 0 0 0 var(--space-3xs) var(--color-surface); font: var(--text-caption); font-weight: 700; }
-@media (prefers-reduced-motion: reduce) { [data-rcl-avatar-presence] { transition: none; } }
-@media (forced-colors: active) { [data-rcl-avatar] { border-color: CanvasText; background: Canvas; color: CanvasText; box-shadow: 0 0 0 var(--space-3xs) Canvas; } [data-rcl-avatar-fallback], [data-rcl-avatar-overflow] { border: var(--border-hairline) solid CanvasText; background: Canvas; color: CanvasText; } [data-rcl-avatar-presence] { background: Highlight; } [data-rcl-avatar-shell] > [data-rcl-presence] { border-color: Canvas; } }
+
+
 `;
 
 function initials(name: string) {
@@ -92,7 +93,7 @@ export const Avatar = withClassName(function Avatar({
   );
   return (
     <>
-      <style data-rcl-avatar-styles dangerouslySetInnerHTML={{ __html: styles }} />
+      <StyleSheet name="avatar-1-3-3-1" css={styles} />
       <span data-rcl-avatar-shell>
         <span
           data-rcl-avatar
@@ -167,7 +168,7 @@ export const AvatarGroup = withClassName(function AvatarGroup({
   const overflow = Math.max(0, items.length - visible.length);
   return (
     <>
-      <style data-rcl-avatar-group-styles dangerouslySetInnerHTML={{ __html: styles }} />
+      <StyleSheet name="avatar-1-3-3-2" css={styles} />
       <div data-rcl-avatar-group role="group" aria-label={label} className={className}>
         {visible}
         {overflow > 0 ? (

@@ -6,6 +6,7 @@
  * @tags ["form","array","validation","responsive","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
+import { StyleSheet } from "@vrooli/react-component-library/StyleSheet/1.0.0";
 import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
 
 /** @vrooliComponentSource forms.array-field */
@@ -70,7 +71,6 @@ const styles = `
   [data-rcl-array-add], [data-rcl-array-action] { min-block-size: var(--tap-target-min, 44px); border: 1px solid var(--color-border-strong, #94a3b8); border-radius: var(--radius-control, .625rem); background: var(--color-surface, #fff); color: var(--color-foreground, #0f172a); font: var(--text-label, 650 .8125rem/1.25rem system-ui, sans-serif); cursor: pointer; transition: background var(--dur-quick, 160ms) var(--ease-standard, ease), border-color var(--dur-quick, 160ms) var(--ease-standard, ease), color var(--dur-quick, 160ms) var(--ease-standard, ease); }
   [data-rcl-array-add] { padding-inline: var(--space-sm, .75rem); border-color: var(--color-primary, #2563eb); background: var(--color-primary, #2563eb); color: var(--color-primary-foreground, #fff); box-shadow: var(--elev-raised, 0 4px 12px rgb(15 23 42 / .12)); }
   [data-rcl-array-add]:hover:not(:disabled), [data-rcl-array-action]:hover:not(:disabled) { border-color: var(--color-primary, #2563eb); background: color-mix(in srgb, var(--color-primary, #2563eb) 9%, var(--color-surface, #fff)); color: var(--color-primary, #2563eb); }
-  [data-rcl-array-add]:focus-visible, [data-rcl-array-action]:focus-visible { outline: 3px solid color-mix(in srgb, var(--color-focus, #2563eb) 30%, transparent); outline-offset: 2px; }
   [data-rcl-array-add]:disabled, [data-rcl-array-action]:disabled { cursor: not-allowed; opacity: var(--opacity-disabled, .58); }
   [data-rcl-array-list] { display: grid; gap: var(--space-sm, .75rem); min-inline-size: 0; }
   [data-rcl-array-item] { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--space-sm, .75rem); align-items: start; padding: var(--space-md, 1rem); border: 1px solid var(--color-border, #cbd5e1); border-radius: var(--radius-panel, .875rem); background: var(--color-surface-raised, #fff); box-shadow: var(--elev-subtle, 0 1px 2px rgb(15 23 42 / .06)); }
@@ -79,7 +79,7 @@ const styles = `
   [data-rcl-array-empty] { display: grid; justify-items: start; gap: var(--space-2xs, .5rem); padding: var(--space-lg, 1.5rem); border: 1px dashed var(--color-border-strong, #94a3b8); border-radius: var(--radius-panel, .875rem); background: var(--color-surface, #fff); color: var(--color-muted-foreground, #64748b); font: var(--text-body, 400 .875rem/1.375rem system-ui, sans-serif); }
   [data-rcl-array-status] { min-block-size: 1.25rem; color: var(--color-danger, #dc2626); font: var(--text-body, 400 .875rem/1.375rem system-ui, sans-serif); }
   @media (max-width: 34rem) { [data-rcl-array-header] { align-items: stretch; flex-direction: column; } [data-rcl-array-add] { inline-size: 100%; } [data-rcl-array-item] { grid-template-columns: 1fr; } [data-rcl-array-item-actions] { justify-content: stretch; } [data-rcl-array-action] { flex: 1 1 0; } }
-  @media (prefers-reduced-motion: reduce) { [data-rcl-array-add], [data-rcl-array-action] { transition: none; } }
+
 `;
 
 function move<T>(items: T[], from: number, to: number) {
@@ -130,7 +130,7 @@ export const ArrayField = withClassName(function ArrayField<
 
   return (
     <div className={className} style={style} data-rcl-array-field data-field={String(field)}>
-      <style data-rcl-array-field-styles dangerouslySetInnerHTML={{ __html: styles }} />
+      <StyleSheet name="arrayfield-1-0-2-1" css={styles} />
       <div data-rcl-array-header>
         <div data-rcl-array-heading>
           <div id={`${generatedId}-label`} data-rcl-array-label>

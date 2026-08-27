@@ -22,6 +22,7 @@
     }
   ],
   "displayName": "Stack",
+  "kind": "surface",
   "draft": "",
   "latest": "1.2.2",
   "libraryId": "react-component-library:Stack",

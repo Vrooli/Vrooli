@@ -15,6 +15,7 @@
     }
   ],
   "displayName": "useFocusTrap",
+  "kind": "overlay",
   "latest": "1.0.0",
   "libraryId": "react-component-library:useFocusTrap",
   "tags": [

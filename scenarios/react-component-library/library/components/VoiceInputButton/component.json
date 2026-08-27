@@ -1,5 +1,6 @@
 {
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
+  "catalogId": "react-component-library:VoiceInputButton",
   "category": "inputs",
   "dependencies": [
     {
@@ -12,9 +13,7 @@
       "version": "1.0.0"
     }
   ],
-  "deprecatedVersions": [
-    "4.2.0"
-  ],
+  "deprecatedVersions": ["4.1.0", "4.2.0", "4.2.1"],
   "description": "",
   "designStyles": [
     {
@@ -27,9 +26,10 @@
     }
   ],
   "displayName": "Voice Input Button",
+  "kind": "input",
   "draft": "",
   "entry": "VoiceInputButton.tsx",
-  "latest": "4.2.1",
+  "latest": "4.3.0",
   "libraryId": "react-component-library:VoiceInputButton",
   "slot": "ui-primitive",
   "tags": [

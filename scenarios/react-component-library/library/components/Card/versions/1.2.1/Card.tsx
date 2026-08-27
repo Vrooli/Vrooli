@@ -7,6 +7,7 @@
  * @deps {"react":"^18","clsx":"^2.1.1","tailwind-merge":"^2.3.0"}
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
+import { StyleSheet } from "@vrooli/react-component-library/StyleSheet/1.0.0";
 import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
 
 import type { CSSProperties, HTMLAttributes, ReactNode } from "react";
@@ -52,7 +53,7 @@ export const Card = withClassName(function Card({ children, className, ...props 
       data-testid={testId ?? "primitives.card"}
       style={surfaceStyle}
     >
-      <style data-rcl-card-styles dangerouslySetInnerHTML={{ __html: cardStyles }} />
+      <StyleSheet name="card-1-2-1" css={cardStyles} />
       {children}
     </div>
   );

@@ -67,7 +67,7 @@ export const SEMANTIC_TOKENS = {
 } as const;
 
 export const COMPONENT_TOKENS = {
-  controlHeight: "var(--control-height)",
+  controlSize: "var(--control-size-md)",
   controlRadius: "var(--control-radius)",
   controlPadding: "var(--control-padding)",
   panelRadius: "var(--panel-radius)",

@@ -6,6 +6,7 @@
  * @tags ["primitive","media","responsive","accessibility","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
+import { StyleSheet } from "@vrooli/react-component-library/StyleSheet/1.0.0";
 import { useStrings } from "@vrooli/react-component-library/useLocale/1.0.1";
 import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
 
@@ -30,7 +31,7 @@ const styles = `
 [data-rcl-progressive-image-error-content] { display: grid; justify-items: center; gap: var(--space-2xs); max-inline-size: 28rem; }
 [data-rcl-progressive-image-error-icon] { display: grid; place-items: center; inline-size: var(--space-xl); block-size: var(--space-xl); border: var(--border-hairline) solid currentColor; border-radius: var(--radius-pill); font: var(--text-label); }
 @keyframes rcl-progressive-image-shimmer { 0% { background-position: 100% 0; } 100% { background-position: -100% 0; } }
-@media (prefers-reduced-motion: reduce) { [data-rcl-progressive-image-placeholder] { animation: none; } [data-rcl-progressive-image] img { transition: none; transform: none; } }
+
 `;
 
 export interface ProgressiveImageSource {
@@ -94,7 +95,7 @@ export const ProgressiveImage = withClassName(function ProgressiveImage({
 
   return (
     <>
-      <style data-rcl-progressive-image-styles dangerouslySetInnerHTML={{ __html: styles }} />
+      <StyleSheet name="progressiveimage-1-1-5-1" css={styles} />
       <AspectRatio
         data-testid="primitives.progressive-image"
         data-rcl-progressive-image
