@@ -33,7 +33,7 @@ func PerformHealthCheck(check HealthCheck, ports map[string]int) error {
 
 		timeout := time.Duration(check.Timeout) * time.Millisecond
 		if timeout == 0 {
-			timeout = tuning.ServiceHealthTimeout
+			timeout = tuning.ServiceHealthTimeout()
 		}
 
 		client := &http.Client{Timeout: timeout}
@@ -59,7 +59,7 @@ func PerformHealthCheck(check HealthCheck, ports map[string]int) error {
 
 		timeout := time.Duration(check.Timeout) * time.Millisecond
 		if timeout == 0 {
-			timeout = tuning.ServiceHealthTimeout
+			timeout = tuning.ServiceHealthTimeout()
 		}
 
 		client := &http.Client{Timeout: timeout}
@@ -81,7 +81,7 @@ func PerformHealthCheck(check HealthCheck, ports map[string]int) error {
 	case "postgres":
 		timeout := time.Duration(check.Timeout) * time.Millisecond
 		if timeout == 0 {
-			timeout = tuning.HealthCheckTimeout
+			timeout = tuning.HealthCheckTimeout()
 		}
 
 		address := "127.0.0.1:5432"

@@ -13,6 +13,7 @@ import (
 	. "github.com/vrooli/vrooli/internal/cli/scenariocli" //nolint:revive // scenariohandlers is a thin glue layer over scenariocli; dot-import keeps wiring readable.
 	"github.com/vrooli/vrooli/internal/cliout"
 	"github.com/vrooli/vrooli/internal/lifecycle"
+	"github.com/vrooli/vrooli/internal/tuning"
 )
 
 const (
@@ -81,15 +82,15 @@ func PortResponseFrom(format cliout.Format, run func(PortRequest) (scenarioapp.P
 	return toCLIPortResponse(resp), nil
 }
 
-func OpenResponseFrom(run func(OpenRequest) (scenarioapp.OpenOutput, error), req OpenRequest) (cliout.Format, OpenOutput, error) {
+func OpenResponseFrom(run func(OpenRequest) (scenarioapp.OpenOutput, error), req OpenRequest) (OpenOutput, error) {
 	resp, err := run(req)
 	if err != nil {
-		return "", OpenOutput{}, err
+		return OpenOutput{}, err
 	}
 	if !req.PrintURL && !req.JSON {
-		return cliout.FormatHuman, OpenOutput{}, nil
+		return OpenOutput{}, nil
 	}
-	return cliout.FormatHuman, toCLIOpenOutput(resp), nil
+	return toCLIOpenOutput(resp), nil
 }
 
 func RenderSetupPhaseResult(w io.Writer, format cliout.Format, result lifecycle.PhaseResult) error {
@@ -108,7 +109,7 @@ func runWithStartCeiling(timeoutSeconds int, stderr io.Writer, reattachName stri
 	if timeoutSeconds <= 0 {
 		return run(operationCtx)
 	}
-	operationCtx, cancel = context.WithTimeout(operationCtx, time.Duration(timeoutSeconds)*time.Second)
+	operationCtx, cancel = context.WithTimeout(operationCtx, tuning.ScenarioActionTimeout(time.Duration(timeoutSeconds)*time.Second))
 	defer cancel()
 	type result struct {
 		items []scenarioapp.LifecycleItemOutput
@@ -329,12 +330,12 @@ func mapCopy(values map[string]int) map[string]int {
 	return out
 }
 
-func HealFromSandboxResponseFrom(run func(HealFromSandboxRequest) (scenarioapp.HealFromSandboxResponse, error), req HealFromSandboxRequest) (cliout.Format, HealFromSandboxResponse, error) {
+func HealFromSandboxResponseFrom(run func(HealFromSandboxRequest) (scenarioapp.HealFromSandboxResponse, error), req HealFromSandboxRequest) (HealFromSandboxResponse, error) {
 	resp, err := run(req)
 	if err != nil {
-		return "", HealFromSandboxResponse{}, err
+		return HealFromSandboxResponse{}, err
 	}
-	return cliout.FormatHuman, HealFromSandboxResponse{
+	return HealFromSandboxResponse{
 		Affected:     CopyStrings(resp.Affected),
 		DryRun:       resp.DryRun,
 		StoppedCount: resp.StoppedCount,

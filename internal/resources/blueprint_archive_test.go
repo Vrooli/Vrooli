@@ -76,6 +76,25 @@ func TestArchiveResourceToBlueprintRejectsScenarioReferences(t *testing.T) {
 	}
 }
 
+func TestScenarioManifestUsesResourceToleratesUnknownFields(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "service.json")
+	testkitgo.WriteFile(t, path, `{
+  "dependencies": {"resources": {"fixture": {
+    "enabled": true,
+    "future_dependency_field": ["new"]
+  }}},
+  "future_manifest_field": true
+}`)
+
+	used, err := scenarioManifestUsesResource(path, "fixture")
+	if err != nil {
+		t.Fatalf("scenarioManifestUsesResource: %v", err)
+	}
+	if !used {
+		t.Fatal("expected fixture resource reference")
+	}
+}
+
 func TestRestoreBlueprintArchivedResourceWritesQuarantinedCopy(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()

@@ -38,7 +38,7 @@ func NewDefaultPlanReconciler(ctx context.Context) (PlanReconciler, error) {
 		return nil, fmt.Errorf("%w: discover %s: %v", plansapp.ErrPlanManagerUnavailable, planManagerScenario, err)
 	}
 	return planManagerReconciler{
-		client:  &http.Client{Timeout: tuning.ControlPlaneClientTimeout},
+		client:  &http.Client{Timeout: tuning.ControlPlaneClientTimeout()},
 		baseURL: strings.TrimRight(url, "/"),
 	}, nil
 }

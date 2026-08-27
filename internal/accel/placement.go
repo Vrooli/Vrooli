@@ -177,7 +177,7 @@ func (v Verifier) backoff() time.Duration {
 	if v.Backoff > 0 {
 		return v.Backoff
 	}
-	return tuning.FastHealthPollInterval
+	return tuning.FastHealthPollInterval()
 }
 
 func (v Verifier) sleep(ctx context.Context, d time.Duration) error {

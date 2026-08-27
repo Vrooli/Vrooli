@@ -187,36 +187,30 @@ func TestInspectPartialEnvIsNotApplicable(t *testing.T) {
 	}
 }
 
-func TestInspectAlreadyAppliedAndActive(t *testing.T) {
-	_, files, env, cmdline, restore := stubAll(t)
-	defer restore()
-	setEnv(env, "0x70000000", "0x100000")
-	files[grub.DefaultConfigPath] = `GRUB_CMDLINE_LINUX="quiet ramoops.mem_address=0x70000000 ramoops.mem_size=0x100000 ramoops.ecc=1"` + "\n"
-	*cmdline = "BOOT_IMAGE=/boot/vmlinuz quiet ramoops.mem_address=0x70000000 ramoops.mem_size=0x100000 ramoops.ecc=1"
+func TestInspectAppliedRamoopsActivationState(t *testing.T) {
+	for _, tc := range []struct {
+		name          string
+		cmdline       string
+		expectedState hostreqkit.ExecutionState
+	}{
+		{name: "active", cmdline: "BOOT_IMAGE=/boot/vmlinuz quiet ramoops.mem_address=0x70000000 ramoops.mem_size=0x100000 ramoops.ecc=1", expectedState: hostreqkit.ExecutionAlreadyPresent},
+		{name: "reboot_required", cmdline: "BOOT_IMAGE=/boot/vmlinuz quiet", expectedState: hostreqkit.ExecutionRebootRequired},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			_, files, env, cmdline, restore := stubAll(t)
+			defer restore()
+			setEnv(env, "0x70000000", "0x100000")
+			files[grub.DefaultConfigPath] = `GRUB_CMDLINE_LINUX="quiet ramoops.mem_address=0x70000000 ramoops.mem_size=0x100000 ramoops.ecc=1"` + "\n"
+			*cmdline = tc.cmdline
 
-	st := newHandler().Inspect(linuxHost(), req(false))
-	if !st.Applied {
-		t.Errorf("expected Applied=true; status=%+v", st)
-	}
-	if st.ExecutionState != hostreqkit.ExecutionAlreadyPresent {
-		t.Errorf("ExecutionState = %q", st.ExecutionState)
-	}
-}
-
-func TestInspectFileAppliedButRebootRequired(t *testing.T) {
-	_, files, env, cmdline, restore := stubAll(t)
-	defer restore()
-	setEnv(env, "0x70000000", "0x100000")
-	files[grub.DefaultConfigPath] = `GRUB_CMDLINE_LINUX="quiet ramoops.mem_address=0x70000000 ramoops.mem_size=0x100000 ramoops.ecc=1"` + "\n"
-	// /proc/cmdline does NOT have the params (operator hasn't update-grub'd + rebooted)
-	*cmdline = "BOOT_IMAGE=/boot/vmlinuz quiet"
-
-	st := newHandler().Inspect(linuxHost(), req(false))
-	if !st.Applied {
-		t.Errorf("expected Applied=true (file written); status=%+v", st)
-	}
-	if st.ExecutionState != hostreqkit.ExecutionRebootRequired {
-		t.Errorf("ExecutionState = %q, want reboot_required", st.ExecutionState)
+			st := newHandler().Inspect(linuxHost(), req(false))
+			if !st.Applied {
+				t.Errorf("expected Applied=true; status=%+v", st)
+			}
+			if st.ExecutionState != tc.expectedState {
+				t.Errorf("ExecutionState = %q, want %q", st.ExecutionState, tc.expectedState)
+			}
+		})
 	}
 }
 

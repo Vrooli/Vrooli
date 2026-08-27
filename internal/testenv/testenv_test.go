@@ -22,6 +22,28 @@ func TestAsSudoUserSetsCompleteIdentity(t *testing.T) {
 	}
 }
 
+func TestAsCurrentUserClearsInheritedSudoIdentity(t *testing.T) {
+	AsSudoUser(t, "stale")
+	AsCurrentUser(t, "alice")
+	for key, want := range map[string]string{
+		"USER": "alice", "SUDO_USER": "", "SUDO_UID": "", "SUDO_GID": "",
+	} {
+		if got := os.Getenv(key); got != want {
+			t.Errorf("%s = %q, want %q", key, got, want)
+		}
+	}
+}
+
+func TestSetIdentityEnvSetsExactResolverValues(t *testing.T) {
+	SetIdentityEnv(t, map[string]string{"HOME": "/fixture/home", "XDG_CACHE_HOME": "relative/cache"})
+	if got := os.Getenv("HOME"); got != "/fixture/home" {
+		t.Fatalf("HOME = %q", got)
+	}
+	if got := os.Getenv("XDG_CACHE_HOME"); got != "relative/cache" {
+		t.Fatalf("XDG_CACHE_HOME = %q", got)
+	}
+}
+
 func TestRuntimeHomeSetsXDGLocations(t *testing.T) {
 	home := RuntimeHome(t)
 	if os.Getenv("HOME") != home {

@@ -114,41 +114,7 @@ func AtomicInstall(src, dst string) error {
 	}
 	defer release()
 	_ = buildinfo.PreserveRootBinaryFallback(dst)
-
-	if err := os.MkdirAll(filepath.Dir(dst), tuning.PermDir); err != nil {
-		return err
-	}
-	// PermExecutable, not PermDir: they share a value today, and a directory
-	// constant applied to an executable is a claim that stops being true the
-	// day someone correctly tightens directory permissions.
-	if err := os.Chmod(src, tuning.PermExecutable); err != nil {
-		return err
-	}
-	in, err := os.Open(src)
-	if err != nil {
-		return err
-	}
-	data, err := io.ReadAll(in)
-	closeErr := in.Close()
-	if err == nil {
-		err = closeErr
-	}
-	if err != nil {
-		return err
-	}
-	if err := config.WriteOwnedFileAtomic(dst, data, tuning.PermExecutable); err != nil {
-		return err
-	}
-	return syncFile(filepath.Dir(dst))
-}
-
-func syncFile(path string) error {
-	f, err := os.Open(path)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-	return f.Sync()
+	return config.InstallExecutableAtomic(src, dst)
 }
 
 func (s InstallLocationStatus) PathMismatch() bool {

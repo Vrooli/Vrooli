@@ -6,6 +6,8 @@ import (
 	"os/exec"
 	"runtime"
 	"strings"
+
+	"github.com/vrooli/vrooli/internal/shell"
 )
 
 // Observer reports the current state of a device. It is a seam so the service's
@@ -83,7 +85,7 @@ func (execRunner) Run(ctx context.Context, argv []string) ([]byte, error) {
 	if len(argv) == 0 {
 		return nil, fmt.Errorf("empty command")
 	}
-	return exec.CommandContext(ctx, argv[0], argv[1:]...).CombinedOutput()
+	return shell.NewCommandContext(ctx, argv[0], argv[1:]...).CombinedOutput()
 }
 
 // Backend reports which execution path this host offers, or an unsupported

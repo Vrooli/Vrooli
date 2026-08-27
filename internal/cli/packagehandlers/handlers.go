@@ -39,7 +39,7 @@ func buildCommandHandlers[C any](deps HandlerDeps[C]) map[string]rootcli.Handler
 
 func buildCommandTable[C any](deps HandlerDeps[C]) []commandtree.Spec[rootcli.Handler[C]] {
 	handlerMap := map[packagecli.CommandID]rootcli.Handler[C]{
-		packagecli.CommandList: rootcli.BindService(deps.Stdout, newServiceFor(deps),
+		packagecli.CommandList: rootcli.BindService(deps.Stdout, deps.OutputFormat, newServiceFor(deps),
 			func(ctx C, args []string) (packagecli.ListRequest, error) { return packagecli.ParseListRequest(args) },
 			func(service packageService, req packagecli.ListRequest) (packagecli.ListResponse, error) {
 				items, issues, err := service.List()
@@ -55,7 +55,7 @@ func buildCommandTable[C any](deps HandlerDeps[C]) []commandtree.Spec[rootcli.Ha
 			},
 			packagecli.RenderList,
 		),
-		packagecli.CommandInfo: rootcli.BindService(deps.Stdout, newServiceFor(deps),
+		packagecli.CommandInfo: rootcli.BindService(deps.Stdout, deps.OutputFormat, newServiceFor(deps),
 			func(ctx C, args []string) (packagecli.InfoRequest, error) { return packagecli.ParseInfoRequest(args) },
 			func(service packageService, req packagecli.InfoRequest) (packagegov.Package, error) {
 				item, err := service.Info(req.Name)
@@ -66,7 +66,7 @@ func buildCommandTable[C any](deps HandlerDeps[C]) []commandtree.Spec[rootcli.Ha
 			},
 			packagecli.RenderInfo,
 		),
-		packagecli.CommandDependents: rootcli.BindService(deps.Stdout, newServiceFor(deps),
+		packagecli.CommandDependents: rootcli.BindService(deps.Stdout, deps.OutputFormat, newServiceFor(deps),
 			func(ctx C, args []string) (packagecli.DependentsRequest, error) {
 				return packagecli.ParseDependentsRequest(args)
 			},
@@ -83,7 +83,7 @@ func buildCommandTable[C any](deps HandlerDeps[C]) []commandtree.Spec[rootcli.Ha
 			},
 			packagecli.RenderDependents,
 		),
-		packagecli.CommandBuild: rootcli.BindService(deps.Stdout, newServiceFor(deps),
+		packagecli.CommandBuild: rootcli.BindService(deps.Stdout, deps.OutputFormat, newServiceFor(deps),
 			func(ctx C, args []string) (packagecli.RunRequest, error) {
 				return packagecli.ParseRunRequest("build", args)
 			},
@@ -96,7 +96,7 @@ func buildCommandTable[C any](deps HandlerDeps[C]) []commandtree.Spec[rootcli.Ha
 			},
 			packagecli.RenderRun,
 		),
-		packagecli.CommandGenerate: rootcli.BindService(deps.Stdout, newServiceFor(deps),
+		packagecli.CommandGenerate: rootcli.BindService(deps.Stdout, deps.OutputFormat, newServiceFor(deps),
 			func(ctx C, args []string) (packagecli.RunRequest, error) {
 				return packagecli.ParseRunRequest("generate", args)
 			},
@@ -109,7 +109,7 @@ func buildCommandTable[C any](deps HandlerDeps[C]) []commandtree.Spec[rootcli.Ha
 			},
 			packagecli.RenderRun,
 		),
-		packagecli.CommandTest: rootcli.BindService(deps.Stdout, newServiceFor(deps),
+		packagecli.CommandTest: rootcli.BindService(deps.Stdout, deps.OutputFormat, newServiceFor(deps),
 			func(ctx C, args []string) (packagecli.RunRequest, error) {
 				return packagecli.ParseRunRequest("test", args)
 			},
@@ -122,7 +122,7 @@ func buildCommandTable[C any](deps HandlerDeps[C]) []commandtree.Spec[rootcli.Ha
 			},
 			packagecli.RenderRun,
 		),
-		packagecli.CommandRefresh: rootcli.BindService(deps.Stdout, newServiceFor(deps),
+		packagecli.CommandRefresh: rootcli.BindService(deps.Stdout, deps.OutputFormat, newServiceFor(deps),
 			func(ctx C, args []string) (packagecli.RefreshRequest, error) {
 				return packagecli.ParseRefreshRequest(args)
 			},
@@ -148,13 +148,9 @@ func buildCommandTable[C any](deps HandlerDeps[C]) []commandtree.Spec[rootcli.Ha
 	return commandtree.BindSpecs(packagecli.CommandSpecs(), handlerMap)
 }
 
-func newServiceFor[C any](deps HandlerDeps[C]) func(C) (cliout.Format, packageService, error) {
-	return func(ctx C) (cliout.Format, packageService, error) {
-		format, err := deps.OutputFormat(ctx)
-		if err != nil {
-			return "", packageService{}, err
-		}
-		return format, packageService{Service: newService(deps, ctx, format), format: format}, nil
+func newServiceFor[C any](deps HandlerDeps[C]) func(C, cliout.Format) (packageService, error) {
+	return func(ctx C, format cliout.Format) (packageService, error) {
+		return packageService{Service: newService(deps, ctx, format), format: format}, nil
 	}
 }
 

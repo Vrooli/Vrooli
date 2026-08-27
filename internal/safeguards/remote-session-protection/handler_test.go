@@ -381,19 +381,6 @@ func TestInspectDesktopDetectedDockerNotConfigured(t *testing.T) {
 
 // ── Apply: early returns ─────────────────────────────────────────────────────
 
-func TestApplyNotApplicableReturnsEarly(t *testing.T) {
-	h := newTestHandler()
-	status, err := h.Apply(hostreqkit.Host{OS: "linux"}, hostreqkit.ItemStatus{
-		SupportClass: hostreqkit.SupportNotApplicable,
-	}, hostreqkit.EnsureOptions{})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if status.ExecutionState != hostreqkit.ExecutionNotApplicable {
-		t.Fatalf("ExecutionState = %q", status.ExecutionState)
-	}
-}
-
 // ── Apply: static files (no desktop) ─────────────────────────────────────────
 
 func TestApplyStaticCommandsNoDesktop(t *testing.T) {

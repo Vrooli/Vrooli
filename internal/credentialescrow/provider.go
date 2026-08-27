@@ -376,7 +376,7 @@ func (p *Provider) Preview(ctx context.Context, inputs operatorcapability.InputS
 			Candidates:   []operatorcapability.Candidate{{ID: sink, Kind: "s3-compatible", Label: sink, Location: sink, Status: "pending-validation", Risk: "object-store authority and repository containment are revalidated during apply"}},
 			Mutations:    []operatorcapability.Mutation{{ID: "encrypted-root-copy", Summary: "write and read back the encrypted credential-store root object", Reversible: true}, {ID: "recovery-bundle", Summary: "write and verify the encrypted recovery bundle object", Reversible: true}, {ID: "evidence-and-schedule", Summary: "record metadata-only evidence and install the native refresh schedule", Reversible: true}},
 			Remediation:  "Review the object-store reference, endpoint, and exact mutations before applying.",
-			ExpiresAt:    p.now().UTC().Add(tuning.LongOperationBudget),
+			ExpiresAt:    p.now().UTC().Add(tuning.CredentialEscrowRetention()),
 		}, nil
 	}
 	status, err := p.Discover(context.Background())
@@ -401,11 +401,10 @@ func (p *Provider) Preview(ctx context.Context, inputs operatorcapability.InputS
 			{ID: "evidence-and-schedule", Summary: "record metadata-only evidence and install the native refresh schedule", Reversible: true},
 		},
 		Remediation: "Review the selected sink and confirm the exact mutations before applying.",
-		ExpiresAt:   p.now().UTC().Add(tuning.LongOperationBudget),
+		ExpiresAt:   p.now().UTC().Add(tuning.CredentialEscrowRetention()),
 	}, nil
 }
 
-//nolint:gocyclo // escrow application coordinates provider, schedule, copy, and evidence state transitions.
 func (p *Provider) Apply(ctx context.Context, inputs operatorcapability.InputSet) (operatorcapability.Result, error) {
 	_ = ctx
 	sink, ok := inputs.Text("sink")
@@ -416,28 +415,9 @@ func (p *Provider) Apply(ctx context.Context, inputs operatorcapability.InputSet
 	if !ok || strings.TrimSpace(passphrase) == "" {
 		return escrowFailure("missing_recovery_passphrase", "provide the recovery-bundle passphrase through onboarding")
 	}
-	isS3 := strings.HasPrefix(strings.ToLower(strings.TrimSpace(sink)), "s3://")
-	var selected *operatorcapability.Candidate
-	var s3Options securestore.S3CopyOptions
-	var err error
-	if isS3 {
-		s3Options, err = p.objectStoreOptions(inputs)
-		if err != nil {
-			return escrowFailure("object_store_authority_invalid", "provide a credential identity and region; secret values remain in the credential authority")
-		}
-	} else {
-		status, discoverErr := p.Discover(context.Background())
-		if discoverErr != nil {
-			return escrowFailure("discovery_failed", discoverErr.Error())
-		}
-		selected = findCandidate(status.Candidates, sink)
-		if selected == nil || selected.Status != providerReady {
-			remediation := "re-discover storage candidates and choose a ready destination"
-			if selected != nil && selected.Remediation != "" {
-				remediation = selected.Remediation
-			}
-			return escrowFailure("unsafe_sink", remediation)
-		}
+	destination, failure := p.resolveEscrowDestination(inputs, sink)
+	if failure != nil {
+		return *failure, nil
 	}
 	store, err := p.describeStore()
 	if err != nil || !store.Initialized {
@@ -457,49 +437,35 @@ func (p *Provider) Apply(ctx context.Context, inputs operatorcapability.InputSet
 	if err != nil {
 		return escrowFailure("repository_inventory_unavailable", "backup repository roots could not be validated")
 	}
-	copyReceiptPath := filepath.Join(p.home, "state", "credential-store-copy.json")
-	var copyStatus securestore.CopyStatus
-	if isS3 {
-		copyStatus, err = securestore.CopyStoreS3(store.Path, sink, copyReceiptPath, s3Options)
-	} else {
-		rootSink := filepath.Join(selected.Location, "vrooli-credential-escrow", "root-copy")
-		copyStatus, err = securestore.CopyStoreWithPolicy(store.Path, rootSink, copyReceiptPath, securestore.CopyPolicy{RepositoryPaths: repositoryRoots, ProtectedRoots: []string{p.home}, RequireIndependentDevice: true})
-	}
-	if err != nil {
-		return escrowFailure("root_copy_failed", "the encrypted root copy was not verified; correct the sink and retry")
+	copyStatus, copyReceiptPath, failure := p.copyCredentialStore(destination, store, repositoryRoots)
+	if failure != nil {
+		return *failure, nil
 	}
 
-	bundlePath := strings.TrimRight(sink, "/") + "/recovery/credentials.bundle.json"
-	if !isS3 {
-		bundlePath = filepath.Join(selected.Location, "vrooli-credential-escrow", "recovery", "credentials.bundle.json")
+	bundle, bundlePath, failure := p.writeEscrowRecoveryBundle(destination, entries.Entries, passphrase)
+	if failure != nil {
+		return *failure, nil
 	}
-	var bundle []byte
-	if isS3 {
-		authority, authorityErr := credentialauthority.DefaultAuthority()
-		if authorityErr != nil {
-			return escrowFailure("recovery_authority_unavailable", "credential authority is unavailable")
-		}
-		bundle, err = authority.ExportRecovery(entries.Entries, passphrase)
-		if err == nil {
-			_, _, err = securestore.UploadS3Artifact(sink, "recovery/credentials.bundle.json", bundle, s3Options)
-			bundlePath = strings.TrimRight(sink, "/") + "/recovery/credentials.bundle.json"
-		}
-	} else {
-		bundlePath = filepath.Join(selected.Location, "vrooli-credential-escrow", "recovery", "credentials.bundle.json")
-		bundle, err = ensureRecoveryBundle(bundlePath, entries.Entries, passphrase)
-	}
-	if err != nil {
-		return escrowFailure("recovery_bundle_failed", "the recovery bundle was not readable with the supplied passphrase; preserve any existing bundle and retry")
-	}
-	manifest, err := credentialauthority.InspectRecovery(bundle, passphrase)
+	return p.commitEscrowEvidence(inputs, destination, escrowArtifacts{copyStatus: copyStatus, copyReceiptPath: copyReceiptPath, bundle: bundle, bundlePath: bundlePath}, passphrase)
+}
+
+type escrowArtifacts struct {
+	copyStatus      securestore.CopyStatus
+	copyReceiptPath string
+	bundle          []byte
+	bundlePath      string
+}
+
+func (p *Provider) commitEscrowEvidence(inputs operatorcapability.InputSet, destination escrowDestination, artifacts escrowArtifacts, passphrase string) (operatorcapability.Result, error) {
+	manifest, err := credentialauthority.InspectRecovery(artifacts.bundle, passphrase)
 	if err != nil {
 		return escrowFailure("recovery_verification_failed", "recovery bundle read-back verification failed")
 	}
-	bundleChecksum := sha256.Sum256(bundle)
+	bundleChecksum := sha256.Sum256(artifacts.bundle)
 	scheduleConfigPath := filepath.Join(p.home, "config", "credential-store-copy.json")
-	copyConfig := securestore.CopyConfig{Enabled: true, Sink: sink, Interval: securestore.DefaultCopyInterval}
-	if isS3 {
-		copyConfig.Sink = sink
+	copyConfig := securestore.CopyConfig{Enabled: true, Sink: destination.sink, Interval: securestore.DefaultCopyInterval}
+	if destination.isS3 {
+		copyConfig.Sink = destination.sink
 		copyConfig.ObjectStoreCredentialID = inputOrDefault(inputs, "object_store_credential_identity", "")
 		copyConfig.ObjectStoreRegion = inputOrDefault(inputs, "object_store_region", "")
 		copyConfig.ObjectStoreEndpoint = inputOrDefault(inputs, "object_store_endpoint", "")
@@ -515,25 +481,25 @@ func (p *Provider) Apply(ctx context.Context, inputs operatorcapability.InputSet
 		return escrowFailure("schedule_executable_failed", "the control-plane executable could not be resolved for scheduling")
 	}
 	schedule, scheduleErr := securestore.InstallCopySchedule(executable, copyConfig.Interval, true)
-	copyStatus.ScheduleState = schedule.State
+	artifacts.copyStatus.ScheduleState = schedule.State
 	if schedule.Remediation != "" {
-		copyStatus.Remediation = schedule.Remediation
+		artifacts.copyStatus.Remediation = schedule.Remediation
 	}
-	if err := securestore.WriteCopyReceipt(copyReceiptPath, copyStatus); err != nil {
+	if err := securestore.WriteCopyReceipt(artifacts.copyReceiptPath, artifacts.copyStatus); err != nil {
 		return escrowFailure("copy_evidence_failed", "the root copy exists but its metadata receipt could not be updated")
 	}
 	now := p.now().UTC()
 	recoveryReceipt := credentialauthority.RecoveryReceipt{
-		ArtifactIdentity: artifactIdentity(bundlePath),
-		SourceGeneration: copyStatus.Generation,
+		ArtifactIdentity: artifactIdentity(artifacts.bundlePath),
+		SourceGeneration: artifacts.copyStatus.Generation,
 		Checksum:         hex.EncodeToString(bundleChecksum[:]),
 		VerifiedAt:       now,
 		Verification:     "decrypt-readback",
-		SinkIdentity:     copyStatus.SinkIdentity,
+		SinkIdentity:     artifacts.copyStatus.SinkIdentity,
 		ScheduleState:    schedule.State,
 		Remediation:      schedule.Remediation,
 	}
-	if err := credentialauthority.WriteRecoveryReceiptWithMetadata(filepath.Join(p.home, "state"), bundlePath, manifest.Entries, recoveryReceipt, now); err != nil {
+	if err := credentialauthority.WriteRecoveryReceiptWithMetadata(filepath.Join(p.home, "state"), artifacts.bundlePath, manifest.Entries, recoveryReceipt, now); err != nil {
 		return escrowFailure("recovery_evidence_failed", "the recovery bundle exists but its metadata receipt could not be written")
 	}
 	state := operatorcapability.StateReady
@@ -550,9 +516,88 @@ func (p *Provider) Apply(ctx context.Context, inputs operatorcapability.InputSet
 	return operatorcapability.Result{
 		CapabilityID: CapabilityID, State: state, Outcome: outcome, Retryable: true, Remediation: remediation,
 		Mutations:   []operatorcapability.Mutation{{ID: "encrypted-root-copy", Summary: "verified encrypted credential-store root copy", Reversible: true}, {ID: "recovery-bundle", Summary: fmt.Sprintf("verified recovery bundle covering %d entries", len(manifest.Entries)), Reversible: true}, {ID: "schedule", Summary: "recorded native schedule state", Reversible: true}},
-		Evidence:    []operatorcapability.EvidenceReference{{Kind: "encrypted-root-copy", ArtifactIdentity: artifactIdentity(copyStatus.Path), SourceGeneration: copyStatus.Generation, Checksum: copyStatus.Checksum, ObservedAt: copyStatus.VerifiedAt, Verified: copyStatus.Verification == "readback", Remediation: copyStatus.Remediation}, {Kind: "recovery-bundle", ArtifactIdentity: artifactIdentity(bundlePath), SourceGeneration: copyStatus.Generation, Checksum: hex.EncodeToString(bundleChecksum[:]), Coverage: recoveryCoverage(manifest.Entries), ObservedAt: now, Verified: true, Remediation: schedule.Remediation}, {Kind: "schedule", ArtifactIdentity: schedule.Provider, ObservedAt: schedule.UpdatedAt, Verified: schedule.State == providerReady, Remediation: schedule.Remediation}},
+		Evidence:    []operatorcapability.EvidenceReference{{Kind: "encrypted-root-copy", ArtifactIdentity: artifactIdentity(artifacts.copyStatus.Path), SourceGeneration: artifacts.copyStatus.Generation, Checksum: artifacts.copyStatus.Checksum, ObservedAt: artifacts.copyStatus.VerifiedAt, Verified: artifacts.copyStatus.Verification == "readback", Remediation: artifacts.copyStatus.Remediation}, {Kind: "recovery-bundle", ArtifactIdentity: artifactIdentity(artifacts.bundlePath), SourceGeneration: artifacts.copyStatus.Generation, Checksum: hex.EncodeToString(bundleChecksum[:]), Coverage: recoveryCoverage(manifest.Entries), ObservedAt: now, Verified: true, Remediation: schedule.Remediation}, {Kind: "schedule", ArtifactIdentity: schedule.Provider, ObservedAt: schedule.UpdatedAt, Verified: schedule.State == providerReady, Remediation: schedule.Remediation}},
 		CompletedAt: now,
 	}, nil
+}
+
+type escrowDestination struct {
+	sink      string
+	isS3      bool
+	selected  *operatorcapability.Candidate
+	s3Options securestore.S3CopyOptions
+}
+
+func (p *Provider) resolveEscrowDestination(inputs operatorcapability.InputSet, sink string) (escrowDestination, *operatorcapability.Result) {
+	destination := escrowDestination{sink: sink, isS3: strings.HasPrefix(strings.ToLower(strings.TrimSpace(sink)), "s3://")}
+	if destination.isS3 {
+		options, err := p.objectStoreOptions(inputs)
+		if err != nil {
+			failure, _ := escrowFailure("object_store_authority_invalid", "provide a credential identity and region; secret values remain in the credential authority")
+			return destination, &failure
+		}
+		destination.s3Options = options
+		return destination, nil
+	}
+	status, err := p.Discover(context.Background())
+	if err != nil {
+		failure, _ := escrowFailure("discovery_failed", err.Error())
+		return destination, &failure
+	}
+	destination.selected = findCandidate(status.Candidates, sink)
+	if destination.selected == nil || destination.selected.Status != providerReady {
+		remediation := "re-discover storage candidates and choose a ready destination"
+		if destination.selected != nil && destination.selected.Remediation != "" {
+			remediation = destination.selected.Remediation
+		}
+		failure, _ := escrowFailure("unsafe_sink", remediation)
+		return destination, &failure
+	}
+	return destination, nil
+}
+
+func (p *Provider) copyCredentialStore(destination escrowDestination, store securestore.StoreStatus, repositoryRoots []string) (securestore.CopyStatus, string, *operatorcapability.Result) {
+	receiptPath := filepath.Join(p.home, "state", "credential-store-copy.json")
+	var status securestore.CopyStatus
+	var err error
+	if destination.isS3 {
+		status, err = securestore.CopyStoreS3(store.Path, destination.sink, receiptPath, destination.s3Options)
+	} else {
+		rootSink := filepath.Join(destination.selected.Location, "vrooli-credential-escrow", "root-copy")
+		status, err = securestore.CopyStoreWithPolicy(store.Path, rootSink, receiptPath, securestore.CopyPolicy{RepositoryPaths: repositoryRoots, ProtectedRoots: []string{p.home}, RequireIndependentDevice: true})
+	}
+	if err != nil {
+		failure, _ := escrowFailure("root_copy_failed", "the encrypted root copy was not verified; correct the sink and retry")
+		return status, receiptPath, &failure
+	}
+	return status, receiptPath, nil
+}
+
+func (p *Provider) writeEscrowRecoveryBundle(destination escrowDestination, entries []credentialauthority.RecoveryEntry, passphrase string) ([]byte, string, *operatorcapability.Result) {
+	if !destination.isS3 {
+		path := filepath.Join(destination.selected.Location, "vrooli-credential-escrow", "recovery", "credentials.bundle.json")
+		bundle, err := ensureRecoveryBundle(path, entries, passphrase)
+		if err == nil {
+			return bundle, path, nil
+		}
+		failure, _ := escrowFailure("recovery_bundle_failed", "the recovery bundle was not readable with the supplied passphrase; preserve any existing bundle and retry")
+		return nil, path, &failure
+	}
+	authority, err := credentialauthority.DefaultAuthority()
+	if err != nil {
+		failure, _ := escrowFailure("recovery_authority_unavailable", "credential authority is unavailable")
+		return nil, "", &failure
+	}
+	bundle, err := authority.ExportRecovery(entries, passphrase)
+	if err == nil {
+		_, _, err = securestore.UploadS3Artifact(destination.sink, "recovery/credentials.bundle.json", bundle, destination.s3Options)
+	}
+	path := strings.TrimRight(destination.sink, "/") + "/recovery/credentials.bundle.json"
+	if err != nil {
+		failure, _ := escrowFailure("recovery_bundle_failed", "the recovery bundle was not readable with the supplied passphrase; preserve any existing bundle and retry")
+		return nil, path, &failure
+	}
+	return bundle, path, nil
 }
 
 func escrowFailure(code, remediation string) (operatorcapability.Result, error) {

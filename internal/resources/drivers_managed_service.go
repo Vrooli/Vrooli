@@ -11,13 +11,13 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/vrooli/vrooli/internal/shell"
 	"github.com/vrooli/vrooli/internal/tuning"
 
 	"github.com/vrooli/vrooli/internal/config"
@@ -376,7 +376,7 @@ func (d managedServiceDriver) statusAttachOnly(ctx context.Context, item Resourc
 	if err != nil {
 		return err
 	}
-	client := &http.Client{Timeout: tuning.ControlPlaneClientTimeout}
+	client := &http.Client{Timeout: tuning.ControlPlaneClientTimeout()}
 	response, err := client.Do(request)
 	if err != nil {
 		return managedServiceDriverError(item.Name, "status", "Provider", fmt.Errorf("attach-only endpoint health request failed: %w", err))
@@ -831,7 +831,7 @@ func verifyManagedDiscoveredVersion(ctx context.Context, path, version string) e
 	if strings.TrimSpace(version) == "" {
 		return fmt.Errorf("manifest artifact version is required")
 	}
-	output, err := exec.CommandContext(ctx, path, "--version").CombinedOutput()
+	output, err := shell.NewCommandContext(ctx, path, "--version").CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("run discovered executable version check: %w", err)
 	}
@@ -956,7 +956,7 @@ func runManagedServiceBootstrap(ctx context.Context, manifest ResourceManifest, 
 	}
 	executable := filepath.Join(artifactRoot, filepath.FromSlash(bootstrap.Executable))
 	arguments := renderManagedServiceValues(bootstrap.Arguments, bootstrapEnv)
-	command := exec.CommandContext(ctx, executable, arguments...)
+	command := shell.NewCommandContext(ctx, executable, arguments...)
 	command.Dir = artifactRoot
 	command.Env = bootstrapEnv
 	output, err := command.CombinedOutput()
@@ -1042,7 +1042,7 @@ func waitForManagedServiceHealth(parent context.Context, controller *Controller,
 	if seconds <= 0 {
 		seconds = 60
 	}
-	ctx, cancel := context.WithTimeout(parent, time.Duration(seconds)*time.Second)
+	ctx, cancel := context.WithTimeout(parent, tuning.ManagedServiceConfiguredTimeout(time.Duration(seconds)*time.Second))
 	defer cancel()
 	for {
 		health, err := controller.runResourceHealthChecks(ctx, manifest)
@@ -1055,7 +1055,7 @@ func waitForManagedServiceHealth(parent context.Context, controller *Controller,
 				return fmt.Errorf("managed-service health check did not pass: %w", err)
 			}
 			return fmt.Errorf("managed-service health check did not pass before startup timeout")
-		case <-time.After(tuning.LifecyclePollInterval):
+		case <-time.After(tuning.LifecyclePollInterval()):
 		}
 	}
 }

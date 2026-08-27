@@ -6,12 +6,14 @@ import (
 	"os/exec"
 	"strconv"
 	"strings"
+
+	"github.com/vrooli/vrooli/internal/shell"
 )
 
 type OSExecutor struct{}
 
 func (OSExecutor) Run(ctx context.Context, name string, args ...string) ([]byte, error) {
-	return exec.CommandContext(ctx, name, args...).CombinedOutput()
+	return shell.NewCommandContext(ctx, name, args...).CombinedOutput()
 }
 
 func executeUFW(ctx context.Context, executor Executor, req Request) Result {

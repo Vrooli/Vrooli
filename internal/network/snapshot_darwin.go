@@ -5,6 +5,9 @@ package network
 import (
 	"context"
 	"os/exec"
+
+	"github.com/vrooli/vrooli/internal/shell"
+	"github.com/vrooli/vrooli/internal/tuning"
 )
 
 // captureTCPListenerSnapshot builds the global listening-port set from
@@ -18,9 +21,9 @@ func captureTCPListenerSnapshot(opts CaptureOptions) TCPListenerSnapshot {
 	if err != nil {
 		return TCPListenerSnapshot{Reason: "netstat is not installed", Tool: "netstat"}
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), listenerEnrichTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), tuning.ListenerEnrichmentTimeout())
 	defer cancel()
-	output, err := exec.CommandContext(ctx, netstatPath, "-an", "-p", "tcp").Output()
+	output, err := shell.NewCommandContext(ctx, netstatPath, "-an", "-p", "tcp").Output()
 	if err != nil {
 		return TCPListenerSnapshot{Reason: "netstat -an -p tcp failed: " + err.Error(), Tool: "netstat"}
 	}
@@ -45,9 +48,9 @@ func enrichListenerPIDsWithLsof(ports map[int][]SnapshotListener) bool {
 	if err != nil {
 		return false
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), listenerEnrichTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), tuning.ListenerEnrichmentTimeout())
 	defer cancel()
-	output, err := exec.CommandContext(ctx, path, "-nP", "-iTCP", "-sTCP:LISTEN", "-Fpcn").Output()
+	output, err := shell.NewCommandContext(ctx, path, "-nP", "-iTCP", "-sTCP:LISTEN", "-Fpcn").Output()
 	if err != nil {
 		return false
 	}

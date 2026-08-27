@@ -6,13 +6,13 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
 
+	"github.com/vrooli/vrooli/internal/shell"
 	"github.com/vrooli/vrooli/internal/tuning"
 
 	"github.com/vrooli/envkit-go"
@@ -29,14 +29,17 @@ const (
 	serviceParameterD = 20
 )
 
+var (
+	DefaultRenewInterval       = tuning.ControlPlaneClientTimeout()
+	DefaultLeaseTTL            = scenarioruntime.DefaultSupervisedLeaseTTL
+	DefaultHealthInterval      = tuning.SupervisorHealthInterval()
+	DefaultRecoveryQuietPeriod = tuning.SupervisorRecoveryQuietPeriod()
+	DefaultRecoveryCooldown    = tuning.SupervisorRecoveryCooldown()
+)
+
 const (
-	DefaultRenewInterval        = tuning.ControlPlaneClientTimeout
-	DefaultLeaseTTL             = scenarioruntime.DefaultSupervisedLeaseTTL
-	DefaultHealthInterval       = tuning.SupervisorHealthInterval
 	DefaultMaxHealthConcurrency = 16
 	DefaultBatchSize            = 250
-	DefaultRecoveryQuietPeriod  = tuning.ExtendedOperationTimeout
-	DefaultRecoveryCooldown     = tuning.LongOperationTimeout
 	DefaultRecoveryConcurrency  = 1
 	DefaultPressureSomeAvg10    = 10.0
 	// DefaultPressureCPUSomeAvg10 is deliberately much higher than the memory
@@ -1006,7 +1009,7 @@ func EnsureRunning(ctx context.Context, cfg Config) error {
 			return fmt.Errorf("resolve vrooli executable for runtime supervisor: %w", exeErr)
 		}
 	}
-	cmd := exec.Command(exe, "--no-stale-check", "runtime", "supervisor", "run")
+	cmd := shell.NewCommand(exe, "--no-stale-check", "runtime", "supervisor", "run")
 	cmd.Env = supervisorCommandEnv(os.Environ(), cfg.HomeDir)
 	// The spawned supervisor outlives this process, so inheriting the caller's
 	// streams is worse than useless: writes land on the stderr of a CLI that

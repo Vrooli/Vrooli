@@ -73,7 +73,7 @@ func ParkScenarioWait(stderr io.Writer, slug string) (message string, parked boo
 // re-wait timestamp file, 30s window, stderr warning). Mirrored rather than
 // extracted because test-genie changes are out of scope for the wait-contract
 // plan; unify into cli-core/cliutil as a follow-up.
-const eagerScenarioWaitWindow = tuning.StandardOperationTimeout
+var eagerScenarioWaitWindow = tuning.EagerScenarioWaitWindow()
 
 func scenarioWaitStatePath() string {
 	base, err := os.UserCacheDir()

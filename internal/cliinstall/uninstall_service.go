@@ -5,11 +5,11 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
 
+	"github.com/vrooli/vrooli/internal/shell"
 	"github.com/vrooli/vrooli/internal/tuning"
 
 	"github.com/vrooli/vrooli/internal/artifactledger"
@@ -417,7 +417,7 @@ func removeContainerArtifact(entry InstallEntry) error {
 }
 
 func runNativeRemovalCommand(name string, args ...string) error {
-	cmd := exec.Command(name, args...)
+	cmd := shell.NewCommand(name, args...)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("%s %s: %w: %s", name, strings.Join(args, " "), err, strings.TrimSpace(string(output)))

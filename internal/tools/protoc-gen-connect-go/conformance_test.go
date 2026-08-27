@@ -15,6 +15,8 @@ func TestConformance(t *testing.T) {
 		Kind:               hostreqspec.KindTool,
 		SupportedPlatforms: testManifest.Platforms,
 		InstallCommand:     "go install connectrpc.com/connect/cmd/protoc-gen-connect-go",
-		Checks:             []string{"name_and_kind"},
+		ManifestVersion:    testManifest.Version,
+		DefaultVersion:     defaultVersion,
+		Checks:             []string{"name_and_kind", "pinned_version_matches_manifest"},
 	})
 }

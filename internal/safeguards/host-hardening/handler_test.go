@@ -92,16 +92,6 @@ func readSysctlsAtTarget(pol policy) func(string) ([]byte, error) {
 	})
 }
 
-func TestInspectNoSysctlNotApplicable(t *testing.T) {
-	h := newTestHandler()
-	host := linuxHost()
-	host.SupportsSysctl = false
-	status := h.Inspect(host, linuxReq())
-	if status.SupportClass != hostreqkit.SupportNotApplicable {
-		t.Fatalf("SupportClass = %q", status.SupportClass)
-	}
-}
-
 func TestInspectAllInPlace(t *testing.T) {
 	restore := stubLookups(t)
 	defer restore()
@@ -141,45 +131,27 @@ func TestInspectSysctlDrift(t *testing.T) {
 	}
 }
 
-func TestInspectMissingSysctlFile(t *testing.T) {
-	restore := stubLookups(t)
-	defer restore()
-	target := readSysctlsAtTarget(defaultPolicy())
-	hostreqkit.ReadFileFn = withArmedKdump(func(path string) ([]byte, error) {
-		if path == sysctlPath {
-			return nil, os.ErrNotExist
-		}
-		return target(path)
-	})
+func TestInspectMissingPolicyFiles(t *testing.T) {
+	for _, missingPath := range []string{sysctlPath, journaldPath} {
+		t.Run(missingPath, func(t *testing.T) {
+			restore := stubLookups(t)
+			defer restore()
+			target := readSysctlsAtTarget(defaultPolicy())
+			hostreqkit.ReadFileFn = withArmedKdump(func(path string) ([]byte, error) {
+				if path == missingPath {
+					return nil, os.ErrNotExist
+				}
+				return target(path)
+			})
 
-	h := newTestHandler()
-	status := h.Inspect(linuxHost(), linuxReq())
-	if status.Applied {
-		t.Fatal("expected Applied = false when sysctl drop-in is missing")
-	}
-	if !strings.Contains(strings.Join(status.Notes, " | "), sysctlPath+" needs update") {
-		t.Errorf("expected sysctl-path note; got %v", status.Notes)
-	}
-}
-
-func TestInspectMissingJournaldFile(t *testing.T) {
-	restore := stubLookups(t)
-	defer restore()
-	target := readSysctlsAtTarget(defaultPolicy())
-	hostreqkit.ReadFileFn = withArmedKdump(func(path string) ([]byte, error) {
-		if path == journaldPath {
-			return nil, os.ErrNotExist
-		}
-		return target(path)
-	})
-
-	h := newTestHandler()
-	status := h.Inspect(linuxHost(), linuxReq())
-	if status.Applied {
-		t.Fatal("expected Applied = false when journald drop-in is missing")
-	}
-	if !strings.Contains(strings.Join(status.Notes, " | "), journaldPath+" needs update") {
-		t.Errorf("expected journald-path note; got %v", status.Notes)
+			status := newTestHandler().Inspect(linuxHost(), linuxReq())
+			if status.Applied {
+				t.Fatalf("expected Applied = false when %s is missing", missingPath)
+			}
+			if !strings.Contains(strings.Join(status.Notes, " | "), missingPath+" needs update") {
+				t.Errorf("expected missing-path note for %s; got %v", missingPath, status.Notes)
+			}
+		})
 	}
 }
 

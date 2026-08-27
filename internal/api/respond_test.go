@@ -29,6 +29,19 @@ func TestRespondErrorSetsHTTPStatusAndCode(t *testing.T) {
 	}
 }
 
+func TestRespondErrorAssignsFallbackCodeToUntypedError(t *testing.T) {
+	rec := httptest.NewRecorder()
+	respondError(rec, errors.New("plain failure"))
+
+	if rec.Code != http.StatusInternalServerError {
+		t.Fatalf("rec.Code = %d, want %d", rec.Code, http.StatusInternalServerError)
+	}
+	payload := decodeJSONMap(t, rec)
+	if payload["error_code"] != "internal_error" || payload["error"] != "plain failure" {
+		t.Fatalf("payload = %#v", payload)
+	}
+}
+
 func TestGetScenarioStatusNativeReturnsRealProcessDataAndStatusCode(t *testing.T) {
 	// Open a live listener so the registry's bound claim passes reconciliation
 	// (which verifies listener evidence for bound claims).

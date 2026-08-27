@@ -143,14 +143,14 @@ func withLifecycleFailureBlock[C any, Req any](
 	deps HandlerDeps[C],
 	verb string,
 	names func(Req) []string,
-	run func(C, Req) (cliout.Format, []LifecycleItemOutput, error),
-) func(C, Req) (cliout.Format, []LifecycleItemOutput, error) {
-	return func(ctx C, req Req) (cliout.Format, []LifecycleItemOutput, error) {
-		format, items, err := run(ctx, req)
+	run func(C, cliout.Format, Req) ([]LifecycleItemOutput, error),
+) func(C, cliout.Format, Req) ([]LifecycleItemOutput, error) {
+	return func(ctx C, format cliout.Format, req Req) ([]LifecycleItemOutput, error) {
+		items, err := run(ctx, format, req)
 		if err != nil {
 			emitLifecycleFailure(deps, ctx, verb, names(req), err)
 			err = silentLifecycleError{inner: err}
 		}
-		return format, items, err
+		return items, err
 	}
 }

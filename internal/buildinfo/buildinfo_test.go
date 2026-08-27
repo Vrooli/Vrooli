@@ -2,7 +2,6 @@ package buildinfo
 
 import (
 	"errors"
-	"fmt"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -11,7 +10,9 @@ import (
 	"testing"
 	"time"
 
+	repocontract "github.com/vrooli/repo-contract-go"
 	"github.com/vrooli/repo-contract-go/repocontracttest"
+	"github.com/vrooli/vrooli/internal/testenv"
 )
 
 // AI_CHECK: GO_MIGRATION_TEST_QUALITY=5 | LAST: 2026-04-11
@@ -457,38 +458,45 @@ func TestResolveSourceRootFindsModuleRootFromWorkingDirectory(t *testing.T) {
 	}
 }
 
-func TestResolveSourceRootPrefersExplicitEnv(t *testing.T) {
-	root := t.TempDir()
-	fallback := filepath.Join(root, "fallback")
-	t.Setenv(SourceRootEnvVar, root)
-	t.Setenv(SourceRootFallbackEnvVar, fallback)
+func TestResolveSourceRootEnvironmentPrecedence(t *testing.T) {
+	for _, testCase := range []struct {
+		name     string
+		primary  bool
+		fallback bool
+		want     string
+	}{
+		{name: "primary only", primary: true, want: "primary"},
+		{name: "fallback only", fallback: true, want: "fallback"},
+		{name: "primary wins", primary: true, fallback: true, want: "primary"},
+	} {
+		t.Run(testCase.name, func(t *testing.T) {
+			home := testenv.RuntimeHome(t)
+			primary := filepath.Join(home, "primary")
+			fallback := filepath.Join(home, "fallback")
+			t.Setenv(SourceRootEnvVar, "")
+			t.Setenv(SourceRootFallbackEnvVar, "")
+			if testCase.primary {
+				t.Setenv(SourceRootEnvVar, primary)
+			}
+			if testCase.fallback {
+				t.Setenv(SourceRootFallbackEnvVar, fallback)
+			}
 
-	resolved, err := ResolveSourceRoot()
-	if err != nil {
-		t.Fatalf("ResolveSourceRoot: %v", err)
-	}
-	if resolved != root {
-		t.Fatalf("ResolveSourceRoot = %q, want %q", resolved, root)
-	}
-}
-
-func TestResolveSourceRootUsesFallbackEnv(t *testing.T) {
-	root := t.TempDir()
-	t.Setenv(SourceRootEnvVar, "")
-	t.Setenv(SourceRootFallbackEnvVar, root)
-
-	resolved, err := ResolveSourceRoot()
-	if err != nil {
-		t.Fatalf("ResolveSourceRoot: %v", err)
-	}
-	if resolved != root {
-		t.Fatalf("ResolveSourceRoot = %q, want %q", resolved, root)
+			resolved, err := ResolveSourceRoot()
+			if err != nil {
+				t.Fatalf("ResolveSourceRoot: %v", err)
+			}
+			want := map[string]string{"primary": primary, "fallback": fallback}[testCase.want]
+			if resolved != want {
+				t.Fatalf("ResolveSourceRoot = %q, want %q", resolved, want)
+			}
+		})
 	}
 }
 
 func TestResolveSourceRootFailsWithoutHints(t *testing.T) {
 	temp := t.TempDir()
-	t.Setenv("HOME", t.TempDir())
+	testenv.RuntimeHome(t)
 	originalWD, err := os.Getwd()
 	if err != nil {
 		t.Fatalf("getwd: %v", err)
@@ -532,7 +540,7 @@ func TestResolveSourceRootUsesInstalledSourcePointer(t *testing.T) {
 		t.Fatalf("chdir: %v", err)
 	}
 	t.Cleanup(func() { _ = os.Chdir(originalWD) })
-	t.Setenv("HOME", home)
+	testenv.SetIdentityEnv(t, map[string]string{"HOME": home})
 	t.Setenv(SourceRootEnvVar, "")
 	t.Setenv(SourceRootFallbackEnvVar, "")
 	executablePathFn = func() (string, error) { return filepath.Join(outside, "vrooli"), nil }
@@ -783,6 +791,7 @@ func TestRebuildAndReexecDetectsLoop(t *testing.T) {
 }
 
 func TestRebuildAndReexecBuildsAndExecsCurrentBinary(t *testing.T) {
+	home := useTestRebuildHome(t)
 	originalFingerprint := Fingerprint
 	originalGitCommit := GitCommit
 	originalBuildTime := BuildTime
@@ -854,7 +863,20 @@ func TestRebuildAndReexecBuildsAndExecsCurrentBinary(t *testing.T) {
 	}
 
 	executable := fakeExecutable
-	tempPath := fmt.Sprintf("%s.tmp.%d", executable, os.Getpid())
+	buildDir, err := repocontract.RuntimeHomeEntryPath(home, repocontract.HomeKeyBuild)
+	if err != nil {
+		t.Fatalf("resolve build dir: %v", err)
+	}
+	var tempPath string
+	for i := 0; i+1 < len(gotBuildArgs); i++ {
+		if gotBuildArgs[i] == "-o" {
+			tempPath = gotBuildArgs[i+1]
+			break
+		}
+	}
+	if filepath.Dir(tempPath) != buildDir || !strings.HasPrefix(filepath.Base(tempPath), rebuildTempPrefix) {
+		t.Fatalf("build output = %q, want %s/%s*", tempPath, buildDir, rebuildTempPrefix)
+	}
 
 	if gotBuildDir != root {
 		t.Fatalf("build dir = %q, want %q", gotBuildDir, root)
@@ -899,6 +921,7 @@ func TestRebuildAndReexecBuildsAndExecsCurrentBinary(t *testing.T) {
 }
 
 func TestRebuildAndReexecFallsBackToGitCommandWhenCommitUnknown(t *testing.T) {
+	useTestRebuildHome(t)
 	originalFingerprint := Fingerprint
 	originalGitCommit := GitCommit
 	originalBuildTime := BuildTime
@@ -966,6 +989,7 @@ func TestRebuildAndReexecFallsBackToGitCommandWhenCommitUnknown(t *testing.T) {
 }
 
 func TestRebuildAndReexecReturnsBuildFailure(t *testing.T) {
+	useTestRebuildHome(t)
 	originalGoBuildFn := goBuildFn
 	t.Cleanup(func() {
 		goBuildFn = originalGoBuildFn
@@ -990,6 +1014,7 @@ func TestRebuildAndReexecReturnsBuildFailure(t *testing.T) {
 }
 
 func TestRebuildAndReexecReturnsExecFailure(t *testing.T) {
+	useTestRebuildHome(t)
 	originalGoBuildFn := goBuildFn
 	originalExecFn := execFn
 	originalExecutablePathFn := executablePathFn
@@ -1094,6 +1119,7 @@ func TestSetEnvValueReplacesAndAppends(t *testing.T) {
 // the chosen fake executable and the root.
 func rebuildTestEnv(t *testing.T) (root, executable string) {
 	t.Helper()
+	useTestRebuildHome(t)
 	originalGoBuildFn := goBuildFn
 	originalExecFn := execFn
 	originalNowFunc := nowFunc
@@ -1122,6 +1148,31 @@ func rebuildTestEnv(t *testing.T) (root, executable string) {
 	t.Setenv(FingerprintPathsEnvVar, "cmd/vrooli,internal")
 	t.Setenv(BuildTargetEnvVar, "./cmd/vrooli")
 	return root, executable
+}
+
+func useTestRebuildHome(t *testing.T) string {
+	t.Helper()
+	originalHomeDirFn := homeDirFn
+	home := t.TempDir()
+	homeDirFn = func() (string, error) { return home, nil }
+	t.Cleanup(func() { homeDirFn = originalHomeDirFn })
+	return home
+}
+
+func testRuntimeBuildDir(t *testing.T) string {
+	t.Helper()
+	home, err := homeDirFn()
+	if err != nil {
+		t.Fatalf("resolve test home: %v", err)
+	}
+	buildDir, err := repocontract.RuntimeHomeEntryPath(home, repocontract.HomeKeyBuild)
+	if err != nil {
+		t.Fatalf("resolve test build dir: %v", err)
+	}
+	if err := os.MkdirAll(buildDir, 0o755); err != nil {
+		t.Fatalf("create test build dir: %v", err)
+	}
+	return buildDir
 }
 
 func TestRebuildAndReexec_SerializesConcurrentRebuilds(t *testing.T) {
@@ -1238,13 +1289,17 @@ func TestRebuildAndReexecSkipsWhenSiblingInstalledSidecar(t *testing.T) {
 func TestRebuildAndReexec_AtomicRename(t *testing.T) {
 	_, executable := rebuildTestEnv(t)
 
-	tempPath := fmt.Sprintf("%s.tmp.%d", executable, os.Getpid())
+	buildDir := testRuntimeBuildDir(t)
+	var tempPath string
 	goBuildFn = func(dir string, args []string) error {
 		writeStubBinaryAt(args)
-		// Confirm `go build -o <args[i+1]>` actually targeted the temp path.
+		// Confirm `go build -o <args[i+1]>` targets runtime-home build space.
 		for i := 0; i+1 < len(args); i++ {
-			if args[i] == "-o" && args[i+1] != tempPath {
-				t.Errorf("go build -o = %q, want %q", args[i+1], tempPath)
+			if args[i] == "-o" {
+				tempPath = args[i+1]
+				if filepath.Dir(tempPath) != buildDir || !strings.HasPrefix(filepath.Base(tempPath), rebuildTempPrefix) {
+					t.Errorf("go build -o = %q, want %s/%s*", tempPath, buildDir, rebuildTempPrefix)
+				}
 			}
 		}
 		return nil
@@ -1263,6 +1318,75 @@ func TestRebuildAndReexec_AtomicRename(t *testing.T) {
 	}
 	if string(contents) != "stub-binary" {
 		t.Fatalf("executable contents = %q, want stub-binary", contents)
+	}
+}
+
+func TestRebuildAndReexecSweepsInterruptedBuildOrphan(t *testing.T) {
+	_, _ = rebuildTestEnv(t)
+	buildDir := testRuntimeBuildDir(t)
+	orphan := filepath.Join(buildDir, rebuildTempPrefix+"interrupted")
+	if err := os.WriteFile(orphan, []byte("partial"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	old := time.Now().Add(-2 * rebuildOrphanHorizon)
+	if err := os.Chtimes(orphan, old, old); err != nil {
+		t.Fatal(err)
+	}
+	goBuildFn = func(dir string, args []string) error {
+		writeStubBinaryAt(args)
+		return nil
+	}
+	execFn = func(argv0 string, argv []string, envv []string) error { return nil }
+
+	if err := RebuildAndReexec([]string{"scenario", "list"}); err != nil {
+		t.Fatalf("RebuildAndReexec: %v", err)
+	}
+	if _, err := os.Stat(orphan); !os.IsNotExist(err) {
+		t.Fatalf("interrupted orphan survived next rebuild: %v", err)
+	}
+}
+
+func TestSweepRebuildOrphansKeepsYoungFile(t *testing.T) {
+	buildDir := t.TempDir()
+	executable := filepath.Join(t.TempDir(), "vrooli")
+	young := filepath.Join(buildDir, rebuildTempPrefix+"young")
+	if err := os.WriteFile(young, []byte("active"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	now := time.Now()
+	if err := os.Chtimes(young, now.Add(-rebuildOrphanHorizon/2), now.Add(-rebuildOrphanHorizon/2)); err != nil {
+		t.Fatal(err)
+	}
+	if err := sweepRebuildOrphans(buildDir, executable, now); err != nil {
+		t.Fatalf("sweepRebuildOrphans: %v", err)
+	}
+	if _, err := os.Stat(young); err != nil {
+		t.Fatalf("young rebuild output removed: %v", err)
+	}
+}
+
+func TestSweepRebuildOrphansProtectsLiveExecutableAndSidecar(t *testing.T) {
+	buildDir := t.TempDir()
+	executable := filepath.Join(t.TempDir(), "vrooli")
+	for _, path := range []string{executable, executable + ".fp"} {
+		if err := os.WriteFile(path, []byte("live"), 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	legacy := executable + ".tmp.12345"
+	if err := os.WriteFile(legacy, []byte("orphan"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := sweepRebuildOrphans(buildDir, executable, time.Now()); err != nil {
+		t.Fatalf("sweepRebuildOrphans: %v", err)
+	}
+	for _, path := range []string{executable, executable + ".fp"} {
+		if _, err := os.Stat(path); err != nil {
+			t.Fatalf("protected path %s removed: %v", path, err)
+		}
+	}
+	if _, err := os.Stat(legacy); !os.IsNotExist(err) {
+		t.Fatalf("legacy rebuild orphan survived sweep: %v", err)
 	}
 }
 

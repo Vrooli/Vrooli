@@ -11,6 +11,7 @@ require (
 	github.com/santhosh-tekuri/jsonschema/v5 v5.3.1
 	github.com/stretchr/testify v1.11.1
 	github.com/vrooli/api-core v0.0.0
+	github.com/vrooli/nodeclient v0.0.0
 	github.com/vrooli/repo-contract-go v0.0.0
 	github.com/vrooli/vrooli/packages/proto v0.0.0
 	google.golang.org/protobuf v1.36.11
@@ -27,9 +28,12 @@ require (
 
 replace github.com/vrooli/api-core => ../../../packages/api-core
 
+replace github.com/vrooli/nodeclient => ../../../packages/nodeclient
+
 require (
 	buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go v1.36.11-20251209175733-2a1774d88802.1 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
+	github.com/gorilla/websocket v1.5.3 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/ncruces/go-strftime v1.0.0 // indirect
 	github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec // indirect
@@ -54,4 +58,5 @@ replace github.com/vrooli/binaryfetch => ../../../packages/binaryfetch
 replace github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime => ../../scenario-to-desktop/runtime
 
 replace github.com/vrooli/platform-go => ../../../packages/platform-go
+
 replace github.com/vrooli/envkit-go => ../../../packages/envkit-go

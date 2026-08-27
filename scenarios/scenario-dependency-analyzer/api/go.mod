@@ -26,7 +26,10 @@ require (
 
 require golang.org/x/mod v0.37.0
 
-require github.com/klauspost/compress v1.17.4 // indirect
+require (
+	github.com/klauspost/compress v1.17.4 // indirect
+	github.com/vrooli/cliresolve v0.0.0 // indirect
+)
 
 require (
 	github.com/bmatcuk/doublestar/v4 v4.10.0 // indirect
@@ -92,3 +95,7 @@ replace github.com/vrooli/platform-go => ../../../packages/platform-go
 replace github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime => ../../scenario-to-desktop/runtime
 
 replace github.com/vrooli/envkit-go => ../../../packages/envkit-go
+
+replace github.com/vrooli/cliresolve => ../../../packages/cliresolve
+
+replace github.com/vrooli/nodeclient => ../../../packages/nodeclient

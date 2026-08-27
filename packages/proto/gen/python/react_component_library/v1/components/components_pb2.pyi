@@ -526,7 +526,7 @@ class PublishComponentVersionResponse(_message.Message):
     def __init__(self, component: _Optional[_Union[Component, _Mapping]] = ..., version: _Optional[_Union[ComponentVersion, _Mapping]] = ..., source_path: _Optional[str] = ..., artifact_paths: _Optional[_Iterable[str]] = ..., preview_path: _Optional[str] = ...) -> None: ...
 
 class UpdateComponentManifestRequest(_message.Message):
-    __slots__ = ("component_id", "display_name", "description", "tags", "latest_version", "draft_version", "deprecated_versions")
+    __slots__ = ("component_id", "display_name", "description", "tags", "latest_version", "draft_version", "deprecated_versions", "catalog_id", "replaced_by", "clear_supplemental_justification", "clear_catalog_id", "dependencies")
     COMPONENT_ID_FIELD_NUMBER: _ClassVar[int]
     DISPLAY_NAME_FIELD_NUMBER: _ClassVar[int]
     DESCRIPTION_FIELD_NUMBER: _ClassVar[int]
@@ -534,6 +534,11 @@ class UpdateComponentManifestRequest(_message.Message):
     LATEST_VERSION_FIELD_NUMBER: _ClassVar[int]
     DRAFT_VERSION_FIELD_NUMBER: _ClassVar[int]
     DEPRECATED_VERSIONS_FIELD_NUMBER: _ClassVar[int]
+    CATALOG_ID_FIELD_NUMBER: _ClassVar[int]
+    REPLACED_BY_FIELD_NUMBER: _ClassVar[int]
+    CLEAR_SUPPLEMENTAL_JUSTIFICATION_FIELD_NUMBER: _ClassVar[int]
+    CLEAR_CATALOG_ID_FIELD_NUMBER: _ClassVar[int]
+    DEPENDENCIES_FIELD_NUMBER: _ClassVar[int]
     component_id: str
     display_name: str
     description: str
@@ -541,7 +546,12 @@ class UpdateComponentManifestRequest(_message.Message):
     latest_version: str
     draft_version: str
     deprecated_versions: _containers.RepeatedScalarFieldContainer[str]
-    def __init__(self, component_id: _Optional[str] = ..., display_name: _Optional[str] = ..., description: _Optional[str] = ..., tags: _Optional[_Iterable[str]] = ..., latest_version: _Optional[str] = ..., draft_version: _Optional[str] = ..., deprecated_versions: _Optional[_Iterable[str]] = ...) -> None: ...
+    catalog_id: str
+    replaced_by: _containers.RepeatedScalarFieldContainer[str]
+    clear_supplemental_justification: bool
+    clear_catalog_id: bool
+    dependencies: _containers.RepeatedCompositeFieldContainer[AssetDependency]
+    def __init__(self, component_id: _Optional[str] = ..., display_name: _Optional[str] = ..., description: _Optional[str] = ..., tags: _Optional[_Iterable[str]] = ..., latest_version: _Optional[str] = ..., draft_version: _Optional[str] = ..., deprecated_versions: _Optional[_Iterable[str]] = ..., catalog_id: _Optional[str] = ..., replaced_by: _Optional[_Iterable[str]] = ..., clear_supplemental_justification: _Optional[bool] = ..., clear_catalog_id: _Optional[bool] = ..., dependencies: _Optional[_Iterable[_Union[AssetDependency, _Mapping]]] = ...) -> None: ...
 
 class UpdateComponentManifestResponse(_message.Message):
     __slots__ = ("component",)

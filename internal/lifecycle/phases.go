@@ -16,6 +16,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vrooli/vrooli/internal/shell"
 	"github.com/vrooli/vrooli/internal/tuning"
 
 	"github.com/vrooli/envkit-go"
@@ -658,7 +659,7 @@ func (r *Runner) startTrackedProcessContext(ctx context.Context, item scenario.S
 	// Background steps are intentionally detached daemons. Their process group
 	// must outlive this orchestration context so the runtime supervisor can own
 	// and tear them down after the phase returns.
-	cmd := exec.CommandContext(context.Background(), declared.Argv[0], declared.Argv[1:]...)
+	cmd := shell.NewCommandContext(context.Background(), declared.Argv[0], declared.Argv[1:]...)
 	cmd.Dir = declared.Dir
 	cmd.Env = declared.Env
 	cmd.Stdin = strings.NewReader("")
@@ -758,10 +759,10 @@ func (r *Runner) awaitComponentReadinessNamed(scenarioSlug string, manifest scen
 	readiness := derivedReadiness(component)
 	timeout := time.Duration(readiness.TimeoutMS) * time.Millisecond
 	if timeout <= 0 {
-		timeout = tuning.StandardOperationTimeout
+		timeout = tuning.LifecycleOperationTimeout()
 	}
 	var lastErr error
-	err := Await(r.awaitClock(), AwaitPolicy{Timeout: timeout, Interval: tuning.FastHealthPollInterval}, func() (bool, error) {
+	err := Await(r.awaitClock(), AwaitPolicy{Timeout: timeout, Interval: tuning.FastHealthPollInterval()}, func() (bool, error) {
 		lastErr = r.checkComponentReadinessNamed(scenarioSlug, manifest, name, component, env)
 		return lastErr == nil, nil
 	})
@@ -789,7 +790,7 @@ func checkComponentReadinessNamed(manifest scenario.ServiceManifest, name string
 	}
 	switch readiness.Type {
 	case "port_open":
-		conn, err := net.DialTimeout("tcp", net.JoinHostPort("127.0.0.1", strconv.Itoa(portValue)), tuning.HealthProbeInterval)
+		conn, err := net.DialTimeout("tcp", net.JoinHostPort("127.0.0.1", strconv.Itoa(portValue)), tuning.HealthProbeInterval())
 		if err != nil {
 			return err
 		}
@@ -805,7 +806,7 @@ func checkComponentReadinessNamed(manifest scenario.ServiceManifest, name string
 		if !strings.HasPrefix(path, "/") {
 			path = "/" + path
 		}
-		client := http.Client{Timeout: tuning.HealthProbeInterval}
+		client := http.Client{Timeout: tuning.HealthProbeInterval()}
 		response, err := client.Get(fmt.Sprintf("http://127.0.0.1:%d%s", portValue, path))
 		if err != nil {
 			return err
@@ -927,7 +928,7 @@ func (r *Runner) runForegroundStep(ctx context.Context, item scenario.Scenario, 
 	if err != nil {
 		return err
 	}
-	cmd := exec.CommandContext(ctx, declared.Argv[0], declared.Argv[1:]...)
+	cmd := shell.NewCommandContext(ctx, declared.Argv[0], declared.Argv[1:]...)
 	cmd.Dir = declared.Dir
 	cmd.Env = declared.Env
 	cmd.Stdin = strings.NewReader("")

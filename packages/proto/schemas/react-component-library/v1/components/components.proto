@@ -454,6 +454,11 @@ message UpdateComponentManifestRequest {
   string latest_version = 5;
   string draft_version = 6;
   repeated string deprecated_versions = 7;
+  string catalog_id = 8;
+  repeated string replaced_by = 9;
+  bool clear_supplemental_justification = 10;
+  bool clear_catalog_id = 11;
+  repeated AssetDependency dependencies = 12;
 }
 
 message UpdateComponentManifestResponse {

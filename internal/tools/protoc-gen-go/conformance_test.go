@@ -14,6 +14,8 @@ func TestConformance(t *testing.T) {
 		Kind:               hostreqspec.KindTool,
 		SupportedPlatforms: testManifest.Platforms,
 		InstallCommand:     "go install google.golang.org/protobuf/cmd/protoc-gen-go",
-		Checks:             []string{"name_and_kind"},
+		ManifestVersion:    testManifest.Version,
+		DefaultVersion:     defaultVersion,
+		Checks:             []string{"name_and_kind", "pinned_version_matches_manifest", "apply_installed_skips"},
 	})
 }

@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/vrooli/vrooli/internal/repocontractmeta"
+	"github.com/vrooli/vrooli/internal/shell"
 	"github.com/vrooli/vrooli/internal/tuning"
 )
 
@@ -62,7 +63,7 @@ type sdaFreshnessAction struct {
 
 func (p sdaFreshnessProvider) ID() string { return dependencyFreshnessProviderID }
 
-func (p sdaFreshnessProvider) Budget() time.Duration { return tuning.SupervisorHealthInterval }
+func (p sdaFreshnessProvider) Budget() time.Duration { return tuning.SupervisorHealthInterval() }
 
 func (p sdaFreshnessProvider) Run(ctx context.Context, _ Request, report *Report) error {
 	root := filepath.Clean(strings.TrimSpace(p.root))
@@ -70,7 +71,7 @@ func (p sdaFreshnessProvider) Run(ctx context.Context, _ Request, report *Report
 	if runner == nil {
 		runner = commandDependencyFreshnessRunner{}
 	}
-	ctx, cancel := context.WithTimeout(ctx, tuning.ProviderBudget)
+	ctx, cancel := context.WithTimeout(ctx, tuning.ProviderBudget())
 	defer cancel()
 	freshness, err := runner.CheckDependencyFreshness(ctx, root)
 	if err != nil {
@@ -82,7 +83,7 @@ func (p sdaFreshnessProvider) Run(ctx context.Context, _ Request, report *Report
 }
 
 func (commandDependencyFreshnessRunner) CheckDependencyFreshness(ctx context.Context, root string) (sdaFreshnessReport, error) {
-	cmd := exec.CommandContext(ctx, "scenario-dependency-analyzer", "freshness", "--touched", "--json", "--repo-root", root)
+	cmd := shell.NewCommandContext(ctx, "scenario-dependency-analyzer", "freshness", "--touched", "--json", "--repo-root", root)
 	cmd.Dir = root
 	out, err := cmd.Output()
 	if err != nil {

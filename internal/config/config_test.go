@@ -4,12 +4,14 @@ import (
 	osuser "os/user"
 	"path/filepath"
 	"testing"
+
+	"github.com/vrooli/vrooli/internal/testenv"
 )
 
 // AI_CHECK: GO_MIGRATION_TEST_QUALITY=1 | LAST: 2026-04-10
 
 func TestHomeDirPrefersHOME(t *testing.T) {
-	t.Setenv("HOME", "/tmp/vrooli-home")
+	testenv.SetIdentityEnv(t, map[string]string{"HOME": "/tmp/vrooli-home"})
 
 	home, err := HomeDir()
 	if err != nil {
@@ -36,7 +38,7 @@ func TestTemplateBaseDirResolvesRelativeOverride(t *testing.T) {
 }
 
 func TestHomeDirFallsBackToCurrentUserHomeDir(t *testing.T) {
-	t.Setenv("HOME", "")
+	testenv.SetIdentityEnv(t, map[string]string{"HOME": ""})
 
 	current, currentErr := osuser.Current()
 	home, err := HomeDir()

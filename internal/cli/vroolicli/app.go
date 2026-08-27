@@ -319,7 +319,7 @@ func (ctx *CommandContext) Services() (*bootstrap.Services, error) {
 
 func (app *App) CommandEnv(root string, globals rootcli.GlobalOptions) []string {
 	env := os.Environ()
-	env = setEnvValue(env, "VROOLI_ROOT", root)
+	env = setEnvValue(env, buildinfo.SourceRootFallbackEnvVar, root)
 	if strings.TrimSpace(os.Getenv(buildinfo.SourceRootEnvVar)) == "" {
 		env = setEnvValue(env, buildinfo.SourceRootEnvVar, root)
 	}
@@ -948,7 +948,7 @@ func (app *App) buildScenarioHandlerMap() map[scenariocli.CommandID]rootcli.Hand
 }
 
 func primeRootEnv(root string) {
-	_ = os.Setenv("VROOLI_ROOT", root)
+	_ = os.Setenv(buildinfo.SourceRootFallbackEnvVar, root)
 	if strings.TrimSpace(os.Getenv(buildinfo.SourceRootEnvVar)) == "" {
 		_ = os.Setenv(buildinfo.SourceRootEnvVar, root)
 	}

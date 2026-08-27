@@ -6,10 +6,11 @@ import (
 	"testing"
 
 	"github.com/vrooli/vrooli/internal/operatorinput"
+	"github.com/vrooli/vrooli/internal/testenv"
 )
 
 func TestCredentialStoreInputIsQueuedWithoutReadingASecret(t *testing.T) {
-	t.Setenv("HOME", t.TempDir())
+	testenv.SetIdentityEnv(t, map[string]string{"HOME": t.TempDir()})
 
 	var output bytes.Buffer
 	if err := enqueueCredentialStoreInput(false, &output); err != nil {

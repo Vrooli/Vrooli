@@ -36,17 +36,13 @@ func (d HandlerDeps[C]) service(ctx C) capacityapp.Service {
 	return capacityapp.Service{Clock: func() time.Time { return time.Now().UTC() }}
 }
 
-func (d HandlerDeps[C]) newService(ctx C) (cliout.Format, capacityapp.Service, error) {
-	format, err := d.OutputFormat(ctx)
-	if err != nil {
-		return "", capacityapp.Service{}, err
-	}
-	return format, d.service(ctx), nil
+func (d HandlerDeps[C]) newService(ctx C, _ cliout.Format) (capacityapp.Service, error) {
+	return d.service(ctx), nil
 }
 
 func buildCommandTable[C any](deps HandlerDeps[C]) []commandtree.Spec[rootcli.Handler[C]] {
 	handlerMap := map[capacitycli.CommandID]rootcli.Handler[C]{
-		capacitycli.CommandClaim: rootcli.BindService(deps.Stdout, deps.newService,
+		capacitycli.CommandClaim: rootcli.BindService(deps.Stdout, deps.OutputFormat, deps.newService,
 			func(ctx C, args []string) (capacityapp.ClaimRequest, error) {
 				return capacitycli.ParseClaimRequest(args)
 			},
@@ -75,14 +71,14 @@ func buildCommandTable[C any](deps HandlerDeps[C]) []commandtree.Spec[rootcli.Ha
 			func(s capacityapp.Service, ref capacityapp.Ref) (capacityapp.ClaimView, error) {
 				return s.Release(context.Background(), ref)
 			}),
-		capacitycli.CommandList: rootcli.BindService(deps.Stdout, deps.newService,
+		capacitycli.CommandList: rootcli.BindService(deps.Stdout, deps.OutputFormat, deps.newService,
 			func(ctx C, args []string) (capacityapp.ListRequest, error) { return capacitycli.ParseListRequest(args) },
 			func(service capacityapp.Service, req capacityapp.ListRequest) (capacityapp.ListOutput, error) {
 				return service.List(context.Background(), req)
 			},
 			capacitycli.RenderList,
 		),
-		capacitycli.CommandReconcile: rootcli.BindService(deps.Stdout, deps.newService,
+		capacitycli.CommandReconcile: rootcli.BindService(deps.Stdout, deps.OutputFormat, deps.newService,
 			func(ctx C, args []string) (struct{}, error) {
 				_, err := capacitycli.ParseListRequest(nil) // reconcile takes only --json; parse args for help/validation
 				_ = err
@@ -93,7 +89,7 @@ func buildCommandTable[C any](deps HandlerDeps[C]) []commandtree.Spec[rootcli.Ha
 			},
 			capacitycli.RenderReconcile,
 		),
-		capacitycli.CommandSweep: rootcli.BindService(deps.Stdout, deps.newService,
+		capacitycli.CommandSweep: rootcli.BindService(deps.Stdout, deps.OutputFormat, deps.newService,
 			func(ctx C, args []string) (struct{}, error) {
 				return struct{}{}, capacitycli.ParseSweepRequest(args)
 			},
@@ -102,7 +98,7 @@ func buildCommandTable[C any](deps HandlerDeps[C]) []commandtree.Spec[rootcli.Ha
 			},
 			capacitycli.RenderSweep,
 		),
-		capacitycli.CommandGC: rootcli.BindService(deps.Stdout, deps.newService,
+		capacitycli.CommandGC: rootcli.BindService(deps.Stdout, deps.OutputFormat, deps.newService,
 			func(ctx C, args []string) (struct{}, error) {
 				return struct{}{}, capacitycli.ParseGCRequest(args)
 			},
@@ -111,7 +107,7 @@ func buildCommandTable[C any](deps HandlerDeps[C]) []commandtree.Spec[rootcli.Ha
 			},
 			capacitycli.RenderGC,
 		),
-		capacitycli.CommandRecommend: rootcli.BindService(deps.Stdout, deps.newService,
+		capacitycli.CommandRecommend: rootcli.BindService(deps.Stdout, deps.OutputFormat, deps.newService,
 			func(ctx C, args []string) (capacityapp.RecommendRequest, error) {
 				return capacitycli.ParseRecommendRequest(args)
 			},
@@ -120,7 +116,7 @@ func buildCommandTable[C any](deps HandlerDeps[C]) []commandtree.Spec[rootcli.Ha
 			},
 			capacitycli.RenderRecommend,
 		),
-		capacitycli.CommandPolicy: rootcli.BindService(deps.Stdout, deps.newService,
+		capacitycli.CommandPolicy: rootcli.BindService(deps.Stdout, deps.OutputFormat, deps.newService,
 			func(ctx C, args []string) (capacitycli.PolicyArgs, error) {
 				return capacitycli.ParsePolicyRequest(args)
 			},
@@ -137,7 +133,7 @@ func buildCommandTable[C any](deps HandlerDeps[C]) []commandtree.Spec[rootcli.Ha
 }
 
 func refHandler[C any](deps HandlerDeps[C], id capacitycli.CommandID, command string, run func(capacityapp.Service, capacityapp.Ref) (capacityapp.ClaimView, error)) rootcli.Handler[C] {
-	return rootcli.BindService(deps.Stdout, deps.newService,
+	return rootcli.BindService(deps.Stdout, deps.OutputFormat, deps.newService,
 		func(ctx C, args []string) (capacityapp.Ref, error) {
 			return capacitycli.ParseRefRequest(id, command, args)
 		},

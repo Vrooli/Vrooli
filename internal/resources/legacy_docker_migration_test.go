@@ -10,11 +10,12 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/vrooli/vrooli/internal/testenv"
 )
 
 func TestMigrateLegacyDockerStoragePreservesForeignDataAndRemovesVerifiedContainer(t *testing.T) {
-	dataRoot := t.TempDir()
-	t.Setenv("XDG_DATA_HOME", dataRoot)
+	testenv.RuntimeHome(t)
 	paths, err := resourceStoragePaths("redis")
 	if err != nil {
 		t.Fatal(err)
@@ -78,8 +79,7 @@ func TestMigrateLegacyDockerStoragePreservesForeignDataAndRemovesVerifiedContain
 }
 
 func TestMigrateLegacyDockerStorageFailsClosedOnUnexpectedMount(t *testing.T) {
-	dataRoot := t.TempDir()
-	t.Setenv("XDG_DATA_HOME", dataRoot)
+	testenv.RuntimeHome(t)
 	paths, err := resourceStoragePaths("redis")
 	if err != nil {
 		t.Fatal(err)
@@ -114,8 +114,7 @@ func TestMigrateLegacyDockerStorageFailsClosedOnUnexpectedMount(t *testing.T) {
 }
 
 func TestMigrateLegacyDockerStorageRecognizesDeclaredNestedMount(t *testing.T) {
-	dataRoot := t.TempDir()
-	t.Setenv("XDG_DATA_HOME", dataRoot)
+	testenv.RuntimeHome(t)
 	paths, err := resourceStoragePaths("postgres")
 	if err != nil {
 		t.Fatal(err)
@@ -163,8 +162,7 @@ func TestMigrateLegacyDockerStorageRecognizesDeclaredNestedMount(t *testing.T) {
 }
 
 func TestMigrateLegacyDockerStorageRefusesForeignDurableNestedMount(t *testing.T) {
-	dataRoot := t.TempDir()
-	t.Setenv("XDG_DATA_HOME", dataRoot)
+	testenv.RuntimeHome(t)
 	paths, err := resourceStoragePaths("postgres")
 	if err != nil {
 		t.Fatal(err)

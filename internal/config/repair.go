@@ -80,138 +80,19 @@ func NewRepairService() RepairService {
 	return RepairService{ResolveRoot: resolveManagedRoot}
 }
 
-//nolint:gocyclo // ordered repair phases encode distinct ownership, rollback, and verification outcomes.
 func (s RepairService) Repair(ctx context.Context, req RepairRequest) (RepairResult, error) {
 	started := time.Now()
 	result := RepairResult{Scope: req.Scope, Status: RepairComplete}
-	if req.FollowSymlinks {
-		return result, errors.New("recursive ownership repair cannot follow symlinks")
-	}
-	if req.MaxEntries == 0 {
-		req.MaxEntries = 1_000_000
-	}
-	if req.Deadline.IsZero() {
-		req.Deadline = time.Now().Add(tuning.RepairDeadline)
-	}
-	if s.ResolveRoot == nil {
-		s.ResolveRoot = resolveManagedRoot
-	}
-	canonical, err := s.ResolveRoot(req.Scope.RootClass)
+	prepared, root, absent, err := s.prepareRepairRequest(req)
 	if err != nil {
 		return result, err
 	}
-	root := canonical
-	if strings.TrimSpace(req.Scope.RootPath) != "" {
-		root = filepath.Clean(req.Scope.RootPath)
-		if !withinRepairRoot(root, canonical) {
-			return result, fmt.Errorf("repair scope path is outside the canonical managed root")
-		}
+	if absent {
+		result.Duration = time.Since(started)
+		return result, nil
 	}
-	info, err := os.Lstat(root)
-	if err != nil {
-		if os.IsNotExist(err) {
-			result.Duration = time.Since(started)
-			return result, nil
-		}
-		return result, fmt.Errorf("stat managed root: %w", err)
-	}
-	if info.Mode()&os.ModeSymlink != 0 {
-		return result, errors.New("managed root cannot be a symlink")
-	}
-	resumeAfter := strings.TrimSpace(req.ResumeAfter)
-	if resumeAfter != "" {
-		resumeAfter = filepath.Clean(resumeAfter)
-		if !withinRepairRoot(resumeAfter, root) {
-			return result, fmt.Errorf("repair resume path is outside the canonical managed root")
-		}
-	}
-	if err := validateRepairIdentity(req.ExpectedUID, req.ExpectedGID); err != nil {
-		return result, err
-	}
-
-	resumeStarted := resumeAfter == ""
-	walkErr := filepath.WalkDir(root, func(path string, entry os.DirEntry, walkErr error) error {
-		if walkErr != nil {
-			result.Failed++
-			result.Failures = append(result.Failures, RepairFailure{Path: path, Kind: "access", Action: "reported", Reason: walkErr.Error()})
-			return nil
-		}
-		if !resumeStarted {
-			switch {
-			case path == resumeAfter:
-				// The continuation point was already processed. Descend when it
-				// is a directory so its children can become the next batch.
-				if entry.IsDir() {
-					return nil
-				}
-				resumeStarted = true
-				return nil
-			case withinRepairRoot(resumeAfter, path):
-				// The cursor is below this directory. Keep descending without
-				// counting the already-processed ancestor again.
-				return nil
-			case path < resumeAfter:
-				// WalkDir is lexical. This whole subtree precedes the cursor.
-				if entry.IsDir() {
-					return filepath.SkipDir
-				}
-				return nil
-			default:
-				resumeStarted = true
-			}
-		}
-		if err := ctx.Err(); err != nil {
-			result.Status = RepairPartial
-			return err
-		}
-		if time.Now().After(req.Deadline) {
-			result.Status = RepairPartial
-			return context.DeadlineExceeded
-		}
-		if result.Scanned >= req.MaxEntries {
-			result.Status = RepairPartial
-			return errRepairEntryLimit
-		}
-		result.Scanned++
-		result.LastPath = path
-		if entry.Type()&os.ModeSymlink != 0 {
-			result.Skipped++
-			return nil
-		}
-		identity, identityErr := entryIdentity(path)
-		if identityErr != nil {
-			result.Failed++
-			result.Failures = append(result.Failures, RepairFailure{Path: path, Kind: "stat", Action: "reported", Reason: identityErr.Error()})
-			return nil
-		}
-		if identity.UID == req.ExpectedUID && identity.GID == req.ExpectedGID {
-			result.Skipped++
-			return nil
-		}
-		if !req.Apply {
-			result.Skipped++
-			result.Failures = append(result.Failures, RepairFailure{Path: path, Kind: "ownership_mismatch", Action: "planned", Reason: fmt.Sprintf("uid/gid %d/%d does not match %d/%d", identity.UID, identity.GID, req.ExpectedUID, req.ExpectedGID)})
-			return nil
-		}
-		if err := repairEntryOwnership(path, req.ExpectedUID, req.ExpectedGID); err != nil {
-			result.Failed++
-			result.Failures = append(result.Failures, RepairFailure{Path: path, Kind: "ownership_mismatch", Action: "failed", Reason: err.Error()})
-			return nil
-		}
-		result.Repaired++
-		result.Verification.Checked++
-		verified, verifyErr := entryIdentity(path)
-		if verifyErr != nil || verified.UID != req.ExpectedUID || verified.GID != req.ExpectedGID {
-			result.Failed++
-			result.Verification.Failed++
-			reason := "post-repair ownership verification failed"
-			if verifyErr != nil {
-				reason = verifyErr.Error()
-			}
-			result.Failures = append(result.Failures, RepairFailure{Path: path, Kind: "verification", Action: "failed", Reason: reason})
-		}
-		return nil
-	})
+	walker := repairWalker{ctx: ctx, req: prepared, result: &result, resumeAfter: prepared.ResumeAfter, resumeStarted: prepared.ResumeAfter == ""}
+	walkErr := filepath.WalkDir(root, walker.visit)
 	if walkErr != nil && !errors.Is(walkErr, errRepairEntryLimit) && !errors.Is(walkErr, context.DeadlineExceeded) && !errors.Is(walkErr, context.Canceled) {
 		return result, walkErr
 	}
@@ -226,6 +107,160 @@ func (s RepairService) Repair(ctx context.Context, req RepairRequest) (RepairRes
 	}
 	result.Duration = time.Since(started)
 	return result, nil
+}
+
+func (s RepairService) prepareRepairRequest(req RepairRequest) (RepairRequest, string, bool, error) {
+	if req.FollowSymlinks {
+		return req, "", false, errors.New("recursive ownership repair cannot follow symlinks")
+	}
+	if req.MaxEntries == 0 {
+		req.MaxEntries = 1_000_000
+	}
+	if req.Deadline.IsZero() {
+		req.Deadline = time.Now().Add(tuning.RepairDeadline())
+	}
+	if s.ResolveRoot == nil {
+		s.ResolveRoot = resolveManagedRoot
+	}
+	canonical, err := s.ResolveRoot(req.Scope.RootClass)
+	if err != nil {
+		return req, "", false, err
+	}
+	root := canonical
+	if strings.TrimSpace(req.Scope.RootPath) != "" {
+		root = filepath.Clean(req.Scope.RootPath)
+		if !withinRepairRoot(root, canonical) {
+			return req, "", false, fmt.Errorf("repair scope path is outside the canonical managed root")
+		}
+	}
+	info, err := os.Lstat(root)
+	if os.IsNotExist(err) {
+		return req, root, true, nil
+	}
+	if err != nil {
+		return req, "", false, fmt.Errorf("stat managed root: %w", err)
+	}
+	if info.Mode()&os.ModeSymlink != 0 {
+		return req, "", false, errors.New("managed root cannot be a symlink")
+	}
+	if req.ResumeAfter = strings.TrimSpace(req.ResumeAfter); req.ResumeAfter != "" {
+		req.ResumeAfter = filepath.Clean(req.ResumeAfter)
+		if !withinRepairRoot(req.ResumeAfter, root) {
+			return req, "", false, fmt.Errorf("repair resume path is outside the canonical managed root")
+		}
+	}
+	if err := validateRepairIdentity(req.ExpectedUID, req.ExpectedGID); err != nil {
+		return req, "", false, err
+	}
+	return req, root, false, nil
+}
+
+type repairWalker struct {
+	ctx           context.Context
+	req           RepairRequest
+	result        *RepairResult
+	resumeAfter   string
+	resumeStarted bool
+}
+
+func (w *repairWalker) visit(path string, entry os.DirEntry, walkErr error) error {
+	if walkErr != nil {
+		w.recordFailure(path, "access", "reported", walkErr.Error())
+		return nil
+	}
+	if skip, err := w.skipProcessedPath(path, entry); skip {
+		return err
+	}
+	if err := w.boundaryError(); err != nil {
+		w.result.Status = RepairPartial
+		return err
+	}
+	w.result.Scanned++
+	w.result.LastPath = path
+	if entry.Type()&os.ModeSymlink != 0 {
+		w.result.Skipped++
+		return nil
+	}
+	return w.repairOwnership(path)
+}
+
+func (w *repairWalker) skipProcessedPath(path string, entry os.DirEntry) (bool, error) {
+	if w.resumeStarted {
+		return false, nil
+	}
+	switch {
+	case path == w.resumeAfter:
+		if !entry.IsDir() {
+			w.resumeStarted = true
+		}
+		return true, nil
+	case withinRepairRoot(w.resumeAfter, path):
+		return true, nil
+	case path < w.resumeAfter:
+		if entry.IsDir() {
+			return true, filepath.SkipDir
+		}
+		return true, nil
+	default:
+		w.resumeStarted = true
+		return false, nil
+	}
+}
+
+func (w *repairWalker) boundaryError() error {
+	if err := w.ctx.Err(); err != nil {
+		return err
+	}
+	if time.Now().After(w.req.Deadline) {
+		return context.DeadlineExceeded
+	}
+	if w.result.Scanned >= w.req.MaxEntries {
+		return errRepairEntryLimit
+	}
+	return nil
+}
+
+func (w *repairWalker) repairOwnership(path string) error {
+	identity, err := entryIdentity(path)
+	if err != nil {
+		w.recordFailure(path, "stat", "reported", err.Error())
+		return nil
+	}
+	if identity.UID == w.req.ExpectedUID && identity.GID == w.req.ExpectedGID {
+		w.result.Skipped++
+		return nil
+	}
+	if !w.req.Apply {
+		w.result.Skipped++
+		w.result.Failures = append(w.result.Failures, RepairFailure{Path: path, Kind: "ownership_mismatch", Action: "planned", Reason: fmt.Sprintf("uid/gid %d/%d does not match %d/%d", identity.UID, identity.GID, w.req.ExpectedUID, w.req.ExpectedGID)})
+		return nil
+	}
+	if err := repairEntryOwnership(path, w.req.ExpectedUID, w.req.ExpectedGID); err != nil {
+		w.recordFailure(path, "ownership_mismatch", "failed", err.Error())
+		return nil
+	}
+	w.result.Repaired++
+	w.verifyOwnership(path)
+	return nil
+}
+
+func (w *repairWalker) verifyOwnership(path string) {
+	w.result.Verification.Checked++
+	verified, err := entryIdentity(path)
+	if err == nil && verified.UID == w.req.ExpectedUID && verified.GID == w.req.ExpectedGID {
+		return
+	}
+	w.result.Verification.Failed++
+	reason := "post-repair ownership verification failed"
+	if err != nil {
+		reason = err.Error()
+	}
+	w.recordFailure(path, "verification", "failed", reason)
+}
+
+func (w *repairWalker) recordFailure(path, kind, action, reason string) {
+	w.result.Failed++
+	w.result.Failures = append(w.result.Failures, RepairFailure{Path: path, Kind: kind, Action: action, Reason: reason})
 }
 
 func withinRepairRoot(path, root string) bool {

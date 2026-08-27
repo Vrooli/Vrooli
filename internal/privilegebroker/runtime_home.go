@@ -3,12 +3,12 @@ package privilegebroker
 import (
 	"context"
 	"fmt"
-	"os"
 	"os/user"
 	"path/filepath"
 	"strconv"
 
 	"github.com/vrooli/repo-contract-go"
+	"github.com/vrooli/vrooli/internal/buildinfo"
 	"github.com/vrooli/vrooli/internal/config"
 )
 
@@ -77,13 +77,10 @@ func approvedRuntimeHomeClassRoot(root, class string) (string, error) {
 
 func installedRuntimeHomeRoot(repoRoot string, uid uint32) (string, error) {
 	if filepath.Clean(repoRoot) == "." || repoRoot == "" {
-		repoRoot = os.Getenv("VROOLI_REPO_ROOT")
-	}
-	if repoRoot == "" {
 		var err error
-		repoRoot, err = os.Getwd()
+		repoRoot, err = buildinfo.ResolveSourceRoot()
 		if err != nil {
-			return "", err
+			return "", fmt.Errorf("resolve source root for installed runtime home: %w", err)
 		}
 	}
 	contract, err := repocontract.LoadDefault(repoRoot)
@@ -106,9 +103,9 @@ func userHomeForUID(uid uint32) (string, error) {
 }
 
 func runtimeHomeRoot(home string) (string, error) {
-	root := os.Getenv("VROOLI_REPO_ROOT")
-	if root == "" {
-		root, _ = os.Getwd()
+	root, err := buildinfo.ResolveSourceRoot()
+	if err != nil {
+		return "", fmt.Errorf("resolve source root for runtime home: %w", err)
 	}
 	contract, err := repocontract.LoadDefault(root)
 	if err != nil {

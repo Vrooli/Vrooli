@@ -2,7 +2,6 @@ package catalog
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -12,6 +11,7 @@ import (
 	"github.com/vrooli/vrooli/internal/operatorstate"
 	"github.com/vrooli/vrooli/internal/repocontractmeta"
 	manifestpkg "github.com/vrooli/vrooli/internal/resources/manifest"
+	"github.com/vrooli/vrooli/internal/scenario"
 )
 
 const ResourceConfigPath = repocontractmeta.ServiceManifestPathname
@@ -189,7 +189,7 @@ func (s *Service) DiscoverOne(name string, opts DiscoverOptions) (*Resource, err
 
 func (s *Service) ReadConfigEntries() (map[string]ConfigEntry, error) {
 	configPath := filepath.Join(s.Root, filepath.FromSlash(ResourceConfigPath))
-	data, err := os.ReadFile(configPath)
+	manifest, err := scenario.LoadServiceManifest(configPath)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return map[string]ConfigEntry{}, nil
@@ -197,17 +197,13 @@ func (s *Service) ReadConfigEntries() (map[string]ConfigEntry, error) {
 		return nil, err
 	}
 
-	var payload struct {
-		Dependencies struct {
-			Resources map[string]ConfigEntry `json:"resources"`
-		} `json:"dependencies"`
-	}
-	if err := json.Unmarshal(data, &payload); err != nil {
-		return nil, err
-	}
-	entries := payload.Dependencies.Resources
-	if entries == nil {
-		entries = map[string]ConfigEntry{}
+	entries := make(map[string]ConfigEntry, len(manifest.Dependencies.Resources))
+	for name, dependency := range manifest.Dependencies.Resources {
+		entries[name] = ConfigEntry{
+			Enabled:     dependency.Enabled,
+			Required:    dependency.Required,
+			Description: dependency.Description,
+		}
 	}
 
 	// The project manifest supplies defaults. Per-install operator choices are

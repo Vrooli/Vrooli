@@ -4,10 +4,10 @@ import (
 	"bytes"
 	"errors"
 	"io"
-	"strings"
 	"testing"
 
 	contractapp "github.com/vrooli/vrooli/internal/app/contract"
+	"github.com/vrooli/vrooli/internal/cli/rootcli/rootclitest"
 	"github.com/vrooli/vrooli/internal/cliout"
 )
 
@@ -15,7 +15,7 @@ type testContext struct {
 	stdout *bytes.Buffer
 }
 
-func TestRootHandlerRendersHelpWithNoArgs(t *testing.T) {
+func TestConformance(t *testing.T) {
 	ctx := testContext{stdout: &bytes.Buffer{}}
 	handler := RootHandler(HandlerDeps[testContext]{
 		Stdout: func(ctx testContext) io.Writer { return ctx.stdout },
@@ -25,12 +25,7 @@ func TestRootHandlerRendersHelpWithNoArgs(t *testing.T) {
 		Service: func(testContext) contractapp.Service { return contractapp.Service{} },
 	})
 
-	if err := handler(ctx, nil); err != nil {
-		t.Fatalf("RootHandler() error = %v", err)
-	}
-	if got := ctx.stdout.String(); !strings.Contains(got, "vrooli contract") {
-		t.Fatalf("RootHandler() help missing contract usage: %q", got)
-	}
+	rootclitest.AssertHelpWithNoArgs(t, func() error { return handler(ctx, nil) }, ctx.stdout, "vrooli contract")
 }
 
 func TestValidateHandlerReturnsExitCodeOnFailedValidation(t *testing.T) {

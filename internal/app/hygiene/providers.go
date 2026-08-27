@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"time"
+
+	"github.com/vrooli/vrooli/internal/tuning"
 )
 
 // Provider is one registered hygiene check surface. Providers append their
@@ -61,7 +63,7 @@ func (r Registry) Run(ctx context.Context, req Request, report *Report, ids ...s
 		var cancel context.CancelFunc
 		budgeted, hasBudget := p.(BudgetedProvider)
 		if hasBudget && budgeted.Budget() > 0 {
-			providerCtx, cancel = context.WithTimeout(ctx, budgeted.Budget())
+			providerCtx, cancel = context.WithTimeout(ctx, tuning.HygieneProviderExecutionBudget(budgeted.Budget()))
 		}
 		started := time.Now()
 		err := p.Run(providerCtx, req, report)

@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vrooli/vrooli/internal/shell"
 	"github.com/vrooli/vrooli/internal/tuning"
 
 	repocontract "github.com/vrooli/repo-contract-go"
@@ -84,7 +85,7 @@ func ensureProjectFilesystemWithRecovery(root, home string) error {
 			ExpectedGID: gid,
 			Apply:       true,
 			MaxEntries:  filesystemParameterA,
-			Deadline:    time.Now().Add(tuning.StandardOperationTimeout),
+			Deadline:    time.Now().Add(tuning.SetupOperationTimeout()),
 		})
 		if repairErr != nil || result.Failed > 0 || result.Status == config.RepairPartial {
 			if repairErr == nil {
@@ -138,7 +139,7 @@ func configureGit(root string) error {
 	if _, err := os.Stat(filepath.Join(root, ".git")); err != nil {
 		return nil
 	}
-	cmd := exec.Command("git", "config", "core.filemode", "false")
+	cmd := shell.NewCommand("git", "config", "core.filemode", "false")
 	cmd.Dir = root
 	return cmd.Run()
 }

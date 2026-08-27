@@ -12,6 +12,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/vrooli/vrooli/internal/buildinfo"
 	internalcontrol "github.com/vrooli/vrooli/internal/control"
 	"github.com/vrooli/vrooli/internal/discovery"
 	"github.com/vrooli/vrooli/internal/operatorstate"
@@ -360,7 +361,7 @@ func (c *Controller) commandForResource(name string, args ...string) (*exec.Cmd,
 
 func resourceEnv(root, home string) []string {
 	env := os.Environ()
-	env = setEnvValue(env, "VROOLI_ROOT", root)
+	env = setEnvValue(env, buildinfo.SourceRootFallbackEnvVar, root)
 	if strings.TrimSpace(home) != "" {
 		env = setEnvValue(env, "HOME", home)
 	}

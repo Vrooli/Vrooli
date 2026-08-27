@@ -172,30 +172,25 @@ func TestParseCmdlineValueContainsEquals(t *testing.T) {
 }
 
 func TestHasCmdlineParamPresent(t *testing.T) {
-	_, _, restore := stubAll(t)
-	defer restore()
-	setReadFile(`GRUB_CMDLINE_LINUX="quiet crashkernel=512M-:256M"` + "\n")
+	for _, tc := range []struct {
+		name, content, param, value string
+	}{
+		{name: "valued", content: `GRUB_CMDLINE_LINUX="quiet crashkernel=512M-:256M"` + "\n", param: "crashkernel", value: "512M-:256M"},
+		{name: "bare_flag", content: `GRUB_CMDLINE_LINUX="quiet splash"` + "\n", param: "splash"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			_, _, restore := stubAll(t)
+			defer restore()
+			setReadFile(tc.content)
 
-	present, value, err := HasCmdlineParam("/etc/default/grub", "crashkernel")
-	if err != nil {
-		t.Fatalf("HasCmdlineParam: %v", err)
-	}
-	if !present || value != "512M-:256M" {
-		t.Errorf("got present=%v value=%q", present, value)
-	}
-}
-
-func TestHasCmdlineParamBareFlag(t *testing.T) {
-	_, _, restore := stubAll(t)
-	defer restore()
-	setReadFile(`GRUB_CMDLINE_LINUX="quiet splash"` + "\n")
-
-	present, value, err := HasCmdlineParam("/etc/default/grub", "splash")
-	if err != nil {
-		t.Fatalf("HasCmdlineParam: %v", err)
-	}
-	if !present || value != "" {
-		t.Errorf("got present=%v value=%q, want present=true value=\"\"", present, value)
+			present, value, err := HasCmdlineParam("/etc/default/grub", tc.param)
+			if err != nil {
+				t.Fatalf("HasCmdlineParam: %v", err)
+			}
+			if !present || value != tc.value {
+				t.Errorf("got present=%v value=%q, want present=true value=%q", present, value, tc.value)
+			}
+		})
 	}
 }
 

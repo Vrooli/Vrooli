@@ -102,14 +102,16 @@ class RequestPairingRequest(_message.Message):
     def __init__(self, node_public_key: _Optional[str] = ..., name: _Optional[str] = ..., os: _Optional[str] = ..., arch: _Optional[str] = ..., endpoint: _Optional[str] = ..., capabilities: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class RequestPairingResponse(_message.Message):
-    __slots__ = ("request_id", "status", "confirmation_words")
+    __slots__ = ("request_id", "status", "confirmation_words", "key_fingerprint")
     REQUEST_ID_FIELD_NUMBER: _ClassVar[int]
     STATUS_FIELD_NUMBER: _ClassVar[int]
     CONFIRMATION_WORDS_FIELD_NUMBER: _ClassVar[int]
+    KEY_FINGERPRINT_FIELD_NUMBER: _ClassVar[int]
     request_id: str
     status: PairingRequestStatus
     confirmation_words: _containers.RepeatedScalarFieldContainer[str]
-    def __init__(self, request_id: _Optional[str] = ..., status: _Optional[_Union[PairingRequestStatus, str]] = ..., confirmation_words: _Optional[_Iterable[str]] = ...) -> None: ...
+    key_fingerprint: str
+    def __init__(self, request_id: _Optional[str] = ..., status: _Optional[_Union[PairingRequestStatus, str]] = ..., confirmation_words: _Optional[_Iterable[str]] = ..., key_fingerprint: _Optional[str] = ...) -> None: ...
 
 class GetPairingRequestRequest(_message.Message):
     __slots__ = ("request_id",)
@@ -146,7 +148,7 @@ class ApprovePairingResponse(_message.Message):
     def __init__(self, node_id: _Optional[str] = ..., status: _Optional[_Union[PairingRequestStatus, str]] = ...) -> None: ...
 
 class PairingRequest(_message.Message):
-    __slots__ = ("id", "name", "os", "arch", "endpoint", "capabilities", "status", "created_at", "decided_at", "node_id", "confirmation_words")
+    __slots__ = ("id", "name", "os", "arch", "endpoint", "capabilities", "status", "created_at", "decided_at", "node_id", "confirmation_words", "key_fingerprint")
     ID_FIELD_NUMBER: _ClassVar[int]
     NAME_FIELD_NUMBER: _ClassVar[int]
     OS_FIELD_NUMBER: _ClassVar[int]
@@ -158,6 +160,7 @@ class PairingRequest(_message.Message):
     DECIDED_AT_FIELD_NUMBER: _ClassVar[int]
     NODE_ID_FIELD_NUMBER: _ClassVar[int]
     CONFIRMATION_WORDS_FIELD_NUMBER: _ClassVar[int]
+    KEY_FINGERPRINT_FIELD_NUMBER: _ClassVar[int]
     id: str
     name: str
     os: str
@@ -169,7 +172,8 @@ class PairingRequest(_message.Message):
     decided_at: _timestamp_pb2.Timestamp
     node_id: str
     confirmation_words: _containers.RepeatedScalarFieldContainer[str]
-    def __init__(self, id: _Optional[str] = ..., name: _Optional[str] = ..., os: _Optional[str] = ..., arch: _Optional[str] = ..., endpoint: _Optional[str] = ..., capabilities: _Optional[_Iterable[str]] = ..., status: _Optional[_Union[PairingRequestStatus, str]] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., decided_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., node_id: _Optional[str] = ..., confirmation_words: _Optional[_Iterable[str]] = ...) -> None: ...
+    key_fingerprint: str
+    def __init__(self, id: _Optional[str] = ..., name: _Optional[str] = ..., os: _Optional[str] = ..., arch: _Optional[str] = ..., endpoint: _Optional[str] = ..., capabilities: _Optional[_Iterable[str]] = ..., status: _Optional[_Union[PairingRequestStatus, str]] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., decided_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., node_id: _Optional[str] = ..., confirmation_words: _Optional[_Iterable[str]] = ..., key_fingerprint: _Optional[str] = ...) -> None: ...
 
 class ListPairingRequestsRequest(_message.Message):
     __slots__ = ("include_decided",)

@@ -37,6 +37,7 @@ require (
 	github.com/sirupsen/logrus v1.9.3 // indirect
 	github.com/sony/gobreaker/v2 v2.3.0 // indirect
 	github.com/vrooli/binaryfetch v0.0.0 // indirect
+	github.com/vrooli/cliresolve v0.0.0 // indirect
 	github.com/vrooli/envkit-go v0.0.0 // indirect
 	github.com/vrooli/platform-go v0.0.0 // indirect
 	github.com/vrooli/repo-contract-go v0.0.0 // indirect
@@ -63,6 +64,8 @@ replace github.com/vrooli/vrooli/packages/proto => ../../../packages/proto
 
 replace github.com/vrooli/repo-contract-go => ../../../packages/repo-contract-go
 
+replace github.com/vrooli/cliresolve => ../../../packages/cliresolve
+
 replace github.com/vrooli/vrooli => ../../..
 
 replace github.com/vrooli/vrooli-cli-go => ../../../packages/vrooli-cli-go
@@ -76,3 +79,5 @@ replace github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime => ../../
 replace github.com/vrooli/envkit-go => ../../../packages/envkit-go
 
 replace github.com/vrooli/scenarioconfig-go => ../../../packages/scenarioconfig-go
+
+replace github.com/vrooli/nodeclient => ../../../packages/nodeclient

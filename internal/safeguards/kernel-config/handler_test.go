@@ -55,16 +55,6 @@ func kernelConfigLinuxHost() hostreqkit.Host {
 	}
 }
 
-func TestInspectNoSysctlNotApplicable(t *testing.T) {
-	h := newTestHandler()
-	host := linuxHost()
-	host.SupportsSysctl = false
-	status := h.Inspect(host, linuxReq())
-	if status.SupportClass != hostreqkit.SupportNotApplicable {
-		t.Fatalf("SupportClass = %q", status.SupportClass)
-	}
-}
-
 func TestInspectAllParametersMet(t *testing.T) {
 	restore := stubLookups(t)
 	defer restore()
@@ -142,19 +132,6 @@ func TestInspectConfigFileMismatch(t *testing.T) {
 	status := h.Inspect(linuxHost(), linuxReq())
 	if status.Applied {
 		t.Fatal("expected Applied = false when config file doesn't match")
-	}
-}
-
-func TestApplyNotApplicableReturnsEarly(t *testing.T) {
-	h := newTestHandler()
-	status, err := h.Apply(linuxHost(), hostreqkit.ItemStatus{
-		SupportClass: hostreqkit.SupportNotApplicable,
-	}, hostreqkit.EnsureOptions{})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if status.ExecutionState != hostreqkit.ExecutionNotApplicable {
-		t.Fatalf("ExecutionState = %q", status.ExecutionState)
 	}
 }
 

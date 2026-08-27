@@ -4,13 +4,13 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/vrooli/vrooli/internal/repocontractmeta"
+	"github.com/vrooli/vrooli/internal/shell"
 	"github.com/vrooli/vrooli/internal/tuning"
 
 	repocontract "github.com/vrooli/repo-contract-go"
@@ -123,7 +123,7 @@ type PortPolicyReport struct {
 
 // terminalPortClaimRetention is how long expired/released registry claim rows
 // are kept for forensics before `vrooli cleanup locks` deletes them.
-const terminalPortClaimRetention = tuning.TerminalClaimRetention
+var terminalPortClaimRetention = tuning.TerminalClaimRetention()
 
 var (
 	inspectPortListenersFn    = network.InspectPortListeners
@@ -289,7 +289,7 @@ func (c *Controller) KillOrphans() (control.StopReport, error) {
 			failed = append(failed, control.Failed(strconv.Itoa(item.PID), err))
 			continue
 		}
-		time.Sleep(tuning.MaintenanceSettleDelay)
+		time.Sleep(tuning.MaintenanceSettleDelay())
 		if process.IsPIDRunning(item.PID) {
 			// Re-validate again: 150ms is long enough for the kernel to recycle
 			// a PID on a busy box. Only escalate to SIGKILL while the PID still
@@ -336,7 +336,7 @@ func (c *Controller) reclaimSquattedPort(candidate PortReclaimCandidate) (contro
 	if err := killProcessFn(candidate.PID, false); err != nil && !isMissingProcessError(err) {
 		return control.Failed(name, err), false
 	}
-	time.Sleep(tuning.MaintenanceSettleDelay)
+	time.Sleep(tuning.MaintenanceSettleDelay())
 	if pidIsRunningFn(candidate.PID) && c.stillVrooliOrphan(candidate.PID) {
 		if err := killProcessFn(candidate.PID, true); err != nil && !isMissingProcessError(err) {
 			return control.Failed(name, err), false
@@ -384,7 +384,7 @@ func runProtoGenerate(repoRoot string) error {
 	if _, err := os.Stat(filepath.Join(protoDir, "Makefile")); err != nil {
 		return nil
 	}
-	cmd := exec.Command("make", "generate")
+	cmd := shell.NewCommand("make", "generate")
 	cmd.Dir = protoDir
 	cmd.Stdout = os.Stderr
 	cmd.Stderr = os.Stderr

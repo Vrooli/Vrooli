@@ -28,10 +28,11 @@ type capabilityService struct {
 // RootHandler dispatches `vrooli capability` through the capability app.
 func RootHandler[C any](deps HandlerDeps[C]) rootcli.Handler[C] {
 	return rootcli.BindService(deps.Stdout,
-		func(ctx C) (cliout.Format, capabilityService, error) {
+		func(C) (cliout.Format, error) { return cliout.FormatHuman, nil },
+		func(ctx C, _ cliout.Format) (capabilityService, error) {
 			commandCtx := &capabilitycli.Context{Root: deps.Root(ctx), Globals: deps.Globals(ctx), Stdin: deps.Stdin(ctx), Stdout: deps.Stdout(ctx), Stderr: deps.Stderr(ctx)}
 			app := &capabilityapp.App{}
-			return cliout.FormatHuman, capabilityService{run: func(args []string) error {
+			return capabilityService{run: func(args []string) error {
 				if len(args) == 0 || manifestdispatch.WantsHelp(args) {
 					return capabilitycli.Run(app, commandCtx, args)
 				}

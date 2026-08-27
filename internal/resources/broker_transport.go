@@ -126,7 +126,7 @@ func StartBrokerControlServer(listener net.Listener, broker *Broker, credentials
 	mux.HandleFunc("/v1/authorize-management", control.authorizeManagement)
 	mux.HandleFunc("/v1/credentials", control.issueCredential)
 	mux.HandleFunc("/v1/manage", control.manage)
-	control.server = &http.Server{Handler: mux, ReadHeaderTimeout: tuning.ServiceHealthTimeout}
+	control.server = &http.Server{Handler: mux, ReadHeaderTimeout: tuning.ServiceHealthTimeout()}
 	go func() { _ = control.server.Serve(listener) }()
 	return control, nil
 }
@@ -318,7 +318,7 @@ func NewBrokerControlClient(credential BrokerControlCredential) (*BrokerControlC
 		return nil, fmt.Errorf("broker control endpoint must be an HTTP loopback address")
 	}
 	credential.Endpoint = strings.TrimRight(credential.Endpoint, "/")
-	return &BrokerControlClient{credential: credential, httpClient: &http.Client{Timeout: tuning.ControlPlaneClientTimeout}}, nil
+	return &BrokerControlClient{credential: credential, httpClient: &http.Client{Timeout: tuning.ControlPlaneClientTimeout()}}, nil
 }
 
 func (c *BrokerControlClient) Acquire(ctx context.Context, resource string, ttl time.Duration) (Lease, error) {

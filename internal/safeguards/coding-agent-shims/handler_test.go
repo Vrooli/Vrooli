@@ -12,14 +12,14 @@ import (
 	"github.com/vrooli/vrooli/internal/hostreqkit"
 	"github.com/vrooli/vrooli/internal/hostreqspec"
 	"github.com/vrooli/vrooli/internal/shell/shelltest"
+	"github.com/vrooli/vrooli/internal/testenv"
 )
 
 // newHandlerForTest redirects HOME so the safeguard installs into a temporary
 // tree, and returns the shim directory it will use.
 func newHandlerForTest(t *testing.T) (hostreqkit.Handler, string, string) {
 	t.Helper()
-	home := t.TempDir()
-	t.Setenv("HOME", home)
+	home := testenv.RuntimeHome(t)
 	binDir := filepath.Join(home, ".vrooli", "bin")
 	if err := os.MkdirAll(binDir, 0o755); err != nil {
 		t.Fatalf("mkdir bin: %v", err)

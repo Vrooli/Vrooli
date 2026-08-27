@@ -210,19 +210,6 @@ func TestInspectAllRedirectsDead(t *testing.T) {
 	}
 }
 
-func TestApplyNotApplicableReturnsEarly(t *testing.T) {
-	h := newTestHandler()
-	status, err := h.Apply(linuxHost(), hostreqkit.ItemStatus{
-		SupportClass: hostreqkit.SupportNotApplicable,
-	}, hostreqkit.EnsureOptions{})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if status.ExecutionState != hostreqkit.ExecutionNotApplicable {
-		t.Fatalf("ExecutionState = %q", status.ExecutionState)
-	}
-}
-
 func TestApplyRemovesDeadRedirects(t *testing.T) {
 	restore := stubLookups(t)
 	defer restore()

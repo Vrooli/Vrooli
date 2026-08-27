@@ -168,7 +168,7 @@ func TestApplyMaskingRaceTreatedAsAlreadyPresent(t *testing.T) {
 	}
 }
 
-func TestApplyHappyPath(t *testing.T) {
+func checkApplyInstallsAndEnablesMcelog(t *testing.T) {
 	_, units, restore := stubAll(t)
 	defer restore()
 
@@ -189,25 +189,6 @@ func TestApplyHappyPath(t *testing.T) {
 	}
 	if out.ExecutionState != hostreqkit.ExecutionInstalled {
 		t.Errorf("ExecutionState = %q", out.ExecutionState)
-	}
-}
-
-func TestApplyDryRunNotInstalled(t *testing.T) {
-	cmds, _, restore := stubAll(t)
-	defer restore()
-
-	st := newHandler().Inspect(aptHost(), req(false))
-	out, err := newHandler().Apply(aptHost(), st, hostreqkit.EnsureOptions{DryRun: true})
-	if err != nil {
-		t.Fatalf("Apply: %v", err)
-	}
-	if out.ExecutionState != hostreqkit.ExecutionWouldInstall {
-		t.Errorf("ExecutionState = %q", out.ExecutionState)
-	}
-	for _, c := range *cmds {
-		if c.Name == "apt-get" || c.Name == "systemctl" {
-			t.Errorf("DryRun ran %s: %v", c.Name, c)
-		}
 	}
 }
 

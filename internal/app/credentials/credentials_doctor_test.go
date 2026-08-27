@@ -12,6 +12,7 @@ import (
 	"github.com/vrooli/vrooli/internal/credentialauthority"
 	"github.com/vrooli/vrooli/internal/resources"
 	"github.com/vrooli/vrooli/internal/resources/securestore"
+	"github.com/vrooli/vrooli/internal/testenv"
 )
 
 const provisionedTestValue = "sk-doctor-must-never-print-this"
@@ -361,7 +362,7 @@ func TestCredentialsDoctorReportsTheUidMismatchByName(t *testing.T) {
 		t.Skipf("%s is not a directory", foreign)
 	}
 
-	t.Setenv("XDG_RUNTIME_DIR", foreign)
+	testenv.SetIdentityEnv(t, map[string]string{"XDG_RUNTIME_DIR": foreign})
 	t.Setenv("DBUS_SESSION_BUS_ADDRESS", "unix:path="+foreign+"/bus")
 
 	diagnosis := securestore.Diagnose()

@@ -51,7 +51,7 @@ func NewDefaultPlanManagerClient(ctx context.Context) (PlanManagerClient, error)
 		return nil, fmt.Errorf("%w: discover %s: %v", ErrPlanManagerUnavailable, planManagerScenario, err)
 	}
 	return HTTPPlanManagerClient{
-		Client:  &http.Client{Timeout: tuning.ControlPlaneClientTimeout},
+		Client:  &http.Client{Timeout: tuning.ControlPlaneClientTimeout()},
 		BaseURL: strings.TrimRight(url, "/"),
 	}, nil
 }

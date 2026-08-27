@@ -31,10 +31,11 @@ type runtimeService struct {
 // RootHandler dispatches `vrooli runtime` through the runtime application.
 func RootHandler[C any](deps HandlerDeps[C]) rootcli.Handler[C] {
 	return rootcli.BindService(deps.Stdout,
-		func(ctx C) (cliout.Format, runtimeService, error) {
+		func(C) (cliout.Format, error) { return cliout.FormatHuman, nil },
+		func(ctx C, _ cliout.Format) (runtimeService, error) {
 			commandCtx := &runtimecli.Context{Root: deps.Root(ctx), Globals: deps.Globals(ctx), Stdin: deps.Stdin(ctx), Stdout: deps.Stdout(ctx), Stderr: deps.Stderr(ctx), HomeDirFn: func() (string, error) { return deps.HomeDir(ctx) }}
 			app := &runtimeapp.App{Version: deps.Version(ctx), ResolveRootFn: func() (string, error) { return deps.ResolveRoot(ctx) }}
-			return cliout.FormatHuman, runtimeService{run: func(args []string) error {
+			return runtimeService{run: func(args []string) error {
 				if len(args) == 0 || manifestdispatch.WantsHelp(args) {
 					return runtimecli.Run(app, commandCtx, args)
 				}

@@ -74,9 +74,9 @@ func (p Provider) Validate(ctx context.Context, root string) (Result, error) {
 	}
 	timeout := p.Timeout
 	if timeout <= 0 {
-		timeout = tuning.ExtendedOperationTimeout
+		timeout = tuning.TidinessProviderBudget()
 	}
-	callCtx, cancel := context.WithTimeout(ctx, timeout)
+	callCtx, cancel := context.WithTimeout(ctx, tuning.TidinessProviderCallTimeout(timeout))
 	defer cancel()
 	baseURL, err := resolveURL(callCtx, ScenarioName)
 	if err != nil {

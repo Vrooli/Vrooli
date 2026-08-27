@@ -1,0 +1,226 @@
+syntax = "proto3";
+
+package vrooli.web_console.v1.machines;
+
+import "google/protobuf/timestamp.proto";
+import "web-console/v1/shared/target.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/machines;machines_v1";
+
+// @stability beta
+
+// MachineService is the operator-facing fleet surface. Web Console owns the
+// machines a person has linked so that linking one never requires opening the
+// control plane's own interface.
+//
+// The service is a projection, not a second authority. Reachability facts come
+// from the shared readiness vocabulary, permission presets are served by the
+// control plane, and the concrete scopes a preset issues are never re-derived
+// here. Bridge owner credentials stay on this server; a browser receives only
+// identity, reachability, and grant wording.
+service MachineService {
+  // List returns every linked machine, every machine currently asking to join,
+  // and the permission presets an owner may grant.
+  rpc List(ListRequest) returns (ListResponse);
+
+  // IssueCode mints a single-use join code for a machine that cannot be
+  // reached by discovery.
+  rpc IssueCode(IssueCodeRequest) returns (IssueCodeResponse);
+
+  // Decide approves or denies one pending join request. Approval requires the
+  // confirmation words the owner read off the joining machine.
+  rpc Decide(DecideRequest) returns (DecideResponse);
+
+  // SetGrant changes what an already-linked machine is allowed to do.
+  rpc SetGrant(SetGrantRequest) returns (SetGrantResponse);
+
+  // Forget removes a machine from the fleet.
+  rpc Forget(ForgetRequest) returns (ForgetResponse);
+}
+
+// FleetState explains an empty or unusable machines list without making the
+// client infer the reason from an empty collection.
+enum FleetState {
+  FLEET_STATE_UNSPECIFIED = 0;
+  // Machines are listed and the control plane answered.
+  FLEET_STATE_READY = 1;
+  // The control plane answered and holds no machines beyond this computer.
+  FLEET_STATE_EMPTY = 2;
+  // The control plane is reachable but this installation is not enrolled.
+  FLEET_STATE_UNENROLLED = 3;
+  // The control plane did not answer.
+  FLEET_STATE_UNREACHABLE = 4;
+}
+
+// Grant is what a machine may do, said three ways: as a sentence a person
+// reads, as the effect families and breadth behind that sentence, and as the
+// concrete scopes an auditor checks.
+//
+// The three exist because the control plane's presets expand to one scope per
+// app per effect — well over a hundred entries. Rendering that list as the
+// primary answer would bury the only fact most operators need, and summarizing
+// it without keeping the list would remove the only fact an auditor needs.
+message Grant {
+  // The grant in operator wording, for example
+  // "Read only; changes are not permitted". Always populated.
+  string summary = 1;
+
+  // The effect families this grant confers: read, write, destructive. Ordered
+  // from least to most consequential.
+  repeated string effects = 2;
+
+  // How many distinct apps the grant names. Zero when it is a wildcard, which
+  // covers_all_apps reports separately — a wildcard is broader than any
+  // enumeration, so reporting it as a count would understate it.
+  int32 app_count = 3;
+
+  // True when the grant uses a wildcard namespace and therefore reaches apps
+  // that do not exist yet.
+  bool covers_all_apps = 4;
+
+  // The concrete scopes, for audit. May be empty on a presence-only machine.
+  repeated string scopes = 5;
+
+  // The preset whose scopes this grant matches exactly, or empty when the
+  // grant was customized. The comparison is exact: reporting a broader grant
+  // as a preset would name a posture the operator never chose.
+  string preset = 6;
+}
+
+// Machine is one linked computer as an operator sees it: who it is, whether it
+// answers, and what it may do.
+message Machine {
+  // The shared target projection. Identity and readiness live here so the
+  // machines surface and the session launcher never disagree.
+  vrooli.web_console.v1.shared.Target target = 1;
+
+  Grant grant = 2;
+
+  // Age of the last heartbeat, computed from the control plane's own record
+  // rather than a client clock. Zero when the machine has never been seen.
+  int64 heartbeat_age_seconds = 3;
+
+  // False for the computer the Web Console runs on: it has no remote grant to
+  // change and cannot be forgotten.
+  bool manageable = 4;
+}
+
+// JoinRequest is a machine asking to be linked. Every descriptive field is
+// chosen by the sender and is therefore untrusted; confirmation_words is the
+// only field derived from the exchanged keys.
+message JoinRequest {
+  string id = 1;
+  string name = 2;
+  string os = 3;
+  string arch = 4;
+  string endpoint = 5;
+
+  // Three words derived from both machines' public keys. The owner confirms
+  // these match what the joining machine displays.
+  repeated string confirmation_words = 6;
+
+  // Short public-key fingerprint shown beside the words, in the same spirit as
+  // an SSH host-key fingerprint.
+  string key_fingerprint = 7;
+
+  google.protobuf.Timestamp requested_at = 8;
+  int64 requested_age_seconds = 9;
+}
+
+// PermissionPreset is a control-plane-defined enrollment posture. The scopes
+// and withholds are served, never computed here, so the console cannot drift
+// into a second authorization vocabulary.
+message PermissionPreset {
+  // The stable identifier an operator passes back on a decision.
+  string name = 1;
+
+  // The name in operator wording, for example "Read only".
+  string title = 2;
+
+  string description = 3;
+
+  // The concrete scopes this preset issues, and the effect families it
+  // deliberately does not. Showing what a preset withholds is what makes a
+  // narrower default feel like a choice rather than a loss.
+  repeated string scopes = 4;
+  repeated string withholds = 5;
+
+  // The same summary vocabulary a linked machine's grant uses, so choosing a
+  // preset and reading a machine's permission are the same sentence.
+  string summary = 6;
+  repeated string effects = 7;
+  int32 app_count = 8;
+}
+
+// ControlPlane reports the fleet control plane's own reachability so the
+// machines surface can state where linked machines are registered.
+message ControlPlane {
+  bool reachable = 1;
+  string endpoint = 2;
+  string detail = 3;
+}
+
+message ListRequest {}
+
+message ListResponse {
+  FleetState state = 1;
+  repeated Machine machines = 2;
+  repeated JoinRequest join_requests = 3;
+  repeated PermissionPreset presets = 4;
+  string message = 5;
+  string recovery_action = 6;
+  ControlPlane control_plane = 7;
+}
+
+message IssueCodeRequest {
+  // Optional label applied to the machine that redeems the code.
+  string label = 1;
+}
+
+message IssueCodeResponse {
+  // The code an operator reads aloud or copies, already grouped for reading.
+  string code = 1;
+  google.protobuf.Timestamp expires_at = 2;
+  int64 expires_in_seconds = 3;
+}
+
+message DecideRequest {
+  string request_id = 1;
+
+  // True links the machine; false denies it.
+  bool approve = 2;
+
+  // The words the owner confirmed. Approval is refused when they do not match
+  // the derived value.
+  repeated string confirmation_words = 3;
+
+  // The preset the owner chose. The server resolves it to scopes.
+  string preset = 4;
+
+  // Explicit scopes, used only when preset is empty.
+  repeated string scopes = 5;
+}
+
+message DecideResponse {
+  // Set when approved.
+  Machine machine = 1;
+  string message = 2;
+}
+
+message SetGrantRequest {
+  string machine_id = 1;
+  string preset = 2;
+  repeated string scopes = 3;
+}
+
+message SetGrantResponse {
+  Machine machine = 1;
+}
+
+message ForgetRequest {
+  string machine_id = 1;
+}
+
+message ForgetResponse {
+  string forgotten_machine_id = 1;
+}

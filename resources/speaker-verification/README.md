@@ -7,8 +7,8 @@ enrollment and verification workflows.
 
 - Resource ID: `speaker-verification`
 - Category: `ai`
-- Driver: `compose-service`
-- Portability tier: `partial`
+- Driver: `managed-service`
+- Portability tier: `native Linux amd64` (CPU and CUDA targets)
 
 ## Model
 
@@ -29,22 +29,22 @@ enrollment and verification workflows.
 
 ## Architecture
 
-This resource follows the `compose-service` structure.
+This resource follows the native `managed-service` structure.
 
-- `resource.json` is the declarative authority for lifecycle, compose
-  orchestration, ports, exports, health, and freshness metadata.
-- `docker/` holds the custom image: `server.py` (FastAPI), pinned
-  `requirements.txt`, and `Dockerfile` (PyTorch CUDA base + speechbrain + fastapi +
-  uvicorn + python-multipart + ffmpeg). torch is provided by the CUDA base image
-  and kept out of `requirements.txt` so a PyPI wheel cannot clobber it with a
-  CPU-only build.
+- `resource.json` is the declarative authority for lifecycle, native artifact
+  acquisition, ports, exports, health, storage, and freshness metadata.
+- `server/` holds the FastAPI contract and VAD implementation. The native
+  artifact composes these sources with the checksum-pinned CPython runtime and
+  the CPU or CUDA hash-locked wheel set.
+- `requirements.lock` and `requirements-gpu.lock` are generated, hash-pinned
+  Python inputs. PyTorch and torchaudio are selected from the declared CPU or
+  CUDA index; no container image supplies the runtime.
 - `cli/` is the thin binary entrypoint and delegated command wiring surface.
 - `cli/internal/` is the home for Speaker Verification-specific Go logic when the
   manifest and shared control plane are not enough.
 
 Internal package boundaries:
 
-- `cli/internal/compose`: compose-specific runtime graph helpers
 - `cli/internal/topology`: service dependency and readiness semantics
 - `cli/internal/runtime`: runtime shaping helpers
 - `cli/internal/health`: readiness helpers
@@ -53,7 +53,7 @@ Internal package boundaries:
 ## Usage
 
 ```bash
-# Install / build the resource image and start it
+# Install the native artifact and start it
 vrooli resource install speaker-verification
 
 # Check status through the shared control plane
@@ -91,11 +91,11 @@ and [docs/USAGE_EXAMPLES.md](docs/USAGE_EXAMPLES.md) for worked examples.
 ## Notes
 
 - Keep `cli/main.go` thin. Do not treat it as the implementation surface.
-- The HTTP contract in `docker/server.py` is consumed byte-for-byte by
+- The HTTP contract in `server/server.py` is consumed byte-for-byte by
   audio-tools; do not let endpoint paths, multipart field names, or response
   JSON keys drift. See [docs/internal/SEAMS.md](docs/internal/SEAMS.md).
-- Keep runtime state (enrolled profiles, model cache) in compose-managed mounts
-  rather than repo-local mutable directories.
+- Keep runtime state (enrolled profiles, model cache) in the declared resource
+  data directory rather than repo-local mutable directories.
 - Use [docs/OPERATIONS.md](docs/OPERATIONS.md) as the architecture boundary for
   future migrations.
 ## Maturity

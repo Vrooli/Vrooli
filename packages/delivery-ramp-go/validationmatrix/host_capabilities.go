@@ -1,7 +1,6 @@
 package validationmatrix
 
 import (
-	"github.com/vrooli/api-core/targetmodel"
 	deliveryramp "github.com/vrooli/vrooli/packages/delivery-ramp-go"
 )
 
@@ -66,7 +65,7 @@ func classifyApple(facts HostFacts) (platformClass, bool) {
 	class := platformClass{
 		Platform:   "ios",
 		DeviceKind: "emulator",
-		Reason:     targetmodel.ReasonBridgeAuthorizedIOS,
+		Reason:     deliveryramp.ReasonBridgeAuthorizedIOS,
 		NextAction: "install Xcode and an iOS simulator runtime on the node, then probe again",
 	}
 	xcode, xcodeProbed := facts.Tool(toolXcodebuild)
@@ -110,7 +109,7 @@ func classifyAndroid(facts HostFacts) (platformClass, bool) {
 	class := platformClass{
 		Platform:   "android",
 		DeviceKind: "physical",
-		Reason:     targetmodel.ReasonBridgeAuthorizedAndroid,
+		Reason:     deliveryramp.ReasonBridgeAuthorizedAndroid,
 		NextAction: "install the Android SDK platform-tools on the node, then probe again",
 	}
 	if !adb.Present {

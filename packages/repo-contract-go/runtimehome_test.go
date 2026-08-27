@@ -138,6 +138,14 @@ func TestScopedRuntimePath(t *testing.T) {
 		t.Fatalf("project_state = %q, want %q", state, want)
 	}
 
+	testRuns, err := c.ScopedRuntimePath(home, ScopedTestRunsScenario, map[string]string{"scenario": "test-genie"})
+	if err != nil {
+		t.Fatalf("ScopedRuntimePath test_runs_scenario: %v", err)
+	}
+	if want := filepath.Join(home, ".vrooli", "test-runs", "test-genie"); testRuns != want {
+		t.Fatalf("test_runs_scenario = %q, want %q", testRuns, want)
+	}
+
 	if _, err := c.ScopedRuntimePath(home, "nope", nil); err == nil {
 		t.Fatal("ScopedRuntimePath(unknown key) expected error")
 	}

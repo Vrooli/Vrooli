@@ -109,7 +109,6 @@ func (s Service) Test(name string) (RunResponse, error) {
 	return s.runLifecycle(name, "test")
 }
 
-//nolint:gocyclo // refresh retains distinct setup, rebuild, restart, and shared-consumer outcomes.
 func (s Service) Refresh(req RefreshRequest) (RefreshResponse, error) {
 	noRestart := req.NoRestart || !req.Interactive
 	item, err := s.Info(req.PackageName)
@@ -132,118 +131,11 @@ func (s Service) Refresh(req RefreshRequest) (RefreshResponse, error) {
 	}
 	actions := packagegov.PlanRefresh(item, discovery.Dependents, req.Target)
 	resp := RefreshResponse{PackageName: item.Name}
-
-	var (
-		service ScenarioRuntime
-		runner  ScenarioPhaseRunner
-	)
-	getScenarioService := func() (ScenarioRuntime, error) {
-		if service != nil {
-			return service, nil
-		}
-		if s.ScenarioService == nil {
-			return nil, fmt.Errorf("scenario service is not configured")
-		}
-		resolved, err := s.ScenarioService()
-		if err != nil {
-			return nil, err
-		}
-		service = resolved
-		return service, nil
-	}
-	getScenarioRunner := func() (ScenarioPhaseRunner, error) {
-		if runner != nil {
-			return runner, nil
-		}
-		if s.ScenarioRunner == nil {
-			return nil, fmt.Errorf("scenario runner is not configured")
-		}
-		resolved, err := s.ScenarioRunner()
-		if err != nil {
-			return nil, err
-		}
-		runner = resolved
-		return runner, nil
-	}
-
+	runtime := refreshRuntime{owner: s, item: item, noRestart: noRestart}
 	for _, action := range actions {
-		status := "no_action"
-
-		switch action.Action {
-		case packagegov.RefreshActionScenarioSetup:
-			service, err := getScenarioService()
-			if err != nil {
-				return RefreshResponse{}, err
-			}
-			runner, err := getScenarioRunner()
-			if err != nil {
-				return RefreshResponse{}, err
-			}
-			detail, _, err := service.Lookup(action.ConsumerName)
-			if err != nil {
-				return RefreshResponse{}, err
-			}
-			wasRunning := detail.Runtime.ProcessCount > 0
-			if wasRunning {
-				if err := runner.Stop(action.ConsumerName, lifecycle.StopOptions{}); err != nil {
-					return RefreshResponse{}, err
-				}
-			}
-			if _, err := runner.RunPhaseDetailed(action.ConsumerName, "setup", lifecycle.PhaseOptions{}); err != nil {
-				return RefreshResponse{}, err
-			}
-			status = "setup_only"
-			if wasRunning && !noRestart && item.Manifest.Package.Refresh.RestartRunningConsumers {
-				if _, err := service.StartDetailed(action.ConsumerName, lifecycle.StartOptions{}); err != nil {
-					return RefreshResponse{}, err
-				}
-				status = "restarted"
-			} else if wasRunning {
-				status = "stopped_after_setup"
-			}
-		case packagegov.RefreshActionRestartScenario:
-			service, err := getScenarioService()
-			if err != nil {
-				return RefreshResponse{}, err
-			}
-			runner, err := getScenarioRunner()
-			if err != nil {
-				return RefreshResponse{}, err
-			}
-			detail, _, err := service.Lookup(action.ConsumerName)
-			if err != nil {
-				return RefreshResponse{}, err
-			}
-			wasRunning := detail.Runtime.ProcessCount > 0
-			if !wasRunning {
-				status = "not_running"
-				break
-			}
-			if noRestart || !item.Manifest.Package.Refresh.RestartRunningConsumers {
-				status = "running_not_restarted"
-				break
-			}
-			if err := runner.Stop(action.ConsumerName, lifecycle.StopOptions{}); err != nil {
-				return RefreshResponse{}, err
-			}
-			if _, err := service.StartDetailed(action.ConsumerName, lifecycle.StartOptions{}); err != nil {
-				return RefreshResponse{}, err
-			}
-			status = "restarted"
-		case packagegov.RefreshActionRebuildGoConsumer:
-			rebuilt, err := rebuildGoConsumerTargets(action.Dependents, s.Stdout, s.Stderr)
-			if err != nil {
-				return RefreshResponse{}, err
-			}
-			if rebuilt {
-				status = "rebuilt"
-			} else {
-				status = "no_buildable_target"
-			}
-		case packagegov.RefreshActionNoRuntimeRefresh:
-			status = "no_runtime_refresh"
-		case packagegov.RefreshActionNoAction:
-			status = "no_action"
+		status, err := runtime.execute(action)
+		if err != nil {
+			return RefreshResponse{}, err
 		}
 
 		resp.Items = append(resp.Items, RefreshItem{
@@ -256,6 +148,126 @@ func (s Service) Refresh(req RefreshRequest) (RefreshResponse, error) {
 	}
 
 	return resp, nil
+}
+
+type refreshRuntime struct {
+	owner     Service
+	item      packagegov.Package
+	noRestart bool
+	service   ScenarioRuntime
+	runner    ScenarioPhaseRunner
+}
+
+func (r *refreshRuntime) scenarioService() (ScenarioRuntime, error) {
+	if r.service != nil {
+		return r.service, nil
+	}
+	if r.owner.ScenarioService == nil {
+		return nil, fmt.Errorf("scenario service is not configured")
+	}
+	service, err := r.owner.ScenarioService()
+	if err == nil {
+		r.service = service
+	}
+	return service, err
+}
+
+func (r *refreshRuntime) scenarioRunner() (ScenarioPhaseRunner, error) {
+	if r.runner != nil {
+		return r.runner, nil
+	}
+	if r.owner.ScenarioRunner == nil {
+		return nil, fmt.Errorf("scenario runner is not configured")
+	}
+	runner, err := r.owner.ScenarioRunner()
+	if err == nil {
+		r.runner = runner
+	}
+	return runner, err
+}
+
+func (r *refreshRuntime) execute(action packagegov.RefreshAction) (string, error) {
+	switch action.Action {
+	case packagegov.RefreshActionScenarioSetup:
+		return r.setupScenario(action.ConsumerName)
+	case packagegov.RefreshActionRestartScenario:
+		return r.restartScenario(action.ConsumerName)
+	case packagegov.RefreshActionRebuildGoConsumer:
+		rebuilt, err := rebuildGoConsumerTargets(action.Dependents, r.owner.Stdout, r.owner.Stderr)
+		if err != nil {
+			return "", err
+		}
+		if rebuilt {
+			return "rebuilt", nil
+		}
+		return "no_buildable_target", nil
+	case packagegov.RefreshActionNoRuntimeRefresh:
+		return "no_runtime_refresh", nil
+	default:
+		return "no_action", nil
+	}
+}
+
+func (r *refreshRuntime) setupScenario(name string) (string, error) {
+	service, err := r.scenarioService()
+	if err != nil {
+		return "", err
+	}
+	runner, err := r.scenarioRunner()
+	if err != nil {
+		return "", err
+	}
+	detail, _, err := service.Lookup(name)
+	if err != nil {
+		return "", err
+	}
+	wasRunning := detail.Runtime.ProcessCount > 0
+	if wasRunning {
+		if err := runner.Stop(name, lifecycle.StopOptions{}); err != nil {
+			return "", err
+		}
+	}
+	if _, err := runner.RunPhaseDetailed(name, "setup", lifecycle.PhaseOptions{}); err != nil {
+		return "", err
+	}
+	if wasRunning && !r.noRestart && r.item.Manifest.Package.Refresh.RestartRunningConsumers {
+		if _, err := service.StartDetailed(name, lifecycle.StartOptions{}); err != nil {
+			return "", err
+		}
+		return "restarted", nil
+	}
+	if wasRunning {
+		return "stopped_after_setup", nil
+	}
+	return "setup_only", nil
+}
+
+func (r *refreshRuntime) restartScenario(name string) (string, error) {
+	service, err := r.scenarioService()
+	if err != nil {
+		return "", err
+	}
+	runner, err := r.scenarioRunner()
+	if err != nil {
+		return "", err
+	}
+	detail, _, err := service.Lookup(name)
+	if err != nil {
+		return "", err
+	}
+	if detail.Runtime.ProcessCount == 0 {
+		return "not_running", nil
+	}
+	if r.noRestart || !r.item.Manifest.Package.Refresh.RestartRunningConsumers {
+		return "running_not_restarted", nil
+	}
+	if err := runner.Stop(name, lifecycle.StopOptions{}); err != nil {
+		return "", err
+	}
+	if _, err := service.StartDetailed(name, lifecycle.StartOptions{}); err != nil {
+		return "", err
+	}
+	return "restarted", nil
 }
 
 func (s Service) runLifecycle(name, action string) (RunResponse, error) {

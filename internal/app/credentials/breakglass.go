@@ -105,7 +105,7 @@ func (app *App) runBreakGlassCommandWithInput(ctx *CommandContext, args []string
 		if err != nil {
 			return err
 		}
-		ttl := tuning.CopyRetentionWindow
+		ttl := tuning.CopyRetentionWindow()
 		if raw := strings.TrimSpace(parsed.FlagValue("--ttl")); raw != "" {
 			ttl, err = time.ParseDuration(raw)
 			if err != nil || ttl <= 0 || ttl > time.Hour {

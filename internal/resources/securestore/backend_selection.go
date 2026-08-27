@@ -65,7 +65,7 @@ var backendSelectionPath = func() (string, error) {
 func SelectedBackend() (string, bool, error) {
 	path, err := backendSelectionPath()
 	if err != nil {
-		return "", false, err
+		return "", false, fmt.Errorf("resolve credential backend selection path: %w", err)
 	}
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -82,7 +82,7 @@ func SelectedBackend() (string, bool, error) {
 		return "", false, fmt.Errorf("credential backend selection version %d is unsupported", selection.Version)
 	}
 	if err := validateBackend(selection.Backend); err != nil {
-		return "", false, err
+		return "", false, fmt.Errorf("validate credential backend selection: %w", err)
 	}
 	return selection.Backend, true, nil
 }

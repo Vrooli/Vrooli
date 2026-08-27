@@ -411,7 +411,7 @@ func followScenarioLogFiles(w io.Writer, paths []string, initialLines int) error
 			}
 		}
 		if !progress {
-			time.Sleep(tuning.FastHealthPollInterval)
+			time.Sleep(tuning.FastHealthPollInterval())
 		}
 	}
 }

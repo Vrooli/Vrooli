@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vrooli/vrooli/internal/shell"
 	"github.com/vrooli/vrooli/internal/tuning"
 
 	"github.com/vrooli/vrooli/internal/hostinventory"
@@ -24,7 +25,7 @@ const keyringUnit = "gnome-keyring-daemon.service"
 // that is itself wedged must not convert a bounded repair into a hang — the
 // whole reason this ladder exists is that an unbounded probe was costing eight
 // seconds on every test run.
-const unitProbeTimeout = tuning.HealthCheckTimeout
+var unitProbeTimeout = tuning.HealthCheckTimeout()
 
 // reloadMargin is added to the unit's own stop timeout to get the restart
 // budget, and reloadFallback is used when that timeout cannot be read.
@@ -37,9 +38,9 @@ const unitProbeTimeout = tuning.HealthCheckTimeout
 // on to succeed in the background. Reporting a successful repair as a failure
 // is the same class of defect as the false green this ladder was built to
 // remove, so the budget follows the unit rather than a guess.
-const (
-	reloadMargin   = tuning.ReloadFallbackGracePeriod
-	reloadFallback = tuning.ExtendedOperationTimeout
+var (
+	reloadMargin   = tuning.ReloadFallbackGracePeriod()
+	reloadFallback = tuning.CredentialReloadFallbackDelay()
 )
 
 func platformReloadCredentialDaemon(ctx context.Context) ReloadOutcome {
@@ -73,9 +74,9 @@ func platformReloadCredentialDaemon(ctx context.Context) ReloadOutcome {
 
 	action := "systemctl --user restart " + keyringUnit
 	budget := reloadBudget(ctx)
-	runCtx, cancel := context.WithTimeout(ctx, budget)
+	runCtx, cancel := context.WithTimeout(ctx, tuning.CredentialReloadOperationTimeout(budget))
 	defer cancel()
-	cmd := exec.CommandContext(runCtx, "systemctl", "--user", "restart", keyringUnit)
+	cmd := shell.NewCommandContext(runCtx, "systemctl", "--user", "restart", keyringUnit)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		if runCtx.Err() != nil {
@@ -100,9 +101,9 @@ func platformReloadCredentialDaemon(ctx context.Context) ReloadOutcome {
 // It queries rather than assuming, because a host without GNOME Keyring is a
 // normal host and must not be told to restart a unit that does not exist.
 func keyringUnitPresent(ctx context.Context) (bool, string) {
-	probeCtx, cancel := context.WithTimeout(ctx, unitProbeTimeout)
+	probeCtx, cancel := context.WithTimeout(ctx, tuning.CredentialUnitProbeTimeout())
 	defer cancel()
-	cmd := exec.CommandContext(probeCtx, "systemctl", "--user", "list-unit-files", "--no-legend", keyringUnit)
+	cmd := shell.NewCommandContext(probeCtx, "systemctl", "--user", "list-unit-files", "--no-legend", keyringUnit)
 	output, err := cmd.Output()
 	if err != nil {
 		if probeCtx.Err() != nil {
@@ -119,9 +120,9 @@ func keyringUnitPresent(ctx context.Context) (bool, string) {
 // reloadBudget reads how long systemd will wait for the unit to stop before it
 // escalates to SIGKILL, and allows that plus a margin for the subsequent start.
 func reloadBudget(ctx context.Context) time.Duration {
-	probeCtx, cancel := context.WithTimeout(ctx, unitProbeTimeout)
+	probeCtx, cancel := context.WithTimeout(ctx, tuning.CredentialUnitProbeTimeout())
 	defer cancel()
-	output, err := exec.CommandContext(probeCtx, "systemctl", "--user", "show", keyringUnit, "-p", "TimeoutStopUSec", "--value").Output()
+	output, err := shell.NewCommandContext(probeCtx, "systemctl", "--user", "show", keyringUnit, "-p", "TimeoutStopUSec", "--value").Output()
 	if err != nil {
 		return reloadFallback
 	}

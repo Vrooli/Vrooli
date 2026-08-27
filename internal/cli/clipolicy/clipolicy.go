@@ -1,6 +1,7 @@
 package clipolicy
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"strings"
@@ -46,12 +47,22 @@ type commandError interface {
 }
 
 func NewErrorWithCategory(err error, category, hint string, suggestions []string) error {
-	return &vroolierr.Error{
-		Err:         err,
-		Category:    category,
-		Hint:        hint,
-		Suggestions: append([]string(nil), suggestions...),
+	code := "runtime_error"
+	switch category {
+	case ErrorCategoryUsage:
+		code = "usage_error"
+	case ErrorCategoryEnvironment:
+		code = "environment_error"
 	}
+	options := []vroolierr.Option{
+		vroolierr.WithHint(hint),
+		vroolierr.WithSuggestions(suggestions...),
+	}
+	var declaredExit interface{ ExitCode() int }
+	if !errors.As(err, &declaredExit) {
+		options = append(options, vroolierr.WithExitCode(1))
+	}
+	return vroolierr.Wrap(err, code, category, "", options...)
 }
 
 func UsageHint(helpTarget string) string {

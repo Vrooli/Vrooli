@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/vrooli/vrooli/internal/repocontractmeta"
+	"github.com/vrooli/vrooli/internal/scenario"
 )
 
 const (
@@ -22,19 +23,9 @@ const (
 // declarations are intentionally supplied by the caller because they require
 // durable evidence rather than a guess from a current directory scan.
 func DeclarationsFromRoot(root string) ([]Declaration, error) {
-	var service struct {
-		Dependencies struct {
-			Resources map[string]struct {
-				Enabled bool `json:"enabled"`
-			} `json:"resources"`
-		} `json:"dependencies"`
-	}
-	b, err := os.ReadFile(filepath.Join(root, repocontractmeta.ProjectConfigDir, "service.json"))
+	service, err := scenario.LoadServiceManifest(filepath.Join(root, repocontractmeta.ProjectConfigDir, "service.json"))
 	if err != nil {
 		return nil, fmt.Errorf("read enabled resource state: %w", err)
-	}
-	if err := json.Unmarshal(b, &service); err != nil {
-		return nil, fmt.Errorf("parse enabled resource state: %w", err)
 	}
 	var declarations []Declaration
 	for name, state := range service.Dependencies.Resources {

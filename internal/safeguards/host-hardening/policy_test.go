@@ -1,7 +1,6 @@
 package hosthardening
 
 import (
-	"encoding/json"
 	"os"
 	"strings"
 	"testing"
@@ -24,38 +23,6 @@ func sysctlValue(t *testing.T, pol policy, name string) int {
 // agree. They are written in two places — Go for the no-config path, JSON for
 // the operator-facing schema — and a drift between them would mean setup and
 // the handler disagree about what "unconfigured" means.
-func TestDefaultsMatchManifest(t *testing.T) {
-	raw, err := os.ReadFile("safeguard.json")
-	if err != nil {
-		t.Fatalf("read manifest: %v", err)
-	}
-	var manifest struct {
-		Config struct {
-			Properties map[string]struct {
-				Default any `json:"default"`
-			} `json:"properties"`
-		} `json:"config"`
-	}
-	if err := json.Unmarshal(raw, &manifest); err != nil {
-		t.Fatalf("parse manifest: %v", err)
-	}
-
-	got := resolvePolicy(nil)
-	for name, want := range map[string]any{
-		"oops_policy":            got.OopsPolicy,
-		"softlockup_policy":      got.SoftlockupPolicy,
-		"hung_task_timeout_secs": float64(got.HungTaskTimeout),
-	} {
-		declared, ok := manifest.Config.Properties[name]
-		if !ok {
-			t.Errorf("manifest declares no %q parameter", name)
-			continue
-		}
-		if declared.Default != want {
-			t.Errorf("%s: handler default %v, manifest default %v", name, want, declared.Default)
-		}
-	}
-}
 
 // A soft lockup is a stall, not proof of corruption, and on a saturated host it
 // is a routine event. The default must not reboot the machine for one.

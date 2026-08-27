@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/vrooli/vrooli/internal/cli/rootcli"
+	"github.com/vrooli/vrooli/internal/cli/rootcli/rootclitest"
 	"github.com/vrooli/vrooli/internal/cliout"
 	"github.com/vrooli/vrooli/internal/hostreqrun"
 	"github.com/vrooli/vrooli/internal/resources"
@@ -19,7 +20,7 @@ type testContext struct {
 	stderr *bytes.Buffer
 }
 
-func TestRootHandlerRendersHelpWithNoArgs(t *testing.T) {
+func TestConformance(t *testing.T) {
 	ctx := testContext{stdout: &bytes.Buffer{}, stderr: &bytes.Buffer{}}
 	handler := RootHandler(HandlerDeps[testContext]{
 		Stdout:  func(ctx testContext) io.Writer { return ctx.stdout },
@@ -30,12 +31,7 @@ func TestRootHandlerRendersHelpWithNoArgs(t *testing.T) {
 		},
 	})
 
-	if err := handler(ctx, nil); err != nil {
-		t.Fatalf("RootHandler() error = %v", err)
-	}
-	if got := ctx.stdout.String(); !strings.Contains(got, "vrooli resource") {
-		t.Fatalf("RootHandler() help missing resource usage: %q", got)
-	}
+	rootclitest.AssertHelpWithNoArgs(t, func() error { return handler(ctx, nil) }, ctx.stdout, "vrooli resource")
 }
 
 func TestEnforceResourceHostRequirementsSkipsNonMutatingActions(t *testing.T) {

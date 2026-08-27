@@ -5,8 +5,9 @@ package gpuaccess
 import (
 	"context"
 	"fmt"
-	"os/exec"
 	"strings"
+
+	"github.com/vrooli/vrooli/internal/shell"
 )
 
 type State string
@@ -51,5 +52,5 @@ func DefaultExec(ctx context.Context, container, probe string) ([]byte, error) {
 	if probe != "nvidia" {
 		return nil, fmt.Errorf("unsupported GPU probe %q", probe)
 	}
-	return exec.CommandContext(ctx, "docker", "exec", container, "sh", "-c", "exec 3<>/dev/nvidiactl && printf ok").CombinedOutput()
+	return shell.NewCommandContext(ctx, "docker", "exec", container, "sh", "-c", "exec 3<>/dev/nvidiactl && printf ok").CombinedOutput()
 }

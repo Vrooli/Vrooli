@@ -5,6 +5,7 @@ import (
 	"io"
 
 	contractapp "github.com/vrooli/vrooli/internal/app/contract"
+	"github.com/vrooli/vrooli/internal/buildinfo"
 	"github.com/vrooli/vrooli/internal/cli/commandtree"
 	"github.com/vrooli/vrooli/internal/cli/contractcli"
 	"github.com/vrooli/vrooli/internal/cli/rootcli"
@@ -113,13 +114,8 @@ func contractCommand[C any, Req any, Resp any](
 	after func(Resp) error,
 ) rootcli.Handler[C] {
 	return rootcli.BindService(deps.Stdout,
-		func(ctx C) (cliout.Format, C, error) {
-			format, err := deps.OutputFormat(ctx)
-			if err != nil {
-				return "", ctx, err
-			}
-			return format, ctx, nil
-		},
+		deps.OutputFormat,
+		func(ctx C, _ cliout.Format) (C, error) { return ctx, nil },
 		func(ctx C, args []string) (Req, error) {
 			req, err := parse(args)
 			if err != nil {
@@ -153,7 +149,7 @@ func rootError(err error) error {
 	return rootcli.NewErrorWithCategory(
 		fmt.Errorf("resolve repo contract root: %w", err),
 		rootcli.ErrorCategoryEnvironment,
-		"Run from a Vrooli repository descendant or set VROOLI_SOURCE_ROOT",
+		fmt.Sprintf("Run from a Vrooli repository descendant or set %s", buildinfo.SourceRootEnvVar),
 		nil,
 	)
 }

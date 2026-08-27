@@ -62,6 +62,11 @@ const (
 
 	// CanonicalBinSuffix is the home-relative canonical CLI directory.
 	CanonicalBinSuffix = ".vrooli/bin"
+
+	// CanonicalShimSuffix is the home-relative coding-agent shim directory. It
+	// must precede CanonicalBinSuffix, and both must precede the agents' own
+	// install directories, or the shims are installed correctly and never run.
+	CanonicalShimSuffix = ".vrooli/shims"
 )
 
 // ManagedBlock is the exact text written between the markers.
@@ -74,36 +79,50 @@ const ManagedBlock = BeginMarker + `
 # Managed by the vrooli path_hygiene safeguard -- do not edit between the
 # markers; "vrooli setup" rewrites this block in place.
 #
-# Ensures ~/.vrooli/bin appears exactly once and FIRST. Presence alone is
-# not enough: ~/.profile sources ~/.bashrc before making its own PATH
-# edits, so an "add if missing" guard would leave $GOPATH/bin ahead of the
-# canonical CLI and a stale "go install" copy would win. Stripping then
-# prepending makes the result independent of what other startup files do
-# afterwards.
+# Ensures the Vrooli directories appear exactly once, first, and in order:
+# shims before bin, so a coding-agent alias is reached before any other copy
+# of that agent. Presence alone is not enough: ~/.profile sources ~/.bashrc
+# before making its own PATH edits, so an "add if missing" guard would leave
+# $GOPATH/bin ahead of the canonical CLI and a stale "go install" copy would
+# win. Stripping then prepending makes the result independent of what other
+# startup files do afterwards.
+#
+# Pure POSIX parameter expansion, no subprocesses: this runs on every shell
+# startup, so a tr/grep/paste pipeline would put three forks in the
+# interactive path.
+vrooli_shims="$HOME/` + CanonicalShimSuffix + `"
 vrooli_bin="$HOME/` + CanonicalBinSuffix + `"
-if [ -d "$vrooli_bin" ]; then
-    vrooli_p=":$PATH:"
+vrooli_p=":$PATH:"
+for vrooli_d in "$vrooli_shims" "$vrooli_bin"; do
     while :; do
         case "$vrooli_p" in
-            *":$vrooli_bin:"*)
-                vrooli_p="${vrooli_p%%":$vrooli_bin:"*}:${vrooli_p#*":$vrooli_bin:"}" ;;
+            *":$vrooli_d:"*)
+                vrooli_p="${vrooli_p%%":$vrooli_d:"*}:${vrooli_p#*":$vrooli_d:"}" ;;
             *) break ;;
         esac
     done
-    vrooli_p="${vrooli_p#:}"
-    vrooli_p="${vrooli_p%:}"
-    PATH="$vrooli_bin${vrooli_p:+:$vrooli_p}"
-    export PATH
-    unset vrooli_p
+done
+vrooli_p="${vrooli_p#:}"
+vrooli_p="${vrooli_p%:}"
+vrooli_head=""
+if [ -d "$vrooli_shims" ]; then
+    vrooli_head="$vrooli_shims"
 fi
-unset vrooli_bin
+if [ -d "$vrooli_bin" ]; then
+    vrooli_head="${vrooli_head:+$vrooli_head:}$vrooli_bin"
+fi
+if [ -n "$vrooli_head" ]; then
+    PATH="$vrooli_head${vrooli_p:+:$vrooli_p}"
+    export PATH
+fi
+unset vrooli_p vrooli_d vrooli_head vrooli_shims vrooli_bin
 ` + EndMarker
 
 // legacyLine matches an unguarded PATH assignment referencing the
 // canonical directory, in any of the forms the retired installers wrote:
 // appended or prepended, $HOME-relative or absolute, with or without
 // `export`.
-var legacyLine = regexp.MustCompile(`^\s*(export\s+)?PATH=.*\.vrooli/bin.*$`)
+var legacyLine = regexp.MustCompile(`^\s*(export\s+)?PATH=.*\.vrooli/(bin|shims).*$`)
 
 // installerCaption matches the comment an installer wrote directly above
 // its PATH line ("# Vrooli CLI tools", "# Added by scenario-to-android",

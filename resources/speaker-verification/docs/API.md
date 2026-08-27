@@ -66,7 +66,7 @@ handled by the ffmpeg path.
 
 **GET** `/ready`
 
-Liveness/readiness probe. Backs the compose healthcheck.
+Liveness/readiness probe used by the managed-service lifecycle.
 
 ```json
 {

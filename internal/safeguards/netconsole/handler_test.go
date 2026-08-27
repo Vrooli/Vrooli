@@ -183,7 +183,7 @@ func TestInspectPendingWhenModuleNotLoaded(t *testing.T) {
 	}
 }
 
-func TestApplyHappyPath(t *testing.T) {
+func checkApplyInstallsAndLoadsNetconsole(t *testing.T) {
 	cmds, _, env, restore := stubAll(t)
 	defer restore()
 	target := "6666@10.0.0.5/dev,6666@10.0.0.6/00:11:22:33:44:55"

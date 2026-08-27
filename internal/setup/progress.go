@@ -242,11 +242,11 @@ func newProgressCoordinator(w io.Writer, opts progressOptions) *progressCoordina
 	}
 	first := opts.FirstHeartbeat
 	if first <= 0 {
-		first = tuning.ControlPlaneClientTimeout
+		first = tuning.ControlPlaneClientTimeout()
 	}
 	every := opts.HeartbeatEvery
 	if every <= 0 {
-		every = tuning.StandardOperationTimeout
+		every = tuning.SetupProgressObservationInterval()
 	}
 	format := strings.ToLower(strings.TrimSpace(os.Getenv("VROOLI_SETUP_PROGRESS_FORMAT")))
 	jsonOutput := opts.JSON || format == string(logx.FormatJSON) || format == "ndjson"
@@ -416,7 +416,7 @@ func renderActiveSetupState(w io.Writer, path string, now time.Time) {
 		age = 0
 	}
 	status := state.Status
-	if status == "running" && age > tuning.LongOperationTimeout && !processIdentityAlive(state.PID, state.Host) {
+	if status == "running" && age > tuning.SetupProgressStaleThreshold() && !processIdentityAlive(state.PID, state.Host) {
 		status = "possibly stale"
 	}
 	_, _ = fmt.Fprintf(w, "[INFO]    Last setup run: %s (%s, updated %s ago)\n", state.RunID, status, formatDuration(age))

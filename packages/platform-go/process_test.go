@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"testing"
+	"time"
 )
 
 func TestProcessWorkingDir_CurrentProcess(t *testing.T) {
@@ -31,12 +32,22 @@ func TestProcessHasChildren_ReportsStartedChild(t *testing.T) {
 	}
 	t.Cleanup(func() { _ = child.Process.Kill(); _ = child.Wait() })
 
-	got, err := ProcessHasChildren(os.Getpid())
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !got {
-		t.Fatal("ProcessHasChildren reported false while sleep child was running")
+	// The kernel updates /proc asynchronously. Give heavily loaded CI hosts
+	// enough time to publish the child relationship without weakening the
+	// contract being tested.
+	deadline := time.Now().Add(2 * time.Second)
+	for {
+		got, err := ProcessHasChildren(os.Getpid())
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got {
+			return
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("ProcessHasChildren reported false while sleep child was running")
+		}
+		time.Sleep(time.Millisecond)
 	}
 }
 

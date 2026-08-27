@@ -223,7 +223,6 @@ type PortReclaimCandidate struct {
 	PID      int
 }
 
-//nolint:gocyclo // cleanup distinguishes every registry ownership and freshness outcome before mutation.
 func expireNonAuthoritativeRegistryState(ctx context.Context, store runtimeMaintenanceStore) ([]control.ResultItem, []PortReclaimCandidate, error) {
 	host, err := hostsession.DefaultProvider{}.Current(ctx, "")
 	if err != nil {
@@ -233,9 +232,6 @@ func expireNonAuthoritativeRegistryState(ctx context.Context, store runtimeMaint
 	if err != nil {
 		return nil, nil, err
 	}
-	stopped := make([]control.ResultItem, 0)
-	var reclaim []PortReclaimCandidate
-	pidRunning := newPIDLivenessMemo(processIsRunning)
 	// Gather all store state FIRST, then capture listener evidence: this path
 	// EXPIRES claims on known-absent listeners, so evidence captured before a
 	// claim was read could wrongly expire a port bound in between. One
@@ -247,66 +243,23 @@ func expireNonAuthoritativeRegistryState(ctx context.Context, store runtimeMaint
 	if err != nil {
 		return nil, nil, err
 	}
-	claimsByInstance := make(map[string][]scenarioruntime.PortClaim, len(instances))
+	cleanup := registryCleanup{ctx: ctx, store: store, pidRunning: newPIDLivenessMemo(processIsRunning)}
+	cleanup.claimsByInstance = make(map[string][]scenarioruntime.PortClaim, len(instances))
 	for _, claim := range activeClaims {
-		claimsByInstance[claim.InstanceID] = append(claimsByInstance[claim.InstanceID], claim)
+		cleanup.claimsByInstance[claim.InstanceID] = append(cleanup.claimsByInstance[claim.InstanceID], claim)
 	}
 	instanceIDs := make([]string, 0, len(instances))
 	for _, instance := range instances {
 		instanceIDs = append(instanceIDs, instance.InstanceID)
 	}
-	refsByInstance, err := store.ListProcessRefsForInstances(ctx, instanceIDs)
+	cleanup.refsByInstance, err = store.ListProcessRefsForInstances(ctx, instanceIDs)
 	if err != nil {
 		return nil, nil, err
 	}
-	listenerSnapshot := captureListenerSnapshotFn()
+	cleanup.listenerSnapshot = captureListenerSnapshotFn()
 	for _, instance := range instances {
-		claims := claimsByInstance[instance.InstanceID]
-		refs := refsByInstance[instance.InstanceID]
-		reconciled := scenarioruntime.ReconcileRuntime(scenarioruntime.ReconcileInput{
-			Now:           time.Now().UTC(),
-			CurrentBootID: host.BootID,
-			Instance:      instance,
-			Claims:        claims,
-			ProcessRefs:   refs,
-			Processes:     scenarioruntime.ProcessEvidenceFromRefs(refs, pidRunning),
-			Listeners:     runtimeListenerEvidence(listenerSnapshot, claims, refs),
-		})
-		if reconciled.Classification == scenarioruntime.ReconcileUnverified {
-			continue
-		}
-		if reconciled.Authoritative {
-			for _, claim := range reconciled.Claims {
-				if claim.Authoritative || claim.Claim.Status != scenarioruntime.ClaimStatusBound {
-					continue
-				}
-				if _, err := store.ExpirePortClaim(ctx, claim.Claim.ClaimID); err != nil && !errors.Is(err, scenarioruntime.ErrNotFound) {
-					return nil, nil, err
-				}
-				stopped = append(stopped, control.Stopped(strconv.Itoa(claim.Claim.Port), "Expired non-authoritative registry claim "+claim.Claim.ClaimID))
-			}
-			continue
-		}
-		if _, err := store.ExpireInstance(ctx, instance.InstanceID, reconciled.Reason); err != nil && !errors.Is(err, scenarioruntime.ErrNotFound) {
+		if err := cleanup.expireInstance(host.BootID, instance); err != nil {
 			return nil, nil, err
-		}
-		stopped = append(stopped, control.Stopped(instance.Scenario+"/"+instance.InstanceID, "Expired non-authoritative registry instance: "+reconciled.Reason))
-		for _, claim := range claims {
-			if _, err := store.ExpirePortClaim(ctx, claim.ClaimID); err != nil && !errors.Is(err, scenarioruntime.ErrNotFound) {
-				return nil, nil, err
-			}
-			stopped = append(stopped, control.Stopped(strconv.Itoa(claim.Port), "Expired non-authoritative registry claim "+claim.ClaimID))
-			// The registry record is gone, but a leaked process from this dead
-			// instance may still hold the OS port. Record each live listener on the
-			// just-released port as a reclaim candidate; the caller evicts only the
-			// ones it can confirm are stale Vrooli orphans from this install.
-			if claim.Port > 0 {
-				for _, listener := range listenerSnapshot.Listening(claim.Port).Listeners {
-					if listener.PID > 0 {
-						reclaim = append(reclaim, PortReclaimCandidate{Scenario: instance.Scenario, Port: claim.Port, PID: listener.PID})
-					}
-				}
-			}
 		}
 	}
 
@@ -314,54 +267,122 @@ func expireNonAuthoritativeRegistryState(ctx context.Context, store runtimeMaint
 	// the active statuses (unclean stop, crash, reaped lease). Such claims are
 	// invisible to the active-instance walk above, so without this pass they
 	// accumulate forever and no cleanup can ever expire them.
-	activeInstanceIDs := make(map[string]struct{}, len(instances))
+	if err := cleanup.expireOrphanClaims(instances, activeClaims); err != nil {
+		return nil, nil, err
+	}
+	return cleanup.stopped, cleanup.reclaim, nil
+}
+
+type registryCleanup struct {
+	ctx              context.Context
+	store            runtimeMaintenanceStore
+	listenerSnapshot network.TCPListenerSnapshot
+	pidRunning       func(int) bool
+	claimsByInstance map[string][]scenarioruntime.PortClaim
+	refsByInstance   map[string][]scenarioruntime.ProcessRef
+	stopped          []control.ResultItem
+	reclaim          []PortReclaimCandidate
+}
+
+func (c *registryCleanup) expireInstance(bootID string, instance scenarioruntime.Instance) error {
+	claims := c.claimsByInstance[instance.InstanceID]
+	refs := c.refsByInstance[instance.InstanceID]
+	reconciled := scenarioruntime.ReconcileRuntime(scenarioruntime.ReconcileInput{Now: time.Now().UTC(), CurrentBootID: bootID, Instance: instance, Claims: claims, ProcessRefs: refs, Processes: scenarioruntime.ProcessEvidenceFromRefs(refs, c.pidRunning), Listeners: runtimeListenerEvidence(c.listenerSnapshot, claims, refs)})
+	if reconciled.Classification == scenarioruntime.ReconcileUnverified {
+		return nil
+	}
+	if reconciled.Authoritative {
+		return c.expireNonAuthoritativeClaims(reconciled.Claims)
+	}
+	if _, err := c.store.ExpireInstance(c.ctx, instance.InstanceID, reconciled.Reason); err != nil && !errors.Is(err, scenarioruntime.ErrNotFound) {
+		return err
+	}
+	c.stopped = append(c.stopped, control.Stopped(instance.Scenario+"/"+instance.InstanceID, "Expired non-authoritative registry instance: "+reconciled.Reason))
+	for _, claim := range claims {
+		if err := c.expireInstanceClaim(instance.Scenario, claim); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (c *registryCleanup) expireNonAuthoritativeClaims(claims []scenarioruntime.ReconciledClaim) error {
+	for _, claim := range claims {
+		if claim.Authoritative || claim.Claim.Status != scenarioruntime.ClaimStatusBound {
+			continue
+		}
+		if _, err := c.store.ExpirePortClaim(c.ctx, claim.Claim.ClaimID); err != nil && !errors.Is(err, scenarioruntime.ErrNotFound) {
+			return err
+		}
+		c.stopped = append(c.stopped, control.Stopped(strconv.Itoa(claim.Claim.Port), "Expired non-authoritative registry claim "+claim.Claim.ClaimID))
+	}
+	return nil
+}
+
+func (c *registryCleanup) expireInstanceClaim(scenarioName string, claim scenarioruntime.PortClaim) error {
+	if _, err := c.store.ExpirePortClaim(c.ctx, claim.ClaimID); err != nil && !errors.Is(err, scenarioruntime.ErrNotFound) {
+		return err
+	}
+	c.stopped = append(c.stopped, control.Stopped(strconv.Itoa(claim.Port), "Expired non-authoritative registry claim "+claim.ClaimID))
+	if claim.Port > 0 {
+		for _, listener := range c.listenerSnapshot.Listening(claim.Port).Listeners {
+			if listener.PID > 0 {
+				c.reclaim = append(c.reclaim, PortReclaimCandidate{Scenario: scenarioName, Port: claim.Port, PID: listener.PID})
+			}
+		}
+	}
+	return nil
+}
+
+func (c *registryCleanup) expireOrphanClaims(instances []scenarioruntime.Instance, claims []scenarioruntime.PortClaim) error {
+	activeIDs := make(map[string]struct{}, len(instances))
 	for _, instance := range instances {
-		activeInstanceIDs[instance.InstanceID] = struct{}{}
+		activeIDs[instance.InstanceID] = struct{}{}
 	}
-	orphanIDs := make([]string, 0)
-	orphanSeen := make(map[string]struct{})
-	for _, claim := range activeClaims {
-		if _, ok := activeInstanceIDs[claim.InstanceID]; ok {
+	orphanIDs := orphanInstanceIDs(activeIDs, claims)
+	if len(orphanIDs) == 0 {
+		return nil
+	}
+	current, err := c.store.GetInstances(c.ctx, orphanIDs)
+	if err != nil {
+		return err
+	}
+	for _, claim := range claims {
+		if !claimIsOrphaned(activeIDs, current, claim) {
 			continue
 		}
-		if _, ok := orphanSeen[claim.InstanceID]; ok {
+		if _, err := c.store.ExpirePortClaim(c.ctx, claim.ClaimID); err != nil && !errors.Is(err, scenarioruntime.ErrNotFound) {
+			return err
+		}
+		c.stopped = append(c.stopped, control.Stopped(strconv.Itoa(claim.Port), "Expired orphaned registry claim "+claim.ClaimID+" (instance no longer active)"))
+	}
+	return nil
+}
+
+func orphanInstanceIDs(active map[string]struct{}, claims []scenarioruntime.PortClaim) []string {
+	seen := make(map[string]struct{})
+	var ids []string
+	for _, claim := range claims {
+		if _, ok := active[claim.InstanceID]; ok {
 			continue
 		}
-		orphanSeen[claim.InstanceID] = struct{}{}
-		orphanIDs = append(orphanIDs, claim.InstanceID)
-	}
-	if len(orphanIDs) > 0 {
-		// Re-read the candidate instances: one may have become active between
-		// the ListInstances and ListPortClaims queries above, and expiring a
-		// claim that just went live would break its scenario. Only instances in
-		// a TERMINAL status (or gone from the store) orphan their claims —
-		// "stopping" is in-flight: the graceful stop path releases its own
-		// claims, and stuck stops belong to finalizeStuckStoppingInstances.
-		currentInstances, err := store.GetInstances(ctx, orphanIDs)
-		if err != nil {
-			return nil, nil, err
-		}
-		terminalStatuses := map[string]struct{}{
-			scenarioruntime.StatusStopped: {},
-			scenarioruntime.StatusFailed:  {},
-			scenarioruntime.StatusExpired: {},
-		}
-		for _, claim := range activeClaims {
-			if _, ok := activeInstanceIDs[claim.InstanceID]; ok {
-				continue
-			}
-			if instance, ok := currentInstances[claim.InstanceID]; ok {
-				if _, terminal := terminalStatuses[instance.Status]; !terminal {
-					continue
-				}
-			}
-			if _, err := store.ExpirePortClaim(ctx, claim.ClaimID); err != nil && !errors.Is(err, scenarioruntime.ErrNotFound) {
-				return nil, nil, err
-			}
-			stopped = append(stopped, control.Stopped(strconv.Itoa(claim.Port), "Expired orphaned registry claim "+claim.ClaimID+" (instance no longer active)"))
+		if _, ok := seen[claim.InstanceID]; !ok {
+			seen[claim.InstanceID] = struct{}{}
+			ids = append(ids, claim.InstanceID)
 		}
 	}
-	return stopped, reclaim, nil
+	return ids
+}
+
+func claimIsOrphaned(active map[string]struct{}, current map[string]scenarioruntime.Instance, claim scenarioruntime.PortClaim) bool {
+	if _, ok := active[claim.InstanceID]; ok {
+		return false
+	}
+	instance, ok := current[claim.InstanceID]
+	if !ok {
+		return true
+	}
+	return instance.Status == scenarioruntime.StatusStopped || instance.Status == scenarioruntime.StatusFailed || instance.Status == scenarioruntime.StatusExpired
 }
 
 // finalizeStuckStoppingInstances finalizes runtime_instances rows that got

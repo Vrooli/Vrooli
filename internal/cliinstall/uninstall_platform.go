@@ -4,13 +4,13 @@ import (
 	"encoding/hex"
 	"fmt"
 	"os"
-	"os/exec"
 	"os/user"
 	"path/filepath"
 	"runtime"
 	"strings"
 
 	"github.com/vrooli/vrooli/internal/repocontractmeta"
+	"github.com/vrooli/vrooli/internal/shell"
 )
 
 const (
@@ -95,7 +95,7 @@ func currentUserID() string {
 }
 
 func runNativeServiceCommand(name string, args ...string) error {
-	cmd := exec.Command(name, args...)
+	cmd := shell.NewCommand(name, args...)
 	if output, err := cmd.CombinedOutput(); err != nil {
 
 		if strings.Contains(strings.ToLower(string(output)), "not found") || strings.Contains(strings.ToLower(string(output)), "no such process") {

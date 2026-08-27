@@ -19,6 +19,7 @@ require (
 	github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec // indirect
 	github.com/vrooli/api-core v0.0.0 // indirect
 	github.com/vrooli/binaryfetch v0.0.0 // indirect
+	github.com/vrooli/cliresolve v0.0.0 // indirect
 	github.com/vrooli/envkit-go v0.0.0 // indirect
 	github.com/vrooli/platform-go v0.0.0 // indirect
 	github.com/vrooli/vrooli v0.0.0 // indirect
@@ -64,3 +65,7 @@ replace github.com/vrooli/vrooli-cli-go => ../../../packages/vrooli-cli-go
 replace github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime => ../../scenario-to-desktop/runtime
 
 replace github.com/vrooli/envkit-go => ../../../packages/envkit-go
+
+replace github.com/vrooli/cliresolve => ../../../packages/cliresolve
+
+replace github.com/vrooli/nodeclient => ../../../packages/nodeclient

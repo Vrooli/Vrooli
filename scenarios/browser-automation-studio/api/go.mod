@@ -7,7 +7,7 @@ require (
 	github.com/Masterminds/semver/v3 v3.4.0
 	github.com/go-chi/chi/v5 v5.0.11
 	github.com/google/uuid v1.6.0
-	github.com/gorilla/websocket v1.5.1
+	github.com/gorilla/websocket v1.5.3
 	github.com/jmoiron/sqlx v1.3.5
 	github.com/minio/minio-go/v7 v7.0.66
 	github.com/robfig/cron/v3 v3.0.1
@@ -37,6 +37,7 @@ replace github.com/vrooli/scenarioconfig-go => ../../../packages/scenarioconfig-
 require (
 	github.com/vrooli/binaryfetch v0.0.0 // indirect
 	github.com/vrooli/cli-core v0.0.0 // indirect
+	github.com/vrooli/cliresolve v0.0.0 // indirect
 	github.com/vrooli/platform-go v0.0.0 // indirect
 )
 
@@ -127,3 +128,7 @@ replace github.com/vrooli/platform-go => ../../../packages/platform-go
 replace github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime => ../../scenario-to-desktop/runtime
 
 replace github.com/vrooli/envkit-go => ../../../packages/envkit-go
+
+replace github.com/vrooli/cliresolve => ../../../packages/cliresolve
+
+replace github.com/vrooli/nodeclient => ../../../packages/nodeclient

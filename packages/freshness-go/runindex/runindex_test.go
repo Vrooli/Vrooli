@@ -1,6 +1,8 @@
 package runindex
 
 import (
+	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -8,12 +10,41 @@ import (
 )
 
 func TestLoadMissingIndexIsEmptyNotError(t *testing.T) {
-	records, err := Load(t.TempDir())
+	records, err := Load(filepath.Join(t.TempDir(), "missing-index.json"))
 	if err != nil {
 		t.Fatalf("missing index: %v", err)
 	}
 	if records != nil {
 		t.Fatalf("missing index should yield nil records, got %v", records)
+	}
+}
+
+func BenchmarkLoad(b *testing.B) {
+	dir := b.TempDir()
+	indexPath := filepath.Join(dir, "runs.index.json")
+	records := make([]RunRecord, 250)
+	for i := range records {
+		records[i] = RunRecord{
+			RunID:     fmt.Sprintf("20260827-%06d-benchmark", i),
+			Scenario:  "demo",
+			StartedAt: time.Unix(int64(i), 0).UTC(),
+			Status:    StatusPassed,
+			Phases:    []PhaseRecord{{Name: "unit", Status: "passed"}, {Name: "docs", Status: "passed"}},
+		}
+	}
+	payload, err := json.Marshal(records)
+	if err != nil {
+		b.Fatal(err)
+	}
+	if err := os.WriteFile(indexPath, payload, 0o644); err != nil {
+		b.Fatal(err)
+	}
+	b.SetBytes(int64(len(payload)))
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		if _, err := Load(indexPath); err != nil {
+			b.Fatal(err)
+		}
 	}
 }
 
@@ -27,11 +58,12 @@ func TestLoadSortsNewestFirst(t *testing.T) {
   {"run_id": "20260603-000000-cccccccc", "scenario": "demo", "started_at": "2026-06-03T00:00:00Z", "status": "passed", "diagnostics": {}},
   {"run_id": "20260602-000000-bbbbbbbb", "scenario": "demo", "started_at": "2026-06-02T00:00:00Z", "status": "failed", "diagnostics": {}}
 ]`
-	if err := os.WriteFile(IndexPath(dir), []byte(index), 0o644); err != nil {
+	indexPath := filepath.Join(dir, "coverage", "runs.index.json")
+	if err := os.WriteFile(indexPath, []byte(index), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
-	records, err := Load(dir)
+	records, err := Load(indexPath)
 	if err != nil {
 		t.Fatalf("load: %v", err)
 	}
@@ -51,10 +83,11 @@ func TestLoadMalformedIndexErrors(t *testing.T) {
 	if err := os.MkdirAll(filepath.Join(dir, "coverage"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(IndexPath(dir), []byte("{not json"), 0o644); err != nil {
+	indexPath := filepath.Join(dir, "coverage", "runs.index.json")
+	if err := os.WriteFile(indexPath, []byte("{not json"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := Load(dir); err == nil {
+	if _, err := Load(indexPath); err == nil {
 		t.Fatal("malformed index must error, not silently yield zero records")
 	}
 }

@@ -191,12 +191,12 @@ func TestWithLifecycleFailureBlockWrapsErrorAsSilent(t *testing.T) {
 		newFailureDeps(home),
 		"start",
 		func(req string) []string { return []string{req} },
-		func(ctx *failureCtx, req string) (cliout.Format, []LifecycleItemOutput, error) {
-			return cliout.FormatHuman, nil, errors.New("boom")
+		func(ctx *failureCtx, _ cliout.Format, req string) ([]LifecycleItemOutput, error) {
+			return nil, errors.New("boom")
 		},
 	)
 
-	_, _, err := call(ctx, "alpha")
+	_, err := call(ctx, cliout.FormatHuman, "alpha")
 	if err == nil {
 		t.Fatal("expected error propagation")
 	}
@@ -216,17 +216,14 @@ func TestWithLifecycleFailureBlockPassesThroughSuccess(t *testing.T) {
 		newFailureDeps(t.TempDir()),
 		"start",
 		func(req string) []string { return []string{req} },
-		func(ctx *failureCtx, req string) (cliout.Format, []LifecycleItemOutput, error) {
-			return cliout.FormatHuman, wantItems, nil
+		func(ctx *failureCtx, _ cliout.Format, req string) ([]LifecycleItemOutput, error) {
+			return wantItems, nil
 		},
 	)
 
-	format, items, err := call(ctx, "alpha")
+	items, err := call(ctx, cliout.FormatHuman, "alpha")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
-	}
-	if format != cliout.FormatHuman {
-		t.Fatalf("format = %q", format)
 	}
 	if len(items) != 1 || items[0].Name != "alpha" {
 		t.Fatalf("items = %+v", items)

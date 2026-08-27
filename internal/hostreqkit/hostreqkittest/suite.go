@@ -6,11 +6,13 @@ package hostreqkittest
 import (
 	"encoding/json"
 	"os"
+	"reflect"
 	"strings"
 	"testing"
 
 	"github.com/vrooli/vrooli/internal/hostreqkit"
 	"github.com/vrooli/vrooli/internal/hostreqspec"
+	"github.com/vrooli/vrooli/internal/testenv"
 )
 
 // LoadToolManifest loads the manifest owned by a manifest-only tool package.
@@ -73,6 +75,50 @@ func RunSafeguardSuite(t *testing.T, name string, newHandler func() hostreqkit.H
 	})
 }
 
+// APTRepoToolCase assembles the common platform matrix for tools installed
+// from a vendor APT repository. Package adapters supply only manifest data and
+// the seams that are genuinely package-owned.
+func APTRepoToolCase(
+	newHandler func() hostreqkit.Handler,
+	manifest hostreqkit.ToolManifest,
+	installCommand string,
+	toolBinary string,
+	versionOutput string,
+	aptRepo *APTRepoCase,
+	extraChecks ...string,
+) Case {
+	checks := []string{
+		"name_and_kind",
+		"inspect_manual_requirement",
+		"apply_manual_returns_early",
+		"apply_unsupported_returns_early",
+		"inspect_linux_apt_not_installed",
+		"inspect_linux_apt_installed",
+		"inspect_darwin_brew",
+		"inspect_windows_winget",
+		"inspect_unsupported_configuration",
+		"apply_installed_skips",
+		"apply_linux_apt_dry_run",
+		"apply_darwin_brew_flow",
+		"apply_default_fallback_unsupported",
+		"apply_linux_apt_full_flow",
+		"apply_linux_key_download_failure",
+	}
+	checks = append(checks, extraChecks...)
+	return Case{
+		NewHandler:         newHandler,
+		Name:               manifest.Name,
+		Kind:               hostreqspec.KindTool,
+		SupportedPlatforms: manifest.Platforms,
+		InstallCommand:     installCommand,
+		ToolBinary:         toolBinary,
+		PackageNames:       manifest.Packages,
+		VersionOutput:      versionOutput,
+		APTRepo:            aptRepo,
+		Checks:             checks,
+	}
+}
+
 // Case describes the stable contract shared by a host requirement handler.
 type Case struct {
 	NewHandler         func() hostreqkit.Handler
@@ -81,9 +127,49 @@ type Case struct {
 	SupportedPlatforms []string
 	InstallCommand     string
 	DryRunNotes        []string
+	ToolBinary         string
+	PackageNames       map[string]string
+	VersionOutput      string
+	ManifestVersion    string
+	DefaultVersion     string
+	APTRepo            *APTRepoCase
+	ManifestDefaults   *ManifestDefaultsCase
+	PackageChecks      []PackageCheck
 	// Checks limits a package adapter to the stamped rules it actually owns.
 	// An empty list runs the complete shared suite.
 	Checks []string
+}
+
+// PackageCheck preserves a package-specific behavior that is not shared with
+// enough handlers to belong in the common matrix. RunSuite still owns its
+// registration and stable subtest identity.
+type PackageCheck struct {
+	Name string
+	Run  func(*testing.T)
+}
+
+// ManifestDefaultsCase declares the shared invariant between a safeguard's
+// JSON schema and the defaults used by its handler.
+type ManifestDefaultsCase struct {
+	Load      func() (map[string]ManifestProperty, error)
+	Required  []string
+	Forbidden []string
+	Expected  map[string]any
+}
+
+// ManifestProperty is the portion of a config property needed by the shared
+// manifest-default check.
+type ManifestProperty struct {
+	Default any `json:"default"`
+}
+
+// APTRepoCase carries the two package-owned seams needed by repository-backed
+// APT installers. The behavior and assertions remain in the shared suite.
+type APTRepoCase struct {
+	Setup          func() func()
+	SetKeyDownload func(func() ([]byte, error))
+	MinCommands    int
+	SudoMode       string
 }
 
 type suiteT interface {
@@ -102,6 +188,14 @@ func (t realT) Run(name string, f func(suiteT)) bool {
 func RunSuite(t *testing.T, c Case) {
 	t.Helper()
 	runSuite(realT{t}, c)
+	for _, check := range c.PackageChecks {
+		check := check
+		if strings.TrimSpace(check.Name) == "" || check.Run == nil {
+			t.Errorf("package check requires a name and runner")
+			continue
+		}
+		t.Run(check.Name, check.Run)
+	}
 }
 
 //nolint:gocyclo // the requirement test harness reports setup, observation, remediation, and verification phases.
@@ -149,6 +243,122 @@ func runSuite(t suiteT, c Case) {
 		})
 	}
 
+	if enabled(c, "inspect_linux_apt_not_installed") {
+		t.Run("inspect_linux_apt_not_installed", func(t suiteT) {
+			original := hostreqkit.LookPathFn
+			hostreqkit.LookPathFn = func(string) (string, error) { return "", os.ErrNotExist }
+			status := c.NewHandler().Inspect(hostreqkit.Host{OS: "linux", PackageManager: "apt-get", SupportsSysctl: true}, BaseRequirement(c))
+			hostreqkit.LookPathFn = original
+			if status.SupportClass != hostreqkit.SupportSupported {
+				t.Errorf("SupportClass = %q, want %q", status.SupportClass, hostreqkit.SupportSupported)
+			}
+			if !status.InstallSupported {
+				t.Errorf("InstallSupported = false, want true")
+			}
+			if status.PackageName != c.Name {
+				t.Errorf("PackageName = %q, want %q", status.PackageName, c.Name)
+			}
+			if status.Installed {
+				t.Errorf("Installed = true, want false")
+			}
+		})
+	}
+
+	if enabled(c, "inspect_linux_apt_installed") {
+		t.Run("inspect_linux_apt_installed", func(t suiteT) {
+			originalLookPath := hostreqkit.LookPathFn
+			originalOutput := hostreqkit.CombinedOutputFn
+			binary := firstNonEmpty(c.ToolBinary, c.Name)
+			hostreqkit.LookPathFn = func(name string) (string, error) {
+				if name == binary {
+					return "/usr/bin/" + binary, nil
+				}
+				return "", os.ErrNotExist
+			}
+			hostreqkit.CombinedOutputFn = func(string, ...string) ([]byte, error) { return []byte(c.VersionOutput), nil }
+			status := c.NewHandler().Inspect(hostreqkit.Host{OS: "linux", PackageManager: "apt", SupportsSysctl: true}, BaseRequirement(c))
+			hostreqkit.LookPathFn = originalLookPath
+			hostreqkit.CombinedOutputFn = originalOutput
+			if !status.Installed {
+				t.Errorf("Installed = false, want true")
+			}
+			if status.ExecutionState != hostreqkit.ExecutionAlreadyPresent {
+				t.Errorf("ExecutionState = %q, want %q", status.ExecutionState, hostreqkit.ExecutionAlreadyPresent)
+			}
+			if want := strings.TrimSpace(c.VersionOutput); status.Version != want {
+				t.Errorf("Version = %q, want %q", status.Version, want)
+			}
+		})
+	}
+
+	if enabled(c, "inspect_darwin_brew") {
+		runPackageInspection(t, c, "inspect_darwin_brew", hostreqkit.Host{OS: "darwin", PackageManager: "brew"}, "brew")
+	}
+	if enabled(c, "inspect_windows_winget") {
+		runPackageInspection(t, c, "inspect_windows_winget", hostreqkit.Host{OS: "windows", PackageManager: "winget"}, "winget")
+	}
+	if enabled(c, "inspect_unsupported_configuration") {
+		t.Run("inspect_unsupported_configuration", func(t suiteT) {
+			original := hostreqkit.LookPathFn
+			hostreqkit.LookPathFn = func(string) (string, error) { return "", os.ErrNotExist }
+			status := c.NewHandler().Inspect(hostreqkit.Host{OS: "linux", PackageManager: "dnf", SupportsSysctl: true}, BaseRequirement(c))
+			hostreqkit.LookPathFn = original
+			if status.SupportClass != hostreqkit.SupportUnsupported {
+				t.Errorf("SupportClass = %q, want %q", status.SupportClass, hostreqkit.SupportUnsupported)
+			}
+		})
+	}
+	if enabled(c, "inspect_no_sysctl_not_applicable") {
+		t.Run("inspect_no_sysctl_not_applicable", func(t suiteT) {
+			host := LinuxHost()
+			host.SupportsSysctl = false
+			status := c.NewHandler().Inspect(host, BaseRequirement(c))
+			if status.SupportClass != hostreqkit.SupportNotApplicable {
+				t.Errorf("SupportClass = %q, want %q", status.SupportClass, hostreqkit.SupportNotApplicable)
+			}
+		})
+	}
+	if enabled(c, "pinned_version_matches_manifest") {
+		t.Run("pinned_version_matches_manifest", func(t suiteT) {
+			if c.ManifestVersion != c.DefaultVersion {
+				t.Errorf("manifest version %q, default version %q", c.ManifestVersion, c.DefaultVersion)
+			}
+		})
+	}
+	if enabled(c, "defaults_match_manifest") {
+		t.Run("defaults_match_manifest", func(t suiteT) {
+			if c.ManifestDefaults == nil || c.ManifestDefaults.Load == nil {
+				t.Errorf("ManifestDefaults configuration is incomplete")
+				return
+			}
+			properties, err := c.ManifestDefaults.Load()
+			if err != nil {
+				t.Errorf("load manifest defaults: %v", err)
+				return
+			}
+			for _, name := range c.ManifestDefaults.Required {
+				if _, ok := properties[name]; !ok {
+					t.Errorf("manifest declares no %q property", name)
+				}
+			}
+			for _, name := range c.ManifestDefaults.Forbidden {
+				if _, ok := properties[name]; ok {
+					t.Errorf("obsolete manifest property remains: %s", name)
+				}
+			}
+			for name, want := range c.ManifestDefaults.Expected {
+				property, ok := properties[name]
+				if !ok {
+					t.Errorf("manifest declares no %q property", name)
+					continue
+				}
+				if !reflect.DeepEqual(property.Default, want) {
+					t.Errorf("%s: manifest default %v, want %v", name, property.Default, want)
+				}
+			}
+		})
+	}
+
 	if enabled(c, "apply_unsupported_returns_early") {
 		t.Run("apply_unsupported_returns_early", func(t suiteT) {
 			h := c.NewHandler()
@@ -188,6 +398,134 @@ func runSuite(t suiteT, c Case) {
 		})
 	}
 
+	if enabled(c, "apply_installed_skips") {
+		t.Run("apply_installed_skips", func(t suiteT) {
+			status, err := c.NewHandler().Apply(LinuxHost(), hostreqkit.ItemStatus{Installed: true}, hostreqkit.EnsureOptions{})
+			if err != nil {
+				t.Errorf("Apply() error = %v", err)
+			}
+			if status.ExecutionState != hostreqkit.ExecutionAlreadyPresent {
+				t.Errorf("ExecutionState = %q, want %q", status.ExecutionState, hostreqkit.ExecutionAlreadyPresent)
+			}
+		})
+	}
+
+	if enabled(c, "apply_not_applicable_returns_early") {
+		t.Run("apply_not_applicable_returns_early", func(t suiteT) {
+			status, err := c.NewHandler().Apply(LinuxHost(), hostreqkit.ItemStatus{SupportClass: hostreqkit.SupportNotApplicable}, hostreqkit.EnsureOptions{})
+			if err != nil {
+				t.Errorf("Apply() error = %v", err)
+			}
+			if status.ExecutionState != hostreqkit.ExecutionNotApplicable {
+				t.Errorf("ExecutionState = %q, want %q", status.ExecutionState, hostreqkit.ExecutionNotApplicable)
+			}
+		})
+	}
+
+	if enabled(c, "apply_linux_apt_dry_run") {
+		t.Run("apply_linux_apt_dry_run", func(t suiteT) {
+			status, err := c.NewHandler().Apply(hostreqkit.Host{OS: "linux", PackageManager: "apt-get"}, hostreqkit.ItemStatus{SupportClass: hostreqkit.SupportSupported}, hostreqkit.EnsureOptions{DryRun: true})
+			if err != nil {
+				t.Errorf("Apply() error = %v", err)
+			}
+			if status.ExecutionState != hostreqkit.ExecutionWouldInstall {
+				t.Errorf("ExecutionState = %q, want %q", status.ExecutionState, hostreqkit.ExecutionWouldInstall)
+			}
+		})
+	}
+
+	if enabled(c, "apply_darwin_brew_flow") {
+		runAPTRepoCheck(t, c, "apply_darwin_brew_flow", func(t suiteT, cluster *APTRepoCase) {
+			var commands []string
+			binary := firstNonEmpty(c.ToolBinary, c.Name)
+			hostreqkit.LookPathFn = func(name string) (string, error) {
+				if name == binary && len(commands) > 0 {
+					return "/usr/local/bin/" + binary, nil
+				}
+				return "", os.ErrNotExist
+			}
+			hostreqkit.RunCommandFn = func(name string, args []string, _ hostreqkit.EnsureOptions) error {
+				commands = append(commands, name+" "+strings.Join(args, " "))
+				return nil
+			}
+			hostreqkit.CombinedOutputFn = func(string, ...string) ([]byte, error) { return []byte(c.VersionOutput), nil }
+			status, err := c.NewHandler().Apply(hostreqkit.Host{OS: "darwin", PackageManager: "brew"}, hostreqkit.ItemStatus{SupportClass: hostreqkit.SupportSupported}, hostreqkit.EnsureOptions{AutoInstall: true})
+			if err != nil {
+				t.Errorf("Apply() error = %v", err)
+			}
+			if status.ExecutionState != hostreqkit.ExecutionInstalled {
+				t.Errorf("ExecutionState = %q, want %q", status.ExecutionState, hostreqkit.ExecutionInstalled)
+			}
+			if len(commands) != 1 || !strings.Contains(commands[0], "brew install") {
+				t.Errorf("brew commands = %v, want one install", commands)
+			}
+		})
+	}
+
+	if enabled(c, "apply_default_fallback_unsupported") {
+		runAPTRepoCheck(t, c, "apply_default_fallback_unsupported", func(t suiteT, _ *APTRepoCase) {
+			status, err := c.NewHandler().Apply(hostreqkit.Host{OS: "linux", PackageManager: "dnf"}, hostreqkit.ItemStatus{SupportClass: hostreqkit.SupportSupported}, hostreqkit.EnsureOptions{AutoInstall: true})
+			if err != nil {
+				t.Errorf("Apply() error = %v", err)
+			}
+			if status.SupportClass != hostreqkit.SupportUnsupported {
+				t.Errorf("SupportClass = %q, want %q", status.SupportClass, hostreqkit.SupportUnsupported)
+			}
+		})
+	}
+
+	if enabled(c, "apply_linux_apt_full_flow") {
+		runAPTRepoCheck(t, c, "apply_linux_apt_full_flow", func(t suiteT, cluster *APTRepoCase) {
+			var commands []string
+			binary := firstNonEmpty(c.ToolBinary, c.Name)
+			hostreqkit.LookPathFn = func(name string) (string, error) {
+				if name == "gpg" || name == "sudo" {
+					return "/usr/bin/" + name, nil
+				}
+				if name == binary && len(commands) > 0 {
+					return "/usr/bin/" + binary, nil
+				}
+				return "", os.ErrNotExist
+			}
+			hostreqkit.RunCommandFn = func(name string, args []string, _ hostreqkit.EnsureOptions) error {
+				commands = append(commands, name+" "+strings.Join(args, " "))
+				return nil
+			}
+			hostreqkit.CombinedOutputFn = func(string, ...string) ([]byte, error) { return []byte(c.VersionOutput), nil }
+			cluster.SetKeyDownload(func() ([]byte, error) { return []byte("fixture-gpg-key"), nil })
+			sudoMode := firstNonEmpty(cluster.SudoMode, "skip")
+			status, err := c.NewHandler().Apply(hostreqkit.Host{OS: "linux", PackageManager: "apt-get"}, hostreqkit.ItemStatus{SupportClass: hostreqkit.SupportSupported}, hostreqkit.EnsureOptions{AutoInstall: true, SudoMode: sudoMode})
+			if err != nil {
+				t.Errorf("Apply() error = %v", err)
+			}
+			if status.ExecutionState != hostreqkit.ExecutionInstalled {
+				t.Errorf("ExecutionState = %q, want %q; notes=%v", status.ExecutionState, hostreqkit.ExecutionInstalled, status.Notes)
+			}
+			if len(commands) < cluster.MinCommands {
+				t.Errorf("commands = %v, want at least %d", commands, cluster.MinCommands)
+			}
+		})
+	}
+
+	if enabled(c, "apply_linux_key_download_failure") {
+		runAPTRepoCheck(t, c, "apply_linux_key_download_failure", func(t suiteT, cluster *APTRepoCase) {
+			hostreqkit.LookPathFn = func(name string) (string, error) {
+				if name == "gpg" {
+					return "/usr/bin/gpg", nil
+				}
+				return "", os.ErrNotExist
+			}
+			cluster.SetKeyDownload(func() ([]byte, error) { return nil, os.ErrPermission })
+			status, err := c.NewHandler().Apply(hostreqkit.Host{OS: "linux", PackageManager: "apt"}, hostreqkit.ItemStatus{SupportClass: hostreqkit.SupportSupported}, hostreqkit.EnsureOptions{AutoInstall: true, SudoMode: "skip"})
+			if err != nil {
+				t.Errorf("Apply() error = %v", err)
+			}
+			if status.ExecutionState != hostreqkit.ExecutionFailed {
+				t.Errorf("ExecutionState = %q, want %q", status.ExecutionState, hostreqkit.ExecutionFailed)
+			}
+		})
+	}
+
 	if enabled(c, "apply_dry_run") {
 		t.Run("apply_dry_run", func(t suiteT) {
 			h := c.NewHandler()
@@ -204,6 +542,64 @@ func runSuite(t suiteT, c Case) {
 			}
 		})
 	}
+}
+
+func runAPTRepoCheck(t suiteT, c Case, name string, check func(suiteT, *APTRepoCase)) {
+	t.Run(name, func(t suiteT) {
+		if c.APTRepo == nil || c.APTRepo.Setup == nil || c.APTRepo.SetKeyDownload == nil {
+			t.Errorf("APTRepo configuration is incomplete")
+			return
+		}
+		restore := c.APTRepo.Setup()
+		defer restore()
+		check(t, c.APTRepo)
+	})
+}
+
+func runPackageInspection(t suiteT, c Case, check string, host hostreqkit.Host, packageKey string) {
+	t.Run(check, func(t suiteT) {
+		original := hostreqkit.LookPathFn
+		hostreqkit.LookPathFn = func(string) (string, error) { return "", os.ErrNotExist }
+		host.SupportsSysctl = true
+		status := c.NewHandler().Inspect(host, BaseRequirement(c))
+		hostreqkit.LookPathFn = original
+		if status.SupportClass != hostreqkit.SupportSupported {
+			t.Errorf("SupportClass = %q, want %q", status.SupportClass, hostreqkit.SupportSupported)
+		}
+		if !status.InstallSupported {
+			t.Errorf("InstallSupported = false, want true")
+		}
+		if want := c.PackageNames[packageKey]; status.PackageName != want {
+			t.Errorf("PackageName = %q, want %q", status.PackageName, want)
+		}
+	})
+}
+
+func firstNonEmpty(values ...string) string {
+	for _, value := range values {
+		if strings.TrimSpace(value) != "" {
+			return value
+		}
+	}
+	return ""
+}
+
+// LoadManifestProperties decodes the shared config.properties shape from a
+// safeguard manifest while tolerating unrelated and future fields.
+func LoadManifestProperties(path string) (map[string]ManifestProperty, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+	var manifest struct {
+		Config struct {
+			Properties map[string]ManifestProperty `json:"properties"`
+		} `json:"config"`
+	}
+	if err := json.Unmarshal(data, &manifest); err != nil {
+		return nil, err
+	}
+	return manifest.Config.Properties, nil
 }
 
 func enabled(c Case, check string) bool {
@@ -251,10 +647,9 @@ func StubInvokingUser(t *testing.T) (string, func()) {
 	origReadFile := hostreqkit.ReadFileFn
 	origRoot := hostreqkit.RunningAsRootFn
 
-	tmp := t.TempDir()
+	tmp := testenv.RuntimeHome(t)
 	hostreqkit.RunningAsRootFn = func() bool { return false }
-	t.Setenv("USER", "alice")
-	t.Setenv("HOME", tmp)
+	testenv.AsCurrentUser(t, "alice")
 	hostreqkit.ReadFileFn = func(path string) ([]byte, error) {
 		if path == "/etc/passwd" {
 			return []byte("alice:x:1000:1000:Alice:" + tmp + ":/bin/sh\n"), nil

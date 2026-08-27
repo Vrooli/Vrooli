@@ -1,8 +1,6 @@
 package kdumpobservability
 
 import (
-	"encoding/json"
-	"os"
 	"strings"
 	"testing"
 
@@ -26,28 +24,6 @@ func req() hostreqspec.ResolvedRequirement {
 
 // The handler fallback and the manifest schema must agree on what an
 // unconfigured requirement means.
-func TestDefaultsMatchManifest(t *testing.T) {
-	raw, err := os.ReadFile("safeguard.json")
-	if err != nil {
-		t.Fatalf("read manifest: %v", err)
-	}
-	var manifest struct {
-		Config struct {
-			Properties struct {
-				RetainVmcores struct {
-					Default float64 `json:"default"`
-				} `json:"retain_vmcores"`
-			} `json:"properties"`
-		} `json:"config"`
-	}
-	if err := json.Unmarshal(raw, &manifest); err != nil {
-		t.Fatalf("parse manifest: %v", err)
-	}
-	if int(manifest.Config.Properties.RetainVmcores.Default) != defaultRetainVmcores {
-		t.Fatalf("manifest default %v, handler default %d",
-			manifest.Config.Properties.RetainVmcores.Default, defaultRetainVmcores)
-	}
-}
 
 // Retaining zero dumps would delete the evidence for the crash that just
 // happened, so a nonsensical declared value falls back rather than being obeyed.

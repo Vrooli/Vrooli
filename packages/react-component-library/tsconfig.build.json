@@ -21,6 +21,7 @@
       "react": ["../../scenarios/react-component-library/ui/node_modules/@types/react"],
       "react/*": ["../../scenarios/react-component-library/ui/node_modules/@types/react/*"],
       "react/jsx-runtime": ["../../scenarios/react-component-library/ui/node_modules/@types/react/jsx-runtime.d.ts"],
+      "react-dom": ["../../scenarios/react-component-library/ui/node_modules/@types/react-dom/index.d.ts"],
       "lucide-react": ["../../scenarios/react-component-library/ui/node_modules/lucide-react"],
       "clsx": ["../../scenarios/react-component-library/ui/node_modules/clsx"],
       "tailwind-merge": ["../../scenarios/react-component-library/ui/node_modules/tailwind-merge"],

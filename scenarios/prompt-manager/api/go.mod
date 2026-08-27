@@ -20,6 +20,8 @@ require (
 	modernc.org/sqlite v1.50.1
 )
 
+require github.com/vrooli/platform-go v0.0.0 // indirect
+
 require (
 	buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go v1.36.11-20251209175733-2a1774d88802.1 // indirect
 	github.com/vrooli/envkit-go v0.0.0 // indirect

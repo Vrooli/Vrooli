@@ -6,6 +6,7 @@ import (
 
 	"github.com/vrooli/vrooli/internal/hostreqkit"
 	"github.com/vrooli/vrooli/internal/hostreqspec"
+	"github.com/vrooli/vrooli/internal/testenv"
 )
 
 func tpmRequirement() hostreqspec.ResolvedRequirement {
@@ -45,7 +46,7 @@ func TestTPMAccessDecisionMatrix(t *testing.T) {
 }
 
 func TestTPMAccessApplyUsesPrivilegedGroupGrant(t *testing.T) {
-	t.Setenv("USER", "fixture-operator")
+	testenv.AsCurrentUser(t, "fixture-operator")
 	originalDevice, originalGroup, originalRun := grantableDeviceFn, accountInGroupFn, hostreqkit.RunCommandFn
 	t.Cleanup(func() {
 		grantableDeviceFn, accountInGroupFn, hostreqkit.RunCommandFn = originalDevice, originalGroup, originalRun

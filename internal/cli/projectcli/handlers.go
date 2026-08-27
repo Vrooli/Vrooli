@@ -232,12 +232,9 @@ func projectServiceCommand[C any, Req any, Resp any](
 	render func(io.Writer, cliout.Format, Resp) error,
 ) rootcli.Handler[C] {
 	return rootcli.BindService(stdout,
-		func(ctx C) (cliout.Format, func(Req) (Resp, error), error) {
-			format, err := outputFormat(ctx)
-			if err != nil {
-				return "", nil, err
-			}
-			return format, func(req Req) (Resp, error) { return call(ctx, req) }, nil
+		outputFormat,
+		func(ctx C, _ cliout.Format) (func(Req) (Resp, error), error) {
+			return func(req Req) (Resp, error) { return call(ctx, req) }, nil
 		},
 		parse,
 		func(call func(Req) (Resp, error), req Req) (Resp, error) { return call(req) },

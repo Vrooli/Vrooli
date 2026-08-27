@@ -76,7 +76,7 @@ func (defaultProbe) Run(ctx context.Context, name string, args ...string) ([]byt
 	if err != nil {
 		return nil, err
 	}
-	return exec.CommandContext(ctx, path, args...).Output()
+	return shell.NewCommandContext(ctx, path, args...).Output()
 }
 
 func Detect(ctx context.Context) Capability { return DetectWith(ctx, defaultProbe{}) }
@@ -88,7 +88,7 @@ func DetectWith(ctx context.Context, p Probe) Capability {
 	if p == nil {
 		p = defaultProbe{}
 	}
-	ctx, cancel := context.WithTimeout(ctx, tuning.ShortOperationDeadline)
+	ctx, cancel := context.WithTimeout(ctx, tuning.HostPresentationCommandTimeout())
 	defer cancel()
 	return detectWithOS(ctx, p, runtime.GOOS)
 }
@@ -240,7 +240,7 @@ func degraded(kind Kind, reason string, evidence []string) Capability {
 }
 
 func probeRun(ctx context.Context, p Probe, name string, args ...string) ([]byte, error) {
-	probeCtx, cancel := context.WithTimeout(ctx, tuning.HostPresentationProbeTimeout)
+	probeCtx, cancel := context.WithTimeout(ctx, tuning.HostPresentationProbeTimeout())
 	defer cancel()
 	return p.Run(probeCtx, name, args...)
 }

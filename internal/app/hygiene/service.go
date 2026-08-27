@@ -4,11 +4,11 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"regexp"
 	"strings"
 
+	"github.com/vrooli/vrooli/internal/shell"
 	"github.com/vrooli/vrooli/internal/tidinessprovider"
 	"github.com/vrooli/vrooli/internal/tuning"
 )
@@ -83,7 +83,7 @@ func (s Service) planProvider() Provider {
 	reconciler := s.PlanReconciler
 	var reconcileErr error
 	if reconciler == nil {
-		ctx, cancel := context.WithTimeout(context.Background(), tuning.HealthCheckTimeout)
+		ctx, cancel := context.WithTimeout(context.Background(), tuning.HealthCheckTimeout())
 		defer cancel()
 		if resolved, err := NewDefaultPlanReconciler(ctx); err == nil {
 			reconciler = resolved
@@ -163,7 +163,7 @@ func DetectPlanCandidates(root string) ([]PlanCandidate, error) {
 
 func gitStatuses(root string) map[string]string {
 	out := map[string]string{}
-	cmd := exec.Command("git", "status", "--porcelain=v1", "--untracked-files=all")
+	cmd := shell.NewCommand("git", "status", "--porcelain=v1", "--untracked-files=all")
 	cmd.Dir = root
 	data, err := cmd.Output()
 	if err == nil {

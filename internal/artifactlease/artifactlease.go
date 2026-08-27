@@ -65,7 +65,7 @@ const Schema = "vrooli.artifact-lease/1"
 // test run, or scenario regeneration under concurrent agents, and the cost is
 // only disk. The backlog that motivated this work was roughly 2GB against 436GB
 // free, so the conservative direction is close to free.
-const DefaultGrace = tuning.DailyRetentionWindow
+var DefaultGrace = tuning.DailyRetentionWindow()
 
 // MinObservations is how many independent sightings of an absence are required
 // before it may be acted on. One observation is a sample; two separated by the

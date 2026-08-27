@@ -18,8 +18,6 @@ const (
 	remoteDesktopParameterA = 3
 )
 
-const remoteDesktopProbeTimeout = tuning.ServiceHealthTimeout
-
 // RemoteDesktopCommandRunner is the minimal command seam needed by the
 // shared provider classifier. It intentionally has no path lookup or mutation
 // operations.
@@ -59,71 +57,80 @@ func classifyRemoteDesktopWithDisplay(ctx context.Context, osName string, system
 	return classifyRemoteDesktopWithDisplayAndUser(ctx, osName, systemd, displayAttached, "", commands)
 }
 
-//nolint:gocyclo // desktop classification is a finite provider/display/user state matrix.
 func classifyRemoteDesktopWithDisplayAndUser(ctx context.Context, osName string, systemd, displayAttached bool, sessionUser string, commands RemoteDesktopCommandRunner) RemoteDesktopCapability {
 	osName = strings.ToLower(strings.TrimSpace(osName))
-	hostOS := hostreqspec.PlatformFromGOOS(osName)
-	providers := make([]RemoteDesktopProvider, 0, remoteDesktopParameterA)
-	switch hostOS {
+	var providers []RemoteDesktopProvider
+	probe := remoteDesktopProbe{ctx: ctx, systemd: systemd, displayAttached: displayAttached, sessionUser: sessionUser, commands: commands}
+	switch hostreqspec.PlatformFromGOOS(osName) {
 	case hostreqspec.PlatformLinux:
-		daemonSystem, daemonUser := daemonModes(ctx, commands)
-		var systemEnabled, systemActive string
-		if systemd {
-			systemEnabled = boundedValue(ctx, commands, "systemctl", "is-enabled", "gnome-remote-desktop.service")
-			systemActive = boundedValue(ctx, commands, "systemctl", "is-active", "gnome-remote-desktop.service")
-			providers = append(providers, RemoteDesktopProvider{
-				Name:           "gnome-system",
-				Present:        systemEnabled == "enabled" || systemEnabled == "static" || systemActive == remoteDesktopActive || daemonSystem,
-				Active:         systemActive == remoteDesktopActive || daemonSystem,
-				ProbeSucceeded: systemEnabled != "" || systemActive != "" || daemonSystem || daemonUser,
-			})
-		}
-		userEnabled, userActive := userUnitState(ctx, commands, sessionUser)
-		output, err := remoteDesktopStatus(ctx, commands, sessionUser)
-		statusEnabled := err == nil && strings.Contains(string(output), "Status: enabled")
-		gnomeHeadless := RemoteDesktopProvider{
-			Name:           "gnome-headless",
-			Present:        (statusEnabled && (userEnabled || userActive || daemonUser || strings.TrimSpace(sessionUser) == "")) || userActive || daemonUser,
-			ProbeSucceeded: err == nil,
-			UserSession:    true,
-		}
-		if gnomeHeadless.Present && displayAttached && !strings.Contains(strings.ToLower(string(output)), "headless: true") {
-			gnomeHeadless.Name = "gnome-user-shared"
-		}
-		if gnomeHeadless.Present {
-			gnomeHeadless.Active = userActive || daemonUser
-		}
-		providers = append(providers, gnomeHeadless)
-		xrdpPresent := false
-		if systemd {
-			output, err = boundedCommand(ctx, commands, "systemctl", "list-unit-files", "xrdp.service")
-			xrdpPresent = err == nil && strings.Contains(string(output), "xrdp.service")
-		}
-		providers = append(providers, RemoteDesktopProvider{
-			Name:           "xrdp",
-			Present:        xrdpPresent,
-			Active:         xrdpPresent && boundedValue(ctx, commands, "systemctl", "is-active", "xrdp.service") == remoteDesktopActive,
-			ProbeSucceeded: xrdpPresent,
-		})
+		providers = probe.linuxProviders()
 	case hostreqspec.PlatformWindows:
-		output, err := boundedCommand(ctx, commands, "sc.exe", "query", "TermService")
-		text := string(output)
-		providers = append(providers, RemoteDesktopProvider{
-			Name:           "windows-termservice",
-			Present:        err == nil && strings.Contains(text, "TermService"),
-			Active:         err == nil && strings.Contains(text, "RUNNING"),
-			ProbeSucceeded: err == nil,
-		})
+		providers = windowsRemoteDesktopProviders(ctx, commands)
 	case hostreqspec.PlatformMacOS:
-		_, err := boundedCommand(ctx, commands, "launchctl", "print", "system/com.apple.screensharing")
-		providers = append(providers, RemoteDesktopProvider{
-			Name:           "macos-screen-sharing",
-			Present:        err == nil,
-			Active:         err == nil,
-			ProbeSucceeded: err == nil,
-		})
+		providers = macOSRemoteDesktopProviders(ctx, commands)
 	}
+	return summarizeRemoteDesktopProviders(providers)
+}
 
+type remoteDesktopProbe struct {
+	ctx             context.Context
+	systemd         bool
+	displayAttached bool
+	sessionUser     string
+	commands        RemoteDesktopCommandRunner
+}
+
+func (p remoteDesktopProbe) linuxProviders() []RemoteDesktopProvider {
+	providers := make([]RemoteDesktopProvider, 0, remoteDesktopParameterA)
+	daemonSystem, daemonUser := daemonModes(p.ctx, p.commands)
+	if p.systemd {
+		providers = append(providers, p.gnomeSystem(daemonSystem, daemonUser))
+	}
+	providers = append(providers, p.gnomeUser(daemonUser))
+	return append(providers, p.xrdp())
+}
+
+func (p remoteDesktopProbe) gnomeSystem(daemonSystem, daemonUser bool) RemoteDesktopProvider {
+	systemEnabled := boundedValue(p.ctx, p.commands, "systemctl", "is-enabled", "gnome-remote-desktop.service")
+	systemActive := boundedValue(p.ctx, p.commands, "systemctl", "is-active", "gnome-remote-desktop.service")
+	return RemoteDesktopProvider{Name: "gnome-system", Present: systemEnabled == "enabled" || systemEnabled == "static" || systemActive == remoteDesktopActive || daemonSystem, Active: systemActive == remoteDesktopActive || daemonSystem, ProbeSucceeded: systemEnabled != "" || systemActive != "" || daemonSystem || daemonUser}
+}
+
+func (p remoteDesktopProbe) gnomeUser(daemonUser bool) RemoteDesktopProvider {
+	userEnabled, userActive := userUnitState(p.ctx, p.commands, p.sessionUser)
+	output, err := remoteDesktopStatus(p.ctx, p.commands, p.sessionUser)
+	statusEnabled := err == nil && strings.Contains(string(output), "Status: enabled")
+	gnome := RemoteDesktopProvider{Name: "gnome-headless", Present: (statusEnabled && (userEnabled || userActive || daemonUser || strings.TrimSpace(p.sessionUser) == "")) || userActive || daemonUser, ProbeSucceeded: err == nil, UserSession: true}
+	if gnome.Present && p.displayAttached && !strings.Contains(strings.ToLower(string(output)), "headless: true") {
+		gnome.Name = "gnome-user-shared"
+	}
+	if gnome.Present {
+		gnome.Active = userActive || daemonUser
+	}
+	return gnome
+}
+
+func (p remoteDesktopProbe) xrdp() RemoteDesktopProvider {
+	xrdpPresent := false
+	if p.systemd {
+		output, err := boundedCommand(p.ctx, p.commands, "systemctl", "list-unit-files", "xrdp.service")
+		xrdpPresent = err == nil && strings.Contains(string(output), "xrdp.service")
+	}
+	return RemoteDesktopProvider{Name: "xrdp", Present: xrdpPresent, Active: xrdpPresent && boundedValue(p.ctx, p.commands, "systemctl", "is-active", "xrdp.service") == remoteDesktopActive, ProbeSucceeded: xrdpPresent}
+}
+
+func windowsRemoteDesktopProviders(ctx context.Context, commands RemoteDesktopCommandRunner) []RemoteDesktopProvider {
+	output, err := boundedCommand(ctx, commands, "sc.exe", "query", "TermService")
+	text := string(output)
+	return []RemoteDesktopProvider{{Name: "windows-termservice", Present: err == nil && strings.Contains(text, "TermService"), Active: err == nil && strings.Contains(text, "RUNNING"), ProbeSucceeded: err == nil}}
+}
+
+func macOSRemoteDesktopProviders(ctx context.Context, commands RemoteDesktopCommandRunner) []RemoteDesktopProvider {
+	_, err := boundedCommand(ctx, commands, "launchctl", "print", "system/com.apple.screensharing")
+	return []RemoteDesktopProvider{{Name: "macos-screen-sharing", Present: err == nil, Active: err == nil, ProbeSucceeded: err == nil}}
+}
+
+func summarizeRemoteDesktopProviders(providers []RemoteDesktopProvider) RemoteDesktopCapability {
 	capability := RemoteDesktopCapability{Providers: providers}
 	for _, provider := range providers {
 		if provider.Present {
@@ -224,7 +231,7 @@ func remoteDesktopMode(provider string) string {
 }
 
 func boundedCommand(parent context.Context, commands RemoteDesktopCommandRunner, name string, args ...string) ([]byte, error) {
-	ctx, cancel := context.WithTimeout(parent, remoteDesktopProbeTimeout)
+	ctx, cancel := context.WithTimeout(parent, tuning.RemoteDesktopProbeTimeout())
 	defer cancel()
 	return commands.Run(ctx, name, args...)
 }

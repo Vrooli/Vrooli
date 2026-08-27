@@ -42,16 +42,13 @@ func buildCommandTable[C any](deps HandlerDeps[C]) []commandtree.Spec[rootcli.Ha
 
 func statusHandler[C any](deps HandlerDeps[C]) rootcli.Handler[C] {
 	return rootcli.BindService(deps.Stdout,
-		func(ctx C) (cliout.Format, statusService, error) {
+		deps.OutputFormat,
+		func(ctx C, _ cliout.Format) (statusService, error) {
 			probes := authapp.DefaultProbes()
 			if deps.Probes != nil {
 				probes = deps.Probes(ctx)
 			}
-			format, err := deps.OutputFormat(ctx)
-			if err != nil {
-				return "", statusService{}, err
-			}
-			return format, statusService{probes: probes}, nil
+			return statusService{probes: probes}, nil
 		},
 		func(ctx C, args []string) (authcli.StatusRequest, error) {
 			return authcli.ParseStatusRequest(args)

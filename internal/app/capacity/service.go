@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vrooli/vrooli/internal/buildinfo"
 	engine "github.com/vrooli/vrooli/internal/capacity"
 	"github.com/vrooli/vrooli/internal/repocontractmeta"
 )
@@ -39,7 +40,7 @@ type Service struct {
 	Clock func() time.Time
 	// SourceRoot is the Vrooli source root used to resolve a resource's declared
 	// capacity block for claim-on-observe adoption (§Phase 6). Empty falls back to
-	// the VROOLI_SOURCE_ROOT env the CLI sets; when neither resolves, adoption is a
+	// the canonical source-root resolver; when neither resolves, adoption is a
 	// no-op (the maintenance pass remains the always-on adoption driver).
 	SourceRoot string
 }
@@ -48,7 +49,13 @@ func (s Service) sourceRoot() string {
 	if strings.TrimSpace(s.SourceRoot) != "" {
 		return s.SourceRoot
 	}
-	return strings.TrimSpace(os.Getenv("VROOLI_SOURCE_ROOT"))
+	root, err := buildinfo.ResolveSourceRoot()
+	if err != nil {
+		// Source-root discovery is optional for claim adoption; failure preserves
+		// the existing no-op behavior while using the canonical resolver.
+		return ""
+	}
+	return root
 }
 
 func (s Service) now() time.Time {

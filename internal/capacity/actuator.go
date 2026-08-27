@@ -5,9 +5,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"os/exec"
 	"strings"
 	"time"
+
+	"github.com/vrooli/vrooli/internal/shell"
 )
 
 // ApplyExecutor is the injectable seam over running an adopter's degrade verb
@@ -342,7 +343,7 @@ func (e CmdExecutor) Apply(ctx context.Context, owner, verb string, argv []strin
 	if e.RunFn != nil {
 		return e.RunFn(ctx, name, args...)
 	}
-	cmd := exec.CommandContext(ctx, name, args...)
+	cmd := shell.NewCommandContext(ctx, name, args...)
 	var out bytes.Buffer
 	cmd.Stdout = &out
 	cmd.Stderr = &out

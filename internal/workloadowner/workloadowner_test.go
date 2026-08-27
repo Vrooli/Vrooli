@@ -1,6 +1,35 @@
 package workloadowner
 
-import "testing"
+import (
+	"path/filepath"
+	"testing"
+
+	testkitgo "github.com/vrooli/repo-contract-go/repocontracttest"
+)
+
+func TestDeclarationsFromRootToleratesUnknownServiceManifestFields(t *testing.T) {
+	root := t.TempDir()
+	testkitgo.WriteFile(t, filepath.Join(root, ".vrooli", "service.json"), `{
+  "dependencies": {"resources": {"postgres": {
+    "enabled": true,
+    "future_dependency_field": {"mode": "new"}
+  }}},
+  "future_manifest_field": 2
+}`)
+	testkitgo.WriteFile(t, filepath.Join(root, "resources", "postgres", "resource.json"), `{
+  "name": "postgres",
+  "driver": "docker-service",
+  "runtime": {"container_name": "postgres-main"}
+}`)
+
+	declarations, err := DeclarationsFromRoot(root)
+	if err != nil {
+		t.Fatalf("DeclarationsFromRoot: %v", err)
+	}
+	if len(declarations) == 0 || declarations[0].Name != "postgres-main" {
+		t.Fatalf("declarations = %+v", declarations)
+	}
+}
 
 func TestPostureChangesReportingNotClassification(t *testing.T) {
 	observed := []Workload{{Kind: "container", Name: "airbyte-abctl-control-plane", CommandLine: "/sbin/init", Running: true}, {Kind: "container", Name: "operator-container", CommandLine: "private command", Running: true}, {Kind: "container", Name: "personal-container", CommandLine: "secret command", Running: true}}

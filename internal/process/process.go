@@ -362,7 +362,7 @@ func humanDuration(duration time.Duration) string {
 	switch {
 	case duration < time.Hour:
 		return fmt.Sprintf("%.0fm", duration.Minutes())
-	case duration < tuning.DailyRetentionWindow:
+	case duration < tuning.DailyRetentionWindow():
 		return fmt.Sprintf("%.1fh", duration.Hours())
 	default:
 		return fmt.Sprintf("%.1fd", duration.Hours()/processParameterB)

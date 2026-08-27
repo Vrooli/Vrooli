@@ -304,7 +304,7 @@ func computeBinarySignature(scenarioDir string) (string, int, error) {
 			if os.IsNotExist(err) {
 				continue
 			}
-			return "", 0, err
+			return "", 0, fmt.Errorf("read scenario binary directory %q: %w", base, err)
 		}
 		for _, e := range entries {
 			if e.IsDir() {

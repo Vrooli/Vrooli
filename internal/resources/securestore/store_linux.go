@@ -11,6 +11,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/vrooli/vrooli/internal/shell"
 	"github.com/vrooli/vrooli/internal/tuning"
 )
 
@@ -43,14 +44,14 @@ func (*secretToolStore) AdapterName() string { return "libsecret" }
 // A failure here is recoverable and an operator can see it. A hang is neither,
 // and it takes autoheal down with it, since a supervisor that blocks on a
 // credential read cannot repair the thing that is blocking it.
-const secretToolTimeout = tuning.CredentialServiceTimeout
+var secretToolTimeout = tuning.CredentialServiceTimeout()
 
 var collectionPathPattern = regexp.MustCompile(`/org/freedesktop/secrets/collection/[A-Za-z0-9_.-]+`)
 
 // runSecretServiceCommand is the command seam shared by the collection health
 // probe and its tests. It uses gdbus instead of adding a D-Bus library.
 var runSecretServiceCommand = func(ctx context.Context, args ...string) (string, string, error) {
-	cmd := exec.CommandContext(ctx, "gdbus", args...)
+	cmd := shell.NewCommandContext(ctx, "gdbus", args...)
 	cmd.Env = sessionEnviron()
 	var stderr strings.Builder
 	cmd.Stderr = &stderr
@@ -66,8 +67,8 @@ var runSecretServiceCommand = func(ctx context.Context, args ...string) (string,
 // The caller must invoke the returned cancel func once the command has
 // finished.
 func secretToolCommand(args ...string) (*exec.Cmd, context.Context, context.CancelFunc) {
-	ctx, cancel := context.WithTimeout(context.Background(), secretToolTimeout)
-	cmd := exec.CommandContext(ctx, "secret-tool", args...)
+	ctx, cancel := context.WithTimeout(context.Background(), tuning.SecretToolTimeout())
+	cmd := shell.NewCommandContext(ctx, "secret-tool", args...)
 	cmd.Env = sessionEnviron()
 	return cmd, ctx, cancel
 }
@@ -156,7 +157,7 @@ const staleKeyringDaemonRemedy = "log out and back in so the keyring daemon relo
 // "provider_unavailable", from the same store, in the same table.
 func (store *secretToolStore) collectionHealth() error {
 	store.collectionsOnce.Do(func() {
-		ctx, cancel := context.WithTimeout(context.Background(), secretToolTimeout)
+		ctx, cancel := context.WithTimeout(context.Background(), tuning.SecretToolTimeout())
 		defer cancel()
 		stdout, stderr, err := runSecretServiceCommand(ctx,
 			"call", "--session", "--dest", "org.freedesktop.secrets",
@@ -172,7 +173,7 @@ func (store *secretToolStore) collectionHealth() error {
 		}
 		collections := collectionPathPattern.FindAllString(stdout, -1)
 		for _, collection := range collections {
-			ctx, cancel := context.WithTimeout(context.Background(), secretToolTimeout)
+			ctx, cancel := context.WithTimeout(context.Background(), tuning.SecretToolTimeout())
 			_, collectionStderr, collectionErr := runSecretServiceCommand(ctx,
 				"call", "--session", "--dest", "org.freedesktop.secrets",
 				"--object-path", collection, "--method",

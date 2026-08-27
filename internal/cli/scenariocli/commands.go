@@ -331,7 +331,7 @@ func RenderDeleteResponse(w io.Writer, format cliout.Format, resp DeleteResponse
 func ParseScenarioNameAndJSON(command string, defaultJSON bool, args []string) (string, bool, error) {
 	name, jsonFlag, err := parseOptionalScenarioNameAndJSONWithHelp(command, defaultJSON, "", args)
 	if err != nil {
-		return "", false, err
+		return "", false, fmt.Errorf("parse scenario %s arguments: %w", command, err)
 	}
 	if name == "" {
 		return "", false, clipolicy.UsageErrorf("scenario "+command, "scenario %s requires a scenario name", command)
@@ -351,7 +351,7 @@ func parseOptionalScenarioNameAndJSONWithHelp(command string, defaultJSON bool, 
 		},
 	}, args)
 	if err != nil {
-		return "", false, err
+		return "", false, fmt.Errorf("parse scenario %s arguments: %w", command, err)
 	}
 	name := ""
 	if len(parsed.Positionals) == 1 {

@@ -129,6 +129,50 @@ message GetResponse {
   int64 oldest_sequence = 5;
   int64 newest_sequence = 6;
   int64 total_count = 7;
+  // Why the event list looks the way it does. An empty list is ambiguous on
+  // its own — a brand-new session and a session whose transcript can never be
+  // read produce the same zero events — so every Get carries the explanation
+  // alongside the data.
+  MessageCaptureStatus capture = 8;
+}
+
+// MessageCaptureState says whether Web Console can record this session's
+// messages at all. It is deliberately separate from the event list: callers
+// render CAPTURING with zero events as "nothing said yet", and UNAVAILABLE
+// with zero events as a fault with a cause and a remedy.
+enum MessageCaptureState {
+  MESSAGE_CAPTURE_STATE_UNSPECIFIED = 0;
+  // The session's transcript is being read; events flow as they are produced.
+  MESSAGE_CAPTURE_STATE_CAPTURING = 1;
+  // The session runs no agent, so there is no conversation to capture.
+  MESSAGE_CAPTURE_STATE_NOT_APPLICABLE = 2;
+  // Capture is wired but the agent has not produced anything to identify it
+  // by yet. This resolves on its own once the session is used.
+  MESSAGE_CAPTURE_STATE_PENDING = 3;
+  // Capture cannot proceed. reason_code says why and remediation says what
+  // would fix it. This is the state that must never be shown as "no messages".
+  MESSAGE_CAPTURE_STATE_UNAVAILABLE = 4;
+}
+
+// MessageCaptureStatus is the per-session diagnosis behind the event list.
+// It replaces a class of silent failure: before it existed, a session whose
+// transcript was never discovered was indistinguishable from an empty one.
+message MessageCaptureStatus {
+  MessageCaptureState state = 1;
+  // Stable machine-readable cause, e.g. "agent_unidentified", "hook_stale",
+  // "transcript_unreadable". Empty when state is CAPTURING.
+  string reason_code = 2;
+  // One sentence, written for the person reading the Messages view.
+  string summary = 3;
+  // Operator-facing specifics — a path, a hook status, a settings location.
+  // Surfaces behind a disclosure, never as the primary sentence.
+  string detail = 4;
+  // The action that would fix this, when one exists.
+  string remediation = 5;
+  // Resolved transcript path when capture has identified one.
+  string transcript_path = 6;
+  // RFC3339 timestamp of the most recent captured message; empty if never.
+  string last_captured_at = 7;
 }
 
 // UpdateCursorRequest applies a partial update to the session's cursor.

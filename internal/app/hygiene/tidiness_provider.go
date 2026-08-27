@@ -12,7 +12,7 @@ import (
 
 const tidinessProviderID = "tidiness-manager"
 
-const tidinessProviderBudget = tuning.ExtendedOperationTimeout
+var tidinessProviderBudget = tuning.TidinessProviderBudget()
 
 type tidinessProvider struct {
 	root   string

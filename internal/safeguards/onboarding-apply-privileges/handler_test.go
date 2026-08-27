@@ -7,6 +7,7 @@ import (
 
 	"github.com/vrooli/vrooli/internal/hostreqkit"
 	"github.com/vrooli/vrooli/internal/hostreqspec"
+	"github.com/vrooli/vrooli/internal/testenv"
 )
 
 func TestPolicyContainsOnlyLiteralSelectedCommands(t *testing.T) {
@@ -39,7 +40,7 @@ func TestDarwinGrantUsesSameValidatedLiteralPolicy(t *testing.T) {
 		hostreqkit.WriteTempFileFn = oldWrite
 		hostreqkit.RunCommandFn = oldRun
 	})
-	t.Setenv("USER", "operator")
+	testenv.AsCurrentUser(t, "operator")
 	hostreqkit.RunningAsRootFn = func() bool { return true }
 	hostreqkit.ReadFileFn = func(string) ([]byte, error) { return nil, os.ErrNotExist }
 	hostreqkit.WriteTempFileFn = func(content string) (string, error) {

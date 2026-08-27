@@ -34,11 +34,11 @@ func ParseLogsArgs(args []string) (string, LogOptions, error) {
 		if _, ok := err.(interface{ HelpText() string }); ok {
 			return "", LogOptions{}, ErrScenarioLogsUsage
 		}
-		return "", LogOptions{}, err
+		return "", LogOptions{}, fmt.Errorf("parse scenario logs arguments: %w", err)
 	}
 	tail, err := parseTailValue(parsed.FlagValue("--tail"))
 	if err != nil {
-		return "", LogOptions{}, err
+		return "", LogOptions{}, fmt.Errorf("parse scenario logs tail: %w", err)
 	}
 	return parsed.Positionals[0], LogOptions{
 		Follow:      parsed.HasFlag("--follow"),

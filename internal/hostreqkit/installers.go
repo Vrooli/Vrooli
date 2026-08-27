@@ -245,7 +245,7 @@ func (i AptRepoInstaller) downloadKey() ([]byte, error) {
 	if strings.TrimSpace(i.KeyURL) == "" {
 		return nil, fmt.Errorf("apt repository signing key URL is empty")
 	}
-	client := &http.Client{Timeout: tuning.StandardOperationTimeout}
+	client := &http.Client{Timeout: tuning.HostRequirementCommandTimeout()}
 	response, err := client.Get(i.KeyURL)
 	if err != nil {
 		return nil, fmt.Errorf("download apt repository signing key: %w", err)

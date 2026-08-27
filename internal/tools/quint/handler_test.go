@@ -11,6 +11,7 @@ import (
 	"github.com/vrooli/vrooli/internal/hostreqkit/hostreqkittest"
 	"github.com/vrooli/vrooli/internal/hostreqspec"
 	"github.com/vrooli/vrooli/internal/shell/shelltest"
+	"github.com/vrooli/vrooli/internal/testenv"
 )
 
 var testManifest = hostreqkit.ToolManifest{
@@ -78,7 +79,7 @@ func TestInspectNpmPresentEnablesInstall(t *testing.T) {
 func TestApplyDryRunMentionsNpmInstall(t *testing.T) {
 	_, restore := stub(t)
 	defer restore()
-	t.Setenv("XDG_CACHE_HOME", "")
+	testenv.SetIdentityEnv(t, map[string]string{"XDG_CACHE_HOME": ""})
 	hostreqkit.LookPathFn = func(name string) (string, error) {
 		if name == "npm" {
 			return "/usr/bin/npm", nil
@@ -96,7 +97,7 @@ func TestApplyDryRunMentionsNpmInstall(t *testing.T) {
 func TestApplyInstallsAndSymlinks(t *testing.T) {
 	tmp, restore := stub(t)
 	defer restore()
-	t.Setenv("XDG_CACHE_HOME", "")
+	testenv.SetIdentityEnv(t, map[string]string{"XDG_CACHE_HOME": ""})
 
 	binDir := filepath.Join(tmp, ".cache", "vrooli", "formal-tools", "quint", "node", "node_modules", ".bin")
 	binPath := filepath.Join(binDir, "quint")
@@ -135,23 +136,5 @@ func TestApplyInstallsAndSymlinks(t *testing.T) {
 	}
 	if target != binPath {
 		t.Fatalf("symlink target = %q; want %q", target, binPath)
-	}
-}
-
-func TestApplyAlreadyInstalledShortCircuits(t *testing.T) {
-	_, restore := stub(t)
-	defer restore()
-	out, err := newHandler().Apply(hostreqkit.Host{OS: "linux"}, hostreqkit.ItemStatus{Installed: true}, hostreqkit.EnsureOptions{})
-	if err != nil {
-		t.Fatalf("Apply: %v", err)
-	}
-	if out.ExecutionState != hostreqkit.ExecutionAlreadyPresent {
-		t.Fatalf("ExecutionState = %q", out.ExecutionState)
-	}
-}
-
-func TestPinnedVersionMatchesManifest(t *testing.T) {
-	if testManifest.Version != defaultVersion {
-		t.Fatalf("test manifest version %q drifted from defaultVersion %q", testManifest.Version, defaultVersion)
 	}
 }

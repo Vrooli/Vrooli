@@ -39,7 +39,7 @@ func defaultHostBootID(ctx context.Context) (string, error) {
 	return snap.BootID, nil
 }
 
-const defaultClaimTTL = scenarioruntime.DefaultReservedClaimTTL
+var defaultClaimTTL = scenarioruntime.DefaultReservedClaimTTL
 
 var (
 	isTCPPortInUseFn             = isTCPPortInUse

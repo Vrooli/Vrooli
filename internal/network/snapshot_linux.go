@@ -7,6 +7,9 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+
+	"github.com/vrooli/vrooli/internal/shell"
+	"github.com/vrooli/vrooli/internal/tuning"
 )
 
 // Overridable in tests so the capture logic can be pinned against fake
@@ -70,9 +73,9 @@ func enrichListenerPIDsWithSS(ports map[int][]SnapshotListener) bool {
 	if err != nil {
 		return false
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), listenerEnrichTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), tuning.ListenerEnrichmentTimeout())
 	defer cancel()
-	output, err := exec.CommandContext(ctx, path, "-ltnpH").Output()
+	output, err := shell.NewCommandContext(ctx, path, "-ltnpH").Output()
 	if err != nil {
 		return false
 	}

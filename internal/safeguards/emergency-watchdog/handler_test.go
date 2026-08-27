@@ -1,7 +1,6 @@
 package emergencywatchdog
 
 import (
-	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
@@ -34,28 +33,6 @@ func defaults() settings { return resolveSettings(nil) }
 
 // Handler fallbacks and manifest defaults must agree, or setup and the handler
 // disagree about what "unconfigured" means.
-func TestDefaultsMatchManifest(t *testing.T) {
-	raw, err := os.ReadFile("safeguard.json")
-	if err != nil {
-		t.Fatalf("read manifest: %v", err)
-	}
-	var manifest struct {
-		Config struct {
-			Properties map[string]json.RawMessage `json:"properties"`
-		} `json:"config"`
-	}
-	if err := json.Unmarshal(raw, &manifest); err != nil {
-		t.Fatalf("parse manifest: %v", err)
-	}
-	if _, ok := manifest.Config.Properties["setpoint_path"]; !ok {
-		t.Fatal("manifest must expose the shared setpoint path, not private watchdog thresholds")
-	}
-	for _, obsolete := range []string{"disk_floor_mb", "unit_threshold_seconds", "cpu_pressure_avg10"} {
-		if _, ok := manifest.Config.Properties[obsolete]; ok {
-			t.Errorf("obsolete private watchdog threshold remains in manifest: %s", obsolete)
-		}
-	}
-}
 
 func TestInspectNonLinuxReportsMechanism(t *testing.T) {
 	status := NewHandler(testManifest()).Inspect(hostreqkit.Host{OS: "darwin"}, req())

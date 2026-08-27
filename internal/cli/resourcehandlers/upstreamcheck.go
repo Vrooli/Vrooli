@@ -56,7 +56,7 @@ func runUpstreamCheck(req resourcecli.UpstreamCheckRequest) (upstreamcheck.Aggre
 	if len(entries) == 0 {
 		return upstreamcheck.AggregateReport{}, false
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), tuning.StandardOperationTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), tuning.ResourceControlTimeout())
 	defer cancel()
 	return upstreamcheck.RunAggregate(ctx, upstreamcheck.DefaultAggregateRunner, entries), true
 }

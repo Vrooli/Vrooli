@@ -6,10 +6,10 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
-	"strings"
 
 	repocontract "github.com/vrooli/repo-contract-go"
 	"github.com/vrooli/vrooli/internal/bootstrap"
+	"github.com/vrooli/vrooli/internal/buildinfo"
 	"github.com/vrooli/vrooli/internal/config"
 	"github.com/vrooli/vrooli/internal/control"
 	"github.com/vrooli/vrooli/internal/shell"
@@ -35,7 +35,7 @@ func DefaultHomeDir() string {
 }
 
 func ResolveRepoRoot() string {
-	if root := strings.TrimSpace(os.Getenv("VROOLI_ROOT")); root != "" {
+	if root, err := buildinfo.ResolveSourceRoot(); err == nil {
 		return CanonicalRepoRootFromOverride(root)
 	}
 	if root, err := repocontract.ResolveRepoRoot(); err == nil {

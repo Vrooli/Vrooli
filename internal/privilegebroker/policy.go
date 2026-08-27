@@ -108,7 +108,7 @@ func validateVolume(req Request) error {
 // no-action modes and never write.
 func VolumeArgs(req Request) (string, []string, error) {
 	if err := Validate(req); err != nil {
-		return "", nil, err
+		return "", nil, fmt.Errorf("validate privileged volume request: %w", err)
 	}
 	device := strings.TrimSpace(req.Volume.Device)
 	family := volumeFilesystems[strings.ToLower(strings.TrimSpace(req.Volume.Filesystem))]

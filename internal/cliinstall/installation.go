@@ -7,13 +7,13 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"runtime"
 	"sort"
 	"strings"
 	"time"
 
+	"github.com/vrooli/vrooli/internal/shell"
 	"github.com/vrooli/vrooli/internal/tuning"
 
 	"github.com/vrooli/vrooli/internal/artifactlease"
@@ -24,6 +24,7 @@ import (
 	"github.com/vrooli/vrooli/internal/config"
 	"github.com/vrooli/vrooli/internal/discovery"
 	"github.com/vrooli/vrooli/internal/hostreqspec"
+	"github.com/vrooli/vrooli/internal/scenario"
 )
 
 const (
@@ -76,7 +77,7 @@ func (m *Manager) recordInstalledCLI(item InstallableCLI) error {
 // after the last install and the absence clock then has to run its own course.
 // An artifact that is still in use is reinstalled long before that and is never
 // eligible. The conservative direction costs only disk.
-const leaseTTL = artifactlease.DefaultGrace
+var leaseTTL = artifactlease.DefaultGrace
 
 // noteOwnership records ownership of an installed CLI.
 //
@@ -180,34 +181,19 @@ func (m *Manager) enabledResourceNames() ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	data, err := os.ReadFile(filepath.Join(configDir, "service.json"))
+	manifest, err := scenario.LoadServiceManifest(filepath.Join(configDir, "service.json"))
 	if err != nil {
 		return nil, err
 	}
 
-	var payload struct {
-		Dependencies struct {
-			Resources map[string]struct {
-				Enabled bool `json:"enabled"`
-			} `json:"resources"`
-		} `json:"dependencies"`
-	}
-	if err := jsonUnmarshal(data, &payload); err != nil {
-		return nil, err
-	}
-
-	names := make([]string, 0, len(payload.Dependencies.Resources))
-	for name, entry := range payload.Dependencies.Resources {
+	names := make([]string, 0, len(manifest.Dependencies.Resources))
+	for name, entry := range manifest.Dependencies.Resources {
 		if entry.Enabled {
 			names = append(names, name)
 		}
 	}
 	sort.Strings(names)
 	return names, nil
-}
-
-var jsonUnmarshal = func(data []byte, value any) error {
-	return json.Unmarshal(data, value)
 }
 
 type GoInstaller struct{}
@@ -253,7 +239,7 @@ func runGoModuleInstaller(ctx context.Context, item InstallableCLI, installDir s
 
 	args := cliutil.GoModuleInstallerArgs(item.ModulePath, item.ManifestPath, item.BinaryName, installDir, spec)
 
-	cmd := exec.CommandContext(ctx, "go", args...)
+	cmd := shell.NewCommandContext(ctx, "go", args...)
 	cmd.Dir = installerDir
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr

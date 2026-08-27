@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	repocontract "github.com/vrooli/repo-contract-go"
 	"github.com/vrooli/vrooli/internal/repocontractmeta"
 	"github.com/vrooli/vrooli/internal/tuning"
 
@@ -40,6 +41,8 @@ const (
 	// truthy value, every ComputeSourceFingerprintReport call emits one line per
 	// matched file: "<rel> <size> <sha256-hex>", sorted by relative path.
 	FingerprintDebugEnvVar = "VROOLI_FINGERPRINT_DEBUG"
+	rebuildTempPrefix      = "vrooli-rebuild-"
+	rebuildOrphanHorizon   = time.Hour
 )
 
 var (
@@ -582,6 +585,11 @@ func RebuildAndReexec(argv []string) error {
 	}
 	defer release()
 
+	buildDir, err := prepareRebuildDirectory(executable)
+	if err != nil {
+		return err
+	}
+
 	// After acquiring the lock, re-check whether a sibling rebuilder already
 	// landed a fresh binary at the same fingerprint. The sidecar is the shared
 	// on-disk signal; this process's embedded fingerprint may still be stale.
@@ -610,17 +618,27 @@ func RebuildAndReexec(argv []string) error {
 		"github.com/vrooli/vrooli/internal/buildinfo.BuildTime", buildTime,
 	)
 
-	tempPath := fmt.Sprintf("%s.tmp.%d", executable, os.Getpid())
+	tempFile, err := os.CreateTemp(buildDir, rebuildTempPrefix)
+	if err != nil {
+		return fmt.Errorf("create rebuild output: %w", err)
+	}
+	tempPath := tempFile.Name()
+	if err := tempFile.Close(); err != nil {
+		_ = os.Remove(tempPath)
+		return fmt.Errorf("close rebuild output: %w", err)
+	}
 	buildArgs := []string{"build", "-trimpath", "-ldflags", ldflags, "-o", tempPath, buildTarget}
 	if err := goBuildFn(root, buildArgs); err != nil {
 		_ = os.Remove(tempPath)
 		return fmt.Errorf("rebuild %s: %w", buildTarget, err)
 	}
-	defer os.Remove(tempPath)
 	_ = PreserveRootBinaryFallback(executable)
-	if err := renameFn(tempPath, executable); err != nil {
+	if err := config.InstallExecutableAtomic(tempPath, executable); err != nil {
 		_ = os.Remove(tempPath)
 		return fmt.Errorf("install rebuilt binary %s: %w", executable, err)
+	}
+	if err := os.Remove(tempPath); err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("remove rebuild output %s: %w", tempPath, err)
 	}
 	// Sidecar is a strict optimization for sibling processes whose embedded
 	// symbol still reflects the pre-rebuild fingerprint. Failures are
@@ -629,6 +647,70 @@ func RebuildAndReexec(argv []string) error {
 
 	execArgs := append([]string{executable}, argv...)
 	return execFn(executable, execArgs, setEnvValue(os.Environ(), RebuildLoopEnvVar, currentFingerprint))
+}
+
+func prepareRebuildDirectory(executable string) (string, error) {
+	home, err := homeDirFn()
+	if err != nil {
+		return "", fmt.Errorf("resolve rebuild home: %w", err)
+	}
+	buildDir, err := repocontract.RuntimeHomeEntryPath(home, repocontract.HomeKeyBuild)
+	if err != nil {
+		return "", fmt.Errorf("resolve rebuild directory: %w", err)
+	}
+	if _, err := config.EnsureOwnedDir(buildDir); err != nil {
+		return "", fmt.Errorf("ensure rebuild directory: %w", err)
+	}
+	if err := sweepRebuildOrphans(buildDir, executable, nowFunc()); err != nil {
+		return "", fmt.Errorf("sweep rebuild orphans: %w", err)
+	}
+	return buildDir, nil
+}
+
+func sweepRebuildOrphans(buildDir, executable string, now time.Time) error {
+	entries, err := os.ReadDir(buildDir)
+	if err != nil {
+		return err
+	}
+	for _, entry := range entries {
+		if !strings.HasPrefix(entry.Name(), rebuildTempPrefix) {
+			continue
+		}
+		info, err := entry.Info()
+		if err != nil {
+			return err
+		}
+		if !info.Mode().IsRegular() || now.Sub(info.ModTime()) < rebuildOrphanHorizon {
+			continue
+		}
+		if err := os.Remove(filepath.Join(buildDir, entry.Name())); err != nil && !os.IsNotExist(err) {
+			return err
+		}
+	}
+
+	executableDir := filepath.Dir(executable)
+	legacyPrefix := filepath.Base(executable) + ".tmp."
+	legacyEntries, err := os.ReadDir(executableDir)
+	if err != nil {
+		return err
+	}
+	for _, entry := range legacyEntries {
+		suffix, ok := strings.CutPrefix(entry.Name(), legacyPrefix)
+		if !ok || suffix == "" || strings.Trim(suffix, "0123456789") != "" {
+			continue
+		}
+		info, err := entry.Info()
+		if err != nil {
+			return err
+		}
+		if !info.Mode().IsRegular() {
+			continue
+		}
+		if err := os.Remove(filepath.Join(executableDir, entry.Name())); err != nil && !os.IsNotExist(err) {
+			return err
+		}
+	}
+	return nil
 }
 
 func isFingerprintDebugEnabled() bool {

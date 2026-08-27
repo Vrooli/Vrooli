@@ -88,6 +88,36 @@ func WriteOwnedFileAtomic(path string, data []byte, perm os.FileMode) error {
 	return chownPathToInvokingUser(path)
 }
 
+// InstallExecutableAtomic copies a prepared executable into its live path
+// through the canonical owned-write seam, then syncs the destination
+// directory so the rename is durable. Callers own any required process lock;
+// keeping this primitive lock-free lets an already-serialized rebuild reuse
+// the exact same commit path as a normal CLI install.
+func InstallExecutableAtomic(source, destination string) error {
+	if source == "" {
+		return fmt.Errorf("config: empty executable source path")
+	}
+	if destination == "" {
+		return fmt.Errorf("config: empty executable destination path")
+	}
+	if err := os.Chmod(source, tuning.PermExecutable); err != nil {
+		return err
+	}
+	data, err := os.ReadFile(source)
+	if err != nil {
+		return err
+	}
+	if err := WriteOwnedFileAtomic(destination, data, tuning.PermExecutable); err != nil {
+		return err
+	}
+	dir, err := os.Open(filepath.Dir(destination))
+	if err != nil {
+		return err
+	}
+	defer dir.Close()
+	return dir.Sync()
+}
+
 // OpenOwnedFile opens a managed runtime file with an explicit mode and repairs
 // ownership when setup is running for an invoking user. It is the append/lock
 // counterpart to WriteOwnedFileAtomic for lifecycle records and logs.

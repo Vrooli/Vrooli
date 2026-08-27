@@ -2,8 +2,9 @@ package capacity
 
 import (
 	"context"
-	"os/exec"
 	"strings"
+
+	"github.com/vrooli/vrooli/internal/shell"
 )
 
 // dockerCLINameSource resolves a container ID to its name via `docker inspect`.
@@ -16,7 +17,7 @@ func (dockerCLINameSource) ContainerName(ctx context.Context, containerID string
 	if id == "" {
 		return "", false
 	}
-	cmd := exec.CommandContext(ctx, "docker", "inspect", "--format", "{{.Name}}", id)
+	cmd := shell.NewCommandContext(ctx, "docker", "inspect", "--format", "{{.Name}}", id)
 	out, err := cmd.Output()
 	if err != nil {
 		return "", false

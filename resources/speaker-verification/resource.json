@@ -23,9 +23,9 @@
       "model_cache": {
         "rung": "relocatable",
         "path": {
-          "linux": "$USER_HOME/.local/share/vrooli/resources/speaker-verification/model-cache",
-          "macos": "$USER_HOME/Library/Application Support/vrooli/resources/speaker-verification/model-cache",
-          "windows": "$USER_HOME/AppData/Local/vrooli/resources/speaker-verification/model-cache"
+          "linux": "$USER_HOME/.local/share/vrooli/resources/speaker-verification/model-cache-native",
+          "macos": "$USER_HOME/Library/Application Support/vrooli/resources/speaker-verification/model-cache-native",
+          "windows": "$USER_HOME/AppData/Local/vrooli/resources/speaker-verification/model-cache-native"
         },
         "kind": "dir",
         "class": "cache",
@@ -43,7 +43,7 @@
     }
   },
   "display_name": "Speaker Verification",
-  "description": "Managed SpeechBrain ECAPA-TDNN speaker-embedding service with native compose-backed lifecycle for speaker enrollment, verification, and reserved target-speaker extraction workflows.",
+  "description": "Managed SpeechBrain ECAPA-TDNN speaker-embedding service composed from a checksum-pinned Python runtime, locked wheels, and the reviewed server sources.",
   "cli": {
     "enabled": true,
     "command": "resource-speaker-verification",
@@ -71,6 +71,10 @@
       "inputs": [
         "cli/**",
         "cli/internal/**",
+        "server/**",
+        "tests/**",
+        "requirements.lock",
+        "requirements-gpu.lock",
         "docs/**",
         "README.md",
         "resource.json"
@@ -80,69 +84,160 @@
       "kind": "go_module"
     }
   },
-  "template": "compose-service",
-  "driver": "compose-service",
+  "template": "managed-service",
+  "driver": "managed-service",
+  "managed_service": {
+    "artifact_role": "managed-service",
+    "provenance_class": "upstream-digest",
+    "provider_policy": {
+      "target_defaults": {
+        "control-plane": "managed-private",
+        "desktop-bundle": "managed-private"
+      },
+      "allowed_modes": [
+        "managed-private",
+        "managed-shared",
+        "attach-only",
+        "remote-vrooli",
+        "managed-discovered"
+      ],
+      "shared_reuse_requires_consent": true,
+      "external_management": "forbidden",
+      "external_access_capabilities": [
+        "read-only",
+        "read-write"
+      ]
+    },
+    "artifact": {
+      "path": "server/speaker-verification",
+      "version": "2026.08.26-torch-2.8.0",
+      "layout": "dir",
+      "entry_path": "runtime/bin/python",
+      "sha256_by_platform": {
+        "linux-amd64": "46cae27aef0907cc04b0bcb3e07446775764a8d2a2521e9d96c032606c1a4bef"
+      },
+      "bundle_artifact": "speaker-verification_${os}_${arch}"
+    },
+    "acquisition": {
+      "kind": "composed",
+      "license": "Apache-2.0; CPython PSF-2.0; SpeechBrain, PyTorch, and model dependencies retain their upstream licenses",
+      "provenance": {
+        "kind": "none"
+      },
+      "targets": [
+        {
+          "when": {
+            "os": "linux",
+            "arch": "amd64"
+          },
+          "layout": "dir",
+          "artifact_sha256": "46cae27aef0907cc04b0bcb3e07446775764a8d2a2521e9d96c032606c1a4bef",
+          "compose": [
+            {
+              "role": "runtime",
+              "kind": "url",
+              "dest": "runtime",
+              "bin_path": "python",
+              "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20260814/cpython-3.12.14%2B20260814-x86_64-unknown-linux-gnu-install_only.tar.gz",
+              "sha256": "3297691ae34f75fed81ac424e040145fccb0bafe8e581cd5cadbddfa1c0766c0",
+              "archive": "tar.gz"
+            },
+            {
+              "role": "python-wheels",
+              "kind": "python-wheels",
+              "dest": "wheels",
+              "lockfile": "requirements-gpu.lock",
+              "index_url": "https://download.pytorch.org/whl/cu126",
+              "extra_index_url": [
+                "https://pypi.org/simple"
+              ]
+            },
+            {
+              "role": "application",
+              "kind": "local",
+              "dest": "source/server.py",
+              "source": "server/server.py"
+            },
+            {
+              "role": "application-support",
+              "kind": "local",
+              "dest": "source/vad.py",
+              "source": "server/vad.py"
+            }
+          ]
+        },
+        {
+          "when": {
+            "os": "linux",
+            "arch": "arm64"
+          },
+          "unsupported": "Speaker Verification native arm64 PyTorch and SpeechBrain wheels are not qualified for this release."
+        },
+        {
+          "when": {
+            "os": "macos"
+          },
+          "unsupported": "Speaker Verification requires the qualified Linux Python and PyTorch runtime; macOS has no supported native target."
+        },
+        {
+          "when": {
+            "os": "windows"
+          },
+          "unsupported": "Speaker Verification requires the qualified Linux Python and PyTorch runtime; Windows has no supported native target."
+        }
+      ]
+    },
+    "arguments": [
+      "-m",
+      "uvicorn",
+      "server:app",
+      "--host",
+      "127.0.0.1",
+      "--port",
+      "${RESOURCE_PORT_HTTP}"
+    ],
+    "environment": {
+      "PYTHONPATH": "${RESOURCE_ARTIFACT_DIR}/source:${RESOURCE_ARTIFACT_DIR}/wheels",
+      "PYTHONNOUSERSITE": "1",
+      "PYTHONDONTWRITEBYTECODE": "1",
+      "SPEAKER_VERIFICATION_PROFILE_DIR": "${RESOURCE_DATA_DIR}/profiles",
+      "SPEAKER_VERIFICATION_MODEL_CACHE": "${RESOURCE_DATA_DIR}/model-cache-native",
+      "SPEAKER_VERIFICATION_TEMP_DIR": "${RESOURCE_DATA_DIR}/tmp",
+      "HF_HOME": "${RESOURCE_DATA_DIR}/model-cache/hf"
+    },
+    "attach_health_path": "/ready",
+    "shutdown": {
+      "signal": "terminate"
+    }
+  },
   "deployment": {
     "profiles": {
       "desktop": {
         "linux": {
           "support": "conditional",
-          "mode": "docker-desktop",
-          "architectures": [
-            "amd64",
-            "arm64"
-          ],
-          "requires": [
-            "docker"
-          ],
-          "limitations": [
-            "Compose images, storage, and networking remain host-managed."
-          ],
-          "evidence": [
-            "manifest-validation",
-            "docker-preflight"
-          ]
+          "mode": "bundled-service",
+          "architectures": ["amd64"],
+          "requires": [],
+          "limitations": ["The native Python and wheel trees are checksum-pinned for Linux amd64."],
+          "evidence": ["manifest-validation", "artifact-checksum"]
         },
         "macos": {
-          "support": "conditional",
-          "mode": "docker-desktop",
-          "architectures": [
-            "amd64",
-            "arm64"
-          ],
-          "requires": [
-            "docker"
-          ],
-          "limitations": [
-            "Docker Desktop must be installed and running."
-          ],
-          "evidence": [
-            "manifest-validation",
-            "docker-preflight"
-          ]
+          "support": "unsupported",
+          "mode": "bundled-service",
+          "reason": "Speaker Verification requires the qualified Linux Python and PyTorch runtime.",
+          "limitations": ["No native macOS artifact was built or hashed."],
+          "evidence": ["manifest-validation"]
         },
         "windows": {
-          "support": "conditional",
-          "mode": "docker-desktop",
-          "architectures": [
-            "amd64",
-            "arm64"
-          ],
-          "requires": [
-            "docker"
-          ],
-          "limitations": [
-            "Docker Desktop must be installed and running."
-          ],
-          "evidence": [
-            "manifest-validation",
-            "docker-preflight"
-          ]
+          "support": "unsupported",
+          "mode": "bundled-service",
+          "reason": "Speaker Verification requires the qualified Linux Python and PyTorch runtime.",
+          "limitations": ["No native Windows artifact was built or hashed."],
+          "evidence": ["manifest-validation"]
         }
       }
     }
   },
-  "compose_file": "docker/docker-compose.yml",
   "acceleration": {
     "backends": [
       "cuda",
@@ -150,7 +245,6 @@
     ],
     "require": "preferred",
     "cuda": {
-      "compose_overlay": "docker/docker-compose.gpu.yml",
       "env": {
         "SPEAKER_VERIFICATION_DEVICE": "cuda"
       }
@@ -201,8 +295,8 @@
   },
   "platforms": {
     "linux": "supported",
-    "macos": "build-verified",
-    "windows": "build-verified"
+    "macos": "unsupported",
+    "windows": "unsupported"
   },
   "ports": [
     {
@@ -249,7 +343,19 @@
   },
   "template_version": "2",
   "privilege": "user",
-  "bundling": "host-required",
+  "bundling": "vendorable",
+  "hostTools": [
+    {
+      "name": "ffmpeg",
+      "required": false,
+      "reason": "Decode container audio and provide the optional spectral-denoise fallback when torchaudio cannot read the input directly.",
+      "when": [
+        "setup",
+        "develop"
+      ],
+      "notes": "WAV/PCM inputs do not require ffmpeg; container formats and optional denoise do."
+    }
+  ],
   "hostSafeguards": [
     {
       "name": "nvidia_driver",

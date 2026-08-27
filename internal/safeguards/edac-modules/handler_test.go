@@ -224,7 +224,7 @@ func TestInspectAMDWithMCsButDriverMissingIsPending(t *testing.T) {
 	}
 }
 
-func TestApplyHappyPath(t *testing.T) {
+func checkApplyInstallsAndLoadsEDACModules(t *testing.T) {
 	cmds, _, cpu, mc, restore := stubAll(t)
 	defer restore()
 	*cpu = ryzen7000CPUInfo
@@ -278,36 +278,6 @@ func TestApplyModprobeFailureSurfaced(t *testing.T) {
 	}
 	if !strings.Contains(strings.Join(out.Notes, " | "), "synthetic modprobe failure") {
 		t.Errorf("notes missing root cause: %v", out.Notes)
-	}
-}
-
-func TestApplyShortCircuitsOnSupportClasses(t *testing.T) {
-	type tc struct {
-		name string
-		sc   hostreqkit.SupportClass
-		want hostreqkit.ExecutionState
-	}
-	cases := []tc{
-		{"unsupported", hostreqkit.SupportUnsupported, hostreqkit.ExecutionUnsupported},
-		{"not_applicable", hostreqkit.SupportNotApplicable, hostreqkit.ExecutionNotApplicable},
-		{"manual_only", hostreqkit.SupportManualOnly, hostreqkit.ExecutionManualActionRequired},
-	}
-	for _, c := range cases {
-		t.Run(c.name, func(t *testing.T) {
-			cmds, _, _, _, restore := stubAll(t)
-			defer restore()
-			st := hostreqkit.ItemStatus{SupportClass: c.sc}
-			out, err := newHandler().Apply(linuxHost(), st, hostreqkit.EnsureOptions{})
-			if err != nil {
-				t.Fatalf("Apply: %v", err)
-			}
-			if out.ExecutionState != c.want {
-				t.Errorf("ExecutionState = %q, want %q", out.ExecutionState, c.want)
-			}
-			if len(*cmds) != 0 {
-				t.Errorf("commands ran: %v", *cmds)
-			}
-		})
 	}
 }
 

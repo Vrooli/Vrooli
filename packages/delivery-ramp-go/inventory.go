@@ -20,15 +20,24 @@ type (
 )
 
 const (
-	CapabilityCDP             = targetmodel.CapabilityCDP
-	CapabilityNativeWindow    = targetmodel.CapabilityNativeWindow
-	CapabilityProcessMetrics  = targetmodel.CapabilityProcessMetrics
-	CapabilityOfflineNetwork  = targetmodel.CapabilityOfflineNetwork
-	CapabilityAndroidSDK      = targetmodel.CapabilityAndroidSDK
-	CapabilityAndroidEmulator = targetmodel.CapabilityAndroidEmulator
-	CapabilityAndroidWebView  = targetmodel.CapabilityAndroidWebView
-	CapabilityScreenRecording = targetmodel.CapabilityScreenRecording
-	CapabilityDeviceControl   = targetmodel.CapabilityDeviceControl
+	CapabilityCDP             = "cdp"
+	CapabilityNativeWindow    = "native-window"
+	CapabilityProcessMetrics  = "process-metrics"
+	CapabilityOfflineNetwork  = "offline-network"
+	CapabilityAndroidSDK      = "android-sdk"
+	CapabilityAndroidEmulator = "android-emulator"
+	CapabilityAndroidWebView  = "android-webview"
+	CapabilityScreenRecording = "screen-recording"
+	CapabilityDeviceControl   = "device-control"
+
+	ReasonBridgeOffline           = "bridge node is offline or not dispatchable"
+	ReasonBridgeNoCapability      = "bridge node is online but declares no supported capability"
+	ReasonBridgeNoDispatchScope   = "bridge node is online but lacks an authorized scenario-test dispatch scope"
+	ReasonBridgeAuthorizedAndroid = "bridge node is online and authorized; Android evidence remains target-owned"
+	ReasonBridgeAuthorizedDesktop = "bridge node is online and authorized; desktop evidence remains target-owned"
+	ReasonBridgeAuthorizedIOS     = "bridge node is online and authorized; iOS evidence remains target-owned"
+	ReasonBridgeNoHostProbe       = "bridge node is online but its host toolchain could not be probed"
+	ReasonBridgeRevoked           = "bridge node is revoked"
 )
 
 // SelectTarget is the ramp-facing entry point to the shared target selector.

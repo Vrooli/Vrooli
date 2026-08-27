@@ -32,7 +32,7 @@ type Client struct {
 func NewClient() *Client {
 	return &Client{
 		SocketPath: DefaultSocketPath,
-		Timeout:    tuning.ExtendedOperationTimeout,
+		Timeout:    tuning.PrivilegeBrokerOperationTimeout(),
 		dial: func(ctx context.Context, socket string) (net.Conn, error) {
 			var dialer net.Dialer
 			return dialer.DialContext(ctx, "unix", socket)
@@ -46,7 +46,7 @@ func (c *Client) Available() bool {
 	if c == nil {
 		return false
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), tuning.ShortOperationDeadline)
+	ctx, cancel := context.WithTimeout(context.Background(), tuning.PrivilegeBrokerUnlockTimeout())
 	defer cancel()
 	conn, err := c.dialer()(ctx, c.socket())
 	if err != nil {
@@ -68,9 +68,9 @@ func (c *Client) Do(ctx context.Context, req Request) (Result, error) {
 	}
 	timeout := c.Timeout
 	if timeout <= 0 {
-		timeout = tuning.ExtendedOperationTimeout
+		timeout = tuning.PrivilegeBrokerOperationTimeout()
 	}
-	ctx, cancel := context.WithTimeout(ctx, timeout)
+	ctx, cancel := context.WithTimeout(ctx, tuning.PrivilegeBrokerRequestTimeout(timeout))
 	defer cancel()
 
 	conn, err := c.dialer()(ctx, c.socket())

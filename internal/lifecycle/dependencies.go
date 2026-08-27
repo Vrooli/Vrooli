@@ -17,6 +17,7 @@ import (
 	resourcecontrol "github.com/vrooli/vrooli/internal/resources/control"
 	"github.com/vrooli/vrooli/internal/scenario"
 	"github.com/vrooli/vrooli/internal/scenarioruntime"
+	"github.com/vrooli/vrooli/internal/tuning"
 )
 
 const (
@@ -149,7 +150,7 @@ func (r *Runner) ensureDependency(ctx context.Context, item scenario.Scenario, o
 	decision := resolveDependencyDecision(dependency, opts.BestEffort)
 	var cancelDependency context.CancelFunc
 	if decision.continueOnFailure {
-		ctx, cancelDependency = context.WithTimeout(ctx, dependencyBestEffortStartTimeout)
+		ctx, cancelDependency = context.WithTimeout(ctx, tuning.DependencyBestEffortStartTimeout())
 		defer cancelDependency()
 	}
 	if decision.skip {

@@ -5,10 +5,12 @@ import (
 	"path/filepath"
 	"testing"
 	"time"
+
+	"github.com/vrooli/vrooli/internal/testenv"
 )
 
 func TestDefaultCacheRoot_HonorsXDG(t *testing.T) {
-	t.Setenv("XDG_CACHE_HOME", "/custom/cache")
+	testenv.SetIdentityEnv(t, map[string]string{"XDG_CACHE_HOME": "/custom/cache"})
 	root, err := DefaultCacheRoot()
 	if err != nil {
 		t.Fatalf("DefaultCacheRoot: %v", err)
@@ -20,8 +22,7 @@ func TestDefaultCacheRoot_HonorsXDG(t *testing.T) {
 
 func TestDefaultCacheRoot_IgnoresRelativeXDG(t *testing.T) {
 	// A non-absolute XDG_CACHE_HOME is ignored in favor of the home-based path.
-	t.Setenv("XDG_CACHE_HOME", "relative/path")
-	t.Setenv("HOME", "/home/tester")
+	testenv.SetIdentityEnv(t, map[string]string{"XDG_CACHE_HOME": "relative/path", "HOME": "/home/tester"})
 	root, err := DefaultCacheRoot()
 	if err != nil {
 		t.Fatalf("DefaultCacheRoot: %v", err)
@@ -45,7 +46,7 @@ func TestStore_PathShapes(t *testing.T) {
 }
 
 func TestDefaultStore_RootsAtCacheRoot(t *testing.T) {
-	t.Setenv("XDG_CACHE_HOME", "/custom/cache")
+	testenv.SetIdentityEnv(t, map[string]string{"XDG_CACHE_HOME": "/custom/cache"})
 	s, err := DefaultStore()
 	if err != nil {
 		t.Fatalf("DefaultStore: %v", err)

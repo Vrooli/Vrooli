@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
+	"github.com/vrooli/nodeclient"
 	dispatchv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/dispatch"
 	runsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/runs"
 	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/shared"
@@ -72,6 +73,53 @@ func (f HostFacts) HasTool(name string) bool {
 // HostProber resolves remote host facts for one node.
 type HostProber interface {
 	ProbeHost(ctx context.Context, nodeID string) (HostFacts, error)
+}
+
+// nodeHostProber is the production host-facts seam. It keeps delivery-ramp
+// unaware of Bridge's generated Connect transports while retaining the legacy
+// dispatchHostProber below for in-process test doubles.
+type nodeHostProber struct {
+	client *nodeclient.Client
+	ttl    time.Duration
+	now    func() time.Time
+
+	mu    sync.Mutex
+	cache map[string]cachedHostFacts
+}
+
+func newNodeHostProber(client *nodeclient.Client) *nodeHostProber {
+	return &nodeHostProber{client: client, ttl: HostFactsTTL, now: time.Now, cache: map[string]cachedHostFacts{}}
+}
+
+func (p *nodeHostProber) ProbeHost(ctx context.Context, nodeID string) (HostFacts, error) {
+	if p == nil || p.client == nil {
+		return HostFacts{}, fmt.Errorf("bridge host probe is not configured")
+	}
+	if cached, ok := p.cached(nodeID); ok {
+		return cached.facts, cached.err
+	}
+	response, err := p.client.Call(ctx, nodeclient.CallRequest{NodeID: nodeID, Command: hostProbeVerb, Args: hostProbeArgs, Timeout: 120 * time.Second})
+	if err == nil && response.Outcome != 1 {
+		err = fmt.Errorf("host probe failed: %s", response.Reason)
+	}
+	var facts HostFacts
+	if err == nil {
+		facts, err = ParseHostFacts(string(response.Data))
+	}
+	p.mu.Lock()
+	p.cache[nodeID] = cachedHostFacts{facts: facts, observed: p.now(), err: err}
+	p.mu.Unlock()
+	return facts, err
+}
+
+func (p *nodeHostProber) cached(nodeID string) (cachedHostFacts, bool) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	cached, ok := p.cache[nodeID]
+	if !ok || p.now().Sub(cached.observed) >= p.ttl {
+		return cachedHostFacts{}, false
+	}
+	return cached, true
 }
 
 type cachedHostFacts struct {

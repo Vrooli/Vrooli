@@ -110,13 +110,13 @@ func main() {
 }
 
 func fetchLedger(ctx context.Context) ([]byte, error) {
-	ctx, cancel := context.WithTimeout(ctx, tuning.StandardOperationTimeout)
+	ctx, cancel := context.WithTimeout(ctx, tuning.PlatformSupportRequestTimeout())
 	defer cancel()
 	base, err := discovery.ResolveScenarioURLDefault(ctx, "infrastructure-manager")
 	if err != nil {
 		return nil, fmt.Errorf("read capability ledger: resolve infrastructure-manager: %w", err)
 	}
-	client := portabilityconnect.NewPortabilityServiceClient(&http.Client{Timeout: tuning.StandardOperationTimeout}, base)
+	client := portabilityconnect.NewPortabilityServiceClient(&http.Client{Timeout: tuning.PlatformSupportRequestTimeout()}, base)
 	response, err := client.GetGrid(ctx, connect.NewRequest(&portabilityv1.GetGridRequest{}))
 	if err != nil {
 		return nil, fmt.Errorf("read capability ledger: get grid: %w", err)

@@ -88,7 +88,7 @@ func LoadGuardEnv() GuardEnv {
 	}
 	return GuardEnv{
 		Home:           home,
-		RepoRoot:       strings.TrimSpace(os.Getenv("VROOLI_REPO_ROOT")),
+		RepoRoot:       strings.TrimSpace(os.Getenv("VROOLI_ROOT")),
 		EphemeralRoots: roots,
 		Lookup:         os.LookupEnv,
 		LogPath:        filepath.Join(home, ".claude", HookStateDirName, "log"),

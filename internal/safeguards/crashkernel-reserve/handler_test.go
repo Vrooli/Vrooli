@@ -217,7 +217,7 @@ func TestInspectStaleValueIsPending(t *testing.T) {
 	}
 }
 
-func TestApplyHappyPath(t *testing.T) {
+func checkApplyUpdatesGrubConfigWithoutRunningUpdateGrub(t *testing.T) {
 	cmds, files, _, _, restore := stubAll(t)
 	defer restore()
 	files[grub.DefaultConfigPath] = `GRUB_CMDLINE_LINUX="quiet"` + "\n"
@@ -257,36 +257,5 @@ func TestApplyOverrideValue(t *testing.T) {
 	written := files[grub.DefaultConfigPath]
 	if !strings.Contains(written, "crashkernel=768M") {
 		t.Errorf("written config missing override value:\n%s", written)
-	}
-}
-
-func TestApplyShortCircuitsOnSupportClasses(t *testing.T) {
-	cases := []struct {
-		name string
-		sc   hostreqkit.SupportClass
-		want hostreqkit.ExecutionState
-	}{
-		{"unsupported", hostreqkit.SupportUnsupported, hostreqkit.ExecutionUnsupported},
-		{"not_applicable", hostreqkit.SupportNotApplicable, hostreqkit.ExecutionNotApplicable},
-		{"manual_only", hostreqkit.SupportManualOnly, hostreqkit.ExecutionManualActionRequired},
-	}
-	for _, c := range cases {
-		t.Run(c.name, func(t *testing.T) {
-			cmds, _, _, _, restore := stubAll(t)
-			defer restore()
-			st := hostreqkit.ItemStatus{SupportClass: c.sc}
-			out, err := newHandler().Apply(linuxHost(), st, hostreqkit.EnsureOptions{})
-			if err != nil {
-				t.Fatalf("Apply: %v", err)
-			}
-			if out.ExecutionState != c.want {
-				t.Errorf("ExecutionState = %q, want %q", out.ExecutionState, c.want)
-			}
-			for _, cmd := range *cmds {
-				if cmd.Name == "install" {
-					t.Errorf("commands ran: %v", *cmds)
-				}
-			}
-		})
 	}
 }

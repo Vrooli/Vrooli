@@ -3,12 +3,44 @@ package testenv
 import (
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"testing"
 
 	repocontract "github.com/vrooli/repo-contract-go"
 	"github.com/vrooli/vrooli/internal/tuning"
 )
+
+var identityVariables = map[string]struct{}{
+	"HOME": {}, "USER": {}, "SUDO_UID": {}, "SUDO_GID": {}, "SUDO_USER": {},
+	"XDG_CACHE_HOME": {}, "XDG_DATA_HOME": {}, "XDG_RUNTIME_DIR": {},
+}
+
+// SetIdentityEnv sets exact identity values for resolver tests and unusual
+// process identities that do not fit the common RuntimeHome/AsSudoUser cases.
+func SetIdentityEnv(t *testing.T, values map[string]string) {
+	t.Helper()
+	keys := make([]string, 0, len(values))
+	for key := range values {
+		if _, ok := identityVariables[key]; !ok {
+			t.Fatalf("%s is not an identity variable", key)
+		}
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	for _, key := range keys {
+		t.Setenv(key, values[key])
+	}
+}
+
+// AsCurrentUser installs a non-elevated identity and clears stale sudo facts
+// inherited from the process running the test.
+func AsCurrentUser(t *testing.T, user string) {
+	t.Helper()
+	SetIdentityEnv(t, map[string]string{
+		"USER": user, "SUDO_USER": "", "SUDO_UID": "", "SUDO_GID": "",
+	})
+}
 
 // RepositoryTree is the small cross-domain repository skeleton shared by
 // tests that need project and scenario paths on disk.
@@ -111,16 +143,15 @@ func AssertFileContents(t *testing.T, path, want string) {
 // exercise missing or non-default sudo IDs.
 func SetSudoUser(t *testing.T, user string) {
 	t.Helper()
-	t.Setenv("SUDO_USER", user)
+	SetIdentityEnv(t, map[string]string{"SUDO_USER": user})
 }
 
 // AsSudoUser installs a complete, internally consistent sudo identity.
 func AsSudoUser(t *testing.T, user string) {
 	t.Helper()
-	t.Setenv("SUDO_USER", user)
-	t.Setenv("SUDO_UID", "1000")
-	t.Setenv("SUDO_GID", "1000")
-	t.Setenv("USER", "root")
+	SetIdentityEnv(t, map[string]string{
+		"SUDO_USER": user, "SUDO_UID": "1000", "SUDO_GID": "1000", "USER": "root",
+	})
 }
 
 // SudoRuntimeHome combines the complete sudo identity with an isolated XDG
@@ -137,10 +168,12 @@ func SudoRuntimeHome(t *testing.T, user string) string {
 func RuntimeHome(t *testing.T) string {
 	t.Helper()
 	home := t.TempDir()
-	t.Setenv("HOME", home)
-	t.Setenv("XDG_CACHE_HOME", filepath.Join(home, ".cache"))
-	t.Setenv("XDG_DATA_HOME", filepath.Join(home, ".local", "share"))
-	t.Setenv("XDG_RUNTIME_DIR", filepath.Join(home, ".runtime"))
+	SetIdentityEnv(t, map[string]string{
+		"HOME":            home,
+		"XDG_CACHE_HOME":  filepath.Join(home, ".cache"),
+		"XDG_DATA_HOME":   filepath.Join(home, ".local", "share"),
+		"XDG_RUNTIME_DIR": filepath.Join(home, ".runtime"),
+	})
 	for _, directory := range []string{
 		os.Getenv("XDG_CACHE_HOME"),
 		os.Getenv("XDG_DATA_HOME"),

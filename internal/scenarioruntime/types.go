@@ -52,22 +52,24 @@ const (
 	HealthStatusUnknown       = "unknown"
 	HealthStatusNotConfigured = "not_configured"
 
-	SupervisionPolicyManaged = "managed"
-	SupervisionPolicyManual  = "manual"
+	SupervisionPolicyManaged      = "managed"
+	SupervisionPolicyManual       = "manual"
+	DefaultMaxHealthResponseBytes = 64 * 1024
+)
 
-	DefaultHeartbeatTTL = tuning.StandardOperationTimeout
+var (
+	DefaultHeartbeatTTL = tuning.ScenarioHeartbeatTTL()
 	// DefaultSupervisedLeaseTTL is the deadline written when ownership sits
 	// with a supervisor session rather than a lifecycle process. It is longer
 	// than DefaultHeartbeatTTL because one supervisor renews the whole fleet on
 	// a shared interval, so its window must absorb a slow tick and a restart.
 	// Shared here so the handover and the renewer cannot drift apart.
-	DefaultSupervisedLeaseTTL = tuning.SupervisorHealthInterval
+	DefaultSupervisedLeaseTTL = tuning.SupervisorHealthInterval()
 	// DefaultReservedClaimTTL bounds how long a reserved (not yet bound) port
 	// claim survives without renewal before any allocator may expire it. The
 	// lifecycle renews reserved claims alongside its instance heartbeats so a
 	// slow start (e.g. a long setup build) keeps its ports.
-	DefaultReservedClaimTTL       = tuning.LongOperationTimeout
-	DefaultMaxHealthResponseBytes = 64 * 1024
+	DefaultReservedClaimTTL = tuning.ScenarioReservedClaimTTL()
 )
 
 // SchemaCompatibilityError reports that the runtime registry was written by a

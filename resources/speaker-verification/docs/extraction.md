@@ -43,9 +43,9 @@ audio (the "spike" the plan calls for) is **empirical tuning**:
   the original mixture below it).
 - GPU vs CPU latency. SepFormer is heavier than ECAPA. The image is now built on
   the PyTorch CUDA base, so the GPU is used automatically when present (the
-  manifest `gpu` probe applies `docker-compose.gpu.yml` +
-  `SPEAKER_VERIFICATION_DEVICE=cuda`). CPU still works as a fallback but adds
-  seconds per window.
+  manifest GPU predicate selects the CUDA wheel lock and
+  `SPEAKER_VERIFICATION_DEVICE=cuda`. CPU remains an explicit native target but
+  adds seconds per window.
 
 ## Known limitations (v1)
 

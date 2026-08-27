@@ -5,10 +5,10 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"os/exec"
 	"strings"
 
 	"github.com/vrooli/vrooli/internal/cli/clipolicy"
+	"github.com/vrooli/vrooli/internal/shell"
 )
 
 const (
@@ -66,7 +66,7 @@ func (app *App) runAgentCommand(ctx *CommandContext, args []string) error {
 		return err
 	}
 	childArgs := agentInvocationArgs(binary, extra, *prompt)
-	command := exec.CommandContext(context.Background(), binary, childArgs...)
+	command := shell.NewCommandContext(context.Background(), binary, childArgs...)
 	command.Stdin = ctx.Stdin
 	command.Stdout = ctx.Stdout
 	command.Stderr = ctx.Stderr

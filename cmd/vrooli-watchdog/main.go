@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strconv"
@@ -22,6 +21,7 @@ import (
 	"github.com/vrooli/vrooli/internal/hostpressure"
 	"github.com/vrooli/vrooli/internal/operatorstate"
 	"github.com/vrooli/vrooli/internal/resources"
+	"github.com/vrooli/vrooli/internal/shell"
 	"github.com/vrooli/vrooli/internal/workloadowner"
 )
 
@@ -347,7 +347,7 @@ func unitActive(unit string) (bool, string) {
 	defer cancel()
 	switch current := strings.ToLower(runtimeGOOS()); current {
 	case "linux":
-		cmd := exec.CommandContext(ctx, "systemctl", "--user", "is-active", unit)
+		cmd := shell.NewCommandContext(ctx, "systemctl", "--user", "is-active", unit)
 		out, err := cmd.CombinedOutput()
 		state := strings.TrimSpace(strings.ToLower(string(out)))
 		if err == nil && state == "active" {
@@ -361,13 +361,13 @@ func unitActive(unit string) (bool, string) {
 	case "darwin":
 		uid := strconv.Itoa(os.Getuid())
 		for _, domain := range []string{"gui/" + uid, "user/" + uid} {
-			if err := exec.CommandContext(ctx, "launchctl", "print", domain+"/"+strings.TrimSuffix(unit, ".service")).Run(); err == nil {
+			if err := shell.NewCommandContext(ctx, "launchctl", "print", domain+"/"+strings.TrimSuffix(unit, ".service")).Run(); err == nil {
 				return true, "launchctl print " + domain
 			}
 		}
 		return false, "launchctl print unread"
 	case "windows":
-		if err := exec.CommandContext(ctx, "sc.exe", "query", unit).Run(); err != nil {
+		if err := shell.NewCommandContext(ctx, "sc.exe", "query", unit).Run(); err != nil {
 			return false, "sc.exe query unread"
 		}
 		return true, "sc.exe query"

@@ -1,6 +1,7 @@
 package rootcli
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"log/slog"
@@ -9,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vrooli/vrooli/internal/buildinfo"
 	"github.com/vrooli/vrooli/internal/cli/clipolicy"
 	"github.com/vrooli/vrooli/internal/cli/commandtree"
 	"github.com/vrooli/vrooli/internal/cli/metrics"
@@ -431,10 +433,8 @@ func ExitCode(err error) int {
 	if err == nil {
 		return 0
 	}
-	if codeErr, ok := err.(interface{ ExitCode() int }); ok {
-		return codeErr.ExitCode()
-	}
-	return vroolierr.ExitCode(err, 1)
+	boundaryErr, _ := vroolierr.Ensure(err, "untyped_cli_error", ErrorCategoryRuntime, "")
+	return boundaryErr.ExitCode()
 }
 
 type RunnerConfig[C any] struct {
@@ -524,15 +524,16 @@ func (r *Runner[C]) Run(args []string, stdout, stderr io.Writer) int {
 			}
 		}
 		if err := r.dispatch(ctx, parsed); err != nil {
-			PrintErrorWithContext(stderr, err)
-			return ExitCode(err)
+			boundaryErr := r.prepareBoundaryError(logger, err)
+			printBoundaryError(stderr, parsed.Globals.JSON, boundaryErr)
+			return ExitCode(boundaryErr)
 		}
 		return 0
 	}
 
 	root, err := r.config.ResolveRoot()
 	if err != nil {
-		PrintErrorWithContext(stderr, NewErrorWithCategory(err, ErrorCategoryEnvironment, "Run from a Vrooli repository root, install the CLI with `make install`, or set VROOLI_SOURCE_ROOT", nil))
+		PrintErrorWithContext(stderr, NewErrorWithCategory(err, ErrorCategoryEnvironment, fmt.Sprintf("Run from a Vrooli repository root, install the CLI with `make install`, or set %s", buildinfo.SourceRootEnvVar), nil))
 		return 1
 	}
 	if r.config.SetRoot != nil {
@@ -584,10 +585,40 @@ func (r *Runner[C]) Run(args []string, stdout, stderr io.Writer) int {
 	}
 
 	if err := r.dispatch(ctx, parsed); err != nil {
-		PrintErrorWithContext(stderr, err)
-		return ExitCode(err)
+		boundaryErr := r.prepareBoundaryError(logger, err)
+		printBoundaryError(stderr, parsed.Globals.JSON, boundaryErr)
+		return ExitCode(boundaryErr)
 	}
 	return 0
+}
+
+func (r *Runner[C]) prepareBoundaryError(logger *slog.Logger, err error) error {
+	boundaryErr, wrapped := vroolierr.Ensure(err, "untyped_cli_error", ErrorCategoryRuntime, "")
+	if wrapped && r.config.DebugLog != nil {
+		r.config.DebugLog(logger, "Untyped error reached CLI boundary", "code", boundaryErr.Code)
+	}
+	return boundaryErr
+}
+
+func printBoundaryError(w io.Writer, jsonOutput bool, err error) {
+	if !jsonOutput {
+		PrintErrorWithContext(w, err)
+		return
+	}
+	payload := struct {
+		Success  bool   `json:"success"`
+		Error    string `json:"error"`
+		Code     string `json:"code"`
+		Category string `json:"category,omitempty"`
+		Hint     string `json:"hint,omitempty"`
+	}{
+		Success:  false,
+		Error:    err.Error(),
+		Code:     vroolierr.Code(err, "untyped_cli_error"),
+		Category: vroolierr.Category(err),
+		Hint:     vroolierr.Hint(err),
+	}
+	_ = json.NewEncoder(w).Encode(payload)
 }
 
 func (r *Runner[C]) dispatch(ctx C, parsed ParsedArgs) error {
@@ -642,19 +673,27 @@ func (r *Runner[C]) recordMetrics(parsed ParsedArgs, start time.Time, err error)
 }
 
 // BindService binds a command whose only command-specific wiring is the
-// service constructor, request parser, service call, and response renderer.
-// The service constructor runs before parsing so dependency failures are
-// reported consistently and the service is available to the call without a
-// repeated context lookup.
+// output-format resolver, service constructor, request parser, service call,
+// and response renderer. Format resolution is deliberately separate from
+// service construction: callers never have to return a meaningless zero
+// service when format resolution fails, while constructors that depend on the
+// selected format still receive it. Both run before parsing so dependency
+// failures are reported consistently and the service is available to the call
+// without a repeated context lookup.
 func BindService[C any, Service any, Req any, Resp any](
 	stdout func(C) io.Writer,
-	newService func(C) (cliout.Format, Service, error),
+	outputFormat func(C) (cliout.Format, error),
+	newService func(C, cliout.Format) (Service, error),
 	parse func(C, []string) (Req, error),
 	call func(Service, Req) (Resp, error),
 	render func(w io.Writer, format cliout.Format, resp Resp) error,
 ) Handler[C] {
 	return func(ctx C, args []string) error {
-		format, service, err := newService(ctx)
+		format, err := outputFormat(ctx)
+		if err != nil {
+			return err
+		}
+		service, err := newService(ctx, format)
 		if err != nil {
 			return err
 		}
@@ -668,26 +707,22 @@ func BindService[C any, Service any, Req any, Resp any](
 
 func BindResourceCommand[C any, Req any, Resp any](
 	stdout func(C) io.Writer,
+	outputFormat func(C) (cliout.Format, error),
 	parse func([]string) (Req, error),
-	run func(ctx C, controller *resources.Controller, req Req) (cliout.Format, Resp, error),
+	run func(ctx C, controller *resources.Controller, req Req) (Resp, error),
 	render func(w io.Writer, format cliout.Format, resp Resp) error,
 ) ResourceHandler[C] {
-	type output struct {
-		format cliout.Format
-		resp   Resp
-	}
 	return func(ctx C, controller *resources.Controller, args []string) error {
-		return commandtree.ExecuteAction(stdout(ctx), args, commandtree.Action[Req, output]{
+		format, err := outputFormat(ctx)
+		if err != nil {
+			return err
+		}
+		return commandtree.ExecuteAction(stdout(ctx), args, commandtree.Action[Req, Resp]{
 			Parse: func(args []string) (Req, error) {
 				return parse(args)
 			},
-			Execute: func(req Req) (output, error) {
-				format, resp, err := run(ctx, controller, req)
-				return output{format: format, resp: resp}, err
-			},
-			Render: func(w io.Writer, item output) error {
-				return render(w, item.format, item.resp)
-			},
+			Execute: func(req Req) (Resp, error) { return run(ctx, controller, req) },
+			Render:  func(w io.Writer, resp Resp) error { return render(w, format, resp) },
 		})
 	}
 }

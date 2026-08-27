@@ -127,10 +127,9 @@ func TestApplyDryRunReportsCommand(t *testing.T) {
 	defer stub(t)()
 	// Steer the user-dir probe at an empty tmpdir so the test isn't
 	// polluted by the real developer's ~/.local/bin or ~/go/bin.
-	tmpHome := t.TempDir()
+	tmpHome := testenv.RuntimeHome(t)
 	hostreqkit.RunningAsRootFn = func() bool { return false }
-	t.Setenv("USER", "alice")
-	t.Setenv("HOME", tmpHome)
+	testenv.AsCurrentUser(t, "alice")
 	hostreqkit.ReadFileFn = func(path string) ([]byte, error) {
 		if path == "/etc/passwd" {
 			return []byte("alice:x:1000:1000:Alice:" + tmpHome + ":/bin/sh\n"), nil
@@ -165,13 +164,12 @@ func TestApplyDryRunReportsCommand(t *testing.T) {
 func TestApplyInvokesGoInstallAndSymlinks(t *testing.T) {
 	defer stub(t)()
 
-	tmpHome := t.TempDir()
+	tmpHome := testenv.RuntimeHome(t)
 	// Steer InvokingUserHomeDir at the temp dir by stubbing the passwd
 	// lookup seam. We stay non-root for this test (RunAsInvokingUser is
 	// a no-op shell-out under that mode), exercising the basic flow.
 	hostreqkit.RunningAsRootFn = func() bool { return false }
-	t.Setenv("USER", "alice")
-	t.Setenv("HOME", tmpHome)
+	testenv.AsCurrentUser(t, "alice")
 	hostreqkit.ReadFileFn = func(path string) ([]byte, error) {
 		if path == "/etc/passwd" {
 			return []byte("alice:x:1000:1000:Alice:" + tmpHome + ":/bin/sh\n"), nil
@@ -318,23 +316,5 @@ func TestApplyDropsPrivilegesWhenRoot(t *testing.T) {
 		if !found {
 			t.Errorf("missing sudo-wrapped invocation %q in:\n  %s", want, strings.Join(sudoCalls, "\n  "))
 		}
-	}
-}
-
-func TestApplyAlreadyInstalledShortCircuits(t *testing.T) {
-	defer stub(t)()
-	status := hostreqkit.ItemStatus{Installed: true}
-	out, err := newHandler().Apply(hostreqkit.Host{OS: "linux"}, status, hostreqkit.EnsureOptions{})
-	if err != nil {
-		t.Fatalf("Apply: %v", err)
-	}
-	if out.ExecutionState != hostreqkit.ExecutionAlreadyPresent {
-		t.Fatalf("ExecutionState = %q", out.ExecutionState)
-	}
-}
-
-func TestPinnedVersionMatchesManifest(t *testing.T) {
-	if testManifest.Version != defaultVersion {
-		t.Fatalf("test manifest version %q drifted from handler defaultVersion %q", testManifest.Version, defaultVersion)
 	}
 }

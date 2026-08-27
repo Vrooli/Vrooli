@@ -162,7 +162,7 @@ func bootstrapPrivateVault(ctx context.Context, state ManagedServiceState, endpo
 	if err := ensureVaultKVv2(ctx, endpoint, material.RootToken); err != nil {
 		return fmt.Errorf("configure private Vault KV v2: %w", err)
 	}
-	lease := Lease{ID: "private-bootstrap-" + state.InstanceID, InstanceID: state.InstanceID, Scope: "private-bootstrap", ExpiresAt: time.Now().Add(tuning.LongOperationTimeout)}
+	lease := Lease{ID: "private-bootstrap-" + state.InstanceID, InstanceID: state.InstanceID, Scope: "private-bootstrap", ExpiresAt: time.Now().Add(tuning.VaultBootstrapLease())}
 	credential, err := (VaultCredentialIssuer{ManagementToken: func(ManagedInstance) (string, error) { return material.RootToken, nil }}).IssueScopedCredential(instance, lease)
 	if err != nil {
 		return fmt.Errorf("issue private Vault scoped credential: %w", err)
@@ -352,7 +352,7 @@ func (h *UserResourceHost) EnsureVault(ctx context.Context, instance ManagedInst
 		ID:         "bootstrap-" + instance.ID,
 		InstanceID: instance.ID,
 		Scope:      appScope,
-		ExpiresAt:  time.Now().Add(tuning.LongOperationTimeout),
+		ExpiresAt:  time.Now().Add(tuning.VaultBootstrapLease()),
 	}
 	credential, err := (VaultCredentialIssuer{ManagementToken: h.VaultManagementToken}).IssueScopedCredential(instance, lease)
 	if err != nil {
@@ -380,7 +380,7 @@ func ensureVaultKVv2(ctx context.Context, endpoint, managementToken string) erro
 }
 
 func waitForVaultBootstrapReachability(parent context.Context, endpoint string) error {
-	return vaultbootstrap.Client{Endpoint: endpoint}.WaitReachable(parent, tuning.ReachabilityTimeout)
+	return vaultbootstrap.Client{Endpoint: endpoint}.WaitReachable(parent, tuning.ReachabilityTimeout())
 }
 
 // VaultManagementToken is the only bridge from secure storage to Vault's

@@ -13,7 +13,6 @@ import (
 	"github.com/vrooli/vrooli/internal/hostinventory"
 	"github.com/vrooli/vrooli/internal/hostreqkit"
 	"github.com/vrooli/vrooli/internal/hostreqspec"
-	credentialauthority "github.com/vrooli/vrooli/packages/credential-authority-go"
 )
 
 const (
@@ -160,21 +159,9 @@ func (h handler) Inspect(host hostreqkit.Host, requirement hostreqspec.ResolvedR
 	return status
 }
 
-//nolint:gocyclo // safeguard application is a provider and display-mode state machine with distinct remediations.
 func (h handler) Apply(host hostreqkit.Host, status hostreqkit.ItemStatus, opts hostreqkit.EnsureOptions) (hostreqkit.ItemStatus, error) {
 	if status.ExecutionState != hostreqkit.ExecutionPending {
 		return status, nil
-	}
-	permission := func(key, command string) bool {
-		allowed, _ := status.Config[key].(bool)
-		if allowed {
-			return true
-		}
-		status.ExecutionState = hostreqkit.ExecutionManualActionRequired
-		status.BlockingReason = hostreqkit.BlockingManual
-		status.Command = command
-		status.Notes = append(status.Notes, fmt.Sprintf("permission %q is false; run %s manually or opt in to this host change", key, command))
-		return false
 	}
 	if status.Applied {
 		status.ExecutionState = hostreqkit.ExecutionAlreadyPresent
@@ -187,136 +174,185 @@ func (h handler) Apply(host hostreqkit.Host, status hostreqkit.ItemStatus, opts 
 		status.Notes = append(status.Notes, "an active remote-desktop session may be interrupted; rerun with --maintenance-window")
 		return status, nil
 	}
-	var systemUsername, systemPassword string
-	// Evaluate every permission and host-state gate before the dry-run branch.
-	// This keeps a preview from claiming an apply that a real run would refuse.
-	if hostreqspec.PlatformFromGOOS(host.OS) == hostreqspec.PlatformLinux && status.SelectedProvider == handlerGnomeSystem {
-		if !status.ObservedActive && !permission("allow_enable_system", setupCommand()) {
-			return status, nil
-		}
-		if !permission("allow_provision_credentials", credentialProvisionCommand("username")) {
-			return status, nil
-		}
-		var err error
-		if systemUsername, err = resolveCredentialFn(remoteDesktopID, "username"); err != nil {
-			return credentialProvisionRequired(&status, "username"), nil
-		}
-		if systemPassword, err = resolveCredentialFn(remoteDesktopID, "password"); err != nil {
-			return credentialProvisionRequired(&status, "password"), nil
-		}
-	} else if hostreqspec.PlatformFromGOOS(host.OS) == hostreqspec.PlatformLinux && status.SelectedProvider == handlerGnomeUserShared {
-		if switchingFromSystem && !permission("allow_disable_system_unit", setupCommand()) {
-			return status, nil
-		}
-		if !permission("allow_switch_provider", setupCommand()) {
-			return status, nil
-		}
-		if !permission("allow_enable_user_unit", setupCommand()) {
-			return status, nil
-		}
-		if status.CredentialStoreState != "ready" {
-			if blocked := credentialStoreBlock(&status); blocked {
-				return status, nil
-			}
-			if !permission("allow_provision_credentials", credentialCommand()) {
-				return status, nil
-			}
-			status.ExecutionState = hostreqkit.ExecutionManualActionRequired
-			status.BlockingReason = hostreqkit.BlockingManual
-			status.Command = credentialCommand()
-			status.Notes = append(status.Notes, "credential store is empty; enter credentials with "+credentialCommand())
-			return status, nil
-		}
-	} else if hostreqspec.PlatformFromGOOS(host.OS) == hostreqspec.PlatformWindows && status.SelectedProvider == handlerWindowsTermservice {
-		if !permission("allow_enable_native_provider", setupCommand()) {
-			return status, nil
-		}
-	} else if hostreqspec.PlatformFromGOOS(host.OS) == hostreqspec.PlatformMacOS && status.SelectedProvider == handlerMacosScreenSharing {
-		if !permission("allow_enable_native_provider", setupCommand()) {
-			return status, nil
-		}
+	plan, ready := prepareRemoteDesktopApply(host, &status, switchingFromSystem)
+	if !ready {
+		return status, nil
 	}
 	if opts.DryRun {
 		status.ExecutionState = hostreqkit.ExecutionWouldApply
 		status.Notes = append(status.Notes, "dry-run: would enable the declared remote-desktop provider")
 		return status, nil
 	}
-	if hostreqspec.PlatformFromGOOS(host.OS) == hostreqspec.PlatformLinux && status.SelectedProvider == handlerGnomeSystem {
-		provisionOpts := opts
-		provisionOpts.Stdout = io.Discard
-		provisionOpts.Stderr = io.Discard
-		if err := runFn(opts.SudoMode, "grdctl", []string{"--system", "rdp", "set-credentials", systemUsername, systemPassword}, provisionOpts); err != nil {
-			status.ExecutionState = hostreqkit.ExecutionFailed
-			status.Notes = append(status.Notes, "system-mode GNOME Remote Desktop credential provisioning failed; rerun the Vrooli credential doctor")
-			return status, nil
-		}
-		if !status.ObservedActive {
-			if err := runFn(opts.SudoMode, "systemctl", []string{"enable", "--now", "gnome-remote-desktop.service"}, opts); err != nil {
-				status.ExecutionState = hostreqkit.ExecutionFailed
-				status.Notes = append(status.Notes, "enable gnome-remote-desktop.service failed: "+err.Error())
-				return status, nil
-			}
-			status.Notes = append(status.Notes, "system-mode GNOME Remote Desktop enabled")
-		} else {
-			status.Notes = append(status.Notes, "system-mode GNOME Remote Desktop credentials refreshed")
-		}
-		status.Applied = true
-		status.ExecutionState = hostreqkit.ExecutionApplied
+	return executeRemoteDesktopApply(host, status, opts, plan)
+}
+
+type remoteDesktopApplyPlan struct {
+	switchingFromSystem bool
+	systemUsername      string
+	systemPassword      string
+}
+
+func requirePermission(status *hostreqkit.ItemStatus, key, command string) bool {
+	allowed, _ := status.Config[key].(bool)
+	if allowed {
+		return true
+	}
+	status.ExecutionState = hostreqkit.ExecutionManualActionRequired
+	status.BlockingReason = hostreqkit.BlockingManual
+	status.Command = command
+	status.Notes = append(status.Notes, fmt.Sprintf("permission %q is false; run %s manually or opt in to this host change", key, command))
+	return false
+}
+
+func prepareRemoteDesktopApply(host hostreqkit.Host, status *hostreqkit.ItemStatus, switchingFromSystem bool) (remoteDesktopApplyPlan, bool) {
+	plan := remoteDesktopApplyPlan{switchingFromSystem: switchingFromSystem}
+	platform := hostreqspec.PlatformFromGOOS(host.OS)
+	switch {
+	case platform == hostreqspec.PlatformLinux && status.SelectedProvider == handlerGnomeSystem:
+		return prepareSystemProvider(status, plan)
+	case platform == hostreqspec.PlatformLinux && status.SelectedProvider == handlerGnomeUserShared:
+		return plan, prepareUserSharedProvider(status, switchingFromSystem)
+	case platform == hostreqspec.PlatformWindows && status.SelectedProvider == handlerWindowsTermservice:
+		return plan, requirePermission(status, "allow_enable_native_provider", setupCommand())
+	case platform == hostreqspec.PlatformMacOS && status.SelectedProvider == handlerMacosScreenSharing:
+		return plan, requirePermission(status, "allow_enable_native_provider", setupCommand())
+	default:
+		return plan, true
+	}
+}
+
+func prepareSystemProvider(status *hostreqkit.ItemStatus, plan remoteDesktopApplyPlan) (remoteDesktopApplyPlan, bool) {
+	if !status.ObservedActive && !requirePermission(status, "allow_enable_system", setupCommand()) {
+		return plan, false
+	}
+	if !requirePermission(status, "allow_provision_credentials", credentialProvisionCommand("username")) {
+		return plan, false
+	}
+	var err error
+	if plan.systemUsername, err = resolveCredentialFn(remoteDesktopID, "username"); err != nil {
+		*status = credentialProvisionRequired(status, "username")
+		return plan, false
+	}
+	if plan.systemPassword, err = resolveCredentialFn(remoteDesktopID, "password"); err != nil {
+		*status = credentialProvisionRequired(status, "password")
+		return plan, false
+	}
+	return plan, true
+}
+
+func prepareUserSharedProvider(status *hostreqkit.ItemStatus, switchingFromSystem bool) bool {
+	if switchingFromSystem && !requirePermission(status, "allow_disable_system_unit", setupCommand()) {
+		return false
+	}
+	if !requirePermission(status, "allow_switch_provider", setupCommand()) || !requirePermission(status, "allow_enable_user_unit", setupCommand()) {
+		return false
+	}
+	if status.CredentialStoreState == "ready" {
+		return true
+	}
+	if credentialStoreBlock(status) || !requirePermission(status, "allow_provision_credentials", credentialCommand()) {
+		return false
+	}
+	status.ExecutionState = hostreqkit.ExecutionManualActionRequired
+	status.BlockingReason = hostreqkit.BlockingManual
+	status.Command = credentialCommand()
+	status.Notes = append(status.Notes, "credential store is empty; enter credentials with "+credentialCommand())
+	return false
+}
+
+func executeRemoteDesktopApply(host hostreqkit.Host, status hostreqkit.ItemStatus, opts hostreqkit.EnsureOptions, plan remoteDesktopApplyPlan) (hostreqkit.ItemStatus, error) {
+	platform := hostreqspec.PlatformFromGOOS(host.OS)
+	switch {
+	case platform == hostreqspec.PlatformLinux && status.SelectedProvider == handlerGnomeSystem:
+		return applySystemProvider(status, opts, plan)
+	case platform == hostreqspec.PlatformLinux && status.SelectedProvider == handlerGnomeUserShared:
+		return applyUserSharedProvider(status, opts, plan.switchingFromSystem)
+	case platform == hostreqspec.PlatformWindows && status.SelectedProvider == handlerWindowsTermservice:
+		return applyWindowsProvider(status, opts)
+	case platform == hostreqspec.PlatformMacOS:
+		return applyMacOSProvider(status, opts)
+	default:
+		status.SupportClass = hostreqkit.SupportUnsupported
+		status.ExecutionState = hostreqkit.ExecutionUnsupported
+		status.Notes = append(status.Notes, "no safe apply operation is implemented for the selected provider")
 		return status, nil
 	}
-	if hostreqspec.PlatformFromGOOS(host.OS) == hostreqspec.PlatformLinux && status.SelectedProvider == handlerGnomeUserShared {
-		if switchingFromSystem {
-			if err := runFn(opts.SudoMode, "systemctl", []string{"disable", "--now", "gnome-remote-desktop.service"}, opts); err != nil {
-				status.ExecutionState = hostreqkit.ExecutionFailed
-				status.Notes = append(status.Notes, "disable system-mode GNOME Remote Desktop failed: "+err.Error())
-				return status, nil
-			}
-		}
-		if err := runUserFn("systemctl", []string{"--user", "enable", "--now", "gnome-remote-desktop.service"}, opts); err != nil {
-			status.ExecutionState = hostreqkit.ExecutionFailed
-			status.Notes = append(status.Notes, "enable user-mode GNOME Remote Desktop failed: "+err.Error())
-			return status, nil
-		}
-		status.Applied = true
-		status.ExecutionState = hostreqkit.ExecutionApplied
-		status.Notes = append(status.Notes, "user-shared GNOME Remote Desktop enabled")
+}
+
+func applySystemProvider(status hostreqkit.ItemStatus, opts hostreqkit.EnsureOptions, plan remoteDesktopApplyPlan) (hostreqkit.ItemStatus, error) {
+	provisionOpts := opts
+	provisionOpts.Stdout = io.Discard
+	provisionOpts.Stderr = io.Discard
+	if err := runFn(opts.SudoMode, "grdctl", []string{"--system", "rdp", "set-credentials", plan.systemUsername, plan.systemPassword}, provisionOpts); err != nil {
+		status.ExecutionState = hostreqkit.ExecutionFailed
+		status.Notes = append(status.Notes, "system-mode GNOME Remote Desktop credential provisioning failed; rerun the Vrooli credential doctor")
 		return status, nil
 	}
-	if hostreqspec.PlatformFromGOOS(host.OS) == hostreqspec.PlatformWindows && status.SelectedProvider == handlerWindowsTermservice {
-		if err := runFn(opts.SudoMode, "sc.exe", []string{"config", "TermService", "start=", "auto"}, opts); err != nil {
+	if !status.ObservedActive {
+		if err := runFn(opts.SudoMode, "systemctl", []string{"enable", "--now", "gnome-remote-desktop.service"}, opts); err != nil {
 			status.ExecutionState = hostreqkit.ExecutionFailed
-			status.Notes = append(status.Notes, "configure Windows TermService failed: "+err.Error())
+			status.Notes = append(status.Notes, "enable gnome-remote-desktop.service failed: "+err.Error())
 			return status, nil
 		}
-		if err := runFn(opts.SudoMode, "sc.exe", []string{"start", "TermService"}, opts); err != nil {
+		status.Notes = append(status.Notes, "system-mode GNOME Remote Desktop enabled")
+	} else {
+		status.Notes = append(status.Notes, "system-mode GNOME Remote Desktop credentials refreshed")
+	}
+	status.Applied = true
+	status.ExecutionState = hostreqkit.ExecutionApplied
+	return status, nil
+}
+
+func applyUserSharedProvider(status hostreqkit.ItemStatus, opts hostreqkit.EnsureOptions, switchingFromSystem bool) (hostreqkit.ItemStatus, error) {
+	if switchingFromSystem {
+		if err := runFn(opts.SudoMode, "systemctl", []string{"disable", "--now", "gnome-remote-desktop.service"}, opts); err != nil {
 			status.ExecutionState = hostreqkit.ExecutionFailed
-			status.Notes = append(status.Notes, "start Windows TermService failed: "+err.Error())
+			status.Notes = append(status.Notes, "disable system-mode GNOME Remote Desktop failed: "+err.Error())
 			return status, nil
 		}
-		status.Applied = true
-		status.ExecutionState = hostreqkit.ExecutionApplied
-		status.Notes = append(status.Notes, "Windows TermService enabled")
+	}
+	if err := runUserFn("systemctl", []string{"--user", "enable", "--now", "gnome-remote-desktop.service"}, opts); err != nil {
+		status.ExecutionState = hostreqkit.ExecutionFailed
+		status.Notes = append(status.Notes, "enable user-mode GNOME Remote Desktop failed: "+err.Error())
 		return status, nil
 	}
-	if hostreqspec.PlatformFromGOOS(host.OS) == hostreqspec.PlatformMacOS {
-		if err := runFn(opts.SudoMode, "launchctl", []string{"enable", "system/com.apple.screensharing"}, opts); err != nil {
-			status.ExecutionState = hostreqkit.ExecutionFailed
-			status.Notes = append(status.Notes, "enable macOS Screen Sharing failed: "+err.Error())
-			return status, nil
-		}
-		if err := runFn(opts.SudoMode, "launchctl", []string{"kickstart", "-k", "system/com.apple.screensharing"}, opts); err != nil {
-			status.ExecutionState = hostreqkit.ExecutionFailed
-			status.Notes = append(status.Notes, "start macOS Screen Sharing failed: "+err.Error())
-			return status, nil
-		}
-		status.Applied = true
-		status.ExecutionState = hostreqkit.ExecutionApplied
-		status.Notes = append(status.Notes, "macOS Screen Sharing enabled")
+	status.Applied = true
+	status.ExecutionState = hostreqkit.ExecutionApplied
+	status.Notes = append(status.Notes, "user-shared GNOME Remote Desktop enabled")
+	return status, nil
+}
+
+func applyWindowsProvider(status hostreqkit.ItemStatus, opts hostreqkit.EnsureOptions) (hostreqkit.ItemStatus, error) {
+	if err := runFn(opts.SudoMode, "sc.exe", []string{"config", "TermService", "start=", "auto"}, opts); err != nil {
+		status.ExecutionState = hostreqkit.ExecutionFailed
+		status.Notes = append(status.Notes, "configure Windows TermService failed: "+err.Error())
 		return status, nil
 	}
-	status.SupportClass = hostreqkit.SupportUnsupported
-	status.ExecutionState = hostreqkit.ExecutionUnsupported
-	status.Notes = append(status.Notes, "no safe apply operation is implemented for the selected provider")
+	if err := runFn(opts.SudoMode, "sc.exe", []string{"start", "TermService"}, opts); err != nil {
+		status.ExecutionState = hostreqkit.ExecutionFailed
+		status.Notes = append(status.Notes, "start Windows TermService failed: "+err.Error())
+		return status, nil
+	}
+	status.Applied = true
+	status.ExecutionState = hostreqkit.ExecutionApplied
+	status.Notes = append(status.Notes, "Windows TermService enabled")
+	return status, nil
+}
+
+func applyMacOSProvider(status hostreqkit.ItemStatus, opts hostreqkit.EnsureOptions) (hostreqkit.ItemStatus, error) {
+	if err := runFn(opts.SudoMode, "launchctl", []string{"enable", "system/com.apple.screensharing"}, opts); err != nil {
+		status.ExecutionState = hostreqkit.ExecutionFailed
+		status.Notes = append(status.Notes, "enable macOS Screen Sharing failed: "+err.Error())
+		return status, nil
+	}
+	if err := runFn(opts.SudoMode, "launchctl", []string{"kickstart", "-k", "system/com.apple.screensharing"}, opts); err != nil {
+		status.ExecutionState = hostreqkit.ExecutionFailed
+		status.Notes = append(status.Notes, "start macOS Screen Sharing failed: "+err.Error())
+		return status, nil
+	}
+	status.Applied = true
+	status.ExecutionState = hostreqkit.ExecutionApplied
+	status.Notes = append(status.Notes, "macOS Screen Sharing enabled")
 	return status, nil
 }
 
@@ -453,76 +489,4 @@ func observedExperience(provider string, facts hostinventory.Snapshot) string {
 		}
 	}
 	return "unknown"
-}
-
-func credentialCommand() string {
-	return credentialProvisionCommand("username")
-}
-
-func setupCommand() string {
-	return "vrooli setup --include-optional --maintenance-window --sudo-mode=ask"
-}
-
-func credentialProvisionCommand(field string) string {
-	return "vrooli credentials provision --identity " + remoteDesktopID + " --field " + field
-}
-
-func credentialProvisionRequired(status *hostreqkit.ItemStatus, field string) hostreqkit.ItemStatus {
-	status.ExecutionState = hostreqkit.ExecutionManualActionRequired
-	status.BlockingReason = hostreqkit.BlockingManual
-	status.Command = credentialProvisionCommand(field)
-	status.Notes = append(status.Notes, "remote-desktop credential is not configured in Vrooli's encrypted authority; run "+credentialProvisionCommand(field)+" and retry")
-	return *status
-}
-
-func resolveRemoteDesktopCredential(identity, field string) (string, error) {
-	authority, err := credentialauthority.Default()
-	if err != nil {
-		return "", err
-	}
-	parsed, err := credentialauthority.ParseIdentity(identity)
-	if err != nil {
-		return "", err
-	}
-	return authority.Resolve(parsed, field)
-}
-
-func remoteDesktopCredentialsReady() bool {
-	authority, err := credentialauthority.Default()
-	if err != nil {
-		return false
-	}
-	identity, err := credentialauthority.ParseIdentity(remoteDesktopID)
-	if err != nil {
-		return false
-	}
-	for _, field := range []string{"username", "password"} {
-		if !authority.Status(identity, field).Configured {
-			return false
-		}
-	}
-	return true
-}
-
-func credentialStoreBlock(status *hostreqkit.ItemStatus) bool {
-	var reason hostreqkit.BlockingReason
-	var remedy string
-	switch status.CredentialStoreState {
-	case "locked":
-		reason = hostreqkit.BlockingCredentialStoreLocked
-		remedy = "run `vrooli credentials keyring unlock`; if the login keyring is intentionally password-protected, opt in to login_keyring_unlock before retrying"
-	case "unresponsive":
-		reason = hostreqkit.BlockingCredentialStoreUnresponsive
-		remedy = "run `vrooli credentials keyring status` and restore the session bus before retrying"
-	case "unavailable", "unsupported":
-		reason = hostreqkit.BlockingCredentialStoreUnavailable
-		remedy = "make the active user's credential store available, then rerun `vrooli credentials keyring status`"
-	default:
-		return false
-	}
-	status.ExecutionState = hostreqkit.ExecutionManualActionRequired
-	status.BlockingReason = reason
-	status.Command = ""
-	status.Notes = append(status.Notes, "credential store state is "+status.CredentialStoreState+"; "+remedy)
-	return true
 }

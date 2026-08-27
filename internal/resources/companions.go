@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/vrooli/vrooli/internal/scenarioruntime"
+	"github.com/vrooli/vrooli/internal/shell"
 	"github.com/vrooli/vrooli/internal/tuning"
 
 	platform "github.com/vrooli/platform-go"
@@ -56,7 +57,7 @@ type CompanionStatus struct {
 	Failure string `json:"failure,omitempty"`
 }
 
-const companionCrashWindow = tuning.LongOperationBudget
+var companionCrashWindow = tuning.CompanionCrashWindow()
 
 // companionDir resolves <home>/.vrooli/processes/resources/<resource> (the
 // runtime-home processes authority), creating it owned by the operator.
@@ -107,7 +108,7 @@ func startCompanion(resourceName string, c ResourceCompanion, recoveryAttempts i
 	}
 	defer logf.Close()
 
-	cmd := exec.Command(bin, c.Args...)
+	cmd := shell.NewCommand(bin, c.Args...)
 	cmd.Stdout = logf
 	cmd.Stderr = logf
 	if err := platform.ConfigureCommand(cmd, platform.ProcessOptions{Detached: true}); err != nil {

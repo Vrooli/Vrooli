@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	testkitgo "github.com/vrooli/repo-contract-go/repocontracttest"
+	"github.com/vrooli/vrooli/internal/buildinfo"
 	"github.com/vrooli/vrooli/internal/control"
 )
 
@@ -20,7 +21,8 @@ func TestResolveRepoRootCanonicalizesContractDescendantOverride(t *testing.T) {
 	if err := os.MkdirAll(nested, 0o755); err != nil {
 		t.Fatalf("mkdir nested: %v", err)
 	}
-	t.Setenv("VROOLI_ROOT", nested)
+	t.Setenv(buildinfo.SourceRootEnvVar, "")
+	t.Setenv(buildinfo.SourceRootFallbackEnvVar, nested)
 
 	if got := ResolveRepoRoot(); got != fixture.Root {
 		t.Fatalf("ResolveRepoRoot() = %q, want %q", got, fixture.Root)

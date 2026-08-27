@@ -82,14 +82,12 @@ func TestOwnedWriteEndsUpInvokerOwned(t *testing.T) {
 	}
 	// EnsureOwnedDir/WriteOwnedFile chown to hostreqkit.InvokingUserIDs(), which
 	// reads $SUDO_UID/$SUDO_GID. Set them and force the root-via-sudo detection.
-	testenv.SetSudoUser(t, "ci")
-	t.Setenv("SUDO_UID", "1000")
-	t.Setenv("SUDO_GID", "1000")
+	testenv.SetIdentityEnv(t, map[string]string{"SUDO_USER": "ci", "SUDO_UID": "1000", "SUDO_GID": "1000"})
 
 	// The owned-write seam only chowns within the resolved VrooliHome boundary.
 	// Point HOME at a temp dir so VrooliHome resolves inside the sandbox.
 	home := t.TempDir()
-	t.Setenv("HOME", home)
+	testenv.SetIdentityEnv(t, map[string]string{"HOME": home})
 	// Avoid the sudo /etc/passwd redirection so HomeDir() honors $HOME above.
 	testenv.SetSudoUser(t, "")
 

@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"strings"
 
+	"github.com/vrooli/vrooli/internal/shell"
 	"github.com/vrooli/vrooli/internal/tuning"
 
 	batchcontrol "github.com/vrooli/vrooli/internal/control"
@@ -239,11 +240,11 @@ func (s *Service) runNativeResourceCommand(item catalog.Resource, operation stri
 	// artifacts in addition to the launch binary. Lifecycle operations remain
 	// short-bounded, while an explicit install gets enough time for a cold
 	// model acquisition on a constrained connection.
-	timeout := tuning.ExtendedOperationTimeout
+	timeout := tuning.ResourceControlExtendedTimeout()
 	if operation == "install" {
-		timeout = tuning.RepairDeadline
+		timeout = tuning.RepairDeadline()
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	ctx, cancel := context.WithTimeout(context.Background(), tuning.ResourceOperationTimeout(timeout))
 	defer cancel()
 	if err := s.DriverRunFn(ctx, item, manifest, operation, args, stdout, stderr); err != nil {
 		var resourceErr *vroolierr.Error
@@ -337,7 +338,7 @@ func (s *Service) StatusForResource(item catalog.Resource, fast bool) (Status, e
 		if err != nil {
 			return Status{}, err
 		}
-		ctx, cancel := context.WithTimeout(context.Background(), tuning.StandardOperationTimeout)
+		ctx, cancel := context.WithTimeout(context.Background(), tuning.ResourceControlTimeout())
 		defer cancel()
 		return s.DriverStatusFn(ctx, item, manifest, fast)
 	}
@@ -358,10 +359,10 @@ func (s *Service) StatusForResource(item catalog.Resource, fast bool) (Status, e
 		return status, nil
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), tuning.StandardOperationTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), tuning.ResourceControlTimeout())
 	defer cancel()
 	origCmd := cmd
-	cmd = exec.CommandContext(ctx, origCmd.Path, origCmd.Args[1:]...)
+	cmd = shell.NewCommandContext(ctx, origCmd.Path, origCmd.Args[1:]...)
 	cmd.Dir = origCmd.Dir
 	cmd.Env = origCmd.Env
 

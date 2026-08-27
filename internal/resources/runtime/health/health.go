@@ -106,11 +106,11 @@ func checkName(check manifestpkg.ResourceHealthCheck) string {
 }
 
 func RunCheck(ctx context.Context, check manifestpkg.ResourceHealthCheck, cfg Config) (Result, error) {
-	timeout := tuning.ServiceHealthTimeout
+	timeout := tuning.ServiceHealthTimeout()
 	if check.TimeoutSeconds > 0 {
 		timeout = time.Duration(check.TimeoutSeconds) * time.Second
 	}
-	checkCtx, cancel := context.WithTimeout(ctx, timeout)
+	checkCtx, cancel := context.WithTimeout(ctx, tuning.ResourceHealthCheckTimeout(timeout))
 	defer cancel()
 
 	switch check.Type {

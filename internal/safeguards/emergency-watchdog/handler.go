@@ -30,6 +30,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/vrooli/vrooli/internal/buildinfo"
 	"github.com/vrooli/vrooli/internal/repocontractmeta"
 	"github.com/vrooli/vrooli/internal/tuning"
 
@@ -146,7 +147,7 @@ func (h handler) Inspect(host hostreqkit.Host, requirement hostreqspec.ResolvedR
 		return status
 	}
 	if hostreqspec.PlatformFromGOOS(host.OS) != hostreqspec.PlatformLinux && !nativeSchedulerAvailable(host.OS) {
-		schedule := watchdoginstall.For(host.OS, tuning.LongOperationTimeout)
+		schedule := watchdoginstall.For(host.OS, tuning.EmergencyWatchdogInterval())
 		status.SupportClass = hostreqkit.SupportUnsupported
 		status.ExecutionState = hostreqkit.ExecutionUnsupported
 		status.Notes = append(status.Notes,
@@ -535,10 +536,10 @@ log "ESCALATING: units unhealthy for ${elapsed}s; pressure disposition is owned 
 # Attempt 1: cheap, non-mutating dependency refresh at the repo root, when the
 # unit supplied one. There is no hard-coded fallback: a watchdog that guesses at
 # somebody else's checkout is worse than one that skips this step.
-if [ -n "${VROOLI_ROOT:-}" ] && [ -f "${VROOLI_ROOT}/go.mod" ] && command -v go >/dev/null 2>&1; then
-  ( cd "$VROOLI_ROOT" && go mod download 2>>"$LOG_FILE" ) 2>/dev/null || log "go mod download exited non-zero"
+if [ -n "${` + buildinfo.SourceRootFallbackEnvVar + `:-}" ] && [ -f "${` + buildinfo.SourceRootFallbackEnvVar + `}/go.mod" ] && command -v go >/dev/null 2>&1; then
+  ( cd "$` + buildinfo.SourceRootFallbackEnvVar + `" && go mod download 2>>"$LOG_FILE" ) 2>/dev/null || log "go mod download exited non-zero"
 else
-  log "skipping go mod download (no VROOLI_ROOT, go.mod, or go binary)"
+  log "skipping go mod download (no ` + buildinfo.SourceRootFallbackEnvVar + `, go.mod, or go binary)"
 fi
 
 # Attempt 2: restart the systemd units; ExecStartPre will swap in known-good

@@ -79,20 +79,20 @@ var (
 	// scenarioWaitDefaultTimeout is the default `scenario wait` ceiling —
 	// generous because dependency-heavy restarts legitimately run for
 	// minutes; agents pass --timeout to tighten it.
-	scenarioWaitDefaultTimeout = tuning.LongOperationBudget
+	scenarioWaitDefaultTimeout = tuning.ScenarioWaitTimeout()
 	// attachPollPolicy paces reads of the operation record while attached to
 	// an in-flight start. Backoff caps at 2s: the record is a local SQLite
 	// read, but a multi-minute start does not need sub-second sampling.
 	attachPollPolicy = AwaitPolicy{
-		Interval:    tuning.HealthProbeInterval,
-		MaxInterval: tuning.ShortOperationDeadline,
+		Interval:    tuning.HealthProbeInterval(),
+		MaxInterval: tuning.LifecyclePollMaxInterval(),
 	}
 	// attachGracePolicy bounds how long a busy-lock caller waits for the
 	// lock holder's operation record to appear before concluding the holder
 	// is not a start (e.g. a concurrent stop) and surfacing ErrScenarioBusy.
 	attachGracePolicy = AwaitPolicy{
-		Timeout:  tuning.HealthCheckTimeout,
-		Interval: tuning.FastHealthPollInterval,
+		Timeout:  tuning.HealthCheckTimeout(),
+		Interval: tuning.FastHealthPollInterval(),
 	}
 )
 

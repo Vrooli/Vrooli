@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"runtime"
 	"sort"
+
+	"github.com/vrooli/vrooli/internal/tuning"
 )
 
 // DuplicateEntry is one PATH directory that appears more than once.
@@ -75,7 +77,7 @@ func isExecutableFile(path string) bool {
 	if runtime.GOOS == "windows" {
 		return true
 	}
-	return info.Mode().Perm()&0o111 != 0
+	return info.Mode().Perm()&tuning.PermExecuteMask != 0
 }
 
 // ShadowingBinaries returns directories that hold a binary named `name` and

@@ -16,6 +16,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/vrooli/vrooli/internal/shell"
 	"github.com/vrooli/vrooli/internal/tuning"
 
 	"github.com/vrooli/cli-core/cliutil"
@@ -793,7 +794,7 @@ func defaultGoEnv(keys ...string) map[string]string {
 		if err != nil {
 			return
 		}
-		out, err := exec.Command(goBin, "env", "-json").Output()
+		out, err := shell.NewCommand(goBin, "env", "-json").Output()
 		if err != nil {
 			return
 		}
@@ -821,7 +822,7 @@ func defaultNodeVersion() string {
 		if err != nil {
 			return
 		}
-		out, err := exec.Command(nodeBin, "--version").Output()
+		out, err := shell.NewCommand(nodeBin, "--version").Output()
 		if err != nil {
 			return
 		}
@@ -999,7 +1000,7 @@ func hostGoToolchain(deps hostProbeDeps) string {
 		if err != nil {
 			return
 		}
-		out, err := exec.Command(goBin, "version").Output()
+		out, err := shell.NewCommand(goBin, "version").Output()
 		if err != nil {
 			return
 		}

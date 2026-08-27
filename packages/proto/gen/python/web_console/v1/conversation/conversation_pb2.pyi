@@ -1,10 +1,24 @@
 from google.protobuf.internal import containers as _containers
+from google.protobuf.internal import enum_type_wrapper as _enum_type_wrapper
 from google.protobuf import descriptor as _descriptor
 from google.protobuf import message as _message
 from collections.abc import Iterable as _Iterable, Mapping as _Mapping
 from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 
 DESCRIPTOR: _descriptor.FileDescriptor
+
+class MessageCaptureState(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    MESSAGE_CAPTURE_STATE_UNSPECIFIED: _ClassVar[MessageCaptureState]
+    MESSAGE_CAPTURE_STATE_CAPTURING: _ClassVar[MessageCaptureState]
+    MESSAGE_CAPTURE_STATE_NOT_APPLICABLE: _ClassVar[MessageCaptureState]
+    MESSAGE_CAPTURE_STATE_PENDING: _ClassVar[MessageCaptureState]
+    MESSAGE_CAPTURE_STATE_UNAVAILABLE: _ClassVar[MessageCaptureState]
+MESSAGE_CAPTURE_STATE_UNSPECIFIED: MessageCaptureState
+MESSAGE_CAPTURE_STATE_CAPTURING: MessageCaptureState
+MESSAGE_CAPTURE_STATE_NOT_APPLICABLE: MessageCaptureState
+MESSAGE_CAPTURE_STATE_PENDING: MessageCaptureState
+MESSAGE_CAPTURE_STATE_UNAVAILABLE: MessageCaptureState
 
 class SearchRequest(_message.Message):
     __slots__ = ("session_id", "query", "limit", "role_filter")
@@ -141,7 +155,7 @@ class GetRequest(_message.Message):
     def __init__(self, session_id: _Optional[str] = ..., since_sequence: _Optional[int] = ..., limit: _Optional[int] = ..., before_sequence: _Optional[int] = ...) -> None: ...
 
 class GetResponse(_message.Message):
-    __slots__ = ("session_id", "events", "cursor", "has_more", "oldest_sequence", "newest_sequence", "total_count")
+    __slots__ = ("session_id", "events", "cursor", "has_more", "oldest_sequence", "newest_sequence", "total_count", "capture")
     SESSION_ID_FIELD_NUMBER: _ClassVar[int]
     EVENTS_FIELD_NUMBER: _ClassVar[int]
     CURSOR_FIELD_NUMBER: _ClassVar[int]
@@ -149,6 +163,7 @@ class GetResponse(_message.Message):
     OLDEST_SEQUENCE_FIELD_NUMBER: _ClassVar[int]
     NEWEST_SEQUENCE_FIELD_NUMBER: _ClassVar[int]
     TOTAL_COUNT_FIELD_NUMBER: _ClassVar[int]
+    CAPTURE_FIELD_NUMBER: _ClassVar[int]
     session_id: str
     events: _containers.RepeatedCompositeFieldContainer[ConversationEvent]
     cursor: ConversationCursor
@@ -156,7 +171,26 @@ class GetResponse(_message.Message):
     oldest_sequence: int
     newest_sequence: int
     total_count: int
-    def __init__(self, session_id: _Optional[str] = ..., events: _Optional[_Iterable[_Union[ConversationEvent, _Mapping]]] = ..., cursor: _Optional[_Union[ConversationCursor, _Mapping]] = ..., has_more: _Optional[bool] = ..., oldest_sequence: _Optional[int] = ..., newest_sequence: _Optional[int] = ..., total_count: _Optional[int] = ...) -> None: ...
+    capture: MessageCaptureStatus
+    def __init__(self, session_id: _Optional[str] = ..., events: _Optional[_Iterable[_Union[ConversationEvent, _Mapping]]] = ..., cursor: _Optional[_Union[ConversationCursor, _Mapping]] = ..., has_more: _Optional[bool] = ..., oldest_sequence: _Optional[int] = ..., newest_sequence: _Optional[int] = ..., total_count: _Optional[int] = ..., capture: _Optional[_Union[MessageCaptureStatus, _Mapping]] = ...) -> None: ...
+
+class MessageCaptureStatus(_message.Message):
+    __slots__ = ("state", "reason_code", "summary", "detail", "remediation", "transcript_path", "last_captured_at")
+    STATE_FIELD_NUMBER: _ClassVar[int]
+    REASON_CODE_FIELD_NUMBER: _ClassVar[int]
+    SUMMARY_FIELD_NUMBER: _ClassVar[int]
+    DETAIL_FIELD_NUMBER: _ClassVar[int]
+    REMEDIATION_FIELD_NUMBER: _ClassVar[int]
+    TRANSCRIPT_PATH_FIELD_NUMBER: _ClassVar[int]
+    LAST_CAPTURED_AT_FIELD_NUMBER: _ClassVar[int]
+    state: MessageCaptureState
+    reason_code: str
+    summary: str
+    detail: str
+    remediation: str
+    transcript_path: str
+    last_captured_at: str
+    def __init__(self, state: _Optional[_Union[MessageCaptureState, str]] = ..., reason_code: _Optional[str] = ..., summary: _Optional[str] = ..., detail: _Optional[str] = ..., remediation: _Optional[str] = ..., transcript_path: _Optional[str] = ..., last_captured_at: _Optional[str] = ...) -> None: ...
 
 class UpdateCursorRequest(_message.Message):
     __slots__ = ("session_id", "last_seen_sequence", "has_last_seen_sequence", "last_listened_sequence", "has_last_listened_sequence")

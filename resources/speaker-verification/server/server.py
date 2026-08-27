@@ -49,7 +49,7 @@ from fastapi.responses import JSONResponse, Response
 from vad import build_vad
 
 # ---------------------------------------------------------------------------
-# Configuration (all overridable via environment for compose / GPU overlays)
+# Configuration (all overridable via the managed-service environment)
 # ---------------------------------------------------------------------------
 
 SERVER_VERSION = "0.4.0"
@@ -117,7 +117,7 @@ EXTRACTION_MATCH_THRESHOLD = float(
 
 # Device resolution. "auto" (and the empty default) pick cuda when a GPU is
 # visible, else cpu. An explicit "cuda" still downgrades to cpu when no GPU is
-# present so the same CUDA image runs unchanged on CPU-only hosts. The chosen
+# present so the same native CUDA artifact runs unchanged on CPU-only hosts. The chosen
 # device is logged once at import so operators can confirm GPU use in the logs.
 _DEVICE_REQUEST = os.environ.get("SPEAKER_VERIFICATION_DEVICE", "auto").strip().lower()
 _CUDA_AVAILABLE = torch.cuda.is_available()
@@ -138,8 +138,8 @@ print(
 if _DEVICE_REQUEST == "cuda" and not _CUDA_AVAILABLE:
     print(
         "[speaker-verification] WARNING: cuda requested but no GPU is visible to "
-        "the container; falling back to cpu. Ensure the GPU compose overlay "
-        "(runtime: nvidia + device reservation) is applied.",
+        "the managed service; falling back to cpu. Check the selected native "
+        "CUDA artifact and host driver facts if GPU execution is required.",
         flush=True,
     )
 

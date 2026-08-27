@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"testing"
 	"time"
+
+	"github.com/vrooli/vrooli/internal/testenv"
 )
 
 func TestInspectReportsStaleKeyringDaemon(t *testing.T) {
@@ -55,8 +57,7 @@ func TestInspectOmitsStaleClaimWhenDaemonTimeCannotBeRead(t *testing.T) {
 }
 
 func TestNativeStorageStrengthClassifiesKeyringFile(t *testing.T) {
-	dir := t.TempDir()
-	t.Setenv("XDG_DATA_HOME", dir)
+	dir := filepath.Join(testenv.RuntimeHome(t), ".local", "share")
 	keyrings := filepath.Join(dir, "keyrings")
 	if err := os.MkdirAll(keyrings, 0o700); err != nil {
 		t.Fatal(err)

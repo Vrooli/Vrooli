@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"strings"
 
+	"github.com/vrooli/vrooli/internal/shell"
 	"github.com/vrooli/vrooli/internal/tuning"
 )
 
@@ -18,8 +19,6 @@ import (
 // --fail-on error), and every infrastructure failure (test-genie CLI not
 // installed, API down, timeout, not a git repo) degrades to a passing
 // info-severity "skipped" check rather than a finding.
-const freshnessCheckBudget = tuning.ServiceHealthTimeout
-
 var errNoTestGenieCLI = errors.New("test-genie CLI not installed")
 
 // freshnessAdvisory mirrors the JSON emitted by
@@ -45,7 +44,7 @@ var testFreshnessOutput = func(ctx context.Context, root string) ([]byte, error)
 	if err != nil {
 		return nil, errNoTestGenieCLI
 	}
-	cmd := exec.CommandContext(ctx, path, "runs", "freshness", "--changed", "--json")
+	cmd := shell.NewCommandContext(ctx, path, "runs", "freshness", "--changed", "--json")
 	cmd.Dir = root
 	out, err := cmd.Output()
 	if len(out) > 0 {
@@ -55,7 +54,7 @@ var testFreshnessOutput = func(ctx context.Context, root string) ([]byte, error)
 }
 
 func (s Service) checkTestFreshness(report *Report) {
-	ctx, cancel := context.WithTimeout(context.Background(), freshnessCheckBudget)
+	ctx, cancel := context.WithTimeout(context.Background(), tuning.FreshnessCheckBudget())
 	defer cancel()
 
 	out, err := testFreshnessOutput(ctx, s.Root)

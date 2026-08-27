@@ -32,13 +32,15 @@ internal/cli/<family>cli     command registration and CLI-facing types
 internal/cli/<family>handlers handler wiring and command behavior
 ```
 
-All thirteen command families use the same boundary shape: an application
+Thirteen command families share the same outer boundary shape: an application
 package owns transport-free orchestration, a `<family>cli` package owns command
-types and rendering, and a `<family>handlers` package binds root context and
-dispatches through the two canonical rootcli entry points: `BindService` for
-service-backed commands and `BindResourceCommand` when a resource controller
-must be injected. These are one binding dialect owned by `rootcli`; no family
-defines a private `bind*` adapter. The families are
+types and rendering, and a `<family>handlers` package binds root context. The
+canonical rootcli entry points are `BindService` for service-backed commands
+and `BindResourceCommand` when a resource controller must be injected. A
+structural census currently finds five private wrappers around those entry
+points and 43 calls to the wrappers. They are visible, ratcheted debt rather
+than a second unmeasured convention; reducing that population remains follow-up
+work. The families are
 authentication, capability, capacity, contract, credentials, host, hygiene,
 package, project, recovery, resource, runtime, and scenario.
 
@@ -46,7 +48,9 @@ Manifest-backed families keep their manifest loader inside the service passed
 to `BindService`; this preserves the manifest as the command contract without
 creating a second dispatcher. Resource commands use the sibling canonical
 `BindResourceCommand` entry point when a resource controller must be injected.
-There are no package-local binding dialects or pass-through binders.
+Do not add another package-local wrapper: bind directly through one of those
+two entry points, or reduce an existing wrapper and lower both structural
+census fields when its measured population falls.
 
 ## App-layer responsibility
 

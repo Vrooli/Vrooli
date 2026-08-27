@@ -12,7 +12,7 @@ import (
 	"github.com/vrooli/vrooli/internal/tuning"
 )
 
-const DefaultCleanupOlderThan = tuning.DailyRetentionWindow
+var DefaultCleanupOlderThan = tuning.DailyRetentionWindow()
 
 type CleanupOptions struct {
 	RepoRoot        string

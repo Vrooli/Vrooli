@@ -28,11 +28,12 @@ import (
 const (
 	ScenarioName = "structure-health"
 	TargetID     = "repo"
-	// Validation is one shared RPC per declared repository target. Keep the
-	// caller deadline large enough for a complete fleet traversal; per-request
-	// HTTP work is still bounded by this same context.
-	DefaultTimeout = tuning.ExtendedOperationTimeout
 )
+
+// Validation is one shared RPC per declared repository target. Keep the
+// caller deadline large enough for a complete fleet traversal; per-request
+// HTTP work is still bounded by this same context.
+var DefaultTimeout = tuning.StructureProviderExtendedBudget()
 
 // ErrUnavailable identifies a missing or unreachable structure-health
 // authority. Callers must surface this error rather than manufacture a local
@@ -90,7 +91,7 @@ func (p Provider) Validate(ctx context.Context, root string) (contractapp.Valida
 	if timeout <= 0 {
 		timeout = DefaultTimeout
 	}
-	callCtx, cancel := context.WithTimeout(ctx, timeout)
+	callCtx, cancel := context.WithTimeout(ctx, tuning.StructureProviderCallTimeout(timeout))
 	defer cancel()
 	baseURL, err := resolveURL(callCtx, ScenarioName)
 	if err != nil {

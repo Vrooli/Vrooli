@@ -488,6 +488,40 @@ func TestReadServiceRejectsInvalidJSON(t *testing.T) {
 	}
 }
 
+func TestLoadServiceManifestToleratesUnknownFields(t *testing.T) {
+	root := t.TempDir()
+	servicePath := filepath.Join(root, "service.json")
+	if err := os.WriteFile(servicePath, []byte(`{
+		"version": "1.0.0",
+		"service": {"name": "future-compatible"},
+		"dependencies": {
+			"resources": {
+				"postgres": {
+					"enabled": true,
+					"required": true,
+					"description": "Store application data",
+					"future_dependency_field": {"mode": "new"}
+				}
+			}
+		},
+		"future_manifest_field": {"version": 2}
+	}`), 0o644); err != nil {
+		t.Fatalf("write service manifest: %v", err)
+	}
+
+	manifest, err := LoadServiceManifest(servicePath)
+	if err != nil {
+		t.Fatalf("LoadServiceManifest: %v", err)
+	}
+	postgres, ok := manifest.Dependencies.Resources["postgres"]
+	if !ok {
+		t.Fatal("expected postgres dependency to be loaded")
+	}
+	if !postgres.Enabled || !postgres.Required || postgres.Description != "Store application data" {
+		t.Fatalf("postgres dependency = %+v", postgres)
+	}
+}
+
 func TestReadServiceLoadsCanonicalDependencyMaps(t *testing.T) {
 	root := t.TempDir()
 	servicePath := filepath.Join(root, "service.json")

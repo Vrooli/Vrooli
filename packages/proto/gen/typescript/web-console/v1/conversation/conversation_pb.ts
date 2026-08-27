@@ -2,15 +2,15 @@
 // @generated from file web-console/v1/conversation/conversation.proto (package vrooli.web_console.v1.conversation, syntax proto3)
 /* eslint-disable */
 
-import type { GenFile, GenMessage, GenService } from "@bufbuild/protobuf/codegenv2";
-import { fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2";
+import type { GenEnum, GenFile, GenMessage, GenService } from "@bufbuild/protobuf/codegenv2";
+import { enumDesc, fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2";
 import type { Message } from "@bufbuild/protobuf";
 
 /**
  * Describes the file web-console/v1/conversation/conversation.proto.
  */
 export const file_web_console_v1_conversation_conversation: GenFile = /*@__PURE__*/
-  fileDesc("Ci53ZWItY29uc29sZS92MS9jb252ZXJzYXRpb24vY29udmVyc2F0aW9uLnByb3RvEiJ2cm9vbGkud2ViX2NvbnNvbGUudjEuY29udmVyc2F0aW9uIlYKDVNlYXJjaFJlcXVlc3QSEgoKc2Vzc2lvbl9pZBgBIAEoCRINCgVxdWVyeRgCIAEoCRINCgVsaW1pdBgDIAEoBRITCgtyb2xlX2ZpbHRlchgEIAEoCSJCCgtTZWFyY2hNYXRjaBIQCghldmVudF9pZBgBIAEoCRIQCghzZXF1ZW5jZRgCIAEoAxIPCgdleGNlcnB0GAMgASgJInwKDlNlYXJjaFJlc3BvbnNlEkAKB21hdGNoZXMYASADKAsyLy52cm9vbGkud2ViX2NvbnNvbGUudjEuY29udmVyc2F0aW9uLlNlYXJjaE1hdGNoEhEKCXRydW5jYXRlZBgCIAEoCBIVCg10b3RhbF9tYXRjaGVzGAMgASgDIm4KFVNlYXJjaEFyY2hpdmVkUmVxdWVzdBINCgVxdWVyeRgBIAEoCRINCgVsaW1pdBgCIAEoBRISCgphZ2VudF90eXBlGAMgASgJEgwKBHJvbGUYBCABKAkSFQoNY3JlYXRlZF9hZnRlchgFIAEoCSKAAQoTQXJjaGl2ZWRTZWFyY2hNYXRjaBIQCghldmVudF9pZBgBIAEoCRISCgpzZXNzaW9uX2lkGAIgASgJEhAKCHNlcXVlbmNlGAMgASgDEgwKBHJvbGUYBCABKAkSEgoKY3JlYXRlZF9hdBgFIAEoCRIPCgdleGNlcnB0GAYgASgJIqcBChZTZWFyY2hBcmNoaXZlZFJlc3BvbnNlEkgKB21hdGNoZXMYASADKAsyNy52cm9vbGkud2ViX2NvbnNvbGUudjEuY29udmVyc2F0aW9uLkFyY2hpdmVkU2VhcmNoTWF0Y2gSEQoJdHJ1bmNhdGVkGAIgASgIEhUKDXRvdGFsX21hdGNoZXMYAyABKAMSGQoRZGlzdGluY3Rfc2Vzc2lvbnMYBCABKAMiUQoPR2V0UmFuZ2VSZXF1ZXN0EhIKCnNlc3Npb25faWQYASABKAkSFQoNZnJvbV9zZXF1ZW5jZRgCIAEoAxITCgt0b19zZXF1ZW5jZRgDIAEoAyKeAgoRQ29udmVyc2F0aW9uRXZlbnQSCgoCaWQYASABKAkSEgoKc2Vzc2lvbl9pZBgCIAEoCRIOCgZzb3VyY2UYAyABKAkSDAoEcm9sZRgEIAEoCRIMCgR0ZXh0GAUgASgJEhkKEXNwZWVjaF9wYXJhZ3JhcGhzGAYgAygJEiIKGm9yaWdpbmFsX3NwZWVjaF9wYXJhZ3JhcGhzGAcgAygJEhIKCnN1bW1hcml6ZWQYCCABKAgSEgoKY3JlYXRlZF9hdBgJIAEoCRIQCghzZXF1ZW5jZRgKIAEoAxIWCg5kZWxpdmVyeV9zdGF0ZRgLIAEoCRIRCgl0dHNfc3RhdGUYDCABKAkSGQoRY29uc3VtcHRpb25fc3RhdGUYDSABKAkiUAoSQ29udmVyc2F0aW9uQ3Vyc29yEhoKEmxhc3Rfc2Vlbl9zZXF1ZW5jZRgBIAEoAxIeChZsYXN0X2xpc3RlbmVkX3NlcXVlbmNlGAIgASgDImAKCkdldFJlcXVlc3QSEgoKc2Vzc2lvbl9pZBgBIAEoCRIWCg5zaW5jZV9zZXF1ZW5jZRgCIAEoAxINCgVsaW1pdBgDIAEoBRIXCg9iZWZvcmVfc2VxdWVuY2UYBCABKAMiiQIKC0dldFJlc3BvbnNlEhIKCnNlc3Npb25faWQYASABKAkSRQoGZXZlbnRzGAIgAygLMjUudnJvb2xpLndlYl9jb25zb2xlLnYxLmNvbnZlcnNhdGlvbi5Db252ZXJzYXRpb25FdmVudBJGCgZjdXJzb3IYAyABKAsyNi52cm9vbGkud2ViX2NvbnNvbGUudjEuY29udmVyc2F0aW9uLkNvbnZlcnNhdGlvbkN1cnNvchIQCghoYXNfbW9yZRgEIAEoCBIXCg9vbGRlc3Rfc2VxdWVuY2UYBSABKAMSFwoPbmV3ZXN0X3NlcXVlbmNlGAYgASgDEhMKC3RvdGFsX2NvdW50GAcgASgDIqkBChNVcGRhdGVDdXJzb3JSZXF1ZXN0EhIKCnNlc3Npb25faWQYASABKAkSGgoSbGFzdF9zZWVuX3NlcXVlbmNlGAIgASgDEh4KFmhhc19sYXN0X3NlZW5fc2VxdWVuY2UYAyABKAgSHgoWbGFzdF9saXN0ZW5lZF9zZXF1ZW5jZRgEIAEoAxIiChpoYXNfbGFzdF9saXN0ZW5lZF9zZXF1ZW5jZRgFIAEoCCJeChRVcGRhdGVDdXJzb3JSZXNwb25zZRJGCgZjdXJzb3IYASABKAsyNi52cm9vbGkud2ViX2NvbnNvbGUudjEuY29udmVyc2F0aW9uLkNvbnZlcnNhdGlvbkN1cnNvciI9ChVTdW1tYXJpemVFdmVudFJlcXVlc3QSEgoKc2Vzc2lvbl9pZBgBIAEoCRIQCghldmVudF9pZBgCIAEoCSJWChZTdW1tYXJpemVFdmVudFJlc3BvbnNlEhIKCnN1bW1hcml6ZWQYASABKAgSGQoRc3BlZWNoX3BhcmFncmFwaHMYAiADKAkSDQoFZXJyb3IYAyABKAky+AUKE0NvbnZlcnNhdGlvblNlcnZpY2USZgoDR2V0Ei4udnJvb2xpLndlYl9jb25zb2xlLnYxLmNvbnZlcnNhdGlvbi5HZXRSZXF1ZXN0Gi8udnJvb2xpLndlYl9jb25zb2xlLnYxLmNvbnZlcnNhdGlvbi5HZXRSZXNwb25zZRJvCgZTZWFyY2gSMS52cm9vbGkud2ViX2NvbnNvbGUudjEuY29udmVyc2F0aW9uLlNlYXJjaFJlcXVlc3QaMi52cm9vbGkud2ViX2NvbnNvbGUudjEuY29udmVyc2F0aW9uLlNlYXJjaFJlc3BvbnNlEocBCg5TZWFyY2hBcmNoaXZlZBI5LnZyb29saS53ZWJfY29uc29sZS52MS5jb252ZXJzYXRpb24uU2VhcmNoQXJjaGl2ZWRSZXF1ZXN0GjoudnJvb2xpLndlYl9jb25zb2xlLnYxLmNvbnZlcnNhdGlvbi5TZWFyY2hBcmNoaXZlZFJlc3BvbnNlEnAKCEdldFJhbmdlEjMudnJvb2xpLndlYl9jb25zb2xlLnYxLmNvbnZlcnNhdGlvbi5HZXRSYW5nZVJlcXVlc3QaLy52cm9vbGkud2ViX2NvbnNvbGUudjEuY29udmVyc2F0aW9uLkdldFJlc3BvbnNlEoEBCgxVcGRhdGVDdXJzb3ISNy52cm9vbGkud2ViX2NvbnNvbGUudjEuY29udmVyc2F0aW9uLlVwZGF0ZUN1cnNvclJlcXVlc3QaOC52cm9vbGkud2ViX2NvbnNvbGUudjEuY29udmVyc2F0aW9uLlVwZGF0ZUN1cnNvclJlc3BvbnNlEocBCg5TdW1tYXJpemVFdmVudBI5LnZyb29saS53ZWJfY29uc29sZS52MS5jb252ZXJzYXRpb24uU3VtbWFyaXplRXZlbnRSZXF1ZXN0GjoudnJvb2xpLndlYl9jb25zb2xlLnYxLmNvbnZlcnNhdGlvbi5TdW1tYXJpemVFdmVudFJlc3BvbnNlQlxaWmdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vd2ViLWNvbnNvbGUvdjEvY29udmVyc2F0aW9uO2NvbnZlcnNhdGlvbl92MWIGcHJvdG8z");
+  fileDesc("Ci53ZWItY29uc29sZS92MS9jb252ZXJzYXRpb24vY29udmVyc2F0aW9uLnByb3RvEiJ2cm9vbGkud2ViX2NvbnNvbGUudjEuY29udmVyc2F0aW9uIlYKDVNlYXJjaFJlcXVlc3QSEgoKc2Vzc2lvbl9pZBgBIAEoCRINCgVxdWVyeRgCIAEoCRINCgVsaW1pdBgDIAEoBRITCgtyb2xlX2ZpbHRlchgEIAEoCSJCCgtTZWFyY2hNYXRjaBIQCghldmVudF9pZBgBIAEoCRIQCghzZXF1ZW5jZRgCIAEoAxIPCgdleGNlcnB0GAMgASgJInwKDlNlYXJjaFJlc3BvbnNlEkAKB21hdGNoZXMYASADKAsyLy52cm9vbGkud2ViX2NvbnNvbGUudjEuY29udmVyc2F0aW9uLlNlYXJjaE1hdGNoEhEKCXRydW5jYXRlZBgCIAEoCBIVCg10b3RhbF9tYXRjaGVzGAMgASgDIm4KFVNlYXJjaEFyY2hpdmVkUmVxdWVzdBINCgVxdWVyeRgBIAEoCRINCgVsaW1pdBgCIAEoBRISCgphZ2VudF90eXBlGAMgASgJEgwKBHJvbGUYBCABKAkSFQoNY3JlYXRlZF9hZnRlchgFIAEoCSKAAQoTQXJjaGl2ZWRTZWFyY2hNYXRjaBIQCghldmVudF9pZBgBIAEoCRISCgpzZXNzaW9uX2lkGAIgASgJEhAKCHNlcXVlbmNlGAMgASgDEgwKBHJvbGUYBCABKAkSEgoKY3JlYXRlZF9hdBgFIAEoCRIPCgdleGNlcnB0GAYgASgJIqcBChZTZWFyY2hBcmNoaXZlZFJlc3BvbnNlEkgKB21hdGNoZXMYASADKAsyNy52cm9vbGkud2ViX2NvbnNvbGUudjEuY29udmVyc2F0aW9uLkFyY2hpdmVkU2VhcmNoTWF0Y2gSEQoJdHJ1bmNhdGVkGAIgASgIEhUKDXRvdGFsX21hdGNoZXMYAyABKAMSGQoRZGlzdGluY3Rfc2Vzc2lvbnMYBCABKAMiUQoPR2V0UmFuZ2VSZXF1ZXN0EhIKCnNlc3Npb25faWQYASABKAkSFQoNZnJvbV9zZXF1ZW5jZRgCIAEoAxITCgt0b19zZXF1ZW5jZRgDIAEoAyKeAgoRQ29udmVyc2F0aW9uRXZlbnQSCgoCaWQYASABKAkSEgoKc2Vzc2lvbl9pZBgCIAEoCRIOCgZzb3VyY2UYAyABKAkSDAoEcm9sZRgEIAEoCRIMCgR0ZXh0GAUgASgJEhkKEXNwZWVjaF9wYXJhZ3JhcGhzGAYgAygJEiIKGm9yaWdpbmFsX3NwZWVjaF9wYXJhZ3JhcGhzGAcgAygJEhIKCnN1bW1hcml6ZWQYCCABKAgSEgoKY3JlYXRlZF9hdBgJIAEoCRIQCghzZXF1ZW5jZRgKIAEoAxIWCg5kZWxpdmVyeV9zdGF0ZRgLIAEoCRIRCgl0dHNfc3RhdGUYDCABKAkSGQoRY29uc3VtcHRpb25fc3RhdGUYDSABKAkiUAoSQ29udmVyc2F0aW9uQ3Vyc29yEhoKEmxhc3Rfc2Vlbl9zZXF1ZW5jZRgBIAEoAxIeChZsYXN0X2xpc3RlbmVkX3NlcXVlbmNlGAIgASgDImAKCkdldFJlcXVlc3QSEgoKc2Vzc2lvbl9pZBgBIAEoCRIWCg5zaW5jZV9zZXF1ZW5jZRgCIAEoAxINCgVsaW1pdBgDIAEoBRIXCg9iZWZvcmVfc2VxdWVuY2UYBCABKAMi1AIKC0dldFJlc3BvbnNlEhIKCnNlc3Npb25faWQYASABKAkSRQoGZXZlbnRzGAIgAygLMjUudnJvb2xpLndlYl9jb25zb2xlLnYxLmNvbnZlcnNhdGlvbi5Db252ZXJzYXRpb25FdmVudBJGCgZjdXJzb3IYAyABKAsyNi52cm9vbGkud2ViX2NvbnNvbGUudjEuY29udmVyc2F0aW9uLkNvbnZlcnNhdGlvbkN1cnNvchIQCghoYXNfbW9yZRgEIAEoCBIXCg9vbGRlc3Rfc2VxdWVuY2UYBSABKAMSFwoPbmV3ZXN0X3NlcXVlbmNlGAYgASgDEhMKC3RvdGFsX2NvdW50GAcgASgDEkkKB2NhcHR1cmUYCCABKAsyOC52cm9vbGkud2ViX2NvbnNvbGUudjEuY29udmVyc2F0aW9uLk1lc3NhZ2VDYXB0dXJlU3RhdHVzItwBChRNZXNzYWdlQ2FwdHVyZVN0YXR1cxJGCgVzdGF0ZRgBIAEoDjI3LnZyb29saS53ZWJfY29uc29sZS52MS5jb252ZXJzYXRpb24uTWVzc2FnZUNhcHR1cmVTdGF0ZRITCgtyZWFzb25fY29kZRgCIAEoCRIPCgdzdW1tYXJ5GAMgASgJEg4KBmRldGFpbBgEIAEoCRITCgtyZW1lZGlhdGlvbhgFIAEoCRIXCg90cmFuc2NyaXB0X3BhdGgYBiABKAkSGAoQbGFzdF9jYXB0dXJlZF9hdBgHIAEoCSKpAQoTVXBkYXRlQ3Vyc29yUmVxdWVzdBISCgpzZXNzaW9uX2lkGAEgASgJEhoKEmxhc3Rfc2Vlbl9zZXF1ZW5jZRgCIAEoAxIeChZoYXNfbGFzdF9zZWVuX3NlcXVlbmNlGAMgASgIEh4KFmxhc3RfbGlzdGVuZWRfc2VxdWVuY2UYBCABKAMSIgoaaGFzX2xhc3RfbGlzdGVuZWRfc2VxdWVuY2UYBSABKAgiXgoUVXBkYXRlQ3Vyc29yUmVzcG9uc2USRgoGY3Vyc29yGAEgASgLMjYudnJvb2xpLndlYl9jb25zb2xlLnYxLmNvbnZlcnNhdGlvbi5Db252ZXJzYXRpb25DdXJzb3IiPQoVU3VtbWFyaXplRXZlbnRSZXF1ZXN0EhIKCnNlc3Npb25faWQYASABKAkSEAoIZXZlbnRfaWQYAiABKAkiVgoWU3VtbWFyaXplRXZlbnRSZXNwb25zZRISCgpzdW1tYXJpemVkGAEgASgIEhkKEXNwZWVjaF9wYXJhZ3JhcGhzGAIgAygJEg0KBWVycm9yGAMgASgJKtUBChNNZXNzYWdlQ2FwdHVyZVN0YXRlEiUKIU1FU1NBR0VfQ0FQVFVSRV9TVEFURV9VTlNQRUNJRklFRBAAEiMKH01FU1NBR0VfQ0FQVFVSRV9TVEFURV9DQVBUVVJJTkcQARIoCiRNRVNTQUdFX0NBUFRVUkVfU1RBVEVfTk9UX0FQUExJQ0FCTEUQAhIhCh1NRVNTQUdFX0NBUFRVUkVfU1RBVEVfUEVORElORxADEiUKIU1FU1NBR0VfQ0FQVFVSRV9TVEFURV9VTkFWQUlMQUJMRRAEMvgFChNDb252ZXJzYXRpb25TZXJ2aWNlEmYKA0dldBIuLnZyb29saS53ZWJfY29uc29sZS52MS5jb252ZXJzYXRpb24uR2V0UmVxdWVzdBovLnZyb29saS53ZWJfY29uc29sZS52MS5jb252ZXJzYXRpb24uR2V0UmVzcG9uc2USbwoGU2VhcmNoEjEudnJvb2xpLndlYl9jb25zb2xlLnYxLmNvbnZlcnNhdGlvbi5TZWFyY2hSZXF1ZXN0GjIudnJvb2xpLndlYl9jb25zb2xlLnYxLmNvbnZlcnNhdGlvbi5TZWFyY2hSZXNwb25zZRKHAQoOU2VhcmNoQXJjaGl2ZWQSOS52cm9vbGkud2ViX2NvbnNvbGUudjEuY29udmVyc2F0aW9uLlNlYXJjaEFyY2hpdmVkUmVxdWVzdBo6LnZyb29saS53ZWJfY29uc29sZS52MS5jb252ZXJzYXRpb24uU2VhcmNoQXJjaGl2ZWRSZXNwb25zZRJwCghHZXRSYW5nZRIzLnZyb29saS53ZWJfY29uc29sZS52MS5jb252ZXJzYXRpb24uR2V0UmFuZ2VSZXF1ZXN0Gi8udnJvb2xpLndlYl9jb25zb2xlLnYxLmNvbnZlcnNhdGlvbi5HZXRSZXNwb25zZRKBAQoMVXBkYXRlQ3Vyc29yEjcudnJvb2xpLndlYl9jb25zb2xlLnYxLmNvbnZlcnNhdGlvbi5VcGRhdGVDdXJzb3JSZXF1ZXN0GjgudnJvb2xpLndlYl9jb25zb2xlLnYxLmNvbnZlcnNhdGlvbi5VcGRhdGVDdXJzb3JSZXNwb25zZRKHAQoOU3VtbWFyaXplRXZlbnQSOS52cm9vbGkud2ViX2NvbnNvbGUudjEuY29udmVyc2F0aW9uLlN1bW1hcml6ZUV2ZW50UmVxdWVzdBo6LnZyb29saS53ZWJfY29uc29sZS52MS5jb252ZXJzYXRpb24uU3VtbWFyaXplRXZlbnRSZXNwb25zZUJcWlpnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL3dlYi1jb25zb2xlL3YxL2NvbnZlcnNhdGlvbjtjb252ZXJzYXRpb25fdjFiBnByb3RvMw");
 
 /**
  * @generated from message vrooli.web_console.v1.conversation.SearchRequest
@@ -426,6 +426,16 @@ export type GetResponse = Message<"vrooli.web_console.v1.conversation.GetRespons
    * @generated from field: int64 total_count = 7;
    */
   totalCount: bigint;
+
+  /**
+   * Why the event list looks the way it does. An empty list is ambiguous on
+   * its own — a brand-new session and a session whose transcript can never be
+   * read produce the same zero events — so every Get carries the explanation
+   * alongside the data.
+   *
+   * @generated from field: vrooli.web_console.v1.conversation.MessageCaptureStatus capture = 8;
+   */
+  capture?: MessageCaptureStatus | undefined;
 };
 
 /**
@@ -434,6 +444,71 @@ export type GetResponse = Message<"vrooli.web_console.v1.conversation.GetRespons
  */
 export const GetResponseSchema: GenMessage<GetResponse> = /*@__PURE__*/
   messageDesc(file_web_console_v1_conversation_conversation, 10);
+
+/**
+ * MessageCaptureStatus is the per-session diagnosis behind the event list.
+ * It replaces a class of silent failure: before it existed, a session whose
+ * transcript was never discovered was indistinguishable from an empty one.
+ *
+ * @generated from message vrooli.web_console.v1.conversation.MessageCaptureStatus
+ */
+export type MessageCaptureStatus = Message<"vrooli.web_console.v1.conversation.MessageCaptureStatus"> & {
+  /**
+   * @generated from field: vrooli.web_console.v1.conversation.MessageCaptureState state = 1;
+   */
+  state: MessageCaptureState;
+
+  /**
+   * Stable machine-readable cause, e.g. "agent_unidentified", "hook_stale",
+   * "transcript_unreadable". Empty when state is CAPTURING.
+   *
+   * @generated from field: string reason_code = 2;
+   */
+  reasonCode: string;
+
+  /**
+   * One sentence, written for the person reading the Messages view.
+   *
+   * @generated from field: string summary = 3;
+   */
+  summary: string;
+
+  /**
+   * Operator-facing specifics — a path, a hook status, a settings location.
+   * Surfaces behind a disclosure, never as the primary sentence.
+   *
+   * @generated from field: string detail = 4;
+   */
+  detail: string;
+
+  /**
+   * The action that would fix this, when one exists.
+   *
+   * @generated from field: string remediation = 5;
+   */
+  remediation: string;
+
+  /**
+   * Resolved transcript path when capture has identified one.
+   *
+   * @generated from field: string transcript_path = 6;
+   */
+  transcriptPath: string;
+
+  /**
+   * RFC3339 timestamp of the most recent captured message; empty if never.
+   *
+   * @generated from field: string last_captured_at = 7;
+   */
+  lastCapturedAt: string;
+};
+
+/**
+ * Describes the message vrooli.web_console.v1.conversation.MessageCaptureStatus.
+ * Use `create(MessageCaptureStatusSchema)` to create a new message.
+ */
+export const MessageCaptureStatusSchema: GenMessage<MessageCaptureStatus> = /*@__PURE__*/
+  messageDesc(file_web_console_v1_conversation_conversation, 11);
 
 /**
  * UpdateCursorRequest applies a partial update to the session's cursor.
@@ -473,7 +548,7 @@ export type UpdateCursorRequest = Message<"vrooli.web_console.v1.conversation.Up
  * Use `create(UpdateCursorRequestSchema)` to create a new message.
  */
 export const UpdateCursorRequestSchema: GenMessage<UpdateCursorRequest> = /*@__PURE__*/
-  messageDesc(file_web_console_v1_conversation_conversation, 11);
+  messageDesc(file_web_console_v1_conversation_conversation, 12);
 
 /**
  * @generated from message vrooli.web_console.v1.conversation.UpdateCursorResponse
@@ -490,7 +565,7 @@ export type UpdateCursorResponse = Message<"vrooli.web_console.v1.conversation.U
  * Use `create(UpdateCursorResponseSchema)` to create a new message.
  */
 export const UpdateCursorResponseSchema: GenMessage<UpdateCursorResponse> = /*@__PURE__*/
-  messageDesc(file_web_console_v1_conversation_conversation, 12);
+  messageDesc(file_web_console_v1_conversation_conversation, 13);
 
 /**
  * SummarizeEventRequest triggers on-demand TTS summarization for a specific
@@ -515,7 +590,7 @@ export type SummarizeEventRequest = Message<"vrooli.web_console.v1.conversation.
  * Use `create(SummarizeEventRequestSchema)` to create a new message.
  */
 export const SummarizeEventRequestSchema: GenMessage<SummarizeEventRequest> = /*@__PURE__*/
-  messageDesc(file_web_console_v1_conversation_conversation, 13);
+  messageDesc(file_web_console_v1_conversation_conversation, 14);
 
 /**
  * SummarizeEventResponse mirrors the legacy shape: summarized=false plus an
@@ -547,7 +622,58 @@ export type SummarizeEventResponse = Message<"vrooli.web_console.v1.conversation
  * Use `create(SummarizeEventResponseSchema)` to create a new message.
  */
 export const SummarizeEventResponseSchema: GenMessage<SummarizeEventResponse> = /*@__PURE__*/
-  messageDesc(file_web_console_v1_conversation_conversation, 14);
+  messageDesc(file_web_console_v1_conversation_conversation, 15);
+
+/**
+ * MessageCaptureState says whether Web Console can record this session's
+ * messages at all. It is deliberately separate from the event list: callers
+ * render CAPTURING with zero events as "nothing said yet", and UNAVAILABLE
+ * with zero events as a fault with a cause and a remedy.
+ *
+ * @generated from enum vrooli.web_console.v1.conversation.MessageCaptureState
+ */
+export enum MessageCaptureState {
+  /**
+   * @generated from enum value: MESSAGE_CAPTURE_STATE_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * The session's transcript is being read; events flow as they are produced.
+   *
+   * @generated from enum value: MESSAGE_CAPTURE_STATE_CAPTURING = 1;
+   */
+  CAPTURING = 1,
+
+  /**
+   * The session runs no agent, so there is no conversation to capture.
+   *
+   * @generated from enum value: MESSAGE_CAPTURE_STATE_NOT_APPLICABLE = 2;
+   */
+  NOT_APPLICABLE = 2,
+
+  /**
+   * Capture is wired but the agent has not produced anything to identify it
+   * by yet. This resolves on its own once the session is used.
+   *
+   * @generated from enum value: MESSAGE_CAPTURE_STATE_PENDING = 3;
+   */
+  PENDING = 3,
+
+  /**
+   * Capture cannot proceed. reason_code says why and remediation says what
+   * would fix it. This is the state that must never be shown as "no messages".
+   *
+   * @generated from enum value: MESSAGE_CAPTURE_STATE_UNAVAILABLE = 4;
+   */
+  UNAVAILABLE = 4,
+}
+
+/**
+ * Describes the enum vrooli.web_console.v1.conversation.MessageCaptureState.
+ */
+export const MessageCaptureStateSchema: GenEnum<MessageCaptureState> = /*@__PURE__*/
+  enumDesc(file_web_console_v1_conversation_conversation, 0);
 
 /**
  * @generated from service vrooli.web_console.v1.conversation.ConversationService

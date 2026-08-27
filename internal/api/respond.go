@@ -30,18 +30,20 @@ func respondError(w http.ResponseWriter, err error) {
 		return
 	}
 
-	respondJSON(w, vroolierr.HTTPStatus(err, http.StatusInternalServerError), Response{
+	boundaryErr, _ := vroolierr.Ensure(
+		err,
+		"internal_error",
+		"Internal",
+		"",
+		vroolierr.WithHTTPStatus(http.StatusInternalServerError),
+	)
+	respondJSON(w, vroolierr.HTTPStatus(boundaryErr, http.StatusInternalServerError), Response{
 		Success:   false,
-		Error:     err.Error(),
-		ErrorCode: vroolierr.Code(err, "internal_error"),
+		Error:     boundaryErr.Error(),
+		ErrorCode: boundaryErr.Code,
 	})
 }
 
 func newAPIError(status int, code, message string, err error) error {
-	return &vroolierr.Error{
-		HTTPStatus: status,
-		Code:       code,
-		Message:    message,
-		Err:        err,
-	}
+	return vroolierr.Wrap(err, code, "Runtime", message, vroolierr.WithHTTPStatus(status))
 }

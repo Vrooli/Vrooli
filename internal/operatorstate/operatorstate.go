@@ -21,6 +21,7 @@ import (
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/filerouting"
 	"github.com/vrooli/api-core/storage"
+	"github.com/vrooli/vrooli/internal/buildinfo"
 	"github.com/vrooli/vrooli/internal/repocontractmeta"
 )
 
@@ -154,7 +155,7 @@ func (s *Service) Path(ctx context.Context) (string, error) {
 	if root := strings.TrimSpace(s.cfg.StorageRoot); root != "" {
 		return filepath.Join(root, StateFile), nil
 	}
-	return "", errors.New("VROOLI_ROOT or VROOLI_STORAGE_ROOT is required to locate operator state")
+	return "", fmt.Errorf("%s or VROOLI_STORAGE_ROOT is required to locate operator state", buildinfo.SourceRootFallbackEnvVar)
 }
 
 func SchemaDir() string { return filepath.Dir(SchemaPath) }

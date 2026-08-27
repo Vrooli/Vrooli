@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -14,6 +13,7 @@ import (
 
 	"github.com/vrooli/envkit-go"
 	repocontract "github.com/vrooli/repo-contract-go"
+	"github.com/vrooli/vrooli/internal/shell"
 )
 
 // ConformanceTarget binds an authored platform claim to the Go module that
@@ -189,7 +189,7 @@ func crossCompile(ctx context.Context, module string, hostOS HostOS, architectur
 	if hostOS == HostOSMacOS {
 		goos = "darwin"
 	}
-	cmd := exec.CommandContext(ctx, "go", "vet", "./...")
+	cmd := shell.NewCommandContext(ctx, "go", "vet", "./...")
 	cmd.Dir = module
 	cmd.Env = envkit.WithOverlay(envkit.Env(os.Environ()), envkit.SameScenario, envkit.Env{"GOWORK=off", "GOOS=" + goos, "GOARCH=" + arch})
 	out, err := cmd.CombinedOutput()

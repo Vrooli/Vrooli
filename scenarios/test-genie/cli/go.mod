@@ -8,6 +8,7 @@ require (
 	github.com/vrooli/cli-core v0.0.0
 	github.com/vrooli/maturity-go v0.0.0
 	github.com/vrooli/repo-contract-go v0.0.0
+	github.com/vrooli/vrooli v0.0.0
 	github.com/vrooli/vrooli/packages/proto v0.0.0
 	golang.org/x/term v0.45.0
 	google.golang.org/protobuf v1.36.11
@@ -64,7 +65,6 @@ require (
 	github.com/vrooli/envkit-go v0.0.0 // indirect
 	github.com/vrooli/freshness-go v0.0.0 // indirect
 	github.com/vrooli/platform-go v0.0.0 // indirect
-	github.com/vrooli/vrooli v0.0.0 // indirect
 	github.com/yusufpapurcu/wmi v1.2.3 // indirect
 	go.opentelemetry.io/auto/sdk v1.2.1 // indirect
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.49.0 // indirect
@@ -111,3 +111,7 @@ replace github.com/vrooli/platform-go => ../../../packages/platform-go
 replace github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime => ../../scenario-to-desktop/runtime
 
 replace github.com/vrooli/envkit-go => ../../../packages/envkit-go
+
+replace github.com/vrooli/cliresolve => ../../../packages/cliresolve
+
+replace github.com/vrooli/nodeclient => ../../../packages/nodeclient

@@ -15,7 +15,7 @@ type SessionCommandRunner = shell.Runner
 // inventory authority. Callers that need a session bus may separately resolve
 // that user's UID without reimplementing session selection.
 func ActiveSessionUser(ctx context.Context, commands SessionCommandRunner) string {
-	probeCtx, cancel := context.WithTimeout(ctx, tuning.ServiceHealthTimeout)
+	probeCtx, cancel := context.WithTimeout(ctx, tuning.ServiceHealthTimeout())
 	defer cancel()
 	activeSession, err := commands.Run(probeCtx, "loginctl", "show-seat", "seat0", "-p", "ActiveSession", "--value")
 	if err != nil {

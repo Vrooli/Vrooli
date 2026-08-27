@@ -116,7 +116,7 @@ func (c *IntegrityDefaultCollector) Collect(ctx context.Context) (HostInventory,
 		inv.Fingerprint = Fingerprint(inv)
 		return inv, nil
 	}
-	ctx, cancel := context.WithTimeout(ctx, tuning.IntegrityCollectionTimeout)
+	ctx, cancel := context.WithTimeout(ctx, tuning.IntegrityCollectionTimeout())
 	defer cancel()
 	inv.Kernel.Release = commandText(ctx, c.commands, "uname", "-r")
 	inv.Kernel.Version = commandText(ctx, c.commands, "uname", "-v")

@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"os/exec"
 	"os/signal"
 	"path/filepath"
 	"runtime"
@@ -26,6 +25,7 @@ import (
 	scenariomodel "github.com/vrooli/vrooli/internal/scenario"
 	"github.com/vrooli/vrooli/internal/scenarioexec"
 	"github.com/vrooli/vrooli/internal/scenarioruntime"
+	"github.com/vrooli/vrooli/internal/shell"
 	cliv1 "github.com/vrooli/vrooli/packages/proto/gen/go/cli/v1"
 	"google.golang.org/protobuf/encoding/protojson"
 )
@@ -76,21 +76,6 @@ func BuildHandlers[C any](deps HandlerDeps[C]) map[CommandID]rootcli.Handler[C] 
 	return buildHandlerMap(deps)
 }
 
-// scenarioServiceFor resolves the two dependencies shared by scenario
-// commands. Keeping this prologue in one seam prevents the command registry
-// from carrying a separate copy of the same error paths for every entry.
-func scenarioServiceFor[C any](deps HandlerDeps[C], ctx C) (cliout.Format, scenarioapp.Service, error) {
-	format, err := deps.OutputFormat(ctx)
-	if err != nil {
-		return "", scenarioapp.Service{}, err
-	}
-	ops, err := deps.ScenarioOperations(ctx)
-	if err != nil {
-		return "", scenarioapp.Service{}, err
-	}
-	return format, NewStartService(ops, func(url string) error { return deps.OpenURL(ctx, url) }), nil
-}
-
 func scenarioOperationsServiceFor[C any](deps HandlerDeps[C], ctx C) (scenarioapp.Service, error) {
 	ops, err := deps.ScenarioOperations(ctx)
 	if err != nil {
@@ -99,14 +84,13 @@ func scenarioOperationsServiceFor[C any](deps HandlerDeps[C], ctx C) (scenarioap
 	return NewStartService(ops, func(url string) error { return deps.OpenURL(ctx, url) }), nil
 }
 
-func runWithScenarioService[C any, Resp any](deps HandlerDeps[C], ctx C, run func(cliout.Format, scenarioapp.Service) (Resp, error)) (cliout.Format, Resp, error) {
-	format, service, err := scenarioServiceFor(deps, ctx)
+func runWithScenarioService[C any, Resp any](deps HandlerDeps[C], ctx C, format cliout.Format, run func(cliout.Format, scenarioapp.Service) (Resp, error)) (Resp, error) {
+	service, err := scenarioOperationsServiceFor(deps, ctx)
 	if err != nil {
 		var zero Resp
-		return "", zero, err
+		return zero, err
 	}
-	resp, err := run(format, service)
-	return format, resp, err
+	return run(format, service)
 }
 
 func buildHandlerMap[C any](deps HandlerDeps[C]) map[CommandID]rootcli.Handler[C] {
@@ -130,10 +114,10 @@ func mergeHandlerMaps[C any](groups ...map[CommandID]rootcli.Handler[C]) map[Com
 //nolint:gocyclo // read command registration preserves distinct parser, service, remote, and renderer seams.
 func buildScenarioReadHandlers[C any](deps HandlerDeps[C]) map[CommandID]rootcli.Handler[C] {
 	return map[CommandID]rootcli.Handler[C]{
-		CommandList: scenarioServiceCommand(deps.Stdout,
+		CommandList: scenarioServiceCommand(deps.Stdout, deps.OutputFormat,
 			func(ctx C, args []string) (ListRequest, error) { return ParseListRequest(deps.Globals(ctx).JSON, args) },
-			func(ctx C, req ListRequest) (cliout.Format, ListResponse, error) {
-				return runWithScenarioService(deps, ctx, func(format cliout.Format, service scenarioapp.Service) (ListResponse, error) {
+			func(ctx C, format cliout.Format, req ListRequest) (ListResponse, error) {
+				return runWithScenarioService(deps, ctx, format, func(format cliout.Format, service scenarioapp.Service) (ListResponse, error) {
 					resp, err := ListResponseFrom(format, func(req ListRequest) (scenarioapp.ListResponse, error) {
 						return service.List(scenarioapp.ListRequest(req))
 					}, req)
@@ -142,10 +126,10 @@ func buildScenarioReadHandlers[C any](deps HandlerDeps[C]) map[CommandID]rootcli
 			},
 			RenderListResponse,
 		),
-		CommandInfo: scenarioServiceCommand(deps.Stdout,
+		CommandInfo: scenarioServiceCommand(deps.Stdout, deps.OutputFormat,
 			func(ctx C, args []string) (InfoRequest, error) { return ParseInfoRequest(deps.Globals(ctx).JSON, args) },
-			func(ctx C, req InfoRequest) (cliout.Format, InfoOutput, error) {
-				return runWithScenarioService(deps, ctx, func(format cliout.Format, service scenarioapp.Service) (InfoOutput, error) {
+			func(ctx C, format cliout.Format, req InfoRequest) (InfoOutput, error) {
+				return runWithScenarioService(deps, ctx, format, func(format cliout.Format, service scenarioapp.Service) (InfoOutput, error) {
 					resp, err := InfoResponseFrom(format, func(req InfoRequest) (scenarioapp.InfoOutput, error) {
 						return service.Info(scenarioapp.InfoRequest(req))
 					}, req)
@@ -154,65 +138,53 @@ func buildScenarioReadHandlers[C any](deps HandlerDeps[C]) map[CommandID]rootcli
 			},
 			RenderInfoResponse,
 		),
-		CommandTimings: scenarioServiceCommand(deps.Stdout,
+		CommandTimings: scenarioServiceCommand(deps.Stdout, deps.OutputFormat,
 			func(ctx C, args []string) (TimingsRequest, error) {
 				return ParseTimingsRequest(deps.Globals(ctx).JSON, args)
 			},
-			func(ctx C, req TimingsRequest) (cliout.Format, TimingsResponse, error) {
-				format, err := deps.OutputFormat(ctx)
-				if err != nil {
-					return "", TimingsResponse{}, err
-				}
+			func(ctx C, format cliout.Format, req TimingsRequest) (TimingsResponse, error) {
 				if deps.TimingStore == nil {
-					return "", TimingsResponse{}, fmt.Errorf("scenario timings is not configured")
+					return TimingsResponse{}, fmt.Errorf("scenario timings is not configured")
 				}
 				store, err := deps.TimingStore(ctx)
 				if err != nil {
-					return "", TimingsResponse{}, err
+					return TimingsResponse{}, err
 				}
 				defer store.Close()
 				rows, err := store.StartTimingSummaries(context.Background(), req.Scenario)
-				return format, TimingsResponse{Rows: rows}, err
+				return TimingsResponse{Rows: rows}, err
 			},
 			RenderTimingsResponse,
 		),
-		CommandStatus: scenarioServiceCommand(deps.Stdout,
+		CommandStatus: scenarioServiceCommand(deps.Stdout, deps.OutputFormat,
 			func(ctx C, args []string) (StatusRequest, error) {
 				return ParseStatusRequest(deps.Globals(ctx).JSON, args)
 			},
-			func(ctx C, req StatusRequest) (cliout.Format, StatusResponse, error) {
-				format, err := deps.OutputFormat(ctx)
-				if err != nil {
-					return "", StatusResponse{}, err
-				}
+			func(ctx C, format cliout.Format, req StatusRequest) (StatusResponse, error) {
 				if node, remoteScenario, remote := remoteScenarioAddress(req.Name); remote {
 					payload, callErr := callRemoteScenario(deps, ctx, node, remoteScenario, "scenario status", nil, req.JSON)
 					if callErr != nil {
 						emitLifecycleFailure(deps, ctx, "status", []string{req.Name}, callErr)
-						return format, StatusResponse{}, silentLifecycleError{inner: callErr}
+						return StatusResponse{}, silentLifecycleError{inner: callErr}
 					}
-					return format, StatusResponse{Raw: payload}, callErr
+					return StatusResponse{Raw: payload}, callErr
 				}
 				service, err := scenarioOperationsServiceFor(deps, ctx)
 				if err != nil {
-					return "", StatusResponse{}, err
+					return StatusResponse{}, err
 				}
 				resp, err := StatusResponseFrom(format, func(req StatusRequest) (scenarioapp.StatusResponse, error) {
 					return service.Status(scenarioapp.StatusRequest(req))
 				}, req)
-				return format, resp, err
+				return resp, err
 			},
 			RenderStatusResponse,
 		),
-		CommandWait: scenarioServiceCommand(deps.Stdout,
+		CommandWait: scenarioServiceCommand(deps.Stdout, deps.OutputFormat,
 			func(ctx C, args []string) (WaitRequest, error) {
 				return ParseWaitRequest(deps.Globals(ctx).JSON, args)
 			},
-			func(ctx C, req WaitRequest) (cliout.Format, WaitResponse, error) {
-				format, err := deps.OutputFormat(ctx)
-				if err != nil {
-					return "", WaitResponse{}, err
-				}
+			func(ctx C, format cliout.Format, req WaitRequest) (WaitResponse, error) {
 				if node, remoteScenario, remote := remoteScenarioAddress(req.Name); remote {
 					args := []string{}
 					if req.TimeoutSeconds > 0 {
@@ -221,25 +193,25 @@ func buildScenarioReadHandlers[C any](deps HandlerDeps[C]) map[CommandID]rootcli
 					payload, callErr := callRemoteScenario(deps, ctx, node, remoteScenario, "scenario wait", args, true)
 					if callErr != nil {
 						emitLifecycleFailure(deps, ctx, "wait", []string{req.Name}, callErr)
-						return format, WaitResponse{}, silentLifecycleError{inner: callErr}
+						return WaitResponse{}, silentLifecycleError{inner: callErr}
 					}
 					resp, decodeErr := decodeRemoteWait(payload)
 					if decodeErr != nil {
 						emitLifecycleFailure(deps, ctx, "wait", []string{req.Name}, decodeErr)
-						return format, WaitResponse{}, silentLifecycleError{inner: decodeErr}
+						return WaitResponse{}, silentLifecycleError{inner: decodeErr}
 					}
-					return format, resp, nil
+					return resp, nil
 				}
 				runner, err := deps.LifecycleRunner(ctx)
 				if err != nil {
-					return "", WaitResponse{}, err
+					return WaitResponse{}, err
 				}
 				stderr := deps.Stderr(ctx)
 				// Inside an agent-manager run, park instead of blocking:
 				// agent-manager performs the wait via its lifecycle Waiter and
 				// wakes the run with the JSON verdict (zero tokens parked).
 				if message, parked := ParkScenarioWait(stderr, req.Name); parked {
-					return format, WaitResponse{Scenario: req.Name, ParkedMessage: message}, nil
+					return WaitResponse{Scenario: req.Name, ParkedMessage: message}, nil
 				}
 				WarnIfEagerScenarioWait(stderr, req.Name, time.Now())
 				service := NewRunnerService(runner)
@@ -273,12 +245,12 @@ func buildScenarioReadHandlers[C any](deps HandlerDeps[C]) map[CommandID]rootcli
 				select {
 				case r := <-resultCh:
 					if r.err != nil {
-						return "", WaitResponse{}, r.err
+						return WaitResponse{}, r.err
 					}
 					resp = r.resp
 				case <-sigCh:
 					fmt.Fprintf(stderr, "detached from scenario wait; the start (if any) continues — re-attach with `vrooli scenario wait %s --json`\n", req.Name)
-					return format, WaitResponse{Scenario: req.Name, Verdict: WaitVerdictDetached, Source: "detached"}, nil
+					return WaitResponse{Scenario: req.Name, Verdict: WaitVerdictDetached, Source: "detached"}, nil
 				}
 				if resp.Verdict == lifecycle.WaitVerdictTimeout {
 					// Ceiling elapsed: this wait detached; the start continues.
@@ -286,7 +258,7 @@ func buildScenarioReadHandlers[C any](deps HandlerDeps[C]) map[CommandID]rootcli
 				} else {
 					ClearScenarioWaitAttempt(req.Name)
 				}
-				return format, WaitResponse{
+				return WaitResponse{
 					Success:       resp.Success,
 					Scenario:      resp.Scenario,
 					Verdict:       resp.Verdict,
@@ -299,45 +271,37 @@ func buildScenarioReadHandlers[C any](deps HandlerDeps[C]) map[CommandID]rootcli
 			},
 			RenderWaitResponse,
 		),
-		CommandValidateEnv: scenarioServiceCommand(deps.Stdout,
+		CommandValidateEnv: scenarioServiceCommand(deps.Stdout, deps.OutputFormat,
 			func(ctx C, args []string) (ValidateEnvRequest, error) {
 				return ParseValidateEnvRequest(deps.Globals(ctx).JSON, args)
 			},
-			func(ctx C, req ValidateEnvRequest) (cliout.Format, ValidateEnvResponse, error) {
-				format, err := deps.OutputFormat(ctx)
-				if err != nil {
-					return "", ValidateEnvResponse{}, err
-				}
+			func(ctx C, format cliout.Format, req ValidateEnvRequest) (ValidateEnvResponse, error) {
 				validator, err := deps.EnvValidator(ctx)
 				if err != nil {
-					return "", ValidateEnvResponse{}, err
+					return ValidateEnvResponse{}, err
 				}
 				service := NewValidatorService(validator)
 				resp, err := ValidateEnvResponseFrom(func(req ValidateEnvRequest) (scenarioapp.ValidateEnvResponse, error) {
 					return service.ValidateEnv(scenarioapp.ValidateEnvRequest(req))
 				}, format, req)
-				return format, resp, err
+				return resp, err
 			},
 			RenderValidateEnvResponse,
 		),
-		CommandFreshness: scenarioServiceCommand(deps.Stdout,
+		CommandFreshness: scenarioServiceCommand(deps.Stdout, deps.OutputFormat,
 			func(ctx C, args []string) (FreshnessRequest, error) {
 				return ParseFreshnessRequest(deps.Globals(ctx).JSON, args)
 			},
-			func(ctx C, req FreshnessRequest) (cliout.Format, FreshnessResponse, error) {
-				format, err := deps.OutputFormat(ctx)
-				if err != nil {
-					return "", FreshnessResponse{}, err
-				}
+			func(ctx C, format cliout.Format, req FreshnessRequest) (FreshnessResponse, error) {
 				runner, err := deps.LifecycleRunner(ctx)
 				if err != nil {
-					return "", FreshnessResponse{}, err
+					return FreshnessResponse{}, err
 				}
 				report, err := NewRunnerService(runner).Freshness(scenarioapp.FreshnessRequest{Name: req.Name, Path: req.Path, JSON: req.JSON})
 				if err != nil {
-					return format, FreshnessResponse{}, err
+					return FreshnessResponse{}, err
 				}
-				return format, FreshnessResponse{Report: report, Explain: req.Explain}, nil
+				return FreshnessResponse{Report: report, Explain: req.Explain}, nil
 			},
 			RenderFreshnessResponse,
 		),
@@ -353,22 +317,22 @@ func buildScenarioLifecycleHandlers[C any](deps HandlerDeps[C]) map[CommandID]ro
 
 func buildScenarioStartHandlers[C any](deps HandlerDeps[C]) map[CommandID]rootcli.Handler[C] {
 	return map[CommandID]rootcli.Handler[C]{
-		CommandRun: scenarioServiceCommand(deps.Stdout,
+		CommandRun: scenarioServiceCommand(deps.Stdout, deps.OutputFormat,
 			func(ctx C, args []string) (StartRequest, error) {
 				return ParseStartRequest(deps.Globals(ctx).JSON, args)
 			},
-			func(ctx C, req StartRequest) (cliout.Format, []LifecycleItemOutput, error) {
+			func(ctx C, format cliout.Format, req StartRequest) ([]LifecycleItemOutput, error) {
 				if err := ensureScenarioCLIs(deps, ctx, req.Names...); err != nil {
-					return "", nil, err
+					return nil, err
 				}
-				return runWithScenarioService(deps, ctx, func(format cliout.Format, service scenarioapp.Service) ([]LifecycleItemOutput, error) {
+				return runWithScenarioService(deps, ctx, format, func(format cliout.Format, service scenarioapp.Service) ([]LifecycleItemOutput, error) {
 					items, err := service.Start(scenarioapp.StartRequest(req))
 					return toCLILifecycleItems(items), err
 				})
 			},
 			WriteLifecycleItems,
 		),
-		CommandStart: scenarioServiceCommand(deps.Stdout,
+		CommandStart: scenarioServiceCommand(deps.Stdout, deps.OutputFormat,
 			func(ctx C, args []string) (StartRequest, error) {
 				return ParseStartRequest(deps.Globals(ctx).JSON, args)
 			},
@@ -376,28 +340,24 @@ func buildScenarioStartHandlers[C any](deps HandlerDeps[C]) map[CommandID]rootcl
 				deps,
 				"start",
 				func(req StartRequest) []string { return append([]string(nil), req.Names...) },
-				func(ctx C, req StartRequest) (cliout.Format, []LifecycleItemOutput, error) {
+				func(ctx C, format cliout.Format, req StartRequest) ([]LifecycleItemOutput, error) {
 					if node, remoteScenario, remote := remoteStartAddress(req.Names); remote {
 						if len(req.Names) != 1 {
-							return "", nil, fmt.Errorf("remote scenario start accepts exactly one explicitly addressed scenario")
-						}
-						format, callErr := deps.OutputFormat(ctx)
-						if callErr != nil {
-							return "", nil, callErr
+							return nil, fmt.Errorf("remote scenario start accepts exactly one explicitly addressed scenario")
 						}
 						payload, callErr := callRemoteScenario(deps, ctx, node, remoteScenario, "scenario start", remoteStartArgs(req.Options, req.OpenAfter, req.TimeoutSeconds), true)
 						if callErr != nil {
-							return format, nil, callErr
+							return nil, callErr
 						}
 						items, decodeErr := decodeRemoteLifecycle(payload)
-						return format, items, decodeErr
+						return items, decodeErr
 					}
 					if req.Options.CustomPath == "" {
 						if err := ensureScenarioCLIs(deps, ctx, req.Names...); err != nil {
-							return "", nil, err
+							return nil, err
 						}
 					}
-					return runWithScenarioService(deps, ctx, func(format cliout.Format, service scenarioapp.Service) ([]LifecycleItemOutput, error) {
+					return runWithScenarioService(deps, ctx, format, func(format cliout.Format, service scenarioapp.Service) ([]LifecycleItemOutput, error) {
 						items, err := runWithStartCeiling(req.TimeoutSeconds, deps.Stderr(ctx), strings.Join(req.Names, " "), func(operationCtx context.Context) ([]scenarioapp.LifecycleItemOutput, error) {
 							req.Options.Context = operationCtx
 							return service.Start(scenarioapp.StartRequest(req))
@@ -408,42 +368,38 @@ func buildScenarioStartHandlers[C any](deps HandlerDeps[C]) map[CommandID]rootcl
 			),
 			WriteLifecycleItems,
 		),
-		CommandStartAll: scenarioServiceCommand(deps.Stdout,
+		CommandStartAll: scenarioServiceCommand(deps.Stdout, deps.OutputFormat,
 			func(ctx C, args []string) (StartAllRequest, error) {
 				return ParseStartAllRequest(deps.Globals(ctx).JSON, args)
 			},
-			func(ctx C, req StartAllRequest) (cliout.Format, BatchResponse, error) {
-				return runWithScenarioService(deps, ctx, func(format cliout.Format, service scenarioapp.Service) (BatchResponse, error) {
+			func(ctx C, format cliout.Format, req StartAllRequest) (BatchResponse, error) {
+				return runWithScenarioService(deps, ctx, format, func(format cliout.Format, service scenarioapp.Service) (BatchResponse, error) {
 					return BatchStartResponseFrom(format, service.StartAll)
 				})
 			},
 			WriteBatchReport,
 		),
-		CommandSetup: scenarioServiceCommand(deps.Stdout,
+		CommandSetup: scenarioServiceCommand(deps.Stdout, deps.OutputFormat,
 			func(ctx C, args []string) (SetupRequest, error) {
 				return ParseSetupRequest(deps.Globals(ctx).JSON, args)
 			},
-			func(ctx C, req SetupRequest) (cliout.Format, lifecycle.PhaseResult, error) {
+			func(ctx C, format cliout.Format, req SetupRequest) (lifecycle.PhaseResult, error) {
 				if req.Opts.CustomPath == "" {
 					if err := ensureScenarioCLIs(deps, ctx, req.Name); err != nil {
-						return "", lifecycle.PhaseResult{}, err
+						return lifecycle.PhaseResult{}, err
 					}
-				}
-				format, err := deps.OutputFormat(ctx)
-				if err != nil {
-					return "", lifecycle.PhaseResult{}, err
 				}
 				runner, err := deps.LifecycleRunner(ctx)
 				if err != nil {
-					return "", lifecycle.PhaseResult{}, err
+					return lifecycle.PhaseResult{}, err
 				}
 				service := NewRunnerService(runner)
 				result, err := service.Setup(scenarioapp.SetupRequest(req))
-				return format, result, err
+				return result, err
 			},
 			RenderSetupPhaseResult,
 		),
-		CommandRestart: scenarioServiceCommand(deps.Stdout,
+		CommandRestart: scenarioServiceCommand(deps.Stdout, deps.OutputFormat,
 			func(ctx C, args []string) (RestartRequest, error) {
 				return ParseRestartRequest(deps.Globals(ctx).JSON, args)
 			},
@@ -451,25 +407,21 @@ func buildScenarioStartHandlers[C any](deps HandlerDeps[C]) map[CommandID]rootcl
 				deps,
 				"restart",
 				func(req RestartRequest) []string { return []string{req.Name} },
-				func(ctx C, req RestartRequest) (cliout.Format, []LifecycleItemOutput, error) {
+				func(ctx C, format cliout.Format, req RestartRequest) ([]LifecycleItemOutput, error) {
 					if node, remoteScenario, remote := remoteScenarioAddress(req.Name); remote {
-						format, callErr := deps.OutputFormat(ctx)
-						if callErr != nil {
-							return "", nil, callErr
-						}
 						payload, callErr := callRemoteScenario(deps, ctx, node, remoteScenario, "scenario restart", remoteStartArgs(req.Options, req.OpenAfter, req.TimeoutSeconds), true)
 						if callErr != nil {
-							return format, nil, callErr
+							return nil, callErr
 						}
 						items, decodeErr := decodeRemoteLifecycle(payload)
-						return format, items, decodeErr
+						return items, decodeErr
 					}
 					if req.Options.CustomPath == "" {
 						if err := ensureScenarioCLIs(deps, ctx, req.Name); err != nil {
-							return "", nil, err
+							return nil, err
 						}
 					}
-					return runWithScenarioService(deps, ctx, func(format cliout.Format, service scenarioapp.Service) ([]LifecycleItemOutput, error) {
+					return runWithScenarioService(deps, ctx, format, func(format cliout.Format, service scenarioapp.Service) ([]LifecycleItemOutput, error) {
 						items, err := runWithStartCeiling(req.TimeoutSeconds, deps.Stderr(ctx), req.Name, func(operationCtx context.Context) ([]scenarioapp.LifecycleItemOutput, error) {
 							req.Options.Context = operationCtx
 							return service.Restart(scenarioapp.RestartRequest(req))
@@ -485,89 +437,77 @@ func buildScenarioStartHandlers[C any](deps HandlerDeps[C]) map[CommandID]rootcl
 
 func buildScenarioStopHandlers[C any](deps HandlerDeps[C]) map[CommandID]rootcli.Handler[C] {
 	return map[CommandID]rootcli.Handler[C]{
-		CommandStop: scenarioServiceCommand(deps.Stdout,
+		CommandStop: scenarioServiceCommand(deps.Stdout, deps.OutputFormat,
 			func(ctx C, args []string) (StopRequest, error) { return ParseStopRequest(deps.Globals(ctx).JSON, args) },
 			withLifecycleFailureBlock(
 				deps,
 				"stop",
 				func(req StopRequest) []string { return []string{req.Name} },
-				func(ctx C, req StopRequest) (cliout.Format, []LifecycleItemOutput, error) {
+				func(ctx C, format cliout.Format, req StopRequest) ([]LifecycleItemOutput, error) {
 					if node, remoteScenario, remote := remoteScenarioAddress(req.Name); remote {
-						format, callErr := deps.OutputFormat(ctx)
-						if callErr != nil {
-							return "", nil, callErr
-						}
 						payload, callErr := callRemoteScenario(deps, ctx, node, remoteScenario, "scenario stop", nil, true)
 						if callErr != nil {
-							return format, nil, callErr
+							return nil, callErr
 						}
 						items, decodeErr := decodeRemoteLifecycle(payload)
-						return format, items, decodeErr
-					}
-					format, err := deps.OutputFormat(ctx)
-					if err != nil {
-						return "", nil, err
+						return items, decodeErr
 					}
 					runner, err := deps.LifecycleRunner(ctx)
 					if err != nil {
-						return "", nil, err
+						return nil, err
 					}
 					service := NewRunnerService(runner)
 					items, err := service.Stop(scenarioapp.StopRequest(req))
-					return format, toCLILifecycleItems(items), err
+					return toCLILifecycleItems(items), err
 				},
 			),
 			WriteLifecycleItems,
 		),
-		CommandDelete: scenarioServiceCommand(deps.Stdout,
+		CommandDelete: scenarioServiceCommand(deps.Stdout, deps.OutputFormat,
 			func(ctx C, args []string) (DeleteRequest, error) {
 				return ParseDeleteRequest(deps.Globals(ctx).JSON, args)
 			},
-			func(ctx C, req DeleteRequest) (cliout.Format, DeleteResponse, error) {
-				format, err := deps.OutputFormat(ctx)
-				if err != nil {
-					return "", DeleteResponse{}, err
-				}
+			func(ctx C, format cliout.Format, req DeleteRequest) (DeleteResponse, error) {
 				root := filepath.Clean(deps.Root(ctx))
 				canonical := filepath.Join(root, repocontractmeta.ScenarioDir, req.Name)
 				resolved, redirected := scenariomodel.ResolveScenarioPath(root, req.Name, scenariomodel.SandboxEnv{})
 				if redirected || filepath.Clean(resolved) != canonical {
-					return format, DeleteResponse{}, fmt.Errorf("scenario delete refuses redirected scenario path %q", resolved)
+					return DeleteResponse{}, fmt.Errorf("scenario delete refuses redirected scenario path %q", resolved)
 				}
 				if _, statErr := os.Stat(canonical); statErr == nil {
 					runner, runnerErr := deps.LifecycleRunner(ctx)
 					if runnerErr != nil {
-						return format, DeleteResponse{}, runnerErr
+						return DeleteResponse{}, runnerErr
 					}
 					if _, stopErr := NewRunnerService(runner).Stop(scenarioapp.StopRequest{Name: req.Name}); stopErr != nil {
-						return format, DeleteResponse{}, stopErr
+						return DeleteResponse{}, stopErr
 					}
 				}
 				if err := os.RemoveAll(canonical); err != nil {
-					return format, DeleteResponse{}, fmt.Errorf("delete scenario source: %w", err)
+					return DeleteResponse{}, fmt.Errorf("delete scenario source: %w", err)
 				}
 				home, err := deps.HomeDir(ctx)
 				if err != nil {
-					return format, DeleteResponse{}, err
+					return DeleteResponse{}, err
 				}
 				manager, err := cliinstall.NewManager(root, home)
 				if err != nil {
-					return format, DeleteResponse{}, err
+					return DeleteResponse{}, err
 				}
 				removal, err := manager.RemoveScenarioCLIReport(req.Name)
 				if err != nil {
-					return format, DeleteResponse{}, err
+					return DeleteResponse{}, err
 				}
-				return format, DeleteResponse{Name: req.Name, ScenarioPath: canonical, RemovedArtifacts: removal.Removed, SkippedArtifacts: removal.Skipped}, nil
+				return DeleteResponse{Name: req.Name, ScenarioPath: canonical, RemovedArtifacts: removal.Removed, SkippedArtifacts: removal.Skipped}, nil
 			},
 			RenderDeleteResponse,
 		),
-		CommandStopAll: scenarioServiceCommand(deps.Stdout,
+		CommandStopAll: scenarioServiceCommand(deps.Stdout, deps.OutputFormat,
 			func(ctx C, args []string) (StopAllRequest, error) {
 				return ParseStopAllRequest(deps.Globals(ctx).JSON, args)
 			},
-			func(ctx C, req StopAllRequest) (cliout.Format, BatchResponse, error) {
-				return runWithScenarioService(deps, ctx, func(format cliout.Format, service scenarioapp.Service) (BatchResponse, error) {
+			func(ctx C, format cliout.Format, req StopAllRequest) (BatchResponse, error) {
+				return runWithScenarioService(deps, ctx, format, func(format cliout.Format, service scenarioapp.Service) (BatchResponse, error) {
 					return BatchStopResponseFrom(format, service.StopAll)
 				})
 			},
@@ -602,7 +542,7 @@ func buildScenarioUtilityHandlers[C any](deps HandlerDeps[C]) map[CommandID]root
 			// outside a GUI login session, and gnome-screenshot with no
 			// reachable display.
 			var stderr bytes.Buffer
-			capture := exec.Command(command, commandArgs...)
+			capture := shell.NewCommand(command, commandArgs...)
 			capture.Stderr = &stderr
 			if err := capture.Run(); err != nil {
 				if detail := strings.TrimSpace(stderr.String()); detail != "" {
@@ -620,12 +560,12 @@ func buildScenarioUtilityHandlers[C any](deps HandlerDeps[C]) map[CommandID]root
 			_, err = fmt.Fprintf(deps.Stdout(ctx), "%s\n", req.Output)
 			return err
 		},
-		CommandOpen: scenarioServiceCommand(deps.Stdout,
+		CommandOpen: scenarioServiceCommand(deps.Stdout, deps.OutputFormat,
 			func(ctx C, args []string) (OpenRequest, error) { return ParseOpenRequest(deps.Globals(ctx).JSON, args) },
-			func(ctx C, req OpenRequest) (cliout.Format, OpenOutput, error) {
+			func(ctx C, _ cliout.Format, req OpenRequest) (OpenOutput, error) {
 				service, err := scenarioOperationsServiceFor(deps, ctx)
 				if err != nil {
-					return "", OpenOutput{}, err
+					return OpenOutput{}, err
 				}
 				return OpenResponseFrom(func(req OpenRequest) (scenarioapp.OpenOutput, error) {
 					return service.Open(scenarioapp.OpenRequest(req))
@@ -633,13 +573,9 @@ func buildScenarioUtilityHandlers[C any](deps HandlerDeps[C]) map[CommandID]root
 			},
 			func(w io.Writer, _ cliout.Format, resp OpenOutput) error { return RenderOpenResponse(w, resp) },
 		),
-		CommandPort: scenarioServiceCommand(deps.Stdout,
+		CommandPort: scenarioServiceCommand(deps.Stdout, deps.OutputFormat,
 			func(ctx C, args []string) (PortRequest, error) { return ParsePortRequest(deps.Globals(ctx).JSON, args) },
-			func(ctx C, req PortRequest) (cliout.Format, PortResponse, error) {
-				format, err := deps.OutputFormat(ctx)
-				if err != nil {
-					return "", PortResponse{}, err
-				}
+			func(ctx C, format cliout.Format, req PortRequest) (PortResponse, error) {
 				if node, remoteScenario, remote := remoteScenarioAddress(req.ScenarioName); remote {
 					args := []string{}
 					if req.PortName != "" {
@@ -651,33 +587,33 @@ func buildScenarioUtilityHandlers[C any](deps HandlerDeps[C]) map[CommandID]root
 					payload, callErr := callRemoteScenario(deps, ctx, node, remoteScenario, "scenario port", args, true)
 					if callErr != nil {
 						emitLifecycleFailure(deps, ctx, "query port", []string{req.ScenarioName}, callErr)
-						return format, PortResponse{}, silentLifecycleError{inner: callErr}
+						return PortResponse{}, silentLifecycleError{inner: callErr}
 					}
 					resp, decodeErr := decodeRemotePort(payload, req.PortName)
 					if decodeErr != nil {
 						emitLifecycleFailure(deps, ctx, "query port", []string{req.ScenarioName}, decodeErr)
-						return format, PortResponse{}, silentLifecycleError{inner: decodeErr}
+						return PortResponse{}, silentLifecycleError{inner: decodeErr}
 					}
-					return format, resp, nil
+					return resp, nil
 				}
 				service, err := scenarioOperationsServiceFor(deps, ctx)
 				if err != nil {
-					return "", PortResponse{}, err
+					return PortResponse{}, err
 				}
 				resp, err := PortResponseFrom(format, func(req PortRequest) (scenarioapp.PortResponse, error) {
 					return service.Port(scenarioapp.PortRequest(req))
 				}, req)
-				return format, resp, err
+				return resp, err
 			},
 			RenderPortResponse,
 		),
 		CommandRequirements: RequirementsHandler(deps),
 		CommandCompleteness: CompletenessHandler(deps),
-		CommandHealFromSandbox: scenarioServiceCommand(deps.Stdout,
+		CommandHealFromSandbox: scenarioServiceCommand(deps.Stdout, deps.OutputFormat,
 			func(ctx C, args []string) (HealFromSandboxRequest, error) {
 				return ParseHealFromSandboxRequest(strings.TrimSpace(os.Getenv("SANDBOX_MERGED_DIR")), args)
 			},
-			func(ctx C, req HealFromSandboxRequest) (cliout.Format, HealFromSandboxResponse, error) {
+			func(ctx C, _ cliout.Format, req HealFromSandboxRequest) (HealFromSandboxResponse, error) {
 				return HealFromSandboxHandlerResponse(deps, ctx, req)
 			},
 			RenderHealFromSandboxResponse,
@@ -706,31 +642,23 @@ func ensureScenarioCLIs[C any](deps HandlerDeps[C], ctx C, names ...string) erro
 	return nil
 }
 
-type serviceCall[Req any, Resp any] func(Req) (cliout.Format, Resp, error)
-
-type boundResponse[Resp any] struct {
-	format cliout.Format
-	resp   Resp
-}
-
 func scenarioServiceCommand[C any, Req any, Resp any](
 	stdout func(C) io.Writer,
+	outputFormat func(C) (cliout.Format, error),
 	parse func(C, []string) (Req, error),
-	run func(C, Req) (cliout.Format, Resp, error),
+	run func(C, cliout.Format, Req) (Resp, error),
 	render func(io.Writer, cliout.Format, Resp) error,
 ) rootcli.Handler[C] {
+	type service struct {
+		ctx    C
+		format cliout.Format
+	}
 	return rootcli.BindService(stdout,
-		func(ctx C) (cliout.Format, serviceCall[Req, Resp], error) {
-			return "", func(req Req) (cliout.Format, Resp, error) { return run(ctx, req) }, nil
-		},
+		outputFormat,
+		func(ctx C, format cliout.Format) (service, error) { return service{ctx: ctx, format: format}, nil },
 		parse,
-		func(run serviceCall[Req, Resp], req Req) (boundResponse[Resp], error) {
-			format, resp, err := run(req)
-			return boundResponse[Resp]{format: format, resp: resp}, err
-		},
-		func(w io.Writer, _ cliout.Format, response boundResponse[Resp]) error {
-			return render(w, response.format, response.resp)
-		},
+		func(service service, req Req) (Resp, error) { return run(service.ctx, service.format, req) },
+		render,
 	)
 }
 
@@ -899,16 +827,16 @@ func remoteOperationView(operation *cliv1.ScenarioStartOperation) *lifecycle.Sta
 	return view
 }
 
-func HealFromSandboxHandlerResponse[C any](deps HandlerDeps[C], ctx C, req HealFromSandboxRequest) (cliout.Format, HealFromSandboxResponse, error) {
+func HealFromSandboxHandlerResponse[C any](deps HandlerDeps[C], ctx C, req HealFromSandboxRequest) (HealFromSandboxResponse, error) {
 	home, err := deps.HomeDir(ctx)
 	if err != nil {
-		return "", HealFromSandboxResponse{}, err
+		return HealFromSandboxResponse{}, err
 	}
 	root := deps.Root(ctx)
 	svc := orchestrator.New(root, home, deps.Stdout(ctx), deps.Stderr(ctx))
 	affected, err := svc.SandboxAffectedScenarios(context.Background(), req.MergedPath)
 	if err != nil {
-		return "", HealFromSandboxResponse{}, err
+		return HealFromSandboxResponse{}, err
 	}
 	resp := scenarioapp.HealFromSandboxResponse{Affected: append([]string(nil), affected...), DryRun: req.DryRun}
 	if len(affected) == 0 || req.DryRun {
@@ -916,7 +844,7 @@ func HealFromSandboxHandlerResponse[C any](deps HandlerDeps[C], ctx C, req HealF
 	}
 	runner, err := deps.LifecycleRunner(ctx)
 	if err != nil {
-		return "", HealFromSandboxResponse{}, err
+		return HealFromSandboxResponse{}, err
 	}
 	for _, name := range affected {
 		if stopErr := runner.Stop(name, lifecycle.StopOptions{}); stopErr != nil {
@@ -925,7 +853,7 @@ func HealFromSandboxHandlerResponse[C any](deps HandlerDeps[C], ctx C, req HealF
 	}
 	for _, name := range affected {
 		if startErr := deps.LaunchDetached(ctx, "start", name); startErr != nil {
-			return "", HealFromSandboxResponse{}, startErr
+			return HealFromSandboxResponse{}, startErr
 		}
 		resp.StoppedCount++
 	}

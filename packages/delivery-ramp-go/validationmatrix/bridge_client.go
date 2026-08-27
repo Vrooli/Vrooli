@@ -15,17 +15,15 @@ import (
 	"net/url"
 	"os"
 	"strings"
+	"time"
 
 	"connectrpc.com/connect"
-	"github.com/vrooli/api-core/targetmodel"
+	"github.com/vrooli/nodeclient"
 	deliveryramp "github.com/vrooli/vrooli/packages/delivery-ramp-go"
 	domainv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1/domain"
 	dispatchv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/dispatch"
-	dispatchconnect "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/dispatch/dispatch_v1connect"
 	registryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/registry"
-	registryconnect "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/registry/registry_v1connect"
 	runsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/runs"
-	runsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/runs/runs_v1connect"
 )
 
 type Registry interface {
@@ -45,6 +43,9 @@ type Runs interface {
 }
 
 type Client struct {
+	// node is the production transport. The legacy seams below remain only for
+	// focused tests that exercise the matrix without a live Bridge.
+	node       *nodeclient.Client
 	registry   Registry
 	dispatcher Dispatcher
 	runs       Runs
@@ -71,30 +72,12 @@ func WithHostProber(prober HostProber) ClientOption {
 }
 
 func NewClient(baseURL, token string, httpClient *http.Client, options ...ClientOption) *Client {
-	if strings.TrimSpace(baseURL) == "" {
-		return nil
-	}
-	if httpClient == nil {
-		httpClient = &http.Client{}
-	}
-	transport := httpClient.Transport
-	if transport == nil {
-		transport = http.DefaultTransport
-	}
-	if strings.TrimSpace(token) != "" {
-		httpClient = &http.Client{Transport: bearerTransport{base: transport, token: token}, Timeout: httpClient.Timeout}
-	}
-	baseURL = strings.TrimRight(baseURL, "/")
-	client := &Client{
-		registry:   registryconnect.NewNodeRegistryServiceClient(httpClient, baseURL),
-		dispatcher: dispatchconnect.NewDispatchServiceClient(httpClient, baseURL),
-		runs:       runsconnect.NewRunsServiceClient(httpClient, baseURL),
-	}
+	client := &Client{node: nodeclient.New(nodeclient.Config{HTTPClient: httpClient, BridgeURL: baseURL, Token: token})}
 	for _, option := range options {
 		option(client)
 	}
 	if client.hostProber == nil {
-		client.hostProber = newDispatchHostProber(client.dispatcher, client.runs)
+		client.hostProber = newNodeHostProber(client.node)
 	}
 	return client
 }
@@ -106,7 +89,7 @@ func NewClient(baseURL, token string, httpClient *http.Client, options ...Client
 // the composition root and use NewClient, so an unset variable cannot disable
 // remote execution while a healthy fleet runs beside it.
 func NewClientFromEnv(options ...ClientOption) *Client {
-	return NewClient(os.Getenv("VROOLI_BRIDGE_URL"), os.Getenv("VROOLI_BRIDGE_API_TOKEN"), nil, options...)
+	return NewClient("", os.Getenv("VROOLI_BRIDGE_API_TOKEN"), nil, options...)
 }
 
 type bearerTransport struct {
@@ -134,18 +117,28 @@ func NewClientForTesting(registry Registry, dispatcher Dispatcher, runs Runs, op
 }
 
 func (c *Client) Discover(ctx context.Context) ([]deliveryramp.Target, error) {
-	if c == nil || c.registry == nil {
+	if c == nil {
 		return []deliveryramp.Target{unavailableTarget("bridge client is not configured")}, nil
 	}
-	response, err := c.registry.ListNodes(ctx, connect.NewRequest(&registryv1.ListNodesRequest{}))
+	var nodes []*registryv1.Node
+	var err error
+	if c.node != nil {
+		nodes, err = c.node.List(ctx, 10*time.Second)
+	} else if c.registry != nil {
+		var response *connect.Response[registryv1.ListNodesResponse]
+		response, err = c.registry.ListNodes(ctx, connect.NewRequest(&registryv1.ListNodesRequest{}))
+		if response != nil && response.Msg != nil {
+			nodes = response.Msg.GetNodes()
+		}
+	}
 	if err != nil {
 		return nil, fmt.Errorf("list bridge nodes: %w", err)
 	}
-	if response == nil || response.Msg == nil {
-		return nil, fmt.Errorf("bridge returned no node inventory")
+	if nodes == nil && c.node == nil && c.registry == nil {
+		return nil, fmt.Errorf("bridge client is not configured")
 	}
-	targets := make([]deliveryramp.Target, 0, len(response.Msg.Nodes))
-	for _, node := range response.Msg.Nodes {
+	targets := make([]deliveryramp.Target, 0, len(nodes))
+	for _, node := range nodes {
 		if node == nil {
 			continue
 		}
@@ -166,6 +159,9 @@ func (c *Client) Discover(ctx context.Context) ([]deliveryramp.Target, error) {
 }
 
 func (c *Client) Execute(ctx context.Context, request CellRequest) CellResult {
+	if c != nil && c.node != nil {
+		return c.executeNode(ctx, request)
+	}
 	if c == nil || c.dispatcher == nil || c.runs == nil {
 		return CellResult{Disposition: domainv1.ValidationDisposition_VALIDATION_DISPOSITION_UNAVAILABLE, Reason: "bridge durable dispatch is not configured"}
 	}
@@ -215,6 +211,49 @@ func (c *Client) Execute(ctx context.Context, request CellRequest) CellResult {
 	}
 }
 
+func (c *Client) executeNode(ctx context.Context, request CellRequest) CellResult {
+	if request.Cell == nil || strings.TrimSpace(request.Cell.GetTargetId()) == "" {
+		return CellResult{Disposition: domainv1.ValidationDisposition_VALIDATION_DISPOSITION_REFUSED, Reason: "bridge cell has no target identity"}
+	}
+	nodeID := strings.TrimPrefix(request.Cell.GetTargetId(), "bridge:")
+	if nodeID == "" {
+		return CellResult{Disposition: domainv1.ValidationDisposition_VALIDATION_DISPOSITION_REFUSED, Reason: "bridge target identity is malformed"}
+	}
+	command := strings.TrimSpace(request.Command)
+	if command == "" {
+		command = DefaultCommand
+	}
+	dispatched, err := c.node.Dispatch(ctx, nodeclient.DispatchRequest{NodeID: nodeID, Scenario: request.Cell.GetScenarioName(), Verb: command, Args: request.Args, Timeout: 120 * time.Second})
+	if err != nil {
+		return CellResult{Disposition: domainv1.ValidationDisposition_VALIDATION_DISPOSITION_UNAVAILABLE, Reason: fmt.Sprintf("bridge dispatch unavailable: %v", err), Retryable: true}
+	}
+	if strings.TrimSpace(dispatched.RunID) == "" {
+		return CellResult{Disposition: domainv1.ValidationDisposition_VALIDATION_DISPOSITION_DEGRADED, Reason: "bridge accepted no durable run identity; desktop evidence was not claimed"}
+	}
+	run, timedOut, err := c.node.Wait(ctx, dispatched.RunID, 900*time.Second)
+	if err != nil {
+		return CellResult{Disposition: domainv1.ValidationDisposition_VALIDATION_DISPOSITION_DEGRADED, Reason: fmt.Sprintf("bridge run %s could not be reattached: %v", dispatched.RunID, err), Retryable: true}
+	}
+	if run == nil {
+		return CellResult{Disposition: domainv1.ValidationDisposition_VALIDATION_DISPOSITION_DEGRADED, Reason: fmt.Sprintf("bridge run %s returned no durable result", dispatched.RunID)}
+	}
+	evidence := bridgeEvidence(nodeID, dispatched.RunID, request.ArtifactDigest)
+	identity := ExecutionIdentity{NodeID: nodeID, JobID: dispatched.RunID, RunID: dispatched.RunID, ArtifactDigest: request.ArtifactDigest}
+	if timedOut {
+		return CellResult{Disposition: domainv1.ValidationDisposition_VALIDATION_DISPOSITION_DEGRADED, Reason: fmt.Sprintf("bridge run %s timed out", dispatched.RunID), Retryable: true, Evidence: []*domainv1.LayeredEvidence{evidence}, Identity: identity}
+	}
+	switch run.Status {
+	case runsv1.RunStatus_RUN_STATUS_PASSED:
+		return CellResult{Disposition: domainv1.ValidationDisposition_VALIDATION_DISPOSITION_DEGRADED, Reason: "bridge job passed, but bridge does not provide desktop evidence; target-owned evidence is required", Evidence: []*domainv1.LayeredEvidence{evidence}, Identity: identity}
+	case runsv1.RunStatus_RUN_STATUS_FAILED:
+		return CellResult{Disposition: domainv1.ValidationDisposition_VALIDATION_DISPOSITION_FAILED, Reason: fmt.Sprintf("bridge validation job failed (exit %d)", run.ExitCode), Evidence: []*domainv1.LayeredEvidence{evidence}, Identity: identity}
+	case runsv1.RunStatus_RUN_STATUS_ABORTED:
+		return CellResult{Disposition: domainv1.ValidationDisposition_VALIDATION_DISPOSITION_NOT_RUN, Reason: "bridge validation job was aborted", Evidence: []*domainv1.LayeredEvidence{evidence}, Identity: identity}
+	default:
+		return CellResult{Disposition: domainv1.ValidationDisposition_VALIDATION_DISPOSITION_DEGRADED, Reason: "bridge wait returned a non-terminal run", Evidence: []*domainv1.LayeredEvidence{evidence}, Retryable: true, Identity: identity}
+	}
+}
+
 // nodeReachable reports whether a node can accept a dispatched job right now.
 func nodeReachable(node *registryv1.Node) bool {
 	return node != nil && node.Online &&
@@ -248,28 +287,28 @@ func nodeTarget(node *registryv1.Node, facts HostFacts, factsErr error, platform
 
 	switch {
 	case node.Status == registryv1.NodeStatus_NODE_STATUS_REVOKED:
-		reason, missing = targetmodel.ReasonBridgeRevoked, "trusted bridge node"
+		reason, missing = deliveryramp.ReasonBridgeRevoked, "trusted bridge node"
 		nextAction = "re-register the node before dispatching to it"
 	case !node.Online || node.Status != registryv1.NodeStatus_NODE_STATUS_ONLINE:
-		reason, missing = targetmodel.ReasonBridgeOffline, "online bridge node"
+		reason, missing = deliveryramp.ReasonBridgeOffline, "online bridge node"
 		nextAction = "bring the node online, then probe again"
 	case !hasDispatchScope(node.Scopes):
-		reason, missing = targetmodel.ReasonBridgeNoDispatchScope, "bridge dispatch scope"
+		reason, missing = deliveryramp.ReasonBridgeNoDispatchScope, "bridge dispatch scope"
 		nextAction = "grant the node a bridge write scope, then probe again"
 	case factsErr != nil:
-		reason, missing = targetmodel.ReasonBridgeNoHostProbe, "host toolchain probe"
+		reason, missing = deliveryramp.ReasonBridgeNoHostProbe, "host toolchain probe"
 		nextAction = "ensure the node answers `host inventory --json` over dispatch, then probe again"
 	default:
 		class, matched := selectPlatformClass(facts, platform)
 		if !matched {
-			reason = targetmodel.ReasonBridgeNoCapability
+			reason = deliveryramp.ReasonBridgeNoCapability
 			missing = platformCapabilityName(platform)
 			nextAction = "install the toolchain for this platform on the node, then probe again"
 			break
 		}
 		capabilities, deviceKind = class.Capabilities, class.DeviceKind
 		if class.Missing != "" {
-			reason, missing, nextAction = targetmodel.ReasonBridgeNoCapability, class.Missing, class.NextAction
+			reason, missing, nextAction = deliveryramp.ReasonBridgeNoCapability, class.Missing, class.NextAction
 			break
 		}
 		available, reason = true, class.Reason

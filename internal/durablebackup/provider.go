@@ -31,11 +31,12 @@ const (
 const (
 	CapabilityID = "durable-backup-evidence"
 	Owner        = "data-backup-manager"
-	// productionRequestTimeout bounds each evidence request when the caller is
-	// a control-plane CLI with no request-scoped deadline. A degraded DBM must
-	// produce a degraded capability status, not hang onboarding indefinitely.
-	productionRequestTimeout = tuning.ServiceHealthTimeout
 )
+
+// productionRequestTimeout bounds each evidence request when the caller is
+// a control-plane CLI with no request-scoped deadline. A degraded DBM must
+// produce a degraded capability status, not hang onboarding indefinitely.
+var productionRequestTimeout = tuning.ServiceHealthTimeout()
 
 // DrillEvidence is the metadata needed to prove that a recovery drill
 // reached a verified restore and produced a checksum. It intentionally omits

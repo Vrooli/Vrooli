@@ -11,10 +11,10 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
-	"strconv"
 	"strings"
 	"time"
 
+	"github.com/vrooli/vrooli/internal/shell"
 	"github.com/vrooli/vrooli/internal/tuning"
 
 	platform "github.com/vrooli/platform-go"
@@ -132,7 +132,7 @@ func (s *ManagedServiceSupervisor) Start(artifactPath string, artifact resourced
 	if err != nil {
 		return ManagedServiceState{}, err
 	}
-	cmd := exec.Command(launchPath, args...)
+	cmd := shell.NewCommand(launchPath, args...)
 	cmd.Env = setEnvValue(env, managedServiceOwnershipTokenEnv, ownershipToken)
 	if strings.EqualFold(strings.TrimSpace(artifact.Layout), "dir") {
 		cmd.Dir = artifactPath
@@ -217,7 +217,7 @@ func (s *ManagedServiceSupervisor) stop(ctx context.Context, signal os.Signal) e
 	} else if err := s.terminate(state.PID); err != nil {
 		return fmt.Errorf("stop managed-service process: %w", err)
 	}
-	ticker := time.NewTicker(tuning.FastPersistenceRetryInterval)
+	ticker := time.NewTicker(tuning.FastPersistenceRetryInterval())
 	defer ticker.Stop()
 	for s.isRunning(state.PID) {
 		select {
@@ -228,7 +228,7 @@ func (s *ManagedServiceSupervisor) stop(ctx context.Context, signal os.Signal) e
 			if err := s.forceStop(state.PID); err != nil && s.isRunning(state.PID) {
 				return fmt.Errorf("wait for managed-service shutdown: %w; forceful escalation failed: %v", ctx.Err(), err)
 			}
-			forceCtx, forceCancel := context.WithTimeout(context.Background(), tuning.ShortOperationDeadline)
+			forceCtx, forceCancel := context.WithTimeout(context.Background(), tuning.ManagedServiceForceStopTimeout())
 			forceErr := s.waitUntilStopped(forceCtx, state.PID)
 			forceCancel()
 			if forceErr != nil {
@@ -251,7 +251,7 @@ func (s *ManagedServiceSupervisor) stop(ctx context.Context, signal os.Signal) e
 }
 
 func (s *ManagedServiceSupervisor) waitUntilStopped(ctx context.Context, pid int) error {
-	ticker := time.NewTicker(tuning.FastPersistenceRetryInterval)
+	ticker := time.NewTicker(tuning.FastPersistenceRetryInterval())
 	defer ticker.Stop()
 	for s.isRunning(pid) {
 		select {
@@ -292,7 +292,7 @@ func (s *ManagedServiceSupervisor) Attest(endpoint, controlCapability string) (O
 	}
 	now := s.now().UTC()
 	proof := managedServiceAttestationProof(state, endpoint, controlCapability)
-	return OwnershipAttestation{InstanceID: state.InstanceID, ArtifactSHA256: state.ArtifactSHA256, Endpoint: endpoint, ControlCapability: controlCapability, IssuedAt: now, ExpiresAt: now.Add(tuning.ArtifactRetentionWindow), Proof: proof}, nil
+	return OwnershipAttestation{InstanceID: state.InstanceID, ArtifactSHA256: state.ArtifactSHA256, Endpoint: endpoint, ControlCapability: controlCapability, IssuedAt: now, ExpiresAt: now.Add(tuning.ArtifactRetentionWindow()), Proof: proof}, nil
 }
 
 func managedServiceAttestationProof(state ManagedServiceState, endpoint, controlCapability string) string {
@@ -305,7 +305,7 @@ func verifyManagedServiceAttestation(resource string, attestation OwnershipAttes
 		return fmt.Errorf("managed-service ownership attestation is incomplete")
 	}
 	now := time.Now()
-	if !attestation.ExpiresAt.After(now) || attestation.IssuedAt.After(now.Add(time.Minute)) || attestation.ExpiresAt.Sub(attestation.IssuedAt) > tuning.AttestationValidityWindow {
+	if !attestation.ExpiresAt.After(now) || attestation.IssuedAt.After(now.Add(time.Minute)) || attestation.ExpiresAt.Sub(attestation.IssuedAt) > tuning.AttestationValidityWindow() {
 		return fmt.Errorf("managed-service ownership attestation is stale or invalid")
 	}
 	supervisor, _, err := managedServiceSupervisorFor(resource)
@@ -385,26 +385,6 @@ func verifyManagedServiceOwnership(state ManagedServiceState) error {
 		return nil
 	}
 	return fmt.Errorf("managed-service process ownership token does not match")
-}
-
-func managedServiceExecutableMatchesArtifact(state ManagedServiceState) bool {
-	if state.PID <= 0 || strings.TrimSpace(state.ArtifactPath) == "" {
-		return false
-	}
-	if runtime.GOOS != "linux" {
-		return false
-	}
-	executable, err := os.Readlink(filepath.Join("/proc", strconv.Itoa(state.PID), "exe"))
-	if err != nil {
-		return false
-	}
-	executable = filepath.Clean(executable)
-	artifact := filepath.Clean(state.ArtifactPath)
-	if executable == artifact {
-		return true
-	}
-	relative, err := filepath.Rel(artifact, executable)
-	return err == nil && relative != "." && relative != ".." && !strings.HasPrefix(relative, ".."+string(filepath.Separator)) && !filepath.IsAbs(relative)
 }
 
 func managedServiceTokenHash(token string) string {
@@ -494,5 +474,5 @@ func managedServiceStopContext(parent context.Context, manifest ResourceManifest
 	if seconds <= 0 {
 		seconds = 30
 	}
-	return context.WithTimeout(parent, time.Duration(seconds)*time.Second)
+	return context.WithTimeout(parent, tuning.ManagedServiceConfiguredTimeout(time.Duration(seconds)*time.Second))
 }

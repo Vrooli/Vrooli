@@ -11,6 +11,7 @@ import (
 	"github.com/vrooli/vrooli/internal/credentialinventory"
 	"github.com/vrooli/vrooli/internal/projectstate"
 	vrooliruntime "github.com/vrooli/vrooli/internal/runtime"
+	"github.com/vrooli/vrooli/internal/testenv"
 )
 
 // readinessFixtureRoot builds a repository whose declared credential
@@ -123,7 +124,7 @@ func (*unreadableSourceError) Error() string { return "source is unreachable" }
 // enumerates live managed instances whose presence depends on the host.
 func TestVerifySetupReadinessReadsTheProjectManifest(t *testing.T) {
 	home := t.TempDir()
-	t.Setenv("HOME", home)
+	testenv.SetIdentityEnv(t, map[string]string{"HOME": home})
 	withoutCredential := readinessFixtureRootIn(t, home, false)
 	withCredential := readinessFixtureRootIn(t, home, true)
 

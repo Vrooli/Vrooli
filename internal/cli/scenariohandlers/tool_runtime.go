@@ -1,19 +1,23 @@
 package scenariohandlers
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
 
+	"github.com/vrooli/api-core/discovery"
 	"github.com/vrooli/vrooli/internal/cli/commandtree"
 	"github.com/vrooli/vrooli/internal/cli/rootcli"
 	. "github.com/vrooli/vrooli/internal/cli/scenariocli" //nolint:revive // scenariohandlers is a thin glue layer over scenariocli; dot-import keeps wiring readable.
 	"github.com/vrooli/vrooli/internal/cliout"
 	"github.com/vrooli/vrooli/internal/repocontractmeta"
 	"github.com/vrooli/vrooli/internal/scenarioexec"
+	"github.com/vrooli/vrooli/internal/tuning"
 )
 
 const (
@@ -77,27 +81,27 @@ func BuildScenarioCompletenessArgs(globals rootcli.GlobalOptions, args []string)
 // the run-coupled verbs stay with test-genie (`sync`, the evidence writer)
 // or read the artifact directly (`snapshot`).
 func RequirementsHandler[C any](deps HandlerDeps[C]) rootcli.Handler[C] {
-	return scenarioServiceCommand(deps.Stdout,
+	return scenarioServiceCommand(deps.Stdout, deps.OutputFormat,
 		func(ctx C, args []string) (RequirementsRequest, error) { return ParseRequirementsRequest(args) },
-		func(ctx C, req RequirementsRequest) (cliout.Format, struct{}, error) {
+		func(ctx C, _ cliout.Format, req RequirementsRequest) (struct{}, error) {
 			if req.Snapshot {
-				return cliout.FormatHuman, struct{}{}, runScenarioRequirementsSnapshot(deps.Root(ctx), req.Args[1:], deps.Stdout(ctx))
+				return struct{}{}, runScenarioRequirementsSnapshot(deps.Root(ctx), req.Args[1:], deps.Stdout(ctx))
 			}
 			route, err := buildScenarioRequirementsRoute(deps.Root(ctx), deps.Globals(ctx), req.Args)
 			if err != nil {
-				return "", struct{}{}, err
+				return struct{}{}, err
 			}
 			var cliPath string
 			if route.testGenie {
 				cliPath, err = deps.LocateTestGenieCLI(ctx)
 			} else {
 				if deps.LocateBusinessHealthCLI == nil {
-					return "", struct{}{}, fmt.Errorf("business-health CLI locator is not wired")
+					return struct{}{}, fmt.Errorf("business-health CLI locator is not wired")
 				}
 				cliPath, err = deps.LocateBusinessHealthCLI(ctx)
 			}
 			if err != nil {
-				return "", struct{}{}, err
+				return struct{}{}, err
 			}
 			err = deps.RunSubprocess(ctx, scenarioexec.SubprocessSpec{
 				Name:   cliPath,
@@ -107,7 +111,7 @@ func RequirementsHandler[C any](deps HandlerDeps[C]) rootcli.Handler[C] {
 				Stdout: deps.Stdout(ctx),
 				Stderr: deps.Stderr(ctx),
 			})
-			return cliout.FormatHuman, struct{}{}, err
+			return struct{}{}, err
 		},
 		func(w io.Writer, _ cliout.Format, _ struct{}) error { return nil },
 	)
@@ -332,12 +336,30 @@ func runScenarioRequirementsSnapshot(root string, args []string, stdout io.Write
 	if scenarioName == "" {
 		return rootcli.UsageErrorf("scenario requirements snapshot", "scenario requirements snapshot requires a scenario name")
 	}
-	snapshotPath := filepath.Join(root, repocontractmeta.ScenarioDir, scenarioName, "coverage", "requirements-sync", "latest.json")
-	data, err := os.ReadFile(snapshotPath)
+	ctx, cancel := context.WithTimeout(context.Background(), tuning.ScenarioRequirementsSnapshotTimeout())
+	defer cancel()
+	baseURL, err := discovery.ResolveScenarioURLDefault(ctx, "test-genie")
 	if err != nil {
-		if os.IsNotExist(err) {
-			return fmt.Errorf("snapshot not found: %s", snapshotPath)
-		}
+		return fmt.Errorf("resolve test-genie: %w", err)
+	}
+	requestURL := strings.TrimRight(baseURL, "/") + "/api/v1/scenarios/" + scenarioName + "/requirements"
+	request, err := http.NewRequestWithContext(ctx, http.MethodGet, requestURL, nil)
+	if err != nil {
+		return err
+	}
+	response, err := http.DefaultClient.Do(request)
+	if err != nil {
+		return fmt.Errorf("read requirements snapshot: %w", err)
+	}
+	defer response.Body.Close()
+	if response.StatusCode == http.StatusNotFound {
+		return fmt.Errorf("requirements snapshot not found for %s", scenarioName)
+	}
+	if response.StatusCode < http.StatusOK || response.StatusCode >= http.StatusMultipleChoices {
+		return fmt.Errorf("read requirements snapshot: HTTP %d", response.StatusCode)
+	}
+	data, err := io.ReadAll(response.Body)
+	if err != nil {
 		return err
 	}
 	var payload map[string]any
@@ -345,7 +367,7 @@ func runScenarioRequirementsSnapshot(root string, args []string, stdout io.Write
 		return err
 	}
 	_, _ = fmt.Fprintf(stdout, "Requirements snapshot (%s)\n", scenarioName)
-	_, _ = fmt.Fprintf(stdout, "  File: %s\n", filepath.Join("coverage", "requirements-sync", "latest.json"))
+	_, _ = fmt.Fprintln(stdout, "  Source: test-genie requirements API")
 	if syncedAt, _ := payload["synced_at"].(string); syncedAt != "" {
 		_, _ = fmt.Fprintf(stdout, "  Synced at: %s\n", syncedAt)
 	}

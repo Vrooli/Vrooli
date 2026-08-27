@@ -10,7 +10,6 @@ require (
 	github.com/gorilla/mux v1.8.1
 	github.com/gorilla/websocket v1.5.3
 	github.com/vrooli/api-core v0.0.0
-	github.com/vrooli/cliresolve v0.0.0
 	github.com/vrooli/nodeclient v0.0.0
 	github.com/vrooli/platform-go v0.0.0
 	github.com/vrooli/vrooli v0.0.0
@@ -50,6 +49,7 @@ require (
 	github.com/santhosh-tekuri/jsonschema/v5 v5.3.1 // indirect
 	github.com/vrooli/binaryfetch v0.0.0 // indirect
 	github.com/vrooli/cli-core v0.0.0 // indirect
+	github.com/vrooli/cliresolve v0.0.0 // indirect
 	github.com/vrooli/envkit-go v0.0.0 // indirect
 	golang.org/x/crypto v0.54.0 // indirect
 )

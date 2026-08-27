@@ -5,11 +5,11 @@ package securestore
 import (
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
 
+	"github.com/vrooli/vrooli/internal/shell"
 	"github.com/vrooli/vrooli/internal/tuning"
 )
 
@@ -28,7 +28,7 @@ func installNativeCopySchedule(executable string, interval time.Duration, enable
 	domain := fmt.Sprintf("gui/%d", os.Getuid())
 	target := domain + "/" + credentialCopyLaunchLabel
 	if !enabled {
-		_ = exec.Command("launchctl", "bootout", target).Run()
+		_ = shell.NewCommand("launchctl", "bootout", target).Run()
 		_ = os.Remove(path)
 		return nil
 	}
@@ -46,8 +46,8 @@ func installNativeCopySchedule(executable string, interval time.Duration, enable
 	if err := os.WriteFile(path, []byte(content), tuning.PermSecret); err != nil {
 		return fmt.Errorf("write credential-store copy launch agent: %w", err)
 	}
-	_ = exec.Command("launchctl", "bootout", target).Run()
-	if output, err := exec.Command("launchctl", "bootstrap", domain, path).CombinedOutput(); err != nil {
+	_ = shell.NewCommand("launchctl", "bootout", target).Run()
+	if output, err := shell.NewCommand("launchctl", "bootstrap", domain, path).CombinedOutput(); err != nil {
 		return fmt.Errorf("enable credential-store copy launch agent: %w: %s", err, output)
 	}
 	return nil

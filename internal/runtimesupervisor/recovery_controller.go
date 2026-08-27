@@ -4,12 +4,13 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"os/exec"
 	"sort"
 	"strings"
 	"time"
 
+	"github.com/vrooli/vrooli/internal/buildinfo"
 	"github.com/vrooli/vrooli/internal/scenarioruntime"
+	"github.com/vrooli/vrooli/internal/shell"
 )
 
 const (
@@ -210,15 +211,12 @@ func (s *Service) defaultRecoveryLaunch(ctx context.Context, request RecoveryLau
 			return fmt.Errorf("resolve lifecycle executable: %w", err)
 		}
 	}
-	root := strings.TrimSpace(os.Getenv("VROOLI_SOURCE_ROOT"))
-	if root == "" {
-		root = strings.TrimSpace(os.Getenv("VROOLI_ROOT"))
-	}
-	if root == "" {
-		return fmt.Errorf("recovery lifecycle source root is not configured")
+	root, err := buildinfo.ResolveSourceRoot()
+	if err != nil {
+		return fmt.Errorf("resolve recovery lifecycle source root: %w", err)
 	}
 	args := []string{"--no-stale-check", "scenario", "restart", request.Scenario, "--instance", request.Variant}
-	cmd := exec.CommandContext(ctx, executable, args...)
+	cmd := shell.NewCommandContext(ctx, executable, args...)
 	cmd.Dir = root
 	cmd.Env = supervisorCommandEnv(os.Environ(), s.cfg.HomeDir)
 	if output, err := cmd.CombinedOutput(); err != nil {

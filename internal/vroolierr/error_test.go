@@ -57,3 +57,30 @@ func TestHelpersReadWrappedMetadata(t *testing.T) {
 		t.Fatalf("Suggestions() = %#v", suggestions)
 	}
 }
+
+func TestConstructorsAndOptions(t *testing.T) {
+	cause := errors.New("boom")
+	err := Wrap(cause, "scenario_start_failed", "Runtime", "start failed",
+		WithHint("inspect logs"),
+		WithSuggestions("scenario logs"),
+		WithHTTPStatus(503),
+		WithExitCode(17),
+	)
+	if !errors.Is(err, cause) || err.Code != "scenario_start_failed" || err.Category != "Runtime" {
+		t.Fatalf("Wrap() = %#v", err)
+	}
+	if err.Hint != "inspect logs" || len(err.Suggestions) != 1 || err.HTTPStatus != 503 || err.ExitCode() != 17 {
+		t.Fatalf("options not applied: %#v", err)
+	}
+}
+
+func TestEnsureMarksOnlyUntypedErrors(t *testing.T) {
+	typed := New("known", "Runtime", "known")
+	if got, wrapped := Ensure(typed, "fallback", "Internal", ""); wrapped || got != typed {
+		t.Fatalf("Ensure(typed) = (%#v, %v)", got, wrapped)
+	}
+	got, wrapped := Ensure(errors.New("plain"), "fallback", "Internal", "")
+	if !wrapped || got.Code != "fallback" || got.Error() != "plain" {
+		t.Fatalf("Ensure(plain) = (%#v, %v)", got, wrapped)
+	}
+}

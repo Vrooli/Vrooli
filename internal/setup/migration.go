@@ -78,7 +78,7 @@ func runOwnershipMigration(locator projectstate.Locator, stdout, stderr io.Write
 		_, _ = fmt.Fprintln(stdout, "Filesystem ownership migration: setup was not elevated; migration deferred.")
 		return nil
 	}
-	deadline := time.Now().Add(tuning.RepairDeadline)
+	deadline := time.Now().Add(tuning.RepairDeadline())
 	for _, class := range ownershipMigrationClasses {
 		if containsMigrationClass(record.Completed, class) {
 			continue

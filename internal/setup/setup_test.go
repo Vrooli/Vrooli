@@ -29,6 +29,7 @@ import (
 	testscenario "github.com/vrooli/vrooli/internal/scenario/scenariotest"
 	"github.com/vrooli/vrooli/internal/shell"
 	"github.com/vrooli/vrooli/internal/shell/shelltest"
+	"github.com/vrooli/vrooli/internal/testenv"
 )
 
 func TestRunSetupReportsFailureInsteadOfCompletion(t *testing.T) {
@@ -55,7 +56,7 @@ func TestRunSetupReportsFailureInsteadOfCompletion(t *testing.T) {
 
 func TestMarkCompleteWritesSetupMarker(t *testing.T) {
 	root := t.TempDir()
-	home := t.TempDir()
+	home := testenv.RuntimeHome(t)
 
 	if err := markComplete(home, root); err != nil {
 		t.Fatalf("markComplete: %v", err)
@@ -280,7 +281,7 @@ func TestRunSetupWritesConfigurationPendingResultForQueuedInput(t *testing.T) {
 	home := t.TempDir()
 	resultPath := filepath.Join(t.TempDir(), "setup-result.json")
 	projectScenario := writeProjectFixture(t, root)
-	t.Setenv("HOME", home)
+	testenv.SetIdentityEnv(t, map[string]string{"HOME": home})
 	t.Cleanup(func() { _ = operatorinput.Replace(nil) })
 	if err := operatorinput.Replace(nil); err != nil {
 		t.Fatalf("clear operator-input queue: %v", err)
@@ -509,7 +510,7 @@ func TestRunSetupCompletesWithDegradedOptionalResource(t *testing.T) {
 
 	root := t.TempDir()
 	home := t.TempDir()
-	t.Setenv("HOME", home)
+	testenv.SetIdentityEnv(t, map[string]string{"HOME": home})
 	projectScenario := writeProjectFixtureWithServiceManifest(t, root, testscenario.ProjectServiceManifest(
 		testscenario.WithDependencies(scenario.Dependencies{Resources: map[string]scenario.Dependency{
 			"reranker": {Enabled: true},

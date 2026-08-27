@@ -229,15 +229,16 @@ func TestDiscoverEnabledResourceCLIs(t *testing.T) {
 	writeGoResourceCLIManifest(t, fixture.Root, "ollama")
 	testresource.WriteResourceCLIGoMod(t, fixture.Root, "postgres", "resource-postgres/cli")
 	testresource.WriteResourceCLIGoMod(t, fixture.Root, "ollama", "resource-ollama/cli")
-	testscenario.WriteProjectService(t, fixture.Root, testscenario.ProjectServiceManifest(
-		testscenario.WithDependencies(mapProjectResources(
-			map[string]bool{
-				"postgres": true,
-				"redis":    true,
-				"ollama":   false,
+	testkitgo.WriteJSON(t, scenario.ProjectServicePath(fixture.Root), map[string]any{
+		"future_manifest_field": map[string]any{"version": 2},
+		"dependencies": map[string]any{
+			"resources": map[string]any{
+				"postgres": map[string]any{"enabled": true, "future_dependency_field": "new"},
+				"redis":    map[string]any{"enabled": true},
+				"ollama":   map[string]any{"enabled": false},
 			},
-		)),
-	))
+		},
+	})
 
 	manager := mustManager(t, fixture.Root, fixture.Home)
 	items, err := manager.DiscoverEnabledResourceCLIs()
@@ -848,18 +849,6 @@ func validNativeExecutableHeader() []byte {
 	default:
 		return []byte("\x7fELF")
 	}
-}
-
-func mapProjectResources(enabled map[string]bool) scenario.Dependencies {
-	return scenario.Dependencies{Resources: mapResourceDependencies(enabled)}
-}
-
-func mapResourceDependencies(enabled map[string]bool) map[string]scenario.Dependency {
-	deps := make(map[string]scenario.Dependency, len(enabled))
-	for name, ok := range enabled {
-		deps[name] = scenario.Dependency{Enabled: ok}
-	}
-	return deps
 }
 
 // [REQ:VROOLI-ARTIFACT-ATTRIBUTION]

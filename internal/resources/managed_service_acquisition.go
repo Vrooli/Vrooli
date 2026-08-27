@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vrooli/vrooli/internal/shell"
 	"github.com/vrooli/vrooli/internal/tuning"
 
 	"github.com/vrooli/binaryfetch"
@@ -336,7 +337,7 @@ func pythonWheelsCommand(ctx context.Context, step binaryfetch.ComposeStep, dest
 	if hashed {
 		args = append(args, "--require-hashes")
 	}
-	return exec.CommandContext(ctx, "uv", args...), nil
+	return shell.NewCommandContext(ctx, "uv", args...), nil
 }
 
 func copyManagedComposeSource(source, destination string) error {

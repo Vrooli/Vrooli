@@ -25,10 +25,11 @@ import (
 
 const defaultBindHost = "127.0.0.1"
 
-const (
-	runtimeRegistryTxRetryAttempts = 5
-	runtimeRegistryTxRetryBase     = tuning.FastPersistenceRetryInterval
-	runtimeRegistryTxRetryMax      = tuning.FastHealthPollInterval
+const runtimeRegistryTxRetryAttempts = 5
+
+var (
+	runtimeRegistryTxRetryBase = tuning.FastPersistenceRetryInterval()
+	runtimeRegistryTxRetryMax  = tuning.FastHealthPollInterval()
 )
 
 type Config struct {

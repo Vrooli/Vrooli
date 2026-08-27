@@ -2,6 +2,7 @@ package rootcli
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -17,12 +18,35 @@ import (
 )
 
 func TestBindService(t *testing.T) {
+	t.Run("format error", func(t *testing.T) {
+		var constructed bool
+		wantErr := errors.New("format failed")
+		handler := BindService(
+			func(struct{}) io.Writer { return io.Discard },
+			func(struct{}) (cliout.Format, error) { return "", wantErr },
+			func(struct{}, cliout.Format) (struct{}, error) {
+				constructed = true
+				return struct{}{}, nil
+			},
+			func(struct{}, []string) (struct{}, error) { return struct{}{}, nil },
+			func(struct{}, struct{}) (string, error) { return "", nil },
+			func(io.Writer, cliout.Format, string) error { return nil },
+		)
+		if err := handler(struct{}{}, nil); !errors.Is(err, wantErr) {
+			t.Fatalf("error = %v, want %v", err, wantErr)
+		}
+		if constructed {
+			t.Fatal("service constructed after format resolution failed")
+		}
+	})
+
 	t.Run("constructor error", func(t *testing.T) {
 		var parsed bool
 		wantErr := errors.New("construct failed")
 		handler := BindService(
 			func(struct{}) io.Writer { return io.Discard },
-			func(struct{}) (cliout.Format, struct{}, error) { return "", struct{}{}, wantErr },
+			func(struct{}) (cliout.Format, error) { return cliout.FormatJSON, nil },
+			func(struct{}, cliout.Format) (struct{}, error) { return struct{}{}, wantErr },
 			func(struct{}, []string) (struct{}, error) {
 				parsed = true
 				return struct{}{}, nil
@@ -43,9 +67,10 @@ func TestBindService(t *testing.T) {
 		wantErr := errors.New("parse failed")
 		handler := BindService(
 			func(struct{}) io.Writer { return io.Discard },
-			func(struct{}) (cliout.Format, string, error) {
+			func(struct{}) (cliout.Format, error) { return cliout.FormatJSON, nil },
+			func(struct{}, cliout.Format) (string, error) {
 				order = append(order, "construct")
-				return cliout.FormatJSON, "service", nil
+				return "service", nil
 			},
 			func(struct{}, []string) (int, error) {
 				order = append(order, "parse")
@@ -66,7 +91,8 @@ func TestBindService(t *testing.T) {
 		wantErr := errors.New("call failed")
 		handler := BindService(
 			func(struct{}) io.Writer { return io.Discard },
-			func(struct{}) (cliout.Format, string, error) { return cliout.FormatJSON, "service", nil },
+			func(struct{}) (cliout.Format, error) { return cliout.FormatJSON, nil },
+			func(struct{}, cliout.Format) (string, error) { return "service", nil },
 			func(struct{}, []string) (int, error) { return 7, nil },
 			func(string, int) (string, error) { return "", wantErr },
 			func(io.Writer, cliout.Format, string) error { return nil },
@@ -81,7 +107,8 @@ func TestBindService(t *testing.T) {
 		var gotResponse string
 		handler := BindService(
 			func(struct{}) io.Writer { return io.Discard },
-			func(struct{}) (cliout.Format, int, error) { return cliout.FormatJSON, 3, nil },
+			func(struct{}) (cliout.Format, error) { return cliout.FormatJSON, nil },
+			func(struct{}, cliout.Format) (int, error) { return 3, nil },
 			func(struct{}, []string) (string, error) { return "request", nil },
 			func(service int, request string) (string, error) {
 				return request + "-" + fmt.Sprint(service), nil
@@ -220,6 +247,34 @@ func TestExitCodePrefersTypedExitCodes(t *testing.T) {
 	}
 	if code := ExitCode(errors.New("boom")); code != 1 {
 		t.Fatalf("ExitCode(default) = %d", code)
+	}
+}
+
+func TestPrepareBoundaryErrorAssignsFallbackCodeAndLogs(t *testing.T) {
+	var message string
+	runner := NewRunner(RunnerConfig[struct{}]{
+		DebugLog: func(_ *slog.Logger, msg string, _ ...any) { message = msg },
+	})
+	err := runner.prepareBoundaryError(slog.Default(), errors.New("plain failure"))
+	if got := vroolierr.Code(err, ""); got != "untyped_cli_error" {
+		t.Fatalf("Code() = %q", got)
+	}
+	if message != "Untyped error reached CLI boundary" {
+		t.Fatalf("debug message = %q", message)
+	}
+}
+
+func TestPrintBoundaryErrorJSONCarriesSearchableCode(t *testing.T) {
+	var stderr bytes.Buffer
+	err := vroolierr.New("scenario_not_found", ErrorCategoryUsage, "scenario not found")
+	printBoundaryError(&stderr, true, err)
+
+	var payload map[string]any
+	if decodeErr := json.Unmarshal(stderr.Bytes(), &payload); decodeErr != nil {
+		t.Fatal(decodeErr)
+	}
+	if payload["success"] != false || payload["code"] != "scenario_not_found" {
+		t.Fatalf("payload = %#v", payload)
 	}
 }
 

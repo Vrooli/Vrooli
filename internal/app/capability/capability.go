@@ -13,6 +13,7 @@ import (
 	"github.com/vrooli/vrooli/internal/config"
 	"github.com/vrooli/vrooli/internal/deployability"
 	"github.com/vrooli/vrooli/internal/operatorcapability"
+	"github.com/vrooli/vrooli/internal/tuning"
 	portabilityv1 "github.com/vrooli/vrooli/packages/proto/gen/go/infrastructure-manager/v1/portability"
 	"google.golang.org/protobuf/proto"
 )
@@ -71,7 +72,7 @@ func (app *App) runCapabilityCommand(ctx *CommandContext, args []string) error {
 	// Both readouts are owned by the infrastructure-manager instrument. The
 	// control plane delegates and renders; it does not keep a second
 	// aggregation that could disagree with the owner's.
-	requestCtx, cancel := context.WithTimeout(context.Background(), capabilityRequestTimeout)
+	requestCtx, cancel := context.WithTimeout(context.Background(), tuning.CapabilityRequestTimeout())
 	defer cancel()
 
 	if args[0] == capabilityFleet {

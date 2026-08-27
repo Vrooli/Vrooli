@@ -8,13 +8,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 
-	repocontract "github.com/vrooli/repo-contract-go"
+	"github.com/vrooli/vrooli/internal/buildinfo"
 	"github.com/vrooli/vrooli/internal/gpuaccess"
 	"github.com/vrooli/vrooli/internal/hostreqkit"
+	"github.com/vrooli/vrooli/internal/shell"
 )
 
 // gpuManifest is the smallest shape that answers "does this resource run a
@@ -73,10 +73,7 @@ var (
 )
 
 func CurrentRoot() string {
-	if root := strings.TrimSpace(os.Getenv("VROOLI_ROOT")); root != "" {
-		return root
-	}
-	root, _ := repocontract.ResolveRepoRoot()
+	root, _ := buildinfo.ResolveSourceRoot()
 	return root
 }
 
@@ -165,7 +162,7 @@ func gpuContainers(ctx context.Context, root string) ([]target, error) {
 }
 
 func docker(ctx context.Context, root string, args ...string) error {
-	cmd := exec.CommandContext(ctx, "docker", args...)
+	cmd := shell.NewCommandContext(ctx, "docker", args...)
 	cmd.Dir = root
 	if out, err := cmd.CombinedOutput(); err != nil {
 		return fmt.Errorf("%w: %s", err, strings.TrimSpace(string(out)))
@@ -174,7 +171,7 @@ func docker(ctx context.Context, root string, args ...string) error {
 }
 
 func dockerOutput(ctx context.Context, root string, args ...string) ([]byte, error) {
-	cmd := exec.CommandContext(ctx, "docker", args...)
+	cmd := shell.NewCommandContext(ctx, "docker", args...)
 	cmd.Dir = root
 	out, err := cmd.CombinedOutput()
 	if err != nil {

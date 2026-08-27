@@ -152,8 +152,8 @@ func (r *Runner) waitForInstanceReleased(ctx context.Context, name, variant stri
 var (
 	// Termination grace is a deadline, not a mandatory delay. A process that
 	// exits on the first poll makes teardown return on that first observation.
-	teardownTerminatePolicy = AwaitPolicy{Timeout: tuning.ShortOperationDeadline, Interval: tuning.LifecyclePollInterval}
-	teardownForcePolicy     = AwaitPolicy{Timeout: tuning.ShortOperationDeadline, Interval: tuning.LifecyclePollInterval}
-	restartReleasePolicy    = AwaitPolicy{Timeout: tuning.ShortOperationDeadline, Interval: tuning.LifecyclePollInterval}
-	backgroundLaunchPolicy  = AwaitPolicy{Timeout: tuning.ShortOperationDeadline, Interval: tuning.BackgroundLaunchPollInterval}
+	teardownTerminatePolicy = AwaitPolicy{Timeout: tuning.LifecycleTransitionTimeout(), Interval: tuning.LifecyclePollInterval()}
+	teardownForcePolicy     = AwaitPolicy{Timeout: tuning.LifecycleTransitionTimeout(), Interval: tuning.LifecyclePollInterval()}
+	restartReleasePolicy    = AwaitPolicy{Timeout: tuning.LifecycleTransitionTimeout(), Interval: tuning.LifecyclePollInterval()}
+	backgroundLaunchPolicy  = AwaitPolicy{Timeout: tuning.LifecycleTransitionTimeout(), Interval: tuning.BackgroundLaunchPollInterval()}
 )

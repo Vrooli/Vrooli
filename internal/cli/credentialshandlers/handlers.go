@@ -28,13 +28,14 @@ type credentialService struct {
 // RootHandler dispatches `vrooli credentials`.
 func RootHandler[C any](deps HandlerDeps[C]) rootcli.Handler[C] {
 	return rootcli.BindService(deps.Stdout,
-		func(ctx C) (cliout.Format, credentialService, error) {
+		func(C) (cliout.Format, error) { return cliout.FormatHuman, nil },
+		func(ctx C, _ cliout.Format) (credentialService, error) {
 			commandCtx := &credentialscli.Context{
 				Root: deps.Root(ctx), Globals: deps.Globals(ctx), Stdin: deps.Stdin(ctx),
 				Stdout: deps.Stdout(ctx), Stderr: deps.Stderr(ctx),
 			}
 			app := &credentialsapp.App{}
-			return cliout.FormatHuman, credentialService{run: func(args []string) error {
+			return credentialService{run: func(args []string) error {
 				if len(args) == 0 || manifestdispatch.WantsHelp(args) {
 					return credentialscli.Run(commandCtx, args)
 				}
@@ -55,13 +56,14 @@ func RootHandler[C any](deps HandlerDeps[C]) rootcli.Handler[C] {
 // BreakGlassHandler dispatches `vrooli break-glass`.
 func BreakGlassHandler[C any](deps HandlerDeps[C]) rootcli.Handler[C] {
 	return rootcli.BindService(deps.Stdout,
-		func(ctx C) (cliout.Format, credentialService, error) {
+		func(C) (cliout.Format, error) { return cliout.FormatHuman, nil },
+		func(ctx C, _ cliout.Format) (credentialService, error) {
 			commandCtx := &credentialscli.Context{
 				Root: deps.Root(ctx), Globals: deps.Globals(ctx), Stdin: deps.Stdin(ctx),
 				Stdout: deps.Stdout(ctx), Stderr: deps.Stderr(ctx),
 			}
 			app := &credentialsapp.App{}
-			return cliout.FormatHuman, credentialService{run: func(args []string) error {
+			return credentialService{run: func(args []string) error {
 				if len(args) == 0 || manifestdispatch.WantsHelp(args) {
 					return credentialscli.RunBreakGlass(commandCtx, args)
 				}

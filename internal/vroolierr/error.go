@@ -19,6 +19,52 @@ type Error struct {
 	Err         error
 }
 
+// Option adds presentation metadata without changing the error's identity.
+type Option func(*Error)
+
+// New constructs a typed control-plane error.
+func New(code, category, message string, options ...Option) *Error {
+	err := &Error{Code: code, Category: category, Message: message}
+	applyOptions(err, options)
+	return err
+}
+
+// Wrap constructs a typed control-plane error that retains its cause.
+func Wrap(cause error, code, category, message string, options ...Option) *Error {
+	err := New(code, category, message, options...)
+	err.Err = cause
+	return err
+}
+
+// Ensure returns an existing typed error or wraps an untyped boundary error.
+// The boolean is true only when wrapping was required, so debug surfaces can
+// report producers that have not adopted typed errors yet.
+func Ensure(err error, code, category, message string, options ...Option) (*Error, bool) {
+	var typed *Error
+	if errors.As(err, &typed) {
+		return typed, false
+	}
+	return Wrap(err, code, category, message, options...), true
+}
+
+func WithHint(hint string) Option { return func(err *Error) { err.Hint = hint } }
+
+func WithSuggestions(suggestions ...string) Option {
+	return func(err *Error) { err.Suggestions = append([]string(nil), suggestions...) }
+}
+
+func WithHTTPStatus(status int) Option { return func(err *Error) { err.HTTPStatus = status } }
+
+func WithExitCode(code int) Option { return func(err *Error) { err.Exit = code } }
+
+func applyOptions(err *Error, options []Option) {
+	for _, option := range options {
+		if option != nil {
+			option(err)
+		}
+	}
+}
+
 func (e *Error) Error() string {
 	if e == nil {
 		return ""

@@ -10,10 +10,10 @@ import (
 	"github.com/vrooli/vrooli/internal/tuning"
 )
 
-const (
-	credentialStoreOwnerTimeout       = tuning.ShortOperationTimeout
-	credentialStoreCollectionsTimeout = tuning.HealthCheckTimeout
-	credentialStoreCollectionTimeout  = tuning.ShortOperationTimeout
+var (
+	credentialStoreOwnerTimeout       = tuning.CredentialStoreProbeTimeout()
+	credentialStoreCollectionsTimeout = tuning.HealthCheckTimeout()
+	credentialStoreCollectionTimeout  = tuning.CredentialStoreProbeTimeout()
 )
 
 // CredentialStoreStatus probes the current user's Secret Service without
@@ -102,7 +102,7 @@ type credentialStoreProbeResult struct {
 }
 
 func runCredentialStoreProbe(parent context.Context, c Collector, timeout time.Duration, envArgs []string, args ...string) credentialStoreProbeResult {
-	probeCtx, cancel := context.WithTimeout(parent, timeout)
+	probeCtx, cancel := context.WithTimeout(parent, tuning.CredentialStoreCommandTimeout(timeout))
 	defer cancel()
 	var output []byte
 	var err error

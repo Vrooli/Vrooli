@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/santhosh-tekuri/jsonschema/v5"
+	testkitgo "github.com/vrooli/repo-contract-go/repocontracttest"
 
 	manifestpkg "github.com/vrooli/vrooli/internal/resources/manifest"
 	testresource "github.com/vrooli/vrooli/internal/resources/resourcestest"
@@ -222,6 +223,26 @@ func TestValidateSchemaArtifactsDetectsMissingScenarioResourceReferences(t *test
 	}
 	if validateReport.Passed {
 		t.Fatalf("expected failed validation, got %+v", validateReport)
+	}
+}
+
+func TestFindMissingScenarioResourceReferencesToleratesUnknownManifestFields(t *testing.T) {
+	root := t.TempDir()
+	testkitgo.WriteFile(t, filepath.Join(root, "resources", "postgres", "resource.json"), `{"name":"postgres"}`)
+	testkitgo.WriteFile(t, filepath.Join(root, "scenarios", "alpha", ".vrooli", "service.json"), `{
+  "dependencies": {"resources": {
+    "postgres": {"enabled": true, "future_dependency_field": true},
+    "n8n": {"enabled": true}
+  }},
+  "future_manifest_field": {"version": 2}
+}`)
+
+	missing, err := findMissingScenarioResourceReferences(root)
+	if err != nil {
+		t.Fatalf("findMissingScenarioResourceReferences: %v", err)
+	}
+	if len(missing) != 1 || missing[0].Scenario != "alpha" || missing[0].Resource != "n8n" {
+		t.Fatalf("missing references = %+v", missing)
 	}
 }
 

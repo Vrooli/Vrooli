@@ -459,22 +459,9 @@ func TestEnsureManagedDirMkdirFailure(t *testing.T) {
 }
 
 func TestInstallManagedContentDryRunSkips(t *testing.T) {
-	restore := stubLookups(t)
-	defer restore()
-
-	var called bool
-	RunCommandFn = func(string, []string, EnsureOptions) error {
-		called = true
-		return nil
-	}
-
-	err := InstallManagedContent("/etc/test.conf", "content", "ask", EnsureOptions{DryRun: true})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if called {
-		t.Fatal("RunCommandFn should not be called during dry-run")
-	}
+	assertManagedInstallDryRunSkips(t, func(opts EnsureOptions) error {
+		return InstallManagedContent("/etc/test.conf", "content", "ask", opts)
+	})
 }
 
 func TestInstallManagedContentWritesAndInstalls(t *testing.T) {
@@ -555,6 +542,13 @@ func TestInstallManagedExecutableUsesMode0755(t *testing.T) {
 }
 
 func TestInstallManagedExecutableDryRunSkips(t *testing.T) {
+	assertManagedInstallDryRunSkips(t, func(opts EnsureOptions) error {
+		return InstallManagedExecutable("/usr/local/bin/foo", "content", "ask", opts)
+	})
+}
+
+func assertManagedInstallDryRunSkips(t *testing.T, install func(EnsureOptions) error) {
+	t.Helper()
 	restore := stubLookups(t)
 	defer restore()
 
@@ -564,7 +558,7 @@ func TestInstallManagedExecutableDryRunSkips(t *testing.T) {
 		return nil
 	}
 
-	err := InstallManagedExecutable("/usr/local/bin/foo", "content", "ask", EnsureOptions{DryRun: true})
+	err := install(EnsureOptions{DryRun: true})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -581,17 +575,7 @@ func TestValidateSetupSupported(t *testing.T) {
 }
 
 func TestValidateSetupUnsupported(t *testing.T) {
-	h := Host{OS: "darwin", SupportsSetup: false}
-	err := h.ValidateSetup()
-	if err == nil {
-		t.Fatal("expected error for unsupported setup")
-	}
-	if !strings.Contains(err.Error(), "setup") {
-		t.Fatalf("error should mention setup: %v", err)
-	}
-	if !strings.Contains(err.Error(), "darwin") {
-		t.Fatalf("error should mention OS: %v", err)
-	}
+	assertUnsupportedHostOperation(t, "darwin", "setup", Host{OS: "darwin"}.ValidateSetup)
 }
 
 func TestValidateSetupUnsupportedWithNotes(t *testing.T) {
@@ -627,15 +611,19 @@ func TestValidateDevelopSupported(t *testing.T) {
 }
 
 func TestValidateDevelopUnsupported(t *testing.T) {
-	h := Host{OS: "windows", SupportsDevelop: false}
-	err := h.ValidateDevelop()
+	assertUnsupportedHostOperation(t, "windows", "develop", Host{OS: "windows"}.ValidateDevelop)
+}
+
+func assertUnsupportedHostOperation(t *testing.T, osName, operation string, validate func() error) {
+	t.Helper()
+	err := validate()
 	if err == nil {
-		t.Fatal("expected error for unsupported develop")
+		t.Fatalf("expected error for unsupported %s", operation)
 	}
-	if !strings.Contains(err.Error(), "develop") {
-		t.Fatalf("error should mention develop: %v", err)
+	if !strings.Contains(err.Error(), operation) {
+		t.Fatalf("error should mention %s: %v", operation, err)
 	}
-	if !strings.Contains(err.Error(), "windows") {
+	if !strings.Contains(err.Error(), osName) {
 		t.Fatalf("error should mention OS: %v", err)
 	}
 }

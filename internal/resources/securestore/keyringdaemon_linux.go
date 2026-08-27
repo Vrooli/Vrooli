@@ -6,11 +6,12 @@ import (
 	"bufio"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/vrooli/vrooli/internal/shell"
 )
 
 const (
@@ -86,7 +87,7 @@ func isKeyringDaemonComm(comm string) bool {
 }
 
 func readProcClockTicks() (float64, bool) {
-	output, err := exec.Command("getconf", "CLK_TCK").Output()
+	output, err := shell.NewCommand("getconf", "CLK_TCK").Output()
 	if err != nil {
 		return 0, false
 	}

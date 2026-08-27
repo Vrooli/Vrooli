@@ -207,7 +207,7 @@ func healthTimeout(health *scenario.HealthConfig) time.Duration {
 	if health != nil && health.Timeout > 0 {
 		return time.Duration(health.Timeout) * time.Millisecond
 	}
-	return tuning.ServiceHealthTimeout
+	return tuning.ServiceHealthTimeout()
 }
 
 func isRecognizedHealthResponse(resp apihealth.Response) bool {

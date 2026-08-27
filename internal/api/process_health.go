@@ -140,7 +140,7 @@ func (a *App) PerformHealthCheck(check HealthCheckConfig, scenarioName string, p
 		}
 		timeout := time.Duration(check.Timeout) * time.Millisecond
 		if timeout == 0 {
-			timeout = tuning.ServiceHealthTimeout
+			timeout = tuning.ServiceHealthTimeout()
 		}
 		client := &http.Client{Timeout: timeout}
 		resp, err := client.Get(target)
@@ -160,9 +160,9 @@ func (a *App) PerformHealthCheck(check HealthCheckConfig, scenarioName string, p
 	case "postgres":
 		timeout := time.Duration(check.Timeout) * time.Millisecond
 		if timeout == 0 {
-			timeout = tuning.HealthCheckTimeout
+			timeout = tuning.HealthCheckTimeout()
 		}
-		ctx, cancel := context.WithTimeout(context.Background(), timeout)
+		ctx, cancel := context.WithTimeout(context.Background(), tuning.ProcessHealthCheckTimeout(timeout))
 		defer cancel()
 		if _, err := a.LookPathFn("vrooli"); err == nil {
 			if output, cmdErr := a.CommandFn(ctx, "vrooli", "resource", "status", "postgres", "--json"); cmdErr == nil {

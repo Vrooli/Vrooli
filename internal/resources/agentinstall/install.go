@@ -16,6 +16,7 @@ import (
 	"runtime"
 	"strings"
 
+	"github.com/vrooli/vrooli/internal/shell"
 	"github.com/vrooli/vrooli/internal/tuning"
 
 	"github.com/vrooli/vrooli/internal/config"
@@ -124,7 +125,7 @@ func BlockingSystemInstall(binary, managedBinDir string, lookPath func(string) (
 // shell. It is exported so resource CLIs can keep discovery separate from
 // authentication or service readiness.
 func InstalledVersion(ctx context.Context, path string) (string, error) {
-	cmd := exec.CommandContext(ctx, path, "--version")
+	cmd := shell.NewCommandContext(ctx, path, "--version")
 	out, err := cmd.CombinedOutput()
 	return string(out), err
 }
@@ -162,7 +163,7 @@ func Install(ctx context.Context, spec Spec) error {
 		if spec.Version != "" {
 			packageRef += "@" + strings.TrimPrefix(spec.Version, "v")
 		}
-		cmd := exec.CommandContext(ctx, "npm", "install", "--prefix", prefix, "--no-fund", "--no-audit", packageRef)
+		cmd := shell.NewCommandContext(ctx, "npm", "install", "--prefix", prefix, "--no-fund", "--no-audit", packageRef)
 		cmd.Stdout, cmd.Stderr = os.Stdout, os.Stderr
 		if err := cmd.Run(); err != nil {
 			return fmt.Errorf("install %s: %w", spec.NPM, err)
@@ -213,7 +214,7 @@ func download(ctx context.Context, url, target, archiveEntry string) error {
 	if err != nil {
 		return err
 	}
-	response, err := (&http.Client{Timeout: tuning.LongOperationBudget}).Do(request)
+	response, err := (&http.Client{Timeout: tuning.AgentInstallDownloadTimeout()}).Do(request)
 	if err != nil {
 		return fmt.Errorf("download %s: %w", url, err)
 	}

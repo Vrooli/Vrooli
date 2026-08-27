@@ -96,7 +96,7 @@ func VerifyContainerGPU(ctx context.Context, containerName, probe string) (GPUAc
 // uses the shared host inventory authority so resource overlays do not own
 // private host-probe logic.
 func nvidiaProbe(ctx context.Context) bool {
-	probeCtx, cancel := context.WithTimeout(ctx, tuning.ServiceHealthTimeout)
+	probeCtx, cancel := context.WithTimeout(ctx, tuning.ServiceHealthTimeout())
 	defer cancel()
 	snapshot, err := collectGPUInventory(probeCtx)
 	if err != nil {

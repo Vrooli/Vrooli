@@ -3,12 +3,13 @@ package volumeremediation
 import (
 	"context"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"regexp"
 	"runtime"
 	"strconv"
 	"strings"
+
+	"github.com/vrooli/vrooli/internal/shell"
 )
 
 const (
@@ -47,7 +48,7 @@ func NewHostObserver(goos string) *HostObserver {
 		readDir:       os.ReadDir,
 		evalSymlinks:  filepath.EvalSymlinks,
 		run: func(ctx context.Context, argv []string) ([]byte, error) {
-			return exec.CommandContext(ctx, argv[0], argv[1:]...).Output()
+			return shell.NewCommandContext(ctx, argv[0], argv[1:]...).Output()
 		},
 	}
 }

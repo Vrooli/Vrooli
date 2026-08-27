@@ -32,9 +32,10 @@ func RootHandler[C any](deps HandlerDeps[C]) rootcli.Handler[C] {
 }
 
 func buildCommandTable[C any](deps HandlerDeps[C]) []commandtree.Spec[rootcli.Handler[C]] {
-	serviceFactory := func(ctx C) (cliout.Format, recoveryapp.Service, error) { return newService(deps, ctx) }
+	serviceFactory := func(ctx C, _ cliout.Format) (recoveryapp.Service, error) { return newService(deps, ctx) }
 	handlerMap := map[recoverycli.CommandID]rootcli.Handler[C]{
 		recoverycli.CommandCapture: recoveryCommand(deps.Stdout,
+			deps.OutputFormat,
 			serviceFactory,
 			func(ctx C, args []string) (recoveryapp.CaptureRequest, error) {
 				return recoverycli.ParseCaptureRequest(args)
@@ -45,6 +46,7 @@ func buildCommandTable[C any](deps HandlerDeps[C]) []commandtree.Spec[rootcli.Ha
 			recoverycli.RenderCapture,
 		),
 		recoverycli.CommandRestore: recoveryCommand(deps.Stdout,
+			deps.OutputFormat,
 			serviceFactory,
 			func(ctx C, args []string) (recoveryapp.RestoreRequest, error) {
 				return recoverycli.ParseRestoreRequest(args)
@@ -55,6 +57,7 @@ func buildCommandTable[C any](deps HandlerDeps[C]) []commandtree.Spec[rootcli.Ha
 			recoverycli.RenderRestore,
 		),
 		recoverycli.CommandWrite: recoveryCommand(deps.Stdout,
+			deps.OutputFormat,
 			serviceFactory,
 			func(ctx C, args []string) (recoveryapp.WriteRequest, error) {
 				return recoverycli.ParseWriteRequest(args)
@@ -65,6 +68,7 @@ func buildCommandTable[C any](deps HandlerDeps[C]) []commandtree.Spec[rootcli.Ha
 			recoverycli.RenderEngagement,
 		),
 		recoverycli.CommandShow: recoveryCommand(deps.Stdout,
+			deps.OutputFormat,
 			serviceFactory,
 			func(ctx C, args []string) (recoveryapp.Ref, error) {
 				return recoverycli.ParseRefRequest(recoverycli.CommandShow, "recovery show", args)
@@ -73,6 +77,7 @@ func buildCommandTable[C any](deps HandlerDeps[C]) []commandtree.Spec[rootcli.Ha
 			recoverycli.RenderEngagement,
 		),
 		recoverycli.CommandList: recoveryCommand(deps.Stdout,
+			deps.OutputFormat,
 			serviceFactory,
 			func(ctx C, args []string) (recoveryapp.Ref, error) {
 				_, err := recoverycli.ParseRefRequest(recoverycli.CommandList, "recovery list", args)
@@ -84,6 +89,7 @@ func buildCommandTable[C any](deps HandlerDeps[C]) []commandtree.Spec[rootcli.Ha
 			recoverycli.RenderList,
 		),
 		recoverycli.CommandTouch: recoveryCommand(deps.Stdout,
+			deps.OutputFormat,
 			serviceFactory,
 			func(ctx C, args []string) (recoveryapp.Ref, error) {
 				return recoverycli.ParseRefRequest(recoverycli.CommandTouch, "recovery touch", args)
@@ -92,6 +98,7 @@ func buildCommandTable[C any](deps HandlerDeps[C]) []commandtree.Spec[rootcli.Ha
 			recoverycli.RenderEngagement,
 		),
 		recoverycli.CommandSetTTL: recoveryCommand(deps.Stdout,
+			deps.OutputFormat,
 			serviceFactory,
 			func(ctx C, args []string) (recoveryapp.SetTTLRequest, error) {
 				return recoverycli.ParseSetTTLRequest(args)
@@ -100,6 +107,7 @@ func buildCommandTable[C any](deps HandlerDeps[C]) []commandtree.Spec[rootcli.Ha
 			recoverycli.RenderEngagement,
 		),
 		recoverycli.CommandSetMode: recoveryCommand(deps.Stdout,
+			deps.OutputFormat,
 			serviceFactory,
 			func(ctx C, args []string) (recoveryapp.SetModeRequest, error) {
 				return recoverycli.ParseSetModeRequest(args)
@@ -108,6 +116,7 @@ func buildCommandTable[C any](deps HandlerDeps[C]) []commandtree.Spec[rootcli.Ha
 			recoverycli.RenderEngagement,
 		),
 		recoverycli.CommandClean: recoveryCommand(deps.Stdout,
+			deps.OutputFormat,
 			serviceFactory,
 			func(ctx C, args []string) (recoveryapp.Ref, error) {
 				return recoverycli.ParseRefRequest(recoverycli.CommandClean, "recovery clean", args)
@@ -118,6 +127,7 @@ func buildCommandTable[C any](deps HandlerDeps[C]) []commandtree.Spec[rootcli.Ha
 			recoverycli.RenderClean,
 		),
 		recoverycli.CommandMigrate: recoveryCommand(deps.Stdout,
+			deps.OutputFormat,
 			serviceFactory,
 			func(ctx C, args []string) (recoveryapp.MigrateRequest, error) {
 				return recoverycli.ParseMigrateRequest(args)
@@ -128,6 +138,7 @@ func buildCommandTable[C any](deps HandlerDeps[C]) []commandtree.Spec[rootcli.Ha
 			recoverycli.RenderMigrate,
 		),
 		recoverycli.CommandNamespace: recoveryCommand(deps.Stdout,
+			deps.OutputFormat,
 			serviceFactory,
 			func(ctx C, args []string) (recoveryapp.NamespaceRequest, error) {
 				return recoverycli.ParseNamespaceRequest(args)
@@ -143,24 +154,21 @@ func buildCommandTable[C any](deps HandlerDeps[C]) []commandtree.Spec[rootcli.Ha
 
 func recoveryCommand[C any, Req any, Resp any](
 	stdout func(C) io.Writer,
-	serviceFactory func(C) (cliout.Format, recoveryapp.Service, error),
+	outputFormat func(C) (cliout.Format, error),
+	serviceFactory func(C, cliout.Format) (recoveryapp.Service, error),
 	parse func(C, []string) (Req, error),
 	call func(recoveryapp.Service, Req) (Resp, error),
 	render func(io.Writer, cliout.Format, Resp) error,
 ) rootcli.Handler[C] {
-	return rootcli.BindService(stdout, serviceFactory, parse, call, render)
+	return rootcli.BindService(stdout, outputFormat, serviceFactory, parse, call, render)
 }
 
-func newService[C any](deps HandlerDeps[C], ctx C) (cliout.Format, recoveryapp.Service, error) {
-	format, err := deps.OutputFormat(ctx)
-	if err != nil {
-		return "", recoveryapp.Service{}, err
-	}
+func newService[C any](deps HandlerDeps[C], ctx C) (recoveryapp.Service, error) {
 	store, err := resolveStore(deps, ctx)
 	if err != nil {
-		return "", recoveryapp.Service{}, err
+		return recoveryapp.Service{}, err
 	}
-	return format, recoveryapp.Service{Root: deps.Root(ctx), Store: store, Clock: deps.Clock}, nil
+	return recoveryapp.Service{Root: deps.Root(ctx), Store: store, Clock: deps.Clock}, nil
 }
 
 func resolveStore[C any](deps HandlerDeps[C], ctx C) (*baselinefloor.Store, error) {

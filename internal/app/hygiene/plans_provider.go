@@ -58,7 +58,7 @@ type plansProvider struct {
 
 func (p plansProvider) ID() string { return plansProviderID }
 
-func (p plansProvider) Budget() time.Duration { return tuning.CredentialServiceTimeout }
+func (p plansProvider) Budget() time.Duration { return tuning.CredentialServiceTimeout() }
 
 func (p plansProvider) Run(ctx context.Context, req Request, report *Report) error {
 	if p.reconciler == nil {

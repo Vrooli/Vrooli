@@ -211,7 +211,7 @@ class SileroVAD:
         min_silence_ms: float = 200.0,
         speech_pad_ms: float = 50.0,
     ) -> None:
-        if torch is None:  # pragma: no cover -- torch is present in the image
+        if torch is None:  # pragma: no cover -- torch is present in the artifact
             raise RuntimeError("torch unavailable; cannot load Silero VAD")
         # VAD always stays on CPU.  The ECAPA and SepFormer models may use CUDA,
         # but accepting CPU waveform tensors here eliminates an entire class of

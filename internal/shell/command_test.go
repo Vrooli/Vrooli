@@ -33,3 +33,17 @@ func TestOSRunnerRun(t *testing.T) {
 		t.Fatalf("Run(failure) = %q, %v; want non-zero error and stderr", output, err)
 	}
 }
+
+func TestCommandConstructorsPreserveInvocation(t *testing.T) {
+	plain := NewCommand("tool", "one", "two")
+	if plain.Path != "tool" || strings.Join(plain.Args, " ") != "tool one two" {
+		t.Fatalf("NewCommand = path %q args %#v", plain.Path, plain.Args)
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	contextual := NewCommandContext(ctx, "tool", "three")
+	if contextual.Path != "tool" || strings.Join(contextual.Args, " ") != "tool three" {
+		t.Fatalf("NewCommandContext = path %q args %#v", contextual.Path, contextual.Args)
+	}
+}

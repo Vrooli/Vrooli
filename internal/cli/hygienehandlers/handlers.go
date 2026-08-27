@@ -29,16 +29,13 @@ type hygieneResponse struct {
 //nolint:gocyclo // scope flags are intentionally explicit so mutually exclusive hygiene lanes remain unambiguous.
 func Handler[C any](deps HandlerDeps[C]) rootcli.Handler[C] {
 	return rootcli.BindService(deps.Stdout,
-		func(ctx C) (cliout.Format, hygieneService, error) {
-			format, err := deps.OutputFormat(ctx)
-			if err != nil {
-				return "", hygieneService{}, err
-			}
+		deps.OutputFormat,
+		func(ctx C, _ cliout.Format) (hygieneService, error) {
 			home, err := deps.Home(ctx)
 			if err != nil {
-				return "", hygieneService{}, err
+				return hygieneService{}, err
 			}
-			return format, hygieneService{root: deps.Root(ctx), home: home}, nil
+			return hygieneService{root: deps.Root(ctx), home: home}, nil
 		},
 		func(ctx C, args []string) (hygienecli.Request, error) {
 			req, err := hygienecli.ParseRequest(args)

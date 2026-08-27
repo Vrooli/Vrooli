@@ -85,7 +85,7 @@ func (osCommandRunner) RunWithEnv(ctx context.Context, env []string, name string
 }
 
 func runOSCommand(ctx context.Context, env []string, name string, args ...string) ([]byte, error) {
-	command := exec.CommandContext(ctx, name, args...)
+	command := shell.NewCommandContext(ctx, name, args...)
 	if len(env) > 0 {
 		command.Env = envkit.WithOverlay(envkit.Env(os.Environ()), envkit.Resource, envkit.Env(env))
 	}
@@ -93,7 +93,7 @@ func runOSCommand(ctx context.Context, env []string, name string, args ...string
 	// The context must cancel the whole process group, not only a wrapper
 	// process, or a wedged child can retain CombinedOutput's pipe indefinitely.
 	command.Cancel = func() error { return terminateCommandProcessGroup(command) }
-	command.WaitDelay = tuning.FastHealthPollInterval
+	command.WaitDelay = tuning.FastHealthPollInterval()
 	return command.CombinedOutput()
 }
 
@@ -156,7 +156,7 @@ func sharedFactsReader() *hostfacts.Reader {
 	if err != nil || root == "" {
 		root = os.TempDir()
 	}
-	factsReader = &hostfacts.Reader{Path: filepath.Join(root, repocontractmeta.ProjectConfigDir, "cache", "hostfacts.json"), TTL: map[string]time.Duration{"inventory": tuning.StandardOperationTimeout, "platform": tuning.LongOperationTimeout, "gpu": tuning.ExtendedOperationTimeout, "workloads": tuning.LongOperationTimeout}, BootID: bootID, Probe: func(ctx context.Context, class string) (json.RawMessage, error) {
+	factsReader = &hostfacts.Reader{Path: filepath.Join(root, repocontractmeta.ProjectConfigDir, "cache", "hostfacts.json"), TTL: map[string]time.Duration{"inventory": tuning.HostInventoryTTL(), "platform": tuning.HostPlatformInventoryTTL(), "gpu": tuning.HostGPUInventoryTTL(), "workloads": tuning.HostWorkloadInventoryTTL()}, BootID: bootID, Probe: func(ctx context.Context, class string) (json.RawMessage, error) {
 		var s Snapshot
 		var err error
 		switch class {
@@ -179,14 +179,6 @@ func sharedFactsReader() *hostfacts.Reader {
 		return json.Marshal(s)
 	}}
 	return factsReader
-}
-
-func bootID() string {
-	b, err := os.ReadFile("/proc/sys/kernel/random/boot_id")
-	if err != nil {
-		return scenarioruntime.HealthStatusUnknown
-	}
-	return strings.TrimSpace(string(b))
 }
 
 // CollectGPUFacts performs only the NVIDIA and Docker GPU probes needed to

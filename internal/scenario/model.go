@@ -619,18 +619,33 @@ func DiscoverReport(root string, env SandboxEnv) (discovery.Report[Scenario], er
 	return report, nil
 }
 
-func ReadService(path string) (ServiceManifest, error) {
+// LoadServiceManifest reads the shared typed service-manifest shape without
+// applying runtime validation or defaults. Consumers that only need declared
+// fields use this path so newer, unknown fields remain forward-compatible.
+func LoadServiceManifest(path string) (ServiceManifest, error) {
+	_, manifest, err := loadServiceManifest(path)
+	return manifest, err
+}
+
+func loadServiceManifest(path string) ([]byte, ServiceManifest, error) {
 	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, ServiceManifest{}, err
+	}
+	var manifest ServiceManifest
+	if err := json.Unmarshal(data, &manifest); err != nil {
+		return nil, ServiceManifest{}, fmt.Errorf("parse %s: %w", path, err)
+	}
+	return data, manifest, nil
+}
+
+func ReadService(path string) (ServiceManifest, error) {
+	data, manifest, err := loadServiceManifest(path)
 	if err != nil {
 		return ServiceManifest{}, err
 	}
 	if err := repocontract.ValidateCredentialDescriptorUniqueness(data, path); err != nil {
 		return ServiceManifest{}, fmt.Errorf("validate credentials in %s: %w", path, err)
-	}
-
-	var manifest ServiceManifest
-	if err := json.Unmarshal(data, &manifest); err != nil {
-		return ServiceManifest{}, fmt.Errorf("parse %s: %w", path, err)
 	}
 	if manifest.Lifecycle.Health == nil && manifest.Health != nil {
 		manifest.Lifecycle.Health = manifest.Health

@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
@@ -13,6 +12,7 @@ import (
 	repocontract "github.com/vrooli/repo-contract-go"
 	"github.com/vrooli/vrooli/internal/hostreqkit"
 	"github.com/vrooli/vrooli/internal/hostreqspec"
+	"github.com/vrooli/vrooli/internal/shell"
 )
 
 const (
@@ -165,7 +165,7 @@ func discover(ctx context.Context, runner string, config ...map[string]any) (map
 		}
 		data, err = os.ReadFile(filepath.Join(home, ".codex", "models_cache.json"))
 	} else if runner == "claude-code" {
-		data, err = exec.CommandContext(ctx, "claude", "--help").Output()
+		data, err = shell.NewCommandContext(ctx, "claude", "--help").Output()
 		if err == nil && !strings.Contains(string(data), "--model") {
 			err = fmt.Errorf("claude --model surface unavailable")
 		}
@@ -177,7 +177,7 @@ func discover(ctx context.Context, runner string, config ...map[string]any) (map
 		if runner == "claude-code" {
 			command = "claude"
 		}
-		data, err = exec.CommandContext(ctx, command, "models").Output()
+		data, err = shell.NewCommandContext(ctx, command, "models").Output()
 	}
 	if err != nil {
 		return nil, fmt.Errorf("%s model discovery unavailable: %w", runner, err)

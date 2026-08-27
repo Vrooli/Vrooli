@@ -14,6 +14,8 @@ func TestConformance(t *testing.T) {
 		Kind:               hostreqspec.KindTool,
 		SupportedPlatforms: testManifest.Platforms,
 		InstallCommand:     "npm install protoc-gen-es",
-		Checks:             []string{"name_and_kind"},
+		ManifestVersion:    testManifest.Version,
+		DefaultVersion:     defaultVersion,
+		Checks:             []string{"name_and_kind", "pinned_version_matches_manifest", "apply_installed_skips"},
 	})
 }

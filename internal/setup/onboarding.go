@@ -223,7 +223,7 @@ func launchOnboardingAsOperator(root, executable string) error {
 	}
 	defer devNull.Close()
 
-	ctx, cancel := context.WithTimeout(context.Background(), tuning.StandardOperationTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), tuning.SetupOperationTimeout())
 	defer cancel()
 	return platform.RunAsInvokingUserInSession(ctx, executable,
 		[]string{"scenario", "start", onboardingSlug},
@@ -231,9 +231,9 @@ func launchOnboardingAsOperator(root, executable string) error {
 }
 
 func (s *setupService) resolveOnboardingURL(executable string) (string, error) {
-	deadline := s.deps.now().Add(tuning.StandardOperationTimeout)
+	deadline := s.deps.now().Add(tuning.SetupOperationTimeout())
 	for {
-		ctx, cancel := context.WithTimeout(context.Background(), tuning.HealthCheckTimeout)
+		ctx, cancel := context.WithTimeout(context.Background(), tuning.HealthCheckTimeout())
 		output, err := s.deps.onboardingPortCommandRunner(ctx, executable, "scenario", "port", onboardingSlug, "UI_PORT")
 		cancel()
 		text := strings.TrimSpace(string(output))
@@ -249,7 +249,7 @@ func (s *setupService) resolveOnboardingURL(executable string) (string, error) {
 			}
 			return "", fmt.Errorf("onboarding UI not ready: %s", text)
 		}
-		time.Sleep(tuning.ShortOperationTimeout)
+		time.Sleep(tuning.SetupProgressPollInterval())
 	}
 }
 

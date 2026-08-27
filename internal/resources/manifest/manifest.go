@@ -390,8 +390,20 @@ func Load(path string) (ResourceManifest, error) {
 	return manifest, nil
 }
 
-//nolint:gocyclo // manifest validation aggregates independent contract rules without hiding them behind dispatch layers.
 func Validate(manifest ResourceManifest) error {
+	if err := validateManifestContract(manifest); err != nil {
+		return err
+	}
+	if err := validateManifestFeatures(manifest); err != nil {
+		return err
+	}
+	if err := validateProviderPolicy(manifest); err != nil {
+		return err
+	}
+	return validateDriverConfiguration(manifest)
+}
+
+func validateManifestContract(manifest ResourceManifest) error {
 	if strings.TrimSpace(manifest.Name) == "" {
 		return fmt.Errorf("name is required")
 	}
@@ -422,9 +434,10 @@ func Validate(manifest ResourceManifest) error {
 	if err := validateOrchestration(manifest.Orchestration); err != nil {
 		return err
 	}
-	if err := validateEnvironmentExports(manifest); err != nil {
-		return err
-	}
+	return validateEnvironmentExports(manifest)
+}
+
+func validateManifestFeatures(manifest ResourceManifest) error {
 	for _, check := range manifest.HealthChecks {
 		if err := validateHealthCheck(check); err != nil {
 			return err
@@ -448,6 +461,10 @@ func Validate(manifest ResourceManifest) error {
 	if err := validateDeployment(manifest); err != nil {
 		return err
 	}
+	return nil
+}
+
+func validateProviderPolicy(manifest ResourceManifest) error {
 	if manifest.ProviderPolicy != nil {
 		if manifest.Driver != manifestExternalCli && manifest.Driver != manifestNativeCli {
 			return fmt.Errorf("provider_policy is only supported by external-cli and native-cli resources")
@@ -459,6 +476,10 @@ func Validate(manifest ResourceManifest) error {
 			return fmt.Errorf("non-service provider_policy default_mode must be managed-discovered")
 		}
 	}
+	return nil
+}
+
+func validateDriverConfiguration(manifest ResourceManifest) error {
 	switch manifest.Driver {
 	case "docker-service":
 		if strings.TrimSpace(manifest.Runtime.Image) == "" {
@@ -480,64 +501,80 @@ func Validate(manifest ResourceManifest) error {
 			return fmt.Errorf("endpoint is required for cloud-api resources")
 		}
 	case "managed-service":
-		if manifest.ManagedService == nil {
-			return fmt.Errorf("managed_service is required for managed-service resources")
+		return validateManagedService(manifest.ManagedService)
+	}
+	return nil
+}
+
+func validateManagedService(service *ResourceManagedService) error {
+	if service == nil {
+		return fmt.Errorf("managed_service is required for managed-service resources")
+	}
+	if err := service.ProviderPolicy.ValidateManagedServiceTargets(); err != nil {
+		return fmt.Errorf("managed_service.provider_policy: %w", err)
+	}
+	if slices.Contains(service.ProviderPolicy.AllowedModes, resourcedeployment.ProviderAttachOnly) {
+		if err := service.ValidateAttachHealthPath(); err != nil {
+			return err
 		}
-		if err := manifest.ManagedService.ProviderPolicy.ValidateManagedServiceTargets(); err != nil {
-			return fmt.Errorf("managed_service.provider_policy: %w", err)
+	}
+	if err := service.Artifact.Validate(); err != nil {
+		return fmt.Errorf("managed_service.artifact: %w", err)
+	}
+	if service.Acquisition != nil {
+		if err := service.Acquisition.Validate(); err != nil {
+			return fmt.Errorf("managed_service.acquisition: %w", err)
 		}
-		if slices.Contains(manifest.ManagedService.ProviderPolicy.AllowedModes, resourcedeployment.ProviderAttachOnly) {
-			if err := manifest.ManagedService.ValidateAttachHealthPath(); err != nil {
-				return err
-			}
+	}
+	if err := service.ValidateDataArtifacts(); err != nil {
+		return fmt.Errorf("managed_service.data_artifacts: %w", err)
+	}
+	if err := service.ValidateCredentialFiles(); err != nil {
+		return fmt.Errorf("managed_service.credential_files: %w", err)
+	}
+	if err := validateManagedServiceOptions(service); err != nil {
+		return err
+	}
+	return validateManagedServiceEnvironment(service)
+}
+
+func validateManagedServiceOptions(service *ResourceManagedService) error {
+	if service.Config != nil {
+		if err := service.Config.Validate(); err != nil {
+			return fmt.Errorf("managed_service.config: %w", err)
 		}
-		if err := manifest.ManagedService.Artifact.Validate(); err != nil {
-			return fmt.Errorf("managed_service.artifact: %w", err)
+	}
+	if service.Bootstrap != nil {
+		if err := service.Bootstrap.Validate(); err != nil {
+			return fmt.Errorf("managed_service.bootstrap: %w", err)
 		}
-		if manifest.ManagedService.Acquisition != nil {
-			if err := manifest.ManagedService.Acquisition.Validate(); err != nil {
-				return fmt.Errorf("managed_service.acquisition: %w", err)
-			}
+	}
+	if service.ProcessLimits != nil {
+		if err := service.ProcessLimits.Validate(); err != nil {
+			return fmt.Errorf("managed_service.process_limits: %w", err)
 		}
-		if err := manifest.ManagedService.ValidateDataArtifacts(); err != nil {
-			return fmt.Errorf("managed_service.data_artifacts: %w", err)
+	}
+	if service.Shutdown != nil {
+		if err := service.Shutdown.Validate(); err != nil {
+			return fmt.Errorf("managed_service.shutdown: %w", err)
 		}
-		if err := manifest.ManagedService.ValidateCredentialFiles(); err != nil {
-			return fmt.Errorf("managed_service.credential_files: %w", err)
+	}
+	return nil
+}
+
+func validateManagedServiceEnvironment(service *ResourceManagedService) error {
+	for key, value := range service.Environment {
+		if !envNamePattern.MatchString(key) {
+			return fmt.Errorf("managed_service.environment key %q is invalid", key)
 		}
-		if manifest.ManagedService.Config != nil {
-			if err := manifest.ManagedService.Config.Validate(); err != nil {
-				return fmt.Errorf("managed_service.config: %w", err)
-			}
+		if strings.ContainsRune(value, '\x00') {
+			return fmt.Errorf("managed_service.environment value for %q contains NUL", key)
 		}
-		if manifest.ManagedService.Bootstrap != nil {
-			if err := manifest.ManagedService.Bootstrap.Validate(); err != nil {
-				return fmt.Errorf("managed_service.bootstrap: %w", err)
-			}
-		}
-		if manifest.ManagedService.ProcessLimits != nil {
-			if err := manifest.ManagedService.ProcessLimits.Validate(); err != nil {
-				return fmt.Errorf("managed_service.process_limits: %w", err)
-			}
-		}
-		if manifest.ManagedService.Shutdown != nil {
-			if err := manifest.ManagedService.Shutdown.Validate(); err != nil {
-				return fmt.Errorf("managed_service.shutdown: %w", err)
-			}
-		}
-		for key, value := range manifest.ManagedService.Environment {
-			if !envNamePattern.MatchString(key) {
-				return fmt.Errorf("managed_service.environment key %q is invalid", key)
-			}
-			if strings.ContainsRune(value, '\x00') {
-				return fmt.Errorf("managed_service.environment value for %q contains NUL", key)
-			}
-		}
-		if path := strings.TrimSpace(manifest.ManagedService.EnvironmentFile); path != "" {
-			clean := filepath.Clean(path)
-			if filepath.IsAbs(path) || clean == "." || clean == ".." || strings.HasPrefix(clean, ".."+string(filepath.Separator)) {
-				return fmt.Errorf("managed_service.environment_file must be a non-empty relative path under RESOURCE_DATA_DIR")
-			}
+	}
+	if path := strings.TrimSpace(service.EnvironmentFile); path != "" {
+		clean := filepath.Clean(path)
+		if filepath.IsAbs(path) || clean == "." || clean == ".." || strings.HasPrefix(clean, ".."+string(filepath.Separator)) {
+			return fmt.Errorf("managed_service.environment_file must be a non-empty relative path under RESOURCE_DATA_DIR")
 		}
 	}
 	return nil
@@ -549,7 +586,6 @@ var (
 	AllowedDeploymentArchs    = []string{"amd64", "arm64"}
 )
 
-//nolint:gocyclo // deployment validation covers the manifest platform and artifact state matrix.
 func validateDeployment(manifest ResourceManifest) error {
 	requirementNames, err := registeredRequirementNames()
 	if err != nil {
@@ -565,67 +601,93 @@ func validateDeployment(manifest ResourceManifest) error {
 			return fmt.Errorf("deployment profile name must not be empty")
 		}
 		for platform, target := range map[string]*ResourceDeploymentTarget{string(hostreqspec.PlatformLinux): profile.Linux, string(hostreqspec.PlatformMacOS): profile.MacOS, string(hostreqspec.PlatformWindows): profile.Windows} {
-			if target == nil {
-				return fmt.Errorf("deployment.profiles.%s.%s is required", profileName, platform)
-			}
-			if platformSupport[platform] == manifestUnsupported && target.Support != manifestUnsupported {
-				return fmt.Errorf("deployment.profiles.%s.%s.support %q contradicts platforms.%s \"unsupported\"", profileName, platform, target.Support, platform)
-			}
-			if !slices.Contains(AllowedDeploymentSupports, target.Support) {
-				return fmt.Errorf("deployment.profiles.%s.%s.support %q is invalid", profileName, platform, target.Support)
-			}
-			if !slices.Contains(AllowedDeploymentModes, target.Mode) {
-				return fmt.Errorf("deployment.profiles.%s.%s.mode %q is invalid", profileName, platform, target.Mode)
-			}
-			if !deploymentModeAllowedForDriver(manifest.Driver, target.Mode) {
-				return fmt.Errorf("deployment.profiles.%s.%s.mode %q is not permitted for %s", profileName, platform, target.Mode, manifest.Driver)
-			}
-			if target.Support == manifestUnsupported {
-				if strings.TrimSpace(target.Reason) == "" {
-					return fmt.Errorf("deployment.profiles.%s.%s.reason is required for unsupported targets", profileName, platform)
-				}
-				continue
-			}
-			if err := validateTargetRequirements(profileName, platform, target.Requires, requirementNames); err != nil {
+			validator := deploymentTargetValidator{manifest: manifest, requirementNames: requirementNames, platformSupport: platformSupport}
+			if err := validator.validate(profileName, platform, target); err != nil {
 				return err
 			}
-			if len(target.Architectures) == 0 {
-				return fmt.Errorf("deployment.profiles.%s.%s.architectures is required", profileName, platform)
+		}
+	}
+	return nil
+}
+
+type deploymentTargetValidator struct {
+	manifest         ResourceManifest
+	requirementNames map[string]struct{}
+	platformSupport  map[string]string
+}
+
+func (v deploymentTargetValidator) validate(profile, platform string, target *ResourceDeploymentTarget) error {
+	if target == nil {
+		return fmt.Errorf("deployment.profiles.%s.%s is required", profile, platform)
+	}
+	if v.platformSupport[platform] == manifestUnsupported && target.Support != manifestUnsupported {
+		return fmt.Errorf("deployment.profiles.%s.%s.support %q contradicts platforms.%s \"unsupported\"", profile, platform, target.Support, platform)
+	}
+	if !slices.Contains(AllowedDeploymentSupports, target.Support) {
+		return fmt.Errorf("deployment.profiles.%s.%s.support %q is invalid", profile, platform, target.Support)
+	}
+	if !slices.Contains(AllowedDeploymentModes, target.Mode) {
+		return fmt.Errorf("deployment.profiles.%s.%s.mode %q is invalid", profile, platform, target.Mode)
+	}
+	if !deploymentModeAllowedForDriver(v.manifest.Driver, target.Mode) {
+		return fmt.Errorf("deployment.profiles.%s.%s.mode %q is not permitted for %s", profile, platform, target.Mode, v.manifest.Driver)
+	}
+	if target.Support == manifestUnsupported {
+		if strings.TrimSpace(target.Reason) == "" {
+			return fmt.Errorf("deployment.profiles.%s.%s.reason is required for unsupported targets", profile, platform)
+		}
+		return nil
+	}
+	if err := validateTargetRequirements(profile, platform, target.Requires, v.requirementNames); err != nil {
+		return err
+	}
+	if err := validateDeploymentEvidence(profile, platform, target); err != nil {
+		return err
+	}
+	if strings.HasPrefix(target.Mode, "bundled-") && (v.manifest.CLI == nil || v.manifest.CLI.Adapter.Kind != "go_module" || v.manifest.CLI.Distribution == nil || v.manifest.CLI.Distribution.Kind != "prebuilt_artifact") {
+		return fmt.Errorf("deployment.profiles.%s.%s bundled mode requires cli.adapter.kind=go_module and cli.distribution.kind=prebuilt_artifact", profile, platform)
+	}
+	if target.Mode == "bundled-service" {
+		return validateBundledServiceArtifacts(v.manifest, profile, platform, target.Architectures)
+	}
+	return nil
+}
+
+func validateDeploymentEvidence(profile, platform string, target *ResourceDeploymentTarget) error {
+	if len(target.Architectures) == 0 {
+		return fmt.Errorf("deployment.profiles.%s.%s.architectures is required", profile, platform)
+	}
+	for _, arch := range target.Architectures {
+		if !slices.Contains(AllowedDeploymentArchs, arch) {
+			return fmt.Errorf("deployment.profiles.%s.%s.architectures contains invalid arch %q", profile, platform, arch)
+		}
+	}
+	if len(target.Evidence) == 0 {
+		return fmt.Errorf("deployment.profiles.%s.%s.evidence is required for %s targets", profile, platform, target.Support)
+	}
+	if len(target.Limitations) == 0 {
+		return fmt.Errorf("deployment.profiles.%s.%s.limitations is required for %s targets", profile, platform, target.Support)
+	}
+	if target.Support == "supported" {
+		for _, required := range []string{"manifest-validation", "artifact-checksum", "target-smoke"} {
+			if !slices.Contains(target.Evidence, required) {
+				return fmt.Errorf("deployment.profiles.%s.%s.supported requires %q evidence", profile, platform, required)
 			}
-			for _, arch := range target.Architectures {
-				if !slices.Contains(AllowedDeploymentArchs, arch) {
-					return fmt.Errorf("deployment.profiles.%s.%s.architectures contains invalid arch %q", profileName, platform, arch)
-				}
-			}
-			if len(target.Evidence) == 0 {
-				return fmt.Errorf("deployment.profiles.%s.%s.evidence is required for %s targets", profileName, platform, target.Support)
-			}
-			if len(target.Limitations) == 0 {
-				return fmt.Errorf("deployment.profiles.%s.%s.limitations is required for %s targets", profileName, platform, target.Support)
-			}
-			if target.Support == "supported" {
-				for _, requiredEvidence := range []string{"manifest-validation", "artifact-checksum", "target-smoke"} {
-					if !slices.Contains(target.Evidence, requiredEvidence) {
-						return fmt.Errorf("deployment.profiles.%s.%s.supported requires %q evidence", profileName, platform, requiredEvidence)
-					}
-				}
-			}
-			if strings.HasPrefix(target.Mode, "bundled-") && (manifest.CLI == nil || manifest.CLI.Adapter.Kind != "go_module" || manifest.CLI.Distribution == nil || manifest.CLI.Distribution.Kind != "prebuilt_artifact") {
-				return fmt.Errorf("deployment.profiles.%s.%s bundled mode requires cli.adapter.kind=go_module and cli.distribution.kind=prebuilt_artifact", profileName, platform)
-			}
-			if target.Mode == "bundled-service" {
-				if manifest.ManagedService == nil {
-					return fmt.Errorf("deployment.profiles.%s.%s bundled-service requires managed_service", profileName, platform)
-				}
-				for _, arch := range target.Architectures {
-					if _, err := manifest.ManagedService.Artifact.ForPlatform(platform, arch); err != nil {
-						return fmt.Errorf("deployment.profiles.%s.%s bundled-service artifact: %w", profileName, platform, err)
-					}
-					if _, err := manifest.ManagedService.Artifact.BundleArtifactForPlatform(platform, arch); err != nil {
-						return fmt.Errorf("deployment.profiles.%s.%s bundled-service artifact: %w", profileName, platform, err)
-					}
-				}
-			}
+		}
+	}
+	return nil
+}
+
+func validateBundledServiceArtifacts(manifest ResourceManifest, profile, platform string, architectures []string) error {
+	if manifest.ManagedService == nil {
+		return fmt.Errorf("deployment.profiles.%s.%s bundled-service requires managed_service", profile, platform)
+	}
+	for _, arch := range architectures {
+		if _, err := manifest.ManagedService.Artifact.ForPlatform(platform, arch); err != nil {
+			return fmt.Errorf("deployment.profiles.%s.%s bundled-service artifact: %w", profile, platform, err)
+		}
+		if _, err := manifest.ManagedService.Artifact.BundleArtifactForPlatform(platform, arch); err != nil {
+			return fmt.Errorf("deployment.profiles.%s.%s bundled-service artifact: %w", profile, platform, err)
 		}
 	}
 	return nil

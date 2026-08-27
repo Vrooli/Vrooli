@@ -32,7 +32,7 @@ var syncMethods = []struct {
 
 // HTTPHeadFn is swappable for testing.
 var HTTPHeadFn = func(url string) (*http.Response, error) {
-	client := &http.Client{Timeout: tuning.ServiceHealthTimeout}
+	client := &http.Client{Timeout: tuning.ServiceHealthTimeout()}
 	return client.Head(url)
 }
 

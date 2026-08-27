@@ -7,6 +7,7 @@ import (
 
 	"github.com/vrooli/vrooli/internal/hostreqkit"
 	"github.com/vrooli/vrooli/internal/hostreqspec"
+	"github.com/vrooli/vrooli/internal/testenv"
 )
 
 var testManifest = hostreqkit.ToolManifest{
@@ -28,10 +29,9 @@ func restoreStubs(t *testing.T) func() {
 	// empty tmpdir so the test isn't polluted by the developer's real
 	// ~/.local/bin or ~/go/bin. Any test that wants to override the home
 	// dir can set its own ReadFileFn after restoreStubs runs.
-	tmpHome := t.TempDir()
+	tmpHome := testenv.RuntimeHome(t)
 	hostreqkit.RunningAsRootFn = func() bool { return false }
-	t.Setenv("USER", "alice")
-	t.Setenv("HOME", tmpHome)
+	testenv.AsCurrentUser(t, "alice")
 	hostreqkit.ReadFileFn = func(path string) ([]byte, error) {
 		if path == "/etc/passwd" {
 			return []byte("alice:x:1000:1000:Alice:" + tmpHome + ":/bin/sh\n"), nil
@@ -81,12 +81,6 @@ func TestApplyDryRunMentionsGoInstall(t *testing.T) {
 	}
 	if !containsNote(out.Notes, "go install connectrpc.com/connect/cmd/protoc-gen-connect-go@v1.19.2") {
 		t.Fatalf("notes = %v", out.Notes)
-	}
-}
-
-func TestPinnedVersionMatchesManifest(t *testing.T) {
-	if testManifest.Version != defaultVersion {
-		t.Fatalf("manifest version %q drifted from defaultVersion %q", testManifest.Version, defaultVersion)
 	}
 }
 

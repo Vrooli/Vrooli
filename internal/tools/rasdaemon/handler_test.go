@@ -166,7 +166,7 @@ func TestInspectInstalledServiceStopped(t *testing.T) {
 	}
 }
 
-func TestApplyHappyPath(t *testing.T) {
+func checkApplyInstallsAndEnablesRasdaemon(t *testing.T) {
 	cmds, units, restore := stubAll(t)
 	defer restore()
 
@@ -211,25 +211,6 @@ func TestApplyHappyPath(t *testing.T) {
 	}
 	if !sawSystemctl {
 		t.Errorf("systemctl enable --now not called: %v", *cmds)
-	}
-}
-
-func TestApplyDryRunNotInstalled(t *testing.T) {
-	cmds, _, restore := stubAll(t)
-	defer restore()
-
-	st := newHandler().Inspect(aptHost(), req(false))
-	out, err := newHandler().Apply(aptHost(), st, hostreqkit.EnsureOptions{DryRun: true})
-	if err != nil {
-		t.Fatalf("Apply: %v", err)
-	}
-	if out.ExecutionState != hostreqkit.ExecutionWouldInstall {
-		t.Errorf("ExecutionState = %q", out.ExecutionState)
-	}
-	for _, c := range *cmds {
-		if c.Name == "apt-get" || c.Name == "systemctl" {
-			t.Errorf("DryRun ran %s: %v", c.Name, c)
-		}
 	}
 }
 

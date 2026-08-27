@@ -5,11 +5,11 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"os/exec"
 	"runtime"
 	"strconv"
 	"strings"
 
+	"github.com/vrooli/vrooli/internal/shell"
 	"github.com/vrooli/vrooli/internal/tuning"
 )
 
@@ -140,9 +140,9 @@ func parseLinuxEphemeral(raw string) (EphemeralRange, error) {
 }
 
 func readDarwinEphemeral(ctx context.Context) (EphemeralRange, error) {
-	cctx, cancel := context.WithTimeout(ctx, tuning.ShortOperationDeadline)
+	cctx, cancel := context.WithTimeout(ctx, tuning.EphemeralPortProbeTimeout())
 	defer cancel()
-	out, err := exec.CommandContext(cctx, "sysctl", "-n",
+	out, err := shell.NewCommandContext(cctx, "sysctl", "-n",
 		"net.inet.ip.portrange.first", "net.inet.ip.portrange.last").Output()
 	if err != nil {
 		return EphemeralRange{}, fmt.Errorf("sysctl portrange: %w", err)
@@ -170,9 +170,9 @@ func parseDarwinEphemeral(raw string) (EphemeralRange, error) {
 }
 
 func readWindowsEphemeral(ctx context.Context) (EphemeralRange, error) {
-	cctx, cancel := context.WithTimeout(ctx, tuning.HealthCheckTimeout)
+	cctx, cancel := context.WithTimeout(ctx, tuning.HealthCheckTimeout())
 	defer cancel()
-	out, err := exec.CommandContext(cctx, "netsh", "int", "ipv4", "show", "dynamicport", "tcp").Output()
+	out, err := shell.NewCommandContext(cctx, "netsh", "int", "ipv4", "show", "dynamicport", "tcp").Output()
 	if err != nil {
 		return EphemeralRange{}, fmt.Errorf("netsh dynamicport: %w", err)
 	}

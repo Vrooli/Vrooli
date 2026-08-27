@@ -15,8 +15,7 @@ func TestInvokingUserPrefersSudoUserWhenRoot(t *testing.T) {
 	defer func() { RunningAsRootFn = origRoot }()
 	RunningAsRootFn = func() bool { return true }
 
-	testenv.SetSudoUser(t, "alice")
-	t.Setenv("USER", "root")
+	testenv.AsSudoUser(t, "alice")
 
 	if got := InvokingUser(); got != "alice" {
 		t.Fatalf("InvokingUser() = %q, want alice", got)
@@ -28,9 +27,7 @@ func TestInvokingUserIDsReadsSudoEnvWhenRoot(t *testing.T) {
 	defer func() { RunningAsRootFn = origRoot }()
 	RunningAsRootFn = func() bool { return true }
 
-	testenv.SetSudoUser(t, "alice")
-	t.Setenv("SUDO_UID", "1000")
-	t.Setenv("SUDO_GID", "1001")
+	testenv.SetIdentityEnv(t, map[string]string{"SUDO_USER": "alice", "SUDO_UID": "1000", "SUDO_GID": "1001"})
 
 	uid, gid, ok := InvokingUserIDs()
 	if !ok {
@@ -60,9 +57,7 @@ func TestInvokingUserIDsNotOkCases(t *testing.T) {
 			origRoot := RunningAsRootFn
 			defer func() { RunningAsRootFn = origRoot }()
 			RunningAsRootFn = func() bool { return tc.root }
-			testenv.SetSudoUser(t, tc.sudoUsr)
-			t.Setenv("SUDO_UID", tc.uid)
-			t.Setenv("SUDO_GID", tc.gid)
+			testenv.SetIdentityEnv(t, map[string]string{"SUDO_USER": tc.sudoUsr, "SUDO_UID": tc.uid, "SUDO_GID": tc.gid})
 			if _, _, ok := InvokingUserIDs(); ok {
 				t.Fatalf("InvokingUserIDs ok = true, want false for %q", tc.name)
 			}
@@ -77,8 +72,7 @@ func TestInvokingUserFallsBackToUserWhenNotRoot(t *testing.T) {
 
 	// Even if SUDO_USER is set, when we're not root we report the
 	// current user — there's nothing to drop privileges from.
-	testenv.SetSudoUser(t, "alice")
-	t.Setenv("USER", "bob")
+	testenv.SetIdentityEnv(t, map[string]string{"SUDO_USER": "alice", "USER": "bob"})
 
 	if got := InvokingUser(); got != "bob" {
 		t.Fatalf("InvokingUser() = %q, want bob (current user takes precedence when not root)", got)
@@ -93,8 +87,7 @@ func TestInvokingUserHomeDirReadsPasswd(t *testing.T) {
 		lookupHomeFromPasswdFn = origLookup
 	}()
 	RunningAsRootFn = func() bool { return true }
-	testenv.SetSudoUser(t, "alice")
-	t.Setenv("HOME", "/root")
+	testenv.SetIdentityEnv(t, map[string]string{"SUDO_USER": "alice", "USER": "root", "HOME": "/root"})
 	lookupHomeFromPasswdFn = func(user string) string {
 		if user == "alice" {
 			return "/home/alice"
@@ -122,8 +115,7 @@ func TestInvokingUserHomeDirFallsBackToHOMEWhenPasswdMisses(t *testing.T) {
 		lookupHomeFromPasswdFn = origLookup
 	}()
 	RunningAsRootFn = func() bool { return false }
-	t.Setenv("USER", "alice")
-	t.Setenv("HOME", "/Users/alice")
+	testenv.SetIdentityEnv(t, map[string]string{"USER": "alice", "HOME": "/Users/alice"})
 	lookupHomeFromPasswdFn = func(user string) string { return "" }
 
 	got, err := InvokingUserHomeDir()
@@ -139,9 +131,7 @@ func TestInvokingUserCommandTargetsElevatedOperatorBus(t *testing.T) {
 	origRoot := RunningAsRootFn
 	defer func() { RunningAsRootFn = origRoot }()
 	RunningAsRootFn = func() bool { return true }
-	testenv.SetSudoUser(t, "alice")
-	t.Setenv("SUDO_UID", "1000")
-	t.Setenv("SUDO_GID", "1000")
+	testenv.AsSudoUser(t, "alice")
 
 	name, args := InvokingUserCommand("systemctl", "--user", "daemon-reload")
 	joined := name + " " + strings.Join(args, " ")
@@ -166,8 +156,7 @@ func TestRunAsInvokingUserNoOpWhenNotRoot(t *testing.T) {
 		RunCommandFn = origRun
 	}()
 	RunningAsRootFn = func() bool { return false }
-	testenv.SetSudoUser(t, "")
-	t.Setenv("USER", "alice")
+	testenv.AsCurrentUser(t, "alice")
 
 	var gotName string
 	var gotArgs []string
@@ -196,8 +185,7 @@ func TestRunAsInvokingUserWithInputNoOpWhenNotRoot(t *testing.T) {
 		RunCommandInputFn = origRun
 	}()
 	RunningAsRootFn = func() bool { return false }
-	testenv.SetSudoUser(t, "")
-	t.Setenv("USER", "alice")
+	testenv.AsCurrentUser(t, "alice")
 
 	var gotName string
 	var gotArgs []string
@@ -343,7 +331,7 @@ func TestResolveCommandForInvokingUserMissesWhenAbsentEverywhere(t *testing.T) {
 		lookupHomeFromPasswdFn = origLookup
 	}()
 	RunningAsRootFn = func() bool { return false }
-	t.Setenv("USER", "alice")
+	testenv.AsCurrentUser(t, "alice")
 	lookupHomeFromPasswdFn = func(user string) string { return tmp }
 
 	if _, ok := ResolveCommandForInvokingUser([]string{"protoc-gen-go"}); ok {

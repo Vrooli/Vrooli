@@ -88,8 +88,6 @@ type capabilityCandidate struct {
 // second catalog. Every member of the platform status vocabulary gets an
 // explicit outcome; an unrecognised token is a terminal invalid verdict rather
 // than a silent downgrade.
-//
-//nolint:gocyclo // capability resolution evaluates role, platform, status, and evidence precedence explicitly.
 func ResolveCapability(implementations []CapabilityImplementation, capability string, os HostOS) CapabilityResolution {
 	capability = strings.TrimSpace(capability)
 	result := CapabilityResolution{Capability: capability, OS: os, Qualification: QualificationUndeclared}
@@ -104,182 +102,186 @@ func ResolveCapability(implementations []CapabilityImplementation, capability st
 		return result
 	}
 
-	var unwired []string
-	var unwiredSince, unwiredReview string
-	var ineligibleReview string
-	var ineligible bool
-	var candidates []capabilityCandidate
-	var controls []capabilityCandidate
-	var declarers []string
-	resolved := make(map[string]bool)
+	scan, invalid := scanCapabilityDeclarations(implementations, capability, os)
+	if invalid != nil {
+		return *invalid
+	}
+	if len(scan.candidates) > 0 {
+		return resolveProviderCandidate(result, implementations, scan, capability, os)
+	}
+	if len(scan.controls) > 0 && countControls(implementations, capability, os) == len(scan.controls) {
+		return resolveControlOnlyCapability(result, implementations, scan, capability, os)
+	}
+	return resolveAbsentCapability(result, implementations, scan, capability, os)
+}
+
+type capabilityScan struct {
+	unwired                     []string
+	unwiredSince, unwiredReview string
+	ineligibleReview            string
+	ineligible                  bool
+	candidates                  []capabilityCandidate
+	controls                    []capabilityCandidate
+	declarers                   []string
+	resolved                    map[string]bool
+}
+
+func scanCapabilityDeclarations(implementations []CapabilityImplementation, capability string, os HostOS) (capabilityScan, *CapabilityResolution) {
+	scan := capabilityScan{resolved: make(map[string]bool)}
 	for _, implementation := range implementations {
-		if strings.TrimSpace(implementation.Capability) != capability {
-			continue
+		if invalid := scan.addImplementation(implementation, capability, os); invalid != nil {
+			invalid.Declarers = declarerDetails(implementations, capability, os, scan.resolved)
+			return scan, invalid
 		}
-		name := strings.TrimSpace(implementation.Name)
+	}
+	return scan, nil
+}
+
+func (s *capabilityScan) addImplementation(implementation CapabilityImplementation, capability string, os HostOS) *CapabilityResolution {
+	if strings.TrimSpace(implementation.Capability) != capability {
+		return nil
+	}
+	name := strings.TrimSpace(implementation.Name)
+	if name != "" {
+		s.declarers = append(s.declarers, name)
+	}
+	platform, declared := implementation.Platforms[os]
+	if !declared {
+		return nil
+	}
+	status, err := ParsePlatformStatus(platform.Status)
+	if err != nil {
+		return &CapabilityResolution{Capability: capability, OS: os, Status: CapabilityStatusInvalid, Qualification: QualificationUndeclared, Implementer: name, Mechanism: strings.TrimSpace(platform.Mechanism), Reason: err.Error()}
+	}
+	if implementation.Role == capabilityControl {
+		s.addControl(implementation, name, status)
+		return nil
+	}
+	switch status {
+	case StatusSupported, StatusBuildVerified, StatusExperimental, StatusUnqualified, StatusPartial:
 		if name != "" {
-			declarers = append(declarers, name)
-		}
-		platform, declared := implementation.Platforms[os]
-		if !declared {
-			continue
-		}
-		status, err := ParsePlatformStatus(platform.Status)
-		if err != nil {
-			result.Status = CapabilityStatusInvalid
-			result.Implementer = strings.TrimSpace(implementation.Name)
-			result.Mechanism = strings.TrimSpace(platform.Mechanism)
-			result.Reason = err.Error()
-			result.Declarers = declarerDetails(implementations, capability, os, resolved)
-			return result
-		}
-		if implementation.Role == capabilityControl && name != "" && status != StatusUnsupported && status != StatusNotImplemented && status != StatusNotApplicable {
-			controls = append(controls, capabilityCandidate{implementation: implementation, qualification: status.Qualification()})
-			resolved[name] = true
-		}
-		if implementation.Role == capabilityControl {
-			continue
-		}
-		named := strings.TrimSpace(implementation.Name) != ""
-		switch status {
-		case StatusSupported, StatusBuildVerified, StatusExperimental, StatusUnqualified, StatusPartial:
-			if named {
-				candidates = append(candidates, capabilityCandidate{implementation: implementation, qualification: status.Qualification()})
-				resolved[name] = true
-				continue
-			}
-			// A declaration that claims an implementation without naming one is
-			// exactly the unwired case: the mechanism is described, the code is not.
-			if mechanism := strings.TrimSpace(platform.Mechanism); mechanism != "" {
-				unwired = append(unwired, mechanism)
-				if unwiredSince == "" {
-					unwiredSince = strings.TrimSpace(platform.Since)
-					unwiredReview = strings.TrimSpace(platform.ReviewBy)
-				}
-			}
-		case StatusUnsupported:
-			if mechanism := strings.TrimSpace(platform.Mechanism); mechanism != "" {
-				unwired = append(unwired, mechanism)
-				if unwiredSince == "" {
-					unwiredSince = strings.TrimSpace(platform.Since)
-					unwiredReview = strings.TrimSpace(platform.ReviewBy)
-				}
-				continue
-			}
-			ineligible = true
-		case StatusNotImplemented:
-			if mechanism := strings.TrimSpace(platform.Mechanism); mechanism != "" {
-				unwired = append(unwired, mechanism)
-				if unwiredSince == "" {
-					unwiredSince = strings.TrimSpace(platform.Since)
-					unwiredReview = strings.TrimSpace(platform.ReviewBy)
-				}
-				continue
-			}
-			ineligible = true
-		case StatusNotApplicable:
-			ineligible = true
-			if ineligibleReview == "" {
-				ineligibleReview = strings.TrimSpace(platform.ReviewBy)
-			}
+			s.candidates = append(s.candidates, capabilityCandidate{implementation: implementation, qualification: status.Qualification()})
+			s.resolved[name] = true
+			return nil
 		}
 	}
-	if len(candidates) > 0 {
-		sort.SliceStable(candidates, func(i, j int) bool {
-			if candidates[i].qualification != candidates[j].qualification {
-				return candidates[i].qualification.Rank() > candidates[j].qualification.Rank()
-			}
-			if candidates[i].implementation.Role != candidates[j].implementation.Role {
-				return candidates[i].implementation.Role == "primary"
-			}
-			return candidates[i].implementation.Name < candidates[j].implementation.Name
-		})
-		winner := candidates[0]
-		result.Qualification = winner.qualification
-		result.Status = CapabilityImplemented
-		if winner.qualification == QualificationDegraded {
-			result.Status = CapabilityDegraded
-		}
-		result.Implementer = winner.implementation.Name
-		result.Mechanism = strings.TrimSpace(winner.implementation.Platforms[os].Mechanism)
-		result.Since = strings.TrimSpace(winner.implementation.Platforms[os].Since)
-		result.ReviewBy = strings.TrimSpace(winner.implementation.Platforms[os].ReviewBy)
-		result.Evidence = winner.implementation.Platforms[os].Evidence
-		result.Reason = winner.qualification.Reason()
-		result.Controls = sortedNames(controls)
-		result.Absent = absentNames(declarers, resolved)
-		result.AbsentControls, result.AbsentProviders = absentByRole(implementations, capability, os, resolved)
-		result.Declarers = declarerDetails(implementations, capability, os, resolved)
-		if len(controls) < countControls(implementations, capability, os) {
-			result.Status = CapabilityControlsIncomplete
-			result.Reason = fmt.Sprintf("provider %q resolves, but required controls are absent: %s", result.Implementer, strings.Join(result.AbsentControls, ", "))
-		}
-		return result
+	s.addUnresolvedPlatform(platform, status)
+	return nil
+}
+
+func (s *capabilityScan) addControl(implementation CapabilityImplementation, name string, status PlatformStatus) {
+	if name == "" || status == StatusUnsupported || status == StatusNotImplemented || status == StatusNotApplicable {
+		return
 	}
+	s.controls = append(s.controls, capabilityCandidate{implementation: implementation, qualification: status.Qualification()})
+	s.resolved[name] = true
+}
+
+func (s *capabilityScan) addUnresolvedPlatform(platform PlatformDeclaration, status PlatformStatus) {
+	mechanism := strings.TrimSpace(platform.Mechanism)
+	if mechanism != "" && status != StatusNotApplicable {
+		s.unwired = append(s.unwired, mechanism)
+		if s.unwiredSince == "" {
+			s.unwiredSince = strings.TrimSpace(platform.Since)
+			s.unwiredReview = strings.TrimSpace(platform.ReviewBy)
+		}
+		return
+	}
+	s.ineligible = true
+	if status == StatusNotApplicable && s.ineligibleReview == "" {
+		s.ineligibleReview = strings.TrimSpace(platform.ReviewBy)
+	}
+}
+
+func resolveProviderCandidate(result CapabilityResolution, implementations []CapabilityImplementation, scan capabilityScan, capability string, os HostOS) CapabilityResolution {
+	sort.SliceStable(scan.candidates, func(i, j int) bool {
+		if scan.candidates[i].qualification != scan.candidates[j].qualification {
+			return scan.candidates[i].qualification.Rank() > scan.candidates[j].qualification.Rank()
+		}
+		if scan.candidates[i].implementation.Role != scan.candidates[j].implementation.Role {
+			return scan.candidates[i].implementation.Role == "primary"
+		}
+		return scan.candidates[i].implementation.Name < scan.candidates[j].implementation.Name
+	})
+	winner := scan.candidates[0]
+	result.Qualification = winner.qualification
+	result.Status = CapabilityImplemented
+	if winner.qualification == QualificationDegraded {
+		result.Status = CapabilityDegraded
+	}
+	result.Implementer = winner.implementation.Name
+	result.Mechanism = strings.TrimSpace(winner.implementation.Platforms[os].Mechanism)
+	result.Since = strings.TrimSpace(winner.implementation.Platforms[os].Since)
+	result.ReviewBy = strings.TrimSpace(winner.implementation.Platforms[os].ReviewBy)
+	result.Evidence = winner.implementation.Platforms[os].Evidence
+	result.Reason = winner.qualification.Reason()
+	populateResolutionDetails(&result, implementations, scan, capability, os)
+	if len(scan.controls) < countControls(implementations, capability, os) {
+		result.Status = CapabilityControlsIncomplete
+		result.Reason = fmt.Sprintf("provider %q resolves, but required controls are absent: %s", result.Implementer, strings.Join(result.AbsentControls, ", "))
+	}
+	return result
+}
+
+func resolveControlOnlyCapability(result CapabilityResolution, implementations []CapabilityImplementation, scan capabilityScan, capability string, os HostOS) CapabilityResolution {
 	// A controls-only capability is still an implementation when every
 	// required control resolves. Controls are deliberately not promoted to a
 	// provider role just to satisfy this branch: the capability remains owned
 	// by its controls and reports the weakest control qualification.
-	if len(controls) > 0 && countControls(implementations, capability, os) == len(controls) {
-		qualification := QualificationQualified
-		for _, control := range controls {
-			if control.qualification.Rank() < qualification.Rank() {
-				qualification = control.qualification
-			}
+	qualification := QualificationQualified
+	for _, control := range scan.controls {
+		if control.qualification.Rank() < qualification.Rank() {
+			qualification = control.qualification
 		}
-		result.Status = CapabilityImplemented
-		if qualification == QualificationDegraded {
-			result.Status = CapabilityDegraded
-		}
-		result.Qualification = qualification
-		result.Reason = fmt.Sprintf("all %d control declarers resolve on %s", len(controls), os)
-		result.Controls = sortedNames(controls)
-		result.Absent = absentNames(declarers, resolved)
-		result.AbsentControls, result.AbsentProviders = absentByRole(implementations, capability, os, resolved)
-		result.Declarers = declarerDetails(implementations, capability, os, resolved)
-		return result
 	}
-	if len(controls) > 0 && len(controls) < countControls(implementations, capability, os) {
+	result.Status = CapabilityImplemented
+	if qualification == QualificationDegraded {
+		result.Status = CapabilityDegraded
+	}
+	result.Qualification = qualification
+	result.Reason = fmt.Sprintf("all %d control declarers resolve on %s", len(scan.controls), os)
+	populateResolutionDetails(&result, implementations, scan, capability, os)
+	return result
+}
+
+func resolveAbsentCapability(result CapabilityResolution, implementations []CapabilityImplementation, scan capabilityScan, capability string, os HostOS) CapabilityResolution {
+	if len(scan.controls) > 0 && len(scan.controls) < countControls(implementations, capability, os) {
 		result.Status = CapabilityControlsIncomplete
 		result.Qualification = QualificationUndeclared
-		result.Reason = fmt.Sprintf("%d of %d required control declarers resolve on %s", len(controls), countControls(implementations, capability, os), os)
-		result.Controls = sortedNames(controls)
-		result.Absent = absentNames(declarers, resolved)
-		result.AbsentControls, result.AbsentProviders = absentByRole(implementations, capability, os, resolved)
-		result.Declarers = declarerDetails(implementations, capability, os, resolved)
+		result.Reason = fmt.Sprintf("%d of %d required control declarers resolve on %s", len(scan.controls), countControls(implementations, capability, os), os)
+		populateResolutionDetails(&result, implementations, scan, capability, os)
 		return result
 	}
-	if len(unwired) > 0 {
-		sort.Strings(unwired)
+	if len(scan.unwired) > 0 {
+		sort.Strings(scan.unwired)
 		result.Status = CapabilityUnwired
-		result.Mechanism = unwired[0]
-		result.Since = unwiredSince
-		result.ReviewBy = unwiredReview
+		result.Mechanism = scan.unwired[0]
+		result.Since = scan.unwiredSince
+		result.ReviewBy = scan.unwiredReview
 		result.Qualification = QualificationUndeclared
 		result.Reason = "a mechanism is named but no implementation is declared for this host OS"
-		result.Controls = sortedNames(controls)
-		result.Absent = absentNames(declarers, resolved)
-		result.AbsentControls, result.AbsentProviders = absentByRole(implementations, capability, os, resolved)
-		result.Declarers = declarerDetails(implementations, capability, os, resolved)
+		populateResolutionDetails(&result, implementations, scan, capability, os)
 		return result
 	}
-	if ineligible {
+	if scan.ineligible {
 		result.Status = CapabilityIneligible
 		result.Qualification = QualificationIneligible
-		result.ReviewBy = ineligibleReview
+		result.ReviewBy = scan.ineligibleReview
 		result.Reason = QualificationIneligible.Reason()
-		result.Absent = absentNames(declarers, resolved)
-		result.AbsentControls, result.AbsentProviders = absentByRole(implementations, capability, os, resolved)
-		result.Declarers = declarerDetails(implementations, capability, os, resolved)
+		populateResolutionDetails(&result, implementations, scan, capability, os)
 		return result
 	}
 	result.Status = CapabilityPeerless
 	result.Reason = "no implementation or mechanism is declared for this capability on this host OS"
-	result.Controls = sortedNames(controls)
-	result.Absent = absentNames(declarers, resolved)
-	result.AbsentControls, result.AbsentProviders = absentByRole(implementations, capability, os, resolved)
-	result.Declarers = declarerDetails(implementations, capability, os, resolved)
+	populateResolutionDetails(&result, implementations, scan, capability, os)
 	return result
+}
+
+func populateResolutionDetails(result *CapabilityResolution, implementations []CapabilityImplementation, scan capabilityScan, capability string, os HostOS) {
+	result.Controls = sortedNames(scan.controls)
+	result.Absent = absentNames(scan.declarers, scan.resolved)
+	result.AbsentControls, result.AbsentProviders = absentByRole(implementations, capability, os, scan.resolved)
+	result.Declarers = declarerDetails(implementations, capability, os, scan.resolved)
 }
 
 func declarerDetails(implementations []CapabilityImplementation, capability string, os HostOS, resolved map[string]bool) []CapabilityDeclarer {

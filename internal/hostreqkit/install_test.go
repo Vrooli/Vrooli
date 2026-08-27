@@ -60,12 +60,16 @@ func TestInstallCommandLinuxUnsupportedManager(t *testing.T) {
 }
 
 func TestInstallCommandDarwinBrew(t *testing.T) {
-	cmd, args, err := InstallCommand(Host{OS: "darwin", PackageManager: "brew"}, "jq", "ask")
-	if err != nil {
-		t.Fatalf("InstallCommand: %v", err)
-	}
-	if cmd != "brew" || strings.Join(args, " ") != "install jq" {
-		t.Fatalf("got %s %v", cmd, args)
+	for _, manager := range []string{"brew", " brew "} {
+		t.Run(strings.TrimSpace(manager), func(t *testing.T) {
+			cmd, args, err := InstallCommand(Host{OS: "darwin", PackageManager: manager}, "jq", "ask")
+			if err != nil {
+				t.Fatalf("InstallCommand: %v", err)
+			}
+			if cmd != "brew" || strings.Join(args, " ") != "install jq" {
+				t.Fatalf("got %s %v", cmd, args)
+			}
+		})
 	}
 }
 
@@ -73,16 +77,6 @@ func TestInstallCommandDarwinNoBrew(t *testing.T) {
 	_, _, err := InstallCommand(Host{OS: "darwin", PackageManager: ""}, "jq", "ask")
 	if err == nil || !strings.Contains(err.Error(), "Homebrew") {
 		t.Fatalf("expected Homebrew error, got %v", err)
-	}
-}
-
-func TestInstallCommandDarwinBrewWithWhitespace(t *testing.T) {
-	cmd, args, err := InstallCommand(Host{OS: "darwin", PackageManager: " brew "}, "jq", "ask")
-	if err != nil {
-		t.Fatalf("InstallCommand: %v (whitespace around 'brew' should be trimmed)", err)
-	}
-	if cmd != "brew" || strings.Join(args, " ") != "install jq" {
-		t.Fatalf("got %s %v", cmd, args)
 	}
 }
 

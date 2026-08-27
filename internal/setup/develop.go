@@ -103,7 +103,7 @@ func (s *setupService) RunDevelopWithOptions(root, home string, opts Options, st
 	if err != nil {
 		return err
 	}
-	healthTimeout := tuning.StandardOperationTimeout
+	healthTimeout := tuning.SetupOperationTimeout()
 	if !healthy {
 		spec, err := buildAPILaunchSpec(root, home, env, apiPort)
 		if err != nil {
@@ -142,9 +142,9 @@ func developHealthTimeout(spec apiLaunchSpec) time.Duration {
 	// genuinely fresh host. Keep the normal fast-start budget for prebuilt
 	// launchers while giving that one cold path enough deterministic runway.
 	if filepath.Base(spec.Command) == "go" && len(spec.Args) > 0 && spec.Args[0] == "run" {
-		return tuning.ExtendedOperationTimeout
+		return tuning.SetupExtendedOperationTimeout()
 	}
-	return tuning.StandardOperationTimeout
+	return tuning.SetupOperationTimeout()
 }
 
 func buildProjectBinary(root, outputPath, target string, fingerprintPaths []string, gitCommit, buildTime string, stdout, stderr io.Writer) error {
@@ -256,7 +256,7 @@ func resolveAPIPort(values map[string]string) int {
 }
 
 func apiAlreadyHealthy(port int) (bool, error) {
-	client := &http.Client{Timeout: tuning.ShortOperationDeadline}
+	client := &http.Client{Timeout: tuning.SetupHTTPProbeTimeout()}
 	response, err := client.Get(fmt.Sprintf("http://127.0.0.1:%d/health", port))
 	if err != nil {
 		return false, nil
@@ -311,7 +311,7 @@ func startProjectAPI(root string, spec apiLaunchSpec, stdout, stderr io.Writer) 
 	}
 	defer logFile.Close()
 
-	cmd := exec.Command(spec.Command, spec.Args...)
+	cmd := shell.NewCommand(spec.Command, spec.Args...)
 	cmd.Dir = root
 	cmd.Env = spec.Env
 	cmd.Stdout = logFile
@@ -322,7 +322,7 @@ func startProjectAPI(root string, spec apiLaunchSpec, stdout, stderr io.Writer) 
 	if err := cmd.Start(); err != nil {
 		return err
 	}
-	time.Sleep(tuning.SetupFilesystemSettleDelay)
+	time.Sleep(tuning.SetupFilesystemSettleDelay())
 	if !platform.IsPIDRunning(cmd.Process.Pid) {
 		return fmt.Errorf("vrooli-api exited immediately: %w", err)
 	}
@@ -331,7 +331,7 @@ func startProjectAPI(root string, spec apiLaunchSpec, stdout, stderr io.Writer) 
 
 func waitForHTTPHealth(port int, timeout time.Duration) error {
 	deadline := time.Now().Add(timeout)
-	client := &http.Client{Timeout: tuning.ShortOperationDeadline}
+	client := &http.Client{Timeout: tuning.SetupHTTPProbeTimeout()}
 	url := fmt.Sprintf("http://127.0.0.1:%d/health", port)
 	for {
 		response, err := client.Get(url)
@@ -344,7 +344,7 @@ func waitForHTTPHealth(port int, timeout time.Duration) error {
 		if time.Now().After(deadline) {
 			return fmt.Errorf("vrooli-api failed health check on port %d", port)
 		}
-		time.Sleep(tuning.ShortOperationTimeout)
+		time.Sleep(tuning.SetupProgressPollInterval())
 	}
 }
 

@@ -12,7 +12,7 @@ import (
 	"github.com/vrooli/vrooli/internal/tuning"
 )
 
-const DefaultInterval = tuning.LongOperationTimeout
+var DefaultInterval = tuning.EmergencyWatchdogInterval()
 
 type Schedule struct {
 	Platform    string

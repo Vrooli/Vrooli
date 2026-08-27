@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/vrooli/vrooli/internal/repocontractmeta"
+	"github.com/vrooli/vrooli/internal/scenario"
 	"github.com/vrooli/vrooli/internal/tuning"
 
 	"github.com/vrooli/vrooli/internal/config"
@@ -335,18 +336,10 @@ func (c *Controller) scenarioResourceReferenceCount(name string) (int, error) {
 }
 
 func scenarioManifestUsesResource(path, name string) (bool, error) {
-	data, err := os.ReadFile(path)
+	manifest, err := scenario.LoadServiceManifest(path)
 	if err != nil {
 		return false, err
 	}
-	var payload struct {
-		Dependencies struct {
-			Resources map[string]ConfigEntry `json:"resources"`
-		} `json:"dependencies"`
-	}
-	if err := json.Unmarshal(data, &payload); err != nil {
-		return false, fmt.Errorf("parse scenario manifest %s: %w", path, err)
-	}
-	_, ok := payload.Dependencies.Resources[name]
+	_, ok := manifest.Dependencies.Resources[name]
 	return ok, nil
 }

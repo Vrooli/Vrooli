@@ -568,8 +568,11 @@ type RequestPairingResponse struct {
 	RequestId         string               `protobuf:"bytes,1,opt,name=request_id,json=requestId,proto3" json:"request_id,omitempty"`
 	Status            PairingRequestStatus `protobuf:"varint,2,opt,name=status,proto3,enum=vrooli.vrooli_bridge.v1.pairing.PairingRequestStatus" json:"status,omitempty"`
 	ConfirmationWords []string             `protobuf:"bytes,3,rep,name=confirmation_words,json=confirmationWords,proto3" json:"confirmation_words,omitempty"`
-	unknownFields     protoimpl.UnknownFields
-	sizeCache         protoimpl.SizeCache
+	// Short fingerprint of the node's own public key, shown beside the words so
+	// an operator comparing two screens has a second, independent value to read.
+	KeyFingerprint string `protobuf:"bytes,4,opt,name=key_fingerprint,json=keyFingerprint,proto3" json:"key_fingerprint,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *RequestPairingResponse) Reset() {
@@ -621,6 +624,13 @@ func (x *RequestPairingResponse) GetConfirmationWords() []string {
 		return x.ConfirmationWords
 	}
 	return nil
+}
+
+func (x *RequestPairingResponse) GetKeyFingerprint() string {
+	if x != nil {
+		return x.KeyFingerprint
+	}
+	return ""
 }
 
 type GetPairingRequestRequest struct {
@@ -859,8 +869,11 @@ type PairingRequest struct {
 	// The minted node id once approved.
 	NodeId            string   `protobuf:"bytes,10,opt,name=node_id,json=nodeId,proto3" json:"node_id,omitempty"`
 	ConfirmationWords []string `protobuf:"bytes,11,rep,name=confirmation_words,json=confirmationWords,proto3" json:"confirmation_words,omitempty"`
-	unknownFields     protoimpl.UnknownFields
-	sizeCache         protoimpl.SizeCache
+	// Short fingerprint of the requesting node's public key. Unlike name, os and
+	// endpoint, this value is derived from the key the node proved it holds.
+	KeyFingerprint string `protobuf:"bytes,12,opt,name=key_fingerprint,json=keyFingerprint,proto3" json:"key_fingerprint,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *PairingRequest) Reset() {
@@ -968,6 +981,13 @@ func (x *PairingRequest) GetConfirmationWords() []string {
 		return x.ConfirmationWords
 	}
 	return nil
+}
+
+func (x *PairingRequest) GetKeyFingerprint() string {
+	if x != nil {
+		return x.KeyFingerprint
+	}
+	return ""
 }
 
 type ListPairingRequestsRequest struct {
@@ -1179,12 +1199,13 @@ const file_vrooli_bridge_v1_pairing_pairing_proto_rawDesc = "" +
 	"\x02os\x18\x03 \x01(\tR\x02os\x12\x12\n" +
 	"\x04arch\x18\x04 \x01(\tR\x04arch\x12\x1a\n" +
 	"\bendpoint\x18\x05 \x01(\tR\bendpoint\x12\"\n" +
-	"\fcapabilities\x18\x06 \x03(\tR\fcapabilities\"\xb5\x01\n" +
+	"\fcapabilities\x18\x06 \x03(\tR\fcapabilities\"\xde\x01\n" +
 	"\x16RequestPairingResponse\x12\x1d\n" +
 	"\n" +
 	"request_id\x18\x01 \x01(\tR\trequestId\x12M\n" +
 	"\x06status\x18\x02 \x01(\x0e25.vrooli.vrooli_bridge.v1.pairing.PairingRequestStatusR\x06status\x12-\n" +
-	"\x12confirmation_words\x18\x03 \x03(\tR\x11confirmationWords\"9\n" +
+	"\x12confirmation_words\x18\x03 \x03(\tR\x11confirmationWords\x12'\n" +
+	"\x0fkey_fingerprint\x18\x04 \x01(\tR\x0ekeyFingerprint\"9\n" +
 	"\x18GetPairingRequestRequest\x12\x1d\n" +
 	"\n" +
 	"request_id\x18\x01 \x01(\tR\trequestId\"\x9f\x01\n" +
@@ -1199,7 +1220,7 @@ const file_vrooli_bridge_v1_pairing_pairing_proto_rawDesc = "" +
 	"\x12confirmation_words\x18\x04 \x03(\tR\x11confirmationWords\"\x80\x01\n" +
 	"\x16ApprovePairingResponse\x12\x17\n" +
 	"\anode_id\x18\x01 \x01(\tR\x06nodeId\x12M\n" +
-	"\x06status\x18\x02 \x01(\x0e25.vrooli.vrooli_bridge.v1.pairing.PairingRequestStatusR\x06status\"\xa5\x03\n" +
+	"\x06status\x18\x02 \x01(\x0e25.vrooli.vrooli_bridge.v1.pairing.PairingRequestStatusR\x06status\"\xce\x03\n" +
 	"\x0ePairingRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x0e\n" +
@@ -1214,7 +1235,8 @@ const file_vrooli_bridge_v1_pairing_pairing_proto_rawDesc = "" +
 	"decided_at\x18\t \x01(\v2\x1a.google.protobuf.TimestampR\tdecidedAt\x12\x17\n" +
 	"\anode_id\x18\n" +
 	" \x01(\tR\x06nodeId\x12-\n" +
-	"\x12confirmation_words\x18\v \x03(\tR\x11confirmationWords\"E\n" +
+	"\x12confirmation_words\x18\v \x03(\tR\x11confirmationWords\x12'\n" +
+	"\x0fkey_fingerprint\x18\f \x01(\tR\x0ekeyFingerprint\"E\n" +
 	"\x1aListPairingRequestsRequest\x12'\n" +
 	"\x0finclude_decided\x18\x01 \x01(\bR\x0eincludeDecided\"\xb7\x01\n" +
 	"\x1bListPairingRequestsResponse\x12K\n" +

@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -54,7 +55,7 @@ var (
 	// stalling setup indefinitely; new probes should pass their caller context
 	// through CombinedOutputContextFn.
 	CombinedOutputFn = func(name string, args ...string) ([]byte, error) {
-		ctx, cancel := context.WithTimeout(context.Background(), tuning.StandardOperationTimeout)
+		ctx, cancel := context.WithTimeout(context.Background(), tuning.HostRequirementCommandTimeout())
 		defer cancel()
 		return CombinedOutputContextFn(ctx, name, args...)
 	}
@@ -433,8 +434,25 @@ func RunInstallCommand(command string, args []string, opts EnsureOptions) error 
 	return RunCommandFn(command, args, opts)
 }
 
-//nolint:gocyclo // package-manager selection preserves the explicit platform fallback matrix.
 func inferredPackageInstall(command string, args []string) (InstallProvenanceRequest, bool) {
+	manager, args := normalizePackageInstallCommand(command, args)
+	if !slices.Contains([]string{helpersApt, helpersAptGet, helpersDnf, helpersYum, helpersBrew, helpersWinget, helpersPacman, helpersApk, helpersChoco, helpersScoop}, manager) {
+		return InstallProvenanceRequest{}, false
+	}
+	actionIndex := packageInstallActionIndex(args)
+	if actionIndex < 0 {
+		return InstallProvenanceRequest{}, false
+	}
+	for _, arg := range args[actionIndex+1:] {
+		arg = strings.TrimSpace(arg)
+		if arg != "" && !strings.HasPrefix(arg, "-") {
+			return InstallProvenanceRequest{PackageManager: manager, PackageName: arg}, true
+		}
+	}
+	return InstallProvenanceRequest{}, false
+}
+
+func normalizePackageInstallCommand(command string, args []string) (string, []string) {
 	manager := strings.ToLower(strings.TrimSpace(command))
 	if manager == helpersSudo && len(args) > 0 {
 		manager = strings.ToLower(strings.TrimSpace(args[0]))
@@ -453,27 +471,16 @@ func inferredPackageInstall(command string, args []string) (InstallProvenanceReq
 	if manager == "homebrew" {
 		manager = helpersBrew
 	}
-	if manager != helpersApt && manager != helpersAptGet && manager != helpersDnf && manager != helpersYum && manager != helpersBrew && manager != helpersWinget && manager != helpersPacman && manager != helpersApk && manager != helpersChoco && manager != helpersScoop {
-		return InstallProvenanceRequest{}, false
-	}
-	actionIndex := -1
+	return manager, args
+}
+
+func packageInstallActionIndex(args []string) int {
 	for i, arg := range args {
 		if strings.EqualFold(strings.TrimSpace(arg), "install") || strings.EqualFold(strings.TrimSpace(arg), "add") || strings.EqualFold(strings.TrimSpace(arg), "-S") {
-			actionIndex = i
-			break
+			return i
 		}
 	}
-	if actionIndex < 0 {
-		return InstallProvenanceRequest{}, false
-	}
-	for _, arg := range args[actionIndex+1:] {
-		arg = strings.TrimSpace(arg)
-		if arg == "" || strings.HasPrefix(arg, "-") {
-			continue
-		}
-		return InstallProvenanceRequest{PackageManager: manager, PackageName: arg}, true
-	}
-	return InstallProvenanceRequest{}, false
+	return -1
 }
 
 // InstallProvenanceRequest identifies the package install being executed.

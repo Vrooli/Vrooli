@@ -8,7 +8,6 @@ import (
 	"io"
 	"net"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -553,7 +552,7 @@ func runDockerLifecycleCommandReal(ctx context.Context, controller *Controller, 
 		Stdout: stdout,
 		Stderr: stderr,
 	})
-	runCtx, cancel := context.WithTimeout(ctx, tuning.ExtendedOperationTimeout)
+	runCtx, cancel := context.WithTimeout(ctx, tuning.DockerRuntimeOperationTimeout())
 	defer cancel()
 	if err := cmd.Start(); err != nil {
 		return err
@@ -600,11 +599,11 @@ func harvestRuntimeEnvCommand(ctx context.Context, manifest ResourceManifest) []
 	}
 	timeout := time.Duration(spec.TimeoutSeconds) * time.Second
 	if timeout <= 0 {
-		timeout = tuning.ServiceHealthTimeout
+		timeout = tuning.ServiceHealthTimeout()
 	}
-	cctx, cancel := context.WithTimeout(ctx, timeout)
+	cctx, cancel := context.WithTimeout(ctx, tuning.DockerRuntimeEnvironmentTimeout(timeout))
 	defer cancel()
-	out, err := exec.CommandContext(cctx, spec.Command, spec.Args...).Output()
+	out, err := shell.NewCommandContext(cctx, spec.Command, spec.Args...).Output()
 	if err != nil {
 		return nil
 	}
@@ -656,7 +655,7 @@ func composeCommand(ctx context.Context, controller *Controller, manifest Resour
 		Stdout: stdout,
 		Stderr: stderr,
 	})
-	runCtx, cancel := context.WithTimeout(ctx, tuning.ExtendedOperationTimeout)
+	runCtx, cancel := context.WithTimeout(ctx, tuning.DockerRuntimeOperationTimeout())
 	defer cancel()
 	if err := cmd.Start(); err != nil {
 		return err

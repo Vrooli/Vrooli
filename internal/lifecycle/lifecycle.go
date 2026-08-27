@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"github.com/vrooli/vrooli/internal/repocontractmeta"
+	"github.com/vrooli/vrooli/internal/shell"
 	"github.com/vrooli/vrooli/internal/tuning"
 
 	"github.com/vrooli/envkit-go"
@@ -258,9 +259,9 @@ func defaultGoListJSONContext(parent context.Context, dir string) ([]byte, error
 	if err != nil {
 		return nil, err
 	}
-	ctx, cancel := context.WithTimeout(parent, tuning.StandardOperationTimeout)
+	ctx, cancel := context.WithTimeout(parent, tuning.LifecycleOperationTimeout())
 	defer cancel()
-	cmd := exec.CommandContext(ctx, goBin, "list", "-deps", "-json", ".")
+	cmd := shell.NewCommandContext(ctx, goBin, "list", "-deps", "-json", ".")
 	cmd.Dir = dir
 	cmd.Env = envkit.WithOverlay(envkit.Env(os.Environ()), envkit.SameScenario, envkit.Env{"GOWORK=off"})
 	return cmd.Output()
@@ -1238,7 +1239,7 @@ func (r *Runner) verifyPortsReleasedContext(ctx context.Context, key scenariorun
 	scenarioName := key.Slug()
 	deps := r.runtimeDeps()
 	stillBound := make(map[int][]int)
-	err := AwaitContext(ctx, r.awaitClock(), AwaitPolicy{Timeout: tuning.ShortOperationDeadline, Interval: tuning.LifecyclePollInterval}, func() (bool, error) {
+	err := AwaitContext(ctx, r.awaitClock(), AwaitPolicy{Timeout: tuning.LifecycleTransitionTimeout(), Interval: tuning.LifecyclePollInterval()}, func() (bool, error) {
 		stillBound = make(map[int][]int)
 		for port := range portsToCheck {
 			got, err := deps.listeningPIDs(port)
@@ -1389,7 +1390,7 @@ func listeningPIDs(port int) ([]int, error) {
 	if err != nil {
 		return nil, nil
 	}
-	cmd := exec.Command(path, "-tiTCP:"+strconv.Itoa(port), "-sTCP:LISTEN")
+	cmd := shell.NewCommand(path, "-tiTCP:"+strconv.Itoa(port), "-sTCP:LISTEN")
 	output, err := cmd.Output()
 	if err != nil {
 		var exitErr *exec.ExitError

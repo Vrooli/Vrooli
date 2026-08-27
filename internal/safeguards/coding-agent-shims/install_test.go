@@ -13,13 +13,13 @@ import (
 	repocontract "github.com/vrooli/repo-contract-go"
 	"github.com/vrooli/vrooli/internal/artifactledger"
 	"github.com/vrooli/vrooli/internal/shell/shelltest"
+	"github.com/vrooli/vrooli/internal/testenv"
 )
 
 // stageHome redirects HOME and returns (binDir, shimDir, launcher).
 func stageHome(t *testing.T) (string, string, string) {
 	t.Helper()
-	home := t.TempDir()
-	t.Setenv("HOME", home)
+	home := testenv.RuntimeHome(t)
 	binDir := filepath.Join(home, ".vrooli", "bin")
 	if err := os.MkdirAll(binDir, 0o755); err != nil {
 		t.Fatal(err)
@@ -55,8 +55,7 @@ func TestShimDirIsSeparateFromTheSharedInstallRoot(t *testing.T) {
 // The directory the code installs into must be the one the contract declares,
 // or the storage declaration describes a path nothing writes to.
 func TestShimDirMatchesTheRepositoryContract(t *testing.T) {
-	home := t.TempDir()
-	t.Setenv("HOME", home)
+	home := testenv.RuntimeHome(t)
 
 	contract, err := repocontract.LoadDefault(repoRootForTest(t))
 	if err != nil {
@@ -184,8 +183,7 @@ func TestEnsureInstalledIsANoOpWhenEverythingIsPresent(t *testing.T) {
 // Before the launcher exists there is nothing to link to, and that is the
 // normal state on a fresh checkout -- not an error every CLI start reports.
 func TestEnsureInstalledIsSilentWhenTheLauncherIsNotBuilt(t *testing.T) {
-	home := t.TempDir()
-	t.Setenv("HOME", home)
+	testenv.RuntimeHome(t)
 	installed, err := EnsureInstalled()
 	if err != nil {
 		t.Fatalf("EnsureInstalled: %v", err)

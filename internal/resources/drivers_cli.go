@@ -8,7 +8,6 @@ import (
 	"io"
 	"io/fs"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 
@@ -502,7 +501,7 @@ func runInstallCommand(ctx context.Context, controller *Controller, manifest Res
 		Stdout: io.Discard,
 		Stderr: stderrTail,
 	})
-	runCtx, cancel := context.WithTimeout(ctx, tuning.LongOperationBudget)
+	runCtx, cancel := context.WithTimeout(ctx, tuning.ResourceCommandTimeout())
 	defer cancel()
 	if err := cmd.Start(); err != nil {
 		return err
@@ -539,7 +538,7 @@ func runSourceBuild(ctx context.Context, controller *Controller, manifest Resour
 	spec := cliutil.CanonicalResourceGoModuleFreshnessSpec(resourceRoot, moduleDir, manifest.CLI.Command, manifest.CLI.Freshness.Inputs)
 	args := cliutil.GoModuleInstallerArgs(moduleDir, manifestPath, manifest.CLI.Command, installDir, spec)
 	stderrTail := newTailBuffer(driversCliParameterB << driversCliParameterA)
-	cmd := exec.CommandContext(ctx, "go", args...)
+	cmd := shell.NewCommandContext(ctx, "go", args...)
 	cmd.Dir = installerDir
 	cmd.Env = resourceEnvForResource(controller.Root, controller.Home, manifest.Name)
 	cmd.Stdout = io.Discard

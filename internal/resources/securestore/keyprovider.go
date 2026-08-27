@@ -17,6 +17,7 @@ import (
 	"strings"
 
 	"github.com/vrooli/vrooli/internal/credentialpolicy"
+	"github.com/vrooli/vrooli/internal/shell"
 )
 
 // A key-encryption provider wraps the data key that seals every entry. Several
@@ -364,7 +365,7 @@ func runSystemdCreds(args []string, stdin []byte) ([]byte, error) {
 		return nil, fmt.Errorf("%w: systemd-creds is not installed", errKeyProviderUnavailable)
 	}
 	name, argv := withDeviceGroup("systemd-creds", args)
-	cmd := exec.Command(name, argv...)
+	cmd := shell.NewCommand(name, argv...)
 	cmd.Stdin = bytes.NewReader(stdin)
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout

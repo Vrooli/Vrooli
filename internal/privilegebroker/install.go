@@ -5,13 +5,13 @@ import (
 	"fmt"
 	"net"
 	"os"
-	"os/exec"
 	"os/user"
 	"path/filepath"
 	"runtime"
 	"strconv"
 	"strings"
 
+	"github.com/vrooli/vrooli/internal/shell"
 	"github.com/vrooli/vrooli/internal/tuning"
 
 	"github.com/vrooli/vrooli/internal/config"
@@ -42,7 +42,7 @@ type Installer struct {
 
 func DefaultInstaller(executable string) Installer {
 	return Installer{Executable: executable, Run: func(ctx context.Context, name string, args ...string) ([]byte, error) {
-		return exec.CommandContext(ctx, name, args...).CombinedOutput()
+		return shell.NewCommandContext(ctx, name, args...).CombinedOutput()
 	}, Copy: copyRootOwned}
 }
 

@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	repocontract "github.com/vrooli/repo-contract-go"
+	"github.com/vrooli/vrooli/internal/buildinfo"
 	"github.com/vrooli/vrooli/internal/credentialauthority"
 	manifestpkg "github.com/vrooli/vrooli/internal/resources/manifest"
 	runtimestorage "github.com/vrooli/vrooli/internal/resources/runtime/storage"
@@ -475,7 +476,7 @@ func isLegacyRepoDataPath(root, resourceName, source string) bool {
 		"data/",
 		"../data",
 		"${ROOT}/data",
-		"${VROOLI_ROOT}/data",
+		"${" + buildinfo.SourceRootFallbackEnvVar + "}/data",
 		"./instances",
 		"instances/",
 		"${RESOURCE_ROOT}/instances",
@@ -488,7 +489,7 @@ func isLegacyRepoDataPath(root, resourceName, source string) bool {
 		for _, prefix := range []string{
 			"resources/" + resourceName + "/instances",
 			"${ROOT}/resources/" + resourceName + "/instances",
-			"${VROOLI_ROOT}/resources/" + resourceName + "/instances",
+			"${" + buildinfo.SourceRootFallbackEnvVar + "}/resources/" + resourceName + "/instances",
 		} {
 			if normalized == prefix || strings.HasPrefix(normalized, prefix+"/") {
 				return true
@@ -707,7 +708,7 @@ func buildTemplateContext(root, home, resourceName string) map[string]string {
 		context["VROOLI_DATA"] = dataRoot
 	}
 	if root != "" {
-		context["VROOLI_ROOT"] = filepath.Clean(root)
+		context[buildinfo.SourceRootFallbackEnvVar] = filepath.Clean(root)
 		context["RESOURCE_ROOT"] = filepath.Join(filepath.Clean(root), "resources", resourceName)
 	}
 	if paths, err := resolveResourceStoragePaths(home, resourceName); err == nil {
@@ -751,7 +752,7 @@ func mapsContainsKey(m map[string]manifestpkg.ResourceDerivedTemplate, key strin
 
 func isKnownTemplateContextVariable(root, resourceName, key string) bool {
 	switch key {
-	case "HOME", "ROOT", "VROOLI_ROOT", "VROOLI_DATA", "RESOURCE_ROOT",
+	case "HOME", "ROOT", buildinfo.SourceRootFallbackEnvVar, "VROOLI_DATA", "RESOURCE_ROOT",
 		"RESOURCE_CONFIG_DIR", "RESOURCE_DATA_DIR", "RESOURCE_CACHE_DIR", "RESOURCE_LOGS_DIR", "RESOURCE_STATE_DIR":
 		return true
 	default:

@@ -25,10 +25,11 @@ import (
 	sqlite3 "modernc.org/sqlite/lib"
 )
 
-const (
-	capacityTxRetryAttempts = 5
-	capacityTxRetryBase     = tuning.FastPersistenceRetryInterval
-	capacityTxRetryMax      = tuning.FastHealthPollInterval
+const capacityTxRetryAttempts = 5
+
+var (
+	capacityTxRetryBase = tuning.FastPersistenceRetryInterval()
+	capacityTxRetryMax  = tuning.FastHealthPollInterval()
 )
 
 // Config configures the capacity ledger store.

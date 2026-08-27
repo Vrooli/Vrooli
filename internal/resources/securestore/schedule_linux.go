@@ -5,11 +5,11 @@ package securestore
 import (
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strconv"
 	"time"
 
+	"github.com/vrooli/vrooli/internal/shell"
 	"github.com/vrooli/vrooli/internal/tuning"
 )
 
@@ -28,10 +28,10 @@ func installNativeCopySchedule(executable string, interval time.Duration, enable
 	servicePath := filepath.Join(unitDir, "vrooli-credential-store-copy.service")
 	timerPath := filepath.Join(unitDir, credentialCopyTimer)
 	if !enabled {
-		_ = exec.Command("systemctl", "--user", "disable", "--now", credentialCopyTimer).Run()
+		_ = shell.NewCommand("systemctl", "--user", "disable", "--now", credentialCopyTimer).Run()
 		_ = os.Remove(servicePath)
 		_ = os.Remove(timerPath)
-		_ = exec.Command("systemctl", "--user", "daemon-reload").Run()
+		_ = shell.NewCommand("systemctl", "--user", "daemon-reload").Run()
 		return nil
 	}
 	if interval <= 0 {
@@ -48,10 +48,10 @@ func installNativeCopySchedule(executable string, interval time.Duration, enable
 	if err := os.WriteFile(timerPath, []byte(timer), tuning.PermSecret); err != nil {
 		return fmt.Errorf("write credential-store copy timer: %w", err)
 	}
-	if output, err := exec.Command("systemctl", "--user", "daemon-reload").CombinedOutput(); err != nil {
+	if output, err := shell.NewCommand("systemctl", "--user", "daemon-reload").CombinedOutput(); err != nil {
 		return fmt.Errorf("reload credential-store copy timer: %w: %s", err, output)
 	}
-	if output, err := exec.Command("systemctl", "--user", "enable", "--now", credentialCopyTimer).CombinedOutput(); err != nil {
+	if output, err := shell.NewCommand("systemctl", "--user", "enable", "--now", credentialCopyTimer).CombinedOutput(); err != nil {
 		return fmt.Errorf("enable credential-store copy timer: %w: %s", err, output)
 	}
 	return nil

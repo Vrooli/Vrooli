@@ -26,7 +26,7 @@ type CopyConfig struct {
 	ObjectStoreSessionField   string        `json:"object_store_session_field,omitempty"`
 }
 
-const DefaultCopyInterval = tuning.CopyRetentionWindow
+var DefaultCopyInterval = tuning.CopyRetentionWindow()
 
 func (c CopyConfig) Validate() error {
 	if !c.Enabled {

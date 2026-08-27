@@ -6,7 +6,8 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"os/exec"
+
+	"github.com/vrooli/vrooli/internal/shell"
 )
 
 // UnlockLoginKeyring streams the operator's passphrase to the running GNOME
@@ -14,7 +15,7 @@ import (
 // passphrase never becomes an argument, environment variable, temporary file,
 // log message, or returned command output.
 func UnlockLoginKeyring(ctx context.Context, input io.Reader) error {
-	cmd := exec.CommandContext(ctx, "gnome-keyring-daemon", "--unlock")
+	cmd := shell.NewCommandContext(ctx, "gnome-keyring-daemon", "--unlock")
 	cmd.Env = sessionEnviron()
 	cmd.Stdin = input
 	cmd.Stdout = io.Discard

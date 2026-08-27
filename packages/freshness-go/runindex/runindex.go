@@ -14,7 +14,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"path/filepath"
 	"sort"
 	"time"
 )
@@ -135,16 +134,14 @@ func (r RunRecord) PhaseStatus() map[string]string {
 	return m
 }
 
-// IndexPath returns the absolute path to a scenario's run index file.
-func IndexPath(scenarioDir string) string {
-	return filepath.Join(scenarioDir, "coverage", "runs.index.json")
-}
-
 // Load reads a scenario's run index and returns the records sorted
 // newest-first. A missing or empty index yields (nil, nil) — no runs is a
 // normal state, not an error.
-func Load(scenarioDir string) ([]RunRecord, error) {
-	data, err := os.ReadFile(IndexPath(scenarioDir))
+//
+// The caller supplies the governed index path so this transport package does
+// not duplicate artifact-location policy.
+func Load(indexPath string) ([]RunRecord, error) {
+	data, err := os.ReadFile(indexPath)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return nil, nil

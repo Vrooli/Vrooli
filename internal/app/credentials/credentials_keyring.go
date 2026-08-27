@@ -256,7 +256,7 @@ func credentialsKeyringRepair(ctx *CommandContext, args []string) error {
 		}
 		retirementThreshold = parsedThreshold
 	}
-	repairCtx, cancel := context.WithTimeout(context.Background(), tuning.CredentialRepairTimeout)
+	repairCtx, cancel := context.WithTimeout(context.Background(), tuning.CredentialRepairTimeout())
 	defer cancel()
 	report, err := keyring.RepairStore(repairCtx, path)
 	if err != nil {
@@ -345,7 +345,7 @@ func credentialsKeyringUnlock(ctx *CommandContext, args []string, input io.Reade
 	if err != nil {
 		return err
 	}
-	unlockCtx, cancel := context.WithTimeout(context.Background(), tuning.ReloadFallbackGracePeriod)
+	unlockCtx, cancel := context.WithTimeout(context.Background(), tuning.ReloadFallbackGracePeriod())
 	defer cancel()
 	if err := keyring.Unlock(unlockCtx, strings.NewReader(passphrase)); err != nil {
 		return err

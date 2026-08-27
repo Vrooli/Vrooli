@@ -12,6 +12,7 @@ import (
 	"github.com/vrooli/vrooli/internal/operatorinput"
 	"github.com/vrooli/vrooli/internal/projectstate"
 	"github.com/vrooli/vrooli/internal/runtime"
+	"github.com/vrooli/vrooli/internal/testenv"
 )
 
 func requiredBlockedReport(reason hostreqkit.BlockingReason) runtime.Report {
@@ -26,7 +27,7 @@ func requiredBlockedReport(reason hostreqkit.BlockingReason) runtime.Report {
 }
 
 func TestSetupTerminalResultCategories(t *testing.T) {
-	t.Setenv("HOME", t.TempDir())
+	testenv.SetIdentityEnv(t, map[string]string{"HOME": t.TempDir()})
 	tests := []struct {
 		name      string
 		stage     SetupPhase
@@ -96,7 +97,7 @@ func TestFinalSetupResultConfigurationReadsMarker(t *testing.T) {
 }
 
 func TestSetupTerminalResultReportsConfigurationPendingWhenInputIsQueued(t *testing.T) {
-	t.Setenv("HOME", t.TempDir())
+	testenv.SetIdentityEnv(t, map[string]string{"HOME": t.TempDir()})
 	if err := operatorinput.Replace([]operatorinput.Request{{
 		ID:       "credential-store-passphrase",
 		Kind:     operatorinput.KindSecret,

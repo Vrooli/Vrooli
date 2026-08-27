@@ -79,3 +79,25 @@ func TestOperatorStateOverridesProjectResourceEnabledDefault(t *testing.T) {
 		t.Fatalf("config remained enabled despite operator-state override: %#v", item.Config)
 	}
 }
+
+func TestReadConfigEntriesToleratesUnknownServiceManifestFields(t *testing.T) {
+	fixture := testkitgo.NewRepoFixture(t)
+	fixture.WriteRepoContract(t)
+	testkitgo.WriteFile(t, filepath.Join(fixture.Root, ".vrooli", "service.json"), `{
+  "dependencies": {"resources": {"redis": {
+    "enabled": true,
+    "required": true,
+    "description": "Cache responses",
+    "future_dependency_field": {"mode": "new"}
+  }}},
+  "future_manifest_field": {"version": 2}
+}`)
+
+	entries, err := New(fixture.Root).ReadConfigEntries()
+	if err != nil {
+		t.Fatalf("ReadConfigEntries: %v", err)
+	}
+	if got := entries["redis"]; !got.Enabled || !got.Required || got.Description != "Cache responses" {
+		t.Fatalf("redis config = %+v", got)
+	}
+}

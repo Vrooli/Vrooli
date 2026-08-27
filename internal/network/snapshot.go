@@ -1,17 +1,5 @@
 package network
 
-import (
-	"github.com/vrooli/vrooli/internal/tuning"
-)
-
-// listenerEnrichTimeout bounds each evidence-collection subprocess (ss on
-// Linux, netstat/lsof on macOS). A wedged tool — stale NFS, a D-state target —
-// must not hang the supervisor tick or `vrooli locks` indefinitely. On timeout
-// Linux still has its fork-free procfs port set (Known stays true, attribution
-// is just skipped); macOS folds to Known:false because netstat owns its port
-// set.
-const listenerEnrichTimeout = tuning.HealthCheckTimeout
-
 // SnapshotListener identifies a process attached to a listening socket, when
 // attribution is available. Attribution is best-effort: a port can be
 // listening with an empty listener list (e.g. the socket belongs to another

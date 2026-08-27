@@ -95,7 +95,7 @@ func (r *Reader) Read(ctx context.Context, class string) (json.RawMessage, error
 		select {
 		case <-ctx.Done():
 			return nil, ctx.Err()
-		case <-time.After(tuning.HostFactsRetryInterval):
+		case <-time.After(tuning.HostFactsRetryInterval()):
 		}
 		if e, ok := r.load(class); ok && e.Schema == schemaVersion && e.BootID == boot && now.Sub(e.FetchedAt) < ttl {
 			return append([]byte(nil), e.Value...), nil

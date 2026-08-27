@@ -12,6 +12,7 @@ import (
 	"time"
 
 	testkitgo "github.com/vrooli/repo-contract-go/repocontracttest"
+	"github.com/vrooli/vrooli/internal/testenv"
 )
 
 func withIsPIDRunningFn(t *testing.T, fn func(int) bool) {
@@ -33,7 +34,7 @@ func withReadProcessEnvironmentFn(t *testing.T, fn func(int) (map[string]string,
 }
 
 func TestHomeDirPrefersEnv(t *testing.T) {
-	t.Setenv("HOME", "/tmp/vrooli-home")
+	testenv.SetIdentityEnv(t, map[string]string{"HOME": "/tmp/vrooli-home"})
 
 	home, err := HomeDir()
 	if err != nil {
@@ -81,7 +82,7 @@ func TestReadAndSummarizeScenarioRecords(t *testing.T) {
 }
 
 func TestHomeDirFallsBackToUserHomeWhenHOMEUnset(t *testing.T) {
-	t.Setenv("HOME", "")
+	testenv.SetIdentityEnv(t, map[string]string{"HOME": ""})
 
 	got, _ := HomeDir()
 	current, err := osuser.Current()

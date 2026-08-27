@@ -120,6 +120,18 @@ func Command(spec Spec) *exec.Cmd {
 	return cmd
 }
 
+// NewCommand constructs a command through the shared shell boundary while
+// preserving the standard library's variadic call shape. Use Command with a
+// Spec when the caller also needs directory, environment, or stream settings.
+func NewCommand(name string, args ...string) *exec.Cmd {
+	return Command(Spec{Name: name, Args: args})
+}
+
+// NewCommandContext is the context-aware counterpart to NewCommand.
+func NewCommandContext(ctx context.Context, name string, args ...string) *exec.Cmd {
+	return Command(Spec{Context: ctx, Name: name, Args: args})
+}
+
 func CommandWithDefaults(spec Spec) *exec.Cmd {
 	cmd := Command(spec)
 	if cmd.Stdin == nil {

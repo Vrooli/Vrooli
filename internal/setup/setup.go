@@ -165,7 +165,7 @@ func defaultSetupDeps(repoRoots ...string) setupDeps {
 		now:               time.Now,
 		osExecutable:      os.Executable,
 		onboardingPortCommandRunner: func(ctx context.Context, name string, args ...string) ([]byte, error) {
-			return exec.CommandContext(ctx, name, args...).CombinedOutput()
+			return shell.NewCommandContext(ctx, name, args...).CombinedOutput()
 		},
 		openOnboardingURL: func(url string) error {
 			return scenarioexec.OpenURL(shell.LookPath, scenarioexec.RunSubprocess, url)
@@ -215,7 +215,6 @@ func RunSetupWithOptions(root, home string, opts Options, stdout, stderr io.Writ
 	return newSetupService(defaultSetupDeps(root)).RunSetupWithOptions(root, home, opts, stdout, stderr)
 }
 
-//nolint:gocyclo // setup orchestrates independent resource, capability, and phase outcomes.
 func (s *setupService) RunSetupWithOptions(root, home string, opts Options, stdout, stderr io.Writer) (err error) {
 	var terminalReport vrooliruntime.Report
 	var terminalReportErr error
@@ -252,201 +251,248 @@ func (s *setupService) RunSetupWithOptions(root, home string, opts Options, stdo
 	// defer would capture its initial nil value, causing a failed setup (for
 	// example, an incomplete ownership migration) to render as "Complete".
 	defer func() { progress.Finish(err) }()
-	progress.StartPhase(PhaseValidation)
-
-	if err := s.deps.currentHost().ValidateSetup(); err != nil {
+	flow := setupFlow{service: s, root: root, home: home, opts: opts, stdout: stdout, stderr: stderr, progress: progress}
+	if err := flow.prepareProject(); err != nil {
 		return err
 	}
-	progress.CompletePhase()
-
-	progress.StartPhase(PhaseProject)
-	if _, err := s.deps.loadProject(root); err != nil {
-		return err
-	}
-	progress.CompletePhase()
-
-	if !opts.DryRun {
-		progress.StartPhase(PhaseFilesystem)
-		if err := ensureProjectFilesystemWithRecovery(root, home); err != nil {
-			return err
-		}
-		if locator, locatorErr := projectstate.NewLocator(home, root); locatorErr != nil {
-			return locatorErr
-		} else if err := runOwnershipMigration(locator, stdout, stderr); err != nil {
-			return err
-		}
-		progress.CompletePhase()
-	}
-	progress.StartPhase(PhaseResolution)
-	requirements, err := s.deps.resolveHostRequirements(root, home, hostreq.ResolveOptions{
-		Environment: opts.Environment,
-		When:        "setup",
-		Resources:   opts.Resources,
-		Scenarios:   opts.Scenarios,
-		Platform:    hostreq.CurrentPlatform(),
-	})
+	resolved, err := flow.resolveRequirements()
 	if err != nil {
 		return err
 	}
-	progress.CompletePhase()
+	report, stop, err := flow.applyRequirements(resolved)
+	terminalReport = report
+	resolved.report = report
+	if err != nil || stop {
+		return err
+	}
+	completion, err := flow.completeSetup(resolved)
+	degradedResources = completion.degradedResources
+	onboardingResult = completion.onboardingResult
+	readinessVerdict = completion.readinessVerdict
+	return err
+}
+
+type setupFlow struct {
+	service  *setupService
+	root     string
+	home     string
+	opts     Options
+	stdout   io.Writer
+	stderr   io.Writer
+	progress *progressCoordinator
+}
+
+type resolvedSetup struct {
+	requirements hostreq.Resolution
+	executable   string
+	ensure       vrooliruntime.EnsureOptions
+	report       vrooliruntime.Report
+}
+
+type setupCompletion struct {
+	degradedResources []string
+	onboardingResult  *OnboardingResult
+	readinessVerdict  *SetupReadiness
+}
+
+func (f setupFlow) prepareProject() error {
+	f.progress.StartPhase(PhaseValidation)
+	if err := f.service.deps.currentHost().ValidateSetup(); err != nil {
+		return err
+	}
+	f.progress.CompletePhase()
+	f.progress.StartPhase(PhaseProject)
+	if _, err := f.service.deps.loadProject(f.root); err != nil {
+		return err
+	}
+	f.progress.CompletePhase()
+	if f.opts.DryRun {
+		return nil
+	}
+	f.progress.StartPhase(PhaseFilesystem)
+	if err := ensureProjectFilesystemWithRecovery(f.root, f.home); err != nil {
+		return err
+	}
+	locator, err := projectstate.NewLocator(f.home, f.root)
+	if err != nil {
+		return err
+	}
+	if err := runOwnershipMigration(locator, f.stdout, f.stderr); err != nil {
+		return err
+	}
+	f.progress.CompletePhase()
+	return nil
+}
+
+func (f setupFlow) resolveRequirements() (resolvedSetup, error) {
+	f.progress.StartPhase(PhaseResolution)
+	requirements, err := f.service.deps.resolveHostRequirements(f.root, f.home, hostreq.ResolveOptions{Environment: f.opts.Environment, When: "setup", Resources: f.opts.Resources, Scenarios: f.opts.Scenarios, Platform: hostreq.CurrentPlatform()})
+	if err != nil {
+		return resolvedSetup{}, err
+	}
+	f.progress.CompletePhase()
 	requirements = bootstrapAwareRequirements(requirements)
-	// The onboarding apply API runs later and cannot safely open an interactive
-	// sudo prompt. During this setup pass, provision one literal grant for the
-	// elevated host items selected by the same resolution.
-	executable, executableErr := s.deps.osExecutable()
-	if executableErr != nil {
-		return fmt.Errorf("resolve executable for onboarding apply grant: %w", executableErr)
+	executable, err := f.service.deps.osExecutable()
+	if err != nil {
+		return resolvedSetup{}, fmt.Errorf("resolve executable for onboarding apply grant: %w", err)
 	}
 	requirements = addOnboardingApplyPrivilegeRequirement(requirements, executable)
-	ensureOptions := vrooliruntime.EnsureOptions{
-		Environment:       opts.Environment,
-		SudoMode:          opts.SudoMode,
-		DryRun:            opts.DryRun,
-		AutoInstall:       true,
-		IncludeOptional:   opts.IncludeOptional,
-		MaintenanceWindow: opts.MaintenanceWindow,
-		Stdout:            stdout,
-		Stderr:            stderr,
-		OnOperation:       progress.Operation,
-	}
-	if !opts.DryRun {
-		progress.StartPhase(PhaseBootstrap)
-		progress.Operation("Checking bootstrap tools (git, go)")
-		_, _ = fmt.Fprintln(stdout, "[INFO]    Checking bootstrap tools (git, go)...")
-		if err := s.deps.ensureBootstrapTools(home, ensureOptions); err != nil {
-			return err
-		}
-		progress.CompletePhase()
-	}
+	return resolvedSetup{requirements: requirements, executable: executable, ensure: vrooliruntime.EnsureOptions{Environment: f.opts.Environment, SudoMode: f.opts.SudoMode, DryRun: f.opts.DryRun, AutoInstall: true, IncludeOptional: f.opts.IncludeOptional, MaintenanceWindow: f.opts.MaintenanceWindow, Stdout: f.stdout, Stderr: f.stderr, OnOperation: f.progress.Operation}}, nil
+}
 
-	progress.StartPhase(PhaseRequirements)
-	progress.Operation("Applying selected host requirements")
-	_, _ = fmt.Fprintln(stdout, "[INFO]    Applying selected host requirements...")
-	report, ensureErr := s.deps.ensureRequirements(ensureOptions, requirements)
-	terminalReport = report
-	renderSetupRequirementResult(stdout, opts, report)
-	if ensureErr != nil && !opts.DryRun {
-		return ensureErr
-	}
-	progress.CompletePhase()
-	if opts.DryRun {
-		_, _ = fmt.Fprintln(stdout, "[INFO]    Dry-run mode skips git configuration, resource installation, and setup completion markers")
-		return nil
-	}
-	progress.StartPhase(PhaseGeneratedPackages)
-	progress.Operation("Generating repository packages")
-	_, _ = fmt.Fprintln(stdout, "[INFO]    Generating repository packages needed by the control plane...")
-	if err := lifecycle.ProvisionGeneratedPackages(root, home, stdout, stdout); err != nil {
-		return fmt.Errorf("provision generated packages: %w", err)
-	}
-	progress.CompletePhase()
-	if opts.BootstrapOnly {
-		_, _ = fmt.Fprintln(stdout, "[INFO]    Bootstrap-only setup applied host requirements; native CLI finalization is still required")
-		return nil
-	}
-	progress.StartPhase(PhaseCredentials)
-	progress.Operation("Configuring the credential backend")
-	_, _ = fmt.Fprintln(stdout, "[INFO]    Configuring the credential backend...")
-	if opts.CredentialPassphraseStdin {
-		passphrase, readErr := readCredentialPassphraseStdin()
-		if readErr != nil {
-			return readErr
+func (f setupFlow) applyRequirements(resolved resolvedSetup) (vrooliruntime.Report, bool, error) {
+	if !f.opts.DryRun {
+		f.progress.StartPhase(PhaseBootstrap)
+		f.progress.Operation("Checking bootstrap tools (git, go)")
+		_, _ = fmt.Fprintln(f.stdout, "[INFO]    Checking bootstrap tools (git, go)...")
+		if err := f.service.deps.ensureBootstrapTools(f.home, resolved.ensure); err != nil {
+			return vrooliruntime.Report{}, false, err
 		}
-		if err := configureCredentialBackendWithPassphrase(stdout, stderr, passphrase); err != nil {
+		f.progress.CompletePhase()
+	}
+	f.progress.StartPhase(PhaseRequirements)
+	f.progress.Operation("Applying selected host requirements")
+	_, _ = fmt.Fprintln(f.stdout, "[INFO]    Applying selected host requirements...")
+	report, err := f.service.deps.ensureRequirements(resolved.ensure, resolved.requirements)
+	renderSetupRequirementResult(f.stdout, f.opts, report)
+	if err != nil && !f.opts.DryRun {
+		return report, false, err
+	}
+	f.progress.CompletePhase()
+	if f.opts.DryRun {
+		_, _ = fmt.Fprintln(f.stdout, "[INFO]    Dry-run mode skips git configuration, resource installation, and setup completion markers")
+		return report, true, nil
+	}
+	return report, false, nil
+}
+
+func (f setupFlow) completeSetup(resolved resolvedSetup) (setupCompletion, error) {
+	var completion setupCompletion
+	f.progress.StartPhase(PhaseGeneratedPackages)
+	f.progress.Operation("Generating repository packages")
+	_, _ = fmt.Fprintln(f.stdout, "[INFO]    Generating repository packages needed by the control plane...")
+	if err := lifecycle.ProvisionGeneratedPackages(f.root, f.home, f.stdout, f.stdout); err != nil {
+		return completion, fmt.Errorf("provision generated packages: %w", err)
+	}
+	f.progress.CompletePhase()
+	if f.opts.BootstrapOnly {
+		_, _ = fmt.Fprintln(f.stdout, "[INFO]    Bootstrap-only setup applied host requirements; native CLI finalization is still required")
+		return completion, nil
+	}
+	if err := f.configureCredentialsAndBroker(resolved.executable); err != nil {
+		return completion, err
+	}
+	degraded, err := f.reconcileResourcesAndCLI()
+	if err != nil {
+		return completion, err
+	}
+	completion.degradedResources = degraded
+	onboarding, err := f.finalizeInstall()
+	if err != nil {
+		return completion, err
+	}
+	completion.onboardingResult = onboarding
+	verdict := verifySetupReadiness(f.root, resolved.report, nil)
+	completion.readinessVerdict = &verdict
+	f.progress.CompletePhase()
+	f.progress.StartPhase(PhaseCompletion)
+	if len(degraded) > 0 {
+		_, _ = fmt.Fprintf(f.stdout, "[WARN]    Setup completed with degraded optional resources: %s\n", strings.Join(degraded, ", "))
+	}
+	renderSetupReadinessVerdict(f.stdout, verdict, configurationAlreadyComplete(f.home, f.root))
+	f.progress.CompletePhase()
+	return completion, nil
+}
+
+func (f setupFlow) configureCredentialsAndBroker(executable string) error {
+	f.progress.StartPhase(PhaseCredentials)
+	f.progress.Operation("Configuring the credential backend")
+	_, _ = fmt.Fprintln(f.stdout, "[INFO]    Configuring the credential backend...")
+	if f.opts.CredentialPassphraseStdin {
+		passphrase, err := readCredentialPassphraseStdin()
+		if err != nil {
 			return err
 		}
-	} else if err := s.deps.configureCredentialBackend(stdout, stderr); err != nil {
-		return err
-	}
-	progress.CompletePhase()
-	progress.StartPhase(PhaseCredentialCapabilities)
-	progress.Operation("Discovering operator capabilities")
-	if err := discoverAndQueueCapabilities(context.Background(), s.deps.discoverCapabilities, root, home, stdout); err != nil {
-		return err
-	}
-	progress.CompletePhase()
-	progress.StartPhase(PhasePrivilegeBroker)
-	progress.Operation("Installing the privilege broker")
-	_, _ = fmt.Fprintln(stdout, "[INFO]    Installing the privilege broker...")
-	if executableErr != nil {
-		return fmt.Errorf("resolve executable for privilege broker: %w", executableErr)
-	}
-	brokerStatus, brokerErr := s.deps.installPrivilegeBroker(context.Background(), executable)
-	if brokerErr != nil {
-		return brokerErr
-	}
-	renderPrivilegeBrokerStatus(stdout, brokerStatus)
-	progress.CompletePhase()
-	progress.StartPhase(PhaseGit)
-	progress.Operation("Configuring Git defaults")
-	_, _ = fmt.Fprintln(stdout, "[INFO]    Configuring Git defaults...")
-	if err := configureGit(root); err != nil {
-		return err
-	}
-	progress.CompletePhase()
-	progress.StartPhase(PhaseResources)
-	progress.Operation("Reconciling selected resources")
-	_, _ = fmt.Fprintln(stdout, "[INFO]    Reconciling selected resources...")
-	var resourceErr error
-	degradedResources, resourceErr = s.maybeInstallResources(root, home, opts, stdout, stderr, progress.Operation)
-	if resourceErr != nil {
-		return resourceErr
-	}
-	progress.CompletePhase()
-	progress.StartPhase(PhaseCLI)
-	if strings.TrimSpace(opts.Resources) == setupNone {
-		progress.Operation("Skipping resource CLI synchronization")
-		_, _ = fmt.Fprintln(stdout, "[INFO]    Skipping resource CLI schema synchronization (resources=none)")
-	} else {
-		_, _ = fmt.Fprintln(stdout, "[INFO]    Synchronizing resource CLI schemas...")
-		if err := s.deps.syncResourceSchema(root); err != nil {
+		if err := configureCredentialBackendWithPassphrase(f.stdout, f.stderr, passphrase); err != nil {
 			return err
 		}
+	} else if err := f.service.deps.configureCredentialBackend(f.stdout, f.stderr); err != nil {
+		return err
 	}
-	progress.CompletePhase()
-	progress.StartPhase(PhaseFinalize)
-	progress.Operation("Refreshing selected scenario and resource CLIs")
-	_, _ = fmt.Fprintln(stdout, "[INFO]    Refreshing the bootstrap and selected scenario CLIs...")
-	cliManager, err := s.deps.newCLIInstallManager(root, home)
+	f.progress.CompletePhase()
+	f.progress.StartPhase(PhaseCredentialCapabilities)
+	f.progress.Operation("Discovering operator capabilities")
+	if err := discoverAndQueueCapabilities(context.Background(), f.service.deps.discoverCapabilities, f.root, f.home, f.stdout); err != nil {
+		return err
+	}
+	f.progress.CompletePhase()
+	f.progress.StartPhase(PhasePrivilegeBroker)
+	f.progress.Operation("Installing the privilege broker")
+	_, _ = fmt.Fprintln(f.stdout, "[INFO]    Installing the privilege broker...")
+	status, err := f.service.deps.installPrivilegeBroker(context.Background(), executable)
 	if err != nil {
 		return err
 	}
-	// secrets-manager is a bootstrap control-plane CLI, not an optional
-	// scenario capability: recovery migration and credential diagnostics use
-	// it even when the operator selected no scenario CLIs. Always freshness-
-	// check it so an installed binary cannot keep an older authority policy.
-	if err := cliManager.EnsureScenarioCLI("secrets-manager"); err != nil {
-		return fmt.Errorf("refresh secrets-manager bootstrap CLI: %w", err)
-	}
-	if err := installSelectedCLIs(cliManager, opts.Resources, opts.Scenarios, progress.Operation); err != nil {
-		return err
-	}
-	if err := s.deps.recordProjectInstall(root, home); err != nil {
-		return fmt.Errorf("record project install inventory: %w", err)
-	}
-	if err := s.deps.markComplete(home, root); err != nil {
-		return err
-	}
-	var handoffErr error
-	onboardingResult, handoffErr = s.runOnboardingHandoff(root, home, opts, stdout, stderr)
-	if handoffErr != nil {
-		_, _ = fmt.Fprintf(stderr, "[WARN]    Onboarding handoff unavailable: %v\n", handoffErr)
-	}
-	// The verdict is computed after the handoff, so a wizard the operator just
-	// finished is reflected in setup's last word rather than in the next run's.
-	verdict := verifySetupReadiness(root, terminalReport, terminalReportErr)
-	readinessVerdict = &verdict
-	progress.CompletePhase()
-	progress.StartPhase(PhaseCompletion)
-	if len(degradedResources) > 0 {
-		_, _ = fmt.Fprintf(stdout, "[WARN]    Setup completed with degraded optional resources: %s\n", strings.Join(degradedResources, ", "))
-	}
-	// The last line of a setup run states a verified verdict rather than an
-	// unconditional success. The previous unconditional line was true about the
-	// bootstrap steps and silent about whether the host was actually configured.
-	renderSetupReadinessVerdict(stdout, verdict, configurationAlreadyComplete(home, root))
-	progress.CompletePhase()
+	renderPrivilegeBrokerStatus(f.stdout, status)
+	f.progress.CompletePhase()
 	return nil
+}
+
+func (f setupFlow) reconcileResourcesAndCLI() ([]string, error) {
+	f.progress.StartPhase(PhaseGit)
+	f.progress.Operation("Configuring Git defaults")
+	_, _ = fmt.Fprintln(f.stdout, "[INFO]    Configuring Git defaults...")
+	if err := configureGit(f.root); err != nil {
+		return nil, err
+	}
+	f.progress.CompletePhase()
+	f.progress.StartPhase(PhaseResources)
+	f.progress.Operation("Reconciling selected resources")
+	_, _ = fmt.Fprintln(f.stdout, "[INFO]    Reconciling selected resources...")
+	degraded, err := f.service.maybeInstallResources(f.root, f.home, f.opts, f.stdout, f.stderr, f.progress.Operation)
+	if err != nil {
+		return nil, err
+	}
+	f.progress.CompletePhase()
+	f.progress.StartPhase(PhaseCLI)
+	if strings.TrimSpace(f.opts.Resources) == setupNone {
+		f.progress.Operation("Skipping resource CLI synchronization")
+		_, _ = fmt.Fprintln(f.stdout, "[INFO]    Skipping resource CLI schema synchronization (resources=none)")
+	} else {
+		_, _ = fmt.Fprintln(f.stdout, "[INFO]    Synchronizing resource CLI schemas...")
+		if err := f.service.deps.syncResourceSchema(f.root); err != nil {
+			return nil, err
+		}
+	}
+	f.progress.CompletePhase()
+	return degraded, nil
+}
+
+func (f setupFlow) finalizeInstall() (*OnboardingResult, error) {
+	f.progress.StartPhase(PhaseFinalize)
+	f.progress.Operation("Refreshing selected scenario and resource CLIs")
+	_, _ = fmt.Fprintln(f.stdout, "[INFO]    Refreshing the bootstrap and selected scenario CLIs...")
+	manager, err := f.service.deps.newCLIInstallManager(f.root, f.home)
+	if err != nil {
+		return nil, err
+	}
+	if err := manager.EnsureScenarioCLI("secrets-manager"); err != nil {
+		return nil, fmt.Errorf("refresh secrets-manager bootstrap CLI: %w", err)
+	}
+	if err := installSelectedCLIs(manager, f.opts.Resources, f.opts.Scenarios, f.progress.Operation); err != nil {
+		return nil, err
+	}
+	if err := f.service.deps.recordProjectInstall(f.root, f.home); err != nil {
+		return nil, fmt.Errorf("record project install inventory: %w", err)
+	}
+	if err := f.service.deps.markComplete(f.home, f.root); err != nil {
+		return nil, err
+	}
+	result, handoffErr := f.service.runOnboardingHandoff(f.root, f.home, f.opts, f.stdout, f.stderr)
+	if handoffErr != nil {
+		_, _ = fmt.Fprintf(f.stderr, "[WARN]    Onboarding handoff unavailable: %v\n", handoffErr)
+	}
+	return result, nil
 }
 
 func renderSetupReadinessVerdict(stdout io.Writer, verdict SetupReadiness, markerPresent bool) {

@@ -37,8 +37,9 @@ const (
 	HomeKeyArtifacts  = "artifacts"
 
 	// Scoped (parameterized) runtime-home path keys.
-	ScopedScenarioSecrets = "scenario_secrets"
-	ScopedProjectState    = "project_state"
+	ScopedScenarioSecrets  = "scenario_secrets"
+	ScopedProjectState     = "project_state"
+	ScopedTestRunsScenario = "test_runs_scenario"
 )
 
 // RuntimeHomeEntryPath resolves the absolute path of a well-known runtime-home

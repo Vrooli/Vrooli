@@ -4,12 +4,12 @@
   "phases": {
     "tidiness": {
       "budgets": {
-        "duplication_line_debt": 3340,
-        "baseline_duplication_line_debt": 3340,
+        "duplication_line_debt": 2752,
+        "baseline_duplication_line_debt": 2752,
         "long_files": 58,
         "complexity_over_threshold": 62,
         "coupling_over_threshold": 3,
-        "debt_markers": 1,
+        "debt_markers": 0,
         "ratchet": true
       }
     }

@@ -14,6 +14,7 @@ import (
 	"github.com/vrooli/vrooli/internal/tuning"
 
 	manifestpkg "github.com/vrooli/vrooli/internal/resources/manifest"
+	"github.com/vrooli/vrooli/internal/scenario"
 )
 
 const (
@@ -333,22 +334,14 @@ func findMissingScenarioResourceReferences(root string) ([]ScenarioResourceRefer
 			continue
 		}
 		manifestPath := filepath.Join(scenarioRoot, entry.Name(), repocontractmeta.ProjectConfigDir, "service.json")
-		data, err := os.ReadFile(manifestPath)
+		manifest, err := scenario.LoadServiceManifest(manifestPath)
 		if err != nil {
 			if os.IsNotExist(err) {
 				continue
 			}
 			return nil, fmt.Errorf("read scenario manifest %s: %w", manifestPath, err)
 		}
-		var payload struct {
-			Dependencies struct {
-				Resources map[string]json.RawMessage `json:"resources"`
-			} `json:"dependencies"`
-		}
-		if err := json.Unmarshal(data, &payload); err != nil {
-			return nil, fmt.Errorf("parse scenario manifest %s: %w", manifestPath, err)
-		}
-		for resourceName := range payload.Dependencies.Resources {
+		for resourceName := range manifest.Dependencies.Resources {
 			if _, ok := resourceSet[resourceName]; ok {
 				continue
 			}

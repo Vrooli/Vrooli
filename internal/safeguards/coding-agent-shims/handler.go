@@ -203,11 +203,11 @@ func (h handler) Apply(host hostreqkit.Host, status hostreqkit.ItemStatus, opts 
 func resolvePaths() (string, map[string]string, error) {
 	launcher, err := LauncherPath()
 	if err != nil {
-		return "", nil, err
+		return "", nil, fmt.Errorf("resolve coding-agent launcher path: %w", err)
 	}
 	aliases, err := AliasPaths()
 	if err != nil {
-		return "", nil, err
+		return "", nil, fmt.Errorf("resolve coding-agent alias paths: %w", err)
 	}
 	return launcher, aliases, nil
 }

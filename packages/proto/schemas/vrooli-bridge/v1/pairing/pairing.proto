@@ -173,6 +173,10 @@ message RequestPairingResponse {
   string request_id = 1;
   PairingRequestStatus status = 2;
   repeated string confirmation_words = 3;
+
+  // Short fingerprint of the node's own public key, shown beside the words so
+  // an operator comparing two screens has a second, independent value to read.
+  string key_fingerprint = 4;
 }
 
 message GetPairingRequestRequest {
@@ -218,6 +222,10 @@ message PairingRequest {
   // The minted node id once approved.
   string node_id = 10;
   repeated string confirmation_words = 11;
+
+  // Short fingerprint of the requesting node's public key. Unlike name, os and
+  // endpoint, this value is derived from the key the node proved it holds.
+  string key_fingerprint = 12;
 }
 
 message ListPairingRequestsRequest {

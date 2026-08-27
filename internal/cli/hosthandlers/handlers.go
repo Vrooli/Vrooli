@@ -27,10 +27,11 @@ type hostService struct {
 // RootHandler dispatches `vrooli host` through the host application.
 func RootHandler[C any](deps HandlerDeps[C]) rootcli.Handler[C] {
 	return rootcli.BindService(deps.Stdout,
-		func(ctx C) (cliout.Format, hostService, error) {
+		func(C) (cliout.Format, error) { return cliout.FormatHuman, nil },
+		func(ctx C, _ cliout.Format) (hostService, error) {
 			commandCtx := &hostcli.Context{Root: deps.Root(ctx), Globals: deps.Globals(ctx), Stdout: deps.Stdout(ctx), Stderr: deps.Stderr(ctx)}
 			app := &hostapp.App{}
-			return cliout.FormatHuman, hostService{run: func(args []string) error {
+			return hostService{run: func(args []string) error {
 				if len(args) == 0 || manifestdispatch.WantsHelp(args) {
 					return hostcli.Run(app, commandCtx, args)
 				}
@@ -51,10 +52,11 @@ func RootHandler[C any](deps HandlerDeps[C]) rootcli.Handler[C] {
 // WorkloadHandler dispatches `vrooli workload` through the host application.
 func WorkloadHandler[C any](deps HandlerDeps[C]) rootcli.Handler[C] {
 	return rootcli.BindService(deps.Stdout,
-		func(ctx C) (cliout.Format, hostService, error) {
+		func(C) (cliout.Format, error) { return cliout.FormatHuman, nil },
+		func(ctx C, _ cliout.Format) (hostService, error) {
 			app := &hostapp.App{}
 			commandCtx := &hostcli.Context{Root: deps.Root(ctx), Globals: deps.Globals(ctx), Stdout: deps.Stdout(ctx), Stderr: deps.Stderr(ctx)}
-			return cliout.FormatHuman, hostService{run: func(args []string) error { return hostcli.RunWorkload(app, commandCtx, args) }}, nil
+			return hostService{run: func(args []string) error { return hostcli.RunWorkload(app, commandCtx, args) }}, nil
 		},
 		func(_ C, args []string) ([]string, error) { return args, nil },
 		func(service hostService, args []string) (struct{}, error) { return struct{}{}, service.run(args) },

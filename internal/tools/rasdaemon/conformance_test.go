@@ -14,6 +14,10 @@ func TestConformance(t *testing.T) {
 		Kind:               hostreqspec.KindTool,
 		SupportedPlatforms: []string{"linux"},
 		InstallCommand:     "apt-get install rasdaemon",
-		Checks:             []string{"name_and_kind"},
+		Checks:             []string{"name_and_kind", "apply_linux_apt_dry_run"},
+		PackageChecks: []hostreqkittest.PackageCheck{{
+			Name: "apply_installs_and_enables_rasdaemon",
+			Run:  checkApplyInstallsAndEnablesRasdaemon,
+		}},
 	})
 }
