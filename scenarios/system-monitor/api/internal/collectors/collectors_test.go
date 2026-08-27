@@ -256,6 +256,15 @@ func TestNetworkCollector_Collect(t *testing.T) {
 	})
 }
 
+func TestNetworkCollector_NilPlatformValuesRemainAnnotatable(t *testing.T) {
+	reading := platformNetworkReading{status: "failed", reason: "native probe unavailable"}
+	values := networkReadingValues(reading)
+
+	if values["status"] != "failed" || values["reason"] != "native probe unavailable" {
+		t.Fatalf("annotated values = %#v, want preserved failure state", values)
+	}
+}
+
 func TestNetworkCollector_NoSteadyForks(t *testing.T) {
 	if runtime.GOOS != "linux" {
 		repocontracttest.SkipPlatform(t, "network collector reads /proc only on linux")

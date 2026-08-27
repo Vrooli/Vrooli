@@ -198,6 +198,16 @@ func SafeProtoJSON(w http.ResponseWriter, log *slog.Logger, r *http.Request, msg
 	}
 }
 
+// SafeProtoJSONCamel is the lowerCamelCase REST counterpart to SafeProtoJSON.
+// Keep the existing snake_case helper stable for legacy REST consumers while
+// allowing typed browser clients to consume proto responses directly.
+func SafeProtoJSONCamel(w http.ResponseWriter, log *slog.Logger, r *http.Request, msg proto.Message) {
+	if err := ProtoJSONCamel(w, msg); err != nil {
+		log.Error("proto marshal failed", "error", err, "path", r.URL.Path)
+		WriteError(w, nil, r, http.StatusInternalServerError, "internal", "An internal error occurred", "")
+	}
+}
+
 // SafeProtoJSONWithStatus writes a proto message with a status code. On failure it writes a 500 error.
 func SafeProtoJSONWithStatus(w http.ResponseWriter, log *slog.Logger, r *http.Request, status int, msg proto.Message) {
 	if err := ProtoJSONWithStatus(w, status, msg); err != nil {

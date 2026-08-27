@@ -11,6 +11,7 @@ import { useHealthCheck } from './useHealthCheck';
 import { useMetricHistory } from './useMetricHistory';
 import type {
   MetricsResponse,
+  DeviceGraph,
   DetailedMetrics,
   ProcessMonitorData,
   InfrastructureMonitorData,
@@ -34,10 +35,11 @@ export interface SystemHealthStatus {
   checks?: Record<string, unknown>;
 }
 
-export type Subsystem = 'metrics' | 'detailedMetrics' | 'processes' | 'infrastructure' | 'investigations';
+export type Subsystem = 'metrics' | 'detailedMetrics' | 'deviceGraph' | 'processes' | 'infrastructure' | 'investigations';
 
 interface UseSystemMonitorReturn {
   metrics: MetricsResponse | null;
+  deviceGraph: DeviceGraph | null;
   detailedMetrics: DetailedMetrics | null;
   processMonitorData: ProcessMonitorData | null;
   infrastructureData: InfrastructureMonitorData | null;
@@ -47,6 +49,7 @@ interface UseSystemMonitorReturn {
   error: APIError | null;
   subsystemErrors: Partial<Record<Subsystem, APIError>>;
   isStale: boolean;
+  retryAttempt: number;
   lastSuccessfulFetch: Date | null;
   healthStatus: SystemHealthStatus | null;
   healthError: string | null;
@@ -60,11 +63,13 @@ type MaintenanceState = 'active' | 'inactive' | string;
 
 interface UseSystemMonitorOptions {
   enabled?: boolean;
+  node?: string;
 }
 
 export const useSystemMonitor = (historyWindowSeconds = 120, options: UseSystemMonitorOptions = {}): UseSystemMonitorReturn => {
   const pollingEnabled = options.enabled ?? true;
   const [metrics, setMetrics] = useState<MetricsResponse | null>(null);
+  const [deviceGraph, setDeviceGraph] = useState<DeviceGraph | null>(null);
   const [detailedMetrics, setDetailedMetrics] = useState<DetailedMetrics | null>(null);
   const [processMonitorData, setProcessMonitorData] = useState<ProcessMonitorData | null>(null);
   const [infrastructureData, setInfrastructureData] = useState<InfrastructureMonitorData | null>(null);
@@ -121,10 +126,15 @@ export const useSystemMonitor = (historyWindowSeconds = 120, options: UseSystemM
 
   const { healthStatus, healthError, checkHealth, refreshHealth, toggleMonitoring } = useHealthCheck();
   const setMetricsError = useCallback((err: APIError | null) => { setSubsystemError('metrics', err); }, [setSubsystemError]);
-  const { metricHistory, fetchMetricsTimeline, appendGpuPoint, appendDiskPoints, appendDiskUsagePoint } = useMetricHistory(setMetricsError);
+  const { metricHistory, fetchMetricsTimeline, clearHistory, appendGpuPoint, appendDiskPoints, appendDiskUsagePoint } = useMetricHistory(setMetricsError);
+  const remoteNodeSelected = Boolean(options.node);
 
   const fetchMetrics = useCallback(async () => {
-    const url = uiBoostActive ? '/metrics/current?fresh=1' : '/metrics/current';
+    const params = new URLSearchParams();
+    if (uiBoostActive) params.set('fresh', '1');
+    if (options.node) params.set('node', options.node);
+    const query = params.toString();
+    const url = `/metrics/current${query ? `?${query}` : ''}`;
     try {
       const data = await protoFetch(url, parseMetricsResponse);
       if (!mountedRef.current) return;
@@ -141,7 +151,22 @@ export const useSystemMonitor = (historyWindowSeconds = 120, options: UseSystemM
       setSubsystemError('metrics', toApiError(err));
       setConsecutiveFailures(prev => prev + 1);
     }
-  }, [uiBoostActive, appendGpuPoint, setSubsystemError]);
+  }, [options.node, uiBoostActive, appendGpuPoint, setSubsystemError]);
+
+  const fetchDeviceGraph = useCallback(async () => {
+    try {
+      const { parseDeviceGraph } = await import('../../../shared/api/current-metrics-contract');
+      const query = options.node ? `?node=${encodeURIComponent(options.node)}` : '';
+      const data = await protoFetch(`/metrics/devices${query}`, parseDeviceGraph);
+      if (!mountedRef.current) return;
+      setDeviceGraph(data);
+      setSubsystemError('deviceGraph', null);
+    } catch (err) {
+      console.debug('API call failed for /metrics/devices:', err);
+      if (!mountedRef.current) return;
+      setSubsystemError('deviceGraph', toApiError(err));
+    }
+  }, [options.node, setSubsystemError]);
 
   useEffect(() => {
     let cancelled = false;
@@ -208,6 +233,7 @@ export const useSystemMonitor = (historyWindowSeconds = 120, options: UseSystemM
   }, []);
 
   const fetchDetailedMetrics = useCallback(async () => {
+    if (remoteNodeSelected) return;
     try {
       const { parseDetailedMetrics } = await import('../../../shared/api/proto-contracts');
       const data = await protoFetch('/metrics/detailed', parseDetailedMetrics);
@@ -223,9 +249,10 @@ export const useSystemMonitor = (historyWindowSeconds = 120, options: UseSystemM
       if (!mountedRef.current) return;
       setSubsystemError('detailedMetrics', toApiError(err));
     }
-  }, [appendDiskUsagePoint, setSubsystemError]);
+  }, [appendDiskUsagePoint, remoteNodeSelected, setSubsystemError]);
 
   const fetchProcessMonitorData = useCallback(async () => {
+    if (remoteNodeSelected) return;
     try {
       const { parseProcessMonitorData } = await import('../../../shared/api/proto-contracts');
       const data = await protoFetch('/metrics/processes', parseProcessMonitorData);
@@ -237,9 +264,10 @@ export const useSystemMonitor = (historyWindowSeconds = 120, options: UseSystemM
       if (!mountedRef.current) return;
       setSubsystemError('processes', toApiError(err));
     }
-  }, [setSubsystemError]);
+  }, [remoteNodeSelected, setSubsystemError]);
 
   const fetchInfrastructureData = useCallback(async () => {
+    if (remoteNodeSelected) return;
     try {
       const { parseInfrastructureMonitorData } = await import('../../../shared/api/proto-contracts');
       const data = await protoFetch('/metrics/infrastructure', parseInfrastructureMonitorData);
@@ -259,9 +287,10 @@ export const useSystemMonitor = (historyWindowSeconds = 120, options: UseSystemM
       if (!mountedRef.current) return;
       setSubsystemError('infrastructure', toApiError(err));
     }
-  }, [appendDiskPoints, setSubsystemError]);
+  }, [appendDiskPoints, remoteNodeSelected, setSubsystemError]);
 
   const fetchInvestigations = useCallback(async () => {
+    if (remoteNodeSelected) return;
     try {
       const { parseInvestigations } = await import('../../../shared/api/proto-contracts');
       const data = await protoFetch('/investigations?limit=10', parseInvestigations);
@@ -284,17 +313,20 @@ export const useSystemMonitor = (historyWindowSeconds = 120, options: UseSystemM
       if (!mountedRef.current) return;
       setSubsystemError('investigations', toApiError(err));
     }
-  }, [setSubsystemError]);
+  }, [remoteNodeSelected, setSubsystemError]);
 
   const refreshMetrics = useCallback(async () => {
-    await Promise.all([
-      fetchMetrics(),
-      fetchDetailedMetrics(),
-      fetchMetricsTimeline(historyWindowSeconds)
-    ]);
-  }, [fetchDetailedMetrics, fetchMetrics, fetchMetricsTimeline, historyWindowSeconds]);
+    await Promise.all([fetchMetrics(), fetchDeviceGraph()]);
+    if (!remoteNodeSelected) {
+      await Promise.all([
+        fetchDetailedMetrics(),
+        fetchMetricsTimeline(historyWindowSeconds)
+      ]);
+    }
+  }, [fetchDetailedMetrics, fetchDeviceGraph, fetchMetrics, fetchMetricsTimeline, historyWindowSeconds, remoteNodeSelected]);
 
   const fetchDeferredData = useCallback(async () => {
+    if (remoteNodeSelected) return;
     await Promise.all([
       fetchDetailedMetrics(),
       fetchProcessMonitorData(),
@@ -308,7 +340,8 @@ export const useSystemMonitor = (historyWindowSeconds = 120, options: UseSystemM
     fetchProcessMonitorData,
     fetchInfrastructureData,
 	  fetchInvestigations,
-	  historyWindowSeconds
+	  historyWindowSeconds,
+	  remoteNodeSelected
   ]);
 
   const refresh = useCallback(async () => {
@@ -326,7 +359,7 @@ export const useSystemMonitor = (historyWindowSeconds = 120, options: UseSystemM
       return;
     }
 
-    await fetchMetrics();
+    await Promise.all([fetchMetrics(), fetchDeviceGraph()]);
 
     if (!mountedRef.current) return;
     setIsLoading(false);
@@ -337,6 +370,7 @@ export const useSystemMonitor = (historyWindowSeconds = 120, options: UseSystemM
   }, [
     checkHealth,
     setSubsystemError,
+    fetchDeviceGraph,
     fetchMetrics,
     fetchDeferredData
   ]);
@@ -356,11 +390,29 @@ export const useSystemMonitor = (historyWindowSeconds = 120, options: UseSystemM
       return;
     }
 
-    await fetchMetrics();
+    await Promise.all([fetchMetrics(), fetchDeviceGraph()]);
 
     if (!mountedRef.current) return;
     setIsLoading(false);
-  }, [checkHealth, fetchMetrics, setSubsystemError]);
+  }, [checkHealth, fetchDeviceGraph, fetchMetrics, setSubsystemError]);
+
+  // A machine switch is a new observation context. Do not retain local
+  // histories or detailed panels while the selected target is remote; those
+  // values cannot be silently presented as if they belonged to that machine.
+  useEffect(() => {
+    setMetrics(null);
+    setDeviceGraph(null);
+    setIsLoading(true);
+    setConsecutiveFailures(0);
+    setLastSuccessfulFetch(null);
+    if (!remoteNodeSelected) return;
+    setDetailedMetrics(null);
+    setProcessMonitorData(null);
+    setInfrastructureData(null);
+    setInvestigations([]);
+    clearHistory();
+    setSubsystemErrors({});
+  }, [clearHistory, remoteNodeSelected]);
 
   // Initial load
   useEffect(() => {
@@ -378,21 +430,23 @@ export const useSystemMonitor = (historyWindowSeconds = 120, options: UseSystemM
   }, [fetchDeferredData, refreshInitial]);
 
   // Set up polling for metrics (every 5 seconds for responsive graphs)
-  usePolling(refreshMetrics, 5000, pollingEnabled, { enabled: true, maxIntervalMs: 60000 });
+  usePolling(refreshMetrics, remoteNodeSelected ? 15000 : 5000, pollingEnabled, { enabled: true, maxIntervalMs: 60000 });
 
   // Set up polling for detailed data + health (every 60 seconds)
   const fetchDetailedAll = useCallback(() => {
+    if (remoteNodeSelected) return;
     Promise.all([
       fetchProcessMonitorData(),
       fetchInfrastructureData(),
       fetchInvestigations(),
       checkHealth()
     ]).catch((err: unknown) => { console.error('Failed to fetch detailed data:', err); });
-  }, [fetchProcessMonitorData, fetchInfrastructureData, fetchInvestigations, checkHealth]);
+  }, [fetchProcessMonitorData, fetchInfrastructureData, fetchInvestigations, checkHealth, remoteNodeSelected]);
   usePolling(fetchDetailedAll, 60000, pollingEnabled, { enabled: true, maxIntervalMs: 300000 });
 
   return {
     metrics,
+    deviceGraph,
     detailedMetrics,
     processMonitorData,
     infrastructureData,
@@ -402,6 +456,7 @@ export const useSystemMonitor = (historyWindowSeconds = 120, options: UseSystemM
     error,
     subsystemErrors,
     isStale,
+    retryAttempt: consecutiveFailures,
     lastSuccessfulFetch,
     healthStatus,
     healthError,

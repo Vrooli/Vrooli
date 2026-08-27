@@ -3,13 +3,22 @@ package handlers
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log/slog"
+	"net/http"
+	"os"
 	"sort"
+	"strings"
+	"time"
 
 	"connectrpc.com/connect"
+	"github.com/vrooli/nodeclient"
 	devicegraphpb "github.com/vrooli/vrooli/packages/proto/gen/go/system-monitor/v1/devicegraph"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/apierrors"
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/collectors"
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/devicegraph"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/httputil"
+	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -29,13 +38,76 @@ var errNoDeviceGraphProvider = errors.New("the device-graph provider is not conf
 type DeviceGraphHandler struct {
 	graphs collectors.DeviceGraphProvider
 	log    *slog.Logger
+	bridge *nodeclient.Client
 }
 
 func NewDeviceGraphHandler(graphs collectors.DeviceGraphProvider, log *slog.Logger) *DeviceGraphHandler {
 	if log == nil {
 		log = slog.Default()
 	}
-	return &DeviceGraphHandler{graphs: graphs, log: log}
+	return &DeviceGraphHandler{
+		graphs: graphs,
+		log:    log,
+		bridge: nodeclient.New(nodeclient.Config{
+			Token:         firstNonEmpty(os.Getenv("VROOLI_BRIDGE_API_TOKEN"), os.Getenv("VROOLI_API_TOKEN")),
+			TokenProvider: resolveLocalOwnerToken,
+		}),
+	}
+}
+
+// SetNodeClient replaces the Bridge transport for focused handler tests and
+// controlled embeddings. Production uses the shared nodeclient above.
+func (h *DeviceGraphHandler) SetNodeClient(client *nodeclient.Client) { h.bridge = client }
+
+// HandleGetDeviceGraph serves the dashboard's lower-camel REST shape. Local
+// reads use the same cached provider as Connect; a node query relays the
+// scenario-owned device-graph verb through the shared node client.
+func (h *DeviceGraphHandler) HandleGetDeviceGraph(w http.ResponseWriter, r *http.Request) {
+	if nodeID := strings.TrimSpace(r.URL.Query().Get("node")); nodeID != "" {
+		h.handleRemoteDeviceGraph(w, r, nodeID)
+		return
+	}
+	if h.graphs == nil {
+		handleDeviceGraphError(w, r, h.log, apierrors.Unavailable("local device graph"))
+		return
+	}
+	handleDeviceGraphJSON(w, h.log, r, protoGraph(h.graphs.DeviceGraph(r.Context())))
+}
+
+func (h *DeviceGraphHandler) handleRemoteDeviceGraph(w http.ResponseWriter, r *http.Request, nodeID string) {
+	if h.bridge == nil {
+		handleDeviceGraphError(w, r, h.log, apierrors.Unavailable("remote node"))
+		return
+	}
+	response, err := h.bridge.Call(r.Context(), nodeclient.CallRequest{
+		NodeID: nodeID, Scenario: "system-monitor", Command: "system-monitor metrics devices",
+		Args: []string{"--json"}, Timeout: 8 * time.Second, MaxResponse: 2 << 20,
+	})
+	if err != nil || response.Outcome != 1 {
+		handleDeviceGraphError(w, r, h.log, apierrors.Unavailable("remote node"))
+		return
+	}
+	var envelope devicegraphpb.GetDeviceGraphResponse
+	if err := protojson.Unmarshal(response.Data, &envelope); err == nil && envelope.GetGraph() != nil {
+		handleDeviceGraphJSON(w, h.log, r, envelope.GetGraph())
+		return
+	}
+	var graph devicegraphpb.Graph
+	if err := protojson.Unmarshal(response.Data, &graph); err != nil {
+		handleDeviceGraphError(w, r, h.log, apierrors.Internal("decode remote device graph", fmt.Errorf("%w", err)))
+		return
+	}
+	handleDeviceGraphJSON(w, h.log, r, &graph)
+}
+
+func handleDeviceGraphJSON(w http.ResponseWriter, log *slog.Logger, r *http.Request, graph *devicegraphpb.Graph) {
+	if err := httputil.ProtoJSONCamel(w, graph); err != nil {
+		handleDeviceGraphError(w, r, log, apierrors.Internal("encode device graph", err))
+	}
+}
+
+func handleDeviceGraphError(w http.ResponseWriter, r *http.Request, log *slog.Logger, err *apierrors.APIError) {
+	httputil.WriteAPIError(w, log, r, err)
 }
 
 func (h *DeviceGraphHandler) GetDeviceGraph(ctx context.Context, _ *connect.Request[devicegraphpb.GetDeviceGraphRequest]) (*connect.Response[devicegraphpb.GetDeviceGraphResponse], error) {

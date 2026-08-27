@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { StatusIndicator } from './StatusIndicator';
 import { AgentDropdown } from './AgentDropdown';
 import { useTheme } from '../theme/ThemeProvider';
-import type { InvestigationAgentState } from '../../types';
+import type { InvestigationAgentState, Machine } from '../../types';
 import type { SystemHealthStatus } from '../../features/monitoring/hooks/useSystemMonitor';
 import { TIME_RANGE_OPTIONS, useTimeRange } from '../time/TimeRangeContext';
 
@@ -30,6 +30,11 @@ interface HeaderProps {
   onToggleMonitoring: () => Promise<void>;
   onRefreshHealth: () => Promise<void>;
   isLoadingHealth: boolean;
+  machines?: Machine[];
+  selectedMachineID?: string;
+  onSelectMachine?: (machineID: string) => void;
+  onAddMachine?: () => void;
+  terminalDisabledReason?: string;
 }
 
 export const Header = ({
@@ -45,7 +50,12 @@ export const Header = ({
   healthError,
   onToggleMonitoring,
   onRefreshHealth,
-  isLoadingHealth
+  isLoadingHealth,
+  machines = [],
+  selectedMachineID = '',
+  onSelectMachine,
+  onAddMachine,
+  terminalDisabledReason
 }: HeaderProps) => {
   const { theme, toggleTheme } = useTheme();
   const { range, setRange, paused, setPaused } = useTimeRange();
@@ -205,6 +215,34 @@ export const Header = ({
 
           {/* View-scope: these change WHAT THE PAGE SHOWS. */}
           <div className="header-group">
+            <div className="machine-header-control">
+              {machines.length > 0 && onSelectMachine ? (
+                <label className="history-window-control">
+                  <span className="sr-only">Machine</span>
+                  <select
+                    aria-label="Machine"
+                    value={selectedMachineID}
+                    onChange={event => { onSelectMachine(event.target.value); }}
+                  >
+                    {machines.map(machine => (
+                      <option key={machine.id} value={machine.id}>
+                        {machine.name}{machine.id && !machine.dispatchable ? ' (unavailable)' : ''}
+                      </option>
+                  ))}
+                </select>
+              </label>
+              ) : null}
+              {machines.length > 0 ? (
+                <span className="machine-header-control__grant" data-testid="machine-grant">
+                  {machines.find(machine => machine.id === selectedMachineID)?.grant ?? 'Local machine access'}
+                </span>
+              ) : null}
+              {onAddMachine ? (
+                <button type="button" className="machine-header-control__add" onClick={onAddMachine} data-testid="add-machine">
+                  Add machine
+                </button>
+              ) : null}
+            </div>
             <label className="history-window-control">
               <span className="sr-only">Shared time range</span>
               <select
@@ -257,13 +295,14 @@ export const Header = ({
             <button
               className="header-button icon-button"
               onClick={onToggleTerminal}
+              disabled={Boolean(terminalDisabledReason)}
               type="button"
-              title="Toggle system output"
-              aria-label={
+              title={terminalDisabledReason ?? 'Toggle system output'}
+              aria-label={terminalDisabledReason ?? (
                 unreadErrorCount > 0
                   ? `Toggle system output, ${unreadErrorCount} unread ${unreadErrorCount === 1 ? 'error' : 'errors'}`
                   : 'Toggle system output'
-              }
+              )}
               data-sm-style="sm-style-821233d621"
             >
               <Terminal size={16} />

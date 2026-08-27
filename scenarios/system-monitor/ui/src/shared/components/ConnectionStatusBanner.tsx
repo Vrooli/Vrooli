@@ -5,6 +5,8 @@ interface ConnectionStatusBannerProps {
   isStale: boolean;
   lastSuccessfulFetch: Date | null;
   onRefresh: () => void;
+  retryIntervalSeconds?: number;
+  retryAttempt?: number;
 }
 
 function formatTimeAgo(date: Date): string {
@@ -17,7 +19,7 @@ function formatTimeAgo(date: Date): string {
   return `${hours} hour${hours !== 1 ? 's' : ''} ago`;
 }
 
-export function ConnectionStatusBanner({ isStale, lastSuccessfulFetch, onRefresh }: ConnectionStatusBannerProps) {
+export function ConnectionStatusBanner({ isStale, lastSuccessfulFetch, onRefresh, retryIntervalSeconds = 15, retryAttempt = 0 }: ConnectionStatusBannerProps) {
   const [, setTick] = useState(0);
 
   // Update relative time display every 5 seconds
@@ -35,7 +37,7 @@ export function ConnectionStatusBanner({ isStale, lastSuccessfulFetch, onRefresh
     <div className="connection-status-banner" role="status" aria-live="polite">
       <div className="connection-status-banner__message">
         <WifiOff size={16} aria-hidden="true" />
-        <span><strong>Data may be outdated.</strong> Last successful update: {timeAgo}. Retrying automatically.</span>
+        <span><strong>Showing the last reading.</strong> Last successful update: {timeAgo}. Retrying every {retryIntervalSeconds} seconds (attempt {retryAttempt}); reconnecting automatically.</span>
       </div>
       <button
         type="button"

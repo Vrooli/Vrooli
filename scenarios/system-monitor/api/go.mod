@@ -7,6 +7,7 @@ require (
 	connectrpc.com/connect v1.19.2
 	github.com/google/uuid v1.6.0
 	github.com/vrooli/api-core v0.0.0
+	github.com/vrooli/nodeclient v0.0.0
 	github.com/vrooli/repo-contract-go v0.0.0
 	github.com/vrooli/vrooli v0.0.0
 	github.com/vrooli/vrooli/packages/proto v0.0.0
@@ -37,7 +38,10 @@ require (
 
 replace github.com/vrooli/api-core => ../../../packages/api-core
 
+replace github.com/vrooli/nodeclient => ../../../packages/nodeclient
+
 require (
+	github.com/gorilla/websocket v1.5.3 // indirect
 	github.com/santhosh-tekuri/jsonschema/v5 v5.3.1 // indirect
 	github.com/vrooli/binaryfetch v0.0.0 // indirect
 	github.com/vrooli/cli-core v0.0.0 // indirect
@@ -58,4 +62,5 @@ replace github.com/vrooli/binaryfetch => ../../../packages/binaryfetch
 replace github.com/vrooli/platform-go => ../../../packages/platform-go
 
 replace github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime => ../../scenario-to-desktop/runtime
+
 replace github.com/vrooli/envkit-go => ../../../packages/envkit-go

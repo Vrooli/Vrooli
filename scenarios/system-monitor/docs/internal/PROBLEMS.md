@@ -2,10 +2,10 @@
 
 ## Work ladder
 
-- Rung: W3 implementation — selected System Monitor redesign slices implemented; governed re-measurement remains partially red
-- Evidence: focused UI validation passes (Header, Scripts, metric detail variants: 9 tests) and TypeScript type-check passes. BAS desktop/mobile captures confirm the responsive shell, including a stable mobile Menu trigger after the header was restructured into an explicit brand row and control row. The final server-owned run `20260824-143930-f36c6335` passed 20/22 phases; only `docs` and `unit` remain failed. A restart reproduced the host-level degraded Ollama dependency (declared CUDA, observed CPU); the dependency declaration now treats Ollama as optional best-effort so System Monitor can start while preserving that resource health signal.
-- Blocker: no missing authority. Remaining red phases are inherited contract/documentation and unit-health debt; broad catalog cleanup and Plan Manager baseline-comparator repair are intentionally deferred under the current user-visible-outcome reprioritization. Linux arm64 hardware evidence remains unavailable. Ollama remains CPU-backed until the NVIDIA driver/device-node issue is repaired.
-- Measured: 2026-08-24
+- Rung: W3 implementation — focused node-axis changes pass, but the governed scenario run remains partially red
+- Evidence: W0 comparison found the active `system-monitor-production-readiness` goal aligned with the P0 operational targets; `business-health validate scenario system-monitor` and `vrooli scenario requirements validate system-monitor` passed with four pre-existing P2 orphan warnings. The server-owned run `20260826-232942-a034eeef` finished 18/22 phases; dependency, unit, workflow, and experience phases failed, with no nodeclient or qualified-verb contract failure. Focused UI/type-check and system-monitor API tests pass, including the remote metrics qualified-verb regression.
+- Blocker: no missing authority. Remaining red phases are inherited dependency, unit, workflow, and experience debt; Linux arm64 hardware evidence remains unavailable. Ollama remains CPU-backed until the NVIDIA driver/device-node issue is repaired.
+- Measured: 2026-08-26
 
 ## Last Updated
 2026-08-21 (UI hardening pass)

@@ -60,4 +60,32 @@ describe('Header mobile navigation', () => {
     fireEvent.keyDown(document, { key: 'Tab', shiftKey: true });
     expect(document.activeElement).toBe(lastLink);
   });
+
+  it('shows the selected machine grant, offers add-machine, and disables local output remotely', () => {
+    const onAddMachine = vi.fn();
+    render(<Header
+      unreadErrorCount={0}
+      agents={[]}
+      onStopAgent={vi.fn().mockResolvedValue(undefined)}
+      stoppingAgentIds={new Set()}
+      agentErrors={{}}
+      onToggleTerminal={vi.fn()}
+      onOpenSettings={vi.fn()}
+      healthStatus={null}
+      healthError={null}
+      onToggleMonitoring={vi.fn().mockResolvedValue(undefined)}
+      onRefreshHealth={vi.fn().mockResolvedValue(undefined)}
+      isLoadingHealth={false}
+      machines={[{ id: '', name: 'This machine', online: true, heartbeat_fresh: true, dispatchable: true, status: 'local' }, { id: 'mac-node', name: 'Mac mini', online: true, heartbeat_fresh: true, dispatchable: true, status: 'online', grant: 'Read only; changes are not permitted' }]}
+      selectedMachineID="mac-node"
+      onSelectMachine={vi.fn()}
+      onAddMachine={onAddMachine}
+      terminalDisabledReason="System output is local to this computer"
+    />);
+
+    expect(screen.getByTestId('machine-grant')).toHaveTextContent('Read only; changes are not permitted');
+    fireEvent.click(screen.getByTestId('add-machine'));
+    expect(onAddMachine).toHaveBeenCalledOnce();
+    expect(screen.getByRole('button', { name: 'System output is local to this computer' })).toBeDisabled();
+  });
 });

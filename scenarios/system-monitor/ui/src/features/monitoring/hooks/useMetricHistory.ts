@@ -11,6 +11,7 @@ import type {
 export interface UseMetricHistoryReturn {
   metricHistory: MetricHistory | null;
   fetchMetricsTimeline: (windowSeconds?: number) => Promise<void>;
+  clearHistory: () => void;
   appendGpuPoint: (timestamp: string, value: number) => void;
   appendDiskPoints: (timestamp: string, readRate: number, writeRate: number) => void;
   appendDiskUsagePoint: (timestamp: string, value: number) => void;
@@ -164,9 +165,12 @@ export const useMetricHistory = (
     });
   }, []);
 
+  const clearHistory = useCallback(() => { setMetricHistory(null); }, []);
+
   return {
     metricHistory,
     fetchMetricsTimeline,
+    clearHistory,
     appendGpuPoint,
     appendDiskPoints,
     appendDiskUsagePoint

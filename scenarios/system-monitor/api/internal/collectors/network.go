@@ -35,13 +35,7 @@ func (c *NetworkCollector) Collect(ctx context.Context) (*MetricData, error) {
 		return unsupportedMetricData(c.GetName(), "network"), nil
 	}
 	reading := collectPlatformNetwork(ctx, c)
-	values := reading.values
-	if reading.status != "" {
-		values["status"] = reading.status
-	}
-	if reading.reason != "" {
-		values["reason"] = reading.reason
-	}
+	values := networkReadingValues(reading)
 
 	return &MetricData{
 		CollectorName: c.GetName(),
@@ -53,6 +47,23 @@ func (c *NetworkCollector) Collect(ctx context.Context) (*MetricData, error) {
 			"source": reading.provenance,
 		},
 	}, nil
+}
+
+// networkReadingValues annotates a platform result without assuming that a
+// failed native probe allocated its values map. Some Darwin/Windows probe
+// failures intentionally return only status and reason.
+func networkReadingValues(reading platformNetworkReading) map[string]interface{} {
+	values := reading.values
+	if values == nil {
+		values = make(map[string]interface{})
+	}
+	if reading.status != "" {
+		values["status"] = reading.status
+	}
+	if reading.reason != "" {
+		values["reason"] = reading.reason
+	}
+	return values
 }
 
 // getTCPConnections returns the number of TCP connections

@@ -139,7 +139,8 @@ describe('operator feedback surfaces', () => {
   it('renders stale connection age and calls manual refresh', () => {
     const refresh = vi.fn();
     render(<ConnectionStatusBanner isStale lastSuccessfulFetch={new Date(Date.now() - 65000)} onRefresh={refresh} />);
-    expect(screen.getByText(/Data may be outdated/)).toBeInTheDocument();
+    expect(screen.getByText(/Showing the last reading/)).toBeInTheDocument();
+    expect(screen.getByText(/Retrying every 15 seconds \(attempt 0\); reconnecting automatically/)).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Refresh Now' }));
     expect(refresh).toHaveBeenCalledOnce();
     const { container } = render(<ConnectionStatusBanner isStale={false} lastSuccessfulFetch={null} onRefresh={refresh} />);

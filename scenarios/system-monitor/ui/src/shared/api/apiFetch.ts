@@ -220,6 +220,7 @@ function buildConnectCall(rawPath: string, options?: RequestInit): ConnectCall |
   const method = (options?.method ?? 'GET').toUpperCase();
 
   const metrics = '/vrooli.system_monitor.v1.metrics.MetricsService';
+  const deviceGraph = '/vrooli.system_monitor.v1.devicegraph.DeviceGraphService';
   const settings = '/vrooli.system_monitor.v1.settings.SettingsService';
   const reports = '/vrooli.system_monitor.v1.reports.ReportsService';
   const capacity = '/vrooli.system_monitor.v1.capacity.CapacityService';
@@ -228,7 +229,11 @@ function buildConnectCall(rawPath: string, options?: RequestInit): ConnectCall |
 
   switch (path) {
     case '/metrics/current':
+      if (url.searchParams.has('node')) return null;
       return { procedure: `${metrics}/GetCurrentMetrics`, body: { fresh: boolParam(url.searchParams.get('fresh')) }, unwrap: field('metrics') };
+    case '/metrics/devices':
+      if (url.searchParams.has('node')) return null;
+      return { procedure: `${deviceGraph}/GetDeviceGraph`, body: {}, unwrap: field('graph') };
     case '/metrics/detailed':
       return { procedure: `${metrics}/GetDetailedMetrics`, body: {}, unwrap: field('metrics') };
     case '/metrics/processes':

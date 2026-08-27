@@ -25,7 +25,19 @@ func ProtoJSON(w http.ResponseWriter, msg proto.Message) error {
 }
 
 func ProtoJSONWithStatus(w http.ResponseWriter, status int, msg proto.Message) error {
-	payload, err := protojson.MarshalOptions{UseProtoNames: true}.Marshal(msg)
+	return protoJSONWithStatus(w, status, msg, true)
+}
+
+// ProtoJSONCamel writes the REST-compatible lowerCamelCase form. Connect
+// clients and the generated TypeScript protobuf parser use this spelling;
+// REST endpoints that feed those clients must not silently downgrade every
+// metric field to its snake_case proto name.
+func ProtoJSONCamel(w http.ResponseWriter, msg proto.Message) error {
+	return protoJSONWithStatus(w, http.StatusOK, msg, false)
+}
+
+func protoJSONWithStatus(w http.ResponseWriter, status int, msg proto.Message, useProtoNames bool) error {
+	payload, err := protojson.MarshalOptions{UseProtoNames: useProtoNames}.Marshal(msg)
 	if err != nil {
 		return err
 	}

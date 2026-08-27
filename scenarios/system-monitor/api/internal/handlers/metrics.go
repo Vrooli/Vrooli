@@ -5,13 +5,22 @@ package handlers
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log/slog"
 	"net/http"
+	"os"
+	"runtime"
 	"strconv"
+	"strings"
 	"time"
 
 	"connectrpc.com/connect"
+	"google.golang.org/protobuf/encoding/protojson"
+
+	"github.com/vrooli/api-core/operatorsession"
+	"github.com/vrooli/nodeclient"
 	metricspb "github.com/vrooli/vrooli/packages/proto/gen/go/system-monitor/v1/metrics"
+	registryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/registry"
 
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/apierrors"
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/config"
@@ -25,6 +34,7 @@ type MetricsHandler struct {
 	log        *slog.Logger
 	config     *config.Config
 	monitorSvc MonitorQuerier
+	bridge     *nodeclient.Client
 }
 
 // NewMetricsHandler creates a new metrics handler
@@ -33,8 +43,32 @@ func NewMetricsHandler(cfg *config.Config, monitorSvc MonitorQuerier, log *slog.
 		log:        log,
 		config:     cfg,
 		monitorSvc: monitorSvc,
+		bridge: nodeclient.New(nodeclient.Config{
+			Token:         firstNonEmpty(os.Getenv("VROOLI_BRIDGE_API_TOKEN"), os.Getenv("VROOLI_API_TOKEN")),
+			TokenProvider: resolveLocalOwnerToken,
+		}),
 	}
 }
+
+// resolveLocalOwnerToken lets an installed local Vrooli app use the enrolled
+// operator session without copying a long-lived Bridge credential into its
+// environment. The node client calls this only when no explicit compatibility
+// token is configured, and requests a fresh short-lived session per operation.
+func resolveLocalOwnerToken(_ context.Context) (string, error) {
+	store, err := operatorsession.DefaultFileStore()
+	if err != nil {
+		return "", nil
+	}
+	resolution, err := (operatorsession.LocalResolver{Store: store}).Resolve()
+	if err != nil || strings.TrimSpace(resolution.Token) == "" {
+		return "", nil
+	}
+	return operatorsession.LocalSessionScheme + " " + resolution.Token, nil
+}
+
+// SetNodeClient replaces the Bridge transport for focused handler tests and
+// controlled embeddings. Production uses the shared nodeclient above.
+func (h *MetricsHandler) SetNodeClient(client *nodeclient.Client) { h.bridge = client }
 
 // GetCurrentMetrics handles the typed Connect-RPC metrics snapshot contract.
 func (h *MetricsHandler) GetCurrentMetrics(ctx context.Context, req *connect.Request[metricspb.GetCurrentMetricsRequest]) (*connect.Response[metricspb.GetCurrentMetricsResponse], error) {
@@ -147,6 +181,10 @@ func (h *MetricsHandler) GetDiskDetail(ctx context.Context, _ *connect.Request[m
 // HandleGetCurrentMetrics handles GET /api/v1/metrics/current.
 func (h *MetricsHandler) HandleGetCurrentMetrics(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
+	if nodeID := strings.TrimSpace(r.URL.Query().Get("node")); nodeID != "" {
+		h.handleRemoteCurrentMetrics(w, r, nodeID)
+		return
+	}
 
 	fresh := r.URL.Query().Get("fresh")
 	var (
@@ -165,6 +203,141 @@ func (h *MetricsHandler) HandleGetCurrentMetrics(w http.ResponseWriter, r *http.
 
 	httputil.SafeProtoJSON(w, h.log, r, convert.MetricsResponseToProto(metrics))
 }
+
+// HandleGetMachines exposes the same provider-neutral readiness facts used by
+// other target surfaces. The local machine is implicit; Bridge nodes are
+// listed from the durable registry with freshness already computed by Bridge.
+func (h *MetricsHandler) HandleGetMachines(w http.ResponseWriter, r *http.Request) {
+	if h.bridge == nil {
+		http.Error(w, "Bridge client is unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	nodes, err := h.bridge.List(r.Context(), 5*time.Second)
+	if err != nil {
+		h.handleNodeClientError(w, r, err)
+		return
+	}
+	result := make([]machineView, 0, len(nodes)+1)
+	result = append(result, machineView{ID: "", Name: "This machine", OS: runtimeOS(), Arch: runtimeArch(), Online: true, HeartbeatFresh: true, Dispatchable: true, Status: "local"})
+	for _, node := range nodes {
+		if node == nil {
+			continue
+		}
+		result = append(result, machineView{
+			ID: node.GetId(), Name: firstNonEmpty(node.GetName(), node.GetId()), OS: node.GetOs(), Arch: node.GetArch(),
+			Online: node.GetOnline(), HeartbeatFresh: node.GetHeartbeatFresh(), HeartbeatAgeSeconds: node.GetHeartbeatAgeSeconds(),
+			Dispatchable: node.GetDispatchable(), Status: node.GetStatus().String(), Grant: grantSummary(node.GetScopes()), Scopes: append([]string(nil), node.GetScopes()...), Readiness: nodeReadiness(node),
+		})
+	}
+	_ = httputil.JSON(w, result)
+}
+
+type machineView struct {
+	ID                  string           `json:"id"`
+	Name                string           `json:"name"`
+	OS                  string           `json:"os,omitempty"`
+	Arch                string           `json:"arch,omitempty"`
+	Online              bool             `json:"online"`
+	HeartbeatFresh      bool             `json:"heartbeat_fresh"`
+	HeartbeatAgeSeconds int64            `json:"heartbeat_age_seconds,omitempty"`
+	Dispatchable        bool             `json:"dispatchable"`
+	Status              string           `json:"status"`
+	Grant               string           `json:"grant,omitempty"`
+	Scopes              []string         `json:"scopes,omitempty"`
+	Readiness           []map[string]any `json:"readiness,omitempty"`
+}
+
+// grantSummary is the operator-facing form of a node's concrete scopes. Keep
+// the raw scopes beside it for audit, but make the common permission level
+// legible in product controls without requiring an operator to parse scope
+// syntax.
+func grantSummary(scopes []string) string {
+	hasRead, hasWrite, hasDestructive := false, false, false
+	for _, raw := range scopes {
+		parts := strings.SplitN(strings.ToLower(strings.TrimSpace(raw)), ":", 2)
+		if len(parts) != 2 {
+			continue
+		}
+		switch parts[1] {
+		case "read", "*":
+			hasRead = true
+		case "write":
+			hasWrite = true
+		case "destructive":
+			hasDestructive = true
+		}
+	}
+	switch {
+	case hasDestructive:
+		return "Full control, including destructive actions"
+	case hasWrite:
+		return "Read and operate; destructive actions withheld"
+	case hasRead:
+		return "Read only; changes are not permitted"
+	default:
+		return "No remote actions granted"
+	}
+}
+
+func nodeReadiness(node *registryv1.Node) []map[string]any {
+	return []map[string]any{
+		{"identity": "registry_record", "passed": node.GetRegistryRecordPresent()},
+		{"identity": "heartbeat_fresh", "passed": node.GetHeartbeatFresh()},
+		{"identity": "channel_held", "passed": node.GetChannelHeld()},
+		{"identity": "protocol_compatible", "passed": node.GetProtocolCompatible()},
+		{"identity": "dispatchable", "passed": node.GetDispatchable()},
+	}
+}
+
+func (h *MetricsHandler) handleRemoteCurrentMetrics(w http.ResponseWriter, r *http.Request, nodeID string) {
+	if h.bridge == nil {
+		http.Error(w, "Bridge client is unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	args := []string{"--json"}
+	if raw := r.URL.Query().Get("fresh"); raw == "1" || raw == "true" {
+		args = append(args, "--fresh")
+	}
+	response, err := h.bridge.Call(r.Context(), nodeclient.CallRequest{
+		NodeID: nodeID, Scenario: "system-monitor", Command: "system-monitor metrics current", Args: args,
+		Timeout: 8 * time.Second, MaxResponse: 2 << 20,
+	})
+	if err != nil {
+		h.handleNodeClientError(w, r, err)
+		return
+	}
+	if response.Outcome != 1 {
+		h.handleNodeClientError(w, r, fmt.Errorf("remote metrics failed: %s", firstNonEmpty(response.Reason, "unknown remote failure")))
+		return
+	}
+	var envelope metricspb.GetCurrentMetricsResponse
+	if err := protojson.Unmarshal(response.Data, &envelope); err == nil && envelope.GetMetrics() != nil {
+		httputil.SafeProtoJSONCamel(w, h.log, r, envelope.GetMetrics())
+		return
+	}
+	var metrics metricspb.MetricsResponse
+	if err := protojson.Unmarshal(response.Data, &metrics); err != nil {
+		h.handleNodeClientError(w, r, fmt.Errorf("decode remote metrics: %w", err))
+		return
+	}
+	httputil.SafeProtoJSONCamel(w, h.log, r, &metrics)
+}
+
+func (h *MetricsHandler) handleNodeClientError(w http.ResponseWriter, r *http.Request, err error) {
+	httputil.HandleError(w, h.log, r, apierrors.Unavailable("remote node"))
+}
+
+func firstNonEmpty(values ...string) string {
+	for _, value := range values {
+		if strings.TrimSpace(value) != "" {
+			return value
+		}
+	}
+	return ""
+}
+
+func runtimeOS() string   { return runtime.GOOS }
+func runtimeArch() string { return runtime.GOARCH }
 
 // HandleGetPressureSnapshot handles GET /api/v1/metrics/pressure. It is a
 // plain JSON operational surface because pressure is host evidence, not part

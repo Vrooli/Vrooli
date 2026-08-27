@@ -29,6 +29,12 @@ func buildRouter(cfg *config.Config, health *handlers.HealthHandler, metrics *ha
 	// external supervisors; the versioned route remains an API alias.
 	r.HandleFunc("/health", health.Handle)
 	r.HandleFunc("GET /api/v1/health", health.Handle)
+	r.HandleFunc("GET /api/v1/machines", metrics.HandleGetMachines)
+	r.HandleFunc("GET /api/v1/metrics/devices", deviceGraph.HandleGetDeviceGraph)
+	// Remote machine selection uses the REST query form so the node id can
+	// remain a transport concern of the system-monitor API. Local metrics still
+	// use the canonical Connect route mounted above.
+	r.HandleFunc("GET /api/v1/metrics/current", metrics.HandleGetCurrentMetrics)
 	r.HandleFunc("GET /api/v1/metrics/pressure", metrics.HandleGetPressureSnapshot)
 	// Documented in docs/reference/api-endpoints.md and implemented by
 	// HandleGetMetricsTimeline, but never mounted — the endpoint 404'd while

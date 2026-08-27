@@ -11,6 +11,78 @@
  *      treatment — so the state survives greyscale and colour-blindness.
  */
 
+.device-graph-panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+}
+
+.device-graph-panel__header,
+.device-graph-panel__device,
+.device-graph-panel__readings div,
+.device-graph-panel__rungs li {
+  display: flex;
+  align-items: baseline;
+  gap: var(--spacing-sm);
+}
+
+.device-graph-panel__header {
+  justify-content: space-between;
+  flex-wrap: wrap;
+}
+
+.device-graph-panel__header h2 {
+  margin: 0;
+}
+
+.device-graph-panel__list {
+  display: grid;
+  gap: var(--spacing-sm);
+}
+
+.device-graph-panel__device {
+  flex-direction: column;
+  align-items: stretch;
+  padding: var(--spacing-sm) 0;
+  border-top: 1px solid var(--color-border);
+}
+
+.device-graph-panel__readings,
+.device-graph-panel__rungs {
+  display: grid;
+  gap: 0.25rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.device-graph-panel__readings div {
+  justify-content: space-between;
+}
+
+.device-graph-panel__readings dt,
+.device-graph-panel__readings dd {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+}
+
+.device-graph-panel__readings dd,
+.device-graph-panel__rungs strong {
+  color: var(--color-primary);
+}
+
+.device-graph-panel__rungs li {
+  flex-wrap: wrap;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+}
+
+.device-graph-panel__rungs li small {
+  flex-basis: 100%;
+  color: var(--color-text-muted);
+}
+
 /* ═══════════════════════════════════════════════════════════
    CARD SHELL
    ═══════════════════════════════════════════════════════════ */
@@ -70,6 +142,36 @@
     transparent 2px 6px
   );
   opacity: 0.7;
+}
+
+/* The machine selector is a scope control, so keep its grant and the linking
+   action visually attached to it instead of hiding them in another surface. */
+.machine-header-control {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--spacing-xs);
+}
+
+.machine-header-control__grant {
+  max-width: 18rem;
+  color: var(--color-text-muted);
+  font-size: 0.7rem;
+}
+
+.machine-header-control__add {
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+  padding: 0.35rem 0.55rem;
+  color: var(--color-primary);
+  background: transparent;
+  font-size: 0.72rem;
+  cursor: pointer;
+}
+
+.machine-header-control__add:hover,
+.machine-header-control__add:focus-visible {
+  background: var(--color-primary-muted);
 }
 
 .readout-card[data-severity='critical'] {

@@ -39,6 +39,13 @@ export type {
 } from '@vrooli/proto-types/system-monitor/v1/metrics/metrics_pb';
 
 export type {
+  Graph as DeviceGraph,
+  Device as GraphDevice,
+  Subsystem as GraphSubsystem,
+  RungState,
+} from '@vrooli/proto-types/system-monitor/v1/devicegraph/devicegraph_pb';
+
+export type {
   Investigation,
   InvestigationStep,
   InvestigationFinding,
@@ -114,6 +121,21 @@ export interface APIResponse<T> {
   data?: T;
   error?: APIError;
   status: number;
+}
+
+export interface Machine {
+  id: string;
+  name: string;
+  os?: string;
+  arch?: string;
+  online: boolean;
+  heartbeat_fresh: boolean;
+  heartbeat_age_seconds?: number;
+  dispatchable: boolean;
+  status: string;
+  grant?: string;
+  scopes?: string[];
+  readiness?: Array<{ identity: string; passed: boolean; detail?: string; recovery_action?: string }>;
 }
 
 /** Terminal statuses for investigations — lowercase strings matching the API contract. */

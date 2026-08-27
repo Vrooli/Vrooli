@@ -6,15 +6,24 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"reflect"
+	"strings"
 	"testing"
 	"time"
 
 	"connectrpc.com/connect"
+	"github.com/vrooli/nodeclient"
 	metricspb "github.com/vrooli/vrooli/packages/proto/gen/go/system-monitor/v1/metrics"
+	registryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/registry"
+	registryconnect "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/registry/registry_v1connect"
+	relayv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/relay"
+	relayconnect "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/relay/relayv1connect"
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/config"
 	handlermocks "github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/handlers/mocks"
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/models"
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/testutil"
+	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 func TestGetCurrentMetrics_Success(t *testing.T) {
@@ -105,6 +114,81 @@ func TestGetCurrentMetrics_WriteError_NoPanic(t *testing.T) {
 
 	// This should not panic even though Write returns an error.
 	handler.HandleGetCurrentMetrics(w, req)
+}
+
+type machineRegistryServer struct {
+	registryconnect.UnimplementedNodeRegistryServiceHandler
+}
+
+func (machineRegistryServer) ListNodes(context.Context, *connect.Request[registryv1.ListNodesRequest]) (*connect.Response[registryv1.ListNodesResponse], error) {
+	return connect.NewResponse(&registryv1.ListNodesResponse{Nodes: []*registryv1.Node{{
+		Id: "mac-node", Name: "Mac mini", Os: "darwin", Arch: "amd64", Online: true,
+		HeartbeatFresh: true, ChannelHeld: true, ProtocolCompatible: true, Dispatchable: true,
+		Scopes: []string{"system-monitor:read", "system-monitor:write"},
+		Status: registryv1.NodeStatus_NODE_STATUS_ONLINE, LastSeenAt: timestamppb.Now(),
+	}}}), nil
+}
+
+type remoteMetricsRelayServer struct {
+	command string
+	args    []string
+}
+
+func (s *remoteMetricsRelayServer) Call(_ context.Context, request *connect.Request[relayv1.RelayCallRequest]) (*connect.Response[relayv1.RelayCallResponse], error) {
+	s.command = request.Msg.GetCommand()
+	s.args = append([]string(nil), request.Msg.GetArgs()...)
+	payload, err := protojson.Marshal(&metricspb.GetCurrentMetricsResponse{Metrics: &metricspb.MetricsResponse{CpuUsage: 12.5}})
+	if err != nil {
+		return nil, err
+	}
+	return connect.NewResponse(&relayv1.RelayCallResponse{Outcome: relayv1.RelayCallOutcome_RELAY_CALL_OUTCOME_COMPLETED, Data: payload}), nil
+}
+
+func TestRemoteMetricsAndMachinesUseSharedNodeClient(t *testing.T) {
+	registryPath, registryHandler := registryconnect.NewNodeRegistryServiceHandler(machineRegistryServer{})
+	relayServer := &remoteMetricsRelayServer{}
+	relayPath, relayHandler := relayconnect.NewRelayServiceHandler(relayServer)
+	bridge := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case strings.HasPrefix(r.URL.Path, registryPath):
+			registryHandler.ServeHTTP(w, r)
+		case strings.HasPrefix(r.URL.Path, relayPath):
+			relayHandler.ServeHTTP(w, r)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer bridge.Close()
+
+	client := nodeclient.New(nodeclient.Config{BridgeURL: bridge.URL})
+	handler := NewMetricsHandler(&config.Config{}, handlermocks.NewMonitorQuerier(), slog.Default())
+	handler.SetNodeClient(client)
+
+	machines := httptest.NewRecorder()
+	handler.HandleGetMachines(machines, httptest.NewRequest(http.MethodGet, "/api/v1/machines", nil))
+	testutil.AssertStatusCode(t, machines.Code, http.StatusOK)
+	if !strings.Contains(machines.Body.String(), "mac-node") {
+		t.Fatalf("machines response = %s", machines.Body.String())
+	}
+	if !strings.Contains(machines.Body.String(), "Read and operate; destructive actions withheld") {
+		t.Fatalf("machines response omitted the operator-facing grant: %s", machines.Body.String())
+	}
+	if !strings.Contains(machines.Body.String(), "system-monitor:read") || !strings.Contains(machines.Body.String(), "system-monitor:write") {
+		t.Fatalf("machines response omitted concrete grant scopes: %s", machines.Body.String())
+	}
+
+	metrics := httptest.NewRecorder()
+	handler.HandleGetCurrentMetrics(metrics, httptest.NewRequest(http.MethodGet, "/api/v1/metrics/current?node=mac-node&fresh=1", nil))
+	testutil.AssertStatusCode(t, metrics.Code, http.StatusOK)
+	if !strings.Contains(metrics.Body.String(), "12.5") {
+		t.Fatalf("remote metrics response = %s", metrics.Body.String())
+	}
+	if got, want := relayServer.command, "system-monitor metrics current"; got != want {
+		t.Fatalf("relay command = %q, want %q", got, want)
+	}
+	if got, want := relayServer.args, []string{"--json", "--fresh"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("relay args = %#v, want %#v", got, want)
+	}
 }
 
 func TestGetMetricsTimeline_Success(t *testing.T) {

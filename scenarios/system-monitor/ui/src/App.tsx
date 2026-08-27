@@ -3,8 +3,10 @@ import { lazy, Suspense, useEffect, useState } from 'react';
 import type { ErrorInfo } from 'react';
 import { BrowserRouter, Routes, Route, useNavigate } from 'react-router-dom';
 import { getProxyInfo } from '@vrooli/api-base';
+import { apiFetch } from './shared/api/apiFetch';
 import { Header } from './shared/components/Header';
 import { MetricsGrid } from './features/metrics/components/MetricsGrid';
+import { DeviceGraphPanel } from './features/metrics/components/DeviceGraphPanel';
 import { AlertPanel } from './shared/components/AlertPanel';
 import { ErrorBoundary } from './shared/components/ErrorBoundary';
 import { ToastProvider } from './shared/components/ToastProvider';
@@ -17,7 +19,7 @@ import { useInvestigationAgents } from './features/investigations/hooks/useInves
 import { useScriptExecution } from './features/investigations/hooks/useScriptExecution';
 import { IncidentTimeline, type TimelineEntry } from './features/monitoring/components/IncidentTimeline';
 import { TimeRangeProvider, useTimeRange } from './shared/time/TimeRangeContext';
-import type { DashboardState, CardType, PanelType } from './types';
+import type { DashboardState, CardType, PanelType, Machine } from './types';
 import { timestampDate } from '@bufbuild/protobuf/wkt';
 import './styles/tokens.css';
 import './styles/migrated-inline.css';
@@ -93,10 +95,32 @@ function AppContent() {
   });
 
   const [systemSettingsModalOpen, setSystemSettingsModalOpen] = useState(false);
+  const [machines, setMachines] = useState<Machine[]>([]);
+  const [selectedMachineID, setSelectedMachineID] = useState('');
   const { range, paused } = useTimeRange();
+  const selectedMachine = machines.find(machine => machine.id === selectedMachineID);
+
+  const openAddMachine = () => {
+    // Bridge owns pairing approval and the pending-request words. Keep this
+    // entry in the machine control so an operator never has to leave the
+    // monitoring context to begin linking another machine.
+    window.open('/apps/vrooli-bridge/proxy/', '_blank', 'noopener,noreferrer');
+  };
+
+  useEffect(() => {
+    let mounted = true;
+    void apiFetch<Machine[]>('/machines').then(next => {
+      if (mounted) setMachines(next);
+    }).catch(() => {
+      // Machine selection is additive; the local dashboard remains usable if
+      // Bridge discovery is unavailable.
+    });
+    return () => { mounted = false; };
+  }, []);
 
   const {
     metrics,
+    deviceGraph,
     detailedMetrics,
     processMonitorData,
     infrastructureData,
@@ -107,11 +131,12 @@ function AppContent() {
     healthStatus,
     healthError,
     isStale,
+    retryAttempt,
     lastSuccessfulFetch,
     toggleMonitoring,
     refreshHealth,
     refresh
-  } = useSystemMonitor(range.seconds, { enabled: !paused });
+  } = useSystemMonitor(range.seconds, { enabled: !paused, node: selectedMachineID || undefined });
 
   const {
     agents,
@@ -237,12 +262,39 @@ function AppContent() {
           onToggleMonitoring={toggleMonitoring}
           onRefreshHealth={refreshHealth}
           isLoadingHealth={isLoading}
+          machines={machines}
+          selectedMachineID={selectedMachineID}
+          onSelectMachine={setSelectedMachineID}
+          onAddMachine={openAddMachine}
+          terminalDisabledReason={selectedMachineID ? 'System output is local to this computer; remote terminal actions are not granted by system-monitor.' : undefined}
         />
 
-        <ConnectionStatusBanner isStale={isStale} lastSuccessfulFetch={lastSuccessfulFetch} onRefresh={refresh} />
+        <ConnectionStatusBanner
+          isStale={isStale}
+          lastSuccessfulFetch={lastSuccessfulFetch}
+          onRefresh={refresh}
+          retryIntervalSeconds={selectedMachineID ? 15 : 5}
+          retryAttempt={retryAttempt}
+        />
 
         <main className="main-content">
           <div className="container" data-sm-style="sm-style-a8abd88c52">
+            {selectedMachineID && selectedMachine ? (
+              <section className="card machine-identity-strip" aria-label="Selected machine identity">
+                <div>
+                  <span className="eyebrow">Remote machine</span>
+                  <h2>{selectedMachine.name}</h2>
+                  <p className="text-sm text-muted">
+                    {selectedMachine.os || 'unknown OS'} / {selectedMachine.arch || 'unknown architecture'} · heartbeat {selectedMachine.heartbeat_fresh ? 'fresh' : 'stale'}
+                    {selectedMachine.heartbeat_age_seconds !== undefined ? ` · ${selectedMachine.heartbeat_age_seconds}s ago` : ''}
+                  </p>
+                </div>
+                <div className="machine-identity-strip__status" role="status">
+                  <strong>{selectedMachine.dispatchable ? 'Telemetry active' : 'Telemetry unavailable'}</strong>
+                  <span>{selectedMachine.dispatchable ? 'Remote values refresh every 15 seconds.' : 'This target is not dispatchable; no remote values are shown.'}</span>
+                </div>
+              </section>
+            ) : null}
             <Suspense fallback={<RouteFallback />}>
             <Routes>
               <Route
@@ -274,12 +326,18 @@ function AppContent() {
                       </ErrorBoundary>
                     </section>
 
+                    <section className="mb-lg">
+                      <ErrorBoundary fallback={<div className="card">Device graph failed to render.</div>}>
+                        <DeviceGraphPanel graph={deviceGraph} error={error?.error} />
+                      </ErrorBoundary>
+                    </section>
+
                     {/* Alert Panel */}
                     <section className="mb-lg">
                       <AlertPanel alerts={dashboardState.alerts} />
                     </section>
 
-                    {showDeferredDashboard ? (
+                    {showDeferredDashboard && !selectedMachineID ? (
                       <>
                         {/* Infrastructure Monitor Panel */}
                         <section className="mb-lg">
