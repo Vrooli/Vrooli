@@ -1,19 +1,4 @@
 {
-  "name": "swarm-manager-ui",
-  "version": "1.0.0",
-  "description": "React + Vite front-end for Swarm Manager",
-  "private": true,
-  "type": "module",
-  "scripts": {
-    "dev": "vrooli lifecycle protect -- vite",
-    "build": "vite build",
-    "build:profile": "vite build --mode profile",
-    "preview": "vite preview",
-    "lint": "eslint .",
-    "lint:fix": "eslint . --fix",
-    "type-check": "tsc --noEmit",
-    "test": "vitest run"
-  },
   "dependencies": {
     "@bufbuild/protobuf": "^2.11.0",
     "@bufbuild/protovalidate": "^1.1.1",
@@ -28,6 +13,7 @@
     "@vrooli/audio-capture-browser": "file:../../../packages/audio-capture-browser",
     "@vrooli/iframe-bridge": "file:../../../packages/iframe-bridge",
     "@vrooli/proto-types": "file:../../../packages/proto/gen/typescript",
+    "@vrooli/react-component-library": "file:../../../packages/react-component-library",
     "@xyflow/react": "^12.10.2",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.1",
@@ -47,6 +33,7 @@
     "zod": "^3.23.8",
     "zustand": "^5.0.10"
   },
+  "description": "React + Vite front-end for Swarm Manager",
   "devDependencies": {
     "@eslint/js": "^9.39.2",
     "@testing-library/jest-dom": "^6.6.3",
@@ -76,5 +63,19 @@
     "vite": "^5.4.6",
     "vitest": "^2.1.4"
   },
-  "packageManager": "pnpm@9.12.1"
+  "name": "swarm-manager-ui",
+  "packageManager": "pnpm@9.12.1",
+  "private": true,
+  "scripts": {
+    "build": "vite build",
+    "build:profile": "vite build --mode profile",
+    "dev": "vrooli lifecycle protect -- vite",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "type-check": "tsc --noEmit"
+  },
+  "type": "module",
+  "version": "1.0.0"
 }

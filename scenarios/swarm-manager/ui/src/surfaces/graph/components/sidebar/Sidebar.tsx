@@ -5,7 +5,9 @@
  * Manages sidebar UI state via persisted reducer state.
  */
 
-import { useCallback, useState, type ChangeEvent, type HTMLAttributes, type Ref } from "react";
+import { useCallback, useState, type ChangeEvent, type CSSProperties, type Ref } from "react";
+import { ResizeHandle } from "@vrooli/react-component-library/ResizeHandle/1.0.0";
+import type { ResizeSeparatorProps } from "@vrooli/react-component-library/useResizablePanel/1.0.0";
 import { ListChecks, Plus } from "lucide-react";
 import { cn } from "../../../../lib/utils";
 import { SearchBar } from "../../../../components/ui/search-bar";
@@ -41,8 +43,8 @@ interface SidebarProps {
   onOpenCommandPost?: () => void;
   onOpenAgentSession?: (sessionId: string) => void;
   onQuickCapture?: () => void;
-  desktopWidth?: number;
-  resizeHandleProps?: HTMLAttributes<HTMLDivElement>;
+  desktopStyle?: CSSProperties;
+  separatorProps?: ResizeSeparatorProps;
   /** Optional ref to the <aside> element. Used by parents to imperatively
    *  drive the width during drag without re-rendering React. */
   asideRef?: Ref<HTMLElement>;
@@ -55,8 +57,8 @@ export function Sidebar({
   onOpenCommandPost,
   onOpenAgentSession,
   onQuickCapture,
-  desktopWidth,
-  resizeHandleProps,
+  desktopStyle,
+  separatorProps,
   asideRef,
 }: SidebarProps) {
   const sidebarCollapsed = useGraphUIStore((s) => s.sidebarCollapsed);
@@ -137,7 +139,7 @@ export function Sidebar({
         )}
         style={{
           touchAction: "manipulation",
-          width: desktopWidth,
+          ...desktopStyle,
         }}
         data-testid="sidebar"
       >
@@ -330,14 +332,11 @@ export function Sidebar({
           )}
         </div>
       </aside>
-      {resizeHandleProps && (
-        <div
-          {...resizeHandleProps}
-          className={cn(
-            "hidden w-1.5 shrink-0 cursor-col-resize border-r border-slate-800 bg-slate-950 transition-colors hover:bg-cyan-500/20 md:block",
-            resizeHandleProps.className,
-          )}
-          data-testid="sidebar-resize-handle"
+      {separatorProps && (
+        <ResizeHandle
+          separatorProps={separatorProps}
+          testId="sidebar-resize-handle"
+          className="hidden md:flex"
         />
       )}
       <CreateGoalDialog

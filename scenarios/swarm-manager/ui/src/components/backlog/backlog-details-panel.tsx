@@ -8,7 +8,7 @@
  */
 
 import { useState, useEffect } from "react";
-import { MarkdownRenderer } from "../markdown/MarkdownRenderer";
+import { MarkdownRenderer } from "@vrooli/react-component-library/markdown-renderer/0/0.3.2";
 import {
   ArrowRightLeft,
   ArrowUpRight,

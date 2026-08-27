@@ -38,7 +38,7 @@ import { GOAL_LENSES } from "../components/detail/lens-options";
 import { ConfirmDialog } from "../components/ui/confirm-dialog";
 import { Drawer } from "../components/ui/drawer";
 import { Input } from "../components/ui/input";
-import { MarkdownRenderer } from "../components/markdown/MarkdownRenderer";
+import { MarkdownRenderer } from "@vrooli/react-component-library/markdown-renderer/0/0.3.2";
 import type { ActionMenuItem } from "../components/ui/action-menu";
 import { ErrorState } from "../components/ui/error-state";
 import { PageLoadingState } from "../components/ui/loading-states";

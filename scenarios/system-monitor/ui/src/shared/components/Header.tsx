@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { StatusIndicator } from './StatusIndicator';
 import { AgentDropdown } from './AgentDropdown';
 import { useTheme } from '../theme/ThemeProvider';
+import { MachinePicker } from '../../features/machines/components/MachinePicker';
 import type { InvestigationAgentState, Machine } from '../../types';
 import type { SystemHealthStatus } from '../../features/monitoring/hooks/useSystemMonitor';
 import { TIME_RANGE_OPTIONS, useTimeRange } from '../time/TimeRangeContext';
@@ -215,34 +216,14 @@ export const Header = ({
 
           {/* View-scope: these change WHAT THE PAGE SHOWS. */}
           <div className="header-group">
-            <div className="machine-header-control">
-              {machines.length > 0 && onSelectMachine ? (
-                <label className="history-window-control">
-                  <span className="sr-only">Machine</span>
-                  <select
-                    aria-label="Machine"
-                    value={selectedMachineID}
-                    onChange={event => { onSelectMachine(event.target.value); }}
-                  >
-                    {machines.map(machine => (
-                      <option key={machine.id} value={machine.id}>
-                        {machine.name}{machine.id && !machine.dispatchable ? ' (unavailable)' : ''}
-                      </option>
-                  ))}
-                </select>
-              </label>
-              ) : null}
-              {machines.length > 0 ? (
-                <span className="machine-header-control__grant" data-testid="machine-grant">
-                  {machines.find(machine => machine.id === selectedMachineID)?.grant ?? 'Local machine access'}
-                </span>
-              ) : null}
-              {onAddMachine ? (
-                <button type="button" className="machine-header-control__add" onClick={onAddMachine} data-testid="add-machine">
-                  Add machine
-                </button>
-              ) : null}
-            </div>
+            {machines.length > 0 && onSelectMachine ? (
+              <MachinePicker
+                machines={machines}
+                selectedMachineID={selectedMachineID}
+                onSelectMachine={onSelectMachine}
+                onAddMachine={onAddMachine}
+              />
+            ) : null}
             <label className="history-window-control">
               <span className="sr-only">Shared time range</span>
               <select

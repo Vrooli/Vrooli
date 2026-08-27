@@ -2,7 +2,8 @@ import { useRef, useState } from "react";
 import type { RefObject } from "react";
 import { PanelRightClose, PanelRightOpen } from "lucide-react";
 import { Button } from "../ui/button";
-import { useResizablePanel } from "../../hooks/useResizablePanel";
+import { useResizablePanel } from "@vrooli/react-component-library/useResizablePanel/1.0.0";
+import { ResizeHandle } from "@vrooli/react-component-library/ResizeHandle/1.0.0";
 import { cn } from "../../lib/utils";
 import type { SessionInspectorSection } from "./session-view-model";
 import type { SessionSectionConfig } from "./SessionSectionTabs";
@@ -29,16 +30,16 @@ export function SessionInspector({
 }: SessionInspectorProps) {
   const inspectorRef = useRef<HTMLElement>(null);
   const [activeSection, setActiveSection] = useState<SessionInspectorSection>(defaultSection);
-  const { size, isResizing, resizeHandleProps } = useResizablePanel({
+  const { separatorProps, panelProps } = useResizablePanel({
     containerRef,
-    targetRef: inspectorRef,
-    minSize: 280,
-    maxSize: 520,
+    panelRef: inspectorRef,
+    edge: "start",
+    min: 280,
+    max: 520,
     defaultSize: 340,
-    adjacentMinSize: 480,
-    handleWidth: 6,
+    adjacentMin: 480,
     storageKey: INSPECTOR_STORAGE_KEY,
-    resizeEdge: "left",
+    panelName: "Inspector",
   });
 
   if (isCollapsed) {
@@ -60,25 +61,22 @@ export function SessionInspector({
 
   return (
     <>
-      <div
-        {...resizeHandleProps}
-        className={cn(
-          "w-1.5 shrink-0 cursor-col-resize bg-transparent transition-colors hover:bg-cyan-500/30",
-          presentation === "card" && "my-1 rounded-full",
-          isResizing && "bg-cyan-500/40",
-        )}
-        data-testid="session-inspector-resize-handle"
-      />
       <aside
         ref={inspectorRef}
-        style={{ width: size }}
+        {...panelProps}
+        style={panelProps.style}
         className={cn(
-          "flex h-full min-h-0 flex-col bg-slate-950/30",
+          "relative flex h-full min-h-0 flex-col bg-slate-950/30",
           presentation === "card" && "rounded-lg border border-white/10 p-3",
           presentation === "pane" && "h-full border-l border-white/10 p-3",
         )}
         data-testid="session-inspector"
       >
+        <ResizeHandle
+          separatorProps={separatorProps}
+          testId="session-inspector-resize-handle"
+          className={cn(presentation === "card" && "my-1")}
+        />
         <div className="mb-3 flex items-center justify-between gap-2">
           <h3 className="text-xs font-medium uppercase tracking-wide text-slate-400">Inspector</h3>
           <Button

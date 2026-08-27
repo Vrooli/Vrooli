@@ -128,7 +128,21 @@
   --sidebar-min-width: 16.25rem;
   --sidebar-max-width: 30rem;
   color-scheme: light;
-}
+/* rcl:tokens:begin */
+  --control-height: 2.75rem;
+  --control-height-lg: 3.25rem;
+  --control-height-sm: 2.25rem;
+  --control-padding: var(--space-sm);
+  --control-radius: var(--radius-control);
+  --control-size-icon: 40px;
+  --control-size-lg: 44px;
+  --control-size-md: 40px;
+  --control-size-sm: 36px;
+  --control-size-xl: 48px;
+  --control-size-xs: 32px;
+  --panel-padding: var(--space-md);
+  --panel-radius: var(--radius-panel);
+/* rcl:tokens:end */}
 
 :root[data-resolved-theme="dark"],
 .dark {
@@ -204,12 +218,4 @@
 .touch-target { min-height: var(--touch-target); min-width: var(--touch-target); }
 .pb-safe { padding-bottom: env(safe-area-inset-bottom, 0px); }
 .pt-safe { padding-top: env(safe-area-inset-top, 0px); }
-/* rcl:tokens:begin */
-  --control-height: 2.75rem;
-  --control-height-lg: 3.25rem;
-  --control-height-sm: 2.25rem;
-  --control-padding: var(--space-sm);
-  --control-radius: var(--radius-control);
-  --panel-padding: var(--space-md);
-  --panel-radius: var(--radius-panel);
-/* rcl:tokens:end */
+

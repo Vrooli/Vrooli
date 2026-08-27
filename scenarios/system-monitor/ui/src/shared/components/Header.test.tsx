@@ -61,7 +61,7 @@ describe('Header mobile navigation', () => {
     expect(document.activeElement).toBe(lastLink);
   });
 
-  it('shows the selected machine grant, offers add-machine, and disables local output remotely', () => {
+  it('names the machine in view, reaches linking from the picker, and disables local output remotely', () => {
     const onAddMachine = vi.fn();
     render(<Header
       unreadErrorCount={0}
@@ -76,16 +76,59 @@ describe('Header mobile navigation', () => {
       onToggleMonitoring={vi.fn().mockResolvedValue(undefined)}
       onRefreshHealth={vi.fn().mockResolvedValue(undefined)}
       isLoadingHealth={false}
-      machines={[{ id: '', name: 'This machine', online: true, heartbeat_fresh: true, dispatchable: true, status: 'local' }, { id: 'mac-node', name: 'Mac mini', online: true, heartbeat_fresh: true, dispatchable: true, status: 'online', grant: 'Read only; changes are not permitted' }]}
+      machines={[
+        { id: '', name: 'This machine', os: 'linux', arch: 'x86_64', online: true, heartbeat_fresh: true, dispatchable: true, status: 'local' },
+        { id: 'mac-node', name: 'Mac mini', os: 'darwin', arch: 'amd64', online: true, heartbeat_fresh: true, heartbeat_age_seconds: 8, dispatchable: true, status: 'online', grant: 'Read only; changes are not permitted', scopes: ['system-monitor:read'] },
+        { id: 'gone', name: 'swarminator', os: 'linux', arch: 'amd64', online: false, heartbeat_fresh: false, heartbeat_age_seconds: 639479, dispatchable: false, status: 'offline', readiness: [{ identity: 'heartbeat_fresh', passed: false }] }
+      ]}
       selectedMachineID="mac-node"
       onSelectMachine={vi.fn()}
       onAddMachine={onAddMachine}
       terminalDisabledReason="System output is local to this computer"
     />);
 
-    expect(screen.getByTestId('machine-grant')).toHaveTextContent('Read only; changes are not permitted');
+    // The trigger names the subject without being opened; a reader must never
+    // have to open a menu to learn which machine they are looking at.
+    expect(screen.getByTestId('machine-picker')).toHaveTextContent('Mac mini');
+
+    fireEvent.click(screen.getByTestId('machine-picker'));
+
+    // Reachability is stated in the picker, not as an error after choosing.
+    expect(screen.getByRole('option', { name: /Mac mini/ })).toHaveTextContent('darwin · amd64 · 8s ago');
+    expect(screen.getByRole('option', { name: /swarminator/ })).toHaveTextContent('not responding · 7d ago');
+
+    // The grant is legible before any action is offered.
+    expect(screen.getByRole('option', { name: /This machine/ })).toHaveTextContent('linux · x86_64');
+
     fireEvent.click(screen.getByTestId('add-machine'));
     expect(onAddMachine).toHaveBeenCalledOnce();
     expect(screen.getByRole('button', { name: 'System output is local to this computer' })).toBeDisabled();
+  });
+
+  it('offers linking even when the only machine is this computer', () => {
+    const onAddMachine = vi.fn();
+    render(<Header
+      unreadErrorCount={0}
+      agents={[]}
+      onStopAgent={vi.fn().mockResolvedValue(undefined)}
+      stoppingAgentIds={new Set()}
+      agentErrors={{}}
+      onToggleTerminal={vi.fn()}
+      onOpenSettings={vi.fn()}
+      healthStatus={null}
+      healthError={null}
+      onToggleMonitoring={vi.fn().mockResolvedValue(undefined)}
+      onRefreshHealth={vi.fn().mockResolvedValue(undefined)}
+      isLoadingHealth={false}
+      machines={[{ id: '', name: 'This machine', os: 'linux', arch: 'x86_64', online: true, heartbeat_fresh: true, dispatchable: true, status: 'local' }]}
+      selectedMachineID=""
+      onSelectMachine={vi.fn()}
+      onAddMachine={onAddMachine}
+    />);
+
+    fireEvent.click(screen.getByTestId('machine-picker'));
+    // A fleet of one must still reach linking from here: routing that through
+    // vrooli-bridge is the detour this control exists to remove.
+    expect(screen.getByTestId('add-machine')).toBeInTheDocument();
   });
 });

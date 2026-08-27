@@ -34,7 +34,7 @@ const STABLE_TTS = {
 // Counts how many times each message body is rendered, keyed by message id.
 const renderCounts = new Map<string, number>();
 
-vi.mock("../markdown/MarkdownRenderer", () => ({
+vi.mock("@vrooli/react-component-library/markdown-renderer/0/0.3.2", () => ({
   MarkdownRenderer: ({ content }: { content: string }) => {
     renderCounts.set(content, (renderCounts.get(content) ?? 0) + 1);
     return <div data-testid="markdown">{content}</div>;

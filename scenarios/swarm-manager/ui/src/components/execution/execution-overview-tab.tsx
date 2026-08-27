@@ -11,7 +11,7 @@ import {
   RotateCcw,
   XCircle,
 } from "lucide-react";
-import { MarkdownRenderer } from "../markdown/MarkdownRenderer";
+import { MarkdownRenderer } from "@vrooli/react-component-library/markdown-renderer/0/0.3.2";
 import { Button } from "../ui/button";
 import { EntityLink } from "../ui/entity-link";
 import { IdentityBadge } from "../ui/identity-badge";

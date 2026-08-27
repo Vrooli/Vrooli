@@ -17,7 +17,8 @@ import {
   Lock,
   MoreHorizontal,
 } from "lucide-react";
-import { useResizablePanel } from "../../hooks/useResizablePanel";
+import { useResizablePanel } from "@vrooli/react-component-library/useResizablePanel/1.0.0";
+import { ResizeHandle } from "@vrooli/react-component-library/ResizeHandle/1.0.0";
 import { EntityFileBrowser, type FileActionType, type HeaderSlotProps } from "./entity-file-browser";
 import { ErrorBoundary } from "../ui/error-boundary";
 import { ErrorState } from "../ui/error-state";
@@ -32,7 +33,6 @@ import type { BacklogFile } from "../../types";
 const MIN_FILES_PANEL_WIDTH = 240;
 const MAX_FILES_PANEL_WIDTH = 520;
 const MIN_PREVIEW_WIDTH = 320;
-const RESIZE_HANDLE_WIDTH = 8;
 
 export interface EntityFileWorkspaceProps {
   files: BacklogFile[] | undefined;
@@ -68,14 +68,14 @@ export function EntityFileWorkspace({
   // the file preview header actions. Uses state (not ref) so changes trigger re-render.
   const [headerSlotProps, setHeaderSlotProps] = useState<HeaderSlotProps | null>(null);
 
-  const { size: filesPanelWidth, isResizing, resizeHandleProps } = useResizablePanel({
+  const { isResizing, separatorProps, panelProps: filesPanelProps } = useResizablePanel({
     containerRef: workspaceRef,
-    targetRef: filesPanelRef,
-    minSize: MIN_FILES_PANEL_WIDTH,
-    maxSize: MAX_FILES_PANEL_WIDTH,
+    panelRef: filesPanelRef,
+    min: MIN_FILES_PANEL_WIDTH,
+    max: MAX_FILES_PANEL_WIDTH,
     defaultSize: 320,
-    adjacentMinSize: MIN_PREVIEW_WIDTH,
-    handleWidth: RESIZE_HANDLE_WIDTH,
+    adjacentMin: MIN_PREVIEW_WIDTH,
+    panelName: "Files",
   });
 
   const handlePreviewRetry = useCallback(() => {
@@ -172,14 +172,14 @@ export function EntityFileWorkspace({
           isResizing && "select-none",
         )}
       >
-        <div ref={filesPanelRef} className="hidden min-h-0 lg:flex lg:flex-col" style={{ width: filesPanelWidth }}>
-          <EntityFileBrowser {...fileBrowserProps} />
-        </div>
         <div
-          className="hidden lg:flex w-2 shrink-0 items-center justify-center bg-slate-900/40 border-x border-white/10 cursor-col-resize"
-          {...resizeHandleProps}
+          ref={filesPanelRef}
+          {...filesPanelProps}
+          className="relative hidden min-h-0 lg:flex lg:flex-col"
+          style={filesPanelProps.style}
         >
-          <div className="h-10 w-1 rounded-full bg-slate-700/80" />
+          <EntityFileBrowser {...fileBrowserProps} />
+          <ResizeHandle separatorProps={separatorProps} testId="entity-files-resize-handle" />
         </div>
         <div className="flex min-h-0 min-w-0 flex-1 flex-col">
           {selectedFile ? (

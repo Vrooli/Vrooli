@@ -1,7 +1,7 @@
 import { memo, useCallback, useMemo, type MouseEvent } from "react";
 import { AlertTriangle, Loader2, Volume2, VolumeX } from "lucide-react";
 import { detailPathFromNodeId } from "../../app/routes/route-paths";
-import { MarkdownRenderer, type InlineTokenResolution } from "../markdown/MarkdownRenderer";
+import { MarkdownRenderer, type InlineTokenResolution } from "@vrooli/react-component-library/markdown-renderer/0/0.3.2";
 import { cn } from "../../lib/utils";
 import type { ChatAccent, ChatDensity, ChatMessageRenderSlot, ChatMessageView } from "./chat-types";
 

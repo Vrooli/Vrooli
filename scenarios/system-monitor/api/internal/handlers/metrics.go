@@ -225,7 +225,7 @@ func (h *MetricsHandler) HandleGetMachines(w http.ResponseWriter, r *http.Reques
 		}
 		result = append(result, machineView{
 			ID: node.GetId(), Name: firstNonEmpty(node.GetName(), node.GetId()), OS: node.GetOs(), Arch: node.GetArch(),
-			Online: node.GetOnline(), HeartbeatFresh: node.GetHeartbeatFresh(), HeartbeatAgeSeconds: node.GetHeartbeatAgeSeconds(),
+			Online: node.GetOnline(), HeartbeatFresh: node.GetHeartbeatFresh(), HeartbeatAgeSeconds: heartbeatAge(node),
 			Dispatchable: node.GetDispatchable(), Status: node.GetStatus().String(), Grant: grantSummary(node.GetScopes()), Scopes: append([]string(nil), node.GetScopes()...), Readiness: nodeReadiness(node),
 		})
 	}
@@ -233,18 +233,33 @@ func (h *MetricsHandler) HandleGetMachines(w http.ResponseWriter, r *http.Reques
 }
 
 type machineView struct {
-	ID                  string           `json:"id"`
-	Name                string           `json:"name"`
-	OS                  string           `json:"os,omitempty"`
-	Arch                string           `json:"arch,omitempty"`
-	Online              bool             `json:"online"`
-	HeartbeatFresh      bool             `json:"heartbeat_fresh"`
-	HeartbeatAgeSeconds int64            `json:"heartbeat_age_seconds,omitempty"`
+	ID             string `json:"id"`
+	Name           string `json:"name"`
+	OS             string `json:"os,omitempty"`
+	Arch           string `json:"arch,omitempty"`
+	Online         bool   `json:"online"`
+	HeartbeatFresh bool   `json:"heartbeat_fresh"`
+	// A pointer, not an int with omitempty: a heartbeat that arrived this
+	// second has age 0, and `omitempty` would drop that as if the node had
+	// never reported — which reads on the UI as "no age known" for the
+	// freshest node in the fleet.
+	HeartbeatAgeSeconds *int64           `json:"heartbeat_age_seconds,omitempty"`
 	Dispatchable        bool             `json:"dispatchable"`
 	Status              string           `json:"status"`
 	Grant               string           `json:"grant,omitempty"`
 	Scopes              []string         `json:"scopes,omitempty"`
 	Readiness           []map[string]any `json:"readiness,omitempty"`
+}
+
+// heartbeatAge reports the node's heartbeat age when the registry has one.
+// Nodes that never reported return nil so a surface can say "unknown" instead
+// of presenting a fabricated zero.
+func heartbeatAge(node *registryv1.Node) *int64 {
+	if !node.GetRegistryRecordPresent() {
+		return nil
+	}
+	age := node.GetHeartbeatAgeSeconds()
+	return &age
 }
 
 // grantSummary is the operator-facing form of a node's concrete scopes. Keep

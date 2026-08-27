@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useResizablePanel } from "../hooks/useResizablePanel";
+import { useResizablePanel } from "@vrooli/react-component-library/useResizablePanel/1.0.0";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useActionMutation } from "../hooks/useActionMutation";
 import { BottomSheet } from "../components/ui/bottom-sheet";
@@ -30,7 +30,6 @@ type PromptTab = "catalog" | "viewer" | "experiments";
 const MIN_SKILLS_PANEL_WIDTH = 260;
 const MAX_SKILLS_PANEL_WIDTH = 460;
 const MIN_EDITOR_WIDTH = 480;
-const RESIZE_HANDLE_WIDTH = 8;
 
 const splitLines = (value: string) => value.replace(/\r\n/g, "\n").split("\n");
 
@@ -62,14 +61,14 @@ export function PromptsPage() {
   const [content, setContent] = useState("");
   const [comparisonVersion, setComparisonVersion] = useState<PromptSkillVersion | null>(null);
   const [markdownView, setMarkdownView] = useState<"raw" | "rendered">("raw");
-  const { size: skillsPanelWidth, isResizing, resizeHandleProps: skillsResizeHandleProps } = useResizablePanel({
+  const { isResizing, separatorProps: skillsSeparatorProps, panelProps: skillsPanelProps } = useResizablePanel({
     containerRef: workspaceRef,
-    targetRef: skillsPanelRef,
-    minSize: MIN_SKILLS_PANEL_WIDTH,
-    maxSize: MAX_SKILLS_PANEL_WIDTH,
+    panelRef: skillsPanelRef,
+    min: MIN_SKILLS_PANEL_WIDTH,
+    max: MAX_SKILLS_PANEL_WIDTH,
     defaultSize: 320,
-    adjacentMinSize: MIN_EDITOR_WIDTH,
-    handleWidth: RESIZE_HANDLE_WIDTH,
+    adjacentMin: MIN_EDITOR_WIDTH,
+    panelName: "Skills",
   });
   const [selectedExperimentId, setSelectedExperimentId] = useState("");
 	const [showMobileSkills, setShowMobileSkills] = useState(false);
@@ -223,9 +222,9 @@ export function PromptsPage() {
           <PromptEditor
             workspaceRef={workspaceRef}
             skillsPanelRef={skillsPanelRef}
-            skillsPanelWidth={skillsPanelWidth}
+            skillsPanelStyle={skillsPanelProps.style}
             isResizing={isResizing}
-            skillsResizeHandleProps={skillsResizeHandleProps}
+            skillsSeparatorProps={skillsSeparatorProps}
             skillsSidebar={
               <SkillsPanel
                 skills={skillsQuery.data ?? []}

@@ -1,7 +1,7 @@
 // DOC: docs/concepts/ARCHITECTURE.md#ui
-import { lazy, Suspense, useEffect, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useState } from 'react';
 import type { ErrorInfo } from 'react';
-import { BrowserRouter, Routes, Route, useNavigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, useNavigate, useSearchParams } from 'react-router-dom';
 import { getProxyInfo } from '@vrooli/api-base';
 import { apiFetch } from './shared/api/apiFetch';
 import { Header } from './shared/components/Header';
@@ -19,6 +19,9 @@ import { useInvestigationAgents } from './features/investigations/hooks/useInves
 import { useScriptExecution } from './features/investigations/hooks/useScriptExecution';
 import { IncidentTimeline, type TimelineEntry } from './features/monitoring/components/IncidentTimeline';
 import { TimeRangeProvider, useTimeRange } from './shared/time/TimeRangeContext';
+import { MachineIdentityStrip } from './features/machines/components/MachineIdentityStrip';
+import { LocalOnlyPanels } from './features/machines/components/LocalOnlyPanels';
+import { MachinePresenceNote } from './features/machines/components/MachinePresenceNote';
 import type { DashboardState, CardType, PanelType, Machine } from './types';
 import { timestampDate } from '@bufbuild/protobuf/wkt';
 import './styles/tokens.css';
@@ -96,9 +99,27 @@ function AppContent() {
 
   const [systemSettingsModalOpen, setSystemSettingsModalOpen] = useState(false);
   const [machines, setMachines] = useState<Machine[]>([]);
-  const [selectedMachineID, setSelectedMachineID] = useState('');
+
+  // The machine lives in the URL, not in component state. It is the subject of
+  // everything on screen, so it has to survive a reload, be reachable by Back,
+  // and be shareable: "look at what minimouse is doing" should be a link.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const selectedMachineID = searchParams.get('machine') ?? '';
+  const setSelectedMachineID = useCallback((machineID: string) => {
+    setSearchParams(previous => {
+      const next = new URLSearchParams(previous);
+      if (machineID) {
+        next.set('machine', machineID);
+      } else {
+        next.delete('machine');
+      }
+      return next;
+    });
+  }, [setSearchParams]);
+
   const { range, paused } = useTimeRange();
   const selectedMachine = machines.find(machine => machine.id === selectedMachineID);
+  const viewingRemote = Boolean(selectedMachineID);
 
   const openAddMachine = () => {
     // Bridge owns pairing approval and the pending-request words. Keep this
@@ -110,13 +131,23 @@ function AppContent() {
   useEffect(() => {
     let mounted = true;
     void apiFetch<Machine[]>('/machines').then(next => {
-      if (mounted) setMachines(next);
+      if (mounted) setMachines(next ?? []);
     }).catch(() => {
       // Machine selection is additive; the local dashboard remains usable if
       // Bridge discovery is unavailable.
     });
     return () => { mounted = false; };
   }, []);
+
+  // A link can name a machine this installation no longer knows. Fall back to
+  // this computer rather than polling a node id that resolves to nothing,
+  // which would render as an outage on a machine that is perfectly fine.
+  useEffect(() => {
+    if (!selectedMachineID || machines.length === 0) return;
+    if (!machines.some(machine => machine.id === selectedMachineID)) {
+      setSelectedMachineID('');
+    }
+  }, [machines, selectedMachineID, setSelectedMachineID]);
 
   const {
     metrics,
@@ -133,10 +164,22 @@ function AppContent() {
     isStale,
     retryAttempt,
     lastSuccessfulFetch,
+    lastAttemptAt,
+    retryIntervalSeconds,
     toggleMonitoring,
     refreshHealth,
     refresh
   } = useSystemMonitor(range.seconds, { enabled: !paused, node: selectedMachineID || undefined });
+
+  // While a remote subject is silent, every panel below is showing the same
+  // frozen moment. Dimming the whole region says so once, instead of leaving
+  // each card to look independently live.
+  const readingsFrozen = viewingRemote && isStale;
+
+  // A machine that cannot be dispatched to has no readings to render at all.
+  // The identity strip states that and why; four empty metric cards under it
+  // would read as measurements of zero.
+  const noReadingsPossible = viewingRemote && Boolean(selectedMachine) && !selectedMachine?.dispatchable;
 
   const {
     agents,
@@ -269,47 +312,58 @@ function AppContent() {
           terminalDisabledReason={selectedMachineID ? 'System output is local to this computer; remote terminal actions are not granted by system-monitor.' : undefined}
         />
 
-        <ConnectionStatusBanner
-          isStale={isStale}
-          lastSuccessfulFetch={lastSuccessfulFetch}
-          onRefresh={refresh}
-          retryIntervalSeconds={selectedMachineID ? 15 : 5}
-          retryAttempt={retryAttempt}
-        />
+        {viewingRemote && selectedMachine ? (
+          <MachineIdentityStrip
+            machine={selectedMachine}
+            isStale={isStale}
+            lastSuccessfulFetch={lastSuccessfulFetch}
+            onRetry={refresh}
+            onBackToLocal={() => { setSelectedMachineID(''); }}
+          />
+        ) : (
+          <ConnectionStatusBanner
+            isStale={isStale}
+            lastSuccessfulFetch={lastSuccessfulFetch}
+            onRefresh={refresh}
+            retryIntervalSeconds={retryIntervalSeconds}
+            retryAttempt={retryAttempt}
+          />
+        )}
 
         <main className="main-content">
           <div className="container" data-sm-style="sm-style-a8abd88c52">
-            {selectedMachineID && selectedMachine ? (
-              <section className="card machine-identity-strip" aria-label="Selected machine identity">
-                <div>
-                  <span className="eyebrow">Remote machine</span>
-                  <h2>{selectedMachine.name}</h2>
-                  <p className="text-sm text-muted">
-                    {selectedMachine.os || 'unknown OS'} / {selectedMachine.arch || 'unknown architecture'} · heartbeat {selectedMachine.heartbeat_fresh ? 'fresh' : 'stale'}
-                    {selectedMachine.heartbeat_age_seconds !== undefined ? ` · ${selectedMachine.heartbeat_age_seconds}s ago` : ''}
-                  </p>
-                </div>
-                <div className="machine-identity-strip__status" role="status">
-                  <strong>{selectedMachine.dispatchable ? 'Telemetry active' : 'Telemetry unavailable'}</strong>
-                  <span>{selectedMachine.dispatchable ? 'Remote values refresh every 15 seconds.' : 'This target is not dispatchable; no remote values are shown.'}</span>
-                </div>
-              </section>
-            ) : null}
             <Suspense fallback={<RouteFallback />}>
             <Routes>
               <Route
                 path="/"
                 element={(
                   <>
-                    <section className="mb-lg">
-                      <IncidentTimeline
-                        history={metricHistory}
-                        investigations={investigations}
-                        onOpenSource={handleOpenIncidentSource}
-                        onInvestigate={handleInvestigateIncident}
-                      />
-                    </section>
+                    {viewingRemote && selectedMachine ? (
+                      <section className="mb-lg">
+                        <MachinePresenceNote
+                          machine={selectedMachine}
+                          isStale={isStale}
+                          lastSuccessfulFetch={lastSuccessfulFetch}
+                          retryAttempt={retryAttempt}
+                          retryIntervalSeconds={retryIntervalSeconds}
+                          lastAttemptAt={lastAttemptAt}
+                        />
+                      </section>
+                    ) : null}
 
+                    {viewingRemote ? null : (
+                      <section className="mb-lg">
+                        <IncidentTimeline
+                          history={metricHistory}
+                          investigations={investigations}
+                          onOpenSource={handleOpenIncidentSource}
+                          onInvestigate={handleInvestigateIncident}
+                        />
+                      </section>
+                    )}
+
+                    {!noReadingsPossible && (
+                    <div className={readingsFrozen ? 'readings-frozen' : undefined}>
                     {/* Real-time Metrics Grid */}
                     <section className="mb-lg">
                       <ErrorBoundary fallback={<div className="card" data-sm-style="sm-style-1769fab70e">Metrics failed to render. Try refreshing the page.</div>}>
@@ -332,10 +386,23 @@ function AppContent() {
                       </ErrorBoundary>
                     </section>
 
+                    {/* Stated only where readings are actually possible: a
+                        machine that cannot be dispatched to does not report
+                        vitals at all, and the presence note already says so. */}
+                    {viewingRemote && !noReadingsPossible ? (
+                      <section className="mb-lg">
+                        <LocalOnlyPanels machineName={selectedMachine?.name ?? 'this machine'} />
+                      </section>
+                    ) : null}
+                    </div>
+                    )}
+
                     {/* Alert Panel */}
-                    <section className="mb-lg">
-                      <AlertPanel alerts={dashboardState.alerts} />
-                    </section>
+                    {!viewingRemote && (
+                      <section className="mb-lg">
+                        <AlertPanel alerts={dashboardState.alerts} />
+                      </section>
+                    )}
 
                     {showDeferredDashboard && !selectedMachineID ? (
                       <>

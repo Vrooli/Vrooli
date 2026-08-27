@@ -144,34 +144,384 @@
   opacity: 0.7;
 }
 
-/* The machine selector is a scope control, so keep its grant and the linking
-   action visually attached to it instead of hiding them in another surface. */
-.machine-header-control {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: var(--spacing-xs);
+/* ═══════════════════════════════════════════════════════════
+   MACHINE AXIS
+   The machine is app state, not a page filter: one control in the header sets
+   the subject of every panel below it, and one strip states that subject for
+   as long as it is not this computer. Both are built from the same four
+   presence tones so a reader learns the vocabulary once.
+   ═══════════════════════════════════════════════════════════ */
+
+/* The status lamp. A ring rather than a filled dot: on graphite a filled dot at
+   this size reads as a bullet, while a lit ring reads as an indicator. */
+.machine-led {
+  flex: none;
+  width: 7px;
+  height: 7px;
+  border-radius: var(--radius-full);
+  background: currentColor;
+  box-shadow: 0 0 0 3px color-mix(in srgb, currentColor 18%, transparent);
 }
 
-.machine-header-control__grant {
-  max-width: 18rem;
-  color: var(--color-text-muted);
-  font-size: 0.7rem;
+.machine-led--local,
+.machine-led--live {
+  color: var(--color-success);
 }
 
-.machine-header-control__add {
+.machine-led--stale {
+  color: var(--color-warning);
+}
+
+/* Amber, not red: an absent machine is a state, not a fault. The row's own
+   dimming is what separates "never connected" from "went quiet". */
+.machine-led--unreachable {
+  color: var(--color-warning);
+}
+
+/* A grant is read before an action is offered, so a disabled control can carry
+   a reason instead of a permission error after the click. */
+.machine-chip {
+  flex: none;
+  padding: 0.1rem 0.4rem;
   border: 1px solid var(--color-border-strong);
   border-radius: var(--radius-sm);
-  padding: 0.35rem 0.55rem;
-  color: var(--color-primary);
-  background: transparent;
-  font-size: 0.72rem;
-  cursor: pointer;
+  color: var(--color-text-secondary);
+  background: var(--color-surface);
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
 }
 
-.machine-header-control__add:hover,
-.machine-header-control__add:focus-visible {
+/* ── Picker ───────────────────────────────────────────────── */
+
+.machine-picker {
+  position: relative;
+}
+
+.machine-picker__trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.45rem 0.65rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color var(--transition-fast), border-color var(--transition-fast);
+}
+
+.machine-picker__trigger:hover {
+  background: var(--color-surface-hover);
+}
+
+/* Reading another machine is the exceptional state, so the control that caused
+   it stays lit for as long as it is true. */
+.machine-picker__trigger[data-remote='true'] {
+  border-color: color-mix(in srgb, var(--color-primary) 55%, transparent);
   background: var(--color-primary-muted);
+}
+
+.machine-picker__name {
+  max-width: 12rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.machine-picker__caret {
+  color: var(--color-text-muted);
+}
+
+.machine-picker__menu {
+  position: absolute;
+  right: 0;
+  z-index: var(--z-dropdown);
+  min-width: 20rem;
+  margin-top: 0.5rem;
+  overflow: hidden;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-raised);
+  box-shadow: var(--shadow-lg);
+}
+
+.machine-picker__options {
+  max-height: min(60vh, 22rem);
+  overflow-y: auto;
+}
+
+.machine-picker__eyebrow {
+  padding: 0.55rem 0.8rem;
+  border-bottom: 1px solid var(--color-border);
+  color: var(--color-text-muted);
+  font-family: var(--font-mono);
+  font-size: 0.63rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.machine-picker__option {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  width: 100%;
+  padding: 0.6rem 0.8rem;
+  border: 0;
+  background: transparent;
+  color: var(--color-text);
+  text-align: left;
+  cursor: pointer;
+  transition: background-color var(--transition-fast);
+}
+
+.machine-picker__option:hover,
+.machine-picker__option:focus-visible {
+  background: var(--color-surface-hover);
+}
+
+.machine-picker__option[aria-selected='true'] {
+  background: var(--color-primary-muted);
+}
+
+/* Dimmed, not hidden and not disabled: a machine that cannot answer stays
+   choosable, because choosing it should be visibly a choice the reader made
+   rather than an error they discover afterwards. */
+.machine-picker__option[data-tone='unreachable'] {
+  opacity: 0.62;
+}
+
+.machine-picker__option-body {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.machine-picker__option-name {
+  overflow: hidden;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.machine-picker__option-meta {
+  color: var(--color-text-muted);
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+}
+
+.machine-picker__option[data-tone='unreachable'] .machine-picker__option-meta {
+  color: var(--color-warning-text);
+}
+
+.machine-picker__check {
+  flex: none;
+  color: var(--color-primary);
+}
+
+.machine-picker__add {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  width: 100%;
+  padding: 0.6rem 0.8rem;
+  border: 0;
+  border-top: 1px solid var(--color-border);
+  background: transparent;
+  color: var(--color-primary);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color var(--transition-fast);
+}
+
+.machine-picker__add:hover,
+.machine-picker__add:focus-visible {
+  background: var(--color-primary-muted);
+}
+
+/* ── Identity strip ───────────────────────────────────────── */
+
+.machine-strip {
+  border-bottom: 1px solid color-mix(in srgb, var(--strip-accent) 38%, transparent);
+  background: color-mix(in srgb, var(--strip-accent) 11%, var(--color-background));
+}
+
+.machine-strip[data-tone='live'] {
+  --strip-accent: var(--color-primary);
+}
+
+.machine-strip[data-tone='stale'] {
+  --strip-accent: var(--color-warning);
+}
+
+.machine-strip[data-tone='unreachable'] {
+  --strip-accent: var(--color-warning);
+}
+
+/* The band is full-bleed; its content is not. Sharing the container's width
+   formula puts the machine's name on the same left edge as the panels it is
+   describing, so the strip reads as part of the page rather than as chrome. */
+.machine-strip__bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-md);
+  width: min(100% - (var(--spacing-xl) * 2), 1400px);
+  margin-inline: auto;
+  padding: 0.6rem 0;
+}
+
+.machine-strip__identity {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: var(--text-sm);
+  color: var(--color-text);
+}
+
+.machine-strip__identity b {
+  color: var(--strip-accent);
+}
+
+.machine-strip__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+.machine-strip__button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.3rem 0.55rem;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-size: var(--text-xs);
+  cursor: pointer;
+  transition: background-color var(--transition-fast), border-color var(--transition-fast);
+}
+
+.machine-strip__button:hover,
+.machine-strip__button:focus-visible {
+  border-color: var(--strip-accent);
+  background: var(--color-surface-hover);
+}
+
+/* The note that explains a subject's presence. It sits in the body, not in the
+   strip, so the strip keeps one height in every state and the explanation is
+   where a reader looks for content. */
+.machine-note {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+  border-left: 3px solid var(--note-accent);
+}
+
+.machine-note[data-tone='stale'] {
+  --note-accent: var(--color-warning);
+}
+
+.machine-note[data-tone='unreachable'] {
+  --note-accent: var(--color-warning);
+}
+
+.machine-note__title {
+  margin: 0;
+  color: var(--color-text-heading);
+  font-size: var(--text-lg);
+  font-weight: 600;
+}
+
+.machine-note p {
+  margin: 0;
+  max-width: 78ch;
+  color: var(--color-text-secondary);
+  font-size: var(--text-sm);
+  line-height: 1.6;
+}
+
+.machine-note__meta {
+  color: var(--color-text-muted) !important;
+  font-family: var(--font-mono);
+  font-size: 0.72rem !important;
+}
+
+.machine-note__readiness {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 1rem;
+  margin: 0.25rem 0 0;
+  padding: 0;
+  list-style: none;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+}
+
+.machine-note__readiness li {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.machine-note__readiness li[data-passed='true'] {
+  color: var(--color-success-text);
+}
+
+.machine-note__readiness li[data-passed='false'] {
+  color: var(--color-warning-text);
+}
+
+/* The panels a remote subject cannot fill. A quiet footnote under the vitals,
+   not a headline above them: it explains an absence, and an explanation that
+   outweighs the readings it accompanies is in the wrong place. */
+.machine-local-only {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  max-width: 82ch;
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: var(--text-xs);
+  line-height: 1.6;
+}
+
+.machine-local-only svg {
+  flex: none;
+  margin-top: 0.15rem;
+}
+
+/* Every reading is stamped, and while the subject is silent every stamp is the
+   same age. Freezing the whole view at one timestamp is more truthful than
+   letting some panels update and others not. */
+.readings-frozen {
+  opacity: 0.55;
+  filter: saturate(0.55);
+  transition: opacity var(--transition-fast), filter var(--transition-fast);
+}
+
+@media (max-width: 640px) {
+  .machine-strip__bar {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: var(--spacing-sm);
+  }
+
+  .machine-picker__menu {
+    right: auto;
+    left: 0;
+    min-width: 16rem;
+  }
 }
 
 .readout-card[data-severity='critical'] {

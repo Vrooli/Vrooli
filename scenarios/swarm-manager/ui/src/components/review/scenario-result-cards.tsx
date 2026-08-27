@@ -9,7 +9,7 @@
 import { Check, AlertTriangle, X, Minus, ChevronDown, ChevronRight } from "lucide-react";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { MarkdownRenderer } from "../markdown/MarkdownRenderer";
+import { MarkdownRenderer } from "@vrooli/react-component-library/markdown-renderer/0/0.3.2";
 import { cn } from "../../lib";
 import { selectors } from "../../consts/selectors";
 import type { ExecutionRecord, ScenarioFinalization, FinalizationStatus, ReviewDimension } from "../../types";

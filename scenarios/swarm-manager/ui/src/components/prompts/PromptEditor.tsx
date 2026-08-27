@@ -1,7 +1,9 @@
-import type { Ref } from "react";
+import type { CSSProperties, Ref } from "react";
+import { ResizeHandle } from "@vrooli/react-component-library/ResizeHandle/1.0.0";
+import type { ResizeSeparatorProps } from "@vrooli/react-component-library/useResizablePanel/1.0.0";
 import { Code, Eye, List } from "lucide-react";
 import Editor from "@monaco-editor/react";
-import { MarkdownRenderer } from "../markdown/MarkdownRenderer";
+import { MarkdownRenderer } from "@vrooli/react-component-library/markdown-renderer/0/0.3.2";
 import { Button } from "../ui/button";
 import { InlineLoadingIndicator } from "../ui/loading-states";
 import { selectors } from "../../consts/selectors";
@@ -39,9 +41,9 @@ const EDITOR_OPTIONS = {
 export interface PromptEditorProps {
   workspaceRef: Ref<HTMLDivElement>;
   skillsPanelRef: Ref<HTMLDivElement>;
-  skillsPanelWidth: number;
+  skillsPanelStyle?: CSSProperties;
   isResizing: boolean;
-  skillsResizeHandleProps: Record<string, unknown>;
+  skillsSeparatorProps: ResizeSeparatorProps;
   skillsSidebar: React.ReactNode;
   selectedSkill: PromptSkillSummary | undefined;
   skillLoading: boolean;
@@ -65,9 +67,9 @@ export interface PromptEditorProps {
 export function PromptEditor({
   workspaceRef,
   skillsPanelRef,
-  skillsPanelWidth,
+  skillsPanelStyle,
   isResizing,
-  skillsResizeHandleProps,
+  skillsSeparatorProps,
   skillsSidebar,
   selectedSkill,
   skillLoading,
@@ -93,14 +95,13 @@ export function PromptEditor({
         ref={workspaceRef}
         className={`flex h-[calc(100dvh-12rem)] flex-col lg:h-[calc(100dvh-15rem)] lg:flex-row ${isResizing ? "select-none" : ""}`}
       >
-        <div ref={skillsPanelRef} className="hidden lg:flex lg:flex-col" style={{ width: skillsPanelWidth }}>
-          {skillsSidebar}
-        </div>
         <div
-          className="hidden lg:flex w-2 items-center justify-center border-x border-white/10 bg-slate-900/40 cursor-col-resize"
-          {...skillsResizeHandleProps}
+          ref={skillsPanelRef}
+          className="relative hidden lg:flex lg:flex-col"
+          style={skillsPanelStyle}
         >
-          <div className="h-10 w-1 rounded-full bg-slate-700/80" />
+          {skillsSidebar}
+          <ResizeHandle separatorProps={skillsSeparatorProps} testId="prompts-skills-resize-handle" />
         </div>
 
         <div className="flex min-h-0 min-w-0 flex-1 flex-col" data-testid={selectors.prompts.editor}>

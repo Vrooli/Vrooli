@@ -51,6 +51,10 @@ interface UseSystemMonitorReturn {
   isStale: boolean;
   retryAttempt: number;
   lastSuccessfulFetch: Date | null;
+  /** When the polling loop last tried, so a surface can count down honestly. */
+  lastAttemptAt: Date | null;
+  /** The real polling period for the current subject, in seconds. */
+  retryIntervalSeconds: number;
   healthStatus: SystemHealthStatus | null;
   healthError: string | null;
   toggleMonitoring: () => Promise<void>;
@@ -77,6 +81,7 @@ export const useSystemMonitor = (historyWindowSeconds = 120, options: UseSystemM
   const [isLoading, setIsLoading] = useState(true);
   const [subsystemErrors, setSubsystemErrors] = useState<Partial<Record<Subsystem, APIError>>>({});
   const [lastSuccessfulFetch, setLastSuccessfulFetch] = useState<Date | null>(null);
+  const [lastAttemptAt, setLastAttemptAt] = useState<Date | null>(null);
   const [consecutiveFailures, setConsecutiveFailures] = useState(0);
   const isStale = consecutiveFailures >= 3;
   const [uiBoostActive, setUiBoostActive] = useState(false);
@@ -88,6 +93,8 @@ export const useSystemMonitor = (historyWindowSeconds = 120, options: UseSystemM
   });
   const { showApiError } = useToast();
   const lastMetricsErrorRef = useRef<string | null>(null);
+  const remoteNodeSelectedRef = useRef(false);
+  remoteNodeSelectedRef.current = Boolean(options.node);
 
   const setSubsystemError = useCallback((subsystem: Subsystem, err: APIError | null) => {
     setSubsystemErrors(prev => {
@@ -113,8 +120,14 @@ export const useSystemMonitor = (historyWindowSeconds = 120, options: UseSystemM
     };
   }, []);
 
-  // Only show toast for metrics errors (primary data source)
+  // Only show toast for metrics errors (primary data source).
+  //
+  // Not while a remote machine is the subject: the identity strip states that
+  // condition persistently, names the machine, and offers the retry. A toast
+  // beside it repeats the same fact in a form that disappears, and carries an
+  // internal reference code the reader cannot act on.
   useEffect(() => {
+    if (remoteNodeSelectedRef.current) return;
     const metricsError = subsystemErrors.metrics;
     if (metricsError && metricsError.error !== lastMetricsErrorRef.current) {
       lastMetricsErrorRef.current = metricsError.error;
@@ -128,6 +141,9 @@ export const useSystemMonitor = (historyWindowSeconds = 120, options: UseSystemM
   const setMetricsError = useCallback((err: APIError | null) => { setSubsystemError('metrics', err); }, [setSubsystemError]);
   const { metricHistory, fetchMetricsTimeline, clearHistory, appendGpuPoint, appendDiskPoints, appendDiskUsagePoint } = useMetricHistory(setMetricsError);
   const remoteNodeSelected = Boolean(options.node);
+  // Remote readings cross a relay, so they are polled less often than local
+  // ones. The value is named because surfaces quote it back to the reader.
+  const metricsPollIntervalMs = remoteNodeSelected ? 15000 : 5000;
 
   const fetchMetrics = useCallback(async () => {
     const params = new URLSearchParams();
@@ -316,6 +332,10 @@ export const useSystemMonitor = (historyWindowSeconds = 120, options: UseSystemM
   }, [remoteNodeSelected, setSubsystemError]);
 
   const refreshMetrics = useCallback(async () => {
+    // Stamped before the request rather than after it: the countdown a reader
+    // sees must be the schedule the loop is actually keeping, and the next tick
+    // is scheduled relative to this attempt whether or not it succeeds.
+    setLastAttemptAt(new Date());
     await Promise.all([fetchMetrics(), fetchDeviceGraph()]);
     if (!remoteNodeSelected) {
       await Promise.all([
@@ -405,6 +425,7 @@ export const useSystemMonitor = (historyWindowSeconds = 120, options: UseSystemM
     setIsLoading(true);
     setConsecutiveFailures(0);
     setLastSuccessfulFetch(null);
+    setLastAttemptAt(null);
     if (!remoteNodeSelected) return;
     setDetailedMetrics(null);
     setProcessMonitorData(null);
@@ -412,7 +433,11 @@ export const useSystemMonitor = (historyWindowSeconds = 120, options: UseSystemM
     setInvestigations([]);
     clearHistory();
     setSubsystemErrors({});
-  }, [clearHistory, remoteNodeSelected]);
+    // Keyed on the node id, not on `remoteNodeSelected`: moving between two
+    // remote machines is also a change of subject, and leaving the previous
+    // machine's readings on screen under the new machine's name is the exact
+    // failure the identity strip exists to prevent.
+  }, [clearHistory, options.node, remoteNodeSelected]);
 
   // Initial load
   useEffect(() => {
@@ -430,7 +455,7 @@ export const useSystemMonitor = (historyWindowSeconds = 120, options: UseSystemM
   }, [fetchDeferredData, refreshInitial]);
 
   // Set up polling for metrics (every 5 seconds for responsive graphs)
-  usePolling(refreshMetrics, remoteNodeSelected ? 15000 : 5000, pollingEnabled, { enabled: true, maxIntervalMs: 60000 });
+  usePolling(refreshMetrics, metricsPollIntervalMs, pollingEnabled, { enabled: true, maxIntervalMs: 60000 });
 
   // Set up polling for detailed data + health (every 60 seconds)
   const fetchDetailedAll = useCallback(() => {
@@ -458,6 +483,8 @@ export const useSystemMonitor = (historyWindowSeconds = 120, options: UseSystemM
     isStale,
     retryAttempt: consecutiveFailures,
     lastSuccessfulFetch,
+    lastAttemptAt,
+    retryIntervalSeconds: metricsPollIntervalMs / 1000,
     healthStatus,
     healthError,
     toggleMonitoring,

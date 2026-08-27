@@ -10,6 +10,7 @@ const mocks = vi.hoisted(() => ({
   useInvestigationAgents: vi.fn(),
   useScriptExecution: vi.fn(),
   protoFetch: vi.fn(),
+  apiFetch: vi.fn(),
   fetchForensicsSummary: vi.fn(),
   fetchCapacityOverview: vi.fn(),
   fetchCapacityReconciliation: vi.fn(),
@@ -31,7 +32,7 @@ vi.mock('./features/investigations/hooks/useScriptExecution', () => ({
 }));
 vi.mock('./shared/api/apiFetch', () => ({
   protoFetch: mocks.protoFetch,
-  apiFetch: vi.fn(),
+  apiFetch: mocks.apiFetch,
   extractErrorMessage: (error: unknown, fallback: string) => error instanceof Error ? error.message : fallback,
   isApiError: () => false,
   toApiError: (error: unknown) => ({ error: error instanceof Error ? error.message : 'request failed' }),
@@ -131,7 +132,18 @@ const forensicsSummary = {
   autoheal: { available: true, checks: [{ checkId: 'disk', status: 'OK', message: 'healthy' }] },
 };
 
+const fleet = [
+  { id: '', name: 'This machine', os: 'linux', arch: 'x86_64', online: true, heartbeat_fresh: true, dispatchable: true, status: 'local' },
+  { id: 'minimouse-id', name: 'minimouse', os: 'darwin', arch: 'amd64', online: true, heartbeat_fresh: true, heartbeat_age_seconds: 8, dispatchable: true, status: 'NODE_STATUS_ONLINE', grant: 'Read and operate; destructive actions withheld', scopes: ['*:read', '*:write'] },
+  { id: 'swarminator-id', name: 'swarminator', os: 'linux', arch: 'amd64', online: false, heartbeat_fresh: false, heartbeat_age_seconds: 639479, dispatchable: false, status: 'NODE_STATUS_OFFLINE', readiness: [{ identity: 'registry_record', passed: true }, { identity: 'heartbeat_fresh', passed: false }] },
+];
+
 function installFixtures() {
+  // The dashboard asks for the fleet on mount. An unmocked apiFetch resolves to
+  // undefined, which the machine control cannot tell apart from "no machines".
+  mocks.apiFetch.mockImplementation((path: string) =>
+    path === '/machines' ? Promise.resolve(fleet) : Promise.resolve(undefined)
+  );
   mocks.useSystemMonitor.mockReturnValue({
     metrics: systemMetrics,
     detailedMetrics,
@@ -143,7 +155,10 @@ function installFixtures() {
     error: null,
     subsystemErrors: {},
     isStale: false,
+    retryAttempt: 0,
     lastSuccessfulFetch: new Date('2026-02-02T00:00:00Z'),
+    lastAttemptAt: new Date('2026-02-02T00:00:00Z'),
+    retryIntervalSeconds: 5,
     healthStatus: { status: 'healthy', service: 'system-monitor', maintenance_state: 'active' },
     healthError: null,
     toggleMonitoring: vi.fn().mockResolvedValue(undefined),
@@ -204,6 +219,66 @@ describe('App production surfaces', () => {
   afterEach(() => {
     cleanup();
     vi.clearAllMocks();
+  });
+
+  it('makes the machine the subject of the app, and puts it in the URL', async () => {
+    render(<App />);
+
+    const picker = await screen.findByTestId('machine-picker');
+    expect(picker).toHaveTextContent('This machine');
+    fireEvent.click(picker);
+    fireEvent.click(await screen.findByRole('option', { name: /minimouse/ }));
+
+    // The subject is stated for as long as it is not this computer.
+    const strip = await screen.findByRole('status');
+    expect(strip).toHaveTextContent('Viewing minimouse — darwin/amd64, not this computer');
+
+    // In the URL, so a reload keeps the subject and the view is shareable.
+    expect(window.location.search).toBe('?machine=minimouse-id');
+
+    fireEvent.click(screen.getByTestId('back-to-local'));
+    expect(window.location.search).toBe('');
+    expect(await screen.findByTestId('machine-picker')).toHaveTextContent('This machine');
+  });
+
+  it('opens on the machine the link names', async () => {
+    window.history.replaceState({}, '', '/?machine=minimouse-id');
+    render(<App />);
+    expect(await screen.findByRole('status')).toHaveTextContent('Viewing minimouse');
+  });
+
+  it('falls back to this computer when a link names a machine that is gone', async () => {
+    window.history.replaceState({}, '', '/?machine=retired-node');
+    render(<App />);
+
+    // Polling a node id that resolves to nothing would render as an outage on a
+    // machine that is fine, so the app corrects the subject instead.
+    await waitFor(() => { expect(window.location.search).toBe(''); });
+    expect(await screen.findByTestId('machine-picker')).toHaveTextContent('This machine');
+  });
+
+  it('does not describe this computer under another machine\'s name', async () => {
+    window.history.replaceState({}, '', '/?machine=minimouse-id');
+    render(<App />);
+
+    await screen.findByRole('status');
+    // Incident history and alerts are computed from local collectors. Left in
+    // place they would read as findings about minimouse.
+    expect(screen.queryByText('Incident timeline')).not.toBeInTheDocument();
+    expect(screen.queryByText(/ACTIVE ALERTS/i)).not.toBeInTheDocument();
+    expect(await screen.findByTestId('local-only-panels')).toHaveTextContent('not shown for minimouse');
+  });
+
+  it('shows no readings at all for a machine it cannot reach', async () => {
+    window.history.replaceState({}, '', '/?machine=swarminator-id');
+    render(<App />);
+
+    const note = await screen.findByTestId('machine-presence-note');
+    expect(note).toHaveTextContent('Nothing to read from swarminator');
+    // Empty metric cards under this note would read as measurements of zero.
+    expect(screen.queryByText(/OPEN CPU DETAIL/i)).not.toBeInTheDocument();
+    // And it does not report vitals, so it must not be said to.
+    expect(screen.queryByTestId('local-only-panels')).not.toBeInTheDocument();
   });
 
   it('renders the live dashboard and deferred operator sections', async () => {

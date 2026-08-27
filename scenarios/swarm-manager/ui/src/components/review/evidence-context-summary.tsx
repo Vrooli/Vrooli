@@ -5,7 +5,7 @@
  */
 
 import { AlertTriangle, Check, FileText, Image, Terminal, Diff, Video, HelpCircle } from "lucide-react";
-import { MarkdownRenderer } from "../markdown/MarkdownRenderer";
+import { MarkdownRenderer } from "@vrooli/react-component-library/markdown-renderer/0/0.3.2";
 import { selectors } from "../../consts/selectors";
 import type { ReviewRound, EvidenceItem } from "../../services/review-service";
 

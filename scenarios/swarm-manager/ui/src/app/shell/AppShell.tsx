@@ -14,7 +14,7 @@ import { useOperationsStore } from "../../stores/operations-store";
 import { useAgentSessionPolling } from "../../hooks/useAgentSessionPolling";
 import { useCapturePolling } from "../../hooks/useCapturePolling";
 import { useStorePolling } from "../../hooks/useStorePolling";
-import { useResizablePanel } from "../../hooks/useResizablePanel";
+import { useResizablePanel } from "@vrooli/react-component-library/useResizablePanel/1.0.0";
 import { useIsMobile } from "../../hooks/useMediaQuery";
 import { BacklogItemsProvider } from "../../components/backlog/backlog-items-context";
 import { AppShellContext } from "./AppShellContext";
@@ -40,15 +40,15 @@ export function AppShell() {
   const setSidebarCollapsed = useGraphUIStore((s) => s.setSidebarCollapsed);
   const toggleSidebar = useGraphUIStore((s) => s.toggleSidebar);
 
-  const { resizeHandleProps, size: sidebarWidth } = useResizablePanel({
+  const { separatorProps, panelProps: sidebarPanelProps } = useResizablePanel({
     containerRef: shellRef,
-    targetRef: sidebarAsideRef,
-    minSize: 260,
-    maxSize: 480,
+    panelRef: sidebarAsideRef,
+    min: 260,
+    max: 480,
     defaultSize: 320,
-    adjacentMinSize: 420,
-    handleWidth: 6,
+    adjacentMin: 420,
     storageKey: "swarm-manager.sidebar.width.v1",
+    panelName: "Navigation",
   });
 
   useCapturePolling();
@@ -165,8 +165,8 @@ export function AppShell() {
                 onOpenCommandPost={handleOpenCommandPost}
                 onOpenAgentSession={closeSidebarOnMobile}
                 onQuickCapture={() => setShowCapturePanel(true)}
-                desktopWidth={isMobile ? undefined : sidebarWidth}
-                resizeHandleProps={isMobile ? undefined : resizeHandleProps}
+                desktopStyle={isMobile ? undefined : sidebarPanelProps.style}
+                separatorProps={isMobile ? undefined : separatorProps}
                 asideRef={sidebarAsideRef}
               />
             </Profiler>
