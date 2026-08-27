@@ -25,9 +25,6 @@ vi.mock("../../hooks/useGroupActions", () => ({
     createGroup: vi.fn(),
   }),
 }));
-vi.mock("../../hooks/useResizablePanel", () => ({
-  useResizablePanel: () => ({ size: 300, isResizing: false, resizeHandleProps: {} }),
-}));
 
 const pane = (sessionId: string): PaneMetadata => ({
   sessionId,

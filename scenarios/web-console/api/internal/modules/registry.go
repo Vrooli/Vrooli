@@ -29,6 +29,7 @@ import (
 	filePreviewH "web-console/handlers/file_preview"
 	healthH "web-console/handlers/health"
 	hooksH "web-console/handlers/hooks"
+	machinesH "web-console/handlers/machines"
 	metricsH "web-console/handlers/metrics"
 	sessionsH "web-console/handlers/sessions"
 	settingsH "web-console/handlers/settings"
@@ -53,6 +54,7 @@ func AllEndpoints() []module.EndpointDescriptor {
 	out = append(out, eventsH.Endpoints...)
 	out = append(out, filePreviewH.Endpoints...)
 	out = append(out, hooksH.Endpoints...)
+	out = append(out, machinesH.Endpoints...)
 	out = append(out, metricsH.Endpoints...)
 	out = append(out, sessionsH.Endpoints...)
 	out = append(out, settingsH.Endpoints...)

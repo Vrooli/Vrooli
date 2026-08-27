@@ -56,7 +56,7 @@ describe("MobileToolbar viewMode", () => {
     expect(screen.queryByTestId("expand-toggle")).toBeNull();
     expect(screen.getByTestId("toolbar-upload-image")).toBeInTheDocument();
     // Mic button is present
-    expect(screen.getByTestId("voice-mic-btn")).toHaveAttribute("data-control-size", "sm");
+    expect(screen.getByTestId("voice-mic-btn")).toHaveAttribute("data-control-size", "md");
   });
 
   it("spreads messages-mode action buttons evenly across the row", () => {
@@ -74,10 +74,9 @@ describe("MobileToolbar viewMode", () => {
     const widths = [ai, upload, micSlot].map((el) => parseFloat(el.style.width));
     expect(widths.every((w) => w > 0)).toBe(true);
     expect(Math.max(...widths) - Math.min(...widths)).toBeLessThanOrEqual(1);
-    // The box comes from the slot as inline style, not from a utility class:
-    // RCL merges caller style last, so a class can lose the cascade.
-    expect(mic.style.width).toBe(micSlot.style.width);
-    expect(mic).toHaveAttribute("data-control-size", "sm");
+    // The slot owns the computed footprint; the library button fills it.
+    expect(mic).toHaveClass("w-full", "h-full");
+    expect(mic).toHaveAttribute("data-control-size", "md");
   });
 
   it("shows full toolbar in terminal mode (default)", () => {

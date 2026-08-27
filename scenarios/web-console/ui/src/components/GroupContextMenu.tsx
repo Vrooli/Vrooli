@@ -1,6 +1,6 @@
 import { ChevronDown, ChevronRight, FolderCog, Plus } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import ContextMenuBase, { contextMenuItemClass } from "./ContextMenuBase";
+import { ContextMenu } from "@vrooli/react-component-library/ContextMenu/1";
 import { strings } from "../consts/strings";
 import type { TabGroupMeta } from "../stores/useWorkspaceStore";
 
@@ -30,48 +30,36 @@ export default function GroupContextMenu({
 }: GroupContextMenuProps) {
   const { t } = useTranslation();
 
-  const handleAction = (action: () => void) => {
-    action();
-    onDismiss();
-  };
-
   return (
-    <ContextMenuBase position={position} onClose={onDismiss} data-testid="group-ctx-menu">
-      {onNewSession && (
-        <button
-          data-testid="group-ctx-new-session"
-          className={contextMenuItemClass}
-          onClick={() => handleAction(onNewSession)}
-        >
-          <Plus className="h-4 w-4 shrink-0" />
-          {t(strings.groupContextMenu.newSession)}
-        </button>
-      )}
-
-      {/* Collapse / Expand */}
-      <button
-        data-testid="group-ctx-toggle-collapse"
-        className={contextMenuItemClass}
-        onClick={() => handleAction(onToggleCollapse)}
-      >
-        {group.isCollapsed ? (
-          <ChevronDown className="h-4 w-4 shrink-0" />
-        ) : (
-          <ChevronRight className="h-4 w-4 shrink-0" />
-        )}
-        {group.isCollapsed ? t(strings.groupContextMenu.expand) : t(strings.groupContextMenu.collapse)}
-      </button>
-
-      <div className="border-t border-wc-default my-1" />
-
-      <button
-        data-testid="group-ctx-manage-groups"
-        className={contextMenuItemClass}
-        onClick={() => handleAction(onManageGroups)}
-      >
-        <FolderCog className="h-4 w-4 shrink-0" />
-        {t(strings.manageGroups.menuItem)}
-      </button>
-    </ContextMenuBase>
+    <ContextMenu
+      open
+      position={position}
+      title={t(strings.manageGroups.menuItem)}
+      closeLabel={t(strings.manageGroups.menuItem)}
+      testId="group-ctx-menu"
+      onOpenChange={(next) => {
+        if (!next) onDismiss();
+      }}
+      items={[
+        ...(onNewSession
+          ? [{ id: "new-session", label: t(strings.groupContextMenu.newSession), icon: <Plus className="h-4 w-4 shrink-0" />, testId: "group-ctx-new-session", onSelect: onNewSession }]
+          : []),
+        {
+          id: "toggle-collapse",
+          label: group.isCollapsed ? t(strings.groupContextMenu.expand) : t(strings.groupContextMenu.collapse),
+          icon: group.isCollapsed ? <ChevronDown className="h-4 w-4 shrink-0" /> : <ChevronRight className="h-4 w-4 shrink-0" />,
+          testId: "group-ctx-toggle-collapse",
+          onSelect: onToggleCollapse,
+        },
+        {
+          id: "manage-groups",
+          label: t(strings.manageGroups.menuItem),
+          icon: <FolderCog className="h-4 w-4 shrink-0" />,
+          testId: "group-ctx-manage-groups",
+          separatorBefore: true,
+          onSelect: onManageGroups,
+        },
+      ]}
+    />
   );
 }

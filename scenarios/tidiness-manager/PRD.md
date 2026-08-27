@@ -24,6 +24,7 @@
 - [ ] OT-P0-008 | Issue storage | Record AI-generated issues with scenario, file path, category, severity, agent notes, remediation steps, and campaign metadata
 - [ ] OT-P0-009 | Global dashboard | Display per-scenario counts of light issues, AI issues, long files, visit %, and campaign status
 - [ ] OT-P0-010 | Scenario detail view | Show file table with paths, line counts, issue counts, visit counts, and sortable columns
+- [ ] OT-P0-011 | Declarative canonical seams | When a scanned tree declares canonical seams, Tidiness Manager shall parse Go source with the AST, report in-scope call and literal bypasses, ignore text lookalikes, and enforce each seam's budget
 
 ### 🟠 P1 – Should have post-launch
 - [ ] OT-P1-001 | Auto-tidiness campaigns | Run automatic agent scan campaigns across up to K scenarios with session limits and priority rules

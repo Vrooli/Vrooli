@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vrooli/api-core/storage"
 	"github.com/vrooli/cli-core/cliapp"
 )
 
@@ -23,7 +24,14 @@ const (
 	promptID        = "web-console-prompt"
 	hookScope       = "project"
 	defaultAttempts = 5
+	// hookTokenFileName matches resolveHookTokenPath in the API.
+	hookTokenFileName = "hook-token.txt"
 )
+
+// errResourceCLIMissing marks the one failure a caller may reasonably choose to
+// tolerate: a host that has never installed the Claude Code resource cannot
+// register Claude hooks, and that is a configuration gap rather than a fault.
+var errResourceCLIMissing = errors.New("resource-claude-code is not installed, so Claude Code hooks cannot be registered")
 
 type commandRunner func(context.Context, string, ...string) ([]byte, error)
 
@@ -95,7 +103,12 @@ func (r *registrar) register(args []string) error {
 	}
 	resourceCLI, err := r.resourceCLI()
 	if errors.Is(err, exec.ErrNotFound) {
-		return nil
+		// This used to return nil. Reporting success when the tool that
+		// performs registration is absent meant hooks were never reconciled and
+		// nothing ever said so: a stale hook survived every restart, message
+		// capture stayed broken, and the only symptom was an empty Messages
+		// view. Registration failing is recoverable; registration lying is not.
+		return fmt.Errorf("%w: install it, then run 'web-console hooks register'", errResourceCLIMissing)
 	}
 	if err != nil {
 		return err
@@ -226,24 +239,48 @@ func (r *registrar) awaitHookToken() (string, error) {
 	return "", errors.New("hook token unavailable")
 }
 
+// hookToken reads the shared secret the API generates for hook callers.
+//
+// The path comes from the same api-core storage resolver the API writes with.
+// These two used to disagree — the API wrote to the scenario state class while
+// the registrar read $XDG_STATE_HOME — and the only reason hooks kept working
+// was that a years-old file at the legacy path happened to hold the same value.
+// Any token rotation would have silently registered hooks that authenticate
+// against nothing, so the path is resolved once, from one authority.
 func (r *registrar) hookToken() (string, error) {
-	stateRoot := strings.TrimSpace(r.getenv("XDG_STATE_HOME"))
-	if stateRoot == "" {
-		home, err := r.userHomeDir()
-		if err != nil {
-			return "", err
-		}
-		stateRoot = filepath.Join(home, ".local", "state")
+	path, err := r.hookTokenPath()
+	if err != nil {
+		return "", err
 	}
-	contents, err := r.readFile(filepath.Join(stateRoot, "vrooli", "web-console", "hook-token.txt"))
+	contents, err := r.readFile(path)
 	if err != nil {
 		return "", err
 	}
 	token := strings.TrimSpace(string(contents))
 	if token == "" {
-		return "", errors.New("empty hook token")
+		return "", fmt.Errorf("hook token file %s is empty", path)
 	}
 	return token, nil
+}
+
+func (r *registrar) hookTokenPath() (string, error) {
+	if override := strings.TrimSpace(r.getenv("WC_HOOK_TOKEN_PATH")); override != "" {
+		return override, nil
+	}
+	resolver, err := storage.NewResolver(storage.ResolverConfig{
+		AppID:   "vrooli",
+		Profile: storage.ProfileAuto,
+	})
+	if err != nil {
+		return "", fmt.Errorf("resolve hook token path: %w", err)
+	}
+	// Path resolves without creating anything: the registrar only ever reads
+	// this file, and the API owns its creation.
+	path, err := resolver.Path(storage.Options{ScenarioID: "web-console"}, storage.ClassState, hookTokenFileName)
+	if err != nil {
+		return "", fmt.Errorf("resolve hook token path: %w", err)
+	}
+	return path, nil
 }
 
 func shellQuote(value string) string {

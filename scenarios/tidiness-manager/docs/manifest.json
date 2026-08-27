@@ -198,6 +198,17 @@
       "maturity": "active",
       "requiredBy": ["implemented"],
       "completion": "required"
+    },
+    {
+      "path": "reference/canonical-seams.md",
+      "docType": "configuration-reference",
+      "title": "Canonical Seam Rules",
+      "description": "Declarative AST-based canonical seam and bypass contract.",
+      "audience": ["developers", "agents", "operators"],
+      "canonicalFor": ["canonical-seam-rules"],
+      "maturity": "active",
+      "requiredBy": ["implemented"],
+      "completion": "required"
     }
       ]
     },

@@ -33,15 +33,34 @@ func (s *Session) DeclareSize(client chan []byte, cols, rows uint16) {
 
 // SetClientDevice records display-only client identity. It is never an
 // authorization signal.
-func (s *Session) SetClientDevice(client chan []byte, id, label string) {
+func (s *Session) SetClientDevice(client chan []byte, id, label, class string) {
 	s.clientsMu.Lock()
 	s.emuMu.Lock()
 	if info := s.clients[client]; info != nil {
-		info.DeviceID, info.DeviceLabel = id, label
+		info.DeviceID, info.DeviceLabel, info.DeviceClass = id, label, class
 		for existing, other := range s.clients {
 			if existing != client {
 				s.publishPresenceLocked(other)
 			}
+		}
+	}
+	s.emuMu.Unlock()
+	s.clientsMu.Unlock()
+}
+
+// SetClientKeyboard records whether this connection's virtual keyboard covers
+// part of its viewport. Only the lease owner's value reaches followers, but it
+// is stored for every connection so a lease handover carries the current state
+// rather than waiting for the new leader's next keyboard event.
+func (s *Session) SetClientKeyboard(client chan []byte, open bool) {
+	s.clientsMu.Lock()
+	s.emuMu.Lock()
+	if info := s.clients[client]; info != nil && info.KbOpen != open {
+		info.KbOpen = open
+		// Only the leader's keyboard is presented, so a follower toggling its
+		// own keyboard must not wake every other viewer.
+		if info == s.clients[s.leaseOwner] {
+			s.publishAllPresenceLocked()
 		}
 	}
 	s.emuMu.Unlock()
@@ -127,6 +146,7 @@ func (s *Session) publishPresenceLocked(info *ClientInfo) {
 	state := PresenceState{ViewerCount: len(s.clients), HoldsLease: info == s.clients[s.leaseOwner]}
 	if leader := s.clients[s.leaseOwner]; leader != nil {
 		state.Leader, state.LeaderDevice = leader.DeviceID, leader.DeviceLabel
+		state.LeaderClass, state.LeaderKbOpen = leader.DeviceClass, leader.KbOpen
 	}
 	select {
 	case info.PresenceCh <- state:
@@ -148,17 +168,39 @@ func (s *Session) publishAllPresenceLocked() {
 	}
 }
 
+// SizeLeaseSnapshot is one connection's view of the authoritative grid and the
+// display-only leader identity, captured under a single lock acquisition.
+//
+// It exists so callers share one construction of the size_info payload. The
+// previous six-value return had to be widened, and every call site rewritten,
+// each time a presentational field was added.
+type SizeLeaseSnapshot struct {
+	Cols         uint16
+	Rows         uint16
+	Leader       string
+	LeaderDevice string
+	LeaderClass  string
+	LeaderKbOpen bool
+	HoldsLease   bool
+	ViewerCount  int
+}
+
 // SizeLeaseState returns the current authoritative grid and display-only
 // leader identity for one connection.
-func (s *Session) SizeLeaseState(client chan []byte) (cols, rows uint16, leader, leaderDevice string, holds bool, viewerCount int) {
+func (s *Session) SizeLeaseState(client chan []byte) SizeLeaseSnapshot {
 	s.clientsMu.Lock()
 	s.emuMu.Lock()
-	if info := s.clients[s.leaseOwner]; info != nil {
-		leader, leaderDevice = info.DeviceID, info.DeviceLabel
+	snapshot := SizeLeaseSnapshot{
+		Cols:        s.Cols,
+		Rows:        s.Rows,
+		HoldsLease:  client != nil && client == s.leaseOwner,
+		ViewerCount: len(s.clients),
 	}
-	cols, rows = s.Cols, s.Rows
-	holds, viewerCount = client != nil && client == s.leaseOwner, len(s.clients)
+	if info := s.clients[s.leaseOwner]; info != nil {
+		snapshot.Leader, snapshot.LeaderDevice = info.DeviceID, info.DeviceLabel
+		snapshot.LeaderClass, snapshot.LeaderKbOpen = info.DeviceClass, info.KbOpen
+	}
 	s.emuMu.Unlock()
 	s.clientsMu.Unlock()
-	return cols, rows, leader, leaderDevice, holds, viewerCount
+	return snapshot
 }

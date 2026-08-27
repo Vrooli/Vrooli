@@ -1,7 +1,7 @@
 import { useCallback, useState } from "react";
 import { ClipboardPaste, Copy, Image, MousePointer2, TextSelect, Trash2, Volume2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import ContextMenuBase, { contextMenuItemClass } from "./ContextMenuBase";
+import { ContextMenu } from "@vrooli/react-component-library/ContextMenu/1";
 import { strings } from "../consts/strings";
 import { readText } from "../lib/clipboard";
 
@@ -124,74 +124,48 @@ export default function TerminalContextMenu({
   const pasteDisabled = pasteState.kind === "pending";
 
   return (
-    <ContextMenuBase position={position} onClose={onClose} data-testid="terminal-context-menu">
-      {hasSelection && (
-        <button
-          data-testid="ctx-copy"
-          className={contextMenuItemClass}
-          onClick={onCopy}
-        >
-          <Copy className="h-4 w-4 shrink-0" />
-          {t(strings.terminalContextMenu.copy)}
-        </button>
-      )}
-      {hasSelection && onSpeak && (
-        <button
-          data-testid="ctx-speak"
-          className={contextMenuItemClass}
-          onClick={onSpeak}
-        >
-          <Volume2 className="h-4 w-4 shrink-0" />
-          {t(strings.terminalContextMenu.speak)}
-        </button>
-      )}
-      <button
-        data-testid="ctx-paste"
-        data-paste-state={pasteState.kind}
-        className={contextMenuItemClass}
-        onClick={handlePaste}
-        disabled={pasteDisabled}
-      >
-        <ClipboardPaste className="h-4 w-4 shrink-0" />
-        {pasteLabel}
-      </button>
-      {onUploadImage && (
-        <button
-          data-testid="ctx-upload-image"
-          className={contextMenuItemClass}
-          onClick={onUploadImage}
-        >
-          <Image className="h-4 w-4 shrink-0" />
-          {t(strings.terminalContextMenu.uploadImage)}
-        </button>
-      )}
-      {onToggleMouseMode && mouseMode !== undefined && (
-        <button
-          data-testid="ctx-mouse-mode"
-          className={contextMenuItemClass}
-          aria-pressed={mouseMode}
-          onClick={() => onToggleMouseMode(!mouseMode)}
-        >
-          <MousePointer2 className="h-4 w-4 shrink-0" />
-          {mouseMode ? "Disable tmux mouse mode (this pane only)" : "Enable tmux mouse mode (this pane only)"}
-        </button>
-      )}
-      <button
-        data-testid="ctx-select-all"
-        className={contextMenuItemClass}
-        onClick={onSelectAll}
-      >
-        <TextSelect className="h-4 w-4 shrink-0" />
-        {t(strings.terminalContextMenu.selectAll)}
-      </button>
-      <button
-        data-testid="ctx-clear"
-        className={contextMenuItemClass}
-        onClick={onClear}
-      >
-        <Trash2 className="h-4 w-4 shrink-0" />
-        {t(strings.terminalContextMenu.clearTerminal)}
-      </button>
-    </ContextMenuBase>
+    <ContextMenu
+      open
+      position={position}
+      title={t(strings.terminalContextMenu.selectAll)}
+      closeLabel={t(strings.terminalContextMenu.selectAll)}
+      testId="terminal-context-menu"
+      onOpenChange={(next) => {
+        if (!next) onClose();
+      }}
+      items={[
+        ...(hasSelection
+          ? [{ id: "copy", label: t(strings.terminalContextMenu.copy), icon: <Copy className="h-4 w-4 shrink-0" />, testId: "ctx-copy", onSelect: onCopy }]
+          : []),
+        ...(hasSelection && onSpeak
+          ? [{ id: "speak", label: t(strings.terminalContextMenu.speak), icon: <Volume2 className="h-4 w-4 shrink-0" />, testId: "ctx-speak", onSelect: onSpeak }]
+          : []),
+        {
+          id: "paste",
+          label: pasteLabel,
+          icon: <ClipboardPaste className="h-4 w-4 shrink-0" />,
+          testId: "ctx-paste",
+          disabled: pasteDisabled,
+          state: pasteState.kind,
+          closeOnSelect: false,
+          onSelect: handlePaste,
+        },
+        ...(onUploadImage
+          ? [{ id: "upload-image", label: t(strings.terminalContextMenu.uploadImage), icon: <Image className="h-4 w-4 shrink-0" />, testId: "ctx-upload-image", onSelect: onUploadImage }]
+          : []),
+        ...(onToggleMouseMode && mouseMode !== undefined
+          ? [{
+              id: "mouse-mode",
+              label: mouseMode ? "Disable tmux mouse mode (this pane only)" : "Enable tmux mouse mode (this pane only)",
+              icon: <MousePointer2 className="h-4 w-4 shrink-0" />,
+              testId: "ctx-mouse-mode",
+              pressed: mouseMode,
+              onSelect: () => onToggleMouseMode(!mouseMode),
+            }]
+          : []),
+        { id: "select-all", label: t(strings.terminalContextMenu.selectAll), icon: <TextSelect className="h-4 w-4 shrink-0" />, testId: "ctx-select-all", onSelect: onSelectAll },
+        { id: "clear", label: t(strings.terminalContextMenu.clearTerminal), icon: <Trash2 className="h-4 w-4 shrink-0" />, testId: "ctx-clear", destructive: true, onSelect: onClear },
+      ]}
+    />
   );
 }

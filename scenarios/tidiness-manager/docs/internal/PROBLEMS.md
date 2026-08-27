@@ -4,6 +4,13 @@ Track issues, blockers, and deferred decisions here. Keep open issues at the top
 
 ## Open Issues
 
+## Work ladder
+
+- Rung: W3 / R0
+- Evidence: W0 passes for goal `tidiness-manager-declarative-canonical-seams` and `OT-P0-011`; W1 and W2 gates report `PASSED`; comprehensive Test Genie run `20260827-084210-f3ca275b` failed 7 of 21 phases (`portability`, `ui-health`, `dependencies`, `docs`, `unit`, `storage`, `workflow`) and reports `workingRung: R0`.
+- Blocker: clear the runnable-and-green baseline before implementing the R4 declarative-seam capability.
+- Measured: 2026-08-27
+
 ### Completeness Tool BATS Test Recognition Limitation
 **Status**: Open (Ecosystem-level tool limitation)
 **Severity**: Medium (affects completeness score calculation)

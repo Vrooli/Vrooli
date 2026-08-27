@@ -169,12 +169,12 @@ func (s *Server) dispatchInputMessage(
 		// goroutine to drain its size notification. A mobile tap needs an
 		// immediate, ordered acknowledgement that it now owns the lease; the
 		// broadcast remains responsible for updating every other viewer.
-		cols, rows, leader, leaderDevice, holdsLease, viewerCount := sess.SizeLeaseState(client)
-		_ = writeTerminalJSON(conn, writeMu, TerminalMessage{
-			Type: wireproto.MsgTypeSizeInfo, Cols: int(cols), Rows: int(rows),
-			Leader: leader, LeaderDevice: leaderDevice, HoldsLease: holdsLease,
-			ViewerCount: viewerCount,
-		})
+		_ = writeTerminalJSON(conn, writeMu, sizeInfoMessage(sess.SizeLeaseState(client)))
+	case wireproto.MsgTypeDeviceState:
+		// Presentational only: the leader tells followers that its virtual
+		// keyboard covers part of its viewport, so they can draw that state
+		// rather than infer it from a grid that shrinks for many reasons.
+		sess.SetClientKeyboard(client, msg.KbOpen)
 	case wireproto.MsgTypePing:
 		_ = writeTerminalJSON(conn, writeMu, TerminalMessage{Type: wireproto.MsgTypePong})
 	case wireproto.MsgTypeConversationAck:

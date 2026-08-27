@@ -1,6 +1,6 @@
 // DOC: docs/concepts/ARCHITECTURE.md#terminal-io
 // DOC: docs/internal/SEAMS.md#1-entry-presentation
-import { useCallback, useEffect, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState, forwardRef } from "react";
+import { useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState, forwardRef } from "react";
 import "@xterm/xterm/css/xterm.css";
 import { useTranslation } from "react-i18next";
 import { useXtermLifecycle } from "../hooks/terminal/useXtermLifecycle";
@@ -22,6 +22,7 @@ import type { ConversationEvent } from "../api/conversation";
 import { usePaneSpeech, type PaneSpeechPlaybackHandle } from "../hooks/terminal/usePaneSpeech";
 import { usePaneSelection } from "../hooks/terminal/usePaneSelection";
 import { DeviceFrame } from "./terminal/DeviceFrame";
+import { useFollowerViewportLayout } from "../hooks/terminal/useFollowerViewportLayout";
 
 interface TerminalPaneProps {
   sessionId: string;
@@ -106,6 +107,7 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
     const displayMode = useWorkspaceStore((state) => state.displayMode);
     const adaptiveChrome = useWorkspaceStore((state) => state.adaptiveChrome);
 
+    const screenClipRef = useRef<HTMLDivElement>(null);
     const sendResizeRef = useRef<(cols: number, rows: number) => void>(() => {});
     const serverSizeRef = useRef<{ cols: number; rows: number } | null>(null);
     const isFollowerRef = useRef(false);
@@ -127,7 +129,13 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
     });
 
     // Delegate all WebSocket protocol handling to the session hook
-  const { submitInput, sendControl, setMouseMode, mouseMode, scrollBy, sendResize, serverSize, isFollower, leaderDevice, viewerCount, takeLease, subscribeInputSettled, awaitOffset, subscribePendingInput, getPendingInputSnapshot, discardPendingInput, discardAllPendingInput, flushPendingInputNow, sendConversationAck } = useTerminalSession({
+  const {
+    submitInput, sendControl, setMouseMode, mouseMode, scrollBy, sendResize,
+    serverSize, isFollower, leaderDevice, leaderClass, leaderKbOpen, viewerCount,
+    takeLease, setKeyboardOpen, subscribeInputSettled, awaitOffset,
+    subscribePendingInput, getPendingInputSnapshot, discardPendingInput,
+    discardAllPendingInput, flushPendingInputNow, sendConversationAck,
+  } = useTerminalSession({
       sessionId,
       terminal,
       predictionContainer: containerRef.current,
@@ -161,42 +169,46 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
       const timer = window.setTimeout(() => { setPaneStatus(null); }, 6000);
       return () => { window.clearTimeout(timer); };
     }, [paneStatus, setPaneStatus]);
-    sendResizeRef.current = sendResize;
-    serverSizeRef.current = serverSize;
-    isFollowerRef.current = isFollower;
-    const followerFrame = useFollowerPresentation({ terminal, serverSize, isFollower, paneSize });
+    // These refs bridge callbacks the xterm lifecycle captured before the
+    // session hook existed. Writing them in an effect keeps the render phase
+    // free of side effects.
+    useEffect(() => {
+      sendResizeRef.current = sendResize;
+      serverSizeRef.current = serverSize;
+      isFollowerRef.current = isFollower;
+    }, [sendResize, serverSize, isFollower]);
 
-    useLayoutEffect(() => {
-      const host = terminalHostRef.current;
-      if (!host || !terminal) return;
-      if (!followerFrame) {
-        host.style.position = "";
-        host.style.left = "";
-        host.style.top = "";
-        host.style.width = "";
-        host.style.height = "";
-        host.style.transformOrigin = "";
-        host.style.transform = "";
-        host.style.transition = "";
-        terminal.options.fontSize = paneFontSize;
-        scrollAwareFit();
-        return;
-      }
-      const { screenRect } = followerFrame;
-      host.style.position = "absolute";
-      host.style.left = `${String(screenRect.x)}px`;
-      host.style.top = `${String(screenRect.y)}px`;
-      host.style.width = `${String(screenRect.width / screenRect.scale)}px`;
-      host.style.height = `${String(screenRect.height / screenRect.scale)}px`;
-      host.style.transformOrigin = "top left";
-      host.style.transform = screenRect.scale < 1 ? `scale(${String(screenRect.scale)})` : "";
-      host.style.transition = "left 240ms ease, top 240ms ease, width 240ms ease, height 240ms ease, transform 240ms ease";
-      terminal.options.fontSize = screenRect.fontSize;
-      fitRef.current?.fit();
-      if (terminal.cols !== followerFrame.cols || terminal.rows !== followerFrame.rows) {
-        terminal.resize(followerFrame.cols, followerFrame.rows);
-      }
-    }, [fitRef, followerFrame, paneFontSize, scrollAwareFit, terminal, terminalHostRef]);
+    // Declare this device's keyboard to the session. Only the leader's state
+    // is presented, but every pane declares so a lease handover is immediate.
+    const keyboardOpen = useWorkspaceStore((state) => state.keyboardOpen);
+    useEffect(() => { setKeyboardOpen(keyboardOpen); }, [keyboardOpen, setKeyboardOpen]);
+
+    const followerFrame = useFollowerPresentation({
+      terminal,
+      serverSize,
+      isFollower,
+      paneSize,
+      leaderClass,
+      leaderKbOpen,
+    });
+
+    // One predicate for the whole follower presentation. The device chrome and
+    // the letterboxing must agree: gating only the chrome left a solo viewer
+    // who had lost the lease with an inset, resized terminal and no frame to
+    // explain it.
+    const presentsFollowerDevice = followerFrame !== null && viewerCount > 1;
+    const appliedFrame = presentsFollowerDevice ? followerFrame : null;
+
+    const fitToHost = useCallback(() => { fitRef.current?.fit(); }, [fitRef]);
+    useFollowerViewportLayout({
+      frame: appliedFrame,
+      terminal,
+      hostRef: terminalHostRef,
+      screenRef: screenClipRef,
+      paneFontSize,
+      refit: scrollAwareFit,
+      fitToHost,
+    });
 
     const { supported: speechSupported, playback } = usePaneSpeech({
       sessionId,
@@ -303,7 +315,11 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
       >
-        <div ref={terminalHostRef} className="h-full w-full" data-testid="terminal-host" />
+        {/* The clip box becomes the device's screen opening while following;
+            it is a plain full-size wrapper otherwise. */}
+        <div ref={screenClipRef} className="h-full w-full" data-testid="terminal-screen">
+          <div ref={terminalHostRef} className="h-full w-full" data-testid="terminal-host" />
+        </div>
         <PaneSelectionLayer
           contextMenu={selection.contextMenu}
           hasSelection={selection.hasSelection}
@@ -324,7 +340,19 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
           onClose={selection.closeContextMenu}
         >
           {pinchPreviewFontSize !== null && <div data-testid="pinch-font-preview" role="status" className="absolute top-2 right-2 z-wc-chrome-raised rounded bg-slate-900/90 px-2 py-1 text-xs text-slate-100 shadow-lg">{pinchPreviewFontSize}px</div>}
-          {followerFrame && viewerCount > 1 && <DeviceFrame archetype={followerFrame.archetype} chromeTier={followerFrame.tier} rect={followerFrame.rect} leaderDevice={leaderDevice} gridCols={followerFrame.cols} gridRows={followerFrame.rows} onTakeOver={takeLease} />}
+          {appliedFrame && <DeviceFrame
+            archetype={appliedFrame.archetype}
+            chromeTier={appliedFrame.tier}
+            rect={appliedFrame.rect}
+            keyboardShare={appliedFrame.keyboardShare}
+            captionOffset={appliedFrame.captionOffset}
+            leaderDevice={leaderDevice}
+            gridCols={appliedFrame.cols}
+            gridRows={appliedFrame.rows}
+            kbOpen={appliedFrame.kbOpen}
+            paneTheme={paneTheme}
+            onTakeOver={takeLease}
+          />}
         </PaneSelectionLayer>
         <input ref={fileInputRef} type="file" accept="image/*" hidden onChange={handleFileInputChange} />
       </div>

@@ -1,5 +1,6 @@
 import { act, renderHook } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
+import { createTerminalStub } from "../../test-utils";
 import { appendOutputProbe, stripTerminalResponses, useTerminalSession } from "./useTerminalSession";
 
 class SessionSocket {
@@ -14,26 +15,6 @@ class SessionSocket {
   close(): void { this.readyState = 0; this.onclose?.({ code: 1000 } as CloseEvent); }
 }
 
-function terminalFixture() {
-  const onData = vi.fn();
-  onData.mockReturnValue({ dispose: vi.fn() });
-  const normal = {};
-  const alternate = {};
-  return {
-    cols: 80,
-    rows: 24,
-    options: {},
-    modes: { mouseTrackingMode: "none" },
-    element: null,
-    buffer: { active: normal, normal, alternate, cursorX: 4, cursorY: 5 },
-    reset: vi.fn(),
-    clear: vi.fn(),
-    write: vi.fn(),
-    resize: vi.fn(),
-    onData,
-    scrollLines: vi.fn(),
-  };
-}
 
 describe("stripTerminalResponses", () => {
   it("removes terminal query replies while preserving ordinary input", () => {
@@ -44,7 +25,7 @@ describe("stripTerminalResponses", () => {
 
   it("routes the session protocol through one socket and reports state transitions", () => {
     const socket = new SessionSocket();
-    const terminal = terminalFixture();
+    const terminal = createTerminalStub();
     const statuses: unknown[] = [];
     const exits: string[] = [];
     const onData = terminal.onData as ReturnType<typeof vi.fn>;
@@ -141,7 +122,7 @@ describe("stripTerminalResponses", () => {
 describe("reconnect presentation", () => {
   it("reports reconnect in pane status without writing operator text to xterm", () => {
     const socket = new SessionSocket();
-    const terminal = terminalFixture();
+    const terminal = createTerminalStub();
     const statuses: unknown[] = [];
     const { unmount } = renderHook(() => useTerminalSession({
       sessionId: "reconnect-session",

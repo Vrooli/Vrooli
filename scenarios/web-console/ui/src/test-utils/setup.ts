@@ -23,6 +23,26 @@ beforeEach(async () => {
   await i18n.changeLanguage("cimode");
 });
 
+// jsdom does not implement matchMedia, which the shared component library's
+// useMediaQuery hook calls through useSyncExternalStore. Without this, every
+// test rendering an RCL component that reads a breakpoint throws before its
+// first assertion. Defaults to "does not match" so tests see the desktop
+// layout unless they install their own stub.
+Object.defineProperty(window, "matchMedia", {
+  configurable: true,
+  writable: true,
+  value: vi.fn((query: string) => ({
+    matches: false,
+    media: query,
+    onchange: null,
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+    addListener: vi.fn(),
+    removeListener: vi.fn(),
+    dispatchEvent: vi.fn(() => false),
+  })),
+});
+
 Object.defineProperty(HTMLCanvasElement.prototype, "getContext", {
   configurable: true,
   value: vi.fn(() => ({})),

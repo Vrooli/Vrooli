@@ -132,7 +132,6 @@ func TestNewServerInitializesCapabilityCatalogue(t *testing.T) {
 	t.Setenv("XDG_CONFIG_HOME", filepath.Join(root, "xdg-config"))
 	t.Setenv("XDG_DATA_HOME", filepath.Join(root, "xdg-data"))
 	t.Setenv("XDG_STATE_HOME", filepath.Join(root, "xdg-state"))
-	t.Setenv("WEB_CONSOLE_BRIDGE_URL", "")
 	t.Setenv("AUDIO_TOOLS_URL", "http://127.0.0.1:1")
 
 	dsn := resolveSQLiteDSN()

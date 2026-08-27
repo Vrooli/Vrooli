@@ -97,11 +97,69 @@ func TestRegisterRetriesTokenWithoutSleepingInTest(t *testing.T) {
 	}
 }
 
-func TestRegisterSkipsWhenResourceCLIIsAbsent(t *testing.T) {
+func TestRegisterReportsWhenResourceCLIIsAbsent(t *testing.T) {
+	// This used to return nil. Reporting success when the tool that performs
+	// registration is missing meant hooks were never reconciled and nothing
+	// ever said so — a stale hook survived every restart, message capture
+	// stayed broken, and the only symptom was an empty Messages view.
 	r := testRegistrar()
 	r.lookup = func(string) (string, error) { return "", exec.ErrNotFound }
-	if err := r.register(nil); err != nil {
-		t.Fatalf("register: %v", err)
+	err := r.register(nil)
+	if err == nil {
+		t.Fatal("register must report a missing resource CLI, not claim success")
+	}
+	if !errors.Is(err, errResourceCLIMissing) {
+		t.Fatalf("register error = %v, want it to wrap errResourceCLIMissing", err)
+	}
+}
+
+func TestHookTokenPathHonorsExplicitOverride(t *testing.T) {
+	r := testRegistrar()
+	r.getenv = func(key string) string {
+		if key == "WC_HOOK_TOKEN_PATH" {
+			return "/custom/hook-token.txt"
+		}
+		return ""
+	}
+	got, err := r.hookTokenPath()
+	if err != nil {
+		t.Fatalf("hookTokenPath: %v", err)
+	}
+	if got != "/custom/hook-token.txt" {
+		t.Fatalf("hookTokenPath = %q, want the override", got)
+	}
+}
+
+func TestHookTokenPathResolvesThroughScenarioStorage(t *testing.T) {
+	// The registrar and the API must agree on one path. They previously did
+	// not: the API wrote to the scenario state class while this read
+	// $XDG_STATE_HOME, and only a years-old file holding the same value kept
+	// hooks working at all.
+	r := testRegistrar()
+	r.getenv = func(string) string { return "" }
+	got, err := r.hookTokenPath()
+	if err != nil {
+		t.Fatalf("hookTokenPath: %v", err)
+	}
+	if filepath.Base(got) != hookTokenFileName {
+		t.Fatalf("hookTokenPath = %q, want it to end in %q", got, hookTokenFileName)
+	}
+	if !strings.Contains(got, "web-console") {
+		t.Fatalf("hookTokenPath = %q, want it scoped to the web-console scenario", got)
+	}
+}
+
+func TestHookTokenRejectsAnEmptyFile(t *testing.T) {
+	r := testRegistrar()
+	r.getenv = func(key string) string {
+		if key == "WC_HOOK_TOKEN_PATH" {
+			return "/custom/hook-token.txt"
+		}
+		return ""
+	}
+	r.readFile = func(string) ([]byte, error) { return []byte("   \n"), nil }
+	if _, err := r.hookToken(); err == nil {
+		t.Fatal("an empty token file must be an error, not an empty token")
 	}
 }
 

@@ -22,8 +22,8 @@ import {
   Sparkles,
   type LucideIcon,
 } from "lucide-react";
-import { Button } from "@vrooli/react-component-library/Button/2.2.1";
-import { IconButton } from "@vrooli/react-component-library/IconButton/2.0.0";
+import { Button } from "@vrooli/react-component-library/Button/2";
+import { IconButton } from "@vrooli/react-component-library/IconButton/2/2.0.1";
 import {
   ARROW_DOWN,
   ARROW_LEFT,

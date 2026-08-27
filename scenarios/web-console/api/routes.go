@@ -67,6 +67,7 @@ func (s *Server) setupRoutes() {
 		Remote:            s,
 	}, nil).Mount(s.router)
 	s.mountTargetCatalog()
+	s.mountMachines()
 
 	terminalH.Module(&terminalH.Adapter{Manager: s.sessions}, terminalH.LegacyDeps{
 		Upload: s.handleUpload,

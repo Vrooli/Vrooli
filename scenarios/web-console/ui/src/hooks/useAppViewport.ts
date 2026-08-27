@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 
 /**
  * Centralised viewport-layout hook for the web-console PWA.
@@ -94,6 +94,8 @@ import { useEffect } from "react";
    *   padding because the fixed app layout already reserves that edge.
  * - **`App.tsx`** — loading/error states use `h-wc-app` for full-height
  *   centering (the hook hasn't run yet, so the `100dvh` fallback kicks in).
+ * - **`Workspace.tsx`** — passes `onKeyboardChange` so the active session can
+ *   declare this device's keyboard state to its followers.
  *
  * ## Test coverage
  *
@@ -102,22 +104,49 @@ import { useEffect } from "react";
  * safe-bottom toggling, scrollTo calls, cleanup, and graceful degradation
  * when `visualViewport` is unavailable.
  */
-export function useAppViewport(): void {
+export function useAppViewport(options: { onKeyboardChange?: (open: boolean) => void } = {}): void {
+  // Read through a ref so a changing callback identity never re-runs the
+  // listener setup; re-subscribing here would drop the keyboard animation
+  // polls mid-flight.
+  const onKeyboardChange = options.onKeyboardChange;
+  const keyboardListenerRef = useRef(onKeyboardChange);
+  keyboardListenerRef.current = onKeyboardChange;
+
   useEffect(() => {
     const vv = window.visualViewport;
     if (!vv) return;
 
     const update = () => {
-      const kbHeight = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
+      // vv.height is in visual-viewport pixels, so a pinch- or browser-zoomed
+      // page reports a shorter viewport with no keyboard present. Scaling it
+      // back to layout pixels keeps a zoom from being published as a keyboard,
+      // which would draw one on a follower's monitor silhouette.
+      const kbHeight = Math.max(0, window.innerHeight - vv.height * vv.scale - vv.offsetTop);
       const root = document.documentElement.style;
-      root.setProperty("--wc-kb-height", `${kbHeight}px`);
-      root.setProperty("--wc-app-height", `${vv.height}px`);
+      root.setProperty("--wc-kb-height", `${String(kbHeight)}px`);
+      root.setProperty("--wc-app-height", `${String(vv.height)}px`);
       root.setProperty("--wc-safe-top", "env(safe-area-inset-top)");
       root.setProperty("--wc-safe-left", "env(safe-area-inset-left)");
       root.setProperty("--wc-safe-right", "env(safe-area-inset-right)");
       // When the keyboard is open it covers the bottom edge, so the safe-area
       // inset is irrelevant. When closed, use the real device inset.
       root.setProperty("--wc-safe-bottom", kbHeight > 0 ? "0px" : "env(safe-area-inset-bottom)");
+      // Publish the same four numbers under the React Component Library's host
+      // viewport contract. Library surfaces read only these names, so an
+      // overlay resolves the viewport the way this app already does instead of
+      // going back to raw env()/100dvh and landing somewhere else. Assigning
+      // them here rather than in CSS keeps one source: whatever this hook
+      // decides is what the drawer, sheet, and dialog use.
+      root.setProperty("--rcl-viewport-height", `${String(vv.height)}px`);
+      root.setProperty("--rcl-keyboard-inset", `${String(kbHeight)}px`);
+      root.setProperty("--rcl-safe-top", "env(safe-area-inset-top)");
+      root.setProperty("--rcl-safe-left", "env(safe-area-inset-left)");
+      root.setProperty("--rcl-safe-right", "env(safe-area-inset-right)");
+      root.setProperty("--rcl-safe-bottom", kbHeight > 0 ? "0px" : "env(safe-area-inset-bottom)");
+      // Followers draw the leader's keyboard rather than inferring it from a
+      // shrinking grid, so this hook is also where that state is published.
+      // The listener de-duplicates, so the animation polls are free.
+      keyboardListenerRef.current?.(kbHeight > 0);
       // Prevent the browser from scrolling the page to keep the focused input
       // visible — our CSS layout already handles this, and the scroll would
       // push content offscreen.
@@ -170,6 +199,12 @@ export function useAppViewport(): void {
       document.documentElement.style.removeProperty("--wc-safe-bottom");
       document.documentElement.style.removeProperty("--wc-safe-left");
       document.documentElement.style.removeProperty("--wc-safe-right");
+      document.documentElement.style.removeProperty("--rcl-viewport-height");
+      document.documentElement.style.removeProperty("--rcl-keyboard-inset");
+      document.documentElement.style.removeProperty("--rcl-safe-top");
+      document.documentElement.style.removeProperty("--rcl-safe-bottom");
+      document.documentElement.style.removeProperty("--rcl-safe-left");
+      document.documentElement.style.removeProperty("--rcl-safe-right");
     };
   }, []);
 }

@@ -51,12 +51,22 @@ export function SettingsRow({
   className?: string;
 }) {
   return (
-    <div className={cn("flex items-center justify-between gap-4", className)}>
+    // The control keeps its intrinsic width (`shrink-0`), so on a narrow
+    // surface a row layout has nothing left to give the label but collapse:
+    // the text wraps to one word per line and runs under the control. Below
+    // `sm` the row stacks instead, which is the only arrangement where both
+    // halves get the full inline size.
+    <div
+      className={cn(
+        "flex flex-col items-start gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-4",
+        className,
+      )}
+    >
       <div className="min-w-0">
         <div className="text-sm font-medium text-wc-text-secondary">{label}</div>
         {hint && <div className={cn("text-[11px] text-wc-text-muted", hintClassName)}>{hint}</div>}
       </div>
-      <div className="shrink-0">{control}</div>
+      <div className="max-w-full shrink-0">{control}</div>
     </div>
   );
 }

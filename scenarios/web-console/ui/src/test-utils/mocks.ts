@@ -293,3 +293,103 @@ export function mockFetchError(status: number, body?: unknown) {
       : () => Promise.reject(new Error("not json")),
   }) as typeof fetch;
 }
+
+
+/**
+ * A minimal xterm stand-in for the terminal hooks.
+ *
+ * Four test files each carried a near-identical private `terminalFixture`, and
+ * three more built an ad-hoc `.xterm-screen` element by hand. One helper here
+ * keeps a change to xterm's shape a single edit.
+ *
+ * `screen` attaches a measurable `.xterm-screen` child — the element the
+ * follower presentation derives its cell aspect from. Omit it for hooks that
+ * never measure.
+ */
+export function createTerminalStub(options: {
+  cols?: number;
+  rows?: number;
+  mouseTrackingMode?: string;
+  screen?: { width: number; height: number } | null;
+} = {}) {
+  const onData = vi.fn();
+  onData.mockReturnValue({ dispose: vi.fn() });
+  const normal = {};
+  const alternate = {};
+
+  // xterm types `Terminal.element` as optional, not nullable. Matching that
+  // exactly is what lets the terminal hooks take a narrow structural type
+  // instead of the whole `Terminal`, which is what the `as never` casts in
+  // this suite used to pay for.
+  let element: HTMLElement | undefined;
+  if (options.screen !== null && options.screen !== undefined) {
+    element = document.createElement("div");
+    const screen = document.createElement("div");
+    screen.className = "xterm-screen";
+    Object.defineProperties(screen, {
+      clientWidth: { configurable: true, value: options.screen.width },
+      clientHeight: { configurable: true, value: options.screen.height },
+    });
+    element.appendChild(screen);
+  }
+
+  return {
+    cols: options.cols ?? 80,
+    rows: options.rows ?? 24,
+    options: {} as { fontSize?: number },
+    element,
+    modes: { mouseTrackingMode: options.mouseTrackingMode ?? "none" },
+    buffer: { active: normal, normal, alternate, cursorX: 4, cursorY: 5 },
+    reset: vi.fn(),
+    clear: vi.fn(),
+    write: vi.fn(),
+    resize: vi.fn(),
+    onData,
+    scrollLines: vi.fn(),
+  };
+}
+
+export type TerminalStub = ReturnType<typeof createTerminalStub>;
+
+
+/**
+ * A complete `useTerminalSession` stand-in for `TerminalPane` component tests.
+ *
+ * Five test files each carried their own partial mock of this hook, so adding
+ * one field to the session interface broke all five at once. This returns
+ * every member with an inert default; a test overrides only what it asserts on.
+ *
+ * References are created once per call and reused across renders, because
+ * `TerminalPane` keys effects on them and a fresh identity each render would
+ * re-run its unmount-save path.
+ */
+export function createTerminalSessionStub(overrides: Record<string, unknown> = {}) {
+  const sent = { status: "sent" as const, offset: 1 };
+  const base = {
+    submitInput: vi.fn(() => sent),
+    sendControl: vi.fn(() => true),
+    setMouseMode: vi.fn(() => true),
+    mouseMode: null,
+    scrollBy: vi.fn(),
+    gate: { submit: vi.fn(() => sent), dispose: vi.fn() },
+    sendResize: vi.fn(),
+    getServerSize: vi.fn(() => null),
+    serverSize: null,
+    isFollower: false,
+    leaderDevice: "",
+    leaderClass: "",
+    leaderKbOpen: false,
+    viewerCount: 1,
+    takeLease: vi.fn(),
+    setKeyboardOpen: vi.fn(),
+    subscribeInputSettled: vi.fn(() => () => {}),
+    awaitOffset: vi.fn(() => () => {}),
+    subscribePendingInput: vi.fn(() => () => {}),
+    getPendingInputSnapshot: vi.fn(() => []),
+    discardPendingInput: vi.fn(),
+    discardAllPendingInput: vi.fn(),
+    flushPendingInputNow: vi.fn(),
+    sendConversationAck: vi.fn(),
+  };
+  return { ...base, ...overrides };
+}

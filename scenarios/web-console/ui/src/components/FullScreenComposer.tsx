@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { ImagePlus, Loader2, SendHorizontal } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { ConfirmDialog } from "./ConfirmDialog";
-import { DrawerShell } from "@vrooli/react-component-library/DrawerShell/1.0.0";
+import { AlertDialog } from "@vrooli/react-component-library/AlertDialog/2";
+import { FullPageDrawer } from "@vrooli/react-component-library/FullPageDrawer/1";
 import { AttachmentPreviewTray, type ComposerAttachment } from "./composer/AttachmentPreviewTray";
 import InterimTranscriptOverlay from "./composer/InterimTranscriptOverlay";
 import { strings } from "../consts/strings";
@@ -257,12 +257,12 @@ export default function FullScreenComposer({
   const canSend = true; // empty+no-attachments is guarded inside handleSend
 
   return (
-    <DrawerShell
+    <FullPageDrawer
       open={open}
       onClose={requestClose}
-      closeAriaLabel={t(strings.composer.closeAriaLabel)}
+      closeLabel={t(strings.composer.closeAriaLabel)}
       title={t(strings.composer.title)}
-      panelTestId="full-screen-composer"
+      testId="full-screen-composer"
       avoidKeyboard
     >
       <div className="relative flex h-full flex-col">
@@ -372,10 +372,10 @@ export default function FullScreenComposer({
           </button>
         </div>
 
-        <ConfirmDialog
+        <AlertDialog
           open={showDiscardPrompt}
           title={t(strings.composer.discardTitle)}
-          body={t(strings.composer.discardMessage, { count: attachments.length })}
+          description={t(strings.composer.discardMessage, { count: attachments.length })}
           cancelLabel={t(strings.composer.discardCancel)}
           confirmLabel={t(strings.composer.discardConfirm)}
           destructive
@@ -384,6 +384,6 @@ export default function FullScreenComposer({
           testIdPrefix="composer-discard"
         />
       </div>
-    </DrawerShell>
+    </FullPageDrawer>
   );
 }

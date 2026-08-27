@@ -45,11 +45,13 @@ describe("FloatingToolbar", () => {
   });
 
   const onExpandComposer = vi.fn();
+  const onOpenMachines = vi.fn();
 
   function renderToolbar(isCreating = false) {
     return render(
       <FloatingToolbar
         onOpenSettings={onOpenSettings}
+        onOpenMachines={onOpenMachines}
         onOpenAi={onOpenAi}
         onNewTerminal={onNewTerminal}
         onOpenLauncher={onOpenLauncher}
@@ -116,5 +118,21 @@ describe("FloatingToolbar", () => {
     renderToolbar();
     const buttonsContainer = screen.getByTestId("toolbar-settings").parentElement;
     expect(buttonsContainer?.getAttribute("aria-hidden")).toBe("true");
+  });
+});
+
+describe("FloatingToolbar machines control", () => {
+  it("opens the machines surface from the persistent control cluster", () => {
+    const handlers = {
+      onOpenSettings: vi.fn(),
+      onOpenMachines: vi.fn(),
+      onOpenAi: vi.fn(),
+      onNewTerminal: vi.fn(),
+      onOpenLauncher: vi.fn(),
+      onExpandComposer: vi.fn(),
+    };
+    render(<FloatingToolbar {...handlers} isCreating={false} />);
+    fireEvent.click(screen.getByTestId("toolbar-machines"));
+    expect(handlers.onOpenMachines).toHaveBeenCalledTimes(1);
   });
 });

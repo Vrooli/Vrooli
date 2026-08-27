@@ -20,6 +20,10 @@ import (
 // summarizer to satisfy this interface).
 type Service interface {
 	Get(sessionID string, sinceSequence int64, limit int, beforeSequence int64) (SessionState, error)
+	// CaptureStatus diagnoses one session's message capture independently of
+	// its events, so callers can explain an empty transcript without a second
+	// round trip.
+	CaptureStatus(ctx context.Context, sessionID string) CaptureStatus
 	Search(sessionID, query string, limit int) ([]SearchMatch, bool, int64, error)
 	SearchArchived(ctx context.Context, filter ArchivedSearchFilter) (ArchivedSearchResult, error)
 	GetRange(sessionID string, from, to int64) (SessionState, error)
@@ -88,6 +92,41 @@ type SessionState struct {
 	OldestSequence int64
 	NewestSequence int64
 	TotalCount     int64
+	// Capture explains the event list. Callers must not infer meaning from
+	// len(Events) alone: zero events is produced both by a session nobody has
+	// spoken in and by a session whose transcript cannot be read at all.
+	Capture CaptureStatus
+}
+
+// CaptureState classifies whether this session's messages can be recorded.
+type CaptureState string
+
+const (
+	// CaptureUnspecified is the zero value. Handlers treat it as "not yet
+	// computed" and it never reaches a client that asked for a real session.
+	CaptureUnspecified CaptureState = ""
+	// CaptureCapturing means the transcript is being read right now.
+	CaptureCapturing CaptureState = "capturing"
+	// CaptureNotApplicable means the session runs no agent.
+	CaptureNotApplicable CaptureState = "not_applicable"
+	// CapturePending means capture is wired but the agent has not yet produced
+	// anything to bind it to a transcript. It resolves without intervention.
+	CapturePending CaptureState = "pending"
+	// CaptureUnavailable means capture cannot proceed until something changes.
+	CaptureUnavailable CaptureState = "unavailable"
+)
+
+// CaptureStatus is the per-session diagnosis that accompanies every Get. It
+// exists so the Messages view can distinguish "nothing has been said" from
+// "nothing can be read", which were previously the same empty response.
+type CaptureStatus struct {
+	State          CaptureState
+	ReasonCode     string
+	Summary        string
+	Detail         string
+	Remediation    string
+	TranscriptPath string
+	LastCapturedAt string
 }
 
 // CursorPatch carries cursor field overrides; each Has* flag indicates whether

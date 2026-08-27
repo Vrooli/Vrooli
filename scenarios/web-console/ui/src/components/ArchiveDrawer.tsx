@@ -24,8 +24,8 @@ import type { TTSPlaybackState } from "../audio-integration";
 import { strings } from "../consts/strings";
 import { cn } from "../lib/classnames";
 import { formatRelativeTime } from "./MessageJumpList.helpers";
-import { ConfirmDialog } from "./ConfirmDialog";
-import { DrawerShell } from "@vrooli/react-component-library/DrawerShell/1.0.0";
+import { AlertDialog } from "@vrooli/react-component-library/AlertDialog/2";
+import { FullPageDrawer } from "@vrooli/react-component-library/FullPageDrawer/1";
 import MessageExportDrawer from "./MessageExportDrawer";
 import MessagesPane from "./MessagesPane";
 
@@ -282,13 +282,12 @@ export default function ArchiveDrawer({ open, initialSessionId = null, onClose, 
 
   return (
     <>
-      <DrawerShell
+      <FullPageDrawer
         open={open}
         onClose={onClose}
         title={t(strings.archiveDrawer.title)}
-        closeAriaLabel={t(strings.archiveDrawer.close)}
-        panelTestId="archive-drawer"
-        size="full"
+        closeLabel={t(strings.archiveDrawer.close)}
+        testId="archive-drawer"
         headerExtra={
           <div className="mt-3 space-y-2">
             <div className="flex flex-col gap-2 md:flex-row md:items-center">
@@ -457,13 +456,13 @@ export default function ArchiveDrawer({ open, initialSessionId = null, onClose, 
             )}
           </section>
         </div>
-      </DrawerShell>
+      </FullPageDrawer>
 
       <MessageExportDrawer open={exportOpen} events={exportEvents} onClose={() => setExportOpen(false)} />
-      <ConfirmDialog
+      <AlertDialog
         open={deleteTarget !== null}
         title={t(strings.archiveDrawer.deleteTitle)}
-        body={t(strings.archiveDrawer.deleteBody, { name: deleteTarget?.pane_name ?? "" })}
+        description={t(strings.archiveDrawer.deleteBody, { name: deleteTarget?.pane_name ?? "" })}
         cancelLabel={t(strings.confirmDelete.cancel)}
         confirmLabel={t(strings.archiveDrawer.deleteConfirm)}
         destructive

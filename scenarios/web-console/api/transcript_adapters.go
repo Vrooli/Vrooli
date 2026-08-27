@@ -9,6 +9,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -37,8 +38,14 @@ type ClaudeTailer struct {
 	server      *Server
 	checkpoints AgentTranscriptCheckpointStore
 	engine      *tailer.Engine
+	identity    *claudeIdentityResolver
 	mu          sync.Mutex
-	missing     map[string]bool
+	// undiscovered records the live Claude sessions whose transcript discovery
+	// skipped on the most recent pass. Discovery used to drop these with a bare
+	// continue, which is why an unreadable session and an empty one looked
+	// identical from the outside. Keeping the set lets health surfaces report
+	// how many sessions are not being captured without re-deriving it.
+	undiscovered map[string]bool
 }
 
 type CodexTailer struct {
@@ -60,12 +67,63 @@ type GrokTailer struct {
 }
 
 func NewClaudeTailer(server *Server) *ClaudeTailer {
-	ct := &ClaudeTailer{server: server, missing: make(map[string]bool)}
+	ct := &ClaudeTailer{server: server, undiscovered: make(map[string]bool)}
 	if server != nil {
 		ct.checkpoints = server.agentCheckpointStore
+		if server.sessionStore != nil {
+			ct.identity = newClaudeIdentityResolver(server.sessionStore)
+		}
 	}
 	ct.engine = newClaudeTranscriptEngine(ct)
 	return ct
+}
+
+// resolveIdentities gives unidentified Claude panes a chance to be bound to a
+// transcript before discovery filters them out.
+func (ct *ClaudeTailer) resolveIdentities(ctx context.Context) {
+	if ct == nil || ct.identity == nil {
+		return
+	}
+	ct.identity.Resolve(ctx)
+}
+
+// noteUndiscovered marks a live Claude session as not currently captured.
+func (ct *ClaudeTailer) noteUndiscovered(sessionID string) {
+	if ct == nil {
+		return
+	}
+	ct.mu.Lock()
+	defer ct.mu.Unlock()
+	if ct.undiscovered == nil {
+		ct.undiscovered = make(map[string]bool)
+	}
+	ct.undiscovered[sessionID] = true
+}
+
+// noteDiscovered clears a session that is being captured again.
+func (ct *ClaudeTailer) noteDiscovered(sessionID string) {
+	if ct == nil {
+		return
+	}
+	ct.mu.Lock()
+	defer ct.mu.Unlock()
+	delete(ct.undiscovered, sessionID)
+}
+
+// UndiscoveredSessions returns the live Claude sessions whose transcripts the
+// last discovery pass could not locate.
+func (ct *ClaudeTailer) UndiscoveredSessions() []string {
+	if ct == nil {
+		return nil
+	}
+	ct.mu.Lock()
+	defer ct.mu.Unlock()
+	ids := make([]string, 0, len(ct.undiscovered))
+	for id := range ct.undiscovered {
+		ids = append(ids, id)
+	}
+	sort.Strings(ids)
+	return ids
 }
 
 func NewCodexTailer(server *Server) *CodexTailer {

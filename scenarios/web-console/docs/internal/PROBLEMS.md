@@ -1,5 +1,12 @@
 # Web Console — Known Problems and Risks
 
+## Work ladder
+
+- Rung: W0 (unverifiable)
+- Evidence: `swarm-manager goals list --json` named no goal whose name, title, or description mentions `web-console`; the required named-goal floor therefore has no contract-side artifact to compare with this scenario's PRD. A goal must be filed before the ladder can descend.
+- Blocker: no scenario-specific goal is available to establish the W0 contract comparison.
+- Measured: 2026-08-26
+
 ## 1. Interactive CLI Fidelity Edge Cases
 
 PTY handling for complex interactive CLIs (Claude Code, Codex) may have edge cases around resize during active output, cursor reporting conflicts, and reconnect during mid-escape-sequence. Requires dedicated e2e validation.
@@ -620,6 +627,11 @@ server was cleared so new sessions inherit color-capable defaults.
 | fixed-window grid on Linux/macOS/Windows | blocked: no comparable pre-change grids | Linux: source/font-gated only; macOS/Windows: blocked | Cross-build/source evidence is marked reasoned-from-source, not runtime qualification. |
 
 ## Work ladder
+
+- Rung: W3 / R0 (overlay consumer migration execution)
+- Evidence: W0 remains aligned with goals `hosted-cloud-tier-foundation` and `portal-front-door`; the PRD's P0 controls-surface target continues to cover the drawer/sidebar surface. `business-health validate scenario web-console` and `vrooli scenario requirements validate web-console` both pass. Baseline run `20260827-043743-f8d9edda` is terminal and records the pre-existing red implementation baseline before the overlay migration.
+- Blocker: None. The plan must preserve terminal workflows while replacing local and portable overlay surfaces, and final evidence must be compared with this baseline.
+- Measured: 2026-08-27.
 
 - Rung: W3 (implementation)
 - Evidence: W0 comparison remains aligned: goals `hosted-cloud-tier-foundation` and

@@ -10,6 +10,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -134,7 +135,7 @@ type Server struct {
 	// to the client in session_ready. Clients use it as the wsGen write
 	// barrier on cumulative-offset stdin reconciliation.
 	nextWSGen           atomic.Int64
-	remoteTargetCatalog func() []remoteTerminalTarget
+	remoteTargetCatalog func() []targetConnection
 	monetization        *monetization.Gate
 	monetizationOutbox  *monetization.Outbox
 }
@@ -321,7 +322,10 @@ func NewServer(db *database.RoutedDB) *Server {
 	ollamaURL := getEnvOrDefault("OLLAMA_URL", "http://localhost:11434")
 	openrouterKey := os.Getenv("OPENROUTER_API_KEY")
 	bridgeOwnerToken, bridgeReauthToken := resolveBridgeOwnerCredentials()
-	bridgeURL := os.Getenv("WEB_CONSOLE_BRIDGE_URL")
+	// Bridge endpoint selection belongs to packages/nodeclient. The capability
+	// registry receives an empty base here; the target catalog resolves the
+	// scenario-owned endpoint on demand.
+	bridgeURL := ""
 
 	checkers := newCapabilityCheckers(ollamaURL, openrouterKey, bridgeURL, bridgeOwnerToken, bridgeReauthToken)
 	srv.capabilities = capabilities.NewRegistry(capabilities.Known, checkers, 30*time.Second)
@@ -679,6 +683,14 @@ func (s *Server) getClaudeHookStatus() (bool, string, string, string) {
 						return false, "hook_stale", "Claude Stop hook exists but has an outdated authentication token", settingsPath
 					}
 				case "command":
+					// Runnability is checked before shape. A hook whose target
+					// no longer exists fails on every turn while every
+					// string-level check still passes, which is exactly how
+					// message capture broke silently: the registered command
+					// pointed at a helper script that had been deleted.
+					if missing, reason := claudeHookCommandTargetMissing(hook.Command); missing {
+						return false, "hook_unrunnable", "Claude Stop hook is registered but cannot run: " + reason, settingsPath
+					}
 					if !strings.Contains(hook.Command, "web-console") || !strings.Contains(hook.Command, "hooks dispatch") || !strings.Contains(hook.Command, "--event 'Stop'") {
 						return false, "hook_stale", "Claude Stop hook exists but uses an unexpected command", settingsPath
 					}
@@ -696,6 +708,104 @@ func (s *Server) getClaudeHookStatus() (bool, string, string, string) {
 		}
 	}
 	return false, "hook_missing", "Claude Stop hook is not registered in project settings", settingsPath
+}
+
+// claudeHookCommandTargetMissing reports whether a registered hook command
+// names something that cannot be executed, and why.
+//
+// String-matching a hook command proves only that the settings file says the
+// right thing. It does not prove the hook works, and the difference is not
+// academic: a registered command pointing at a deleted script fails on every
+// single turn while reporting itself healthy. This check closes that gap.
+//
+// Interpreter invocations are unwrapped one level, because that is the form
+// that hides the failure — `bash /path/to/hook.sh` resolves fine on the
+// strength of `bash` alone while the script it runs is long gone.
+func claudeHookCommandTargetMissing(command string) (bool, string) {
+	tokens := splitShellTokens(command)
+	if len(tokens) == 0 {
+		return true, "the command is empty"
+	}
+	if missing, reason := executableTargetMissing(tokens[0]); missing {
+		return true, reason
+	}
+	if isShellInterpreter(tokens[0]) && len(tokens) > 1 {
+		script := tokens[1]
+		// Skip interpreter flags; the script path is the first bare argument.
+		for len(tokens) > 1 && strings.HasPrefix(script, "-") {
+			tokens = tokens[1:]
+			script = tokens[1]
+		}
+		if !strings.HasPrefix(script, "-") {
+			if _, err := os.Stat(script); os.IsNotExist(err) {
+				return true, "the script it runs no longer exists at " + script
+			}
+		}
+	}
+	return false, ""
+}
+
+// executableTargetMissing resolves one command word the way a shell would.
+func executableTargetMissing(word string) (bool, string) {
+	if word == "" {
+		return true, "the command is empty"
+	}
+	if strings.ContainsRune(word, os.PathSeparator) {
+		info, err := os.Stat(word)
+		if os.IsNotExist(err) {
+			return true, "no such file at " + word
+		}
+		if err == nil && info.Mode()&0o111 == 0 {
+			return true, word + " is not executable"
+		}
+		return false, ""
+	}
+	if _, err := exec.LookPath(word); err != nil {
+		return true, word + " is not on PATH"
+	}
+	return false, ""
+}
+
+func isShellInterpreter(word string) bool {
+	switch filepath.Base(word) {
+	case "sh", "bash", "zsh", "dash", "ksh":
+		return true
+	}
+	return false
+}
+
+// splitShellTokens splits a command on whitespace while honoring the single and
+// double quoting that hook registration emits around paths and tokens. It is
+// intentionally not a full shell parser: it only needs to recover the words a
+// registered hook command is built from.
+func splitShellTokens(command string) []string {
+	var tokens []string
+	var current strings.Builder
+	var quote rune
+	flush := func() {
+		if current.Len() > 0 {
+			tokens = append(tokens, current.String())
+			current.Reset()
+		}
+	}
+	for _, r := range command {
+		switch {
+		case quote != 0:
+			if r == quote {
+				quote = 0
+				continue
+			}
+			current.WriteRune(r)
+		case r == '\'' || r == '"':
+			quote = r
+		case r == ' ' || r == '\t':
+			flush()
+		default:
+			current.WriteRune(r)
+		}
+	}
+	flush()
+	return tokens
 }
 
 func (s *Server) recordLastTTSRouting(result ConversationAppendResult) {

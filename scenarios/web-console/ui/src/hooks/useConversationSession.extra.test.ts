@@ -17,9 +17,11 @@ describe("conversation session orchestration", () => {
   it("hydrates, refreshes gaps, loads older pages, and persists cursors", async () => {
     const get = vi.spyOn(api, "getConversationSession").mockResolvedValue(page as never);
     const update = vi.spyOn(api, "updateConversationCursor").mockResolvedValue({ lastSeenSequence: 2, lastListenedSequence: 1 });
-    await expect(refreshConversationSession("s")).resolves.toBe(true);
+    await expect(refreshConversationSession("s")).resolves.toMatchObject({ ok: true, addedEvents: 1 });
     expect(useConversationStore.getState().sessions.s?.events).toHaveLength(1);
-    await expect(refreshConversationSession("s")).resolves.toBe(true);
+    // A second refresh returning the same event adds nothing — and says so,
+    // which is what lets the pane report "up to date" instead of going quiet.
+    await expect(refreshConversationSession("s")).resolves.toMatchObject({ ok: true, addedEvents: 0 });
     await expect(loadOlderConversationPage("s")).resolves.toBe(false);
     await expect(loadConversationPageContaining("s", 1)).resolves.toBe(true);
     expect(get).toHaveBeenCalled();
@@ -30,13 +32,22 @@ describe("conversation session orchestration", () => {
     expect(update).toHaveBeenCalledWith("s", { lastSeenSequence: 2 });
   });
 
-  it("returns false on failed fetches and falls back when hook hydration fails", async () => {
+  it("reports a typed failure on failed fetches instead of an empty session", async () => {
     vi.spyOn(api, "getConversationSession").mockRejectedValue(new Error("offline"));
-    await expect(refreshConversationSession("missing")).resolves.toBe(false);
+    await expect(refreshConversationSession("missing")).resolves.toMatchObject({
+      ok: false,
+      error: { message: "offline", retryable: true },
+    });
     await expect(loadConversationPageContaining("s", 0)).resolves.toBe(false);
     const { unmount } = renderHook(() => useConversationSession("s"));
     await waitFor(() => expect(useConversationStore.getState().sessions.s).toBeDefined());
-    expect(useConversationStore.getState().sessions.s?.events).toEqual([]);
+    // The critical distinction: a failed load leaves a session marked failed,
+    // never a hydrated one with zero events, which the view would have shown
+    // as "no messages yet".
+    const session = useConversationStore.getState().sessions.s;
+    expect(session?.events).toEqual([]);
+    expect(session?.status).toBe("failed");
+    expect(session?.hydrated).toBe(false);
     unmount();
   });
 

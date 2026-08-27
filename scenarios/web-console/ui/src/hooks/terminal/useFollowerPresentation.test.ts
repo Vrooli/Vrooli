@@ -1,78 +1,95 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import { renderHook } from "@testing-library/react";
-import { useFollowerPresentation } from "./useFollowerPresentation";
+import { createTerminalStub } from "../../test-utils";
+import { FALLBACK_CELL_ASPECT, FRAME_ASPECT } from "../../lib/followerViewport";
+import { measureCellAspect, useFollowerPresentation } from "./useFollowerPresentation";
 
-function terminalFixture(options: { width?: number; height?: number; cols?: number; rows?: number } = {}) {
-  const element = document.createElement("div");
-  const screen = document.createElement("div");
-  Object.defineProperties(screen, {
-    clientWidth: { configurable: true, value: options.width ?? 800 },
-    clientHeight: { configurable: true, value: options.height ?? 480 },
-  });
-  screen.className = "xterm-screen";
-  element.appendChild(screen);
-  return {
-    element,
-    cols: options.cols ?? 80,
-    rows: options.rows ?? 24,
-    options: {} as { fontSize?: number },
-    resize: vi.fn(),
+const PANE = { width: 1000, height: 700 };
+
+type PresentationOptions = Parameters<typeof useFollowerPresentation>[0];
+
+// `??` would swallow an explicitly-null serverSize, which is one of the cases
+// under test, so defaults are applied by key presence instead.
+function present(overrides: Partial<PresentationOptions> = {}) {
+  const options: PresentationOptions = {
+    terminal: createTerminalStub({ cols: 80, rows: 24, screen: { width: 800, height: 480 } }),
+    serverSize: { cols: 80, rows: 24 },
+    isFollower: true,
+    paneSize: PANE,
+    ...overrides,
   };
+  const { result } = renderHook(() => useFollowerPresentation(options));
+  return result.current;
 }
 
-describe("useFollowerPresentation", () => {
-  it("does not create a frame for a leader or an unmeasured pane", () => {
-    const { result } = renderHook(() => useFollowerPresentation({
-      terminal: null,
-      serverSize: { cols: 80, rows: 24 },
-      isFollower: false,
-      paneSize: { width: 800, height: 600 },
-    }));
-    expect(result.current).toBeNull();
+describe("measureCellAspect", () => {
+  it("derives the cell aspect from the rendered screen", () => {
+    const terminal = createTerminalStub({ cols: 80, rows: 24, screen: { width: 800, height: 480 } });
+    // 800/80 = 10 wide, 480/24 = 20 tall.
+    expect(measureCellAspect(terminal)).toBeCloseTo(0.5, 6);
   });
 
-  it("computes a follower frame without mutating xterm's root element", () => {
-    const terminal = terminalFixture({ cols: 40, rows: 12 });
-    const { result, rerender } = renderHook(({ paneSize }) => useFollowerPresentation({
-      terminal: terminal as never,
-      serverSize: { cols: 80, rows: 24 },
-      isFollower: true,
-      paneSize,
-    }), { initialProps: { paneSize: { width: 1000, height: 700 } } });
+  it("falls back when xterm has not rendered yet", () => {
+    expect(measureCellAspect(null)).toBe(FALLBACK_CELL_ASPECT);
+    expect(measureCellAspect(createTerminalStub({ screen: null }))).toBe(FALLBACK_CELL_ASPECT);
+    expect(measureCellAspect(createTerminalStub({ screen: { width: 0, height: 0 } }))).toBe(FALLBACK_CELL_ASPECT);
+    expect(measureCellAspect(createTerminalStub({ cols: 0, rows: 0, screen: { width: 10, height: 10 } }))).toBe(FALLBACK_CELL_ASPECT);
+  });
+});
 
-    expect(result.current).not.toBeNull();
-    expect(terminal.element.style.cssText).toBe("");
+describe("useFollowerPresentation", () => {
+  it("produces no frame for a leader, an unknown size, or an unmeasured pane", () => {
+    expect(present({ isFollower: false })).toBeNull();
+    expect(present({ serverSize: null })).toBeNull();
+    expect(present({ paneSize: { width: 0, height: 0 } })).toBeNull();
+  });
+
+  it("frames the leader's declared device, not the grid it is showing", () => {
+    const frame = present({ leaderClass: "phone", serverSize: { cols: 120, rows: 30 } });
+    expect(frame?.archetype).toBe("phone");
+    expect(frame && frame.rect.width / frame.rect.height).toBeCloseTo(FRAME_ASPECT.phone, 5);
+  });
+
+  // The regression this whole change exists to prevent.
+  it("keeps the silhouette identical when a keyboard halves the leader's rows", () => {
+    const closed = present({ leaderClass: "phone", serverSize: { cols: 46, rows: 26 } });
+    const open = present({ leaderClass: "phone", serverSize: { cols: 46, rows: 13 }, leaderKbOpen: true });
+    expect(open?.archetype).toBe(closed?.archetype);
+    expect(open?.tier).toBe(closed?.tier);
+    expect(open?.rect.width).toBeCloseTo(closed?.rect.width ?? 0, 5);
+    expect(open?.rect.height).toBeCloseTo(closed?.rect.height ?? 0, 5);
+    // Only the grid inside it moves, and the keyboard claims a believable
+    // slice of the screen rather than whatever the grid left over.
+    expect(closed?.keyboardShare).toBe(0);
+    expect(open?.keyboardShare).toBeGreaterThan(0.15);
+    expect(open?.keyboardShare).toBeLessThan(0.35);
+    expect(open?.kbOpen).toBe(true);
+    expect(closed?.kbOpen).toBe(false);
+  });
+
+  it("falls back to grid geometry when the leader declares no class", () => {
+    expect(present({ serverSize: { cols: 240, rows: 30 } })?.archetype).toBe("ultrawide");
+    expect(present({ leaderClass: "", serverSize: { cols: 45, rows: 30 } })?.archetype).toBe("phone");
+  });
+
+  it("ignores a class it does not recognise", () => {
+    const frame = present({ leaderClass: "smartwatch", serverSize: { cols: 240, rows: 30 } });
+    expect(frame?.archetype).toBe("ultrawide");
+  });
+
+  it("computes without touching xterm, so rendering owns every mutation", () => {
+    const terminal = createTerminalStub({ cols: 40, rows: 12, screen: { width: 400, height: 240 } });
+    const { rerender } = renderHook(({ paneSize }) => useFollowerPresentation({
+      terminal, serverSize: { cols: 80, rows: 24 }, isFollower: true, paneSize,
+    }), { initialProps: { paneSize: PANE } });
+    rerender({ paneSize: { width: 500, height: 400 } });
+    expect(terminal.element?.style.cssText).toBe("");
     expect(terminal.resize).not.toHaveBeenCalled();
     expect(terminal.options.fontSize).toBeUndefined();
-
-    rerender({ paneSize: { width: 0, height: 0 } });
-    expect(result.current).toBeNull();
-    expect(terminal.element.style.cssText).toBe("");
   });
 
-  it("uses the conservative aspect fallback and compact strip for a tiny pane", () => {
-    const terminal = terminalFixture({ cols: 0, rows: 0, width: 0, height: 0 });
-    const { result } = renderHook(() => useFollowerPresentation({
-      terminal: terminal as never,
-      serverSize: { cols: 80, rows: 24 },
-      isFollower: true,
-      paneSize: { width: 120, height: 120 },
-    }));
-
-    expect(result.current?.tier).toBe("strip");
-    expect(result.current?.screenRect).toEqual(result.current?.rect);
-  });
-
-  it("does not apply DOM changes when the fit addon is unavailable", () => {
-    const terminal = terminalFixture();
-    const { result } = renderHook(() => useFollowerPresentation({
-      terminal: terminal as never,
-      serverSize: { cols: 80, rows: 24 },
-      isFollower: true,
-      paneSize: { width: 800, height: 600 },
-    }));
-
-    expect(result.current).not.toBeNull();
-    expect(terminal.element.style.position).toBe("");
+  it("degrades to the caption strip in a pane too small for a silhouette", () => {
+    const frame = present({ leaderClass: "phone", paneSize: { width: 120, height: 120 } });
+    expect(frame?.tier).toBe("strip");
   });
 });

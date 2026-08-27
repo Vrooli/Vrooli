@@ -17,9 +17,10 @@ import {
   Search,
   Volume2,
 } from "lucide-react";
-import { useConversationStore, getSessionConversationEvents } from "../stores/useConversationStore";
+import { useConversationStore, getSessionConversationEvents, getSessionSlice, resolveConversationView } from "../stores/useConversationStore";
 import { loadConversationPageContaining, loadOlderConversationPage, refreshConversationSession } from "../hooks/useConversationSession";
 import { useWorkspaceStore } from "../stores/useWorkspaceStore";
+import { useLiveStreamNotice } from "../hooks/useLiveStreamNotice";
 import { useMediaQuery } from "../hooks/useMediaQuery";
 import { useAnchoredPopoverPosition, type FloatingPlacement } from "../hooks/useFloatingPosition";
 import { writeText } from "../lib/clipboard";
@@ -40,6 +41,9 @@ import type { TTSPlaybackState } from "../audio-integration";
 import type { PlaybackFocusRequest, PlaybackVersion } from "../domains/tts-playback/types";
 import MessagesFileViewer from "./MessagesFileViewer";
 import MessagesMermaidViewer from "./MessagesMermaidViewer";
+import MessagesPaneState from "./MessagesPaneState";
+import MessagesPaneStatusLine from "./MessagesPaneStatusLine";
+import { resolveMessagesPaneStatus } from "../lib/messagesPaneStatus";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -542,6 +546,14 @@ export default function MessagesPane({
   const { t } = useTranslation();
   const events = useConversationStore((state) => getSessionConversationEvents(state, sessionId));
   const totalCount = useConversationStore((state) => state.sessions[sessionId]?.totalCount ?? events.length);
+  // The session slice is referentially stable, so deriving the view from it in
+  // a memo avoids re-rendering the pane on every unrelated store write. The
+  // view — not events.length — decides what this pane shows.
+  const sessionSlice = useConversationStore((state) => getSessionSlice(state, sessionId));
+  const viewState = useMemo(() => resolveConversationView(sessionSlice), [sessionSlice]);
+  // Only after the interruption outlives its grace period; most drops recover
+  // faster than the sentence can be read.
+  const liveInterrupted = useLiveStreamNotice();
   const isMobile = useMediaQuery("(max-width: 767px)");
 
   // Stable subset of playbackState for the per-message audio popover. Keeping
@@ -670,14 +682,43 @@ export default function MessagesPane({
 
   // --- Refresh: on mount, on browser tab focus, and via manual button ---
   const [isRefreshing, setIsRefreshing] = useState(false);
+  // What the last manual refresh did. A spinner that stops is not feedback:
+  // "fetched successfully, nothing new" and "the request failed" previously
+  // looked identical, which is why refresh appeared to do nothing at all.
+  // A failed refresh persists until the next attempt; a successful one is a
+  // brief confirmation. They are separate because they have different
+  // lifetimes and different priority against the live-stream notice.
+  const [refreshError, setRefreshError] = useState<string | null>(null);
+  const [transientNotice, setTransientNotice] = useState<string | null>(null);
+  const refreshNoticeTimer = useRef<number | null>(null);
+
+  const showTransientNotice = useCallback((text: string) => {
+    setTransientNotice(text);
+    if (refreshNoticeTimer.current != null) window.clearTimeout(refreshNoticeTimer.current);
+    refreshNoticeTimer.current = window.setTimeout(() => { setTransientNotice(null); }, 3000);
+  }, []);
+
+  useEffect(() => () => {
+    if (refreshNoticeTimer.current != null) window.clearTimeout(refreshNoticeTimer.current);
+  }, []);
+
   const handleRefresh = useCallback(async () => {
     setIsRefreshing(true);
     try {
-      await refreshConversationSession(sessionId);
+      const outcome = await refreshConversationSession(sessionId);
+      if (!outcome.ok) {
+        setRefreshError(outcome.error.message);
+        setTransientNotice(null);
+      } else {
+        setRefreshError(null);
+        showTransientNotice(outcome.addedEvents > 0
+          ? t(strings.messagesPane.refreshAdded, { count: outcome.addedEvents })
+          : t(strings.messagesPane.refreshUpToDate));
+      }
     } finally {
       setIsRefreshing(false);
     }
-  }, [sessionId]);
+  }, [sessionId, showTransientNotice, t]);
 
   // Refresh on pane mount (covers switching view mode back to messages). Also
   // refresh whenever the tab becomes visible again — the server may have
@@ -1201,11 +1242,18 @@ export default function MessagesPane({
       />
 
 
+      <MessagesPaneStatusLine
+        status={resolveMessagesPaneStatus({
+          refreshError,
+          liveInterrupted,
+          liveInterruptedText: t(strings.messagesPane.liveDisconnected),
+          transient: transientNotice,
+        })}
+      />
+
       <div ref={scrollContainerRef} className="relative min-h-0 flex-1 overflow-auto">
-        {events.length === 0 ? (
-          <div className="rounded-xl border border-dashed border-wc-default bg-wc-surface px-4 py-6 text-sm text-wc-text-muted">
-            {t(strings.messagesPane.noEvents)}
-          </div>
+        {viewState.kind !== "messages" ? (
+          <MessagesPaneState view={viewState} onRetry={() => void handleRefresh()} />
         ) : (
           <div className="relative" style={{ height: `${totalSize}px` }}>
             {virtualItems.map(({ index, start }) => {

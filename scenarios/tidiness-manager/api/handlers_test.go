@@ -219,8 +219,8 @@ func TestTidinessMaturitySpecCoversEmittedRules(t *testing.T) {
 	if spec.Version != "2.0.0" {
 		t.Fatalf("version = %q, want 2.0.0", spec.Version)
 	}
-	if len(spec.Capabilities) != 4 {
-		t.Fatalf("capabilities = %d, want 4", len(spec.Capabilities))
+	if len(spec.Capabilities) != 5 {
+		t.Fatalf("capabilities = %d, want 5", len(spec.Capabilities))
 	}
 	for _, ruleID := range emittedTidinessRuleIDs() {
 		mapping, ok := spec.Findings[ruleID]
@@ -241,8 +241,8 @@ func TestTidinessMaturitySpecCoversEmittedRules(t *testing.T) {
 	if err != nil {
 		t.Fatalf("buildTidinessMaturityAssessment() error = %v", err)
 	}
-	if len(got.GetCapabilities()) != 4 {
-		t.Fatalf("capabilities = %d, want 4", len(got.GetCapabilities()))
+	if len(got.GetCapabilities()) != 5 {
+		t.Fatalf("capabilities = %d, want 5", len(got.GetCapabilities()))
 	}
 	if got.GetFindings()[0].GetMaturity().GetCapabilityId() != "local_debt_control" {
 		t.Fatalf("long-file capability = %q, want local_debt_control", got.GetFindings()[0].GetMaturity().GetCapabilityId())
@@ -323,6 +323,23 @@ func TestTidinessBudgetFinding_RatchetRejectsDebtRegressionAndBudgetLoosening(t 
 
 	if stable := tidinessBudgetFinding("demo", scenarioPath, TidinessScanSummary{DuplicationLineDebt: 100}); stable != nil {
 		t.Fatalf("ratchet at recorded baseline = %#v, want no finding", stable)
+	}
+}
+
+func TestTidinessBudgetFinding_EnforcesDeclaredZero(t *testing.T) {
+	scenarioPath := t.TempDir()
+	if err := os.Mkdir(filepath.Join(scenarioPath, ".vrooli"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	config := `{"phases":{"tidiness":{"budgets":{"duplication_line_debt":0,"baseline_duplication_line_debt":0,"debt_markers":0,"ratchet":true}}}}`
+	if err := os.WriteFile(filepath.Join(scenarioPath, ".vrooli", "testing.json"), []byte(config), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if finding := tidinessBudgetFinding("demo", scenarioPath, TidinessScanSummary{TechDebt: 1}); finding == nil || finding.Evidence["metric"] != "debt_markers" {
+		t.Fatalf("declared zero finding = %#v", finding)
+	}
+	if finding := tidinessBudgetFinding("demo", scenarioPath, TidinessScanSummary{}); finding != nil {
+		t.Fatalf("clean declared zero = %#v", finding)
 	}
 }
 

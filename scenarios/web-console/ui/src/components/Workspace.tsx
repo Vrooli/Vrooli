@@ -2,7 +2,7 @@
 // DOC: docs/internal/SEAMS.md#1-entry-presentation
 import { useState, useCallback, useEffect, useMemo, useRef, type ChangeEvent } from "react";
 import type { PointerEvent as ReactPointerEvent } from "react";
-import { Loader2, Menu, MessageSquareText, Plus, Settings, TerminalSquare, X } from "lucide-react";
+import { Loader2, Menu, MessageSquareText, MonitorSmartphone, Plus, Settings, TerminalSquare, X } from "lucide-react";
 import { useShallow } from "zustand/react/shallow";
 import { useTranslation } from "react-i18next";
 import { strings } from "../consts/strings";
@@ -38,6 +38,7 @@ import type { LaunchOptions } from "./TerminalLauncher";
 import ErrorBanner from "./ErrorBanner";
 import GridSplitter from "./GridSplitter";
 import TerminalLauncher from "./TerminalLauncher";
+import MachinesDrawer from "./machines/MachinesDrawer";
 import MobileToolbar from "./MobileToolbar";
 import type { MobileToolbarHandle } from "./MobileToolbar";
 import AiInput from "./AiInput";
@@ -71,7 +72,7 @@ import WorkspaceMinimap from "./WorkspaceMinimap";
 import SettingsModal from "./SettingsModal";
 import AppearanceModal from "./AppearanceModal";
 import ManageGroupsDrawer from "./ManageGroupsDrawer";
-import { ConfirmDialog } from "./ConfirmDialog";
+import { AlertDialog } from "@vrooli/react-component-library/AlertDialog/2";
 import WorkspacePaneShell from "./WorkspacePaneShell";
 import TabBar from "./TabBar";
 import SessionSidebar from "./SessionSidebar";
@@ -270,7 +271,10 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
   const sidebarLayoutRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const activeResizeRef = useRef<ActiveResize | null>(null);
-  useAppViewport();
+  // Publish this device's keyboard state so each pane can declare it to its
+  // session; followers draw the leader's keyboard rather than guessing at it.
+  const setKeyboardOpen = useWorkspaceStore((state) => state.setKeyboardOpen);
+  useAppViewport({ onKeyboardChange: setKeyboardOpen });
   const needsTouchControls = useTouchControls();
   const wakeLockStatus = useWakeLock(workspace.keepScreenAwake);
   const setWakeLockStatus = useWakeLockStatus((s) => s.setStatus);
@@ -325,6 +329,7 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
   }, [mergeExternalSession]);
 
   const [launcherOpen, setLauncherOpen] = useState(false);
+  const [machinesOpen, setMachinesOpen] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [lastVisitedBySession, setLastVisitedBySession] = useState<Record<string, string>>({});
 
@@ -530,6 +535,12 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
   }, [workspace.activePane, workspacePanes, activatePane]);
 
   const openLauncher = useCallback(() => setLauncherOpen(true), []);
+  // Opening machines from the launcher replaces it rather than stacking two
+  // overlays: one surface on screen at a time.
+  const openMachines = useCallback(() => {
+    setLauncherOpen(false);
+    setMachinesOpen(true);
+  }, []);
   const closeLauncher = useCallback(() => {
     pendingLauncherGroupRef.current = null;
     setLauncherOpen(false);
@@ -1407,6 +1418,7 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
           targetCatalog={targetCatalog}
           targetsLoading={targetsLoading}
           onRefreshTargets={refreshTargetCatalog}
+          onOpenMachines={openMachines}
         />
         <ArchiveDrawer
           open={archiveDrawerOpen}
@@ -1564,6 +1576,7 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
       <FloatingToolbar
         hidden={isMobile && isTabLikeMode}
         onOpenSettings={() => workspace.setSettingsModalOpen(true)}
+        onOpenMachines={openMachines}
         onOpenAi={() => workspace.setAiModalOpen(true)}
         onNewTerminal={() => handleLaunch()}
         onOpenLauncher={openLauncher}
@@ -1603,6 +1616,17 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
             onDeletePanePermanently={setPendingDelete}
             isCreating={isCreating}
             trailingActions={isMobile ? (
+              <>
+              <Button
+                data-testid="tabbar-machines"
+                variant="ghost"
+                size="icon"
+                className="h-11 w-11 shrink-0 mx-1 self-center md:h-7 md:w-7"
+                onClick={() => { setMachinesOpen(true); }}
+                title={t(strings.machines.openAriaLabel)}
+              >
+                <MonitorSmartphone className="h-4 w-4" />
+              </Button>
               <Button
                 data-testid="tabbar-settings"
                 variant="ghost"
@@ -1613,6 +1637,7 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
               >
                 <Settings className="h-4 w-4" />
               </Button>
+              </>
             ) : undefined}
           />
         )}
@@ -1676,6 +1701,16 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
               title={workspace.plusButtonBehavior === "launcher" ? t(strings.floatingToolbar.launcherFirstTitle) : t(strings.floatingToolbar.terminalFirstTitle)}
             >
               <Plus className="h-4 w-4" />
+            </Button>
+            <Button
+              data-testid="workspace-machines"
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
+              onClick={() => { setMachinesOpen(true); }}
+              title={t(strings.machines.openAriaLabel)}
+            >
+              <MonitorSmartphone className="h-4 w-4" />
             </Button>
             <Button
               variant="ghost"
@@ -2003,7 +2038,10 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
         targetCatalog={targetCatalog}
         targetsLoading={targetsLoading}
         onRefreshTargets={refreshTargetCatalog}
+        onOpenMachines={openMachines}
       />
+
+      <MachinesDrawer open={machinesOpen} onClose={() => { setMachinesOpen(false); }} />
 
       {/* Settings Modal */}
       <SettingsModal
@@ -2031,10 +2069,10 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
       <AiInput onExecute={(cmd) => { handleSendToTerminal(cmd, "bulk_text"); }} />
 
       {/* Permanent deletion remains explicit and confirmation-backed. */}
-      <ConfirmDialog
+      <AlertDialog
         open={pendingDelete !== null}
         title={t(strings.confirmDelete.title)}
-        body={t(strings.confirmDelete.body, {
+        description={t(strings.confirmDelete.body, {
           name: workspace.panes.find((p) => p.sessionId === pendingDelete)?.name ?? "terminal",
         })}
         cancelLabel={t(strings.confirmDelete.cancel)}

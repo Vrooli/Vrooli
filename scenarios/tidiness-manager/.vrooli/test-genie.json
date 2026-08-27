@@ -12,7 +12,7 @@
   "validation": {
     "contract": "scenario-validation/v1"
   },
-  "targets": {"kinds": ["scenario"], "selection": "enumerate"},
+  "targets": {"kinds": ["scenario", "control-plane", "tool", "safeguard", "package", "project"], "selection": "enumerate"},
   "applicability": {
     "default": "applies"
   },
@@ -198,6 +198,52 @@
             "capability_summary": "Duplication posture is clean."
           }
         ]
+      },
+      {
+        "id": "seam_control",
+        "label": "Canonical Seam Control",
+        "description": "Declarative AST-based enforcement of canonical implementation seams.",
+        "levels": [
+          {
+            "id": "L0",
+            "name": "Seams unavailable",
+            "status_label": "Unavailable",
+            "description": "Canonical seam declarations cannot be loaded or scanned.",
+            "capability_summary": "Canonical seam enforcement is unavailable.",
+            "next_unlock": "Load a valid canonical-seams.json rule file."
+          },
+          {
+            "id": "L1",
+            "name": "Seams declared",
+            "status_label": "Foundation",
+            "description": "Canonical call and literal seams can be declared for a source tree.",
+            "capability_summary": "Canonical seams are declarative.",
+            "next_unlock": "Scan in-scope Go syntax for bypasses."
+          },
+          {
+            "id": "L2",
+            "name": "Bypasses visible",
+            "status_label": "Ready",
+            "description": "AST-matched bypasses are normalized into actionable findings.",
+            "capability_summary": "Canonical seam bypasses are visible.",
+            "next_unlock": "Enforce declared budgets without text false positives."
+          },
+          {
+            "id": "L3",
+            "name": "Budgets enforced",
+            "status_label": "Managed",
+            "description": "Each seam budget gates only in-scope AST matches above its allowance.",
+            "capability_summary": "Canonical seam budgets are enforced.",
+            "next_unlock": "Resolve every above-budget bypass."
+          },
+          {
+            "id": "L4",
+            "name": "Seams clean",
+            "status_label": "Complete",
+            "description": "No canonical seam has an above-budget bypass.",
+            "capability_summary": "Canonical seam posture is clean."
+          }
+        ]
       }
     ],
     "findings": {
@@ -208,6 +254,8 @@
         "dimension": "tidiness",
         "severity_default": "SEVERITY_WARNING",
         "clean_requirement": "required",
+        "fix_class": "manual",
+        "reason": "Long-file remediation requires a responsibility-aware split that preserves behavior.",
         "recommended_skill_ids": [
           "tidiness",
           "cognitive-load-reduction"
@@ -220,6 +268,8 @@
         "dimension": "tidiness",
         "severity_default": "SEVERITY_WARNING",
         "clean_requirement": "required",
+        "fix_class": "manual",
+        "reason": "Debt-marker removal requires resolving or explicitly redesigning the underlying work.",
         "recommended_skill_ids": [
           "tidiness",
           "domain-clarity"
@@ -232,6 +282,8 @@
         "dimension": "tidiness",
         "severity_default": "SEVERITY_WARNING",
         "clean_requirement": "required",
+        "fix_class": "manual",
+        "reason": "Complexity reduction requires behavior-aware decomposition and focused regression tests.",
         "recommended_skill_ids": [
           "tidiness",
           "cognitive-load-reduction",
@@ -245,6 +297,8 @@
         "dimension": "tidiness",
         "severity_default": "SEVERITY_WARNING",
         "clean_requirement": "required",
+        "fix_class": "manual",
+        "reason": "Coupling reduction requires choosing a narrower responsibility boundary.",
         "recommended_skill_ids": [
           "tidiness",
           "boundary-of-responsibility-enforcement"
@@ -257,6 +311,8 @@
         "dimension": "tidiness",
         "severity_default": "SEVERITY_WARNING",
         "clean_requirement": "required",
+        "fix_class": "manual",
+        "reason": "Duplicate implementation must be reconciled around a reviewed shared behavior seam.",
         "recommended_skill_ids": [
           "tidiness",
           "utils-unification"
@@ -269,6 +325,8 @@
         "dimension": "tidiness",
         "severity_default": "SEVERITY_INFO",
         "clean_requirement": "uncheckable",
+        "fix_class": "manual",
+        "reason": "Boilerplate repetition may be intentional and needs human judgment before extraction.",
         "recommended_skill_ids": [
           "tidiness"
         ]
@@ -280,8 +338,24 @@
         "dimension": "tidiness",
         "severity_default": "SEVERITY_ERROR",
         "clean_requirement": "required",
+        "fix_class": "manual",
+        "reason": "A ratchet regression must be reduced without automatically loosening its reviewed budget.",
         "recommended_skill_ids": [
           "tidiness"
+        ]
+      },
+      "BYPASSED_SEAM": {
+        "capability_id": "seam_control",
+        "local_level_impact": "L4",
+        "global_impact": "evolvability_gap",
+        "dimension": "tidiness",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "fix_class": "manual",
+        "reason": "A bypass must be migrated to the declared canonical seam or explicitly scoped by review.",
+        "recommended_skill_ids": [
+          "tidiness",
+          "seam-discovery-and-enforcement"
         ]
       }
     },

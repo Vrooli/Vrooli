@@ -5,7 +5,7 @@ import type { ConversationEvent } from "../api/conversation";
 import { strings } from "../consts/strings";
 import { cn } from "../lib/classnames";
 import { writeText } from "../lib/clipboard";
-import { DrawerShell } from "@vrooli/react-component-library/DrawerShell/1.0.0";
+import { FullPageDrawer } from "@vrooli/react-component-library/FullPageDrawer/1";
 import {
   buildMessageExport,
   DEFAULT_MESSAGE_EXPORT_FORMAT,
@@ -70,12 +70,12 @@ export default function MessageExportDrawer({ open, events, onClose }: MessageEx
   }, [result.text]);
 
   return (
-    <DrawerShell
+    <FullPageDrawer
       open={open}
       onClose={onClose}
-      closeAriaLabel={t(strings.messageExport.closeAriaLabel)}
+      closeLabel={t(strings.messageExport.closeAriaLabel)}
       title={t(strings.messageExport.drawerTitle)}
-      panelTestId="msg-export-drawer"
+      testId="msg-export-drawer"
       headerExtra={
         <div data-testid="msg-export-drawer-summary" className="mt-1 text-[11px] text-wc-text-faint">
           {t(strings.messageExport.messageSummary, { count: result.messageCount })}
@@ -181,6 +181,6 @@ export default function MessageExportDrawer({ open, events, onClose }: MessageEx
           </div>
         </div>
       </div>
-    </DrawerShell>
+    </FullPageDrawer>
   );
 }

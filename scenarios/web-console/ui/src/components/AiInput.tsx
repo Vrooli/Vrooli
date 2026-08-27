@@ -4,7 +4,7 @@ import { useState, useCallback, useRef, useEffect } from "react";
 import { Sparkles, Send, Copy, Play, Loader2, AlertCircle } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Button } from "./ui/button";
-import { DrawerShell } from "@vrooli/react-component-library/DrawerShell/1.0.0";
+import { ResponsiveDialog } from "@vrooli/react-component-library/ResponsiveDialog/1";
 import { generateAICommand } from "../api/ai";
 import { strings } from "../consts/strings";
 import { toErrorInfo } from "../lib/errors";
@@ -112,18 +112,18 @@ export default function AiInput({ onExecute }: { onExecute: (command: string) =>
   const close = () => setAiModalOpen(false);
 
   return (
-    <DrawerShell
+    <ResponsiveDialog
       open={aiModalOpen}
       onClose={close}
-      size="compact"
-      closeAriaLabel={t(strings.aiInput.closeAriaLabel)}
+      size="md"
+      closeLabel={t(strings.aiInput.closeAriaLabel)}
       title={
         <span className="flex items-center gap-2">
           <Sparkles className="h-4 w-4 shrink-0 text-wc-accent" />
           {t(strings.aiInput.heading)}
         </span>
       }
-      panelTestId="ai-input"
+      testId="ai-input"
     >
       <div className="h-full overflow-y-auto p-3">
           <div className="flex items-center gap-2">
@@ -202,6 +202,6 @@ export default function AiInput({ onExecute }: { onExecute: (command: string) =>
             </div>
           )}
       </div>
-    </DrawerShell>
+    </ResponsiveDialog>
   );
 }

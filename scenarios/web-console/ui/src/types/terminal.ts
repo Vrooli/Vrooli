@@ -32,7 +32,8 @@ export interface TerminalMessage {
     | "snapshot_notice"
     | "echo_state"
     | "mouse_mode"
-    | "presence";
+    | "presence"
+    | "device_state";
 
   /** Terminal I/O payload (stdin input or stdout output). */
   data?: string;
@@ -86,6 +87,18 @@ export interface TerminalMessage {
 	/** Per-connection size-lease state carried by size_info. */
 	leader?: string;
 	leaderDevice?: string;
+	/**
+	 * Leader-declared device family, used only to choose a follower's
+	 * decorative frame. Never an authorization signal, and never a hardware
+	 * identity claim — an operator can edit it.
+	 */
+	deviceClass?: string;
+	/**
+	 * The leader's virtual keyboard covers part of its viewport. Followers
+	 * draw this rather than inferring it from the grid, which shrinks for many
+	 * reasons besides a keyboard.
+	 */
+	kbOpen?: boolean;
 	holdsLease?: boolean;
 	viewerCount?: number;
 	/** Server-owned predictive-input authorization. Unknown is fail-closed. */

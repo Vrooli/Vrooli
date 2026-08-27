@@ -3,7 +3,7 @@ import { AlertTriangle, Check, Code, Copy, Eye, Loader2, Maximize, Minus, Plus, 
 import { useTranslation } from "react-i18next";
 
 import { strings } from "../consts/strings";
-import { DrawerShell } from "@vrooli/react-component-library/DrawerShell/1.0.0";
+import { FullPageDrawer } from "@vrooli/react-component-library/FullPageDrawer/1";
 import { useCodeCopy } from "./markdown/hooks/useCodeCopy";
 import { useMermaidSvg } from "./markdown/hooks/useMermaidSvg";
 import { MermaidZoomSurface, type MermaidZoomSurfaceHandle } from "./mermaid-viewer/MermaidZoomSurface";
@@ -118,14 +118,14 @@ export default function MessagesMermaidViewer({ open, code, onClose }: MessagesM
   );
 
   return (
-    <DrawerShell
+    <FullPageDrawer
       open={open}
       onClose={onClose}
-      closeAriaLabel={t(strings.mermaid.closeViewer)}
+      closeLabel={t(strings.mermaid.closeViewer)}
       title={t(strings.mermaid.viewerTitle)}
       headerActions={headerActions}
       headerExtra={badges}
-      panelTestId="messages-mermaid-viewer-panel"
+      testId="messages-mermaid-viewer-panel"
     >
       {showSource ? (
         <pre
@@ -160,6 +160,6 @@ export default function MessagesMermaidViewer({ open, code, onClose }: MessagesM
           {loading && <span>{t(strings.mermaid.rendering)}</span>}
         </div>
       )}
-    </DrawerShell>
+    </FullPageDrawer>
   );
 }

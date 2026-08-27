@@ -726,6 +726,153 @@
       }
     },
     {
+      "id": "machines_list",
+      "path": "/vrooli.web_console.v1.machines.MachineService/List",
+      "method": "POST",
+      "summary": "List linked machines",
+      "description": "Returns every linked machine with reachability and grant, plus machines asking to join and the permission presets available.",
+      "category": "machines",
+      "response": {
+        "type": "object",
+        "properties": {
+          "join_requests": "[]JoinRequest",
+          "machines": "[]Machine",
+          "presets": "[]PermissionPreset",
+          "state": "FleetState"
+        }
+      }
+    },
+    {
+      "id": "machines_issue_code",
+      "path": "/vrooli.web_console.v1.machines.MachineService/IssueCode",
+      "method": "POST",
+      "summary": "Issue a join code",
+      "description": "Mints a single-use, short-lived code a machine can redeem to join the fleet.",
+      "category": "machines",
+      "request": {
+        "type": "object",
+        "properties": {
+          "label": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "code": "string",
+          "expires_in_seconds": "int64"
+        }
+      },
+      "errors": [
+        {
+          "status": 503,
+          "code": "unavailable",
+          "description": "The fleet control plane did not answer"
+        }
+      ]
+    },
+    {
+      "id": "machines_decide",
+      "path": "/vrooli.web_console.v1.machines.MachineService/Decide",
+      "method": "POST",
+      "summary": "Answer a join request",
+      "description": "Approves or denies one machine asking to join. Approval requires the confirmation words shown by the joining machine.",
+      "category": "machines",
+      "request": {
+        "type": "object",
+        "properties": {
+          "approve": "bool",
+          "confirmation_words": "[]string",
+          "preset": "string",
+          "request_id": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "machine": "Machine",
+          "message": "string"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "The confirmation words do not match the derived value"
+        },
+        {
+          "status": 503,
+          "code": "unavailable",
+          "description": "The fleet control plane did not answer"
+        }
+      ]
+    },
+    {
+      "id": "machines_set_grant",
+      "path": "/vrooli.web_console.v1.machines.MachineService/SetGrant",
+      "method": "POST",
+      "summary": "Change what a machine may do",
+      "description": "Applies a permission preset, or explicit scopes, to an already-linked machine.",
+      "category": "machines",
+      "request": {
+        "type": "object",
+        "properties": {
+          "machine_id": "string",
+          "preset": "string",
+          "scopes": "[]string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "machine": "Machine"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "The machine id or preset is not recognized"
+        },
+        {
+          "status": 503,
+          "code": "unavailable",
+          "description": "The fleet control plane did not answer"
+        }
+      ]
+    },
+    {
+      "id": "machines_forget",
+      "path": "/vrooli.web_console.v1.machines.MachineService/Forget",
+      "method": "POST",
+      "summary": "Forget a machine",
+      "description": "Removes one machine from the fleet.",
+      "category": "machines",
+      "request": {
+        "type": "object",
+        "properties": {
+          "machine_id": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "forgotten_machine_id": "string"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "The machine id is not a linked machine"
+        },
+        {
+          "status": 503,
+          "code": "unavailable",
+          "description": "The fleet control plane did not answer"
+        }
+      ]
+    },
+    {
       "id": "metrics_get",
       "path": "/vrooli.web_console.v1.metrics.MetricsService/Get",
       "method": "POST",

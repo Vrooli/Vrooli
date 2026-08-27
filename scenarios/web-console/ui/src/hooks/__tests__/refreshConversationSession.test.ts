@@ -6,6 +6,7 @@ vi.mock("@vrooli/api-base", () => apiBaseMock());
 
 import { refreshConversationSession } from "../useConversationSession";
 import { useConversationStore } from "../../stores/useConversationStore";
+import type { MessageCaptureStatus } from "../../api/conversation";
 import * as api from "../../api/conversation";
 
 const makeEvent = (id: string, sequence: number, text = "t"): ConversationEvent => ({
@@ -23,6 +24,16 @@ const makeEvent = (id: string, sequence: number, text = "t"): ConversationEvent 
   consumptionState: "unseen",
 });
 
+const CAPTURING: MessageCaptureStatus = {
+  state: "capturing",
+  reasonCode: "",
+  summary: "Messages are being captured.",
+  detail: "",
+  remediation: "",
+  transcriptPath: "",
+  lastCapturedAt: "",
+};
+
 describe("refreshConversationSession", () => {
   beforeEach(() => {
     useConversationStore.setState({ sessions: {}, viewModes: {} });
@@ -36,12 +47,13 @@ describe("refreshConversationSession", () => {
 
     const spy = vi.spyOn(api, "getConversationSession").mockResolvedValue({
       sessionId: "s1",
+      capture: CAPTURING,
       events: [makeEvent("e3", 3, "three"), makeEvent("e4", 4, "four")],
       cursor: { lastSeenSequence: 2, lastListenedSequence: 1 },
     });
 
-    const ok = await refreshConversationSession("s1");
-    expect(ok).toBe(true);
+    const outcome = await refreshConversationSession("s1");
+    expect(outcome.ok).toBe(true);
     expect(spy).toHaveBeenCalledWith("s1", { sinceSequence: 2 });
 
     const events = useConversationStore.getState().sessions["s1"]?.events ?? [];
@@ -60,6 +72,7 @@ describe("refreshConversationSession", () => {
 
     vi.spyOn(api, "getConversationSession").mockResolvedValue({
       sessionId: "s1",
+      capture: CAPTURING,
       events: [makeEvent("e1", 1), makeEvent("e2", 2)],
       cursor: { lastSeenSequence: 0, lastListenedSequence: 0 },
     });
@@ -83,12 +96,13 @@ describe("refreshConversationSession", () => {
 
     const spy = vi.spyOn(api, "getConversationSession").mockResolvedValue({
       sessionId: "s1",
+      capture: CAPTURING,
       events: [makeEvent("e3", 3), makeEvent("e4", 4), makeEvent("e5", 5), makeEvent("e6", 6)],
       cursor: { lastSeenSequence: 0, lastListenedSequence: 0 },
     });
 
-    const ok = await refreshConversationSession("s1");
-    expect(ok).toBe(true);
+    const outcome = await refreshConversationSession("s1");
+    expect(outcome.ok).toBe(true);
     // since_sequence must be 2 (the last contiguous sequence before the gap),
     // not 5 (the max), so the server returns the missing #3.
     expect(spy).toHaveBeenCalledWith("s1", { sinceSequence: 2 });
@@ -105,6 +119,7 @@ describe("refreshConversationSession", () => {
 
     const spy = vi.spyOn(api, "getConversationSession").mockResolvedValue({
       sessionId: "s1",
+      capture: CAPTURING,
       events: [makeEvent("e1", 1), makeEvent("e2", 2), makeEvent("e3", 3), makeEvent("e4", 4)],
       cursor: { lastSeenSequence: 0, lastListenedSequence: 0 },
     });
@@ -131,15 +146,15 @@ describe("refreshConversationSession", () => {
     expect(events.map((e) => e.sequence)).toEqual([1, 2, 3]);
   });
 
-  it("returns false and preserves store on fetch error", async () => {
+  it("reports a typed failure and preserves the store on fetch error", async () => {
     useConversationStore.getState().hydrateSession("s1", [makeEvent("e1", 1)], {
       lastSeenSequence: 0,
       lastListenedSequence: 0,
     });
     vi.spyOn(api, "getConversationSession").mockRejectedValue(new Error("network"));
 
-    const ok = await refreshConversationSession("s1");
-    expect(ok).toBe(false);
+    const outcome = await refreshConversationSession("s1");
+    expect(outcome.ok).toBe(false);
 
     const events = useConversationStore.getState().sessions["s1"]?.events ?? [];
     expect(events).toHaveLength(1);

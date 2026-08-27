@@ -1,6 +1,6 @@
 import { ArrowDown, ArrowUp, ClipboardCopy, Dot, FolderCog, FolderMinus, FolderPlus, MailOpen, Palette, Pencil, Trash2, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import ContextMenuBase, { contextMenuItemClass } from "./ContextMenuBase";
+import { ContextMenu, type ContextMenuItem } from "@vrooli/react-component-library/ContextMenu/1";
 import { strings } from "../consts/strings";
 import { writeText } from "../lib/clipboard";
 
@@ -50,156 +50,121 @@ export default function TabContextMenu({
   onDismiss,
 }: TabContextMenuProps) {
   const { t } = useTranslation();
-
-  const handleAction = (action: () => void) => {
-    action();
-    onDismiss();
-  };
+  const items: ContextMenuItem[] = [
+    {
+      id: "rename",
+      label: t(strings.tabContextMenu.rename),
+      icon: <Pencil className="h-4 w-4 shrink-0" />,
+      testId: "tab-ctx-rename",
+      onSelect: onRename,
+    },
+    {
+      id: "toggle-unread",
+      label: t(isManuallyUnread ? strings.tabContextMenu.markAsRead : strings.tabContextMenu.markAsUnread),
+      icon: isManuallyUnread ? <MailOpen className="h-4 w-4 shrink-0" /> : <Dot className="h-4 w-4 shrink-0" />,
+      testId: "tab-ctx-toggle-unread",
+      onSelect: onToggleManuallyUnread,
+    },
+    {
+      id: "customize",
+      label: t(strings.tabContextMenu.customizeAppearance),
+      icon: <Palette className="h-4 w-4 shrink-0" />,
+      testId: "tab-ctx-customize",
+      onSelect: onCustomize,
+    },
+  ];
+  if (currentGroupId) {
+    items.push(
+      {
+        id: "remove-from-group",
+        label: t(strings.tabContextMenu.removeFromGroup),
+        icon: <FolderMinus className="h-4 w-4 shrink-0" />,
+        testId: "tab-ctx-remove-from-group",
+        separatorBefore: true,
+        onSelect: onRemoveFromGroup,
+      },
+      {
+        id: "manage-groups",
+        label: t(strings.manageGroups.menuItem),
+        icon: <FolderCog className="h-4 w-4 shrink-0" />,
+        testId: "tab-ctx-manage-groups",
+        onSelect: onManageGroups,
+      },
+    );
+  } else {
+    items.push({
+      id: "add-to-group",
+      label: t(strings.tabContextMenu.addToGroup),
+      icon: <FolderPlus className="h-4 w-4 shrink-0" />,
+      testId: "tab-ctx-add-to-group",
+      separatorBefore: true,
+      onSelect: onManageGroups,
+    });
+  }
+  if (onMoveUp) {
+    items.push({
+      id: "move-up",
+      label: t(strings.tabContextMenu.moveUp),
+      icon: <ArrowUp className="h-4 w-4 shrink-0" />,
+      testId: "tab-ctx-move-up",
+      separatorBefore: true,
+      onSelect: onMoveUp,
+    });
+  }
+  if (onMoveDown) {
+    items.push({
+      id: "move-down",
+      label: t(strings.tabContextMenu.moveDown),
+      icon: <ArrowDown className="h-4 w-4 shrink-0" />,
+      testId: "tab-ctx-move-down",
+      separatorBefore: !onMoveUp,
+      onSelect: onMoveDown,
+    });
+  }
+  items.push(
+    {
+      id: "close",
+      label: t(strings.tabContextMenu.closeTab),
+      icon: <X className="h-4 w-4 shrink-0" />,
+      testId: "tab-ctx-close",
+      separatorBefore: true,
+      onSelect: () => onClose(sessionId),
+    },
+    {
+      id: "delete-permanently",
+      label: t(strings.tabContextMenu.deletePermanently),
+      icon: <Trash2 className="h-4 w-4 shrink-0" />,
+      testId: "tab-ctx-delete-permanently",
+      destructive: true,
+      onSelect: () => onDeletePermanently(sessionId),
+    },
+    {
+      id: "copy-debug-log",
+      label: t(strings.tabContextMenu.copyDebugLog),
+      icon: <ClipboardCopy className="h-4 w-4 shrink-0" />,
+      testId: "tab-ctx-copy-debug-log",
+      separatorBefore: true,
+      onSelect: () => {
+        const probe = (window as unknown as {
+          __wc_terminal_output?: Record<string, string>;
+        }).__wc_terminal_output;
+        const data = probe?.[sessionId] ?? "";
+        const payload = data || "(empty probe)";
+        void writeText(payload).then((result) => alert(result.ok ? `Copied ${data.length} chars` : `Clipboard ${result.reason}`));
+      },
+    },
+  );
 
   return (
-    <ContextMenuBase position={position} onClose={onDismiss}>
-      {/* Rename */}
-      <button
-        data-testid="tab-ctx-rename"
-        className={contextMenuItemClass}
-        onClick={() => handleAction(onRename)}
-      >
-        <Pencil className="h-4 w-4 shrink-0" />
-        {t(strings.tabContextMenu.rename)}
-      </button>
-
-      {/* Mark as unread / read. A deliberate flag, not a derived state: it
-          survives being read and works on sessions with no conversation. */}
-      <button
-        data-testid="tab-ctx-toggle-unread"
-        className={contextMenuItemClass}
-        onClick={() => handleAction(onToggleManuallyUnread)}
-      >
-        {isManuallyUnread
-          ? <MailOpen className="h-4 w-4 shrink-0" />
-          : <Dot className="h-4 w-4 shrink-0" />}
-        {t(isManuallyUnread
-          ? strings.tabContextMenu.markAsRead
-          : strings.tabContextMenu.markAsUnread)}
-      </button>
-
-      {/* Customize appearance */}
-      <button
-        data-testid="tab-ctx-customize"
-        className={contextMenuItemClass}
-        onClick={() => handleAction(onCustomize)}
-      >
-        <Palette className="h-4 w-4 shrink-0" />
-        {t(strings.tabContextMenu.customizeAppearance)}
-      </button>
-
-      {/* Divider */}
-      <div className="border-t border-wc-default my-1" />
-
-      {/* Group membership: "Add to Group" opens the Manage Groups drawer with
-          this session as context (assign, create, rename, delete all live
-          there); grouped panes get a one-tap remove plus the same drawer. */}
-      {currentGroupId ? (
-        <>
-          <button
-            data-testid="tab-ctx-remove-from-group"
-            className={contextMenuItemClass}
-            onClick={() => handleAction(onRemoveFromGroup)}
-          >
-            <FolderMinus className="h-4 w-4 shrink-0" />
-            {t(strings.tabContextMenu.removeFromGroup)}
-          </button>
-          <button
-            data-testid="tab-ctx-manage-groups"
-            className={contextMenuItemClass}
-            onClick={() => handleAction(onManageGroups)}
-          >
-            <FolderCog className="h-4 w-4 shrink-0" />
-            {t(strings.manageGroups.menuItem)}
-          </button>
-        </>
-      ) : (
-        <button
-          data-testid="tab-ctx-add-to-group"
-          className={contextMenuItemClass}
-          onClick={() => handleAction(onManageGroups)}
-        >
-          <FolderPlus className="h-4 w-4 shrink-0" />
-          {t(strings.tabContextMenu.addToGroup)}
-        </button>
-      )}
-
-      {/* Reorder (touch-friendly stand-in for the hover-only drag handle) */}
-      {(onMoveUp || onMoveDown) && (
-        <>
-          <div className="border-t border-wc-default my-1" />
-          {onMoveUp && (
-            <button
-              data-testid="tab-ctx-move-up"
-              className={contextMenuItemClass}
-              onClick={() => handleAction(onMoveUp)}
-            >
-              <ArrowUp className="h-4 w-4 shrink-0" />
-              {t(strings.tabContextMenu.moveUp)}
-            </button>
-          )}
-          {onMoveDown && (
-            <button
-              data-testid="tab-ctx-move-down"
-              className={contextMenuItemClass}
-              onClick={() => handleAction(onMoveDown)}
-            >
-              <ArrowDown className="h-4 w-4 shrink-0" />
-              {t(strings.tabContextMenu.moveDown)}
-            </button>
-          )}
-        </>
-      )}
-
-      {/* Divider */}
-      <div className="border-t border-wc-default my-1" />
-
-      {/* Close tab */}
-      <button
-        data-testid="tab-ctx-close"
-        className={contextMenuItemClass}
-        onClick={() => handleAction(() => onClose(sessionId))}
-      >
-        <X className="h-4 w-4 shrink-0" />
-        {t(strings.tabContextMenu.closeTab)}
-      </button>
-
-      <button
-        data-testid="tab-ctx-delete-permanently"
-        className={`${contextMenuItemClass} text-red-300 hover:text-red-200`}
-        onClick={() => handleAction(() => onDeletePermanently(sessionId))}
-      >
-        <Trash2 className="h-4 w-4 shrink-0" />
-        {t(strings.tabContextMenu.deletePermanently)}
-      </button>
-
-      {/* TEMP: remove after the terminal-output-duplication bug is fixed.
-       * Copies the last ~12k chars of xterm writes for this session to
-       * the clipboard so a phone-only user can share the same data
-       * normally pulled from window.__wc_terminal_output via devtools. */}
-      <div className="border-t border-wc-default my-1" />
-      <button
-        data-testid="tab-ctx-copy-debug-log"
-        className={contextMenuItemClass}
-        onClick={() =>
-          handleAction(() => {
-            const probe = (window as unknown as {
-              __wc_terminal_output?: Record<string, string>;
-            }).__wc_terminal_output;
-            const data = probe?.[sessionId] ?? "";
-            const payload = data || "(empty probe)";
-            void writeText(payload).then((result) => alert(result.ok ? `Copied ${data.length} chars` : `Clipboard ${result.reason}`));
-          })
-        }
-      >
-        <ClipboardCopy className="h-4 w-4 shrink-0" />
-        {t(strings.tabContextMenu.copyDebugLog)}
-      </button>
-    </ContextMenuBase>
+    <ContextMenu
+      open
+      position={position}
+      title={t(strings.tabContextMenu.closeTab)}
+      closeLabel={t(strings.tabContextMenu.closeTab)}
+      items={items}
+      onOpenChange={(next) => {
+        if (!next) onDismiss();
+      }}
+    />
   );
 }

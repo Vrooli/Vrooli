@@ -253,15 +253,35 @@ describe("TerminalLauncher", () => {
   it("puts remote locations in the primary surface and keeps unavailable nodes inspectable", () => {
     const targets: TerminalTarget[] = [
       { id: "node-1", kind: "bridge-node", label: "Build node", available: true, state: "dispatchable", os: "linux", arch: "amd64" },
-      { id: "node-2", kind: "bridge-node", label: "Offline host", available: false, state: "offline", failure_rung: "heartbeat freshness", recovery_action: "Reconnect the Bridge agent, then refresh" },
+      { id: "node-2", kind: "bridge-node", label: "Offline host", available: false, state: "offline", last_seen_at: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(), failure_rung: "heartbeat freshness", recovery_action: "Reconnect the Bridge agent, then refresh" },
     ];
     render(<TerminalLauncher open onClose={onClose} onLaunch={onLaunch} shortcuts={testShortcuts} availableTargets={targets} />);
 
     expect(screen.getByTestId("launcher-target-card-node-1")).toBeTruthy();
     expect(screen.getByTestId("launcher-target-card-node-2")).toBeTruthy();
+    expect(screen.getByTestId("launcher-linked-machines-footer")).toBeTruthy();
     fireEvent.click(screen.getByTestId("launcher-target-card-node-2"));
     expect(screen.getByText("Reconnect the Bridge agent, then refresh")).toBeTruthy();
+    expect(screen.getByTestId("launcher-target-card-node-2")).toHaveTextContent(/2h ago/);
     expect(screen.getByTestId("launcher-empty-shell")).toBeDisabled();
+  });
+
+  it("shows the concrete remote grant beside its operator-facing summary", () => {
+    const targets: TerminalTarget[] = [
+      {
+        id: "node-1",
+        kind: "bridge-node",
+        label: "Mac mini",
+        available: true,
+        state: "dispatchable",
+        readiness: [{ key: "bridge_scope", label: "Bridge scope", passed: true, detail: "Read only; changes are not permitted. Granted scopes: system-monitor:read" }],
+      },
+    ];
+    render(<TerminalLauncher open onClose={onClose} onLaunch={onLaunch} shortcuts={testShortcuts} availableTargets={targets} />);
+
+    expect(screen.getByTestId("launcher-target-card-node-1")).toHaveTextContent("Read only; changes are not permitted. Granted scopes: system-monitor:read");
+    fireEvent.click(screen.getByTestId("launcher-target-card-node-1"));
+    expect(screen.getByText("Grant: Read only; changes are not permitted. Granted scopes: system-monitor:read")).toBeInTheDocument();
   });
 
   it("supports arrow-key navigation across target cards", () => {

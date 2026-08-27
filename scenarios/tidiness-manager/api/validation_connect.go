@@ -14,6 +14,7 @@ import (
 
 	"github.com/vrooli/api-core/metrics"
 	"github.com/vrooli/maturity-go/assessment"
+	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	scenariovalidationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1"
 	scenariovalidationconnect "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1/scenariovalidationv1connect"
 	validationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/tidiness-manager/v1/validation"
@@ -41,8 +42,44 @@ func (h *scenarioValidationHandler) ValidateScenario(ctx context.Context, req *c
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
+	return h.validate(ctx, scenarioName, scenarioPath, req.Msg.GetIncludeExecution(), nil)
+}
+
+func (h *scenarioValidationHandler) ValidateTarget(ctx context.Context, req *connect.Request[scenariovalidationv1.ValidateTargetRequest]) (*connect.Response[scenariovalidationv1.ValidateTargetResponse], error) {
+	if h == nil || h.server == nil {
+		return nil, connect.NewError(connect.CodeUnimplemented, errors.New("tidiness validation handler not wired"))
+	}
+	target := req.Msg.GetTarget()
+	if target == nil || target.GetKind() == commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_UNSPECIFIED || strings.TrimSpace(target.GetId()) == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("validation target kind and id are required"))
+	}
+	scenarioPath := strings.TrimSpace(req.Msg.GetPath())
+	if scenarioPath == "" {
+		if strings.TrimSpace(target.GetRoot()) == "" {
+			return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("validation target path is required"))
+		}
+		scenarioPath = target.GetRoot()
+		if !filepath.IsAbs(scenarioPath) {
+			scenarioPath = filepath.Join(h.server.scenarioLocator.repoRoot, filepath.FromSlash(scenarioPath))
+		}
+	}
+	excludes := normalizeTargetExcludes(target.GetRoot(), req.Msg.GetExclude())
+	legacy, err := h.validate(ctx, target.GetId(), scenarioPath, req.Msg.GetIncludeExecution(), excludes)
+	if err != nil {
+		return nil, err
+	}
+	return connect.NewResponse(&scenariovalidationv1.ValidateTargetResponse{
+		Target:       target,
+		Status:       legacy.Msg.GetStatus(),
+		Assessment:   legacy.Msg.GetAssessment(),
+		NativeDetail: legacy.Msg.GetNativeDetail(),
+		Metrics:      legacy.Msg.GetMetrics(),
+	}), nil
+}
+
+func (h *scenarioValidationHandler) validate(ctx context.Context, scenarioName, scenarioPath string, includeExecution bool, excludes []string) (*connect.Response[scenariovalidationv1.ValidateScenarioResponse], error) {
 	collector := metrics.Start(metrics.WithEnvironment(h.server.environment))
-	result, err := buildTidinessScan(WithMetrics(ctx, collector), scenarioName, scenarioPath, validationTimeout(req.Msg.GetIncludeExecution()))
+	result, err := buildTidinessScan(WithMetrics(ctx, collector), scenarioName, scenarioPath, validationTimeout(includeExecution), excludes...)
 	if err != nil {
 		collector.Stop()
 		h.server.log("tidiness validation failed", map[string]interface{}{
@@ -70,6 +107,32 @@ func (h *scenarioValidationHandler) ValidateScenario(ctx context.Context, req *c
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("build shared validation response: %w", err))
 	}
 	return connect.NewResponse(resp), nil
+}
+
+func normalizeTargetExcludes(targetRoot string, excludes []string) []string {
+	root := strings.Trim(strings.ReplaceAll(filepath.ToSlash(strings.TrimSpace(targetRoot)), "./", ""), "/")
+	if root == "." {
+		root = ""
+	}
+	out := make([]string, 0, len(excludes))
+	for _, raw := range excludes {
+		pattern := strings.TrimPrefix(filepath.ToSlash(strings.TrimSpace(raw)), "./")
+		if pattern == "" {
+			continue
+		}
+		if root != "" {
+			if pattern == root {
+				out = append(out, "**")
+				continue
+			}
+			prefix := root + "/"
+			if strings.HasPrefix(pattern, prefix) {
+				pattern = strings.TrimPrefix(pattern, prefix)
+			}
+		}
+		out = append(out, pattern)
+	}
+	return out
 }
 
 func (s *Server) resolveValidationTarget(scenario, path string) (string, string, error) {
@@ -123,12 +186,13 @@ func tidinessScanToProto(result *TidinessScanResponse) (*validationv1.TidinessSc
 		Findings:   findings,
 		Violations: violations,
 		Summary: &validationv1.TidinessScanSummary{
-			TotalFindings: int32(result.Summary.TotalFindings),
-			LongFiles:     int32(result.Summary.LongFiles),
-			Complexity:    int32(result.Summary.Complexity),
-			Duplication:   int32(result.Summary.Duplication),
-			TechDebt:      int32(result.Summary.TechDebt),
-			Coupling:      int32(result.Summary.Coupling),
+			TotalFindings:       int32(result.Summary.TotalFindings),
+			LongFiles:           int32(result.Summary.LongFiles),
+			Complexity:          int32(result.Summary.Complexity),
+			Duplication:         int32(result.Summary.Duplication),
+			TechDebt:            int32(result.Summary.TechDebt),
+			Coupling:            int32(result.Summary.Coupling),
+			DuplicationLineDebt: int32(result.Summary.DuplicationLineDebt),
 		},
 		Assessment: result.Assessment,
 	}, nil

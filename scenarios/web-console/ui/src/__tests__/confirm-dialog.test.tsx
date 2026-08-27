@@ -1,16 +1,16 @@
 import { renderWithProviders as render } from "../test-utils";
 import { describe, it, expect, vi } from "vitest";
 import { fireEvent, screen } from "@testing-library/react";
-import { ConfirmDialog } from "../components/ConfirmDialog";
+import { AlertDialog } from "@vrooli/react-component-library/AlertDialog/2";
 
-function renderConfirm(props: Partial<Parameters<typeof ConfirmDialog>[0]> = {}) {
+function renderConfirm(props: Partial<Parameters<typeof AlertDialog>[0]> = {}) {
   const onCancel = vi.fn();
   const onConfirm = vi.fn();
   const result = render(
-    <ConfirmDialog
+    <AlertDialog
       open
       title="Delete thing?"
-      body="This cannot be undone."
+      description="This cannot be undone."
       cancelLabel="Keep it"
       confirmLabel="Delete"
       onCancel={onCancel}
@@ -22,7 +22,7 @@ function renderConfirm(props: Partial<Parameters<typeof ConfirmDialog>[0]> = {})
   return { onCancel, onConfirm, ...result };
 }
 
-describe("ConfirmDialog", () => {
+describe("AlertDialog consumer contract", () => {
   it("returns null when closed", () => {
     renderConfirm({ open: false });
     expect(screen.queryByTestId("test-confirm-dialog")).toBeNull();
@@ -50,12 +50,12 @@ describe("ConfirmDialog", () => {
     expect(onConfirm).not.toHaveBeenCalled();
   });
 
-  it("cancels on backdrop click but not panel click", () => {
+  it("does not confirm or cancel from panel interaction", () => {
     const { onCancel } = renderConfirm();
     fireEvent.click(screen.getByRole("alertdialog"));
     expect(onCancel).not.toHaveBeenCalled();
     fireEvent.click(screen.getByTestId("test-confirm-dialog"));
-    expect(onCancel).toHaveBeenCalledTimes(1);
+    expect(onCancel).not.toHaveBeenCalled();
   });
 
   it("fires each button's handler", () => {
@@ -66,12 +66,12 @@ describe("ConfirmDialog", () => {
     expect(onConfirm).toHaveBeenCalledTimes(1);
   });
 
-  it("styles the confirm button red only when destructive", () => {
+  it("marks the confirm action destructive only when requested", () => {
     renderConfirm({ destructive: true });
-    expect(screen.getByTestId("test-confirm-confirm").className).toContain("bg-red-600");
+    expect(screen.getByTestId("test-confirm-confirm").getAttribute("data-destructive")).toBe("true");
     document.body.innerHTML = "";
     renderConfirm();
-    expect(screen.getByTestId("test-confirm-confirm").className).not.toContain("bg-red-600");
+    expect(screen.getByTestId("test-confirm-confirm").getAttribute("data-destructive")).toBe("false");
   });
 
   it("traps focus inside the card", () => {

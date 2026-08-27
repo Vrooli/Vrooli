@@ -7,6 +7,7 @@ import {
   getSessionUnreadCount,
   getSessionViewMode,
   useConversationStore,
+  createConversationSessionState,
 } from "./useConversationStore";
 
 const event = (id: string, sequence: number, role: "assistant" | "user" = "assistant"): ConversationEvent => ({
@@ -64,7 +65,7 @@ describe("conversation store state transitions", () => {
     expect(getSessionUnreadCount(useConversationStore.getState(), "new")).toBe(0);
 
     useConversationStore.setState({
-      sessions: { empty: { events: [], cursor: { lastSeenSequence: 0, lastListenedSequence: 0 }, hydrated: false } },
+      sessions: { empty: createConversationSessionState({ events: [], cursor: { lastSeenSequence: 0, lastListenedSequence: 0 }, hydrated: false }) },
       viewModes: {},
     });
     useConversationStore.getState().mergeEvents("empty", [], undefined);
@@ -81,14 +82,14 @@ describe("conversation store state transitions", () => {
 
     useConversationStore.setState({
       sessions: {
-        legacy: { events: [event("e2", 2), event("e4", 4)], cursor: { lastSeenSequence: 0, lastListenedSequence: 0 }, hydrated: true },
+        legacy: createConversationSessionState({ events: [event("e2", 2), event("e4", 4)], cursor: { lastSeenSequence: 0, lastListenedSequence: 0 }, hydrated: true }),
       },
       viewModes: {},
     });
     expect(getSessionRefetchSinceSequence(useConversationStore.getState(), "legacy")).toBe(0);
     useConversationStore.setState({
       sessions: {
-        legacy: { events: [event("e1", 1), event("e2", 2)], cursor: { lastSeenSequence: 0, lastListenedSequence: 0 }, hydrated: true },
+        legacy: createConversationSessionState({ events: [event("e1", 1), event("e2", 2)], cursor: { lastSeenSequence: 0, lastListenedSequence: 0 }, hydrated: true }),
       },
       viewModes: {},
     });
@@ -103,9 +104,9 @@ describe("conversation store state transitions", () => {
 
     useConversationStore.setState({
       sessions: {
-        prefix: { events: [event("e3", 3)], cursor: { lastSeenSequence: 0, lastListenedSequence: 0 }, hydrated: true },
-        gap: { events: [event("e1", 1), event("e3", 3)], cursor: { lastSeenSequence: 0, lastListenedSequence: 0 }, hydrated: true },
-        contiguous: { events: [event("e1", 1), event("e2", 2)], cursor: { lastSeenSequence: 0, lastListenedSequence: 0 }, hydrated: true },
+        prefix: createConversationSessionState({ events: [event("e3", 3)], cursor: { lastSeenSequence: 0, lastListenedSequence: 0 }, hydrated: true }),
+        gap: createConversationSessionState({ events: [event("e1", 1), event("e3", 3)], cursor: { lastSeenSequence: 0, lastListenedSequence: 0 }, hydrated: true }),
+        contiguous: createConversationSessionState({ events: [event("e1", 1), event("e2", 2)], cursor: { lastSeenSequence: 0, lastListenedSequence: 0 }, hydrated: true }),
       },
       viewModes: {},
     });

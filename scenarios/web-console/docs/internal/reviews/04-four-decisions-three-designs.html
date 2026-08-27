@@ -213,7 +213,7 @@ var Known = []Def{
 "vrooli-bridge": &amp;capabilities.ScenarioChecker{Slug: "vrooli-bridge"},</pre>
         </div>
 
-        <p>That alone un-gates it. The remote target stops being conditional on <code>WEB_CONSOLE_BRIDGE_URL</code> being set: the target always exists, and its <em>status</em> comes from the registry the same way audio-tools' does. And it retires a whole parallel vocabulary: <code>remoteTerminalTarget</code> now projects the shared capability result rather than duplicating its status, reason, action and readiness strings. Implement <code>ResultChecker</code> for the bridge and those duplicate fields disappear.</p>
+        <p>The current design un-gates it through the shared node client. The remote target is no longer conditional on a legacy Bridge URL environment variable: the target always exists, and its <em>status</em> comes from the Bridge registry. The server-side adapter projects the provider-neutral target model, keeps owner credentials out of browser payloads, and exposes typed readiness and recovery facts to the UI.</p>
 
         <div class="thesis">
           <span class="eyebrow">Part B — the thesis</span>

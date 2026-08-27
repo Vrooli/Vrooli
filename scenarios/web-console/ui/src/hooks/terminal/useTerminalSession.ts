@@ -101,8 +101,14 @@ export interface UseTerminalSessionResult {
 	serverSize: { cols: number; rows: number } | null;
 	isFollower: boolean;
 	leaderDevice: string;
+	/** Leader-declared device family, used to frame a follower's view. */
+	leaderClass: string;
+	/** The leader's virtual keyboard covers part of its viewport. */
+	leaderKbOpen: boolean;
 	viewerCount: number;
 	takeLease: () => void;
+	/** Declare this client's virtual-keyboard state to the session. */
+	setKeyboardOpen: (open: boolean) => void;
   subscribeInputSettled: (cb: InputSettledListener) => () => void;
   awaitOffset: (offset: number, cb: InputSettlementCallback) => () => void;
   subscribePendingInput: (cb: () => void) => () => void;
@@ -176,6 +182,8 @@ export function useTerminalSession({
 	const [mouseMode, setMouseMode] = useState<boolean | null>(null);
 	const [holdsLease, setHoldsLease] = useState(true);
 	const [leaderDevice, setLeaderDevice] = useState("");
+	const [leaderClass, setLeaderClass] = useState("");
+	const [leaderKbOpen, setLeaderKbOpen] = useState(false);
 	const [viewerCount, setViewerCount] = useState(1);
 
   const onExitRef = useRef(onExit);
@@ -316,6 +324,16 @@ export function useTerminalSession({
   // server response (for example after a mobile reconnect).
   const takeLease = useCallback(() => requestLease(true), [requestLease]);
 
+  // Presentational only: followers draw the leader's keyboard rather than
+  // inferring it from a grid that shrinks for many reasons. Sent on change,
+  // so the keyboard-animation polls upstream cost nothing.
+  const keyboardOpenRef = useRef(false);
+  const setKeyboardOpen = useCallback((open: boolean) => {
+    if (keyboardOpenRef.current === open) return;
+    keyboardOpenRef.current = open;
+    transport.sendJson({ type: "device_state", kbOpen: open });
+  }, [transport]);
+
   const submitInput = useCallback(
     (data: string, intent: Exclude<InputIntent, "control">): GateResult => {
       if (!holdsLease) requestLease();
@@ -347,6 +365,15 @@ export function useTerminalSession({
 
   // Incoming message handler. Installed as a transport subscriber.
   useEffect(() => {
+    // size_info and presence carry the same leader-presentation fields, so
+    // they apply them through one function rather than two copies that drift.
+    const applyLeaderPresentation = (msg: TerminalMessage) => {
+      setLeaderDevice(msg.leaderDevice ?? "");
+      setLeaderClass(msg.deviceClass ?? "");
+      setLeaderKbOpen(msg.kbOpen === true);
+      setViewerCount(msg.viewerCount ?? 1);
+      useWorkspaceStore.getState().setViewerCount(sessionId, msg.viewerCount ?? 1);
+    };
     const unsubscribe = transport.subscribe((msg) => {
 	  protocolStateRef.current = reduceTerminalMessage(protocolStateRef.current, msg);
       switch (msg.type) {
@@ -479,9 +506,7 @@ export function useTerminalSession({
 				setHoldsLease(nextHoldsLease);
 				if (nextHoldsLease || !leaseRequestInFlightRef.current) leaseRequestInFlightRef.current = false;
 			}
-			setLeaderDevice(msg.leaderDevice ?? "");
-			setViewerCount(msg.viewerCount ?? 1);
-			useWorkspaceStore.getState().setViewerCount(sessionId, msg.viewerCount ?? 1);
+			applyLeaderPresentation(msg);
 			const t = terminalRef.current;
 			if (t && (t.cols !== msg.cols || t.rows !== msg.rows)) t.resize(msg.cols, msg.rows);
 			break;
@@ -489,9 +514,7 @@ export function useTerminalSession({
 		case "presence": {
 			const nextHoldsLease = msg.holdsLease === true;
 			setHoldsLease(nextHoldsLease);
-			setLeaderDevice(msg.leaderDevice ?? "");
-			setViewerCount(msg.viewerCount ?? 1);
-			useWorkspaceStore.getState().setViewerCount(sessionId, msg.viewerCount ?? 1);
+			applyLeaderPresentation(msg);
 			if (nextHoldsLease || !leaseRequestInFlightRef.current) leaseRequestInFlightRef.current = false;
 			break;
 		}
@@ -618,8 +641,11 @@ export function useTerminalSession({
 		serverSize,
 		isFollower: !holdsLease,
 		leaderDevice,
+		leaderClass,
+		leaderKbOpen,
 		viewerCount,
 		takeLease,
+		setKeyboardOpen,
     subscribeInputSettled: stdin.subscribeInputSettled,
     awaitOffset: stdin.awaitOffset,
     subscribePendingInput: stdin.subscribePendingInput,

@@ -1,52 +1,49 @@
 package main
 
 import (
-	"net/http"
-	"net/http/httptest"
-	"strings"
 	"testing"
 	"time"
 
 	sharedsession "github.com/vrooli/api-core/operatorsession"
+	"github.com/vrooli/api-core/targetmodel"
 	registryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/registry"
 )
 
 func TestConfiguredRemoteTargetFailsClosedWithoutAllCredentials(t *testing.T) {
 	t.Setenv("VROOLI_OPERATOR_SESSION_DIR", t.TempDir())
-	t.Setenv("WEB_CONSOLE_BRIDGE_URL", "http://bridge.test")
-	t.Setenv("WEB_CONSOLE_BRIDGE_NODE_ID", "node-1")
-	t.Setenv("WEB_CONSOLE_BRIDGE_OWNER_TOKEN", "owner")
-	t.Setenv("WEB_CONSOLE_BRIDGE_REAUTH_TOKEN", "")
+	t.Setenv("VROOLI_BRIDGE_NODE_ID", "node-1")
+	t.Setenv("VROOLI_BRIDGE_API_TOKEN", "owner")
+	t.Setenv("VROOLI_BRIDGE_REAUTH_TOKEN", "")
+	t.Setenv("VROOLI_BRIDGE_API_TOKEN", "")
 	target := configuredRemoteTarget()
 	if target.Available {
 		t.Fatal("target became available without re-authentication proof")
 	}
-	if target.DispatchReason == "" {
+	if target.Reason == "" {
 		t.Fatal("unavailable target did not explain its failure rung")
 	}
 }
 
-func TestConfiguredRemoteTargetAcceptsEnrolledLocalSessionWithoutReauth(t *testing.T) {
+func TestConfiguredRemoteTargetAcceptsExplicitBridgeToken(t *testing.T) {
 	t.Setenv("VROOLI_OPERATOR_SESSION_DIR", t.TempDir())
-	t.Setenv("WEB_CONSOLE_BRIDGE_URL", "http://bridge.test")
-	t.Setenv("WEB_CONSOLE_BRIDGE_NODE_ID", "node-1")
-	t.Setenv("WEB_CONSOLE_BRIDGE_OWNER_TOKEN", "LocalSession signed-session")
-	t.Setenv("WEB_CONSOLE_BRIDGE_REAUTH_TOKEN", "")
+	t.Setenv("VROOLI_BRIDGE_NODE_ID", "node-1")
+	t.Setenv("VROOLI_BRIDGE_API_TOKEN", "")
+	t.Setenv("VROOLI_BRIDGE_REAUTH_TOKEN", "")
+	t.Setenv("VROOLI_BRIDGE_API_TOKEN", "bridge-token")
 	target := configuredRemoteTarget()
 	if !target.Available {
 		t.Fatalf("enrolled local session target unavailable: %+v", target)
 	}
-	if len(target.ReadinessFacts) == 0 || target.ReadinessFacts[len(target.ReadinessFacts)-1].Detail != "Bridge is configured" {
-		t.Fatalf("readiness facts = %v, want capability evidence", target.ReadinessFacts)
+	if len(target.Readiness) == 0 || target.Readiness[len(target.Readiness)-1].Detail != "Bridge credentials available" {
+		t.Fatalf("readiness facts = %v, want capability evidence", target.Readiness)
 	}
 }
 
 func TestConfiguredRemoteTargetMintsEnrolledLocalSessionByDefault(t *testing.T) {
 	t.Setenv("VROOLI_OPERATOR_SESSION_DIR", t.TempDir())
-	t.Setenv("WEB_CONSOLE_BRIDGE_URL", "http://bridge.test")
-	t.Setenv("WEB_CONSOLE_BRIDGE_NODE_ID", "")
-	t.Setenv("WEB_CONSOLE_BRIDGE_OWNER_TOKEN", "")
-	t.Setenv("WEB_CONSOLE_BRIDGE_REAUTH_TOKEN", "")
+	t.Setenv("VROOLI_BRIDGE_NODE_ID", "")
+	t.Setenv("VROOLI_BRIDGE_API_TOKEN", "")
+	t.Setenv("VROOLI_BRIDGE_REAUTH_TOKEN", "")
 
 	store, err := sharedsession.DefaultFileStore()
 	if err != nil {
@@ -79,84 +76,8 @@ func TestConfiguredRemoteTargetMintsEnrolledLocalSessionByDefault(t *testing.T) 
 	}
 }
 
-func TestBridgeOwnerTransportPreservesExplicitAuthScheme(t *testing.T) {
-	t.Setenv("VROOLI_OPERATOR_SESSION_DIR", t.TempDir())
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if got := r.Header.Get("Authorization"); got != "LocalSession signed-session" {
-			t.Errorf("authorization = %q, want explicit LocalSession scheme", got)
-		}
-		if got := r.Header.Get("X-Bridge-Owner-Reauth"); got != "" {
-			t.Errorf("reauth header = %q, want omitted for local session", got)
-		}
-		w.WriteHeader(http.StatusNoContent)
-	}))
-	defer server.Close()
-
-	req := httptest.NewRequest(http.MethodGet, server.URL, nil)
-	resp, err := (bridgeOwnerTransport{base: http.DefaultTransport, owner: "LocalSession signed-session"}).RoundTrip(req)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusNoContent {
-		t.Fatalf("status = %d, want %d", resp.StatusCode, http.StatusNoContent)
-	}
-}
-
-func TestBridgeOwnerTransportRefreshesExpiredLocalSessionFromEnrollment(t *testing.T) {
-	t.Setenv("VROOLI_OPERATOR_SESSION_DIR", t.TempDir())
-	store, err := sharedsession.DefaultFileStore()
-	if err != nil {
-		t.Fatal(err)
-	}
-	private, err := sharedsession.GenerateKey()
-	if err != nil {
-		t.Fatal(err)
-	}
-	public, err := sharedsession.PublicKey(private)
-	if err != nil {
-		t.Fatal(err)
-	}
-	enrollment := sharedsession.Enrollment{
-		OperatorID:       "operator-1",
-		IdentityProvider: sharedsession.IdentityProviderAuthenticator,
-		Mode:             sharedsession.ModePersonal,
-		Reference:        "enrollment-1",
-		EnrolledAt:       time.Now().UTC(),
-		ScopeCeiling:     []string{"vrooli-bridge:read"},
-	}
-	if err := store.Save(private, enrollment); err != nil {
-		t.Fatal(err)
-	}
-
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		value := r.Header.Get("Authorization")
-		if !strings.HasPrefix(value, sharedsession.LocalSessionScheme+" ") {
-			t.Fatalf("authorization = %q, want a refreshed local session", value)
-		}
-		if value == sharedsession.LocalSessionScheme+" stale-session" {
-			t.Fatal("transport reused the expired local session")
-		}
-		if _, err := sharedsession.Verify(public, strings.TrimPrefix(value, sharedsession.LocalSessionScheme+" "), time.Now()); err != nil {
-			t.Fatalf("refreshed local session failed verification: %v", err)
-		}
-		w.WriteHeader(http.StatusNoContent)
-	}))
-	defer server.Close()
-
-	req := httptest.NewRequest(http.MethodGet, server.URL, nil)
-	resp, err := (bridgeOwnerTransport{base: http.DefaultTransport, owner: sharedsession.LocalSessionScheme + " stale-session"}).RoundTrip(req)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusNoContent {
-		t.Fatalf("status = %d, want %d", resp.StatusCode, http.StatusNoContent)
-	}
-}
-
 func TestTargetFromRegistryNodeUsesDispatchabilityAndReadinessRung(t *testing.T) {
-	base := remoteTerminalTarget{BaseURL: "http://bridge.test", OwnerToken: "owner", ReauthToken: "reauth"}
+	base := targetConnection{Target: targetmodel.Target{}, BaseURL: "http://bridge.test", OwnerToken: "owner", ReauthToken: "reauth"}
 	ready := targetFromRegistryNode(base, &registryv1.Node{
 		Id:                    "node-ready",
 		Name:                  "Swarminator",
@@ -167,8 +88,27 @@ func TestTargetFromRegistryNodeUsesDispatchabilityAndReadinessRung(t *testing.T)
 		ProtocolCompatible:    true,
 		Dispatchable:          true,
 	})
-	if !ready.Available || ready.ID != "bridge-node:node-ready" || len(ready.ReadinessFacts) != 5 {
+	if !ready.Available || ready.ID != "bridge-node:node-ready" {
 		t.Fatalf("ready target was not projected correctly: %+v", ready)
+	}
+	// Assert which facts are present, not how many. A count fails identically
+	// for a fact correctly added and a fact wrongly dropped, and says neither.
+	wantFacts := []string{
+		targetmodel.ReadinessRegistry, targetmodel.ReadinessHeartbeat, targetmodel.ReadinessChannel,
+		targetmodel.ReadinessProtocol, targetmodel.ReadinessDispatch, targetmodel.ReadinessBridgeScope,
+	}
+	got := make(map[string]bool, len(ready.Readiness))
+	for _, fact := range ready.Readiness {
+		got[fact.Identity] = true
+	}
+	for _, want := range wantFacts {
+		if !got[want] {
+			t.Errorf("readiness fact %q is missing from a ready target: %+v", want, ready.Readiness)
+		}
+		delete(got, want)
+	}
+	for extra := range got {
+		t.Errorf("readiness fact %q was projected but is not part of the shared vocabulary", extra)
 	}
 
 	offline := targetFromRegistryNode(base, &registryv1.Node{
@@ -180,7 +120,7 @@ func TestTargetFromRegistryNodeUsesDispatchabilityAndReadinessRung(t *testing.T)
 		ChannelHeld:           false,
 		ProtocolCompatible:    true,
 	})
-	if offline.Available || offline.DispatchReason != "heartbeat freshness" {
+	if offline.Available || offline.Reason != "heartbeat freshness" {
 		t.Fatalf("offline target did not fail closed at first rung: %+v", offline)
 	}
 }

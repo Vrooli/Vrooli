@@ -8,8 +8,8 @@ import { HEADER_COLORS } from "../consts/config";
 import { strings } from "../consts/strings";
 import { cn } from "../lib/classnames";
 import { Button } from "./ui/button";
-import { ConfirmDialog } from "./ConfirmDialog";
-import { DrawerShell } from "@vrooli/react-component-library/DrawerShell/1.0.0";
+import { AlertDialog } from "@vrooli/react-component-library/AlertDialog/2";
+import { ResponsiveDialog } from "@vrooli/react-component-library/ResponsiveDialog/1";
 
 const rowIconButtonClass =
   "shrink-0 rounded-full p-1.5 text-wc-text-muted transition hover:bg-wc-surface-input hover:text-wc-text-primary";
@@ -108,13 +108,13 @@ export default function ManageGroupsDrawer() {
   if (!target) return null;
 
   return (
-    <DrawerShell
+    <ResponsiveDialog
       open
       onClose={requestClose}
-      size="compact"
-      closeAriaLabel={t(strings.manageGroups.closeAriaLabel)}
+      size="md"
+      closeLabel={t(strings.manageGroups.closeAriaLabel)}
       title={t(strings.manageGroups.title)}
-      panelTestId="manage-groups-drawer"
+      testId="manage-groups-drawer"
     >
       <div className="flex h-full flex-col">
         <div className="min-h-0 flex-1 space-y-2 overflow-y-auto p-4">
@@ -248,10 +248,10 @@ export default function ManageGroupsDrawer() {
         </div>
       </div>
 
-      <ConfirmDialog
+      <AlertDialog
         open={deleteTarget !== null}
         title={t(strings.manageGroups.deleteTitle, { name: deleteTarget?.name ?? "" })}
-        body={
+        description={
           deleteCount === 0
             ? t(strings.manageGroups.deleteConsequenceNone)
             : t(strings.manageGroups.deleteConsequence, { count: deleteCount })
@@ -266,6 +266,6 @@ export default function ManageGroupsDrawer() {
         }}
         testIdPrefix="manage-groups-delete-confirm"
       />
-    </DrawerShell>
+    </ResponsiveDialog>
   );
 }

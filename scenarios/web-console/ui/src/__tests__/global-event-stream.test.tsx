@@ -5,6 +5,7 @@ import {
   useGlobalEventStream,
 } from "../hooks/useGlobalEventStream";
 import { useConversationStore, getSessionUnreadCount, getSessionConversationEvents } from "../stores/useConversationStore";
+import { useLiveStreamStore } from "../stores/useLiveStreamStore";
 
 const { mockRefresh } = vi.hoisted(() => ({ mockRefresh: vi.fn().mockResolvedValue(true) }));
 vi.mock("../hooks/useConversationSession", () => ({
@@ -221,23 +222,25 @@ describe("useGlobalEventStream idempotency (Layer 1)", () => {
     expect(es?.closed).toBe(true);
   });
 
-  it("logs stream errors without closing the EventSource", () => {
-    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+  it("reports a stream error without tearing down a connection the browser is still retrying", () => {
     const sources: FakeEventSource[] = [];
-    renderHook(() => useGlobalEventStream({ createEventSource: (url) => {
+    renderHook(() => { useGlobalEventStream({ createEventSource: (url) => {
       const s = new FakeEventSource(url);
       sources.push(s);
       return s as unknown as EventSource;
-    } }));
+    } }); });
     const es = sources[0];
     expect(es?.onerror).toBeTypeOf("function");
 
-    act(() => es?.onerror?.(new Event("error")));
+    act(() => { es?.onerror?.(new Event("error")); });
 
-    expect(warn).toHaveBeenCalled();
-    const [message, details] = warn.mock.calls[0] as [string, { url: string }];
-    expect(message).toBe("[web-console] global event stream error");
-    expect(details.url).toContain("/events/stream");
+    // The failure is now reported through the live-stream store — which the
+    // pane renders — rather than only to the developer console. The connection
+    // itself is left alone: this fake reports no readyState, standing in for
+    // the CONNECTING case where the browser is still retrying on its own and a
+    // second connection would just stack on top of it.
+    expect(useLiveStreamStore.getState().status).toBe("reconnecting");
     expect(es?.closed).toBe(false);
+    expect(sources).toHaveLength(1);
   });
 });

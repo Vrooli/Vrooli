@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
+	"github.com/vrooli/api-core/targetmodel"
 	"google.golang.org/protobuf/encoding/protojson"
 
 	registryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/registry"
@@ -14,19 +15,21 @@ import (
 	targetsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/targets"
 )
 
-func readyRemoteTarget() remoteTerminalTarget {
-	return remoteTerminalTarget{
-		ID: "bridge-node:node-a", Kind: "bridge-node", Label: "Build node A",
-		OS: "linux", Arch: "amd64", NodeID: "node-a", Revision: "r1",
-		Status: "ONLINE", Online: true, Available: true, Availability: "dispatchable",
+func readyRemoteTarget() targetConnection {
+	return targetConnection{
+		Target: targetmodel.Target{
+			ID: "bridge-node:node-a", DeviceKind: "bridge-node", Label: "Build node A",
+			OS: "linux", Architecture: "amd64", NodeID: "node-a", Revision: "r1", Health: targetmodel.TargetHealth{Status: "ONLINE"},
+			BridgeTrust: &targetmodel.BridgeTrust{Online: true}, Available: true,
+			Readiness: []targetmodel.ReadinessCheck{{Identity: "dispatch", Label: "Dispatchable", Passed: true, Detail: "ready"}},
+		},
 		BaseURL: "https://bridge.internal", OwnerToken: "LocalSession secret-owner", ReauthToken: "secret-reauth",
-		ReadinessFacts: []remoteReadinessFact{{Key: "dispatch", Label: "Dispatchable", Passed: true, Detail: "ready"}},
 	}
 }
 
 func TestTargetCatalogListProjectsSafeRemoteMetadata(t *testing.T) {
 	remote := readyRemoteTarget()
-	srv := &Server{remoteTargetCatalog: func() []remoteTerminalTarget { return []remoteTerminalTarget{remote} }}
+	srv := &Server{remoteTargetCatalog: func() []targetConnection { return []targetConnection{remote} }}
 
 	response, err := (&targetCatalogRPC{server: srv}).List(context.Background(), connect.NewRequest(&targetsv1.ListRequest{}))
 	if err != nil {
@@ -57,12 +60,12 @@ func TestTargetCatalogListProjectsSafeRemoteMetadata(t *testing.T) {
 func TestRemoteCatalogStateDistinguishesConfigurationFailures(t *testing.T) {
 	tests := []struct {
 		name   string
-		remote []remoteTerminalTarget
+		remote []targetConnection
 		want   targetsv1.CatalogState
 	}{
 		{name: "configured empty", want: targetsv1.CatalogState_CATALOG_STATE_CONFIGURED_EMPTY},
-		{name: "unconfigured", remote: []remoteTerminalTarget{{DispatchReason: "bridge credentials not configured"}}, want: targetsv1.CatalogState_CATALOG_STATE_UNCONFIGURED},
-		{name: "registry error", remote: []remoteTerminalTarget{{DispatchReason: "Bridge registry unavailable"}}, want: targetsv1.CatalogState_CATALOG_STATE_REGISTRY_ERROR},
+		{name: "unconfigured", remote: []targetConnection{{Target: targetmodel.Target{Reason: "bridge credentials not configured"}}}, want: targetsv1.CatalogState_CATALOG_STATE_UNCONFIGURED},
+		{name: "registry error", remote: []targetConnection{{Target: targetmodel.Target{Reason: "Bridge registry unavailable"}}}, want: targetsv1.CatalogState_CATALOG_STATE_REGISTRY_ERROR},
 	}
 
 	for _, tt := range tests {
@@ -77,21 +80,20 @@ func TestRemoteCatalogStateDistinguishesConfigurationFailures(t *testing.T) {
 
 func TestRemoteTargetExistsAndOffersBridgeActionWithoutConfiguration(t *testing.T) {
 	t.Setenv("VROOLI_OPERATOR_SESSION_DIR", t.TempDir())
-	t.Setenv("WEB_CONSOLE_BRIDGE_URL", "")
-	t.Setenv("WEB_CONSOLE_BRIDGE_NODE_ID", "")
-	t.Setenv("WEB_CONSOLE_BRIDGE_OWNER_TOKEN", "")
-	t.Setenv("WEB_CONSOLE_BRIDGE_REAUTH_TOKEN", "")
+	t.Setenv("VROOLI_BRIDGE_NODE_ID", "")
+	t.Setenv("VROOLI_BRIDGE_API_TOKEN", "")
+	t.Setenv("VROOLI_BRIDGE_REAUTH_TOKEN", "")
 
 	srv := &Server{}
 	target, ok := srv.targetByID("bridge-node:")
 	if !ok {
 		t.Fatal("remote target disappeared when Bridge is unconfigured")
 	}
-	if target.Available || target.DispatchReason != "Bridge URL is not configured" {
+	if target.Available || target.Reason != "Bridge credentials not configured" {
 		t.Fatalf("target status = %+v", target)
 	}
-	if target.Capability.ActionLabel != "Start Bridge" || target.Capability.ReasonCode != "bridge_url_missing" {
-		t.Fatalf("target capability = %+v", target.Capability)
+	if target.NextAction != "Enroll this machine with Bridge, then refresh the catalog" {
+		t.Fatalf("target recovery action = %q", target.NextAction)
 	}
 }
 
@@ -114,10 +116,14 @@ func TestTargetCatalogProjectsReadinessAndRecoveryText(t *testing.T) {
 		ChannelHeld:           true,
 		ProtocolCompatible:    true,
 		Dispatchable:          false,
+		Scopes:                []string{"system-monitor:read"},
 	}
 	facts := readinessFactsForNode(node)
-	if len(facts) != 5 || facts[0].Passed != true || facts[4].Passed != false {
+	if len(facts) != 6 || facts[0].Passed != true || facts[4].Passed != false || !facts[5].Passed {
 		t.Fatalf("readiness facts = %+v", facts)
+	}
+	if facts[5].Detail != "Read only; changes are not permitted. Granted scopes: system-monitor:read" {
+		t.Fatalf("grant summary = %q", facts[5].Detail)
 	}
 	if got := recoveryActionForNode(node, "protocol compatibility"); !strings.Contains(got, "Update") {
 		t.Fatalf("protocol recovery action = %q", got)
@@ -139,10 +145,10 @@ func TestTargetCatalogProjectsReadinessAndRecoveryText(t *testing.T) {
 			t.Errorf("targetProtoState(%q) = %v, want %v", tc.state, got, tc.want)
 		}
 	}
-	projected := targetToProto(remoteTerminalTarget{
-		ID: "node", Availability: "offline", DispatchReason: "heartbeat freshness",
-		OperatorAction: "reconnect", LastSeenAt: time.Now(), ReadinessFacts: facts,
-	})
+	projected := targetToProto(targetConnection{Target: targetmodel.Target{
+		ID: "node", Available: false, Reason: "heartbeat freshness", NextAction: "reconnect",
+		LastSeenAt: time.Now(), Readiness: facts,
+	}})
 	if targetText(projected, "failure_rung") != "heartbeat freshness" || targetText(projected, "recovery_action") != "reconnect" {
 		t.Fatalf("target text projection = %q/%q", targetText(projected, "failure_rung"), targetText(projected, "recovery_action"))
 	}
@@ -170,8 +176,8 @@ func TestTargetStateForNodeReportsDispatchAndAvailabilityStates(t *testing.T) {
 }
 
 func TestTargetCatalogGetAndDoctorExplainFailures(t *testing.T) {
-	srv := &Server{remoteTargetCatalog: func() []remoteTerminalTarget {
-		return []remoteTerminalTarget{{ID: "node", Label: "Node", Availability: "offline", DispatchReason: "heartbeat freshness"}}
+	srv := &Server{remoteTargetCatalog: func() []targetConnection {
+		return []targetConnection{{Target: targetmodel.Target{ID: "node", Label: "Node", Reason: "heartbeat freshness"}}}
 	}}
 	h := &targetCatalogRPC{server: srv}
 	if response, err := h.Get(context.Background(), connect.NewRequest(&targetsv1.GetRequest{Id: "local"})); err != nil || response.Msg.GetTarget().GetId() != "local" {

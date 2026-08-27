@@ -4,10 +4,12 @@ import (
 	"context"
 	"fmt"
 	"runtime"
+	"sort"
 	"strings"
 
 	"connectrpc.com/connect"
 	"github.com/vrooli/api-core/connectx"
+	"github.com/vrooli/api-core/targetmodel"
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
@@ -27,7 +29,7 @@ type targetCatalogRPC struct {
 func (h *targetCatalogRPC) List(_ context.Context, _ *connect.Request[targetsv1.ListRequest]) (*connect.Response[targetsv1.ListResponse], error) {
 	remote := h.server.remoteTargets()
 	state, message, action := remoteCatalogState(remote)
-	all := append([]remoteTerminalTarget{localTerminalTarget()}, remote...)
+	all := append([]targetConnection{{Target: localTerminalTarget()}}, remote...)
 	targets := make([]*sharedv1.Target, 0, len(all))
 	for _, target := range all {
 		targets = append(targets, targetToProto(target))
@@ -70,44 +72,88 @@ func (s *Server) mountTargetCatalog() {
 	connectx.RegisterServices(s.router, connectx.ServiceMount{Path: path, Handler: handler})
 }
 
-func (s *Server) targetByID(id string) (remoteTerminalTarget, bool) {
+func (s *Server) targetByID(id string) (targetConnection, bool) {
 	if id == "local" {
-		return localTerminalTarget(), true
+		return targetConnection{Target: localTerminalTarget()}, true
 	}
 	for _, target := range s.remoteTargets() {
 		if target.ID == id {
 			return target, true
 		}
 	}
-	return remoteTerminalTarget{}, false
+	return targetConnection{}, false
 }
 
-func localTerminalTarget() remoteTerminalTarget {
-	return remoteTerminalTarget{
-		ID:              "local",
-		Kind:            "local",
-		Label:           "This machine",
-		OS:              runtime.GOOS,
-		Arch:            runtime.GOARCH,
-		Status:          "LOCAL",
-		Online:          true,
-		Available:       true,
-		Availability:    "dispatchable",
-		SurvivesRestart: true,
-		ReadinessFacts: []remoteReadinessFact{{
-			Key: "local_process", Label: "Web Console process", Passed: true, Detail: "This machine is available to the Web Console",
-		}},
+func localTerminalTarget() targetmodel.Target {
+	return targetmodel.Target{
+		ID: "local", Ramp: "local", Label: "This machine", Platform: "local",
+		OS: runtime.GOOS, Architecture: runtime.GOARCH, DeviceKind: "local",
+		Available: true, Mode: "dispatchable", SurvivesRestart: true,
+		Transport: targetmodel.Transport{Kind: targetmodel.TransportLocal, ID: "local", Available: true},
+		Health:    targetmodel.TargetHealth{Status: "LOCAL"},
+		Readiness: []targetmodel.ReadinessCheck{{Identity: "local_process", Label: "Web Console process", Passed: true, Detail: "This machine is available to the Web Console"}},
 	}
 }
 
-func readinessFactsForNode(node *registryv1.Node) []remoteReadinessFact {
-	return []remoteReadinessFact{
-		{Key: "registry_record", Label: "Registered", Passed: node.GetRegistryRecordPresent(), Detail: "Bridge registry record is present"},
-		{Key: "heartbeat", Label: "Heartbeat fresh", Passed: node.GetHeartbeatFresh(), Detail: "Node heartbeat is within the freshness window"},
-		{Key: "channel", Label: "Live channel", Passed: node.GetChannelHeld(), Detail: "Bridge has a live channel to this node"},
-		{Key: "protocol", Label: "Protocol compatible", Passed: node.GetProtocolCompatible(), Detail: "Node and Bridge can speak the same session protocol"},
-		{Key: "dispatch", Label: "Dispatchable", Passed: node.GetDispatchable(), Detail: "Web Console may start a session on this node"},
+func readinessFactsForNode(node *registryv1.Node) []targetmodel.ReadinessCheck {
+	return []targetmodel.ReadinessCheck{
+		targetmodel.ReadinessCheckFor(targetmodel.ReadinessRegistry, node.GetRegistryRecordPresent(), "Bridge registry record is present"),
+		targetmodel.ReadinessCheckFor(targetmodel.ReadinessHeartbeat, node.GetHeartbeatFresh(), "Node heartbeat is within the freshness window"),
+		targetmodel.ReadinessCheckFor(targetmodel.ReadinessChannel, node.GetChannelHeld(), "Bridge has a live channel to this node"),
+		targetmodel.ReadinessCheckFor(targetmodel.ReadinessProtocol, node.GetProtocolCompatible(), "Node and Bridge can speak the same session protocol"),
+		targetmodel.ReadinessCheckFor(targetmodel.ReadinessDispatch, node.GetDispatchable(), "Web Console may start a session on this node"),
+		targetmodel.ReadinessCheckFor(targetmodel.ReadinessBridgeScope, len(node.GetScopes()) > 0, grantDetailForScopes(node.GetScopes())),
 	}
+}
+
+func grantSummaryForScopes(scopes []string) string {
+	hasRead, hasWrite, hasDestructive := false, false, false
+	for _, scope := range scopes {
+		parts := strings.SplitN(strings.ToLower(strings.TrimSpace(scope)), ":", 2)
+		if len(parts) != 2 {
+			continue
+		}
+		switch parts[1] {
+		case "read", "*":
+			hasRead = true
+		case "write":
+			hasWrite = true
+		case "destructive":
+			hasDestructive = true
+		}
+	}
+	switch {
+	case hasDestructive:
+		return "Full control, including destructive actions"
+	case hasWrite:
+		return "Read and operate; destructive actions withheld"
+	case hasRead:
+		return "Read only; changes are not permitted"
+	default:
+		return "No remote actions granted"
+	}
+}
+
+func grantDetailForScopes(scopes []string) string {
+	summary := grantSummaryForScopes(scopes)
+	clean := make([]string, 0, len(scopes))
+	seen := make(map[string]struct{}, len(scopes))
+	for _, scope := range scopes {
+		scope = strings.TrimSpace(scope)
+		if scope == "" {
+			continue
+		}
+		if _, ok := seen[scope]; ok {
+			continue
+		}
+		seen[scope] = struct{}{}
+		clean = append(clean, scope)
+	}
+	sort.Strings(clean)
+	if len(clean) == 0 {
+		return summary
+	}
+	return summary + ". Granted scopes: " + strings.Join(clean, ", ")
 }
 
 func targetStateForNode(node *registryv1.Node, dispatchable bool) string {
@@ -143,19 +189,19 @@ func recoveryActionForNode(node *registryv1.Node, failure string) string {
 	}
 }
 
-func remoteCatalogState(targets []remoteTerminalTarget) (targetsv1.CatalogState, string, string) {
+func remoteCatalogState(targets []targetConnection) (targetsv1.CatalogState, string, string) {
 	if len(targets) == 0 {
 		return targetsv1.CatalogState_CATALOG_STATE_CONFIGURED_EMPTY,
 			"Bridge is connected, but no remote nodes are registered.",
 			"Register a node with vrooli-bridge, then refresh this catalog."
 	}
 	if len(targets) == 1 && !targets[0].Available {
-		failure := strings.ToLower(targets[0].DispatchReason)
+		failure := strings.ToLower(targets[0].Reason)
 		switch {
 		case strings.Contains(failure, "credential") || strings.Contains(failure, "configured"):
 			return targetsv1.CatalogState_CATALOG_STATE_UNCONFIGURED,
 				"Remote nodes are not configured for this Web Console.",
-				targets[0].OperatorAction
+				targets[0].NextAction
 		case strings.Contains(failure, "registry"):
 			return targetsv1.CatalogState_CATALOG_STATE_REGISTRY_ERROR,
 				"Bridge is configured, but its node registry could not be read.",
@@ -170,10 +216,10 @@ func remoteCatalogState(targets []remoteTerminalTarget) (targetsv1.CatalogState,
 		"Remote node readiness is shown for every registered node.", ""
 }
 
-func targetToProto(target remoteTerminalTarget) *sharedv1.Target {
-	facts := make([]*sharedv1.ReadinessFact, 0, len(target.ReadinessFacts))
-	for _, fact := range target.ReadinessFacts {
-		facts = append(facts, &sharedv1.ReadinessFact{Key: fact.Key, Label: fact.Label, Passed: fact.Passed, Detail: fact.Detail})
+func targetToProto(target targetConnection) *sharedv1.Target {
+	facts := make([]*sharedv1.ReadinessFact, 0, len(target.Readiness))
+	for _, fact := range target.Readiness {
+		facts = append(facts, &sharedv1.ReadinessFact{Key: fact.Identity, Label: fact.Label, Passed: fact.Passed, Detail: fact.Detail})
 	}
 	var lastSeen *timestamppb.Timestamp
 	if !target.LastSeenAt.IsZero() {
@@ -181,23 +227,33 @@ func targetToProto(target remoteTerminalTarget) *sharedv1.Target {
 	}
 	projected := &sharedv1.Target{
 		Id:              target.ID,
-		Kind:            target.Kind,
+		Kind:            target.DeviceKind,
 		Label:           target.Label,
 		Os:              target.OS,
-		Arch:            target.Arch,
+		Arch:            target.Architecture,
 		NodeId:          target.NodeID,
 		Revision:        target.Revision,
-		Status:          target.Status,
-		Online:          target.Online,
+		Status:          target.Health.Status,
+		Online:          target.BridgeTrust != nil && target.BridgeTrust.Online,
 		LastSeenAt:      lastSeen,
 		Readiness:       facts,
 		Dispatchable:    target.Available,
-		State:           targetProtoState(target.Availability),
+		State:           targetProtoState(targetAvailability(target)),
 		SurvivesRestart: target.SurvivesRestart,
 	}
-	setTargetText(projected, "failure_rung", target.DispatchReason)
-	setTargetText(projected, "recovery_action", target.OperatorAction)
+	setTargetText(projected, "failure_rung", target.Reason)
+	setTargetText(projected, "recovery_action", target.NextAction)
 	return projected
+}
+
+func targetAvailability(target targetConnection) string {
+	if strings.TrimSpace(target.Mode) != "" {
+		return target.Mode
+	}
+	if target.Available {
+		return "dispatchable"
+	}
+	return "unavailable"
 }
 
 func setTargetText(target *sharedv1.Target, name, value string) {

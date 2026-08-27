@@ -30,6 +30,7 @@ const (
 	MsgTypeEchoState             = "echo_state"
 	MsgTypeMouseMode             = "mouse_mode"
 	MsgTypePresence              = "presence"
+	MsgTypeDeviceState           = "device_state"
 	StdinIntentTyping            = "typing"
 	StdinIntentBulkText          = "bulk_text"
 	StdinIntentNamedKey          = "named_key"
@@ -41,6 +42,12 @@ const (
 )
 
 // TerminalMessage is the JSON message exchanged by terminal WebSockets.
+//
+// Tag casing is historically mixed: the lease and presence fields are
+// camelCase while the stream and echo fields are snake_case. Both spellings
+// are load-bearing on the wire, so normalizing them is a breaking change that
+// belongs behind a ProtocolVersion bump rather than an in-place rename. New
+// fields follow the casing of the group they join.
 type TerminalMessage struct {
 	Type            string `json:"type"`
 	Data            string `json:"data,omitempty"`
@@ -65,12 +72,20 @@ type TerminalMessage struct {
 	Reason          string `json:"reason,omitempty"`
 	Leader          string `json:"leader,omitempty"`
 	LeaderDevice    string `json:"leaderDevice,omitempty"`
-	HoldsLease      bool   `json:"holdsLease"`
-	ViewerCount     int    `json:"viewerCount,omitempty"`
-	EchoKnown       bool   `json:"echo_known,omitempty"`
-	EchoEnabled     bool   `json:"echo_enabled,omitempty"`
-	InAltBuffer     bool   `json:"in_alt_buffer,omitempty"`
-	CursorAtLineEnd bool   `json:"cursor_at_line_end,omitempty"`
-	MouseMode       bool   `json:"mouse_mode,omitempty"`
-	MouseModeKnown  bool   `json:"mouse_mode_known,omitempty"`
+	// DeviceClass is the leader's self-declared device family, used only to
+	// choose a follower's decorative frame. It is never an authorization
+	// signal and is not a hardware identity claim; an operator can edit it.
+	DeviceClass string `json:"deviceClass,omitempty"`
+	// KbOpen reports whether the leader's virtual keyboard currently covers
+	// part of its viewport. Followers draw this state instead of inferring it
+	// from the grid, which changes for many reasons besides a keyboard.
+	KbOpen          bool `json:"kbOpen,omitempty"`
+	HoldsLease      bool `json:"holdsLease"`
+	ViewerCount     int  `json:"viewerCount,omitempty"`
+	EchoKnown       bool `json:"echo_known,omitempty"`
+	EchoEnabled     bool `json:"echo_enabled,omitempty"`
+	InAltBuffer     bool `json:"in_alt_buffer,omitempty"`
+	CursorAtLineEnd bool `json:"cursor_at_line_end,omitempty"`
+	MouseMode       bool `json:"mouse_mode,omitempty"`
+	MouseModeKnown  bool `json:"mouse_mode_known,omitempty"`
 }

@@ -42,6 +42,37 @@ type terminalResumeRequest struct {
 	renderedThrough int64
 }
 
+// sizeInfoMessage is the single construction of the size_info payload. Three
+// call sites previously each destructured a tuple and rebuilt this literal, so
+// a new presentational field meant three edits and three chances to miss one.
+func sizeInfoMessage(snapshot session.SizeLeaseSnapshot) TerminalMessage {
+	return TerminalMessage{
+		Type:         wireproto.MsgTypeSizeInfo,
+		Cols:         int(snapshot.Cols),
+		Rows:         int(snapshot.Rows),
+		Leader:       snapshot.Leader,
+		LeaderDevice: snapshot.LeaderDevice,
+		DeviceClass:  snapshot.LeaderClass,
+		KbOpen:       snapshot.LeaderKbOpen,
+		HoldsLease:   snapshot.HoldsLease,
+		ViewerCount:  snapshot.ViewerCount,
+	}
+}
+
+// presenceMessage is the single construction of the presence payload. It
+// carries the same leader-presentation fields as size_info, without the grid.
+func presenceMessage(state session.PresenceState) TerminalMessage {
+	return TerminalMessage{
+		Type:         wireproto.MsgTypePresence,
+		Leader:       state.Leader,
+		LeaderDevice: state.LeaderDevice,
+		DeviceClass:  state.LeaderClass,
+		KbOpen:       state.LeaderKbOpen,
+		HoldsLease:   state.HoldsLease,
+		ViewerCount:  state.ViewerCount,
+	}
+}
+
 func writeTerminalJSON(conn *websocket.Conn, writeMu *sync.Mutex, msg TerminalMessage) error {
 	writeMu.Lock()
 	defer writeMu.Unlock()
@@ -148,7 +179,7 @@ func (s *Server) handleTerminalWS(w http.ResponseWriter, r *http.Request) {
 	// are applied on top of the snapshot on the receiver.
 	sub := sess.Subscribe()
 	defer sess.Unsubscribe(sub.OutputCh)
-	sess.SetClientDevice(sub.OutputCh, r.URL.Query().Get("deviceId"), r.URL.Query().Get("deviceLabel"))
+	sess.SetClientDevice(sub.OutputCh, r.URL.Query().Get("deviceId"), r.URL.Query().Get("deviceLabel"), r.URL.Query().Get("deviceClass"))
 
 	// Assign this connection a fresh generation so clients can detect
 	// reconnect boundaries on their stdin-ack write barrier.
@@ -255,8 +286,7 @@ func (s *Server) handleTerminalWS(w http.ResponseWriter, r *http.Request) {
 		if !emitEchoState() {
 			return
 		}
-		cols, rows, leader, leaderDevice, holdsLease, viewerCount := sess.SizeLeaseState(sub.OutputCh)
-		if err := writeTerminalJSON(conn, &writeMu, TerminalMessage{Type: wireproto.MsgTypeSizeInfo, Cols: int(cols), Rows: int(rows), Leader: leader, LeaderDevice: leaderDevice, HoldsLease: holdsLease, ViewerCount: viewerCount}); err != nil {
+		if err := writeTerminalJSON(conn, &writeMu, sizeInfoMessage(sess.SizeLeaseState(sub.OutputCh))); err != nil {
 			return
 		}
 
@@ -354,11 +384,11 @@ func (s *Server) handleTerminalWS(w http.ResponseWriter, r *http.Request) {
 				if !ok {
 					return
 				}
-				cols, rows, leader, leaderDevice, holdsLease, viewerCount := sess.SizeLeaseState(sub.OutputCh)
-				if cols != size[0] || rows != size[1] {
+				snapshot := sess.SizeLeaseState(sub.OutputCh)
+				if snapshot.Cols != size[0] || snapshot.Rows != size[1] {
 					continue
 				}
-				err := writeTerminalJSON(conn, &writeMu, TerminalMessage{Type: wireproto.MsgTypeSizeInfo, Cols: int(cols), Rows: int(rows), Leader: leader, LeaderDevice: leaderDevice, HoldsLease: holdsLease, ViewerCount: viewerCount})
+				err := writeTerminalJSON(conn, &writeMu, sizeInfoMessage(snapshot))
 				if err != nil {
 					return
 				}
@@ -367,10 +397,7 @@ func (s *Server) handleTerminalWS(w http.ResponseWriter, r *http.Request) {
 				if !ok {
 					return
 				}
-				err := writeTerminalJSON(conn, &writeMu, TerminalMessage{
-					Type: wireproto.MsgTypePresence, Leader: presence.Leader, LeaderDevice: presence.LeaderDevice,
-					HoldsLease: presence.HoldsLease, ViewerCount: presence.ViewerCount,
-				})
+				err := writeTerminalJSON(conn, &writeMu, presenceMessage(presence))
 				if err != nil {
 					return
 				}

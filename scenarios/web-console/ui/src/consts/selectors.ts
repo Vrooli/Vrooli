@@ -1,4 +1,4 @@
-import { librarySelectors } from "./selectors.library.js";
+import { librarySelectors } from "./selectors.library";
 export { librarySelectors };
 // DOC: docs/internal/SEAMS.md
 /**
@@ -282,7 +282,7 @@ const literalSelectors: LiteralSelectorTree = {
     paneGrid: 'pane-grid',
     newTerminalButton: 'new-terminal-button',
     paneContainer: 'terminal-pane-container',
-    sidebarShell: 'workspace-sidebar-shell',
+    sidebarShell: 'workspace-sidebar',
     sidebarToggle: 'workspace-sidebar-toggle',
     sidebarBackdrop: 'workspace-sidebar-backdrop',
     sidebarResizeHandle: 'workspace-sidebar-resize-handle',

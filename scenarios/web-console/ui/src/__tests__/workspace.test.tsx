@@ -6,7 +6,7 @@ import Workspace from "../components/Workspace";
 import { strings } from "../consts/strings";
 import type { SessionInfo } from "../api/sessions";
 import type { ConversationEvent } from "../api/conversation";
-import { useConversationStore } from "../stores/useConversationStore";
+import { useConversationStore, createConversationSessionState } from "../stores/useConversationStore";
 
 // [REQ:P0-001a] Responsive Pane Grid Layout — layout rendering
 // [REQ:P0-001b] Independent Pane Session Lifecycle — pane lifecycle
@@ -642,7 +642,7 @@ describe("Workspace", () => {
 
     render(<Workspace />);
 
-    expect(screen.getByTestId("workspace-sidebar-shell")).toBeTruthy();
+    expect(screen.getByTestId("workspace-sidebar")).toBeTruthy();
     expect(screen.queryByTestId("tab-bar")).toBeNull();
     expect(screen.queryByTestId("pane-grid")).toBeNull();
     expect(screen.getByTestId(`tab-pane-${mockSession.id}`)).toBeTruthy();
@@ -668,7 +668,7 @@ describe("Workspace", () => {
     expect(screen.getByTestId("workspace-sidebar-topbar").className).not.toContain("--wc-safe-top");
     fireEvent.click(screen.getByTestId("workspace-sidebar-toggle"));
     expect(screen.getByTestId("workspace-sidebar-backdrop")).toBeTruthy();
-    expect(screen.getByTestId("workspace-sidebar-shell").className).toContain("--wc-safe-top");
+    expect(screen.getByTestId("workspace-sidebar").className).toContain("--wc-safe-top");
     expect(screen.getByTestId("workspace-sidebar-new").parentElement?.className).toContain("border-b");
     expect(screen.getByTestId("workspace-sidebar-settings").parentElement?.className).toContain("border-b");
 
@@ -840,7 +840,7 @@ describe("Workspace", () => {
     ];
     useConversationStore.setState({
       sessions: {
-        [mockSession.id]: {
+        [mockSession.id]: createConversationSessionState({
           events: [
             conversationEvent(mockSession.id, 1, "user"),
             conversationEvent(mockSession.id, 2),
@@ -848,12 +848,12 @@ describe("Workspace", () => {
           ],
           cursor: { lastSeenSequence: 1, lastListenedSequence: 0 },
           hydrated: true,
-        },
-        [session2.id]: {
+        }),
+        [session2.id]: createConversationSessionState({
           events: [conversationEvent(session2.id, 4)],
           cursor: { lastSeenSequence: 3, lastListenedSequence: 0 },
           hydrated: true,
-        },
+        }),
       },
       viewModes: {},
     });

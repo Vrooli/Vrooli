@@ -36,6 +36,15 @@
         "rationale": "User-provided attachments are written beneath the cache-class upload root and are owned by web-console for request-scoped cleanup."
       }
     },
+    "cleanup_providers": [
+      {
+        "id": "web-console-sessions",
+        "name": "Web Console old sessions",
+        "safety_tier": "safe_with_owner",
+        "default_mode": "disabled",
+        "default_approval": "owner"
+      }
+    ],
     "rationale": "The session tree is owner-managed durable state; cleanup is delegated to web-console so active sessions remain protected."
   },
   "generation": {
@@ -270,7 +279,8 @@
             "hooks",
             "register"
           ],
-          "description": "Register Claude Code Stop hook for auto-TTS"
+          "description": "Register the Claude Code Stop and UserPromptSubmit hooks that capture session messages",
+          "on_error": "continue"
         }
       ]
     }

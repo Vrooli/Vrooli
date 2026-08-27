@@ -1,5 +1,6 @@
 import { renderWithProviders as render } from "../test-utils";
 import { describe, it, expect, vi, afterEach, beforeEach } from "vitest";
+import { createTerminalSessionStub } from "../test-utils";
 import { screen, act, cleanup } from "@testing-library/react";
 import { apiBaseMock } from "../test-utils";
 import type { InputFailureReason } from "../hooks/terminal/useStdinStream";
@@ -63,37 +64,19 @@ function settle(offset: number, ok: boolean, reason?: InputFailureReason): void 
 }
 
 vi.mock("../hooks/terminal/useTerminalSession", () => {
-  // Every one of these must keep a stable identity across renders.
-  // TerminalPane feeds them into effect dep arrays, so a fresh vi.fn()
-  // per render re-runs those effects forever and the test OOMs rather
-  // than failing with anything readable.
-  const gate = {
-    submit: vi.fn(() => ({ status: "sent" as const, offset: 1 })),
-    dispose: vi.fn(),
-  };
-  const submitInput = vi.fn(() => ({ status: "sent" as const, offset: 1 }));
-  const sendResize = vi.fn();
-  const getServerSize = vi.fn(() => null);
-  const subscribePendingInput = vi.fn(() => () => {});
-  const getPendingInputSnapshot = vi.fn(() => []);
-  const subscribeInputSettled = vi.fn(
-    (cb: (offset: number, ok: boolean, reason?: InputFailureReason) => void) => {
-      settledListeners.add(cb);
-      return () => settledListeners.delete(cb);
-    },
-  );
-  return {
-    useTerminalSession: () => ({
-      submitInput,
-      gate,
-      sendResize,
-      getServerSize,
-      serverSize: null,
-      subscribeInputSettled,
-      subscribePendingInput,
-      getPendingInputSnapshot,
-    }),
-  };
+  // The session object must keep a stable identity across renders:
+  // TerminalPane feeds these into effect dep arrays, so a fresh vi.fn() per
+  // render re-runs those effects forever and the test OOMs rather than
+  // failing with anything readable.
+  const session = createTerminalSessionStub({
+    subscribeInputSettled: vi.fn(
+      (cb: (offset: number, ok: boolean, reason?: InputFailureReason) => void) => {
+        settledListeners.add(cb);
+        return () => settledListeners.delete(cb);
+      },
+    ),
+  });
+  return { useTerminalSession: () => session };
 });
 vi.mock("../hooks/useTerminalTouch", () => ({
   useTerminalTouch: () => ({

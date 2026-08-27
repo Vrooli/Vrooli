@@ -22,11 +22,11 @@ func (s *Server) Create(ctx context.Context, in sessionsH.CreateInput) (sessions
 	if !ok {
 		return sessionsH.Session{}, fmt.Errorf("%w: %s", sessionsH.ErrTargetNotFound, in.TargetID)
 	}
-	if target.Kind == "local" {
+	if target.DeviceKind == "local" {
 		return sessionsH.Session{}, fmt.Errorf("%w: local target must use the local session backend", sessionsH.ErrTargetUnavailable)
 	}
 	if !target.Available {
-		reason := target.DispatchReason
+		reason := target.Reason
 		if reason == "" {
 			reason = "target is not dispatchable"
 		}

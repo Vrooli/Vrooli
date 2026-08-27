@@ -56,11 +56,19 @@ type ClientInfo struct {
 	// SizeCh carries the authoritative terminal grid. It is deliberately
 	// separate from PTY output so a slow output consumer cannot make a viewer
 	// retain a stale terminal size.
-	SizeCh          chan [2]uint16
-	DeclaredCols    uint16
-	DeclaredRows    uint16
-	DeviceID        string
-	DeviceLabel     string
+	SizeCh       chan [2]uint16
+	DeclaredCols uint16
+	DeclaredRows uint16
+	DeviceID     string
+	DeviceLabel  string
+	// DeviceClass is the connection's self-declared device family. It exists
+	// so a follower can frame this client's session without inspecting the
+	// terminal grid, which changes whenever a virtual keyboard opens. It is
+	// display-only and never an authorization signal.
+	DeviceClass string
+	// KbOpen tracks whether this client's virtual keyboard currently covers
+	// part of its viewport.
+	KbOpen          bool
 	SubscribedOrder uint64
 }
 
@@ -69,6 +77,10 @@ type ClientInfo struct {
 type PresenceState struct {
 	Leader       string
 	LeaderDevice string
+	// LeaderClass and LeaderKbOpen let a follower present the leader's device
+	// without deriving it from the shared grid.
+	LeaderClass  string
+	LeaderKbOpen bool
 	HoldsLease   bool
 	ViewerCount  int
 }

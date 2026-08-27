@@ -489,7 +489,7 @@ export async function updateSessionPolicy(
 // [REQ:P0-004b] api-base WebSocket Integration — session terminal WS URL.
 // Kept in the sessions domain because the WS endpoint is part of the
 // session lifecycle even though it bypasses Connect-RPC.
-export function buildSessionWsUrl(sessionId: string, device?: { id: string; label: string }): string {
+export function buildSessionWsUrl(sessionId: string, device?: { id: string; label: string; deviceClass?: string }): string {
   const apiBase = API_BASE_WITH_SUFFIX;
   const wsBase = apiBase.startsWith("https://")
     ? `wss://${apiBase.slice("https://".length)}`
@@ -499,5 +499,6 @@ export function buildSessionWsUrl(sessionId: string, device?: { id: string; labe
   const url = buildWsUrl(`/sessions/${sessionId}/ws`, { baseUrl: wsBase });
   if (!device) return url;
   const query = new URLSearchParams({ deviceId: device.id, deviceLabel: device.label });
+  if (device.deviceClass) query.set("deviceClass", device.deviceClass);
   return `${url}${url.includes("?") ? "&" : "?"}${query}`;
 }

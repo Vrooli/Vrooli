@@ -5,6 +5,7 @@ import { renderWithProviders as render } from "../test-utils";
  * assistant messages as listened.
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { createTerminalSessionStub } from "../test-utils";
 import { act, cleanup } from "@testing-library/react";
 import { createRef } from "react";
 import { apiBaseMock } from "../test-utils";
@@ -50,21 +51,9 @@ vi.mock("../hooks/useTextToSpeech", () => ({
 }));
 
 vi.mock("../hooks/terminal/useTerminalSession", () => {
-  const gate = { submit: vi.fn(() => ({ status: "sent" as const, offset: 1 })), dispose: vi.fn() };
-  const submitInput = vi.fn(() => ({ status: "sent" as const, offset: 1 }));
-  return {
-    useTerminalSession: () => ({
-      submitInput,
-      gate,
-      sendResize: mockSendResize,
-      getServerSize: mockGetServerSize,
-      serverSize: null,
-      subscribeInputSettled: vi.fn(() => () => {}),
-      subscribePendingInput: vi.fn(() => () => {}),
-      getPendingInputSnapshot: vi.fn(() => []),
-      sendConversationAck: vi.fn(),
-    }),
-  };
+  // One stable session object: TerminalPane keys effects on these references.
+  const session = createTerminalSessionStub({ sendResize: mockSendResize, getServerSize: mockGetServerSize });
+  return { useTerminalSession: () => session };
 });
 
 vi.mock("../hooks/useTerminalTouch", () => ({

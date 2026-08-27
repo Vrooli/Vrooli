@@ -7,6 +7,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
@@ -313,12 +314,21 @@ func (sm *Manager) createWithRemote(ctx context.Context, shell string, cols, row
 	}
 
 	sessionID := uuid.New().String()
+	// Resolve the launch directory here rather than leaving it empty for the
+	// PTY layer to default. The directory is not just a spawn argument: it is
+	// half of the key that locates an agent's transcript on disk, and a session
+	// that never records it can never have its messages captured. Resolving
+	// once means the spawned process and the persisted row cannot disagree.
+	launchDir := strings.TrimSpace(workingDir)
+	if launchDir == "" {
+		launchDir = config.ResolveWorkingDir()
+	}
 	spec := pty.LaunchSpec{
 		SessionID:     sessionID,
 		Shell:         shell,
 		Cols:          cols,
 		Rows:          rows,
-		WorkingDir:    workingDir,
+		WorkingDir:    launchDir,
 		Env:           sm.envForSession(sessionID),
 		TmuxMouseMode: tmuxMouseMode,
 	}
@@ -397,6 +407,7 @@ func (sm *Manager) createWithRemote(ctx context.Context, shell string, cols, row
 			Policy:   sessionPolicy,
 			Created:  sess.CreatedAt,
 			Detached: detached,
+			CWD:      launchDir,
 		})
 	}
 

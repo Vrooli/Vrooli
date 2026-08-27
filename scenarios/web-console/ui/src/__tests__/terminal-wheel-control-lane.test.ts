@@ -1,5 +1,6 @@
 import { act, renderHook } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
+import { createTerminalStub } from "../test-utils";
 import { useTerminalSession } from "../hooks/terminal/useTerminalSession";
 
 class WheelSocket {
@@ -14,29 +15,11 @@ class WheelSocket {
   close(): void { this.readyState = 0; this.onclose?.(); }
 }
 
-function terminalFixture() {
-  const onData = vi.fn();
-  onData.mockReturnValue({ dispose: vi.fn() });
-  const normal = {};
-  return {
-    cols: 80,
-    rows: 24,
-    options: {},
-    modes: { mouseTrackingMode: "sgr" },
-    buffer: { active: normal, normal, alternate: {}, cursorX: 0, cursorY: 0 },
-    onData,
-    reset: vi.fn(),
-    clear: vi.fn(),
-    write: vi.fn(),
-    resize: vi.fn(),
-    scrollLines: vi.fn(),
-  };
-}
 
 describe("terminal wheel control lane", () => {
   it("sends a tracked wheel report as control without stdin sequencing or queueing", () => {
     const socket = new WheelSocket();
-    const terminal = terminalFixture();
+    const terminal = createTerminalStub({ mouseTrackingMode: "sgr" });
     const { result, unmount } = renderHook(() => useTerminalSession({
       sessionId: "wheel-session",
       terminal: terminal as never,

@@ -164,16 +164,19 @@ func TestSession_SizeLeaseTransfersAndResizes(t *testing.T) {
 	defer sess.Unsubscribe(second.OutputCh)
 
 	sess.DeclareSize(first.OutputCh, 100, 30)
-	sess.SetClientDevice(first.OutputCh, "laptop", "Laptop")
+	sess.SetClientDevice(first.OutputCh, "laptop", "Laptop", "laptop")
 	if err := sess.AcquireLease(first.OutputCh, LeaseReasonExplicit); err != nil {
 		t.Fatalf("AcquireLease(first): %v", err)
 	}
 	if !sess.HoldsLease(first.OutputCh) {
 		t.Fatal("first client does not hold lease")
 	}
-	cols, rows, leader, label, holds, viewers := sess.SizeLeaseState(first.OutputCh)
-	if cols != 100 || rows != 30 || leader != "laptop" || label != "Laptop" || !holds || viewers != 2 {
-		t.Fatalf("lease state = %d x %d, leader=%q/%q holds=%v viewers=%d", cols, rows, leader, label, holds, viewers)
+	state := sess.SizeLeaseState(first.OutputCh)
+	if state.Cols != 100 || state.Rows != 30 || state.Leader != "laptop" || state.LeaderDevice != "Laptop" || !state.HoldsLease || state.ViewerCount != 2 {
+		t.Fatalf("lease state = %+v", state)
+	}
+	if state.LeaderClass != "laptop" {
+		t.Fatalf("lease state leader class = %q, want %q", state.LeaderClass, "laptop")
 	}
 	if err := sess.Resize(second.OutputCh, 120, 40); err != ErrLeaseNotHeld {
 		t.Fatalf("follower Resize error = %v, want %v", err, ErrLeaseNotHeld)
@@ -186,9 +189,105 @@ func TestSession_SizeLeaseTransfersAndResizes(t *testing.T) {
 		t.Fatalf("AcquireLease(second): %v", err)
 	}
 	sess.Unsubscribe(first.OutputCh)
-	cols, rows, leader, label, holds, viewers = sess.SizeLeaseState(second.OutputCh)
-	if cols != 90 || rows != 25 || leader != "" || label != "" || !holds || viewers != 1 {
-		t.Fatalf("transferred lease state = %d x %d, leader=%q/%q holds=%v viewers=%d", cols, rows, leader, label, holds, viewers)
+	state = sess.SizeLeaseState(second.OutputCh)
+	if state.Cols != 90 || state.Rows != 25 || state.Leader != "" || state.LeaderDevice != "" || !state.HoldsLease || state.ViewerCount != 1 {
+		t.Fatalf("transferred lease state = %+v", state)
+	}
+}
+
+// The leader's keyboard state is presentational, so it must reach followers,
+// and a follower's own keyboard must not wake anybody.
+func TestSession_KeyboardStateFollowsTheLeaseOwner(t *testing.T) {
+	sess, _, _ := newPipedSession(t)
+	leader := sess.Subscribe()
+	follower := sess.Subscribe()
+	defer sess.Unsubscribe(leader.OutputCh)
+	defer sess.Unsubscribe(follower.OutputCh)
+
+	drain := func(ch <-chan PresenceState) {
+		for {
+			select {
+			case <-ch:
+			default:
+				return
+			}
+		}
+	}
+	awaitPresence := func(ch <-chan PresenceState) PresenceState {
+		t.Helper()
+		select {
+		case state := <-ch:
+			return state
+		case <-time.After(time.Second):
+			t.Fatal("timed out waiting for presence state")
+			return PresenceState{}
+		}
+	}
+
+	sess.SetClientDevice(leader.OutputCh, "phone-id", "iPhone", "phone")
+	if err := sess.AcquireLease(leader.OutputCh, LeaseReasonExplicit); err != nil {
+		t.Fatalf("AcquireLease(leader): %v", err)
+	}
+	drain(leader.PresenceCh)
+	drain(follower.PresenceCh)
+
+	sess.SetClientKeyboard(leader.OutputCh, true)
+	if got := awaitPresence(follower.PresenceCh); !got.LeaderKbOpen || got.LeaderClass != "phone" {
+		t.Fatalf("follower presence after leader keyboard opened = %+v", got)
+	}
+	if got := sess.SizeLeaseState(follower.OutputCh); !got.LeaderKbOpen {
+		t.Fatalf("snapshot did not report the leader keyboard: %+v", got)
+	}
+
+	// Repeating the same state is not a change and must not republish.
+	drain(follower.PresenceCh)
+	sess.SetClientKeyboard(leader.OutputCh, true)
+	select {
+	case got := <-follower.PresenceCh:
+		t.Fatalf("unchanged keyboard state republished presence: %+v", got)
+	case <-time.After(50 * time.Millisecond):
+	}
+
+	// A follower's own keyboard is nobody else's business. Drain the leader's
+	// own copy of the earlier publish first, so this asserts on new traffic.
+	drain(leader.PresenceCh)
+	sess.SetClientKeyboard(follower.OutputCh, true)
+	select {
+	case got := <-leader.PresenceCh:
+		t.Fatalf("follower keyboard published presence to the leader: %+v", got)
+	case <-time.After(50 * time.Millisecond):
+	}
+
+	sess.SetClientKeyboard(leader.OutputCh, false)
+	if got := awaitPresence(follower.PresenceCh); got.LeaderKbOpen {
+		t.Fatalf("follower presence after leader keyboard closed = %+v", got)
+	}
+}
+
+// A handover must present the new leader immediately, including a keyboard
+// that was already open before the lease moved.
+func TestSession_LeaseHandoverCarriesDevicePresentation(t *testing.T) {
+	sess, _, _ := newPipedSession(t)
+	first := sess.Subscribe()
+	second := sess.Subscribe()
+	defer sess.Unsubscribe(first.OutputCh)
+	defer sess.Unsubscribe(second.OutputCh)
+
+	sess.SetClientDevice(first.OutputCh, "desk-id", "Desktop", "monitor")
+	sess.SetClientDevice(second.OutputCh, "phone-id", "iPhone", "phone")
+	sess.SetClientKeyboard(second.OutputCh, true)
+	if err := sess.AcquireLease(first.OutputCh, LeaseReasonExplicit); err != nil {
+		t.Fatalf("AcquireLease(first): %v", err)
+	}
+	if got := sess.SizeLeaseState(second.OutputCh); got.LeaderClass != "monitor" || got.LeaderKbOpen {
+		t.Fatalf("presentation before handover = %+v", got)
+	}
+	if err := sess.AcquireLease(second.OutputCh, LeaseReasonInput); err != nil {
+		t.Fatalf("AcquireLease(second): %v", err)
+	}
+	got := sess.SizeLeaseState(first.OutputCh)
+	if got.LeaderClass != "phone" || !got.LeaderKbOpen || got.LeaderDevice != "iPhone" {
+		t.Fatalf("presentation after handover = %+v", got)
 	}
 }
 
@@ -216,7 +315,7 @@ func TestSession_PresencePublishesViewerAndLeaseChanges(t *testing.T) {
 		t.Fatalf("second initial presence = %+v, want viewer count 2", got)
 	}
 
-	sess.SetClientDevice(second.OutputCh, "phone", "Phone")
+	sess.SetClientDevice(second.OutputCh, "phone", "Phone", "phone")
 	if err := sess.AcquireLease(second.OutputCh, LeaseReasonExplicit); err != nil {
 		t.Fatalf("AcquireLease(second): %v", err)
 	}

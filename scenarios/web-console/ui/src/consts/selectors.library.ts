@@ -65,5 +65,20 @@ export const librarySelectors = {
   "forms.textarea": {
     "root": "forms.textarea",
   },
+  "overlays.full-page-drawer": {
+    "root": "overlays.full-page-drawer",
+    "close": "overlays.full-page-drawer.close",
+    "grabber": "overlays.full-page-drawer.grabber",
+    "subheader": "overlays.full-page-drawer.subheader",
+  },
+  "overlays.responsive-dialog": {
+    "root": "overlays.responsive-dialog",
+    "subheader": "overlays.responsive-dialog.subheader",
+  },
+  "navigation.tabs": {
+    "root": "navigation.tabs",
+    "links": "navigation.tabs.Links",
+    "settingsTabSessions": "navigation.tabs.settings-tab-sessions",
+  },
 } as const;
 // vrooli:library-selectors end

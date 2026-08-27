@@ -15,6 +15,10 @@ func (f fakeConversationService) Get(string, int64, int, int64) (SessionState, e
 	return SessionState{SessionID: "s1", Events: []Event{{ID: "e1", SessionID: "s1", Role: "assistant", Text: "hello", SpeechParagraphs: []string{"hello"}, OriginalSpeechParagraphs: []string{"hello"}, Sequence: 2, DeliveryState: "complete", TTSState: "ready", ConsumptionState: "new"}}, Cursor: Cursor{LastSeenSequence: 1}, HasMore: true, OldestSequence: 1, NewestSequence: 2, TotalCount: 2}, f.err
 }
 
+func (f fakeConversationService) CaptureStatus(context.Context, string) CaptureStatus {
+	return CaptureStatus{State: CaptureCapturing, Summary: "Messages are being captured."}
+}
+
 func (f fakeConversationService) Search(string, string, int) ([]SearchMatch, bool, int64, error) {
 	return []SearchMatch{{EventID: "e1", Sequence: 2, Excerpt: "hello"}}, true, 1, f.err
 }

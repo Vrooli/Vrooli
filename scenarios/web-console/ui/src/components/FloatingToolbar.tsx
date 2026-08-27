@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect, useLayoutEffect, useMemo, useRef } from "react";
-import { Settings, Sparkles, Plus, ChevronLeft, ChevronRight, Maximize2 } from "lucide-react";
+import { Settings, Sparkles, Plus, ChevronLeft, ChevronRight, Maximize2, MonitorSmartphone } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useDraggablePosition } from "../hooks/useDraggablePosition";
 import type { DragEndInfo } from "../hooks/useDraggablePosition";
@@ -47,6 +47,8 @@ function saveDockedEdge(edge: DockedEdge) {
 
 interface FloatingToolbarProps {
   onOpenSettings: () => void;
+  /** Opens the machines surface, which owns linking a computer and its permissions. */
+  onOpenMachines: () => void;
   onOpenAi: () => void;
   onNewTerminal: () => void;
   onOpenLauncher: () => void;
@@ -78,6 +80,7 @@ interface FloatingToolbarProps {
 
 export default function FloatingToolbar({
   onOpenSettings,
+  onOpenMachines,
   onOpenAi,
   onNewTerminal,
   onOpenLauncher,
@@ -263,6 +266,20 @@ export default function FloatingToolbar({
         tabIndex={docked ? -1 : undefined}
       >
         <Settings className="h-4 w-4" />
+      </Button>
+      {/* Machines sit in the persistent control cluster rather than inside the
+          launcher, because linking a computer is something the installation
+          owns — not a step in starting one terminal. */}
+      <Button
+        data-testid="toolbar-machines"
+        variant="ghost"
+        size="icon"
+        className="h-11 w-11 md:h-8 md:w-8"
+        onClick={onOpenMachines}
+        title={t(strings.machines.openAriaLabel)}
+        tabIndex={docked ? -1 : undefined}
+      >
+        <MonitorSmartphone className="h-4 w-4" />
       </Button>
       {/* AI and mic buttons stay out of the narrow toolbar breakpoint because
        * the bottom touch toolbar already provides both there. Wider touch

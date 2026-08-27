@@ -24,7 +24,7 @@ describe("useConversationHydration", () => {
     vi.restoreAllMocks();
   });
 
-  it("does not mark a failed hydrate as complete and retries later", async () => {
+  it("records a failed hydrate as a failure, does not mark it complete, and retries later", async () => {
     mockGetConversationSession
       .mockRejectedValueOnce(new Error("offline"))
       .mockResolvedValueOnce({
@@ -50,11 +50,13 @@ describe("useConversationHydration", () => {
     await act(async () => {
       await Promise.resolve();
     });
-    expect(useConversationStore.getState().sessions.s1?.hydrated).toBeUndefined();
-    expect(console.warn).toHaveBeenCalledWith(
-      "[web-console] conversation hydration failed",
-      expect.objectContaining({ sessionId: "s1" }),
-    );
+    // A failed hydrate must not read as an empty session. It stays
+    // un-hydrated so the retry still runs, and it records the failure so the
+    // Messages view can say what went wrong instead of showing "no messages".
+    const failed = useConversationStore.getState().sessions.s1;
+    expect(failed?.hydrated).toBe(false);
+    expect(failed?.status).toBe("failed");
+    expect(failed?.error?.retryable).toBe(true);
 
     await act(async () => {
       vi.advanceTimersByTime(1000);
@@ -63,6 +65,8 @@ describe("useConversationHydration", () => {
 
     const session = useConversationStore.getState().sessions.s1;
     expect(session?.hydrated).toBe(true);
+    expect(session?.status).toBe("loaded");
+    expect(session?.error).toBeUndefined();
     expect(session?.events).toHaveLength(1);
   });
 });

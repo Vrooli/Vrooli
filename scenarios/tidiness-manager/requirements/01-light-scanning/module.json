@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "Cheap, fast static analysis using Makefile integration and file metrics",
-    "last_validated_at": "2026-08-24T23:50:51-04:00"
+    "last_validated_at": "2026-08-27T10:14:15-04:00"
   },
   "requirements": [
     {
@@ -205,6 +205,23 @@
           "ref": "api/end_to_end_scan_test.go",
           "phase": "integration",
           "status": "implemented"
+        }
+      ]
+    },
+    {
+      "id": "TM-LS-009",
+      "title": "Declarative canonical seam enforcement",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-011",
+      "criticality": "P0",
+      "description": "When a scanned tree declares canonical seams, Tidiness Manager shall parse each in-scope Go file once, report AST-matched call and literal bypasses above the seam budget, and ignore comment or excluded-path lookalikes.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/canonical_seams_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Tagged tests cover call and qualified-literal AST matching, import aliases, comment controls, exclusions, budgets, canonical declaration exemption, strict configuration decoding, and the five repository seams."
         }
       ]
     }

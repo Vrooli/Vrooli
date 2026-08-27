@@ -185,6 +185,13 @@ interface WorkspaceState {
 	/** Local terminal font preferences; intentionally never sent to the workspace API. */
 	deviceFontSize: Record<string, number>;
 	viewerCounts: Record<string, number>;
+	/**
+	 * This device's virtual keyboard covers part of the viewport. It is set by
+	 * `useAppViewport` and read by each terminal pane, which declares it to its
+	 * session so followers can draw the state instead of inferring it from a
+	 * shrinking grid.
+	 */
+	keyboardOpen: boolean;
 	/** Transient operator status rendered in pane chrome, never in xterm. */
 	paneStatuses: Record<string, TerminalPaneStatus>;
 }
@@ -285,6 +292,7 @@ interface WorkspaceActions {
   setDeviceFontSize: (sessionId: string, size: number) => void;
 	clearDeviceFontSize: (sessionId: string) => void;
   setViewerCount: (sessionId: string, count: number) => void;
+  setKeyboardOpen: (open: boolean) => void;
 	setPaneStatus: (sessionId: string, status: TerminalPaneStatus | null) => void;
   setTmuxMouseMode: (enabled: boolean) => void;
   setPredictionLatencyThresholdMs: (value: number) => void;
@@ -407,6 +415,7 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
 		pendingInputBuffers: {},
 		deviceFontSize: {},
 		viewerCounts: {},
+		keyboardOpen: false,
 		paneStatuses: {},
       groups: [],
       tabContextMenu: null,
@@ -515,6 +524,7 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
 			return { deviceFontSize: next };
 		}),
 		setViewerCount: (sessionId, count) => set((state) => ({ viewerCounts: { ...state.viewerCounts, [sessionId]: count } })),
+		setKeyboardOpen: (open) => set((state) => (state.keyboardOpen === open ? state : { keyboardOpen: open })),
 		setPaneStatus: (sessionId, status) => set((state) => {
 			const paneStatuses = { ...state.paneStatuses };
 			if (status) paneStatuses[sessionId] = status;

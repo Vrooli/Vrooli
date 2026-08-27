@@ -3,8 +3,11 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"runtime"
 	"strings"
 	"testing"
@@ -52,6 +55,7 @@ const (
 	MsgTypeEchoState              = wireproto.MsgTypeEchoState
 	MsgTypeMouseMode              = wireproto.MsgTypeMouseMode
 	MsgTypePresence               = wireproto.MsgTypePresence
+	MsgTypeDeviceState            = wireproto.MsgTypeDeviceState
 	StdinIntentTyping             = wireproto.StdinIntentTyping
 	StdinIntentBulkText           = wireproto.StdinIntentBulkText
 	StdinIntentNamedKey           = wireproto.StdinIntentNamedKey
@@ -275,6 +279,66 @@ func TestTerminalWS_SecondClientReceivesSizeInfo(t *testing.T) {
 		t.Fatal("session missing")
 	} else if cols, rows := session.EffectiveSize(); cols != 120 || rows != 40 {
 		t.Fatalf("session size = %dx%d", cols, rows)
+	}
+}
+
+// [REQ:P0-002e] A follower receives the leader's device class at connect and
+// its keyboard state as it changes, so the device frame never has to infer
+// either one from the shared grid.
+func TestTerminalWS_FollowerReceivesLeaderDevicePresentation(t *testing.T) {
+	ts, srv := setupWSServer(t)
+	sessionID := createTestSession(t, ts, srv)
+	base := wsURL(ts, "/api/v1/sessions/"+sessionID+"/ws")
+
+	leader, _, err := websocket.DefaultDialer.Dial(base+"?deviceId=phone-1&deviceLabel=iPhone&deviceClass=phone", nil)
+	if err != nil {
+		t.Fatalf("dial leader: %v", err)
+	}
+	defer leader.Close()
+	skipHistoryEnd(t, leader)
+
+	follower, _, err := websocket.DefaultDialer.Dial(base+"?deviceId=desk-1&deviceLabel=Desktop&deviceClass=monitor", nil)
+	if err != nil {
+		t.Fatalf("dial follower: %v", err)
+	}
+	defer follower.Close()
+	skipHistoryEnd(t, follower)
+
+	// awaitPresentation reads until a message carries leader presentation.
+	awaitPresentation := func(conn *websocket.Conn, want func(TerminalMessage) bool) TerminalMessage {
+		t.Helper()
+		deadline := time.Now().Add(3 * time.Second)
+		for {
+			_ = conn.SetReadDeadline(deadline)
+			var msg TerminalMessage
+			if err := conn.ReadJSON(&msg); err != nil {
+				t.Fatalf("read presentation: %v", err)
+			}
+			if (msg.Type == MsgTypeSizeInfo || msg.Type == MsgTypePresence) && want(msg) {
+				return msg
+			}
+		}
+	}
+
+	// The leader takes the lease, so its class must reach the follower.
+	if err := leader.WriteJSON(TerminalMessage{Type: MsgTypeTakeLease}); err != nil {
+		t.Fatalf("write take_lease: %v", err)
+	}
+	got := awaitPresentation(follower, func(m TerminalMessage) bool { return m.DeviceClass != "" })
+	if got.DeviceClass != "phone" || got.LeaderDevice != "iPhone" {
+		t.Fatalf("follower presentation = %+v, want phone/iPhone", got)
+	}
+	if got.KbOpen {
+		t.Fatalf("keyboard reported open before it was declared: %+v", got)
+	}
+
+	// Opening the leader's keyboard reaches the follower as state, not as a
+	// grid change.
+	if err := leader.WriteJSON(TerminalMessage{Type: MsgTypeDeviceState, KbOpen: true}); err != nil {
+		t.Fatalf("write device_state: %v", err)
+	}
+	if got := awaitPresentation(follower, func(m TerminalMessage) bool { return m.KbOpen }); got.DeviceClass != "phone" {
+		t.Fatalf("keyboard-open presentation = %+v", got)
 	}
 }
 
@@ -517,6 +581,156 @@ func TestHandleTerminalWS_StdinAck_Success(t *testing.T) {
 			}
 		}
 	}
+}
+
+// TestLiveRemoteSessionThroughWebConsole is an opt-in two-machine contract
+// probe. It exercises the production Connect create path and the browser-facing
+// terminal protocol against a running Web Console/Bridge pair without placing
+// any credentials in the test or its output.
+func TestLiveRemoteSessionThroughWebConsole(t *testing.T) {
+	baseURL := strings.TrimRight(strings.TrimSpace(os.Getenv("WEB_CONSOLE_LIVE_URL")), "/")
+	targetID := strings.TrimSpace(os.Getenv("WEB_CONSOLE_LIVE_TARGET_ID"))
+	if baseURL == "" || targetID == "" {
+		t.Skip("set WEB_CONSOLE_LIVE_URL and WEB_CONSOLE_LIVE_TARGET_ID for the live two-machine probe")
+	}
+
+	createBody := fmt.Sprintf(`{"shell":"/bin/sh","cols":80,"rows":24,"backend":"remote","origin":"SESSION_ORIGIN_UI","target_id":%q}`, targetID)
+	createReq, err := http.NewRequest(http.MethodPost, baseURL+"/vrooli.web_console.v1.sessions.SessionsService/Create", strings.NewReader(createBody))
+	if err != nil {
+		t.Fatal(err)
+	}
+	createReq.Header.Set("Content-Type", "application/json")
+	createResp, err := http.DefaultClient.Do(createReq)
+	if err != nil {
+		t.Fatalf("create remote session: %v", err)
+	}
+	defer createResp.Body.Close()
+	if createResp.StatusCode != http.StatusOK {
+		t.Fatalf("create remote session status = %s", createResp.Status)
+	}
+	createPayload, err := io.ReadAll(createResp.Body)
+	if err != nil {
+		t.Fatalf("read remote session response: %v", err)
+	}
+	if lower := strings.ToLower(string(createPayload)); strings.Contains(lower, "token") || strings.Contains(lower, "credential") || strings.Contains(lower, "reauth") || strings.Contains(lower, "secret") {
+		t.Fatalf("remote session response leaked a credential field: %s", createPayload)
+	}
+	var created struct {
+		Session struct {
+			ID string `json:"id"`
+		} `json:"session"`
+	}
+	if err := json.Unmarshal(createPayload, &created); err != nil {
+		t.Fatalf("decode remote session: %v", err)
+	}
+	if created.Session.ID == "" {
+		t.Fatal("remote session response did not contain an id")
+	}
+	sessionID := created.Session.ID
+	t.Cleanup(func() {
+		req, reqErr := http.NewRequest(http.MethodDelete, baseURL+"/vrooli.web_console.v1.sessions.SessionsService/Delete", strings.NewReader(fmt.Sprintf(`{"id":%q}`, sessionID)))
+		if reqErr != nil {
+			t.Errorf("build remote session cleanup request: %v", reqErr)
+			return
+		}
+		req.Header.Set("Content-Type", "application/json")
+		resp, doErr := http.DefaultClient.Do(req)
+		if doErr != nil {
+			t.Errorf("delete remote session: %v", doErr)
+			return
+		}
+		defer resp.Body.Close()
+		if resp.StatusCode != http.StatusOK {
+			t.Errorf("delete remote session status = %s", resp.Status)
+		}
+	})
+
+	wsURL := "ws" + strings.TrimPrefix(baseURL, "http") + "/api/v1/sessions/" + sessionID + "/ws"
+	conn, _, err := (&websocket.Dialer{}).Dial(wsURL, nil)
+	if err != nil {
+		t.Fatalf("dial Web Console terminal: %v", err)
+	}
+	defer conn.Close()
+	if err := conn.SetReadDeadline(time.Now().Add(20 * time.Second)); err != nil {
+		t.Fatal(err)
+	}
+	if err := conn.WriteJSON(TerminalMessage{Type: MsgTypeHello}); err != nil {
+		t.Fatalf("send terminal hello: %v", err)
+	}
+
+	var output strings.Builder
+	readySeen := false
+	readMessage := func(label string) TerminalMessage {
+		t.Helper()
+		_, payload, readErr := conn.ReadMessage()
+		if readErr != nil {
+			t.Fatalf("read %s: %v", label, readErr)
+		}
+		if lower := strings.ToLower(string(payload)); strings.Contains(lower, "token") || strings.Contains(lower, "credential") || strings.Contains(lower, "reauth") || strings.Contains(lower, "secret") {
+			t.Fatalf("terminal payload leaked a credential field: %s", payload)
+		}
+		var message TerminalMessage
+		if err := json.Unmarshal(payload, &message); err != nil {
+			t.Fatalf("decode %s: %v", label, err)
+		}
+		return message
+	}
+	for !readySeen {
+		message := readMessage("terminal message")
+		switch message.Type {
+		case MsgTypeSessionReady:
+			readySeen = true
+		case MsgTypeStdout:
+			output.WriteString(message.Data)
+		case MsgTypeError:
+			t.Fatalf("remote terminal error: %s", message.Data)
+		}
+	}
+
+	const uname = "uname -a\n"
+	if err := conn.WriteJSON(TerminalMessage{Type: MsgTypeStdin, Data: uname, Offset: 0, Intent: StdinIntentBulkText}); err != nil {
+		t.Fatalf("send uname: %v", err)
+	}
+	for !strings.Contains(output.String(), "Darwin") {
+		message := readMessage("uname response")
+		switch message.Type {
+		case MsgTypeStdout:
+			output.WriteString(message.Data)
+		case MsgTypeError:
+			t.Fatalf("remote terminal error during uname: %s", message.Data)
+		}
+	}
+
+	if err := conn.WriteJSON(TerminalMessage{Type: MsgTypeResize, Cols: 100, Rows: 30}); err != nil {
+		t.Fatalf("send terminal resize: %v", err)
+	}
+	resizeSeen := false
+	for !resizeSeen {
+		message := readMessage("resize response")
+		switch message.Type {
+		case MsgTypeResizeInfo:
+			resizeSeen = message.Cols == 100 && message.Rows == 30
+		case MsgTypeStdout:
+			output.WriteString(message.Data)
+		case MsgTypeError:
+			t.Fatalf("remote terminal resize error: %s", message.Data)
+		}
+	}
+
+	const stty = "stty size\n"
+	if err := conn.WriteJSON(TerminalMessage{Type: MsgTypeStdin, Data: stty, Offset: int64(len(uname)), Intent: StdinIntentBulkText}); err != nil {
+		t.Fatalf("send stty: %v", err)
+	}
+	for !strings.Contains(output.String(), "30 100") {
+		message := readMessage("stty response")
+		switch message.Type {
+		case MsgTypeStdout:
+			output.WriteString(message.Data)
+		case MsgTypeError:
+			t.Fatalf("remote terminal error during stty: %s", message.Data)
+		}
+	}
+	t.Logf("remote transcript assertions: uname -a contained Darwin; resize reported 100x30; stty size reported 30 100; output=%q", output.String())
 }
 
 func TestHandleTerminalWS_ConnectionRelativeOffsetStartsAtZero(t *testing.T) {

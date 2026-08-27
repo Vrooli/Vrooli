@@ -1,5 +1,6 @@
 import { act, renderHook } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
+import { createTerminalStub } from "../test-utils";
 import { useTerminalSession } from "../hooks/terminal/useTerminalSession";
 
 class PredictionSocket {
@@ -14,29 +15,11 @@ class PredictionSocket {
   close(): void { this.readyState = 0; this.onclose?.(); }
 }
 
-function terminalFixture() {
-  const onData = vi.fn();
-  onData.mockReturnValue({ dispose: vi.fn() });
-  const normal = {};
-  const alternate = {};
-  return {
-    cols: 80,
-    rows: 24,
-    options: {},
-    modes: { mouseTrackingMode: "none" },
-    buffer: { active: normal, normal, alternate, cursorX: 4, cursorY: 5 },
-    reset: vi.fn(),
-    clear: vi.fn(),
-    write: vi.fn(),
-    resize: vi.fn(),
-    onData,
-  };
-}
 
 describe("terminal prediction echo gate", () => {
   it("clears speculative text as soon as server echo state enters alternate or unknown mode", () => {
     const socket = new PredictionSocket();
-    const terminal = terminalFixture();
+    const terminal = createTerminalStub();
     const predictionContainer = document.createElement("div");
     const screen = document.createElement("div");
     screen.className = "xterm-screen";

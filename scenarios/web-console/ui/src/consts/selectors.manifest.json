@@ -73,8 +73,8 @@
       "selector": "[data-testid=\"terminal-pane-container\"]"
     },
     "workspace.sidebarShell": {
-      "testId": "workspace-sidebar-shell",
-      "selector": "[data-testid=\"workspace-sidebar-shell\"]"
+      "testId": "workspace-sidebar",
+      "selector": "[data-testid=\"workspace-sidebar\"]"
     },
     "workspace.sidebarToggle": {
       "testId": "workspace-sidebar-toggle",

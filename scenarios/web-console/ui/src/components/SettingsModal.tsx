@@ -6,7 +6,8 @@ import { useWorkspaceStore } from "../stores/useWorkspaceStore";
 import type { SessionInfo } from "../api/sessions";
 import { cn } from "../lib/classnames";
 import { strings } from "../consts/strings";
-import { DrawerShell } from "@vrooli/react-component-library/DrawerShell/1.0.0";
+import { FullPageDrawer } from "@vrooli/react-component-library/FullPageDrawer/1";
+import { Tabs } from "@vrooli/react-component-library/Tabs/1";
 import IntegrationsSection from "./settings/IntegrationsSection";
 import NewPaneDefaultsSection from "./settings/NewPaneDefaultsSection";
 import SessionManagementSection from "./settings/SessionManagementSection";
@@ -62,6 +63,9 @@ const SECTION_COMPONENTS: Record<SettingsTabId, SettingsSectionComponent> = {
   integrations: IntegrationsSection as SettingsSectionComponent,
 };
 
+/** The library keeps `settings-tab-<id>` reachable so existing flows still address a tab. */
+const settingsTabTestId = (tab: string) => `settings-tab-${tab}`;
+
 interface SettingsModalProps {
   sessions: Array<{ session: SessionInfo }>;
   onDeleteSession: (id: string) => void;
@@ -100,68 +104,84 @@ export default function SettingsModal({
   );
   const Section = SECTION_COMPONENTS[activeTab];
 
+  // The tab strip is the library's, so overflow, roving focus, arrow-key
+  // navigation, and the selected-tab scroll-into-view come with it rather than
+  // being re-implemented per surface.
+  const tabItems = useMemo(
+    () =>
+      settingsTabs.map((tab) => {
+        const Icon = tab.icon;
+        return {
+          id: tab.id,
+          label: isMobile ? tab.shortLabel : tab.label,
+          icon: <Icon />,
+        };
+      }),
+    [isMobile, settingsTabs],
+  );
+
   const close = () => setSettingsModalOpen(false);
 
+  // On a small viewport the drawer already names the active section in its
+  // header and the section repeats its own description in the body, so the
+  // eyebrow and the description would be the third and fourth copies of the
+  // same words — on the surface with the least room for them.
+  const title = isMobile ? (
+    <span className="text-base font-semibold">
+      {activeDefinition?.label ?? t(strings.settings.title)}
+    </span>
+  ) : (
+    <>
+      <span className="me-3 text-[11px] font-semibold uppercase tracking-[0.24em] text-wc-text-muted">
+        {t(strings.settings.eyebrow)}
+      </span>
+      <span className="text-base font-semibold">
+        {activeDefinition?.label ?? t(strings.settings.title)}
+      </span>
+    </>
+  );
+
   return (
-    <DrawerShell
+    <FullPageDrawer
       open={settingsModalOpen}
       onClose={close}
-      closeAriaLabel={t(strings.settings.closeAriaLabel)}
-      title={
-        <>
-          <span className="me-3 text-[11px] font-semibold uppercase tracking-[0.24em] text-wc-text-muted">
-            {t(strings.settings.eyebrow)}
-          </span>
-          <span className="text-base font-semibold">
-            {activeDefinition?.label ?? t(strings.settings.title)}
-          </span>
-        </>
-      }
+      closeLabel={t(strings.settings.closeAriaLabel)}
+      title={title}
       headerExtra={
-        <p className="mt-1 text-sm text-wc-text-faint">{activeDefinition?.description}</p>
+        isMobile ? undefined : (
+          <p className="mt-1 text-sm text-wc-text-faint">{activeDefinition?.description}</p>
+        )
       }
-      panelTestId="settings-modal"
-    >
-      {isMobile ? (
-        <div className="flex h-full flex-col">
-          <nav
-            data-testid="settings-tabs-row"
-            className="flex shrink-0 gap-2 overflow-x-auto border-b border-wc-default px-4 py-3"
-            role="tablist"
-          >
-            {settingsTabs.map((tab) => {
-              const isActive = tab.id === activeTab;
-              const Icon = tab.icon;
-              return (
-                <button
-                  key={tab.id}
-                  data-testid={`settings-tab-${tab.id}`}
-                  type="button"
-                  role="tab"
-                  aria-selected={isActive}
-                  className={cn(
-                    "flex shrink-0 items-center gap-2 rounded-full border px-3 py-2 text-sm transition-colors",
-                    isActive
-                      ? "border-wc-accent bg-wc-surface-input text-wc-text-primary"
-                      : "border-wc-default bg-wc-surface-base/70 text-wc-text-muted",
-                  )}
-                  onClick={() => setActiveTab(tab.id)}
-                >
-                  <Icon className="h-4 w-4" />
-                  <span>{tab.shortLabel}</span>
-                </button>
-              );
-            })}
-          </nav>
-
-          <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
-            <Section
-              sessions={sessions}
-              onDeleteSession={onDeleteSession}
-              onRequestClose={close}
-              open={settingsModalOpen}
+      // The tab strip belongs above the scroll region and outside the content
+      // gutter: a band that scrolls away with the content is not navigation,
+      // and a full-bleed strip is what lets seven tabs use the whole width.
+      subheader={
+        isMobile ? (
+          <div data-testid="settings-tabs-row" className="px-1">
+            <Tabs
+              ariaLabel={t(strings.settings.sidebarAria)}
+              items={tabItems}
+              active={activeTab}
+              onChange={(next) => setActiveTab(next as SettingsTabId)}
+              itemTestId={settingsTabTestId}
             />
           </div>
+        ) : undefined
+      }
+      // web-console owns its gutters here: the desktop split has to reach the
+      // panel edges, and the mobile column wants a tighter one than the
+      // library's comfortable default.
+      contentPadding="none"
+      testId="settings-modal"
+    >
+      {isMobile ? (
+        <div className="px-3 py-4">
+          <Section
+            sessions={sessions}
+            onDeleteSession={onDeleteSession}
+            onRequestClose={close}
+            open={settingsModalOpen}
+          />
         </div>
       ) : (
         <div className="flex h-full min-h-0 overflow-hidden">
@@ -176,7 +196,7 @@ export default function SettingsModal({
                 return (
                   <button
                     key={tab.id}
-                    data-testid={`settings-tab-${tab.id}`}
+                    data-testid={settingsTabTestId(tab.id)}
                     type="button"
                     role="tab"
                     aria-selected={isActive}
@@ -209,6 +229,6 @@ export default function SettingsModal({
           </div>
         </div>
       )}
-    </DrawerShell>
+    </FullPageDrawer>
   );
 }

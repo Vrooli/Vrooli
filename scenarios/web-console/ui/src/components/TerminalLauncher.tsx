@@ -20,7 +20,7 @@ import {
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Button } from "./ui/button";
-import { DrawerShell } from "@vrooli/react-component-library/DrawerShell/1.0.0";
+import { ResponsiveDialog } from "@vrooli/react-component-library/ResponsiveDialog/1";
 import { strings } from "../consts/strings";
 import { DEFAULT_SHORTCUTS, type ShortcutEntry } from "../consts/shortcuts";
 import { shortcutsClient } from "../api/shortcuts";
@@ -63,6 +63,8 @@ interface TerminalLauncherProps {
   targetCatalog?: TargetCatalog;
   targetsLoading?: boolean;
   onRefreshTargets?: () => void | Promise<void>;
+  /** Opens the machines surface, which owns linking and permissions. */
+  onOpenMachines?: () => void;
 }
 
 const localFallback: TerminalTarget = {
@@ -100,6 +102,25 @@ function lastSeenCopy(target: TerminalTarget, neverSeenLabel: string): string | 
   }
 }
 
+function heartbeatAgeCopy(target: TerminalTarget, neverSeenLabel: string): string {
+  if (!target.last_seen_at) return neverSeenLabel;
+  const timestamp = new Date(target.last_seen_at).getTime();
+  if (!Number.isFinite(timestamp)) return target.last_seen_at;
+  const seconds = Math.max(0, Math.floor((Date.now() - timestamp) / 1000));
+  if (seconds < 60) return `${seconds}s ago`;
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  return `${Math.floor(hours / 24)}d ago`;
+}
+
+function grantText(target: TerminalTarget): string | undefined {
+  if (target.kind === "local") return undefined;
+  return target.readiness?.find((fact) => fact.key === "bridge_scope")?.detail
+    ?? (target.available ? undefined : "No remote actions granted");
+}
+
 export default function TerminalLauncher({
   open,
   onClose,
@@ -113,6 +134,7 @@ export default function TerminalLauncher({
   targetCatalog,
   targetsLoading = false,
   onRefreshTargets,
+  onOpenMachines,
 }: TerminalLauncherProps) {
   const { t } = useTranslation();
   const [customCommand, setCustomCommand] = useState("");
@@ -225,14 +247,14 @@ export default function TerminalLauncher({
         : targetCatalog?.message;
 
   return (
-    <DrawerShell
+    <ResponsiveDialog
       open={open}
       onClose={onClose}
-      closeAriaLabel={t(strings.terminalLauncher.closeAriaLabel)}
+      closeLabel={t(strings.terminalLauncher.closeAriaLabel)}
       title={t(strings.terminalLauncher.newTerminal)}
-      size="compact"
+      size="lg"
       avoidKeyboard
-      panelTestId="terminal-launcher"
+      testId="terminal-launcher"
     >
       <div className="flex max-h-[min(760px,calc(100dvh-2rem))] min-h-0 flex-col">
         <div className="min-h-0 flex-1 space-y-5 overflow-y-auto p-5">
@@ -281,6 +303,8 @@ export default function TerminalLauncher({
                   selected={selected.id === (targets[0]?.id ?? "local")}
                   onSelect={setSelectedTarget}
                   statusLabel={statusLabelFor((targets[0] ?? localFallback).state)}
+                  permissionText={grantText(targets[0] ?? localFallback) ?? ((targets[0] ?? localFallback).available ? t(strings.terminalLauncher.permissionGranted) : t(strings.terminalLauncher.permissionUnavailable))}
+                  heartbeatText={(targets[0] ?? localFallback).kind === "local" || (targets[0] ?? localFallback).available ? undefined : `${t(strings.terminalLauncher.heartbeatAge)}: ${heartbeatAgeCopy(targets[0] ?? localFallback, t(strings.terminalLauncher.neverSeen))}`}
                   onKeyDown={handleTargetKeyDown}
                   buttonRef={(node) => { targetButtonRefs.current[(targets[0] ?? localFallback).id] = node; }}
                 />
@@ -307,9 +331,22 @@ export default function TerminalLauncher({
                       </label>
                     )}
                     {filteredRemoteTargets.map((target) => (
-                      <TargetCard key={target.id} target={target} selected={selected.id === target.id} onSelect={setSelectedTarget} statusLabel={statusLabelFor(target.state)} onKeyDown={handleTargetKeyDown} buttonRef={(node) => { targetButtonRefs.current[target.id] = node; }} />
+                      <TargetCard key={target.id} target={target} selected={selected.id === target.id} onSelect={setSelectedTarget} statusLabel={statusLabelFor(target.state)} permissionText={grantText(target) ?? (target.available ? t(strings.terminalLauncher.permissionGranted) : t(strings.terminalLauncher.permissionUnavailable))} heartbeatText={!target.available ? `${t(strings.terminalLauncher.heartbeatAge)}: ${heartbeatAgeCopy(target, t(strings.terminalLauncher.neverSeen))}` : undefined} onKeyDown={handleTargetKeyDown} buttonRef={(node) => { targetButtonRefs.current[target.id] = node; }} />
                     ))}
                     {filteredRemoteTargets.length === 0 && <p className="px-1 text-sm text-wc-text-muted">{t(strings.terminalLauncher.noRemoteNodes)}</p>}
+                    <div className="flex flex-wrap items-center justify-between gap-2 px-1 pt-1">
+                      <p data-testid="launcher-linked-machines-footer" className="text-xs text-wc-text-faint">{t(strings.terminalLauncher.linkedMachinesFooter)}</p>
+                      {onOpenMachines && (
+                        <button
+                          type="button"
+                          data-testid="launcher-open-machines"
+                          onClick={onOpenMachines}
+                          className="min-h-11 text-xs font-medium text-wc-accent underline decoration-dotted underline-offset-4 transition hover:text-wc-text-primary"
+                        >
+                          {t(strings.machines.openFromLauncher)}
+                        </button>
+                      )}
+                    </div>
                   </div>
                 )}
               </div>
@@ -321,6 +358,16 @@ export default function TerminalLauncher({
                 <div className="min-w-0">
                   <div>{catalogMessage}</div>
                   {targetCatalog?.recovery_action && <div className="mt-1 text-xs text-amber-200/80">{targetCatalog.recovery_action}</div>}
+                  {onOpenMachines && (
+                    <button
+                      type="button"
+                      data-testid="launcher-open-machines-empty"
+                      onClick={onOpenMachines}
+                      className="mt-2 min-h-11 text-xs font-medium text-amber-100 underline decoration-dotted underline-offset-4 transition hover:text-white"
+                    >
+                      {t(strings.machines.openFromLauncher)}
+                    </button>
+                  )}
                 </div>
               </div>
             )}
@@ -403,6 +450,7 @@ export default function TerminalLauncher({
             <div className="rounded-xl border border-wc-default bg-wc-surface-base/40 p-4">
               <div className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-wc-text-faint"><Info className="h-3.5 w-3.5" aria-hidden />{t(strings.terminalLauncher.readiness)}</div>
               <div className="grid gap-2 sm:grid-cols-2">{selected.readiness.map((fact) => <div key={fact.key} className="flex items-center gap-2 text-xs text-wc-text-secondary"><span className={fact.passed ? "text-emerald-300" : "text-rose-300"}>{fact.passed ? <Check className="h-3.5 w-3.5" aria-hidden /> : <XCircle className="h-3.5 w-3.5" aria-hidden />}</span><span className="truncate" title={fact.detail}>{fact.label}</span></div>)}</div>
+              {grantText(selected) && <p className="mt-3 text-xs text-wc-text-secondary">Grant: {grantText(selected)}</p>}
             </div>
           )}
         </div>
@@ -410,7 +458,7 @@ export default function TerminalLauncher({
           {isCreating ? <div data-testid="launcher-creating" className="flex items-center justify-center gap-2 text-sm text-wc-text-muted"><Loader2 className="h-4 w-4 animate-spin" aria-hidden />{t(strings.terminalLauncher.creating)}</div> : selected.kind !== "local" && selected.available ? <div className="flex items-center gap-2"><Monitor className="h-3.5 w-3.5" aria-hidden /><span>{selected.os && selected.arch ? `${selected.os}/${selected.arch}` : selected.label}</span>{lastSeenCopy(selected, t(strings.terminalLauncher.neverSeen)) && <span className="ms-auto">{t(strings.terminalLauncher.lastSeen)}: {lastSeenCopy(selected, t(strings.terminalLauncher.neverSeen))}</span>}</div> : null}
         </footer>
       </div>
-    </DrawerShell>
+    </ResponsiveDialog>
   );
 }
 
@@ -418,7 +466,7 @@ function ShieldIcon() {
   return <Server className="h-5 w-5 shrink-0 text-violet-300" aria-hidden />;
 }
 
-function TargetCard({ target, selected, onSelect, statusLabel, onKeyDown, buttonRef }: { target: TerminalTarget; selected: boolean; onSelect: (id: string) => void; statusLabel: string; onKeyDown: (event: KeyboardEvent, id: string) => void; buttonRef: (node: HTMLButtonElement | null) => void }) {
+function TargetCard({ target, selected, onSelect, statusLabel, permissionText, heartbeatText, onKeyDown, buttonRef }: { target: TerminalTarget; selected: boolean; onSelect: (id: string) => void; statusLabel: string; permissionText?: string; heartbeatText?: string; onKeyDown: (event: KeyboardEvent, id: string) => void; buttonRef: (node: HTMLButtonElement | null) => void }) {
   const isLocal = target.kind === "local";
   const state = target.state ?? (target.available ? "dispatchable" : "unavailable");
   const label = isLocal ? "This machine" : target.label;
@@ -427,7 +475,7 @@ function TargetCard({ target, selected, onSelect, statusLabel, onKeyDown, button
   return (
     <button ref={buttonRef} type="button" role="option" aria-selected={selected} aria-label={`${label}, ${statusLabel}${reason ? `, ${reason}` : ""}`} title={reason} data-testid={`launcher-target-card-${slugify(target.id)}`} onClick={() => { onSelect(target.id); }} onKeyDown={(event) => { onKeyDown(event, target.id); }} className={`flex min-h-[68px] w-full items-center gap-3 rounded-xl border px-4 py-3 text-start transition ${selected ? "border-wc-accent bg-wc-accent/10 shadow-[0_0_0_1px_rgba(129,140,248,0.16)]" : "border-wc-default bg-wc-surface-input hover:border-wc-accent/60"}`}>
       <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${isLocal ? "bg-wc-accent/15 text-wc-accent" : "bg-wc-surface-base text-wc-text-secondary"}`}>{isLocal ? <Monitor className="h-5 w-5" aria-hidden /> : <Server className="h-5 w-5" aria-hidden />}</span>
-      <span className="min-w-0 flex-1"><span className="flex items-center gap-2"><span className="truncate font-medium text-wc-text-primary">{label}</span>{selected && <Check className="h-4 w-4 shrink-0 text-wc-accent" aria-hidden />}</span><span className="mt-0.5 block truncate text-xs text-wc-text-faint">{metadata || (isLocal ? "Web Console host" : target.node_id || target.id)}</span></span>
+      <span className="min-w-0 flex-1"><span className="flex items-center gap-2"><span className="truncate font-medium text-wc-text-primary">{label}</span>{selected && <Check className="h-4 w-4 shrink-0 text-wc-accent" aria-hidden />}</span><span className="mt-0.5 block truncate text-xs text-wc-text-faint">{metadata || (isLocal ? "Web Console host" : target.node_id || target.id)}</span>{permissionText && <span className="block truncate text-xs text-wc-text-faint">{permissionText}</span>}{heartbeatText && <span className="block truncate text-xs text-wc-text-faint">{heartbeatText}</span>}</span>
       <span className={`inline-flex shrink-0 items-center gap-1.5 rounded-full border px-2 py-1 text-[11px] font-medium ${statusClass(state)}`}>{statusIcon(state)}<span className="hidden sm:inline">{statusLabel}</span></span>
     </button>
   );

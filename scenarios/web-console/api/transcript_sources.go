@@ -54,19 +54,34 @@ func (s claudeTranscriptSource) DiscoverFiles(ctx context.Context) ([]tailer.Fil
 	if err != nil {
 		return nil, err
 	}
+	// Identify before discovering. Claude cannot name its own transcript, so a
+	// pane whose Stop hook has not fired carries no session id and would be
+	// skipped below forever. The resolver adopts what it can prove and leaves
+	// anything ambiguous alone; it is cheap when there is nothing to do.
+	s.tailer.resolveIdentities(ctx)
+
 	rows, err := s.tailer.server.sessionStore.List(ctx)
 	if err != nil {
 		return nil, err
 	}
 	files := make([]tailer.FileRef, 0, len(rows))
 	for _, row := range rows {
-		if row.Status != sessionstore.StatusLive || row.AgentType != sessionstore.AgentClaude || row.AgentSessionID == "" || row.CWD == "" {
+		if row.Status != sessionstore.StatusLive || row.AgentType != sessionstore.AgentClaude {
+			continue
+		}
+		if row.AgentSessionID == "" || row.CWD == "" {
+			// Not yet identified. This is a reportable state rather than a
+			// silent skip — see conversationAdapter.CaptureStatus, which turns
+			// it into an explanation the Messages view can render.
+			s.tailer.noteUndiscovered(row.ID)
 			continue
 		}
 		path := claudeTranscriptPath(home, row.CWD, row.AgentSessionID)
 		if _, statErr := os.Stat(path); statErr != nil {
+			s.tailer.noteUndiscovered(row.ID)
 			continue
 		}
+		s.tailer.noteDiscovered(row.ID)
 		files = append(files, tailer.FileRef{Path: path, SessionID: row.ID})
 	}
 	return files, nil

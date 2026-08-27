@@ -293,6 +293,7 @@ type TidinessScanSummary struct {
 	Duplication            int `json:"duplication"`
 	TechDebt               int `json:"tech_debt"`
 	Coupling               int `json:"coupling"`
+	BypassedSeams          int `json:"bypassed_seams"`
 	DroppedDuplicateGroups int `json:"dropped_duplicate_groups,omitempty"`
 	DroppedDuplicateLines  int `json:"dropped_duplicate_lines,omitempty"`
 	DuplicationLineDebt    int `json:"duplication_line_debt,omitempty"`
@@ -316,11 +317,11 @@ type TidinessFinding struct {
 	CampaignGroupHint      string         `json:"campaign_group_hint,omitempty"`
 }
 
-func buildTidinessScan(ctx context.Context, scenarioName, scenarioPath string, timeout time.Duration) (*TidinessScanResponse, error) {
+func buildTidinessScan(ctx context.Context, scenarioName, scenarioPath string, timeout time.Duration, excludes ...string) (*TidinessScanResponse, error) {
 	collector := metricsFrom(ctx)
 
 	scanStage := collector.Stage("scan")
-	scanner := NewLightScanner(scenarioPath, timeout)
+	scanner := NewLightScanner(scenarioPath, timeout, excludes...)
 	fileMetrics, err := scanner.collectFileMetrics()
 	if err != nil {
 		scanStage.End()
@@ -337,6 +338,18 @@ func buildTidinessScan(ctx context.Context, scenarioName, scenarioPath string, t
 	roles := newRoleCache(scenarioPath)
 
 	findings := make([]TidinessFinding, 0)
+	seamRoot := seamTreeRoot(scenarioPath)
+	seams, err := LoadSeams(seamRoot)
+	if err != nil {
+		analysisStage.End()
+		return nil, err
+	}
+	seamHits, err := ScanSeams(seamRoot, seams)
+	if err != nil {
+		analysisStage.End()
+		return nil, err
+	}
+	findings = append(findings, seamFindings(scenarioName, seamHits)...)
 	droppedDuplicateGroups, droppedDuplicateLines := 0, 0
 	const longFileThreshold = 500
 	const longTestFileThreshold = 1250
@@ -364,7 +377,7 @@ func buildTidinessScan(ctx context.Context, scenarioName, scenarioPath string, t
 
 	codeAnalyzer := NewCodeMetricsAnalyzer(scenarioPath)
 	for lang, metrics := range languageMetrics {
-		langInfoFiles := filesForLanguageMetric(scenarioPath, lang)
+		langInfoFiles := filesForLanguageMetric(scenarioPath, lang, excludes...)
 		if len(langInfoFiles) == 0 {
 			continue
 		}
@@ -517,14 +530,14 @@ func tidinessFindingLocation(finding TidinessFinding) string {
 	return location
 }
 
-func filesForLanguageMetric(scenarioPath string, lang Language) []string {
+func filesForLanguageMetric(scenarioPath string, lang Language, excludes ...string) []string {
 	detector := NewLanguageDetector(scenarioPath)
 	languages, err := detector.DetectLanguages()
 	if err != nil {
 		return nil
 	}
 	if info, ok := languages[lang]; ok {
-		return info.Files
+		return NewLightScanner(scenarioPath, 0, excludes...).filterExcludedFiles(info.Files)
 	}
 	return nil
 }
@@ -587,25 +600,67 @@ func summarizeTidinessFindings(findings []TidinessFinding) TidinessScanSummary {
 			summary.TechDebt++
 		case "coupling":
 			summary.Coupling++
+		case "seam":
+			summary.BypassedSeams++
 		}
 	}
 	return summary
 }
 
+func seamFindings(scenario string, hits []SeamHit) []TidinessFinding {
+	counts := make(map[string]int)
+	findings := make([]TidinessFinding, 0, len(hits))
+	for _, hit := range hits {
+		counts[hit.SeamID]++
+		if counts[hit.SeamID] <= hit.Budget {
+			continue
+		}
+		findings = append(findings, newTidinessFinding(
+			scenario, "bypassed-seam", "seam", hit.Severity, hit.Path, hit.Symbol, hit.Line,
+			fmt.Sprintf("Canonical seam %s is bypassed", hit.SeamID),
+			fmt.Sprintf("%s bypasses canonical seam %s (%s).", hit.Symbol, hit.SeamID, hit.Canonical),
+			map[string]any{"seam_id": hit.SeamID, "canonical": hit.Canonical, "why": hit.Why, "budget": hit.Budget, "observed": counts[hit.SeamID]},
+			hit.Why, hit.Remediation, "canonical-seam",
+		))
+	}
+	return findings
+}
+
 type tidinessTestingConfig struct {
 	Phases struct {
 		Tidiness struct {
-			Budgets struct {
-				DuplicationLineDebt         int  `json:"duplication_line_debt"`
-				BaselineDuplicationLineDebt int  `json:"baseline_duplication_line_debt"`
-				LongFiles                   int  `json:"long_files"`
-				Complexity                  int  `json:"complexity_over_threshold"`
-				Coupling                    int  `json:"coupling_over_threshold"`
-				DebtMarkers                 int  `json:"debt_markers"`
-				Ratchet                     bool `json:"ratchet"`
-			} `json:"budgets"`
+			Budgets tidinessBudgets `json:"budgets"`
 		} `json:"tidiness"`
 	} `json:"phases"`
+}
+
+type tidinessBudgets struct {
+	DuplicationLineDebt         int  `json:"duplication_line_debt"`
+	BaselineDuplicationLineDebt int  `json:"baseline_duplication_line_debt"`
+	LongFiles                   int  `json:"long_files"`
+	Complexity                  int  `json:"complexity_over_threshold"`
+	Coupling                    int  `json:"coupling_over_threshold"`
+	DebtMarkers                 int  `json:"debt_markers"`
+	Ratchet                     bool `json:"ratchet"`
+	declared                    map[string]bool
+}
+
+func (budgets *tidinessBudgets) UnmarshalJSON(data []byte) error {
+	type budgetValues tidinessBudgets
+	var values budgetValues
+	if err := json.Unmarshal(data, &values); err != nil {
+		return err
+	}
+	var fields map[string]json.RawMessage
+	if err := json.Unmarshal(data, &fields); err != nil {
+		return err
+	}
+	*budgets = tidinessBudgets(values)
+	budgets.declared = make(map[string]bool, len(fields))
+	for name := range fields {
+		budgets.declared[name] = true
+	}
+	return nil
 }
 
 func tidinessBudgetFinding(scenario, scenarioPath string, summary TidinessScanSummary) *TidinessFinding {
@@ -618,10 +673,10 @@ func tidinessBudgetFinding(scenario, scenarioPath string, summary TidinessScanSu
 		return nil
 	}
 	budgets := config.Phases.Tidiness.Budgets
-	if budgets.Ratchet && budgets.BaselineDuplicationLineDebt > 0 && budgets.DuplicationLineDebt > budgets.BaselineDuplicationLineDebt {
+	if budgets.Ratchet && budgets.declared["duplication_line_debt"] && budgets.declared["baseline_duplication_line_debt"] && budgets.DuplicationLineDebt > budgets.BaselineDuplicationLineDebt {
 		return ptrFinding(newTidinessFinding(scenario, "tidiness-budget-exceeded", "budget", "high", "", "", 0, "Tidiness budget loosens recorded baseline", fmt.Sprintf("duplication_line_debt budget is %d; recorded baseline is %d (loosening +%d).", budgets.DuplicationLineDebt, budgets.BaselineDuplicationLineDebt, budgets.DuplicationLineDebt-budgets.BaselineDuplicationLineDebt), map[string]any{"metric": "duplication_line_debt", "budget": budgets.DuplicationLineDebt, "baseline": budgets.BaselineDuplicationLineDebt, "delta": budgets.DuplicationLineDebt - budgets.BaselineDuplicationLineDebt, "violation": "ratchet_loosened_budget"}, "A ratcheted maintainability budget may not be loosened.", "Tighten the configured budget to the recorded baseline or below.", "tidiness-budget"))
 	}
-	if budgets.Ratchet && budgets.BaselineDuplicationLineDebt > 0 && summary.DuplicationLineDebt > budgets.BaselineDuplicationLineDebt {
+	if budgets.Ratchet && budgets.declared["baseline_duplication_line_debt"] && summary.DuplicationLineDebt > budgets.BaselineDuplicationLineDebt {
 		return ptrFinding(newTidinessFinding(scenario, "tidiness-budget-exceeded", "budget", "high", "", "", 0, "Tidiness debt worsened from recorded baseline", fmt.Sprintf("duplication_line_debt is %d; recorded baseline is %d (delta +%d).", summary.DuplicationLineDebt, budgets.BaselineDuplicationLineDebt, summary.DuplicationLineDebt-budgets.BaselineDuplicationLineDebt), map[string]any{"metric": "duplication_line_debt", "baseline": budgets.BaselineDuplicationLineDebt, "observed": summary.DuplicationLineDebt, "delta": summary.DuplicationLineDebt - budgets.BaselineDuplicationLineDebt, "violation": "ratchet_worsened_debt"}, "A ratcheted maintainability baseline must not worsen.", "Reduce duplication debt to the recorded baseline or below.", "tidiness-budget"))
 	}
 	for _, check := range []struct {
@@ -634,7 +689,7 @@ func tidinessBudgetFinding(scenario, scenarioPath string, summary TidinessScanSu
 		{"coupling_over_threshold", budgets.Coupling, summary.Coupling},
 		{"debt_markers", budgets.DebtMarkers, summary.TechDebt},
 	} {
-		if check.limit > 0 && check.observed > check.limit {
+		if budgets.declared[check.name] && check.observed > check.limit {
 			return ptrFinding(newTidinessFinding(scenario, "tidiness-budget-exceeded", "budget", "high", "", "", 0, "Tidiness budget exceeded", fmt.Sprintf("%s is %d; budget is %d (delta +%d).", check.name, check.observed, check.limit, check.observed-check.limit), map[string]any{"metric": check.name, "budget": check.limit, "observed": check.observed, "delta": check.observed - check.limit}, "A configured maintainability budget regressed.", "Reduce the metric or explicitly tighten a truthful budget.", "tidiness-budget"))
 		}
 	}

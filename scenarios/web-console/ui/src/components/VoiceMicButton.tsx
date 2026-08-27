@@ -1,4 +1,4 @@
-import { VoiceInputButton, type ButtonSize } from "@vrooli/react-component-library/VoiceInputButton/4.3.0";
+import { VoiceInputButton, type ButtonSize } from "@vrooli/react-component-library/VoiceInputButton/4/4.3.1";
 import type { StartRecordingOpts, VoiceActivitySnapshot } from "../audio-integration";
 
 export interface VoiceMicButtonProps {

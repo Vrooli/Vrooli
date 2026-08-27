@@ -17,6 +17,10 @@ export interface TerminalProtocolState {
   serverSize: { cols: number; rows: number } | null;
   holdsLease: boolean;
   leaderDevice: string;
+  /** Leader-declared device family; empty when the leader declared none. */
+  leaderClass: string;
+  /** The leader's virtual keyboard covers part of its viewport. */
+  leaderKbOpen: boolean;
   viewerCount: number;
 }
 
@@ -27,8 +31,22 @@ export const initialTerminalProtocolState: TerminalProtocolState = {
   serverSize: null,
   holdsLease: true,
   leaderDevice: "",
+  leaderClass: "",
+  leaderKbOpen: false,
   viewerCount: 1,
 };
+
+/**
+ * size_info and presence carry the same lease and leader-presentation fields.
+ * They are applied through one function so the two cases cannot drift.
+ */
+function applyLeaderPresentation(next: TerminalProtocolState, msg: TerminalMessage): void {
+  if (typeof msg.holdsLease === "boolean") next.holdsLease = msg.holdsLease;
+  if (typeof msg.leaderDevice === "string") next.leaderDevice = msg.leaderDevice;
+  if (typeof msg.deviceClass === "string") next.leaderClass = msg.deviceClass;
+  if (typeof msg.kbOpen === "boolean") next.leaderKbOpen = msg.kbOpen;
+  if (typeof msg.viewerCount === "number") next.viewerCount = msg.viewerCount;
+}
 
 /** Pure wire-state transition. Rendering and transport effects stay outside. */
 export function reduceTerminalMessage(
@@ -63,14 +81,10 @@ export function reduceTerminalMessage(
       if (typeof msg.cols === "number" && typeof msg.rows === "number") {
         next.serverSize = { cols: msg.cols, rows: msg.rows };
       }
-      if (typeof msg.holdsLease === "boolean") next.holdsLease = msg.holdsLease;
-      if (typeof msg.leaderDevice === "string") next.leaderDevice = msg.leaderDevice;
-      if (typeof msg.viewerCount === "number") next.viewerCount = msg.viewerCount;
+      applyLeaderPresentation(next, msg);
       return next;
     case "presence":
-      if (typeof msg.holdsLease === "boolean") next.holdsLease = msg.holdsLease;
-      if (typeof msg.leaderDevice === "string") next.leaderDevice = msg.leaderDevice;
-      if (typeof msg.viewerCount === "number") next.viewerCount = msg.viewerCount;
+      applyLeaderPresentation(next, msg);
       return next;
     default:
       return next;

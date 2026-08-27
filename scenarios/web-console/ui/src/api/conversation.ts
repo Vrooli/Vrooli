@@ -2,6 +2,12 @@ import { createClient } from "@connectrpc/connect";
 import { ConversationService } from "@vrooli/proto-types/web-console/v1/conversation/conversation_pb";
 
 import { transport } from "./client";
+import { decodeCaptureStatus, type MessageCaptureStatus } from "./messageCapture";
+
+// The capture contract lives in ./messageCapture so the store can import its
+// runtime default without depending on this (heavily mocked) client module.
+export { UNKNOWN_CAPTURE, decodeCaptureStatus } from "./messageCapture";
+export type { MessageCaptureState, MessageCaptureStatus } from "./messageCapture";
 
 // conversationClient is the Connect-Web client for ConversationService.
 // Consumers should prefer the typed wrappers below, which decode proto
@@ -42,6 +48,7 @@ export interface ConversationSessionResponse {
   oldestSequence?: number;
   newestSequence?: number;
   totalCount?: number;
+  capture: MessageCaptureStatus;
 }
 
 // ---------------------------------------------------------------------------
@@ -117,6 +124,7 @@ export async function getConversationSession(
     oldestSequence: Number(resp.oldestSequence),
     newestSequence: Number(resp.newestSequence),
     totalCount: Number(resp.totalCount),
+    capture: decodeCaptureStatus(resp.capture),
   };
 }
 
@@ -202,7 +210,12 @@ export async function searchArchivedConversations(
 
 export async function getConversationRange(sessionId: string, fromSequence: number, toSequence: number): Promise<ConversationSessionResponse> {
   const response = await conversationClient.getRange({ sessionId, fromSequence: BigInt(fromSequence), toSequence: BigInt(toSequence) });
-  return { sessionId: response.sessionId, events: response.events.map(decodeConversationEvent), cursor: decodeConversationCursor(response.cursor) };
+  return {
+    sessionId: response.sessionId,
+    events: response.events.map(decodeConversationEvent),
+    cursor: decodeConversationCursor(response.cursor),
+    capture: decodeCaptureStatus(response.capture),
+  };
 }
 
 export interface SummarizeEventResponse {

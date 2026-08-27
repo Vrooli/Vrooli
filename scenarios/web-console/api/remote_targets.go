@@ -8,72 +8,49 @@ package main
 
 import (
 	"context"
-	"net/http"
 	"os"
 	"strings"
 	"time"
 
 	sharedsession "github.com/vrooli/api-core/operatorsession"
+	"github.com/vrooli/api-core/targetmodel"
 	"github.com/vrooli/nodeclient"
 
 	registryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/registry"
-	"web-console/internal/capabilities"
 )
 
-type remoteTerminalTarget struct {
-	ID              string                   `json:"id"`
-	Kind            string                   `json:"kind"`
-	Label           string                   `json:"label"`
-	OS              string                   `json:"os,omitempty"`
-	Arch            string                   `json:"arch,omitempty"`
-	Revision        string                   `json:"revision,omitempty"`
-	Status          string                   `json:"status,omitempty"`
-	Online          bool                     `json:"online"`
-	LastSeenAt      time.Time                `json:"last_seen_at,omitempty"`
-	Available       bool                     `json:"available"`
-	DispatchReason  string                   `json:"dispatch_reason,omitempty"`
-	OperatorAction  string                   `json:"operator_action,omitempty"`
-	Availability    string                   `json:"availability,omitempty"`
-	SurvivesRestart bool                     `json:"survives_restart"`
-	ReadinessFacts  []remoteReadinessFact    `json:"-"`
-	Capability      capabilities.CheckResult `json:"-"`
-	BaseURL         string                   `json:"-"`
-	NodeID          string                   `json:"-"`
-	OwnerToken      string                   `json:"-"`
-	ReauthToken     string                   `json:"-"`
+// targetConnection keeps only server-side transport credentials beside the
+// shared provider-neutral target model.
+type targetConnection struct {
+	targetmodel.Target
+	BaseURL     string
+	OwnerToken  string
+	ReauthToken string
 }
 
-type remoteReadinessFact struct {
-	Key    string
-	Label  string
-	Passed bool
-	Detail string
-}
-
-func configuredRemoteTarget() remoteTerminalTarget {
+func configuredRemoteTarget() targetConnection {
 	ownerToken, reauthToken := resolveBridgeOwnerCredentials()
-	t := remoteTerminalTarget{
-		ID:          "bridge-node:" + strings.TrimSpace(getEnvOrDefault("WEB_CONSOLE_BRIDGE_NODE_ID", "")),
-		Kind:        "bridge-node",
-		Label:       getEnvOrDefault("WEB_CONSOLE_BRIDGE_LABEL", "Bridge node"),
-		BaseURL:     strings.TrimRight(strings.TrimSpace(os.Getenv("WEB_CONSOLE_BRIDGE_URL")), "/"),
-		NodeID:      strings.TrimSpace(os.Getenv("WEB_CONSOLE_BRIDGE_NODE_ID")),
-		OwnerToken:  ownerToken,
-		ReauthToken: reauthToken,
-	}
-	result := (&capabilities.BridgeChecker{BaseURL: t.BaseURL, OwnerToken: t.OwnerToken, ReauthToken: t.ReauthToken}).CheckResult(context.Background())
-	t.Capability = result
-	t.DispatchReason = result.Message
-	t.OperatorAction = result.ActionLabel
-	if result.Status != capabilities.StatusAvailable {
-		t.Availability = "unavailable"
+	t := targetConnection{Target: targetmodel.Target{
+		ID:         "bridge-node:" + strings.TrimSpace(getEnvOrDefault("VROOLI_BRIDGE_NODE_ID", "")),
+		Ramp:       "bridge",
+		Label:      getEnvOrDefault("VROOLI_BRIDGE_LABEL", "Bridge fleet"),
+		Platform:   "bridge",
+		DeviceKind: "bridge-node",
+		NodeID:     strings.TrimSpace(os.Getenv("VROOLI_BRIDGE_NODE_ID")),
+		Transport:  targetmodel.Transport{Kind: targetmodel.TransportBridge, ID: strings.TrimSpace(os.Getenv("VROOLI_BRIDGE_NODE_ID"))},
+		Health:     targetmodel.TargetHealth{Status: "unconfigured"},
+	}, OwnerToken: ownerToken, ReauthToken: reauthToken}
+	if strings.TrimSpace(t.OwnerToken) == "" ||
+		(!hasExplicitAuthScheme(t.OwnerToken, sharedsession.LocalSessionScheme) &&
+			strings.TrimSpace(t.ReauthToken) == "" && strings.TrimSpace(os.Getenv("VROOLI_BRIDGE_API_TOKEN")) == "") {
+		t.Reason = "Bridge credentials not configured"
+		t.NextAction = "Enroll this machine with Bridge, then refresh the catalog"
+		t.Transport.Reason = t.Reason
 		return t
 	}
 	t.Available = true
-	t.Availability = "dispatchable"
-	t.DispatchReason = ""
-	t.OperatorAction = ""
-	t.ReadinessFacts = []remoteReadinessFact{{Key: "bridge", Label: "Bridge configured", Passed: true, Detail: result.Message}}
+	t.Transport.Available = true
+	t.Readiness = []targetmodel.ReadinessCheck{targetmodel.ReadinessCheckFor(targetmodel.ReadinessBridgeScope, true, "Bridge credentials available")}
 	return t
 }
 
@@ -88,30 +65,15 @@ func resolveBridgeOwnerCredentials() (string, string) {
 			return sharedsession.LocalSessionScheme + " " + resolution.Token, ""
 		}
 	}
-	return strings.TrimSpace(os.Getenv("WEB_CONSOLE_BRIDGE_OWNER_TOKEN")), strings.TrimSpace(os.Getenv("WEB_CONSOLE_BRIDGE_REAUTH_TOKEN"))
+	if token := strings.TrimSpace(os.Getenv("VROOLI_BRIDGE_API_TOKEN")); token != "" {
+		return "Bearer " + token, strings.TrimSpace(os.Getenv("VROOLI_BRIDGE_REAUTH_TOKEN"))
+	}
+	return "", ""
 }
 
 func hasExplicitAuthScheme(value, scheme string) bool {
 	prefix := strings.TrimSpace(scheme) + " "
 	return strings.HasPrefix(strings.TrimSpace(value), prefix)
-}
-
-// bridgeOwnerTransport keeps Bridge credentials on the web-console server.
-// They are injected only into the server-to-server registry request and never
-// become browser-visible target fields.
-type bridgeOwnerTransport struct {
-	base   http.RoundTripper
-	owner  string
-	reauth string
-}
-
-func (t bridgeOwnerTransport) RoundTrip(req *http.Request) (*http.Response, error) {
-	clone := req.Clone(req.Context())
-	clone.Header.Set("Authorization", currentOwnerAuthorization(t.owner))
-	if strings.TrimSpace(t.reauth) != "" {
-		clone.Header.Set("X-Bridge-Owner-Reauth", t.reauth)
-	}
-	return t.base.RoundTrip(clone)
 }
 
 func readinessFailure(node *registryv1.Node) string {
@@ -144,57 +106,83 @@ func targetKind(node *registryv1.Node) string {
 	}
 }
 
-func targetFromRegistryNode(base remoteTerminalTarget, node *registryv1.Node) remoteTerminalTarget {
+func targetFromRegistryNode(base targetConnection, node *registryv1.Node) targetConnection {
 	target := base
 	target.ID = "bridge-node:" + node.GetId()
-	target.Kind = targetKind(node)
+	target.DeviceKind = targetKind(node)
 	target.Label = node.GetName()
 	if target.Label == "" {
 		target.Label = node.GetId()
 	}
-	target.NodeID = node.GetId()
 	target.OS = node.GetOs()
-	target.Arch = node.GetArch()
+	target.Architecture = node.GetArch()
 	target.Revision = node.GetRevision()
-	target.Status = node.GetStatus().String()
-	target.Online = node.GetOnline()
+	target.Scopes = append([]string(nil), node.GetScopes()...)
+	target.Health = targetmodel.TargetHealth{Status: node.GetStatus().String()}
+	target.BridgeTrust = &targetmodel.BridgeTrust{Registered: node.GetRegistryRecordPresent(), Online: node.GetOnline(), DispatchAuthorized: node.GetDispatchable()}
+	target.NodeID = node.GetId()
 	if node.GetLastSeenAt() != nil {
 		target.LastSeenAt = node.GetLastSeenAt().AsTime()
 	}
-	target.ReadinessFacts = readinessFactsForNode(node)
+	target.Readiness = readinessFactsForNode(node)
 	target.Available = node.GetDispatchable() && node.GetKind() == registryv1.NodeKind_NODE_KIND_AGENT
+	target.Transport = targetmodel.Transport{Kind: targetmodel.TransportBridge, ID: node.GetId(), Available: target.Available}
+	target.Mode = targetStateForNode(node, target.Available)
 	if !target.Available {
 		if failure := readinessFailure(node); failure != "" {
-			target.DispatchReason = failure
+			target.Reason = failure
 		} else {
-			target.DispatchReason = "session backend unavailable for " + target.Kind
+			target.Reason = "session backend unavailable for " + target.DeviceKind
 		}
-		target.OperatorAction = recoveryActionForNode(node, target.DispatchReason)
+		target.NextAction = recoveryActionForNode(node, target.Reason)
 	}
-	target.Availability = targetStateForNode(node, target.Available)
 	return target
 }
 
-func configuredRemoteTargets() []remoteTerminalTarget {
+// bridgeNodeClient builds the single Bridge reach this server uses, alongside
+// the credential-bearing base connection every derived target inherits. It is
+// shared by the target catalog and the machines surface so there is exactly one
+// place that decides how this process authenticates to the control plane.
+func bridgeNodeClient(ctx context.Context) (*nodeclient.Client, targetConnection) {
 	base := configuredRemoteTarget()
 	if !base.Available {
-		return []remoteTerminalTarget{base}
+		return nil, base
 	}
-	client := &http.Client{Timeout: 3 * time.Second, Transport: bridgeOwnerTransport{
-		base: http.DefaultTransport, owner: base.OwnerToken, reauth: base.ReauthToken,
-	}}
-	nodeClient := nodeclient.New(nodeclient.Config{HTTPClient: client, BridgeURL: base.BaseURL})
+	clientToken := base.OwnerToken
+	var tokenProvider func(context.Context) (string, error)
+	if hasExplicitAuthScheme(clientToken, sharedsession.LocalSessionScheme) {
+		// Do not pin a short-lived local session into a client. nodeclient asks
+		// the provider for a fresh owner credential for each request.
+		clientToken = ""
+		tokenProvider = resolveLocalOwnerToken
+	}
+	nodeClient := nodeclient.New(nodeclient.Config{
+		BridgeURL: base.BaseURL, Token: clientToken, ReauthToken: base.ReauthToken,
+		TokenProvider: tokenProvider,
+	})
+	if base.BaseURL == "" {
+		if resolved, resolveErr := nodeClient.ResolveURL(ctx); resolveErr == nil {
+			base.BaseURL = resolved
+		}
+	}
+	return nodeClient, base
+}
+
+func configuredRemoteTargets() []targetConnection {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
+	nodeClient, base := bridgeNodeClient(ctx)
+	if nodeClient == nil {
+		return []targetConnection{base}
+	}
 	nodes, err := nodeClient.List(ctx, 3*time.Second)
 	if err != nil {
 		base.Available = false
-		base.DispatchReason = "Bridge registry unavailable"
-		base.OperatorAction = "Check Bridge health and refresh the catalog"
-		base.Availability = "unavailable"
-		return []remoteTerminalTarget{base}
+		base.Reason = "Bridge registry unavailable"
+		base.NextAction = "Check Bridge health and refresh the catalog"
+		return []targetConnection{base}
 	}
-	targets := make([]remoteTerminalTarget, 0, len(nodes))
+	targets := make([]targetConnection, 0, len(nodes))
 	for _, node := range nodes {
 		if node != nil {
 			targets = append(targets, targetFromRegistryNode(base, node))
@@ -202,15 +190,14 @@ func configuredRemoteTargets() []remoteTerminalTarget {
 	}
 	if len(targets) == 0 {
 		base.Available = false
-		base.DispatchReason = "no registered Bridge nodes"
-		base.OperatorAction = "Register a node with vrooli-bridge, then refresh this catalog"
-		base.Availability = "unavailable"
-		return []remoteTerminalTarget{base}
+		base.Reason = "no registered Bridge nodes"
+		base.NextAction = "Register a node with vrooli-bridge, then refresh this catalog"
+		return []targetConnection{base}
 	}
 	return targets
 }
 
-func (s *Server) remoteTargets() []remoteTerminalTarget {
+func (s *Server) remoteTargets() []targetConnection {
 	if s.remoteTargetCatalog != nil {
 		return s.remoteTargetCatalog()
 	}
@@ -225,26 +212,16 @@ func ownerAuthorization(value string) string {
 	return "Bearer " + value
 }
 
-// currentOwnerAuthorization refreshes an enrolled local session immediately
-// before a Bridge request. LocalSession credentials are intentionally
-// short-lived; retaining the token captured at Web Console startup would make
-// an otherwise healthy operator surface fail after the 15-minute TTL. The
-// fallback preserves explicit test/configuration tokens when this process has
-// no local enrollment to mint from.
-func currentOwnerAuthorization(value string) string {
-	value = strings.TrimSpace(value)
-	if !hasExplicitAuthScheme(value, sharedsession.LocalSessionScheme) {
-		return ownerAuthorization(value)
-	}
+func resolveLocalOwnerToken(context.Context) (string, error) {
 	store, err := sharedsession.DefaultFileStore()
 	if err != nil {
-		return ownerAuthorization(value)
+		return "", nil
 	}
 	resolution, err := (sharedsession.LocalResolver{Store: store}).Resolve()
 	if err != nil || strings.TrimSpace(resolution.Token) == "" {
-		return ownerAuthorization(value)
+		return "", nil
 	}
-	return sharedsession.LocalSessionScheme + " " + resolution.Token
+	return sharedsession.LocalSessionScheme + " " + resolution.Token, nil
 }
 
 func websocketScheme(scheme string) string {

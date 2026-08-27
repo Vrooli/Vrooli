@@ -29,11 +29,10 @@ Tokens are server-side only.
 
 | Variable | Purpose |
 |----------|---------|
-| `WEB_CONSOLE_BRIDGE_URL` | Base HTTP(S) URL of the vrooli-bridge control plane |
-| `WEB_CONSOLE_BRIDGE_NODE_ID` | Optional registered node identity retained for compatibility with single-node Bridge deployments |
-| `WEB_CONSOLE_BRIDGE_OWNER_TOKEN` | Explicit fallback owner credential; an enrolled local operator session is preferred when available |
-| `WEB_CONSOLE_BRIDGE_REAUTH_TOKEN` | Explicit fallback short-lived owner re-authentication proof |
-| `WEB_CONSOLE_BRIDGE_LABEL` | Optional launcher label; defaults to `Bridge node` |
+| `VROOLI_BRIDGE_NODE_ID` | Optional registered node identity retained for a single-node Bridge deployment |
+| `VROOLI_BRIDGE_API_TOKEN` | Explicit fallback Bridge credential; an enrolled local operator session is preferred when available |
+| `VROOLI_BRIDGE_REAUTH_TOKEN` | Optional short-lived owner re-authentication proof |
+| `VROOLI_BRIDGE_LABEL` | Optional launcher label; defaults to `Bridge fleet` |
 
 Remote sessions currently report `survives_restart=false`: the Web Console
 keeps the short-lived federation registry in memory and preserves reconnect

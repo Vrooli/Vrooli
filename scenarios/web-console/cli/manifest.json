@@ -417,7 +417,9 @@
           "governance": {
             "effect": "read",
             "run_eligible": true,
-            "permissions": ["network:internal"]
+            "permissions": [
+              "network:internal"
+            ]
           }
         },
         {
@@ -428,7 +430,9 @@
               "name": "target-id",
               "required": true,
               "description": "Target catalog ID",
-              "bind": {"field": "id"}
+              "bind": {
+                "field": "id"
+              }
             }
           ],
           "binding": {
@@ -439,7 +443,9 @@
           "governance": {
             "effect": "read",
             "run_eligible": true,
-            "permissions": ["network:internal"]
+            "permissions": [
+              "network:internal"
+            ]
           }
         },
         {
@@ -450,7 +456,9 @@
               "name": "target-id",
               "required": true,
               "description": "Target catalog ID",
-              "bind": {"field": "id"}
+              "bind": {
+                "field": "id"
+              }
             }
           ],
           "binding": {
@@ -461,7 +469,168 @@
           "governance": {
             "effect": "read",
             "run_eligible": true,
-            "permissions": ["network:internal"]
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "machine",
+      "description": "Manage the machines this installation has linked",
+      "commands": [
+        {
+          "name": "list",
+          "description": "List linked machines, machines asking to join, and permission presets",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "MachineService",
+            "method": "List"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "code",
+          "description": "Issue a single-use join code for a machine discovery cannot reach",
+          "flags": [
+            {
+              "name": "label",
+              "description": "Name to apply to the machine that redeems the code",
+              "bind": {
+                "field": "label"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "MachineService",
+            "method": "IssueCode"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "decide",
+          "description": "Approve or deny one machine asking to join",
+          "positionals": [
+            {
+              "name": "request-id",
+              "required": true,
+              "description": "Join request ID",
+              "bind": {
+                "field": "request_id"
+              }
+            }
+          ],
+          "flags": [
+            {
+              "name": "approve",
+              "bool": true,
+              "description": "Link the machine (omit to deny it)",
+              "bind": {
+                "field": "approve"
+              }
+            },
+            {
+              "name": "words",
+              "description": "The confirmation words the joining machine is showing, in order (required with --approve)"
+            },
+            {
+              "name": "preset",
+              "description": "Permission preset to grant on approval",
+              "bind": {
+                "field": "preset"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "MachineService",
+            "method": "Decide"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "grant",
+          "description": "Change what an already-linked machine may do",
+          "positionals": [
+            {
+              "name": "machine-id",
+              "required": true,
+              "description": "Machine ID from `machine list`",
+              "bind": {
+                "field": "machine_id"
+              }
+            }
+          ],
+          "flags": [
+            {
+              "name": "preset",
+              "description": "Permission preset to apply",
+              "bind": {
+                "field": "preset"
+              }
+            },
+            {
+              "name": "scopes",
+              "description": "Comma-separated explicit scopes. Used only when no preset is given"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "MachineService",
+            "method": "SetGrant"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "forget",
+          "description": "Remove one machine from the fleet",
+          "positionals": [
+            {
+              "name": "machine-id",
+              "required": true,
+              "description": "Machine ID from `machine list`",
+              "bind": {
+                "field": "machine_id"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "MachineService",
+            "method": "Forget"
+          },
+          "governance": {
+            "effect": "destructive",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
           }
         }
       ]
@@ -478,7 +647,9 @@
               "name": "session-id",
               "required": true,
               "description": "Session ID",
-              "bind": {"field": "session_id"}
+              "bind": {
+                "field": "session_id"
+              }
             }
           ],
           "flags": [
@@ -497,7 +668,9 @@
           "governance": {
             "effect": "read",
             "run_eligible": true,
-            "permissions": ["network:internal"]
+            "permissions": [
+              "network:internal"
+            ]
           }
         },
         {
@@ -508,7 +681,9 @@
               "name": "session-id",
               "required": true,
               "description": "Session ID",
-              "bind": {"field": "session_id"}
+              "bind": {
+                "field": "session_id"
+              }
             },
             {
               "name": "text",
@@ -534,7 +709,9 @@
           "governance": {
             "effect": "write",
             "run_eligible": false,
-            "permissions": ["network:internal"]
+            "permissions": [
+              "network:internal"
+            ]
           }
         },
         {
@@ -545,7 +722,9 @@
               "name": "session-id",
               "required": true,
               "description": "Session ID",
-              "bind": {"field": "session_id"}
+              "bind": {
+                "field": "session_id"
+              }
             }
           ],
           "flags": [
@@ -568,7 +747,9 @@
           "governance": {
             "effect": "read",
             "run_eligible": true,
-            "permissions": ["network:internal"]
+            "permissions": [
+              "network:internal"
+            ]
           }
         }
       ]

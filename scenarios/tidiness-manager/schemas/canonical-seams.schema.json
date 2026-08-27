@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vrooli.dev/schemas/canonical-seams.schema.json",
+  "title": "Canonical seam rules",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "seams"],
+  "properties": {
+    "$schema": { "type": "string" },
+    "schemaVersion": { "const": "1.0.0" },
+    "seams": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/seam" }
+    }
+  },
+  "$defs": {
+    "seam": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "canonical", "why", "remediation", "bypass", "scope", "severity", "budget"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "canonical": { "type": "string", "minLength": 1 },
+        "why": { "type": "string", "minLength": 1 },
+        "remediation": { "type": "string", "minLength": 1 },
+        "bypass": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "pattern"],
+          "properties": {
+            "kind": { "enum": ["call", "literal"] },
+            "pattern": { "type": "string", "minLength": 1 }
+          }
+        },
+        "scope": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["include", "exclude"],
+          "properties": {
+            "include": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 } },
+            "exclude": { "type": "array", "items": { "type": "string", "minLength": 1 } }
+          }
+        },
+        "severity": { "enum": ["info", "low", "medium", "high", "critical"] },
+        "budget": { "type": "integer", "minimum": 0 }
+      }
+    }
+  }
+}

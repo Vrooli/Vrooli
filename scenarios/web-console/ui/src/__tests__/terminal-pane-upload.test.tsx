@@ -1,5 +1,6 @@
 import { renderWithProviders as render } from "../test-utils";
 import { describe, it, expect, vi, afterEach, beforeEach } from "vitest";
+import { createTerminalSessionStub } from "../test-utils";
 import { screen, fireEvent, act, cleanup } from "@testing-library/react";
 import { apiBaseMock, mockFetchSuccess } from "../test-utils";
 
@@ -44,29 +45,9 @@ vi.mock("@xterm/addon-web-links", () => ({
   })),
 }));
 vi.mock("../hooks/terminal/useTerminalSession", () => {
-  // Stable references so dep arrays in TerminalPane do not re-run
-  // effects every render and trigger the unmount-save path.
-
-  const gate = { submit: vi.fn(() => ({ status: "sent" as const, offset: 1 })), dispose: vi.fn() };
-  const submitInput = vi.fn(() => ({ status: "sent" as const, offset: 1 }));
-  const sendResize = vi.fn();
-  const getServerSize = vi.fn(() => null);
-  const subscribeInputSettled = vi.fn(() => () => {});
-  const subscribePendingInput = vi.fn(() => () => {});
-  const getPendingInputSnapshot = vi.fn(() => []);
-  return {
-    useTerminalSession: () => ({
-      submitInput,
-      gate,
-      sendResize,
-      getServerSize,
-      serverSize: null,
-
-      subscribeInputSettled,
-      subscribePendingInput,
-      getPendingInputSnapshot,
-    }),
-  };
+  // One stable session object: TerminalPane keys effects on these references.
+  const session = createTerminalSessionStub();
+  return { useTerminalSession: () => session };
 });
 vi.mock("../hooks/useTerminalTouch", () => ({
   useTerminalTouch: () => ({

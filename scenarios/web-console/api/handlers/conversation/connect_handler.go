@@ -43,7 +43,7 @@ var ErrNotFound = errors.New("not found")
 // CodeInvalidArgument.
 var ErrInvalidArgument = errors.New("invalid argument")
 
-func (h *connectHandler) Get(_ context.Context, req *connect.Request[conversationv1.GetRequest]) (*connect.Response[conversationv1.GetResponse], error) {
+func (h *connectHandler) Get(ctx context.Context, req *connect.Request[conversationv1.GetRequest]) (*connect.Response[conversationv1.GetResponse], error) {
 	sessionID := strings.TrimSpace(req.Msg.GetSessionId())
 	if sessionID == "" {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("session_id is required"))
@@ -51,6 +51,13 @@ func (h *connectHandler) Get(_ context.Context, req *connect.Request[conversatio
 	state, err := h.deps.Service.Get(sessionID, req.Msg.GetSinceSequence(), int(req.Msg.GetLimit()), req.Msg.GetBeforeSequence())
 	if err != nil {
 		return nil, h.classify(err, "conversation.Get")
+	}
+	// Diagnose capture on every Get. It is the only way a caller can tell an
+	// empty conversation apart from an unreadable one, and paying for it here
+	// keeps that distinction from needing a second, easily-forgotten call.
+	capture := state.Capture
+	if capture.State == CaptureUnspecified {
+		capture = h.deps.Service.CaptureStatus(ctx, sessionID)
 	}
 	return connect.NewResponse(&conversationv1.GetResponse{
 		SessionId:      state.SessionID,
@@ -60,7 +67,38 @@ func (h *connectHandler) Get(_ context.Context, req *connect.Request[conversatio
 		OldestSequence: state.OldestSequence,
 		NewestSequence: state.NewestSequence,
 		TotalCount:     state.TotalCount,
+		Capture:        captureToProto(capture),
 	}), nil
+}
+
+// captureStateToProto maps the transport-neutral capture state onto the wire
+// enum. An unrecognized value degrades to UNSPECIFIED rather than guessing a
+// healthier state than the server actually observed.
+func captureStateToProto(state CaptureState) conversationv1.MessageCaptureState {
+	switch state {
+	case CaptureCapturing:
+		return conversationv1.MessageCaptureState_MESSAGE_CAPTURE_STATE_CAPTURING
+	case CaptureNotApplicable:
+		return conversationv1.MessageCaptureState_MESSAGE_CAPTURE_STATE_NOT_APPLICABLE
+	case CapturePending:
+		return conversationv1.MessageCaptureState_MESSAGE_CAPTURE_STATE_PENDING
+	case CaptureUnavailable:
+		return conversationv1.MessageCaptureState_MESSAGE_CAPTURE_STATE_UNAVAILABLE
+	default:
+		return conversationv1.MessageCaptureState_MESSAGE_CAPTURE_STATE_UNSPECIFIED
+	}
+}
+
+func captureToProto(c CaptureStatus) *conversationv1.MessageCaptureStatus {
+	return &conversationv1.MessageCaptureStatus{
+		State:          captureStateToProto(c.State),
+		ReasonCode:     c.ReasonCode,
+		Summary:        c.Summary,
+		Detail:         c.Detail,
+		Remediation:    c.Remediation,
+		TranscriptPath: c.TranscriptPath,
+		LastCapturedAt: c.LastCapturedAt,
+	}
 }
 
 func (h *connectHandler) Search(_ context.Context, req *connect.Request[conversationv1.SearchRequest]) (*connect.Response[conversationv1.SearchResponse], error) {

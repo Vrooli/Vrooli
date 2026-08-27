@@ -1,9 +1,28 @@
 import { create } from "zustand";
 import type { ConversationCursor, ConversationEvent } from "../api/conversation";
+import type { MessageCaptureStatus } from "../api/messageCapture";
+import { UNKNOWN_CAPTURE } from "../api/messageCapture";
 
 export type PaneViewMode = "terminal" | "messages";
 
-type SessionConversationState = {
+/**
+ * How the last attempt to load this session's history ended. The Messages view
+ * renders from this, never from `events.length`: an empty array is produced by
+ * a load in flight, a failed request, an unreadable transcript, and a genuinely
+ * new session, and those need four different answers.
+ */
+export type ConversationLoadStatus = "unloaded" | "loading" | "loaded" | "failed";
+
+export interface ConversationLoadError {
+  /** Message safe to show a user. */
+  message: string;
+  /** Connect code or "network" — drives copy selection, not display. */
+  code: string;
+  /** False for faults retrying cannot fix, e.g. an unknown session. */
+  retryable: boolean;
+}
+
+export type SessionConversationState = {
   events: ConversationEvent[];
   cursor: ConversationCursor;
   hydrated: boolean;
@@ -15,6 +34,10 @@ type SessionConversationState = {
   windowOldestSequence?: number;
   hasOlder?: boolean;
   totalCount?: number;
+  /** The server's explanation for the event list. */
+  capture: MessageCaptureStatus;
+  status: ConversationLoadStatus;
+  error?: ConversationLoadError;
 };
 
 interface ConversationStoreState {
@@ -22,17 +45,31 @@ interface ConversationStoreState {
   viewModes: Record<string, PaneViewMode>;
 }
 
+/** Paging metadata that accompanies a windowed fetch. */
+export interface ConversationPage {
+  oldestSequence: number;
+  hasOlder: boolean;
+  totalCount: number;
+  capture?: MessageCaptureStatus;
+}
+
 interface ConversationStoreActions {
-  hydrateSession: (sessionId: string, events: ConversationEvent[], cursor: ConversationCursor, page?: { oldestSequence: number; hasOlder: boolean; totalCount: number }) => void;
-  setSessionWindow: (sessionId: string, events: ConversationEvent[], cursor: ConversationCursor, page: { oldestSequence: number; hasOlder: boolean; totalCount: number }) => void;
-  prependEvents: (sessionId: string, events: ConversationEvent[], page: { oldestSequence: number; hasOlder: boolean; totalCount: number }) => void;
+  hydrateSession: (sessionId: string, events: ConversationEvent[], cursor: ConversationCursor, page?: ConversationPage) => void;
+  /** Marks a load in flight so the view can show progress instead of emptiness. */
+  beginLoad: (sessionId: string) => void;
+  /** Records a failed load. The previously loaded events, if any, are kept. */
+  failLoad: (sessionId: string, error: ConversationLoadError) => void;
+  /** Stores a fresh capture diagnosis without touching events. */
+  setCapture: (sessionId: string, capture: MessageCaptureStatus) => void;
+  setSessionWindow: (sessionId: string, events: ConversationEvent[], cursor: ConversationCursor, page: ConversationPage) => void;
+  prependEvents: (sessionId: string, events: ConversationEvent[], page: ConversationPage) => void;
   appendEvent: (event: ConversationEvent) => void;
   /**
    * Merge a batch of events into a session, skipping any whose id already
    * exists. Used by reconnect / view-open / out-of-sync refresh paths to
    * fill gaps without disturbing the tail the live WS already delivered.
    */
-  mergeEvents: (sessionId: string, events: ConversationEvent[], cursor?: ConversationCursor) => void;
+  mergeEvents: (sessionId: string, events: ConversationEvent[], cursor?: ConversationCursor, capture?: MessageCaptureStatus) => void;
   /** Merge updated fields (e.g. summarization) into an existing event by ID. */
   updateEvent: (sessionId: string, eventId: string, patch: { speechParagraphs?: string[]; originalSpeechParagraphs?: string[]; summarized?: boolean }) => void;
   updateCursor: (sessionId: string, cursor: Partial<ConversationCursor>) => void;
@@ -43,6 +80,22 @@ interface ConversationStoreActions {
 const defaultCursor = (): ConversationCursor => ({
   lastSeenSequence: 0,
   lastListenedSequence: 0,
+});
+
+// Every site that lazily creates a session must produce the same shape;
+// spreading this keeps a partially-initialized session from reaching the view
+// with an undefined status and rendering as "loaded and empty". Exported so
+// tests seeding the store cannot drift from the real shape either.
+export const createConversationSessionState = (
+  overrides: Partial<SessionConversationState> = {},
+): SessionConversationState => ({ ...blankSession(), ...overrides });
+
+const blankSession = (): SessionConversationState => ({
+  events: [],
+  cursor: defaultCursor(),
+  hydrated: true,
+  capture: UNKNOWN_CAPTURE,
+  status: "loaded",
 });
 
 // Shared frozen empty array so selectors for sessions with no events return a
@@ -82,11 +135,12 @@ export const useConversationStore = create<ConversationStoreState & Conversation
     // sequence gap (refresh uses max offset as since_sequence and never
     // backfills lower events). See useConversationSession mount effect.
     const existing = state.sessions[sessionId];
+    const capture = page?.capture ?? existing?.capture ?? UNKNOWN_CAPTURE;
     if (!existing || existing.events.length === 0) {
       return {
         sessions: {
           ...state.sessions,
-          [sessionId]: { events, cursor, hydrated: true, ...sessionMetadata(events, cursor), windowOldestSequence: page?.oldestSequence, hasOlder: page?.hasOlder, totalCount: page?.totalCount },
+          [sessionId]: { events, cursor, hydrated: true, ...sessionMetadata(events, cursor), windowOldestSequence: page?.oldestSequence, hasOlder: page?.hasOlder, totalCount: page?.totalCount, capture, status: "loaded", error: undefined },
         },
       };
     }
@@ -98,9 +152,42 @@ export const useConversationStore = create<ConversationStoreState & Conversation
     return {
       sessions: {
         ...state.sessions,
-        [sessionId]: { events: merged, cursor, hydrated: true, ...sessionMetadata(merged, cursor), windowOldestSequence: page?.oldestSequence, hasOlder: page?.hasOlder, totalCount: page?.totalCount },
+        [sessionId]: { events: merged, cursor, hydrated: true, ...sessionMetadata(merged, cursor), windowOldestSequence: page?.oldestSequence, hasOlder: page?.hasOlder, totalCount: page?.totalCount, capture, status: "loaded", error: undefined },
       },
     };
+  }),
+
+  beginLoad: (sessionId) => set((state) => {
+    const existing = state.sessions[sessionId];
+    // A reload of an already-loaded session keeps rendering its events; only a
+    // session with nothing on screen shows a loading state.
+    return {
+      sessions: {
+        ...state.sessions,
+        [sessionId]: existing
+          ? { ...existing, status: "loading", error: undefined }
+          : { ...blankSession(), hydrated: false, status: "loading" },
+      },
+    };
+  }),
+
+  failLoad: (sessionId, error) => set((state) => {
+    const existing = state.sessions[sessionId] ?? { ...blankSession(), hydrated: false };
+    return {
+      sessions: {
+        ...state.sessions,
+        [sessionId]: { ...existing, status: "failed", error },
+      },
+    };
+  }),
+
+  setCapture: (sessionId, capture) => set((state) => {
+    const existing = state.sessions[sessionId];
+    if (!existing) {
+      return { sessions: { ...state.sessions, [sessionId]: { ...blankSession(), hydrated: false, status: "unloaded", capture } } };
+    }
+    if (existing.capture === capture) return state;
+    return { sessions: { ...state.sessions, [sessionId]: { ...existing, capture } } };
   }),
 
   setSessionWindow: (sessionId, events, cursor, page) => set((state) => ({
@@ -114,12 +201,15 @@ export const useConversationStore = create<ConversationStoreState & Conversation
         windowOldestSequence: page.oldestSequence,
         hasOlder: page.hasOlder,
         totalCount: page.totalCount,
+        capture: page.capture ?? state.sessions[sessionId]?.capture ?? UNKNOWN_CAPTURE,
+        status: "loaded",
+        error: undefined,
       },
     },
   })),
 
   prependEvents: (sessionId, incoming, page) => set((state) => {
-    const existing = state.sessions[sessionId] ?? { events: [], cursor: defaultCursor(), hydrated: true };
+    const existing = state.sessions[sessionId] ?? blankSession();
     const known = existing.knownEventIds ?? new Set(existing.events.map((event) => event.id));
     const added = incoming.filter((event) => !known.has(event.id));
     const events = added.length > 0 ? [...added, ...existing.events].sort((a, b) => a.sequence - b.sequence) : existing.events;
@@ -127,7 +217,7 @@ export const useConversationStore = create<ConversationStoreState & Conversation
   }),
 
   appendEvent: (event) => set((state) => {
-    const existing = state.sessions[event.sessionId] ?? { events: [], cursor: defaultCursor(), hydrated: true };
+    const existing = state.sessions[event.sessionId] ?? blankSession();
     const knownEventIds = existing.knownEventIds ?? new Set(existing.events.map((candidate) => candidate.id));
     if (knownEventIds.has(event.id)) {
       return state;
@@ -150,15 +240,15 @@ export const useConversationStore = create<ConversationStoreState & Conversation
     };
   }),
 
-  mergeEvents: (sessionId, incoming, cursor) => set((state) => {
-    const existing = state.sessions[sessionId] ?? { events: [], cursor: defaultCursor(), hydrated: true };
-    if (incoming.length === 0 && !cursor) {
+  mergeEvents: (sessionId, incoming, cursor, capture) => set((state) => {
+    const existing = state.sessions[sessionId] ?? blankSession();
+    if (incoming.length === 0 && !cursor && !capture) {
       // Still mark hydrated so UI stops showing "not loaded" states.
-      if (existing.hydrated) return state;
+      if (existing.hydrated && existing.status === "loaded") return state;
       return {
         sessions: {
           ...state.sessions,
-          [sessionId]: { ...existing, hydrated: true },
+          [sessionId]: { ...existing, hydrated: true, status: "loaded", error: undefined },
         },
       };
     }
@@ -170,10 +260,19 @@ export const useConversationStore = create<ConversationStoreState & Conversation
     return {
       sessions: {
         ...state.sessions,
+        // Spreading `existing` is load-bearing, not tidiness. Rebuilding the
+        // session from scratch here dropped windowOldestSequence/hasOlder/
+        // totalCount on every merge, and because the pane refreshes on mount
+        // and on every window focus, "load older messages" stopped working
+        // almost immediately and stayed broken.
         [sessionId]: {
+          ...existing,
           events: merged,
           cursor: cursor ?? existing.cursor,
           hydrated: true,
+          status: "loaded",
+          error: undefined,
+          capture: capture ?? existing.capture,
           ...sessionMetadata(merged, cursor ?? existing.cursor),
         },
       },
@@ -201,7 +300,7 @@ export const useConversationStore = create<ConversationStoreState & Conversation
   }),
 
   updateCursor: (sessionId, cursor) => set((state) => {
-    const existing = state.sessions[sessionId] ?? { events: [], cursor: defaultCursor(), hydrated: true };
+    const existing = state.sessions[sessionId] ?? blankSession();
     return {
       sessions: {
         ...state.sessions,
@@ -238,6 +337,63 @@ export const useConversationStore = create<ConversationStoreState & Conversation
 
 export function getSessionConversationEvents(state: ConversationStoreState, sessionId: string): ConversationEvent[] {
   return state.sessions[sessionId]?.events ?? (EMPTY_EVENTS as ConversationEvent[]);
+}
+
+/**
+ * What the Messages view should render, resolved in one place.
+ *
+ * "messages"     — there is history to show.
+ * "loading"      — a first load is in flight; show progress, never emptiness.
+ * "failed"       — the request did not complete; retryable.
+ * "unavailable"  — the server can't capture this session's messages; has a cause.
+ * "not-applicable" — no agent runs here, so there is nothing to capture.
+ * "empty"        — capture works and nobody has said anything yet.
+ *
+ * The ordering below is the whole point: every condition that explains an empty
+ * list is checked before falling through to "empty". Previously the view tested
+ * `events.length === 0` first, so all six of these rendered the same sentence.
+ */
+export type ConversationViewState =
+  | { kind: "messages" }
+  | { kind: "loading" }
+  | { kind: "failed"; error: ConversationLoadError }
+  | { kind: "unavailable"; capture: MessageCaptureStatus }
+  | { kind: "not-applicable"; capture: MessageCaptureStatus }
+  | { kind: "empty"; capture: MessageCaptureStatus };
+
+const LOADING_VIEW: ConversationViewState = { kind: "loading" };
+const MESSAGES_VIEW: ConversationViewState = { kind: "messages" };
+
+/**
+ * resolveConversationView is a pure function of one session slice rather than a
+ * store selector, because three of its results allocate. Subscribing to a
+ * selector that returns a fresh object on every call defeats Zustand's Object.is
+ * short-circuit and re-renders the pane on every unrelated store write; callers
+ * subscribe to the slice (which is referentially stable) and memoize this.
+ */
+export function resolveConversationView(session: SessionConversationState | undefined): ConversationViewState {
+  if (!session) return LOADING_VIEW;
+  if (session.events.length > 0) return MESSAGES_VIEW;
+  if (session.status === "loading" || session.status === "unloaded") return LOADING_VIEW;
+  if (session.status === "failed" && session.error) return { kind: "failed", error: session.error };
+  const capture = session.capture ?? UNKNOWN_CAPTURE;
+  if (capture.state === "unavailable") return { kind: "unavailable", capture };
+  if (capture.state === "not_applicable") return { kind: "not-applicable", capture };
+  return { kind: "empty", capture };
+}
+
+/** Referentially-stable slice selector; pair with resolveConversationView. */
+export function getSessionSlice(state: ConversationStoreState, sessionId: string): SessionConversationState | undefined {
+  return state.sessions[sessionId];
+}
+
+/** Convenience for tests and non-render callers. */
+export function getSessionConversationView(state: ConversationStoreState, sessionId: string): ConversationViewState {
+  return resolveConversationView(state.sessions[sessionId]);
+}
+
+export function getSessionCapture(state: ConversationStoreState, sessionId: string): MessageCaptureStatus {
+  return state.sessions[sessionId]?.capture ?? UNKNOWN_CAPTURE;
 }
 
 export function getSessionConversationCursor(state: ConversationStoreState, sessionId: string): ConversationCursor {

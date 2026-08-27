@@ -147,12 +147,11 @@ maximum refresh while a client is connected.
 terminal wire protocol is JSON-over-WebSocket while Bridge sessions are binary
 protobuf-over-WebSocket. The browser receives only target readiness facts and
 a short-lived web-console session ID; Bridge owner and re-authentication tokens
-remain server-side. An enrolled local operator session is preferred, while
-`WEB_CONSOLE_BRIDGE_*` values remain an explicit compatibility fallback. The
-adapter translates stdin sequence numbers, stdout, resize, acknowledgements,
-launch commands, and close events. A target is unavailable unless the Bridge
-URL and either an enrolled local operator session or the fallback credentials
-are available and the URL is valid.
+remain server-side. An enrolled local operator session is preferred, and the
+shared `nodeclient` owns per-request Bridge discovery, authentication, and
+stream setup. The adapter translates stdin sequence numbers, stdout, resize,
+acknowledgements, launch commands, and close events. A target is unavailable
+when its shared readiness facts or server-side operator authorization fail.
 
 ### 1. Entry / Presentation
 **Owner**: `ui/src/components/`

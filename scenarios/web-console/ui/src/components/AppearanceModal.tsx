@@ -11,8 +11,8 @@ import { DEFAULT_THEME_ID } from "../consts/config";
 import { cn } from "../lib/classnames";
 import { strings } from "../consts/strings";
 import { Button } from "./ui/button";
-import { ConfirmDialog } from "./ConfirmDialog";
-import { DrawerShell } from "@vrooli/react-component-library/DrawerShell/1.0.0";
+import { AlertDialog } from "@vrooli/react-component-library/AlertDialog/2";
+import { ResponsiveDialog } from "@vrooli/react-component-library/ResponsiveDialog/1";
 import { SettingsCard } from "./settings/primitives";
 import AppearancePreview from "./appearance/AppearancePreview";
 import HeaderColorPicker from "./appearance/HeaderColorPicker";
@@ -168,13 +168,13 @@ export default function AppearanceModal() {
     : null;
 
   return (
-    <DrawerShell
+    <ResponsiveDialog
       open
       onClose={close}
-      size="compact"
-      closeAriaLabel={t(strings.appearance.closeAriaLabel)}
+      size="md"
+      closeLabel={t(strings.appearance.closeAriaLabel)}
       title={t(strings.appearance.title)}
-      panelTestId="appearance-modal"
+      testId="appearance-modal"
     >
       <div className="h-full space-y-4 overflow-y-auto p-4">
         <section>
@@ -296,10 +296,10 @@ export default function AppearanceModal() {
         </SettingsCard>
       </div>
 
-      <ConfirmDialog
+      <AlertDialog
         open={confirmOpen}
         title={t(strings.appearance.applySection.confirmTitle)}
-        body={t(strings.appearance.applySection.confirmBody, {
+        description={t(strings.appearance.applySection.confirmBody, {
           count: otherPaneIds.length,
           properties: propertyList.map((prop) => propertyLabels[prop]).join(", "),
         })}
@@ -311,6 +311,6 @@ export default function AppearanceModal() {
         }}
         testIdPrefix="appearance-apply"
       />
-    </DrawerShell>
+    </ResponsiveDialog>
   );
 }

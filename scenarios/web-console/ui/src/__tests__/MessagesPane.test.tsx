@@ -3,19 +3,20 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { act, screen, fireEvent, waitFor } from "@testing-library/react";
 import MessagesPane from "../components/MessagesPane";
 import { strings } from "../consts/strings";
-import { useConversationStore } from "../stores/useConversationStore";
+import { useConversationStore, createConversationSessionState } from "../stores/useConversationStore";
 import { useWorkspaceStore } from "../stores/useWorkspaceStore";
 import type { ConversationEvent } from "../api/conversation";
 import type { TTSPlaybackState } from "../audio-integration";
 import { makeConversationEvents } from "./fixtures/conversationFixture";
 
-const { mockLoadOlderConversationPage, mockLoadConversationPageContaining } = vi.hoisted(() => ({
+const { mockLoadOlderConversationPage, mockLoadConversationPageContaining, mockRefreshConversationSession } = vi.hoisted(() => ({
   mockLoadOlderConversationPage: vi.fn().mockResolvedValue(false),
   mockLoadConversationPageContaining: vi.fn().mockResolvedValue(false),
+  mockRefreshConversationSession: vi.fn().mockResolvedValue({ ok: true, addedEvents: 0 }),
 }));
 
 vi.mock("../hooks/useConversationSession", () => ({
-  refreshConversationSession: vi.fn().mockResolvedValue(undefined),
+  refreshConversationSession: mockRefreshConversationSession,
   loadOlderConversationPage: mockLoadOlderConversationPage,
   loadConversationPageContaining: mockLoadConversationPageContaining,
 }));
@@ -167,11 +168,11 @@ describe("MessagesPane", () => {
   function seedEvents(events: ConversationEvent[]) {
     useConversationStore.setState({
       sessions: {
-        "sess-1": {
+        "sess-1": createConversationSessionState({
           events,
           cursor: { lastSeenSequence: 0, lastListenedSequence: 0 },
           hydrated: true,
-        },
+        }),
       },
     });
   }
@@ -274,7 +275,55 @@ describe("MessagesPane", () => {
     render(<MessagesPane {...defaultProps} />);
 
     expect(screen.queryByTestId(/msg-speak-/)).toBeNull();
-    expect(screen.getByText(strings.messagesPane.noEvents)).toBeInTheDocument();
+    // A seeded session with a healthy capture status and no events is the one
+    // case that genuinely means "nothing said yet".
+    expect(screen.getByTestId("messages-state-empty")).toBeInTheDocument();
+    expect(screen.getByText(strings.messagesPane.state.emptyTitle)).toBeInTheDocument();
+  });
+
+  describe("refresh feedback", () => {
+    // The complaint this answers: pressing refresh appeared to do nothing.
+    // The request was firing; the pane simply never said what came back, so a
+    // successful no-op and an outright failure both looked like a dead button.
+    beforeEach(() => {
+      mockRefreshConversationSession.mockReset();
+      mockRefreshConversationSession.mockResolvedValue({ ok: true, addedEvents: 0 });
+    });
+
+    it("says it is up to date when a refresh returns nothing new", async () => {
+      seedEvents([makeEvent({ id: "e1", sequence: 1, text: "hi" })]);
+      render(<MessagesPane {...defaultProps} />);
+
+      fireEvent.click(screen.getByTestId("messages-refresh-btn"));
+
+      await waitFor(() => expect(screen.getByTestId("messages-status-line")).toBeInTheDocument());
+      expect(screen.getByTestId("messages-status-line")).toHaveTextContent(strings.messagesPane.refreshUpToDate);
+    });
+
+    it("reports how many messages a refresh brought in", async () => {
+      seedEvents([makeEvent({ id: "e1", sequence: 1, text: "hi" })]);
+      mockRefreshConversationSession.mockResolvedValue({ ok: true, addedEvents: 3 });
+      render(<MessagesPane {...defaultProps} />);
+
+      fireEvent.click(screen.getByTestId("messages-refresh-btn"));
+
+      await waitFor(() => expect(screen.getByTestId("messages-status-line")).toBeInTheDocument());
+      expect(screen.getByTestId("messages-status-line")).toHaveTextContent(strings.messagesPane.refreshAdded);
+    });
+
+    it("surfaces a failed refresh instead of stopping the spinner silently", async () => {
+      seedEvents([makeEvent({ id: "e1", sequence: 1, text: "hi" })]);
+      mockRefreshConversationSession.mockResolvedValue({
+        ok: false,
+        error: { message: "Web Console couldn't reach the server.", code: "unavailable", retryable: true },
+      });
+      render(<MessagesPane {...defaultProps} />);
+
+      fireEvent.click(screen.getByTestId("messages-refresh-btn"));
+
+      await waitFor(() => expect(screen.getByTestId("messages-status-line")).toBeInTheDocument());
+      expect(screen.getByTestId("messages-status-line")).toHaveTextContent("Web Console couldn't reach the server.");
+    });
   });
 
   it("user messages have no TTS controls", () => {

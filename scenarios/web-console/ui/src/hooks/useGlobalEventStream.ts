@@ -3,6 +3,7 @@ import type { ConversationEvent } from "../api/conversation";
 import { API_BASE_WITH_SUFFIX } from "../api/client";
 import { coerceOriginName, type BackendID, type SessionInfo } from "../api/sessions";
 import { useConversationStore } from "../stores/useConversationStore";
+import { useLiveStreamStore } from "../stores/useLiveStreamStore";
 import { refreshConversationSession } from "./useConversationSession";
 
 /**
@@ -120,6 +121,11 @@ export function buildEventStreamUrl(): string {
 
 const SEEN_ID_LIMIT = 4096;
 
+// Backoff for the reconnects this hook owns. EventSource handles its own
+// retries while CONNECTING; these cover the CLOSED case, where it does not.
+const RECONNECT_BASE_DELAY_MS = 1000;
+const RECONNECT_MAX_DELAY_MS = 30_000;
+
 /**
  * dispatchGlobalEvent applies one parsed envelope to the conversation store.
  * Exported for unit tests (feed synthetic envelopes incl. replayed overlaps and
@@ -214,9 +220,10 @@ export function useGlobalEventStream(options: UseGlobalEventStreamOptions = {}):
     if (typeof EventSource === "undefined" && !createEventSource) return;
 
     const url = buildEventStreamUrl();
-    const source = createEventSource ? createEventSource(url) : new EventSource(url);
+    const { setStatus } = useLiveStreamStore.getState();
 
-    // Dedupe by monotonic global id across reconnect replays.
+    // Dedupe by monotonic global id across reconnect replays. Shared across
+    // reconnects so a replayed backlog is not re-applied after every drop.
     const seen = new Set<number>();
     const order: number[] = [];
     const markSeen = (id: number): boolean => {
@@ -250,15 +257,90 @@ export function useGlobalEventStream(options: UseGlobalEventStreamOptions = {}):
       "conversation_out_of_sync",
       "session_status",
     ] as const;
-    for (const kind of kinds) source.addEventListener(kind, handle as EventListener);
-    source.onerror = (event) => {
-      console.warn("[web-console] global event stream error", { url, event });
-    };
 
-    return () => {
+    let source: EventSource | null = null;
+    let retryTimer: ReturnType<typeof setTimeout> | null = null;
+    let attempt = 0;
+    let disposed = false;
+
+    const teardown = () => {
+      if (!source) return;
       for (const kind of kinds) source.removeEventListener(kind, handle as EventListener);
+      source.onopen = null;
       source.onerror = null;
       source.close();
+      source = null;
+    };
+
+    const scheduleReconnect = () => {
+      if (disposed || retryTimer) return;
+      // EventSource retries on its own only while it is CONNECTING. Once it
+      // reaches CLOSED it has given up permanently, and before this existed
+      // nothing ever reopened it: live updates stayed dead until the page was
+      // reloaded. That is the "I have to leave the view and come back" symptom.
+      const delay = Math.min(RECONNECT_BASE_DELAY_MS * 2 ** attempt, RECONNECT_MAX_DELAY_MS);
+      attempt += 1;
+      retryTimer = setTimeout(() => {
+        retryTimer = null;
+        connect();
+      }, delay);
+    };
+
+    function connect(): void {
+      if (disposed) return;
+      teardown();
+      const next = createEventSource ? createEventSource(url) : new EventSource(url);
+      source = next;
+      for (const kind of kinds) next.addEventListener(kind, handle as EventListener);
+
+      next.onopen = () => {
+        attempt = 0;
+        setStatus("open");
+        // A reconnect may have missed events entirely. Refetching every tracked
+        // session is the same repair the server's out-of-sync notice triggers,
+        // applied to the case where the notice itself was what we missed. Each
+        // refetch is gap-aware, so this is cheap when nothing was missed.
+        for (const id of Object.keys(useConversationStore.getState().sessions)) {
+          void refreshConversationSession(id);
+        }
+      };
+
+      next.onerror = () => {
+        if (disposed) return;
+        // readyState CLOSED (2) means the browser has stopped trying; anything
+        // else means it is still retrying on its own and we must not stack a
+        // second connection on top of it.
+        setStatus("reconnecting");
+        if (next.readyState === 2) scheduleReconnect();
+      };
+    }
+
+    // Mobile browsers suspend background connections aggressively and do not
+    // always resume them. Re-checking on foreground turns a silently dead
+    // stream into a reconnect the moment the user looks at the page again.
+    const onVisible = () => {
+      if (document.hidden || disposed) return;
+      if (useLiveStreamStore.getState().status === "open") return;
+      if (retryTimer) {
+        clearTimeout(retryTimer);
+        retryTimer = null;
+      }
+      attempt = 0;
+      connect();
+    };
+
+    setStatus("connecting");
+    connect();
+    document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("online", onVisible);
+
+    return () => {
+      disposed = true;
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("online", onVisible);
+      if (retryTimer) clearTimeout(retryTimer);
+      teardown();
+      useLiveStreamStore.getState().setStatus("closed");
     };
   }, [createEventSource]);
 }

@@ -2,8 +2,8 @@
 // DOC: docs/internal/SEAMS.md#axis-2-toolbar-keys-key-combos-p0-007
 import { useCallback, useDeferredValue, useMemo, useRef, useState, useEffect, forwardRef, useImperativeHandle, type ReactNode } from "react";
 import { Loader2, Maximize2, SendHorizontal } from "lucide-react";
-import { IconButton } from "@vrooli/react-component-library/IconButton/2.0.0";
-import { Textarea } from "@vrooli/react-component-library/Textarea/1.0.1";
+import { IconButton } from "@vrooli/react-component-library/IconButton/2/2.0.1";
+import { Textarea } from "@vrooli/react-component-library/Textarea/1";
 import { useTranslation } from "react-i18next";
 import { ENTER_KEY, type ToolbarKey, applyModifiers } from "../consts/toolbar-keys";
 import { strings } from "../consts/strings";

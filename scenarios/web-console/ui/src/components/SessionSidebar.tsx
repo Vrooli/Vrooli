@@ -8,11 +8,10 @@ import type { OriginBucketNavigation } from "../lib/workspaceNavigation";
 import type { SidebarOriginTab } from "../stores/useWorkspaceStore";
 import { useLongPress } from "../hooks/useLongPress";
 import { usePressGesture } from "../hooks/usePressGesture";
-import { useResizablePanel } from "../hooks/useResizablePanel";
 import { useWorkspaceStore } from "../stores/useWorkspaceStore";
 import { useWorkspaceSync } from "../hooks/useWorkspaceSync";
 import { useGroupActions } from "../hooks/useGroupActions";
-import { useEscapeKey } from "@vrooli/react-component-library/useEscapeKey/1.0.0";
+import { SidebarShell } from "@vrooli/react-component-library/SidebarShell/2";
 import { Button } from "./ui/button";
 import TabContextMenu from "./TabContextMenu";
 import GroupContextMenu from "./GroupContextMenu";
@@ -76,7 +75,7 @@ export default function SessionSidebar({
   onOpenArchiveDrawer,
 }: SessionSidebarProps) {
   const { t } = useTranslation();
-  const sidebarRef = useRef<HTMLElement>(null);
+  const sidebarRef = useRef<HTMLDivElement>(null);
   const tabContextMenu = useWorkspaceStore((s) => s.tabContextMenu);
   const setTabContextMenu = useWorkspaceStore((s) => s.setTabContextMenu);
   const groups = useWorkspaceStore((s) => s.groups);
@@ -143,17 +142,6 @@ export default function SessionSidebar({
     .slice(0, 20)
     .filter((session) => !session.awaiting_recovery)
     .filter((session) => session.pane_name.toLocaleLowerCase().includes(archiveFilter.trim().toLocaleLowerCase()));
-
-  const { size, isResizing, resizeHandleProps } = useResizablePanel({
-    containerRef,
-    targetRef: sidebarRef,
-    minSize: 240,
-    maxSize: 520,
-    defaultSize: 300,
-    adjacentMinSize: 420,
-    handleWidth: 12,
-    storageKey: "web-console.sidebar.width.v1",
-  });
 
   const handleSidebarNewTerminal = useCallback(() => {
     onNewTerminal();
@@ -272,8 +260,6 @@ export default function SessionSidebar({
       openContextMenu(sessionId, point.x, point.y);
     },
   });
-
-  useEscapeKey(mobileOpen, onCloseMobile);
 
   const sidebarContent = (
     <>
@@ -653,43 +639,42 @@ export default function SessionSidebar({
 
   return (
     <>
-      {!isMobile && (
-        <aside
-          ref={sidebarRef}
-          data-testid="workspace-sidebar-shell"
-          className={cn(
-            "wc-chrome-surface wc-chrome-fg relative hidden shrink-0 flex-col border-e border-wc-default ps-[var(--wc-safe-left,0px)] md:flex",
-            isResizing && "select-none",
-          )}
-          style={{ width: size }}
-        >
-          {sidebarContent}
-          <div
-            data-testid="workspace-sidebar-resize-handle"
-            className="absolute end-[-6px] top-0 z-wc-chrome-raised h-full w-3 cursor-col-resize"
-            {...resizeHandleProps}
-          >
-            <div className="mx-auto h-full w-px bg-transparent transition-colors hover:bg-wc-accent" />
-          </div>
-        </aside>
-      )}
-
-      {isMobile && mobileOpen && (
-        <div className="fixed inset-0 z-wc-drawer md:hidden" role="dialog" aria-modal="true" aria-label={t(strings.sessionSidebar.title)}>
-          <button
-            data-testid="workspace-sidebar-backdrop"
-            className="absolute inset-0 bg-black/55"
-            onClick={onCloseMobile}
-            aria-label={t(strings.sessionSidebar.close)}
-          />
-          <aside
-            data-testid="workspace-sidebar-shell"
-            className="wc-chrome-surface wc-chrome-fg absolute inset-y-0 start-0 flex w-[min(22rem,calc(100%_-_2rem))] flex-col border-e border-wc-default pt-[var(--wc-safe-top,0px)] ps-[var(--wc-safe-left,0px)] shadow-xl"
-          >
-            {sidebarContent}
-          </aside>
-        </div>
-      )}
+      {/* One shell for both the desktop panel and the mobile drawer. The
+          drawer chrome stays in `sidebarContent` — its close control lives in
+          the topbar row rather than in a header of its own — so the shell is
+          asked for positioning, backdrop, dialog semantics and Escape only. */}
+      <SidebarShell
+        ref={sidebarRef}
+        mode={isMobile ? "overlay" : "persistent"}
+        mobileChrome="content"
+        testId="workspace-sidebar"
+        mobileOpen={mobileOpen}
+        onMobileClose={onCloseMobile}
+        mobileLabel={t(strings.sessionSidebar.title)}
+        desktopLabel={t(strings.sessionSidebar.title)}
+        closeLabel={t(strings.sessionSidebar.close)}
+        className={cn(
+          "wc-chrome-surface wc-chrome-fg flex flex-col border-e border-wc-default pt-[var(--wc-safe-top,0px)] ps-[var(--wc-safe-left,0px)]",
+          isMobile ? "z-wc-drawer w-[min(22rem,calc(100%_-_2rem))] shadow-xl" : "shrink-0",
+        )}
+        contentClassName="flex flex-col"
+        backdropClassName="fixed inset-0 z-wc-drawer bg-black/55"
+        resizable={
+          isMobile
+            ? undefined
+            : {
+                containerRef,
+                min: 240,
+                max: 520,
+                defaultSize: 300,
+                adjacentMin: 420,
+                storageKey: "web-console.sidebar.width.v1",
+                panelName: t(strings.sessionSidebar.title),
+              }
+        }
+      >
+        {sidebarContent}
+      </SidebarShell>
 
       {tabContextMenu && (() => {
         const paneItem = paneItems.find((item) => item.pane.sessionId === tabContextMenu.sessionId);

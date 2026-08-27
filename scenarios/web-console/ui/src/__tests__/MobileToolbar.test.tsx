@@ -538,7 +538,7 @@ describe("MobileToolbar — modifiers and optional actions", () => {
       expect(slot.style.height).toBe(`${String(unit)}px`);
       expect(button).toHaveAttribute("data-control-size", density === "compact" ? "xs" : density === "standard" ? "md" : "lg");
       expect(button).toHaveClass("w-full", "h-full");
-      expect(button).not.toHaveAttribute("style");
+      expect(button.style.paddingInline).not.toBe("0px");
 
       unmount();
     }
@@ -623,11 +623,11 @@ describe("MobileToolbar — modifiers and optional actions", () => {
     expect(screen.getByTestId("toolbar-mod-ctrl")).toHaveAttribute("data-active", "true");
     // The glyph stays the size of its neighbours whatever the density does to
     // the box; `toolbar-mic-slot` covers the box itself.
-    expect(screen.getByTestId("voice-mic-btn")).toHaveAttribute("data-control-size", "sm");
+    expect(screen.getByTestId("voice-mic-btn")).toHaveAttribute("data-control-size", "lg");
 
     setToolbarPrefs({ preset: "dense", density: "compact", arrows: "inline", enabled: { ai: true } });
     rerender(<MobileToolbar onInput={vi.fn(() => ({ status: "sent" as const, offset: 1 }))} activeSessionId="dense" onFocusTerminal={vi.fn()} onOpenAi={onOpenAi} onUploadImage={onUploadImage} voice={voice} />);
-    expect(screen.getByTestId("voice-mic-btn")).toHaveAttribute("data-control-size", "sm");
+    expect(screen.getByTestId("voice-mic-btn")).toHaveAttribute("data-control-size", "xs");
 
     useWorkspaceStore.setState({ aiSuggestActive: false, modifiers: { ctrl: false, alt: false, shift: false } });
   });

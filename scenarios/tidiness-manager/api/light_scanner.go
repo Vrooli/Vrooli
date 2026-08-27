@@ -14,22 +14,25 @@ import (
 	"time"
 
 	"github.com/vrooli/api-core/pathfilter"
+	repocontract "github.com/vrooli/repo-contract-go"
 )
 
 // LightScanner performs fast static analysis using Makefile integration
 type LightScanner struct {
 	scenarioPath string
 	timeout      time.Duration
+	excludes     []string
 }
 
 // NewLightScanner creates a scanner for the specified scenario directory
-func NewLightScanner(scenarioPath string, timeout time.Duration) *LightScanner {
+func NewLightScanner(scenarioPath string, timeout time.Duration, excludes ...string) *LightScanner {
 	if timeout == 0 {
 		timeout = 120 * time.Second // Default 2 minutes
 	}
 	return &LightScanner{
 		scenarioPath: scenarioPath,
 		timeout:      timeout,
+		excludes:     append([]string(nil), excludes...),
 	}
 }
 
@@ -191,29 +194,37 @@ func (ls *LightScanner) collectLanguageMetrics(ctx context.Context) (map[Languag
 	result := make(map[Language]*LanguageMetrics)
 
 	for lang, langInfo := range languages {
+		files := ls.filterExcludedFiles(langInfo.Files)
+		if len(files) == 0 {
+			continue
+		}
 		metrics := &LanguageMetrics{
-			Language:   lang,
-			FileCount:  langInfo.FileCount,
-			TotalLines: langInfo.TotalLines,
+			Language:  lang,
+			FileCount: len(files),
+		}
+		for _, file := range files {
+			if lines, err := countLines(filepath.Join(ls.scenarioPath, file)); err == nil {
+				metrics.TotalLines += lines
+			}
 		}
 
 		// Run code metrics (TODOs, imports, functions) - always available
 		codeMetricsAnalyzer := NewCodeMetricsAnalyzer(ls.scenarioPath)
-		codeMetrics, err := codeMetricsAnalyzer.AnalyzeFiles(langInfo.Files, lang)
+		codeMetrics, err := codeMetricsAnalyzer.AnalyzeFiles(files, lang)
 		if err == nil {
 			metrics.CodeMetrics = codeMetrics
 		}
 
 		// Run complexity analysis (requires external tools)
 		complexityAnalyzer := NewComplexityAnalyzer(ls.scenarioPath, ls.timeout)
-		complexity, err := complexityAnalyzer.AnalyzeComplexity(ctx, lang, langInfo.Files)
+		complexity, err := complexityAnalyzer.AnalyzeComplexity(ctx, lang, files)
 		if err == nil {
 			metrics.Complexity = complexity
 		}
 
 		// Run duplication detection (requires external tools)
 		duplicationDetector := NewDuplicationDetector(ls.scenarioPath, ls.timeout)
-		duplicates, err := duplicationDetector.DetectDuplication(ctx, lang, langInfo.Files)
+		duplicates, err := duplicationDetector.DetectDuplication(ctx, lang, files)
 		if err == nil {
 			metrics.Duplicates = duplicates
 		}
@@ -350,6 +361,15 @@ func (ls *LightScanner) collectFileMetrics() ([]FileMetric, error) {
 				if pathfilter.SkipDir(info.Name()) {
 					return filepath.SkipDir
 				}
+				relPath, _ := filepath.Rel(ls.scenarioPath, path)
+				if ls.isExcluded(relPath) {
+					return filepath.SkipDir
+				}
+				return nil
+			}
+
+			relPath, _ := filepath.Rel(ls.scenarioPath, path)
+			if ls.isExcluded(relPath) {
 				return nil
 			}
 
@@ -363,7 +383,6 @@ func (ls *LightScanner) collectFileMetrics() ([]FileMetric, error) {
 				return nil // Skip files we can't read
 			}
 
-			relPath, _ := filepath.Rel(ls.scenarioPath, path)
 			metrics = append(metrics, FileMetric{
 				Path:      relPath,
 				Lines:     lines,
@@ -466,6 +485,15 @@ func (ls *LightScanner) scanSourceDirs(previousScans map[string]time.Time) ([]Fi
 				if pathfilter.SkipDir(info.Name()) {
 					return filepath.SkipDir
 				}
+				relPath, _ := filepath.Rel(ls.scenarioPath, path)
+				if ls.isExcluded(relPath) {
+					return filepath.SkipDir
+				}
+				return nil
+			}
+
+			relPath, _ := filepath.Rel(ls.scenarioPath, path)
+			if ls.isExcluded(relPath) {
 				return nil
 			}
 
@@ -473,8 +501,6 @@ func (ls *LightScanner) scanSourceDirs(previousScans map[string]time.Time) ([]Fi
 			if !extensions[ext] {
 				return nil
 			}
-
-			relPath, _ := filepath.Rel(ls.scenarioPath, path)
 
 			// Check if file needs rescanning
 			if !needsRescan(relPath, info, previousScans) {
@@ -499,6 +525,29 @@ func (ls *LightScanner) scanSourceDirs(previousScans map[string]time.Time) ([]Fi
 	}
 
 	return changedFiles, unchangedCount
+}
+
+func (ls *LightScanner) filterExcludedFiles(files []string) []string {
+	filtered := make([]string, 0, len(files))
+	for _, file := range files {
+		if !ls.isExcluded(file) {
+			filtered = append(filtered, file)
+		}
+	}
+	return filtered
+}
+
+func (ls *LightScanner) isExcluded(relPath string) bool {
+	if ls == nil || len(ls.excludes) == 0 {
+		return false
+	}
+	for _, pattern := range ls.excludes {
+		matched, err := repocontract.MatchRepoGlob(pattern, filepath.ToSlash(relPath))
+		if err == nil && matched {
+			return true
+		}
+	}
+	return false
 }
 
 // collectFileMetricsIncremental only scans files modified since last scan
