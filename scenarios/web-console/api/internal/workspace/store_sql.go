@@ -6,6 +6,7 @@ package workspace
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"log"
 	"strings"
@@ -71,10 +72,18 @@ func (s *SQLStore) GetLayout(ctx context.Context) (Layout, error) {
 		groups = append(groups, g)
 	}
 
+	// Roles ride along in the same call: adding a second round trip on load
+	// would make every client pay for a feature most workspaces do not use.
+	roles, err := s.ListRoles(ctx, "")
+	if err != nil {
+		return Layout{}, err
+	}
+
 	return Layout{
 		ActivePane: activePaneID,
 		Panes:      panes,
 		Groups:     groups,
+		Roles:      roles,
 	}, nil
 }
 
@@ -319,4 +328,233 @@ func scanGroupRow(row *sql.Row) (Group, error) {
 	}
 	g.IsCollapsed = isCollapsed != 0
 	return g, nil
+}
+
+// ---------------------------------------------------------------------------
+// Roles
+// ---------------------------------------------------------------------------
+
+// roleColumns is the single column list every role read uses, so scanRole and
+// scanRoleRow can never disagree with a query about column order.
+const roleColumns = `id, group_id, label, command, working_dir, incoming_prompt,
+	backend, target_id, COALESCE(session_id, ''), sort_order, created_at, updated_at`
+
+func (s *SQLStore) ListRoles(ctx context.Context, groupID string) ([]Role, error) {
+	query := `SELECT ` + roleColumns + ` FROM workspace_roles`
+	args := []interface{}{}
+	if groupID != "" {
+		query += ` WHERE group_id = ?`
+		args = append(args, groupID)
+	}
+	// id breaks ties so the sequence is total: two roles sharing a sort_order
+	// must not swap between reads, or the sidebar reorders on every refresh.
+	query += ` ORDER BY group_id, sort_order, id`
+
+	rows, err := s.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("query roles: %w", err)
+	}
+	defer rows.Close()
+
+	roles := make([]Role, 0)
+	for rows.Next() {
+		r, err := scanRole(rows)
+		if err != nil {
+			log.Printf("workspace.SQLStore.ListRoles: scan role: %v", err)
+			continue
+		}
+		roles = append(roles, r)
+	}
+	return roles, rows.Err()
+}
+
+func (s *SQLStore) CreateRole(ctx context.Context, req CreateRoleRequest) (Role, error) {
+	if req.GroupID == "" {
+		return Role{}, ErrInvalidRole
+	}
+
+	sortOrder := req.SortOrder
+	if !req.HasSortOrder {
+		var maxOrder sql.NullInt32
+		if err := s.db.QueryRowContext(ctx,
+			`SELECT MAX(sort_order) FROM workspace_roles WHERE group_id = ?`, req.GroupID,
+		).Scan(&maxOrder); err != nil {
+			return Role{}, fmt.Errorf("query max role sort_order: %w", err)
+		}
+		if maxOrder.Valid {
+			sortOrder = int(maxOrder.Int32) + 1
+		} else {
+			sortOrder = 0
+		}
+	}
+
+	label := req.Label
+	if label == "" {
+		label = DefaultRoleLabel
+	}
+	now := FormatTime(time.Now())
+
+	row := s.db.QueryRowContext(ctx, `
+		INSERT INTO workspace_roles
+			(id, group_id, label, command, working_dir, incoming_prompt,
+			 backend, target_id, session_id, sort_order, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		RETURNING `+roleColumns,
+		uuid.New().String(), req.GroupID, label, req.Command, req.WorkingDir,
+		req.IncomingPrompt, req.Backend, req.TargetID, nullableSession(req.SessionID),
+		sortOrder, now, now)
+
+	r, err := scanRoleRow(row)
+	if err != nil {
+		// A blank group id is caught above; anything else that fails the
+		// group foreign key or the one-session-one-role index is a caller
+		// error, not an internal fault.
+		if isRoleConstraintError(err) {
+			return Role{}, ErrInvalidRole
+		}
+		return Role{}, fmt.Errorf("create role: %w", err)
+	}
+	return r, nil
+}
+
+func (s *SQLStore) UpdateRole(ctx context.Context, req UpdateRoleRequest) (Role, error) {
+	setClauses := []string{"updated_at = ?"}
+	args := []interface{}{FormatTime(time.Now())}
+
+	if req.HasLabel {
+		setClauses = append(setClauses, "label = ?")
+		args = append(args, req.Label)
+	}
+	if req.HasCommand {
+		setClauses = append(setClauses, "command = ?")
+		args = append(args, req.Command)
+	}
+	if req.HasWorkingDir {
+		setClauses = append(setClauses, "working_dir = ?")
+		args = append(args, req.WorkingDir)
+	}
+	if req.HasIncomingPrompt {
+		setClauses = append(setClauses, "incoming_prompt = ?")
+		args = append(args, req.IncomingPrompt)
+	}
+	if req.HasSessionID {
+		// An empty session id stores NULL, which is what returns the role to
+		// waiting and what the partial unique index needs to allow duplicates.
+		setClauses = append(setClauses, "session_id = ?")
+		args = append(args, nullableSession(req.SessionID))
+	}
+	if req.HasSortOrder {
+		setClauses = append(setClauses, "sort_order = ?")
+		args = append(args, req.SortOrder)
+	}
+	if req.HasBackend {
+		setClauses = append(setClauses, "backend = ?")
+		args = append(args, req.Backend)
+	}
+	if req.HasTargetID {
+		setClauses = append(setClauses, "target_id = ?")
+		args = append(args, req.TargetID)
+	}
+	if req.HasGroupID {
+		if req.GroupID == "" {
+			return Role{}, ErrInvalidRole
+		}
+		setClauses = append(setClauses, "group_id = ?")
+		args = append(args, req.GroupID)
+	}
+
+	args = append(args, req.ID)
+	query := fmt.Sprintf(`UPDATE workspace_roles SET %s WHERE id = ? RETURNING %s`,
+		strings.Join(setClauses, ", "), roleColumns)
+
+	row := s.db.QueryRowContext(ctx, query, args...)
+	r, err := scanRoleRow(row)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return Role{}, ErrRoleNotFound
+		}
+		if isRoleConstraintError(err) {
+			return Role{}, ErrInvalidRole
+		}
+		return Role{}, fmt.Errorf("update role: %w", err)
+	}
+	return r, nil
+}
+
+func (s *SQLStore) DeleteRole(ctx context.Context, id string) (bool, error) {
+	result, err := s.db.ExecContext(ctx, `DELETE FROM workspace_roles WHERE id = ?`, id)
+	if err != nil {
+		return false, fmt.Errorf("delete role %s: %w", id, err)
+	}
+	n, _ := result.RowsAffected()
+	return n > 0, nil
+}
+
+func (s *SQLStore) ReassignRoleSession(ctx context.Context, oldSessionID, newSessionID string) error {
+	if oldSessionID == "" || newSessionID == "" {
+		return nil
+	}
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin role reassignment: %w", err)
+	}
+	defer tx.Rollback() //nolint:errcheck // rollback after commit is a no-op
+
+	// Release any role already holding the replacement id first. Without this
+	// the partial unique index rejects the move, and the role would be left
+	// pointing at a session that no longer exists.
+	if _, err := tx.ExecContext(ctx,
+		`UPDATE workspace_roles SET session_id = NULL, updated_at = ? WHERE session_id = ?`,
+		FormatTime(time.Now()), newSessionID); err != nil {
+		return fmt.Errorf("release replacement role: %w", err)
+	}
+	if _, err := tx.ExecContext(ctx,
+		`UPDATE workspace_roles SET session_id = ?, updated_at = ? WHERE session_id = ?`,
+		newSessionID, FormatTime(time.Now()), oldSessionID); err != nil {
+		return fmt.Errorf("move role session: %w", err)
+	}
+	return tx.Commit()
+}
+
+// nullableSession maps the empty session id to SQL NULL. The column is
+// nullable precisely so the partial unique index can let many roles wait at
+// once while still rejecting two roles for one running session.
+func nullableSession(sessionID string) interface{} {
+	if sessionID == "" {
+		return nil
+	}
+	return sessionID
+}
+
+// isRoleConstraintError reports whether err is SQLite refusing a role write
+// on the group foreign key or the one-session-one-role index. Both are caller
+// errors; neither is an internal fault.
+func isRoleConstraintError(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := strings.ToLower(err.Error())
+	return strings.Contains(msg, "constraint")
+}
+
+func scanRole(rows *sql.Rows) (Role, error) {
+	var r Role
+	if err := rows.Scan(
+		&r.ID, &r.GroupID, &r.Label, &r.Command, &r.WorkingDir, &r.IncomingPrompt,
+		&r.Backend, &r.TargetID, &r.SessionID, &r.SortOrder, &r.CreatedAt, &r.UpdatedAt,
+	); err != nil {
+		return Role{}, err
+	}
+	return r, nil
+}
+
+func scanRoleRow(row *sql.Row) (Role, error) {
+	var r Role
+	if err := row.Scan(
+		&r.ID, &r.GroupID, &r.Label, &r.Command, &r.WorkingDir, &r.IncomingPrompt,
+		&r.Backend, &r.TargetID, &r.SessionID, &r.SortOrder, &r.CreatedAt, &r.UpdatedAt,
+	); err != nil {
+		return Role{}, err
+	}
+	return r, nil
 }

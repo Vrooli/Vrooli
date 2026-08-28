@@ -1,0 +1,28 @@
+{
+  "metadata": {
+    "name": "perf-drag-vertical-pointer",
+    "description": "Perf interaction helper: drag a target VERTICALLY with real PointerEvents (pointerdown -> rAF-stepped pointermove -> pointerup), one move per animation frame. Use it for swipe-to-dismiss grabbers and any gesture built on pointer events - the MouseEvent-based perf-drag-horizontal helper does not drive them at all. Stepping on rAF is what makes each frame's cost show up separately in the trace instead of collapsing into one task.",
+    "labels": {
+      "intent": "performance",
+      "reset": "none",
+      "parameters_json": "[{\"name\":\"selector\",\"type\":\"string\",\"required\":true,\"description\":\"CSS selector of the drag handle (use a literal [data-testid=...]; @selector tokens do not resolve on the capture path)\"},{\"name\":\"dy\",\"type\":\"number\",\"required\":false,\"default\":240,\"description\":\"Vertical drag distance in pixels (positive drags downward)\"},{\"name\":\"steps\",\"type\":\"number\",\"required\":false,\"default\":40,\"description\":\"Number of intermediate pointer moves, one per animation frame\"},{\"name\":\"release\",\"type\":\"string\",\"required\":false,\"default\":\"commit\",\"description\":\"'commit' ends with pointerup (the surface dismisses); 'hold' skips pointerup so the drag frames are traced without the surface unmounting\"}]"
+    },
+    "version": "1",
+    "execution_mode": "observer"
+  },
+  "settings": {},
+  "nodes": [
+    {
+      "id": "drag-handle-vertical-pointer",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "(() => { const el = document.querySelector(\"${@params/selector}\"); if (!el) throw new Error('perf-drag-vertical-pointer: ${@params/selector} not found'); const dy = Number(\"${@params/dy}\") || 240; const steps = Math.max(1, Number(\"${@params/steps}\") || 40); const release = \"${@params/release}\" === 'hold' ? 'hold' : 'commit'; const r = el.getBoundingClientRect(); const x = r.left + r.width / 2; const y0 = r.top + r.height / 2; const fire = (type, y, buttons) => el.dispatchEvent(new PointerEvent(type, { bubbles: true, cancelable: true, composed: true, clientX: x, clientY: y, pointerId: 1, pointerType: 'touch', isPrimary: true, button: buttons ? 0 : -1, buttons: buttons })); const frame = () => new Promise((resolve) => requestAnimationFrame(() => resolve())); return (async () => { fire('pointerdown', y0, 1); await frame(); for (let i = 1; i <= steps; i++) { fire('pointermove', y0 + (dy * i) / steps, 1); await frame(); } if (release === 'commit') { fire('pointerup', y0 + dy, 0); await frame(); } return true; })(); })()"
+        },
+        "metadata": {
+          "label": "Pointer-drag ${@params/selector} vertically by ${@params/dy}px"
+        }
+      }
+    }
+  ]
+}

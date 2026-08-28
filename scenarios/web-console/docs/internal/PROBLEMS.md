@@ -2,10 +2,10 @@
 
 ## Work ladder
 
-- Rung: W0 (unverifiable)
-- Evidence: `swarm-manager goals list --json` named no goal whose name, title, or description mentions `web-console`; the required named-goal floor therefore has no contract-side artifact to compare with this scenario's PRD. A goal must be filed before the ladder can descend.
-- Blocker: no scenario-specific goal is available to establish the W0 contract comparison.
-- Measured: 2026-08-26
+- Rung: W3
+- Evidence: W0 contract comparison passes against `hosted-cloud-tier-foundation` and `portal-front-door`; W1 `business-health validate scenario web-console` and W2 `vrooli scenario requirements validate web-console` pass. The failed restart was an implementation-layer UI type-check failure: group-management consumers referenced `manageGroupsTarget` / `setManageGroupsTarget` that were absent from the current store contract. After the in-progress UI changes settled, `vrooli scenario restart web-console` completed healthy on 2026-08-27.
+- Blocker: none for the reported restart failure.
+- Measured: 2026-08-27
 
 ## 1. Interactive CLI Fidelity Edge Cases
 

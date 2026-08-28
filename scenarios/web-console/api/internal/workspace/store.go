@@ -26,9 +26,34 @@ type Store interface {
 	// Returns ErrGroupNotFound if id does not exist.
 	UpdateGroup(ctx context.Context, id string, name *string, color *string, collapsed *bool) (Group, error)
 	// DeleteGroup removes a tab group. Returns true if a group was actually
-	// removed. Panes referencing the group have their group cleared.
+	// removed. Panes referencing the group have their group cleared, and its
+	// roles are removed with it — a role has no meaning outside its group.
 	DeleteGroup(ctx context.Context, id string) (bool, error)
+
+	// ListRoles returns roles ordered by group then sort_order. A non-empty
+	// groupID filters to that group.
+	ListRoles(ctx context.Context, groupID string) ([]Role, error)
+	// CreateRole adds a role to a group. Returns ErrInvalidRole when GroupID
+	// is blank.
+	CreateRole(ctx context.Context, req CreateRoleRequest) (Role, error)
+	// UpdateRole modifies a role; only fields with a Has* flag are applied.
+	// Returns ErrRoleNotFound if id does not exist.
+	UpdateRole(ctx context.Context, req UpdateRoleRequest) (Role, error)
+	// DeleteRole removes a role. Idempotent; returns true if a row went away.
+	DeleteRole(ctx context.Context, id string) (bool, error)
+	// ReassignRoleSession moves a role's session pointer to the recovered
+	// replacement session, mirroring ReassignPane. Without this a recovered
+	// session would leave its role pointing at an id that no longer exists.
+	// Idempotent: a no-op when no role holds oldSessionID.
+	ReassignRoleSession(ctx context.Context, oldSessionID, newSessionID string) error
 }
 
 // ErrGroupNotFound is returned by UpdateGroup when the target id is unknown.
 var ErrGroupNotFound = errors.New("workspace: group not found")
+
+// ErrRoleNotFound is returned by UpdateRole when the target id is unknown.
+var ErrRoleNotFound = errors.New("workspace: role not found")
+
+// ErrInvalidRole is returned when a role write omits a required field
+// (today: a blank group id). Callers map it to CodeInvalidArgument.
+var ErrInvalidRole = errors.New("workspace: invalid role")

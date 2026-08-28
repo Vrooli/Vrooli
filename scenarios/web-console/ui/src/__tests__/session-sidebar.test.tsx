@@ -1,10 +1,11 @@
 import { renderWithProviders as render } from "../test-utils";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { createRef } from "react";
-import { screen, fireEvent, act, waitFor } from "@testing-library/react";
+import { screen, fireEvent, act, waitFor, within } from "@testing-library/react";
 import SessionSidebar from "../components/SessionSidebar";
 import { buildWorkspaceNavigationItems } from "../lib/workspaceNavigation";
 import { useWorkspaceStore, type PaneMetadata } from "../stores/useWorkspaceStore";
+import { strings } from "../consts/strings";
 
 vi.mock("../hooks/useWorkspaceSync", () => ({
   useWorkspaceSync: () => ({
@@ -13,6 +14,7 @@ vi.mock("../hooks/useWorkspaceSync", () => ({
     syncPaneOrder: vi.fn(),
     syncUpdateGroup: vi.fn(),
     syncDeleteGroup: vi.fn(),
+    syncPaneMove: vi.fn(),
   }),
 }));
 
@@ -50,6 +52,9 @@ const baseProps = {
   onOpenLauncher: vi.fn(),
   onNewSessionInGroup: vi.fn(),
   onOpenSettings: vi.fn(),
+  onStartRole: vi.fn(),
+  onHandoffToRole: vi.fn(),
+  onOpenRoleMenu: vi.fn(),
 };
 
 beforeEach(() => {
@@ -223,5 +228,194 @@ describe("SessionSidebar", () => {
     fireEvent.contextMenu(screen.getByTestId("sidebar-session-a"), { clientX: 10, clientY: 20 });
     fireEvent.click(screen.getByTestId("tab-ctx-delete-permanently"));
     expect(onDeletePanePermanently).toHaveBeenCalledWith("a");
+  });
+
+  // Regression: the overlay used to be rendered inside the archive branch of
+  // the sidebar, so "Add to group" from the (default) session list did
+  // nothing at all — the menu closed and no surface appeared.
+  it("opens the group overlay from the session list, not only the archive view", () => {
+    const items = buildWorkspaceNavigationItems({ panes: [pane("a", "transparent")], groups: [], activePane: "a" });
+    useWorkspaceStore.setState({
+      panes: [pane("a", "transparent")],
+      groups: [{ id: "g1", name: "Ship it", color: "#22d3ee", isCollapsed: false }],
+    });
+    render(<SessionSidebar {...baseProps} buckets={asBuckets(items)} />);
+    expect(useWorkspaceStore.getState().sidebarView).toBe("list");
+
+    fireEvent.contextMenu(screen.getByTestId("sidebar-session-a"), { clientX: 10, clientY: 20 });
+    fireEvent.click(screen.getByTestId("tab-ctx-add-to-group"));
+
+    expect(screen.getByTestId("group-assign-picker")).toBeInTheDocument();
+    expect(screen.getByTestId("group-picker-option-g1")).toHaveTextContent("Ship it");
+  });
+
+  it("assigns the session to the group whose card is pressed", async () => {
+    const items = buildWorkspaceNavigationItems({ panes: [pane("a", "transparent")], groups: [], activePane: "a" });
+    useWorkspaceStore.setState({
+      panes: [pane("a", "transparent")],
+      groups: [{ id: "g1", name: "Ship it", color: "#22d3ee", isCollapsed: false }],
+    });
+    render(<SessionSidebar {...baseProps} buckets={asBuckets(items)} />);
+
+    fireEvent.contextMenu(screen.getByTestId("sidebar-session-a"), { clientX: 10, clientY: 20 });
+    fireEvent.click(screen.getByTestId("tab-ctx-add-to-group"));
+    fireEvent.click(screen.getByTestId("group-picker-option-g1"));
+
+    await waitFor(() => {
+      expect(useWorkspaceStore.getState().panes.find((p) => p.sessionId === "a")?.groupId).toBe("g1");
+    });
+    // Choosing commits and closes; the overlay is not a place to linger.
+    expect(screen.queryByTestId("group-assign-picker")).toBeNull();
+  });
+
+  // A group is a thing with a colour and a size, so its card says how big it
+  // is. A name-only row made picking one feel like filling in a form field.
+  // (The test i18n echoes keys, so the assertion is on which summary the card
+  // chose, not on the interpolated number.)
+  it("states each group's size on its card", () => {
+    const panes = [pane("a", "transparent"), { ...pane("b", "transparent"), groupId: "g1" }];
+    const items = buildWorkspaceNavigationItems({ panes, groups: [], activePane: "a" });
+    useWorkspaceStore.setState({
+      panes,
+      groups: [
+        { id: "g1", name: "Ship it", color: "#22d3ee", isCollapsed: false },
+        { id: "g2", name: "Research", color: "#f59e0b", isCollapsed: false },
+      ],
+      roles: [{
+        id: "r1", groupId: "g1", label: "Reviewer", command: "claude", workingDir: "",
+        incomingPrompt: "", backend: "", targetId: "", sessionId: null, sortOrder: 0,
+      }],
+    });
+    render(<SessionSidebar {...baseProps} buckets={asBuckets(items)} />);
+
+    fireEvent.contextMenu(screen.getByTestId("sidebar-session-a"), { clientX: 10, clientY: 20 });
+    fireEvent.click(screen.getByTestId("tab-ctx-add-to-group"));
+
+    const populated = screen.getByTestId("group-picker-option-g1");
+    expect(populated).toHaveTextContent(strings.groupPicker.sessionCount);
+    expect(populated).toHaveTextContent(strings.groupPicker.waitingCount);
+
+    // An empty group says so rather than reading "0 sessions".
+    const empty = screen.getByTestId("group-picker-option-g2");
+    expect(empty).toHaveTextContent(strings.groupPicker.emptyGroup);
+    expect(empty).not.toHaveTextContent(strings.groupPicker.sessionCount);
+  });
+
+  // Groups holding work and groups holding none are two different decisions:
+  // one you pick from, the other you sweep.
+  it("splits the picker into active and empty sections", () => {
+    const panes = [pane("a", "transparent"), { ...pane("b", "transparent"), groupId: "g1" }];
+    const items = buildWorkspaceNavigationItems({ panes, groups: [], activePane: "a" });
+    useWorkspaceStore.setState({
+      panes,
+      groups: [
+        { id: "g1", name: "Ship it", color: "#22d3ee", isCollapsed: false },
+        { id: "g2", name: "Research", color: "#f59e0b", isCollapsed: false },
+      ],
+      roles: [],
+    });
+    render(<SessionSidebar {...baseProps} buckets={asBuckets(items)} />);
+
+    fireEvent.contextMenu(screen.getByTestId("sidebar-session-a"), { clientX: 10, clientY: 20 });
+    fireEvent.click(screen.getByTestId("tab-ctx-add-to-group"));
+
+    const active = screen.getByTestId("group-picker-section-active");
+    const empty = screen.getByTestId("group-picker-section-empty");
+    expect(within(active).getByTestId("group-picker-option-g1")).toBeInTheDocument();
+    expect(within(empty).getByTestId("group-picker-option-g2")).toBeInTheDocument();
+    expect(screen.getByTestId("group-picker-close-all-empty")).toBeInTheDocument();
+  });
+
+  // A group with only waiting roles holds no session, so it is still a
+  // candidate for the sweep — its row says how many are waiting so the
+  // decision is informed rather than blind.
+  it("counts a group of waiting roles as empty, and says how many wait", () => {
+    const items = buildWorkspaceNavigationItems({ panes: [pane("a", "transparent")], groups: [], activePane: "a" });
+    useWorkspaceStore.setState({
+      panes: [pane("a", "transparent")],
+      groups: [{ id: "g1", name: "Ship it", color: "#22d3ee", isCollapsed: false }],
+      roles: [{
+        id: "r1", groupId: "g1", label: "Reviewer", command: "claude", workingDir: "",
+        incomingPrompt: "", backend: "", targetId: "", sessionId: null, sortOrder: 0,
+      }],
+    });
+    render(<SessionSidebar {...baseProps} buckets={asBuckets(items)} />);
+
+    fireEvent.contextMenu(screen.getByTestId("sidebar-session-a"), { clientX: 10, clientY: 20 });
+    fireEvent.click(screen.getByTestId("tab-ctx-add-to-group"));
+
+    const empty = screen.getByTestId("group-picker-section-empty");
+    expect(within(empty).getByTestId("group-picker-option-g1")).toHaveTextContent(strings.groupPicker.waitingCount);
+  });
+
+  it("renames and recolours a group from the picker's edit mode", async () => {
+    const items = buildWorkspaceNavigationItems({ panes: [pane("a", "transparent")], groups: [], activePane: "a" });
+    useWorkspaceStore.setState({
+      panes: [pane("a", "transparent")],
+      groups: [{ id: "g1", name: "Ship it", color: "#22d3ee", isCollapsed: false }],
+      roles: [],
+    });
+    render(<SessionSidebar {...baseProps} buckets={asBuckets(items)} />);
+
+    fireEvent.contextMenu(screen.getByTestId("sidebar-session-a"), { clientX: 10, clientY: 20 });
+    fireEvent.click(screen.getByTestId("tab-ctx-add-to-group"));
+    fireEvent.click(screen.getByTestId("group-picker-edit-toggle"));
+
+    fireEvent.change(screen.getByTestId("group-picker-rename-g1"), { target: { value: "Shipped" } });
+    await waitFor(() => {
+      expect(useWorkspaceStore.getState().groups[0]?.name).toBe("Shipped");
+    });
+
+    fireEvent.click(screen.getByTestId("group-picker-recolor-g1"));
+    const swatch = within(screen.getByTestId("group-picker-palette-g1")).getAllByRole("button")[1];
+    fireEvent.click(swatch as HTMLElement);
+    expect(useWorkspaceStore.getState().groups[0]?.color).not.toBe("#22d3ee");
+  });
+
+  // The consequence that matters: closing a group releases its sessions.
+  it("closing a group from the picker ungroups its sessions instead of ending them", async () => {
+    const panes = [pane("a", "transparent"), { ...pane("b", "transparent"), groupId: "g1" }];
+    const items = buildWorkspaceNavigationItems({ panes, groups: [], activePane: "a" });
+    useWorkspaceStore.setState({
+      panes,
+      groups: [{ id: "g1", name: "Ship it", color: "#22d3ee", isCollapsed: false }],
+      roles: [],
+    });
+    render(<SessionSidebar {...baseProps} buckets={asBuckets(items)} />);
+
+    fireEvent.contextMenu(screen.getByTestId("sidebar-session-a"), { clientX: 10, clientY: 20 });
+    fireEvent.click(screen.getByTestId("tab-ctx-add-to-group"));
+    fireEvent.click(screen.getByTestId("group-picker-edit-toggle"));
+    fireEvent.click(screen.getByTestId("group-picker-close-g1"));
+
+    await waitFor(() => { expect(useWorkspaceStore.getState().groups).toHaveLength(0); });
+    const survivors = useWorkspaceStore.getState().panes;
+    expect(survivors).toHaveLength(2);
+    expect(survivors.find((p) => p.sessionId === "b")?.groupId).toBeNull();
+    // And it is undoable: the snapshot is what makes closing safe to offer
+    // behind a single tap with no confirm dialog.
+    expect(useWorkspaceStore.getState().closedGroupUndo).not.toBeNull();
+  });
+
+  it("sweeps every empty group in one action", async () => {
+    const panes = [pane("a", "transparent"), { ...pane("b", "transparent"), groupId: "g1" }];
+    const items = buildWorkspaceNavigationItems({ panes, groups: [], activePane: "a" });
+    useWorkspaceStore.setState({
+      panes,
+      groups: [
+        { id: "g1", name: "Ship it", color: "#22d3ee", isCollapsed: false },
+        { id: "g2", name: "Research", color: "#f59e0b", isCollapsed: false },
+        { id: "g3", name: "Spike", color: "#a78bfa", isCollapsed: false },
+      ],
+      roles: [],
+    });
+    render(<SessionSidebar {...baseProps} buckets={asBuckets(items)} />);
+
+    fireEvent.contextMenu(screen.getByTestId("sidebar-session-a"), { clientX: 10, clientY: 20 });
+    fireEvent.click(screen.getByTestId("tab-ctx-add-to-group"));
+    fireEvent.click(screen.getByTestId("group-picker-close-all-empty"));
+
+    // The one holding a session survives; both empties go.
+    await waitFor(() => { expect(useWorkspaceStore.getState().groups.map((g) => g.id)).toEqual(["g1"]); });
   });
 });

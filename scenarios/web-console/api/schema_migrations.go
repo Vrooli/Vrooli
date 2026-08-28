@@ -10,6 +10,8 @@ import (
 	"time"
 
 	"web-console/internal/dbx"
+	"web-console/internal/grouptemplates"
+	"web-console/internal/handoffrules"
 	intsessions "web-console/internal/sessions"
 
 	"github.com/vrooli/api-core/database"
@@ -81,6 +83,30 @@ func initSchemaWithProviders(ctx context.Context, db dbx.Handle, providers []dat
 		return err
 	}
 
+	if err := seedExampleContent(ctx, db); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// seedExampleContent writes the shipped example group template and capture
+// rule through their domains' ordinary public write paths — the same calls the
+// UI makes. Shipped content is data, not behaviour: there is no is-builtin
+// column and no delete guard anywhere in either domain.
+//
+// Each seeder writes only into an EMPTY store, so an operator who deletes the
+// example does not get it back on the next boot.
+//
+// A seeding failure is logged, not fatal. An example is a convenience; losing
+// it must never keep the console from starting.
+func seedExampleContent(ctx context.Context, db dbx.Handle) error {
+	if err := grouptemplates.SeedExamples(ctx, grouptemplates.NewSQLStore(db)); err != nil {
+		log.Printf("seed: group template example: %v", err)
+	}
+	if err := handoffrules.SeedExamples(ctx, handoffrules.NewSQLStore(db)); err != nil {
+		log.Printf("seed: handoff rule example: %v", err)
+	}
 	return nil
 }
 

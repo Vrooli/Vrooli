@@ -66,11 +66,12 @@ describe("voice rejection banner", () => {
   it("renders through the shared banner base rather than bespoke markup", () => {
     renderRejection(retryable());
     const banner = screen.getByTestId("voice-rejection-banner");
-    // Padding, safe-area insets and colour now come from `[data-wc-banner]` in
-    // styles.css. The invariant a unit test can hold is that this notice opts
-    // into that base at all — before the refactor each banner hand-rolled its
-    // own `ps-[max(0.75rem,var(--wc-safe-left,0px))]` and its own palette.
-    expect(banner).toHaveAttribute("data-wc-banner");
+    // Padding, safe-area insets and colour come from the library's
+    // `[data-rcl-banner]` base. The invariant a unit test can hold is that this
+    // notice opts into that base at all — before the refactor each banner
+    // hand-rolled its own `ps-[max(0.75rem,var(--wc-safe-left,0px))]` and its
+    // own palette.
+    expect(banner).toHaveAttribute("data-rcl-banner");
     expect(banner).toHaveAttribute("data-tone", "warning");
   });
 

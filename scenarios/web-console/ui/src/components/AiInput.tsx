@@ -113,6 +113,7 @@ export default function AiInput({ onExecute }: { onExecute: (command: string) =>
 
   return (
     <ResponsiveDialog
+      avoidKeyboard
       open={aiModalOpen}
       onClose={close}
       size="md"

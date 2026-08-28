@@ -50,7 +50,6 @@ import { useComposerAttachments } from "../hooks/useComposerAttachments";
 import { useComposerHotkey } from "../hooks/useComposerHotkey";
 import { useWindowKeyDown } from "../hooks/useKeyboardListeners";
 import BannerRegion from "./banners/BannerRegion";
-import { bannerFillClassName, arbitrateBanners } from "./banners/arbitrate";
 import type { MaybeBanner } from "./banners/types";
 import {
   createErrorBanner,
@@ -72,6 +71,15 @@ import WorkspaceMinimap from "./WorkspaceMinimap";
 import SettingsModal from "./SettingsModal";
 import AppearanceModal from "./AppearanceModal";
 import ManageGroupsDrawer from "./ManageGroupsDrawer";
+import HandoffComposer from "./handoff/HandoffComposer";
+import type { RoleMeta } from "../stores/useWorkspaceStore";
+import GroupUndoBanner from "./GroupUndoBanner";
+import RoleMenu from "./RoleMenu";
+import { useGroupActions } from "../hooks/useGroupActions";
+import { useRoleActions } from "../hooks/useRoleActions";
+import { sendHandoff, targetsForSession, type HandoffTarget } from "../hooks/useHandoff";
+import type { GroupCreationRequest } from "./launcher/GroupModePanel";
+import { listGroupTemplates, upsertGroupTemplate } from "../api/grouptemplates";
 import { AlertDialog } from "@vrooli/react-component-library/AlertDialog/2";
 import WorkspacePaneShell from "./WorkspacePaneShell";
 import TabBar from "./TabBar";
@@ -214,6 +222,7 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
     vadAutoStop: state.vadAutoStop,
     persistentMode: state.persistentMode,
     groups: state.groups,
+    roles: state.roles,
     sidebarSortMode: state.sidebarSortMode,
     adaptiveChrome: state.adaptiveChrome,
     plusButtonBehavior: state.plusButtonBehavior,
@@ -233,6 +242,7 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
     setTabContextMenu: state.setTabContextMenu,
   })));
   const workspacePanes = workspace.panes;
+  const workspaceGroups = workspace.groups;
   const activeWorkspacePane = workspace.activePane;
   const activeSessionTrackingDegraded = sessionPanes.find((pane) => pane.session.id === workspace.activePane)?.session.tracking_degraded;
   const addWorkspacePane = workspace.addPane;
@@ -241,6 +251,18 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
   const setActiveWorkspacePane = workspace.setActivePane;
   const vadAutoStop = workspace.vadAutoStop;
   const { syncActivePane, syncPaneUpdate, syncPaneOrder, syncPaneMove } = useWorkspaceSync();
+  const { createNamedGroup, closeGroupIfFinished, restoreClosedGroup, dismissClosedGroupUndo } = useGroupActions();
+  const { createRole, updateRole, removeRole, setRoleSession } = useRoleActions();
+  const updateWorkspaceGroup = useWorkspaceStore((s) => s.updateGroup);
+  const { syncUpdateGroup } = useWorkspaceSync();
+
+  // Text waiting for a session that does not have a mounted terminal yet.
+  // Mirrors pendingGroupBySessionRef exactly, and is drained by the same
+  // session-reconcile effect — a second draining mechanism would be a second
+  // place for a handoff to go missing.
+  const pendingHandoffBySessionRef = useRef<Map<string, string>>(new Map());
+  // The role a just-started session belongs to, attached when its pane lands.
+  const pendingRoleBySessionRef = useRef<Map<string, string>>(new Map());
   const conversationState = useConversationStore(useShallow((state) => ({
     sessions: state.sessions,
     viewModes: state.viewModes,
@@ -299,8 +321,8 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
     setArchivePreferOrphans(false);
     setArchiveInitialSessionId(null);
   }, []);
-  const openComposer = useCallback(() => setComposerOpen(true), []);
-  const closeComposer = useCallback(() => setComposerOpen(false), []);
+  const openComposer = useCallback(() => { setComposerOpen(true); }, []);
+  const closeComposer = useCallback(() => { setComposerOpen(false); }, []);
   // Desktop keyboard shortcut (Ctrl/Cmd+Shift+K) opens the composer.
   useComposerHotkey(openComposer);
   useWindowKeyDown(true, useCallback((event: KeyboardEvent) => {
@@ -351,7 +373,14 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
   }, [launcherOpen, fetchDefaults]);
   const pendingActivePaneRef = useRef<string | null>(null);
   const pendingGroupBySessionRef = useRef<Map<string, string>>(new Map());
-  const pendingLauncherGroupRef = useRef<string | null>(null);
+  // The launcher's destination lives in STATE, not a ref. As a ref it could
+  // never reach the dialog, which is why the dialog could not state where the
+  // session it was about to create would go.
+  const [launcherGroupId, setLauncherGroupId] = useState<string | null>(null);
+  // handleLaunch is a stable callback, so it cannot read launcherGroupId
+  // directly without going stale. The ref mirrors the state for that one read.
+  const launcherGroupRef = useRef<string | null>(null);
+  useEffect(() => { launcherGroupRef.current = launcherGroupId; }, [launcherGroupId]);
   const [pendingDelete, setPendingDelete] = useState<string | null>(null);
   const [archiveUndo, setArchiveUndo] = useState<{
     sessionId: string;
@@ -399,9 +428,9 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
     () => typeof window !== "undefined" && window.innerWidth < 768,
   );
   useEffect(() => {
-    const onResize = () => setIsMobile(window.innerWidth < 768);
+    const onResize = () => { setIsMobile(window.innerWidth < 768); };
     window.addEventListener("resize", onResize);
-    return () => window.removeEventListener("resize", onResize);
+    return () => { window.removeEventListener("resize", onResize); };
   }, []);
 
   // --- Pane drag-and-drop reordering ---
@@ -500,13 +529,42 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
         if (pendingGroupId) {
           syncPaneOrder(afterAdd.map((pane) => pane.sessionId), activeAfterAdd);
         }
+
+        // A role that was just started now has its session. Attaching here
+        // rather than at launch time is what makes the role running only once
+        // the process actually exists.
+        const pendingRoleId = pendingRoleBySessionRef.current.get(sp.session.id);
+        if (pendingRoleId) {
+          pendingRoleBySessionRef.current.delete(sp.session.id);
+          setRoleSession(pendingRoleId, sp.session.id);
+        }
+
+        // Deliver any handoff text held for this session. The terminal is
+        // still mounting, so this goes through the same pending-input queue
+        // the operator can see, discard, and flush — never dropped silently.
+        const pendingText = pendingHandoffBySessionRef.current.get(sp.session.id);
+        if (pendingText) {
+          pendingHandoffBySessionRef.current.delete(sp.session.id);
+          submitToActiveTerminal(pendingText, "bulk_text", sp.session.id);
+        }
       }
     }
     // Remove deleted sessions from store (only after hydration)
     if (isHydrated) {
       for (const sid of storeIds) {
         if (!sessionIds.has(sid)) {
+          // Remember the group BEFORE the pane goes, so the auto-close check
+          // below knows which group to reconsider. Reading it afterwards
+          // would always find nothing.
+          const departingGroupId = workspacePanes.find((p) => p.sessionId === sid)?.groupId ?? null;
           removeWorkspacePane(sid);
+          // A role pointing at a session that no longer exists would be a
+          // handoff target aimed at nothing, so it returns to waiting.
+          const orphaned = useWorkspaceStore.getState().roles.find((r) => r.sessionId === sid);
+          if (orphaned) setRoleSession(orphaned.id, null);
+          // Scoped to the one group the pane left: a scan across every group
+          // would cost on every session change.
+          closeGroupIfFinished(departingGroupId);
         }
       }
     }
@@ -518,6 +576,9 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
     sessionPanes,
     syncPaneOrder,
     syncPaneUpdate,
+    setRoleSession,
+    submitToActiveTerminal,
+    closeGroupIfFinished,
     workspace.defaultFontSize,
     workspace.defaultHeaderColor,
     workspace.defaultThemeId,
@@ -534,15 +595,214 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
     }
   }, [workspace.activePane, workspacePanes, activatePane]);
 
-  const openLauncher = useCallback(() => setLauncherOpen(true), []);
+  // ---------------------------------------------------------------------
+  // Roles and handoffs
+  // ---------------------------------------------------------------------
+
+  const [handoffState, setHandoffState] = useState<{
+    sourceSessionId: string;
+    sourceLabel: string;
+    payload: string;
+    initialSelection?: string[];
+  } | null>(null);
+  const [roleMenu, setRoleMenu] = useState<{ role: RoleMeta; position: { x: number; y: number } } | null>(null);
+
+  /** Start a waiting role's command, and remember which role to attach. */
+  const handleStartRole = useCallback(async (role: RoleMeta): Promise<string | null> => {
+    const session = await launchSession({
+      command: role.command || undefined,
+      workingDir: role.workingDir || undefined,
+      backend: role.backend ? (role.backend as BackendID) : undefined,
+      target: role.targetId ? availableTargets.find((candidate) => candidate.id === role.targetId) : undefined,
+    });
+    if (!session) return null;
+    pendingActivePaneRef.current = session.id;
+    // The role's group is the pane's group: a started role stays where it was.
+    pendingGroupBySessionRef.current.set(session.id, role.groupId);
+    pendingRoleBySessionRef.current.set(session.id, role.id);
+    return session.id;
+  }, [availableTargets, launchSession]);
+
+  const openHandoff = useCallback((sourceSessionId: string, payload: string, initialSelection?: string[]) => {
+    const pane = useWorkspaceStore.getState().panes.find((p) => p.sessionId === sourceSessionId);
+    setHandoffState({
+      sourceSessionId,
+      sourceLabel: pane?.name ?? sourceSessionId,
+      payload,
+      initialSelection,
+    });
+  }, []);
+
+  const handoffTargets = useMemo(() => {
+    if (!handoffState) return [];
+    const pane = workspacePanes.find((p) => p.sessionId === handoffState.sourceSessionId);
+    return targetsForSession(handoffState.sourceSessionId, pane?.groupId ?? null);
+  }, [handoffState, workspacePanes]);
+
+  /**
+   * Deliver a handoff.
+   *
+   * Every seam this needs already exists: submitToActiveTerminal reaches a
+   * named pane, launchSession creates the process, and the pending map carries
+   * text a not-yet-mounted terminal cannot take. Nothing here polls for
+   * readiness, and nothing here knows what a payload is.
+   */
+  const runHandoff = useCallback(
+    (targets: readonly HandoffTarget[], textFor: (target: HandoffTarget) => string) =>
+      sendHandoff(targets, textFor, {
+        submit: (data, intent, targetId) => submitToActiveTerminal(data, intent, targetId),
+        launch: async (options) => {
+          const session = await launchSession({
+            command: options.command,
+            workingDir: options.workingDir,
+            backend: options.backend ? (options.backend as BackendID) : undefined,
+            target: options.targetId ? availableTargets.find((c) => c.id === options.targetId) : undefined,
+          });
+          if (!session) return null;
+          const sourceGroupId = useWorkspaceStore.getState().panes
+            .find((p) => p.sessionId === handoffState?.sourceSessionId)?.groupId;
+          if (sourceGroupId) pendingGroupBySessionRef.current.set(session.id, sourceGroupId);
+          return session.id;
+        },
+        queueForSession: (sessionId, text) => {
+          // If a terminal is already mounted, hand it over now; otherwise the
+          // reconcile effect delivers it the moment the pane appears.
+          const immediate = submitToActiveTerminal(text, "bulk_text", sessionId);
+          if (immediate.status === "rejected") {
+            pendingHandoffBySessionRef.current.set(sessionId, text);
+          }
+        },
+        attachRole: (roleId, sessionId) => {
+          pendingRoleBySessionRef.current.set(sessionId, roleId);
+        },
+      }),
+    [availableTargets, handoffState?.sourceSessionId, launchSession, submitToActiveTerminal],
+  );
+
+  // Creating a group from inside the launcher is server-first, like every
+  // other group creation: the backend mints the id and the dialog adopts it.
+  const createLauncherGroup = useCallback(async (name: string): Promise<string | null> => {
+    try {
+      const group = await createNamedGroup(name);
+      return group.id;
+    } catch (error) {
+      console.error("Failed to create group from launcher:", error);
+      return null;
+    }
+  }, [createNamedGroup]);
+
+  // What a new session will actually look like. The reconcile effect applies
+  // these after the session exists; naming them here is what removes the
+  // surprise.
+  const launcherAppearance = useMemo(() => ({
+    headerColor: workspace.defaultHeaderColor,
+    themeId: workspace.defaultThemeId,
+    fontSize: workspace.defaultFontSize,
+  }), [workspace.defaultFontSize, workspace.defaultHeaderColor, workspace.defaultThemeId]);
+
+  const startRoleFromSurface = useCallback((role: RoleMeta) => {
+    void handleStartRole(role);
+  }, [handleStartRole]);
+
+  const handoffToRole = useCallback((role: RoleMeta) => {
+    // Hand off FROM the group's active session TO this role. Falling back to
+    // any member keeps the control working when the active pane is elsewhere.
+    const { panes, activePane } = useWorkspaceStore.getState();
+    const source = panes.find((p) => p.sessionId === activePane && p.groupId === role.groupId)
+      ?? panes.find((p) => p.groupId === role.groupId);
+    if (!source) return;
+    openHandoff(source.sessionId, "", [role.id]);
+  }, [openHandoff]);
+
+  const openRoleMenu = useCallback((role: RoleMeta, position: { x: number; y: number }) => {
+    setRoleMenu({ role, position });
+  }, []);
+
+  /**
+   * Create a group, its roles, and its eager sessions in one action.
+   *
+   * The launches are SEQUENCED, not fired together. launchSession guards
+   * against concurrent creation with an in-flight flag and returns null on the
+   * second overlapping call, so a template with three eager roles would
+   * silently start one. Awaiting each in turn is the whole fix, and it is why
+   * this cannot be a Promise.all.
+   */
+  const createGroupFromRoles = useCallback(async (request: GroupCreationRequest) => {
+    try {
+      const group = await createNamedGroup(request.name);
+      if (request.color) {
+        updateWorkspaceGroup(group.id, { color: request.color });
+        syncUpdateGroup(group.id, { color: request.color });
+      }
+
+      // Roles are created before anything starts, so a failure part-way
+      // through leaves a group the operator can see and finish by hand
+      // rather than a half-started set of processes with no home.
+      const created: (RoleMeta | null)[] = [];
+      for (const [index, role] of request.roles.entries()) {
+        created.push(await createRole({
+          groupId: group.id,
+          label: role.label || `Role ${String(index + 1)}`,
+          command: role.command,
+          workingDir: role.working_dir,
+          incomingPrompt: role.incoming_prompt,
+          backend: role.backend,
+          targetId: role.target_id,
+        }));
+      }
+
+      // Only eager roles cost a process.
+      for (const [index, role] of request.roles.entries()) {
+        if (role.start_mode !== "eager") continue;
+        const meta = created[index];
+        if (!meta) continue;
+        await handleStartRole(meta);
+      }
+
+      // The counter moves only after the group actually exists, so a failed
+      // create does not inflate how often a template looks used.
+      if (request.templateId) {
+        const template = (await listGroupTemplates()).find((tpl) => tpl.id === request.templateId);
+        if (template) {
+          await upsertGroupTemplate({
+            id: template.id,
+            name: template.name,
+            color: template.color,
+            roles: template.roles,
+            use_count: template.use_count + 1,
+          });
+        }
+      }
+
+      setLauncherOpen(false);
+    } catch (error) {
+      console.error("Failed to create group from roles:", error);
+    }
+  }, [createNamedGroup, createRole, handleStartRole, syncUpdateGroup, updateWorkspaceGroup]);
+
+  const openLauncher = useCallback(() => { setLauncherOpen(true); }, []);
   // Opening machines from the launcher replaces it rather than stacking two
   // overlays: one surface on screen at a time.
   const openMachines = useCallback(() => {
     setLauncherOpen(false);
     setMachinesOpen(true);
   }, []);
+  /**
+   * Hand the launcher off to the settings surface that OWNS the list it is
+   * rendering. The launcher shows agents and templates; neither is editable
+   * there, and leaving the operator to find the right settings tab is the
+   * kind of gap that makes a dialog feel unfinished.
+   */
+  const openSettingsTab = useCallback((tab: string) => {
+    setLauncherOpen(false);
+    const state = useWorkspaceStore.getState();
+    state.setSettingsInitialTab(tab);
+    state.setSettingsModalOpen(true);
+  }, []);
+  const openShortcutSettings = useCallback(() => { openSettingsTab("shortcuts"); }, [openSettingsTab]);
+  const openTemplateSettings = useCallback(() => { openSettingsTab("templates"); }, [openSettingsTab]);
   const closeLauncher = useCallback(() => {
-    pendingLauncherGroupRef.current = null;
+    setLauncherGroupId(null);
     setLauncherOpen(false);
   }, []);
 
@@ -556,16 +816,19 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
           // will add the pane and activate it atomically in a single
           // zustand set(), avoiding cross-system state races.
           pendingActivePaneRef.current = session.id;
-          const pendingGroupId = pendingLauncherGroupRef.current;
+          // Read the destination from the ref mirror rather than the state,
+          // because this callback may be holding a render-old closure and the
+          // operator can change the destination inside the dialog.
+          const pendingGroupId = launcherGroupRef.current;
           if (pendingGroupId) {
             pendingGroupBySessionRef.current.set(session.id, pendingGroupId);
-            pendingLauncherGroupRef.current = null;
           }
+          setLauncherGroupId(null);
         } else {
-          pendingLauncherGroupRef.current = null;
+          setLauncherGroupId(null);
         }
       } catch (error) {
-        pendingLauncherGroupRef.current = null;
+        setLauncherGroupId(null);
         throw error;
       }
     },
@@ -573,7 +836,7 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
   );
 
   const handleNewSessionInGroup = useCallback((groupId: string) => {
-    pendingLauncherGroupRef.current = groupId;
+    setLauncherGroupId(groupId);
     setMobileSidebarOpen(false);
     setLauncherOpen(true);
   }, []);
@@ -613,8 +876,8 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
 
   useEffect(() => {
     if (!archiveUndo) return;
-    const timer = window.setTimeout(() => setArchiveUndo(null), 8_000);
-    return () => window.clearTimeout(timer);
+    const timer = window.setTimeout(() => { setArchiveUndo(null); }, 8_000);
+    return () => { window.clearTimeout(timer); };
   }, [archiveUndo]);
 
   const handleUndoArchive = useCallback(async () => {
@@ -689,15 +952,15 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
   );
 
   const handleDiscardPendingInput = useCallback(
-    (index: number) => discardActivePendingInput(index, workspace.activePane ?? undefined),
+    (index: number) => { discardActivePendingInput(index, workspace.activePane ?? undefined); },
     [discardActivePendingInput, workspace.activePane],
   );
   const handleDiscardAllPendingInput = useCallback(
-    () => discardAllActivePendingInput(workspace.activePane ?? undefined),
+    () => { discardAllActivePendingInput(workspace.activePane ?? undefined); },
     [discardAllActivePendingInput, workspace.activePane],
   );
   const handleFlushPendingInputNow = useCallback(
-    () => flushActivePendingInputNow(workspace.activePane ?? undefined),
+    () => { flushActivePendingInputNow(workspace.activePane ?? undefined); },
     [flushActivePendingInputNow, workspace.activePane],
   );
 
@@ -758,7 +1021,7 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
     const rafId = requestAnimationFrame(() => {
       focusActiveTerminal(paneId);
     });
-    return () => cancelAnimationFrame(rafId);
+    return () => { cancelAnimationFrame(rafId); };
   }, [workspace.activePane, isMobile, workspace.settingsModalOpen, workspace.aiModalOpen, workspace.aiSuggestActive, workspace.appearanceModalPane, composerOpen, focusActiveTerminal]);
 
   const handleVoiceTranscript = useCallback((text: string) => {
@@ -812,8 +1075,8 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
         sendToTerminal: (data: string) => { handleSendToTerminal(data, "bulk_text"); },
         copySelection: () => { void copySelectionOnPane(activeWorkspacePane ?? undefined); },
         pasteFromClipboard: () => { void pasteFromClipboardOnPane(activeWorkspacePane ?? undefined); },
-        scrollTerminal: (lines: number) => scrollTerminalOnPane(lines, activeWorkspacePane ?? undefined),
-        exitVoiceMode: () => voiceInput.stopRecording(),
+        scrollTerminal: (lines: number) => { scrollTerminalOnPane(lines, activeWorkspacePane ?? undefined); },
+        exitVoiceMode: () => { voiceInput.stopRecording(); },
       }, suggestion.args);
     });
   }, [activeWorkspacePane, voiceInput, handleSendToTerminal, handleLaunch, handleRequestClose, setActiveWorkspacePane, workspacePanes, copySelectionOnPane, pasteFromClipboardOnPane, scrollTerminalOnPane]);
@@ -903,7 +1166,7 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
     };
     poll();
     const id = setInterval(poll, 100);
-    return () => clearInterval(id);
+    return () => { clearInterval(id); };
   }, [isTtsSpeaking, workspace.activePane, getTtsStateOnPane]);
 
   const handleTtsPause = useCallback(() => {
@@ -1008,7 +1271,7 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
     },
     stopPlayback: stopActiveTts,
     applySummarizeResult,
-    onSummarizeFailed: (sessionId, eventId, message) => handleSummarizeFailed(sessionId, eventId, message, "on-demand"),
+    onSummarizeFailed: (sessionId, eventId, message) => { handleSummarizeFailed(sessionId, eventId, message, "on-demand"); },
     onSummarizeSucceeded: handleSummarizeSucceeded,
   });
   const handlePlaybackTransportStopped = ttsPlaybackController.handleTransportStopped;
@@ -1350,7 +1613,6 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
       }),
     activeSessionTrackingDegraded && activeViewMode === "messages" && trackingDegradedBanner(t),
   ];
-  const bannerFill = bannerFillClassName(arbitrateBanners(banners).primary);
 
   // While session hydration is in flight, show a loading screen to prevent
   // the empty state ("New Terminal" button) from flashing before we know
@@ -1367,10 +1629,7 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
   if (sessionPanes.length === 0) {
     return (
       <div className="flex h-wc-app flex-col bg-wc-surface-base text-wc-text-primary">
-        <TopSafeArea
-          testId="workspace-top-edge"
-          fillClassName={bannerFill ?? "bg-wc-surface-header"}
-        >
+        <TopSafeArea testId="workspace-top-edge">
           <BannerRegion banners={banners} />
         </TopSafeArea>
         <div className="flex flex-1 items-center justify-center">
@@ -1383,7 +1642,7 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
               <ErrorBanner
                 error={hydrationError}
                 onDismiss={clearHydrationError}
-                onRetry={hydrationError.retry ? () => window.location.reload() : undefined}
+                onRetry={hydrationError.retry ? () => { window.location.reload(); } : undefined}
                 className="mb-4"
               />
             )}
@@ -1419,6 +1678,14 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
           targetsLoading={targetsLoading}
           onRefreshTargets={refreshTargetCatalog}
           onOpenMachines={openMachines}
+          groups={workspaceGroups}
+          pendingGroupId={launcherGroupId}
+          onDestinationChange={setLauncherGroupId}
+          onCreateGroup={createLauncherGroup}
+          appearance={launcherAppearance}
+          onCreateGroupFromRoles={createGroupFromRoles}
+          onEditShortcuts={openShortcutSettings}
+          onEditTemplates={openTemplateSettings}
         />
         <ArchiveDrawer
           open={archiveDrawerOpen}
@@ -1507,6 +1774,7 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
         playbackFocusRequest={workspace.activePane === paneMeta.sessionId ? playbackFocusRequest : null}
         onActivate={activatePane}
         onRequestClose={handleRequestClose}
+        onHandoff={openHandoff}
         onToggleView={handlePaneToggleView}
         onViewSwitchPendingChange={handleViewSwitchPendingChange}
         onStartArrangeDrag={startArrangeDrag}
@@ -1527,6 +1795,7 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
   const navigationItems = buildWorkspaceNavigationItems({
     panes: orderedPanes,
     groups: workspace.groups ?? [],
+    roles: workspace.roles,
     activePane: workspace.activePane,
     conversationSessions,
     viewModes: conversationViewModes,
@@ -1541,6 +1810,7 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
   const sidebarOriginBuckets = buildOriginBucketedNavigation({
     panes: orderedPanes,
     groups: workspace.groups ?? [],
+    roles: workspace.roles,
     activePane: workspace.activePane,
     conversationSessions,
     viewModes: conversationViewModes,
@@ -1558,11 +1828,6 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
   // count of its own, and a real unread count outranks it).
   const sidebarHasFlagged = orderedPanes.some((pane) => pane.manuallyUnread);
   const hasTopChrome = workspace.displayMode === "tabs" || workspace.displayMode === "sidebar";
-  // Whatever banner is on top owns the notch. This used to be a ternary wired
-  // to the voice fallback notice alone, so the other ten notices left the
-  // status strip showing the surface underneath them.
-  const statusFillClassName = bannerFill ?? "wc-chrome-surface";
-
   // h-wc-app maps to var(--wc-app-height, 100dvh) — the actual visible
   // viewport height set by useAppViewport(). This is the root layout
   // container; all descendants use flex to fill this height.
@@ -1575,9 +1840,9 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
        * already provides the plus button and we move settings there. */}
       <FloatingToolbar
         hidden={isMobile && isTabLikeMode}
-        onOpenSettings={() => workspace.setSettingsModalOpen(true)}
+        onOpenSettings={() => { workspace.setSettingsModalOpen(true); }}
         onOpenMachines={openMachines}
-        onOpenAi={() => workspace.setAiModalOpen(true)}
+        onOpenAi={() => { workspace.setAiModalOpen(true); }}
         onNewTerminal={() => handleLaunch()}
         onOpenLauncher={openLauncher}
         onExpandComposer={openComposer}
@@ -1599,10 +1864,7 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
         onVoiceExitPassive={voiceInput.exitPassiveMode}
       />
 
-      <TopSafeArea
-        testId="workspace-top-edge"
-        fillClassName={statusFillClassName}
-      >
+      <TopSafeArea testId="workspace-top-edge">
         <BannerRegion banners={banners} />
 
         {/* Tab bar (only in tabs mode) */}
@@ -1615,6 +1877,8 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
             onClosePane={handleRequestClose}
             onDeletePanePermanently={setPendingDelete}
             isCreating={isCreating}
+            onStartRole={startRoleFromSurface}
+            onOpenRoleMenu={openRoleMenu}
             trailingActions={isMobile ? (
               <>
               <Button
@@ -1632,7 +1896,7 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
                 variant="ghost"
                 size="icon"
                 className="h-11 w-11 shrink-0 mx-1 self-center md:h-7 md:w-7"
-                onClick={() => workspace.setSettingsModalOpen(true)}
+                onClick={() => { workspace.setSettingsModalOpen(true); }}
                 title={t(strings.workspace.settingsTitle)}
               >
                 <Settings className="h-4 w-4" />
@@ -1652,7 +1916,7 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
               variant="ghost"
               size="icon"
               className="relative h-8 w-8"
-              onClick={() => setMobileSidebarOpen(true)}
+              onClick={() => { setMobileSidebarOpen(true); }}
               title={t(strings.sessionSidebar.open)}
             >
               <Menu className="h-4 w-4" />
@@ -1716,7 +1980,7 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
               variant="ghost"
               size="icon"
               className="h-8 w-8"
-              onClick={() => workspace.setSettingsModalOpen(true)}
+              onClick={() => { workspace.setSettingsModalOpen(true); }}
               title={t(strings.workspace.settingsTitle)}
             >
               <Settings className="h-4 w-4" />
@@ -1738,14 +2002,18 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
               isMobile={isMobile}
               mobileOpen={mobileSidebarOpen}
               isCreating={isCreating}
-              onCloseMobile={() => setMobileSidebarOpen(false)}
+              onCloseMobile={() => { setMobileSidebarOpen(false); }}
+              onOpenMobile={() => { setMobileSidebarOpen(true); }}
               onActivatePane={activatePane}
               onClosePane={handleRequestClose}
               onDeletePanePermanently={setPendingDelete}
               onNewTerminal={() => handleLaunch()}
               onOpenLauncher={openLauncher}
               onNewSessionInGroup={handleNewSessionInGroup}
-              onOpenSettings={() => workspace.setSettingsModalOpen(true)}
+          onStartRole={startRoleFromSurface}
+          onHandoffToRole={handoffToRole}
+          onOpenRoleMenu={openRoleMenu}
+              onOpenSettings={() => { workspace.setSettingsModalOpen(true); }}
               onOpenArchiveDrawer={(sessionId) => {
                 setMobileSidebarOpen(false);
                 setArchiveInitialSessionId(sessionId ?? null);
@@ -1791,6 +2059,7 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
                   playbackFocusRequest={workspace.activePane === paneMeta.sessionId ? playbackFocusRequest : null}
                   onActivate={activatePane}
                   onRequestClose={handleRequestClose}
+                  onHandoff={openHandoff}
                   onToggleView={handlePaneToggleView}
                   onViewSwitchPendingChange={handleViewSwitchPendingChange}
                   messagesToolbarTrailingAction={activeViewMode === "messages" && paneMeta.sessionId === workspace.activePane ? renderViewToggleButton() : undefined}
@@ -1957,7 +2226,7 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
             onCommandDismiss: handleVoiceCommandDismiss,
           }}
           onUploadImage={handleMobileUploadImage}
-          onOpenAi={() => workspace.setAiSuggestActive(!workspace.aiSuggestActive)}
+          onOpenAi={() => { workspace.setAiSuggestActive(!workspace.aiSuggestActive); }}
           onAiSuggestExecute={(cmd) => {
             handleSendToTerminal(cmd, "bulk_text");
             mobileToolbarRef.current?.clearInput();
@@ -2039,6 +2308,14 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
         targetsLoading={targetsLoading}
         onRefreshTargets={refreshTargetCatalog}
         onOpenMachines={openMachines}
+        groups={workspaceGroups}
+        pendingGroupId={launcherGroupId}
+        onDestinationChange={setLauncherGroupId}
+        onCreateGroup={createLauncherGroup}
+        appearance={launcherAppearance}
+        onCreateGroupFromRoles={createGroupFromRoles}
+        onEditShortcuts={openShortcutSettings}
+        onEditTemplates={openTemplateSettings}
       />
 
       <MachinesDrawer open={machinesOpen} onClose={() => { setMachinesOpen(false); }} />
@@ -2054,6 +2331,43 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
 
       {/* Manage Groups drawer (opened from TabBar / SessionSidebar menus) */}
       <ManageGroupsDrawer />
+
+      {/* Handoff: one generic verb, reachable from every surface that has a
+          payload worth moving. */}
+      <HandoffComposer
+        open={handoffState !== null}
+        onClose={() => { setHandoffState(null); }}
+        sourceLabel={handoffState?.sourceLabel ?? ""}
+        payload={handoffState?.payload ?? ""}
+        targets={handoffTargets}
+        initialSelection={handoffState?.initialSelection}
+        onSend={runHandoff}
+      />
+
+      <GroupUndoBanner
+        onUndo={restoreClosedGroup}
+        onDismiss={dismissClosedGroupUndo}
+      />
+
+      {roleMenu && (
+        <RoleMenu
+          role={roleMenu.role}
+          position={roleMenu.position}
+          onStart={(role) => { setRoleMenu(null); startRoleFromSurface(role); }}
+          onRename={(role) => {
+            setRoleMenu(null);
+            const next = window.prompt(t(strings.roles.roleLabel), role.label);
+            if (next && next.trim()) updateRole(role.id, { label: next.trim() });
+          }}
+          onEditPrompt={(role) => {
+            setRoleMenu(null);
+            const next = window.prompt(t(strings.roles.roleIncomingPromptHint), role.incomingPrompt);
+            if (next !== null) updateRole(role.id, { incomingPrompt: next });
+          }}
+          onDelete={(role) => { setRoleMenu(null); removeRole(role.id); }}
+          onDismiss={() => { setRoleMenu(null); }}
+        />
+      )}
 
       <ArchiveDrawer
         open={archiveDrawerOpen}
@@ -2079,7 +2393,7 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
         confirmLabel={t(strings.confirmDelete.confirm)}
         destructive
         onConfirm={handleConfirmDelete}
-        onCancel={() => setPendingDelete(null)}
+        onCancel={() => { setPendingDelete(null); }}
         testIdPrefix="confirm-delete-session"
       />
 

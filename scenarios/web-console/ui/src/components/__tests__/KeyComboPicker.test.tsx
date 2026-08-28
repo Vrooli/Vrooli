@@ -1,6 +1,6 @@
 import { renderWithProviders as render } from "../../test-utils";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { screen, fireEvent, waitFor } from "@testing-library/react";
+import { screen, fireEvent, waitFor, waitForElementToBeRemoved } from "@testing-library/react";
 import KeyComboPicker from "../KeyComboPicker";
 import { useWorkspaceStore } from "../../stores/useWorkspaceStore";
 
@@ -30,17 +30,19 @@ describe("KeyComboPicker", () => {
   it("clicking trigger opens bottom sheet", () => {
     render(<KeyComboPicker {...defaultProps} />);
     fireEvent.click(screen.getByTestId("combo-picker-trigger"));
-    expect(screen.getByTestId("combo-picker-panel")).toBeInTheDocument();
-    expect(screen.getByTestId("combo-picker-backdrop")).toBeInTheDocument();
+    expect(screen.getByTestId("combo-picker")).toBeInTheDocument();
+    expect(screen.getByTestId("combo-picker.backdrop")).toBeInTheDocument();
   });
 
-  it("clicking backdrop closes bottom sheet", () => {
+  it("pressing the backdrop closes bottom sheet", async () => {
     render(<KeyComboPicker {...defaultProps} />);
     fireEvent.click(screen.getByTestId("combo-picker-trigger"));
-    expect(screen.getByTestId("combo-picker-panel")).toBeInTheDocument();
+    expect(screen.getByTestId("combo-picker")).toBeInTheDocument();
 
-    fireEvent.click(screen.getByTestId("combo-picker-backdrop"));
-    expect(screen.queryByTestId("combo-picker-panel")).not.toBeInTheDocument();
+    // The backdrop dismisses on press, not on click, and the sheet stays
+    // mounted for the length of its exit transition before it is removed.
+    fireEvent.pointerDown(screen.getByTestId("combo-picker.backdrop"));
+    await waitForElementToBeRemoved(() => screen.queryByTestId("combo-picker"));
   });
 
   it("combo items are rendered with correct labels", () => {
@@ -59,8 +61,8 @@ describe("KeyComboPicker", () => {
     fireEvent.click(screen.getByTestId("combo-picker-trigger"));
     fireEvent.click(screen.getByTestId("combo-item-ctrl-c"));
 
-    // Sheet should close
-    expect(screen.queryByTestId("combo-picker-panel")).not.toBeInTheDocument();
+    // Sheet should close — after its exit transition has run.
+    await waitForElementToBeRemoved(() => screen.queryByTestId("combo-picker"));
 
     // onInput should have been called with Ctrl+C data and the
     // toolbar-key source tag.

@@ -70,8 +70,19 @@ export interface PermissionPreset {
 
 export interface ControlPlane {
   reachable: boolean;
+  /**
+   * The API base the server dials. Identity and diagnostics only — never an
+   * href. It is resolved server-side against loopback and the API port, so a
+   * browser that opens it reaches a Connect endpoint, or the wrong computer.
+   */
   endpoint: string;
   detail: string;
+  /**
+   * The control plane's interface, resolved by the server against this
+   * browser's own origin. Empty when it could not be located, in which case
+   * call sites hide the affordance rather than render a dead link.
+   */
+  consoleUrl: string;
 }
 
 export interface Fleet {
@@ -166,6 +177,7 @@ export async function listFleet(): Promise<Fleet> {
       reachable: response.controlPlane?.reachable ?? false,
       endpoint: response.controlPlane?.endpoint ?? "",
       detail: response.controlPlane?.detail ?? "",
+      consoleUrl: response.controlPlane?.consoleUrl ?? "",
     },
   };
 }

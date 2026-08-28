@@ -160,3 +160,27 @@ func (a *Adapter) DeleteGroup(ctx context.Context, id string) {
 		})
 	}
 }
+
+// Roles delegate straight to the store. Unlike panes and groups they emit no
+// workspace events: a role is a slot definition, not a live surface, and the
+// session it points at already emits its own lifecycle events. Adding a
+// second event stream for the same state change would double-count.
+
+func (a *Adapter) ListRoles(ctx context.Context, groupID string) ([]Role, error) {
+	return a.Store.ListRoles(ctx, groupID)
+}
+
+func (a *Adapter) CreateRole(ctx context.Context, req CreateRoleRequest) (Role, error) {
+	return a.Store.CreateRole(ctx, req)
+}
+
+func (a *Adapter) UpdateRole(ctx context.Context, req UpdateRoleRequest) (Role, error) {
+	return a.Store.UpdateRole(ctx, req)
+}
+
+// DeleteRole is idempotent, matching the store: deleting an id that is
+// already gone is the state the caller asked for, not an error.
+func (a *Adapter) DeleteRole(ctx context.Context, id string) error {
+	_, err := a.Store.DeleteRole(ctx, id)
+	return err
+}

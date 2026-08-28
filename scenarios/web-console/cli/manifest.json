@@ -232,6 +232,35 @@
       ]
     },
     {
+      "name": "events",
+      "description": "Show recent lifecycle events from the in-memory ring buffer",
+      "commands": [
+        {
+          "name": "events",
+          "description": "Show recent lifecycle events from the in-memory ring buffer",
+          "flags": [
+            {
+              "name": "limit",
+              "default": "50",
+              "description": "Maximum events to return (max 1000)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "EventsService",
+            "method": "List"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
       "name": "file-preview",
       "description": "Resolve local file references into preview targets, read bounded text content, and list directories",
       "commands": [
@@ -352,67 +381,16 @@
       ]
     },
     {
-      "name": "events",
-      "description": "Show recent lifecycle events from the in-memory ring buffer",
-      "commands": [
-        {
-          "name": "events",
-          "description": "Show recent lifecycle events from the in-memory ring buffer",
-          "flags": [
-            {
-              "name": "limit",
-              "default": "50",
-              "description": "Maximum events to return (max 1000)"
-            }
-          ],
-          "binding": {
-            "kind": "connect-rpc",
-            "service": "EventsService",
-            "method": "List"
-          },
-          "governance": {
-            "effect": "read",
-            "run_eligible": true,
-            "permissions": [
-              "network:internal"
-            ]
-          }
-        }
-      ]
-    },
-    {
-      "name": "metrics",
-      "description": "Show runtime metrics (active sessions, totals, TTS/voice counters)",
-      "commands": [
-        {
-          "name": "metrics",
-          "description": "Show runtime metrics (active sessions, totals, TTS/voice counters)",
-          "binding": {
-            "kind": "connect-rpc",
-            "service": "MetricsService",
-            "method": "Get"
-          },
-          "governance": {
-            "effect": "read",
-            "run_eligible": true,
-            "permissions": [
-              "network:internal"
-            ]
-          }
-        }
-      ]
-    },
-    {
-      "name": "target",
-      "description": "Inspect local and remote terminal locations",
+      "name": "group-template",
+      "description": "Manage saved group templates (role recipes)",
       "commands": [
         {
           "name": "list",
-          "description": "List terminal locations and readiness state",
+          "description": "List saved group templates",
           "binding": {
             "kind": "connect-rpc",
-            "service": "TargetCatalogService",
-            "method": "List"
+            "service": "GroupTemplatesService",
+            "method": "ListTemplates"
           },
           "governance": {
             "effect": "read",
@@ -423,22 +401,63 @@
           }
         },
         {
-          "name": "get",
-          "description": "Show one terminal location",
-          "positionals": [
+          "name": "upsert",
+          "description": "Create or update a group template (--body-file PATH)",
+          "flags": [
             {
-              "name": "target-id",
-              "required": true,
-              "description": "Target catalog ID",
-              "bind": {
-                "field": "id"
-              }
+              "name": "body-file",
+              "description": "Path to a JSON body (required)"
             }
           ],
           "binding": {
             "kind": "connect-rpc",
-            "service": "TargetCatalogService",
-            "method": "Get"
+            "service": "GroupTemplatesService",
+            "method": "UpsertTemplate"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "delete",
+          "description": "Delete a group template",
+          "positionals": [
+            {
+              "name": "template-id",
+              "required": true,
+              "description": "Template ID"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "GroupTemplatesService",
+            "method": "DeleteTemplate"
+          },
+          "governance": {
+            "effect": "destructive",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "handoff-rule",
+      "description": "Manage handoff capture rules (they suggest, never send)",
+      "commands": [
+        {
+          "name": "list",
+          "description": "List handoff capture rules",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "HandoffRulesService",
+            "method": "ListRules"
           },
           "governance": {
             "effect": "read",
@@ -449,26 +468,45 @@
           }
         },
         {
-          "name": "doctor",
-          "description": "Explain target readiness and recovery action",
-          "positionals": [
+          "name": "upsert",
+          "description": "Create or update a capture rule (--body-file PATH)",
+          "flags": [
             {
-              "name": "target-id",
-              "required": true,
-              "description": "Target catalog ID",
-              "bind": {
-                "field": "id"
-              }
+              "name": "body-file",
+              "description": "Path to a JSON body (required)"
             }
           ],
           "binding": {
             "kind": "connect-rpc",
-            "service": "TargetCatalogService",
-            "method": "Doctor"
+            "service": "HandoffRulesService",
+            "method": "UpsertRule"
           },
           "governance": {
-            "effect": "read",
-            "run_eligible": true,
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "delete",
+          "description": "Delete a capture rule",
+          "positionals": [
+            {
+              "name": "rule-id",
+              "required": true,
+              "description": "Rule ID"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "HandoffRulesService",
+            "method": "DeleteRule"
+          },
+          "governance": {
+            "effect": "destructive",
+            "run_eligible": false,
             "permissions": [
               "network:internal"
             ]
@@ -636,113 +674,16 @@
       ]
     },
     {
-      "name": "terminal",
-      "description": "Read and drive terminal sessions through the structured terminal service",
+      "name": "metrics",
+      "description": "Show runtime metrics (active sessions, totals, TTS/voice counters)",
       "commands": [
         {
-          "name": "screen",
-          "description": "Print the decoded screen of a session",
-          "positionals": [
-            {
-              "name": "session-id",
-              "required": true,
-              "description": "Session ID",
-              "bind": {
-                "field": "session_id"
-              }
-            }
-          ],
-          "flags": [
-            {
-              "name": "include-scrollback",
-              "bool": true,
-              "description": "Include scrollback lines in the plain-text rendering",
-              "local_only": true
-            }
-          ],
+          "name": "metrics",
+          "description": "Show runtime metrics (active sessions, totals, TTS/voice counters)",
           "binding": {
             "kind": "connect-rpc",
-            "service": "TerminalService",
-            "method": "GetScreen"
-          },
-          "governance": {
-            "effect": "read",
-            "run_eligible": true,
-            "permissions": [
-              "network:internal"
-            ]
-          }
-        },
-        {
-          "name": "send-text",
-          "description": "Send literal text to a session",
-          "positionals": [
-            {
-              "name": "session-id",
-              "required": true,
-              "description": "Session ID",
-              "bind": {
-                "field": "session_id"
-              }
-            },
-            {
-              "name": "text",
-              "required": true,
-              "repeated": true,
-              "description": "Text words to join and send",
-              "local_only": true
-            }
-          ],
-          "flags": [
-            {
-              "name": "paste",
-              "bool": true,
-              "description": "Deliver as bracketed paste",
-              "local_only": true
-            }
-          ],
-          "binding": {
-            "kind": "connect-rpc",
-            "service": "TerminalService",
-            "method": "SendInput"
-          },
-          "governance": {
-            "effect": "write",
-            "run_eligible": false,
-            "permissions": [
-              "network:internal"
-            ]
-          }
-        },
-        {
-          "name": "wait-idle",
-          "description": "Block until a session is idle",
-          "positionals": [
-            {
-              "name": "session-id",
-              "required": true,
-              "description": "Session ID",
-              "bind": {
-                "field": "session_id"
-              }
-            }
-          ],
-          "flags": [
-            {
-              "name": "quiet-window",
-              "description": "Quiet duration before the session counts as idle",
-              "local_only": true
-            },
-            {
-              "name": "timeout",
-              "description": "Maximum total wait duration",
-              "local_only": true
-            }
-          ],
-          "binding": {
-            "kind": "connect-rpc",
-            "service": "TerminalService",
-            "method": "WaitIdle"
+            "service": "MetricsService",
+            "method": "Get"
           },
           "governance": {
             "effect": "read",
@@ -1190,6 +1131,199 @@
       ]
     },
     {
+      "name": "target",
+      "description": "Inspect local and remote terminal locations",
+      "commands": [
+        {
+          "name": "list",
+          "description": "List terminal locations and readiness state",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "TargetCatalogService",
+            "method": "List"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "get",
+          "description": "Show one terminal location",
+          "positionals": [
+            {
+              "name": "target-id",
+              "required": true,
+              "description": "Target catalog ID",
+              "bind": {
+                "field": "id"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "TargetCatalogService",
+            "method": "Get"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "doctor",
+          "description": "Explain target readiness and recovery action",
+          "positionals": [
+            {
+              "name": "target-id",
+              "required": true,
+              "description": "Target catalog ID",
+              "bind": {
+                "field": "id"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "TargetCatalogService",
+            "method": "Doctor"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "terminal",
+      "description": "Read and drive terminal sessions through the structured terminal service",
+      "commands": [
+        {
+          "name": "screen",
+          "description": "Print the decoded screen of a session",
+          "positionals": [
+            {
+              "name": "session-id",
+              "required": true,
+              "description": "Session ID",
+              "bind": {
+                "field": "session_id"
+              }
+            }
+          ],
+          "flags": [
+            {
+              "name": "include-scrollback",
+              "bool": true,
+              "description": "Include scrollback lines in the plain-text rendering",
+              "local_only": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "TerminalService",
+            "method": "GetScreen"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "send-text",
+          "description": "Send literal text to a session",
+          "positionals": [
+            {
+              "name": "session-id",
+              "required": true,
+              "description": "Session ID",
+              "bind": {
+                "field": "session_id"
+              }
+            },
+            {
+              "name": "text",
+              "required": true,
+              "repeated": true,
+              "description": "Text words to join and send",
+              "local_only": true
+            }
+          ],
+          "flags": [
+            {
+              "name": "paste",
+              "bool": true,
+              "description": "Deliver as bracketed paste",
+              "local_only": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "TerminalService",
+            "method": "SendInput"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "wait-idle",
+          "description": "Block until a session is idle",
+          "positionals": [
+            {
+              "name": "session-id",
+              "required": true,
+              "description": "Session ID",
+              "bind": {
+                "field": "session_id"
+              }
+            }
+          ],
+          "flags": [
+            {
+              "name": "quiet-window",
+              "description": "Quiet duration before the session counts as idle",
+              "local_only": true
+            },
+            {
+              "name": "timeout",
+              "description": "Maximum total wait duration",
+              "local_only": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "TerminalService",
+            "method": "WaitIdle"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
       "name": "workspace",
       "description": "Manage pane-based workspace layout and groups",
       "commands": [
@@ -1348,6 +1482,110 @@
             "kind": "connect-rpc",
             "service": "WorkspaceService",
             "method": "DeleteGroup"
+          },
+          "governance": {
+            "effect": "destructive",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "role-list",
+          "description": "List roles in a group, or every role",
+          "positionals": [
+            {
+              "name": "group-id",
+              "required": false,
+              "description": "Group ID; omit to list every role"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "WorkspaceService",
+            "method": "ListRoles"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "role-create",
+          "description": "Create a role in a group (--body-file PATH)",
+          "positionals": [
+            {
+              "name": "group-id",
+              "required": true,
+              "description": "Group ID"
+            }
+          ],
+          "flags": [
+            {
+              "name": "body-file",
+              "description": "Path to a JSON body (required)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "WorkspaceService",
+            "method": "CreateRole"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "role-update",
+          "description": "Update a role (--body-file PATH)",
+          "positionals": [
+            {
+              "name": "role-id",
+              "required": true,
+              "description": "Role ID"
+            }
+          ],
+          "flags": [
+            {
+              "name": "body-file",
+              "description": "Path to a JSON body (required)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "WorkspaceService",
+            "method": "UpdateRole"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "role-delete",
+          "description": "Delete a role",
+          "positionals": [
+            {
+              "name": "role-id",
+              "required": true,
+              "description": "Role ID"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "WorkspaceService",
+            "method": "DeleteRole"
           },
           "governance": {
             "effect": "destructive",

@@ -1,7 +1,7 @@
 import { memo, useCallback, useEffect, useRef, useState } from "react";
 import { ChevronDown, ChevronRight, Plus, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { useWorkspaceStore, type PaneMetadata } from "../stores/useWorkspaceStore";
+import { useWorkspaceStore, type PaneMetadata, type RoleMeta } from "../stores/useWorkspaceStore";
 import { cn } from "../lib/classnames";
 import { paneAccentStyle } from "../lib/paneColor";
 import { strings } from "../consts/strings";
@@ -10,6 +10,8 @@ import { useLongPress } from "../hooks/useLongPress";
 import { usePressGesture } from "../hooks/usePressGesture";
 import TabContextMenu from "./TabContextMenu";
 import GroupContextMenu from "./GroupContextMenu";
+import RoleRow from "./RoleRow";
+import { GroupPickerOverlay } from "./launcher/GroupPicker";
 import { useWorkspaceSync } from "../hooks/useWorkspaceSync";
 import { useGroupActions } from "../hooks/useGroupActions";
 import { getSessionUnreadCount, useConversationStore } from "../stores/useConversationStore";
@@ -61,6 +63,10 @@ interface TabBarProps {
   onClosePane: (sessionId: string) => void;
   onDeletePanePermanently: (sessionId: string) => void;
   isCreating?: boolean;
+  /** Start a waiting role's command from its chip in the strip. */
+  onStartRole: (role: RoleMeta) => void;
+  /** Open a waiting role's overflow menu. */
+  onOpenRoleMenu: (role: RoleMeta, position: { x: number; y: number }) => void;
   /** Extra action buttons rendered before the plus button (e.g. settings on mobile). */
   trailingActions?: React.ReactNode;
 }
@@ -73,6 +79,8 @@ function TabBar({
   onClosePane,
   onDeletePanePermanently,
   isCreating,
+  onStartRole,
+  onOpenRoleMenu,
   trailingActions,
 }: TabBarProps) {
   const { t } = useTranslation();
@@ -81,12 +89,15 @@ function TabBar({
   const renamePaneById = useWorkspaceStore((s) => s.renamePaneById);
   const setAppearanceModalPane = useWorkspaceStore((s) => s.setAppearanceModalPane);
   const groups = useWorkspaceStore((s) => s.groups);
+  const roles = useWorkspaceStore((s) => s.roles);
   const tabContextMenu = useWorkspaceStore((s) => s.tabContextMenu);
   const setTabContextMenu = useWorkspaceStore((s) => s.setTabContextMenu);
   const toggleGroupCollapsed = useWorkspaceStore((s) => s.toggleGroupCollapsed);
-  const setManageGroupsTarget = useWorkspaceStore((s) => s.setManageGroupsTarget);
+  const setManageGroupsOpen = useWorkspaceStore((s) => s.setManageGroupsOpen);
+  // Where the anchored assign picker should sit, and for which session.
+  const [assignPicker, setAssignPicker] = useState<{ sessionId: string } | null>(null);
   const { syncPaneMove, syncActivePane, syncPaneUpdate } = useWorkspaceSync();
-  const { removePaneFromGroup } = useGroupActions();
+  const { removePaneFromGroup, assignPaneToGroup, createNamedGroup } = useGroupActions();
   const setPaneManuallyUnread = useWorkspaceStore((s) => s.setPaneManuallyUnread);
 
   /** Flip a pane's manual unread flag and persist it. */
@@ -189,8 +200,8 @@ function TabBar({
   const groupPressGesture = usePressGesture<string>({
     longPressMs: 500,
     moveThresholdPx: DRAG_THRESHOLD,
-    onTap: (groupId) => toggleGroupCollapsed(groupId),
-    onLongPress: (groupId, point) => openGroupMenu(groupId, point.x, point.y),
+    onTap: (groupId) => { toggleGroupCollapsed(groupId); },
+    onLongPress: (groupId, point) => { openGroupMenu(groupId, point.x, point.y); },
   });
 
   // Auto-scroll active tab into view
@@ -277,6 +288,7 @@ function TabBar({
   const renderItems = buildWorkspaceNavigationItems({
     panes,
     groups,
+    roles,
     activePane,
   });
 
@@ -292,7 +304,7 @@ function TabBar({
       >
         {renderItems.map((item) => {
           if (item.kind === "group-label") {
-            const { group, tabCount } = item;
+            const { group, tabCount, waitingCount } = item;
             return (
               <button
                 key={`group-${group.id}`}
@@ -313,12 +325,36 @@ function TabBar({
                 {group.isCollapsed && (
                   <span className="text-[10px] bg-wc-surface-input rounded px-1">{tabCount}</span>
                 )}
+                {waitingCount > 0 && (
+                  <span
+                    data-testid={`tab-group-waiting-${group.id}`}
+                    className="rounded border border-dashed border-wc-default px-1 text-[10px] text-wc-text-faint"
+                  >
+                    {waitingCount}
+                  </span>
+                )}
                 {group.isCollapsed ? (
                   <ChevronRight className="h-3 w-3 shrink-0" />
                 ) : (
                   <ChevronDown className="h-3 w-3 shrink-0" />
                 )}
               </button>
+            );
+          }
+
+          // A waiting role appears in the strip as a dashed chip. Clicking it
+          // starts the role, which is the same gesture as clicking a tab.
+          if (item.kind === "waiting-role") {
+            return (
+              <RoleRow
+                key={`role-${item.role.id}`}
+                variant="tab"
+                role={item.role}
+                group={item.group}
+                isLastInGroup={item.isLastInGroup}
+                onStart={onStartRole}
+                onOpenMenu={onOpenRoleMenu}
+              />
             );
           }
 
@@ -421,13 +457,13 @@ function TabBar({
                   data-testid={`tab-rename-input-${pane.sessionId}`}
                   className="bg-wc-surface-input text-wc-text-primary text-xs px-1 rounded w-[100px] outline-none ring-1 ring-wc-accent"
                   value={editTabName}
-                  onChange={(e) => setEditTabName(e.target.value)}
+                  onChange={(e) => { setEditTabName(e.target.value); }}
                   onKeyDown={(e) => {
                     if (e.key === "Enter") commitTabRename();
                     if (e.key === "Escape") { setEditingTabId(null); setEditTabName(""); }
                   }}
                   onBlur={commitTabRename}
-                  onClick={(e) => e.stopPropagation()}
+                  onClick={(e) => { e.stopPropagation(); }}
                 />
               ) : (
                 <span className="truncate max-w-[120px]">{pane.name}</span>
@@ -486,17 +522,20 @@ function TabBar({
             sessionId={tabContextMenu.sessionId}
             currentGroupId={pane.groupId}
             isManuallyUnread={pane.manuallyUnread}
-            onToggleManuallyUnread={() => toggleManualUnread(pane.sessionId)}
+            onToggleManuallyUnread={() => { toggleManualUnread(pane.sessionId); }}
             onRename={() => {
               const p = panes.find((p) => p.sessionId === tabContextMenu.sessionId);
               if (p) startTabRename(p.sessionId, p.name);
             }}
-            onCustomize={() => setAppearanceModalPane(tabContextMenu.sessionId)}
-            onRemoveFromGroup={() => removePaneFromGroup(tabContextMenu.sessionId)}
-            onManageGroups={() => setManageGroupsTarget({ sessionId: tabContextMenu.sessionId })}
+            onCustomize={() => { setAppearanceModalPane(tabContextMenu.sessionId); }}
+            onRemoveFromGroup={() => { removePaneFromGroup(tabContextMenu.sessionId); }}
+            onAssignToGroup={() => {
+              setAssignPicker({ sessionId: tabContextMenu.sessionId });
+              setTabContextMenu(null);
+            }}
             onClose={onClosePane}
             onDeletePermanently={onDeletePanePermanently}
-            onDismiss={() => setTabContextMenu(null)}
+            onDismiss={() => { setTabContextMenu(null); }}
           />
         );
       })()}
@@ -509,9 +548,33 @@ function TabBar({
           <GroupContextMenu
             position={groupMenu.position}
             group={group}
-            onToggleCollapse={() => toggleGroupCollapsed(group.id)}
-            onManageGroups={() => setManageGroupsTarget({ sessionId: null })}
-            onDismiss={() => setGroupMenu(null)}
+            onToggleCollapse={() => { toggleGroupCollapsed(group.id); }}
+            onManageGroups={() => { setManageGroupsOpen(true); }}
+            onDismiss={() => { setGroupMenu(null); }}
+          />
+        );
+      })()}
+      {assignPicker && (() => {
+        const pane = panes.find((p) => p.sessionId === assignPicker.sessionId);
+        return (
+          <GroupPickerOverlay
+            open
+            onClose={() => { setAssignPicker(null); }}
+            groups={groups}
+            value={pane?.groupId ?? null}
+            onChange={(groupId) => {
+              if (groupId) assignPaneToGroup(assignPicker.sessionId, groupId);
+              else removePaneFromGroup(assignPicker.sessionId);
+              setAssignPicker(null);
+            }}
+            onCreate={(name) => {
+              // Server-first, then assign: the group must exist before a pane
+              // can point at it.
+              void createNamedGroup(name).then((group) => {
+                assignPaneToGroup(assignPicker.sessionId, group.id);
+                setAssignPicker(null);
+              });
+            }}
           />
         );
       })()}

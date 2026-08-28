@@ -8,6 +8,8 @@ import (
 	"connectrpc.com/connect"
 
 	workspacev1 "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/workspace"
+
+	wsdomain "web-console/internal/workspace"
 )
 
 // Deps wires the seams the Connect workspace handler needs.
@@ -34,6 +36,21 @@ func NewConnectHandler(d Deps) *connectHandler {
 // CodeNotFound.
 var ErrGroupNotFound = errors.New("group not found")
 
+// roleError maps the role sentinels the store raises onto Connect codes. A
+// missing id and a malformed write are caller mistakes, not server faults,
+// so neither should read as CodeInternal in the client's error handling.
+func (h *connectHandler) roleError(op string, err error) error {
+	switch {
+	case errors.Is(err, wsdomain.ErrRoleNotFound):
+		return connect.NewError(connect.CodeNotFound, err)
+	case errors.Is(err, wsdomain.ErrInvalidRole):
+		return connect.NewError(connect.CodeInvalidArgument, err)
+	default:
+		h.deps.Logger.Printf("workspace.%s: %v", op, err)
+		return connect.NewError(connect.CodeInternal, err)
+	}
+}
+
 func (h *connectHandler) GetLayout(ctx context.Context, _ *connect.Request[workspacev1.GetLayoutRequest]) (*connect.Response[workspacev1.GetLayoutResponse], error) {
 	layout, err := h.deps.Service.GetLayout(ctx)
 	if err != nil {
@@ -44,6 +61,7 @@ func (h *connectHandler) GetLayout(ctx context.Context, _ *connect.Request[works
 		ActivePane: layout.ActivePane,
 		Panes:      panesToProto(layout.Panes),
 		Groups:     groupsToProto(layout.Groups),
+		Roles:      rolesToProto(layout.Roles),
 	}), nil
 }
 
@@ -163,6 +181,98 @@ func groupsToProto(in []Group) []*workspacev1.Group {
 	out := make([]*workspacev1.Group, 0, len(in))
 	for _, g := range in {
 		out = append(out, groupToProto(g))
+	}
+	return out
+}
+
+func (h *connectHandler) ListRoles(ctx context.Context, req *connect.Request[workspacev1.ListRolesRequest]) (*connect.Response[workspacev1.ListRolesResponse], error) {
+	roles, err := h.deps.Service.ListRoles(ctx, req.Msg.GetGroupId())
+	if err != nil {
+		return nil, h.roleError("ListRoles", err)
+	}
+	return connect.NewResponse(&workspacev1.ListRolesResponse{Roles: rolesToProto(roles)}), nil
+}
+
+func (h *connectHandler) CreateRole(ctx context.Context, req *connect.Request[workspacev1.CreateRoleRequest]) (*connect.Response[workspacev1.CreateRoleResponse], error) {
+	in := CreateRoleRequest{
+		GroupID:        req.Msg.GetGroupId(),
+		Label:          req.Msg.GetLabel(),
+		Command:        req.Msg.GetCommand(),
+		WorkingDir:     req.Msg.GetWorkingDir(),
+		IncomingPrompt: req.Msg.GetIncomingPrompt(),
+		Backend:        req.Msg.GetBackend(),
+		TargetID:       req.Msg.GetTargetId(),
+		SessionID:      req.Msg.GetSessionId(),
+		SortOrder:      int(req.Msg.GetSortOrder()),
+		// The proto has no has_sort_order: a create either names a position
+		// or appends. Treating any non-zero value as explicit keeps zero
+		// meaning "append", which is what an unset int32 field looks like.
+		HasSortOrder: req.Msg.GetSortOrder() != 0,
+	}
+	role, err := h.deps.Service.CreateRole(ctx, in)
+	if err != nil {
+		return nil, h.roleError("CreateRole", err)
+	}
+	return connect.NewResponse(&workspacev1.CreateRoleResponse{Role: roleToProto(role)}), nil
+}
+
+func (h *connectHandler) UpdateRole(ctx context.Context, req *connect.Request[workspacev1.UpdateRoleRequest]) (*connect.Response[workspacev1.UpdateRoleResponse], error) {
+	in := UpdateRoleRequest{
+		ID:                req.Msg.GetId(),
+		Label:             req.Msg.GetLabel(),
+		HasLabel:          req.Msg.GetHasLabel(),
+		Command:           req.Msg.GetCommand(),
+		HasCommand:        req.Msg.GetHasCommand(),
+		WorkingDir:        req.Msg.GetWorkingDir(),
+		HasWorkingDir:     req.Msg.GetHasWorkingDir(),
+		IncomingPrompt:    req.Msg.GetIncomingPrompt(),
+		HasIncomingPrompt: req.Msg.GetHasIncomingPrompt(),
+		SessionID:         req.Msg.GetSessionId(),
+		HasSessionID:      req.Msg.GetHasSessionId(),
+		SortOrder:         int(req.Msg.GetSortOrder()),
+		HasSortOrder:      req.Msg.GetHasSortOrder(),
+		Backend:           req.Msg.GetBackend(),
+		HasBackend:        req.Msg.GetHasBackend(),
+		TargetID:          req.Msg.GetTargetId(),
+		HasTargetID:       req.Msg.GetHasTargetId(),
+		GroupID:           req.Msg.GetGroupId(),
+		HasGroupID:        req.Msg.GetHasGroupId(),
+	}
+	role, err := h.deps.Service.UpdateRole(ctx, in)
+	if err != nil {
+		return nil, h.roleError("UpdateRole", err)
+	}
+	return connect.NewResponse(&workspacev1.UpdateRoleResponse{Role: roleToProto(role)}), nil
+}
+
+func (h *connectHandler) DeleteRole(ctx context.Context, req *connect.Request[workspacev1.DeleteRoleRequest]) (*connect.Response[workspacev1.DeleteRoleResponse], error) {
+	if err := h.deps.Service.DeleteRole(ctx, req.Msg.GetId()); err != nil {
+		return nil, h.roleError("DeleteRole", err)
+	}
+	return connect.NewResponse(&workspacev1.DeleteRoleResponse{}), nil
+}
+
+func roleToProto(r Role) *workspacev1.Role {
+	return &workspacev1.Role{
+		Id:             r.ID,
+		GroupId:        r.GroupID,
+		Label:          r.Label,
+		Command:        r.Command,
+		WorkingDir:     r.WorkingDir,
+		IncomingPrompt: r.IncomingPrompt,
+		SessionId:      r.SessionID,
+		SortOrder:      int32(r.SortOrder),
+		Backend:        r.Backend,
+		TargetId:       r.TargetID,
+		CreatedAt:      r.CreatedAt,
+		UpdatedAt:      r.UpdatedAt,
+	}
+}
+
+func rolesToProto(in []Role) []*workspacev1.Role {
+	out := make([]*workspacev1.Role, 0, len(in))
+	for _, r := range in {
+		out = append(out, roleToProto(r))
 	}
 	return out
 }

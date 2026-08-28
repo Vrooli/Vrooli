@@ -8,6 +8,7 @@ import {
   type RefObject,
 } from "react";
 import { createPortal } from "react-dom";
+import { BottomSheet } from "@vrooli/react-component-library/BottomSheet/1";
 import { AlignLeft, CheckSquare, ClipboardCopy, Code, FileText, Pause, Play, Search, Square, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type { ConversationEvent } from "../api/conversation";
@@ -751,47 +752,23 @@ export default function MessageJumpList({
     </div>
   );
 
-  const content_node = (
-    <div
-      data-testid="msg-jump-list"
-      tabIndex={0}
-      onKeyDown={handleKeyDown}
-      className={cn(
-        "wc-stable-theme flex flex-col overflow-hidden rounded-t-[20px] border-t border-wc-default bg-wc-surface-raised shadow-2xl",
-        isMobile ? "max-h-[80vh]" : "max-h-[32rem] w-[22rem] rounded-xl border",
-      )}
-    >
-      {isMobile && (
-        <div className="flex shrink-0 justify-center pt-2 pb-1">
-          <div className="h-1 w-9 rounded-full bg-wc-text-muted/40" />
-        </div>
-      )}
+  // The export affordance is chrome, not content: on mobile it rides the
+  // sheet's header slot, on desktop the anchored panel's own title row.
+  const exportAction =
+    canExport && !exportActive ? (
+      <button
+        type="button"
+        data-testid="msg-export-enter"
+        onClick={() => setIsExportSelecting(true)}
+        className="inline-flex min-h-[32px] items-center gap-1 rounded-full bg-wc-surface-input/40 px-2.5 py-1 text-[11px] font-medium text-wc-text-muted transition hover:bg-wc-surface-input hover:text-wc-text-primary"
+      >
+        <ClipboardCopy className="h-3.5 w-3.5" aria-hidden="true" />
+        {t(strings.messageExport.exportAction)}
+      </button>
+    ) : null;
 
-      {/* Title + export + close */}
-      <div className="flex shrink-0 items-center justify-between gap-2 px-3 pt-1 pb-1">
-        <span className="text-[11px] font-medium uppercase tracking-wider text-wc-text-faint">{title}</span>
-        <span className="flex items-center gap-1">
-          {canExport && !exportActive && (
-            <button
-              type="button"
-              data-testid="msg-export-enter"
-              onClick={() => setIsExportSelecting(true)}
-              className="inline-flex min-h-[32px] items-center gap-1 rounded-full bg-wc-surface-input/40 px-2.5 py-1 text-[11px] font-medium text-wc-text-muted transition hover:bg-wc-surface-input hover:text-wc-text-primary"
-            >
-              <ClipboardCopy className="h-3.5 w-3.5" aria-hidden="true" />
-              {t(strings.messageExport.exportAction)}
-            </button>
-          )}
-          <button
-            onClick={onClose}
-            className="rounded p-1 text-wc-text-secondary transition hover:bg-wc-surface-input hover:text-wc-text-primary"
-            aria-label={t(strings.messageJumpList.closeAriaLabel)}
-            type="button"
-          >
-            <X className="h-3.5 w-3.5" />
-          </button>
-        </span>
-      </div>
+  const body_node = (
+    <>
 
       {(mode === "playback-select" || duration !== null) && !exportActive && (
         <NowPlayingHeader
@@ -1047,23 +1024,81 @@ export default function MessageJumpList({
           </div>
         </div>
       )}
+    </>
+  );
+
+  // On mobile the sheet is the library's: grabber, swipe-to-dismiss, backdrop,
+  // Escape, focus containment, scroll lock and safe-area all arrive with it,
+  // replacing the decorative bar this file used to draw. The close button
+  // stays off — the grabber is the dismiss affordance, and offering both says
+  // the gesture might not work.
+  if (isMobile) {
+    return (
+      <BottomSheet
+        open
+        onClose={onClose}
+        title={title}
+        headerActions={exportAction}
+        closeLabel={t(strings.messageJumpList.closeAriaLabel)}
+        testId="msg-jump-list"
+        avoidKeyboard
+      >
+        <div tabIndex={0} onKeyDown={handleKeyDown} className="flex flex-col">
+          {body_node}
+        </div>
+      </BottomSheet>
+    );
+  }
+
+  // Desktop stays an anchored panel: it has no dismiss gesture, so it keeps an
+  // explicit close control.
+  const content_node = (
+    <div
+      data-testid="msg-jump-list"
+      tabIndex={0}
+      onKeyDown={handleKeyDown}
+      className="wc-stable-theme flex max-h-[32rem] w-[22rem] flex-col overflow-hidden rounded-xl border border-wc-default bg-wc-surface-raised shadow-2xl"
+    >
+      {/* Title + export + close */}
+      <div className="flex shrink-0 items-center justify-between gap-2 px-3 pt-1 pb-1">
+        <span className="text-[11px] font-medium uppercase tracking-wider text-wc-text-faint">{title}</span>
+        <span className="flex items-center gap-1">
+          {canExport && !exportActive && (
+            <button
+              type="button"
+              data-testid="msg-export-enter"
+              onClick={() => setIsExportSelecting(true)}
+              className="inline-flex min-h-[32px] items-center gap-1 rounded-full bg-wc-surface-input/40 px-2.5 py-1 text-[11px] font-medium text-wc-text-muted transition hover:bg-wc-surface-input hover:text-wc-text-primary"
+            >
+              <ClipboardCopy className="h-3.5 w-3.5" aria-hidden="true" />
+              {t(strings.messageExport.exportAction)}
+            </button>
+          )}
+          <button
+            onClick={onClose}
+            className="rounded p-1 text-wc-text-secondary transition hover:bg-wc-surface-input hover:text-wc-text-primary"
+            aria-label={t(strings.messageJumpList.closeAriaLabel)}
+            type="button"
+          >
+            <X className="h-3.5 w-3.5" />
+          </button>
+        </span>
+      </div>
+      {body_node}
     </div>
   );
+
 
   return createPortal(
     <div className="fixed inset-0 z-wc-popover-backdrop" onMouseDown={(e) => e.preventDefault()}>
       <div className="absolute inset-0 bg-wc-backdrop" onClick={onClose} />
-      {isMobile ? (
-        <div className="absolute bottom-0 left-0 right-0 z-wc-popover ps-[var(--wc-safe-left,0px)] pe-[var(--wc-safe-right,0px)]">{content_node}</div>
-      ) : (
-        <div
-          ref={desktopPanelRef}
-          className="absolute z-wc-popover"
-          style={desktopAnchorRef ? anchoredStyle : { top: 48, right: 16 }}
-        >
-          {content_node}
-        </div>
-      )}
+      <div
+        ref={desktopPanelRef}
+        className="absolute z-wc-popover"
+        style={desktopAnchorRef ? anchoredStyle : { top: 48, right: 16 }}
+      >
+        {content_node}
+      </div>
     </div>,
     document.body,
   );

@@ -121,6 +121,39 @@ The blob route serves bytes for an opaque, session-bound `preview_id` with HTTP 
 | PUT | `/api/v1/workspace/groups/{id}` | `handleUpdateGroup` |
 | DELETE | `/api/v1/workspace/groups/{id}` | `handleDeleteGroup` |
 
+Roles are named positions inside a group, served by the same `WorkspaceService`
+so `GetLayout` stays the single call that returns the whole workspace. A role
+with an empty `session_id` is *waiting*: it holds a command and no process.
+
+| RPC | Summary |
+|---|---|
+| `ListRoles` | Roles ordered by group then `sort_order`; a non-empty `group_id` filters to one group |
+| `CreateRole` | Add a named position to a group. Blank `group_id`, or a `session_id` another role holds, returns `invalid_argument` |
+| `UpdateRole` | Only `has_*` fields apply. `has_session_id` with an empty `session_id` returns the role to waiting. Unknown id returns `not_found` |
+| `DeleteRole` | Idempotent. Deleting a running role leaves its session untouched |
+
+## Group templates
+
+[CODE: api/handlers/grouptemplates/connect_handler.go]
+
+| RPC | Summary |
+|---|---|
+| `ListTemplates` | Every saved template with its ordered role list |
+| `UpsertTemplate` | Create or update by id. Blank name, or a role with an unknown `start_mode`, returns `invalid_argument` |
+| `DeleteTemplate` | Idempotent. Every template is deletable, including a shipped example |
+
+## Handoff rules
+
+[CODE: api/handlers/handoffrules/connect_handler.go]
+
+A rule decides when a handoff is *suggested*. It never sends anything.
+
+| RPC | Summary |
+|---|---|
+| `ListRules` | Every capture rule |
+| `UpsertRule` | Create or update by id. Blank name, blank pattern, or unknown `source` returns `invalid_argument` |
+| `DeleteRule` | Idempotent. Every rule is deletable, including a shipped example |
+
 ## Settings
 
 [CODE: api/session_defaults_handler.go]

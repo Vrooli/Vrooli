@@ -11,6 +11,8 @@ import (
 	conversationH "web-console/handlers/conversation"
 	eventsH "web-console/handlers/events"
 	filePreviewH "web-console/handlers/file_preview"
+	groupTemplatesH "web-console/handlers/grouptemplates"
+	handoffRulesH "web-console/handlers/handoffrules"
 	hooksH "web-console/handlers/hooks"
 	metricsH "web-console/handlers/metrics"
 	sessionsH "web-console/handlers/sessions"
@@ -19,6 +21,7 @@ import (
 	terminalH "web-console/handlers/terminal"
 	workspaceH "web-console/handlers/workspace"
 
+	"github.com/vrooli/api-core/discovery"
 	"github.com/vrooli/api-core/health"
 	monetization "github.com/vrooli/vrooli/packages/monetization-go"
 )
@@ -29,6 +32,10 @@ import (
 func (s *Server) setupRoutes() {
 	s.router.Use(requestIDMiddleware)
 	s.router.Use(loggingMiddleware)
+	// Cross-scenario links are resolved against the origin the browser used, so
+	// the host has to survive the hop into a Connect handler. Go moves the Host
+	// header onto Request.Host, where connect.Request.Header() cannot see it.
+	s.router.Use(discovery.ExternalHostMiddleware)
 
 	healthBuilder := health.New().Version("1.0.0")
 	if s.db != nil {
@@ -75,6 +82,10 @@ func (s *Server) setupRoutes() {
 	}, nil).Mount(s.router)
 
 	workspaceH.Module(&workspaceH.Adapter{Store: s.workspace, Events: s.events}, nil).Mount(s.router)
+	// Templates and rules are plain configuration: the domain Store already
+	// satisfies the handler's Service seam, so there is no adapter to add.
+	groupTemplatesH.Module(s.groupTemplates, nil).Mount(s.router)
+	handoffRulesH.Module(s.handoffRules, nil).Mount(s.router)
 	conversationH.Module(newConversationAdapter(s), nil).Mount(s.router)
 	filePreviewH.Module(newFilePreviewAdapter(s), nil).Mount(s.router)
 	s.router.HandleFunc("/api/v1/sessions/{id}/file-previews/{previewId}/blob", s.handleFilePreviewBlob).Methods("GET", "HEAD")

@@ -2,7 +2,7 @@ import type { ConversationCursor, ConversationEvent } from "../api/conversation"
 import type { SessionOriginName } from "../api/sessions";
 import { formatRelativeTime, stripMarkdown } from "../components/MessageJumpList.helpers";
 import type { PaneViewMode } from "../stores/useConversationStore";
-import type { PaneMetadata, SidebarOriginTab, SidebarSortMode, TabGroupMeta } from "../stores/useWorkspaceStore";
+import type { PaneMetadata, RoleMeta, SidebarOriginTab, SidebarSortMode, TabGroupMeta } from "../stores/useWorkspaceStore";
 
 type ConversationSessionSnapshot = {
   events: ConversationEvent[];
@@ -10,7 +10,13 @@ type ConversationSessionSnapshot = {
 };
 
 export type WorkspaceNavigationItem =
-  | { kind: "group-label"; group: TabGroupMeta; tabCount: number }
+  | { kind: "group-label"; group: TabGroupMeta; tabCount: number; waitingCount: number }
+  /**
+   * A role in this group that has not started. It has no pane, so it cannot
+   * be a "pane" item; it renders as a placeholder the operator can start.
+   * Running roles are NOT emitted here — they already appear as their pane.
+   */
+  | { kind: "waiting-role"; role: RoleMeta; group: TabGroupMeta; isLastInGroup: boolean }
   | {
       kind: "pane";
       pane: PaneMetadata;
@@ -29,6 +35,11 @@ export type WorkspaceNavigationItem =
 export interface BuildWorkspaceNavigationItemsOptions {
   panes: PaneMetadata[];
   groups: TabGroupMeta[];
+  /**
+   * Named positions inside groups. Optional and defaulting to empty, so every
+   * caller that predates roles keeps its exact previous output.
+   */
+  roles?: RoleMeta[];
   activePane: string | null;
   /**
    * Per-session conversation snapshots. Optional: the tab strip renders unread
@@ -222,6 +233,7 @@ function eventPreview(event: ConversationEvent | null): string {
 export function buildWorkspaceNavigationItems({
   panes,
   groups,
+  roles = [],
   activePane,
   conversationSessions = {},
   viewModes = {},
@@ -233,6 +245,20 @@ export function buildWorkspaceNavigationItems({
   const groupMap = new Map(groups.map((group) => [group.id, group]));
   const items: WorkspaceNavigationItem[] = [];
   let lastGroupId: string | null | undefined = undefined;
+
+  // Only WAITING roles are rendered as their own row. A running role already
+  // appears as its pane, and drawing it twice would double every group.
+  const waitingByGroup = new Map<string, RoleMeta[]>();
+  for (const role of roles) {
+    if (role.sessionId !== null) continue;
+    const bucket = waitingByGroup.get(role.groupId);
+    if (bucket) bucket.push(role);
+    else waitingByGroup.set(role.groupId, [role]);
+  }
+  for (const bucket of waitingByGroup.values()) {
+    bucket.sort((a, b) => (a.sortOrder !== b.sortOrder ? a.sortOrder - b.sortOrder : a.id.localeCompare(b.id)));
+  }
+  const emittedWaitingFor = new Set<string>();
 
   // Group blocks first, in every mode. `sortPanesForView` already partitions
   // by group, so this is a no-op for the non-manual sorts; it is the render
@@ -266,9 +292,15 @@ export function buildWorkspaceNavigationItems({
     const previousInSameGroup = !!group && previousPane?.groupId === groupId;
     const nextInSameGroup = !!group && nextPane?.groupId === groupId;
 
+    // The PREVIOUS group's waiting roles close its block before the next
+    // group's label opens the following one. Emitting the label first would
+    // file one group's placeholders under the next group's heading.
+    if (lastGroupId && lastGroupId !== groupId) {
+      emitWaitingRoles(items, lastGroupId, groupMap, waitingByGroup, emittedWaitingFor);
+    }
     if (groupId && groupId !== lastGroupId && group) {
       const tabCount = panes.filter((candidate) => candidate.groupId === groupId).length;
-      items.push({ kind: "group-label", group, tabCount });
+      items.push({ kind: "group-label", group, tabCount, waitingCount: waitingByGroup.get(groupId)?.length ?? 0 });
     }
     lastGroupId = groupId;
 
@@ -311,7 +343,50 @@ export function buildWorkspaceNavigationItems({
     });
   });
 
+  // Flush the group the pane loop ended inside. Read from the array rather
+  // than from the loop variable: control-flow analysis cannot see that a
+  // forEach callback assigned it, so the loop variable narrows to undefined.
+  const trailingGroupId = orderedPanes[orderedPanes.length - 1]?.groupId ?? null;
+  if (trailingGroupId) {
+    emitWaitingRoles(items, trailingGroupId, groupMap, waitingByGroup, emittedWaitingFor);
+  }
+
+  // A group whose roles have ALL yet to start owns no pane, so the loop above
+  // never reached it. Without this it would be invisible — and an invisible
+  // group is one the operator cannot start, rename, or close, which is the
+  // exact failure that made waiting roles worth having.
+  for (const group of groups) {
+    if (emittedWaitingFor.has(group.id)) continue;
+    const waiting = waitingByGroup.get(group.id);
+    if (!waiting || waiting.length === 0) continue;
+    items.push({ kind: "group-label", group, tabCount: 0, waitingCount: waiting.length });
+    emitWaitingRoles(items, group.id, groupMap, waitingByGroup, emittedWaitingFor);
+  }
+
   return items;
+}
+
+/**
+ * Append one group's waiting roles, once. `emitted` makes the call idempotent
+ * so the trailing flush and the role-only sweep cannot double-render a group.
+ */
+function emitWaitingRoles(
+  items: WorkspaceNavigationItem[],
+  groupId: string,
+  groupMap: Map<string, TabGroupMeta>,
+  waitingByGroup: Map<string, RoleMeta[]>,
+  emitted: Set<string>,
+): void {
+  if (emitted.has(groupId)) return;
+  emitted.add(groupId);
+  const group = groupMap.get(groupId);
+  const waiting = waitingByGroup.get(groupId);
+  if (!group || !waiting || waiting.length === 0) return;
+  // A collapsed group hides its members, and a waiting role is a member.
+  if (group.isCollapsed) return;
+  waiting.forEach((role, i) => {
+    items.push({ kind: "waiting-role", role, group, isLastInGroup: i === waiting.length - 1 });
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -380,13 +455,39 @@ export function buildOriginBucketedNavigation({
     (pane.groupId ? bucketByGroup.get(pane.groupId) : undefined)
     ?? originBucket(originBySession[pane.sessionId]);
 
+  // A group whose roles have all yet to start owns no pane, so it belongs to
+  // no bucket by the pane rule above. Without an explicit home it would be
+  // invisible in the bucketed sidebar — and an invisible group cannot be
+  // started, renamed, or closed. It goes to "ui": a role is something the
+  // operator created here, not something a remote or programmatic caller did.
+  const roles = options.roles ?? [];
+  const roleOnlyGroupIds = new Set<string>();
+  for (const role of roles) {
+    if (role.sessionId !== null) continue;
+    if (panes.some((pane) => pane.groupId === role.groupId)) continue;
+    roleOnlyGroupIds.add(role.groupId);
+  }
+
   const result: OriginBucketNavigation[] = [];
   for (const bucket of ORIGIN_BUCKET_ORDER) {
     const bucketPanes = panes.filter((pane) => bucketForPane(pane) === bucket);
-    if (bucketPanes.length === 0) continue;
+    // Each bucket sees only its own panes' roles, plus — in "ui" — every
+    // role-only group. Passing the whole role list to every bucket would
+    // draw the same waiting role in each of them.
+    const bucketGroupIds = new Set(bucketPanes.map((pane) => pane.groupId).filter(Boolean));
+    const bucketRoles = roles.filter((role) =>
+      bucketGroupIds.has(role.groupId)
+      || (bucket === "ui" && roleOnlyGroupIds.has(role.groupId)));
+
+    if (bucketPanes.length === 0 && bucketRoles.length === 0) continue;
     result.push({
       bucket,
-      items: buildWorkspaceNavigationItems({ ...options, panes: bucketPanes, globalIndexBySession }),
+      items: buildWorkspaceNavigationItems({
+        ...options,
+        panes: bucketPanes,
+        roles: bucketRoles,
+        globalIndexBySession,
+      }),
     });
   }
   return result;

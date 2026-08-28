@@ -18,8 +18,14 @@ interface TabContextMenuProps {
   onRename: () => void;
   onCustomize: () => void;
   onRemoveFromGroup: () => void;
-  /** Open the Manage Groups drawer with this session as context. */
-  onManageGroups: () => void;
+  /**
+   * Open the anchored group picker for this session.
+   *
+   * Assignment used to open the whole Manage Groups drawer, which is why
+   * putting one session in one group felt like a detour through an
+   * administration surface.
+   */
+  onAssignToGroup: () => void;
   /**
    * Reorder this pane one slot earlier/later. Only supplied by the sidebar in
    * manual-sort mode (and omitted at the list boundaries), so these are the
@@ -42,7 +48,7 @@ export default function TabContextMenu({
   onRename,
   onCustomize,
   onRemoveFromGroup,
-  onManageGroups,
+  onAssignToGroup,
   onMoveUp,
   onMoveDown,
   onClose,
@@ -84,11 +90,11 @@ export default function TabContextMenu({
         onSelect: onRemoveFromGroup,
       },
       {
-        id: "manage-groups",
-        label: t(strings.manageGroups.menuItem),
+        id: "move-to-group",
+        label: t(strings.tabContextMenu.moveToGroup),
         icon: <FolderCog className="h-4 w-4 shrink-0" />,
-        testId: "tab-ctx-manage-groups",
-        onSelect: onManageGroups,
+        testId: "tab-ctx-move-to-group",
+        onSelect: onAssignToGroup,
       },
     );
   } else {
@@ -98,7 +104,7 @@ export default function TabContextMenu({
       icon: <FolderPlus className="h-4 w-4 shrink-0" />,
       testId: "tab-ctx-add-to-group",
       separatorBefore: true,
-      onSelect: onManageGroups,
+      onSelect: onAssignToGroup,
     });
   }
   if (onMoveUp) {
@@ -128,7 +134,7 @@ export default function TabContextMenu({
       icon: <X className="h-4 w-4 shrink-0" />,
       testId: "tab-ctx-close",
       separatorBefore: true,
-      onSelect: () => onClose(sessionId),
+      onSelect: () => { onClose(sessionId); },
     },
     {
       id: "delete-permanently",
@@ -136,7 +142,7 @@ export default function TabContextMenu({
       icon: <Trash2 className="h-4 w-4 shrink-0" />,
       testId: "tab-ctx-delete-permanently",
       destructive: true,
-      onSelect: () => onDeletePermanently(sessionId),
+      onSelect: () => { onDeletePermanently(sessionId); },
     },
     {
       id: "copy-debug-log",
@@ -150,7 +156,7 @@ export default function TabContextMenu({
         }).__wc_terminal_output;
         const data = probe?.[sessionId] ?? "";
         const payload = data || "(empty probe)";
-        void writeText(payload).then((result) => alert(result.ok ? `Copied ${data.length} chars` : `Clipboard ${result.reason}`));
+        void writeText(payload).then((result) => { alert(result.ok ? `Copied ${data.length} chars` : `Clipboard ${result.reason}`); });
       },
     },
   );

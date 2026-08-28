@@ -1,4 +1,4 @@
-import { renderWithProviders as render } from "../test-utils";
+import { renderWithProviders as render, setDesktopViewport, setMobileViewport } from "../test-utils";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { screen, fireEvent } from "@testing-library/react";
 import AppearanceModal from "../components/AppearanceModal";
@@ -81,31 +81,53 @@ describe("AppearanceModal", () => {
     expect(screen.getByTestId("appearance-modal")).toBeTruthy();
   });
 
-  it("backdrop click sets appearanceModalPane to null", () => {
+  it("backdrop press sets appearanceModalPane to null", () => {
     mockStoreState.appearanceModalPane = "sess-1";
     render(<AppearanceModal />);
-    const panel = screen.getByTestId("appearance-modal");
-    const backdrop = panel.parentElement?.firstElementChild as HTMLElement;
-    fireEvent.click(backdrop);
+    // The backdrop dismisses on press, and it is addressed by its own rooted
+    // test id rather than by its position among the overlay's children.
+    fireEvent.pointerDown(screen.getByTestId("appearance-modal.backdrop"));
     expect(mockStoreState.setAppearanceModalPane).toHaveBeenCalledWith(null);
   });
 
-  it("close button sets appearanceModalPane to null", () => {
+  it("close button sets appearanceModalPane to null on the centred presentation", () => {
+    // Only the centred card carries a close button — the sheet is dismissed by
+    // pushing it back down, and offering both put two controls with the same
+    // accessible name on one surface.
+    setDesktopViewport();
     mockStoreState.appearanceModalPane = "sess-1";
     render(<AppearanceModal />);
-    fireEvent.click(screen.getByLabelText(strings.appearance.closeAriaLabel));
+    fireEvent.click(screen.getByTestId("appearance-modal.close"));
     expect(mockStoreState.setAppearanceModalPane).toHaveBeenCalledWith(null);
   });
 
-  it("closes on Escape and renders dialog semantics via DrawerShell compact", () => {
+  it("offers the drag handle instead of a close button on the sheet presentation", () => {
+    setMobileViewport();
+    mockStoreState.appearanceModalPane = "sess-1";
+    render(<AppearanceModal />);
+    expect(screen.getByTestId("appearance-modal.grabber")).toBeInTheDocument();
+    expect(screen.queryByTestId("appearance-modal.close")).toBeNull();
+  });
+
+  it("closes on Escape and renders dialog semantics", () => {
     mockStoreState.appearanceModalPane = "sess-1";
     render(<AppearanceModal />);
     const panel = screen.getByTestId("appearance-modal");
     expect(panel.getAttribute("role")).toBe("dialog");
     expect(panel.getAttribute("aria-modal")).toBe("true");
-    expect(panel.className).toContain("md:max-w-md");
+    // Width is the library's, selected by the `size` prop and applied from its
+    // own stylesheet. The old assertion looked for a Tailwind class the
+    // component has never emitted.
+    expect(panel.parentElement?.getAttribute("data-size")).toBe("md");
     fireEvent.keyDown(window, { key: "Escape" });
     expect(mockStoreState.setAppearanceModalPane).toHaveBeenCalledWith(null);
+  });
+
+  it("hands the content gutter to the caller instead of padding it twice", () => {
+    mockStoreState.appearanceModalPane = "sess-1";
+    render(<AppearanceModal />);
+    const overlay = screen.getByTestId("appearance-modal").parentElement;
+    expect(overlay?.getAttribute("data-content-padding")).toBe("none");
   });
 
   it("clicking a header color swatch calls setPaneColor", () => {

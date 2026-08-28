@@ -27,6 +27,10 @@ func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup
 		"WorkspaceService.CreateGroup": h.groupCreate,
 		"WorkspaceService.UpdateGroup": h.groupUpdate,
 		"WorkspaceService.DeleteGroup": h.groupDelete,
+		"WorkspaceService.ListRoles":   h.roleList,
+		"WorkspaceService.CreateRole":  h.roleCreate,
+		"WorkspaceService.UpdateRole":  h.roleUpdate,
+		"WorkspaceService.DeleteRole":  h.roleDelete,
 	}
 	group, err := cliapp.LoadFromManifest(manifest, GroupName, bindings)
 	if err != nil {

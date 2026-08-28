@@ -59,4 +59,14 @@ export const DEFAULT_SHORTCUTS: ShortcutEntry[] = [
     command: "if command -v vrooli-agent-launcher >/dev/null 2>&1; then exec vrooli-agent-launcher --agent grok --; fi; exec grok",
     description: "Grok with best-effort Agent Manager attribution; direct fallback stays available",
   },
+  {
+    // Formerly a hardcoded card in the launcher's actions block, rendered
+    // unconditionally because nothing in this codebase can tell whether the
+    // operator is signed in. As a shortcut it is ordinary data: editable,
+    // reorderable, and deletable like every other entry — and the agent
+    // itself tells the operator when a sign-in is needed.
+    label: "Codex sign-in",
+    command: "codex login --device-auth",
+    description: "Device-code sign-in for the Codex CLI",
+  },
 ];

@@ -825,6 +825,16 @@ func (a *Adapter) Recover(ctx context.Context, in RecoverInput) (RecoverResult, 
 			a.logger().Printf("recover[%s -> %s]: migrate workspace pane: %v", oldID, newSess.ID, err)
 			return RecoverResult{}, fmt.Errorf("migrate workspace pane: %v: %w", err, ErrInternal)
 		}
+		// A role points at a session id. Recovery mints a new one, so the
+		// role has to follow the pane or it would keep naming a session that
+		// no longer exists — and a handoff aimed at that role would be
+		// delivered to nothing. Fatal for the same reason the pane move is:
+		// a half-migrated workspace identity is worse than a failed recovery
+		// the operator can retry. No-op when the session backs no role.
+		if err := a.Workspace.ReassignRoleSession(ctx, oldID, newSess.ID); err != nil {
+			a.logger().Printf("recover[%s -> %s]: migrate workspace role: %v", oldID, newSess.ID, err)
+			return RecoverResult{}, fmt.Errorf("migrate workspace role: %v: %w", err, ErrInternal)
+		}
 	}
 
 	// Carry the prior conversation history onto the new session id so the

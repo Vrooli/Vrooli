@@ -54,7 +54,7 @@ describe("useWorkspaceStore action surface", () => {
     s.setDeviceFontSize("a", 20);
     s.setViewerCount("a", 2);
     s.setTabContextMenu({ sessionId: "a", position: { x: 1, y: 2 } });
-    s.setManageGroupsTarget({ sessionId: "a" });
+    s.setManageGroupsOpen(true);
     s.setPendingInputDraft("a", "queued");
     expect(s.consumePendingInputDraft("a")).toBe("queued");
     expect(s.consumePendingInputDraft("a")).toBeUndefined();
@@ -118,5 +118,31 @@ describe("useWorkspaceStore action surface", () => {
     });
     const { result } = renderHook(() => useEffectiveFontSize("a"));
     expect(result.current).toBe(20);
+  });
+
+  // A terminal rewrites its title on every prompt, so the overwhelmingly common
+  // call is a rename to the name the pane already has. That must not produce a
+  // new `panes` array: every subscriber re-renders off that identity, and the
+  // pane was being renamed roughly twenty times a second by an idle agent.
+  it("does not touch pane identity when a rename changes nothing", () => {
+    const s = useWorkspaceStore.getState();
+    s.addPane("a", "A");
+    s.renamePaneById("a", "claude — working");
+    const renamed = useWorkspaceStore.getState().panes;
+
+    s.renamePaneById("a", "claude — working");
+    expect(useWorkspaceStore.getState().panes).toBe(renamed);
+
+    s.renamePaneById("a", "claude — done");
+    expect(useWorkspaceStore.getState().panes).not.toBe(renamed);
+    expect(useWorkspaceStore.getState().panes[0]?.name).toBe("claude — done");
+  });
+
+  it("ignores a rename for a pane that does not exist", () => {
+    const s = useWorkspaceStore.getState();
+    s.addPane("a", "A");
+    const before = useWorkspaceStore.getState().panes;
+    s.renamePaneById("missing", "whatever");
+    expect(useWorkspaceStore.getState().panes).toBe(before);
   });
 });

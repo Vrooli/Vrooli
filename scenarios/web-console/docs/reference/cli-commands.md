@@ -81,6 +81,34 @@ Use `--json` with target commands for the lossless proto JSON projection. It con
 | `group-create` | Create a workspace group (`--body-file PATH`) |
 | `group-update` | Update a workspace group (`--body-file PATH`) |
 | `group-delete` | Delete a workspace group |
+| `role-list` | List roles in a group, or every role. A role with no session id is *waiting*: it holds a command and no process |
+| `role-create` | Create a role in a group (`--body-file PATH`). Omit `session_id` for a waiting role |
+| `role-update` | Update a role (`--body-file PATH`). Setting `session_id` to `""` returns the role to waiting |
+| `role-delete` | Delete a role. The session a running role points at is untouched |
+
+## `web-console group-template`
+[CODE: cli/domains/grouptemplates/register.go]
+
+A template is a saved role list: creating a group from one creates the group and
+its roles in a single action. Each role carries a `start_mode` of `eager` or
+`waiting`, and only an `eager` role starts a process.
+
+| Subcommand | Description |
+|---|---|
+| `list` | List saved group templates and their roles |
+| `upsert` | Create or update a template (`--body-file PATH`) |
+| `delete` | Delete a template. Every template is deletable, including a shipped example |
+
+## `web-console handoff-rule`
+[CODE: cli/domains/handoffrules/register.go]
+
+A rule decides when the console *offers* a handoff. It never sends anything.
+
+| Subcommand | Description |
+|---|---|
+| `list` | List capture rules |
+| `upsert` | Create or update a rule (`--body-file PATH`). `source` is `file_path` (a glob) or `message_text` (a regular expression whose first capture group becomes the payload) |
+| `delete` | Delete a rule. Every rule is deletable, including a shipped example |
 
 ## `web-console settings`
 [CODE: cli/domains/settings/register.go]

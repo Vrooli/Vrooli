@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback } from "react";
 import type { PointerEvent as ReactPointerEvent, KeyboardEvent as ReactKeyboardEvent } from "react";
-import { GripVertical, Loader2, MessageSquareText, TerminalSquare, Palette, X } from "lucide-react";
+import { GripVertical, Loader2, MessageSquareText, TerminalSquare, Palette, Send, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type { PaneViewMode } from "../stores/useConversationStore";
 import { useWorkspaceStore } from "../stores/useWorkspaceStore";
@@ -21,6 +21,14 @@ interface TerminalHeaderProps {
   onToggleView?: () => void;
   /** True while the view is mid-switch; shows a spinner on the toggle button. */
   isViewSwitchPending?: boolean;
+  /**
+   * Open the handoff composer from this pane, carrying no payload.
+   *
+   * This is the always-available manual path: it needs no text analysis and
+   * no detection, which is why the terminal view itself never grows a
+   * suggestion overlay (decision D11).
+   */
+  onHandoff?: (sessionId: string) => void;
   onDragStart?: (sessionId: string, e: ReactPointerEvent) => void;
 }
 
@@ -35,6 +43,7 @@ export default function TerminalHeader({
   onFocus,
   onToggleView,
   isViewSwitchPending = false,
+  onHandoff,
   onDragStart,
 }: TerminalHeaderProps) {
   const { t } = useTranslation();
@@ -49,6 +58,16 @@ export default function TerminalHeader({
   const groupColor = useWorkspaceStore((s) => {
     const groupId = s.panes.find((p) => p.sessionId === sessionId)?.groupId;
     return groupId ? s.groups.find((g) => g.id === groupId)?.color ?? null : null;
+  });
+
+  // Whether this pane's group holds another member. A primitive selector, so
+  // an unrelated group edit never re-renders the header.
+  const canHandoff = useWorkspaceStore((s) => {
+    const groupId = s.panes.find((p) => p.sessionId === sessionId)?.groupId;
+    if (!groupId) return false;
+    const panes = s.panes.filter((p) => p.groupId === groupId).length;
+    const roles = s.roles.filter((r) => r.groupId === groupId && r.sessionId === null).length;
+    return panes + roles > 1;
   });
 
   const [editing, setEditing] = useState(false);
@@ -113,7 +132,7 @@ export default function TerminalHeader({
           data-testid={`terminal-header-name-input-${sessionId}`}
           className="min-w-0 flex-1 bg-transparent text-xs text-wc-text-primary outline-none"
           value={editValue}
-          onChange={(e) => setEditValue(e.target.value)}
+          onChange={(e) => { setEditValue(e.target.value); }}
           onBlur={commitRename}
           onKeyDown={(e) => {
             if (e.key === "Enter") commitRename();
@@ -157,6 +176,24 @@ export default function TerminalHeader({
           {isViewSwitchPending
             ? <Loader2 data-testid={`terminal-header-toggle-view-pending-${sessionId}`} className="h-3.5 w-3.5 animate-spin" />
             : viewMode === "terminal" ? <MessageSquareText className="h-3.5 w-3.5" /> : <TerminalSquare className="h-3.5 w-3.5" />}
+        </button>
+      )}
+
+      {/* The control is offered only when the pane's group holds someone to
+          hand off TO — a composer with no targets is a dead end. */}
+      {onHandoff && canHandoff && (
+        <button
+          data-testid={`handoff-pane-header-${sessionId}`}
+          type="button"
+          className="flex h-11 w-11 md:h-5 md:w-5 items-center justify-center rounded shrink-0 text-wc-text-faint hover:text-wc-text-secondary"
+          onClick={(e) => {
+            e.stopPropagation();
+            onHandoff(sessionId);
+          }}
+          title={t(strings.terminalHeader.handOff)}
+          aria-label={t(strings.terminalHeader.handOff)}
+        >
+          <Send className="h-3 w-3" />
         </button>
       )}
 

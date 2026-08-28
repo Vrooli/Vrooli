@@ -1,0 +1,351 @@
+{
+  "id": "b25b4568-c5c8-5cdd-bc55-ee610d7c73ae",
+  "project_id": "0c037e4d-dd01-4c3b-a23b-0e6a9e3ac9ff",
+  "name": "group-template-creates-waiting-role",
+  "folder_path": "/bas/cases/01-foundation/01-terminal",
+  "description": "Create a group from a two-role template and confirm it starts one session and leaves one waiting role, then start the waiting role and confirm a second session exists",
+  "metadata": {
+    "name": "group-template-creates-waiting-role",
+    "description": "Create a group from a two-role template and confirm it starts one session and leaves one waiting role, then start the waiting role and confirm a second session exists",
+    "execution_mode": "mutating",
+    "reset": "full",
+    "labels": {
+      "reset": "full",
+      "requires_confirmation": "true",
+      "routed_isolation": "true",
+      "seed": "seed",
+      "requirements_json": "[\"REQ-P0-014e\", \"REQ-P0-014g\"]"
+    }
+  },
+  "tags": [
+    "reset:full",
+    "requirements_json:[\"REQ-P0-014e\", \"REQ-P0-014g\"]"
+  ],
+  "version": 1,
+  "created_at": "2026-08-27T00:00:00.000000000Z",
+  "updated_at": "2026-08-27T00:00:00.000000000Z",
+  "flow_definition": {
+    "settings": {
+      "viewport_width": 1440,
+      "viewport_height": 900
+    },
+    "nodes": [
+      {
+        "id": "open-workspace",
+        "action": {
+          "type": "ACTION_TYPE_SUBFLOW",
+          "subflow": {
+            "workflow_path": "actions/open-workspace.json"
+          },
+          "metadata": {
+            "label": "Open the workspace"
+          }
+        }
+      },
+      {
+        "id": "open-launcher",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "[data-testid='new-terminal-button']",
+            "timeout_ms": 10000
+          },
+          "metadata": {
+            "label": "Open the new-session dialog"
+          }
+        }
+      },
+      {
+        "id": "assert-launcher",
+        "action": {
+          "type": "ACTION_TYPE_ASSERT",
+          "assert": {
+            "selector": "[data-testid='terminal-launcher']",
+            "failure_message": "Expected the launcher dialog to open",
+            "timeout_ms": 15000
+          },
+          "metadata": {
+            "label": "Verify the launcher is open"
+          }
+        }
+      },
+      {
+        "id": "switch-to-group-mode",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "[data-testid='launcher-mode-group']",
+            "timeout_ms": 10000
+          },
+          "metadata": {
+            "label": "Switch to group mode"
+          }
+        }
+      },
+      {
+        "id": "assert-template-picker",
+        "action": {
+          "type": "ACTION_TYPE_ASSERT",
+          "assert": {
+            "selector": "[data-testid='launcher-template-picker']",
+            "failure_message": "Expected a template picker in group mode",
+            "timeout_ms": 15000
+          },
+          "metadata": {
+            "label": "Verify group mode rendered"
+          }
+        }
+      },
+      {
+        "id": "select-seeded-template",
+        "action": {
+          "type": "ACTION_TYPE_EVALUATE",
+          "evaluate": {
+            "expression": "(() => { const select = document.querySelector(\"[data-testid='launcher-template-picker']\"); const option = Array.from(select.options).find((o) => o.value && o.value !== ''); select.value = option.value; select.dispatchEvent(new Event('change', { bubbles: true })); })()"
+          },
+          "metadata": {
+            "label": "Choose the seeded example template"
+          }
+        }
+      },
+      {
+        "id": "name-the-group",
+        "action": {
+          "type": {
+            "selector": "[data-testid='launcher-group-name']",
+            "text": "BAS_TEMPLATE_GROUP",
+            "timeout_ms": 10000
+          },
+          "metadata": {
+            "label": "Name the group"
+          }
+        }
+      },
+      {
+        "id": "create-the-group",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "[data-testid='launcher-create-group']",
+            "timeout_ms": 10000
+          },
+          "metadata": {
+            "label": "Create the group and its roles"
+          }
+        }
+      },
+      {
+        "id": "settle-after-create",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "duration_ms": 3000
+          },
+          "metadata": {
+            "label": "Allow the eager role to start"
+          }
+        }
+      },
+      {
+        "id": "assert-waiting-role-rendered",
+        "action": {
+          "type": "ACTION_TYPE_ASSERT",
+          "assert": {
+            "selector": "[data-testid^='sidebar-waiting-role-']",
+            "failure_message": "Expected a waiting role placeholder after creating a group from a two-role template",
+            "timeout_ms": 15000
+          },
+          "metadata": {
+            "label": "Verify one role is waiting, not running"
+          }
+        }
+      },
+      {
+        "id": "count-sessions-before-start",
+        "action": {
+          "type": "ACTION_TYPE_EVALUATE",
+          "evaluate": {
+            "expression": "(() => { const panes = document.querySelectorAll(\"[data-testid='terminal-pane'][data-session-id]\").length; document.body.setAttribute('data-bas-panes-before', String(panes)); const waiting = document.querySelectorAll(\"[data-testid^='sidebar-waiting-role-']\").length; document.body.setAttribute('data-bas-waiting-before', String(waiting)); })()"
+          },
+          "metadata": {
+            "label": "Record the process and placeholder counts"
+          }
+        }
+      },
+      {
+        "id": "assert-one-waiting",
+        "action": {
+          "type": "ACTION_TYPE_ASSERT",
+          "assert": {
+            "selector": "body[data-bas-waiting-before='1']",
+            "failure_message": "Expected exactly one waiting role from a two-role template",
+            "timeout_ms": 15000
+          },
+          "metadata": {
+            "label": "Verify exactly one placeholder"
+          }
+        }
+      },
+      {
+        "id": "start-the-waiting-role",
+        "action": {
+          "type": "ACTION_TYPE_EVALUATE",
+          "evaluate": {
+            "expression": "(() => { const start = document.querySelector(\"[data-testid^='sidebar-waiting-role-start-']\"); if (start) start.click(); })()"
+          },
+          "metadata": {
+            "label": "Start the waiting role"
+          }
+        }
+      },
+      {
+        "id": "settle-after-start",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "duration_ms": 4000
+          },
+          "metadata": {
+            "label": "Allow the started role's session to appear"
+          }
+        }
+      },
+      {
+        "id": "count-sessions-after-start",
+        "action": {
+          "type": "ACTION_TYPE_EVALUATE",
+          "evaluate": {
+            "expression": "(() => { const before = Number(document.body.getAttribute('data-bas-panes-before') || '0'); const after = document.querySelectorAll(\"[data-testid='terminal-pane'][data-session-id]\").length; document.body.setAttribute('data-bas-second-session', after > before ? 'true' : 'false'); })()"
+          },
+          "metadata": {
+            "label": "Compare the process count after starting the role"
+          }
+        }
+      },
+      {
+        "id": "assert-second-session",
+        "action": {
+          "type": "ACTION_TYPE_ASSERT",
+          "assert": {
+            "selector": "body[data-bas-second-session='true']",
+            "failure_message": "Expected starting the waiting role to create a second session",
+            "timeout_ms": 15000
+          },
+          "metadata": {
+            "label": "Verify the started role produced a session"
+          }
+        }
+      },
+      {
+        "id": "teardown",
+        "action": {
+          "type": "ACTION_TYPE_SUBFLOW",
+          "subflow": {
+            "workflow_path": "actions/teardown-test-sessions.json"
+          },
+          "metadata": {
+            "label": "Delete sessions created by this case"
+          }
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "e0",
+        "source": "open-workspace",
+        "target": "open-launcher",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e1",
+        "source": "open-launcher",
+        "target": "assert-launcher",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e2",
+        "source": "assert-launcher",
+        "target": "switch-to-group-mode",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e3",
+        "source": "switch-to-group-mode",
+        "target": "assert-template-picker",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e4",
+        "source": "assert-template-picker",
+        "target": "select-seeded-template",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e5",
+        "source": "select-seeded-template",
+        "target": "name-the-group",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e6",
+        "source": "name-the-group",
+        "target": "create-the-group",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e7",
+        "source": "create-the-group",
+        "target": "settle-after-create",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e8",
+        "source": "settle-after-create",
+        "target": "assert-waiting-role-rendered",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e9",
+        "source": "assert-waiting-role-rendered",
+        "target": "count-sessions-before-start",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e10",
+        "source": "count-sessions-before-start",
+        "target": "assert-one-waiting",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e11",
+        "source": "assert-one-waiting",
+        "target": "start-the-waiting-role",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e12",
+        "source": "start-the-waiting-role",
+        "target": "settle-after-start",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e13",
+        "source": "settle-after-start",
+        "target": "count-sessions-after-start",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e14",
+        "source": "count-sessions-after-start",
+        "target": "assert-second-session",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e15",
+        "source": "assert-second-session",
+        "target": "teardown",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      }
+    ]
+  }
+}

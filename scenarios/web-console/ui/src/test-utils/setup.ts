@@ -26,8 +26,10 @@ beforeEach(async () => {
 // jsdom does not implement matchMedia, which the shared component library's
 // useMediaQuery hook calls through useSyncExternalStore. Without this, every
 // test rendering an RCL component that reads a breakpoint throws before its
-// first assertion. Defaults to "does not match" so tests see the desktop
-// layout unless they install their own stub.
+// first assertion. It answers "does not match" to everything, which for the
+// `(min-width: …)` queries the library asks means the *small* viewport branch —
+// a test that wants the anchored, large-viewport presentation must say so with
+// `setDesktopViewport()` from `test-utils/viewport`.
 Object.defineProperty(window, "matchMedia", {
   configurable: true,
   writable: true,

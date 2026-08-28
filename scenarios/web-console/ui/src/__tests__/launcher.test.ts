@@ -44,13 +44,11 @@ describe("TerminalLauncher", () => {
     }));
 
     expect(screen.getByTestId("terminal-launcher")).toBeInTheDocument();
-    expect(screen.getByTestId("launcher-target-card-local")).toBeInTheDocument();
-    expect(screen.getByTestId("launcher-target-search")).toBeInTheDocument();
-    fireEvent.change(screen.getByTestId("launcher-target-search"), { target: { value: "ready" } });
-    expect(screen.getByTestId("launcher-target-card-ready")).toBeInTheDocument();
-    fireEvent.click(screen.getByTestId("launcher-target-card-ready"));
-    fireEvent.keyDown(screen.getByTestId("launcher-target-card-ready"), { key: "Home" });
-    fireEvent.keyDown(screen.getByTestId("launcher-target-card-local"), { key: "End" });
+    // Machine selection is one trigger row that opens a listbox; the picker's
+    // own filtering and keyboard model are covered in machine-picker.test.tsx.
+    expect(screen.getByTestId("launcher-machine-picker")).toBeInTheDocument();
+    fireEvent.click(screen.getByTestId("launcher-machine-picker"));
+    fireEvent.click(screen.getByTestId("launcher-machine-option-ready"));
     fireEvent.click(screen.getByTestId("launcher-options-toggle"));
     fireEvent.change(screen.getByTestId("launcher-working-dir"), { target: { value: " /tmp " } });
     fireEvent.change(screen.getByTestId("launcher-backend-select"), { target: { value: "persistent" } });
@@ -59,11 +57,16 @@ describe("TerminalLauncher", () => {
     expect(onLaunch).toHaveBeenCalledWith(expect.objectContaining({ backend: "persistent", workingDir: "/tmp" }));
     fireEvent.change(screen.getByTestId("launcher-custom-input"), { target: { value: "echo hi" } });
     fireEvent.keyDown(screen.getByTestId("launcher-custom-input"), { key: "Enter" });
-    fireEvent.click(screen.getByTestId("launcher-shortcut-list-files"));
+    fireEvent.click(screen.getByTestId("launcher-agent-list-files"));
     await waitFor(() => expect(onRefreshTargets).not.toHaveBeenCalled());
+    // Refresh lives inside the machine menu, beside the list it re-probes.
+    fireEvent.click(screen.getByTestId("launcher-machine-picker"));
     fireEvent.click(screen.getByTestId("launcher-target-refresh"));
     expect(onRefreshTargets).toHaveBeenCalledTimes(1);
-    fireEvent.click(screen.getByLabelText(/close/i));
+    // Only the centred presentation carries a close button. On the sheet the
+    // grabber is the dismiss control, and it answers the keyboard as well as a
+    // drag so the gesture is never the only way out.
+    fireEvent.keyDown(screen.getByTestId("terminal-launcher.grabber"), { key: "Enter" });
     expect(onClose).toHaveBeenCalled();
   });
 
@@ -98,12 +101,15 @@ describe("TerminalLauncher", () => {
     }));
 
     expect(screen.getByTestId("launcher-no-backend")).toHaveTextContent("No terminal backend");
+    fireEvent.click(screen.getByTestId("launcher-machine-picker"));
+    // The catalog's state is a footnote under the list it describes, not a
+    // card that owns a quarter of the dialog.
     expect(screen.getByTestId("launcher-target-catalog-state")).toHaveTextContent("terminalLauncher.registryError");
-    fireEvent.click(screen.getByTestId("launcher-target-card-offline-node"));
+    fireEvent.click(screen.getByTestId("launcher-machine-option-offline-node"));
     expect(screen.getByText("terminalLauncher.targetUnavailable")).toBeInTheDocument();
     expect(screen.getByTestId("launcher-empty-shell")).toBeDisabled();
     expect(screen.getByTestId("launcher-custom-launch")).toBeDisabled();
-    await waitFor(() => expect(screen.getByTestId("launcher-shortcut-status")).toBeInTheDocument());
+    await waitFor(() => { expect(screen.getByTestId("launcher-agent-status")).toBeInTheDocument(); });
     expect(getEffective).toHaveBeenCalled();
     getEffective.mockRestore();
   });
@@ -127,7 +133,6 @@ describe("TerminalLauncher", () => {
       targetCatalog: { status: "unconfigured", targets: [] },
     }));
     expect(screen.getByTestId("launcher-target-loading")).toBeInTheDocument();
-    expect(screen.getByTestId("launcher-target-catalog-state")).toBeInTheDocument();
 
     rerender(createElement(TerminalLauncher, {
       open: true,
@@ -136,12 +141,12 @@ describe("TerminalLauncher", () => {
       defaultPolicy: { mode: "preset", duration: "1h" },
       targetCatalog: { status: "ready", targets: remotes },
     }));
-    const search = screen.getByTestId("launcher-target-search");
-    fireEvent.change(search, { target: { value: "does-not-exist" } });
-    expect(screen.getByText("terminalLauncher.noRemoteNodes")).toBeInTheDocument();
-    fireEvent.keyDown(screen.getByTestId("launcher-target-card-local"), { key: "ArrowDown" });
-    fireEvent.keyDown(screen.getByTestId("launcher-target-card-local"), { key: "ArrowLeft" });
-    fireEvent.keyDown(screen.getByTestId("launcher-target-card-local"), { key: "Escape" });
+    fireEvent.click(screen.getByTestId("launcher-machine-picker"));
+    // Every machine stays in the listbox: it scrolls rather than filtering,
+    // so there is no empty-search state to reach.
+    expect(screen.getAllByRole("option").length).toBeGreaterThan(1);
+    fireEvent.keyDown(screen.getByTestId("launcher-machine-list"), { key: "ArrowDown" });
+    fireEvent.keyDown(screen.getByTestId("launcher-machine-list"), { key: "End" });
   });
 
   it("handles closed launchers, custom backend reasons, and remote last-seen fallbacks", async () => {
@@ -173,7 +178,11 @@ describe("TerminalLauncher", () => {
       targetsLoading: true,
     }));
     expect(screen.getByTestId("launcher-no-backend")).toHaveTextContent("backend registry offline");
+    // A known fleet keeps its trigger while re-probing; the refresh control
+    // inside the menu is what goes disabled.
+    fireEvent.click(screen.getByTestId("launcher-machine-picker"));
     expect(screen.getByTestId("launcher-target-refresh")).toBeDisabled();
+    fireEvent.click(screen.getByTestId("launcher-machine-picker"));
 
     rerender(createElement(TerminalLauncher, {
       open: true,
@@ -183,8 +192,9 @@ describe("TerminalLauncher", () => {
       availableTargets: [remote],
       onRefreshTargets: vi.fn(),
     }));
-    fireEvent.click(screen.getByTestId("launcher-target-card-remote-node"));
-    await waitFor(() => expect(screen.getByTestId("launcher-target-card-remote-node")).toHaveAttribute("aria-selected", "true"));
+    fireEvent.click(screen.getByTestId("launcher-machine-picker"));
+    fireEvent.click(screen.getByTestId("launcher-machine-option-remote-node"));
+    await waitFor(() => { expect(screen.getByTestId("launcher-machine-picker")).toHaveTextContent("Remote node"); });
     getEffective.mockRestore();
   });
 });

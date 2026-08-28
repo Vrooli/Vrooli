@@ -8,6 +8,8 @@ import { cn } from "../lib/classnames";
 import { strings } from "../consts/strings";
 import { FullPageDrawer } from "@vrooli/react-component-library/FullPageDrawer/1";
 import { Tabs } from "@vrooli/react-component-library/Tabs/1";
+import GroupTemplatesPanel from "./settings/GroupTemplatesPanel";
+import HandoffRulesPanel from "./settings/HandoffRulesPanel";
 import IntegrationsSection from "./settings/IntegrationsSection";
 import NewPaneDefaultsSection from "./settings/NewPaneDefaultsSection";
 import SessionManagementSection from "./settings/SessionManagementSection";
@@ -60,6 +62,8 @@ const SECTION_COMPONENTS: Record<SettingsTabId, SettingsSectionComponent> = {
   "voice-output": TtsSettingsSection as SettingsSectionComponent,
   shortcuts: ShortcutProfilesSection as SettingsSectionComponent,
   "new-pane-defaults": NewPaneDefaultsSection as SettingsSectionComponent,
+  templates: GroupTemplatesPanel as SettingsSectionComponent,
+  "handoff-rules": HandoffRulesPanel as SettingsSectionComponent,
   integrations: IntegrationsSection as SettingsSectionComponent,
 };
 
@@ -120,7 +124,9 @@ export default function SettingsModal({
     [isMobile, settingsTabs],
   );
 
-  const close = () => setSettingsModalOpen(false);
+  const close = () => {
+    setSettingsModalOpen(false);
+  };
 
   // On a small viewport the drawer already names the active section in its
   // header and the section repeats its own description in the body, so the
@@ -143,6 +149,7 @@ export default function SettingsModal({
 
   return (
     <FullPageDrawer
+      avoidKeyboard
       open={settingsModalOpen}
       onClose={close}
       closeLabel={t(strings.settings.closeAriaLabel)}
@@ -162,16 +169,19 @@ export default function SettingsModal({
               ariaLabel={t(strings.settings.sidebarAria)}
               items={tabItems}
               active={activeTab}
-              onChange={(next) => setActiveTab(next as SettingsTabId)}
+              onChange={(next) => {
+                setActiveTab(next as SettingsTabId);
+              }}
               itemTestId={settingsTabTestId}
             />
           </div>
         ) : undefined
       }
-      // web-console owns its gutters here: the desktop split has to reach the
-      // panel edges, and the mobile column wants a tighter one than the
-      // library's comfortable default.
-      contentPadding="none"
+      // This app already decided what "mobile" means, once, in `isMobile`.
+      // Leaving the drawer on its own `auto` breakpoint would add a second,
+      // independent read of the viewport that can disagree with the first —
+      // the same class of split-brain the viewport contract exists to close.
+      dismissAffordance={isMobile ? "grabber" : "close"}
       testId="settings-modal"
     >
       {isMobile ? (
@@ -206,7 +216,9 @@ export default function SettingsModal({
                         ? "bg-wc-surface-input text-wc-text-primary shadow-sm"
                         : "text-wc-text-muted hover:bg-wc-surface-input/60 hover:text-wc-text-secondary",
                     )}
-                    onClick={() => setActiveTab(tab.id)}
+                    onClick={() => {
+                      setActiveTab(tab.id);
+                    }}
                   >
                     <Icon className={cn("mt-0.5 h-4 w-4 shrink-0", isActive && "text-wc-accent")} />
                     <div className="min-w-0">

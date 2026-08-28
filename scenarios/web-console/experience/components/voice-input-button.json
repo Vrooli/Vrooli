@@ -5,7 +5,7 @@
     "id": "voice-input-button",
     "title": "VoiceInputButton",
     "purpose": "Expose one fixed-footprint microphone control whose recording, timeout, transcription, and cancellation states remain perceivable.",
-    "storyRef": "../../../react-component-library/library/components/VoiceInputButton/versions/4.2.0/story.json"
+    "storyRef": "../../../react-component-library/library/components/VoiceInputButton/versions/4.3.1/story.json"
   },
   "states": [
     { "id": "idle", "example": "idle", "description": "Ready to start voice input." },

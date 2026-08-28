@@ -674,6 +674,92 @@
       }
     },
     {
+      "id": "grouptemplates_list_templates",
+      "path": "/vrooli.web_console.v1.grouptemplates.GroupTemplatesService/ListTemplates",
+      "method": "POST",
+      "summary": "List group templates",
+      "description": "Returns every saved group template with its ordered role list.",
+      "category": "grouptemplates",
+      "response": {
+        "type": "object",
+        "properties": {
+          "templates": "[]Template"
+        }
+      }
+    },
+    {
+      "id": "grouptemplates_upsert_template",
+      "path": "/vrooli.web_console.v1.grouptemplates.GroupTemplatesService/UpsertTemplate",
+      "method": "POST",
+      "summary": "Create or update a group template",
+      "description": "Upserts a template by id. A blank id is assigned server-side. Rejects a blank name and an unknown role start_mode.",
+      "category": "grouptemplates",
+      "response": {
+        "type": "object",
+        "properties": {
+          "template": "Template"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Blank name, or a role with an unknown start_mode"
+        }
+      ]
+    },
+    {
+      "id": "grouptemplates_delete_template",
+      "path": "/vrooli.web_console.v1.grouptemplates.GroupTemplatesService/DeleteTemplate",
+      "method": "POST",
+      "summary": "Delete a group template",
+      "description": "Idempotent: succeeds whether the id exists or not. Every template is deletable, including a shipped example.",
+      "category": "grouptemplates"
+    },
+    {
+      "id": "handoffrules_list_rules",
+      "path": "/vrooli.web_console.v1.handoffrules.HandoffRulesService/ListRules",
+      "method": "POST",
+      "summary": "List handoff capture rules",
+      "description": "Returns every capture rule. A rule decides when a handoff is suggested; it never sends one.",
+      "category": "handoffrules",
+      "response": {
+        "type": "object",
+        "properties": {
+          "rules": "[]Rule"
+        }
+      }
+    },
+    {
+      "id": "handoffrules_upsert_rule",
+      "path": "/vrooli.web_console.v1.handoffrules.HandoffRulesService/UpsertRule",
+      "method": "POST",
+      "summary": "Create or update a handoff capture rule",
+      "description": "Upserts a rule by id. A blank id is assigned server-side. Rejects a blank name, a blank pattern, and an unknown source.",
+      "category": "handoffrules",
+      "response": {
+        "type": "object",
+        "properties": {
+          "rule": "Rule"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Blank name, blank pattern, or an unknown source"
+        }
+      ]
+    },
+    {
+      "id": "handoffrules_delete_rule",
+      "path": "/vrooli.web_console.v1.handoffrules.HandoffRulesService/DeleteRule",
+      "method": "POST",
+      "summary": "Delete a handoff capture rule",
+      "description": "Idempotent: succeeds whether the id exists or not. Every rule is deletable, including a shipped example.",
+      "category": "handoffrules"
+    },
+    {
       "id": "hooks_stop",
       "path": "/api/v1/hooks/stop",
       "method": "POST",
@@ -1552,7 +1638,76 @@
       "path": "/vrooli.web_console.v1.workspace.WorkspaceService/DeleteGroup",
       "method": "POST",
       "summary": "Delete a tab group",
-      "description": "Idempotent. Panes in the group have their group_id cleared.",
+      "description": "Idempotent. Panes in the group have their group_id cleared; the group's roles are removed with it.",
+      "category": "workspace"
+    },
+    {
+      "id": "workspace_list_roles",
+      "path": "/vrooli.web_console.v1.workspace.WorkspaceService/ListRoles",
+      "method": "POST",
+      "summary": "List roles",
+      "description": "Returns roles ordered by group then sort_order. A non-empty group_id filters to one group. A role with an empty session_id is waiting: it holds a command and no process.",
+      "category": "workspace",
+      "response": {
+        "type": "object",
+        "properties": {
+          "roles": "[]Role"
+        }
+      }
+    },
+    {
+      "id": "workspace_create_role",
+      "path": "/vrooli.web_console.v1.workspace.WorkspaceService/CreateRole",
+      "method": "POST",
+      "summary": "Create a role in a group",
+      "description": "Adds a named position to a group. Omit session_id to create a waiting role, which costs no process until it is started.",
+      "category": "workspace",
+      "response": {
+        "type": "object",
+        "properties": {
+          "role": "Role"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Blank group_id, or a session_id already claimed by another role"
+        }
+      ]
+    },
+    {
+      "id": "workspace_update_role",
+      "path": "/vrooli.web_console.v1.workspace.WorkspaceService/UpdateRole",
+      "method": "POST",
+      "summary": "Update a role",
+      "description": "Updates fields on an existing role. Only fields with has_* = true are applied. Setting has_session_id with an empty session_id returns the role to waiting.",
+      "category": "workspace",
+      "response": {
+        "type": "object",
+        "properties": {
+          "role": "Role"
+        }
+      },
+      "errors": [
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "Role id does not exist"
+        },
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Blank group_id, or a session_id already claimed by another role"
+        }
+      ]
+    },
+    {
+      "id": "workspace_delete_role",
+      "path": "/vrooli.web_console.v1.workspace.WorkspaceService/DeleteRole",
+      "method": "POST",
+      "summary": "Delete a role",
+      "description": "Idempotent: succeeds whether the role id exists or not. Deleting a running role leaves its session untouched.",
       "category": "workspace"
     }
   ]

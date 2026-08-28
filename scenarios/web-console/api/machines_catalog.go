@@ -20,6 +20,7 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/vrooli/api-core/connectx"
+	"github.com/vrooli/api-core/discovery"
 	"github.com/vrooli/nodeclient"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
@@ -55,6 +56,7 @@ type fleet struct {
 	message    string
 	recovery   string
 	controlURL string
+	consoleURL string
 	reachable  bool
 	detail     string
 }
@@ -69,9 +71,10 @@ func (h *machineRPC) List(ctx context.Context, _ *connect.Request[machinesv1.Lis
 		Message:        view.message,
 		RecoveryAction: view.recovery,
 		ControlPlane: &machinesv1.ControlPlane{
-			Reachable: view.reachable,
-			Endpoint:  view.controlURL,
-			Detail:    view.detail,
+			Reachable:  view.reachable,
+			Endpoint:   view.controlURL,
+			Detail:     view.detail,
+			ConsoleUrl: view.consoleURL,
 		},
 	}), nil
 }
@@ -187,6 +190,7 @@ func (h *machineRPC) readFleet(ctx context.Context) fleet {
 	}
 	client, base := bridgeNodeClient(ctx)
 	view.controlURL = base.BaseURL
+	view.consoleURL = h.controlPlaneConsoleURL(ctx)
 	view.reachable = client != nil
 
 	local := &machinesv1.Machine{
@@ -472,6 +476,29 @@ func nodeIDForMachine(machineID string) (string, error) {
 		return "", connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("%q is not a linked machine", machineID))
 	}
 	return nodeID, nil
+}
+
+// controlPlaneConsoleURL resolves a link a browser can actually open to the
+// control plane's own interface.
+//
+// This is deliberately not view.controlURL. That value is the Bridge API base
+// this process dials — resolved through the API port, against loopback, on the
+// server. Handing it to a browser produces a 404 from a Connect endpoint, and
+// on any access path other than a browser on this same machine it names the
+// wrong computer entirely. Origin belongs to the caller, so the resolution
+// takes the host the request arrived on and reads the UI port.
+//
+// An empty result is a valid answer: it means the interface could not be
+// located, and the client hides the link rather than offering a broken one.
+func (h *machineRPC) controlPlaneConsoleURL(ctx context.Context) string {
+	if h.server == nil || h.server.resolveConsoleURL == nil {
+		return ""
+	}
+	url, err := h.server.resolveConsoleURL(ctx, "vrooli-bridge", discovery.ExternalHostFromContext(ctx))
+	if err != nil {
+		return ""
+	}
+	return url
 }
 
 // controlPlaneError keeps a refusal legible. A rejected confirmation is a

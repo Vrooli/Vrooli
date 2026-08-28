@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { arbitrateBanners, bannerFillClassName } from "../arbitrate";
+import { arbitrateBanners, BANNER_CHROME } from "../arbitrate";
 import { BANNER_PRIORITY, type BannerDescriptor } from "../types";
 
 function banner(over: Partial<BannerDescriptor> & Pick<BannerDescriptor, "id">): BannerDescriptor {
@@ -63,10 +63,17 @@ describe("banner arbitration", () => {
     expect(primary?.id).toBe("connection-lost");
   });
 
-  it("tints the safe-area strip from the banner on top", () => {
-    expect(bannerFillClassName(null)).toBeUndefined();
-    expect(bannerFillClassName(banner({ id: "a", tone: "danger" }))).toBe("wc-banner-fill-danger");
-    expect(bannerFillClassName(banner({ id: "a", tone: "warning" }))).toBe("wc-banner-fill-warning");
-    expect(bannerFillClassName(banner({ id: "a", tone: "info" }))).toBe("wc-banner-fill-info");
+  it("gives every tone both status-bar channels", () => {
+    // Both channels exist for every tone: the OS bar reads `statusColor`, the
+    // iOS safe-area strip reads `fillColor`. A tone with only one of them would
+    // be correct on one platform and stale on the other.
+    // These are fallbacks only — a real browser measures the banner's rendered
+    // background and publishes that. What has to hold of the fallback is that
+    // it is a usable opaque colour for every tone: the OS composites the status
+    // colour itself and renders alpha as black, so opacity is a correctness
+    // requirement rather than a style choice.
+    for (const tone of ["danger", "warning", "info", "success"] as const) {
+      expect(BANNER_CHROME[tone].statusColor).toMatch(/^rgb\(\d+, \d+, \d+\)$/);
+    }
   });
 });

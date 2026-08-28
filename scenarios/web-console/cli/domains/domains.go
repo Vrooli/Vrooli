@@ -6,6 +6,8 @@ import (
 	"web-console/cli/domains/conversation"
 	"web-console/cli/domains/events"
 	filepreview "web-console/cli/domains/file_preview"
+	"web-console/cli/domains/grouptemplates"
+	"web-console/cli/domains/handoffrules"
 	"web-console/cli/domains/hooks"
 	"web-console/cli/domains/machines"
 	"web-console/cli/domains/metrics"
@@ -89,6 +91,14 @@ func SubcommandGroups(core *cliapp.ScenarioApp, manifest []byte) ([]cliapp.Subco
 	if err != nil {
 		return nil, err
 	}
+	groupTemplateGroup, err := grouptemplates.Register(core, manifest)
+	if err != nil {
+		return nil, err
+	}
+	handoffRuleGroup, err := handoffrules.Register(core, manifest)
+	if err != nil {
+		return nil, err
+	}
 	return []cliapp.SubcommandGroup{
 		sessionGroup,
 		targetGroup,
@@ -96,6 +106,8 @@ func SubcommandGroups(core *cliapp.ScenarioApp, manifest []byte) ([]cliapp.Subco
 		terminal.Register(core),
 		hooks.Register(),
 		workspaceGroup,
+		groupTemplateGroup,
+		handoffRuleGroup,
 		settingsGroup,
 		shortcutsGroup,
 		aiGroup,

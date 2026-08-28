@@ -4,6 +4,26 @@ import { screen, fireEvent, waitFor } from "@testing-library/react";
 import { forwardRef } from "react";
 import Workspace from "../components/Workspace";
 import { strings } from "../consts/strings";
+import { BANNER_CHROME } from "../components/banners/arbitrate";
+
+/**
+ * The colour actually painted into the iOS safe-area strip. The library's
+ * `ChromeTheme` service writes it to the document element, which is the one
+ * place both status-bar channels are resolved together, so asserting here is
+ * asserting what the reader sees rather than which class happened to be
+ * threaded through props.
+ */
+/*
+ * Note the value asserted here is the library's per-tone FALLBACK. In a real
+ * browser the region measures the banner's rendered background and publishes
+ * that instead — which is the whole point, since the palette is `color-mix`
+ * over tokens. jsdom computes no such colour, so the fallback is what this
+ * environment can see; the measured path is asserted in the library's own
+ * browser story.
+ */
+function statusFill(): string {
+  return document.documentElement.style.getPropertyValue("--rcl-status-fill");
+}
 import type { SessionInfo } from "../api/sessions";
 import type { ConversationEvent } from "../api/conversation";
 import { useConversationStore, createConversationSessionState } from "../stores/useConversationStore";
@@ -167,6 +187,13 @@ const mockStoreState = {
   aiModalOpen: false,
   aiSuggestActive: false,
   groups: [],
+  // Roles are additive, so this fixture keeps them empty: every assertion in
+  // this file describes behaviour that must hold for a workspace that uses
+  // no roles at all.
+  roles: [] as Array<{ id: string; groupId: string; sessionId: string | null }>,
+  closedGroupUndo: null,
+  autoCloseEmptyGroups: true,
+  manageGroupsOpen: false,
   sidebarView: "list" as const,
   sidebarSortMode: "manual" as const,
   sidebarOriginTab: "ui" as const,
@@ -180,6 +207,14 @@ const mockStoreState = {
 
 const mockStoreActions = {
   addPane: vi.fn(),
+  setRoles: vi.fn(),
+  addRole: vi.fn(),
+  updateRole: vi.fn(),
+  removeRole: vi.fn(),
+  setRoleSession: vi.fn(),
+  setClosedGroupUndo: vi.fn(),
+  setAutoCloseEmptyGroups: vi.fn(),
+  setManageGroupsOpen: vi.fn(),
   addPaneToGroup: vi.fn(),
   removePane: vi.fn(),
   renamePaneById: vi.fn(),
@@ -568,8 +603,11 @@ describe("Workspace", () => {
 
     render(<Workspace />);
 
-    expect(screen.getByTestId("workspace-top-edge-fill").className).toContain("--wc-safe-top");
-    expect(screen.getByTestId("workspace-top-edge-fill").className).toContain("wc-chrome-surface");
+    expect(screen.getByTestId("workspace-top-edge-fill")).toHaveAttribute(
+      "data-rcl-status-fill-strip",
+    );
+    // Reserved exactly once: the strip owns the inset, and no surface below it
+    // may claim the same space again.
     expect(screen.getByTestId("tab-bar").className).not.toContain("--wc-safe-top");
   });
 
@@ -589,11 +627,26 @@ describe("Workspace", () => {
     const notice = await screen.findByTestId("voice-status-banner");
     expect(notice.textContent).toContain("Waiting for the speech backend");
     // The safe-area strip is tinted by whatever banner is on top, so the notch
-    // matches the notice instead of the surface beneath it.
-    expect(screen.getByTestId("workspace-top-edge-fill").className).toContain("wc-banner-fill-warning");
+    // matches the notice instead of the surface beneath it. On iOS this strip
+    // *is* the status bar, so it is the notch, not a decoration near it.
+    expect(statusFill()).toBe(BANNER_CHROME.warning.statusColor);
 
     fireEvent.click(screen.getByTestId("voice-status-banner-dismiss"));
     expect(mockVoiceInputState.dismissFallbackNotice).toHaveBeenCalledTimes(1);
+
+    // Regression: dismissing must clear the notch even though the *condition*
+    // still holds — the mocked notice is still set, exactly as a real one would
+    // be until its source clears. Deriving the tint from the raw conditions
+    // instead of the presented set left the status bar tinted for a banner the
+    // reader had already closed.
+    await waitFor(() => {
+      expect(screen.queryByTestId("voice-status-banner")).toBeNull();
+    });
+    // Back to the resting chrome, not stuck on the notice's tone. The strip is
+    // still painted — the base contribution always holds it — which is why the
+    // assertion is "not the warning colour" rather than "unset".
+    expect(statusFill()).not.toBe(BANNER_CHROME.warning.statusColor);
+    expect(document.documentElement.dataset.rclStatusFill).toBe("base");
   });
 
   it("arbitrates App's notices into its own region rather than stacking a second one", async () => {
@@ -626,8 +679,8 @@ describe("Workspace", () => {
     // collapses behind the summary rather than stacking below.
     expect(screen.getByTestId("connection-banner")).toBeTruthy();
     expect(screen.queryByTestId("voice-status-banner")).toBeNull();
-    expect(await screen.findByTestId("banner-overflow-toggle")).toBeTruthy();
-    expect(screen.getByTestId("workspace-top-edge-fill").className).toContain("wc-banner-fill-danger");
+    expect(await screen.findByTestId("banner-region-overflow-toggle")).toBeTruthy();
+    expect(statusFill()).toBe(BANNER_CHROME.danger.statusColor);
   });
 
   it("renders sidebar mode as tab-like stacked panes with desktop sidebar", () => {
@@ -662,8 +715,9 @@ describe("Workspace", () => {
     ];
 
     render(<Workspace />);
-    expect(screen.getByTestId("workspace-top-edge-fill").className).toContain("--wc-safe-top");
-    expect(screen.getByTestId("workspace-top-edge-fill").className).toContain("wc-chrome-surface");
+    expect(screen.getByTestId("workspace-top-edge-fill")).toHaveAttribute(
+      "data-rcl-status-fill-strip",
+    );
     expect(screen.getByTestId("workspace-sidebar-topbar").className).toContain("h-10");
     expect(screen.getByTestId("workspace-sidebar-topbar").className).not.toContain("--wc-safe-top");
     fireEvent.click(screen.getByTestId("workspace-sidebar-toggle"));

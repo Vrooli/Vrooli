@@ -1,4 +1,4 @@
-import { renderWithProviders as render } from "../test-utils";
+import { renderWithProviders as render, setDesktopViewport, setMobileViewport } from "../test-utils";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { screen, fireEvent, act } from "@testing-library/react";
 import TerminalContextMenu from "../components/TerminalContextMenu";
@@ -124,7 +124,8 @@ describe("TerminalContextMenu", () => {
     const btn = screen.getByTestId("ctx-paste");
     expect(btn.textContent).toBe(strings.terminalContextMenu.pasting);
     expect(btn).toBeDisabled();
-    expect(btn.getAttribute("data-paste-state")).toBe("pending");
+    // The library renders an item's `state` as `data-state` on its button.
+    expect(btn.getAttribute("data-state")).toBe("pending");
   });
 
   it("shows fallback text when clipboard read fails", async () => {
@@ -163,10 +164,12 @@ describe("TerminalContextMenu", () => {
     expect(props.onClose).toHaveBeenCalledOnce();
   });
 
-  it("dismisses on backdrop click", () => {
+  it("dismisses on backdrop press", () => {
     const props = defaultProps();
     render(<TerminalContextMenu {...props} />);
-    fireEvent.click(screen.getByTestId("ctx-backdrop"));
+    // The sheet presentation dismisses on press, not click, and the backdrop
+    // is rooted at the surface's own test id.
+    fireEvent.pointerDown(screen.getByTestId("terminal-context-menu.backdrop"));
     expect(props.onClose).toHaveBeenCalledOnce();
   });
 
@@ -190,12 +193,23 @@ describe("TerminalContextMenu", () => {
     expect(props.onClose).toHaveBeenCalled();
   });
 
-  it("positions the menu at the given coordinates", () => {
+  it("positions the menu at the given coordinates on a large viewport", () => {
+    // Coordinates only apply to the anchored presentation. Below the medium
+    // breakpoint the menu is a full-width sheet, and pinning it to a pointer
+    // position there would put it somewhere the finger is not.
+    setDesktopViewport();
     render(<TerminalContextMenu {...defaultProps()} />);
     const menu = screen.getByTestId("terminal-context-menu");
-    // Before measurement, menu renders at position with opacity 0
     expect(menu.style.left).toBe("200px");
     expect(menu.style.top).toBe("300px");
+  });
+
+  it("spans the sheet on a small viewport instead of following the pointer", () => {
+    setMobileViewport();
+    render(<TerminalContextMenu {...defaultProps()} />);
+    const menu = screen.getByTestId("terminal-context-menu");
+    expect(menu.style.left).toBe("");
+    expect(screen.getByTestId("terminal-context-menu.grabber")).toBeInTheDocument();
   });
 
   it("renders Upload Image button when onUploadImage is provided", () => {

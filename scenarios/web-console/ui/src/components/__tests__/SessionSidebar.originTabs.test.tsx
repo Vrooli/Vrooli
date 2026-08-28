@@ -62,6 +62,9 @@ function renderSidebar(bucketNav: OriginBucketNavigation[]) {
       onOpenLauncher={vi.fn()}
       onNewSessionInGroup={vi.fn()}
       onOpenSettings={vi.fn()}
+      onStartRole={vi.fn()}
+      onHandoffToRole={vi.fn()}
+      onOpenRoleMenu={vi.fn()}
     />,
   );
 }

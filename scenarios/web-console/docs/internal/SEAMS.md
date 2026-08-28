@@ -84,6 +84,75 @@ contract.
   snapshot when the cursor has expired. `history_end.output_cursor` records
   the renderer's new checkpoint.
 
+## The handoff seam (added 2026-08-27)
+
+One generic verb moves a message from one session to another inside a group.
+Design record: [ROLES-AND-HANDOFFS-UX.md](ROLES-AND-HANDOFFS-UX.md).
+
+**The seam is `submitToActiveTerminal(data, intent, targetId)`**
+([CODE: ui/src/hooks/useSessionManager.ts]). Its third parameter already
+addressed a specific pane, so the missing part was never the transport — it was
+the UI and the queueing.
+
+- `ui/src/lib/handoff.ts` — `renderHandoffPrompt`, the send path's only text
+  transformation. It imports nothing at all.
+- `ui/src/hooks/useHandoff.ts` — `sendHandoff`, which returns a per-target
+  `sent` / `queued` / `failed` result.
+- `ui/src/lib/captureRules.ts` — the matcher, which produces suggestions.
+
+**The send path and the matcher share no code.** Deleting every capture rule
+must not change one line of the send path's behaviour, and the way that is
+guaranteed is that neither side can reach the other. Three greps hold the line,
+and all three must return nothing:
+
+```bash
+# 1. Nothing in the shipped surface is named for one workflow.
+grep -rn "plan_path\|planPath\|plan_file\|implementer_id\|planner_id\|critic_id" \
+  scenarios/web-console/api scenarios/web-console/ui/src \
+  scenarios/web-console/cli packages/proto/schemas/web-console
+
+# 2. The send path does not reach the matcher.
+grep -rn "captureRules" scenarios/web-console/ui/src/lib/handoff.ts \
+  scenarios/web-console/ui/src/hooks/useHandoff.ts
+
+# 3. Seeded content is data, not a privileged code path.
+grep -rn "is_builtin\|isBuiltin\|builtin" \
+  scenarios/web-console/api/internal/grouptemplates \
+  scenarios/web-console/api/internal/handoffrules
+```
+
+### Delivery, and why a handoff is never dropped
+
+`submitToActiveTerminal` returns `{status: "rejected", reason: "disposed"}` when
+no terminal handle exists for the target. A session created one millisecond ago
+has no mounted terminal, so a naive send is dropped **silently** — the single
+most likely defect in this feature.
+
+Two existing mechanisms remove the need to invent anything:
+
+1. **The pending-input queue** (`useStdinStream`). Queued text is visible to the
+   operator, discardable, and manually flushable. A handoff enqueues; it does
+   not race.
+2. **The pending-map pattern.** `Workspace.tsx` already carried
+   `pendingGroupBySessionRef`, drained by the session-reconcile effect when the
+   pane appears. `pendingHandoffBySessionRef` has the identical shape and is
+   drained in the same effect — a second draining mechanism would be a second
+   place for a message to go missing.
+
+`queued` is a first-class result, never collapsed into `sent`. Reporting success
+for text still sitting in a queue is the failure this seam exists to prevent.
+
+### Role and pane
+
+A role is the durable identity inside a group; a pane is the runtime projection
+of a live session. They are joined by `session_id`, and roles are optional —
+every pre-roles grouping behaviour works with `workspace_roles` empty. Full
+table contract: [data-model.md](../reference/data-model.md#workspace_roles).
+
+`ReassignPane` re-keys a pane during session recovery; `ReassignRoleSession`
+performs the matching move for roles, so a recovered session keeps its role
+rather than leaving it aimed at a session id that no longer exists.
+
 ## Session decomposition (refactored 2026-04-24)
 
 `api/session.go` was split by concern — all methods still on
@@ -1488,3 +1557,31 @@ the future web-console adopter will swap the local implementations for
   scenario-URL resolution + re-resolution.
 - **Seam**: takes an `audiotoolsint.URLResolver` so tests can inject
   a fake-upstream URL.
+
+## Overlay keyboard avoidance
+
+**The seam.** `useAppViewport` (`ui/src/hooks/useAppViewport.ts`) measures
+`window.visualViewport` and writes `--rcl-viewport-height`,
+`--rcl-keyboard-inset` and `--rcl-safe-top` onto the document element. That is
+the host half of the React Component Library's viewport contract, documented on
+`BaseStyles`: *"a host that knows better assigns these six properties on the
+document element and every library surface follows it."* Each overlay
+primitive's CSS consumes them behind `[data-avoid-keyboard]`.
+
+**The trap.** The primitive's `avoidKeyboard` prop defaults to `false`. An
+overlay that never mentions it compiles, renders, and passes review — and then
+on a phone the virtual keyboard slides up over the field being typed into.
+Twelve of fifteen overlays were in that state. The correct code and the broken
+code differ by an absent line, which is exactly what code review does not see.
+
+**The guard.** `ui/src/__tests__/overlay-keyboard-contract.test.ts` requires
+every file rendering `ResponsiveDialog`, `FullPageDrawer`, `BottomSheet` or
+`DrawerShell` to mention `avoidKeyboard` — either opting in, or opting out with
+a stated reason in a comment directly above. It also asserts it found at least
+ten overlays, so a refactor cannot empty its subject set and pass vacuously.
+
+To find every overlay and its choice:
+
+```
+grep -rlE "<(ResponsiveDialog|FullPageDrawer|BottomSheet|DrawerShell)\b" ui/src/components --include=*.tsx
+```

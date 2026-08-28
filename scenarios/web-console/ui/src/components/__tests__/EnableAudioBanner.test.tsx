@@ -94,7 +94,7 @@ describe("enable audio banner", () => {
   it("renders through the shared banner base", () => {
     render(<Host onEnable={vi.fn().mockResolvedValue(true)} onDismiss={vi.fn()} />);
     const banner = screen.getByTestId("enable-audio-banner");
-    expect(banner).toHaveAttribute("data-wc-banner");
+    expect(banner).toHaveAttribute("data-rcl-banner");
     expect(banner).toHaveAttribute("data-tone", "info");
   });
 });

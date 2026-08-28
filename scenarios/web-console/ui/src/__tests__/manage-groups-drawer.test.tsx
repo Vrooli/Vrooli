@@ -2,8 +2,12 @@ import { renderWithProviders as render } from "../test-utils";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { screen, fireEvent, waitFor } from "@testing-library/react";
 import ManageGroupsDrawer from "../components/ManageGroupsDrawer";
-import { useWorkspaceStore, type PaneMetadata, type TabGroupMeta } from "../stores/useWorkspaceStore";
+import { useWorkspaceStore, type PaneMetadata, type RoleMeta, type TabGroupMeta } from "../stores/useWorkspaceStore";
 import { HEADER_COLORS } from "../consts/config";
+import { strings } from "../consts/strings";
+
+// [REQ:P0-014c] Group Assignment And Administration Split
+// [REQ:P0-014f] Group Auto-Close With Undo
 
 const mockUpdateWorkspacePane = vi.fn().mockResolvedValue(undefined);
 const mockCreateTabGroup = vi.fn().mockResolvedValue({
@@ -24,6 +28,13 @@ vi.mock("../api/workspace", () => ({
   deleteTabGroup: (...args: unknown[]) => mockDeleteTabGroup(...args) as unknown,
 }));
 
+vi.mock("../api/workspaceRoles", () => ({
+  createRole: vi.fn().mockResolvedValue({}),
+  updateRole: vi.fn().mockResolvedValue({}),
+  deleteRole: vi.fn().mockResolvedValue(undefined),
+  listRoles: vi.fn().mockResolvedValue([]),
+}));
+
 const makePanes = (assignments: Record<string, string | null>): PaneMetadata[] =>
   Object.entries(assignments).map(([id, groupId]) => ({
     sessionId: id,
@@ -33,8 +44,21 @@ const makePanes = (assignments: Record<string, string | null>): PaneMetadata[] =
     fontSize: 14,
     groupId,
     supportsMessagesView: false,
-  manuallyUnread: false,
+    manuallyUnread: false,
   }));
+
+const role = (id: string, groupId: string): RoleMeta => ({
+  id,
+  groupId,
+  label: id,
+  command: "agent",
+  workingDir: "",
+  incomingPrompt: "",
+  backend: "",
+  targetId: "",
+  sessionId: null,
+  sortOrder: 0,
+});
 
 const groupA: TabGroupMeta = { id: "ga", name: "Alpha", color: HEADER_COLORS[0] ?? "#111111", isCollapsed: false };
 const groupB: TabGroupMeta = { id: "gb", name: "Beta", color: HEADER_COLORS[2] ?? "#222222", isCollapsed: false };
@@ -44,7 +68,10 @@ function setStore(overrides: Partial<ReturnType<typeof useWorkspaceStore.getStat
     panes: makePanes({ s1: "ga", s2: "ga", s3: null }),
     activePane: "s1",
     groups: [groupA, groupB],
-    manageGroupsTarget: { sessionId: null },
+    roles: [],
+    closedGroupUndo: null,
+    autoCloseEmptyGroups: true,
+    manageGroupsOpen: true,
     ...overrides,
   });
 }
@@ -55,135 +82,141 @@ describe("ManageGroupsDrawer", () => {
     setStore();
   });
 
-  it("renders nothing when manageGroupsTarget is null", () => {
-    setStore({ manageGroupsTarget: null });
+  it("renders nothing while closed", () => {
+    setStore({ manageGroupsOpen: false });
     render(<ManageGroupsDrawer />);
-    expect(screen.queryByTestId("manage-groups-drawer")).toBeNull();
+    expect(screen.queryByTestId("manage-groups-drawer")).not.toBeInTheDocument();
   });
 
-  it("renders a dialog with one row per group and live client-derived counts", () => {
+  it("lists every group with its session count", () => {
     render(<ManageGroupsDrawer />);
-    const panel = screen.getByTestId("manage-groups-drawer");
-    expect(panel.getAttribute("role")).toBe("dialog");
-    expect(screen.getByTestId("manage-groups-row-ga")).toBeTruthy();
-    expect(screen.getByTestId("manage-groups-row-gb")).toBeTruthy();
-    // cimode: t(key, {count}) echoes the key; assert via the count testid text
-    // living on the badge plus the store-derived value in the DOM structure.
-    expect(screen.getByTestId("manage-groups-count-ga")).toBeTruthy();
-    expect(screen.getByTestId("manage-groups-count-gb")).toBeTruthy();
+    expect(screen.getByTestId("manage-groups-row-ga")).toBeInTheDocument();
+    expect(screen.getByTestId("manage-groups-row-gb")).toBeInTheDocument();
+    // The visible text is an interpolated translation; the count itself
+    // rides on a data attribute so the assertion is about the number.
+    expect(screen.getByTestId("manage-groups-count-ga")).toHaveAttribute("data-session-count", "2");
   });
 
-  it("shows the empty state when no groups exist", () => {
-    setStore({ groups: [] });
+  // The drawer is an administration surface only. Assignment moved to an
+  // anchored picker beside the tab, which is why the drawer no longer has to
+  // know about a session at all.
+  it("offers no per-group assign control", () => {
     render(<ManageGroupsDrawer />);
-    expect(screen.getByTestId("manage-groups-empty")).toBeTruthy();
+    expect(screen.queryByTestId("manage-groups-assign-ga")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("manage-groups-unassign-ga")).not.toBeInTheDocument();
   });
 
-  it("renames a group inline and syncs to the backend", () => {
+  it("splits groups into Active and Empty", () => {
     render(<ManageGroupsDrawer />);
-    fireEvent.click(screen.getByTestId("manage-groups-rename-ga"));
-    const input = screen.getByTestId("manage-groups-rename-input");
-    fireEvent.change(input, { target: { value: "Renamed" } });
-    fireEvent.keyDown(input, { key: "Enter" });
-
-    expect(useWorkspaceStore.getState().groups.find((g) => g.id === "ga")?.name).toBe("Renamed");
-    expect(mockUpdateTabGroup).toHaveBeenCalledWith("ga", { name: "Renamed" });
+    const active = screen.getByTestId("manage-groups-section-active");
+    const empty = screen.getByTestId("manage-groups-section-empty");
+    expect(active).toContainElement(screen.getByTestId("manage-groups-row-ga"));
+    expect(empty).toContainElement(screen.getByTestId("manage-groups-row-gb"));
   });
 
-  it("recolors a group via the palette", () => {
+  it("names the waiting roles that keep an empty group alive", () => {
+    setStore({ roles: [role("r1", "gb"), role("r2", "gb")] });
+    render(<ManageGroupsDrawer />);
+    expect(screen.getByTestId("manage-groups-waiting-gb")).toHaveAttribute("data-waiting-count", "2");
+  });
+
+  it("filters groups by name", () => {
+    render(<ManageGroupsDrawer />);
+    fireEvent.change(screen.getByTestId("manage-groups-filter"), { target: { value: "beta" } });
+    expect(screen.queryByTestId("manage-groups-row-ga")).not.toBeInTheDocument();
+    expect(screen.getByTestId("manage-groups-row-gb")).toBeInTheDocument();
+  });
+
+  it("reports when a filter matches nothing", () => {
+    render(<ManageGroupsDrawer />);
+    fireEvent.change(screen.getByTestId("manage-groups-filter"), { target: { value: "zzz" } });
+    expect(screen.getByTestId("manage-groups-no-matches")).toBeInTheDocument();
+  });
+
+  // Closing routes through closeGroup, so it captures an undo snapshot and
+  // needs no per-row confirm of its own.
+  it("closes one group and leaves it undoable", async () => {
+    render(<ManageGroupsDrawer />);
+    fireEvent.click(screen.getByTestId("manage-groups-close-gb"));
+
+    await waitFor(() => { expect(mockDeleteTabGroup).toHaveBeenCalledWith("gb"); });
+    expect(useWorkspaceStore.getState().groups.map((g) => g.id)).toEqual(["ga"]);
+    expect(useWorkspaceStore.getState().closedGroupUndo?.group.id).toBe("gb");
+  });
+
+  it("closes a whole selection in one action", async () => {
+    render(<ManageGroupsDrawer />);
+    fireEvent.click(screen.getByTestId("manage-groups-select-ga"));
+    fireEvent.click(screen.getByTestId("manage-groups-select-gb"));
+    expect(screen.getByTestId("manage-groups-bulk-bar")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /manageGroups\.closeSelected/ }));
+    await waitFor(() => { expect(mockDeleteTabGroup).toHaveBeenCalledTimes(2); });
+    expect(useWorkspaceStore.getState().groups).toHaveLength(0);
+  });
+
+  it("sweeps every empty group at once", async () => {
+    setStore({ groups: [groupA, groupB, { id: "gc", name: "Gamma", color: "#333", isCollapsed: false }] });
+    render(<ManageGroupsDrawer />);
+    fireEvent.click(screen.getByTestId("manage-groups-close-all-empty"));
+
+    await waitFor(() => { expect(mockDeleteTabGroup).toHaveBeenCalledTimes(2); });
+    // The active group survives the sweep.
+    expect(useWorkspaceStore.getState().groups.map((g) => g.id)).toEqual(["ga"]);
+  });
+
+  it("ungroups a closed group's sessions rather than closing them", async () => {
+    render(<ManageGroupsDrawer />);
+    fireEvent.click(screen.getByTestId("manage-groups-close-ga"));
+
+    await waitFor(() => { expect(mockDeleteTabGroup).toHaveBeenCalledWith("ga"); });
+    const panes = useWorkspaceStore.getState().panes;
+    expect(panes).toHaveLength(3);
+    expect(panes.every((p) => p.groupId === null)).toBe(true);
+  });
+
+  it("recolors a group in place", async () => {
     render(<ManageGroupsDrawer />);
     fireEvent.click(screen.getByTestId("manage-groups-recolor-ga"));
-    const targetColor = HEADER_COLORS[3] ?? HEADER_COLORS[0];
-    fireEvent.click(screen.getByTestId(`manage-groups-color-${targetColor}`));
+    const nextColor = HEADER_COLORS[3] ?? "#444444";
+    fireEvent.click(screen.getByTestId(`manage-groups-color-${nextColor}`));
 
-    expect(useWorkspaceStore.getState().groups.find((g) => g.id === "ga")?.color).toBe(targetColor);
-    expect(mockUpdateTabGroup).toHaveBeenCalledWith("ga", { color: targetColor });
+    await waitFor(() => { expect(mockUpdateTabGroup).toHaveBeenCalledWith("ga", { color: nextColor }); });
+    expect(useWorkspaceStore.getState().groups.find((g) => g.id === "ga")?.color).toBe(nextColor);
   });
 
-  it("deletes a group behind a consequence confirm, ungrouping its members", () => {
-    render(<ManageGroupsDrawer />);
-    fireEvent.click(screen.getByTestId("manage-groups-delete-ga"));
-
-    // Consequence confirm appears on the confirm tier above the drawer.
-    const dialog = screen.getByTestId("manage-groups-delete-confirm-dialog");
-    expect(dialog).toBeTruthy();
-    expect(screen.getByRole("alertdialog")).toBeTruthy();
-
-    fireEvent.click(screen.getByTestId("manage-groups-delete-confirm-confirm"));
-
-    const state = useWorkspaceStore.getState();
-    expect(state.groups.find((g) => g.id === "ga")).toBeUndefined();
-    expect(state.panes.filter((p) => p.groupId === "ga")).toHaveLength(0);
-    expect(mockDeleteTabGroup).toHaveBeenCalledWith("ga");
-    expect(mockUpdateWorkspacePane).toHaveBeenCalledWith("s1", { group_id: null });
-    expect(mockUpdateWorkspacePane).toHaveBeenCalledWith("s2", { group_id: null });
-  });
-
-  it("cancel keeps the group and the drawer open", () => {
-    render(<ManageGroupsDrawer />);
-    fireEvent.click(screen.getByTestId("manage-groups-delete-ga"));
-    fireEvent.click(screen.getByTestId("manage-groups-delete-confirm-cancel"));
-
-    expect(screen.queryByTestId("manage-groups-delete-confirm-dialog")).toBeNull();
-    expect(screen.getByTestId("manage-groups-drawer")).toBeTruthy();
-    expect(useWorkspaceStore.getState().groups.find((g) => g.id === "ga")).toBeTruthy();
-    expect(mockDeleteTabGroup).not.toHaveBeenCalled();
-  });
-
-  it("Escape resolves the topmost surface: confirm first, then the drawer", () => {
-    render(<ManageGroupsDrawer />);
-    fireEvent.click(screen.getByTestId("manage-groups-delete-ga"));
-    fireEvent.keyDown(window, { key: "Escape" });
-    expect(screen.queryByTestId("manage-groups-delete-confirm-dialog")).toBeNull();
-    expect(screen.getByTestId("manage-groups-drawer")).toBeTruthy();
-
-    fireEvent.keyDown(window, { key: "Escape" });
-    expect(useWorkspaceStore.getState().manageGroupsTarget).toBeNull();
-  });
-
-  it("creates a group server-first and enters inline rename with the server id", async () => {
+  it("creates a group from the footer", async () => {
     render(<ManageGroupsDrawer />);
     fireEvent.click(screen.getByTestId("manage-groups-create"));
-
-    await waitFor(() => {
-      // Server-first: existing colors are taken, so the next distinct palette
-      // color is requested and the server-generated id is adopted locally.
-      expect(mockCreateTabGroup).toHaveBeenCalledWith({ name: "New Group", color: HEADER_COLORS[1] });
-      expect(useWorkspaceStore.getState().groups.find((g) => g.id === "g-new")).toBeTruthy();
-    });
-    await waitFor(() => {
-      expect(screen.getByTestId("manage-groups-rename-input")).toBeTruthy();
-    });
+    await waitFor(() => { expect(mockCreateTabGroup).toHaveBeenCalled(); });
   });
 
-  it("with a session context, assigns and removes the session per row", () => {
-    setStore({ manageGroupsTarget: { sessionId: "s3" } });
+  it("turns automatic closing off", () => {
     render(<ManageGroupsDrawer />);
-
-    // s3 is ungrouped: both rows offer assign. Joining seeds the group's color
-    // onto the pane, and both halves of that must reach the backend — a synced
-    // group_id with a stale header_color is what made the group color show up
-    // on one surface and one device only.
-    fireEvent.click(screen.getByTestId("manage-groups-assign-gb"));
-    expect(useWorkspaceStore.getState().panes.find((p) => p.sessionId === "s3")?.groupId).toBe("gb");
-    expect(mockUpdateWorkspacePane).toHaveBeenCalledWith("s3", {
-      group_id: "gb",
-      header_color: groupB.color,
-    });
-
-    // Row for gb now offers remove. The seeded color stays: leaving a group
-    // must not silently restyle a session the user can see.
-    fireEvent.click(screen.getByTestId("manage-groups-unassign-gb"));
-    expect(useWorkspaceStore.getState().panes.find((p) => p.sessionId === "s3")?.groupId).toBeNull();
-    expect(mockUpdateWorkspacePane).toHaveBeenCalledWith("s3", {
-      group_id: null,
-      header_color: groupB.color,
-    });
+    fireEvent.click(screen.getByTestId("manage-groups-auto-close"));
+    expect(useWorkspaceStore.getState().autoCloseEmptyGroups).toBe(false);
   });
 
-  it("hides the assign/remove toggle without a session context", () => {
+  it("shows the empty state when no group exists", () => {
+    setStore({ groups: [] });
     render(<ManageGroupsDrawer />);
-    expect(screen.queryByTestId("manage-groups-assign-ga")).toBeNull();
-    expect(screen.queryByTestId("manage-groups-unassign-ga")).toBeNull();
+    expect(screen.getByTestId("manage-groups-empty")).toBeInTheDocument();
+  });
+
+  // The header describes the workspace, not the filtered view: a filter that
+  // hides clutter must not hide the count that says how much there is.
+  it("states how many groups exist and how many are empty", () => {
+    render(<ManageGroupsDrawer />);
+    const summary = screen.getByTestId("manage-groups-summary");
+    expect(summary).toHaveTextContent(strings.manageGroups.groupCount);
+    expect(summary).toHaveTextContent(strings.manageGroups.emptyCount);
+  });
+
+  it("switches the list between recent and name order", () => {
+    render(<ManageGroupsDrawer />);
+    const sort = screen.getByTestId("manage-groups-sort");
+    expect(sort).toHaveTextContent(strings.manageGroups.sortRecent);
+    fireEvent.click(sort);
+    expect(sort).toHaveTextContent(strings.manageGroups.sortName);
   });
 });

@@ -1,0 +1,424 @@
+{
+  "id": "2609f099-ed22-5774-9b96-b068d3705482",
+  "project_id": "0c037e4d-dd01-4c3b-a23b-0e6a9e3ac9ff",
+  "name": "handoff-delivers-payload-to-role",
+  "folder_path": "/bas/cases/01-foundation/01-terminal",
+  "description": "With two sessions in one group, send a handoff from the pane header and confirm the payload arrives in the other session's terminal output",
+  "metadata": {
+    "name": "handoff-delivers-payload-to-role",
+    "description": "With two sessions in one group, send a handoff from the pane header and confirm the payload arrives in the other session's terminal output",
+    "execution_mode": "mutating",
+    "reset": "full",
+    "labels": {
+      "reset": "full",
+      "requires_confirmation": "true",
+      "routed_isolation": "true",
+      "seed": "seed",
+      "requirements_json": "[\"REQ-P0-014d\"]"
+    }
+  },
+  "tags": [
+    "reset:full",
+    "requirements_json:[\"REQ-P0-014d\"]"
+  ],
+  "version": 1,
+  "created_at": "2026-08-27T00:00:00.000000000Z",
+  "updated_at": "2026-08-27T00:00:00.000000000Z",
+  "flow_definition": {
+    "settings": {
+      "viewport_width": 1440,
+      "viewport_height": 900
+    },
+    "nodes": [
+      {
+        "id": "open-workspace",
+        "action": {
+          "type": "ACTION_TYPE_SUBFLOW",
+          "subflow": {
+            "workflow_path": "actions/open-workspace.json"
+          },
+          "metadata": {
+            "label": "Open the workspace"
+          }
+        }
+      },
+      {
+        "id": "open-launcher",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "[data-testid='new-terminal-button']",
+            "timeout_ms": 10000
+          },
+          "metadata": {
+            "label": "Open the new-session dialog"
+          }
+        }
+      },
+      {
+        "id": "switch-to-group-mode",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "[data-testid='launcher-mode-group']",
+            "timeout_ms": 10000
+          },
+          "metadata": {
+            "label": "Switch to group mode"
+          }
+        }
+      },
+      {
+        "id": "assert-group-mode",
+        "action": {
+          "type": "ACTION_TYPE_ASSERT",
+          "assert": {
+            "selector": "[data-testid='launcher-template-picker']",
+            "failure_message": "Expected group mode to render its template picker",
+            "timeout_ms": 15000
+          },
+          "metadata": {
+            "label": "Verify group mode is showing"
+          }
+        }
+      },
+      {
+        "id": "build-two-eager-roles",
+        "action": {
+          "type": "ACTION_TYPE_EVALUATE",
+          "evaluate": {
+            "expression": "(() => { const add = document.querySelector(\"[data-testid='launcher-group-role-add']\"); add.click(); add.click(); })()"
+          },
+          "metadata": {
+            "label": "Add two roles by hand"
+          }
+        }
+      },
+      {
+        "id": "settle-role-rows",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "duration_ms": 500
+          },
+          "metadata": {
+            "label": "Allow the role rows to render"
+          }
+        }
+      },
+      {
+        "id": "configure-roles",
+        "action": {
+          "type": "ACTION_TYPE_EVALUATE",
+          "evaluate": {
+            "expression": "(() => { const set = (sel, value) => { const el = document.querySelector(sel); const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set; setter.call(el, value); el.dispatchEvent(new Event('input', { bubbles: true })); }; set(\"[data-testid='launcher-group-role-label-0']\", 'Source'); set(\"[data-testid='launcher-group-role-command-0']\", 'cat'); set(\"[data-testid='launcher-group-role-label-1']\", 'Target'); set(\"[data-testid='launcher-group-role-command-1']\", 'cat'); document.querySelector(\"[data-testid='launcher-group-role-mode-0']\").click(); document.querySelector(\"[data-testid='launcher-group-role-mode-1']\").click(); })()"
+          },
+          "metadata": {
+            "label": "Give both roles an echoing command and start them eagerly"
+          }
+        }
+      },
+      {
+        "id": "name-the-group",
+        "action": {
+          "type": {
+            "selector": "[data-testid='launcher-group-name']",
+            "text": "BAS_HANDOFF_GROUP",
+            "timeout_ms": 10000
+          },
+          "metadata": {
+            "label": "Name the group"
+          }
+        }
+      },
+      {
+        "id": "create-the-group",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "[data-testid='launcher-create-group']",
+            "timeout_ms": 10000
+          },
+          "metadata": {
+            "label": "Create the group and start both roles"
+          }
+        }
+      },
+      {
+        "id": "settle-after-create",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "duration_ms": 6000
+          },
+          "metadata": {
+            "label": "Allow both sessions to start sequentially"
+          }
+        }
+      },
+      {
+        "id": "record-session-ids",
+        "action": {
+          "type": "ACTION_TYPE_EVALUATE",
+          "evaluate": {
+            "expression": "(() => { const panes = Array.from(document.querySelectorAll(\"[data-testid='terminal-pane'][data-session-id]\")); const ids = panes.map((p) => p.getAttribute('data-session-id')).filter(Boolean); window.__bas_handoff_ids = ids; document.body.setAttribute('data-bas-handoff-pair', ids.length >= 2 ? 'true' : 'false'); })()"
+          },
+          "metadata": {
+            "label": "Record the two session ids"
+          }
+        }
+      },
+      {
+        "id": "assert-pair",
+        "action": {
+          "type": "ACTION_TYPE_ASSERT",
+          "assert": {
+            "selector": "body[data-bas-handoff-pair='true']",
+            "failure_message": "Expected two sessions in the group before handing off",
+            "timeout_ms": 15000
+          },
+          "metadata": {
+            "label": "Verify both roles started"
+          }
+        }
+      },
+      {
+        "id": "open-composer",
+        "action": {
+          "type": "ACTION_TYPE_EVALUATE",
+          "evaluate": {
+            "expression": "(() => { const trigger = document.querySelector(\"[data-testid^='handoff-pane-header-']\"); document.body.setAttribute('data-bas-handoff-control', trigger ? 'true' : 'false'); if (trigger) trigger.click(); })()"
+          },
+          "metadata": {
+            "label": "Open the handoff composer from the source pane header"
+          }
+        }
+      },
+      {
+        "id": "assert-control",
+        "action": {
+          "type": "ACTION_TYPE_ASSERT",
+          "assert": {
+            "selector": "body[data-bas-handoff-control='true']",
+            "failure_message": "Expected a handoff control on a pane whose group holds another member",
+            "timeout_ms": 15000
+          },
+          "metadata": {
+            "label": "Verify the handoff control is offered"
+          }
+        }
+      },
+      {
+        "id": "assert-composer",
+        "action": {
+          "type": "ACTION_TYPE_ASSERT",
+          "assert": {
+            "selector": "[data-testid='handoff-composer']",
+            "failure_message": "Expected the handoff composer to open",
+            "timeout_ms": 15000
+          },
+          "metadata": {
+            "label": "Verify the composer opened"
+          }
+        }
+      },
+      {
+        "id": "select-target-and-type",
+        "action": {
+          "type": "ACTION_TYPE_EVALUATE",
+          "evaluate": {
+            "expression": "(() => { const boxes = Array.from(document.querySelectorAll(\"[data-testid^='handoff-target-'] input[type='checkbox']\")); if (boxes[0] && !boxes[0].checked) boxes[0].click(); const field = document.querySelector(\"[data-testid='handoff-message']\"); if (field) { const setter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value').set; setter.call(field, 'BAS_HANDOFF_PAYLOAD_OK'); field.dispatchEvent(new Event('input', { bubbles: true })); } })()"
+          },
+          "metadata": {
+            "label": "Select the target and type the payload"
+          }
+        }
+      },
+      {
+        "id": "send-handoff",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "[data-testid='handoff-send']",
+            "timeout_ms": 10000
+          },
+          "metadata": {
+            "label": "Send the handoff"
+          }
+        }
+      },
+      {
+        "id": "settle-delivery",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "duration_ms": 4000
+          },
+          "metadata": {
+            "label": "Allow the text to reach the target terminal"
+          }
+        }
+      },
+      {
+        "id": "check-delivery",
+        "action": {
+          "type": "ACTION_TYPE_EVALUATE",
+          "evaluate": {
+            "expression": "(() => { const ids = window.__bas_handoff_ids || []; const output = window.__bas_ws_output || window.__wc_terminal_output || {}; const arrived = ids.some((id) => typeof output[id] === 'string' && output[id].includes('BAS_HANDOFF_PAYLOAD_OK')); document.body.setAttribute('data-bas-handoff-delivered', arrived ? 'true' : 'false'); })()"
+          },
+          "metadata": {
+            "label": "Look for the payload in the target session's output"
+          }
+        }
+      },
+      {
+        "id": "assert-delivery",
+        "action": {
+          "type": "ACTION_TYPE_ASSERT",
+          "assert": {
+            "selector": "body[data-bas-handoff-delivered='true']",
+            "failure_message": "Expected the handoff payload to arrive in another session's terminal output",
+            "timeout_ms": 15000
+          },
+          "metadata": {
+            "label": "Verify the payload crossed sessions"
+          }
+        }
+      },
+      {
+        "id": "teardown",
+        "action": {
+          "type": "ACTION_TYPE_SUBFLOW",
+          "subflow": {
+            "workflow_path": "actions/teardown-test-sessions.json"
+          },
+          "metadata": {
+            "label": "Delete sessions created by this case"
+          }
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "e0",
+        "source": "open-workspace",
+        "target": "open-launcher",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e1",
+        "source": "open-launcher",
+        "target": "switch-to-group-mode",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e2",
+        "source": "switch-to-group-mode",
+        "target": "assert-group-mode",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e3",
+        "source": "assert-group-mode",
+        "target": "build-two-eager-roles",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e4",
+        "source": "build-two-eager-roles",
+        "target": "settle-role-rows",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e5",
+        "source": "settle-role-rows",
+        "target": "configure-roles",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e6",
+        "source": "configure-roles",
+        "target": "name-the-group",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e7",
+        "source": "name-the-group",
+        "target": "create-the-group",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e8",
+        "source": "create-the-group",
+        "target": "settle-after-create",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e9",
+        "source": "settle-after-create",
+        "target": "record-session-ids",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e10",
+        "source": "record-session-ids",
+        "target": "assert-pair",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e11",
+        "source": "assert-pair",
+        "target": "open-composer",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e12",
+        "source": "open-composer",
+        "target": "assert-control",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e13",
+        "source": "assert-control",
+        "target": "assert-composer",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e14",
+        "source": "assert-composer",
+        "target": "select-target-and-type",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e15",
+        "source": "select-target-and-type",
+        "target": "send-handoff",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e16",
+        "source": "send-handoff",
+        "target": "settle-delivery",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e17",
+        "source": "settle-delivery",
+        "target": "check-delivery",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e18",
+        "source": "check-delivery",
+        "target": "assert-delivery",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e19",
+        "source": "assert-delivery",
+        "target": "teardown",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      }
+    ]
+  }
+}

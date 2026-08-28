@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { AlertTriangle, ArrowLeft, Check, Copy, Loader2, RotateCw } from "lucide-react";
+import { AlertTriangle, ArrowLeft, Check, Copy, Loader2, RotateCw, Send } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 import { strings } from "../consts/strings";
@@ -11,6 +11,14 @@ import type { DirectorySort, PreviewState } from "./file-preview/types";
 
 interface MessagesFileViewerProps {
   state: PreviewState;
+  /**
+   * Hand this file to another session in the group.
+   *
+   * This is the operator's existing habit — open the plan from the Messages
+   * view, read it, then pass it on — so it is where the handoff earns the
+   * most. The resolved path is the payload; the viewer does not classify it.
+   */
+  onHandoff?: (resolvedPath: string) => void;
   onClose: () => void;
   onReopen: () => void;
   onRendererError: (message: string) => void;
@@ -22,6 +30,7 @@ interface MessagesFileViewerProps {
 
 export default function MessagesFileViewer({
   state,
+  onHandoff,
   onClose,
   onReopen,
   onRendererError,
@@ -40,7 +49,7 @@ export default function MessagesFileViewer({
     if (!displayPath) return;
     void writeText(displayPath);
     setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    setTimeout(() => { setCopied(false); }, 2000);
   };
 
   const basename = useMemo(() => {
@@ -61,17 +70,39 @@ export default function MessagesFileViewer({
   const Renderer = model ? rendererForKind(model.kind) : null;
   const canGoBack = stack.length > 0;
 
-  const headerActions = canGoBack ? (
-    <button
-      type="button"
-      onClick={onNavigateBack}
-      data-testid="file-preview-back"
-      aria-label={t(strings.messagesFileViewer.directoryBack)}
-      title={t(strings.messagesFileViewer.directoryBack)}
-      className="shrink-0 rounded-lg border border-wc-default bg-wc-surface-input p-1.5 text-wc-text-secondary transition hover:bg-wc-surface-raised hover:text-wc-text-primary"
-    >
-      <ArrowLeft className="h-4 w-4" />
-    </button>
+  // The handoff sits beside Back, and only for a file with a resolved path:
+  // there is nothing to hand over while the preview is still resolving, and a
+  // directory listing is not a payload the operator meant to send.
+  const canHandoff = Boolean(onHandoff && displayPath && model?.kind !== "directory");
+
+  const headerActions = (canGoBack || canHandoff) ? (
+    <div className="flex shrink-0 items-center gap-1.5">
+      {canGoBack && (
+        <button
+          type="button"
+          onClick={onNavigateBack}
+          data-testid="file-preview-back"
+          aria-label={t(strings.messagesFileViewer.directoryBack)}
+          title={t(strings.messagesFileViewer.directoryBack)}
+          className="shrink-0 rounded-lg border border-wc-default bg-wc-surface-input p-1.5 text-wc-text-secondary transition hover:bg-wc-surface-raised hover:text-wc-text-primary"
+        >
+          <ArrowLeft className="h-4 w-4" />
+        </button>
+      )}
+      {canHandoff && (
+        <button
+          type="button"
+          onClick={() => onHandoff?.(displayPath)}
+          data-testid="handoff-file-viewer"
+          aria-label={t(strings.messagesFileViewer.handOffTitle)}
+          title={t(strings.messagesFileViewer.handOffTitle)}
+          className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-wc-default bg-wc-surface-input px-2 py-1.5 text-xs font-medium text-wc-text-secondary transition hover:bg-wc-surface-raised hover:text-wc-text-primary"
+        >
+          <Send className="h-3.5 w-3.5" />
+          {t(strings.messagesFileViewer.handOff)}
+        </button>
+      )}
+    </div>
   ) : null;
 
   const headerExtra = (
@@ -94,7 +125,7 @@ export default function MessagesFileViewer({
                 ) : (
                   <button
                     type="button"
-                    onClick={() => onNavigate(crumb.path)}
+                    onClick={() => { onNavigate(crumb.path); }}
                     className="rounded px-1 py-0.5 transition hover:bg-wc-surface-input hover:text-wc-text-primary"
                   >
                     {crumb.label}
@@ -140,6 +171,9 @@ export default function MessagesFileViewer({
 
   return (
     <FullPageDrawer
+      // No keyboard avoidance: a read-only viewer — no text entry, so there is
+      // nothing for a keyboard to cover.
+      avoidKeyboard={false}
       open={open}
       onClose={onClose}
       closeLabel={t(strings.messagesFileViewer.closeAriaLabel)}

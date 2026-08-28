@@ -71,6 +71,9 @@ export default function MessageExportDrawer({ open, events, onClose }: MessageEx
 
   return (
     <FullPageDrawer
+      // No keyboard avoidance: format and range choices only — no text entry, so there is
+      // nothing for a keyboard to cover.
+      avoidKeyboard={false}
       open={open}
       onClose={onClose}
       closeLabel={t(strings.messageExport.closeAriaLabel)}

@@ -1,26 +1,22 @@
 // DOC: docs/reference/configuration.md#launcher-shortcuts
 // DOC: docs/internal/SEAMS.md#1-entry-presentation
-import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  Check,
-  CheckCircle2,
   ChevronDown,
   ChevronRight,
-  CircleAlert,
   Info,
   Loader2,
   Monitor,
-  RefreshCw,
-  Search,
-  Server,
+  Settings2,
   Terminal,
-  WifiOff,
+  TriangleAlert,
   XCircle,
   Zap,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Button } from "./ui/button";
 import { ResponsiveDialog } from "@vrooli/react-component-library/ResponsiveDialog/1";
+import { Tabs } from "@vrooli/react-component-library/Tabs/1";
 import { strings } from "../consts/strings";
 import { DEFAULT_SHORTCUTS, type ShortcutEntry } from "../consts/shortcuts";
 import { shortcutsClient } from "../api/shortcuts";
@@ -29,8 +25,17 @@ import { POLICY_OPTIONS, policyKey, parsePolicySelection } from "../consts/polic
 import { slugify } from "../lib/slugify";
 import type { BackendID, BackendOption, ExpirationPolicy, PolicyMode } from "../api/sessions";
 import type { TargetCatalog, TerminalTarget, TerminalTargetState } from "../api/targets";
+import type { TabGroupMeta } from "../stores/useWorkspaceStore";
+import MachinePicker from "./launcher/MachinePicker";
+import GroupDestinationTrigger from "./launcher/GroupPicker";
+import GroupModePanel, { type GroupCreationRequest } from "./launcher/GroupModePanel";
+import { cardSupportsAttribution, commandForCard, foldAttributedShortcuts } from "./launcher/agentGrid";
+import { cn } from "../lib/classnames";
 
 export type { TerminalTarget } from "../api/targets";
+
+/** One session at a time, or a whole group in one trip through the dialog. */
+type LauncherMode = "one-session" | "group";
 
 // [REQ:P0-006a] Terminal Launch Flow UI
 // [REQ:P0-006b] Configurable Shortcut Entries
@@ -40,7 +45,9 @@ export type { TerminalTarget } from "../api/targets";
 const optionCardClass =
   "flex min-h-[60px] w-full items-center gap-3 rounded-xl border border-wc-default bg-wc-surface-input px-4 py-3 text-start transition hover:border-wc-accent hover:bg-wc-surface-input/80 disabled:cursor-not-allowed disabled:opacity-50";
 
-const codexDeviceAuthCommand = "codex login --device-auth";
+/** Denser than optionCardClass: these sit two-up at every width. */
+const agentCardClass =
+  "flex min-h-[56px] w-full items-center gap-2.5 rounded-xl border border-wc-default bg-wc-surface-input px-3 py-2.5 text-start transition hover:border-wc-accent hover:bg-wc-surface-input/80 disabled:cursor-not-allowed disabled:opacity-50";
 
 export interface LaunchOptions {
   command?: string;
@@ -54,6 +61,32 @@ interface TerminalLauncherProps {
   open: boolean;
   onClose: () => void;
   onLaunch: (options: LaunchOptions) => void;
+  /**
+   * Every group the operator has, so the destination control can offer them.
+   * Passing the list (rather than reading the store here) keeps the dialog a
+   * pure component the tests can drive.
+   */
+  groups?: TabGroupMeta[];
+  /**
+   * The group this launcher was opened for — set when it was opened from a
+   * group header's add control. Before this existed the pending group lived
+   * in a ref the dialog never saw, so the dialog was structurally incapable
+   * of stating its own destination.
+   */
+  pendingGroupId?: string | null;
+  /** Change the destination from inside the dialog. */
+  onDestinationChange?: (groupId: string | null) => void;
+  /** Create a group by typing a name that matches none. Resolves to its id. */
+  onCreateGroup?: (name: string) => Promise<string | null>;
+  /** The appearance a new session will receive, named before launch. */
+  appearance?: { headerColor: string; themeId: string; fontSize: number };
+  /**
+   * Create a whole group and its roles in one action.
+   *
+   * When absent the dialog offers no group mode, so a caller that has not
+   * wired the handler cannot show a control that would do nothing.
+   */
+  onCreateGroupFromRoles?: (request: GroupCreationRequest) => void;
   shortcuts?: ShortcutEntry[];
   isCreating?: boolean;
   defaultBackend?: BackendID;
@@ -65,6 +98,10 @@ interface TerminalLauncherProps {
   onRefreshTargets?: () => void | Promise<void>;
   /** Opens the machines surface, which owns linking and permissions. */
   onOpenMachines?: () => void;
+  /** Opens the shortcut editor, which owns the agent list this grid renders. */
+  onEditShortcuts?: () => void;
+  /** Opens the template editor, which owns the saved group recipes. */
+  onEditTemplates?: () => void;
 }
 
 const localFallback: TerminalTarget = {
@@ -78,20 +115,6 @@ const localFallback: TerminalTarget = {
   readiness: [{ key: "local", label: "Web Console process", passed: true, detail: "Available on this machine" }],
 };
 
-function statusIcon(state: TerminalTargetState | undefined) {
-  if (state === "dispatchable") return <CheckCircle2 className="h-4 w-4" aria-hidden />;
-  if (state === "offline") return <WifiOff className="h-4 w-4" aria-hidden />;
-  if (state === "needs-update") return <RefreshCw className="h-4 w-4" aria-hidden />;
-  return <CircleAlert className="h-4 w-4" aria-hidden />;
-}
-
-function statusClass(state: TerminalTargetState | undefined): string {
-  if (state === "dispatchable") return "border-emerald-400/30 bg-emerald-400/10 text-emerald-300";
-  if (state === "offline") return "border-slate-400/20 bg-slate-400/10 text-slate-300";
-  if (state === "needs-update") return "border-amber-400/30 bg-amber-400/10 text-amber-300";
-  return "border-rose-400/30 bg-rose-400/10 text-rose-300";
-}
-
 function lastSeenCopy(target: TerminalTarget, neverSeenLabel: string): string | null {
   if (target.kind === "local") return null;
   if (!target.last_seen_at) return neverSeenLabel;
@@ -100,25 +123,6 @@ function lastSeenCopy(target: TerminalTarget, neverSeenLabel: string): string | 
   } catch {
     return target.last_seen_at;
   }
-}
-
-function heartbeatAgeCopy(target: TerminalTarget, neverSeenLabel: string): string {
-  if (!target.last_seen_at) return neverSeenLabel;
-  const timestamp = new Date(target.last_seen_at).getTime();
-  if (!Number.isFinite(timestamp)) return target.last_seen_at;
-  const seconds = Math.max(0, Math.floor((Date.now() - timestamp) / 1000));
-  if (seconds < 60) return `${seconds}s ago`;
-  const minutes = Math.floor(seconds / 60);
-  if (minutes < 60) return `${minutes}m ago`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}h ago`;
-  return `${Math.floor(hours / 24)}d ago`;
-}
-
-function grantText(target: TerminalTarget): string | undefined {
-  if (target.kind === "local") return undefined;
-  return target.readiness?.find((fact) => fact.key === "bridge_scope")?.detail
-    ?? (target.available ? undefined : "No remote actions granted");
 }
 
 export default function TerminalLauncher({
@@ -135,6 +139,14 @@ export default function TerminalLauncher({
   targetsLoading = false,
   onRefreshTargets,
   onOpenMachines,
+  onEditShortcuts,
+  onEditTemplates,
+  groups = [],
+  pendingGroupId = null,
+  onDestinationChange,
+  onCreateGroup,
+  appearance,
+  onCreateGroupFromRoles,
 }: TerminalLauncherProps) {
   const { t } = useTranslation();
   const [customCommand, setCustomCommand] = useState("");
@@ -146,8 +158,24 @@ export default function TerminalLauncher({
   );
   const [optionsOpen, setOptionsOpen] = useState(false);
   const [selectedTarget, setSelectedTarget] = useState("local");
-  const [targetSearch, setTargetSearch] = useState("");
-  const targetButtonRefs = useRef<Record<string, HTMLButtonElement | null>>({});
+  // The destination is dialog state, seeded from the caller's pending group.
+  // Seeding rather than mirroring is deliberate: once the operator changes it
+  // here, a re-render from the caller must not silently move it back.
+  const [destinationGroupId, setDestinationGroupId] = useState<string | null>(pendingGroupId);
+  const [attributed, setAttributed] = useState(false);
+  const [mode, setMode] = useState<LauncherMode>("one-session");
+  const [appearanceOpen, setAppearanceOpen] = useState(false);
+
+  // Reseed the destination each time the dialog opens, so opening it from a
+  // different group header shows that group rather than the last one.
+  useEffect(() => {
+    if (open) {
+      setDestinationGroupId(pendingGroupId);
+      // Always reopen on the single-session mode: it is the common case, and
+      // landing in group mode because the last trip used it would surprise.
+      setMode("one-session");
+    }
+  }, [open, pendingGroupId]);
 
   useEffect(() => { setSelectedBackend(defaultBackend); }, [defaultBackend]);
   useEffect(() => {
@@ -178,12 +206,6 @@ export default function TerminalLauncher({
     return [local, ...catalogTargets.filter((target) => target.id !== "local")];
   }, [catalogTargets]);
   const selected = targets.find((target) => target.id === selectedTarget) ?? targets[0] ?? localFallback;
-  const remoteTargets = targets.filter((target) => target.kind !== "local");
-  const filteredRemoteTargets = remoteTargets.filter((target) => {
-    const query = targetSearch.trim().toLowerCase();
-    return !query || `${target.label} ${target.os ?? ""} ${target.arch ?? ""}`.toLowerCase().includes(query);
-  });
-  const visibleTargets = useMemo(() => [targets[0] ?? localFallback, ...filteredRemoteTargets], [filteredRemoteTargets, targets]);
   const statusLabels: Record<TerminalTargetState, string> = {
     dispatchable: t(strings.terminalLauncher.dispatchable),
     offline: t(strings.terminalLauncher.offline),
@@ -205,6 +227,26 @@ export default function TerminalLauncher({
   const noBackendAvailable = backends.length === 0;
   const backendUnavailableReason = availableBackends?.find((backend) => !backend.available)?.reason ?? "No terminal backend is available on this host.";
 
+  const destinationGroup = groups.find((group) => group.id === destinationGroupId) ?? null;
+
+  const changeDestination = useCallback((groupId: string | null) => {
+    setDestinationGroupId(groupId);
+    onDestinationChange?.(groupId);
+  }, [onDestinationChange]);
+
+  const createDestination = useCallback((name: string) => {
+    if (!onCreateGroup) return;
+    // Server-first: the backend mints the id, then the dialog adopts it.
+    // Fabricating one here would produce a destination that does not exist.
+    void onCreateGroup(name).then((groupId) => {
+      if (groupId) changeDestination(groupId);
+    });
+  }, [changeDestination, onCreateGroup]);
+
+  // Four agent cards, not eight rows: the "(attributed)" entries are the same
+  // agents with one setting changed, and the toggle below says so.
+  const agentCards = useMemo(() => foldAttributedShortcuts(shortcuts), [shortcuts]);
+
   const buildLaunchOptions = useCallback((command?: string): LaunchOptions => {
     const parsed = parsePolicySelection(selectedPolicyKey);
     return {
@@ -222,22 +264,6 @@ export default function TerminalLauncher({
     setCustomCommand("");
   }, [buildLaunchOptions, customCommand, noBackendAvailable, onLaunch, selected.available]);
 
-  const handleTargetKeyDown = useCallback((event: KeyboardEvent, currentID: string) => {
-    const isHome = event.key === "Home";
-    const isEnd = event.key === "End";
-    const direction = event.key === "ArrowDown" || event.key === "ArrowRight" ? 1
-      : event.key === "ArrowUp" || event.key === "ArrowLeft" ? -1
-        : 0;
-    if (!isHome && !isEnd && direction === 0) return;
-    event.preventDefault();
-    const currentIndex = visibleTargets.findIndex((target) => target.id === currentID);
-    const nextIndex = isHome ? 0 : isEnd ? visibleTargets.length - 1 : Math.min(Math.max(currentIndex + direction, 0), visibleTargets.length - 1);
-    const next = visibleTargets[nextIndex];
-    if (!next) return;
-    setSelectedTarget(next.id);
-    targetButtonRefs.current[next.id]?.focus();
-  }, [visibleTargets]);
-
   const catalogMessage = targetCatalog?.status === "unconfigured"
     ? t(strings.terminalLauncher.unconfigured)
     : targetCatalog?.status === "configured-empty"
@@ -245,6 +271,28 @@ export default function TerminalLauncher({
       : targetCatalog?.status === "registry-error"
         ? t(strings.terminalLauncher.registryError)
         : targetCatalog?.message;
+
+  // Built once and placed by whichever mode is showing: one-session pairs it
+  // with the destination, group mode pairs it with the template.
+  const machineControl = targetsLoading && targets.length <= 1
+    ? (
+      <div data-testid="launcher-target-loading" className="flex min-h-11 flex-1 basis-[13rem] items-center gap-2 rounded-lg border border-wc-default bg-wc-surface-input/50 px-3 text-sm text-wc-text-muted">
+        <Loader2 className="h-4 w-4 animate-spin text-wc-accent" aria-hidden />
+        {t(strings.terminalLauncher.loadingTargets)}
+      </div>
+    )
+    : (
+      <MachinePicker
+        targets={targets}
+        selectedId={selected.id}
+        onSelect={setSelectedTarget}
+        onOpenMachines={onOpenMachines}
+        catalogMessage={catalogMessage}
+        catalogRecovery={targetCatalog?.recovery_action}
+        onRefresh={onRefreshTargets}
+        refreshing={targetsLoading}
+      />
+    );
 
   return (
     <ResponsiveDialog
@@ -254,14 +302,36 @@ export default function TerminalLauncher({
       title={t(strings.terminalLauncher.newTerminal)}
       size="lg"
       avoidKeyboard
+      // The dialog caps its own height against the host viewport and owns the
+      // scroll region. The local max-height was measured against 100dvh, which
+      // is the layout viewport rather than the one this app actually has, and
+      // the inner scroller made a second one inside it.
       testId="terminal-launcher"
     >
-      <div className="flex max-h-[min(760px,calc(100dvh-2rem))] min-h-0 flex-col">
-        <div className="min-h-0 flex-1 space-y-5 overflow-y-auto p-5">
+      <div className="flex min-h-0 flex-col">
+        <div className="min-h-0 flex-1 space-y-5 p-5">
           <header>
             <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-wc-accent">{t(strings.terminalLauncher.eyebrow)}</div>
             <p className="mt-1 text-sm leading-5 text-wc-text-muted">{t(strings.terminalLauncher.description)}</p>
           </header>
+
+          {/* One session, or a whole group. The switch is only offered when
+              the caller can actually create a group, and it is the library's
+              tab strip rather than a local imitation of one — roving focus,
+              scroll-into-view and the selected-tab contract come with it. */}
+          {onCreateGroupFromRoles && (
+            <Tabs
+              mode="controlled"
+              ariaLabel={t(strings.terminalLauncher.newTerminal)}
+              active={mode}
+              onChange={(next) => { setMode(next as LauncherMode); }}
+              items={[
+                { id: "one-session", label: t(strings.launcher.modeOneSession) },
+                { id: "group", label: t(strings.launcher.modeGroup) },
+              ]}
+              itemTestId={(id) => (id === "group" ? "launcher-mode-group" : "launcher-mode-one-session")}
+            />
+          )}
 
           {noBackendAvailable && (
             <div data-testid="launcher-no-backend" role="alert" className="flex gap-3 rounded-xl border border-rose-400/25 bg-rose-400/10 p-3 text-sm text-rose-100">
@@ -270,171 +340,218 @@ export default function TerminalLauncher({
             </div>
           )}
 
-          <section aria-labelledby="launcher-locations-heading" className="space-y-3">
+          {/* Where it runs, on ONE line. Both are one-line decisions, and the
+              dialog's vertical space belongs to the choice the operator
+              actually came here to make. There is no section heading and no
+              refresh button beside the row: the fleet's state, its refresh
+              control and the link/manage actions all live inside the machine
+              menu, where the list they describe is. */}
+          {mode === "one-session" && (
+            <div className="flex flex-wrap items-center gap-2">
+              {machineControl}
+              {/* The destination renders on EVERY open, including with no
+                  pending group, where it reads "No group". A control that
+                  appeared only sometimes would be a control the operator
+                  never learns to look for. */}
+              <GroupDestinationTrigger
+                groups={groups}
+                value={destinationGroupId}
+                onChange={changeDestination}
+                onCreate={createDestination}
+              />
+            </div>
+          )}
+
+          {/* One line, not a card. An unreachable machine is worth saying;
+              it is not worth a quarter of the dialog. */}
+          {!selected.available && (
+            <p data-testid="launcher-target-unavailable" className="flex items-start gap-2 text-xs text-amber-300">
+              <TriangleAlert className="mt-px h-3.5 w-3.5 shrink-0" aria-hidden />
+              <span>
+                {t(strings.terminalLauncher.targetUnavailable)}
+                {(selected.recovery_action ?? selected.failure_rung) && (
+                  <span className="text-amber-200/70"> · {selected.recovery_action ?? selected.failure_rung}</span>
+                )}
+              </span>
+            </p>
+          )}
+
+          {mode === "group" && onCreateGroupFromRoles && (
+            <GroupModePanel
+              open={open}
+              onCreate={onCreateGroupFromRoles}
+              isCreating={isCreating}
+              disabled={!selected.available || noBackendAvailable}
+              machineSlot={machineControl}
+              onCancel={onClose}
+              onEditTemplates={onEditTemplates}
+            />
+          )}
+
+          {mode === "one-session" && (
+          <section aria-labelledby="launcher-actions-heading" className="space-y-3">
             <div className="flex items-center justify-between gap-3">
-              <div>
-                <h3 id="launcher-locations-heading" className="text-sm font-semibold text-wc-text-primary">{t(strings.terminalLauncher.locations)}</h3>
-                <p className="text-xs text-wc-text-faint">{launchOnCopy(selected.label)}</p>
-              </div>
-              {onRefreshTargets && (
+              <h3 id="launcher-actions-heading" className="text-sm font-semibold text-wc-text-primary">{t(strings.launcher.agents)}</h3>
+              {/* One toggle replaces four duplicate rows. The choice was
+                  always "which agent" plus "attributed or not"; the eight-row
+                  list just spelled the second half four times. */}
+              {agentCards.some(cardSupportsAttribution) && (
+                <label className="flex min-h-11 items-center gap-2 text-xs text-wc-text-secondary" title={t(strings.launcher.attributedHint)}>
+                  <input
+                    type="checkbox"
+                    data-testid="launcher-attributed-toggle"
+                    checked={attributed}
+                    onChange={(event) => { setAttributed(event.target.checked); }}
+                    className="h-4 w-4 accent-[rgb(var(--wc-accent))]"
+                  />
+                  {t(strings.launcher.attributed)}
+                </label>
+              )}
+            </div>
+
+            {/* Two columns at every width. A single column of full-width rows is a
+                list you read one entry at a time; the grid is one you scan. */}
+            <div data-testid="launcher-agent-grid" className="grid grid-cols-2 gap-2">
+              {agentCards.map((card) => {
+                const command = commandForCard(card, attributed);
+                if (!command) return null;
+                return (
+                  <button
+                    key={card.label}
+                    type="button"
+                    data-testid={`launcher-agent-${slugify(card.label)}`}
+                    onClick={() => { onLaunch(buildLaunchOptions(command)); }}
+                    disabled={isCreating || !selected.available || noBackendAvailable}
+                    className={agentCardClass}
+                    title={command}
+                  >
+                    <Zap className="h-4 w-4 shrink-0 text-yellow-400" aria-hidden />
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-sm font-medium text-wc-text-primary">{card.label}</span>
+                      <span className="block truncate text-[11px] text-wc-text-muted">
+                        {(attributed ? card.attributedDescription : card.description) ?? command}
+                      </span>
+                    </span>
+                  </button>
+                );
+              })}
+
+              <button
+                type="button"
+                data-testid="launcher-empty-shell"
+                onClick={() => { onLaunch(buildLaunchOptions()); }}
+                disabled={isCreating || !selected.available || noBackendAvailable}
+                className={agentCardClass}
+              >
+                <Terminal className="h-4 w-4 shrink-0 text-wc-accent" aria-hidden />
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-sm font-medium text-wc-text-primary">{t(strings.terminalLauncher.emptyShell)}</span>
+                  <span className="block truncate text-[11px] text-wc-text-muted">{t(strings.terminalLauncher.emptyShellDescription)}</span>
+                </span>
+              </button>
+
+              {/* The grid renders a fixed set; the shortcut list is where it
+                  comes from. A dashed card says so in place, instead of
+                  leaving the operator to guess which settings tab owns it. */}
+              {onEditShortcuts && (
                 <button
                   type="button"
-                  data-testid="launcher-target-refresh"
-                  onClick={() => void onRefreshTargets()}
-                  disabled={targetsLoading}
-                  className="inline-flex min-h-11 items-center gap-1.5 rounded-lg px-3 text-xs font-medium text-wc-text-secondary transition hover:bg-wc-surface-input hover:text-wc-text-primary disabled:opacity-60"
-                  aria-label={t(strings.terminalLauncher.refreshTargets)}
+                  data-testid="launcher-edit-shortcuts"
+                  onClick={onEditShortcuts}
+                  className={cn(agentCardClass, "border-dashed")}
                 >
-                  <RefreshCw className={targetsLoading ? "h-4 w-4 animate-spin" : "h-4 w-4"} aria-hidden />
-                  <span className="hidden sm:inline">{targetsLoading ? t(strings.terminalLauncher.refreshing) : t(strings.terminalLauncher.refreshTargets)}</span>
+                  <Settings2 className="h-4 w-4 shrink-0 text-wc-text-faint" aria-hidden />
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-sm font-medium text-wc-text-secondary">{t(strings.launcher.editShortcuts)}</span>
+                    <span className="block truncate text-[11px] text-wc-text-muted">{t(strings.launcher.shortcutCount, { count: shortcuts.length })}</span>
+                  </span>
                 </button>
               )}
             </div>
 
-            {targetsLoading && targets.length <= 1 ? (
-              <div data-testid="launcher-target-loading" className="flex items-center gap-3 rounded-xl border border-wc-default bg-wc-surface-input/50 p-4 text-sm text-wc-text-muted">
-                <Loader2 className="h-4 w-4 animate-spin text-wc-accent" aria-hidden />
-                {t(strings.terminalLauncher.loadingTargets)}
-              </div>
-            ) : (
-              <div className="space-y-2" role="listbox" aria-label={t(strings.terminalLauncher.locations)}>
-                <TargetCard
-                  target={targets[0] ?? localFallback}
-                  selected={selected.id === (targets[0]?.id ?? "local")}
-                  onSelect={setSelectedTarget}
-                  statusLabel={statusLabelFor((targets[0] ?? localFallback).state)}
-                  permissionText={grantText(targets[0] ?? localFallback) ?? ((targets[0] ?? localFallback).available ? t(strings.terminalLauncher.permissionGranted) : t(strings.terminalLauncher.permissionUnavailable))}
-                  heartbeatText={(targets[0] ?? localFallback).kind === "local" || (targets[0] ?? localFallback).available ? undefined : `${t(strings.terminalLauncher.heartbeatAge)}: ${heartbeatAgeCopy(targets[0] ?? localFallback, t(strings.terminalLauncher.neverSeen))}`}
-                  onKeyDown={handleTargetKeyDown}
-                  buttonRef={(node) => { targetButtonRefs.current[(targets[0] ?? localFallback).id] = node; }}
-                />
-                {remoteTargets.length > 0 && (
-                  <div className="space-y-2 pt-2">
-                    <div className="flex items-center justify-between gap-3">
-                      <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-wc-text-faint">
-                        <Server className="h-3.5 w-3.5" aria-hidden />
-                        {t(strings.terminalLauncher.remoteNodes)}
-                      </div>
-                      <span className="text-xs text-wc-text-faint">{remoteTargets.length}</span>
-                    </div>
-                    {remoteTargets.length > 3 && (
-                      <label className="relative block">
-                        <Search className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-wc-text-faint" aria-hidden />
-                        <input
-                          data-testid="launcher-target-search"
-                          aria-label={t(strings.terminalLauncher.searchNodes)}
-                          value={targetSearch}
-                          onChange={(event) => { setTargetSearch(event.target.value); }}
-                          placeholder={t(strings.terminalLauncher.searchNodes)}
-                          className="min-h-11 w-full rounded-lg border border-wc-default bg-wc-surface-input py-2 ps-9 pe-3 text-sm text-wc-text-primary outline-none transition placeholder:text-wc-text-faint focus:border-wc-accent"
-                        />
-                      </label>
-                    )}
-                    {filteredRemoteTargets.map((target) => (
-                      <TargetCard key={target.id} target={target} selected={selected.id === target.id} onSelect={setSelectedTarget} statusLabel={statusLabelFor(target.state)} permissionText={grantText(target) ?? (target.available ? t(strings.terminalLauncher.permissionGranted) : t(strings.terminalLauncher.permissionUnavailable))} heartbeatText={!target.available ? `${t(strings.terminalLauncher.heartbeatAge)}: ${heartbeatAgeCopy(target, t(strings.terminalLauncher.neverSeen))}` : undefined} onKeyDown={handleTargetKeyDown} buttonRef={(node) => { targetButtonRefs.current[target.id] = node; }} />
-                    ))}
-                    {filteredRemoteTargets.length === 0 && <p className="px-1 text-sm text-wc-text-muted">{t(strings.terminalLauncher.noRemoteNodes)}</p>}
-                    <div className="flex flex-wrap items-center justify-between gap-2 px-1 pt-1">
-                      <p data-testid="launcher-linked-machines-footer" className="text-xs text-wc-text-faint">{t(strings.terminalLauncher.linkedMachinesFooter)}</p>
-                      {onOpenMachines && (
-                        <button
-                          type="button"
-                          data-testid="launcher-open-machines"
-                          onClick={onOpenMachines}
-                          className="min-h-11 text-xs font-medium text-wc-accent underline decoration-dotted underline-offset-4 transition hover:text-wc-text-primary"
-                        >
-                          {t(strings.machines.openFromLauncher)}
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {catalogMessage && (
-              <div data-testid="launcher-target-catalog-state" className="flex gap-3 rounded-xl border border-amber-400/25 bg-amber-400/10 p-3 text-sm text-amber-100">
-                <CircleAlert className="mt-0.5 h-4 w-4 shrink-0 text-amber-300" aria-hidden />
-                <div className="min-w-0">
-                  <div>{catalogMessage}</div>
-                  {targetCatalog?.recovery_action && <div className="mt-1 text-xs text-amber-200/80">{targetCatalog.recovery_action}</div>}
-                  {onOpenMachines && (
-                    <button
-                      type="button"
-                      data-testid="launcher-open-machines-empty"
-                      onClick={onOpenMachines}
-                      className="mt-2 min-h-11 text-xs font-medium text-amber-100 underline decoration-dotted underline-offset-4 transition hover:text-white"
-                    >
-                      {t(strings.machines.openFromLauncher)}
-                    </button>
-                  )}
-                </div>
-              </div>
-            )}
-          </section>
-
-          <section aria-labelledby="launcher-actions-heading" className="space-y-3">
-            <div>
-              <h3 id="launcher-actions-heading" className="text-sm font-semibold text-wc-text-primary">{t(strings.terminalLauncher.actions)}</h3>
-              <p className="text-xs text-wc-text-faint">{selected.available ? launchOnCopy(selected.label) : t(strings.terminalLauncher.chooseReadyLocation)}</p>
-            </div>
-            {!selected.available && (
-              <div className="flex gap-3 rounded-xl border border-rose-400/25 bg-rose-400/10 p-3 text-sm text-rose-100">
-                <XCircle className="mt-0.5 h-4 w-4 shrink-0 text-rose-300" aria-hidden />
-                <div><div>{t(strings.terminalLauncher.targetUnavailable)}</div><div className="mt-1 text-xs text-rose-200/80">{selected.recovery_action ?? selected.failure_rung}</div></div>
-              </div>
-            )}
-
-            <button
-              type="button"
-              data-testid="launcher-empty-shell"
-              onClick={() => { onLaunch(buildLaunchOptions()); }}
-              disabled={isCreating || !selected.available || noBackendAvailable}
-              className={optionCardClass}
-            >
-              <Terminal className="h-5 w-5 shrink-0 text-wc-accent" aria-hidden />
-              <div className="min-w-0 flex-1"><div className="font-medium text-wc-text-primary">{t(strings.terminalLauncher.emptyShell)}</div><div className="text-sm text-wc-text-muted">{t(strings.terminalLauncher.emptyShellDescription)}</div></div>
-              <ChevronRight className="h-4 w-4 shrink-0 text-wc-text-faint" aria-hidden />
-            </button>
-
-            <button
-              type="button"
-              data-testid="launcher-codex-sign-in"
-              onClick={() => { onLaunch(buildLaunchOptions(codexDeviceAuthCommand)); }}
-              disabled={isCreating || !selected.available || noBackendAvailable}
-              className={optionCardClass}
-            >
-              <ShieldIcon />
-              <div className="min-w-0 flex-1"><div className="font-medium text-wc-text-primary">{t(strings.terminalLauncher.codexSignIn)}</div><div className="text-sm text-wc-text-muted">{t(strings.terminalLauncher.codexSignInDescription)}</div></div>
-              <ChevronRight className="h-4 w-4 shrink-0 text-wc-text-faint" aria-hidden />
-            </button>
-
-            {shortcuts.length > 0 && (
+            {/* Anything the operator added to their shortcut list that is not
+                one of the agents above still gets a row, so this fold can
+                never hide their own entries. */}
+            {shortcuts.filter((shortcut) => !agentCards.some((card) => card.command === shortcut.command || card.attributedCommand === shortcut.command)).length > 0 && (
               <div className="space-y-2">
                 <div className="px-1 text-xs font-semibold uppercase tracking-wider text-wc-text-faint">{t(strings.terminalLauncher.shortcuts)}</div>
-                {shortcuts.filter((shortcut) => shortcut.command !== codexDeviceAuthCommand).map((shortcut) => (
-                  <button key={shortcut.command} type="button" data-testid={`launcher-shortcut-${slugify(shortcut.label)}`} onClick={() => { onLaunch(buildLaunchOptions(shortcut.command)); }} disabled={isCreating || !selected.available || noBackendAvailable} className={optionCardClass}>
-                    <Zap className="h-5 w-5 shrink-0 text-yellow-400" aria-hidden />
-                    <div className="min-w-0 flex-1"><div className="font-medium text-wc-text-primary">{shortcut.label}</div><div className="truncate text-sm text-wc-text-muted">{shortcut.description || shortcut.command}</div></div>
-                  </button>
-                ))}
+                {shortcuts
+                  .filter((shortcut) => !agentCards.some((card) => card.command === shortcut.command || card.attributedCommand === shortcut.command))
+                  .map((shortcut) => (
+                    <button
+                      key={shortcut.command}
+                      type="button"
+                      data-testid={`launcher-shortcut-${slugify(shortcut.label)}`}
+                      onClick={() => { onLaunch(buildLaunchOptions(shortcut.command)); }}
+                      disabled={isCreating || !selected.available || noBackendAvailable}
+                      className={optionCardClass}
+                    >
+                      <Zap className="h-5 w-5 shrink-0 text-yellow-400" aria-hidden />
+                      <div className="min-w-0 flex-1">
+                        <div className="font-medium text-wc-text-primary">{shortcut.label}</div>
+                        <div className="truncate text-sm text-wc-text-muted">{shortcut.description || shortcut.command}</div>
+                      </div>
+                    </button>
+                  ))}
               </div>
             )}
           </section>
+          )}
 
-          <section className="space-y-2">
-            <div className="px-1 text-xs font-semibold uppercase tracking-wider text-wc-text-faint">{t(strings.terminalLauncher.customCommand)}</div>
-            <div className="flex flex-col gap-2 sm:flex-row">
-              <input data-testid="launcher-custom-input" type="text" value={customCommand} onChange={(event) => { setCustomCommand(event.target.value); }} onKeyDown={(event) => { if (event.key === "Enter") handleLaunchCustom(); }} placeholder={t(strings.terminalLauncher.commandPlaceholder)} className="min-h-11 min-w-0 flex-1 rounded-lg border border-wc-default bg-wc-surface-input px-3 text-sm text-wc-text-primary outline-none placeholder:text-wc-text-faint focus:border-wc-accent" />
-              <Button data-testid="launcher-custom-launch" size="sm" onClick={handleLaunchCustom} disabled={isCreating || !customCommand.trim() || !selected.available || noBackendAvailable}>{t(strings.terminalLauncher.launch)}</Button>
+          {mode === "one-session" && (
+          <section className="space-y-2" aria-label={t(strings.terminalLauncher.customCommand)}>
+            <div className="flex gap-2">
+              <label className="relative min-w-0 flex-1">
+                <span className="pointer-events-none absolute start-3 top-1/2 -translate-y-1/2 font-mono text-sm text-wc-text-faint" aria-hidden>$</span>
+                <input data-testid="launcher-custom-input" type="text" aria-label={t(strings.terminalLauncher.customCommand)} value={customCommand} onChange={(event) => { setCustomCommand(event.target.value); }} onKeyDown={(event) => { if (event.key === "Enter") handleLaunchCustom(); }} placeholder={t(strings.terminalLauncher.commandPlaceholder)} className="min-h-11 w-full rounded-lg border border-wc-default bg-wc-surface-input ps-7 pe-3 font-mono text-sm text-wc-text-primary outline-none placeholder:font-sans placeholder:text-wc-text-faint focus:border-wc-accent" />
+              </label>
+              <Button data-testid="launcher-custom-launch" size="sm" className="shrink-0" onClick={handleLaunchCustom} disabled={isCreating || !customCommand.trim() || !selected.available || noBackendAvailable}>{t(strings.terminalLauncher.launch)}</Button>
             </div>
           </section>
+          )}
 
+          {/* Two disclosures on one line, because neither is a section: they
+              are the settings you occasionally reach for, and giving each a
+              bordered card of its own is what made the dialog feel padded. */}
           <section className="space-y-2">
-            <button type="button" data-testid="launcher-options-toggle" className="flex min-h-11 items-center gap-1 px-1 text-xs font-semibold uppercase tracking-wider text-wc-text-faint hover:text-wc-text-muted" onClick={() => { setOptionsOpen((value) => !value); }} aria-expanded={optionsOpen}>
-              {optionsOpen ? <ChevronDown className="h-3.5 w-3.5" aria-hidden /> : <ChevronRight className="h-3.5 w-3.5" aria-hidden />}
-              {t(strings.terminalLauncher.sessionOptions)}
-            </button>
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+              {appearance && (
+                <button type="button" data-testid="launcher-appearance-toggle" className="flex min-h-11 items-center gap-1.5 text-xs text-wc-text-faint transition hover:text-wc-text-secondary" onClick={() => { setAppearanceOpen((value) => !value); }} aria-expanded={appearanceOpen}>
+                  {appearanceOpen ? <ChevronDown className="h-3.5 w-3.5 shrink-0" aria-hidden /> : <ChevronRight className="h-3.5 w-3.5 shrink-0" aria-hidden />}
+                  <span className="font-medium text-wc-text-secondary">{t(strings.launcher.appearance)}</span>
+                  <span className="h-2.5 w-2.5 shrink-0 rounded-full border border-wc-default" style={{ backgroundColor: destinationGroup?.color ?? appearance.headerColor }} aria-hidden />
+                  <span className="truncate">
+                    {t(strings.launcher.appearanceSummary, {
+                      color: destinationGroup ? t(strings.launcher.appearanceFromGroup) : t(strings.launcher.appearanceDefault),
+                      theme: appearance.themeId,
+                      size: appearance.fontSize,
+                    })}
+                  </span>
+                </button>
+              )}
+              <button type="button" data-testid="launcher-options-toggle" className="flex min-h-11 items-center gap-1.5 text-xs text-wc-text-faint transition hover:text-wc-text-secondary" onClick={() => { setOptionsOpen((value) => !value); }} aria-expanded={optionsOpen}>
+                {optionsOpen ? <ChevronDown className="h-3.5 w-3.5 shrink-0" aria-hidden /> : <ChevronRight className="h-3.5 w-3.5 shrink-0" aria-hidden />}
+                <span className="font-medium text-wc-text-secondary">{t(strings.terminalLauncher.sessionOptions)}</span>
+              </button>
+            </div>
+
+            {appearance && appearanceOpen && (
+              <dl data-testid="launcher-appearance" className="grid grid-cols-3 gap-2 rounded-lg border border-wc-default bg-wc-surface-base/40 px-3 py-2 text-[11px]">
+                <div>
+                  <dt className="text-wc-text-faint">{t(strings.appearance.headerColorHeading)}</dt>
+                  <dd className="truncate text-wc-text-secondary">{destinationGroup ? destinationGroup.name : appearance.headerColor}</dd>
+                </div>
+                <div>
+                  <dt className="text-wc-text-faint">{t(strings.appearance.terminalThemeHeading)}</dt>
+                  <dd className="truncate text-wc-text-secondary">{appearance.themeId}</dd>
+                </div>
+                <div>
+                  <dt className="text-wc-text-faint">{t(strings.appearance.fontSizeHeading)}</dt>
+                  <dd className="text-wc-text-secondary">{appearance.fontSize}px</dd>
+                </div>
+              </dl>
+            )}
+
             {optionsOpen && (
               <div className="space-y-3 rounded-xl border border-wc-default bg-wc-surface-base/50 p-4">
                 <div className="space-y-1.5"><label htmlFor="launcher-working-dir" className="text-xs font-medium text-wc-text-secondary">{t(strings.terminalLauncher.workingDirectory)}</label><input id="launcher-working-dir" data-testid="launcher-working-dir" value={workingDir} onChange={(event) => { setWorkingDir(event.target.value); }} placeholder={t(strings.terminalLauncher.workingDirectoryPlaceholder)} className="min-h-11 w-full rounded-lg border border-wc-default bg-wc-surface-input px-3 text-sm text-wc-text-primary outline-none placeholder:text-wc-text-faint focus:border-wc-accent" /></div>
@@ -446,13 +563,6 @@ export default function TerminalLauncher({
             )}
           </section>
 
-          {selected.kind !== "local" && selected.readiness && selected.readiness.length > 0 && (
-            <div className="rounded-xl border border-wc-default bg-wc-surface-base/40 p-4">
-              <div className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-wc-text-faint"><Info className="h-3.5 w-3.5" aria-hidden />{t(strings.terminalLauncher.readiness)}</div>
-              <div className="grid gap-2 sm:grid-cols-2">{selected.readiness.map((fact) => <div key={fact.key} className="flex items-center gap-2 text-xs text-wc-text-secondary"><span className={fact.passed ? "text-emerald-300" : "text-rose-300"}>{fact.passed ? <Check className="h-3.5 w-3.5" aria-hidden /> : <XCircle className="h-3.5 w-3.5" aria-hidden />}</span><span className="truncate" title={fact.detail}>{fact.label}</span></div>)}</div>
-              {grantText(selected) && <p className="mt-3 text-xs text-wc-text-secondary">Grant: {grantText(selected)}</p>}
-            </div>
-          )}
         </div>
         <footer className="shrink-0 border-t border-wc-default bg-wc-surface-raised/95 px-5 py-3 text-xs text-wc-text-faint">
           {isCreating ? <div data-testid="launcher-creating" className="flex items-center justify-center gap-2 text-sm text-wc-text-muted"><Loader2 className="h-4 w-4 animate-spin" aria-hidden />{t(strings.terminalLauncher.creating)}</div> : selected.kind !== "local" && selected.available ? <div className="flex items-center gap-2"><Monitor className="h-3.5 w-3.5" aria-hidden /><span>{selected.os && selected.arch ? `${selected.os}/${selected.arch}` : selected.label}</span>{lastSeenCopy(selected, t(strings.terminalLauncher.neverSeen)) && <span className="ms-auto">{t(strings.terminalLauncher.lastSeen)}: {lastSeenCopy(selected, t(strings.terminalLauncher.neverSeen))}</span>}</div> : null}
@@ -462,21 +572,3 @@ export default function TerminalLauncher({
   );
 }
 
-function ShieldIcon() {
-  return <Server className="h-5 w-5 shrink-0 text-violet-300" aria-hidden />;
-}
-
-function TargetCard({ target, selected, onSelect, statusLabel, permissionText, heartbeatText, onKeyDown, buttonRef }: { target: TerminalTarget; selected: boolean; onSelect: (id: string) => void; statusLabel: string; permissionText?: string; heartbeatText?: string; onKeyDown: (event: KeyboardEvent, id: string) => void; buttonRef: (node: HTMLButtonElement | null) => void }) {
-  const isLocal = target.kind === "local";
-  const state = target.state ?? (target.available ? "dispatchable" : "unavailable");
-  const label = isLocal ? "This machine" : target.label;
-  const metadata = [target.os, target.arch].filter(Boolean).join(" · ");
-  const reason = target.recovery_action ?? target.failure_rung;
-  return (
-    <button ref={buttonRef} type="button" role="option" aria-selected={selected} aria-label={`${label}, ${statusLabel}${reason ? `, ${reason}` : ""}`} title={reason} data-testid={`launcher-target-card-${slugify(target.id)}`} onClick={() => { onSelect(target.id); }} onKeyDown={(event) => { onKeyDown(event, target.id); }} className={`flex min-h-[68px] w-full items-center gap-3 rounded-xl border px-4 py-3 text-start transition ${selected ? "border-wc-accent bg-wc-accent/10 shadow-[0_0_0_1px_rgba(129,140,248,0.16)]" : "border-wc-default bg-wc-surface-input hover:border-wc-accent/60"}`}>
-      <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${isLocal ? "bg-wc-accent/15 text-wc-accent" : "bg-wc-surface-base text-wc-text-secondary"}`}>{isLocal ? <Monitor className="h-5 w-5" aria-hidden /> : <Server className="h-5 w-5" aria-hidden />}</span>
-      <span className="min-w-0 flex-1"><span className="flex items-center gap-2"><span className="truncate font-medium text-wc-text-primary">{label}</span>{selected && <Check className="h-4 w-4 shrink-0 text-wc-accent" aria-hidden />}</span><span className="mt-0.5 block truncate text-xs text-wc-text-faint">{metadata || (isLocal ? "Web Console host" : target.node_id || target.id)}</span>{permissionText && <span className="block truncate text-xs text-wc-text-faint">{permissionText}</span>}{heartbeatText && <span className="block truncate text-xs text-wc-text-faint">{heartbeatText}</span>}</span>
-      <span className={`inline-flex shrink-0 items-center gap-1.5 rounded-full border px-2 py-1 text-[11px] font-medium ${statusClass(state)}`}>{statusIcon(state)}<span className="hidden sm:inline">{statusLabel}</span></span>
-    </button>
-  );
-}

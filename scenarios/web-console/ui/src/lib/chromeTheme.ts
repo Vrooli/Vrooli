@@ -1,3 +1,4 @@
+import { chromeTheme as libraryChrome } from "@vrooli/react-component-library/ChromeTheme";
 import { CHROME_PALETTE_TOKEN_NAMES, deriveChromePalette } from "./chromePalette";
 import { isHexColor } from "./paneColor";
 
@@ -11,7 +12,17 @@ import { isHexColor } from "./paneColor";
  *   - `--wc-chrome-fg`    — a contrast-correct foreground (light vs dark) for
  *     text/icons rendered on the tinted chrome.
  *   - the semantic `--wc-*` design tokens consumed by child surfaces.
- * It also updates the `<meta name="theme-color">` tag (Android / PWA status bar).
+ * The OS status bar is NOT owned here. That is two platform mechanisms that
+ * must always agree — `<meta name="theme-color">` on Android, a painted
+ * safe-area strip on iOS black-translucent — and the library's `ChromeTheme`
+ * service owns both. This controller registers the terminal-derived tint as
+ * that service's *base*, so anything more urgent (a banner) outranks it without
+ * either side knowing about the other.
+ *
+ * What stays here is the part that is genuinely web-console's: detecting a
+ * terminal's rendered background and deriving a full semantic palette from it.
+ * No other scenario has a terminal to detect, which is why this never belonged
+ * in the library and why only the resolved colour crosses the boundary.
  *
  * Everything here is **imperative on purpose**. The detected terminal
  * background changes frequently while a full-screen TUI repaints; routing that
@@ -47,13 +58,6 @@ const detected = new Map<string, string>();
 // default branch runs once on startup.
 let appliedColor: string | null = null;
 let initialized = false;
-let metaEl: HTMLMetaElement | null = null;
-// An active top-chrome banner outranks the terminal-derived tint for the OS
-// status bar only. The banner is the most urgent thing on screen, so the notch
-// should match it; the in-app chrome tokens stay terminal-derived so the rest
-// of the UI does not flash when a banner appears. Owned by BannerRegion.
-let bannerOverride: string | null = null;
-let appliedMeta: string | null = null;
 
 function resolveColor(): string | null {
   if (!config.enabled || !config.ownerSessionId) return null;
@@ -63,24 +67,24 @@ function resolveColor(): string | null {
   return null;
 }
 
-/** Resolve and write `<meta name="theme-color">`: banner ▸ chrome ▸ default. */
-function applyMeta(chromeColor: string | null): void {
-  if (typeof document === "undefined") return;
-  const next = bannerOverride ?? chromeColor ?? DEFAULT_THEME_COLOR;
-  if (next === appliedMeta) return;
-  appliedMeta = next;
-  if (!metaEl) {
-    metaEl = document.querySelector('meta[name="theme-color"]');
-  }
-  metaEl?.setAttribute("content", next);
+/**
+ * Publish the resting chrome to the library service.
+ *
+ * Only the base is set here. A banner contributes at a higher priority through
+ * `BannerRegion`, and the service resolves between them — which is what stops
+ * the two from fighting over the notch, and what keeps a dismissed banner from
+ * leaving it tinted.
+ */
+function publishStatusBar(chromeColor: string | null): void {
+  libraryChrome.setBase({ statusColor: chromeColor ?? DEFAULT_THEME_COLOR });
 }
 
 function apply(): void {
   if (typeof document === "undefined") return;
   const color = resolveColor();
   if (initialized && color === appliedColor) {
-    applyMeta(color); // the banner override may still have moved
-    return;           // change-guard: no-op tick for the token work
+    publishStatusBar(color); // the resolved base may still have moved
+    return;                  // change-guard: no-op tick for the token work
   }
   appliedColor = color;
   initialized = true;
@@ -101,7 +105,7 @@ function apply(): void {
     root.removeProperty("--wc-chrome-color");
     root.removeProperty("--wc-chrome-fg");
   }
-  applyMeta(color);
+  publishStatusBar(color);
 }
 
 export const chromeTheme = {
@@ -130,17 +134,6 @@ export const chromeTheme = {
     }
     if (sessionId === config.ownerSessionId) apply();
   },
-  /**
-   * Let the active top-chrome banner own the OS status-bar colour. Pass `null`
-   * when no banner is showing. Only `<meta name="theme-color">` is affected —
-   * the in-app chrome tokens stay terminal-derived.
-   */
-  setBannerOverride(color: string | null): void {
-    const next = color && isHexColor(color) ? color : null;
-    if (next === bannerOverride) return;
-    bannerOverride = next;
-    applyMeta(appliedColor);
-  },
   /** Current applied chrome color, or `null` when the default chrome is shown. */
   getAppliedColor(): string | null {
     return appliedColor;
@@ -151,8 +144,6 @@ export const chromeTheme = {
     detected.clear();
     appliedColor = null;
     initialized = false;
-    metaEl = null;
-    bannerOverride = null;
-    appliedMeta = null;
+    libraryChrome._reset();
   },
 };

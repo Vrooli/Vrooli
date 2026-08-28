@@ -5,16 +5,22 @@ import { strings } from "../consts/strings";
 import { cn } from "../lib/classnames";
 import { paneAccentStyle } from "../lib/paneColor";
 import type { OriginBucketNavigation } from "../lib/workspaceNavigation";
-import type { SidebarOriginTab } from "../stores/useWorkspaceStore";
+import type { RoleMeta, SidebarOriginTab } from "../stores/useWorkspaceStore";
 import { useLongPress } from "../hooks/useLongPress";
 import { usePressGesture } from "../hooks/usePressGesture";
 import { useWorkspaceStore } from "../stores/useWorkspaceStore";
 import { useWorkspaceSync } from "../hooks/useWorkspaceSync";
 import { useGroupActions } from "../hooks/useGroupActions";
-import { SidebarShell } from "@vrooli/react-component-library/SidebarShell/2";
+// Unversioned import: this scenario tracks the library's latest release of
+// the shell rather than pinning a major. web-console is the shell's primary
+// consumer and is still greenfield, so taking each release as it lands is
+// cheaper than discovering the drift at the next deliberate upgrade.
+import { SidebarShell } from "@vrooli/react-component-library/SidebarShell";
 import { Button } from "./ui/button";
 import TabContextMenu from "./TabContextMenu";
 import GroupContextMenu from "./GroupContextMenu";
+import RoleRow from "./RoleRow";
+import { GroupPickerOverlay } from "./launcher/GroupPicker";
 import { listArchivedSessions, type ArchivedSession } from "../api/sessions";
 import { formatRelativeTime } from "./MessageJumpList.helpers";
 
@@ -32,12 +38,20 @@ interface SessionSidebarProps {
   mobileOpen: boolean;
   isCreating?: boolean;
   onCloseMobile: () => void;
+  /** Opens the drawer from an edge drag. Without it the gesture stays off. */
+  onOpenMobile?: () => void;
   onActivatePane: (sessionId: string) => void;
   onClosePane: (sessionId: string) => void;
   onDeletePanePermanently: (sessionId: string) => void;
   onNewTerminal: () => void;
   onOpenLauncher: () => void;
   onNewSessionInGroup: (groupId: string) => void;
+  /** Start a waiting role's command. The row becomes a pane once it exists. */
+  onStartRole: (role: RoleMeta) => void;
+  /** Open the handoff composer aimed at a waiting role. */
+  onHandoffToRole: (role: RoleMeta) => void;
+  /** Open a waiting role's overflow menu. */
+  onOpenRoleMenu: (role: RoleMeta, position: { x: number; y: number }) => void;
   onOpenSettings: () => void;
   onOpenArchiveDrawer?: (sessionId?: string) => void;
 }
@@ -65,12 +79,16 @@ export default function SessionSidebar({
   mobileOpen,
   isCreating,
   onCloseMobile,
+  onOpenMobile,
   onActivatePane,
   onClosePane,
   onDeletePanePermanently,
   onNewTerminal,
   onOpenLauncher,
   onNewSessionInGroup,
+  onStartRole,
+  onHandoffToRole,
+  onOpenRoleMenu,
   onOpenSettings,
   onOpenArchiveDrawer,
 }: SessionSidebarProps) {
@@ -79,10 +97,21 @@ export default function SessionSidebar({
   const tabContextMenu = useWorkspaceStore((s) => s.tabContextMenu);
   const setTabContextMenu = useWorkspaceStore((s) => s.setTabContextMenu);
   const groups = useWorkspaceStore((s) => s.groups);
+
+  // A handoff needs somewhere to go. Offering the control on a role whose
+  // group holds nothing else would open a composer with no targets.
+  const groupHasOtherMembers = useCallback((role: RoleMeta) => {
+    const state = useWorkspaceStore.getState();
+    const panesInGroup = state.panes.filter((p) => p.groupId === role.groupId).length;
+    const rolesInGroup = state.roles.filter((r) => r.groupId === role.groupId).length;
+    return panesInGroup + rolesInGroup > 1;
+  }, []);
   const renamePaneById = useWorkspaceStore((s) => s.renamePaneById);
   const movePaneToIndex = useWorkspaceStore((s) => s.movePaneToIndex);
   const toggleGroupCollapsed = useWorkspaceStore((s) => s.toggleGroupCollapsed);
-  const setManageGroupsTarget = useWorkspaceStore((s) => s.setManageGroupsTarget);
+  const setManageGroupsOpen = useWorkspaceStore((s) => s.setManageGroupsOpen);
+  // Which session the group overlay is open for, if any.
+  const [assignPicker, setAssignPicker] = useState<{ sessionId: string } | null>(null);
   const setAppearanceModalPane = useWorkspaceStore((s) => s.setAppearanceModalPane);
   const sidebarSortMode = useWorkspaceStore((s) => s.sidebarSortMode);
   const setSidebarSortMode = useWorkspaceStore((s) => s.setSidebarSortMode);
@@ -93,7 +122,7 @@ export default function SessionSidebar({
   const plusButtonBehavior = useWorkspaceStore((s) => s.plusButtonBehavior);
 	const viewerCounts = useWorkspaceStore((s) => s.viewerCounts);
   const { syncPaneUpdate, syncPaneMove } = useWorkspaceSync();
-  const { removePaneFromGroup } = useGroupActions();
+  const { removePaneFromGroup, assignPaneToGroup, createNamedGroup } = useGroupActions();
   const setPaneManuallyUnread = useWorkspaceStore((s) => s.setPaneManuallyUnread);
 
   /** Flip a pane's manual unread flag and persist it. */
@@ -135,7 +164,7 @@ export default function SessionSidebar({
   useEffect(() => {
     void refreshArchive();
     window.addEventListener("web-console:archive-changed", refreshArchive);
-    return () => window.removeEventListener("web-console:archive-changed", refreshArchive);
+    return () => { window.removeEventListener("web-console:archive-changed", refreshArchive); };
   }, [refreshArchive]);
 
   const visibleArchived = archivedSessions
@@ -209,8 +238,8 @@ export default function SessionSidebar({
   const groupPressGesture = usePressGesture<string>({
     longPressMs: SIDEBAR_LONG_PRESS_MS,
     moveThresholdPx: SIDEBAR_PRESS_MOVE_THRESHOLD,
-    onTap: (groupId) => toggleGroupCollapsed(groupId),
-    onLongPress: (groupId, point) => openGroupMenu(groupId, point.x, point.y),
+    onTap: (groupId) => { toggleGroupCollapsed(groupId); },
+    onLongPress: (groupId, point) => { openGroupMenu(groupId, point.x, point.y); },
   });
 
   const startSidebarDrag = useCallback((paneId: string, index: number, event: React.PointerEvent<HTMLElement>) => {
@@ -335,7 +364,7 @@ export default function SessionSidebar({
                     ? "bg-wc-surface-raised text-wc-text-primary"
                     : "text-wc-text-muted hover:bg-wc-surface-raised/60 hover:text-wc-text-secondary",
                 )}
-                onClick={() => setSidebarOriginTab(bucket.bucket)}
+                onClick={() => { setSidebarOriginTab(bucket.bucket); }}
               >
                 <span className="truncate">{t(ORIGIN_TAB_LABEL[bucket.bucket])}</span>
                 <span className="shrink-0 rounded bg-wc-surface-input px-1 text-[10px]">{count}</span>
@@ -355,7 +384,7 @@ export default function SessionSidebar({
           data-testid="sidebar-sort-select"
           className="min-w-0 flex-1 rounded bg-wc-surface-input px-1 py-0.5 text-[11px] text-wc-text-secondary outline-none focus:ring-1 focus:ring-wc-accent"
           value={sidebarSortMode}
-          onChange={(event) => setSidebarSortMode(event.target.value as typeof sidebarSortMode)}
+          onChange={(event) => { setSidebarSortMode(event.target.value as typeof sidebarSortMode); }}
         >
           <option value="manual">{t(strings.sessionSidebar.sortManual)}</option>
           <option value="name">{t(strings.sessionSidebar.sortName)}</option>
@@ -367,7 +396,7 @@ export default function SessionSidebar({
       {sidebarView === "list" ? <div className="flex-1 select-none overflow-y-auto p-2">
         {items.map((item) => {
           if (item.kind === "group-label") {
-            const { group, tabCount } = item;
+            const { group, tabCount, waitingCount } = item;
             return (
               <div
                 key={`group-${group.id}`}
@@ -396,8 +425,34 @@ export default function SessionSidebar({
                 >
                   <span className="min-w-0 flex-1 truncate font-medium">{group.name}</span>
                 </button>
+                {waitingCount > 0 && (
+                  <span
+                    data-testid={`sidebar-group-waiting-${group.id}`}
+                    className="shrink-0 rounded border border-dashed border-wc-default px-1 text-[10px] text-wc-text-faint"
+                    title={t(strings.roles.waitingCount, { count: waitingCount })}
+                  >
+                    {t(strings.roles.waitingCount, { count: waitingCount })}
+                  </span>
+                )}
                 <span className="shrink-0 rounded bg-wc-surface-input px-1 text-[10px]">{tabCount}</span>
               </div>
+            );
+          }
+
+          // A waiting role is a member of its group with no pane behind it.
+          // It renders between the group's running sessions and the next
+          // group, so the block reads as "running here, then not yet".
+          if (item.kind === "waiting-role") {
+            return (
+              <RoleRow
+                key={`role-${item.role.id}`}
+                role={item.role}
+                group={item.group}
+                isLastInGroup={item.isLastInGroup}
+                onStart={onStartRole}
+                onHandoff={groupHasOtherMembers(item.role) ? onHandoffToRole : undefined}
+                onOpenMenu={onOpenRoleMenu}
+              />
             );
           }
 
@@ -420,7 +475,7 @@ export default function SessionSidebar({
                       data-testid={`sidebar-rename-input-${pane.sessionId}`}
                       className="min-w-0 flex-1 select-text rounded bg-wc-surface-input px-1 text-sm font-medium text-wc-text-primary outline-none ring-1 ring-wc-accent"
                       value={editingPaneName}
-                      onChange={(event) => setEditingPaneName(event.target.value)}
+                      onChange={(event) => { setEditingPaneName(event.target.value); }}
                       onKeyDown={(event) => {
                         if (event.key === "Enter") commitRename();
                         if (event.key === "Escape") {
@@ -430,7 +485,7 @@ export default function SessionSidebar({
                         event.stopPropagation();
                       }}
                       onBlur={commitRename}
-                      onClick={(event) => event.stopPropagation()}
+                      onClick={(event) => { event.stopPropagation(); }}
                     />
                   ) : (
                     <span className="min-w-0 flex-1 truncate text-sm font-medium" title={pane.name}>
@@ -533,7 +588,7 @@ export default function SessionSidebar({
                     type="button"
                     data-testid={`sidebar-drag-handle-${pane.sessionId}`}
                     className="pointer-events-auto flex h-6 w-5 shrink-0 cursor-grab touch-none items-center justify-center rounded text-wc-text-faint hover:text-wc-text-secondary active:cursor-grabbing"
-                    onPointerDown={(event) => startSidebarDrag(pane.sessionId, globalIndex, event)}
+                    onPointerDown={(event) => { startSidebarDrag(pane.sessionId, globalIndex, event); }}
                     title={t(strings.sessionSidebar.reorderAria, { name: pane.name })}
                     aria-label={t(strings.sessionSidebar.reorderAria, { name: pane.name })}
                     aria-roledescription="drag handle"
@@ -544,7 +599,7 @@ export default function SessionSidebar({
                 <button
                   type="button"
                   className="pointer-events-auto flex h-6 w-6 shrink-0 items-center justify-center rounded text-wc-text-muted hover:bg-wc-surface-input hover:text-wc-text-primary"
-                  onClick={() => onClosePane(pane.sessionId)}
+                  onClick={() => { onClosePane(pane.sessionId); }}
                   title={t(strings.tabBar.closeTabTitle)}
                   aria-label={t(strings.tabBar.closeTabAria, { name: pane.name })}
                 >
@@ -561,7 +616,7 @@ export default function SessionSidebar({
               type="button"
               data-testid="sidebar-archive-back"
               className="mb-2 flex items-center gap-1 text-xs text-wc-text-secondary hover:text-wc-text-primary"
-              onClick={() => setSidebarView("list")}
+              onClick={() => { setSidebarView("list"); }}
             >
               <ArrowLeft className="h-3.5 w-3.5" />
               {t(strings.sessionSidebar.archiveBack)}
@@ -572,7 +627,7 @@ export default function SessionSidebar({
                 data-testid="sidebar-archive-filter"
                 className="min-w-0 flex-1 bg-transparent text-sm text-wc-text-primary outline-none"
                 value={archiveFilter}
-                onChange={(event) => setArchiveFilter(event.target.value)}
+                onChange={(event) => { setArchiveFilter(event.target.value); }}
                 placeholder={t(strings.sessionSidebar.archiveFilterPlaceholder)}
               />
             </label>
@@ -621,14 +676,14 @@ export default function SessionSidebar({
               {t(strings.sessionSidebar.archiveSearchAll, { count: archivedTotal })}
             </button>
           </div>
-        </div>
+    </div>
       )}
 
       <button
         type="button"
         data-testid="sidebar-archive-footer"
         className="flex shrink-0 items-center gap-2 border-t border-wc-default px-3 py-2 text-sm text-wc-text-secondary hover:bg-wc-surface-raised hover:text-wc-text-primary"
-        onClick={() => setSidebarView("archive")}
+        onClick={() => { setSidebarView("archive"); }}
       >
         <Archive className="h-4 w-4" />
         <span className="flex-1 text-start">{t(strings.sessionSidebar.archive)}</span>
@@ -650,12 +705,17 @@ export default function SessionSidebar({
         testId="workspace-sidebar"
         mobileOpen={mobileOpen}
         onMobileClose={onCloseMobile}
+        onMobileOpen={onOpenMobile}
         mobileLabel={t(strings.sessionSidebar.title)}
+        // The uncovered strip is the tap-to-dismiss target, so it has to be
+        // wide enough to read as one — the previous 2rem gutter looked like a
+        // rendering artifact rather than a way out.
+        mobileWidth="min(22rem, calc(100% - 3.5rem))"
         desktopLabel={t(strings.sessionSidebar.title)}
         closeLabel={t(strings.sessionSidebar.close)}
         className={cn(
           "wc-chrome-surface wc-chrome-fg flex flex-col border-e border-wc-default pt-[var(--wc-safe-top,0px)] ps-[var(--wc-safe-left,0px)]",
-          isMobile ? "z-wc-drawer w-[min(22rem,calc(100%_-_2rem))] shadow-xl" : "shrink-0",
+          isMobile ? "z-wc-drawer shadow-xl" : "shrink-0",
         )}
         contentClassName="flex flex-col"
         backdropClassName="fixed inset-0 z-wc-drawer bg-black/55"
@@ -696,19 +756,51 @@ export default function SessionSidebar({
             sessionId={tabContextMenu.sessionId}
             currentGroupId={paneItem.pane.groupId}
             isManuallyUnread={paneItem.pane.manuallyUnread}
-            onToggleManuallyUnread={() => toggleManualUnread(tabContextMenu.sessionId)}
+            onToggleManuallyUnread={() => { toggleManualUnread(tabContextMenu.sessionId); }}
             onRename={() => {
               startRename(paneItem.pane.sessionId, paneItem.pane.name);
               setTabContextMenu(null);
             }}
-            onCustomize={() => setAppearanceModalPane(tabContextMenu.sessionId)}
-            onRemoveFromGroup={() => removePaneFromGroup(tabContextMenu.sessionId)}
-            onManageGroups={() => setManageGroupsTarget({ sessionId: tabContextMenu.sessionId })}
-            onMoveUp={canMoveUp ? () => moveTo(orderIdx - 1) : undefined}
-            onMoveDown={canMoveDown ? () => moveTo(orderIdx + 1) : undefined}
+            onCustomize={() => { setAppearanceModalPane(tabContextMenu.sessionId); }}
+            onRemoveFromGroup={() => { removePaneFromGroup(tabContextMenu.sessionId); }}
+            onAssignToGroup={() => {
+              setAssignPicker({ sessionId: tabContextMenu.sessionId });
+              setTabContextMenu(null);
+            }}
+            onMoveUp={canMoveUp ? () => { moveTo(orderIdx - 1); } : undefined}
+            onMoveDown={canMoveDown ? () => { moveTo(orderIdx + 1); } : undefined}
             onClose={onClosePane}
             onDeletePermanently={onDeletePanePermanently}
-            onDismiss={() => setTabContextMenu(null)}
+            onDismiss={() => { setTabContextMenu(null); }}
+          />
+        );
+      })()}
+
+      {/* The group overlay lives at the top level, NOT inside a sidebar view
+          branch: it is opened from the session menu, which is reachable from
+          every view, and a picker mounted inside one branch simply never
+          appeared in the other. */}
+      {assignPicker && (() => {
+        const pane = useWorkspaceStore.getState().panes.find((p) => p.sessionId === assignPicker.sessionId);
+        return (
+          <GroupPickerOverlay
+            open
+            onClose={() => { setAssignPicker(null); }}
+            groups={groups}
+            value={pane?.groupId ?? null}
+            onChange={(groupId) => {
+              if (groupId) assignPaneToGroup(assignPicker.sessionId, groupId);
+              else removePaneFromGroup(assignPicker.sessionId);
+              setAssignPicker(null);
+            }}
+            onCreate={(name) => {
+              // Server-first, then assign: the group must exist before a pane
+              // can point at it.
+              void createNamedGroup(name).then((group) => {
+                assignPaneToGroup(assignPicker.sessionId, group.id);
+                setAssignPicker(null);
+              });
+            }}
           />
         );
       })()}
@@ -720,10 +812,10 @@ export default function SessionSidebar({
           <GroupContextMenu
             position={groupMenu.position}
             group={group}
-            onNewSession={() => onNewSessionInGroup(group.id)}
-            onToggleCollapse={() => toggleGroupCollapsed(group.id)}
-            onManageGroups={() => setManageGroupsTarget({ sessionId: null })}
-            onDismiss={() => setGroupMenu(null)}
+            onNewSession={() => { onNewSessionInGroup(group.id); }}
+            onToggleCollapse={() => { toggleGroupCollapsed(group.id); }}
+            onManageGroups={() => { setManageGroupsOpen(true); }}
+            onDismiss={() => { setGroupMenu(null); }}
           />
         );
       })()}

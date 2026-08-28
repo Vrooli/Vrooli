@@ -119,6 +119,9 @@ export default function MessagesMermaidViewer({ open, code, onClose }: MessagesM
 
   return (
     <FullPageDrawer
+      // No keyboard avoidance: a read-only viewer — no text entry, so there is
+      // nothing for a keyboard to cover.
+      avoidKeyboard={false}
       open={open}
       onClose={onClose}
       closeLabel={t(strings.mermaid.closeViewer)}

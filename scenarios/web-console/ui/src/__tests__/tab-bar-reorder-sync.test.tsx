@@ -62,6 +62,8 @@ describe("TabBar reorder sync", () => {
         onOpenLauncher={vi.fn()}
         onClosePane={vi.fn()}
         onDeletePanePermanently={vi.fn()}
+        onStartRole={vi.fn()}
+        onOpenRoleMenu={vi.fn()}
       />,
     );
 
@@ -112,6 +114,8 @@ describe("TabBar reorder sync", () => {
         onOpenLauncher={vi.fn()}
         onClosePane={vi.fn()}
         onDeletePanePermanently={vi.fn()}
+        onStartRole={vi.fn()}
+        onOpenRoleMenu={vi.fn()}
       />,
     );
 
@@ -160,6 +164,8 @@ describe("TabBar reorder sync", () => {
         onOpenLauncher={vi.fn()}
         onClosePane={vi.fn()}
         onDeletePanePermanently={vi.fn()}
+        onStartRole={vi.fn()}
+        onOpenRoleMenu={vi.fn()}
       />,
     );
 
@@ -199,6 +205,8 @@ describe("TabBar reorder sync", () => {
         onOpenLauncher={vi.fn()}
         onClosePane={vi.fn()}
         onDeletePanePermanently={vi.fn()}
+        onStartRole={vi.fn()}
+        onOpenRoleMenu={vi.fn()}
       />,
     );
 
@@ -228,6 +236,8 @@ describe("TabBar reorder sync", () => {
         onOpenLauncher={vi.fn()}
         onClosePane={vi.fn()}
         onDeletePanePermanently={vi.fn()}
+        onStartRole={vi.fn()}
+        onOpenRoleMenu={vi.fn()}
       />,
     );
 

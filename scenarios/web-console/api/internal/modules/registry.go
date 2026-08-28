@@ -27,6 +27,8 @@ import (
 	conversationH "web-console/handlers/conversation"
 	eventsH "web-console/handlers/events"
 	filePreviewH "web-console/handlers/file_preview"
+	groupTemplatesH "web-console/handlers/grouptemplates"
+	handoffRulesH "web-console/handlers/handoffrules"
 	healthH "web-console/handlers/health"
 	hooksH "web-console/handlers/hooks"
 	machinesH "web-console/handlers/machines"
@@ -53,6 +55,8 @@ func AllEndpoints() []module.EndpointDescriptor {
 	out = append(out, conversationH.Endpoints...)
 	out = append(out, eventsH.Endpoints...)
 	out = append(out, filePreviewH.Endpoints...)
+	out = append(out, groupTemplatesH.Endpoints...)
+	out = append(out, handoffRulesH.Endpoints...)
 	out = append(out, hooksH.Endpoints...)
 	out = append(out, machinesH.Endpoints...)
 	out = append(out, metricsH.Endpoints...)

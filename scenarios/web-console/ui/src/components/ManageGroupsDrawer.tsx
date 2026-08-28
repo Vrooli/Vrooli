@@ -1,271 +1,330 @@
-import { useCallback, useEffect, useRef, useState } from "react";
-import { FolderMinus, FolderPlus, Pencil, Plus, Trash2 } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { ArrowDownUp, Folder, FolderX, Palette, Search, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { useWorkspaceStore, type TabGroupMeta } from "../stores/useWorkspaceStore";
-import { useWorkspaceSync } from "../hooks/useWorkspaceSync";
-import { useGroupActions } from "../hooks/useGroupActions";
-import { HEADER_COLORS } from "../consts/config";
-import { strings } from "../consts/strings";
-import { cn } from "../lib/classnames";
-import { Button } from "./ui/button";
-import { AlertDialog } from "@vrooli/react-component-library/AlertDialog/2";
+import { BulkActionBar } from "@vrooli/react-component-library/BulkActionBar/1";
+import { Checkbox } from "@vrooli/react-component-library/Checkbox/1";
 import { ResponsiveDialog } from "@vrooli/react-component-library/ResponsiveDialog/1";
 
-const rowIconButtonClass =
-  "shrink-0 rounded-full p-1.5 text-wc-text-muted transition hover:bg-wc-surface-input hover:text-wc-text-primary";
+import { HEADER_COLORS } from "../consts/config";
+import { strings } from "../consts/strings";
+import { useGroupActions } from "../hooks/useGroupActions";
+import { useWorkspaceSync } from "../hooks/useWorkspaceSync";
+import { cn } from "../lib/classnames";
+import { useWorkspaceStore, type TabGroupMeta } from "../stores/useWorkspaceStore";
+import { Button } from "./ui/button";
+
+// [REQ:P0-014c] Group Assignment And Administration Split
+// [REQ:P0-014f] Group Auto-Close With Undo
 
 /**
- * ManageGroupsDrawer is the SSOT surface for tab-group management: per-group
- * session counts, rename, recolor, delete (with ungroup consequence), and
- * server-first creation. When opened with a session context (from a tab's
- * menu) each row also offers an assign/remove toggle for that session.
- * Open state lives in the workspace store (`manageGroupsTarget`) so TabBar,
- * SessionSidebar, and Workspace can all open it.
+ * The group administration surface.
+ *
+ * This is a MANAGER, not a picker. It used to be both: opened with a session
+ * context it offered per-group assign toggles, and opened without one it did
+ * CRUD. That dual role is why it felt heavy — choosing a group for a single
+ * session opened the whole list. Assignment now happens in an anchored picker
+ * beside the tab, and this surface exists for the thing a picker cannot do:
+ * seeing every group at once and acting on several.
+ *
+ * "Close" rather than "Delete" throughout, because that is the consequence the
+ * operator experiences — the sessions survive; the folder goes away. Every
+ * close routes through closeGroup, so the undo banner covers all of them and
+ * no per-row confirm is needed.
  */
 export default function ManageGroupsDrawer() {
   const { t } = useTranslation();
-  const target = useWorkspaceStore((s) => s.manageGroupsTarget);
-  const setManageGroupsTarget = useWorkspaceStore((s) => s.setManageGroupsTarget);
+  const open = useWorkspaceStore((s) => s.manageGroupsOpen);
+  const setOpen = useWorkspaceStore((s) => s.setManageGroupsOpen);
   const groups = useWorkspaceStore((s) => s.groups);
   const panes = useWorkspaceStore((s) => s.panes);
+  const roles = useWorkspaceStore((s) => s.roles);
+  const autoCloseEmptyGroups = useWorkspaceStore((s) => s.autoCloseEmptyGroups);
+  const setAutoCloseEmptyGroups = useWorkspaceStore((s) => s.setAutoCloseEmptyGroups);
   const updateGroup = useWorkspaceStore((s) => s.updateGroup);
   const { syncUpdateGroup } = useWorkspaceSync();
-  const { assignPaneToGroup, removePaneFromGroup, deleteGroup, createGroup } = useGroupActions();
+  const { closeGroup, createGroup } = useGroupActions();
 
-  const sessionId = target?.sessionId ?? null;
-  const contextPane = sessionId ? panes.find((p) => p.sessionId === sessionId) : undefined;
-
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [editName, setEditName] = useState("");
+  const [filter, setFilter] = useState("");
+  // Recent-first is the honest default: groups are transient here, so the one
+  // you just made is the one you are most likely to act on.
+  const [sort, setSort] = useState<"recent" | "name">("recent");
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [paletteId, setPaletteId] = useState<string | null>(null);
-  const [deleteTarget, setDeleteTarget] = useState<TabGroupMeta | null>(null);
-  const renameInputRef = useRef<HTMLInputElement>(null);
 
-  const close = useCallback(() => setManageGroupsTarget(null), [setManageGroupsTarget]);
-
-  // Reset transient editing state whenever the drawer opens fresh.
-  useEffect(() => {
-    if (target) {
-      setEditingId(null);
-      setEditName("");
-      setPaletteId(null);
-      setDeleteTarget(null);
-    }
-  }, [target]);
+  const close = useCallback(() => { setOpen(false); }, [setOpen]);
 
   useEffect(() => {
-    if (editingId) {
-      renameInputRef.current?.focus();
-      renameInputRef.current?.select();
+    if (!open) return;
+    setFilter("");
+    setSort("recent");
+    setSelectedIds([]);
+    setPaletteId(null);
+  }, [open]);
+
+  const counts = useMemo(() => {
+    const paneCounts = new Map<string, number>();
+    const roleCounts = new Map<string, number>();
+    for (const pane of panes) {
+      if (pane.groupId) paneCounts.set(pane.groupId, (paneCounts.get(pane.groupId) ?? 0) + 1);
     }
-  }, [editingId]);
-
-  const startRename = useCallback((group: TabGroupMeta) => {
-    setEditingId(group.id);
-    setEditName(group.name);
-  }, []);
-
-  const commitRename = useCallback(() => {
-    if (editingId && editName.trim()) {
-      const trimmed = editName.trim();
-      updateGroup(editingId, { name: trimmed });
-      syncUpdateGroup(editingId, { name: trimmed });
+    for (const role of roles) {
+      if (role.sessionId === null) roleCounts.set(role.groupId, (roleCounts.get(role.groupId) ?? 0) + 1);
     }
-    setEditingId(null);
-    setEditName("");
-  }, [editingId, editName, updateGroup, syncUpdateGroup]);
+    return { paneCounts, roleCounts };
+  }, [panes, roles]);
 
-  const handleRecolor = useCallback((groupId: string, color: string) => {
+  const filtered = useMemo(() => {
+    const query = filter.trim().toLowerCase();
+    const matched = query ? groups.filter((g) => g.name.toLowerCase().includes(query)) : groups;
+    // "Recent" is store order, which is creation order — the list is not
+    // re-sorted, so a group does not move while you are aiming at it.
+    return sort === "name"
+      ? [...matched].sort((a, b) => a.name.localeCompare(b.name))
+      : matched;
+  }, [filter, groups, sort]);
+
+  // A group with no sessions is "empty" whether or not it holds waiting roles.
+  // The roles matter for auto-close, not for this grouping — an operator
+  // scanning for clutter wants to see both, with the waiting count telling
+  // them which ones are deliberate.
+  const active = filtered.filter((g) => (counts.paneCounts.get(g.id) ?? 0) > 0);
+  const empty = filtered.filter((g) => (counts.paneCounts.get(g.id) ?? 0) === 0);
+  // Counted across every group, not the filtered view: the header describes
+  // the workspace, and a filter that hides clutter must not hide its count.
+  const emptyTotal = groups.filter((g) => (counts.paneCounts.get(g.id) ?? 0) === 0).length;
+
+  const toggleSelected = (groupId: string) => {
+    setSelectedIds((prev) => (prev.includes(groupId) ? prev.filter((id) => id !== groupId) : [...prev, groupId]));
+  };
+
+  const closeMany = (ids: string[]) => {
+    for (const id of ids) closeGroup(id);
+    setSelectedIds((prev) => prev.filter((id) => !ids.includes(id)));
+  };
+
+  const handleRecolor = (groupId: string, color: string) => {
     updateGroup(groupId, { color });
     syncUpdateGroup(groupId, { color });
     setPaletteId(null);
-  }, [updateGroup, syncUpdateGroup]);
-
-  const handleCreate = useCallback(async () => {
-    try {
-      const group = await createGroup();
-      setEditingId(group.id);
-      setEditName(group.name);
-    } catch (err) {
-      console.error("Failed to create group:", err);
-    }
-  }, [createGroup]);
-
-  const deleteCount = deleteTarget
-    ? panes.filter((p) => p.groupId === deleteTarget.id).length
-    : 0;
-
-  // While the delete confirm is layered on top, Escape/backdrop must resolve
-  // the topmost surface (the confirm) and leave the drawer open.
-  const requestClose = () => {
-    if (deleteTarget) {
-      setDeleteTarget(null);
-      return;
-    }
-    close();
   };
 
-  if (!target) return null;
+  if (!open) return null;
+
+  const renderRow = (group: TabGroupMeta) => {
+    const paneCount = counts.paneCounts.get(group.id) ?? 0;
+    const waitingCount = counts.roleCounts.get(group.id) ?? 0;
+    return (
+      <div
+        key={group.id}
+        data-testid={`manage-groups-row-${group.id}`}
+        className="rounded-lg border border-wc-default bg-wc-surface-base/50"
+      >
+        <div className="flex items-center gap-2 px-3 py-2">
+          <Checkbox
+            label=""
+            aria-label={t(strings.manageGroups.selectGroup, { name: group.name })}
+            data-testid={`manage-groups-select-${group.id}`}
+            checked={selectedIds.includes(group.id)}
+            onChange={() => { toggleSelected(group.id); }}
+          />
+
+          <button
+            type="button"
+            data-testid={`manage-groups-recolor-${group.id}`}
+            aria-label={t(strings.manageGroups.recolorAriaLabel, { name: group.name })}
+            title={t(strings.manageGroups.recolorAriaLabel, { name: group.name })}
+            aria-expanded={paletteId === group.id}
+            className="group/swatch relative flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-wc-default transition hover:ring-2 hover:ring-wc-accent/40"
+            style={{ backgroundColor: group.color }}
+            onClick={() => { setPaletteId((prev) => (prev === group.id ? null : group.id)); }}
+          >
+            <Palette className="h-3.5 w-3.5 text-black/50 opacity-0 transition group-hover/swatch:opacity-100" aria-hidden />
+          </button>
+
+          <span className="min-w-0 flex-1 truncate text-sm font-medium text-wc-text-primary">
+            {group.name}
+          </span>
+
+          {waitingCount > 0 && (
+            <span
+              data-testid={`manage-groups-waiting-${group.id}`}
+              data-waiting-count={waitingCount}
+              className="shrink-0 rounded border border-dashed border-wc-default px-1.5 py-0.5 text-[11px] text-wc-text-faint"
+            >
+              {t(strings.roles.waitingCount, { count: waitingCount })}
+            </span>
+          )}
+
+          <span
+            data-testid={`manage-groups-count-${group.id}`}
+            data-session-count={paneCount}
+            className="shrink-0 rounded bg-wc-surface-input px-1.5 py-0.5 text-[11px] text-wc-text-secondary"
+          >
+            {t(strings.manageGroups.sessionCount, { count: paneCount })}
+          </span>
+
+          <button
+            type="button"
+            data-testid={`manage-groups-close-${group.id}`}
+            aria-label={t(strings.manageGroups.closeAriaLabelFor, { name: group.name })}
+            title={t(strings.manageGroups.closeGroup)}
+            className="shrink-0 rounded-full p-1.5 text-wc-text-muted transition hover:bg-wc-surface-input hover:text-wc-text-primary"
+            onClick={() => { closeGroup(group.id); }}
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        {paletteId === group.id && (
+          <div data-testid="manage-groups-palette" className="flex flex-wrap gap-1.5 border-t border-wc-default px-3 py-2">
+            {HEADER_COLORS.map((color) => (
+              <button
+                key={color}
+                type="button"
+                data-testid={`manage-groups-color-${color}`}
+                className={cn(
+                  "h-5 w-5 rounded-full border border-wc-default transition hover:scale-110",
+                  color === group.color && "ring-2 ring-wc-accent",
+                )}
+                style={{ backgroundColor: color }}
+                title={color}
+                onClick={() => { handleRecolor(group.id, color); }}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  };
 
   return (
     <ResponsiveDialog
+      avoidKeyboard
       open
-      onClose={requestClose}
+      onClose={close}
       size="md"
       closeLabel={t(strings.manageGroups.closeAriaLabel)}
       title={t(strings.manageGroups.title)}
       testId="manage-groups-drawer"
     >
       <div className="flex h-full flex-col">
-        <div className="min-h-0 flex-1 space-y-2 overflow-y-auto p-4">
+        <div className="shrink-0 space-y-2 border-b border-wc-default p-3">
+          {/* What the list contains, before it is read. The empty count is
+              the number that decides whether this surface is worth opening. */}
+          <p data-testid="manage-groups-summary" className="text-[11px] text-wc-text-faint">
+            {t(strings.manageGroups.groupCount, { count: groups.length })}
+            {emptyTotal > 0 && ` · ${t(strings.manageGroups.emptyCount, { count: emptyTotal })}`}
+          </p>
+          <div className="flex items-center gap-2">
+          <label className="relative block min-w-0 flex-1">
+            <Search className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-wc-text-faint" aria-hidden />
+            <input
+              data-testid="manage-groups-filter"
+              aria-label={t(strings.manageGroups.filter)}
+              placeholder={t(strings.manageGroups.filter)}
+              value={filter}
+              onChange={(event) => { setFilter(event.target.value); }}
+              className="min-h-11 w-full rounded-lg border border-wc-default bg-wc-surface-input py-2 ps-9 pe-3 text-sm text-wc-text-primary outline-none transition placeholder:text-wc-text-faint focus:border-wc-accent"
+            />
+          </label>
+          <button
+            type="button"
+            data-testid="manage-groups-sort"
+            aria-label={t(strings.manageGroups.sort)}
+            onClick={() => { setSort((prev) => (prev === "recent" ? "name" : "recent")); }}
+            className="flex min-h-11 shrink-0 items-center gap-1.5 rounded-lg border border-wc-default bg-wc-surface-input px-3 text-xs text-wc-text-secondary transition hover:border-wc-accent hover:text-wc-text-primary"
+          >
+            <ArrowDownUp className="h-3.5 w-3.5 shrink-0" aria-hidden />
+            {sort === "recent" ? t(strings.manageGroups.sortRecent) : t(strings.manageGroups.sortName)}
+          </button>
+          </div>
+        </div>
+
+        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4">
           {groups.length === 0 && (
             <p data-testid="manage-groups-empty" className="py-6 text-center text-sm text-wc-text-muted">
               {t(strings.manageGroups.empty)}
             </p>
           )}
 
-          {groups.map((group) => {
-            const count = panes.filter((p) => p.groupId === group.id).length;
-            const isEditing = editingId === group.id;
-            const isMember = contextPane?.groupId === group.id;
-            return (
-              <div
-                key={group.id}
-                data-testid={`manage-groups-row-${group.id}`}
-                className="rounded-lg border border-wc-default bg-wc-surface-base/50"
-              >
-                <div className="flex items-center gap-2 px-3 py-2">
-                  <button
-                    type="button"
-                    data-testid={`manage-groups-recolor-${group.id}`}
-                    aria-label={t(strings.manageGroups.recolorAriaLabel, { name: group.name })}
-                    className="h-4 w-4 shrink-0 rounded-full border border-wc-default transition hover:scale-110"
-                    style={{ backgroundColor: group.color }}
-                    onClick={() => setPaletteId((prev) => (prev === group.id ? null : group.id))}
-                  />
+          {groups.length > 0 && filtered.length === 0 && (
+            <p data-testid="manage-groups-no-matches" className="py-6 text-center text-sm text-wc-text-muted">
+              {t(strings.manageGroups.noMatches)}
+            </p>
+          )}
 
-                  {isEditing ? (
-                    <input
-                      ref={renameInputRef}
-                      data-testid="manage-groups-rename-input"
-                      className="min-w-0 flex-1 rounded bg-wc-surface-input px-2 py-1 text-sm font-medium text-wc-text-primary outline-none ring-1 ring-wc-accent"
-                      value={editName}
-                      onChange={(e) => setEditName(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") commitRename();
-                        if (e.key === "Escape") {
-                          e.stopPropagation();
-                          setEditingId(null);
-                          setEditName("");
-                        }
-                      }}
-                      onBlur={commitRename}
-                    />
-                  ) : (
-                    <span className="min-w-0 flex-1 truncate text-sm font-medium text-wc-text-primary">
-                      {group.name}
-                    </span>
-                  )}
-
-                  <span
-                    data-testid={`manage-groups-count-${group.id}`}
-                    className="shrink-0 rounded bg-wc-surface-input px-1.5 py-0.5 text-[11px] text-wc-text-secondary"
-                  >
-                    {t(strings.manageGroups.sessionCount, { count })}
-                  </span>
-
-                  {contextPane && (
-                    <button
-                      type="button"
-                      data-testid={isMember ? `manage-groups-unassign-${group.id}` : `manage-groups-assign-${group.id}`}
-                      aria-label={isMember ? t(strings.manageGroups.removeSession) : t(strings.manageGroups.assignSession)}
-                      title={isMember ? t(strings.manageGroups.removeSession) : t(strings.manageGroups.assignSession)}
-                      className={cn(rowIconButtonClass, isMember && "text-wc-accent")}
-                      onClick={() =>
-                        isMember
-                          ? removePaneFromGroup(contextPane.sessionId)
-                          : assignPaneToGroup(contextPane.sessionId, group.id)
-                      }
-                    >
-                      {isMember ? <FolderMinus className="h-4 w-4" /> : <FolderPlus className="h-4 w-4" />}
-                    </button>
-                  )}
-
-                  <button
-                    type="button"
-                    data-testid={`manage-groups-rename-${group.id}`}
-                    aria-label={t(strings.manageGroups.renameAriaLabel, { name: group.name })}
-                    className={rowIconButtonClass}
-                    onClick={() => startRename(group)}
-                  >
-                    <Pencil className="h-4 w-4" />
-                  </button>
-
-                  <button
-                    type="button"
-                    data-testid={`manage-groups-delete-${group.id}`}
-                    aria-label={t(strings.manageGroups.deleteAriaLabel, { name: group.name })}
-                    className={rowIconButtonClass}
-                    onClick={() => setDeleteTarget(group)}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
-                </div>
-
-                {paletteId === group.id && (
-                  <div data-testid="manage-groups-palette" className="flex flex-wrap gap-1.5 border-t border-wc-default px-3 py-2">
-                    {HEADER_COLORS.map((color) => (
-                      <button
-                        key={color}
-                        type="button"
-                        data-testid={`manage-groups-color-${color}`}
-                        className={cn(
-                          "h-5 w-5 rounded-full border border-wc-default transition hover:scale-110",
-                          color === group.color && "ring-2 ring-wc-accent",
-                        )}
-                        style={{ backgroundColor: color }}
-                        title={color}
-                        onClick={() => handleRecolor(group.id, color)}
-                      />
-                    ))}
-                  </div>
-                )}
+          {active.length > 0 && (
+            <section data-testid="manage-groups-section-active" className="space-y-2">
+              <div className="flex items-center gap-2 px-1 text-xs font-semibold uppercase tracking-wider text-wc-text-faint">
+                <Folder className="h-3.5 w-3.5" aria-hidden />
+                {t(strings.manageGroups.sectionActive)}
               </div>
-            );
-          })}
+              {active.map(renderRow)}
+            </section>
+          )}
+
+          {empty.length > 0 && (
+            <section data-testid="manage-groups-section-empty" className="space-y-2">
+              <div className="flex items-center gap-2 px-1">
+                <div className="flex flex-1 items-center gap-2 text-xs font-semibold uppercase tracking-wider text-wc-text-faint">
+                  <FolderX className="h-3.5 w-3.5" aria-hidden />
+                  {t(strings.manageGroups.sectionEmpty)}
+                </div>
+                <button
+                  type="button"
+                  data-testid="manage-groups-close-all-empty"
+                  onClick={() => { closeMany(empty.map((g) => g.id)); }}
+                  className="min-h-11 rounded-lg px-2 text-xs font-medium text-wc-accent transition hover:bg-wc-surface-input"
+                >
+                  {t(strings.manageGroups.closeAllEmpty)}
+                </button>
+              </div>
+              <p className="px-1 text-[11px] text-wc-text-faint">{t(strings.manageGroups.sectionEmptyHint)}</p>
+              {empty.map(renderRow)}
+            </section>
+          )}
         </div>
 
-        <div className="shrink-0 border-t border-wc-default p-3">
+        {selectedIds.length > 0 && (
+          <div data-testid="manage-groups-bulk-bar" className="shrink-0 border-t border-wc-default p-3">
+            <BulkActionBar
+              selectedCount={selectedIds.length}
+              totalCount={filtered.length}
+              actionLabel={t(strings.manageGroups.closeSelected, { count: selectedIds.length })}
+              clearLabel={t(strings.manageGroups.clearSelection)}
+              selectAllLabel={t(strings.manageGroups.selectAll)}
+              onAction={() => { closeMany(selectedIds); }}
+              onClear={() => { setSelectedIds([]); }}
+              onSelectAll={() => { setSelectedIds(filtered.map((g) => g.id)); }}
+            />
+          </div>
+        )}
+
+        <div className="shrink-0 space-y-3 border-t border-wc-default p-3">
+          <label className="flex items-start gap-2 text-xs text-wc-text-secondary">
+            <input
+              type="checkbox"
+              data-testid="manage-groups-auto-close"
+              checked={autoCloseEmptyGroups}
+              onChange={(event) => { setAutoCloseEmptyGroups(event.target.checked); }}
+              className="mt-0.5 h-4 w-4 accent-[rgb(var(--wc-accent))]"
+            />
+            <span>
+              <span className="block">{t(strings.manageGroups.autoClose)}</span>
+              <span className="block text-[11px] text-wc-text-faint">{t(strings.manageGroups.autoCloseHint)}</span>
+            </span>
+          </label>
+
           <Button
             data-testid="manage-groups-create"
             variant="outline"
             className="w-full"
-            onClick={() => { void handleCreate(); }}
+            onClick={() => { void createGroup(); }}
           >
-            <Plus className="h-4 w-4 me-2" />
             {t(strings.manageGroups.create)}
           </Button>
         </div>
       </div>
-
-      <AlertDialog
-        open={deleteTarget !== null}
-        title={t(strings.manageGroups.deleteTitle, { name: deleteTarget?.name ?? "" })}
-        description={
-          deleteCount === 0
-            ? t(strings.manageGroups.deleteConsequenceNone)
-            : t(strings.manageGroups.deleteConsequence, { count: deleteCount })
-        }
-        cancelLabel={t(strings.manageGroups.deleteCancel)}
-        confirmLabel={t(strings.manageGroups.deleteConfirm)}
-        destructive
-        onCancel={() => setDeleteTarget(null)}
-        onConfirm={() => {
-          if (deleteTarget) deleteGroup(deleteTarget.id);
-          setDeleteTarget(null);
-        }}
-        testIdPrefix="manage-groups-delete-confirm"
-      />
     </ResponsiveDialog>
   );
 }

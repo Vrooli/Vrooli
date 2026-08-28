@@ -34,6 +34,9 @@ function maybeSendResize(
   }
 }
 
+/** Window a burst of terminal title changes collapses into one pane write. */
+const TITLE_SYNC_DEBOUNCE_MS = 750;
+
 export async function waitForTerminalFont(fontSize: number): Promise<void> {
   if (typeof document !== "undefined" && "fonts" in document) {
     await document.fonts.load(`${String(fontSize)}px ${TERMINAL_FONT_FAMILY}`);
@@ -56,6 +59,9 @@ export function useXtermLifecycle(options: XtermLifecycleOptions) {
   const terminalHostRef = useRef<HTMLDivElement>(null);
   const fitRef = useRef<FitAddon | null>(null);
   const lastSentSizeRef = useRef<{ cols: number; rows: number } | null>(null);
+  const pendingTitleRef = useRef<string | null>(null);
+  const syncedTitleRef = useRef<string | null>(null);
+  const titleFlushRef = useRef<number | null>(null);
   const [terminal, setTerminal] = useState<Terminal | null>(null);
   const [paneSize, setPaneSize] = useState({ width: 0, height: 0 });
 
@@ -90,9 +96,25 @@ export function useXtermLifecycle(options: XtermLifecycleOptions) {
       if (xtermTextarea) xtermTextarea.inputMode = "none";
     };
     if (isTouchDevice && xtermTextarea) xtermTextarea.addEventListener("blur", handleXtermBlur);
+    // The title is a stream, not an event: a shell rewrites it on every
+    // prompt and a working agent rewrites it continuously, which turned one
+    // idle pane into a steady run of pane writes — each a network round trip.
+    // The local rename stays immediate so the tab label keeps up; only the
+    // persisted copy is coalesced, and an unchanged title never travels.
+    const flushTitle = () => {
+      titleFlushRef.current = null;
+      const next = pendingTitleRef.current;
+      if (next === null || next === syncedTitleRef.current) return;
+      syncedTitleRef.current = next;
+      syncPaneUpdate(sessionId, { name: next });
+    };
     const titleDisposable = term.onTitleChange((title) => {
       renamePaneById(sessionId, title);
-      syncPaneUpdate(sessionId, { name: title });
+      pendingTitleRef.current = title;
+      // Trailing-edge only: while titles keep arriving the window keeps the
+      // pending value and one write lands after they stop.
+      if (titleFlushRef.current !== null) return;
+      titleFlushRef.current = window.setTimeout(flushTitle, TITLE_SYNC_DEBOUNCE_MS);
     });
     fitRef.current = fitAddon;
     setTerminal(term);
@@ -100,6 +122,10 @@ export function useXtermLifecycle(options: XtermLifecycleOptions) {
       disposed = true;
       if (isTouchDevice && xtermTextarea) xtermTextarea.removeEventListener("blur", handleXtermBlur);
       titleDisposable.dispose();
+      if (titleFlushRef.current !== null) {
+        window.clearTimeout(titleFlushRef.current);
+        titleFlushRef.current = null;
+      }
       term.dispose();
       fitRef.current = null;
       setTerminal(null);

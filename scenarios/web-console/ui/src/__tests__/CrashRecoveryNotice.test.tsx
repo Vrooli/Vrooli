@@ -36,7 +36,7 @@ describe("crash recovery banner", () => {
     expect(notice).toHaveTextContent("recoverableSessions.heading");
     // The top safe-area inset is owned by TopSafeArea around the whole region
     // now, not bolted onto this one notice with a `topSafe` prop.
-    expect(notice).toHaveAttribute("data-wc-banner");
+    expect(notice).toHaveAttribute("data-rcl-banner");
     fireEvent.click(screen.getByTestId("crash-recovery-notice-view-archive"));
     expect(onOpenArchive).toHaveBeenCalledOnce();
   });

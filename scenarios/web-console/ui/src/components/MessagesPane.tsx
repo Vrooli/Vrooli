@@ -40,6 +40,8 @@ import { PlaybackModeControl, type SummarizationLevel } from "./tts/PlaybackMode
 import type { TTSPlaybackState } from "../audio-integration";
 import type { PlaybackFocusRequest, PlaybackVersion } from "../domains/tts-playback/types";
 import MessagesFileViewer from "./MessagesFileViewer";
+import HandoffSuggestionChip from "./handoff/HandoffSuggestionChip";
+import { useHandoffSuggestions } from "../hooks/useHandoffSuggestions";
 import MessagesMermaidViewer from "./MessagesMermaidViewer";
 import MessagesPaneState from "./MessagesPaneState";
 import MessagesPaneStatusLine from "./MessagesPaneStatusLine";
@@ -51,6 +53,12 @@ import { resolveMessagesPaneStatus } from "../lib/messagesPaneStatus";
 
 interface MessagesPaneProps {
   sessionId: string;
+  /**
+   * Hand a file (or a matched passage) from this session to another in its
+   * group. Threaded down to the file viewer, which already holds both the
+   * resolved path and this session id.
+   */
+  onHandoff?: (sessionId: string, payload: string) => void;
   onPlayFromHere: (eventId: string) => void;
   onPlayEvent: (eventId: string) => void;
   activeSpeakingEventId: string | null;
@@ -190,7 +198,7 @@ const MessageRow = memo(function MessageRow({
   onPlayEvent,
   isTtsSpeaking,
   activeSpeakingEventId,
-  loadingEventId = null,
+  loadingEventId,
   summarizeLevel,
   selectedVersionForEvent,
   summarizingEventId,
@@ -235,13 +243,13 @@ const MessageRow = memo(function MessageRow({
     const node = contentRef.current;
     if (!node) return;
 
-    const measure = () => setIsTall(node.scrollHeight > COLLAPSE_THRESHOLD_PX);
+    const measure = () => { setIsTall(node.scrollHeight > COLLAPSE_THRESHOLD_PX); };
     measure();
 
     if (typeof ResizeObserver === "undefined") return;
-    const observer = new ResizeObserver(() => measure());
+    const observer = new ResizeObserver(() => { measure(); });
     observer.observe(node);
-    return () => observer.disconnect();
+    return () => { observer.disconnect(); };
   }, [event.text, isExpanded, isPlaintext]);
 
   const isUser = event.role === "user";
@@ -260,7 +268,7 @@ const MessageRow = memo(function MessageRow({
 
   return (
     <article
-      ref={(node) => registerItem(index, node)}
+      ref={(node) => { registerItem(index, node); }}
       data-testid={`msg-card-${event.id}`}
       className={cn(
         "border-b border-wc-default border-l-[3px] py-3 ps-3 pe-1 transition-colors",
@@ -273,7 +281,7 @@ const MessageRow = memo(function MessageRow({
       <div className="mb-1.5 flex items-center gap-2 text-[11px] uppercase tracking-[0.12em] text-wc-text-faint">
         <button
           data-testid={`msg-copy-${event.id}`}
-          onClick={() => onCopy(event.id, event.text)}
+          onClick={() => { onCopy(event.id, event.text); }}
           className="rounded p-0.5 text-wc-text-muted transition hover:text-wc-text-primary hover:bg-wc-accent/10"
           title={t(strings.messagesPane.copyMessageTitle)}
           type="button"
@@ -285,7 +293,7 @@ const MessageRow = memo(function MessageRow({
 
         <button
           data-testid={`msg-render-toggle-${event.id}`}
-          onClick={() => onToggleRenderMode(event.id)}
+          onClick={() => { onToggleRenderMode(event.id); }}
           aria-pressed={isPlaintext}
           className={cn(
             "rounded p-0.5 text-wc-text-muted transition hover:text-wc-text-primary hover:bg-wc-accent/10",
@@ -303,7 +311,7 @@ const MessageRow = memo(function MessageRow({
           <>
             <button
               data-testid={`msg-speak-from-${event.id}`}
-              onClick={() => onPlayFromHere(event.id)}
+              onClick={() => { onPlayFromHere(event.id); }}
               disabled={isAudioLoading}
               className={cn(
                 "rounded p-0.5 text-wc-text-muted transition hover:text-wc-text-primary hover:bg-wc-accent/10",
@@ -321,8 +329,8 @@ const MessageRow = memo(function MessageRow({
               canSummarize
               isSummarizing={summarizingEventId === event.id}
               currentLevel={summarizeLevel}
-              onToggleSummarized={(use) => onToggleSummarized(event.id, use)}
-              onChangeLevel={(level) => onChangeLevel(event.id, level)}
+              onToggleSummarized={(use) => { onToggleSummarized(event.id, use); }}
+              onChangeLevel={(level) => { onChangeLevel(event.id, level); }}
             />
             <button
               ref={audioButtonRef}
@@ -346,8 +354,8 @@ const MessageRow = memo(function MessageRow({
 
             {isPopoverOpen && createPortal(
               isMobile ? (
-                <div className="fixed inset-0 z-wc-popover-backdrop" onMouseDown={(e) => e.preventDefault()}>
-                  <div className="absolute inset-0 bg-wc-backdrop" onClick={() => setOpenPopoverId(null)} />
+                <div className="fixed inset-0 z-wc-popover-backdrop" onMouseDown={(e) => { e.preventDefault(); }}>
+                  <div className="absolute inset-0 bg-wc-backdrop" onClick={() => { setOpenPopoverId(null); }} />
                   <div
                     data-testid={`audio-popover-${event.id}`}
                     className="wc-stable-theme absolute bottom-0 left-0 right-0 z-wc-popover rounded-t-[20px] border-t border-wc-default bg-wc-surface-raised p-4 pb-[max(1rem,var(--wc-safe-bottom))] ps-[max(1rem,var(--wc-safe-left,0px))] pe-[max(1rem,var(--wc-safe-right,0px))] shadow-2xl"
@@ -385,7 +393,7 @@ const MessageRow = memo(function MessageRow({
                       <button
                         data-testid={`msg-clear-summarize-error-${event.id}`}
                         className="mt-2 w-full rounded-lg bg-wc-surface-base px-3 py-2 text-xs font-medium text-wc-text-muted transition hover:bg-wc-surface-input"
-                        onClick={() => onClearSummarizeError(event.id)}
+                        onClick={() => { onClearSummarizeError(event.id); }}
                       >
                         {t(strings.messagesPane.dismissError)}
                       </button>
@@ -394,7 +402,7 @@ const MessageRow = memo(function MessageRow({
                 </div>
               ) : (
                 <>
-                  <div className="fixed inset-0 z-wc-popover-backdrop" onClick={() => setOpenPopoverId(null)} />
+                  <div className="fixed inset-0 z-wc-popover-backdrop" onClick={() => { setOpenPopoverId(null); }} />
                   <div
                     ref={audioPopoverRef}
                     data-testid={`audio-popover-${event.id}`}
@@ -430,7 +438,7 @@ const MessageRow = memo(function MessageRow({
                       <button
                         data-testid={`msg-clear-summarize-error-${event.id}`}
                         className="mt-2 w-full rounded-lg bg-wc-surface-base px-3 py-2 text-xs font-medium text-wc-text-muted transition hover:bg-wc-surface-input"
-                        onClick={() => onClearSummarizeError(event.id)}
+                        onClick={() => { onClearSummarizeError(event.id); }}
                       >
                         {t(strings.messagesPane.dismissError)}
                       </button>
@@ -446,7 +454,7 @@ const MessageRow = memo(function MessageRow({
         {onSendToComposer && (
           <button
             data-testid={`msg-send-to-composer-${event.id}`}
-            onClick={() => onSendToComposer(event.text)}
+            onClick={() => { onSendToComposer(event.text); }}
             className="rounded p-0.5 text-wc-text-muted transition hover:bg-wc-accent/10 hover:text-wc-text-primary"
             title={t(strings.messagesPane.sendToComposerTitle)}
             type="button"
@@ -486,7 +494,7 @@ const MessageRow = memo(function MessageRow({
       {isTall && (
         <button
           data-testid={`msg-collapse-${event.id}`}
-          onClick={() => onToggleExpanded(event.id)}
+          onClick={() => { onToggleExpanded(event.id); }}
           className="mt-1 text-xs text-wc-accent hover:text-wc-accent/80 transition-colors"
           type="button"
         >
@@ -520,6 +528,7 @@ const MessageRow = memo(function MessageRow({
 
 export default function MessagesPane({
   sessionId,
+  onHandoff,
   onPlayFromHere,
   onPlayEvent,
   activeSpeakingEventId,
@@ -577,7 +586,7 @@ export default function MessagesPane({
   const handleCopy = useCallback((eventId: string, text: string) => {
     void writeText(text);
     setCopiedEventId(eventId);
-    setTimeout(() => setCopiedEventId((prev) => (prev === eventId ? null : prev)), 2000);
+    setTimeout(() => { setCopiedEventId((prev) => (prev === eventId ? null : prev)); }, 2000);
   }, []);
 
   // --- Search & navigation ---
@@ -624,6 +633,8 @@ export default function MessagesPane({
 
   // --- File preview ---
   const filePreview = useFilePreviewController(sessionId);
+  // Rules only ever offer. Nothing on this path can send.
+  const handoffSuggestions = useHandoffSuggestions(sessionId);
 
   // --- Auto-scroll ---
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -773,9 +784,9 @@ export default function MessagesPane({
     };
 
     updateNearBottom(false);
-    const onScroll = () => updateNearBottom(true);
+    const onScroll = () => { updateNearBottom(true); };
     el.addEventListener("scroll", onScroll, { passive: true });
-    return () => el.removeEventListener("scroll", onScroll);
+    return () => { el.removeEventListener("scroll", onScroll); };
   }, [sessionId]);
 
   // Release the bottom-pin or event-pin as soon as the user scrolls away from
@@ -931,13 +942,13 @@ export default function MessagesPane({
       if (!match || !await loadConversationPageContaining(sessionId, match.sequence)) return;
       requestAnimationFrame(() => {
         const loadedIndex = useConversationStore.getState().sessions[sessionId]?.events.findIndex((event) => event.id === eventId) ?? -1;
-        if (loadedIndex >= 0) runProgrammaticScroll(() => scrollToIndex(loadedIndex, "auto", "center"));
+        if (loadedIndex >= 0) runProgrammaticScroll(() => { scrollToIndex(loadedIndex, "auto", "center"); });
       });
       return;
     }
     pinToBottomRef.current = false;
     pinToEventIdRef.current = null;
-    runProgrammaticScroll(() => scrollToIndex(index, "smooth", "center"));
+    runProgrammaticScroll(() => { scrollToIndex(index, "smooth", "center"); });
   }, [eventIndexById, runProgrammaticScroll, scrollToIndex, searchMatchById, sessionId]);
 
   // Restore scroll position on mount: read the snapshot saved when the pane
@@ -964,10 +975,10 @@ export default function MessagesPane({
     const el = scrollContainerRef.current;
     if (!el) return;
     if (pinToBottomRef.current) {
-      runProgrammaticScroll(() => el.scrollTo({ top: el.scrollHeight }));
+      runProgrammaticScroll(() => { el.scrollTo({ top: el.scrollHeight }); });
     } else if (pinToEventIdRef.current) {
       const index = eventIndexById.get(pinToEventIdRef.current);
-      if (index != null) runProgrammaticScroll(() => scrollToIndex(index, "auto", "start"));
+      if (index != null) runProgrammaticScroll(() => { scrollToIndex(index, "auto", "start"); });
     }
   }, [events.length, sessionId, eventIndexById, runProgrammaticScroll, scrollToIndex]);
 
@@ -989,10 +1000,10 @@ export default function MessagesPane({
       return;
     }
     if (pinToBottomRef.current) {
-      runProgrammaticScroll(() => el.scrollTo({ top: el.scrollHeight }));
+      runProgrammaticScroll(() => { el.scrollTo({ top: el.scrollHeight }); });
     } else if (pinToEventIdRef.current) {
       const index = eventIndexById.get(pinToEventIdRef.current);
-      if (index != null) runProgrammaticScroll(() => scrollToIndex(index, "auto", "start"));
+      if (index != null) runProgrammaticScroll(() => { scrollToIndex(index, "auto", "start"); });
     }
   }, [totalSize, eventIndexById, runProgrammaticScroll, scrollToIndex]);
 
@@ -1045,12 +1056,12 @@ export default function MessagesPane({
     () => ({
       selectedIds: exportSelectedIds,
       onToggle: (eventId) =>
-        setExportSelectedIds((prev) => {
+        { setExportSelectedIds((prev) => {
           const next = new Set(prev);
           if (next.has(eventId)) next.delete(eventId);
           else next.add(eventId);
           return next;
-        }),
+        }); },
       onSelectAll: () => {
         setExportSelectedIds(new Set(eventIds));
         void getConversationRange(sessionId, 1, totalCount).then((response) => {
@@ -1058,9 +1069,9 @@ export default function MessagesPane({
           setExportEventsById(new Map(response.events.map((event) => [event.id, event])));
         }).catch(() => undefined);
       },
-      onSelectVisible: (visibleIds) => setExportSelectedIds(new Set(visibleIds)),
-      onClear: () => setExportSelectedIds(new Set()),
-      onContinue: () => setExportDrawerOpen(true),
+      onSelectVisible: (visibleIds) => { setExportSelectedIds(new Set(visibleIds)); },
+      onClear: () => { setExportSelectedIds(new Set()); },
+      onContinue: () => { setExportDrawerOpen(true); },
     }),
     [exportSelectedIds, eventIds, sessionId, totalCount],
   );
@@ -1089,7 +1100,7 @@ export default function MessagesPane({
     const reveal = async () => {
       const present = useConversationStore.getState().sessions[sessionId]?.events.some((event) => event.id === focusEventId);
       if (!present && !await loadConversationPageContaining(sessionId, focusSequence)) return;
-      if (!cancelled) requestAnimationFrame(() => focusAndScroll(focusEventId));
+      if (!cancelled) requestAnimationFrame(() => { focusAndScroll(focusEventId); });
     };
     void reveal();
     return () => { cancelled = true; };
@@ -1144,7 +1155,7 @@ export default function MessagesPane({
   const handleMermaidOpen = useCallback((code: string) => {
     setMermaidViewer({ code });
   }, []);
-  const closeMermaidViewer = useCallback(() => setMermaidViewer(null), []);
+  const closeMermaidViewer = useCallback(() => { setMermaidViewer(null); }, []);
 
   return (
     <div
@@ -1158,7 +1169,7 @@ export default function MessagesPane({
       >
         <button
           data-testid="messages-search-btn"
-          onClick={() => openNavigator("search")}
+          onClick={() => { openNavigator("search"); }}
           aria-pressed={!!searchQuery}
           className={cn(
             "flex h-8 w-8 items-center justify-center rounded-full border border-wc-default bg-wc-surface-raised/80 text-wc-text-secondary transition-colors hover:bg-wc-surface-input hover:text-wc-text-primary backdrop-blur-sm",
@@ -1172,7 +1183,7 @@ export default function MessagesPane({
 
         <button
           data-testid="msg-jump-trigger"
-          onClick={() => (navOpen ? setNavOpen(false) : openNavigator("list"))}
+          onClick={() => { navOpen ? setNavOpen(false) : openNavigator("list"); }}
           disabled={events.length === 0}
           className="flex h-8 items-center gap-1 rounded-full border border-wc-default bg-wc-surface-raised/80 px-2.5 text-xs text-wc-text-secondary transition-colors hover:bg-wc-surface-input hover:text-wc-text-primary backdrop-blur-sm disabled:opacity-30 disabled:pointer-events-none"
           title={t(strings.messagesPane.jumpToMessageTitle)}
@@ -1224,7 +1235,7 @@ export default function MessagesPane({
           events={events}
           focusedEventId={focusedEventId}
           onSelect={focusAndScroll}
-          onClose={() => setNavOpen(false)}
+          onClose={() => { setNavOpen(false); }}
           mode="jump"
           initialFocus={navInitialFocus}
           query={searchQuery}
@@ -1238,7 +1249,7 @@ export default function MessagesPane({
       <MessageExportDrawer
         open={exportDrawerOpen}
         events={exportEvents}
-        onClose={() => setExportDrawerOpen(false)}
+        onClose={() => { setExportDrawerOpen(false); }}
       />
 
 
@@ -1298,6 +1309,17 @@ export default function MessagesPane({
                     readOnly={readOnly}
                     onSendToComposer={onSendToComposer}
                   />
+                  {/* Suggestions render INSIDE the message's own block, so
+                      offering one never moves the transcript the operator is
+                      reading. */}
+                  {onHandoff && handoffSuggestions.forEvent(event.id).map((suggestion) => (
+                    <HandoffSuggestionChip
+                      key={`${suggestion.ruleId}:${suggestion.payload}`}
+                      suggestion={suggestion}
+                      onOpen={(s) => { onHandoff(sessionId, s.payload); }}
+                      onDismiss={handoffSuggestions.dismiss}
+                    />
+                  ))}
                 </div>
               );
             })}
@@ -1331,6 +1353,7 @@ export default function MessagesPane({
 
       <MessagesFileViewer
         state={filePreview.state}
+        onHandoff={onHandoff ? (path) => { onHandoff(sessionId, path); } : undefined}
         onClose={filePreview.close}
         onReopen={filePreview.reopen}
         onRendererError={filePreview.reportError}

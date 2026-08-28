@@ -49,14 +49,21 @@ describe("Connect client wrappers", () => {
   });
 
   it("maps workspace requests and responses", async () => {
-    vi.spyOn(workspace.workspaceClient, "getLayout").mockResolvedValue({ activePane: "s1", panes: [{ sessionId: "s1", name: "main", headerColor: "red", themeId: "dark", fontSize: 14, sortOrder: 1, groupId: "", supportsMessagesView: true, manuallyUnread: false }], groups: [{ id: "g1", name: "G", color: "blue", sortOrder: 0, isCollapsed: false }] } as never);
+    vi.spyOn(workspace.workspaceClient, "getLayout").mockResolvedValue({ activePane: "s1", panes: [{ sessionId: "s1", name: "main", headerColor: "red", themeId: "dark", fontSize: 14, sortOrder: 1, groupId: "", supportsMessagesView: true, manuallyUnread: false }], groups: [{ id: "g1", name: "G", color: "blue", sortOrder: 0, isCollapsed: false }], roles: [{ id: "r1", groupId: "g1", label: "Implementer", command: "codex --yolo", workingDir: "", incomingPrompt: "Do {{payload}}", backend: "", targetId: "", sessionId: "", sortOrder: 0 }] } as never);
     vi.spyOn(workspace.workspaceClient, "saveLayout").mockResolvedValue({} as never);
     vi.spyOn(workspace.workspaceClient, "updatePane").mockResolvedValue({ pane: { sessionId: "s1", name: "new", headerColor: "red", themeId: "dark", fontSize: 16, sortOrder: 2, groupId: "g1", supportsMessagesView: true, manuallyUnread: true } } as never);
     vi.spyOn(workspace.workspaceClient, "deletePane").mockResolvedValue({} as never);
     vi.spyOn(workspace.workspaceClient, "createGroup").mockResolvedValue({ group: { id: "g1", name: "G", color: "blue", sortOrder: 0, isCollapsed: false } } as never);
     vi.spyOn(workspace.workspaceClient, "updateGroup").mockResolvedValue({ group: { id: "g1", name: "G2", color: "green", sortOrder: 1, isCollapsed: true } } as never);
     vi.spyOn(workspace.workspaceClient, "deleteGroup").mockResolvedValue({} as never);
-    await expect(workspace.getWorkspaceLayout()).resolves.toMatchObject({ active_pane: "s1", panes: [{ group_id: null }], groups: [{ id: "g1" }] });
+    // Roles ride along in the same response, and a waiting role's empty wire
+    // session id decodes to null so no caller can mistake "" for a session.
+    await expect(workspace.getWorkspaceLayout()).resolves.toMatchObject({
+      active_pane: "s1",
+      panes: [{ group_id: null }],
+      groups: [{ id: "g1" }],
+      roles: [{ id: "r1", group_id: "g1", session_id: null }],
+    });
     await workspace.saveWorkspaceLayout({ active_pane: null, pane_order: ["s1"] });
     await expect(workspace.updateWorkspacePane("s1", { name: "new", group_id: null, manually_unread: true })).resolves.toMatchObject({ name: "new", group_id: "g1" });
     await workspace.deleteWorkspacePane("s1");

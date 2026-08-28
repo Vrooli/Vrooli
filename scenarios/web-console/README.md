@@ -51,6 +51,34 @@ Web Console is designed for personal server use — a single operator running th
 - Closing a pane archives it and preserves its transcript. Permanent deletion is a separate confirmed action.
 - Archived sessions expose `Reopenable`, `Read-only`, or `Nothing to restore` before the operator acts.
 
+### Groups, Roles, and Handoffs
+
+- A **group** is one piece of work, named for the task. The new-session dialog
+  states which group it will join on every open, and can create one by name
+  without leaving the dialog.
+- A **role** is a named position inside a group. A role is *running* when it
+  holds a session and *waiting* when it holds a command and no session. A
+  waiting role costs no process and no PTY, survives a restart, and renders as
+  a dashed placeholder. Roles are optional: dragging a session into a group
+  keeps working and creates none.
+- A **group template** is a saved role list. Creating a group from one creates
+  the group and its roles in a single action; only a role marked *starts now*
+  spends a process.
+- A **handoff** sends a message from one session to one or more targets in the
+  same group, from the pane header, the file viewer, or a sidebar role. It
+  starts a waiting target first, reports a per-target `sent`, `queued`, or
+  `failed` result, and is never dropped silently. The payload is a file path, a
+  passage, or nothing — the console never classifies it.
+- A **capture rule** decides when a handoff is *suggested*. A rule never sends
+  anything: a match is a dismissible chip that opens the same composer a button
+  opens.
+- A group with no sessions and no waiting roles closes itself, reversibly. The
+  waiting-role exemption is what keeps a half-started group alive.
+
+Shipped templates and rules are ordinary editable rows. Deleting them leaves
+every capability working. Design record:
+`docs/internal/ROLES-AND-HANDOFFS-UX.md`.
+
 ### Conversation Messages
 
 - Messages use a bounded 500-event window. Opening a Messages pane reads the newest page; approaching the top loads the preceding page without shifting the visible content.

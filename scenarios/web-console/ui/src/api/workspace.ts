@@ -5,6 +5,7 @@ import { createClient } from "@connectrpc/connect";
 import { WorkspaceService } from "@vrooli/proto-types/web-console/v1/workspace/workspace_pb";
 
 import { transport } from "./client";
+import { decodeRole, type RoleDTO } from "./workspaceRoles";
 
 export const workspaceClient = createClient(WorkspaceService, transport);
 
@@ -36,6 +37,8 @@ export interface WorkspaceLayoutDTO {
   active_pane: string;
   panes: WorkspacePaneDTO[];
   groups: TabGroupDTO[];
+  /** Named positions inside groups. Empty for a workspace that uses none. */
+  roles: RoleDTO[];
 }
 
 function decodePane(p: {
@@ -84,6 +87,8 @@ export async function getWorkspaceLayout(): Promise<WorkspaceLayoutDTO> {
     active_pane: resp.activePane,
     panes: resp.panes.map(decodePane),
     groups: resp.groups.map(decodeGroup),
+    // Roles ride along in the same response: hydration stays one round trip.
+    roles: resp.roles.map(decodeRole),
   };
 }
 

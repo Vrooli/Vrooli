@@ -4,6 +4,8 @@ import {
   Blocks,
   Keyboard,
   PlugZap,
+  LayoutTemplate,
+  Send,
   Settings2,
   TerminalSquare,
   Volume2,
@@ -19,6 +21,8 @@ export const SETTINGS_TAB_IDS = [
   "voice-output",
   "shortcuts",
   "new-pane-defaults",
+  "templates",
+  "handoff-rules",
   "integrations",
 ] as const;
 
@@ -39,6 +43,8 @@ const TAB_ICONS: Record<SettingsTabId, typeof TerminalSquare> = {
   "voice-output": Volume2,
   shortcuts: Keyboard,
   "new-pane-defaults": Blocks,
+  templates: LayoutTemplate,
+  "handoff-rules": Send,
   integrations: PlugZap,
 };
 
@@ -72,6 +78,16 @@ const TAB_STRING_KEYS = {
     label: strings.settings.tabs.newPaneDefaults.label,
     shortLabel: strings.settings.tabs.newPaneDefaults.shortLabel,
     description: strings.settings.tabs.newPaneDefaults.description,
+  },
+  templates: {
+    label: strings.settings.tabTemplates,
+    shortLabel: strings.settings.tabTemplates,
+    description: strings.groupTemplates.title,
+  },
+  "handoff-rules": {
+    label: strings.settings.tabHandoffRules,
+    shortLabel: strings.settings.tabHandoffRules,
+    description: strings.handoffRules.footer,
   },
   integrations: {
     label: strings.settings.tabs.integrations.label,

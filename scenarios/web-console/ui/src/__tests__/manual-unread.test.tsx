@@ -56,6 +56,9 @@ function renderSidebar() {
       onOpenLauncher={() => {}}
       onNewSessionInGroup={() => {}}
       onOpenSettings={() => {}}
+      onStartRole={() => {}}
+      onHandoffToRole={() => {}}
+      onOpenRoleMenu={() => {}}
     />,
   );
 }

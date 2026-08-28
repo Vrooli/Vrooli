@@ -1,6 +1,6 @@
 import { renderWithProviders as render } from "../test-utils";
 import { describe, it, expect, vi } from "vitest";
-import { fireEvent, screen } from "@testing-library/react";
+import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { AlertDialog } from "@vrooli/react-component-library/AlertDialog/2";
 
 function renderConfirm(props: Partial<Parameters<typeof AlertDialog>[0]> = {}) {
@@ -38,9 +38,13 @@ describe("AlertDialog consumer contract", () => {
     expect(document.getElementById(describedBy as string)?.textContent).toBe("This cannot be undone.");
   });
 
-  it("auto-focuses the cancel button on open", () => {
+  it("auto-focuses the cancel button on open", async () => {
     renderConfirm();
-    expect(document.activeElement).toBe(screen.getByTestId("test-confirm-cancel"));
+    // The overlay substrate directs initial focus on the next animation frame
+    // so the surface is laid out before anything is focused into it.
+    await waitFor(() => {
+      expect(document.activeElement).toBe(screen.getByTestId("test-confirm-cancel"));
+    });
   });
 
   it("cancels on Escape", () => {
@@ -87,8 +91,16 @@ describe("AlertDialog consumer contract", () => {
     expect(panel.contains(document.activeElement)).toBe(true);
   });
 
-  it("renders on the confirm z tier (above the drawer tier)", () => {
+  it("renders on the alert z tier, above the drawer and menu tiers", () => {
     renderConfirm();
-    expect(screen.getByTestId("test-confirm-dialog").className).toContain("z-wc-confirm");
+    const sheet = Array.from(document.head.querySelectorAll("style[data-rcl-sheet]"))
+      .map((node) => node.textContent ?? "")
+      .find((css) => css.includes("[data-rcl-alert-dialog-layer]"));
+    expect(sheet).toBeTruthy();
+    // A confirmation is the topmost interactive surface: it is raised from
+    // inside drawers and menus, so sharing --layer-modal with them left it
+    // winning only by DOM order, and losing outright to --layer-menu.
+    expect(sheet).toContain("z-index: var(--layer-alert, 700)");
+    expect(sheet).not.toContain("z-index: var(--layer-modal");
   });
 });

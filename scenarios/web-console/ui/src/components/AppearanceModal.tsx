@@ -169,6 +169,9 @@ export default function AppearanceModal() {
 
   return (
     <ResponsiveDialog
+      // No keyboard avoidance: colour, theme and size controls only — no text entry, so there is
+      // nothing for a keyboard to cover.
+      avoidKeyboard={false}
       open
       onClose={close}
       size="md"
@@ -176,7 +179,7 @@ export default function AppearanceModal() {
       title={t(strings.appearance.title)}
       testId="appearance-modal"
     >
-      <div className="h-full space-y-4 overflow-y-auto p-4">
+      <div className="space-y-4 p-4">
         <section>
           <h3 className="text-xs font-semibold uppercase tracking-wider text-wc-text-muted mb-2">
             {t(strings.appearance.previewHeading)}

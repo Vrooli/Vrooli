@@ -66,6 +66,7 @@
   "private": true,
   "scripts": {
     "build": "pnpm run type-check \u0026\u0026 vite build",
+    "build:profile": "pnpm run type-check \u0026\u0026 vite build --mode profile",
     "dev": "vrooli lifecycle protect -- vite",
     "lint": "eslint src",
     "lint:fix": "eslint src --fix",

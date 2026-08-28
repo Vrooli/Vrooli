@@ -25,7 +25,13 @@ interface AddMachineProps {
   onIssueCode: () => void;
   onReview: (request: JoinRequest) => void;
   onBack: () => void;
-  controlPlaneEndpoint: string;
+  /**
+   * The control plane's own interface, resolved by the server against this
+   * browser's origin. Empty when it could not be located — the handoff link is
+   * then not rendered at all, because a link that cannot work is worse than an
+   * absent one.
+   */
+  controlPlaneConsoleUrl: string;
 }
 
 const doorIcon: Record<Door, JSX.Element> = {
@@ -136,7 +142,7 @@ function ListeningList({ requests, onReview }: { requests: JoinRequest[]; onRevi
   );
 }
 
-export default function AddMachine({ requests, code, issuing, onIssueCode, onReview, onBack, controlPlaneEndpoint }: AddMachineProps) {
+export default function AddMachine({ requests, code, issuing, onIssueCode, onReview, onBack, controlPlaneConsoleUrl }: AddMachineProps) {
   const { t } = useTranslation();
   const [door, setDoor] = useState<Door>("network");
 
@@ -226,9 +232,9 @@ export default function AddMachine({ requests, code, issuing, onIssueCode, onRev
                 vrooli-bridge onboard start --host &lt;address&gt; --user &lt;login&gt;
               </code>
             </div>
-            {controlPlaneEndpoint && (
+            {controlPlaneConsoleUrl && (
               <a
-                href={controlPlaneEndpoint}
+                href={controlPlaneConsoleUrl}
                 target="_blank"
                 rel="noreferrer"
                 data-testid="machines-open-bridge"

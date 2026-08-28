@@ -11,6 +11,7 @@ import { registerVoiceTransport } from "./audio-integration";
 import "./i18n";
 import "./design-tokens.css";
 import "./styles.css";
+import { onProfilerRender } from "./lib/profiler";
 
 const queryClient = new QueryClient();
 
@@ -39,9 +40,11 @@ ReactDOM.createRoot(rootEl).render(
     <LibraryStringsProvider translate={(key, fallback) => i18n.t(key, { defaultValue: fallback })}>
   <React.StrictMode>
     <QueryClientProvider client={queryClient}>
-      <App />
+      <React.Profiler id="App" onRender={onProfilerRender}>
+        <App />
+      </React.Profiler>
     </QueryClientProvider>
-  </React.StrictMode>,
+  </React.StrictMode>
 
     </LibraryStringsProvider>
     // vrooli:library-strings-provider end

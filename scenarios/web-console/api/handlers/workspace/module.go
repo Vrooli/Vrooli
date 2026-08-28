@@ -28,6 +28,14 @@ type Service interface {
 	CreateGroup(ctx context.Context, name, color string) (Group, error)
 	UpdateGroup(ctx context.Context, req UpdateGroupRequest) (Group, error)
 	DeleteGroup(ctx context.Context, id string)
+
+	// Roles are named positions inside a group. They are additive: a group
+	// with no roles behaves exactly as it did before roles existed, so a
+	// caller that never touches these keeps the pre-roles behaviour.
+	ListRoles(ctx context.Context, groupID string) ([]Role, error)
+	CreateRole(ctx context.Context, req CreateRoleRequest) (Role, error)
+	UpdateRole(ctx context.Context, req UpdateRoleRequest) (Role, error)
+	DeleteRole(ctx context.Context, id string) error
 }
 
 // Transport types are aliases to the domain types so handlers and internal
@@ -38,6 +46,9 @@ type (
 	Layout             = wsdomain.Layout
 	UpdatePaneRequest  = wsdomain.UpdatePaneRequest
 	UpdateGroupRequest = wsdomain.UpdateGroupRequest
+	Role               = wsdomain.Role
+	CreateRoleRequest  = wsdomain.CreateRoleRequest
+	UpdateRoleRequest  = wsdomain.UpdateRoleRequest
 )
 
 // Module wires the workspace domain into the API server.

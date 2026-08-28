@@ -33,6 +33,7 @@ import (
 	"github.com/vrooli/api-core/apihttp"
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/devrouting"
+	"github.com/vrooli/api-core/discovery"
 	"github.com/vrooli/api-core/filerouting"
 	"github.com/vrooli/api-core/preflight"
 	"github.com/vrooli/api-core/server"
@@ -47,6 +48,8 @@ import (
 
 	intsessions "web-console/internal/sessions"
 
+	intgrouptemplates "web-console/internal/grouptemplates"
+	inthandoffrules "web-console/internal/handoffrules"
 	intworkspace "web-console/internal/workspace"
 )
 
@@ -80,6 +83,8 @@ type Server struct {
 	idempotency           *intsessions.IdempotencyCache // replay-safe session creation
 	capabilities          *capabilities.Registry
 	workspace             intworkspace.Store
+	groupTemplates        intgrouptemplates.Store
+	handoffRules          inthandoffrules.Store
 	hookAuthToken         string
 	codexTailer           *CodexTailer
 	claudeTailer          *ClaudeTailer
@@ -136,8 +141,14 @@ type Server struct {
 	// barrier on cumulative-offset stdin reconciliation.
 	nextWSGen           atomic.Int64
 	remoteTargetCatalog func() []targetConnection
-	monetization        *monetization.Gate
-	monetizationOutbox  *monetization.Outbox
+	// resolveConsoleURL turns another scenario's slug into a link this browser
+	// can open, against the origin the request arrived on. Nil means the seam
+	// was never wired, and every cross-scenario link is then withheld rather
+	// than guessed — which is why unit tests that build a bare Server see no
+	// link and fork no CLI.
+	resolveConsoleURL  func(ctx context.Context, scenarioSlug, requestHost string) (string, error)
+	monetization       *monetization.Gate
+	monetizationOutbox *monetization.Outbox
 }
 
 // getSummarizeAutoPolicy returns the cached auto-summarize policy. The
@@ -263,22 +274,25 @@ func NewServer(db *database.RoutedDB) *Server {
 	}()
 
 	srv := &Server{
-		roots:           roots,
-		db:              db,
-		router:          mux.NewRouter(),
-		sessions:        sessions,
-		hub:             NewConversationHub(),
-		events:          eventLog,
-		metrics:         metrics,
-		backendRegistry: backendRegistry,
-		sessionStore:    sessionStore,
-		aiChain:         intai.NewChain(intai.NewOllamaProvider(), intai.NewOpenRouterProvider()),
-		shortcuts:       NewSQLShortcutStore(db),
-		aiConfig:        intai.NewSQLConfigStore(context.Background(), db),
-		sweeper:         session.NewExpirationSweeper(sessions, eventLog, metrics),
-		idempotency:     intsessions.NewIdempotencyCache(),
-		workspace:       intworkspace.NewSQLStore(db),
-		hookAuthToken:   hookToken,
+		roots:             roots,
+		db:                db,
+		router:            mux.NewRouter(),
+		resolveConsoleURL: discovery.ResolveExternalURL,
+		sessions:          sessions,
+		hub:               NewConversationHub(),
+		events:            eventLog,
+		metrics:           metrics,
+		backendRegistry:   backendRegistry,
+		sessionStore:      sessionStore,
+		aiChain:           intai.NewChain(intai.NewOllamaProvider(), intai.NewOpenRouterProvider()),
+		shortcuts:         NewSQLShortcutStore(db),
+		aiConfig:          intai.NewSQLConfigStore(context.Background(), db),
+		sweeper:           session.NewExpirationSweeper(sessions, eventLog, metrics),
+		idempotency:       intsessions.NewIdempotencyCache(),
+		workspace:         intworkspace.NewSQLStore(db),
+		groupTemplates:    intgrouptemplates.NewSQLStore(db),
+		handoffRules:      inthandoffrules.NewSQLStore(db),
+		hookAuthToken:     hookToken,
 		ttsHookConfigState: hookConfigState{
 			cfg:  hookCfg,
 			path: hookCfgPath,

@@ -1,7 +1,7 @@
 import { renderWithProviders as render } from "../test-utils";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { screen, fireEvent, waitFor } from "@testing-library/react";
-import type { ShortcutEntry } from "../consts/shortcuts";
+import { screen, fireEvent, waitFor, within } from "@testing-library/react";
+import { DEFAULT_SHORTCUTS, type ShortcutEntry } from "../consts/shortcuts";
 import { asMockedClient } from "../test-utils";
 import { strings } from "../consts/strings";
 
@@ -92,11 +92,11 @@ describe("TerminalLauncher", () => {
     expect(screen.getByText("AI coding assistant")).toBeTruthy();
   });
 
-  it("calls onLaunch with shortcut command when shortcut is clicked", () => {
+  it("calls onLaunch with the agent's command when its card is clicked", () => {
     render(
       <TerminalLauncher open={true} onClose={onClose} onLaunch={onLaunch} shortcuts={testShortcuts} />,
     );
-    fireEvent.click(screen.getByTestId("launcher-shortcut-claude-code"));
+    fireEvent.click(screen.getByTestId("launcher-agent-claude-code"));
     expect(onLaunch).toHaveBeenCalledWith(
       expect.objectContaining({ command: "vrooli agent launch --runner claude --arg=--dangerously-skip-permissions" }),
     );
@@ -140,15 +140,16 @@ describe("TerminalLauncher", () => {
     expect(btn.hasAttribute("disabled")).toBe(true);
   });
 
-  it("closes when backdrop is clicked, not when the panel is clicked", () => {
+  it("closes when the backdrop is pressed, not when the panel is pressed", () => {
     render(
       <TerminalLauncher open={true} onClose={onClose} onLaunch={onLaunch} shortcuts={testShortcuts} />,
     );
     const panel = screen.getByTestId("terminal-launcher");
-    fireEvent.click(panel);
+    fireEvent.pointerDown(panel);
     expect(onClose).not.toHaveBeenCalled();
-    const backdrop = panel.parentElement?.firstElementChild as HTMLElement;
-    fireEvent.click(backdrop);
+    // The backdrop dismisses on press, and it is addressed by its rooted test
+    // id rather than by its position among the overlay's children.
+    fireEvent.pointerDown(screen.getByTestId("terminal-launcher.backdrop"));
     expect(onClose).toHaveBeenCalledOnce();
   });
 
@@ -192,8 +193,8 @@ describe("TerminalLauncher", () => {
     const emptyShell = screen.getByTestId("launcher-empty-shell");
     expect(emptyShell.hasAttribute("disabled")).toBe(true);
 
-    const shortcutBtn = screen.getByTestId("launcher-shortcut-claude-code");
-    expect(shortcutBtn.hasAttribute("disabled")).toBe(true);
+    const agentCard = screen.getByTestId("launcher-agent-claude-code");
+    expect(agentCard.hasAttribute("disabled")).toBe(true);
   });
 
   it("fetches shortcuts via shortcutsClient.getEffective when no prop provided", async () => {
@@ -233,75 +234,23 @@ describe("TerminalLauncher", () => {
     expect(shortcutsClient.getEffective).not.toHaveBeenCalled();
   });
 
-  it("selects an available remote target and exposes its readiness facts", () => {
-    const targets: TerminalTarget[] = [
-      { id: "node-1", kind: "bridge-node", label: "Mac mini", available: true, state: "dispatchable", readiness: [{ key: "heartbeat", label: "Heartbeat fresh", passed: true, detail: "fresh" }, { key: "dispatch", label: "Dispatchable", passed: true, detail: "ready" }] },
-      { id: "node-2", kind: "bridge-node", label: "Offline host", available: false, state: "offline", failure_rung: "live channel", recovery_action: "Reconnect the Bridge agent" },
-    ];
-    render(
-      <TerminalLauncher open={true} onClose={onClose} onLaunch={onLaunch} shortcuts={testShortcuts} availableTargets={targets} />,
-    );
-    fireEvent.click(screen.getByTestId("launcher-options-toggle"));
-    const select = screen.getByTestId("launcher-target-select") as HTMLSelectElement;
-    expect(select.options[2]?.disabled).toBe(false);
-    fireEvent.change(select, { target: { value: "node-1" } });
-    expect(screen.getByText("Heartbeat fresh")).toBeTruthy();
-    fireEvent.click(screen.getByTestId("launcher-empty-shell"));
-    expect(onLaunch).toHaveBeenCalledWith(expect.objectContaining({ target: expect.objectContaining({ id: "node-1" }) }));
-  });
-
-  it("puts remote locations in the primary surface and keeps unavailable nodes inspectable", () => {
-    const targets: TerminalTarget[] = [
-      { id: "node-1", kind: "bridge-node", label: "Build node", available: true, state: "dispatchable", os: "linux", arch: "amd64" },
-      { id: "node-2", kind: "bridge-node", label: "Offline host", available: false, state: "offline", last_seen_at: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(), failure_rung: "heartbeat freshness", recovery_action: "Reconnect the Bridge agent, then refresh" },
-    ];
-    render(<TerminalLauncher open onClose={onClose} onLaunch={onLaunch} shortcuts={testShortcuts} availableTargets={targets} />);
-
-    expect(screen.getByTestId("launcher-target-card-node-1")).toBeTruthy();
-    expect(screen.getByTestId("launcher-target-card-node-2")).toBeTruthy();
-    expect(screen.getByTestId("launcher-linked-machines-footer")).toBeTruthy();
-    fireEvent.click(screen.getByTestId("launcher-target-card-node-2"));
-    expect(screen.getByText("Reconnect the Bridge agent, then refresh")).toBeTruthy();
-    expect(screen.getByTestId("launcher-target-card-node-2")).toHaveTextContent(/2h ago/);
-    expect(screen.getByTestId("launcher-empty-shell")).toBeDisabled();
-  });
-
-  it("shows the concrete remote grant beside its operator-facing summary", () => {
-    const targets: TerminalTarget[] = [
-      {
-        id: "node-1",
-        kind: "bridge-node",
-        label: "Mac mini",
-        available: true,
-        state: "dispatchable",
-        readiness: [{ key: "bridge_scope", label: "Bridge scope", passed: true, detail: "Read only; changes are not permitted. Granted scopes: system-monitor:read" }],
-      },
-    ];
-    render(<TerminalLauncher open onClose={onClose} onLaunch={onLaunch} shortcuts={testShortcuts} availableTargets={targets} />);
-
-    expect(screen.getByTestId("launcher-target-card-node-1")).toHaveTextContent("Read only; changes are not permitted. Granted scopes: system-monitor:read");
-    fireEvent.click(screen.getByTestId("launcher-target-card-node-1"));
-    expect(screen.getByText("Grant: Read only; changes are not permitted. Granted scopes: system-monitor:read")).toBeInTheDocument();
-  });
-
-  it("supports arrow-key navigation across target cards", () => {
-    const targets: TerminalTarget[] = [
-      { id: "node-1", kind: "bridge-node", label: "Build node", available: true, state: "dispatchable" },
-      { id: "node-2", kind: "bridge-node", label: "Test node", available: true, state: "dispatchable" },
-    ];
-    render(<TerminalLauncher open onClose={onClose} onLaunch={onLaunch} shortcuts={testShortcuts} availableTargets={targets} />);
-
-    const local = screen.getByTestId("launcher-target-card-local");
-    const firstRemote = screen.getByTestId("launcher-target-card-node-1");
-    local.focus();
-    fireEvent.keyDown(local, { key: "ArrowDown" });
-    expect(firstRemote).toHaveFocus();
-    expect(firstRemote).toHaveAttribute("aria-selected", "true");
-  });
-
-  it("offers Codex device authentication as an explicit launch action", () => {
+  // The dedicated sign-in card is gone. Nothing in this codebase can tell
+  // whether the operator is signed in, so the card was a permanent guess; the
+  // agent itself says when a sign-in is needed. The capability stays as an
+  // ordinary shortcut the operator can edit, reorder, or delete.
+  it("renders no dedicated Codex sign-in card", () => {
     render(<TerminalLauncher open onClose={onClose} onLaunch={onLaunch} shortcuts={testShortcuts} />);
-    fireEvent.click(screen.getByTestId("launcher-codex-sign-in"));
+    expect(screen.queryByTestId("launcher-codex-sign-in")).not.toBeInTheDocument();
+  });
+
+  it("keeps the sign-in command reachable as an editable shortcut", () => {
+    expect(DEFAULT_SHORTCUTS.some((entry) => entry.command === "codex login --device-auth")).toBe(true);
+  });
+
+  it("launches the sign-in command from its shortcut row", () => {
+    const withSignIn = DEFAULT_SHORTCUTS.filter((entry) => entry.command === "codex login --device-auth");
+    render(<TerminalLauncher open onClose={onClose} onLaunch={onLaunch} shortcuts={withSignIn} />);
+    fireEvent.click(screen.getByTestId("launcher-agent-codex-sign-in"));
     expect(onLaunch).toHaveBeenCalledWith(expect.objectContaining({ command: "codex login --device-auth" }));
   });
 
@@ -314,9 +263,27 @@ describe("TerminalLauncher", () => {
       recovery_action: "Configure Bridge access on the Web Console server",
     };
     render(<TerminalLauncher open onClose={onClose} onLaunch={onLaunch} shortcuts={testShortcuts} targetCatalog={targetCatalog} onRefreshTargets={onRefreshTargets} />);
+    // Neither the fleet's state nor its refresh control owns space in the
+    // dialog: they belong to the list they describe, so they appear when the
+    // machine menu is opened and cost nothing the rest of the time.
+    expect(screen.queryByTestId("launcher-target-catalog-state")).toBeNull();
+    expect(screen.queryByTestId("launcher-target-refresh")).toBeNull();
+
+    fireEvent.click(screen.getByTestId("launcher-machine-picker"));
     expect(screen.getByTestId("launcher-target-catalog-state")).toHaveTextContent(strings.terminalLauncher.unconfigured);
     fireEvent.click(screen.getByTestId("launcher-target-refresh"));
     expect(onRefreshTargets).toHaveBeenCalledOnce();
+  });
+
+  // The machine menu is also where linking and administering live, so the
+  // dialog never needs a card explaining either.
+  it("offers linking and managing machines from inside the machine menu", () => {
+    const onOpenMachines = vi.fn();
+    render(<TerminalLauncher open onClose={onClose} onLaunch={onLaunch} shortcuts={testShortcuts} onOpenMachines={onOpenMachines} />);
+    fireEvent.click(screen.getByTestId("launcher-machine-picker"));
+    expect(screen.getByTestId("launcher-machine-link")).toBeInTheDocument();
+    fireEvent.click(screen.getByTestId("launcher-machine-manage"));
+    expect(onOpenMachines).toHaveBeenCalledOnce();
   });
 
   it("shows target loading state and disables refresh while loading", () => {
@@ -333,39 +300,184 @@ describe("TerminalLauncher", () => {
     );
 
     expect(screen.getByTestId("launcher-target-loading")).toBeInTheDocument();
-    expect(screen.getByTestId("launcher-target-refresh")).toBeDisabled();
+    // While the fleet is loading there is no trigger to open, so the refresh
+    // control inside the menu is unreachable rather than merely disabled.
+    expect(screen.queryByTestId("launcher-machine-picker")).toBeNull();
+  });
+  // -------------------------------------------------------------------
+  // Destination and appearance disclosure
+  // [REQ:P0-014a]
+  // -------------------------------------------------------------------
+
+  const groups = [
+    { id: "g1", name: "Ship it", color: "#22d3ee", isCollapsed: false },
+    { id: "g2", name: "Research", color: "#f59e0b", isCollapsed: false },
+  ];
+
+  // The control renders on EVERY open, not only when a group was implied.
+  // One that appeared sometimes would be one the operator never learns to
+  // look for.
+  it("states its destination on every open, including with no pending group", () => {
+    render(<TerminalLauncher open onClose={onClose} onLaunch={onLaunch} shortcuts={testShortcuts} groups={groups} />);
+    const destination = screen.getByTestId("launcher-destination");
+    expect(destination).toBeInTheDocument();
+    // The card states the destination on its face, without being opened.
+    expect(within(destination).getByTestId("launcher-destination-trigger"))
+      .toHaveTextContent(strings.launcher.noGroup);
   });
 
-  it("filters remote targets and reports when no node matches", () => {
-    const targets: TerminalTarget[] = [
-      { id: "one", kind: "bridge-node", label: "Build one", available: true, state: "dispatchable", os: "linux", arch: "amd64" },
-      { id: "two", kind: "bridge-node", label: "Build two", available: true, state: "dispatchable", os: "linux", arch: "amd64" },
-      { id: "three", kind: "bridge-node", label: "Build three", available: true, state: "dispatchable", os: "linux", arch: "amd64" },
-      { id: "four", kind: "bridge-node", label: "Build four", available: true, state: "dispatchable", os: "linux", arch: "amd64" },
-    ];
-    render(<TerminalLauncher open onClose={onClose} onLaunch={onLaunch} shortcuts={testShortcuts} availableTargets={targets} />);
-
-    const search = screen.getByTestId("launcher-target-search");
-    fireEvent.change(search, { target: { value: "does-not-exist" } });
-
-    expect(screen.getByText(strings.terminalLauncher.noRemoteNodes)).toBeInTheDocument();
-    expect(screen.queryByTestId("launcher-target-card-one")).not.toBeInTheDocument();
+  it("names the group it was opened from", () => {
+    render(
+      <TerminalLauncher
+        open
+        onClose={onClose}
+        onLaunch={onLaunch}
+        shortcuts={testShortcuts}
+        groups={groups}
+        pendingGroupId="g1"
+      />,
+    );
+    const destination = screen.getByTestId("launcher-destination");
+    const trigger = within(destination).getByTestId("launcher-destination-trigger");
+    // The test locale echoes interpolated keys, so the assertion is on the
+    // phrasing the trigger chose plus the accessible name it composed.
+    expect(trigger).toHaveTextContent(strings.groupPicker.into);
+    expect(trigger).toHaveAccessibleName(/Ship it/);
   });
 
-  it("renders every target status and preserves an invalid last-seen value", () => {
-    const targets: TerminalTarget[] = [
-      { id: "update", kind: "bridge-node", label: "Needs update", available: true, state: "needs-update", last_seen_at: "not-a-date" },
-      { id: "offline", kind: "bridge-node", label: "Offline", available: false, state: "offline" },
-      { id: "unconfigured", kind: "bridge-node", label: "Unconfigured", available: false, state: "unconfigured" },
-      { id: "unknown", kind: "bridge-node", label: "Unknown", available: false },
-    ];
-    render(<TerminalLauncher open onClose={onClose} onLaunch={onLaunch} shortcuts={testShortcuts} availableTargets={targets} />);
+  // The card is a door to the shared overlay, not a control of its own: the
+  // same surface opens from the session menu.
+  it("opens the shared group overlay when the destination card is pressed", () => {
+    render(<TerminalLauncher open onClose={onClose} onLaunch={onLaunch} shortcuts={testShortcuts} groups={groups} />);
+    expect(screen.queryByTestId("group-assign-picker")).toBeNull();
+    fireEvent.click(screen.getByTestId("launcher-destination-trigger"));
+    expect(screen.getByTestId("group-assign-picker")).toBeInTheDocument();
+    expect(screen.getByTestId("group-picker-option-g1")).toHaveTextContent("Ship it");
+    expect(screen.getByTestId("group-picker-option-none")).toBeInTheDocument();
+  });
 
-    expect(screen.getByTestId("launcher-target-card-update")).toBeInTheDocument();
-    expect(screen.getByTestId("launcher-target-card-offline")).toBeInTheDocument();
-    expect(screen.getByTestId("launcher-target-card-unconfigured")).toBeInTheDocument();
-    expect(screen.getByTestId("launcher-target-card-unknown")).toBeInTheDocument();
-    fireEvent.click(screen.getByTestId("launcher-target-card-update"));
-    expect(screen.getByText(/not-a-date/)).toBeInTheDocument();
+  it("reports a destination change to its caller", () => {
+    const onDestinationChange = vi.fn();
+    render(
+      <TerminalLauncher
+        open
+        onClose={onClose}
+        onLaunch={onLaunch}
+        shortcuts={testShortcuts}
+        groups={groups}
+        pendingGroupId="g1"
+        onDestinationChange={onDestinationChange}
+      />,
+    );
+    fireEvent.click(screen.getByTestId("launcher-destination-trigger"));
+    fireEvent.click(screen.getByTestId("group-picker-option-g2"));
+    expect(onDestinationChange).toHaveBeenCalledWith("g2");
+    // Choosing commits and closes: the overlay is not a place to linger.
+    expect(screen.queryByTestId("group-assign-picker")).toBeNull();
+  });
+
+  it("creates a group by typing a name that matches none", async () => {
+    const onCreateGroup = vi.fn().mockResolvedValue("g3");
+    const onDestinationChange = vi.fn();
+    render(
+      <TerminalLauncher
+        open
+        onClose={onClose}
+        onLaunch={onLaunch}
+        shortcuts={testShortcuts}
+        groups={groups}
+        onCreateGroup={onCreateGroup}
+        onDestinationChange={onDestinationChange}
+      />,
+    );
+    fireEvent.click(screen.getByTestId("launcher-destination-trigger"));
+    // One field filters the list and names a new group; the pinned action
+    // creates whatever matched nothing.
+    fireEvent.change(screen.getByTestId("group-picker-filter"), { target: { value: "Refactor pass" } });
+    expect(screen.queryByTestId("group-picker-option-g1")).toBeNull();
+    fireEvent.click(screen.getByTestId("group-picker-create-submit"));
+
+    expect(onCreateGroup).toHaveBeenCalledWith("Refactor pass");
+    await waitFor(() => { expect(onDestinationChange).toHaveBeenCalledWith("g3"); });
+  });
+
+  // Styling used to be applied silently after the session existed.
+  it("names the appearance the session will receive", () => {
+    render(
+      <TerminalLauncher
+        open
+        onClose={onClose}
+        onLaunch={onLaunch}
+        shortcuts={testShortcuts}
+        groups={groups}
+        appearance={{ headerColor: "transparent", themeId: "midnight", fontSize: 16 }}
+      />,
+    );
+    // The summary is an interpolated string, so the test locale echoes the key
+    // rather than the values; open the row and read the named facts.
+    fireEvent.click(screen.getByTestId("launcher-appearance-toggle"));
+    const appearance = screen.getByTestId("launcher-appearance");
+    expect(appearance).toHaveTextContent("midnight");
+    expect(appearance).toHaveTextContent("16px");
+  });
+
+  it("says the colour comes from the group once a destination is chosen", () => {
+    render(
+      <TerminalLauncher
+        open
+        onClose={onClose}
+        onLaunch={onLaunch}
+        shortcuts={testShortcuts}
+        groups={groups}
+        pendingGroupId="g1"
+        appearance={{ headerColor: "transparent", themeId: "default", fontSize: 14 }}
+      />,
+    );
+    fireEvent.click(screen.getByTestId("launcher-appearance-toggle"));
+    // With a destination chosen, the colour comes from the group, and the row
+    // names the group rather than a raw colour value.
+    expect(screen.getByTestId("launcher-appearance")).toHaveTextContent("Ship it");
+  });
+
+  // -------------------------------------------------------------------
+  // Agent grid
+  // -------------------------------------------------------------------
+
+  // The grid renders a fixed set; the shortcut list is where it comes from.
+  it("points at the surface that owns the agent list", () => {
+    const onEditShortcuts = vi.fn();
+    render(<TerminalLauncher open onClose={onClose} onLaunch={onLaunch} shortcuts={testShortcuts} onEditShortcuts={onEditShortcuts} />);
+    fireEvent.click(screen.getByTestId("launcher-edit-shortcuts"));
+    expect(onEditShortcuts).toHaveBeenCalledOnce();
+  });
+
+  it("omits the shortcut-editor card when no caller can open one", () => {
+    render(<TerminalLauncher open onClose={onClose} onLaunch={onLaunch} shortcuts={testShortcuts} />);
+    expect(screen.queryByTestId("launcher-edit-shortcuts")).toBeNull();
+  });
+
+  it("renders four agent cards rather than eight rows", () => {
+    render(<TerminalLauncher open onClose={onClose} onLaunch={onLaunch} shortcuts={DEFAULT_SHORTCUTS} />);
+    const grid = screen.getByTestId("launcher-agent-grid");
+    // Four agents, the Codex sign-in shortcut, and the empty shell. The four
+    // "(attributed)" duplicates are folded into their parents as one toggle.
+    expect(within(grid).getAllByRole("button")).toHaveLength(6);
+    expect(screen.getByTestId("launcher-agent-claude-code")).toBeInTheDocument();
+    expect(screen.queryByTestId("launcher-agent-claude-code-attributed")).not.toBeInTheDocument();
+  });
+
+  it("launches the attributed variant when the toggle is on", () => {
+    render(<TerminalLauncher open onClose={onClose} onLaunch={onLaunch} shortcuts={DEFAULT_SHORTCUTS} />);
+    fireEvent.click(screen.getByTestId("launcher-attributed-toggle"));
+    fireEvent.click(screen.getByTestId("launcher-agent-codex"));
+    expect(onLaunch).toHaveBeenCalledWith(
+      expect.objectContaining({ command: expect.stringContaining("vrooli-agent-launcher") }),
+    );
+  });
+
+  it("renders no full-width target card", () => {
+    render(<TerminalLauncher open onClose={onClose} onLaunch={onLaunch} shortcuts={testShortcuts} />);
+    expect(screen.queryByTestId("launcher-target-card-local")).not.toBeInTheDocument();
+    expect(screen.getByTestId("launcher-machine-picker")).toBeInTheDocument();
   });
 });

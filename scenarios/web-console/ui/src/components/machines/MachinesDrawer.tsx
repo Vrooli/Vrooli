@@ -108,6 +108,7 @@ export default function MachinesDrawer({ open, onClose }: MachinesDrawerProps) {
 
   return (
     <FullPageDrawer
+      avoidKeyboard
       open={open}
       onClose={onClose}
       closeLabel={t(strings.machines.closeAriaLabel)}
@@ -135,7 +136,7 @@ export default function MachinesDrawer({ open, onClose }: MachinesDrawerProps) {
             onIssueCode={handleIssueCode}
             onReview={(request) => { setView({ kind: "review", request }); }}
             onBack={goList}
-            controlPlaneEndpoint={fleet?.controlPlane.endpoint ?? ""}
+            controlPlaneConsoleUrl={fleet?.controlPlane.consoleUrl ?? ""}
           />
         )}
 

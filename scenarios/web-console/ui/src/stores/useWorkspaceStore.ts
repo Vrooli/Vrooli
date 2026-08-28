@@ -3,6 +3,7 @@ import { persist } from "zustand/middleware";
 import { clampFontSize } from "../lib/fontSizeUtils";
 import { parsePaneColor } from "../lib/paneColor";
 import { groupIdForDropPosition, orderPanesByGroupBlocks } from "../lib/workspaceNavigation";
+import type { ClosedGroupSnapshot } from "../lib/groupLifecycle";
 import { DEFAULT_THEME_ID, TERMINAL_FONT_SIZE } from "../consts/config";
 import { DEFAULT_WAKE_WORD_THRESHOLD } from "../audio-integration/hooks/voice/wakeword/types";
 // Auto-stop / segment silence defaults come from the audio-integration package
@@ -63,6 +64,32 @@ export interface TabGroupMeta {
   name: string;
   color: string;
   isCollapsed: boolean;
+}
+
+/**
+ * A named position inside a group.
+ *
+ * `sessionId` is null while the role is WAITING: it holds a command and no
+ * process, costs no PTY, and renders as a placeholder. Null rather than "" so
+ * no component can mistake an empty string for a session id.
+ *
+ * Roles are OPTIONAL. A pane whose session appears in no role is an ordinary
+ * hand-grouped session, and dragging a session into a group creates no role.
+ * Every pre-roles grouping behaviour keeps working with this array empty.
+ */
+export interface RoleMeta {
+  id: string;
+  groupId: string;
+  label: string;
+  command: string;
+  workingDir: string;
+  /** May contain at most one `{{payload}}` placeholder. Lives on the receiver. */
+  incomingPrompt: string;
+  backend: string;
+  targetId: string;
+  /** Null while waiting. */
+  sessionId: string | null;
+  sortOrder: number;
 }
 
 export interface TabContextMenuState {
@@ -169,11 +196,30 @@ interface WorkspaceState {
   /** Mobile toolbar modifier key toggles (Ctrl/Alt/Shift). Not persisted. */
   modifiers: ModifierState;
   groups: TabGroupMeta[];
+  /** Named positions inside groups. Empty for a workspace that uses none. */
+  roles: RoleMeta[];
+  /**
+   * The most recently closed group, held in memory so the close can be undone.
+   *
+   * Deliberately not persisted and deliberately single-slot: this backs a
+   * ten-second banner, not a history. A reload during the window loses the
+   * undo, which is acceptable because the group held nothing — its sessions
+   * are unaffected either way.
+   */
+  closedGroupUndo: ClosedGroupSnapshot | null;
+  /** Close a group on its own once it holds no panes and no waiting roles. */
+  autoCloseEmptyGroups: boolean;
   tabContextMenu: TabContextMenuState | null;
-  /** Open state of the Manage Groups drawer. Non-null = open; `sessionId`
-   *  carries the optional session context (opened from a tab's menu) that
-   *  enables the per-group assign/remove toggle. Ephemeral — not persisted. */
-  manageGroupsTarget: { sessionId: string | null } | null;
+  /**
+   * Open state of the Manage Groups drawer.
+   *
+   * A plain boolean because the drawer is an administration surface only.
+   * It used to carry an optional session id and double as the assign picker,
+   * which is why it felt heavy: choosing a group for one session opened the
+   * whole manager. Assignment now lives in an anchored picker beside the tab.
+   * Ephemeral — not persisted.
+   */
+  manageGroupsOpen: boolean;
   /** Keep the device screen awake to support hands-free voice interaction. */
   keepScreenAwake: boolean;
   /** Unsent terminal input keyed by session, snapshotted when a pane unmounts
@@ -264,6 +310,15 @@ interface WorkspaceActions {
   setWheelScrollSensitivity: (value: number) => void;
   toggleModifier: (key: keyof ModifierState) => void;
   clearModifiers: () => void;
+  setRoles: (roles: RoleMeta[]) => void;
+  addRole: (role: RoleMeta) => void;
+  updateRole: (roleId: string, update: Partial<Omit<RoleMeta, "id">>) => void;
+  removeRole: (roleId: string) => void;
+  /** Point a role at a session (or, with null, return it to waiting). */
+  setRoleSession: (roleId: string, sessionId: string | null) => void;
+  /** Hold the state a close destroyed, so it can be replayed. */
+  setClosedGroupUndo: (snapshot: ClosedGroupSnapshot | null) => void;
+  setAutoCloseEmptyGroups: (enabled: boolean) => void;
   setGroups: (groups: TabGroupMeta[]) => void;
   addGroup: (group: TabGroupMeta) => void;
   removeGroup: (groupId: string) => void;
@@ -281,7 +336,7 @@ interface WorkspaceActions {
    *  caller opts into each target. */
   applyAppearance: (sessionId: string, options: ApplyAppearanceOptions) => void;
   setTabContextMenu: (menu: TabContextMenuState | null) => void;
-  setManageGroupsTarget: (target: { sessionId: string | null } | null) => void;
+  setManageGroupsOpen: (open: boolean) => void;
   setKeepScreenAwake: (enabled: boolean) => void;
   /** Stash a session's unsent terminal input before its pane unmounts. */
   setPendingInputDraft: (sessionId: string, draft: string) => void;
@@ -418,8 +473,11 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
 		keyboardOpen: false,
 		paneStatuses: {},
       groups: [],
+      roles: [],
+      closedGroupUndo: null,
+      autoCloseEmptyGroups: true,
       tabContextMenu: null,
-      manageGroupsTarget: null,
+      manageGroupsOpen: false,
       keepScreenAwake: true,
 
       addRecentCombo: (comboId) =>
@@ -487,12 +545,20 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
           };
         }),
 
-      renamePaneById: (sessionId, name) =>
+      // A terminal rewrites its title constantly — most shells do it on every
+      // prompt, and an agent pane does it while it works — and the great
+      // majority of those are the same string again. Rebuilding `panes` for
+      // one of those re-rendered every subscriber and re-ran the persist
+      // middleware for no change at all, so the no-op case never reaches set().
+      renamePaneById: (sessionId, name) => {
+        const current = get().panes.find((p) => p.sessionId === sessionId);
+        if (!current || current.name === name) return;
         set((state) => ({
           panes: state.panes.map((p) =>
             p.sessionId === sessionId ? { ...p, name } : p,
           ),
-        })),
+        }));
+      },
 
       setPaneColor: (sessionId, color) =>
         set((state) => ({
@@ -668,9 +734,26 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
 			return entries.map((entry) => ({ ...entry }));
 		},
       setGroups: (groups) => set({ groups }),
+      setRoles: (roles) => set({ roles }),
+      addRole: (role) => set((state) => ({ roles: [...state.roles, role] })),
+      updateRole: (roleId, update) => set((state) => ({
+        roles: state.roles.map((r) => (r.id === roleId ? { ...r, ...update } : r)),
+      })),
+      removeRole: (roleId) => set((state) => ({
+        roles: state.roles.filter((r) => r.id !== roleId),
+      })),
+      setRoleSession: (roleId, sessionId) => set((state) => ({
+        roles: state.roles.map((r) => (r.id === roleId ? { ...r, sessionId } : r)),
+      })),
+      setClosedGroupUndo: (snapshot) => set({ closedGroupUndo: snapshot }),
+      setAutoCloseEmptyGroups: (enabled) => set({ autoCloseEmptyGroups: enabled }),
       addGroup: (group) => set((state) => ({ groups: [...state.groups, group] })),
       removeGroup: (groupId) => set((state) => ({
         groups: state.groups.filter((g) => g.id !== groupId),
+        // Roles cascade with the group in the database (ON DELETE CASCADE),
+        // so the local store has to agree or the sidebar keeps rendering
+        // placeholders for a group that no longer exists.
+        roles: state.roles.filter((r) => r.groupId !== groupId),
         panes: state.panes.map((p) => p.groupId === groupId ? { ...p, groupId: null } : p),
       })),
       updateGroup: (groupId, update) => set((state) => ({
@@ -704,7 +787,7 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
           return next;
         }),
       setTabContextMenu: (menu) => set({ tabContextMenu: menu }),
-      setManageGroupsTarget: (target) => set({ manageGroupsTarget: target }),
+      setManageGroupsOpen: (open) => set({ manageGroupsOpen: open }),
       setKeepScreenAwake: (enabled) => set({ keepScreenAwake: enabled }),
     }),
     {
@@ -839,6 +922,11 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
         tmuxMouseMode: state.tmuxMouseMode,
         predictionLatencyThresholdMs: state.predictionLatencyThresholdMs,
         keepScreenAwake: state.keepScreenAwake,
+        // A preference, so it persists. closedGroupUndo deliberately does
+        // NOT: it backs a ten-second banner, and a snapshot restored from a
+        // previous session would offer to undo something the operator has
+        // long forgotten. `roles` is server-hydrated like panes and groups.
+        autoCloseEmptyGroups: state.autoCloseEmptyGroups,
       }),
     },
   ),

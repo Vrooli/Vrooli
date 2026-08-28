@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act, screen } from "@testing-library/react";
 import BannerRegion from "../BannerRegion";
 import type { BannerDescriptor } from "../types";
+import { INSTANT_DAMPING } from "../damping";
 
 /**
  * Proves the region is actually wired to the damping policy, and that it holds
@@ -83,5 +84,34 @@ describe("BannerRegion damping wiring", () => {
 
     unmount();
     expect(vi.getTimerCount()).toBe(0);
+  });
+});
+
+describe("library style integration", () => {
+  /**
+   * The banner's entire appearance now arrives from the library stylesheet.
+   * If that sheet stops mounting — a StyleSheet regression, a bad key, an
+   * import that resolves to a stub — every banner renders as unstyled markup
+   * while the DOM still looks correct to every other assertion in this file.
+   * That failure is invisible to markup tests, so it gets its own.
+   */
+  it("mounts the library banner stylesheet with token-derived tone palettes", () => {
+    render(<BannerRegion banners={[warning("styled")]} damping={INSTANT_DAMPING} />);
+
+    const sheet = document.querySelector('style[data-rcl-sheet^="banner-"]');
+    expect(sheet).not.toBeNull();
+    const css = sheet?.textContent ?? "";
+
+    // Tone palettes resolve through the semantic colour tokens rather than
+    // hard-coded literals, which is what keeps them themeable by the host.
+    expect(css).toContain('[data-rcl-banner][data-tone="danger"]');
+    expect(css).toContain("var(--color-danger");
+    expect(css).toContain("var(--color-warning");
+    expect(css).toContain("color-mix(in srgb");
+
+    // The close control is a bare icon button, and its touch target is an
+    // overlay so a conforming hit area costs the compact row no height.
+    expect(css).toMatch(/\[data-rcl-banner-dismiss\]\s*\{[^}]*border:\s*0/);
+    expect(css).toContain("var(--tap-target-min, 44px)");
   });
 });

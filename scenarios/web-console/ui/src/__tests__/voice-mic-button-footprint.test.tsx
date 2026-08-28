@@ -129,9 +129,9 @@ describe("voice recovery notices", () => {
     // stacked strips shoving the workspace down mid-sentence.
     expect(screen.getAllByTestId(/-banner$/)).toHaveLength(1);
     expect(screen.getByTestId("voice-error-banner")).toBeTruthy();
-    expect(screen.getByTestId("banner-overflow-toggle")).toBeTruthy();
+    expect(screen.getByTestId("banner-region-overflow-toggle")).toBeTruthy();
 
-    fireEvent.click(screen.getByTestId("banner-overflow-toggle"));
+    fireEvent.click(screen.getByTestId("banner-region-overflow-toggle"));
     expect(screen.getByTestId("voice-stale-mic-banner-release-mic")).toBeTruthy();
     expect(screen.getByTestId("tts-speaking-banner-stop-speech")).toBeTruthy();
     expect(screen.getByTestId("voice-transcribing-banner-cancel")).toBeTruthy();
@@ -143,7 +143,7 @@ describe("voice recovery notices", () => {
         build={(t) => [voiceTranscribingBanner(t, vi.fn()), voiceErrorBanner(t, "boom")]}
       />,
     );
-    fireEvent.click(screen.getByTestId("banner-overflow-toggle"));
+    fireEvent.click(screen.getByTestId("banner-region-overflow-toggle"));
     expect(screen.queryByText(/export/i)).toBeNull();
   });
 

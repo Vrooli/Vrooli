@@ -64,6 +64,74 @@ Workspace organization for terminal panes. Holds `name`, `color`, `sort_order`, 
 ### `workspace_panes`
 Per-session pane appearance and ordering. `session_id` is the primary key (one pane row per persistent session). No FK to `sessions` — pane metadata can outlive a process-bound session row, since `workspace_panes` is the cross-device source of truth for layout. Columns: `name`, `header_color`, `theme_id`, `font_size`, `sort_order`, `group_id`, `is_active`, `supports_messages_view`.
 
+### `workspace_roles`
+A named position inside a group. `session_id` is **NULL while the role is
+waiting**: the role holds a command and no process, so it costs no PTY. That
+distinction is what lets the console tell a finished group (close it) from a
+half-started one (keep it), which is the whole safety argument for closing an
+empty group without asking.
+
+Columns: `group_id` (FK to `tab_groups`, **`ON DELETE CASCADE`**), `label`,
+`command`, `working_dir`, `incoming_prompt`, `backend`, `target_id`,
+`session_id`, `sort_order`.
+
+`ON DELETE CASCADE` differs deliberately from `workspace_panes.group_id`, which
+is `ON DELETE SET NULL`. A pane survives its group because it owns a live
+session; a role has no meaning outside its group, so it goes with the group.
+
+Two indexes: `(group_id, sort_order)` for ordered reads, and a **partial**
+unique index on `session_id WHERE session_id IS NOT NULL`. The partial form is
+load-bearing in both directions — any number of roles may wait at once, while a
+running session can never be claimed by two roles (which would deliver one
+handoff twice).
+
+**Role and pane are different things.** A role is the durable identity inside a
+group; a pane is the runtime projection of a live session, keyed *by* session
+id. They are joined by `session_id`:
+
+| Row state | Renders as |
+|---|---|
+| Role with `session_id = NULL` | A dashed placeholder. No pane row exists. |
+| Role with `session_id` set | Its pane, using the pane's colour and name. |
+| Pane whose session is in no role | An ordinary ungrouped or hand-grouped session. |
+
+**Roles are optional.** Dragging a session into a group, or assigning it from
+the picker, creates no role. Every pre-roles grouping behaviour works unchanged
+with this table empty.
+
+Session recovery mints a new session id and re-keys the pane through
+`ReassignPane`. `ReassignRoleSession` performs the matching move for roles, so a
+recovered session keeps its role rather than leaving it pointing at an id that
+no longer exists.
+
+### `group_templates`
+A saved list of role definitions. Creating a group from one creates the group
+and its roles in a single action. `roles` is a **JSON array**, mirroring
+`shortcut_profiles.shortcuts`, so this scenario has one storage idiom for a
+configuration row that owns an ordered child list. The tradeoff is that a role
+is not independently queryable; nothing needs that today.
+
+Columns: `name`, `color`, `roles` (JSON), `use_count`.
+
+Each role in the array carries a `start_mode` of `eager` or `waiting`, validated
+server-side. Only an `eager` role starts a process when the group is created.
+
+There is deliberately **no built-in marker column**. A shipped example is an
+ordinary row written through the same `UpsertTemplate` call the UI uses, and is
+deletable like any other. The seeder writes only into an empty table, so a
+deleted example does not come back on the next boot.
+
+### `handoff_rules`
+A named pattern that decides when the console **offers** a handoff. A rule never
+sends anything: a match produces a suggestion the operator can dismiss, and
+pressing it opens the same composer a button opens. That is the safety property
+that makes operator-authored patterns shippable.
+
+Columns: `name`, `enabled`, `source` (`CHECK` constrained to `file_path` or
+`message_text`), `pattern`, `surfaces` (JSON), `sort_order`.
+
+Like templates, there is no built-in marker and the example is deletable.
+
 ### `ai_provider_configs`
 Per-provider knobs consumed by the AI generation chain ([CODE: api/ai_generate.go]). Key: provider `name`. Columns: `enabled`, `priority`, `timeout_sec`, `max_retries`. Provider chain ordering and failover: [Architecture — AI Command Generation](../concepts/ARCHITECTURE.md#ai-command-generation).
 

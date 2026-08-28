@@ -142,6 +142,77 @@ CREATE TABLE IF NOT EXISTS workspace_panes (
 CREATE INDEX IF NOT EXISTS idx_workspace_panes_sort ON workspace_panes(sort_order);
 CREATE INDEX IF NOT EXISTS idx_workspace_panes_group ON workspace_panes(group_id);
 
+-- Roles: named positions inside a group.
+--
+-- session_id is NULL while the role is WAITING: the role holds a command and
+-- no process. That is the whole point of the table — a group can express a
+-- position that has not started yet, which is what makes auto-closing an
+-- empty group safe (a group with a waiting role is not finished).
+--
+-- Roles are NOT a replacement for workspace_panes. A pane is the runtime
+-- projection of a live session and is keyed BY session_id; a role is the
+-- durable identity inside a group. They are joined by session_id, and a pane
+-- whose session appears in no role is an ordinary hand-grouped session.
+--
+-- ON DELETE CASCADE differs deliberately from workspace_panes.group_id, which
+-- is ON DELETE SET NULL. A pane survives its group because it owns a live
+-- session; a role has no meaning outside its group, so it goes with it.
+CREATE TABLE IF NOT EXISTS workspace_roles (
+    id TEXT PRIMARY KEY,
+    group_id TEXT NOT NULL REFERENCES tab_groups(id) ON DELETE CASCADE,
+    label TEXT NOT NULL DEFAULT 'Role',
+    command TEXT NOT NULL DEFAULT '',
+    working_dir TEXT NOT NULL DEFAULT '',
+    incoming_prompt TEXT NOT NULL DEFAULT '',
+    backend TEXT NOT NULL DEFAULT '',
+    target_id TEXT NOT NULL DEFAULT '',
+    session_id TEXT,
+    sort_order INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+    updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_workspace_roles_group ON workspace_roles(group_id, sort_order);
+
+-- One session can back at most one role. The index is PARTIAL so any number
+-- of roles may wait at once (NULL session_id), while a running session can
+-- never be claimed by two roles.
+CREATE UNIQUE INDEX IF NOT EXISTS idx_workspace_roles_session
+    ON workspace_roles(session_id) WHERE session_id IS NOT NULL;
+
+-- Group templates: a saved role list. `roles` is a JSON array, mirroring
+-- shortcut_profiles.shortcuts, so this scenario has ONE storage idiom for a
+-- configuration row that owns an ordered child list.
+--
+-- There is deliberately no is_builtin column. A seeded example is an ordinary
+-- row written through the public upsert path and is deletable like any other.
+CREATE TABLE IF NOT EXISTS group_templates (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    color TEXT NOT NULL DEFAULT '',
+    roles TEXT NOT NULL DEFAULT '[]',
+    use_count INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+    updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+);
+
+-- Capture rules: decide when a handoff is SUGGESTED. A rule never sends
+-- anything, which is why an operator-authored pattern is safe to ship.
+CREATE TABLE IF NOT EXISTS handoff_rules (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    enabled INTEGER NOT NULL DEFAULT 1,
+    source TEXT NOT NULL DEFAULT 'file_path'
+        CHECK(source IN ('file_path', 'message_text')),
+    pattern TEXT NOT NULL DEFAULT '',
+    surfaces TEXT NOT NULL DEFAULT '[]',
+    sort_order INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+    updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_handoff_rules_sort ON handoff_rules(sort_order);
+
 -- AI provider configuration
 CREATE TABLE IF NOT EXISTS ai_provider_configs (
     name TEXT PRIMARY KEY,

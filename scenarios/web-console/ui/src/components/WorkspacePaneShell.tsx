@@ -39,6 +39,8 @@ interface WorkspacePaneShellProps {
   playbackFocusRequest: PlaybackFocusRequest | null;
   onActivate: (sessionId: string) => void;
   onRequestClose: (sessionId: string) => void;
+  /** Open the handoff composer from this pane, with a payload. */
+  onHandoff: (sessionId: string, payload: string) => void;
   onToggleView: (sessionId: string, viewMode: PaneViewMode) => void;
   /** Notifies when this pane is mid view-switch so a shared toolbar button
    *  (e.g. the tabs-mode floating toggle) can show a loading indicator. */
@@ -88,6 +90,7 @@ function WorkspacePaneShell({
   playbackFocusRequest,
   onActivate,
   onRequestClose,
+  onHandoff,
   onToggleView,
   onViewSwitchPendingChange,
   messagesToolbarTrailingAction,
@@ -175,7 +178,7 @@ function WorkspacePaneShell({
         layoutMode === "grid" && isDropTarget && "ring-2 ring-blue-400/60 ring-inset",
       )}
       style={wrapperStyle}
-      onClick={layoutMode === "grid" ? () => onActivate(sessionId) : undefined}
+      onClick={layoutMode === "grid" ? () => { onActivate(sessionId); } : undefined}
     >
       {layoutMode === "grid" && (
         <TerminalHeader
@@ -185,10 +188,11 @@ function WorkspacePaneShell({
           isActive={isActive}
           viewMode={viewMode}
           unreadCount={unreadCount}
-          onClose={() => onRequestClose(sessionId)}
-          onFocus={() => onActivate(sessionId)}
+          onClose={() => { onRequestClose(sessionId); }}
+          onFocus={() => { onActivate(sessionId); }}
           onToggleView={supportsMessagesView ? handleToggleView : undefined}
           isViewSwitchPending={false}
+          onHandoff={(id) => { onHandoff(id, ""); }}
           onDragStart={onStartArrangeDrag}
         />
       )}
@@ -199,17 +203,18 @@ function WorkspacePaneShell({
             onExit={onTerminalExit}
             onVoiceStart={onVoiceStart}
             onVoiceStop={onVoiceStop}
-            onTtsSpeakingChange={(speaking) => onTtsSpeakingChange(sessionId, speaking)}
-            onSpeakingEventChange={(eventId) => onSpeakingEventChange(sessionId, eventId)}
+            onTtsSpeakingChange={(speaking) => { onTtsSpeakingChange(sessionId, speaking); }}
+            onSpeakingEventChange={(eventId) => { onSpeakingEventChange(sessionId, eventId); }}
             onConversationEventReceived={onConversationEventReceived}
             onNeedsUnlock={onNeedsUnlock}
-            ref={(handle) => onTerminalRef(sessionId, handle)}
+            ref={(handle) => { onTerminalRef(sessionId, handle); }}
           />
         </ErrorBoundary>
         {supportsMessagesView && isVisible && viewMode === "messages" && (
           <div className="absolute inset-0">
             <MessagesPane
               sessionId={sessionId}
+              onHandoff={onHandoff}
               onPlayFromHere={handlePlayFromHere}
               onPlayEvent={handlePlayEvent}
               activeSpeakingEventId={activeSpeakingEventId}

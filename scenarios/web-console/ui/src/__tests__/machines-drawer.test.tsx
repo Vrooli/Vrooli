@@ -87,7 +87,15 @@ function fleet(overrides: Partial<Fleet> = {}): Fleet {
     ],
     message: "",
     recoveryAction: "",
-    controlPlane: { reachable: true, endpoint: "http://localhost:18767", detail: "" },
+    controlPlane: {
+      reachable: true,
+      // The API base the server dials, and the UI the browser opens, are
+      // different ports on purpose. The fixture keeps them apart so a test can
+      // tell which one a surface used.
+      endpoint: "http://localhost:18767",
+      detail: "",
+      consoleUrl: "http://localhost:22054",
+    },
     ...overrides,
   };
 }
@@ -267,6 +275,33 @@ describe("machines surface", () => {
     render(<MachinesDrawer open onClose={vi.fn()} />);
     expect(await screen.findByTestId("machines-footer")).toBeTruthy();
     expect(screen.getByTestId("machines-control-plane").textContent).toContain("18767");
+  });
+
+  it("hands off to the control plane through a link a browser can open", async () => {
+    render(<MachinesDrawer open onClose={vi.fn()} />);
+    fireEvent.click(await screen.findByTestId("machines-add"));
+    fireEvent.click(screen.getByTestId("machines-door-server"));
+
+    const link = screen.getByTestId("machines-open-bridge");
+    // The API base is what this server dials; it answers a browser with 404 and
+    // names loopback on whichever machine the server runs on. The link has to
+    // carry the interface address, resolved against the caller's own origin.
+    expect(link.getAttribute("href")).toBe("http://localhost:22054");
+    expect(link.getAttribute("href")).not.toContain("18767");
+  });
+
+  it("offers no handoff at all when the control plane interface cannot be located", async () => {
+    listFleet.mockResolvedValue(
+      fleet({ controlPlane: { reachable: true, endpoint: "http://localhost:18767", detail: "", consoleUrl: "" } }),
+    );
+    render(<MachinesDrawer open onClose={vi.fn()} />);
+    fireEvent.click(await screen.findByTestId("machines-add"));
+    fireEvent.click(screen.getByTestId("machines-door-server"));
+
+    // A link that cannot work is worse than an absent one: it spends the
+    // person's trust and returns an error page.
+    expect(screen.queryByTestId("machines-open-bridge")).toBeNull();
+    expect(screen.getByTestId("machines-server-command")).toBeTruthy();
   });
 
   it("reports a refused action instead of failing silently", async () => {

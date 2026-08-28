@@ -3,35 +3,35 @@ package workspace
 import (
 	"context"
 	"database/sql"
+	"os"
+	"path/filepath"
 	"testing"
 
 	_ "modernc.org/sqlite"
 )
 
+// newTestSQLStore opens a store over the REAL schema.sql with foreign keys
+// on, not a hand-written subset. A subset cannot exercise ON DELETE CASCADE
+// or the partial unique index, which are exactly the two behaviours roles
+// depend on — and it silently drifts from production the moment the schema
+// changes.
 func newTestSQLStore(t *testing.T) *SQLStore {
 	t.Helper()
-	db, err := sql.Open("sqlite", "file:"+t.TempDir()+"/workspace.db")
+	dsn := "file:" + filepath.Join(t.TempDir(), "workspace.db") +
+		"?_pragma=foreign_keys(ON)&_pragma=journal_mode(WAL)&_pragma=busy_timeout(5000)"
+	db, err := sql.Open("sqlite", dsn)
 	if err != nil {
 		t.Fatal(err)
 	}
 	db.SetMaxOpenConns(1)
 	t.Cleanup(func() { _ = db.Close() })
-	_, err = db.Exec(`
-		CREATE TABLE tab_groups (
-			id TEXT PRIMARY KEY, name TEXT NOT NULL, color TEXT NOT NULL,
-			sort_order INTEGER NOT NULL, is_collapsed INTEGER NOT NULL DEFAULT 0,
-			created_at TEXT NOT NULL, updated_at TEXT NOT NULL
-		);
-		CREATE TABLE workspace_panes (
-			session_id TEXT PRIMARY KEY, name TEXT NOT NULL, header_color TEXT NOT NULL,
-			theme_id TEXT NOT NULL, font_size INTEGER NOT NULL, sort_order INTEGER NOT NULL,
-			group_id TEXT, is_active INTEGER NOT NULL DEFAULT 0,
-			supports_messages_view INTEGER NOT NULL DEFAULT 0,
-			manually_unread INTEGER NOT NULL DEFAULT 0,
-			created_at TEXT NOT NULL, updated_at TEXT NOT NULL
-		);`)
+
+	schema, err := os.ReadFile(filepath.Join("..", "sessions", "schema.sql"))
 	if err != nil {
-		t.Fatal(err)
+		t.Fatalf("read schema.sql: %v", err)
+	}
+	if _, err := db.Exec(string(schema)); err != nil {
+		t.Fatalf("exec schema.sql: %v", err)
 	}
 	return NewSQLStore(db)
 }

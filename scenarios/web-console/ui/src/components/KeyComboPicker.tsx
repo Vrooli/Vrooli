@@ -1,7 +1,7 @@
 import { useState, useCallback, useRef, useEffect, useMemo, type CSSProperties, type ReactNode } from "react";
-import { createPortal } from "react-dom";
 import { MoreHorizontal, Search } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { BottomSheet } from "@vrooli/react-component-library/BottomSheet/1";
 import { KEY_COMBOS, CATEGORY_ORDER, filterCombos, type KeyCombo } from "../consts/key-combos";
 import { sendComboSequence } from "../lib/comboSequence";
 import { strings } from "../consts/strings";
@@ -66,14 +66,20 @@ export default function KeyComboPicker({
   // The 50ms delay before focusing search gives the browser enough time to
   // actually retract the keyboard animation; focusing a new input immediately
   // after blur can cause the keyboard to snap back open on some mobile browsers.
+  // The sheet's own initial focus lands on its drag handle first, which is
+  // harmless and is what this hand-off replaces.
   useEffect(() => {
     if (open) {
       // Blur whatever currently has focus (dismisses virtual keyboard)
       if (document.activeElement instanceof HTMLElement) {
         document.activeElement.blur();
       }
-      const id = setTimeout(() => searchRef.current?.focus(), 50);
-      return () => clearTimeout(id);
+      const id = setTimeout(() => {
+        searchRef.current?.focus();
+      }, 50);
+      return () => {
+        clearTimeout(id);
+      };
     }
     setSearchQuery("");
   }, [open]);
@@ -102,8 +108,12 @@ export default function KeyComboPicker({
       key={combo.id}
       data-testid={`${testIdPrefix}-${combo.id}`}
       tabIndex={-1}
-      onPointerDown={(e) => e.preventDefault()}
-      onClick={() => handleSelect(combo)}
+      onPointerDown={(e) => {
+        e.preventDefault();
+      }}
+      onClick={() => {
+        handleSelect(combo);
+      }}
       className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-start text-sm transition active:bg-wc-accent-active hover:bg-wc-surface-input"
     >
       <span className="shrink-0 rounded border border-wc-default bg-wc-surface-input px-1.5 py-0.5 font-mono text-xs text-wc-text-primary">
@@ -119,8 +129,12 @@ export default function KeyComboPicker({
       <button
         data-testid="combo-picker-trigger"
         tabIndex={-1}
-        onPointerDown={(e) => e.preventDefault()}
-        onClick={() => setOpen(true)}
+        onPointerDown={(e) => {
+          e.preventDefault();
+        }}
+        onClick={() => {
+          setOpen(true);
+        }}
         className={triggerClassName ?? "shrink-0 rounded border border-wc-default bg-wc-surface-input p-1.5 text-wc-text-secondary transition active:bg-wc-accent-active touch-manipulation"}
         style={triggerStyle}
         aria-label={triggerLabel ?? t(strings.keyComboPicker.triggerTitle)}
@@ -129,106 +143,95 @@ export default function KeyComboPicker({
         <MoreHorizontal aria-hidden className="h-4 w-4" />
       </button>
 
-      {/* Bottom sheet */}
-      {open &&
-        createPortal(
-          <div
-            className="fixed inset-0 z-wc-popover-backdrop"
-            onMouseDown={(e) => e.preventDefault()}
-          >
-            {/* Backdrop */}
-            <div
-              data-testid="combo-picker-backdrop"
-              className="absolute inset-0 bg-wc-backdrop"
-              onClick={() => setOpen(false)}
-            />
-            {/* Panel */}
-            <div
-              data-testid="combo-picker-panel"
-              className="wc-stable-theme absolute bottom-0 left-0 right-0 z-wc-popover flex max-h-[60dvh] flex-col rounded-t-xl border-t border-wc-default bg-wc-surface-raised pb-[var(--wc-safe-bottom)] ps-[var(--wc-safe-left,0px)] pe-[var(--wc-safe-right,0px)] shadow-2xl"
-            >
-              {/* Drag handle */}
-              <div className="flex justify-center py-2">
-                <div className="h-1 w-8 rounded-full bg-wc-text-muted/40" />
-              </div>
-
-              {/* Controls that are not on the toolbar. Listed first because
-                  they are why the sheet is reachable at all — the key combos
-                  below are the long tail. */}
-              {offToolbarControls.length > 0 && (
-                <div data-testid="more-off-toolbar" className="border-b border-wc-default px-3 pb-3">
-                  <h3 className="pb-1.5 text-xs font-semibold uppercase tracking-wider text-wc-text-muted">
-                    {t(strings.keyComboPicker.offToolbar)}
-                  </h3>
-                  <div className="flex flex-col gap-1.5">
-                    {offToolbarControls.map((control) => (
-                      <div
-                        key={control.id}
-                        data-testid={`more-control-${control.id}`}
-                        className="flex items-center gap-3"
-                      >
-                        {control.node}
-                        <span className="min-w-0 truncate text-sm text-wc-text-secondary">{control.label}</span>
-                      </div>
-                    ))}
-                  </div>
+      {/* The sheet is the library's: drag-to-dismiss, backdrop, Escape, focus
+          containment, scroll lock, safe-area and motion all arrive with it, so
+          this file only describes what is inside. */}
+      <BottomSheet
+        avoidKeyboard
+        open={open}
+        onClose={() => {
+          setOpen(false);
+        }}
+        title={t(strings.keyComboPicker.triggerTitle)}
+        closeLabel={t(strings.keyComboPicker.closeAriaLabel)}
+        testId="combo-picker"
+      >
+        {/* Controls that are not on the toolbar. Listed first because
+            they are why the sheet is reachable at all — the key combos
+            below are the long tail. */}
+        {offToolbarControls.length > 0 && (
+          <div data-testid="more-off-toolbar" className="border-b border-wc-default px-3 pb-3 pt-2">
+            <h3 className="pb-1.5 text-xs font-semibold uppercase tracking-wider text-wc-text-muted">
+              {t(strings.keyComboPicker.offToolbar)}
+            </h3>
+            <div className="flex flex-col gap-1.5">
+              {offToolbarControls.map((control) => (
+                <div
+                  key={control.id}
+                  data-testid={`more-control-${control.id}`}
+                  className="flex items-center gap-3"
+                >
+                  {control.node}
+                  <span className="min-w-0 truncate text-sm text-wc-text-secondary">{control.label}</span>
                 </div>
-              )}
-
-              {/* Search */}
-              {showKeyCombos && (
-              <div className="flex items-center gap-2 border-b border-wc-default px-3 pb-2">
-                <Search className="h-4 w-4 shrink-0 text-wc-text-muted" />
-                <input
-                  ref={searchRef}
-                  data-testid="combo-picker-search"
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder={t(strings.keyComboPicker.searchPlaceholder)}
-                  className="min-w-0 flex-1 bg-transparent text-sm text-wc-text-primary placeholder:text-wc-text-muted outline-none"
-                />
-              </div>
-              )}
-
-              {/* Scrollable list */}
-              {showKeyCombos && (
-              <div className="flex-1 overflow-y-auto px-2 py-2">
-                {/* Recent section */}
-                {recentItems.length > 0 && (
-                  <div className="mb-2">
-                    <h3 className="px-2 pb-1 text-xs font-semibold uppercase tracking-wider text-wc-text-muted">
-                      {t(strings.keyComboPicker.recent)}
-                    </h3>
-                    {recentItems.map((c) => comboButton(c, "combo-recent"))}
-                  </div>
-                )}
-
-                {/* Category sections */}
-                {CATEGORY_ORDER.map((cat) => {
-                  const items = filtered.filter((c) => c.category === cat);
-                  if (items.length === 0) return null;
-                  return (
-                    <div key={cat} className="mb-2">
-                      <h3 className="px-2 pb-1 text-xs font-semibold uppercase tracking-wider text-wc-text-muted">
-                        {cat}
-                      </h3>
-                      {items.map((c) => comboButton(c, "combo-item"))}
-                    </div>
-                  );
-                })}
-
-                {filtered.length === 0 && (
-                  <p className="px-2 py-4 text-center text-sm text-wc-text-muted">
-                    {t(strings.keyComboPicker.noResults, { query: searchQuery })}
-                  </p>
-                )}
-              </div>
-              )}
+              ))}
             </div>
-          </div>,
-          document.body,
+          </div>
         )}
+
+        {/* Search */}
+        {showKeyCombos && (
+          <div className="flex items-center gap-2 border-b border-wc-default px-3 py-2">
+            <Search className="h-4 w-4 shrink-0 text-wc-text-muted" />
+            <input
+              ref={searchRef}
+              data-testid="combo-picker-search"
+              type="text"
+              value={searchQuery}
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+              }}
+              placeholder={t(strings.keyComboPicker.searchPlaceholder)}
+              className="min-w-0 flex-1 bg-transparent text-sm text-wc-text-primary placeholder:text-wc-text-muted outline-none"
+            />
+          </div>
+        )}
+
+        {/* Combo list */}
+        {showKeyCombos && (
+          <div className="px-2 py-2">
+            {/* Recent section */}
+            {recentItems.length > 0 && (
+              <div className="mb-2">
+                <h3 className="px-2 pb-1 text-xs font-semibold uppercase tracking-wider text-wc-text-muted">
+                  {t(strings.keyComboPicker.recent)}
+                </h3>
+                {recentItems.map((c) => comboButton(c, "combo-recent"))}
+              </div>
+            )}
+
+            {/* Category sections */}
+            {CATEGORY_ORDER.map((cat) => {
+              const items = filtered.filter((c) => c.category === cat);
+              if (items.length === 0) return null;
+              return (
+                <div key={cat} className="mb-2">
+                  <h3 className="px-2 pb-1 text-xs font-semibold uppercase tracking-wider text-wc-text-muted">
+                    {cat}
+                  </h3>
+                  {items.map((c) => comboButton(c, "combo-item"))}
+                </div>
+              );
+            })}
+
+            {filtered.length === 0 && (
+              <p className="px-2 py-4 text-center text-sm text-wc-text-muted">
+                {t(strings.keyComboPicker.noResults, { query: searchQuery })}
+              </p>
+            )}
+          </div>
+        )}
+      </BottomSheet>
     </>
   );
 }

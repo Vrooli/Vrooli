@@ -79,7 +79,7 @@ describe("summarize error banner", () => {
   it("is a danger-tone notice on the shared base, and announces assertively", () => {
     renderBanner(makeState());
     const banner = screen.getByTestId("summarize-error-banner");
-    expect(banner).toHaveAttribute("data-wc-banner");
+    expect(banner).toHaveAttribute("data-rcl-banner");
     expect(banner).toHaveAttribute("data-tone", "danger");
     expect(banner.getAttribute("role")).toBe("alert");
     expect(banner.getAttribute("aria-live")).toBe("assertive");

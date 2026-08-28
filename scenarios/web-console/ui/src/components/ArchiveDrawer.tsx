@@ -283,6 +283,7 @@ export default function ArchiveDrawer({ open, initialSessionId = null, onClose, 
   return (
     <>
       <FullPageDrawer
+        avoidKeyboard
         open={open}
         onClose={onClose}
         title={t(strings.archiveDrawer.title)}

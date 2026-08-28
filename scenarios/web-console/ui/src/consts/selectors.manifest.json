@@ -60,6 +60,58 @@
       "testId": "forms.textarea",
       "selector": "[data-testid=\"forms.textarea\"]"
     },
+    "library.overlays.full-page-drawer.root": {
+      "testId": "overlays.full-page-drawer",
+      "selector": "[data-testid=\"overlays.full-page-drawer\"]"
+    },
+    "library.overlays.full-page-drawer.close": {
+      "testId": "overlays.full-page-drawer.close",
+      "selector": "[data-testid=\"overlays.full-page-drawer.close\"]"
+    },
+    "library.overlays.full-page-drawer.grabber": {
+      "testId": "overlays.full-page-drawer.grabber",
+      "selector": "[data-testid=\"overlays.full-page-drawer.grabber\"]"
+    },
+    "library.overlays.full-page-drawer.subheader": {
+      "testId": "overlays.full-page-drawer.subheader",
+      "selector": "[data-testid=\"overlays.full-page-drawer.subheader\"]"
+    },
+    "library.overlays.responsive-dialog.root": {
+      "testId": "overlays.responsive-dialog",
+      "selector": "[data-testid=\"overlays.responsive-dialog\"]"
+    },
+    "library.overlays.responsive-dialog.subheader": {
+      "testId": "overlays.responsive-dialog.subheader",
+      "selector": "[data-testid=\"overlays.responsive-dialog.subheader\"]"
+    },
+    "library.navigation.tabs.root": {
+      "testId": "navigation.tabs",
+      "selector": "[data-testid=\"navigation.tabs\"]"
+    },
+    "library.navigation.tabs.links": {
+      "testId": "navigation.tabs.Links",
+      "selector": "[data-testid=\"navigation.tabs.Links\"]"
+    },
+    "library.navigation.tabs.settingsTabSessions": {
+      "testId": "navigation.tabs.settings-tab-sessions",
+      "selector": "[data-testid=\"navigation.tabs.settings-tab-sessions\"]"
+    },
+    "library.overlays.bottom-sheet.root": {
+      "testId": "overlays.bottom-sheet",
+      "selector": "[data-testid=\"overlays.bottom-sheet\"]"
+    },
+    "library.overlays.bottom-sheet.close": {
+      "testId": "overlays.bottom-sheet.close",
+      "selector": "[data-testid=\"overlays.bottom-sheet.close\"]"
+    },
+    "library.overlays.bottom-sheet.grabber": {
+      "testId": "overlays.bottom-sheet.grabber",
+      "selector": "[data-testid=\"overlays.bottom-sheet.grabber\"]"
+    },
+    "library.overlays.bottom-sheet.subheader": {
+      "testId": "overlays.bottom-sheet.subheader",
+      "selector": "[data-testid=\"overlays.bottom-sheet.subheader\"]"
+    },
     "workspace.paneGrid": {
       "testId": "pane-grid",
       "selector": "[data-testid=\"pane-grid\"]"
@@ -119,6 +171,294 @@
     "launcher.customLaunch": {
       "testId": "launcher-custom-launch",
       "selector": "[data-testid=\"launcher-custom-launch\"]"
+    },
+    "launcher.destination": {
+      "testId": "launcher-destination",
+      "selector": "[data-testid=\"launcher-destination\"]"
+    },
+    "launcher.destinationTrigger": {
+      "testId": "launcher-destination-trigger",
+      "selector": "[data-testid=\"launcher-destination-trigger\"]"
+    },
+    "launcher.appearance": {
+      "testId": "launcher-appearance",
+      "selector": "[data-testid=\"launcher-appearance\"]"
+    },
+    "launcher.machinePicker": {
+      "testId": "launcher-machine-picker",
+      "selector": "[data-testid=\"launcher-machine-picker\"]"
+    },
+    "launcher.machineMenu": {
+      "testId": "launcher-machine-menu",
+      "selector": "[data-testid=\"launcher-machine-menu\"]"
+    },
+    "launcher.machineList": {
+      "testId": "launcher-machine-list",
+      "selector": "[data-testid=\"launcher-machine-list\"]"
+    },
+    "launcher.machineLink": {
+      "testId": "launcher-machine-link",
+      "selector": "[data-testid=\"launcher-machine-link\"]"
+    },
+    "launcher.machineManage": {
+      "testId": "launcher-machine-manage",
+      "selector": "[data-testid=\"launcher-machine-manage\"]"
+    },
+    "launcher.targetUnavailable": {
+      "testId": "launcher-target-unavailable",
+      "selector": "[data-testid=\"launcher-target-unavailable\"]"
+    },
+    "launcher.editShortcuts": {
+      "testId": "launcher-edit-shortcuts",
+      "selector": "[data-testid=\"launcher-edit-shortcuts\"]"
+    },
+    "launcher.editTemplates": {
+      "testId": "launcher-edit-templates",
+      "selector": "[data-testid=\"launcher-edit-templates\"]"
+    },
+    "launcher.appearanceToggle": {
+      "testId": "launcher-appearance-toggle",
+      "selector": "[data-testid=\"launcher-appearance-toggle\"]"
+    },
+    "launcher.templateMenu": {
+      "testId": "launcher-template-menu",
+      "selector": "[data-testid=\"launcher-template-menu\"]"
+    },
+    "launcher.groupRoleEmpty": {
+      "testId": "launcher-group-role-empty",
+      "selector": "[data-testid=\"launcher-group-role-empty\"]"
+    },
+    "launcher.agentGrid": {
+      "testId": "launcher-agent-grid",
+      "selector": "[data-testid=\"launcher-agent-grid\"]"
+    },
+    "launcher.attributedToggle": {
+      "testId": "launcher-attributed-toggle",
+      "selector": "[data-testid=\"launcher-attributed-toggle\"]"
+    },
+    "launcher.modeOneSession": {
+      "testId": "launcher-mode-one-session",
+      "selector": "[data-testid=\"launcher-mode-one-session\"]"
+    },
+    "launcher.modeGroup": {
+      "testId": "launcher-mode-group",
+      "selector": "[data-testid=\"launcher-mode-group\"]"
+    },
+    "launcher.templatePicker": {
+      "testId": "launcher-template-picker",
+      "selector": "[data-testid=\"launcher-template-picker\"]"
+    },
+    "launcher.groupName": {
+      "testId": "launcher-group-name",
+      "selector": "[data-testid=\"launcher-group-name\"]"
+    },
+    "launcher.groupRoleList": {
+      "testId": "launcher-group-role-list",
+      "selector": "[data-testid=\"launcher-group-role-list\"]"
+    },
+    "launcher.groupRoleAdd": {
+      "testId": "launcher-group-role-add",
+      "selector": "[data-testid=\"launcher-group-role-add\"]"
+    },
+    "launcher.createGroup": {
+      "testId": "launcher-create-group",
+      "selector": "[data-testid=\"launcher-create-group\"]"
+    },
+    "groups.drawer": {
+      "testId": "manage-groups-drawer",
+      "selector": "[data-testid=\"manage-groups-drawer\"]"
+    },
+    "groups.filter": {
+      "testId": "manage-groups-filter",
+      "selector": "[data-testid=\"manage-groups-filter\"]"
+    },
+    "groups.sectionActive": {
+      "testId": "manage-groups-section-active",
+      "selector": "[data-testid=\"manage-groups-section-active\"]"
+    },
+    "groups.sectionEmpty": {
+      "testId": "manage-groups-section-empty",
+      "selector": "[data-testid=\"manage-groups-section-empty\"]"
+    },
+    "groups.closeAllEmpty": {
+      "testId": "manage-groups-close-all-empty",
+      "selector": "[data-testid=\"manage-groups-close-all-empty\"]"
+    },
+    "groups.bulkBar": {
+      "testId": "manage-groups-bulk-bar",
+      "selector": "[data-testid=\"manage-groups-bulk-bar\"]"
+    },
+    "groups.autoCloseToggle": {
+      "testId": "manage-groups-auto-close",
+      "selector": "[data-testid=\"manage-groups-auto-close\"]"
+    },
+    "groups.summary": {
+      "testId": "manage-groups-summary",
+      "selector": "[data-testid=\"manage-groups-summary\"]"
+    },
+    "groups.sort": {
+      "testId": "manage-groups-sort",
+      "selector": "[data-testid=\"manage-groups-sort\"]"
+    },
+    "groups.assignPicker": {
+      "testId": "group-assign-picker",
+      "selector": "[data-testid=\"group-assign-picker\"]"
+    },
+    "groups.pickerList": {
+      "testId": "group-picker-list",
+      "selector": "[data-testid=\"group-picker-list\"]"
+    },
+    "groups.pickerFilter": {
+      "testId": "group-picker-filter",
+      "selector": "[data-testid=\"group-picker-filter\"]"
+    },
+    "groups.pickerNone": {
+      "testId": "group-picker-option-none",
+      "selector": "[data-testid=\"group-picker-option-none\"]"
+    },
+    "groups.pickerEmpty": {
+      "testId": "group-picker-empty",
+      "selector": "[data-testid=\"group-picker-empty\"]"
+    },
+    "groups.pickerNoMatches": {
+      "testId": "group-picker-no-matches",
+      "selector": "[data-testid=\"group-picker-no-matches\"]"
+    },
+    "groups.pickerEditToggle": {
+      "testId": "group-picker-edit-toggle",
+      "selector": "[data-testid=\"group-picker-edit-toggle\"]"
+    },
+    "groups.pickerSectionActive": {
+      "testId": "group-picker-section-active",
+      "selector": "[data-testid=\"group-picker-section-active\"]"
+    },
+    "groups.pickerSectionEmpty": {
+      "testId": "group-picker-section-empty",
+      "selector": "[data-testid=\"group-picker-section-empty\"]"
+    },
+    "groups.pickerCloseAllEmpty": {
+      "testId": "group-picker-close-all-empty",
+      "selector": "[data-testid=\"group-picker-close-all-empty\"]"
+    },
+    "groups.pickerUngroupNote": {
+      "testId": "group-picker-ungroup-note",
+      "selector": "[data-testid=\"group-picker-ungroup-note\"]"
+    },
+    "groups.pickerCreateSubmit": {
+      "testId": "group-picker-create-submit",
+      "selector": "[data-testid=\"group-picker-create-submit\"]"
+    },
+    "groups.undoBanner": {
+      "testId": "group-undo-banner",
+      "selector": "[data-testid=\"group-undo-banner\"]"
+    },
+    "groups.undoAction": {
+      "testId": "group-undo-action",
+      "selector": "[data-testid=\"group-undo-action\"]"
+    },
+    "groups.undoDismiss": {
+      "testId": "group-undo-dismiss",
+      "selector": "[data-testid=\"group-undo-dismiss\"]"
+    },
+    "roles.addDialog": {
+      "testId": "role-add-dialog",
+      "selector": "[data-testid=\"role-add-dialog\"]"
+    },
+    "roles.addLabel": {
+      "testId": "role-add-label",
+      "selector": "[data-testid=\"role-add-label\"]"
+    },
+    "roles.addCommand": {
+      "testId": "role-add-command",
+      "selector": "[data-testid=\"role-add-command\"]"
+    },
+    "roles.addPrompt": {
+      "testId": "role-add-prompt",
+      "selector": "[data-testid=\"role-add-prompt\"]"
+    },
+    "roles.addSubmit": {
+      "testId": "role-add-submit",
+      "selector": "[data-testid=\"role-add-submit\"]"
+    },
+    "roles.menu": {
+      "testId": "role-menu",
+      "selector": "[data-testid=\"role-menu\"]"
+    },
+    "handoff.composer": {
+      "testId": "handoff-composer",
+      "selector": "[data-testid=\"handoff-composer\"]"
+    },
+    "handoff.trigger": {
+      "testId": "handoff-trigger",
+      "selector": "[data-testid=\"handoff-trigger\"]"
+    },
+    "handoff.targets": {
+      "testId": "handoff-targets",
+      "selector": "[data-testid=\"handoff-targets\"]"
+    },
+    "handoff.message": {
+      "testId": "handoff-message",
+      "selector": "[data-testid=\"handoff-message\"]"
+    },
+    "handoff.send": {
+      "testId": "handoff-send",
+      "selector": "[data-testid=\"handoff-send\"]"
+    },
+    "handoff.results": {
+      "testId": "handoff-results",
+      "selector": "[data-testid=\"handoff-results\"]"
+    },
+    "handoff.suggestion": {
+      "testId": "handoff-suggestion",
+      "selector": "[data-testid=\"handoff-suggestion\"]"
+    },
+    "handoff.suggestionDismiss": {
+      "testId": "handoff-suggestion-dismiss",
+      "selector": "[data-testid=\"handoff-suggestion-dismiss\"]"
+    },
+    "handoff.paneHeaderTrigger": {
+      "testId": "handoff-pane-header",
+      "selector": "[data-testid=\"handoff-pane-header\"]"
+    },
+    "handoff.fileViewerTrigger": {
+      "testId": "handoff-file-viewer",
+      "selector": "[data-testid=\"handoff-file-viewer\"]"
+    },
+    "handoff.pendingStrip": {
+      "testId": "pending-input-strip",
+      "selector": "[data-testid=\"pending-input-strip\"]"
+    },
+    "templates.panel": {
+      "testId": "group-templates-panel",
+      "selector": "[data-testid=\"group-templates-panel\"]"
+    },
+    "templates.create": {
+      "testId": "group-templates-create",
+      "selector": "[data-testid=\"group-templates-create\"]"
+    },
+    "templates.roleList": {
+      "testId": "group-templates-role-list",
+      "selector": "[data-testid=\"group-templates-role-list\"]"
+    },
+    "templates.roleAdd": {
+      "testId": "group-templates-role-add",
+      "selector": "[data-testid=\"group-templates-role-add\"]"
+    },
+    "templates.saveAs": {
+      "testId": "group-templates-save-as",
+      "selector": "[data-testid=\"group-templates-save-as\"]"
+    },
+    "handoffRules.panel": {
+      "testId": "handoff-rules-panel",
+      "selector": "[data-testid=\"handoff-rules-panel\"]"
+    },
+    "handoffRules.create": {
+      "testId": "handoff-rules-create",
+      "selector": "[data-testid=\"handoff-rules-create\"]"
+    },
+    "handoffRules.footer": {
+      "testId": "handoff-rules-footer",
+      "selector": "[data-testid=\"handoff-rules-footer\"]"
     },
     "nav.settings": {
       "testId": "nav-settings",
@@ -330,6 +670,237 @@
       "params": [
         {
           "name": "label",
+          "type": "string"
+        }
+      ]
+    },
+    "launcher.agentCard": {
+      "description": "Launcher agent card in the two-column grid",
+      "selectorPattern": "[data-testid=\"launcher-agent-${label}\"]",
+      "testIdPattern": "launcher-agent-${label}",
+      "params": [
+        {
+          "name": "label",
+          "type": "string"
+        }
+      ]
+    },
+    "launcher.machineOption": {
+      "description": "Machine row inside the launcher machine picker listbox",
+      "selectorPattern": "[data-testid=\"launcher-machine-option-${targetId}\"]",
+      "testIdPattern": "launcher-machine-option-${targetId}",
+      "params": [
+        {
+          "name": "targetId",
+          "type": "string"
+        }
+      ]
+    },
+    "roles.sidebarRow": {
+      "description": "Waiting role row in the workspace sidebar",
+      "selectorPattern": "[data-testid=\"sidebar-waiting-role-${roleId}\"]",
+      "testIdPattern": "sidebar-waiting-role-${roleId}",
+      "params": [
+        {
+          "name": "roleId",
+          "type": "string"
+        }
+      ]
+    },
+    "roles.sidebarStart": {
+      "description": "Start control on a waiting role row",
+      "selectorPattern": "[data-testid=\"sidebar-waiting-role-start-${roleId}\"]",
+      "testIdPattern": "sidebar-waiting-role-start-${roleId}",
+      "params": [
+        {
+          "name": "roleId",
+          "type": "string"
+        }
+      ]
+    },
+    "roles.sidebarHandoff": {
+      "description": "Handoff control on a waiting role row",
+      "selectorPattern": "[data-testid=\"sidebar-waiting-role-handoff-${roleId}\"]",
+      "testIdPattern": "sidebar-waiting-role-handoff-${roleId}",
+      "params": [
+        {
+          "name": "roleId",
+          "type": "string"
+        }
+      ]
+    },
+    "roles.sidebarMenu": {
+      "description": "Overflow menu control on a waiting role row",
+      "selectorPattern": "[data-testid=\"sidebar-waiting-role-menu-${roleId}\"]",
+      "testIdPattern": "sidebar-waiting-role-menu-${roleId}",
+      "params": [
+        {
+          "name": "roleId",
+          "type": "string"
+        }
+      ]
+    },
+    "roles.tabRow": {
+      "description": "Waiting role chip in the tab strip",
+      "selectorPattern": "[data-testid=\"tab-waiting-role-${roleId}\"]",
+      "testIdPattern": "tab-waiting-role-${roleId}",
+      "params": [
+        {
+          "name": "roleId",
+          "type": "string"
+        }
+      ]
+    },
+    "handoff.target": {
+      "description": "Selectable target row in the handoff composer",
+      "selectorPattern": "[data-testid=\"handoff-target-${targetId}\"]",
+      "testIdPattern": "handoff-target-${targetId}",
+      "params": [
+        {
+          "name": "targetId",
+          "type": "string"
+        }
+      ]
+    },
+    "handoff.result": {
+      "description": "Per-target result line after a handoff is sent",
+      "selectorPattern": "[data-testid=\"handoff-result-${targetId}\"]",
+      "testIdPattern": "handoff-result-${targetId}",
+      "params": [
+        {
+          "name": "targetId",
+          "type": "string"
+        }
+      ]
+    },
+    "groups.selectRow": {
+      "description": "Selection checkbox for a group row in the manager",
+      "selectorPattern": "[data-testid=\"manage-groups-select-${groupId}\"]",
+      "testIdPattern": "manage-groups-select-${groupId}",
+      "params": [
+        {
+          "name": "groupId",
+          "type": "string"
+        }
+      ]
+    },
+    "groups.closeRow": {
+      "description": "Close control for a group row in the manager",
+      "selectorPattern": "[data-testid=\"manage-groups-close-${groupId}\"]",
+      "testIdPattern": "manage-groups-close-${groupId}",
+      "params": [
+        {
+          "name": "groupId",
+          "type": "string"
+        }
+      ]
+    },
+    "groups.pickerOption": {
+      "description": "Group card in the group picker overlay",
+      "selectorPattern": "[data-testid=\"group-picker-option-${groupId}\"]",
+      "testIdPattern": "group-picker-option-${groupId}",
+      "params": [
+        {
+          "name": "groupId",
+          "type": "string"
+        }
+      ]
+    },
+    "groups.pickerEditRow": {
+      "description": "Group row in the picker overlay while editing",
+      "selectorPattern": "[data-testid=\"group-picker-edit-${groupId}\"]",
+      "testIdPattern": "group-picker-edit-${groupId}",
+      "params": [
+        {
+          "name": "groupId",
+          "type": "string"
+        }
+      ]
+    },
+    "groups.pickerRename": {
+      "description": "Rename field for a group in the picker overlay",
+      "selectorPattern": "[data-testid=\"group-picker-rename-${groupId}\"]",
+      "testIdPattern": "group-picker-rename-${groupId}",
+      "params": [
+        {
+          "name": "groupId",
+          "type": "string"
+        }
+      ]
+    },
+    "groups.pickerRecolor": {
+      "description": "Colour control for a group in the picker overlay",
+      "selectorPattern": "[data-testid=\"group-picker-recolor-${groupId}\"]",
+      "testIdPattern": "group-picker-recolor-${groupId}",
+      "params": [
+        {
+          "name": "groupId",
+          "type": "string"
+        }
+      ]
+    },
+    "groups.pickerCloseGroup": {
+      "description": "Close control for a group in the picker overlay",
+      "selectorPattern": "[data-testid=\"group-picker-close-${groupId}\"]",
+      "testIdPattern": "group-picker-close-${groupId}",
+      "params": [
+        {
+          "name": "groupId",
+          "type": "string"
+        }
+      ]
+    },
+    "templates.row": {
+      "description": "Template row in the templates panel",
+      "selectorPattern": "[data-testid=\"group-template-${templateId}\"]",
+      "testIdPattern": "group-template-${templateId}",
+      "params": [
+        {
+          "name": "templateId",
+          "type": "string"
+        }
+      ]
+    },
+    "templates.deleteRow": {
+      "description": "Delete control for a template row",
+      "selectorPattern": "[data-testid=\"group-template-delete-${templateId}\"]",
+      "testIdPattern": "group-template-delete-${templateId}",
+      "params": [
+        {
+          "name": "templateId",
+          "type": "string"
+        }
+      ]
+    },
+    "handoffRules.row": {
+      "description": "Rule row in the handoff rules panel",
+      "selectorPattern": "[data-testid=\"handoff-rule-${ruleId}\"]",
+      "testIdPattern": "handoff-rule-${ruleId}",
+      "params": [
+        {
+          "name": "ruleId",
+          "type": "string"
+        }
+      ]
+    },
+    "handoffRules.toggleRow": {
+      "description": "Enable toggle for a rule row",
+      "selectorPattern": "[data-testid=\"handoff-rule-toggle-${ruleId}\"]",
+      "testIdPattern": "handoff-rule-toggle-${ruleId}",
+      "params": [
+        {
+          "name": "ruleId",
+          "type": "string"
+        }
+      ]
+    },
+    "handoffRules.deleteRow": {
+      "description": "Delete control for a rule row",
+      "selectorPattern": "[data-testid=\"handoff-rule-delete-${ruleId}\"]",
+      "testIdPattern": "handoff-rule-delete-${ruleId}",
+      "params": [
+        {
+          "name": "ruleId",
           "type": "string"
         }
       ]

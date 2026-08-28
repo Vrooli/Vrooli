@@ -51,6 +51,8 @@ const renderTabBar = () =>
       onOpenLauncher={vi.fn()}
       onClosePane={vi.fn()}
       onDeletePanePermanently={vi.fn()}
+      onStartRole={vi.fn()}
+      onOpenRoleMenu={vi.fn()}
     />,
   );
 
@@ -136,22 +138,23 @@ describe("TabBar group quick paths", () => {
       groups: [groupMeta],
       displayMode: "tabs",
       tabContextMenu: null,
-      manageGroupsTarget: null,
+      manageGroupsOpen: false,
     });
   });
 
-  it("Add to Group opens the Manage Groups drawer with the session as context", () => {
+  // Assignment opens the shared group overlay, not a trip through the
+  // administration drawer.
+  it("Add to Group opens the group overlay, not the manager", () => {
     renderTabBar();
 
-    // Ungrouped pane: no inline group list — assignment lives in the drawer.
     fireEvent.contextMenu(screen.getByTestId("tab-a"), { clientX: 50, clientY: 10 });
     expect(screen.queryByTestId("tab-ctx-group-g1")).not.toBeInTheDocument();
     expect(screen.queryByTestId("tab-ctx-remove-from-group")).not.toBeInTheDocument();
-    expect(screen.queryByTestId("tab-ctx-manage-groups")).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByTestId("tab-ctx-add-to-group"));
 
-    expect(useWorkspaceStore.getState().manageGroupsTarget).toEqual({ sessionId: "a" });
+    expect(screen.getByTestId("group-assign-picker")).toBeInTheDocument();
+    expect(useWorkspaceStore.getState().manageGroupsOpen).toBe(false);
   });
 
   it("grouped panes get one-tap remove plus the Manage Groups entry point", async () => {
@@ -178,7 +181,7 @@ describe("TabBar group quick paths", () => {
     });
   });
 
-  it("opens the Manage Groups drawer from a grouped pane's menu", () => {
+  it("moves a grouped pane through the same group overlay", () => {
     const panes = useWorkspaceStore.getState().panes.map((p) =>
       p.sessionId === "a" ? { ...p, groupId: "g1" } : p,
     );
@@ -186,8 +189,8 @@ describe("TabBar group quick paths", () => {
     renderTabBar();
 
     fireEvent.contextMenu(screen.getByTestId("tab-a"), { clientX: 50, clientY: 10 });
-    fireEvent.click(screen.getByTestId("tab-ctx-manage-groups"));
+    fireEvent.click(screen.getByTestId("tab-ctx-move-to-group"));
 
-    expect(useWorkspaceStore.getState().manageGroupsTarget).toEqual({ sessionId: "a" });
+    expect(screen.getByTestId("group-assign-picker")).toBeInTheDocument();
   });
 });

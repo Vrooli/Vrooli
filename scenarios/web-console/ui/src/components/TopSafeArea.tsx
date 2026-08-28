@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { StatusBarFill } from "@vrooli/react-component-library/ChromeTheme";
 
 import { cn } from "../lib/classnames";
 
@@ -15,6 +16,14 @@ interface TopSafeAreaProps {
  *
  * The first child surface starts below the status-bar/notch region, while the
  * fill strip gives nav modes full control over the status area's color.
+ *
+ * The strip itself is the library's `StatusBarFill`, and its colour comes from
+ * the `ChromeTheme` service rather than from a class threaded through props:
+ * the resting terminal-derived tint is that service's base, and an active
+ * banner contributes over it. That direction is deliberate — the colour arrives
+ * from the one place that knows what is actually on screen, instead of being
+ * recomputed by every caller from conditions that may already have been
+ * dismissed.
  */
 export default function TopSafeArea({
   children,
@@ -29,10 +38,9 @@ export default function TopSafeArea({
       className={cn("flex shrink-0 flex-col", className)}
     >
       {enabled && (
-        <div
-          data-testid={testId ? `${testId}-fill` : undefined}
-          aria-hidden="true"
-          className={cn("h-[var(--wc-safe-top,0px)] shrink-0", fillClassName)}
+        <StatusBarFill
+          testId={testId ? `${testId}-fill` : undefined}
+          className={fillClassName}
         />
       )}
       {children}

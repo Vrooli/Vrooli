@@ -3,11 +3,15 @@ package main
 import (
 	"context"
 	"errors"
+	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
 	"time"
 
 	"connectrpc.com/connect"
+	"github.com/gorilla/mux"
+	"github.com/vrooli/api-core/discovery"
 	"github.com/vrooli/api-core/targetmodel"
 	"github.com/vrooli/nodeclient"
 	"google.golang.org/protobuf/encoding/protojson"
@@ -282,5 +286,100 @@ func TestControlPlaneErrorExplainsAConfirmationMismatch(t *testing.T) {
 	other := controlPlaneError("issue a join code", &nodeclient.Error{Kind: nodeclient.ErrInvalidRequest, Err: errors.New("a node id is required")})
 	if !errors.As(other, &connectErr) || !strings.Contains(connectErr.Message(), "node id is required") {
 		t.Errorf("an unrelated refusal was rewritten: %v", other)
+	}
+}
+
+// The handoff to the control plane's own interface is the one link on this
+// surface that leaves the app, and it is the one that was wrong: it carried the
+// Bridge API base, which answers a browser with 404 and names loopback on the
+// server rather than on whichever machine the person is actually using.
+func TestMachineListLinksTheControlPlaneInterfaceNotItsAPI(t *testing.T) {
+	var askedFor, askedHost string
+	srv := &Server{
+		remoteTargetCatalog: func() []targetConnection { return nil },
+		resolveConsoleURL: func(_ context.Context, scenarioSlug, requestHost string) (string, error) {
+			askedFor, askedHost = scenarioSlug, requestHost
+			return "https://vrooli-bridge.example.com", nil
+		},
+	}
+	ctx := discovery.ContextWithExternalHost(context.Background(), "web-console.example.com")
+
+	response, err := (&machineRPC{server: srv}).List(ctx, connect.NewRequest(&machinesv1.ListRequest{}))
+	if err != nil {
+		t.Fatalf("List() error = %v", err)
+	}
+	plane := response.Msg.GetControlPlane()
+	if askedFor != "vrooli-bridge" {
+		t.Fatalf("resolved scenario %q, want the control plane slug", askedFor)
+	}
+	// The origin is the caller's, never the server's: a browser on a phone or
+	// behind a tunnel must receive an address it can reach.
+	if askedHost != "web-console.example.com" {
+		t.Fatalf("resolved against host %q, want the host the request arrived on", askedHost)
+	}
+	if plane.GetConsoleUrl() != "https://vrooli-bridge.example.com" {
+		t.Fatalf("console URL = %q, want the resolved interface address", plane.GetConsoleUrl())
+	}
+	if plane.GetConsoleUrl() == plane.GetEndpoint() {
+		t.Fatal("the interface link and the API base must stay separate fields")
+	}
+}
+
+// A control plane whose interface cannot be located must withhold the link
+// rather than fall back to an address that does not serve a browser.
+func TestMachineListWithholdsTheLinkWhenTheInterfaceIsUnresolvable(t *testing.T) {
+	srv := &Server{
+		remoteTargetCatalog: func() []targetConnection { return nil },
+		resolveConsoleURL: func(_ context.Context, _, _ string) (string, error) {
+			return "", errors.New("vrooli-bridge is not running")
+		},
+	}
+
+	response, err := (&machineRPC{server: srv}).List(context.Background(), connect.NewRequest(&machinesv1.ListRequest{}))
+	if err != nil {
+		t.Fatalf("List() error = %v", err)
+	}
+	if url := response.Msg.GetControlPlane().GetConsoleUrl(); url != "" {
+		t.Fatalf("console URL = %q, want it withheld", url)
+	}
+}
+
+// The host a browser used reaches the RPC only if the middleware is mounted and
+// composes with the Connect handler. Go's server moves the Host header onto
+// Request.Host, where connect.Request.Header() cannot see it, so this is the
+// hop the whole seam depends on and the one a unit test cannot prove.
+func TestExternalHostReachesTheMachineRPCOverHTTP(t *testing.T) {
+	var seenHost string
+	srv := &Server{
+		router:              mux.NewRouter(),
+		remoteTargetCatalog: func() []targetConnection { return nil },
+		resolveConsoleURL: func(_ context.Context, _, requestHost string) (string, error) {
+			seenHost = requestHost
+			return "https://vrooli-bridge.example.com", nil
+		},
+	}
+	srv.router.Use(discovery.ExternalHostMiddleware)
+	srv.mountMachines()
+
+	httpServer := httptest.NewServer(srv.router)
+	defer httpServer.Close()
+
+	request, err := http.NewRequest(http.MethodPost, httpServer.URL+"/vrooli.web_console.v1.machines.MachineService/List", strings.NewReader("{}"))
+	if err != nil {
+		t.Fatalf("build request: %v", err)
+	}
+	request.Header.Set("Content-Type", "application/json")
+	request.Header.Set("X-Forwarded-Host", "web-console.example.com")
+
+	response, err := http.DefaultClient.Do(request)
+	if err != nil {
+		t.Fatalf("call List: %v", err)
+	}
+	defer func() { _ = response.Body.Close() }()
+	if response.StatusCode != http.StatusOK {
+		t.Fatalf("status = %d, want 200", response.StatusCode)
+	}
+	if seenHost != "web-console.example.com" {
+		t.Fatalf("host seen by the RPC = %q, want the forwarded host", seenHost)
 	}
 }

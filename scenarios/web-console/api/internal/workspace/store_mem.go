@@ -14,6 +14,7 @@ type MemStore struct {
 	mu     sync.RWMutex
 	panes  map[string]*Pane
 	groups map[string]*Group
+	roles  map[string]*Role
 }
 
 // NewMemStore returns an empty in-memory store.
@@ -21,6 +22,7 @@ func NewMemStore() *MemStore {
 	return &MemStore{
 		panes:  make(map[string]*Pane),
 		groups: make(map[string]*Group),
+		roles:  make(map[string]*Role),
 	}
 }
 
@@ -52,6 +54,7 @@ func (m *MemStore) GetLayout(_ context.Context) (Layout, error) {
 		ActivePane: activePaneID,
 		Panes:      panes,
 		Groups:     groups,
+		Roles:      m.rolesLocked(""),
 	}, nil
 }
 
@@ -206,5 +209,186 @@ func (m *MemStore) DeleteGroup(_ context.Context, id string) (bool, error) {
 			p.UpdatedAt = now
 		}
 	}
+	// Roles go with the group. The SQL store gets this from ON DELETE
+	// CASCADE; the memory store must produce the same observable result.
+	for roleID, r := range m.roles {
+		if r.GroupID == id {
+			delete(m.roles, roleID)
+		}
+	}
 	return true, nil
+}
+
+// ---------------------------------------------------------------------------
+// Roles
+// ---------------------------------------------------------------------------
+
+func (m *MemStore) ListRoles(_ context.Context, groupID string) ([]Role, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	return m.rolesLocked(groupID), nil
+}
+
+// rolesLocked returns a sorted copy of the roles matching groupID (all roles
+// when it is empty). The caller must hold at least a read lock.
+func (m *MemStore) rolesLocked(groupID string) []Role {
+	out := make([]Role, 0, len(m.roles))
+	for _, r := range m.roles {
+		if groupID != "" && r.GroupID != groupID {
+			continue
+		}
+		out = append(out, *r)
+	}
+	sortRoles(out)
+	return out
+}
+
+func (m *MemStore) CreateRole(_ context.Context, req CreateRoleRequest) (Role, error) {
+	if req.GroupID == "" {
+		return Role{}, ErrInvalidRole
+	}
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	// A running session backs at most one role. The SQL store enforces this
+	// with a partial unique index; the memory store must agree or a test that
+	// passes here would fail in production.
+	if req.SessionID != "" {
+		for _, r := range m.roles {
+			if r.SessionID == req.SessionID {
+				return Role{}, ErrInvalidRole
+			}
+		}
+	}
+
+	sortOrder := req.SortOrder
+	if !req.HasSortOrder {
+		sortOrder = 0
+		for _, r := range m.roles {
+			if r.GroupID == req.GroupID && r.SortOrder >= sortOrder {
+				sortOrder = r.SortOrder + 1
+			}
+		}
+	}
+
+	now := FormatTime(time.Now())
+	role := Role{
+		ID:             uuid.New().String(),
+		GroupID:        req.GroupID,
+		Label:          req.Label,
+		Command:        req.Command,
+		WorkingDir:     req.WorkingDir,
+		IncomingPrompt: req.IncomingPrompt,
+		Backend:        req.Backend,
+		TargetID:       req.TargetID,
+		SessionID:      req.SessionID,
+		SortOrder:      sortOrder,
+		CreatedAt:      now,
+		UpdatedAt:      now,
+	}
+	if role.Label == "" {
+		role.Label = DefaultRoleLabel
+	}
+	stored := role
+	m.roles[role.ID] = &stored
+	return role, nil
+}
+
+func (m *MemStore) UpdateRole(_ context.Context, req UpdateRoleRequest) (Role, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	r, ok := m.roles[req.ID]
+	if !ok {
+		return Role{}, ErrRoleNotFound
+	}
+	if req.HasSessionID && req.SessionID != "" {
+		for id, other := range m.roles {
+			if id != req.ID && other.SessionID == req.SessionID {
+				return Role{}, ErrInvalidRole
+			}
+		}
+	}
+
+	if req.HasLabel {
+		r.Label = req.Label
+	}
+	if req.HasCommand {
+		r.Command = req.Command
+	}
+	if req.HasWorkingDir {
+		r.WorkingDir = req.WorkingDir
+	}
+	if req.HasIncomingPrompt {
+		r.IncomingPrompt = req.IncomingPrompt
+	}
+	if req.HasSessionID {
+		r.SessionID = req.SessionID
+	}
+	if req.HasSortOrder {
+		r.SortOrder = req.SortOrder
+	}
+	if req.HasBackend {
+		r.Backend = req.Backend
+	}
+	if req.HasTargetID {
+		r.TargetID = req.TargetID
+	}
+	if req.HasGroupID {
+		if req.GroupID == "" {
+			return Role{}, ErrInvalidRole
+		}
+		r.GroupID = req.GroupID
+	}
+	r.UpdatedAt = FormatTime(time.Now())
+	return *r, nil
+}
+
+func (m *MemStore) DeleteRole(_ context.Context, id string) (bool, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if _, ok := m.roles[id]; !ok {
+		return false, nil
+	}
+	delete(m.roles, id)
+	return true, nil
+}
+
+func (m *MemStore) ReassignRoleSession(_ context.Context, oldSessionID, newSessionID string) error {
+	if oldSessionID == "" || newSessionID == "" {
+		return nil
+	}
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	// Drop any role already claiming the replacement id before re-pointing, so
+	// the one-session-one-role invariant survives the move.
+	for _, r := range m.roles {
+		if r.SessionID == newSessionID {
+			r.SessionID = ""
+		}
+	}
+	now := FormatTime(time.Now())
+	for _, r := range m.roles {
+		if r.SessionID == oldSessionID {
+			r.SessionID = newSessionID
+			r.UpdatedAt = now
+		}
+	}
+	return nil
+}
+
+// sortRoles orders roles by group, then position, then id so the sequence is
+// total and stable — two roles sharing a sort_order must not swap between
+// reads, or the sidebar reorders itself on every refresh.
+func sortRoles(roles []Role) {
+	sort.Slice(roles, func(i, j int) bool {
+		if roles[i].GroupID != roles[j].GroupID {
+			return roles[i].GroupID < roles[j].GroupID
+		}
+		if roles[i].SortOrder != roles[j].SortOrder {
+			return roles[i].SortOrder < roles[j].SortOrder
+		}
+		return roles[i].ID < roles[j].ID
+	})
 }
